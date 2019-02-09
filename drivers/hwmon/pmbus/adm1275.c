@@ -3,6 +3,7 @@
  * and Digital Power Monitor
  *
  * Copyright (c) 2011 Ericsson AB.
+ * Copyright (c) 2018 Guenter Roeck
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@
 #include <linux/bitops.h>
 #include "pmbus.h"
 
-enum chips { adm1075, adm1275, adm1276, adm1293, adm1294 };
+enum chips { adm1075, adm1272, adm1275, adm1276, adm1278, adm1293, adm1294 };
 
 #define ADM1275_MFR_STATUS_IOUT_WARN2	BIT(0)
 #define ADM1293_MFR_STATUS_VAUX_UV_WARN	BIT(5)
@@ -41,6 +42,12 @@ enum chips { adm1075, adm1275, adm1276, adm1293, adm1294 };
 #define ADM1075_IRANGE_25		BIT(3)
 #define ADM1075_IRANGE_MASK		(BIT(3) | BIT(4))
 
+#define ADM1272_IRANGE			BIT(0)
+
+#define ADM1278_TEMP1_EN		BIT(3)
+#define ADM1278_VIN_EN			BIT(2)
+#define ADM1278_VOUT_EN			BIT(1)
+
 #define ADM1293_IRANGE_25		0
 #define ADM1293_IRANGE_50		BIT(6)
 #define ADM1293_IRANGE_100		BIT(7)
@@ -54,6 +61,7 @@ enum chips { adm1075, adm1275, adm1276, adm1293, adm1294 };
 
 #define ADM1293_VAUX_EN			BIT(1)
 
+#define ADM1278_PEAK_TEMP		0xd7
 #define ADM1275_IOUT_WARN2_LIMIT	0xd7
 #define ADM1275_DEVICE_CONFIG		0xd8
 
@@ -80,6 +88,7 @@ struct adm1275_data {
 	bool have_iout_min;
 	bool have_pin_min;
 	bool have_pin_max;
+	bool have_temp_max;
 	struct pmbus_driver_info info;
 };
 
@@ -95,8 +104,21 @@ static const struct coefficients adm1075_coefficients[] = {
 	[0] = { 27169, 0, -1 },		/* voltage */
 	[1] = { 806, 20475, -1 },	/* current, irange25 */
 	[2] = { 404, 20475, -1 },	/* current, irange50 */
-	[3] = { 0, -1, 8549 },		/* power, irange25 */
-	[4] = { 0, -1, 4279 },		/* power, irange50 */
+	[3] = { 8549, 0, -1 },		/* power, irange25 */
+	[4] = { 4279, 0, -1 },		/* power, irange50 */
+};
+
+static const struct coefficients adm1272_coefficients[] = {
+	[0] = { 6770, 0, -2 },		/* voltage, vrange 60V */
+	[1] = { 4062, 0, -2 },		/* voltage, vrange 100V */
+	[2] = { 1326, 20480, -1 },	/* current, vsense range 15mV */
+	[3] = { 663, 20480, -1 },	/* current, vsense range 30mV */
+	[4] = { 3512, 0, -2 },		/* power, vrange 60V, irange 15mV */
+	[5] = { 21071, 0, -3 },		/* power, vrange 100V, irange 15mV */
+	[6] = { 17561, 0, -3 },		/* power, vrange 60V, irange 30mV */
+	[7] = { 10535, 0, -3 },		/* power, vrange 100V, irange 30mV */
+	[8] = { 42, 31871, -1 },	/* temperature */
+
 };
 
 static const struct coefficients adm1275_coefficients[] = {
@@ -111,6 +133,13 @@ static const struct coefficients adm1276_coefficients[] = {
 	[2] = { 807, 20475, -1 },	/* current */
 	[3] = { 6043, 0, -2 },		/* power, vrange set */
 	[4] = { 2115, 0, -1 },		/* power, vrange not set */
+};
+
+static const struct coefficients adm1278_coefficients[] = {
+	[0] = { 19599, 0, -2 },		/* voltage */
+	[1] = { 800, 20475, -1 },	/* current */
+	[2] = { 6123, 0, -2 },		/* power */
+	[3] = { 42, 31880, -1 },	/* temperature */
 };
 
 static const struct coefficients adm1293_coefficients[] = {
@@ -141,7 +170,7 @@ static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
 	const struct adm1275_data *data = to_adm1275_data(info);
 	int ret = 0;
 
-	if (page)
+	if (page > 0)
 		return -ENXIO;
 
 	switch (reg) {
@@ -196,12 +225,21 @@ static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
 			return -ENXIO;
 		ret = pmbus_read_word_data(client, 0, ADM1276_PEAK_PIN);
 		break;
+	case PMBUS_VIRT_READ_TEMP_MAX:
+		if (!data->have_temp_max)
+			return -ENXIO;
+		ret = pmbus_read_word_data(client, 0, ADM1278_PEAK_TEMP);
+		break;
 	case PMBUS_VIRT_RESET_IOUT_HISTORY:
 	case PMBUS_VIRT_RESET_VOUT_HISTORY:
 	case PMBUS_VIRT_RESET_VIN_HISTORY:
 		break;
 	case PMBUS_VIRT_RESET_PIN_HISTORY:
 		if (!data->have_pin_max)
+			return -ENXIO;
+		break;
+	case PMBUS_VIRT_RESET_TEMP_HISTORY:
+		if (!data->have_temp_max)
 			return -ENXIO;
 		break;
 	default:
@@ -218,7 +256,7 @@ static int adm1275_write_word_data(struct i2c_client *client, int page, int reg,
 	const struct adm1275_data *data = to_adm1275_data(info);
 	int ret;
 
-	if (page)
+	if (page > 0)
 		return -ENXIO;
 
 	switch (reg) {
@@ -244,6 +282,9 @@ static int adm1275_write_word_data(struct i2c_client *client, int page, int reg,
 		if (!ret && data->have_pin_min)
 			ret = pmbus_write_word_data(client, 0,
 						    ADM1293_PIN_MIN, 0);
+		break;
+	case PMBUS_VIRT_RESET_TEMP_HISTORY:
+		ret = pmbus_write_word_data(client, 0, ADM1278_PEAK_TEMP, 0);
 		break;
 	default:
 		ret = -ENODATA;
@@ -310,8 +351,10 @@ static int adm1275_read_byte_data(struct i2c_client *client, int page, int reg)
 
 static const struct i2c_device_id adm1275_id[] = {
 	{ "adm1075", adm1075 },
+	{ "adm1272", adm1272 },
 	{ "adm1275", adm1275 },
 	{ "adm1276", adm1276 },
+	{ "adm1278", adm1278 },
 	{ "adm1293", adm1293 },
 	{ "adm1294", adm1294 },
 	{ }
@@ -329,6 +372,7 @@ static int adm1275_probe(struct i2c_client *client,
 	const struct i2c_device_id *mid;
 	const struct coefficients *coefficients;
 	int vindex = -1, voindex = -1, cindex = -1, pindex = -1;
+	int tindex = -1;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA
@@ -386,6 +430,7 @@ static int adm1275_probe(struct i2c_client *client,
 	info->format[PSC_VOLTAGE_OUT] = direct;
 	info->format[PSC_CURRENT_OUT] = direct;
 	info->format[PSC_POWER] = direct;
+	info->format[PSC_TEMPERATURE] = direct;
 	info->func[0] = PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT;
 
 	info->read_word_data = adm1275_read_word_data;
@@ -423,6 +468,54 @@ static int adm1275_probe(struct i2c_client *client,
 			info->func[0] |=
 			  PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
 		break;
+	case adm1272:
+		data->have_vout = true;
+		data->have_pin_max = true;
+		data->have_temp_max = true;
+
+		coefficients = adm1272_coefficients;
+		vindex = (config & ADM1275_VRANGE) ? 1 : 0;
+		cindex = (config & ADM1272_IRANGE) ? 3 : 2;
+		/* pindex depends on the combination of the above */
+		switch (config & (ADM1275_VRANGE | ADM1272_IRANGE)) {
+		case 0:
+		default:
+			pindex = 4;
+			break;
+		case ADM1275_VRANGE:
+			pindex = 5;
+			break;
+		case ADM1272_IRANGE:
+			pindex = 6;
+			break;
+		case ADM1275_VRANGE | ADM1272_IRANGE:
+			pindex = 7;
+			break;
+		}
+		tindex = 8;
+
+		info->func[0] |= PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT |
+			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
+
+		/* Enable VOUT if not enabled (it is disabled by default) */
+		if (!(config & ADM1278_VOUT_EN)) {
+			config |= ADM1278_VOUT_EN;
+			ret = i2c_smbus_write_byte_data(client,
+							ADM1275_PMON_CONFIG,
+							config);
+			if (ret < 0) {
+				dev_err(&client->dev,
+					"Failed to enable VOUT monitoring\n");
+				return -ENODEV;
+			}
+		}
+
+		if (config & ADM1278_TEMP1_EN)
+			info->func[0] |=
+				PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
+		if (config & ADM1278_VIN_EN)
+			info->func[0] |= PMBUS_HAVE_VIN;
+		break;
 	case adm1275:
 		if (device_config & ADM1275_IOUT_WARN2_SELECT)
 			data->have_oc_fault = true;
@@ -459,6 +552,39 @@ static int adm1275_probe(struct i2c_client *client,
 		if (config & ADM1275_VIN_VOUT_SELECT)
 			info->func[0] |=
 			  PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
+		break;
+	case adm1278:
+		data->have_vout = true;
+		data->have_pin_max = true;
+		data->have_temp_max = true;
+
+		coefficients = adm1278_coefficients;
+		vindex = 0;
+		cindex = 1;
+		pindex = 2;
+		tindex = 3;
+
+		info->func[0] |= PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT |
+			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
+
+		/* Enable VOUT if not enabled (it is disabled by default) */
+		if (!(config & ADM1278_VOUT_EN)) {
+			config |= ADM1278_VOUT_EN;
+			ret = i2c_smbus_write_byte_data(client,
+							ADM1275_PMON_CONFIG,
+							config);
+			if (ret < 0) {
+				dev_err(&client->dev,
+					"Failed to enable VOUT monitoring\n");
+				return -ENODEV;
+			}
+		}
+
+		if (config & ADM1278_TEMP1_EN)
+			info->func[0] |=
+				PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
+		if (config & ADM1278_VIN_EN)
+			info->func[0] |= PMBUS_HAVE_VIN;
 		break;
 	case adm1293:
 	case adm1294:
@@ -536,6 +662,11 @@ static int adm1275_probe(struct i2c_client *client,
 		info->m[PSC_POWER] = coefficients[pindex].m;
 		info->b[PSC_POWER] = coefficients[pindex].b;
 		info->R[PSC_POWER] = coefficients[pindex].R;
+	}
+	if (tindex >= 0) {
+		info->m[PSC_TEMPERATURE] = coefficients[tindex].m;
+		info->b[PSC_TEMPERATURE] = coefficients[tindex].b;
+		info->R[PSC_TEMPERATURE] = coefficients[tindex].R;
 	}
 
 	return pmbus_do_probe(client, id, info);

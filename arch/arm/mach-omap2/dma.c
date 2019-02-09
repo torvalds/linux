@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/of.h>
 #include <linux/omap-dma.h>
 
@@ -203,6 +204,16 @@ static unsigned configure_dma_errata(void)
 	return errata;
 }
 
+static const struct dma_slave_map omap24xx_sdma_dt_map[] = {
+	/* external DMA requests when tusb6010 is used */
+	{ "musb-hdrc.1.auto", "dmareq0", SDMA_FILTER_PARAM(2) },
+	{ "musb-hdrc.1.auto", "dmareq1", SDMA_FILTER_PARAM(3) },
+	{ "musb-hdrc.1.auto", "dmareq2", SDMA_FILTER_PARAM(14) }, /* OMAP2420 only */
+	{ "musb-hdrc.1.auto", "dmareq3", SDMA_FILTER_PARAM(15) }, /* OMAP2420 only */
+	{ "musb-hdrc.1.auto", "dmareq4", SDMA_FILTER_PARAM(16) }, /* OMAP2420 only */
+	{ "musb-hdrc.1.auto", "dmareq5", SDMA_FILTER_PARAM(64) }, /* OMAP2420 only */
+};
+
 static struct omap_system_dma_plat_info dma_plat_info __initdata = {
 	.reg_map	= reg_map,
 	.channel_stride	= 0x60,
@@ -212,7 +223,7 @@ static struct omap_system_dma_plat_info dma_plat_info __initdata = {
 	.dma_read	= dma_read,
 };
 
-static struct platform_device_info omap_dma_dev_info = {
+static struct platform_device_info omap_dma_dev_info __initdata = {
 	.name = "omap-dma-engine",
 	.id = -1,
 	.dma_mask = DMA_BIT_MASK(32),
@@ -230,6 +241,12 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 	p = dma_plat_info;
 	p.dma_attr = (struct omap_dma_dev_attr *)oh->dev_attr;
 	p.errata = configure_dma_errata();
+
+	if (soc_is_omap24xx()) {
+		/* DMA slave map for drivers not yet converted to DT */
+		p.slave_map = omap24xx_sdma_dt_map;
+		p.slavecnt = ARRAY_SIZE(omap24xx_sdma_dt_map);
+	}
 
 	pdev = omap_device_build(name, 0, oh, &p, sizeof(p));
 	if (IS_ERR(pdev)) {
@@ -272,21 +289,7 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 
 static int __init omap2_system_dma_init(void)
 {
-	struct platform_device *pdev;
-	int res;
-
-	res = omap_hwmod_for_each_by_class("dma",
+	return omap_hwmod_for_each_by_class("dma",
 			omap2_system_dma_init_dev, NULL);
-	if (res)
-		return res;
-
-	if (of_have_populated_dt())
-		return res;
-
-	pdev = platform_device_register_full(&omap_dma_dev_info);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	return res;
 }
 omap_arch_initcall(omap2_system_dma_init);

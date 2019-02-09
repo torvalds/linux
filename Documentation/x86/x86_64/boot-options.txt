@@ -36,7 +36,8 @@ Machine check
 		to broadcast MCEs.
    mce=bootlog
 		Enable logging of machine checks left over from booting.
-		Disabled by default on AMD because some BIOS leave bogus ones.
+		Disabled by default on AMD Fam10h and older because some BIOS
+		leave bogus ones.
 		If your BIOS doesn't do that it's a good idea to enable though
 		to make sure you log even machine check events that result
 		in a reboot. On Intel systems it is enabled by default.
@@ -60,6 +61,8 @@ Machine check
 		threshold to 1. Enabling this may make memory predictive failure
 		analysis less effective if the bios sets thresholds for memory
 		errors since we will not see details for all errors.
+   mce=recovery
+		Force-enable recoverable machine check code paths
 
    nomce (for compatibility with i386): same as mce=off
 
@@ -89,9 +92,7 @@ APICs
 Timing
 
   notsc
-  Don't use the CPU time stamp counter to read the wall time.
-  This can be used to work around timing problems on multiprocessor systems
-  with not properly synchronized CPUs.
+  Deprecated, use tsc=unstable instead.
 
   nohpet
   Don't use the HPET timer.
@@ -153,6 +154,10 @@ NUMA
 		If given as an integer, fills all system RAM with N fake nodes
 		interleaved over physical nodes.
 
+  numa=fake=<N>U
+		If given as an integer followed by 'U', it will divide each
+		physical node into N emulated nodes.
+
 ACPI
 
   acpi=off	Don't enable ACPI
@@ -184,9 +189,9 @@ PCI
 
 IOMMU (input/output memory management unit)
 
- Currently four x86-64 PCI-DMA mapping implementations exist:
+ Multiple x86-64 PCI-DMA mapping implementations exist, for example:
 
-   1. <arch/x86_64/kernel/pci-nommu.c>: use no hardware/software IOMMU at all
+   1. <lib/dma-direct.c>: use no hardware/software IOMMU at all
       (e.g. because you have < 3 GB memory).
       Kernel boot message: "PCI-DMA: Disabling IOMMU"
 
@@ -205,7 +210,7 @@ IOMMU (input/output memory management unit)
       Kernel boot message: "PCI-DMA: Using Calgary IOMMU"
 
  iommu=[<size>][,noagp][,off][,force][,noforce][,leak[=<nr_of_leak_pages>]
-	[,memaper[=<order>]][,merge][,forcesac][,fullflush][,nomerge]
+	[,memaper[=<order>]][,merge][,fullflush][,nomerge]
 	[,noaperture][,calgary]
 
   General iommu options:
@@ -232,14 +237,7 @@ IOMMU (input/output memory management unit)
                        (experimental).
     nomerge            Don't do scatter-gather (SG) merging.
     noaperture         Ask the IOMMU not to touch the aperture for AGP.
-    forcesac           Force single-address cycle (SAC) mode for masks <40bits
-                       (experimental).
     noagp              Don't initialize the AGP driver and use full aperture.
-    allowdac           Allow double-address cycle (DAC) mode, i.e. DMA >4GB.
-                       DAC is used with 32-bit PCI to push a 64-bit address in
-                       two cycles. When off all DMA over >4GB is forced through
-                       an IOMMU or software bounce buffering.
-    nodac              Forbid DAC mode, i.e. DMA >4GB.
     panic              Always panic when IOMMU overflows.
     calgary            Use the Calgary IOMMU if it is available
 
@@ -274,10 +272,6 @@ IOMMU (input/output memory management unit)
     bridge, X servers that access the hardware directly from user
     space might stop working. Use this option if you have devices that
     are accessed from userspace directly on some PCI host bridge.
-
-Debugging
-
-  kstack=N	Print N words from the kernel stack in oops dumps.
 
 Miscellaneous
 

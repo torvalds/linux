@@ -1,29 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Nodes for Marvell 628x Synology devices
  *
  * Andrew Lunn <andrew@lunn.ch>
  * Ben Peddell <klightspeed@killerwolves.net>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 / {
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-
-			pcie2: pcie@2,0 {
-				status = "disabled";
-			};
-		};
-	};
-
 	ocp@f1000000 {
 		pinctrl: pin-controller@10000 {
 			pmx_alarmled_12: pmx-alarmled-12 {
@@ -222,32 +206,32 @@
 				spi-max-frequency = <20000000>;
 				mode = <0>;
 
-				partition@00000000 {
+				partition@0 {
 					reg = <0x00000000 0x00080000>;
 					label = "RedBoot";
 				};
 
-				partition@00080000 {
+				partition@80000 {
 					reg = <0x00080000 0x00200000>;
 					label = "zImage";
 				};
 
-				partition@00280000 {
+				partition@280000 {
 					reg = <0x00280000 0x00140000>;
 					label = "rd.gz";
 				};
 
-				partition@003c0000 {
+				partition@3c0000 {
 					reg = <0x003c0000 0x00010000>;
 					label = "vendor";
 				};
 
-				partition@003d0000 {
+				partition@3d0000 {
 					reg = <0x003d0000 0x00020000>;
 					label = "RedBoot config";
 				};
 
-				partition@003f0000 {
+				partition@3f0000 {
 					reg = <0x003f0000 0x00010000>;
 					label = "FIS directory";
 				};
@@ -860,4 +844,12 @@
 	ethernet1-port@0 {
 		phy-handle = <&ethphy1>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

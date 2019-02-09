@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * handling diagnose instructions
  *
  * Copyright IBM Corp. 2008, 2011
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -14,6 +11,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <asm/pgalloc.h>
+#include <asm/gmap.h>
 #include <asm/virtio-ccw.h>
 #include "kvm-s390.h"
 #include "trace.h"
@@ -26,7 +24,7 @@ static int diag_release_pages(struct kvm_vcpu *vcpu)
 	unsigned long prefix  = kvm_s390_get_prefix(vcpu);
 
 	start = vcpu->run->s.regs.gprs[(vcpu->arch.sie_block->ipa & 0xf0) >> 4];
-	end = vcpu->run->s.regs.gprs[vcpu->arch.sie_block->ipa & 0xf] + 4096;
+	end = vcpu->run->s.regs.gprs[vcpu->arch.sie_block->ipa & 0xf] + PAGE_SIZE;
 	vcpu->stat.diagnose_10++;
 
 	if (start & ~PAGE_MASK || end & ~PAGE_MASK || start >= end
@@ -50,9 +48,9 @@ static int diag_release_pages(struct kvm_vcpu *vcpu)
 		 */
 		gmap_discard(vcpu->arch.gmap, start, prefix);
 		if (start <= prefix)
-			gmap_discard(vcpu->arch.gmap, 0, 4096);
-		if (end > prefix + 4096)
-			gmap_discard(vcpu->arch.gmap, 4096, 8192);
+			gmap_discard(vcpu->arch.gmap, 0, PAGE_SIZE);
+		if (end > prefix + PAGE_SIZE)
+			gmap_discard(vcpu->arch.gmap, PAGE_SIZE, 2 * PAGE_SIZE);
 		gmap_discard(vcpu->arch.gmap, prefix + 2 * PAGE_SIZE, end);
 	}
 	return 0;
@@ -149,16 +147,14 @@ static int __diag_time_slice_end(struct kvm_vcpu *vcpu)
 {
 	VCPU_EVENT(vcpu, 5, "%s", "diag time slice end");
 	vcpu->stat.diagnose_44++;
-	kvm_vcpu_on_spin(vcpu);
+	kvm_vcpu_on_spin(vcpu, true);
 	return 0;
 }
 
 static int __diag_time_slice_end_directed(struct kvm_vcpu *vcpu)
 {
-	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu *tcpu;
 	int tid;
-	int i;
 
 	tid = vcpu->run->s.regs.gprs[(vcpu->arch.sie_block->ipa & 0xf0) >> 4];
 	vcpu->stat.diagnose_9c++;
@@ -167,12 +163,9 @@ static int __diag_time_slice_end_directed(struct kvm_vcpu *vcpu)
 	if (tid == vcpu->vcpu_id)
 		return 0;
 
-	kvm_for_each_vcpu(i, tcpu, kvm)
-		if (tcpu->vcpu_id == tid) {
-			kvm_vcpu_yield_to(tcpu);
-			break;
-		}
-
+	tcpu = kvm_get_vcpu_by_id(vcpu->kvm, tid);
+	if (tcpu)
+		kvm_vcpu_yield_to(tcpu);
 	return 0;
 }
 
@@ -215,6 +208,11 @@ static int __diag_virtio_hypercall(struct kvm_vcpu *vcpu)
 	if (!vcpu->kvm->arch.css_support ||
 	    (vcpu->run->s.regs.gprs[1] != KVM_S390_VIRTIO_CCW_NOTIFY))
 		return -EOPNOTSUPP;
+
+	VCPU_EVENT(vcpu, 4, "diag 0x500 schid 0x%8.8x queue 0x%x cookie 0x%llx",
+			    (u32) vcpu->run->s.regs.gprs[2],
+			    (u32) vcpu->run->s.regs.gprs[3],
+			    vcpu->run->s.regs.gprs[4]);
 
 	/*
 	 * The layout is as follows:
@@ -259,6 +257,7 @@ int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 	case 0x500:
 		return __diag_virtio_hypercall(vcpu);
 	default:
+		vcpu->stat.diagnose_other++;
 		return -EOPNOTSUPP;
 	}
 }

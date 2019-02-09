@@ -26,7 +26,6 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/platform_device.h>
-#include <linux/kthread.h>
 #include <linux/firmware.h>
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
@@ -778,7 +777,6 @@ static irqreturn_t hsw_irq_thread(int irq, void *context)
 	struct sst_hsw *hsw = sst_dsp_get_thread_context(sst);
 	struct sst_generic_ipc *ipc = &hsw->ipc;
 	u32 ipcx, ipcd;
-	int handled;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sst->spinlock, flags);
@@ -790,40 +788,36 @@ static irqreturn_t hsw_irq_thread(int irq, void *context)
 	if (ipcx & SST_IPCX_DONE) {
 
 		/* Handle Immediate reply from DSP Core */
-		handled = hsw_process_reply(hsw, ipcx);
+		hsw_process_reply(hsw, ipcx);
 
-		if (handled > 0) {
-			/* clear DONE bit - tell DSP we have completed */
-			sst_dsp_shim_update_bits_unlocked(sst, SST_IPCX,
-				SST_IPCX_DONE, 0);
+		/* clear DONE bit - tell DSP we have completed */
+		sst_dsp_shim_update_bits_unlocked(sst, SST_IPCX,
+			SST_IPCX_DONE, 0);
 
-			/* unmask Done interrupt */
-			sst_dsp_shim_update_bits_unlocked(sst, SST_IMRX,
-				SST_IMRX_DONE, 0);
-		}
+		/* unmask Done interrupt */
+		sst_dsp_shim_update_bits_unlocked(sst, SST_IMRX,
+			SST_IMRX_DONE, 0);
 	}
 
 	/* new message from DSP */
 	if (ipcd & SST_IPCD_BUSY) {
 
 		/* Handle Notification and Delayed reply from DSP Core */
-		handled = hsw_process_notification(hsw);
+		hsw_process_notification(hsw);
 
 		/* clear BUSY bit and set DONE bit - accept new messages */
-		if (handled > 0) {
-			sst_dsp_shim_update_bits_unlocked(sst, SST_IPCD,
-				SST_IPCD_BUSY | SST_IPCD_DONE, SST_IPCD_DONE);
+		sst_dsp_shim_update_bits_unlocked(sst, SST_IPCD,
+			SST_IPCD_BUSY | SST_IPCD_DONE, SST_IPCD_DONE);
 
-			/* unmask busy interrupt */
-			sst_dsp_shim_update_bits_unlocked(sst, SST_IMRX,
-				SST_IMRX_BUSY, 0);
-		}
+		/* unmask busy interrupt */
+		sst_dsp_shim_update_bits_unlocked(sst, SST_IMRX,
+			SST_IMRX_BUSY, 0);
 	}
 
 	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	/* continue to send any remaining messages... */
-	queue_kthread_work(&ipc->kworker, &ipc->kwork);
+	schedule_work(&ipc->kwork);
 
 	return IRQ_HANDLED;
 }
@@ -1350,7 +1344,7 @@ int sst_hsw_stream_reset(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 		return 0;
 
 	/* wait for pause to complete before we reset the stream */
-	while (stream->running && tries--)
+	while (stream->running && --tries)
 		msleep(1);
 	if (!tries) {
 		dev_err(hsw->dev, "error: reset stream %d still running\n",
@@ -2006,10 +2000,8 @@ int sst_hsw_module_set_param(struct sst_hsw *hsw,
 	u32 param_size, char *param)
 {
 	int ret;
-	unsigned char *data = NULL;
 	u32 header = 0;
 	u32 payload_size = 0, transfer_parameter_size = 0;
-	dma_addr_t dma_addr = 0;
 	struct sst_hsw_transfer_parameter *parameter;
 	struct device *dev = hsw->dev;
 
@@ -2052,10 +2044,6 @@ int sst_hsw_module_set_param(struct sst_hsw *hsw,
 		dev_err(dev, "ipc: module set parameter failed - %d\n", ret);
 
 	kfree(parameter);
-
-	if (data)
-		dma_free_coherent(hsw->dsp->dma_dev,
-			param_size, (void *)data, dma_addr);
 
 	return ret;
 }

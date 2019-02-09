@@ -1,0 +1,24 @@
+* AVIA HX711 ADC chip for weight cells
+  Bit-banging driver
+
+Required properties:
+ - compatible:	Should be "avia,hx711"
+ - sck-gpios:	Definition of the GPIO for the clock
+ - dout-gpios:	Definition of the GPIO for data-out
+		See Documentation/devicetree/bindings/gpio/gpio.txt
+ - avdd-supply:	Definition of the regulator used as analog supply
+
+Optional properties:
+ - clock-frequency:	Frequency of PD_SCK in Hz
+			Minimum value allowed is 10 kHz because of maximum
+			high time of 50 microseconds.
+
+Example:
+weight {
+	compatible = "avia,hx711";
+	sck-gpios = <&gpio3 10 GPIO_ACTIVE_HIGH>;
+	dout-gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+	avdd-suppy = <&avdd>;
+	clock-frequency = <100000>;
+};
+

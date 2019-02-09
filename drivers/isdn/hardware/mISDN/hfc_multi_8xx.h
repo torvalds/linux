@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * For License see notice in hfc_multi.c
  *
@@ -6,7 +7,7 @@
  *
  */
 
-#include <asm/8xx_immap.h>
+#include <asm/cpm1.h>
 
 /* Change this to the value used by your board */
 #ifndef IMAP_ADDR

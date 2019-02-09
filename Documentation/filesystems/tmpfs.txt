@@ -17,10 +17,10 @@ RAM, where you have to create an ordinary filesystem on top. Ramdisks
 cannot swap and you do not have the possibility to resize them. 
 
 Since tmpfs lives completely in the page cache and on swap, all tmpfs
-pages currently in memory will show up as cached. It will not show up
-as shared or something like that. Further on you can check the actual
-RAM+swap use of a tmpfs instance with df(1) and du(1).
-
+pages will be shown as "Shmem" in /proc/meminfo and "Shared" in
+free(1). Notice that these counters also include shared memory
+(shmem, see ipcs(1)). The most reliable way to get the count is
+using df(1) and du(1).
 
 tmpfs has the following uses:
 
@@ -60,7 +60,7 @@ size:      The limit of allocated bytes for this tmpfs instance. The
            default is half of your physical RAM without swap. If you
            oversize your tmpfs instances the machine will deadlock
            since the OOM handler will not be able to free that memory.
-nr_blocks: The same as size, but in blocks of PAGE_CACHE_SIZE.
+nr_blocks: The same as size, but in blocks of PAGE_SIZE.
 nr_inodes: The maximum number of inodes for this instance. The default
            is half of the number of your physical RAM pages, or (on a
            machine with highmem) the number of lowmem RAM pages,
@@ -98,15 +98,16 @@ A memory policy with a valid NodeList will be saved, as specified, for
 use at file creation time.  When a task allocates a file in the file
 system, the mount option memory policy will be applied with a NodeList,
 if any, modified by the calling task's cpuset constraints
-[See Documentation/cgroups/cpusets.txt] and any optional flags, listed
+[See Documentation/cgroup-v1/cpusets.txt] and any optional flags, listed
 below.  If the resulting NodeLists is the empty set, the effective memory
 policy for the file will revert to "default" policy.
 
 NUMA memory allocation policies have optional flags that can be used in
 conjunction with their modes.  These optional flags can be specified
 when tmpfs is mounted by appending them to the mode before the NodeList.
-See Documentation/vm/numa_memory_policy.txt for a list of all available
-memory allocation policy mode flags and their effect on memory policy.
+See Documentation/admin-guide/mm/numa_memory_policy.rst for a list of
+all available memory allocation policy mode flags and their effect on
+memory policy.
 
 	=static		is equivalent to	MPOL_F_STATIC_NODES
 	=relative	is equivalent to	MPOL_F_RELATIVE_NODES

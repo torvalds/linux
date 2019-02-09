@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IA64_IO_H
 #define _ASM_IA64_IO_H
 
@@ -20,6 +21,7 @@
  */
 
 #include <asm/unaligned.h>
+#include <asm/early_ioremap.h>
 
 /* We don't use IO slowdowns on the ia64, but.. */
 #define __SLOW_DOWN_IO	do { } while (0)
@@ -81,12 +83,14 @@ virt_to_phys (volatile void *address)
 {
 	return (unsigned long) address - PAGE_OFFSET;
 }
+#define virt_to_phys virt_to_phys
 
 static inline void*
 phys_to_virt (unsigned long address)
 {
 	return (void *) (address + PAGE_OFFSET);
 }
+#define phys_to_virt phys_to_virt
 
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
 extern u64 kern_mem_attribute (unsigned long phys_addr, unsigned long size);
@@ -116,7 +120,7 @@ extern int valid_mmap_phys_addr_range (unsigned long pfn, size_t count);
  * following the barrier will arrive after all previous writes.  For most
  * ia64 platforms, this is a simple 'mf.a' instruction.
  *
- * See Documentation/DocBook/deviceiobook.tmpl for more information.
+ * See Documentation/driver-api/device-io.rst for more information.
  */
 static inline void ___ia64_mmiowb(void)
 {
@@ -427,16 +431,15 @@ __writeq (unsigned long val, volatile void __iomem *addr)
 extern void __iomem * ioremap(unsigned long offset, unsigned long size);
 extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
 extern void iounmap (volatile void __iomem *addr);
-extern void __iomem * early_ioremap (unsigned long phys_addr, unsigned long size);
-#define early_memremap(phys_addr, size)        early_ioremap(phys_addr, size)
-extern void early_iounmap (volatile void __iomem *addr, unsigned long size);
-#define early_memunmap(addr, size)             early_iounmap(addr, size)
 static inline void __iomem * ioremap_cache (unsigned long phys_addr, unsigned long size)
 {
 	return ioremap(phys_addr, size);
 }
+#define ioremap ioremap
+#define ioremap_nocache ioremap_nocache
 #define ioremap_cache ioremap_cache
-
+#define ioremap_uc ioremap_nocache
+#define iounmap iounmap
 
 /*
  * String version of IO memory access ops:
@@ -444,6 +447,14 @@ static inline void __iomem * ioremap_cache (unsigned long phys_addr, unsigned lo
 extern void memcpy_fromio(void *dst, const volatile void __iomem *src, long n);
 extern void memcpy_toio(volatile void __iomem *dst, const void *src, long n);
 extern void memset_io(volatile void __iomem *s, int c, long n);
+
+#define memcpy_fromio memcpy_fromio
+#define memcpy_toio memcpy_toio
+#define memset_io memset_io
+#define xlate_dev_kmem_ptr xlate_dev_kmem_ptr
+#define xlate_dev_mem_ptr xlate_dev_mem_ptr
+#include <asm-generic/io.h>
+#undef PCI_IOBASE
 
 # endif /* __KERNEL__ */
 

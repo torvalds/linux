@@ -70,11 +70,9 @@ config IP_MULTIPLE_TABLES
 	  address into account. Furthermore, the TOS (Type-Of-Service) field
 	  of the packet can be used for routing decisions as well.
 
-	  If you are interested in this, please see the preliminary
-	  documentation at <http://www.compendium.com.ar/policy-routing.txt>
-	  and <ftp://post.tepkom.ru/pub/vol2/Linux/docs/advanced-routing.tex>.
-	  You will need supporting software from
-	  <ftp://ftp.tux.org/pub/net/ip-routing/>.
+	  If you need more information, see the Linux Advanced
+	  Routing and Traffic Control documentation at
+	  <http://lartc.org/howto/lartc.rpdb.html>
 
 	  If unsure, say N.
 
@@ -186,6 +184,8 @@ config NET_IPGRE_DEMUX
 
 config NET_IP_TUNNEL
 	tristate
+	select DST_CACHE
+	select GRO_CELLS
 	default n
 
 config NET_IPGRE
@@ -212,9 +212,14 @@ config NET_IPGRE_BROADCAST
 	  Network), but can be distributed all over the Internet. If you want
 	  to do that, say Y here and to "IP multicast routing" below.
 
+config IP_MROUTE_COMMON
+	bool
+	depends on IP_MROUTE || IPV6_MROUTE
+
 config IP_MROUTE
 	bool "IP: multicast routing"
 	depends on IP_MULTICAST
+	select IP_MROUTE_COMMON
 	help
 	  This is used if you want your machine to act as a router for IP
 	  packets that have several destination addresses. It is needed on the
@@ -353,10 +358,24 @@ config INET_ESP
 	select CRYPTO_CBC
 	select CRYPTO_SHA1
 	select CRYPTO_DES
+	select CRYPTO_ECHAINIV
 	---help---
 	  Support for IPsec ESP.
 
 	  If unsure, say Y.
+
+config INET_ESP_OFFLOAD
+	tristate "IP: ESP transformation offload"
+	depends on INET_ESP
+	select XFRM_OFFLOAD
+	default n
+	---help---
+	  Support for ESP transformation offload. This makes sense
+	  only if this system really does IPsec and want to do it
+	  with high throughput. A typical desktop system does not
+	  need it, even if it does IPsec.
+
+	  If unsure, say N.
 
 config INET_IPCOMP
 	tristate "IP: IPComp transformation"
@@ -404,14 +423,6 @@ config INET_XFRM_MODE_BEET
 
 	  If unsure, say Y.
 
-config INET_LRO
-	tristate "Large Receive Offload (ipv4/tcp)"
-	default y
-	---help---
-	  Support for Large Receive Offload (ipv4/tcp).
-
-	  If unsure, say Y.
-
 config INET_DIAG
 	tristate "INET: socket monitoring interface"
 	default y
@@ -419,7 +430,7 @@ config INET_DIAG
 	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
 	  native Linux tools such as ss. ss is included in iproute2, currently
 	  downloadable at:
-	  
+
 	    http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2
 
 	  If unsure, say Y.
@@ -435,6 +446,27 @@ config INET_UDP_DIAG
 	---help---
 	  Support for UDP socket monitoring interface used by the ss tool.
 	  If unsure, say Y.
+
+config INET_RAW_DIAG
+	tristate "RAW: socket monitoring interface"
+	depends on INET_DIAG && (IPV6 || IPV6=n)
+	default n
+	---help---
+	  Support for RAW socket monitoring interface used by the ss tool.
+	  If unsure, say Y.
+
+config INET_DIAG_DESTROY
+	bool "INET: allow privileged process to administratively close sockets"
+	depends on INET_DIAG
+	default n
+	---help---
+	  Provides a SOCK_DESTROY operation that allows privileged processes
+	  (e.g., a connection manager or a network administration tool such as
+	  ss) to close sockets opened by other processes. Closing a socket in
+	  this way interrupts any blocking read/write/connect operations on
+	  the socket and causes future socket calls to behave as if the socket
+	  had been disconnected.
+	  If unsure, say N.
 
 menuconfig TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"
@@ -525,6 +557,22 @@ config TCP_CONG_VEGAS
 	window. TCP Vegas should provide less packet loss, but it is
 	not as aggressive as TCP Reno.
 
+config TCP_CONG_NV
+       tristate "TCP NV"
+       default n
+       ---help---
+       TCP NV is a follow up to TCP Vegas. It has been modified to deal with
+       10G networks, measurement noise introduced by LRO, GRO and interrupt
+       coalescence. In addition, it will decrease its cwnd multiplicatively
+       instead of linearly.
+
+       Note that in general congestion avoidance (cwnd decreased when # packets
+       queued grows) cannot coexist with congestion control (cwnd decreased only
+       when there is packet loss) due to fairness issues. One scenario when they
+       can coexist safely is when the CA flows have RTTs << CC flows RTTs.
+
+       For further details see http://www.brakmo.org/networking/tcp-nv/
+
 config TCP_CONG_SCALABLE
 	tristate "Scalable TCP"
 	default n
@@ -552,7 +600,7 @@ config TCP_CONG_VENO
 	distinguishing to circumvent the difficult judgment of the packet loss
 	type. TCP Veno cuts down less congestion window in response to random
 	loss packets.
-	See <http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=1177186> 
+	See <http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=1177186>
 
 config TCP_CONG_YEAH
 	tristate "YeAH TCP"
@@ -617,6 +665,21 @@ config TCP_CONG_CDG
 	  D.A. Hayes and G. Armitage. "Revisiting TCP congestion control using
 	  delay gradients." In Networking 2011. Preprint: http://goo.gl/No3vdg
 
+config TCP_CONG_BBR
+	tristate "BBR TCP"
+	default n
+	---help---
+
+	BBR (Bottleneck Bandwidth and RTT) TCP congestion control aims to
+	maximize network utilization and minimize queues. It builds an explicit
+	model of the the bottleneck delivery rate and path round-trip
+	propagation delay. It tolerates packet loss and delay unrelated to
+	congestion. It can operate over LAN, WAN, cellular, wifi, or cable
+	modem links. It can coexist with flows that use loss-based congestion
+	control, and can operate with shallow buffers, deep buffers,
+	bufferbloat, policers, or AQM schemes that do not provide a delay
+	signal. It requires the fq ("Fair Queue") pacing packet scheduler.
+
 choice
 	prompt "Default TCP congestion control"
 	default DEFAULT_CUBIC
@@ -651,6 +714,9 @@ choice
 	config DEFAULT_CDG
 		bool "CDG" if TCP_CONG_CDG=y
 
+	config DEFAULT_BBR
+		bool "BBR" if TCP_CONG_BBR=y
+
 	config DEFAULT_RENO
 		bool "Reno"
 endchoice
@@ -674,6 +740,7 @@ config DEFAULT_TCP_CONG
 	default "reno" if DEFAULT_RENO
 	default "dctcp" if DEFAULT_DCTCP
 	default "cdg" if DEFAULT_CDG
+	default "bbr" if DEFAULT_BBR
 	default "cubic"
 
 config TCP_MD5SIG

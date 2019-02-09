@@ -1,10 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Common LSM logging functions
  * Heavily borrowed from selinux/avc.h
  *
  * Author : Etienne BASSET  <etienne.basset@ensta.org>
  *
- * All credits to : Stephen Smalley, <sds@epoch.ncsc.mil>
+ * All credits to : Stephen Smalley, <sds@tycho.nsa.gov>
  * All BUGS to : Etienne BASSET  <etienne.basset@ensta.org>
  */
 #ifndef _LSM_COMMON_LOGGING_
@@ -21,6 +22,7 @@
 #include <linux/path.h>
 #include <linux/key.h>
 #include <linux/skbuff.h>
+#include <rdma/ib_verbs.h>
 
 struct lsm_network_audit {
 	int netif;
@@ -45,6 +47,16 @@ struct lsm_ioctlop_audit {
 	u16 cmd;
 };
 
+struct lsm_ibpkey_audit {
+	u64	subnet_prefix;
+	u16	pkey;
+};
+
+struct lsm_ibendport_audit {
+	char	dev_name[IB_DEVICE_NAME_MAX];
+	u8	port;
+};
+
 /* Auxiliary data to use in generating the audit record. */
 struct common_audit_data {
 	char type;
@@ -59,6 +71,9 @@ struct common_audit_data {
 #define LSM_AUDIT_DATA_INODE	9
 #define LSM_AUDIT_DATA_DENTRY	10
 #define LSM_AUDIT_DATA_IOCTL_OP	11
+#define LSM_AUDIT_DATA_FILE	12
+#define LSM_AUDIT_DATA_IBPKEY	13
+#define LSM_AUDIT_DATA_IBENDPORT 14
 	union 	{
 		struct path path;
 		struct dentry *dentry;
@@ -75,6 +90,9 @@ struct common_audit_data {
 #endif
 		char *kmod_name;
 		struct lsm_ioctlop_audit *op;
+		struct file *file;
+		struct lsm_ibpkey_audit *ibpkey;
+		struct lsm_ibendport_audit *ibendport;
 	} u;
 	/* this union contains LSM specific data */
 	union {

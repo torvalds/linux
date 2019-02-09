@@ -1,15 +1,13 @@
-/*
- * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Freescale imx7d pinctrl driver
+//
+// Author: Anson Huang <Anson.Huang@freescale.com>
+// Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
 
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -356,18 +354,19 @@ static const struct pinctrl_pin_desc imx7d_lpsr_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO07),
 };
 
-static struct imx_pinctrl_soc_info imx7d_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx7d_pinctrl_info = {
 	.pins = imx7d_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx7d_pinctrl_pads),
+	.gpr_compatible = "fsl,imx7d-iomuxc-gpr",
 };
 
-static struct imx_pinctrl_soc_info imx7d_lpsr_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx7d_lpsr_pinctrl_info = {
 	.pins = imx7d_lpsr_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx7d_lpsr_pinctrl_pads),
 	.flags = ZERO_OFFSET_VALID,
 };
 
-static struct of_device_id imx7d_pinctrl_of_match[] = {
+static const struct of_device_id imx7d_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx7d-iomuxc", .data = &imx7d_pinctrl_info, },
 	{ .compatible = "fsl,imx7d-iomuxc-lpsr", .data = &imx7d_lpsr_pinctrl_info },
 	{ /* sentinel */ }
@@ -375,15 +374,11 @@ static struct of_device_id imx7d_pinctrl_of_match[] = {
 
 static int imx7d_pinctrl_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
-	struct imx_pinctrl_soc_info *pinctrl_info;
+	const struct imx_pinctrl_soc_info *pinctrl_info;
 
-	match = of_match_device(imx7d_pinctrl_of_match, &pdev->dev);
-
-	if (!match)
+	pinctrl_info = of_device_get_match_data(&pdev->dev);
+	if (!pinctrl_info)
 		return -ENODEV;
-
-	pinctrl_info = (struct imx_pinctrl_soc_info *) match->data;
 
 	return imx_pinctrl_probe(pdev, pinctrl_info);
 }
@@ -394,7 +389,6 @@ static struct platform_driver imx7d_pinctrl_driver = {
 		.of_match_table = of_match_ptr(imx7d_pinctrl_of_match),
 	},
 	.probe = imx7d_pinctrl_probe,
-	.remove = imx_pinctrl_remove,
 };
 
 static int __init imx7d_pinctrl_init(void)
@@ -402,13 +396,3 @@ static int __init imx7d_pinctrl_init(void)
 	return platform_driver_register(&imx7d_pinctrl_driver);
 }
 arch_initcall(imx7d_pinctrl_init);
-
-static void __exit imx7d_pinctrl_exit(void)
-{
-	platform_driver_unregister(&imx7d_pinctrl_driver);
-}
-module_exit(imx7d_pinctrl_exit);
-
-MODULE_AUTHOR("Anson Huang <Anson.Huang@freescale.com>");
-MODULE_DESCRIPTION("Freescale imx7d pinctrl driver");
-MODULE_LICENSE("GPL v2");

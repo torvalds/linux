@@ -23,11 +23,11 @@
 #include <linux/interrupt.h>
 #include <asm/io.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 
 #include "mb86a16.h"
 #include "mantis_common.h"
@@ -36,7 +36,7 @@
 #include "mantis_vp1034.h"
 #include "mantis_reg.h"
 
-static struct mb86a16_config vp1034_mb86a16_config = {
+static const struct mb86a16_config vp1034_mb86a16_config = {
 	.demod_address	= 0x08,
 	.set_voltage	= vp1034_set_voltage,
 };

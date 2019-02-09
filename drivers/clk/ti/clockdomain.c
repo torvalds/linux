@@ -52,10 +52,6 @@ int omap2_clkops_enable_clkdm(struct clk_hw *hw)
 		return -EINVAL;
 	}
 
-	if (unlikely(clk->enable_reg))
-		pr_err("%s: %s: should use dflt_clk_enable ?!\n", __func__,
-		       clk_hw_get_name(hw));
-
 	if (ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) {
 		pr_err("%s: %s: clkfw-based clockdomain control disabled ?!\n",
 		       __func__, clk_hw_get_name(hw));
@@ -90,10 +86,6 @@ void omap2_clkops_disable_clkdm(struct clk_hw *hw)
 		return;
 	}
 
-	if (unlikely(clk->enable_reg))
-		pr_err("%s: %s: should use dflt_clk_disable ?!\n", __func__,
-		       clk_hw_get_name(hw));
-
 	if (ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) {
 		pr_err("%s: %s: clkfw-based clockdomain control disabled ?!\n",
 		       __func__, clk_hw_get_name(hw));
@@ -103,21 +95,51 @@ void omap2_clkops_disable_clkdm(struct clk_hw *hw)
 	ti_clk_ll_ops->clkdm_clk_disable(clk->clkdm, hw->clk);
 }
 
+/**
+ * omap2_init_clk_clkdm - look up a clockdomain name, store pointer in clk
+ * @clk: OMAP clock struct ptr to use
+ *
+ * Convert a clockdomain name stored in a struct clk 'clk' into a
+ * clockdomain pointer, and save it into the struct clk.  Intended to be
+ * called during clk_register().  No return value.
+ */
+void omap2_init_clk_clkdm(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+	struct clockdomain *clkdm;
+	const char *clk_name;
+
+	if (!clk->clkdm_name)
+		return;
+
+	clk_name = __clk_get_name(hw->clk);
+
+	clkdm = ti_clk_ll_ops->clkdm_lookup(clk->clkdm_name);
+	if (clkdm) {
+		pr_debug("clock: associated clk %s to clkdm %s\n",
+			 clk_name, clk->clkdm_name);
+		clk->clkdm = clkdm;
+	} else {
+		pr_debug("clock: could not associate clk %s to clkdm %s\n",
+			 clk_name, clk->clkdm_name);
+	}
+}
+
 static void __init of_ti_clockdomain_setup(struct device_node *node)
 {
 	struct clk *clk;
 	struct clk_hw *clk_hw;
 	const char *clkdm_name = node->name;
 	int i;
-	int num_clks;
+	unsigned int num_clks;
 
 	num_clks = of_clk_get_parent_count(node);
 
 	for (i = 0; i < num_clks; i++) {
 		clk = of_clk_get(node, i);
 		if (IS_ERR(clk)) {
-			pr_err("%s: Failed get %s' clock nr %d (%ld)\n",
-			       __func__, node->full_name, i, PTR_ERR(clk));
+			pr_err("%s: Failed get %pOF' clock nr %d (%ld)\n",
+			       __func__, node, i, PTR_ERR(clk));
 			continue;
 		}
 		clk_hw = __clk_get_hw(clk);

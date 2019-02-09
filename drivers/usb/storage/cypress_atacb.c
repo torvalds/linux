@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Support for emulating SAT (ata pass through) on devices based
  *       on the Cypress USB/ATA bridge supporting ATACB.
  *
  * Copyright (c) 2008 Matthieu Castet (castet.matthieu@free.fr)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -110,13 +97,17 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 	/* first build the ATACB command */
 	srb->cmd_len = 16;
 
-	srb->cmnd[0] = 0x24; /* bVSCBSignature : vendor-specific command
-	                        this value can change, but most(all ?) manufacturers
-							keep the cypress default : 0x24 */
+	srb->cmnd[0] = 0x24; /*
+			      * bVSCBSignature : vendor-specific command
+			      * this value can change, but most(all ?) manufacturers
+			      * keep the cypress default : 0x24
+			      */
 	srb->cmnd[1] = 0x24; /* bVSCBSubCommand : 0x24 for ATACB */
 
-	srb->cmnd[3] = 0xff - 1; /* features, sector count, lba low, lba med
-								lba high, device, command are valid */
+	srb->cmnd[3] = 0xff - 1; /*
+				  * features, sector count, lba low, lba med
+				  * lba high, device, command are valid
+				  */
 	srb->cmnd[4] = 1; /* TransferBlockCount : 512 */
 
 	if (save_cmnd[0] == ATA_16) {
@@ -155,8 +146,7 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 
 	usb_stor_transparent_scsi_command(srb, us);
 
-	/* if the device doesn't support ATACB
-	 */
+	/* if the device doesn't support ATACB */
 	if (srb->result == SAM_STAT_CHECK_CONDITION &&
 			memcmp(srb->sense_buffer, usb_stor_sense_invalidCDB,
 				sizeof(usb_stor_sense_invalidCDB)) == 0) {
@@ -164,7 +154,8 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 		goto end;
 	}
 
-	/* if ck_cond flags is set, and there wasn't critical error,
+	/*
+	 * if ck_cond flags is set, and there wasn't critical error,
 	 * build the special sense
 	 */
 	if ((srb->result != (DID_ERROR << 16) &&
@@ -176,11 +167,11 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 		unsigned char *desc = sb + 8;
 		int tmp_result;
 
-		/* build the command for
-		 * reading the ATA registers */
+		/* build the command for reading the ATA registers */
 		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, sizeof(regs));
 
-		/* we use the same command as before, but we set
+		/*
+		 * we use the same command as before, but we set
 		 * the read taskfile bit, for not executing atacb command,
 		 * but reading register selected in srb->cmnd[4]
 		 */
@@ -204,10 +195,11 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 		sb[2] = 0; /* ATA PASS THROUGH INFORMATION AVAILABLE */
 		sb[3] = 0x1D;
 
-		/* XXX we should generate sk, asc, ascq from status and error
+		/*
+		 * XXX we should generate sk, asc, ascq from status and error
 		 * regs
 		 * (see 11.1 Error translation ATA device error to SCSI error
-		 *  map, and ata_to_sense_error from libata.)
+		 * map, and ata_to_sense_error from libata.)
 		 */
 
 		/* Sense data is current and format is descriptor. */
@@ -258,7 +250,8 @@ static int cypress_probe(struct usb_interface *intf,
 	if (result)
 		return result;
 
-	/* Among CY7C68300 chips, the A revision does not support Cypress ATACB
+	/*
+	 * Among CY7C68300 chips, the A revision does not support Cypress ATACB
 	 * Filter out this revision from EEPROM default descriptor values
 	 */
 	device = interface_to_usbdev(intf);

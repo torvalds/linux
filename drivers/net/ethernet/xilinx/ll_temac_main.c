@@ -37,6 +37,7 @@
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/skbuff.h>
@@ -332,7 +333,7 @@ static void temac_do_set_mac_address(struct net_device *ndev)
 	mutex_unlock(&lp->indirect_mutex);
 }
 
-static int temac_init_mac_address(struct net_device *ndev, void *address)
+static int temac_init_mac_address(struct net_device *ndev, const void *address)
 {
 	memcpy(ndev->dev_addr, address, ETH_ALEN);
 	if (!is_valid_ether_addr(ndev->dev_addr))
@@ -584,13 +585,13 @@ static void temac_device_reset(struct net_device *ndev)
 		dev_err(&ndev->dev, "Error setting TEMAC options\n");
 
 	/* Init Driver variable */
-	ndev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(ndev); /* prevent tx timeout */
 }
 
 static void temac_adjust_link(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
-	struct phy_device *phy = lp->phy_dev;
+	struct phy_device *phy = ndev->phydev;
 	u32 mii_speed;
 	int link_state;
 
@@ -843,19 +844,20 @@ static irqreturn_t ll_temac_rx_irq(int irq, void *_ndev)
 static int temac_open(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
+	struct phy_device *phydev = NULL;
 	int rc;
 
 	dev_dbg(&ndev->dev, "temac_open()\n");
 
 	if (lp->phy_node) {
-		lp->phy_dev = of_phy_connect(lp->ndev, lp->phy_node,
-					     temac_adjust_link, 0, 0);
-		if (!lp->phy_dev) {
+		phydev = of_phy_connect(lp->ndev, lp->phy_node,
+					temac_adjust_link, 0, 0);
+		if (!phydev) {
 			dev_err(lp->dev, "of_phy_connect() failed\n");
 			return -ENODEV;
 		}
 
-		phy_start(lp->phy_dev);
+		phy_start(phydev);
 	}
 
 	temac_device_reset(ndev);
@@ -872,9 +874,8 @@ static int temac_open(struct net_device *ndev)
  err_rx_irq:
 	free_irq(lp->tx_irq, ndev);
  err_tx_irq:
-	if (lp->phy_dev)
-		phy_disconnect(lp->phy_dev);
-	lp->phy_dev = NULL;
+	if (phydev)
+		phy_disconnect(phydev);
 	dev_err(lp->dev, "request_irq() failed\n");
 	return rc;
 }
@@ -882,15 +883,15 @@ static int temac_open(struct net_device *ndev)
 static int temac_stop(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
+	struct phy_device *phydev = ndev->phydev;
 
 	dev_dbg(&ndev->dev, "temac_close()\n");
 
 	free_irq(lp->tx_irq, ndev);
 	free_irq(lp->rx_irq, ndev);
 
-	if (lp->phy_dev)
-		phy_disconnect(lp->phy_dev);
-	lp->phy_dev = NULL;
+	if (phydev)
+		phy_disconnect(phydev);
 
 	temac_dma_bd_release(ndev);
 
@@ -916,15 +917,13 @@ temac_poll_controller(struct net_device *ndev)
 
 static int temac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 {
-	struct temac_local *lp = netdev_priv(ndev);
-
 	if (!netif_running(ndev))
 		return -EINVAL;
 
-	if (!lp->phy_dev)
+	if (!ndev->phydev)
 		return -EINVAL;
 
-	return phy_mii_ioctl(lp->phy_dev, rq, cmd);
+	return phy_mii_ioctl(ndev->phydev, rq, cmd);
 }
 
 static const struct net_device_ops temac_netdev_ops = {
@@ -969,30 +968,12 @@ static const struct attribute_group temac_attr_group = {
 };
 
 /* ethtool support */
-static int temac_get_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
-{
-	struct temac_local *lp = netdev_priv(ndev);
-	return phy_ethtool_gset(lp->phy_dev, cmd);
-}
-
-static int temac_set_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
-{
-	struct temac_local *lp = netdev_priv(ndev);
-	return phy_ethtool_sset(lp->phy_dev, cmd);
-}
-
-static int temac_nway_reset(struct net_device *ndev)
-{
-	struct temac_local *lp = netdev_priv(ndev);
-	return phy_start_aneg(lp->phy_dev);
-}
-
 static const struct ethtool_ops temac_ethtool_ops = {
-	.get_settings = temac_get_settings,
-	.set_settings = temac_set_settings,
-	.nway_reset = temac_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = ethtool_op_get_ts_info,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static int temac_of_probe(struct platform_device *op)
@@ -1002,7 +983,7 @@ static int temac_of_probe(struct platform_device *op)
 	struct net_device *ndev;
 	const void *addr;
 	__be32 *p;
-	int size, rc = 0;
+	int rc = 0;
 
 	/* Init network device structure */
 	ndev = alloc_etherdev(sizeof(*lp));
@@ -1094,13 +1075,13 @@ static int temac_of_probe(struct platform_device *op)
 
 
 	/* Retrieve the MAC address */
-	addr = of_get_property(op->dev.of_node, "local-mac-address", &size);
-	if ((!addr) || (size != 6)) {
+	addr = of_get_mac_address(op->dev.of_node);
+	if (!addr) {
 		dev_err(&op->dev, "could not find MAC address\n");
 		rc = -ENODEV;
 		goto err_iounmap_2;
 	}
-	temac_init_mac_address(ndev, (void *)addr);
+	temac_init_mac_address(ndev, addr);
 
 	rc = temac_mdio_setup(lp, op->dev.of_node);
 	if (rc)
@@ -1108,7 +1089,7 @@ static int temac_of_probe(struct platform_device *op)
 
 	lp->phy_node = of_parse_phandle(op->dev.of_node, "phy-handle", 0);
 	if (lp->phy_node)
-		dev_dbg(lp->dev, "using PHY node %s (%p)\n", np->full_name, np);
+		dev_dbg(lp->dev, "using PHY node %pOF (%p)\n", np, np);
 
 	/* Add the device attributes */
 	rc = sysfs_create_group(&lp->dev->kobj, &temac_attr_group);

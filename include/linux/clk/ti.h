@@ -19,12 +19,24 @@
 #include <linux/clkdev.h>
 
 /**
+ * struct clk_omap_reg - OMAP register declaration
+ * @offset: offset from the master IP module base address
+ * @index: index of the master IP module
+ */
+struct clk_omap_reg {
+	void __iomem *ptr;
+	u16 offset;
+	u8 index;
+	u8 flags;
+};
+
+/**
  * struct dpll_data - DPLL registers and integration data
  * @mult_div1_reg: register containing the DPLL M and N bitfields
  * @mult_mask: mask of the DPLL M bitfield in @mult_div1_reg
  * @div1_mask: mask of the DPLL N bitfield in @mult_div1_reg
- * @clk_bypass: struct clk pointer to the clock's bypass clock input
- * @clk_ref: struct clk pointer to the clock's reference clock input
+ * @clk_bypass: struct clk_hw pointer to the clock's bypass clock input
+ * @clk_ref: struct clk_hw pointer to the clock's reference clock input
  * @control_reg: register containing the DPLL mode bitfield
  * @enable_mask: mask of the DPLL mode bitfield in @control_reg
  * @last_rounded_rate: cache of the last rate result of omap2_dpll_round_rate()
@@ -37,6 +49,7 @@
  * @last_rounded_n: cache of the last N result of omap2_dpll_round_rate()
  * @min_divider: minimum valid non-bypass divider value (actual)
  * @max_divider: maximum valid non-bypass divider value (actual)
+ * @max_rate: maximum clock rate for the DPLL
  * @modes: possible values of @enable_mask
  * @autoidle_reg: register containing the DPLL autoidle mode bitfield
  * @idlest_reg: register containing the DPLL idle status bitfield
@@ -66,12 +79,12 @@
  * can be placed into read-only space.
  */
 struct dpll_data {
-	void __iomem		*mult_div1_reg;
+	struct clk_omap_reg	mult_div1_reg;
 	u32			mult_mask;
 	u32			div1_mask;
-	struct clk		*clk_bypass;
-	struct clk		*clk_ref;
-	void __iomem		*control_reg;
+	struct clk_hw		*clk_bypass;
+	struct clk_hw		*clk_ref;
+	struct clk_omap_reg	control_reg;
 	u32			enable_mask;
 	unsigned long		last_rounded_rate;
 	u16			last_rounded_m;
@@ -81,9 +94,10 @@ struct dpll_data {
 	u8			last_rounded_n;
 	u8			min_divider;
 	u16			max_divider;
+	unsigned long		max_rate;
 	u8			modes;
-	void __iomem		*autoidle_reg;
-	void __iomem		*idlest_reg;
+	struct clk_omap_reg	autoidle_reg;
+	struct clk_omap_reg	idlest_reg;
 	u32			autoidle_mask;
 	u32			freqsel_mask;
 	u32			idlest_mask;
@@ -111,10 +125,10 @@ struct clk_hw_omap;
  */
 struct clk_hw_omap_ops {
 	void	(*find_idlest)(struct clk_hw_omap *oclk,
-			       void __iomem **idlest_reg,
+			       struct clk_omap_reg *idlest_reg,
 			       u8 *idlest_bit, u8 *idlest_val);
 	void	(*find_companion)(struct clk_hw_omap *oclk,
-				  void __iomem **other_reg,
+				  struct clk_omap_reg *other_reg,
 				  u8 *other_bit);
 	void	(*allow_idle)(struct clk_hw_omap *oclk);
 	void	(*deny_idle)(struct clk_hw_omap *oclk);
@@ -127,8 +141,6 @@ struct clk_hw_omap_ops {
  * @enable_bit: bitshift to write to enable/disable the clock (see @enable_reg)
  * @flags: see "struct clk.flags possibilities" above
  * @clksel_reg: for clksel clks, register va containing src/divisor select
- * @clksel_mask: bitmask in @clksel_reg for the src/divisor selector
- * @clksel: for clksel clks, pointer to struct clksel for this clock
  * @dpll_data: for DPLLs, pointer to struct dpll_data for this clock
  * @clkdm_name: clockdomain name that this clock is contained in
  * @clkdm: pointer to struct clockdomain, resolved from @clkdm_name at runtime
@@ -139,12 +151,10 @@ struct clk_hw_omap {
 	struct list_head	node;
 	unsigned long		fixed_rate;
 	u8			fixed_div;
-	void __iomem		*enable_reg;
+	struct clk_omap_reg	enable_reg;
 	u8			enable_bit;
 	u8			flags;
-	void __iomem		*clksel_reg;
-	u32			clksel_mask;
-	const struct clksel	*clksel;
+	struct clk_omap_reg	clksel_reg;
 	struct dpll_data	*dpll_data;
 	const char		*clkdm_name;
 	struct clockdomain	*clkdm;
@@ -170,7 +180,6 @@ struct clk_hw_omap {
  *     should be used.  This is a temporary solution - a better approach
  *     would be to associate clock type-specific data with the clock,
  *     similar to the struct dpll_data approach.
- * MEMMAP_ADDRESSING: Use memmap addressing to access clock registers.
  */
 #define ENABLE_REG_32BIT	(1 << 0)	/* Use 32-bit access */
 #define CLOCK_IDLE_CONTROL	(1 << 1)
@@ -178,7 +187,6 @@ struct clk_hw_omap {
 #define ENABLE_ON_INIT		(1 << 3)	/* Enable upon framework init */
 #define INVERT_ENABLE		(1 << 4)	/* 0 enables, 1 disables */
 #define CLOCK_CLKOUTX2		(1 << 5)
-#define MEMMAP_ADDRESSING	(1 << 6)
 
 /* CM_CLKEN_PLL*.EN* bit values - not all are available for every DPLL */
 #define DPLL_LOW_POWER_STOP	0x1
@@ -195,25 +203,19 @@ enum {
 	TI_CLKM_PRM,
 	TI_CLKM_SCRM,
 	TI_CLKM_CTRL,
+	TI_CLKM_CTRL_AUX,
+	TI_CLKM_PLLSS,
 	CLK_MAX_MEMMAPS
-};
-
-/**
- * struct clk_omap_reg - OMAP register declaration
- * @offset: offset from the master IP module base address
- * @index: index of the master IP module
- */
-struct clk_omap_reg {
-	u16 offset;
-	u16 index;
 };
 
 /**
  * struct ti_clk_ll_ops - low-level ops for clocks
  * @clk_readl: pointer to register read function
  * @clk_writel: pointer to register write function
+ * @clk_rmw: pointer to register read-modify-write function
  * @clkdm_clk_enable: pointer to clockdomain enable function
  * @clkdm_clk_disable: pointer to clockdomain disable function
+ * @clkdm_lookup: pointer to clockdomain lookup function
  * @cm_wait_module_ready: pointer to CM module wait ready function
  * @cm_split_idlest_reg: pointer to CM module function to split idlest reg
  *
@@ -224,20 +226,21 @@ struct clk_omap_reg {
  * operations not provided directly by clock drivers.
  */
 struct ti_clk_ll_ops {
-	u32	(*clk_readl)(void __iomem *reg);
-	void	(*clk_writel)(u32 val, void __iomem *reg);
+	u32	(*clk_readl)(const struct clk_omap_reg *reg);
+	void	(*clk_writel)(u32 val, const struct clk_omap_reg *reg);
+	void	(*clk_rmw)(u32 val, u32 mask, const struct clk_omap_reg *reg);
 	int	(*clkdm_clk_enable)(struct clockdomain *clkdm, struct clk *clk);
 	int	(*clkdm_clk_disable)(struct clockdomain *clkdm,
 				     struct clk *clk);
+	struct clockdomain * (*clkdm_lookup)(const char *name);
 	int	(*cm_wait_module_ready)(u8 part, s16 prcm_mod, u16 idlest_reg,
 					u8 idlest_shift);
-	int	(*cm_split_idlest_reg)(void __iomem *idlest_reg, s16 *prcm_inst,
-				       u8 *idlest_reg_id);
+	int	(*cm_split_idlest_reg)(struct clk_omap_reg *idlest_reg,
+				       s16 *prcm_inst, u8 *idlest_reg_id);
 };
 
 #define to_clk_hw_omap(_hw) container_of(_hw, struct clk_hw_omap, hw)
 
-void omap2_init_clk_clkdm(struct clk_hw *clk);
 int omap2_clk_disable_autoidle_all(void);
 int omap2_clk_enable_autoidle_all(void);
 int omap2_clk_allow_idle(struct clk *clk);
@@ -286,6 +289,7 @@ struct ti_clk_features {
 #define TI_CLK_DPLL_HAS_FREQSEL			BIT(0)
 #define TI_CLK_DPLL4_DENY_REPROGRAM		BIT(1)
 #define TI_CLK_DISABLE_CLKDM_CONTROL		BIT(2)
+#define TI_CLK_ERRATA_I810			BIT(3)
 
 void ti_clk_setup_features(struct ti_clk_features *features);
 const struct ti_clk_features *ti_clk_get_features(void);

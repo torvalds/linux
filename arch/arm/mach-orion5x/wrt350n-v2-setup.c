@@ -22,7 +22,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <mach/orion5x.h>
+#include "orion5x.h"
 #include "common.h"
 #include "mpp.h"
 
@@ -191,11 +191,6 @@ static struct dsa_chip_data wrt350n_v2_switch_chip_data = {
 	.port_names[7]	= "lan4",
 };
 
-static struct dsa_platform_data wrt350n_v2_switch_plat_data = {
-	.nr_chips	= 1,
-	.chip		= &wrt350n_v2_switch_chip_data,
-};
-
 static void __init wrt350n_v2_init(void)
 {
 	/*
@@ -210,7 +205,7 @@ static void __init wrt350n_v2_init(void)
 	 */
 	orion5x_ehci0_init();
 	orion5x_eth_init(&wrt350n_v2_eth_data);
-	orion5x_eth_switch_init(&wrt350n_v2_switch_plat_data, NO_IRQ);
+	orion5x_eth_switch_init(&wrt350n_v2_switch_chip_data);
 	orion5x_uart0_init();
 
 	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
@@ -262,6 +257,7 @@ subsys_initcall(wrt350n_v2_pci_init);
 MACHINE_START(WRT350N_V2, "Linksys WRT350N v2")
 	/* Maintainer: Lennert Buytenhek <buytenh@marvell.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= wrt350n_v2_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree common file for LaCie 2Big and 5Big Network v2
  *
@@ -8,9 +9,6 @@
  * Based on netxbig_v2-setup.c,
  * Copyright (C) 2010 Simon Guinot <sguinot@lacie.com>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
 */
 
 #include <dt-bindings/leds/leds-netxbig.h>
@@ -59,22 +57,22 @@
 		#size-cells = <0>;
 
 		/*
-		 * button@1 and button@2 represent a three position rocker
+		 * esc and power represent a three position rocker
 		 * switch. Thus the conventional KEY_POWER does not fit
 		 */
-		button@1 {
+		exc {
 			label = "Back power switch (on|auto)";
 			linux,code = <KEY_ESC>;
 			linux,input-type = <5>;
 			gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
 		};
-		button@2 {
+		power {
 			label = "Back power switch (auto|off)";
 			linux,code = <KEY_1>;
 			linux,input-type = <5>;
 			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
 		};
-		button@3 {
+		option {
 			label = "Function button";
 			linux,code = <KEY_OPTION>;
 			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;

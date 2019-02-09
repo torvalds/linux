@@ -52,7 +52,7 @@ Optional properties:
 
 Example:
 
-	tse_sub_0_eth_tse_0: ethernet@0x1,00000000 {
+	tse_sub_0_eth_tse_0: ethernet@1,00000000 {
 		compatible = "altr,tse-msgdma-1.0";
 		reg =	<0x00000001 0x00000000 0x00000400>,
 			<0x00000001 0x00000460 0x00000020>,
@@ -90,7 +90,7 @@ Example:
 		};
 	};
 
-	tse_sub_1_eth_tse_0: ethernet@0x1,00001000 {
+	tse_sub_1_eth_tse_0: ethernet@1,00001000 {
 		compatible = "altr,tse-msgdma-1.0";
 		reg = 	<0x00000001 0x00001000 0x00000400>,
 			<0x00000001 0x00001460 0x00000020>,

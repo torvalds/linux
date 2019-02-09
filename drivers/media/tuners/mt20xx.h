@@ -18,7 +18,7 @@
 #define __MT20XX_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #if IS_REACHABLE(CONFIG_MEDIA_TUNER_MT20XX)
 extern struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,

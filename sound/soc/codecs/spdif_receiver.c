@@ -34,14 +34,19 @@ static const struct snd_soc_dapm_route dir_routes[] = {
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
 			SNDRV_PCM_FMTBIT_S20_3LE | \
-			SNDRV_PCM_FMTBIT_S24_LE | \
+			SNDRV_PCM_FMTBIT_S24_LE  | \
+			SNDRV_PCM_FMTBIT_S32_LE | \
 			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
 
-static struct snd_soc_codec_driver soc_codec_spdif_dir = {
-	.dapm_widgets = dir_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(dir_widgets),
-	.dapm_routes = dir_routes,
-	.num_dapm_routes = ARRAY_SIZE(dir_routes),
+static struct snd_soc_component_driver soc_codec_spdif_dir = {
+	.dapm_widgets		= dir_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(dir_widgets),
+	.dapm_routes		= dir_routes,
+	.num_dapm_routes	= ARRAY_SIZE(dir_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_dai_driver dir_stub_dai = {
@@ -57,14 +62,9 @@ static struct snd_soc_dai_driver dir_stub_dai = {
 
 static int spdif_dir_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_spdif_dir,
+	return devm_snd_soc_register_component(&pdev->dev,
+			&soc_codec_spdif_dir,
 			&dir_stub_dai, 1);
-}
-
-static int spdif_dir_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -77,7 +77,6 @@ MODULE_DEVICE_TABLE(of, spdif_dir_dt_ids);
 
 static struct platform_driver spdif_dir_driver = {
 	.probe		= spdif_dir_probe,
-	.remove		= spdif_dir_remove,
 	.driver		= {
 		.name	= "spdif-dir",
 		.of_match_table = of_match_ptr(spdif_dir_dt_ids),

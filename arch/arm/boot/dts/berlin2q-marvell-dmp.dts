@@ -1,37 +1,6 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Copyright (C) 2014 Antoine Ténart <antoine.tenart@free-electrons.com>
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is licensed under the terms of the GNU General Public
- *     License version 2. This program is licensed "as is" without any
- *     warranty of any kind, whether express or implied.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 /dts-v1/;
@@ -43,12 +12,12 @@
 	model = "Marvell BG2-Q DMP";
 	compatible = "marvell,berlin2q-dmp", "marvell,berlin2q", "marvell,berlin";
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x80000000>;
 	};
 
-	choosen {
+	chosen {
 		bootargs = "earlyprintk";
 		stdout-path = "serial0:115200n8";
 	};
@@ -58,7 +27,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		reg_usb0_vbus: regulator@0 {
+		reg_usb0_vbus: regulator_usb0 {
 			compatible = "regulator-fixed";
 			regulator-name = "usb0_vbus";
 			regulator-min-microvolt = <5000000>;
@@ -67,7 +36,7 @@
 			enable-active-high;
 		};
 
-		reg_usb1_vbus: regulator@1 {
+		reg_usb1_vbus: regulator_usb1 {
 			compatible = "regulator-fixed";
 			regulator-name = "usb1_vbus";
 			regulator-min-microvolt = <5000000>;
@@ -76,7 +45,7 @@
 			enable-active-high;
 		};
 
-		reg_usb2_vbus: regulator@2 {
+		reg_usb2_vbus: regulator_usb2 {
 			compatible = "regulator-fixed";
 			regulator-name = "usb2_vbus";
 			regulator-min-microvolt = <5000000>;
@@ -84,17 +53,49 @@
 			gpio = <&portb 12 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
+
+		reg_sdio1_vmmc: regulator_sdio1_vmmc {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "sdio1_vmmc";
+			enable-active-high;
+			regulator-boot-on;
+			gpio = <&portb 21 GPIO_ACTIVE_HIGH>;
+		};
+
+		reg_sdio1_vqmmc: regulator_sido1_vqmmc {
+			compatible = "regulator-gpio";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "sdio1_vqmmc";
+			regulator-type = "voltage";
+			enable-active-high;
+			gpios = <&portb 16 GPIO_ACTIVE_HIGH>;
+			states = <3300000 0x1
+				  1800000 0x0>;
+		};
+	};
+};
+
+&soc_pinctrl {
+	sd1gpio_pmux: sd1pwr-pmux {
+		groups = "G23", "G32";
+		function = "gpio";
 	};
 };
 
 &sdhci1 {
-	broken-cd;
-	sdhci,wp-inverted;
+	vmmc-supply = <&reg_sdio1_vmmc>;
+	vqmmc-supply = <&reg_sdio1_vqmmc>;
+	cd-gpios = <&portc 30 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&portd 0 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&sd1gpio_pmux>, <&sd1_pmux>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
 &sdhci2 {
-	broken-cd;
 	bus-width = <8>;
 	non-removable;
 	status = "okay";

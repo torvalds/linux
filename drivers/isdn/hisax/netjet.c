@@ -383,7 +383,7 @@ static void got_frame(struct BCState *bcs, int count) {
 	if (!(skb = dev_alloc_skb(count)))
 		printk(KERN_WARNING "TIGER: receive out of memory\n");
 	else {
-		memcpy(skb_put(skb, count), bcs->hw.tiger.rcvbuf, count);
+		skb_put_data(skb, bcs->hw.tiger.rcvbuf, count);
 		skb_queue_tail(&bcs->rqueue, skb);
 	}
 	test_and_set_bit(B_RCVBUFREADY, &bcs->event);
@@ -912,8 +912,10 @@ setstack_tiger(struct PStack *st, struct BCState *bcs)
 void
 inittiger(struct IsdnCardState *cs)
 {
-	if (!(cs->bcs[0].hw.tiger.send = kmalloc(NETJET_DMA_TXSIZE * sizeof(unsigned int),
-						 GFP_KERNEL | GFP_DMA))) {
+	cs->bcs[0].hw.tiger.send = kmalloc_array(NETJET_DMA_TXSIZE,
+						 sizeof(unsigned int),
+						 GFP_KERNEL | GFP_DMA);
+	if (!cs->bcs[0].hw.tiger.send) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for tiger.send\n");
 		return;
@@ -933,8 +935,10 @@ inittiger(struct IsdnCardState *cs)
 	     cs->hw.njet.base + NETJET_DMA_READ_IRQ);
 	outl(virt_to_bus(cs->bcs[0].hw.tiger.s_end),
 	     cs->hw.njet.base + NETJET_DMA_READ_END);
-	if (!(cs->bcs[0].hw.tiger.rec = kmalloc(NETJET_DMA_RXSIZE * sizeof(unsigned int),
-						GFP_KERNEL | GFP_DMA))) {
+	cs->bcs[0].hw.tiger.rec = kmalloc_array(NETJET_DMA_RXSIZE,
+						sizeof(unsigned int),
+						GFP_KERNEL | GFP_DMA);
+	if (!cs->bcs[0].hw.tiger.rec) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for tiger.rec\n");
 		return;

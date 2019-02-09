@@ -1,50 +1,16 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: dbxface - AML Debugger external interfaces
  *
  ******************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
-
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "amlcode.h"
 #include "acdebug.h"
+#include "acinterp.h"
+#include "acparser.h"
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
 ACPI_MODULE_NAME("dbxface")
@@ -85,46 +51,21 @@ acpi_db_start_command(struct acpi_walk_state *walk_state,
 
 	acpi_gbl_method_executing = TRUE;
 	status = AE_CTRL_TRUE;
+
 	while (status == AE_CTRL_TRUE) {
-		if (acpi_gbl_debugger_configuration == DEBUGGER_MULTI_THREADED) {
 
-			/* Handshake with the front-end that gets user command lines */
+		/* Notify the completion of the command */
 
-			acpi_os_release_mutex(acpi_gbl_db_command_complete);
+		status = acpi_os_notify_command_complete();
+		if (ACPI_FAILURE(status)) {
+			goto error_exit;
+		}
 
-			status =
-			    acpi_os_acquire_mutex(acpi_gbl_db_command_ready,
-						  ACPI_WAIT_FOREVER);
-			if (ACPI_FAILURE(status)) {
-				return (status);
-			}
-		} else {
-			/* Single threaded, we must get a command line ourselves */
+		/* Wait the readiness of the command */
 
-			/* Force output to console until a command is entered */
-
-			acpi_db_set_output_destination(ACPI_DB_CONSOLE_OUTPUT);
-
-			/* Different prompt if method is executing */
-
-			if (!acpi_gbl_method_executing) {
-				acpi_os_printf("%1c ",
-					       ACPI_DEBUGGER_COMMAND_PROMPT);
-			} else {
-				acpi_os_printf("%1c ",
-					       ACPI_DEBUGGER_EXECUTE_PROMPT);
-			}
-
-			/* Get the user input line */
-
-			status = acpi_os_get_line(acpi_gbl_db_line_buf,
-						  ACPI_DB_LINE_BUFFER_SIZE,
-						  NULL);
-			if (ACPI_FAILURE(status)) {
-				ACPI_EXCEPTION((AE_INFO, status,
-						"While parsing command line"));
-				return (status);
-			}
+		status = acpi_os_wait_command_ready();
+		if (ACPI_FAILURE(status)) {
+			goto error_exit;
 		}
 
 		status =
@@ -134,7 +75,42 @@ acpi_db_start_command(struct acpi_walk_state *walk_state,
 
 	/* acpi_ut_acquire_mutex (ACPI_MTX_NAMESPACE); */
 
+error_exit:
+	if (ACPI_FAILURE(status) && status != AE_CTRL_TERMINATE) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"While parsing/handling command line"));
+	}
 	return (status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_signal_break_point
+ *
+ * PARAMETERS:  walk_state      - Current walk
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Called for AML_BREAKPOINT_OP
+ *
+ ******************************************************************************/
+
+void acpi_db_signal_break_point(struct acpi_walk_state *walk_state)
+{
+
+#ifndef ACPI_APPLICATION
+	if (acpi_gbl_db_thread_id != acpi_os_get_thread_id()) {
+		return;
+	}
+#endif
+
+	/*
+	 * Set the single-step flag. This will cause the debugger (if present)
+	 * to break to the console within the AML debugger at the start of the
+	 * next AML instruction.
+	 */
+	acpi_gbl_cm_single_step = TRUE;
+	acpi_os_printf("**break** Executed AML BreakPoint opcode\n");
 }
 
 /*******************************************************************************
@@ -152,8 +128,8 @@ acpi_db_start_command(struct acpi_walk_state *walk_state,
  ******************************************************************************/
 
 acpi_status
-acpi_db_single_step(struct acpi_walk_state * walk_state,
-		    union acpi_parse_object * op, u32 opcode_class)
+acpi_db_single_step(struct acpi_walk_state *walk_state,
+		    union acpi_parse_object *op, u32 opcode_class)
 {
 	union acpi_parse_object *next;
 	acpi_status status = AE_OK;
@@ -233,7 +209,7 @@ acpi_db_single_step(struct acpi_walk_state * walk_state,
 		if ((acpi_gbl_db_output_to_file) ||
 		    (acpi_dbg_level & ACPI_LV_PARSE)) {
 			acpi_os_printf
-			    ("\n[AmlDebug] Next AML Opcode to execute:\n");
+			    ("\nAML Debug: Next AML Opcode to execute:\n");
 		}
 
 		/*
@@ -287,10 +263,17 @@ acpi_db_single_step(struct acpi_walk_state * walk_state,
 			}
 		}
 
-		/* Now we can display it */
+		/* Now we can disassemble and display it */
 
 #ifdef ACPI_DISASSEMBLER
 		acpi_dm_disassemble(walk_state, display_op, ACPI_UINT32_MAX);
+#else
+		/*
+		 * The AML Disassembler is not configured - at least we can
+		 * display the opcode value and name
+		 */
+		acpi_os_printf("AML Opcode: %4.4X %s\n", op->common.aml_opcode,
+			       acpi_ps_get_opcode_name(op->common.aml_opcode));
 #endif
 
 		if ((op->common.aml_opcode == AML_IF_OP) ||
@@ -358,7 +341,9 @@ acpi_db_single_step(struct acpi_walk_state * walk_state,
 		walk_state->method_breakpoint = 1;	/* Must be non-zero! */
 	}
 
+	acpi_ex_exit_interpreter();
 	status = acpi_db_start_command(walk_state, op);
+	acpi_ex_enter_interpreter();
 
 	/* User commands complete, continue execution of the interrupted method */
 
@@ -420,15 +405,7 @@ acpi_status acpi_initialize_debugger(void)
 
 		/* These were created with one unit, grab it */
 
-		status = acpi_os_acquire_mutex(acpi_gbl_db_command_complete,
-					       ACPI_WAIT_FOREVER);
-		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not get debugger mutex\n");
-			return_ACPI_STATUS(status);
-		}
-
-		status = acpi_os_acquire_mutex(acpi_gbl_db_command_ready,
-					       ACPI_WAIT_FOREVER);
+		status = acpi_os_initialize_debugger();
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("Could not get debugger mutex\n");
 			return_ACPI_STATUS(status);
@@ -473,13 +450,14 @@ void acpi_terminate_debugger(void)
 	acpi_gbl_db_terminate_loop = TRUE;
 
 	if (acpi_gbl_debugger_configuration & DEBUGGER_MULTI_THREADED) {
-		acpi_os_release_mutex(acpi_gbl_db_command_ready);
 
 		/* Wait the AML Debugger threads */
 
 		while (!acpi_gbl_db_threads_terminated) {
 			acpi_os_sleep(100);
 		}
+
+		acpi_os_terminate_debugger();
 	}
 
 	if (acpi_gbl_db_buffer) {

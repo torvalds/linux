@@ -9,7 +9,7 @@
 			Linus
 ----------
 
-M: Matt Mackal
+N: Matt Mackal
 E: mpm@selenic.com
 D: SLOB slab allocator
 
@@ -534,6 +534,7 @@ N: NeilBrown
 E: neil@brown.name
 P: 4096R/566281B9 1BC6 29EB D390 D870 7B5F  497A 39EC 9EDD 5662 81B9
 D: NFSD Maintainer 2000-2007
+D: MD Maintainer 2001-2016
 
 N: Zach Brown
 E: zab@zabbo.net
@@ -648,6 +649,7 @@ D: Configure, Menuconfig, xconfig
 
 N: Mauro Carvalho Chehab
 E: m.chehab@samsung.org
+E: mchehab@osg.samsung.com
 E: mchehab@infradead.org
 D: Media subsystem (V4L/DVB) drivers and core
 D: EDAC drivers and EDAC 3.0 core rework
@@ -767,6 +769,7 @@ D: Z85230 driver
 D: Former security contact point (please use vendor-sec@lst.de)
 D: ex 2.2 maintainer
 D: 2.1.x modular sound
+D: Assigned major/minor numbers maintainer at lanana.org
 S: c/o Red Hat UK Ltd
 S: Alexandra House
 S: Alexandra Terrace
@@ -1031,6 +1034,10 @@ S: 2037 Walnut #6
 S: Boulder, Colorado 80302
 S: USA
 
+N: Hans-Christian Noren Egtvedt
+E: egtvedt@samfundet.no
+D: AVR32 architecture maintainer.
+
 N: Heiko Eißfeldt
 E: heiko@colossus.escape.de heiko@unifix.de
 D: verify_area stuff, generic SCSI fixes
@@ -1086,6 +1093,10 @@ D: Linux/IA-64 bootloader and kernel goop, USB
 S: 6350 Stoneridge Mall Road
 S: Pleasanton, CA 94588
 S: USA
+
+N: Dmitry Eremin-Solenikov
+E: dbaryshkov@gmail.com
+D: Power Supply Maintainer from v3.14 - v3.15
 
 N: Doug Evans
 E: dje@cygnus.com
@@ -1507,6 +1518,14 @@ S: 312/107 Canberra Avenue
 S: Griffith, ACT 2603 
 S: Australia
 
+N: Andreas Herrmann
+E: herrmann.der.user@gmail.com
+E: herrmann.der.user@googlemail.com
+D: Key developer of x86/AMD64
+D: Author of AMD family 15h processor power monitoring driver
+D: Maintainer of AMD Athlon 64 and Opteron processor frequency driver
+S: Germany
+
 N: Sebastian Hetze
 E: she@lunetix.de
 D: German Linux Documentation,
@@ -1544,6 +1563,11 @@ E: jauderho@carumba.com
 W: http://www.carumba.com/
 D: bug toaster (A1 sauce makes all the difference)
 D: Random linux hacker
+
+N: James Hogan
+E: jhogan@kernel.org
+D: Metag architecture maintainer
+D: TZ1090 SoC maintainer
 
 N: Tim Hockin
 E: thockin@hockin.org
@@ -1847,6 +1871,17 @@ S: Korte Heul 95
 S: 1403 ND  BUSSUM
 S: The Netherlands
 
+N: Martin Kepplinger
+E: martink@posteo.de
+E: martin.kepplinger@ginzinger.com
+W: http://www.martinkepplinger.com
+D: mma8452 accelerators iio driver
+D: pegasus_notetaker input driver
+D: Kernel fixes and cleanups
+S: Garnisonstraße 26
+S: 4020 Linz
+S: Austria
+
 N: Karl Keyte
 E: karl@koft.com
 D: Disk usage statistics and modifications to line printer driver
@@ -1884,7 +1919,7 @@ S: Ra'annana, Israel
 
 N: Andi Kleen
 E: andi@firstfloor.org
-U: http://www.halobates.de
+W: http://www.halobates.de
 D: network, x86, NUMA, various hacks
 S: Schwalbenstr. 96
 S: 85551 Ottobrunn
@@ -1922,6 +1957,11 @@ W: http://bytesex.org
 E: kraxel@bytesex.org
 E: kraxel@suse.de
 D: video4linux, bttv, vesafb, some scsi, misc fixes
+
+N: Hans J. Koch
+D: USERSPACE I/O, MAX6650
+D: Hans passed away in June 2016, and will be greatly missed.
+W: https://lwn.net/Articles/691000/
 
 N: Harald Koenig
 E: koenig@tat.physik.uni-tuebingen.de
@@ -2055,11 +2095,11 @@ S: Kuala Lumpur, Malaysia
 
 N: Mohit Kumar
 D: ST Microelectronics SPEAr13xx PCI host bridge driver
-D: Synopsys Designware PCI host bridge driver
+D: Synopsys DesignWare PCI host bridge driver
 
 N: Gabor Kuti
-M: seasons@falcon.sch.bme.hu
-M: seasons@makosteszta.sote.hu
+E: seasons@falcon.sch.bme.hu
+E: seasons@makosteszta.sote.hu
 D: Original author of software suspend
 
 N: Jaroslav Kysela
@@ -2077,6 +2117,10 @@ D: Loadable modules and ftape driver
 S: J. Obrechtstr 23
 S: NL-5216 GP 's-Hertogenbosch
 S: The Netherlands
+
+N: Ashley Lai
+E: ashleydlai@gmail.com
+D: IBM VTPM driver
 
 N: Savio Lam
 E: lam836@cs.cuhk.hk
@@ -2266,11 +2310,11 @@ D: Initial implementation of VC's, pty's and select()
 
 N: Pavel Machek
 E: pavel@ucw.cz
-D: Softcursor for vga, hypertech cdrom support, vcsa bugfix, nbd
+P: 4096R/92DFCE96 4FA7 9EEF FCD4 C44F C585  B8C7 C060 2241 92DF CE96
+D: Softcursor for vga, hypertech cdrom support, vcsa bugfix, nbd,
 D: sun4/330 port, capabilities for elf, speedup for rm on ext2, USB,
-D: work on suspend-to-ram/disk, killing duplicates from ioctl32
-S: Volkova 1131
-S: 198 00 Praha 9
+D: work on suspend-to-ram/disk, killing duplicates from ioctl32,
+D: Altera SoCFPGA and Nokia N900 support.
 S: Czech Republic
 
 N: Paul Mackerras
@@ -2447,12 +2491,11 @@ S: D-90453 Nuernberg
 S: Germany
 
 N: Arnaldo Carvalho de Melo
-E: acme@ghostprotocols.net
+E: acme@kernel.org
 E: arnaldo.melo@gmail.com
 E: acme@redhat.com
-W: http://oops.ghostprotocols.net:81/blog/
 P: 1024D/9224DF01 D5DF E3BB E3C8 BCBB F8AD  841A B6AB 4681 9224 DF01
-D: IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
+D: tools/, IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
 S: Brazil
 
 N: Karsten Merker
@@ -2528,6 +2571,11 @@ S: Helstorfer Str. 7
 S: D-30625 Hannover
 S: Germany
 
+N: Ron Minnich
+E: rminnich@sandia.gov
+E: rminnich@gmail.com
+D: 9p filesystem development
+
 N: Corey Minyard
 E: minyard@wf-rch.cirr.com
 E: minyard@mvista.com
@@ -2572,11 +2620,9 @@ E: tmolina@cablespeed.com
 D: bug fixes, documentation, minor hackery
 
 N: Paul Moore
-E: paul.moore@hp.com
-D: NetLabel author
-S: Hewlett-Packard
-S: 110 Spit Brook Road
-S: Nashua, NH 03062
+E: paul@paul-moore.com
+W: http://www.paul-moore.com
+D: NetLabel, SELinux, audit
 
 N: James Morris
 E: jmorris@namei.org
@@ -2743,6 +2789,10 @@ D: Maintainer of the auxiliary display drivers tree (drivers/auxdisplay/*)
 S: C/ Mieses 20, 9-B
 S: Valladolid 47009
 S: Spain
+
+N: Peter Oruba
+D: AMD Microcode loader driver
+S: Germany
 
 N: Jens Osterkamp
 E: jens@de.ibm.com
@@ -3035,6 +3085,7 @@ D: PLX USB338x driver
 D: PCA9634 driver
 D: Option GTM671WFS
 D: Fintek F81216A
+D: AD5761 iio driver
 D: Various kernel hacks
 S: Qtechnology A/S
 S: Valby Langgade 142
@@ -3296,6 +3347,10 @@ S: Braunschweiger Strasse 79
 S: 31134 Hildesheim
 S: Germany
 
+N: Marcel Selhorst
+E: tpmdd@selhorst.net
+D: TPM driver
+
 N: Darren Senn
 E: sinster@darkwater.com
 D: Whatever I notice needs doing (so far: itimers, /proc)
@@ -3362,6 +3417,10 @@ S: 1001 Denison Street
 S: Suite 101
 S: Markham, Ontario L3R 2Z6
 S: Canada
+
+N: Haavard Skinnemoen
+M: Haavard Skinnemoen <hskinnemoen@gmail.com>
+D: AVR32 architecture port to Linux and maintainer.
 
 N: Rick Sladkey
 E: jrs@world.std.com
@@ -3495,6 +3554,10 @@ D: Raylink/WebGear wireless LAN device driver (ray_cs) author
 S: 145 Howard St.
 S: Northborough, MA 01532
 S: USA
+
+N: Doug Thompson
+E: dougthompson@xmission.com
+D: EDAC
 
 N: Tommy Thorn
 E: Tommy.Thorn@irisa.fr
@@ -3632,6 +3695,10 @@ S: Obere Heerbergstrasse 17
 S: 97078 Wuerzburg
 S: Germany
 
+N: Jason Uhlenkott
+E: juhlenko@akamai.com
+D: I3000 EDAC driver
+
 N: Greg Ungerer
 E: gerg@snapgear.com
 D: uClinux kernel hacker
@@ -3669,7 +3736,7 @@ S: Germany
 N: Geert Uytterhoeven
 E: geert@linux-m68k.org
 W: http://users.telenet.be/geertu/
-P: 1024/862678A6 C51D 361C 0BD1 4C90 B275  C553 6EEA 11BA 8626 78A6
+P: 4096R/4804B4BC3F55EEFB 750D 82B0 A781 5431 5E25  925B 4804 B4BC 3F55 EEFB
 D: m68k/Amiga and PPC/CHRP Longtrail coordinator
 D: Frame buffer device and XF68_FBDev maintainer
 D: m68k IDE maintainer
@@ -3905,8 +3972,6 @@ E: gwingerde@gmail.com
 D: Ralink rt2x00 WLAN driver
 D: Minix V2 file-system
 D: Misc fixes
-S: Geessinkweg 177
-S: 7544 TX Enschede
 S: The Netherlands
 
 N: Lars Wirzenius
@@ -4080,7 +4145,6 @@ W: http://www.misterjones.org
 D: MD driver
 D: EISA/sysfs subsystem
 S: France
-
 
 # Don't add your name here, unless you really _are_ after Marc
 # alphabetically. Leonard used to be very proud of being the 

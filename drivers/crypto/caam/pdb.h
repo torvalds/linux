@@ -1,18 +1,20 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * CAAM Protocol Data Block (PDB) definition header file
  *
- * Copyright 2008-2012 Freescale Semiconductor, Inc.
+ * Copyright 2008-2016 Freescale Semiconductor, Inc.
  *
  */
 
 #ifndef CAAM_PDB_H
 #define CAAM_PDB_H
+#include "compat.h"
 
 /*
  * PDB- IPSec ESP Header Modification Options
  */
-#define PDBHMO_ESP_DECAP_SHIFT	12
-#define PDBHMO_ESP_ENCAP_SHIFT	4
+#define PDBHMO_ESP_DECAP_SHIFT	28
+#define PDBHMO_ESP_ENCAP_SHIFT	28
 /*
  * Encap and Decap - Decrement TTL (Hop Limit) - Based on the value of the
  * Options Byte IP version (IPvsn) field:
@@ -32,12 +34,23 @@
  */
 #define PDBHMO_ESP_DFBIT		(0x04 << PDBHMO_ESP_ENCAP_SHIFT)
 
+#define PDBNH_ESP_ENCAP_SHIFT		16
+#define PDBNH_ESP_ENCAP_MASK		(0xff << PDBNH_ESP_ENCAP_SHIFT)
+
+#define PDBHDRLEN_ESP_DECAP_SHIFT	16
+#define PDBHDRLEN_MASK			(0x0fff << PDBHDRLEN_ESP_DECAP_SHIFT)
+
+#define PDB_NH_OFFSET_SHIFT		8
+#define PDB_NH_OFFSET_MASK		(0xff << PDB_NH_OFFSET_SHIFT)
+
 /*
  * PDB - IPSec ESP Encap/Decap Options
  */
 #define PDBOPTS_ESP_ARSNONE	0x00 /* no antireplay window */
 #define PDBOPTS_ESP_ARS32	0x40 /* 32-entry antireplay window */
+#define PDBOPTS_ESP_ARS128	0x80 /* 128-entry antireplay window */
 #define PDBOPTS_ESP_ARS64	0xc0 /* 64-entry antireplay window */
+#define PDBOPTS_ESP_ARS_MASK	0xc0 /* antireplay window mask */
 #define PDBOPTS_ESP_IVSRC	0x20 /* IV comes from internal random gen */
 #define PDBOPTS_ESP_ESN		0x10 /* extended sequence included */
 #define PDBOPTS_ESP_OUTFMT	0x08 /* output only decapsulation (decap) */
@@ -54,35 +67,73 @@
 /*
  * General IPSec encap/decap PDB definitions
  */
+
+/**
+ * ipsec_encap_cbc - PDB part for IPsec CBC encapsulation
+ * @iv: 16-byte array initialization vector
+ */
 struct ipsec_encap_cbc {
-	u32 iv[4];
+	u8 iv[16];
 };
 
+/**
+ * ipsec_encap_ctr - PDB part for IPsec CTR encapsulation
+ * @ctr_nonce: 4-byte array nonce
+ * @ctr_initial: initial count constant
+ * @iv: initialization vector
+ */
 struct ipsec_encap_ctr {
-	u32 ctr_nonce;
+	u8 ctr_nonce[4];
 	u32 ctr_initial;
-	u32 iv[2];
+	u64 iv;
 };
 
+/**
+ * ipsec_encap_ccm - PDB part for IPsec CCM encapsulation
+ * @salt: 3-byte array salt (lower 24 bits)
+ * @ccm_opt: CCM algorithm options - MSB-LSB description:
+ *  b0_flags (8b) - CCM B0; use 0x5B for 8-byte ICV, 0x6B for 12-byte ICV,
+ *    0x7B for 16-byte ICV (cf. RFC4309, RFC3610)
+ *  ctr_flags (8b) - counter flags; constant equal to 0x3
+ *  ctr_initial (16b) - initial count constant
+ * @iv: initialization vector
+ */
 struct ipsec_encap_ccm {
-	u32 salt; /* lower 24 bits */
-	u8 b0_flags;
-	u8 ctr_flags;
-	u16 ctr_initial;
-	u32 iv[2];
+	u8 salt[4];
+	u32 ccm_opt;
+	u64 iv;
 };
 
+/**
+ * ipsec_encap_gcm - PDB part for IPsec GCM encapsulation
+ * @salt: 3-byte array salt (lower 24 bits)
+ * @rsvd: reserved, do not use
+ * @iv: initialization vector
+ */
 struct ipsec_encap_gcm {
-	u32 salt; /* lower 24 bits */
+	u8 salt[4];
 	u32 rsvd1;
-	u32 iv[2];
+	u64 iv;
 };
 
+/**
+ * ipsec_encap_pdb - PDB for IPsec encapsulation
+ * @options: MSB-LSB description
+ *  hmo (header manipulation options) - 4b
+ *  reserved - 4b
+ *  next header - 8b
+ *  next header offset - 8b
+ *  option flags (depend on selected algorithm) - 8b
+ * @seq_num_ext_hi: (optional) IPsec Extended Sequence Number (ESN)
+ * @seq_num: IPsec sequence number
+ * @spi: IPsec SPI (Security Parameters Index)
+ * @ip_hdr_len: optional IP Header length (in bytes)
+ *  reserved - 16b
+ *  Opt. IP Hdr Len - 16b
+ * @ip_hdr: optional IP Header content
+ */
 struct ipsec_encap_pdb {
-	u8 hmo_rsvd;
-	u8 ip_nh;
-	u8 ip_nh_offset;
-	u8 options;
+	u32 options;
 	u32 seq_num_ext_hi;
 	u32 seq_num;
 	union {
@@ -92,36 +143,65 @@ struct ipsec_encap_pdb {
 		struct ipsec_encap_gcm gcm;
 	};
 	u32 spi;
-	u16 rsvd1;
-	u16 ip_hdr_len;
-	u32 ip_hdr[0]; /* optional IP Header content */
+	u32 ip_hdr_len;
+	u32 ip_hdr[0];
 };
 
+/**
+ * ipsec_decap_cbc - PDB part for IPsec CBC decapsulation
+ * @rsvd: reserved, do not use
+ */
 struct ipsec_decap_cbc {
 	u32 rsvd[2];
 };
 
+/**
+ * ipsec_decap_ctr - PDB part for IPsec CTR decapsulation
+ * @ctr_nonce: 4-byte array nonce
+ * @ctr_initial: initial count constant
+ */
 struct ipsec_decap_ctr {
-	u32 salt;
+	u8 ctr_nonce[4];
 	u32 ctr_initial;
 };
 
+/**
+ * ipsec_decap_ccm - PDB part for IPsec CCM decapsulation
+ * @salt: 3-byte salt (lower 24 bits)
+ * @ccm_opt: CCM algorithm options - MSB-LSB description:
+ *  b0_flags (8b) - CCM B0; use 0x5B for 8-byte ICV, 0x6B for 12-byte ICV,
+ *    0x7B for 16-byte ICV (cf. RFC4309, RFC3610)
+ *  ctr_flags (8b) - counter flags; constant equal to 0x3
+ *  ctr_initial (16b) - initial count constant
+ */
 struct ipsec_decap_ccm {
-	u32 salt;
-	u8 iv_flags;
-	u8 ctr_flags;
-	u16 ctr_initial;
+	u8 salt[4];
+	u32 ccm_opt;
 };
 
+/**
+ * ipsec_decap_gcm - PDB part for IPsec GCN decapsulation
+ * @salt: 4-byte salt
+ * @rsvd: reserved, do not use
+ */
 struct ipsec_decap_gcm {
-	u32 salt;
+	u8 salt[4];
 	u32 resvd;
 };
 
+/**
+ * ipsec_decap_pdb - PDB for IPsec decapsulation
+ * @options: MSB-LSB description
+ *  hmo (header manipulation options) - 4b
+ *  IP header length - 12b
+ *  next header offset - 8b
+ *  option flags (depend on selected algorithm) - 8b
+ * @seq_num_ext_hi: (optional) IPsec Extended Sequence Number (ESN)
+ * @seq_num: IPsec sequence number
+ * @anti_replay: Anti-replay window; size depends on ARS (option flags)
+ */
 struct ipsec_decap_pdb {
-	u16 hmo_ip_hdr_len;
-	u8 ip_nh_offset;
-	u8 options;
+	u32 options;
 	union {
 		struct ipsec_decap_cbc cbc;
 		struct ipsec_decap_ctr ctr;
@@ -130,8 +210,7 @@ struct ipsec_decap_pdb {
 	};
 	u32 seq_num_ext_hi;
 	u32 seq_num;
-	u32 anti_replay[2];
-	u32 end_index[0];
+	__be32 anti_replay[4];
 };
 
 /*
@@ -398,5 +477,115 @@ struct dsa_verify_pdb {
 	u8 *tmp; /* temporary data block */
 	u8 *ab; /* only used if ECC processing */
 };
+
+/* RSA Protocol Data Block */
+#define RSA_PDB_SGF_SHIFT       28
+#define RSA_PDB_E_SHIFT         12
+#define RSA_PDB_E_MASK          (0xFFF << RSA_PDB_E_SHIFT)
+#define RSA_PDB_D_SHIFT         12
+#define RSA_PDB_D_MASK          (0xFFF << RSA_PDB_D_SHIFT)
+#define RSA_PDB_Q_SHIFT         12
+#define RSA_PDB_Q_MASK          (0xFFF << RSA_PDB_Q_SHIFT)
+
+#define RSA_PDB_SGF_F           (0x8 << RSA_PDB_SGF_SHIFT)
+#define RSA_PDB_SGF_G           (0x4 << RSA_PDB_SGF_SHIFT)
+#define RSA_PRIV_PDB_SGF_F      (0x4 << RSA_PDB_SGF_SHIFT)
+#define RSA_PRIV_PDB_SGF_G      (0x8 << RSA_PDB_SGF_SHIFT)
+
+#define RSA_PRIV_KEY_FRM_1      0
+#define RSA_PRIV_KEY_FRM_2      1
+#define RSA_PRIV_KEY_FRM_3      2
+
+/**
+ * RSA Encrypt Protocol Data Block
+ * @sgf: scatter-gather field
+ * @f_dma: dma address of input data
+ * @g_dma: dma address of encrypted output data
+ * @n_dma: dma address of RSA modulus
+ * @e_dma: dma address of RSA public exponent
+ * @f_len: length in octets of the input data
+ */
+struct rsa_pub_pdb {
+	u32		sgf;
+	dma_addr_t	f_dma;
+	dma_addr_t	g_dma;
+	dma_addr_t	n_dma;
+	dma_addr_t	e_dma;
+	u32		f_len;
+} __packed;
+
+/**
+ * RSA Decrypt PDB - Private Key Form #1
+ * @sgf: scatter-gather field
+ * @g_dma: dma address of encrypted input data
+ * @f_dma: dma address of output data
+ * @n_dma: dma address of RSA modulus
+ * @d_dma: dma address of RSA private exponent
+ */
+struct rsa_priv_f1_pdb {
+	u32		sgf;
+	dma_addr_t	g_dma;
+	dma_addr_t	f_dma;
+	dma_addr_t	n_dma;
+	dma_addr_t	d_dma;
+} __packed;
+
+/**
+ * RSA Decrypt PDB - Private Key Form #2
+ * @sgf     : scatter-gather field
+ * @g_dma   : dma address of encrypted input data
+ * @f_dma   : dma address of output data
+ * @d_dma   : dma address of RSA private exponent
+ * @p_dma   : dma address of RSA prime factor p of RSA modulus n
+ * @q_dma   : dma address of RSA prime factor q of RSA modulus n
+ * @tmp1_dma: dma address of temporary buffer. CAAM uses this temporary buffer
+ *            as internal state buffer. It is assumed to be as long as p.
+ * @tmp2_dma: dma address of temporary buffer. CAAM uses this temporary buffer
+ *            as internal state buffer. It is assumed to be as long as q.
+ * @p_q_len : length in bytes of first two prime factors of the RSA modulus n
+ */
+struct rsa_priv_f2_pdb {
+	u32		sgf;
+	dma_addr_t	g_dma;
+	dma_addr_t	f_dma;
+	dma_addr_t	d_dma;
+	dma_addr_t	p_dma;
+	dma_addr_t	q_dma;
+	dma_addr_t	tmp1_dma;
+	dma_addr_t	tmp2_dma;
+	u32		p_q_len;
+} __packed;
+
+/**
+ * RSA Decrypt PDB - Private Key Form #3
+ * This is the RSA Chinese Reminder Theorem (CRT) form for two prime factors of
+ * the RSA modulus.
+ * @sgf     : scatter-gather field
+ * @g_dma   : dma address of encrypted input data
+ * @f_dma   : dma address of output data
+ * @c_dma   : dma address of RSA CRT coefficient
+ * @p_dma   : dma address of RSA prime factor p of RSA modulus n
+ * @q_dma   : dma address of RSA prime factor q of RSA modulus n
+ * @dp_dma  : dma address of RSA CRT exponent of RSA prime factor p
+ * @dp_dma  : dma address of RSA CRT exponent of RSA prime factor q
+ * @tmp1_dma: dma address of temporary buffer. CAAM uses this temporary buffer
+ *            as internal state buffer. It is assumed to be as long as p.
+ * @tmp2_dma: dma address of temporary buffer. CAAM uses this temporary buffer
+ *            as internal state buffer. It is assumed to be as long as q.
+ * @p_q_len : length in bytes of first two prime factors of the RSA modulus n
+ */
+struct rsa_priv_f3_pdb {
+	u32		sgf;
+	dma_addr_t	g_dma;
+	dma_addr_t	f_dma;
+	dma_addr_t	c_dma;
+	dma_addr_t	p_dma;
+	dma_addr_t	q_dma;
+	dma_addr_t	dp_dma;
+	dma_addr_t	dq_dma;
+	dma_addr_t	tmp1_dma;
+	dma_addr_t	tmp2_dma;
+	u32		p_q_len;
+} __packed;
 
 #endif

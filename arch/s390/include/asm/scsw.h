@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Helper functions for scsw access.
  *
@@ -96,7 +97,8 @@ struct tm_scsw {
 	u32 dstat:8;
 	u32 cstat:8;
 	u32 fcxs:8;
-	u32 schxs:8;
+	u32 ifob:1;
+	u32 sesq:7;
 } __attribute__ ((packed));
 
 /**
@@ -176,6 +178,9 @@ union scsw {
 #define SCHN_STAT_CHN_CTRL_CHK	 0x04
 #define SCHN_STAT_INTF_CTRL_CHK	 0x02
 #define SCHN_STAT_CHAIN_CHECK	 0x01
+
+#define SCSW_SESQ_DEV_NOFCX	 3
+#define SCSW_SESQ_PATH_NOFCX	 4
 
 /*
  * architectured values for first sense byte
@@ -385,10 +390,10 @@ static inline int scsw_cmd_is_valid_key(union scsw *scsw)
 }
 
 /**
- * scsw_cmd_is_valid_sctl - check fctl field validity
+ * scsw_cmd_is_valid_sctl - check sctl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the fctl field of the specified command mode scsw is
+ * Return non-zero if the sctl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_sctl(union scsw *scsw)

@@ -1,25 +1,5 @@
-/* Intel(R) Gigabit Ethernet Linux driver
- * Copyright(c) 2007-2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 /* e1000_82575
  * e1000_82576
@@ -34,6 +14,7 @@
 #include "e1000_mac.h"
 #include "e1000_82575.h"
 #include "e1000_i210.h"
+#include "igb.h"
 
 static s32  igb_get_invariants_82575(struct e1000_hw *);
 static s32  igb_acquire_phy_82575(struct e1000_hw *);
@@ -45,8 +26,6 @@ static s32  igb_get_cfg_done_82575(struct e1000_hw *);
 static s32  igb_init_hw_82575(struct e1000_hw *);
 static s32  igb_phy_hw_reset_sgmii_82575(struct e1000_hw *);
 static s32  igb_read_phy_reg_sgmii_82575(struct e1000_hw *, u32, u16 *);
-static s32  igb_read_phy_reg_82580(struct e1000_hw *, u32, u16 *);
-static s32  igb_write_phy_reg_82580(struct e1000_hw *, u32, u16);
 static s32  igb_reset_hw_82575(struct e1000_hw *);
 static s32  igb_reset_hw_82580(struct e1000_hw *);
 static s32  igb_set_d0_lplu_state_82575(struct e1000_hw *, bool);
@@ -72,6 +51,32 @@ static s32 igb_validate_nvm_checksum_i350(struct e1000_hw *hw);
 static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw);
 static const u16 e1000_82580_rxpbs_table[] = {
 	36, 72, 144, 1, 2, 4, 8, 16, 35, 70, 140 };
+
+/* Due to a hw errata, if the host tries to  configure the VFTA register
+ * while performing queries from the BMC or DMA, then the VFTA in some
+ * cases won't be written.
+ */
+
+/**
+ *  igb_write_vfta_i350 - Write value to VLAN filter table
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset in VLAN filter table
+ *  @value: register value written to VLAN filter table
+ *
+ *  Writes value at the given offset in the register array which stores
+ *  the VLAN filter table.
+ **/
+static void igb_write_vfta_i350(struct e1000_hw *hw, u32 offset, u32 value)
+{
+	struct igb_adapter *adapter = hw->back;
+	int i;
+
+	for (i = 10; i--;)
+		array_wr32(E1000_VFTA, offset, value);
+
+	wrfl();
+	adapter->shadow_vfta[offset] = value;
+}
 
 /**
  *  igb_sgmii_uses_mdio_82575 - Determine if I2C pins are for external MDIO
@@ -205,13 +210,10 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 		case e1000_82580:
 		case e1000_i350:
 		case e1000_i354:
-			phy->ops.read_reg = igb_read_phy_reg_82580;
-			phy->ops.write_reg = igb_write_phy_reg_82580;
-			break;
 		case e1000_i210:
 		case e1000_i211:
-			phy->ops.read_reg = igb_read_phy_reg_gs40g;
-			phy->ops.write_reg = igb_write_phy_reg_gs40g;
+			phy->ops.read_reg = igb_read_phy_reg_82580;
+			phy->ops.write_reg = igb_write_phy_reg_82580;
 			break;
 		default:
 			phy->ops.read_reg = igb_read_phy_reg_igp;
@@ -272,6 +274,11 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 			if (ret_val)
 				goto out;
 		}
+		if (phy->id == M88E1543_E_PHY_ID) {
+			ret_val = igb_initialize_M88E1543_phy(hw);
+			if (ret_val)
+				goto out;
+		}
 		break;
 	case IGP03E1000_E_PHY_ID:
 		phy->type = e1000_phy_igp_3;
@@ -294,11 +301,15 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 	case I210_I_PHY_ID:
 		phy->type		= e1000_phy_i210;
 		phy->ops.check_polarity	= igb_check_polarity_m88;
+		phy->ops.get_cfg_done	= igb_get_cfg_done_i210;
 		phy->ops.get_phy_info	= igb_get_phy_info_m88;
 		phy->ops.get_cable_length = igb_get_cable_length_m88_gen2;
 		phy->ops.set_d0_lplu_state = igb_set_d0_lplu_state_82580;
 		phy->ops.set_d3_lplu_state = igb_set_d3_lplu_state_82580;
 		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_m88;
+		break;
+	case BCM54616_E_PHY_ID:
+		phy->type = e1000_phy_bcm54616;
 		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
@@ -333,7 +344,7 @@ static s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 	if (size > 15)
 		size = 15;
 
-	nvm->word_size = 1 << size;
+	nvm->word_size = BIT(size);
 	nvm->opcode_bits = 8;
 	nvm->delay_usec = 1;
 
@@ -352,7 +363,7 @@ static s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 				    16 : 8;
 		break;
 	}
-	if (nvm->word_size == (1 << 15))
+	if (nvm->word_size == BIT(15))
 		nvm->page_size = 128;
 
 	nvm->type = e1000_nvm_eeprom_spi;
@@ -363,7 +374,7 @@ static s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 	nvm->ops.write = igb_write_nvm_spi;
 	nvm->ops.validate = igb_validate_nvm_checksum;
 	nvm->ops.update = igb_update_nvm_checksum;
-	if (nvm->word_size < (1 << 15))
+	if (nvm->word_size < BIT(15))
 		nvm->ops.read = igb_read_nvm_eerd;
 	else
 		nvm->ops.read = igb_read_nvm_spi;
@@ -397,6 +408,8 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 
 	/* Set mta register count */
 	mac->mta_reg_count = 128;
+	/* Set uta register count */
+	mac->uta_reg_count = (hw->mac.type == e1000_82575) ? 0 : 128;
 	/* Set rar entry count */
 	switch (mac->type) {
 	case e1000_82576:
@@ -427,6 +440,11 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 		mac->ops.acquire_swfw_sync = igb_acquire_swfw_sync_82575;
 		mac->ops.release_swfw_sync = igb_release_swfw_sync_82575;
 	}
+
+	if ((hw->mac.type == e1000_i350) || (hw->mac.type == e1000_i354))
+		mac->ops.write_vfta = igb_write_vfta_i350;
+	else
+		mac->ops.write_vfta = igb_write_vfta;
 
 	/* Set if part includes ASF firmware */
 	mac->asf_firmware_present = true;
@@ -925,6 +943,8 @@ static s32 igb_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 
 	if (phy->id == M88E1512_E_PHY_ID)
 		ret_val = igb_initialize_M88E1512_phy(hw);
+	if (phy->id == M88E1543_E_PHY_ID)
+		ret_val = igb_initialize_M88E1543_phy(hw);
 out:
 	return ret_val;
 }
@@ -1514,10 +1534,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 
 	/* Disabling VLAN filtering */
 	hw_dbg("Initializing the IEEE VLAN\n");
-	if ((hw->mac.type == e1000_i350) || (hw->mac.type == e1000_i354))
-		igb_clear_vfta_i350(hw);
-	else
-		igb_clear_vfta(hw);
+	igb_clear_vfta(hw);
 
 	/* Setup the receive address */
 	igb_init_rx_addrs(hw, rar_count);
@@ -1613,6 +1630,9 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	case e1000_phy_82580:
 		ret_val = igb_copper_link_setup_82580(hw);
 		break;
+	case e1000_phy_bcm54616:
+		ret_val = 0;
+		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
 		break;
@@ -1688,6 +1708,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 		/* disable PCS autoneg and support parallel detect only */
 		pcs_autoneg = false;
+		/* fall through */
 	default:
 		if (hw->mac.type == e1000_82575 ||
 		    hw->mac.type == e1000_82576) {
@@ -2073,7 +2094,7 @@ void igb_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf)
 		/* The PF can spoof - it has to in order to
 		 * support emulation mode NICs
 		 */
-		reg_val ^= (1 << pf | 1 << (pf + MAX_NUM_VFS));
+		reg_val ^= (BIT(pf) | BIT(pf + MAX_NUM_VFS));
 	} else {
 		reg_val &= ~(E1000_DTXSWC_MAC_SPOOF_MASK |
 			     E1000_DTXSWC_VLAN_SPOOF_MASK);
@@ -2145,7 +2166,7 @@ void igb_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable)
  *  Reads the MDI control register in the PHY at offset and stores the
  *  information read to data.
  **/
-static s32 igb_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data)
+s32 igb_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	s32 ret_val;
 
@@ -2169,7 +2190,7 @@ out:
  *
  *  Writes data to MDI control register in the PHY at offset.
  **/
-static s32 igb_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data)
+s32 igb_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	s32 ret_val;
 
@@ -2886,7 +2907,7 @@ static struct e1000_mac_operations e1000_mac_ops_82575 = {
 #endif
 };
 
-static struct e1000_phy_operations e1000_phy_ops_82575 = {
+static const struct e1000_phy_operations e1000_phy_ops_82575 = {
 	.acquire              = igb_acquire_phy_82575,
 	.get_cfg_done         = igb_get_cfg_done_82575,
 	.release              = igb_release_phy_82575,

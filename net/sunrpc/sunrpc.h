@@ -37,12 +37,6 @@ struct rpc_buffer {
 	char	data[];
 };
 
-static inline int rpc_reply_expected(struct rpc_task *task)
-{
-	return (task->tk_msg.rpc_proc != NULL) &&
-		(task->tk_msg.rpc_proc->p_decode != NULL);
-}
-
 static inline int sock_is_loopback(struct sock *sk)
 {
 	struct dst_entry *dst;
@@ -63,4 +57,3 @@ int svc_send_common(struct socket *sock, struct xdr_buf *xdr,
 int rpc_clients_notifier_register(void);
 void rpc_clients_notifier_unregister(void);
 #endif /* _NET_SUNRPC_SUNRPC_H */
-

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * thread_info.h: sparc low-level thread information
  * adapted from the ppc version by Pete Zaitcev, which was
@@ -61,9 +62,6 @@ struct thread_info {
 	.cpu		=	0,			\
 	.preempt_count	=	INIT_PREEMPT_COUNT,	\
 }
-
-#define init_thread_info	(init_thread_union.thread_info)
-#define init_stack		(init_thread_union.stack)
 
 /* how to get the thread information struct from C */
 register struct thread_info *current_thread_info_reg asm("g6");

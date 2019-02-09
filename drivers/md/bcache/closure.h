@@ -1,8 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_CLOSURE_H
 #define _LINUX_CLOSURE_H
 
 #include <linux/llist.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/workqueue.h>
 
 /*
@@ -31,7 +33,8 @@
  * passing it, as you might expect, the function to run when nothing is pending
  * and the workqueue to run that function out of.
  *
- * continue_at() also, critically, is a macro that returns the calling function.
+ * continue_at() also, critically, requires a 'return' immediately following the
+ * location where this macro is referenced, to return to the calling function.
  * There's good reason for this.
  *
  * To use safely closures asynchronously, they must always have a refcount while
@@ -100,7 +103,9 @@
  */
 
 struct closure;
+struct closure_syncer;
 typedef void (closure_fn) (struct closure *);
+extern struct dentry *bcache_debug;
 
 struct closure_waitlist {
 	struct llist_head	list;
@@ -112,10 +117,6 @@ enum closure_state {
 	 * the thread that owns the closure, and cleared by the thread that's
 	 * waking up the closure.
 	 *
-	 * CLOSURE_SLEEPING: Must be set before a thread uses a closure to sleep
-	 * - indicates that cl->task is valid and closure_put() may wake it up.
-	 * Only set or cleared by the thread that owns the closure.
-	 *
 	 * The rest are for debugging and don't affect behaviour:
 	 *
 	 * CLOSURE_RUNNING: Set when a closure is running (i.e. by
@@ -125,22 +126,16 @@ enum closure_state {
 	 * continue_at() and closure_return() clear it for you, if you're doing
 	 * something unusual you can use closure_set_dead() which also helps
 	 * annotate where references are being transferred.
-	 *
-	 * CLOSURE_STACK: Sanity check - remaining should never hit 0 on a
-	 * closure with this flag set
 	 */
 
-	CLOSURE_BITS_START	= (1 << 23),
-	CLOSURE_DESTRUCTOR	= (1 << 23),
-	CLOSURE_WAITING		= (1 << 25),
-	CLOSURE_SLEEPING	= (1 << 27),
-	CLOSURE_RUNNING		= (1 << 29),
-	CLOSURE_STACK		= (1 << 31),
+	CLOSURE_BITS_START	= (1U << 26),
+	CLOSURE_DESTRUCTOR	= (1U << 26),
+	CLOSURE_WAITING		= (1U << 28),
+	CLOSURE_RUNNING		= (1U << 30),
 };
 
 #define CLOSURE_GUARD_MASK					\
-	((CLOSURE_DESTRUCTOR|CLOSURE_WAITING|CLOSURE_SLEEPING|	\
-	  CLOSURE_RUNNING|CLOSURE_STACK) << 1)
+	((CLOSURE_DESTRUCTOR|CLOSURE_WAITING|CLOSURE_RUNNING) << 1)
 
 #define CLOSURE_REMAINING_MASK		(CLOSURE_BITS_START - 1)
 #define CLOSURE_REMAINING_INITIALIZER	(1|CLOSURE_RUNNING)
@@ -149,7 +144,7 @@ struct closure {
 	union {
 		struct {
 			struct workqueue_struct *wq;
-			struct task_struct	*task;
+			struct closure_syncer	*s;
 			struct llist_node	list;
 			closure_fn		*fn;
 		};
@@ -164,7 +159,7 @@ struct closure {
 #define CLOSURE_MAGIC_DEAD	0xc054dead
 #define CLOSURE_MAGIC_ALIVE	0xc054a11e
 
-	unsigned		magic;
+	unsigned int		magic;
 	struct list_head	all;
 	unsigned long		ip;
 	unsigned long		waiting_on;
@@ -175,7 +170,19 @@ void closure_sub(struct closure *cl, int v);
 void closure_put(struct closure *cl);
 void __closure_wake_up(struct closure_waitlist *list);
 bool closure_wait(struct closure_waitlist *list, struct closure *cl);
-void closure_sync(struct closure *cl);
+void __closure_sync(struct closure *cl);
+
+/**
+ * closure_sync - sleep until a closure a closure has nothing left to wait on
+ *
+ * Sleeps until the refcount hits 1 - the thread that's running the closure owns
+ * the last refcount.
+ */
+static inline void closure_sync(struct closure *cl)
+{
+	if ((atomic_read(&cl->remaining) & CLOSURE_REMAINING_MASK) != 1)
+		__closure_sync(cl);
+}
 
 #ifdef CONFIG_BCACHE_CLOSURES_DEBUG
 
@@ -212,24 +219,6 @@ static inline void closure_set_waiting(struct closure *cl, unsigned long f)
 #endif
 }
 
-static inline void __closure_end_sleep(struct closure *cl)
-{
-	__set_current_state(TASK_RUNNING);
-
-	if (atomic_read(&cl->remaining) & CLOSURE_SLEEPING)
-		atomic_sub(CLOSURE_SLEEPING, &cl->remaining);
-}
-
-static inline void __closure_start_sleep(struct closure *cl)
-{
-	closure_set_ip(cl);
-	cl->task = current;
-	set_current_state(TASK_UNINTERRUPTIBLE);
-
-	if (!(atomic_read(&cl->remaining) & CLOSURE_SLEEPING))
-		atomic_add(CLOSURE_SLEEPING, &cl->remaining);
-}
-
 static inline void closure_set_stopped(struct closure *cl)
 {
 	atomic_sub(CLOSURE_RUNNING, &cl->remaining);
@@ -238,7 +227,6 @@ static inline void closure_set_stopped(struct closure *cl)
 static inline void set_closure_fn(struct closure *cl, closure_fn *fn,
 				  struct workqueue_struct *wq)
 {
-	BUG_ON(object_is_on_stack(cl));
 	closure_set_ip(cl);
 	cl->fn = fn;
 	cl->wq = wq;
@@ -249,6 +237,12 @@ static inline void set_closure_fn(struct closure *cl, closure_fn *fn,
 static inline void closure_queue(struct closure *cl)
 {
 	struct workqueue_struct *wq = cl->wq;
+	/**
+	 * Changes made to closure, work_struct, or a couple of other structs
+	 * may cause work.func not pointing to the right location.
+	 */
+	BUILD_BUG_ON(offsetof(struct closure, fn)
+		     != offsetof(struct work_struct, func));
 	if (wq) {
 		INIT_WORK(&cl->work, cl->work.func);
 		BUG_ON(!queue_work(wq, &cl->work));
@@ -291,14 +285,16 @@ static inline void closure_init(struct closure *cl, struct closure *parent)
 static inline void closure_init_stack(struct closure *cl)
 {
 	memset(cl, 0, sizeof(struct closure));
-	atomic_set(&cl->remaining, CLOSURE_REMAINING_INITIALIZER|CLOSURE_STACK);
+	atomic_set(&cl->remaining, CLOSURE_REMAINING_INITIALIZER);
 }
 
 /**
- * closure_wake_up - wake up all closures on a wait list.
+ * closure_wake_up - wake up all closures on a wait list,
+ *		     with memory barrier
  */
 static inline void closure_wake_up(struct closure_waitlist *list)
 {
+	/* Memory barrier for the wait list */
 	smp_mb();
 	__closure_wake_up(list);
 }
@@ -310,11 +306,11 @@ static inline void closure_wake_up(struct closure_waitlist *list)
  * been dropped with closure_put()), it will resume execution at @fn running out
  * of @wq (or, if @wq is NULL, @fn will be called by closure_put() directly).
  *
- * NOTE: This macro expands to a return in the calling function!
- *
  * This is because after calling continue_at() you no longer have a ref on @cl,
  * and whatever @cl owns may be freed out from under you - a running closure fn
  * has a ref on its own closure which continue_at() drops.
+ *
+ * Note you are expected to immediately return after using this macro.
  */
 #define continue_at(_cl, _fn, _wq)					\
 do {									\
@@ -337,8 +333,6 @@ do {									\
  *
  * Causes @fn to be executed out of @cl, in @wq context (or called directly if
  * @wq is NULL).
- *
- * NOTE: like continue_at(), this macro expands to a return in the caller!
  *
  * The ref the caller of continue_at_nobarrier() had on @cl is now owned by @fn,
  * thus it's not safe to touch anything protected by @cl after a

@@ -3,14 +3,22 @@
 G-Scaler is used for scaling and color space conversion on EXYNOS5 SoCs.
 
 Required properties:
-- compatible: should be "samsung,exynos5-gsc"
+- compatible: should be one of
+	      "samsung,exynos5250-gsc"
+	      "samsung,exynos5420-gsc"
+	      "samsung,exynos5433-gsc"
+	      "samsung,exynos5-gsc" (deprecated)
 - reg: should contain G-Scaler physical address location and length.
 - interrupts: should contain G-Scaler interrupt number
 
+Optional properties:
+- samsung,sysreg: handle to syscon used to control the system registers to
+  set writeback input and destination
+
 Example:
 
-gsc_0:  gsc@0x13e00000 {
-	compatible = "samsung,exynos5-gsc";
+gsc_0:  gsc@13e00000 {
+	compatible = "samsung,exynos5250-gsc";
 	reg = <0x13e00000 0x1000>;
 	interrupts = <0 85 0>;
 };

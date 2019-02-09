@@ -99,7 +99,7 @@ void mdfldWaitForPipeEnable(struct drm_device *dev, int pipe)
 	/* Wait for for the pipe enable to take effect. */
 	for (count = 0; count < COUNT_MAX; count++) {
 		temp = REG_READ(map->conf);
-		if ((temp & PIPEACONF_PIPE_STATE) == 1)
+		if (temp & PIPEACONF_PIPE_STATE)
 			break;
 	}
 }
@@ -148,7 +148,7 @@ static int check_fb(struct drm_framebuffer *fb)
 	if (!fb)
 		return 0;
 
-	switch (fb->bits_per_pixel) {
+	switch (fb->format->cpp[0] * 8) {
 	case 8:
 	case 16:
 	case 24:
@@ -165,8 +165,8 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-	struct psb_framebuffer *psbfb = to_psb_fb(crtc->primary->fb);
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
@@ -178,12 +178,12 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	dev_dbg(dev->dev, "pipe = 0x%x.\n", pipe);
 
 	/* no fb bound */
-	if (!crtc->primary->fb) {
+	if (!fb) {
 		dev_dbg(dev->dev, "No FB bound\n");
 		return 0;
 	}
 
-	ret = check_fb(crtc->primary->fb);
+	ret = check_fb(fb);
 	if (ret)
 		return ret;
 
@@ -195,19 +195,19 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	start = psbfb->gtt->offset;
-	offset = y * crtc->primary->fb->pitches[0] + x * (crtc->primary->fb->bits_per_pixel / 8);
+	start = to_gtt_range(fb->obj[0])->offset;
+	offset = y * fb->pitches[0] + x * fb->format->cpp[0];
 
-	REG_WRITE(map->stride, crtc->primary->fb->pitches[0]);
+	REG_WRITE(map->stride, fb->pitches[0]);
 	dspcntr = REG_READ(map->cntr);
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 
-	switch (crtc->primary->fb->bits_per_pixel) {
+	switch (fb->format->cpp[0] * 8) {
 	case 8:
 		dspcntr |= DISPPLANE_8BPP;
 		break;
 	case 16:
-		if (crtc->primary->fb->depth == 15)
+		if (fb->format->depth == 15)
 			dspcntr |= DISPPLANE_15_16BPP;
 		else
 			dspcntr |= DISPPLANE_16BPP;
@@ -736,11 +736,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 					sizeof(struct drm_display_mode));
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		if (!connector)
-			continue;
-
 		encoder = connector->encoder;
-
 		if (!encoder)
 			continue;
 
@@ -1026,10 +1022,8 @@ mrst_crtc_mode_set_exit:
 
 const struct drm_crtc_helper_funcs mdfld_helper_funcs = {
 	.dpms = mdfld_crtc_dpms,
-	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = mdfld_crtc_mode_set,
 	.mode_set_base = mdfld__intel_pipe_set_base,
 	.prepare = gma_crtc_prepare,
 	.commit = gma_crtc_commit,
 };
-

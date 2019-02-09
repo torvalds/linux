@@ -1,23 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- *
+ * Copyright (C) 2017-2018, Intel Corporation
  * Copyright (C) 2015 Altera Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _ALTERA_EDAC_H
 #define _ALTERA_EDAC_H
 
+#include <linux/arm-smccc.h>
 #include <linux/edac.h>
 #include <linux/types.h>
 
@@ -94,6 +84,7 @@
 /* SDRAM Controller Address Width Register */
 #define CV_DRAMADDRW               0xFFC2502C
 #define A10_DRAMADDRW              0xFFCFA0A8
+#define S10_DRAMADDRW              0xF80110E0
 
 /* SDRAM Controller Address Widths Field Register */
 #define DRAMADDRW_COLBIT_MASK      0x001F
@@ -115,6 +106,7 @@
 /* SDRAM Controller Interface Data Width Register */
 #define CV_DRAMIFWIDTH             0xFFC25030
 #define A10_DRAMIFWIDTH            0xFFCFB008
+#define S10_DRAMIFWIDTH            0xF8011008
 
 /* SDRAM Controller Interface Data Width Defines */
 #define CV_DRAMIFWIDTH_16B_ECC     24
@@ -164,6 +156,34 @@
 #define A10_INTMASK_CLR_OFST       0x10
 #define A10_DDR0_IRQ_MASK          BIT(17)
 
+/************* Stratix10 Defines **************/
+
+/* SDRAM Controller EccCtrl Register */
+#define S10_ECCCTRL1_OFST          0xF8011100
+
+/* SDRAM Controller DRAM IRQ Register */
+#define S10_ERRINTEN_OFST          0xF8011110
+
+/* SDRAM Interrupt Mode Register */
+#define S10_INTMODE_OFST           0xF801111C
+
+/* SDRAM Controller Error Status Register */
+#define S10_INTSTAT_OFST           0xF8011120
+
+/* SDRAM Controller ECC Error Address Register */
+#define S10_DERRADDR_OFST          0xF801112C
+#define S10_SERRADDR_OFST          0xF8011130
+
+/* SDRAM Controller ECC Diagnostic Register */
+#define S10_DIAGINTTEST_OFST       0xF8011124
+
+/* SDRAM Single Bit Error Count Compare Set Register */
+#define S10_SERRCNTREG_OFST        0xF801113C
+
+/* Sticky registers for Uncorrected Errors */
+#define S10_SYSMGR_UE_VAL_OFST     0xFFD12220
+#define S10_SYSMGR_UE_ADDR_OFST    0xFFD12224
+
 struct altr_sdram_prv_data {
 	int ecc_ctrl_offset;
 	int ecc_ctl_en_mask;
@@ -193,6 +213,237 @@ struct altr_sdram_mc_data {
 	int sb_irq;
 	int db_irq;
 	const struct altr_sdram_prv_data *data;
+};
+
+/************************** EDAC Device Defines **************************/
+/***** General Device Trigger Defines *****/
+#define ALTR_UE_TRIGGER_CHAR            'U'   /* Trigger for UE */
+#define ALTR_TRIGGER_READ_WRD_CNT       32    /* Line size x 4 */
+#define ALTR_TRIG_OCRAM_BYTE_SIZE       128   /* Line size x 4 */
+#define ALTR_TRIG_L2C_BYTE_SIZE         4096  /* Full Page */
+
+/******* Cyclone5 and Arria5 Defines *******/
+/* OCRAM ECC Management Group Defines */
+#define ALTR_MAN_GRP_OCRAM_ECC_OFFSET   0x04
+#define ALTR_OCR_ECC_REG_OFFSET         0x00
+#define ALTR_OCR_ECC_EN                 BIT(0)
+#define ALTR_OCR_ECC_INJS               BIT(1)
+#define ALTR_OCR_ECC_INJD               BIT(2)
+#define ALTR_OCR_ECC_SERR               BIT(3)
+#define ALTR_OCR_ECC_DERR               BIT(4)
+
+/* L2 ECC Management Group Defines */
+#define ALTR_MAN_GRP_L2_ECC_OFFSET      0x00
+#define ALTR_L2_ECC_REG_OFFSET          0x00
+#define ALTR_L2_ECC_EN                  BIT(0)
+#define ALTR_L2_ECC_INJS                BIT(1)
+#define ALTR_L2_ECC_INJD                BIT(2)
+
+/* Arria10 General ECC Block Module Defines */
+#define ALTR_A10_ECC_CTRL_OFST          0x08
+#define ALTR_A10_ECC_EN                 BIT(0)
+#define ALTR_A10_ECC_INITA              BIT(16)
+#define ALTR_A10_ECC_INITB              BIT(24)
+
+#define ALTR_A10_ECC_INITSTAT_OFST      0x0C
+#define ALTR_A10_ECC_INITCOMPLETEA      BIT(0)
+#define ALTR_A10_ECC_INITCOMPLETEB      BIT(8)
+
+#define ALTR_A10_ECC_ERRINTEN_OFST      0x10
+#define ALTR_A10_ECC_ERRINTENS_OFST     0x14
+#define ALTR_A10_ECC_ERRINTENR_OFST     0x18
+#define ALTR_A10_ECC_SERRINTEN          BIT(0)
+
+#define ALTR_A10_ECC_INTMODE_OFST       0x1C
+#define ALTR_A10_ECC_INTMODE            BIT(0)
+
+#define ALTR_A10_ECC_INTSTAT_OFST       0x20
+#define ALTR_A10_ECC_SERRPENA           BIT(0)
+#define ALTR_A10_ECC_DERRPENA           BIT(8)
+#define ALTR_A10_ECC_ERRPENA_MASK       (ALTR_A10_ECC_SERRPENA | \
+					 ALTR_A10_ECC_DERRPENA)
+#define ALTR_A10_ECC_SERRPENB           BIT(16)
+#define ALTR_A10_ECC_DERRPENB           BIT(24)
+#define ALTR_A10_ECC_ERRPENB_MASK       (ALTR_A10_ECC_SERRPENB | \
+					 ALTR_A10_ECC_DERRPENB)
+
+#define ALTR_A10_ECC_INTTEST_OFST       0x24
+#define ALTR_A10_ECC_TSERRA             BIT(0)
+#define ALTR_A10_ECC_TDERRA             BIT(8)
+#define ALTR_A10_ECC_TSERRB             BIT(16)
+#define ALTR_A10_ECC_TDERRB             BIT(24)
+
+/* ECC Manager Defines */
+#define A10_SYSMGR_ECC_INTMASK_SET_OFST   0x94
+#define A10_SYSMGR_ECC_INTMASK_CLR_OFST   0x98
+#define A10_SYSMGR_ECC_INTMASK_OCRAM      BIT(1)
+
+#define A10_SYSMGR_ECC_INTSTAT_SERR_OFST  0x9C
+#define A10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xA0
+#define A10_SYSMGR_ECC_INTSTAT_L2         BIT(0)
+#define A10_SYSMGR_ECC_INTSTAT_OCRAM      BIT(1)
+
+#define A10_SYSGMR_MPU_CLEAR_L2_ECC_OFST  0xA8
+#define A10_SYSGMR_MPU_CLEAR_L2_ECC_SB    BIT(15)
+#define A10_SYSGMR_MPU_CLEAR_L2_ECC_MB    BIT(31)
+
+/* Arria 10 L2 ECC Management Group Defines */
+#define ALTR_A10_L2_ECC_CTL_OFST        0x0
+#define ALTR_A10_L2_ECC_EN_CTL          BIT(0)
+
+#define ALTR_A10_L2_ECC_STATUS          0xFFD060A4
+#define ALTR_A10_L2_ECC_STAT_OFST       0xA4
+#define ALTR_A10_L2_ECC_SERR_PEND       BIT(0)
+#define ALTR_A10_L2_ECC_MERR_PEND       BIT(0)
+
+#define ALTR_A10_L2_ECC_CLR_OFST        0x4
+#define ALTR_A10_L2_ECC_SERR_CLR        BIT(15)
+#define ALTR_A10_L2_ECC_MERR_CLR        BIT(31)
+
+#define ALTR_A10_L2_ECC_INJ_OFST        ALTR_A10_L2_ECC_CTL_OFST
+#define ALTR_A10_L2_ECC_CE_INJ_MASK     0x00000101
+#define ALTR_A10_L2_ECC_UE_INJ_MASK     0x00010101
+
+/* Arria 10 OCRAM ECC Management Group Defines */
+#define ALTR_A10_OCRAM_ECC_EN_CTL       (BIT(1) | BIT(0))
+
+/* Arria 10 Ethernet ECC Management Group Defines */
+#define ALTR_A10_COMMON_ECC_EN_CTL      BIT(0)
+
+/* Arria 10 SDMMC ECC Management Group Defines */
+#define ALTR_A10_SDMMC_IRQ_MASK         (BIT(16) | BIT(15))
+
+/* A10 ECC Controller memory initialization timeout */
+#define ALTR_A10_ECC_INIT_WATCHDOG_10US      10000
+
+/************* Stratix10 Defines **************/
+
+/* Stratix10 ECC Manager Defines */
+#define S10_SYSMGR_ECC_INTMASK_VAL_OFST   0xFFD12090
+#define S10_SYSMGR_ECC_INTMASK_SET_OFST   0xFFD12094
+#define S10_SYSMGR_ECC_INTMASK_CLR_OFST   0xFFD12098
+
+#define S10_SYSMGR_ECC_INTSTAT_SERR_OFST  0xFFD1209C
+#define S10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xFFD120A0
+
+#define S10_DDR0_IRQ_MASK                 BIT(16)
+
+struct altr_edac_device_dev;
+
+struct edac_device_prv_data {
+	int (*setup)(struct altr_edac_device_dev *device);
+	int ce_clear_mask;
+	int ue_clear_mask;
+	int irq_status_mask;
+	void * (*alloc_mem)(size_t size, void **other);
+	void (*free_mem)(void *p, size_t size, void *other);
+	int ecc_enable_mask;
+	int ecc_en_ofst;
+	int ce_set_mask;
+	int ue_set_mask;
+	int set_err_ofst;
+	irqreturn_t (*ecc_irq_handler)(int irq, void *dev_id);
+	int trig_alloc_sz;
+	const struct file_operations *inject_fops;
+	bool panic;
+};
+
+struct altr_edac_device_dev {
+	struct list_head next;
+	void __iomem *base;
+	int sb_irq;
+	int db_irq;
+	const struct edac_device_prv_data *data;
+	struct dentry *debugfs_dir;
+	char *edac_dev_name;
+	struct altr_arria10_edac *edac;
+	struct edac_device_ctl_info *edac_dev;
+	struct device ddev;
+	int edac_idx;
+};
+
+struct altr_arria10_edac {
+	struct device		*dev;
+	struct regmap		*ecc_mgr_map;
+	int sb_irq;
+	int db_irq;
+	struct irq_domain	*domain;
+	struct irq_chip		irq_chip;
+	struct list_head	a10_ecc_devices;
+};
+
+/*
+ * Functions specified by ARM SMC Calling convention:
+ *
+ * FAST call executes atomic operations, returns when the requested operation
+ * has completed.
+ * STD call starts a operation which can be preempted by a non-secure
+ * interrupt. The call can return before the requested operation has
+ * completed.
+ *
+ * a0..a7 is used as register names in the descriptions below, on arm32
+ * that translates to r0..r7 and on arm64 to w0..w7.
+ */
+
+#define INTEL_SIP_SMC_STD_CALL_VAL(func_num) \
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_STD_CALL, ARM_SMCCC_SMC_64, \
+	ARM_SMCCC_OWNER_SIP, (func_num))
+
+#define INTEL_SIP_SMC_FAST_CALL_VAL(func_num) \
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_64, \
+	ARM_SMCCC_OWNER_SIP, (func_num))
+
+#define INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION		0xFFFFFFFF
+#define INTEL_SIP_SMC_STATUS_OK				0x0
+#define INTEL_SIP_SMC_REG_ERROR				0x5
+
+/*
+ * Request INTEL_SIP_SMC_REG_READ
+ *
+ * Read a protected register using SMCCC
+ *
+ * Call register usage:
+ * a0: INTEL_SIP_SMC_REG_READ.
+ * a1: register address.
+ * a2-7: not used.
+ *
+ * Return status:
+ * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_REG_ERROR, or
+ *     INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION
+ * a1: Value in the register
+ * a2-3: not used.
+ */
+#define INTEL_SIP_SMC_FUNCID_REG_READ 7
+#define INTEL_SIP_SMC_REG_READ \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_REG_READ)
+
+/*
+ * Request INTEL_SIP_SMC_REG_WRITE
+ *
+ * Write a protected register using SMCCC
+ *
+ * Call register usage:
+ * a0: INTEL_SIP_SMC_REG_WRITE.
+ * a1: register address
+ * a2: value to program into register.
+ * a3-7: not used.
+ *
+ * Return status:
+ * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_REG_ERROR, or
+ *     INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION
+ * a1-3: not used.
+ */
+#define INTEL_SIP_SMC_FUNCID_REG_WRITE 8
+#define INTEL_SIP_SMC_REG_WRITE \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_REG_WRITE)
+
+struct altr_stratix10_edac {
+	struct device		*dev;
+	int sb_irq;
+	struct irq_domain	*domain;
+	struct irq_chip		irq_chip;
+	struct list_head	s10_ecc_devices;
+	struct notifier_block	panic_notifier;
 };
 
 #endif	/* #ifndef _ALTERA_EDAC_H */

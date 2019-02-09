@@ -1,5 +1,5 @@
 /*
- * platform_tc35876x.c: tc35876x platform data initilization file
+ * platform_tc35876x.c: tc35876x platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>
@@ -11,7 +11,7 @@
  */
 
 #include <linux/gpio.h>
-#include <linux/i2c/tc35876x.h>
+#include <linux/platform_data/tc35876x.h>
 #include <asm/intel-mid.h>
 
 /*tc35876x DSI_LVDS bridge chip and panel platform data*/

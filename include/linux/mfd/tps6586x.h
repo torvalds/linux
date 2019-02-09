@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_MFD_TPS6586X_H
 #define __LINUX_MFD_TPS6586X_H
 
@@ -17,6 +18,7 @@
 #define TPS658621A	0x15
 #define TPS658621CD	0x2c
 #define TPS658623	0x1b
+#define TPS658624	0x0a
 #define TPS658640	0x01
 #define TPS658640v2	0x02
 #define TPS658643	0x03

@@ -2,7 +2,7 @@ Broadcom stb bsc iic master controller
 
 Required properties:
 
-- compatible: should be "brcm,brcmstb-i2c"
+- compatible: should be "brcm,brcmstb-i2c" or "brcm,brcmper-i2c"
 - clock-frequency: 32-bit decimal value of iic master clock freqency in Hz
 		   valid values are 375000, 390000, 187500, 200000
 		   93750, 97500, 46875 and 50000
@@ -10,8 +10,6 @@ Required properties:
 
 Optional properties :
 
-- interrupt-parent: specifies the phandle to the parent interrupt controller
-  this one is cascaded from
 - interrupts: specifies the interrupt number, the irq line to be used
 - interrupt-names: Interrupt name string
 

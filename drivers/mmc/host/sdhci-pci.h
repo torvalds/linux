@@ -1,9 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SDHCI_PCI_H
 #define __SDHCI_PCI_H
 
 /*
- * PCI device IDs
+ * PCI device IDs, sub IDs
  */
+
+#define PCI_DEVICE_ID_O2_SDS0		0x8420
+#define PCI_DEVICE_ID_O2_SDS1		0x8421
+#define PCI_DEVICE_ID_O2_FUJIN2		0x8520
+#define PCI_DEVICE_ID_O2_SEABIRD0	0x8620
+#define PCI_DEVICE_ID_O2_SEABIRD1	0x8621
 
 #define PCI_DEVICE_ID_INTEL_PCH_SDIO0	0x8809
 #define PCI_DEVICE_ID_INTEL_PCH_SDIO1	0x880a
@@ -14,7 +21,7 @@
 #define PCI_DEVICE_ID_INTEL_BSW_EMMC	0x2294
 #define PCI_DEVICE_ID_INTEL_BSW_SDIO	0x2295
 #define PCI_DEVICE_ID_INTEL_BSW_SD	0x2296
-#define PCI_DEVICE_ID_INTEL_MRFL_MMC	0x1190
+#define PCI_DEVICE_ID_INTEL_MRFLD_MMC	0x1190
 #define PCI_DEVICE_ID_INTEL_CLV_SDIO0	0x08f9
 #define PCI_DEVICE_ID_INTEL_CLV_SDIO1	0x08fa
 #define PCI_DEVICE_ID_INTEL_CLV_SDIO2	0x08fb
@@ -25,12 +32,71 @@
 #define PCI_DEVICE_ID_INTEL_SPT_SDIO	0x9d2c
 #define PCI_DEVICE_ID_INTEL_SPT_SD	0x9d2d
 #define PCI_DEVICE_ID_INTEL_DNV_EMMC	0x19db
+#define PCI_DEVICE_ID_INTEL_CDF_EMMC	0x18db
 #define PCI_DEVICE_ID_INTEL_BXT_SD	0x0aca
 #define PCI_DEVICE_ID_INTEL_BXT_EMMC	0x0acc
 #define PCI_DEVICE_ID_INTEL_BXT_SDIO	0x0ad0
+#define PCI_DEVICE_ID_INTEL_BXTM_SD	0x1aca
+#define PCI_DEVICE_ID_INTEL_BXTM_EMMC	0x1acc
+#define PCI_DEVICE_ID_INTEL_BXTM_SDIO	0x1ad0
 #define PCI_DEVICE_ID_INTEL_APL_SD	0x5aca
 #define PCI_DEVICE_ID_INTEL_APL_EMMC	0x5acc
 #define PCI_DEVICE_ID_INTEL_APL_SDIO	0x5ad0
+#define PCI_DEVICE_ID_INTEL_GLK_SD	0x31ca
+#define PCI_DEVICE_ID_INTEL_GLK_EMMC	0x31cc
+#define PCI_DEVICE_ID_INTEL_GLK_SDIO	0x31d0
+#define PCI_DEVICE_ID_INTEL_CNP_EMMC	0x9dc4
+#define PCI_DEVICE_ID_INTEL_CNP_SD	0x9df5
+#define PCI_DEVICE_ID_INTEL_CNPH_SD	0xa375
+#define PCI_DEVICE_ID_INTEL_ICP_EMMC	0x34c4
+#define PCI_DEVICE_ID_INTEL_ICP_SD	0x34f8
+
+#define PCI_DEVICE_ID_SYSKONNECT_8000	0x8000
+#define PCI_DEVICE_ID_VIA_95D0		0x95d0
+#define PCI_DEVICE_ID_REALTEK_5250	0x5250
+
+#define PCI_SUBDEVICE_ID_NI_7884	0x7884
+#define PCI_SUBDEVICE_ID_NI_78E3	0x78e3
+
+#define PCI_VENDOR_ID_ARASAN		0x16e6
+#define PCI_DEVICE_ID_ARASAN_PHY_EMMC	0x0670
+
+#define PCI_DEVICE_ID_SYNOPSYS_DWC_MSHC 0xc202
+
+/*
+ * PCI device class and mask
+ */
+
+#define SYSTEM_SDHCI			(PCI_CLASS_SYSTEM_SDHCI << 8)
+#define PCI_CLASS_MASK			0xFFFF00
+
+/*
+ * Macros for PCI device-description
+ */
+
+#define _PCI_VEND(vend) PCI_VENDOR_ID_##vend
+#define _PCI_DEV(vend, dev) PCI_DEVICE_ID_##vend##_##dev
+#define _PCI_SUBDEV(subvend, subdev) PCI_SUBDEVICE_ID_##subvend##_##subdev
+
+#define SDHCI_PCI_DEVICE(vend, dev, cfg) { \
+	.vendor = _PCI_VEND(vend), .device = _PCI_DEV(vend, dev), \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
+	.driver_data = (kernel_ulong_t)&(sdhci_##cfg) \
+}
+
+#define SDHCI_PCI_SUBDEVICE(vend, dev, subvend, subdev, cfg) { \
+	.vendor = _PCI_VEND(vend), .device = _PCI_DEV(vend, dev), \
+	.subvendor = _PCI_VEND(subvend), \
+	.subdevice = _PCI_SUBDEV(subvend, subdev), \
+	.driver_data = (kernel_ulong_t)&(sdhci_##cfg) \
+}
+
+#define SDHCI_PCI_DEVICE_CLASS(vend, cl, cl_msk, cfg) { \
+	.vendor = _PCI_VEND(vend), .device = PCI_ANY_ID, \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
+	.class = (cl), .class_mask = (cl_msk), \
+	.driver_data = (kernel_ulong_t)&(sdhci_##cfg) \
+}
 
 /*
  * PCI registers
@@ -58,10 +124,20 @@ struct sdhci_pci_fixes {
 	int			(*probe) (struct sdhci_pci_chip *);
 
 	int			(*probe_slot) (struct sdhci_pci_slot *);
+	int			(*add_host) (struct sdhci_pci_slot *);
 	void			(*remove_slot) (struct sdhci_pci_slot *, int);
 
+#ifdef CONFIG_PM_SLEEP
 	int			(*suspend) (struct sdhci_pci_chip *);
 	int			(*resume) (struct sdhci_pci_chip *);
+#endif
+#ifdef CONFIG_PM
+	int			(*runtime_suspend) (struct sdhci_pci_chip *);
+	int			(*runtime_resume) (struct sdhci_pci_chip *);
+#endif
+
+	const struct sdhci_ops	*ops;
+	size_t			priv_size;
 };
 
 struct sdhci_pci_slot {
@@ -69,20 +145,15 @@ struct sdhci_pci_slot {
 	struct sdhci_host	*host;
 	struct sdhci_pci_data	*data;
 
-	int			pci_bar;
 	int			rst_n_gpio;
 	int			cd_gpio;
 	int			cd_irq;
 
-	char			*cd_con_id;
 	int			cd_idx;
 	bool			cd_override_level;
 
 	void (*hw_reset)(struct sdhci_host *host);
-	int (*select_drive_strength)(struct sdhci_host *host,
-				     struct mmc_card *card,
-				     unsigned int max_dtr, int host_drv,
-				     int card_drv, int *drv_type);
+	unsigned long		private[0] ____cacheline_aligned;
 };
 
 struct sdhci_pci_chip {
@@ -91,10 +162,30 @@ struct sdhci_pci_chip {
 	unsigned int		quirks;
 	unsigned int		quirks2;
 	bool			allow_runtime_pm;
+	bool			pm_retune;
+	bool			rpm_retune;
 	const struct sdhci_pci_fixes *fixes;
 
 	int			num_slots;	/* Slots on controller */
 	struct sdhci_pci_slot	*slots[MAX_SLOTS]; /* Pointers to host slots */
 };
+
+static inline void *sdhci_pci_priv(struct sdhci_pci_slot *slot)
+{
+	return (void *)slot->private;
+}
+
+#ifdef CONFIG_PM_SLEEP
+int sdhci_pci_resume_host(struct sdhci_pci_chip *chip);
+#endif
+int sdhci_pci_enable_dma(struct sdhci_host *host);
+int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot);
+int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip);
+#ifdef CONFIG_PM_SLEEP
+int sdhci_pci_o2_resume(struct sdhci_pci_chip *chip);
+#endif
+
+extern const struct sdhci_pci_fixes sdhci_arasan;
+extern const struct sdhci_pci_fixes sdhci_snps;
 
 #endif /* __SDHCI_PCI_H */

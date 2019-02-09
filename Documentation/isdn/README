@@ -33,10 +33,10 @@ README for the ISDN-subsystem
      de.alt.comm.isdn4linux
 
   There is also a well maintained FAQ in English available at
-     http://www.mhessler.de/i4lfaq/
+     https://www.mhessler.de/i4lfaq/
   It can be viewed online, or downloaded in sgml/text/html format.
   The FAQ can also be viewed online at
-     http://www.isdn4linux.de/faq/
+     https://www.isdn4linux.de/faq/i4lfaq.html
   or downloaded from
      ftp://ftp.isdn4linux.de/pub/isdn4linux/FAQ/
 
@@ -332,7 +332,7 @@ README for the ISDN-subsystem
 4. Device-inodes
 
    The major and minor numbers and their names are described in
-   Documentation/devices.txt. The major numbers are:
+   Documentation/admin-guide/devices.rst. The major numbers are:
 
      43 for the ISDN-tty's.
      44 for the ISDN-callout-tty's.

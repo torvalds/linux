@@ -117,12 +117,10 @@ void __init spear6xx_clk_init(void __iomem *misc_base)
 {
 	struct clk *clk, *clk1;
 
-	clk = clk_register_fixed_rate(NULL, "osc_32k_clk", NULL, CLK_IS_ROOT,
-			32000);
+	clk = clk_register_fixed_rate(NULL, "osc_32k_clk", NULL, 0, 32000);
 	clk_register_clkdev(clk, "osc_32k_clk", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "osc_30m_clk", NULL, CLK_IS_ROOT,
-			30000000);
+	clk = clk_register_fixed_rate(NULL, "osc_30m_clk", NULL, 0, 30000000);
 	clk_register_clkdev(clk, "osc_30m_clk", NULL);
 
 	/* clock derived from 32 KHz osc clk */
@@ -149,7 +147,7 @@ void __init spear6xx_clk_init(void __iomem *misc_base)
 
 	clk = clk_register_fixed_factor(NULL, "wdt_clk", "osc_30m_clk", 0, 1,
 			1);
-	clk_register_clkdev(clk, NULL, "wdt");
+	clk_register_clkdev(clk, NULL, "fc880000.wdt");
 
 	/* clock derived from pll1 clk */
 	clk = clk_register_fixed_factor(NULL, "cpu_clk", "pll1_clk",
@@ -315,7 +313,7 @@ void __init spear6xx_clk_init(void __iomem *misc_base)
 	/* clock derived from apb clk */
 	clk = clk_register_gate(NULL, "adc_clk", "apb_clk", 0, PERIP1_CLK_ENB,
 			ADC_CLK_ENB, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "adc");
+	clk_register_clkdev(clk, NULL, "d820b000.adc");
 
 	clk = clk_register_fixed_factor(NULL, "gpio0_clk", "apb_clk", 0, 1, 1);
 	clk_register_clkdev(clk, NULL, "f0100000.gpio");

@@ -110,7 +110,7 @@ static const unsigned int ack_rates_high[] =
  * bwmodes.
  */
 int
-ath5k_hw_get_frame_duration(struct ath5k_hw *ah, enum ieee80211_band band,
+ath5k_hw_get_frame_duration(struct ath5k_hw *ah, enum nl80211_band band,
 		int len, struct ieee80211_rate *rate, bool shortpre)
 {
 	int sifs, preamble, plcp_bits, sym_time;
@@ -219,9 +219,9 @@ ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
 		sifs = AR5K_INIT_SIFS_QUARTER_RATE;
 		break;
 	case AR5K_BWMODE_DEFAULT:
-		sifs = AR5K_INIT_SIFS_DEFAULT_BG;
 	default:
-		if (channel->band == IEEE80211_BAND_5GHZ)
+		sifs = AR5K_INIT_SIFS_DEFAULT_BG;
+		if (channel->band == NL80211_BAND_5GHZ)
 			sifs = AR5K_INIT_SIFS_DEFAULT_A;
 		break;
 	}
@@ -279,7 +279,7 @@ ath5k_hw_write_rate_duration(struct ath5k_hw *ah)
 	struct ieee80211_rate *rate;
 	unsigned int i;
 	/* 802.11g covers both OFDM and CCK */
-	u8 band = IEEE80211_BAND_2GHZ;
+	u8 band = NL80211_BAND_2GHZ;
 
 	/* Write rate duration table */
 	for (i = 0; i < ah->sbands[band].n_bitrates; i++) {
@@ -670,6 +670,7 @@ ath5k_hw_init_beacon_timers(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		AR5K_REG_ENABLE_BITS(ah, AR5K_TXCFG, AR5K_TXCFG_ADHOC_BCN_ATIM);
+		/* fall through */
 	default:
 		/* On non-STA modes timer1 is used as next DMA
 		 * beacon alert (DBA) timer and timer2 as next

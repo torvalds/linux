@@ -63,16 +63,11 @@ resizer_calculate_line_length(u32 pix, int width, int height,
 	if (pix == MEDIA_BUS_FMT_UYVY8_2X8 ||
 	    pix == MEDIA_BUS_FMT_SGRBG12_1X12) {
 		*line_len = width << 1;
-	} else if (pix == MEDIA_BUS_FMT_Y8_1X8 ||
-		   pix == MEDIA_BUS_FMT_UV8_1X8) {
-		*line_len = width;
-		*line_len_c = width;
 	} else {
-		/* YUV 420 */
-		/* round width to upper 32 byte boundary */
 		*line_len = width;
 		*line_len_c = width;
 	}
+
 	/* adjust the line len to be a multiple of 32 */
 	*line_len += 31;
 	*line_len &= ~0x1f;
@@ -133,7 +128,7 @@ resizer_configure_passthru(struct vpfe_resizer_device *resizer, int bypass)
 static void
 configure_resizer_out_params(struct vpfe_resizer_device *resizer, int index,
 			     void *output_spec, unsigned char partial,
-			     unsigned flag)
+			     unsigned int flag)
 {
 	struct resizer_params *param = &resizer->config;
 	struct v4l2_mbus_framefmt *outformat;
@@ -242,9 +237,8 @@ resizer_calculate_resize_ratios(struct vpfe_resizer_device *resizer, int index)
 			((informat->width) * 256) / (outformat->width);
 }
 
-void
-static resizer_enable_422_420_conversion(struct resizer_params *param,
-					 int index, bool en)
+static void resizer_enable_422_420_conversion(struct resizer_params *param,
+					      int index, bool en)
 {
 	param->rsz_rsc_param[index].cen = en;
 	param->rsz_rsc_param[index].yen = en;
@@ -409,7 +403,7 @@ resizer_calculate_down_scale_f_div_param(struct device *dev,
 	param->f_div.pass[0].src_hsz = upper_h1 + o;
 	param->f_div.pass[1].o_hsz = h2 - 1;
 	param->f_div.pass[1].i_hps = 10 + (val1 * two_power);
-	param->f_div.pass[1].h_phs = (val - (val1 << 8));
+	param->f_div.pass[1].h_phs = val - (val1 << 8);
 	param->f_div.pass[1].src_hps = upper_h1 - o;
 	param->f_div.pass[1].src_hsz = upper_h2 + o;
 
@@ -430,8 +424,8 @@ resizer_configure_common_in_params(struct vpfe_resizer_device *resizer)
 	param->rsz_common.hps = param->user_config.hst;
 
 	if (vpfe_ipipeif_decimation_enabled(vpfe_dev))
-		param->rsz_common.hsz = (((informat->width - 1) *
-			IPIPEIF_RSZ_CONST) / vpfe_ipipeif_get_rsz(vpfe_dev));
+		param->rsz_common.hsz = ((informat->width - 1) *
+			IPIPEIF_RSZ_CONST) / vpfe_ipipeif_get_rsz(vpfe_dev);
 	else
 		param->rsz_common.hsz = informat->width - 1;
 
@@ -486,7 +480,7 @@ resizer_configure_common_in_params(struct vpfe_resizer_device *resizer)
 	return 0;
 }
 static int
-resizer_configure_in_continious_mode(struct vpfe_resizer_device *resizer)
+resizer_configure_in_continuous_mode(struct vpfe_resizer_device *resizer)
 {
 	struct device *dev = resizer->crop_resizer.subdev.v4l2_dev->dev;
 	struct resizer_params *param = &resizer->config;
@@ -495,7 +489,7 @@ resizer_configure_in_continious_mode(struct vpfe_resizer_device *resizer)
 	int line_len;
 	int ret;
 
-	if (resizer->resizer_a.output != RESIZER_OUPUT_MEMORY) {
+	if (resizer->resizer_a.output != RESIZER_OUTPUT_MEMORY) {
 		dev_err(dev, "enable resizer - Resizer-A\n");
 		return -EINVAL;
 	}
@@ -507,7 +501,7 @@ resizer_configure_in_continious_mode(struct vpfe_resizer_device *resizer)
 	param->rsz_en[RSZ_B] = DISABLE;
 	param->oper_mode = RESIZER_MODE_CONTINIOUS;
 
-	if (resizer->resizer_b.output == RESIZER_OUPUT_MEMORY) {
+	if (resizer->resizer_b.output == RESIZER_OUTPUT_MEMORY) {
 		struct v4l2_mbus_framefmt *outformat2;
 
 		param->rsz_en[RSZ_B] = ENABLE;
@@ -655,7 +649,7 @@ resizer_calculate_normal_f_div_param(struct device *dev, int input_width,
 	param->f_div.pass[0].src_hsz = (input_width >> 2) + o;
 	param->f_div.pass[1].o_hsz = h2 - 1;
 	param->f_div.pass[1].i_hps = val1;
-	param->f_div.pass[1].h_phs = (val - (val1 << 8));
+	param->f_div.pass[1].h_phs = val - (val1 << 8);
 	param->f_div.pass[1].src_hps = (input_width >> 2) - o;
 	param->f_div.pass[1].src_hsz = (input_width >> 2) + o;
 
@@ -800,7 +794,7 @@ resizer_configure_in_single_shot_mode(struct vpfe_resizer_device *resizer)
 }
 
 static void
-resizer_set_defualt_configuration(struct vpfe_resizer_device *resizer)
+resizer_set_default_configuration(struct vpfe_resizer_device *resizer)
 {
 #define  WIDTH_I 640
 #define  HEIGHT_I 480
@@ -830,7 +824,7 @@ resizer_set_defualt_configuration(struct vpfe_resizer_device *resizer)
 				.o_hsz = WIDTH_O - 1,
 				.v_dif = 256,
 				.v_typ_y = VPFE_RSZ_INTP_CUBIC,
-				.h_typ_c = VPFE_RSZ_INTP_CUBIC,
+				.v_typ_c = VPFE_RSZ_INTP_CUBIC,
 				.h_dif = 256,
 				.h_typ_y = VPFE_RSZ_INTP_CUBIC,
 				.h_typ_c = VPFE_RSZ_INTP_CUBIC,
@@ -848,7 +842,7 @@ resizer_set_defualt_configuration(struct vpfe_resizer_device *resizer)
 				.o_hsz = WIDTH_O - 1,
 				.v_dif = 256,
 				.v_typ_y = VPFE_RSZ_INTP_CUBIC,
-				.h_typ_c = VPFE_RSZ_INTP_CUBIC,
+				.v_typ_c = VPFE_RSZ_INTP_CUBIC,
 				.h_dif = 256,
 				.h_typ_y = VPFE_RSZ_INTP_CUBIC,
 				.h_typ_c = VPFE_RSZ_INTP_CUBIC,
@@ -922,10 +916,11 @@ resizer_set_configuration(struct vpfe_resizer_device *resizer,
 			  struct vpfe_rsz_config *chan_config)
 {
 	if (!chan_config->config)
-		resizer_set_defualt_configuration(resizer);
+		resizer_set_default_configuration(resizer);
 	else
 		if (copy_from_user(&resizer->config.user_config,
-		    chan_config->config, sizeof(struct vpfe_rsz_config_params)))
+				   (void __user *)chan_config->config,
+				   sizeof(struct vpfe_rsz_config_params)))
 			return -EFAULT;
 
 	return 0;
@@ -948,9 +943,9 @@ resizer_get_configuration(struct vpfe_resizer_device *resizer,
 		return -EINVAL;
 	}
 
-	if (copy_to_user((void *)chan_config->config,
-	   (void *)&resizer->config.user_config,
-	   sizeof(struct vpfe_rsz_config_params))) {
+	if (copy_to_user((void __user *)chan_config->config,
+			 (void *)&resizer->config.user_config,
+			 sizeof(struct vpfe_rsz_config_params))) {
 		dev_err(dev, "resizer_get_configuration: Error in copy to user\n");
 		return -EFAULT;
 	}
@@ -1048,13 +1043,13 @@ static void resizer_ss_isr(struct vpfe_resizer_device *resizer)
 	if (ipipeif_sink != IPIPEIF_INPUT_MEMORY)
 		return;
 
-	if (resizer->resizer_a.output == RESIZER_OUPUT_MEMORY) {
+	if (resizer->resizer_a.output == RESIZER_OUTPUT_MEMORY) {
 		val = vpss_dma_complete_interrupt();
 		if (val != 0 && val != 2)
 			return;
 	}
 
-	if (resizer->resizer_a.output == RESIZER_OUPUT_MEMORY) {
+	if (resizer->resizer_a.output == RESIZER_OUTPUT_MEMORY) {
 		spin_lock(&video_out->dma_queue_lock);
 		vpfe_video_process_buffer_complete(video_out);
 		video_out->state = VPFE_VIDEO_BUFFER_NOT_QUEUED;
@@ -1064,8 +1059,8 @@ static void resizer_ss_isr(struct vpfe_resizer_device *resizer)
 
 	/* If resizer B is enabled */
 	if (pipe->output_num > 1 && resizer->resizer_b.output ==
-	    RESIZER_OUPUT_MEMORY) {
-		spin_lock(&video_out->dma_queue_lock);
+	    RESIZER_OUTPUT_MEMORY) {
+		spin_lock(&video_out2->dma_queue_lock);
 		vpfe_video_process_buffer_complete(video_out2);
 		video_out2->state = VPFE_VIDEO_BUFFER_NOT_QUEUED;
 		vpfe_video_schedule_next_buffer(video_out2);
@@ -1074,7 +1069,7 @@ static void resizer_ss_isr(struct vpfe_resizer_device *resizer)
 
 	/* start HW if buffers are queued */
 	if (vpfe_video_is_pipe_ready(pipe) &&
-	    resizer->resizer_a.output == RESIZER_OUPUT_MEMORY) {
+	    resizer->resizer_a.output == RESIZER_OUTPUT_MEMORY) {
 		resizer_enable(resizer, 1);
 		vpfe_ipipe_enable(vpfe_dev, 1);
 		vpfe_ipipeif_enable(vpfe_dev);
@@ -1139,9 +1134,9 @@ void vpfe_resizer_buffer_isr(struct vpfe_resizer_device *resizer)
 		}
 	} else if (fid == 0) {
 		/*
-		* out of sync. Recover from any hardware out-of-sync.
-		* May loose one frame
-		*/
+		 * out of sync. Recover from any hardware out-of-sync.
+		 * May loose one frame
+		 */
 		video_out->field_id = fid;
 	}
 }
@@ -1242,13 +1237,13 @@ static int resizer_do_hw_setup(struct vpfe_resizer_device *resizer)
 	struct resizer_params *param = &resizer->config;
 	int ret = 0;
 
-	if (resizer->resizer_a.output == RESIZER_OUPUT_MEMORY ||
-	    resizer->resizer_b.output == RESIZER_OUPUT_MEMORY) {
+	if (resizer->resizer_a.output == RESIZER_OUTPUT_MEMORY ||
+	    resizer->resizer_b.output == RESIZER_OUTPUT_MEMORY) {
 		if (ipipeif_sink == IPIPEIF_INPUT_MEMORY &&
 		    ipipeif_source == IPIPEIF_OUTPUT_RESIZER)
 			ret = resizer_configure_in_single_shot_mode(resizer);
 		else
-			ret =  resizer_configure_in_continious_mode(resizer);
+			ret =  resizer_configure_in_continuous_mode(resizer);
 		if (ret)
 			return ret;
 		ret = config_rsz_hw(resizer, param);
@@ -1268,7 +1263,7 @@ static int resizer_set_stream(struct v4l2_subdev *sd, int enable)
 	if (&resizer->crop_resizer.subdev != sd)
 		return 0;
 
-	if (resizer->resizer_a.output != RESIZER_OUPUT_MEMORY)
+	if (resizer->resizer_a.output != RESIZER_OUTPUT_MEMORY)
 		return 0;
 
 	switch (enable) {
@@ -1392,8 +1387,9 @@ resizer_try_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
-static int resizer_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *fmt)
+static int resizer_set_format(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_resizer_device *resizer = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
@@ -1452,8 +1448,9 @@ static int resizer_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_con
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
-static int resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *fmt)
+static int resizer_get_format(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *format;
 
@@ -1653,10 +1650,15 @@ static int resizer_link_setup(struct media_entity *entity,
 	struct vpfe_device *vpfe_dev = to_vpfe_device(resizer);
 	u16 ipipeif_source = vpfe_dev->vpfe_ipipeif.output;
 	u16 ipipe_source = vpfe_dev->vpfe_ipipe.output;
+	unsigned int index = local->index;
+
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
 
 	if (&resizer->crop_resizer.subdev == sd) {
-		switch (local->index | media_entity_type(remote->entity)) {
-		case RESIZER_CROP_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+		switch (index) {
+		case RESIZER_CROP_PAD_SINK | 2 << 16:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->crop_resizer.input =
 					RESIZER_CROP_INPUT_NONE;
@@ -1670,13 +1672,13 @@ static int resizer_link_setup(struct media_entity *entity,
 				resizer->crop_resizer.input =
 						RESIZER_CROP_INPUT_IPIPEIF;
 			else if (ipipe_source == IPIPE_OUTPUT_RESIZER)
-					resizer->crop_resizer.input =
+				resizer->crop_resizer.input =
 						RESIZER_CROP_INPUT_IPIPE;
 			else
 				return -EINVAL;
 			break;
 
-		case RESIZER_CROP_PAD_SOURCE | MEDIA_ENT_T_V4L2_SUBDEV:
+		case RESIZER_CROP_PAD_SOURCE | 2 << 16:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->crop_resizer.output =
 				RESIZER_CROP_OUTPUT_NONE;
@@ -1688,7 +1690,7 @@ static int resizer_link_setup(struct media_entity *entity,
 			resizer->crop_resizer.output = RESIZER_A;
 			break;
 
-		case RESIZER_CROP_PAD_SOURCE2 | MEDIA_ENT_T_V4L2_SUBDEV:
+		case RESIZER_CROP_PAD_SOURCE2 | 2 << 16:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->crop_resizer.output2 =
 					RESIZER_CROP_OUTPUT_NONE;
@@ -1704,8 +1706,8 @@ static int resizer_link_setup(struct media_entity *entity,
 			return -EINVAL;
 		}
 	} else if (&resizer->resizer_a.subdev == sd) {
-		switch (local->index | media_entity_type(remote->entity)) {
-		case RESIZER_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+		switch (index) {
+		case RESIZER_PAD_SINK | 2 << 16:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->resizer_a.input = RESIZER_INPUT_NONE;
 				break;
@@ -1715,22 +1717,22 @@ static int resizer_link_setup(struct media_entity *entity,
 			resizer->resizer_a.input = RESIZER_INPUT_CROP_RESIZER;
 			break;
 
-		case RESIZER_PAD_SOURCE | MEDIA_ENT_T_DEVNODE:
+		case RESIZER_PAD_SOURCE:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->resizer_a.output = RESIZER_OUTPUT_NONE;
 				break;
 			}
 			if (resizer->resizer_a.output != RESIZER_OUTPUT_NONE)
 				return -EBUSY;
-			resizer->resizer_a.output = RESIZER_OUPUT_MEMORY;
+			resizer->resizer_a.output = RESIZER_OUTPUT_MEMORY;
 			break;
 
 		default:
 			return -EINVAL;
 		}
 	} else if (&resizer->resizer_b.subdev == sd) {
-		switch (local->index | media_entity_type(remote->entity)) {
-		case RESIZER_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+		switch (index) {
+		case RESIZER_PAD_SINK | 2 << 16:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->resizer_b.input = RESIZER_INPUT_NONE;
 				break;
@@ -1740,14 +1742,14 @@ static int resizer_link_setup(struct media_entity *entity,
 			resizer->resizer_b.input = RESIZER_INPUT_CROP_RESIZER;
 			break;
 
-		case RESIZER_PAD_SOURCE | MEDIA_ENT_T_DEVNODE:
+		case RESIZER_PAD_SOURCE:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->resizer_b.output = RESIZER_OUTPUT_NONE;
 				break;
 			}
 			if (resizer->resizer_b.output != RESIZER_OUTPUT_NONE)
 				return -EBUSY;
-			resizer->resizer_b.output = RESIZER_OUPUT_MEMORY;
+			resizer->resizer_b.output = RESIZER_OUTPUT_MEMORY;
 			break;
 
 		default:
@@ -1831,27 +1833,27 @@ int vpfe_resizer_register_entities(struct vpfe_resizer_device *resizer,
 	resizer->resizer_b.video_out.vpfe_dev = vpfe_dev;
 
 	/* create link between Resizer Crop----> Resizer A*/
-	ret = media_entity_create_link(&resizer->crop_resizer.subdev.entity, 1,
+	ret = media_create_pad_link(&resizer->crop_resizer.subdev.entity, 1,
 				&resizer->resizer_a.subdev.entity,
 				0, flags);
 	if (ret < 0)
 		goto out_create_link;
 
 	/* create link between Resizer Crop----> Resizer B*/
-	ret = media_entity_create_link(&resizer->crop_resizer.subdev.entity, 2,
+	ret = media_create_pad_link(&resizer->crop_resizer.subdev.entity, 2,
 				&resizer->resizer_b.subdev.entity,
 				0, flags);
 	if (ret < 0)
 		goto out_create_link;
 
 	/* create link between Resizer A ----> video out */
-	ret = media_entity_create_link(&resizer->resizer_a.subdev.entity, 1,
+	ret = media_create_pad_link(&resizer->resizer_a.subdev.entity, 1,
 		&resizer->resizer_a.video_out.video_dev.entity, 0, flags);
 	if (ret < 0)
 		goto out_create_link;
 
 	/* create link between Resizer B ----> video out */
-	ret = media_entity_create_link(&resizer->resizer_b.subdev.entity, 1,
+	ret = media_create_pad_link(&resizer->resizer_b.subdev.entity, 1,
 		&resizer->resizer_b.video_out.video_dev.entity, 0, flags);
 	if (ret < 0)
 		goto out_create_link;
@@ -1915,7 +1917,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 	vpfe_rsz->crop_resizer.output2 = RESIZER_CROP_OUTPUT_NONE;
 	vpfe_rsz->crop_resizer.rsz_device = vpfe_rsz;
 	me->ops = &resizer_media_ops;
-	ret = media_entity_init(me, RESIZER_CROP_PADS_NUM, pads, 0);
+	ret = media_entity_pads_init(me, RESIZER_CROP_PADS_NUM, pads);
 	if (ret)
 		return ret;
 
@@ -1937,7 +1939,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 	vpfe_rsz->resizer_a.output = RESIZER_OUTPUT_NONE;
 	vpfe_rsz->resizer_a.rsz_device = vpfe_rsz;
 	me->ops = &resizer_media_ops;
-	ret = media_entity_init(me, RESIZER_PADS_NUM, pads, 0);
+	ret = media_entity_pads_init(me, RESIZER_PADS_NUM, pads);
 	if (ret)
 		return ret;
 
@@ -1959,7 +1961,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 	vpfe_rsz->resizer_b.output = RESIZER_OUTPUT_NONE;
 	vpfe_rsz->resizer_b.rsz_device = vpfe_rsz;
 	me->ops = &resizer_media_ops;
-	ret = media_entity_init(me, RESIZER_PADS_NUM, pads, 0);
+	ret = media_entity_pads_init(me, RESIZER_PADS_NUM, pads);
 	if (ret)
 		return ret;
 

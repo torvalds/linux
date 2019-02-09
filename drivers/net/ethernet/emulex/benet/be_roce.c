@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2015 Emulex
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -139,10 +139,7 @@ int be_roce_register_driver(struct ocrdma_driver *drv)
 	}
 	ocrdma_drv = drv;
 	list_for_each_entry(dev, &be_adapter_list, entry) {
-		struct net_device *netdev;
-
 		_be_roce_dev_add(dev);
-		netdev = dev->netdev;
 	}
 	mutex_unlock(&be_adapter_list_lock);
 	return 0;

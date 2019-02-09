@@ -21,7 +21,6 @@
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
-#include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/dbell.h>
 
@@ -182,7 +181,7 @@ int kvmppc_core_check_processor_compat(void)
 		r = 0;
 #ifdef CONFIG_ALTIVEC
 	/*
-	 * Since guests have the priviledge to enable AltiVec, we need AltiVec
+	 * Since guests have the privilege to enable AltiVec, we need AltiVec
 	 * support in the host to save/restore their context.
 	 * Don't use CPU_FTR_ALTIVEC to identify cores with AltiVec unit
 	 * because it's cleared in the absence of CONFIG_ALTIVEC!
@@ -331,8 +330,10 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_e500mc(struct kvm *kvm,
 		goto uninit_vcpu;
 
 	vcpu->arch.shared = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-	if (!vcpu->arch.shared)
+	if (!vcpu->arch.shared) {
+		err = -ENOMEM;
 		goto uninit_tlb;
+	}
 
 	return vcpu;
 

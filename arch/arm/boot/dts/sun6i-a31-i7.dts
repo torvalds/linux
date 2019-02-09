@@ -45,7 +45,6 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Mele I7 Quad top set box";
@@ -59,6 +58,17 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -69,6 +79,33 @@
 			gpios = <&pio 7 13 GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "On-board SPDIF";
+		simple-audio-card,cpu {
+			sound-dai = <&spdif>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&spdif_out>;
+		};
+	};
+
+	spdif_out: spdif-out {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+	};
+};
+
+&codec {
+	allwinner,audio-routing =
+		"Headphone", "HP";
+	status = "okay";
+};
+
+&de {
+	status = "okay";
 };
 
 &ehci0 {
@@ -91,6 +128,16 @@
 	};
 };
 
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
 &ir {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir_pins_a>;
@@ -102,31 +149,25 @@
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_i7>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 22 GPIO_ACTIVE_HIGH>; /* PH22 */
-	cd-inverted;
+	cd-gpios = <&pio 7 22 GPIO_ACTIVE_LOW>; /* PH22 */
 	status = "okay";
 };
 
 &pio {
 	led_pins_i7: led_pins@0 {
-		allwinner,pins = "PH13";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH13";
+		function = "gpio_out";
 	};
 
 	mmc0_cd_pin_i7: mmc0_cd_pin@0 {
-		allwinner,pins = "PH22";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH22";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	usb1_vbus_pin_i7: usb1_vbus_pin@0 {
-		allwinner,pins = "PC27";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PC27";
+		function = "gpio_out";
 	};
 };
 
@@ -134,6 +175,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb1_vbus_pin_i7>;
 	gpio = <&pio 2 27 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdif_pins_a>;
+	spdif-out = "okay";
+	status = "okay";
+};
+
+&tcon0 {
 	status = "okay";
 };
 

@@ -71,7 +71,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/atmdev.h>
 #include <linux/atm.h>
@@ -161,7 +161,7 @@ static unsigned int clocktab[] = {
 	CLK_LOW
 };     
 
-static struct atmdev_ops he_ops =
+static const struct atmdev_ops he_ops =
 {
 	.open =		he_open,
 	.close =	he_close,	
@@ -738,13 +738,13 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 #else
 		/* this is pretty, but avoids _divdu3 and is mostly correct */
 		mult = he_dev->atm_dev->link_rate / ATM_OC3_PCR;
-		if (rate_cps > (272 * mult))
+		if (rate_cps > (272ULL * mult))
 			buf = 4;
-		else if (rate_cps > (204 * mult))
+		else if (rate_cps > (204ULL * mult))
 			buf = 3;
-		else if (rate_cps > (136 * mult))
+		else if (rate_cps > (136ULL * mult))
 			buf = 2;
-		else if (rate_cps > (68 * mult))
+		else if (rate_cps > (68ULL * mult))
 			buf = 1;
 		else
 			buf = 0;
@@ -779,8 +779,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 		  G0_RBPS_BS + (group * 32));
 
 	/* bitmap table */
-	he_dev->rbpl_table = kmalloc(BITS_TO_LONGS(RBPL_TABLE_SIZE)
-				     * sizeof(unsigned long), GFP_KERNEL);
+	he_dev->rbpl_table = kmalloc_array(BITS_TO_LONGS(RBPL_TABLE_SIZE),
+					   sizeof(*he_dev->rbpl_table),
+					   GFP_KERNEL);
 	if (!he_dev->rbpl_table) {
 		hprintk("unable to allocate rbpl bitmap table\n");
 		return -ENOMEM;
@@ -788,8 +789,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 	bitmap_zero(he_dev->rbpl_table, RBPL_TABLE_SIZE);
 
 	/* rbpl_virt 64-bit pointers */
-	he_dev->rbpl_virt = kmalloc(RBPL_TABLE_SIZE
-				    * sizeof(struct he_buff *), GFP_KERNEL);
+	he_dev->rbpl_virt = kmalloc_array(RBPL_TABLE_SIZE,
+					  sizeof(*he_dev->rbpl_virt),
+					  GFP_KERNEL);
 	if (!he_dev->rbpl_virt) {
 		hprintk("unable to allocate rbpl virt table\n");
 		goto out_free_rbpl_table;
@@ -1733,7 +1735,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 		__net_timestamp(skb);
 
 		list_for_each_entry(heb, &he_vcc->buffers, entry)
-			memcpy(skb_put(skb, heb->len), &heb->data, heb->len);
+			skb_put_data(skb, &heb->data, heb->len);
 
 		switch (vcc->qos.aal) {
 			case ATM_AAL0:
@@ -2393,7 +2395,7 @@ he_close(struct atm_vcc *vcc)
 		 * TBRQ, the host issues the close command to the adapter.
 		 */
 
-		while (((tx_inuse = atomic_read(&sk_atm(vcc)->sk_wmem_alloc)) > 1) &&
+		while (((tx_inuse = refcount_read(&sk_atm(vcc)->sk_wmem_alloc)) > 1) &&
 		       (retry < MAX_RETRY)) {
 			msleep(sleep);
 			if (sleep < 250)
@@ -2849,7 +2851,7 @@ MODULE_PARM_DESC(irq_coalesce, "use interrupt coalescing (default 1)");
 module_param(sdh, bool, 0);
 MODULE_PARM_DESC(sdh, "use SDH framing (default 0)");
 
-static struct pci_device_id he_pci_tbl[] = {
+static const struct pci_device_id he_pci_tbl[] = {
 	{ PCI_VDEVICE(FORE, PCI_DEVICE_ID_FORE_HE), 0 },
 	{ 0, }
 };

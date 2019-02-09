@@ -57,8 +57,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
-		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT |
-								MFC_V8_BIT,
+		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
 		.name		= "4:2:0 2 Planes Y/CrCb",
@@ -66,7 +65,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
-		.versions	= MFC_V6_BIT | MFC_V7_BIT | MFC_V8_BIT,
+		.versions	= MFC_V6PLUS_BITS,
 	},
 	{
 		.name		= "H264 Encoded Stream",
@@ -74,8 +73,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_H264_ENC,
 		.type		= MFC_FMT_ENC,
 		.num_planes	= 1,
-		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT |
-								MFC_V8_BIT,
+		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
 		.name		= "MPEG4 Encoded Stream",
@@ -83,8 +81,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_MPEG4_ENC,
 		.type		= MFC_FMT_ENC,
 		.num_planes	= 1,
-		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT |
-								MFC_V8_BIT,
+		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
 		.name		= "H263 Encoded Stream",
@@ -92,8 +89,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_H263_ENC,
 		.type		= MFC_FMT_ENC,
 		.num_planes	= 1,
-		.versions	= MFC_V5_BIT | MFC_V6_BIT | MFC_V7_BIT |
-								MFC_V8_BIT,
+		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
 		.name		= "VP8 Encoded Stream",
@@ -101,7 +97,14 @@ static struct s5p_mfc_fmt formats[] = {
 		.codec_mode	= S5P_MFC_CODEC_VP8_ENC,
 		.type		= MFC_FMT_ENC,
 		.num_planes	= 1,
-		.versions	= MFC_V7_BIT | MFC_V8_BIT,
+		.versions	= MFC_V7PLUS_BITS,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_HEVC,
+		.codec_mode	= S5P_FIMV_CODEC_HEVC_ENC,
+		.type		= MFC_FMT_ENC,
+		.num_planes	= 1,
+		.versions	= MFC_V10_BIT,
 	},
 };
 
@@ -210,6 +213,14 @@ static struct mfc_control controls[] = {
 		.maximum = V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_NOT_CODED,
 		.default_value = V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_DISABLED,
 		.menu_skip_mask = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME,
+		.type = V4L2_CTRL_TYPE_BUTTON,
+		.minimum = 0,
+		.maximum = 0,
+		.step = 0,
+		.default_value = 0,
 	},
 	{
 		.id = V4L2_CID_MPEG_VIDEO_VBV_SIZE,
@@ -681,10 +692,372 @@ static struct mfc_control controls[] = {
 		.default_value = 10,
 	},
 	{
-		.id = V4L2_CID_MPEG_VIDEO_VPX_PROFILE,
+		.id = V4L2_CID_MPEG_VIDEO_VP8_PROFILE,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_MPEG_VIDEO_VP8_PROFILE_0,
+		.maximum = V4L2_MPEG_VIDEO_VP8_PROFILE_3,
+		.default_value = V4L2_MPEG_VIDEO_VP8_PROFILE_0,
+		.menu_skip_mask = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "HEVC I Frame QP Value",
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "HEVC P Frame QP Value",
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_QP,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.minimum = 0,
-		.maximum = 3,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_MAX_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_PROFILE,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN,
+		.maximum = V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE,
+		.step = 1,
+		.default_value = V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_LEVEL,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_MPEG_VIDEO_HEVC_LEVEL_1,
+		.maximum = V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2,
+		.step = 1,
+		.default_value = V4L2_MPEG_VIDEO_HEVC_LEVEL_1,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_TIER,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_MPEG_VIDEO_HEVC_TIER_MAIN,
+		.maximum = V4L2_MPEG_VIDEO_HEVC_TIER_HIGH,
+		.step = 1,
+		.default_value = V4L2_MPEG_VIDEO_HEVC_TIER_MAIN,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_FRAME_RATE_RESOLUTION,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 1,
+		.maximum = (1 << 16) - 1,
+		.step = 1,
+		.default_value = 1,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_MAX_PARTITION_DEPTH,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_REF_NUMBER_FOR_PFRAMES,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 1,
+		.maximum = 2,
+		.step = 1,
+		.default_value = 1,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_TYPE,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_MPEG_VIDEO_HEVC_REFRESH_NONE,
+		.maximum = V4L2_MPEG_VIDEO_HEVC_REFRESH_IDR,
+		.step = 1,
+		.default_value = V4L2_MPEG_VIDEO_HEVC_REFRESH_NONE,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_CONST_INTRA_PRED,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_LOSSLESS_CU,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_WAVEFRONT,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_LOOP_FILTER_MODE,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_MPEG_VIDEO_HEVC_LOOP_FILTER_MODE_DISABLED,
+		.maximum = V4L2_MPEG_VIDEO_HEVC_LOOP_FILTER_MODE_DISABLED_AT_SLICE_BOUNDARY,
+		.step = 1,
+		.default_value = V4L2_MPEG_VIDEO_HEVC_LOOP_FILTER_MODE_DISABLED,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_QP,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_TYPE,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_B,
+		.maximum = V4L2_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_P,
+		.step = 1,
+		.default_value = V4L2_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_B,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_LAYER,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 6,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L0_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L1_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L2_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L3_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L4_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L5_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L6_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 51,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L0_BR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = INT_MIN,
+		.maximum = INT_MAX,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L1_BR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = INT_MIN,
+		.maximum = INT_MAX,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L2_BR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = INT_MIN,
+		.maximum = INT_MAX,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L3_BR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = INT_MIN,
+		.maximum = INT_MAX,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L4_BR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = INT_MIN,
+		.maximum = INT_MAX,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L5_BR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = INT_MIN,
+		.maximum = INT_MAX,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L6_BR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = INT_MIN,
+		.maximum = INT_MAX,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_GENERAL_PB,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_TEMPORAL_ID,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_STRONG_SMOOTHING,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_INTRA_PU_SPLIT,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_TMV_PREDICTION,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_MAX_NUM_MERGE_MV_MINUS1,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 4,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_WITHOUT_STARTCODE,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_PERIOD,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = (1 << 16) - 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_LF_BETA_OFFSET_DIV2,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = -6,
+		.maximum = 6,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_LF_TC_OFFSET_DIV2,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = -6,
+		.maximum = 6,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_HEVC_SIZE_OF_LENGTH_FIELD,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_MPEG_VIDEO_HEVC_SIZE_0,
+		.maximum = V4L2_MPEG_VIDEO_HEVC_SIZE_4,
+		.step = 1,
+		.default_value = V4L2_MPEG_VIDEO_HEVC_SIZE_0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_PREPEND_SPSPPS_TO_IDR,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 1,
 		.step = 1,
 		.default_value = 0,
 	},
@@ -769,15 +1142,12 @@ static int enc_pre_seq_start(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_buf *dst_mb;
 	unsigned long dst_addr;
 	unsigned int dst_size;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev->irqlock, flags);
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
 	dst_addr = vb2_dma_contig_plane_dma_addr(&dst_mb->b->vb2_buf, 0);
 	dst_size = vb2_plane_size(&dst_mb->b->vb2_buf, 0);
-	s5p_mfc_hw_call_void(dev->mfc_ops, set_enc_stream_buffer, ctx, dst_addr,
+	s5p_mfc_hw_call(dev->mfc_ops, set_enc_stream_buffer, ctx, dst_addr,
 			dst_size);
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 	return 0;
 }
 
@@ -786,11 +1156,9 @@ static int enc_post_seq_start(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_enc_params *p = &ctx->enc_params;
 	struct s5p_mfc_buf *dst_mb;
-	unsigned long flags;
 	unsigned int enc_pb_count;
 
 	if (p->seq_hdr_mode == V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE) {
-		spin_lock_irqsave(&dev->irqlock, flags);
 		if (!list_empty(&ctx->dst_queue)) {
 			dst_mb = list_entry(ctx->dst_queue.next,
 					struct s5p_mfc_buf, list);
@@ -802,19 +1170,23 @@ static int enc_post_seq_start(struct s5p_mfc_ctx *ctx)
 			vb2_buffer_done(&dst_mb->b->vb2_buf,
 					VB2_BUF_STATE_DONE);
 		}
-		spin_unlock_irqrestore(&dev->irqlock, flags);
 	}
 
 	if (!IS_MFCV6_PLUS(dev)) {
 		ctx->state = MFCINST_RUNNING;
 		if (s5p_mfc_ctx_ready(ctx))
 			set_work_bit_irqsave(ctx);
-		s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 	} else {
 		enc_pb_count = s5p_mfc_hw_call(dev->mfc_ops,
 				get_enc_dpb_count, dev);
 		if (ctx->pb_count < enc_pb_count)
 			ctx->pb_count = enc_pb_count;
+		if (FW_HAS_E_MIN_SCRATCH_BUF(dev)) {
+			ctx->scratch_buf_size = s5p_mfc_hw_call(dev->mfc_ops,
+					get_e_min_scratch_buf_size, dev);
+			ctx->bank1.size += ctx->scratch_buf_size;
+		}
 		ctx->state = MFCINST_HEAD_PRODUCED;
 	}
 
@@ -826,25 +1198,20 @@ static int enc_pre_frame_start(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *dst_mb;
 	struct s5p_mfc_buf *src_mb;
-	unsigned long flags;
 	unsigned long src_y_addr, src_c_addr, dst_addr;
 	unsigned int dst_size;
 
-	spin_lock_irqsave(&dev->irqlock, flags);
 	src_mb = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);
 	src_y_addr = vb2_dma_contig_plane_dma_addr(&src_mb->b->vb2_buf, 0);
 	src_c_addr = vb2_dma_contig_plane_dma_addr(&src_mb->b->vb2_buf, 1);
-	s5p_mfc_hw_call_void(dev->mfc_ops, set_enc_frame_buffer, ctx,
+	s5p_mfc_hw_call(dev->mfc_ops, set_enc_frame_buffer, ctx,
 							src_y_addr, src_c_addr);
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 
-	spin_lock_irqsave(&dev->irqlock, flags);
 	dst_mb = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf, list);
 	dst_addr = vb2_dma_contig_plane_dma_addr(&dst_mb->b->vb2_buf, 0);
 	dst_size = vb2_plane_size(&dst_mb->b->vb2_buf, 0);
-	s5p_mfc_hw_call_void(dev->mfc_ops, set_enc_stream_buffer, ctx, dst_addr,
+	s5p_mfc_hw_call(dev->mfc_ops, set_enc_stream_buffer, ctx, dst_addr,
 			dst_size);
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 
 	return 0;
 }
@@ -853,11 +1220,10 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *mb_entry;
-	unsigned long enc_y_addr, enc_c_addr;
+	unsigned long enc_y_addr = 0, enc_c_addr = 0;
 	unsigned long mb_y_addr, mb_c_addr;
 	int slice_type;
 	unsigned int strm_size;
-	unsigned long flags;
 
 	slice_type = s5p_mfc_hw_call(dev->mfc_ops, get_enc_slice_type, dev);
 	strm_size = s5p_mfc_hw_call(dev->mfc_ops, get_enc_strm_size, dev);
@@ -865,9 +1231,8 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "Encoded stream size: %d\n", strm_size);
 	mfc_debug(2, "Display order: %d\n",
 		  mfc_read(dev, S5P_FIMV_ENC_SI_PIC_CNT));
-	spin_lock_irqsave(&dev->irqlock, flags);
 	if (slice_type >= 0) {
-		s5p_mfc_hw_call_void(dev->mfc_ops, get_enc_frame_buffer, ctx,
+		s5p_mfc_hw_call(dev->mfc_ops, get_enc_frame_buffer, ctx,
 				&enc_y_addr, &enc_c_addr);
 		list_for_each_entry(mb_entry, &ctx->src_queue, list) {
 			mb_y_addr = vb2_dma_contig_plane_dma_addr(
@@ -929,14 +1294,13 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 		vb2_set_plane_payload(&mb_entry->b->vb2_buf, 0, strm_size);
 		vb2_buffer_done(&mb_entry->b->vb2_buf, VB2_BUF_STATE_DONE);
 	}
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 	if ((ctx->src_queue_cnt == 0) || (ctx->dst_queue_cnt == 0))
 		clear_work_bit(ctx);
 
 	return 0;
 }
 
-static struct s5p_mfc_codec_ops encoder_codec_ops = {
+static const struct s5p_mfc_codec_ops encoder_codec_ops = {
 	.pre_seq_start		= enc_pre_seq_start,
 	.post_seq_start		= enc_post_seq_start,
 	.pre_frame_start	= enc_pre_frame_start,
@@ -949,9 +1313,10 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	struct s5p_mfc_dev *dev = video_drvdata(file);
 
-	strncpy(cap->driver, dev->plat_dev->name, sizeof(cap->driver) - 1);
-	strncpy(cap->card, dev->plat_dev->name, sizeof(cap->card) - 1);
-	cap->bus_info[0] = 0;
+	strlcpy(cap->driver, S5P_MFC_NAME, sizeof(cap->driver));
+	strlcpy(cap->card, dev->vfd_enc->name, sizeof(cap->card));
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
+		 dev_name(&dev->plat_dev->dev));
 	/*
 	 * This is only a mem-to-mem video device. The capture and output
 	 * device capability flags are left only for backward compatibility
@@ -1049,10 +1414,6 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			mfc_err("failed to try output format\n");
 			return -EINVAL;
 		}
-		if (pix_fmt_mp->plane_fmt[0].sizeimage == 0) {
-			mfc_err("must be set encoding output size\n");
-			return -EINVAL;
-		}
 		if ((dev->variant->version_bit & fmt->versions) == 0) {
 			mfc_err("Unsupported format by this MFC version.\n");
 			return -EINVAL;
@@ -1063,11 +1424,6 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		fmt = find_format(f, MFC_FMT_RAW);
 		if (!fmt) {
-			mfc_err("failed to try output format\n");
-			return -EINVAL;
-		}
-
-		if (fmt->num_planes != pix_fmt_mp->num_planes) {
 			mfc_err("failed to try output format\n");
 			return -EINVAL;
 		}
@@ -1120,7 +1476,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			pix_fmt_mp->width, pix_fmt_mp->height,
 			ctx->img_width, ctx->img_height);
 
-		s5p_mfc_hw_call_void(dev->mfc_ops, enc_calc_src_size, ctx);
+		s5p_mfc_hw_call(dev->mfc_ops, enc_calc_src_size, ctx);
 		pix_fmt_mp->plane_fmt[0].sizeimage = ctx->luma_size;
 		pix_fmt_mp->plane_fmt[0].bytesperline = ctx->buf_width;
 		pix_fmt_mp->plane_fmt[1].sizeimage = ctx->chroma_size;
@@ -1150,7 +1506,10 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		return -EINVAL;
 	if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		if (reqbufs->count == 0) {
+			mfc_debug(2, "Freeing buffers\n");
 			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
+			s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers,
+					ctx);
 			ctx->capture_state = QUEUE_FREE;
 			return ret;
 		}
@@ -1178,7 +1537,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		if (reqbufs->count == 0) {
 			mfc_debug(2, "Freeing buffers\n");
 			ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
-			s5p_mfc_hw_call_void(dev->mfc_ops, release_codec_buffers,
+			s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers,
 					ctx);
 			ctx->output_state = QUEUE_FREE;
 			return ret;
@@ -1279,7 +1638,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	int ret;
 
 	if (ctx->state == MFCINST_ERROR) {
-		mfc_err("Call on DQBUF after unrecoverable error\n");
+		mfc_err_limited("Call on DQBUF after unrecoverable error\n");
 		return -EIO;
 	}
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
@@ -1369,6 +1728,26 @@ static inline int mpeg4_level(enum v4l2_mpeg_video_mpeg4_level lvl)
 	return t[lvl];
 }
 
+static inline int hevc_level(enum v4l2_mpeg_video_hevc_level lvl)
+{
+	static unsigned int t[] = {
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_1    */ 10,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_2    */ 20,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_2_1  */ 21,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_3    */ 30,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_3_1  */ 31,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_4    */ 40,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_4_1  */ 41,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_5    */ 50,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_5_1  */ 51,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_5_2  */ 52,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_6    */ 60,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_6_1  */ 61,
+		/* V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2  */ 62,
+	};
+	return t[lvl];
+}
+
 static inline int vui_sar_idc(enum v4l2_mpeg_video_h264_vui_sar_idc sar)
 {
 	static unsigned int t[V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_EXTENDED + 1] = {
@@ -1392,6 +1771,42 @@ static inline int vui_sar_idc(enum v4l2_mpeg_video_h264_vui_sar_idc sar)
 		/* V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_EXTENDED        */ 255,
 	};
 	return t[sar];
+}
+
+/*
+ * Update range of all HEVC quantization parameter controls that depend on the
+ * V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP, V4L2_CID_MPEG_VIDEO_HEVC_MAX_QP controls.
+ */
+static void __enc_update_hevc_qp_ctrls_range(struct s5p_mfc_ctx *ctx,
+					     int min, int max)
+{
+	static const int __hevc_qp_ctrls[] = {
+		V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L0_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L1_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L2_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L3_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L4_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L5_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L6_QP,
+	};
+	struct v4l2_ctrl *ctrl = NULL;
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(__hevc_qp_ctrls); i++) {
+		for (j = 0; j < ARRAY_SIZE(ctx->ctrls); j++) {
+			if (ctx->ctrls[j]->id == __hevc_qp_ctrls[i]) {
+				ctrl = ctx->ctrls[j];
+				break;
+			}
+		}
+		if (WARN_ON(!ctrl))
+			break;
+
+		__v4l2_ctrl_modify_range(ctrl, min, max, ctrl->step, min);
+	}
 }
 
 static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -1436,6 +1851,10 @@ static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE:
 		ctx->force_frame_type = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME:
+		ctx->force_frame_type =
+			V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_I_FRAME;
 		break;
 	case V4L2_CID_MPEG_VIDEO_VBV_SIZE:
 		p->vbv_size = ctrl->val;
@@ -1638,8 +2057,159 @@ static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_VPX_P_FRAME_QP:
 		p->codec.vp8.rc_p_frame_qp = ctrl->val;
 		break;
-	case V4L2_CID_MPEG_VIDEO_VPX_PROFILE:
+	case V4L2_CID_MPEG_VIDEO_VP8_PROFILE:
 		p->codec.vp8.profile = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_QP:
+		p->codec.hevc.rc_frame_qp = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_QP:
+		p->codec.hevc.rc_p_frame_qp = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_QP:
+		p->codec.hevc.rc_b_frame_qp = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_FRAME_RATE_RESOLUTION:
+		p->codec.hevc.rc_framerate = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP:
+		p->codec.hevc.rc_min_qp = ctrl->val;
+		__enc_update_hevc_qp_ctrls_range(ctx, ctrl->val,
+						 p->codec.hevc.rc_max_qp);
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_MAX_QP:
+		p->codec.hevc.rc_max_qp = ctrl->val;
+		__enc_update_hevc_qp_ctrls_range(ctx, p->codec.hevc.rc_min_qp,
+						 ctrl->val);
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_LEVEL:
+		p->codec.hevc.level_v4l2 = ctrl->val;
+		p->codec.hevc.level = hevc_level(ctrl->val);
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_PROFILE:
+		switch (ctrl->val) {
+		case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN:
+			p->codec.hevc.profile =
+				V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN;
+			break;
+		case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE:
+			p->codec.hevc.profile =
+			V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE;
+			break;
+		default:
+			ret = -EINVAL;
+		}
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_TIER:
+		p->codec.hevc.tier = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_MAX_PARTITION_DEPTH:
+		p->codec.hevc.max_partition_depth = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_REF_NUMBER_FOR_PFRAMES:
+		p->codec.hevc.num_refs_for_p = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_TYPE:
+		p->codec.hevc.refreshtype = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_CONST_INTRA_PRED:
+		p->codec.hevc.const_intra_period_enable = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_LOSSLESS_CU:
+		p->codec.hevc.lossless_cu_enable = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_WAVEFRONT:
+		p->codec.hevc.wavefront_enable = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_LOOP_FILTER_MODE:
+		p->codec.hevc.loopfilter = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_QP:
+		p->codec.hevc.hier_qp_enable = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_TYPE:
+		p->codec.hevc.hier_qp_type = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_LAYER:
+		p->codec.hevc.num_hier_layer = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L0_QP:
+		p->codec.hevc.hier_qp_layer[0] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L1_QP:
+		p->codec.hevc.hier_qp_layer[1] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L2_QP:
+		p->codec.hevc.hier_qp_layer[2] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L3_QP:
+		p->codec.hevc.hier_qp_layer[3] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L4_QP:
+		p->codec.hevc.hier_qp_layer[4] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L5_QP:
+		p->codec.hevc.hier_qp_layer[5] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L6_QP:
+		p->codec.hevc.hier_qp_layer[6] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L0_BR:
+		p->codec.hevc.hier_bit_layer[0] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L1_BR:
+		p->codec.hevc.hier_bit_layer[1] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L2_BR:
+		p->codec.hevc.hier_bit_layer[2] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L3_BR:
+		p->codec.hevc.hier_bit_layer[3] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L4_BR:
+		p->codec.hevc.hier_bit_layer[4] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L5_BR:
+		p->codec.hevc.hier_bit_layer[5] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L6_BR:
+		p->codec.hevc.hier_bit_layer[6] = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_GENERAL_PB:
+		p->codec.hevc.general_pb_enable = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_TEMPORAL_ID:
+		p->codec.hevc.temporal_id_enable = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_STRONG_SMOOTHING:
+		p->codec.hevc.strong_intra_smooth = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_INTRA_PU_SPLIT:
+		p->codec.hevc.intra_pu_split_disable = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_TMV_PREDICTION:
+		p->codec.hevc.tmv_prediction_disable = !ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_MAX_NUM_MERGE_MV_MINUS1:
+		p->codec.hevc.max_num_merge_mv = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_WITHOUT_STARTCODE:
+		p->codec.hevc.encoding_nostartcode_enable = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_PERIOD:
+		p->codec.hevc.refreshperiod = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_LF_BETA_OFFSET_DIV2:
+		p->codec.hevc.lf_beta_offset_div2 = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_LF_TC_OFFSET_DIV2:
+		p->codec.hevc.lf_tc_offset_div2 = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_SIZE_OF_LENGTH_FIELD:
+		p->codec.hevc.size_of_length_field = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_PREPEND_SPSPPS_TO_IDR:
+		p->codec.hevc.prepend_sps_pps_to_idr = ctrl->val;
 		break;
 	default:
 		v4l2_err(&dev->v4l2_dev, "Invalid control, id=%d, val=%d\n",
@@ -1741,7 +2311,7 @@ static int vidioc_encoder_cmd(struct file *file, void *priv,
 			if (s5p_mfc_ctx_ready(ctx))
 				set_work_bit_irqsave(ctx);
 			spin_unlock_irqrestore(&dev->irqlock, flags);
-			s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+			s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 		} else {
 			mfc_debug(2, "EOS: marking last buffer of stream\n");
 			buf = list_entry(ctx->src_queue.prev,
@@ -1818,9 +2388,8 @@ static int check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 }
 
 static int s5p_mfc_queue_setup(struct vb2_queue *vq,
-			const void *parg,
 			unsigned int *buf_count, unsigned int *plane_count,
-			unsigned int psize[], void *allocators[])
+			unsigned int psize[], struct device *alloc_devs[])
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(vq->drv_priv);
 	struct s5p_mfc_dev *dev = ctx->dev;
@@ -1840,7 +2409,7 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		if (*buf_count > MFC_MAX_BUFFERS)
 			*buf_count = MFC_MAX_BUFFERS;
 		psize[0] = ctx->enc_dst_buf_size;
-		allocators[0] = ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
+		alloc_devs[0] = ctx->dev->mem_dev[BANK_L_CTX];
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (ctx->src_fmt)
 			*plane_count = ctx->src_fmt->num_planes;
@@ -1856,15 +2425,11 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		psize[1] = ctx->chroma_size;
 
 		if (IS_MFCV6_PLUS(dev)) {
-			allocators[0] =
-				ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
-			allocators[1] =
-				ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
+			alloc_devs[0] = ctx->dev->mem_dev[BANK_L_CTX];
+			alloc_devs[1] = ctx->dev->mem_dev[BANK_L_CTX];
 		} else {
-			allocators[0] =
-				ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
-			allocators[1] =
-				ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
+			alloc_devs[0] = ctx->dev->mem_dev[BANK_R_CTX];
+			alloc_devs[1] = ctx->dev->mem_dev[BANK_R_CTX];
 		}
 	} else {
 		mfc_err("invalid queue type: %d\n", vq->type);
@@ -1969,7 +2534,7 @@ static int s5p_mfc_start_streaming(struct vb2_queue *q, unsigned int count)
 	/* If context is ready then dev = work->data;schedule it to run */
 	if (s5p_mfc_ctx_ready(ctx))
 		set_work_bit_irqsave(ctx);
-	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 
 	return 0;
 }
@@ -1990,15 +2555,13 @@ static void s5p_mfc_stop_streaming(struct vb2_queue *q)
 	ctx->state = MFCINST_FINISHED;
 	spin_lock_irqsave(&dev->irqlock, flags);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue,
-						&ctx->dst_queue, &ctx->vq_dst);
+		s5p_mfc_cleanup_queue(&ctx->dst_queue, &ctx->vq_dst);
 		INIT_LIST_HEAD(&ctx->dst_queue);
 		ctx->dst_queue_cnt = 0;
 	}
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		cleanup_ref_queue(ctx);
-		s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue, &ctx->src_queue,
-				&ctx->vq_src);
+		s5p_mfc_cleanup_queue(&ctx->src_queue, &ctx->vq_src);
 		INIT_LIST_HEAD(&ctx->src_queue);
 		ctx->src_queue_cnt = 0;
 	}
@@ -2038,7 +2601,7 @@ static void s5p_mfc_buf_queue(struct vb2_buffer *vb)
 	}
 	if (s5p_mfc_ctx_ready(ctx))
 		set_work_bit_irqsave(ctx);
-	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 }
 
 static struct vb2_ops s5p_mfc_enc_qops = {
@@ -2052,7 +2615,7 @@ static struct vb2_ops s5p_mfc_enc_qops = {
 	.buf_queue		= s5p_mfc_buf_queue,
 };
 
-struct s5p_mfc_codec_ops *get_enc_codec_ops(void)
+const struct s5p_mfc_codec_ops *get_enc_codec_ops(void)
 {
 	return &encoder_codec_ops;
 }
@@ -2067,7 +2630,7 @@ const struct v4l2_ioctl_ops *get_enc_v4l2_ioctl_ops(void)
 	return &s5p_mfc_enc_ioctl_ops;
 }
 
-#define IS_MFC51_PRIV(x) ((V4L2_CTRL_ID2CLASS(x) == V4L2_CTRL_CLASS_MPEG) \
+#define IS_MFC51_PRIV(x) ((V4L2_CTRL_ID2WHICH(x) == V4L2_CTRL_CLASS_MPEG) \
 						&& V4L2_CTRL_DRIVER_PRIV(x))
 
 int s5p_mfc_enc_ctrls_setup(struct s5p_mfc_ctx *ctx)
@@ -2094,7 +2657,7 @@ int s5p_mfc_enc_ctrls_setup(struct s5p_mfc_ctx *ctx)
 
 			if (cfg.type == V4L2_CTRL_TYPE_MENU) {
 				cfg.step = 0;
-				cfg.menu_skip_mask = cfg.menu_skip_mask;
+				cfg.menu_skip_mask = controls[i].menu_skip_mask;
 				cfg.qmenu = mfc51_get_menu(cfg.id);
 			} else {
 				cfg.step = controls[i].step;
@@ -2148,4 +2711,3 @@ void s5p_mfc_enc_init(struct s5p_mfc_ctx *ctx)
 	f.fmt.pix_mp.pixelformat = DEF_DST_FMT_ENC;
 	ctx->dst_fmt = find_format(&f, MFC_FMT_ENC);
 }
-

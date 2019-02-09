@@ -300,7 +300,6 @@ static SIMPLE_DEV_PM_OPS(max5821_pm_ops, max5821_suspend, max5821_resume);
 static const struct iio_info max5821_info = {
 	.read_raw = max5821_read_raw,
 	.write_raw = max5821_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int max5821_probe(struct i2c_client *client,
@@ -392,6 +391,7 @@ MODULE_DEVICE_TABLE(of, max5821_of_match);
 static struct i2c_driver max5821_driver = {
 	.driver = {
 		.name	= "max5821",
+		.of_match_table = max5821_of_match,
 		.pm     = MAX5821_PM_OPS,
 	},
 	.probe		= max5821_probe,

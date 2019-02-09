@@ -2,7 +2,7 @@ config VIDEO_DAVINCI_VPIF_DISPLAY
 	tristate "TI DaVinci VPIF V4L2-Display driver"
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on HAS_DMA
+	depends on I2C
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_ADV7343 if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_THS7303 if MEDIA_SUBDRV_AUTOSELECT
@@ -18,8 +18,9 @@ config VIDEO_DAVINCI_VPIF_CAPTURE
 	tristate "TI DaVinci VPIF video capture driver"
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on HAS_DMA
+	depends on I2C
 	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
 	help
 	  Enables Davinci VPIF module used for capture devices.
 	  This module is used for capture on TI DM6467/DA850/OMAPL138
@@ -32,7 +33,7 @@ config VIDEO_DM6446_CCDC
 	tristate "TI DM6446 CCDC video capture driver"
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on HAS_DMA
+	depends on I2C
 	select VIDEOBUF_DMA_CONTIG
 	help
 	   Enables DaVinci CCD hw module. DaVinci CCDC hw interfaces
@@ -48,7 +49,7 @@ config VIDEO_DM355_CCDC
 	tristate "TI DM355 CCDC video capture driver"
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on HAS_DMA
+	depends on I2C
 	select VIDEOBUF_DMA_CONTIG
 	help
 	   Enables DM355 CCD hw module. DM355 CCDC hw interfaces
@@ -62,8 +63,9 @@ config VIDEO_DM355_CCDC
 
 config VIDEO_DM365_ISIF
 	tristate "TI DM365 ISIF video capture driver"
-	depends on VIDEO_V4L2 && ARCH_DAVINCI
-	depends on HAS_DMA
+	depends on VIDEO_V4L2
+	depends on ARCH_DAVINCI || COMPILE_TEST
+	depends on I2C
 	select VIDEOBUF_DMA_CONTIG
 	help
 	   Enables ISIF hw module. This is the hardware module for
@@ -75,8 +77,9 @@ config VIDEO_DM365_ISIF
 
 config VIDEO_DAVINCI_VPBE_DISPLAY
 	tristate "TI DaVinci VPBE V4L2-Display driver"
-	depends on VIDEO_V4L2 && ARCH_DAVINCI
-	depends on HAS_DMA
+	depends on VIDEO_V4L2
+	depends on ARCH_DAVINCI || COMPILE_TEST
+	depends on I2C
 	select VIDEOBUF2_DMA_CONTIG
 	help
 	    Enables Davinci VPBE module used for display devices.

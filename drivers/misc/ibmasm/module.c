@@ -94,12 +94,14 @@ static int ibmasm_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	snprintf(sp->dirname, IBMASM_NAME_SIZE, "%d", sp->number);
 	snprintf(sp->devname, IBMASM_NAME_SIZE, "%s%d", DRIVER_NAME, sp->number);
 
-	if (ibmasm_event_buffer_init(sp)) {
+	result = ibmasm_event_buffer_init(sp);
+	if (result) {
 		dev_err(sp->dev, "Failed to allocate event buffer\n");
 		goto error_eventbuffer;
 	}
 
-	if (ibmasm_heartbeat_init(sp)) {
+	result = ibmasm_heartbeat_init(sp);
+	if (result) {
 		dev_err(sp->dev, "Failed to allocate heartbeat command\n");
 		goto error_heartbeat;
 	}
@@ -170,7 +172,7 @@ static void ibmasm_remove_one(struct pci_dev *pdev)
 	ibmasm_unregister_uart(sp);
 	dbg("Sending OS down message\n");
 	if (ibmasm_send_os_state(sp, SYSTEM_STATE_OS_DOWN))
-		err("failed to get repsonse to 'Send OS State' command\n");
+		err("failed to get response to 'Send OS State' command\n");
 	dbg("Disabling heartbeats\n");
 	ibmasm_heartbeat_exit(sp);
 	dbg("Disabling interrupts\n");

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*****************************************************************************/
 /*
  *           moxa.c  -- MOXA Intellio family multiport serial driver.
@@ -7,11 +8,6 @@
  *
  *      This code is loosely based on the Linux serial driver, written by
  *      Linus Torvalds, Theodore T'so and others.
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  */
 
 /*
@@ -47,7 +43,7 @@
 #include <linux/ratelimit.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "moxa.h"
 
@@ -88,7 +84,7 @@ static char *moxa_brdname[] =
 };
 
 #ifdef CONFIG_PCI
-static struct pci_device_id moxa_pcibrds[] = {
+static const struct pci_device_id moxa_pcibrds[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_C218),
 		.driver_data = MOXA_BOARD_C218_PCI },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_C320),
@@ -155,7 +151,6 @@ struct mon_str {
 #define LOWWAIT 	2
 #define EMPTYWAIT	3
 
-#define SERIAL_DO_RESTART
 
 #define WAKEUP_CHARS		256
 
@@ -180,7 +175,7 @@ MODULE_FIRMWARE("c320tunx.cod");
 
 module_param_array(type, uint, NULL, 0);
 MODULE_PARM_DESC(type, "card type: C218=2, C320=4");
-module_param_array(baseaddr, ulong, NULL, 0);
+module_param_hw_array(baseaddr, ulong, ioport, NULL, 0);
 MODULE_PARM_DESC(baseaddr, "base address");
 module_param_array(numports, uint, NULL, 0);
 MODULE_PARM_DESC(numports, "numports (ignored for C218)");
@@ -203,7 +198,7 @@ static void moxa_hangup(struct tty_struct *);
 static int moxa_tiocmget(struct tty_struct *tty);
 static int moxa_tiocmset(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear);
-static void moxa_poll(unsigned long);
+static void moxa_poll(struct timer_list *);
 static void moxa_set_tty_param(struct tty_struct *, struct ktermios *);
 static void moxa_shutdown(struct tty_port *);
 static int moxa_carrier_raised(struct tty_port *);
@@ -429,7 +424,7 @@ static const struct tty_port_operations moxa_port_ops = {
 };
 
 static struct tty_driver *moxaDriver;
-static DEFINE_TIMER(moxaTimer, moxa_poll, 0, 0);
+static DEFINE_TIMER(moxaTimer, moxa_poll);
 
 /*
  * HW init
@@ -913,7 +908,7 @@ static void moxa_board_deinit(struct moxa_board_conf *brd)
 
 	/* pci hot-un-plug support */
 	for (a = 0; a < brd->numPorts; a++)
-		if (brd->ports[a].port.flags & ASYNC_INITIALIZED)
+		if (tty_port_initialized(&brd->ports[a].port))
 			tty_port_tty_hangup(&brd->ports[a].port, false);
 
 	for (a = 0; a < MAX_PORTS_PER_BOARD; a++)
@@ -922,7 +917,7 @@ static void moxa_board_deinit(struct moxa_board_conf *brd)
 	while (1) {
 		opened = 0;
 		for (a = 0; a < brd->numPorts; a++)
-			if (brd->ports[a].port.flags & ASYNC_INITIALIZED)
+			if (tty_port_initialized(&brd->ports[a].port))
 				opened++;
 		mutex_unlock(&moxa_openlock);
 		if (!opened)
@@ -1193,13 +1188,13 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 	tty->driver_data = ch;
 	tty_port_tty_set(&ch->port, tty);
 	mutex_lock(&ch->port.mutex);
-	if (!(ch->port.flags & ASYNC_INITIALIZED)) {
+	if (!tty_port_initialized(&ch->port)) {
 		ch->statusflags = 0;
 		moxa_set_tty_param(tty, &tty->termios);
 		MoxaPortLineCtrl(ch, 1, 1);
 		MoxaPortEnable(ch);
 		MoxaSetFifo(ch, ch->type == PORT_16550A);
-		ch->port.flags |= ASYNC_INITIALIZED;
+		tty_port_set_initialized(&ch->port, 1);
 	}
 	mutex_unlock(&ch->port.mutex);
 	mutex_unlock(&moxa_openlock);
@@ -1380,7 +1375,7 @@ static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 {
 	struct tty_struct *tty = tty_port_tty_get(&p->port);
 	void __iomem *ofsAddr;
-	unsigned int inited = p->port.flags & ASYNC_INITIALIZED;
+	unsigned int inited = tty_port_initialized(&p->port);
 	u16 intr;
 
 	if (tty) {
@@ -1395,7 +1390,7 @@ static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 			tty_wakeup(tty);
 		}
 
-		if (inited && !test_bit(TTY_THROTTLED, &tty->flags) &&
+		if (inited && !tty_throttled(tty) &&
 				MoxaPortRxQueue(p) > 0) { /* RX */
 			MoxaPortReadData(p);
 			tty_schedule_flip(&p->port);
@@ -1434,7 +1429,7 @@ put:
 	return 0;
 }
 
-static void moxa_poll(unsigned long ignored)
+static void moxa_poll(struct timer_list *unused)
 {
 	struct moxa_board_conf *brd;
 	u16 __iomem *ip;
@@ -1492,8 +1487,6 @@ static void moxa_set_tty_param(struct tty_struct *tty, struct ktermios *old_term
 	if (ts->c_iflag & IXANY)
 		xany = 1;
 
-	/* Clear the features we don't support */
-	ts->c_cflag &= ~CMSPAR;
 	MoxaPortFlowCtrl(ch, rts, cts, txflow, rxflow, xany);
 	baud = MoxaPortSetTermio(ch, ts, tty_get_baud_rate(tty));
 	if (baud == -1)
@@ -1786,10 +1779,17 @@ static int MoxaPortSetTermio(struct moxa_port *port, struct ktermios *termio,
 		mode |= MX_STOP1;
 
 	if (termio->c_cflag & PARENB) {
-		if (termio->c_cflag & PARODD)
-			mode |= MX_PARODD;
-		else
-			mode |= MX_PAREVEN;
+		if (termio->c_cflag & PARODD) {
+			if (termio->c_cflag & CMSPAR)
+				mode |= MX_PARMARK;
+			else
+				mode |= MX_PARODD;
+		} else {
+			if (termio->c_cflag & CMSPAR)
+				mode |= MX_PARSPACE;
+			else
+				mode |= MX_PAREVEN;
+		}
 	} else
 		mode |= MX_PARNONE;
 

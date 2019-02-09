@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /*
  * include/linux/serial_reg.h
  *
@@ -157,6 +158,7 @@
  */
 #define UART_DLL	0	/* Out: Divisor Latch Low */
 #define UART_DLM	1	/* Out: Divisor Latch High */
+#define UART_DIV_MAX	0xFFFF	/* Max divisor value */
 
 /*
  * LCR=0xBF (or DLAB=1 for 16C660)
@@ -327,6 +329,14 @@
 #define SERIAL_RSA_BAUD_BASE (921600)
 #define SERIAL_RSA_BAUD_BASE_LO (SERIAL_RSA_BAUD_BASE / 8)
 
+/* Extra registers for TI DA8xx/66AK2x */
+#define UART_DA830_PWREMU_MGMT	12
+
+/* PWREMU_MGMT register bits */
+#define UART_DA830_PWREMU_MGMT_FREE	(1 << 0)  /* Free-running mode */
+#define UART_DA830_PWREMU_MGMT_URRST	(1 << 13) /* Receiver reset/enable */
+#define UART_DA830_PWREMU_MGMT_UTRST	(1 << 14) /* Transmitter reset/enable */
+
 /*
  * Extra serial register definitions for the internal UARTs
  * in TI OMAP processors.
@@ -359,22 +369,12 @@
 #define UART_OMAP_MDR1_DISABLE		0x07	/* Disable (default state) */
 
 /*
- * These are definitions for the Exar XR17V35X and XR17(C|D)15X
+ * These are definitions for the Altera ALTR_16550_F32/F64/F128
+ * Normalized from 0x100 to 0x40 because of shift by 2 (32 bit regs).
  */
-#define UART_EXAR_8XMODE	0x88	/* 8X sampling rate select */
-#define UART_EXAR_SLEEP		0x8b	/* Sleep mode */
-#define UART_EXAR_DVID		0x8d	/* Device identification */
-
-#define UART_EXAR_FCTR		0x08	/* Feature Control Register */
-#define UART_FCTR_EXAR_IRDA	0x08	/* IrDa data encode select */
-#define UART_FCTR_EXAR_485	0x10	/* Auto 485 half duplex dir ctl */
-#define UART_FCTR_EXAR_TRGA	0x00	/* FIFO trigger table A */
-#define UART_FCTR_EXAR_TRGB	0x60	/* FIFO trigger table B */
-#define UART_FCTR_EXAR_TRGC	0x80	/* FIFO trigger table C */
-#define UART_FCTR_EXAR_TRGD	0xc0	/* FIFO trigger table D programmable */
-
-#define UART_EXAR_TXTRG		0x0a	/* Tx FIFO trigger level write-only */
-#define UART_EXAR_RXTRG		0x0b	/* Rx FIFO trigger level write-only */
+#define UART_ALTR_AFR		0x40	/* Additional Features Register */
+#define UART_ALTR_EN_TXFIFO_LW	0x01	/* Enable the TX FIFO Low Watermark */
+#define UART_ALTR_TX_LOW	0x41	/* Tx FIFO Low Watermark */
 
 #endif /* _LINUX_SERIAL_REG_H */
 

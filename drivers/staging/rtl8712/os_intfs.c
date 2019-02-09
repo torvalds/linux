@@ -13,10 +13,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
  *
@@ -97,7 +93,7 @@ static char *initmac;
  */
 static int wifi_test;
 
-module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO | S_IWUSR);
+module_param_string(ifname, ifname, sizeof(ifname), 0644);
 module_param(wifi_test, int, 0644);
 module_param(initmac, charp, 0644);
 module_param(video_mode, int, 0644);
@@ -168,7 +164,7 @@ static void loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 	registry_par->ampdu_enable = (u8)ampdu_enable;
 	registry_par->rf_config = (u8)rf_config;
 	registry_par->low_power = (u8)low_power;
-	registry_par->wifi_test = (u8) wifi_test;
+	registry_par->wifi_test = (u8)wifi_test;
 	r8712_initmac = initmac;
 }
 
@@ -185,8 +181,8 @@ static int r871x_net_set_mac_address(struct net_device *pnetdev, void *p)
 static struct net_device_stats *r871x_net_get_stats(struct net_device *pnetdev)
 {
 	struct _adapter *padapter = netdev_priv(pnetdev);
-	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
-	struct recv_priv *precvpriv = &(padapter->recvpriv);
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+	struct recv_priv *precvpriv = &padapter->recvpriv;
 
 	padapter->stats.tx_packets = pxmitpriv->tx_pkts;
 	padapter->stats.rx_packets = precvpriv->rx_pkts;
@@ -234,7 +230,7 @@ struct net_device *r8712_init_netdev(void)
 static u32 start_drv_threads(struct _adapter *padapter)
 {
 	padapter->cmdThread = kthread_run(r8712_cmd_thread, padapter, "%s",
-			      padapter->pnetdev->name);
+					  padapter->pnetdev->name);
 	if (IS_ERR(padapter->cmdThread))
 		return _FAIL;
 	return _SUCCESS;
@@ -242,10 +238,13 @@ static u32 start_drv_threads(struct _adapter *padapter)
 
 void r8712_stop_drv_threads(struct _adapter *padapter)
 {
+	struct completion *completion =
+		&padapter->cmdpriv.terminate_cmdthread_comp;
+
 	/*Below is to terminate r8712_cmd_thread & event_thread...*/
-	up(&padapter->cmdpriv.cmd_queue_sema);
+	complete(&padapter->cmdpriv.cmd_queue_comp);
 	if (padapter->cmdThread)
-		_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
+		wait_for_completion_interruptible(completion);
 	padapter->cmdpriv.cmd_seq = 1;
 }
 
@@ -269,7 +268,6 @@ void r8712_stop_drv_timers(struct _adapter *padapter)
 
 static u8 init_default_value(struct _adapter *padapter)
 {
-	u8 ret  = _SUCCESS;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -302,7 +300,7 @@ static u8 init_default_value(struct _adapter *padapter)
 	r8712_init_registrypriv_dev_network(padapter);
 	r8712_update_registrypriv_dev_network(padapter);
 	/*misc.*/
-	return ret;
+	return _SUCCESS;
 }
 
 u8 r8712_init_drv_sw(struct _adapter *padapter)
@@ -318,8 +316,8 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	_r8712_init_recv_priv(&padapter->recvpriv, padapter);
 	memset((unsigned char *)&padapter->securitypriv, 0,
 	       sizeof(struct security_priv));
-	setup_timer(&padapter->securitypriv.tkip_timer,
-		    r8712_use_tkipkey_handler, (unsigned long)padapter);
+	timer_setup(&padapter->securitypriv.tkip_timer,
+		    r8712_use_tkipkey_handler, 0);
 	_r8712_init_sta_priv(&padapter->stapriv);
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);
@@ -348,7 +346,6 @@ u8 r8712_free_drv_sw(struct _adapter *padapter)
 		free_netdev(pnetdev);
 	return _SUCCESS;
 }
-
 
 static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 {
@@ -390,11 +387,11 @@ static int netdev_open(struct net_device *pnetdev)
 		padapter->bup = true;
 		if (rtl871x_hal_init(padapter) != _SUCCESS)
 			goto netdev_open_error;
-		if (r8712_initmac == NULL)
+		if (!r8712_initmac) {
 			/* Use the mac address stored in the Efuse */
 			memcpy(pnetdev->dev_addr,
-				padapter->eeprompriv.mac_addr, ETH_ALEN);
-		else {
+			       padapter->eeprompriv.mac_addr, ETH_ALEN);
+		} else {
 			/* We have to inform f/w to use user-supplied MAC
 			 * address.
 			 */
@@ -410,11 +407,11 @@ static int netdev_open(struct net_device *pnetdev)
 			 * users specify.
 			 */
 			memcpy(padapter->eeprompriv.mac_addr,
-				pnetdev->dev_addr, ETH_ALEN);
+			       pnetdev->dev_addr, ETH_ALEN);
 		}
 		if (start_drv_threads(padapter) != _SUCCESS)
 			goto netdev_open_error;
-		if (padapter->dvobjpriv.inirp_init == NULL)
+		if (!padapter->dvobjpriv.inirp_init)
 			goto netdev_open_error;
 		else
 			padapter->dvobjpriv.inirp_init(padapter);
@@ -426,7 +423,7 @@ static int netdev_open(struct net_device *pnetdev)
 	else
 		netif_wake_queue(pnetdev);
 
-	 if (video_mode)
+	if (video_mode)
 		enable_video_mode(padapter, cbw40_enable);
 	/* start driver mlme relation timer */
 	start_drv_timers(padapter);

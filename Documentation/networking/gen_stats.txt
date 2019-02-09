@@ -21,7 +21,7 @@ struct mystruct {
 	...
 };
 
-Update statistics:
+Update statistics, in dequeue() methods only, (while owning qdisc->running)
 mystruct->tstats.packet++;
 mystruct->qstats.backlog += skb->pkt_len;
 
@@ -33,7 +33,8 @@ my_dumping_routine(struct sk_buff *skb, ...)
 {
 	struct gnet_dump dump;
 
-	if (gnet_stats_start_copy(skb, TCA_STATS2, &mystruct->lock, &dump) < 0)
+	if (gnet_stats_start_copy(skb, TCA_STATS2, &mystruct->lock, &dump,
+				  TCA_PAD) < 0)
 		goto rtattr_failure;
 
 	if (gnet_stats_copy_basic(&dump, &mystruct->bstats) < 0 ||
@@ -56,7 +57,8 @@ existing TLV types.
 my_dumping_routine(struct sk_buff *skb, ...)
 {
     if (gnet_stats_start_copy_compat(skb, TCA_STATS2, TCA_STATS,
-		TCA_XSTATS, &mystruct->lock, &dump) < 0)
+				     TCA_XSTATS, &mystruct->lock, &dump,
+				     TCA_PAD) < 0)
 		goto rtattr_failure;
 	...
 }

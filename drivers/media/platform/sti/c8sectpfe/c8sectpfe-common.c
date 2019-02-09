@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * c8sectpfe-common.c - C8SECTPFE STi DVB driver
  *
@@ -5,10 +6,6 @@
  *
  *   Author: Peter Griffin <peter.griffin@linaro.org>
  *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License as
- *      published by the Free Software Foundation; either version 2 of
- *      the License, or (at your option) any later version.
  */
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -24,11 +21,11 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 
 #include "c8sectpfe-common.h"
 #include "c8sectpfe-core.h"
@@ -209,18 +206,18 @@ void c8sectpfe_tuner_unregister_frontend(struct c8sectpfe *c8sectpfe,
 
 		tsin = fei->channel_data[n];
 
-		if (tsin && tsin->frontend) {
-			dvb_unregister_frontend(tsin->frontend);
-			dvb_frontend_detach(tsin->frontend);
-		}
+		if (tsin) {
+			if (tsin->frontend) {
+				dvb_unregister_frontend(tsin->frontend);
+				dvb_frontend_detach(tsin->frontend);
+			}
 
-		if (tsin && tsin->i2c_adapter)
 			i2c_put_adapter(tsin->i2c_adapter);
 
-		if (tsin && tsin->i2c_client) {
-			if (tsin->i2c_client->dev.driver->owner)
+			if (tsin->i2c_client) {
 				module_put(tsin->i2c_client->dev.driver->owner);
-			i2c_unregister_device(tsin->i2c_client);
+				i2c_unregister_device(tsin->i2c_client);
+			}
 		}
 	}
 

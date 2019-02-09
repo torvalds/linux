@@ -38,12 +38,12 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 	if (!adis->xfer)
 		return -ENOMEM;
 
-	adis->buffer = kzalloc(indio_dev->scan_bytes * 2, GFP_KERNEL);
+	adis->buffer = kcalloc(indio_dev->scan_bytes, 2, GFP_KERNEL);
 	if (!adis->buffer)
 		return -ENOMEM;
 
 	rx = adis->buffer;
-	tx = rx + indio_dev->scan_bytes;
+	tx = rx + scan_count;
 
 	spi_message_init(&adis->msg);
 

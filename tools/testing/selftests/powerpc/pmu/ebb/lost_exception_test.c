@@ -98,5 +98,6 @@ static int lost_exception(void)
 
 int main(void)
 {
+	test_harness_set_timeout(300);
 	return test_harness(lost_exception, "lost_exception");
 }

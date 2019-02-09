@@ -33,10 +33,22 @@ config WIL6210_TRACING
 	bool "wil6210 tracing support"
 	depends on WIL6210
 	depends on EVENT_TRACING
-	default y
+	default n
 	---help---
 	  Say Y here to enable tracepoints for the wil6210 driver
 	  using the kernel tracing infrastructure.  Select this
+	  option if you are interested in debugging the driver.
+
+	  If unsure, say Y to make it easier to debug problems.
+
+config WIL6210_DEBUGFS
+	bool "wil6210 debugfs support"
+	depends on WIL6210
+	depends on DEBUG_FS
+	default y
+	---help---
+	  Say Y here to enable wil6210 debugfs support, using the
+	  kernel debugfs infrastructure. Select this
 	  option if you are interested in debugging the driver.
 
 	  If unsure, say Y to make it easier to debug problems.

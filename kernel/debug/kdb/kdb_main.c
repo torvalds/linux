@@ -18,6 +18,9 @@
 #include <linux/kmsg_dump.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
+#include <linux/sched/stat.h>
+#include <linux/sched/debug.h>
 #include <linux/sysrq.h>
 #include <linux/smp.h>
 #include <linux/utsname.h>
@@ -60,7 +63,6 @@ int kdb_grep_trailing;
  * Kernel debugger state flags
  */
 int kdb_flags;
-atomic_t kdb_event;
 
 /*
  * kdb_lock protects updates to kdb_initial_cpu.  Used to
@@ -689,7 +691,7 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
 	}
 	if (!s->usable)
 		return KDB_NOTIMP;
-	s->command = kzalloc((s->count + 1) * sizeof(*(s->command)), GFP_KDB);
+	s->command = kcalloc(s->count + 1, sizeof(*(s->command)), GFP_KDB);
 	if (!s->command) {
 		kdb_printf("Could not allocate new kdb_defcmd table for %s\n",
 			   cmdstr);
@@ -727,8 +729,8 @@ static int kdb_defcmd(int argc, const char **argv)
 		kdb_printf("Command only available during kdb_init()\n");
 		return KDB_NOTIMP;
 	}
-	defcmd_set = kmalloc((defcmd_set_count + 1) * sizeof(*defcmd_set),
-			     GFP_KDB);
+	defcmd_set = kmalloc_array(defcmd_set_count + 1, sizeof(*defcmd_set),
+				   GFP_KDB);
 	if (!defcmd_set)
 		goto fail_defcmd;
 	memcpy(defcmd_set, save_defcmd_set,
@@ -1148,6 +1150,16 @@ void kdb_set_current_task(struct task_struct *p)
 	kdb_current_regs = NULL;
 }
 
+static void drop_newline(char *buf)
+{
+	size_t len = strlen(buf);
+
+	if (len == 0)
+		return;
+	if (*(buf + len - 1) == '\n')
+		*(buf + len - 1) = '\0';
+}
+
 /*
  * kdb_local - The main code for kdb.  This routine is invoked on a
  *	specific processor, it is not global.  The main kdb() routine
@@ -1180,7 +1192,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 	if (reason == KDB_REASON_DEBUG) {
 		/* special case below */
 	} else {
-		kdb_printf("\nEntering kdb (current=0x%p, pid %d) ",
+		kdb_printf("\nEntering kdb (current=0x%px, pid %d) ",
 			   kdb_current, kdb_current ? kdb_current->pid : 0);
 #if defined(CONFIG_SMP)
 		kdb_printf("on processor %d ", raw_smp_processor_id());
@@ -1196,7 +1208,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		 */
 		switch (db_result) {
 		case KDB_DB_BPT:
-			kdb_printf("\nEntering kdb (0x%p, pid %d) ",
+			kdb_printf("\nEntering kdb (0x%px, pid %d) ",
 				   kdb_current, kdb_current->pid);
 #if defined(CONFIG_SMP)
 			kdb_printf("on processor %d ", raw_smp_processor_id());
@@ -1325,6 +1337,7 @@ do_full_getstr:
 		cmdptr = cmd_head;
 		diag = kdb_parse(cmdbuf);
 		if (diag == KDB_NOTFOUND) {
+			drop_newline(cmdbuf);
 			kdb_printf("Unknown kdb command: '%s'\n", cmdbuf);
 			diag = 0;
 		}
@@ -1564,6 +1577,7 @@ static int kdb_md(int argc, const char **argv)
 	int symbolic = 0;
 	int valid = 0;
 	int phys = 0;
+	int raw = 0;
 
 	kdbgetintenv("MDCOUNT", &mdcount);
 	kdbgetintenv("RADIX", &radix);
@@ -1573,9 +1587,10 @@ static int kdb_md(int argc, const char **argv)
 	repeat = mdcount * 16 / bytesperword;
 
 	if (strcmp(argv[0], "mdr") == 0) {
-		if (argc != 2)
+		if (argc == 2 || (argc == 0 && last_addr != 0))
+			valid = raw = 1;
+		else
 			return KDB_ARGCOUNT;
-		valid = 1;
 	} else if (isdigit(argv[0][2])) {
 		bytesperword = (int)(argv[0][2] - '0');
 		if (bytesperword == 0) {
@@ -1611,7 +1626,10 @@ static int kdb_md(int argc, const char **argv)
 		radix = last_radix;
 		bytesperword = last_bytesperword;
 		repeat = last_repeat;
-		mdcount = ((repeat * bytesperword) + 15) / 16;
+		if (raw)
+			mdcount = repeat;
+		else
+			mdcount = ((repeat * bytesperword) + 15) / 16;
 	}
 
 	if (argc) {
@@ -1628,7 +1646,10 @@ static int kdb_md(int argc, const char **argv)
 			diag = kdbgetularg(argv[nextarg], &val);
 			if (!diag) {
 				mdcount = (int) val;
-				repeat = mdcount * 16 / bytesperword;
+				if (raw)
+					repeat = mdcount;
+				else
+					repeat = mdcount * 16 / bytesperword;
 			}
 		}
 		if (argc >= nextarg+1) {
@@ -1638,8 +1659,15 @@ static int kdb_md(int argc, const char **argv)
 		}
 	}
 
-	if (strcmp(argv[0], "mdr") == 0)
-		return kdb_mdr(addr, mdcount);
+	if (strcmp(argv[0], "mdr") == 0) {
+		int ret;
+		last_addr = addr;
+		ret = kdb_mdr(addr, mdcount);
+		last_addr += mdcount;
+		last_repeat = mdcount;
+		last_bytesperword = bytesperword; // to make REPEAT happy
+		return ret;
+	}
 
 	switch (radix) {
 	case 10:
@@ -2020,8 +2048,8 @@ static int kdb_lsmod(int argc, const char **argv)
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
 
-		kdb_printf("%-20s%8u  0x%p ", mod->name,
-			   mod->core_size, (void *)mod);
+		kdb_printf("%-20s%8u  0x%px ", mod->name,
+			   mod->core_layout.size, (void *)mod);
 #ifdef CONFIG_MODULE_UNLOAD
 		kdb_printf("%4d ", module_refcount(mod));
 #endif
@@ -2031,7 +2059,7 @@ static int kdb_lsmod(int argc, const char **argv)
 			kdb_printf(" (Loading)");
 		else
 			kdb_printf(" (Live)");
-		kdb_printf(" 0x%p", mod->module_core);
+		kdb_printf(" 0x%px", mod->core_layout.base);
 
 #ifdef CONFIG_MODULE_UNLOAD
 		{
@@ -2313,7 +2341,7 @@ void kdb_ps1(const struct task_struct *p)
 		return;
 
 	cpu = kdb_process_cpu(p);
-	kdb_printf("0x%p %8d %8d  %d %4d   %c  0x%p %c%s\n",
+	kdb_printf("0x%px %8d %8d  %d %4d   %c  0x%px %c%s\n",
 		   (void *)p, p->pid, p->parent->pid,
 		   kdb_task_has_cpu(p), kdb_process_cpu(p),
 		   kdb_task_state_char(p),
@@ -2326,7 +2354,7 @@ void kdb_ps1(const struct task_struct *p)
 		} else {
 			if (KDB_TSK(cpu) != p)
 				kdb_printf("  Error: does not match running "
-				   "process table (0x%p)\n", KDB_TSK(cpu));
+				   "process table (0x%px)\n", KDB_TSK(cpu));
 		}
 	}
 }
@@ -2439,7 +2467,6 @@ static int kdb_kill(int argc, const char **argv)
 	long sig, pid;
 	char *endp;
 	struct task_struct *p;
-	struct siginfo info;
 
 	if (argc != 2)
 		return KDB_ARGCOUNT;
@@ -2447,7 +2474,7 @@ static int kdb_kill(int argc, const char **argv)
 	sig = simple_strtol(argv[1], &endp, 0);
 	if (*endp)
 		return KDB_BADINT;
-	if (sig >= 0) {
+	if ((sig >= 0) || !valid_signal(-sig)) {
 		kdb_printf("Invalid signal parameter.<-signal>\n");
 		return 0;
 	}
@@ -2468,48 +2495,8 @@ static int kdb_kill(int argc, const char **argv)
 		return 0;
 	}
 	p = p->group_leader;
-	info.si_signo = sig;
-	info.si_errno = 0;
-	info.si_code = SI_USER;
-	info.si_pid = pid;  /* same capabilities as process being signalled */
-	info.si_uid = 0;    /* kdb has root authority */
-	kdb_send_sig_info(p, &info);
+	kdb_send_sig(p, sig);
 	return 0;
-}
-
-struct kdb_tm {
-	int tm_sec;	/* seconds */
-	int tm_min;	/* minutes */
-	int tm_hour;	/* hours */
-	int tm_mday;	/* day of the month */
-	int tm_mon;	/* month */
-	int tm_year;	/* year */
-};
-
-static void kdb_gmtime(struct timespec *tv, struct kdb_tm *tm)
-{
-	/* This will work from 1970-2099, 2100 is not a leap year */
-	static int mon_day[] = { 31, 29, 31, 30, 31, 30, 31,
-				 31, 30, 31, 30, 31 };
-	memset(tm, 0, sizeof(*tm));
-	tm->tm_sec  = tv->tv_sec % (24 * 60 * 60);
-	tm->tm_mday = tv->tv_sec / (24 * 60 * 60) +
-		(2 * 365 + 1); /* shift base from 1970 to 1968 */
-	tm->tm_min =  tm->tm_sec / 60 % 60;
-	tm->tm_hour = tm->tm_sec / 60 / 60;
-	tm->tm_sec =  tm->tm_sec % 60;
-	tm->tm_year = 68 + 4*(tm->tm_mday / (4*365+1));
-	tm->tm_mday %= (4*365+1);
-	mon_day[1] = 29;
-	while (tm->tm_mday >= mon_day[tm->tm_mon]) {
-		tm->tm_mday -= mon_day[tm->tm_mon];
-		if (++tm->tm_mon == 12) {
-			tm->tm_mon = 0;
-			++tm->tm_year;
-			mon_day[1] = 28;
-		}
-	}
-	++tm->tm_mday;
 }
 
 /*
@@ -2519,10 +2506,10 @@ static void kdb_gmtime(struct timespec *tv, struct kdb_tm *tm)
  */
 static void kdb_sysinfo(struct sysinfo *val)
 {
-	struct timespec uptime;
-	ktime_get_ts(&uptime);
+	u64 uptime = ktime_get_mono_fast_ns();
+
 	memset(val, 0, sizeof(*val));
-	val->uptime = uptime.tv_sec;
+	val->uptime = div_u64(uptime, NSEC_PER_SEC);
 	val->loads[0] = avenrun[0];
 	val->loads[1] = avenrun[1];
 	val->loads[2] = avenrun[2];
@@ -2537,8 +2524,8 @@ static void kdb_sysinfo(struct sysinfo *val)
  */
 static int kdb_summary(int argc, const char **argv)
 {
-	struct timespec now;
-	struct kdb_tm tm;
+	time64_t now;
+	struct tm tm;
 	struct sysinfo val;
 
 	if (argc)
@@ -2552,9 +2539,9 @@ static int kdb_summary(int argc, const char **argv)
 	kdb_printf("domainname %s\n", init_uts_ns.name.domainname);
 	kdb_printf("ccversion  %s\n", __stringify(CCVERSION));
 
-	now = __current_kernel_time();
-	kdb_gmtime(&now, &tm);
-	kdb_printf("date       %04d-%02d-%02d %02d:%02d:%02d "
+	now = __ktime_get_real_seconds();
+	time64_to_tm(now, 0, &tm);
+	kdb_printf("date       %04ld-%02d-%02d %02d:%02d:%02d "
 		   "tz_minuteswest %d\n",
 		1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,
 		tm.tm_hour, tm.tm_min, tm.tm_sec,
@@ -2705,7 +2692,7 @@ int kdb_register_flags(char *cmd,
 	for_each_kdbcmd(kp, i) {
 		if (kp->cmd_name && (strcmp(kp->cmd_name, cmd) == 0)) {
 			kdb_printf("Duplicate kdb command registered: "
-				"%s, func %p help %s\n", cmd, func, help);
+				"%s, func %px help %s\n", cmd, func, help);
 			return 1;
 		}
 	}
@@ -2719,8 +2706,11 @@ int kdb_register_flags(char *cmd,
 	}
 
 	if (i >= kdb_max_commands) {
-		kdbtab_t *new = kmalloc((kdb_max_commands - KDB_BASE_CMD_MAX +
-			 kdb_command_extend) * sizeof(*new), GFP_KDB);
+		kdbtab_t *new = kmalloc_array(kdb_max_commands -
+						KDB_BASE_CMD_MAX +
+						kdb_command_extend,
+					      sizeof(*new),
+					      GFP_KDB);
 		if (!new) {
 			kdb_printf("Could not allocate new kdb_command "
 				   "table\n");

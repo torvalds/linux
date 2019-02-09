@@ -1,0 +1,27 @@
+sysfs interface for the S6E63M0 AMOLED LCD panel driver
+-------------------------------------------------------
+
+What:		/sys/class/lcd/<lcd>/gamma_mode
+Date:		May, 2010
+KernelVersion:	v2.6.35
+Contact:	dri-devel@lists.freedesktop.org
+Description:
+		(RW) Read or write the gamma mode. Following three modes are
+		supported:
+		0 - gamma value 2.2,
+		1 - gamma value 1.9 and
+		2 - gamma value 1.7.
+
+
+What:		/sys/class/lcd/<lcd>/gamma_table
+Date:		May, 2010
+KernelVersion:	v2.6.35
+Contact:	dri-devel@lists.freedesktop.org
+Description:
+		(RO) Displays the size of the gamma table i.e. the number of
+		gamma modes available.
+
+This is a backlight lcd driver. These interfaces are an extension to the API
+documented in Documentation/ABI/testing/sysfs-class-lcd and in
+Documentation/ABI/stable/sysfs-class-backlight (under
+/sys/class/backlight/<backlight>/).

@@ -340,7 +340,7 @@ static int sata_pmp_init_links (struct ata_port *ap, int nr_ports)
 	int i, err;
 
 	if (!pmp_link) {
-		pmp_link = kzalloc(sizeof(pmp_link[0]) * SATA_PMP_MAX_PORTS,
+		pmp_link = kcalloc(SATA_PMP_MAX_PORTS, sizeof(pmp_link[0]),
 				   GFP_NOIO);
 		if (!pmp_link)
 			return -ENOMEM;

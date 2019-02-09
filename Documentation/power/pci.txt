@@ -8,7 +8,7 @@ management.  Based on previous work by Patrick Mochel <mochel@transmeta.com>
 
 This document only covers the aspects of power management specific to PCI
 devices.  For general description of the kernel's interfaces related to device
-power management refer to Documentation/power/devices.txt and
+power management refer to Documentation/driver-api/pm/devices.rst and
 Documentation/power/runtime_pm.txt.
 
 ---------------------------------------------------------------------------
@@ -417,7 +417,7 @@ pm->runtime_idle() callback.
 2.4. System-Wide Power Transitions
 ----------------------------------
 There are a few different types of system-wide power transitions, described in
-Documentation/power/devices.txt.  Each of them requires devices to be handled
+Documentation/driver-api/pm/devices.rst.  Each of them requires devices to be handled
 in a specific way and the PM core executes subsystem-level power management
 callbacks for this purpose.  They are executed in phases such that each phase
 involves executing the same subsystem-level callback for every device belonging
@@ -623,7 +623,7 @@ System restore requires a hibernation image to be loaded into memory and the
 pre-hibernation memory contents to be restored before the pre-hibernation system
 activity can be resumed.
 
-As described in Documentation/power/devices.txt, the hibernation image is loaded
+As described in Documentation/driver-api/pm/devices.rst, the hibernation image is loaded
 into memory by a fresh instance of the kernel, called the boot kernel, which in
 turn is loaded and run by a boot loader in the usual way.  After the boot kernel
 has loaded the image, it needs to replace its own code and data with the code
@@ -677,7 +677,7 @@ controlling the runtime power management of their devices.
 
 At the time of this writing there are two ways to define power management
 callbacks for a PCI device driver, the recommended one, based on using a
-dev_pm_ops structure described in Documentation/power/devices.txt, and the
+dev_pm_ops structure described in Documentation/driver-api/pm/devices.rst, and the
 "legacy" one, in which the .suspend(), .suspend_late(), .resume_early(), and
 .resume() callbacks from struct pci_driver are used.  The legacy approach,
 however, doesn't allow one to define runtime power management callbacks and is
@@ -713,7 +713,7 @@ In addition to that the prepare() callback may carry out some operations
 preparing the device to be suspended, although it should not allocate memory
 (if additional memory is required to suspend the device, it has to be
 preallocated earlier, for example in a suspend/hibernate notifier as described
-in Documentation/power/notifiers.txt).
+in Documentation/driver-api/pm/notifiers.rst).
 
 3.1.2. suspend()
 
@@ -961,6 +961,50 @@ dev_pm_ops to indicate that one suspend routine is to be pointed to by the
 .suspend(), .freeze(), and .poweroff() members and one resume routine is to
 be pointed to by the .resume(), .thaw(), and .restore() members.
 
+3.1.19. Driver Flags for Power Management
+
+The PM core allows device drivers to set flags that influence the handling of
+power management for the devices by the core itself and by middle layer code
+including the PCI bus type.  The flags should be set once at the driver probe
+time with the help of the dev_pm_set_driver_flags() function and they should not
+be updated directly afterwards.
+
+The DPM_FLAG_NEVER_SKIP flag prevents the PM core from using the direct-complete
+mechanism allowing device suspend/resume callbacks to be skipped if the device
+is in runtime suspend when the system suspend starts.  That also affects all of
+the ancestors of the device, so this flag should only be used if absolutely
+necessary.
+
+The DPM_FLAG_SMART_PREPARE flag instructs the PCI bus type to only return a
+positive value from pci_pm_prepare() if the ->prepare callback provided by the
+driver of the device returns a positive value.  That allows the driver to opt
+out from using the direct-complete mechanism dynamically.
+
+The DPM_FLAG_SMART_SUSPEND flag tells the PCI bus type that from the driver's
+perspective the device can be safely left in runtime suspend during system
+suspend.  That causes pci_pm_suspend(), pci_pm_freeze() and pci_pm_poweroff()
+to skip resuming the device from runtime suspend unless there are PCI-specific
+reasons for doing that.  Also, it causes pci_pm_suspend_late/noirq(),
+pci_pm_freeze_late/noirq() and pci_pm_poweroff_late/noirq() to return early
+if the device remains in runtime suspend in the beginning of the "late" phase
+of the system-wide transition under way.  Moreover, if the device is in
+runtime suspend in pci_pm_resume_noirq() or pci_pm_restore_noirq(), its runtime
+power management status will be changed to "active" (as it is going to be put
+into D0 going forward), but if it is in runtime suspend in pci_pm_thaw_noirq(),
+the function will set the power.direct_complete flag for it (to make the PM core
+skip the subsequent "thaw" callbacks for it) and return.
+
+Setting the DPM_FLAG_LEAVE_SUSPENDED flag means that the driver prefers the
+device to be left in suspend after system-wide transitions to the working state.
+This flag is checked by the PM core, but the PCI bus type informs the PM core
+which devices may be left in suspend from its perspective (that happens during
+the "noirq" phase of system-wide suspend and analogous transitions) and next it
+uses the dev_pm_may_skip_resume() helper to decide whether or not to return from
+pci_pm_resume_noirq() early, as the PM core will skip the remaining resume
+callbacks for the device during the transition under way and will set its
+runtime PM status to "suspended" if dev_pm_may_skip_resume() returns "true" for
+it.
+
 3.2. Device Runtime Power Management
 ------------------------------------
 In addition to providing device power management callbacks PCI device drivers
@@ -999,7 +1043,7 @@ from its probe routine to make runtime PM work for the device.
 
 It is important to remember that the driver's runtime_suspend() callback
 may be executed right after the usage counter has been decremented, because
-user space may already have cuased the pm_runtime_allow() helper function
+user space may already have caused the pm_runtime_allow() helper function
 unblocking the runtime PM of the device to run via sysfs, so the driver must
 be prepared to cope with that.
 
@@ -1046,5 +1090,5 @@ PCI Local Bus Specification, Rev. 3.0
 PCI Bus Power Management Interface Specification, Rev. 1.2
 Advanced Configuration and Power Interface (ACPI) Specification, Rev. 3.0b
 PCI Express Base Specification, Rev. 2.0
-Documentation/power/devices.txt
+Documentation/driver-api/pm/devices.rst
 Documentation/power/runtime_pm.txt

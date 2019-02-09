@@ -33,6 +33,11 @@ Optional properties:
               LM90 "-ALERT" pin output.
               See interrupt-controller/interrupts.txt for the format.
 
+- #thermal-sensor-cells: should be set to 1. See thermal/thermal.txt for
+	      details. See <include/dt-bindings/thermal/lm90.h> for the
+	      definition of the local, remote and 2nd remote sensor index
+	      constants.
+
 Example LM90 node:
 
 temp-sensor {
@@ -41,4 +46,5 @@ temp-sensor {
 	vcc-supply = <&palmas_ldo6_reg>;
 	interrupt-parent = <&gpio>;
 	interrupts = <TEGRA_GPIO(O, 4) IRQ_TYPE_LEVEL_LOW>;
+	#thermal-sensor-cells = <1>;
 }

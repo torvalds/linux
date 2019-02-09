@@ -11,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #ifndef _CX25840_CORE_H_
@@ -49,6 +45,35 @@ enum cx25840_media_pads {
 	CX25840_NUM_PADS
 };
 
+/**
+ * struct cx25840_state - a device instance private data
+ * @c:			i2c_client struct representing this device
+ * @sd:		our V4L2 sub-device
+ * @hdl:		our V4L2 control handler
+ * @volume:		audio volume V4L2 control (non-cx2583x devices only)
+ * @mute:		audio mute V4L2 control (non-cx2583x devices only)
+ * @pvr150_workaround:	whether we enable workaround for Hauppauge PVR150
+ *			hardware bug (audio dropping out)
+ * @radio:		set if we are currently in the radio mode, otherwise
+ *			the current mode is non-radio (that is, video)
+ * @std:		currently set video standard
+ * @vid_input:		currently set video input
+ * @aud_input:		currently set audio input
+ * @audclk_freq:	currently set audio sample rate
+ * @audmode:		currently set audio mode (when in non-radio mode)
+ * @vbi_line_offset:	vbi line number offset
+ * @id:		exact device model
+ * @rev:		raw device id read from the chip
+ * @is_initialized:	whether we have already loaded firmware into the chip
+ *			and initialized it
+ * @vbi_regs_offset:	offset of vbi regs
+ * @fw_wait:		wait queue to wake an initalization function up when
+ *			firmware loading (on a separate workqueue) finishes
+ * @fw_work:		a work that actually loads the firmware on a separate
+ *			workqueue
+ * @ir_state:		a pointer to chip IR controller private data
+ * @pads:		array of supported chip pads (currently only a stub)
+ */
 struct cx25840_state {
 	struct i2c_client *c;
 	struct v4l2_subdev sd;
@@ -69,8 +94,9 @@ struct cx25840_state {
 	enum cx25840_model id;
 	u32 rev;
 	int is_initialized;
-	wait_queue_head_t fw_wait;    /* wake up when the fw load is finished */
-	struct work_struct fw_work;   /* work entry for fw load */
+	unsigned vbi_regs_offset;
+	wait_queue_head_t fw_wait;
+	struct work_struct fw_work;
 	struct cx25840_ir_state *ir_state;
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_pad	pads[CX25840_NUM_PADS];
@@ -121,7 +147,7 @@ static inline bool is_cx23888(struct cx25840_state *state)
 }
 
 /* ----------------------------------------------------------------------- */
-/* cx25850-core.c 							   */
+/* cx25850-core.c							   */
 int cx25840_write(struct i2c_client *client, u16 addr, u8 value);
 int cx25840_write4(struct i2c_client *client, u16 addr, u32 value);
 u8 cx25840_read(struct i2c_client *client, u16 addr);

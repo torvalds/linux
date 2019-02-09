@@ -56,9 +56,10 @@ iocharset=<name> -- Character set to use for converting between the
 		 you should consider the following option instead.
 
 utf8=<bool>   -- UTF-8 is the filesystem safe version of Unicode that
-		 is used by the console.  It can be enabled for the
-		 filesystem with this option. If 'uni_xlate' gets set,
-		 UTF-8 gets disabled.
+		 is used by the console. It can be enabled or disabled
+		 for the filesystem with this option.
+		 If 'uni_xlate' gets set, UTF-8 gets disabled.
+		 By default, FAT_DEFAULT_UTF8 setting is used.
 
 uni_xlate=<bool> -- Translate unhandled Unicode characters to special
 		 escaped sequences.  This would let you backup and
@@ -179,6 +180,16 @@ dos1xfloppy  -- If set, use a fallback default BIOS Parameter Block
 
 
 <bool>: 0,1,yes,no,true,false
+
+LIMITATION
+---------------------------------------------------------------------
+* The fallocated region of file is discarded at umount/evict time
+  when using fallocate with FALLOC_FL_KEEP_SIZE.
+  So, User should assume that fallocated region can be discarded at
+  last close if there is memory pressure resulting in eviction of
+  the inode from the memory. As a result, for any dependency on
+  the fallocated region, user should make sure to recheck fallocate
+  after reopening the file.
 
 TODO
 ----------------------------------------------------------------------
@@ -333,4 +344,4 @@ the following:
 	   characters in the final slot are set to Unicode 0xFFFF.
 
 Finally, note that the extended name is stored in Unicode.  Each Unicode
-character takes two bytes.
+character takes either two or four bytes, UTF-16LE encoded.

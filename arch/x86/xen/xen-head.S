@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Xen-specific pieces of head.S, intended to be included in the right
 	place in head.S */
 
@@ -8,7 +9,10 @@
 
 #include <asm/boot.h>
 #include <asm/asm.h>
+#include <asm/msr.h>
 #include <asm/page_types.h>
+#include <asm/percpu.h>
+#include <asm/unwind_hints.h>
 
 #include <xen/interface/elfnote.h>
 #include <xen/interface/features.h>
@@ -16,85 +20,56 @@
 #include <xen/interface/xen-mca.h>
 #include <asm/xen/interface.h>
 
-#ifdef CONFIG_XEN_PVH
-#define PVH_FEATURES_STR  "|writable_descriptor_tables|auto_translated_physmap|supervisor_mode_kernel"
-/* Note the lack of 'hvm_callback_vector'. Older hypervisor will
- * balk at this being part of XEN_ELFNOTE_FEATURES, so we put it in
- * XEN_ELFNOTE_SUPPORTED_FEATURES which older hypervisors will ignore.
- */
-#define PVH_FEATURES ((1 << XENFEAT_writable_page_tables) | \
-		      (1 << XENFEAT_auto_translated_physmap) | \
-		      (1 << XENFEAT_supervisor_mode_kernel) | \
-		      (1 << XENFEAT_hvm_callback_vector))
-/* The XENFEAT_writable_page_tables is not stricly neccessary as we set that
- * up regardless whether this CONFIG option is enabled or not, but it
- * clarifies what the right flags need to be.
- */
-#else
-#define PVH_FEATURES_STR  ""
-#define PVH_FEATURES (0)
-#endif
-
+#ifdef CONFIG_XEN_PV
 	__INIT
 ENTRY(startup_xen)
+	UNWIND_HINT_EMPTY
 	cld
-#ifdef CONFIG_X86_32
-	mov %esi,xen_start_info
-	mov $init_thread_union+THREAD_SIZE,%esp
-#else
-	mov %rsi,xen_start_info
-	mov $init_thread_union+THREAD_SIZE,%rsp
+
+	/* Clear .bss */
+	xor %eax,%eax
+	mov $__bss_start, %_ASM_DI
+	mov $__bss_stop, %_ASM_CX
+	sub %_ASM_DI, %_ASM_CX
+	shr $__ASM_SEL(2, 3), %_ASM_CX
+	rep __ASM_SIZE(stos)
+
+	mov %_ASM_SI, xen_start_info
+	mov $init_thread_union+THREAD_SIZE, %_ASM_SP
+
+#ifdef CONFIG_X86_64
+	/* Set up %gs.
+	 *
+	 * The base of %gs always points to the bottom of the irqstack
+	 * union.  If the stack protector canary is enabled, it is
+	 * located at %gs:40.  Note that, on SMP, the boot cpu uses
+	 * init data section till per cpu areas are set up.
+	 */
+	movl	$MSR_GS_BASE,%ecx
+	movq	$INIT_PER_CPU_VAR(irq_stack_union),%rax
+	cdq
+	wrmsr
 #endif
+
 	jmp xen_start_kernel
-
+END(startup_xen)
 	__FINIT
-
-#ifdef CONFIG_XEN_PVH
-/*
- * xen_pvh_early_cpu_init() - early PVH VCPU initialization
- * @cpu:   this cpu number (%rdi)
- * @entry: true if this is a secondary vcpu coming up on this entry
- *         point, false if this is the boot CPU being initialized for
- *         the first time (%rsi)
- *
- * Note: This is called as a function on the boot CPU, and is the entry point
- *       on the secondary CPU.
- */
-ENTRY(xen_pvh_early_cpu_init)
-	mov     %rsi, %r11
-
-	/* Gather features to see if NX implemented. */
-	mov     $0x80000001, %eax
-	cpuid
-	mov     %edx, %esi
-
-	mov     $MSR_EFER, %ecx
-	rdmsr
-	bts     $_EFER_SCE, %eax
-
-	bt      $20, %esi
-	jnc     1f      	/* No NX, skip setting it */
-	bts     $_EFER_NX, %eax
-1:	wrmsr
-#ifdef CONFIG_SMP
-	cmp     $0, %r11b
-	jne     cpu_bringup_and_idle
 #endif
-	ret
-
-#endif /* CONFIG_XEN_PVH */
 
 .pushsection .text
 	.balign PAGE_SIZE
 ENTRY(hypercall_page)
-	.skip PAGE_SIZE
+	.rept (PAGE_SIZE / 32)
+		UNWIND_HINT_EMPTY
+		.skip 32
+	.endr
 
 #define HYPERCALL(n) \
 	.equ xen_hypercall_##n, hypercall_page + __HYPERVISOR_##n * 32; \
 	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
 #include <asm/xen-hypercalls.h>
 #undef HYPERCALL
-
+END(hypercall_page)
 .popsection
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")
@@ -105,14 +80,18 @@ ENTRY(hypercall_page)
 #else
 	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      _ASM_PTR __START_KERNEL_map)
 	/* Map the p2m table to a 512GB-aligned user address. */
-	ELFNOTE(Xen, XEN_ELFNOTE_INIT_P2M,       .quad PGDIR_SIZE)
+	ELFNOTE(Xen, XEN_ELFNOTE_INIT_P2M,       .quad (PUD_SIZE * PTRS_PER_PUD))
 #endif
+#ifdef CONFIG_XEN_PV
 	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          _ASM_PTR startup_xen)
+#endif
 	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, _ASM_PTR hypercall_page)
-	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .ascii "!writable_page_tables|pae_pgdir_above_4gb"; .asciz PVH_FEATURES_STR)
-	ELFNOTE(Xen, XEN_ELFNOTE_SUPPORTED_FEATURES, .long (PVH_FEATURES) |
-						(1 << XENFEAT_writable_page_tables) |
-						(1 << XENFEAT_dom0))
+	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,
+		.ascii "!writable_page_tables|pae_pgdir_above_4gb")
+	ELFNOTE(Xen, XEN_ELFNOTE_SUPPORTED_FEATURES,
+		.long (1 << XENFEAT_writable_page_tables) |       \
+		      (1 << XENFEAT_dom0) |                       \
+		      (1 << XENFEAT_linux_rsdp_unrestricted))
 	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "yes")
 	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz "generic")
 	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,

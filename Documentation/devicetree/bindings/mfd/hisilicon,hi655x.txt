@@ -1,0 +1,33 @@
+Hisilicon Hi655x Power Management Integrated Circuit (PMIC)
+
+The hardware layout for access PMIC Hi655x from AP SoC Hi6220.
+Between PMIC Hi655x and Hi6220, the physical signal channel is SSI.
+We can use memory-mapped I/O to communicate.
+
++----------------+             +-------------+
+|                |             |             |
+|    Hi6220      |   SSI bus   |   Hi655x    |
+|                |-------------|             |
+|                |(REGMAP_MMIO)|             |
++----------------+             +-------------+
+
+Required properties:
+- compatible:           Should be "hisilicon,hi655x-pmic".
+- reg:                  Base address of PMIC on Hi6220 SoC.
+- interrupt-controller: Hi655x has internal IRQs (has own IRQ domain).
+- pmic-gpios:           The GPIO used by PMIC IRQ.
+- #clock-cells:		From common clock binding; shall be set to 0
+
+Optional properties:
+- clock-output-names: From common clock binding to override the
+  default output clock name
+
+Example:
+	pmic: pmic@f8000000 {
+		compatible = "hisilicon,hi655x-pmic";
+		reg = <0x0 0xf8000000 0x0 0x1000>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		pmic-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		#clock-cells = <0>;
+	}

@@ -147,7 +147,7 @@ static int sxgbe_get_eee(struct net_device *dev,
 	edata->eee_active = priv->eee_active;
 	edata->tx_lpi_timer = priv->tx_lpi_timer;
 
-	return phy_ethtool_get_eee(priv->phydev, edata);
+	return phy_ethtool_get_eee(dev->phydev, edata);
 }
 
 static int sxgbe_set_eee(struct net_device *dev,
@@ -172,7 +172,7 @@ static int sxgbe_set_eee(struct net_device *dev,
 		priv->tx_lpi_timer = edata->tx_lpi_timer;
 	}
 
-	return phy_ethtool_set_eee(priv->phydev, edata);
+	return phy_ethtool_set_eee(dev->phydev, edata);
 }
 
 static void sxgbe_getdrvinfo(struct net_device *dev,
@@ -180,27 +180,6 @@ static void sxgbe_getdrvinfo(struct net_device *dev,
 {
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-}
-
-static int sxgbe_getsettings(struct net_device *dev,
-			     struct ethtool_cmd *cmd)
-{
-	struct sxgbe_priv_data *priv = netdev_priv(dev);
-
-	if (priv->phydev)
-		return phy_ethtool_gset(priv->phydev, cmd);
-
-	return -EOPNOTSUPP;
-}
-
-static int sxgbe_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct sxgbe_priv_data *priv = netdev_priv(dev);
-
-	if (priv->phydev)
-		return phy_ethtool_sset(priv->phydev, cmd);
-
-	return -EOPNOTSUPP;
 }
 
 static u32 sxgbe_getmsglevel(struct net_device *dev)
@@ -255,7 +234,7 @@ static void sxgbe_get_ethtool_stats(struct net_device *dev,
 	char *p;
 
 	if (priv->eee_enabled) {
-		int val = phy_get_eee_err(priv->phydev);
+		int val = phy_get_eee_err(dev->phydev);
 
 		if (val)
 			priv->xstats.eee_wakeup_error_n = val;
@@ -340,6 +319,7 @@ static int sxgbe_get_rss_hash_opts(struct sxgbe_priv_data *priv,
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		/* Fall through */
 	case SCTP_V4_FLOW:
 	case AH_ESP_V4_FLOW:
 	case AH_V4_FLOW:
@@ -350,6 +330,7 @@ static int sxgbe_get_rss_hash_opts(struct sxgbe_priv_data *priv,
 	case TCP_V6_FLOW:
 	case UDP_V6_FLOW:
 		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		/* Fall through */
 	case SCTP_V6_FLOW:
 	case AH_ESP_V6_FLOW:
 	case AH_V6_FLOW:
@@ -499,8 +480,6 @@ static int sxgbe_get_regs_len(struct net_device *dev)
 
 static const struct ethtool_ops sxgbe_ethtool_ops = {
 	.get_drvinfo = sxgbe_getdrvinfo,
-	.get_settings = sxgbe_getsettings,
-	.set_settings = sxgbe_setsettings,
 	.get_msglevel = sxgbe_getmsglevel,
 	.set_msglevel = sxgbe_setmsglevel,
 	.get_link = ethtool_op_get_link,
@@ -516,6 +495,8 @@ static const struct ethtool_ops sxgbe_ethtool_ops = {
 	.get_regs_len = sxgbe_get_regs_len,
 	.get_eee = sxgbe_get_eee,
 	.set_eee = sxgbe_set_eee,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 void sxgbe_set_ethtool_ops(struct net_device *netdev)

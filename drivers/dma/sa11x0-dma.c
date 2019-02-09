@@ -463,7 +463,7 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 			dma_addr_t addr = sa11x0_dma_pos(p);
 			unsigned i;
 
-			dev_vdbg(d->slave.dev, "tx_status: addr:%x\n", addr);
+			dev_vdbg(d->slave.dev, "tx_status: addr:%pad\n", &addr);
 
 			for (i = 0; i < txd->sglen; i++) {
 				dev_vdbg(d->slave.dev, "tx_status: [%u] %x+%x\n",
@@ -491,7 +491,7 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 	}
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 
-	dev_vdbg(d->slave.dev, "tx_status: bytes 0x%zx\n", state->residue);
+	dev_vdbg(d->slave.dev, "tx_status: bytes 0x%x\n", state->residue);
 
 	return ret;
 }
@@ -551,13 +551,13 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 		if (len > DMA_MAX_SIZE)
 			j += DIV_ROUND_UP(len, DMA_MAX_SIZE & ~DMA_ALIGN) - 1;
 		if (addr & DMA_ALIGN) {
-			dev_dbg(chan->device->dev, "vchan %p: bad buffer alignment: %08x\n",
-				&c->vc, addr);
+			dev_dbg(chan->device->dev, "vchan %p: bad buffer alignment: %pad\n",
+				&c->vc, &addr);
 			return NULL;
 		}
 	}
 
-	txd = kzalloc(sizeof(*txd) + j * sizeof(txd->sg[0]), GFP_ATOMIC);
+	txd = kzalloc(struct_size(txd, sg, j), GFP_ATOMIC);
 	if (!txd) {
 		dev_dbg(chan->device->dev, "vchan %p: kzalloc failed\n", &c->vc);
 		return NULL;
@@ -599,7 +599,7 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 	txd->size = size;
 	txd->sglen = j;
 
-	dev_dbg(chan->device->dev, "vchan %p: txd %p: size %u nr %u\n",
+	dev_dbg(chan->device->dev, "vchan %p: txd %p: size %zu nr %u\n",
 		&c->vc, &txd->vd, txd->size, txd->sglen);
 
 	return vchan_tx_prep(&c->vc, &txd->vd, flags);
@@ -627,7 +627,7 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_dma_cyclic(
 	if (sglen == 0)
 		return NULL;
 
-	txd = kzalloc(sizeof(*txd) + sglen * sizeof(txd->sg[0]), GFP_ATOMIC);
+	txd = kzalloc(struct_size(txd, sg, sglen), GFP_ATOMIC);
 	if (!txd) {
 		dev_dbg(chan->device->dev, "vchan %p: kzalloc failed\n", &c->vc);
 		return NULL;
@@ -693,8 +693,8 @@ static int sa11x0_dma_device_config(struct dma_chan *chan,
 	if (maxburst == 8)
 		ddar |= DDAR_BS;
 
-	dev_dbg(c->vc.chan.device->dev, "vchan %p: dma_slave_config addr %x width %u burst %u\n",
-		&c->vc, addr, width, maxburst);
+	dev_dbg(c->vc.chan.device->dev, "vchan %p: dma_slave_config addr %pad width %u burst %u\n",
+		&c->vc, &addr, width, maxburst);
 
 	c->ddar = ddar | (addr & 0xf0000000) | (addr & 0x003ffffc) << 6;
 
@@ -823,6 +823,13 @@ static const struct sa11x0_dma_channel_desc chan_desc[] = {
 	CD(Ser4SSPRc, DDAR_RW),
 };
 
+static const struct dma_slave_map sa11x0_dma_map[] = {
+	{ "sa11x0-ir", "tx", "Ser2ICPTr" },
+	{ "sa11x0-ir", "rx", "Ser2ICPRc" },
+	{ "sa11x0-ssp", "tx", "Ser4SSPTr" },
+	{ "sa11x0-ssp", "rx", "Ser4SSPRc" },
+};
+
 static int sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 	struct device *dev)
 {
@@ -908,6 +915,10 @@ static int sa11x0_dma_probe(struct platform_device *pdev)
 
 	spin_lock_init(&d->lock);
 	INIT_LIST_HEAD(&d->chan_pending);
+
+	d->slave.filter.fn = sa11x0_dma_filter_fn;
+	d->slave.filter.mapcnt = ARRAY_SIZE(sa11x0_dma_map);
+	d->slave.filter.map = sa11x0_dma_map;
 
 	d->base = ioremap(res->start, resource_size(res));
 	if (!d->base) {

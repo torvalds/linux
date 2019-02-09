@@ -24,6 +24,8 @@
 
 #include <linux/spinlock.h>
 #include <asm/cputable.h>
+#include <asm/cpu_has_feature.h>
+#include <linux/stringify.h>
 
 typedef struct {
 	unsigned int base;

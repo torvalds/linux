@@ -1,5 +1,5 @@
-/* linux/arch/arm/plat-samsung/include/plat/cpu.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
@@ -7,11 +7,7 @@
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * Header file for Samsung CPU support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 /* todo - fix when rmk changes iodescs to use `void __iomem *` */
 
@@ -113,6 +109,7 @@ extern void s3c_init_cpu(unsigned long idcode,
 extern void s3c24xx_init_io(struct map_desc *mach_desc, int size);
 
 extern void s3c64xx_init_cpu(void);
+extern void s5p_init_cpu(const void __iomem *cpuid_addr);
 
 extern unsigned int samsung_rev(void);
 

@@ -19,13 +19,13 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/via-core.h>
 #include <linux/via_i2c.h>
-#include <asm/olpc.h>
 
 #define _MASTER_FILE
 #include "global.h"
@@ -596,7 +596,8 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		break;
 
 	case VIAFB_GET_GAMMA_LUT:
-		viafb_gamma_table = kmalloc(256 * sizeof(u32), GFP_KERNEL);
+		viafb_gamma_table = kmalloc_array(256, sizeof(u32),
+						  GFP_KERNEL);
 		if (!viafb_gamma_table)
 			return -ENOMEM;
 		viafb_get_gamma_table(viafb_gamma_table);
@@ -1468,25 +1469,12 @@ static const struct file_operations viafb_vt1636_proc_fops = {
 
 #endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
 
-static int viafb_sup_odev_proc_show(struct seq_file *m, void *v)
+static int __maybe_unused viafb_sup_odev_proc_show(struct seq_file *m, void *v)
 {
 	via_odev_to_seq(m, supported_odev_map[
 		viaparinfo->shared->chip_info.gfx_chip_name]);
 	return 0;
 }
-
-static int viafb_sup_odev_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, viafb_sup_odev_proc_show, NULL);
-}
-
-static const struct file_operations viafb_sup_odev_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= viafb_sup_odev_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static ssize_t odev_update(const char __user *buffer, size_t count, u32 *odev)
 {
@@ -1616,8 +1604,8 @@ static void viafb_init_proc(struct viafb_shared *shared)
 				&viafb_vt1636_proc_fops);
 #endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
 
-		proc_create("supported_output_devices", 0, viafb_entry,
-			&viafb_sup_odev_proc_fops);
+		proc_create_single("supported_output_devices", 0, viafb_entry,
+			viafb_sup_odev_proc_show);
 		iga1_entry = proc_mkdir("iga1", viafb_entry);
 		shared->iga1_proc_entry = iga1_entry;
 		proc_create("output_devices", 0, iga1_entry,
@@ -1630,16 +1618,14 @@ static void viafb_init_proc(struct viafb_shared *shared)
 }
 static void viafb_remove_proc(struct viafb_shared *shared)
 {
-	struct proc_dir_entry *viafb_entry = shared->proc_entry,
-		*iga1_entry = shared->iga1_proc_entry,
-		*iga2_entry = shared->iga2_proc_entry;
+	struct proc_dir_entry *viafb_entry = shared->proc_entry;
 
 	if (!viafb_entry)
 		return;
 
-	remove_proc_entry("output_devices", iga2_entry);
+	remove_proc_entry("output_devices", shared->iga2_proc_entry);
 	remove_proc_entry("iga2", viafb_entry);
-	remove_proc_entry("output_devices", iga1_entry);
+	remove_proc_entry("output_devices", shared->iga1_proc_entry);
 	remove_proc_entry("iga1", viafb_entry);
 	remove_proc_entry("supported_output_devices", viafb_entry);
 

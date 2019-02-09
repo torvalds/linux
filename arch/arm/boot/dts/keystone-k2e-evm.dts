@@ -1,0 +1,177 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Keystone 2 Edison EVM device tree
+ *
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
+ */
+/dts-v1/;
+
+#include "keystone.dtsi"
+#include "keystone-k2e.dtsi"
+
+/ {
+	compatible = "ti,k2e-evm", "ti,k2e", "ti,keystone";
+	model = "Texas Instruments Keystone 2 Edison EVM";
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_common_memory: dsp-common-memory@81f800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00000008 0x1f800000 0x00000000 0x800000>;
+			reusable;
+			status = "okay";
+		};
+	};
+};
+
+&soc0 {
+
+		clocks {
+			refclksys: refclksys {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <100000000>;
+				clock-output-names = "refclk-sys";
+			};
+
+			refclkpass: refclkpass {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <100000000>;
+				clock-output-names = "refclk-pass";
+			};
+
+			refclkddr3a: refclkddr3a {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <100000000>;
+				clock-output-names = "refclk-ddr3a";
+			};
+		};
+};
+
+&usb_phy {
+	status = "okay";
+};
+
+&keystone_usb0 {
+	status = "okay";
+};
+
+&usb0 {
+	dr_mode = "host";
+};
+
+&usb1_phy {
+	status = "okay";
+};
+
+&keystone_usb1 {
+	status = "okay";
+};
+
+&usb1 {
+	dr_mode = "peripheral";
+};
+
+&i2c0 {
+	dtt@50 {
+		compatible = "atmel,24c1024";
+		reg = <0x50>;
+	};
+};
+
+&aemif {
+	cs0 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		clock-ranges;
+		ranges;
+
+		ti,cs-chipselect = <0>;
+		/* all timings in nanoseconds */
+		ti,cs-min-turnaround-ns = <12>;
+		ti,cs-read-hold-ns = <6>;
+		ti,cs-read-strobe-ns = <23>;
+		ti,cs-read-setup-ns = <9>;
+		ti,cs-write-hold-ns = <8>;
+		ti,cs-write-strobe-ns = <23>;
+		ti,cs-write-setup-ns = <8>;
+
+		nand@0,0 {
+			compatible = "ti,keystone-nand","ti,davinci-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0 0 0x4000000
+			       1 0 0x0000100>;
+
+			ti,davinci-chipselect = <0>;
+			ti,davinci-mask-ale = <0x2000>;
+			ti,davinci-mask-cle = <0x4000>;
+			ti,davinci-mask-chipsel = <0>;
+			nand-ecc-mode = "hw";
+			ti,davinci-ecc-bits = <4>;
+			nand-on-flash-bbt;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0x100000>;
+				read-only;
+			};
+
+			partition@100000 {
+				label = "params";
+				reg = <0x100000 0x80000>;
+				read-only;
+			};
+
+			partition@180000 {
+				label = "ubifs";
+				reg = <0x180000 0x1FE80000>;
+			};
+		};
+	};
+};
+
+&spi0 {
+	nor_flash: n25q128a11@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "Micron,n25q128a11";
+		spi-max-frequency = <54000000>;
+		m25p,fast-read;
+		reg = <0>;
+
+		partition@0 {
+			label = "u-boot-spl";
+			reg = <0x0 0x80000>;
+			read-only;
+		};
+
+		partition@1 {
+			label = "misc";
+			reg = <0x80000 0xf80000>;
+		};
+	};
+};
+
+&mdio {
+	status = "ok";
+	ethphy0: ethernet-phy@0 {
+		compatible = "marvell,88E1514", "marvell,88E1510", "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		compatible = "marvell,88E1514", "marvell,88E1510", "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+	};
+};
+
+&dsp0 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};

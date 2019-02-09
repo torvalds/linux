@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2013 Texas Instruments, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
-
-#include "skeleton.dtsi"
 
 / {
 	compatible = "ti,keystone";
@@ -20,19 +15,25 @@
 
 	aliases {
 		serial0	= &uart0;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;
 	};
 
-	memory {
+	chosen { };
+
+	memory: memory@80000000 {
+		device_type = "memory";
 		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
 	};
 
-	gic: interrupt-controller {
-		compatible = "arm,cortex-a15-gic";
+	gic: interrupt-controller@2561000 {
+		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x0 0x02561000 0x0 0x1000>,
 		      <0x0 0x02562000 0x0 0x2000>,
-		      <0x0 0x02564000 0x0 0x1000>,
+		      <0x0 0x02564000 0x0 0x2000>,
 		      <0x0 0x02566000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) |
 				IRQ_TYPE_LEVEL_HIGH)>;
@@ -59,7 +60,15 @@
 			     <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
 	};
 
-	soc {
+	psci {
+		compatible	= "arm,psci";
+		method		= "smc";
+		cpu_suspend	= <0x84000001>;
+		cpu_off		= <0x84000002>;
+		cpu_on		= <0x84000003>;
+	};
+
+	soc0: soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "ti,keystone","simple-bus";
@@ -67,27 +76,45 @@
 		ranges = <0x0 0x0 0x0 0xc0000000>;
 		dma-ranges = <0x80000000 0x8 0x00000000 0x80000000>;
 
-		pllctrl: pll-controller@02310000 {
+		pllctrl: pll-controller@2310000 {
 			compatible = "ti,keystone-pllctrl", "syscon";
 			reg = <0x02310000 0x200>;
 		};
 
-		devctrl: device-state-control@02620000 {
-			compatible = "ti,keystone-devctrl", "syscon";
-			reg = <0x02620000 0x1000>;
+		psc: power-sleep-controller@2350000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x02350000 0x1000>;
 		};
 
-		rstctrl: reset-controller {
-			compatible = "ti,keystone-reset";
-			ti,syscon-pll = <&pllctrl 0xe4>;
-			ti,syscon-dev = <&devctrl 0x328>;
-			ti,wdt-list = <0>;
+		devctrl: device-state-control@2620000 {
+			compatible = "ti,keystone-devctrl", "syscon", "simple-mfd";
+			reg = <0x02620000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x02620000 0x1000>;
+
+			kirq0: keystone_irq@2a0 {
+				compatible = "ti,keystone-irq";
+				reg = <0x2a0 0x4>;
+				interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				ti,syscon-dev = <&devctrl 0x2a0>;
+			};
+
+			rstctrl: reset-controller@328 {
+				compatible = "ti,keystone-reset";
+				reg = <0x328 0x10>;
+				ti,syscon-pll = <&pllctrl 0xe4>;
+				ti,syscon-dev = <&devctrl 0x328>;
+				ti,wdt-list = <0>;
+			};
 		};
 
 		/include/ "keystone-clocks.dtsi"
 
-		uart0: serial@02530c00 {
-			compatible = "ns16550a";
+		uart0: serial@2530c00 {
+			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -96,8 +123,8 @@
 			interrupts = <GIC_SPI 277 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		uart1:	serial@02531000 {
-			compatible = "ns16550a";
+		uart1:	serial@2531000 {
+			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -177,7 +204,7 @@
 			status = "disabled";
 		};
 
-		usb: usb@2680000 {
+		keystone_usb0: usb@2680000 {
 			compatible = "ti,keystone-dwc3";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -190,7 +217,7 @@
 			dma-ranges;
 			status = "disabled";
 
-			dwc3@2690000 {
+			usb0: dwc3@2690000 {
 				compatible = "synopsys,dwc3";
 				reg = <0x2690000 0x70000>;
 				interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
@@ -198,7 +225,7 @@
 			};
 		};
 
-		wdt: wdt@022f0080 {
+		wdt: wdt@22f0080 {
 			compatible = "ti,keystone-wdt","ti,davinci-wdt";
 			reg = <0x022f0080 0x80>;
 			clocks = <&clkwdtimer0>;
@@ -268,14 +295,6 @@
 				  1 0 0x21000A00 0x00000100>;
 		};
 
-		kirq0: keystone_irq@26202a0 {
-			compatible = "ti,keystone-irq";
-			interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			ti,syscon-dev = <&devctrl 0x2a0>;
-		};
-
 		pcie0: pcie@21800000 {
 			compatible = "ti,keystone-pcie", "snps,dw-pcie";
 			clocks = <&clkpcie>;
@@ -283,13 +302,16 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			reg =  <0x21801000 0x2000>, <0x21800000 0x1000>, <0x02620128 4>;
-			ranges = <0x81000000 0 0 0x23250000 0 0x4000
-				0x82000000 0 0x50000000 0x50000000 0 0x10000000>;
+			ranges = <0x82000000 0 0x50000000 0x50000000
+				  0 0x10000000>;
 
 			status = "disabled";
 			device_type = "pci";
 			num-lanes = <2>;
+			bus-range = <0x00 0xff>;
 
+			/* error interrupt */
+			interrupts = <GIC_SPI 38 IRQ_TYPE_EDGE_RISING>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc0 0>, /* INT A */
@@ -320,6 +342,13 @@
 					<GIC_SPI 28 IRQ_TYPE_EDGE_RISING>,
 					<GIC_SPI 29 IRQ_TYPE_EDGE_RISING>;
 			};
+		};
+
+		emif: emif@21010000 {
+			compatible = "ti,emif-keystone";
+			reg = <0x21010000 0x200>;
+			interrupts = <GIC_SPI 448 IRQ_TYPE_EDGE_RISING>;
+			interrupt-parent = <&gic>;
 		};
 	};
 };

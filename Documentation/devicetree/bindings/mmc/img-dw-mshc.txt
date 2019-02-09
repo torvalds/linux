@@ -24,6 +24,5 @@ Example:
 
 		fifo-depth = <0x20>;
 		bus-width = <4>;
-		num-slots = <1>;
 		disable-wp;
 	};

@@ -33,7 +33,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.3.0.12"
+#define DRV_VERSION		"2.3.0.53"
 #define DRV_COPYRIGHT		"Copyright 2008-2013 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -43,11 +43,13 @@
 #define ENIC_CQ_MAX		(ENIC_WQ_MAX + ENIC_RQ_MAX)
 #define ENIC_INTR_MAX		(ENIC_CQ_MAX + 2)
 
+#define ENIC_WQ_NAPI_BUDGET	256
+
 #define ENIC_AIC_LARGE_PKT_DIFF	3
 
 struct enic_msix_entry {
 	int requested;
-	char devname[IFNAMSIZ];
+	char devname[IFNAMSIZ + 8];
 	irqreturn_t (*isr)(int, void *);
 	void *devid;
 	cpumask_var_t affinity_mask;
@@ -135,6 +137,12 @@ struct enic_rfs_flw_tbl {
 	struct timer_list rfs_may_expire;
 };
 
+struct vxlan_offload {
+	u16 vxlan_udp_port_number;
+	u8 patch_level;
+	u8 flags;
+};
+
 /* Per-instance private data structure */
 struct enic {
 	struct net_device *netdev;
@@ -175,6 +183,7 @@ struct enic {
 	/* receive queue cache line section */
 	____cacheline_aligned struct vnic_rq rq[ENIC_RQ_MAX];
 	unsigned int rq_count;
+	struct vxlan_offload vxlan;
 	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
 	struct napi_struct napi[ENIC_RQ_MAX + ENIC_WQ_MAX];
@@ -201,16 +210,20 @@ static inline struct net_device *vnic_get_netdev(struct vnic_dev *vdev)
 }
 
 /* wrappers function for kernel log
- * Make sure variable vdev of struct vnic_dev is available in the block where
- * these macros are used
  */
-#define vdev_info(args...)	dev_info(&vdev->pdev->dev, args)
-#define vdev_warn(args...)	dev_warn(&vdev->pdev->dev, args)
-#define vdev_err(args...)	dev_err(&vdev->pdev->dev, args)
+#define vdev_err(vdev, fmt, ...)					\
+	dev_err(&(vdev)->pdev->dev, fmt, ##__VA_ARGS__)
+#define vdev_warn(vdev, fmt, ...)					\
+	dev_warn(&(vdev)->pdev->dev, fmt, ##__VA_ARGS__)
+#define vdev_info(vdev, fmt, ...)					\
+	dev_info(&(vdev)->pdev->dev, fmt, ##__VA_ARGS__)
 
-#define vdev_netinfo(args...)	netdev_info(vnic_get_netdev(vdev), args)
-#define vdev_netwarn(args...)	netdev_warn(vnic_get_netdev(vdev), args)
-#define vdev_neterr(args...)	netdev_err(vnic_get_netdev(vdev), args)
+#define vdev_neterr(vdev, fmt, ...)					\
+	netdev_err(vnic_get_netdev(vdev), fmt, ##__VA_ARGS__)
+#define vdev_netwarn(vdev, fmt, ...)					\
+	netdev_warn(vnic_get_netdev(vdev), fmt, ##__VA_ARGS__)
+#define vdev_netinfo(vdev, fmt, ...)					\
+	netdev_info(vnic_get_netdev(vdev), fmt, ##__VA_ARGS__)
 
 static inline struct device *enic_get_dev(struct enic *enic)
 {

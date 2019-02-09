@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_SP_H
@@ -52,6 +76,7 @@ int qed_eth_cqe_completion(struct qed_hwfn *p_hwfn,
 
 union ramrod_data {
 	struct pf_start_ramrod_data pf_start;
+	struct pf_update_ramrod_data pf_update;
 	struct rx_queue_start_ramrod_data rx_queue_start;
 	struct rx_queue_update_ramrod_data rx_queue_update;
 	struct rx_queue_stop_ramrod_data rx_queue_stop;
@@ -59,8 +84,52 @@ union ramrod_data {
 	struct tx_queue_stop_ramrod_data tx_queue_stop;
 	struct vport_start_ramrod_data vport_start;
 	struct vport_stop_ramrod_data vport_stop;
+	struct rx_update_gft_filter_data rx_update_gft;
 	struct vport_update_ramrod_data vport_update;
+	struct core_rx_start_ramrod_data core_rx_queue_start;
+	struct core_rx_stop_ramrod_data core_rx_queue_stop;
+	struct core_tx_start_ramrod_data core_tx_queue_start;
+	struct core_tx_stop_ramrod_data core_tx_queue_stop;
 	struct vport_filter_update_ramrod_data vport_filter_update;
+
+	struct rdma_init_func_ramrod_data rdma_init_func;
+	struct rdma_close_func_ramrod_data rdma_close_func;
+	struct rdma_register_tid_ramrod_data rdma_register_tid;
+	struct rdma_deregister_tid_ramrod_data rdma_deregister_tid;
+	struct roce_create_qp_resp_ramrod_data roce_create_qp_resp;
+	struct roce_create_qp_req_ramrod_data roce_create_qp_req;
+	struct roce_modify_qp_resp_ramrod_data roce_modify_qp_resp;
+	struct roce_modify_qp_req_ramrod_data roce_modify_qp_req;
+	struct roce_query_qp_resp_ramrod_data roce_query_qp_resp;
+	struct roce_query_qp_req_ramrod_data roce_query_qp_req;
+	struct roce_destroy_qp_resp_ramrod_data roce_destroy_qp_resp;
+	struct roce_destroy_qp_req_ramrod_data roce_destroy_qp_req;
+	struct roce_init_func_ramrod_data roce_init_func;
+	struct rdma_create_cq_ramrod_data rdma_create_cq;
+	struct rdma_destroy_cq_ramrod_data rdma_destroy_cq;
+	struct rdma_srq_create_ramrod_data rdma_create_srq;
+	struct rdma_srq_destroy_ramrod_data rdma_destroy_srq;
+	struct rdma_srq_modify_ramrod_data rdma_modify_srq;
+	struct iwarp_create_qp_ramrod_data iwarp_create_qp;
+	struct iwarp_tcp_offload_ramrod_data iwarp_tcp_offload;
+	struct iwarp_mpa_offload_ramrod_data iwarp_mpa_offload;
+	struct iwarp_modify_qp_ramrod_data iwarp_modify_qp;
+	struct iwarp_init_func_ramrod_data iwarp_init_func;
+	struct fcoe_init_ramrod_params fcoe_init;
+	struct fcoe_conn_offload_ramrod_params fcoe_conn_ofld;
+	struct fcoe_conn_terminate_ramrod_params fcoe_conn_terminate;
+	struct fcoe_stat_ramrod_params fcoe_stat;
+
+	struct iscsi_slow_path_hdr iscsi_empty;
+	struct iscsi_init_ramrod_params iscsi_init;
+	struct iscsi_spe_func_dstry iscsi_destroy;
+	struct iscsi_spe_conn_offload iscsi_conn_offload;
+	struct iscsi_conn_update_ramrod_params iscsi_conn_update;
+	struct iscsi_spe_conn_mac_update iscsi_conn_mac_update;
+	struct iscsi_spe_conn_termination iscsi_conn_terminate;
+
+	struct vf_start_ramrod_data vf_start;
+	struct vf_stop_ramrod_data vf_stop;
 };
 
 #define EQ_MAX_CREDIT   0xffffffff
@@ -76,8 +145,8 @@ union qed_spq_req_comp {
 };
 
 struct qed_spq_comp_done {
-	u64	done;
-	u8	fw_return_code;
+	unsigned int	done;
+	u8		fw_return_code;
 };
 
 struct qed_spq_entry {
@@ -98,6 +167,9 @@ struct qed_spq_entry {
 	enum spq_mode			comp_mode;
 	struct qed_spq_comp_cb		comp_cb;
 	struct qed_spq_comp_done	comp_done; /* SPQ_MODE_EBLOCK */
+
+	/* Posted entry for unlimited list entry in EBLOCK mode */
+	struct qed_spq_entry		*post_ent;
 };
 
 struct qed_eq {
@@ -109,6 +181,22 @@ struct qed_eq {
 struct qed_consq {
 	struct qed_chain chain;
 };
+
+typedef int
+(*qed_spq_async_comp_cb)(struct qed_hwfn *p_hwfn,
+			 u8 opcode,
+			 u16 echo,
+			 union event_ring_data *data,
+			 u8 fw_return_code);
+
+int
+qed_spq_register_async_cb(struct qed_hwfn *p_hwfn,
+			  enum protocol_type protocol_id,
+			  qed_spq_async_comp_cb cb);
+
+void
+qed_spq_unregister_async_cb(struct qed_hwfn *p_hwfn,
+			    enum protocol_type protocol_id);
 
 struct qed_spq {
 	spinlock_t		lock; /* SPQ lock */
@@ -139,6 +227,7 @@ struct qed_spq {
 	u32			comp_count;
 
 	u32			cid;
+	qed_spq_async_comp_cb async_comp_cb[MAX_PROTOCOL_TYPE];
 };
 
 /**
@@ -207,28 +296,23 @@ void qed_spq_return_entry(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param num_elem number of elements in the eq
  *
- * @return struct qed_eq* - a newly allocated structure; NULL upon error.
+ * @return int
  */
-struct qed_eq *qed_eq_alloc(struct qed_hwfn *p_hwfn,
-			    u16 num_elem);
+int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem);
 
 /**
- * @brief qed_eq_setup - Reset the SPQ to its start state.
+ * @brief qed_eq_setup - Reset the EQ to its start state.
  *
  * @param p_hwfn
- * @param p_eq
  */
-void qed_eq_setup(struct qed_hwfn *p_hwfn,
-		  struct qed_eq *p_eq);
+void qed_eq_setup(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_eq_deallocate - deallocates the given EQ struct.
+ * @brief qed_eq_free - deallocates the given EQ struct.
  *
  * @param p_hwfn
- * @param p_eq
  */
-void qed_eq_free(struct qed_hwfn *p_hwfn,
-		 struct qed_eq *p_eq);
+void qed_eq_free(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_eq_prod_update - update the FW with default EQ producer
@@ -279,28 +363,23 @@ u32 qed_spq_get_cid(struct qed_hwfn *p_hwfn);
  *
  * @param p_hwfn
  *
- * @return struct qed_eq* - a newly allocated structure; NULL upon error.
+ * @return int
  */
-struct qed_consq *qed_consq_alloc(struct qed_hwfn *p_hwfn);
+int qed_consq_alloc(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_consq_setup - Reset the ConsQ to its start
- *        state.
+ * @brief qed_consq_setup - Reset the ConsQ to its start state.
  *
  * @param p_hwfn
- * @param p_eq
  */
-void qed_consq_setup(struct qed_hwfn *p_hwfn,
-		     struct qed_consq *p_consq);
+void qed_consq_setup(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_consq_free - deallocates the given ConsQ struct.
  *
  * @param p_hwfn
- * @param p_eq
  */
-void qed_consq_free(struct qed_hwfn *p_hwfn,
-		    struct qed_consq *p_consq);
+void qed_consq_free(struct qed_hwfn *p_hwfn);
 
 /**
  * @file
@@ -311,19 +390,31 @@ void qed_consq_free(struct qed_hwfn *p_hwfn,
 #define QED_SP_EQ_COMPLETION  0x01
 #define QED_SP_CQE_COMPLETION 0x02
 
-struct qed_sp_init_request_params {
-	size_t			ramrod_data_size;
+struct qed_sp_init_data {
+	u32			cid;
+	u16			opaque_fid;
+
+	/* Information regarding operation upon sending & completion */
 	enum spq_mode		comp_mode;
 	struct qed_spq_comp_cb *p_comp_data;
 };
 
+/**
+ * @brief Returns a SPQ entry to the pool / frees the entry if allocated.
+ *        Should be called on in error flows after initializing the SPQ entry
+ *        and before posting it.
+ *
+ * @param p_hwfn
+ * @param p_ent
+ */
+void qed_sp_destroy_request(struct qed_hwfn *p_hwfn,
+			    struct qed_spq_entry *p_ent);
+
 int qed_sp_init_request(struct qed_hwfn *p_hwfn,
 			struct qed_spq_entry **pp_ent,
-			u32 cid,
-			u16 opaque_fid,
 			u8 cmd,
 			u8 protocol,
-			struct qed_sp_init_request_params *p_params);
+			struct qed_sp_init_data *p_data);
 
 /**
  * @brief qed_sp_pf_start - PF Function Start Ramrod
@@ -337,13 +428,39 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
  * to the internal RAM of the UStorm by the Function Start Ramrod.
  *
  * @param p_hwfn
- * @param mode
+ * @param p_ptt
+ * @param p_tunn
+ * @param allow_npar_tx_switch
  *
  * @return int
  */
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
-		    enum mf_mode mode);
+		    struct qed_ptt *p_ptt,
+		    struct qed_tunnel_info *p_tunn,
+		    bool allow_npar_tx_switch);
+
+/**
+ * @brief qed_sp_pf_update - PF Function Update Ramrod
+ *
+ * This ramrod updates function-related parameters. Every parameter can be
+ * updated independently, according to configuration flags.
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+
+int qed_sp_pf_update(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief qed_sp_pf_update_stag - Update firmware of new outer tag
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+int qed_sp_pf_update_stag(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_sp_pf_stop - PF Function Stop Ramrod
@@ -359,6 +476,30 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
  * @return int
  */
 
+/**
+ * @brief qed_sp_pf_update_ufp - PF ufp update Ramrod
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+int qed_sp_pf_update_ufp(struct qed_hwfn *p_hwfn);
+
 int qed_sp_pf_stop(struct qed_hwfn *p_hwfn);
+
+int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
+			      struct qed_tunnel_info *p_tunn,
+			      enum spq_mode comp_mode,
+			      struct qed_spq_comp_cb *p_comp_data);
+/**
+ * @brief qed_sp_heartbeat_ramrod - Send empty Ramrod
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+
+int qed_sp_heartbeat_ramrod(struct qed_hwfn *p_hwfn);
 
 #endif

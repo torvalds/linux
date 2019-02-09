@@ -1,4 +1,6 @@
-/* Driver for USB Mass Storage compliant devices
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Driver for USB Mass Storage compliant devices
  *
  * Current development and maintenance by:
  *   (c) 1999-2002 Matthew Dharm (mdharm-usb@one-eyed-alien.net)
@@ -23,23 +25,6 @@
  *
  * Also, for certain devices, the interrupt endpoint is used to convey
  * status of a command.
- *
- * Please see http://www.one-eyed-alien.net/~mdharm/linux-usb for more
- * information about this driver.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/highmem.h>
@@ -75,7 +60,8 @@ void usb_stor_pad12_command(struct scsi_cmnd *srb, struct us_data *us)
 
 void usb_stor_ufi_command(struct scsi_cmnd *srb, struct us_data *us)
 {
-	/* fix some commands -- this is a form of mode translation
+	/*
+	 * fix some commands -- this is a form of mode translation
 	 * UFI devices only accept 12 byte long commands
 	 *
 	 * NOTE: This only works because a scsi_cmnd struct field contains
@@ -127,7 +113,8 @@ EXPORT_SYMBOL_GPL(usb_stor_transparent_scsi_command);
  * Scatter-gather transfer buffer access routines
  ***********************************************************************/
 
-/* Copy a buffer of length buflen to/from the srb's transfer buffer.
+/*
+ * Copy a buffer of length buflen to/from the srb's transfer buffer.
  * Update the **sgptr and *offset variables so that the next copy will
  * pick up from where this one left off.
  */
@@ -175,7 +162,8 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 }
 EXPORT_SYMBOL_GPL(usb_stor_access_xfer_buf);
 
-/* Store the contents of buffer into srb's transfer buffer and set the
+/*
+ * Store the contents of buffer into srb's transfer buffer and set the
  * SCSI residue.
  */
 void usb_stor_set_xfer_buf(unsigned char *buffer,

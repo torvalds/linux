@@ -1,9 +1,21 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_CMPXCHG_IRQ_H
 #define __ASM_SH_CMPXCHG_IRQ_H
 
 #include <linux/irqflags.h>
 
 static inline unsigned long xchg_u32(volatile u32 *m, unsigned long val)
+{
+	unsigned long flags, retval;
+
+	local_irq_save(flags);
+	retval = *m;
+	*m = val;
+	local_irq_restore(flags);
+	return retval;
+}
+
+static inline unsigned long xchg_u16(volatile u16 *m, unsigned long val)
 {
 	unsigned long flags, retval;
 

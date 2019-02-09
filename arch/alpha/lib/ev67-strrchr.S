@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/alpha/lib/ev67-strrchr.S
  * 21264 version by Rick Gorton <rick.gorton@alpha-processor.com>
@@ -18,7 +19,7 @@
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
  */
 
-
+#include <asm/export.h>
 #include <asm/regdef.h>
 
 	.set noreorder
@@ -107,3 +108,4 @@ $eos:
 	nop
 
 	.end strrchr
+	EXPORT_SYMBOL(strrchr)

@@ -34,13 +34,15 @@ show up in /proc/sys/kernel:
 - hostname
 - hotplug
 - hardlockup_all_cpu_backtrace
+- hardlockup_panic
 - hung_task_panic
 - hung_task_check_count
 - hung_task_timeout_secs
+- hung_task_check_interval_secs
 - hung_task_warnings
+- hyperv_record_panic_msg
 - kexec_load_disabled
 - kptr_restrict
-- kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/debugging-modules.txt
 - modules_disabled
@@ -58,17 +60,25 @@ show up in /proc/sys/kernel:
 - panic_on_stackoverflow
 - panic_on_unrecovered_nmi
 - panic_on_warn
+- panic_on_rcu_stall
+- perf_cpu_time_max_percent
+- perf_event_paranoid
+- perf_event_max_stack
+- perf_event_mlock_kb
+- perf_event_max_contexts_per_stack
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
 - printk_delay
 - printk_ratelimit
 - printk_ratelimit_burst
+- pty                         ==> Documentation/filesystems/devpts.txt
 - randomize_va_space
-- real-root-dev               ==> Documentation/initrd.txt
+- real-root-dev               ==> Documentation/admin-guide/initrd.rst
 - reboot-cmd                  [ SPARC only ]
 - rtsig-max
 - rtsig-nr
+- seccomp/                    ==> Documentation/userspace-api/seccomp_filter.rst
 - sem
 - sem_next_id		      [ sysv ipc ]
 - sg-big-buff                 [ generic SCSI device (sg) ]
@@ -80,7 +90,7 @@ show up in /proc/sys/kernel:
 - softlockup_all_cpu_backtrace
 - soft_watchdog
 - stop-a                      [ SPARC only ]
-- sysrq                       ==> Documentation/sysrq.txt
+- sysrq                       ==> Documentation/admin-guide/sysrq.rst
 - sysctl_writes_strict
 - tainted
 - threads-max
@@ -306,6 +316,19 @@ will be initiated.
 1: on detection capture more debug information.
 ==============================================================
 
+hardlockup_panic:
+
+This parameter can be used to control whether the kernel panics
+when a hard lockup is detected.
+
+   0 - don't panic on hard lockup
+   1 - panic on hard lockup
+
+See Documentation/lockup-watchdogs.txt for more information.  This can
+also be set using the nmi_watchdog kernel parameter.
+
+==============================================================
+
 hotplug:
 
 Path for the hotplug policy agent.
@@ -333,11 +356,23 @@ This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 hung_task_timeout_secs:
 
-Check interval. When a task in D state did not get scheduled
+When a task in D state did not get scheduled
 for more than this value report a warning.
 This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 0: means infinite timeout - no checking done.
+Possible values to set are in range {0..LONG_MAX/HZ}.
+
+==============================================================
+
+hung_task_check_interval_secs:
+
+Hung task check interval. If hung task checking is enabled
+(see hung_task_timeout_secs), the check is done every
+hung_task_check_interval_secs seconds.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+0 (default): means use hung_task_timeout_secs as checking interval.
 Possible values to set are in range {0..LONG_MAX/HZ}.
 
 ==============================================================
@@ -350,6 +385,16 @@ When this value reaches 0, no more warnings will be reported.
 This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 -1: report an infinite number of warnings.
+
+==============================================================
+
+hyperv_record_panic_msg:
+
+Controls whether the panic kmsg data should be reported to Hyper-V.
+
+0: do not report panic kmsg data.
+
+1: report the panic kmsg data. This is the default behavior.
 
 ==============================================================
 
@@ -370,7 +415,8 @@ kptr_restrict:
 This toggle indicates whether restrictions are placed on
 exposing kernel addresses via /proc and other interfaces.
 
-When kptr_restrict is set to (0), the default, there are no restrictions.
+When kptr_restrict is set to 0 (the default) the address is hashed before
+printing. (This is the equivalent to %p.)
 
 When kptr_restrict is set to (1), kernel pointers printed using the %pK
 format specifier will be replaced with 0's unless the user has CAP_SYSLOG
@@ -386,13 +432,6 @@ values to unprivileged users is a concern.
 
 When kptr_restrict is set to (2), kernel pointers printed using
 %pK will be replaced with 0's regardless of privileges.
-
-==============================================================
-
-kstack_depth_to_print: (X86 only)
-
-Controls the number of words to print when dumping the raw
-kernel stack.
 
 ==============================================================
 
@@ -425,7 +464,8 @@ Notes:
 1) kernel doesn't guarantee, that new object will have desired id. So,
 it's up to userspace, how to handle an object with "wrong" id.
 2) Toggle with non-default value will be set back to -1 by kernel after
-successful IPC object allocation.
+successful IPC object allocation. If an IPC object allocation syscall
+fails, it is undefined if the value remains unmodified or is reset to -1.
 
 ==============================================================
 
@@ -447,7 +487,7 @@ in a KVM virtual machine. This default can be overridden by adding
 
    nmi_watchdog=1
 
-to the guest kernel command line (see Documentation/kernel-parameters.txt).
+to the guest kernel command line (see Documentation/admin-guide/kernel-parameters.rst).
 
 ==============================================================
 
@@ -551,6 +591,21 @@ the recommended setting is 60.
 
 ==============================================================
 
+panic_on_io_nmi:
+
+Controls the kernel's behavior when a CPU receives an NMI caused by
+an IO error.
+
+0: try to continue operation (default)
+
+1: panic immediately. The IO error triggered an NMI. This indicates a
+   serious system condition which could result in IO data corruption.
+   Rather than continuing, panicking might be a better choice. Some
+   servers issue this sort of NMI when the dump button is pushed,
+   and you can use this option to take a crash dump.
+
+==============================================================
+
 panic_on_oops:
 
 Controls the kernel's behaviour when an oops or BUG is encountered.
@@ -598,6 +653,17 @@ a kernel rebuild when attempting to kdump at the location of a WARN().
 
 ==============================================================
 
+panic_on_rcu_stall:
+
+When set to 1, calls panic() after RCU stall detection messages. This
+is useful to define the root cause of RCU stalls using a vmcore.
+
+0: do not panic() when RCU stall takes place, default behavior.
+
+1: panic() after printing RCU stall messages.
+
+==============================================================
+
 perf_cpu_time_max_percent:
 
 Hints to the kernel how much CPU time it should be allowed to
@@ -624,6 +690,55 @@ allowed to execute.
 
 ==============================================================
 
+perf_event_paranoid:
+
+Controls use of the performance events system by unprivileged
+users (without CAP_SYS_ADMIN).  The default value is 3 if
+CONFIG_SECURITY_PERF_EVENTS_RESTRICT is set, or 2 otherwise.
+
+ -1: Allow use of (almost) all events by all users
+     Ignore mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK
+>=0: Disallow ftrace function tracepoint by users without CAP_SYS_ADMIN
+     Disallow raw tracepoint access by users without CAP_SYS_ADMIN
+>=1: Disallow CPU event access by users without CAP_SYS_ADMIN
+>=2: Disallow kernel profiling by users without CAP_SYS_ADMIN
+>=3: Disallow all event access by users without CAP_SYS_ADMIN
+
+==============================================================
+
+perf_event_max_stack:
+
+Controls maximum number of stack frames to copy for (attr.sample_type &
+PERF_SAMPLE_CALLCHAIN) configured events, for instance, when using
+'perf record -g' or 'perf trace --call-graph fp'.
+
+This can only be done when no events are in use that have callchains
+enabled, otherwise writing to this file will return -EBUSY.
+
+The default value is 127.
+
+==============================================================
+
+perf_event_mlock_kb:
+
+Control size of per-cpu ring buffer not counted agains mlock limit.
+
+The default value is 512 + 1 page
+
+==============================================================
+
+perf_event_max_contexts_per_stack:
+
+Controls maximum number of stack frame context entries for
+(attr.sample_type & PERF_SAMPLE_CALLCHAIN) configured events, for
+instance, when using 'perf record -g' or 'perf trace --call-graph fp'.
+
+This can only be done when no events are in use that have callchains
+enabled, otherwise writing to this file will return -EBUSY.
+
+The default value is 8.
+
+==============================================================
 
 pid_max:
 
@@ -695,6 +810,20 @@ send before ratelimiting kicks in.
 
 ==============================================================
 
+printk_devkmsg:
+
+Control the logging to /dev/kmsg from userspace:
+
+ratelimit: default, ratelimited
+on: unlimited logging to /dev/kmsg from userspace
+off: logging to /dev/kmsg disabled
+
+The kernel command line parameter printk.devkmsg= overrides this and is
+a one-time setting until next reboot: once set, it cannot be changed by
+this sysctl interface anymore.
+
+==============================================================
+
 randomize_va_space:
 
 This option can be used to select the type of process address
@@ -742,6 +871,14 @@ of POSIX realtime (queued) signals that can be outstanding
 in the system.
 
 rtsig-nr shows the number of RT signals currently queued.
+
+==============================================================
+
+sched_schedstats:
+
+Enables/disables scheduler statistics. Enabling this feature
+incurs a small amount of overhead in the scheduler but is
+useful for debugging and performance tuning.
 
 ==============================================================
 
@@ -810,14 +947,13 @@ via the /proc/sys interface:
        Each write syscall must fully contain the sysctl value to be
        written, and multiple writes on the same sysctl file descriptor
        will rewrite the sysctl value, regardless of file position.
-   0 - (default) Same behavior as above, but warn about processes that
-       perform writes to a sysctl file descriptor when the file position
-       is not 0.
-   1 - Respect file position when writing sysctl strings. Multiple writes
-       will append to the sysctl value buffer. Anything past the max length
-       of the sysctl value buffer will be ignored. Writes to numeric sysctl
-       entries must always be at file position 0 and the value must be
-       fully contained in the buffer sent in the write syscall.
+   0 - Same behavior as above, but warn about processes that perform writes
+       to a sysctl file descriptor when the file position is not 0.
+   1 - (default) Respect file position when writing sysctl strings. Multiple
+       writes will append to the sysctl value buffer. Anything past the max
+       length of the sysctl value buffer will be ignored. Writes to numeric
+       sysctl entries must always be at file position 0 and the value must
+       be fully contained in the buffer sent in the write syscall.
 
 ==============================================================
 
@@ -855,32 +991,34 @@ detect a hard lockup condition.
 
 tainted:
 
-Non-zero if the kernel has been tainted.  Numeric values, which
-can be ORed together:
+Non-zero if the kernel has been tainted. Numeric values, which can be
+ORed together. The letters are seen in "Tainted" line of Oops reports.
 
-   1 - A module with a non-GPL license has been loaded, this
-       includes modules with no license.
-       Set by modutils >= 2.4.9 and module-init-tools.
-   2 - A module was force loaded by insmod -f.
-       Set by modutils >= 2.4.9 and module-init-tools.
-   4 - Unsafe SMP processors: SMP with CPUs not designed for SMP.
-   8 - A module was forcibly unloaded from the system by rmmod -f.
-  16 - A hardware machine check error occurred on the system.
-  32 - A bad page was discovered on the system.
-  64 - The user has asked that the system be marked "tainted".  This
-       could be because they are running software that directly modifies
-       the hardware, or for other reasons.
- 128 - The system has died.
- 256 - The ACPI DSDT has been overridden with one supplied by the user
-        instead of using the one provided by the hardware.
- 512 - A kernel warning has occurred.
-1024 - A module from drivers/staging was loaded.
-2048 - The system is working around a severe firmware bug.
-4096 - An out-of-tree module has been loaded.
-8192 - An unsigned module has been loaded in a kernel supporting module
-       signature.
-16384 - A soft lockup has previously occurred on the system.
-32768 - The kernel has been live patched.
+     1 (P):  A module with a non-GPL license has been loaded, this
+             includes modules with no license.
+             Set by modutils >= 2.4.9 and module-init-tools.
+     2 (F): A module was force loaded by insmod -f.
+            Set by modutils >= 2.4.9 and module-init-tools.
+     4 (S): Unsafe SMP processors: SMP with CPUs not designed for SMP.
+     8 (R): A module was forcibly unloaded from the system by rmmod -f.
+    16 (M): A hardware machine check error occurred on the system.
+    32 (B): A bad page was discovered on the system.
+    64 (U): The user has asked that the system be marked "tainted". This
+            could be because they are running software that directly modifies
+            the hardware, or for other reasons.
+   128 (D): The system has died.
+   256 (A): The ACPI DSDT has been overridden with one supplied by the user
+            instead of using the one provided by the hardware.
+   512 (W): A kernel warning has occurred.
+  1024 (C): A module from drivers/staging was loaded.
+  2048 (I): The system is working around a severe firmware bug.
+  4096 (O): An out-of-tree module has been loaded.
+  8192 (E): An unsigned module has been loaded in a kernel supporting module
+            signature.
+ 16384 (L): A soft lockup has previously occurred on the system.
+ 32768 (K): The kernel has been live patched.
+ 65536 (X): Auxiliary taint, defined and used by for distros.
+131072 (T): The kernel was built with the struct randomization plugin.
 
 ==============================================================
 

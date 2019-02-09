@@ -1,0 +1,8 @@
+TODO:
+-Move the driver over to the atomic API
+-Get a full review from the drm-maintainers on dri-devel done on this driver
+-Extend this TODO with the results of that review
+
+Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+Hans de Goede <hdegoede@redhat.com>, Michael Thayer <michael.thayer@oracle.com>
+and dri-devel@lists.freedesktop.org .

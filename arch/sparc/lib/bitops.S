@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* bitops.S: Sparc64 atomic bit operations.
  *
  * Copyright (C) 2000, 2007 David S. Miller (davem@davemloft.net)
@@ -6,6 +7,7 @@
 #include <linux/linkage.h>
 #include <asm/asi.h>
 #include <asm/backoff.h>
+#include <asm/export.h>
 
 	.text
 
@@ -29,6 +31,7 @@ ENTRY(test_and_set_bit)	/* %o0=nr, %o1=addr */
 	 nop
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(test_and_set_bit)
+EXPORT_SYMBOL(test_and_set_bit)
 
 ENTRY(test_and_clear_bit) /* %o0=nr, %o1=addr */
 	BACKOFF_SETUP(%o3)
@@ -50,6 +53,7 @@ ENTRY(test_and_clear_bit) /* %o0=nr, %o1=addr */
 	 nop
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(test_and_clear_bit)
+EXPORT_SYMBOL(test_and_clear_bit)
 
 ENTRY(test_and_change_bit) /* %o0=nr, %o1=addr */
 	BACKOFF_SETUP(%o3)
@@ -71,6 +75,7 @@ ENTRY(test_and_change_bit) /* %o0=nr, %o1=addr */
 	 nop
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(test_and_change_bit)
+EXPORT_SYMBOL(test_and_change_bit)
 
 ENTRY(set_bit) /* %o0=nr, %o1=addr */
 	BACKOFF_SETUP(%o3)
@@ -90,6 +95,7 @@ ENTRY(set_bit) /* %o0=nr, %o1=addr */
 	 nop
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(set_bit)
+EXPORT_SYMBOL(set_bit)
 
 ENTRY(clear_bit) /* %o0=nr, %o1=addr */
 	BACKOFF_SETUP(%o3)
@@ -109,6 +115,7 @@ ENTRY(clear_bit) /* %o0=nr, %o1=addr */
 	 nop
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(clear_bit)
+EXPORT_SYMBOL(clear_bit)
 
 ENTRY(change_bit) /* %o0=nr, %o1=addr */
 	BACKOFF_SETUP(%o3)
@@ -128,3 +135,4 @@ ENTRY(change_bit) /* %o0=nr, %o1=addr */
 	 nop
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(change_bit)
+EXPORT_SYMBOL(change_bit)

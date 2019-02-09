@@ -1,25 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
-    module/ni_stc.h
-    Register descriptions for NI DAQ-STC chip
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1998-9 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * Register descriptions for NI DAQ-STC chip
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1998-9 David A. Schleef <ds@schleef.org>
+ */
 
 /*
-	References:
-	    DAQ-STC Technical Reference Manual
-*/
+ * References:
+ *   DAQ-STC Technical Reference Manual
+ */
 
 #ifndef _COMEDI_NI_STC_H
 #define _COMEDI_NI_STC_H
@@ -958,7 +948,7 @@ struct ni_board_struct {
 	unsigned int ao_maxdata;
 	int ao_fifo_depth;
 	const struct comedi_lrange *ao_range_table;
-	unsigned ao_speed;
+	unsigned int ao_speed;
 
 	int reg_type;
 	unsigned int has_8255:1;
@@ -1002,12 +992,11 @@ struct ni_private {
 	unsigned short ao_mode3;
 	unsigned short ao_cmd1;
 	unsigned short ao_cmd2;
-	unsigned short ao_trigger_select;
 
 	struct ni_gpct_device *counter_dev;
 	unsigned short an_trig_etc_reg;
 
-	unsigned ai_offset[512];
+	unsigned int ai_offset[512];
 
 	unsigned long serial_interval_ns;
 	unsigned char serial_hw_mode;
@@ -1025,24 +1014,23 @@ struct ni_private {
 	unsigned short g0_g1_select_reg;
 	unsigned short cdio_dma_select_reg;
 
-	unsigned clock_ns;
-	unsigned clock_source;
+	unsigned int clock_ns;
+	unsigned int clock_source;
 
 	unsigned short pwm_up_count;
 	unsigned short pwm_down_count;
 
 	unsigned short ai_fifo_buffer[0x2000];
-	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE];
-	__be32 serial_number;
+	u8 eeprom_buffer[M_SERIES_EEPROM_SIZE];
 
-	struct mite_struct *mite;
+	struct mite *mite;
 	struct mite_channel *ai_mite_chan;
 	struct mite_channel *ao_mite_chan;
 	struct mite_channel *cdo_mite_chan;
-	struct mite_dma_descriptor_ring *ai_mite_ring;
-	struct mite_dma_descriptor_ring *ao_mite_ring;
-	struct mite_dma_descriptor_ring *cdo_mite_ring;
-	struct mite_dma_descriptor_ring *gpct_mite_ring[NUM_GPCT];
+	struct mite_ring *ai_mite_ring;
+	struct mite_ring *ao_mite_ring;
+	struct mite_ring *cdo_mite_ring;
+	struct mite_ring *gpct_mite_ring[NUM_GPCT];
 
 	/* ni_pcimio board type flags (based on the boardinfo reg_type) */
 	unsigned int is_m_series:1;
@@ -1055,6 +1043,20 @@ struct ni_private {
 	unsigned int is_67xx:1;
 	unsigned int is_6711:1;
 	unsigned int is_6713:1;
+
+	/*
+	 * Boolean value of whether device needs to be armed.
+	 *
+	 * Currently, only NI AO devices are known to be needing arming, since
+	 * the DAC registers must be preloaded before triggering.
+	 * This variable should only be set true during a command operation
+	 * (e.g ni_ao_cmd) and should then be set false by the arming
+	 * function (e.g. ni_ao_arm).
+	 *
+	 * This variable helps to ensure that multiple DMA allocations are not
+	 * possible.
+	 */
+	unsigned int ao_needs_arming:1;
 };
 
 static const struct comedi_lrange range_ni_E_ao_ext;

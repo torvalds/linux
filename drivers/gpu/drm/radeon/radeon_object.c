@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
+#include <drm/drm_cache.h>
 #include "radeon.h"
 #include "radeon_trace.h"
 
@@ -80,7 +81,9 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	list_del_init(&bo->list);
 	mutex_unlock(&bo->rdev->gem.mutex);
 	radeon_bo_clear_surface_reg(bo);
-	WARN_ON(!list_empty(&bo->va));
+	WARN_ON_ONCE(!list_empty(&bo->va));
+	if (bo->gem_base.import_attach)
+		drm_prime_gem_destroy(&bo->gem_base, bo->tbo.sg);
 	drm_gem_object_release(&bo->gem_base);
 	kfree(bo);
 }
@@ -203,18 +206,14 @@ int radeon_bo_create(struct radeon_device *rdev,
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
-	r = drm_gem_object_init(rdev->ddev, &bo->gem_base, size);
-	if (unlikely(r)) {
-		kfree(bo);
-		return r;
-	}
+	drm_gem_private_object_init(rdev->ddev, &bo->gem_base, size);
 	bo->rdev = rdev;
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
 	INIT_LIST_HEAD(&bo->va);
 	bo->initial_domain = domain & (RADEON_GEM_DOMAIN_VRAM |
-	                               RADEON_GEM_DOMAIN_GTT |
-	                               RADEON_GEM_DOMAIN_CPU);
+				       RADEON_GEM_DOMAIN_GTT |
+				       RADEON_GEM_DOMAIN_CPU);
 
 	bo->flags = flags;
 	/* PCI GART is always snooped */
@@ -237,22 +236,29 @@ int radeon_bo_create(struct radeon_device *rdev,
 	 * may be slow
 	 * See https://bugs.freedesktop.org/show_bug.cgi?id=88758
 	 */
-
+#ifndef CONFIG_COMPILE_TEST
 #warning Please enable CONFIG_MTRR and CONFIG_X86_PAT for better performance \
 	 thanks to write-combining
+#endif
 
 	if (bo->flags & RADEON_GEM_GTT_WC)
 		DRM_INFO_ONCE("Please enable CONFIG_MTRR and CONFIG_X86_PAT for "
 			      "better performance thanks to write-combining\n");
 	bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
+#else
+	/* For architectures that don't support WC memory,
+	 * mask out the WC flag from the BO
+	 */
+	if (!drm_arch_can_wc_memory())
+		bo->flags &= ~RADEON_GEM_GTT_WC;
 #endif
 
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
 	down_read(&rdev->pm.mclk_lock);
 	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
-			&bo->placement, page_align, !kernel, NULL,
-			acc_size, sg, resv, &radeon_ttm_bo_destroy);
+			&bo->placement, page_align, !kernel, acc_size,
+			sg, resv, &radeon_ttm_bo_destroy);
 	up_read(&rdev->pm.mclk_lock);
 	if (unlikely(r != 0)) {
 		return r;
@@ -301,7 +307,7 @@ struct radeon_bo *radeon_bo_ref(struct radeon_bo *bo)
 	if (bo == NULL)
 		return NULL;
 
-	ttm_bo_reference(&bo->tbo);
+	ttm_bo_get(&bo->tbo);
 	return bo;
 }
 
@@ -314,14 +320,14 @@ void radeon_bo_unref(struct radeon_bo **bo)
 		return;
 	rdev = (*bo)->rdev;
 	tbo = &((*bo)->tbo);
-	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
+	ttm_bo_put(tbo);
+	*bo = NULL;
 }
 
 int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 			     u64 *gpu_addr)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	int r, i;
 
 	if (radeon_ttm_tt_has_userptr(bo->tbo.ttm))
@@ -345,6 +351,11 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 
 		return 0;
 	}
+	if (bo->prime_shared_count && domain == RADEON_GEM_DOMAIN_VRAM) {
+		/* A BO shared as a dma-buf cannot be sensibly migrated to VRAM */
+		return -EINVAL;
+	}
+
 	radeon_ttm_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++) {
 		/* force to pin into visible video ram */
@@ -359,7 +370,7 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 	}
 
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (likely(r == 0)) {
 		bo->pin_count = 1;
 		if (gpu_addr != NULL)
@@ -381,6 +392,7 @@ int radeon_bo_pin(struct radeon_bo *bo, u32 domain, u64 *gpu_addr)
 
 int radeon_bo_unpin(struct radeon_bo *bo)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	int r, i;
 
 	if (!bo->pin_count) {
@@ -394,7 +406,7 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 		bo->placements[i].lpfn = 0;
 		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
 	}
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (likely(r == 0)) {
 		if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
 			bo->rdev->vram_pin_size -= radeon_bo_size(bo);
@@ -433,12 +445,16 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 		list_del_init(&bo->list);
 		mutex_unlock(&bo->rdev->gem.mutex);
 		/* this should unref the ttm bo */
-		drm_gem_object_unreference_unlocked(&bo->gem_base);
+		drm_gem_object_put_unlocked(&bo->gem_base);
 	}
 }
 
 int radeon_bo_init(struct radeon_device *rdev)
 {
+	/* reserve PAT memory space to WC for VRAM */
+	arch_io_reserve_memtype_wc(rdev->mc.aper_base,
+				   rdev->mc.aper_size);
+
 	/* Add an MTRR for the VRAM */
 	if (!rdev->fastfb_working) {
 		rdev->mc.vram_mtrr = arch_phys_wc_add(rdev->mc.aper_base,
@@ -456,6 +472,7 @@ void radeon_bo_fini(struct radeon_device *rdev)
 {
 	radeon_ttm_fini(rdev);
 	arch_phys_wc_del(rdev->mc.vram_mtrr);
+	arch_io_free_memtype_wc(rdev->mc.aper_base, rdev->mc.aper_size);
 }
 
 /* Returns how many bytes TTM can move per IB.
@@ -514,6 +531,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 			    struct ww_acquire_ctx *ticket,
 			    struct list_head *head, int ring)
 {
+	struct ttm_operation_ctx ctx = { true, false };
 	struct radeon_bo_list *lobj;
 	struct list_head duplicates;
 	int r;
@@ -529,7 +547,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 	list_for_each_entry(lobj, head, tv.head) {
 		struct radeon_bo *bo = lobj->robj;
 		if (!bo->pin_count) {
-			u32 domain = lobj->prefered_domains;
+			u32 domain = lobj->preferred_domains;
 			u32 allowed = lobj->allowed_domains;
 			u32 current_domain =
 				radeon_mem_type_to_domain(bo->tbo.mem.mem_type);
@@ -555,7 +573,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 				radeon_uvd_force_into_uvd_segment(bo, allowed);
 
 			initial_bytes_moved = atomic64_read(&rdev->num_bytes_moved);
-			r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+			r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 			bytes_moved += atomic64_read(&rdev->num_bytes_moved) -
 				       initial_bytes_moved;
 
@@ -753,6 +771,7 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 }
 
 void radeon_bo_move_notify(struct ttm_buffer_object *bo,
+			   bool evict,
 			   struct ttm_mem_reg *new_mem)
 {
 	struct radeon_bo *rbo;
@@ -774,6 +793,7 @@ void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 
 int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	struct radeon_device *rdev;
 	struct radeon_bo *rbo;
 	unsigned long offset, size, lpfn;
@@ -792,6 +812,10 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	if ((offset + size) <= rdev->mc.visible_vram_size)
 		return 0;
 
+	/* Can't move a pinned BO to visible VRAM */
+	if (rbo->pin_count > 0)
+		return -EINVAL;
+
 	/* hurrah the memory is not visible ! */
 	radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
 	lpfn =	rdev->mc.visible_vram_size >> PAGE_SHIFT;
@@ -801,10 +825,10 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 		    (!rbo->placements[i].lpfn || rbo->placements[i].lpfn > lpfn))
 			rbo->placements[i].lpfn = lpfn;
 	}
-	r = ttm_bo_validate(bo, &rbo->placement, false, false);
+	r = ttm_bo_validate(bo, &rbo->placement, &ctx);
 	if (unlikely(r == -ENOMEM)) {
 		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
-		return ttm_bo_validate(bo, &rbo->placement, false, false);
+		return ttm_bo_validate(bo, &rbo->placement, &ctx);
 	} else if (unlikely(r != 0)) {
 		return r;
 	}
@@ -821,13 +845,13 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, NULL);
+	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
 	if (unlikely(r != 0))
 		return r;
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
 
-	r = ttm_bo_wait(&bo->tbo, true, true, no_wait);
+	r = ttm_bo_wait(&bo->tbo, true, no_wait);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
 }
@@ -841,7 +865,7 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
  *
  */
 void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
-                     bool shared)
+		     bool shared)
 {
 	struct reservation_object *resv = bo->tbo.resv;
 

@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2014 MundoReader S.L.
  * Author: Matthias Brugger <matthias.bgg@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+*/
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -102,7 +94,7 @@
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
 			reg = <0x10211000 0x1000>,
-			      <0x10212000 0x1000>,
+			      <0x10212000 0x2000>,
 			      <0x10214000 0x2000>,
 			      <0x10216000 0x2000>;
 		};
@@ -139,7 +131,7 @@
 			status = "disabled";
 		};
 
-		wdt: watchdog@010000000 {
+		wdt: watchdog@10000000 {
 			compatible = "mediatek,mt6589-wdt";
 			reg = <0x10000000 0x44>;
 		};

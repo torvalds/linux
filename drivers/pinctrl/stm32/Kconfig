@@ -1,0 +1,47 @@
+if ARCH_STM32 || COMPILE_TEST
+
+config PINCTRL_STM32
+	bool
+	depends on OF
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select IRQ_DOMAIN_HIERARCHY
+	select MFD_SYSCON
+
+config PINCTRL_STM32F429
+	bool "STMicroelectronics STM32F429 pin control" if COMPILE_TEST && !MACH_STM32F429
+	depends on OF && HAS_IOMEM
+	default MACH_STM32F429
+	select PINCTRL_STM32
+
+config PINCTRL_STM32F469
+	bool "STMicroelectronics STM32F469 pin control" if COMPILE_TEST && !MACH_STM32F469
+	depends on OF && HAS_IOMEM
+	default MACH_STM32F469
+	select PINCTRL_STM32
+
+config PINCTRL_STM32F746
+	bool "STMicroelectronics STM32F746 pin control" if COMPILE_TEST && !MACH_STM32F746
+	depends on OF && HAS_IOMEM
+	default MACH_STM32F746
+	select PINCTRL_STM32
+
+config PINCTRL_STM32F769
+	bool "STMicroelectronics STM32F769 pin control" if COMPILE_TEST && !MACH_STM32F769
+	depends on OF && HAS_IOMEM
+	default MACH_STM32F769
+	select PINCTRL_STM32
+
+config PINCTRL_STM32H743
+	bool "STMicroelectronics STM32H743 pin control" if COMPILE_TEST && !MACH_STM32H743
+	depends on OF && HAS_IOMEM
+	default MACH_STM32H743
+	select PINCTRL_STM32
+
+config PINCTRL_STM32MP157
+	bool "STMicroelectronics STM32MP157 pin control" if COMPILE_TEST && !MACH_STM32MP157
+	depends on OF && HAS_IOMEM
+	default MACH_STM32MP157
+	select PINCTRL_STM32
+endif

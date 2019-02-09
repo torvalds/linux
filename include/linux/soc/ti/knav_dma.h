@@ -17,6 +17,8 @@
 #ifndef __SOC_TI_KEYSTONE_NAVIGATOR_DMA_H__
 #define __SOC_TI_KEYSTONE_NAVIGATOR_DMA_H__
 
+#include <linux/dmaengine.h>
+
 /*
  * PKTDMA descriptor manipulation macros for host packet descriptor
  */
@@ -41,9 +43,12 @@
 #define KNAV_DMA_DESC_RETQ_SHIFT		0
 #define KNAV_DMA_DESC_RETQ_MASK			MASK(14)
 #define KNAV_DMA_DESC_BUF_LEN_MASK		MASK(22)
+#define KNAV_DMA_DESC_EFLAGS_MASK		MASK(4)
+#define KNAV_DMA_DESC_EFLAGS_SHIFT		20
 
 #define KNAV_DMA_NUM_EPIB_WORDS			4
 #define KNAV_DMA_NUM_PS_WORDS			16
+#define KNAV_DMA_NUM_SW_DATA_WORDS		4
 #define KNAV_DMA_FDQ_PER_CHAN			4
 
 /* Tx channel scheduling priority */
@@ -142,25 +147,28 @@ struct knav_dma_cfg {
  * @orig_buff:			buff pointer since 'buff' can be overwritten
  * @epib:			Extended packet info block
  * @psdata:			Protocol specific
+ * @sw_data:			Software private data not touched by h/w
  */
 struct knav_dma_desc {
-	u32	desc_info;
-	u32	tag_info;
-	u32	packet_info;
-	u32	buff_len;
-	u32	buff;
-	u32	next_desc;
-	u32	orig_len;
-	u32	orig_buff;
-	u32	epib[KNAV_DMA_NUM_EPIB_WORDS];
-	u32	psdata[KNAV_DMA_NUM_PS_WORDS];
-	u32	pad[4];
+	__le32	desc_info;
+	__le32	tag_info;
+	__le32	packet_info;
+	__le32	buff_len;
+	__le32	buff;
+	__le32	next_desc;
+	__le32	orig_len;
+	__le32	orig_buff;
+	__le32	epib[KNAV_DMA_NUM_EPIB_WORDS];
+	__le32	psdata[KNAV_DMA_NUM_PS_WORDS];
+	u32	sw_data[KNAV_DMA_NUM_SW_DATA_WORDS];
 } ____cacheline_aligned;
 
 #if IS_ENABLED(CONFIG_KEYSTONE_NAVIGATOR_DMA)
 void *knav_dma_open_channel(struct device *dev, const char *name,
 				struct knav_dma_cfg *config);
 void knav_dma_close_channel(void *channel);
+int knav_dma_get_flow(void *channel);
+bool knav_dma_device_ready(void);
 #else
 static inline void *knav_dma_open_channel(struct device *dev, const char *name,
 				struct knav_dma_cfg *config)
@@ -169,6 +177,16 @@ static inline void *knav_dma_open_channel(struct device *dev, const char *name,
 }
 static inline void knav_dma_close_channel(void *channel)
 {}
+
+static inline int knav_dma_get_flow(void *channel)
+{
+	return -EINVAL;
+}
+
+static inline bool knav_dma_device_ready(void)
+{
+	return false;
+}
 
 #endif
 

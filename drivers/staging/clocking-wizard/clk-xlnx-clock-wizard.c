@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Xilinx 'Clocking Wizard' driver
  *
  *  Copyright (C) 2013 - 2014 Xilinx
  *
  *  Sören Brinkmann <soren.brinkmann@xilinx.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/platform_device.h>
@@ -32,8 +21,8 @@
 
 #define WZRD_CLK_CFG_REG(n)	(0x200 + 4 * (n))
 
-#define WZRD_CLkOUT0_FRAC_EN	BIT(18)
-#define WZRD_CLkFBOUT_FRAC_EN	BIT(26)
+#define WZRD_CLKOUT0_FRAC_EN	BIT(18)
+#define WZRD_CLKFBOUT_FRAC_EN	BIT(26)
 
 #define WZRD_CLKFBOUT_MULT_SHIFT	8
 #define WZRD_CLKFBOUT_MULT_MASK		(0xff << WZRD_CLKFBOUT_MULT_SHIFT)
@@ -68,9 +57,10 @@ struct clk_wzrd {
 	struct clk *axi_clk;
 	struct clk *clks_internal[wzrd_clk_int_max];
 	struct clk *clkout[WZRD_NUM_OUTPUTS];
-	int speed_grade;
+	unsigned int speed_grade;
 	bool suspended;
 };
+
 #define to_clk_wzrd(_nb) container_of(_nb, struct clk_wzrd, nb)
 
 /* maximum frequencies for input/output clocks per speed grade */
@@ -195,9 +185,9 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 
 	/* we don't support fractional div/mul yet */
 	reg = readl(clk_wzrd->base + WZRD_CLK_CFG_REG(0)) &
-		    WZRD_CLkFBOUT_FRAC_EN;
+		    WZRD_CLKFBOUT_FRAC_EN;
 	reg |= readl(clk_wzrd->base + WZRD_CLK_CFG_REG(2)) &
-		     WZRD_CLkOUT0_FRAC_EN;
+		     WZRD_CLKOUT0_FRAC_EN;
 	if (reg)
 		dev_warn(&pdev->dev, "fractional div/mul not supported\n");
 

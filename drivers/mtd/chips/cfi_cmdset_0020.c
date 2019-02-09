@@ -184,8 +184,9 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 	mtd->size = devsize * cfi->numchips;
 
 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
-	mtd->eraseregions = kmalloc(sizeof(struct mtd_erase_region_info)
-			* mtd->numeraseregions, GFP_KERNEL);
+	mtd->eraseregions = kmalloc_array(mtd->numeraseregions,
+					  sizeof(struct mtd_erase_region_info),
+					  GFP_KERNEL);
 	if (!mtd->eraseregions) {
 		kfree(cfi->cmdset_priv);
 		kfree(mtd);
@@ -416,7 +417,7 @@ static int cfi_staa_read (struct mtd_info *mtd, loff_t from, size_t len, size_t 
 	return ret;
 }
 
-static inline int do_write_buffer(struct map_info *map, struct flchip *chip,
+static int do_write_buffer(struct map_info *map, struct flchip *chip,
 				  unsigned long adr, const u_char *buf, int len)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -666,7 +667,7 @@ cfi_staa_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	size_t	 totlen = 0, thislen;
 	int	 ret = 0;
 	size_t	 buflen = 0;
-	static char *buffer;
+	char *buffer;
 
 	if (!ECCBUF_SIZE) {
 		/* We should fall back to a general writev implementation.
@@ -964,9 +965,6 @@ static int cfi_staa_erase_varsize(struct mtd_info *mtd,
 				break;
 		}
 	}
-
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
 
 	return 0;
 }

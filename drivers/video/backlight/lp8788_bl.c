@@ -145,6 +145,12 @@ static void lp8788_pwm_ctrl(struct lp8788_bl *bl, int br, int max_br)
 		}
 
 		bl->pwm = pwm;
+
+		/*
+		 * FIXME: pwm_apply_args() should be removed when switching to
+		 * the atomic PWM API.
+		 */
+		pwm_apply_args(pwm);
 	}
 
 	pwm_config(bl->pwm, duty, period);

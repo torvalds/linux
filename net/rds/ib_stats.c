@@ -55,6 +55,8 @@ static const char *const rds_ib_stat_names[] = {
 	"ib_rx_refill_from_cq",
 	"ib_rx_refill_from_thread",
 	"ib_rx_alloc_limit",
+	"ib_rx_total_frags",
+	"ib_rx_total_incs",
 	"ib_rx_credit_updates",
 	"ib_ack_sent",
 	"ib_ack_send_failure",
@@ -73,6 +75,8 @@ static const char *const rds_ib_stat_names[] = {
 	"ib_rdma_mr_1m_pool_flush",
 	"ib_rdma_mr_1m_pool_wait",
 	"ib_rdma_mr_1m_pool_depleted",
+	"ib_rdma_mr_8k_reused",
+	"ib_rdma_mr_1m_reused",
 	"ib_atomic_cswp",
 	"ib_atomic_fadd",
 };

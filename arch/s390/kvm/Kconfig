@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # KVM configuration
 #
@@ -22,13 +23,16 @@ config KVM
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
+	select HAVE_KVM_VCPU_ASYNC_IOCTL
 	select HAVE_KVM_EVENTFD
 	select KVM_ASYNC_PF
 	select KVM_ASYNC_PF_SYNC
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_IRQFD
 	select HAVE_KVM_IRQ_ROUTING
+	select HAVE_KVM_INVALID_WAKEUPS
 	select SRCU
+	select KVM_VFIO
 	---help---
 	  Support hosting paravirtualized guest machines using the SIE
 	  virtualization capability on the mainframe. This should work

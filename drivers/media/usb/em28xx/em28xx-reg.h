@@ -1,16 +1,22 @@
-#define EM_GPIO_0  (1 << 0)
-#define EM_GPIO_1  (1 << 1)
-#define EM_GPIO_2  (1 << 2)
-#define EM_GPIO_3  (1 << 3)
-#define EM_GPIO_4  (1 << 4)
-#define EM_GPIO_5  (1 << 5)
-#define EM_GPIO_6  (1 << 6)
-#define EM_GPIO_7  (1 << 7)
+/* SPDX-License-Identifier: GPL-2.0 */
 
-#define EM_GPO_0   (1 << 0)
-#define EM_GPO_1   (1 << 1)
-#define EM_GPO_2   (1 << 2)
-#define EM_GPO_3   (1 << 3)
+/*
+ * em28xx-reg.h - Register definitions for em28xx driver
+ */
+
+#define EM_GPIO_0  ((unsigned char)BIT(0))
+#define EM_GPIO_1  ((unsigned char)BIT(1))
+#define EM_GPIO_2  ((unsigned char)BIT(2))
+#define EM_GPIO_3  ((unsigned char)BIT(3))
+#define EM_GPIO_4  ((unsigned char)BIT(4))
+#define EM_GPIO_5  ((unsigned char)BIT(5))
+#define EM_GPIO_6  ((unsigned char)BIT(6))
+#define EM_GPIO_7  ((unsigned char)BIT(7))
+
+#define EM_GPO_0   ((unsigned char)BIT(0))
+#define EM_GPO_1   ((unsigned char)BIT(1))
+#define EM_GPO_2   ((unsigned char)BIT(2))
+#define EM_GPO_3   ((unsigned char)BIT(3))
 
 /* em28xx endpoints */
 /* 0x82:   (always ?) analog */
@@ -93,6 +99,24 @@
 #define EM28XX_XCLK_FREQUENCY_24MHZ	0x0b
 
 #define EM28XX_R10_VINMODE	0x10
+	  /* used by all non-camera devices: */
+#define   EM28XX_VINMODE_YUV422_CbYCrY  0x10
+	  /* used by camera devices: */
+#define   EM28XX_VINMODE_YUV422_YUYV    0x08
+#define   EM28XX_VINMODE_YUV422_YVYU    0x09
+#define   EM28XX_VINMODE_YUV422_UYVY    0x0a
+#define   EM28XX_VINMODE_YUV422_VYUY    0x0b
+#define   EM28XX_VINMODE_RGB8_BGGR      0x0c
+#define   EM28XX_VINMODE_RGB8_GRBG      0x0d
+#define   EM28XX_VINMODE_RGB8_GBRG      0x0e
+#define   EM28XX_VINMODE_RGB8_RGGB      0x0f
+	  /*
+	   * apparently:
+	   *   bit 0: swap component 1+2 with 3+4
+	   *                 => e.g.: YUYV => YVYU, BGGR => GRBG
+	   *   bit 1: swap component 1 with 2 and 3 with 4
+	   *                 => e.g.: YUYV => UYVY, BGGR => GBRG
+	   */
 
 #define EM28XX_R11_VINCTRL	0x11
 
@@ -184,15 +208,29 @@
 #define EM28XX_R43_AC97BUSY	0x43
 
 #define EM28XX_R45_IR		0x45
-	/* 0x45  bit 7    - parity bit
-		 bits 6-0 - count
-	   0x46  IR brand
-	   0x47  IR data
+	/*
+	 * 0x45  bit 7    - parity bit
+	 *	 bits 6-0 - count
+	 * 0x46  IR brand
+	 *  0x47  IR data
 	 */
 
 /* em2874 registers */
 #define EM2874_R50_IR_CONFIG    0x50
 #define EM2874_R51_IR           0x51
+#define EM2874_R5D_TS1_PKT_SIZE 0x5d
+#define EM2874_R5E_TS2_PKT_SIZE 0x5e
+	/*
+	 * For both TS1 and TS2, In isochronous mode:
+	 *  0x01  188 bytes
+	 *  0x02  376 bytes
+	 *  0x03  564 bytes
+	 *  0x04  752 bytes
+	 *  0x05  940 bytes
+	 * In bulk mode:
+	 *  0x01..0xff  total packet count in 188-byte
+	 */
+
 #define EM2874_R5F_TS_ENABLE    0x5f
 
 /* em2874/174/84, em25xx, em276x/7x/8x GPIO registers */
@@ -217,12 +255,12 @@
 #define EM2874_IR_RC6_MODE_6A   0x0b
 
 /* em2874 Transport Stream Enable Register (0x5f) */
-#define EM2874_TS1_CAPTURE_ENABLE (1 << 0)
-#define EM2874_TS1_FILTER_ENABLE  (1 << 1)
-#define EM2874_TS1_NULL_DISCARD   (1 << 2)
-#define EM2874_TS2_CAPTURE_ENABLE (1 << 4)
-#define EM2874_TS2_FILTER_ENABLE  (1 << 5)
-#define EM2874_TS2_NULL_DISCARD   (1 << 6)
+#define EM2874_TS1_CAPTURE_ENABLE ((unsigned char)BIT(0))
+#define EM2874_TS1_FILTER_ENABLE  ((unsigned char)BIT(1))
+#define EM2874_TS1_NULL_DISCARD   ((unsigned char)BIT(2))
+#define EM2874_TS2_CAPTURE_ENABLE ((unsigned char)BIT(4))
+#define EM2874_TS2_FILTER_ENABLE  ((unsigned char)BIT(5))
+#define EM2874_TS2_NULL_DISCARD   ((unsigned char)BIT(6))
 
 /* register settings */
 #define EM2800_AUDIO_SRC_TUNER  0x0d

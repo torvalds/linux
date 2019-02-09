@@ -7,6 +7,8 @@
  *
  */
 
+/ {
+	smb@8000000 {
 		mb_clk24mhz: clk24mhz {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -46,7 +48,7 @@
 			arm,vexpress,site = <0>;
 			arm,v2m-memory-map = "rs1";
 
-			mb_fixed_3v3: fixedregulator@0 {
+			mb_fixed_3v3: mcc-sb-3v3 {
 				compatible = "regulator-fixed";
 				regulator-name = "MCC_SB_3V3";
 				regulator-min-microvolt = <3300000>;
@@ -54,48 +56,46 @@
 				regulator-always-on;
 			};
 
-			gpio_keys {
+			gpio-keys {
 				compatible = "gpio-keys";
-				#address-cells = <1>;
-				#size-cells = <0>;
 
-				button@1 {
-					debounce_interval = <50>;
+				power-button {
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <116>;
 					label = "POWER";
 					gpios = <&iofpga_gpio0 0 0x4>;
 				};
-				button@2 {
-					debounce_interval = <50>;
+				home-button {
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <102>;
 					label = "HOME";
 					gpios = <&iofpga_gpio0 1 0x4>;
 				};
-				button@3 {
-					debounce_interval = <50>;
+				rlock-button {
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <152>;
 					label = "RLOCK";
 					gpios = <&iofpga_gpio0 2 0x4>;
 				};
-				button@4 {
-					debounce_interval = <50>;
+				vol-up-button {
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <115>;
 					label = "VOL+";
 					gpios = <&iofpga_gpio0 3 0x4>;
 				};
-				button@5 {
-					debounce_interval = <50>;
+				vol-down-button {
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <114>;
 					label = "VOL-";
 					gpios = <&iofpga_gpio0 4 0x4>;
 				};
-				button@6 {
-					debounce_interval = <50>;
+				nmi-button {
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <99>;
 					label = "NMI";
@@ -131,20 +131,13 @@
 				vddvario-supply = <&mb_fixed_3v3>;
 			};
 
-			usb@5,00000000 {
-				compatible = "nxp,usb-isp1763";
-				reg = <5 0x00000000 0x20000>;
-				bus-width = <16>;
-				interrupts = <4>;
-			};
-
 			iofpga@3,00000000 {
-				compatible = "arm,amba-bus", "simple-bus";
+				compatible = "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0 3 0 0x200000>;
 
-				v2m_sysctl: sysctl@020000 {
+				v2m_sysctl: sysctl@20000 {
 					compatible = "arm,sp810", "arm,primecell";
 					reg = <0x020000 0x1000>;
 					clocks = <&v2m_refclk32khz>, <&v2m_refclk1mhz>, <&mb_clk24mhz>;
@@ -155,11 +148,11 @@
 					assigned-clock-parents = <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>;
 				};
 
-				apbregs@010000 {
+				apbregs@10000 {
 					compatible = "syscon", "simple-mfd";
 					reg = <0x010000 0x1000>;
 
-					led@08.0 {
+					led0 {
 						compatible = "register-bit-led";
 						offset = <0x08>;
 						mask = <0x01>;
@@ -167,7 +160,7 @@
 						linux,default-trigger = "heartbeat";
 						default-state = "on";
 					};
-					led@08.1 {
+					led1 {
 						compatible = "register-bit-led";
 						offset = <0x08>;
 						mask = <0x02>;
@@ -175,7 +168,7 @@
 						linux,default-trigger = "mmc0";
 						default-state = "off";
 					};
-					led@08.2 {
+					led2 {
 						compatible = "register-bit-led";
 						offset = <0x08>;
 						mask = <0x04>;
@@ -183,7 +176,7 @@
 						linux,default-trigger = "cpu0";
 						default-state = "off";
 					};
-					led@08.3 {
+					led3 {
 						compatible = "register-bit-led";
 						offset = <0x08>;
 						mask = <0x08>;
@@ -191,7 +184,7 @@
 						linux,default-trigger = "cpu1";
 						default-state = "off";
 					};
-					led@08.4 {
+					led4 {
 						compatible = "register-bit-led";
 						offset = <0x08>;
 						mask = <0x10>;
@@ -199,7 +192,7 @@
 						linux,default-trigger = "cpu2";
 						default-state = "off";
 					};
-					led@08.5 {
+					led5 {
 						compatible = "register-bit-led";
 						offset = <0x08>;
 						mask = <0x20>;
@@ -207,14 +200,14 @@
 						linux,default-trigger = "cpu3";
 						default-state = "off";
 					};
-					led@08.6 {
+					led6 {
 						compatible = "register-bit-led";
 						offset = <0x08>;
 						mask = <0x40>;
 						label = "vexpress:6";
 						default-state = "off";
 					};
-					led@08.7 {
+					led7 {
 						compatible = "register-bit-led";
 						offset = <0x08>;
 						mask = <0x80>;
@@ -223,7 +216,7 @@
 					};
 				};
 
-				mmci@050000 {
+				mmci@50000 {
 					compatible = "arm,pl180", "arm,primecell";
 					reg = <0x050000 0x1000>;
 					interrupts = <5>;
@@ -235,7 +228,7 @@
 					clock-names = "mclk", "apb_pclk";
 				};
 
-				kmi@060000 {
+				kmi@60000 {
 					compatible = "arm,pl050", "arm,primecell";
 					reg = <0x060000 0x1000>;
 					interrupts = <8>;
@@ -243,7 +236,7 @@
 					clock-names = "KMIREFCLK", "apb_pclk";
 				};
 
-				kmi@070000 {
+				kmi@70000 {
 					compatible = "arm,pl050", "arm,primecell";
 					reg = <0x070000 0x1000>;
 					interrupts = <8>;
@@ -251,7 +244,7 @@
 					clock-names = "KMIREFCLK", "apb_pclk";
 				};
 
-				wdt@0f0000 {
+				wdt@f0000 {
 					compatible = "arm,sp805", "arm,primecell";
 					reg = <0x0f0000 0x10000>;
 					interrupts = <7>;
@@ -296,3 +289,5 @@
 				};
 			};
 		};
+	};
+};

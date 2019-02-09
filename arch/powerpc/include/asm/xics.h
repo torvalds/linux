@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Common definitions accross all variants of ICP and ICS interrupt
+ * Common definitions across all variants of ICP and ICS interrupt
  * controllers.
  */
 
@@ -30,6 +31,7 @@
 #ifdef CONFIG_PPC_ICP_NATIVE
 extern int icp_native_init(void);
 extern void icp_native_flush_interrupt(void);
+extern void icp_native_cause_ipi_rm(int cpu);
 #else
 static inline int icp_native_init(void) { return -ENODEV; }
 #endif
@@ -41,6 +43,13 @@ extern int icp_hv_init(void);
 static inline int icp_hv_init(void) { return -ENODEV; }
 #endif
 
+#ifdef CONFIG_PPC_POWERNV
+extern int icp_opal_init(void);
+extern void icp_opal_flush_interrupt(void);
+#else
+static inline int icp_opal_init(void) { return -ENODEV; }
+#endif
+
 /* ICP ops */
 struct icp_ops {
 	unsigned int (*get_irq)(void);
@@ -49,7 +58,7 @@ struct icp_ops {
 	void (*teardown_cpu)(void);
 	void (*flush_ipi)(void);
 #ifdef CONFIG_SMP
-	void (*cause_ipi)(int cpu, unsigned long data);
+	void (*cause_ipi)(int cpu);
 	irq_handler_t ipi_action;
 #endif
 };
@@ -152,6 +161,8 @@ extern void xics_teardown_cpu(void);
 extern void xics_kexec_teardown_cpu(int secondary);
 extern void xics_migrate_irqs_away(void);
 extern void icp_native_eoi(struct irq_data *d);
+extern int xics_set_irq_type(struct irq_data *d, unsigned int flow_type);
+extern int xics_retrigger(struct irq_data *data);
 #ifdef CONFIG_SMP
 extern int xics_get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 			       unsigned int strict_check);

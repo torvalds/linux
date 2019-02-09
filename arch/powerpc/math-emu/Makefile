@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 math-emu-common-objs = math.o fre.o fsqrt.o fsqrts.o frsqrtes.o mtfsf.o mtfsfi.o
 obj-$(CONFIG_MATH_EMULATION_HW_UNIMPLEMENTED) += $(math-emu-common-objs)
 obj-$(CONFIG_MATH_EMULATION_FULL) += $(math-emu-common-objs) fabs.o fadd.o \

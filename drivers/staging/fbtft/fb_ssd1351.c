@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -25,8 +26,8 @@ static void register_onboard_backlight(struct fbtft_par *par);
 
 static int init_display(struct fbtft_par *par)
 {
-	if (par->pdata
-		&& par->pdata->display.backlight == FBTFT_ONBOARD_BACKLIGHT) {
+	if (par->pdata &&
+	    par->pdata->display.backlight == FBTFT_ONBOARD_BACKLIGHT) {
 		/* module uses onboard GPIO for panel power */
 		par->fbtftops.register_backlight = register_onboard_backlight;
 	}
@@ -66,13 +67,13 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int set_var(struct fbtft_par *par)
 {
-	unsigned remap;
+	unsigned int remap;
 
 	if (par->fbtftops.init_display != init_display) {
 		/* don't risk messing up register A0h */
 		fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-			"%s: skipping since custom init_display() is used\n",
-			__func__);
+			      "%s: skipping since custom init_display() is used\n",
+			       __func__);
 		return 0;
 	}
 
@@ -80,10 +81,10 @@ static int set_var(struct fbtft_par *par)
 
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0xA0, remap | 0x00 | 1<<4);
+		write_reg(par, 0xA0, remap | 0x00 | 1 << 4);
 		break;
 	case 270:
-		write_reg(par, 0xA0, remap | 0x03 | 1<<4);
+		write_reg(par, 0xA0, remap | 0x03 | 1 << 4);
 		break;
 	case 180:
 		write_reg(par, 0xA0, remap | 0x02);
@@ -117,7 +118,7 @@ static int set_var(struct fbtft_par *par)
  *		Setting of GS63 has to be > Setting of GS62 +1
  *
  */
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long tmp[GAMMA_NUM * GAMMA_LEN];
 	int i, acc = 0;
@@ -125,36 +126,44 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	for (i = 0; i < 63; i++) {
 		if (i > 0 && curves[i] < 2) {
 			dev_err(par->info->device,
-				"Illegal value in Grayscale Lookup Table at index %d. " \
-				"Must be greater than 1\n", i);
+				"Illegal value in Grayscale Lookup Table at index %d : %d. Must be greater than 1\n",
+				i, curves[i]);
 			return -EINVAL;
 		}
 		acc += curves[i];
 		tmp[i] = acc;
 		if (acc > 180) {
 			dev_err(par->info->device,
-				"Illegal value(s) in Grayscale Lookup Table. " \
-				"At index=%d, the accumulated value has exceeded 180\n", i);
+				"Illegal value(s) in Grayscale Lookup Table. At index=%d : %d, the accumulated value has exceeded 180\n",
+				i, acc);
 			return -EINVAL;
 		}
 	}
 
 	write_reg(par, 0xB8,
-	tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6], tmp[7],
-	tmp[8], tmp[9], tmp[10], tmp[11], tmp[12], tmp[13], tmp[14], tmp[15],
-	tmp[16], tmp[17], tmp[18], tmp[19], tmp[20], tmp[21], tmp[22], tmp[23],
-	tmp[24], tmp[25], tmp[26], tmp[27], tmp[28], tmp[29], tmp[30], tmp[31],
-	tmp[32], tmp[33], tmp[34], tmp[35], tmp[36], tmp[37], tmp[38], tmp[39],
-	tmp[40], tmp[41], tmp[42], tmp[43], tmp[44], tmp[45], tmp[46], tmp[47],
-	tmp[48], tmp[49], tmp[50], tmp[51], tmp[52], tmp[53], tmp[54], tmp[55],
-	tmp[56], tmp[57], tmp[58], tmp[59], tmp[60], tmp[61], tmp[62]);
+		  tmp[0],  tmp[1],  tmp[2],  tmp[3],
+		  tmp[4],  tmp[5],  tmp[6],  tmp[7],
+		  tmp[8],  tmp[9],  tmp[10], tmp[11],
+		  tmp[12], tmp[13], tmp[14], tmp[15],
+		  tmp[16], tmp[17], tmp[18], tmp[19],
+		  tmp[20], tmp[21], tmp[22], tmp[23],
+		  tmp[24], tmp[25], tmp[26], tmp[27],
+		  tmp[28], tmp[29], tmp[30], tmp[31],
+		  tmp[32], tmp[33], tmp[34], tmp[35],
+		  tmp[36], tmp[37], tmp[38], tmp[39],
+		  tmp[40], tmp[41], tmp[42], tmp[43],
+		  tmp[44], tmp[45], tmp[46], tmp[47],
+		  tmp[48], tmp[49], tmp[50], tmp[51],
+		  tmp[52], tmp[53], tmp[54], tmp[55],
+		  tmp[56], tmp[57], tmp[58], tmp[59],
+		  tmp[60], tmp[61], tmp[62]);
 
 	return 0;
 }
 
 static int blank(struct fbtft_par *par, bool on)
 {
-	fbtft_par_dbg(DEBUG_BLANK, par, "%s(blank=%s)\n",
+	fbtft_par_dbg(DEBUG_BLANK, par, "(%s=%s)\n",
 		__func__, on ? "true" : "false");
 	if (on)
 		write_reg(par, 0xAE);
@@ -186,11 +195,11 @@ static int update_onboard_backlight(struct backlight_device *bd)
 	bool on;
 
 	fbtft_par_dbg(DEBUG_BACKLIGHT, par,
-		"%s: power=%d, fb_blank=%d\n",
-		__func__, bd->props.power, bd->props.fb_blank);
+		      "%s: power=%d, fb_blank=%d\n",
+		      __func__, bd->props.power, bd->props.fb_blank);
 
-	on = (bd->props.power == FB_BLANK_UNBLANK)
-		&& (bd->props.fb_blank == FB_BLANK_UNBLANK);
+	on = (bd->props.power == FB_BLANK_UNBLANK) &&
+	     (bd->props.fb_blank == FB_BLANK_UNBLANK);
 	/* Onboard backlight connected to GPIO0 on SSD1351, GPIO1 unused */
 	write_reg(par, 0xB5, on ? 0x03 : 0x02);
 
@@ -210,7 +219,8 @@ static void register_onboard_backlight(struct fbtft_par *par)
 	bl_props.power = FB_BLANK_POWERDOWN;
 
 	bd = backlight_device_register(dev_driver_string(par->info->device),
-				par->info->device, par, &bl_ops, &bl_props);
+				       par->info->device, par, &bl_ops,
+				       &bl_props);
 	if (IS_ERR(bd)) {
 		dev_err(par->info->device,
 			"cannot register backlight device (%ld)\n",

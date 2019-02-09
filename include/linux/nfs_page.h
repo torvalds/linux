@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/include/linux/nfs_page.h
  *
@@ -33,6 +34,8 @@ enum {
 	PG_UPTODATE,		/* page group sync bit in read path */
 	PG_WB_END,		/* page group sync bit in write path */
 	PG_REMOVE,		/* page group sync bit in write path */
+	PG_CONTENDED1,		/* Is someone waiting for a lock? */
+	PG_CONTENDED2,		/* Is someone waiting for a lock? */
 };
 
 struct nfs_inode;
@@ -41,8 +44,8 @@ struct nfs_page {
 	struct page		*wb_page;	/* page to read in/write out */
 	struct nfs_open_context	*wb_context;	/* File state context info */
 	struct nfs_lock_context	*wb_lock_context;	/* lock context info */
-	pgoff_t			wb_index;	/* Offset >> PAGE_CACHE_SHIFT */
-	unsigned int		wb_offset,	/* Offset & ~PAGE_CACHE_MASK */
+	pgoff_t			wb_index;	/* Offset >> PAGE_SHIFT */
+	unsigned int		wb_offset,	/* Offset & ~PAGE_MASK */
 				wb_pgbase,	/* Start of page data */
 				wb_bytes;	/* Length of request */
 	struct kref		wb_kref;	/* reference count */
@@ -64,7 +67,6 @@ struct nfs_pageio_ops {
 };
 
 struct nfs_rw_ops {
-	const fmode_t rw_mode;
 	struct nfs_pgio_header *(*rw_alloc_header)(void);
 	void (*rw_free_header)(struct nfs_pgio_header *);
 	int  (*rw_done)(struct rpc_task *, struct nfs_pgio_header *,
@@ -94,8 +96,8 @@ struct nfs_pageio_descriptor {
 	const struct rpc_call_ops *pg_rpc_callops;
 	const struct nfs_pgio_completion_ops *pg_completion_ops;
 	struct pnfs_layout_segment *pg_lseg;
+	struct nfs_io_completion *pg_io_completion;
 	struct nfs_direct_req	*pg_dreq;
-	void			*pg_layout_private;
 	unsigned int		pg_bsize;	/* default bsize for mirrors */
 
 	u32			pg_mirror_count;
@@ -137,10 +139,10 @@ extern size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
 extern	void nfs_unlock_and_release_request(struct nfs_page *);
-extern int nfs_page_group_lock(struct nfs_page *, bool);
-extern void nfs_page_group_lock_wait(struct nfs_page *);
+extern int nfs_page_group_lock(struct nfs_page *);
 extern void nfs_page_group_unlock(struct nfs_page *);
 extern bool nfs_page_group_sync_on_bit(struct nfs_page *, unsigned int);
+extern bool nfs_async_iocounter_wait(struct rpc_task *, struct nfs_lock_context *);
 
 /*
  * Lock the page of an asynchronous request
@@ -184,7 +186,7 @@ nfs_list_entry(struct list_head *head)
 static inline
 loff_t req_offset(struct nfs_page *req)
 {
-	return (((loff_t)req->wb_index) << PAGE_CACHE_SHIFT) + req->wb_offset;
+	return (((loff_t)req->wb_index) << PAGE_SHIFT) + req->wb_offset;
 }
 
 #endif /* _LINUX_NFS_PAGE_H */

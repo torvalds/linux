@@ -1,46 +1,12 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #define EXPORT_ACPI_INTERFACES
 
@@ -78,7 +44,7 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
 
 acpi_status
 acpi_get_handle(acpi_handle parent,
-		acpi_string pathname, acpi_handle * ret_handle)
+		acpi_string pathname, acpi_handle *ret_handle)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node = NULL;
@@ -155,11 +121,9 @@ ACPI_EXPORT_SYMBOL(acpi_get_handle)
  *
  ******************************************************************************/
 acpi_status
-acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
+acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer *buffer)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
-	char *node_name;
 
 	/* Parameter validation */
 
@@ -168,6 +132,15 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
 	}
 
 	status = acpi_ut_validate_buffer(buffer);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	/*
+	 * Wants the single segment ACPI name.
+	 * Validate handle and convert to a namespace Node
+	 */
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -181,39 +154,11 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
 						    name_type ==
 						    ACPI_FULL_PATHNAME ? FALSE :
 						    TRUE);
-		return (status);
+	} else {
+		/* Get the single name */
+
+		status = acpi_ns_handle_to_name(handle, buffer);
 	}
-
-	/*
-	 * Wants the single segment ACPI name.
-	 * Validate handle and convert to a namespace Node
-	 */
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	node = acpi_ns_validate_handle(handle);
-	if (!node) {
-		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
-	}
-
-	/* Validate/Allocate/Clear caller buffer */
-
-	status = acpi_ut_initialize_buffer(buffer, ACPI_PATH_SEGMENT_LENGTH);
-	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
-	}
-
-	/* Just copy the ACPI name from the Node and zero terminate it */
-
-	node_name = acpi_ut_get_node_name(node);
-	ACPI_MOVE_NAME(buffer->pointer, node_name);
-	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
-	status = AE_OK;
-
-unlock_and_exit:
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
@@ -238,7 +183,6 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
 				    struct acpi_pnp_device_id *source,
 				    char *string_area)
 {
-
 	/* Create the destination PNP_DEVICE_ID */
 
 	dest->string = string_area;
@@ -263,10 +207,18 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
  *              namespace node and possibly by running several standard
  *              control methods (Such as in the case of a device.)
  *
- * For Device and Processor objects, run the Device _HID, _UID, _CID, _SUB,
- * _CLS, _STA, _ADR, _sx_w, and _sx_d methods.
+ * For Device and Processor objects, run the Device _HID, _UID, _CID,
+ * _CLS, _ADR, _sx_w, and _sx_d methods.
  *
  * Note: Allocates the return buffer, must be freed by the caller.
+ *
+ * Note: This interface is intended to be used during the initial device
+ * discovery namespace traversal. Therefore, no complex methods can be
+ * executed, especially those that access operation regions. Therefore, do
+ * not add any additional methods that could cause problems in this area.
+ * Because of this reason support for the following methods has been removed:
+ * 1) _SUB method was removed (11/2015)
+ * 2) _STA method was removed (02/2018)
  *
  ******************************************************************************/
 
@@ -279,7 +231,6 @@ acpi_get_object_info(acpi_handle handle,
 	struct acpi_pnp_device_id_list *cid_list = NULL;
 	struct acpi_pnp_device_id *hid = NULL;
 	struct acpi_pnp_device_id *uid = NULL;
-	struct acpi_pnp_device_id *sub = NULL;
 	struct acpi_pnp_device_id *cls = NULL;
 	char *next_id_string;
 	acpi_object_type type;
@@ -325,7 +276,7 @@ acpi_get_object_info(acpi_handle handle,
 	if ((type == ACPI_TYPE_DEVICE) || (type == ACPI_TYPE_PROCESSOR)) {
 		/*
 		 * Get extra info for ACPI Device/Processor objects only:
-		 * Run the Device _HID, _UID, _SUB, _CID, and _CLS methods.
+		 * Run the Device _HID, _UID, _CLS, and _CID methods.
 		 *
 		 * Note: none of these methods are required, so they may or may
 		 * not be present for this device. The Info->Valid bitfield is used
@@ -346,14 +297,6 @@ acpi_get_object_info(acpi_handle handle,
 		if (ACPI_SUCCESS(status)) {
 			info_size += uid->length;
 			valid |= ACPI_VALID_UID;
-		}
-
-		/* Execute the Device._SUB method */
-
-		status = acpi_ut_execute_SUB(node, &sub);
-		if (ACPI_SUCCESS(status)) {
-			info_size += sub->length;
-			valid |= ACPI_VALID_SUB;
 		}
 
 		/* Execute the Device._CID method */
@@ -393,24 +336,12 @@ acpi_get_object_info(acpi_handle handle,
 	if ((type == ACPI_TYPE_DEVICE) || (type == ACPI_TYPE_PROCESSOR)) {
 		/*
 		 * Get extra info for ACPI Device/Processor objects only:
-		 * Run the _STA, _ADR and, sx_w, and _sx_d methods.
+		 * Run the _ADR and, sx_w, and _sx_d methods.
 		 *
 		 * Notes: none of these methods are required, so they may or may
 		 * not be present for this device. The Info->Valid bitfield is used
 		 * to indicate which methods were found and run successfully.
-		 *
-		 * For _STA, if the method does not exist, then (as per the ACPI
-		 * specification), the returned current_status flags will indicate
-		 * that the device is present/functional/enabled. Otherwise, the
-		 * current_status flags reflect the value returned from _STA.
 		 */
-
-		/* Execute the Device._STA method */
-
-		status = acpi_ut_execute_STA(node, &info->current_status);
-		if (ACPI_SUCCESS(status)) {
-			valid |= ACPI_VALID_STA;
-		}
 
 		/* Execute the Device._ADR method */
 
@@ -451,14 +382,13 @@ acpi_get_object_info(acpi_handle handle,
 		/* Point past the CID PNP_DEVICE_ID array */
 
 		next_id_string +=
-		    ((acpi_size) cid_list->count *
+		    ((acpi_size)cid_list->count *
 		     sizeof(struct acpi_pnp_device_id));
 	}
 
 	/*
-	 * Copy the HID, UID, SUB, and CIDs to the return buffer.
-	 * The variable-length strings are copied to the reserved area
-	 * at the end of the buffer.
+	 * Copy the HID, UID, and CIDs to the return buffer. The variable-length
+	 * strings are copied to the reserved area at the end of the buffer.
 	 *
 	 * For HID and CID, check if the ID is a PCI Root Bridge.
 	 */
@@ -474,11 +404,6 @@ acpi_get_object_info(acpi_handle handle,
 	if (uid) {
 		next_id_string = acpi_ns_copy_device_id(&info->unique_id,
 							uid, next_id_string);
-	}
-
-	if (sub) {
-		next_id_string = acpi_ns_copy_device_id(&info->subsystem_id,
-							sub, next_id_string);
 	}
 
 	if (cid_list) {
@@ -521,9 +446,6 @@ cleanup:
 	}
 	if (uid) {
 		ACPI_FREE(uid);
-	}
-	if (sub) {
-		ACPI_FREE(sub);
 	}
 	if (cid_list) {
 		ACPI_FREE(cid_list);
@@ -591,6 +513,7 @@ acpi_status acpi_install_method(u8 *buffer)
 	parser_state.aml += acpi_ps_get_opcode_size(opcode);
 	parser_state.pkg_end = acpi_ps_get_next_package_end(&parser_state);
 	path = acpi_ps_get_next_namestring(&parser_state);
+
 	method_flags = *parser_state.aml++;
 	aml_start = parser_state.aml;
 	aml_length = ACPI_PTR_DIFF(parser_state.pkg_end, aml_start);

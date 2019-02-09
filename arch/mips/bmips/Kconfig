@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if BMIPS_GENERIC
 
 choice
@@ -59,6 +60,22 @@ config DT_BCM97425SVMB
 
 config DT_BCM97435SVMB
 	bool "BCM97435SVMB"
+	select BUILTIN_DTB
+
+config DT_COMTREND_VR3032U
+	bool "Comtrend VR-3032u"
+	select BUILTIN_DTB
+
+config DT_NETGEAR_CVG834G
+	bool "NETGEAR CVG834G"
+	select BUILTIN_DTB
+
+config DT_SFR_NEUFBOX4_SERCOMM
+	bool "SFR Neufbox 4 (Sercomm)"
+	select BUILTIN_DTB
+
+config DT_SFR_NEUFBOX6_SERCOMM
+	bool "SFR Neufbox 6 (Sercomm)"
 	select BUILTIN_DTB
 
 endchoice

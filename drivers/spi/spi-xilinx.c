@@ -271,6 +271,7 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 	while (remaining_words) {
 		int n_words, tx_words, rx_words;
 		u32 sr;
+		int stalled;
 
 		n_words = min(remaining_words, xspi->buffer_size);
 
@@ -299,7 +300,17 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 		/* Read out all the data from the Rx FIFO */
 		rx_words = n_words;
+		stalled = 10;
 		while (rx_words) {
+			if (rx_words == n_words && !(stalled--) &&
+			    !(sr & XSPI_SR_TX_EMPTY_MASK) &&
+			    (sr & XSPI_SR_RX_EMPTY_MASK)) {
+				dev_err(&spi->dev,
+					"Detected stall. Check C_SPI_MODE and C_SPI_MEMORY\n");
+				xspi_init_hw(xspi);
+				return -EIO;
+			}
+
 			if ((sr & XSPI_SR_TX_EMPTY_MASK) && (rx_words > 1)) {
 				xilinx_spi_rx(xspi);
 				rx_words--;
@@ -341,9 +352,10 @@ static irqreturn_t xilinx_spi_irq(int irq, void *dev_id)
 
 	if (ipif_isr & XSPI_INTR_TX_EMPTY) {	/* Transmission completed */
 		complete(&xspi->done);
+		return IRQ_HANDLED;
 	}
 
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 static int xilinx_spi_find_buffer_size(struct xilinx_spi *xspi)
@@ -369,6 +381,7 @@ static int xilinx_spi_find_buffer_size(struct xilinx_spi *xspi)
 }
 
 static const struct of_device_id xilinx_spi_of_match[] = {
+	{ .compatible = "xlnx,axi-quad-spi-1.00.a", },
 	{ .compatible = "xlnx,xps-spi-2.00.a", },
 	{ .compatible = "xlnx,xps-spi-2.00.b", },
 	{}
@@ -455,7 +468,10 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	xspi->buffer_size = xilinx_spi_find_buffer_size(xspi);
 
 	xspi->irq = platform_get_irq(pdev, 0);
-	if (xspi->irq >= 0) {
+	if (xspi->irq < 0 && xspi->irq != -ENXIO) {
+		ret = xspi->irq;
+		goto put_master;
+	} else if (xspi->irq >= 0) {
 		/* Register for SPI Interrupt */
 		ret = devm_request_irq(&pdev->dev, xspi->irq, xilinx_spi_irq, 0,
 				dev_name(&pdev->dev), xspi);

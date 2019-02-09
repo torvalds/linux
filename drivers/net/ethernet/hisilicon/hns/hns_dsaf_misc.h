@@ -33,11 +33,7 @@
 #define DSAF_LED_DATA_B 4
 #define DSAF_LED_ANCHOR_B 5
 
-void hns_cpld_set_led(struct hns_mac_cb *mac_cb, int link_status,
-		      u16 speed, int data);
-void cpld_led_reset(struct hns_mac_cb *mac_cb);
-int cpld_set_led_id(struct hns_mac_cb *mac_cb,
-		    enum hnae_led_state status);
-int hns_mac_get_sfp_prsnt(struct hns_mac_cb *mac_cb, int *sfp_prsnt);
-
+struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev);
+struct
+platform_device *hns_dsaf_find_platform_device(struct fwnode_handle *fwnode);
 #endif

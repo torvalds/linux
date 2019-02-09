@@ -712,9 +712,10 @@ static int at91_poll_rx(struct net_device *dev, int quota)
 
 	/* upper group completed, look again in lower */
 	if (priv->rx_next > get_mb_rx_low_last(priv) &&
-	    quota > 0 && mb > get_mb_rx_last(priv)) {
+	    mb > get_mb_rx_last(priv)) {
 		priv->rx_next = get_mb_rx_first(priv);
-		goto again;
+		if (quota > 0)
+			goto again;
 	}
 
 	return received;
@@ -812,7 +813,7 @@ static int at91_poll(struct napi_struct *napi, int quota)
 		u32 reg_ier = AT91_IRQ_ERR_FRAME;
 		reg_ier |= get_irq_mb_rx(priv) & ~AT91_MB_MASK(priv->rx_next);
 
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		at91_write(priv, AT91_IER, reg_ier);
 	}
 
@@ -1223,15 +1224,14 @@ static ssize_t at91_sysfs_set_mb0_id(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR(mb0_id, S_IWUSR | S_IRUGO,
-	at91_sysfs_show_mb0_id, at91_sysfs_set_mb0_id);
+static DEVICE_ATTR(mb0_id, 0644, at91_sysfs_show_mb0_id, at91_sysfs_set_mb0_id);
 
 static struct attribute *at91_sysfs_attrs[] = {
 	&dev_attr_mb0_id.attr,
 	NULL,
 };
 
-static struct attribute_group at91_sysfs_attr_group = {
+static const struct attribute_group at91_sysfs_attr_group = {
 	.attrs = at91_sysfs_attrs,
 };
 

@@ -13,10 +13,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
  *
@@ -121,16 +117,16 @@ static void fill_fwpriv(struct _adapter *padapter, struct fw_priv *pfwpriv)
 
 static void update_fwhdr(struct fw_hdr	*pfwhdr, const u8 *pmappedfw)
 {
-	pfwhdr->signature = le16_to_cpu(*(u16 *)pmappedfw);
-	pfwhdr->version = le16_to_cpu(*(u16 *)(pmappedfw + 2));
+	pfwhdr->signature = le16_to_cpu(*(__le16 *)pmappedfw);
+	pfwhdr->version = le16_to_cpu(*(__le16 *)(pmappedfw + 2));
 	/* define the size of boot loader */
-	pfwhdr->dmem_size = le32_to_cpu(*(uint *)(pmappedfw + 4));
+	pfwhdr->dmem_size = le32_to_cpu(*(__le32 *)(pmappedfw + 4));
 	/* define the size of FW in IMEM */
-	pfwhdr->img_IMEM_size = le32_to_cpu(*(uint *)(pmappedfw + 8));
+	pfwhdr->img_IMEM_size = le32_to_cpu(*(__le32 *)(pmappedfw + 8));
 	/* define the size of FW in SRAM */
-	pfwhdr->img_SRAM_size = le32_to_cpu(*(uint *)(pmappedfw + 12));
+	pfwhdr->img_SRAM_size = le32_to_cpu(*(__le32 *)(pmappedfw + 12));
 	/* define the size of DMEM variable */
-	pfwhdr->fw_priv_sz = le32_to_cpu(*(uint *)(pmappedfw + 16));
+	pfwhdr->fw_priv_sz = le32_to_cpu(*(__le32 *)(pmappedfw + 16));
 }
 
 static u8 chk_fwhdr(struct fw_hdr *pfwhdr, u32 ulfilelength)
@@ -201,8 +197,8 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 						       0x0000ffff);
 			memcpy(ppayload, ptr, dump_imem_sz);
 			r8712_write_mem(padapter, RTL8712_DMA_VOQ,
-				  dump_imem_sz + TXDESC_SIZE,
-				  (u8 *)ptx_desc);
+					dump_imem_sz + TXDESC_SIZE,
+					(u8 *)ptx_desc);
 			ptr += dump_imem_sz;
 			imem_sz -= dump_imem_sz;
 		} while (imem_sz > 0);
@@ -220,9 +216,9 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		emem_sz = fwhdr.img_SRAM_size;
 		do {
 			memset(ptx_desc, 0, TXDESC_SIZE);
-			if (emem_sz >  MAX_DUMP_FWSZ) /* max=48k */
+			if (emem_sz >  MAX_DUMP_FWSZ) { /* max=48k */
 				dump_emem_sz = MAX_DUMP_FWSZ;
-			else {
+			} else {
 				dump_emem_sz = emem_sz;
 				ptx_desc->txdw0 |= cpu_to_le32(BIT(28));
 			}
@@ -230,7 +226,8 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 						       0x0000ffff);
 			memcpy(ppayload, ptr, dump_emem_sz);
 			r8712_write_mem(padapter, RTL8712_DMA_VOQ,
-				  dump_emem_sz + TXDESC_SIZE, (u8 *)ptx_desc);
+					dump_emem_sz + TXDESC_SIZE,
+					(u8 *)ptx_desc);
 			ptr += dump_emem_sz;
 			emem_sz -= dump_emem_sz;
 		} while (emem_sz > 0);
@@ -282,7 +279,7 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		ptx_desc->txdw0 |= cpu_to_le32(BIT(28));
 		memcpy(ppayload, &fwhdr.fwpriv, fwhdr.fw_priv_sz);
 		r8712_write_mem(padapter, RTL8712_DMA_VOQ,
-			  fwhdr.fw_priv_sz + TXDESC_SIZE, (u8 *)ptx_desc);
+				fwhdr.fw_priv_sz + TXDESC_SIZE, (u8 *)ptx_desc);
 
 		/* polling dmem code done */
 		i = 100;
@@ -297,7 +294,8 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 
 		tmp8 = r8712_read8(padapter, 0x1025000A);
 		if (tmp8 & BIT(4)) /* When boot from EEPROM,
-				    & FW need more time to read EEPROM */
+				    * & FW need more time to read EEPROM
+				    */
 			i = 60;
 		else			/* boot from EFUSE */
 			i = 30;
@@ -332,12 +330,12 @@ uint rtl8712_hal_init(struct _adapter *padapter)
 		    r8712_read32(padapter, RCR));
 	val32 = r8712_read32(padapter, RCR);
 	r8712_write32(padapter, RCR, (val32 | BIT(26))); /* Enable RX TCP
-							    Checksum offload */
+							  * Checksum offload
+							  */
 	netdev_info(padapter->pnetdev, "2 RCR=0x%x\n",
 		    r8712_read32(padapter, RCR));
 	val32 = r8712_read32(padapter, RCR);
 	r8712_write32(padapter, RCR, (val32 | BIT(25))); /* Append PHY status */
-	val32 = 0;
 	val32 = r8712_read32(padapter, 0x10250040);
 	r8712_write32(padapter,  0x10250040, (val32 & 0x00FFFFFF));
 	/* for usb rx aggregation */
@@ -346,7 +344,8 @@ uint rtl8712_hal_init(struct _adapter *padapter)
 	r8712_write8(padapter, 0x102500BD, r8712_read8(padapter, 0x102500BD) |
 	       BIT(7)); /* enable usb rx aggregation */
 	r8712_write8(padapter, 0x102500D9, 1); /* TH=1 => means that invalidate
-						*  usb rx aggregation */
+						*  usb rx aggregation
+						*/
 	r8712_write8(padapter, 0x1025FE5B, 0x04); /* 1.7ms/4 */
 	/* Fix the RX FIFO issue(USB error) */
 	r8712_write8(padapter, 0x1025fe5C, r8712_read8(padapter, 0x1025fe5C)
@@ -367,7 +366,8 @@ uint rtl8712_hal_deinit(struct _adapter *padapter)
 	r8712_write8(padapter, SYS_FUNC_EN + 1, 0x70);
 	r8712_write8(padapter, PMC_FSM, 0x06);  /* Enable Loader Data Keep */
 	r8712_write8(padapter, SYS_ISO_CTRL, 0xF9); /* Isolation signals from
-						     * CORE, PLL */
+						     * CORE, PLL
+						     */
 	r8712_write8(padapter, SYS_ISO_CTRL + 1, 0xe8); /* Enable EFUSE 1.2V */
 	r8712_write8(padapter, AFE_PLL_CTRL, 0x00); /* Disable AFE PLL. */
 	r8712_write8(padapter, LDOA15_CTRL, 0x54);  /* Disable A15V */

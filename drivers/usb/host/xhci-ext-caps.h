@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xHCI host controller driver
  *
@@ -5,19 +6,6 @@
  *
  * Author: Sarah Sharp
  * Some code borrowed from the Linux EHCI driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 /* Up to 16 ms to halt an HC */
 #define XHCI_MAX_HALT_USEC	(16*1000)
@@ -51,6 +39,8 @@
 #define XHCI_EXT_CAPS_ROUTE	5
 /* IDs 6-9 reserved */
 #define XHCI_EXT_CAPS_DEBUG	10
+/* Vendor caps */
+#define XHCI_EXT_CAPS_VENDOR_INTEL	192
 /* USB Legacy Support Capability - section 7.1.1 */
 #define XHCI_HC_BIOS_OWNED	(1 << 16)
 #define XHCI_HC_OS_OWNED	(1 << 24)
@@ -91,66 +81,44 @@
 #include <linux/io.h>
 
 /**
- * Return the next extended capability pointer register.
- *
- * @base	PCI register base address.
- *
- * @ext_offset	Offset of the 32-bit register that contains the extended
- * capabilites pointer.  If searching for the first extended capability, pass
- * in XHCI_HCC_PARAMS_OFFSET.  If searching for the next extended capability,
- * pass in the offset of the current extended capability register.
- *
- * Returns 0 if there is no next extended capability register or returns the register offset
- * from the PCI registers base address.
- */
-static inline int xhci_find_next_cap_offset(void __iomem *base, int ext_offset)
-{
-	u32 next;
-
-	next = readl(base + ext_offset);
-
-	if (ext_offset == XHCI_HCC_PARAMS_OFFSET) {
-		/* Find the first extended capability */
-		next = XHCI_HCC_EXT_CAPS(next);
-		ext_offset = 0;
-	} else {
-		/* Find the next extended capability */
-		next = XHCI_EXT_CAPS_NEXT(next);
-	}
-
-	if (!next)
-		return 0;
-	/*
-	 * Address calculation from offset of extended capabilities
-	 * (or HCCPARAMS) register - see section 5.3.6 and section 7.
-	 */
-	return ext_offset + (next << 2);
-}
-
-/**
  * Find the offset of the extended capabilities with capability ID id.
  *
- * @base PCI MMIO registers base address.
- * @ext_offset Offset from base of the first extended capability to look at,
- * 		or the address of HCCPARAMS.
- * @id Extended capability ID to search for.
+ * @base	PCI MMIO registers base address.
+ * @start	address at which to start looking, (0 or HCC_PARAMS to start at
+ *		beginning of list)
+ * @id		Extended capability ID to search for, or 0 for the next
+ *		capability
  *
- * This uses an arbitrary limit of XHCI_MAX_EXT_CAPS extended capabilities
- * to make sure that the list doesn't contain a loop.
+ * Returns the offset of the next matching extended capability structure.
+ * Some capabilities can occur several times, e.g., the XHCI_EXT_CAPS_PROTOCOL,
+ * and this provides a way to find them all.
  */
-static inline int xhci_find_ext_cap_by_id(void __iomem *base, int ext_offset, int id)
+
+static inline int xhci_find_next_ext_cap(void __iomem *base, u32 start, int id)
 {
 	u32 val;
-	int limit = XHCI_MAX_EXT_CAPS;
+	u32 next;
+	u32 offset;
 
-	while (ext_offset && limit > 0) {
-		val = readl(base + ext_offset);
-		if (XHCI_EXT_CAPS_ID(val) == id)
-			break;
-		ext_offset = xhci_find_next_cap_offset(base, ext_offset);
-		limit--;
+	offset = start;
+	if (!start || start == XHCI_HCC_PARAMS_OFFSET) {
+		val = readl(base + XHCI_HCC_PARAMS_OFFSET);
+		if (val == ~0)
+			return 0;
+		offset = XHCI_HCC_EXT_CAPS(val) << 2;
+		if (!offset)
+			return 0;
 	}
-	if (limit > 0)
-		return ext_offset;
+	do {
+		val = readl(base + offset);
+		if (val == ~0)
+			return 0;
+		if (offset != start && (id == 0 || XHCI_EXT_CAPS_ID(val) == id))
+			return offset;
+
+		next = XHCI_EXT_CAPS_NEXT(val);
+		offset += next << 2;
+	} while (next);
+
 	return 0;
 }

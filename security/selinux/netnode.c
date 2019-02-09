@@ -215,12 +215,12 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 		goto out;
 	switch (family) {
 	case PF_INET:
-		ret = security_node_sid(PF_INET,
+		ret = security_node_sid(&selinux_state, PF_INET,
 					addr, sizeof(struct in_addr), sid);
 		new->nsec.addr.ipv4 = *(__be32 *)addr;
 		break;
 	case PF_INET6:
-		ret = security_node_sid(PF_INET6,
+		ret = security_node_sid(&selinux_state, PF_INET6,
 					addr, sizeof(struct in6_addr), sid);
 		new->nsec.addr.ipv6 = *(struct in6_addr *)addr;
 		break;
@@ -238,9 +238,8 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 out:
 	spin_unlock_bh(&sel_netnode_lock);
 	if (unlikely(ret)) {
-		printk(KERN_WARNING
-		       "SELinux: failure in sel_netnode_sid_slow(),"
-		       " unable to determine network node label\n");
+		pr_warn("SELinux: failure in %s(), unable to determine network node label\n",
+			__func__);
 		kfree(new);
 	}
 	return ret;

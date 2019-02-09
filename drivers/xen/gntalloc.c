@@ -127,18 +127,21 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 	struct gntalloc_gref *gref, *next;
 
 	readonly = !(op->flags & GNTALLOC_FLAG_WRITABLE);
-	rc = -ENOMEM;
 	for (i = 0; i < op->count; i++) {
 		gref = kzalloc(sizeof(*gref), GFP_KERNEL);
-		if (!gref)
+		if (!gref) {
+			rc = -ENOMEM;
 			goto undo;
+		}
 		list_add_tail(&gref->next_gref, &queue_gref);
 		list_add_tail(&gref->next_file, &queue_file);
 		gref->users = 1;
 		gref->file_index = op->index + i * PAGE_SIZE;
 		gref->page = alloc_page(GFP_KERNEL|__GFP_ZERO);
-		if (!gref->page)
+		if (!gref->page) {
+			rc = -ENOMEM;
 			goto undo;
+		}
 
 		/* Grant foreign access to the page. */
 		rc = gnttab_grant_foreign_access(op->domid,
@@ -291,7 +294,7 @@ static long gntalloc_ioctl_alloc(struct gntalloc_file_private_data *priv,
 		goto out;
 	}
 
-	gref_ids = kcalloc(op.count, sizeof(gref_ids[0]), GFP_TEMPORARY);
+	gref_ids = kcalloc(op.count, sizeof(gref_ids[0]), GFP_KERNEL);
 	if (!gref_ids) {
 		rc = -ENOMEM;
 		goto out;
@@ -504,7 +507,7 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct gntalloc_file_private_data *priv = filp->private_data;
 	struct gntalloc_vma_private_data *vm_priv;
 	struct gntalloc_gref *gref;
-	int count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	int count = vma_pages(vma);
 	int rv, i;
 
 	if (!(vma->vm_flags & VM_SHARED)) {

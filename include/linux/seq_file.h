@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SEQ_FILE_H
 #define _LINUX_SEQ_FILE_H
 
@@ -7,13 +8,10 @@
 #include <linux/mutex.h>
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
+#include <linux/fs.h>
+#include <linux/cred.h>
 
 struct seq_operations;
-struct file;
-struct path;
-struct inode;
-struct dentry;
-struct user_namespace;
 
 struct seq_file {
 	char *buf;
@@ -27,9 +25,7 @@ struct seq_file {
 	struct mutex lock;
 	const struct seq_operations *op;
 	int poll_event;
-#ifdef CONFIG_USER_NS
-	struct user_namespace *user_ns;
-#endif
+	const struct file *file;
 	void *private;
 };
 
@@ -122,9 +118,14 @@ __printf(2, 3)
 void seq_printf(struct seq_file *m, const char *fmt, ...);
 void seq_putc(struct seq_file *m, char c);
 void seq_puts(struct seq_file *m, const char *s);
-void seq_put_decimal_ull(struct seq_file *m, char delimiter,
+void seq_put_decimal_ull_width(struct seq_file *m, const char *delimiter,
+			       unsigned long long num, unsigned int width);
+void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
 			 unsigned long long num);
-void seq_put_decimal_ll(struct seq_file *m, char delimiter, long long num);
+void seq_put_decimal_ll(struct seq_file *m, const char *delimiter, long long num);
+void seq_put_hex_ll(struct seq_file *m, const char *delimiter,
+		    unsigned long long v, unsigned int width);
+
 void seq_escape(struct seq_file *m, const char *s, const char *esc);
 
 void seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
@@ -144,10 +145,24 @@ void *__seq_open_private(struct file *, const struct seq_operations *, int);
 int seq_open_private(struct file *, const struct seq_operations *, int);
 int seq_release_private(struct inode *, struct file *);
 
+#define DEFINE_SHOW_ATTRIBUTE(__name)					\
+static int __name ## _open(struct inode *inode, struct file *file)	\
+{									\
+	return single_open(file, __name ## _show, inode->i_private);	\
+}									\
+									\
+static const struct file_operations __name ## _fops = {			\
+	.owner		= THIS_MODULE,					\
+	.open		= __name ## _open,				\
+	.read		= seq_read,					\
+	.llseek		= seq_lseek,					\
+	.release	= single_release,				\
+}
+
 static inline struct user_namespace *seq_user_ns(struct seq_file *seq)
 {
 #ifdef CONFIG_USER_NS
-	return seq->user_ns;
+	return seq->file->f_cred->user_ns;
 #else
 	extern struct user_namespace init_user_ns;
 	return &init_user_ns;
@@ -225,4 +240,5 @@ extern struct hlist_node *seq_hlist_start_percpu(struct hlist_head __percpu *hea
 
 extern struct hlist_node *seq_hlist_next_percpu(void *v, struct hlist_head __percpu *head, int *cpu, loff_t *pos);
 
+void seq_file_init(void);
 #endif

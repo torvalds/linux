@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2008  Qumranet, Inc.
  *  Copyright (C) 2008  SGI
- *             Christoph Lameter <clameter@sgi.com>
+ *             Christoph Lameter <cl@linux.com>
  *
  *  This work is licensed under the terms of the GNU GPL, version 2. See
  *  the COPYING file in the top-level directory.
@@ -17,10 +17,11 @@
 #include <linux/srcu.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 
 /* global SRCU for all MMs */
-static struct srcu_struct srcu;
+DEFINE_STATIC_SRCU(srcu);
 
 /*
  * This function allows mmu_notifier::release callback to delay a call to
@@ -173,37 +174,36 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
 	srcu_read_unlock(&srcu, id);
 }
 
-void __mmu_notifier_invalidate_page(struct mm_struct *mm,
-					  unsigned long address)
+int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+				  unsigned long start, unsigned long end,
+				  bool blockable)
 {
 	struct mmu_notifier *mn;
+	int ret = 0;
 	int id;
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-		if (mn->ops->invalidate_page)
-			mn->ops->invalidate_page(mn, mm, address);
+		if (mn->ops->invalidate_range_start) {
+			int _ret = mn->ops->invalidate_range_start(mn, mm, start, end, blockable);
+			if (_ret) {
+				pr_info("%pS callback failed with %d in %sblockable context.\n",
+						mn->ops->invalidate_range_start, _ret,
+						!blockable ? "non-" : "");
+				ret = _ret;
+			}
+		}
 	}
 	srcu_read_unlock(&srcu, id);
-}
 
-void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-				  unsigned long start, unsigned long end)
-{
-	struct mmu_notifier *mn;
-	int id;
-
-	id = srcu_read_lock(&srcu);
-	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-		if (mn->ops->invalidate_range_start)
-			mn->ops->invalidate_range_start(mn, mm, start, end);
-	}
-	srcu_read_unlock(&srcu, id);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
 
 void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-				  unsigned long start, unsigned long end)
+					 unsigned long start,
+					 unsigned long end,
+					 bool only_end)
 {
 	struct mmu_notifier *mn;
 	int id;
@@ -217,8 +217,13 @@ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
 		 * subsystem registers either invalidate_range_start()/end() or
 		 * invalidate_range(), so this will be no additional overhead
 		 * (besides the pointer check).
+		 *
+		 * We skip call to invalidate_range() if we know it is safe ie
+		 * call site use mmu_notifier_invalidate_range_only_end() which
+		 * is safe to do when we know that a call to invalidate_range()
+		 * already happen under page table lock.
 		 */
-		if (mn->ops->invalidate_range)
+		if (!only_end && mn->ops->invalidate_range)
 			mn->ops->invalidate_range(mn, mm, start, end);
 		if (mn->ops->invalidate_range_end)
 			mn->ops->invalidate_range_end(mn, mm, start, end);
@@ -242,6 +247,37 @@ void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 }
 EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range);
 
+/*
+ * Must be called while holding mm->mmap_sem for either read or write.
+ * The result is guaranteed to be valid until mm->mmap_sem is dropped.
+ */
+bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
+{
+	struct mmu_notifier *mn;
+	int id;
+	bool ret = false;
+
+	WARN_ON_ONCE(!rwsem_is_locked(&mm->mmap_sem));
+
+	if (!mm_has_notifiers(mm))
+		return ret;
+
+	id = srcu_read_lock(&srcu);
+	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
+		if (!mn->ops->invalidate_range &&
+		    !mn->ops->invalidate_range_start &&
+		    !mn->ops->invalidate_range_end)
+				continue;
+
+		if (!(mn->ops->flags & MMU_INVALIDATE_DOES_NOT_BLOCK)) {
+			ret = true;
+			break;
+		}
+	}
+	srcu_read_unlock(&srcu, id);
+	return ret;
+}
+
 static int do_mmu_notifier_register(struct mmu_notifier *mn,
 				    struct mm_struct *mm,
 				    int take_mmap_sem)
@@ -250,12 +286,6 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
 	int ret;
 
 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
-
-	/*
-	 * Verify that mmu_notifier_init() already run and the global srcu is
-	 * initialized.
-	 */
-	BUG_ON(!srcu.per_cpu_ref);
 
 	ret = -ENOMEM;
 	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
@@ -275,7 +305,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
 		mm->mmu_notifier_mm = mmu_notifier_mm;
 		mmu_notifier_mm = NULL;
 	}
-	atomic_inc(&mm->mm_count);
+	mmgrab(mm);
 
 	/*
 	 * Serialize the update against mmu_notifier_unregister. A
@@ -405,9 +435,3 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
 	mmdrop(mm);
 }
 EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
-
-static int __init mmu_notifier_init(void)
-{
-	return init_srcu_struct(&srcu);
-}
-subsys_initcall(mmu_notifier_init);

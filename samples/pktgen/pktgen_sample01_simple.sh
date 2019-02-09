@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Simple example:
 #  * pktgen sending with single thread and single interface
@@ -14,14 +15,16 @@ root_check_run_with_sudo "$@"
 source ${basedir}/parameters.sh
 #
 # Set some default params, if they didn't get set
-[ -z "$DEST_IP" ] && DEST_IP="198.18.0.42"
+if [ -z "$DEST_IP" ]; then
+    [ -z "$IP6" ] && DEST_IP="198.18.0.42" || DEST_IP="FD00::1"
+fi
 [ -z "$CLONE_SKB" ] && CLONE_SKB="0"
 # Example enforce param "-m" for dst_mac
 [ -z "$DST_MAC" ] && usage && err 2 "Must specify -m dst_mac"
+[ -z "$COUNT" ]   && COUNT="100000" # Zero means indefinitely
 
 # Base Config
 DELAY="0"        # Zero means max speed
-COUNT="100000"   # Zero means indefinitely
 
 # Flow variation random source port between min and max
 UDP_MIN=9
@@ -54,7 +57,7 @@ pg_set $DEV "flag NO_TIMESTAMP"
 
 # Destination
 pg_set $DEV "dst_mac $DST_MAC"
-pg_set $DEV "dst $DEST_IP"
+pg_set $DEV "dst$IP6 $DEST_IP"
 
 # Setup random UDP port src range
 pg_set $DEV "flag UDPSRC_RND"

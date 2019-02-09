@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Just like strncpy() except that if a fault occurs during copying,
  * -EFAULT is returned.
@@ -17,6 +18,7 @@
  */
 
 #include <asm/asmmacro.h>
+#include <asm/export.h>
 
 GLOBAL_ENTRY(__strncpy_from_user)
 	alloc r2=ar.pfs,3,0,0,0
@@ -42,3 +44,4 @@ GLOBAL_ENTRY(__strncpy_from_user)
 [.Lexit:]
 	br.ret.sptk.many rp
 END(__strncpy_from_user)
+EXPORT_SYMBOL(__strncpy_from_user)

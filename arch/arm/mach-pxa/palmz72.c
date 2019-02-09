@@ -30,26 +30,27 @@
 #include <linux/wm97xx.h>
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 
 #include <asm/mach-types.h>
 #include <asm/suspend.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/audio.h>
-#include <mach/palmz72.h>
+#include "palmz72.h"
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/keypad-pxa27x.h>
-#include <mach/udc.h>
+#include "udc.h"
 #include <linux/platform_data/asoc-palm27x.h>
-#include <mach/palm27x.h>
+#include "palm27x.h"
 
-#include <mach/pm.h>
-#include <linux/platform_data/camera-pxa.h>
+#include "pm.h"
+#include <linux/platform_data/media/camera-pxa.h>
 
 #include <media/soc_camera.h>
 
@@ -249,7 +250,7 @@ static int palmz72_pm_suspend(void)
 	store_ptr = *PALMZ72_SAVE_DWORD;
 
 	/* Setting PSPR to a proper value */
-	PSPR = virt_to_phys(&palmz72_resume_info);
+	PSPR = __pa_symbol(&palmz72_resume_info);
 
 	return 0;
 }
@@ -320,9 +321,17 @@ static struct soc_camera_link palmz72_iclink = {
 	.flags		= SOCAM_DATAWIDTH_8,
 };
 
+static struct gpiod_lookup_table palmz72_i2c_gpiod_table = {
+	.dev_id		= "i2c-gpio.0",
+	.table		= {
+		GPIO_LOOKUP_IDX("gpio-pxa", 118, NULL, 0,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP_IDX("gpio-pxa", 117, NULL, 1,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
+};
+
 static struct i2c_gpio_platform_data palmz72_i2c_bus_data = {
-	.sda_pin	= 118,
-	.scl_pin	= 117,
 	.udelay		= 10,
 	.timeout	= 100,
 };
@@ -369,6 +378,7 @@ static void __init palmz72_camera_init(void)
 {
 	palmz72_cam_gpio_init();
 	pxa_set_camera_info(&palmz72_pxacamera_platform_data);
+	gpiod_add_lookup_table(&palmz72_i2c_gpiod_table);
 	platform_device_register(&palmz72_i2c_bus_device);
 	platform_device_register(&palmz72_camera);
 }

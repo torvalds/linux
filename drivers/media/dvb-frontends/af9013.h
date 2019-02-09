@@ -16,41 +16,37 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef AF9013_H
 #define AF9013_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
-/* AF9013/5 GPIOs (mostly guessed)
-   demod#1-gpio#0 - set demod#2 i2c-addr for dual devices
-   demod#1-gpio#1 - xtal setting (?)
-   demod#1-gpio#3 - tuner#1
-   demod#2-gpio#0 - tuner#2
-   demod#2-gpio#1 - xtal setting (?)
-*/
+/*
+ * I2C address: 0x1c, 0x1d
+ */
 
-struct af9013_config {
+/**
+ * struct af9013_platform_data - Platform data for the af9013 driver
+ * @clk: Clock frequency.
+ * @tuner: Used tuner model.
+ * @if_frequency: IF frequency.
+ * @ts_mode: TS mode.
+ * @ts_output_pin: TS output pin.
+ * @spec_inv: Input spectrum inverted.
+ * @api_version: Firmware API version.
+ * @gpio: GPIOs.
+ * @get_dvb_frontend: Get DVB frontend callback.
+ * @get_i2c_adapter: Get I2C adapter.
+ * @pid_filter_ctrl: Control PID filter.
+ * @pid_filter: Set PID to PID filter.
+ */
+struct af9013_platform_data {
 	/*
-	 * I2C address
-	 */
-	u8 i2c_addr;
-
-	/*
-	 * clock
 	 * 20480000, 25000000, 28000000, 28800000
 	 */
-	u32 clock;
-
-	/*
-	 * tuner
-	 */
+	u32 clk;
 #define AF9013_TUNER_MXL5003D      3 /* MaxLinear */
 #define AF9013_TUNER_MXL5005D     13 /* MaxLinear */
 #define AF9013_TUNER_MXL5005R     30 /* MaxLinear */
@@ -65,33 +61,14 @@ struct af9013_config {
 #define AF9013_TUNER_MXL5007T    177 /* MaxLinear */
 #define AF9013_TUNER_TDA18218    179 /* NXP */
 	u8 tuner;
-
-	/*
-	 * IF frequency
-	 */
 	u32 if_frequency;
-
-	/*
-	 * TS settings
-	 */
-#define AF9013_TS_USB       0
-#define AF9013_TS_PARALLEL  1
-#define AF9013_TS_SERIAL    2
-	u8 ts_mode:2;
-
-	/*
-	 * input spectrum inversion
-	 */
+#define AF9013_TS_MODE_USB       0
+#define AF9013_TS_MODE_PARALLEL  1
+#define AF9013_TS_MODE_SERIAL    2
+	u8 ts_mode;
+	u8 ts_output_pin;
 	bool spec_inv;
-
-	/*
-	 * firmware API version
-	 */
 	u8 api_version[4];
-
-	/*
-	 * GPIOs
-	 */
 #define AF9013_GPIO_ON (1 << 0)
 #define AF9013_GPIO_EN (1 << 1)
 #define AF9013_GPIO_O  (1 << 2)
@@ -101,18 +78,20 @@ struct af9013_config {
 #define AF9013_GPIO_TUNER_ON  (AF9013_GPIO_ON|AF9013_GPIO_EN)
 #define AF9013_GPIO_TUNER_OFF (AF9013_GPIO_ON|AF9013_GPIO_EN|AF9013_GPIO_O)
 	u8 gpio[4];
+
+	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
+	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
+	int (*pid_filter_ctrl)(struct dvb_frontend *, int);
+	int (*pid_filter)(struct dvb_frontend *, u8, u16, int);
 };
 
-#if IS_REACHABLE(CONFIG_DVB_AF9013)
-extern struct dvb_frontend *af9013_attach(const struct af9013_config *config,
-	struct i2c_adapter *i2c);
-#else
-static inline struct dvb_frontend *af9013_attach(
-const struct af9013_config *config, struct i2c_adapter *i2c)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif /* CONFIG_DVB_AF9013 */
+/*
+ * AF9013/5 GPIOs (mostly guessed)
+ * demod#1-gpio#0 - set demod#2 i2c-addr for dual devices
+ * demod#1-gpio#1 - xtal setting (?)
+ * demod#1-gpio#3 - tuner#1
+ * demod#2-gpio#0 - tuner#2
+ * demod#2-gpio#1 - xtal setting (?)
+ */
 
 #endif /* AF9013_H */

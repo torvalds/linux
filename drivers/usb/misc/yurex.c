@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for Meywa-Denki & KAYAC YUREX
  *
  * Copyright (C) 2010 Tomoki Sekiyama (tomoki.sekiyama@gmail.com)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/kernel.h>
@@ -195,15 +191,13 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	int retval = -ENOMEM;
-	int i;
 	DEFINE_WAIT(wait);
+	int res;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (!dev)
 		goto error;
-	}
 	kref_init(&dev->kref);
 	mutex_init(&dev->io_mutex);
 	spin_lock_init(&dev->lock);
@@ -214,34 +208,24 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* set up the endpoint information */
 	iface_desc = interface->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_int_in(endpoint)) {
-			dev->int_in_endpointAddr = endpoint->bEndpointAddress;
-			break;
-		}
-	}
-	if (!dev->int_in_endpointAddr) {
-		retval = -ENODEV;
+	res = usb_find_int_in_endpoint(iface_desc, &endpoint);
+	if (res) {
 		dev_err(&interface->dev, "Could not find endpoints\n");
+		retval = res;
 		goto error;
 	}
 
+	dev->int_in_endpointAddr = endpoint->bEndpointAddress;
 
 	/* allocate control URB */
 	dev->cntl_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->cntl_urb) {
-		dev_err(&interface->dev, "Could not allocate control URB\n");
+	if (!dev->cntl_urb)
 		goto error;
-	}
 
 	/* allocate buffer for control req */
 	dev->cntl_req = kmalloc(YUREX_BUF_SIZE, GFP_KERNEL);
-	if (!dev->cntl_req) {
-		dev_err(&interface->dev, "Could not allocate cntl_req\n");
+	if (!dev->cntl_req)
 		goto error;
-	}
 
 	/* allocate buffer for control msg */
 	dev->cntl_buffer = usb_alloc_coherent(dev->udev, YUREX_BUF_SIZE,
@@ -269,10 +253,8 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* allocate interrupt URB */
 	dev->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->urb) {
-		dev_err(&interface->dev, "Could not allocate URB\n");
+	if (!dev->urb)
 		goto error;
-	}
 
 	/* allocate buffer for interrupt in */
 	dev->int_buffer = usb_alloc_coherent(dev->udev, YUREX_BUF_SIZE,
@@ -414,8 +396,7 @@ static ssize_t yurex_read(struct file *file, char __user *buffer, size_t count,
 			  loff_t *ppos)
 {
 	struct usb_yurex *dev;
-	int retval = 0;
-	int bytes_read = 0;
+	int len = 0;
 	char in_buffer[20];
 	unsigned long flags;
 
@@ -423,26 +404,19 @@ static ssize_t yurex_read(struct file *file, char __user *buffer, size_t count,
 
 	mutex_lock(&dev->io_mutex);
 	if (!dev->interface) {		/* already disconnected */
-		retval = -ENODEV;
-		goto exit;
+		mutex_unlock(&dev->io_mutex);
+		return -ENODEV;
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
-	bytes_read = snprintf(in_buffer, 20, "%lld\n", dev->bbu);
+	len = snprintf(in_buffer, 20, "%lld\n", dev->bbu);
 	spin_unlock_irqrestore(&dev->lock, flags);
-
-	if (*ppos < bytes_read) {
-		if (copy_to_user(buffer, in_buffer + *ppos, bytes_read - *ppos))
-			retval = -EFAULT;
-		else {
-			retval = bytes_read - *ppos;
-			*ppos += bytes_read;
-		}
-	}
-
-exit:
 	mutex_unlock(&dev->io_mutex);
-	return retval;
+
+	if (WARN_ON_ONCE(len >= sizeof(in_buffer)))
+		return -EIO;
+
+	return simple_read_from_buffer(buffer, count, ppos, in_buffer, len);
 }
 
 static ssize_t yurex_write(struct file *file, const char __user *user_buffer,
@@ -450,13 +424,13 @@ static ssize_t yurex_write(struct file *file, const char __user *user_buffer,
 {
 	struct usb_yurex *dev;
 	int i, set = 0, retval = 0;
-	char buffer[16];
+	char buffer[16 + 1];
 	char *data = buffer;
 	unsigned long long c, c2 = 0;
 	signed long timeout = 0;
 	DEFINE_WAIT(wait);
 
-	count = min(sizeof(buffer), count);
+	count = min(sizeof(buffer) - 1, count);
 	dev = file->private_data;
 
 	/* verify that we actually have some data to write */
@@ -475,6 +449,7 @@ static ssize_t yurex_write(struct file *file, const char __user *user_buffer,
 		retval = -EFAULT;
 		goto error;
 	}
+	buffer[count] = 0;
 	memset(dev->cntl_buffer, CMD_PADDING, YUREX_BUF_SIZE);
 
 	switch (buffer[0]) {

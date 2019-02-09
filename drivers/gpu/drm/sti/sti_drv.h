@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Author: Benjamin Gaignard <benjamin.gaignard@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef _STI_DRV_H_
@@ -24,16 +24,9 @@ struct sti_private {
 	struct sti_compositor *compo;
 	struct drm_property *plane_zorder_property;
 	struct drm_device *drm_dev;
-
-	struct {
-		struct drm_atomic_state *state;
-		struct work_struct work;
-		struct mutex lock;
-	} commit;
 };
 
 extern struct platform_driver sti_tvout_driver;
-extern struct platform_driver sti_vtac_driver;
 extern struct platform_driver sti_hqvdp_driver;
 extern struct platform_driver sti_hdmi_driver;
 extern struct platform_driver sti_hda_driver;

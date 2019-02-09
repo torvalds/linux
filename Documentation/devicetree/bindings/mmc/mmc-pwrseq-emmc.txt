@@ -1,7 +1,7 @@
 * The simple eMMC hardware reset provider
 
 The purpose of this driver is to perform standard eMMC hw reset
-procedure, as descibed by Jedec 4.4 specification. This procedure is
+procedure, as described by Jedec 4.4 specification. This procedure is
 performed just after MMC core enabled power to the given mmc host (to
 fix possible issues if bootloader has left eMMC card in initialized or
 unknown state), and before performing complete system reboot (also in

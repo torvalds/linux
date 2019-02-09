@@ -12,13 +12,12 @@
  */
 #include <linux/moduleloader.h>
 #include <asm/cacheflush.h>
+#include <asm/asm-compat.h>
 #include <linux/netdevice.h>
 #include <linux/filter.h>
 #include <linux/if_vlan.h>
 
-#include "bpf_jit.h"
-
-int bpf_jit_enable __read_mostly;
+#include "bpf_jit32.h"
 
 static inline void bpf_flush_icache(void *start, void *end)
 {
@@ -161,14 +160,14 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			break;
 		case BPF_ALU | BPF_MUL | BPF_X: /* A *= X; */
 			ctx->seen |= SEEN_XREG;
-			PPC_MUL(r_A, r_A, r_X);
+			PPC_MULW(r_A, r_A, r_X);
 			break;
 		case BPF_ALU | BPF_MUL | BPF_K: /* A *= K */
 			if (K < 32768)
 				PPC_MULI(r_A, r_A, K);
 			else {
 				PPC_LI32(r_scratch1, K);
-				PPC_MUL(r_A, r_A, r_scratch1);
+				PPC_MULW(r_A, r_A, r_scratch1);
 			}
 			break;
 		case BPF_ALU | BPF_MOD | BPF_X: /* A %= X; */
@@ -184,7 +183,7 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			}
 			if (code == (BPF_ALU | BPF_MOD | BPF_X)) {
 				PPC_DIVWU(r_scratch1, r_A, r_X);
-				PPC_MUL(r_scratch1, r_X, r_scratch1);
+				PPC_MULW(r_scratch1, r_X, r_scratch1);
 				PPC_SUB(r_A, r_A, r_scratch1);
 			} else {
 				PPC_DIVWU(r_A, r_A, r_X);
@@ -193,7 +192,7 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 		case BPF_ALU | BPF_MOD | BPF_K: /* A %= K; */
 			PPC_LI32(r_scratch2, K);
 			PPC_DIVWU(r_scratch1, r_A, r_scratch2);
-			PPC_MUL(r_scratch1, r_scratch2, r_scratch1);
+			PPC_MULW(r_scratch1, r_scratch2, r_scratch1);
 			PPC_SUB(r_A, r_A, r_scratch1);
 			break;
 		case BPF_ALU | BPF_DIV | BPF_K: /* A /= K */
@@ -328,6 +327,9 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 		case BPF_LD | BPF_W | BPF_LEN: /*	A = skb->len; */
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, len) != 4);
 			PPC_LWZ_OFFS(r_A, r_skb, offsetof(struct sk_buff, len));
+			break;
+		case BPF_LDX | BPF_W | BPF_ABS: /* A = *((u32 *)(seccomp_data + K)); */
+			PPC_LWZ_OFFS(r_A, r_skb, K);
 			break;
 		case BPF_LDX | BPF_W | BPF_LEN: /* X = skb->len; */
 			PPC_LWZ_OFFS(r_X, r_skb, offsetof(struct sk_buff, len));
@@ -565,7 +567,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	if (!bpf_jit_enable)
 		return;
 
-	addrs = kzalloc((flen+1) * sizeof(*addrs), GFP_KERNEL);
+	addrs = kcalloc(flen + 1, sizeof(*addrs), GFP_KERNEL);
 	if (addrs == NULL)
 		return;
 
@@ -662,16 +664,17 @@ void bpf_jit_compile(struct bpf_prog *fp)
 		 */
 		bpf_jit_dump(flen, proglen, pass, code_base);
 
-	if (image) {
-		bpf_flush_icache(code_base, code_base + (proglen/4));
+	bpf_flush_icache(code_base, code_base + (proglen/4));
+
 #ifdef CONFIG_PPC64
-		/* Function descriptor nastiness: Address + TOC */
-		((u64 *)image)[0] = (u64)code_base;
-		((u64 *)image)[1] = local_paca->kernel_toc;
+	/* Function descriptor nastiness: Address + TOC */
+	((u64 *)image)[0] = (u64)code_base;
+	((u64 *)image)[1] = local_paca->kernel_toc;
 #endif
-		fp->bpf_func = (void *)image;
-		fp->jited = 1;
-	}
+
+	fp->bpf_func = (void *)image;
+	fp->jited = 1;
+
 out:
 	kfree(addrs);
 	return;

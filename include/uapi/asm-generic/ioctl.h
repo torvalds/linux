@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_GENERIC_IOCTL_H
 #define _UAPI_ASM_GENERIC_IOCTL_H
 
@@ -48,6 +49,9 @@
 /*
  * Direction bits, which any architecture can choose to override
  * before including this file.
+ *
+ * NOTE: _IOC_WRITE means userland is writing and kernel is
+ * reading. _IOC_READ means userland is reading and kernel is writing.
  */
 
 #ifndef _IOC_NONE
@@ -72,7 +76,12 @@
 #define _IOC_TYPECHECK(t) (sizeof(t))
 #endif
 
-/* used to create numbers */
+/*
+ * Used to create numbers.
+ *
+ * NOTE: _IOW means userland is writing and kernel is reading. _IOR
+ * means userland is reading and kernel is writing.
+ */
 #define _IO(type,nr)		_IOC(_IOC_NONE,(type),(nr),0)
 #define _IOR(type,nr,size)	_IOC(_IOC_READ,(type),(nr),(_IOC_TYPECHECK(size)))
 #define _IOW(type,nr,size)	_IOC(_IOC_WRITE,(type),(nr),(_IOC_TYPECHECK(size)))

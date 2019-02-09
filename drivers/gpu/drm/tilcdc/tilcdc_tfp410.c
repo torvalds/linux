@@ -20,8 +20,10 @@
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "tilcdc_drv.h"
+#include "tilcdc_tfp410.h"
 
 struct tfp410_module {
 	struct tilcdc_module base;
@@ -54,14 +56,6 @@ struct tfp410_encoder {
 };
 #define to_tfp410_encoder(x) container_of(x, struct tfp410_encoder, base)
 
-
-static void tfp410_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct tfp410_encoder *tfp410_encoder = to_tfp410_encoder(encoder);
-	drm_encoder_cleanup(encoder);
-	kfree(tfp410_encoder);
-}
-
 static void tfp410_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct tfp410_encoder *tfp410_encoder = to_tfp410_encoder(encoder);
@@ -80,18 +74,9 @@ static void tfp410_encoder_dpms(struct drm_encoder *encoder, int mode)
 	tfp410_encoder->dpms = mode;
 }
 
-static bool tfp410_encoder_mode_fixup(struct drm_encoder *encoder,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	/* nothing needed */
-	return true;
-}
-
 static void tfp410_encoder_prepare(struct drm_encoder *encoder)
 {
 	tfp410_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
-	tilcdc_crtc_set_panel_info(encoder->crtc, &dvi_info);
 }
 
 static void tfp410_encoder_commit(struct drm_encoder *encoder)
@@ -107,12 +92,11 @@ static void tfp410_encoder_mode_set(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_funcs tfp410_encoder_funcs = {
-		.destroy        = tfp410_encoder_destroy,
+		.destroy        = drm_encoder_cleanup,
 };
 
 static const struct drm_encoder_helper_funcs tfp410_encoder_helper_funcs = {
 		.dpms           = tfp410_encoder_dpms,
-		.mode_fixup     = tfp410_encoder_mode_fixup,
 		.prepare        = tfp410_encoder_prepare,
 		.commit         = tfp410_encoder_commit,
 		.mode_set       = tfp410_encoder_mode_set,
@@ -125,11 +109,10 @@ static struct drm_encoder *tfp410_encoder_create(struct drm_device *dev,
 	struct drm_encoder *encoder;
 	int ret;
 
-	tfp410_encoder = kzalloc(sizeof(*tfp410_encoder), GFP_KERNEL);
-	if (!tfp410_encoder) {
-		dev_err(dev->dev, "allocation failed\n");
+	tfp410_encoder = devm_kzalloc(dev->dev, sizeof(*tfp410_encoder),
+				      GFP_KERNEL);
+	if (!tfp410_encoder)
 		return NULL;
-	}
 
 	tfp410_encoder->dpms = DRM_MODE_DPMS_OFF;
 	tfp410_encoder->mod = mod;
@@ -138,7 +121,7 @@ static struct drm_encoder *tfp410_encoder_create(struct drm_device *dev,
 	encoder->possible_crtcs = 1;
 
 	ret = drm_encoder_init(dev, encoder, &tfp410_encoder_funcs,
-			DRM_MODE_ENCODER_TMDS);
+			DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret < 0)
 		goto fail;
 
@@ -147,7 +130,7 @@ static struct drm_encoder *tfp410_encoder_create(struct drm_device *dev,
 	return encoder;
 
 fail:
-	tfp410_encoder_destroy(encoder);
+	drm_encoder_cleanup(encoder);
 	return NULL;
 }
 
@@ -166,10 +149,8 @@ struct tfp410_connector {
 
 static void tfp410_connector_destroy(struct drm_connector *connector)
 {
-	struct tfp410_connector *tfp410_connector = to_tfp410_connector(connector);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(tfp410_connector);
 }
 
 static enum drm_connector_status tfp410_connector_detect(
@@ -192,7 +173,7 @@ static int tfp410_connector_get_modes(struct drm_connector *connector)
 
 	edid = drm_get_edid(connector, tfp410_connector->mod->i2c);
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 
 	if (edid) {
 		ret = drm_add_edid_modes(connector, edid);
@@ -219,9 +200,11 @@ static struct drm_encoder *tfp410_connector_best_encoder(
 
 static const struct drm_connector_funcs tfp410_connector_funcs = {
 	.destroy            = tfp410_connector_destroy,
-	.dpms               = drm_helper_connector_dpms,
 	.detect             = tfp410_connector_detect,
 	.fill_modes         = drm_helper_probe_single_connector_modes,
+	.reset              = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_connector_helper_funcs tfp410_connector_helper_funcs = {
@@ -237,11 +220,10 @@ static struct drm_connector *tfp410_connector_create(struct drm_device *dev,
 	struct drm_connector *connector;
 	int ret;
 
-	tfp410_connector = kzalloc(sizeof(*tfp410_connector), GFP_KERNEL);
-	if (!tfp410_connector) {
-		dev_err(dev->dev, "allocation failed\n");
+	tfp410_connector = devm_kzalloc(dev->dev, sizeof(*tfp410_connector),
+					GFP_KERNEL);
+	if (!tfp410_connector)
 		return NULL;
-	}
 
 	tfp410_connector->encoder = encoder;
 	tfp410_connector->mod = mod;
@@ -258,11 +240,9 @@ static struct drm_connector *tfp410_connector_create(struct drm_device *dev,
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
 		goto fail;
-
-	drm_connector_register(connector);
 
 	return connector;
 
@@ -293,6 +273,7 @@ static int tfp410_modeset_init(struct tilcdc_module *mod, struct drm_device *dev
 	priv->encoders[priv->num_encoders++] = encoder;
 	priv->connectors[priv->num_connectors++] = connector;
 
+	tilcdc_crtc_set_panel_info(priv->crtc, &dvi_info);
 	return 0;
 }
 
@@ -303,8 +284,6 @@ static const struct tilcdc_module_ops tfp410_module_ops = {
 /*
  * Device:
  */
-
-static struct of_device_id tfp410_of_match[];
 
 static int tfp410_probe(struct platform_device *pdev)
 {
@@ -322,7 +301,7 @@ static int tfp410_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	tfp410_mod = kzalloc(sizeof(*tfp410_mod), GFP_KERNEL);
+	tfp410_mod = devm_kzalloc(&pdev->dev, sizeof(*tfp410_mod), GFP_KERNEL);
 	if (!tfp410_mod)
 		return -ENOMEM;
 
@@ -339,8 +318,6 @@ static int tfp410_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not get i2c bus phandle\n");
 		goto fail;
 	}
-
-	mod->preferred_bpp = dvi_info.bpp;
 
 	i2c_node = of_find_node_by_phandle(i2c_phandle);
 	if (!i2c_node) {
@@ -359,7 +336,7 @@ static int tfp410_probe(struct platform_device *pdev)
 
 	tfp410_mod->gpio = of_get_named_gpio_flags(node, "powerdn-gpio",
 			0, NULL);
-	if (IS_ERR_VALUE(tfp410_mod->gpio)) {
+	if (tfp410_mod->gpio < 0) {
 		dev_warn(&pdev->dev, "No power down GPIO\n");
 	} else {
 		ret = gpio_request(tfp410_mod->gpio, "DVI_PDn");
@@ -375,7 +352,6 @@ fail_adapter:
 	i2c_put_adapter(tfp410_mod->i2c);
 
 fail:
-	kfree(tfp410_mod);
 	tilcdc_module_cleanup(mod);
 	return ret;
 }
@@ -389,12 +365,11 @@ static int tfp410_remove(struct platform_device *pdev)
 	gpio_free(tfp410_mod->gpio);
 
 	tilcdc_module_cleanup(mod);
-	kfree(tfp410_mod);
 
 	return 0;
 }
 
-static struct of_device_id tfp410_of_match[] = {
+static const struct of_device_id tfp410_of_match[] = {
 		{ .compatible = "ti,tilcdc,tfp410", },
 		{ },
 };

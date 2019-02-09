@@ -241,7 +241,6 @@ static int max7359_probe(struct i2c_client *client,
 	/* Initialize MAX7359 */
 	max7359_initialize(client);
 
-	i2c_set_clientdata(client, keypad);
 	device_init_wakeup(&client->dev, 1);
 
 	return 0;

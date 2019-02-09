@@ -11,6 +11,10 @@ Required properties:
 - interrupts : The designated IRQ line for the RNG
 - clocks : The clock needed to enable the RNG
 
+Optional properties:
+- resets : The reset to properly start RNG
+- clock-error-detect : Enable the clock detection management
+
 Example:
 
 	rng: rng@50060800 {

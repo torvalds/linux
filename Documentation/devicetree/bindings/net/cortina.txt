@@ -1,0 +1,21 @@
+Cortina Phy Driver Device Tree Bindings
+---------------------------------------
+
+CORTINA is a registered trademark of Cortina Systems, Inc.
+
+The driver supports the Cortina Electronic Dispersion Compensation (EDC)
+devices, equipped with clock and data recovery (CDR) circuits. These
+devices make use of registers that are not compatible with Clause 45 or
+Clause 22, therefore they need to be described using the
+"ethernet-phy-id" compatible.
+
+Since the driver only implements  polling mode support, interrupts info
+can be skipped.
+
+Example (CS4340 phy):
+	mdio {
+		cs4340_phy@10 {
+			compatible = "ethernet-phy-id13e5.1002";
+			reg = <0x10>;
+		};
+	};

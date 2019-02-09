@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * mpc624.c
  * Hardware driver for a Micro/sys inc. MPC-624 PC/104 board
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -103,7 +94,7 @@ static const struct comedi_lrange range_mpc624_bipolar1 = {
 /* BIP_RANGE(1.01)  this is correct, */
 	 /*  but my MPC-624 actually seems to have a range of 2.02 */
 	 BIP_RANGE(2.02)
-	 }
+	}
 };
 
 static const struct comedi_lrange range_mpc624_bipolar10 = {
@@ -112,7 +103,7 @@ static const struct comedi_lrange range_mpc624_bipolar10 = {
 /* BIP_RANGE(10.1)   this is correct, */
 	 /*  but my MPC-624 actually seems to have a range of 20.2 */
 	 BIP_RANGE(20.2)
-	 }
+	}
 };
 
 static unsigned int mpc624_ai_get_sample(struct comedi_device *dev,

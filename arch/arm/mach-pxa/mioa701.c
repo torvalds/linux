@@ -42,24 +42,23 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/max1586.h>
 #include <linux/slab.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa27x.h>
-#include <mach/regs-rtc.h>
+#include "pxa27x.h"
+#include "regs-rtc.h"
 #include <linux/platform_data/keypad-pxa27x.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
-#include <mach/udc.h>
-#include <mach/pxa27x-udc.h>
-#include <linux/platform_data/camera-pxa.h>
+#include "udc.h"
+#include "pxa27x-udc.h"
+#include <linux/platform_data/media/camera-pxa.h>
 #include <mach/audio.h>
 #include <mach/smemc.h>
-#include <media/soc_camera.h>
 
-#include <mach/mioa701.h>
+#include "mioa701.h"
 
 #include "generic.h"
 #include "devices.h"
@@ -627,6 +626,8 @@ struct pxacamera_platform_data mioa701_pxacamera_platform_data = {
 	.flags  = PXA_CAMERA_MASTER | PXA_CAMERA_DATAWIDTH_8 |
 		PXA_CAMERA_PCLK_EN | PXA_CAMERA_MCLK_EN,
 	.mclk_10khz = 5000,
+	.sensor_i2c_adapter_id = 0,
+	.sensor_i2c_address = 0x5d,
 };
 
 static struct i2c_board_info __initdata mioa701_pi2c_devices[] = {
@@ -641,12 +642,6 @@ static struct i2c_board_info mioa701_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("mt9m111", 0x5d),
 	},
-};
-
-static struct soc_camera_link iclink = {
-	.bus_id		= 0, /* Match id in pxa27x_device_camera in device.c */
-	.board_info	= &mioa701_i2c_devices[0],
-	.i2c_adapter_id	= 0,
 };
 
 struct i2c_pxa_platform_data i2c_pdata = {
@@ -682,21 +677,17 @@ MIO_SIMPLE_DEV(mioa701_led,	  "leds-gpio",	    &gpio_led_info)
 MIO_SIMPLE_DEV(pxa2xx_pcm,	  "pxa2xx-pcm",	    NULL)
 MIO_SIMPLE_DEV(mioa701_sound,	  "mioa701-wm9713", NULL)
 MIO_SIMPLE_DEV(mioa701_board,	  "mioa701-board",  NULL)
-MIO_SIMPLE_DEV(wm9713_acodec,	  "wm9713-codec",   NULL);
 MIO_SIMPLE_DEV(gpio_vbus,	  "gpio-vbus",      &gpio_vbus_data);
-MIO_SIMPLE_DEV(mioa701_camera,	  "soc-camera-pdrv",&iclink);
 
 static struct platform_device *devices[] __initdata = {
 	&mioa701_gpio_keys,
 	&mioa701_backlight,
 	&mioa701_led,
-	&wm9713_acodec,
 	&pxa2xx_pcm,
 	&mioa701_sound,
 	&power_dev,
 	&docg3,
 	&gpio_vbus,
-	&mioa701_camera,
 	&mioa701_board,
 };
 
@@ -761,6 +752,7 @@ static void __init mioa701_machine_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gsm_init();
 
+	i2c_register_board_info(0, ARRAY_AND_SIZE(mioa701_i2c_devices));
 	i2c_register_board_info(1, ARRAY_AND_SIZE(mioa701_pi2c_devices));
 	pxa_set_i2c_info(&i2c_pdata);
 	pxa27x_set_i2c_power_info(NULL);
@@ -769,6 +761,7 @@ static void __init mioa701_machine_init(void)
 	regulator_register_always_on(0, "fixed-5.0V", fixed_5v0_consumers,
 				     ARRAY_SIZE(fixed_5v0_consumers),
 				     5000000);
+	regulator_has_full_constraints();
 }
 
 static void mioa701_machine_exit(void)

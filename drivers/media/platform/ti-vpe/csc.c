@@ -14,6 +14,7 @@
 
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
@@ -96,6 +97,8 @@ void csc_dump_regs(struct csc_data *csc)
 #define DUMPREG(r) dev_dbg(dev, "%-35s %08x\n", #r, \
 	ioread32(csc->base + CSC_##r))
 
+	dev_dbg(dev, "CSC Registers @ %pa:\n", &csc->res->start);
+
 	DUMPREG(CSC00);
 	DUMPREG(CSC01);
 	DUMPREG(CSC02);
@@ -105,11 +108,13 @@ void csc_dump_regs(struct csc_data *csc)
 
 #undef DUMPREG
 }
+EXPORT_SYMBOL(csc_dump_regs);
 
 void csc_set_coeff_bypass(struct csc_data *csc, u32 *csc_reg5)
 {
 	*csc_reg5 |= CSC_BYPASS;
 }
+EXPORT_SYMBOL(csc_set_coeff_bypass);
 
 /*
  * set the color space converter coefficient shadow register values
@@ -160,8 +165,9 @@ void csc_set_coeff(struct csc_data *csc, u32 *csc_reg0,
 	for (; coeff < end_coeff; coeff += 2)
 		*shadow_csc++ = (*(coeff + 1) << 16) | *coeff;
 }
+EXPORT_SYMBOL(csc_set_coeff);
 
-struct csc_data *csc_create(struct platform_device *pdev)
+struct csc_data *csc_create(struct platform_device *pdev, const char *res_name)
 {
 	struct csc_data *csc;
 
@@ -176,9 +182,10 @@ struct csc_data *csc_create(struct platform_device *pdev)
 	csc->pdev = pdev;
 
 	csc->res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-			"csc");
+						res_name);
 	if (csc->res == NULL) {
-		dev_err(&pdev->dev, "missing platform resources data\n");
+		dev_err(&pdev->dev, "missing '%s' platform resources data\n",
+			res_name);
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -190,3 +197,8 @@ struct csc_data *csc_create(struct platform_device *pdev)
 
 	return csc;
 }
+EXPORT_SYMBOL(csc_create);
+
+MODULE_DESCRIPTION("TI VIP/VPE Color Space Converter");
+MODULE_AUTHOR("Texas Instruments Inc.");
+MODULE_LICENSE("GPL v2");

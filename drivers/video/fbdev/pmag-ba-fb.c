@@ -43,7 +43,7 @@ struct pmagbafb_par {
 };
 
 
-static struct fb_var_screeninfo pmagbafb_defined = {
+static const struct fb_var_screeninfo pmagbafb_defined = {
 	.xres		= 1024,
 	.yres		= 864,
 	.xres_virtual	= 1024,
@@ -60,14 +60,14 @@ static struct fb_var_screeninfo pmagbafb_defined = {
 	.left_margin	= 116,
 	.right_margin	= 12,
 	.upper_margin	= 34,
-	.lower_margin	= 12,
+	.lower_margin	= 0,
 	.hsync_len	= 128,
 	.vsync_len	= 3,
 	.sync		= FB_SYNC_ON_GREEN,
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-static struct fb_fix_screeninfo pmagbafb_fix = {
+static const struct fb_fix_screeninfo pmagbafb_fix = {
 	.id		= "PMAG-BA",
 	.smem_len	= (1024 * 1024),
 	.type		= FB_TYPE_PACKED_PIXELS,
@@ -129,7 +129,7 @@ static struct fb_ops pmagbafb_ops = {
 /*
  * Turn the hardware cursor off.
  */
-static void __init pmagbafb_erase_cursor(struct fb_info *info)
+static void pmagbafb_erase_cursor(struct fb_info *info)
 {
 	struct pmagbafb_par *par = info->par;
 
@@ -235,7 +235,7 @@ err_alloc:
 	return err;
 }
 
-static int __exit pmagbafb_remove(struct device *dev)
+static int pmagbafb_remove(struct device *dev)
 {
 	struct tc_dev *tdev = to_tc_dev(dev);
 	struct fb_info *info = dev_get_drvdata(dev);
@@ -270,7 +270,7 @@ static struct tc_driver pmagbafb_driver = {
 		.name	= "pmagbafb",
 		.bus	= &tc_bus_type,
 		.probe	= pmagbafb_probe,
-		.remove	= __exit_p(pmagbafb_remove),
+		.remove	= pmagbafb_remove,
 	},
 };
 

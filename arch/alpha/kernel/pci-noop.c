@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	linux/arch/alpha/kernel/pci-noop.c
  *
@@ -14,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
+#include <linux/syscalls.h>
 
 #include "proto.h"
 
@@ -42,15 +44,11 @@ alloc_pci_controller(void)
 struct resource * __init
 alloc_resource(void)
 {
-	struct resource *res;
-
-	res = alloc_bootmem(sizeof(*res));
-
-	return res;
+	return alloc_bootmem(sizeof(struct resource));
 }
 
-asmlinkage long
-sys_pciconfig_iobase(long which, unsigned long bus, unsigned long dfn)
+SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, bus,
+		unsigned long, dfn)
 {
 	struct pci_controller *hose;
 
@@ -87,9 +85,8 @@ sys_pciconfig_iobase(long which, unsigned long bus, unsigned long dfn)
 	return -EOPNOTSUPP;
 }
 
-asmlinkage long
-sys_pciconfig_read(unsigned long bus, unsigned long dfn,
-		   unsigned long off, unsigned long len, void *buf)
+SYSCALL_DEFINE5(pciconfig_read, unsigned long, bus, unsigned long, dfn,
+		unsigned long, off, unsigned long, len, void __user *, buf)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -97,83 +94,11 @@ sys_pciconfig_read(unsigned long bus, unsigned long dfn,
 		return -ENODEV;
 }
 
-asmlinkage long
-sys_pciconfig_write(unsigned long bus, unsigned long dfn,
-		    unsigned long off, unsigned long len, void *buf)
+SYSCALL_DEFINE5(pciconfig_write, unsigned long, bus, unsigned long, dfn,
+		unsigned long, off, unsigned long, len, void __user *, buf)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	else
 		return -ENODEV;
 }
-
-static void *alpha_noop_alloc_coherent(struct device *dev, size_t size,
-				       dma_addr_t *dma_handle, gfp_t gfp,
-				       struct dma_attrs *attrs)
-{
-	void *ret;
-
-	if (!dev || *dev->dma_mask >= 0xffffffffUL)
-		gfp &= ~GFP_DMA;
-	ret = (void *)__get_free_pages(gfp, get_order(size));
-	if (ret) {
-		memset(ret, 0, size);
-		*dma_handle = virt_to_phys(ret);
-	}
-	return ret;
-}
-
-static void alpha_noop_free_coherent(struct device *dev, size_t size,
-				     void *cpu_addr, dma_addr_t dma_addr,
-				     struct dma_attrs *attrs)
-{
-	free_pages((unsigned long)cpu_addr, get_order(size));
-}
-
-static dma_addr_t alpha_noop_map_page(struct device *dev, struct page *page,
-				      unsigned long offset, size_t size,
-				      enum dma_data_direction dir,
-				      struct dma_attrs *attrs)
-{
-	return page_to_pa(page) + offset;
-}
-
-static int alpha_noop_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
-			     enum dma_data_direction dir, struct dma_attrs *attrs)
-{
-	int i;
-	struct scatterlist *sg;
-
-	for_each_sg(sgl, sg, nents, i) {
-		void *va;
-
-		BUG_ON(!sg_page(sg));
-		va = sg_virt(sg);
-		sg_dma_address(sg) = (dma_addr_t)virt_to_phys(va);
-		sg_dma_len(sg) = sg->length;
-	}
-
-	return nents;
-}
-
-static int alpha_noop_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return 0;
-}
-
-static int alpha_noop_supported(struct device *dev, u64 mask)
-{
-	return mask < 0x00ffffffUL ? 0 : 1;
-}
-
-struct dma_map_ops alpha_noop_ops = {
-	.alloc			= alpha_noop_alloc_coherent,
-	.free			= alpha_noop_free_coherent,
-	.map_page		= alpha_noop_map_page,
-	.map_sg			= alpha_noop_map_sg,
-	.mapping_error		= alpha_noop_mapping_error,
-	.dma_supported		= alpha_noop_supported,
-};
-
-struct dma_map_ops *dma_ops = &alpha_noop_ops;
-EXPORT_SYMBOL(dma_ops);

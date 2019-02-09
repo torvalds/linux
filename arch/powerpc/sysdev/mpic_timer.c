@@ -47,9 +47,6 @@
 #define MAX_TICKS_CASCADE		(~0U)
 #define TIMER_OFFSET(num)		(1 << (TIMERS_PER_GROUP - 1 - num))
 
-/* tv_usec should be less than ONE_SECOND, otherwise use tv_sec */
-#define ONE_SECOND			1000000
-
 struct timer_regs {
 	u32	gtccr;
 	u32	res0[3];
@@ -90,51 +87,23 @@ static struct cascade_priv cascade_timer[] = {
 static LIST_HEAD(timer_group_list);
 
 static void convert_ticks_to_time(struct timer_group_priv *priv,
-		const u64 ticks, struct timeval *time)
+		const u64 ticks, time64_t *time)
 {
-	u64 tmp_sec;
-
-	time->tv_sec = (__kernel_time_t)div_u64(ticks, priv->timerfreq);
-	tmp_sec = (u64)time->tv_sec * (u64)priv->timerfreq;
-
-	time->tv_usec = 0;
-
-	if (tmp_sec <= ticks)
-		time->tv_usec = (__kernel_suseconds_t)
-			div_u64((ticks - tmp_sec) * 1000000, priv->timerfreq);
-
-	return;
+	*time = (u64)div_u64(ticks, priv->timerfreq);
 }
 
 /* the time set by the user is converted to "ticks" */
 static int convert_time_to_ticks(struct timer_group_priv *priv,
-		const struct timeval *time, u64 *ticks)
+		time64_t time, u64 *ticks)
 {
 	u64 max_value;		/* prevent u64 overflow */
-	u64 tmp = 0;
-
-	u64 tmp_sec;
-	u64 tmp_ms;
-	u64 tmp_us;
 
 	max_value = div_u64(ULLONG_MAX, priv->timerfreq);
 
-	if (time->tv_sec > max_value ||
-			(time->tv_sec == max_value && time->tv_usec > 0))
+	if (time > max_value)
 		return -EINVAL;
 
-	tmp_sec = (u64)time->tv_sec * (u64)priv->timerfreq;
-	tmp += tmp_sec;
-
-	tmp_ms = time->tv_usec / 1000;
-	tmp_ms = div_u64((u64)tmp_ms * (u64)priv->timerfreq, 1000);
-	tmp += tmp_ms;
-
-	tmp_us = time->tv_usec % 1000;
-	tmp_us = div_u64((u64)tmp_us * (u64)priv->timerfreq, 1000000);
-	tmp += tmp_us;
-
-	*ticks = tmp;
+	*ticks = (u64)time * (u64)priv->timerfreq;
 
 	return 0;
 }
@@ -223,7 +192,7 @@ static struct mpic_timer *get_cascade_timer(struct timer_group_priv *priv,
 	return allocated_timer;
 }
 
-static struct mpic_timer *get_timer(const struct timeval *time)
+static struct mpic_timer *get_timer(time64_t time)
 {
 	struct timer_group_priv *priv;
 	struct mpic_timer *timer;
@@ -277,7 +246,7 @@ static struct mpic_timer *get_timer(const struct timeval *time)
  * @handle: the timer to be started.
  *
  * It will do ->fn(->dev) callback from the hardware interrupt at
- * the ->timeval point in the future.
+ * the 'time64_t' point in the future.
  */
 void mpic_start_timer(struct mpic_timer *handle)
 {
@@ -319,7 +288,7 @@ EXPORT_SYMBOL(mpic_stop_timer);
  *
  * Query timer remaining time.
  */
-void mpic_get_remain_time(struct mpic_timer *handle, struct timeval *time)
+void mpic_get_remain_time(struct mpic_timer *handle, time64_t *time)
 {
 	struct timer_group_priv *priv = container_of(handle,
 			struct timer_group_priv, timer[handle->num]);
@@ -391,7 +360,7 @@ EXPORT_SYMBOL(mpic_free_timer);
  * else "handle" on success.
  */
 struct mpic_timer *mpic_request_timer(irq_handler_t fn, void *dev,
-					const struct timeval *time)
+				      time64_t time)
 {
 	struct mpic_timer *allocated_timer;
 	int ret;
@@ -399,11 +368,7 @@ struct mpic_timer *mpic_request_timer(irq_handler_t fn, void *dev,
 	if (list_empty(&timer_group_list))
 		return NULL;
 
-	if (!(time->tv_sec + time->tv_usec) ||
-			time->tv_sec < 0 || time->tv_usec < 0)
-		return NULL;
-
-	if (time->tv_usec > ONE_SECOND)
+	if (time < 0)
 		return NULL;
 
 	allocated_timer = get_timer(time);
@@ -466,8 +431,7 @@ static int timer_group_get_irq(struct device_node *np,
 
 	p = of_get_property(np, "fsl,available-ranges", &len);
 	if (p && len % (2 * sizeof(u32)) != 0) {
-		pr_err("%s: malformed available-ranges property.\n",
-				np->full_name);
+		pr_err("%pOF: malformed available-ranges property.\n", np);
 		return -EINVAL;
 	}
 
@@ -484,8 +448,7 @@ static int timer_group_get_irq(struct device_node *np,
 		for (j = 0; j < count; j++) {
 			irq = irq_of_parse_and_map(np, irq_index);
 			if (!irq) {
-				pr_err("%s: irq parse and map failed.\n",
-						np->full_name);
+				pr_err("%pOF: irq parse and map failed.\n", np);
 				return -EINVAL;
 			}
 
@@ -508,8 +471,7 @@ static void timer_group_init(struct device_node *np)
 
 	priv = kzalloc(sizeof(struct timer_group_priv), GFP_KERNEL);
 	if (!priv) {
-		pr_err("%s: cannot allocate memory for group.\n",
-				np->full_name);
+		pr_err("%pOF: cannot allocate memory for group.\n", np);
 		return;
 	}
 
@@ -518,29 +480,27 @@ static void timer_group_init(struct device_node *np)
 
 	priv->regs = of_iomap(np, i++);
 	if (!priv->regs) {
-		pr_err("%s: cannot ioremap timer register address.\n",
-				np->full_name);
+		pr_err("%pOF: cannot ioremap timer register address.\n", np);
 		goto out;
 	}
 
 	if (priv->flags & FSL_GLOBAL_TIMER) {
 		priv->group_tcr = of_iomap(np, i++);
 		if (!priv->group_tcr) {
-			pr_err("%s: cannot ioremap tcr address.\n",
-					np->full_name);
+			pr_err("%pOF: cannot ioremap tcr address.\n", np);
 			goto out;
 		}
 	}
 
 	ret = timer_group_get_freq(np, priv);
 	if (ret < 0) {
-		pr_err("%s: cannot get timer frequency.\n", np->full_name);
+		pr_err("%pOF: cannot get timer frequency.\n", np);
 		goto out;
 	}
 
 	ret = timer_group_get_irq(np, priv);
 	if (ret < 0) {
-		pr_err("%s: cannot get timer irqs.\n", np->full_name);
+		pr_err("%pOF: cannot get timer irqs.\n", np);
 		goto out;
 	}
 

@@ -21,13 +21,13 @@
 #include <linux/ptrace.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/txx9/ndfmc.h>
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
 #include <asm/traps.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9/generic.h>
-#include <asm/txx9/ndfmc.h>
 #include <asm/txx9/dmac.h>
 #include <asm/txx9/tx4939.h>
 
@@ -221,8 +221,8 @@ void __init tx4939_setup(void)
 		(txx9_master_clock + 500000) / 1000000,
 		(txx9_gbus_clock + 500000) / 1000000,
 		(__u32)____raw_readq(&tx4939_ccfgptr->crir),
-		(unsigned long long)____raw_readq(&tx4939_ccfgptr->ccfg),
-		(unsigned long long)____raw_readq(&tx4939_ccfgptr->pcfg));
+		____raw_readq(&tx4939_ccfgptr->ccfg),
+		____raw_readq(&tx4939_ccfgptr->pcfg));
 
 	pr_info("%s DDRC -- EN:%08x", txx9_pcode_str,
 		(__u32)____raw_readq(&tx4939_ddrcptr->winen));
@@ -230,7 +230,7 @@ void __init tx4939_setup(void)
 		__u64 win = ____raw_readq(&tx4939_ddrcptr->win[i]);
 		if (!((__u32)____raw_readq(&tx4939_ddrcptr->winen) & (1 << i)))
 			continue;	/* disabled */
-		printk(KERN_CONT " #%d:%016llx", i, (unsigned long long)win);
+		pr_cont(" #%d:%016llx", i, win);
 		tx4939_sdram_resource[i].name = "DDR SDRAM";
 		tx4939_sdram_resource[i].start =
 			(unsigned long)(win >> 48) << 20;
@@ -240,7 +240,7 @@ void __init tx4939_setup(void)
 		tx4939_sdram_resource[i].flags = IORESOURCE_MEM;
 		request_resource(&iomem_resource, &tx4939_sdram_resource[i]);
 	}
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 
 	/* SRAM */
 	if (____raw_readq(&tx4939_sramcptr->cr) & 1) {
@@ -320,11 +320,12 @@ void __init tx4939_sio_init(unsigned int sclk, unsigned int cts_mask)
 #if IS_ENABLED(CONFIG_TC35815)
 static u32 tx4939_get_eth_speed(struct net_device *dev)
 {
-	struct ethtool_cmd cmd;
-	if (__ethtool_get_settings(dev, &cmd))
+	struct ethtool_link_ksettings cmd;
+
+	if (__ethtool_get_link_ksettings(dev, &cmd))
 		return 100;	/* default 100Mbps */
 
-	return ethtool_cmd_speed(&cmd);
+	return cmd.base.speed;
 }
 
 static int tx4939_netdev_event(struct notifier_block *this,

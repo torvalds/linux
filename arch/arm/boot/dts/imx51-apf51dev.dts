@@ -16,7 +16,7 @@
 	model = "Armadeus Systems APF51Dev docking/development board";
 	compatible = "armadeus,imx51-apf51dev", "armadeus,imx51-apf51", "fsl,imx51";
 
-	backlight@bl1{
+	backlight {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_backlight>;
 		compatible = "gpio-backlight";
@@ -24,7 +24,7 @@
 		default-on;
 	};
 
-	display@di1 {
+	disp1 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "bgr666";
 		pinctrl-names = "default";
@@ -51,7 +51,7 @@
 
 		port {
 			display_in: endpoint {
-				remote-endpoint = <&ipu_di0_disp0>;
+				remote-endpoint = <&ipu_di0_disp1>;
 			};
 		};
 	};
@@ -80,7 +80,6 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>,
 		   <&gpio4 25 GPIO_ACTIVE_HIGH>;
 	status = "okay";
@@ -89,7 +88,6 @@
 &ecspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio3 28 GPIO_ACTIVE_LOW>,
 		   <&gpio3 27 GPIO_ACTIVE_LOW>;
 	status = "okay";
@@ -122,7 +120,7 @@
 	pinctrl-0 = <&pinctrl_hog>;
 
 	imx51-apf51dev {
-		pinctrl_backlight: bl1grp {
+		pinctrl_backlight: backlightgrp {
 			fsl,pins = <
 				MX51_PAD_DI1_D1_CS__GPIO3_4 0x1F5
 			>;
@@ -220,6 +218,6 @@
 	};
 };
 
-&ipu_di0_disp0 {
+&ipu_di0_disp1 {
 	remote-endpoint = <&display_in>;
 };

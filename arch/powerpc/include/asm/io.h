@@ -25,16 +25,13 @@ extern struct pci_dev *isa_bridge_pcidev;
 #endif
 
 #include <linux/device.h>
-#include <linux/io.h>
-
 #include <linux/compiler.h>
 #include <asm/page.h>
 #include <asm/byteorder.h>
 #include <asm/synch.h>
 #include <asm/delay.h>
 #include <asm/mmu.h>
-
-#include <asm-generic/iomap.h>
+#include <asm/ppc_asm.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -191,23 +188,7 @@ DEF_MMIO_OUT_D(out_le32, 32, stw);
 
 #endif /* __BIG_ENDIAN */
 
-/*
- * Cache inhibitied accessors for use in real mode, you don't want to use these
- * unless you know what you're doing.
- *
- * NB. These use the cpu byte ordering.
- */
-DEF_MMIO_OUT_X(out_rm8,   8, stbcix);
-DEF_MMIO_OUT_X(out_rm16, 16, sthcix);
-DEF_MMIO_OUT_X(out_rm32, 32, stwcix);
-DEF_MMIO_IN_X(in_rm8,   8, lbzcix);
-DEF_MMIO_IN_X(in_rm16, 16, lhzcix);
-DEF_MMIO_IN_X(in_rm32, 32, lwzcix);
-
 #ifdef __powerpc64__
-
-DEF_MMIO_OUT_X(out_rm64, 64, stdcix);
-DEF_MMIO_IN_X(in_rm64, 64, ldcix);
 
 #ifdef __BIG_ENDIAN__
 DEF_MMIO_OUT_D(out_be64, 64, std);
@@ -300,23 +281,17 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
  * When CONFIG_PPC_INDIRECT_MMIO is set, the platform can provide hooks
  * on all MMIOs. (Note that this is all 64 bits only for now)
  *
- * To help platforms who may need to differenciate MMIO addresses in
+ * To help platforms who may need to differentiate MMIO addresses in
  * their hooks, a bitfield is reserved for use by the platform near the
  * top of MMIO addresses (not PIO, those have to cope the hard way).
  *
- * This bit field is 12 bits and is at the top of the IO virtual
- * addresses PCI_IO_INDIRECT_TOKEN_MASK.
+ * The highest address in the kernel virtual space are:
  *
- * The kernel virtual space is thus:
+ *  d0003fffffffffff	# with Hash MMU
+ *  c00fffffffffffff	# with Radix MMU
  *
- *  0xD000000000000000		: vmalloc
- *  0xD000080000000000		: PCI PHB IO space
- *  0xD000080080000000		: ioremap
- *  0xD0000fffffffffff		: end of ioremap region
- *
- * Since the top 4 bits are reserved as the region ID, we use thus
- * the next 12 bits and keep 4 bits available for the future if the
- * virtual address space is ever to be extended.
+ * The top 4 bits are reserved as the region ID on hash, leaving us 8 bits
+ * that can be used for the field.
  *
  * The direct IO mapping operations will then mask off those bits
  * before doing the actual access, though that only happen when
@@ -328,8 +303,8 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
  */
 
 #ifdef CONFIG_PPC_INDIRECT_MMIO
-#define PCI_IO_IND_TOKEN_MASK	0x0fff000000000000ul
-#define PCI_IO_IND_TOKEN_SHIFT	48
+#define PCI_IO_IND_TOKEN_SHIFT	52
+#define PCI_IO_IND_TOKEN_MASK	(0xfful << PCI_IO_IND_TOKEN_SHIFT)
 #define PCI_FIX_ADDR(addr)						\
 	((PCI_IO_ADDR)(((unsigned long)(addr)) & ~PCI_IO_IND_TOKEN_MASK))
 #define PCI_GET_ADDR_TOKEN(addr)					\
@@ -385,6 +360,76 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 {
 	*(volatile unsigned long __force *)PCI_FIX_ADDR(addr) = v;
 }
+
+static inline void __raw_writeq_be(unsigned long v, volatile void __iomem *addr)
+{
+	__raw_writeq((__force unsigned long)cpu_to_be64(v), addr);
+}
+
+/*
+ * Real mode versions of the above. Those instructions are only supposed
+ * to be used in hypervisor real mode as per the architecture spec.
+ */
+static inline void __raw_rm_writeb(u8 val, volatile void __iomem *paddr)
+{
+	__asm__ __volatile__("stbcix %0,0,%1"
+		: : "r" (val), "r" (paddr) : "memory");
+}
+
+static inline void __raw_rm_writew(u16 val, volatile void __iomem *paddr)
+{
+	__asm__ __volatile__("sthcix %0,0,%1"
+		: : "r" (val), "r" (paddr) : "memory");
+}
+
+static inline void __raw_rm_writel(u32 val, volatile void __iomem *paddr)
+{
+	__asm__ __volatile__("stwcix %0,0,%1"
+		: : "r" (val), "r" (paddr) : "memory");
+}
+
+static inline void __raw_rm_writeq(u64 val, volatile void __iomem *paddr)
+{
+	__asm__ __volatile__("stdcix %0,0,%1"
+		: : "r" (val), "r" (paddr) : "memory");
+}
+
+static inline void __raw_rm_writeq_be(u64 val, volatile void __iomem *paddr)
+{
+	__raw_rm_writeq((__force u64)cpu_to_be64(val), paddr);
+}
+
+static inline u8 __raw_rm_readb(volatile void __iomem *paddr)
+{
+	u8 ret;
+	__asm__ __volatile__("lbzcix %0,0, %1"
+			     : "=r" (ret) : "r" (paddr) : "memory");
+	return ret;
+}
+
+static inline u16 __raw_rm_readw(volatile void __iomem *paddr)
+{
+	u16 ret;
+	__asm__ __volatile__("lhzcix %0,0, %1"
+			     : "=r" (ret) : "r" (paddr) : "memory");
+	return ret;
+}
+
+static inline u32 __raw_rm_readl(volatile void __iomem *paddr)
+{
+	u32 ret;
+	__asm__ __volatile__("lwzcix %0,0, %1"
+			     : "=r" (ret) : "r" (paddr) : "memory");
+	return ret;
+}
+
+static inline u64 __raw_rm_readq(volatile void __iomem *paddr)
+{
+	u64 ret;
+	__asm__ __volatile__("ldcix %0,0, %1"
+			     : "=r" (ret) : "r" (paddr) : "memory");
+	return ret;
+}
 #endif /* __powerpc64__ */
 
 /*
@@ -418,13 +463,10 @@ static inline unsigned int name(unsigned int port)	\
 		"5:	li	%0,-1\n"		\
 		"	b	4b\n"			\
 		".previous\n"				\
-		".section __ex_table,\"a\"\n"		\
-		"	.align	2\n"			\
-		"	.long	0b,5b\n"		\
-		"	.long	1b,5b\n"		\
-		"	.long	2b,5b\n"		\
-		"	.long	3b,5b\n"		\
-		".previous"				\
+		EX_TABLE(0b, 5b)			\
+		EX_TABLE(1b, 5b)			\
+		EX_TABLE(2b, 5b)			\
+		EX_TABLE(3b, 5b)			\
 		: "=&r" (x)				\
 		: "r" (port + _IO_BASE)			\
 		: "memory");  				\
@@ -439,11 +481,8 @@ static inline void name(unsigned int val, unsigned int port) \
 		"0:" op " %0,0,%1\n"			\
 		"1:	sync\n"				\
 		"2:\n"					\
-		".section __ex_table,\"a\"\n"		\
-		"	.align	2\n"			\
-		"	.long	0b,2b\n"		\
-		"	.long	1b,2b\n"		\
-		".previous"				\
+		EX_TABLE(0b, 2b)			\
+		EX_TABLE(1b, 2b)			\
 		: : "r" (val), "r" (port + _IO_BASE)	\
 		: "memory");   	   	   		\
 }
@@ -626,6 +665,8 @@ static inline void name at					\
 #define writel_relaxed(v, addr)	writel(v, addr)
 #define writeq_relaxed(v, addr)	writeq(v, addr)
 
+#include <asm-generic/iomap.h>
+
 #ifdef CONFIG_PPC32
 #define mmiowb()
 #else
@@ -722,6 +763,8 @@ extern void __iomem *ioremap_prot(phys_addr_t address, unsigned long size,
 extern void __iomem *ioremap_wc(phys_addr_t address, unsigned long size);
 #define ioremap_nocache(addr, size)	ioremap((addr), (size))
 #define ioremap_uc(addr, size)		ioremap((addr), (size))
+#define ioremap_cache(addr, size) \
+	ioremap_prot((addr), (size), pgprot_val(PAGE_KERNEL))
 
 extern void iounmap(volatile void __iomem *addr);
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * descriptions + helper functions for simple dvb plls.
  */
@@ -6,7 +7,7 @@
 #define __DVB_PLL_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define DVB_PLL_UNDEFINED               0
 #define DVB_PLL_THOMSON_DTT7579         1
@@ -28,17 +29,24 @@
 #define DVB_PLL_SAMSUNG_TBMU24112      17
 #define DVB_PLL_TDEE4		       18
 #define DVB_PLL_THOMSON_DTT7520X       19
+#define DVB_PLL_TUA6034_FRIIO          20
+#define DVB_PLL_TDA665X_EARTH_PT1      21
 
+struct dvb_pll_config {
+	struct dvb_frontend *fe;
+};
+
+#if IS_REACHABLE(CONFIG_DVB_PLL)
 /**
  * Attach a dvb-pll to the supplied frontend structure.
  *
- * @param fe Frontend to attach to.
- * @param pll_addr i2c address of the PLL (if used).
- * @param i2c i2c adapter to use (set to NULL if not used).
- * @param pll_desc_id dvb_pll_desc to use.
- * @return Frontend pointer on success, NULL on failure
+ * @fe: Frontend to attach to.
+ * @pll_addr: i2c address of the PLL (if used).
+ * @i2c: i2c adapter to use (set to NULL if not used).
+ * @pll_desc_id: dvb_pll_desc to use.
+ *
+ * return: Frontend pointer on success, NULL on failure
  */
-#if IS_REACHABLE(CONFIG_DVB_PLL)
 extern struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe,
 					   int pll_addr,
 					   struct i2c_adapter *i2c,

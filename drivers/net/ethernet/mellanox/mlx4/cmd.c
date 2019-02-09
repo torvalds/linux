@@ -43,6 +43,7 @@
 #include <linux/semaphore.h>
 #include <rdma/ib_smi.h>
 #include <linux/delay.h>
+#include <linux/etherdevice.h>
 
 #include <asm/io.h>
 
@@ -785,17 +786,23 @@ int __mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 		return mlx4_cmd_reset_flow(dev, op, op_modifier, -EIO);
 
 	if (!mlx4_is_mfunc(dev) || (native && mlx4_is_master(dev))) {
+		int ret;
+
 		if (dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR)
 			return mlx4_internal_err_ret_value(dev, op,
 							  op_modifier);
+		down_read(&mlx4_priv(dev)->cmd.switch_sem);
 		if (mlx4_priv(dev)->cmd.use_events)
-			return mlx4_cmd_wait(dev, in_param, out_param,
-					     out_is_imm, in_modifier,
-					     op_modifier, op, timeout);
+			ret = mlx4_cmd_wait(dev, in_param, out_param,
+					    out_is_imm, in_modifier,
+					    op_modifier, op, timeout);
 		else
-			return mlx4_cmd_poll(dev, in_param, out_param,
-					     out_is_imm, in_modifier,
-					     op_modifier, op, timeout);
+			ret = mlx4_cmd_poll(dev, in_param, out_param,
+					    out_is_imm, in_modifier,
+					    op_modifier, op, timeout);
+
+		up_read(&mlx4_priv(dev)->cmd.switch_sem);
+		return ret;
 	}
 	return mlx4_slave_cmd(dev, in_param, out_param, out_is_imm,
 			      in_modifier, op_modifier, op, timeout);
@@ -1782,9 +1789,17 @@ static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
 	}
 
 	if (err) {
-		if (!(dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR))
-			mlx4_warn(dev, "vhcr command:0x%x slave:%d failed with error:%d, status %d\n",
-				  vhcr->op, slave, vhcr->errno, err);
+		if (!(dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR)) {
+			if (vhcr->op == MLX4_CMD_ALLOC_RES &&
+			    (vhcr->in_modifier & 0xff) == RES_COUNTER &&
+			    err == -EDQUOT)
+				mlx4_dbg(dev,
+					 "Unable to allocate counter for slave %d (%d)\n",
+					 slave, err);
+			else
+				mlx4_warn(dev, "vhcr command:0x%x slave:%d failed with error:%d, status %d\n",
+					  vhcr->op, slave, vhcr->errno, err);
+		}
 		vhcr_cmd->status = mlx4_errno_to_status(err);
 		goto out_status;
 	}
@@ -1845,6 +1860,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 
 	if (vp_oper->state.default_vlan == vp_admin->default_vlan &&
 	    vp_oper->state.default_qos == vp_admin->default_qos &&
+	    vp_oper->state.vlan_proto == vp_admin->vlan_proto &&
 	    vp_oper->state.link_state == vp_admin->link_state &&
 	    vp_oper->state.qos_vport == vp_admin->qos_vport)
 		return 0;
@@ -1903,6 +1919,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 
 	vp_oper->state.default_vlan = vp_admin->default_vlan;
 	vp_oper->state.default_qos = vp_admin->default_qos;
+	vp_oper->state.vlan_proto = vp_admin->vlan_proto;
 	vp_oper->state.link_state = vp_admin->link_state;
 	vp_oper->state.qos_vport = vp_admin->qos_vport;
 
@@ -1916,6 +1933,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	work->qos_vport = vp_oper->state.qos_vport;
 	work->vlan_id = vp_oper->state.default_vlan;
 	work->vlan_ix = vp_oper->vlan_idx;
+	work->vlan_proto = vp_oper->state.vlan_proto;
 	work->priv = priv;
 	INIT_WORK(&work->work, mlx4_vf_immed_vlan_work_handler);
 	queue_work(priv->mfunc.master.comm_wq, &work->work);
@@ -1940,19 +1958,19 @@ static void mlx4_allocate_port_vpps(struct mlx4_dev *dev, int port)
 	int i;
 	int err;
 	int num_vfs;
-	u16 availible_vpp;
+	u16 available_vpp;
 	u8 vpp_param[MLX4_NUM_UP];
 	struct mlx4_qos_manager *port_qos;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	err = mlx4_ALLOCATE_VPP_get(dev, port, &availible_vpp, vpp_param);
+	err = mlx4_ALLOCATE_VPP_get(dev, port, &available_vpp, vpp_param);
 	if (err) {
-		mlx4_info(dev, "Failed query availible VPPs\n");
+		mlx4_info(dev, "Failed query available VPPs\n");
 		return;
 	}
 
 	port_qos = &priv->mfunc.master.qos_ctl[port];
-	num_vfs = (availible_vpp /
+	num_vfs = (available_vpp /
 		   bitmap_weight(port_qos->priority_bm, MLX4_NUM_UP));
 
 	for (i = 0; i < MLX4_NUM_UP; i++) {
@@ -1967,14 +1985,14 @@ static void mlx4_allocate_port_vpps(struct mlx4_dev *dev, int port)
 	}
 
 	/* Query actual allocated VPP, just to make sure */
-	err = mlx4_ALLOCATE_VPP_get(dev, port, &availible_vpp, vpp_param);
+	err = mlx4_ALLOCATE_VPP_get(dev, port, &available_vpp, vpp_param);
 	if (err) {
-		mlx4_info(dev, "Failed query availible VPPs\n");
+		mlx4_info(dev, "Failed query available VPPs\n");
 		return;
 	}
 
 	port_qos->num_of_qos_vfs = num_vfs;
-	mlx4_dbg(dev, "Port %d Availible VPPs %d\n", port, availible_vpp);
+	mlx4_dbg(dev, "Port %d Available VPPs %d\n", port, available_vpp);
 
 	for (i = 0; i < MLX4_NUM_UP; i++)
 		mlx4_dbg(dev, "Port %d UP %d Allocated %d VPPs\n", port, i,
@@ -1986,6 +2004,8 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 	int port, err;
 	struct mlx4_vport_state *vp_admin;
 	struct mlx4_vport_oper_state *vp_oper;
+	struct mlx4_slave_state *slave_state =
+		&priv->mfunc.master.slave_state[slave];
 	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(
 			&priv->dev, slave);
 	int min_port = find_first_bit(actv_ports.ports,
@@ -2000,12 +2020,26 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 			priv->mfunc.master.vf_admin[slave].enable_smi[port];
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		vp_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
-		vp_oper->state = *vp_admin;
+		if (vp_admin->vlan_proto != htons(ETH_P_8021AD) ||
+		    slave_state->vst_qinq_supported) {
+			vp_oper->state.vlan_proto   = vp_admin->vlan_proto;
+			vp_oper->state.default_vlan = vp_admin->default_vlan;
+			vp_oper->state.default_qos  = vp_admin->default_qos;
+		}
+		vp_oper->state.link_state = vp_admin->link_state;
+		vp_oper->state.mac        = vp_admin->mac;
+		vp_oper->state.spoofchk   = vp_admin->spoofchk;
+		vp_oper->state.tx_rate    = vp_admin->tx_rate;
+		vp_oper->state.qos_vport  = vp_admin->qos_vport;
+		vp_oper->state.guid       = vp_admin->guid;
+
 		if (MLX4_VGT != vp_admin->default_vlan) {
 			err = __mlx4_register_vlan(&priv->dev, port,
 						   vp_admin->default_vlan, &(vp_oper->vlan_idx));
 			if (err) {
 				vp_oper->vlan_idx = NO_INDX;
+				vp_oper->state.default_vlan = MLX4_VGT;
+				vp_oper->state.vlan_proto = htons(ETH_P_8021Q);
 				mlx4_warn(&priv->dev,
 					  "No vlan resources slave %d, port %d\n",
 					  slave, port);
@@ -2086,6 +2120,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		mlx4_warn(dev, "Received reset from slave:%d\n", slave);
 		slave_state[slave].active = false;
 		slave_state[slave].old_vlan_api = false;
+		slave_state[slave].vst_qinq_supported = false;
 		mlx4_master_deactivate_admin_state(priv, slave);
 		for (i = 0; i < MLX4_EVENT_TYPES_NUM; ++i) {
 				slave_state[slave].event_eq[i].eqn = -1;
@@ -2278,6 +2313,17 @@ static int sync_toggles(struct mlx4_dev *dev)
 		rd_toggle = swab32(readl(&priv->mfunc.comm->slave_read));
 		if (wr_toggle == 0xffffffff || rd_toggle == 0xffffffff) {
 			/* PCI might be offline */
+
+			/* If device removal has been requested,
+			 * do not continue retrying.
+			 */
+			if (dev->persist->interface_state &
+			    MLX4_INTERFACE_STATE_NOWAIT) {
+				mlx4_warn(dev,
+					  "communication channel is offline\n");
+				return -EIO;
+			}
+
 			msleep(100);
 			wr_toggle = swab32(readl(&priv->mfunc.comm->
 					   slave_write));
@@ -2331,20 +2377,23 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 		struct mlx4_vf_admin_state *vf_admin;
 
 		priv->mfunc.master.slave_state =
-			kzalloc(dev->num_slaves *
-				sizeof(struct mlx4_slave_state), GFP_KERNEL);
+			kcalloc(dev->num_slaves,
+				sizeof(struct mlx4_slave_state),
+				GFP_KERNEL);
 		if (!priv->mfunc.master.slave_state)
 			goto err_comm;
 
 		priv->mfunc.master.vf_admin =
-			kzalloc(dev->num_slaves *
-				sizeof(struct mlx4_vf_admin_state), GFP_KERNEL);
+			kcalloc(dev->num_slaves,
+				sizeof(struct mlx4_vf_admin_state),
+				GFP_KERNEL);
 		if (!priv->mfunc.master.vf_admin)
 			goto err_comm_admin;
 
 		priv->mfunc.master.vf_oper =
-			kzalloc(dev->num_slaves *
-				sizeof(struct mlx4_vf_oper_state), GFP_KERNEL);
+			kcalloc(dev->num_slaves,
+				sizeof(struct mlx4_vf_oper_state),
+				GFP_KERNEL);
 		if (!priv->mfunc.master.vf_oper)
 			goto err_comm_oper;
 
@@ -2353,6 +2402,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 			vf_oper = &priv->mfunc.master.vf_oper[i];
 			s_state = &priv->mfunc.master.slave_state[i];
 			s_state->last_cmd = MLX4_COMM_CMD_RESET;
+			s_state->vst_qinq_supported = false;
 			mutex_init(&priv->mfunc.master.gen_eqe_mutex[i]);
 			for (j = 0; j < MLX4_EVENT_TYPES_NUM; ++j)
 				s_state->event_eq[j].eqn = -1;
@@ -2382,6 +2432,8 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 				admin_vport->qos_vport =
 						MLX4_VPP_DEFAULT_VPORT;
 				oper_vport->qos_vport = MLX4_VPP_DEFAULT_VPORT;
+				admin_vport->vlan_proto = htons(ETH_P_8021Q);
+				oper_vport->vlan_proto = htons(ETH_P_8021Q);
 				vf_oper->vport[port].vlan_idx = NO_INDX;
 				vf_oper->vport[port].mac_idx = NO_INDX;
 				mlx4_set_random_admin_guid(dev, i, port);
@@ -2429,7 +2481,7 @@ err_thread:
 	flush_workqueue(priv->mfunc.master.comm_wq);
 	destroy_workqueue(priv->mfunc.master.comm_wq);
 err_slaves:
-	while (--i) {
+	while (i--) {
 		for (port = 1; port <= MLX4_MAX_PORTS; port++)
 			kfree(priv->mfunc.master.slave_state[i].vlan_filter[port]);
 	}
@@ -2440,6 +2492,7 @@ err_comm_admin:
 	kfree(priv->mfunc.master.slave_state);
 err_comm:
 	iounmap(priv->mfunc.comm);
+	priv->mfunc.comm = NULL;
 err_vhcr:
 	dma_free_coherent(&dev->persist->pdev->dev, PAGE_SIZE,
 			  priv->mfunc.vhcr,
@@ -2454,6 +2507,7 @@ int mlx4_cmd_init(struct mlx4_dev *dev)
 	int flags = 0;
 
 	if (!priv->cmd.initialized) {
+		init_rwsem(&priv->cmd.switch_sem);
 		mutex_init(&priv->cmd.slave_cmd_mutex);
 		sema_init(&priv->cmd.poll_sem, 1);
 		priv->cmd.use_events = 0;
@@ -2484,8 +2538,8 @@ int mlx4_cmd_init(struct mlx4_dev *dev)
 	}
 
 	if (!priv->cmd.pool) {
-		priv->cmd.pool = pci_pool_create("mlx4_cmd",
-						 dev->persist->pdev,
+		priv->cmd.pool = dma_pool_create("mlx4_cmd",
+						 &dev->persist->pdev->dev,
 						 MLX4_MAILBOX_SIZE,
 						 MLX4_MAILBOX_SIZE, 0);
 		if (!priv->cmd.pool)
@@ -2506,6 +2560,13 @@ void mlx4_report_internal_err_comm_event(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int slave;
 	u32 slave_read;
+
+	/* If the comm channel has not yet been initialized,
+	 * skip reporting the internal error event to all
+	 * the communication channels.
+	 */
+	if (!priv->mfunc.comm)
+		return;
 
 	/* Report an internal error event to all
 	 * communication channels.
@@ -2541,6 +2602,7 @@ void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
 	}
 
 	iounmap(priv->mfunc.comm);
+	priv->mfunc.comm = NULL;
 }
 
 void mlx4_cmd_cleanup(struct mlx4_dev *dev, int cleanup_mask)
@@ -2548,7 +2610,7 @@ void mlx4_cmd_cleanup(struct mlx4_dev *dev, int cleanup_mask)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	if (priv->cmd.pool && (cleanup_mask & MLX4_CMD_CLEANUP_POOL)) {
-		pci_pool_destroy(priv->cmd.pool);
+		dma_pool_destroy(priv->cmd.pool);
 		priv->cmd.pool = NULL;
 	}
 
@@ -2577,12 +2639,13 @@ int mlx4_cmd_use_events(struct mlx4_dev *dev)
 	int i;
 	int err = 0;
 
-	priv->cmd.context = kmalloc(priv->cmd.max_cmds *
-				   sizeof (struct mlx4_cmd_context),
-				   GFP_KERNEL);
+	priv->cmd.context = kmalloc_array(priv->cmd.max_cmds,
+					  sizeof(struct mlx4_cmd_context),
+					  GFP_KERNEL);
 	if (!priv->cmd.context)
 		return -ENOMEM;
 
+	down_write(&priv->cmd.switch_sem);
 	for (i = 0; i < priv->cmd.max_cmds; ++i) {
 		priv->cmd.context[i].token = i;
 		priv->cmd.context[i].next  = i + 1;
@@ -2597,7 +2660,6 @@ int mlx4_cmd_use_events(struct mlx4_dev *dev)
 	priv->cmd.free_head = 0;
 
 	sema_init(&priv->cmd.event_sem, priv->cmd.max_cmds);
-	spin_lock_init(&priv->cmd.context_lock);
 
 	for (priv->cmd.token_mask = 1;
 	     priv->cmd.token_mask < priv->cmd.max_cmds;
@@ -2607,6 +2669,7 @@ int mlx4_cmd_use_events(struct mlx4_dev *dev)
 
 	down(&priv->cmd.poll_sem);
 	priv->cmd.use_events = 1;
+	up_write(&priv->cmd.switch_sem);
 
 	return err;
 }
@@ -2619,6 +2682,7 @@ void mlx4_cmd_use_polling(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int i;
 
+	down_write(&priv->cmd.switch_sem);
 	priv->cmd.use_events = 0;
 
 	for (i = 0; i < priv->cmd.max_cmds; ++i)
@@ -2627,24 +2691,23 @@ void mlx4_cmd_use_polling(struct mlx4_dev *dev)
 	kfree(priv->cmd.context);
 
 	up(&priv->cmd.poll_sem);
+	up_write(&priv->cmd.switch_sem);
 }
 
 struct mlx4_cmd_mailbox *mlx4_alloc_cmd_mailbox(struct mlx4_dev *dev)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 
-	mailbox = kmalloc(sizeof *mailbox, GFP_KERNEL);
+	mailbox = kmalloc(sizeof(*mailbox), GFP_KERNEL);
 	if (!mailbox)
 		return ERR_PTR(-ENOMEM);
 
-	mailbox->buf = pci_pool_alloc(mlx4_priv(dev)->cmd.pool, GFP_KERNEL,
-				      &mailbox->dma);
+	mailbox->buf = dma_pool_zalloc(mlx4_priv(dev)->cmd.pool, GFP_KERNEL,
+				       &mailbox->dma);
 	if (!mailbox->buf) {
 		kfree(mailbox);
 		return ERR_PTR(-ENOMEM);
 	}
-
-	memset(mailbox->buf, 0, MLX4_MAILBOX_SIZE);
 
 	return mailbox;
 }
@@ -2656,7 +2719,7 @@ void mlx4_free_cmd_mailbox(struct mlx4_dev *dev,
 	if (!mailbox)
 		return;
 
-	pci_pool_free(mlx4_priv(dev)->cmd.pool, mailbox->buf, mailbox->dma);
+	dma_pool_free(mlx4_priv(dev)->cmd.pool, mailbox->buf, mailbox->dma);
 	kfree(mailbox);
 }
 EXPORT_SYMBOL_GPL(mlx4_free_cmd_mailbox);
@@ -2831,7 +2894,7 @@ static int mlx4_set_vport_qos(struct mlx4_priv *priv, int slave, int port,
 	memset(vpp_qos, 0, sizeof(struct mlx4_vport_qos_param) * MLX4_NUM_UP);
 
 	if (slave > port_qos->num_of_qos_vfs) {
-		mlx4_info(dev, "No availible VPP resources for this VF\n");
+		mlx4_info(dev, "No available VPP resources for this VF\n");
 		return -EINVAL;
 	}
 
@@ -2915,7 +2978,7 @@ static bool mlx4_valid_vf_state_change(struct mlx4_dev *dev, int port,
 	return false;
 }
 
-int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
+int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u8 *mac)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_vport_state *s_info;
@@ -2924,13 +2987,22 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 	if (!mlx4_is_master(dev))
 		return -EPROTONOSUPPORT;
 
+	if (is_multicast_ether_addr(mac))
+		return -EINVAL;
+
 	slave = mlx4_get_slave_indx(dev, vf);
 	if (slave < 0)
 		return -EINVAL;
 
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
-	s_info->mac = mac;
+
+	if (s_info->spoofchk && is_zero_ether_addr(mac)) {
+		mlx4_info(dev, "MAC invalidation is not allowed when spoofchk is on\n");
+		return -EPERM;
+	}
+
+	s_info->mac = mlx4_mac_to_u64(mac);
 	mlx4_info(dev, "default mac on vf %d port %d to %llX will take effect only after vf restart\n",
 		  vf, port, s_info->mac);
 	return 0;
@@ -2938,10 +3010,13 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 EXPORT_SYMBOL_GPL(mlx4_set_vf_mac);
 
 
-int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
+int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos,
+		     __be16 proto)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_vport_state *vf_admin;
+	struct mlx4_slave_state *slave_state;
+	struct mlx4_vport_oper_state *vf_oper;
 	int slave;
 
 	if ((!mlx4_is_master(dev)) ||
@@ -2951,12 +3026,31 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 	if ((vlan > 4095) || (qos > 7))
 		return -EINVAL;
 
+	if (proto == htons(ETH_P_8021AD) &&
+	    !(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_SVLAN_BY_QP))
+		return -EPROTONOSUPPORT;
+
+	if (proto != htons(ETH_P_8021Q) &&
+	    proto != htons(ETH_P_8021AD))
+		return -EINVAL;
+
+	if ((proto == htons(ETH_P_8021AD)) &&
+	    ((vlan == 0) || (vlan == MLX4_VGT)))
+		return -EINVAL;
+
 	slave = mlx4_get_slave_indx(dev, vf);
 	if (slave < 0)
 		return -EINVAL;
 
+	slave_state = &priv->mfunc.master.slave_state[slave];
+	if ((proto == htons(ETH_P_8021AD)) && (slave_state->active) &&
+	    (!slave_state->vst_qinq_supported)) {
+		mlx4_err(dev, "vf %d does not support VST QinQ mode\n", vf);
+		return -EPROTONOSUPPORT;
+	}
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	vf_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
+	vf_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 
 	if (!mlx4_valid_vf_state_change(dev, port, vf_admin, vlan, qos))
 		return -EPERM;
@@ -2966,6 +3060,7 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 	else
 		vf_admin->default_vlan = vlan;
 	vf_admin->default_qos = qos;
+	vf_admin->vlan_proto = proto;
 
 	/* If rate was configured prior to VST, we saved the configured rate
 	 * in vf_admin->rate and now, if priority supported we enforce the QoS
@@ -2974,7 +3069,12 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 	    vf_admin->tx_rate)
 		vf_admin->qos_vport = slave;
 
-	if (mlx4_master_immediate_activate_vlan_qos(priv, slave, port))
+	/* Try to activate new vf state without restart,
+	 * this option is not supported while moving to VST QinQ mode.
+	 */
+	if ((proto == htons(ETH_P_8021AD) &&
+	     vf_oper->state.vlan_proto != proto) ||
+	    mlx4_master_immediate_activate_vlan_qos(priv, slave, port))
 		mlx4_info(dev,
 			  "updating vf %d port %d config will take effect on next VF restart\n",
 			  vf, port);
@@ -3075,6 +3175,7 @@ int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_vport_state *s_info;
 	int slave;
+	u8 mac[ETH_ALEN];
 
 	if ((!mlx4_is_master(dev)) ||
 	    !(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FSM))
@@ -3086,6 +3187,13 @@ int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
+
+	mlx4_u64_to_mac(mac, s_info->mac);
+	if (setting && !is_valid_ether_addr(mac)) {
+		mlx4_info(dev, "Illegal MAC with spoofchk\n");
+		return -EPERM;
+	}
+
 	s_info->spoofchk = setting;
 
 	return 0;
@@ -3118,6 +3226,7 @@ int mlx4_get_vf_config(struct mlx4_dev *dev, int port, int vf, struct ifla_vf_in
 
 	ivf->vlan		= s_info->default_vlan;
 	ivf->qos		= s_info->default_qos;
+	ivf->vlan_proto		= s_info->vlan_proto;
 
 	if (mlx4_is_vf_vst_and_prio_qos(dev, port, s_info))
 		ivf->max_tx_rate = s_info->tx_rate;
@@ -3174,7 +3283,7 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 
 	if (mlx4_master_immediate_activate_vlan_qos(priv, slave, port))
 		mlx4_dbg(dev,
-			 "updating vf %d port %d no link state HW enforcment\n",
+			 "updating vf %d port %d no link state HW enforcement\n",
 			 vf, port);
 	return 0;
 }

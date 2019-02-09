@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * dmm32at.c
  * Diamond Systems Diamond-MM-32-AT Comedi driver
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -46,73 +37,75 @@
 #define DMM32AT_AI_START_CONV_REG	0x00
 #define DMM32AT_AI_LSB_REG		0x00
 #define DMM32AT_AUX_DOUT_REG		0x01
-#define DMM32AT_AUX_DOUT2		(1 << 2)  /* J3.42 - OUT2 (OUT2EN) */
-#define DMM32AT_AUX_DOUT1		(1 << 1)  /* J3.43 */
-#define DMM32AT_AUX_DOUT0		(1 << 0)  /* J3.44 - OUT0 (OUT0EN) */
+#define DMM32AT_AUX_DOUT2		BIT(2)  /* J3.42 - OUT2 (OUT2EN) */
+#define DMM32AT_AUX_DOUT1		BIT(1)  /* J3.43 */
+#define DMM32AT_AUX_DOUT0		BIT(0)  /* J3.44 - OUT0 (OUT0EN) */
 #define DMM32AT_AI_MSB_REG		0x01
 #define DMM32AT_AI_LO_CHAN_REG		0x02
 #define DMM32AT_AI_HI_CHAN_REG		0x03
 #define DMM32AT_AUX_DI_REG		0x04
-#define DMM32AT_AUX_DI_DACBUSY		(1 << 7)
-#define DMM32AT_AUX_DI_CALBUSY		(1 << 6)
-#define DMM32AT_AUX_DI3			(1 << 3)  /* J3.45 - ADCLK (CLKSEL) */
-#define DMM32AT_AUX_DI2			(1 << 2)  /* J3.46 - GATE12 (GT12EN) */
-#define DMM32AT_AUX_DI1			(1 << 1)  /* J3.47 - GATE0 (GT0EN) */
-#define DMM32AT_AUX_DI0			(1 << 0)  /* J3.48 - CLK0 (SRC0) */
+#define DMM32AT_AUX_DI_DACBUSY		BIT(7)
+#define DMM32AT_AUX_DI_CALBUSY		BIT(6)
+#define DMM32AT_AUX_DI3			BIT(3)  /* J3.45 - ADCLK (CLKSEL) */
+#define DMM32AT_AUX_DI2			BIT(2)  /* J3.46 - GATE12 (GT12EN) */
+#define DMM32AT_AUX_DI1			BIT(1)  /* J3.47 - GATE0 (GT0EN) */
+#define DMM32AT_AUX_DI0			BIT(0)  /* J3.48 - CLK0 (SRC0) */
 #define DMM32AT_AO_LSB_REG		0x04
 #define DMM32AT_AO_MSB_REG		0x05
 #define DMM32AT_AO_MSB_DACH(x)		((x) << 6)
 #define DMM32AT_FIFO_DEPTH_REG		0x06
 #define DMM32AT_FIFO_CTRL_REG		0x07
-#define DMM32AT_FIFO_CTRL_FIFOEN	(1 << 3)
-#define DMM32AT_FIFO_CTRL_SCANEN	(1 << 2)
-#define DMM32AT_FIFO_CTRL_FIFORST	(1 << 1)
+#define DMM32AT_FIFO_CTRL_FIFOEN	BIT(3)
+#define DMM32AT_FIFO_CTRL_SCANEN	BIT(2)
+#define DMM32AT_FIFO_CTRL_FIFORST	BIT(1)
 #define DMM32AT_FIFO_STATUS_REG		0x07
-#define DMM32AT_FIFO_STATUS_EF		(1 << 7)
-#define DMM32AT_FIFO_STATUS_HF		(1 << 6)
-#define DMM32AT_FIFO_STATUS_FF		(1 << 5)
-#define DMM32AT_FIFO_STATUS_OVF		(1 << 4)
-#define DMM32AT_FIFO_STATUS_FIFOEN	(1 << 3)
-#define DMM32AT_FIFO_STATUS_SCANEN	(1 << 2)
+#define DMM32AT_FIFO_STATUS_EF		BIT(7)
+#define DMM32AT_FIFO_STATUS_HF		BIT(6)
+#define DMM32AT_FIFO_STATUS_FF		BIT(5)
+#define DMM32AT_FIFO_STATUS_OVF		BIT(4)
+#define DMM32AT_FIFO_STATUS_FIFOEN	BIT(3)
+#define DMM32AT_FIFO_STATUS_SCANEN	BIT(2)
 #define DMM32AT_FIFO_STATUS_PAGE_MASK	(3 << 0)
 #define DMM32AT_CTRL_REG		0x08
-#define DMM32AT_CTRL_RESETA		(1 << 5)
-#define DMM32AT_CTRL_RESETD		(1 << 4)
-#define DMM32AT_CTRL_INTRST		(1 << 3)
-#define DMM32AT_CTRL_PAGE_8254		(0 << 0)
-#define DMM32AT_CTRL_PAGE_8255		(1 << 0)
-#define DMM32AT_CTRL_PAGE_CALIB		(3 << 0)
+#define DMM32AT_CTRL_RESETA		BIT(5)
+#define DMM32AT_CTRL_RESETD		BIT(4)
+#define DMM32AT_CTRL_INTRST		BIT(3)
+#define DMM32AT_CTRL_PAGE(x)		((x) << 0)
+#define DMM32AT_CTRL_PAGE_8254		DMM32AT_CTRL_PAGE(0)
+#define DMM32AT_CTRL_PAGE_8255		DMM32AT_CTRL_PAGE(1)
+#define DMM32AT_CTRL_PAGE_CALIB		DMM32AT_CTRL_PAGE(3)
 #define DMM32AT_AI_STATUS_REG		0x08
-#define DMM32AT_AI_STATUS_STS		(1 << 7)
-#define DMM32AT_AI_STATUS_SD1		(1 << 6)
-#define DMM32AT_AI_STATUS_SD0		(1 << 5)
+#define DMM32AT_AI_STATUS_STS		BIT(7)
+#define DMM32AT_AI_STATUS_SD1		BIT(6)
+#define DMM32AT_AI_STATUS_SD0		BIT(5)
 #define DMM32AT_AI_STATUS_ADCH_MASK	(0x1f << 0)
 #define DMM32AT_INTCLK_REG		0x09
-#define DMM32AT_INTCLK_ADINT		(1 << 7)
-#define DMM32AT_INTCLK_DINT		(1 << 6)
-#define DMM32AT_INTCLK_TINT		(1 << 5)
-#define DMM32AT_INTCLK_CLKEN		(1 << 1)  /* 1=see below  0=software */
-#define DMM32AT_INTCLK_CLKSEL		(1 << 0)  /* 1=OUT2  0=EXTCLK */
+#define DMM32AT_INTCLK_ADINT		BIT(7)
+#define DMM32AT_INTCLK_DINT		BIT(6)
+#define DMM32AT_INTCLK_TINT		BIT(5)
+#define DMM32AT_INTCLK_CLKEN		BIT(1)  /* 1=see below  0=software */
+#define DMM32AT_INTCLK_CLKSEL		BIT(0)  /* 1=OUT2  0=EXTCLK */
 #define DMM32AT_CTRDIO_CFG_REG		0x0a
-#define DMM32AT_CTRDIO_CFG_FREQ12	(1 << 7)  /* CLK12 1=100KHz 0=10MHz */
-#define DMM32AT_CTRDIO_CFG_FREQ0	(1 << 6)  /* CLK0  1=10KHz  0=10MHz */
-#define DMM32AT_CTRDIO_CFG_OUT2EN	(1 << 5)  /* J3.42 1=OUT2 is DOUT2 */
-#define DMM32AT_CTRDIO_CFG_OUT0EN	(1 << 4)  /* J3,44 1=OUT0 is DOUT0 */
-#define DMM32AT_CTRDIO_CFG_GT0EN	(1 << 2)  /* J3.47 1=DIN1 is GATE0 */
-#define DMM32AT_CTRDIO_CFG_SRC0		(1 << 1)  /* CLK0 is 0=FREQ0 1=J3.48 */
-#define DMM32AT_CTRDIO_CFG_GT12EN	(1 << 0)  /* J3.46 1=DIN2 is GATE12 */
+#define DMM32AT_CTRDIO_CFG_FREQ12	BIT(7)  /* CLK12 1=100KHz 0=10MHz */
+#define DMM32AT_CTRDIO_CFG_FREQ0	BIT(6)  /* CLK0  1=10KHz  0=10MHz */
+#define DMM32AT_CTRDIO_CFG_OUT2EN	BIT(5)  /* J3.42 1=OUT2 is DOUT2 */
+#define DMM32AT_CTRDIO_CFG_OUT0EN	BIT(4)  /* J3,44 1=OUT0 is DOUT0 */
+#define DMM32AT_CTRDIO_CFG_GT0EN	BIT(2)  /* J3.47 1=DIN1 is GATE0 */
+#define DMM32AT_CTRDIO_CFG_SRC0		BIT(1)  /* CLK0 is 0=FREQ0 1=J3.48 */
+#define DMM32AT_CTRDIO_CFG_GT12EN	BIT(0)  /* J3.46 1=DIN2 is GATE12 */
 #define DMM32AT_AI_CFG_REG		0x0b
-#define DMM32AT_AI_CFG_SCINT_20US	(0 << 4)
-#define DMM32AT_AI_CFG_SCINT_15US	(1 << 4)
-#define DMM32AT_AI_CFG_SCINT_10US	(2 << 4)
-#define DMM32AT_AI_CFG_SCINT_5US	(3 << 4)
-#define DMM32AT_AI_CFG_RANGE		(1 << 3)  /* 0=5V  1=10V */
-#define DMM32AT_AI_CFG_ADBU		(1 << 2)  /* 0=bipolar  1=unipolar */
+#define DMM32AT_AI_CFG_SCINT(x)		((x) << 4)
+#define DMM32AT_AI_CFG_SCINT_20US	DMM32AT_AI_CFG_SCINT(0)
+#define DMM32AT_AI_CFG_SCINT_15US	DMM32AT_AI_CFG_SCINT(1)
+#define DMM32AT_AI_CFG_SCINT_10US	DMM32AT_AI_CFG_SCINT(2)
+#define DMM32AT_AI_CFG_SCINT_5US	DMM32AT_AI_CFG_SCINT(3)
+#define DMM32AT_AI_CFG_RANGE		BIT(3)  /* 0=5V  1=10V */
+#define DMM32AT_AI_CFG_ADBU		BIT(2)  /* 0=bipolar  1=unipolar */
 #define DMM32AT_AI_CFG_GAIN(x)		((x) << 0)
 #define DMM32AT_AI_READBACK_REG		0x0b
-#define DMM32AT_AI_READBACK_WAIT	(1 << 7)  /* DMM32AT_AI_STATUS_STS */
-#define DMM32AT_AI_READBACK_RANGE	(1 << 3)
-#define DMM32AT_AI_READBACK_ADBU	(1 << 2)
+#define DMM32AT_AI_READBACK_WAIT	BIT(7)  /* DMM32AT_AI_STATUS_STS */
+#define DMM32AT_AI_READBACK_RANGE	BIT(3)
+#define DMM32AT_AI_READBACK_ADBU	BIT(2)
 #define DMM32AT_AI_READBACK_GAIN_MASK	(3 << 0)
 
 #define DMM32AT_CLK1 0x0d
@@ -508,7 +501,7 @@ static int dmm32at_reset(struct comedi_device *dev)
 	outb(DMM32AT_CTRL_RESETA, dev->iobase + DMM32AT_CTRL_REG);
 
 	/* allow a millisecond to reset */
-	udelay(1000);
+	usleep_range(1000, 3000);
 
 	/* zero scan and fifo control */
 	outb(0x0, dev->iobase + DMM32AT_FIFO_CTRL_REG);
@@ -524,7 +517,7 @@ static int dmm32at_reset(struct comedi_device *dev)
 	outb(DMM32AT_RANGE_U10, dev->iobase + DMM32AT_AI_CFG_REG);
 
 	/* should take 10 us to settle, here's a hundred */
-	udelay(100);
+	usleep_range(100, 200);
 
 	/* read back the values */
 	ailo = inb(dev->iobase + DMM32AT_AI_LO_CHAN_REG);

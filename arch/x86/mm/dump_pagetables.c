@@ -13,9 +13,12 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/kasan.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/seq_file.h>
+#include <linux/highmem.h>
 
 #include <asm/pgtable.h>
 
@@ -27,6 +30,7 @@
 struct pg_state {
 	int level;
 	pgprot_t current_prot;
+	pgprotval_t effective_prot;
 	unsigned long start_address;
 	unsigned long current_address;
 	const struct addr_marker *marker;
@@ -42,65 +46,114 @@ struct addr_marker {
 	unsigned long max_lines;
 };
 
-/* indices for address_markers; keep sync'd w/ address_markers below */
+/* Address space markers hints */
+
+#ifdef CONFIG_X86_64
+
 enum address_markers_idx {
 	USER_SPACE_NR = 0,
-#ifdef CONFIG_X86_64
 	KERNEL_SPACE_NR,
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+	LDT_NR,
+#endif
 	LOW_KERNEL_NR,
 	VMALLOC_START_NR,
 	VMEMMAP_START_NR,
-# ifdef CONFIG_X86_ESPFIX64
+#ifdef CONFIG_KASAN
+	KASAN_SHADOW_START_NR,
+	KASAN_SHADOW_END_NR,
+#endif
+	CPU_ENTRY_AREA_NR,
+#ifdef CONFIG_X86_ESPFIX64
 	ESPFIX_START_NR,
-# endif
+#endif
+#ifdef CONFIG_EFI
+	EFI_END_NR,
+#endif
 	HIGH_KERNEL_NR,
 	MODULES_VADDR_NR,
 	MODULES_END_NR,
-#else
+	FIXADDR_START_NR,
+	END_OF_SPACE_NR,
+};
+
+static struct addr_marker address_markers[] = {
+	[USER_SPACE_NR]		= { 0,			"User Space" },
+	[KERNEL_SPACE_NR]	= { (1UL << 63),	"Kernel Space" },
+	[LOW_KERNEL_NR]		= { 0UL,		"Low Kernel Mapping" },
+	[VMALLOC_START_NR]	= { 0UL,		"vmalloc() Area" },
+	[VMEMMAP_START_NR]	= { 0UL,		"Vmemmap" },
+#ifdef CONFIG_KASAN
+	/*
+	 * These fields get initialized with the (dynamic)
+	 * KASAN_SHADOW_{START,END} values in pt_dump_init().
+	 */
+	[KASAN_SHADOW_START_NR]	= { 0UL,		"KASAN shadow" },
+	[KASAN_SHADOW_END_NR]	= { 0UL,		"KASAN shadow end" },
+#endif
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+	[LDT_NR]		= { 0UL,		"LDT remap" },
+#endif
+	[CPU_ENTRY_AREA_NR]	= { CPU_ENTRY_AREA_BASE,"CPU entry Area" },
+#ifdef CONFIG_X86_ESPFIX64
+	[ESPFIX_START_NR]	= { ESPFIX_BASE_ADDR,	"ESPfix Area", 16 },
+#endif
+#ifdef CONFIG_EFI
+	[EFI_END_NR]		= { EFI_VA_END,		"EFI Runtime Services" },
+#endif
+	[HIGH_KERNEL_NR]	= { __START_KERNEL_map,	"High Kernel Mapping" },
+	[MODULES_VADDR_NR]	= { MODULES_VADDR,	"Modules" },
+	[MODULES_END_NR]	= { MODULES_END,	"End Modules" },
+	[FIXADDR_START_NR]	= { FIXADDR_START,	"Fixmap Area" },
+	[END_OF_SPACE_NR]	= { -1,			NULL }
+};
+
+#define INIT_PGD	((pgd_t *) &init_top_pgt)
+
+#else /* CONFIG_X86_64 */
+
+enum address_markers_idx {
+	USER_SPACE_NR = 0,
 	KERNEL_SPACE_NR,
 	VMALLOC_START_NR,
 	VMALLOC_END_NR,
-# ifdef CONFIG_HIGHMEM
+#ifdef CONFIG_HIGHMEM
 	PKMAP_BASE_NR,
-# endif
-	FIXADDR_START_NR,
 #endif
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+	LDT_NR,
+#endif
+	CPU_ENTRY_AREA_NR,
+	FIXADDR_START_NR,
+	END_OF_SPACE_NR,
 };
 
-/* Address space markers hints */
 static struct addr_marker address_markers[] = {
-	{ 0, "User Space" },
-#ifdef CONFIG_X86_64
-	{ 0x8000000000000000UL, "Kernel Space" },
-	{ PAGE_OFFSET,		"Low Kernel Mapping" },
-	{ VMALLOC_START,        "vmalloc() Area" },
-	{ VMEMMAP_START,        "Vmemmap" },
-# ifdef CONFIG_X86_ESPFIX64
-	{ ESPFIX_BASE_ADDR,	"ESPfix Area", 16 },
-# endif
-# ifdef CONFIG_EFI
-	{ EFI_VA_END,		"EFI Runtime Services" },
-# endif
-	{ __START_KERNEL_map,   "High Kernel Mapping" },
-	{ MODULES_VADDR,        "Modules" },
-	{ MODULES_END,          "End Modules" },
-#else
-	{ PAGE_OFFSET,          "Kernel Mapping" },
-	{ 0/* VMALLOC_START */, "vmalloc() Area" },
-	{ 0/*VMALLOC_END*/,     "vmalloc() End" },
-# ifdef CONFIG_HIGHMEM
-	{ 0/*PKMAP_BASE*/,      "Persistent kmap() Area" },
-# endif
-	{ 0/*FIXADDR_START*/,   "Fixmap Area" },
+	[USER_SPACE_NR]		= { 0,			"User Space" },
+	[KERNEL_SPACE_NR]	= { PAGE_OFFSET,	"Kernel Mapping" },
+	[VMALLOC_START_NR]	= { 0UL,		"vmalloc() Area" },
+	[VMALLOC_END_NR]	= { 0UL,		"vmalloc() End" },
+#ifdef CONFIG_HIGHMEM
+	[PKMAP_BASE_NR]		= { 0UL,		"Persistent kmap() Area" },
 #endif
-	{ -1, NULL }		/* End of list */
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+	[LDT_NR]		= { 0UL,		"LDT remap" },
+#endif
+	[CPU_ENTRY_AREA_NR]	= { 0UL,		"CPU entry area" },
+	[FIXADDR_START_NR]	= { 0UL,		"Fixmap area" },
+	[END_OF_SPACE_NR]	= { -1,			NULL }
 };
+
+#define INIT_PGD	(swapper_pg_dir)
+
+#endif /* !CONFIG_X86_64 */
 
 /* Multipliers for offsets within the PTEs */
 #define PTE_LEVEL_MULT (PAGE_SIZE)
 #define PMD_LEVEL_MULT (PTRS_PER_PTE * PTE_LEVEL_MULT)
 #define PUD_LEVEL_MULT (PTRS_PER_PMD * PMD_LEVEL_MULT)
-#define PGD_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
+#define P4D_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
+#define PGD_LEVEL_MULT (PTRS_PER_P4D * P4D_LEVEL_MULT)
 
 #define pt_dump_seq_printf(m, to_dmesg, fmt, args...)		\
 ({								\
@@ -127,9 +180,9 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
 {
 	pgprotval_t pr = pgprot_val(prot);
 	static const char * const level_name[] =
-		{ "cr3", "pgd", "pud", "pmd", "pte" };
+		{ "cr3", "pgd", "p4d", "pud", "pmd", "pte" };
 
-	if (!pgprot_val(prot)) {
+	if (!(pr & _PAGE_PRESENT)) {
 		/* Not present */
 		pt_dump_cont_printf(m, dmsg, "                              ");
 	} else {
@@ -151,12 +204,12 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
 			pt_dump_cont_printf(m, dmsg, "    ");
 
 		/* Bit 7 has a different meaning on level 3 vs 4 */
-		if (level <= 3 && pr & _PAGE_PSE)
+		if (level <= 4 && pr & _PAGE_PSE)
 			pt_dump_cont_printf(m, dmsg, "PSE ");
 		else
 			pt_dump_cont_printf(m, dmsg, "    ");
-		if ((level == 4 && pr & _PAGE_PAT) ||
-		    ((level == 3 || level == 2) && pr & _PAGE_PAT_LARGE))
+		if ((level == 5 && pr & _PAGE_PAT) ||
+		    ((level == 4 || level == 3) && pr & _PAGE_PAT_LARGE))
 			pt_dump_cont_printf(m, dmsg, "PAT ");
 		else
 			pt_dump_cont_printf(m, dmsg, "    ");
@@ -177,11 +230,12 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
  */
 static unsigned long normalize_addr(unsigned long u)
 {
-#ifdef CONFIG_X86_64
-	return (signed long)(u << 16) >> 16;
-#else
-	return u;
-#endif
+	int shift;
+	if (!IS_ENABLED(CONFIG_X86_64))
+		return u;
+
+	shift = 64 - (__VIRTUAL_MASK_SHIFT + 1);
+	return (signed long)(u << shift) >> shift;
 }
 
 /*
@@ -190,9 +244,9 @@ static unsigned long normalize_addr(unsigned long u)
  * print what we collected so far.
  */
 static void note_page(struct seq_file *m, struct pg_state *st,
-		      pgprot_t new_prot, int level)
+		      pgprot_t new_prot, pgprotval_t new_eff, int level)
 {
-	pgprotval_t prot, cur;
+	pgprotval_t prot, cur, eff;
 	static const char units[] = "BKMGTPE";
 
 	/*
@@ -202,23 +256,24 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 	 */
 	prot = pgprot_val(new_prot);
 	cur = pgprot_val(st->current_prot);
+	eff = st->effective_prot;
 
 	if (!st->level) {
 		/* First entry */
 		st->current_prot = new_prot;
+		st->effective_prot = new_eff;
 		st->level = level;
 		st->marker = address_markers;
 		st->lines = 0;
 		pt_dump_seq_printf(m, st->to_dmesg, "---[ %s ]---\n",
 				   st->marker->name);
-	} else if (prot != cur || level != st->level ||
+	} else if (prot != cur || new_eff != eff || level != st->level ||
 		   st->current_address >= st->marker[1].start_address) {
 		const char *unit = units;
 		unsigned long delta;
 		int width = sizeof(unsigned long) * 2;
-		pgprotval_t pr = pgprot_val(st->current_prot);
 
-		if (st->check_wx && (pr & _PAGE_RW) && !(pr & _PAGE_NX)) {
+		if (st->check_wx && (eff & _PAGE_RW) && !(eff & _PAGE_NX)) {
 			WARN_ONCE(1,
 				  "x86/mm: Found insecure W+X mapping at address %p/%pS\n",
 				  (void *)st->start_address,
@@ -272,122 +327,190 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 
 		st->start_address = st->current_address;
 		st->current_prot = new_prot;
+		st->effective_prot = new_eff;
 		st->level = level;
 	}
 }
 
+static inline pgprotval_t effective_prot(pgprotval_t prot1, pgprotval_t prot2)
+{
+	return (prot1 & prot2 & (_PAGE_USER | _PAGE_RW)) |
+	       ((prot1 | prot2) & _PAGE_NX);
+}
+
 static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
-							unsigned long P)
+			   pgprotval_t eff_in, unsigned long P)
 {
 	int i;
-	pte_t *start;
-	pgprotval_t prot;
+	pte_t *pte;
+	pgprotval_t prot, eff;
 
-	start = (pte_t *) pmd_page_vaddr(addr);
 	for (i = 0; i < PTRS_PER_PTE; i++) {
-		prot = pte_flags(*start);
 		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
-		note_page(m, st, __pgprot(prot), 4);
-		start++;
+		pte = pte_offset_map(&addr, st->current_address);
+		prot = pte_flags(*pte);
+		eff = effective_prot(eff_in, prot);
+		note_page(m, st, __pgprot(prot), eff, 5);
+		pte_unmap(pte);
 	}
 }
+#ifdef CONFIG_KASAN
+
+/*
+ * This is an optimization for KASAN=y case. Since all kasan page tables
+ * eventually point to the kasan_zero_page we could call note_page()
+ * right away without walking through lower level page tables. This saves
+ * us dozens of seconds (minutes for 5-level config) while checking for
+ * W+X mapping or reading kernel_page_tables debugfs file.
+ */
+static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
+				void *pt)
+{
+	if (__pa(pt) == __pa(kasan_zero_pmd) ||
+	    (pgtable_l5_enabled() && __pa(pt) == __pa(kasan_zero_p4d)) ||
+	    __pa(pt) == __pa(kasan_zero_pud)) {
+		pgprotval_t prot = pte_flags(kasan_zero_pte[0]);
+		note_page(m, st, __pgprot(prot), 0, 5);
+		return true;
+	}
+	return false;
+}
+#else
+static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
+				void *pt)
+{
+	return false;
+}
+#endif
 
 #if PTRS_PER_PMD > 1
 
 static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
-							unsigned long P)
+			   pgprotval_t eff_in, unsigned long P)
 {
 	int i;
-	pmd_t *start;
-	pgprotval_t prot;
+	pmd_t *start, *pmd_start;
+	pgprotval_t prot, eff;
 
-	start = (pmd_t *) pud_page_vaddr(addr);
+	pmd_start = start = (pmd_t *)pud_page_vaddr(addr);
 	for (i = 0; i < PTRS_PER_PMD; i++) {
 		st->current_address = normalize_addr(P + i * PMD_LEVEL_MULT);
 		if (!pmd_none(*start)) {
+			prot = pmd_flags(*start);
+			eff = effective_prot(eff_in, prot);
 			if (pmd_large(*start) || !pmd_present(*start)) {
-				prot = pmd_flags(*start);
-				note_page(m, st, __pgprot(prot), 3);
-			} else {
-				walk_pte_level(m, st, *start,
+				note_page(m, st, __pgprot(prot), eff, 4);
+			} else if (!kasan_page_table(m, st, pmd_start)) {
+				walk_pte_level(m, st, *start, eff,
 					       P + i * PMD_LEVEL_MULT);
 			}
 		} else
-			note_page(m, st, __pgprot(0), 3);
+			note_page(m, st, __pgprot(0), 0, 4);
 		start++;
 	}
 }
 
 #else
-#define walk_pmd_level(m,s,a,p) walk_pte_level(m,s,__pmd(pud_val(a)),p)
+#define walk_pmd_level(m,s,a,e,p) walk_pte_level(m,s,__pmd(pud_val(a)),e,p)
 #define pud_large(a) pmd_large(__pmd(pud_val(a)))
 #define pud_none(a)  pmd_none(__pmd(pud_val(a)))
 #endif
 
 #if PTRS_PER_PUD > 1
 
-static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
-							unsigned long P)
+static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
+			   pgprotval_t eff_in, unsigned long P)
 {
 	int i;
-	pud_t *start;
-	pgprotval_t prot;
+	pud_t *start, *pud_start;
+	pgprotval_t prot, eff;
+	pud_t *prev_pud = NULL;
 
-	start = (pud_t *) pgd_page_vaddr(addr);
+	pud_start = start = (pud_t *)p4d_page_vaddr(addr);
 
 	for (i = 0; i < PTRS_PER_PUD; i++) {
 		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
 		if (!pud_none(*start)) {
+			prot = pud_flags(*start);
+			eff = effective_prot(eff_in, prot);
 			if (pud_large(*start) || !pud_present(*start)) {
-				prot = pud_flags(*start);
-				note_page(m, st, __pgprot(prot), 2);
-			} else {
-				walk_pmd_level(m, st, *start,
+				note_page(m, st, __pgprot(prot), eff, 3);
+			} else if (!kasan_page_table(m, st, pud_start)) {
+				walk_pmd_level(m, st, *start, eff,
 					       P + i * PUD_LEVEL_MULT);
 			}
 		} else
-			note_page(m, st, __pgprot(0), 2);
+			note_page(m, st, __pgprot(0), 0, 3);
 
+		prev_pud = start;
 		start++;
 	}
 }
 
 #else
-#define walk_pud_level(m,s,a,p) walk_pmd_level(m,s,__pud(pgd_val(a)),p)
-#define pgd_large(a) pud_large(__pud(pgd_val(a)))
-#define pgd_none(a)  pud_none(__pud(pgd_val(a)))
+#define walk_pud_level(m,s,a,e,p) walk_pmd_level(m,s,__pud(p4d_val(a)),e,p)
+#define p4d_large(a) pud_large(__pud(p4d_val(a)))
+#define p4d_none(a)  pud_none(__pud(p4d_val(a)))
 #endif
 
-#ifdef CONFIG_X86_64
+static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
+			   pgprotval_t eff_in, unsigned long P)
+{
+	int i;
+	p4d_t *start, *p4d_start;
+	pgprotval_t prot, eff;
+
+	if (PTRS_PER_P4D == 1)
+		return walk_pud_level(m, st, __p4d(pgd_val(addr)), eff_in, P);
+
+	p4d_start = start = (p4d_t *)pgd_page_vaddr(addr);
+
+	for (i = 0; i < PTRS_PER_P4D; i++) {
+		st->current_address = normalize_addr(P + i * P4D_LEVEL_MULT);
+		if (!p4d_none(*start)) {
+			prot = p4d_flags(*start);
+			eff = effective_prot(eff_in, prot);
+			if (p4d_large(*start) || !p4d_present(*start)) {
+				note_page(m, st, __pgprot(prot), eff, 2);
+			} else if (!kasan_page_table(m, st, p4d_start)) {
+				walk_pud_level(m, st, *start, eff,
+					       P + i * P4D_LEVEL_MULT);
+			}
+		} else
+			note_page(m, st, __pgprot(0), 0, 2);
+
+		start++;
+	}
+}
+
+#define pgd_large(a) (pgtable_l5_enabled() ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
+#define pgd_none(a)  (pgtable_l5_enabled() ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
+
 static inline bool is_hypervisor_range(int idx)
 {
+#ifdef CONFIG_X86_64
 	/*
-	 * ffff800000000000 - ffff87ffffffffff is reserved for
-	 * the hypervisor.
+	 * A hole in the beginning of kernel address space reserved
+	 * for a hypervisor.
 	 */
-	return paravirt_enabled() &&
-		(idx >= pgd_index(__PAGE_OFFSET) - 16) &&
-		(idx < pgd_index(__PAGE_OFFSET));
-}
+	return	(idx >= pgd_index(GUARD_HOLE_BASE_ADDR)) &&
+		(idx <  pgd_index(GUARD_HOLE_END_ADDR));
 #else
-static inline bool is_hypervisor_range(int idx) { return false; }
+	return false;
 #endif
+}
 
 static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
-				       bool checkwx)
+				       bool checkwx, bool dmesg)
 {
-#ifdef CONFIG_X86_64
-	pgd_t *start = (pgd_t *) &init_level4_pgt;
-#else
-	pgd_t *start = swapper_pg_dir;
-#endif
-	pgprotval_t prot;
+	pgd_t *start = INIT_PGD;
+	pgprotval_t prot, eff;
 	int i;
 	struct pg_state st = {};
 
 	if (pgd) {
 		start = pgd;
-		st.to_dmesg = true;
+		st.to_dmesg = dmesg;
 	}
 
 	st.check_wx = checkwx;
@@ -397,22 +520,28 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 	for (i = 0; i < PTRS_PER_PGD; i++) {
 		st.current_address = normalize_addr(i * PGD_LEVEL_MULT);
 		if (!pgd_none(*start) && !is_hypervisor_range(i)) {
+			prot = pgd_flags(*start);
+#ifdef CONFIG_X86_PAE
+			eff = _PAGE_USER | _PAGE_RW;
+#else
+			eff = prot;
+#endif
 			if (pgd_large(*start) || !pgd_present(*start)) {
-				prot = pgd_flags(*start);
-				note_page(m, &st, __pgprot(prot), 1);
+				note_page(m, &st, __pgprot(prot), eff, 1);
 			} else {
-				walk_pud_level(m, &st, *start,
+				walk_p4d_level(m, &st, *start, eff,
 					       i * PGD_LEVEL_MULT);
 			}
 		} else
-			note_page(m, &st, __pgprot(0), 1);
+			note_page(m, &st, __pgprot(0), 0, 1);
 
+		cond_resched();
 		start++;
 	}
 
 	/* Flush out the last page */
 	st.current_address = normalize_addr(PTRS_PER_PGD*PGD_LEVEL_MULT);
-	note_page(m, &st, __pgprot(0), 0);
+	note_page(m, &st, __pgprot(0), 0, 0);
 	if (!checkwx)
 		return;
 	if (st.wx_pages)
@@ -424,61 +553,69 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 
 void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
 {
-	ptdump_walk_pgd_level_core(m, pgd, false);
+	ptdump_walk_pgd_level_core(m, pgd, false, true);
+}
+
+void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user)
+{
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	if (user && static_cpu_has(X86_FEATURE_PTI))
+		pgd = kernel_to_user_pgdp(pgd);
+#endif
+	ptdump_walk_pgd_level_core(m, pgd, false, false);
+}
+EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
+
+void ptdump_walk_user_pgd_level_checkwx(void)
+{
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	pgd_t *pgd = INIT_PGD;
+
+	if (!(__supported_pte_mask & _PAGE_NX) ||
+	    !static_cpu_has(X86_FEATURE_PTI))
+		return;
+
+	pr_info("x86/mm: Checking user space page tables\n");
+	pgd = kernel_to_user_pgdp(pgd);
+	ptdump_walk_pgd_level_core(NULL, pgd, true, false);
+#endif
 }
 
 void ptdump_walk_pgd_level_checkwx(void)
 {
-	ptdump_walk_pgd_level_core(NULL, NULL, true);
+	ptdump_walk_pgd_level_core(NULL, NULL, true, false);
 }
 
-#ifdef CONFIG_X86_PTDUMP
-static int ptdump_show(struct seq_file *m, void *v)
+static int __init pt_dump_init(void)
 {
-	ptdump_walk_pgd_level(m, NULL);
-	return 0;
-}
-
-static int ptdump_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, ptdump_show, NULL);
-}
-
-static const struct file_operations ptdump_fops = {
-	.open		= ptdump_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+	/*
+	 * Various markers are not compile-time constants, so assign them
+	 * here.
+	 */
+#ifdef CONFIG_X86_64
+	address_markers[LOW_KERNEL_NR].start_address = PAGE_OFFSET;
+	address_markers[VMALLOC_START_NR].start_address = VMALLOC_START;
+	address_markers[VMEMMAP_START_NR].start_address = VMEMMAP_START;
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+	address_markers[LDT_NR].start_address = LDT_BASE_ADDR;
 #endif
-
-static int pt_dump_init(void)
-{
-#ifdef CONFIG_X86_PTDUMP
-	struct dentry *pe;
+#ifdef CONFIG_KASAN
+	address_markers[KASAN_SHADOW_START_NR].start_address = KASAN_SHADOW_START;
+	address_markers[KASAN_SHADOW_END_NR].start_address = KASAN_SHADOW_END;
 #endif
-
+#endif
 #ifdef CONFIG_X86_32
-	/* Not a compile-time constant on x86-32 */
 	address_markers[VMALLOC_START_NR].start_address = VMALLOC_START;
 	address_markers[VMALLOC_END_NR].start_address = VMALLOC_END;
 # ifdef CONFIG_HIGHMEM
 	address_markers[PKMAP_BASE_NR].start_address = PKMAP_BASE;
 # endif
 	address_markers[FIXADDR_START_NR].start_address = FIXADDR_START;
+	address_markers[CPU_ENTRY_AREA_NR].start_address = CPU_ENTRY_AREA_BASE;
+# ifdef CONFIG_MODIFY_LDT_SYSCALL
+	address_markers[LDT_NR].start_address = LDT_BASE_ADDR;
+# endif
 #endif
-
-#ifdef CONFIG_X86_PTDUMP
-	pe = debugfs_create_file("kernel_page_tables", 0600, NULL, NULL,
-				 &ptdump_fops);
-	if (!pe)
-		return -ENOMEM;
-#endif
-
 	return 0;
 }
-
 __initcall(pt_dump_init);
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Arjan van de Ven <arjan@linux.intel.com>");
-MODULE_DESCRIPTION("Kernel debugging helper that dumps pagetables");

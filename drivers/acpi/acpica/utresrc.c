@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: utresrc - Resource management utilities
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -47,251 +11,6 @@
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utresrc")
-
-#if defined(ACPI_DEBUG_OUTPUT) || defined (ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
-/*
- * Strings used to decode resource descriptors.
- * Used by both the disassembler and the debugger resource dump routines
- */
-const char *acpi_gbl_bm_decode[] = {
-	"NotBusMaster",
-	"BusMaster"
-};
-
-const char *acpi_gbl_config_decode[] = {
-	"0 - Good Configuration",
-	"1 - Acceptable Configuration",
-	"2 - Suboptimal Configuration",
-	"3 - ***Invalid Configuration***",
-};
-
-const char *acpi_gbl_consume_decode[] = {
-	"ResourceProducer",
-	"ResourceConsumer"
-};
-
-const char *acpi_gbl_dec_decode[] = {
-	"PosDecode",
-	"SubDecode"
-};
-
-const char *acpi_gbl_he_decode[] = {
-	"Level",
-	"Edge"
-};
-
-const char *acpi_gbl_io_decode[] = {
-	"Decode10",
-	"Decode16"
-};
-
-const char *acpi_gbl_ll_decode[] = {
-	"ActiveHigh",
-	"ActiveLow",
-	"ActiveBoth",
-	"Reserved"
-};
-
-const char *acpi_gbl_max_decode[] = {
-	"MaxNotFixed",
-	"MaxFixed"
-};
-
-const char *acpi_gbl_mem_decode[] = {
-	"NonCacheable",
-	"Cacheable",
-	"WriteCombining",
-	"Prefetchable"
-};
-
-const char *acpi_gbl_min_decode[] = {
-	"MinNotFixed",
-	"MinFixed"
-};
-
-const char *acpi_gbl_mtp_decode[] = {
-	"AddressRangeMemory",
-	"AddressRangeReserved",
-	"AddressRangeACPI",
-	"AddressRangeNVS"
-};
-
-const char *acpi_gbl_rng_decode[] = {
-	"InvalidRanges",
-	"NonISAOnlyRanges",
-	"ISAOnlyRanges",
-	"EntireRange"
-};
-
-const char *acpi_gbl_rw_decode[] = {
-	"ReadOnly",
-	"ReadWrite"
-};
-
-const char *acpi_gbl_shr_decode[] = {
-	"Exclusive",
-	"Shared",
-	"ExclusiveAndWake",	/* ACPI 5.0 */
-	"SharedAndWake"		/* ACPI 5.0 */
-};
-
-const char *acpi_gbl_siz_decode[] = {
-	"Transfer8",
-	"Transfer8_16",
-	"Transfer16",
-	"InvalidSize"
-};
-
-const char *acpi_gbl_trs_decode[] = {
-	"DenseTranslation",
-	"SparseTranslation"
-};
-
-const char *acpi_gbl_ttp_decode[] = {
-	"TypeStatic",
-	"TypeTranslation"
-};
-
-const char *acpi_gbl_typ_decode[] = {
-	"Compatibility",
-	"TypeA",
-	"TypeB",
-	"TypeF"
-};
-
-const char *acpi_gbl_ppc_decode[] = {
-	"PullDefault",
-	"PullUp",
-	"PullDown",
-	"PullNone"
-};
-
-const char *acpi_gbl_ior_decode[] = {
-	"IoRestrictionNone",
-	"IoRestrictionInputOnly",
-	"IoRestrictionOutputOnly",
-	"IoRestrictionNoneAndPreserve"
-};
-
-const char *acpi_gbl_dts_decode[] = {
-	"Width8bit",
-	"Width16bit",
-	"Width32bit",
-	"Width64bit",
-	"Width128bit",
-	"Width256bit",
-};
-
-/* GPIO connection type */
-
-const char *acpi_gbl_ct_decode[] = {
-	"Interrupt",
-	"I/O"
-};
-
-/* Serial bus type */
-
-const char *acpi_gbl_sbt_decode[] = {
-	"/* UNKNOWN serial bus type */",
-	"I2C",
-	"SPI",
-	"UART"
-};
-
-/* I2C serial bus access mode */
-
-const char *acpi_gbl_am_decode[] = {
-	"AddressingMode7Bit",
-	"AddressingMode10Bit"
-};
-
-/* I2C serial bus slave mode */
-
-const char *acpi_gbl_sm_decode[] = {
-	"ControllerInitiated",
-	"DeviceInitiated"
-};
-
-/* SPI serial bus wire mode */
-
-const char *acpi_gbl_wm_decode[] = {
-	"FourWireMode",
-	"ThreeWireMode"
-};
-
-/* SPI serial clock phase */
-
-const char *acpi_gbl_cph_decode[] = {
-	"ClockPhaseFirst",
-	"ClockPhaseSecond"
-};
-
-/* SPI serial bus clock polarity */
-
-const char *acpi_gbl_cpo_decode[] = {
-	"ClockPolarityLow",
-	"ClockPolarityHigh"
-};
-
-/* SPI serial bus device polarity */
-
-const char *acpi_gbl_dp_decode[] = {
-	"PolarityLow",
-	"PolarityHigh"
-};
-
-/* UART serial bus endian */
-
-const char *acpi_gbl_ed_decode[] = {
-	"LittleEndian",
-	"BigEndian"
-};
-
-/* UART serial bus bits per byte */
-
-const char *acpi_gbl_bpb_decode[] = {
-	"DataBitsFive",
-	"DataBitsSix",
-	"DataBitsSeven",
-	"DataBitsEight",
-	"DataBitsNine",
-	"/* UNKNOWN Bits per byte */",
-	"/* UNKNOWN Bits per byte */",
-	"/* UNKNOWN Bits per byte */"
-};
-
-/* UART serial bus stop bits */
-
-const char *acpi_gbl_sb_decode[] = {
-	"StopBitsZero",
-	"StopBitsOne",
-	"StopBitsOnePlusHalf",
-	"StopBitsTwo"
-};
-
-/* UART serial bus flow control */
-
-const char *acpi_gbl_fc_decode[] = {
-	"FlowControlNone",
-	"FlowControlHardware",
-	"FlowControlXON",
-	"/* UNKNOWN flow control keyword */"
-};
-
-/* UART serial bus parity type */
-
-const char *acpi_gbl_pt_decode[] = {
-	"ParityTypeNone",
-	"ParityTypeEven",
-	"ParityTypeOdd",
-	"ParityTypeMark",
-	"ParityTypeSpace",
-	"/* UNKNOWN parity keyword */",
-	"/* UNKNOWN parity keyword */",
-	"/* UNKNOWN parity keyword */"
-};
-
-#endif
 
 /*
  * Base sizes of the raw AML resource descriptors, indexed by resource type.
@@ -332,8 +51,12 @@ const u8 acpi_gbl_resource_aml_sizes[] = {
 	ACPI_AML_SIZE_LARGE(struct aml_resource_address64),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_extended_address64),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_gpio),
-	0,
+	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_function),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_common_serialbus),
+	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_config),
+	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_group),
+	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_group_function),
+	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_group_config),
 };
 
 const u8 acpi_gbl_resource_aml_serial_bus_sizes[] = {
@@ -384,8 +107,12 @@ static const u8 acpi_gbl_resource_types[] = {
 	ACPI_VARIABLE_LENGTH,	/* 0A Qword* address */
 	ACPI_FIXED_LENGTH,	/* 0B Extended* address */
 	ACPI_VARIABLE_LENGTH,	/* 0C Gpio* */
-	0,
-	ACPI_VARIABLE_LENGTH	/* 0E *serial_bus */
+	ACPI_VARIABLE_LENGTH,	/* 0D pin_function */
+	ACPI_VARIABLE_LENGTH,	/* 0E *serial_bus */
+	ACPI_VARIABLE_LENGTH,	/* 0F pin_config */
+	ACPI_VARIABLE_LENGTH,	/* 10 pin_group */
+	ACPI_VARIABLE_LENGTH,	/* 11 pin_group_function */
+	ACPI_VARIABLE_LENGTH,	/* 12 pin_group_config */
 };
 
 /*******************************************************************************
@@ -441,8 +168,8 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 		    acpi_ut_validate_resource(walk_state, aml, &resource_index);
 		if (ACPI_FAILURE(status)) {
 			/*
-			 * Exit on failure. Cannot continue because the descriptor length
-			 * may be bogus also.
+			 * Exit on failure. Cannot continue because the descriptor
+			 * length may be bogus also.
 			 */
 			return_ACPI_STATUS(status);
 		}
@@ -473,6 +200,13 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 			if ((aml + 1) >= end_aml) {
 				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
 			}
+
+			/*
+			 * Don't attempt to perform any validation on the 2nd byte.
+			 * Although all known ASL compilers insert a zero for the 2nd
+			 * byte, it can also be a checksum (as per the ACPI spec),
+			 * and this is occasionally seen in the field. July 2017.
+			 */
 
 			/* Return the pointer to the end_tag if requested */
 
@@ -568,8 +302,8 @@ acpi_ut_validate_resource(struct acpi_walk_state *walk_state,
 	}
 
 	/*
-	 * Check validity of the resource type, via acpi_gbl_resource_types. Zero
-	 * indicates an invalid resource.
+	 * Check validity of the resource type, via acpi_gbl_resource_types.
+	 * Zero indicates an invalid resource.
 	 */
 	if (!acpi_gbl_resource_types[resource_index]) {
 		goto invalid_resource;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* 
  * QNX4 file system, Linux implementation.
  * 
@@ -113,13 +114,9 @@ struct dentry * qnx4_lookup(struct inode *dir, struct dentry *dentry, unsigned i
 	brelse(bh);
 
 	foundinode = qnx4_iget(dir->i_sb, ino);
-	if (IS_ERR(foundinode)) {
+	if (IS_ERR(foundinode))
 		QNX4DEBUG((KERN_ERR "qnx4: lookup->iget -> error %ld\n",
 			   PTR_ERR(foundinode)));
-		return ERR_CAST(foundinode);
-	}
 out:
-	d_add(dentry, foundinode);
-
-	return NULL;
+	return d_splice_alias(foundinode, dentry);
 }

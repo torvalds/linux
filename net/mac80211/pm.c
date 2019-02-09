@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <net/mac80211.h>
 #include <net/rtnetlink.h>
 
@@ -10,7 +11,7 @@ static void ieee80211_sched_scan_cancel(struct ieee80211_local *local)
 {
 	if (ieee80211_request_sched_scan_stop(local))
 		return;
-	cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy);
+	cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy, 0);
 }
 
 int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
@@ -168,6 +169,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			break;
 		}
 
+		flush_delayed_work(&sdata->dec_tailroom_needed_wk);
 		drv_remove_interface(local, sdata);
 	}
 
@@ -178,8 +180,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	WARN_ON(!list_empty(&local->chanctx_list));
 
 	/* stop hardware - this must stop RX */
-	if (local->open_count)
-		ieee80211_stop_device(local);
+	ieee80211_stop_device(local);
 
  suspend:
 	local->suspended = true;

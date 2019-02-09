@@ -66,7 +66,6 @@ static inline void htcp_reset(struct htcp *ca)
 
 static u32 htcp_cwnd_undo(struct sock *sk)
 {
-	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
 
 	if (ca->undo_last_cong) {
@@ -76,7 +75,7 @@ static u32 htcp_cwnd_undo(struct sock *sk)
 		ca->undo_last_cong = 0;
 	}
 
-	return max(tp->snd_cwnd, (tp->snd_ssthresh << 7) / ca->beta);
+	return tcp_reno_undo_cwnd(sk);
 }
 
 static inline void measure_rtt(struct sock *sk, u32 srtt)
@@ -99,18 +98,18 @@ static inline void measure_rtt(struct sock *sk, u32 srtt)
 }
 
 static void measure_achieved_throughput(struct sock *sk,
-					u32 pkts_acked, s32 rtt)
+					const struct ack_sample *sample)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
-	u32 now = tcp_time_stamp;
+	u32 now = tcp_jiffies32;
 
 	if (icsk->icsk_ca_state == TCP_CA_Open)
-		ca->pkts_acked = pkts_acked;
+		ca->pkts_acked = sample->pkts_acked;
 
-	if (rtt > 0)
-		measure_rtt(sk, usecs_to_jiffies(rtt));
+	if (sample->rtt_us > 0)
+		measure_rtt(sk, usecs_to_jiffies(sample->rtt_us));
 
 	if (!use_bandwidth_switch)
 		return;
@@ -122,7 +121,7 @@ static void measure_achieved_throughput(struct sock *sk,
 		return;
 	}
 
-	ca->packetcount += pkts_acked;
+	ca->packetcount += sample->pkts_acked;
 
 	if (ca->packetcount >= tp->snd_cwnd - (ca->alpha >> 7 ? : 1) &&
 	    now - ca->lasttime >= ca->minRTT &&

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (2004) Linus Torvalds
  *
@@ -29,11 +30,10 @@
 #if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
 /*
  * The __lock_function inlines are taken from
- * include/linux/spinlock_api_smp.h
+ * spinlock : include/linux/spinlock_api_smp.h
+ * rwlock   : include/linux/rwlock_api_smp.h
  */
 #else
-#define raw_read_can_lock(l)	read_can_lock(l)
-#define raw_write_can_lock(l)	write_can_lock(l)
 
 /*
  * Some architectures can relax in favour of the CPU owning the lock.
@@ -66,12 +66,8 @@ void __lockfunc __raw_##op##_lock(locktype##_t *lock)			\
 			break;						\
 		preempt_enable();					\
 									\
-		if (!(lock)->break_lock)				\
-			(lock)->break_lock = 1;				\
-		while (!raw_##op##_can_lock(lock) && (lock)->break_lock)\
-			arch_##op##_relax(&lock->raw_lock);		\
+		arch_##op##_relax(&lock->raw_lock);			\
 	}								\
-	(lock)->break_lock = 0;						\
 }									\
 									\
 unsigned long __lockfunc __raw_##op##_lock_irqsave(locktype##_t *lock)	\
@@ -86,12 +82,9 @@ unsigned long __lockfunc __raw_##op##_lock_irqsave(locktype##_t *lock)	\
 		local_irq_restore(flags);				\
 		preempt_enable();					\
 									\
-		if (!(lock)->break_lock)				\
-			(lock)->break_lock = 1;				\
-		while (!raw_##op##_can_lock(lock) && (lock)->break_lock)\
-			arch_##op##_relax(&lock->raw_lock);		\
+		arch_##op##_relax(&lock->raw_lock);			\
 	}								\
-	(lock)->break_lock = 0;						\
+									\
 	return flags;							\
 }									\
 									\
@@ -362,14 +355,6 @@ void __lockfunc _raw_spin_lock_nested(raw_spinlock_t *lock, int subclass)
 	LOCK_CONTENDED(lock, do_raw_spin_trylock, do_raw_spin_lock);
 }
 EXPORT_SYMBOL(_raw_spin_lock_nested);
-
-void __lockfunc _raw_spin_lock_bh_nested(raw_spinlock_t *lock, int subclass)
-{
-	__local_bh_disable_ip(_RET_IP_, SOFTIRQ_LOCK_OFFSET);
-	spin_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
-	LOCK_CONTENDED(lock, do_raw_spin_trylock, do_raw_spin_lock);
-}
-EXPORT_SYMBOL(_raw_spin_lock_bh_nested);
 
 unsigned long __lockfunc _raw_spin_lock_irqsave_nested(raw_spinlock_t *lock,
 						   int subclass)

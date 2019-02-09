@@ -24,7 +24,7 @@ Prerequisites
 -------------
 
 First the prerequisites. Without these you have already failed, because you
-will need to add a a 32-bit compat layer:
+will need to add a 32-bit compat layer:
 
  * Only use fixed sized integers. To avoid conflicts with typedefs in userspace
    the kernel has special types like __u32, __s64. Use them.
@@ -34,15 +34,18 @@ will need to add a a 32-bit compat layer:
    64-bit platforms do. So we always need padding to the natural size to get
    this right.
 
- * Pad the entire struct to a multiple of 64-bits - the structure size will
-   otherwise differ on 32-bit versus 64-bit. Having a different structure size
-   hurts when passing arrays of structures to the kernel, or if the kernel
-   checks the structure size, which e.g. the drm core does.
+ * Pad the entire struct to a multiple of 64-bits if the structure contains
+   64-bit types - the structure size will otherwise differ on 32-bit versus
+   64-bit. Having a different structure size hurts when passing arrays of
+   structures to the kernel, or if the kernel checks the structure size, which
+   e.g. the drm core does.
 
  * Pointers are __u64, cast from/to a uintprt_t on the userspace side and
    from/to a void __user * in the kernel. Try really hard not to delay this
    conversion or worse, fiddle the raw __u64 through your code since that
-   diminishes the checking tools like sparse can provide.
+   diminishes the checking tools like sparse can provide. The macro
+   u64_to_user_ptr can be used in the kernel to avoid warnings about integers
+   and pointres of different sizes.
 
 
 Basics
@@ -70,7 +73,9 @@ will have a second iteration or at least an extension for any given interface.
    future extensions is going right down the gutters since someone will submit
    an ioctl struct with random stack garbage in the yet unused parts. Which
    then bakes in the ABI that those fields can never be used for anything else
-   but garbage.
+   but garbage. This is also the reason why you must explicitly pad all
+   structures, even if you never use them in an array - the padding the compiler
+   might insert could contain garbage.
 
  * Have simple testcases for all of the above.
 
@@ -122,7 +127,7 @@ Time, Waiting and Missing it
 ----------------------------
 
 GPUs do most everything asynchronously, so we have a need to time operations and
-wait for oustanding ones. This is really tricky business; at the moment none of
+wait for outstanding ones. This is really tricky business; at the moment none of
 the ioctls supported by the drm/i915 get this fully right, which means there's
 still tons more lessons to learn here.
 
@@ -146,7 +151,7 @@ still tons more lessons to learn here.
    ioctl restartable relative timeouts tend to be too coarse and can
    indefinitely extend your wait time due to rounding on each restart.
    Especially if your reference clock is something really slow like the display
-   frame counter. With a spec laywer hat on this isn't a bug since timeouts can
+   frame counter. With a spec lawyer hat on this isn't a bug since timeouts can
    always be extended - but users will surely hate you if their neat animations
    starts to stutter due to this.
 
@@ -176,7 +181,7 @@ entails its own little set of pitfalls:
 
  * Ensure that you have sufficient insulation between different clients. By
    default pick a private per-fd namespace which forces any sharing to be done
-   explictly. Only go with a more global per-device namespace if the objects
+   explicitly. Only go with a more global per-device namespace if the objects
    are truly device-unique. One counterexample in the drm modeset interfaces is
    that the per-device modeset objects like connectors share a namespace with
    framebuffer objects, which mostly are not shared at all. A separate

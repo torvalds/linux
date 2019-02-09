@@ -183,8 +183,8 @@ static void atiixp_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	 *	We must now look at the PIO mode situation. We may need to
 	 *	adjust the PIO mode to keep the timings acceptable
 	 */
-	 if (adev->dma_mode >= XFER_MW_DMA_2)
-	 	wanted_pio = 4;
+	if (adev->dma_mode >= XFER_MW_DMA_2)
+		wanted_pio = 4;
 	else if (adev->dma_mode == XFER_MW_DMA_1)
 		wanted_pio = 3;
 	else if (adev->dma_mode == XFER_MW_DMA_0)
@@ -277,6 +277,10 @@ static int atiixp_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &atiixp_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, &info };
+
+	/* SB600 doesn't have secondary port wired */
+	if((pdev->device == PCI_DEVICE_ID_ATI_IXP600_IDE))
+		ppi[1] = &ata_dummy_port_info;
 
 	return ata_pci_bmdma_init_one(pdev, ppi, &atiixp_sht, NULL,
 				      ATA_HOST_PARALLEL_SCAN);

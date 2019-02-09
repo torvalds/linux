@@ -40,6 +40,9 @@
 #define OPAL_I2C_ARBT_LOST	-22
 #define OPAL_I2C_NACK_RCVD	-23
 #define OPAL_I2C_STOP_ERR	-24
+#define OPAL_XIVE_PROVISIONING	-31
+#define OPAL_XIVE_FREE_ACTIVE	-32
+#define OPAL_TIMEOUT		-33
 
 /* API Tokens (in r0) */
 #define OPAL_INVALID_CALL		       -1
@@ -157,17 +160,80 @@
 #define OPAL_LEDS_GET_INDICATOR			114
 #define OPAL_LEDS_SET_INDICATOR			115
 #define OPAL_CEC_REBOOT2			116
-#define OPAL_LAST				116
+#define OPAL_CONSOLE_FLUSH			117
+#define OPAL_GET_DEVICE_TREE			118
+#define OPAL_PCI_GET_PRESENCE_STATE		119
+#define OPAL_PCI_GET_POWER_STATE		120
+#define OPAL_PCI_SET_POWER_STATE		121
+#define OPAL_INT_GET_XIRR			122
+#define	OPAL_INT_SET_CPPR			123
+#define OPAL_INT_EOI				124
+#define OPAL_INT_SET_MFRR			125
+#define OPAL_PCI_TCE_KILL			126
+#define OPAL_NMMU_SET_PTCR			127
+#define OPAL_XIVE_RESET				128
+#define OPAL_XIVE_GET_IRQ_INFO			129
+#define OPAL_XIVE_GET_IRQ_CONFIG		130
+#define OPAL_XIVE_SET_IRQ_CONFIG		131
+#define OPAL_XIVE_GET_QUEUE_INFO		132
+#define OPAL_XIVE_SET_QUEUE_INFO		133
+#define OPAL_XIVE_DONATE_PAGE			134
+#define OPAL_XIVE_ALLOCATE_VP_BLOCK		135
+#define OPAL_XIVE_FREE_VP_BLOCK			136
+#define OPAL_XIVE_GET_VP_INFO			137
+#define OPAL_XIVE_SET_VP_INFO			138
+#define OPAL_XIVE_ALLOCATE_IRQ			139
+#define OPAL_XIVE_FREE_IRQ			140
+#define OPAL_XIVE_SYNC				141
+#define OPAL_XIVE_DUMP				142
+#define OPAL_XIVE_RESERVED3			143
+#define OPAL_XIVE_RESERVED4			144
+#define OPAL_SIGNAL_SYSTEM_RESET		145
+#define OPAL_NPU_INIT_CONTEXT			146
+#define OPAL_NPU_DESTROY_CONTEXT		147
+#define OPAL_NPU_MAP_LPAR			148
+#define OPAL_IMC_COUNTERS_INIT			149
+#define OPAL_IMC_COUNTERS_START			150
+#define OPAL_IMC_COUNTERS_STOP			151
+#define OPAL_GET_POWERCAP			152
+#define OPAL_SET_POWERCAP			153
+#define OPAL_GET_POWER_SHIFT_RATIO		154
+#define OPAL_SET_POWER_SHIFT_RATIO		155
+#define OPAL_SENSOR_GROUP_CLEAR			156
+#define OPAL_PCI_SET_P2P			157
+#define OPAL_QUIESCE				158
+#define OPAL_NPU_SPA_SETUP			159
+#define OPAL_NPU_SPA_CLEAR_CACHE		160
+#define OPAL_NPU_TL_SET				161
+#define OPAL_SENSOR_READ_U64			162
+#define OPAL_SENSOR_GROUP_ENABLE		163
+#define OPAL_PCI_GET_PBCQ_TUNNEL_BAR		164
+#define OPAL_PCI_SET_PBCQ_TUNNEL_BAR		165
+#define	OPAL_NX_COPROC_INIT			167
+#define OPAL_LAST				167
+
+#define QUIESCE_HOLD			1 /* Spin all calls at entry */
+#define QUIESCE_REJECT			2 /* Fail all calls with OPAL_BUSY */
+#define QUIESCE_LOCK_BREAK		3 /* Set to ignore locks. */
+#define QUIESCE_RESUME			4 /* Un-quiesce */
+#define QUIESCE_RESUME_FAST_REBOOT	5 /* Un-quiesce, fast reboot */
 
 /* Device tree flags */
 
-/* Flags set in power-mgmt nodes in device tree if
- * respective idle states are supported in the platform.
+/*
+ * Flags set in power-mgmt nodes in device tree describing
+ * idle states that are supported in the platform.
  */
+
+#define OPAL_PM_TIMEBASE_STOP		0x00000002
+#define OPAL_PM_LOSE_HYP_CONTEXT	0x00002000
+#define OPAL_PM_LOSE_FULL_CONTEXT	0x00004000
 #define OPAL_PM_NAP_ENABLED		0x00010000
 #define OPAL_PM_SLEEP_ENABLED		0x00020000
 #define OPAL_PM_WINKLE_ENABLED		0x00040000
 #define OPAL_PM_SLEEP_ENABLED_ER1	0x00080000 /* with workaround */
+#define OPAL_PM_STOP_INST_FAST		0x00100000
+#define OPAL_PM_STOP_INST_DEEP		0x00200000
 
 /*
  * OPAL_CONFIG_CPU_IDLE_STATE parameters
@@ -343,6 +409,18 @@ enum OpalPciResetState {
 	OPAL_ASSERT_RESET   = 1
 };
 
+enum OpalPciSlotPresence {
+	OPAL_PCI_SLOT_EMPTY	= 0,
+	OPAL_PCI_SLOT_PRESENT	= 1
+};
+
+enum OpalPciSlotPower {
+	OPAL_PCI_SLOT_POWER_OFF	= 0,
+	OPAL_PCI_SLOT_POWER_ON	= 1,
+	OPAL_PCI_SLOT_OFFLINE	= 2,
+	OPAL_PCI_SLOT_ONLINE	= 3
+};
+
 enum OpalSlotLedType {
 	OPAL_SLOT_LED_TYPE_ID = 0,	/* IDENTIFY LED */
 	OPAL_SLOT_LED_TYPE_FAULT = 1,	/* FAULT LED */
@@ -367,16 +445,16 @@ enum OpalLPCAddressType {
 };
 
 enum opal_msg_type {
-	OPAL_MSG_ASYNC_COMP = 0,	/* params[0] = token, params[1] = rc,
+	OPAL_MSG_ASYNC_COMP	= 0,	/* params[0] = token, params[1] = rc,
 					 * additional params function-specific
 					 */
-	OPAL_MSG_MEM_ERR,
-	OPAL_MSG_EPOW,
-	OPAL_MSG_SHUTDOWN,		/* params[0] = 1 reboot, 0 shutdown */
-	OPAL_MSG_HMI_EVT,
-	OPAL_MSG_DPO,
-	OPAL_MSG_PRD,
-	OPAL_MSG_OCC,
+	OPAL_MSG_MEM_ERR	= 1,
+	OPAL_MSG_EPOW		= 2,
+	OPAL_MSG_SHUTDOWN	= 3,	/* params[0] = 1 reboot, 0 shutdown */
+	OPAL_MSG_HMI_EVT	= 4,
+	OPAL_MSG_DPO		= 5,
+	OPAL_MSG_PRD		= 6,
+	OPAL_MSG_OCC		= 7,
 	OPAL_MSG_TYPE_MAX,
 };
 
@@ -615,12 +693,14 @@ enum {
 
 enum {
 	OPAL_PHB_ERROR_DATA_TYPE_P7IOC = 1,
-	OPAL_PHB_ERROR_DATA_TYPE_PHB3 = 2
+	OPAL_PHB_ERROR_DATA_TYPE_PHB3 = 2,
+	OPAL_PHB_ERROR_DATA_TYPE_PHB4 = 3
 };
 
 enum {
 	OPAL_P7IOC_NUM_PEST_REGS = 128,
-	OPAL_PHB3_NUM_PEST_REGS = 256
+	OPAL_PHB3_NUM_PEST_REGS = 256,
+	OPAL_PHB4_NUM_PEST_REGS = 512
 };
 
 struct OpalIoPhbErrorCommon {
@@ -750,9 +830,89 @@ struct OpalIoPhb3ErrorData {
 	__be64 pestB[OPAL_PHB3_NUM_PEST_REGS];
 };
 
+struct OpalIoPhb4ErrorData {
+	struct OpalIoPhbErrorCommon common;
+
+	__be32 brdgCtl;
+
+	/* PHB4 cfg regs */
+	__be32 deviceStatus;
+	__be32 slotStatus;
+	__be32 linkStatus;
+	__be32 devCmdStatus;
+	__be32 devSecStatus;
+
+	/* cfg AER regs */
+	__be32 rootErrorStatus;
+	__be32 uncorrErrorStatus;
+	__be32 corrErrorStatus;
+	__be32 tlpHdr1;
+	__be32 tlpHdr2;
+	__be32 tlpHdr3;
+	__be32 tlpHdr4;
+	__be32 sourceId;
+
+	/* PHB4 ETU Error Regs */
+	__be64 nFir;				/* 000 */
+	__be64 nFirMask;			/* 003 */
+	__be64 nFirWOF;				/* 008 */
+	__be64 phbPlssr;			/* 120 */
+	__be64 phbCsr;				/* 110 */
+	__be64 lemFir;				/* C00 */
+	__be64 lemErrorMask;			/* C18 */
+	__be64 lemWOF;				/* C40 */
+	__be64 phbErrorStatus;			/* C80 */
+	__be64 phbFirstErrorStatus;		/* C88 */
+	__be64 phbErrorLog0;			/* CC0 */
+	__be64 phbErrorLog1;			/* CC8 */
+	__be64 phbTxeErrorStatus;		/* D00 */
+	__be64 phbTxeFirstErrorStatus;		/* D08 */
+	__be64 phbTxeErrorLog0;			/* D40 */
+	__be64 phbTxeErrorLog1;			/* D48 */
+	__be64 phbRxeArbErrorStatus;		/* D80 */
+	__be64 phbRxeArbFirstErrorStatus;	/* D88 */
+	__be64 phbRxeArbErrorLog0;		/* DC0 */
+	__be64 phbRxeArbErrorLog1;		/* DC8 */
+	__be64 phbRxeMrgErrorStatus;		/* E00 */
+	__be64 phbRxeMrgFirstErrorStatus;	/* E08 */
+	__be64 phbRxeMrgErrorLog0;		/* E40 */
+	__be64 phbRxeMrgErrorLog1;		/* E48 */
+	__be64 phbRxeTceErrorStatus;		/* E80 */
+	__be64 phbRxeTceFirstErrorStatus;	/* E88 */
+	__be64 phbRxeTceErrorLog0;		/* EC0 */
+	__be64 phbRxeTceErrorLog1;		/* EC8 */
+
+	/* PHB4 REGB Error Regs */
+	__be64 phbPblErrorStatus;		/* 1900 */
+	__be64 phbPblFirstErrorStatus;		/* 1908 */
+	__be64 phbPblErrorLog0;			/* 1940 */
+	__be64 phbPblErrorLog1;			/* 1948 */
+	__be64 phbPcieDlpErrorLog1;		/* 1AA0 */
+	__be64 phbPcieDlpErrorLog2;		/* 1AA8 */
+	__be64 phbPcieDlpErrorStatus;		/* 1AB0 */
+	__be64 phbRegbErrorStatus;		/* 1C00 */
+	__be64 phbRegbFirstErrorStatus;		/* 1C08 */
+	__be64 phbRegbErrorLog0;		/* 1C40 */
+	__be64 phbRegbErrorLog1;		/* 1C48 */
+
+	__be64 pestA[OPAL_PHB4_NUM_PEST_REGS];
+	__be64 pestB[OPAL_PHB4_NUM_PEST_REGS];
+};
+
 enum {
 	OPAL_REINIT_CPUS_HILE_BE	= (1 << 0),
 	OPAL_REINIT_CPUS_HILE_LE	= (1 << 1),
+
+	/* These two define the base MMU mode of the host on P9
+	 *
+	 * On P9 Nimbus DD2.0 and Cumlus (and later), KVM can still
+	 * create hash guests in "radix" mode with care (full core
+	 * switch only).
+	 */
+	OPAL_REINIT_CPUS_MMU_HASH	= (1 << 2),
+	OPAL_REINIT_CPUS_MMU_RADIX	= (1 << 3),
+
+	OPAL_REINIT_CPUS_TM_SUSPEND_DISABLED = (1 << 4),
 };
 
 typedef struct oppanel_line {
@@ -801,7 +961,7 @@ struct opal_sg_entry {
 };
 
 /*
- * Candiate image SG list.
+ * Candidate image SG list.
  *
  * length = VER | length
  */
@@ -824,6 +984,8 @@ enum {
 	OPAL_PHB_CAPI_MODE_CAPI		= 1,
 	OPAL_PHB_CAPI_MODE_SNOOP_OFF    = 2,
 	OPAL_PHB_CAPI_MODE_SNOOP_ON	= 3,
+	OPAL_PHB_CAPI_MODE_DMA		= 4,
+	OPAL_PHB_CAPI_MODE_DMA_TVT1	= 5,
 };
 
 /* OPAL I2C request */
@@ -851,7 +1013,7 @@ struct opal_i2c_request {
  * with individual elements being 16 bits wide to fetch the system
  * wide EPOW status. Each element in the buffer will contain the
  * EPOW status in it's bit representation for a particular EPOW sub
- * class as defiend here. So multiple detailed EPOW status bits
+ * class as defined here. So multiple detailed EPOW status bits
  * specific for any sub class can be represented in a single buffer
  * element as it's bit representation.
  */
@@ -889,6 +1051,79 @@ enum {
 	OPAL_REBOOT_NORMAL		= 0,
 	OPAL_REBOOT_PLATFORM_ERROR	= 1,
 };
+
+/* Argument to OPAL_PCI_TCE_KILL */
+enum {
+	OPAL_PCI_TCE_KILL_PAGES,
+	OPAL_PCI_TCE_KILL_PE,
+	OPAL_PCI_TCE_KILL_ALL,
+};
+
+/* The xive operation mode indicates the active "API" and
+ * corresponds to the "mode" parameter of the opal_xive_reset()
+ * call
+ */
+enum {
+	OPAL_XIVE_MODE_EMU	= 0,
+	OPAL_XIVE_MODE_EXPL	= 1,
+};
+
+/* Flags for OPAL_XIVE_GET_IRQ_INFO */
+enum {
+	OPAL_XIVE_IRQ_TRIGGER_PAGE	= 0x00000001,
+	OPAL_XIVE_IRQ_STORE_EOI		= 0x00000002,
+	OPAL_XIVE_IRQ_LSI		= 0x00000004,
+	OPAL_XIVE_IRQ_SHIFT_BUG		= 0x00000008,
+	OPAL_XIVE_IRQ_MASK_VIA_FW	= 0x00000010,
+	OPAL_XIVE_IRQ_EOI_VIA_FW	= 0x00000020,
+};
+
+/* Flags for OPAL_XIVE_GET/SET_QUEUE_INFO */
+enum {
+	OPAL_XIVE_EQ_ENABLED		= 0x00000001,
+	OPAL_XIVE_EQ_ALWAYS_NOTIFY	= 0x00000002,
+	OPAL_XIVE_EQ_ESCALATE		= 0x00000004,
+};
+
+/* Flags for OPAL_XIVE_GET/SET_VP_INFO */
+enum {
+	OPAL_XIVE_VP_ENABLED		= 0x00000001,
+	OPAL_XIVE_VP_SINGLE_ESCALATION	= 0x00000002,
+};
+
+/* "Any chip" replacement for chip ID for allocation functions */
+enum {
+	OPAL_XIVE_ANY_CHIP		= 0xffffffff,
+};
+
+/* Xive sync options */
+enum {
+	/* This bits are cumulative, arg is a girq */
+	XIVE_SYNC_EAS			= 0x00000001, /* Sync irq source */
+	XIVE_SYNC_QUEUE			= 0x00000002, /* Sync irq target */
+};
+
+/* Dump options */
+enum {
+	XIVE_DUMP_TM_HYP	= 0,
+	XIVE_DUMP_TM_POOL	= 1,
+	XIVE_DUMP_TM_OS		= 2,
+	XIVE_DUMP_TM_USER	= 3,
+	XIVE_DUMP_VP		= 4,
+	XIVE_DUMP_EMU_STATE	= 5,
+};
+
+/* "type" argument options for OPAL_IMC_COUNTERS_* calls */
+enum {
+	OPAL_IMC_COUNTERS_NEST = 1,
+	OPAL_IMC_COUNTERS_CORE = 2,
+};
+
+
+/* PCI p2p descriptor */
+#define OPAL_PCI_P2P_ENABLE		0x1
+#define OPAL_PCI_P2P_LOAD		0x2
+#define OPAL_PCI_P2P_STORE		0x4
 
 #endif /* __ASSEMBLY__ */
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for Renesas r8a7778
  *
@@ -8,20 +9,17 @@
  *
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Simon Horman
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
-/include/ "skeleton.dtsi"
-
 #include <dt-bindings/clock/r8a7778-clock.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	compatible = "renesas,r8a7778";
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	cpus {
 		#address-cells = <1>;
@@ -32,6 +30,7 @@
 			compatible = "arm,cortex-a9";
 			reg = <0>;
 			clock-frequency = <800000000>;
+			clocks = <&z_clk>;
 		};
 	};
 
@@ -49,9 +48,10 @@
 	};
 
 	ether: ethernet@fde00000 {
-		compatible = "renesas,ether-r8a7778";
+		compatible = "renesas,ether-r8a7778",
+			     "renesas,rcar-gen1-ether";
 		reg = <0xfde00000 0x400>;
-		interrupts = <0 105 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp1_clks R8A7778_CLK_ETHER>;
 		power-domains = <&cpg_clocks>;
 		phy-mode = "rmii";
@@ -61,7 +61,7 @@
 	};
 
 	gic: interrupt-controller@fe438000 {
-		compatible = "arm,cortex-a9-gic";
+		compatible = "arm,pl390";
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0xfe438000 0x1000>,
@@ -79,17 +79,17 @@
 			<0xfe780024 4>,
 			<0xfe780044 4>,
 			<0xfe780064 4>;
-		interrupts =   <0 27 IRQ_TYPE_LEVEL_HIGH
-				0 28 IRQ_TYPE_LEVEL_HIGH
-				0 29 IRQ_TYPE_LEVEL_HIGH
-				0 30 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts =   <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH
+				GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH
+				GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH
+				GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		sense-bitfield-width = <2>;
 	};
 
 	gpio0: gpio@ffc40000 {
-		compatible = "renesas,gpio-r8a7778", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7778", "renesas,rcar-gen1-gpio";
 		reg = <0xffc40000 0x2c>;
-		interrupts = <0 103 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 0 32>;
@@ -98,9 +98,9 @@
 	};
 
 	gpio1: gpio@ffc41000 {
-		compatible = "renesas,gpio-r8a7778", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7778", "renesas,rcar-gen1-gpio";
 		reg = <0xffc41000 0x2c>;
-		interrupts = <0 103 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 32 32>;
@@ -109,9 +109,9 @@
 	};
 
 	gpio2: gpio@ffc42000 {
-		compatible = "renesas,gpio-r8a7778", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7778", "renesas,rcar-gen1-gpio";
 		reg = <0xffc42000 0x2c>;
-		interrupts = <0 103 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 64 32>;
@@ -120,9 +120,9 @@
 	};
 
 	gpio3: gpio@ffc43000 {
-		compatible = "renesas,gpio-r8a7778", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7778", "renesas,rcar-gen1-gpio";
 		reg = <0xffc43000 0x2c>;
-		interrupts = <0 103 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 96 32>;
@@ -131,9 +131,9 @@
 	};
 
 	gpio4: gpio@ffc44000 {
-		compatible = "renesas,gpio-r8a7778", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7778", "renesas,rcar-gen1-gpio";
 		reg = <0xffc44000 0x2c>;
-		interrupts = <0 103 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 128 27>;
@@ -141,7 +141,7 @@
 		interrupt-controller;
 	};
 
-	pfc: pfc@fffc0000 {
+	pfc: pin-controller@fffc0000 {
 		compatible = "renesas,pfc-r8a7778";
 		reg = <0xfffc0000 0x118>;
 	};
@@ -149,9 +149,9 @@
 	i2c0: i2c@ffc70000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,i2c-r8a7778";
+		compatible = "renesas,i2c-r8a7778", "renesas,rcar-gen1-i2c";
 		reg = <0xffc70000 0x1000>;
-		interrupts = <0 67 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7778_CLK_I2C0>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
@@ -160,9 +160,9 @@
 	i2c1: i2c@ffc71000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,i2c-r8a7778";
+		compatible = "renesas,i2c-r8a7778", "renesas,rcar-gen1-i2c";
 		reg = <0xffc71000 0x1000>;
-		interrupts = <0 78 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7778_CLK_I2C1>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
@@ -171,9 +171,9 @@
 	i2c2: i2c@ffc72000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,i2c-r8a7778";
+		compatible = "renesas,i2c-r8a7778", "renesas,rcar-gen1-i2c";
 		reg = <0xffc72000 0x1000>;
-		interrupts = <0 76 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7778_CLK_I2C2>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
@@ -182,9 +182,9 @@
 	i2c3: i2c@ffc73000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,i2c-r8a7778";
+		compatible = "renesas,i2c-r8a7778", "renesas,rcar-gen1-i2c";
 		reg = <0xffc73000 0x1000>;
-		interrupts = <0 77 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7778_CLK_I2C3>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
@@ -193,9 +193,9 @@
 	tmu0: timer@ffd80000 {
 		compatible = "renesas,tmu-r8a7778", "renesas,tmu";
 		reg = <0xffd80000 0x30>;
-		interrupts = <0 32 IRQ_TYPE_LEVEL_HIGH>,
-			     <0 33 IRQ_TYPE_LEVEL_HIGH>,
-			     <0 34 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7778_CLK_TMU0>;
 		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
@@ -208,9 +208,9 @@
 	tmu1: timer@ffd81000 {
 		compatible = "renesas,tmu-r8a7778", "renesas,tmu";
 		reg = <0xffd81000 0x30>;
-		interrupts = <0 36 IRQ_TYPE_LEVEL_HIGH>,
-			     <0 37 IRQ_TYPE_LEVEL_HIGH>,
-			     <0 38 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7778_CLK_TMU1>;
 		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
@@ -223,9 +223,9 @@
 	tmu2: timer@ffd82000 {
 		compatible = "renesas,tmu-r8a7778", "renesas,tmu";
 		reg = <0xffd82000 0x30>;
-		interrupts = <0 40 IRQ_TYPE_LEVEL_HIGH>,
-			     <0 41 IRQ_TYPE_LEVEL_HIGH>,
-			     <0 42 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7778_CLK_TMU2>;
 		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
@@ -236,7 +236,12 @@
 	};
 
 	rcar_sound: sound@ffd90000 {
-		#sound-dai-cells = <1>;
+		/*
+		 * #sound-dai-cells is required
+		 *
+		 * Single DAI : #sound-dai-cells = <0>;         <&rcar_sound>;
+		 * Multi  DAI : #sound-dai-cells = <1>;         <&rcar_sound N>;
+		 */
 		compatible = "renesas,rcar_sound-r8a7778", "renesas,rcar_sound-gen1";
 		reg =	<0xffd90000 0x1000>,	/* SRU */
 			<0xffd91000 0x240>,	/* SSI */
@@ -270,117 +275,132 @@
 		status = "disabled";
 
 		rcar_sound,src {
-			src3: src@3 { };
-			src4: src@4 { };
-			src5: src@5 { };
-			src6: src@6 { };
-			src7: src@7 { };
-			src8: src@8 { };
-			src9: src@9 { };
+			src3: src-3 { };
+			src4: src-4 { };
+			src5: src-5 { };
+			src6: src-6 { };
+			src7: src-7 { };
+			src8: src-8 { };
+			src9: src-9 { };
 		};
 
 		rcar_sound,ssi {
-			ssi3: ssi@3 { interrupts = <0 0x85 IRQ_TYPE_LEVEL_HIGH>; };
-			ssi4: ssi@4 { interrupts = <0 0x85 IRQ_TYPE_LEVEL_HIGH>; };
-			ssi5: ssi@5 { interrupts = <0 0x86 IRQ_TYPE_LEVEL_HIGH>; };
-			ssi6: ssi@6 { interrupts = <0 0x86 IRQ_TYPE_LEVEL_HIGH>; };
-			ssi7: ssi@7 { interrupts = <0 0x86 IRQ_TYPE_LEVEL_HIGH>; };
-			ssi8: ssi@8 { interrupts = <0 0x86 IRQ_TYPE_LEVEL_HIGH>; };
-			ssi9: ssi@9 { interrupts = <0 0x86 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi3: ssi-3 { interrupts = <GIC_SPI 0x85 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi4: ssi-4 { interrupts = <GIC_SPI 0x85 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi5: ssi-5 { interrupts = <GIC_SPI 0x86 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi6: ssi-6 { interrupts = <GIC_SPI 0x86 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi7: ssi-7 { interrupts = <GIC_SPI 0x86 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi8: ssi-8 { interrupts = <GIC_SPI 0x86 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi9: ssi-9 { interrupts = <GIC_SPI 0x86 IRQ_TYPE_LEVEL_HIGH>; };
 		};
 	};
 
 	scif0: serial@ffe40000 {
-		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		compatible = "renesas,scif-r8a7778", "renesas,rcar-gen1-scif",
+			     "renesas,scif";
 		reg = <0xffe40000 0x100>;
-		interrupts = <0 70 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp0_clks R8A7778_CLK_SCIF0>;
-		clock-names = "sci_ick";
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF0>,
+			 <&cpg_clocks R8A7778_CLK_S1>, <&scif_clk>;
+		clock-names = "fck", "brg_int", "scif_clk";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
 
 	scif1: serial@ffe41000 {
-		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		compatible = "renesas,scif-r8a7778", "renesas,rcar-gen1-scif",
+			     "renesas,scif";
 		reg = <0xffe41000 0x100>;
-		interrupts = <0 71 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp0_clks R8A7778_CLK_SCIF1>;
-		clock-names = "sci_ick";
+		interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF1>,
+			 <&cpg_clocks R8A7778_CLK_S1>, <&scif_clk>;
+		clock-names = "fck", "brg_int", "scif_clk";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
 
 	scif2: serial@ffe42000 {
-		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		compatible = "renesas,scif-r8a7778", "renesas,rcar-gen1-scif",
+			     "renesas,scif";
 		reg = <0xffe42000 0x100>;
-		interrupts = <0 72 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp0_clks R8A7778_CLK_SCIF2>;
-		clock-names = "sci_ick";
+		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF2>,
+			 <&cpg_clocks R8A7778_CLK_S1>, <&scif_clk>;
+		clock-names = "fck", "brg_int", "scif_clk";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
 
 	scif3: serial@ffe43000 {
-		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		compatible = "renesas,scif-r8a7778", "renesas,rcar-gen1-scif",
+			     "renesas,scif";
 		reg = <0xffe43000 0x100>;
-		interrupts = <0 73 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp0_clks R8A7778_CLK_SCIF3>;
-		clock-names = "sci_ick";
+		interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF3>,
+			 <&cpg_clocks R8A7778_CLK_S1>, <&scif_clk>;
+		clock-names = "fck", "brg_int", "scif_clk";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
 
 	scif4: serial@ffe44000 {
-		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		compatible = "renesas,scif-r8a7778", "renesas,rcar-gen1-scif",
+			     "renesas,scif";
 		reg = <0xffe44000 0x100>;
-		interrupts = <0 74 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp0_clks R8A7778_CLK_SCIF4>;
-		clock-names = "sci_ick";
+		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF4>,
+			 <&cpg_clocks R8A7778_CLK_S1>, <&scif_clk>;
+		clock-names = "fck", "brg_int", "scif_clk";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
 
 	scif5: serial@ffe45000 {
-		compatible = "renesas,scif-r8a7778", "renesas,scif";
+		compatible = "renesas,scif-r8a7778", "renesas,rcar-gen1-scif",
+			     "renesas,scif";
 		reg = <0xffe45000 0x100>;
-		interrupts = <0 75 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp0_clks R8A7778_CLK_SCIF5>;
-		clock-names = "sci_ick";
+		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF5>,
+			 <&cpg_clocks R8A7778_CLK_S1>, <&scif_clk>;
+		clock-names = "fck", "brg_int", "scif_clk";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
 
 	mmcif: mmc@ffe4e000 {
-		compatible = "renesas,sh-mmcif";
+		compatible = "renesas,mmcif-r8a7778", "renesas,sh-mmcif";
 		reg = <0xffe4e000 0x100>;
-		interrupts = <0 61 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7778_CLK_MMC>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
 
 	sdhi0: sd@ffe4c000 {
-		compatible = "renesas,sdhi-r8a7778";
+		compatible = "renesas,sdhi-r8a7778",
+			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4c000 0x100>;
-		interrupts = <0 87 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7778_CLK_SDHI0>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
 
 	sdhi1: sd@ffe4d000 {
-		compatible = "renesas,sdhi-r8a7778";
+		compatible = "renesas,sdhi-r8a7778",
+			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4d000 0x100>;
-		interrupts = <0 88 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7778_CLK_SDHI1>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
 
 	sdhi2: sd@ffe4f000 {
-		compatible = "renesas,sdhi-r8a7778";
+		compatible = "renesas,sdhi-r8a7778",
+			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4f000 0x100>;
-		interrupts = <0 86 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7778_CLK_SDHI2>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
@@ -389,7 +409,7 @@
 	hspi0: spi@fffc7000 {
 		compatible = "renesas,hspi-r8a7778", "renesas,hspi";
 		reg = <0xfffc7000 0x18>;
-		interrupts = <0 63 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7778_CLK_HSPI>;
 		power-domains = <&cpg_clocks>;
 		#address-cells = <1>;
@@ -400,7 +420,7 @@
 	hspi1: spi@fffc8000 {
 		compatible = "renesas,hspi-r8a7778", "renesas,hspi";
 		reg = <0xfffc8000 0x18>;
-		interrupts = <0 84 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7778_CLK_HSPI>;
 		power-domains = <&cpg_clocks>;
 		#address-cells = <1>;
@@ -411,7 +431,7 @@
 	hspi2: spi@fffc6000 {
 		compatible = "renesas,hspi-r8a7778", "renesas,hspi";
 		reg = <0xfffc6000 0x18>;
-		interrupts = <0 85 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7778_CLK_HSPI>;
 		power-domains = <&cpg_clocks>;
 		#address-cells = <1>;
@@ -425,11 +445,18 @@
 		ranges;
 
 		/* External input clock */
-		extal_clk: extal_clk {
+		extal_clk: extal {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <0>;
-			clock-output-names = "extal";
+		};
+
+		/* External SCIF clock */
+		scif_clk: scif {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			/* This value must be overridden by the board. */
+			clock-frequency = <0>;
 		};
 
 		/* Special CPG clocks */
@@ -447,59 +474,51 @@
 		audio_clk_a: audio_clk_a {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-output-names = "audio_clk_a";
 		};
 		audio_clk_b: audio_clk_b {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-output-names = "audio_clk_b";
 		};
 		audio_clk_c: audio_clk_c {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-output-names = "audio_clk_c";
 		};
 
 		/* Fixed ratio clocks */
-		g_clk: g_clk {
+		g_clk: g {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <12>;
 			clock-mult = <1>;
-			clock-output-names = "g";
 		};
-		i_clk: i_clk {
+		i_clk: i {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <1>;
 			clock-mult = <1>;
-			clock-output-names = "i";
 		};
-		s3_clk: s3_clk {
+		s3_clk: s3 {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <4>;
 			clock-mult = <1>;
-			clock-output-names = "s3";
 		};
-		s4_clk: s4_clk {
+		s4_clk: s4 {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <8>;
 			clock-mult = <1>;
-			clock-output-names = "s4";
 		};
-		z_clk: z_clk {
+		z_clk: z {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7778_CLK_PLLB>;
 			#clock-cells = <0>;
 			clock-div = <1>;
 			clock-mult = <1>;
-			clock-output-names = "z";
 		};
 
 		/* Gate clocks */
@@ -608,5 +627,10 @@
 				"sru-src3", "sru-src4", "sru-src5",
 				"sru-src6", "sru-src7", "sru-src8";
 		};
+	};
+
+	rst: reset-controller@ffcc0000 {
+		compatible = "renesas,r8a7778-reset-wdt";
+		reg = <0xffcc0000 0x40>;
 	};
 };

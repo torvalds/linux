@@ -207,7 +207,7 @@ static void		ahd_add_scb_to_free_list(struct ahd_softc *ahd,
 static u_int		ahd_rem_wscb(struct ahd_softc *ahd, u_int scbid,
 				     u_int prev, u_int next, u_int tid);
 static void		ahd_reset_current_bus(struct ahd_softc *ahd);
-static ahd_callback_t	ahd_stat_timer;
+static void		ahd_stat_timer(struct timer_list *t);
 #ifdef AHD_DUMP_SEQ
 static void		ahd_dumpseq(struct ahd_softc *ahd);
 #endif
@@ -6104,8 +6104,7 @@ ahd_alloc(void *platform_arg, char *name)
 	ahd->bugs = AHD_BUGNONE;
 	ahd->flags = AHD_SPCHK_ENB_A|AHD_RESET_BUS_A|AHD_TERM_ENB_A
 		   | AHD_EXTENDED_TRANS_A|AHD_STPWLEVEL_A;
-	ahd_timer_init(&ahd->reset_timer);
-	ahd_timer_init(&ahd->stat_timer);
+	timer_setup(&ahd->stat_timer, ahd_stat_timer, 0);
 	ahd->int_coalescing_timer = AHD_INT_COALESCING_TIMER_DEFAULT;
 	ahd->int_coalescing_maxcmds = AHD_INT_COALESCING_MAXCMDS_DEFAULT;
 	ahd->int_coalescing_mincmds = AHD_INT_COALESCING_MINCMDS_DEFAULT;
@@ -6113,10 +6112,6 @@ ahd_alloc(void *platform_arg, char *name)
 	ahd->int_coalescing_stop_threshold =
 	    AHD_INT_COALESCING_STOP_THRESHOLD_DEFAULT;
 
-	if (ahd_platform_alloc(ahd, platform_arg) != 0) {
-		ahd_free(ahd);
-		ahd = NULL;
-	}
 #ifdef AHD_DEBUG
 	if ((ahd_debug & AHD_SHOW_MEMORY) != 0) {
 		printk("%s: scb size = 0x%x, hscb size = 0x%x\n",
@@ -6124,6 +6119,10 @@ ahd_alloc(void *platform_arg, char *name)
 		       (u_int)sizeof(struct hardware_scb));
 	}
 #endif
+	if (ahd_platform_alloc(ahd, platform_arg) != 0) {
+		ahd_free(ahd);
+		ahd = NULL;
+	}
 	return (ahd);
 }
 
@@ -6235,8 +6234,7 @@ ahd_shutdown(void *arg)
 	/*
 	 * Stop periodic timer callbacks.
 	 */
-	ahd_timer_stop(&ahd->reset_timer);
-	ahd_timer_stop(&ahd->stat_timer);
+	del_timer_sync(&ahd->stat_timer);
 
 	/* This will reset most registers to 0, but not all */
 	ahd_reset(ahd, /*reinit*/FALSE);
@@ -6278,7 +6276,7 @@ ahd_reset(struct ahd_softc *ahd, int reinit)
 		 * does not disable its parity logic prior to
 		 * the start of the reset.  This may cause a
 		 * parity error to be detected and thus a
-		 * spurious SERR or PERR assertion.  Disble
+		 * spurious SERR or PERR assertion.  Disable
 		 * PERR and SERR responses during the CHIPRST.
 		 */
 		mod_cmd = cmd & ~(PCIM_CMD_PERRESPEN|PCIM_CMD_SERRESPEN);
@@ -7039,20 +7037,11 @@ static const char *termstat_strings[] = {
 };
 
 /***************************** Timer Facilities *******************************/
-#define ahd_timer_init init_timer
-#define ahd_timer_stop del_timer_sync
-typedef void ahd_linux_callback_t (u_long);
-
 static void
-ahd_timer_reset(ahd_timer_t *timer, int usec, ahd_callback_t *func, void *arg)
+ahd_timer_reset(struct timer_list *timer, int usec)
 {
-	struct ahd_softc *ahd;
-
-	ahd = (struct ahd_softc *)arg;
 	del_timer(timer);
-	timer->data = (u_long)arg;
 	timer->expires = jiffies + (usec * HZ)/1000000;
-	timer->function = (ahd_linux_callback_t*)func;
 	add_timer(timer);
 }
 
@@ -7074,7 +7063,8 @@ ahd_init(struct ahd_softc *ahd)
 	AHD_ASSERT_MODES(ahd, AHD_MODE_SCSI_MSK, AHD_MODE_SCSI_MSK);
 
 	ahd->stack_size = ahd_probe_stack_size(ahd);
-	ahd->saved_stack = kmalloc(ahd->stack_size * sizeof(uint16_t), GFP_ATOMIC);
+	ahd->saved_stack = kmalloc_array(ahd->stack_size, sizeof(uint16_t),
+					 GFP_ATOMIC);
 	if (ahd->saved_stack == NULL)
 		return (ENOMEM);
 
@@ -7279,8 +7269,7 @@ ahd_init(struct ahd_softc *ahd)
 	}
 init_done:
 	ahd_restart(ahd);
-	ahd_timer_reset(&ahd->stat_timer, AHD_STAT_UPDATE_US,
-			ahd_stat_timer, ahd);
+	ahd_timer_reset(&ahd->stat_timer, AHD_STAT_UPDATE_US);
 	return (0);
 }
 
@@ -8878,9 +8867,9 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 
 /**************************** Statistics Processing ***************************/
 static void
-ahd_stat_timer(void *arg)
+ahd_stat_timer(struct timer_list *t)
 {
-	struct	ahd_softc *ahd = arg;
+	struct	ahd_softc *ahd = from_timer(ahd, t, stat_timer);
 	u_long	s;
 	int	enint_coal;
 	
@@ -8907,8 +8896,7 @@ ahd_stat_timer(void *arg)
 	ahd->cmdcmplt_bucket = (ahd->cmdcmplt_bucket+1) & (AHD_STAT_BUCKETS-1);
 	ahd->cmdcmplt_total -= ahd->cmdcmplt_counts[ahd->cmdcmplt_bucket];
 	ahd->cmdcmplt_counts[ahd->cmdcmplt_bucket] = 0;
-	ahd_timer_reset(&ahd->stat_timer, AHD_STAT_UPDATE_US,
-			ahd_stat_timer, ahd);
+	ahd_timer_reset(&ahd->stat_timer, AHD_STAT_UPDATE_US);
 	ahd_unlock(ahd, &s);
 }
 
@@ -9351,9 +9339,9 @@ ahd_dumpseq(struct ahd_softc* ahd)
 static void
 ahd_loadseq(struct ahd_softc *ahd)
 {
-	struct	cs cs_table[num_critical_sections];
-	u_int	begin_set[num_critical_sections];
-	u_int	end_set[num_critical_sections];
+	struct	cs cs_table[NUM_CRITICAL_SECTIONS];
+	u_int	begin_set[NUM_CRITICAL_SECTIONS];
+	u_int	end_set[NUM_CRITICAL_SECTIONS];
 	const struct patch *cur_patch;
 	u_int	cs_count;
 	u_int	cur_cs;
@@ -9469,7 +9457,7 @@ ahd_loadseq(struct ahd_softc *ahd)
 		 * Move through the CS table until we find a CS
 		 * that might apply to this instruction.
 		 */
-		for (; cur_cs < num_critical_sections; cur_cs++) {
+		for (; cur_cs < NUM_CRITICAL_SECTIONS; cur_cs++) {
 			if (critical_sections[cur_cs].end <= i) {
 				if (begin_set[cs_count] == TRUE
 				 && end_set[cs_count] == FALSE) {

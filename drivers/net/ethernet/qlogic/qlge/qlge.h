@@ -18,7 +18,7 @@
  */
 #define DRV_NAME  	"qlge"
 #define DRV_STRING 	"QLogic 10 Gigabit PCI-E Ethernet Driver "
-#define DRV_VERSION	"1.00.00.34"
+#define DRV_VERSION	"1.00.00.35"
 
 #define WQ_ADDR_ALIGN	0x3	/* 4 byte alignment */
 
@@ -1162,8 +1162,8 @@ struct ob_mac_tso_iocb_rsp {
 struct ib_mac_iocb_rsp {
 	u8 opcode;		/* 0x20 */
 	u8 flags1;
-#define IB_MAC_IOCB_RSP_OI	0x01	/* Overide intr delay */
-#define IB_MAC_IOCB_RSP_I	0x02	/* Disble Intr Generation */
+#define IB_MAC_IOCB_RSP_OI	0x01	/* Override intr delay */
+#define IB_MAC_IOCB_RSP_I	0x02	/* Disable Intr Generation */
 #define IB_MAC_CSUM_ERR_MASK 0x1c	/* A mask to use for csum errs */
 #define IB_MAC_IOCB_RSP_TE	0x04	/* Checksum error */
 #define IB_MAC_IOCB_RSP_NU	0x08	/* No checksum rcvd */
@@ -2182,6 +2182,22 @@ static inline void ql_write_db_reg(u32 val, void __iomem *addr)
 {
 	writel(val, addr);
 	mmiowb();
+}
+
+/*
+ * Doorbell Registers:
+ * Doorbell registers are virtual registers in the PCI memory space.
+ * The space is allocated by the chip during PCI initialization.  The
+ * device driver finds the doorbell address in BAR 3 in PCI config space.
+ * The registers are used to control outbound and inbound queues. For
+ * example, the producer index for an outbound queue.  Each queue uses
+ * 1 4k chunk of memory.  The lower half of the space is for outbound
+ * queues. The upper half is for inbound queues.
+ * Caller has to guarantee ordering.
+ */
+static inline void ql_write_db_reg_relaxed(u32 val, void __iomem *addr)
+{
+	writel_relaxed(val, addr);
 }
 
 /*

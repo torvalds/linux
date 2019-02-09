@@ -71,7 +71,7 @@ struct st_proto_s {
 	enum proto_type type;
 	long (*recv) (void *, struct sk_buff *);
 	unsigned char (*match_packet) (const unsigned char *data);
-	void (*reg_complete_cb) (void *, char data);
+	void (*reg_complete_cb) (void *, int data);
 	long (*write) (struct sk_buff *skb);
 	void *priv_data;
 

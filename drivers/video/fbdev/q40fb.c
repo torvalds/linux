@@ -18,7 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/setup.h>
 #include <asm/q40_master.h>
 #include <linux/fb.h>
@@ -36,7 +36,7 @@ static struct fb_fix_screeninfo q40fb_fix = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo q40fb_var = {
+static const struct fb_var_screeninfo q40fb_var = {
 	.xres		= 1024,
 	.yres		= 512,
 	.xres_virtual	= 1024,

@@ -17,6 +17,7 @@
  ******************************************************************************/
 
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
@@ -33,7 +34,7 @@
 #include "iscsi_target_erl2.h"
 #include "iscsi_target.h"
 
-#define OFFLOAD_BUF_SIZE	32768
+#define OFFLOAD_BUF_SIZE	32768U
 
 /*
  *	Used to dump excess datain payload for certain error recovery
@@ -55,7 +56,7 @@ int iscsit_dump_data_payload(
 	if (conn->sess->sess_ops->RDMAExtensions)
 		return 0;
 
-	length = (buf_len > OFFLOAD_BUF_SIZE) ? OFFLOAD_BUF_SIZE : buf_len;
+	length = min(buf_len, OFFLOAD_BUF_SIZE);
 
 	buf = kzalloc(length, GFP_ATOMIC);
 	if (!buf) {
@@ -66,8 +67,7 @@ int iscsit_dump_data_payload(
 	memset(&iov, 0, sizeof(struct kvec));
 
 	while (offset < buf_len) {
-		size = ((offset + length) > buf_len) ?
-			(buf_len - offset) : length;
+		size = min(buf_len - offset, length);
 
 		iov.iov_len = size;
 		iov.iov_base = buf;
@@ -160,8 +160,7 @@ static int iscsit_handle_r2t_snack(
 			" protocol error.\n", cmd->init_task_tag, begrun,
 			(begrun + runlength), cmd->acked_data_sn);
 
-			return iscsit_reject_cmd(cmd,
-					ISCSI_REASON_PROTOCOL_ERROR, buf);
+		return iscsit_reject_cmd(cmd, ISCSI_REASON_PROTOCOL_ERROR, buf);
 	}
 
 	if (runlength) {
@@ -628,8 +627,8 @@ int iscsit_dataout_datapduinorder_no_fbit(
 			if (cmd->pdu_list[i].seq_no == pdu->seq_no) {
 				if (!first_pdu)
 					first_pdu = &cmd->pdu_list[i];
-				 xfer_len += cmd->pdu_list[i].length;
-				 pdu_count++;
+				xfer_len += cmd->pdu_list[i].length;
+				pdu_count++;
 			} else if (pdu_count)
 				break;
 		}
@@ -1148,11 +1147,11 @@ static int iscsit_set_dataout_timeout_values(
 /*
  *	NOTE: Called from interrupt (timer) context.
  */
-static void iscsit_handle_dataout_timeout(unsigned long data)
+void iscsit_handle_dataout_timeout(struct timer_list *t)
 {
 	u32 pdu_length = 0, pdu_offset = 0;
 	u32 r2t_length = 0, r2t_offset = 0;
-	struct iscsi_cmd *cmd = (struct iscsi_cmd *) data;
+	struct iscsi_cmd *cmd = from_timer(cmd, t, dataout_timer);
 	struct iscsi_conn *conn = cmd->conn;
 	struct iscsi_session *sess = NULL;
 	struct iscsi_node_attrib *na;
@@ -1264,13 +1263,9 @@ void iscsit_start_dataout_timer(
 	pr_debug("Starting DataOUT timer for ITT: 0x%08x on"
 		" CID: %hu.\n", cmd->init_task_tag, conn->cid);
 
-	init_timer(&cmd->dataout_timer);
-	cmd->dataout_timer.expires = (get_jiffies_64() + na->dataout_timeout * HZ);
-	cmd->dataout_timer.data = (unsigned long)cmd;
-	cmd->dataout_timer.function = iscsit_handle_dataout_timeout;
 	cmd->dataout_timer_flags &= ~ISCSI_TF_STOP;
 	cmd->dataout_timer_flags |= ISCSI_TF_RUNNING;
-	add_timer(&cmd->dataout_timer);
+	mod_timer(&cmd->dataout_timer, jiffies + na->dataout_timeout * HZ);
 }
 
 void iscsit_stop_dataout_timer(struct iscsi_cmd *cmd)

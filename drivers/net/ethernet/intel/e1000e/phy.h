@@ -1,23 +1,5 @@
-/* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * Linux NICS <linux.nics@intel.com>
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #ifndef _E1000E_PHY_H_
 #define _E1000E_PHY_H_
@@ -104,9 +86,9 @@ s32 e1000_get_cable_length_82577(struct e1000_hw *hw);
 #define BM_WUC_DATA_OPCODE		0x12
 #define BM_WUC_ENABLE_PAGE		BM_PORT_CTRL_PAGE
 #define BM_WUC_ENABLE_REG		17
-#define BM_WUC_ENABLE_BIT		(1 << 2)
-#define BM_WUC_HOST_WU_BIT		(1 << 4)
-#define BM_WUC_ME_WU_BIT		(1 << 5)
+#define BM_WUC_ENABLE_BIT		BIT(2)
+#define BM_WUC_HOST_WU_BIT		BIT(4)
+#define BM_WUC_ME_WU_BIT		BIT(5)
 
 #define PHY_UPPER_SHIFT			21
 #define BM_PHY_REG(page, reg) \
@@ -124,8 +106,8 @@ s32 e1000_get_cable_length_82577(struct e1000_hw *hw);
 #define I82578_ADDR_REG			29
 #define I82577_ADDR_REG			16
 #define I82577_CFG_REG			22
-#define I82577_CFG_ASSERT_CRS_ON_TX	(1 << 15)
-#define I82577_CFG_ENABLE_DOWNSHIFT	(3 << 10)	/* auto downshift */
+#define I82577_CFG_ASSERT_CRS_ON_TX	BIT(15)
+#define I82577_CFG_ENABLE_DOWNSHIFT	(3u << 10)	/* auto downshift */
 #define I82577_CTRL_REG			23
 
 /* 82577 specific PHY registers */

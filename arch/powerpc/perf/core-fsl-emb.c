@@ -42,7 +42,7 @@ static DEFINE_MUTEX(pmc_reserve_mutex);
 static inline int perf_intr_is_nmi(struct pt_regs *regs)
 {
 #ifdef __powerpc64__
-	return !regs->softe;
+	return (regs->softe & IRQS_DISABLED);
 #else
 	return 0;
 #endif
@@ -277,7 +277,7 @@ static int collect_events(struct perf_event *group, int max_count,
 		ctrs[n] = group;
 		n++;
 	}
-	list_for_each_entry(event, &group->sibling_list, group_entry) {
+	for_each_sibling_event(event, group) {
 		if (!is_software_event(event) &&
 		    event->state != PERF_EVENT_STATE_OFF) {
 			if (n >= max_count)

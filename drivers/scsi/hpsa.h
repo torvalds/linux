@@ -1,5 +1,6 @@
 /*
  *    Disk Array driver for HP Smart Array SAS controllers
+ *    Copyright 2016 Microsemi Corporation
  *    Copyright 2014-2015 PMC-Sierra, Inc.
  *    Copyright 2000,2009-2015 Hewlett-Packard Development Company, L.P.
  *
@@ -12,7 +13,7 @@
  *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *    NON INFRINGEMENT.  See the GNU General Public License for more details.
  *
- *    Questions/Comments/Bugfixes to storagedev@pmcs.com
+ *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
  *
  */
 #ifndef HPSA_H
@@ -56,17 +57,21 @@ struct hpsa_sas_phy {
 	bool added_to_port;
 };
 
+#define EXTERNAL_QD 7
 struct hpsa_scsi_dev_t {
 	unsigned int devtype;
 	int bus, target, lun;		/* as presented to the OS */
 	unsigned char scsi3addr[8];	/* as presented to the HW */
 	u8 physical_device : 1;
 	u8 expose_device;
+	u8 removed : 1;			/* device is marked for death */
 #define RAID_CTLR_LUNID "\0\0\0\0\0\0\0\0"
 	unsigned char device_id[16];    /* from inquiry pg. 0x83 */
 	u64 sas_address;
+	u64 eli;			/* from report diags. */
 	unsigned char vendor[8];        /* bytes 8-15 of inquiry data */
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
+	unsigned char rev;		/* byte 2 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
 	unsigned char volume_offline;	/* discovered via TUR or VPD */
 	u16 queue_depth;		/* max queue_depth for this device */
@@ -154,6 +159,7 @@ struct bmic_controller_parameters {
 #pragma pack()
 
 struct ctlr_info {
+	unsigned int *reply_map;
 	int	ctlr;
 	char	devname[8];
 	char    *product_name;
@@ -173,9 +179,7 @@ struct ctlr_info {
 #	define DOORBELL_INT	1
 #	define SIMPLE_MODE_INT	2
 #	define MEMQ_MODE_INT	3
-	unsigned int intr[MAX_REPLY_QUEUES];
-	unsigned int msix_vector;
-	unsigned int msi_vector;
+	unsigned int msix_vectors;
 	int intr_mode; /* either PERF_MODE_INT or SIMPLE_MODE_INT */
 	struct access_method access;
 
@@ -200,6 +204,7 @@ struct ctlr_info {
 	dma_addr_t		errinfo_pool_dhandle;
 	unsigned long  		*cmd_pool_bits;
 	int			scan_finished;
+	u8			scan_waiting : 1;
 	spinlock_t		scan_lock;
 	wait_queue_head_t	scan_wait_queue;
 
@@ -242,6 +247,7 @@ struct ctlr_info {
 	u32 __percpu *lockup_detected;
 	struct delayed_work monitor_ctlr_work;
 	struct delayed_work rescan_ctlr_work;
+	struct delayed_work event_monitor_work;
 	int remove_in_progress;
 	/* Address of h->q[x] is passed to intr handler to know which queue */
 	u8 q[MAX_REPLY_QUEUES];
@@ -289,16 +295,17 @@ struct ctlr_info {
 	int	drv_req_rescan;
 	int	raid_offload_debug;
 	int     discovery_polling;
+	int     legacy_board;
 	struct  ReportLUNdata *lastlogicals;
 	int	needs_abort_tags_swizzled;
 	struct workqueue_struct *resubmit_wq;
 	struct workqueue_struct *rescan_ctlr_wq;
 	atomic_t abort_cmds_available;
-	wait_queue_head_t abort_cmd_wait_queue;
 	wait_queue_head_t event_sync_wait_queue;
 	struct mutex reset_mutex;
 	u8 reset_in_progress;
 	struct hpsa_sas_node *sas_host;
+	spinlock_t reset_lock;
 };
 
 struct offline_device_entry {
@@ -310,7 +317,6 @@ struct offline_device_entry {
 #define HPSA_DEVICE_RESET_MSG 1
 #define HPSA_RESET_TYPE_CONTROLLER 0x00
 #define HPSA_RESET_TYPE_BUS 0x01
-#define HPSA_RESET_TYPE_TARGET 0x03
 #define HPSA_RESET_TYPE_LUN 0x04
 #define HPSA_PHYS_TARGET_RESET 0x99 /* not defined by cciss spec */
 #define HPSA_MSG_SEND_RETRY_LIMIT 10
@@ -400,7 +406,8 @@ struct offline_device_entry {
 #define HPSA_PHYSICAL_DEVICE_BUS	0
 #define HPSA_RAID_VOLUME_BUS		1
 #define HPSA_EXTERNAL_RAID_VOLUME_BUS	2
-#define HPSA_HBA_BUS			3
+#define HPSA_HBA_BUS			0
+#define HPSA_LEGACY_HBA_BUS		3
 
 /*
 	Send the command to the hardware
@@ -443,6 +450,23 @@ static void SA5_intr_mask(struct ctlr_info *h, unsigned long val)
 	}
 }
 
+/*
+ *  Variant of the above; 0x04 turns interrupts off...
+ */
+static void SA5B_intr_mask(struct ctlr_info *h, unsigned long val)
+{
+	if (val) { /* Turn interrupts on */
+		h->interrupts_enabled = 1;
+		writel(0, h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+		(void) readl(h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+	} else { /* Turn them off */
+		h->interrupts_enabled = 0;
+		writel(SA5B_INTR_OFF,
+		       h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+		(void) readl(h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+	}
+}
+
 static void SA5_performant_intr_mask(struct ctlr_info *h, unsigned long val)
 {
 	if (val) { /* turn on interrupts */
@@ -463,7 +487,7 @@ static unsigned long SA5_performant_completed(struct ctlr_info *h, u8 q)
 	unsigned long register_value = FIFO_EMPTY;
 
 	/* msi auto clears the interrupt pending bit. */
-	if (unlikely(!(h->msi_vector || h->msix_vector))) {
+	if (unlikely(!(h->pdev->msi_enabled || h->msix_vectors))) {
 		/* flush the controller write of the reply queue by reading
 		 * outbound doorbell status register.
 		 */
@@ -545,6 +569,14 @@ static bool SA5_ioaccel_mode1_intr_pending(struct ctlr_info *h)
 		true : false;
 }
 
+/*
+ *      Returns true if an interrupt is pending..
+ */
+static bool SA5B_intr_pending(struct ctlr_info *h)
+{
+	return readl(h->vaddr + SA5_INTR_STATUS) & SA5B_INTR_PENDING;
+}
+
 #define IOACCEL_MODE1_REPLY_QUEUE_INDEX  0x1A0
 #define IOACCEL_MODE1_PRODUCER_INDEX     0x1B8
 #define IOACCEL_MODE1_CONSUMER_INDEX     0x1BC
@@ -577,38 +609,53 @@ static unsigned long SA5_ioaccel_mode1_completed(struct ctlr_info *h, u8 q)
 }
 
 static struct access_method SA5_access = {
-	SA5_submit_command,
-	SA5_intr_mask,
-	SA5_intr_pending,
-	SA5_completed,
+	.submit_command =	SA5_submit_command,
+	.set_intr_mask =	SA5_intr_mask,
+	.intr_pending =		SA5_intr_pending,
+	.command_completed =	SA5_completed,
+};
+
+/* Duplicate entry of the above to mark unsupported boards */
+static struct access_method SA5A_access = {
+	.submit_command =	SA5_submit_command,
+	.set_intr_mask =	SA5_intr_mask,
+	.intr_pending =		SA5_intr_pending,
+	.command_completed =	SA5_completed,
+};
+
+static struct access_method SA5B_access = {
+	.submit_command =	SA5_submit_command,
+	.set_intr_mask =	SA5B_intr_mask,
+	.intr_pending =		SA5B_intr_pending,
+	.command_completed =	SA5_completed,
 };
 
 static struct access_method SA5_ioaccel_mode1_access = {
-	SA5_submit_command,
-	SA5_performant_intr_mask,
-	SA5_ioaccel_mode1_intr_pending,
-	SA5_ioaccel_mode1_completed,
+	.submit_command =	SA5_submit_command,
+	.set_intr_mask =	SA5_performant_intr_mask,
+	.intr_pending =		SA5_ioaccel_mode1_intr_pending,
+	.command_completed =	SA5_ioaccel_mode1_completed,
 };
 
 static struct access_method SA5_ioaccel_mode2_access = {
-	SA5_submit_command_ioaccel2,
-	SA5_performant_intr_mask,
-	SA5_performant_intr_pending,
-	SA5_performant_completed,
+	.submit_command =	SA5_submit_command_ioaccel2,
+	.set_intr_mask =	SA5_performant_intr_mask,
+	.intr_pending =		SA5_performant_intr_pending,
+	.command_completed =	SA5_performant_completed,
 };
 
 static struct access_method SA5_performant_access = {
-	SA5_submit_command,
-	SA5_performant_intr_mask,
-	SA5_performant_intr_pending,
-	SA5_performant_completed,
+	.submit_command =	SA5_submit_command,
+	.set_intr_mask =	SA5_performant_intr_mask,
+	.intr_pending =		SA5_performant_intr_pending,
+	.command_completed =	SA5_performant_completed,
 };
 
 static struct access_method SA5_performant_access_no_read = {
-	SA5_submit_command_no_read,
-	SA5_performant_intr_mask,
-	SA5_performant_intr_pending,
-	SA5_performant_completed,
+	.submit_command =	SA5_submit_command_no_read,
+	.set_intr_mask =	SA5_performant_intr_mask,
+	.intr_pending =		SA5_performant_intr_pending,
+	.command_completed =	SA5_performant_completed,
 };
 
 struct board_type {

@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/leds.h>
 #include <linux/mfd/max8997.h>
 #include <linux/mfd/max8997-private.h>
@@ -269,7 +268,7 @@ static int max8997_led_probe(struct platform_device *pdev)
 		mode = pdata->led_pdata->mode[led->id];
 		brightness = pdata->led_pdata->brightness[led->id];
 
-		max8997_led_set_mode(led, pdata->led_pdata->mode[led->id]);
+		max8997_led_set_mode(led, mode);
 
 		if (brightness > led->cdev.max_brightness)
 			brightness = led->cdev.max_brightness;
@@ -282,20 +281,9 @@ static int max8997_led_probe(struct platform_device *pdev)
 
 	mutex_init(&led->mutex);
 
-	platform_set_drvdata(pdev, led);
-
-	ret = led_classdev_register(&pdev->dev, &led->cdev);
+	ret = devm_led_classdev_register(&pdev->dev, &led->cdev);
 	if (ret < 0)
 		return ret;
-
-	return 0;
-}
-
-static int max8997_led_remove(struct platform_device *pdev)
-{
-	struct max8997_led *led = platform_get_drvdata(pdev);
-
-	led_classdev_unregister(&led->cdev);
 
 	return 0;
 }
@@ -305,7 +293,6 @@ static struct platform_driver max8997_led_driver = {
 		.name  = "max8997-led",
 	},
 	.probe  = max8997_led_probe,
-	.remove = max8997_led_remove,
 };
 
 module_platform_driver(max8997_led_driver);

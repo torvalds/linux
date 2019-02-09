@@ -66,17 +66,17 @@ ipipeif_get_pack_mode(u32 in_pix_fmt)
 	}
 }
 
-static inline u32 ipipeif_read(void *addr, u32 offset)
+static inline u32 ipipeif_read(void __iomem *addr, u32 offset)
 {
 	return readl(addr + offset);
 }
 
-static inline void ipipeif_write(u32 val, void *addr, u32 offset)
+static inline void ipipeif_write(u32 val, void __iomem *addr, u32 offset)
 {
 	writel(val, addr + offset);
 }
 
-static void ipipeif_config_dpc(void *addr, struct ipipeif_dpc *dpc)
+static void ipipeif_config_dpc(void __iomem *addr, struct ipipeif_dpc *dpc)
 {
 	u32 val = 0;
 
@@ -94,7 +94,7 @@ static int get_oneshot_mode(enum ipipeif_input_entity input)
 {
 	if (input == IPIPEIF_INPUT_MEMORY)
 		return IPIPEIF_MODE_ONE_SHOT;
-	else if (input == IPIPEIF_INPUT_ISIF)
+	if (input == IPIPEIF_INPUT_ISIF)
 		return IPIPEIF_MODE_CONTINUOUS;
 
 	return -EINVAL;
@@ -191,7 +191,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	struct ipipeif_params params = ipipeif->config;
 	enum ipipeif_input_source ipipeif_source;
 	u32 isif_port_if;
-	void *ipipeif_base_addr;
+	void __iomem *ipipeif_base_addr;
 	unsigned int val;
 	int data_shift;
 	int pack_mode;
@@ -418,7 +418,7 @@ ipipeif_set_config(struct v4l2_subdev *sd, struct ipipeif_params *config)
 }
 
 static int
-ipipeif_get_config(struct v4l2_subdev *sd, void __user *arg)
+ipipeif_get_config(struct v4l2_subdev *sd, void *arg)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct ipipeif_params *config = arg;
@@ -507,7 +507,7 @@ static int ipipeif_s_ctrl(struct v4l2_ctrl *ctrl)
 void vpfe_ipipeif_enable(struct vpfe_device *vpfe_dev)
 {
 	struct vpfe_ipipeif_device *ipipeif = &vpfe_dev->vpfe_ipipeif;
-	void *ipipeif_base_addr = ipipeif->ipipeif_base_addr;
+	void __iomem *ipipeif_base_addr = ipipeif->ipipeif_base_addr;
 	unsigned char val;
 
 	if (ipipeif->input != IPIPEIF_INPUT_MEMORY)
@@ -641,8 +641,9 @@ ipipeif_try_format(struct vpfe_ipipeif_device *ipipeif,
 }
 
 static int
-ipipeif_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-		     struct v4l2_subdev_frame_size_enum *fse)
+ipipeif_enum_frame_size(struct v4l2_subdev *sd,
+			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt format;
@@ -793,7 +794,7 @@ static int
 ipipeif_video_in_queue(struct vpfe_device *vpfe_dev, unsigned long addr)
 {
 	struct vpfe_ipipeif_device *ipipeif = &vpfe_dev->vpfe_ipipeif;
-	void *ipipeif_base_addr = ipipeif->ipipeif_base_addr;
+	void __iomem *ipipeif_base_addr = ipipeif->ipipeif_base_addr;
 	unsigned int adofs;
 	u32 val;
 
@@ -885,9 +886,14 @@ ipipeif_link_setup(struct media_entity *entity, const struct media_pad *local,
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct vpfe_device *vpfe = to_vpfe_device(ipipeif);
+	unsigned int index = local->index;
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case IPIPEIF_PAD_SINK | MEDIA_ENT_T_DEVNODE:
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
+
+	switch (index) {
+	case IPIPEIF_PAD_SINK:
 		/* Single shot mode */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipeif->input = IPIPEIF_INPUT_NONE;
@@ -896,7 +902,7 @@ ipipeif_link_setup(struct media_entity *entity, const struct media_pad *local,
 		ipipeif->input = IPIPEIF_INPUT_MEMORY;
 		break;
 
-	case IPIPEIF_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	case IPIPEIF_PAD_SINK | 2 << 16:
 		/* read from isif */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipeif->input = IPIPEIF_INPUT_NONE;
@@ -908,7 +914,7 @@ ipipeif_link_setup(struct media_entity *entity, const struct media_pad *local,
 		ipipeif->input = IPIPEIF_INPUT_ISIF;
 		break;
 
-	case IPIPEIF_PAD_SOURCE | MEDIA_ENT_T_V4L2_SUBDEV:
+	case IPIPEIF_PAD_SOURCE | 2 << 16:
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipeif->output = IPIPEIF_OUTPUT_NONE;
 			break;
@@ -971,7 +977,7 @@ vpfe_ipipeif_register_entities(struct vpfe_ipipeif_device *ipipeif,
 	ipipeif->video_in.vpfe_dev = vpfe_dev;
 
 	flags = 0;
-	ret = media_entity_create_link(&ipipeif->video_in.video_dev.entity, 0,
+	ret = media_create_pad_link(&ipipeif->video_in.video_dev.entity, 0,
 					&ipipeif->subdev.entity, 0, flags);
 	if (ret < 0)
 		goto fail;
@@ -1026,7 +1032,7 @@ int vpfe_ipipeif_init(struct vpfe_ipipeif_device *ipipeif,
 	ipipeif->output = IPIPEIF_OUTPUT_NONE;
 	me->ops = &ipipeif_media_ops;
 
-	ret = media_entity_init(me, IPIPEIF_NUM_PADS, pads, 0);
+	ret = media_entity_pads_init(me, IPIPEIF_NUM_PADS, pads);
 	if (ret)
 		goto fail;
 

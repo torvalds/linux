@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_ELF_H
 #define _LINUX_ELF_H
 
@@ -29,6 +30,7 @@ extern Elf32_Dyn _DYNAMIC [];
 #define elf_note	elf32_note
 #define elf_addr_t	Elf32_Off
 #define Elf_Half	Elf32_Half
+#define Elf_Word	Elf32_Word
 
 #else
 
@@ -39,6 +41,7 @@ extern Elf64_Dyn _DYNAMIC [];
 #define elf_note	elf64_note
 #define elf_addr_t	Elf64_Off
 #define Elf_Half	Elf64_Half
+#define Elf_Word	Elf64_Word
 
 #endif
 

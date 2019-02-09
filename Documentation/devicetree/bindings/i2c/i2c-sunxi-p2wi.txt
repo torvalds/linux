@@ -24,7 +24,7 @@ Slave device properties:
 
 Example:
 
-	p2wi@01f03400 {
+	p2wi@1f03400 {
 		compatible = "allwinner,sun6i-a31-p2wi";
 		reg = <0x01f03400 0x400>;
 		interrupts = <0 39 4>;

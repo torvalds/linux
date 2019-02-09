@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2004, 2010
  * Interface implementation for communication with the z/VM control program
@@ -17,14 +18,83 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 #include <linux/export.h>
-#include <asm/compat.h>
+#include <linux/mutex.h>
+#include <linux/cma.h>
+#include <linux/mm.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
-#include <asm/uaccess.h>
-#include "vmcp.h"
+#include <asm/vmcp.h>
+
+struct vmcp_session {
+	char *response;
+	unsigned int bufsize;
+	unsigned int cma_alloc : 1;
+	int resp_size;
+	int resp_code;
+	struct mutex mutex;
+};
 
 static debug_info_t *vmcp_debug;
+
+static unsigned long vmcp_cma_size __initdata = CONFIG_VMCP_CMA_SIZE * 1024 * 1024;
+static struct cma *vmcp_cma;
+
+static int __init early_parse_vmcp_cma(char *p)
+{
+	vmcp_cma_size = ALIGN(memparse(p, NULL), PAGE_SIZE);
+	return 0;
+}
+early_param("vmcp_cma", early_parse_vmcp_cma);
+
+void __init vmcp_cma_reserve(void)
+{
+	if (!MACHINE_IS_VM)
+		return;
+	cma_declare_contiguous(0, vmcp_cma_size, 0, 0, 0, false, "vmcp", &vmcp_cma);
+}
+
+static void vmcp_response_alloc(struct vmcp_session *session)
+{
+	struct page *page = NULL;
+	int nr_pages, order;
+
+	order = get_order(session->bufsize);
+	nr_pages = ALIGN(session->bufsize, PAGE_SIZE) >> PAGE_SHIFT;
+	/*
+	 * For anything below order 3 allocations rely on the buddy
+	 * allocator. If such low-order allocations can't be handled
+	 * anymore the system won't work anyway.
+	 */
+	if (order > 2)
+		page = cma_alloc(vmcp_cma, nr_pages, 0, false);
+	if (page) {
+		session->response = (char *)page_to_phys(page);
+		session->cma_alloc = 1;
+		return;
+	}
+	session->response = (char *)__get_free_pages(GFP_KERNEL | __GFP_RETRY_MAYFAIL, order);
+}
+
+static void vmcp_response_free(struct vmcp_session *session)
+{
+	int nr_pages, order;
+	struct page *page;
+
+	if (!session->response)
+		return;
+	order = get_order(session->bufsize);
+	nr_pages = ALIGN(session->bufsize, PAGE_SIZE) >> PAGE_SHIFT;
+	if (session->cma_alloc) {
+		page = phys_to_page((unsigned long)session->response);
+		cma_release(vmcp_cma, page, nr_pages);
+		session->cma_alloc = 0;
+	} else {
+		free_pages((unsigned long)session->response, order);
+	}
+	session->response = NULL;
+}
 
 static int vmcp_open(struct inode *inode, struct file *file)
 {
@@ -51,7 +121,7 @@ static int vmcp_release(struct inode *inode, struct file *file)
 
 	session = file->private_data;
 	file->private_data = NULL;
-	free_pages((unsigned long)session->response, get_order(session->bufsize));
+	vmcp_response_free(session);
 	kfree(session);
 	return 0;
 }
@@ -88,23 +158,16 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 
 	if (count > 240)
 		return -EINVAL;
-	cmd = kmalloc(count + 1, GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-	if (copy_from_user(cmd, buff, count)) {
-		kfree(cmd);
-		return -EFAULT;
-	}
-	cmd[count] = '\0';
+	cmd = memdup_user_nul(buff, count);
+	if (IS_ERR(cmd))
+		return PTR_ERR(cmd);
 	session = file->private_data;
 	if (mutex_lock_interruptible(&session->mutex)) {
 		kfree(cmd);
 		return -ERESTARTSYS;
 	}
 	if (!session->response)
-		session->response = (char *)__get_free_pages(GFP_KERNEL
-						| __GFP_REPEAT | GFP_DMA,
-						get_order(session->bufsize));
+		vmcp_response_alloc(session);
 	if (!session->response) {
 		mutex_unlock(&session->mutex);
 		kfree(cmd);
@@ -135,8 +198,8 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct vmcp_session *session;
+	int ret = -ENOTTY;
 	int __user *argp;
-	int temp;
 
 	session = file->private_data;
 	if (is_compat_task())
@@ -147,28 +210,26 @@ static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -ERESTARTSYS;
 	switch (cmd) {
 	case VMCP_GETCODE:
-		temp = session->resp_code;
-		mutex_unlock(&session->mutex);
-		return put_user(temp, argp);
+		ret = put_user(session->resp_code, argp);
+		break;
 	case VMCP_SETBUF:
-		free_pages((unsigned long)session->response,
-				get_order(session->bufsize));
-		session->response=NULL;
-		temp = get_user(session->bufsize, argp);
-		if (get_order(session->bufsize) > 8) {
+		vmcp_response_free(session);
+		ret = get_user(session->bufsize, argp);
+		if (ret)
 			session->bufsize = PAGE_SIZE;
-			temp = -EINVAL;
+		if (!session->bufsize || get_order(session->bufsize) > 8) {
+			session->bufsize = PAGE_SIZE;
+			ret = -EINVAL;
 		}
-		mutex_unlock(&session->mutex);
-		return temp;
+		break;
 	case VMCP_GETSIZE:
-		temp = session->resp_size;
-		mutex_unlock(&session->mutex);
-		return put_user(temp, argp);
+		ret = put_user(session->resp_size, argp);
+		break;
 	default:
-		mutex_unlock(&session->mutex);
-		return -ENOIOCTLCMD;
+		break;
 	}
+	mutex_unlock(&session->mutex);
+	return ret;
 }
 
 static const struct file_operations vmcp_fops = {

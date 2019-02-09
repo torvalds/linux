@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/cryptouser.h>
+#include <linux/compiler.h>
 #include <net/netlink.h>
 
 #include "internal.h"
@@ -53,11 +54,18 @@ int crypto_aead_setkey(struct crypto_aead *tfm,
 		       const u8 *key, unsigned int keylen)
 {
 	unsigned long alignmask = crypto_aead_alignmask(tfm);
+	int err;
 
 	if ((unsigned long)key & alignmask)
-		return setkey_unaligned(tfm, key, keylen);
+		err = setkey_unaligned(tfm, key, keylen);
+	else
+		err = crypto_aead_alg(tfm)->setkey(tfm, key, keylen);
 
-	return crypto_aead_alg(tfm)->setkey(tfm, key, keylen);
+	if (err)
+		return err;
+
+	crypto_aead_clear_flags(tfm, CRYPTO_TFM_NEED_KEY);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_aead_setkey);
 
@@ -91,6 +99,8 @@ static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_aead *aead = __crypto_aead_cast(tfm);
 	struct aead_alg *alg = crypto_aead_alg(aead);
+
+	crypto_aead_set_flags(aead, CRYPTO_TFM_NEED_KEY);
 
 	aead->authsize = alg->maxauthsize;
 
@@ -132,7 +142,7 @@ static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 #endif
 
 static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute__ ((unused));
+	__maybe_unused;
 static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 {
 	struct aead_alg *aead = container_of(alg, struct aead_alg, base);
@@ -294,9 +304,9 @@ int aead_init_geniv(struct crypto_aead *aead)
 	if (err)
 		goto out;
 
-	ctx->null = crypto_get_default_null_skcipher();
-	err = PTR_ERR(ctx->null);
-	if (IS_ERR(ctx->null))
+	ctx->sknull = crypto_get_default_null_skcipher();
+	err = PTR_ERR(ctx->sknull);
+	if (IS_ERR(ctx->sknull))
 		goto out;
 
 	child = crypto_spawn_aead(aead_instance_ctx(inst));
@@ -346,8 +356,12 @@ static int aead_prepare_alg(struct aead_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;
 
-	if (max(alg->maxauthsize, alg->ivsize) > PAGE_SIZE / 8)
+	if (max3(alg->maxauthsize, alg->ivsize, alg->chunksize) >
+	    PAGE_SIZE / 8)
 		return -EINVAL;
+
+	if (!alg->chunksize)
+		alg->chunksize = base->cra_blocksize;
 
 	base->cra_type = &crypto_aead_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;

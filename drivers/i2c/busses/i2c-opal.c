@@ -71,7 +71,7 @@ static int i2c_opal_send_request(u32 bus_id, struct opal_i2c_request *req)
 	if (rc)
 		goto exit;
 
-	rc = be64_to_cpu(msg.params[1]);
+	rc = opal_get_async_rc(msg);
 	if (rc != OPAL_SUCCESS) {
 		rc = i2c_opal_translate_error(rc);
 		goto exit;
@@ -94,8 +94,6 @@ static int i2c_opal_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	 */
 	memset(&req, 0, sizeof(req));
 	switch(num) {
-	case 0:
-		return 0;
 	case 1:
 		req.type = (msgs[0].flags & I2C_M_RD) ?
 			OPAL_I2C_RAW_READ : OPAL_I2C_RAW_WRITE;
@@ -114,8 +112,6 @@ static int i2c_opal_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		req.size = cpu_to_be32(msgs[1].len);
 		req.buffer_ra = cpu_to_be64(__pa(msgs[1].buf));
 		break;
-	default:
-		return -EOPNOTSUPP;
 	}
 
 	rc = i2c_opal_send_request(opal_id, &req);
@@ -204,7 +200,7 @@ static const struct i2c_algorithm i2c_opal_algo = {
  * For two messages, we basically support simple smbus transactions of a
  * write-then-anything.
  */
-static struct i2c_adapter_quirks i2c_opal_quirks = {
+static const struct i2c_adapter_quirks i2c_opal_quirks = {
 	.flags = I2C_AQ_COMB | I2C_AQ_COMB_WRITE_FIRST | I2C_AQ_COMB_SAME_ADDR,
 	.max_comb_1st_msg_len = 4,
 };

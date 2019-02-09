@@ -27,6 +27,9 @@
 #define  SOR_STATE_ASY_PIXELDEPTH_MASK		(0xf << 17)
 #define  SOR_STATE_ASY_PIXELDEPTH_BPP_18_444	(0x2 << 17)
 #define  SOR_STATE_ASY_PIXELDEPTH_BPP_24_444	(0x5 << 17)
+#define  SOR_STATE_ASY_PIXELDEPTH_BPP_30_444	(0x6 << 17)
+#define  SOR_STATE_ASY_PIXELDEPTH_BPP_36_444	(0x8 << 17)
+#define  SOR_STATE_ASY_PIXELDEPTH_BPP_48_444	(0x9 << 17)
 #define  SOR_STATE_ASY_VSYNCPOL			(1 << 13)
 #define  SOR_STATE_ASY_HSYNCPOL			(1 << 12)
 #define  SOR_STATE_ASY_PROTOCOL_MASK		(0xf << 8)
@@ -86,6 +89,8 @@
 #define SOR_PLL0 0x17
 #define  SOR_PLL0_ICHPMP_MASK			(0xf << 24)
 #define  SOR_PLL0_ICHPMP(x)			(((x) & 0xf) << 24)
+#define  SOR_PLL0_FILTER_MASK			(0xf << 16)
+#define  SOR_PLL0_FILTER(x)			(((x) & 0xf) << 16)
 #define  SOR_PLL0_VCOCAP_MASK			(0xf << 8)
 #define  SOR_PLL0_VCOCAP(x)			(((x) & 0xf) << 8)
 #define  SOR_PLL0_VCOCAP_RST			SOR_PLL0_VCOCAP(3)
@@ -119,10 +124,16 @@
 #define  SOR_PLL2_SEQ_PLL_PULLDOWN		(1 << 16)
 
 #define SOR_PLL3 0x1a
+#define  SOR_PLL3_BG_TEMP_COEF_MASK		(0xf << 28)
+#define  SOR_PLL3_BG_TEMP_COEF(x)		(((x) & 0xf) << 28)
 #define  SOR_PLL3_BG_VREF_LEVEL_MASK		(0xf << 24)
 #define  SOR_PLL3_BG_VREF_LEVEL(x)		(((x) & 0xf) << 24)
 #define  SOR_PLL3_PLL_VDD_MODE_1V8		(0 << 13)
 #define  SOR_PLL3_PLL_VDD_MODE_3V3		(1 << 13)
+#define  SOR_PLL3_AVDD10_LEVEL_MASK		(0xf << 8)
+#define  SOR_PLL3_AVDD10_LEVEL(x)		(((x) & 0xf) << 8)
+#define  SOR_PLL3_AVDD14_LEVEL_MASK		(0xf << 4)
+#define  SOR_PLL3_AVDD14_LEVEL(x)		(((x) & 0xf) << 4)
 
 #define SOR_CSTM 0x1b
 #define  SOR_CSTM_ROTCLK_MASK			(0xf << 24)
@@ -331,6 +342,10 @@
 #define SOR_DP_LQ_CSTM1 0x70
 #define SOR_DP_LQ_CSTM2 0x71
 
+#define SOR_DP_PADCTL2 0x73
+#define  SOR_DP_PADCTL_SPAREPLL_MASK (0xff << 24)
+#define  SOR_DP_PADCTL_SPAREPLL(x) (((x) & 0xff) << 24)
+
 #define SOR_HDMI_AUDIO_INFOFRAME_CTRL 0x9a
 #define SOR_HDMI_AUDIO_INFOFRAME_STATUS 0x9b
 #define SOR_HDMI_AUDIO_INFOFRAME_HEADER 0x9c
@@ -366,5 +381,9 @@
 #define SOR_HDMI_VSI_INFOFRAME_CTRL 0x123
 #define SOR_HDMI_VSI_INFOFRAME_STATUS 0x124
 #define SOR_HDMI_VSI_INFOFRAME_HEADER 0x125
+
+#define SOR_HDMI2_CTRL 0x13e
+#define  SOR_HDMI2_CTRL_CLOCK_MODE_DIV_BY_4 (1 << 1)
+#define  SOR_HDMI2_CTRL_SCRAMBLE (1 << 0)
 
 #endif

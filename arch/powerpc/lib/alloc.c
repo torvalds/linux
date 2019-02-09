@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -6,7 +7,7 @@
 #include <asm/setup.h>
 
 
-void * __init_refok zalloc_maybe_bootmem(size_t size, gfp_t mask)
+void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
 {
 	void *p;
 

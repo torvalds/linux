@@ -105,7 +105,10 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 	spu->irqs[2] = irq_create_mapping(NULL, IIC_IRQ_CLASS_2 | isrc);
 
 	/* Right now, we only fail if class 2 failed */
-	return spu->irqs[2] == NO_IRQ ? -EINVAL : 0;
+	if (!spu->irqs[2])
+		return -EINVAL;
+
+	return 0;
 }
 
 static void __iomem * __init spu_map_prop_old(struct spu *spu,
@@ -188,10 +191,10 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 			goto err;
 		}
 		ret = -EINVAL;
-		pr_debug("  irq %d no 0x%x on %s\n", i, oirq.args[0],
-			 oirq.np->full_name);
+		pr_debug("  irq %d no 0x%x on %pOF\n", i, oirq.args[0],
+			 oirq.np);
 		spu->irqs[i] = irq_create_of_mapping(&oirq);
-		if (spu->irqs[i] == NO_IRQ) {
+		if (!spu->irqs[i]) {
 			pr_debug("spu_new: failed to map it !\n");
 			goto err;
 		}
@@ -202,7 +205,7 @@ err:
 	pr_debug("failed to map irq %x for spu %s\n", *oirq.args,
 		spu->name);
 	for (; i >= 0; i--) {
-		if (spu->irqs[i] != NO_IRQ)
+		if (spu->irqs[i])
 			irq_dispose_mapping(spu->irqs[i]);
 	}
 	return ret;
@@ -240,32 +243,32 @@ static int __init spu_map_device(struct spu *spu)
 	ret = spu_map_resource(spu, 0, (void __iomem**)&spu->local_store,
 			       &spu->local_store_phys);
 	if (ret) {
-		pr_debug("spu_new: failed to map %s resource 0\n",
-			 np->full_name);
+		pr_debug("spu_new: failed to map %pOF resource 0\n",
+			 np);
 		goto out;
 	}
 	ret = spu_map_resource(spu, 1, (void __iomem**)&spu->problem,
 			       &spu->problem_phys);
 	if (ret) {
-		pr_debug("spu_new: failed to map %s resource 1\n",
-			 np->full_name);
+		pr_debug("spu_new: failed to map %pOF resource 1\n",
+			 np);
 		goto out_unmap;
 	}
 	ret = spu_map_resource(spu, 2, (void __iomem**)&spu->priv2, NULL);
 	if (ret) {
-		pr_debug("spu_new: failed to map %s resource 2\n",
-			 np->full_name);
+		pr_debug("spu_new: failed to map %pOF resource 2\n",
+			 np);
 		goto out_unmap;
 	}
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		ret = spu_map_resource(spu, 3,
 			       (void __iomem**)&spu->priv1, NULL);
 	if (ret) {
-		pr_debug("spu_new: failed to map %s resource 3\n",
-			 np->full_name);
+		pr_debug("spu_new: failed to map %pOF resource 3\n",
+			 np);
 		goto out_unmap;
 	}
-	pr_debug("spu_new: %s maps:\n", np->full_name);
+	pr_debug("spu_new: %pOF maps:\n", np);
 	pr_debug("  local store   : 0x%016lx -> 0x%p\n",
 		 spu->local_store_phys, spu->local_store);
 	pr_debug("  problem state : 0x%016lx -> 0x%p\n",
@@ -289,12 +292,12 @@ static int __init of_enumerate_spus(int (*fn)(void *data))
 	unsigned int n = 0;
 
 	ret = -ENODEV;
-	for (node = of_find_node_by_type(NULL, "spe");
-			node; node = of_find_node_by_type(node, "spe")) {
+	for_each_node_by_type(node, "spe") {
 		ret = fn(node);
 		if (ret) {
 			printk(KERN_WARNING "%s: Error initializing %s\n",
 				__func__, node->name);
+			of_node_put(node);
 			break;
 		}
 		n++;
@@ -313,8 +316,8 @@ static int __init of_create_spu(struct spu *spu, void *data)
 
 	spu->node = of_node_to_nid(spe);
 	if (spu->node >= MAX_NUMNODES) {
-		printk(KERN_WARNING "SPE %s on node %d ignored,"
-		       " node number too big\n", spe->full_name, spu->node);
+		printk(KERN_WARNING "SPE %pOF on node %d ignored,"
+		       " node number too big\n", spe, spu->node);
 		printk(KERN_WARNING "Check if CONFIG_NUMA is enabled.\n");
 		ret = -ENODEV;
 		goto out;
@@ -535,8 +538,7 @@ static int __init init_affinity(void)
 	if (of_has_vicinity()) {
 		init_affinity_fw();
 	} else {
-		long root = of_get_flat_dt_root();
-		if (of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
+		if (of_machine_is_compatible("IBM,CPBW-1.0"))
 			init_affinity_qs20_harcoded();
 		else
 			printk("No affinity configuration found\n");

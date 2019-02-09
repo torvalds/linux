@@ -1,20 +1,3 @@
-What: /sys/class/power_supply/twl4030_ac/max_current
-      /sys/class/power_supply/twl4030_usb/max_current
-Description:
-	Read/Write limit on current which may
-	be drawn from the ac (Accessory Charger) or
-	USB port.
-
-	Value is in micro-Amps.
-
-	Value is set automatically to an appropriate
-	value when a cable is plugged or unplugged.
-
-	Value can the set by writing to the attribute.
-	The change will only persist until the next
-	plug event.  These event are reported via udev.
-
-
 What: /sys/class/power_supply/twl4030_usb/mode
 Description:
 	Changing mode for USB port.

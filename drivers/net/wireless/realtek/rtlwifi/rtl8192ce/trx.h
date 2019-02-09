@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -537,8 +533,8 @@ struct rx_fwinfo_92c {
 	u8 pwdb_all;
 	u8 cfosho[4];
 	u8 cfotail[4];
-	char rxevm[2];
-	char rxsnr[4];
+	s8 rxevm[2];
+	s8 rxsnr[4];
 	u8 pdsnr[2];
 	u8 csi_current[2];
 	u8 csi_target[2];
@@ -722,7 +718,8 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 			   u8 *pdesc, struct sk_buff *skb);
 void rtl92ce_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 		      u8 desc_name, u8 *val);
-u32 rtl92ce_get_desc(u8 *pdesc, bool istx, u8 desc_name);
+u64 rtl92ce_get_desc(struct ieee80211_hw *hw, u8 *p_desc,
+		     bool istx, u8 desc_name);
 bool rtl92ce_is_tx_desc_closed(struct ieee80211_hw *hw,
 			       u8 hw_queue, u16 index);
 void rtl92ce_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);

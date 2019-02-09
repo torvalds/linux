@@ -1,7 +1,7 @@
 /*
  * net/tipc/addr.h: Include file for TIPC address utility routines
  *
- * Copyright (c) 2000-2006, Ericsson AB
+ * Copyright (c) 2000-2006, 2018, Ericsson AB
  * Copyright (c) 2004-2005, Wind River Systems
  * All rights reserved.
  *
@@ -43,34 +43,49 @@
 #include <net/netns/generic.h>
 #include "core.h"
 
-#define TIPC_ZONE_MASK		0xff000000u
-#define TIPC_CLUSTER_MASK	0xfffff000u
-
 static inline u32 tipc_own_addr(struct net *net)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-
-	return tn->own_addr;
+	return tipc_net(net)->node_addr;
 }
 
-static inline u32 tipc_zone_mask(u32 addr)
+static inline u8 *tipc_own_id(struct net *net)
 {
-	return addr & TIPC_ZONE_MASK;
+	struct tipc_net *tn = tipc_net(net);
+
+	if (!strlen(tn->node_id_string))
+		return NULL;
+	return tn->node_id;
+}
+
+static inline char *tipc_own_id_string(struct net *net)
+{
+	return tipc_net(net)->node_id_string;
 }
 
 static inline u32 tipc_cluster_mask(u32 addr)
 {
-	return addr & TIPC_CLUSTER_MASK;
+	return addr & TIPC_ZONE_CLUSTER_MASK;
 }
 
-u32 tipc_own_addr(struct net *net);
-int in_own_cluster(struct net *net, u32 addr);
-int in_own_cluster_exact(struct net *net, u32 addr);
-int in_own_node(struct net *net, u32 addr);
-u32 addr_domain(struct net *net, u32 sc);
-int tipc_addr_domain_valid(u32);
-int tipc_addr_node_valid(u32 addr);
-int tipc_in_scope(u32 domain, u32 addr);
-int tipc_addr_scope(u32 domain);
-char *tipc_addr_string_fill(char *string, u32 addr);
+static inline int tipc_node2scope(u32 node)
+{
+	return node ? TIPC_NODE_SCOPE : TIPC_CLUSTER_SCOPE;
+}
+
+static inline int tipc_scope2node(struct net *net, int sc)
+{
+	return sc != TIPC_NODE_SCOPE ? 0 : tipc_own_addr(net);
+}
+
+static inline int in_own_node(struct net *net, u32 addr)
+{
+	return addr == tipc_own_addr(net) || !addr;
+}
+
+bool tipc_in_scope(bool legacy_format, u32 domain, u32 addr);
+void tipc_set_node_id(struct net *net, u8 *id);
+void tipc_set_node_addr(struct net *net, u32 addr);
+char *tipc_nodeid2string(char *str, u8 *id);
+u32 tipc_node_id2hash(u8 *id128);
+
 #endif

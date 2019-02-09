@@ -134,7 +134,7 @@ static ssize_t bl_power_store(struct device *dev, struct device_attribute *attr,
 {
 	int rc;
 	struct backlight_device *bd = to_backlight_device(dev);
-	unsigned long power;
+	unsigned long power, old_power;
 
 	rc = kstrtoul(buf, 0, &power);
 	if (rc)
@@ -145,10 +145,16 @@ static ssize_t bl_power_store(struct device *dev, struct device_attribute *attr,
 	if (bd->ops) {
 		pr_debug("set power to %lu\n", power);
 		if (bd->props.power != power) {
+			old_power = bd->props.power;
 			bd->props.power = power;
-			backlight_update_status(bd);
+			rc = backlight_update_status(bd);
+			if (rc)
+				bd->props.power = old_power;
+			else
+				rc = count;
+		} else {
+			rc = count;
 		}
-		rc = count;
 	}
 	mutex_unlock(&bd->ops_lock);
 
@@ -164,6 +170,29 @@ static ssize_t brightness_show(struct device *dev,
 	return sprintf(buf, "%d\n", bd->props.brightness);
 }
 
+int backlight_device_set_brightness(struct backlight_device *bd,
+				    unsigned long brightness)
+{
+	int rc = -ENXIO;
+
+	mutex_lock(&bd->ops_lock);
+	if (bd->ops) {
+		if (brightness > bd->props.max_brightness)
+			rc = -EINVAL;
+		else {
+			pr_debug("set brightness to %lu\n", brightness);
+			bd->props.brightness = brightness;
+			rc = backlight_update_status(bd);
+		}
+	}
+	mutex_unlock(&bd->ops_lock);
+
+	backlight_generate_event(bd, BACKLIGHT_UPDATE_SYSFS);
+
+	return rc;
+}
+EXPORT_SYMBOL(backlight_device_set_brightness);
+
 static ssize_t brightness_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -175,24 +204,9 @@ static ssize_t brightness_store(struct device *dev,
 	if (rc)
 		return rc;
 
-	rc = -ENXIO;
+	rc = backlight_device_set_brightness(bd, brightness);
 
-	mutex_lock(&bd->ops_lock);
-	if (bd->ops) {
-		if (brightness > bd->props.max_brightness)
-			rc = -EINVAL;
-		else {
-			pr_debug("set brightness to %lu\n", brightness);
-			bd->props.brightness = brightness;
-			backlight_update_status(bd);
-			rc = count;
-		}
-	}
-	mutex_unlock(&bd->ops_lock);
-
-	backlight_generate_event(bd, BACKLIGHT_UPDATE_SYSFS);
-
-	return rc;
+	return rc ? rc : count;
 }
 static DEVICE_ATTR_RW(brightness);
 
@@ -380,7 +394,7 @@ struct backlight_device *backlight_device_register(const char *name,
 }
 EXPORT_SYMBOL(backlight_device_register);
 
-bool backlight_device_registered(enum backlight_type type)
+struct backlight_device *backlight_device_get_by_type(enum backlight_type type)
 {
 	bool found = false;
 	struct backlight_device *bd;
@@ -394,9 +408,9 @@ bool backlight_device_registered(enum backlight_type type)
 	}
 	mutex_unlock(&backlight_dev_list_mutex);
 
-	return found;
+	return found ? bd : NULL;
 }
-EXPORT_SYMBOL(backlight_device_registered);
+EXPORT_SYMBOL(backlight_device_get_by_type);
 
 /**
  * backlight_device_unregister - unregisters a backlight device object.
@@ -565,6 +579,79 @@ struct backlight_device *of_find_backlight_by_node(struct device_node *node)
 }
 EXPORT_SYMBOL(of_find_backlight_by_node);
 #endif
+
+/**
+ * of_find_backlight - Get backlight device
+ * @dev: Device
+ *
+ * This function looks for a property named 'backlight' on the DT node
+ * connected to @dev and looks up the backlight device.
+ *
+ * Call backlight_put() to drop the reference on the backlight device.
+ *
+ * Returns:
+ * A pointer to the backlight device if found.
+ * Error pointer -EPROBE_DEFER if the DT property is set, but no backlight
+ * device is found.
+ * NULL if there's no backlight property.
+ */
+struct backlight_device *of_find_backlight(struct device *dev)
+{
+	struct backlight_device *bd = NULL;
+	struct device_node *np;
+
+	if (!dev)
+		return NULL;
+
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+		np = of_parse_phandle(dev->of_node, "backlight", 0);
+		if (np) {
+			bd = of_find_backlight_by_node(np);
+			of_node_put(np);
+			if (!bd)
+				return ERR_PTR(-EPROBE_DEFER);
+			/*
+			 * Note: gpio_backlight uses brightness as
+			 * power state during probe
+			 */
+			if (!bd->props.brightness)
+				bd->props.brightness = bd->props.max_brightness;
+		}
+	}
+
+	return bd;
+}
+EXPORT_SYMBOL(of_find_backlight);
+
+static void devm_backlight_release(void *data)
+{
+	backlight_put(data);
+}
+
+/**
+ * devm_of_find_backlight - Resource-managed of_find_backlight()
+ * @dev: Device
+ *
+ * Device managed version of of_find_backlight().
+ * The reference on the backlight device is automatically
+ * dropped on driver detach.
+ */
+struct backlight_device *devm_of_find_backlight(struct device *dev)
+{
+	struct backlight_device *bd;
+	int ret;
+
+	bd = of_find_backlight(dev);
+	if (IS_ERR_OR_NULL(bd))
+		return bd;
+	ret = devm_add_action(dev, devm_backlight_release, bd);
+	if (ret) {
+		backlight_put(bd);
+		return ERR_PTR(ret);
+	}
+	return bd;
+}
+EXPORT_SYMBOL(devm_of_find_backlight);
 
 static void __exit backlight_class_exit(void)
 {

@@ -24,6 +24,7 @@
 #define _ASM_X86_MTRR_H
 
 #include <uapi/asm/mtrr.h>
+#include <asm/pat.h>
 
 
 /*
@@ -83,9 +84,12 @@ static inline int mtrr_trim_uncached_memory(unsigned long end_pfn)
 static inline void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi)
 {
 }
+static inline void mtrr_bp_init(void)
+{
+	pat_disable("MTRRs disabled, skipping PAT initialization too.");
+}
 
 #define mtrr_ap_init() do {} while (0)
-#define mtrr_bp_init() do {} while (0)
 #define set_mtrr_aps_delayed_init() do {} while (0)
 #define mtrr_aps_init() do {} while (0)
 #define mtrr_bp_restore() do {} while (0)

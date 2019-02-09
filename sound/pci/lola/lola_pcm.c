@@ -197,7 +197,7 @@ static void lola_stream_reset(struct lola *chip, struct lola_stream *str)
 	}
 }
 
-static struct snd_pcm_hardware lola_pcm_hw = {
+static const struct snd_pcm_hardware lola_pcm_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -316,10 +316,10 @@ static int lola_pcm_hw_free(struct snd_pcm_substream *substream)
  * set up a BDL entry
  */
 static int setup_bdle(struct snd_pcm_substream *substream,
-		      struct lola_stream *str, u32 **bdlp,
+		      struct lola_stream *str, __le32 **bdlp,
 		      int ofs, int size)
 {
-	u32 *bdl = *bdlp;
+	__le32 *bdl = *bdlp;
 
 	while (size > 0) {
 		dma_addr_t addr;
@@ -355,14 +355,14 @@ static int lola_setup_periods(struct lola *chip, struct lola_pcm *pcm,
 			      struct snd_pcm_substream *substream,
 			      struct lola_stream *str)
 {
-	u32 *bdl;
+	__le32 *bdl;
 	int i, ofs, periods, period_bytes;
 
 	period_bytes = str->period_bytes;
 	periods = str->bufsize / period_bytes;
 
 	/* program the initial BDL entries */
-	bdl = (u32 *)(pcm->bdl.area + LOLA_BDL_ENTRY_SIZE * str->index);
+	bdl = (__le32 *)(pcm->bdl.area + LOLA_BDL_ENTRY_SIZE * str->index);
 	ofs = 0;
 	str->frags = 0;
 	for (i = 0; i < periods; i++) {
@@ -586,7 +586,7 @@ void lola_pcm_update(struct lola *chip, struct lola_pcm *pcm, unsigned int bits)
 	}
 }
 
-static struct snd_pcm_ops lola_pcm_ops = {
+static const struct snd_pcm_ops lola_pcm_ops = {
 	.open = lola_pcm_open,
 	.close = lola_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,

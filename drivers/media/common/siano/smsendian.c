@@ -35,7 +35,7 @@ void smsendian_handle_tx_message(void *buffer)
 	switch (msg->x_msg_header.msg_type) {
 	case MSG_SMS_DATA_DOWNLOAD_REQ:
 	{
-		msg->msg_data[0] = le32_to_cpu(msg->msg_data[0]);
+		msg->msg_data[0] = le32_to_cpu((__force __le32)(msg->msg_data[0]));
 		break;
 	}
 
@@ -44,7 +44,7 @@ void smsendian_handle_tx_message(void *buffer)
 				sizeof(struct sms_msg_hdr))/4;
 
 		for (i = 0; i < msg_words; i++)
-			msg->msg_data[i] = le32_to_cpu(msg->msg_data[i]);
+			msg->msg_data[i] = le32_to_cpu((__force __le32)msg->msg_data[i]);
 
 		break;
 	}
@@ -64,7 +64,7 @@ void smsendian_handle_rx_message(void *buffer)
 	{
 		struct sms_version_res *ver =
 			(struct sms_version_res *) msg;
-		ver->chip_model = le16_to_cpu(ver->chip_model);
+		ver->chip_model = le16_to_cpu((__force __le16)ver->chip_model);
 		break;
 	}
 
@@ -81,7 +81,7 @@ void smsendian_handle_rx_message(void *buffer)
 				sizeof(struct sms_msg_hdr))/4;
 
 		for (i = 0; i < msg_words; i++)
-			msg->msg_data[i] = le32_to_cpu(msg->msg_data[i]);
+			msg->msg_data[i] = le32_to_cpu((__force __le32)msg->msg_data[i]);
 
 		break;
 	}
@@ -95,9 +95,9 @@ void smsendian_handle_message_header(void *msg)
 #ifdef __BIG_ENDIAN
 	struct sms_msg_hdr *phdr = (struct sms_msg_hdr *)msg;
 
-	phdr->msg_type = le16_to_cpu(phdr->msg_type);
-	phdr->msg_length = le16_to_cpu(phdr->msg_length);
-	phdr->msg_flags = le16_to_cpu(phdr->msg_flags);
+	phdr->msg_type = le16_to_cpu((__force __le16)phdr->msg_type);
+	phdr->msg_length = le16_to_cpu((__force __le16)phdr->msg_length);
+	phdr->msg_flags = le16_to_cpu((__force __le16)phdr->msg_flags);
 #endif /* __BIG_ENDIAN */
 }
 EXPORT_SYMBOL_GPL(smsendian_handle_message_header);

@@ -34,11 +34,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/flash.h>
+#include "flash.h"
 #include <mach/mux.h>
 #include <linux/omap-dma.h>
 #include <mach/tc.h>
-#include <mach/board-sx1.h>
+#include "board-sx1.h"
 
 #include <mach/hardware.h>
 #include <mach/usb.h>
@@ -297,7 +297,7 @@ static struct omap_usb_config sx1_usb_config __initdata = {
 
 /*----------- LCD -------------------------*/
 
-static struct omap_lcd_config sx1_lcd_config __initdata = {
+static const struct omap_lcd_config sx1_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 

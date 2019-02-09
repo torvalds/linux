@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SPARC64_PAGE_H
 #define _SPARC64_PAGE_H
 
@@ -17,7 +18,10 @@
 
 #define HPAGE_SHIFT		23
 #define REAL_HPAGE_SHIFT	22
-
+#define HPAGE_16GB_SHIFT	34
+#define HPAGE_2GB_SHIFT		31
+#define HPAGE_256MB_SHIFT	28
+#define HPAGE_64K_SHIFT		16
 #define REAL_HPAGE_SIZE		(_AC(1,UL) << REAL_HPAGE_SHIFT)
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
@@ -25,6 +29,8 @@
 #define HPAGE_MASK		(~(HPAGE_SIZE - 1UL))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+#define REAL_HPAGE_PER_HPAGE	(_AC(1,UL) << (HPAGE_SHIFT - REAL_HPAGE_SHIFT))
+#define HUGE_MAX_HSTATE		5
 #endif
 
 #ifndef __ASSEMBLY__
@@ -42,6 +48,12 @@ struct page;
 void clear_user_page(void *addr, unsigned long vaddr, struct page *page);
 #define copy_page(X,Y)	memcpy((void *)(X), (void *)(Y), PAGE_SIZE)
 void copy_user_page(void *to, void *from, unsigned long vaddr, struct page *topage);
+#define __HAVE_ARCH_COPY_USER_HIGHPAGE
+struct vm_area_struct;
+void copy_user_highpage(struct page *to, struct page *from,
+			unsigned long vaddr, struct vm_area_struct *vma);
+#define __HAVE_ARCH_COPY_HIGHPAGE
+void copy_highpage(struct page *to, struct page *from);
 
 /* Unlike sparc32, sparc64's parameter passing API is more
  * sane in that structures which as small enough are passed

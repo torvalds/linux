@@ -21,6 +21,8 @@ or
 'perf probe' [options] --vars='PROBEPOINT'
 or
 'perf probe' [options] --funcs
+or
+'perf probe' [options] --definition='PROBE' [...]
 
 DESCRIPTION
 -----------
@@ -34,6 +36,8 @@ OPTIONS
 -k::
 --vmlinux=PATH::
 	Specify vmlinux path which has debuginfo (Dwarf binary).
+	Only when using this with --definition, you can give an offline
+	vmlinux file.
 
 -m::
 --module=MODNAME|PATH::
@@ -67,7 +71,10 @@ OPTIONS
 
 -l::
 --list[=[GROUP:]EVENT]::
-	List up current probe events. This can also accept filtering patterns of event names.
+	List up current probe events. This can also accept filtering patterns of
+	event names.
+	When this is used with --cache, perf shows all cached probes instead of
+	the live probes.
 
 -L::
 --line=::
@@ -93,6 +100,11 @@ OPTIONS
 	can also list functions in a user space executable / shared library.
 	This also can accept a FILTER rule argument.
 
+-D::
+--definition=::
+	Show trace-event definition converted from given probe-event instead
+	of write it into tracing/[k,u]probe_events.
+
 --filter=FILTER::
 	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob
 	pattern, see FILTER PATTERN for detail.
@@ -109,8 +121,19 @@ OPTIONS
 	Dry run. With this option, --add and --del doesn't execute actual
 	adding and removal operations.
 
+--cache::
+	(With --add) Cache the probes. Any events which successfully added
+	are also stored in the cache file.
+	(With --list) Show cached probes.
+	(With --del) Remove cached probes.
+
 --max-probes=NUM::
 	Set the maximum number of probe points for an event. Default is 128.
+
+--target-ns=PID:
+	Obtain mount namespace information from the target pid.  This is
+	used when creating a uprobe for a process that resides in a
+	different mount namespace from the perf(1) utility.
 
 -x::
 --exec=PATH::
@@ -134,19 +157,38 @@ PROBE SYNTAX
 Probe points are defined by following syntax.
 
     1) Define event based on function name
-     [EVENT=]FUNC[@SRC][:RLN|+OFFS|%return|;PTN] [ARG ...]
+     [[GROUP:]EVENT=]FUNC[@SRC][:RLN|+OFFS|%return|;PTN] [ARG ...]
 
     2) Define event based on source file with line number
-     [EVENT=]SRC:ALN [ARG ...]
+     [[GROUP:]EVENT=]SRC:ALN [ARG ...]
 
     3) Define event based on source file with lazy pattern
-     [EVENT=]SRC;PTN [ARG ...]
+     [[GROUP:]EVENT=]SRC;PTN [ARG ...]
 
+    4) Pre-defined SDT events or cached event with name
+     %[sdt_PROVIDER:]SDTEVENT
+     or,
+     sdt_PROVIDER:SDTEVENT
 
-'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function. Currently, event group name is set as 'probe'.
+'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function, and for return probes, a "\_\_return" suffix is automatically added to the function name. You can also specify a group name by 'GROUP', if omitted, set 'probe' is used for kprobe and 'probe_<bin>' is used for uprobe.
+Note that using existing group name can conflict with other events. Especially, using the group name reserved for kernel modules can hide embedded events in the
+modules.
 'FUNC' specifies a probed function name, and it may have one of the following options; '+OFFS' is the offset from function entry address in bytes, ':RLN' is the relative-line number from function entry line, and '%return' means that it probes function return. And ';PTN' means lazy matching pattern (see LAZY MATCHING). Note that ';PTN' must be the end of the probe point definition.  In addition, '@SRC' specifies a source file which has that function.
 It is also possible to specify a probe point by the source line number or lazy matching by using 'SRC:ALN' or 'SRC;PTN' syntax, where 'SRC' is the source file path, ':ALN' is the line number and ';PTN' is the lazy matching pattern.
 'ARG' specifies the arguments of this probe point, (see PROBE ARGUMENT).
+'SDTEVENT' and 'PROVIDER' is the pre-defined event name which is defined by user SDT (Statically Defined Tracing) or the pre-cached probes with event name.
+Note that before using the SDT event, the target binary (on which SDT events are defined) must be scanned by linkperf:perf-buildid-cache[1] to make SDT events as cached events.
+
+For details of the SDT, see below.
+https://sourceware.org/gdb/onlinedocs/gdb/Static-Probe-Points.html
+
+ESCAPED CHARACTER
+-----------------
+
+In the probe syntax, '=', '@', '+', ':' and ';' are treated as a special character. You can use a backslash ('\') to escape the special characters.
+This is useful if you need to probe on a specific versioned symbols, like @GLIBC_... suffixes, or also you need to specify a source file which includes the special characters.
+Note that usually single backslash is consumed by shell, so you might need to pass double backslash (\\) or wrapping with single quotes (\'AAA\@BBB').
+See EXAMPLES how it is used.
 
 PROBE ARGUMENT
 --------------
@@ -156,9 +198,16 @@ Each probe argument follows below syntax.
 
 'NAME' specifies the name of this argument (optional). You can use the name of local variable, local data structure member (e.g. var->field, var.field2), local array with fixed index (e.g. array[1], var->array[0], var->pointer[2]), or kprobe-tracer argument format (e.g. $retval, %ax, etc). Note that the name of this argument will be set as the last member name if you specify a local data structure member (e.g. field2 for 'var->field1.field2'.)
 '$vars' and '$params' special arguments are also available for NAME, '$vars' is expanded to the local variables (including function parameters) which can access at given probe point. '$params' is expanded to only the function parameters.
-'TYPE' casts the type of this argument (optional). If omitted, perf probe automatically set the type based on debuginfo. You can specify 'string' type only for the local variable or structure member which is an array of or a pointer to 'char' or 'unsigned char' type.
-
+'TYPE' casts the type of this argument (optional). If omitted, perf probe automatically set the type based on debuginfo (*). Currently, basic types (u8/u16/u32/u64/s8/s16/s32/s64), hexadecimal integers (x/x8/x16/x32/x64), signedness casting (u/s), "string" and bitfield are supported. (see TYPES for detail)
 On x86 systems %REG is always the short form of the register: for example %AX. %RAX or %EAX is not valid.
+
+TYPES
+-----
+Basic types (u8/u16/u32/u64/s8/s16/s32/s64) and hexadecimal integers (x8/x16/x32/x64) are integer types. Prefix 's' and 'u' means those types are signed and unsigned respectively, and 'x' means that is shown in hexadecimal format. Traced arguments are shown in decimal (sNN/uNN) or hex (xNN). You can also use 's' or 'u' to specify only signedness and leave its size auto-detected by perf probe. Moreover, you can use 'x' to explicitly specify to be shown in hexadecimal (the size is also auto-detected).
+String type is a special type, which fetches a "null-terminated" string from kernel space. This means it will fail and store NULL if the string container has been paged out. You can specify 'string' type only for the local variable or structure member which is an array of or a pointer to 'char' or 'unsigned char' type.
+Bitfield is another special type, which takes 3 parameters, bit-width, bit-offset, and container-size (usually 32). The syntax is;
+
+ b<bit-width>@<bit-offset>/<container-size>
 
 LINE SYNTAX
 -----------
@@ -204,9 +253,13 @@ Add a probe on schedule() function 12th line with recording cpu local variable:
  or
  ./perf probe --add='schedule:12 cpu'
 
- this will add one or more probes which has the name start with "schedule".
+Add one or more probes which has the name start with "schedule".
 
- Add probes on lines in schedule() function which calls update_rq_clock().
+ ./perf probe schedule*
+ or
+ ./perf probe --add='schedule*'
+
+Add probes on lines in schedule() function which calls update_rq_clock().
 
  ./perf probe 'schedule;update_rq_clock*'
  or
@@ -224,6 +277,23 @@ Add probes at malloc() function on libc
 
  ./perf probe -x /lib/libc.so.6 malloc or ./perf probe /lib/libc.so.6 malloc
 
+Add a uprobe to a target process running in a different mount namespace
+
+ ./perf probe --target-ns <target pid> -x /lib64/libc.so.6 malloc
+
+Add a USDT probe to a target process running in a different mount namespace
+
+ ./perf probe --target-ns <target pid> -x /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.121-0.b13.el7_3.x86_64/jre/lib/amd64/server/libjvm.so %sdt_hotspot:thread__sleep__end
+
+Add a probe on specific versioned symbol by backslash escape
+
+ ./perf probe -x /lib64/libc-2.25.so 'malloc_get_state\@GLIBC_2.2.5'
+
+Add a probe in a source file using special characters by backslash escape
+
+ ./perf probe -x /opt/test/a.out 'foo\+bar.c:4'
+
+
 SEE ALSO
 --------
-linkperf:perf-trace[1], linkperf:perf-record[1]
+linkperf:perf-trace[1], linkperf:perf-record[1], linkperf:perf-buildid-cache[1]

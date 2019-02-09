@@ -42,7 +42,6 @@ int iwpm_valid_pid(void)
 {
 	return iwpm_user_pid > 0;
 }
-EXPORT_SYMBOL(iwpm_valid_pid);
 
 /*
  * iwpm_register_pid - Send a netlink query to user space
@@ -88,8 +87,8 @@ int iwpm_register_pid(struct iwpm_dev_data *pm_msg, u8 nl_client)
 	ret = ibnl_put_attr(skb, nlh, sizeof(u32), &msg_seq, IWPM_NLA_REG_PID_SEQ);
 	if (ret)
 		goto pid_query_error;
-	ret = ibnl_put_attr(skb, nlh, IWPM_IFNAME_SIZE,
-				pm_msg->if_name, IWPM_NLA_REG_IF_NAME);
+	ret = ibnl_put_attr(skb, nlh, IFNAMSIZ,
+			    pm_msg->if_name, IWPM_NLA_REG_IF_NAME);
 	if (ret)
 		goto pid_query_error;
 	ret = ibnl_put_attr(skb, nlh, IWPM_DEVNAME_SIZE,
@@ -101,10 +100,12 @@ int iwpm_register_pid(struct iwpm_dev_data *pm_msg, u8 nl_client)
 	if (ret)
 		goto pid_query_error;
 
+	nlmsg_end(skb, nlh);
+
 	pr_debug("%s: Multicasting a nlmsg (dev = %s ifname = %s iwpm = %s)\n",
 		__func__, pm_msg->dev_name, pm_msg->if_name, iwpm_ulib_name);
 
-	ret = ibnl_multicast(skb, nlh, RDMA_NL_GROUP_IWPM, GFP_KERNEL);
+	ret = rdma_nl_multicast(skb, RDMA_NL_GROUP_IWPM, GFP_KERNEL);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		iwpm_user_pid = IWPM_PID_UNAVAILABLE;
@@ -122,7 +123,6 @@ pid_query_error:
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_register_pid);
 
 /*
  * iwpm_add_mapping - Send a netlink add mapping message
@@ -172,9 +172,11 @@ int iwpm_add_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 				&pm_msg->loc_addr, IWPM_NLA_MANAGE_ADDR);
 	if (ret)
 		goto add_mapping_error;
+
+	nlmsg_end(skb, nlh);
 	nlmsg_request->req_buffer = pm_msg;
 
-	ret = ibnl_unicast(skb, nlh, iwpm_user_pid);
+	ret = rdma_nl_unicast_wait(skb, iwpm_user_pid);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		iwpm_user_pid = IWPM_PID_UNDEFINED;
@@ -191,7 +193,6 @@ add_mapping_error:
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_add_mapping);
 
 /*
  * iwpm_add_and_query_mapping - Send a netlink add and query
@@ -249,9 +250,11 @@ int iwpm_add_and_query_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 				&pm_msg->rem_addr, IWPM_NLA_QUERY_REMOTE_ADDR);
 	if (ret)
 		goto query_mapping_error;
+
+	nlmsg_end(skb, nlh);
 	nlmsg_request->req_buffer = pm_msg;
 
-	ret = ibnl_unicast(skb, nlh, iwpm_user_pid);
+	ret = rdma_nl_unicast_wait(skb, iwpm_user_pid);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		err_str = "Unable to send a nlmsg";
@@ -267,7 +270,6 @@ query_mapping_error:
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_add_and_query_mapping);
 
 /*
  * iwpm_remove_mapping - Send a netlink remove mapping message
@@ -312,7 +314,9 @@ int iwpm_remove_mapping(struct sockaddr_storage *local_addr, u8 nl_client)
 	if (ret)
 		goto remove_mapping_error;
 
-	ret = ibnl_unicast(skb, nlh, iwpm_user_pid);
+	nlmsg_end(skb, nlh);
+
+	ret = rdma_nl_unicast_wait(skb, iwpm_user_pid);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		iwpm_user_pid = IWPM_PID_UNDEFINED;
@@ -328,7 +332,6 @@ remove_mapping_error:
 		dev_kfree_skb_any(skb);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_remove_mapping);
 
 /* netlink attribute policy for the received response to register pid request */
 static const struct nla_policy resp_reg_policy[IWPM_NLA_RREG_PID_MAX] = {
@@ -394,10 +397,9 @@ register_pid_response_exit:
 	/* always for found nlmsg_request */
 	kref_put(&nlmsg_request->kref, iwpm_free_nlmsg_request);
 	barrier();
-	wake_up(&nlmsg_request->waitq);
+	up(&nlmsg_request->sem);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_register_pid_cb);
 
 /* netlink attribute policy for the received response to add mapping request */
 static const struct nla_policy resp_add_policy[IWPM_NLA_RMANAGE_MAPPING_MAX] = {
@@ -463,10 +465,9 @@ add_mapping_response_exit:
 	/* always for found request */
 	kref_put(&nlmsg_request->kref, iwpm_free_nlmsg_request);
 	barrier();
-	wake_up(&nlmsg_request->waitq);
+	up(&nlmsg_request->sem);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_add_mapping_cb);
 
 /* netlink attribute policy for the response to add and query mapping request
  * and response with remote address info */
@@ -506,7 +507,7 @@ int iwpm_add_and_query_mapping_cb(struct sk_buff *skb,
 	if (!nlmsg_request) {
 		pr_info("%s: Could not find a matching request (seq = %u)\n",
 				 __func__, msg_seq);
-			return -EINVAL;
+		return -EINVAL;
 	}
 	pm_msg = nlmsg_request->req_buffer;
 	local_sockaddr = (struct sockaddr_storage *)
@@ -555,10 +556,9 @@ query_mapping_response_exit:
 	/* always for found request */
 	kref_put(&nlmsg_request->kref, iwpm_free_nlmsg_request);
 	barrier();
-	wake_up(&nlmsg_request->waitq);
+	up(&nlmsg_request->sem);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_add_and_query_mapping_cb);
 
 /*
  * iwpm_remote_info_cb - Process a port mapper message, containing
@@ -604,7 +604,6 @@ int iwpm_remote_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 	rem_info = kzalloc(sizeof(struct iwpm_remote_info), GFP_ATOMIC);
 	if (!rem_info) {
-		pr_err("%s: Unable to allocate a remote info\n", __func__);
 		ret = -ENOMEM;
 		return ret;
 	}
@@ -628,7 +627,6 @@ int iwpm_remote_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 			"remote_info: Mapped remote sockaddr:");
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_remote_info_cb);
 
 /* netlink attribute policy for the received request for mapping info */
 static const struct nla_policy resp_mapinfo_policy[IWPM_NLA_MAPINFO_REQ_MAX] = {
@@ -678,7 +676,6 @@ int iwpm_mapping_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	ret = iwpm_send_mapinfo(nl_client, iwpm_user_pid);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_mapping_info_cb);
 
 /* netlink attribute policy for the received mapping info ack */
 static const struct nla_policy ack_mapinfo_policy[IWPM_NLA_MAPINFO_NUM_MAX] = {
@@ -708,7 +705,6 @@ int iwpm_ack_mapping_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_ack_mapping_info_cb);
 
 /* netlink attribute policy for the received port mapper error message */
 static const struct nla_policy map_error_policy[IWPM_NLA_ERR_MAX] = {
@@ -749,7 +745,6 @@ int iwpm_mapping_error_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	/* always for found request */
 	kref_put(&nlmsg_request->kref, iwpm_free_nlmsg_request);
 	barrier();
-	wake_up(&nlmsg_request->waitq);
+	up(&nlmsg_request->sem);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_mapping_error_cb);

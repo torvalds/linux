@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IA64_PCI_H
 #define _ASM_IA64_PCI_H
 
@@ -29,32 +30,10 @@ struct pci_vector_struct {
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
 
-void pcibios_config_init(void);
-
-struct pci_dev;
-
-/*
- * PCI_DMA_BUS_IS_PHYS should be set to 1 if there is _necessarily_ a direct
- * correspondence between device bus addresses and CPU physical addresses.
- * Platforms with a hardware I/O MMU _must_ turn this off to suppress the
- * bounce buffer handling code in the block and network device layers.
- * Platforms with separate bus address spaces _must_ turn this off and provide
- * a device DMA mapping implementation that takes care of the necessary
- * address translation.
- *
- * For now, the ia64 platforms which may have separate/multiple bus address
- * spaces all have I/O MMUs which support the merging of physically
- * discontiguous buffers, so we can use that as the sole factor to determine
- * the setting of PCI_DMA_BUS_IS_PHYS.
- */
-extern unsigned long ia64_max_iommu_merge_mask;
-#define PCI_DMA_BUS_IS_PHYS	(ia64_max_iommu_merge_mask == ~0UL)
-
-#include <asm-generic/pci-dma-compat.h>
-
 #define HAVE_PCI_MMAP
-extern int pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
-				enum pci_mmap_state mmap_state, int write_combine);
+#define ARCH_GENERIC_PCI_MMAP_RESOURCE
+#define arch_can_pci_mmap_wc()	1
+
 #define HAVE_PCI_LEGACY
 extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 				      struct vm_area_struct *vma,

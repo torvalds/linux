@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Based on drivers/serial/8250.c by Russell King.
  *
  *  Author:	Nicolas Pitre
  *  Created:	Feb 20, 2003
  *  Copyright:	(C) 2003 Monta Vista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Note 1: This driver is made separate from the already too overloaded
  * 8250.c because it needs some kirks of its own and that'll make it
@@ -27,7 +23,6 @@
 #define SUPPORT_SYSRQ
 #endif
 
-#include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/console.h>
@@ -603,7 +598,7 @@ static struct uart_driver serial_pxa_reg;
 /*
  *	Wait for transmitter & holding register to empty
  */
-static inline void wait_for_xmitr(struct uart_pxa_port *up)
+static void wait_for_xmitr(struct uart_pxa_port *up)
 {
 	unsigned int status, tmout = 10000;
 
@@ -763,7 +758,7 @@ static struct console serial_pxa_console = {
 #define PXA_CONSOLE	NULL
 #endif
 
-static struct uart_ops serial_pxa_pops = {
+static const struct uart_ops serial_pxa_pops = {
 	.tx_empty	= serial_pxa_tx_empty,
 	.set_mctrl	= serial_pxa_set_mctrl,
 	.get_mctrl	= serial_pxa_get_mctrl,
@@ -829,7 +824,6 @@ static const struct of_device_id serial_pxa_dt_ids[] = {
 	{ .compatible = "mrvl,mmp-uart", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, serial_pxa_dt_ids);
 
 static int serial_pxa_probe_dt(struct platform_device *pdev,
 			       struct uart_pxa_port *sport)
@@ -891,6 +885,11 @@ static int serial_pxa_probe(struct platform_device *dev)
 		sport->port.line = dev->id;
 	else if (ret < 0)
 		goto err_clk;
+	if (sport->port.line >= ARRAY_SIZE(serial_pxa_ports)) {
+		dev_err(&dev->dev, "serial%d out of range\n", sport->port.line);
+		ret = -EINVAL;
+		goto err_clk;
+	}
 	snprintf(sport->name, PXA_NAME_LEN - 1, "UART%d", sport->port.line + 1);
 
 	sport->port.membase = ioremap(mmres->start, resource_size(mmres));
@@ -914,32 +913,21 @@ static int serial_pxa_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int serial_pxa_remove(struct platform_device *dev)
-{
-	struct uart_pxa_port *sport = platform_get_drvdata(dev);
-
-	uart_remove_one_port(&serial_pxa_reg, &sport->port);
-
-	clk_unprepare(sport->clk);
-	clk_put(sport->clk);
-	kfree(sport);
-
-	return 0;
-}
-
 static struct platform_driver serial_pxa_driver = {
         .probe          = serial_pxa_probe,
-        .remove         = serial_pxa_remove,
 
 	.driver		= {
 	        .name	= "pxa2xx-uart",
 #ifdef CONFIG_PM
 		.pm	= &serial_pxa_pm_ops,
 #endif
+		.suppress_bind_attrs = true,
 		.of_match_table = serial_pxa_dt_ids,
 	},
 };
 
+
+/* 8250 driver for PXA serial ports should be used */
 static int __init serial_pxa_init(void)
 {
 	int ret;
@@ -954,15 +942,4 @@ static int __init serial_pxa_init(void)
 
 	return ret;
 }
-
-static void __exit serial_pxa_exit(void)
-{
-	platform_driver_unregister(&serial_pxa_driver);
-	uart_unregister_driver(&serial_pxa_reg);
-}
-
-module_init(serial_pxa_init);
-module_exit(serial_pxa_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:pxa2xx-uart");
+device_initcall(serial_pxa_init);

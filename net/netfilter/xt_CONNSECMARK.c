@@ -91,8 +91,8 @@ static int connsecmark_tg_check(const struct xt_tgchk_param *par)
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "security") != 0) {
-		pr_info("target only valid in the \'mangle\' "
-			"or \'security\' tables, not \'%s\'.\n", par->table);
+		pr_info_ratelimited("only valid in \'mangle\' or \'security\' table, not \'%s\'\n",
+				    par->table);
 		return -EINVAL;
 	}
 
@@ -102,20 +102,20 @@ static int connsecmark_tg_check(const struct xt_tgchk_param *par)
 		break;
 
 	default:
-		pr_info("invalid mode: %hu\n", info->mode);
+		pr_info_ratelimited("invalid mode: %hu\n", info->mode);
 		return -EINVAL;
 	}
 
-	ret = nf_ct_l3proto_try_module_get(par->family);
+	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0)
-		pr_info("cannot load conntrack support for proto=%u\n",
-			par->family);
+		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+				    par->family);
 	return ret;
 }
 
 static void connsecmark_tg_destroy(const struct xt_tgdtor_param *par)
 {
-	nf_ct_l3proto_module_put(par->family);
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static struct xt_target connsecmark_tg_reg __read_mostly = {

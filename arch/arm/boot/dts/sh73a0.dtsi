@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for the SH73A0 SoC
  *
  * Copyright (C) 2012 Renesas Solutions Corp.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
-
-/include/ "skeleton.dtsi"
 
 #include <dt-bindings/clock/sh73a0-clock.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -17,31 +12,37 @@
 / {
 	compatible = "renesas,sh73a0";
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
 			clock-frequency = <1196000000>;
+			clocks = <&cpg_clocks SH73A0_CLK_Z>;
 			power-domains = <&pd_a2sl>;
+			next-level-cache = <&L2>;
 		};
-		cpu@1 {
+		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
 			clock-frequency = <1196000000>;
+			clocks = <&cpg_clocks SH73A0_CLK_Z>;
 			power-domains = <&pd_a2sl>;
+			next-level-cache = <&L2>;
 		};
 	};
 
 	timer@f0000600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0xf0000600 0x20>;
-		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&twd_clk>;
 	};
 
@@ -53,11 +54,23 @@
 		      <0xf0000100 0x100>;
 	};
 
+	L2: cache-controller@f0100000 {
+		compatible = "arm,pl310-cache";
+		reg = <0xf0100000 0x1000>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+		power-domains = <&pd_a3sm>;
+		arm,data-latency = <3 3 3>;
+		arm,tag-latency = <2 2 2>;
+		arm,shared-override;
+		cache-unified;
+		cache-level = <2>;
+	};
+
 	sbsc2: memory-controller@fb400000 {
 		compatible = "renesas,sbsc-sh73a0";
 		reg = <0xfb400000 0x400>;
-		interrupts = <0 37 IRQ_TYPE_LEVEL_HIGH>,
-			     <0 38 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "sec", "temp";
 		power-domains = <&pd_a4bc1>;
 	};
@@ -65,28 +78,26 @@
 	sbsc1: memory-controller@fe400000 {
 		compatible = "renesas,sbsc-sh73a0";
 		reg = <0xfe400000 0x400>;
-		interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>,
-			     <0 36 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "sec", "temp";
 		power-domains = <&pd_a4bc0>;
 	};
 
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
-		interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>,
-			     <0 56 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 
 	cmt1: timer@e6138000 {
 		compatible = "renesas,cmt-48-sh73a0", "renesas,cmt-48";
 		reg = <0xe6138000 0x200>;
-		interrupts = <0 65 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks SH73A0_CLK_CMT1>;
 		clock-names = "fck";
 		power-domains = <&pd_c5>;
-
-		renesas,channels-mask = <0x3f>;
-
 		status = "disabled";
 	};
 
@@ -99,14 +110,14 @@
 			<0xe6900020 1>,
 			<0xe6900040 1>,
 			<0xe6900060 1>;
-		interrupts = <0 1 IRQ_TYPE_LEVEL_HIGH
-			      0 2 IRQ_TYPE_LEVEL_HIGH
-			      0 3 IRQ_TYPE_LEVEL_HIGH
-			      0 4 IRQ_TYPE_LEVEL_HIGH
-			      0 5 IRQ_TYPE_LEVEL_HIGH
-			      0 6 IRQ_TYPE_LEVEL_HIGH
-			      0 7 IRQ_TYPE_LEVEL_HIGH
-			      0 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
 		power-domains = <&pd_a4s>;
 		control-parent;
@@ -121,14 +132,14 @@
 			<0xe6900024 1>,
 			<0xe6900044 1>,
 			<0xe6900064 1>;
-		interrupts = <0 9 IRQ_TYPE_LEVEL_HIGH
-			      0 10 IRQ_TYPE_LEVEL_HIGH
-			      0 11 IRQ_TYPE_LEVEL_HIGH
-			      0 12 IRQ_TYPE_LEVEL_HIGH
-			      0 13 IRQ_TYPE_LEVEL_HIGH
-			      0 14 IRQ_TYPE_LEVEL_HIGH
-			      0 15 IRQ_TYPE_LEVEL_HIGH
-			      0 16 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
 		power-domains = <&pd_a4s>;
 		control-parent;
@@ -143,14 +154,14 @@
 			<0xe6900028 1>,
 			<0xe6900048 1>,
 			<0xe6900068 1>;
-		interrupts = <0 17 IRQ_TYPE_LEVEL_HIGH
-			      0 18 IRQ_TYPE_LEVEL_HIGH
-			      0 19 IRQ_TYPE_LEVEL_HIGH
-			      0 20 IRQ_TYPE_LEVEL_HIGH
-			      0 21 IRQ_TYPE_LEVEL_HIGH
-			      0 22 IRQ_TYPE_LEVEL_HIGH
-			      0 23 IRQ_TYPE_LEVEL_HIGH
-			      0 24 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
 		power-domains = <&pd_a4s>;
 		control-parent;
@@ -165,14 +176,14 @@
 			<0xe690002c 1>,
 			<0xe690004c 1>,
 			<0xe690006c 1>;
-		interrupts = <0 25 IRQ_TYPE_LEVEL_HIGH
-			      0 26 IRQ_TYPE_LEVEL_HIGH
-			      0 27 IRQ_TYPE_LEVEL_HIGH
-			      0 28 IRQ_TYPE_LEVEL_HIGH
-			      0 29 IRQ_TYPE_LEVEL_HIGH
-			      0 30 IRQ_TYPE_LEVEL_HIGH
-			      0 31 IRQ_TYPE_LEVEL_HIGH
-			      0 32 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
 		power-domains = <&pd_a4s>;
 		control-parent;
@@ -183,10 +194,10 @@
 		#size-cells = <0>;
 		compatible = "renesas,iic-sh73a0", "renesas,rmobile-iic";
 		reg = <0xe6820000 0x425>;
-		interrupts = <0 167 IRQ_TYPE_LEVEL_HIGH
-			      0 168 IRQ_TYPE_LEVEL_HIGH
-			      0 169 IRQ_TYPE_LEVEL_HIGH
-			      0 170 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp1_clks SH73A0_CLK_IIC0>;
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
@@ -197,10 +208,10 @@
 		#size-cells = <0>;
 		compatible = "renesas,iic-sh73a0", "renesas,rmobile-iic";
 		reg = <0xe6822000 0x425>;
-		interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH
-			      0 52 IRQ_TYPE_LEVEL_HIGH
-			      0 53 IRQ_TYPE_LEVEL_HIGH
-			      0 54 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks SH73A0_CLK_IIC1>;
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
@@ -211,10 +222,10 @@
 		#size-cells = <0>;
 		compatible = "renesas,iic-sh73a0", "renesas,rmobile-iic";
 		reg = <0xe6824000 0x425>;
-		interrupts = <0 171 IRQ_TYPE_LEVEL_HIGH
-			      0 172 IRQ_TYPE_LEVEL_HIGH
-			      0 173 IRQ_TYPE_LEVEL_HIGH
-			      0 174 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks SH73A0_CLK_IIC2>;
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
@@ -225,10 +236,10 @@
 		#size-cells = <0>;
 		compatible = "renesas,iic-sh73a0", "renesas,rmobile-iic";
 		reg = <0xe6826000 0x425>;
-		interrupts = <0 183 IRQ_TYPE_LEVEL_HIGH
-			      0 184 IRQ_TYPE_LEVEL_HIGH
-			      0 185 IRQ_TYPE_LEVEL_HIGH
-			      0 186 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp4_clks SH73A0_CLK_IIC3>;
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
@@ -239,32 +250,76 @@
 		#size-cells = <0>;
 		compatible = "renesas,iic-sh73a0", "renesas,rmobile-iic";
 		reg = <0xe6828000 0x425>;
-		interrupts = <0 187 IRQ_TYPE_LEVEL_HIGH
-			      0 188 IRQ_TYPE_LEVEL_HIGH
-			      0 189 IRQ_TYPE_LEVEL_HIGH
-			      0 190 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp4_clks SH73A0_CLK_IIC4>;
 		power-domains = <&pd_c5>;
 		status = "disabled";
 	};
 
 	mmcif: mmc@e6bd0000 {
-		compatible = "renesas,sh-mmcif";
+		compatible = "renesas,mmcif-sh73a0", "renesas,sh-mmcif";
 		reg = <0xe6bd0000 0x100>;
-		interrupts = <0 140 IRQ_TYPE_LEVEL_HIGH
-			      0 141 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks SH73A0_CLK_MMCIF0>;
 		power-domains = <&pd_a3sp>;
 		reg-io-width = <4>;
 		status = "disabled";
 	};
 
+	msiof0: spi@e6e20000 {
+		compatible = "renesas,msiof-sh73a0", "renesas,sh-mobile-msiof";
+		reg = <0xe6e20000 0x0064>;
+		interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks SH73A0_CLK_MSIOF0>;
+		power-domains = <&pd_a3sp>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	msiof1: spi@e6e10000 {
+		compatible = "renesas,msiof-sh73a0", "renesas,sh-mobile-msiof";
+		reg = <0xe6e10000 0x0064>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp2_clks SH73A0_CLK_MSIOF1>;
+		power-domains = <&pd_a3sp>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	msiof2: spi@e6e00000 {
+		compatible = "renesas,msiof-sh73a0", "renesas,sh-mobile-msiof";
+		reg = <0xe6e00000 0x0064>;
+		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp2_clks SH73A0_CLK_MSIOF2>;
+		power-domains = <&pd_a3sp>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	msiof3: spi@e6c90000 {
+		compatible = "renesas,msiof-sh73a0", "renesas,sh-mobile-msiof";
+		reg = <0xe6c90000 0x0064>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp2_clks SH73A0_CLK_MSIOF3>;
+		power-domains = <&pd_a3sp>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	sdhi0: sd@ee100000 {
 		compatible = "renesas,sdhi-sh73a0";
 		reg = <0xee100000 0x100>;
-		interrupts = <0 83 IRQ_TYPE_LEVEL_HIGH
-			      0 84 IRQ_TYPE_LEVEL_HIGH
-			      0 85 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks SH73A0_CLK_SDHI0>;
 		power-domains = <&pd_a3sp>;
 		cap-sd-highspeed;
@@ -275,11 +330,11 @@
 	sdhi1: sd@ee120000 {
 		compatible = "renesas,sdhi-sh73a0";
 		reg = <0xee120000 0x100>;
-		interrupts = <0 88 IRQ_TYPE_LEVEL_HIGH
-			      0 89 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks SH73A0_CLK_SDHI1>;
 		power-domains = <&pd_a3sp>;
-		toshiba,mmc-wrprotect-disable;
+		disable-wp;
 		cap-sd-highspeed;
 		status = "disabled";
 	};
@@ -287,11 +342,11 @@
 	sdhi2: sd@ee140000 {
 		compatible = "renesas,sdhi-sh73a0";
 		reg = <0xee140000 0x100>;
-		interrupts = <0 104 IRQ_TYPE_LEVEL_HIGH
-			      0 105 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks SH73A0_CLK_SDHI2>;
 		power-domains = <&pd_a3sp>;
-		toshiba,mmc-wrprotect-disable;
+		disable-wp;
 		cap-sd-highspeed;
 		status = "disabled";
 	};
@@ -299,9 +354,9 @@
 	scifa0: serial@e6c40000 {
 		compatible = "renesas,scifa-sh73a0", "renesas,scifa";
 		reg = <0xe6c40000 0x100>;
-		interrupts = <0 72 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks SH73A0_CLK_SCIFA0>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
 	};
@@ -309,9 +364,9 @@
 	scifa1: serial@e6c50000 {
 		compatible = "renesas,scifa-sh73a0", "renesas,scifa";
 		reg = <0xe6c50000 0x100>;
-		interrupts = <0 73 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks SH73A0_CLK_SCIFA1>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
 	};
@@ -319,9 +374,9 @@
 	scifa2: serial@e6c60000 {
 		compatible = "renesas,scifa-sh73a0", "renesas,scifa";
 		reg = <0xe6c60000 0x100>;
-		interrupts = <0 74 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks SH73A0_CLK_SCIFA2>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
 	};
@@ -329,9 +384,9 @@
 	scifa3: serial@e6c70000 {
 		compatible = "renesas,scifa-sh73a0", "renesas,scifa";
 		reg = <0xe6c70000 0x100>;
-		interrupts = <0 75 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks SH73A0_CLK_SCIFA3>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
 	};
@@ -339,9 +394,9 @@
 	scifa4: serial@e6c80000 {
 		compatible = "renesas,scifa-sh73a0", "renesas,scifa";
 		reg = <0xe6c80000 0x100>;
-		interrupts = <0 78 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks SH73A0_CLK_SCIFA4>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
 	};
@@ -349,9 +404,9 @@
 	scifa5: serial@e6cb0000 {
 		compatible = "renesas,scifa-sh73a0", "renesas,scifa";
 		reg = <0xe6cb0000 0x100>;
-		interrupts = <0 79 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks SH73A0_CLK_SCIFA5>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
 	};
@@ -359,9 +414,9 @@
 	scifa6: serial@e6cc0000 {
 		compatible = "renesas,scifa-sh73a0", "renesas,scifa";
 		reg = <0xe6cc0000 0x100>;
-		interrupts = <0 156 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks SH73A0_CLK_SCIFA6>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
 	};
@@ -369,9 +424,9 @@
 	scifa7: serial@e6cd0000 {
 		compatible = "renesas,scifa-sh73a0", "renesas,scifa";
 		reg = <0xe6cd0000 0x100>;
-		interrupts = <0 143 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks SH73A0_CLK_SCIFA7>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
 	};
@@ -379,14 +434,14 @@
 	scifb: serial@e6c30000 {
 		compatible = "renesas,scifb-sh73a0", "renesas,scifb";
 		reg = <0xe6c30000 0x100>;
-		interrupts = <0 80 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks SH73A0_CLK_SCIFB>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		status = "disabled";
 	};
 
-	pfc: pfc@e6050000 {
+	pfc: pin-controller@e6050000 {
 		compatible = "renesas,pfc-sh73a0";
 		reg = <0xe6050000 0x8000>,
 		      <0xe605801c 0x1c>;
@@ -521,7 +576,7 @@
 		#sound-dai-cells = <1>;
 		compatible = "renesas,fsi2-sh73a0", "renesas,sh_fsi2";
 		reg = <0xec230000 0x400>;
-		interrupts = <0 146 0x4>;
+		interrupts = <GIC_SPI 146 0x4>;
 		power-domains = <&pd_a4mp>;
 		status = "disabled";
 	};
@@ -533,7 +588,7 @@
 		#size-cells = <1>;
 		ranges = <0 0 0x20000000>;
 		reg = <0xfec10000 0x400>;
-		interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&zb_clk>;
 		power-domains = <&pd_a4s>;
 	};
@@ -544,39 +599,33 @@
 		ranges;
 
 		/* External root clocks */
-		extalr_clk: extalr_clk {
+		extalr_clk: extalr {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
-			clock-output-names = "extalr";
 		};
-		extal1_clk: extal1_clk {
+		extal1_clk: extal1 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <26000000>;
-			clock-output-names = "extal1";
 		};
-		extal2_clk: extal2_clk {
+		extal2_clk: extal2 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-output-names = "extal2";
 		};
-		extcki_clk: extcki_clk {
+		extcki_clk: extcki {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-output-names = "extcki";
 		};
-		fsiack_clk: fsiack_clk {
+		fsiack_clk: fsiack {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <0>;
-			clock-output-names = "fsiack";
 		};
-		fsibck_clk: fsibck_clk {
+		fsibck_clk: fsibck {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <0>;
-			clock-output-names = "fsibck";
 		};
 
 		/* Special CPG clocks */
@@ -592,7 +641,7 @@
 		};
 
 		/* Variable factor clocks (DIV6) */
-		vclk1_clk: vclk1_clk@e6150008 {
+		vclk1_clk: vclk1@e6150008 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150008 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
@@ -600,9 +649,8 @@
 				 <&extalr_clk>, <&cpg_clocks SH73A0_CLK_MAIN>,
 				 <0>;
 			#clock-cells = <0>;
-			clock-output-names = "vclk1";
 		};
-		vclk2_clk: vclk2_clk@e615000c {
+		vclk2_clk: vclk2@e615000c {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe615000c 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
@@ -610,9 +658,8 @@
 				 <&extalr_clk>, <&cpg_clocks SH73A0_CLK_MAIN>,
 				 <0>;
 			#clock-cells = <0>;
-			clock-output-names = "vclk2";
 		};
-		vclk3_clk: vclk3_clk@e615001c {
+		vclk3_clk: vclk3@e615001c {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe615001c 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
@@ -620,7 +667,6 @@
 				 <&extalr_clk>, <&cpg_clocks SH73A0_CLK_MAIN>,
 				 <0>;
 			#clock-cells = <0>;
-			clock-output-names = "vclk3";
 		};
 		zb_clk: zb_clk@e6150010 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
@@ -630,181 +676,161 @@
 			#clock-cells = <0>;
 			clock-output-names = "zb";
 		};
-		flctl_clk: flctl_clk@e6150014 {
+		flctl_clk: flctlck@e6150014 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150014 4>;
 			clocks = <&pll1_div2_clk>, <0>,
 				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
-			clock-output-names = "flctlck";
 		};
-		sdhi0_clk: sdhi0_clk@e6150074 {
+		sdhi0_clk: sdhi0ck@e6150074 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150074 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
 				 <&pll1_div13_clk>, <0>;
 			#clock-cells = <0>;
-			clock-output-names = "sdhi0ck";
 		};
-		sdhi1_clk: sdhi1_clk@e6150078 {
+		sdhi1_clk: sdhi1ck@e6150078 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150078 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
 				 <&pll1_div13_clk>, <0>;
 			#clock-cells = <0>;
-			clock-output-names = "sdhi1ck";
 		};
-		sdhi2_clk: sdhi2_clk@e615007c {
+		sdhi2_clk: sdhi2ck@e615007c {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe615007c 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
 				 <&pll1_div13_clk>, <0>;
 			#clock-cells = <0>;
-			clock-output-names = "sdhi2ck";
 		};
-		fsia_clk: fsia_clk@e6150018 {
+		fsia_clk: fsia@e6150018 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150018 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
 				 <&fsiack_clk>, <&fsiack_clk>;
 			#clock-cells = <0>;
-			clock-output-names = "fsia";
 		};
-		fsib_clk: fsib_clk@e6150090 {
+		fsib_clk: fsib@e6150090 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150090 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
 				 <&fsibck_clk>, <&fsibck_clk>;
 			#clock-cells = <0>;
-			clock-output-names = "fsib";
 		};
-		sub_clk: sub_clk@e6150080 {
+		sub_clk: sub@e6150080 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150080 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
 				 <&extal2_clk>, <&extal2_clk>;
 			#clock-cells = <0>;
-			clock-output-names = "sub";
 		};
-		spua_clk: spua_clk@e6150084 {
+		spua_clk: spua@e6150084 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150084 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
 				 <&extal2_clk>, <&extal2_clk>;
 			#clock-cells = <0>;
-			clock-output-names = "spua";
 		};
-		spuv_clk: spuv_clk@e6150094 {
+		spuv_clk: spuv@e6150094 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150094 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
 				 <&extal2_clk>, <&extal2_clk>;
 			#clock-cells = <0>;
-			clock-output-names = "spuv";
 		};
-		msu_clk: msu_clk@e6150088 {
+		msu_clk: msu@e6150088 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150088 4>;
 			clocks = <&pll1_div2_clk>, <0>,
 				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
-			clock-output-names = "msu";
 		};
-		hsi_clk: hsi_clk@e615008c {
+		hsi_clk: hsi@e615008c {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe615008c 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
 				 <&pll1_div7_clk>, <0>;
 			#clock-cells = <0>;
-			clock-output-names = "hsi";
 		};
-		mfg1_clk: mfg1_clk@e6150098 {
+		mfg1_clk: mfg1@e6150098 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150098 4>;
 			clocks = <&pll1_div2_clk>, <0>,
 				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
-			clock-output-names = "mfg1";
 		};
-		mfg2_clk: mfg2_clk@e615009c {
+		mfg2_clk: mfg2@e615009c {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe615009c 4>;
 			clocks = <&pll1_div2_clk>, <0>,
 				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
-			clock-output-names = "mfg2";
 		};
-		dsit_clk: dsit_clk@e6150060 {
+		dsit_clk: dsit@e6150060 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150060 4>;
 			clocks = <&pll1_div2_clk>, <0>,
 				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
-			clock-output-names = "dsit";
 		};
-		dsi0p_clk: dsi0p_clk@e6150064 {
+		dsi0p_clk: dsi0pck@e6150064 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150064 4>;
 			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
 				 <&cpg_clocks SH73A0_CLK_MAIN>, <&extal2_clk>,
 				 <&extcki_clk>, <0>, <0>, <0>;
 			#clock-cells = <0>;
-			clock-output-names = "dsi0pck";
 		};
 
 		/* Fixed factor clocks */
-		main_div2_clk: main_div2_clk {
+		main_div2_clk: main_div2 {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks SH73A0_CLK_MAIN>;
 			#clock-cells = <0>;
 			clock-div = <2>;
 			clock-mult = <1>;
-			clock-output-names = "main_div2";
 		};
-		pll1_div2_clk: pll1_div2_clk {
+		pll1_div2_clk: pll1_div2 {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks SH73A0_CLK_PLL1>;
 			#clock-cells = <0>;
 			clock-div = <2>;
 			clock-mult = <1>;
-			clock-output-names = "pll1_div2";
 		};
-		pll1_div7_clk: pll1_div7_clk {
+		pll1_div7_clk: pll1_div7 {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks SH73A0_CLK_PLL1>;
 			#clock-cells = <0>;
 			clock-div = <7>;
 			clock-mult = <1>;
-			clock-output-names = "pll1_div7";
 		};
-		pll1_div13_clk: pll1_div13_clk {
+		pll1_div13_clk: pll1_div13 {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks SH73A0_CLK_PLL1>;
 			#clock-cells = <0>;
 			clock-div = <13>;
 			clock-mult = <1>;
-			clock-output-names = "pll1_div13";
 		};
-		twd_clk: twd_clk {
+		twd_clk: twd {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks SH73A0_CLK_Z>;
 			#clock-cells = <0>;
 			clock-div = <4>;
 			clock-mult = <1>;
-			clock-output-names = "twd";
 		};
 
 		/* Gate clocks */
 		mstp0_clks: mstp0_clks@e6150130 {
 			compatible = "renesas,sh73a0-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0xe6150130 4>, <0xe6150030 4>;
-			clocks = <&cpg_clocks SH73A0_CLK_HP>;
+			clocks = <&cpg_clocks SH73A0_CLK_HP>, <&sub_clk>;
 			#clock-cells = <1>;
 			clock-indices = <
-				SH73A0_CLK_IIC2
+				SH73A0_CLK_IIC2 SH73A0_CLK_MSIOF0
 			>;
 			clock-output-names =
-				"iic2";
+				"iic2", "msiof0";
 		};
 		mstp1_clks: mstp1_clks@e6150134 {
 			compatible = "renesas,sh73a0-mstp-clocks", "renesas,cpg-mstp-clocks";
@@ -834,20 +860,24 @@
 			reg = <0xe6150138 4>, <0xe6150040 4>;
 			clocks = <&sub_clk>, <&cpg_clocks SH73A0_CLK_HP>,
 				 <&cpg_clocks SH73A0_CLK_HP>, <&sub_clk>,
-				 <&sub_clk>, <&sub_clk>, <&sub_clk>, <&sub_clk>,
-				 <&sub_clk>, <&sub_clk>;
+				 <&sub_clk>, <&sub_clk>, <&sub_clk>,
+				 <&sub_clk>, <&sub_clk>, <&sub_clk>,
+				 <&sub_clk>, <&sub_clk>, <&sub_clk>;
 			#clock-cells = <1>;
 			clock-indices = <
 				SH73A0_CLK_SCIFA7 SH73A0_CLK_SY_DMAC
-				SH73A0_CLK_MP_DMAC SH73A0_CLK_SCIFA5
-				SH73A0_CLK_SCIFB SH73A0_CLK_SCIFA0
-				SH73A0_CLK_SCIFA1 SH73A0_CLK_SCIFA2
-				SH73A0_CLK_SCIFA3 SH73A0_CLK_SCIFA4
+				SH73A0_CLK_MP_DMAC SH73A0_CLK_MSIOF3
+				SH73A0_CLK_MSIOF1 SH73A0_CLK_SCIFA5
+				SH73A0_CLK_SCIFB SH73A0_CLK_MSIOF2
+				SH73A0_CLK_SCIFA0 SH73A0_CLK_SCIFA1
+				SH73A0_CLK_SCIFA2 SH73A0_CLK_SCIFA3
+				SH73A0_CLK_SCIFA4
 			>;
 			clock-output-names =
-				"scifa7", "sy_dmac", "mp_dmac", "scifa5",
-				"scifb", "scifa0", "scifa1", "scifa2",
-				"scifa3", "scifa4";
+				"scifa7", "sy_dmac", "mp_dmac", "msiof3",
+				"msiof1", "scifa5", "scifb", "msiof2",
+				"scifa0", "scifa1", "scifa2", "scifa3",
+				"scifa4";
 		};
 		mstp3_clks: mstp3_clks@e615013c {
 			compatible = "renesas,sh73a0-mstp-clocks", "renesas,cpg-mstp-clocks";

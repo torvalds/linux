@@ -19,7 +19,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/sched_clock.h>
-#include <asm/mach/time.h>
 
 #define PRIMA2_CLOCK_FREQ 1000000
 
@@ -73,7 +72,7 @@ static irqreturn_t sirfsoc_timer_interrupt(int irq, void *dev_id)
 }
 
 /* read 64-bit timer counter */
-static cycle_t notrace sirfsoc_timer_read(struct clocksource *cs)
+static u64 notrace sirfsoc_timer_read(struct clocksource *cs)
 {
 	u64 cycles;
 
@@ -189,24 +188,36 @@ static void __init sirfsoc_clockevent_init(void)
 }
 
 /* initialize the kernel jiffy timer source */
-static void __init sirfsoc_prima2_timer_init(struct device_node *np)
+static int __init sirfsoc_prima2_timer_init(struct device_node *np)
 {
 	unsigned long rate;
 	struct clk *clk;
+	int ret;
 
 	clk = of_clk_get(np, 0);
-	BUG_ON(IS_ERR(clk));
+	if (IS_ERR(clk)) {
+		pr_err("Failed to get clock\n");
+		return PTR_ERR(clk);
+	}
 
-	BUG_ON(clk_prepare_enable(clk));
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		pr_err("Failed to enable clock\n");
+		return ret;
+	}
 
 	rate = clk_get_rate(clk);
 
-	BUG_ON(rate < PRIMA2_CLOCK_FREQ);
-	BUG_ON(rate % PRIMA2_CLOCK_FREQ);
+	if (rate < PRIMA2_CLOCK_FREQ || rate % PRIMA2_CLOCK_FREQ) {
+		pr_err("Invalid clock rate\n");
+		return -EINVAL;
+	}
 
 	sirfsoc_timer_base = of_iomap(np, 0);
-	if (!sirfsoc_timer_base)
-		panic("unable to map timer cpu registers\n");
+	if (!sirfsoc_timer_base) {
+		pr_err("unable to map timer cpu registers\n");
+		return -ENXIO;
+	}
 
 	sirfsoc_timer_irq.irq = irq_of_parse_and_map(np, 0);
 
@@ -216,14 +227,23 @@ static void __init sirfsoc_prima2_timer_init(struct device_node *np)
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_HI);
 	writel_relaxed(BIT(0), sirfsoc_timer_base + SIRFSOC_TIMER_STATUS);
 
-	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource,
-				       PRIMA2_CLOCK_FREQ));
+	ret = clocksource_register_hz(&sirfsoc_clocksource, PRIMA2_CLOCK_FREQ);
+	if (ret) {
+		pr_err("Failed to register clocksource\n");
+		return ret;
+	}
 
 	sched_clock_register(sirfsoc_read_sched_clock, 64, PRIMA2_CLOCK_FREQ);
 
-	BUG_ON(setup_irq(sirfsoc_timer_irq.irq, &sirfsoc_timer_irq));
+	ret = setup_irq(sirfsoc_timer_irq.irq, &sirfsoc_timer_irq);
+	if (ret) {
+		pr_err("Failed to setup irq\n");
+		return ret;
+	}
 
 	sirfsoc_clockevent_init();
+
+	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(sirfsoc_prima2_timer,
+TIMER_OF_DECLARE(sirfsoc_prima2_timer,
 	"sirf,prima2-tick", sirfsoc_prima2_timer_init);

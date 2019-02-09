@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -23,7 +24,7 @@
 	};
 
 	clocks {
-		periph_clk: periph_clk {
+		periph_clk: periph-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <50000000>;
@@ -31,10 +32,11 @@
 	};
 
 	aliases {
-		uart0 = &uart0;
+		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
-	cpu_intc: cpu_intc {
+	cpu_intc: interrupt-controller {
 		#address-cells = <0>;
 		compatible = "mti,cpu-interrupt-controller";
 
@@ -49,16 +51,16 @@
 		compatible = "simple-bus";
 		ranges;
 
-		periph_intc: periph_intc@10000020 {
-			compatible = "brcm,bcm3380-l2-intc";
-			reg = <0x10000024 0x4 0x1000002c 0x4>,
-			      <0x10000020 0x4 0x10000028 0x4>;
+		periph_intc: interrupt-controller@10000020 {
+			compatible = "brcm,bcm6345-l1-intc";
+			reg = <0x10000020 0x10>,
+			      <0x10000030 0x10>;
 
 			interrupt-controller;
 			#interrupt-cells = <1>;
 
 			interrupt-parent = <&cpu_intc>;
-			interrupts = <2>;
+			interrupts = <2>, <3>;
 		};
 
 		uart0: serial@10000100 {
@@ -67,20 +69,58 @@
 			interrupt-parent = <&periph_intc>;
 			interrupts = <28>;
 			clocks = <&periph_clk>;
+			clock-names = "refclk";
 			status = "disabled";
 		};
 
-		timer: timer@10000040 {
-			compatible = "syscon";
-			reg = <0x10000040 0x2c>;
-			little-endian;
+		uart1: serial@10000120 {
+			compatible = "brcm,bcm6345-uart";
+			reg = <0x10000120 0x18>;
+			interrupt-parent = <&periph_intc>;
+			interrupts = <39>;
+			clocks = <&periph_clk>;
+			clock-names = "refclk";
+			status = "disabled";
 		};
 
-		reboot {
+		timer: syscon@10000040 {
+			compatible = "syscon";
+			reg = <0x10000040 0x2c>;
+			native-endian;
+		};
+
+		reboot: syscon-reboot@10000068 {
 			compatible = "syscon-reboot";
 			regmap = <&timer>;
 			offset = <0x28>;
 			mask = <0x1>;
+		};
+
+		leds0: led-controller@10000800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,bcm6328-leds";
+			reg = <0x10000800 0x24>;
+			status = "disabled";
+		};
+
+		ehci: usb@10002500 {
+			compatible = "brcm,bcm6328-ehci", "generic-ehci";
+			reg = <0x10002500 0x100>;
+			big-endian;
+			interrupt-parent = <&periph_intc>;
+			interrupts = <42>;
+			status = "disabled";
+		};
+
+		ohci: usb@10002600 {
+			compatible = "brcm,bcm6328-ohci", "generic-ohci";
+			reg = <0x10002600 0x100>;
+			big-endian;
+			no-big-frame-no;
+			interrupt-parent = <&periph_intc>;
+			interrupts = <41>;
+			status = "disabled";
 		};
 	};
 };

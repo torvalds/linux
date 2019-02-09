@@ -28,6 +28,8 @@
 #include <linux/export.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
+#include <linux/sched/debug.h>
+
 #include <asm/arcregs.h>
 #include <asm/unwind.h>
 #include <asm/switch_to.h>
@@ -142,7 +144,7 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 	 * prelogue is setup (callee regs saved and then fp set and not other
 	 * way around
 	 */
-	pr_warn("CONFIG_ARC_DW2_UNWIND needs to be enabled\n");
+	pr_warn_once("CONFIG_ARC_DW2_UNWIND needs to be enabled\n");
 	return 0;
 
 #endif
@@ -161,7 +163,7 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
  */
 static int __print_sym(unsigned int address, void *unused)
 {
-	__print_symbol("  %s\n", address);
+	printk("  %pS\n", (void *)address);
 	return 0;
 }
 
@@ -232,7 +234,7 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 }
 
 /* Another API expected by schedular, shows up in "ps" as Wait Channel
- * Ofcourse just returning schedule( ) would be pointless so unwind until
+ * Of course just returning schedule( ) would be pointless so unwind until
  * the function is not in schedular code
  */
 unsigned int get_wchan(struct task_struct *tsk)

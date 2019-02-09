@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DRBD_STATE_H
 #define DRBD_STATE_H
 
@@ -71,6 +72,10 @@ enum chg_state_flags {
 	CS_DC_SUSP       = 1 << 10,
 	CS_DC_MASK       = CS_DC_ROLE + CS_DC_PEER + CS_DC_CONN + CS_DC_DISK + CS_DC_PDSK,
 	CS_IGN_OUTD_FAIL = 1 << 11,
+
+	/* Make sure no meta data IO is in flight, by calling
+	 * drbd_md_get_buffer().  Used for graceful detach. */
+	CS_INHIBIT_MD_IO = 1 << 12,
 };
 
 /* drbd_dev_state and drbd_state are different types. This is to stress the
@@ -122,9 +127,9 @@ extern enum drbd_state_rv
 _drbd_request_state_holding_state_mutex(struct drbd_device *, union drbd_state,
 					union drbd_state, enum chg_state_flags);
 
-extern enum drbd_state_rv __drbd_set_state(struct drbd_device *, union drbd_state,
-					   enum chg_state_flags,
-					   struct completion *done);
+extern enum drbd_state_rv _drbd_set_state(struct drbd_device *, union drbd_state,
+					  enum chg_state_flags,
+					  struct completion *done);
 extern void print_st_err(struct drbd_device *, union drbd_state,
 			union drbd_state, int);
 
@@ -140,7 +145,7 @@ extern void drbd_resume_al(struct drbd_device *device);
 extern bool conn_all_vols_unconf(struct drbd_connection *connection);
 
 /**
- * drbd_request_state() - Reqest a state change
+ * drbd_request_state() - Request a state change
  * @device:	DRBD device.
  * @mask:	mask of state bits to change.
  * @val:	value of new state bits.
@@ -155,6 +160,10 @@ static inline int drbd_request_state(struct drbd_device *device,
 {
 	return _drbd_request_state(device, mask, val, CS_VERBOSE + CS_ORDERED);
 }
+
+/* for use in adm_detach() (drbd_adm_detach(), drbd_adm_down()) */
+enum drbd_state_rv
+drbd_request_detach_interruptible(struct drbd_device *device);
 
 enum drbd_role conn_highest_role(struct drbd_connection *connection);
 enum drbd_role conn_highest_peer(struct drbd_connection *connection);

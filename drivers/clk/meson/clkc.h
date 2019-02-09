@@ -1,22 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2015 Endless Mobile, Inc.
  * Author: Carlo Caione <carlo@endlessm.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __CLKC_H
 #define __CLKC_H
+
+#include <linux/clk-provider.h>
+#include "clk-regmap.h"
 
 #define PMASK(width)			GENMASK(width - 1, 0)
 #define SETPMASK(width, shift)		GENMASK(shift + width - 1, shift)
@@ -25,7 +17,7 @@
 #define PARM_GET(width, shift, reg)					\
 	(((reg) & SETPMASK(width, shift)) >> (shift))
 #define PARM_SET(width, shift, reg, val)				\
-	(((reg) & CLRPMASK(width, shift)) | (val << (shift)))
+	(((reg) & CLRPMASK(width, shift)) | ((val) << (shift)))
 
 #define MESON_PARM_APPLICABLE(p)		(!!((p)->width))
 
@@ -34,154 +26,99 @@ struct parm {
 	u8	shift;
 	u8	width;
 };
-#define PARM(_r, _s, _w)						\
-	{								\
-		.reg_off	= (_r),					\
-		.shift		= (_s),					\
-		.width		= (_w),					\
-	}								\
+
+static inline unsigned int meson_parm_read(struct regmap *map, struct parm *p)
+{
+	unsigned int val;
+
+	regmap_read(map, p->reg_off, &val);
+	return PARM_GET(p->width, p->shift, val);
+}
+
+static inline void meson_parm_write(struct regmap *map, struct parm *p,
+				    unsigned int val)
+{
+	regmap_update_bits(map, p->reg_off, SETPMASK(p->width, p->shift),
+			   val << p->shift);
+}
+
 
 struct pll_rate_table {
 	unsigned long	rate;
 	u16		m;
 	u16		n;
 	u16		od;
+	u16		od2;
+	u16		od3;
 };
+
 #define PLL_RATE(_r, _m, _n, _od)					\
 	{								\
 		.rate		= (_r),					\
 		.m		= (_m),					\
 		.n		= (_n),					\
 		.od		= (_od),				\
-	}								\
+	}
 
-struct pll_conf {
-	const struct pll_rate_table	*rate_table;
-	struct parm			m;
-	struct parm			n;
-	struct parm			od;
+#define CLK_MESON_PLL_ROUND_CLOSEST	BIT(0)
+
+struct meson_clk_pll_data {
+	struct parm m;
+	struct parm n;
+	struct parm frac;
+	struct parm od;
+	struct parm od2;
+	struct parm od3;
+	struct parm l;
+	struct parm rst;
+	const struct reg_sequence *init_regs;
+	unsigned int init_count;
+	const struct pll_rate_table *table;
+	u8 flags;
 };
 
-struct fixed_fact_conf {
-	unsigned int	div;
-	unsigned int	mult;
-	struct parm	div_parm;
-	struct parm	mult_parm;
+#define to_meson_clk_pll(_hw) container_of(_hw, struct meson_clk_pll, hw)
+
+struct meson_clk_mpll_data {
+	struct parm sdm;
+	struct parm sdm_en;
+	struct parm n2;
+	struct parm ssen;
+	struct parm misc;
+	spinlock_t *lock;
+	u8 flags;
 };
 
-struct fixed_rate_conf {
-	unsigned long	rate;
-	struct parm	rate_parm;
+#define CLK_MESON_MPLL_ROUND_CLOSEST	BIT(0)
+
+struct meson_clk_phase_data {
+	struct parm ph;
 };
 
-struct composite_conf {
-	struct parm		mux_parm;
-	struct parm		div_parm;
-	struct parm		gate_parm;
-	struct clk_div_table	*div_table;
-	u32			*mux_table;
-	u8			mux_flags;
-	u8			div_flags;
-	u8			gate_flags;
+int meson_clk_degrees_from_val(unsigned int val, unsigned int width);
+unsigned int meson_clk_degrees_to_val(int degrees, unsigned int width);
+
+#define MESON_GATE(_name, _reg, _bit)					\
+struct clk_regmap _name = {						\
+	.data = &(struct clk_regmap_gate_data){				\
+		.offset = (_reg),					\
+		.bit_idx = (_bit),					\
+	},								\
+	.hw.init = &(struct clk_init_data) {				\
+		.name = #_name,						\
+		.ops = &clk_regmap_gate_ops,				\
+		.parent_names = (const char *[]){ "clk81" },		\
+		.num_parents = 1,					\
+		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED),	\
+	},								\
 };
 
-#define PNAME(x) static const char *x[]
-
-enum clk_type {
-	CLK_FIXED_FACTOR,
-	CLK_FIXED_RATE,
-	CLK_COMPOSITE,
-	CLK_CPU,
-	CLK_PLL,
-};
-
-struct clk_conf {
-	u16				reg_off;
-	enum clk_type			clk_type;
-	unsigned int			clk_id;
-	const char			*clk_name;
-	const char			**clks_parent;
-	int				num_parents;
-	unsigned long			flags;
-	union {
-		struct fixed_fact_conf		fixed_fact;
-		struct fixed_rate_conf		fixed_rate;
-		const struct composite_conf		*composite;
-		struct pll_conf			*pll;
-		const struct clk_div_table	*div_table;
-	} conf;
-};
-
-#define FIXED_RATE_P(_ro, _ci, _cn, _f, _c)				\
-	{								\
-		.reg_off			= (_ro),		\
-		.clk_type			= CLK_FIXED_RATE,	\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.flags				= (_f),			\
-		.conf.fixed_rate.rate_parm	= _c,			\
-	}								\
-
-#define FIXED_RATE(_ci, _cn, _f, _r)					\
-	{								\
-		.clk_type			= CLK_FIXED_RATE,	\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.flags				= (_f),			\
-		.conf.fixed_rate.rate		= (_r),			\
-	}								\
-
-#define PLL(_ro, _ci, _cn, _cp, _f, _c)					\
-	{								\
-		.reg_off			= (_ro),		\
-		.clk_type			= CLK_PLL,		\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.clks_parent			= (_cp),		\
-		.num_parents			= ARRAY_SIZE(_cp),	\
-		.flags				= (_f),			\
-		.conf.pll			= (_c),			\
-	}								\
-
-#define FIXED_FACTOR_DIV(_ci, _cn, _cp, _f, _d)				\
-	{								\
-		.clk_type			= CLK_FIXED_FACTOR,	\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.clks_parent			= (_cp),		\
-		.num_parents			= ARRAY_SIZE(_cp),	\
-		.conf.fixed_fact.div		= (_d),			\
-	}								\
-
-#define CPU(_ro, _ci, _cn, _cp, _dt)					\
-	{								\
-		.reg_off			= (_ro),		\
-		.clk_type			= CLK_CPU,		\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.clks_parent			= (_cp),		\
-		.num_parents			= ARRAY_SIZE(_cp),	\
-		.conf.div_table			= (_dt),		\
-	}								\
-
-#define COMPOSITE(_ro, _ci, _cn, _cp, _f, _c)				\
-	{								\
-		.reg_off			= (_ro),		\
-		.clk_type			= CLK_COMPOSITE,	\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.clks_parent			= (_cp),		\
-		.num_parents			= ARRAY_SIZE(_cp),	\
-		.flags				= (_f),			\
-		.conf.composite			= (_c),			\
-	}								\
-
-struct clk **meson_clk_init(struct device_node *np, unsigned long nr_clks);
-void meson_clk_register_clks(const struct clk_conf *clk_confs,
-			     unsigned int nr_confs, void __iomem *clk_base);
-struct clk *meson_clk_register_cpu(const struct clk_conf *clk_conf,
-				   void __iomem *reg_base, spinlock_t *lock);
-struct clk *meson_clk_register_pll(const struct clk_conf *clk_conf,
-				   void __iomem *reg_base, spinlock_t *lock);
+/* clk_ops */
+extern const struct clk_ops meson_clk_pll_ro_ops;
+extern const struct clk_ops meson_clk_pll_ops;
+extern const struct clk_ops meson_clk_cpu_ops;
+extern const struct clk_ops meson_clk_mpll_ro_ops;
+extern const struct clk_ops meson_clk_mpll_ops;
+extern const struct clk_ops meson_clk_phase_ops;
 
 #endif /* __CLKC_H */

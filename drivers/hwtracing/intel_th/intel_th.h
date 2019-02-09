@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Intel(R) Trace Hub data structures
  *
  * Copyright (C) 2014-2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __INTEL_TH_H__
@@ -30,6 +22,7 @@ enum {
  * struct intel_th_output - descriptor INTEL_TH_OUTPUT type devices
  * @port:	output port number, assigned by the switch
  * @type:	GTH_{MSU,CTP,PTI}
+ * @scratchpad:	scratchpad bits to flag when this output is enabled
  * @multiblock:	true for multiblock output configuration
  * @active:	true when this output is enabled
  *
@@ -41,26 +34,45 @@ enum {
 struct intel_th_output {
 	int		port;
 	unsigned int	type;
+	unsigned int	scratchpad;
 	bool		multiblock;
 	bool		active;
 };
 
 /**
+ * struct intel_th_drvdata - describes hardware capabilities and quirks
+ * @tscu_enable:	device needs SW to enable time stamping unit
+ * @host_mode_only:	device can only operate in 'host debugger' mode
+ */
+struct intel_th_drvdata {
+	unsigned int	tscu_enable        : 1,
+			host_mode_only     : 1;
+};
+
+#define INTEL_TH_CAP(_th, _cap) ((_th)->drvdata ? (_th)->drvdata->_cap : 0)
+
+/**
  * struct intel_th_device - device on the intel_th bus
  * @dev:		device
+ * @drvdata:		hardware capabilities/quirks
  * @resource:		array of resources available to this device
  * @num_resources:	number of resources in @resource array
  * @type:		INTEL_TH_{SOURCE,OUTPUT,SWITCH}
  * @id:			device instance or -1
+ * @host_mode:		Intel TH is controlled by an external debug host
  * @output:		output descriptor for INTEL_TH_OUTPUT devices
  * @name:		device name to match the driver
  */
 struct intel_th_device {
-	struct device	dev;
-	struct resource	*resource;
-	unsigned int	num_resources;
-	unsigned int	type;
-	int		id;
+	struct device		dev;
+	struct intel_th_drvdata *drvdata;
+	struct resource		*resource;
+	unsigned int		num_resources;
+	unsigned int		type;
+	int			id;
+
+	/* INTEL_TH_SWITCH specific */
+	bool			host_mode;
 
 	/* INTEL_TH_OUTPUT specific */
 	struct intel_th_output	output;
@@ -90,6 +102,17 @@ intel_th_device_get_resource(struct intel_th_device *thdev, unsigned int type,
 	return NULL;
 }
 
+/*
+ * GTH, output ports configuration
+ */
+enum {
+	GTH_NONE = 0,
+	GTH_MSU,	/* memory/usb */
+	GTH_CTP,	/* Common Trace Port */
+	GTH_LPP,	/* Low Power Path */
+	GTH_PTI,	/* MIPI-PTI */
+};
+
 /**
  * intel_th_output_assigned() - if an output device is assigned to a switch port
  * @thdev:	the output device
@@ -100,7 +123,8 @@ static inline bool
 intel_th_output_assigned(struct intel_th_device *thdev)
 {
 	return thdev->type == INTEL_TH_OUTPUT &&
-		thdev->output.port >= 0;
+		(thdev->output.port >= 0 ||
+		 thdev->output.type == GTH_NONE);
 }
 
 /**
@@ -112,7 +136,11 @@ intel_th_output_assigned(struct intel_th_device *thdev)
  * @unassign:	deassociate an output type device from an output port
  * @enable:	enable tracing for a given output device
  * @disable:	disable tracing for a given output device
+ * @irq:	interrupt callback
+ * @activate:	enable tracing on the output's side
+ * @deactivate:	disable tracing on the output's side
  * @fops:	file operations for device nodes
+ * @attr_group:	attributes provided by the driver
  *
  * Callbacks @probe and @remove are required for all device types.
  * Switch device driver needs to fill in @assign, @enable and @disable
@@ -137,6 +165,8 @@ struct intel_th_driver {
 	void			(*deactivate)(struct intel_th_device *thdev);
 	/* file_operations for those who want a device node */
 	const struct file_operations *fops;
+	/* optional attributes */
+	struct attribute_group	*attr_group;
 
 	/* source ops */
 	int			(*set_output)(struct intel_th_device *thdev,
@@ -146,8 +176,21 @@ struct intel_th_driver {
 #define to_intel_th_driver(_d)					\
 	container_of((_d), struct intel_th_driver, driver)
 
+#define to_intel_th_driver_or_null(_d)		\
+	((_d) ? to_intel_th_driver(_d) : NULL)
+
+/*
+ * Subdevice tree structure is as follows:
+ * + struct intel_th device (pci; dev_{get,set}_drvdata()
+ *   + struct intel_th_device INTEL_TH_SWITCH (GTH)
+ *     + struct intel_th_device INTEL_TH_OUTPUT (MSU, PTI)
+ *   + struct intel_th_device INTEL_TH_SOURCE (STH)
+ *
+ * In other words, INTEL_TH_OUTPUT devices are children of INTEL_TH_SWITCH;
+ * INTEL_TH_SWITCH and INTEL_TH_SOURCE are children of the intel_th device.
+ */
 static inline struct intel_th_device *
-to_intel_th_hub(struct intel_th_device *thdev)
+to_intel_th_parent(struct intel_th_device *thdev)
 {
 	struct device *parent = thdev->dev.parent;
 
@@ -157,9 +200,20 @@ to_intel_th_hub(struct intel_th_device *thdev)
 	return to_intel_th_device(parent);
 }
 
+static inline struct intel_th *to_intel_th(struct intel_th_device *thdev)
+{
+	if (thdev->type == INTEL_TH_OUTPUT)
+		thdev = to_intel_th_parent(thdev);
+
+	if (WARN_ON_ONCE(!thdev || thdev->type == INTEL_TH_OUTPUT))
+		return NULL;
+
+	return dev_get_drvdata(thdev->dev.parent);
+}
+
 struct intel_th *
-intel_th_alloc(struct device *dev, struct resource *devres,
-	       unsigned int ndevres, int irq);
+intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
+	       struct resource *devres, unsigned int ndevres, int irq);
 void intel_th_free(struct intel_th *th);
 
 int intel_th_driver_register(struct intel_th_driver *thdrv);
@@ -169,6 +223,7 @@ int intel_th_trace_enable(struct intel_th_device *thdev);
 int intel_th_trace_disable(struct intel_th_device *thdev);
 int intel_th_set_output(struct intel_th_device *thdev,
 			unsigned int master);
+int intel_th_output_enable(struct intel_th *th, unsigned int otype);
 
 enum {
 	TH_MMIO_CONFIG = 0,
@@ -176,8 +231,9 @@ enum {
 	TH_MMIO_END,
 };
 
-#define TH_SUBDEVICE_MAX	6
 #define TH_POSSIBLE_OUTPUTS	8
+/* Total number of possible subdevices: outputs + GTH + STH */
+#define TH_SUBDEVICE_MAX	(TH_POSSIBLE_OUTPUTS + 2)
 #define TH_CONFIGURABLE_MASTERS 256
 #define TH_MSC_MAX		2
 
@@ -186,6 +242,10 @@ enum {
  * @dev:	driver core's device
  * @thdev:	subdevices
  * @hub:	"switch" subdevice (GTH)
+ * @resource:	resources of the entire controller
+ * @num_thdevs:	number of devices in the @thdev array
+ * @num_resources:	number or resources in the @resource array
+ * @irq:	irq number
  * @id:		this Intel TH controller's device ID in the system
  * @major:	device node major for output devices
  */
@@ -194,13 +254,35 @@ struct intel_th {
 
 	struct intel_th_device	*thdev[TH_SUBDEVICE_MAX];
 	struct intel_th_device	*hub;
+	struct intel_th_drvdata	*drvdata;
+
+	struct resource		*resource;
+	int			(*activate)(struct intel_th *);
+	void			(*deactivate)(struct intel_th *);
+	unsigned int		num_thdevs;
+	unsigned int		num_resources;
+	int			irq;
 
 	int			id;
 	int			major;
+#ifdef CONFIG_MODULES
+	struct work_struct	request_module_work;
+#endif /* CONFIG_MODULES */
 #ifdef CONFIG_INTEL_TH_DEBUG
 	struct dentry		*dbg;
 #endif
 };
+
+static inline struct intel_th_device *
+to_intel_th_hub(struct intel_th_device *thdev)
+{
+	if (thdev->type == INTEL_TH_SWITCH)
+		return thdev;
+	else if (thdev->type == INTEL_TH_OUTPUT)
+		return to_intel_th_parent(thdev);
+
+	return to_intel_th(thdev)->hub;
+}
 
 /*
  * Register windows
@@ -209,6 +291,10 @@ enum {
 	/* Global Trace Hub (GTH) */
 	REG_GTH_OFFSET		= 0x0000,
 	REG_GTH_LENGTH		= 0x2000,
+
+	/* Timestamp counter unit (TSCU) */
+	REG_TSCU_OFFSET		= 0x2000,
+	REG_TSCU_LENGTH		= 0x1000,
 
 	/* Software Trace Hub (STH) [0x4000..0x4fff] */
 	REG_STH_OFFSET		= 0x4000,
@@ -232,13 +318,42 @@ enum {
 };
 
 /*
- * GTH, output ports configuration
+ * Scratchpad bits: tell firmware and external debuggers
+ * what we are up to.
  */
 enum {
-	GTH_NONE = 0,
-	GTH_MSU,	/* memory/usb */
-	GTH_CTP,	/* Common Trace Port */
-	GTH_PTI = 4,	/* MIPI-PTI */
+	/* Memory is the primary destination */
+	SCRPD_MEM_IS_PRIM_DEST		= BIT(0),
+	/* XHCI DbC is the primary destination */
+	SCRPD_DBC_IS_PRIM_DEST		= BIT(1),
+	/* PTI is the primary destination */
+	SCRPD_PTI_IS_PRIM_DEST		= BIT(2),
+	/* BSSB is the primary destination */
+	SCRPD_BSSB_IS_PRIM_DEST		= BIT(3),
+	/* PTI is the alternate destination */
+	SCRPD_PTI_IS_ALT_DEST		= BIT(4),
+	/* BSSB is the alternate destination */
+	SCRPD_BSSB_IS_ALT_DEST		= BIT(5),
+	/* DeepSx exit occurred */
+	SCRPD_DEEPSX_EXIT		= BIT(6),
+	/* S4 exit occurred */
+	SCRPD_S4_EXIT			= BIT(7),
+	/* S5 exit occurred */
+	SCRPD_S5_EXIT			= BIT(8),
+	/* MSU controller 0/1 is enabled */
+	SCRPD_MSC0_IS_ENABLED		= BIT(9),
+	SCRPD_MSC1_IS_ENABLED		= BIT(10),
+	/* Sx exit occurred */
+	SCRPD_SX_EXIT			= BIT(11),
+	/* Trigger Unit is enabled */
+	SCRPD_TRIGGER_IS_ENABLED	= BIT(12),
+	SCRPD_ODLA_IS_ENABLED		= BIT(13),
+	SCRPD_SOCHAP_IS_ENABLED		= BIT(14),
+	SCRPD_STH_IS_ENABLED		= BIT(15),
+	SCRPD_DCIH_IS_ENABLED		= BIT(16),
+	SCRPD_VER_IS_ENABLED		= BIT(17),
+	/* External debugger is using Intel TH */
+	SCRPD_DEBUGGER_IN_USE		= BIT(24),
 };
 
 #endif

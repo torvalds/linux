@@ -42,13 +42,9 @@ enum sony_state {
 static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
 	struct sony_dec *data = &dev->raw->sony;
-	enum rc_type protocol;
+	enum rc_proto protocol;
 	u32 scancode;
 	u8 device, subdevice, function;
-
-	if (!(dev->enabled_protocols &
-	      (RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20)))
-		return 0;
 
 	if (!is_timing_event(ev)) {
 		if (ev.reset)
@@ -59,8 +55,8 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	if (!geq_margin(ev.duration, SONY_UNIT, SONY_UNIT / 2))
 		goto out;
 
-	IR_dprintk(2, "Sony decode started at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "Sony decode started at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -125,46 +121,48 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 		switch (data->count) {
 		case 12:
-			if (!(dev->enabled_protocols & RC_BIT_SONY12))
+			if (!(dev->enabled_protocols & RC_PROTO_BIT_SONY12))
 				goto finish_state_machine;
 
 			device    = bitrev8((data->bits <<  3) & 0xF8);
 			subdevice = 0;
 			function  = bitrev8((data->bits >>  4) & 0xFE);
-			protocol = RC_TYPE_SONY12;
+			protocol = RC_PROTO_SONY12;
 			break;
 		case 15:
-			if (!(dev->enabled_protocols & RC_BIT_SONY15))
+			if (!(dev->enabled_protocols & RC_PROTO_BIT_SONY15))
 				goto finish_state_machine;
 
 			device    = bitrev8((data->bits >>  0) & 0xFF);
 			subdevice = 0;
 			function  = bitrev8((data->bits >>  7) & 0xFE);
-			protocol = RC_TYPE_SONY15;
+			protocol = RC_PROTO_SONY15;
 			break;
 		case 20:
-			if (!(dev->enabled_protocols & RC_BIT_SONY20))
+			if (!(dev->enabled_protocols & RC_PROTO_BIT_SONY20))
 				goto finish_state_machine;
 
 			device    = bitrev8((data->bits >>  5) & 0xF8);
 			subdevice = bitrev8((data->bits >>  0) & 0xFF);
 			function  = bitrev8((data->bits >> 12) & 0xFE);
-			protocol = RC_TYPE_SONY20;
+			protocol = RC_PROTO_SONY20;
 			break;
 		default:
-			IR_dprintk(1, "Sony invalid bitcount %u\n", data->count);
+			dev_dbg(&dev->dev, "Sony invalid bitcount %u\n",
+				data->count);
 			goto out;
 		}
 
 		scancode = device << 16 | subdevice << 8 | function;
-		IR_dprintk(1, "Sony(%u) scancode 0x%05x\n", data->count, scancode);
+		dev_dbg(&dev->dev, "Sony(%u) scancode 0x%05x\n", data->count,
+			scancode);
 		rc_keydown(dev, protocol, scancode, 0);
 		goto finish_state_machine;
 	}
 
 out:
-	IR_dprintk(1, "Sony decode failed at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "Sony decode failed at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 
@@ -173,9 +171,60 @@ finish_state_machine:
 	return 0;
 }
 
+static const struct ir_raw_timings_pl ir_sony_timings = {
+	.header_pulse  = SONY_HEADER_PULSE,
+	.bit_space     = SONY_BIT_SPACE,
+	.bit_pulse[0]  = SONY_BIT_0_PULSE,
+	.bit_pulse[1]  = SONY_BIT_1_PULSE,
+	.trailer_space = SONY_TRAILER_SPACE + SONY_BIT_SPACE,
+	.msb_first     = 0,
+};
+
+/**
+ * ir_sony_encode() - Encode a scancode as a stream of raw events
+ *
+ * @protocol:	protocol to encode
+ * @scancode:	scancode to encode
+ * @events:	array of raw ir events to write into
+ * @max:	maximum size of @events
+ *
+ * Returns:	The number of events written.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		encoding. In this case all @max events will have been written.
+ */
+static int ir_sony_encode(enum rc_proto protocol, u32 scancode,
+			  struct ir_raw_event *events, unsigned int max)
+{
+	struct ir_raw_event *e = events;
+	u32 raw, len;
+	int ret;
+
+	if (protocol == RC_PROTO_SONY12) {
+		raw = (scancode & 0x7f) | ((scancode & 0x1f0000) >> 9);
+		len = 12;
+	} else if (protocol == RC_PROTO_SONY15) {
+		raw = (scancode & 0x7f) | ((scancode & 0xff0000) >> 9);
+		len = 15;
+	} else {
+		raw = (scancode & 0x7f) | ((scancode & 0x1f0000) >> 9) |
+		       ((scancode & 0xff00) << 4);
+		len = 20;
+	}
+
+	ret = ir_raw_gen_pl(&e, max, &ir_sony_timings, len, raw);
+	if (ret < 0)
+		return ret;
+
+	return e - events;
+}
+
 static struct ir_raw_handler sony_handler = {
-	.protocols	= RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20,
+	.protocols	= RC_PROTO_BIT_SONY12 | RC_PROTO_BIT_SONY15 |
+							RC_PROTO_BIT_SONY20,
 	.decode		= ir_sony_decode,
+	.encode		= ir_sony_encode,
+	.carrier	= 40000,
+	.min_timeout	= SONY_TRAILER_SPACE,
 };
 
 static int __init ir_sony_decode_init(void)

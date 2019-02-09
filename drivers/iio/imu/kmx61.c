@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
-#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -1004,7 +1003,6 @@ static int kmx61_mag_validate_trigger(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info kmx61_acc_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= kmx61_read_raw,
 	.write_raw		= kmx61_write_raw,
 	.attrs			= &kmx61_acc_attribute_group,
@@ -1016,7 +1014,6 @@ static const struct iio_info kmx61_acc_info = {
 };
 
 static const struct iio_info kmx61_mag_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= kmx61_read_raw,
 	.write_raw		= kmx61_write_raw,
 	.attrs			= &kmx61_mag_attribute_group,
@@ -1088,7 +1085,6 @@ static int kmx61_trig_try_reenable(struct iio_trigger *trig)
 static const struct iio_trigger_ops kmx61_trigger_ops = {
 	.set_trigger_state = kmx61_data_rdy_trigger_set_state,
 	.try_reenable = kmx61_trig_try_reenable,
-	.owner = THIS_MODULE,
 };
 
 static irqreturn_t kmx61_event_handler(int irq, void *private)
@@ -1390,6 +1386,14 @@ static int kmx61_probe(struct i2c_client *client,
 		}
 	}
 
+	ret = pm_runtime_set_active(&client->dev);
+	if (ret < 0)
+		goto err_buffer_cleanup_mag;
+
+	pm_runtime_enable(&client->dev);
+	pm_runtime_set_autosuspend_delay(&client->dev, KMX61_SLEEP_DELAY_MS);
+	pm_runtime_use_autosuspend(&client->dev);
+
 	ret = iio_device_register(data->acc_indio_dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to register acc iio device\n");
@@ -1402,18 +1406,8 @@ static int kmx61_probe(struct i2c_client *client,
 		goto err_iio_unregister_acc;
 	}
 
-	ret = pm_runtime_set_active(&client->dev);
-	if (ret < 0)
-		goto err_iio_unregister_mag;
-
-	pm_runtime_enable(&client->dev);
-	pm_runtime_set_autosuspend_delay(&client->dev, KMX61_SLEEP_DELAY_MS);
-	pm_runtime_use_autosuspend(&client->dev);
-
 	return 0;
 
-err_iio_unregister_mag:
-	iio_device_unregister(data->mag_indio_dev);
 err_iio_unregister_acc:
 	iio_device_unregister(data->acc_indio_dev);
 err_buffer_cleanup_mag:
@@ -1437,12 +1431,12 @@ static int kmx61_remove(struct i2c_client *client)
 {
 	struct kmx61_data *data = i2c_get_clientdata(client);
 
+	iio_device_unregister(data->acc_indio_dev);
+	iio_device_unregister(data->mag_indio_dev);
+
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_put_noidle(&client->dev);
-
-	iio_device_unregister(data->acc_indio_dev);
-	iio_device_unregister(data->mag_indio_dev);
 
 	if (client->irq > 0) {
 		iio_triggered_buffer_cleanup(data->acc_indio_dev);

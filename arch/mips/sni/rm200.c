@@ -263,7 +263,7 @@ spurious_8259A_irq:
 		static int spurious_irq_mask;
 		/*
 		 * At this point we can be sure the IRQ is spurious,
-		 * lets ACK and report it. [once per IRQ]
+		 * let's ACK and report it. [once per IRQ]
 		 */
 		if (!(spurious_irq_mask & irqmask)) {
 			printk(KERN_DEBUG

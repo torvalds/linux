@@ -10,12 +10,13 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/genhd.h>
 
@@ -70,25 +71,14 @@ static ssize_t fsname_show(struct gfs2_sbd *sdp, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%s\n", sdp->sd_fsname);
 }
 
-static int gfs2_uuid_valid(const u8 *uuid)
-{
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		if (uuid[i])
-			return 1;
-	}
-	return 0;
-}
-
 static ssize_t uuid_show(struct gfs2_sbd *sdp, char *buf)
 {
 	struct super_block *s = sdp->sd_vfs;
-	const u8 *uuid = s->s_uuid;
+
 	buf[0] = '\0';
-	if (!gfs2_uuid_valid(uuid))
+	if (uuid_is_null(&s->s_uuid))
 		return 0;
-	return snprintf(buf, PAGE_SIZE, "%pUB\n", uuid);
+	return snprintf(buf, PAGE_SIZE, "%pUB\n", &s->s_uuid);
 }
 
 static ssize_t freeze_show(struct gfs2_sbd *sdp, char *buf)
@@ -122,7 +112,7 @@ static ssize_t freeze_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	}
 
 	if (error) {
-		fs_warn(sdp, "freeze %d error %d", n, error);
+		fs_warn(sdp, "freeze %d error %d\n", n, error);
 		return error;
 	}
 
@@ -439,11 +429,18 @@ int gfs2_recover_set(struct gfs2_sbd *sdp, unsigned jid)
 
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EBUSY;
-	if (sdp->sd_jdesc->jd_jid == jid)
+	/**
+	 * If we're a spectator, we use journal0, but it's not really ours.
+	 * So we need to wait for its recovery too. If we skip it we'd never
+	 * queue work to the recovery workqueue, and so its completion would
+	 * never clear the DFL_BLOCK_LOCKS flag, so all our locks would
+	 * permanently stop working.
+	 */
+	if (sdp->sd_jdesc->jd_jid == jid && !sdp->sd_args.ar_spectator)
 		goto out;
 	rv = -ENOENT;
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
-		if (jd->jd_jid != jid)
+		if (jd->jd_jid != jid && !sdp->sd_args.ar_spectator)
 			continue;
 		rv = gfs2_recover_journal(jd, false);
 		break;
@@ -636,12 +633,12 @@ static struct attribute *tune_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group tune_group = {
+static const struct attribute_group tune_group = {
 	.name = "tune",
 	.attrs = tune_attrs,
 };
 
-static struct attribute_group lock_module_group = {
+static const struct attribute_group lock_module_group = {
 	.name = "lock_module",
 	.attrs = lock_module_attrs,
 };
@@ -655,7 +652,7 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 	char *envp[] = { ro, spectator, NULL };
 	int sysfs_frees_sdp = 0;
 
-	sprintf(ro, "RDONLY=%d", (sb->s_flags & MS_RDONLY) ? 1 : 0);
+	sprintf(ro, "RDONLY=%d", sb_rdonly(sb));
 	sprintf(spectator, "SPECTATOR=%d", sdp->sd_args.ar_spectator ? 1 : 0);
 
 	sdp->sd_kobj.kset = gfs2_kset;
@@ -689,7 +686,7 @@ fail_tune:
 	sysfs_remove_group(&sdp->sd_kobj, &tune_group);
 fail_reg:
 	free_percpu(sdp->sd_lkstats);
-	fs_err(sdp, "error %d adding sysfs files", error);
+	fs_err(sdp, "error %d adding sysfs files\n", error);
 	if (sysfs_frees_sdp)
 		kobject_put(&sdp->sd_kobj);
 	else
@@ -711,14 +708,13 @@ static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
 {
 	struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
 	struct super_block *s = sdp->sd_vfs;
-	const u8 *uuid = s->s_uuid;
 
 	add_uevent_var(env, "LOCKTABLE=%s", sdp->sd_table_name);
 	add_uevent_var(env, "LOCKPROTO=%s", sdp->sd_proto_name);
 	if (!test_bit(SDF_NOJOURNALID, &sdp->sd_flags))
 		add_uevent_var(env, "JOURNALID=%d", sdp->sd_lockstruct.ls_jid);
-	if (gfs2_uuid_valid(uuid))
-		add_uevent_var(env, "UUID=%pUB", uuid);
+	if (!uuid_is_null(&s->s_uuid))
+		add_uevent_var(env, "UUID=%pUB", &s->s_uuid);
 	return 0;
 }
 

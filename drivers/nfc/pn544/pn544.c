@@ -649,8 +649,8 @@ static int pn544_hci_im_transceive(struct nfc_hci_dev *hdev,
 		} else
 			return 1;
 	case PN544_RF_READER_F_GATE:
-		*skb_push(skb, 1) = 0;
-		*skb_push(skb, 1) = 0;
+		*(u8 *)skb_push(skb, 1) = 0;
+		*(u8 *)skb_push(skb, 1) = 0;
 
 		info->async_cb_type = PN544_CB_TYPE_READER_F;
 		info->async_cb = cb;
@@ -665,7 +665,7 @@ static int pn544_hci_im_transceive(struct nfc_hci_dev *hdev,
 					      PN544_JEWEL_RAW_CMD, skb->data,
 					      skb->len, cb, cb_context);
 	case PN544_RF_READER_NFCIP1_INITIATOR_GATE:
-		*skb_push(skb, 1) = 0;
+		*(u8 *)skb_push(skb, 1) = 0;
 
 		return nfc_hci_send_event(hdev, target->hci_reader_gate,
 					PN544_HCI_EVT_SND_DATA, skb->data,
@@ -680,7 +680,7 @@ static int pn544_hci_tm_send(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	int r;
 
 	/* Set default false for multiple information chaining */
-	*skb_push(skb, 1) = 0;
+	*(u8 *)skb_push(skb, 1) = 0;
 
 	r = nfc_hci_send_event(hdev, PN544_RF_READER_NFCIP1_TARGET_GATE,
 			       PN544_HCI_EVT_SND_DATA, skb->data, skb->len);

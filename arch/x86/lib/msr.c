@@ -1,6 +1,10 @@
-#include <linux/module.h>
+// SPDX-License-Identifier: GPL-2.0
+#include <linux/export.h>
+#include <linux/percpu.h>
 #include <linux/preempt.h>
 #include <asm/msr.h>
+#define CREATE_TRACE_POINTS
+#include <asm/msr-trace.h>
 
 struct msr *msrs_alloc(void)
 {
@@ -108,3 +112,27 @@ int msr_clear_bit(u32 msr, u8 bit)
 {
 	return __flip_bit(msr, bit, false);
 }
+
+#ifdef CONFIG_TRACEPOINTS
+void do_trace_write_msr(unsigned int msr, u64 val, int failed)
+{
+	trace_write_msr(msr, val, failed);
+}
+EXPORT_SYMBOL(do_trace_write_msr);
+EXPORT_TRACEPOINT_SYMBOL(write_msr);
+
+void do_trace_read_msr(unsigned int msr, u64 val, int failed)
+{
+	trace_read_msr(msr, val, failed);
+}
+EXPORT_SYMBOL(do_trace_read_msr);
+EXPORT_TRACEPOINT_SYMBOL(read_msr);
+
+void do_trace_rdpmc(unsigned counter, u64 val, int failed)
+{
+	trace_rdpmc(counter, val, failed);
+}
+EXPORT_SYMBOL(do_trace_rdpmc);
+EXPORT_TRACEPOINT_SYMBOL(rdpmc);
+
+#endif

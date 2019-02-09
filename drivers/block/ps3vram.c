@@ -407,12 +407,11 @@ static int ps3vram_cache_init(struct ps3_system_bus_device *dev)
 
 	priv->cache.page_count = CACHE_PAGE_COUNT;
 	priv->cache.page_size = CACHE_PAGE_SIZE;
-	priv->cache.tags = kzalloc(sizeof(struct ps3vram_tag) *
-				   CACHE_PAGE_COUNT, GFP_KERNEL);
-	if (priv->cache.tags == NULL) {
-		dev_err(&dev->core, "Could not allocate cache tags\n");
+	priv->cache.tags = kcalloc(CACHE_PAGE_COUNT,
+				   sizeof(struct ps3vram_tag),
+				   GFP_KERNEL);
+	if (!priv->cache.tags)
 		return -ENOMEM;
-	}
 
 	dev_info(&dev->core, "Created ram cache: %d entries, %d KiB each\n",
 		CACHE_PAGE_COUNT, CACHE_PAGE_SIZE / 1024);
@@ -428,7 +427,7 @@ static void ps3vram_cache_cleanup(struct ps3_system_bus_device *dev)
 	kfree(priv->cache.tags);
 }
 
-static int ps3vram_read(struct ps3_system_bus_device *dev, loff_t from,
+static blk_status_t ps3vram_read(struct ps3_system_bus_device *dev, loff_t from,
 			size_t len, size_t *retlen, u_char *buf)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
@@ -438,7 +437,7 @@ static int ps3vram_read(struct ps3_system_bus_device *dev, loff_t from,
 		(unsigned int)from, len);
 
 	if (from >= priv->size)
-		return -EIO;
+		return BLK_STS_IOERR;
 
 	if (len > priv->size - from)
 		len = priv->size - from;
@@ -472,14 +471,14 @@ static int ps3vram_read(struct ps3_system_bus_device *dev, loff_t from,
 	return 0;
 }
 
-static int ps3vram_write(struct ps3_system_bus_device *dev, loff_t to,
+static blk_status_t ps3vram_write(struct ps3_system_bus_device *dev, loff_t to,
 			 size_t len, size_t *retlen, const u_char *buf)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	unsigned int cached, count;
 
 	if (to >= priv->size)
-		return -EIO;
+		return BLK_STS_IOERR;
 
 	if (len > priv->size - to)
 		len = priv->size - to;
@@ -523,26 +522,13 @@ static int ps3vram_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ps3vram_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ps3vram_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations ps3vram_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= ps3vram_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static void ps3vram_proc_init(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	struct proc_dir_entry *pde;
 
-	pde = proc_create_data(DEVICE_NAME, 0444, NULL, &ps3vram_proc_fops,
-			       priv);
+	pde = proc_create_single_data(DEVICE_NAME, 0444, NULL,
+			ps3vram_proc_show, priv);
 	if (!pde)
 		dev_warn(&dev->core, "failed to create /proc entry\n");
 }
@@ -554,7 +540,7 @@ static struct bio *ps3vram_do_bio(struct ps3_system_bus_device *dev,
 	int write = bio_data_dir(bio) == WRITE;
 	const char *op = write ? "write" : "read";
 	loff_t offset = bio->bi_iter.bi_sector << 9;
-	int error = 0;
+	blk_status_t error = 0;
 	struct bio_vec bvec;
 	struct bvec_iter iter;
 	struct bio *next;
@@ -578,7 +564,7 @@ static struct bio *ps3vram_do_bio(struct ps3_system_bus_device *dev,
 
 		if (retlen != len) {
 			dev_err(&dev->core, "Short %s\n", op);
-			error = -EIO;
+			error = BLK_STS_IOERR;
 			goto out;
 		}
 
@@ -593,7 +579,7 @@ out:
 	next = bio_list_peek(&priv->list);
 	spin_unlock_irq(&priv->lock);
 
-	bio->bi_error = error;
+	bio->bi_status = error;
 	bio_endio(bio);
 	return next;
 }
@@ -606,7 +592,7 @@ static blk_qc_t ps3vram_make_request(struct request_queue *q, struct bio *bio)
 
 	dev_dbg(&dev->core, "%s\n", __func__);
 
-	blk_queue_split(q, &bio, q->bio_split);
+	blk_queue_split(q, &bio);
 
 	spin_lock_irq(&priv->lock);
 	busy = !bio_list_empty(&priv->list);
@@ -743,7 +729,11 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 		goto out_unmap_reports;
 	}
 
-	ps3vram_cache_init(dev);
+	error = ps3vram_cache_init(dev);
+	if (error < 0) {
+		goto out_unmap_reports;
+	}
+
 	ps3vram_proc_init(dev);
 
 	queue = blk_alloc_queue(GFP_KERNEL);
@@ -773,14 +763,13 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 	gendisk->fops = &ps3vram_fops;
 	gendisk->queue = queue;
 	gendisk->private_data = dev;
-	gendisk->driverfs_dev = &dev->core;
 	strlcpy(gendisk->disk_name, DEVICE_NAME, sizeof(gendisk->disk_name));
 	set_capacity(gendisk, priv->size >> 9);
 
 	dev_info(&dev->core, "%s: Using %lu MiB of GPU memory\n",
 		 gendisk->disk_name, get_capacity(gendisk) >> 11);
 
-	add_disk(gendisk);
+	device_add_disk(&dev->core, gendisk);
 	return 0;
 
 fail_cleanup_queue:

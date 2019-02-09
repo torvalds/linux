@@ -4,25 +4,243 @@
  * published by the Free Software Foundation.
  */
 
-&scm_clocks {
+&pllss {
+	/*
+	 * See TRM "2.6.10 Connected outputso DPLLS" and
+	 * "2.6.11 Connected Outputs of DPLLJ". Only clkout is
+	 * connected except for hdmi and usb.
+	 */
+	adpll_mpu_ck: adpll@40 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-s-clock";
+		reg = <0x40 0x40>;
+		clocks = <&devosc_ck &devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow", "clkinphif";
+		clock-output-names = "481c5040.adpll.dcoclkldo",
+				     "481c5040.adpll.clkout",
+				     "481c5040.adpll.clkoutx2",
+				     "481c5040.adpll.clkouthif";
+	};
 
-	tclkin_ck: tclkin_ck {
+	adpll_dsp_ck: adpll@80 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0x80 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c5080.adpll.dcoclkldo",
+				     "481c5080.adpll.clkout",
+				     "481c5080.adpll.clkoutldo";
+	};
+
+	adpll_sgx_ck: adpll@b0 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0xb0 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c50b0.adpll.dcoclkldo",
+				     "481c50b0.adpll.clkout",
+				     "481c50b0.adpll.clkoutldo";
+	};
+
+	adpll_hdvic_ck: adpll@e0 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0xe0 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c50e0.adpll.dcoclkldo",
+				     "481c50e0.adpll.clkout",
+				     "481c50e0.adpll.clkoutldo";
+	};
+
+	adpll_l3_ck: adpll@110 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0x110 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c5110.adpll.dcoclkldo",
+				     "481c5110.adpll.clkout",
+				     "481c5110.adpll.clkoutldo";
+	};
+
+	adpll_isp_ck: adpll@140 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0x140 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c5140.adpll.dcoclkldo",
+				     "481c5140.adpll.clkout",
+				     "481c5140.adpll.clkoutldo";
+	};
+
+	adpll_dss_ck: adpll@170 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0x170 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c5170.adpll.dcoclkldo",
+				     "481c5170.adpll.clkout",
+				     "481c5170.adpll.clkoutldo";
+	};
+
+	adpll_video0_ck: adpll@1a0 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0x1a0 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c51a0.adpll.dcoclkldo",
+				     "481c51a0.adpll.clkout",
+				     "481c51a0.adpll.clkoutldo";
+	};
+
+	adpll_video1_ck: adpll@1d0 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0x1d0 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c51d0.adpll.dcoclkldo",
+				     "481c51d0.adpll.clkout",
+				     "481c51d0.adpll.clkoutldo";
+	};
+
+	adpll_hdmi_ck: adpll@200 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0x200 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c5200.adpll.dcoclkldo",
+				     "481c5200.adpll.clkout",
+				     "481c5200.adpll.clkoutldo";
+	};
+
+	adpll_audio_ck: adpll@230 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0x230 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c5230.adpll.dcoclkldo",
+				     "481c5230.adpll.clkout",
+				     "481c5230.adpll.clkoutldo";
+	};
+
+	adpll_usb_ck: adpll@260 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0x260 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c5260.adpll.dcoclkldo",
+				     "481c5260.adpll.clkout",
+				     "481c5260.adpll.clkoutldo";
+	};
+
+	adpll_ddr_ck: adpll@290 {
+		#clock-cells = <1>;
+		compatible = "ti,dm814-adpll-lj-clock";
+		reg = <0x290 0x30>;
+		clocks = <&devosc_ck &devosc_ck>;
+		clock-names = "clkinp", "clkinpulow";
+		clock-output-names = "481c5290.adpll.dcoclkldo",
+				     "481c5290.adpll.clkout",
+				     "481c5290.adpll.clkoutldo";
+	};
+};
+
+&pllss_clocks {
+	timer1_fck: timer1_fck@2e0 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
+			  &aud_clkin2_ck &devosc_ck &auxosc_ck &tclkin_ck>;
+		ti,bit-shift = <3>;
+		reg = <0x2e0>;
+	};
+
+	timer2_fck: timer2_fck@2e0 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
+			  &aud_clkin2_ck &devosc_ck &auxosc_ck &tclkin_ck>;
+		ti,bit-shift = <6>;
+		reg = <0x2e0>;
+	};
+
+	/* CPTS_RFT_CLK in RMII_REFCLK_SRC, usually sourced from auiod */
+	cpsw_cpts_rft_clk: cpsw_cpts_rft_clk {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&adpll_video0_ck 1
+			  &adpll_video1_ck 1
+			  &adpll_audio_ck 1>;
+		ti,bit-shift = <1>;
+		reg = <0x2e8>;
+	};
+
+	/* REVISIT: Set up with a proper mux using RMII_REFCLK_SRC */
+	cpsw_125mhz_gclk: cpsw_125mhz_gclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+	};
+
+	sysclk18_ck: sysclk18_ck@2f0 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&rtcosc_ck>, <&rtcdivider_ck>;
+		ti,bit-shift = <0>;
+		reg = <0x02f0>;
+	};
+};
+
+&scm_clocks {
+	devosc_ck: devosc_ck@40 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&virt_20000000_ck>, <&virt_19200000_ck>;
+		ti,bit-shift = <21>;
+		reg = <0x0040>;
+	};
+
+	/* Optional auxosc, 20 - 30 MHz range, assume 22.5729 MHz by default */
+	auxosc_ck: auxosc_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <22572900>;
+	};
+
+	/* Optional 32768Hz crystal or clock on RTCOSC pins */
+	rtcosc_ck: rtcosc_ck {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 	};
 
-	devosc_ck: devosc_ck {
+	/* Optional external clock on TCLKIN pin, set rate in baord dts file */
+	tclkin_ck: tclkin_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+	};
+
+	virt_20000000_ck: virt_20000000_ck {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <20000000>;
 	};
 
-	/* Optional auxosc, 20 - 30 MHz range, assume 27 MHz by default */
-	auxosc_ck: auxosc_ck {
+	virt_19200000_ck: virt_19200000_ck {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
-		clock-frequency = <27000000>;
+		clock-frequency = <19200000>;
 	};
 
 	mpu_ck: mpu_ck {
@@ -30,46 +248,76 @@
 		compatible = "fixed-clock";
 		clock-frequency = <1000000000>;
 	};
+};
 
-	sysclk4_ck: sysclk4_ck {
+&prcm_clocks {
+	osc_src_ck: osc_src_ck {
 		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <222000000>;
+		compatible = "fixed-factor-clock";
+		clocks = <&devosc_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
 	};
 
+	mpu_clksrc_ck: mpu_clksrc_ck@40 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&devosc_ck>, <&rtcdivider_ck>;
+		ti,bit-shift = <0>;
+		reg = <0x0040>;
+	};
+
+	/* Fixed divider clock 0.0016384 * devosc */
+	rtcdivider_ck: rtcdivider_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&devosc_ck>;
+		clock-mult = <128>;
+		clock-div = <78125>;
+	};
+
+	/* L4_HS 220 MHz*/
+	sysclk4_ck: sysclk4_ck {
+		#clock-cells = <0>;
+		compatible = "ti,fixed-factor-clock";
+		clocks = <&adpll_l3_ck 1>;
+		ti,clock-mult = <1>;
+		ti,clock-div = <1>;
+	};
+
+	/* L4_FWCFG */
+	sysclk5_ck: sysclk5_ck {
+		#clock-cells = <0>;
+		compatible = "ti,fixed-factor-clock";
+		clocks = <&adpll_l3_ck 1>;
+		ti,clock-mult = <1>;
+		ti,clock-div = <2>;
+	};
+
+	/* L4_LS 110 MHz */
 	sysclk6_ck: sysclk6_ck {
 		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <100000000>;
+		compatible = "ti,fixed-factor-clock";
+		clocks = <&adpll_l3_ck 1>;
+		ti,clock-mult = <1>;
+		ti,clock-div = <2>;
+	};
+
+	sysclk8_ck: sysclk8_ck {
+		#clock-cells = <0>;
+		compatible = "ti,fixed-factor-clock";
+		clocks = <&adpll_usb_ck 1>;
+		ti,clock-mult = <1>;
+		ti,clock-div = <1>;
 	};
 
 	sysclk10_ck: sysclk10_ck {
+		compatible = "ti,divider-clock";
+		reg = <0x324>;
+		ti,max-div = <7>;
 		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <48000000>;
+		clocks = <&adpll_usb_ck 1>;
 	};
-
-	sysclk18_ck: sysclk18_ck {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <32768>;
-	};
-
-        cpsw_125mhz_gclk: cpsw_125mhz_gclk {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <125000000>;
-	};
-
-	cpsw_cpts_rft_clk: cpsw_cpts_rft_clk {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <250000000>;
-	};
-
-};
-
-&pllss_clocks {
 
 	aud_clkin0_ck: aud_clkin0_ck {
 		#clock-cells = <0>;
@@ -88,22 +336,34 @@
 		compatible = "fixed-clock";
 		clock-frequency = <20000000>;
 	};
+};
 
-	timer1_mux_ck: timer1_mux_ck {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
-			  &aud_clkin2_ck &devosc_ck &auxosc_ck &tclkin_ck>;
-		ti,bit-shift = <3>;
-		reg = <0x2e0>;
+&prcm {
+	default_cm: default_cm@500 {
+		compatible = "ti,omap4-cm";
+		reg = <0x500 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x500 0x100>;
+
+		default_clkctrl: clk@0 {
+			compatible = "ti,clkctrl";
+			reg = <0x0 0x5c>;
+			#clock-cells = <2>;
+		};
 	};
 
-	timer2_mux_ck: timer2_mux_ck {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
-			  &aud_clkin2_ck &devosc_ck &auxosc_ck &tclkin_ck>;
-		ti,bit-shift = <6>;
-		reg = <0x2e0>;
+	alwon_cm: alwon_cm@1400 {
+		compatible = "ti,omap4-cm";
+		reg = <0x1400 0x300>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x1400 0x300>;
+
+		alwon_clkctrl: clk@0 {
+			compatible = "ti,clkctrl";
+			reg = <0x0 0x228>;
+			#clock-cells = <2>;
+		};
 	};
 };

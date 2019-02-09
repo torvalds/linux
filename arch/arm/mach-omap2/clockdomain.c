@@ -23,6 +23,7 @@
 #include <linux/limits.h>
 #include <linux/err.h>
 #include <linux/clk-provider.h>
+#include <linux/cpu_pm.h>
 
 #include <linux/io.h>
 
@@ -31,6 +32,7 @@
 #include "soc.h"
 #include "clock.h"
 #include "clockdomain.h"
+#include "pm.h"
 
 /* clkdm_list contains all registered struct clockdomains */
 static LIST_HEAD(clkdm_list);
@@ -39,6 +41,8 @@ static LIST_HEAD(clkdm_list);
 static struct clkdm_autodep *autodeps;
 
 static struct clkdm_ops *arch_clkdm;
+void clkdm_save_context(void);
+void clkdm_restore_context(void);
 
 /* Private functions */
 
@@ -449,6 +453,22 @@ int clkdm_register_autodeps(struct clkdm_autodep *ia)
 	return 0;
 }
 
+static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+{
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		if (enable_off_mode)
+			clkdm_save_context();
+		break;
+	case CPU_CLUSTER_PM_EXIT:
+		if (enable_off_mode)
+			clkdm_restore_context();
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 /**
  * clkdm_complete_init - set up the clockdomain layer
  *
@@ -460,21 +480,25 @@ int clkdm_register_autodeps(struct clkdm_autodep *ia)
 int clkdm_complete_init(void)
 {
 	struct clockdomain *clkdm;
+	static struct notifier_block nb;
 
 	if (list_empty(&clkdm_list))
 		return -EACCES;
 
 	list_for_each_entry(clkdm, &clkdm_list, node) {
-		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
-			clkdm_wakeup(clkdm);
-		else if (clkdm->flags & CLKDM_CAN_DISABLE_AUTO)
-			clkdm_deny_idle(clkdm);
+		clkdm_deny_idle(clkdm);
 
 		_resolve_clkdm_deps(clkdm, clkdm->wkdep_srcs);
 		clkdm_clear_all_wkdeps(clkdm);
 
 		_resolve_clkdm_deps(clkdm, clkdm->sleepdep_srcs);
 		clkdm_clear_all_sleepdeps(clkdm);
+	}
+
+	/* Only AM43XX can lose clkdm context during rtc-ddr suspend */
+	if (soc_is_am43xx()) {
+		nb.notifier_call = cpu_notifier;
+		cpu_pm_register_notifier(&nb);
 	}
 
 	return 0;
@@ -925,11 +949,20 @@ void clkdm_allow_idle_nolock(struct clockdomain *clkdm)
 	if (!clkdm)
 		return;
 
-	if (!(clkdm->flags & CLKDM_CAN_ENABLE_AUTO)) {
-		pr_debug("clock: %s: automatic idle transitions cannot be enabled\n",
-			 clkdm->name);
+	if (!WARN_ON(!clkdm->forcewake_count))
+		clkdm->forcewake_count--;
+
+	if (clkdm->forcewake_count)
 		return;
-	}
+
+	if (!clkdm->usecount && (clkdm->flags & CLKDM_CAN_FORCE_SLEEP))
+		clkdm_sleep_nolock(clkdm);
+
+	if (!(clkdm->flags & CLKDM_CAN_ENABLE_AUTO))
+		return;
+
+	if (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING)
+		return;
 
 	if (!arch_clkdm || !arch_clkdm->clkdm_allow_idle)
 		return;
@@ -974,11 +1007,17 @@ void clkdm_deny_idle_nolock(struct clockdomain *clkdm)
 	if (!clkdm)
 		return;
 
-	if (!(clkdm->flags & CLKDM_CAN_DISABLE_AUTO)) {
-		pr_debug("clockdomain: %s: automatic idle transitions cannot be disabled\n",
-			 clkdm->name);
+	if (clkdm->forcewake_count++)
 		return;
-	}
+
+	if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
+		clkdm_wakeup_nolock(clkdm);
+
+	if (!(clkdm->flags & CLKDM_CAN_DISABLE_AUTO))
+		return;
+
+	if (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING)
+		return;
 
 	if (!arch_clkdm || !arch_clkdm->clkdm_deny_idle)
 		return;
@@ -1295,3 +1334,49 @@ int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh)
 	return 0;
 }
 
+/**
+ * _clkdm_save_context - save the context for the control of this clkdm
+ *
+ * Due to a suspend or hibernation operation, the state of the registers
+ * controlling this clkdm will be lost, save their context.
+ */
+static int _clkdm_save_context(struct clockdomain *clkdm, void *ununsed)
+{
+	if (!arch_clkdm || !arch_clkdm->clkdm_save_context)
+		return -EINVAL;
+
+	return arch_clkdm->clkdm_save_context(clkdm);
+}
+
+/**
+ * _clkdm_restore_context - restore context for control of this clkdm
+ *
+ * Restore the register values for this clockdomain.
+ */
+static int _clkdm_restore_context(struct clockdomain *clkdm, void *ununsed)
+{
+	if (!arch_clkdm || !arch_clkdm->clkdm_restore_context)
+		return -EINVAL;
+
+	return arch_clkdm->clkdm_restore_context(clkdm);
+}
+
+/**
+ * clkdm_save_context - Saves the context for each registered clkdm
+ *
+ * Save the context for each registered clockdomain.
+ */
+void clkdm_save_context(void)
+{
+	clkdm_for_each(_clkdm_save_context, NULL);
+}
+
+/**
+ * clkdm_restore_context - Restores the context for each registered clkdm
+ *
+ * Restore the context for each registered clockdomain.
+ */
+void clkdm_restore_context(void)
+{
+	clkdm_for_each(_clkdm_restore_context, NULL);
+}

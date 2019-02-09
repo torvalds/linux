@@ -1,40 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
-    comedi/drivers/amplc_pci263.c
-    Driver for Amplicon PCI263 relay board.
+ * Driver for Amplicon PCI263 relay board.
+ *
+ * Copyright (C) 2002 MEV Ltd. <http://www.mev.co.uk/>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ */
 
-    Copyright (C) 2002 MEV Ltd. <http://www.mev.co.uk/>
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: amplc_pci263
-Description: Amplicon PCI263
-Author: Ian Abbott <abbotti@mev.co.uk>
-Devices: [Amplicon] PCI263 (amplc_pci263)
-Updated: Fri, 12 Apr 2013 15:19:36 +0100
-Status: works
-
-Configuration options: not applicable, uses PCI auto config
-
-The board appears as one subdevice, with 16 digital outputs, each
-connected to a reed-relay. Relay contacts are closed when output is 1.
-The state of the outputs can be read.
-*/
+ * Driver: amplc_pci263
+ * Description: Amplicon PCI263
+ * Author: Ian Abbott <abbotti@mev.co.uk>
+ * Devices: [Amplicon] PCI263 (amplc_pci263)
+ * Updated: Fri, 12 Apr 2013 15:19:36 +0100
+ * Status: works
+ *
+ * Configuration options: not applicable, uses PCI auto config
+ *
+ * The board appears as one subdevice, with 16 digital outputs, each
+ * connected to a reed-relay. Relay contacts are closed when output is 1.
+ * The state of the outputs can be read.
+ */
 
 #include <linux/module.h>
 
 #include "../comedi_pci.h"
+
+/* PCI263 registers */
+#define PCI263_DO_0_7_REG	0x00
+#define PCI263_DO_8_15_REG	0x01
 
 static int pci263_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
@@ -42,8 +37,8 @@ static int pci263_do_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data)) {
-		outb(s->state & 0xff, dev->iobase);
-		outb((s->state >> 8) & 0xff, dev->iobase + 1);
+		outb(s->state & 0xff, dev->iobase + PCI263_DO_0_7_REG);
+		outb((s->state >> 8) & 0xff, dev->iobase + PCI263_DO_8_15_REG);
 	}
 
 	data[1] = s->state;
@@ -67,16 +62,18 @@ static int pci263_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[0];
-	/* digital output subdevice */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = pci263_do_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pci263_do_insn_bits;
+
 	/* read initial relay state */
-	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
+	s->state = inb(dev->iobase + PCI263_DO_0_7_REG) |
+		   (inb(dev->iobase + PCI263_DO_8_15_REG) << 8);
 
 	return 0;
 }

@@ -210,7 +210,7 @@ enum resizer_input_entity {
 
 enum resizer_output_entity {
 	RESIZER_OUTPUT_NONE = 0,
-	RESIZER_OUPUT_MEMORY = 1,
+	RESIZER_OUTPUT_MEMORY = 1,
 };
 
 struct dm365_resizer_device {

@@ -313,7 +313,7 @@ Additional Configurations
   version 1.6 or later is required for this functionality.
 
   The latest release of ethtool can be found from
-  http://ftp.kernel.org/pub/software/network/ethtool/
+  https://www.kernel.org/pub/software/network/ethtool/
 
   NOTE: The ethtool version 1.6 only supports a limited set of ethtool options.
         Support for a more complete ethtool feature set can be enabled by

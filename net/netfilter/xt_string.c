@@ -21,6 +21,7 @@ MODULE_DESCRIPTION("Xtables: string-based matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_string");
 MODULE_ALIAS("ip6t_string");
+MODULE_ALIAS("ebt_string");
 
 static bool
 string_mt(const struct sk_buff *skb, struct xt_action_param *par)
@@ -77,6 +78,7 @@ static struct xt_match xt_string_mt_reg __read_mostly = {
 	.match      = string_mt,
 	.destroy    = string_mt_destroy,
 	.matchsize  = sizeof(struct xt_string_info),
+	.usersize   = offsetof(struct xt_string_info, config),
 	.me         = THIS_MODULE,
 };
 

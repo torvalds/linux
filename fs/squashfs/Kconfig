@@ -165,6 +165,20 @@ config SQUASHFS_XZ
 
 	  If unsure, say N.
 
+config SQUASHFS_ZSTD
+	bool "Include support for ZSTD compressed file systems"
+	depends on SQUASHFS
+	select ZSTD_DECOMPRESS
+	help
+	  Saying Y here includes support for reading Squashfs file systems
+	  compressed with ZSTD compression.  ZSTD gives better compression than
+	  the default ZLIB compression, while using less CPU.
+
+	  ZSTD is not the standard compression used in Squashfs and so most
+	  file systems will be readable without selecting this option.
+
+	  If unsure, say N.
+
 config SQUASHFS_4K_DEVBLK_SIZE
 	bool "Use 4K device block size?"
 	depends on SQUASHFS

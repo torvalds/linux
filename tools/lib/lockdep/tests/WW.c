@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <liblockdep/rwlock.h>
 
 void main(void)

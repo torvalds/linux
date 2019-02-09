@@ -31,6 +31,8 @@
 
 #include <asm/cacheflush.h>
 
+#include "spc.h"
+
 #define SPCLOG "vexpress-spc: "
 
 #define PERF_LVL_A15		0x00
@@ -319,17 +321,15 @@ static int ve_spc_waitforcompletion(int req_type)
 
 static int ve_spc_set_performance(int cluster, u32 freq)
 {
-	u32 perf_cfg_reg, perf_stat_reg;
+	u32 perf_cfg_reg;
 	int ret, perf, req_type;
 
 	if (cluster_is_a15(cluster)) {
 		req_type = CA15_DVFS;
 		perf_cfg_reg = PERF_LVL_A15;
-		perf_stat_reg = PERF_REQ_A15;
 	} else {
 		req_type = CA7_DVFS;
 		perf_cfg_reg = PERF_LVL_A7;
-		perf_stat_reg = PERF_REQ_A7;
 	}
 
 	perf = ve_spc_find_performance_index(cluster, freq);
@@ -403,7 +403,7 @@ static int ve_spc_populate_opps(uint32_t cluster)
 	uint32_t data = 0, off, ret, idx;
 	struct ve_spc_opp *opps;
 
-	opps = kzalloc(sizeof(*opps) * MAX_OPPS, GFP_KERNEL);
+	opps = kcalloc(MAX_OPPS, sizeof(*opps), GFP_KERNEL);
 	if (!opps)
 		return -ENOMEM;
 
@@ -451,10 +451,8 @@ int __init ve_spc_init(void __iomem *baseaddr, u32 a15_clusid, int irq)
 {
 	int ret;
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		pr_err(SPCLOG "unable to allocate mem\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	info->baseaddr = baseaddr;
 	info->a15_clusid = a15_clusid;
@@ -535,10 +533,8 @@ static struct clk *ve_spc_clk_register(struct device *cpu_dev)
 	struct clk_spc *spc;
 
 	spc = kzalloc(sizeof(*spc), GFP_KERNEL);
-	if (!spc) {
-		pr_err("could not allocate spc clk\n");
+	if (!spc)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	spc->hw.init = &init;
 	spc->cluster = topology_physical_package_id(cpu_dev->id);
@@ -547,7 +543,7 @@ static struct clk *ve_spc_clk_register(struct device *cpu_dev)
 
 	init.name = dev_name(cpu_dev);
 	init.ops = &clk_spc_ops;
-	init.flags = CLK_IS_ROOT | CLK_GET_RATE_NOCACHE;
+	init.flags = CLK_GET_RATE_NOCACHE;
 	init.num_parents = 0;
 
 	return devm_clk_register(cpu_dev, &spc->hw);

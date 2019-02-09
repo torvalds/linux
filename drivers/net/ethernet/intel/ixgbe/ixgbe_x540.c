@@ -1,30 +1,5 @@
-/*******************************************************************************
-
-  Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2014 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -57,8 +32,7 @@ s32 ixgbe_get_invariants_X540(struct ixgbe_hw *hw)
 	struct ixgbe_phy_info *phy = &hw->phy;
 
 	/* set_phy_power was set by default to NULL */
-	if (!ixgbe_mng_present(hw))
-		phy->ops.set_phy_power = ixgbe_set_copper_phy_power;
+	phy->ops.set_phy_power = ixgbe_set_copper_phy_power;
 
 	mac->mcft_size = IXGBE_X540_MC_TBL_SIZE;
 	mac->vft_size = IXGBE_X540_VFT_TBL_SIZE;
@@ -96,6 +70,7 @@ s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 {
 	s32 status;
 	u32 ctrl, i;
+	u32 swfw_mask = hw->phy.phy_semaphore_mask;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	status = hw->mac.ops.stop_adapter(hw);
@@ -106,17 +81,25 @@ s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 	ixgbe_clear_tx_pending(hw);
 
 mac_reset_top:
+	status = hw->mac.ops.acquire_swfw_sync(hw, swfw_mask);
+	if (status) {
+		hw_dbg(hw, "semaphore failed with %d", status);
+		return IXGBE_ERR_SWFW_SYNC;
+	}
+
 	ctrl = IXGBE_CTRL_RST;
 	ctrl |= IXGBE_READ_REG(hw, IXGBE_CTRL);
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL, ctrl);
 	IXGBE_WRITE_FLUSH(hw);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+	usleep_range(1000, 1200);
 
 	/* Poll for reset bit to self-clear indicating reset is complete */
 	for (i = 0; i < 10; i++) {
-		udelay(1);
 		ctrl = IXGBE_READ_REG(hw, IXGBE_CTRL);
 		if (!(ctrl & IXGBE_CTRL_RST_MASK))
 			break;
+		udelay(1);
 	}
 
 	if (ctrl & IXGBE_CTRL_RST_MASK) {
@@ -154,11 +137,15 @@ mac_reset_top:
 
 	/* Add the SAN MAC address to the RAR only if it's a valid address */
 	if (is_valid_ether_addr(hw->mac.san_addr)) {
-		hw->mac.ops.set_rar(hw, hw->mac.num_rar_entries - 1,
-				    hw->mac.san_addr, 0, IXGBE_RAH_AV);
-
 		/* Save the SAN MAC RAR index */
 		hw->mac.san_mac_rar_index = hw->mac.num_rar_entries - 1;
+
+		hw->mac.ops.set_rar(hw, hw->mac.san_mac_rar_index,
+				    hw->mac.san_addr, 0, IXGBE_RAH_AV);
+
+		/* clear VMDq pool/queue selection for this RAR */
+		hw->mac.ops.clear_vmdq(hw, hw->mac.san_mac_rar_index,
+				       IXGBE_CLEAR_VMDQ_ALL);
 
 		/* Reserve the last RAR for the SAN MAC address */
 		hw->mac.num_rar_entries--;
@@ -210,8 +197,8 @@ s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 		eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
 				    IXGBE_EEC_SIZE_SHIFT);
-		eeprom->word_size = 1 << (eeprom_size +
-					  IXGBE_EEPROM_WORD_SIZE_SHIFT);
+		eeprom->word_size = BIT(eeprom_size +
+					IXGBE_EEPROM_WORD_SIZE_SHIFT);
 
 		hw_dbg(hw, "Eeprom params: type = %d, size = %d\n",
 		       eeprom->type, eeprom->word_size);
@@ -607,12 +594,6 @@ s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 		usleep_range(5000, 10000);
 	}
 
-	/* Failed to get SW only semaphore */
-	if (swmask == IXGBE_GSSR_SW_MNG_SM) {
-		hw_dbg(hw, "Failed to get SW only semaphore\n");
-		return IXGBE_ERR_SWFW_SYNC;
-	}
-
 	/* If the resource is not released by the FW/HW the SW can assume that
 	 * the FW/HW malfunctions. In that case the SW should set the SW bit(s)
 	 * of the requested resource(s) while ignoring the corresponding FW/HW
@@ -635,7 +616,8 @@ s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 	 */
 	if (swfw_sync & swmask) {
 		u32 rmask = IXGBE_GSSR_EEP_SM | IXGBE_GSSR_PHY0_SM |
-			    IXGBE_GSSR_PHY1_SM | IXGBE_GSSR_MAC_CSR_SM;
+			    IXGBE_GSSR_PHY1_SM | IXGBE_GSSR_MAC_CSR_SM |
+			    IXGBE_GSSR_SW_MNG_SM;
 
 		if (swi2c_mask)
 			rmask |= IXGBE_GSSR_I2C_MASK;
@@ -743,6 +725,35 @@ static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_init_swfw_sync_X540 - Release hardware semaphore
+ *  @hw: pointer to hardware structure
+ *
+ *  This function reset hardware semaphore bits for a semaphore that may
+ *  have be left locked due to a catastrophic failure.
+ **/
+void ixgbe_init_swfw_sync_X540(struct ixgbe_hw *hw)
+{
+	u32 rmask;
+
+	/* First try to grab the semaphore but we don't need to bother
+	 * looking to see whether we got the lock or not since we do
+	 * the same thing regardless of whether we got the lock or not.
+	 * We got the lock - we release it.
+	 * We timeout trying to get the lock - we force its release.
+	 */
+	ixgbe_get_swfw_sync_semaphore(hw);
+	ixgbe_release_swfw_sync_semaphore(hw);
+
+	/* Acquire and release all software resources. */
+	rmask = IXGBE_GSSR_EEP_SM | IXGBE_GSSR_PHY0_SM |
+		IXGBE_GSSR_PHY1_SM | IXGBE_GSSR_MAC_CSR_SM |
+		IXGBE_GSSR_SW_MNG_SM | IXGBE_GSSR_I2C_MASK;
+
+	ixgbe_acquire_swfw_sync_X540(hw, rmask);
+	ixgbe_release_swfw_sync_X540(hw, rmask);
+}
+
+/**
  * ixgbe_blink_led_start_X540 - Blink LED based on index.
  * @hw: pointer to hardware structure
  * @index: led number to blink
@@ -757,8 +768,10 @@ s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index)
 	ixgbe_link_speed speed;
 	bool link_up;
 
-	/*
-	 * Link should be up in order for the blink bit in the LED control
+	if (index > 3)
+		return IXGBE_ERR_PARAM;
+
+	/* Link should be up in order for the blink bit in the LED control
 	 * register to work. Force link and speed in the MAC if link is down.
 	 * This will be reversed when we stop the blinking.
 	 */
@@ -791,6 +804,9 @@ s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index)
 	u32 macc_reg;
 	u32 ledctl_reg;
 
+	if (index > 3)
+		return IXGBE_ERR_PARAM;
+
 	/* Restore the LED to its default value. */
 	ledctl_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
 	ledctl_reg &= ~IXGBE_LED_MODE_MASK(index);
@@ -806,7 +822,7 @@ s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index)
 
 	return 0;
 }
-static struct ixgbe_mac_operations mac_ops_X540 = {
+static const struct ixgbe_mac_operations mac_ops_X540 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_X540,
 	.start_hw               = &ixgbe_start_hw_X540,
@@ -828,6 +844,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.get_link_capabilities  = &ixgbe_get_copper_link_capabilities_generic,
 	.led_on                 = &ixgbe_led_on_generic,
 	.led_off                = &ixgbe_led_off_generic,
+	.init_led_link_act	= ixgbe_init_led_link_act_generic,
 	.blink_led_start        = &ixgbe_blink_led_start_X540,
 	.blink_led_stop         = &ixgbe_blink_led_stop_X540,
 	.set_rar                = &ixgbe_set_rar_generic,
@@ -842,6 +859,8 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.clear_vfta             = &ixgbe_clear_vfta_generic,
 	.set_vfta               = &ixgbe_set_vfta_generic,
 	.fc_enable              = &ixgbe_fc_enable_generic,
+	.setup_fc		= ixgbe_setup_fc_generic,
+	.fc_autoneg		= ixgbe_fc_autoneg,
 	.set_fw_drv_ver         = &ixgbe_set_fw_drv_ver_generic,
 	.init_uta_tables        = &ixgbe_init_uta_tables_generic,
 	.setup_sfp              = NULL,
@@ -849,6 +868,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
 	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync_X540,
 	.release_swfw_sync      = &ixgbe_release_swfw_sync_X540,
+	.init_swfw_sync		= &ixgbe_init_swfw_sync_X540,
 	.disable_rx_buff	= &ixgbe_disable_rx_buff_generic,
 	.enable_rx_buff		= &ixgbe_enable_rx_buff_generic,
 	.get_thermal_sensor_data = NULL,
@@ -859,7 +879,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.disable_rx		= &ixgbe_disable_rx_generic,
 };
 
-static struct ixgbe_eeprom_operations eeprom_ops_X540 = {
+static const struct ixgbe_eeprom_operations eeprom_ops_X540 = {
 	.init_params            = &ixgbe_init_eeprom_params_X540,
 	.read                   = &ixgbe_read_eerd_X540,
 	.read_buffer		= &ixgbe_read_eerd_buffer_X540,
@@ -870,7 +890,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_X540 = {
 	.update_checksum        = &ixgbe_update_eeprom_checksum_X540,
 };
 
-static struct ixgbe_phy_operations phy_ops_X540 = {
+static const struct ixgbe_phy_operations phy_ops_X540 = {
 	.identify               = &ixgbe_identify_phy_generic,
 	.identify_sfp           = &ixgbe_identify_sfp_module_generic,
 	.init			= NULL,
@@ -886,14 +906,13 @@ static struct ixgbe_phy_operations phy_ops_X540 = {
 	.write_i2c_eeprom       = &ixgbe_write_i2c_eeprom_generic,
 	.check_overtemp         = &ixgbe_tn_check_overtemp,
 	.set_phy_power          = &ixgbe_set_copper_phy_power,
-	.get_firmware_version   = &ixgbe_get_phy_firmware_version_generic,
 };
 
 static const u32 ixgbe_mvals_X540[IXGBE_MVALS_IDX_LIMIT] = {
 	IXGBE_MVALS_INIT(X540)
 };
 
-struct ixgbe_info ixgbe_X540_info = {
+const struct ixgbe_info ixgbe_X540_info = {
 	.mac                    = ixgbe_mac_X540,
 	.get_invariants         = &ixgbe_get_invariants_X540,
 	.mac_ops                = &mac_ops_X540,

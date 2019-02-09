@@ -34,89 +34,22 @@
 #include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
 
-static struct clk *mcbsp_iclks[5];
-
-static int omap3_enable_st_clock(unsigned int id, bool enable)
+static int omap3_mcbsp_force_ick_on(struct clk *clk, bool force_on)
 {
-	/*
-	 * Sidetone uses McBSP ICLK - which must not idle when sidetones
-	 * are enabled or sidetones start sounding ugly.
-	 */
-	if (enable)
-		return omap2_clk_deny_idle(mcbsp_iclks[id]);
+	if (!clk)
+		return 0;
+
+	if (force_on)
+		return omap2_clk_deny_idle(clk);
 	else
-		return omap2_clk_allow_idle(mcbsp_iclks[id]);
+		return omap2_clk_allow_idle(clk);
 }
 
-static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
+void __init omap3_mcbsp_init_pdata_callback(
+					struct omap_mcbsp_platform_data *pdata)
 {
-	int id, count = 1;
-	char *name = "omap-mcbsp";
-	struct omap_hwmod *oh_device[2];
-	struct omap_mcbsp_platform_data *pdata = NULL;
-	struct platform_device *pdev;
-	char clk_name[11];
+	if (!pdata)
+		return;
 
-	sscanf(oh->name, "mcbsp%d", &id);
-
-	pdata = kzalloc(sizeof(struct omap_mcbsp_platform_data), GFP_KERNEL);
-	if (!pdata) {
-		pr_err("%s: No memory for mcbsp\n", __func__);
-		return -ENOMEM;
-	}
-
-	pdata->reg_step = 4;
-	if (oh->class->rev < MCBSP_CONFIG_TYPE2) {
-		pdata->reg_size = 2;
-	} else {
-		pdata->reg_size = 4;
-		pdata->has_ccr = true;
-	}
-
-	if (oh->class->rev == MCBSP_CONFIG_TYPE2) {
-		/* The FIFO has 128 locations */
-		pdata->buffer_size = 0x80;
-	} else if (oh->class->rev == MCBSP_CONFIG_TYPE3) {
-		if (id == 2)
-			/* The FIFO has 1024 + 256 locations */
-			pdata->buffer_size = 0x500;
-		else
-			/* The FIFO has 128 locations */
-			pdata->buffer_size = 0x80;
-	} else if (oh->class->rev == MCBSP_CONFIG_TYPE4) {
-		/* The FIFO has 128 locations for all instances */
-		pdata->buffer_size = 0x80;
-	}
-
-	if (oh->class->rev >= MCBSP_CONFIG_TYPE3)
-		pdata->has_wakeup = true;
-
-	oh_device[0] = oh;
-
-	if (oh->dev_attr) {
-		oh_device[1] = omap_hwmod_lookup((
-		(struct omap_mcbsp_dev_attr *)(oh->dev_attr))->sidetone);
-		pdata->enable_st_clock = omap3_enable_st_clock;
-		sprintf(clk_name, "mcbsp%d_ick", id);
-		mcbsp_iclks[id] = clk_get(NULL, clk_name);
-		count++;
-	}
-	pdev = omap_device_build_ss(name, id, oh_device, count, pdata,
-				    sizeof(*pdata));
-	kfree(pdata);
-	if (IS_ERR(pdev))  {
-		pr_err("%s: Can't build omap_device for %s:%s.\n", __func__,
-					name, oh->name);
-		return PTR_ERR(pdev);
-	}
-	return 0;
+	pdata->force_ick_on = omap3_mcbsp_force_ick_on;
 }
-
-static int __init omap2_mcbsp_init(void)
-{
-	if (!of_have_populated_dt())
-		omap_hwmod_for_each_by_class("mcbsp", omap_init_mcbsp, NULL);
-
-	return 0;
-}
-omap_arch_initcall(omap2_mcbsp_init);

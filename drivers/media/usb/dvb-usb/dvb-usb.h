@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* dvb-usb.h is part of the DVB USB library.
  *
- * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
  * see dvb-usb-init.c for copyright information.
  *
  * the headerfile, all dvb-usb-drivers have to include.
@@ -16,14 +17,14 @@
 #include <linux/mutex.h>
 #include <media/rc-core.h>
 
-#include "dvb_frontend.h"
-#include "dvb_demux.h"
-#include "dvb_net.h"
-#include "dmxdev.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
+#include <media/dmxdev.h>
 
 #include "dvb-pll.h"
 
-#include "dvb-usb-ids.h"
+#include <media/dvb-usb-ids.h>
 
 /* debug */
 #ifdef CONFIG_DVB_USB_DEBUG
@@ -202,11 +203,12 @@ struct dvb_rc {
 	u64 protocol;
 	u64 allowed_protos;
 	enum rc_driver_type driver_type;
-	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
+	int (*change_protocol)(struct rc_dev *dev, u64 *rc_proto);
 	char *module_name;
 	int (*rc_query) (struct dvb_usb_device *d);
 	int rc_interval;
 	bool bulk_mode;				/* uses bulk mode */
+	u32 scancode_mask;
 };
 
 /**
@@ -404,8 +406,12 @@ struct dvb_usb_adapter {
  *  Powered is in/decremented for each call to modify the state.
  * @udev: pointer to the device's struct usb_device.
  *
- * @usb_mutex: semaphore of USB control messages (reading needs two messages)
- * @i2c_mutex: semaphore for i2c-transfers
+ * @data_mutex: mutex to protect the data structure used to store URB data
+ * @usb_mutex: mutex of USB control messages (reading needs two messages).
+ *	Please notice that this mutex is used internally at the generic
+ *	URB control functions. So, drivers using dvb_usb_generic_rw() and
+ *	derivated functions should not lock it internally.
+ * @i2c_mutex: mutex for i2c-transfers
  *
  * @i2c_adap: device's i2c_adapter if it uses I2CoverUSB
  *
@@ -433,6 +439,7 @@ struct dvb_usb_device {
 	int powered;
 
 	/* locking */
+	struct mutex data_mutex;
 	struct mutex usb_mutex;
 
 	/* i2c */
@@ -462,8 +469,10 @@ extern int dvb_usb_device_init(struct usb_interface *,
 extern void dvb_usb_device_exit(struct usb_interface *);
 
 /* the generic read/write method for device control */
-extern int dvb_usb_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16,int);
-extern int dvb_usb_generic_write(struct dvb_usb_device *, u8 *, u16);
+extern int __must_check
+dvb_usb_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16, int);
+extern int __must_check
+dvb_usb_generic_write(struct dvb_usb_device *, u8 *, u16);
 
 /* commonly used remote control parsing */
 extern int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *, u8[], u32 *, int *);

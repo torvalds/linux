@@ -104,6 +104,8 @@
 
 #define DOORBELL_MESSAGE_SIZE	0x08
 
+static DEFINE_SPINLOCK(fsl_rio_doorbell_lock);
+
 struct rio_msg_regs {
 	u32 omr;
 	u32 osr;
@@ -481,14 +483,14 @@ pw_done:
 static void fsl_pw_dpc(struct work_struct *work)
 {
 	struct fsl_rio_pw *pw = container_of(work, struct fsl_rio_pw, pw_work);
-	u32 msg_buffer[RIO_PW_MSG_SIZE/sizeof(u32)];
+	union rio_pw_msg msg_buffer;
+	int i;
 
 	/*
 	 * Process port-write messages
 	 */
-	while (kfifo_out_spinlocked(&pw->pw_fifo, (unsigned char *)msg_buffer,
+	while (kfifo_out_spinlocked(&pw->pw_fifo, (unsigned char *)&msg_buffer,
 			 RIO_PW_MSG_SIZE, &pw->pw_fifo_lock)) {
-		/* Process one message */
 #ifdef DEBUG_PW
 		{
 		u32 i;
@@ -496,15 +498,19 @@ static void fsl_pw_dpc(struct work_struct *work)
 		for (i = 0; i < RIO_PW_MSG_SIZE/sizeof(u32); i++) {
 			if ((i%4) == 0)
 				pr_debug("\n0x%02x: 0x%08x", i*4,
-					 msg_buffer[i]);
+					 msg_buffer.raw[i]);
 			else
-				pr_debug(" 0x%08x", msg_buffer[i]);
+				pr_debug(" 0x%08x", msg_buffer.raw[i]);
 		}
 		pr_debug("\n");
 		}
 #endif
 		/* Pass the port-write message to RIO core for processing */
-		rio_inb_pwrite_handler((union rio_pw_msg *)msg_buffer);
+		for (i = 0; i < MAX_PORT_NUM; i++) {
+			if (pw->mport[i])
+				rio_inb_pwrite_handler(pw->mport[i],
+						       &msg_buffer);
+		}
 	}
 }
 
@@ -570,7 +576,7 @@ int fsl_rio_port_write_init(struct fsl_rio_pw *pw)
 	out_be32(&pw->pw_regs->pwsr,
 		 (RIO_IPWSR_TE | RIO_IPWSR_QFI | RIO_IPWSR_PWD));
 
-	/* Configure port write contoller for snooping enable all reporting,
+	/* Configure port write controller for snooping enable all reporting,
 	   clear queue full */
 	out_be32(&pw->pw_regs->pwmr,
 		 RIO_IPWMR_SEN | RIO_IPWMR_QFIE | RIO_IPWMR_EIE | RIO_IPWMR_CQ);
@@ -622,8 +628,12 @@ err_out:
 int fsl_rio_doorbell_send(struct rio_mport *mport,
 				int index, u16 destid, u16 data)
 {
+	unsigned long flags;
+
 	pr_debug("fsl_doorbell_send: index %d destid %4.4x data %4.4x\n",
 		 index, destid, data);
+
+	spin_lock_irqsave(&fsl_rio_doorbell_lock, flags);
 
 	/* In the serial version silicons, such as MPC8548, MPC8641,
 	 * below operations is must be.
@@ -633,6 +643,8 @@ int fsl_rio_doorbell_send(struct rio_mport *mport,
 	out_be32(&dbell->dbell_regs->oddpr, destid << 16);
 	out_be32(&dbell->dbell_regs->oddatr, (index << 20) | data);
 	out_be32(&dbell->dbell_regs->odmr, 0x00000001);
+
+	spin_unlock_irqrestore(&fsl_rio_doorbell_lock, flags);
 
 	return 0;
 }
@@ -1070,8 +1082,8 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 	priv = mport->priv;
 
 	if (!node) {
-		dev_warn(priv->dev, "Can't get %s property 'fsl,rmu'\n",
-			priv->dev->of_node->full_name);
+		dev_warn(priv->dev, "Can't get %pOF property 'fsl,rmu'\n",
+			priv->dev->of_node);
 		return -EINVAL;
 	}
 
@@ -1082,8 +1094,8 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 	aw = of_n_addr_cells(node);
 	msg_addr = of_get_property(node, "reg", &mlen);
 	if (!msg_addr) {
-		pr_err("%s: unable to find 'reg' property of message-unit\n",
-			node->full_name);
+		pr_err("%pOF: unable to find 'reg' property of message-unit\n",
+			node);
 		kfree(rmu);
 		return -ENOMEM;
 	}
@@ -1094,8 +1106,8 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 
 	rmu->txirq = irq_of_parse_and_map(node, 0);
 	rmu->rxirq = irq_of_parse_and_map(node, 1);
-	printk(KERN_INFO "%s: txirq: %d, rxirq %d\n",
-		node->full_name, rmu->txirq, rmu->rxirq);
+	printk(KERN_INFO "%pOF: txirq: %d, rxirq %d\n",
+		node, rmu->txirq, rmu->rxirq);
 
 	priv->rmm_handle = rmu;
 

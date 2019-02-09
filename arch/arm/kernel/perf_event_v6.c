@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ARMv6 Performance counter handling code.
  *
@@ -232,7 +233,7 @@ armv6_pmcr_counter_has_overflowed(unsigned long pmcr,
 	return ret;
 }
 
-static inline u32 armv6pmu_read_counter(struct perf_event *event)
+static inline u64 armv6pmu_read_counter(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	int counter = hwc->idx;
@@ -250,7 +251,7 @@ static inline u32 armv6pmu_read_counter(struct perf_event *event)
 	return value;
 }
 
-static inline void armv6pmu_write_counter(struct perf_event *event, u32 value)
+static inline void armv6pmu_write_counter(struct perf_event *event, u64 value)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	int counter = hwc->idx;
@@ -302,12 +303,10 @@ static void armv6pmu_enable_event(struct perf_event *event)
 }
 
 static irqreturn_t
-armv6pmu_handle_irq(int irq_num,
-		    void *dev)
+armv6pmu_handle_irq(struct arm_pmu *cpu_pmu)
 {
 	unsigned long pmcr = armv6_pmcr_read();
 	struct perf_sample_data data;
-	struct arm_pmu *cpu_pmu = (struct arm_pmu *)dev;
 	struct pmu_hw_events *cpuc = this_cpu_ptr(cpu_pmu->hw_events);
 	struct pt_regs *regs;
 	int idx;
@@ -412,6 +411,12 @@ armv6pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	}
 }
 
+static void armv6pmu_clear_event_idx(struct pmu_hw_events *cpuc,
+				     struct perf_event *event)
+{
+	clear_bit(event->hw.idx, cpuc->used_mask);
+}
+
 static void armv6pmu_disable_event(struct perf_event *event)
 {
 	unsigned long val, mask, evt, flags;
@@ -492,11 +497,11 @@ static void armv6pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->read_counter	= armv6pmu_read_counter;
 	cpu_pmu->write_counter	= armv6pmu_write_counter;
 	cpu_pmu->get_event_idx	= armv6pmu_get_event_idx;
+	cpu_pmu->clear_event_idx = armv6pmu_clear_event_idx;
 	cpu_pmu->start		= armv6pmu_start;
 	cpu_pmu->stop		= armv6pmu_stop;
 	cpu_pmu->map_event	= armv6_map_event;
 	cpu_pmu->num_events	= 3;
-	cpu_pmu->max_period	= (1LLU << 32) - 1;
 }
 
 static int armv6_1136_pmu_init(struct arm_pmu *cpu_pmu)
@@ -543,16 +548,16 @@ static int armv6mpcore_pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->read_counter	= armv6pmu_read_counter;
 	cpu_pmu->write_counter	= armv6pmu_write_counter;
 	cpu_pmu->get_event_idx	= armv6pmu_get_event_idx;
+	cpu_pmu->clear_event_idx = armv6pmu_clear_event_idx;
 	cpu_pmu->start		= armv6pmu_start;
 	cpu_pmu->stop		= armv6pmu_stop;
 	cpu_pmu->map_event	= armv6mpcore_map_event;
 	cpu_pmu->num_events	= 3;
-	cpu_pmu->max_period	= (1LLU << 32) - 1;
 
 	return 0;
 }
 
-static struct of_device_id armv6_pmu_of_device_ids[] = {
+static const struct of_device_id armv6_pmu_of_device_ids[] = {
 	{.compatible = "arm,arm11mpcore-pmu",	.data = armv6mpcore_pmu_init},
 	{.compatible = "arm,arm1176-pmu",	.data = armv6_1176_pmu_init},
 	{.compatible = "arm,arm1136-pmu",	.data = armv6_1136_pmu_init},
@@ -581,9 +586,5 @@ static struct platform_driver armv6_pmu_driver = {
 	.probe		= armv6_pmu_device_probe,
 };
 
-static int __init register_armv6_pmu_driver(void)
-{
-	return platform_driver_register(&armv6_pmu_driver);
-}
-device_initcall(register_armv6_pmu_driver);
+builtin_platform_driver(armv6_pmu_driver);
 #endif	/* CONFIG_CPU_V6 || CONFIG_CPU_V6K */

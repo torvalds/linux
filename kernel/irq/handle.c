@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/irq/handle.c
- *
  * Copyright (C) 1992, 1998-2006 Linus Torvalds, Ingo Molnar
  * Copyright (C) 2005-2006, Thomas Gleixner, Russell King
  *
- * This file contains the core interrupt handling code.
- *
- * Detailed information is available in Documentation/DocBook/genericirq
+ * This file contains the core interrupt handling code. Detailed
+ * information is available in Documentation/core-api/genericirq.rst
  *
  */
 
@@ -19,6 +17,10 @@
 #include <trace/events/irq.h>
 
 #include "internals.h"
+
+#ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
+void (*handle_arch_irq)(struct pt_regs *) __ro_after_init;
+#endif
 
 /**
  * handle_bad_irq - handle spurious and unhandled irqs
@@ -132,13 +134,15 @@ void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 	wake_up_process(action->thread);
 }
 
-irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
+irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags)
 {
 	irqreturn_t retval = IRQ_NONE;
-	unsigned int flags = 0, irq = desc->irq_data.irq;
-	struct irqaction *action = desc->action;
+	unsigned int irq = desc->irq_data.irq;
+	struct irqaction *action;
 
-	do {
+	record_irq_time(desc);
+
+	for_each_action_of_desc(desc, action) {
 		irqreturn_t res;
 
 		trace_irq_handler_entry(irq, action);
@@ -164,7 +168,7 @@ irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
 
 			/* Fall through to add to randomness */
 		case IRQ_HANDLED:
-			flags |= action->flags;
+			*flags |= action->flags;
 			break;
 
 		default:
@@ -172,10 +176,19 @@ irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
 		}
 
 		retval |= res;
-		action = action->next;
-	} while (action);
+	}
 
-	add_interrupt_randomness(irq, flags);
+	return retval;
+}
+
+irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
+{
+	irqreturn_t retval;
+	unsigned int flags = 0;
+
+	retval = __handle_irq_event_percpu(desc, &flags);
+
+	add_interrupt_randomness(desc->irq_data.irq, flags);
 
 	if (!noirqdebug)
 		note_interrupt(desc, retval);
@@ -196,3 +209,14 @@ irqreturn_t handle_irq_event(struct irq_desc *desc)
 	irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	return ret;
 }
+
+#ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
+int __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
+{
+	if (handle_arch_irq)
+		return -EBUSY;
+
+	handle_arch_irq = handle_irq;
+	return 0;
+}
+#endif

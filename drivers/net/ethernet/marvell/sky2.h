@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for the new Marvell Yukon 2 driver.
  */
@@ -2247,6 +2248,7 @@ struct sky2_port {
 	u16		     rx_data_size;
 	u16		     rx_nfrags;
 
+	unsigned long	     last_rx;
 	struct {
 		unsigned long last;
 		u32	mac_rp;

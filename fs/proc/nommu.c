@@ -25,7 +25,7 @@
 #include <linux/seq_file.h>
 #include <linux/hugetlb.h>
 #include <linux/vmalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/tlb.h>
 #include <asm/div64.h>
@@ -113,21 +113,9 @@ static const struct seq_operations proc_nommu_region_list_seqop = {
 	.show	= nommu_region_list_show
 };
 
-static int proc_nommu_region_list_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &proc_nommu_region_list_seqop);
-}
-
-static const struct file_operations proc_nommu_region_list_operations = {
-	.open    = proc_nommu_region_list_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
-
 static int __init proc_nommu_init(void)
 {
-	proc_create("maps", S_IRUGO, NULL, &proc_nommu_region_list_operations);
+	proc_create_seq("maps", S_IRUGO, NULL, &proc_nommu_region_list_seqop);
 	return 0;
 }
 

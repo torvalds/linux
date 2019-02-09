@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * All the USB notify logic
  *
@@ -6,6 +7,7 @@
  * notifier functions originally based on those in kernel/sys.c
  * but fixed up to not be so broken.
  *
+ * Released under the GPLv2 only.
  */
 
 

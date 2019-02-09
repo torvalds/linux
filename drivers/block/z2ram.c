@@ -74,14 +74,14 @@ static void do_z2_request(struct request_queue *q)
 	while (req) {
 		unsigned long start = blk_rq_pos(req) << 9;
 		unsigned long len  = blk_rq_cur_bytes(req);
-		int err = 0;
+		blk_status_t err = BLK_STS_OK;
 
 		if (start + len > z2ram_size) {
 			pr_err(DEVICE_NAME ": bad access: block=%llu, "
 			       "count=%u\n",
 			       (unsigned long long)blk_rq_pos(req),
 			       blk_rq_cur_sectors(req));
-			err = -EIO;
+			err = BLK_STS_IOERR;
 			goto done;
 		}
 		while (len) {
@@ -197,8 +197,9 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 		vaddr = (unsigned long)z_remap_nocache_nonser(paddr, size);
 #endif
 		z2ram_map = 
-			kmalloc((size/Z2RAM_CHUNKSIZE)*sizeof(z2ram_map[0]),
-				GFP_KERNEL);
+			kmalloc_array(size / Z2RAM_CHUNKSIZE,
+                                      sizeof(z2ram_map[0]),
+                                      GFP_KERNEL);
 		if ( z2ram_map == NULL )
 		{
 		    printk( KERN_ERR DEVICE_NAME
@@ -332,7 +333,7 @@ static const struct block_device_operations z2_fops =
 static struct kobject *z2_find(dev_t dev, int *part, void *data)
 {
 	*part = 0;
-	return get_disk(z2ram_gendisk);
+	return get_disk_and_module(z2ram_gendisk);
 }
 
 static struct request_queue *z2_queue;

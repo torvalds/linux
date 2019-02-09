@@ -22,10 +22,10 @@
 #include <linux/mutex.h>
 #include <linux/firmware.h>
 
-#include "dvb_frontend.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_net.h"
+#include <media/dvb_frontend.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
 #include "ves1820.h"
 #include "cx22700.h"
 #include "tda1004x.h"
@@ -76,7 +76,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define TTUSB_REV_2_2	0x22
 #define TTUSB_BUDGET_NAME "ttusb_stc_fw"
 
-/**
+/*
  *  since we're casting (struct ttusb*) <-> (struct dvb_demux*) around
  *  the dvb_demux field must be the first in struct!!
  */
@@ -102,7 +102,6 @@ struct ttusb {
 	unsigned int isoc_in_pipe;
 
 	void *iso_buffer;
-	dma_addr_t iso_dma_handle;
 
 	struct urb *iso_urb[ISO_BUF_COUNT];
 
@@ -713,7 +712,7 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 					}
 				}
 
-			/**
+			/*
 			 * if length is valid and we reached the end:
 			 * goto next muxpack
 			 */
@@ -729,7 +728,7 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 					/* maximum bytes, until we know the length */
 					ttusb->muxpack_len = 2;
 
-				/**
+				/*
 				 * no muxpacks left?
 				 * return to search-sync state
 				 */
@@ -767,8 +766,7 @@ static void ttusb_iso_irq(struct urb *urb)
 		for (i = 0; i < urb->number_of_packets; ++i) {
 			numpkt++;
 			if (time_after_eq(jiffies, lastj + HZ)) {
-				dprintk("frames/s: %lu (ts: %d, stuff %d, "
-					"sec: %d, invalid: %d, all: %d)\n",
+				dprintk("frames/s: %lu (ts: %d, stuff %d, sec: %d, invalid: %d, all: %d)\n",
 					numpkt * HZ / (jiffies - lastj),
 					numts, numstuff, numsec, numinvalid,
 					numts + numstuff + numsec + numinvalid);
@@ -793,26 +791,17 @@ static void ttusb_free_iso_urbs(struct ttusb *ttusb)
 
 	for (i = 0; i < ISO_BUF_COUNT; i++)
 		usb_free_urb(ttusb->iso_urb[i]);
-
-	pci_free_consistent(NULL,
-			    ISO_FRAME_SIZE * FRAMES_PER_ISO_BUF *
-			    ISO_BUF_COUNT, ttusb->iso_buffer,
-			    ttusb->iso_dma_handle);
+	kfree(ttusb->iso_buffer);
 }
 
 static int ttusb_alloc_iso_urbs(struct ttusb *ttusb)
 {
 	int i;
 
-	ttusb->iso_buffer = pci_zalloc_consistent(NULL,
-						  ISO_FRAME_SIZE * FRAMES_PER_ISO_BUF * ISO_BUF_COUNT,
-						  &ttusb->iso_dma_handle);
-
-	if (!ttusb->iso_buffer) {
-		dprintk("%s: pci_alloc_consistent - not enough memory\n",
-			__func__);
+	ttusb->iso_buffer = kcalloc(FRAMES_PER_ISO_BUF * ISO_BUF_COUNT,
+			ISO_FRAME_SIZE, GFP_KERNEL);
+	if (!ttusb->iso_buffer)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < ISO_BUF_COUNT; i++) {
 		struct urb *urb;
@@ -1641,7 +1630,7 @@ static void frontend_init(struct ttusb* ttusb)
 
 
 
-static struct i2c_algorithm ttusb_dec_algo = {
+static const struct i2c_algorithm ttusb_dec_algo = {
 	.master_xfer	= master_xfer,
 	.functionality	= functionality,
 };
@@ -1796,7 +1785,7 @@ static void ttusb_disconnect(struct usb_interface *intf)
 	dprintk("%s: TTUSB DVB disconnected\n", __func__);
 }
 
-static struct usb_device_id ttusb_table[] = {
+static const struct usb_device_id ttusb_table[] = {
 	{USB_DEVICE(0xb48, 0x1003)},
 	{USB_DEVICE(0xb48, 0x1004)},
 	{USB_DEVICE(0xb48, 0x1005)},

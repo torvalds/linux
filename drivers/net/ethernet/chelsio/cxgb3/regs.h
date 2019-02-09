@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define A_SG_CONTROL 0x0
 
 #define S_CONGMODE    29

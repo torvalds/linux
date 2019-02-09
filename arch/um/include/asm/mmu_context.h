@@ -7,15 +7,18 @@
 #define __UM_MMU_CONTEXT_H
 
 #include <linux/sched.h>
+#include <linux/mm_types.h>
+
 #include <asm/mmu.h>
 
 extern void uml_setup_stubs(struct mm_struct *mm);
 /*
  * Needed since we do not use the asm-generic/mm_hooks.h:
  */
-static inline void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 {
 	uml_setup_stubs(mm);
+	return 0;
 }
 extern void arch_exit_mmap(struct mm_struct *mm);
 static inline void arch_unmap(struct mm_struct *mm,
@@ -27,6 +30,14 @@ static inline void arch_bprm_mm_init(struct mm_struct *mm,
 				     struct vm_area_struct *vma)
 {
 }
+
+static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
+		bool write, bool execute, bool foreign)
+{
+	/* by default, allow everything */
+	return true;
+}
+
 /*
  * end asm-generic/mm_hooks.h functions
  */

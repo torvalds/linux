@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/fault-inject.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
+#include "slab.h"
 
 static struct {
 	struct fault_attr attr;
@@ -11,18 +14,22 @@ static struct {
 	.cache_filter = false,
 };
 
-bool should_failslab(size_t size, gfp_t gfpflags, unsigned long cache_flags)
+bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
 {
+	/* No fault-injection for bootstrap cache */
+	if (unlikely(s == kmem_cache))
+		return false;
+
 	if (gfpflags & __GFP_NOFAIL)
 		return false;
 
 	if (failslab.ignore_gfp_reclaim && (gfpflags & __GFP_RECLAIM))
 		return false;
 
-	if (failslab.cache_filter && !(cache_flags & SLAB_FAILSLAB))
+	if (failslab.cache_filter && !(s->flags & SLAB_FAILSLAB))
 		return false;
 
-	return should_fail(&failslab.attr, size);
+	return should_fail(&failslab.attr, s->object_size);
 }
 
 static int __init setup_failslab(char *str)
@@ -35,7 +42,7 @@ __setup("failslab=", setup_failslab);
 static int __init failslab_debugfs_init(void)
 {
 	struct dentry *dir;
-	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
+	umode_t mode = S_IFREG | 0600;
 
 	dir = fault_create_debugfs_attr("failslab", NULL, &failslab.attr);
 	if (IS_ERR(dir))

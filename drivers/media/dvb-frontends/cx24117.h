@@ -22,7 +22,6 @@
 #ifndef CX24117_H
 #define CX24117_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 struct cx24117_config {

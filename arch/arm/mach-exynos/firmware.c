@@ -1,12 +1,8 @@
-/*
- * Copyright (C) 2012 Samsung Electronics.
- * Kyungmin Park <kyungmin.park@samsung.com>
- * Tomasz Figa <t.figa@samsung.com>
- *
- * This program is free software,you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2012 Samsung Electronics.
+// Kyungmin Park <kyungmin.park@samsung.com>
+// Tomasz Figa <t.figa@samsung.com>
 
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -19,8 +15,6 @@
 #include <asm/firmware.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/suspend.h>
-
-#include <mach/map.h>
 
 #include "common.h"
 #include "smc.h"
@@ -43,9 +37,9 @@ static int exynos_do_idle(unsigned long mode)
 	case FW_DO_IDLE_AFTR:
 		if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
 			exynos_save_cp15();
-		__raw_writel(virt_to_phys(exynos_cpu_resume_ns),
-			     sysram_ns_base_addr + 0x24);
-		__raw_writel(EXYNOS_AFTR_MAGIC, sysram_ns_base_addr + 0x20);
+		writel_relaxed(__pa_symbol(exynos_cpu_resume_ns),
+			       sysram_ns_base_addr + 0x24);
+		writel_relaxed(EXYNOS_AFTR_MAGIC, sysram_ns_base_addr + 0x20);
 		if (soc_is_exynos3250()) {
 			flush_cache_all();
 			exynos_smc(SMC_CMD_SAVE, OP_TYPE_CORE,
@@ -72,12 +66,7 @@ static int exynos_cpu_boot(int cpu)
 
 	/*
 	 * The second parameter of SMC_CMD_CPU1BOOT command means CPU id.
-	 * But, Exynos4212 has only one secondary CPU so second parameter
-	 * isn't used for informing secure firmware about CPU id.
 	 */
-	if (soc_is_exynos4212())
-		cpu = 0;
-
 	exynos_smc(SMC_CMD_CPU1BOOT, cpu, 0, 0);
 	return 0;
 }
@@ -99,7 +88,7 @@ static int exynos_set_cpu_boot_addr(int cpu, unsigned long boot_addr)
 	if (soc_is_exynos4412())
 		boot_reg += 4 * cpu;
 
-	__raw_writel(boot_addr, boot_reg);
+	writel_relaxed(boot_addr, boot_reg);
 	return 0;
 }
 
@@ -115,7 +104,7 @@ static int exynos_get_cpu_boot_addr(int cpu, unsigned long *boot_addr)
 	if (soc_is_exynos4412())
 		boot_reg += 4 * cpu;
 
-	*boot_addr = __raw_readl(boot_reg);
+	*boot_addr = readl_relaxed(boot_reg);
 	return 0;
 }
 
@@ -137,7 +126,7 @@ static int exynos_suspend(void)
 		exynos_save_cp15();
 
 	writel(EXYNOS_SLEEP_MAGIC, sysram_ns_base_addr + EXYNOS_BOOT_FLAG);
-	writel(virt_to_phys(exynos_cpu_resume_ns),
+	writel(__pa_symbol(exynos_cpu_resume_ns),
 		sysram_ns_base_addr + EXYNOS_BOOT_ADDR);
 
 	return cpu_suspend(0, exynos_cpu_suspend);
@@ -236,20 +225,20 @@ void exynos_set_boot_flag(unsigned int cpu, unsigned int mode)
 {
 	unsigned int tmp;
 
-	tmp = __raw_readl(REG_CPU_STATE_ADDR + cpu * 4);
+	tmp = readl_relaxed(REG_CPU_STATE_ADDR + cpu * 4);
 
 	if (mode & BOOT_MODE_MASK)
 		tmp &= ~BOOT_MODE_MASK;
 
 	tmp |= mode;
-	__raw_writel(tmp, REG_CPU_STATE_ADDR + cpu * 4);
+	writel_relaxed(tmp, REG_CPU_STATE_ADDR + cpu * 4);
 }
 
 void exynos_clear_boot_flag(unsigned int cpu, unsigned int mode)
 {
 	unsigned int tmp;
 
-	tmp = __raw_readl(REG_CPU_STATE_ADDR + cpu * 4);
+	tmp = readl_relaxed(REG_CPU_STATE_ADDR + cpu * 4);
 	tmp &= ~mode;
-	__raw_writel(tmp, REG_CPU_STATE_ADDR + cpu * 4);
+	writel_relaxed(tmp, REG_CPU_STATE_ADDR + cpu * 4);
 }

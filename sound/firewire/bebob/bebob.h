@@ -17,6 +17,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -57,7 +58,7 @@ enum snd_bebob_clock_type {
 struct snd_bebob_clock_spec {
 	unsigned int num;
 	const char *const *labels;
-	enum snd_bebob_clock_type *types;
+	const enum snd_bebob_clock_type *types;
 	int (*get)(struct snd_bebob *bebob, unsigned int *id);
 };
 struct snd_bebob_rate_spec {
@@ -83,21 +84,22 @@ struct snd_bebob {
 	struct mutex mutex;
 	spinlock_t lock;
 
+	bool registered;
+	struct delayed_work dwork;
+
+	const struct ieee1394_device_id *entry;
 	const struct snd_bebob_spec *spec;
 
 	unsigned int midi_input_ports;
 	unsigned int midi_output_ports;
 
-	/* for bus reset quirk */
-	struct completion bus_reset;
 	bool connected;
 
-	struct amdtp_stream *master;
 	struct amdtp_stream tx_stream;
 	struct amdtp_stream rx_stream;
 	struct cmp_connection out_conn;
 	struct cmp_connection in_conn;
-	atomic_t substreams_counter;
+	unsigned int substreams_counter;
 
 	struct snd_bebob_stream_formation
 		tx_stream_formations[SND_BEBOB_STRM_FMT_ENTRIES];
@@ -113,7 +115,6 @@ struct snd_bebob {
 
 	/* for M-Audio special devices */
 	void *maudio_special_quirk;
-	bool deferred_registration;
 
 	/* For BeBoB version quirk. */
 	unsigned int version;
@@ -219,7 +220,6 @@ int snd_bebob_stream_discover(struct snd_bebob *bebob);
 int snd_bebob_stream_init_duplex(struct snd_bebob *bebob);
 int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate);
 void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob);
-void snd_bebob_stream_update_duplex(struct snd_bebob *bebob);
 void snd_bebob_stream_destroy_duplex(struct snd_bebob *bebob);
 
 void snd_bebob_stream_lock_changed(struct snd_bebob *bebob);
@@ -236,8 +236,7 @@ int snd_bebob_create_hwdep_device(struct snd_bebob *bebob);
 
 /* model specific operations */
 extern const struct snd_bebob_spec phase88_rack_spec;
-extern const struct snd_bebob_spec phase24_series_spec;
-extern const struct snd_bebob_spec yamaha_go_spec;
+extern const struct snd_bebob_spec yamaha_terratec_spec;
 extern const struct snd_bebob_spec saffirepro_26_spec;
 extern const struct snd_bebob_spec saffirepro_10_spec;
 extern const struct snd_bebob_spec saffire_le_spec;

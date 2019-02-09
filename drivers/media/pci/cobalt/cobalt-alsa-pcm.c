@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ALSA PCM device for the
  *  ALSA interface to cobalt PCM capture streams
  *
  *  Copyright 2014-2015 Cisco Systems, Inc. and/or its affiliates.
  *  All rights reserved.
- *
- *  This program is free software; you may redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- *  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- *  ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- *  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
  */
 
 #include <linux/init.h>
@@ -43,7 +31,7 @@ MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
 			pr_info("cobalt-alsa-pcm %s: " fmt, __func__, ##arg); \
 	} while (0)
 
-static struct snd_pcm_hardware snd_cobalt_hdmi_capture = {
+static const struct snd_pcm_hardware snd_cobalt_hdmi_capture = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP           |
 		SNDRV_PCM_INFO_INTERLEAVED    |
@@ -64,7 +52,7 @@ static struct snd_pcm_hardware snd_cobalt_hdmi_capture = {
 	.periods_max = 4,
 };
 
-static struct snd_pcm_hardware snd_cobalt_playback = {
+static const struct snd_pcm_hardware snd_cobalt_playback = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP           |
 		SNDRV_PCM_INFO_INTERLEAVED    |
@@ -510,7 +498,7 @@ static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
 	return vmalloc_to_page(pageptr);
 }
 
-static struct snd_pcm_ops snd_cobalt_pcm_capture_ops = {
+static const struct snd_pcm_ops snd_cobalt_pcm_capture_ops = {
 	.open		= snd_cobalt_pcm_capture_open,
 	.close		= snd_cobalt_pcm_capture_close,
 	.ioctl		= snd_cobalt_pcm_ioctl,
@@ -522,7 +510,7 @@ static struct snd_pcm_ops snd_cobalt_pcm_capture_ops = {
 	.page		= snd_pcm_get_vmalloc_page,
 };
 
-static struct snd_pcm_ops snd_cobalt_pcm_playback_ops = {
+static const struct snd_pcm_ops snd_cobalt_pcm_playback_ops = {
 	.open		= snd_cobalt_pcm_playback_open,
 	.close		= snd_cobalt_pcm_playback_close,
 	.ioctl		= snd_cobalt_pcm_ioctl,

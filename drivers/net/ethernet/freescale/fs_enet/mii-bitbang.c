@@ -100,7 +100,7 @@ static inline void mdc(struct mdiobb_ctrl *ctrl, int what)
 	in_be32(bitbang->dat);
 }
 
-static struct mdiobb_ops bb_ops = {
+static const struct mdiobb_ops bb_ops = {
 	.owner = THIS_MODULE,
 	.set_mdc = mdc,
 	.set_mdio_dir = mdio_dir,
@@ -172,23 +172,16 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 		goto out_free_bus;
 
 	new_bus->phy_mask = ~0;
-	new_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!new_bus->irq) {
-		ret = -ENOMEM;
-		goto out_unmap_regs;
-	}
 
 	new_bus->parent = &ofdev->dev;
 	platform_set_drvdata(ofdev, new_bus);
 
 	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
 	if (ret)
-		goto out_free_irqs;
+		goto out_unmap_regs;
 
 	return 0;
 
-out_free_irqs:
-	kfree(new_bus->irq);
 out_unmap_regs:
 	iounmap(bitbang->dir);
 out_free_bus:
@@ -205,7 +198,6 @@ static int fs_enet_mdio_remove(struct platform_device *ofdev)
 	struct bb_info *bitbang = bus->priv;
 
 	mdiobus_unregister(bus);
-	kfree(bus->irq);
 	free_mdio_bitbang(bus);
 	iounmap(bitbang->dir);
 	kfree(bitbang);

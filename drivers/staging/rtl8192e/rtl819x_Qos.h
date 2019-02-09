@@ -11,7 +11,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ *****************************************************************************/
 #ifndef __INC_QOS_TYPE_H
 #define __INC_QOS_TYPE_H
 
@@ -168,9 +168,6 @@ union qos_tclas {
 		u16		TagType;
 	} TYPE2_8021Q;
 };
-
-#define IsACValid(ac)		((ac >= 0 && ac <= 7) ? true : false)
-
 
 union aci_aifsn {
 	u8	charData;

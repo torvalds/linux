@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Test selecting other page sizes for mmap/shmget.
 
    Before running this huge pages for each huge page size must have been
@@ -30,7 +31,9 @@
 #define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
 #define MAP_HUGE_SHIFT  26
 #define MAP_HUGE_MASK   0x3f
+#if !defined(MAP_HUGETLB)
 #define MAP_HUGETLB	0x40000
+#endif
 
 #define SHM_HUGETLB     04000   /* segment will use huge TLB pages */
 #define SHM_HUGE_SHIFT  26
@@ -144,7 +147,7 @@ void test_mmap(unsigned long size, unsigned flags)
 
 	before = read_free(size);
 	map = mmap(NULL, size*NUM_PAGES, PROT_READ|PROT_WRITE,
-			MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|flags, 0, 0);
+			MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|flags, -1, 0);
 
 	if (map == (char *)-1) err("mmap");
 	memset(map, 0xff, size*NUM_PAGES);

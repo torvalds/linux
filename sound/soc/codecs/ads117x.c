@@ -20,6 +20,8 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
+#include <linux/of.h>
+
 #define ADS117X_RATES (SNDRV_PCM_RATE_8000_48000)
 #define ADS117X_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
 
@@ -56,32 +58,39 @@ static struct snd_soc_dai_driver ads117x_dai = {
 		.formats = ADS117X_FORMATS,},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_ads117x = {
-	.dapm_widgets = ads117x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ads117x_dapm_widgets),
-	.dapm_routes = ads117x_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(ads117x_dapm_routes),
+static const struct snd_soc_component_driver soc_component_dev_ads117x = {
+	.dapm_widgets		= ads117x_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ads117x_dapm_widgets),
+	.dapm_routes		= ads117x_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(ads117x_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int ads117x_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev,
-			&soc_codec_dev_ads117x, &ads117x_dai, 1);
+	return devm_snd_soc_register_component(&pdev->dev,
+			&soc_component_dev_ads117x, &ads117x_dai, 1);
 }
 
-static int ads117x_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
-}
+#if defined(CONFIG_OF)
+static const struct of_device_id ads117x_dt_ids[] = {
+	{ .compatible = "ti,ads1174" },
+	{ .compatible = "ti,ads1178" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ads117x_dt_ids);
+#endif
 
 static struct platform_driver ads117x_codec_driver = {
 	.driver = {
 			.name = "ads117x-codec",
+			.of_match_table = of_match_ptr(ads117x_dt_ids),
 	},
 
 	.probe = ads117x_probe,
-	.remove = ads117x_remove,
 };
 
 module_platform_driver(ads117x_codec_driver);

@@ -1,0 +1,13 @@
+
+- verify devicetree documentation is consistent with code
+- fix ethtool - currently doesn't return valid data.
+- general code review and clean up
+- add support for second MAC on mt7621
+- convert gsw code to use switchdev interfaces
+- md7620_mmi_write etc should probably be wrapped
+  in a regmap abstraction.
+- Get soc_mt7621 to work with QDMA TX if possible.
+- Ensure phys are correctly configured when a cable
+  is plugged in.
+
+Cc: NeilBrown <neil@brown.name>

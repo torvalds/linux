@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -1454,7 +1455,8 @@ struct bfa_aen_entry_s {
 	enum bfa_aen_category   aen_category;
 	u32                     aen_type;
 	union bfa_aen_data_u    aen_data;
-	struct timeval          aen_tv;
+	u64			aen_tv_sec;
+	u64			aen_tv_usec;
 	u32                     seq_num;
 	u32                     bfad_num;
 };

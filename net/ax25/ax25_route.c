@@ -31,7 +31,7 @@
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <net/sock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -114,7 +114,7 @@ static int __must_check ax25_rt_add(struct ax25_routes_struct *route)
 		return -ENOMEM;
 	}
 
-	atomic_set(&ax25_rt->refcount, 1);
+	refcount_set(&ax25_rt->refcount, 1);
 	ax25_rt->callsign     = route->dest_addr;
 	ax25_rt->dev          = ax25_dev->dev;
 	ax25_rt->digipeat     = NULL;
@@ -323,26 +323,12 @@ static int ax25_rt_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations ax25_rt_seqops = {
+const struct seq_operations ax25_rt_seqops = {
 	.start = ax25_rt_seq_start,
 	.next = ax25_rt_seq_next,
 	.stop = ax25_rt_seq_stop,
 	.show = ax25_rt_seq_show,
 };
-
-static int ax25_rt_info_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &ax25_rt_seqops);
-}
-
-const struct file_operations ax25_route_fops = {
-	.owner = THIS_MODULE,
-	.open = ax25_rt_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
-
 #endif
 
 /*

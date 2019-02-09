@@ -41,12 +41,12 @@ static int __init linkstation_add_bridge(struct device_node *dev)
 	struct pci_controller *hose;
 	const int *bus_range;
 
-	printk("Adding PCI host bridge %s\n", dev->full_name);
+	printk("Adding PCI host bridge %pOF\n", dev);
 
 	bus_range = of_get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int))
-		printk(KERN_WARNING "Can't get bus-range for %s, assume"
-				" bus 0\n", dev->full_name);
+		printk(KERN_WARNING "Can't get bus-range for %pOF, assume"
+				" bus 0\n", dev);
 
 	hose = pcibios_alloc_controller(dev);
 	if (hose == NULL)
@@ -100,7 +100,7 @@ static void __init linkstation_init_IRQ(void)
 extern void avr_uart_configure(void);
 extern void avr_uart_send(const char);
 
-static void linkstation_restart(char *cmd)
+static void __noreturn linkstation_restart(char *cmd)
 {
 	local_irq_disable();
 
@@ -113,7 +113,7 @@ static void linkstation_restart(char *cmd)
 		avr_uart_send('G');	/* "kick" */
 }
 
-static void linkstation_power_off(void)
+static void __noreturn linkstation_power_off(void)
 {
 	local_irq_disable();
 
@@ -127,7 +127,7 @@ static void linkstation_power_off(void)
 	/* NOTREACHED */
 }
 
-static void linkstation_halt(void)
+static void __noreturn linkstation_halt(void)
 {
 	linkstation_power_off();
 	/* NOTREACHED */
@@ -141,11 +141,7 @@ static void linkstation_show_cpuinfo(struct seq_file *m)
 
 static int __init linkstation_probe(void)
 {
-	unsigned long root;
-
-	root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "linkstation"))
+	if (!of_machine_is_compatible("linkstation"))
 		return 0;
 
 	pm_power_off = linkstation_power_off;

@@ -19,24 +19,9 @@
 #include <asm/byteorder.h>		/* sigh ... */
 #include <asm/compiler.h>
 #include <asm/cpu-features.h>
+#include <asm/llsc.h>
 #include <asm/sgidefs.h>
 #include <asm/war.h>
-
-#if _MIPS_SZLONG == 32
-#define SZLONG_LOG 5
-#define SZLONG_MASK 31UL
-#define __LL		"ll	"
-#define __SC		"sc	"
-#define __INS		"ins	"
-#define __EXT		"ext	"
-#elif _MIPS_SZLONG == 64
-#define SZLONG_LOG 6
-#define SZLONG_MASK 63UL
-#define __LL		"lld	"
-#define __SC		"scd	"
-#define __INS		"dins	 "
-#define __EXT		"dext	 "
-#endif
 
 /*
  * These are the "slower" versions of the functions and are in bitops.c.
@@ -471,6 +456,7 @@ static inline void __clear_bit_unlock(unsigned long nr, volatile unsigned long *
 {
 	smp_mb__before_llsc();
 	__clear_bit(nr, addr);
+	nudge_writes();
 }
 
 /*

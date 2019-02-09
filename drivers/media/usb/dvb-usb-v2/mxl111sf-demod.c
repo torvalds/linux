@@ -12,10 +12,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "mxl111sf-demod.h"
@@ -35,7 +31,7 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
 struct mxl111sf_demod_state {
 	struct mxl111sf_state *mxl_state;
 
-	struct mxl111sf_demod_config *cfg;
+	const struct mxl111sf_demod_config *cfg;
 
 	struct dvb_frontend fe;
 };
@@ -481,10 +477,15 @@ static int mxl111sf_demod_read_signal_strength(struct dvb_frontend *fe,
 {
 	struct mxl111sf_demod_state *state = fe->demodulator_priv;
 	enum fe_modulation modulation;
+	int ret;
 	u16 snr;
 
-	mxl111sf_demod_calc_snr(state, &snr);
-	mxl1x1sf_demod_get_tps_modulation(state, &modulation);
+	ret = mxl111sf_demod_calc_snr(state, &snr);
+	if (ret < 0)
+		return ret;
+	ret = mxl1x1sf_demod_get_tps_modulation(state, &modulation);
+	if (ret < 0)
+		return ret;
 
 	switch (modulation) {
 	case QPSK:
@@ -507,9 +508,9 @@ static int mxl111sf_demod_read_signal_strength(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mxl111sf_demod_get_frontend(struct dvb_frontend *fe)
+static int mxl111sf_demod_get_frontend(struct dvb_frontend *fe,
+				       struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mxl111sf_demod_state *state = fe->demodulator_priv;
 
 	mxl_dbg("()");
@@ -549,13 +550,13 @@ static void mxl111sf_demod_release(struct dvb_frontend *fe)
 	fe->demodulator_priv = NULL;
 }
 
-static struct dvb_frontend_ops mxl111sf_demod_ops = {
+static const struct dvb_frontend_ops mxl111sf_demod_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name               = "MaxLinear MxL111SF DVB-T demodulator",
-		.frequency_min      = 177000000,
-		.frequency_max      = 858000000,
-		.frequency_stepsize = 166666,
+		.frequency_min_hz      = 177 * MHz,
+		.frequency_max_hz      = 858 * MHz,
+		.frequency_stepsize_hz = 166666,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
@@ -579,7 +580,7 @@ static struct dvb_frontend_ops mxl111sf_demod_ops = {
 };
 
 struct dvb_frontend *mxl111sf_demod_attach(struct mxl111sf_state *mxl_state,
-					   struct mxl111sf_demod_config *cfg)
+				   const struct mxl111sf_demod_config *cfg)
 {
 	struct mxl111sf_demod_state *state = NULL;
 

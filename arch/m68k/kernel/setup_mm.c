@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/m68k/kernel/setup.c
  *
@@ -20,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
@@ -87,7 +89,6 @@ void (*mach_get_hardware_list) (struct seq_file *m);
 /* machine dependent timer functions */
 int (*mach_hwclk) (int, struct rtc_time*);
 EXPORT_SYMBOL(mach_hwclk);
-int (*mach_set_clock_mmss) (unsigned long);
 unsigned int (*mach_get_ss)(void);
 int (*mach_get_rtc_pll)(struct rtc_pll_info *);
 int (*mach_set_rtc_pll)(struct rtc_pll_info *);
@@ -104,10 +105,6 @@ EXPORT_SYMBOL(mach_heartbeat);
 #endif
 #ifdef CONFIG_M68K_L2_CACHE
 void (*mach_l2_flush) (int);
-#endif
-#if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
-void (*mach_beep)(unsigned int, unsigned int);
-EXPORT_SYMBOL(mach_beep);
 #endif
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)
 int isa_type;
@@ -227,10 +224,6 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 
 void __init setup_arch(char **cmdline_p)
 {
-#ifndef CONFIG_SUN3
-	int i;
-#endif
-
 	/* The bootinfo is located right after the kernel */
 	if (!CPU_IS_COLDFIRE)
 		m68k_parse_bootinfo((const struct bi_record *)_end);
@@ -245,7 +238,7 @@ void __init setup_arch(char **cmdline_p)
 	 * We should really do our own FPU check at startup.
 	 * [what do we do with buggy 68LC040s? if we have problems
 	 *  with them, we should add a test to check_bugs() below] */
-#ifndef CONFIG_M68KFPU_EMU_ONLY
+#if defined(CONFIG_FPU) && !defined(CONFIG_M68KFPU_EMU_ONLY)
 	/* clear the fpu if we have one */
 	if (m68k_fputype & (FPU_68881|FPU_68882|FPU_68040|FPU_68060|FPU_COLDFIRE)) {
 		volatile int zero = 0;
@@ -274,6 +267,7 @@ void __init setup_arch(char **cmdline_p)
 	strncpy(m68k_command_line, CONFIG_BOOTPARAM_STRING, CL_SIZE);
 	m68k_command_line[CL_SIZE - 1] = 0;
 #endif /* CONFIG_BOOTPARAM */
+	process_uboot_commandline(&m68k_command_line[0], CL_SIZE);
 	*cmdline_p = m68k_command_line;
 	memcpy(boot_command_line, *cmdline_p, CL_SIZE);
 
@@ -341,6 +335,9 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #ifdef CONFIG_COLDFIRE
 	case MACH_M54XX:
+	case MACH_M5441X:
+		cf_bootmem_alloc();
+		cf_mmu_context_init();
 		config_BSP(NULL, 0);
 		break;
 #endif
@@ -355,14 +352,9 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifndef CONFIG_SUN3
-	for (i = 1; i < m68k_num_memory; i++)
-		free_bootmem_node(NODE_DATA(i), m68k_memory[i].addr,
-				  m68k_memory[i].size);
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (m68k_ramdisk.size) {
-		reserve_bootmem_node(__virt_to_node(phys_to_virt(m68k_ramdisk.addr)),
-				     m68k_ramdisk.addr, m68k_ramdisk.size,
-				     BOOTMEM_DEFAULT);
+		memblock_reserve(m68k_ramdisk.addr, m68k_ramdisk.size);
 		initrd_start = (unsigned long)phys_to_virt(m68k_ramdisk.addr);
 		initrd_end = initrd_start + m68k_ramdisk.size;
 		pr_info("initrd: %08lx - %08lx\n", initrd_start, initrd_end);
@@ -526,21 +518,9 @@ static int hardware_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int hardware_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, hardware_proc_show, NULL);
-}
-
-static const struct file_operations hardware_proc_fops = {
-	.open		= hardware_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init proc_hardware_init(void)
 {
-	proc_create("hardware", 0, NULL, &hardware_proc_fops);
+	proc_create_single("hardware", 0, NULL, hardware_proc_show);
 	return 0;
 }
 module_init(proc_hardware_init);
@@ -548,7 +528,7 @@ module_init(proc_hardware_init);
 
 void check_bugs(void)
 {
-#ifndef CONFIG_M68KFPU_EMU
+#if defined(CONFIG_FPU) && !defined(CONFIG_M68KFPU_EMU)
 	if (m68k_fputype == 0) {
 		pr_emerg("*** YOU DO NOT HAVE A FLOATING POINT UNIT, "
 			"WHICH IS REQUIRED BY LINUX/M68K ***\n");

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SPARC64_SWITCH_TO_64_H
 #define __SPARC64_SWITCH_TO_64_H
 
@@ -66,6 +67,7 @@ do {	save_and_clear_fpu();						\
 } while(0)
 
 void synchronize_user_stack(void);
-void fault_in_user_windows(void);
+struct pt_regs;
+void fault_in_user_windows(struct pt_regs *);
 
 #endif /* __SPARC64_SWITCH_TO_64_H */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	fs/bfs/dir.c
  *	BFS directory operations.
@@ -20,10 +21,9 @@
 #define dprintf(x...)
 #endif
 
-static int bfs_add_entry(struct inode *dir, const unsigned char *name,
-						int namelen, int ino);
+static int bfs_add_entry(struct inode *dir, const struct qstr *child, int ino);
 static struct buffer_head *bfs_find_entry(struct inode *dir,
-				const unsigned char *name, int namelen,
+				const struct qstr *child,
 				struct bfs_dirent **res_dir);
 
 static int bfs_readdir(struct file *f, struct dir_context *ctx)
@@ -70,7 +70,7 @@ static int bfs_readdir(struct file *f, struct dir_context *ctx)
 
 const struct file_operations bfs_dir_operations = {
 	.read		= generic_read_dir,
-	.iterate	= bfs_readdir,
+	.iterate_shared	= bfs_readdir,
 	.fsync		= generic_file_fsync,
 	.llseek		= generic_file_llseek,
 };
@@ -97,7 +97,7 @@ static int bfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	set_bit(ino, info->si_imap);
 	info->si_freei--;
 	inode_init_owner(inode, dir, mode);
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	inode->i_blocks = 0;
 	inode->i_op = &bfs_file_inops;
 	inode->i_fop = &bfs_file_operations;
@@ -110,8 +110,7 @@ static int bfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
         mark_inode_dirty(inode);
 	bfs_dump_imap("create", s);
 
-	err = bfs_add_entry(dir, dentry->d_name.name, dentry->d_name.len,
-							inode->i_ino);
+	err = bfs_add_entry(dir, &dentry->d_name, inode->i_ino);
 	if (err) {
 		inode_dec_link_count(inode);
 		mutex_unlock(&info->bfs_lock);
@@ -135,19 +134,14 @@ static struct dentry *bfs_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(-ENAMETOOLONG);
 
 	mutex_lock(&info->bfs_lock);
-	bh = bfs_find_entry(dir, dentry->d_name.name, dentry->d_name.len, &de);
+	bh = bfs_find_entry(dir, &dentry->d_name, &de);
 	if (bh) {
 		unsigned long ino = (unsigned long)le16_to_cpu(de->ino);
 		brelse(bh);
 		inode = bfs_iget(dir->i_sb, ino);
-		if (IS_ERR(inode)) {
-			mutex_unlock(&info->bfs_lock);
-			return ERR_CAST(inode);
-		}
 	}
 	mutex_unlock(&info->bfs_lock);
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 static int bfs_link(struct dentry *old, struct inode *dir,
@@ -158,14 +152,13 @@ static int bfs_link(struct dentry *old, struct inode *dir,
 	int err;
 
 	mutex_lock(&info->bfs_lock);
-	err = bfs_add_entry(dir, new->d_name.name, new->d_name.len,
-							inode->i_ino);
+	err = bfs_add_entry(dir, &new->d_name, inode->i_ino);
 	if (err) {
 		mutex_unlock(&info->bfs_lock);
 		return err;
 	}
 	inc_nlink(inode);
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 	ihold(inode);
 	d_instantiate(new, inode);
@@ -182,7 +175,7 @@ static int bfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
 
 	mutex_lock(&info->bfs_lock);
-	bh = bfs_find_entry(dir, dentry->d_name.name, dentry->d_name.len, &de);
+	bh = bfs_find_entry(dir, &dentry->d_name, &de);
 	if (!bh || (le16_to_cpu(de->ino) != inode->i_ino))
 		goto out_brelse;
 
@@ -194,7 +187,7 @@ static int bfs_unlink(struct inode *dir, struct dentry *dentry)
 	}
 	de->ino = 0;
 	mark_buffer_dirty_inode(bh, dir);
-	dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
+	dir->i_ctime = dir->i_mtime = current_time(dir);
 	mark_inode_dirty(dir);
 	inode->i_ctime = dir->i_ctime;
 	inode_dec_link_count(inode);
@@ -207,13 +200,17 @@ out_brelse:
 }
 
 static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir, struct dentry *new_dentry)
+		      struct inode *new_dir, struct dentry *new_dentry,
+		      unsigned int flags)
 {
 	struct inode *old_inode, *new_inode;
 	struct buffer_head *old_bh, *new_bh;
 	struct bfs_dirent *old_de, *new_de;
 	struct bfs_sb_info *info;
 	int error = -ENOENT;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	old_bh = new_bh = NULL;
 	old_inode = d_inode(old_dentry);
@@ -223,36 +220,30 @@ static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	info = BFS_SB(old_inode->i_sb);
 
 	mutex_lock(&info->bfs_lock);
-	old_bh = bfs_find_entry(old_dir, 
-				old_dentry->d_name.name, 
-				old_dentry->d_name.len, &old_de);
+	old_bh = bfs_find_entry(old_dir, &old_dentry->d_name, &old_de);
 
 	if (!old_bh || (le16_to_cpu(old_de->ino) != old_inode->i_ino))
 		goto end_rename;
 
 	error = -EPERM;
 	new_inode = d_inode(new_dentry);
-	new_bh = bfs_find_entry(new_dir, 
-				new_dentry->d_name.name, 
-				new_dentry->d_name.len, &new_de);
+	new_bh = bfs_find_entry(new_dir, &new_dentry->d_name, &new_de);
 
 	if (new_bh && !new_inode) {
 		brelse(new_bh);
 		new_bh = NULL;
 	}
 	if (!new_bh) {
-		error = bfs_add_entry(new_dir, 
-					new_dentry->d_name.name,
-					new_dentry->d_name.len,
+		error = bfs_add_entry(new_dir, &new_dentry->d_name,
 					old_inode->i_ino);
 		if (error)
 			goto end_rename;
 	}
 	old_de->ino = 0;
-	old_dir->i_ctime = old_dir->i_mtime = CURRENT_TIME_SEC;
+	old_dir->i_ctime = old_dir->i_mtime = current_time(old_dir);
 	mark_inode_dirty(old_dir);
 	if (new_inode) {
-		new_inode->i_ctime = CURRENT_TIME_SEC;
+		new_inode->i_ctime = current_time(new_inode);
 		inode_dec_link_count(new_inode);
 	}
 	mark_buffer_dirty_inode(old_bh, old_dir);
@@ -273,9 +264,10 @@ const struct inode_operations bfs_dir_inops = {
 	.rename			= bfs_rename,
 };
 
-static int bfs_add_entry(struct inode *dir, const unsigned char *name,
-							int namelen, int ino)
+static int bfs_add_entry(struct inode *dir, const struct qstr *child, int ino)
 {
+	const unsigned char *name = child->name;
+	int namelen = child->len;
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
 	int block, sblock, eblock, off, pos;
@@ -300,9 +292,9 @@ static int bfs_add_entry(struct inode *dir, const unsigned char *name,
 				pos = (block - sblock) * BFS_BSIZE + off;
 				if (pos >= dir->i_size) {
 					dir->i_size += BFS_DIRENT_SIZE;
-					dir->i_ctime = CURRENT_TIME_SEC;
+					dir->i_ctime = current_time(dir);
 				}
-				dir->i_mtime = CURRENT_TIME_SEC;
+				dir->i_mtime = current_time(dir);
 				mark_inode_dirty(dir);
 				de->ino = cpu_to_le16((u16)ino);
 				for (i = 0; i < BFS_NAMELEN; i++)
@@ -327,12 +319,14 @@ static inline int bfs_namecmp(int len, const unsigned char *name,
 }
 
 static struct buffer_head *bfs_find_entry(struct inode *dir,
-			const unsigned char *name, int namelen,
+			const struct qstr *child,
 			struct bfs_dirent **res_dir)
 {
 	unsigned long block = 0, offset = 0;
 	struct buffer_head *bh = NULL;
 	struct bfs_dirent *de;
+	const unsigned char *name = child->name;
+	int namelen = child->len;
 
 	*res_dir = NULL;
 	if (namelen > BFS_NAMELEN)

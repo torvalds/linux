@@ -42,30 +42,29 @@ export PLATFORM
 
 # temporarily until string.h is fixed
 KBUILD_CFLAGS += -ffreestanding -D__linux__
-
-KBUILD_CFLAGS += -pipe -mlongcalls
-
+KBUILD_CFLAGS += -pipe -mlongcalls -mtext-section-literals
 KBUILD_CFLAGS += $(call cc-option,-mforce-no-pic,)
+KBUILD_CFLAGS += $(call cc-option,-mno-serialize-volatile,)
+
+KBUILD_AFLAGS += -mlongcalls -mtext-section-literals
 
 ifneq ($(CONFIG_LD_NO_RELAX),)
-LDFLAGS := --no-relax
+KBUILD_LDFLAGS := --no-relax
 endif
 
 ifeq ($(shell echo __XTENSA_EB__ | $(CC) -E - | grep -v "\#"),1)
 CHECKFLAGS += -D__XTENSA_EB__
+KBUILD_CPPFLAGS += -DCONFIG_CPU_BIG_ENDIAN
 endif
 ifeq ($(shell echo __XTENSA_EL__ | $(CC) -E - | grep -v "\#"),1)
 CHECKFLAGS += -D__XTENSA_EL__
+KBUILD_CPPFLAGS += -DCONFIG_CPU_LITTLE_ENDIAN
 endif
 
 vardirs := $(patsubst %,arch/xtensa/variants/%/,$(variant-y))
 plfdirs := $(patsubst %,arch/xtensa/platforms/%/,$(platform-y))
 
-ifeq ($(KBUILD_SRC),)
-KBUILD_CPPFLAGS += $(patsubst %,-I%include,$(vardirs) $(plfdirs))
-else
 KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(vardirs) $(plfdirs))
-endif
 
 KBUILD_DEFCONFIG := iss_defconfig
 
@@ -91,11 +90,7 @@ endif
 
 boot		:= arch/xtensa/boot
 
-all: zImage
-
-bzImage : zImage
-
-zImage: vmlinux
+all Image zImage uImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 %.dtb:
@@ -105,6 +100,8 @@ dtbs: scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts
 
 define archhelp
+  @echo '* Image       - Kernel ELF image with reset vector'
   @echo '* zImage      - Compressed kernel image (arch/xtensa/boot/images/zImage.*)'
+  @echo '* uImage      - U-Boot wrapped image'
   @echo '  dtbs        - Build device tree blobs for enabled boards'
 endef

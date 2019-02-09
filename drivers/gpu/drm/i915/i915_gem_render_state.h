@@ -24,26 +24,8 @@
 #ifndef _I915_GEM_RENDER_STATE_H_
 #define _I915_GEM_RENDER_STATE_H_
 
-#include <linux/types.h>
+struct i915_request;
 
-struct intel_renderstate_rodata {
-	const u32 *reloc;
-	const u32 *batch;
-	const u32 batch_items;
-};
-
-struct render_state {
-	const struct intel_renderstate_rodata *rodata;
-	struct drm_i915_gem_object *obj;
-	u64 ggtt_offset;
-	int gen;
-	u32 aux_batch_size;
-	u32 aux_batch_offset;
-};
-
-int i915_gem_render_state_init(struct drm_i915_gem_request *req);
-void i915_gem_render_state_fini(struct render_state *so);
-int i915_gem_render_state_prepare(struct intel_engine_cs *ring,
-				  struct render_state *so);
+int i915_gem_render_state_emit(struct i915_request *rq);
 
 #endif /* _I915_GEM_RENDER_STATE_H_ */

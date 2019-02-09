@@ -82,15 +82,14 @@ n64_syscall_exit:
 
 syscall_trace_entry:
 	SAVE_STATIC
-	move	s0, v0
 	move	a0, sp
 	move	a1, v0
 	jal	syscall_trace_enter
 
 	bltz	v0, 1f			# seccomp failed? Skip syscall
 
-	move	v0, s0
 	RESTORE_STATIC
+	ld	v0, PT_R2(sp)		# Restore syscall (maybe modified)
 	ld	a0, PT_R4(sp)		# Restore argument registers
 	ld	a1, PT_R5(sp)
 	ld	a2, PT_R6(sp)
@@ -312,7 +311,7 @@ EXPORT(sys_call_table)
 	PTR	sys_sched_getaffinity
 	PTR	sys_cacheflush
 	PTR	sys_cachectl
-	PTR	sys_sysmips
+	PTR	__sys_sysmips
 	PTR	sys_io_setup			/* 5200 */
 	PTR	sys_io_destroy
 	PTR	sys_io_getevents
@@ -433,4 +432,13 @@ EXPORT(sys_call_table)
 	PTR	sys_userfaultfd
 	PTR	sys_membarrier
 	PTR	sys_mlock2
+	PTR	sys_copy_file_range		/* 5320 */
+	PTR	sys_preadv2
+	PTR	sys_pwritev2
+	PTR	sys_pkey_mprotect
+	PTR	sys_pkey_alloc
+	PTR	sys_pkey_free			/* 5325 */
+	PTR	sys_statx
+	PTR	sys_rseq
+	PTR	sys_io_pgetevents
 	.size	sys_call_table,.-sys_call_table

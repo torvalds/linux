@@ -24,7 +24,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mfd/tc6393xb.h>
 #include <linux/mfd/tmio.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pm.h>
@@ -35,7 +35,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/input/matrix_keypad.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/reboot.h>
 #include <linux/memblock.h>
@@ -43,12 +43,12 @@
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 
-#include <mach/pxa25x.h>
+#include "pxa25x.h"
 #include <mach/reset.h>
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/mmc-pxamci.h>
-#include <mach/udc.h>
-#include <mach/tosa_bt.h>
+#include "udc.h"
+#include "tosa_bt.h"
 #include <mach/audio.h>
 #include <mach/smemc.h>
 
@@ -673,24 +673,6 @@ static int tosa_tc6393xb_suspend(struct platform_device *dev)
 	return 0;
 }
 
-static struct mtd_partition tosa_nand_partition[] = {
-	{
-		.name	= "smf",
-		.offset	= 0,
-		.size	= 7 * 1024 * 1024,
-	},
-	{
-		.name	= "root",
-		.offset	= MTDPART_OFS_APPEND,
-		.size	= 28 * 1024 * 1024,
-	},
-	{
-		.name	= "home",
-		.offset	= MTDPART_OFS_APPEND,
-		.size	= MTDPART_SIZ_FULL,
-	},
-};
-
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
 static struct nand_bbt_descr tosa_tc6393xb_nand_bbt = {
@@ -700,10 +682,16 @@ static struct nand_bbt_descr tosa_tc6393xb_nand_bbt = {
 	.pattern	= scan_ff_pattern
 };
 
+static const char * const probes[] = {
+	"cmdlinepart",
+	"ofpart",
+	"sharpslpart",
+	NULL,
+};
+
 static struct tmio_nand_data tosa_tc6393xb_nand_config = {
-	.num_partitions	= ARRAY_SIZE(tosa_nand_partition),
-	.partition	= tosa_nand_partition,
 	.badblock_pattern = &tosa_tc6393xb_nand_bbt,
+	.part_parsers = probes,
 };
 
 static int tosa_tc6393xb_setup(struct platform_device *dev)

@@ -370,14 +370,17 @@ ENDPROC(sha512_transform_avx)
 ########################################################################
 ### Binary Data
 
-.data
-
+.section	.rodata.cst16.XMM_QWORD_BSWAP, "aM", @progbits, 16
 .align 16
-
 # Mask for byte-swapping a couple of qwords in an XMM register using (v)pshufb.
 XMM_QWORD_BSWAP:
 	.octa 0x08090a0b0c0d0e0f0001020304050607
 
+# Mergeable 640-byte rodata section. This allows linker to merge the table
+# with other, exactly the same 640-byte fragment of another rodata section
+# (if such section exists).
+.section	.rodata.cst640.K512, "aM", @progbits, 640
+.align 64
 # K[t] used in SHA512 hashing
 K512:
 	.quad 0x428a2f98d728ae22,0x7137449123ef65cd

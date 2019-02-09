@@ -119,6 +119,7 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 				aModeRefSel = 2;
 			if (aModeRefSel)
 				break;
+			/* else: fall through */
 		case 1:
 		default:
 			aModeRefSel = 0;
@@ -178,13 +179,8 @@ static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 	int i;
 	struct chan_centers centers;
 
-	int8_t mask_m[123];
-	int8_t mask_p[123];
 	int cur_bb_spur;
 	bool is2GHz = IS_CHAN_2GHZ(chan);
-
-	memset(&mask_m, 0, sizeof(int8_t) * 123);
-	memset(&mask_p, 0, sizeof(int8_t) * 123);
 
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 	freq = centers.synth_center;
@@ -481,6 +477,7 @@ static void ar9002_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 				    struct ath_spec_scan *param)
 {
+	u32 repeat_bit;
 	u8 count;
 
 	if (!param->enabled) {
@@ -491,12 +488,15 @@ static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 	REG_SET_BIT(ah, AR_PHY_RADAR_0, AR_PHY_RADAR_0_FFT_ENA);
 	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN, AR_PHY_SPECTRAL_SCAN_ENABLE);
 
-	if (param->short_repeat)
-		REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
-			    AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT);
+	if (AR_SREV_9280(ah))
+		repeat_bit = AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT;
 	else
-		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN,
-			    AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT);
+		repeat_bit = AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT_KIWI;
+
+	if (param->short_repeat)
+		REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN, repeat_bit);
+	else
+		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN, repeat_bit);
 
 	/* on AR92xx, the highest bit of count will make the the chip send
 	 * spectral samples endlessly. Check if this really was intended,
@@ -504,15 +504,25 @@ static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 	 */
 	count = param->count;
 	if (param->endless) {
-		if (AR_SREV_9271(ah))
-			count = 0;
-		else
+		if (AR_SREV_9280(ah))
 			count = 0x80;
+		else
+			count = 0;
 	} else if (count & 0x80)
 		count = 0x7f;
+	else if (!count)
+		count = 1;
 
-	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
-		      AR_PHY_SPECTRAL_SCAN_COUNT, count);
+	if (AR_SREV_9280(ah)) {
+		REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+			      AR_PHY_SPECTRAL_SCAN_COUNT, count);
+	} else {
+		REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+			      AR_PHY_SPECTRAL_SCAN_COUNT_KIWI, count);
+		REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_PHYERR_MASK_SELECT);
+	}
+
 	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
 		      AR_PHY_SPECTRAL_SCAN_PERIOD, param->period);
 	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,

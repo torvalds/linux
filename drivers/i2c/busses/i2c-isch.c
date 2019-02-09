@@ -164,7 +164,7 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 		 * run ~75 kHz instead which should do no harm.
 		 */
 		dev_notice(&sch_adapter.dev,
-			"Clock divider unitialized. Setting defaults\n");
+			"Clock divider uninitialized. Setting defaults\n");
 		outw(backbone_speed / (4 * 100), SMBHSTCLK);
 	}
 
@@ -288,10 +288,8 @@ static int smbus_sch_probe(struct platform_device *dev)
 		"SMBus SCH adapter at %04x", sch_smba);
 
 	retval = i2c_add_adapter(&sch_adapter);
-	if (retval) {
-		dev_err(&dev->dev, "Couldn't register adapter!\n");
+	if (retval)
 		sch_smba = 0;
-	}
 
 	return retval;
 }

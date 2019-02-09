@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000,2002-2003,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_ATTR_H__
 #define	__XFS_ATTR_H__
@@ -48,6 +36,8 @@ struct xfs_attr_list_context;
 #define ATTR_KERNOTIME	0x1000	/* [kernel] don't update inode timestamps */
 #define ATTR_KERNOVAL	0x2000	/* [kernel] get attr size only, not value */
 
+#define ATTR_INCOMPLETE	0x4000	/* [kernel] return INCOMPLETE attr keys */
+
 #define XFS_ATTR_FLAGS \
 	{ ATTR_DONTFOLLOW, 	"DONTFOLLOW" }, \
 	{ ATTR_ROOT,		"ROOT" }, \
@@ -56,7 +46,8 @@ struct xfs_attr_list_context;
 	{ ATTR_CREATE,		"CREATE" }, \
 	{ ATTR_REPLACE,		"REPLACE" }, \
 	{ ATTR_KERNOTIME,	"KERNOTIME" }, \
-	{ ATTR_KERNOVAL,	"KERNOVAL" }
+	{ ATTR_KERNOVAL,	"KERNOVAL" }, \
+	{ ATTR_INCOMPLETE,	"INCOMPLETE" }
 
 /*
  * The maximum size (into the kernel or returned from the kernel) of an
@@ -112,10 +103,12 @@ typedef struct attrlist_cursor_kern {
  *========================================================================*/
 
 
-typedef int (*put_listent_func_t)(struct xfs_attr_list_context *, int,
-			      unsigned char *, int, int, unsigned char *);
+/* void; state communicated via *context */
+typedef void (*put_listent_func_t)(struct xfs_attr_list_context *, int,
+			      unsigned char *, int, int);
 
 typedef struct xfs_attr_list_context {
+	struct xfs_trans		*tp;
 	struct xfs_inode		*dp;		/* inode */
 	struct attrlist_cursor_kern	*cursor;	/* position in list */
 	char				*alist;		/* output buffer */
@@ -126,7 +119,6 @@ typedef struct xfs_attr_list_context {
 	int				firstu;		/* first used byte in buffer */
 	int				flags;		/* from VOP call */
 	int				resynch;	/* T/F: resynch with cursor */
-	int				put_value;	/* T/F: need value for listent */
 	put_listent_func_t		put_listent;	/* list output fmt function */
 	int				index;		/* index into output buffer */
 } xfs_attr_list_context_t;
@@ -140,8 +132,10 @@ typedef struct xfs_attr_list_context {
  * Overall external interface routines.
  */
 int xfs_attr_inactive(struct xfs_inode *dp);
+int xfs_attr_list_int_ilocked(struct xfs_attr_list_context *);
 int xfs_attr_list_int(struct xfs_attr_list_context *);
 int xfs_inode_hasattr(struct xfs_inode *ip);
+int xfs_attr_get_ilocked(struct xfs_inode *ip, struct xfs_da_args *args);
 int xfs_attr_get(struct xfs_inode *ip, const unsigned char *name,
 		 unsigned char *value, int *valuelenp, int flags);
 int xfs_attr_set(struct xfs_inode *dp, const unsigned char *name,

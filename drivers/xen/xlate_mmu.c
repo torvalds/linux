@@ -29,14 +29,18 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
 
 #include <xen/xen.h>
+#include <xen/xen-ops.h>
 #include <xen/page.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/memory.h>
+#include <xen/balloon.h>
 
 typedef void (*xen_gfn_fn_t)(unsigned long gfn, void *data);
 
@@ -185,3 +189,77 @@ int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xen_xlate_unmap_gfn_range);
+
+struct map_balloon_pages {
+	xen_pfn_t *pfns;
+	unsigned int idx;
+};
+
+static void setup_balloon_gfn(unsigned long gfn, void *data)
+{
+	struct map_balloon_pages *info = data;
+
+	info->pfns[info->idx++] = gfn;
+}
+
+/**
+ * xen_xlate_map_ballooned_pages - map a new set of ballooned pages
+ * @gfns: returns the array of corresponding GFNs
+ * @virt: returns the virtual address of the mapped region
+ * @nr_grant_frames: number of GFNs
+ * @return 0 on success, error otherwise
+ *
+ * This allocates a set of ballooned pages and maps them into the
+ * kernel's address space.
+ */
+int __init xen_xlate_map_ballooned_pages(xen_pfn_t **gfns, void **virt,
+					 unsigned long nr_grant_frames)
+{
+	struct page **pages;
+	xen_pfn_t *pfns;
+	void *vaddr;
+	struct map_balloon_pages data;
+	int rc;
+	unsigned long nr_pages;
+
+	BUG_ON(nr_grant_frames == 0);
+	nr_pages = DIV_ROUND_UP(nr_grant_frames, XEN_PFN_PER_PAGE);
+	pages = kcalloc(nr_pages, sizeof(pages[0]), GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+
+	pfns = kcalloc(nr_grant_frames, sizeof(pfns[0]), GFP_KERNEL);
+	if (!pfns) {
+		kfree(pages);
+		return -ENOMEM;
+	}
+	rc = alloc_xenballooned_pages(nr_pages, pages);
+	if (rc) {
+		pr_warn("%s Couldn't balloon alloc %ld pages rc:%d\n", __func__,
+			nr_pages, rc);
+		kfree(pages);
+		kfree(pfns);
+		return rc;
+	}
+
+	data.pfns = pfns;
+	data.idx = 0;
+	xen_for_each_gfn(pages, nr_grant_frames, setup_balloon_gfn, &data);
+
+	vaddr = vmap(pages, nr_pages, 0, PAGE_KERNEL);
+	if (!vaddr) {
+		pr_warn("%s Couldn't map %ld pages rc:%d\n", __func__,
+			nr_pages, rc);
+		free_xenballooned_pages(nr_pages, pages);
+		kfree(pages);
+		kfree(pfns);
+		return -ENOMEM;
+	}
+	kfree(pages);
+
+	*gfns = pfns;
+	*virt = vaddr;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xen_xlate_map_ballooned_pages);

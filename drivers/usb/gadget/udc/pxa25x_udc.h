@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Intel PXA25x on-chip full speed USB device controller
  *
  * Copyright (C) 2003 Robert Schwebel <r.schwebel@pengutronix.de>, Pengutronix
  * Copyright (C) 2003 David Brownell
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __LINUX_USB_GADGET_PXA25X_H
@@ -56,9 +51,9 @@ struct pxa25x_ep {
 	 * UDDR = UDC Endpoint Data Register (the fifo)
 	 * DRCM = DMA Request Channel Map
 	 */
-	volatile u32				*reg_udccs;
-	volatile u32				*reg_ubcr;
-	volatile u32				*reg_uddr;
+	u32					regoff_udccs;
+	u32					regoff_ubcr;
+	u32					regoff_uddr;
 };
 
 struct pxa25x_request {
@@ -125,6 +120,7 @@ struct pxa25x_udc {
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	struct dentry				*debugfs_udc;
 #endif
+	void __iomem				*regs;
 };
 #define to_pxa25x(g)	(container_of((g), struct pxa25x_udc, gadget))
 
@@ -197,6 +193,8 @@ dump_udccs0(const char *label)
 		(udccs0 & UDCCS0_OPR) ? " opr" : "");
 }
 
+static inline u32 udc_ep_get_UDCCS(struct pxa25x_ep *);
+
 static void __maybe_unused
 dump_state(struct pxa25x_udc *dev)
 {
@@ -228,7 +226,7 @@ dump_state(struct pxa25x_udc *dev)
 	for (i = 1; i < PXA_UDC_NUM_ENDPOINTS; i++) {
 		if (dev->ep[i].ep.desc == NULL)
 			continue;
-		DMSG ("udccs%d = %02x\n", i, *dev->ep->reg_udccs);
+		DMSG ("udccs%d = %02x\n", i, udc_ep_get_UDCCS(&dev->ep[i]));
 	}
 }
 
@@ -245,7 +243,7 @@ dump_state(struct pxa25x_udc *dev)
 #define DBG(lvl, stuff...) do{if ((lvl) <= UDC_DEBUG) DMSG(stuff);}while(0)
 
 #define ERR(stuff...)		pr_err("udc: " stuff)
-#define WARNING(stuff...)	pr_warning("udc: " stuff)
+#define WARNING(stuff...)	pr_warn("udc: " stuff)
 #define INFO(stuff...)		pr_info("udc: " stuff)
 
 

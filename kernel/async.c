@@ -84,20 +84,24 @@ static atomic_t entry_count;
 
 static async_cookie_t lowest_in_progress(struct async_domain *domain)
 {
-	struct list_head *pending;
+	struct async_entry *first = NULL;
 	async_cookie_t ret = ASYNC_COOKIE_MAX;
 	unsigned long flags;
 
 	spin_lock_irqsave(&async_lock, flags);
 
-	if (domain)
-		pending = &domain->pending;
-	else
-		pending = &async_global_pending;
+	if (domain) {
+		if (!list_empty(&domain->pending))
+			first = list_first_entry(&domain->pending,
+					struct async_entry, domain_list);
+	} else {
+		if (!list_empty(&async_global_pending))
+			first = list_first_entry(&async_global_pending,
+					struct async_entry, global_list);
+	}
 
-	if (!list_empty(pending))
-		ret = list_first_entry(pending, struct async_entry,
-				       domain_list)->cookie;
+	if (first)
+		ret = first->cookie;
 
 	spin_unlock_irqrestore(&async_lock, flags);
 	return ret;
@@ -114,14 +118,14 @@ static void async_run_entry_fn(struct work_struct *work)
 	ktime_t uninitialized_var(calltime), delta, rettime;
 
 	/* 1) run (and print duration) */
-	if (initcall_debug && system_state == SYSTEM_BOOTING) {
+	if (initcall_debug && system_state < SYSTEM_RUNNING) {
 		pr_debug("calling  %lli_%pF @ %i\n",
 			(long long)entry->cookie,
 			entry->func, task_pid_nr(current));
 		calltime = ktime_get();
 	}
 	entry->func(entry->data, entry->cookie);
-	if (initcall_debug && system_state == SYSTEM_BOOTING) {
+	if (initcall_debug && system_state < SYSTEM_RUNNING) {
 		rettime = ktime_get();
 		delta = ktime_sub(rettime, calltime);
 		pr_debug("initcall %lli_%pF returned 0 after %lld usecs\n",
@@ -284,14 +288,14 @@ void async_synchronize_cookie_domain(async_cookie_t cookie, struct async_domain 
 {
 	ktime_t uninitialized_var(starttime), delta, endtime;
 
-	if (initcall_debug && system_state == SYSTEM_BOOTING) {
+	if (initcall_debug && system_state < SYSTEM_RUNNING) {
 		pr_debug("async_waiting @ %i\n", task_pid_nr(current));
 		starttime = ktime_get();
 	}
 
 	wait_event(async_done, lowest_in_progress(domain) >= cookie);
 
-	if (initcall_debug && system_state == SYSTEM_BOOTING) {
+	if (initcall_debug && system_state < SYSTEM_RUNNING) {
 		endtime = ktime_get();
 		delta = ktime_sub(endtime, starttime);
 
@@ -326,3 +330,4 @@ bool current_is_async(void)
 
 	return worker && worker->current_func == async_run_entry_fn;
 }
+EXPORT_SYMBOL_GPL(current_is_async);

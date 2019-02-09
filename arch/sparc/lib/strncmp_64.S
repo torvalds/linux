@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Sparc64 optimized strncmp code.
  *
@@ -6,6 +7,7 @@
 
 #include <linux/linkage.h>
 #include <asm/asi.h>
+#include <asm/export.h>
 
 	.text
 ENTRY(strncmp)
@@ -28,3 +30,4 @@ ENTRY(strncmp)
 	retl
 	 clr	%o0
 ENDPROC(strncmp)
+EXPORT_SYMBOL(strncmp)

@@ -52,7 +52,7 @@ udl_gem_create(struct drm_file *file,
 		return ret;
 	}
 
-	drm_gem_object_unreference(&obj->base);
+	drm_gem_object_put_unlocked(&obj->base);
 	*handle_p = handle;
 	return 0;
 }
@@ -100,31 +100,20 @@ int udl_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ret;
 }
 
-int udl_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+vm_fault_t udl_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct udl_gem_object *obj = to_udl_bo(vma->vm_private_data);
 	struct page *page;
 	unsigned int page_offset;
-	int ret = 0;
 
-	page_offset = ((unsigned long)vmf->virtual_address - vma->vm_start) >>
-		PAGE_SHIFT;
+	page_offset = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
 	if (!obj->pages)
 		return VM_FAULT_SIGBUS;
 
 	page = obj->pages[page_offset];
-	ret = vm_insert_page(vma, (unsigned long)vmf->virtual_address, page);
-	switch (ret) {
-	case -EAGAIN:
-	case 0:
-	case -ERESTARTSYS:
-		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	default:
-		return VM_FAULT_SIGBUS;
-	}
+	return vmf_insert_page(vma, vmf->address, page);
 }
 
 int udl_gem_get_pages(struct udl_gem_object *obj)
@@ -146,7 +135,7 @@ int udl_gem_get_pages(struct udl_gem_object *obj)
 void udl_gem_put_pages(struct udl_gem_object *obj)
 {
 	if (obj->base.import_attach) {
-		drm_free_large(obj->pages);
+		kvfree(obj->pages);
 		obj->pages = NULL;
 		return;
 	}
@@ -214,10 +203,11 @@ int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 {
 	struct udl_gem_object *gobj;
 	struct drm_gem_object *obj;
+	struct udl_device *udl = dev->dev_private;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
-	obj = drm_gem_object_lookup(dev, file, handle);
+	mutex_lock(&udl->gem_lock);
+	obj = drm_gem_object_lookup(file, handle);
 	if (obj == NULL) {
 		ret = -ENOENT;
 		goto unlock;
@@ -234,8 +224,8 @@ int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 	*offset = drm_vma_node_offset_addr(&gobj->base.vma_node);
 
 out:
-	drm_gem_object_unreference(&gobj->base);
+	drm_gem_object_put(&gobj->base);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&udl->gem_lock);
 	return ret;
 }

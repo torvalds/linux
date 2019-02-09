@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Device Tree file for Seagate Blackarmor NAS220
  *
  * Copyright (C) 2014 Evgeni Dobrev <evgeni@studio-punkt.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 /dts-v1/;
@@ -36,13 +35,13 @@
 	gpio_keys {
 		compatible = "gpio-keys";
 
-		button@1{
+		reset {
 			label = "Reset";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
 		};
 
-		button@2{
+		button {
 			label = "Power";
 			linux,code = <KEY_SLEEP>;
 			gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;

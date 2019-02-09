@@ -1,0 +1,7 @@
+config XDP_SOCKETS
+	bool "XDP sockets"
+	depends on BPF_SYSCALL
+	default n
+	help
+	  XDP sockets allows a channel between XDP programs and
+	  userspace applications.

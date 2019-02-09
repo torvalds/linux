@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <errno.h>
+#include <inttypes.h>
 #include <linux/kernel.h>
 #include <traceevent/event-parse.h>
+#include <api/fs/fs.h>
 
 #include <byteswap.h>
 #include <unistd.h>
@@ -8,6 +12,7 @@
 
 #include "evlist.h"
 #include "evsel.h"
+#include "memswap.h"
 #include "session.h"
 #include "tool.h"
 #include "sort.h"
@@ -16,24 +21,29 @@
 #include "perf_regs.h"
 #include "asm/bug.h"
 #include "auxtrace.h"
+#include "thread.h"
 #include "thread-stack.h"
+#include "stat.h"
+#include "arch/common.h"
 
 static int perf_session__deliver_event(struct perf_session *session,
 				       union perf_event *event,
-				       struct perf_sample *sample,
 				       struct perf_tool *tool,
 				       u64 file_offset);
 
 static int perf_session__open(struct perf_session *session)
 {
-	struct perf_data_file *file = session->file;
+	struct perf_data *data = session->data;
 
 	if (perf_session__read_header(session) < 0) {
 		pr_err("incompatible file format (rerun with -v to learn more)\n");
 		return -1;
 	}
 
-	if (perf_data_file__is_pipe(file))
+	if (perf_data__is_pipe(data))
+		return 0;
+
+	if (perf_header__has_feat(&session->header, HEADER_STAT))
 		return 0;
 
 	if (!perf_evlist__valid_sample_type(session->evlist)) {
@@ -79,7 +89,7 @@ static bool perf_session__has_comm_exec(struct perf_session *session)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (evsel->attr.comm_exec)
 			return true;
 	}
@@ -97,21 +107,14 @@ static void perf_session__set_comm_exec(struct perf_session *session)
 static int ordered_events__deliver_event(struct ordered_events *oe,
 					 struct ordered_event *event)
 {
-	struct perf_sample sample;
 	struct perf_session *session = container_of(oe, struct perf_session,
 						    ordered_events);
-	int ret = perf_evlist__parse_sample(session->evlist, event->event, &sample);
 
-	if (ret) {
-		pr_err("Can't parse sample, err = %d\n", ret);
-		return ret;
-	}
-
-	return perf_session__deliver_event(session, event->event, &sample,
+	return perf_session__deliver_event(session, event->event,
 					   session->tool, event->file_offset);
 }
 
-struct perf_session *perf_session__new(struct perf_data_file *file,
+struct perf_session *perf_session__new(struct perf_data *data,
 				       bool repipe, struct perf_tool *tool)
 {
 	struct perf_session *session = zalloc(sizeof(*session));
@@ -125,24 +128,33 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 	machines__init(&session->machines);
 	ordered_events__init(&session->ordered_events, ordered_events__deliver_event);
 
-	if (file) {
-		if (perf_data_file__open(file))
+	if (data) {
+		if (perf_data__open(data))
 			goto out_delete;
 
-		session->file = file;
+		session->data = data;
 
-		if (perf_data_file__is_read(file)) {
+		if (perf_data__is_read(data)) {
 			if (perf_session__open(session) < 0)
 				goto out_close;
 
-			perf_session__set_id_hdr_size(session);
-			perf_session__set_comm_exec(session);
+			/*
+			 * set session attributes that are present in perf.data
+			 * but not in pipe-mode.
+			 */
+			if (!data->is_pipe) {
+				perf_session__set_id_hdr_size(session);
+				perf_session__set_comm_exec(session);
+			}
 		}
 	} else  {
 		session->machines.host.env = &perf_env;
 	}
 
-	if (!file || perf_data_file__is_write(file)) {
+	session->machines.host.single_address_space =
+		perf_env__single_address_space(session->machines.host.env);
+
+	if (!data || perf_data__is_write(data)) {
 		/*
 		 * In O_RDONLY mode this will be performed when reading the
 		 * kernel MMAP event, in perf_event__process_mmap().
@@ -151,7 +163,11 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 			pr_warning("Cannot read kernel map\n");
 	}
 
-	if (tool && tool->ordering_requires_timestamps &&
+	/*
+	 * In pipe-mode, evlist is empty until PERF_RECORD_HEADER_ATTR is
+	 * processed, so perf_evlist__sample_id_all is not meaningful here.
+	 */
+	if ((!data || !data->is_pipe) && tool && tool->ordering_requires_timestamps &&
 	    tool->ordered_events && !perf_evlist__sample_id_all(session->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		tool->ordered_events = false;
@@ -160,7 +176,7 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 	return session;
 
  out_close:
-	perf_data_file__close(file);
+	perf_data__close(data);
  out_delete:
 	perf_session__delete(session);
  out:
@@ -174,14 +190,16 @@ static void perf_session__delete_threads(struct perf_session *session)
 
 void perf_session__delete(struct perf_session *session)
 {
+	if (session == NULL)
+		return;
 	auxtrace__free(session);
 	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);
 	perf_session__delete_threads(session);
 	perf_env__exit(&session->header.env);
 	machines__exit(&session->machines);
-	if (session->file)
-		perf_data_file__close(session->file);
+	if (session->data)
+		perf_data__close(session->data);
 	free(session);
 }
 
@@ -205,6 +223,18 @@ static int process_event_synth_attr_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+static int process_event_synth_event_update_stub(struct perf_tool *tool __maybe_unused,
+						 union perf_event *event __maybe_unused,
+						 struct perf_evlist **pevlist
+						 __maybe_unused)
+{
+	if (dump_trace)
+		perf_event__fprintf_event_update(event, stdout);
+
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
 static int process_event_sample_stub(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event __maybe_unused,
 				     struct perf_sample *sample __maybe_unused,
@@ -224,14 +254,6 @@ static int process_event_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int process_build_id_stub(struct perf_tool *tool __maybe_unused,
-				 union perf_event *event __maybe_unused,
-				 struct perf_session *session __maybe_unused)
-{
-	dump_printf(": unhandled!\n");
-	return 0;
-}
-
 static int process_finished_round_stub(struct perf_tool *tool __maybe_unused,
 				       union perf_event *event __maybe_unused,
 				       struct ordered_events *oe __maybe_unused)
@@ -243,23 +265,6 @@ static int process_finished_round_stub(struct perf_tool *tool __maybe_unused,
 static int process_finished_round(struct perf_tool *tool,
 				  union perf_event *event,
 				  struct ordered_events *oe);
-
-static int process_id_index_stub(struct perf_tool *tool __maybe_unused,
-				 union perf_event *event __maybe_unused,
-				 struct perf_session *perf_session
-				 __maybe_unused)
-{
-	dump_printf(": unhandled!\n");
-	return 0;
-}
-
-static int process_event_auxtrace_info_stub(struct perf_tool *tool __maybe_unused,
-				union perf_event *event __maybe_unused,
-				struct perf_session *session __maybe_unused)
-{
-	dump_printf(": unhandled!\n");
-	return 0;
-}
 
 static int skipn(int fd, off_t n)
 {
@@ -282,16 +287,76 @@ static s64 process_event_auxtrace_stub(struct perf_tool *tool __maybe_unused,
 				       __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
-	if (perf_data_file__is_pipe(session->file))
-		skipn(perf_data_file__fd(session->file), event->auxtrace.size);
+	if (perf_data__is_pipe(session->data))
+		skipn(perf_data__fd(session->data), event->auxtrace.size);
 	return event->auxtrace.size;
 }
 
-static
-int process_event_auxtrace_error_stub(struct perf_tool *tool __maybe_unused,
-				      union perf_event *event __maybe_unused,
-				      struct perf_session *session __maybe_unused)
+static int process_event_op2_stub(struct perf_tool *tool __maybe_unused,
+				  union perf_event *event __maybe_unused,
+				  struct perf_session *session __maybe_unused)
 {
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
+
+static
+int process_event_thread_map_stub(struct perf_tool *tool __maybe_unused,
+				  union perf_event *event __maybe_unused,
+				  struct perf_session *session __maybe_unused)
+{
+	if (dump_trace)
+		perf_event__fprintf_thread_map(event, stdout);
+
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
+static
+int process_event_cpu_map_stub(struct perf_tool *tool __maybe_unused,
+			       union perf_event *event __maybe_unused,
+			       struct perf_session *session __maybe_unused)
+{
+	if (dump_trace)
+		perf_event__fprintf_cpu_map(event, stdout);
+
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
+static
+int process_event_stat_config_stub(struct perf_tool *tool __maybe_unused,
+				   union perf_event *event __maybe_unused,
+				   struct perf_session *session __maybe_unused)
+{
+	if (dump_trace)
+		perf_event__fprintf_stat_config(event, stdout);
+
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
+static int process_stat_stub(struct perf_tool *tool __maybe_unused,
+			     union perf_event *event __maybe_unused,
+			     struct perf_session *perf_session
+			     __maybe_unused)
+{
+	if (dump_trace)
+		perf_event__fprintf_stat(event, stdout);
+
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
+static int process_stat_round_stub(struct perf_tool *tool __maybe_unused,
+				   union perf_event *event __maybe_unused,
+				   struct perf_session *perf_session
+				   __maybe_unused)
+{
+	if (dump_trace)
+		perf_event__fprintf_stat_round(event, stdout);
+
 	dump_printf(": unhandled!\n");
 	return 0;
 }
@@ -306,6 +371,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->mmap2 = process_event_stub;
 	if (tool->comm == NULL)
 		tool->comm = process_event_stub;
+	if (tool->namespaces == NULL)
+		tool->namespaces = process_event_stub;
 	if (tool->fork == NULL)
 		tool->fork = process_event_stub;
 	if (tool->exit == NULL)
@@ -328,10 +395,12 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->unthrottle = process_event_stub;
 	if (tool->attr == NULL)
 		tool->attr = process_event_synth_attr_stub;
+	if (tool->event_update == NULL)
+		tool->event_update = process_event_synth_event_update_stub;
 	if (tool->tracing_data == NULL)
 		tool->tracing_data = process_event_synth_tracing_data_stub;
 	if (tool->build_id == NULL)
-		tool->build_id = process_build_id_stub;
+		tool->build_id = process_event_op2_stub;
 	if (tool->finished_round == NULL) {
 		if (tool->ordered_events)
 			tool->finished_round = process_finished_round;
@@ -339,13 +408,27 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 			tool->finished_round = process_finished_round_stub;
 	}
 	if (tool->id_index == NULL)
-		tool->id_index = process_id_index_stub;
+		tool->id_index = process_event_op2_stub;
 	if (tool->auxtrace_info == NULL)
-		tool->auxtrace_info = process_event_auxtrace_info_stub;
+		tool->auxtrace_info = process_event_op2_stub;
 	if (tool->auxtrace == NULL)
 		tool->auxtrace = process_event_auxtrace_stub;
 	if (tool->auxtrace_error == NULL)
-		tool->auxtrace_error = process_event_auxtrace_error_stub;
+		tool->auxtrace_error = process_event_op2_stub;
+	if (tool->thread_map == NULL)
+		tool->thread_map = process_event_thread_map_stub;
+	if (tool->cpu_map == NULL)
+		tool->cpu_map = process_event_cpu_map_stub;
+	if (tool->stat_config == NULL)
+		tool->stat_config = process_event_stat_config_stub;
+	if (tool->stat == NULL)
+		tool->stat = process_stat_stub;
+	if (tool->stat_round == NULL)
+		tool->stat_round = process_stat_round_stub;
+	if (tool->time_conv == NULL)
+		tool->time_conv = process_event_op2_stub;
+	if (tool->feature == NULL)
+		tool->feature = process_event_op2_stub;
 }
 
 static void swap_sample_id_all(union perf_event *event, void *data)
@@ -492,7 +575,7 @@ static u8 revbyte(u8 b)
 
 /*
  * XXX this is hack in attempt to carry flags bitfield
- * throught endian village. ABI says:
+ * through endian village. ABI says:
  *
  * Bit-fields are allocated from right to left (least to most significant)
  * on little-endian implementations and from left to right (most to least
@@ -528,6 +611,7 @@ do { 						\
 	if (bswap_safe(f, 0))			\
 		attr->f = bswap_##sz(attr->f);	\
 } while(0)
+#define bswap_field_16(f) bswap_field(f, 16)
 #define bswap_field_32(f) bswap_field(f, 32)
 #define bswap_field_64(f) bswap_field(f, 64)
 
@@ -543,6 +627,7 @@ do { 						\
 	bswap_field_64(sample_regs_user);
 	bswap_field_32(sample_stack_user);
 	bswap_field_32(aux_watermark);
+	bswap_field_16(sample_max_stack);
 
 	/*
 	 * After read_format are bitfields. Check read_format because
@@ -567,6 +652,13 @@ static void perf_event__hdr_attr_swap(union perf_event *event,
 	size = event->header.size;
 	size -= (void *)&event->attr.id - (void *)event;
 	mem_bswap_64(event->attr.id, size);
+}
+
+static void perf_event__event_update_swap(union perf_event *event,
+					  bool sample_id_all __maybe_unused)
+{
+	event->event_update.type = bswap_64(event->event_update.type);
+	event->event_update.id   = bswap_64(event->event_update.id);
 }
 
 static void perf_event__event_type_swap(union perf_event *event,
@@ -616,6 +708,81 @@ static void perf_event__auxtrace_error_swap(union perf_event *event,
 	event->auxtrace_error.ip   = bswap_64(event->auxtrace_error.ip);
 }
 
+static void perf_event__thread_map_swap(union perf_event *event,
+					bool sample_id_all __maybe_unused)
+{
+	unsigned i;
+
+	event->thread_map.nr = bswap_64(event->thread_map.nr);
+
+	for (i = 0; i < event->thread_map.nr; i++)
+		event->thread_map.entries[i].pid = bswap_64(event->thread_map.entries[i].pid);
+}
+
+static void perf_event__cpu_map_swap(union perf_event *event,
+				     bool sample_id_all __maybe_unused)
+{
+	struct cpu_map_data *data = &event->cpu_map.data;
+	struct cpu_map_entries *cpus;
+	struct cpu_map_mask *mask;
+	unsigned i;
+
+	data->type = bswap_64(data->type);
+
+	switch (data->type) {
+	case PERF_CPU_MAP__CPUS:
+		cpus = (struct cpu_map_entries *)data->data;
+
+		cpus->nr = bswap_16(cpus->nr);
+
+		for (i = 0; i < cpus->nr; i++)
+			cpus->cpu[i] = bswap_16(cpus->cpu[i]);
+		break;
+	case PERF_CPU_MAP__MASK:
+		mask = (struct cpu_map_mask *) data->data;
+
+		mask->nr = bswap_16(mask->nr);
+		mask->long_size = bswap_16(mask->long_size);
+
+		switch (mask->long_size) {
+		case 4: mem_bswap_32(&mask->mask, mask->nr); break;
+		case 8: mem_bswap_64(&mask->mask, mask->nr); break;
+		default:
+			pr_err("cpu_map swap: unsupported long size\n");
+		}
+	default:
+		break;
+	}
+}
+
+static void perf_event__stat_config_swap(union perf_event *event,
+					 bool sample_id_all __maybe_unused)
+{
+	u64 size;
+
+	size  = event->stat_config.nr * sizeof(event->stat_config.data[0]);
+	size += 1; /* nr item itself */
+	mem_bswap_64(&event->stat_config.nr, size);
+}
+
+static void perf_event__stat_swap(union perf_event *event,
+				  bool sample_id_all __maybe_unused)
+{
+	event->stat.id     = bswap_64(event->stat.id);
+	event->stat.thread = bswap_32(event->stat.thread);
+	event->stat.cpu    = bswap_32(event->stat.cpu);
+	event->stat.val    = bswap_64(event->stat.val);
+	event->stat.ena    = bswap_64(event->stat.ena);
+	event->stat.run    = bswap_64(event->stat.run);
+}
+
+static void perf_event__stat_round_swap(union perf_event *event,
+					bool sample_id_all __maybe_unused)
+{
+	event->stat_round.type = bswap_64(event->stat_round.type);
+	event->stat_round.time = bswap_64(event->stat_round.time);
+}
+
 typedef void (*perf_event__swap_op)(union perf_event *event,
 				    bool sample_id_all);
 
@@ -643,6 +810,13 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_AUXTRACE_INFO]	  = perf_event__auxtrace_info_swap,
 	[PERF_RECORD_AUXTRACE]		  = perf_event__auxtrace_swap,
 	[PERF_RECORD_AUXTRACE_ERROR]	  = perf_event__auxtrace_error_swap,
+	[PERF_RECORD_THREAD_MAP]	  = perf_event__thread_map_swap,
+	[PERF_RECORD_CPU_MAP]		  = perf_event__cpu_map_swap,
+	[PERF_RECORD_STAT_CONFIG]	  = perf_event__stat_config_swap,
+	[PERF_RECORD_STAT]		  = perf_event__stat_swap,
+	[PERF_RECORD_STAT_ROUND]	  = perf_event__stat_round_swap,
+	[PERF_RECORD_EVENT_UPDATE]	  = perf_event__event_update_swap,
+	[PERF_RECORD_TIME_CONV]		  = perf_event__all64_swap,
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
 };
 
@@ -695,9 +869,9 @@ static int process_finished_round(struct perf_tool *tool __maybe_unused,
 }
 
 int perf_session__queue_event(struct perf_session *s, union perf_event *event,
-			      struct perf_sample *sample, u64 file_offset)
+			      u64 timestamp, u64 file_offset)
 {
-	return ordered_events__queue(&s->ordered_events, event, sample, file_offset);
+	return ordered_events__queue(&s->ordered_events, event, timestamp, file_offset);
 }
 
 static void callchain__lbr_callstack_printf(struct perf_sample *sample)
@@ -753,7 +927,7 @@ static void callchain__printf(struct perf_evsel *evsel,
 	unsigned int i;
 	struct ip_callchain *callchain = sample->callchain;
 
-	if (has_branch_callstack(evsel))
+	if (perf_evsel__has_branch_callstack(evsel))
 		callchain__lbr_callstack_printf(sample);
 
 	printf("... FP chain: nr:%" PRIu64 "\n", callchain->nr);
@@ -774,7 +948,7 @@ static void branch_stack__printf(struct perf_sample *sample)
 
 		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 " %hu cycles %s%s%s%s %x\n",
 			i, e->from, e->to,
-			e->flags.cycles,
+			(unsigned short)e->flags.cycles,
 			e->flags.mispred ? "M" : " ",
 			e->flags.predicted ? "P" : " ",
 			e->flags.abort ? "A" : " ",
@@ -924,10 +1098,10 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 
 	sample_type = evsel->attr.sample_type;
 
-	if (sample_type & PERF_SAMPLE_CALLCHAIN)
+	if (evsel__has_callchain(evsel))
 		callchain__printf(evsel, sample);
 
-	if ((sample_type & PERF_SAMPLE_BRANCH_STACK) && !has_branch_callstack(evsel))
+	if ((sample_type & PERF_SAMPLE_BRANCH_STACK) && !perf_evsel__has_branch_callstack(evsel))
 		branch_stack__printf(sample);
 
 	if (sample_type & PERF_SAMPLE_REGS_USER)
@@ -945,6 +1119,9 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 	if (sample_type & PERF_SAMPLE_DATA_SRC)
 		printf(" . data_src: 0x%"PRIx64"\n", sample->data_src);
 
+	if (sample_type & PERF_SAMPLE_PHYS_ADDR)
+		printf(" .. phys_addr: 0x%"PRIx64"\n", sample->phys_addr);
+
 	if (sample_type & PERF_SAMPLE_TRANSACTION)
 		printf("... transaction: %" PRIx64 "\n", sample->transaction);
 
@@ -952,16 +1129,39 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 		sample_read__printf(sample, evsel->attr.read_format);
 }
 
+static void dump_read(struct perf_evsel *evsel, union perf_event *event)
+{
+	struct read_event *read_event = &event->read;
+	u64 read_format;
+
+	if (!dump_trace)
+		return;
+
+	printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
+	       evsel ? perf_evsel__name(evsel) : "FAIL",
+	       event->read.value);
+
+	read_format = evsel->attr.read_format;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		printf("... time enabled : %" PRIu64 "\n", read_event->time_enabled);
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		printf("... time running : %" PRIu64 "\n", read_event->time_running);
+
+	if (read_format & PERF_FORMAT_ID)
+		printf("... id           : %" PRIu64 "\n", read_event->id);
+}
+
 static struct machine *machines__find_for_cpumode(struct machines *machines,
 					       union perf_event *event,
 					       struct perf_sample *sample)
 {
-	const u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct machine *machine;
 
 	if (perf_guest &&
-	    ((cpumode == PERF_RECORD_MISC_GUEST_KERNEL) ||
-	     (cpumode == PERF_RECORD_MISC_GUEST_USER))) {
+	    ((sample->cpumode == PERF_RECORD_MISC_GUEST_KERNEL) ||
+	     (sample->cpumode == PERF_RECORD_MISC_GUEST_USER))) {
 		u32 pid;
 
 		if (event->header.type == PERF_RECORD_MMAP
@@ -972,7 +1172,7 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 
 		machine = machines__find(machines, pid);
 		if (!machine)
-			machine = machines__find(machines, DEFAULT_GUEST_KERNEL_ID);
+			machine = machines__findnew(machines, DEFAULT_GUEST_KERNEL_ID);
 		return machine;
 	}
 
@@ -1034,7 +1234,7 @@ static int
 	u64 sample_type = evsel->attr.sample_type;
 	u64 read_format = evsel->attr.read_format;
 
-	/* Standard sample delievery. */
+	/* Standard sample delivery. */
 	if (!(sample_type & PERF_SAMPLE_READ))
 		return tool->sample(tool, event, sample, evsel, machine);
 
@@ -1082,6 +1282,8 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->mmap2(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
 		return tool->comm(tool, event, sample, machine);
+	case PERF_RECORD_NAMESPACES:
+		return tool->namespaces(tool, event, sample, machine);
 	case PERF_RECORD_FORK:
 		return tool->fork(tool, event, sample, machine);
 	case PERF_RECORD_EXIT:
@@ -1095,15 +1297,19 @@ static int machines__deliver_event(struct machines *machines,
 			evlist->stats.total_lost_samples += event->lost_samples.lost;
 		return tool->lost_samples(tool, event, sample, machine);
 	case PERF_RECORD_READ:
+		dump_read(evsel, event);
 		return tool->read(tool, event, sample, evsel, machine);
 	case PERF_RECORD_THROTTLE:
 		return tool->throttle(tool, event, sample, machine);
 	case PERF_RECORD_UNTHROTTLE:
 		return tool->unthrottle(tool, event, sample, machine);
 	case PERF_RECORD_AUX:
-		if (tool->aux == perf_event__process_aux &&
-		    (event->aux.flags & PERF_AUX_FLAG_TRUNCATED))
-			evlist->stats.total_aux_lost += 1;
+		if (tool->aux == perf_event__process_aux) {
+			if (event->aux.flags & PERF_AUX_FLAG_TRUNCATED)
+				evlist->stats.total_aux_lost += 1;
+			if (event->aux.flags & PERF_AUX_FLAG_PARTIAL)
+				evlist->stats.total_aux_partial += 1;
+		}
 		return tool->aux(tool, event, sample, machine);
 	case PERF_RECORD_ITRACE_START:
 		return tool->itrace_start(tool, event, sample, machine);
@@ -1118,20 +1324,26 @@ static int machines__deliver_event(struct machines *machines,
 
 static int perf_session__deliver_event(struct perf_session *session,
 				       union perf_event *event,
-				       struct perf_sample *sample,
 				       struct perf_tool *tool,
 				       u64 file_offset)
 {
+	struct perf_sample sample;
 	int ret;
 
-	ret = auxtrace__process_event(session, event, sample, tool);
+	ret = perf_evlist__parse_sample(session->evlist, event, &sample);
+	if (ret) {
+		pr_err("Can't parse sample, err = %d\n", ret);
+		return ret;
+	}
+
+	ret = auxtrace__process_event(session, event, &sample, tool);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
 		return 0;
 
 	return machines__deliver_event(&session->machines, session->evlist,
-				       event, sample, tool, file_offset);
+				       event, &sample, tool, file_offset);
 }
 
 static s64 perf_session__process_user_event(struct perf_session *session,
@@ -1140,10 +1352,11 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 {
 	struct ordered_events *oe = &session->ordered_events;
 	struct perf_tool *tool = session->tool;
-	int fd = perf_data_file__fd(session->file);
+	struct perf_sample sample = { .time = 0, };
+	int fd = perf_data__fd(session->data);
 	int err;
 
-	dump_event(session->evlist, event, file_offset, NULL);
+	dump_event(session->evlist, event, file_offset, &sample);
 
 	/* These events are processed right away */
 	switch (event->header.type) {
@@ -1154,6 +1367,8 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 			perf_session__set_comm_exec(session);
 		}
 		return err;
+	case PERF_RECORD_EVENT_UPDATE:
+		return tool->event_update(tool, event, &session->evlist);
 	case PERF_RECORD_HEADER_EVENT_TYPE:
 		/*
 		 * Depreceated, but we need to handle it for sake
@@ -1179,6 +1394,21 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 	case PERF_RECORD_AUXTRACE_ERROR:
 		perf_session__auxtrace_error_inc(session, event);
 		return tool->auxtrace_error(tool, event, session);
+	case PERF_RECORD_THREAD_MAP:
+		return tool->thread_map(tool, event, session);
+	case PERF_RECORD_CPU_MAP:
+		return tool->cpu_map(tool, event, session);
+	case PERF_RECORD_STAT_CONFIG:
+		return tool->stat_config(tool, event, session);
+	case PERF_RECORD_STAT:
+		return tool->stat(tool, event, session);
+	case PERF_RECORD_STAT_ROUND:
+		return tool->stat_round(tool, event, session);
+	case PERF_RECORD_TIME_CONV:
+		session->time_conv = event->time_conv;
+		return tool->time_conv(tool, event, session);
+	case PERF_RECORD_HEADER_FEATURE:
+		return tool->feature(tool, event, session);
 	default:
 		return -EINVAL;
 	}
@@ -1223,10 +1453,10 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 		goto out_parse_sample;
 	}
 
-	if (perf_data_file__is_pipe(session->file))
+	if (perf_data__is_pipe(session->data))
 		return -1;
 
-	fd = perf_data_file__fd(session->file);
+	fd = perf_data__fd(session->data);
 	hdr_sz = sizeof(struct perf_event_header);
 
 	if (buf_sz < hdr_sz)
@@ -1268,7 +1498,6 @@ static s64 perf_session__process_event(struct perf_session *session,
 {
 	struct perf_evlist *evlist = session->evlist;
 	struct perf_tool *tool = session->tool;
-	struct perf_sample sample;
 	int ret;
 
 	if (session->header.needs_swap)
@@ -1282,21 +1511,19 @@ static s64 perf_session__process_event(struct perf_session *session,
 	if (event->header.type >= PERF_RECORD_USER_TYPE_START)
 		return perf_session__process_user_event(session, event, file_offset);
 
-	/*
-	 * For all kernel events we get the sample data
-	 */
-	ret = perf_evlist__parse_sample(evlist, event, &sample);
-	if (ret)
-		return ret;
-
 	if (tool->ordered_events) {
-		ret = perf_session__queue_event(session, event, &sample, file_offset);
+		u64 timestamp = -1ULL;
+
+		ret = perf_evlist__parse_sample_timestamp(evlist, event, &timestamp);
+		if (ret && ret != -1)
+			return ret;
+
+		ret = perf_session__queue_event(session, event, timestamp, file_offset);
 		if (ret != -ETIME)
 			return ret;
 	}
 
-	return perf_session__deliver_event(session, event, &sample, tool,
-					   file_offset);
+	return perf_session__deliver_event(session, event, tool, file_offset);
 }
 
 void perf_event_header__bswap(struct perf_event_header *hdr)
@@ -1311,23 +1538,48 @@ struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
 	return machine__findnew_thread(&session->machines.host, -1, pid);
 }
 
-struct thread *perf_session__register_idle_thread(struct perf_session *session)
+int perf_session__register_idle_thread(struct perf_session *session)
 {
 	struct thread *thread;
+	int err = 0;
 
 	thread = machine__findnew_thread(&session->machines.host, 0, 0);
 	if (thread == NULL || thread__set_comm(thread, "swapper", 0)) {
 		pr_err("problem inserting idle task.\n");
-		thread = NULL;
+		err = -1;
 	}
 
-	return thread;
+	if (thread == NULL || thread__set_namespaces(thread, 0, NULL)) {
+		pr_err("problem inserting idle task.\n");
+		err = -1;
+	}
+
+	/* machine__findnew_thread() got the thread, so put it */
+	thread__put(thread);
+	return err;
+}
+
+static void
+perf_session__warn_order(const struct perf_session *session)
+{
+	const struct ordered_events *oe = &session->ordered_events;
+	struct perf_evsel *evsel;
+	bool should_warn = true;
+
+	evlist__for_each_entry(session->evlist, evsel) {
+		if (evsel->attr.write_backward)
+			should_warn = false;
+	}
+
+	if (!should_warn)
+		return;
+	if (oe->nr_unordered_events != 0)
+		ui__warning("%u out of order events recorded.\n", oe->nr_unordered_events);
 }
 
 static void perf_session__warn_about_errors(const struct perf_session *session)
 {
 	const struct events_stats *stats = &session->evlist->stats;
-	const struct ordered_events *oe = &session->ordered_events;
 
 	if (session->tool->lost == perf_event__process_lost &&
 	    stats->nr_events[PERF_RECORD_LOST] != 0) {
@@ -1343,7 +1595,7 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 		drop_rate = (double)stats->total_lost_samples /
 			    (double) (stats->nr_events[PERF_RECORD_SAMPLE] + stats->total_lost_samples);
 		if (drop_rate > 0.05) {
-			ui__warning("Processed %" PRIu64 " samples and lost %3.2f%% samples!\n\n",
+			ui__warning("Processed %" PRIu64 " samples and lost %3.2f%%!\n\n",
 				    stats->nr_events[PERF_RECORD_SAMPLE] + stats->total_lost_samples,
 				    drop_rate * 100.0);
 		}
@@ -1354,6 +1606,23 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 		ui__warning("AUX data lost %" PRIu64 " times out of %u!\n\n",
 			    stats->total_aux_lost,
 			    stats->nr_events[PERF_RECORD_AUX]);
+	}
+
+	if (session->tool->aux == perf_event__process_aux &&
+	    stats->total_aux_partial != 0) {
+		bool vmm_exclusive = false;
+
+		(void)sysfs__read_bool("module/kvm_intel/parameters/vmm_exclusive",
+		                       &vmm_exclusive);
+
+		ui__warning("AUX data had gaps in it %" PRIu64 " times out of %u!\n\n"
+		            "Are you running a KVM guest in the background?%s\n\n",
+			    stats->total_aux_partial,
+			    stats->nr_events[PERF_RECORD_AUX],
+			    vmm_exclusive ?
+			    "\nReloading kvm_intel module with vmm_exclusive=0\n"
+			    "will reduce the gaps to only guest's timeslices." :
+			    "");
 	}
 
 	if (stats->nr_unknown_events != 0) {
@@ -1384,8 +1653,7 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 			    stats->nr_unprocessable_samples);
 	}
 
-	if (oe->nr_unordered_events != 0)
-		ui__warning("%u out of order events recorded.\n", oe->nr_unordered_events);
+	perf_session__warn_order(session);
 
 	events_stats__auxtrace_error_warn(stats);
 
@@ -1420,7 +1688,7 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 {
 	struct ordered_events *oe = &session->ordered_events;
 	struct perf_tool *tool = session->tool;
-	int fd = perf_data_file__fd(session->file);
+	int fd = perf_data__fd(session->data);
 	union perf_event *event;
 	uint32_t size, cur_size = 0;
 	void *buf = NULL;
@@ -1437,6 +1705,7 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 	buf = malloc(cur_size);
 	if (!buf)
 		return -errno;
+	ordered_events__set_copy_on_queue(oe, true);
 more:
 	event = buf;
 	err = readn(fd, event, sizeof(struct perf_event_header));
@@ -1508,7 +1777,8 @@ done:
 	err = perf_session__flush_thread_stacks(session);
 out_err:
 	free(buf);
-	perf_session__warn_about_errors(session);
+	if (!tool->no_warn)
+		perf_session__warn_about_errors(session);
 	ordered_events__free(&session->ordered_events);
 	auxtrace__free_events(session);
 	return err;
@@ -1560,7 +1830,7 @@ static int __perf_session__process_events(struct perf_session *session,
 {
 	struct ordered_events *oe = &session->ordered_events;
 	struct perf_tool *tool = session->tool;
-	int fd = perf_data_file__fd(session->file);
+	int fd = perf_data__fd(session->data);
 	u64 head, page_offset, file_offset, file_pos, size;
 	int err, mmap_prot, mmap_flags, map_idx = 0;
 	size_t	mmap_size;
@@ -1581,7 +1851,7 @@ static int __perf_session__process_events(struct perf_session *session,
 	if (data_offset + data_size < file_size)
 		file_size = data_offset + data_size;
 
-	ui_progress__init(&prog, file_size, "Processing events...");
+	ui_progress__init_size(&prog, file_size, "Processing events...");
 
 	mmap_size = MMAP_SIZE;
 	if (mmap_size > file_size) {
@@ -1664,8 +1934,13 @@ out:
 	err = perf_session__flush_thread_stacks(session);
 out_err:
 	ui_progress__finish();
-	perf_session__warn_about_errors(session);
-	ordered_events__free(&session->ordered_events);
+	if (!tool->no_warn)
+		perf_session__warn_about_errors(session);
+	/*
+	 * We may switching perf.data output, make ordered_events
+	 * reusable.
+	 */
+	ordered_events__reinit(&session->ordered_events);
 	auxtrace__free_events(session);
 	session->one_mmap = false;
 	return err;
@@ -1673,13 +1948,13 @@ out_err:
 
 int perf_session__process_events(struct perf_session *session)
 {
-	u64 size = perf_data_file__size(session->file);
+	u64 size = perf_data__size(session->data);
 	int err;
 
-	if (perf_session__register_idle_thread(session) == NULL)
+	if (perf_session__register_idle_thread(session) < 0)
 		return -ENOMEM;
 
-	if (!perf_data_file__is_pipe(session->file))
+	if (!perf_data__is_pipe(session->data))
 		err = __perf_session__process_events(session,
 						     session->header.data_offset,
 						     session->header.data_size, size);
@@ -1693,7 +1968,7 @@ bool perf_session__has_traces(struct perf_session *session, const char *msg)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (evsel->attr.type == PERF_TYPE_TRACEPOINT)
 			return true;
 	}
@@ -1702,12 +1977,11 @@ bool perf_session__has_traces(struct perf_session *session, const char *msg)
 	return false;
 }
 
-int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
-				     const char *symbol_name, u64 addr)
+int map__set_kallsyms_ref_reloc_sym(struct map *map, const char *symbol_name, u64 addr)
 {
 	char *bracket;
-	enum map_type i;
 	struct ref_reloc_sym *ref;
+	struct kmap *kmap;
 
 	ref = zalloc(sizeof(struct ref_reloc_sym));
 	if (ref == NULL)
@@ -1725,13 +1999,9 @@ int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
 
 	ref->addr = addr;
 
-	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		struct kmap *kmap = map__kmap(maps[i]);
-
-		if (!kmap)
-			continue;
+	kmap = map__kmap(map);
+	if (kmap)
 		kmap->ref_reloc_sym = ref;
-	}
 
 	return 0;
 }
@@ -1775,110 +2045,11 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 {
 	struct perf_evsel *pos;
 
-	evlist__for_each(session->evlist, pos) {
+	evlist__for_each_entry(session->evlist, pos) {
 		if (pos->attr.type == type)
 			return pos;
 	}
 	return NULL;
-}
-
-void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
-			  struct addr_location *al,
-			  unsigned int print_opts, unsigned int stack_depth)
-{
-	struct callchain_cursor_node *node;
-	int print_ip = print_opts & PRINT_IP_OPT_IP;
-	int print_sym = print_opts & PRINT_IP_OPT_SYM;
-	int print_dso = print_opts & PRINT_IP_OPT_DSO;
-	int print_symoffset = print_opts & PRINT_IP_OPT_SYMOFFSET;
-	int print_oneline = print_opts & PRINT_IP_OPT_ONELINE;
-	int print_srcline = print_opts & PRINT_IP_OPT_SRCLINE;
-	char s = print_oneline ? ' ' : '\t';
-
-	if (symbol_conf.use_callchain && sample->callchain) {
-		struct addr_location node_al;
-
-		if (thread__resolve_callchain(al->thread, evsel,
-					      sample, NULL, NULL,
-					      stack_depth) != 0) {
-			if (verbose)
-				error("Failed to resolve callchain. Skipping\n");
-			return;
-		}
-		callchain_cursor_commit(&callchain_cursor);
-
-		if (print_symoffset)
-			node_al = *al;
-
-		while (stack_depth) {
-			u64 addr = 0;
-
-			node = callchain_cursor_current(&callchain_cursor);
-			if (!node)
-				break;
-
-			if (node->sym && node->sym->ignore)
-				goto next;
-
-			if (print_ip)
-				printf("%c%16" PRIx64, s, node->ip);
-
-			if (node->map)
-				addr = node->map->map_ip(node->map, node->ip);
-
-			if (print_sym) {
-				printf(" ");
-				if (print_symoffset) {
-					node_al.addr = addr;
-					node_al.map  = node->map;
-					symbol__fprintf_symname_offs(node->sym, &node_al, stdout);
-				} else
-					symbol__fprintf_symname(node->sym, stdout);
-			}
-
-			if (print_dso) {
-				printf(" (");
-				map__fprintf_dsoname(node->map, stdout);
-				printf(")");
-			}
-
-			if (print_srcline)
-				map__fprintf_srcline(node->map, addr, "\n  ",
-						     stdout);
-
-			if (!print_oneline)
-				printf("\n");
-
-			stack_depth--;
-next:
-			callchain_cursor_advance(&callchain_cursor);
-		}
-
-	} else {
-		if (al->sym && al->sym->ignore)
-			return;
-
-		if (print_ip)
-			printf("%16" PRIx64, sample->ip);
-
-		if (print_sym) {
-			printf(" ");
-			if (print_symoffset)
-				symbol__fprintf_symname_offs(al->sym, al,
-							     stdout);
-			else
-				symbol__fprintf_symname(al->sym, stdout);
-		}
-
-		if (print_dso) {
-			printf(" (");
-			map__fprintf_dsoname(al->map, stdout);
-			printf(")");
-		}
-
-		if (print_srcline)
-			map__fprintf_srcline(al->map, al->addr, "\n  ", stdout);
-	}
 }
 
 int perf_session__cpu_bitmap(struct perf_session *session,
@@ -1896,7 +2067,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 
 		if (!(evsel->attr.sample_type & PERF_SAMPLE_CPU)) {
 			pr_err("File does not contain CPU events. "
-			       "Remove -c option to proceed.\n");
+			       "Remove -C option to proceed.\n");
 			return -1;
 		}
 	}
@@ -1929,20 +2100,10 @@ out_delete_map:
 void perf_session__fprintf_info(struct perf_session *session, FILE *fp,
 				bool full)
 {
-	struct stat st;
-	int fd, ret;
-
 	if (session == NULL || fp == NULL)
 		return;
 
-	fd = perf_data_file__fd(session->file);
-
-	ret = fstat(fd, &st);
-	if (ret == -1)
-		return;
-
 	fprintf(fp, "# ========\n");
-	fprintf(fp, "# captured on: %s", ctime(&st.st_ctime));
 	perf_header__fprintf_info(session, fp, full);
 	fprintf(fp, "# ========\n#\n");
 }
@@ -2029,7 +2190,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool,
 	max_nr = (UINT16_MAX - sizeof(struct id_index_event)) /
 		 sizeof(struct id_index_entry);
 
-	evlist__for_each(evlist, evsel)
+	evlist__for_each_entry(evlist, evsel)
 		nr += evsel->ids;
 
 	n = nr > max_nr ? max_nr : nr;
@@ -2042,7 +2203,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool,
 	ev->id_index.header.size = sz;
 	ev->id_index.nr = n;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		u32 j;
 
 		for (j = 0; j < evsel->ids; j++) {

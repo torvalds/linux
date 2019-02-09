@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* rwsem-spinlock.h: fallback C implementation
  *
  * Copyright (c) 2001   David Howells (dhowells@redhat.com).
@@ -32,9 +33,10 @@ struct rw_semaphore {
 #define RWSEM_UNLOCKED_VALUE		0x00000000
 
 extern void __down_read(struct rw_semaphore *sem);
+extern int __must_check __down_read_killable(struct rw_semaphore *sem);
 extern int __down_read_trylock(struct rw_semaphore *sem);
 extern void __down_write(struct rw_semaphore *sem);
-extern void __down_write_nested(struct rw_semaphore *sem, int subclass);
+extern int __must_check __down_write_killable(struct rw_semaphore *sem);
 extern int __down_write_trylock(struct rw_semaphore *sem);
 extern void __up_read(struct rw_semaphore *sem);
 extern void __up_write(struct rw_semaphore *sem);

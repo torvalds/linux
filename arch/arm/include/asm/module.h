@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_ARM_MODULE_H
 #define _ASM_ARM_MODULE_H
 
@@ -18,18 +19,22 @@ enum {
 };
 #endif
 
+struct mod_plt_sec {
+	struct elf32_shdr	*plt;
+	int			plt_count;
+};
+
 struct mod_arch_specific {
 #ifdef CONFIG_ARM_UNWIND
 	struct unwind_table *unwind[ARM_SEC_MAX];
 #endif
 #ifdef CONFIG_ARM_MODULE_PLTS
-	struct elf32_shdr   *core_plt;
-	struct elf32_shdr   *init_plt;
-	int		    core_plt_count;
-	int		    init_plt_count;
+	struct mod_plt_sec	core;
+	struct mod_plt_sec	init;
 #endif
 };
 
+struct module;
 u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val);
 
 /*

@@ -19,6 +19,9 @@
 
 /* Real mode helpers */
 
+#include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
+
 #if defined(CONFIG_PPC_BOOK3S_64)
 
 #define GET_SHADOW_VCPU(reg)    \
@@ -156,7 +159,7 @@ no_dcbz32_on:
 	PPC_LL	r9, SVCPU_R9(r3)
 	PPC_LL	r3, (SVCPU_R3)(r3)
 
-	RFI
+	RFI_TO_GUEST
 kvmppc_handler_trampoline_enter_end:
 
 
@@ -167,20 +170,38 @@ kvmppc_handler_trampoline_enter_end:
  *                                                                            *
  *****************************************************************************/
 
-.global kvmppc_handler_trampoline_exit
-kvmppc_handler_trampoline_exit:
-
 .global kvmppc_interrupt_pr
 kvmppc_interrupt_pr:
+	/* 64-bit entry. Register usage at this point:
+	 *
+	 * SPRG_SCRATCH0   = guest R13
+	 * R12             = (guest CR << 32) | exit handler id
+	 * R13             = PACA
+	 * HSTATE.SCRATCH0 = guest R12
+	 * HSTATE.SCRATCH1 = guest CTR if RELOCATABLE
+	 */
+#ifdef CONFIG_PPC64
+	/* Match 32-bit entry */
+#ifdef CONFIG_RELOCATABLE
+	std	r9, HSTATE_SCRATCH2(r13)
+	ld	r9, HSTATE_SCRATCH1(r13)
+	mtctr	r9
+	ld	r9, HSTATE_SCRATCH2(r13)
+#endif
+	rotldi	r12, r12, 32		  /* Flip R12 halves for stw */
+	stw	r12, HSTATE_SCRATCH1(r13) /* CR is now in the low half */
+	srdi	r12, r12, 32		  /* shift trap into low half */
+#endif
 
+.global kvmppc_handler_trampoline_exit
+kvmppc_handler_trampoline_exit:
 	/* Register usage at this point:
 	 *
-	 * SPRG_SCRATCH0  = guest R13
-	 * R12            = exit handler id
-	 * R13            = shadow vcpu (32-bit) or PACA (64-bit)
+	 * SPRG_SCRATCH0   = guest R13
+	 * R12             = exit handler id
+	 * R13             = shadow vcpu (32-bit) or PACA (64-bit)
 	 * HSTATE.SCRATCH0 = guest R12
 	 * HSTATE.SCRATCH1 = guest CR
-	 *
 	 */
 
 	/* Save registers */
@@ -365,6 +386,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	 */
 
 	PPC_LL	r6, HSTATE_HOST_MSR(r13)
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/*
+	 * We don't want to change MSR[TS] bits via rfi here.
+	 * The actual TM handling logic will be in host with
+	 * recovered DR/IR bits after HSTATE_VMHANDLER.
+	 * And MSR_TM can be enabled in HOST_MSR so rfid may
+	 * not suppress this change and can lead to exception.
+	 * Manually set MSR to prevent TS state change here.
+	 */
+	mfmsr   r7
+	rldicl  r7, r7, 64 - MSR_TS_S_LG, 62
+	rldimi  r6, r7, MSR_TS_S_LG, 63 - MSR_TS_T_LG
+#endif
 	PPC_LL	r8, HSTATE_VMHANDLER(r13)
 
 #ifdef CONFIG_PPC64
@@ -389,5 +423,5 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	cmpwi	r12, BOOK3S_INTERRUPT_DOORBELL
 	beqa	BOOK3S_INTERRUPT_DOORBELL
 
-	RFI
+	RFI_TO_KERNEL
 kvmppc_handler_trampoline_exit_end:

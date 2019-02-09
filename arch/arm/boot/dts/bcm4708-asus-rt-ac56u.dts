@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Broadcom BCM470X / BCM5301X ARM platform code.
  * DTS for Asus RT-AC56U
  *
  * Copyright (C) 2015 Rafał Miłecki <zajec5@gmail.com>
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 /dts-v1/;
@@ -21,7 +20,8 @@
 	};
 
 	memory {
-		reg = <0x00000000 0x08000000>;
+		reg = <0x00000000 0x08000000
+		       0x88000000 0x08000000>;
 	};
 
 	leds {
@@ -30,19 +30,16 @@
 		usb3 {
 			label = "bcm53xx:blue:usb3";
 			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		wan {
 			label = "bcm53xx:blue:wan";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		lan {
 			label = "bcm53xx:blue:lan";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		power {
@@ -60,14 +57,12 @@
 		2ghz {
 			label = "bcm53xx:blue:2ghz";
 			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 
 		usb2 {
 			label = "bcm53xx:blue:usb2";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 	};
 
@@ -94,4 +89,8 @@
 			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&usb3_phy {
+	status = "okay";
 };

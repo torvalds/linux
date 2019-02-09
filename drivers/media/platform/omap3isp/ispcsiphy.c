@@ -164,30 +164,28 @@ static int csiphy_set_power(struct isp_csiphy *phy, u32 power)
 
 static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 {
-	struct isp_csi2_device *csi2 = phy->csi2;
-	struct isp_pipeline *pipe = to_isp_pipeline(&csi2->subdev.entity);
-	struct isp_bus_cfg *buscfg = pipe->external->host_priv;
+	struct isp_pipeline *pipe = to_isp_pipeline(phy->entity);
+	struct isp_bus_cfg *buscfg = v4l2_subdev_to_bus_cfg(pipe->external);
 	struct isp_csiphy_lanes_cfg *lanes;
 	int csi2_ddrclk_khz;
-	unsigned int used_lanes = 0;
+	unsigned int num_data_lanes, used_lanes = 0;
 	unsigned int i;
 	u32 reg;
 
-	if (!buscfg) {
-		struct isp_async_subdev *isd =
-			container_of(pipe->external->asd,
-				     struct isp_async_subdev, asd);
-		buscfg = &isd->bus;
+	if (buscfg->interface == ISP_INTERFACE_CCP2B_PHY1
+	    || buscfg->interface == ISP_INTERFACE_CCP2B_PHY2) {
+		lanes = &buscfg->bus.ccp2.lanecfg;
+		num_data_lanes = 1;
+	} else {
+		lanes = &buscfg->bus.csi2.lanecfg;
+		num_data_lanes = buscfg->bus.csi2.num_data_lanes;
 	}
 
-	if (buscfg->interface == ISP_INTERFACE_CCP2B_PHY1
-	    || buscfg->interface == ISP_INTERFACE_CCP2B_PHY2)
-		lanes = &buscfg->bus.ccp2.lanecfg;
-	else
-		lanes = &buscfg->bus.csi2.lanecfg;
+	if (num_data_lanes > phy->num_data_lanes)
+		return -EINVAL;
 
 	/* Clock and data lanes verification */
-	for (i = 0; i < phy->num_data_lanes; i++) {
+	for (i = 0; i < num_data_lanes; i++) {
 		if (lanes->data[i].pol > 1 || lanes->data[i].pos > 3)
 			return -EINVAL;
 
@@ -216,7 +214,7 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	csi2_ddrclk_khz = pipe->external_rate / 1000
 		/ (2 * hweight32(used_lanes)) * pipe->external_width;
 
-	reg = isp_reg_readl(csi2->isp, phy->phy_regs, ISPCSIPHY_REG0);
+	reg = isp_reg_readl(phy->isp, phy->phy_regs, ISPCSIPHY_REG0);
 
 	reg &= ~(ISPCSIPHY_REG0_THS_TERM_MASK |
 		 ISPCSIPHY_REG0_THS_SETTLE_MASK);
@@ -227,9 +225,9 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	reg |= (DIV_ROUND_UP(90 * csi2_ddrclk_khz, 1000000) + 3)
 		<< ISPCSIPHY_REG0_THS_SETTLE_SHIFT;
 
-	isp_reg_writel(csi2->isp, reg, phy->phy_regs, ISPCSIPHY_REG0);
+	isp_reg_writel(phy->isp, reg, phy->phy_regs, ISPCSIPHY_REG0);
 
-	reg = isp_reg_readl(csi2->isp, phy->phy_regs, ISPCSIPHY_REG1);
+	reg = isp_reg_readl(phy->isp, phy->phy_regs, ISPCSIPHY_REG1);
 
 	reg &= ~(ISPCSIPHY_REG1_TCLK_TERM_MASK |
 		 ISPCSIPHY_REG1_TCLK_MISS_MASK |
@@ -238,12 +236,12 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	reg |= TCLK_MISS << ISPCSIPHY_REG1_TCLK_MISS_SHIFT;
 	reg |= TCLK_SETTLE << ISPCSIPHY_REG1_TCLK_SETTLE_SHIFT;
 
-	isp_reg_writel(csi2->isp, reg, phy->phy_regs, ISPCSIPHY_REG1);
+	isp_reg_writel(phy->isp, reg, phy->phy_regs, ISPCSIPHY_REG1);
 
 	/* DPHY lane configuration */
-	reg = isp_reg_readl(csi2->isp, phy->cfg_regs, ISPCSI2_PHY_CFG);
+	reg = isp_reg_readl(phy->isp, phy->cfg_regs, ISPCSI2_PHY_CFG);
 
-	for (i = 0; i < phy->num_data_lanes; i++) {
+	for (i = 0; i < num_data_lanes; i++) {
 		reg &= ~(ISPCSI2_PHY_CFG_DATA_POL_MASK(i + 1) |
 			 ISPCSI2_PHY_CFG_DATA_POSITION_MASK(i + 1));
 		reg |= (lanes->data[i].pol <<
@@ -257,18 +255,18 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	reg |= lanes->clk.pol << ISPCSI2_PHY_CFG_CLOCK_POL_SHIFT;
 	reg |= lanes->clk.pos << ISPCSI2_PHY_CFG_CLOCK_POSITION_SHIFT;
 
-	isp_reg_writel(csi2->isp, reg, phy->cfg_regs, ISPCSI2_PHY_CFG);
+	isp_reg_writel(phy->isp, reg, phy->cfg_regs, ISPCSI2_PHY_CFG);
 
 	return 0;
 }
 
-int omap3isp_csiphy_acquire(struct isp_csiphy *phy)
+int omap3isp_csiphy_acquire(struct isp_csiphy *phy, struct media_entity *entity)
 {
 	int rval;
 
 	if (phy->vdd == NULL) {
-		dev_err(phy->isp->dev, "Power regulator for CSI PHY not "
-			"available\n");
+		dev_err(phy->isp->dev,
+			"Power regulator for CSI PHY not available\n");
 		return -ENODEV;
 	}
 
@@ -282,20 +280,25 @@ int omap3isp_csiphy_acquire(struct isp_csiphy *phy)
 	if (rval < 0)
 		goto done;
 
+	phy->entity = entity;
+
 	rval = omap3isp_csiphy_config(phy);
 	if (rval < 0)
 		goto done;
 
-	rval = csiphy_set_power(phy, ISPCSI2_PHY_CFG_PWR_CMD_ON);
-	if (rval) {
-		regulator_disable(phy->vdd);
-		goto done;
+	if (phy->isp->revision == ISP_REVISION_15_0) {
+		rval = csiphy_set_power(phy, ISPCSI2_PHY_CFG_PWR_CMD_ON);
+		if (rval) {
+			regulator_disable(phy->vdd);
+			goto done;
+		}
+
+		csiphy_power_autoswitch_enable(phy, true);
 	}
-
-	csiphy_power_autoswitch_enable(phy, true);
-	phy->phy_in_use = 1;
-
 done:
+	if (rval < 0)
+		phy->entity = NULL;
+
 	mutex_unlock(&phy->mutex);
 	return rval;
 }
@@ -303,18 +306,19 @@ done:
 void omap3isp_csiphy_release(struct isp_csiphy *phy)
 {
 	mutex_lock(&phy->mutex);
-	if (phy->phy_in_use) {
-		struct isp_csi2_device *csi2 = phy->csi2;
-		struct isp_pipeline *pipe =
-			to_isp_pipeline(&csi2->subdev.entity);
-		struct isp_bus_cfg *buscfg = pipe->external->host_priv;
+	if (phy->entity) {
+		struct isp_pipeline *pipe = to_isp_pipeline(phy->entity);
+		struct isp_bus_cfg *buscfg =
+			v4l2_subdev_to_bus_cfg(pipe->external);
 
 		csiphy_routing_cfg(phy, buscfg->interface, false,
 				   buscfg->bus.ccp2.phy_layer);
-		csiphy_power_autoswitch_enable(phy, false);
-		csiphy_set_power(phy, ISPCSI2_PHY_CFG_PWR_CMD_OFF);
+		if (phy->isp->revision == ISP_REVISION_15_0) {
+			csiphy_power_autoswitch_enable(phy, false);
+			csiphy_set_power(phy, ISPCSI2_PHY_CFG_PWR_CMD_OFF);
+		}
 		regulator_disable(phy->vdd);
-		phy->phy_in_use = 0;
+		phy->entity = NULL;
 	}
 	mutex_unlock(&phy->mutex);
 }
@@ -334,14 +338,21 @@ int omap3isp_csiphy_init(struct isp_device *isp)
 	phy2->phy_regs = OMAP3_ISP_IOMEM_CSIPHY2;
 	mutex_init(&phy2->mutex);
 
+	phy1->isp = isp;
+	mutex_init(&phy1->mutex);
+
 	if (isp->revision == ISP_REVISION_15_0) {
-		phy1->isp = isp;
 		phy1->csi2 = &isp->isp_csi2c;
 		phy1->num_data_lanes = ISP_CSIPHY1_NUM_DATA_LANES;
 		phy1->cfg_regs = OMAP3_ISP_IOMEM_CSI2C_REGS1;
 		phy1->phy_regs = OMAP3_ISP_IOMEM_CSIPHY1;
-		mutex_init(&phy1->mutex);
 	}
 
 	return 0;
+}
+
+void omap3isp_csiphy_cleanup(struct isp_device *isp)
+{
+	mutex_destroy(&isp->isp_csiphy1.mutex);
+	mutex_destroy(&isp->isp_csiphy2.mutex);
 }

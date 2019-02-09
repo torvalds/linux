@@ -13,10 +13,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
  *
@@ -111,7 +107,7 @@ u8 *r8712_set_ie(u8 *pbuf, sint index, uint len, u8 *source, uint *frlen)
  * index: the information element id index, limit is the limit for search
  * ---------------------------------------------------------------------------
  */
-u8 *r8712_get_ie(u8 *pbuf, sint index, sint *len, sint limit)
+u8 *r8712_get_ie(u8 *pbuf, sint index, uint *len, sint limit)
 {
 	sint tmp, i;
 	u8 *p;
@@ -149,7 +145,7 @@ static void set_supported_rate(u8 *rates, uint mode)
 	case WIRELESS_11BG:
 		memcpy(rates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
 		memcpy(rates + IEEE80211_CCK_RATE_LEN, WIFI_OFDMRATES,
-			IEEE80211_NUM_OFDM_RATESLEN);
+		       IEEE80211_NUM_OFDM_RATESLEN);
 		break;
 	}
 }
@@ -170,52 +166,55 @@ static uint r8712_get_rateset_len(u8 *rateset)
 
 int r8712_generate_ie(struct registry_priv *pregistrypriv)
 {
-	int sz = 0, rateLen;
+	int rate_len;
+	uint sz = 0;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	u8 *ie = pdev_network->IEs;
+	u16 beaconPeriod = (u16)pdev_network->Configuration.BeaconPeriod;
 
 	/*timestamp will be inserted by hardware*/
 	sz += 8;
 	ie += sz;
 	/*beacon interval : 2bytes*/
-	*(u16 *)ie = cpu_to_le16((u16)pdev_network->Configuration.BeaconPeriod);
+	*(__le16 *)ie = cpu_to_le16(beaconPeriod);
 	sz += 2;
 	ie += 2;
 	/*capability info*/
 	*(u16 *)ie = 0;
-	*(u16 *)ie |= cpu_to_le16(cap_IBSS);
+	*(__le16 *)ie |= cpu_to_le16(cap_IBSS);
 	if (pregistrypriv->preamble == PREAMBLE_SHORT)
-		*(u16 *)ie |= cpu_to_le16(cap_ShortPremble);
+		*(__le16 *)ie |= cpu_to_le16(cap_ShortPremble);
 	if (pdev_network->Privacy)
-		*(u16 *)ie |= cpu_to_le16(cap_Privacy);
+		*(__le16 *)ie |= cpu_to_le16(cap_Privacy);
 	sz += 2;
 	ie += 2;
 	/*SSID*/
 	ie = r8712_set_ie(ie, _SSID_IE_, pdev_network->Ssid.SsidLength,
-		    pdev_network->Ssid.Ssid, &sz);
+			  pdev_network->Ssid.Ssid, &sz);
 	/*supported rates*/
 	set_supported_rate(pdev_network->rates, pregistrypriv->wireless_mode);
-	rateLen = r8712_get_rateset_len(pdev_network->rates);
-	if (rateLen > 8) {
+	rate_len = r8712_get_rateset_len(pdev_network->rates);
+	if (rate_len > 8) {
 		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_, 8,
-			    pdev_network->rates, &sz);
-		ie = r8712_set_ie(ie, _EXT_SUPPORTEDRATES_IE_, (rateLen - 8),
-			    (pdev_network->rates + 8), &sz);
-	} else
+				  pdev_network->rates, &sz);
+		ie = r8712_set_ie(ie, _EXT_SUPPORTEDRATES_IE_, (rate_len - 8),
+				  (pdev_network->rates + 8), &sz);
+	} else {
 		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_,
-			    rateLen, pdev_network->rates, &sz);
+				  rate_len, pdev_network->rates, &sz);
+	}
 	/*DS parameter set*/
 	ie = r8712_set_ie(ie, _DSSET_IE_, 1,
-		    (u8 *)&(pdev_network->Configuration.DSConfig), &sz);
+			  (u8 *)&pdev_network->Configuration.DSConfig, &sz);
 	/*IBSS Parameter Set*/
 	ie = r8712_set_ie(ie, _IBSS_PARA_IE_, 2,
-		    (u8 *)&(pdev_network->Configuration.ATIMWindow), &sz);
+			  (u8 *)&pdev_network->Configuration.ATIMWindow, &sz);
 	return sz;
 }
 
-unsigned char *r8712_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit)
+unsigned char *r8712_get_wpa_ie(unsigned char *pie, uint *wpa_ie_len, int limit)
 {
-	int len;
+	u32 len;
 	u16 val16;
 	unsigned char wpa_oui_type[] = {0x00, 0x50, 0xf2, 0x01};
 	u8 *pbuf = pie;
@@ -225,11 +224,11 @@ unsigned char *r8712_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit)
 		if (pbuf) {
 			/*check if oui matches...*/
 			if (memcmp((pbuf + 2), wpa_oui_type,
-			    sizeof(wpa_oui_type)))
+				   sizeof(wpa_oui_type)))
 				goto check_next_ie;
 			/*check version...*/
 			memcpy((u8 *)&val16, (pbuf + 6), sizeof(val16));
-			val16 = le16_to_cpu(val16);
+			le16_to_cpus(&val16);
 			if (val16 != 0x0001)
 				goto check_next_ie;
 			*wpa_ie_len = *(pbuf + 1);
@@ -247,7 +246,7 @@ check_next_ie:
 	return NULL;
 }
 
-unsigned char *r8712_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len, int limit)
+unsigned char *r8712_get_wpa2_ie(unsigned char *pie, uint *rsn_ie_len, int limit)
 {
 	return r8712_get_ie(pie, _WPA2_IE_ID_, rsn_ie_len, limit);
 }
@@ -283,7 +282,7 @@ static int r8712_get_wpa2_cipher_suite(u8 *s)
 }
 
 int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
-		 int *pairwise_cipher)
+		       int *pairwise_cipher)
 {
 	int i;
 	int left, count;
@@ -293,8 +292,9 @@ int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 		/* No WPA IE - fail silently */
 		return _FAIL;
 	}
-	if ((*wpa_ie != _WPA_IE_ID_) || (*(wpa_ie + 1) != (u8)(wpa_ie_len - 2))
-	     || (memcmp(wpa_ie + 2, (void *)WPA_OUI_TYPE, WPA_SELECTOR_LEN)))
+	if ((*wpa_ie != _WPA_IE_ID_) ||
+	    (*(wpa_ie + 1) != (u8)(wpa_ie_len - 2)) ||
+	    (memcmp(wpa_ie + 2, (void *)WPA_OUI_TYPE, WPA_SELECTOR_LEN)))
 		return _FAIL;
 	pos = wpa_ie;
 	pos += 8;
@@ -309,7 +309,7 @@ int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 	}
 	/*pairwise_cipher*/
 	if (left >= 2) {
-		count = le16_to_cpu(*(u16 *)pos);
+		count = le16_to_cpu(*(__le16 *)pos);
 		pos += 2;
 		left -= 2;
 		if (count == 0 || left < count * WPA_SELECTOR_LEN)
@@ -326,7 +326,7 @@ int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 }
 
 int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
-		  int *pairwise_cipher)
+			int *pairwise_cipher)
 {
 	int i;
 	int left, count;
@@ -352,7 +352,7 @@ int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 	}
 	/*pairwise_cipher*/
 	if (left >= 2) {
-		count = le16_to_cpu(*(u16 *)pos);
+		count = le16_to_cpu(*(__le16 *)pos);
 		pos += 2;
 		left -= 2;
 		if (count == 0 || left < count * RSN_SELECTOR_LEN)
@@ -369,14 +369,14 @@ int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 }
 
 int r8712_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
-	       u8 *wpa_ie, u16 *wpa_len)
+		     u8 *wpa_ie, u16 *wpa_len)
 {
 	u8 authmode;
 	u8 wpa_oui[4] = {0x0, 0x50, 0xf2, 0x01};
 	uint cnt;
 
 	/*Search required WPA or WPA2 IE and copy to sec_ie[ ]*/
-	cnt = (_TIMESTAMP_ + _BEACON_ITERVAL_ + _CAPABILITY_);
+	cnt = _TIMESTAMP_ + _BEACON_ITERVAL_ + _CAPABILITY_;
 	while (cnt < in_len) {
 		authmode = in_ie[cnt];
 		if ((authmode == _WPA_IE_ID_) &&
@@ -387,7 +387,7 @@ int r8712_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
 		} else {
 			if (authmode == _WPA2_IE_ID_) {
 				memcpy(rsn_ie, &in_ie[cnt],
-					in_ie[cnt + 1] + 2);
+				       in_ie[cnt + 1] + 2);
 				*rsn_len = in_ie[cnt + 1] + 2;
 				cnt += in_ie[cnt + 1] + 2;  /*get next*/
 			} else {

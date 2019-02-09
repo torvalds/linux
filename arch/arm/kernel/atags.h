@@ -1,9 +1,4 @@
-#ifdef CONFIG_ATAGS_PROC
-extern void save_atags(struct tag *tags);
-#else
-static inline void save_atags(struct tag *tags) { }
-#endif
-
+/* SPDX-License-Identifier: GPL-2.0 */
 void convert_to_tag_list(struct tag *tags);
 
 #ifdef CONFIG_ATAGS

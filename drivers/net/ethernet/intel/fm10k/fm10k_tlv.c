@@ -1,22 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "fm10k_tlv.h"
 
@@ -48,8 +31,8 @@ s32 fm10k_tlv_msg_init(u32 *msg, u16 msg_id)
  *  the attribute buffer.  It will return success if provided with a valid
  *  pointers.
  **/
-s32 fm10k_tlv_attr_put_null_string(u32 *msg, u16 attr_id,
-				   const unsigned char *string)
+static s32 fm10k_tlv_attr_put_null_string(u32 *msg, u16 attr_id,
+					  const unsigned char *string)
 {
 	u32 attr_data = 0, len = 0;
 	u32 *attr;
@@ -98,7 +81,7 @@ s32 fm10k_tlv_attr_put_null_string(u32 *msg, u16 attr_id,
  *  it in the array pointed by by string.  It will return success if provided
  *  with a valid pointers.
  **/
-s32 fm10k_tlv_attr_get_null_string(u32 *attr, unsigned char *string)
+static s32 fm10k_tlv_attr_get_null_string(u32 *attr, unsigned char *string)
 {
 	u32 len;
 
@@ -120,6 +103,7 @@ s32 fm10k_tlv_attr_get_null_string(u32 *attr, unsigned char *string)
  *  @msg: Pointer to message block
  *  @attr_id: Attribute ID
  *  @mac_addr: MAC address to be stored
+ *  @vlan: VLAN to be stored
  *
  *  This function will reorder a MAC address to be CPU endian and store it
  *  in the attribute buffer.  It will return success if provided with a
@@ -155,8 +139,8 @@ s32 fm10k_tlv_attr_put_mac_vlan(u32 *msg, u16 attr_id,
 /**
  *  fm10k_tlv_attr_get_mac_vlan - Get MAC/VLAN stored in attribute
  *  @attr: Pointer to attribute
- *  @attr_id: Attribute ID
  *  @mac_addr: location of buffer to store MAC address
+ *  @vlan: location of buffer to store VLAN
  *
  *  This function pulls the MAC address back out of the attribute and will
  *  place it in the array pointed by by mac_addr.  It will return success
@@ -222,7 +206,7 @@ s32 fm10k_tlv_attr_put_value(u32 *msg, u16 attr_id, s64 value, u32 len)
 	attr = &msg[FM10K_TLV_DWORD_LEN(*msg)];
 
 	if (len < 4) {
-		attr[1] = (u32)value & ((0x1ul << (8 * len)) - 1);
+		attr[1] = (u32)value & (BIT(8 * len) - 1);
 	} else {
 		attr[1] = (u32)value;
 		if (len > 4)
@@ -353,7 +337,7 @@ s32 fm10k_tlv_attr_get_le_struct(u32 *attr, void *le_struct, u32 len)
  *  function will return NULL on failure, and a pointer to the start
  *  of the nested attributes on success.
  **/
-u32 *fm10k_tlv_attr_nest_start(u32 *msg, u16 attr_id)
+static u32 *fm10k_tlv_attr_nest_start(u32 *msg, u16 attr_id)
 {
 	u32 *attr;
 
@@ -370,7 +354,7 @@ u32 *fm10k_tlv_attr_nest_start(u32 *msg, u16 attr_id)
 }
 
 /**
- *  fm10k_tlv_attr_nest_start - Start a set of nested attributes
+ *  fm10k_tlv_attr_nest_stop - Stop a set of nested attributes
  *  @msg: Pointer to message block
  *
  *  This function closes off an existing set of nested attributes.  The
@@ -378,7 +362,7 @@ u32 *fm10k_tlv_attr_nest_start(u32 *msg, u16 attr_id)
  *  the case of a nest within the nest this would be the outer nest pointer.
  *  This function will return success provided all pointers are valid.
  **/
-s32 fm10k_tlv_attr_nest_stop(u32 *msg)
+static s32 fm10k_tlv_attr_nest_stop(u32 *msg)
 {
 	u32 *attr;
 	u32 len;
@@ -481,10 +465,11 @@ static s32 fm10k_tlv_attr_validate(u32 *attr,
  *  up into an array of pointers stored in results.  The function will
  *  return FM10K_ERR_PARAM on any input or message error,
  *  FM10K_NOT_IMPLEMENTED for any attribute that is outside of the array
- *  and 0 on success.
+ *  and 0 on success. Any attributes not found in tlv_attr will be silently
+ *  ignored.
  **/
-s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
-			 const struct fm10k_tlv_attr *tlv_attr)
+static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
+				const struct fm10k_tlv_attr *tlv_attr)
 {
 	u32 i, attr_id, offset = 0;
 	s32 err = 0;
@@ -518,14 +503,15 @@ s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 	while (offset < len) {
 		attr_id = *attr & FM10K_TLV_ID_MASK;
 
-		if (attr_id < FM10K_TLV_RESULTS_MAX)
-			err = fm10k_tlv_attr_validate(attr, tlv_attr);
-		else
-			err = FM10K_NOT_IMPLEMENTED;
+		if (attr_id >= FM10K_TLV_RESULTS_MAX)
+			return FM10K_NOT_IMPLEMENTED;
 
-		if (err < 0)
+		err = fm10k_tlv_attr_validate(attr, tlv_attr);
+		if (err == FM10K_NOT_IMPLEMENTED)
+			; /* silently ignore non-implemented attributes */
+		else if (err)
 			return err;
-		if (!err)
+		else
 			results[attr_id] = attr;
 
 		/* update offset */
@@ -547,7 +533,7 @@ s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
  *  @hw: Pointer to hardware structure
  *  @msg: Pointer to message
  *  @mbx: Pointer to mailbox information structure
- *  @func: Function array containing list of message handling functions
+ *  @data: Pointer to message handler data structure
  *
  *  This function should be the first function called upon receiving a
  *  message.  The handler will identify the message type and call the correct
@@ -652,29 +638,29 @@ const struct fm10k_tlv_attr fm10k_tlv_msg_test_attr[] = {
  **/
 static void fm10k_tlv_msg_test_generate_data(u32 *msg, u32 attr_flags)
 {
-	if (attr_flags & (1 << FM10K_TEST_MSG_STRING))
+	if (attr_flags & BIT(FM10K_TEST_MSG_STRING))
 		fm10k_tlv_attr_put_null_string(msg, FM10K_TEST_MSG_STRING,
 					       test_str);
-	if (attr_flags & (1 << FM10K_TEST_MSG_MAC_ADDR))
+	if (attr_flags & BIT(FM10K_TEST_MSG_MAC_ADDR))
 		fm10k_tlv_attr_put_mac_vlan(msg, FM10K_TEST_MSG_MAC_ADDR,
 					    test_mac, test_vlan);
-	if (attr_flags & (1 << FM10K_TEST_MSG_U8))
+	if (attr_flags & BIT(FM10K_TEST_MSG_U8))
 		fm10k_tlv_attr_put_u8(msg, FM10K_TEST_MSG_U8,  test_u8);
-	if (attr_flags & (1 << FM10K_TEST_MSG_U16))
+	if (attr_flags & BIT(FM10K_TEST_MSG_U16))
 		fm10k_tlv_attr_put_u16(msg, FM10K_TEST_MSG_U16, test_u16);
-	if (attr_flags & (1 << FM10K_TEST_MSG_U32))
+	if (attr_flags & BIT(FM10K_TEST_MSG_U32))
 		fm10k_tlv_attr_put_u32(msg, FM10K_TEST_MSG_U32, test_u32);
-	if (attr_flags & (1 << FM10K_TEST_MSG_U64))
+	if (attr_flags & BIT(FM10K_TEST_MSG_U64))
 		fm10k_tlv_attr_put_u64(msg, FM10K_TEST_MSG_U64, test_u64);
-	if (attr_flags & (1 << FM10K_TEST_MSG_S8))
+	if (attr_flags & BIT(FM10K_TEST_MSG_S8))
 		fm10k_tlv_attr_put_s8(msg, FM10K_TEST_MSG_S8,  test_s8);
-	if (attr_flags & (1 << FM10K_TEST_MSG_S16))
+	if (attr_flags & BIT(FM10K_TEST_MSG_S16))
 		fm10k_tlv_attr_put_s16(msg, FM10K_TEST_MSG_S16, test_s16);
-	if (attr_flags & (1 << FM10K_TEST_MSG_S32))
+	if (attr_flags & BIT(FM10K_TEST_MSG_S32))
 		fm10k_tlv_attr_put_s32(msg, FM10K_TEST_MSG_S32, test_s32);
-	if (attr_flags & (1 << FM10K_TEST_MSG_S64))
+	if (attr_flags & BIT(FM10K_TEST_MSG_S64))
 		fm10k_tlv_attr_put_s64(msg, FM10K_TEST_MSG_S64, test_s64);
-	if (attr_flags & (1 << FM10K_TEST_MSG_LE_STRUCT))
+	if (attr_flags & BIT(FM10K_TEST_MSG_LE_STRUCT))
 		fm10k_tlv_attr_put_le_struct(msg, FM10K_TEST_MSG_LE_STRUCT,
 					     test_le, 8);
 }
@@ -755,7 +741,7 @@ parse_nested:
 		err = fm10k_tlv_attr_get_mac_vlan(
 					results[FM10K_TEST_MSG_MAC_ADDR],
 					result_mac, &result_vlan);
-		if (!err && memcmp(test_mac, result_mac, ETH_ALEN))
+		if (!err && !ether_addr_equal(test_mac, result_mac))
 			err = FM10K_ERR_INVALID_VALUE;
 		if (!err && test_vlan != result_vlan)
 			err = FM10K_ERR_INVALID_VALUE;

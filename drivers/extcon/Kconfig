@@ -30,7 +30,8 @@ config EXTCON_ARIZONA
 
 config EXTCON_AXP288
 	tristate "X-Power AXP288 EXTCON support"
-	depends on MFD_AXP20X && USB_PHY
+	depends on MFD_AXP20X && USB_SUPPORT && X86
+	select USB_ROLE_SWITCH
 	help
 	  Say Y here to enable support for USB peripheral detection
 	  and USB MUX switching by X-Power AXP288 PMIC.
@@ -42,6 +43,23 @@ config EXTCON_GPIO
 	  Say Y here to enable GPIO based extcon support. Note that GPIO
 	  extcon supports single state per extcon instance.
 
+config EXTCON_INTEL_INT3496
+	tristate "Intel INT3496 ACPI device extcon driver"
+	depends on GPIOLIB && ACPI && (X86 || COMPILE_TEST)
+	help
+	  Say Y here to enable extcon support for USB OTG ports controlled by
+	  an Intel INT3496 ACPI device.
+
+	  This ACPI device is typically found on Intel Baytrail or Cherrytrail
+	  based tablets, or other Baytrail / Cherrytrail devices.
+
+config EXTCON_INTEL_CHT_WC
+	tristate "Intel Cherrytrail Whiskey Cove PMIC extcon driver"
+	depends on INTEL_SOC_PMIC_CHTWC
+	help
+	  Say Y here to enable extcon support for charger detection / control
+	  on the Intel Cherrytrail Whiskey Cove PMIC.
+
 config EXTCON_MAX14577
 	tristate "Maxim MAX14577/77836 EXTCON Support"
 	depends on MFD_MAX14577
@@ -51,6 +69,15 @@ config EXTCON_MAX14577
 	  If you say yes here you get support for the MUIC device of
 	  Maxim MAX14577/77836. The MAX14577/77836 MUIC is a USB port accessory
 	  detector and switch.
+
+config EXTCON_MAX3355
+	tristate "Maxim MAX3355 USB OTG EXTCON Support"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  If you say yes here you get support for the USB OTG role detection by
+	  MAX3355. The MAX3355 chip integrates a charge pump and comparators to
+	  enable a system with an integrated USB OTG dual-role transceiver to
+	  function as an USB OTG dual-role device.
 
 config EXTCON_MAX77693
 	tristate "Maxim MAX77693 EXTCON Support"
@@ -87,6 +114,13 @@ config EXTCON_PALMAS
 	  Say Y here to enable support for USB peripheral and USB host
 	  detection by palmas usb.
 
+config EXTCON_QCOM_SPMI_MISC
+	tristate "Qualcomm USB extcon support"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  Say Y here to enable SPMI PMIC based USB cable detection
+	  support on Qualcomm PMICs such as PM8941.
+
 config EXTCON_RT8973A
 	tristate "Richtek RT8973A EXTCON support"
 	depends on I2C
@@ -116,5 +150,12 @@ config EXTCON_USB_GPIO
 	help
 	  Say Y here to enable GPIO based USB cable detection extcon support.
 	  Used typically if GPIO is used for USB ID pin detection.
+
+config EXTCON_USBC_CROS_EC
+	tristate "ChromeOS Embedded Controller EXTCON support"
+	depends on MFD_CROS_EC
+	help
+	  Say Y here to enable USB Type C cable detection extcon support when
+	  using Chrome OS EC based USB Type-C ports.
 
 endif

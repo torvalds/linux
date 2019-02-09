@@ -22,36 +22,26 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "head.h"
+#include "ior.h"
 #include "rootnv50.h"
 
 static const struct nv50_disp_func
 gt215_disp = {
+	.init = nv50_disp_init,
+	.fini = nv50_disp_fini,
 	.intr = nv50_disp_intr,
 	.uevent = &nv50_disp_chan_uevent,
-	.super = nv50_disp_intr_supervisor,
+	.super = nv50_disp_super,
 	.root = &gt215_disp_root_oclass,
-	.head.vblank_init = nv50_disp_vblank_init,
-	.head.vblank_fini = nv50_disp_vblank_fini,
-	.head.scanoutpos = nv50_disp_root_scanoutpos,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.internal.dp = g94_sor_dp_new,
-	.outp.external.tmds = nv50_pior_output_new,
-	.outp.external.dp = nv50_pior_dp_new,
-	.dac.nr = 3,
-	.dac.power = nv50_dac_power,
-	.dac.sense = nv50_dac_sense,
-	.sor.nr = 4,
-	.sor.power = nv50_sor_power,
-	.sor.hda_eld = gt215_hda_eld,
-	.sor.hdmi = gt215_hdmi_ctrl,
-	.pior.nr = 3,
-	.pior.power = nv50_pior_power,
+	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
+	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
+	.sor = { .cnt = g94_sor_cnt, .new = gt215_sor_new },
+	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
 };
 
 int
 gt215_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&gt215_disp, device, index, 2, pdisp);
+	return nv50_disp_new_(&gt215_disp, device, index, pdisp);
 }

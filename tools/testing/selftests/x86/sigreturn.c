@@ -54,6 +54,37 @@
 #include <sys/ptrace.h>
 #include <sys/user.h>
 
+/* Pull in AR_xyz defines. */
+typedef unsigned int u32;
+typedef unsigned short u16;
+#include "../../../../arch/x86/include/asm/desc_defs.h"
+
+/*
+ * Copied from asm/ucontext.h, as asm/ucontext.h conflicts badly with the glibc
+ * headers.
+ */
+#ifdef __x86_64__
+/*
+ * UC_SIGCONTEXT_SS will be set when delivering 64-bit or x32 signals on
+ * kernels that save SS in the sigcontext.  All kernels that set
+ * UC_SIGCONTEXT_SS will correctly restore at least the low 32 bits of esp
+ * regardless of SS (i.e. they implement espfix).
+ *
+ * Kernels that set UC_SIGCONTEXT_SS will also set UC_STRICT_RESTORE_SS
+ * when delivering a signal that came from 64-bit code.
+ *
+ * Sigreturn restores SS as follows:
+ *
+ * if (saved SS is valid || UC_STRICT_RESTORE_SS is set ||
+ *     saved CS is not 64-bit)
+ *         new SS = saved SS  (will fail IRET and signal if invalid)
+ * else
+ *         new SS = a flat 32-bit data segment
+ */
+#define UC_SIGCONTEXT_SS       0x2
+#define UC_STRICT_RESTORE_SS   0x4
+#endif
+
 /*
  * In principle, this test can run on Linux emulation layers (e.g.
  * Illumos "LX branded zones").  Solaris-based kernels reserve LDT
@@ -75,7 +106,7 @@ asm (".pushsection .text\n\t"
      ".type int3, @function\n\t"
      ".align 4096\n\t"
      "int3:\n\t"
-     "mov %ss,%eax\n\t"
+     "mov %ss,%ecx\n\t"
      "int3\n\t"
      ".size int3, . - int3\n\t"
      ".align 4096, 0xcc\n\t"
@@ -267,12 +298,15 @@ static gregset_t initial_regs, requested_regs, resulting_regs;
 /* Instructions for the SIGUSR1 handler. */
 static volatile unsigned short sig_cs, sig_ss;
 static volatile sig_atomic_t sig_trapped, sig_err, sig_trapno;
+#ifdef __x86_64__
+static volatile sig_atomic_t sig_corrupt_final_ss;
+#endif
 
 /* Abstractions for some 32-bit vs 64-bit differences. */
 #ifdef __x86_64__
 # define REG_IP REG_RIP
 # define REG_SP REG_RSP
-# define REG_AX REG_RAX
+# define REG_CX REG_RCX
 
 struct selectors {
 	unsigned short cs, gs, fs, ss;
@@ -292,7 +326,7 @@ static unsigned short *csptr(ucontext_t *ctx)
 #else
 # define REG_IP REG_EIP
 # define REG_SP REG_ESP
-# define REG_AX REG_EAX
+# define REG_CX REG_ECX
 
 static greg_t *ssptr(ucontext_t *ctx)
 {
@@ -304,62 +338,6 @@ static greg_t *csptr(ucontext_t *ctx)
 	return &ctx->uc_mcontext.gregs[REG_CS];
 }
 #endif
-
-/* Number of errors in the current test case. */
-static volatile sig_atomic_t nerrs;
-
-/*
- * SIGUSR1 handler.  Sets CS and SS as requested and points IP to the
- * int3 trampoline.  Sets SP to a large known value so that we can see
- * whether the value round-trips back to user mode correctly.
- */
-static void sigusr1(int sig, siginfo_t *info, void *ctx_void)
-{
-	ucontext_t *ctx = (ucontext_t*)ctx_void;
-
-	memcpy(&initial_regs, &ctx->uc_mcontext.gregs, sizeof(gregset_t));
-
-	*csptr(ctx) = sig_cs;
-	*ssptr(ctx) = sig_ss;
-
-	ctx->uc_mcontext.gregs[REG_IP] =
-		sig_cs == code16_sel ? 0 : (unsigned long)&int3;
-	ctx->uc_mcontext.gregs[REG_SP] = (unsigned long)0x8badf00d5aadc0deULL;
-	ctx->uc_mcontext.gregs[REG_AX] = 0;
-
-	memcpy(&requested_regs, &ctx->uc_mcontext.gregs, sizeof(gregset_t));
-	requested_regs[REG_AX] = *ssptr(ctx);	/* The asm code does this. */
-
-	return;
-}
-
-/*
- * Called after a successful sigreturn.  Restores our state so that
- * the original raise(SIGUSR1) returns.
- */
-static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
-{
-	ucontext_t *ctx = (ucontext_t*)ctx_void;
-
-	sig_err = ctx->uc_mcontext.gregs[REG_ERR];
-	sig_trapno = ctx->uc_mcontext.gregs[REG_TRAPNO];
-
-	unsigned short ss;
-	asm ("mov %%ss,%0" : "=r" (ss));
-
-	greg_t asm_ss = ctx->uc_mcontext.gregs[REG_AX];
-	if (asm_ss != sig_ss && sig == SIGTRAP) {
-		/* Sanity check failure. */
-		printf("[FAIL]\tSIGTRAP: ss = %hx, frame ss = %hx, ax = %llx\n",
-		       ss, *ssptr(ctx), (unsigned long long)asm_ss);
-		nerrs++;
-	}
-
-	memcpy(&resulting_regs, &ctx->uc_mcontext.gregs, sizeof(gregset_t));
-	memcpy(&ctx->uc_mcontext.gregs, &initial_regs, sizeof(gregset_t));
-
-	sig_trapped = sig;
-}
 
 /*
  * Checks a given selector for its code bitness or returns -1 if it's not
@@ -393,6 +371,184 @@ int cs_bitness(unsigned short cs)
 	else
 		return -1;	/* Unknown bitness. */
 }
+
+/*
+ * Checks a given selector for its code bitness or returns -1 if it's not
+ * a usable code segment selector.
+ */
+bool is_valid_ss(unsigned short cs)
+{
+	uint32_t valid = 0, ar;
+	asm ("lar %[cs], %[ar]\n\t"
+	     "jnz 1f\n\t"
+	     "mov $1, %[valid]\n\t"
+	     "1:"
+	     : [ar] "=r" (ar), [valid] "+rm" (valid)
+	     : [cs] "r" (cs));
+
+	if (!valid)
+		return false;
+
+	if ((ar & AR_TYPE_MASK) != AR_TYPE_RWDATA &&
+	    (ar & AR_TYPE_MASK) != AR_TYPE_RWDATA_EXPDOWN)
+		return false;
+
+	return (ar & AR_P);
+}
+
+/* Number of errors in the current test case. */
+static volatile sig_atomic_t nerrs;
+
+static void validate_signal_ss(int sig, ucontext_t *ctx)
+{
+#ifdef __x86_64__
+	bool was_64bit = (cs_bitness(*csptr(ctx)) == 64);
+
+	if (!(ctx->uc_flags & UC_SIGCONTEXT_SS)) {
+		printf("[FAIL]\tUC_SIGCONTEXT_SS was not set\n");
+		nerrs++;
+
+		/*
+		 * This happens on Linux 4.1.  The rest will fail, too, so
+		 * return now to reduce the noise.
+		 */
+		return;
+	}
+
+	/* UC_STRICT_RESTORE_SS is set iff we came from 64-bit mode. */
+	if (!!(ctx->uc_flags & UC_STRICT_RESTORE_SS) != was_64bit) {
+		printf("[FAIL]\tUC_STRICT_RESTORE_SS was wrong in signal %d\n",
+		       sig);
+		nerrs++;
+	}
+
+	if (is_valid_ss(*ssptr(ctx))) {
+		/*
+		 * DOSEMU was written before 64-bit sigcontext had SS, and
+		 * it tries to figure out the signal source SS by looking at
+		 * the physical register.  Make sure that keeps working.
+		 */
+		unsigned short hw_ss;
+		asm ("mov %%ss, %0" : "=rm" (hw_ss));
+		if (hw_ss != *ssptr(ctx)) {
+			printf("[FAIL]\tHW SS didn't match saved SS\n");
+			nerrs++;
+		}
+	}
+#endif
+}
+
+/*
+ * SIGUSR1 handler.  Sets CS and SS as requested and points IP to the
+ * int3 trampoline.  Sets SP to a large known value so that we can see
+ * whether the value round-trips back to user mode correctly.
+ */
+static void sigusr1(int sig, siginfo_t *info, void *ctx_void)
+{
+	ucontext_t *ctx = (ucontext_t*)ctx_void;
+
+	validate_signal_ss(sig, ctx);
+
+	memcpy(&initial_regs, &ctx->uc_mcontext.gregs, sizeof(gregset_t));
+
+	*csptr(ctx) = sig_cs;
+	*ssptr(ctx) = sig_ss;
+
+	ctx->uc_mcontext.gregs[REG_IP] =
+		sig_cs == code16_sel ? 0 : (unsigned long)&int3;
+	ctx->uc_mcontext.gregs[REG_SP] = (unsigned long)0x8badf00d5aadc0deULL;
+	ctx->uc_mcontext.gregs[REG_CX] = 0;
+
+	memcpy(&requested_regs, &ctx->uc_mcontext.gregs, sizeof(gregset_t));
+	requested_regs[REG_CX] = *ssptr(ctx);	/* The asm code does this. */
+
+	return;
+}
+
+/*
+ * Called after a successful sigreturn (via int3) or from a failed
+ * sigreturn (directly by kernel).  Restores our state so that the
+ * original raise(SIGUSR1) returns.
+ */
+static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
+{
+	ucontext_t *ctx = (ucontext_t*)ctx_void;
+
+	validate_signal_ss(sig, ctx);
+
+	sig_err = ctx->uc_mcontext.gregs[REG_ERR];
+	sig_trapno = ctx->uc_mcontext.gregs[REG_TRAPNO];
+
+	unsigned short ss;
+	asm ("mov %%ss,%0" : "=r" (ss));
+
+	greg_t asm_ss = ctx->uc_mcontext.gregs[REG_CX];
+	if (asm_ss != sig_ss && sig == SIGTRAP) {
+		/* Sanity check failure. */
+		printf("[FAIL]\tSIGTRAP: ss = %hx, frame ss = %hx, ax = %llx\n",
+		       ss, *ssptr(ctx), (unsigned long long)asm_ss);
+		nerrs++;
+	}
+
+	memcpy(&resulting_regs, &ctx->uc_mcontext.gregs, sizeof(gregset_t));
+	memcpy(&ctx->uc_mcontext.gregs, &initial_regs, sizeof(gregset_t));
+
+#ifdef __x86_64__
+	if (sig_corrupt_final_ss) {
+		if (ctx->uc_flags & UC_STRICT_RESTORE_SS) {
+			printf("[FAIL]\tUC_STRICT_RESTORE_SS was set inappropriately\n");
+			nerrs++;
+		} else {
+			/*
+			 * DOSEMU transitions from 32-bit to 64-bit mode by
+			 * adjusting sigcontext, and it requires that this work
+			 * even if the saved SS is bogus.
+			 */
+			printf("\tCorrupting SS on return to 64-bit mode\n");
+			*ssptr(ctx) = 0;
+		}
+	}
+#endif
+
+	sig_trapped = sig;
+}
+
+#ifdef __x86_64__
+/* Tests recovery if !UC_STRICT_RESTORE_SS */
+static void sigusr2(int sig, siginfo_t *info, void *ctx_void)
+{
+	ucontext_t *ctx = (ucontext_t*)ctx_void;
+
+	if (!(ctx->uc_flags & UC_STRICT_RESTORE_SS)) {
+		printf("[FAIL]\traise(2) didn't set UC_STRICT_RESTORE_SS\n");
+		nerrs++;
+		return;  /* We can't do the rest. */
+	}
+
+	ctx->uc_flags &= ~UC_STRICT_RESTORE_SS;
+	*ssptr(ctx) = 0;
+
+	/* Return.  The kernel should recover without sending another signal. */
+}
+
+static int test_nonstrict_ss(void)
+{
+	clearhandler(SIGUSR1);
+	clearhandler(SIGTRAP);
+	clearhandler(SIGSEGV);
+	clearhandler(SIGILL);
+	sethandler(SIGUSR2, sigusr2, 0);
+
+	nerrs = 0;
+
+	printf("[RUN]\tClear UC_STRICT_RESTORE_SS and corrupt SS\n");
+	raise(SIGUSR2);
+	if (!nerrs)
+		printf("[OK]\tIt worked\n");
+
+	return nerrs;
+}
+#endif
 
 /* Finds a usable code segment of the requested bitness. */
 int find_cs(int bitness)
@@ -454,21 +610,41 @@ static int test_valid_sigreturn(int cs_bits, bool use_16bit_ss, int force_ss)
 	 */
 	for (int i = 0; i < NGREG; i++) {
 		greg_t req = requested_regs[i], res = resulting_regs[i];
+
 		if (i == REG_TRAPNO || i == REG_IP)
 			continue;	/* don't care */
-		if (i == REG_SP) {
-			printf("\tSP: %llx -> %llx\n", (unsigned long long)req,
-			       (unsigned long long)res);
 
+		if (i == REG_SP) {
 			/*
-			 * In many circumstances, the high 32 bits of rsp
-			 * are zeroed.  For example, we could be a real
-			 * 32-bit program, or we could hit any of a number
-			 * of poorly-documented IRET or segmented ESP
-			 * oddities.  If this happens, it's okay.
+			 * If we were using a 16-bit stack segment, then
+			 * the kernel is a bit stuck: IRET only restores
+			 * the low 16 bits of ESP/RSP if SS is 16-bit.
+			 * The kernel uses a hack to restore bits 31:16,
+			 * but that hack doesn't help with bits 63:32.
+			 * On Intel CPUs, bits 63:32 end up zeroed, and, on
+			 * AMD CPUs, they leak the high bits of the kernel
+			 * espfix64 stack pointer.  There's very little that
+			 * the kernel can do about it.
+			 *
+			 * Similarly, if we are returning to a 32-bit context,
+			 * the CPU will often lose the high 32 bits of RSP.
 			 */
-			if (res == (req & 0xFFFFFFFF))
-				continue;  /* OK; not expected to work */
+
+			if (res == req)
+				continue;
+
+			if (cs_bits != 64 && ((res ^ req) & 0xFFFFFFFF) == 0) {
+				printf("[NOTE]\tSP: %llx -> %llx\n",
+				       (unsigned long long)req,
+				       (unsigned long long)res);
+				continue;
+			}
+
+			printf("[FAIL]\tSP mismatch: requested 0x%llx; got 0x%llx\n",
+			       (unsigned long long)requested_regs[i],
+			       (unsigned long long)resulting_regs[i]);
+			nerrs++;
+			continue;
 		}
 
 		bool ignore_reg = false;
@@ -498,25 +674,18 @@ static int test_valid_sigreturn(int cs_bits, bool use_16bit_ss, int force_ss)
 #endif
 
 		/* Sanity check on the kernel */
-		if (i == REG_AX && requested_regs[i] != resulting_regs[i]) {
-			printf("[FAIL]\tAX (saved SP) mismatch: requested 0x%llx; got 0x%llx\n",
-			       (unsigned long long)requested_regs[i],
-			       (unsigned long long)resulting_regs[i]);
+		if (i == REG_CX && req != res) {
+			printf("[FAIL]\tCX (saved SP) mismatch: requested 0x%llx; got 0x%llx\n",
+			       (unsigned long long)req,
+			       (unsigned long long)res);
 			nerrs++;
 			continue;
 		}
 
-		if (requested_regs[i] != resulting_regs[i] && !ignore_reg) {
-			/*
-			 * SP is particularly interesting here.  The
-			 * usual cause of failures is that we hit the
-			 * nasty IRET case of returning to a 16-bit SS,
-			 * in which case bits 16:31 of the *kernel*
-			 * stack pointer persist in ESP.
-			 */
+		if (req != res && !ignore_reg) {
 			printf("[FAIL]\tReg %d mismatch: requested 0x%llx; got 0x%llx\n",
-			       i, (unsigned long long)requested_regs[i],
-			       (unsigned long long)resulting_regs[i]);
+			       i, (unsigned long long)req,
+			       (unsigned long long)res);
 			nerrs++;
 		}
 	}
@@ -576,6 +745,12 @@ static int test_bad_iret(int cs_bits, unsigned short ss, int force_cs)
 		       errdesc, strsignal(sig_trapped));
 		return 0;
 	} else {
+		/*
+		 * This also implicitly tests UC_STRICT_RESTORE_SS:
+		 * We check that these signals set UC_STRICT_RESTORE_SS and,
+		 * if UC_STRICT_RESTORE_SS doesn't cause strict behavior,
+		 * then we won't get SIGSEGV.
+		 */
 		printf("[FAIL]\tDid not get SIGSEGV\n");
 		return 1;
 	}
@@ -632,6 +807,14 @@ int main()
 						    GDT3(gdt_data16_idx));
 	}
 
+#ifdef __x86_64__
+	/* Nasty ABI case: check SS corruption handling. */
+	sig_corrupt_final_ss = 1;
+	total_nerrs += test_valid_sigreturn(32, false, -1);
+	total_nerrs += test_valid_sigreturn(32, true, -1);
+	sig_corrupt_final_ss = 0;
+#endif
+
 	/*
 	 * We're done testing valid sigreturn cases.  Now we test states
 	 * for which sigreturn itself will succeed but the subsequent
@@ -679,6 +862,10 @@ int main()
 	 */
 	if (gdt_npdata32_idx)
 		test_bad_iret(32, GDT3(gdt_npdata32_idx), -1);
+
+#ifdef __x86_64__
+	total_nerrs += test_nonstrict_ss();
+#endif
 
 	return total_nerrs ? 1 : 0;
 }

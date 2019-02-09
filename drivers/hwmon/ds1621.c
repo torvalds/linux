@@ -263,7 +263,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	return count;
 }
 
-static ssize_t show_alarms(struct device *dev, struct device_attribute *da,
+static ssize_t alarms_show(struct device *dev, struct device_attribute *da,
 			   char *buf)
 {
 	struct ds1621_data *data = ds1621_update_client(dev);
@@ -278,15 +278,16 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%d\n", !!(data->conf & attr->index));
 }
 
-static ssize_t show_convrate(struct device *dev, struct device_attribute *da,
-			  char *buf)
+static ssize_t update_interval_show(struct device *dev,
+				    struct device_attribute *da, char *buf)
 {
 	struct ds1621_data *data = dev_get_drvdata(dev);
 	return scnprintf(buf, PAGE_SIZE, "%hu\n", data->update_interval);
 }
 
-static ssize_t set_convrate(struct device *dev, struct device_attribute *da,
-			    const char *buf, size_t count)
+static ssize_t update_interval_store(struct device *dev,
+				     struct device_attribute *da,
+				     const char *buf, size_t count)
 {
 	struct ds1621_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -315,9 +316,8 @@ static ssize_t set_convrate(struct device *dev, struct device_attribute *da,
 	return count;
 }
 
-static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
-static DEVICE_ATTR(update_interval, S_IWUSR | S_IRUGO, show_convrate,
-		   set_convrate);
+static DEVICE_ATTR_RO(alarms);
+static DEVICE_ATTR_RW(update_interval);
 
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO, show_temp, set_temp, 1);

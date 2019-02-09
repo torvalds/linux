@@ -7,6 +7,7 @@ PMIC's from Qualcomm.
 	Usage: required
 	Value type: <string>
 	Definition: must be one of:
+		    "qcom,pm8005-gpio"
 		    "qcom,pm8018-gpio"
 		    "qcom,pm8038-gpio"
 		    "qcom,pm8058-gpio"
@@ -14,7 +15,13 @@ PMIC's from Qualcomm.
 		    "qcom,pm8917-gpio"
 		    "qcom,pm8921-gpio"
 		    "qcom,pm8941-gpio"
+		    "qcom,pm8994-gpio"
+		    "qcom,pm8998-gpio"
 		    "qcom,pma8084-gpio"
+		    "qcom,pmi8994-gpio"
+
+		    And must contain either "qcom,spmi-gpio" or "qcom,ssbi-gpio"
+		    if the device is on an spmi bus or an ssbi bus respectively
 
 - reg:
 	Usage: required
@@ -72,6 +79,7 @@ to specify in a pin configuration subnode:
 	Value type: <string-array>
 	Definition: List of gpio pins affected by the properties specified in
 		    this subnode.  Valid pins are:
+		    gpio1-gpio4 for pm8005
 		    gpio1-gpio6 for pm8018
 		    gpio1-gpio12 for pm8038
 		    gpio1-gpio40 for pm8058
@@ -79,7 +87,10 @@ to specify in a pin configuration subnode:
 		    gpio1-gpio38 for pm8917
 		    gpio1-gpio44 for pm8921
 		    gpio1-gpio36 for pm8941
+		    gpio1-gpio22 for pm8994
+		    gpio1-gpio26 for pm8998
 		    gpio1-gpio22 for pma8084
+		    gpio1-gpio10 for pmi8994
 
 - function:
 	Usage: required
@@ -93,7 +104,10 @@ to specify in a pin configuration subnode:
 		    "dtest1",
 		    "dtest2",
 		    "dtest3",
-		    "dtest4"
+		    "dtest4",
+		    And following values are supported by LV/MV GPIO subtypes:
+		    "func3",
+		    "func4"
 
 - bias-disable:
 	Usage: optional
@@ -120,7 +134,7 @@ to specify in a pin configuration subnode:
 		    2: 1.5uA                    (PMIC_GPIO_PULL_UP_1P5)
 		    3: 31.5uA                   (PMIC_GPIO_PULL_UP_31P5)
 		    4: 1.5uA + 30uA boost       (PMIC_GPIO_PULL_UP_1P5_30)
-		    If this property is ommited 30uA strength will be used if
+		    If this property is omitted 30uA strength will be used if
 		    pull up is selected
 
 - bias-high-impedance:
@@ -178,10 +192,29 @@ to specify in a pin configuration subnode:
 	Value type: <none>
 	Definition: The specified pins are configured in open-source mode.
 
+- qcom,analog-pass:
+	Usage: optional
+	Value type: <none>
+	Definition: The specified pins are configured in analog-pass-through mode.
+
+- qcom,atest:
+	Usage: optional
+	Value type: <u32>
+	Definition: Selects ATEST rail to route to GPIO when it's configured
+		    in analog-pass-through mode.
+		    Valid values are 1-4 corresponding to ATEST1 to ATEST4.
+
+- qcom,dtest-buffer:
+	Usage: optional
+	Value type: <u32>
+	Definition: Selects DTEST rail to route to GPIO when it's configured
+		    as digital input.
+		    Valid values are 1-4 corresponding to DTEST1 to DTEST4.
+
 Example:
 
 	pm8921_gpio: gpio@150 {
-		compatible = "qcom,pm8921-gpio";
+		compatible = "qcom,pm8921-gpio", "qcom,ssbi-gpio";
 		reg = <0x150 0x160>;
 		interrupts = <192 1>, <193 1>, <194 1>,
 			     <195 1>, <196 1>, <197 1>,

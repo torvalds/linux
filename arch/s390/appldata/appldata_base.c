@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Base infrastructure for Linux-z/VM Monitor Stream, Stage 1.
  * Exports appldata_register_ops() and appldata_unregister_ops() for the
@@ -12,6 +13,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/module.h>
+#include <linux/sched/stat.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -28,7 +30,7 @@
 #include <linux/platform_device.h>
 #include <asm/appldata.h>
 #include <asm/vtimer.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 
@@ -204,35 +206,28 @@ static int
 appldata_timer_handler(struct ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	unsigned int len;
-	char buf[2];
+	int timer_active = appldata_timer_active;
+	int zero = 0;
+	int one = 1;
+	int rc;
+	struct ctl_table ctl_entry = {
+		.procname	= ctl->procname,
+		.data		= &timer_active,
+		.maxlen		= sizeof(int),
+		.extra1		= &zero,
+		.extra2		= &one,
+	};
 
-	if (!*lenp || *ppos) {
-		*lenp = 0;
-		return 0;
-	}
-	if (!write) {
-		strncpy(buf, appldata_timer_active ? "1\n" : "0\n",
-			ARRAY_SIZE(buf));
-		len = strnlen(buf, ARRAY_SIZE(buf));
-		if (len > *lenp)
-			len = *lenp;
-		if (copy_to_user(buffer, buf, len))
-			return -EFAULT;
-		goto out;
-	}
-	len = *lenp;
-	if (copy_from_user(buf, buffer, len > sizeof(buf) ? sizeof(buf) : len))
-		return -EFAULT;
+	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	if (rc < 0 || !write)
+		return rc;
+
 	spin_lock(&appldata_timer_lock);
-	if (buf[0] == '1')
+	if (timer_active)
 		__appldata_vtimer_setup(APPLDATA_ADD_TIMER);
-	else if (buf[0] == '0')
+	else
 		__appldata_vtimer_setup(APPLDATA_DEL_TIMER);
 	spin_unlock(&appldata_timer_lock);
-out:
-	*lenp = len;
-	*ppos += len;
 	return 0;
 }
 
@@ -246,37 +241,24 @@ static int
 appldata_interval_handler(struct ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	unsigned int len;
-	int interval;
-	char buf[16];
+	int interval = appldata_interval;
+	int one = 1;
+	int rc;
+	struct ctl_table ctl_entry = {
+		.procname	= ctl->procname,
+		.data		= &interval,
+		.maxlen		= sizeof(int),
+		.extra1		= &one,
+	};
 
-	if (!*lenp || *ppos) {
-		*lenp = 0;
-		return 0;
-	}
-	if (!write) {
-		len = sprintf(buf, "%i\n", appldata_interval);
-		if (len > *lenp)
-			len = *lenp;
-		if (copy_to_user(buffer, buf, len))
-			return -EFAULT;
-		goto out;
-	}
-	len = *lenp;
-	if (copy_from_user(buf, buffer, len > sizeof(buf) ? sizeof(buf) : len))
-		return -EFAULT;
-	interval = 0;
-	sscanf(buf, "%i", &interval);
-	if (interval <= 0)
-		return -EINVAL;
+	rc = proc_dointvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	if (rc < 0 || !write)
+		return rc;
 
 	spin_lock(&appldata_timer_lock);
 	appldata_interval = interval;
 	__appldata_vtimer_setup(APPLDATA_MOD_TIMER);
 	spin_unlock(&appldata_timer_lock);
-out:
-	*lenp = len;
-	*ppos += len;
 	return 0;
 }
 
@@ -291,10 +273,17 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct appldata_ops *ops = NULL, *tmp_ops;
-	unsigned int len;
-	int rc, found;
-	char buf[2];
 	struct list_head *lh;
+	int rc, found;
+	int active;
+	int zero = 0;
+	int one = 1;
+	struct ctl_table ctl_entry = {
+		.data		= &active,
+		.maxlen		= sizeof(int),
+		.extra1		= &zero,
+		.extra2		= &one,
+	};
 
 	found = 0;
 	mutex_lock(&appldata_ops_mutex);
@@ -315,31 +304,15 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 	}
 	mutex_unlock(&appldata_ops_mutex);
 
-	if (!*lenp || *ppos) {
-		*lenp = 0;
+	active = ops->active;
+	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	if (rc < 0 || !write) {
 		module_put(ops->owner);
-		return 0;
-	}
-	if (!write) {
-		strncpy(buf, ops->active ? "1\n" : "0\n", ARRAY_SIZE(buf));
-		len = strnlen(buf, ARRAY_SIZE(buf));
-		if (len > *lenp)
-			len = *lenp;
-		if (copy_to_user(buffer, buf, len)) {
-			module_put(ops->owner);
-			return -EFAULT;
-		}
-		goto out;
-	}
-	len = *lenp;
-	if (copy_from_user(buf, buffer,
-			   len > sizeof(buf) ? sizeof(buf) : len)) {
-		module_put(ops->owner);
-		return -EFAULT;
+		return rc;
 	}
 
 	mutex_lock(&appldata_ops_mutex);
-	if ((buf[0] == '1') && (ops->active == 0)) {
+	if (active && (ops->active == 0)) {
 		// protect work queue callback
 		if (!try_module_get(ops->owner)) {
 			mutex_unlock(&appldata_ops_mutex);
@@ -357,7 +330,7 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 			module_put(ops->owner);
 		} else
 			ops->active = 1;
-	} else if ((buf[0] == '0') && (ops->active == 1)) {
+	} else if (!active && (ops->active == 1)) {
 		ops->active = 0;
 		rc = appldata_diag(ops->record_nr, APPLDATA_STOP_REC,
 				(unsigned long) ops->data, ops->size,
@@ -368,9 +341,6 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 		module_put(ops->owner);
 	}
 	mutex_unlock(&appldata_ops_mutex);
-out:
-	*lenp = len;
-	*ppos += len;
 	module_put(ops->owner);
 	return 0;
 }
@@ -389,7 +359,7 @@ int appldata_register_ops(struct appldata_ops *ops)
 	if (ops->size > APPLDATA_MAX_REC_SIZE)
 		return -EINVAL;
 
-	ops->ctl_table = kzalloc(4 * sizeof(struct ctl_table), GFP_KERNEL);
+	ops->ctl_table = kcalloc(4, sizeof(struct ctl_table), GFP_KERNEL);
 	if (!ops->ctl_table)
 		return -ENOMEM;
 
@@ -542,7 +512,7 @@ static int __init appldata_init(void)
 		rc = PTR_ERR(appldata_pdev);
 		goto out_driver;
 	}
-	appldata_wq = create_singlethread_workqueue("appldata");
+	appldata_wq = alloc_ordered_workqueue("appldata", 0);
 	if (!appldata_wq) {
 		rc = -ENOMEM;
 		goto out_device;

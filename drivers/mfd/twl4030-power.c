@@ -1,5 +1,4 @@
 /*
- * linux/drivers/i2c/chips/twl4030-power.c
  *
  * Handle TWL4030 Power initialization
  *
@@ -26,7 +25,7 @@
 
 #include <linux/module.h>
 #include <linux/pm.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -503,9 +502,7 @@ static int load_twl4030_script(const struct twl4030_power_data *pdata,
 	}
 	if (tscript->flags & TWL4030_SLEEP_SCRIPT) {
 		if (!order)
-			pr_warning("TWL4030: Bad order of scripts (sleep "\
-					"script before wakeup) Leads to boot"\
-					"failure on some boards\n");
+			pr_warn("TWL4030: Bad order of scripts (sleep script before wakeup) Leads to boot failure on some boards\n");
 		err = twl4030_config_sleep_sequence(address);
 	}
 out:
@@ -702,6 +699,7 @@ static struct twl4030_ins omap3_wrst_seq[] = {
 	TWL_RESOURCE_RESET(RES_MAIN_REF),
 	TWL_RESOURCE_GROUP_RESET(RES_GRP_ALL, RES_TYPE_R0, RES_TYPE2_R2),
 	TWL_RESOURCE_RESET(RES_VUSB_3V1),
+	TWL_RESOURCE_RESET(RES_VMMC1),
 	TWL_RESOURCE_GROUP_RESET(RES_GRP_ALL, RES_TYPE_R0, RES_TYPE2_R1),
 	TWL_RESOURCE_GROUP_RESET(RES_GRP_RC, RES_TYPE_ALL, RES_TYPE2_R0),
 	TWL_RESOURCE_ON(RES_RESET),
@@ -930,8 +928,7 @@ static int twl4030_power_probe(struct platform_device *pdev)
 		err = twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &val,
 				      TWL4030_PM_MASTER_CFG_P123_TRANSITION);
 		if (err) {
-			pr_warning("TWL4030 Unable to read registers\n");
-
+			pr_warn("TWL4030 Unable to read registers\n");
 		} else if (!(val & SEQ_OFFSYNC)) {
 			val |= SEQ_OFFSYNC;
 			err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, val,

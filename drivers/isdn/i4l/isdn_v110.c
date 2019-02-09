@@ -354,6 +354,7 @@ EncodeMatrix(unsigned char *buf, int len, unsigned char *m, int mlen)
 				printk(KERN_WARNING "isdn_v110 (EncodeMatrix): buffer full!\n");
 				return line;
 			}
+			/* else: fall through */
 		case 128:
 			m[line] = 128;	/* leftmost -> set byte to 1000000 */
 			mbit = 64;	/* current bit in the matrix line */
@@ -386,20 +387,28 @@ EncodeMatrix(unsigned char *buf, int len, unsigned char *m, int mlen)
 		switch (++line % 10) {
 		case 1:
 			m[line++] = 0xfe;
+			/* fall through */
 		case 2:
 			m[line++] = 0xfe;
+			/* fall through */
 		case 3:
 			m[line++] = 0xfe;
+			/* fall through */
 		case 4:
 			m[line++] = 0xfe;
+			/* fall through */
 		case 5:
 			m[line++] = 0xbf;
+			/* fall through */
 		case 6:
 			m[line++] = 0xfe;
+			/* fall through */
 		case 7:
 			m[line++] = 0xfe;
+			/* fall through */
 		case 8:
 			m[line++] = 0xfe;
+			/* fall through */
 		case 9:
 			m[line++] = 0xfe;
 		}
@@ -421,7 +430,7 @@ isdn_v110_sync(isdn_v110_stream *v)
 	}
 	if ((skb = dev_alloc_skb(v->framelen + v->skbres))) {
 		skb_reserve(skb, v->skbres);
-		memcpy(skb_put(skb, v->framelen), v->OfflineFrame, v->framelen);
+		skb_put_data(skb, v->OfflineFrame, v->framelen);
 	}
 	return skb;
 }
@@ -441,7 +450,7 @@ isdn_v110_idle(isdn_v110_stream *v)
 	}
 	if ((skb = dev_alloc_skb(v->framelen + v->skbres))) {
 		skb_reserve(skb, v->skbres);
-		memcpy(skb_put(skb, v->framelen), v->OnlineFrame, v->framelen);
+		skb_put_data(skb, v->OnlineFrame, v->framelen);
 	}
 	return skb;
 }
@@ -486,7 +495,7 @@ isdn_v110_encode(isdn_v110_stream *v, struct sk_buff *skb)
 	}
 	skb_reserve(nskb, v->skbres + sizeof(int));
 	if (skb->len == 0) {
-		memcpy(skb_put(nskb, v->framelen), v->OnlineFrame, v->framelen);
+		skb_put_data(nskb, v->OnlineFrame, v->framelen);
 		*((int *)skb_push(nskb, sizeof(int))) = 0;
 		return nskb;
 	}

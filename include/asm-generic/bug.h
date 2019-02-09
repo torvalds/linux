@@ -1,11 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_GENERIC_BUG_H
 #define _ASM_GENERIC_BUG_H
 
 #include <linux/compiler.h>
 
+#define CUT_HERE		"------------[ cut here ]------------\n"
+
 #ifdef CONFIG_GENERIC_BUG
 #define BUGFLAG_WARNING		(1 << 0)
-#define BUGFLAG_TAINT(taint)	(BUGFLAG_WARNING | ((taint) << 8))
+#define BUGFLAG_ONCE		(1 << 1)
+#define BUGFLAG_DONE		(1 << 2)
+#define BUGFLAG_TAINT(taint)	((taint) << 8)
 #define BUG_GET_TAINT(bug)	((bug)->flags >> 8)
 #endif
 
@@ -47,6 +52,7 @@ struct bug_entry {
 #ifndef HAVE_ARCH_BUG
 #define BUG() do { \
 	printk("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__); \
+	barrier_before_unreachable(); \
 	panic("BUG!"); \
 } while (0)
 #endif
@@ -55,11 +61,33 @@ struct bug_entry {
 #define BUG_ON(condition) do { if (unlikely(condition)) BUG(); } while (0)
 #endif
 
+#ifdef __WARN_FLAGS
+#define __WARN_TAINT(taint)		__WARN_FLAGS(BUGFLAG_TAINT(taint))
+#define __WARN_ONCE_TAINT(taint)	__WARN_FLAGS(BUGFLAG_ONCE|BUGFLAG_TAINT(taint))
+
+#define WARN_ON_ONCE(condition) ({				\
+	int __ret_warn_on = !!(condition);			\
+	if (unlikely(__ret_warn_on))				\
+		__WARN_ONCE_TAINT(TAINT_WARN);			\
+	unlikely(__ret_warn_on);				\
+})
+#endif
+
 /*
  * WARN(), WARN_ON(), WARN_ON_ONCE, and so on can be used to report
- * significant issues that need prompt attention if they should ever
- * appear at runtime.  Use the versions with printk format strings
- * to provide better diagnostics.
+ * significant kernel issues that need prompt attention if they should ever
+ * appear at runtime.
+ *
+ * Do not use these macros when checking for invalid external inputs
+ * (e.g. invalid system call arguments, or invalid data coming from
+ * network/devices), and on transient conditions like ENOMEM or EAGAIN.
+ * These macros should be used for recoverable kernel issues only.
+ * For invalid external inputs, transient conditions, etc use
+ * pr_err[_once/_ratelimited]() followed by dump_stack(), if necessary.
+ * Do not include "BUG"/"WARNING" in format strings manually to make these
+ * conditions distinguishable from kernel issues.
+ *
+ * Use the versions with printk format strings to provide better diagnostics.
  */
 #ifndef __WARN_TAINT
 extern __printf(3, 4)
@@ -75,11 +103,19 @@ extern void warn_slowpath_null(const char *file, const int line);
 #define __WARN_printf_taint(taint, arg...)				\
 	warn_slowpath_fmt_taint(__FILE__, __LINE__, taint, arg)
 #else
+extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 #define __WARN()		__WARN_TAINT(TAINT_WARN)
-#define __WARN_printf(arg...)	do { printk(arg); __WARN(); } while (0)
+#define __WARN_printf(arg...)	do { __warn_printk(arg); __WARN(); } while (0)
 #define __WARN_printf_taint(taint, arg...)				\
-	do { printk(arg); __WARN_TAINT(taint); } while (0)
+	do { __warn_printk(arg); __WARN_TAINT(taint); } while (0)
 #endif
+
+/* used internally by panic.c */
+struct warn_args;
+struct pt_regs;
+
+void __warn(const char *file, int line, void *caller, unsigned taint,
+	    struct pt_regs *regs, struct warn_args *args);
 
 #ifndef WARN_ON
 #define WARN_ON(condition) ({						\
@@ -91,7 +127,7 @@ extern void warn_slowpath_null(const char *file, const int line);
 #endif
 
 #ifndef WARN
-#define WARN(condition, format...) ({						\
+#define WARN(condition, format...) ({					\
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on))					\
 		__WARN_printf(format);					\
@@ -106,33 +142,38 @@ extern void warn_slowpath_null(const char *file, const int line);
 	unlikely(__ret_warn_on);					\
 })
 
+#ifndef WARN_ON_ONCE
 #define WARN_ON_ONCE(condition)	({				\
-	static bool __section(.data.unlikely) __warned;		\
+	static bool __section(.data.once) __warned;		\
 	int __ret_warn_once = !!(condition);			\
 								\
-	if (unlikely(__ret_warn_once))				\
-		if (WARN_ON(!__warned)) 			\
-			__warned = true;			\
+	if (unlikely(__ret_warn_once && !__warned)) {		\
+		__warned = true;				\
+		WARN_ON(1);					\
+	}							\
 	unlikely(__ret_warn_once);				\
 })
+#endif
 
 #define WARN_ONCE(condition, format...)	({			\
-	static bool __section(.data.unlikely) __warned;		\
+	static bool __section(.data.once) __warned;		\
 	int __ret_warn_once = !!(condition);			\
 								\
-	if (unlikely(__ret_warn_once))				\
-		if (WARN(!__warned, format)) 			\
-			__warned = true;			\
+	if (unlikely(__ret_warn_once && !__warned)) {		\
+		__warned = true;				\
+		WARN(1, format);				\
+	}							\
 	unlikely(__ret_warn_once);				\
 })
 
 #define WARN_TAINT_ONCE(condition, taint, format...)	({	\
-	static bool __section(.data.unlikely) __warned;		\
+	static bool __section(.data.once) __warned;		\
 	int __ret_warn_once = !!(condition);			\
 								\
-	if (unlikely(__ret_warn_once))				\
-		if (WARN_TAINT(!__warned, taint, format))	\
-			__warned = true;			\
+	if (unlikely(__ret_warn_once && !__warned)) {		\
+		__warned = true;				\
+		WARN_TAINT(1, taint, format);			\
+	}							\
 	unlikely(__ret_warn_once);				\
 })
 
@@ -142,7 +183,7 @@ extern void warn_slowpath_null(const char *file, const int line);
 #endif
 
 #ifndef HAVE_ARCH_BUG_ON
-#define BUG_ON(condition) do { if (condition) ; } while (0)
+#define BUG_ON(condition) do { if (condition) BUG(); } while (0)
 #endif
 
 #ifndef HAVE_ARCH_WARN_ON

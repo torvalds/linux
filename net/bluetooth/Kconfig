@@ -13,6 +13,7 @@ menuconfig BT
 	select CRYPTO_CMAC
 	select CRYPTO_ECB
 	select CRYPTO_SHA256
+	select CRYPTO_ECDH
 	help
 	  Bluetooth is low-cost, low-power, short-range wireless technology.
 	  It was designed as a replacement for cables and other short-range
@@ -44,6 +45,11 @@ config BT_BREDR
 	bool "Bluetooth Classic (BR/EDR) features"
 	depends on BT
 	default y
+	help
+	  Bluetooth Classic includes support for Basic Rate (BR)
+	  available with Bluetooth version 1.0b or later and support
+	  for Enhanced Data Rate (EDR) available with Bluetooth
+	  version 2.0 or later.
 
 source "net/bluetooth/rfcomm/Kconfig"
 
@@ -57,17 +63,33 @@ config BT_HS
 	bool "Bluetooth High Speed (HS) features"
 	depends on BT_BREDR
 	default y
+	help
+	  Bluetooth High Speed includes support for off-loading
+	  Bluetooth connections via 802.11 (wifi) physical layer
+	  available with Bluetooth version 3.0 or later.
 
 config BT_LE
 	bool "Bluetooth Low Energy (LE) features"
 	depends on BT
 	default y
+	help
+	  Bluetooth Low Energy includes support low-energy physical
+	  layer available with Bluetooth version 4.0 or later.
 
 config BT_6LOWPAN
 	tristate "Bluetooth 6LoWPAN support"
 	depends on BT_LE && 6LOWPAN
 	help
 	  IPv6 compression over Bluetooth Low Energy.
+
+config BT_LEDS
+	bool "Enable LED triggers"
+	depends on BT
+	depends on LEDS_CLASS
+	select LEDS_TRIGGERS
+	help
+	  This option selects a few LED triggers for different
+	  Bluetooth events.
 
 config BT_SELFTEST
 	bool "Bluetooth self testing support"

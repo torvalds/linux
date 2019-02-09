@@ -43,11 +43,16 @@
 #define CRTC4_REGISTER_OFFSET                 (0x477c - 0x1b7c)
 #define CRTC5_REGISTER_OFFSET                 (0x4a7c - 0x1b7c)
 
+/* hpd instance offsets */
+#define HPD0_REGISTER_OFFSET                 (0x1807 - 0x1807)
+#define HPD1_REGISTER_OFFSET                 (0x180a - 0x1807)
+#define HPD2_REGISTER_OFFSET                 (0x180d - 0x1807)
+#define HPD3_REGISTER_OFFSET                 (0x1810 - 0x1807)
+#define HPD4_REGISTER_OFFSET                 (0x1813 - 0x1807)
+#define HPD5_REGISTER_OFFSET                 (0x1816 - 0x1807)
+
 #define BONAIRE_GB_ADDR_CONFIG_GOLDEN        0x12010001
 #define HAWAII_GB_ADDR_CONFIG_GOLDEN         0x12011003
-
-#define CIK_RB_BITMAP_WIDTH_PER_SH     2
-#define HAWAII_RB_BITMAP_WIDTH_PER_SH  4
 
 #define AMDGPU_NUM_OF_VMIDS	8
 
@@ -193,8 +198,8 @@
 #       define MACRO_TILE_ASPECT(x)				((x) << 4)
 #       define NUM_BANKS(x)					((x) << 6)
 
-#define		MSG_ENTER_RLC_SAFE_MODE      			1
-#define		MSG_EXIT_RLC_SAFE_MODE      			0
+#define		MSG_ENTER_RLC_SAFE_MODE			1
+#define		MSG_EXIT_RLC_SAFE_MODE			0
 
 /*
  * PM4
@@ -497,7 +502,7 @@
 #       define SDMA_COPY_SUB_OPCODE_T2T_SUB_WINDOW        6
 #define	SDMA_OPCODE_WRITE				  2
 #       define SDMA_WRITE_SUB_OPCODE_LINEAR               0
-#       define SDMA_WRTIE_SUB_OPCODE_TILED                1
+#       define SDMA_WRITE_SUB_OPCODE_TILED                1
 #define	SDMA_OPCODE_INDIRECT_BUFFER			  4
 #define	SDMA_OPCODE_FENCE				  5
 #define	SDMA_OPCODE_TRAP				  6
@@ -557,12 +562,48 @@
 #define	PRIVATE_BASE(x)	((x) << 0) /* scratch */
 #define	SHARED_BASE(x)	((x) << 16) /* LDS */
 
-#define KFD_CIK_SDMA_QUEUE_OFFSET	0x200
+#define KFD_CIK_SDMA_QUEUE_OFFSET (mmSDMA0_RLC1_RB_CNTL - mmSDMA0_RLC0_RB_CNTL)
 
 /* valid for both DEFAULT_MTYPE and APE1_MTYPE */
 enum {
 	MTYPE_CACHED = 0,
 	MTYPE_NONCACHED = 3
 };
+
+/* mmPA_SC_RASTER_CONFIG mask */
+#define RB_MAP_PKR0(x)				((x) << 0)
+#define RB_MAP_PKR0_MASK			(0x3 << 0)
+#define RB_MAP_PKR1(x)				((x) << 2)
+#define RB_MAP_PKR1_MASK			(0x3 << 2)
+#define RB_XSEL2(x)				((x) << 4)
+#define RB_XSEL2_MASK				(0x3 << 4)
+#define RB_XSEL					(1 << 6)
+#define RB_YSEL					(1 << 7)
+#define PKR_MAP(x)				((x) << 8)
+#define PKR_MAP_MASK				(0x3 << 8)
+#define PKR_XSEL(x)				((x) << 10)
+#define PKR_XSEL_MASK				(0x3 << 10)
+#define PKR_YSEL(x)				((x) << 12)
+#define PKR_YSEL_MASK				(0x3 << 12)
+#define SC_MAP(x)				((x) << 16)
+#define SC_MAP_MASK				(0x3 << 16)
+#define SC_XSEL(x)				((x) << 18)
+#define SC_XSEL_MASK				(0x3 << 18)
+#define SC_YSEL(x)				((x) << 20)
+#define SC_YSEL_MASK				(0x3 << 20)
+#define SE_MAP(x)				((x) << 24)
+#define SE_MAP_MASK				(0x3 << 24)
+#define SE_XSEL(x)				((x) << 26)
+#define SE_XSEL_MASK				(0x3 << 26)
+#define SE_YSEL(x)				((x) << 28)
+#define SE_YSEL_MASK				(0x3 << 28)
+
+/* mmPA_SC_RASTER_CONFIG_1 mask */
+#define SE_PAIR_MAP(x)				((x) << 0)
+#define SE_PAIR_MAP_MASK			(0x3 << 0)
+#define SE_PAIR_XSEL(x)				((x) << 2)
+#define SE_PAIR_XSEL_MASK			(0x3 << 2)
+#define SE_PAIR_YSEL(x)				((x) << 4)
+#define SE_PAIR_YSEL_MASK			(0x3 << 4)
 
 #endif

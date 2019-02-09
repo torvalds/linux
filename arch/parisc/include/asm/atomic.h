@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2000 Philipp Rumpf <prumpf@tux.org>
  * Copyright (C) 2006 Kyle McMartin <kyle@parisc-linux.org>
  */
@@ -65,6 +66,8 @@ static __inline__ void atomic_set(atomic_t *v, int i)
 	_atomic_spin_unlock_irqrestore(v, flags);
 }
 
+#define atomic_set_release(v, i)	atomic_set((v), (i))
+
 static __inline__ int atomic_read(const atomic_t *v)
 {
 	return READ_ONCE((v)->counter);
@@ -73,30 +76,6 @@ static __inline__ int atomic_read(const atomic_t *v)
 /* exported interface */
 #define atomic_cmpxchg(v, o, n) (cmpxchg(&((v)->counter), (o), (n)))
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
-
-/**
- * __atomic_add_unless - add unless the number is a given value
- * @v: pointer of type atomic_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, so long as it was not @u.
- * Returns the old value of @v.
- */
-static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
-{
-	int c, old;
-	c = atomic_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
-			break;
-		old = atomic_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c;
-}
 
 #define ATOMIC_OP(op, c_op)						\
 static __inline__ void atomic_##op(int i, atomic_t *v)			\
@@ -121,40 +100,41 @@ static __inline__ int atomic_##op##_return(int i, atomic_t *v)		\
 	return ret;							\
 }
 
-#define ATOMIC_OPS(op, c_op) ATOMIC_OP(op, c_op) ATOMIC_OP_RETURN(op, c_op)
+#define ATOMIC_FETCH_OP(op, c_op)					\
+static __inline__ int atomic_fetch_##op(int i, atomic_t *v)		\
+{									\
+	unsigned long flags;						\
+	int ret;							\
+									\
+	_atomic_spin_lock_irqsave(v, flags);				\
+	ret = v->counter;						\
+	v->counter c_op i;						\
+	_atomic_spin_unlock_irqrestore(v, flags);			\
+									\
+	return ret;							\
+}
+
+#define ATOMIC_OPS(op, c_op)						\
+	ATOMIC_OP(op, c_op)						\
+	ATOMIC_OP_RETURN(op, c_op)					\
+	ATOMIC_FETCH_OP(op, c_op)
 
 ATOMIC_OPS(add, +=)
 ATOMIC_OPS(sub, -=)
 
-ATOMIC_OP(and, &=)
-ATOMIC_OP(or, |=)
-ATOMIC_OP(xor, ^=)
+#undef ATOMIC_OPS
+#define ATOMIC_OPS(op, c_op)						\
+	ATOMIC_OP(op, c_op)						\
+	ATOMIC_FETCH_OP(op, c_op)
+
+ATOMIC_OPS(and, &=)
+ATOMIC_OPS(or, |=)
+ATOMIC_OPS(xor, ^=)
 
 #undef ATOMIC_OPS
+#undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
-
-#define atomic_inc(v)	(atomic_add(   1,(v)))
-#define atomic_dec(v)	(atomic_add(  -1,(v)))
-
-#define atomic_inc_return(v)	(atomic_add_return(   1,(v)))
-#define atomic_dec_return(v)	(atomic_add_return(  -1,(v)))
-
-#define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
-
-/*
- * atomic_inc_and_test - increment and test
- * @v: pointer of type atomic_t
- *
- * Atomically increments @v by 1
- * and returns true if the result is zero, or false for all
- * other cases.
- */
-#define atomic_inc_and_test(v) (atomic_inc_return(v) == 0)
-
-#define atomic_dec_and_test(v)	(atomic_dec_return(v) == 0)
-
-#define atomic_sub_and_test(i,v)	(atomic_sub_return((i),(v)) == 0)
 
 #define ATOMIC_INIT(i)	{ (i) }
 
@@ -185,15 +165,39 @@ static __inline__ s64 atomic64_##op##_return(s64 i, atomic64_t *v)	\
 	return ret;							\
 }
 
-#define ATOMIC64_OPS(op, c_op) ATOMIC64_OP(op, c_op) ATOMIC64_OP_RETURN(op, c_op)
+#define ATOMIC64_FETCH_OP(op, c_op)					\
+static __inline__ s64 atomic64_fetch_##op(s64 i, atomic64_t *v)		\
+{									\
+	unsigned long flags;						\
+	s64 ret;							\
+									\
+	_atomic_spin_lock_irqsave(v, flags);				\
+	ret = v->counter;						\
+	v->counter c_op i;						\
+	_atomic_spin_unlock_irqrestore(v, flags);			\
+									\
+	return ret;							\
+}
+
+#define ATOMIC64_OPS(op, c_op)						\
+	ATOMIC64_OP(op, c_op)						\
+	ATOMIC64_OP_RETURN(op, c_op)					\
+	ATOMIC64_FETCH_OP(op, c_op)
 
 ATOMIC64_OPS(add, +=)
 ATOMIC64_OPS(sub, -=)
-ATOMIC64_OP(and, &=)
-ATOMIC64_OP(or, |=)
-ATOMIC64_OP(xor, ^=)
 
 #undef ATOMIC64_OPS
+#define ATOMIC64_OPS(op, c_op)						\
+	ATOMIC64_OP(op, c_op)						\
+	ATOMIC64_FETCH_OP(op, c_op)
+
+ATOMIC64_OPS(and, &=)
+ATOMIC64_OPS(or, |=)
+ATOMIC64_OPS(xor, ^=)
+
+#undef ATOMIC64_OPS
+#undef ATOMIC64_FETCH_OP
 #undef ATOMIC64_OP_RETURN
 #undef ATOMIC64_OP
 
@@ -211,74 +215,13 @@ atomic64_set(atomic64_t *v, s64 i)
 static __inline__ s64
 atomic64_read(const atomic64_t *v)
 {
-	return ACCESS_ONCE((v)->counter);
+	return READ_ONCE((v)->counter);
 }
-
-#define atomic64_inc(v)		(atomic64_add(   1,(v)))
-#define atomic64_dec(v)		(atomic64_add(  -1,(v)))
-
-#define atomic64_inc_return(v)		(atomic64_add_return(   1,(v)))
-#define atomic64_dec_return(v)		(atomic64_add_return(  -1,(v)))
-
-#define atomic64_add_negative(a, v)	(atomic64_add_return((a), (v)) < 0)
-
-#define atomic64_inc_and_test(v) 	(atomic64_inc_return(v) == 0)
-#define atomic64_dec_and_test(v)	(atomic64_dec_return(v) == 0)
-#define atomic64_sub_and_test(i,v)	(atomic64_sub_return((i),(v)) == 0)
 
 /* exported interface */
 #define atomic64_cmpxchg(v, o, n) \
 	((__typeof__((v)->counter))cmpxchg(&((v)->counter), (o), (n)))
 #define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
-
-/**
- * atomic64_add_unless - add unless the number is a given value
- * @v: pointer of type atomic64_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, so long as it was not @u.
- * Returns the old value of @v.
- */
-static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
-{
-	long c, old;
-	c = atomic64_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
-			break;
-		old = atomic64_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c != (u);
-}
-
-#define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
-
-/*
- * atomic64_dec_if_positive - decrement by 1 if old value positive
- * @v: pointer of type atomic_t
- *
- * The function returns the old value of *v minus 1, even if
- * the atomic variable, v, was not decremented.
- */
-static inline long atomic64_dec_if_positive(atomic64_t *v)
-{
-	long c, old, dec;
-	c = atomic64_read(v);
-	for (;;) {
-		dec = c - 1;
-		if (unlikely(dec < 0))
-			break;
-		old = atomic64_cmpxchg((v), c, dec);
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return dec;
-}
 
 #endif /* !CONFIG_64BIT */
 

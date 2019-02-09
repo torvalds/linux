@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MATRIX_KEYPAD_H
 #define _MATRIX_KEYPAD_H
 
@@ -49,6 +50,8 @@ struct matrix_keymap_data {
  * @wakeup: controls whether the device should be set up as wakeup
  *	source
  * @no_autorepeat: disable key autorepeat
+ * @drive_inactive_cols: drive inactive columns during scan, rather than
+ *	making them inputs.
  *
  * This structure represents platform-specific data that use used by
  * matrix_keypad driver to perform proper initialization.
@@ -73,6 +76,7 @@ struct matrix_keypad_platform_data {
 	bool		active_low;
 	bool		wakeup;
 	bool		no_autorepeat;
+	bool		drive_inactive_cols;
 };
 
 int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
@@ -80,24 +84,9 @@ int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
 			       unsigned int rows, unsigned int cols,
 			       unsigned short *keymap,
 			       struct input_dev *input_dev);
+int matrix_keypad_parse_properties(struct device *dev,
+				   unsigned int *rows, unsigned int *cols);
 
-#ifdef CONFIG_OF
-/**
- * matrix_keypad_parse_of_params() - Read parameters from matrix-keypad node
- *
- * @dev: Device containing of_node
- * @rows: Returns number of matrix rows
- * @cols: Returns number of matrix columns
- * @return 0 if OK, <0 on error
- */
-int matrix_keypad_parse_of_params(struct device *dev,
-				  unsigned int *rows, unsigned int *cols);
-#else
-static inline int matrix_keypad_parse_of_params(struct device *dev,
-				  unsigned int *rows, unsigned int *cols)
-{
-	return -ENOSYS;
-}
-#endif /* CONFIG_OF */
+#define matrix_keypad_parse_of_params matrix_keypad_parse_properties
 
 #endif /* _MATRIX_KEYPAD_H */

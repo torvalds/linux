@@ -54,11 +54,7 @@
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #include <linux/hid.h>
-
-
-#define DRIVER_VERSION		"v0.6"
-#define DRIVER_AUTHOR		"Daniel Ritz <daniel.ritz@gmx.ch>"
-#define DRIVER_DESC		"USB Touchscreen Driver"
+#include <linux/mutex.h>
 
 static bool swap_xy;
 module_param(swap_xy, bool, 0644);
@@ -112,6 +108,8 @@ struct usbtouch_usb {
 	struct usb_interface *interface;
 	struct input_dev *input;
 	struct usbtouch_device_info *type;
+	struct mutex pm_mutex;  /* serialize access to open/suspend */
+	bool is_open;
 	char name[128];
 	char phys[64];
 	void *priv;
@@ -442,6 +440,8 @@ static int panjit_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 #define MTOUCHUSB_RESET                 7
 #define MTOUCHUSB_REQ_CTRLLR_ID         10
 
+#define MTOUCHUSB_REQ_CTRLLR_ID_LEN	16
+
 static int mtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	if (hwcalib_xy) {
@@ -456,10 +456,92 @@ static int mtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 	return 1;
 }
 
+struct mtouch_priv {
+	u8 fw_rev_major;
+	u8 fw_rev_minor;
+};
+
+static ssize_t mtouch_firmware_rev_show(struct device *dev,
+				struct device_attribute *attr, char *output)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
+	struct mtouch_priv *priv = usbtouch->priv;
+
+	return scnprintf(output, PAGE_SIZE, "%1x.%1x\n",
+			 priv->fw_rev_major, priv->fw_rev_minor);
+}
+static DEVICE_ATTR(firmware_rev, 0444, mtouch_firmware_rev_show, NULL);
+
+static struct attribute *mtouch_attrs[] = {
+	&dev_attr_firmware_rev.attr,
+	NULL
+};
+
+static const struct attribute_group mtouch_attr_group = {
+	.attrs = mtouch_attrs,
+};
+
+static int mtouch_get_fw_revision(struct usbtouch_usb *usbtouch)
+{
+	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
+	struct mtouch_priv *priv = usbtouch->priv;
+	u8 *buf;
+	int ret;
+
+	buf = kzalloc(MTOUCHUSB_REQ_CTRLLR_ID_LEN, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+			      MTOUCHUSB_REQ_CTRLLR_ID,
+			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      0, 0, buf, MTOUCHUSB_REQ_CTRLLR_ID_LEN,
+			      USB_CTRL_SET_TIMEOUT);
+	if (ret != MTOUCHUSB_REQ_CTRLLR_ID_LEN) {
+		dev_warn(&usbtouch->interface->dev,
+			 "Failed to read FW rev: %d\n", ret);
+		ret = ret < 0 ? ret : -EIO;
+		goto free;
+	}
+
+	priv->fw_rev_major = buf[3];
+	priv->fw_rev_minor = buf[4];
+
+	ret = 0;
+
+free:
+	kfree(buf);
+	return ret;
+}
+
+static int mtouch_alloc(struct usbtouch_usb *usbtouch)
+{
+	int ret;
+
+	usbtouch->priv = kmalloc(sizeof(struct mtouch_priv), GFP_KERNEL);
+	if (!usbtouch->priv)
+		return -ENOMEM;
+
+	ret = sysfs_create_group(&usbtouch->interface->dev.kobj,
+				 &mtouch_attr_group);
+	if (ret) {
+		kfree(usbtouch->priv);
+		usbtouch->priv = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
 static int mtouch_init(struct usbtouch_usb *usbtouch)
 {
 	int ret, i;
 	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
+
+	ret = mtouch_get_fw_revision(usbtouch);
+	if (ret)
+		return ret;
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 	                      MTOUCHUSB_RESET,
@@ -493,6 +575,14 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
 	}
 
 	return 0;
+}
+
+static void mtouch_exit(struct usbtouch_usb *usbtouch)
+{
+	struct mtouch_priv *priv = usbtouch->priv;
+
+	sysfs_remove_group(&usbtouch->interface->dev.kobj, &mtouch_attr_group);
+	kfree(priv);
 }
 #endif
 
@@ -1121,7 +1211,9 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.max_yc		= 0x4000,
 		.rept_size	= 11,
 		.read_data	= mtouch_read_data,
+		.alloc		= mtouch_alloc,
 		.init		= mtouch_init,
+		.exit		= mtouch_exit,
 	},
 #endif
 
@@ -1455,6 +1547,7 @@ static int usbtouch_open(struct input_dev *input)
 	if (r < 0)
 		goto out;
 
+	mutex_lock(&usbtouch->pm_mutex);
 	if (!usbtouch->type->irq_always) {
 		if (usb_submit_urb(usbtouch->irq, GFP_KERNEL)) {
 			r = -EIO;
@@ -1463,7 +1556,9 @@ static int usbtouch_open(struct input_dev *input)
 	}
 
 	usbtouch->interface->needs_remote_wakeup = 1;
+	usbtouch->is_open = true;
 out_put:
+	mutex_unlock(&usbtouch->pm_mutex);
 	usb_autopm_put_interface(usbtouch->interface);
 out:
 	return r;
@@ -1474,8 +1569,12 @@ static void usbtouch_close(struct input_dev *input)
 	struct usbtouch_usb *usbtouch = input_get_drvdata(input);
 	int r;
 
+	mutex_lock(&usbtouch->pm_mutex);
 	if (!usbtouch->type->irq_always)
 		usb_kill_urb(usbtouch->irq);
+	usbtouch->is_open = false;
+	mutex_unlock(&usbtouch->pm_mutex);
+
 	r = usb_autopm_get_interface(usbtouch->interface);
 	usbtouch->interface->needs_remote_wakeup = 0;
 	if (!r)
@@ -1495,13 +1594,12 @@ static int usbtouch_suspend
 static int usbtouch_resume(struct usb_interface *intf)
 {
 	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
-	struct input_dev *input = usbtouch->input;
 	int result = 0;
 
-	mutex_lock(&input->mutex);
-	if (input->users || usbtouch->type->irq_always)
+	mutex_lock(&usbtouch->pm_mutex);
+	if (usbtouch->is_open || usbtouch->type->irq_always)
 		result = usb_submit_urb(usbtouch->irq, GFP_NOIO);
-	mutex_unlock(&input->mutex);
+	mutex_unlock(&usbtouch->pm_mutex);
 
 	return result;
 }
@@ -1509,7 +1607,6 @@ static int usbtouch_resume(struct usb_interface *intf)
 static int usbtouch_reset_resume(struct usb_interface *intf)
 {
 	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
-	struct input_dev *input = usbtouch->input;
 	int err = 0;
 
 	/* reinit the device */
@@ -1524,10 +1621,10 @@ static int usbtouch_reset_resume(struct usb_interface *intf)
 	}
 
 	/* restart IO if needed */
-	mutex_lock(&input->mutex);
-	if (input->users)
+	mutex_lock(&usbtouch->pm_mutex);
+	if (usbtouch->is_open)
 		err = usb_submit_urb(usbtouch->irq, GFP_NOIO);
-	mutex_unlock(&input->mutex);
+	mutex_unlock(&usbtouch->pm_mutex);
 
 	return err;
 }
@@ -1763,8 +1860,8 @@ static struct usb_driver usbtouch_driver = {
 
 module_usb_driver(usbtouch_driver);
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Daniel Ritz <daniel.ritz@gmx.ch>");
+MODULE_DESCRIPTION("USB Touchscreen Driver");
 MODULE_LICENSE("GPL");
 
 MODULE_ALIAS("touchkitusb");

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011 Marvell International Ltd. All rights reserved.
  * Author: Chao Xie <chao.xie@marvell.com>
  *	   Neil Zhang <zhangwm@marvell.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -39,7 +35,6 @@
 #include "mv_udc.h"
 
 #define DRIVER_DESC		"Marvell PXA USB Device Controller driver"
-#define DRIVER_VERSION		"8 Nov 2010"
 
 #define ep_dir(ep)	(((ep)->ep_num == 0) ? \
 				((ep)->udc->ep0_dir) : ((ep)->direction))
@@ -129,7 +124,7 @@ static int process_ep_req(struct mv_udc *udc, int index,
 {
 	struct mv_dtd	*curr_dtd;
 	struct mv_dqh	*curr_dqh;
-	int td_complete, actual, remaining_length;
+	int actual, remaining_length;
 	int i, direction;
 	int retval = 0;
 	u32 errors;
@@ -139,7 +134,6 @@ static int process_ep_req(struct mv_udc *udc, int index,
 	direction = index % 2;
 
 	curr_dtd = curr_req->head;
-	td_complete = 0;
 	actual = curr_req->req.length;
 
 	for (i = 0; i < curr_req->dtd_count; i++) {
@@ -412,10 +406,7 @@ static int req_to_dtd(struct mv_req *req)
 	unsigned count;
 	int is_last, is_first = 1;
 	struct mv_dtd *dtd, *last_dtd = NULL;
-	struct mv_udc *udc;
 	dma_addr_t dma;
-
-	udc = req->ep->udc;
 
 	do {
 		dtd = build_dtd(req, &count, &dma, &is_last);
@@ -449,7 +440,8 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	struct mv_dqh *dqh;
 	u16 max = 0;
 	u32 bit_pos, epctrlx, direction;
-	unsigned char zlt = 0, ios = 0, mult = 0;
+	const unsigned char zlt = 1;
+	unsigned char ios, mult;
 	unsigned long flags;
 
 	ep = container_of(_ep, struct mv_ep, ep);
@@ -469,8 +461,6 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	 * disable HW zero length termination select
 	 * driver handles zero length packet through req->req.zero
 	 */
-	zlt = 1;
-
 	bit_pos = 1 << ((direction == EP_DIR_OUT ? 0 : 16) + ep->ep_num);
 
 	/* Check if the Endpoint is Primed */
@@ -485,21 +475,20 @@ static int mv_ep_enable(struct usb_ep *_ep,
 			(unsigned)bit_pos);
 		goto en_done;
 	}
+
 	/* Set the max packet length, interrupt on Setup and Mult fields */
+	ios = 0;
+	mult = 0;
 	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 	case USB_ENDPOINT_XFER_BULK:
-		zlt = 1;
-		mult = 0;
+	case USB_ENDPOINT_XFER_INT:
 		break;
 	case USB_ENDPOINT_XFER_CONTROL:
 		ios = 1;
-	case USB_ENDPOINT_XFER_INT:
-		mult = 0;
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		/* Calculate transactions needed for high bandwidth iso */
-		mult = (unsigned char)(1 + ((max >> 11) & 0x03));
-		max = max & 0x7ff;	/* bit 0~10 */
+		mult = usb_endpoint_maxp_mult(desc);
 		/* 3 transactions at most */
 		if (mult > 3)
 			goto en_done;
@@ -567,7 +556,7 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	struct mv_udc *udc;
 	struct mv_ep *ep;
 	struct mv_dqh *dqh;
-	u32 bit_pos, epctrlx, direction;
+	u32 epctrlx, direction;
 	unsigned long flags;
 
 	ep = container_of(_ep, struct mv_ep, ep);
@@ -582,7 +571,6 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	spin_lock_irqsave(&udc->lock, flags);
 
 	direction = ep_dir(ep);
-	bit_pos = 1 << ((direction == EP_DIR_OUT ? 0 : 16) + ep->ep_num);
 
 	/* Reset the max packet length and the interrupt on Setup */
 	dqh->max_packet_length = 0;
@@ -952,7 +940,7 @@ static int mv_ep_set_wedge(struct usb_ep *_ep)
 	return mv_ep_set_halt_wedge(_ep, 1, 1);
 }
 
-static struct usb_ep_ops mv_ep_ops = {
+static const struct usb_ep_ops mv_ep_ops = {
 	.enable		= mv_ep_enable,
 	.disable	= mv_ep_disable,
 
@@ -967,9 +955,9 @@ static struct usb_ep_ops mv_ep_ops = {
 	.fifo_flush	= mv_ep_fifo_flush,	/* flush fifo */
 };
 
-static void udc_clock_enable(struct mv_udc *udc)
+static int udc_clock_enable(struct mv_udc *udc)
 {
-	clk_prepare_enable(udc->clk);
+	return clk_prepare_enable(udc->clk);
 }
 
 static void udc_clock_disable(struct mv_udc *udc)
@@ -1077,7 +1065,10 @@ static int mv_udc_enable_internal(struct mv_udc *udc)
 		return 0;
 
 	dev_dbg(&udc->dev->dev, "enable udc\n");
-	udc_clock_enable(udc);
+	retval = udc_clock_enable(udc);
+	if (retval)
+		return retval;
+
 	if (udc->pdata->phy_init) {
 		retval = udc->pdata->phy_init(udc->phy_regs);
 		if (retval) {
@@ -2431,5 +2422,4 @@ module_platform_driver(udc_driver);
 MODULE_ALIAS("platform:mv-udc");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

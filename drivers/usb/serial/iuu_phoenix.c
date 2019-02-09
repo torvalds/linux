@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Infinity Unlimited USB Phoenix driver
  *
@@ -7,13 +8,7 @@
  *
  * Original code taken from iuutool (Copyright (C) 2006 Juan Carlos BorrÃ¡s)
  *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
- *
  *  And tested with help of WB Electronics
- *
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -63,7 +58,6 @@ struct iuu_private {
 	u8 *buf;		/* used for initialize speed */
 	u8 len;
 	int vcc;		/* vcc (either 3 or 5 V) */
-	u32 baud;
 	u32 boost;
 	u32 clk;
 };
@@ -360,7 +354,7 @@ static void iuu_led_activity_on(struct urb *urb)
 	int result;
 	char *buf_ptr = port->write_urb->transfer_buffer;
 	*buf_ptr++ = IUU_SET_LED;
-	if (xmas == 1) {
+	if (xmas) {
 		get_random_bytes(buf_ptr, 6);
 		*(buf_ptr+7) = 1;
 	} else {
@@ -380,7 +374,7 @@ static void iuu_led_activity_off(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	int result;
 	char *buf_ptr = port->write_urb->transfer_buffer;
-	if (xmas == 1) {
+	if (xmas) {
 		iuu_rxcmd(urb);
 		return;
 	} else {
@@ -477,7 +471,6 @@ static int iuu_clk(struct usb_serial_port *port, int dwFrq)
 				}
 	}
 	P2 = ((P - PO) / 2) - 4;
-	DIV = DIV;
 	PUMP = 0x04;
 	PBmsb = (P2 >> 8 & 0x03);
 	PBlsb = P2 & 0xFF;
@@ -588,9 +581,8 @@ static void read_buf_callback(struct urb *urb)
 	}
 
 	dev_dbg(&port->dev, "%s - %i chars to write\n", __func__, urb->actual_length);
-	if (data == NULL)
-		dev_dbg(&port->dev, "%s - data is NULL !!!\n", __func__);
-	if (urb->actual_length && data) {
+
+	if (urb->actual_length) {
 		tty_insert_flip_string(&port->port, data, urb->actual_length);
 		tty_flip_buffer_push(&port->port);
 	}
@@ -655,10 +647,8 @@ static void iuu_uart_read_callback(struct urb *urb)
 		/* error stop all */
 		return;
 	}
-	if (data == NULL)
-		dev_dbg(&port->dev, "%s - data is NULL !!!\n", __func__);
 
-	if (urb->actual_length == 1  && data != NULL)
+	if (urb->actual_length == 1)
 		len = (int) data[0];
 
 	if (urb->actual_length > 1) {
@@ -745,7 +735,7 @@ static int iuu_uart_on(struct usb_serial_port *port)
 	int status;
 	u8 *buf;
 
-	buf = kmalloc(sizeof(u8) * 4, GFP_KERNEL);
+	buf = kmalloc(4, GFP_KERNEL);
 
 	if (!buf)
 		return -ENOMEM;
@@ -799,7 +789,7 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud_base,
 	unsigned int T1FrekvensHZ = 0;
 
 	dev_dbg(&port->dev, "%s - enter baud_base=%d\n", __func__, baud_base);
-	dataout = kmalloc(sizeof(u8) * 5, GFP_KERNEL);
+	dataout = kmalloc(5, GFP_KERNEL);
 
 	if (!dataout)
 		return -ENOMEM;
@@ -966,34 +956,18 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct device *dev = &port->dev;
-	u8 *buf;
 	int result;
 	int baud;
 	u32 actual;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 
 	baud = tty->termios.c_ospeed;
-	tty->termios.c_ispeed = baud;
-	/* Re-encode speed */
-	tty_encode_baud_rate(tty, baud, baud);
 
 	dev_dbg(dev, "%s - baud %d\n", __func__, baud);
 	usb_clear_halt(serial->dev, port->write_urb->pipe);
 	usb_clear_halt(serial->dev, port->read_urb->pipe);
 
-	buf = kmalloc(10, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
 	priv->poll = 0;
-
-	/* initialize writebuf */
-#define FISH(a, b, c, d) do { \
-	result = usb_control_msg(port->serial->dev,	\
-				usb_rcvctrlpipe(port->serial->dev, 0),	\
-				b, a, c, d, buf, 1, 1000); \
-	dev_dbg(dev, "0x%x:0x%x:0x%x:0x%x  %d - %x\n", a, b, c, d, result, \
-				buf[0]); } while (0);
 
 #define SOUP(a, b, c, d)  do { \
 	result = usb_control_msg(port->serial->dev,	\
@@ -1007,13 +981,12 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* sprintf(buf ,"%c%c%c%c",0x03,0x02,0x02,0x0); */
 
 	SOUP(0x03, 0x02, 0x02, 0x0);
-	kfree(buf);
+
 	iuu_led(port, 0xF000, 0xF000, 0, 0xFF);
 	iuu_uart_on(port);
 	if (boost < 100)
 		boost = 100;
 	priv->boost = boost;
-	priv->baud = baud;
 	switch (clockmode) {
 	case 2:		/*  3.680 Mhz */
 		priv->clk = IUU_CLK_3680000;
@@ -1186,6 +1159,8 @@ static struct usb_serial_driver iuu_device = {
 		   },
 	.id_table = id_table,
 	.num_ports = 1,
+	.num_bulk_in = 1,
+	.num_bulk_out = 1,
 	.bulk_in_size = 512,
 	.bulk_out_size = 512,
 	.open = iuu_open,

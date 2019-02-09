@@ -67,7 +67,7 @@
 #include <linux/io.h>
 
 #include <asm/grfioctl.h>	/* for HP-UX compatibility */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sticore.h"
 
@@ -527,7 +527,7 @@ rattlerSetupPlanes(struct stifb_info *fb)
 	fb->id = saved_id;
 
 	for (y = 0; y < fb->info.var.yres; ++y)
-		memset(fb->info.screen_base + y * fb->info.fix.line_length,
+		fb_memset(fb->info.screen_base + y * fb->info.fix.line_length,
 			0xff, fb->info.var.xres * fb->info.var.bits_per_pixel/8);
 
 	CRX24_SET_OVLY_MASK(fb);
@@ -1126,10 +1126,8 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	int bpp, xres, yres;
 
 	fb = kzalloc(sizeof(*fb), GFP_ATOMIC);
-	if (!fb) {
-		printk(KERN_ERR "stifb: Could not allocate stifb structure\n");
-		return -ENODEV;
-	}
+	if (!fb)
+		return -ENOMEM;
 	
 	info = &fb->info;
 
@@ -1159,7 +1157,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 			dev_name);
 		   goto out_err0;
 		}
-		/* fall though */
+		/* fall through */
 	case S9000_ID_ARTIST:
 	case S9000_ID_HCRX:
 	case S9000_ID_TIMBER:
@@ -1294,6 +1292,10 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	strcpy(fix->id, "stifb");
 	info->fbops = &stifb_ops;
 	info->screen_base = ioremap_nocache(REGION_BASE(fb,1), fix->smem_len);
+	if (!info->screen_base) {
+		printk(KERN_ERR "stifb: failed to map memory\n");
+		goto out_err0;
+	}
 	info->screen_size = fix->smem_len;
 	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA;
 	info->pseudo_palette = &fb->pseudo_palette;

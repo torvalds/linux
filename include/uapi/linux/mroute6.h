@@ -1,8 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__LINUX_MROUTE6_H
 #define _UAPI__LINUX_MROUTE6_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
+#include <linux/in6.h>		/* For struct sockaddr_in6. */
 
 /*
  *	Based on the MROUTING 3.5 defines primarily to keep
@@ -46,14 +49,8 @@ typedef unsigned short mifi_t;
 typedef	__u32		if_mask;
 #define NIFBITS (sizeof(if_mask) * 8)        /* bits per mask */
 
-#if !defined(__KERNEL__)
-#if !defined(DIV_ROUND_UP)
-#define	DIV_ROUND_UP(x,y)	(((x) + ((y) - 1)) / (y))
-#endif
-#endif
-
 typedef struct if_set {
-	if_mask ifs_bits[DIV_ROUND_UP(IF_SETSIZE, NIFBITS)];
+	if_mask ifs_bits[__KERNEL_DIV_ROUND_UP(IF_SETSIZE, NIFBITS)];
 } if_set;
 
 #define IF_SET(n, p)    ((p)->ifs_bits[(n)/NIFBITS] |= (1 << ((n) % NIFBITS)))
@@ -136,5 +133,17 @@ struct mrt6msg {
 	__u32		im6_pad;		/* padding for 64 bit arch */
 	struct in6_addr	im6_src, im6_dst;
 };
+
+/* ip6mr netlink cache report attributes */
+enum {
+	IP6MRA_CREPORT_UNSPEC,
+	IP6MRA_CREPORT_MSGTYPE,
+	IP6MRA_CREPORT_MIF_ID,
+	IP6MRA_CREPORT_SRC_ADDR,
+	IP6MRA_CREPORT_DST_ADDR,
+	IP6MRA_CREPORT_PKT,
+	__IP6MRA_CREPORT_MAX
+};
+#define IP6MRA_CREPORT_MAX (__IP6MRA_CREPORT_MAX - 1)
 
 #endif /* _UAPI__LINUX_MROUTE6_H */

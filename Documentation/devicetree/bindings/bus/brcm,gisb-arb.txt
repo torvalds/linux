@@ -3,13 +3,12 @@ Broadcom GISB bus Arbiter controller
 Required properties:
 
 - compatible:
-    "brcm,gisb-arb" or "brcm,bcm7445-gisb-arb" for 28nm chips
+    "brcm,bcm7278-gisb-arb" for V7 28nm chips
+    "brcm,gisb-arb" or "brcm,bcm7445-gisb-arb" for other 28nm chips
     "brcm,bcm7435-gisb-arb" for newer 40nm chips
     "brcm,bcm7400-gisb-arb" for older 40nm chips and all 65nm chips
     "brcm,bcm7038-gisb-arb" for 130nm chips
 - reg: specifies the base physical address and size of the registers
-- interrupt-parent: specifies the phandle to the parent interrupt controller
-  this arbiter gets interrupt line from
 - interrupts: specifies the two interrupts (timeout and TEA) to be used from
   the parent interrupt controller
 

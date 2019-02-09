@@ -102,7 +102,7 @@ print_insn_spu (unsigned long insn, unsigned long memaddr)
 
   if (index == 0)
     {
-      printf(".long 0x%x", insn);
+      printf(".long 0x%lx", insn);
     }
   else
     {
@@ -134,27 +134,27 @@ print_insn_spu (unsigned long insn, unsigned long memaddr)
 	  switch (arg)
 	    {
 	    case A_T:
-	      printf("$%d",
+	      printf("$%lu",
 				     DECODE_INSN_RT (insn));
 	      break;
 	    case A_A:
-	      printf("$%d",
+	      printf("$%lu",
 				     DECODE_INSN_RA (insn));
 	      break;
 	    case A_B:
-	      printf("$%d",
+	      printf("$%lu",
 				     DECODE_INSN_RB (insn));
 	      break;
 	    case A_C:
-	      printf("$%d",
+	      printf("$%lu",
 				     DECODE_INSN_RC (insn));
 	      break;
 	    case A_S:
-	      printf("$sp%d",
+	      printf("$sp%lu",
 				     DECODE_INSN_RA (insn));
 	      break;
 	    case A_H:
-	      printf("$ch%d",
+	      printf("$ch%lu",
 				     DECODE_INSN_RA (insn));
 	      break;
 	    case A_P:
@@ -162,11 +162,11 @@ print_insn_spu (unsigned long insn, unsigned long memaddr)
 	      printf("(");
 	      break;
 	    case A_U7A:
-	      printf("%d",
+	      printf("%lu",
 				     173 - DECODE_INSN_U8 (insn));
 	      break;
 	    case A_U7B:
-	      printf("%d",
+	      printf("%lu",
 				     155 - DECODE_INSN_U8 (insn));
 	      break;
 	    case A_S3:

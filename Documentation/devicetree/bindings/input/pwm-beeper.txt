@@ -5,3 +5,20 @@ Registers a PWM device as beeper.
 Required properties:
 - compatible: should be "pwm-beeper"
 - pwms: phandle to the physical PWM device
+
+Optional properties:
+- amp-supply: phandle to a regulator that acts as an amplifier for the beeper
+- beeper-hz:  bell frequency in Hz
+
+Example:
+
+beeper_amp: amplifier {
+	compatible = "fixed-regulator";
+	gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+};
+
+beeper {
+	compatible = "pwm-beeper";
+	pwms = <&pwm0>;
+	amp-supply = <&beeper_amp>;
+};

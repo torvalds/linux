@@ -6,8 +6,6 @@ Required properties:
 		       - "renesas,hspi-r8a7778" (R-Car M1)
 		       - "renesas,hspi-r8a7779" (R-Car H1)
 - reg              : Offset and length of the register set for the device
-- interrupt-parent : The phandle for the interrupt controller that
-		     services interrupts for this device
 - interrupts       : Interrupt specifier
 - #address-cells   : Must be <1>
 - #size-cells      : Must be <0>
@@ -24,6 +22,5 @@ Example:
 		interrupts = <0 63 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabled";
 	};
 

@@ -26,10 +26,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/module.h>
@@ -68,7 +64,7 @@ MODULE_PARM_DESC(default_radio_region, "Region: 0=Europe/US, 1=Japan");
 /* RDS buffer blocks */
 static u32 default_rds_buf = 300;
 module_param(default_rds_buf, uint, 0444);
-MODULE_PARM_DESC(rds_buf, "RDS buffer entries");
+MODULE_PARM_DESC(default_rds_buf, "RDS buffer entries");
 
 /* Radio Nr */
 static u32 radio_nr = -1;
@@ -212,14 +208,14 @@ inline void dump_tx_skb_data(struct sk_buff *skb)
 
 	len_org = skb->len - FM_CMD_MSG_HDR_SIZE;
 	if (len_org > 0) {
-		printk("\n   data(%d): ", cmd_hdr->dlen);
+		printk(KERN_CONT "\n   data(%d): ", cmd_hdr->dlen);
 		len = min(len_org, 14);
 		for (index = 0; index < len; index++)
-			printk("%x ",
+			printk(KERN_CONT "%x ",
 			       skb->data[FM_CMD_MSG_HDR_SIZE + index]);
-		printk("%s", (len_org > 14) ? ".." : "");
+		printk(KERN_CONT "%s", (len_org > 14) ? ".." : "");
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
  /* To dump incoming FM Channel-8 packets */
@@ -230,21 +226,21 @@ inline void dump_rx_skb_data(struct sk_buff *skb)
 	struct fm_event_msg_hdr *evt_hdr;
 
 	evt_hdr = (struct fm_event_msg_hdr *)skb->data;
-	printk(KERN_INFO ">> hdr:%02x len:%02x sts:%02x numhci:%02x "
-	    "opcode:%02x type:%s dlen:%02x", evt_hdr->hdr, evt_hdr->len,
-	    evt_hdr->status, evt_hdr->num_fm_hci_cmds, evt_hdr->op,
-	    (evt_hdr->rd_wr) ? "RD" : "WR", evt_hdr->dlen);
+	printk(KERN_INFO ">> hdr:%02x len:%02x sts:%02x numhci:%02x opcode:%02x type:%s dlen:%02x",
+	       evt_hdr->hdr, evt_hdr->len,
+	       evt_hdr->status, evt_hdr->num_fm_hci_cmds, evt_hdr->op,
+	       (evt_hdr->rd_wr) ? "RD" : "WR", evt_hdr->dlen);
 
 	len_org = skb->len - FM_EVT_MSG_HDR_SIZE;
 	if (len_org > 0) {
-		printk("\n   data(%d): ", evt_hdr->dlen);
+		printk(KERN_CONT "\n   data(%d): ", evt_hdr->dlen);
 		len = min(len_org, 14);
 		for (index = 0; index < len; index++)
-			printk("%x ",
+			printk(KERN_CONT "%x ",
 			       skb->data[FM_EVT_MSG_HDR_SIZE + index]);
-		printk("%s", (len_org > 14) ? ".." : "");
+		printk(KERN_CONT "%s", (len_org > 14) ? ".." : "");
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 #endif
 
@@ -271,9 +267,9 @@ static void recv_tasklet(unsigned long arg)
 	/* Process all packets in the RX queue */
 	while ((skb = skb_dequeue(&fmdev->rx_q))) {
 		if (skb->len < sizeof(struct fm_event_msg_hdr)) {
-			fmerr("skb(%p) has only %d bytes, "
-				"at least need %zu bytes to decode\n", skb,
-				skb->len, sizeof(struct fm_event_msg_hdr));
+			fmerr("skb(%p) has only %d bytes, at least need %zu bytes to decode\n",
+			      skb,
+			      skb->len, sizeof(struct fm_event_msg_hdr));
 			kfree_skb(skb);
 			continue;
 		}
@@ -420,7 +416,7 @@ static int fm_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type,	void *payload,
 	if (!test_bit(FM_FW_DW_INPROGRESS, &fmdev->flag) ||
 			test_bit(FM_INTTASK_RUNNING, &fmdev->flag)) {
 		/* Fill command header info */
-		hdr = (struct fm_cmd_msg_hdr *)skb_put(skb, FM_CMD_MSG_HDR_SIZE);
+		hdr = skb_put(skb, FM_CMD_MSG_HDR_SIZE);
 		hdr->hdr = FM_PKT_LOGICAL_CHAN_NUMBER;	/* 0x08 */
 
 		/* 3 (fm_opcode,rd_wr,dlen) + payload len) */
@@ -446,7 +442,7 @@ static int fm_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type,	void *payload,
 		fm_cb(skb)->fm_op = *((u8 *)payload + 2);
 	}
 	if (payload != NULL)
-		memcpy(skb_put(skb, payload_len), payload, payload_len);
+		skb_put_data(skb, payload, payload_len);
 
 	fm_cb(skb)->completion = wait_completion;
 	skb_queue_tail(&fmdev->tx_q, skb);
@@ -472,8 +468,7 @@ int fmc_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type, void *payload,
 
 	if (!wait_for_completion_timeout(&fmdev->maintask_comp,
 					 FM_DRV_TX_TIMEOUT)) {
-		fmerr("Timeout(%d sec),didn't get reg"
-			   "completion signal from RX tasklet\n",
+		fmerr("Timeout(%d sec),didn't get regcompletion signal from RX tasklet\n",
 			   jiffies_to_msecs(FM_DRV_TX_TIMEOUT) / 1000);
 		return -ETIMEDOUT;
 	}
@@ -523,8 +518,7 @@ static inline int check_cmdresp_status(struct fmdev *fmdev,
 
 	fm_evt_hdr = (void *)(*skb)->data;
 	if (fm_evt_hdr->status != 0) {
-		fmerr("irq: opcode %x response status is not zero "
-				"Initiating irq recovery process\n",
+		fmerr("irq: opcode %x response status is not zero Initiating irq recovery process\n",
 				fm_evt_hdr->op);
 
 		mod_timer(&fmdev->irq_info.timer, jiffies + FM_DRV_TX_TIMEOUT);
@@ -549,13 +543,13 @@ static inline void fm_irq_common_cmd_resp_helper(struct fmdev *fmdev, u8 stage)
  * interrupt process. Therefore reset stage index to re-enable default
  * interrupts. So that next interrupt will be processed as usual.
  */
-static void int_timeout_handler(unsigned long data)
+static void int_timeout_handler(struct timer_list *t)
 {
 	struct fmdev *fmdev;
 	struct fm_irq *fmirq;
 
 	fmdbg("irq: timeout,trying to re-enable fm interrupts\n");
-	fmdev = (struct fmdev *)data;
+	fmdev = from_timer(fmdev, t, irq_info.timer);
 	fmirq = &fmdev->irq_info;
 	fmirq->retry++;
 
@@ -564,8 +558,7 @@ static void int_timeout_handler(unsigned long data)
 		 * reset stage index & retry count values */
 		fmirq->stage = 0;
 		fmirq->retry = 0;
-		fmerr("Recovery action failed during"
-				"irq processing, max retry reached\n");
+		fmerr("Recovery action failed duringirq processing, max retry reached\n");
 		return;
 	}
 	fm_irq_call_stage(fmdev, FM_SEND_INTMSK_CMD_IDX);
@@ -1472,7 +1465,7 @@ static long fm_st_receive(void *arg, struct sk_buff *skb)
  * Called by ST layer to indicate protocol registration completion
  * status.
  */
-static void fm_st_reg_comp_cb(void *arg, char data)
+static void fm_st_reg_comp_cb(void *arg, int data)
 {
 	struct fmdev *fmdev;
 
@@ -1516,14 +1509,13 @@ int fmc_prepare(struct fmdev *fmdev)
 
 		if (!wait_for_completion_timeout(&wait_for_fmdrv_reg_comp,
 						 FM_ST_REG_TIMEOUT)) {
-			fmerr("Timeout(%d sec), didn't get reg "
-					"completion signal from ST\n",
+			fmerr("Timeout(%d sec), didn't get reg completion signal from ST\n",
 					jiffies_to_msecs(FM_ST_REG_TIMEOUT) / 1000);
 			return -ETIMEDOUT;
 		}
 		if (fmdev->streg_cbdata != 0) {
-			fmerr("ST reg comp CB called with error "
-					"status %d\n", fmdev->streg_cbdata);
+			fmerr("ST reg comp CB called with error status %d\n",
+			      fmdev->streg_cbdata);
 			return -EAGAIN;
 		}
 
@@ -1558,9 +1550,7 @@ int fmc_prepare(struct fmdev *fmdev)
 	atomic_set(&fmdev->tx_cnt, 1);
 	fmdev->resp_comp = NULL;
 
-	init_timer(&fmdev->irq_info.timer);
-	fmdev->irq_info.timer.function = &int_timeout_handler;
-	fmdev->irq_info.timer.data = (unsigned long)fmdev;
+	timer_setup(&fmdev->irq_info.timer, int_timeout_handler, 0);
 	/*TODO: add FM_STIC_EVENT later */
 	fmdev->irq_info.mask = FM_MAL_EVENT;
 

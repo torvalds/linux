@@ -1,25 +1,5 @@
-/* Intel(R) Gigabit Ethernet Linux driver
- * Copyright(c) 2007-2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 #include <linux/if_ether.h>
 #include <linux/delay.h>
@@ -77,6 +57,10 @@ s32 igb_get_phy_id(struct e1000_hw *hw)
 	s32 ret_val = 0;
 	u16 phy_id;
 
+	/* ensure PHY page selection to fix misconfigured i210 */
+	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211))
+		phy->ops.write_reg(hw, I347AT4_PAGE_SELECT, 0);
+
 	ret_val = phy->ops.read_reg(hw, PHY_ID1, &phy_id);
 	if (ret_val)
 		goto out;
@@ -123,7 +107,7 @@ out:
  *  @offset: register offset to be read
  *  @data: pointer to the read data
  *
- *  Reads the MDI control regsiter in the PHY at offset and stores the
+ *  Reads the MDI control register in the PHY at offset and stores the
  *  information read to data.
  **/
 s32 igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
@@ -290,7 +274,7 @@ s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data)
 	u32 i, i2ccmd = 0;
 	u16 phy_data_swapped;
 
-	/* Prevent overwritting SFP I2C EEPROM which is at A0 address.*/
+	/* Prevent overwriting SFP I2C EEPROM which is at A0 address.*/
 	if ((hw->phy.addr == 0) || (hw->phy.addr > 7)) {
 		hw_dbg("PHY I2C Address %d is out of range.\n",
 			  hw->phy.addr);
@@ -675,6 +659,7 @@ s32 igb_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 			phy_data |= M88E1000_PSCR_AUTO_X_1000T;
 			break;
 		}
+		/* fall through */
 	case 0:
 	default:
 		phy_data |= M88E1000_PSCR_AUTO_X_MODE;
@@ -1717,32 +1702,15 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 	u16 phy_data, phy_data2, index, default_page, is_cm;
+	int len_tot = 0;
+	u16 len_min;
+	u16 len_max;
 
 	switch (hw->phy.id) {
-	case I210_I_PHY_ID:
-		/* Get cable length from PHY Cable Diagnostics Control Reg */
-		ret_val = phy->ops.read_reg(hw, (0x7 << GS40G_PAGE_SHIFT) +
-					    (I347AT4_PCDL + phy->addr),
-					    &phy_data);
-		if (ret_val)
-			return ret_val;
-
-		/* Check if the unit of cable length is meters or cm */
-		ret_val = phy->ops.read_reg(hw, (0x7 << GS40G_PAGE_SHIFT) +
-					    I347AT4_PCDC, &phy_data2);
-		if (ret_val)
-			return ret_val;
-
-		is_cm = !(phy_data2 & I347AT4_PCDC_CABLE_LENGTH_UNIT);
-
-		/* Populate the phy structure with cable length in meters */
-		phy->min_cable_length = phy_data / (is_cm ? 100 : 1);
-		phy->max_cable_length = phy_data / (is_cm ? 100 : 1);
-		phy->cable_length = phy_data / (is_cm ? 100 : 1);
-		break;
 	case M88E1543_E_PHY_ID:
 	case M88E1512_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
+	case I210_I_PHY_ID:
 		/* Remember the original page select and set it to 7 */
 		ret_val = phy->ops.read_reg(hw, I347AT4_PAGE_SELECT,
 					    &default_page);
@@ -1753,12 +1721,6 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 
-		/* Get cable length from PHY Cable Diagnostics Control Reg */
-		ret_val = phy->ops.read_reg(hw, (I347AT4_PCDL + phy->addr),
-					    &phy_data);
-		if (ret_val)
-			goto out;
-
 		/* Check if the unit of cable length is meters or cm */
 		ret_val = phy->ops.read_reg(hw, I347AT4_PCDC, &phy_data2);
 		if (ret_val)
@@ -1766,10 +1728,50 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 
 		is_cm = !(phy_data2 & I347AT4_PCDC_CABLE_LENGTH_UNIT);
 
+		/* Get cable length from Pair 0 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL0, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[0] = phy_data / (is_cm ? 100 : 1);
+		len_tot = phy->pair_length[0];
+		len_min = phy->pair_length[0];
+		len_max = phy->pair_length[0];
+
+		/* Get cable length from Pair 1 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL1, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[1] = phy_data / (is_cm ? 100 : 1);
+		len_tot += phy->pair_length[1];
+		len_min = min(len_min, phy->pair_length[1]);
+		len_max = max(len_max, phy->pair_length[1]);
+
+		/* Get cable length from Pair 2 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL2, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[2] = phy_data / (is_cm ? 100 : 1);
+		len_tot += phy->pair_length[2];
+		len_min = min(len_min, phy->pair_length[2]);
+		len_max = max(len_max, phy->pair_length[2]);
+
+		/* Get cable length from Pair 3 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL3, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[3] = phy_data / (is_cm ? 100 : 1);
+		len_tot += phy->pair_length[3];
+		len_min = min(len_min, phy->pair_length[3]);
+		len_max = max(len_max, phy->pair_length[3]);
+
 		/* Populate the phy structure with cable length in meters */
-		phy->min_cable_length = phy_data / (is_cm ? 100 : 1);
-		phy->max_cable_length = phy_data / (is_cm ? 100 : 1);
-		phy->cable_length = phy_data / (is_cm ? 100 : 1);
+		phy->min_cable_length = len_min;
+		phy->max_cable_length = len_max;
+		phy->cable_length = len_tot / 4;
 
 		/* Reset the page selec to its original value */
 		ret_val = phy->ops.write_reg(hw, I347AT4_PAGE_SELECT,
@@ -2278,6 +2280,100 @@ out:
 }
 
 /**
+ *  igb_initialize_M88E1543_phy - Initialize M88E1512 PHY
+ *  @hw: pointer to the HW structure
+ *
+ *  Initialize Marvell 1543 to work correctly with Avoton.
+ **/
+s32 igb_initialize_M88E1543_phy(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+
+	/* Switch to PHY page 0xFF. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x00FF);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0x214B);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2144);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0x0C28);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2146);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0xB233);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x214D);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0xDC0C);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2159);
+	if (ret_val)
+		goto out;
+
+	/* Switch to PHY page 0xFB. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x00FB);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_3, 0x0C0D);
+	if (ret_val)
+		goto out;
+
+	/* Switch to PHY page 0x12. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x12);
+	if (ret_val)
+		goto out;
+
+	/* Change mode to SGMII-to-Copper */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_MODE, 0x8001);
+	if (ret_val)
+		goto out;
+
+	/* Switch to PHY page 1. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x1);
+	if (ret_val)
+		goto out;
+
+	/* Change mode to 1000BASE-X/SGMII and autoneg enable */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_FIBER_CTRL, 0x9140);
+	if (ret_val)
+		goto out;
+
+	/* Return the PHY to page 0. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0);
+	if (ret_val)
+		goto out;
+
+	ret_val = igb_phy_sw_reset(hw);
+	if (ret_val) {
+		hw_dbg("Error committing the PHY changes\n");
+		return ret_val;
+	}
+
+	/* msec_delay(1000); */
+	usleep_range(1000, 2000);
+out:
+	return ret_val;
+}
+
+/**
  * igb_power_up_phy_copper - Restore copper link in case of PHY power down
  * @hw: pointer to the HW structure
  *
@@ -2490,66 +2586,6 @@ s32 igb_get_cable_length_82580(struct e1000_hw *hw)
 	phy->cable_length = length;
 
 out:
-	return ret_val;
-}
-
-/**
- *  igb_write_phy_reg_gs40g - Write GS40G PHY register
- *  @hw: pointer to the HW structure
- *  @offset: lower half is register offset to write to
- *     upper half is page to use.
- *  @data: data to write at register offset
- *
- *  Acquires semaphore, if necessary, then writes the data to PHY register
- *  at the offset.  Release any acquired semaphores before exiting.
- **/
-s32 igb_write_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 data)
-{
-	s32 ret_val;
-	u16 page = offset >> GS40G_PAGE_SHIFT;
-
-	offset = offset & GS40G_OFFSET_MASK;
-	ret_val = hw->phy.ops.acquire(hw);
-	if (ret_val)
-		return ret_val;
-
-	ret_val = igb_write_phy_reg_mdic(hw, GS40G_PAGE_SELECT, page);
-	if (ret_val)
-		goto release;
-	ret_val = igb_write_phy_reg_mdic(hw, offset, data);
-
-release:
-	hw->phy.ops.release(hw);
-	return ret_val;
-}
-
-/**
- *  igb_read_phy_reg_gs40g - Read GS40G  PHY register
- *  @hw: pointer to the HW structure
- *  @offset: lower half is register offset to read to
- *     upper half is page to use.
- *  @data: data to read at register offset
- *
- *  Acquires semaphore, if necessary, then reads the data in the PHY register
- *  at the offset.  Release any acquired semaphores before exiting.
- **/
-s32 igb_read_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 *data)
-{
-	s32 ret_val;
-	u16 page = offset >> GS40G_PAGE_SHIFT;
-
-	offset = offset & GS40G_OFFSET_MASK;
-	ret_val = hw->phy.ops.acquire(hw);
-	if (ret_val)
-		return ret_val;
-
-	ret_val = igb_write_phy_reg_mdic(hw, GS40G_PAGE_SELECT, page);
-	if (ret_val)
-		goto release;
-	ret_val = igb_read_phy_reg_mdic(hw, offset, data);
-
-release:
-	hw->phy.ops.release(hw);
 	return ret_val;
 }
 

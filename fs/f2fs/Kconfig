@@ -1,6 +1,8 @@
 config F2FS_FS
 	tristate "F2FS filesystem support"
 	depends on BLOCK
+	select CRYPTO
+	select CRYPTO_CRC32
 	help
 	  F2FS is based on Log-structured File System (LFS), which supports
 	  versatile "flash-friendly" features. The design has been focused on
@@ -33,8 +35,7 @@ config F2FS_FS_XATTR
 	default y
 	help
 	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
+	  the kernel or by users (see the attr(5) manual page for details).
 
 	  If unsure, say N.
 
@@ -46,9 +47,6 @@ config F2FS_FS_POSIX_ACL
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
-
-	  To learn more about Access Control Lists, visit the POSIX ACLs for
-	  Linux website <http://acl.bestbits.at/>.
 
 	  If you don't know what Access Control Lists are, say N
 
@@ -76,15 +74,7 @@ config F2FS_FS_ENCRYPTION
 	bool "F2FS Encryption"
 	depends on F2FS_FS
 	depends on F2FS_FS_XATTR
-	select CRYPTO_AES
-	select CRYPTO_CBC
-	select CRYPTO_ECB
-	select CRYPTO_XTS
-	select CRYPTO_CTS
-	select CRYPTO_CTR
-	select CRYPTO_SHA256
-	select KEYS
-	select ENCRYPTED_KEYS
+	select FS_ENCRYPTION
 	help
 	  Enable encryption of f2fs files and directories.  This
 	  feature is similar to ecryptfs, but it is more memory
@@ -98,5 +88,13 @@ config F2FS_IO_TRACE
 	help
 	  F2FS IO trace is based on a function trace, which gathers process
 	  information and block IO patterns in the filesystem level.
+
+	  If unsure, say N.
+
+config F2FS_FAULT_INJECTION
+	bool "F2FS fault injection facility"
+	depends on F2FS_FS
+	help
+	  Test F2FS to inject faults such as ENOMEM, ENOSPC, and so on.
 
 	  If unsure, say N.

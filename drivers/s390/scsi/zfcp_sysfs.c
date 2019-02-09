@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * zfcp device driver
  *
@@ -199,10 +200,7 @@ static ssize_t zfcp_sysfs_adapter_failed_store(struct device *dev,
 		goto out;
 	}
 
-	zfcp_erp_set_adapter_status(adapter, ZFCP_STATUS_COMMON_RUNNING);
-	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
-				"syafai2");
-	zfcp_erp_wait(adapter);
+	zfcp_erp_adapter_reset_sync(adapter, "syafai2");
 out:
 	zfcp_ccw_adapter_put(adapter);
 	return retval ? retval : (ssize_t) count;

@@ -219,9 +219,10 @@ void gru_flush_all_tlb(struct gru_state *gru)
 /*
  * MMUOPS notifier callout functions
  */
-static void gru_invalidate_range_start(struct mmu_notifier *mn,
+static int gru_invalidate_range_start(struct mmu_notifier *mn,
 				       struct mm_struct *mm,
-				       unsigned long start, unsigned long end)
+				       unsigned long start, unsigned long end,
+				       bool blockable)
 {
 	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
 						 ms_notifier);
@@ -231,6 +232,8 @@ static void gru_invalidate_range_start(struct mmu_notifier *mn,
 	gru_dbg(grudev, "gms %p, start 0x%lx, end 0x%lx, act %d\n", gms,
 		start, end, atomic_read(&gms->ms_range_active));
 	gru_flush_tlb_range(gms, start, end - start);
+
+	return 0;
 }
 
 static void gru_invalidate_range_end(struct mmu_notifier *mn,
@@ -247,17 +250,6 @@ static void gru_invalidate_range_end(struct mmu_notifier *mn,
 	gru_dbg(grudev, "gms %p, start 0x%lx, end 0x%lx\n", gms, start, end);
 }
 
-static void gru_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
-				unsigned long address)
-{
-	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
-						 ms_notifier);
-
-	STAT(mmu_invalidate_page);
-	gru_flush_tlb_range(gms, address, PAGE_SIZE);
-	gru_dbg(grudev, "gms %p, address 0x%lx\n", gms, address);
-}
-
 static void gru_release(struct mmu_notifier *mn, struct mm_struct *mm)
 {
 	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
@@ -269,7 +261,7 @@ static void gru_release(struct mmu_notifier *mn, struct mm_struct *mm)
 
 
 static const struct mmu_notifier_ops gru_mmuops = {
-	.invalidate_page	= gru_invalidate_page,
+	.flags			= MMU_INVALIDATE_DOES_NOT_BLOCK,
 	.invalidate_range_start	= gru_invalidate_range_start,
 	.invalidate_range_end	= gru_invalidate_range_end,
 	.release		= gru_release,

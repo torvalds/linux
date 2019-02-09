@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -95,10 +91,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 #define SD_NPKT 32
 	for (n = 0; n < 4; n++) {
 		urb = usb_alloc_urb(SD_NPKT, GFP_KERNEL);
-		if (!urb) {
-			pr_err("usb_alloc_urb failed\n");
+		if (!urb)
 			return -ENOMEM;
-		}
 		gspca_dev->urb[n] = urb;
 		urb->transfer_buffer = usb_alloc_coherent(gspca_dev->dev,
 						SD_PKT_SZ * SD_NPKT,
@@ -158,7 +152,7 @@ static void sd_isoc_irq(struct urb *urb)
 	u8 *data;
 	int i, st;
 
-	PDEBUG(D_PACK, "sd isoc irq");
+	gspca_dbg(gspca_dev, D_PACK, "sd isoc irq\n");
 	if (!gspca_dev->streaming)
 		return;
 	if (urb->status != 0) {
@@ -186,9 +180,9 @@ static void sd_isoc_irq(struct urb *urb)
 		/* check the packet status and length */
 		if (urb0->iso_frame_desc[i].actual_length != SD_PKT_SZ
 		    || urb->iso_frame_desc[i].actual_length != SD_PKT_SZ) {
-			PERR("ISOC bad lengths %d / %d",
-				urb0->iso_frame_desc[i].actual_length,
-				urb->iso_frame_desc[i].actual_length);
+			gspca_err(gspca_dev, "ISOC bad lengths %d / %d\n",
+				  urb0->iso_frame_desc[i].actual_length,
+				  urb->iso_frame_desc[i].actual_length);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
 		}

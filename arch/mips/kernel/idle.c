@@ -11,6 +11,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+#include <linux/cpu.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/irqflags.h>
@@ -32,21 +33,21 @@
 void (*cpu_wait)(void);
 EXPORT_SYMBOL(cpu_wait);
 
-static void r3081_wait(void)
+static void __cpuidle r3081_wait(void)
 {
 	unsigned long cfg = read_c0_conf();
 	write_c0_conf(cfg | R30XX_CONF_HALT);
 	local_irq_enable();
 }
 
-static void r39xx_wait(void)
+static void __cpuidle r39xx_wait(void)
 {
 	if (!need_resched())
 		write_c0_conf(read_c0_conf() | TX39_CONF_HALT);
 	local_irq_enable();
 }
 
-void r4k_wait(void)
+void __cpuidle r4k_wait(void)
 {
 	local_irq_enable();
 	__r4k_wait();
@@ -59,7 +60,7 @@ void r4k_wait(void)
  * interrupt is requested" restriction in the MIPS32/MIPS64 architecture makes
  * using this version a gamble.
  */
-void r4k_wait_irqoff(void)
+void __cpuidle r4k_wait_irqoff(void)
 {
 	if (!need_resched())
 		__asm__(
@@ -74,7 +75,7 @@ void r4k_wait_irqoff(void)
  * The RM7000 variant has to handle erratum 38.	 The workaround is to not
  * have any pending stores when the WAIT instruction is executed.
  */
-static void rm7k_wait_irqoff(void)
+static void __cpuidle rm7k_wait_irqoff(void)
 {
 	if (!need_resched())
 		__asm__(
@@ -95,7 +96,7 @@ static void rm7k_wait_irqoff(void)
  * since coreclock (and the cp0 counter) stops upon executing it. Only an
  * interrupt can wake it, so they must be enabled before entering idle modes.
  */
-static void au1k_wait(void)
+static void __cpuidle au1k_wait(void)
 {
 	unsigned long c0status = read_c0_status() | 1;	/* irqs on */
 
@@ -181,6 +182,11 @@ void __init check_wait(void)
 	case CPU_XLP:
 		cpu_wait = r4k_wait;
 		break;
+	case CPU_LOONGSON3:
+		if ((c->processor_id & PRID_REV_MASK) >= PRID_REV_LOONGSON3A_R2)
+			cpu_wait = r4k_wait;
+		break;
+
 	case CPU_BMIPS5000:
 		cpu_wait = r4k_wait_irqoff;
 		break;

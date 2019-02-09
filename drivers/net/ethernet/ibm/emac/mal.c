@@ -402,7 +402,7 @@ static int mal_poll(struct napi_struct *napi, int budget)
 	unsigned long flags;
 
 	MAL_DBG2(mal, "poll(%d)" NL, budget);
- again:
+
 	/* Process TX skbs */
 	list_for_each(l, &mal->poll_list) {
 		struct mal_commac *mc =
@@ -421,20 +421,20 @@ static int mal_poll(struct napi_struct *napi, int budget)
 		int n;
 		if (unlikely(test_bit(MAL_COMMAC_POLL_DISABLED, &mc->flags)))
 			continue;
-		n = mc->ops->poll_rx(mc->dev, budget);
+		n = mc->ops->poll_rx(mc->dev, budget - received);
 		if (n) {
 			received += n;
-			budget -= n;
-			if (budget <= 0)
-				goto more_work; // XXX What if this is the last one ?
+			if (received >= budget)
+				return budget;
 		}
 	}
 
-	/* We need to disable IRQs to protect from RXDE IRQ here */
-	spin_lock_irqsave(&mal->lock, flags);
-	__napi_complete(napi);
-	mal_enable_eob_irq(mal);
-	spin_unlock_irqrestore(&mal->lock, flags);
+	if (napi_complete_done(napi, received)) {
+		/* We need to disable IRQs to protect from RXDE IRQ here */
+		spin_lock_irqsave(&mal->lock, flags);
+		mal_enable_eob_irq(mal);
+		spin_unlock_irqrestore(&mal->lock, flags);
+	}
 
 	/* Check for "rotting" packet(s) */
 	list_for_each(l, &mal->poll_list) {
@@ -451,7 +451,6 @@ static int mal_poll(struct napi_struct *napi, int budget)
 			spin_lock_irqsave(&mal->lock, flags);
 			mal_disable_eob_irq(mal);
 			spin_unlock_irqrestore(&mal->lock, flags);
-			goto again;
 		}
 		mc->ops->poll_tx(mc->dev);
 	}
@@ -579,8 +578,8 @@ static int mal_probe(struct platform_device *ofdev)
 		mal->features |= (MAL_FTR_CLEAR_ICINTSTAT |
 				MAL_FTR_COMMON_ERR_INT);
 #else
-		printk(KERN_ERR "%s: Support for 405EZ not enabled!\n",
-				ofdev->dev.of_node->full_name);
+		printk(KERN_ERR "%pOF: Support for 405EZ not enabled!\n",
+				ofdev->dev.of_node);
 		err = -ENODEV;
 		goto fail;
 #endif
@@ -597,9 +596,8 @@ static int mal_probe(struct platform_device *ofdev)
 		mal->rxde_irq = irq_of_parse_and_map(ofdev->dev.of_node, 4);
 	}
 
-	if (mal->txeob_irq == NO_IRQ || mal->rxeob_irq == NO_IRQ ||
-	    mal->serr_irq == NO_IRQ || mal->txde_irq == NO_IRQ ||
-	    mal->rxde_irq == NO_IRQ) {
+	if (!mal->txeob_irq || !mal->rxeob_irq || !mal->serr_irq ||
+	    !mal->txde_irq  || !mal->rxde_irq) {
 		printk(KERN_ERR
 		       "mal%d: failed to map interrupts !\n", index);
 		err = -ENODEV;
@@ -688,15 +686,13 @@ static int mal_probe(struct platform_device *ofdev)
 	mal_enable_eob_irq(mal);
 
 	printk(KERN_INFO
-	       "MAL v%d %s, %d TX channels, %d RX channels\n",
-	       mal->version, ofdev->dev.of_node->full_name,
+	       "MAL v%d %pOF, %d TX channels, %d RX channels\n",
+	       mal->version, ofdev->dev.of_node,
 	       mal->num_tx_chans, mal->num_rx_chans);
 
 	/* Advertise this instance to the rest of the world */
 	wmb();
 	platform_set_drvdata(ofdev, mal);
-
-	mal_dbg_register(mal);
 
 	return 0;
 
@@ -740,8 +736,6 @@ static int mal_remove(struct platform_device *ofdev)
 	free_irq(mal->rxeob_irq, mal);
 
 	mal_reset(mal);
-
-	mal_dbg_unregister(mal);
 
 	dma_free_coherent(&ofdev->dev,
 			  sizeof(struct mal_descriptor) *

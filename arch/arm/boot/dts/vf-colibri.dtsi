@@ -1,26 +1,101 @@
 /*
  * Copyright 2014 Toradex AG
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 / {
+	aliases {
+		ethernet0 = &fec1;
+		ethernet1 = &fec0;
+	};
+
 	bl: backlight {
 		compatible = "pwm-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_bl_on>;
 		pwms = <&pwm0 0 5000000 0>;
+		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
+	};
+
+	reg_module_3v3: regulator-module-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "+V3.3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	reg_module_3v3_avdd: regulator-module-3v3-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "+V3.3_AVDD_AUDIO";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 };
 
 &adc0 {
 	status = "okay";
+	vref-supply = <&reg_module_3v3_avdd>;
 };
 
 &adc1 {
 	status = "okay";
+	vref-supply = <&reg_module_3v3_avdd>;
+};
+
+&can0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan0>;
+	status = "disabled";
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1>;
+	status = "disabled";
+};
+
+&clks {
+	assigned-clocks = <&clks VF610_CLK_ENET_SEL>,
+			  <&clks VF610_CLK_ENET_TS_SEL>;
+	assigned-clock-parents = <&clks VF610_CLK_ENET_50M>,
+				 <&clks VF610_CLK_ENET_50M>;
 };
 
 &dspi1 {
@@ -33,15 +108,21 @@
 	status = "okay";
 };
 
+&edma1 {
+	status = "okay";
+};
+
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
 	cd-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+	disable-wp;
 };
 
 &fec1 {
 	phy-mode = "rmii";
+	phy-supply = <&reg_module_3v3>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
 };
@@ -53,8 +134,6 @@
 };
 
 &nfc {
-	assigned-clocks = <&clks VF610_CLK_NFC>;
-	assigned-clock-rates = <33000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_nfc>;
 	status = "okay";
@@ -125,11 +204,58 @@
 
 &iomuxc {
 	vf610-colibri {
+		pinctrl_flexcan0: can0grp {
+			fsl,pins = <
+				VF610_PAD_PTB14__CAN0_RX	0x31F1
+				VF610_PAD_PTB15__CAN0_TX	0x31F2
+			>;
+		};
+
+		pinctrl_flexcan1: can1grp {
+			fsl,pins = <
+				VF610_PAD_PTB16__CAN1_RX	0x31F1
+				VF610_PAD_PTB17__CAN1_TX	0x31F2
+			>;
+		};
+
 		pinctrl_gpio_ext: gpio_ext {
 			fsl,pins = <
 				VF610_PAD_PTD10__GPIO_89	0x22ed /* EXT_IO_0 */
 				VF610_PAD_PTD9__GPIO_88		0x22ed /* EXT_IO_1 */
 				VF610_PAD_PTD26__GPIO_68	0x22ed /* EXT_IO_2 */
+			>;
+		};
+
+		pinctrl_dcu0_1: dcu0grp_1 {
+			fsl,pins = <
+				VF610_PAD_PTE0__DCU0_HSYNC	0x1902
+				VF610_PAD_PTE1__DCU0_VSYNC	0x1902
+				VF610_PAD_PTE2__DCU0_PCLK	0x1902
+				VF610_PAD_PTE4__DCU0_DE		0x1902
+				VF610_PAD_PTE5__DCU0_R0		0x1902
+				VF610_PAD_PTE6__DCU0_R1		0x1902
+				VF610_PAD_PTE7__DCU0_R2		0x1902
+				VF610_PAD_PTE8__DCU0_R3		0x1902
+				VF610_PAD_PTE9__DCU0_R4		0x1902
+				VF610_PAD_PTE10__DCU0_R5	0x1902
+				VF610_PAD_PTE11__DCU0_R6	0x1902
+				VF610_PAD_PTE12__DCU0_R7	0x1902
+				VF610_PAD_PTE13__DCU0_G0	0x1902
+				VF610_PAD_PTE14__DCU0_G1	0x1902
+				VF610_PAD_PTE15__DCU0_G2	0x1902
+				VF610_PAD_PTE16__DCU0_G3	0x1902
+				VF610_PAD_PTE17__DCU0_G4	0x1902
+				VF610_PAD_PTE18__DCU0_G5	0x1902
+				VF610_PAD_PTE19__DCU0_G6	0x1902
+				VF610_PAD_PTE20__DCU0_G7	0x1902
+				VF610_PAD_PTE21__DCU0_B0	0x1902
+				VF610_PAD_PTE22__DCU0_B1	0x1902
+				VF610_PAD_PTE23__DCU0_B2	0x1902
+				VF610_PAD_PTE24__DCU0_B3	0x1902
+				VF610_PAD_PTE25__DCU0_B4	0x1902
+				VF610_PAD_PTE26__DCU0_B5	0x1902
+				VF610_PAD_PTE27__DCU0_B6	0x1902
+				VF610_PAD_PTE28__DCU0_B7	0x1902
 			>;
 		};
 
@@ -166,6 +292,12 @@
 				VF610_PAD_PTC15__ENET_RMII1_TXD1	0x30d2
 				VF610_PAD_PTC16__ENET_RMII1_TXD0	0x30d2
 				VF610_PAD_PTC17__ENET_RMII1_TXEN	0x30d2
+			>;
+		};
+
+		pinctrl_gpio_bl_on: gpio_bl_on {
+			fsl,pins = <
+				VF610_PAD_PTC0__GPIO_45		0x22ef
 			>;
 		};
 
@@ -213,6 +345,8 @@
 			fsl,pins = <
 				VF610_PAD_PTB10__UART0_TX		0x21a2
 				VF610_PAD_PTB11__UART0_RX		0x21a1
+				VF610_PAD_PTB12__UART0_RTS		0x21a2
+				VF610_PAD_PTB13__UART0_CTS		0x21a1
 			>;
 		};
 

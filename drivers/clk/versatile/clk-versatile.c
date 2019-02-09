@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
+#include "icst.h"
 #include "clk-icst.h"
 
 #define INTEGRATOR_HDR_LOCK_OFFSET	0x14

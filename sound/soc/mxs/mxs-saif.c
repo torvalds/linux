@@ -119,23 +119,35 @@ static int mxs_saif_set_clk(struct mxs_saif *saif,
 	 * Set SAIF clock
 	 *
 	 * The SAIF clock should be either 384*fs or 512*fs.
-	 * If MCLK is used, the SAIF clk ratio need to match mclk ratio.
-	 *  For 32x mclk, set saif clk as 512*fs.
-	 *  For 48x mclk, set saif clk as 384*fs.
+	 * If MCLK is used, the SAIF clk ratio needs to match mclk ratio.
+	 *  For 256x, 128x, 64x, and 32x sub-rates, set saif clk as 512*fs.
+	 *  For 192x, 96x, and 48x sub-rates, set saif clk as 384*fs.
 	 *
 	 * If MCLK is not used, we just set saif clk to 512*fs.
 	 */
-	clk_prepare_enable(master_saif->clk);
+	ret = clk_prepare_enable(master_saif->clk);
+	if (ret)
+		return ret;
 
 	if (master_saif->mclk_in_use) {
-		if (mclk % 32 == 0) {
+		switch (mclk / rate) {
+		case 32:
+		case 64:
+		case 128:
+		case 256:
+		case 512:
 			scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
 			ret = clk_set_rate(master_saif->clk, 512 * rate);
-		} else if (mclk % 48 == 0) {
+			break;
+		case 48:
+		case 96:
+		case 192:
+		case 384:
 			scr |= BM_SAIF_CTRL_BITCLK_BASE_RATE;
 			ret = clk_set_rate(master_saif->clk, 384 * rate);
-		} else {
-			/* SAIF MCLK should be either 32x or 48x */
+			break;
+		default:
+			/* SAIF MCLK should be a sub-rate of 512x or 384x */
 			clk_disable_unprepare(master_saif->clk);
 			return -EINVAL;
 		}
@@ -299,6 +311,16 @@ static int mxs_saif_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		return -EBUSY;
 	}
 
+	/* If SAIF1 is configured as slave, the clk gate needs to be cleared
+	 * before the register can be written.
+	 */
+	if (saif->id != saif->master_id) {
+		__raw_writel(BM_SAIF_CTRL_SFTRST,
+			saif->base + SAIF_CTRL + MXS_CLR_ADDR);
+		__raw_writel(BM_SAIF_CTRL_CLKGATE,
+			saif->base + SAIF_CTRL + MXS_CLR_ADDR);
+	}
+
 	scr0 = __raw_readl(saif->base + SAIF_CTRL);
 	scr0 = scr0 & ~BM_SAIF_CTRL_BITCLK_EDGE & ~BM_SAIF_CTRL_LRCLK_POLARITY \
 		& ~BM_SAIF_CTRL_JUSTIFY & ~BM_SAIF_CTRL_DELAY;
@@ -368,6 +390,7 @@ static int mxs_saif_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *cpu_dai)
 {
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
+	int ret;
 
 	/* clear error status to 0 for each re-open */
 	saif->fifo_underrun = 0;
@@ -381,7 +404,19 @@ static int mxs_saif_startup(struct snd_pcm_substream *substream,
 	__raw_writel(BM_SAIF_CTRL_CLKGATE,
 		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
 
+	ret = clk_prepare(saif->clk);
+	if (ret)
+		return ret;
+
 	return 0;
+}
+
+static void mxs_saif_shutdown(struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *cpu_dai)
+{
+	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
+
+	clk_unprepare(saif->clk);
 }
 
 /*
@@ -408,7 +443,7 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	stat = __raw_readl(saif->base + SAIF_STAT);
-	if (stat & BM_SAIF_STAT_BUSY) {
+	if (!saif->mclk_in_use && (stat & BM_SAIF_STAT_BUSY)) {
 		dev_err(cpu_dai->dev, "error: busy\n");
 		return -EBUSY;
 	}
@@ -424,8 +459,6 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* prepare clk in hw_param, enable in trigger */
-	clk_prepare(saif->clk);
 	if (saif != master_saif) {
 		/*
 		* Set an initial clock rate for the saif internal logic to work
@@ -440,7 +473,9 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 		if (ret)
 			return ret;
 
-		clk_prepare(master_saif->clk);
+		ret = clk_prepare(master_saif->clk);
+		if (ret)
+			return ret;
 	}
 
 	scr = __raw_readl(saif->base + SAIF_CTRL);
@@ -611,6 +646,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static const struct snd_soc_dai_ops mxs_saif_dai_ops = {
 	.startup = mxs_saif_startup,
+	.shutdown = mxs_saif_shutdown,
 	.trigger = mxs_saif_trigger,
 	.prepare = mxs_saif_prepare,
 	.hw_params = mxs_saif_hw_params,
@@ -726,6 +762,11 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	else
 		saif->id = ret;
 
+	if (saif->id >= ARRAY_SIZE(mxs_saif)) {
+		dev_err(&pdev->dev, "get wrong saif id\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * If there is no "fsl,saif-master" phandle, it's a saif
 	 * master.  Otherwise, it's a slave and its phandle points
@@ -740,11 +781,11 @@ static int mxs_saif_probe(struct platform_device *pdev)
 			return ret;
 		else
 			saif->master_id = ret;
-	}
 
-	if (saif->master_id >= ARRAY_SIZE(mxs_saif)) {
-		dev_err(&pdev->dev, "get wrong master id\n");
-		return -EINVAL;
+		if (saif->master_id >= ARRAY_SIZE(mxs_saif)) {
+			dev_err(&pdev->dev, "get wrong master id\n");
+			return -EINVAL;
+		}
 	}
 
 	mxs_saif[saif->id] = saif;

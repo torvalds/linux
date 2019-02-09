@@ -88,7 +88,7 @@ static int full_duplex[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 /* These identify the driver base version and may not be removed. */
@@ -257,8 +257,8 @@ enum rx_desc_status_bits {
 	RXFSD = 0x00000800,	/* first descriptor */
 	RXLSD = 0x00000400,	/* last descriptor */
 	ErrorSummary = 0x80,	/* error summary */
-	RUNT = 0x40,		/* runt packet received */
-	LONG = 0x20,		/* long packet received */
+	RUNTPKT = 0x40,		/* runt packet received */
+	LONGPKT = 0x20,		/* long packet received */
 	FAE = 0x10,		/* frame align error */
 	CRC = 0x08,		/* crc error */
 	RXER = 0x04,		/* receive error */
@@ -426,8 +426,8 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 static int netdev_open(struct net_device *dev);
 static void getlinktype(struct net_device *dev);
 static void getlinkstatus(struct net_device *dev);
-static void netdev_timer(unsigned long data);
-static void reset_timer(unsigned long data);
+static void netdev_timer(struct timer_list *t);
+static void reset_timer(struct timer_list *t);
 static void fealnx_tx_timeout(struct net_device *dev);
 static void init_ring(struct net_device *dev);
 static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev);
@@ -472,7 +472,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_do_ioctl		= mii_ioctl,
 	.ndo_tx_timeout		= fealnx_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -910,17 +909,13 @@ static int netdev_open(struct net_device *dev)
 		printk(KERN_DEBUG "%s: Done netdev_open().\n", dev->name);
 
 	/* Set the timer to check for link beat. */
-	init_timer(&np->timer);
+	timer_setup(&np->timer, netdev_timer, 0);
 	np->timer.expires = RUN_AT(3 * HZ);
-	np->timer.data = (unsigned long) dev;
-	np->timer.function = netdev_timer;
 
 	/* timer handler */
 	add_timer(&np->timer);
 
-	init_timer(&np->reset_timer);
-	np->reset_timer.data = (unsigned long) dev;
-	np->reset_timer.function = reset_timer;
+	timer_setup(&np->reset_timer, reset_timer, 0);
 	np->reset_timer_armed = 0;
 	return rc;
 }
@@ -1083,10 +1078,10 @@ static void allocate_rx_buffers(struct net_device *dev)
 }
 
 
-static void netdev_timer(unsigned long data)
+static void netdev_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *) data;
-	struct netdev_private *np = netdev_priv(dev);
+	struct netdev_private *np = from_timer(np, t, timer);
+	struct net_device *dev = np->mii.dev;
 	void __iomem *ioaddr = np->mem;
 	int old_crvalue = np->crvalue;
 	unsigned int old_linkok = np->linkok;
@@ -1172,10 +1167,10 @@ static void enable_rxtx(struct net_device *dev)
 }
 
 
-static void reset_timer(unsigned long data)
+static void reset_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *) data;
-	struct netdev_private *np = netdev_priv(dev);
+	struct netdev_private *np = from_timer(np, t, reset_timer);
+	struct net_device *dev = np->mii.dev;
 	unsigned long flags;
 
 	printk(KERN_WARNING "%s: resetting tx and rx machinery\n", dev->name);
@@ -1227,7 +1222,7 @@ static void fealnx_tx_timeout(struct net_device *dev)
 
 	spin_unlock_irqrestore(&np->lock, flags);
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	netif_wake_queue(dev); /* or .._start_.. ?? */
 }
@@ -1633,7 +1628,7 @@ static int netdev_rx(struct net_device *dev)
 					       dev->name, rx_status);
 
 				dev->stats.rx_errors++;	/* end of a packet. */
-				if (rx_status & (LONG | RUNT))
+				if (rx_status & (LONGPKT | RUNTPKT))
 					dev->stats.rx_length_errors++;
 				if (rx_status & RXER)
 					dev->stats.rx_frame_errors++;
@@ -1712,8 +1707,8 @@ static int netdev_rx(struct net_device *dev)
 					np->cur_rx->skbuff->data, pkt_len);
 				skb_put(skb, pkt_len);
 #else
-				memcpy(skb_put(skb, pkt_len),
-					np->cur_rx->skbuff->data, pkt_len);
+				skb_put_data(skb, np->cur_rx->skbuff->data,
+					     pkt_len);
 #endif
 				pci_dma_sync_single_for_device(np->pci_dev,
 							       np->cur_rx->buffer,
@@ -1818,25 +1813,26 @@ static void netdev_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
-static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int netdev_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	int rc;
 
 	spin_lock_irq(&np->lock);
-	rc = mii_ethtool_gset(&np->mii, cmd);
+	mii_ethtool_get_link_ksettings(&np->mii, cmd);
 	spin_unlock_irq(&np->lock);
 
-	return rc;
+	return 0;
 }
 
-static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int netdev_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	int rc;
 
 	spin_lock_irq(&np->lock);
-	rc = mii_ethtool_sset(&np->mii, cmd);
+	rc = mii_ethtool_set_link_ksettings(&np->mii, cmd);
 	spin_unlock_irq(&np->lock);
 
 	return rc;
@@ -1866,12 +1862,12 @@ static void netdev_set_msglevel(struct net_device *dev, u32 value)
 
 static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
-	.get_settings		= netdev_get_settings,
-	.set_settings		= netdev_set_settings,
 	.nway_reset		= netdev_nway_reset,
 	.get_link		= netdev_get_link,
 	.get_msglevel		= netdev_get_msglevel,
 	.set_msglevel		= netdev_set_msglevel,
+	.get_link_ksettings	= netdev_get_link_ksettings,
+	.set_link_ksettings	= netdev_set_link_ksettings,
 };
 
 static int mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

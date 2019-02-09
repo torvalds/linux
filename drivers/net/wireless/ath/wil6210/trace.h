@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2013-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -37,39 +37,40 @@ static inline void trace_ ## name(proto) {}
 #endif /* !CONFIG_WIL6210_TRACING || defined(__CHECKER__) */
 
 DECLARE_EVENT_CLASS(wil6210_wmi,
-	TP_PROTO(struct wil6210_mbox_hdr_wmi *wmi, void *buf, u16 buf_len),
+	TP_PROTO(struct wmi_cmd_hdr *wmi, void *buf, u16 buf_len),
 
 	TP_ARGS(wmi, buf, buf_len),
 
 	TP_STRUCT__entry(
 		__field(u8, mid)
-		__field(u16, id)
-		__field(u32, timestamp)
+		__field(u16, command_id)
+		__field(u32, fw_timestamp)
 		__field(u16, buf_len)
 		__dynamic_array(u8, buf, buf_len)
 	),
 
 	TP_fast_assign(
 		__entry->mid = wmi->mid;
-		__entry->id = le16_to_cpu(wmi->id);
-		__entry->timestamp = le32_to_cpu(wmi->timestamp);
+		__entry->command_id = le16_to_cpu(wmi->command_id);
+		__entry->fw_timestamp = le32_to_cpu(wmi->fw_timestamp);
 		__entry->buf_len = buf_len;
 		memcpy(__get_dynamic_array(buf), buf, buf_len);
 	),
 
 	TP_printk(
 		"MID %d id 0x%04x len %d timestamp %d",
-		__entry->mid, __entry->id, __entry->buf_len, __entry->timestamp
+		__entry->mid, __entry->command_id, __entry->buf_len,
+		__entry->fw_timestamp
 	)
 );
 
 DEFINE_EVENT(wil6210_wmi, wil6210_wmi_cmd,
-	TP_PROTO(struct wil6210_mbox_hdr_wmi *wmi, void *buf, u16 buf_len),
+	TP_PROTO(struct wmi_cmd_hdr *wmi, void *buf, u16 buf_len),
 	TP_ARGS(wmi, buf, buf_len)
 );
 
 DEFINE_EVENT(wil6210_wmi, wil6210_wmi_event,
-	TP_PROTO(struct wil6210_mbox_hdr_wmi *wmi, void *buf, u16 buf_len),
+	TP_PROTO(struct wmi_cmd_hdr *wmi, void *buf, u16 buf_len),
 	TP_ARGS(wmi, buf, buf_len)
 );
 
@@ -186,6 +187,40 @@ TRACE_EVENT(wil6210_rx,
 		  __entry->seq, __entry->type, __entry->subtype)
 );
 
+TRACE_EVENT(wil6210_rx_status,
+	    TP_PROTO(struct wil6210_priv *wil, u8 use_compressed, u16 buff_id,
+		     void *msg),
+	    TP_ARGS(wil, use_compressed, buff_id, msg),
+	    TP_STRUCT__entry(__field(u8, use_compressed)
+			     __field(u16, buff_id)
+			     __field(unsigned int, len)
+			     __field(u8, mid)
+			     __field(u8, cid)
+			     __field(u8, tid)
+			     __field(u8, type)
+			     __field(u8, subtype)
+			     __field(u16, seq)
+			     __field(u8, mcs)
+	    ),
+	    TP_fast_assign(__entry->use_compressed = use_compressed;
+			   __entry->buff_id = buff_id;
+			   __entry->len = wil_rx_status_get_length(msg);
+			   __entry->mid = wil_rx_status_get_mid(msg);
+			   __entry->cid = wil_rx_status_get_cid(msg);
+			   __entry->tid = wil_rx_status_get_tid(msg);
+			   __entry->type = wil_rx_status_get_frame_type(wil,
+									msg);
+			   __entry->subtype = wil_rx_status_get_fc1(wil, msg);
+			   __entry->seq = wil_rx_status_get_seq(wil, msg);
+			   __entry->mcs = wil_rx_status_get_mcs(msg);
+	    ),
+	    TP_printk(
+		      "compressed %d buff_id %d len %d mid %d cid %d tid %d mcs %d seq 0x%03x type 0x%1x subtype 0x%1x",
+		      __entry->use_compressed, __entry->buff_id, __entry->len,
+		      __entry->mid, __entry->cid, __entry->tid, __entry->mcs,
+		      __entry->seq, __entry->type, __entry->subtype)
+);
+
 TRACE_EVENT(wil6210_tx,
 	TP_PROTO(u8 vring, u16 index, unsigned int len, u8 frags),
 	TP_ARGS(vring, index, len, frags),
@@ -223,6 +258,31 @@ TRACE_EVENT(wil6210_tx_done,
 	TP_printk("vring %d index %d len %d err 0x%02x",
 		  __entry->vring, __entry->index, __entry->len,
 		  __entry->err)
+);
+
+TRACE_EVENT(wil6210_tx_status,
+	    TP_PROTO(struct wil_ring_tx_status *msg, u16 index,
+		     unsigned int len),
+	    TP_ARGS(msg, index, len),
+	    TP_STRUCT__entry(__field(u16, index)
+			     __field(unsigned int, len)
+			     __field(u8, num_descs)
+			     __field(u8, ring_id)
+			     __field(u8, status)
+			     __field(u8, mcs)
+
+	    ),
+	    TP_fast_assign(__entry->index = index;
+			   __entry->len = len;
+			   __entry->num_descs = msg->num_descriptors;
+			   __entry->ring_id = msg->ring_id;
+			   __entry->status = msg->status;
+			   __entry->mcs = wil_tx_status_get_mcs(msg);
+	    ),
+	    TP_printk(
+		      "ring_id %d swtail 0x%x len %d num_descs %d status 0x%x mcs %d",
+		      __entry->ring_id, __entry->index, __entry->len,
+		      __entry->num_descs, __entry->status, __entry->mcs)
 );
 
 #endif /* WIL6210_TRACE_H || TRACE_HEADER_MULTI_READ*/

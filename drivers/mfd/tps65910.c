@@ -229,7 +229,7 @@ static struct regmap_irq_chip tps65910_irq_chip = {
 static int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		    struct tps65910_platform_data *pdata)
 {
-	int ret = 0;
+	int ret;
 	static struct regmap_irq_chip *tps6591x_irqs_chip;
 
 	if (!irq) {
@@ -252,21 +252,15 @@ static int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 	}
 
 	tps65910->chip_irq = irq;
-	ret = regmap_add_irq_chip(tps65910->regmap, tps65910->chip_irq,
-		IRQF_ONESHOT, pdata->irq_base,
-		tps6591x_irqs_chip, &tps65910->irq_data);
+	ret = devm_regmap_add_irq_chip(tps65910->dev, tps65910->regmap,
+				       tps65910->chip_irq,
+				       IRQF_ONESHOT, pdata->irq_base,
+				       tps6591x_irqs_chip, &tps65910->irq_data);
 	if (ret < 0) {
 		dev_warn(tps65910->dev, "Failed to add irq_chip %d\n", ret);
 		tps65910->chip_irq = 0;
 	}
 	return ret;
-}
-
-static int tps65910_irq_exit(struct tps65910 *tps65910)
-{
-	if (tps65910->chip_irq > 0)
-		regmap_del_irq_chip(tps65910->chip_irq, tps65910->irq_data);
-	return 0;
 }
 
 static bool is_volatile_reg(struct device *dev, unsigned int reg)
@@ -318,13 +312,13 @@ static int tps65910_ck32k_init(struct tps65910 *tps65910,
 static int tps65910_sleepinit(struct tps65910 *tps65910,
 		struct tps65910_board *pmic_pdata)
 {
-	struct device *dev = NULL;
-	int ret = 0;
-
-	dev = tps65910->dev;
+	struct device *dev;
+	int ret;
 
 	if (!pmic_pdata->en_dev_slp)
 		return 0;
+
+	dev = tps65910->dev;
 
 	/* enabling SLEEP device state */
 	ret = tps65910_reg_set_bits(tps65910, TPS65910_DEVCTRL,
@@ -334,11 +328,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 		goto err_sleep_init;
 	}
 
-	/* Return if there is no sleep keepon data. */
-	if (!pmic_pdata->slp_keepon)
-		return 0;
-
-	if (pmic_pdata->slp_keepon->therm_keepon) {
+	if (pmic_pdata->slp_keepon.therm_keepon) {
 		ret = tps65910_reg_set_bits(tps65910,
 				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_THERM_KEEPON_MASK);
@@ -348,7 +338,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 		}
 	}
 
-	if (pmic_pdata->slp_keepon->clkout32k_keepon) {
+	if (pmic_pdata->slp_keepon.clkout32k_keepon) {
 		ret = tps65910_reg_set_bits(tps65910,
 				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_CLKOUT32K_KEEPON_MASK);
@@ -358,7 +348,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 		}
 	}
 
-	if (pmic_pdata->slp_keepon->i2chs_keepon) {
+	if (pmic_pdata->slp_keepon.i2chs_keepon) {
 		ret = tps65910_reg_set_bits(tps65910,
 				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_I2CHS_KEEPON_MASK);
@@ -393,7 +383,7 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 	struct tps65910_board *board_info;
 	unsigned int prop;
 	const struct of_device_id *match;
-	int ret = 0;
+	int ret;
 
 	match = of_match_device(tps65910_of_match, &client->dev);
 	if (!match) {
@@ -405,10 +395,8 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 
 	board_info = devm_kzalloc(&client->dev, sizeof(*board_info),
 			GFP_KERNEL);
-	if (!board_info) {
-		dev_err(&client->dev, "Failed to allocate pdata\n");
+	if (!board_info)
 		return NULL;
-	}
 
 	ret = of_property_read_u32(np, "ti,vmbch-threshold", &prop);
 	if (!ret)
@@ -420,6 +408,18 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 
 	prop = of_property_read_bool(np, "ti,en-ck32k-xtal");
 	board_info->en_ck32k_xtal = prop;
+
+	prop = of_property_read_bool(np, "ti,sleep-enable");
+	board_info->en_dev_slp = prop;
+
+	prop = of_property_read_bool(np, "ti,sleep-keep-therm");
+	board_info->slp_keepon.therm_keepon = prop;
+
+	prop = of_property_read_bool(np, "ti,sleep-keep-ck32k");
+	board_info->slp_keepon.clkout32k_keepon = prop;
+
+	prop = of_property_read_bool(np, "ti,sleep-keep-hsclk");
+	board_info->slp_keepon.i2chs_keepon = prop;
 
 	board_info->irq = client->irq;
 	board_info->irq_base = -1;
@@ -460,7 +460,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	struct tps65910_board *of_pmic_plat_data = NULL;
 	struct tps65910_platform_data *init_data;
 	unsigned long chip_id = id->driver_data;
-	int ret = 0;
+	int ret;
 
 	pmic_plat_data = dev_get_platdata(&i2c->dev);
 
@@ -510,27 +510,16 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 		pm_power_off = tps65910_power_off;
 	}
 
-	ret = mfd_add_devices(tps65910->dev, -1,
-			      tps65910s, ARRAY_SIZE(tps65910s),
-			      NULL, 0,
-			      regmap_irq_get_domain(tps65910->irq_data));
+	ret = devm_mfd_add_devices(tps65910->dev, -1,
+				   tps65910s, ARRAY_SIZE(tps65910s),
+				   NULL, 0,
+				   regmap_irq_get_domain(tps65910->irq_data));
 	if (ret < 0) {
 		dev_err(&i2c->dev, "mfd_add_devices failed: %d\n", ret);
-		tps65910_irq_exit(tps65910);
 		return ret;
 	}
 
 	return ret;
-}
-
-static int tps65910_i2c_remove(struct i2c_client *i2c)
-{
-	struct tps65910 *tps65910 = i2c_get_clientdata(i2c);
-
-	tps65910_irq_exit(tps65910);
-	mfd_remove_devices(tps65910->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id tps65910_i2c_id[] = {
@@ -547,7 +536,6 @@ static struct i2c_driver tps65910_i2c_driver = {
 		   .of_match_table = of_match_ptr(tps65910_of_match),
 	},
 	.probe = tps65910_i2c_probe,
-	.remove = tps65910_i2c_remove,
 	.id_table = tps65910_i2c_id,
 };
 

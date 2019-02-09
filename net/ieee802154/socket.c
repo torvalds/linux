@@ -25,6 +25,7 @@
 #include <linux/termios.h>	/* For TIOCOUTQ/INQ */
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/socket.h>
 #include <net/datalink.h>
 #include <net/psnap.h>
 #include <net/sock.h>
@@ -182,12 +183,14 @@ static int ieee802154_sock_ioctl(struct socket *sock, unsigned int cmd,
 static HLIST_HEAD(raw_head);
 static DEFINE_RWLOCK(raw_lock);
 
-static void raw_hash(struct sock *sk)
+static int raw_hash(struct sock *sk)
 {
 	write_lock_bh(&raw_lock);
 	sk_add_node(sk, &raw_head);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	write_unlock_bh(&raw_lock);
+
+	return 0;
 }
 
 static void raw_unhash(struct sock *sk)
@@ -277,7 +280,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	pr_debug("name = %s, mtu = %u\n", dev->name, mtu);
 
 	if (size > mtu) {
-		pr_debug("size = %Zu, mtu = %u\n", size, mtu);
+		pr_debug("size = %zu, mtu = %u\n", size, mtu);
 		err = -EMSGSIZE;
 		goto out_dev;
 	}
@@ -299,14 +302,13 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 		goto out_skb;
 
 	skb->dev = dev;
-	skb->sk  = sk;
 	skb->protocol = htons(ETH_P_IEEE802154);
-
-	dev_put(dev);
 
 	err = dev_queue_xmit(skb);
 	if (err > 0)
 		err = net_xmit_errno(err);
+
+	dev_put(dev);
 
 	return err ?: size;
 
@@ -451,6 +453,7 @@ struct dgram_sock {
 	unsigned int bound:1;
 	unsigned int connected:1;
 	unsigned int want_ack:1;
+	unsigned int want_lqi:1;
 	unsigned int secen:1;
 	unsigned int secen_override:1;
 	unsigned int seclevel:3;
@@ -462,12 +465,14 @@ static inline struct dgram_sock *dgram_sk(const struct sock *sk)
 	return container_of(sk, struct dgram_sock, sk);
 }
 
-static void dgram_hash(struct sock *sk)
+static int dgram_hash(struct sock *sk)
 {
 	write_lock_bh(&dgram_lock);
 	sk_add_node(sk, &dgram_head);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	write_unlock_bh(&dgram_lock);
+
+	return 0;
 }
 
 static void dgram_unhash(struct sock *sk)
@@ -483,6 +488,7 @@ static int dgram_init(struct sock *sk)
 	struct dgram_sock *ro = dgram_sk(sk);
 
 	ro->want_ack = 1;
+	ro->want_lqi = 0;
 	return 0;
 }
 
@@ -641,7 +647,7 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	pr_debug("name = %s, mtu = %u\n", dev->name, mtu);
 
 	if (size > mtu) {
-		pr_debug("size = %Zu, mtu = %u\n", size, mtu);
+		pr_debug("size = %zu, mtu = %u\n", size, mtu);
 		err = -EMSGSIZE;
 		goto out_dev;
 	}
@@ -686,14 +692,13 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 		goto out_skb;
 
 	skb->dev = dev;
-	skb->sk  = sk;
 	skb->protocol = htons(ETH_P_IEEE802154);
-
-	dev_put(dev);
 
 	err = dev_queue_xmit(skb);
 	if (err > 0)
 		err = net_xmit_errno(err);
+
+	dev_put(dev);
 
 	return err ?: size;
 
@@ -711,6 +716,7 @@ static int dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
 	struct sk_buff *skb;
+	struct dgram_sock *ro = dgram_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_ieee802154 *, saddr, msg->msg_name);
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
@@ -740,6 +746,13 @@ static int dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		saddr->family = AF_IEEE802154;
 		ieee802154_addr_to_sa(&saddr->addr, &mac_cb(skb)->source);
 		*addr_len = sizeof(*saddr);
+	}
+
+	if (ro->want_lqi) {
+		err = put_cmsg(msg, SOL_IEEE802154, WPAN_WANTLQI,
+			       sizeof(uint8_t), &(mac_cb(skb)->lqi));
+		if (err)
+			goto done;
 	}
 
 	if (flags & MSG_TRUNC)
@@ -845,6 +858,9 @@ static int dgram_getsockopt(struct sock *sk, int level, int optname,
 	case WPAN_WANTACK:
 		val = ro->want_ack;
 		break;
+	case WPAN_WANTLQI:
+		val = ro->want_lqi;
+		break;
 	case WPAN_SECURITY:
 		if (!ro->secen_override)
 			val = WPAN_SECURITY_DEFAULT;
@@ -889,6 +905,9 @@ static int dgram_setsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case WPAN_WANTACK:
 		ro->want_ack = !!val;
+		break;
+	case WPAN_WANTLQI:
+		ro->want_lqi = !!val;
 		break;
 	case WPAN_SECURITY:
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN) &&
@@ -1026,8 +1045,13 @@ static int ieee802154_create(struct net *net, struct socket *sock,
 	/* Checksums on by default */
 	sock_set_flag(sk, SOCK_ZAPPED);
 
-	if (sk->sk_prot->hash)
-		sk->sk_prot->hash(sk);
+	if (sk->sk_prot->hash) {
+		rc = sk->sk_prot->hash(sk);
+		if (rc) {
+			sk_common_release(sk);
+			goto out;
+		}
+	}
 
 	if (sk->sk_prot->init) {
 		rc = sk->sk_prot->init(sk);

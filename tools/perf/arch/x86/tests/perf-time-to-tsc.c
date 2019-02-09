@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <errno.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <linux/types.h>
@@ -35,13 +38,12 @@
  * %0 is returned, otherwise %-1 is returned.  If TSC conversion is not
  * supported then then the test passes but " (not supported)" is printed.
  */
-int test__perf_time_to_tsc(void)
+int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
-		.freq		     = 4000,
 		.target		     = {
 			.uses_mmap   = true,
 		},
@@ -58,6 +60,7 @@ int test__perf_time_to_tsc(void)
 	union perf_event *event;
 	u64 test_tsc, comm1_tsc, comm2_tsc;
 	u64 test_time, comm1_time = 0, comm2_time = 0;
+	struct perf_mmap *md;
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	CHECK_NOT_NULL__(threads);
@@ -72,7 +75,7 @@ int test__perf_time_to_tsc(void)
 
 	CHECK__(parse_events(evlist, "cycles:u", NULL));
 
-	perf_evlist__config(evlist, &opts);
+	perf_evlist__config(evlist, &opts, NULL);
 
 	evsel = perf_evlist__first(evlist);
 
@@ -82,7 +85,7 @@ int test__perf_time_to_tsc(void)
 
 	CHECK__(perf_evlist__open(evlist));
 
-	CHECK__(perf_evlist__mmap(evlist, UINT_MAX, false));
+	CHECK__(perf_evlist__mmap(evlist, UINT_MAX));
 
 	pc = evlist->mmap[0].base;
 	ret = perf_read_tsc_conversion(pc, &tc);
@@ -107,7 +110,11 @@ int test__perf_time_to_tsc(void)
 	perf_evlist__disable(evlist);
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
-		while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
+		md = &evlist->mmap[i];
+		if (perf_mmap__read_init(md) < 0)
+			continue;
+
+		while ((event = perf_mmap__read_event(md)) != NULL) {
 			struct perf_sample sample;
 
 			if (event->header.type != PERF_RECORD_COMM ||
@@ -126,8 +133,9 @@ int test__perf_time_to_tsc(void)
 				comm2_time = sample.time;
 			}
 next_event:
-			perf_evlist__mmap_consume(evlist, i);
+			perf_mmap__consume(md);
 		}
+		perf_mmap__read_done(md);
 	}
 
 	if (!comm1_time || !comm2_time)
@@ -155,10 +163,6 @@ next_event:
 	err = 0;
 
 out_err:
-	if (evlist) {
-		perf_evlist__disable(evlist);
-		perf_evlist__delete(evlist);
-	}
-
+	perf_evlist__delete(evlist);
 	return err;
 }

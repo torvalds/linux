@@ -50,17 +50,14 @@ static struct spi_board_info pcm037_spi_dev[] = {
 		.modalias	= "dac124s085",
 		.max_speed_hz	= 400000,
 		.bus_num	= 0,
-		.chip_select	= 0,		/* Index in pcm037_spi1_cs[] */
+		.chip_select	= 1,		/* Index in pcm037_spi1_cs[] */
 		.mode		= SPI_CPHA,
 	},
 };
 
 /* Platform Data for MXC CSPI */
-static int pcm037_spi1_cs[] = {MXC_SPI_CS(1), IOMUX_TO_GPIO(MX31_PIN_KEY_COL7)};
-
 static const struct spi_imx_master pcm037_spi1_pdata __initconst = {
-	.chipselect = pcm037_spi1_cs,
-	.num_chipselect = ARRAY_SIZE(pcm037_spi1_cs),
+	.num_chipselect = 2,
 };
 
 /* GPIO-keys input device */

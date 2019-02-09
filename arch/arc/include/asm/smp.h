@@ -37,9 +37,9 @@ extern const char *arc_platform_smp_cpuinfo(void);
  * API expected BY platform smp code (FROM arch smp code)
  *
  * smp_ipi_irq_setup:
- *	Takes @cpu and @irq to which the arch-common ISR is hooked up
+ *	Takes @cpu and @hwirq to which the arch-common ISR is hooked up
  */
-extern int smp_ipi_irq_setup(int cpu, int irq);
+extern int smp_ipi_irq_setup(int cpu, irq_hw_number_t hwirq);
 
 /*
  * struct plat_smp_ops	- SMP callbacks provided by platform to ARC SMP
@@ -86,7 +86,7 @@ static inline const char *arc_platform_smp_cpuinfo(void)
  * (1) These insn were introduced only in 4.10 release. So for older released
  *	support needed.
  *
- * (2) In a SMP setup, the LLOCK/SCOND atomiticity across CPUs needs to be
+ * (2) In a SMP setup, the LLOCK/SCOND atomicity across CPUs needs to be
  *	gaurantted by the platform (not something which core handles).
  *	Assuming a platform won't, SMP Linux needs to use spinlocks + local IRQ
  *	disabling for atomicity.

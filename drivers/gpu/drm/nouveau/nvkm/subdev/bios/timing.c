@@ -25,19 +25,19 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/timing.h>
 
-u16
+u32
 nvbios_timingTe(struct nvkm_bios *bios,
 		u8 *ver, u8 *hdr, u8 *cnt, u8 *len, u8 *snr, u8 *ssz)
 {
 	struct bit_entry bit_P;
-	u16 timing = 0x0000;
+	u32 timing = 0;
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version == 1)
-			timing = nvbios_rd16(bios, bit_P.offset + 4);
+			timing = nvbios_rd32(bios, bit_P.offset + 4);
 		else
 		if (bit_P.version == 2)
-			timing = nvbios_rd16(bios, bit_P.offset + 8);
+			timing = nvbios_rd32(bios, bit_P.offset + 8);
 
 		if (timing) {
 			*ver = nvbios_rd08(bios, timing + 0);
@@ -62,15 +62,15 @@ nvbios_timingTe(struct nvkm_bios *bios,
 		}
 	}
 
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_timingEe(struct nvkm_bios *bios, int idx,
 		u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u8  snr, ssz;
-	u16 timing = nvbios_timingTe(bios, ver, hdr, cnt, len, &snr, &ssz);
+	u32 timing = nvbios_timingTe(bios, ver, hdr, cnt, len, &snr, &ssz);
 	if (timing && idx < *cnt) {
 		timing += *hdr + idx * (*len + (snr * ssz));
 		*hdr = *len;
@@ -78,14 +78,14 @@ nvbios_timingEe(struct nvkm_bios *bios, int idx,
 		*len = ssz;
 		return timing;
 	}
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_timingEp(struct nvkm_bios *bios, int idx,
 		u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_ramcfg *p)
 {
-	u16 data = nvbios_timingEe(bios, idx, ver, hdr, cnt, len), temp;
+	u32 data = nvbios_timingEe(bios, idx, ver, hdr, cnt, len), temp;
 	p->timing_ver = *ver;
 	p->timing_hdr = *hdr;
 	switch (!!data * *ver) {
@@ -115,16 +115,21 @@ nvbios_timingEp(struct nvkm_bios *bios, int idx,
 		switch (min_t(u8, *hdr, 25)) {
 		case 25:
 			p->timing_10_24  = nvbios_rd08(bios, data + 0x18);
+			/* fall through */
 		case 24:
 		case 23:
 		case 22:
 			p->timing_10_21  = nvbios_rd08(bios, data + 0x15);
+			/* fall through */
 		case 21:
 			p->timing_10_20  = nvbios_rd08(bios, data + 0x14);
+			/* fall through */
 		case 20:
 			p->timing_10_CWL = nvbios_rd08(bios, data + 0x13);
+			/* fall through */
 		case 19:
 			p->timing_10_18  = nvbios_rd08(bios, data + 0x12);
+			/* fall through */
 		case 18:
 		case 17:
 			p->timing_10_16  = nvbios_rd08(bios, data + 0x10);

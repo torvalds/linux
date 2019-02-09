@@ -1,6 +1,12 @@
 Device tree binding for NVIDIA Tegra XUSB pad controller
 ========================================================
 
+NOTE: It turns out that this binding isn't an accurate description of the XUSB
+pad controller. While the description is good enough for the functional subset
+required for PCIe and SATA, it lacks the flexibility to represent the features
+needed for USB. For the new binding, see ../phy/nvidia,tegra-xusb-padctl.txt.
+The binding described in this file is deprecated and should not be used.
+
 The Tegra XUSB pad controller manages a set of lanes, each of which can be
 assigned to one out of a set of different pads. Some of these pads have an
 associated PHY that must be powered up before the pad can be used.
@@ -79,7 +85,7 @@ Example:
 SoC file extract:
 -----------------
 
-	padctl@0,7009f000 {
+	padctl@7009f000 {
 		compatible = "nvidia,tegra124-xusb-padctl";
 		reg = <0x0 0x7009f000 0x0 0x1000>;
 		resets = <&tegra_car 142>;
@@ -91,7 +97,7 @@ SoC file extract:
 Board file extract:
 -------------------
 
-	pcie-controller@0,01003000 {
+	pcie-controller@1003000 {
 		...
 
 		phys = <&padctl 0>;
@@ -102,7 +108,7 @@ Board file extract:
 
 	...
 
-	padctl: padctl@0,7009f000 {
+	padctl: padctl@7009f000 {
 		pinctrl-0 = <&padctl_default>;
 		pinctrl-names = "default";
 

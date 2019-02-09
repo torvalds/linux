@@ -14,6 +14,7 @@
 #ifndef _LINUX_CONSOLE_H_
 #define _LINUX_CONSOLE_H_ 1
 
+#include <linux/atomic.h>
 #include <linux/types.h>
 
 struct vc_data;
@@ -21,6 +22,7 @@ struct console_font_op;
 struct console_font;
 struct module;
 struct tty_struct;
+struct notifier_block;
 
 /*
  * this is what the terminal answers to a ESC-Z or csi0c query.
@@ -28,43 +30,70 @@ struct tty_struct;
 #define VT100ID "\033[?1;2c"
 #define VT102ID "\033[?6c"
 
+enum con_scroll {
+	SM_UP,
+	SM_DOWN,
+};
+
+/**
+ * struct consw - callbacks for consoles
+ *
+ * @con_scroll: move lines from @top to @bottom in direction @dir by @lines.
+ *		Return true if no generic handling should be done.
+ *		Invoked by csi_M and printing to the console.
+ * @con_set_palette: sets the palette of the console to @table (optional)
+ * @con_scrolldelta: the contents of the console should be scrolled by @lines.
+ *		     Invoked by user. (optional)
+ */
 struct consw {
 	struct module *owner;
 	const char *(*con_startup)(void);
-	void	(*con_init)(struct vc_data *, int);
-	void	(*con_deinit)(struct vc_data *);
-	void	(*con_clear)(struct vc_data *, int, int, int, int);
-	void	(*con_putc)(struct vc_data *, int, int, int);
-	void	(*con_putcs)(struct vc_data *, const unsigned short *, int, int, int);
-	void	(*con_cursor)(struct vc_data *, int);
-	int	(*con_scroll)(struct vc_data *, int, int, int, int);
-	void	(*con_bmove)(struct vc_data *, int, int, int, int, int, int);
-	int	(*con_switch)(struct vc_data *);
-	int	(*con_blank)(struct vc_data *, int, int);
-	int	(*con_font_set)(struct vc_data *, struct console_font *, unsigned);
-	int	(*con_font_get)(struct vc_data *, struct console_font *);
-	int	(*con_font_default)(struct vc_data *, struct console_font *, char *);
-	int	(*con_font_copy)(struct vc_data *, int);
-	int     (*con_resize)(struct vc_data *, unsigned int, unsigned int,
-			       unsigned int);
-	int	(*con_set_palette)(struct vc_data *, unsigned char *);
-	int	(*con_scrolldelta)(struct vc_data *, int);
-	int	(*con_set_origin)(struct vc_data *);
-	void	(*con_save_screen)(struct vc_data *);
-	u8	(*con_build_attr)(struct vc_data *, u8, u8, u8, u8, u8, u8);
-	void	(*con_invert_region)(struct vc_data *, u16 *, int);
-	u16    *(*con_screen_pos)(struct vc_data *, int);
-	unsigned long (*con_getxy)(struct vc_data *, unsigned long, int *, int *);
+	void	(*con_init)(struct vc_data *vc, int init);
+	void	(*con_deinit)(struct vc_data *vc);
+	void	(*con_clear)(struct vc_data *vc, int sy, int sx, int height,
+			int width);
+	void	(*con_putc)(struct vc_data *vc, int c, int ypos, int xpos);
+	void	(*con_putcs)(struct vc_data *vc, const unsigned short *s,
+			int count, int ypos, int xpos);
+	void	(*con_cursor)(struct vc_data *vc, int mode);
+	bool	(*con_scroll)(struct vc_data *vc, unsigned int top,
+			unsigned int bottom, enum con_scroll dir,
+			unsigned int lines);
+	int	(*con_switch)(struct vc_data *vc);
+	int	(*con_blank)(struct vc_data *vc, int blank, int mode_switch);
+	int	(*con_font_set)(struct vc_data *vc, struct console_font *font,
+			unsigned int flags);
+	int	(*con_font_get)(struct vc_data *vc, struct console_font *font);
+	int	(*con_font_default)(struct vc_data *vc,
+			struct console_font *font, char *name);
+	int	(*con_font_copy)(struct vc_data *vc, int con);
+	int     (*con_resize)(struct vc_data *vc, unsigned int width,
+			unsigned int height, unsigned int user);
+	void	(*con_set_palette)(struct vc_data *vc,
+			const unsigned char *table);
+	void	(*con_scrolldelta)(struct vc_data *vc, int lines);
+	int	(*con_set_origin)(struct vc_data *vc);
+	void	(*con_save_screen)(struct vc_data *vc);
+	u8	(*con_build_attr)(struct vc_data *vc, u8 color, u8 intensity,
+			u8 blink, u8 underline, u8 reverse, u8 italic);
+	void	(*con_invert_region)(struct vc_data *vc, u16 *p, int count);
+	u16    *(*con_screen_pos)(struct vc_data *vc, int offset);
+	unsigned long (*con_getxy)(struct vc_data *vc, unsigned long position,
+			int *px, int *py);
+	/*
+	 * Flush the video console driver's scrollback buffer
+	 */
+	void	(*con_flush_scrollback)(struct vc_data *vc);
 	/*
 	 * Prepare the console for the debugger.  This includes, but is not
 	 * limited to, unblanking the console, loading an appropriate
 	 * palette, and allowing debugger generated output.
 	 */
-	int	(*con_debug_enter)(struct vc_data *);
+	int	(*con_debug_enter)(struct vc_data *vc);
 	/*
 	 * Restore the console to its pre-debug state as closely as possible.
 	 */
-	int	(*con_debug_leave)(struct vc_data *);
+	int	(*con_debug_leave)(struct vc_data *vc);
 };
 
 extern const struct consw *conswitchp;
@@ -91,10 +120,6 @@ static inline int con_debug_leave(void)
 	return 0;
 }
 #endif
-
-/* scroll */
-#define SM_UP       (1)
-#define SM_DOWN     (2)
 
 /* cursor */
 #define CM_DRAW     (1)
@@ -150,6 +175,7 @@ extern int console_trylock(void);
 extern void console_unlock(void);
 extern void console_conditional_schedule(void);
 extern void console_unblank(void);
+extern void console_flush_on_panic(void);
 extern struct tty_driver *console_device(int *);
 extern void console_stop(struct console *);
 extern void console_start(struct console *);
@@ -176,11 +202,14 @@ void vcs_make_sysfs(int index);
 void vcs_remove_sysfs(int index);
 
 /* Some debug stub to catch some of the obvious races in the VT code */
-#if 1
-#define WARN_CONSOLE_UNLOCKED()	WARN_ON(!is_console_locked() && !oops_in_progress)
-#else
-#define WARN_CONSOLE_UNLOCKED()
-#endif
+#define WARN_CONSOLE_UNLOCKED()						\
+	WARN_ON(!atomic_read(&ignore_console_lock_warning) &&		\
+		!is_console_locked() && !oops_in_progress)
+/*
+ * Increment ignore_console_lock_warning if you need to quiet
+ * WARN_CONSOLE_UNLOCKED() for debugging purposes.
+ */
+extern atomic_t ignore_console_lock_warning;
 
 /* VESA Blanking Levels */
 #define VESA_NO_BLANKING        0
@@ -190,6 +219,14 @@ void vcs_remove_sysfs(int index);
 
 #ifdef CONFIG_VGA_CONSOLE
 extern bool vgacon_text_force(void);
+#else
+static inline bool vgacon_text_force(void) { return false; }
 #endif
+
+extern void console_init(void);
+
+/* For deferred console takeover */
+void dummycon_register_output_notifier(struct notifier_block *nb);
+void dummycon_unregister_output_notifier(struct notifier_block *nb);
 
 #endif /* _LINUX_CONSOLE_H */

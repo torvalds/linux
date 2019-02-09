@@ -24,6 +24,7 @@ struct team_pcpu_stats {
 	struct u64_stats_sync	syncp;
 	u32			rx_dropped;
 	u32			tx_dropped;
+	u32			rx_nohandler;
 };
 
 struct team;
@@ -73,6 +74,11 @@ struct team_port {
 	long mode_priv[0];
 };
 
+static inline struct team_port *team_port_get_rcu(const struct net_device *dev)
+{
+	return rcu_dereference(dev->rx_handler_data);
+}
+
 static inline bool team_port_enabled(struct team_port *port)
 {
 	return port->index != -1;
@@ -81,6 +87,19 @@ static inline bool team_port_enabled(struct team_port *port)
 static inline bool team_port_txable(struct team_port *port)
 {
 	return port->linkup && team_port_enabled(port);
+}
+
+static inline bool team_port_dev_txable(const struct net_device *port_dev)
+{
+	struct team_port *port;
+	bool txable;
+
+	rcu_read_lock();
+	port = team_port_get_rcu(port_dev);
+	txable = port ? team_port_txable(port) : false;
+	rcu_read_unlock();
+
+	return txable;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -164,6 +183,7 @@ struct team_mode {
 	size_t priv_size;
 	size_t port_priv_size;
 	const struct team_mode_ops *ops;
+	enum netdev_lag_tx_type lag_tx_type;
 };
 
 #define TEAM_PORT_HASHBITS 4
@@ -243,9 +263,9 @@ static inline struct team_port *team_get_port_by_index(struct team *team,
 	return NULL;
 }
 
-static inline int team_num_to_port_index(struct team *team, int num)
+static inline int team_num_to_port_index(struct team *team, unsigned int num)
 {
-	int en_port_count = ACCESS_ONCE(team->en_port_count);
+	int en_port_count = READ_ONCE(team->en_port_count);
 
 	if (unlikely(!en_port_count))
 		return 0;
@@ -295,5 +315,7 @@ extern void team_mode_unregister(const struct team_mode *mode);
 
 #define TEAM_DEFAULT_NUM_TX_QUEUES 16
 #define TEAM_DEFAULT_NUM_RX_QUEUES 16
+
+#define MODULE_ALIAS_TEAM_MODE(kind) MODULE_ALIAS("team-mode-" kind)
 
 #endif /* _LINUX_IF_TEAM_H_ */

@@ -1,21 +1,21 @@
 /*
-    Driver for Silicon Labs Si2161 DVB-T and Si2165 DVB-C/-T Demodulator
-
-    Copyright (C) 2013-2014 Matthias Schwarzott <zzam@gentoo.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    References:
-    http://www.silabs.com/Support%20Documents/TechnicalDocs/Si2165-short.pdf
-*/
+ *  Driver for Silicon Labs Si2161 DVB-T and Si2165 DVB-C/-T Demodulator
+ *
+ *  Copyright (C) 2013-2017 Matthias Schwarzott <zzam@gentoo.org>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  References:
+ *  http://www.silabs.com/Support%20Documents/TechnicalDocs/Si2165-short.pdf
+ */
 
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -25,22 +25,27 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
+#include <linux/regmap.h>
 
-#include "dvb_frontend.h"
-#include "dvb_math.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_math.h>
 #include "si2165_priv.h"
 #include "si2165.h"
 
-/* Hauppauge WinTV-HVR-930C-HD B130 / PCTV QuatroStick 521e 1113xx
- * uses 16 MHz xtal */
-
-/* Hauppauge WinTV-HVR-930C-HD B131 / PCTV QuatroStick 522e 1114xx
- * uses 24 MHz clock provided by tuner */
+/*
+ * Hauppauge WinTV-HVR-930C-HD B130 / PCTV QuatroStick 521e 1113xx
+ * uses 16 MHz xtal
+ *
+ * Hauppauge WinTV-HVR-930C-HD B131 / PCTV QuatroStick 522e 1114xx
+ * uses 24 MHz clock provided by tuner
+ */
 
 struct si2165_state {
-	struct i2c_adapter *i2c;
+	struct i2c_client *client;
 
-	struct dvb_frontend frontend;
+	struct regmap *regmap;
+
+	struct dvb_frontend fe;
 
 	struct si2165_config config;
 
@@ -52,147 +57,82 @@ struct si2165_state {
 	u32 sys_clk;
 	u32 adc_clk;
 
+	/* DVBv3 stats */
+	u64 ber_prev;
+
 	bool has_dvbc;
 	bool has_dvbt;
 	bool firmware_loaded;
 };
 
-#define DEBUG_OTHER	0x01
-#define DEBUG_I2C_WRITE	0x02
-#define DEBUG_I2C_READ	0x04
-#define DEBUG_REG_READ	0x08
-#define DEBUG_REG_WRITE	0x10
-#define DEBUG_FW_LOAD	0x20
-
-static int debug = 0x00;
-
-#define dprintk(args...) \
-	do { \
-		if (debug & DEBUG_OTHER) \
-			printk(KERN_DEBUG "si2165: " args); \
-	} while (0)
-
-#define deb_i2c_write(args...) \
-	do { \
-		if (debug & DEBUG_I2C_WRITE) \
-			printk(KERN_DEBUG "si2165: i2c write: " args); \
-	} while (0)
-
-#define deb_i2c_read(args...) \
-	do { \
-		if (debug & DEBUG_I2C_READ) \
-			printk(KERN_DEBUG "si2165: i2c read: " args); \
-	} while (0)
-
-#define deb_readreg(args...) \
-	do { \
-		if (debug & DEBUG_REG_READ) \
-			printk(KERN_DEBUG "si2165: reg read: " args); \
-	} while (0)
-
-#define deb_writereg(args...) \
-	do { \
-		if (debug & DEBUG_REG_WRITE) \
-			printk(KERN_DEBUG "si2165: reg write: " args); \
-	} while (0)
-
-#define deb_fw_load(args...) \
-	do { \
-		if (debug & DEBUG_FW_LOAD) \
-			printk(KERN_DEBUG "si2165: fw load: " args); \
-	} while (0)
-
 static int si2165_write(struct si2165_state *state, const u16 reg,
-		       const u8 *src, const int count)
+			const u8 *src, const int count)
 {
 	int ret;
-	struct i2c_msg msg;
-	u8 buf[2 + 4]; /* write a maximum of 4 bytes of data */
 
-	if (count + 2 > sizeof(buf)) {
-		dev_warn(&state->i2c->dev,
-			  "%s: i2c wr reg=%04x: count=%d is too big!\n",
-			  KBUILD_MODNAME, reg, count);
-		return -EINVAL;
-	}
-	buf[0] = reg >> 8;
-	buf[1] = reg & 0xff;
-	memcpy(buf + 2, src, count);
+	dev_dbg(&state->client->dev, "i2c write: reg: 0x%04x, data: %*ph\n",
+		reg, count, src);
 
-	msg.addr = state->config.i2c_addr;
-	msg.flags = 0;
-	msg.buf = buf;
-	msg.len = count + 2;
+	ret = regmap_bulk_write(state->regmap, reg, src, count);
 
-	if (debug & DEBUG_I2C_WRITE)
-		deb_i2c_write("reg: 0x%04x, data: %*ph\n", reg, count, src);
+	if (ret)
+		dev_err(&state->client->dev, "%s: ret == %d\n", __func__, ret);
 
-	ret = i2c_transfer(state->i2c, &msg, 1);
-
-	if (ret != 1) {
-		dev_err(&state->i2c->dev, "%s: ret == %d\n", __func__, ret);
-		if (ret < 0)
-			return ret;
-		else
-			return -EREMOTEIO;
-	}
-
-	return 0;
+	return ret;
 }
 
 static int si2165_read(struct si2165_state *state,
 		       const u16 reg, u8 *val, const int count)
 {
-	int ret;
-	u8 reg_buf[] = { reg >> 8, reg & 0xff };
-	struct i2c_msg msg[] = {
-		{ .addr = state->config.i2c_addr,
-		  .flags = 0, .buf = reg_buf, .len = 2 },
-		{ .addr = state->config.i2c_addr,
-		  .flags = I2C_M_RD, .buf = val, .len = count },
-	};
+	int ret = regmap_bulk_read(state->regmap, reg, val, count);
 
-	ret = i2c_transfer(state->i2c, msg, 2);
-
-	if (ret != 2) {
-		dev_err(&state->i2c->dev, "%s: error (addr %02x reg %04x error (ret == %i)\n",
+	if (ret) {
+		dev_err(&state->client->dev, "%s: error (addr %02x reg %04x error (ret == %i)\n",
 			__func__, state->config.i2c_addr, reg, ret);
-		if (ret < 0)
-			return ret;
-		else
-			return -EREMOTEIO;
+		return ret;
 	}
 
-	if (debug & DEBUG_I2C_READ)
-		deb_i2c_read("reg: 0x%04x, data: %*ph\n", reg, count, val);
+	dev_dbg(&state->client->dev, "i2c read: reg: 0x%04x, data: %*ph\n",
+		reg, count, val);
 
 	return 0;
 }
 
 static int si2165_readreg8(struct si2165_state *state,
-		       const u16 reg, u8 *val)
+			   const u16 reg, u8 *val)
 {
-	int ret;
-
-	ret = si2165_read(state, reg, val, 1);
-	deb_readreg("R(0x%04x)=0x%02x\n", reg, *val);
+	unsigned int val_tmp;
+	int ret = regmap_read(state->regmap, reg, &val_tmp);
+	*val = (u8)val_tmp;
+	dev_dbg(&state->client->dev, "reg read: R(0x%04x)=0x%02x\n", reg, *val);
 	return ret;
 }
 
 static int si2165_readreg16(struct si2165_state *state,
-		       const u16 reg, u16 *val)
+			    const u16 reg, u16 *val)
 {
 	u8 buf[2];
 
 	int ret = si2165_read(state, reg, buf, 2);
 	*val = buf[0] | buf[1] << 8;
-	deb_readreg("R(0x%04x)=0x%04x\n", reg, *val);
+	dev_dbg(&state->client->dev, "reg read: R(0x%04x)=0x%04x\n", reg, *val);
+	return ret;
+}
+
+static int si2165_readreg24(struct si2165_state *state,
+			    const u16 reg, u32 *val)
+{
+	u8 buf[3];
+
+	int ret = si2165_read(state, reg, buf, 3);
+	*val = buf[0] | buf[1] << 8 | buf[2] << 16;
+	dev_dbg(&state->client->dev, "reg read: R(0x%04x)=0x%06x\n", reg, *val);
 	return ret;
 }
 
 static int si2165_writereg8(struct si2165_state *state, const u16 reg, u8 val)
 {
-	return si2165_write(state, reg, &val, 1);
+	return regmap_write(state->regmap, reg, val);
 }
 
 static int si2165_writereg16(struct si2165_state *state, const u16 reg, u16 val)
@@ -223,22 +163,41 @@ static int si2165_writereg32(struct si2165_state *state, const u16 reg, u32 val)
 static int si2165_writereg_mask8(struct si2165_state *state, const u16 reg,
 				 u8 val, u8 mask)
 {
-	int ret;
-	u8 tmp;
-
 	if (mask != 0xff) {
-		ret = si2165_readreg8(state, reg, &tmp);
+		u8 tmp;
+		int ret = si2165_readreg8(state, reg, &tmp);
+
 		if (ret < 0)
-			goto err;
+			return ret;
 
 		val &= mask;
 		tmp &= ~mask;
 		val |= tmp;
 	}
+	return si2165_writereg8(state, reg, val);
+}
 
-	ret = si2165_writereg8(state, reg, val);
-err:
-	return ret;
+#define REG16(reg, val) \
+	{ (reg), (val) & 0xff }, \
+	{ (reg) + 1, (val) >> 8 & 0xff }
+struct si2165_reg_value_pair {
+	u16 reg;
+	u8 val;
+};
+
+static int si2165_write_reg_list(struct si2165_state *state,
+				 const struct si2165_reg_value_pair *regs,
+				 int count)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < count; i++) {
+		ret = si2165_writereg8(state, regs[i].reg, regs[i].val);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
 }
 
 static int si2165_get_tune_settings(struct dvb_frontend *fe,
@@ -250,7 +209,7 @@ static int si2165_get_tune_settings(struct dvb_frontend *fe,
 
 static int si2165_init_pll(struct si2165_state *state)
 {
-	u32 ref_freq_Hz = state->config.ref_freq_Hz;
+	u32 ref_freq_hz = state->config.ref_freq_hz;
 	u8 divr = 1; /* 1..7 */
 	u8 divp = 1; /* only 1 or 4 */
 	u8 divn = 56; /* 1..63 */
@@ -258,9 +217,11 @@ static int si2165_init_pll(struct si2165_state *state)
 	u8 divl = 12;
 	u8 buf[4];
 
-	/* hardcoded values can be deleted if calculation is verified
-	 * or it yields the same values as the windows driver */
-	switch (ref_freq_Hz) {
+	/*
+	 * hardcoded values can be deleted if calculation is verified
+	 * or it yields the same values as the windows driver
+	 */
+	switch (ref_freq_hz) {
 	case 16000000u:
 		divn = 56;
 		break;
@@ -271,37 +232,39 @@ static int si2165_init_pll(struct si2165_state *state)
 		break;
 	default:
 		/* ref_freq / divr must be between 4 and 16 MHz */
-		if (ref_freq_Hz > 16000000u)
+		if (ref_freq_hz > 16000000u)
 			divr = 2;
 
-		/* now select divn and divp such that
-		 * fvco is in 1624..1824 MHz */
-		if (1624000000u * divr > ref_freq_Hz * 2u * 63u)
+		/*
+		 * now select divn and divp such that
+		 * fvco is in 1624..1824 MHz
+		 */
+		if (1624000000u * divr > ref_freq_hz * 2u * 63u)
 			divp = 4;
 
 		/* is this already correct regarding rounding? */
-		divn = 1624000000u * divr / (ref_freq_Hz * 2u * divp);
+		divn = 1624000000u * divr / (ref_freq_hz * 2u * divp);
 		break;
 	}
 
 	/* adc_clk and sys_clk depend on xtal and pll settings */
-	state->fvco_hz = ref_freq_Hz / divr
+	state->fvco_hz = ref_freq_hz / divr
 			* 2u * divn * divp;
 	state->adc_clk = state->fvco_hz / (divm * 4u);
 	state->sys_clk = state->fvco_hz / (divl * 2u);
 
-	/* write pll registers 0x00a0..0x00a3 at once */
+	/* write all 4 pll registers 0x00a0..0x00a3 at once */
 	buf[0] = divl;
 	buf[1] = divm;
 	buf[2] = (divn & 0x3f) | ((divp == 1) ? 0x40 : 0x00) | 0x80;
 	buf[3] = divr;
-	return si2165_write(state, 0x00a0, buf, 4);
+	return si2165_write(state, REG_PLL_DIVL, buf, 4);
 }
 
 static int si2165_adjust_pll_divl(struct si2165_state *state, u8 divl)
 {
 	state->sys_clk = state->fvco_hz / (divl * 2u);
-	return si2165_writereg8(state, 0x00a0, divl); /* pll_divl */
+	return si2165_writereg8(state, REG_PLL_DIVL, divl);
 }
 
 static u32 si2165_get_fe_clk(struct si2165_state *state)
@@ -317,18 +280,18 @@ static int si2165_wait_init_done(struct si2165_state *state)
 	int i;
 
 	for (i = 0; i < 3; ++i) {
-		si2165_readreg8(state, 0x0054, &val);
+		si2165_readreg8(state, REG_INIT_DONE, &val);
 		if (val == 0x01)
 			return 0;
 		usleep_range(1000, 50000);
 	}
-	dev_err(&state->i2c->dev, "%s: init_done was not set\n",
-		KBUILD_MODNAME);
+	dev_err(&state->client->dev, "init_done was not set\n");
 	return ret;
 }
 
 static int si2165_upload_firmware_block(struct si2165_state *state,
-	const u8 *data, u32 len, u32 *poffset, u32 block_count)
+					const u8 *data, u32 len, u32 *poffset,
+					u32 block_count)
 {
 	int ret;
 	u8 buf_ctrl[4] = { 0x00, 0x00, 0x00, 0xc0 };
@@ -341,40 +304,43 @@ static int si2165_upload_firmware_block(struct si2165_state *state,
 	if (len % 4 != 0)
 		return -EINVAL;
 
-	deb_fw_load("si2165_upload_firmware_block called with len=0x%x offset=0x%x blockcount=0x%x\n",
-				len, offset, block_count);
-	while (offset+12 <= len && cur_block < block_count) {
-		deb_fw_load("si2165_upload_firmware_block in while len=0x%x offset=0x%x cur_block=0x%x blockcount=0x%x\n",
-					len, offset, cur_block, block_count);
+	dev_dbg(&state->client->dev,
+		"fw load: %s: called with len=0x%x offset=0x%x blockcount=0x%x\n",
+		__func__, len, offset, block_count);
+	while (offset + 12 <= len && cur_block < block_count) {
+		dev_dbg(&state->client->dev,
+			"fw load: %s: in while len=0x%x offset=0x%x cur_block=0x%x blockcount=0x%x\n",
+			__func__, len, offset, cur_block, block_count);
 		wordcount = data[offset];
-		if (wordcount < 1 || data[offset+1] ||
-		    data[offset+2] || data[offset+3]) {
-			dev_warn(&state->i2c->dev,
-				 "%s: bad fw data[0..3] = %*ph\n",
-				KBUILD_MODNAME, 4, data);
+		if (wordcount < 1 || data[offset + 1] ||
+		    data[offset + 2] || data[offset + 3]) {
+			dev_warn(&state->client->dev,
+				 "bad fw data[0..3] = %*ph\n",
+				 4, data);
 			return -EINVAL;
 		}
 
 		if (offset + 8 + wordcount * 4 > len) {
-			dev_warn(&state->i2c->dev,
-				 "%s: len is too small for block len=%d, wordcount=%d\n",
-				KBUILD_MODNAME, len, wordcount);
+			dev_warn(&state->client->dev,
+				 "len is too small for block len=%d, wordcount=%d\n",
+				len, wordcount);
 			return -EINVAL;
 		}
 
 		buf_ctrl[0] = wordcount - 1;
 
-		ret = si2165_write(state, 0x0364, buf_ctrl, 4);
+		ret = si2165_write(state, REG_DCOM_CONTROL_BYTE, buf_ctrl, 4);
 		if (ret < 0)
 			goto error;
-		ret = si2165_write(state, 0x0368, data+offset+4, 4);
+		ret = si2165_write(state, REG_DCOM_ADDR, data + offset + 4, 4);
 		if (ret < 0)
 			goto error;
 
 		offset += 8;
 
 		while (wordcount > 0) {
-			ret = si2165_write(state, 0x36c, data+offset, 4);
+			ret = si2165_write(state, REG_DCOM_DATA,
+					   data + offset, 4);
 			if (ret < 0)
 				goto error;
 			wordcount--;
@@ -383,14 +349,16 @@ static int si2165_upload_firmware_block(struct si2165_state *state,
 		cur_block++;
 	}
 
-	deb_fw_load("si2165_upload_firmware_block after while len=0x%x offset=0x%x cur_block=0x%x blockcount=0x%x\n",
-				len, offset, cur_block, block_count);
+	dev_dbg(&state->client->dev,
+		"fw load: %s: after while len=0x%x offset=0x%x cur_block=0x%x blockcount=0x%x\n",
+		__func__, len, offset, cur_block, block_count);
 
 	if (poffset)
 		*poffset = offset;
 
-	deb_fw_load("si2165_upload_firmware_block returned offset=0x%x\n",
-				offset);
+	dev_dbg(&state->client->dev,
+		"fw load: %s: returned offset=0x%x\n",
+		__func__, offset);
 
 	return 0;
 error:
@@ -418,43 +386,40 @@ static int si2165_upload_firmware(struct si2165_state *state)
 		fw_file = SI2165_FIRMWARE_REV_D;
 		break;
 	default:
-		dev_info(&state->i2c->dev, "%s: no firmware file for revision=%d\n",
-			KBUILD_MODNAME, state->chip_revcode);
+		dev_info(&state->client->dev, "no firmware file for revision=%d\n",
+			 state->chip_revcode);
 		return 0;
 	}
 
 	/* request the firmware, this will block and timeout */
-	ret = request_firmware(&fw, fw_file, state->i2c->dev.parent);
+	ret = request_firmware(&fw, fw_file, &state->client->dev);
 	if (ret) {
-		dev_warn(&state->i2c->dev, "%s: firmware file '%s' not found\n",
-				KBUILD_MODNAME, fw_file);
+		dev_warn(&state->client->dev, "firmware file '%s' not found\n",
+			 fw_file);
 		goto error;
 	}
 
 	data = fw->data;
 	len = fw->size;
 
-	dev_info(&state->i2c->dev, "%s: downloading firmware from file '%s' size=%d\n",
-			KBUILD_MODNAME, fw_file, len);
+	dev_info(&state->client->dev, "downloading firmware from file '%s' size=%d\n",
+		 fw_file, len);
 
 	if (len % 4 != 0) {
-		dev_warn(&state->i2c->dev, "%s: firmware size is not multiple of 4\n",
-				KBUILD_MODNAME);
+		dev_warn(&state->client->dev, "firmware size is not multiple of 4\n");
 		ret = -EINVAL;
 		goto error;
 	}
 
 	/* check header (8 bytes) */
 	if (len < 8) {
-		dev_warn(&state->i2c->dev, "%s: firmware header is missing\n",
-				KBUILD_MODNAME);
+		dev_warn(&state->client->dev, "firmware header is missing\n");
 		ret = -EINVAL;
 		goto error;
 	}
 
 	if (data[0] != 1 || data[1] != 0) {
-		dev_warn(&state->i2c->dev, "%s: firmware file version is wrong\n",
-				KBUILD_MODNAME);
+		dev_warn(&state->client->dev, "firmware file version is wrong\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -465,66 +430,65 @@ static int si2165_upload_firmware(struct si2165_state *state)
 
 	/* start uploading fw */
 	/* boot/wdog status */
-	ret = si2165_writereg8(state, 0x0341, 0x00);
+	ret = si2165_writereg8(state, REG_WDOG_AND_BOOT, 0x00);
 	if (ret < 0)
 		goto error;
 	/* reset */
-	ret = si2165_writereg8(state, 0x00c0, 0x00);
+	ret = si2165_writereg8(state, REG_RST_ALL, 0x00);
 	if (ret < 0)
 		goto error;
 	/* boot/wdog status */
-	ret = si2165_readreg8(state, 0x0341, val);
+	ret = si2165_readreg8(state, REG_WDOG_AND_BOOT, val);
 	if (ret < 0)
 		goto error;
 
 	/* enable reset on error */
-	ret = si2165_readreg8(state, 0x035c, val);
+	ret = si2165_readreg8(state, REG_EN_RST_ERROR, val);
 	if (ret < 0)
 		goto error;
-	ret = si2165_readreg8(state, 0x035c, val);
+	ret = si2165_readreg8(state, REG_EN_RST_ERROR, val);
 	if (ret < 0)
 		goto error;
-	ret = si2165_writereg8(state, 0x035c, 0x02);
+	ret = si2165_writereg8(state, REG_EN_RST_ERROR, 0x02);
 	if (ret < 0)
 		goto error;
 
 	/* start right after the header */
 	offset = 8;
 
-	dev_info(&state->i2c->dev, "%s: si2165_upload_firmware extracted patch_version=0x%02x, block_count=0x%02x, crc_expected=0x%04x\n",
-		KBUILD_MODNAME, patch_version, block_count, crc_expected);
+	dev_info(&state->client->dev, "%s: extracted patch_version=0x%02x, block_count=0x%02x, crc_expected=0x%04x\n",
+		 __func__, patch_version, block_count, crc_expected);
 
 	ret = si2165_upload_firmware_block(state, data, len, &offset, 1);
 	if (ret < 0)
 		goto error;
 
-	ret = si2165_writereg8(state, 0x0344, patch_version);
+	ret = si2165_writereg8(state, REG_PATCH_VERSION, patch_version);
 	if (ret < 0)
 		goto error;
 
 	/* reset crc */
-	ret = si2165_writereg8(state, 0x0379, 0x01);
+	ret = si2165_writereg8(state, REG_RST_CRC, 0x01);
 	if (ret)
 		goto error;
 
 	ret = si2165_upload_firmware_block(state, data, len,
 					   &offset, block_count);
 	if (ret < 0) {
-		dev_err(&state->i2c->dev,
-			"%s: firmare could not be uploaded\n",
-			KBUILD_MODNAME);
+		dev_err(&state->client->dev,
+			"firmware could not be uploaded\n");
 		goto error;
 	}
 
 	/* read crc */
-	ret = si2165_readreg16(state, 0x037a, &val16);
+	ret = si2165_readreg16(state, REG_CRC, &val16);
 	if (ret)
 		goto error;
 
 	if (val16 != crc_expected) {
-		dev_err(&state->i2c->dev,
-			"%s: firmware crc mismatch %04x != %04x\n",
-			KBUILD_MODNAME, val16, crc_expected);
+		dev_err(&state->client->dev,
+			"firmware crc mismatch %04x != %04x\n",
+			val16, crc_expected);
 		ret = -EINVAL;
 		goto error;
 	}
@@ -534,24 +498,24 @@ static int si2165_upload_firmware(struct si2165_state *state)
 		goto error;
 
 	if (len != offset) {
-		dev_err(&state->i2c->dev,
-			"%s: firmare len mismatch %04x != %04x\n",
-			KBUILD_MODNAME, len, offset);
+		dev_err(&state->client->dev,
+			"firmware len mismatch %04x != %04x\n",
+			len, offset);
 		ret = -EINVAL;
 		goto error;
 	}
 
 	/* reset watchdog error register */
-	ret = si2165_writereg_mask8(state, 0x0341, 0x02, 0x02);
+	ret = si2165_writereg_mask8(state, REG_WDOG_AND_BOOT, 0x02, 0x02);
 	if (ret < 0)
 		goto error;
 
 	/* enable reset on error */
-	ret = si2165_writereg_mask8(state, 0x035c, 0x01, 0x01);
+	ret = si2165_writereg_mask8(state, REG_EN_RST_ERROR, 0x01, 0x01);
 	if (ret < 0)
 		goto error;
 
-	dev_info(&state->i2c->dev, "%s: fw load finished\n", KBUILD_MODNAME);
+	dev_info(&state->client->dev, "fw load finished\n");
 
 	ret = 0;
 	state->firmware_loaded = true;
@@ -568,46 +532,47 @@ static int si2165_init(struct dvb_frontend *fe)
 {
 	int ret = 0;
 	struct si2165_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 val;
 	u8 patch_version = 0x00;
 
-	dprintk("%s: called\n", __func__);
+	dev_dbg(&state->client->dev, "%s: called\n", __func__);
 
 	/* powerup */
-	ret = si2165_writereg8(state, 0x0000, state->config.chip_mode);
+	ret = si2165_writereg8(state, REG_CHIP_MODE, state->config.chip_mode);
 	if (ret < 0)
 		goto error;
 	/* dsp_clock_enable */
-	ret = si2165_writereg8(state, 0x0104, 0x01);
+	ret = si2165_writereg8(state, REG_DSP_CLOCK, 0x01);
 	if (ret < 0)
 		goto error;
-	ret = si2165_readreg8(state, 0x0000, &val); /* verify chip_mode */
+	/* verify chip_mode */
+	ret = si2165_readreg8(state, REG_CHIP_MODE, &val);
 	if (ret < 0)
 		goto error;
 	if (val != state->config.chip_mode) {
-		dev_err(&state->i2c->dev, "%s: could not set chip_mode\n",
-			KBUILD_MODNAME);
+		dev_err(&state->client->dev, "could not set chip_mode\n");
 		return -EINVAL;
 	}
 
 	/* agc */
-	ret = si2165_writereg8(state, 0x018b, 0x00);
+	ret = si2165_writereg8(state, REG_AGC_IF_TRI, 0x00);
 	if (ret < 0)
 		goto error;
-	ret = si2165_writereg8(state, 0x0190, 0x01);
+	ret = si2165_writereg8(state, REG_AGC_IF_SLR, 0x01);
 	if (ret < 0)
 		goto error;
-	ret = si2165_writereg8(state, 0x0170, 0x00);
+	ret = si2165_writereg8(state, REG_AGC2_OUTPUT, 0x00);
 	if (ret < 0)
 		goto error;
-	ret = si2165_writereg8(state, 0x0171, 0x07);
+	ret = si2165_writereg8(state, REG_AGC2_CLKDIV, 0x07);
 	if (ret < 0)
 		goto error;
 	/* rssi pad */
-	ret = si2165_writereg8(state, 0x0646, 0x00);
+	ret = si2165_writereg8(state, REG_RSSI_PAD_CTRL, 0x00);
 	if (ret < 0)
 		goto error;
-	ret = si2165_writereg8(state, 0x0641, 0x00);
+	ret = si2165_writereg8(state, REG_RSSI_ENABLE, 0x00);
 	if (ret < 0)
 		goto error;
 
@@ -616,11 +581,11 @@ static int si2165_init(struct dvb_frontend *fe)
 		goto error;
 
 	/* enable chip_init */
-	ret = si2165_writereg8(state, 0x0050, 0x01);
+	ret = si2165_writereg8(state, REG_CHIP_INIT, 0x01);
 	if (ret < 0)
 		goto error;
 	/* set start_init */
-	ret = si2165_writereg8(state, 0x0096, 0x01);
+	ret = si2165_writereg8(state, REG_START_INIT, 0x01);
 	if (ret < 0)
 		goto error;
 	ret = si2165_wait_init_done(state);
@@ -628,29 +593,30 @@ static int si2165_init(struct dvb_frontend *fe)
 		goto error;
 
 	/* disable chip_init */
-	ret = si2165_writereg8(state, 0x0050, 0x00);
+	ret = si2165_writereg8(state, REG_CHIP_INIT, 0x00);
 	if (ret < 0)
 		goto error;
 
-	/* ber_pkt */
-	ret = si2165_writereg16(state, 0x0470 , 0x7530);
+	/* ber_pkt - default 65535 */
+	ret = si2165_writereg16(state, REG_BER_PKT,
+				STATISTICS_PERIOD_PKT_COUNT);
 	if (ret < 0)
 		goto error;
 
-	ret = si2165_readreg8(state, 0x0344, &patch_version);
+	ret = si2165_readreg8(state, REG_PATCH_VERSION, &patch_version);
 	if (ret < 0)
 		goto error;
 
-	ret = si2165_writereg8(state, 0x00cb, 0x00);
+	ret = si2165_writereg8(state, REG_AUTO_RESET, 0x00);
 	if (ret < 0)
 		goto error;
 
 	/* dsp_addr_jump */
-	ret = si2165_writereg32(state, 0x0348, 0xf4000000);
+	ret = si2165_writereg32(state, REG_ADDR_JUMP, 0xf4000000);
 	if (ret < 0)
 		goto error;
 	/* boot/wdog status */
-	ret = si2165_readreg8(state, 0x0341, &val);
+	ret = si2165_readreg8(state, REG_WDOG_AND_BOOT, &val);
 	if (ret < 0)
 		goto error;
 
@@ -660,22 +626,30 @@ static int si2165_init(struct dvb_frontend *fe)
 			goto error;
 	}
 
-	/* write adc values after each reset*/
-	ret = si2165_writereg8(state, 0x012a, 0x46);
+	/* ts output config */
+	ret = si2165_writereg8(state, REG_TS_DATA_MODE, 0x20);
 	if (ret < 0)
-		goto error;
-	ret = si2165_writereg8(state, 0x012c, 0x00);
+		return ret;
+	ret = si2165_writereg16(state, REG_TS_TRI, 0x00fe);
 	if (ret < 0)
-		goto error;
-	ret = si2165_writereg8(state, 0x012e, 0x0a);
+		return ret;
+	ret = si2165_writereg24(state, REG_TS_SLR, 0x555555);
 	if (ret < 0)
-		goto error;
-	ret = si2165_writereg8(state, 0x012f, 0xff);
+		return ret;
+	ret = si2165_writereg8(state, REG_TS_CLK_MODE, 0x01);
 	if (ret < 0)
-		goto error;
-	ret = si2165_writereg8(state, 0x0123, 0x70);
+		return ret;
+	ret = si2165_writereg8(state, REG_TS_PARALLEL_MODE, 0x00);
 	if (ret < 0)
-		goto error;
+		return ret;
+
+	c = &state->fe.dtv_property_cache;
+	c->cnr.len = 1;
+	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.len = 1;
+	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.len = 1;
+	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	return 0;
 error:
@@ -688,11 +662,11 @@ static int si2165_sleep(struct dvb_frontend *fe)
 	struct si2165_state *state = fe->demodulator_priv;
 
 	/* dsp clock disable */
-	ret = si2165_writereg8(state, 0x0104, 0x00);
+	ret = si2165_writereg8(state, REG_DSP_CLOCK, 0x00);
 	if (ret < 0)
 		return ret;
 	/* chip mode */
-	ret = si2165_writereg8(state, 0x0000, SI2165_MODE_OFF);
+	ret = si2165_writereg8(state, REG_CHIP_MODE, SI2165_MODE_OFF);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -701,24 +675,157 @@ static int si2165_sleep(struct dvb_frontend *fe)
 static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int ret;
-	u8 fec_lock = 0;
+	u8 u8tmp;
+	u32 u32tmp;
 	struct si2165_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys = c->delivery_system;
 
-	if (!state->has_dvbt)
-		return -EINVAL;
+	*status = 0;
+
+	switch (delsys) {
+	case SYS_DVBT:
+		/* check fast signal type */
+		ret = si2165_readreg8(state, REG_CHECK_SIGNAL, &u8tmp);
+		if (ret < 0)
+			return ret;
+		switch (u8tmp & 0x3) {
+		case 0: /* searching */
+		case 1: /* nothing */
+			break;
+		case 2: /* digital signal */
+			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
+			break;
+		}
+		break;
+	case SYS_DVBC_ANNEX_A:
+		/* check packet sync lock */
+		ret = si2165_readreg8(state, REG_PS_LOCK, &u8tmp);
+		if (ret < 0)
+			return ret;
+		if (u8tmp & 0x01) {
+			*status |= FE_HAS_SIGNAL;
+			*status |= FE_HAS_CARRIER;
+			*status |= FE_HAS_VITERBI;
+			*status |= FE_HAS_SYNC;
+		}
+		break;
+	}
 
 	/* check fec_lock */
-	ret = si2165_readreg8(state, 0x4e0, &fec_lock);
+	ret = si2165_readreg8(state, REG_FEC_LOCK, &u8tmp);
 	if (ret < 0)
 		return ret;
-	*status = 0;
-	if (fec_lock & 0x01) {
+	if (u8tmp & 0x01) {
 		*status |= FE_HAS_SIGNAL;
 		*status |= FE_HAS_CARRIER;
 		*status |= FE_HAS_VITERBI;
 		*status |= FE_HAS_SYNC;
 		*status |= FE_HAS_LOCK;
 	}
+
+	/* CNR */
+	if (delsys == SYS_DVBC_ANNEX_A && *status & FE_HAS_VITERBI) {
+		ret = si2165_readreg24(state, REG_C_N, &u32tmp);
+		if (ret < 0)
+			return ret;
+		/*
+		 * svalue =
+		 * 1000 * c_n/dB =
+		 * 1000 * 10 * log10(2^24 / regval) =
+		 * 1000 * 10 * (log10(2^24) - log10(regval)) =
+		 * 1000 * 10 * (intlog10(2^24) - intlog10(regval)) / 2^24
+		 *
+		 * intlog10(x) = log10(x) * 2^24
+		 * intlog10(2^24) = log10(2^24) * 2^24 = 121210686
+		 */
+		u32tmp = (1000 * 10 * (121210686 - (u64)intlog10(u32tmp)))
+				>> 24;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		c->cnr.stat[0].svalue = u32tmp;
+	} else
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	/* BER */
+	if (*status & FE_HAS_VITERBI) {
+		if (c->post_bit_error.stat[0].scale == FE_SCALE_NOT_AVAILABLE) {
+			/* start new sampling period to get rid of old data*/
+			ret = si2165_writereg8(state, REG_BER_RST, 0x01);
+			if (ret < 0)
+				return ret;
+
+			/* set scale to enter read code on next call */
+			c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+			c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+			c->post_bit_error.stat[0].uvalue = 0;
+			c->post_bit_count.stat[0].uvalue = 0;
+
+			/*
+			 * reset DVBv3 value to deliver a good result
+			 * for the first call
+			 */
+			state->ber_prev = 0;
+
+		} else {
+			ret = si2165_readreg8(state, REG_BER_AVAIL, &u8tmp);
+			if (ret < 0)
+				return ret;
+
+			if (u8tmp & 1) {
+				u32 biterrcnt;
+
+				ret = si2165_readreg24(state, REG_BER_BIT,
+							&biterrcnt);
+				if (ret < 0)
+					return ret;
+
+				c->post_bit_error.stat[0].uvalue +=
+					biterrcnt;
+				c->post_bit_count.stat[0].uvalue +=
+					STATISTICS_PERIOD_BIT_COUNT;
+
+				/* start new sampling period */
+				ret = si2165_writereg8(state,
+							REG_BER_RST, 0x01);
+				if (ret < 0)
+					return ret;
+
+				dev_dbg(&state->client->dev,
+					"post_bit_error=%u post_bit_count=%u\n",
+					biterrcnt, STATISTICS_PERIOD_BIT_COUNT);
+			}
+		}
+	} else {
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	return 0;
+}
+
+static int si2165_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL)
+		*snr = div_s64(c->cnr.stat[0].svalue, 100);
+	else
+		*snr = 0;
+	return 0;
+}
+
+static int si2165_read_ber(struct dvb_frontend *fe, u32 *ber)
+{
+	struct si2165_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	if (c->post_bit_error.stat[0].scale != FE_SCALE_COUNTER) {
+		*ber = 0;
+		return 0;
+	}
+
+	*ber = c->post_bit_error.stat[0].uvalue - state->ber_prev;
+	state->ber_prev = c->post_bit_error.stat[0].uvalue;
 
 	return 0;
 }
@@ -728,21 +835,36 @@ static int si2165_set_oversamp(struct si2165_state *state, u32 dvb_rate)
 	u64 oversamp;
 	u32 reg_value;
 
+	if (!dvb_rate)
+		return -EINVAL;
+
 	oversamp = si2165_get_fe_clk(state);
 	oversamp <<= 23;
 	do_div(oversamp, dvb_rate);
 	reg_value = oversamp & 0x3fffffff;
 
-	/* oversamp, usbdump contained 0x03100000; */
-	return si2165_writereg32(state, 0x00e4, reg_value);
+	dev_dbg(&state->client->dev, "Write oversamp=%#x\n", reg_value);
+	return si2165_writereg32(state, REG_OVERSAMP, reg_value);
 }
 
-static int si2165_set_if_freq_shift(struct si2165_state *state, u32 IF)
+static int si2165_set_if_freq_shift(struct si2165_state *state)
 {
+	struct dvb_frontend *fe = &state->fe;
 	u64 if_freq_shift;
 	s32 reg_value = 0;
 	u32 fe_clk = si2165_get_fe_clk(state);
+	u32 IF = 0;
 
+	if (!fe->ops.tuner_ops.get_if_frequency) {
+		dev_err(&state->client->dev,
+			"Error: get_if_frequency() not defined at tuner. Can't work without it!\n");
+		return -EINVAL;
+	}
+
+	if (!fe_clk)
+		return -EINVAL;
+
+	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 	if_freq_shift = IF;
 	if_freq_shift <<= 29;
 
@@ -755,118 +877,196 @@ static int si2165_set_if_freq_shift(struct si2165_state *state, u32 IF)
 	reg_value = reg_value & 0x1fffffff;
 
 	/* if_freq_shift, usbdump contained 0x023ee08f; */
-	return si2165_writereg32(state, 0x00e8, reg_value);
+	return si2165_writereg32(state, REG_IF_FREQ_SHIFT, reg_value);
 }
 
-static int si2165_set_parameters(struct dvb_frontend *fe)
+static const struct si2165_reg_value_pair dvbt_regs[] = {
+	/* standard = DVB-T */
+	{ REG_DVB_STANDARD, 0x01 },
+	/* impulsive_noise_remover */
+	{ REG_IMPULSIVE_NOISE_REM, 0x01 },
+	{ REG_AUTO_RESET, 0x00 },
+	/* agc2 */
+	{ REG_AGC2_MIN, 0x41 },
+	{ REG_AGC2_KACQ, 0x0e },
+	{ REG_AGC2_KLOC, 0x10 },
+	/* agc */
+	{ REG_AGC_UNFREEZE_THR, 0x03 },
+	{ REG_AGC_CRESTF_DBX8, 0x78 },
+	/* agc */
+	{ REG_AAF_CRESTF_DBX8, 0x78 },
+	{ REG_ACI_CRESTF_DBX8, 0x68 },
+	/* freq_sync_range */
+	REG16(REG_FREQ_SYNC_RANGE, 0x0064),
+	/* gp_reg0 */
+	{ REG_GP_REG0_MSB, 0x00 }
+};
+
+static int si2165_set_frontend_dvbt(struct dvb_frontend *fe)
 {
 	int ret;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct si2165_state *state = fe->demodulator_priv;
-	u8 val[3];
-	u32 IF;
 	u32 dvb_rate = 0;
 	u16 bw10k;
+	u32 bw_hz = p->bandwidth_hz;
 
-	dprintk("%s: called\n", __func__);
-
-	if (!fe->ops.tuner_ops.get_if_frequency) {
-		dev_err(&state->i2c->dev,
-			"%s: Error: get_if_frequency() not defined at tuner. Can't work without it!\n",
-			KBUILD_MODNAME);
-		return -EINVAL;
-	}
+	dev_dbg(&state->client->dev, "%s: called\n", __func__);
 
 	if (!state->has_dvbt)
 		return -EINVAL;
 
-	if (p->bandwidth_hz > 0) {
-		dvb_rate = p->bandwidth_hz * 8 / 7;
-		bw10k = p->bandwidth_hz / 10000;
-	} else {
-		dvb_rate = 8 * 8 / 7;
-		bw10k = 800;
-	}
+	/* no bandwidth auto-detection */
+	if (bw_hz == 0)
+		return -EINVAL;
 
-	/* standard = DVB-T */
-	ret = si2165_writereg8(state, 0x00ec, 0x01);
-	if (ret < 0)
-		return ret;
+	dvb_rate = bw_hz * 8 / 7;
+	bw10k = bw_hz / 10000;
+
 	ret = si2165_adjust_pll_divl(state, 12);
 	if (ret < 0)
 		return ret;
 
-	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
-	ret = si2165_set_if_freq_shift(state, IF);
-	if (ret < 0)
-		return ret;
-	ret = si2165_writereg8(state, 0x08f8, 0x00);
-	if (ret < 0)
-		return ret;
-	/* ts output config */
-	ret = si2165_writereg8(state, 0x04e4, 0x20);
-	if (ret < 0)
-		return ret;
-	ret = si2165_writereg16(state, 0x04ef, 0x00fe);
-	if (ret < 0)
-		return ret;
-	ret = si2165_writereg24(state, 0x04f4, 0x555555);
-	if (ret < 0)
-		return ret;
-	ret = si2165_writereg8(state, 0x04e5, 0x01);
-	if (ret < 0)
-		return ret;
 	/* bandwidth in 10KHz steps */
-	ret = si2165_writereg16(state, 0x0308, bw10k);
+	ret = si2165_writereg16(state, REG_T_BANDWIDTH, bw10k);
 	if (ret < 0)
 		return ret;
 	ret = si2165_set_oversamp(state, dvb_rate);
 	if (ret < 0)
 		return ret;
-	/* impulsive_noise_remover */
-	ret = si2165_writereg8(state, 0x031c, 0x01);
+
+	ret = si2165_write_reg_list(state, dvbt_regs, ARRAY_SIZE(dvbt_regs));
 	if (ret < 0)
 		return ret;
-	ret = si2165_writereg8(state, 0x00cb, 0x00);
-	if (ret < 0)
-		return ret;
+
+	return 0;
+}
+
+static const struct si2165_reg_value_pair dvbc_regs[] = {
+	/* standard = DVB-C */
+	{ REG_DVB_STANDARD, 0x05 },
+
 	/* agc2 */
-	ret = si2165_writereg8(state, 0x016e, 0x41);
-	if (ret < 0)
-		return ret;
-	ret = si2165_writereg8(state, 0x016c, 0x0e);
-	if (ret < 0)
-		return ret;
-	ret = si2165_writereg8(state, 0x016d, 0x10);
-	if (ret < 0)
-		return ret;
+	{ REG_AGC2_MIN, 0x50 },
+	{ REG_AGC2_KACQ, 0x0e },
+	{ REG_AGC2_KLOC, 0x10 },
 	/* agc */
-	ret = si2165_writereg8(state, 0x015b, 0x03);
-	if (ret < 0)
-		return ret;
-	ret = si2165_writereg8(state, 0x0150, 0x78);
-	if (ret < 0)
-		return ret;
+	{ REG_AGC_UNFREEZE_THR, 0x03 },
+	{ REG_AGC_CRESTF_DBX8, 0x68 },
 	/* agc */
-	ret = si2165_writereg8(state, 0x01a0, 0x78);
+	{ REG_AAF_CRESTF_DBX8, 0x68 },
+	{ REG_ACI_CRESTF_DBX8, 0x50 },
+
+	{ REG_EQ_AUTO_CONTROL, 0x0d },
+
+	{ REG_KP_LOCK, 0x05 },
+	{ REG_CENTRAL_TAP, 0x09 },
+	REG16(REG_UNKNOWN_350, 0x3e80),
+
+	{ REG_AUTO_RESET, 0x01 },
+	REG16(REG_UNKNOWN_24C, 0x0000),
+	REG16(REG_UNKNOWN_27C, 0x0000),
+	{ REG_SWEEP_STEP, 0x03 },
+	{ REG_AGC_IF_TRI, 0x00 },
+};
+
+static int si2165_set_frontend_dvbc(struct dvb_frontend *fe)
+{
+	struct si2165_state *state = fe->demodulator_priv;
+	int ret;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	const u32 dvb_rate = p->symbol_rate;
+	u8 u8tmp;
+
+	if (!state->has_dvbc)
+		return -EINVAL;
+
+	if (dvb_rate == 0)
+		return -EINVAL;
+
+	ret = si2165_adjust_pll_divl(state, 14);
 	if (ret < 0)
 		return ret;
-	ret = si2165_writereg8(state, 0x01c8, 0x68);
+
+	/* Oversampling */
+	ret = si2165_set_oversamp(state, dvb_rate);
 	if (ret < 0)
 		return ret;
-	/* freq_sync_range */
-	ret = si2165_writereg16(state, 0x030c, 0x0064);
+
+	switch (p->modulation) {
+	case QPSK:
+		u8tmp = 0x3;
+		break;
+	case QAM_16:
+		u8tmp = 0x7;
+		break;
+	case QAM_32:
+		u8tmp = 0x8;
+		break;
+	case QAM_64:
+		u8tmp = 0x9;
+		break;
+	case QAM_128:
+		u8tmp = 0xa;
+		break;
+	case QAM_256:
+	default:
+		u8tmp = 0xb;
+		break;
+	}
+	ret = si2165_writereg8(state, REG_REQ_CONSTELLATION, u8tmp);
 	if (ret < 0)
 		return ret;
-	/* gp_reg0 */
-	ret = si2165_readreg8(state, 0x0387, val);
+
+	ret = si2165_writereg32(state, REG_LOCK_TIMEOUT, 0x007a1200);
 	if (ret < 0)
 		return ret;
-	ret = si2165_writereg8(state, 0x0387, 0x00);
+
+	ret = si2165_write_reg_list(state, dvbc_regs, ARRAY_SIZE(dvbc_regs));
 	if (ret < 0)
 		return ret;
+
+	return 0;
+}
+
+static const struct si2165_reg_value_pair adc_rewrite[] = {
+	{ REG_ADC_RI1, 0x46 },
+	{ REG_ADC_RI3, 0x00 },
+	{ REG_ADC_RI5, 0x0a },
+	{ REG_ADC_RI6, 0xff },
+	{ REG_ADC_RI8, 0x70 }
+};
+
+static int si2165_set_frontend(struct dvb_frontend *fe)
+{
+	struct si2165_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u32 delsys = p->delivery_system;
+	int ret;
+	u8 val[3];
+
+	/* initial setting of if freq shift */
+	ret = si2165_set_if_freq_shift(state);
+	if (ret < 0)
+		return ret;
+
+	switch (delsys) {
+	case SYS_DVBT:
+		ret = si2165_set_frontend_dvbt(fe);
+		if (ret < 0)
+			return ret;
+		break;
+	case SYS_DVBC_ANNEX_A:
+		ret = si2165_set_frontend_dvbc(fe);
+		if (ret < 0)
+			return ret;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	/* dsp_addr_jump */
-	ret = si2165_writereg32(state, 0x0348, 0xf4000000);
+	ret = si2165_writereg32(state, REG_ADDR_JUMP, 0xf4000000);
 	if (ret < 0)
 		return ret;
 
@@ -874,50 +1074,54 @@ static int si2165_set_parameters(struct dvb_frontend *fe)
 		fe->ops.tuner_ops.set_params(fe);
 
 	/* recalc if_freq_shift if IF might has changed */
-	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
-	ret = si2165_set_if_freq_shift(state, IF);
+	ret = si2165_set_if_freq_shift(state);
 	if (ret < 0)
 		return ret;
 
 	/* boot/wdog status */
-	ret = si2165_readreg8(state, 0x0341, val);
+	ret = si2165_readreg8(state, REG_WDOG_AND_BOOT, val);
 	if (ret < 0)
 		return ret;
-	ret = si2165_writereg8(state, 0x0341, 0x00);
+	ret = si2165_writereg8(state, REG_WDOG_AND_BOOT, 0x00);
 	if (ret < 0)
 		return ret;
+
 	/* reset all */
-	ret = si2165_writereg8(state, 0x00c0, 0x00);
+	ret = si2165_writereg8(state, REG_RST_ALL, 0x00);
 	if (ret < 0)
 		return ret;
 	/* gp_reg0 */
-	ret = si2165_writereg32(state, 0x0384, 0x00000000);
+	ret = si2165_writereg32(state, REG_GP_REG0_LSB, 0x00000000);
 	if (ret < 0)
 		return ret;
+
+	/* write adc values after each reset*/
+	ret = si2165_write_reg_list(state, adc_rewrite,
+				    ARRAY_SIZE(adc_rewrite));
+	if (ret < 0)
+		return ret;
+
 	/* start_synchro */
-	ret = si2165_writereg8(state, 0x02e0, 0x01);
+	ret = si2165_writereg8(state, REG_START_SYNCHRO, 0x01);
 	if (ret < 0)
 		return ret;
 	/* boot/wdog status */
-	ret = si2165_readreg8(state, 0x0341, val);
+	ret = si2165_readreg8(state, REG_WDOG_AND_BOOT, val);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-static void si2165_release(struct dvb_frontend *fe)
-{
-	struct si2165_state *state = fe->demodulator_priv;
-
-	dprintk("%s: called\n", __func__);
-	kfree(state);
-}
-
-static struct dvb_frontend_ops si2165_ops = {
+static const struct dvb_frontend_ops si2165_ops = {
 	.info = {
 		.name = "Silicon Labs ",
-		.caps =	FE_CAN_FEC_1_2 |
+		 /* For DVB-C */
+		.symbol_rate_min = 1000000,
+		.symbol_rate_max = 7200000,
+		/* For DVB-T */
+		.frequency_stepsize_hz = 166667,
+		.caps = FE_CAN_FEC_1_2 |
 			FE_CAN_FEC_2_3 |
 			FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 |
@@ -929,8 +1133,6 @@ static struct dvb_frontend_ops si2165_ops = {
 			FE_CAN_QAM_64 |
 			FE_CAN_QAM_128 |
 			FE_CAN_QAM_256 |
-			FE_CAN_QAM_AUTO |
-			FE_CAN_TRANSMISSION_MODE_AUTO |
 			FE_CAN_GUARD_INTERVAL_AUTO |
 			FE_CAN_HIERARCHY_AUTO |
 			FE_CAN_MUTE_TS |
@@ -943,69 +1145,87 @@ static struct dvb_frontend_ops si2165_ops = {
 	.init = si2165_init,
 	.sleep = si2165_sleep,
 
-	.set_frontend      = si2165_set_parameters,
+	.set_frontend      = si2165_set_frontend,
 	.read_status       = si2165_read_status,
-
-	.release = si2165_release,
+	.read_snr          = si2165_read_snr,
+	.read_ber          = si2165_read_ber,
 };
 
-struct dvb_frontend *si2165_attach(const struct si2165_config *config,
-				   struct i2c_adapter *i2c)
+static int si2165_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct si2165_state *state = NULL;
+	struct si2165_platform_data *pdata = client->dev.platform_data;
 	int n;
-	int io_ret;
+	int ret = 0;
 	u8 val;
 	char rev_char;
 	const char *chip_name;
-
-	if (config == NULL || i2c == NULL)
-		goto error;
+	static const struct regmap_config regmap_config = {
+		.reg_bits = 16,
+		.val_bits = 8,
+		.max_register = 0x08ff,
+	};
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct si2165_state), GFP_KERNEL);
-	if (state == NULL)
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state) {
+		ret = -ENOMEM;
 		goto error;
+	}
+
+	/* create regmap */
+	state->regmap = devm_regmap_init_i2c(client, &regmap_config);
+	if (IS_ERR(state->regmap)) {
+		ret = PTR_ERR(state->regmap);
+		goto error;
+	}
 
 	/* setup the state */
-	state->i2c = i2c;
-	state->config = *config;
+	state->client = client;
+	state->config.i2c_addr = client->addr;
+	state->config.chip_mode = pdata->chip_mode;
+	state->config.ref_freq_hz = pdata->ref_freq_hz;
+	state->config.inversion = pdata->inversion;
 
-	if (state->config.ref_freq_Hz < 4000000
-	    || state->config.ref_freq_Hz > 27000000) {
-		dev_err(&state->i2c->dev, "%s: ref_freq of %d Hz not supported by this driver\n",
-			 KBUILD_MODNAME, state->config.ref_freq_Hz);
+	if (state->config.ref_freq_hz < 4000000 ||
+	    state->config.ref_freq_hz > 27000000) {
+		dev_err(&state->client->dev, "ref_freq of %d Hz not supported by this driver\n",
+			state->config.ref_freq_hz);
+		ret = -EINVAL;
 		goto error;
 	}
 
 	/* create dvb_frontend */
-	memcpy(&state->frontend.ops, &si2165_ops,
-		sizeof(struct dvb_frontend_ops));
-	state->frontend.demodulator_priv = state;
+	memcpy(&state->fe.ops, &si2165_ops,
+	       sizeof(struct dvb_frontend_ops));
+	state->fe.ops.release = NULL;
+	state->fe.demodulator_priv = state;
+	i2c_set_clientdata(client, state);
 
 	/* powerup */
-	io_ret = si2165_writereg8(state, 0x0000, state->config.chip_mode);
-	if (io_ret < 0)
-		goto error;
+	ret = si2165_writereg8(state, REG_CHIP_MODE, state->config.chip_mode);
+	if (ret < 0)
+		goto nodev_error;
 
-	io_ret = si2165_readreg8(state, 0x0000, &val);
-	if (io_ret < 0)
-		goto error;
+	ret = si2165_readreg8(state, REG_CHIP_MODE, &val);
+	if (ret < 0)
+		goto nodev_error;
 	if (val != state->config.chip_mode)
-		goto error;
+		goto nodev_error;
 
-	io_ret = si2165_readreg8(state, 0x0023, &state->chip_revcode);
-	if (io_ret < 0)
-		goto error;
+	ret = si2165_readreg8(state, REG_CHIP_REVCODE, &state->chip_revcode);
+	if (ret < 0)
+		goto nodev_error;
 
-	io_ret = si2165_readreg8(state, 0x0118, &state->chip_type);
-	if (io_ret < 0)
-		goto error;
+	ret = si2165_readreg8(state, REV_CHIP_TYPE, &state->chip_type);
+	if (ret < 0)
+		goto nodev_error;
 
 	/* powerdown */
-	io_ret = si2165_writereg8(state, 0x0000, SI2165_MODE_OFF);
-	if (io_ret < 0)
-		goto error;
+	ret = si2165_writereg8(state, REG_CHIP_MODE, SI2165_MODE_OFF);
+	if (ret < 0)
+		goto nodev_error;
 
 	if (state->chip_revcode < 26)
 		rev_char = 'A' + state->chip_revcode;
@@ -1023,39 +1243,71 @@ struct dvb_frontend *si2165_attach(const struct si2165_config *config,
 		state->has_dvbc = true;
 		break;
 	default:
-		dev_err(&state->i2c->dev, "%s: Unsupported Silicon Labs chip (type %d, rev %d)\n",
-			KBUILD_MODNAME, state->chip_type, state->chip_revcode);
-		goto error;
+		dev_err(&state->client->dev, "Unsupported Silicon Labs chip (type %d, rev %d)\n",
+			state->chip_type, state->chip_revcode);
+		goto nodev_error;
 	}
 
-	dev_info(&state->i2c->dev,
-		"%s: Detected Silicon Labs %s-%c (type %d, rev %d)\n",
-		KBUILD_MODNAME, chip_name, rev_char, state->chip_type,
+	dev_info(&state->client->dev,
+		 "Detected Silicon Labs %s-%c (type %d, rev %d)\n",
+		chip_name, rev_char, state->chip_type,
 		state->chip_revcode);
 
-	strlcat(state->frontend.ops.info.name, chip_name,
-			sizeof(state->frontend.ops.info.name));
+	strlcat(state->fe.ops.info.name, chip_name,
+		sizeof(state->fe.ops.info.name));
 
 	n = 0;
 	if (state->has_dvbt) {
-		state->frontend.ops.delsys[n++] = SYS_DVBT;
-		strlcat(state->frontend.ops.info.name, " DVB-T",
-			sizeof(state->frontend.ops.info.name));
+		state->fe.ops.delsys[n++] = SYS_DVBT;
+		strlcat(state->fe.ops.info.name, " DVB-T",
+			sizeof(state->fe.ops.info.name));
 	}
-	if (state->has_dvbc)
-		dev_warn(&state->i2c->dev, "%s: DVB-C is not yet supported.\n",
-		       KBUILD_MODNAME);
+	if (state->has_dvbc) {
+		state->fe.ops.delsys[n++] = SYS_DVBC_ANNEX_A;
+		strlcat(state->fe.ops.info.name, " DVB-C",
+			sizeof(state->fe.ops.info.name));
+	}
 
-	return &state->frontend;
+	/* return fe pointer */
+	*pdata->fe = &state->fe;
 
+	return 0;
+
+nodev_error:
+	ret = -ENODEV;
 error:
 	kfree(state);
-	return NULL;
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
 }
-EXPORT_SYMBOL(si2165_attach);
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+static int si2165_remove(struct i2c_client *client)
+{
+	struct si2165_state *state = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	kfree(state);
+	return 0;
+}
+
+static const struct i2c_device_id si2165_id_table[] = {
+	{"si2165", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, si2165_id_table);
+
+static struct i2c_driver si2165_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "si2165",
+	},
+	.probe		= si2165_probe,
+	.remove		= si2165_remove,
+	.id_table	= si2165_id_table,
+};
+
+module_i2c_driver(si2165_driver);
 
 MODULE_DESCRIPTION("Silicon Labs Si2165 DVB-C/-T Demodulator driver");
 MODULE_AUTHOR("Matthias Schwarzott <zzam@gentoo.org>");

@@ -114,7 +114,7 @@ static const int multicast_filter_limit = 32;
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/dmi.h>
 
 /* These identify the driver base version and may not be removed. */
@@ -513,8 +513,8 @@ static irqreturn_t rhine_interrupt(int irq, void *dev_instance);
 static void rhine_tx(struct net_device *dev);
 static int rhine_rx(struct net_device *dev, int limit);
 static void rhine_set_rx_mode(struct net_device *dev);
-static struct rtnl_link_stats64 *rhine_get_stats64(struct net_device *dev,
-	       struct rtnl_link_stats64 *stats);
+static void rhine_get_stats64(struct net_device *dev,
+			      struct rtnl_link_stats64 *stats);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
@@ -861,7 +861,7 @@ static int rhine_napipoll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		iowrite16(enable_mask, ioaddr + IntrEnable);
 		mmiowb();
 	}
@@ -890,7 +890,6 @@ static const struct net_device_ops rhine_netdev_ops = {
 	.ndo_start_xmit		 = rhine_start_tx,
 	.ndo_get_stats64	 = rhine_get_stats64,
 	.ndo_set_rx_mode	 = rhine_set_rx_mode,
-	.ndo_change_mtu		 = eth_change_mtu,
 	.ndo_validate_addr	 = eth_validate_addr,
 	.ndo_set_mac_address 	 = eth_mac_addr,
 	.ndo_do_ioctl		 = netdev_ioctl,
@@ -996,8 +995,8 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 	else
 		name = "Rhine III";
 
-	netdev_info(dev, "VIA %s at 0x%lx, %pM, IRQ %d\n",
-		    name, (long)ioaddr, dev->dev_addr, rp->irq);
+	netdev_info(dev, "VIA %s at %p, %pM, IRQ %d\n",
+		    name, ioaddr, dev->dev_addr, rp->irq);
 
 	dev_set_drvdata(hwdev, dev);
 
@@ -1758,7 +1757,7 @@ static void rhine_reset_task(struct work_struct *work)
 
 	spin_unlock_bh(&rp->lock);
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	netif_wake_queue(dev);
 
@@ -2222,7 +2221,7 @@ out_unlock:
 	mutex_unlock(&rp->task_lock);
 }
 
-static struct rtnl_link_stats64 *
+static void
 rhine_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct rhine_private *rp = netdev_priv(dev);
@@ -2245,8 +2244,6 @@ rhine_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_packets = rp->tx_stats.packets;
 		stats->tx_bytes = rp->tx_stats.bytes;
 	} while (u64_stats_fetch_retry_irq(&rp->tx_stats.syncp, start));
-
-	return stats;
 }
 
 static void rhine_set_rx_mode(struct net_device *dev)
@@ -2306,25 +2303,26 @@ static void netdev_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 	strlcpy(info->bus_info, dev_name(hwdev), sizeof(info->bus_info));
 }
 
-static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int netdev_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct rhine_private *rp = netdev_priv(dev);
-	int rc;
 
 	mutex_lock(&rp->task_lock);
-	rc = mii_ethtool_gset(&rp->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&rp->mii_if, cmd);
 	mutex_unlock(&rp->task_lock);
 
-	return rc;
+	return 0;
 }
 
-static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int netdev_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 	int rc;
 
 	mutex_lock(&rp->task_lock);
-	rc = mii_ethtool_sset(&rp->mii_if, cmd);
+	rc = mii_ethtool_set_link_ksettings(&rp->mii_if, cmd);
 	rhine_set_carrier(&rp->mii_if);
 	mutex_unlock(&rp->task_lock);
 
@@ -2394,14 +2392,14 @@ static int rhine_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
-	.get_settings		= netdev_get_settings,
-	.set_settings		= netdev_set_settings,
 	.nway_reset		= netdev_nway_reset,
 	.get_link		= netdev_get_link,
 	.get_msglevel		= netdev_get_msglevel,
 	.set_msglevel		= netdev_set_msglevel,
 	.get_wol		= rhine_get_wol,
 	.set_wol		= rhine_set_wol,
+	.get_link_ksettings	= netdev_get_link_ksettings,
+	.set_link_ksettings	= netdev_set_link_ksettings,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -2600,7 +2598,7 @@ static struct platform_driver rhine_driver_platform = {
 	}
 };
 
-static struct dmi_system_id rhine_dmi_table[] __initdata = {
+static const struct dmi_system_id rhine_dmi_table[] __initconst = {
 	{
 		.ident = "EPIA-M",
 		.matches = {

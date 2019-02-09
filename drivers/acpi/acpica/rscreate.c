@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: rscreate - Create resource lists/tables
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -81,8 +45,9 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 
 	/* Get the required length for the converted resource */
 
-	status = acpi_rs_get_list_length(aml_buffer, aml_buffer_length,
-					 &list_size_needed);
+	status =
+	    acpi_rs_get_list_length(aml_buffer, aml_buffer_length,
+				    &list_size_needed);
 	if (status == AE_AML_NO_RESOURCE_END_TAG) {
 		status = AE_OK;
 	}
@@ -232,8 +197,9 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 	/* Get the required buffer length */
 
-	status = acpi_rs_get_pci_routing_table_length(package_object,
-						      &buffer_size_needed);
+	status =
+	    acpi_rs_get_pci_routing_table_length(package_object,
+						 &buffer_size_needed);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -270,9 +236,9 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		user_prt = ACPI_CAST_PTR(struct acpi_pci_routing_table, buffer);
 
 		/*
-		 * Fill in the Length field with the information we have at this point.
-		 * The minus four is to subtract the size of the u8 Source[4] member
-		 * because it is added below.
+		 * Fill in the Length field with the information we have at this
+		 * point. The minus four is to subtract the size of the u8
+		 * Source[4] member because it is added below.
 		 */
 		user_prt->length = (sizeof(struct acpi_pci_routing_table) - 4);
 
@@ -345,11 +311,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 					   (u8 *) output_buffer->pointer);
 				path_buffer.pointer = user_prt->source;
 
-				status =
-				    acpi_ns_handle_to_pathname((acpi_handle)
-							       node,
-							       &path_buffer,
-							       FALSE);
+				status = acpi_ns_handle_to_pathname((acpi_handle)node, &path_buffer, FALSE);
 
 				/* +1 to include null terminator */
 
@@ -371,8 +333,8 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 			case ACPI_TYPE_INTEGER:
 				/*
-				 * If this is a number, then the Source Name is NULL, since the
-				 * entire buffer was zeroed out, we can leave this alone.
+				 * If this is a number, then the Source Name is NULL, since
+				 * the entire buffer was zeroed out, we can leave this alone.
 				 *
 				 * Add to the Length field the length of the u32 NULL
 				 */
@@ -451,9 +413,9 @@ acpi_rs_create_aml_resources(struct acpi_buffer *resource_list,
 
 	/* Get the buffer size needed for the AML byte stream */
 
-	status = acpi_rs_get_aml_length(resource_list->pointer,
-					resource_list->length,
-					&aml_size_needed);
+	status =
+	    acpi_rs_get_aml_length(resource_list->pointer,
+				   resource_list->length, &aml_size_needed);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "AmlSizeNeeded=%X, %s\n",
 			  (u32)aml_size_needed, acpi_format_exception(status)));

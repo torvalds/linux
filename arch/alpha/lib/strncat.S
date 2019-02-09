@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/alpha/lib/strncat.S
  * Contributed by Richard Henderson (rth@tamu.edu)
@@ -9,7 +10,7 @@
  * past count, whereas libc may write to count+1.  This follows the generic
  * implementation in lib/string.c and is, IMHO, more sensible.
  */
-
+#include <asm/export.h>
 	.text
 
 	.align 3
@@ -82,3 +83,4 @@ $zerocount:
 	ret
 
 	.end strncat
+	EXPORT_SYMBOL(strncat)

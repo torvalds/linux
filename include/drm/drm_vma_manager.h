@@ -24,29 +24,28 @@
  */
 
 #include <drm/drm_mm.h>
-#include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
+struct drm_file;
+
 struct drm_vma_offset_file {
 	struct rb_node vm_rb;
-	struct file *vm_filp;
+	struct drm_file *vm_tag;
 	unsigned long vm_count;
 };
 
 struct drm_vma_offset_node {
 	rwlock_t vm_lock;
 	struct drm_mm_node vm_node;
-	struct rb_node vm_rb;
 	struct rb_root vm_files;
+	bool readonly:1;
 };
 
 struct drm_vma_offset_manager {
 	rwlock_t vm_lock;
-	struct rb_root vm_addr_space_rb;
 	struct drm_mm vm_addr_space_mm;
 };
 
@@ -62,10 +61,11 @@ int drm_vma_offset_add(struct drm_vma_offset_manager *mgr,
 void drm_vma_offset_remove(struct drm_vma_offset_manager *mgr,
 			   struct drm_vma_offset_node *node);
 
-int drm_vma_node_allow(struct drm_vma_offset_node *node, struct file *filp);
-void drm_vma_node_revoke(struct drm_vma_offset_node *node, struct file *filp);
+int drm_vma_node_allow(struct drm_vma_offset_node *node, struct drm_file *tag);
+void drm_vma_node_revoke(struct drm_vma_offset_node *node,
+			 struct drm_file *tag);
 bool drm_vma_node_is_allowed(struct drm_vma_offset_node *node,
-			     struct file *filp);
+			     struct drm_file *tag);
 
 /**
  * drm_vma_offset_exact_lookup_locked() - Look up node by exact address
@@ -153,7 +153,7 @@ static inline void drm_vma_node_reset(struct drm_vma_offset_node *node)
  * Start address of @node for page-based addressing. 0 if the node does not
  * have an offset allocated.
  */
-static inline unsigned long drm_vma_node_start(struct drm_vma_offset_node *node)
+static inline unsigned long drm_vma_node_start(const struct drm_vma_offset_node *node)
 {
 	return node->vm_node.start;
 }
@@ -173,19 +173,6 @@ static inline unsigned long drm_vma_node_start(struct drm_vma_offset_node *node)
 static inline unsigned long drm_vma_node_size(struct drm_vma_offset_node *node)
 {
 	return node->vm_node.size;
-}
-
-/**
- * drm_vma_node_has_offset() - Check whether node is added to offset manager
- * @node: Node to be checked
- *
- * RETURNS:
- * true iff the node was previously allocated an offset and added to
- * an vma offset manager.
- */
-static inline bool drm_vma_node_has_offset(struct drm_vma_offset_node *node)
-{
-	return drm_mm_node_allocated(&node->vm_node);
 }
 
 /**
@@ -220,7 +207,7 @@ static inline __u64 drm_vma_node_offset_addr(struct drm_vma_offset_node *node)
 static inline void drm_vma_node_unmap(struct drm_vma_offset_node *node,
 				      struct address_space *file_mapping)
 {
-	if (drm_vma_node_has_offset(node))
+	if (drm_mm_node_allocated(&node->vm_node))
 		unmap_mapping_range(file_mapping,
 				    drm_vma_node_offset_addr(node),
 				    drm_vma_node_size(node) << PAGE_SHIFT, 1);
@@ -229,9 +216,9 @@ static inline void drm_vma_node_unmap(struct drm_vma_offset_node *node,
 /**
  * drm_vma_node_verify_access() - Access verification helper for TTM
  * @node: Offset node
- * @filp: Open-file
+ * @tag: Tag of file to check
  *
- * This checks whether @filp is granted access to @node. It is the same as
+ * This checks whether @tag is granted access to @node. It is the same as
  * drm_vma_node_is_allowed() but suitable as drop-in helper for TTM
  * verify_access() callbacks.
  *
@@ -239,9 +226,9 @@ static inline void drm_vma_node_unmap(struct drm_vma_offset_node *node,
  * 0 if access is granted, -EACCES otherwise.
  */
 static inline int drm_vma_node_verify_access(struct drm_vma_offset_node *node,
-					     struct file *filp)
+					     struct drm_file *tag)
 {
-	return drm_vma_node_is_allowed(node, filp) ? 0 : -EACCES;
+	return drm_vma_node_is_allowed(node, tag) ? 0 : -EACCES;
 }
 
 #endif /* __DRM_VMA_MANAGER_H__ */

@@ -250,6 +250,8 @@ static long h3a_aewb_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		return omap3isp_stat_config(stat, arg);
 	case VIDIOC_OMAP3ISP_STAT_REQ:
 		return omap3isp_stat_request_statistics(stat, arg);
+	case VIDIOC_OMAP3ISP_STAT_REQ_TIME32:
+		return omap3isp_stat_request_statistics_time32(stat, arg);
 	case VIDIOC_OMAP3ISP_STAT_EN: {
 		unsigned long *en = arg;
 		return omap3isp_stat_enable(stat, !!*en);
@@ -304,8 +306,8 @@ int omap3isp_h3a_aewb_init(struct isp_device *isp)
 	aewb_recover_cfg = devm_kzalloc(isp->dev, sizeof(*aewb_recover_cfg),
 					GFP_KERNEL);
 	if (!aewb_recover_cfg) {
-		dev_err(aewb->isp->dev, "AEWB: cannot allocate memory for "
-					"recover configuration.\n");
+		dev_err(aewb->isp->dev,
+			"AEWB: cannot allocate memory for recover configuration.\n");
 		return -ENOMEM;
 	}
 
@@ -321,8 +323,8 @@ int omap3isp_h3a_aewb_init(struct isp_device *isp)
 	aewb_recover_cfg->subsample_hor_inc = OMAP3ISP_AEWB_MIN_SUB_INC;
 
 	if (h3a_aewb_validate_params(aewb, aewb_recover_cfg)) {
-		dev_err(aewb->isp->dev, "AEWB: recover configuration is "
-					"invalid.\n");
+		dev_err(aewb->isp->dev,
+			"AEWB: recover configuration is invalid.\n");
 		return -EINVAL;
 	}
 

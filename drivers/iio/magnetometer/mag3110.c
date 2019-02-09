@@ -26,6 +26,7 @@
 #define MAG3110_OUT_Y 0x03
 #define MAG3110_OUT_Z 0x05
 #define MAG3110_WHO_AM_I 0x07
+#define MAG3110_SYSMOD 0x08
 #define MAG3110_OFF_X 0x09 /* MSB first */
 #define MAG3110_OFF_Y 0x0b
 #define MAG3110_OFF_Z 0x0d
@@ -38,6 +39,8 @@
 #define MAG3110_CTRL_DR_MASK (BIT(7) | BIT(6) | BIT(5))
 #define MAG3110_CTRL_DR_SHIFT 5
 #define MAG3110_CTRL_DR_DEFAULT 0
+
+#define MAG3110_SYSMOD_MODE_MASK GENMASK(1, 0)
 
 #define MAG3110_CTRL_TM BIT(1) /* trigger single measurement */
 #define MAG3110_CTRL_AC BIT(0) /* continuous measurements */
@@ -52,17 +55,20 @@ struct mag3110_data {
 	struct i2c_client *client;
 	struct mutex lock;
 	u8 ctrl_reg1;
+	int sleep_val;
 };
 
 static int mag3110_request(struct mag3110_data *data)
 {
 	int ret, tries = 150;
 
-	/* trigger measurement */
-	ret = i2c_smbus_write_byte_data(data->client, MAG3110_CTRL_REG1,
-		data->ctrl_reg1 | MAG3110_CTRL_TM);
-	if (ret < 0)
-		return ret;
+	if ((data->ctrl_reg1 & MAG3110_CTRL_AC) == 0) {
+		/* trigger measurement */
+		ret = i2c_smbus_write_byte_data(data->client, MAG3110_CTRL_REG1,
+			data->ctrl_reg1 | MAG3110_CTRL_TM);
+		if (ret < 0)
+			return ret;
+	}
 
 	while (tries-- > 0) {
 		ret = i2c_smbus_read_byte_data(data->client, MAG3110_STATUS);
@@ -71,7 +77,11 @@ static int mag3110_request(struct mag3110_data *data)
 		/* wait for data ready */
 		if ((ret & MAG3110_STATUS_DRDY) == MAG3110_STATUS_DRDY)
 			break;
-		msleep(20);
+
+		if (data->sleep_val <= 20)
+			usleep_range(data->sleep_val * 250, data->sleep_val * 500);
+		else
+			msleep(20);
 	}
 
 	if (tries < 0) {
@@ -144,6 +154,117 @@ static int mag3110_get_samp_freq_index(struct mag3110_data *data,
 		val2);
 }
 
+static int mag3110_calculate_sleep(struct mag3110_data *data)
+{
+	int ret, i = data->ctrl_reg1 >> MAG3110_CTRL_DR_SHIFT;
+
+	if (mag3110_samp_freq[i][0] > 0)
+		ret = 1000 / mag3110_samp_freq[i][0];
+	else
+		ret = 1000;
+
+	return ret == 0 ? 1 : ret;
+}
+
+static int mag3110_standby(struct mag3110_data *data)
+{
+	return i2c_smbus_write_byte_data(data->client, MAG3110_CTRL_REG1,
+		data->ctrl_reg1 & ~MAG3110_CTRL_AC);
+}
+
+static int mag3110_wait_standby(struct mag3110_data *data)
+{
+	int ret, tries = 30;
+
+	/*
+	 * Takes up to 1/ODR to come out of active mode into stby
+	 * Longest expected period is 12.5seconds.
+	 * We'll sleep for 500ms between checks
+	 */
+	while (tries-- > 0) {
+		ret = i2c_smbus_read_byte_data(data->client, MAG3110_SYSMOD);
+		if (ret < 0) {
+			dev_err(&data->client->dev, "i2c error\n");
+			return ret;
+		}
+		/* wait for standby */
+		if ((ret & MAG3110_SYSMOD_MODE_MASK) == 0)
+			break;
+
+		msleep_interruptible(500);
+	}
+
+	if (tries < 0) {
+		dev_err(&data->client->dev, "device not entering standby mode\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int mag3110_active(struct mag3110_data *data)
+{
+	return i2c_smbus_write_byte_data(data->client, MAG3110_CTRL_REG1,
+					 data->ctrl_reg1);
+}
+
+/* returns >0 if active, 0 if in standby and <0 on error */
+static int mag3110_is_active(struct mag3110_data *data)
+{
+	int reg;
+
+	reg = i2c_smbus_read_byte_data(data->client, MAG3110_CTRL_REG1);
+	if (reg < 0)
+		return reg;
+
+	return reg & MAG3110_CTRL_AC;
+}
+
+static int mag3110_change_config(struct mag3110_data *data, u8 reg, u8 val)
+{
+	int ret;
+	int is_active;
+
+	mutex_lock(&data->lock);
+
+	is_active = mag3110_is_active(data);
+	if (is_active < 0) {
+		ret = is_active;
+		goto fail;
+	}
+
+	/* config can only be changed when in standby */
+	if (is_active > 0) {
+		ret = mag3110_standby(data);
+		if (ret < 0)
+			goto fail;
+	}
+
+	/*
+	 * After coming out of active we must wait for the part
+	 * to transition to STBY. This can take up to 1 /ODR to occur
+	 */
+	ret = mag3110_wait_standby(data);
+	if (ret < 0)
+		goto fail;
+
+	ret = i2c_smbus_write_byte_data(data->client, reg, val);
+	if (ret < 0)
+		goto fail;
+
+	if (is_active > 0) {
+		ret = mag3110_active(data);
+		if (ret < 0)
+			goto fail;
+	}
+
+	ret = 0;
+fail:
+	mutex_unlock(&data->lock);
+
+	return ret;
+}
+
 static int mag3110_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int *val, int *val2, long mask)
@@ -154,34 +275,41 @@ static int mag3110_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		if (iio_buffer_enabled(indio_dev))
-			return -EBUSY;
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 
 		switch (chan->type) {
 		case IIO_MAGN: /* in 0.1 uT / LSB */
 			ret = mag3110_read(data, buffer);
 			if (ret < 0)
-				return ret;
+				goto release;
 			*val = sign_extend32(
 				be16_to_cpu(buffer[chan->scan_index]), 15);
-			return IIO_VAL_INT;
+			ret = IIO_VAL_INT;
+			break;
 		case IIO_TEMP: /* in 1 C / LSB */
 			mutex_lock(&data->lock);
 			ret = mag3110_request(data);
 			if (ret < 0) {
 				mutex_unlock(&data->lock);
-				return ret;
+				goto release;
 			}
 			ret = i2c_smbus_read_byte_data(data->client,
 				MAG3110_DIE_TEMP);
 			mutex_unlock(&data->lock);
 			if (ret < 0)
-				return ret;
+				goto release;
 			*val = sign_extend32(ret, 7);
-			return IIO_VAL_INT;
+			ret = IIO_VAL_INT;
+			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
 		}
+release:
+		iio_device_release_direct_mode(indio_dev);
+		return ret;
+
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_MAGN:
@@ -215,29 +343,43 @@ static int mag3110_write_raw(struct iio_dev *indio_dev,
 			     int val, int val2, long mask)
 {
 	struct mag3110_data *data = iio_priv(indio_dev);
-	int rate;
+	int rate, ret;
 
-	if (iio_buffer_enabled(indio_dev))
-		return -EBUSY;
+	ret = iio_device_claim_direct_mode(indio_dev);
+	if (ret)
+		return ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		rate = mag3110_get_samp_freq_index(data, val, val2);
-		if (rate < 0)
-			return -EINVAL;
-
-		data->ctrl_reg1 &= ~MAG3110_CTRL_DR_MASK;
+		if (rate < 0) {
+			ret = -EINVAL;
+			break;
+		}
+		data->ctrl_reg1 &= 0xff & ~MAG3110_CTRL_DR_MASK
+					& ~MAG3110_CTRL_AC;
 		data->ctrl_reg1 |= rate << MAG3110_CTRL_DR_SHIFT;
-		return i2c_smbus_write_byte_data(data->client,
-			MAG3110_CTRL_REG1, data->ctrl_reg1);
+		data->sleep_val = mag3110_calculate_sleep(data);
+		if (data->sleep_val < 40)
+			data->ctrl_reg1 |= MAG3110_CTRL_AC;
+
+		ret = mag3110_change_config(data, MAG3110_CTRL_REG1,
+					    data->ctrl_reg1);
+		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
-		if (val < -10000 || val > 10000)
-			return -EINVAL;
-		return i2c_smbus_write_word_swapped(data->client,
+		if (val < -10000 || val > 10000) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = i2c_smbus_write_word_swapped(data->client,
 			MAG3110_OFF_X + 2 * chan->scan_index, val << 1);
+		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
+	iio_device_release_direct_mode(indio_dev);
+	return ret;
 }
 
 static irqreturn_t mag3110_trigger_handler(int irq, void *p)
@@ -261,7 +403,7 @@ static irqreturn_t mag3110_trigger_handler(int irq, void *p)
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
-		iio_get_time_ns());
+		iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -316,16 +458,9 @@ static const struct iio_info mag3110_info = {
 	.attrs = &mag3110_group,
 	.read_raw = &mag3110_read_raw,
 	.write_raw = &mag3110_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const unsigned long mag3110_scan_masks[] = {0x7, 0xf, 0};
-
-static int mag3110_standby(struct mag3110_data *data)
-{
-	return i2c_smbus_write_byte_data(data->client, MAG3110_CTRL_REG1,
-		data->ctrl_reg1 & ~MAG3110_CTRL_AC);
-}
 
 static int mag3110_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -358,8 +493,11 @@ static int mag3110_probe(struct i2c_client *client,
 	indio_dev->available_scan_masks = mag3110_scan_masks;
 
 	data->ctrl_reg1 = MAG3110_CTRL_DR_DEFAULT << MAG3110_CTRL_DR_SHIFT;
-	ret = i2c_smbus_write_byte_data(client, MAG3110_CTRL_REG1,
-		data->ctrl_reg1);
+	data->sleep_val = mag3110_calculate_sleep(data);
+	if (data->sleep_val < 40)
+		data->ctrl_reg1 |= MAG3110_CTRL_AC;
+
+	ret = mag3110_change_config(data, MAG3110_CTRL_REG1, data->ctrl_reg1);
 	if (ret < 0)
 		return ret;
 
@@ -424,9 +562,16 @@ static const struct i2c_device_id mag3110_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mag3110_id);
 
+static const struct of_device_id mag3110_of_match[] = {
+	{ .compatible = "fsl,mag3110" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, mag3110_of_match);
+
 static struct i2c_driver mag3110_driver = {
 	.driver = {
 		.name	= "mag3110",
+		.of_match_table = mag3110_of_match,
 		.pm	= MAG3110_PM_OPS,
 	},
 	.probe = mag3110_probe,

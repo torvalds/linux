@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1995, 1996, 1997 Paul M. Antoine and Harald Koerfgen
  * Copyright (C) 2000, 2001, 2002, 2003, 2005  Maciej W. Rozycki
@@ -5,7 +6,7 @@
  * Written by Ralf Baechle and Andreas Busse, modified for DECstation
  * support by Paul Antoine and Harald Koerfgen.
  *
- * completly rewritten:
+ * completely rewritten:
  * Copyright (C) 1998 Harald Koerfgen
  *
  * Rewritten extensively for controller-driven IRQ support
@@ -146,7 +147,14 @@
 		/*
 		 * Find irq with highest priority
 		 */
-		 PTR_LA	t1,cpu_mask_nr_tbl
+		# open coded PTR_LA t1, cpu_mask_nr_tbl
+#if defined(CONFIG_32BIT) || defined(KBUILD_64BIT_SYM32)
+		# open coded la t1, cpu_mask_nr_tbl
+		lui	t1, %hi(cpu_mask_nr_tbl)
+		addiu	t1, %lo(cpu_mask_nr_tbl)
+#else
+#error GCC `-msym32' option required for 64-bit DECstation builds
+#endif
 1:		lw	t2,(t1)
 		nop
 		and	t2,t0
@@ -195,7 +203,14 @@
 		/*
 		 * Find irq with highest priority
 		 */
-		 PTR_LA	t1,asic_mask_nr_tbl
+		# open coded PTR_LA t1,asic_mask_nr_tbl
+#if defined(CONFIG_32BIT) || defined(KBUILD_64BIT_SYM32)
+		# open coded la t1, asic_mask_nr_tbl
+		lui	t1, %hi(asic_mask_nr_tbl)
+		addiu	t1, %lo(asic_mask_nr_tbl)
+#else
+#error GCC `-msym32' option required for 64-bit DECstation builds
+#endif
 2:		lw	t2,(t1)
 		nop
 		and	t2,t0

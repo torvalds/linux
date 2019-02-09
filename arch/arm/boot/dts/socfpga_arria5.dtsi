@@ -30,7 +30,6 @@
 		};
 
 		mmc0: dwmmc0@ff704000 {
-			num-slots = <1>;
 			broken-cd;
 			bus-width = <4>;
 			cap-mmc-highspeed;
@@ -41,4 +40,8 @@
 			cpu1-start-addr = <0xffd080c4>;
 		};
 	};
+};
+
+&watchdog0 {
+	status = "okay";
 };

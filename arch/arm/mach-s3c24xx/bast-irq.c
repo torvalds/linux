@@ -1,25 +1,9 @@
-/* linux/arch/arm/mach-s3c2410/bast-irq.c
- *
- * Copyright 2003-2005 Simtec Electronics
- *   Ben Dooks <ben@simtec.co.uk>
- *
- * http://www.simtec.co.uk/products/EB2410ITX/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
-
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2003-2005 Simtec Electronics
+//   Ben Dooks <ben@simtec.co.uk>
+//
+// http://www.simtec.co.uk/products/EB2410ITX/
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -44,7 +28,7 @@
 /* table of ISA irq nos to the relevant mask... zero means
  * the irq is not implemented
 */
-static unsigned char bast_pc104_irqmasks[] = {
+static const unsigned char bast_pc104_irqmasks[] = {
 	0,   /* 0 */
 	0,   /* 1 */
 	0,   /* 2 */
@@ -63,7 +47,7 @@ static unsigned char bast_pc104_irqmasks[] = {
 	0,   /* 15 */
 };
 
-static unsigned char bast_pc104_irqs[] = { 3, 5, 7, 10 };
+static const unsigned char bast_pc104_irqs[] = { 3, 5, 7, 10 };
 
 static void
 bast_pc104_mask(struct irq_data *data)

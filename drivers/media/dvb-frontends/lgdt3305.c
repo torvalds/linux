@@ -15,16 +15,12 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <asm/div64.h>
 #include <linux/dvb/frontend.h>
 #include <linux/slab.h>
-#include "dvb_math.h"
+#include <media/dvb_math.h>
 #include "lgdt3305.h"
 
 static int debug;
@@ -812,9 +808,9 @@ fail:
 	return ret;
 }
 
-static int lgdt3305_get_frontend(struct dvb_frontend *fe)
+static int lgdt3305_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct lgdt3305_state *state = fe->demodulator_priv;
 
 	lg_dbg("\n");
@@ -1103,8 +1099,8 @@ static void lgdt3305_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops lgdt3304_ops;
-static struct dvb_frontend_ops lgdt3305_ops;
+static const struct dvb_frontend_ops lgdt3304_ops;
+static const struct dvb_frontend_ops lgdt3305_ops;
 
 struct dvb_frontend *lgdt3305_attach(const struct lgdt3305_config *config,
 				     struct i2c_adapter *i2c_adap)
@@ -1164,13 +1160,13 @@ fail:
 }
 EXPORT_SYMBOL(lgdt3305_attach);
 
-static struct dvb_frontend_ops lgdt3304_ops = {
+static const struct dvb_frontend_ops lgdt3304_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "LG Electronics LGDT3304 VSB/QAM Frontend",
-		.frequency_min      = 54000000,
-		.frequency_max      = 858000000,
-		.frequency_stepsize = 62500,
+		.frequency_min_hz      =  54 * MHz,
+		.frequency_max_hz      = 858 * MHz,
+		.frequency_stepsize_hz = 62500,
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 	.i2c_gate_ctrl        = lgdt3305_i2c_gate_ctrl,
@@ -1187,13 +1183,13 @@ static struct dvb_frontend_ops lgdt3304_ops = {
 	.release              = lgdt3305_release,
 };
 
-static struct dvb_frontend_ops lgdt3305_ops = {
+static const struct dvb_frontend_ops lgdt3305_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "LG Electronics LGDT3305 VSB/QAM Frontend",
-		.frequency_min      = 54000000,
-		.frequency_max      = 858000000,
-		.frequency_stepsize = 62500,
+		.frequency_min_hz      =  54 * MHz,
+		.frequency_max_hz      = 858 * MHz,
+		.frequency_stepsize_hz = 62500,
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 	.i2c_gate_ctrl        = lgdt3305_i2c_gate_ctrl,

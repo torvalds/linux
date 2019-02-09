@@ -238,7 +238,7 @@
 
 				/* This will create 52 and 53 */
 				at24@52 {
-					compatible = "at,24c04";
+					compatible = "atmel,24c04";
 					reg = <0x52>;
 				};
 			};
@@ -304,6 +304,6 @@
 	};
 
 	chosen {
-		linux,stdout-path = "/plb/opb/serial@ef600300";
+		stdout-path = "/plb/opb/serial@ef600300";
 	};
 };

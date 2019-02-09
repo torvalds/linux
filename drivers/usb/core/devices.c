@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * devices.c
  * (C) Copyright 1999 Randy Dunlap.
@@ -5,26 +6,12 @@
  *     (proc file per device)
  * (C) Copyright 1999 Deti Fliegl (new USB architecture)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  *************************************************************
  *
  * <mountpoint>/devices contains USB topology, device, config, class,
  * interface, & endpoint data.
  *
- * I considered using /proc/bus/usb/devices/device# for each device
+ * I considered using /dev/bus/usb/device# for each device
  * as it is attached or detached, but I didn't like this for some
  * reason -- maybe it's just too deep of a directory structure.
  * I also don't like looking in multiple places to gather and view
@@ -40,7 +27,7 @@
  *   Converted the whole proc stuff to real
  *   read methods. Now not the whole device list needs to fit
  *   into one page, only the device list for one bus.
- *   Added a poll method to /proc/bus/usb/devices, to wake
+ *   Added a poll method to /sys/kernel/debug/usb/devices, to wake
  *   up an eventual usbd
  * 2000-01-04: Thomas Sailer <sailer@ife.ee.ethz.ch>
  *   Turned into its own filesystem
@@ -109,13 +96,6 @@ static const char format_iface[] =
 static const char format_endpt[] =
 /* E:  Ad=xx(s) Atr=xx(ssss) MxPS=dddd Ivl=D?s */
   "E:  Ad=%02x(%c) Atr=%02x(%-4s) MxPS=%4d Ivl=%d%cs\n";
-
-
-/*
- * Need access to the driver and USB bus lists.
- * extern struct list_head usb_bus_list;
- * However, these will come from functions that return ptrs to each of them.
- */
 
 /*
  * Wait for an connect/disconnect event to happen. We initialize
@@ -189,14 +169,8 @@ static char *usb_dump_endpoint_descriptor(int speed, char *start, char *end,
 
 	dir = usb_endpoint_dir_in(desc) ? 'I' : 'O';
 
-	if (speed == USB_SPEED_HIGH) {
-		switch (usb_endpoint_maxp(desc) & (0x03 << 11)) {
-		case 1 << 11:
-			bandwidth = 2; break;
-		case 2 << 11:
-			bandwidth = 3; break;
-		}
-	}
+	if (speed == USB_SPEED_HIGH)
+		bandwidth = usb_endpoint_maxp_mult(desc);
 
 	/* this isn't checking for illegal values */
 	switch (usb_endpoint_type(desc)) {
@@ -221,7 +195,7 @@ static char *usb_dump_endpoint_descriptor(int speed, char *start, char *end,
 		break;
 	case USB_ENDPOINT_XFER_INT:
 		type = "Int.";
-		if (speed == USB_SPEED_HIGH || speed == USB_SPEED_SUPER)
+		if (speed == USB_SPEED_HIGH || speed >= USB_SPEED_SUPER)
 			interval = 1 << (desc->bInterval - 1);
 		else
 			interval = desc->bInterval;
@@ -230,7 +204,7 @@ static char *usb_dump_endpoint_descriptor(int speed, char *start, char *end,
 		return start;
 	}
 	interval *= (speed == USB_SPEED_HIGH ||
-		     speed == USB_SPEED_SUPER) ? 125 : 1000;
+		     speed >= USB_SPEED_SUPER) ? 125 : 1000;
 	if (interval % 1000)
 		unit = 'u';
 	else {
@@ -240,7 +214,7 @@ static char *usb_dump_endpoint_descriptor(int speed, char *start, char *end,
 
 	start += sprintf(start, format_endpt, desc->bEndpointAddress, dir,
 			 desc->bmAttributes, type,
-			 (usb_endpoint_maxp(desc) & 0x07ff) *
+			 usb_endpoint_maxp(desc) *
 			 bandwidth,
 			 interval, unit);
 	return start;
@@ -322,7 +296,7 @@ static char *usb_dump_config_descriptor(char *start, char *end,
 
 	if (start > end)
 		return start;
-	if (speed == USB_SPEED_SUPER)
+	if (speed >= USB_SPEED_SUPER)
 		mul = 8;
 	else
 		mul = 2;
@@ -534,6 +508,8 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 		speed = "480"; break;
 	case USB_SPEED_SUPER:
 		speed = "5000"; break;
+	case USB_SPEED_SUPER_PLUS:
+		speed = "10000"; break;
 	default:
 		speed = "??";
 	}
@@ -553,7 +529,7 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 
 		/* super/high speed reserves 80%, full/low reserves 90% */
 		if (usbdev->speed == USB_SPEED_HIGH ||
-		    usbdev->speed == USB_SPEED_SUPER)
+		    usbdev->speed >= USB_SPEED_SUPER)
 			max = 800;
 		else
 			max = FRAME_TIME_MAX_USECS_ALLOC;
@@ -616,6 +592,7 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 	struct usb_bus *bus;
 	ssize_t ret, total_written = 0;
 	loff_t skip_bytes = *ppos;
+	int id;
 
 	if (*ppos < 0)
 		return -EINVAL;
@@ -624,9 +601,9 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 	if (!access_ok(VERIFY_WRITE, buf, nbytes))
 		return -EFAULT;
 
-	mutex_lock(&usb_bus_list_lock);
+	mutex_lock(&usb_bus_idr_lock);
 	/* print devices for all busses */
-	list_for_each_entry(bus, &usb_bus_list, bus_list) {
+	idr_for_each_entry(&usb_bus_idr, bus, id) {
 		/* recurse through all children of the root hub */
 		if (!bus_to_hcd(bus)->rh_registered)
 			continue;
@@ -635,17 +612,17 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 				      bus->root_hub, bus, 0, 0, 0);
 		usb_unlock_device(bus->root_hub);
 		if (ret < 0) {
-			mutex_unlock(&usb_bus_list_lock);
+			mutex_unlock(&usb_bus_idr_lock);
 			return ret;
 		}
 		total_written += ret;
 	}
-	mutex_unlock(&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_idr_lock);
 	return total_written;
 }
 
 /* Kernel lock for "lastev" protection */
-static unsigned int usb_device_poll(struct file *file,
+static __poll_t usb_device_poll(struct file *file,
 				    struct poll_table_struct *wait)
 {
 	unsigned int event_count;
@@ -655,38 +632,14 @@ static unsigned int usb_device_poll(struct file *file,
 	event_count = atomic_read(&device_event.count);
 	if (file->f_version != event_count) {
 		file->f_version = event_count;
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	}
 
 	return 0;
 }
 
-static loff_t usb_device_lseek(struct file *file, loff_t offset, int orig)
-{
-	loff_t ret;
-
-	mutex_lock(&file_inode(file)->i_mutex);
-
-	switch (orig) {
-	case 0:
-		file->f_pos = offset;
-		ret = file->f_pos;
-		break;
-	case 1:
-		file->f_pos += offset;
-		ret = file->f_pos;
-		break;
-	case 2:
-	default:
-		ret = -EINVAL;
-	}
-
-	mutex_unlock(&file_inode(file)->i_mutex);
-	return ret;
-}
-
 const struct file_operations usbfs_devices_fops = {
-	.llseek =	usb_device_lseek,
+	.llseek =	no_seek_end_llseek,
 	.read =		usb_device_read,
 	.poll =		usb_device_poll,
 };

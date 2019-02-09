@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * quota.h for OCFS2
  *
@@ -82,7 +83,7 @@ struct ocfs2_quota_chunk {
 extern struct kmem_cache *ocfs2_dquot_cachep;
 extern struct kmem_cache *ocfs2_qf_chunk_cachep;
 
-extern struct qtree_fmt_operations ocfs2_global_ops;
+extern const struct qtree_fmt_operations ocfs2_global_ops;
 
 struct ocfs2_quota_recovery *ocfs2_begin_quota_recovery(
 				struct ocfs2_super *osb, int slot_num);

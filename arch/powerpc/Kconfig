@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 source "arch/powerpc/platforms/Kconfig.cputype"
 
 config PPC32
@@ -12,20 +13,51 @@ config 64BIT
 	bool
 	default y if PPC64
 
-config WORD_SIZE
-	int
-	default 64 if PPC64
-	default 32 if !PPC64
-
-config ARCH_PHYS_ADDR_T_64BIT
-       def_bool PPC64 || PHYS_64BIT
-
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool ARCH_PHYS_ADDR_T_64BIT
-
 config MMU
 	bool
 	default y
+
+config ARCH_MMAP_RND_BITS_MAX
+	# On Book3S 64, the default virtual address space for 64-bit processes
+	# is 2^47 (128TB). As a maximum, allow randomisation to consume up to
+	# 32T of address space (2^45), which should ensure a reasonable gap
+	# between bottom-up and top-down allocations for applications that
+	# consume "normal" amounts of address space. Book3S 64 only supports 64K
+	# and 4K page sizes.
+	default 29 if PPC_BOOK3S_64 && PPC_64K_PAGES # 29 = 45 (32T) - 16 (64K)
+	default 33 if PPC_BOOK3S_64		     # 33 = 45 (32T) - 12 (4K)
+	#
+	# On all other 64-bit platforms (currently only Book3E), the virtual
+	# address space is 2^46 (64TB). Allow randomisation to consume up to 16T
+	# of address space (2^44). Only 4K page sizes are supported.
+	default 32 if 64BIT	# 32 = 44 (16T) - 12 (4K)
+	#
+	# For 32-bit, use the compat values, as they're the same.
+	default ARCH_MMAP_RND_COMPAT_BITS_MAX
+
+config ARCH_MMAP_RND_BITS_MIN
+	# Allow randomisation to consume up to 1GB of address space (2^30).
+	default 14 if 64BIT && PPC_64K_PAGES	# 14 = 30 (1GB) - 16 (64K)
+	default 18 if 64BIT			# 18 = 30 (1GB) - 12 (4K)
+	#
+	# For 32-bit, use the compat values, as they're the same.
+	default ARCH_MMAP_RND_COMPAT_BITS_MIN
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+	# Total virtual address space for 32-bit processes is 2^31 (2GB).
+	# Allow randomisation to consume up to 512MB of address space (2^29).
+	default 11 if PPC_256K_PAGES	# 11 = 29 (512MB) - 18 (256K)
+	default 13 if PPC_64K_PAGES	# 13 = 29 (512MB) - 16 (64K)
+	default 15 if PPC_16K_PAGES 	# 15 = 29 (512MB) - 14 (16K)
+	default 17			# 17 = 29 (512MB) - 12 (4K)
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+	# Total virtual address space for 32-bit processes is 2^31 (2GB).
+	# Allow randomisation to consume up to 8MB of address space (2^23).
+	default 5 if PPC_256K_PAGES	#  5 = 23 (8MB) - 18 (256K)
+	default 7 if PPC_64K_PAGES	#  7 = 23 (8MB) - 16 (64K)
+	default 9 if PPC_16K_PAGES	#  9 = 23 (8MB) - 14 (16K)
+	default 11			# 11 = 23 (8MB) - 12 (4K)
 
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool PPC64
@@ -43,12 +75,25 @@ config NR_IRQS
 	  /proc/interrupts. If you configure your system to have too few,
 	  drivers will fail to load or worse - handle with care.
 
+config NMI_IPI
+	bool
+	depends on SMP && (DEBUGGER || KEXEC_CORE || HARDLOCKUP_DETECTOR)
+	default y
+
+config PPC_WATCHDOG
+	bool
+	depends on HARDLOCKUP_DETECTOR
+	depends on HAVE_HARDLOCKUP_DETECTOR_ARCH
+	default y
+	help
+	  This is a placeholder when the powerpc hardlockup detector
+	  watchdog is selected (arch/powerpc/kernel/watchdog.c). It is
+	  seleted via the generic lockup detector menu which is why we
+	  have no standalone config option for it here.
+
 config STACKTRACE_SUPPORT
 	bool
 	default y
-
-config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
 
 config TRACE_IRQFLAGS_SUPPORT
 	bool
@@ -70,14 +115,6 @@ config GENERIC_LOCKBREAK
 	default y
 	depends on SMP && PREEMPT
 
-config ARCH_HAS_ILOG2_U32
-	bool
-	default y
-
-config ARCH_HAS_ILOG2_U64
-	bool
-	default y if 64BIT
-
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -88,81 +125,130 @@ config ARCH_HAS_DMA_SET_COHERENT_MASK
 config PPC
 	bool
 	default y
+	#
+	# Please keep this list sorted alphabetically.
+	#
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
+	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_FORTIFY_SOURCE
+	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_PHYS_TO_DMA
+	select ARCH_HAS_PMEM_API                if PPC64
+	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_MEMBARRIER_CALLBACKS
+	select ARCH_HAS_SCALED_CPUTIME		if VIRT_CPU_ACCOUNTING_NATIVE
+	select ARCH_HAS_SG_CHAIN
+	select ARCH_HAS_STRICT_KERNEL_RWX	if ((PPC_BOOK3S_64 || PPC32) && !RELOCATABLE && !HIBERNATION)
+	select ARCH_HAS_TICK_BROADCAST		if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_HAS_UACCESS_FLUSHCACHE	if PPC64
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_ZONE_DEVICE		if PPC_BOOK3S_64
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
+	select ARCH_OPTIONAL_KERNEL_RWX		if ARCH_HAS_STRICT_KERNEL_RWX
+	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_USE_BUILTIN_BSWAP
+	select ARCH_USE_CMPXCHG_LOCKREF		if PPC64
+	select ARCH_WANT_IPC_PARSE_VERSION
+	select ARCH_WEAK_RELEASE_ACQUIRE
 	select BINFMT_ELF
-	select ARCH_HAS_ELF_RANDOMIZE
+	select BUILDTIME_EXTABLE_SORT
+	select CLONE_BACKWARDS
+	select DCACHE_WORD_ACCESS		if PPC64 && CPU_LITTLE_ENDIAN
+	select DYNAMIC_FTRACE			if FUNCTION_TRACER
+	select EDAC_ATOMIC_SCRUB
+	select EDAC_SUPPORT
+	select GENERIC_ATOMIC64			if PPC32
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CLOCKEVENTS_BROADCAST	if SMP
+	select GENERIC_CMOS_UPDATE
+	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_CPU_VULNERABILITIES	if PPC_BARRIER_NOSPEC
+	select GENERIC_IRQ_SHOW
+	select GENERIC_IRQ_SHOW_LEVEL
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_STRNLEN_USER
+	select GENERIC_TIME_VSYSCALL
+	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_MMAP_RND_BITS
+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if COMPAT
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_CBPF_JIT			if !PPC64
+	select HAVE_CONTEXT_TRACKING		if PPC64
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS	if MPROFILE_KERNEL
+	select HAVE_EBPF_JIT			if PPC64
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS	if !(CPU_LITTLE_ENDIAN && POWER7_CPU)
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACER
+	select HAVE_GCC_PLUGINS			if GCC_VERSION >= 50200   # plugin support on gcc <= 5.1 is buggy on PPC
+	select HAVE_GENERIC_GUP
+	select HAVE_HW_BREAKPOINT		if PERF_EVENTS && (PPC_BOOK3S || PPC_8xx)
+	select HAVE_IDE
+	select HAVE_IOREMAP_PROT
+	select HAVE_IRQ_EXIT_ON_IRQ_STACK
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_XZ			if PPC_BOOK3S
+	select HAVE_KPROBES
+	select HAVE_KPROBES_ON_FTRACE
+	select HAVE_KRETPROBES
+	select HAVE_LD_DEAD_CODE_DATA_ELIMINATION
+	select HAVE_LIVEPATCH			if HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
+	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_NMI				if PERF_EVENTS || (PPC64 && PPC_BOOK3S)
+	select HAVE_HARDLOCKUP_DETECTOR_ARCH	if (PPC64 && PPC_BOOK3S)
+	select HAVE_OPROFILE
+	select HAVE_OPTPROBES			if PPC64
+	select HAVE_PERF_EVENTS
+	select HAVE_PERF_EVENTS_NMI		if PPC64
+	select HAVE_HARDLOCKUP_DETECTOR_PERF	if PERF_EVENTS && HAVE_PERF_EVENTS_NMI && !HAVE_HARDLOCKUP_DETECTOR_ARCH
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_RCU_TABLE_FREE		if SMP
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RELIABLE_STACKTRACE		if PPC64 && CPU_LITTLE_ENDIAN
+	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_VIRT_CPU_ACCOUNTING
+	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_RSEQ
+	select IOMMU_HELPER			if PPC64
+	select IRQ_DOMAIN
+	select IRQ_FORCED_THREADING
+	select MODULES_USE_ELF_RELA
+	select NEED_DMA_MAP_STATE		if PPC64 || NOT_COHERENT_CACHE
+	select NEED_SG_DMA_LENGTH
+	select NO_BOOTMEM
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_RESERVED_MEM
-	select HAVE_FTRACE_MCOUNT_RECORD
-	select HAVE_DYNAMIC_FTRACE
-	select HAVE_FUNCTION_TRACER
-	select HAVE_FUNCTION_GRAPH_TRACER
-	select SYSCTL_EXCEPTION_TRACE
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select VIRT_TO_BUS if !PPC64
-	select HAVE_IDE
-	select HAVE_IOREMAP_PROT
-	select HAVE_EFFICIENT_UNALIGNED_ACCESS if !CPU_LITTLE_ENDIAN
-	select HAVE_KPROBES
-	select HAVE_ARCH_KGDB
-	select HAVE_KRETPROBES
-	select HAVE_ARCH_TRACEHOOK
-	select HAVE_MEMBLOCK
-	select HAVE_MEMBLOCK_NODE_MAP
-	select HAVE_DMA_ATTRS
-	select HAVE_DMA_API_DEBUG
-	select HAVE_OPROFILE
-	select HAVE_DEBUG_KMEMLEAK
-	select ARCH_HAS_SG_CHAIN
-	select GENERIC_ATOMIC64 if PPC32
-	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
-	select HAVE_PERF_EVENTS
-	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_HW_BREAKPOINT if PERF_EVENTS && PPC_BOOK3S_64
-	select ARCH_WANT_IPC_PARSE_VERSION
-	select SPARSE_IRQ
-	select IRQ_DOMAIN
-	select GENERIC_IRQ_SHOW
-	select GENERIC_IRQ_SHOW_LEVEL
-	select IRQ_FORCED_THREADING
-	select HAVE_RCU_TABLE_FREE if SMP
-	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_BPF_JIT
-	select HAVE_ARCH_JUMP_LABEL
-	select ARCH_HAVE_NMI_SAFE_CMPXCHG
-	select ARCH_HAS_GCOV_PROFILE_ALL
-	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_CMOS_UPDATE
-	select GENERIC_TIME_VSYSCALL_OLD
-	select GENERIC_CLOCKEVENTS
-	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
-	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
-	select GENERIC_STRNCPY_FROM_USER
-	select GENERIC_STRNLEN_USER
-	select HAVE_MOD_ARCH_SPECIFIC
-	select MODULES_USE_ELF_RELA
-	select CLONE_BACKWARDS
-	select ARCH_USE_BUILTIN_BSWAP
+	select OLD_SIGACTION			if PPC32
 	select OLD_SIGSUSPEND
-	select OLD_SIGACTION if PPC32
-	select HAVE_DEBUG_STACKOVERFLOW
-	select HAVE_IRQ_EXIT_ON_IRQ_STACK
-	select ARCH_USE_CMPXCHG_LOCKREF if PPC64
-	select HAVE_ARCH_AUDITSYSCALL
-	select ARCH_SUPPORTS_ATOMIC_RMW
-	select DCACHE_WORD_ACCESS if PPC64 && CPU_LITTLE_ENDIAN
-	select NO_BOOTMEM
-	select HAVE_GENERIC_RCU_GUP
-	select HAVE_PERF_EVENTS_NMI if PPC64
-	select EDAC_SUPPORT
-	select EDAC_ATOMIC_SCRUB
-	select ARCH_HAS_DMA_SET_COHERENT_MASK
-	select HAVE_ARCH_SECCOMP_FILTER
+	select RTC_LIB
+	select SPARSE_IRQ
+	select SYSCTL_EXCEPTION_TRACE
+	select VIRT_TO_BUS			if !PPC64
+	#
+	# Please keep this list sorted alphabetically.
+	#
+
+config PPC_BARRIER_NOSPEC
+    bool
+    default y
+    depends on PPC_BOOK3S_64 || PPC_FSL_BOOK3E
 
 config GENERIC_CSUM
-	def_bool CPU_LITTLE_ENDIAN
+	def_bool n
 
 config EARLY_PRINTK
 	bool
@@ -261,7 +347,7 @@ config PPC_OF_PLATFORM_PCI
 	default n
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
-	depends on PPC32 || PPC_STD_MMU_64
+	depends on PPC32 || PPC_BOOK3S_64
 	def_bool y
 
 config ARCH_SUPPORTS_UPROBES
@@ -294,10 +380,6 @@ config PPC_ADV_DEBUG_DAC_RANGE
 	depends on PPC_ADV_DEBUG_REGS && 44x
 	default y
 
-config PPC_EMULATE_SSTEP
-	bool
-	default y if KPROBES || UPROBES || XMON || HAVE_HW_BREAKPOINT
-
 config ZONE_DMA32
 	bool
 	default y if PPC64
@@ -305,12 +387,8 @@ config ZONE_DMA32
 config PGTABLE_LEVELS
 	int
 	default 2 if !PPC64
-	default 3 if PPC_64K_PAGES
+	default 3 if PPC_64K_PAGES && !PPC_BOOK3S_64
 	default 4
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
 
 source "arch/powerpc/sysdev/Kconfig"
 source "arch/powerpc/platforms/Kconfig"
@@ -322,8 +400,6 @@ config HIGHMEM
 	depends on PPC32
 
 source kernel/Kconfig.hz
-source kernel/Kconfig.preempt
-source "fs/Kconfig.binfmt"
 
 config HUGETLB_PAGE_SIZE_VARIABLE
 	bool
@@ -332,7 +408,7 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || PPC_MPC832x || BOOKE
+	depends on 4xx || PPC_8xx || PPC_MPC832x || BOOKE
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -375,23 +451,25 @@ config PPC_TRANSACTIONAL_MEM
        ---help---
          Support user-mode Transactional Memory on POWERPC.
 
-config IOMMU_HELPER
-	def_bool PPC64
-
-config SWIOTLB
-	bool "SWIOTLB support"
+config LD_HEAD_STUB_CATCH
+	bool "Reserve 256 bytes to cope with linker stubs in HEAD text" if EXPERT
+	depends on PPC64
 	default n
-	select IOMMU_HELPER
-	---help---
-	  Support for IO bounce buffering for systems without an IOMMU.
-	  This allows us to DMA to the full physical address space on
-	  platforms where the size of a physical address is larger
-	  than the bus address.  Not all platforms support this.
+	help
+	  Very large kernels can cause linker branch stubs to be generated by
+	  code in head_64.S, which moves the head text sections out of their
+	  specified location. This option can work around the problem.
+
+	  If unsure, say "N".
+
+config MPROFILE_KERNEL
+	depends on PPC64 && CPU_LITTLE_ENDIAN
+	def_bool $(success,$(srctree)/arch/powerpc/tools/gcc-check-mprofile-kernel.sh $(CC) -I$(srctree)/include -D__KERNEL__)
 
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && (PPC_PSERIES || \
-	PPC_PMAC || PPC_POWERNV || (PPC_85xx && !PPC_E500MC))
+	PPC_PMAC || PPC_POWERNV || FSL_SOC_BOOKE)
 	---help---
 	  Say Y here to be able to disable and re-enable individual
 	  CPUs at runtime on SMP machines.
@@ -435,22 +513,74 @@ config KEXEC
 	  interface is strongly in flux, so no good recommendation can be
 	  made.
 
-config CRASH_DUMP
-	bool "Build a kdump crash kernel"
-	depends on PPC64 || 6xx || FSL_BOOKE || (44x && !SMP)
-	select RELOCATABLE if (PPC64 && !COMPILE_TEST) || 44x || FSL_BOOKE
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	select HAVE_IMA_KEXEC
+	select BUILD_BIN2C
+	depends on PPC64
+	depends on CRYPTO=y
+	depends on CRYPTO_SHA256=y
 	help
-	  Build a kernel suitable for use as a kdump capture kernel.
+	  This is a new version of the kexec system call. This call is
+	  file based and takes in file descriptors as system call arguments
+	  for kernel and initramfs as opposed to a list of segments as is the
+	  case for the older kexec call.
+
+config ARCH_HAS_KEXEC_PURGATORY
+	def_bool KEXEC_FILE
+
+config RELOCATABLE
+	bool "Build a relocatable kernel"
+	depends on PPC64 || (FLATMEM && (44x || FSL_BOOKE))
+	select NONSTATIC_KERNEL
+	select MODULE_REL_CRCS if MODVERSIONS
+	help
+	  This builds a kernel image that is capable of running at the
+	  location the kernel is loaded at. For ppc32, there is no any
+	  alignment restrictions, and this feature is a superset of
+	  DYNAMIC_MEMSTART and hence overrides it. For ppc64, we should use
+	  16k-aligned base address. The kernel is linked as a
+	  position-independent executable (PIE) and contains dynamic relocations
+	  which are processed early in the bootup process.
+
+	  One use is for the kexec on panic case where the recovery kernel
+	  must live at a different physical address than the primary
+	  kernel.
+
+	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
+	  it has been loaded at and the compile time physical addresses
+	  CONFIG_PHYSICAL_START is ignored.  However CONFIG_PHYSICAL_START
+	  setting can still be useful to bootwrappers that need to know the
+	  load address of the kernel (eg. u-boot/mkimage).
+
+config RELOCATABLE_TEST
+	bool "Test relocatable kernel"
+	depends on (PPC64 && RELOCATABLE)
+	default n
+	help
+	  This runs the relocatable kernel at the address it was initially
+	  loaded at, which tends to be non-zero and therefore test the
+	  relocation code.
+
+config CRASH_DUMP
+	bool "Build a dump capture kernel"
+	depends on PPC64 || 6xx || FSL_BOOKE || (44x && !SMP)
+	select RELOCATABLE if PPC64 || 44x || FSL_BOOKE
+	help
+	  Build a kernel suitable for use as a dump capture kernel.
 	  The same kernel binary can be used as production kernel and dump
 	  capture kernel.
 
 config FA_DUMP
 	bool "Firmware-assisted dump"
-	depends on PPC64 && PPC_RTAS && CRASH_DUMP && KEXEC
+	depends on PPC64 && PPC_RTAS
+	select CRASH_CORE
+	select CRASH_DUMP
 	help
 	  A robust mechanism to get reliable kernel crash dump with
 	  assistance from firmware. This approach does not use kexec,
-	  instead firmware assists in booting the kdump kernel
+	  instead firmware assists in booting the capture kernel
 	  while preserving memory contents. Firmware-assisted dump
 	  is meant to be a kdump replacement offering robustness and
 	  speed not possible without system firmware assistance.
@@ -500,12 +630,17 @@ config ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
-	depends on (SMP && PPC_PSERIES) || PPC_PS3
+	depends on PPC_BOOK3S_64
 
 config SYS_SUPPORTS_HUGETLBFS
 	bool
 
-source "mm/Kconfig"
+config ILLEGAL_POINTER_VALUE
+	hex
+	# This is roughly half way between the top of user space and the bottom
+	# of kernel space, which seems about as good as we can get.
+	default 0x5deadbeef0000000 if PPC64
+	default 0
 
 config ARCH_MEMORY_PROBE
 	def_bool y
@@ -559,6 +694,7 @@ choice
 
 config PPC_4K_PAGES
 	bool "4k page size"
+	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_16K_PAGES
 	bool "16k page size"
@@ -566,7 +702,8 @@ config PPC_16K_PAGES
 
 config PPC_64K_PAGES
 	bool "64k page size"
-	depends on !PPC_FSL_BOOK3E && (44x || PPC_STD_MMU_64 || PPC_BOOK3E_64)
+	depends on !PPC_FSL_BOOK3E && (44x || PPC_BOOK3S_64 || PPC_BOOK3E_64)
+	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_256K_PAGES
 	bool "256k page size"
@@ -583,11 +720,21 @@ config PPC_256K_PAGES
 
 endchoice
 
+config THREAD_SHIFT
+	int "Thread shift" if EXPERT
+	range 13 15
+	default "15" if PPC_256K_PAGES
+	default "14" if PPC64
+	default "13"
+	help
+	  Used to define the stack size. The default is almost always what you
+	  want. Only change this if you know what you are doing.
+
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
-	range 9 64 if PPC64 && PPC_64K_PAGES
+	range 8 9 if PPC64 && PPC_64K_PAGES
 	default "9" if PPC64 && PPC_64K_PAGES
-	range 13 64 if PPC64 && !PPC_64K_PAGES
+	range 13 13 if PPC64 && !PPC_64K_PAGES
 	default "13" if PPC64 && !PPC_64K_PAGES
 	range 9 64 if PPC32 && PPC_16K_PAGES
 	default "9" if PPC32 && PPC_16K_PAGES
@@ -614,7 +761,7 @@ config FORCE_MAX_ZONEORDER
 
 config PPC_SUBPAGE_PROT
 	bool "Support setting protections for 4k subpages"
-	depends on PPC_STD_MMU_64 && PPC_64K_PAGES
+	depends on PPC_BOOK3S_64 && PPC_64K_PAGES
 	help
 	  This option adds support for a system call to allow user programs
 	  to set access permissions (read/write, readonly, or no access)
@@ -698,6 +845,21 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
+config PPC_MEM_KEYS
+	prompt "PowerPC Memory Protection Keys"
+	def_bool y
+	depends on PPC_BOOK3S_64
+	select ARCH_USES_HIGH_VMA_FLAGS
+	select ARCH_HAS_PKEYS
+	help
+	  Memory Protection Keys provides a mechanism for enforcing
+	  page-based protections, but without requiring modification of the
+	  page tables when an application changes protection domains.
+
+	  For details, see Documentation/vm/protection-keys.rst
+
+	  If unsure, say y.
+
 endmenu
 
 config ISA_DMA_API
@@ -720,12 +882,6 @@ config ISA
 config ZONE_DMA
 	bool
 	default y
-
-config NEED_DMA_MAP_STATE
-	def_bool (PPC64 || NOT_COHERENT_CACHE)
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
 
 config GENERIC_ISA_DMA
 	bool
@@ -774,7 +930,6 @@ config 4xx_SOC
 
 config FSL_LBC
 	bool "Freescale Local Bus support"
-	depends on FSL_SOC
 	help
 	  Enables reporting of errors from the Freescale local bus
 	  controller.  Also contains some common code used by
@@ -798,9 +953,9 @@ config PPC_PCI_CHOICE
 
 config PCI
 	bool "PCI support" if PPC_PCI_CHOICE
-	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
+	default y if !40x && !CPM2 && !PPC_8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
-	default PCI_QSPAN if !4xx && !CPM2 && 8xx
+	default PCI_QSPAN if PPC_8xx
 	select GENERIC_PCI_IOMAP
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of
@@ -816,7 +971,7 @@ config PCI_SYSCALL
 
 config PCI_QSPAN
 	bool "QSpan PCI"
-	depends on !4xx && !CPM2 && 8xx
+	depends on PPC_8xx
 	select PPC_I8259
 	help
 	  Say Y here if you have a system based on a Motorola 8xx-series
@@ -828,13 +983,9 @@ config PCI_8260
 	select PPC_INDIRECT_PCI
 	default y
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 config HAS_RAPIDIO
 	bool
@@ -930,29 +1081,6 @@ config DYNAMIC_MEMSTART
 
 	  This option is overridden by CONFIG_RELOCATABLE
 
-config RELOCATABLE
-	bool "Build a relocatable kernel"
-	depends on ADVANCED_OPTIONS && FLATMEM && (44x || FSL_BOOKE)
-	select NONSTATIC_KERNEL
-	help
-	  This builds a kernel image that is capable of running at the
-	  location the kernel is loaded at, without any alignment restrictions.
-	  This feature is a superset of DYNAMIC_MEMSTART and hence overrides it.
-
-	  One use is for the kexec on panic case where the recovery kernel
-	  must live at a different physical address than the primary
-	  kernel.
-
-	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
-	  it has been loaded at and the compile time physical addresses
-	  CONFIG_PHYSICAL_START is ignored.  However CONFIG_PHYSICAL_START
-	  setting can still be useful to bootwrappers that need to know the
-	  load address of the kernel (eg. u-boot/mkimage).
-
-config RELOCATABLE_PPC32
-	def_bool y
-	depends on PPC32 && RELOCATABLE
-
 config PAGE_OFFSET_BOOL
 	bool "Set custom page offset address"
 	depends on ADVANCED_OPTIONS
@@ -1034,25 +1162,26 @@ config CONSISTENT_SIZE
 
 config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"
-	depends on ADVANCED_OPTIONS && 8xx
+	depends on ADVANCED_OPTIONS && PPC_8xx && \
+		   !DEBUG_PAGEALLOC && !STRICT_KERNEL_RWX
+
+config PIN_TLB_DATA
+	bool "Pinned TLB for DATA"
+	depends on PIN_TLB
+	default y
+
+config PIN_TLB_IMMR
+	bool "Pinned TLB for IMMR"
+	depends on PIN_TLB
+	default y
+
+config PIN_TLB_TEXT
+	bool "Pinned TLB for TEXT"
+	depends on PIN_TLB
+	default y
 endmenu
 
 if PPC64
-config RELOCATABLE
-	bool "Build a relocatable kernel"
-	depends on !COMPILE_TEST
-	select NONSTATIC_KERNEL
-	help
-	  This builds a kernel image that is capable of running anywhere
-	  in the RMA (real memory area) at any 16k-aligned base address.
-	  The kernel is linked as a position-independent executable (PIE)
-	  and contains dynamic relocations which are processed early
-	  in the bootup process.
-
-	  One use is for the kexec on panic case where the recovery kernel
-	  must live at a different physical address than the primary
-	  kernel.
-
 # This value must have zeroes in the bottom 60 bits otherwise lots will break
 config PAGE_OFFSET
 	hex
@@ -1068,28 +1197,9 @@ endif
 config	ARCH_RANDOM
 	def_bool n
 
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/powerpc/sysdev/qe_lib/Kconfig"
-
-source "lib/Kconfig"
-
-source "arch/powerpc/Kconfig.debug"
-
-source "security/Kconfig"
-
-config KEYS_COMPAT
-	bool
-	depends on COMPAT && KEYS
-	default y
-
-source "crypto/Kconfig"
-
 config PPC_LIB_RHEAP
 	bool
 
 source "arch/powerpc/kvm/Kconfig"
+
+source "kernel/livepatch/Kconfig"

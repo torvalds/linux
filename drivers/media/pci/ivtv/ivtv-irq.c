@@ -1062,7 +1062,7 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 	}
 
 	if (test_and_clear_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags)) {
-		queue_kthread_work(&itv->irq_worker, &itv->irq_work);
+		kthread_queue_work(&itv->irq_worker, &itv->irq_work);
 	}
 
 	spin_unlock(&itv->dma_reg_lock);
@@ -1074,9 +1074,9 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 	return vsync_force ? IRQ_NONE : IRQ_HANDLED;
 }
 
-void ivtv_unfinished_dma(unsigned long arg)
+void ivtv_unfinished_dma(struct timer_list *t)
 {
-	struct ivtv *itv = (struct ivtv *)arg;
+	struct ivtv *itv = from_timer(itv, t, dma_timer);
 
 	if (!test_bit(IVTV_F_I_DMA, &itv->i_flags))
 		return;

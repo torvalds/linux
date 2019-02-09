@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
-#include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
@@ -23,8 +24,8 @@ enum address_markers_idx {
 
 static struct addr_marker address_markers[] = {
 	[IDENTITY_NR]	  = {0, "Identity Mapping"},
-	[KERNEL_START_NR] = {(unsigned long)&_stext, "Kernel Image Start"},
-	[KERNEL_END_NR]	  = {(unsigned long)&_end, "Kernel Image End"},
+	[KERNEL_START_NR] = {(unsigned long)_stext, "Kernel Image Start"},
+	[KERNEL_END_NR]	  = {(unsigned long)_end, "Kernel Image End"},
 	[VMEMMAP_NR]	  = {0, "vmemmap Area"},
 	[VMALLOC_NR]	  = {0, "vmalloc Area"},
 	[MODULES_NR]	  = {0, "Modules Area"},
@@ -49,8 +50,8 @@ static void print_prot(struct seq_file *m, unsigned int pr, int level)
 		seq_printf(m, "I\n");
 		return;
 	}
-	seq_printf(m, "%s", pr & _PAGE_PROTECT ? "RO " : "RW ");
-	seq_putc(m, '\n');
+	seq_puts(m, (pr & _PAGE_PROTECT) ? "RO " : "RW ");
+	seq_puts(m, (pr & _PAGE_NOEXEC) ? "NX\n" : "X\n");
 }
 
 static void note_page(struct seq_file *m, struct pg_state *st,
@@ -117,7 +118,8 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st,
 	for (i = 0; i < PTRS_PER_PTE && addr < max_addr; i++) {
 		st->current_address = addr;
 		pte = pte_offset_kernel(pmd, addr);
-		prot = pte_val(*pte) & (_PAGE_PROTECT | _PAGE_INVALID);
+		prot = pte_val(*pte) &
+			(_PAGE_PROTECT | _PAGE_INVALID | _PAGE_NOEXEC);
 		note_page(m, st, prot, 4);
 		addr += PAGE_SIZE;
 	}
@@ -135,7 +137,9 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 		pmd = pmd_offset(pud, addr);
 		if (!pmd_none(*pmd)) {
 			if (pmd_large(*pmd)) {
-				prot = pmd_val(*pmd) & _SEGMENT_ENTRY_PROTECT;
+				prot = pmd_val(*pmd) &
+					(_SEGMENT_ENTRY_PROTECT |
+					 _SEGMENT_ENTRY_NOEXEC);
 				note_page(m, st, prot, 3);
 			} else
 				walk_pte_level(m, st, pmd, addr);
@@ -146,7 +150,7 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 }
 
 static void walk_pud_level(struct seq_file *m, struct pg_state *st,
-			   pgd_t *pgd, unsigned long addr)
+			   p4d_t *p4d, unsigned long addr)
 {
 	unsigned int prot;
 	pud_t *pud;
@@ -154,16 +158,35 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 
 	for (i = 0; i < PTRS_PER_PUD && addr < max_addr; i++) {
 		st->current_address = addr;
-		pud = pud_offset(pgd, addr);
+		pud = pud_offset(p4d, addr);
 		if (!pud_none(*pud))
 			if (pud_large(*pud)) {
-				prot = pud_val(*pud) & _REGION3_ENTRY_RO;
+				prot = pud_val(*pud) &
+					(_REGION_ENTRY_PROTECT |
+					 _REGION_ENTRY_NOEXEC);
 				note_page(m, st, prot, 2);
 			} else
 				walk_pmd_level(m, st, pud, addr);
 		else
 			note_page(m, st, _PAGE_INVALID, 2);
 		addr += PUD_SIZE;
+	}
+}
+
+static void walk_p4d_level(struct seq_file *m, struct pg_state *st,
+			   pgd_t *pgd, unsigned long addr)
+{
+	p4d_t *p4d;
+	int i;
+
+	for (i = 0; i < PTRS_PER_P4D && addr < max_addr; i++) {
+		st->current_address = addr;
+		p4d = p4d_offset(pgd, addr);
+		if (!p4d_none(*p4d))
+			walk_pud_level(m, st, p4d, addr);
+		else
+			note_page(m, st, _PAGE_INVALID, 2);
+		addr += P4D_SIZE;
 	}
 }
 
@@ -179,10 +202,11 @@ static void walk_pgd_level(struct seq_file *m)
 		st.current_address = addr;
 		pgd = pgd_offset_k(addr);
 		if (!pgd_none(*pgd))
-			walk_pud_level(m, &st, pgd, addr);
+			walk_p4d_level(m, &st, pgd, addr);
 		else
 			note_page(m, &st, _PAGE_INVALID, 1);
 		addr += PGDIR_SIZE;
+		cond_resched();
 	}
 	/* Flush out the last page */
 	st.current_address = max_addr;

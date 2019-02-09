@@ -28,6 +28,8 @@ struct dyn_arch_ftrace {
 
 extern unsigned long ftrace_graph_call;
 
+extern void return_to_handler(void);
+
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
 	/*
@@ -46,13 +48,26 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
  * See kernel/trace/trace_syscalls.c
  *
  * x86 code says:
- * If the user realy wants these, then they should use the
+ * If the user really wants these, then they should use the
  * raw syscall tracepoints with filtering.
  */
 #define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS
 static inline bool arch_trace_is_compat_syscall(struct pt_regs *regs)
 {
 	return is_compat_task();
+}
+
+#define ARCH_HAS_SYSCALL_MATCH_SYM_NAME
+
+static inline bool arch_syscall_match_sym_name(const char *sym,
+					       const char *name)
+{
+	/*
+	 * Since all syscall functions have __arm64_ prefix, we must skip it.
+	 * However, as we described above, we decided to ignore compat
+	 * syscalls, so we don't care about __arm64_compat_ prefix here.
+	 */
+	return !strcmp(sym + 8, name);
 }
 #endif /* ifndef __ASSEMBLY__ */
 

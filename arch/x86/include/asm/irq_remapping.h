@@ -33,6 +33,11 @@ enum irq_remap_cap {
 	IRQ_POSTING_CAP = 0,
 };
 
+enum {
+	IRQ_REMAP_XAPIC_MODE,
+	IRQ_REMAP_X2APIC_MODE,
+};
+
 struct vcpu_data {
 	u64 pi_desc_addr;	/* Physical address of PI Descriptor */
 	u32 vector;		/* Guest vector of the interrupt */
@@ -55,7 +60,8 @@ extern struct irq_domain *
 irq_remapping_get_irq_domain(struct irq_alloc_info *info);
 
 /* Create PCI MSI/MSIx irqdomain, use @parent as the parent irqdomain. */
-extern struct irq_domain *arch_create_msi_irq_domain(struct irq_domain *parent);
+extern struct irq_domain *
+arch_create_remap_msi_irq_domain(struct irq_domain *par, const char *n, int id);
 
 /* Get parent irqdomain for interrupt remapping irqdomain */
 static inline struct irq_domain *arch_get_ir_parent_domain(void)

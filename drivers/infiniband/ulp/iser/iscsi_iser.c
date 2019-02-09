@@ -62,7 +62,7 @@
 
 #include <net/sock.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -77,12 +77,12 @@
 MODULE_DESCRIPTION("iSER (iSCSI Extensions for RDMA) Datamover");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Alex Nezhinsky, Dan Bar Dov, Or Gerlitz");
-MODULE_VERSION(DRV_VER);
 
 static struct scsi_host_template iscsi_iser_sht;
 static struct iscsi_transport iscsi_iser_transport;
 static struct scsi_transport_template *iscsi_iser_scsi_transport;
 static struct workqueue_struct *release_wq;
+static DEFINE_MUTEX(unbind_iser_conn_mutex);
 struct iser_global ig;
 
 int iser_debug_level = 0;
@@ -550,12 +550,14 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	 */
 	if (iser_conn) {
 		mutex_lock(&iser_conn->state_mutex);
+		mutex_lock(&unbind_iser_conn_mutex);
 		iser_conn_terminate(iser_conn);
 		iscsi_conn_stop(cls_conn, flag);
 
 		/* unbind */
 		iser_conn->iscsi_conn = NULL;
 		conn->dd_data = NULL;
+		mutex_unlock(&unbind_iser_conn_mutex);
 
 		complete(&iser_conn->stop_completion);
 		mutex_unlock(&iser_conn->state_mutex);
@@ -608,11 +610,10 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 			  uint32_t initial_cmdsn)
 {
 	struct iscsi_cls_session *cls_session;
-	struct iscsi_session *session;
 	struct Scsi_Host *shost;
 	struct iser_conn *iser_conn = NULL;
 	struct ib_conn *ib_conn;
-	u16 max_cmds;
+	u32 max_fr_sectors;
 
 	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, 0);
 	if (!shost)
@@ -630,9 +631,8 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	 */
 	if (ep) {
 		iser_conn = ep->dd_data;
-		max_cmds = iser_conn->max_cmds;
 		shost->sg_tablesize = iser_conn->scsi_sg_tablesize;
-		shost->max_sectors = iser_conn->scsi_max_sectors;
+		shost->can_queue = min_t(u16, cmds_max, iser_conn->max_cmds);
 
 		mutex_lock(&iser_conn->state_mutex);
 		if (iser_conn->state != ISER_CONN_UP) {
@@ -644,49 +644,43 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 
 		ib_conn = &iser_conn->ib_conn;
 		if (ib_conn->pi_support) {
-			u32 sig_caps = ib_conn->device->dev_attr.sig_prot_cap;
+			u32 sig_caps = ib_conn->device->ib_device->attrs.sig_prot_cap;
 
 			scsi_host_set_prot(shost, iser_dif_prot_caps(sig_caps));
 			scsi_host_set_guard(shost, SHOST_DIX_GUARD_IP |
 						   SHOST_DIX_GUARD_CRC);
 		}
 
-		/*
-		 * Limit the sg_tablesize and max_sectors based on the device
-		 * max fastreg page list length.
-		 */
-		shost->sg_tablesize = min_t(unsigned short, shost->sg_tablesize,
-			ib_conn->device->dev_attr.max_fast_reg_page_list_len);
-		shost->max_sectors = min_t(unsigned int,
-			1024, (shost->sg_tablesize * PAGE_SIZE) >> 9);
-
 		if (iscsi_host_add(shost,
-				   ib_conn->device->ib_device->dma_device)) {
+				   ib_conn->device->ib_device->dev.parent)) {
 			mutex_unlock(&iser_conn->state_mutex);
 			goto free_host;
 		}
 		mutex_unlock(&iser_conn->state_mutex);
 	} else {
-		max_cmds = ISER_DEF_XMIT_CMDS_MAX;
+		shost->can_queue = min_t(u16, cmds_max, ISER_DEF_XMIT_CMDS_MAX);
 		if (iscsi_host_add(shost, NULL))
 			goto free_host;
 	}
 
-	if (cmds_max > max_cmds) {
-		iser_info("cmds_max changed from %u to %u\n",
-			  cmds_max, max_cmds);
-		cmds_max = max_cmds;
-	}
+	max_fr_sectors = (shost->sg_tablesize * PAGE_SIZE) >> 9;
+	shost->max_sectors = min(iser_max_sectors, max_fr_sectors);
+
+	iser_dbg("iser_conn %p, sg_tablesize %u, max_sectors %u\n",
+		 iser_conn, shost->sg_tablesize,
+		 shost->max_sectors);
+
+	if (shost->max_sectors < iser_max_sectors)
+		iser_warn("max_sectors was reduced from %u to %u\n",
+			  iser_max_sectors, shost->max_sectors);
 
 	cls_session = iscsi_session_setup(&iscsi_iser_transport, shost,
-					  cmds_max, 0,
+					  shost->can_queue, 0,
 					  sizeof(struct iscsi_iser_task),
 					  initial_cmdsn, 0);
 	if (!cls_session)
 		goto remove_host;
-	session = cls_session->dd_data;
 
-	shost->can_queue = session->scsi_cmds_max;
 	return cls_session;
 
 remove_host:
@@ -868,7 +862,7 @@ iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 	iser_info("iser conn %p rc = %d\n", iser_conn, rc);
 
 	if (rc > 0)
-		return 1; /* success, this is the equivalent of POLLOUT */
+		return 1; /* success, this is the equivalent of EPOLLOUT */
 	else if (!rc)
 		return 0; /* timeout */
 	else
@@ -969,7 +963,24 @@ static umode_t iser_attr_is_visible(int param_type, int param)
 
 static int iscsi_iser_slave_alloc(struct scsi_device *sdev)
 {
-	blk_queue_virt_boundary(sdev->request_queue, ~MASK_4K);
+	struct iscsi_session *session;
+	struct iser_conn *iser_conn;
+	struct ib_device *ib_dev;
+
+	mutex_lock(&unbind_iser_conn_mutex);
+
+	session = starget_to_session(scsi_target(sdev))->dd_data;
+	iser_conn = session->leadconn->dd_data;
+	if (!iser_conn) {
+		mutex_unlock(&unbind_iser_conn_mutex);
+		return -ENOTCONN;
+	}
+	ib_dev = iser_conn->ib_conn.device->ib_device;
+
+	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG))
+		blk_queue_virt_boundary(sdev->request_queue, ~MASK_4K);
+
+	mutex_unlock(&unbind_iser_conn_mutex);
 
 	return 0;
 }
@@ -980,8 +991,8 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.queuecommand           = iscsi_queuecommand,
 	.change_queue_depth	= scsi_change_queue_depth,
 	.sg_tablesize           = ISCSI_ISER_DEF_SG_TABLESIZE,
-	.max_sectors            = ISER_DEF_MAX_SECTORS,
 	.cmd_per_lun            = ISER_DEF_CMD_PER_LUN,
+	.eh_timed_out		= iscsi_eh_cmd_timed_out,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_device_reset_handler= iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
@@ -1059,7 +1070,8 @@ static int __init iser_init(void)
 	release_wq = alloc_workqueue("release workqueue", 0, 0);
 	if (!release_wq) {
 		iser_err("failed to allocate release workqueue\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_alloc_wq;
 	}
 
 	iscsi_iser_scsi_transport = iscsi_register_transport(
@@ -1067,12 +1079,14 @@ static int __init iser_init(void)
 	if (!iscsi_iser_scsi_transport) {
 		iser_err("iscsi_register_transport failed\n");
 		err = -EINVAL;
-		goto register_transport_failure;
+		goto err_reg;
 	}
 
 	return 0;
 
-register_transport_failure:
+err_reg:
+	destroy_workqueue(release_wq);
+err_alloc_wq:
 	kmem_cache_destroy(ig.desc_cache);
 
 	return err;

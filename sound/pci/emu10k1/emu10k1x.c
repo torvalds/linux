@@ -254,7 +254,7 @@ struct emu10k1x {
 };
 
 /* hardware definition */
-static struct snd_pcm_hardware snd_emu10k1x_playback_hw = {
+static const struct snd_pcm_hardware snd_emu10k1x_playback_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | 
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -273,7 +273,7 @@ static struct snd_pcm_hardware snd_emu10k1x_playback_hw = {
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_emu10k1x_capture_hw = {
+static const struct snd_pcm_hardware snd_emu10k1x_capture_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | 
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -548,7 +548,7 @@ snd_emu10k1x_pcm_pointer(struct snd_pcm_substream *substream)
 }
 
 /* operators */
-static struct snd_pcm_ops snd_emu10k1x_playback_ops = {
+static const struct snd_pcm_ops snd_emu10k1x_playback_ops = {
 	.open =        snd_emu10k1x_playback_open,
 	.close =       snd_emu10k1x_playback_close,
 	.ioctl =       snd_pcm_lib_ioctl,
@@ -694,7 +694,7 @@ snd_emu10k1x_pcm_pointer_capture(struct snd_pcm_substream *substream)
 	return ptr;
 }
 
-static struct snd_pcm_ops snd_emu10k1x_capture_ops = {
+static const struct snd_pcm_ops snd_emu10k1x_capture_ops = {
 	.open =        snd_emu10k1x_pcm_open_capture,
 	.close =       snd_emu10k1x_pcm_close_capture,
 	.ioctl =       snd_pcm_lib_ioctl,
@@ -1070,7 +1070,7 @@ static int snd_emu10k1x_proc_init(struct emu10k1x *emu)
 	if(! snd_card_proc_new(emu->card, "emu10k1x_regs", &entry)) {
 		snd_info_set_text_ops(entry, emu, snd_emu10k1x_proc_reg_read);
 		entry->c.text.write = snd_emu10k1x_proc_reg_write;
-		entry->mode |= S_IWUSR;
+		entry->mode |= 0200;
 		entry->private_data = emu;
 	}
 	
@@ -1112,7 +1112,7 @@ static int snd_emu10k1x_shared_spdif_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_emu10k1x_shared_spdif =
+static const struct snd_kcontrol_new snd_emu10k1x_shared_spdif =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Analog/Digital Output Jack",
@@ -1171,7 +1171,7 @@ static int snd_emu10k1x_spdif_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_emu10k1x_spdif_mask_control =
+static const struct snd_kcontrol_new snd_emu10k1x_spdif_mask_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
 	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1181,7 +1181,7 @@ static struct snd_kcontrol_new snd_emu10k1x_spdif_mask_control =
 	.get =          snd_emu10k1x_spdif_get_mask
 };
 
-static struct snd_kcontrol_new snd_emu10k1x_spdif_control =
+static const struct snd_kcontrol_new snd_emu10k1x_spdif_control =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -1486,14 +1486,14 @@ static void snd_emu10k1x_midi_output_trigger(struct snd_rawmidi_substream *subst
 
  */
 
-static struct snd_rawmidi_ops snd_emu10k1x_midi_output =
+static const struct snd_rawmidi_ops snd_emu10k1x_midi_output =
 {
 	.open =		snd_emu10k1x_midi_output_open,
 	.close =	snd_emu10k1x_midi_output_close,
 	.trigger =	snd_emu10k1x_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_emu10k1x_midi_input =
+static const struct snd_rawmidi_ops snd_emu10k1x_midi_input =
 {
 	.open =		snd_emu10k1x_midi_input_open,
 	.close =	snd_emu10k1x_midi_input_close,

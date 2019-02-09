@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header provides macros for the common LEDs device tree bindings.
  *
@@ -6,7 +7,7 @@
  * Author: Jacek Anaszewski <j.anaszewski@samsung.com>
  */
 
-#ifndef __DT_BINDINGS_LEDS_H__
+#ifndef __DT_BINDINGS_LEDS_H
 #define __DT_BINDINGS_LEDS_H
 
 /* External trigger type */

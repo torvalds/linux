@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NUMA support for s390
  *
@@ -26,8 +27,14 @@ EXPORT_SYMBOL(node_data);
 cpumask_t node_to_cpumask_map[MAX_NUMNODES];
 EXPORT_SYMBOL(node_to_cpumask_map);
 
+static void plain_setup(void)
+{
+	node_set(0, node_possible_map);
+}
+
 const struct numa_mode numa_mode_plain = {
 	.name = "plain",
+	.setup = plain_setup,
 };
 
 static const struct numa_mode *mode = &numa_mode_plain;
@@ -47,6 +54,7 @@ int __node_distance(int a, int b)
 {
 	return mode->distance ? mode->distance(a, b) : 0;
 }
+EXPORT_SYMBOL(__node_distance);
 
 int numa_debug_enabled;
 
@@ -57,9 +65,7 @@ static __init pg_data_t *alloc_node_data(void)
 {
 	pg_data_t *res;
 
-	res = (pg_data_t *) memblock_alloc(sizeof(pg_data_t), 1);
-	if (!res)
-		panic("Could not allocate memory for node data!\n");
+	res = (pg_data_t *) memblock_alloc(sizeof(pg_data_t), 8);
 	memset(res, 0, sizeof(pg_data_t));
 	return res;
 }
@@ -128,26 +134,14 @@ static void __init numa_setup_memory(void)
 void __init numa_setup(void)
 {
 	pr_info("NUMA mode: %s\n", mode->name);
+	nodes_clear(node_possible_map);
+	/* Initially attach all possible CPUs to node 0. */
+	cpumask_copy(&node_to_cpumask_map[0], cpu_possible_mask);
 	if (mode->setup)
 		mode->setup();
 	numa_setup_memory();
 	memblock_dump_all();
 }
-
-
-/*
- * numa_init_early() - Initialization initcall
- *
- * This runs when only one CPU is online and before the first
- * topology update is called for by the scheduler.
- */
-static int __init numa_init_early(void)
-{
-	/* Attach all possible CPUs to node 0 for now. */
-	cpumask_copy(&node_to_cpumask_map[0], cpu_possible_mask);
-	return 0;
-}
-early_initcall(numa_init_early);
 
 /*
  * numa_init_late() - Initialization initcall
@@ -162,7 +156,7 @@ static int __init numa_init_late(void)
 		register_one_node(nid);
 	return 0;
 }
-device_initcall(numa_init_late);
+arch_initcall(numa_init_late);
 
 static int __init parse_debug(char *parm)
 {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* This is included from relocs_32/64.c */
 
 #define ElfW(type)		_ElfW(ELF_BITS, type)
@@ -66,6 +67,7 @@ static const char * const sym_regex_kernel[S_NSYMTYPES] = {
 	"__tracedata_(start|end)|"
 	"__(start|stop)_notes|"
 	"__end_rodata|"
+	"__end_rodata_aligned|"
 	"__initramfs_start|"
 	"(jiffies|jiffies_64)|"
 #if ELF_BITS == 64
@@ -769,9 +771,12 @@ static int do_reloc64(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
 		break;
 
 	case R_X86_64_PC32:
+	case R_X86_64_PLT32:
 		/*
 		 * PC relative relocations don't need to be adjusted unless
 		 * referencing a percpu symbol.
+		 *
+		 * NB: R_X86_64_PLT32 can be treated as R_X86_64_PC32.
 		 */
 		if (is_percpu_sym(sym, symname))
 			add_reloc(&relocs32neg, offset);
@@ -992,11 +997,12 @@ static void emit_relocs(int as_text, int use_real_mode)
 		die("Segment relocations found but --realmode not specified\n");
 
 	/* Order the relocations for more efficient processing */
-	sort_relocs(&relocs16);
 	sort_relocs(&relocs32);
 #if ELF_BITS == 64
 	sort_relocs(&relocs32neg);
 	sort_relocs(&relocs64);
+#else
+	sort_relocs(&relocs16);
 #endif
 
 	/* Print the relocations */

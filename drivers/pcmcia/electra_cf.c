@@ -79,9 +79,9 @@ static int electra_cf_ss_init(struct pcmcia_socket *s)
 }
 
 /* the timer is primarily to kick this socket's pccardd */
-static void electra_cf_timer(unsigned long _cf)
+static void electra_cf_timer(struct timer_list *t)
 {
-	struct electra_cf_socket *cf = (void *) _cf;
+	struct electra_cf_socket *cf = from_timer(cf, t, timer);
 	int present = electra_cf_present(cf);
 
 	if (present != cf->present) {
@@ -95,7 +95,9 @@ static void electra_cf_timer(unsigned long _cf)
 
 static irqreturn_t electra_cf_irq(int irq, void *_cf)
 {
-	electra_cf_timer((unsigned long)_cf);
+	struct electra_cf_socket *cf = _cf;
+
+	electra_cf_timer(&cf->timer);
 	return IRQ_HANDLED;
 }
 
@@ -206,8 +208,8 @@ static int electra_cf_probe(struct platform_device *ofdev)
 	if (!cf)
 		return -ENOMEM;
 
-	setup_timer(&cf->timer, electra_cf_timer, (unsigned long)cf);
-	cf->irq = NO_IRQ;
+	timer_setup(&cf->timer, electra_cf_timer, 0);
+	cf->irq = 0;
 
 	cf->ofdev = ofdev;
 	cf->mem_phys = mem.start;
@@ -228,7 +230,7 @@ static int electra_cf_probe(struct platform_device *ofdev)
 
 	if (!cf->mem_base || !cf->io_virt || !cf->gpio_base ||
 	    (__ioremap_at(io.start, cf->io_virt, cf->io_size,
-		_PAGE_NO_CACHE | _PAGE_GUARDED) == NULL)) {
+		  pgprot_val(pgprot_noncached(__pgprot(0)))) == NULL)) {
 		dev_err(device, "can't ioremap ranges\n");
 		status = -ENOMEM;
 		goto fail1;
@@ -305,7 +307,7 @@ static int electra_cf_probe(struct platform_device *ofdev)
 		 cf->mem_phys, io.start, cf->irq);
 
 	cf->active = 1;
-	electra_cf_timer((unsigned long)cf);
+	electra_cf_timer(&cf->timer);
 	return 0;
 
 fail3:
@@ -313,7 +315,7 @@ fail3:
 fail2:
 	release_mem_region(cf->mem_phys, cf->mem_size);
 fail1:
-	if (cf->irq != NO_IRQ)
+	if (cf->irq)
 		free_irq(cf->irq, cf);
 
 	if (cf->io_virt)

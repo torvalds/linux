@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: rsdump - AML debugger support for resource structures.
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -52,17 +16,17 @@ ACPI_MODULE_NAME("rsdump")
  * All functions in this module are used by the AML Debugger only
  */
 /* Local prototypes */
-static void acpi_rs_out_string(char *title, char *value);
+static void acpi_rs_out_string(const char *title, const char *value);
 
-static void acpi_rs_out_integer8(char *title, u8 value);
+static void acpi_rs_out_integer8(const char *title, u8 value);
 
-static void acpi_rs_out_integer16(char *title, u16 value);
+static void acpi_rs_out_integer16(const char *title, u16 value);
 
-static void acpi_rs_out_integer32(char *title, u32 value);
+static void acpi_rs_out_integer32(const char *title, u32 value);
 
-static void acpi_rs_out_integer64(char *title, u64 value);
+static void acpi_rs_out_integer64(const char *title, u64 value);
 
-static void acpi_rs_out_title(char *title);
+static void acpi_rs_out_title(const char *title);
 
 static void acpi_rs_dump_byte_list(u16 length, u8 *data);
 
@@ -74,6 +38,10 @@ static void acpi_rs_dump_short_byte_list(u8 length, u8 *data);
 
 static void
 acpi_rs_dump_resource_source(struct acpi_resource_source *resource_source);
+
+static void
+acpi_rs_dump_resource_label(char *title,
+			    struct acpi_resource_label *resource_label);
 
 static void acpi_rs_dump_address_common(union acpi_resource_data *resource);
 
@@ -208,7 +176,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 {
 	u8 *target = NULL;
 	u8 *previous_target;
-	char *name;
+	const char *name;
 	u8 count;
 
 	/* First table entry must contain the table length (# of table entries) */
@@ -248,10 +216,8 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 		case ACPI_RSD_UINT8:
 
 			if (table->pointer) {
-				acpi_rs_out_string(name, ACPI_CAST_PTR(char,
-								       table->
-								       pointer
-								       [*target]));
+				acpi_rs_out_string(name,
+						   table->pointer[*target]);
 			} else {
 				acpi_rs_out_integer8(name, ACPI_GET8(target));
 			}
@@ -276,26 +242,20 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 
 		case ACPI_RSD_1BITFLAG:
 
-			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
-							       table->
-							       pointer[*target &
-								       0x01]));
+			acpi_rs_out_string(name,
+					   table->pointer[*target & 0x01]);
 			break;
 
 		case ACPI_RSD_2BITFLAG:
 
-			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
-							       table->
-							       pointer[*target &
-								       0x03]));
+			acpi_rs_out_string(name,
+					   table->pointer[*target & 0x03]);
 			break;
 
 		case ACPI_RSD_3BITFLAG:
 
-			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
-							       table->
-							       pointer[*target &
-								       0x07]));
+			acpi_rs_out_string(name,
+					   table->pointer[*target & 0x07]);
 			break;
 
 		case ACPI_RSD_SHORTLIST:
@@ -379,6 +339,26 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 								   target));
 			break;
 
+		case ACPI_RSD_LABEL:
+			/*
+			 * resource_label
+			 */
+			acpi_rs_dump_resource_label("Resource Label",
+						    ACPI_CAST_PTR(struct
+								  acpi_resource_label,
+								  target));
+			break;
+
+		case ACPI_RSD_SOURCE_LABEL:
+			/*
+			 * resource_source_label
+			 */
+			acpi_rs_dump_resource_label("Resource Source Label",
+						    ACPI_CAST_PTR(struct
+								  acpi_resource_label,
+								  target));
+			break;
+
 		default:
 
 			acpi_os_printf("**** Invalid table opcode [%X] ****\n",
@@ -418,6 +398,30 @@ acpi_rs_dump_resource_source(struct acpi_resource_source *resource_source)
 	acpi_rs_out_string("Resource Source",
 			   resource_source->string_ptr ?
 			   resource_source->string_ptr : "[Not Specified]");
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_dump_resource_label
+ *
+ * PARAMETERS:  title              - Title of the dumped resource field
+ *              resource_label     - Pointer to a Resource Label struct
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Common routine for dumping the resource_label
+ *
+ ******************************************************************************/
+
+static void
+acpi_rs_dump_resource_label(char *title,
+			    struct acpi_resource_label *resource_label)
+{
+	ACPI_FUNCTION_ENTRY();
+
+	acpi_rs_out_string(title,
+			   resource_label->string_ptr ?
+			   resource_label->string_ptr : "[Not Specified]");
 }
 
 /*******************************************************************************
@@ -481,8 +485,9 @@ static void acpi_rs_dump_address_common(union acpi_resource_data *resource)
  *
  ******************************************************************************/
 
-static void acpi_rs_out_string(char *title, char *value)
+static void acpi_rs_out_string(const char *title, const char *value)
 {
+
 	acpi_os_printf("%27s : %s", title, value);
 	if (!*value) {
 		acpi_os_printf("[NULL NAMESTRING]");
@@ -490,28 +495,32 @@ static void acpi_rs_out_string(char *title, char *value)
 	acpi_os_printf("\n");
 }
 
-static void acpi_rs_out_integer8(char *title, u8 value)
+static void acpi_rs_out_integer8(const char *title, u8 value)
 {
 	acpi_os_printf("%27s : %2.2X\n", title, value);
 }
 
-static void acpi_rs_out_integer16(char *title, u16 value)
+static void acpi_rs_out_integer16(const char *title, u16 value)
 {
+
 	acpi_os_printf("%27s : %4.4X\n", title, value);
 }
 
-static void acpi_rs_out_integer32(char *title, u32 value)
+static void acpi_rs_out_integer32(const char *title, u32 value)
 {
+
 	acpi_os_printf("%27s : %8.8X\n", title, value);
 }
 
-static void acpi_rs_out_integer64(char *title, u64 value)
+static void acpi_rs_out_integer64(const char *title, u64 value)
 {
+
 	acpi_os_printf("%27s : %8.8X%8.8X\n", title, ACPI_FORMAT_UINT64(value));
 }
 
-static void acpi_rs_out_title(char *title)
+static void acpi_rs_out_title(const char *title)
 {
+
 	acpi_os_printf("%27s : ", title);
 }
 
@@ -530,7 +539,7 @@ static void acpi_rs_out_title(char *title)
 
 static void acpi_rs_dump_byte_list(u16 length, u8 * data)
 {
-	u8 i;
+	u16 i;
 
 	for (i = 0; i < length; i++) {
 		acpi_os_printf("%25s%2.2X : %2.2X\n", "Byte", i, data[i]);
@@ -544,6 +553,7 @@ static void acpi_rs_dump_short_byte_list(u8 length, u8 * data)
 	for (i = 0; i < length; i++) {
 		acpi_os_printf("%X ", data[i]);
 	}
+
 	acpi_os_printf("\n");
 }
 

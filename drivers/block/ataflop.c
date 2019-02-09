@@ -342,8 +342,8 @@ static int NeedSeek = 0;
 static void fd_select_side( int side );
 static void fd_select_drive( int drive );
 static void fd_deselect( void );
-static void fd_motor_off_timer( unsigned long dummy );
-static void check_change( unsigned long dummy );
+static void fd_motor_off_timer(struct timer_list *unused);
+static void check_change(struct timer_list *unused);
 static irqreturn_t floppy_irq (int irq, void *dummy);
 static void fd_error( void );
 static int do_format(int drive, int type, struct atari_format_descr *desc);
@@ -353,12 +353,12 @@ static void fd_calibrate_done( int status );
 static void fd_seek( void );
 static void fd_seek_done( int status );
 static void fd_rwsec( void );
-static void fd_readtrack_check( unsigned long dummy );
+static void fd_readtrack_check(struct timer_list *unused);
 static void fd_rwsec_done( int status );
 static void fd_rwsec_done1(int status);
 static void fd_writetrack( void );
 static void fd_writetrack_done( int status );
-static void fd_times_out( unsigned long dummy );
+static void fd_times_out(struct timer_list *unused);
 static void finish_fdc( void );
 static void finish_fdc_done( int dummy );
 static void setup_req_params( int drive );
@@ -373,12 +373,12 @@ static void floppy_release(struct gendisk *disk, fmode_t mode);
 
 /************************* End of Prototypes **************************/
 
-static DEFINE_TIMER(motor_off_timer, fd_motor_off_timer, 0, 0);
-static DEFINE_TIMER(readtrack_timer, fd_readtrack_check, 0, 0);
-static DEFINE_TIMER(timeout_timer, fd_times_out, 0, 0);
-static DEFINE_TIMER(fd_timer, check_change, 0, 0);
+static DEFINE_TIMER(motor_off_timer, fd_motor_off_timer);
+static DEFINE_TIMER(readtrack_timer, fd_readtrack_check);
+static DEFINE_TIMER(timeout_timer, fd_times_out);
+static DEFINE_TIMER(fd_timer, check_change);
 	
-static void fd_end_request_cur(int err)
+static void fd_end_request_cur(blk_status_t err)
 {
 	if (!__blk_end_request_cur(fd_request, err))
 		fd_request = NULL;
@@ -479,7 +479,7 @@ static void fd_deselect( void )
  * counts the index signals, which arrive only if one drive is selected.
  */
 
-static void fd_motor_off_timer( unsigned long dummy )
+static void fd_motor_off_timer(struct timer_list *unused)
 {
 	unsigned char status;
 
@@ -515,7 +515,7 @@ static void fd_motor_off_timer( unsigned long dummy )
  * as possible) and keep track of the current state of the write protection.
  */
 
-static void check_change( unsigned long dummy )
+static void check_change(struct timer_list *unused)
 {
 	static int    drive = 0;
 
@@ -617,12 +617,12 @@ static void fd_error( void )
 	if (!fd_request)
 		return;
 
-	fd_request->errors++;
-	if (fd_request->errors >= MAX_ERRORS) {
+	fd_request->error_count++;
+	if (fd_request->error_count >= MAX_ERRORS) {
 		printk(KERN_ERR "fd%d: too many errors.\n", SelectedDrive );
-		fd_end_request_cur(-EIO);
+		fd_end_request_cur(BLK_STS_IOERR);
 	}
-	else if (fd_request->errors == RECALIBRATE_ERRORS) {
+	else if (fd_request->error_count == RECALIBRATE_ERRORS) {
 		printk(KERN_WARNING "fd%d: recalibrating\n", SelectedDrive );
 		if (SelectedDrive != -1)
 			SUD.track = -1;
@@ -739,7 +739,7 @@ static void do_fd_action( int drive )
 		    }
 		    else {
 			/* all sectors finished */
-			fd_end_request_cur(0);
+			fd_end_request_cur(BLK_STS_OK);
 			redo_fd_request();
 			return;
 		    }
@@ -966,7 +966,7 @@ static void fd_rwsec( void )
 }
 
     
-static void fd_readtrack_check( unsigned long dummy )
+static void fd_readtrack_check(struct timer_list *unused)
 {
 	unsigned long flags, addr, addr2;
 
@@ -1144,7 +1144,7 @@ static void fd_rwsec_done1(int status)
 	}
 	else {
 		/* all sectors finished */
-		fd_end_request_cur(0);
+		fd_end_request_cur(BLK_STS_OK);
 		redo_fd_request();
 	}
 	return;
@@ -1237,7 +1237,7 @@ static void fd_writetrack_done( int status )
 	fd_error();
 }
 
-static void fd_times_out( unsigned long dummy )
+static void fd_times_out(struct timer_list *unused)
 {
 	atari_disable_irq( IRQ_MFP_FDC );
 	if (!FloppyIRQHandler) goto end; /* int occurred after timer was fired, but
@@ -1386,7 +1386,7 @@ static void setup_req_params( int drive )
 	ReqData = ReqBuffer + 512 * ReqCnt;
 
 	if (UseTrackbuffer)
-		read_track = (ReqCmd == READ && fd_request->errors == 0);
+		read_track = (ReqCmd == READ && fd_request->error_count == 0);
 	else
 		read_track = 0;
 
@@ -1409,8 +1409,10 @@ static struct request *set_next_request(void)
 			fdc_queue = 0;
 		if (q) {
 			rq = blk_fetch_request(q);
-			if (rq)
+			if (rq) {
+				rq->error_count = 0;
 				break;
+			}
 		}
 	} while (fdc_queue != old_pos);
 
@@ -1443,7 +1445,7 @@ repeat:
 	if (!UD.connected) {
 		/* drive not connected */
 		printk(KERN_ERR "Unknown Device: fd%d\n", drive );
-		fd_end_request_cur(-EIO);
+		fd_end_request_cur(BLK_STS_IOERR);
 		goto repeat;
 	}
 		
@@ -1459,12 +1461,12 @@ repeat:
 		/* user supplied disk type */
 		if (--type >= NUM_DISK_MINORS) {
 			printk(KERN_WARNING "fd%d: invalid disk format", drive );
-			fd_end_request_cur(-EIO);
+			fd_end_request_cur(BLK_STS_IOERR);
 			goto repeat;
 		}
 		if (minor2disktype[type].drive_types > DriveType)  {
 			printk(KERN_WARNING "fd%d: unsupported disk format", drive );
-			fd_end_request_cur(-EIO);
+			fd_end_request_cur(BLK_STS_IOERR);
 			goto repeat;
 		}
 		type = minor2disktype[type].index;
@@ -1474,7 +1476,7 @@ repeat:
 	}
 	
 	if (blk_rq_pos(fd_request) + 1 > UDT->blocks) {
-		fd_end_request_cur(-EIO);
+		fd_end_request_cur(BLK_STS_IOERR);
 		goto repeat;
 	}
 
@@ -1915,7 +1917,7 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	if (drive >= FD_MAX_UNITS || type > NUM_DISK_MINORS)
 		return NULL;
 	*part = 0;
-	return get_disk(unit[drive].disk);
+	return get_disk_and_module(unit[drive].disk);
 }
 
 static int __init atari_floppy_init (void)
@@ -1932,6 +1934,11 @@ static int __init atari_floppy_init (void)
 	for (i = 0; i < FD_MAX_UNITS; i++) {
 		unit[i].disk = alloc_disk(1);
 		if (!unit[i].disk)
+			goto Enomem;
+
+		unit[i].disk->queue = blk_init_queue(do_fd_request,
+						     &ataflop_lock);
+		if (!unit[i].disk->queue)
 			goto Enomem;
 	}
 
@@ -1964,10 +1971,6 @@ static int __init atari_floppy_init (void)
 		sprintf(unit[i].disk->disk_name, "fd%d", i);
 		unit[i].disk->fops = &floppy_fops;
 		unit[i].disk->private_data = &unit[i];
-		unit[i].disk->queue = blk_init_queue(do_fd_request,
-					&ataflop_lock);
-		if (!unit[i].disk->queue)
-			goto Enomem;
 		set_capacity(unit[i].disk, MAX_DISK_SIZE * 2);
 		add_disk(unit[i].disk);
 	}
@@ -1982,13 +1985,17 @@ static int __init atari_floppy_init (void)
 
 	return 0;
 Enomem:
-	while (i--) {
-		struct request_queue *q = unit[i].disk->queue;
+	do {
+		struct gendisk *disk = unit[i].disk;
 
-		put_disk(unit[i].disk);
-		if (q)
-			blk_cleanup_queue(q);
-	}
+		if (disk) {
+			if (disk->queue) {
+				blk_cleanup_queue(disk->queue);
+				disk->queue = NULL;
+			}
+			put_disk(unit[i].disk);
+		}
+	} while (i--);
 
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 	return -ENOMEM;

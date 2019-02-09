@@ -45,6 +45,12 @@
 #define DA9052_ADC_TJUNC	8
 #define DA9052_ADC_VBBAT	9
 
+/* TSI channel has its own 4 channel mux */
+#define DA9052_ADC_TSI_XP	70
+#define DA9052_ADC_TSI_XN	71
+#define DA9052_ADC_TSI_YP	72
+#define DA9052_ADC_TSI_YN	73
+
 #define DA9052_IRQ_DCIN	0
 #define DA9052_IRQ_VBUS	1
 #define DA9052_IRQ_DCINREM	2
@@ -171,7 +177,7 @@ static inline int da9052_group_read(struct da9052 *da9052, unsigned char reg,
 static inline int da9052_group_write(struct da9052 *da9052, unsigned char reg,
 				      unsigned reg_cnt, unsigned char *val)
 {
-	int ret;
+	int ret = 0;
 	int i;
 
 	for (i = 0; i < reg_cnt; i++) {

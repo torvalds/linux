@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ARM Ltd. Versatile Express
  *
@@ -8,6 +9,7 @@
  */
 
 /dts-v1/;
+#include "vexpress-v2m-rs1.dtsi"
 
 / {
 	model = "V2P-CA15";
@@ -55,14 +57,14 @@
 		compatible = "arm,hdlcd";
 		reg = <0 0x2b000000 0 0x1000>;
 		interrupts = <0 85 4>;
-		clocks = <&oscclk5>;
+		clocks = <&hdlcd_clk>;
 		clock-names = "pxlclk";
 	};
 
 	memory-controller@2b0a0000 {
 		compatible = "arm,pl341", "arm,primecell";
 		reg = <0 0x2b0a0000 0 0x1000>;
-		clocks = <&oscclk7>;
+		clocks = <&sys_pll>;
 		clock-names = "apb_pclk";
 	};
 
@@ -71,7 +73,7 @@
 		status = "disabled";
 		reg = <0 0x2b060000 0 0x1000>;
 		interrupts = <0 98 4>;
-		clocks = <&oscclk7>;
+		clocks = <&sys_pll>;
 		clock-names = "apb_pclk";
 	};
 
@@ -81,7 +83,7 @@
 		#address-cells = <0>;
 		interrupt-controller;
 		reg = <0 0x2c001000 0 0x1000>,
-		      <0 0x2c002000 0 0x1000>,
+		      <0 0x2c002000 0 0x2000>,
 		      <0 0x2c004000 0 0x2000>,
 		      <0 0x2c006000 0 0x2000>;
 		interrupts = <1 9 0xf04>;
@@ -92,7 +94,7 @@
 		reg = <0 0x7ffd0000 0 0x1000>;
 		interrupts = <0 86 4>,
 			     <0 87 4>;
-		clocks = <&oscclk7>;
+		clocks = <&sys_pll>;
 		clock-names = "apb_pclk";
 	};
 
@@ -104,7 +106,7 @@
 			     <0 89 4>,
 			     <0 90 4>,
 			     <0 91 4>;
-		clocks = <&oscclk7>;
+		clocks = <&sys_pll>;
 		clock-names = "apb_pclk";
 	};
 
@@ -126,7 +128,7 @@
 		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-		osc@0 {
+		oscclk0 {
 			/* CPU PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 0>;
@@ -135,7 +137,7 @@
 			clock-output-names = "oscclk0";
 		};
 
-		osc@4 {
+		oscclk4 {
 			/* Multiplexed AXI master clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 4>;
@@ -144,7 +146,7 @@
 			clock-output-names = "oscclk4";
 		};
 
-		oscclk5: osc@5 {
+		hdlcd_clk: oscclk5 {
 			/* HDLCD PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 5>;
@@ -153,7 +155,7 @@
 			clock-output-names = "oscclk5";
 		};
 
-		smbclk: osc@6 {
+		smbclk: oscclk6 {
 			/* SMB clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 6>;
@@ -162,7 +164,7 @@
 			clock-output-names = "oscclk6";
 		};
 
-		oscclk7: osc@7 {
+		sys_pll: oscclk7 {
 			/* SYS PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 7>;
@@ -171,7 +173,7 @@
 			clock-output-names = "oscclk7";
 		};
 
-		osc@8 {
+		oscclk8 {
 			/* DDR2 PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 8>;
@@ -180,7 +182,7 @@
 			clock-output-names = "oscclk8";
 		};
 
-		volt@0 {
+		volt-cores {
 			/* CPU core voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 0>;
@@ -191,28 +193,28 @@
 			label = "Cores";
 		};
 
-		amp@0 {
+		amp-cores {
 			/* Total current for the two cores */
 			compatible = "arm,vexpress-amp";
 			arm,vexpress-sysreg,func = <3 0>;
 			label = "Cores";
 		};
 
-		temp@0 {
+		temp-dcc {
 			/* DCC internal temperature */
 			compatible = "arm,vexpress-temp";
 			arm,vexpress-sysreg,func = <4 0>;
 			label = "DCC";
 		};
 
-		power@0 {
+		power-cores {
 			/* Total power */
 			compatible = "arm,vexpress-power";
 			arm,vexpress-sysreg,func = <12 0>;
 			label = "Cores";
 		};
 
-		energy@0 {
+		energy {
 			/* Total energy */
 			compatible = "arm,vexpress-energy";
 			arm,vexpress-sysreg,func = <13 0>;
@@ -220,7 +222,7 @@
 		};
 	};
 
-	smb {
+	smb@8000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;
@@ -277,7 +279,18 @@
 				<0 0 40 &gic 0 40 4>,
 				<0 0 41 &gic 0 41 4>,
 				<0 0 42 &gic 0 42 4>;
+	};
 
-		/include/ "vexpress-v2m-rs1.dtsi"
+	site2: hsb@40000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0x40000000 0x3fef0000>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 3>;
+		interrupt-map = <0 0 &gic 0 36 4>,
+				<0 1 &gic 0 37 4>,
+				<0 2 &gic 0 38 4>,
+				<0 3 &gic 0 39 4>;
 	};
 };

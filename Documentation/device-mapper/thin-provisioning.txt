@@ -28,17 +28,18 @@ administrator some freedom, for example to:
 Status
 ======
 
-These targets are very much still in the EXPERIMENTAL state.  Please
-do not yet rely on them in production.  But do experiment and offer us
-feedback.  Different use cases will have different performance
-characteristics, for example due to fragmentation of the data volume.
+These targets are considered safe for production use.  But different use
+cases will have different performance characteristics, for example due
+to fragmentation of the data volume.
 
 If you find this software is not performing as expected please mail
 dm-devel@redhat.com with details and we'll try our best to improve
 things for you.
 
-Userspace tools for checking and repairing the metadata are under
-development.
+Userspace tools for checking and repairing the metadata have been fully
+developed and are available as 'thin_check' and 'thin_repair'.  The name
+of the package that provides these utilities varies by distribution (on
+a Red Hat distribution it is named 'device-mapper-persistent-data').
 
 Cookbook
 ========
@@ -112,9 +113,11 @@ $low_water_mark is expressed in blocks of size $data_block_size.  If
 free space on the data device drops below this level then a dm event
 will be triggered which a userspace daemon should catch allowing it to
 extend the pool device.  Only one such event will be sent.
-Resuming a device with a new table itself triggers an event so the
-userspace daemon can use this to detect a situation where a new table
-already exceeds the threshold.
+
+No special event is triggered if a just resumed device's free space is below
+the low water mark. However, resuming a device always triggers an
+event; a userspace daemon should verify that free space exceeds the low
+water mark when handling this event.
 
 A low water mark for the metadata device is maintained in the kernel and
 will trigger a dm event if free space on the metadata device drops below
@@ -262,7 +265,10 @@ i) Constructor
 			   data device, but just remove the mapping.
 
       read_only: Don't allow any changes to be made to the pool
-		 metadata.
+		 metadata.  This mode is only available after the
+		 thin-pool has been created and first used in full
+		 read/write mode.  It cannot be specified on initial
+		 thin-pool creation.
 
       error_if_no_space: Error IOs, instead of queueing, if no space.
 
@@ -274,7 +280,8 @@ ii) Status
 
     <transaction id> <used metadata blocks>/<total metadata blocks>
     <used data blocks>/<total data blocks> <held metadata root>
-    [no_]discard_passdown ro|rw
+    ro|rw|out_of_data_space [no_]discard_passdown [error|queue]_if_no_space
+    needs_check|- metadata_low_watermark
 
     transaction id:
 	A 64-bit number used by userspace to help synchronise with metadata
@@ -320,6 +327,11 @@ ii) Status
 	device must be deactivated and checked/repaired before the
 	thin-pool can be made fully operational again.  '-' indicates
 	needs_check is not set.
+
+    metadata_low_watermark:
+	Value of metadata low watermark in blocks.  The kernel sets this
+	value internally but userspace needs to know this value to
+	determine if an event was caused by crossing this threshold.
 
 iii) Messages
 
@@ -394,3 +406,6 @@ ii) Status
 	If the pool has encountered device errors and failed, the status
 	will just contain the string 'Fail'.  The userspace recovery
 	tools should then be used.
+
+    In the case where <nr mapped sectors> is 0, there is no highest
+    mapped sector and the value of <highest mapped sector> is unspecified.

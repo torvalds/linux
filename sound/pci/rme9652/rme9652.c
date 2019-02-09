@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/nospec.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -1883,13 +1884,14 @@ static char *rme9652_channel_buffer_location(struct snd_rme9652 *rme9652,
 	}
 }
 
-static int snd_rme9652_playback_copy(struct snd_pcm_substream *substream, int channel,
-				     snd_pcm_uframes_t pos, void __user *src, snd_pcm_uframes_t count)
+static int snd_rme9652_playback_copy(struct snd_pcm_substream *substream,
+				     int channel, unsigned long pos,
+				     void __user *src, unsigned long count)
 {
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	char *channel_buf;
 
-	if (snd_BUG_ON(pos + count > RME9652_CHANNEL_BUFFER_BYTES / 4))
+	if (snd_BUG_ON(pos + count > RME9652_CHANNEL_BUFFER_BYTES))
 		return -EINVAL;
 
 	channel_buf = rme9652_channel_buffer_location (rme9652,
@@ -1897,18 +1899,35 @@ static int snd_rme9652_playback_copy(struct snd_pcm_substream *substream, int ch
 						       channel);
 	if (snd_BUG_ON(!channel_buf))
 		return -EIO;
-	if (copy_from_user(channel_buf + pos * 4, src, count * 4))
+	if (copy_from_user(channel_buf + pos, src, count))
 		return -EFAULT;
-	return count;
+	return 0;
 }
 
-static int snd_rme9652_capture_copy(struct snd_pcm_substream *substream, int channel,
-				    snd_pcm_uframes_t pos, void __user *dst, snd_pcm_uframes_t count)
+static int snd_rme9652_playback_copy_kernel(struct snd_pcm_substream *substream,
+					    int channel, unsigned long pos,
+					    void *src, unsigned long count)
 {
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	char *channel_buf;
 
-	if (snd_BUG_ON(pos + count > RME9652_CHANNEL_BUFFER_BYTES / 4))
+	channel_buf = rme9652_channel_buffer_location(rme9652,
+						      substream->pstr->stream,
+						      channel);
+	if (snd_BUG_ON(!channel_buf))
+		return -EIO;
+	memcpy(channel_buf + pos, src, count);
+	return 0;
+}
+
+static int snd_rme9652_capture_copy(struct snd_pcm_substream *substream,
+				    int channel, unsigned long pos,
+				    void __user *dst, unsigned long count)
+{
+	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
+	char *channel_buf;
+
+	if (snd_BUG_ON(pos + count > RME9652_CHANNEL_BUFFER_BYTES))
 		return -EINVAL;
 
 	channel_buf = rme9652_channel_buffer_location (rme9652,
@@ -1916,13 +1935,30 @@ static int snd_rme9652_capture_copy(struct snd_pcm_substream *substream, int cha
 						       channel);
 	if (snd_BUG_ON(!channel_buf))
 		return -EIO;
-	if (copy_to_user(dst, channel_buf + pos * 4, count * 4))
+	if (copy_to_user(dst, channel_buf + pos, count))
 		return -EFAULT;
-	return count;
+	return 0;
 }
 
-static int snd_rme9652_hw_silence(struct snd_pcm_substream *substream, int channel,
-				  snd_pcm_uframes_t pos, snd_pcm_uframes_t count)
+static int snd_rme9652_capture_copy_kernel(struct snd_pcm_substream *substream,
+					   int channel, unsigned long pos,
+					   void *dst, unsigned long count)
+{
+	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
+	char *channel_buf;
+
+	channel_buf = rme9652_channel_buffer_location(rme9652,
+						      substream->pstr->stream,
+						      channel);
+	if (snd_BUG_ON(!channel_buf))
+		return -EIO;
+	memcpy(dst, channel_buf + pos, count);
+	return 0;
+}
+
+static int snd_rme9652_hw_silence(struct snd_pcm_substream *substream,
+				  int channel, unsigned long pos,
+				  unsigned long count)
 {
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	char *channel_buf;
@@ -1932,8 +1968,8 @@ static int snd_rme9652_hw_silence(struct snd_pcm_substream *substream, int chann
 						       channel);
 	if (snd_BUG_ON(!channel_buf))
 		return -EIO;
-	memset(channel_buf + pos * 4, 0, count * 4);
-	return count;
+	memset(channel_buf + pos, 0, count);
+	return 0;
 }
 
 static int snd_rme9652_reset(struct snd_pcm_substream *substream)
@@ -2036,9 +2072,10 @@ static int snd_rme9652_channel_info(struct snd_pcm_substream *substream,
 	if (snd_BUG_ON(info->channel >= RME9652_NCHANNELS))
 		return -EINVAL;
 
-	if ((chn = rme9652->channel_map[info->channel]) < 0) {
+	chn = rme9652->channel_map[array_index_nospec(info->channel,
+						      RME9652_NCHANNELS)];
+	if (chn < 0)
 		return -EINVAL;
-	}
 
 	info->offset = chn * RME9652_CHANNEL_BUFFER_BYTES;
 	info->first = 0;
@@ -2146,7 +2183,7 @@ static int snd_rme9652_prepare(struct snd_pcm_substream *substream)
 	return result;
 }
 
-static struct snd_pcm_hardware snd_rme9652_playback_subinfo =
+static const struct snd_pcm_hardware snd_rme9652_playback_subinfo =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -2170,7 +2207,7 @@ static struct snd_pcm_hardware snd_rme9652_playback_subinfo =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_rme9652_capture_subinfo =
+static const struct snd_pcm_hardware snd_rme9652_capture_subinfo =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -2193,9 +2230,9 @@ static struct snd_pcm_hardware snd_rme9652_capture_subinfo =
 	.fifo_size =		0,
 };
 
-static unsigned int period_sizes[] = { 64, 128, 256, 512, 1024, 2048, 4096, 8192 };
+static const unsigned int period_sizes[] = { 64, 128, 256, 512, 1024, 2048, 4096, 8192 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_period_sizes = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_period_sizes = {
 	.count = ARRAY_SIZE(period_sizes),
 	.list = period_sizes,
 	.mask = 0
@@ -2368,7 +2405,7 @@ static int snd_rme9652_capture_release(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_rme9652_playback_ops = {
+static const struct snd_pcm_ops snd_rme9652_playback_ops = {
 	.open =		snd_rme9652_playback_open,
 	.close =	snd_rme9652_playback_release,
 	.ioctl =	snd_rme9652_ioctl,
@@ -2376,11 +2413,12 @@ static struct snd_pcm_ops snd_rme9652_playback_ops = {
 	.prepare =	snd_rme9652_prepare,
 	.trigger =	snd_rme9652_trigger,
 	.pointer =	snd_rme9652_hw_pointer,
-	.copy =		snd_rme9652_playback_copy,
-	.silence =	snd_rme9652_hw_silence,
+	.copy_user =	snd_rme9652_playback_copy,
+	.copy_kernel =	snd_rme9652_playback_copy_kernel,
+	.fill_silence =	snd_rme9652_hw_silence,
 };
 
-static struct snd_pcm_ops snd_rme9652_capture_ops = {
+static const struct snd_pcm_ops snd_rme9652_capture_ops = {
 	.open =		snd_rme9652_capture_open,
 	.close =	snd_rme9652_capture_release,
 	.ioctl =	snd_rme9652_ioctl,
@@ -2388,7 +2426,8 @@ static struct snd_pcm_ops snd_rme9652_capture_ops = {
 	.prepare =	snd_rme9652_prepare,
 	.trigger =	snd_rme9652_trigger,
 	.pointer =	snd_rme9652_hw_pointer,
-	.copy =		snd_rme9652_capture_copy,
+	.copy_user =	snd_rme9652_capture_copy,
+	.copy_kernel =	snd_rme9652_capture_copy_kernel,
 };
 
 static int snd_rme9652_create_pcm(struct snd_card *card,
@@ -2581,19 +2620,17 @@ static int snd_rme9652_probe(struct pci_dev *pci,
 	card->private_free = snd_rme9652_card_free;
 	rme9652->dev = dev;
 	rme9652->pci = pci;
-
-	if ((err = snd_rme9652_create(card, rme9652, precise_ptr[dev])) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_rme9652_create(card, rme9652, precise_ptr[dev]);
+	if (err)
+		goto free_card;
 
 	strcpy(card->shortname, rme9652->card_name);
 
 	sprintf(card->longname, "%s at 0x%lx, irq %d",
 		card->shortname, rme9652->port, rme9652->irq);
-
-	
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err) {
+free_card:
 		snd_card_free(card);
 		return err;
 	}

@@ -18,17 +18,26 @@
 
 #include <linux/nl80211.h>
 #include <linux/pci.h>
-#include <linux/pci-aspm.h>
-#include <linux/ath9k_platform.h>
 #include <linux/module.h>
 #include "ath9k.h"
+
+extern int ath9k_use_msi;
 
 static const struct pci_device_id ath_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, 0x0023) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x0024) }, /* PCI-E */
 	{ PCI_VDEVICE(ATHEROS, 0x0027) }, /* PCI   */
+
+#ifdef CONFIG_ATH9K_PCOEM
+	/* Mini PCI AR9220 MB92 cards: Compex WLM200NX, Wistron DNMA-92 */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0029,
+			 PCI_VENDOR_ID_ATHEROS,
+			 0x2096),
+	  .driver_data = ATH9K_PCI_LED_ACT_HI },
+#endif
+
 	{ PCI_VDEVICE(ATHEROS, 0x0029) }, /* PCI   */
-	{ PCI_VDEVICE(ATHEROS, 0x002A) }, /* PCI-E */
 
 #ifdef CONFIG_ATH9K_PCOEM
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
@@ -76,7 +85,11 @@ static const struct pci_device_id ath_pci_id_table[] = {
 			 0x10CF, /* Fujitsu */
 			 0x1536),
 	  .driver_data = ATH9K_PCI_D3_L1_WAR },
+#endif
 
+	{ PCI_VDEVICE(ATHEROS, 0x002A) }, /* PCI-E */
+
+#ifdef CONFIG_ATH9K_PCOEM
 	/* AR9285 card for Asus */
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x002B,
@@ -370,6 +383,16 @@ static const struct pci_device_id ath_pci_id_table[] = {
 			 0x0034,
 			 0x10CF, /* Fujitsu */
 			 0x1783),
+	  .driver_data = ATH9K_PCI_WOW },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0034,
+			 PCI_VENDOR_ID_DELL,
+			 0x020B),
+	  .driver_data = ATH9K_PCI_WOW },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x0034,
+			 PCI_VENDOR_ID_DELL,
+			 0x0300),
 	  .driver_data = ATH9K_PCI_WOW },
 
 	/* Killer Wireless (2x2) */
@@ -776,34 +799,20 @@ static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
 
 static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-	struct ath9k_platform_data *pdata = sc->dev->platform_data;
+	struct ath_hw *ah = (struct ath_hw *) common->ah;
 
-	if (pdata && !pdata->use_eeprom) {
-		if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
-			ath_err(common,
-				"%s: eeprom read failed, offset %08x is out of range\n",
-				__func__, off);
-		}
+	common->ops->read(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
 
-		*data = pdata->eeprom_data[off];
-	} else {
-		struct ath_hw *ah = (struct ath_hw *) common->ah;
-
-		common->ops->read(ah, AR5416_EEPROM_OFFSET +
-				      (off << AR5416_EEPROM_S));
-
-		if (!ath9k_hw_wait(ah,
-				   AR_EEPROM_STATUS_DATA,
-				   AR_EEPROM_STATUS_DATA_BUSY |
-				   AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0,
-				   AH_WAIT_TIMEOUT)) {
-			return false;
-		}
-
-		*data = MS(common->ops->read(ah, AR_EEPROM_STATUS_DATA),
-			   AR_EEPROM_STATUS_DATA_VAL);
+	if (!ath9k_hw_wait(ah,
+				AR_EEPROM_STATUS_DATA,
+				AR_EEPROM_STATUS_DATA_BUSY |
+				AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0,
+				AH_WAIT_TIMEOUT)) {
+		return false;
 	}
+
+	*data = MS(common->ops->read(ah, AR_EEPROM_STATUS_DATA),
+			AR_EEPROM_STATUS_DATA_VAL);
 
 	return true;
 }
@@ -881,6 +890,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	u32 val;
 	int ret = 0;
 	char hw_name[64];
+	int msi_enabled = 0;
 
 	if (pcim_enable_device(pdev))
 		return -EIO;
@@ -952,7 +962,20 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->mem = pcim_iomap_table(pdev)[0];
 	sc->driver_data = id->driver_data;
 
-	ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath9k", sc);
+	if (ath9k_use_msi) {
+		if (pci_enable_msi(pdev) == 0) {
+			msi_enabled = 1;
+			dev_err(&pdev->dev, "Using MSI\n");
+		} else {
+			dev_err(&pdev->dev, "Using INTx\n");
+		}
+	}
+
+	if (!msi_enabled)
+		ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath9k", sc);
+	else
+		ret = request_irq(pdev->irq, ath_isr, 0, "ath9k", sc);
+
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
 		goto err_irq;
@@ -965,6 +988,9 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_err(&pdev->dev, "Failed to initialize device\n");
 		goto err_init;
 	}
+
+	sc->sc_ah->msi_enabled = msi_enabled;
+	sc->sc_ah->msi_reg = 0;
 
 	ath9k_hw_name(sc->sc_ah, hw_name, sizeof(hw_name));
 	wiphy_info(hw->wiphy, "%s mem=0x%lx, irq=%d\n",

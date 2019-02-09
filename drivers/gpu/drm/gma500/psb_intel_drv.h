@@ -23,6 +23,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include <linux/gpio.h>
 #include "gma_display.h"
 
@@ -140,6 +141,9 @@ struct gma_encoder {
 struct gma_connector {
 	struct drm_connector base;
 	struct gma_encoder *encoder;
+
+	void (*save)(struct drm_connector *connector);
+	void (*restore)(struct drm_connector *connector);
 };
 
 struct psb_intel_crtc_state {
@@ -168,7 +172,6 @@ struct gma_crtc {
 	int plane;
 	uint32_t cursor_addr;
 	struct gtt_range *cursor_gt;
-	u8 lut_r[256], lut_g[256], lut_b[256];
 	u8 lut_adj[256];
 	struct psb_intel_framebuffer *fbdev_fb;
 	/* a mode_set for fbdev users on this crtc */
@@ -252,7 +255,7 @@ extern int intelfb_remove(struct drm_device *dev,
 extern bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				      const struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode);
-extern int psb_intel_lvds_mode_valid(struct drm_connector *connector,
+extern enum drm_mode_status psb_intel_lvds_mode_valid(struct drm_connector *connector,
 				     struct drm_display_mode *mode);
 extern int psb_intel_lvds_set_property(struct drm_connector *connector,
 					struct drm_property *property,

@@ -19,11 +19,15 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
+#include <linux/bootmem.h>
 
+#include <net/addrconf.h>
 #include <net/inet_connection_sock.h>
 #include <net/inet_hashtables.h>
 #include <net/secure_seq.h>
 #include <net/ip.h>
+#include <net/tcp.h>
+#include <net/sock_reuseport.h>
 
 static u32 inet_ehashfn(const struct net *net, const __be32 laddr,
 			const __u16 lport, const __be32 faddr,
@@ -40,7 +44,7 @@ static u32 inet_ehashfn(const struct net *net, const __be32 laddr,
 /* This function handles inet_sock, but also timewait and request sockets
  * for IPv4/IPv6.
  */
-u32 sk_ehashfn(const struct sock *sk)
+static u32 sk_ehashfn(const struct sock *sk)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	if (sk->sk_family == AF_INET6 &&
@@ -70,7 +74,6 @@ struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
 		tb->port      = snum;
 		tb->fastreuse = 0;
 		tb->fastreuseport = 0;
-		tb->num_owners = 0;
 		INIT_HLIST_HEAD(&tb->owners);
 		hlist_add_head(&tb->node, &head->chain);
 	}
@@ -93,7 +96,6 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 {
 	inet_sk(sk)->inet_num = snum;
 	sk_add_bind_node(sk, &tb->owners);
-	tb->num_owners++;
 	inet_csk(sk)->icsk_bind_hash = tb;
 }
 
@@ -111,7 +113,6 @@ static void __inet_put_port(struct sock *sk)
 	spin_lock(&head->lock);
 	tb = inet_csk(sk)->icsk_bind_hash;
 	__sk_del_bind_node(sk);
-	tb->num_owners--;
 	inet_csk(sk)->icsk_bind_hash = NULL;
 	inet_sk(sk)->inet_num = 0;
 	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
@@ -168,9 +169,63 @@ int __inet_inherit_port(const struct sock *sk, struct sock *child)
 }
 EXPORT_SYMBOL_GPL(__inet_inherit_port);
 
+static struct inet_listen_hashbucket *
+inet_lhash2_bucket_sk(struct inet_hashinfo *h, struct sock *sk)
+{
+	u32 hash;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		hash = ipv6_portaddr_hash(sock_net(sk),
+					  &sk->sk_v6_rcv_saddr,
+					  inet_sk(sk)->inet_num);
+	else
+#endif
+		hash = ipv4_portaddr_hash(sock_net(sk),
+					  inet_sk(sk)->inet_rcv_saddr,
+					  inet_sk(sk)->inet_num);
+	return inet_lhash2_bucket(h, hash);
+}
+
+static void inet_hash2(struct inet_hashinfo *h, struct sock *sk)
+{
+	struct inet_listen_hashbucket *ilb2;
+
+	if (!h->lhash2)
+		return;
+
+	ilb2 = inet_lhash2_bucket_sk(h, sk);
+
+	spin_lock(&ilb2->lock);
+	if (sk->sk_reuseport && sk->sk_family == AF_INET6)
+		hlist_add_tail_rcu(&inet_csk(sk)->icsk_listen_portaddr_node,
+				   &ilb2->head);
+	else
+		hlist_add_head_rcu(&inet_csk(sk)->icsk_listen_portaddr_node,
+				   &ilb2->head);
+	ilb2->count++;
+	spin_unlock(&ilb2->lock);
+}
+
+static void inet_unhash2(struct inet_hashinfo *h, struct sock *sk)
+{
+	struct inet_listen_hashbucket *ilb2;
+
+	if (!h->lhash2 ||
+	    WARN_ON_ONCE(hlist_unhashed(&inet_csk(sk)->icsk_listen_portaddr_node)))
+		return;
+
+	ilb2 = inet_lhash2_bucket_sk(h, sk);
+
+	spin_lock(&ilb2->lock);
+	hlist_del_init_rcu(&inet_csk(sk)->icsk_listen_portaddr_node);
+	ilb2->count--;
+	spin_unlock(&ilb2->lock);
+}
+
 static inline int compute_score(struct sock *sk, struct net *net,
 				const unsigned short hnum, const __be32 daddr,
-				const int dif)
+				const int dif, const int sdif, bool exact_dif)
 {
 	int score = -1;
 	struct inet_sock *inet = inet_sk(sk);
@@ -184,10 +239,14 @@ static inline int compute_score(struct sock *sk, struct net *net,
 				return -1;
 			score += 4;
 		}
-		if (sk->sk_bound_dev_if) {
-			if (sk->sk_bound_dev_if != dif)
+		if (sk->sk_bound_dev_if || exact_dif) {
+			bool dev_match = (sk->sk_bound_dev_if == dif ||
+					  sk->sk_bound_dev_if == sdif);
+
+			if (!dev_match)
 				return -1;
-			score += 4;
+			if (sk->sk_bound_dev_if)
+				score += 4;
 		}
 		if (sk->sk_incoming_cpu == raw_smp_processor_id())
 			score++;
@@ -196,65 +255,113 @@ static inline int compute_score(struct sock *sk, struct net *net,
 }
 
 /*
- * Don't inline this cruft. Here are some nice properties to exploit here. The
- * BSD API does not allow a listening sock to specify the remote port nor the
+ * Here are some nice properties to exploit here. The BSD API
+ * does not allow a listening sock to specify the remote port nor the
  * remote address for the connection. So always assume those are both
  * wildcarded during the search since they can never be otherwise.
  */
 
+/* called with rcu_read_lock() : No refcount taken on the socket */
+static struct sock *inet_lhash2_lookup(struct net *net,
+				struct inet_listen_hashbucket *ilb2,
+				struct sk_buff *skb, int doff,
+				const __be32 saddr, __be16 sport,
+				const __be32 daddr, const unsigned short hnum,
+				const int dif, const int sdif)
+{
+	bool exact_dif = inet_exact_dif_match(net, skb);
+	struct inet_connection_sock *icsk;
+	struct sock *sk, *result = NULL;
+	int score, hiscore = 0;
+	u32 phash = 0;
+
+	inet_lhash2_for_each_icsk_rcu(icsk, &ilb2->head) {
+		sk = (struct sock *)icsk;
+		score = compute_score(sk, net, hnum, daddr,
+				      dif, sdif, exact_dif);
+		if (score > hiscore) {
+			if (sk->sk_reuseport) {
+				phash = inet_ehashfn(net, daddr, hnum,
+						     saddr, sport);
+				result = reuseport_select_sock(sk, phash,
+							       skb, doff);
+				if (result)
+					return result;
+			}
+			result = sk;
+			hiscore = score;
+		}
+	}
+
+	return result;
+}
 
 struct sock *__inet_lookup_listener(struct net *net,
 				    struct inet_hashinfo *hashinfo,
+				    struct sk_buff *skb, int doff,
 				    const __be32 saddr, __be16 sport,
 				    const __be32 daddr, const unsigned short hnum,
-				    const int dif)
+				    const int dif, const int sdif)
 {
-	struct sock *sk, *result;
-	struct hlist_nulls_node *node;
 	unsigned int hash = inet_lhashfn(net, hnum);
 	struct inet_listen_hashbucket *ilb = &hashinfo->listening_hash[hash];
-	int score, hiscore, matches = 0, reuseport = 0;
+	bool exact_dif = inet_exact_dif_match(net, skb);
+	struct inet_listen_hashbucket *ilb2;
+	struct sock *sk, *result = NULL;
+	int score, hiscore = 0;
+	unsigned int hash2;
 	u32 phash = 0;
 
-	rcu_read_lock();
-begin:
-	result = NULL;
-	hiscore = 0;
-	sk_nulls_for_each_rcu(sk, node, &ilb->head) {
-		score = compute_score(sk, net, hnum, daddr, dif);
+	if (ilb->count <= 10 || !hashinfo->lhash2)
+		goto port_lookup;
+
+	/* Too many sk in the ilb bucket (which is hashed by port alone).
+	 * Try lhash2 (which is hashed by port and addr) instead.
+	 */
+
+	hash2 = ipv4_portaddr_hash(net, daddr, hnum);
+	ilb2 = inet_lhash2_bucket(hashinfo, hash2);
+	if (ilb2->count > ilb->count)
+		goto port_lookup;
+
+	result = inet_lhash2_lookup(net, ilb2, skb, doff,
+				    saddr, sport, daddr, hnum,
+				    dif, sdif);
+	if (result)
+		goto done;
+
+	/* Lookup lhash2 with INADDR_ANY */
+
+	hash2 = ipv4_portaddr_hash(net, htonl(INADDR_ANY), hnum);
+	ilb2 = inet_lhash2_bucket(hashinfo, hash2);
+	if (ilb2->count > ilb->count)
+		goto port_lookup;
+
+	result = inet_lhash2_lookup(net, ilb2, skb, doff,
+				    saddr, sport, daddr, hnum,
+				    dif, sdif);
+	goto done;
+
+port_lookup:
+	sk_for_each_rcu(sk, &ilb->head) {
+		score = compute_score(sk, net, hnum, daddr,
+				      dif, sdif, exact_dif);
 		if (score > hiscore) {
-			result = sk;
-			hiscore = score;
-			reuseport = sk->sk_reuseport;
-			if (reuseport) {
+			if (sk->sk_reuseport) {
 				phash = inet_ehashfn(net, daddr, hnum,
 						     saddr, sport);
-				matches = 1;
+				result = reuseport_select_sock(sk, phash,
+							       skb, doff);
+				if (result)
+					goto done;
 			}
-		} else if (score == hiscore && reuseport) {
-			matches++;
-			if (reciprocal_scale(phash, matches) == 0)
-				result = sk;
-			phash = next_pseudo_random32(phash);
+			result = sk;
+			hiscore = score;
 		}
 	}
-	/*
-	 * if the nulls value we got at the end of this lookup is
-	 * not the expected one, we must restart lookup.
-	 * We probably met an item that was moved to another chain.
-	 */
-	if (get_nulls_value(node) != hash + LISTENING_NULLS_BASE)
-		goto begin;
-	if (result) {
-		if (unlikely(!atomic_inc_not_zero(&result->sk_refcnt)))
-			result = NULL;
-		else if (unlikely(compute_score(result, net, hnum, daddr,
-				  dif) < hiscore)) {
-			sock_put(result);
-			goto begin;
-		}
-	}
-	rcu_read_unlock();
+done:
+	if (unlikely(IS_ERR(result)))
+		return NULL;
 	return result;
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_listener);
@@ -262,7 +369,7 @@ EXPORT_SYMBOL_GPL(__inet_lookup_listener);
 /* All sockets share common refcount, but have different destructors */
 void sock_gen_put(struct sock *sk)
 {
-	if (!atomic_dec_and_test(&sk->sk_refcnt))
+	if (!refcount_dec_and_test(&sk->sk_refcnt))
 		return;
 
 	if (sk->sk_state == TCP_TIME_WAIT)
@@ -284,7 +391,7 @@ struct sock *__inet_lookup_established(struct net *net,
 				  struct inet_hashinfo *hashinfo,
 				  const __be32 saddr, const __be16 sport,
 				  const __be32 daddr, const u16 hnum,
-				  const int dif)
+				  const int dif, const int sdif)
 {
 	INET_ADDR_COOKIE(acookie, saddr, daddr);
 	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
@@ -297,17 +404,17 @@ struct sock *__inet_lookup_established(struct net *net,
 	unsigned int slot = hash & hashinfo->ehash_mask;
 	struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
 
-	rcu_read_lock();
 begin:
 	sk_nulls_for_each_rcu(sk, node, &head->chain) {
 		if (sk->sk_hash != hash)
 			continue;
 		if (likely(INET_MATCH(sk, net, acookie,
-				      saddr, daddr, ports, dif))) {
-			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
+				      saddr, daddr, ports, dif, sdif))) {
+			if (unlikely(!refcount_inc_not_zero(&sk->sk_refcnt)))
 				goto out;
 			if (unlikely(!INET_MATCH(sk, net, acookie,
-						 saddr, daddr, ports, dif))) {
+						 saddr, daddr, ports,
+						 dif, sdif))) {
 				sock_gen_put(sk);
 				goto begin;
 			}
@@ -324,7 +431,6 @@ begin:
 out:
 	sk = NULL;
 found:
-	rcu_read_unlock();
 	return sk;
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_established);
@@ -339,9 +445,10 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	__be32 daddr = inet->inet_rcv_saddr;
 	__be32 saddr = inet->inet_daddr;
 	int dif = sk->sk_bound_dev_if;
+	struct net *net = sock_net(sk);
+	int sdif = l3mdev_master_ifindex_by_index(net, dif);
 	INET_ADDR_COOKIE(acookie, saddr, daddr);
 	const __portpair ports = INET_COMBINED_PORTS(inet->inet_dport, lport);
-	struct net *net = sock_net(sk);
 	unsigned int hash = inet_ehashfn(net, daddr, lport,
 					 saddr, inet->inet_dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
@@ -357,7 +464,7 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 			continue;
 
 		if (likely(INET_MATCH(sk2, net, acookie,
-					 saddr, daddr, ports, dif))) {
+					 saddr, daddr, ports, dif, sdif))) {
 			if (sk2->sk_state == TCP_TIME_WAIT) {
 				tw = inet_twsk(sk2);
 				if (twsk_unique(sk, sk2, twp))
@@ -377,7 +484,7 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	__sk_nulls_add_node_rcu(sk, &head->chain);
 	if (tw) {
 		sk_nulls_del_node_init_rcu((struct sock *)tw);
-		NET_INC_STATS_BH(net, LINUX_MIB_TIMEWAITRECYCLED);
+		__NET_INC_STATS(net, LINUX_MIB_TIMEWAITRECYCLED);
 	}
 	spin_unlock(lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
@@ -441,7 +548,7 @@ bool inet_ehash_nolisten(struct sock *sk, struct sock *osk)
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	} else {
 		percpu_counter_inc(sk->sk_prot->orphan_count);
-		sk->sk_state = TCP_CLOSE;
+		inet_sk_set_state(sk, TCP_CLOSE);
 		sock_set_flag(sk, SOCK_DEAD);
 		inet_csk_destroy_sock(sk);
 	}
@@ -449,53 +556,107 @@ bool inet_ehash_nolisten(struct sock *sk, struct sock *osk)
 }
 EXPORT_SYMBOL_GPL(inet_ehash_nolisten);
 
-void __inet_hash(struct sock *sk, struct sock *osk)
+static int inet_reuseport_add_sock(struct sock *sk,
+				   struct inet_listen_hashbucket *ilb)
+{
+	struct inet_bind_bucket *tb = inet_csk(sk)->icsk_bind_hash;
+	struct sock *sk2;
+	kuid_t uid = sock_i_uid(sk);
+
+	sk_for_each_rcu(sk2, &ilb->head) {
+		if (sk2 != sk &&
+		    sk2->sk_family == sk->sk_family &&
+		    ipv6_only_sock(sk2) == ipv6_only_sock(sk) &&
+		    sk2->sk_bound_dev_if == sk->sk_bound_dev_if &&
+		    inet_csk(sk2)->icsk_bind_hash == tb &&
+		    sk2->sk_reuseport && uid_eq(uid, sock_i_uid(sk2)) &&
+		    inet_rcv_saddr_equal(sk, sk2, false))
+			return reuseport_add_sock(sk, sk2,
+						  inet_rcv_saddr_any(sk));
+	}
+
+	return reuseport_alloc(sk, inet_rcv_saddr_any(sk));
+}
+
+int __inet_hash(struct sock *sk, struct sock *osk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct inet_listen_hashbucket *ilb;
+	int err = 0;
 
 	if (sk->sk_state != TCP_LISTEN) {
 		inet_ehash_nolisten(sk, osk);
-		return;
+		return 0;
 	}
 	WARN_ON(!sk_unhashed(sk));
 	ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
 
 	spin_lock(&ilb->lock);
-	__sk_nulls_add_node_rcu(sk, &ilb->head);
+	if (sk->sk_reuseport) {
+		err = inet_reuseport_add_sock(sk, ilb);
+		if (err)
+			goto unlock;
+	}
+	if (IS_ENABLED(CONFIG_IPV6) && sk->sk_reuseport &&
+		sk->sk_family == AF_INET6)
+		hlist_add_tail_rcu(&sk->sk_node, &ilb->head);
+	else
+		hlist_add_head_rcu(&sk->sk_node, &ilb->head);
+	inet_hash2(hashinfo, sk);
+	ilb->count++;
+	sock_set_flag(sk, SOCK_RCU_FREE);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+unlock:
 	spin_unlock(&ilb->lock);
+
+	return err;
 }
 EXPORT_SYMBOL(__inet_hash);
 
-void inet_hash(struct sock *sk)
+int inet_hash(struct sock *sk)
 {
+	int err = 0;
+
 	if (sk->sk_state != TCP_CLOSE) {
 		local_bh_disable();
-		__inet_hash(sk, NULL);
+		err = __inet_hash(sk, NULL);
 		local_bh_enable();
 	}
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(inet_hash);
 
 void inet_unhash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
+	struct inet_listen_hashbucket *ilb = NULL;
 	spinlock_t *lock;
-	int done;
 
 	if (sk_unhashed(sk))
 		return;
 
-	if (sk->sk_state == TCP_LISTEN)
-		lock = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)].lock;
-	else
+	if (sk->sk_state == TCP_LISTEN) {
+		ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+		lock = &ilb->lock;
+	} else {
 		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
-
+	}
 	spin_lock_bh(lock);
-	done = __sk_nulls_del_node_init_rcu(sk);
-	if (done)
-		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+	if (sk_unhashed(sk))
+		goto unlock;
+
+	if (rcu_access_pointer(sk->sk_reuseport_cb))
+		reuseport_detach_sock(sk);
+	if (ilb) {
+		inet_unhash2(hashinfo, sk);
+		 __sk_del_node_init(sk);
+		 ilb->count--;
+	} else {
+		__sk_nulls_del_node_init_rcu(sk);
+	}
+	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+unlock:
 	spin_unlock_bh(lock);
 }
 EXPORT_SYMBOL_GPL(inet_unhash);
@@ -506,106 +667,106 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			struct sock *, __u16, struct inet_timewait_sock **))
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
-	const unsigned short snum = inet_sk(sk)->inet_num;
+	struct inet_timewait_sock *tw = NULL;
 	struct inet_bind_hashbucket *head;
-	struct inet_bind_bucket *tb;
-	int ret;
+	int port = inet_sk(sk)->inet_num;
 	struct net *net = sock_net(sk);
+	struct inet_bind_bucket *tb;
+	u32 remaining, offset;
+	int ret, i, low, high;
+	static u32 hint;
 
-	if (!snum) {
-		int i, remaining, low, high, port;
-		static u32 hint;
-		u32 offset = hint + port_offset;
-		struct inet_timewait_sock *tw = NULL;
-
-		inet_get_local_port_range(net, &low, &high);
-		remaining = (high - low) + 1;
-
-		/* By starting with offset being an even number,
-		 * we tend to leave about 50% of ports for other uses,
-		 * like bind(0).
-		 */
-		offset &= ~1;
-
-		local_bh_disable();
-		for (i = 0; i < remaining; i++) {
-			port = low + (i + offset) % remaining;
-			if (inet_is_local_reserved_port(net, port))
-				continue;
-			head = &hinfo->bhash[inet_bhashfn(net, port,
-					hinfo->bhash_size)];
-			spin_lock(&head->lock);
-
-			/* Does not bother with rcv_saddr checks,
-			 * because the established check is already
-			 * unique enough.
-			 */
-			inet_bind_bucket_for_each(tb, &head->chain) {
-				if (net_eq(ib_net(tb), net) &&
-				    tb->port == port) {
-					if (tb->fastreuse >= 0 ||
-					    tb->fastreuseport >= 0)
-						goto next_port;
-					WARN_ON(hlist_empty(&tb->owners));
-					if (!check_established(death_row, sk,
-								port, &tw))
-						goto ok;
-					goto next_port;
-				}
-			}
-
-			tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep,
-					net, head, port);
-			if (!tb) {
-				spin_unlock(&head->lock);
-				break;
-			}
-			tb->fastreuse = -1;
-			tb->fastreuseport = -1;
-			goto ok;
-
-		next_port:
-			spin_unlock(&head->lock);
+	if (port) {
+		head = &hinfo->bhash[inet_bhashfn(net, port,
+						  hinfo->bhash_size)];
+		tb = inet_csk(sk)->icsk_bind_hash;
+		spin_lock_bh(&head->lock);
+		if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
+			inet_ehash_nolisten(sk, NULL);
+			spin_unlock_bh(&head->lock);
+			return 0;
 		}
-		local_bh_enable();
-
-		return -EADDRNOTAVAIL;
-
-ok:
-		hint += (i + 2) & ~1;
-
-		/* Head lock still held and bh's disabled */
-		inet_bind_hash(sk, tb, port);
-		if (sk_unhashed(sk)) {
-			inet_sk(sk)->inet_sport = htons(port);
-			inet_ehash_nolisten(sk, (struct sock *)tw);
-		}
-		if (tw)
-			inet_twsk_bind_unhash(tw, hinfo);
-		spin_unlock(&head->lock);
-
-		if (tw)
-			inet_twsk_deschedule_put(tw);
-
-		ret = 0;
-		goto out;
-	}
-
-	head = &hinfo->bhash[inet_bhashfn(net, snum, hinfo->bhash_size)];
-	tb  = inet_csk(sk)->icsk_bind_hash;
-	spin_lock_bh(&head->lock);
-	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		inet_ehash_nolisten(sk, NULL);
-		spin_unlock_bh(&head->lock);
-		return 0;
-	} else {
 		spin_unlock(&head->lock);
 		/* No definite answer... Walk to established hash table */
-		ret = check_established(death_row, sk, snum, NULL);
-out:
+		ret = check_established(death_row, sk, port, NULL);
 		local_bh_enable();
 		return ret;
 	}
+
+	inet_get_local_port_range(net, &low, &high);
+	high++; /* [32768, 60999] -> [32768, 61000[ */
+	remaining = high - low;
+	if (likely(remaining > 1))
+		remaining &= ~1U;
+
+	offset = (hint + port_offset) % remaining;
+	/* In first pass we try ports of @low parity.
+	 * inet_csk_get_port() does the opposite choice.
+	 */
+	offset &= ~1U;
+other_parity_scan:
+	port = low + offset;
+	for (i = 0; i < remaining; i += 2, port += 2) {
+		if (unlikely(port >= high))
+			port -= remaining;
+		if (inet_is_local_reserved_port(net, port))
+			continue;
+		head = &hinfo->bhash[inet_bhashfn(net, port,
+						  hinfo->bhash_size)];
+		spin_lock_bh(&head->lock);
+
+		/* Does not bother with rcv_saddr checks, because
+		 * the established check is already unique enough.
+		 */
+		inet_bind_bucket_for_each(tb, &head->chain) {
+			if (net_eq(ib_net(tb), net) && tb->port == port) {
+				if (tb->fastreuse >= 0 ||
+				    tb->fastreuseport >= 0)
+					goto next_port;
+				WARN_ON(hlist_empty(&tb->owners));
+				if (!check_established(death_row, sk,
+						       port, &tw))
+					goto ok;
+				goto next_port;
+			}
+		}
+
+		tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep,
+					     net, head, port);
+		if (!tb) {
+			spin_unlock_bh(&head->lock);
+			return -ENOMEM;
+		}
+		tb->fastreuse = -1;
+		tb->fastreuseport = -1;
+		goto ok;
+next_port:
+		spin_unlock_bh(&head->lock);
+		cond_resched();
+	}
+
+	offset++;
+	if ((offset & 1) && remaining > 1)
+		goto other_parity_scan;
+
+	return -EADDRNOTAVAIL;
+
+ok:
+	hint += i + 2;
+
+	/* Head lock still held and bh's disabled */
+	inet_bind_hash(sk, tb, port);
+	if (sk_unhashed(sk)) {
+		inet_sk(sk)->inet_sport = htons(port);
+		inet_ehash_nolisten(sk, (struct sock *)tw);
+	}
+	if (tw)
+		inet_twsk_bind_unhash(tw, hinfo);
+	spin_unlock(&head->lock);
+	if (tw)
+		inet_twsk_deschedule_put(tw);
+	local_bh_enable();
+	return 0;
 }
 
 /*
@@ -629,11 +790,37 @@ void inet_hashinfo_init(struct inet_hashinfo *h)
 
 	for (i = 0; i < INET_LHTABLE_SIZE; i++) {
 		spin_lock_init(&h->listening_hash[i].lock);
-		INIT_HLIST_NULLS_HEAD(&h->listening_hash[i].head,
-				      i + LISTENING_NULLS_BASE);
-		}
+		INIT_HLIST_HEAD(&h->listening_hash[i].head);
+		h->listening_hash[i].count = 0;
+	}
+
+	h->lhash2 = NULL;
 }
 EXPORT_SYMBOL_GPL(inet_hashinfo_init);
+
+void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
+				unsigned long numentries, int scale,
+				unsigned long low_limit,
+				unsigned long high_limit)
+{
+	unsigned int i;
+
+	h->lhash2 = alloc_large_system_hash(name,
+					    sizeof(*h->lhash2),
+					    numentries,
+					    scale,
+					    0,
+					    NULL,
+					    &h->lhash2_mask,
+					    low_limit,
+					    high_limit);
+
+	for (i = 0; i <= h->lhash2_mask; i++) {
+		spin_lock_init(&h->lhash2[i].lock);
+		INIT_HLIST_HEAD(&h->lhash2[i].head);
+		h->lhash2[i].count = 0;
+	}
+}
 
 int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
 {
@@ -648,11 +835,7 @@ int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
 		/* no more locks than number of hash buckets */
 		nblocks = min(nblocks, hashinfo->ehash_mask + 1);
 
-		hashinfo->ehash_locks =	kmalloc_array(nblocks, locksz,
-						      GFP_KERNEL | __GFP_NOWARN);
-		if (!hashinfo->ehash_locks)
-			hashinfo->ehash_locks = vmalloc(nblocks * locksz);
-
+		hashinfo->ehash_locks = kvmalloc_array(nblocks, locksz, GFP_KERNEL);
 		if (!hashinfo->ehash_locks)
 			return -ENOMEM;
 

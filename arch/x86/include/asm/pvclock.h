@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PVCLOCK_H
 #define _ASM_X86_PVCLOCK_H
 
@@ -5,16 +6,34 @@
 #include <asm/pvclock-abi.h>
 
 /* some helper functions for xen and kvm pv clock sources */
-cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src);
+u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src);
 u8 pvclock_read_flags(struct pvclock_vcpu_time_info *src);
 void pvclock_set_flags(u8 flags);
 unsigned long pvclock_tsc_khz(struct pvclock_vcpu_time_info *src);
 void pvclock_read_wallclock(struct pvclock_wall_clock *wall,
 			    struct pvclock_vcpu_time_info *vcpu,
-			    struct timespec *ts);
+			    struct timespec64 *ts);
 void pvclock_resume(void);
 
 void pvclock_touch_watchdogs(void);
+
+static __always_inline
+unsigned pvclock_read_begin(const struct pvclock_vcpu_time_info *src)
+{
+	unsigned version = src->version & ~1;
+	/* Make sure that the version is read before the data. */
+	virt_rmb();
+	return version;
+}
+
+static __always_inline
+bool pvclock_read_retry(const struct pvclock_vcpu_time_info *src,
+			unsigned version)
+{
+	/* Make sure that the version is re-read after the data. */
+	virt_rmb();
+	return unlikely(version != src->version);
+}
 
 /*
  * Scale a 64-bit delta by scaling and multiplying by a 32-bit fraction,
@@ -60,30 +79,12 @@ static inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
 }
 
 static __always_inline
-u64 pvclock_get_nsec_offset(const struct pvclock_vcpu_time_info *src)
+u64 __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src, u64 tsc)
 {
-	u64 delta = rdtsc_ordered() - src->tsc_timestamp;
-	return pvclock_scale_delta(delta, src->tsc_to_system_mul,
-				   src->tsc_shift);
-}
-
-static __always_inline
-unsigned __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src,
-			       cycle_t *cycles, u8 *flags)
-{
-	unsigned version;
-	cycle_t ret, offset;
-	u8 ret_flags;
-
-	version = src->version;
-
-	offset = pvclock_get_nsec_offset(src);
-	ret = src->system_time + offset;
-	ret_flags = src->flags;
-
-	*cycles = ret;
-	*flags = ret_flags;
-	return version;
+	u64 delta = tsc - src->tsc_timestamp;
+	u64 offset = pvclock_scale_delta(delta, src->tsc_to_system_mul,
+					     src->tsc_shift);
+	return src->system_time + offset;
 }
 
 struct pvclock_vsyscall_time_info {
@@ -91,10 +92,15 @@ struct pvclock_vsyscall_time_info {
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
 #define PVTI_SIZE sizeof(struct pvclock_vsyscall_time_info)
-#define PVCLOCK_VSYSCALL_NR_PAGES (((NR_CPUS-1)/(PAGE_SIZE/PVTI_SIZE))+1)
 
-int __init pvclock_init_vsyscall(struct pvclock_vsyscall_time_info *i,
-				 int size);
-struct pvclock_vcpu_time_info *pvclock_get_vsyscall_time_info(int cpu);
+#ifdef CONFIG_PARAVIRT_CLOCK
+void pvclock_set_pvti_cpu0_va(struct pvclock_vsyscall_time_info *pvti);
+struct pvclock_vsyscall_time_info *pvclock_get_pvti_cpu0_va(void);
+#else
+static inline struct pvclock_vsyscall_time_info *pvclock_get_pvti_cpu0_va(void)
+{
+	return NULL;
+}
+#endif
 
 #endif /* _ASM_X86_PVCLOCK_H */

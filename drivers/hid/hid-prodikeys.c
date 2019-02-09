@@ -103,7 +103,7 @@ MODULE_PARM_DESC(enable, "Enable for the PC-MIDI virtual audio driver");
 static ssize_t show_channel(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	dbg_hid("pcmidi sysfs read channel=%u\n", pk->pm->midi_channel);
@@ -116,7 +116,7 @@ static ssize_t show_channel(struct device *dev,
 static ssize_t store_channel(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	unsigned channel = 0;
@@ -140,7 +140,7 @@ static struct device_attribute *sysfs_device_attr_channel = {
 static ssize_t show_sustain(struct device *dev,
  struct device_attribute *attr, char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	dbg_hid("pcmidi sysfs read sustain=%u\n", pk->pm->midi_sustain);
@@ -153,7 +153,7 @@ static ssize_t show_sustain(struct device *dev,
 static ssize_t store_sustain(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	unsigned sustain = 0;
@@ -179,7 +179,7 @@ static struct device_attribute *sysfs_device_attr_sustain = {
 static ssize_t show_octave(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	dbg_hid("pcmidi sysfs read octave=%d\n", pk->pm->midi_octave);
@@ -192,7 +192,7 @@ static ssize_t show_octave(struct device *dev,
 static ssize_t store_octave(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct pk_device *pk = hid_get_drvdata(hdev);
 
 	int octave = 0;
@@ -239,9 +239,9 @@ drop_note:
 	return;
 }
 
-static void pcmidi_sustained_note_release(unsigned long data)
+static void pcmidi_sustained_note_release(struct timer_list *t)
 {
-	struct pcmidi_sustain *pms = (struct pcmidi_sustain *)data;
+	struct pcmidi_sustain *pms = from_timer(pms, t, timer);
 
 	pcmidi_send_note(pms->pm, pms->status, pms->note, pms->velocity);
 	pms->in_use = 0;
@@ -256,8 +256,7 @@ static void init_sustain_timers(struct pcmidi_snd *pm)
 		pms = &pm->sustained_notes[i];
 		pms->in_use = 0;
 		pms->pm = pm;
-		setup_timer(&pms->timer, pcmidi_sustained_note_release,
-			(unsigned long)pms);
+		timer_setup(&pms->timer, pcmidi_sustained_note_release, 0);
 	}
 }
 
@@ -593,7 +592,7 @@ static void pcmidi_in_trigger(struct snd_rawmidi_substream *substream, int up)
 	pm->in_triggered = up;
 }
 
-static struct snd_rawmidi_ops pcmidi_in_ops = {
+static const struct snd_rawmidi_ops pcmidi_in_ops = {
 	.open = pcmidi_in_open,
 	.close = pcmidi_in_close,
 	.trigger = pcmidi_in_trigger

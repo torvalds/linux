@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * WUSB Wire Adapter: Control/Data Streaming Interface (WUSB[8])
  * Notification EndPoint support
  *
  * Copyright (C) 2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * This part takes care of getting the notification from the hw
  * only and dispatching through wusbwad into
@@ -107,7 +93,6 @@ static void wa_notif_dispatch(struct work_struct *ws)
 		goto out;				/* screw it */
 #endif
 	atomic_dec(&wa->notifs_queued);		/* Throttling ctl */
-	dev = &wa->usb_iface->dev;
 	size = nw->size;
 	itr = nw->data;
 
@@ -198,6 +183,7 @@ static int wa_nep_queue(struct wahc *wa, size_t size)
 	if (nw == NULL) {
 		if (printk_ratelimit())
 			dev_err(dev, "No memory to queue notification\n");
+		result = -ENOMEM;
 		goto out;
 	}
 	INIT_WORK(&nw->work, wa_notif_dispatch);
@@ -271,16 +257,11 @@ int wa_nep_create(struct wahc *wa, struct usb_interface *iface)
 	epd = &iface->cur_altsetting->endpoint[0].desc;
 	wa->nep_buffer_size = 1024;
 	wa->nep_buffer = kmalloc(wa->nep_buffer_size, GFP_KERNEL);
-	if (wa->nep_buffer == NULL) {
-		dev_err(dev,
-			"Unable to allocate notification's read buffer\n");
+	if (!wa->nep_buffer)
 		goto error_nep_buffer;
-	}
 	wa->nep_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (wa->nep_urb == NULL) {
-		dev_err(dev, "Unable to allocate notification URB\n");
+	if (wa->nep_urb == NULL)
 		goto error_urb_alloc;
-	}
 	usb_fill_int_urb(wa->nep_urb, usb_dev,
 			 usb_rcvintpipe(usb_dev, epd->bEndpointAddress),
 			 wa->nep_buffer, wa->nep_buffer_size,

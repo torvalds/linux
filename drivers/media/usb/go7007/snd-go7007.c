@@ -52,7 +52,7 @@ struct go7007_snd {
 	int capturing;
 };
 
-static struct snd_pcm_hardware go7007_snd_capture_hw = {
+static const struct snd_pcm_hardware go7007_snd_capture_hw = {
 	.info			= (SNDRV_PCM_INFO_MMAP |
 					SNDRV_PCM_INFO_INTERLEAVED |
 					SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -75,13 +75,14 @@ static void parse_audio_stream_data(struct go7007 *go, u8 *buf, int length)
 	struct go7007_snd *gosnd = go->snd_context;
 	struct snd_pcm_runtime *runtime = gosnd->substream->runtime;
 	int frames = bytes_to_frames(runtime, length);
+	unsigned long flags;
 
-	spin_lock(&gosnd->lock);
+	spin_lock_irqsave(&gosnd->lock, flags);
 	gosnd->hw_ptr += frames;
 	if (gosnd->hw_ptr >= runtime->buffer_size)
 		gosnd->hw_ptr -= runtime->buffer_size;
 	gosnd->avail += frames;
-	spin_unlock(&gosnd->lock);
+	spin_unlock_irqrestore(&gosnd->lock, flags);
 	if (gosnd->w_idx + length > runtime->dma_bytes) {
 		int cpy = runtime->dma_bytes - gosnd->w_idx;
 
@@ -92,13 +93,13 @@ static void parse_audio_stream_data(struct go7007 *go, u8 *buf, int length)
 	}
 	memcpy(runtime->dma_area + gosnd->w_idx, buf, length);
 	gosnd->w_idx += length;
-	spin_lock(&gosnd->lock);
+	spin_lock_irqsave(&gosnd->lock, flags);
 	if (gosnd->avail < runtime->period_size) {
-		spin_unlock(&gosnd->lock);
+		spin_unlock_irqrestore(&gosnd->lock, flags);
 		return;
 	}
 	gosnd->avail -= runtime->period_size;
-	spin_unlock(&gosnd->lock);
+	spin_unlock_irqrestore(&gosnd->lock, flags);
 	if (gosnd->capturing)
 		snd_pcm_period_elapsed(gosnd->substream);
 }
@@ -198,7 +199,7 @@ static struct page *go7007_snd_pcm_page(struct snd_pcm_substream *substream,
 	return vmalloc_to_page(substream->runtime->dma_area + offset);
 }
 
-static struct snd_pcm_ops go7007_snd_capture_ops = {
+static const struct snd_pcm_ops go7007_snd_capture_ops = {
 	.open		= go7007_snd_capture_open,
 	.close		= go7007_snd_capture_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -227,7 +228,7 @@ int go7007_snd_init(struct go7007 *go)
 {
 	static int dev;
 	struct go7007_snd *gosnd;
-	int ret = 0;
+	int ret;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;

@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: hwvalid - I/O request validation
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -102,7 +68,7 @@ static const struct acpi_port_info acpi_protected_ports[] = {
 	{"PCI", 0x0CF8, 0x0CFF, ACPI_OSI_WIN_XP}
 };
 
-#define ACPI_PORT_INFO_ENTRIES  ACPI_ARRAY_LENGTH (acpi_protected_ports)
+#define ACPI_PORT_INFO_ENTRIES      ACPI_ARRAY_LENGTH (acpi_protected_ports)
 
 /******************************************************************************
  *
@@ -135,7 +101,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 	if ((bit_width != 8) && (bit_width != 16) && (bit_width != 32)) {
 		ACPI_ERROR((AE_INFO,
 			    "Bad BitWidth parameter: %8.8X", bit_width));
-		return (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	port_info = acpi_protected_ports;
@@ -167,7 +133,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 	for (i = 0; i < ACPI_PORT_INFO_ENTRIES; i++, port_info++) {
 		/*
 		 * Check if the requested address range will write to a reserved
-		 * port. Four cases to consider:
+		 * port. There are four cases to consider:
 		 *
 		 * 1) Address range is contained completely in the port address range
 		 * 2) Address range overlaps port range at the port range start
@@ -180,8 +146,8 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 			/* Port illegality may depend on the _OSI calls made by the BIOS */
 
 			if (acpi_gbl_osi_data >= port_info->osi_dependency) {
-				ACPI_DEBUG_PRINT((ACPI_DB_IO,
-						  "Denied AML access to port 0x%8.8X%8.8X/%X (%s 0x%.4X-0x%.4X)",
+				ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
+						  "Denied AML access to port 0x%8.8X%8.8X/%X (%s 0x%.4X-0x%.4X)\n",
 						  ACPI_FORMAT_UINT64(address),
 						  byte_width, port_info->name,
 						  port_info->start,
@@ -206,7 +172,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
  * FUNCTION:    acpi_hw_read_port
  *
  * PARAMETERS:  Address             Address of I/O port/register to read
- *              Value               Where value is placed
+ *              Value               Where value (data) is returned
  *              Width               Number of bits
  *
  * RETURN:      Status and value read from port
@@ -244,7 +210,7 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width)
 	/*
 	 * There has been a protection violation within the request. Fall
 	 * back to byte granularity port I/O and ignore the failing bytes.
-	 * This provides Windows compatibility.
+	 * This provides compatibility with other ACPI implementations.
 	 */
 	for (i = 0, *value = 0; i < width; i += 8) {
 
@@ -307,7 +273,7 @@ acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width)
 	/*
 	 * There has been a protection violation within the request. Fall
 	 * back to byte granularity port I/O and ignore the failing bytes.
-	 * This provides Windows compatibility.
+	 * This provides compatibility with other ACPI implementations.
 	 */
 	for (i = 0; i < width; i += 8) {
 

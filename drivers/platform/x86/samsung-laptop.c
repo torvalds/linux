@@ -591,7 +591,7 @@ static int seclinux_rfkill_set(void *data, bool blocked)
 				 !blocked);
 }
 
-static struct rfkill_ops seclinux_rfkill_ops = {
+static const struct rfkill_ops seclinux_rfkill_ops = {
 	.set_block = seclinux_rfkill_set,
 };
 
@@ -651,7 +651,7 @@ static void swsmi_rfkill_query(struct rfkill *rfkill, void *priv)
 	rfkill_set_sw_state(rfkill, !ret);
 }
 
-static struct rfkill_ops swsmi_rfkill_ops = {
+static const struct rfkill_ops swsmi_rfkill_ops = {
 	.set_block = swsmi_rfkill_set,
 	.query = swsmi_rfkill_query,
 };
@@ -1216,8 +1216,7 @@ static umode_t samsung_sysfs_is_visible(struct kobject *kobj,
 					struct attribute *attr, int idx)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct platform_device *pdev = to_platform_device(dev);
-	struct samsung_laptop *samsung = platform_get_drvdata(pdev);
+	struct samsung_laptop *samsung = dev_get_drvdata(dev);
 	bool ok = true;
 
 	if (attr == &dev_attr_performance_level.attr)
@@ -1232,7 +1231,7 @@ static umode_t samsung_sysfs_is_visible(struct kobject *kobj,
 	return ok ? attr->mode : 0;
 }
 
-static struct attribute_group platform_attribute_group = {
+static const struct attribute_group platform_attribute_group = {
 	.is_visible = samsung_sysfs_is_visible,
 	.attrs = platform_attributes
 };
@@ -1252,7 +1251,7 @@ static int __init samsung_sysfs_init(struct samsung_laptop *samsung)
 
 }
 
-static int show_call(struct seq_file *m, void *data)
+static int samsung_laptop_call_show(struct seq_file *m, void *data)
 {
 	struct samsung_laptop *samsung = m->private;
 	struct sabi_data *sdata = &samsung->debug.data;
@@ -1274,19 +1273,7 @@ static int show_call(struct seq_file *m, void *data)
 		   sdata->d0, sdata->d1, sdata->d2, sdata->d3);
 	return 0;
 }
-
-static int samsung_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_call, inode->i_private);
-}
-
-static const struct file_operations samsung_laptop_call_io_ops = {
-	.owner = THIS_MODULE,
-	.open = samsung_debugfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(samsung_laptop_call);
 
 static void samsung_debugfs_exit(struct samsung_laptop *samsung)
 {
@@ -1351,7 +1338,7 @@ static int samsung_debugfs_init(struct samsung_laptop *samsung)
 
 	dent = debugfs_create_file("call", S_IFREG | S_IRUGO,
 				   samsung->debug.root, samsung,
-				   &samsung_laptop_call_io_ops);
+				   &samsung_laptop_call_fops);
 	if (!dent)
 		goto error_debugfs;
 
@@ -1446,9 +1433,9 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	const struct sabi_config *config = NULL;
 	const struct sabi_commands *commands;
 	unsigned int ifaceP;
+	int loca = 0xffff;
 	int ret = 0;
 	int i;
-	int loca;
 
 	samsung->f0000_segment = ioremap_nocache(0xf0000, 0xffff);
 	if (!samsung->f0000_segment) {
@@ -1567,7 +1554,7 @@ static int __init samsung_dmi_matched(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id __initdata samsung_dmi_table[] = {
+static const struct dmi_system_id samsung_dmi_table[] __initconst = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR,

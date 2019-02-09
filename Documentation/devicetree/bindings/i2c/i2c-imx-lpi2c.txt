@@ -1,0 +1,18 @@
+* Freescale Low Power Inter IC (LPI2C) for i.MX
+
+Required properties:
+- compatible :
+  - "fsl,imx7ulp-lpi2c" for LPI2C compatible with the one integrated on i.MX7ULP soc
+- reg : address and length of the lpi2c master registers
+- interrupts : lpi2c interrupt
+- clocks : lpi2c clock specifier
+
+Examples:
+
+lpi2c7: lpi2c7@40a50000 {
+	compatible = "fsl,imx7ulp-lpi2c";
+	reg = <0x40A50000 0x10000>;
+	interrupt-parent = <&intc>;
+	interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&clks IMX7ULP_CLK_LPI2C7>;
+};

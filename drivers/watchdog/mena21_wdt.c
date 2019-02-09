@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Watchdog driver for the A21 VME CPU Boards
  *
  * Copyright (C) 2013 MEN Mikro Elektronik Nuernberg GmbH
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -33,7 +31,6 @@ enum a21_wdt_gpios {
 
 struct a21_wdt_drv {
 	struct watchdog_device wdt;
-	struct mutex lock;
 	unsigned gpios[NUM_GPIOS];
 };
 
@@ -57,11 +54,7 @@ static int a21_wdt_start(struct watchdog_device *wdt)
 {
 	struct a21_wdt_drv *drv = watchdog_get_drvdata(wdt);
 
-	mutex_lock(&drv->lock);
-
 	gpio_set_value(drv->gpios[GPIO_WD_ENAB], 1);
-
-	mutex_unlock(&drv->lock);
 
 	return 0;
 }
@@ -70,11 +63,7 @@ static int a21_wdt_stop(struct watchdog_device *wdt)
 {
 	struct a21_wdt_drv *drv = watchdog_get_drvdata(wdt);
 
-	mutex_lock(&drv->lock);
-
 	gpio_set_value(drv->gpios[GPIO_WD_ENAB], 0);
-
-	mutex_unlock(&drv->lock);
 
 	return 0;
 }
@@ -83,13 +72,9 @@ static int a21_wdt_ping(struct watchdog_device *wdt)
 {
 	struct a21_wdt_drv *drv = watchdog_get_drvdata(wdt);
 
-	mutex_lock(&drv->lock);
-
 	gpio_set_value(drv->gpios[GPIO_WD_TRIG], 0);
 	ndelay(10);
 	gpio_set_value(drv->gpios[GPIO_WD_TRIG], 1);
-
-	mutex_unlock(&drv->lock);
 
 	return 0;
 }
@@ -100,17 +85,15 @@ static int a21_wdt_set_timeout(struct watchdog_device *wdt,
 	struct a21_wdt_drv *drv = watchdog_get_drvdata(wdt);
 
 	if (timeout != 1 && timeout != 30) {
-		dev_err(wdt->dev, "Only 1 and 30 allowed as timeout\n");
+		dev_err(wdt->parent, "Only 1 and 30 allowed as timeout\n");
 		return -EINVAL;
 	}
 
 	if (timeout == 30 && wdt->timeout == 1) {
-		dev_err(wdt->dev,
+		dev_err(wdt->parent,
 			"Transition from fast to slow mode not allowed\n");
 		return -EINVAL;
 	}
-
-	mutex_lock(&drv->lock);
 
 	if (timeout == 1)
 		gpio_set_value(drv->gpios[GPIO_WD_FAST], 1);
@@ -118,8 +101,6 @@ static int a21_wdt_set_timeout(struct watchdog_device *wdt,
 		gpio_set_value(drv->gpios[GPIO_WD_FAST], 0);
 
 	wdt->timeout = timeout;
-
-	mutex_unlock(&drv->lock);
 
 	return 0;
 }
@@ -193,7 +174,6 @@ static int a21_wdt_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	mutex_init(&drv->lock);
 	watchdog_init_timeout(&a21_wdt, 30, &pdev->dev);
 	watchdog_set_nowayout(&a21_wdt, nowayout);
 	watchdog_set_drvdata(&a21_wdt, drv);
@@ -212,32 +192,13 @@ static int a21_wdt_probe(struct platform_device *pdev)
 	drv->wdt = a21_wdt;
 	dev_set_drvdata(&pdev->dev, drv);
 
-	ret = watchdog_register_device(&a21_wdt);
+	ret = devm_watchdog_register_device(&pdev->dev, &a21_wdt);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register watchdog device\n");
-		goto err_register_wd;
+		return ret;
 	}
 
 	dev_info(&pdev->dev, "MEN A21 watchdog timer driver enabled\n");
-
-	return 0;
-
-err_register_wd:
-	mutex_destroy(&drv->lock);
-
-	return ret;
-}
-
-static int a21_wdt_remove(struct platform_device *pdev)
-{
-	struct a21_wdt_drv *drv = dev_get_drvdata(&pdev->dev);
-
-	dev_warn(&pdev->dev,
-		"Unregistering A21 watchdog driver, board may reboot\n");
-
-	watchdog_unregister_device(&drv->wdt);
-
-	mutex_destroy(&drv->lock);
 
 	return 0;
 }
@@ -257,7 +218,6 @@ MODULE_DEVICE_TABLE(of, a21_wdt_ids);
 
 static struct platform_driver a21_wdt_driver = {
 	.probe = a21_wdt_probe,
-	.remove = a21_wdt_remove,
 	.shutdown = a21_wdt_shutdown,
 	.driver = {
 		.name = "a21-watchdog",

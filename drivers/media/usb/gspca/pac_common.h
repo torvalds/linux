@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 /* We calculate the autogain at the end of the transfer of a frame, at this
@@ -111,10 +107,9 @@ static unsigned char *pac_find_sof(struct gspca_dev *gspca_dev, u8 *sof_read,
 			switch (m[i]) {
 			case 0x96:
 				/* Pattern found */
-				PDEBUG(D_FRAM,
-					"SOF found, bytes to analyze: %u."
-					" Frame starts at byte #%u",
-					len, i + 1);
+				gspca_dbg(gspca_dev, D_FRAM,
+					  "SOF found, bytes to analyze: %u - Frame starts at byte #%u\n",
+					  len, i + 1);
 				*sof_read = 0;
 				return m + i + 1;
 				break;

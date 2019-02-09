@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * dt3000.c
  * Data Translation DT3000 series driver
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1999 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -361,7 +352,7 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 		switch (flags & CMDF_ROUND_MASK) {
 		case CMDF_ROUND_NEAREST:
 		default:
-			divider = (*nanosec + base / 2) / base;
+			divider = DIV_ROUND_CLOSEST(*nanosec, base);
 			break;
 		case CMDF_ROUND_DOWN:
 			divider = (*nanosec) / base;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999
@@ -14,16 +15,24 @@
 #include <linux/const.h>
 
 #define CIF_MCCK_PENDING	0	/* machine check handling is pending */
-#define CIF_ASCE		1	/* user asce needs fixup / uaccess */
-#define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
-#define CIF_FPU			3	/* restore FPU registers */
-#define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
+#define CIF_ASCE_PRIMARY	1	/* primary asce needs fixup / uaccess */
+#define CIF_ASCE_SECONDARY	2	/* secondary asce needs fixup / uaccess */
+#define CIF_NOHZ_DELAY		3	/* delay HZ disable for a tick */
+#define CIF_FPU			4	/* restore FPU registers */
+#define CIF_IGNORE_IRQ		5	/* ignore interrupt (for udelay) */
+#define CIF_ENABLED_WAIT	6	/* in enabled wait state */
+#define CIF_MCCK_GUEST		7	/* machine check happening in guest */
+#define CIF_DEDICATED_CPU	8	/* this CPU is dedicated */
 
 #define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
-#define _CIF_ASCE		_BITUL(CIF_ASCE)
+#define _CIF_ASCE_PRIMARY	_BITUL(CIF_ASCE_PRIMARY)
+#define _CIF_ASCE_SECONDARY	_BITUL(CIF_ASCE_SECONDARY)
 #define _CIF_NOHZ_DELAY		_BITUL(CIF_NOHZ_DELAY)
 #define _CIF_FPU		_BITUL(CIF_FPU)
 #define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)
+#define _CIF_ENABLED_WAIT	_BITUL(CIF_ENABLED_WAIT)
+#define _CIF_MCCK_GUEST		_BITUL(CIF_MCCK_GUEST)
+#define _CIF_DEDICATED_CPU	_BITUL(CIF_DEDICATED_CPU)
 
 #ifndef __ASSEMBLY__
 
@@ -52,6 +61,16 @@ static inline int test_cpu_flag(int flag)
 	return !!(S390_lowcore.cpu_flags & (1UL << flag));
 }
 
+/*
+ * Test CIF flag of another CPU. The caller needs to ensure that
+ * CPU hotplug can not happen, e.g. by disabling preemption.
+ */
+static inline int test_cpu_flag_of(int flag, int cpu)
+{
+	struct lowcore *lc = lowcore_ptr[cpu];
+	return !!(lc->cpu_flags & (1UL << flag));
+}
+
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
 
 /*
@@ -65,49 +84,70 @@ static inline void get_cpu_id(struct cpuid *ptr)
 	asm volatile("stidp %0" : "=Q" (*ptr));
 }
 
-extern void s390_adjust_jiffies(void);
+void s390_adjust_jiffies(void);
+void s390_update_cpu_mhz(void);
+void cpu_detect_mhz_feature(void);
+
 extern const struct seq_operations cpuinfo_op;
 extern int sysctl_ieee_emulation_warnings;
 extern void execve_tail(void);
+extern void __bpon(void);
 
 /*
  * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
  */
 
-#define TASK_SIZE_OF(tsk)	((tsk)->mm->context.asce_limit)
+#define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_31BIT) ? \
+					(1UL << 31) : -PAGE_SIZE)
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
 					(1UL << 30) : (1UL << 41))
 #define TASK_SIZE		TASK_SIZE_OF(current)
-#define TASK_MAX_SIZE		(1UL << 53)
+#define TASK_SIZE_MAX		(-PAGE_SIZE)
 
-#define STACK_TOP		(1UL << (test_thread_flag(TIF_31BIT) ? 31:42))
+#define STACK_TOP		(test_thread_flag(TIF_31BIT) ? \
+					(1UL << 31) : (1UL << 42))
 #define STACK_TOP_MAX		(1UL << 42)
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
-typedef struct {
-        __u32 ar4;
-} mm_segment_t;
+typedef unsigned int mm_segment_t;
 
 /*
  * Thread structure
  */
 struct thread_struct {
-	struct fpu fpu;			/* FP and VX register save area */
 	unsigned int  acrs[NUM_ACRS];
         unsigned long ksp;              /* kernel stack pointer             */
+	unsigned long user_timer;	/* task cputime in user space */
+	unsigned long guest_timer;	/* task cputime in kvm guest */
+	unsigned long system_timer;	/* task cputime in kernel space */
+	unsigned long hardirq_timer;	/* task cputime in hardirq context */
+	unsigned long softirq_timer;	/* task cputime in softirq context */
+	unsigned long sys_call_table;	/* system call table address */
 	mm_segment_t mm_segment;
 	unsigned long gmap_addr;	/* address of last gmap fault. */
+	unsigned int gmap_write_flag;	/* gmap fault write indication */
+	unsigned int gmap_int_code;	/* int code of last gmap fault */
 	unsigned int gmap_pfault;	/* signal of a pending guest pfault */
+	/* Per-thread information related to debugging */
 	struct per_regs per_user;	/* User specified PER registers */
 	struct per_event per_event;	/* Cause of the last PER trap */
 	unsigned long per_flags;	/* Flags to control debug behavior */
+	unsigned int system_call;	/* system call number in signal */
+	unsigned long last_break;	/* last breaking-event-address. */
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
 	struct list_head list;
 	/* cpu runtime instrumentation */
 	struct runtime_instr_cb *ri_cb;
+	struct gs_cb *gs_cb;		/* Current guarded storage cb */
+	struct gs_cb *gs_bc_cb;		/* Broadcast guarded storage cb */
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
+	/*
+	 * Warning: 'fpu' is dynamically-sized. It *MUST* be at
+	 * the end.
+	 */
+	struct fpu fpu;			/* FP and VX register save area */
 };
 
 /* Flag to disable transactions. */
@@ -143,10 +183,9 @@ struct stack_frame {
 
 #define ARCH_MIN_TASKALIGN	8
 
-extern __vector128 init_task_fpu_regs[__NUM_VXRS];
 #define INIT_THREAD {							\
 	.ksp = sizeof(init_stack) + (unsigned long) &init_stack,	\
-	.fpu.regs = (void *)&init_task_fpu_regs,			\
+	.fpu.regs = (void *) init_task.thread.fpu.fprs,			\
 }
 
 /*
@@ -154,16 +193,16 @@ extern __vector128 init_task_fpu_regs[__NUM_VXRS];
  */
 #define start_thread(regs, new_psw, new_stackp) do {			\
 	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_EA | PSW_MASK_BA;	\
-	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+	regs->psw.addr	= new_psw;					\
 	regs->gprs[15]	= new_stackp;					\
 	execve_tail();							\
 } while (0)
 
 #define start_thread31(regs, new_psw, new_stackp) do {			\
 	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_BA;			\
-	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+	regs->psw.addr	= new_psw;					\
 	regs->gprs[15]	= new_stackp;					\
-	crst_table_downgrade(current->mm, 1UL << 31);			\
+	crst_table_downgrade(current->mm);				\
 	execve_tail();							\
 } while (0)
 
@@ -171,16 +210,20 @@ extern __vector128 init_task_fpu_regs[__NUM_VXRS];
 struct task_struct;
 struct mm_struct;
 struct seq_file;
+struct pt_regs;
+
+typedef int (*dump_trace_func_t)(void *data, unsigned long address, int reliable);
+void dump_trace(dump_trace_func_t func, void *data,
+		struct task_struct *task, unsigned long sp);
+void show_registers(struct pt_regs *regs);
 
 void show_cacheinfo(struct seq_file *m);
 
 /* Free all resources held by a thread. */
-extern void release_thread(struct task_struct *);
+static inline void release_thread(struct task_struct *tsk) { }
 
-/*
- * Return saved PC of a blocked thread.
- */
-extern unsigned long thread_saved_pc(struct task_struct *t);
+/* Free guarded storage control block */
+void guarded_storage_release(struct task_struct *tsk);
 
 unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *) \
@@ -191,20 +234,41 @@ unsigned long get_wchan(struct task_struct *p);
 /* Has task runtime instrumentation enabled ? */
 #define is_ri_task(tsk) (!!(tsk)->thread.ri_cb)
 
+static inline unsigned long current_stack_pointer(void)
+{
+	unsigned long sp;
+
+	asm volatile("la %0,0(15)" : "=a" (sp));
+	return sp;
+}
+
 static inline unsigned short stap(void)
 {
 	unsigned short cpu_address;
 
-	asm volatile("stap %0" : "=m" (cpu_address));
+	asm volatile("stap %0" : "=Q" (cpu_address));
 	return cpu_address;
 }
 
 /*
  * Give up the time slice of the virtual PU.
  */
-void cpu_relax(void);
+#define cpu_relax_yield cpu_relax_yield
+void cpu_relax_yield(void);
 
-#define cpu_relax_lowlatency()  barrier()
+#define cpu_relax() barrier()
+
+#define ECAG_CACHE_ATTRIBUTE	0
+#define ECAG_CPU_ATTRIBUTE	1
+
+static inline unsigned long __ecag(unsigned int asi, unsigned char parm)
+{
+	unsigned long val;
+
+	asm volatile(".insn	rsy,0xeb000000004c,%0,0,0(%1)" /* ecag */
+		     : "=d" (val) : "a" (asi << 8 | parm));
+	return val;
+}
 
 static inline void psw_set_key(unsigned int key)
 {
@@ -307,12 +371,15 @@ extern void (*s390_base_ext_handler_fn)(void);
 extern int memcpy_real(void *, void *, size_t);
 extern void memcpy_absolute(void *, void *, size_t);
 
-#define mem_assign_absolute(dest, val) {			\
+#define mem_assign_absolute(dest, val) do {			\
 	__typeof__(dest) __tmp = (val);				\
 								\
 	BUILD_BUG_ON(sizeof(__tmp) != sizeof(val));		\
 	memcpy_absolute(&(dest), &__tmp, sizeof(__tmp));	\
-}
+} while (0)
+
+extern int s390_isolate_bp(void);
+extern int s390_isolate_bp_guest(void);
 
 #endif /* __ASSEMBLY__ */
 

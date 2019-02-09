@@ -17,7 +17,6 @@
 #include <linux/platform_device.h>
 #include <linux/list.h>
 #include <linux/pm.h>
-#include <asm/olpc.h>
 
 /*
  * The default port config.
@@ -116,7 +115,7 @@ EXPORT_SYMBOL_GPL(viafb_irq_disable);
  * most viafb systems will not need to have this extra code for a while.
  * As soon as another user comes long, the ifdef can be removed.
  */
-#if defined(CONFIG_VIDEO_VIA_CAMERA) || defined(CONFIG_VIDEO_VIA_CAMERA_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_VIA_CAMERA)
 /*
  * Access to the DMA engine.  This currently provides what the camera
  * driver needs (i.e. outgoing only) but is easily expandable if need
@@ -542,7 +541,7 @@ static struct viafb_subdev_info {
 	{
 		.name = "viafb-i2c",
 	},
-#if defined(CONFIG_VIDEO_VIA_CAMERA) || defined(CONFIG_VIDEO_VIA_CAMERA_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_VIA_CAMERA)
 	{
 		.name = "viafb-camera",
 	},
@@ -724,7 +723,7 @@ static void via_pci_remove(struct pci_dev *pdev)
 }
 
 
-static struct pci_device_id via_pci_table[] = {
+static const struct pci_device_id via_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_CLE266_DID),
 	  .driver_data = UNICHROME_CLE266 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_K400_DID),

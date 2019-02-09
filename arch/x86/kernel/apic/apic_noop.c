@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NOOP APIC driver.
  *
@@ -11,7 +12,6 @@
 
 #include <linux/threads.h>
 #include <linux/cpumask.h>
-#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
@@ -27,9 +27,10 @@
 
 #include <linux/interrupt.h>
 #include <asm/acpi.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 
 static void noop_init_apic_ldr(void) { }
+static void noop_send_IPI(int cpu, int vector) { }
 static void noop_send_IPI_mask(const struct cpumask *cpumask, int vector) { }
 static void noop_send_IPI_mask_allbutself(const struct cpumask *cpumask, int vector) { }
 static void noop_send_IPI_allbutself(int vector) { }
@@ -83,32 +84,25 @@ static int noop_apic_id_registered(void)
 	return physid_isset(0, phys_cpu_present_map);
 }
 
-static const struct cpumask *noop_target_cpus(void)
-{
-	/* only BSP here */
-	return cpumask_of(0);
-}
-
-static void noop_vector_allocation_domain(int cpu, struct cpumask *retmask,
-					  const struct cpumask *mask)
-{
-	if (cpu != 0)
-		pr_warning("APIC: Vector allocated for non-BSP cpu\n");
-	cpumask_copy(retmask, cpumask_of(cpu));
-}
-
 static u32 noop_apic_read(u32 reg)
 {
-	WARN_ON_ONCE((cpu_has_apic && !disable_apic));
+	WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !disable_apic);
 	return 0;
 }
 
 static void noop_apic_write(u32 reg, u32 v)
 {
-	WARN_ON_ONCE(cpu_has_apic && !disable_apic);
+	WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !disable_apic);
 }
 
-struct apic apic_noop = {
+#ifdef CONFIG_X86_32
+static int noop_x86_32_early_logical_apicid(int cpu)
+{
+	return BAD_APICID;
+}
+#endif
+
+struct apic apic_noop __ro_after_init = {
 	.name				= "noop",
 	.probe				= noop_probe,
 	.acpi_madt_oem_check		= NULL,
@@ -116,16 +110,14 @@ struct apic apic_noop = {
 	.apic_id_valid			= default_apic_id_valid,
 	.apic_id_registered		= noop_apic_id_registered,
 
-	.irq_delivery_mode		= dest_LowestPrio,
+	.irq_delivery_mode		= dest_Fixed,
 	/* logical delivery broadcast to all CPUs: */
 	.irq_dest_mode			= 1,
 
-	.target_cpus			= noop_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= default_check_apicid_used,
 
-	.vector_allocation_domain	= noop_vector_allocation_domain,
 	.init_apic_ldr			= noop_init_apic_ldr,
 
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
@@ -140,10 +132,10 @@ struct apic apic_noop = {
 
 	.get_apic_id			= noop_get_apic_id,
 	.set_apic_id			= NULL,
-	.apic_id_mask			= 0x0F << 24,
 
-	.cpu_mask_to_apicid_and		= flat_cpu_mask_to_apicid_and,
+	.calc_dest_apicid		= apic_flat_calc_apicid,
 
+	.send_IPI			= noop_send_IPI,
 	.send_IPI_mask			= noop_send_IPI_mask,
 	.send_IPI_mask_allbutself	= noop_send_IPI_mask_allbutself,
 	.send_IPI_allbutself		= noop_send_IPI_allbutself,

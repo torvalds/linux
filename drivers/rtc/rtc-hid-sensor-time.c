@@ -213,7 +213,7 @@ static int hid_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	/* get a report with all values through requesting one value */
 	sensor_hub_input_attr_get_raw_value(time_state->common_attributes.hsdev,
 			HID_USAGE_SENSOR_TIME, hid_time_addresses[0],
-			time_state->info[0].report_id, SENSOR_HUB_SYNC);
+			time_state->info[0].report_id, SENSOR_HUB_SYNC, false);
 	/* wait for all values (event) */
 	ret = wait_for_completion_killable_timeout(
 			&time_state->comp_last_time, HZ*6);
@@ -291,9 +291,9 @@ static int hid_time_probe(struct platform_device *pdev)
 					"hid-sensor-time", &hid_time_rtc_ops,
 					THIS_MODULE);
 
-	if (IS_ERR_OR_NULL(time_state->rtc)) {
+	if (IS_ERR(time_state->rtc)) {
 		hid_device_io_stop(hsdev->hdev);
-		ret = time_state->rtc ? PTR_ERR(time_state->rtc) : -ENODEV;
+		ret = PTR_ERR(time_state->rtc);
 		time_state->rtc = NULL;
 		dev_err(&pdev->dev, "rtc device register failed!\n");
 		goto err_rtc;

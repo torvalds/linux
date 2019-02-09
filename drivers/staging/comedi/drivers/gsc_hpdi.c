@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * gsc_hpdi.c
  * Comedi driver the General Standards Corporation
@@ -8,16 +9,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -158,10 +149,7 @@ static void gsc_hpdi_drain_dma(struct comedi_device *dev, unsigned int channel)
 	unsigned int size;
 	unsigned int next;
 
-	if (channel)
-		next = readl(devpriv->plx9080_mmio + PLX_DMA1_PCI_ADDRESS_REG);
-	else
-		next = readl(devpriv->plx9080_mmio + PLX_DMA0_PCI_ADDRESS_REG);
+	next = readl(devpriv->plx9080_mmio + PLX_REG_DMAPADR(channel));
 
 	idx = devpriv->dma_desc_index;
 	start = le32_to_cpu(devpriv->dma_desc[idx].pci_start_addr);
@@ -201,8 +189,9 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	plx_status = readl(devpriv->plx9080_mmio + PLX_INTRCS_REG);
-	if ((plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LIA)) == 0)
+	plx_status = readl(devpriv->plx9080_mmio + PLX_REG_INTCSR);
+	if ((plx_status &
+	     (PLX_INTCSR_DMA0IA | PLX_INTCSR_DMA1IA | PLX_INTCSR_PLIA)) == 0)
 		return IRQ_NONE;
 
 	hpdi_intr_status = readl(dev->mmio + INTERRUPT_STATUS_REG);
@@ -213,32 +202,32 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 
 	/* spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	dma0_status = readb(devpriv->plx9080_mmio + PLX_DMA0_CS_REG);
-	if (plx_status & ICS_DMA0_A) {
+	dma0_status = readb(devpriv->plx9080_mmio + PLX_REG_DMACSR0);
+	if (plx_status & PLX_INTCSR_DMA0IA) {
 		/* dma chan 0 interrupt */
-		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
-		       devpriv->plx9080_mmio + PLX_DMA0_CS_REG);
+		writeb((dma0_status & PLX_DMACSR_ENABLE) | PLX_DMACSR_CLEARINTR,
+		       devpriv->plx9080_mmio + PLX_REG_DMACSR0);
 
-		if (dma0_status & PLX_DMA_EN_BIT)
+		if (dma0_status & PLX_DMACSR_ENABLE)
 			gsc_hpdi_drain_dma(dev, 0);
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	dma1_status = readb(devpriv->plx9080_mmio + PLX_DMA1_CS_REG);
-	if (plx_status & ICS_DMA1_A) {
+	dma1_status = readb(devpriv->plx9080_mmio + PLX_REG_DMACSR1);
+	if (plx_status & PLX_INTCSR_DMA1IA) {
 		/* XXX */ /* dma chan 1 interrupt */
-		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
-		       devpriv->plx9080_mmio + PLX_DMA1_CS_REG);
+		writeb((dma1_status & PLX_DMACSR_ENABLE) | PLX_DMACSR_CLEARINTR,
+		       devpriv->plx9080_mmio + PLX_REG_DMACSR1);
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* clear possible plx9080 interrupt sources */
-	if (plx_status & ICS_LDIA) {
+	if (plx_status & PLX_INTCSR_LDBIA) {
 		/* clear local doorbell interrupt */
-		plx_bits = readl(devpriv->plx9080_mmio + PLX_DBR_OUT_REG);
-		writel(plx_bits, devpriv->plx9080_mmio + PLX_DBR_OUT_REG);
+		plx_bits = readl(devpriv->plx9080_mmio + PLX_REG_L2PDBELL);
+		writel(plx_bits, devpriv->plx9080_mmio + PLX_REG_L2PDBELL);
 	}
 
 	if (hpdi_board_status & RX_OVERRUN_BIT) {
@@ -307,19 +296,19 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 	 * occasionally cause problems with transfer of first dma
 	 * block.  Initializing them to zero seems to fix the problem.
 	 */
-	writel(0, devpriv->plx9080_mmio + PLX_DMA0_TRANSFER_SIZE_REG);
-	writel(0, devpriv->plx9080_mmio + PLX_DMA0_PCI_ADDRESS_REG);
-	writel(0, devpriv->plx9080_mmio + PLX_DMA0_LOCAL_ADDRESS_REG);
+	writel(0, devpriv->plx9080_mmio + PLX_REG_DMASIZ0);
+	writel(0, devpriv->plx9080_mmio + PLX_REG_DMAPADR0);
+	writel(0, devpriv->plx9080_mmio + PLX_REG_DMALADR0);
 
 	/* give location of first dma descriptor */
-	bits = devpriv->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT |
-	       PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
-	writel(bits, devpriv->plx9080_mmio + PLX_DMA0_DESCRIPTOR_REG);
+	bits = devpriv->dma_desc_phys_addr | PLX_DMADPR_DESCPCI |
+	       PLX_DMADPR_TCINTR | PLX_DMADPR_XFERL2P;
+	writel(bits, devpriv->plx9080_mmio + PLX_REG_DMADPR0);
 
 	/* enable dma transfer */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT,
-	       devpriv->plx9080_mmio + PLX_DMA0_CS_REG);
+	writeb(PLX_DMACSR_ENABLE | PLX_DMACSR_START | PLX_DMACSR_CLEARINTR,
+	       devpriv->plx9080_mmio + PLX_REG_DMACSR0);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	if (cmd->stop_src == TRIG_COUNT)
@@ -424,8 +413,8 @@ static int gsc_hpdi_setup_dma_descriptors(struct comedi_device *dev,
 {
 	struct hpdi_private *devpriv = dev->private;
 	dma_addr_t phys_addr = devpriv->dma_desc_phys_addr;
-	u32 next_bits = PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT |
-			PLX_XFER_LOCAL_TO_PCI;
+	u32 next_bits = PLX_DMADPR_DESCPCI | PLX_DMADPR_TCINTR |
+			PLX_DMADPR_XFERL2P;
 	unsigned int offset = 0;
 	unsigned int idx = 0;
 	unsigned int i;
@@ -499,18 +488,18 @@ static void gsc_hpdi_free_dma(struct comedi_device *dev)
 	/* free pci dma buffers */
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 		if (devpriv->dio_buffer[i])
-			pci_free_consistent(pcidev,
-					    DMA_BUFFER_SIZE,
-					    devpriv->dio_buffer[i],
-					    devpriv->dio_buffer_phys_addr[i]);
+			dma_free_coherent(&pcidev->dev,
+					  DMA_BUFFER_SIZE,
+					  devpriv->dio_buffer[i],
+					  devpriv->dio_buffer_phys_addr[i]);
 	}
 	/* free dma descriptors */
 	if (devpriv->dma_desc)
-		pci_free_consistent(pcidev,
-				    sizeof(struct plx_dma_desc) *
-				    NUM_DMA_DESCRIPTORS,
-				    devpriv->dma_desc,
-				    devpriv->dma_desc_phys_addr);
+		dma_free_coherent(&pcidev->dev,
+				  sizeof(struct plx_dma_desc) *
+				  NUM_DMA_DESCRIPTORS,
+				  devpriv->dma_desc,
+				  devpriv->dma_desc_phys_addr);
 }
 
 static int gsc_hpdi_init(struct comedi_device *dev)
@@ -536,9 +525,10 @@ static int gsc_hpdi_init(struct comedi_device *dev)
 
 	/* enable interrupts */
 	plx_intcsr_bits =
-	    ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE |
-	    ICS_DMA0_E;
-	writel(plx_intcsr_bits, devpriv->plx9080_mmio + PLX_INTRCS_REG);
+	    PLX_INTCSR_LSEABORTEN | PLX_INTCSR_LSEPARITYEN | PLX_INTCSR_PIEN |
+	    PLX_INTCSR_PLIEN | PLX_INTCSR_PABORTIEN | PLX_INTCSR_LIOEN |
+	    PLX_INTCSR_DMA0IEN;
+	writel(plx_intcsr_bits, devpriv->plx9080_mmio + PLX_REG_INTCSR);
 
 	return 0;
 }
@@ -550,13 +540,13 @@ static void gsc_hpdi_init_plx9080(struct comedi_device *dev)
 	void __iomem *plx_iobase = devpriv->plx9080_mmio;
 
 #ifdef __BIG_ENDIAN
-	bits = BIGEND_DMA0 | BIGEND_DMA1;
+	bits = PLX_BIGEND_DMA0 | PLX_BIGEND_DMA1;
 #else
 	bits = 0;
 #endif
-	writel(bits, devpriv->plx9080_mmio + PLX_BIGEND_REG);
+	writel(bits, devpriv->plx9080_mmio + PLX_REG_BIGEND);
 
-	writel(0, devpriv->plx9080_mmio + PLX_INTRCS_REG);
+	writel(0, devpriv->plx9080_mmio + PLX_REG_INTCSR);
 
 	gsc_hpdi_abort_dma(dev, 0);
 	gsc_hpdi_abort_dma(dev, 1);
@@ -564,27 +554,27 @@ static void gsc_hpdi_init_plx9080(struct comedi_device *dev)
 	/* configure dma0 mode */
 	bits = 0;
 	/* enable ready input */
-	bits |= PLX_DMA_EN_READYIN_BIT;
+	bits |= PLX_DMAMODE_READYIEN;
 	/* enable dma chaining */
-	bits |= PLX_EN_CHAIN_BIT;
+	bits |= PLX_DMAMODE_CHAINEN;
 	/*
 	 * enable interrupt on dma done
 	 * (probably don't need this, since chain never finishes)
 	 */
-	bits |= PLX_EN_DMA_DONE_INTR_BIT;
+	bits |= PLX_DMAMODE_DONEIEN;
 	/*
 	 * don't increment local address during transfers
 	 * (we are transferring from a fixed fifo register)
 	 */
-	bits |= PLX_LOCAL_ADDR_CONST_BIT;
+	bits |= PLX_DMAMODE_LACONST;
 	/* route dma interrupt to pci bus */
-	bits |= PLX_DMA_INTR_PCI_BIT;
+	bits |= PLX_DMAMODE_INTRPCI;
 	/* enable demand mode */
-	bits |= PLX_DEMAND_MODE_BIT;
+	bits |= PLX_DMAMODE_DEMAND;
 	/* enable local burst mode */
-	bits |= PLX_DMA_LOCAL_BURST_EN_BIT;
-	bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
-	writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
+	bits |= PLX_DMAMODE_BURSTEN;
+	bits |= PLX_DMAMODE_WIDTH_32;
+	writel(bits, plx_iobase + PLX_REG_DMAMODE0);
 }
 
 static int gsc_hpdi_auto_attach(struct comedi_device *dev,
@@ -630,14 +620,16 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 	/* allocate pci dma buffers */
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 		devpriv->dio_buffer[i] =
-		    pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
-					 &devpriv->dio_buffer_phys_addr[i]);
+		    dma_alloc_coherent(&pcidev->dev, DMA_BUFFER_SIZE,
+				       &devpriv->dio_buffer_phys_addr[i],
+				       GFP_KERNEL);
 	}
 	/* allocate dma descriptors */
-	devpriv->dma_desc = pci_alloc_consistent(pcidev,
-						 sizeof(struct plx_dma_desc) *
-						 NUM_DMA_DESCRIPTORS,
-						 &devpriv->dma_desc_phys_addr);
+	devpriv->dma_desc = dma_alloc_coherent(&pcidev->dev,
+					       sizeof(struct plx_dma_desc) *
+					       NUM_DMA_DESCRIPTORS,
+					       &devpriv->dma_desc_phys_addr,
+					       GFP_KERNEL);
 	if (devpriv->dma_desc_phys_addr & 0xf) {
 		dev_warn(dev->class_dev,
 			 " dma descriptors not quad-word aligned (bug)\n");
@@ -678,7 +670,7 @@ static void gsc_hpdi_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
 		if (devpriv->plx9080_mmio) {
-			writel(0, devpriv->plx9080_mmio + PLX_INTRCS_REG);
+			writel(0, devpriv->plx9080_mmio + PLX_REG_INTCSR);
 			iounmap(devpriv->plx9080_mmio);
 		}
 		if (dev->mmio)

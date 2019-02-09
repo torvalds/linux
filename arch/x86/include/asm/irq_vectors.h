@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_IRQ_VECTORS_H
 #define _ASM_X86_IRQ_VECTORS_H
 
@@ -33,11 +34,6 @@
  * (0x80 is the syscall vector, 0x30-0x3f are for ISA)
  */
 #define FIRST_EXTERNAL_VECTOR		0x20
-/*
- * We start allocating at 0x21 to spread out vectors evenly between
- * priority levels. (0x80 is the syscall vector)
- */
-#define VECTOR_OFFSET_START		1
 
 /*
  * Reserve the lowest usable vector (and hence lowest priority)  0x20 for
@@ -83,7 +79,6 @@
  */
 #define X86_PLATFORM_IPI_VECTOR		0xf7
 
-#define POSTED_INTR_WAKEUP_VECTOR	0xf1
 /*
  * IRQ work vector:
  */
@@ -98,14 +93,18 @@
 /* Vector for KVM to deliver posted interrupt IPI */
 #ifdef CONFIG_HAVE_KVM
 #define POSTED_INTR_VECTOR		0xf2
+#define POSTED_INTR_WAKEUP_VECTOR	0xf1
+#define POSTED_INTR_NESTED_VECTOR	0xf0
 #endif
 
-/*
- * Local APIC timer IRQ vector is on a different priority level,
- * to work around the 'lost local interrupt if more than 2 IRQ
- * sources per level' errata.
- */
-#define LOCAL_TIMER_VECTOR		0xef
+#define MANAGED_IRQ_SHUTDOWN_VECTOR	0xef
+
+#if IS_ENABLED(CONFIG_HYPERV)
+#define HYPERV_REENLIGHTENMENT_VECTOR	0xee
+#define HYPERV_STIMER0_VECTOR		0xed
+#endif
+
+#define LOCAL_TIMER_VECTOR		0xec
 
 #define NR_VECTORS			 256
 
@@ -114,8 +113,6 @@
 #else
 #define FIRST_SYSTEM_VECTOR		NR_VECTORS
 #endif
-
-#define FPU_IRQ				  13
 
 /*
  * Size the maximum number of interrupts.

@@ -29,7 +29,23 @@ expression x;
 @@
 
 (
+ x = devm_kmalloc(...)
+|
+ x = devm_kvasprintf(...)
+|
+ x = devm_kasprintf(...)
+|
  x = devm_kzalloc(...)
+|
+ x = devm_kmalloc_array(...)
+|
+ x = devm_kcalloc(...)
+|
+ x = devm_kstrdup(...)
+|
+ x = devm_kmemdup(...)
+|
+ x = devm_get_free_pages(...)
 |
  x = devm_request_irq(...)
 |
@@ -40,13 +56,76 @@ expression x;
  x = devm_ioport_map(...)
 )
 
-@pb@
-expression r.x;
+@safe depends on context || org || report exists@
+expression x;
 position p;
 @@
 
 (
+ x = kmalloc(...)
+|
+ x = kvasprintf(...)
+|
+ x = kasprintf(...)
+|
+ x = kzalloc(...)
+|
+ x = kmalloc_array(...)
+|
+ x = kcalloc(...)
+|
+ x = kstrdup(...)
+|
+ x = kmemdup(...)
+|
+ x = get_free_pages(...)
+|
+ x = request_irq(...)
+|
+ x = ioremap(...)
+|
+ x = ioremap_nocache(...)
+|
+ x = ioport_map(...)
+)
+...
+(
+ kfree@p(x)
+|
+ kzfree@p(x)
+|
+ __krealloc@p(x, ...)
+|
+ krealloc@p(x, ...)
+|
+ free_pages@p(x, ...)
+|
+ free_page@p(x)
+|
+ free_irq@p(x)
+|
+ iounmap@p(x)
+|
+ ioport_unmap@p(x)
+)
+
+@pb@
+expression r.x;
+position p != safe.p;
+@@
+
+(
 * kfree@p(x)
+|
+* kzfree@p(x)
+|
+* __krealloc@p(x, ...)
+|
+* krealloc@p(x, ...)
+|
+* free_pages@p(x, ...)
+|
+* free_page@p(x)
 |
 * free_irq@p(x)
 |

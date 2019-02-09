@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*****************************************************************************/
 
 /*
@@ -280,15 +281,15 @@ _clear_bss:
 	movel	%d0,m68k_cputype		/* Mark us as a ColdFire */
 	movel	#MMU_COLDFIRE,%d0
 	movel	%d0,m68k_mmutype
-	movel	#FPU_COLDFIRE,%d0
-	movel	%d0,m68k_fputype
-	movel	#MACH_M54XX,%d0
-	movel	%d0,m68k_machtype		/* Mark us as a 54xx machine */
+	movel	#FPUTYPE,%d0
+	movel	%d0,m68k_fputype		/* Mark FPU type */
+	movel	#MACHINE,%d0
+	movel	%d0,m68k_machtype		/* Mark machine type */
 	lea	init_task,%a2			/* Set "current" init task */
 #endif
 
 	/*
-	 *	Assember start up done, start code proper.
+	 *	Assembler start up done, start code proper.
 	 */
 	jsr	start_kernel			/* start Linux kernel */
 

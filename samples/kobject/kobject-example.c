@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Sample kobject implementation
  *
  * Copyright (C) 2004-2007 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (C) 2007 Novell Inc.
- *
- * Released under the GPL version 2 only.
- *
  */
 #include <linux/kobject.h>
 #include <linux/string.h>

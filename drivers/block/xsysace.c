@@ -468,10 +468,10 @@ static struct request *ace_get_next_request(struct request_queue *q)
 	struct request *req;
 
 	while ((req = blk_peek_request(q)) != NULL) {
-		if (req->cmd_type == REQ_TYPE_FS)
+		if (!blk_rq_is_passthrough(req))
 			break;
 		blk_start_request(req);
-		__blk_end_request_all(req, -EIO);
+		__blk_end_request_all(req, BLK_STS_IOERR);
 	}
 	return req;
 }
@@ -499,11 +499,11 @@ static void ace_fsm_dostate(struct ace_device *ace)
 
 		/* Drop all in-flight and pending requests */
 		if (ace->req) {
-			__blk_end_request_all(ace->req, -EIO);
+			__blk_end_request_all(ace->req, BLK_STS_IOERR);
 			ace->req = NULL;
 		}
 		while ((req = blk_fetch_request(ace->queue)) != NULL)
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 
 		/* Drop back to IDLE state and notify waiters */
 		ace->fsm_state = ACE_FSM_STATE_IDLE;
@@ -728,7 +728,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		}
 
 		/* bio finished; is there another one? */
-		if (__blk_end_request_cur(ace->req, 0)) {
+		if (__blk_end_request_cur(ace->req, BLK_STS_OK)) {
 			/* dev_dbg(ace->dev, "next block; h=%u c=%u\n",
 			 *      blk_rq_sectors(ace->req),
 			 *      blk_rq_cur_sectors(ace->req));
@@ -770,9 +770,9 @@ static void ace_fsm_tasklet(unsigned long data)
 	spin_unlock_irqrestore(&ace->lock, flags);
 }
 
-static void ace_stall_timer(unsigned long data)
+static void ace_stall_timer(struct timer_list *t)
 {
-	struct ace_device *ace = (void *)data;
+	struct ace_device *ace = from_timer(ace, t, stall_timer);
 	unsigned long flags;
 
 	dev_warn(ace->dev,
@@ -984,7 +984,7 @@ static int ace_setup(struct ace_device *ace)
 	 * Initialize the state machine tasklet and stall timer
 	 */
 	tasklet_init(&ace->fsm_tasklet, ace_fsm_tasklet, (unsigned long)ace);
-	setup_timer(&ace->stall_timer, ace_stall_timer, (unsigned long)ace);
+	timer_setup(&ace->stall_timer, ace_stall_timer, 0);
 
 	/*
 	 * Initialize the request queue
@@ -993,6 +993,7 @@ static int ace_setup(struct ace_device *ace)
 	if (ace->queue == NULL)
 		goto err_blk_initq;
 	blk_queue_logical_block_size(ace->queue, 512);
+	blk_queue_bounce_limit(ace->queue, BLK_BOUNCE_HIGH);
 
 	/*
 	 * Allocate and initialize GD structure

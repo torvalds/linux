@@ -12,7 +12,9 @@
 #ifndef _RT5640_H
 #define _RT5640_H
 
-#include <sound/rt5640.h>
+#include <linux/clk.h>
+#include <linux/workqueue.h>
+#include <dt-bindings/sound/rt5640.h>
 
 /* Info */
 #define RT5640_RESET				0x00
@@ -145,6 +147,7 @@
 
 
 /* Index of Codec Private Register definition */
+#define RT5640_BIAS_CUR4			0x15
 #define RT5640_CHPUMP_INT_REG1			0x24
 #define RT5640_MAMP_INT_REG2			0x37
 #define RT5640_3D_SPK				0x63
@@ -442,39 +445,39 @@
 #define RT5640_IF1_DAC_SEL_MASK			(0x3 << 14)
 #define RT5640_IF1_DAC_SEL_SFT			14
 #define RT5640_IF1_DAC_SEL_NOR			(0x0 << 14)
-#define RT5640_IF1_DAC_SEL_L2R			(0x1 << 14)
-#define RT5640_IF1_DAC_SEL_R2L			(0x2 << 14)
-#define RT5640_IF1_DAC_SEL_SWAP			(0x3 << 14)
+#define RT5640_IF1_DAC_SEL_SWAP			(0x1 << 14)
+#define RT5640_IF1_DAC_SEL_L2R			(0x2 << 14)
+#define RT5640_IF1_DAC_SEL_R2L			(0x3 << 14)
 #define RT5640_IF1_ADC_SEL_MASK			(0x3 << 12)
 #define RT5640_IF1_ADC_SEL_SFT			12
 #define RT5640_IF1_ADC_SEL_NOR			(0x0 << 12)
-#define RT5640_IF1_ADC_SEL_L2R			(0x1 << 12)
-#define RT5640_IF1_ADC_SEL_R2L			(0x2 << 12)
-#define RT5640_IF1_ADC_SEL_SWAP			(0x3 << 12)
+#define RT5640_IF1_ADC_SEL_SWAP			(0x1 << 12)
+#define RT5640_IF1_ADC_SEL_L2R			(0x2 << 12)
+#define RT5640_IF1_ADC_SEL_R2L			(0x3 << 12)
 #define RT5640_IF2_DAC_SEL_MASK			(0x3 << 10)
 #define RT5640_IF2_DAC_SEL_SFT			10
 #define RT5640_IF2_DAC_SEL_NOR			(0x0 << 10)
-#define RT5640_IF2_DAC_SEL_L2R			(0x1 << 10)
-#define RT5640_IF2_DAC_SEL_R2L			(0x2 << 10)
-#define RT5640_IF2_DAC_SEL_SWAP			(0x3 << 10)
+#define RT5640_IF2_DAC_SEL_SWAP			(0x1 << 10)
+#define RT5640_IF2_DAC_SEL_L2R			(0x2 << 10)
+#define RT5640_IF2_DAC_SEL_R2L			(0x3 << 10)
 #define RT5640_IF2_ADC_SEL_MASK			(0x3 << 8)
 #define RT5640_IF2_ADC_SEL_SFT			8
 #define RT5640_IF2_ADC_SEL_NOR			(0x0 << 8)
-#define RT5640_IF2_ADC_SEL_L2R			(0x1 << 8)
-#define RT5640_IF2_ADC_SEL_R2L			(0x2 << 8)
-#define RT5640_IF2_ADC_SEL_SWAP			(0x3 << 8)
+#define RT5640_IF2_ADC_SEL_SWAP			(0x1 << 8)
+#define RT5640_IF2_ADC_SEL_L2R			(0x2 << 8)
+#define RT5640_IF2_ADC_SEL_R2L			(0x3 << 8)
 #define RT5640_IF3_DAC_SEL_MASK			(0x3 << 6)
 #define RT5640_IF3_DAC_SEL_SFT			6
 #define RT5640_IF3_DAC_SEL_NOR			(0x0 << 6)
-#define RT5640_IF3_DAC_SEL_L2R			(0x1 << 6)
-#define RT5640_IF3_DAC_SEL_R2L			(0x2 << 6)
-#define RT5640_IF3_DAC_SEL_SWAP			(0x3 << 6)
+#define RT5640_IF3_DAC_SEL_SWAP			(0x1 << 6)
+#define RT5640_IF3_DAC_SEL_L2R			(0x2 << 6)
+#define RT5640_IF3_DAC_SEL_R2L			(0x3 << 6)
 #define RT5640_IF3_ADC_SEL_MASK			(0x3 << 4)
 #define RT5640_IF3_ADC_SEL_SFT			4
 #define RT5640_IF3_ADC_SEL_NOR			(0x0 << 4)
-#define RT5640_IF3_ADC_SEL_L2R			(0x1 << 4)
-#define RT5640_IF3_ADC_SEL_R2L			(0x2 << 4)
-#define RT5640_IF3_ADC_SEL_SWAP			(0x3 << 4)
+#define RT5640_IF3_ADC_SEL_SWAP			(0x1 << 4)
+#define RT5640_IF3_ADC_SEL_L2R			(0x2 << 4)
+#define RT5640_IF3_ADC_SEL_R2L			(0x3 << 4)
 
 /* REC Left Mixer Control 1 (0x3b) */
 #define RT5640_G_HP_L_RM_L_MASK			(0x7 << 13)
@@ -983,6 +986,7 @@
 #define RT5640_SCLK_SRC_SFT			14
 #define RT5640_SCLK_SRC_MCLK			(0x0 << 14)
 #define RT5640_SCLK_SRC_PLL1			(0x1 << 14)
+#define RT5640_SCLK_SRC_RCCLK			(0x2 << 14)
 #define RT5640_PLL1_SRC_MASK			(0x3 << 12)
 #define RT5640_PLL1_SRC_SFT			12
 #define RT5640_PLL1_SRC_MCLK			(0x0 << 12)
@@ -1032,6 +1036,10 @@
 #define RT5640_DMIC_2_M_SFT			8
 #define RT5640_DMIC_2_M_NOR			(0x0 << 8)
 #define RT5640_DMIC_2_M_ASYN			(0x1 << 8)
+
+/* ASRC clock source selection (0x84) */
+#define RT5640_CLK_SEL_SYS			(0x0)
+#define RT5640_CLK_SEL_ASRC			(0x1)
 
 /* ASRC Control 2 (0x84) */
 #define RT5640_MDA_L_M_MASK			(0x1 << 15)
@@ -1601,10 +1609,17 @@
 #define RT5640_MB2_OC_P_SFT			6
 #define RT5640_MB2_OC_P_NOR			(0x0 << 6)
 #define RT5640_MB2_OC_P_INV			(0x1 << 6)
-#define RT5640_MB1_OC_CLR			(0x1 << 3)
-#define RT5640_MB1_OC_CLR_SFT			3
-#define RT5640_MB2_OC_CLR			(0x1 << 2)
-#define RT5640_MB2_OC_CLR_SFT			2
+#define RT5640_MB1_OC_STATUS			(0x1 << 3)
+#define RT5640_MB1_OC_STATUS_SFT		3
+#define RT5640_MB2_OC_STATUS			(0x1 << 2)
+#define RT5640_MB2_OC_STATUS_SFT		2
+
+/* GPIO and Internal Status (0xbf) */
+#define RT5640_GPIO1_STATUS			(0x1 << 8)
+#define RT5640_GPIO2_STATUS			(0x1 << 7)
+#define RT5640_JD_STATUS			(0x1 << 4)
+#define RT5640_OVT_STATUS			(0x1 << 3)
+#define RT5640_CLS_D_OVCD_STATUS		(0x1 << 0)
 
 /* GPIO Control 1 (0xc0) */
 #define RT5640_GP1_PIN_MASK			(0x1 << 15)
@@ -1964,8 +1979,23 @@
 #define RT5640_ZCD_HP_DIS			(0x0 << 15)
 #define RT5640_ZCD_HP_EN			(0x1 << 15)
 
+/* General Control 1 (0xfa) */
+#define RT5640_M_MONO_ADC_L			(0x1 << 13)
+#define RT5640_M_MONO_ADC_L_SFT			13
+#define RT5640_M_MONO_ADC_R			(0x1 << 12)
+#define RT5640_M_MONO_ADC_R_SFT			12
+#define RT5640_MCLK_DET				(0x1 << 11)
 
 /* Codec Private Register definition */
+
+/* MIC Over current threshold scale factor (0x15) */
+#define RT5640_MIC_OVCD_SF_MASK			(0x3 << 8)
+#define RT5640_MIC_OVCD_SF_SFT			8
+#define RT5640_MIC_OVCD_SF_0P5			(0x0 << 8)
+#define RT5640_MIC_OVCD_SF_0P75			(0x1 << 8)
+#define RT5640_MIC_OVCD_SF_1P0			(0x2 << 8)
+#define RT5640_MIC_OVCD_SF_1P5			(0x3 << 8)
+
 /* 3D Speaker Control (0x63) */
 #define RT5640_3D_SPK_MASK			(0x1 << 15)
 #define RT5640_3D_SPK_SFT			15
@@ -2079,11 +2109,23 @@ enum {
 	RT5640_DMIC2,
 };
 
-struct rt5640_priv {
-	struct snd_soc_codec *codec;
-	struct rt5640_platform_data pdata;
-	struct regmap *regmap;
+/* filter mask */
+enum {
+	RT5640_DA_STEREO_FILTER = 0x1,
+	RT5640_DA_MONO_L_FILTER = (0x1 << 1),
+	RT5640_DA_MONO_R_FILTER = (0x1 << 2),
+	RT5640_AD_STEREO_FILTER = (0x1 << 3),
+	RT5640_AD_MONO_L_FILTER = (0x1 << 4),
+	RT5640_AD_MONO_R_FILTER = (0x1 << 5),
+};
 
+struct rt5640_priv {
+	struct snd_soc_component *component;
+	struct regmap *regmap;
+	struct clk *mclk;
+
+	int ldo1_en; /* GPIO for LDO1_EN */
+	int irq;
 	int sysclk;
 	int sysclk_src;
 	int lrck[RT5640_AIFS];
@@ -2095,9 +2137,27 @@ struct rt5640_priv {
 	int pll_out;
 
 	bool hp_mute;
+	bool asrc_en;
+
+	/* Jack and button detect data */
+	bool ovcd_irq_enabled;
+	bool pressed;
+	bool press_reported;
+	int press_count;
+	int release_count;
+	int poll_count;
+	struct delayed_work bp_work;
+	struct work_struct jack_work;
+	struct snd_soc_jack *jack;
+	unsigned int jd_src;
+	bool jd_inverted;
+	unsigned int ovcd_th;
+	unsigned int ovcd_sf;
 };
 
-int rt5640_dmic_enable(struct snd_soc_codec *codec,
+int rt5640_dmic_enable(struct snd_soc_component *component,
 		       bool dmic1_data_pin, bool dmic2_data_pin);
+int rt5640_sel_asrc_clk_src(struct snd_soc_component *component,
+		unsigned int filter_mask, unsigned int clk_src);
 
 #endif

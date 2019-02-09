@@ -30,18 +30,18 @@
 #include <linux/gpio_keys.h>
 #include <linux/delay.h>
 #include <linux/regulator/machine.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa27x.h>
-#include <mach/mfp-pxa27x.h>
+#include "pxa27x.h"
+#include "mfp-pxa27x.h"
 #include <mach/z2.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/keypad-pxa27x.h>
-#include <mach/pm.h>
+#include "pm.h"
 
 #include "generic.h"
 #include "devices.h"

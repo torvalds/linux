@@ -26,7 +26,7 @@
 		bootargs = "console=ttyS0,57600";
 	};
 
-	memory {
+	memory@0 {
 		name = "memory";
 		device_type = "memory";
 		reg = <0x0 0x40000000>; /* 1 GB */
@@ -42,7 +42,6 @@
 		};
 
 		dwmmc0@ff704000 {
-			num-slots = <1>;
 			broken-cd;
 			bus-width = <4>;
 			cap-mmc-highspeed;

@@ -45,19 +45,29 @@
 /* A structure to carry information to the ULP (e.g. Sockets API) */
 /* Warning: This sits inside an skb.cb[] area.  Be very careful of
  * growing this structure as it is at the maximum limit now.
+ *
+ * sctp_ulpevent is saved in sk->cb(48 bytes), whose last 4 bytes
+ * have been taken by sock_skb_cb, So here it has to use 'packed'
+ * to make sctp_ulpevent fit into the rest 44 bytes.
  */
 struct sctp_ulpevent {
 	struct sctp_association *asoc;
-	__u16 stream;
-	__u16 ssn;
-	__u16 flags;
-	__u32 ppid;
+	struct sctp_chunk *chunk;
+	unsigned int rmem_len;
+	union {
+		__u32 mid;
+		__u16 ssn;
+	};
+	union {
+		__u32 ppid;
+		__u32 fsn;
+	};
 	__u32 tsn;
 	__u32 cumtsn;
-	int msg_flags;
-	int iif;
-	unsigned int rmem_len;
-};
+	__u16 stream;
+	__u16 flags;
+	__u16 msg_flags;
+} __packed;
 
 /* Retrieve the skb this event sits inside of. */
 static inline struct sk_buff *sctp_event2skb(const struct sctp_ulpevent *ev)
@@ -112,7 +122,8 @@ struct sctp_ulpevent *sctp_ulpevent_make_shutdown_event(
 
 struct sctp_ulpevent *sctp_ulpevent_make_pdapi(
 	const struct sctp_association *asoc,
-	__u32 indication, gfp_t gfp);
+	__u32 indication, __u32 sid, __u32 seq,
+	__u32 flags, gfp_t gfp);
 
 struct sctp_ulpevent *sctp_ulpevent_make_adaptation_indication(
 	const struct sctp_association *asoc, gfp_t gfp);
@@ -128,6 +139,22 @@ struct sctp_ulpevent *sctp_ulpevent_make_authkey(
 struct sctp_ulpevent *sctp_ulpevent_make_sender_dry_event(
 	const struct sctp_association *asoc, gfp_t gfp);
 
+struct sctp_ulpevent *sctp_ulpevent_make_stream_reset_event(
+	const struct sctp_association *asoc, __u16 flags,
+	__u16 stream_num, __be16 *stream_list, gfp_t gfp);
+
+struct sctp_ulpevent *sctp_ulpevent_make_assoc_reset_event(
+	const struct sctp_association *asoc, __u16 flags,
+	 __u32 local_tsn, __u32 remote_tsn, gfp_t gfp);
+
+struct sctp_ulpevent *sctp_ulpevent_make_stream_change_event(
+	const struct sctp_association *asoc, __u16 flags,
+	__u32 strchange_instrms, __u32 strchange_outstrms, gfp_t gfp);
+
+struct sctp_ulpevent *sctp_make_reassembled_event(
+	struct net *net, struct sk_buff_head *queue,
+	struct sk_buff *f_frag, struct sk_buff *l_frag);
+
 void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 				   struct msghdr *);
 void sctp_ulpevent_read_rcvinfo(const struct sctp_ulpevent *event,
@@ -141,8 +168,12 @@ __u16 sctp_ulpevent_get_notification_type(const struct sctp_ulpevent *event);
 static inline int sctp_ulpevent_type_enabled(__u16 sn_type,
 					     struct sctp_event_subscribe *mask)
 {
+	int offset = sn_type - SCTP_SN_TYPE_BASE;
 	char *amask = (char *) mask;
-	return amask[sn_type - SCTP_SN_TYPE_BASE];
+
+	if (offset >= sizeof(struct sctp_event_subscribe))
+		return 0;
+	return amask[offset];
 }
 
 /* Given an event subscription, is this event enabled? */

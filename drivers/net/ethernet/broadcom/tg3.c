@@ -4,11 +4,17 @@
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001, 2002, 2003 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2005-2014 Broadcom Corporation.
+ * Copyright (C) 2005-2016 Broadcom Corporation.
+ * Copyright (C) 2016-2017 Broadcom Limited.
+ * Copyright (C) 2018 Broadcom. All Rights Reserved. The term "Broadcom"
+ * refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Firmware is:
  *	Derived from proprietary unpublished source code,
- *	Copyright (C) 2000-2003 Broadcom Corporation.
+ *	Copyright (C) 2000-2016 Broadcom Corporation.
+ *	Copyright (C) 2016-2017 Broadcom Ltd.
+ *	Copyright (C) 2018 Broadcom. All Rights Reserved. The term "Broadcom"
+ *	refers to Broadcom Inc. and/or its subsidiaries.
  *
  *	Permission is hereby granted for the distribution of this firmware
  *	data in hexadecimal or equivalent format, provided this copyright
@@ -20,6 +26,7 @@
 #include <linux/moduleparam.h>
 #include <linux/stringify.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
@@ -47,6 +54,7 @@
 #include <linux/ssb/ssb_driver_gige.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/crc32poly.h>
 
 #include <net/checksum.h>
 #include <net/ip.h>
@@ -124,7 +132,7 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 #define TG3_TX_TIMEOUT			(5 * HZ)
 
 /* hardware minimum and maximum for a single frame's data payload */
-#define TG3_MIN_MTU			60
+#define TG3_MIN_MTU			ETH_ZLEN
 #define TG3_MAX_MTU(tp)	\
 	(tg3_flag(tp, JUMBO_CAPABLE) ? 9000 : 1500)
 
@@ -718,6 +726,7 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 	case TG3_APE_LOCK_GPIO:
 		if (tg3_asic_rev(tp) == ASIC_REV_5761)
 			return 0;
+		/* else: fall through */
 	case TG3_APE_LOCK_GRC:
 	case TG3_APE_LOCK_MEM:
 		if (!tp->pci_fn)
@@ -778,6 +787,7 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 	case TG3_APE_LOCK_GPIO:
 		if (tg3_asic_rev(tp) == ASIC_REV_5761)
 			return;
+		/* else: fall through */
 	case TG3_APE_LOCK_GRC:
 	case TG3_APE_LOCK_MEM:
 		if (!tp->pci_fn)
@@ -824,6 +834,7 @@ static int tg3_ape_event_lock(struct tg3 *tp, u32 timeout_us)
 	return timeout_us ? 0 : -EBUSY;
 }
 
+#ifdef CONFIG_TIGON3_HWMON
 static int tg3_ape_wait_for_event(struct tg3 *tp, u32 timeout_us)
 {
 	u32 i, apedata;
@@ -903,6 +914,7 @@ static int tg3_ape_scratchpad_read(struct tg3 *tp, u32 *data, u32 base_off,
 
 	return 0;
 }
+#endif
 
 static int tg3_ape_send_event(struct tg3 *tp, u32 event)
 {
@@ -917,8 +929,8 @@ static int tg3_ape_send_event(struct tg3 *tp, u32 event)
 	if (!(apedata & APE_FW_STATUS_READY))
 		return -EAGAIN;
 
-	/* Wait for up to 1 millisecond for APE to service previous event. */
-	err = tg3_ape_event_lock(tp, 1000);
+	/* Wait for up to 20 millisecond for APE to service previous event. */
+	err = tg3_ape_event_lock(tp, 20000);
 	if (err)
 		return err;
 
@@ -941,6 +953,7 @@ static void tg3_ape_driver_state_change(struct tg3 *tp, int kind)
 
 	switch (kind) {
 	case RESET_KIND_INIT:
+		tg3_ape_write32(tp, TG3_APE_HOST_HEARTBEAT_COUNT, tp->ape_hb++);
 		tg3_ape_write32(tp, TG3_APE_HOST_SEG_SIG,
 				APE_HOST_SEG_SIG_MAGIC);
 		tg3_ape_write32(tp, TG3_APE_HOST_SEG_LEN,
@@ -957,13 +970,6 @@ static void tg3_ape_driver_state_change(struct tg3 *tp, int kind)
 		event = APE_EVENT_STATUS_STATE_START;
 		break;
 	case RESET_KIND_SHUTDOWN:
-		/* With the interface we are currently using,
-		 * APE does not track driver state.  Wiping
-		 * out the HOST SEGMENT SIGNATURE forces
-		 * the APE to assume OS absent status.
-		 */
-		tg3_ape_write32(tp, TG3_APE_HOST_SEG_SIG, 0x0);
-
 		if (device_may_wakeup(&tp->pdev->dev) &&
 		    tg3_flag(tp, WOL_ENABLE)) {
 			tg3_ape_write32(tp, TG3_APE_HOST_WOL_SPEED,
@@ -983,6 +989,18 @@ static void tg3_ape_driver_state_change(struct tg3 *tp, int kind)
 	event |= APE_EVENT_STATUS_DRIVER_EVNT | APE_EVENT_STATUS_STATE_CHNGE;
 
 	tg3_ape_send_event(tp, event);
+}
+
+static void tg3_send_ape_heartbeat(struct tg3 *tp,
+				   unsigned long interval)
+{
+	/* Check if hb interval has exceeded */
+	if (!tg3_flag(tp, ENABLE_APE) ||
+	    time_before(jiffies, tp->ape_hb_jiffies + interval))
+		return;
+
+	tg3_ape_write32(tp, TG3_APE_HOST_HEARTBEAT_COUNT, tp->ape_hb++);
+	tp->ape_hb_jiffies = jiffies;
 }
 
 static void tg3_disable_ints(struct tg3 *tp)
@@ -1406,7 +1424,7 @@ static void tg3_mdio_config_5785(struct tg3 *tp)
 	u32 val;
 	struct phy_device *phydev;
 
-	phydev = tp->mdio_bus->phy_map[tp->phy_addr];
+	phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
 	switch (phydev->drv->phy_id & phydev->drv->phy_id_mask) {
 	case PHY_ID_BCM50610:
 	case PHY_ID_BCM50610M:
@@ -1538,10 +1556,6 @@ static int tg3_mdio_init(struct tg3 *tp)
 	tp->mdio_bus->read     = &tg3_mdio_read;
 	tp->mdio_bus->write    = &tg3_mdio_write;
 	tp->mdio_bus->phy_mask = ~(1 << tp->phy_addr);
-	tp->mdio_bus->irq      = &tp->mdio_irq[0];
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		tp->mdio_bus->irq[i] = PHY_POLL;
 
 	/* The bus registration will look for all the PHYs on the mdio bus.
 	 * Unfortunately, it does not ensure the PHY is powered up before
@@ -1558,7 +1572,7 @@ static int tg3_mdio_init(struct tg3 *tp)
 		return i;
 	}
 
-	phydev = tp->mdio_bus->phy_map[tp->phy_addr];
+	phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
 
 	if (!phydev || !phydev->drv) {
 		dev_warn(&tp->pdev->dev, "No PHY devices\n");
@@ -1968,7 +1982,7 @@ static void tg3_setup_flow_control(struct tg3 *tp, u32 lcladv, u32 rmtadv)
 	u32 old_tx_mode = tp->tx_mode;
 
 	if (tg3_flag(tp, USE_PHYLIB))
-		autoneg = tp->mdio_bus->phy_map[tp->phy_addr]->autoneg;
+		autoneg = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr)->autoneg;
 	else
 		autoneg = tp->link_config.autoneg;
 
@@ -2004,7 +2018,7 @@ static void tg3_adjust_link(struct net_device *dev)
 	u8 oldflowctrl, linkmesg = 0;
 	u32 mac_mode, lcl_adv, rmt_adv;
 	struct tg3 *tp = netdev_priv(dev);
-	struct phy_device *phydev = tp->mdio_bus->phy_map[tp->phy_addr];
+	struct phy_device *phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
 
 	spin_lock_bh(&tp->lock);
 
@@ -2093,10 +2107,10 @@ static int tg3_phy_init(struct tg3 *tp)
 	/* Bring the PHY back to a known state. */
 	tg3_bmcr_reset(tp);
 
-	phydev = tp->mdio_bus->phy_map[tp->phy_addr];
+	phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
 
 	/* Attach the MAC to the PHY. */
-	phydev = phy_connect(tp->dev, dev_name(&phydev->dev),
+	phydev = phy_connect(tp->dev, phydev_name(phydev),
 			     tg3_adjust_link, phydev->interface);
 	if (IS_ERR(phydev)) {
 		dev_err(&tp->pdev->dev, "Could not attach to PHY\n");
@@ -2120,13 +2134,15 @@ static int tg3_phy_init(struct tg3 *tp)
 				      SUPPORTED_Asym_Pause);
 		break;
 	default:
-		phy_disconnect(tp->mdio_bus->phy_map[tp->phy_addr]);
+		phy_disconnect(mdiobus_get_phy(tp->mdio_bus, tp->phy_addr));
 		return -EINVAL;
 	}
 
 	tp->phy_flags |= TG3_PHYFLG_IS_CONNECTED;
 
 	phydev->advertising = phydev->supported;
+
+	phy_attached_info(phydev);
 
 	return 0;
 }
@@ -2138,7 +2154,7 @@ static void tg3_phy_start(struct tg3 *tp)
 	if (!(tp->phy_flags & TG3_PHYFLG_IS_CONNECTED))
 		return;
 
-	phydev = tp->mdio_bus->phy_map[tp->phy_addr];
+	phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
 
 	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) {
 		tp->phy_flags &= ~TG3_PHYFLG_IS_LOW_POWER;
@@ -2158,13 +2174,13 @@ static void tg3_phy_stop(struct tg3 *tp)
 	if (!(tp->phy_flags & TG3_PHYFLG_IS_CONNECTED))
 		return;
 
-	phy_stop(tp->mdio_bus->phy_map[tp->phy_addr]);
+	phy_stop(mdiobus_get_phy(tp->mdio_bus, tp->phy_addr));
 }
 
 static void tg3_phy_fini(struct tg3 *tp)
 {
 	if (tp->phy_flags & TG3_PHYFLG_IS_CONNECTED) {
-		phy_disconnect(tp->mdio_bus->phy_map[tp->phy_addr]);
+		phy_disconnect(mdiobus_get_phy(tp->mdio_bus, tp->phy_addr));
 		tp->phy_flags &= ~TG3_PHYFLG_IS_CONNECTED;
 	}
 }
@@ -3224,7 +3240,7 @@ static int tg3_nvram_read_using_eeprom(struct tg3 *tp,
 	return 0;
 }
 
-#define NVRAM_CMD_TIMEOUT 5000
+#define NVRAM_CMD_TIMEOUT 10000
 
 static int tg3_nvram_exec_cmd(struct tg3 *tp, u32 nvram_cmd)
 {
@@ -4048,7 +4064,7 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 			struct phy_device *phydev;
 			u32 phyid, advertising;
 
-			phydev = tp->mdio_bus->phy_map[tp->phy_addr];
+			phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
 
 			tp->phy_flags |= TG3_PHYFLG_IS_LOW_POWER;
 
@@ -6586,7 +6602,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 		pkts_compl++;
 		bytes_compl += skb->len;
 
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 
 		if (unlikely(tx_bug)) {
 			tg3_tx_recover(tp);
@@ -7259,6 +7275,7 @@ static int tg3_poll_msix(struct napi_struct *napi, int budget)
 		}
 	}
 
+	tg3_send_ape_heartbeat(tp, TG3_APE_HB_INTERVAL << 1);
 	return work_done;
 
 tx_recovery:
@@ -7341,6 +7358,7 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
+	tg3_send_ape_heartbeat(tp, TG3_APE_HB_INTERVAL << 1);
 	return work_done;
 
 tx_recovery:
@@ -7385,7 +7403,7 @@ static void tg3_napi_fini(struct tg3 *tp)
 
 static inline void tg3_netif_stop(struct tg3 *tp)
 {
-	tp->dev->trans_start = jiffies;	/* prevent tx timeout */
+	netif_trans_update(tp->dev);	/* prevent tx timeout */
 	tg3_napi_disable(tp);
 	netif_carrier_off(tp->dev);
 	netif_tx_disable(tp->dev);
@@ -7828,9 +7846,17 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 		}
 	}
 
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 	*pskb = new_skb;
 	return ret;
+}
+
+static bool tg3_tso_bug_gso_check(struct tg3_napi *tnapi, struct sk_buff *skb)
+{
+	/* Check if we will never have enough descriptors,
+	 * as gso_segs can be more than current ring size
+	 */
+	return skb_shinfo(skb)->gso_segs < tnapi->tx_pending / 3;
 }
 
 static netdev_tx_t tg3_start_xmit(struct sk_buff *, struct net_device *);
@@ -7873,7 +7899,7 @@ static int tg3_tso_bug(struct tg3 *tp, struct tg3_napi *tnapi,
 	} while (segs);
 
 tg3_tso_bug_end:
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -7936,14 +7962,19 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * vlan encapsulated.
 		 */
 		if (skb->protocol == htons(ETH_P_8021Q) ||
-		    skb->protocol == htons(ETH_P_8021AD))
-			return tg3_tso_bug(tp, tnapi, txq, skb);
+		    skb->protocol == htons(ETH_P_8021AD)) {
+			if (tg3_tso_bug_gso_check(tnapi, skb))
+				return tg3_tso_bug(tp, tnapi, txq, skb);
+			goto drop;
+		}
 
 		if (!skb_is_gso_v6(skb)) {
 			if (unlikely((ETH_HLEN + hdr_len) > 80) &&
-			    tg3_flag(tp, TSO_BUG))
-				return tg3_tso_bug(tp, tnapi, txq, skb);
-
+			    tg3_flag(tp, TSO_BUG)) {
+				if (tg3_tso_bug_gso_check(tnapi, skb))
+					return tg3_tso_bug(tp, tnapi, txq, skb);
+				goto drop;
+			}
 			ip_csum = iph->check;
 			ip_tot_len = iph->tot_len;
 			iph->check = 0;
@@ -8075,7 +8106,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (would_hit_hwbug) {
 		tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, i);
 
-		if (mss) {
+		if (mss && tg3_tso_bug_gso_check(tnapi, skb)) {
 			/* If it's a TSO packet, do GSO instead of
 			 * allocating and copying to a large linear SKB
 			 */
@@ -8529,7 +8560,7 @@ static void tg3_free_rings(struct tg3 *tp)
 			tg3_tx_skb_unmap(tnapi, i,
 					 skb_shinfo(skb)->nr_frags - 1);
 
-			dev_kfree_skb_any(skb);
+			dev_consume_skb_any(skb);
 		}
 		netdev_tx_reset_queue(netdev_get_tx_queue(tp->dev, j));
 	}
@@ -8607,8 +8638,9 @@ static int tg3_mem_tx_acquire(struct tg3 *tp)
 		tnapi++;
 
 	for (i = 0; i < tp->txq_cnt; i++, tnapi++) {
-		tnapi->tx_buffers = kzalloc(sizeof(struct tg3_tx_ring_info) *
-					    TG3_TX_RING_SIZE, GFP_KERNEL);
+		tnapi->tx_buffers = kcalloc(TG3_TX_RING_SIZE,
+					    sizeof(struct tg3_tx_ring_info),
+					    GFP_KERNEL);
 		if (!tnapi->tx_buffers)
 			goto err_out;
 
@@ -8709,6 +8741,10 @@ static void tg3_free_consistent(struct tg3 *tp)
 	tg3_mem_rx_release(tp);
 	tg3_mem_tx_release(tp);
 
+	/* tp->hw_stats can be referenced safely:
+	 *     1. under rtnl_lock
+	 *     2. or under tp->lock if TG3_FLAG_INIT_COMPLETE is set.
+	 */
 	if (tp->hw_stats) {
 		dma_free_coherent(&tp->pdev->dev, sizeof(struct tg3_hw_stats),
 				  tp->hw_stats, tp->stats_mapping);
@@ -9261,6 +9297,15 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	tg3_restore_clk(tp);
 
+	/* Increase the core clock speed to fix tx timeout issue for 5762
+	 * with 100Mbps link speed.
+	 */
+	if (tg3_asic_rev(tp) == ASIC_REV_5762) {
+		val = tr32(TG3_CPMU_CLCK_ORIDE_ENABLE);
+		tw32(TG3_CPMU_CLCK_ORIDE_ENABLE, val |
+		     TG3_CPMU_MAC_ORIDE_ENABLE);
+	}
+
 	/* Reprobe ASF enable state.  */
 	tg3_flag_clear(tp, ENABLE_ASF);
 	tp->phy_flags &= ~(TG3_PHYFLG_1G_ON_VAUX_OK |
@@ -9678,7 +9723,7 @@ static inline u32 calc_crc(unsigned char *buf, int len)
 			reg >>= 1;
 
 			if (tmp)
-				reg ^= 0xedb88320;
+				reg ^= CRC32_POLY_LE;
 		}
 	}
 
@@ -10034,6 +10079,16 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 		val |= GRC_MODE_TIME_SYNC_ENABLE;
 
 	tw32(GRC_MODE, tp->grc_mode | val);
+
+	/* On one of the AMD platform, MRRS is restricted to 4000 because of
+	 * south bridge limitation. As a workaround, Driver is setting MRRS
+	 * to 2048 instead of default 4096.
+	 */
+	if (tp->pdev->subsystem_vendor == PCI_VENDOR_ID_DELL &&
+	    tp->pdev->subsystem_device == TG3PCI_SUBDEVICE_ID_DELL_5762) {
+		val = tr32(TG3PCI_DEV_STATUS_CTRL) & ~MAX_READ_REQ_MASK;
+		tw32(TG3PCI_DEV_STATUS_CTRL, val | MAX_READ_REQ_SIZE_2048);
+	}
 
 	/* Setup the timer prescalar register.  Clock is always 66Mhz. */
 	val = tr32(GRC_MISC_CFG);
@@ -10667,28 +10722,40 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	switch (limit) {
 	case 16:
 		tw32(MAC_RCV_RULE_15,  0); tw32(MAC_RCV_VALUE_15,  0);
+		/* fall through */
 	case 15:
 		tw32(MAC_RCV_RULE_14,  0); tw32(MAC_RCV_VALUE_14,  0);
+		/* fall through */
 	case 14:
 		tw32(MAC_RCV_RULE_13,  0); tw32(MAC_RCV_VALUE_13,  0);
+		/* fall through */
 	case 13:
 		tw32(MAC_RCV_RULE_12,  0); tw32(MAC_RCV_VALUE_12,  0);
+		/* fall through */
 	case 12:
 		tw32(MAC_RCV_RULE_11,  0); tw32(MAC_RCV_VALUE_11,  0);
+		/* fall through */
 	case 11:
 		tw32(MAC_RCV_RULE_10,  0); tw32(MAC_RCV_VALUE_10,  0);
+		/* fall through */
 	case 10:
 		tw32(MAC_RCV_RULE_9,  0); tw32(MAC_RCV_VALUE_9,  0);
+		/* fall through */
 	case 9:
 		tw32(MAC_RCV_RULE_8,  0); tw32(MAC_RCV_VALUE_8,  0);
+		/* fall through */
 	case 8:
 		tw32(MAC_RCV_RULE_7,  0); tw32(MAC_RCV_VALUE_7,  0);
+		/* fall through */
 	case 7:
 		tw32(MAC_RCV_RULE_6,  0); tw32(MAC_RCV_VALUE_6,  0);
+		/* fall through */
 	case 6:
 		tw32(MAC_RCV_RULE_5,  0); tw32(MAC_RCV_VALUE_5,  0);
+		/* fall through */
 	case 5:
 		tw32(MAC_RCV_RULE_4,  0); tw32(MAC_RCV_VALUE_4,  0);
+		/* fall through */
 	case 4:
 		/* tw32(MAC_RCV_RULE_3,  0); tw32(MAC_RCV_VALUE_3,  0); */
 	case 3:
@@ -10703,7 +10770,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	if (tg3_flag(tp, ENABLE_APE))
 		/* Write our heartbeat update interval to APE. */
 		tg3_ape_write32(tp, TG3_APE_HOST_HEARTBEAT_INT_MS,
-				APE_HOST_HEARTBEAT_INT_DISABLE);
+				APE_HOST_HEARTBEAT_INT_5SEC);
 
 	tg3_write_sig_post_reset(tp, RESET_KIND_INIT);
 
@@ -10729,6 +10796,7 @@ static int tg3_init_hw(struct tg3 *tp, bool reset_phy)
 	return tg3_reset_hw(tp, reset_phy);
 }
 
+#ifdef CONFIG_TIGON3_HWMON
 static void tg3_sd_scan_scratchpad(struct tg3 *tp, struct tg3_ocir *ocir)
 {
 	int i;
@@ -10761,11 +10829,11 @@ static ssize_t tg3_show_temp(struct device *dev,
 }
 
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, tg3_show_temp, NULL,
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, tg3_show_temp, NULL,
 			  TG3_TEMP_SENSOR_OFFSET);
-static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, tg3_show_temp, NULL,
+static SENSOR_DEVICE_ATTR(temp1_crit, 0444, tg3_show_temp, NULL,
 			  TG3_TEMP_CAUTION_OFFSET);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, tg3_show_temp, NULL,
+static SENSOR_DEVICE_ATTR(temp1_max, 0444, tg3_show_temp, NULL,
 			  TG3_TEMP_MAX_OFFSET);
 
 static struct attribute *tg3_attrs[] = {
@@ -10811,6 +10879,10 @@ static void tg3_hwmon_open(struct tg3 *tp)
 		dev_err(&pdev->dev, "Cannot register hwmon device, aborting\n");
 	}
 }
+#else
+static inline void tg3_hwmon_close(struct tg3 *tp) { }
+static inline void tg3_hwmon_open(struct tg3 *tp) { }
+#endif /* CONFIG_TIGON3_HWMON */
 
 
 #define TG3_STAT_ADD32(PSTAT, REG) \
@@ -10909,9 +10981,9 @@ static void tg3_chk_missed_msi(struct tg3 *tp)
 	}
 }
 
-static void tg3_timer(unsigned long __opaque)
+static void tg3_timer(struct timer_list *t)
 {
-	struct tg3 *tp = (struct tg3 *) __opaque;
+	struct tg3 *tp = from_timer(tp, t, timer);
 
 	spin_lock(&tp->lock);
 
@@ -11043,6 +11115,9 @@ static void tg3_timer(unsigned long __opaque)
 		tp->asf_counter = tp->asf_multiplier;
 	}
 
+	/* Update the APE heartbeat every 5 seconds.*/
+	tg3_send_ape_heartbeat(tp, TG3_APE_HB_INTERVAL);
+
 	spin_unlock(&tp->lock);
 
 restart_timer:
@@ -11065,9 +11140,7 @@ static void tg3_timer_init(struct tg3 *tp)
 	tp->asf_multiplier = (HZ / tp->timer_offset) *
 			     TG3_FW_UPDATE_FREQ_SEC;
 
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long) tp;
-	tp->timer.function = tg3_timer;
+	timer_setup(&tp->timer, tg3_timer, 0);
 }
 
 static void tg3_timer_start(struct tg3 *tp)
@@ -11514,11 +11587,11 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 	tg3_napi_enable(tp);
 
 	for (i = 0; i < tp->irq_cnt; i++) {
-		struct tg3_napi *tnapi = &tp->napi[i];
 		err = tg3_request_irq(tp, i);
 		if (err) {
 			for (i--; i >= 0; i--) {
-				tnapi = &tp->napi[i];
+				struct tg3_napi *tnapi = &tp->napi[i];
+
 				free_irq(tnapi->irq_vec, tnapi);
 			}
 			goto out_napi_fini;
@@ -11706,10 +11779,6 @@ static int tg3_close(struct net_device *dev)
 	}
 
 	tg3_stop(tp);
-
-	/* Clear stats across close / open calls */
-	memset(&tp->net_stats_prev, 0, sizeof(tp->net_stats_prev));
-	memset(&tp->estats_prev, 0, sizeof(tp->estats_prev));
 
 	if (pci_device_is_present(tp->pdev)) {
 		tg3_power_down_prepare(tp);
@@ -12018,7 +12087,7 @@ static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	int ret;
 	u32 offset, len, b_offset, odd_len;
 	u8 *buf;
-	__be32 start, end;
+	__be32 start = 0, end;
 
 	if (tg3_flag(tp, NO_NVRAM) ||
 	    eeprom->magic != TG3_EEPROM_MAGIC)
@@ -12068,95 +12137,109 @@ static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	return ret;
 }
 
-static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int tg3_get_link_ksettings(struct net_device *dev,
+				  struct ethtool_link_ksettings *cmd)
 {
 	struct tg3 *tp = netdev_priv(dev);
+	u32 supported, advertising;
 
 	if (tg3_flag(tp, USE_PHYLIB)) {
 		struct phy_device *phydev;
 		if (!(tp->phy_flags & TG3_PHYFLG_IS_CONNECTED))
 			return -EAGAIN;
-		phydev = tp->mdio_bus->phy_map[tp->phy_addr];
-		return phy_ethtool_gset(phydev, cmd);
+		phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
+		phy_ethtool_ksettings_get(phydev, cmd);
+
+		return 0;
 	}
 
-	cmd->supported = (SUPPORTED_Autoneg);
+	supported = (SUPPORTED_Autoneg);
 
 	if (!(tp->phy_flags & TG3_PHYFLG_10_100_ONLY))
-		cmd->supported |= (SUPPORTED_1000baseT_Half |
-				   SUPPORTED_1000baseT_Full);
+		supported |= (SUPPORTED_1000baseT_Half |
+			      SUPPORTED_1000baseT_Full);
 
 	if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES)) {
-		cmd->supported |= (SUPPORTED_100baseT_Half |
-				  SUPPORTED_100baseT_Full |
-				  SUPPORTED_10baseT_Half |
-				  SUPPORTED_10baseT_Full |
-				  SUPPORTED_TP);
-		cmd->port = PORT_TP;
+		supported |= (SUPPORTED_100baseT_Half |
+			      SUPPORTED_100baseT_Full |
+			      SUPPORTED_10baseT_Half |
+			      SUPPORTED_10baseT_Full |
+			      SUPPORTED_TP);
+		cmd->base.port = PORT_TP;
 	} else {
-		cmd->supported |= SUPPORTED_FIBRE;
-		cmd->port = PORT_FIBRE;
+		supported |= SUPPORTED_FIBRE;
+		cmd->base.port = PORT_FIBRE;
 	}
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
 
-	cmd->advertising = tp->link_config.advertising;
+	advertising = tp->link_config.advertising;
 	if (tg3_flag(tp, PAUSE_AUTONEG)) {
 		if (tp->link_config.flowctrl & FLOW_CTRL_RX) {
 			if (tp->link_config.flowctrl & FLOW_CTRL_TX) {
-				cmd->advertising |= ADVERTISED_Pause;
+				advertising |= ADVERTISED_Pause;
 			} else {
-				cmd->advertising |= ADVERTISED_Pause |
-						    ADVERTISED_Asym_Pause;
+				advertising |= ADVERTISED_Pause |
+					ADVERTISED_Asym_Pause;
 			}
 		} else if (tp->link_config.flowctrl & FLOW_CTRL_TX) {
-			cmd->advertising |= ADVERTISED_Asym_Pause;
+			advertising |= ADVERTISED_Asym_Pause;
 		}
 	}
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
+
 	if (netif_running(dev) && tp->link_up) {
-		ethtool_cmd_speed_set(cmd, tp->link_config.active_speed);
-		cmd->duplex = tp->link_config.active_duplex;
-		cmd->lp_advertising = tp->link_config.rmt_adv;
+		cmd->base.speed = tp->link_config.active_speed;
+		cmd->base.duplex = tp->link_config.active_duplex;
+		ethtool_convert_legacy_u32_to_link_mode(
+			cmd->link_modes.lp_advertising,
+			tp->link_config.rmt_adv);
+
 		if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES)) {
 			if (tp->phy_flags & TG3_PHYFLG_MDIX_STATE)
-				cmd->eth_tp_mdix = ETH_TP_MDI_X;
+				cmd->base.eth_tp_mdix = ETH_TP_MDI_X;
 			else
-				cmd->eth_tp_mdix = ETH_TP_MDI;
+				cmd->base.eth_tp_mdix = ETH_TP_MDI;
 		}
 	} else {
-		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
-		cmd->duplex = DUPLEX_UNKNOWN;
-		cmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.eth_tp_mdix = ETH_TP_MDI_INVALID;
 	}
-	cmd->phy_address = tp->phy_addr;
-	cmd->transceiver = XCVR_INTERNAL;
-	cmd->autoneg = tp->link_config.autoneg;
-	cmd->maxtxpkt = 0;
-	cmd->maxrxpkt = 0;
+	cmd->base.phy_address = tp->phy_addr;
+	cmd->base.autoneg = tp->link_config.autoneg;
 	return 0;
 }
 
-static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int tg3_set_link_ksettings(struct net_device *dev,
+				  const struct ethtool_link_ksettings *cmd)
 {
 	struct tg3 *tp = netdev_priv(dev);
-	u32 speed = ethtool_cmd_speed(cmd);
+	u32 speed = cmd->base.speed;
+	u32 advertising;
 
 	if (tg3_flag(tp, USE_PHYLIB)) {
 		struct phy_device *phydev;
 		if (!(tp->phy_flags & TG3_PHYFLG_IS_CONNECTED))
 			return -EAGAIN;
-		phydev = tp->mdio_bus->phy_map[tp->phy_addr];
-		return phy_ethtool_sset(phydev, cmd);
+		phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
+		return phy_ethtool_ksettings_set(phydev, cmd);
 	}
 
-	if (cmd->autoneg != AUTONEG_ENABLE &&
-	    cmd->autoneg != AUTONEG_DISABLE)
+	if (cmd->base.autoneg != AUTONEG_ENABLE &&
+	    cmd->base.autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
 
-	if (cmd->autoneg == AUTONEG_DISABLE &&
-	    cmd->duplex != DUPLEX_FULL &&
-	    cmd->duplex != DUPLEX_HALF)
+	if (cmd->base.autoneg == AUTONEG_DISABLE &&
+	    cmd->base.duplex != DUPLEX_FULL &&
+	    cmd->base.duplex != DUPLEX_HALF)
 		return -EINVAL;
 
-	if (cmd->autoneg == AUTONEG_ENABLE) {
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
+
+	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		u32 mask = ADVERTISED_Autoneg |
 			   ADVERTISED_Pause |
 			   ADVERTISED_Asym_Pause;
@@ -12174,7 +12257,7 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		else
 			mask |= ADVERTISED_FIBRE;
 
-		if (cmd->advertising & ~mask)
+		if (advertising & ~mask)
 			return -EINVAL;
 
 		mask &= (ADVERTISED_1000baseT_Half |
@@ -12184,13 +12267,13 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			 ADVERTISED_10baseT_Half |
 			 ADVERTISED_10baseT_Full);
 
-		cmd->advertising &= mask;
+		advertising &= mask;
 	} else {
 		if (tp->phy_flags & TG3_PHYFLG_ANY_SERDES) {
 			if (speed != SPEED_1000)
 				return -EINVAL;
 
-			if (cmd->duplex != DUPLEX_FULL)
+			if (cmd->base.duplex != DUPLEX_FULL)
 				return -EINVAL;
 		} else {
 			if (speed != SPEED_100 &&
@@ -12201,16 +12284,16 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	tg3_full_lock(tp, 0);
 
-	tp->link_config.autoneg = cmd->autoneg;
-	if (cmd->autoneg == AUTONEG_ENABLE) {
-		tp->link_config.advertising = (cmd->advertising |
+	tp->link_config.autoneg = cmd->base.autoneg;
+	if (cmd->base.autoneg == AUTONEG_ENABLE) {
+		tp->link_config.advertising = (advertising |
 					      ADVERTISED_Autoneg);
 		tp->link_config.speed = SPEED_UNKNOWN;
 		tp->link_config.duplex = DUPLEX_UNKNOWN;
 	} else {
 		tp->link_config.advertising = 0;
 		tp->link_config.speed = speed;
-		tp->link_config.duplex = cmd->duplex;
+		tp->link_config.duplex = cmd->base.duplex;
 	}
 
 	tp->phy_flags |= TG3_PHYFLG_USER_CONFIGURED;
@@ -12298,7 +12381,7 @@ static int tg3_nway_reset(struct net_device *dev)
 	if (tg3_flag(tp, USE_PHYLIB)) {
 		if (!(tp->phy_flags & TG3_PHYFLG_IS_CONNECTED))
 			return -EAGAIN;
-		r = phy_start_aneg(tp->mdio_bus->phy_map[tp->phy_addr]);
+		r = phy_start_aneg(mdiobus_get_phy(tp->mdio_bus, tp->phy_addr));
 	} else {
 		u32 bmcr;
 
@@ -12343,6 +12426,7 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 {
 	struct tg3 *tp = netdev_priv(dev);
 	int i, irq_sync = 0, err = 0;
+	bool reset_phy = false;
 
 	if ((ering->rx_pending > tp->rx_std_ring_mask) ||
 	    (ering->rx_jumbo_pending > tp->rx_jmb_ring_mask) ||
@@ -12374,7 +12458,13 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 
 	if (netif_running(dev)) {
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
-		err = tg3_restart_hw(tp, false);
+		/* Reset PHY to avoid PHY lock up */
+		if (tg3_asic_rev(tp) == ASIC_REV_5717 ||
+		    tg3_asic_rev(tp) == ASIC_REV_5719 ||
+		    tg3_asic_rev(tp) == ASIC_REV_5720)
+			reset_phy = true;
+
+		err = tg3_restart_hw(tp, reset_phy);
 		if (!err)
 			tg3_netif_start(tp);
 	}
@@ -12408,6 +12498,7 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 {
 	struct tg3 *tp = netdev_priv(dev);
 	int err = 0;
+	bool reset_phy = false;
 
 	if (tp->link_config.autoneg == AUTONEG_ENABLE)
 		tg3_warn_mgmt_link_flap(tp);
@@ -12416,7 +12507,7 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 		u32 newadv;
 		struct phy_device *phydev;
 
-		phydev = tp->mdio_bus->phy_map[tp->phy_addr];
+		phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
 
 		if (!(phydev->supported & SUPPORTED_Pause) ||
 		    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
@@ -12498,7 +12589,13 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 
 		if (netif_running(dev)) {
 			tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
-			err = tg3_restart_hw(tp, false);
+			/* Reset PHY to avoid PHY lock up */
+			if (tg3_asic_rev(tp) == ASIC_REV_5717 ||
+			    tg3_asic_rev(tp) == ASIC_REV_5719 ||
+			    tg3_asic_rev(tp) == ASIC_REV_5720)
+				reset_phy = true;
+
+			err = tg3_restart_hw(tp, reset_phy);
 			if (!err)
 				tg3_netif_start(tp);
 		}
@@ -12541,10 +12638,6 @@ static int tg3_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 				info->data = TG3_RSS_MAX_NUM_QS;
 		}
 
-		/* The first interrupt vector only
-		 * handles link interrupts.
-		 */
-		info->data -= 1;
 		return 0;
 
 	default:
@@ -13926,7 +14019,7 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		struct phy_device *phydev;
 		if (!(tp->phy_flags & TG3_PHYFLG_IS_CONNECTED))
 			return -EAGAIN;
-		phydev = tp->mdio_bus->phy_map[tp->phy_addr];
+		phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
 		return phy_mii_ioctl(phydev, ifr, cmd);
 	}
 
@@ -14003,7 +14096,9 @@ static int tg3_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	}
 
 	if ((ec->rx_coalesce_usecs > MAX_RXCOL_TICKS) ||
+	    (!ec->rx_coalesce_usecs) ||
 	    (ec->tx_coalesce_usecs > MAX_TXCOL_TICKS) ||
+	    (!ec->tx_coalesce_usecs) ||
 	    (ec->rx_max_coalesced_frames > MAX_RXMAX_FRAMES) ||
 	    (ec->tx_max_coalesced_frames > MAX_TXMAX_FRAMES) ||
 	    (ec->rx_coalesce_usecs_irq > max_rxcoal_tick_int) ||
@@ -14012,16 +14107,6 @@ static int tg3_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	    (ec->tx_max_coalesced_frames_irq > MAX_TXCOAL_MAXF_INT) ||
 	    (ec->stats_block_coalesce_usecs > max_stat_coal_ticks) ||
 	    (ec->stats_block_coalesce_usecs < min_stat_coal_ticks))
-		return -EINVAL;
-
-	/* No rx interrupts will be generated if both are zero */
-	if ((ec->rx_coalesce_usecs == 0) &&
-	    (ec->rx_max_coalesced_frames == 0))
-		return -EINVAL;
-
-	/* No tx interrupts will be generated if both are zero */
-	if ((ec->tx_coalesce_usecs == 0) &&
-	    (ec->tx_max_coalesced_frames == 0))
 		return -EINVAL;
 
 	/* Only copy relevant parameters, ignore all others. */
@@ -14095,8 +14180,6 @@ static int tg3_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 }
 
 static const struct ethtool_ops tg3_ethtool_ops = {
-	.get_settings		= tg3_get_settings,
-	.set_settings		= tg3_set_settings,
 	.get_drvinfo		= tg3_get_drvinfo,
 	.get_regs_len		= tg3_get_regs_len,
 	.get_regs		= tg3_get_regs,
@@ -14129,24 +14212,24 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.get_ts_info		= tg3_get_ts_info,
 	.get_eee		= tg3_get_eee,
 	.set_eee		= tg3_set_eee,
+	.get_link_ksettings	= tg3_get_link_ksettings,
+	.set_link_ksettings	= tg3_set_link_ksettings,
 };
 
-static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
-						struct rtnl_link_stats64 *stats)
+static void tg3_get_stats64(struct net_device *dev,
+			    struct rtnl_link_stats64 *stats)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
 	spin_lock_bh(&tp->lock);
-	if (!tp->hw_stats) {
+	if (!tp->hw_stats || !tg3_flag(tp, INIT_COMPLETE)) {
 		*stats = tp->net_stats_prev;
 		spin_unlock_bh(&tp->lock);
-		return stats;
+		return;
 	}
 
 	tg3_get_nstats(tp, stats);
 	spin_unlock_bh(&tp->lock);
-
-	return stats;
 }
 
 static void tg3_set_rx_mode(struct net_device *dev)
@@ -14188,9 +14271,6 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 	int err;
 	bool reset_phy = false;
 
-	if (new_mtu < TG3_MIN_MTU || new_mtu > TG3_MAX_MTU(tp))
-		return -EINVAL;
-
 	if (!netif_running(dev)) {
 		/* We'll just catch it later when the
 		 * device is up'd.
@@ -14212,7 +14292,10 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 	/* Reset PHY, otherwise the read DMA engine will be in a mode that
 	 * breaks all requests to 256 bytes.
 	 */
-	if (tg3_asic_rev(tp) == ASIC_REV_57766)
+	if (tg3_asic_rev(tp) == ASIC_REV_57766 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5717 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5719 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5720)
 		reset_phy = true;
 
 	err = tg3_restart_hw(tp, reset_phy);
@@ -14761,7 +14844,7 @@ static void tg3_get_5717_nvram_info(struct tg3 *tp)
 
 static void tg3_get_5720_nvram_info(struct tg3 *tp)
 {
-	u32 nvcfg1, nvmpinstrp;
+	u32 nvcfg1, nvmpinstrp, nv_status;
 
 	nvcfg1 = tr32(NVRAM_CFG1);
 	nvmpinstrp = nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK;
@@ -14773,6 +14856,23 @@ static void tg3_get_5720_nvram_info(struct tg3 *tp)
 		}
 
 		switch (nvmpinstrp) {
+		case FLASH_5762_MX25L_100:
+		case FLASH_5762_MX25L_200:
+		case FLASH_5762_MX25L_400:
+		case FLASH_5762_MX25L_800:
+		case FLASH_5762_MX25L_160_320:
+			tp->nvram_pagesize = 4096;
+			tp->nvram_jedecnum = JEDEC_MACRONIX;
+			tg3_flag_set(tp, NVRAM_BUFFERED);
+			tg3_flag_set(tp, NO_NVRAM_ADDR_TRANS);
+			tg3_flag_set(tp, FLASH);
+			nv_status = tr32(NVRAM_AUTOSENSE_STATUS);
+			tp->nvram_size =
+				(1 << (nv_status >> AUTOSENSE_DEVID &
+						AUTOSENSE_DEVID_MASK)
+					<< AUTOSENSE_SIZE_IN_MB);
+			return;
+
 		case FLASH_5762_EEPROM_HD:
 			nvmpinstrp = FLASH_5720_EEPROM_HD;
 			break;
@@ -16608,6 +16708,8 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 				       pci_state_reg);
 
 		tg3_ape_lock_init(tp);
+		tp->ape_hb_interval =
+			msecs_to_jiffies(APE_HOST_HEARTBEAT_INT_5SEC);
 	}
 
 	/* Set up tp->grc_local_ctrl before calling
@@ -17788,6 +17890,10 @@ static int tg3_init_one(struct pci_dev *pdev,
 	dev->hw_features |= features;
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
+	/* MTU range: 60 - 9000 or 1500, depending on hardware */
+	dev->min_mtu = TG3_MIN_MTU;
+	dev->max_mtu = TG3_MAX_MTU(tp);
+
 	if (tg3_chip_rev_id(tp) == CHIPREV_ID_5705_A1 &&
 	    !tg3_flag(tp, TSO_CAPABLE) &&
 	    !(tr32(TG3PCI_PCISTATE) & PCISTATE_BUS_SPEED_HIGH)) {
@@ -17898,13 +18004,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 		    tg3_bus_string(tp, str),
 		    dev->dev_addr);
 
-	if (tp->phy_flags & TG3_PHYFLG_IS_CONNECTED) {
-		struct phy_device *phydev;
-		phydev = tp->mdio_bus->phy_map[tp->phy_addr];
-		netdev_info(dev,
-			    "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
-			    phydev->drv->name, dev_name(&phydev->dev));
-	} else {
+	if (!(tp->phy_flags & TG3_PHYFLG_IS_CONNECTED)) {
 		char *ethtype;
 
 		if (tp->phy_flags & TG3_PHYFLG_10_100_ONLY)
@@ -18129,13 +18229,13 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 
 	rtnl_lock();
 
-	/* We needn't recover from permanent error */
-	if (state == pci_channel_io_frozen)
-		tp->pcierr_recovery = true;
-
 	/* We probably don't have netdev yet */
 	if (!netdev || !netif_running(netdev))
 		goto done;
+
+	/* We needn't recover from permanent error */
+	if (state == pci_channel_io_frozen)
+		tp->pcierr_recovery = true;
 
 	tg3_phy_stop(tp);
 
@@ -18233,7 +18333,7 @@ static void tg3_io_resume(struct pci_dev *pdev)
 
 	rtnl_lock();
 
-	if (!netif_running(netdev))
+	if (!netdev || !netif_running(netdev))
 		goto done;
 
 	tg3_full_lock(tp, 0);

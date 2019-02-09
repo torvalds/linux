@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: utcopy - Internal to external object translation utilities
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -53,7 +19,7 @@ ACPI_MODULE_NAME("utcopy")
 static acpi_status
 acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 				union acpi_object *external_object,
-				u8 * data_space, acpi_size * buffer_space_used);
+				u8 *data_space, acpi_size *buffer_space_used);
 
 static acpi_status
 acpi_ut_copy_ielement_to_ielement(u8 object_type,
@@ -63,7 +29,7 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 
 static acpi_status
 acpi_ut_copy_ipackage_to_epackage(union acpi_operand_object *internal_object,
-				  u8 * buffer, acpi_size * space_used);
+				  u8 *buffer, acpi_size *space_used);
 
 static acpi_status
 acpi_ut_copy_esimple_to_isimple(union acpi_object *user_obj,
@@ -111,7 +77,7 @@ acpi_ut_copy_ipackage_to_ipackage(union acpi_operand_object *source_obj,
 static acpi_status
 acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 				union acpi_object *external_object,
-				u8 * data_space, acpi_size * buffer_space_used)
+				u8 *data_space, acpi_size *buffer_space_used)
 {
 	acpi_status status = AE_OK;
 
@@ -151,7 +117,7 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 
 		memcpy((void *)data_space,
 		       (void *)internal_object->string.pointer,
-		       (acpi_size) internal_object->string.length + 1);
+		       (acpi_size)internal_object->string.length + 1);
 		break;
 
 	case ACPI_TYPE_BUFFER:
@@ -257,9 +223,9 @@ acpi_ut_copy_ielement_to_eelement(u8 object_type,
 	ACPI_FUNCTION_ENTRY();
 
 	this_index = state->pkg.index;
-	target_object = (union acpi_object *)
-	    &((union acpi_object *)(state->pkg.dest_object))->package.
-	    elements[this_index];
+	target_object = (union acpi_object *)&((union acpi_object *)
+					       (state->pkg.dest_object))->
+	    package.elements[this_index];
 
 	switch (object_type) {
 	case ACPI_COPY_TYPE_SIMPLE:
@@ -331,7 +297,7 @@ acpi_ut_copy_ielement_to_eelement(u8 object_type,
 
 static acpi_status
 acpi_ut_copy_ipackage_to_epackage(union acpi_operand_object *internal_object,
-				  u8 * buffer, acpi_size * space_used)
+				  u8 *buffer, acpi_size *space_used)
 {
 	union acpi_object *external_object;
 	acpi_status status;
@@ -348,21 +314,21 @@ acpi_ut_copy_ipackage_to_epackage(union acpi_operand_object *internal_object,
 	 * Free space begins right after the first package
 	 */
 	info.length = ACPI_ROUND_UP_TO_NATIVE_WORD(sizeof(union acpi_object));
-	info.free_space =
-	    buffer + ACPI_ROUND_UP_TO_NATIVE_WORD(sizeof(union acpi_object));
+	info.free_space = buffer +
+	    ACPI_ROUND_UP_TO_NATIVE_WORD(sizeof(union acpi_object));
 	info.object_space = 0;
 	info.num_packages = 1;
 
 	external_object->type = internal_object->common.type;
 	external_object->package.count = internal_object->package.count;
-	external_object->package.elements = ACPI_CAST_PTR(union acpi_object,
-							  info.free_space);
+	external_object->package.elements =
+	    ACPI_CAST_PTR(union acpi_object, info.free_space);
 
 	/*
 	 * Leave room for an array of ACPI_OBJECTS in the buffer
 	 * and move the free space past it
 	 */
-	info.length += (acpi_size) external_object->package.count *
+	info.length += (acpi_size)external_object->package.count *
 	    ACPI_ROUND_UP_TO_NATIVE_WORD(sizeof(union acpi_object));
 	info.free_space += external_object->package.count *
 	    ACPI_ROUND_UP_TO_NATIVE_WORD(sizeof(union acpi_object));
@@ -593,8 +559,8 @@ acpi_ut_copy_epackage_to_ipackage(union acpi_object *external_object,
 	package_elements = package_object->package.elements;
 
 	/*
-	 * Recursive implementation. Probably ok, since nested external packages
-	 * as parameters should be very rare.
+	 * Recursive implementation. Probably ok, since nested external
+	 * packages as parameters should be very rare.
 	 */
 	for (i = 0; i < external_object->package.count; i++) {
 		status =
@@ -649,9 +615,8 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
 		/*
 		 * Build a simple object (no nested objects)
 		 */
-		status =
-		    acpi_ut_copy_esimple_to_isimple(external_object,
-						    internal_object);
+		status = acpi_ut_copy_esimple_to_isimple(external_object,
+							 internal_object);
 	}
 
 	return_ACPI_STATUS(status);
@@ -739,7 +704,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		 */
 		if (source_desc->string.pointer) {
 			dest_desc->string.pointer =
-			    ACPI_ALLOCATE((acpi_size) source_desc->string.
+			    ACPI_ALLOCATE((acpi_size)source_desc->string.
 					  length + 1);
 			if (!dest_desc->string.pointer) {
 				return (AE_NO_MEMORY);
@@ -749,7 +714,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 			memcpy(dest_desc->string.pointer,
 			       source_desc->string.pointer,
-			       (acpi_size) source_desc->string.length + 1);
+			       (acpi_size)source_desc->string.length + 1);
 		}
 		break;
 

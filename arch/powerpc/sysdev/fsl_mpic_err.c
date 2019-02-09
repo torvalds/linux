@@ -76,7 +76,7 @@ int mpic_setup_error_int(struct mpic *mpic, int intvec)
 	mpic->flags |= MPIC_FSL_HAS_EIMR;
 	/* allocate interrupt vectors for error interrupts */
 	for (i = MPIC_MAX_ERR - 1; i >= 0; i--)
-		mpic->err_int_vecs[i] = --intvec;
+		mpic->err_int_vecs[i] = intvec--;
 
 	return 0;
 }
@@ -115,8 +115,8 @@ static irqreturn_t fsl_error_int_handler(int irq, void *data)
 		errint = __builtin_clz(eisr);
 		cascade_irq = irq_linear_revmap(mpic->irqhost,
 				 mpic->err_int_vecs[errint]);
-		WARN_ON(cascade_irq == NO_IRQ);
-		if (cascade_irq != NO_IRQ) {
+		WARN_ON(!cascade_irq);
+		if (cascade_irq) {
 			generic_handle_irq(cascade_irq);
 		} else {
 			eimr |=  1 << (31 - errint);
@@ -134,7 +134,7 @@ void mpic_err_int_init(struct mpic *mpic, irq_hw_number_t irqnum)
 	int ret;
 
 	virq = irq_create_mapping(mpic->irqhost, irqnum);
-	if (virq == NO_IRQ) {
+	if (!virq) {
 		pr_err("Error interrupt setup failed\n");
 		return;
 	}

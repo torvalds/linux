@@ -12,6 +12,9 @@
 #define _ASM_MICROBLAZE_MMU_CONTEXT_H
 
 #include <linux/atomic.h>
+#include <linux/mm_types.h>
+#include <linux/sched.h>
+
 #include <asm/bitops.h>
 #include <asm/mmu.h>
 #include <asm-generic/mm_hooks.h>

@@ -116,7 +116,7 @@ static const struct gma_limit_t cdv_intel_limits[] = {
 	 .p1 = {.min = 1, .max = 10},
 	 .p2 = {.dot_limit = 225000, .p2_slow = 10, .p2_fast = 10},
 	 .find_pll = cdv_intel_find_dp_pll,
-	 }	
+	}
 };
 
 #define _wait_for(COND, MS, W) ({ \
@@ -245,7 +245,7 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 	/* We don't know what the other fields of these regs are, so
 	 * leave them in place.
 	 */
-	/* 
+	/*
 	 * The BIT 14:13 of 0x8010/0x8030 is used to select the ref clk
 	 * for the pipe A/B. Display spec 1.06 has wrong definition.
 	 * Correct definition is like below:
@@ -256,7 +256,7 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 	 *
 	 * if DPLLA sets 01 and DPLLB sets 02, both use clk from DPLLA
 	 *
-	 */  
+	 */
 	ret = cdv_sb_read(dev, ref_sfr, &ref_value);
 	if (ret)
 		return ret;
@@ -646,7 +646,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		 * for DP/eDP. When using SSC clock, the ref clk is 100MHz.Otherwise
 		 * it will be 27MHz. From the VBIOS code it seems that the pipe A choose
 		 * 27MHz for DP/eDP while the Pipe B chooses the 100MHz.
-		 */ 
+		 */
 		if (pipe == 0)
 			refclk = 27000;
 		else
@@ -659,7 +659,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	drm_mode_debug_printmodeline(adjusted_mode);
-	
+
 	limit = gma_crtc->clock_funcs->limit(crtc, refclk);
 
 	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk,
@@ -721,7 +721,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 			pipeconf |= PIPE_6BPC;
 	} else
 		pipeconf |= PIPE_8BPC;
-			
+
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
@@ -974,7 +974,6 @@ struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 
 const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
 	.dpms = gma_crtc_dpms,
-	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = cdv_intel_crtc_mode_set,
 	.mode_set_base = gma_pipe_set_base,
 	.prepare = gma_crtc_prepare,
@@ -983,8 +982,6 @@ const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
 };
 
 const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
-	.save = gma_crtc_save,
-	.restore = gma_crtc_restore,
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,

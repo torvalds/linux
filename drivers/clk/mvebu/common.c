@@ -126,7 +126,7 @@ void __init mvebu_coreclk_setup(struct device_node *np,
 	if (desc->get_refclk_freq)
 		clk_data.clk_num += 1;
 
-	clk_data.clks = kzalloc(clk_data.clk_num * sizeof(struct clk *),
+	clk_data.clks = kcalloc(clk_data.clk_num, sizeof(*clk_data.clks),
 				GFP_KERNEL);
 	if (WARN_ON(!clk_data.clks)) {
 		iounmap(base);
@@ -137,8 +137,8 @@ void __init mvebu_coreclk_setup(struct device_node *np,
 	of_property_read_string_index(np, "clock-output-names", 0,
 				      &tclk_name);
 	rate = desc->get_tclk_freq(base);
-	clk_data.clks[0] = clk_register_fixed_rate(NULL, tclk_name, NULL,
-						   CLK_IS_ROOT, rate);
+	clk_data.clks[0] = clk_register_fixed_rate(NULL, tclk_name, NULL, 0,
+						   rate);
 	WARN_ON(IS_ERR(clk_data.clks[0]));
 
 	/* Register CPU clock */
@@ -150,8 +150,8 @@ void __init mvebu_coreclk_setup(struct device_node *np,
 		&& desc->is_sscg_enabled(base))
 		rate = desc->fix_sscg_deviation(rate);
 
-	clk_data.clks[1] = clk_register_fixed_rate(NULL, cpuclk_name, NULL,
-						   CLK_IS_ROOT, rate);
+	clk_data.clks[1] = clk_register_fixed_rate(NULL, cpuclk_name, NULL, 0,
+						   rate);
 	WARN_ON(IS_ERR(clk_data.clks[1]));
 
 	/* Register fixed-factor clocks derived from CPU clock */
@@ -174,8 +174,7 @@ void __init mvebu_coreclk_setup(struct device_node *np,
 					      2 + desc->num_ratios, &name);
 		rate = desc->get_refclk_freq(base);
 		clk_data.clks[2 + desc->num_ratios] =
-			clk_register_fixed_rate(NULL, name, NULL,
-						CLK_IS_ROOT, rate);
+			clk_register_fixed_rate(NULL, name, NULL, 0, rate);
 		WARN_ON(IS_ERR(clk_data.clks[2 + desc->num_ratios]));
 	}
 
@@ -198,8 +197,6 @@ struct clk_gating_ctrl {
 	void __iomem *base;
 	u32 saved_reg;
 };
-
-#define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
 
 static struct clk_gating_ctrl *ctrl;
 
@@ -273,7 +270,7 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 		n++;
 
 	ctrl->num_gates = n;
-	ctrl->gates = kzalloc(ctrl->num_gates * sizeof(struct clk *),
+	ctrl->gates = kcalloc(ctrl->num_gates, sizeof(*ctrl->gates),
 			      GFP_KERNEL);
 	if (WARN_ON(!ctrl->gates))
 		goto gates_out;

@@ -1,20 +1,15 @@
-/**
- * Copyright (C) 2005 - 2015 Emulex
- * All rights reserved.
+/*
+ * Copyright 2017 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.  The full GNU General
+ * as published by the Free Software Foundation. The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@avagotech.com)
- *
  * Contact Information:
- * linux-drivers@avagotech.com
+ * linux-drivers@broadcom.com
  *
- * Emulex
- * 3333 Susan Street
- * Costa Mesa, CA 92626
  */
 
 #ifndef _BEISCSI_MGMT_
@@ -36,123 +31,41 @@
 #define PCICFG_UE_STATUS_MASK_LOW       0xA8
 #define PCICFG_UE_STATUS_MASK_HI        0xAC
 
-/**
- * Pseudo amap definition in which each bit of the actual structure is defined
- * as a byte: used to calculate offset/shift/mask of each field
- */
-struct amap_mcc_sge {
-	u8 pa_lo[32];		/* dword 0 */
-	u8 pa_hi[32];		/* dword 1 */
-	u8 length[32];		/* DWORD 2 */
-} __packed;
-
-/**
- * Pseudo amap definition in which each bit of the actual structure is defined
- * as a byte: used to calculate offset/shift/mask of each field
- */
-struct amap_mcc_wrb_payload {
-	union {
-		struct amap_mcc_sge sgl[19];
-		u8 embedded[59 * 32];	/* DWORDS 57 to 115 */
-	} u;
-} __packed;
-
-/**
- * Pseudo amap definition in which each bit of the actual structure is defined
- * as a byte: used to calculate offset/shift/mask of each field
- */
-struct amap_mcc_wrb {
-	u8 embedded;		/* DWORD 0 */
-	u8 rsvd0[2];		/* DWORD 0 */
-	u8 sge_count[5];	/* DWORD 0 */
-	u8 rsvd1[16];		/* DWORD 0 */
-	u8 special[8];		/* DWORD 0 */
-	u8 payload_length[32];
-	u8 tag[64];		/* DWORD 2 */
-	u8 rsvd2[32];		/* DWORD 4 */
-	struct amap_mcc_wrb_payload payload;
-};
-
-struct mcc_sge {
-	u32 pa_lo;		/* dword 0 */
-	u32 pa_hi;		/* dword 1 */
-	u32 length;		/* DWORD 2 */
-} __packed;
-
-struct mcc_wrb_payload {
-	union {
-		struct mcc_sge sgl[19];
-		u32 embedded[59];	/* DWORDS 57 to 115 */
-	} u;
-} __packed;
-
-#define MCC_WRB_EMBEDDED_MASK                0x00000001
-
-struct mcc_wrb {
-	u32 dw[0];		/* DWORD 0 */
-	u32 payload_length;
-	u32 tag[2];		/* DWORD 2 */
-	u32 rsvd2[1];		/* DWORD 4 */
-	struct mcc_wrb_payload payload;
-};
-
-int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute);
 int mgmt_open_connection(struct beiscsi_hba *phba,
 			 struct sockaddr *dst_addr,
 			 struct beiscsi_endpoint *beiscsi_ep,
 			 struct be_dma_mem *nonemb_cmd);
 
-unsigned int mgmt_upload_connection(struct beiscsi_hba *phba,
-				     unsigned short cid,
-				     unsigned int upload_flag);
-unsigned int mgmt_invalidate_icds(struct beiscsi_hba *phba,
-				struct invalidate_command_table *inv_tbl,
-				unsigned int num_invalidate, unsigned int cid,
-				struct be_dma_mem *nonemb_cmd);
 unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 					 struct beiscsi_hba *phba,
 					 struct bsg_job *job,
 					 struct be_dma_mem *nonemb_cmd);
 
-#define BEISCSI_NO_RST_ISSUE	0
-struct iscsi_invalidate_connection_params_in {
-	struct be_cmd_req_hdr hdr;
-	unsigned int session_handle;
+#define BE_INVLDT_CMD_TBL_SZ	128
+struct invldt_cmd_tbl {
+	unsigned short icd;
 	unsigned short cid;
-	unsigned short unused;
-	unsigned short cleanup_type;
-	unsigned short save_cfg;
 } __packed;
 
-struct iscsi_invalidate_connection_params_out {
-	unsigned int session_handle;
-	unsigned short cid;
-	unsigned short unused;
-} __packed;
-
-union iscsi_invalidate_connection_params {
-	struct iscsi_invalidate_connection_params_in request;
-	struct iscsi_invalidate_connection_params_out response;
-} __packed;
-
-struct invalidate_commands_params_in {
+struct invldt_cmds_params_in {
 	struct be_cmd_req_hdr hdr;
 	unsigned int ref_handle;
 	unsigned int icd_count;
-	struct invalidate_command_table table[128];
+	struct invldt_cmd_tbl table[BE_INVLDT_CMD_TBL_SZ];
 	unsigned short cleanup_type;
 	unsigned short unused;
 } __packed;
 
-struct invalidate_commands_params_out {
+struct invldt_cmds_params_out {
+	struct be_cmd_resp_hdr hdr;
 	unsigned int ref_handle;
 	unsigned int icd_count;
-	unsigned int icd_status[128];
+	unsigned int icd_status[BE_INVLDT_CMD_TBL_SZ];
 } __packed;
 
-union invalidate_commands_params {
-	struct invalidate_commands_params_in request;
-	struct invalidate_commands_params_out response;
+union be_invldt_cmds_params {
+	struct invldt_cmds_params_in request;
+	struct invldt_cmds_params_out response;
 } __packed;
 
 struct mgmt_hba_attributes {
@@ -232,16 +145,6 @@ struct be_bsg_vendor_cmd {
 
 #define GET_MGMT_CONTROLLER_WS(phba)    (phba->pmgmt_ws)
 
-/* MGMT CMD flags */
-
-#define MGMT_CMDH_FREE                (1<<0)
-
-/*  --- MGMT_ERROR_CODES --- */
-/*  Error Codes returned in the status field of the CMD response header */
-#define MGMT_STATUS_SUCCESS 0	/* The CMD completed without errors */
-#define MGMT_STATUS_FAILED 1	/* Error status in the Status field of */
-				/* the CMD_RESPONSE_HEADER  */
-
 #define ISCSI_GET_PDU_TEMPLATE_ADDRESS(pc, pa) {\
 	pa->lo = phba->init_mem[ISCSI_MEM_GLOBAL_HEADER].mem_array[0].\
 					bus_address.u.a32.address_lo;  \
@@ -254,7 +157,6 @@ struct be_bsg_vendor_cmd {
 
 struct beiscsi_endpoint {
 	struct beiscsi_hba *phba;
-	struct beiscsi_sess *sess;
 	struct beiscsi_conn *conn;
 	struct iscsi_endpoint *openiscsi_ep;
 	unsigned short ip_type;
@@ -266,48 +168,41 @@ struct beiscsi_endpoint {
 	u16 cid_vld;
 };
 
-int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
-				 struct beiscsi_hba *phba);
+int beiscsi_mgmt_invalidate_icds(struct beiscsi_hba *phba,
+				 struct invldt_cmd_tbl *inv_tbl,
+				 unsigned int nents);
 
-unsigned int mgmt_invalidate_connection(struct beiscsi_hba *phba,
-					 struct beiscsi_endpoint *beiscsi_ep,
-					 unsigned short cid,
-					 unsigned short issue_reset,
-					 unsigned short savecfg_flag);
+int beiscsi_get_initiator_name(struct beiscsi_hba *phba, char *name, bool cfg);
 
-int mgmt_set_ip(struct beiscsi_hba *phba,
-		struct iscsi_iface_param_info *ip_param,
-		struct iscsi_iface_param_info *subnet_param,
-		uint32_t boot_proto);
+int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type);
 
-unsigned int mgmt_get_boot_target(struct beiscsi_hba *phba);
+int beiscsi_if_en_static(struct beiscsi_hba *phba, u32 ip_type,
+			 u8 *ip, u8 *subnet);
 
-unsigned int mgmt_reopen_session(struct beiscsi_hba *phba,
-				  unsigned int reopen_type,
-				  unsigned sess_handle);
+int beiscsi_if_set_gw(struct beiscsi_hba *phba, u32 ip_type, u8 *gw);
 
-unsigned int mgmt_get_session_info(struct beiscsi_hba *phba,
-				   u32 boot_session_handle,
-				   struct be_dma_mem *nonemb_cmd);
+int beiscsi_if_get_gw(struct beiscsi_hba *phba, u32 ip_type,
+		      struct be_cmd_get_def_gateway_resp *resp);
 
 int mgmt_get_nic_conf(struct beiscsi_hba *phba,
 		      struct be_cmd_get_nic_conf_resp *mac);
 
-int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,
-		     struct be_cmd_get_if_info_resp **if_info);
+int beiscsi_if_get_info(struct beiscsi_hba *phba, int ip_type,
+			struct be_cmd_get_if_info_resp **if_info);
 
-int mgmt_get_gateway(struct beiscsi_hba *phba, int ip_type,
-		     struct be_cmd_get_def_gateway_resp *gateway);
+unsigned int beiscsi_if_get_handle(struct beiscsi_hba *phba);
 
-int mgmt_set_gateway(struct beiscsi_hba *phba,
-		     struct iscsi_iface_param_info *gateway_param);
+int beiscsi_if_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
 
-int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
-			      unsigned int *s_handle);
+unsigned int beiscsi_boot_logout_sess(struct beiscsi_hba *phba);
 
-unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba);
+unsigned int beiscsi_boot_reopen_sess(struct beiscsi_hba *phba);
 
-int mgmt_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
+unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba);
+
+unsigned int __beiscsi_boot_get_shandle(struct beiscsi_hba *phba, int async);
+
+int beiscsi_boot_get_shandle(struct beiscsi_hba *phba, unsigned int *s_handle);
 
 ssize_t beiscsi_drvr_ver_disp(struct device *dev,
 			       struct device_attribute *attr, char *buf);
@@ -337,7 +232,12 @@ void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
 			     struct wrb_handle *pwrb_handle,
 			     struct hwi_wrb_context *pwrb_context);
 
-void beiscsi_ue_detect(struct beiscsi_hba *phba);
+unsigned int beiscsi_invalidate_cxn(struct beiscsi_hba *phba,
+				    struct beiscsi_endpoint *beiscsi_ep);
+
+unsigned int beiscsi_upload_cxn(struct beiscsi_hba *phba,
+				struct beiscsi_endpoint *beiscsi_ep);
+
 int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
 			 struct be_set_eqd *, int num);
 

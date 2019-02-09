@@ -89,10 +89,10 @@ static void mid_spi_dma_exit(struct dw_spi *dws)
 	if (!dws->dma_inited)
 		return;
 
-	dmaengine_terminate_all(dws->txchan);
+	dmaengine_terminate_sync(dws->txchan);
 	dma_release_channel(dws->txchan);
 
-	dmaengine_terminate_all(dws->rxchan);
+	dmaengine_terminate_sync(dws->rxchan);
 	dma_release_channel(dws->rxchan);
 }
 
@@ -112,10 +112,10 @@ static irqreturn_t dma_transfer(struct dw_spi *dws)
 	return IRQ_HANDLED;
 }
 
-static bool mid_spi_can_dma(struct spi_master *master, struct spi_device *spi,
-		struct spi_transfer *xfer)
+static bool mid_spi_can_dma(struct spi_controller *master,
+		struct spi_device *spi, struct spi_transfer *xfer)
 {
-	struct dw_spi *dws = spi_master_get_devdata(master);
+	struct dw_spi *dws = spi_controller_get_devdata(master);
 
 	if (!dws->dma_inited)
 		return false;
@@ -274,16 +274,16 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 static void mid_spi_dma_stop(struct dw_spi *dws)
 {
 	if (test_bit(TX_BUSY, &dws->dma_chan_busy)) {
-		dmaengine_terminate_all(dws->txchan);
+		dmaengine_terminate_sync(dws->txchan);
 		clear_bit(TX_BUSY, &dws->dma_chan_busy);
 	}
 	if (test_bit(RX_BUSY, &dws->dma_chan_busy)) {
-		dmaengine_terminate_all(dws->rxchan);
+		dmaengine_terminate_sync(dws->rxchan);
 		clear_bit(RX_BUSY, &dws->dma_chan_busy);
 	}
 }
 
-static struct dw_spi_dma_ops mid_dma_ops = {
+static const struct dw_spi_dma_ops mid_dma_ops = {
 	.dma_init	= mid_spi_dma_init,
 	.dma_exit	= mid_spi_dma_exit,
 	.dma_setup	= mid_spi_dma_setup,

@@ -69,7 +69,10 @@ struct coprocessor_completion_block {
 #define CSB_CC_WR_PROTECTION	(16)
 #define CSB_CC_UNKNOWN_CODE	(17)
 #define CSB_CC_ABORT		(18)
+#define CSB_CC_EXCEED_BYTE_COUNT	(19)	/* P9 or later */
 #define CSB_CC_TRANSPORT	(20)
+#define CSB_CC_INVALID_CRB	(21)	/* P9 or later */
+#define CSB_CC_INVALID_DDE	(30)	/* P9 or later */
 #define CSB_CC_SEGMENTED_DDL	(31)
 #define CSB_CC_PROGRESS_POINT	(32)
 #define CSB_CC_DDE_OVERFLOW	(33)
@@ -164,6 +167,7 @@ struct coprocessor_request_block {
 #define ICSWX_INITIATED		(0x8)
 #define ICSWX_BUSY		(0x4)
 #define ICSWX_REJECTED		(0x2)
+#define ICSWX_XERS0		(0x1)	/* undefined or set from XERSO. */
 
 static inline int icswx(__be32 ccw, struct coprocessor_request_block *crb)
 {

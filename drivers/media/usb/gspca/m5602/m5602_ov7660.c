@@ -23,6 +23,159 @@
 static int ov7660_s_ctrl(struct v4l2_ctrl *ctrl);
 static void ov7660_dump_registers(struct sd *sd);
 
+static const unsigned char preinit_ov7660[][4] = {
+	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02},
+	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0d},
+	{BRIDGE, M5602_XB_SENSOR_CTRL, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x03},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x03},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0c},
+
+	{SENSOR, OV7660_OFON, 0x0c},
+	{SENSOR, OV7660_COM2, 0x11},
+	{SENSOR, OV7660_COM7, 0x05},
+
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x01},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x04},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_DIR_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x08},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0c},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00}
+};
+
+static const unsigned char init_ov7660[][4] = {
+	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02},
+	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0d},
+	{BRIDGE, M5602_XB_SENSOR_CTRL, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x01},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x01},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0c},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00},
+	{SENSOR, OV7660_COM7, 0x80},
+	{SENSOR, OV7660_CLKRC, 0x80},
+	{SENSOR, OV7660_COM9, 0x4c},
+	{SENSOR, OV7660_OFON, 0x43},
+	{SENSOR, OV7660_COM12, 0x28},
+	{SENSOR, OV7660_COM8, 0x00},
+	{SENSOR, OV7660_COM10, 0x40},
+	{SENSOR, OV7660_HSTART, 0x0c},
+	{SENSOR, OV7660_HSTOP, 0x61},
+	{SENSOR, OV7660_HREF, 0xa4},
+	{SENSOR, OV7660_PSHFT, 0x0b},
+	{SENSOR, OV7660_VSTART, 0x01},
+	{SENSOR, OV7660_VSTOP, 0x7a},
+	{SENSOR, OV7660_VSTOP, 0x00},
+	{SENSOR, OV7660_COM7, 0x05},
+	{SENSOR, OV7660_COM6, 0x42},
+	{SENSOR, OV7660_BBIAS, 0x94},
+	{SENSOR, OV7660_GbBIAS, 0x94},
+	{SENSOR, OV7660_RSVD29, 0x94},
+	{SENSOR, OV7660_RBIAS, 0x94},
+	{SENSOR, OV7660_COM1, 0x00},
+	{SENSOR, OV7660_AECH, 0x00},
+	{SENSOR, OV7660_AECHH, 0x00},
+	{SENSOR, OV7660_ADC, 0x05},
+	{SENSOR, OV7660_COM13, 0x00},
+	{SENSOR, OV7660_RSVDA1, 0x23},
+	{SENSOR, OV7660_TSLB, 0x0d},
+	{SENSOR, OV7660_HV, 0x80},
+	{SENSOR, OV7660_LCC1, 0x00},
+	{SENSOR, OV7660_LCC2, 0x00},
+	{SENSOR, OV7660_LCC3, 0x10},
+	{SENSOR, OV7660_LCC4, 0x40},
+	{SENSOR, OV7660_LCC5, 0x01},
+
+	{SENSOR, OV7660_AECH, 0x20},
+	{SENSOR, OV7660_COM1, 0x00},
+	{SENSOR, OV7660_OFON, 0x0c},
+	{SENSOR, OV7660_COM2, 0x11},
+	{SENSOR, OV7660_COM7, 0x05},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x01},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x04},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_DIR_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x08},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0c},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00},
+	{SENSOR, OV7660_AECH, 0x5f},
+	{SENSOR, OV7660_COM1, 0x03},
+	{SENSOR, OV7660_OFON, 0x0c},
+	{SENSOR, OV7660_COM2, 0x11},
+	{SENSOR, OV7660_COM7, 0x05},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x01},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x04},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_DIR_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x08},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0c},
+	{BRIDGE, M5602_XB_GPIO_DIR, 0x05},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x00},
+	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
+	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00},
+
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x06},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0},
+	{BRIDGE, M5602_XB_SENSOR_TYPE, 0x0c},
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x81},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_H, 0x82},
+	{BRIDGE, M5602_XB_SIG_INI, 0x01},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x08},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x01},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0xec},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_SIG_INI, 0x00},
+	{BRIDGE, M5602_XB_SIG_INI, 0x02},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x27},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02},
+	{BRIDGE, M5602_XB_HSYNC_PARA, 0xa7},
+	{BRIDGE, M5602_XB_SIG_INI, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
+	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
+};
+
 static struct v4l2_pix_format ov7660_modes[] = {
 	{
 		640,
@@ -177,7 +330,7 @@ static int ov7660_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data = val;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Setting gain to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Setting gain to %d\n", val);
 
 	err = m5602_write_sensor(sd, OV7660_GAIN, &i2c_data, 1);
 	return err;
@@ -190,7 +343,7 @@ static int ov7660_set_auto_white_balance(struct gspca_dev *gspca_dev,
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Set auto white balance to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set auto white balance to %d\n", val);
 
 	err = m5602_read_sensor(sd, OV7660_COM8, &i2c_data, 1);
 	if (err < 0)
@@ -208,7 +361,7 @@ static int ov7660_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Set auto gain control to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set auto gain control to %d\n", val);
 
 	err = m5602_read_sensor(sd, OV7660_COM8, &i2c_data, 1);
 	if (err < 0)
@@ -226,7 +379,7 @@ static int ov7660_set_auto_exposure(struct gspca_dev *gspca_dev,
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Set auto exposure control to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set auto exposure control to %d\n", val);
 
 	err = m5602_read_sensor(sd, OV7660_COM8, &i2c_data, 1);
 	if (err < 0)
@@ -244,7 +397,8 @@ static int ov7660_set_hvflip(struct gspca_dev *gspca_dev)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Set hvflip to %d, %d", sd->hflip->val, sd->vflip->val);
+	gspca_dbg(gspca_dev, D_CONF, "Set hvflip to %d, %d\n",
+		  sd->hflip->val, sd->vflip->val);
 
 	i2c_data = (sd->hflip->val << 5) | (sd->vflip->val << 4);
 

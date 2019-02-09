@@ -12,7 +12,11 @@
 	model = "Gumstix Duovero";
 	compatible = "gumstix,omap4-duovero", "ti,omap4430", "ti,omap4";
 
-	memory {
+	chosen {
+		stdout-path = &uart3;
+	};
+
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
@@ -39,6 +43,7 @@
 	hsusb1_phy: hsusb1_phy {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;	/* gpio_62 */
+		#phy-cells = <0>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsusb1phy_pins>;
@@ -177,6 +182,7 @@
 
 	twl6040: twl@4b {
 		compatible = "ti,twl6040";
+		#clock-cells = <0>;
 		reg = <0x4b>;
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;		/* IRQ_SYS_2N cascaded to gic */
 		ti,audpwron-gpio = <&gpio6 0 GPIO_ACTIVE_HIGH>;		/* gpio_160 */
@@ -207,6 +213,10 @@
 &mcpdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcpdm_pins>;
+
+	clocks = <&twl6040>;
+	clock-names = "pdmclk";
+
 	status = "okay";
 };
 
@@ -238,6 +248,7 @@
 	ti,bus-width = <4>;
 	ti,non-removable;
 	cap-power-off-card;
+	keep-power-in-suspend;
 };
 
 &twl_usb_comparator {

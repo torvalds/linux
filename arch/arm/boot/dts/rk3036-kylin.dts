@@ -1,42 +1,4 @@
-/*
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This file is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *  Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
 /dts-v1/;
 
@@ -46,34 +8,16 @@
 	model = "Rockchip RK3036 KylinBoard";
 	compatible = "rockchip,rk3036-kylin", "rockchip,rk3036";
 
-	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0x20068000 console=ttyFIQ0 rw root=PARTUUID=7c0b0000-0000 rootfstype=ext4 rootwait";
-	};
-
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x20000000>;
-	};
-
-	fiq-debugger {
-		compatible = "rockchip,fiq-debugger";
-		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_LOW>;
-		rockchip,serial-id = <2>;
-		rockchip,wake-irq = <0>;
-		/* If enable uart uses irq instead of fiq */
-		rockchip,irq-mode-enable = <0>;
-		/* Only 115200 and 1500000 */
-		rockchip,baudrate = <115200>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart2_xfer>;
-		status = "okay";
 	};
 
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 
 		work {
-			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
 			label = "kylin:red:led";
 			pinctrl-names = "default";
 			pinctrl-0 = <&led_ctl>;
@@ -92,7 +36,9 @@
 		 * - SDIO_RESET_L_WL_RST
 		 * - SDIO_RESET_L_BT_EN
 		 */
-		reset-gpios = <&gpio0 26 GPIO_ACTIVE_LOW>; /* WL_REG_ON */
+		reset-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_LOW>, /* WL_REG_ON */
+			      <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>, /* WL_RST */
+			      <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>; /* BT_EN */
 	};
 
 	sound {
@@ -110,26 +56,12 @@
 			"Headphone Jack", "HPOL",
 			"Headphone Jack", "HPOR";
 
-		simple-audio-card,dai-link@0 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s>;
-			};
-
-			codec {
-				sound-dai = <&rt5616>;
-			};
+		simple-audio-card,cpu {
+			sound-dai = <&i2s>;
 		};
 
-		simple-audio-card,dai-link@1 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s>;
-			};
-
-			codec {
-				sound-dai = <&hdmi>;
-			};
+		simple-audio-card,codec {
+			sound-dai = <&rt5616>;
 		};
 	};
 
@@ -141,55 +73,17 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
-
-	xin32k: xin32k {
-		compatible = "fixed-clock";
-		clock-frequency = <32768>;
-		clock-output-names = "xin32k";
-		#clock-cells = <0>;
-	};
-
-	wireless-bluetooth {
-		compatible = "bluetooth-platdata";
-		uart_rts_gpios = <&gpio0 19 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart0_rts>;
-		pinctrl-1 = <&uart0_gpios>;
-		BT,reset_gpio = <&gpio2 9 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio = <&gpio2 8 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio2 3 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
-
-	wireless-wlan {
-		compatible = "wlan-platdata";
-		rockchip,grf = <&grf>;
-		wifi_chip_type = "ap6212";
-		WIFI,host_wake_irq = <&gpio0 27 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
 };
 
 &acodec {
 	status = "okay";
 };
 
-&cpu0 {
-	cpu-supply = <&vdd_cpu>;
-};
-
-&cpu0_opp_table {
-	/delete-node/ opp-408000000;
-	/delete-node/ opp-600000000;
-	/delete-node/ opp-816000000;
-	/delete-node/ opp-1200000000;
-};
-
 &emac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&emac_xfer>, <&emac_mdio>;
 	phy = <&phy0>;
-	phy-reset-gpios = <&gpio2 22 GPIO_ACTIVE_LOW>; /* PHY_RST */
+	phy-reset-gpios = <&gpio2 RK_PC6 GPIO_ACTIVE_LOW>; /* PHY_RST */
 	phy-reset-duration = <10>; /* millisecond */
 
 	status = "okay";
@@ -204,28 +98,11 @@
 };
 
 &gpu {
+	mali-supply = <&vdd_gpu>;
 	status = "okay";
-	mali-supply = <&vdd_cpu>;
-};
-
-/*
- * Just as GPU's power supply is provided by cpu regulator, and fixed-frequency
- * on CPU.
- */
-&gpu_opp_table {
-	opp-200000000 {
-		opp-microvolt = <1150000>;
-	};
-	opp-400000000 {
-		opp-microvolt = <1150000>;
-	};
 };
 
 &hdmi {
-	status = "okay";
-};
-
-&hevc_mmu {
 	status = "okay";
 };
 
@@ -238,34 +115,48 @@
 		compatible = "rockchip,rk808";
 		reg = <0x1b>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int &global_pwroff>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
-		clock-output-names = "rk808-clkout1", "rk808-clkout2";
+		clock-output-names = "xin32k", "rk808-clkout2";
 
 		vcc1-supply = <&vcc_sys>;
+		vcc2-supply = <&vcc_sys>;
 		vcc3-supply = <&vcc_sys>;
 		vcc4-supply = <&vcc_sys>;
 		vcc6-supply = <&vcc_sys>;
 		vcc7-supply = <&vcc_sys>;
-		vcc9-supply = <&vcc_sys>;
+		vcc8-supply = <&vcc_18>;
+		vcc9-supply = <&vcc_io>;
 		vcc10-supply = <&vcc_io>;
-		vcc11-supply = <&vcc_io>;
-		vddio-supply = <&vcc_io>;
+		vcc11-supply = <&vcc_sys>;
+		vcc12-supply = <&vcc_io>;
+		vddio-supply = <&vccio_pmu>;
 
 		regulators {
 			vdd_cpu: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <1150000>;
-				regulator-max-microvolt = <1150000>;
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-name = "vdd_arm";
 				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			vdd_gpu: DCDC_REG2 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1250000>;
+				regulator-name = "vdd_gpu";
+				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1150000>;
+					regulator-suspend-microvolt = <1000000>;
 				};
 			};
 
@@ -290,62 +181,62 @@
 				};
 			};
 
-			vcca_33: LDO_REG1 {
+			vccio_pmu: LDO_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcca_33";
+				regulator-name = "vccio_pmu";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3300000>;
 				};
 			};
 
-			vout1: LDO_REG2 {
+			vcc_tp: LDO_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vout1";
+				regulator-name = "vcc_tp";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
 			};
 
-			vdd_11: LDO_REG3 {
+			vdd_10: LDO_REG3 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
-				regulator-name = "vdd_11";
+				regulator-name = "vdd_10";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1000000>;
 				};
 			};
 
-			vout3: LDO_REG4 {
+			vcc18_lcd: LDO_REG4 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3400000>;
-				regulator-name = "vout3";
+				regulator-max-microvolt = <1800000>;
+				regulator-name = "vcc18_lcd";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
 				};
 			};
 
-			vout4: LDO_REG5 {
+			vccio_sd: LDO_REG5 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3400000>;
-				regulator-name = "vout4";
+				regulator-max-microvolt = <3300000>;
+				regulator-name = "vccio_sd";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1800000>;
+					regulator-suspend-microvolt = <3300000>;
 				};
 			};
 
@@ -353,7 +244,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3400000>;
+				regulator-max-microvolt = <2500000>;
 				regulator-name = "vout5";
 				regulator-state-mem {
 					regulator-on-in-suspend;
@@ -361,43 +252,43 @@
 				};
 			};
 
-			vout2: LDO_REG7 {
-				regulator-always-on;
-				regulator-boot-on;
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <2500000>;
-				regulator-name = "vout2";
-				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1800000>;
-				};
-			};
-
-			vcc18: LDO_REG8 {
+			vcc_18: LDO_REG7 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-name = "vcc18";
+				regulator-name = "vcc_18";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
 				};
 			};
 
-			vswout1: SWITCH_REG1 {
+			vcca_codec: LDO_REG8 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-name = "vswout1";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-name = "vcca_codec";
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			vcc_wl: SWITCH_REG1 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-name = "vcc_wl";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 				};
 			};
 
-			vswout2: SWITCH_REG2 {
+			vcc_lcd: SWITCH_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-name = "vswout2";
+				regulator-name = "vcc_lcd";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 				};
@@ -414,8 +305,6 @@
 		reg = <0x1b>;
 		clocks = <&cru SCLK_I2S_OUT>;
 		clock-names = "mclk";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s_mclk>;
 		#sound-dai-cells = <0>;
 	};
 };
@@ -435,14 +324,12 @@
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio_clk &sdio_cmd &sdio_bus4>;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	supports-sdio;
 };
 
 &sdmmc {
@@ -451,14 +338,11 @@
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	disable-wp;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk>, <&sdmmc_cmd>, <&sdmmc_cd>, <&sdmmc_bus4>;
-	supports-sd;
 };
 
 &uart0 {
-	pinctrl-0 = <&uart0_xfer>, <&uart0_cts>;
 	status = "okay";
 };
 
@@ -479,18 +363,6 @@
 };
 
 &vop_mmu {
-	status = "okay";
-};
-
-&vpu_combo {
-	status = "okay";
-};
-
-&vpu_mmu {
-	status = "okay";
-};
-
-&wdt {
 	status = "okay";
 };
 
@@ -522,12 +394,6 @@
 	sleep {
 		global_pwroff: global-pwroff {
 			rockchip,pins = <2 7 RK_FUNC_1 &pcfg_pull_none>;
-		};
-	};
-
-	wireless-bluetooth {
-		uart0_gpios: uart0-gpios {
-			rockchip,pins = <0 19 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

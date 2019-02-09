@@ -21,12 +21,6 @@
 #include <dt-bindings/clock/rk3399-cru.h>
 #include "clk.h"
 
-#define RK3399_I2S_FRAC_MAX_PRATE       600000000
-#define RK3399_UART_FRAC_MAX_PRATE	600000000
-#define RK3399_SPDIF_FRAC_MAX_PRATE	600000000
-#define RK3399_VOP_FRAC_MAX_PRATE	600000000
-#define RK3399_WIFI_FRAC_MAX_PRATE	600000000
-
 enum rk3399_plls {
 	lpll, bpll, dpll, cpll, gpll, npll, vpll,
 };
@@ -117,25 +111,6 @@ static struct rockchip_pll_rate_table rk3399_pll_rates[] = {
 	{ /* sentinel */ },
 };
 
-static struct rockchip_pll_rate_table rk3399_vpll_rates[] = {
-	/* _mhz, _refdiv, _fbdiv, _postdiv1, _postdiv2, _dsmpd, _frac */
-	RK3036_PLL_RATE( 594000000, 1, 123, 5, 1, 0, 12582912),  /* vco = 2970000000 */
-	RK3036_PLL_RATE( 593406593, 1, 123, 5, 1, 0, 10508804),  /* vco = 2967032965 */
-	RK3036_PLL_RATE( 297000000, 1, 123, 5, 2, 0, 12582912),  /* vco = 2970000000 */
-	RK3036_PLL_RATE( 296703297, 1, 123, 5, 2, 0, 10508807),  /* vco = 2967032970 */
-	RK3036_PLL_RATE( 148500000, 1, 129, 7, 3, 0, 15728640),  /* vco = 3118500000 */
-	RK3036_PLL_RATE( 148351648, 1, 123, 5, 4, 0, 10508800),  /* vco = 2967032960 */
-	RK3036_PLL_RATE( 106500000, 1, 124, 7, 4, 0,  4194304),  /* vco = 2982000000 */
-	RK3036_PLL_RATE(  74250000, 1, 129, 7, 6, 0, 15728640),  /* vco = 3118500000 */
-	RK3036_PLL_RATE(  74175824, 1, 129, 7, 6, 0, 13550823),  /* vco = 3115384608 */
-	RK3036_PLL_RATE(  65000000, 1, 113, 7, 6, 0, 12582912),  /* vco = 2730000000 */
-	RK3036_PLL_RATE(  59340659, 1, 121, 7, 7, 0,  2581098),  /* vco = 2907692291 */
-	RK3036_PLL_RATE(  54000000, 1, 110, 7, 7, 0,  4194304),  /* vco = 2646000000 */
-	RK3036_PLL_RATE(  27000000, 1,  55, 7, 7, 0,  2097152),  /* vco = 1323000000 */
-	RK3036_PLL_RATE(  26973027, 1,  55, 7, 7, 0,  1173232),  /* vco = 1321678323 */
-	{ /* sentinel */ },
-};
-
 /* CRU parents */
 PNAME(mux_pll_p)				= { "xin24m", "xin32k" };
 
@@ -151,69 +126,10 @@ PNAME(mux_ddrclk_p)				= { "clk_ddrc_lpll_src",
 						    "clk_ddrc_bpll_src",
 						    "clk_ddrc_dpll_src",
 						    "clk_ddrc_gpll_src" };
-
-PNAME(mux_pll_src_vpll_cpll_gpll_p)		= { "vpll", "cpll", "gpll" };
-PNAME(mux_pll_src_dmyvpll_cpll_gpll_p)		= { "dummy_vpll", "cpll", "gpll" };
-
-#ifdef RK3399_TWO_PLL_FOR_VOP
-PNAME(mux_aclk_cci_p)				= { "dummy_cpll",
-						    "gpll_aclk_cci_src",
-						    "npll_aclk_cci_src",
-						    "dummy_vpll" };
-PNAME(mux_cci_trace_p)				= { "dummy_cpll",
-						    "gpll_cci_trace" };
-PNAME(mux_cs_p)					= { "dummy_cpll", "gpll_cs",
-						    "npll_cs"};
-PNAME(mux_aclk_perihp_p)			= { "dummy_cpll",
-						    "gpll_aclk_perihp_src" };
-
-PNAME(mux_pll_src_cpll_gpll_p)			= { "dummy_cpll", "gpll" };
-PNAME(mux_pll_src_cpll_gpll_npll_p)		= { "dummy_cpll", "gpll", "npll" };
-PNAME(mux_pll_src_cpll_gpll_ppll_p)		= { "dummy_cpll", "gpll", "ppll" };
-PNAME(mux_pll_src_cpll_gpll_upll_p)		= { "dummy_cpll", "gpll", "upll" };
-PNAME(mux_pll_src_npll_cpll_gpll_p)		= { "npll", "dummy_cpll", "gpll" };
-PNAME(mux_pll_src_cpll_gpll_npll_ppll_p)	= { "dummy_cpll", "gpll", "npll",
-						    "ppll" };
-PNAME(mux_pll_src_cpll_gpll_npll_24m_p)		= { "dummy_cpll", "gpll", "npll",
-						    "xin24m" };
-PNAME(mux_pll_src_cpll_gpll_npll_usbphy480m_p)	= { "dummy_cpll", "gpll", "npll",
-						    "clk_usbphy_480m" };
-PNAME(mux_pll_src_ppll_cpll_gpll_npll_p)	= { "ppll", "dummy_cpll", "gpll",
-						    "npll", "upll" };
-PNAME(mux_pll_src_cpll_gpll_npll_upll_24m_p)	= { "dummy_cpll", "gpll", "npll",
-						    "upll", "xin24m" };
-PNAME(mux_pll_src_cpll_gpll_npll_ppll_upll_24m_p) = { "dummy_cpll", "gpll", "npll",
-						    "ppll", "upll", "xin24m" };
-/*
- * We hope to be able to HDMI/DP can obtain better signal quality,
- * therefore, we move VOP pwm and aclk clocks to other PLLs, let
- * HDMI/DP phyclock can monopolize VPLL.
- */
-PNAME(mux_pll_src_dmyvpll_cpll_gpll_npll_p)	= { "dummy_vpll", "dummy_cpll", "gpll",
-						    "npll" };
-PNAME(mux_pll_src_dmyvpll_cpll_gpll_gpll_p)	= { "dummy_vpll", "dummy_cpll", "gpll",
-						    "gpll" };
-PNAME(mux_pll_src_24m_32k_cpll_gpll_p)	= { "xin24m", "xin32k",
-					    "dummy_cpll", "gpll" };
-
-PNAME(mux_aclk_emmc_p)			= { "dummy_cpll",
-					    "gpll_aclk_emmc_src" };
-
-PNAME(mux_aclk_perilp0_p)		= { "dummy_cpll",
-					    "gpll_aclk_perilp0_src" };
-
-PNAME(mux_fclk_cm0s_p)			= { "dummy_cpll",
-					    "gpll_fclk_cm0s_src" };
-
-PNAME(mux_hclk_perilp1_p)		= { "dummy_cpll",
-					    "gpll_hclk_perilp1_src" };
-PNAME(mux_aclk_gmac_p)			= { "dummy_cpll",
-					    "gpll_aclk_gmac_src" };
-#else
 PNAME(mux_aclk_cci_p)				= { "cpll_aclk_cci_src",
 						    "gpll_aclk_cci_src",
 						    "npll_aclk_cci_src",
-						    "dummy_vpll" };
+						    "vpll_aclk_cci_src" };
 PNAME(mux_cci_trace_p)				= { "cpll_cci_trace",
 						    "gpll_cci_trace" };
 PNAME(mux_cs_p)					= { "cpll_cs", "gpll_cs",
@@ -238,17 +154,26 @@ PNAME(mux_pll_src_cpll_gpll_npll_upll_24m_p)	= { "cpll", "gpll", "npll",
 						    "upll", "xin24m" };
 PNAME(mux_pll_src_cpll_gpll_npll_ppll_upll_24m_p) = { "cpll", "gpll", "npll",
 						    "ppll", "upll", "xin24m" };
-/*
- * We hope to be able to HDMI/DP can obtain better signal quality,
- * therefore, we move VOP pwm and aclk clocks to other PLLs, let
- * HDMI/DP phyclock can monopolize VPLL.
- */
-PNAME(mux_pll_src_dmyvpll_cpll_gpll_npll_p)	= { "dummy_vpll", "cpll", "gpll",
+
+PNAME(mux_pll_src_vpll_cpll_gpll_p)		= { "vpll", "cpll", "gpll" };
+PNAME(mux_pll_src_vpll_cpll_gpll_npll_p)	= { "vpll", "cpll", "gpll",
 						    "npll" };
-PNAME(mux_pll_src_dmyvpll_cpll_gpll_gpll_p)	= { "dummy_vpll", "cpll", "gpll",
-						    "gpll" };
+PNAME(mux_pll_src_vpll_cpll_gpll_24m_p)		= { "vpll", "cpll", "gpll",
+						    "xin24m" };
+
+PNAME(mux_dclk_vop0_p)			= { "dclk_vop0_div",
+					    "dclk_vop0_frac" };
+PNAME(mux_dclk_vop1_p)			= { "dclk_vop1_div",
+					    "dclk_vop1_frac" };
+
+PNAME(mux_clk_cif_p)			= { "clk_cifout_src", "xin24m" };
+
+PNAME(mux_pll_src_24m_usbphy480m_p)	= { "xin24m", "clk_usbphy_480m" };
+PNAME(mux_pll_src_24m_pciephy_p)	= { "xin24m", "clk_pciephy_ref100m" };
 PNAME(mux_pll_src_24m_32k_cpll_gpll_p)	= { "xin24m", "xin32k",
 					    "cpll", "gpll" };
+PNAME(mux_pciecore_cru_phy_p)		= { "clk_pcie_core_cru",
+					    "clk_pcie_core_phy" };
 
 PNAME(mux_aclk_emmc_p)			= { "cpll_aclk_emmc_src",
 					    "gpll_aclk_emmc_src" };
@@ -261,26 +186,14 @@ PNAME(mux_fclk_cm0s_p)			= { "cpll_fclk_cm0s_src",
 
 PNAME(mux_hclk_perilp1_p)		= { "cpll_hclk_perilp1_src",
 					    "gpll_hclk_perilp1_src" };
-PNAME(mux_aclk_gmac_p)			= { "cpll_aclk_gmac_src",
-					    "gpll_aclk_gmac_src" };
-#endif
 
-PNAME(mux_dclk_vop0_p)			= { "dclk_vop0_div",
-					    "dummy_dclk_vop0_frac" };
-PNAME(mux_dclk_vop1_p)			= { "dclk_vop1_div",
-					    "dummy_dclk_vop1_frac" };
-
-PNAME(mux_clk_cif_p)			= { "clk_cifout_src", "xin24m" };
-
-PNAME(mux_pll_src_24m_usbphy480m_p)	= { "xin24m", "clk_usbphy_480m" };
-PNAME(mux_pll_src_24m_pciephy_p)	= { "xin24m", "clk_pciephy_ref100m" };
-PNAME(mux_pciecore_cru_phy_p)		= { "clk_pcie_core_cru",
-					    "clk_pcie_core_phy" };
 PNAME(mux_clk_testout1_p)		= { "clk_testout1_pll_src", "xin24m" };
 PNAME(mux_clk_testout2_p)		= { "clk_testout2_pll_src", "xin24m" };
 
 PNAME(mux_usbphy_480m_p)		= { "clk_usbphy0_480m_src",
 					    "clk_usbphy1_480m_src" };
+PNAME(mux_aclk_gmac_p)			= { "cpll_aclk_gmac_src",
+					    "gpll_aclk_gmac_src" };
 PNAME(mux_rmii_p)			= { "clk_gmac", "clkin_gmac" };
 PNAME(mux_spdif_p)			= { "clk_spdif_div", "clk_spdif_frac",
 					    "clkin_i2s", "xin12m" };
@@ -315,19 +228,14 @@ static struct rockchip_pll_clock rk3399_pll_clks[] __initdata = {
 		     RK3399_PLL_CON(11), 8, 31, 0, rk3399_pll_rates),
 	[dpll] = PLL(pll_rk3399, PLL_DPLL, "dpll", mux_pll_p, 0, RK3399_PLL_CON(16),
 		     RK3399_PLL_CON(19), 8, 31, 0, NULL),
-#ifdef RK3399_TWO_PLL_FOR_VOP
-	[cpll] = PLL(pll_rk3399, PLL_CPLL, "cpll", mux_pll_p, 0, RK3399_PLL_CON(24),
-		     RK3399_PLL_CON(27), 8, 31, 0, rk3399_pll_rates),
-#else
 	[cpll] = PLL(pll_rk3399, PLL_CPLL, "cpll", mux_pll_p, 0, RK3399_PLL_CON(24),
 		     RK3399_PLL_CON(27), 8, 31, ROCKCHIP_PLL_SYNC_RATE, rk3399_pll_rates),
-#endif
 	[gpll] = PLL(pll_rk3399, PLL_GPLL, "gpll", mux_pll_p, 0, RK3399_PLL_CON(32),
-		     RK3399_PLL_CON(35), 8, 31, 0, rk3399_pll_rates),
+		     RK3399_PLL_CON(35), 8, 31, ROCKCHIP_PLL_SYNC_RATE, rk3399_pll_rates),
 	[npll] = PLL(pll_rk3399, PLL_NPLL, "npll",  mux_pll_p, 0, RK3399_PLL_CON(40),
 		     RK3399_PLL_CON(43), 8, 31, ROCKCHIP_PLL_SYNC_RATE, rk3399_pll_rates),
 	[vpll] = PLL(pll_rk3399, PLL_VPLL, "vpll",  mux_pll_p, 0, RK3399_PLL_CON(48),
-		     RK3399_PLL_CON(51), 8, 31, 0, rk3399_vpll_rates),
+		     RK3399_PLL_CON(51), 8, 31, ROCKCHIP_PLL_SYNC_RATE, rk3399_pll_rates),
 };
 
 static struct rockchip_pll_clock rk3399_pmu_pll_clks[] __initdata = {
@@ -377,11 +285,11 @@ static struct rockchip_clk_branch rk3399_uart4_pmu_fracmux __initdata =
 			RK3399_PMU_CLKSEL_CON(5), 8, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3399_dclk_vop0_fracmux __initdata =
-	MUX(DCLK_VOP0, "dclk_vop0", mux_dclk_vop0_p, CLK_SET_RATE_PARENT | CLK_KEEP_REQ_RATE,
+	MUX(DCLK_VOP0, "dclk_vop0", mux_dclk_vop0_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(49), 11, 1, MFLAGS);
 
 static struct rockchip_clk_branch rk3399_dclk_vop1_fracmux __initdata =
-	MUX(DCLK_VOP1, "dclk_vop1", mux_dclk_vop1_p, CLK_SET_RATE_PARENT | CLK_KEEP_REQ_RATE,
+	MUX(DCLK_VOP1, "dclk_vop1", mux_dclk_vop1_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(50), 11, 1, MFLAGS);
 
 static struct rockchip_clk_branch rk3399_pmuclk_wifi_fracmux __initdata =
@@ -504,9 +412,9 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(SCLK_USB2PHY1_REF, "clk_usb2phy1_ref", "xin24m", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(6), 6, GFLAGS),
 
-	GATE(SCLK_USBPHY0_480M_SRC, "clk_usbphy0_480m_src", "clk_usbphy0_480m", 0,
+	GATE(0, "clk_usbphy0_480m_src", "clk_usbphy0_480m", 0,
 			RK3399_CLKGATE_CON(13), 12, GFLAGS),
-	GATE(SCLK_USBPHY1_480M_SRC, "clk_usbphy1_480m_src", "clk_usbphy1_480m", 0,
+	GATE(0, "clk_usbphy1_480m_src", "clk_usbphy1_480m", 0,
 			RK3399_CLKGATE_CON(13), 12, GFLAGS),
 	MUX(0, "clk_usbphy_480m", mux_usbphy_480m_p, 0,
 			RK3399_CLKSEL_CON(14), 6, 1, MFLAGS),
@@ -676,13 +584,13 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(5), 9, GFLAGS),
 
 	/* spdif */
-	COMPOSITE(SCLK_SPDIF_DIV, "clk_spdif_div", mux_pll_src_cpll_gpll_p, 0,
+	COMPOSITE(0, "clk_spdif_div", mux_pll_src_cpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(32), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(8), 13, GFLAGS),
 	COMPOSITE_FRACMUX(0, "clk_spdif_frac", "clk_spdif_div", 0,
 			RK3399_CLKSEL_CON(99), 0,
 			RK3399_CLKGATE_CON(8), 14, GFLAGS,
-			&rk3399_spdif_fracmux, RK3399_SPDIF_FRAC_MAX_PRATE),
+			&rk3399_spdif_fracmux),
 	GATE(SCLK_SPDIF_8CH, "clk_spdif", "clk_spdif_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 15, GFLAGS),
 
@@ -690,44 +598,44 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKSEL_CON(32), 15, 1, MFLAGS, 8, 5, DFLAGS,
 			RK3399_CLKGATE_CON(10), 6, GFLAGS),
 	/* i2s */
-	COMPOSITE(SCLK_I2S0_DIV, "clk_i2s0_div", mux_pll_src_cpll_gpll_p, 0,
+	COMPOSITE(0, "clk_i2s0_div", mux_pll_src_cpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(28), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(8), 3, GFLAGS),
 	COMPOSITE_FRACMUX(0, "clk_i2s0_frac", "clk_i2s0_div", 0,
 			RK3399_CLKSEL_CON(96), 0,
 			RK3399_CLKGATE_CON(8), 4, GFLAGS,
-			&rk3399_i2s0_fracmux, RK3399_I2S_FRAC_MAX_PRATE),
+			&rk3399_i2s0_fracmux),
 	GATE(SCLK_I2S0_8CH, "clk_i2s0", "clk_i2s0_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 5, GFLAGS),
 
-	COMPOSITE(SCLK_I2S1_DIV, "clk_i2s1_div", mux_pll_src_cpll_gpll_p, 0,
+	COMPOSITE(0, "clk_i2s1_div", mux_pll_src_cpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(29), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(8), 6, GFLAGS),
 	COMPOSITE_FRACMUX(0, "clk_i2s1_frac", "clk_i2s1_div", 0,
 			RK3399_CLKSEL_CON(97), 0,
 			RK3399_CLKGATE_CON(8), 7, GFLAGS,
-			&rk3399_i2s1_fracmux, RK3399_I2S_FRAC_MAX_PRATE),
+			&rk3399_i2s1_fracmux),
 	GATE(SCLK_I2S1_8CH, "clk_i2s1", "clk_i2s1_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 8, GFLAGS),
 
-	COMPOSITE(SCLK_I2S2_DIV, "clk_i2s2_div", mux_pll_src_cpll_gpll_p, 0,
+	COMPOSITE(0, "clk_i2s2_div", mux_pll_src_cpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(30), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(8), 9, GFLAGS),
 	COMPOSITE_FRACMUX(0, "clk_i2s2_frac", "clk_i2s2_div", 0,
 			RK3399_CLKSEL_CON(98), 0,
 			RK3399_CLKGATE_CON(8), 10, GFLAGS,
-			&rk3399_i2s2_fracmux, RK3399_I2S_FRAC_MAX_PRATE),
+			&rk3399_i2s2_fracmux),
 	GATE(SCLK_I2S2_8CH, "clk_i2s2", "clk_i2s2_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 11, GFLAGS),
 
-	MUX(SCLK_I2SOUT_SRC, "clk_i2sout_src", mux_i2sch_p, CLK_SET_RATE_PARENT,
+	MUX(0, "clk_i2sout_src", mux_i2sch_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(31), 0, 2, MFLAGS),
 	COMPOSITE_NODIV(SCLK_I2S_8CH_OUT, "clk_i2sout", mux_i2sout_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(31), 2, 1, MFLAGS,
 			RK3399_CLKGATE_CON(8), 12, GFLAGS),
 
 	/* uart */
-	MUX(SCLK_UART0_SRC, "clk_uart0_src", mux_pll_src_cpll_gpll_upll_p, 0,
+	MUX(0, "clk_uart0_src", mux_pll_src_cpll_gpll_upll_p, 0,
 			RK3399_CLKSEL_CON(33), 12, 2, MFLAGS),
 	COMPOSITE_NOMUX(0, "clk_uart0_div", "clk_uart0_src", 0,
 			RK3399_CLKSEL_CON(33), 0, 7, DFLAGS,
@@ -735,9 +643,9 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_uart0_frac", "clk_uart0_div", 0,
 			RK3399_CLKSEL_CON(100), 0,
 			RK3399_CLKGATE_CON(9), 1, GFLAGS,
-			&rk3399_uart0_fracmux, RK3399_UART_FRAC_MAX_PRATE),
+			&rk3399_uart0_fracmux),
 
-	MUX(SCLK_UART_SRC, "clk_uart_src", mux_pll_src_cpll_gpll_p, 0,
+	MUX(0, "clk_uart_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(33), 15, 1, MFLAGS),
 	COMPOSITE_NOMUX(0, "clk_uart1_div", "clk_uart_src", 0,
 			RK3399_CLKSEL_CON(34), 0, 7, DFLAGS,
@@ -745,7 +653,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_uart1_frac", "clk_uart1_div", 0,
 			RK3399_CLKSEL_CON(101), 0,
 			RK3399_CLKGATE_CON(9), 3, GFLAGS,
-			&rk3399_uart1_fracmux, RK3399_UART_FRAC_MAX_PRATE),
+			&rk3399_uart1_fracmux),
 
 	COMPOSITE_NOMUX(0, "clk_uart2_div", "clk_uart_src", 0,
 			RK3399_CLKSEL_CON(35), 0, 7, DFLAGS,
@@ -753,7 +661,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_uart2_frac", "clk_uart2_div", 0,
 			RK3399_CLKSEL_CON(102), 0,
 			RK3399_CLKGATE_CON(9), 5, GFLAGS,
-			&rk3399_uart2_fracmux, RK3399_UART_FRAC_MAX_PRATE),
+			&rk3399_uart2_fracmux),
 
 	COMPOSITE_NOMUX(0, "clk_uart3_div", "clk_uart_src", 0,
 			RK3399_CLKSEL_CON(36), 0, 7, DFLAGS,
@@ -761,7 +669,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_uart3_frac", "clk_uart3_div", 0,
 			RK3399_CLKSEL_CON(103), 0,
 			RK3399_CLKGATE_CON(9), 7, GFLAGS,
-			&rk3399_uart3_fracmux, RK3399_UART_FRAC_MAX_PRATE),
+			&rk3399_uart3_fracmux),
 
 	COMPOSITE(PCLK_DDR, "pclk_ddr", mux_pll_src_cpll_gpll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(6), 15, 1, MFLAGS, 8, 5, DFLAGS,
@@ -815,7 +723,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(0, "gpll_cci_trace", "gpll", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(2), 6, GFLAGS),
 	COMPOSITE(SCLK_CCI_TRACE, "clk_cci_trace", mux_cci_trace_p, CLK_IGNORE_UNUSED,
-			RK3399_CLKSEL_CON(5), 15, 1, MFLAGS, 8, 5, DFLAGS,
+			RK3399_CLKSEL_CON(5), 15, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3399_CLKGATE_CON(2), 7, GFLAGS),
 
 	GATE(0, "cpll_cs", "cpll", CLK_IGNORE_UNUSED,
@@ -824,7 +732,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(2), 9, GFLAGS),
 	GATE(0, "npll_cs", "npll", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(2), 10, GFLAGS),
-	COMPOSITE_NOGATE(SCLK_CS, "clk_cs", mux_cs_p, CLK_IGNORE_UNUSED,
+	COMPOSITE_NOGATE(0, "clk_cs", mux_cs_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(4), 6, 2, MFLAGS, 0, 5, DFLAGS),
 	GATE(0, "clk_dbg_cxcs", "clk_cs", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(15), 5, GFLAGS),
@@ -911,7 +819,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(16), 9, GFLAGS),
 
 	/* center */
-	COMPOSITE(ACLK_CENTER, "aclk_center", mux_pll_src_cpll_gpll_npll_p, CLK_IGNORE_UNUSED,
+	COMPOSITE(0, "aclk_center", mux_pll_src_cpll_gpll_npll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(12), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3399_CLKGATE_CON(3), 7, GFLAGS),
 	GATE(ACLK_CENTER_MAIN_NOC, "aclk_center_main_noc", "aclk_center", CLK_IGNORE_UNUSED,
@@ -944,7 +852,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKSEL_CON(14), 8, 2, DFLAGS,
 			RK3399_CLKGATE_CON(5), 3, GFLAGS),
 	COMPOSITE_NOMUX(PCLK_PERIHP, "pclk_perihp", "aclk_perihp", CLK_IGNORE_UNUSED,
-			RK3399_CLKSEL_CON(14), 12, 3, DFLAGS,
+			RK3399_CLKSEL_CON(14), 12, 2, DFLAGS,
 			RK3399_CLKGATE_CON(5), 4, GFLAGS),
 
 	GATE(ACLK_PERF_PCIE, "aclk_perf_pcie", "aclk_perihp", 0,
@@ -1144,7 +1052,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(PCLK_SPI2, "pclk_spi2", "pclk_perilp1", 0, RK3399_CLKGATE_CON(23), 12, GFLAGS),
 	GATE(PCLK_SPI4, "pclk_spi4", "pclk_perilp1", 0, RK3399_CLKGATE_CON(23), 13, GFLAGS),
 	GATE(PCLK_PERIHP_GRF, "pclk_perilp_sgrf", "pclk_perilp1", 0, RK3399_CLKGATE_CON(24), 13, GFLAGS),
-	GATE(0, "pclk_perilp1_noc", "pclk_perilp1", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(25), 10, GFLAGS),
+	GATE(0, "pclk_perilp1_noc", "pclk_perilp1", 0, RK3399_CLKGATE_CON(25), 10, GFLAGS),
 
 	/* saradc */
 	COMPOSITE_NOMUX(SCLK_SARADC, "clk_saradc", "xin24m", 0,
@@ -1188,8 +1096,9 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(29), 12, GFLAGS),
 
 	/* hdcp */
-	COMPOSITE_NOGATE(ACLK_HDCP, "aclk_hdcp", mux_pll_src_cpll_gpll_ppll_p, 0,
-			RK3399_CLKSEL_CON(42), 14, 2, MFLAGS, 8, 5, DFLAGS),
+	COMPOSITE(ACLK_HDCP, "aclk_hdcp", mux_pll_src_cpll_gpll_ppll_p, 0,
+			RK3399_CLKSEL_CON(42), 14, 2, MFLAGS, 8, 5, DFLAGS,
+			RK3399_CLKGATE_CON(11), 12, GFLAGS),
 	COMPOSITE_NOMUX(HCLK_HDCP, "hclk_hdcp", "aclk_hdcp", 0,
 			RK3399_CLKSEL_CON(43), 5, 5, DFLAGS,
 			RK3399_CLKGATE_CON(11), 3, GFLAGS),
@@ -1240,7 +1149,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(11), 7, GFLAGS),
 
 	/* vop0 */
-	COMPOSITE(ACLK_VOP0_PRE, "aclk_vop0_pre", mux_pll_src_dmyvpll_cpll_gpll_npll_p, 0,
+	COMPOSITE(ACLK_VOP0_PRE, "aclk_vop0_pre", mux_pll_src_vpll_cpll_gpll_npll_p, 0,
 			RK3399_CLKSEL_CON(47), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(10), 8, GFLAGS),
 	COMPOSITE_NOMUX(0, "hclk_vop0_pre", "aclk_vop0_pre", 0,
@@ -1257,27 +1166,20 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(HCLK_VOP0_NOC, "hclk_vop0_noc", "hclk_vop0_pre", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(28), 0, GFLAGS),
 
-#ifdef RK3399_TWO_PLL_FOR_VOP
-	COMPOSITE(DCLK_VOP0_DIV, "dclk_vop0_div", mux_pll_src_vpll_cpll_gpll_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+	COMPOSITE(DCLK_VOP0_DIV, "dclk_vop0_div", mux_pll_src_vpll_cpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(49), 8, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3399_CLKGATE_CON(10), 12, GFLAGS),
-#else
-	COMPOSITE(DCLK_VOP0_DIV, "dclk_vop0_div", mux_pll_src_vpll_cpll_gpll_p, CLK_SET_RATE_PARENT,
-			RK3399_CLKSEL_CON(49), 8, 2, MFLAGS, 0, 8, DFLAGS,
-			RK3399_CLKGATE_CON(10), 12, GFLAGS),
-#endif
 
-	/* The VOP0 is main screen, it is able to re-set parent rate. */
 	COMPOSITE_FRACMUX_NOGATE(DCLK_VOP0_FRAC, "dclk_vop0_frac", "dclk_vop0_div", 0,
 			RK3399_CLKSEL_CON(106), 0,
-			&rk3399_dclk_vop0_fracmux, RK3399_VOP_FRAC_MAX_PRATE),
+			&rk3399_dclk_vop0_fracmux),
 
-	COMPOSITE(SCLK_VOP0_PWM, "clk_vop0_pwm", mux_pll_src_dmyvpll_cpll_gpll_gpll_p, 0,
+	COMPOSITE(SCLK_VOP0_PWM, "clk_vop0_pwm", mux_pll_src_vpll_cpll_gpll_24m_p, 0,
 			RK3399_CLKSEL_CON(51), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(10), 14, GFLAGS),
 
 	/* vop1 */
-	COMPOSITE(ACLK_VOP1_PRE, "aclk_vop1_pre", mux_pll_src_dmyvpll_cpll_gpll_npll_p, 0,
+	COMPOSITE(ACLK_VOP1_PRE, "aclk_vop1_pre", mux_pll_src_vpll_cpll_gpll_npll_p, 0,
 			RK3399_CLKSEL_CON(48), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(10), 10, GFLAGS),
 	COMPOSITE_NOMUX(0, "hclk_vop1_pre", "aclk_vop1_pre", 0,
@@ -1294,22 +1196,15 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(HCLK_VOP1_NOC, "hclk_vop1_noc", "hclk_vop1_pre", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(28), 4, GFLAGS),
 
-	/* The VOP1 is sub screen, it is note able to re-set parent rate. */
-#ifdef RK3399_TWO_PLL_FOR_VOP
-	COMPOSITE(DCLK_VOP1_DIV, "dclk_vop1_div", mux_pll_src_vpll_cpll_gpll_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+	COMPOSITE(DCLK_VOP1_DIV, "dclk_vop1_div", mux_pll_src_vpll_cpll_gpll_p, 0,
 			RK3399_CLKSEL_CON(50), 8, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3399_CLKGATE_CON(10), 13, GFLAGS),
-#else
-	COMPOSITE(DCLK_VOP1_DIV, "dclk_vop1_div", mux_pll_src_dmyvpll_cpll_gpll_p, 0,
-			RK3399_CLKSEL_CON(50), 8, 2, MFLAGS, 0, 8, DFLAGS,
-			RK3399_CLKGATE_CON(10), 13, GFLAGS),
-#endif
 
 	COMPOSITE_FRACMUX_NOGATE(DCLK_VOP1_FRAC, "dclk_vop1_frac", "dclk_vop1_div", 0,
 			RK3399_CLKSEL_CON(107), 0,
-			&rk3399_dclk_vop1_fracmux, RK3399_VOP_FRAC_MAX_PRATE),
+			&rk3399_dclk_vop1_fracmux),
 
-	COMPOSITE(SCLK_VOP1_PWM, "clk_vop1_pwm", mux_pll_src_dmyvpll_cpll_gpll_gpll_p, 0,
+	COMPOSITE(SCLK_VOP1_PWM, "clk_vop1_pwm", mux_pll_src_vpll_cpll_gpll_24m_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(52), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(10), 15, GFLAGS),
 
@@ -1368,7 +1263,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(27), 6, GFLAGS),
 
 	/* cif */
-	COMPOSITE_NODIV(SCLK_CIF_OUT_SRC, "clk_cifout_src", mux_pll_src_cpll_gpll_npll_p, 0,
+	COMPOSITE_NODIV(0, "clk_cifout_src", mux_pll_src_cpll_gpll_npll_p, 0,
 			RK3399_CLKSEL_CON(56), 6, 2, MFLAGS,
 			RK3399_CLKGATE_CON(10), 7, GFLAGS),
 
@@ -1409,19 +1304,19 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(PCLK_SGRF, "pclk_sgrf", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(31), 10, GFLAGS),
 
 	GATE(SCLK_MIPIDPHY_REF, "clk_mipidphy_ref", "xin24m", 0, RK3399_CLKGATE_CON(11), 14, GFLAGS),
-	GATE(SCLK_DPHY_PLL, "clk_dphy_pll", "clk_mipidphy_ref", 0, RK3399_CLKGATE_CON(21), 0, GFLAGS),
+	GATE(SCLK_DPHY_PLL, "clk_dphy_pll", "clk_mipidphy_ref", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 0, GFLAGS),
 
 	GATE(SCLK_MIPIDPHY_CFG, "clk_mipidphy_cfg", "xin24m", 0, RK3399_CLKGATE_CON(11), 15, GFLAGS),
-	GATE(SCLK_DPHY_TX0_CFG, "clk_dphy_tx0_cfg", "clk_mipidphy_cfg", 0, RK3399_CLKGATE_CON(21), 1, GFLAGS),
-	GATE(SCLK_DPHY_TX1RX1_CFG, "clk_dphy_tx1rx1_cfg", "clk_mipidphy_cfg", 0, RK3399_CLKGATE_CON(21), 2, GFLAGS),
-	GATE(SCLK_DPHY_RX0_CFG, "clk_dphy_rx0_cfg", "clk_mipidphy_cfg", 0, RK3399_CLKGATE_CON(21), 3, GFLAGS),
+	GATE(SCLK_DPHY_TX0_CFG, "clk_dphy_tx0_cfg", "clk_mipidphy_cfg", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 1, GFLAGS),
+	GATE(SCLK_DPHY_TX1RX1_CFG, "clk_dphy_tx1rx1_cfg", "clk_mipidphy_cfg", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 2, GFLAGS),
+	GATE(SCLK_DPHY_RX0_CFG, "clk_dphy_rx0_cfg", "clk_mipidphy_cfg", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 3, GFLAGS),
 
 	/* testout */
 	MUX(0, "clk_test_pre", mux_pll_src_cpll_gpll_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(58), 7, 1, MFLAGS),
 	COMPOSITE_FRAC(0, "clk_test_frac", "clk_test_pre", 0,
 			RK3399_CLKSEL_CON(105), 0,
-			RK3399_CLKGATE_CON(13), 9, GFLAGS, 0),
+			RK3399_CLKGATE_CON(13), 9, GFLAGS),
 
 	DIV(0, "clk_test_24m", "xin24m", 0,
 			RK3399_CLKSEL_CON(57), 6, 10, DFLAGS),
@@ -1501,7 +1396,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	     2, GFLAGS),
 	GATE(0, "clk_ddrc_gpll_src", "gpll", 0, RK3399_CLKGATE_CON(3),
 	     3, GFLAGS),
-	COMPOSITE_DDRCLK(SCLK_DDRCLK, "sclk_ddrc", mux_ddrclk_p, 0,
+	COMPOSITE_DDRCLK(SCLK_DDRC, "sclk_ddrc", mux_ddrclk_p, 0,
 		       RK3399_CLKSEL_CON(6), 4, 2, 0, 0, ROCKCHIP_DDRCLK_SIP),
 };
 
@@ -1526,7 +1421,7 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 
 	COMPOSITE_FRACMUX_NOGATE(0, "clk_wifi_frac", "clk_wifi_div", 0,
 			RK3399_PMU_CLKSEL_CON(7), 0,
-			&rk3399_pmuclk_wifi_fracmux, RK3399_WIFI_FRAC_MAX_PRATE),
+			&rk3399_pmuclk_wifi_fracmux),
 
 	MUX(0, "clk_timer_src_pmu", mux_pll_p, CLK_IGNORE_UNUSED,
 			RK3399_PMU_CLKSEL_CON(1), 15, 1, MFLAGS),
@@ -1548,17 +1443,14 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 	MUX(0, "clk_testout_2io", mux_clk_testout2_2io_p, CLK_IGNORE_UNUSED,
 			RK3399_PMU_CLKSEL_CON(4), 15, 1, MFLAGS),
 
-	MUX(SCLK_UART4_SRC, "clk_uart4_src", mux_24m_ppll_p, CLK_SET_RATE_NO_REPARENT,
-			RK3399_PMU_CLKSEL_CON(5), 10, 1, MFLAGS),
-
-	COMPOSITE_NOMUX(0, "clk_uart4_div", "clk_uart4_src", CLK_SET_RATE_PARENT,
-			RK3399_PMU_CLKSEL_CON(5), 0, 7, DFLAGS,
+	COMPOSITE(0, "clk_uart4_div", mux_24m_ppll_p, 0,
+			RK3399_PMU_CLKSEL_CON(5), 10, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_PMU_CLKGATE_CON(0), 5, GFLAGS),
 
 	COMPOSITE_FRACMUX(0, "clk_uart4_frac", "clk_uart4_div", 0,
 			RK3399_PMU_CLKSEL_CON(6), 0,
 			RK3399_PMU_CLKGATE_CON(0), 6, GFLAGS,
-			&rk3399_uart4_pmu_fracmux, RK3399_UART_FRAC_MAX_PRATE),
+			&rk3399_uart4_pmu_fracmux),
 
 	DIV(PCLK_SRC_PMU, "pclk_pmu_src", "ppll", CLK_IGNORE_UNUSED,
 			RK3399_PMU_CLKSEL_CON(0), 0, 5, DFLAGS),
@@ -1567,7 +1459,7 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 	GATE(SCLK_TIMER12_PMU, "clk_timer0_pmu", "clk_timer_src_pmu", 0, RK3399_PMU_CLKGATE_CON(0), 3, GFLAGS),
 	GATE(SCLK_TIMER13_PMU, "clk_timer1_pmu", "clk_timer_src_pmu", 0, RK3399_PMU_CLKGATE_CON(0), 4, GFLAGS),
 
-	GATE(SCLK_PVTM_PMU, "clk_pvtm_pmu", "xin24m", 0, RK3399_PMU_CLKGATE_CON(0), 7, GFLAGS),
+	GATE(SCLK_PVTM_PMU, "clk_pvtm_pmu", "xin24m", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(0), 7, GFLAGS),
 
 	GATE(PCLK_PMU, "pclk_pmu", "pclk_pmu_src", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(1), 0, GFLAGS),
 	GATE(PCLK_PMUGRF_PMU, "pclk_pmugrf_pmu", "pclk_pmu_src", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(1), 1, GFLAGS),
@@ -1594,122 +1486,44 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 };
 
 static const char *const rk3399_cru_critical_clocks[] __initconst = {
-	/*
-	 * We need to declare that we enable all NOCs which are critical clocks
-	 * always and clearly and explicitly show that we have enabled them at
-	 * clk_summary.
-	 */
-	"aclk_usb3_noc",
-	"aclk_gmac_noc",
-	"pclk_gmac_noc",
-	"pclk_center_main_noc",
-	"aclk_cci_noc0",
-	"aclk_cci_noc1",
-	"clk_dbg_noc",
-	"hclk_vcodec_noc",
-	"aclk_vcodec_noc",
-	"hclk_vdu_noc",
-	"aclk_vdu_noc",
-	"hclk_iep_noc",
-	"aclk_iep_noc",
-	"hclk_rga_noc",
-	"aclk_rga_noc",
-	"aclk_center_main_noc",
-	"aclk_center_peri_noc",
-	"aclk_perihp_noc",
-	"hclk_perihp_noc",
-	"pclk_perihp_noc",
-	"hclk_sdmmc_noc",
-	"aclk_emmc_noc",
-	"aclk_perilp0_noc",
-	"hclk_perilp0_noc",
-	"hclk_m0_perilp_noc",
-	"hclk_perilp1_noc",
-	"hclk_sdio_noc",
-	"hclk_sdioaudio_noc",
-	"pclk_perilp1_noc",
-	"aclk_vio_noc",
+	"aclk_cci_pre",
+	"aclk_gic",
+	"aclk_gic_noc",
 	"aclk_hdcp_noc",
 	"hclk_hdcp_noc",
 	"pclk_hdcp_noc",
-	"pclk_edp_noc",
-	"aclk_vop0_noc",
-	"hclk_vop0_noc",
-	"aclk_vop1_noc",
-	"hclk_vop1_noc",
-	"aclk_isp0_noc",
-	"hclk_isp0_noc",
-	"aclk_isp1_noc",
-	"hclk_isp1_noc",
-	"aclk_gic_noc",
-
-	/* ddrc */
-	"sclk_ddrc",
-
-	/* other critical clocks */
 	"pclk_perilp0",
 	"pclk_perilp0",
 	"hclk_perilp0",
+	"hclk_perilp0_noc",
 	"pclk_perilp1",
+	"pclk_perilp1_noc",
 	"pclk_perihp",
+	"pclk_perihp_noc",
 	"hclk_perihp",
 	"aclk_perihp",
+	"aclk_perihp_noc",
 	"aclk_perilp0",
+	"aclk_perilp0_noc",
 	"hclk_perilp1",
-	"aclk_dmac1_perilp",
+	"hclk_perilp1_noc",
+	"aclk_dmac0_perilp",
+	"aclk_emmc_noc",
+	"gpll_hclk_perilp1_src",
 	"gpll_aclk_perilp0_src",
 	"gpll_aclk_perihp_src",
-	"pclk_vio",
-	"pclk_vio_grf",
-	"pclk_perihp_grf",
+	"aclk_vio_noc",
+
+	/* ddrc */
+	"sclk_ddrc"
 };
 
 static const char *const rk3399_pmucru_critical_clocks[] __initconst = {
-	/*
-	 * We need to declare that we enable all NOCs which are critical clocks
-	 * always and clearly and explicitly show that we have enabled them at
-	 * clk_summary.
-	 */
-	"pclk_noc_pmu",
-	"hclk_noc_pmu",
-
-	/* other critical clocks */
 	"ppll",
 	"pclk_pmu_src",
 	"fclk_cm0s_src_pmu",
 	"clk_timer_src_pmu",
 	"pclk_rkpwm_pmu",
-};
-
-static void __iomem *rk3399_cru_base;
-static void __iomem *rk3399_pmucru_base;
-
-void rk3399_dump_cru(void)
-{
-	if (rk3399_cru_base) {
-		pr_warn("CRU:\n");
-		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
-			       32, 4, rk3399_cru_base,
-			       0x594, false);
-	}
-	if (rk3399_pmucru_base) {
-		pr_warn("PMU CRU:\n");
-		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
-			       32, 4, rk3399_pmucru_base,
-			       0x134, false);
-	}
-}
-EXPORT_SYMBOL_GPL(rk3399_dump_cru);
-
-static int rk3399_clk_panic(struct notifier_block *this,
-			    unsigned long ev, void *ptr)
-{
-	rk3399_dump_cru();
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block rk3399_clk_panic_block = {
-	.notifier_call = rk3399_clk_panic,
 };
 
 static void __init rk3399_clk_init(struct device_node *np)
@@ -1724,11 +1538,10 @@ static void __init rk3399_clk_init(struct device_node *np)
 		return;
 	}
 
-	rk3399_cru_base = reg_base;
-
 	ctx = rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
 	if (IS_ERR(ctx)) {
 		pr_err("%s: rockchip clk init failed\n", __func__);
+		iounmap(reg_base);
 		return;
 	}
 
@@ -1779,11 +1592,10 @@ static void __init rk3399_pmu_clk_init(struct device_node *np)
 		return;
 	}
 
-	rk3399_pmucru_base = reg_base;
-
 	ctx = rockchip_clk_init(np, reg_base, CLKPMU_NR_CLKS);
 	if (IS_ERR(ctx)) {
 		pr_err("%s: rockchip pmu clk init failed\n", __func__);
+		iounmap(reg_base);
 		return;
 	}
 
@@ -1794,14 +1606,11 @@ static void __init rk3399_pmu_clk_init(struct device_node *np)
 				  ARRAY_SIZE(rk3399_clk_pmu_branches));
 
 	rockchip_clk_protect_critical(rk3399_pmucru_critical_clocks,
-				      ARRAY_SIZE(rk3399_pmucru_critical_clocks));
+				  ARRAY_SIZE(rk3399_pmucru_critical_clocks));
 
 	rockchip_register_softrst(np, 2, reg_base + RK3399_PMU_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
 	rockchip_clk_of_add_provider(np, ctx);
-
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &rk3399_clk_panic_block);
 }
 CLK_OF_DECLARE(rk3399_cru_pmu, "rockchip,rk3399-pmucru", rk3399_pmu_clk_init);

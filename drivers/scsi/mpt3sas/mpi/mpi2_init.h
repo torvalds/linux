@@ -1,12 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2000-2014 LSI Corporation.
+ * Copyright 2000-2015 Avago Technologies.  All rights reserved.
  *
  *
  *          Name:  mpi2_init.h
  *         Title:  MPI SCSI initiator mode messages and structures
  * Creation Date:  June 23, 2006
  *
- * mpi2_init.h Version:  02.00.15
+ * mpi2_init.h Version:  02.00.21
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -46,6 +47,16 @@
  * 07-10-12  02.00.14  Added MPI2_SCSIIO_CONTROL_SHIFT_DATADIRECTION.
  * 04-09-13  02.00.15  Added SCSIStatusQualifier field to MPI2_SCSI_IO_REPLY,
  *                     replacing the Reserved4 field.
+ * 11-18-14  02.00.16  Updated copyright information.
+ * 03-16-15  02.00.17  Updated for MPI v2.6.
+ *                     Added MPI26_SCSIIO_IOFLAGS_ESCAPE_PASSTHROUGH.
+ *                     Added MPI2_SEP_REQ_SLOTSTATUS_DEV_OFF and
+ *                     MPI2_SEP_REPLY_SLOTSTATUS_DEV_OFF.
+ * 08-26-15  02.00.18  Added SCSITASKMGMT_MSGFLAGS for Target Reset.
+ * 12-18-15  02.00.19  Added EEDPObservedValue added to SCSI IO Reply message.
+ * 01-04-16  02.00.20  Modified EEDP reported values in SCSI IO Reply message.
+ * 01-21-16  02.00.21  Modified MPI26_SCSITASKMGMT_MSGFLAGS_PCIE* defines to
+ *                     be unique within first 32 characters.
  * --------------------------------------------------------------------------
  */
 
@@ -64,7 +75,7 @@
 
 typedef struct _MPI2_SCSI_IO_CDB_EEDP32 {
 	U8 CDB[20];		/*0x00 */
-	U32 PrimaryReferenceTag;	/*0x14 */
+	__be32 PrimaryReferenceTag;	/*0x14 */
 	U16 PrimaryApplicationTag;	/*0x18 */
 	U16 PrimaryApplicationTagMask;	/*0x1A */
 	U32 TransferLength;	/*0x1C */
@@ -128,6 +139,7 @@ typedef struct _MPI2_SCSI_IO_REQUEST {
 #define MPI2_SCSIIO_MSGFLAGS_IOCDDR_SENSE_ADDR      (0x04)
 #define MPI2_SCSIIO_MSGFLAGS_IOCPLB_SENSE_ADDR      (0x08)
 #define MPI2_SCSIIO_MSGFLAGS_IOCPLBNTA_SENSE_ADDR   (0x0C)
+#define MPI26_SCSIIO_MSGFLAGS_IOCCTL_SENSE_ADDR     (0x08)
 
 /*SCSI IO SGLFlags bits */
 
@@ -228,7 +240,7 @@ typedef union _MPI25_SCSI_IO_CDB_UNION {
 } MPI25_SCSI_IO_CDB_UNION, *PTR_MPI25_SCSI_IO_CDB_UNION,
 	Mpi25ScsiIoCdb_t, *pMpi25ScsiIoCdb_t;
 
-/*MPI v2.5 SCSI IO Request Message */
+/*MPI v2.5/2.6 SCSI IO Request Message */
 typedef struct _MPI25_SCSI_IO_REQUEST {
 	U16 DevHandle;		/*0x00 */
 	U8 ChainOffset;		/*0x02 */
@@ -302,12 +314,14 @@ typedef struct _MPI25_SCSI_IO_REQUEST {
 #define MPI25_SCSIIO_NUM_SGLOFFSETS                 (4)
 
 /*defines for the IoFlags field */
-#define MPI25_SCSIIO_IOFLAGS_IO_PATH_MASK           (0xC000)
-#define MPI25_SCSIIO_IOFLAGS_NORMAL_PATH            (0x0000)
-#define MPI25_SCSIIO_IOFLAGS_FAST_PATH              (0x4000)
+#define MPI25_SCSIIO_IOFLAGS_IO_PATH_MASK               (0xC000)
+#define MPI25_SCSIIO_IOFLAGS_NORMAL_PATH                (0x0000)
+#define MPI25_SCSIIO_IOFLAGS_FAST_PATH                  (0x4000)
 
+#define MPI26_SCSIIO_IOFLAGS_ESCAPE_PASSTHROUGH         (0x2000)
 #define MPI25_SCSIIO_IOFLAGS_LARGE_CDB                  (0x1000)
 #define MPI25_SCSIIO_IOFLAGS_BIDIRECTIONAL              (0x0800)
+#define MPI26_SCSIIO_IOFLAGS_PORT_REQUEST               (0x0400)
 #define MPI25_SCSIIO_IOFLAGS_CDBLENGTH_MASK             (0x01FF)
 
 /*MPI v2.5 defines for the EEDPFlags bits */
@@ -351,10 +365,21 @@ typedef struct _MPI2_SCSI_IO_REPLY {
 	U16 TaskTag;		/*0x20 */
 	U16 SCSIStatusQualifier; /* 0x22 */
 	U32 BidirectionalTransferCount;	/*0x24 */
-	U32 EEDPErrorOffset;	/*0x28 *//*MPI 2.5 only; Reserved in MPI 2.0*/
-	U32 Reserved6;		/*0x2C */
+ /* MPI 2.5+ only; Reserved in MPI 2.0 */
+	U32 EEDPErrorOffset;	/* 0x28 */
+ /* MPI 2.5+ only; Reserved in MPI 2.0 */
+	U16 EEDPObservedAppTag;	/* 0x2C */
+ /* MPI 2.5+ only; Reserved in MPI 2.0 */
+	U16 EEDPObservedGuard;	/* 0x2E */
+ /* MPI 2.5+ only; Reserved in MPI 2.0 */
+	U32 EEDPObservedRefTag;	/* 0x30 */
 } MPI2_SCSI_IO_REPLY, *PTR_MPI2_SCSI_IO_REPLY,
 	Mpi2SCSIIOReply_t, *pMpi2SCSIIOReply_t;
+
+/*SCSI IO Reply MsgFlags bits */
+#define MPI26_SCSIIO_REPLY_MSGFLAGS_REFTAG_OBSERVED_VALID     (0x01)
+#define MPI26_SCSIIO_REPLY_MSGFLAGS_GUARD_OBSERVED_VALID      (0x02)
+#define MPI26_SCSIIO_REPLY_MSGFLAGS_APPTAG_OBSERVED_VALID     (0x04)
 
 /*SCSI IO Reply SCSIStatus values (SAM-4 status codes) */
 
@@ -429,11 +454,13 @@ typedef struct _MPI2_SCSI_TASK_MANAGE_REQUEST {
 /*MsgFlags bits */
 
 #define MPI2_SCSITASKMGMT_MSGFLAGS_MASK_TARGET_RESET    (0x18)
+#define MPI26_SCSITASKMGMT_MSGFLAGS_HOT_RESET_PCIE        (0x00)
 #define MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET           (0x00)
 #define MPI2_SCSITASKMGMT_MSGFLAGS_NEXUS_RESET_SRST     (0x08)
 #define MPI2_SCSITASKMGMT_MSGFLAGS_SAS_HARD_LINK_RESET  (0x10)
 
 #define MPI2_SCSITASKMGMT_MSGFLAGS_DO_NOT_SEND_TASK_IU  (0x01)
+#define MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE (0x18)
 
 /*SCSI Task Management Reply Message */
 typedef struct _MPI2_SCSI_TASK_MANAGE_REPLY {
@@ -512,6 +539,7 @@ typedef struct _MPI2_SEP_REQUEST {
 #define MPI2_SEP_REQ_FLAGS_ENCLOSURE_SLOT_ADDRESS       (0x01)
 
 /*SlotStatus defines */
+#define MPI2_SEP_REQ_SLOTSTATUS_DEV_OFF                 (0x00080000)
 #define MPI2_SEP_REQ_SLOTSTATUS_REQUEST_REMOVE          (0x00040000)
 #define MPI2_SEP_REQ_SLOTSTATUS_IDENTIFY_REQUEST        (0x00020000)
 #define MPI2_SEP_REQ_SLOTSTATUS_REBUILD_STOPPED         (0x00000200)
@@ -547,6 +575,7 @@ typedef struct _MPI2_SEP_REPLY {
 	Mpi2SepReply_t, *pMpi2SepReply_t;
 
 /*SlotStatus defines */
+#define MPI2_SEP_REPLY_SLOTSTATUS_DEV_OFF               (0x00080000)
 #define MPI2_SEP_REPLY_SLOTSTATUS_REMOVE_READY          (0x00040000)
 #define MPI2_SEP_REPLY_SLOTSTATUS_IDENTIFY_REQUEST      (0x00020000)
 #define MPI2_SEP_REPLY_SLOTSTATUS_REBUILD_STOPPED       (0x00000200)

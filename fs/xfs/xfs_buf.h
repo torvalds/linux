@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_BUF_H__
 #define __XFS_BUF_H__
@@ -24,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/dax.h>
-#include <linux/buffer_head.h>
 #include <linux/uio.h>
 #include <linux/list_lru.h>
 
@@ -43,6 +30,7 @@ typedef enum {
 #define XBF_READ	 (1 << 0) /* buffer intended for reading from device */
 #define XBF_WRITE	 (1 << 1) /* buffer intended for writing to device */
 #define XBF_READ_AHEAD	 (1 << 2) /* asynchronous read-ahead */
+#define XBF_NO_IOACCT	 (1 << 3) /* bypass I/O accounting (non-LRU bufs) */
 #define XBF_ASYNC	 (1 << 4) /* initiator will not wait for completion */
 #define XBF_DONE	 (1 << 5) /* all pages in the buffer uptodate */
 #define XBF_STALE	 (1 << 6) /* buffer has been staled, do not find it */
@@ -69,6 +57,7 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_READ,		"READ" }, \
 	{ XBF_WRITE,		"WRITE" }, \
 	{ XBF_READ_AHEAD,	"READ_AHEAD" }, \
+	{ XBF_NO_IOACCT,	"NO_IOACCT" }, \
 	{ XBF_ASYNC,		"ASYNC" }, \
 	{ XBF_DONE,		"DONE" }, \
 	{ XBF_STALE,		"STALE" }, \
@@ -88,6 +77,7 @@ typedef unsigned int xfs_buf_flags_t;
  * Internal state flags.
  */
 #define XFS_BSTATE_DISPOSE	 (1 << 0)	/* buffer being discarded */
+#define XFS_BSTATE_IN_FLIGHT	 (1 << 1)	/* I/O in flight */
 
 /*
  * The xfs_buftarg contains 2 notions of "sector size" -
@@ -105,7 +95,7 @@ typedef unsigned int xfs_buf_flags_t;
 typedef struct xfs_buftarg {
 	dev_t			bt_dev;
 	struct block_device	*bt_bdev;
-	struct backing_dev_info	*bt_bdi;
+	struct dax_device	*bt_daxdev;
 	struct xfs_mount	*bt_mount;
 	unsigned int		bt_meta_sectorsize;
 	size_t			bt_meta_sectormask;
@@ -115,6 +105,8 @@ typedef struct xfs_buftarg {
 	/* LRU control structures */
 	struct shrinker		bt_shrinker;
 	struct list_lru		bt_lru;
+
+	struct percpu_counter	bt_io_count;
 } xfs_buftarg_t;
 
 struct xfs_buf;
@@ -132,8 +124,10 @@ struct xfs_buf_map {
 	struct xfs_buf_map (map) = { .bm_bn = (blkno), .bm_len = (numblk) };
 
 struct xfs_buf_ops {
+	char *name;
 	void (*verify_read)(struct xfs_buf *);
 	void (*verify_write)(struct xfs_buf *);
+	xfs_failaddr_t (*verify_struct)(struct xfs_buf *bp);
 };
 
 typedef struct xfs_buf {
@@ -144,7 +138,7 @@ typedef struct xfs_buf {
 	 * which is the only bit that is touched if we hit the semaphore
 	 * fast-path on locking.
 	 */
-	struct rb_node		b_rbnode;	/* rbtree node */
+	struct rhash_head	b_rhash_head;	/* pag buffer hash node */
 	xfs_daddr_t		b_bn;		/* block number of buffer */
 	int			b_length;	/* size of buffer in BBs */
 	atomic_t		b_hold;		/* reference count */
@@ -169,7 +163,8 @@ typedef struct xfs_buf {
 	struct workqueue_struct	*b_ioend_wq;	/* I/O completion wq */
 	xfs_buf_iodone_t	b_iodone;	/* I/O completion function */
 	struct completion	b_iowait;	/* queue for I/O waiters */
-	void			*b_fspriv;
+	void			*b_log_item;
+	struct list_head	b_li_list;	/* Log items list head */
 	struct xfs_trans	*b_transp;
 	struct page		**b_pages;	/* array of page pointers */
 	struct page		*b_page_array[XB_PAGES]; /* inline pages */
@@ -182,28 +177,33 @@ typedef struct xfs_buf {
 	unsigned int		b_page_count;	/* size of page array */
 	unsigned int		b_offset;	/* page offset in first page */
 	int			b_error;	/* error code on I/O */
-	const struct xfs_buf_ops	*b_ops;
 
-#ifdef XFS_BUF_LOCK_TRACKING
-	int			b_last_holder;
-#endif
+	/*
+	 * async write failure retry count. Initialised to zero on the first
+	 * failure, then when it exceeds the maximum configured without a
+	 * success the write is considered to be failed permanently and the
+	 * iodone handler will take appropriate action.
+	 *
+	 * For retry timeouts, we record the jiffie of the first failure. This
+	 * means that we can change the retry timeout for buffers already under
+	 * I/O and thus avoid getting stuck in a retry loop with a long timeout.
+	 *
+	 * last_error is used to ensure that we are getting repeated errors, not
+	 * different errors. e.g. a block device might change ENOSPC to EIO when
+	 * a failure timeout occurs, so we want to re-initialise the error
+	 * retry behaviour appropriately when that happens.
+	 */
+	int			b_retries;
+	unsigned long		b_first_retry_time; /* in jiffies */
+	int			b_last_error;
+
+	const struct xfs_buf_ops	*b_ops;
 } xfs_buf_t;
 
 /* Finding and Reading Buffers */
-struct xfs_buf *_xfs_buf_find(struct xfs_buftarg *target,
-			      struct xfs_buf_map *map, int nmaps,
-			      xfs_buf_flags_t flags, struct xfs_buf *new_bp);
-
-static inline struct xfs_buf *
-xfs_incore(
-	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
-	size_t			numblks,
-	xfs_buf_flags_t		flags)
-{
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
-	return _xfs_buf_find(target, &map, 1, flags, NULL);
-}
+struct xfs_buf *xfs_buf_incore(struct xfs_buftarg *target,
+			   xfs_daddr_t blkno, size_t numblks,
+			   xfs_buf_flags_t flags);
 
 struct xfs_buf *_xfs_buf_alloc(struct xfs_buftarg *target,
 			       struct xfs_buf_map *map, int nmaps,
@@ -265,7 +265,6 @@ xfs_buf_readahead(
 	return xfs_buf_readahead_map(target, &map, 1, ops);
 }
 
-struct xfs_buf *xfs_buf_get_empty(struct xfs_buftarg *target, size_t numblks);
 void xfs_buf_set_empty(struct xfs_buf *bp, size_t numblks);
 int xfs_buf_associate_memory(struct xfs_buf *bp, void *mem, size_t length);
 
@@ -290,10 +289,18 @@ extern void xfs_buf_unlock(xfs_buf_t *);
 /* Buffer Read and Write Routines */
 extern int xfs_bwrite(struct xfs_buf *bp);
 extern void xfs_buf_ioend(struct xfs_buf *bp);
-extern void xfs_buf_ioerror(xfs_buf_t *, int);
+extern void __xfs_buf_ioerror(struct xfs_buf *bp, int error,
+		xfs_failaddr_t failaddr);
+#define xfs_buf_ioerror(bp, err) __xfs_buf_ioerror((bp), (err), __this_address)
 extern void xfs_buf_ioerror_alert(struct xfs_buf *, const char *func);
-extern void xfs_buf_submit(struct xfs_buf *bp);
-extern int xfs_buf_submit_wait(struct xfs_buf *bp);
+
+extern int __xfs_buf_submit(struct xfs_buf *bp, bool);
+static inline int xfs_buf_submit(struct xfs_buf *bp)
+{
+	bool wait = bp->b_flags & XBF_ASYNC ? false : true;
+	return __xfs_buf_submit(bp, wait);
+}
+
 extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 				xfs_buf_rw_t);
 #define xfs_buf_zero(bp, off, len) \
@@ -301,40 +308,18 @@ extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 
 /* Buffer Utility Routines */
 extern void *xfs_buf_offset(struct xfs_buf *, size_t);
+extern void xfs_buf_stale(struct xfs_buf *bp);
 
 /* Delayed Write Buffer Routines */
+extern void xfs_buf_delwri_cancel(struct list_head *);
 extern bool xfs_buf_delwri_queue(struct xfs_buf *, struct list_head *);
 extern int xfs_buf_delwri_submit(struct list_head *);
 extern int xfs_buf_delwri_submit_nowait(struct list_head *);
+extern int xfs_buf_delwri_pushbuf(struct xfs_buf *, struct list_head *);
 
 /* Buffer Daemon Setup Routines */
 extern int xfs_buf_init(void);
 extern void xfs_buf_terminate(void);
-
-#define XFS_BUF_ZEROFLAGS(bp) \
-	((bp)->b_flags &= ~(XBF_READ|XBF_WRITE|XBF_ASYNC| \
-			    XBF_SYNCIO|XBF_FUA|XBF_FLUSH| \
-			    XBF_WRITE_FAIL))
-
-void xfs_buf_stale(struct xfs_buf *bp);
-#define XFS_BUF_UNSTALE(bp)	((bp)->b_flags &= ~XBF_STALE)
-#define XFS_BUF_ISSTALE(bp)	((bp)->b_flags & XBF_STALE)
-
-#define XFS_BUF_DONE(bp)	((bp)->b_flags |= XBF_DONE)
-#define XFS_BUF_UNDONE(bp)	((bp)->b_flags &= ~XBF_DONE)
-#define XFS_BUF_ISDONE(bp)	((bp)->b_flags & XBF_DONE)
-
-#define XFS_BUF_ASYNC(bp)	((bp)->b_flags |= XBF_ASYNC)
-#define XFS_BUF_UNASYNC(bp)	((bp)->b_flags &= ~XBF_ASYNC)
-#define XFS_BUF_ISASYNC(bp)	((bp)->b_flags & XBF_ASYNC)
-
-#define XFS_BUF_READ(bp)	((bp)->b_flags |= XBF_READ)
-#define XFS_BUF_UNREAD(bp)	((bp)->b_flags &= ~XBF_READ)
-#define XFS_BUF_ISREAD(bp)	((bp)->b_flags & XBF_READ)
-
-#define XFS_BUF_WRITE(bp)	((bp)->b_flags |= XBF_WRITE)
-#define XFS_BUF_UNWRITE(bp)	((bp)->b_flags &= ~XBF_WRITE)
-#define XFS_BUF_ISWRITE(bp)	((bp)->b_flags & XBF_WRITE)
 
 /*
  * These macros use the IO block map rather than b_bn. b_bn is now really
@@ -349,9 +334,18 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_ADDR(bp)		((bp)->b_maps[0].bm_bn)
 #define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_maps[0].bm_bn = (xfs_daddr_t)(bno))
 
-static inline void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
+void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref);
+
+/*
+ * If the buffer is already on the LRU, do nothing. Otherwise set the buffer
+ * up with a reference count of 0 so it will be tossed from the cache when
+ * released.
+ */
+static inline void xfs_buf_oneshot(struct xfs_buf *bp)
 {
-	atomic_set(&bp->b_lru_ref, lru_ref);
+	if (!list_empty(&bp->b_lru) || atomic_read(&bp->b_lru_ref) > 1)
+		return;
+	atomic_set(&bp->b_lru_ref, 0);
 }
 
 static inline int xfs_buf_ispinned(struct xfs_buf *bp)
@@ -383,8 +377,8 @@ xfs_buf_update_cksum(struct xfs_buf *bp, unsigned long cksum_offset)
  *	Handling of buftargs.
  */
 extern xfs_buftarg_t *xfs_alloc_buftarg(struct xfs_mount *,
-			struct block_device *);
-extern void xfs_free_buftarg(struct xfs_mount *, struct xfs_buftarg *);
+			struct block_device *, struct dax_device *);
+extern void xfs_free_buftarg(struct xfs_buftarg *);
 extern void xfs_wait_buftarg(xfs_buftarg_t *);
 extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int);
 

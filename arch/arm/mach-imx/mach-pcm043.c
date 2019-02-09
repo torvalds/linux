@@ -24,7 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/platform_data/at24.h>
+#include <linux/property.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 
@@ -110,16 +110,15 @@ static const struct imxi2c_platform_data pcm043_i2c0_data __initconst = {
 	.bitrate = 50000,
 };
 
-static struct at24_platform_data board_eeprom = {
-	.byte_len = 4096,
-	.page_size = 32,
-	.flags = AT24_FLAG_ADDR16,
+static const struct property_entry board_eeprom_properties[] = {
+	PROPERTY_ENTRY_U32("pagesize", 32),
+	{ }
 };
 
 static struct i2c_board_info pcm043_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("at24", 0x52), /* E0=0, E1=1, E2=0 */
-		.platform_data = &board_eeprom,
+		I2C_BOARD_INFO("24c32", 0x52), /* E0=0, E1=1, E2=0 */
+		.properties = board_eeprom_properties,
 	}, {
 		I2C_BOARD_INFO("pcf8563", 0x51),
 	},
@@ -363,7 +362,6 @@ static void __init pcm043_init(void)
 
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&pcm037_nand_board_info);
-	imx35_add_imx_ssi(0, &pcm043_ssi_pdata);
 
 	imx35_add_imx_uart1(&uart_pdata);
 
@@ -387,6 +385,12 @@ static void __init pcm043_init(void)
 		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
 	imx35_add_flexcan1();
+}
+
+static void __init pcm043_late_init(void)
+{
+	imx35_add_imx_ssi(0, &pcm043_ssi_pdata);
+
 	imx35_add_sdhci_esdhc_imx(0, &sd1_pdata);
 }
 
@@ -402,6 +406,7 @@ MACHINE_START(PCM043, "Phytec Phycore pcm043")
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
 	.init_time = pcm043_timer_init,
-	.init_machine = pcm043_init,
+	.init_machine	= pcm043_init,
+	.init_late	= pcm043_late_init,
 	.restart	= mxc_restart,
 MACHINE_END

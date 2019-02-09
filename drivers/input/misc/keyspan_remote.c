@@ -17,11 +17,6 @@
 #include <linux/module.h>
 #include <linux/usb/input.h>
 
-#define DRIVER_VERSION	"v0.1"
-#define DRIVER_AUTHOR	"Michael Downey <downey@zymeta.com>"
-#define DRIVER_DESC	"Driver for the USB Keyspan remote control."
-#define DRIVER_LICENSE	"GPL"
-
 /* Parameters that can be passed to the driver. */
 static int debug;
 module_param(debug, int, 0444);
@@ -85,7 +80,7 @@ static const unsigned short keyspan_key_table[] = {
 };
 
 /* table of devices that work with this driver */
-static struct usb_device_id keyspan_table[] = {
+static const struct usb_device_id keyspan_table[] = {
 	{ USB_DEVICE(USB_KEYSPAN_VENDOR_ID, USB_KEYSPAN_PRODUCT_UIA11) },
 	{ }					/* Terminating entry */
 };
@@ -471,7 +466,7 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	remote->in_endpoint = endpoint;
 	remote->toggle = -1;	/* Set to -1 so we will always not match the toggle from the first remote message. */
 
-	remote->in_buffer = usb_alloc_coherent(udev, RECV_SIZE, GFP_ATOMIC, &remote->in_dma);
+	remote->in_buffer = usb_alloc_coherent(udev, RECV_SIZE, GFP_KERNEL, &remote->in_dma);
 	if (!remote->in_buffer) {
 		error = -ENOMEM;
 		goto fail1;
@@ -590,6 +585,6 @@ static struct usb_driver keyspan_driver =
 module_usb_driver(keyspan_driver);
 
 MODULE_DEVICE_TABLE(usb, keyspan_table);
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_AUTHOR("Michael Downey <downey@zymeta.com>");
+MODULE_DESCRIPTION("Driver for the USB Keyspan remote control.");
+MODULE_LICENSE("GPL");

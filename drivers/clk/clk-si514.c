@@ -74,6 +74,33 @@ static int si514_enable_output(struct clk_si514 *data, bool enable)
 		SI514_CONTROL_OE, enable ? SI514_CONTROL_OE : 0);
 }
 
+static int si514_prepare(struct clk_hw *hw)
+{
+	struct clk_si514 *data = to_clk_si514(hw);
+
+	return si514_enable_output(data, true);
+}
+
+static void si514_unprepare(struct clk_hw *hw)
+{
+	struct clk_si514 *data = to_clk_si514(hw);
+
+	si514_enable_output(data, false);
+}
+
+static int si514_is_prepared(struct clk_hw *hw)
+{
+	struct clk_si514 *data = to_clk_si514(hw);
+	unsigned int val;
+	int err;
+
+	err = regmap_read(data->regmap, SI514_REG_CONTROL, &val);
+	if (err < 0)
+		return err;
+
+	return !!(val & SI514_CONTROL_OE);
+}
+
 /* Retrieve clock multiplier and dividers from hardware */
 static int si514_get_muldiv(struct clk_si514 *data,
 	struct clk_si514_muldiv *settings)
@@ -235,9 +262,14 @@ static int si514_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_si514 *data = to_clk_si514(hw);
 	struct clk_si514_muldiv settings;
+	unsigned int old_oe_state;
 	int err;
 
 	err = si514_calc_muldiv(&settings, rate);
+	if (err)
+		return err;
+
+	err = regmap_read(data->regmap, SI514_REG_CONTROL, &old_oe_state);
 	if (err)
 		return err;
 
@@ -255,12 +287,16 @@ static int si514_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* Applying a new frequency can take up to 10ms */
 	usleep_range(10000, 12000);
 
-	si514_enable_output(data, true);
+	if (old_oe_state & SI514_CONTROL_OE)
+		si514_enable_output(data, true);
 
 	return err;
 }
 
 static const struct clk_ops si514_clk_ops = {
+	.prepare = si514_prepare,
+	.unprepare = si514_unprepare,
+	.is_prepared = si514_is_prepared,
 	.recalc_rate = si514_recalc_rate,
 	.round_rate = si514_round_rate,
 	.set_rate = si514_set_rate,
@@ -305,7 +341,6 @@ static int si514_probe(struct i2c_client *client,
 {
 	struct clk_si514 *data;
 	struct clk_init_data init;
-	struct clk *clk;
 	int err;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
@@ -313,7 +348,7 @@ static int si514_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	init.ops = &si514_clk_ops;
-	init.flags = CLK_IS_ROOT;
+	init.flags = 0;
 	init.num_parents = 0;
 	data->hw.init = &init;
 	data->i2c_client = client;
@@ -330,13 +365,13 @@ static int si514_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 
-	clk = devm_clk_register(&client->dev, &data->hw);
-	if (IS_ERR(clk)) {
+	err = devm_clk_hw_register(&client->dev, &data->hw);
+	if (err) {
 		dev_err(&client->dev, "clock registration failed\n");
-		return PTR_ERR(clk);
+		return err;
 	}
-	err = of_clk_add_provider(client->dev.of_node, of_clk_src_simple_get,
-			clk);
+	err = of_clk_add_hw_provider(client->dev.of_node, of_clk_hw_simple_get,
+				     &data->hw);
 	if (err) {
 		dev_err(&client->dev, "unable to add clk provider\n");
 		return err;

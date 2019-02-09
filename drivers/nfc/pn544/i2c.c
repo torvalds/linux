@@ -21,17 +21,13 @@
 #include <linux/crc-ccitt.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
-#include <linux/of_irq.h>
 #include <linux/acpi.h>
-#include <linux/miscdevice.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
-#include <linux/platform_data/pn544.h>
+
 #include <asm/unaligned.h>
 
 #include <net/nfc/hci.h>
@@ -58,7 +54,7 @@
 #define PN544_HCI_I2C_LLC_MAX_SIZE	(PN544_HCI_I2C_LLC_LEN_CRC + 1 + \
 					 PN544_HCI_I2C_LLC_MAX_PAYLOAD)
 
-static struct i2c_device_id pn544_hci_i2c_id_table[] = {
+static const struct i2c_device_id pn544_hci_i2c_id_table[] = {
 	{"pn544", 0},
 	{}
 };
@@ -165,9 +161,9 @@ struct pn544_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct nfc_hci_dev *hdev;
 
-	unsigned int gpio_en;
-	unsigned int gpio_irq;
-	unsigned int gpio_fw;
+	struct gpio_desc *gpiod_en;
+	struct gpio_desc *gpiod_fw;
+
 	unsigned int en_polarity;
 
 	u8 hw_variant;
@@ -209,19 +205,18 @@ static void pn544_hci_i2c_platform_init(struct pn544_i2c_phy *phy)
 	nfc_info(&phy->i2c_dev->dev, "Detecting nfc_en polarity\n");
 
 	/* Disable fw download */
-	gpio_set_value_cansleep(phy->gpio_fw, 0);
+	gpiod_set_value_cansleep(phy->gpiod_fw, 0);
 
 	for (polarity = 0; polarity < 2; polarity++) {
 		phy->en_polarity = polarity;
 		retry = 3;
 		while (retry--) {
 			/* power off */
-			gpio_set_value_cansleep(phy->gpio_en,
-						!phy->en_polarity);
+			gpiod_set_value_cansleep(phy->gpiod_en, !phy->en_polarity);
 			usleep_range(10000, 15000);
 
 			/* power on */
-			gpio_set_value_cansleep(phy->gpio_en, phy->en_polarity);
+			gpiod_set_value_cansleep(phy->gpiod_en, phy->en_polarity);
 			usleep_range(10000, 15000);
 
 			/* send reset */
@@ -240,14 +235,13 @@ static void pn544_hci_i2c_platform_init(struct pn544_i2c_phy *phy)
 		"Could not detect nfc_en polarity, fallback to active high\n");
 
 out:
-	gpio_set_value_cansleep(phy->gpio_en, !phy->en_polarity);
+	gpiod_set_value_cansleep(phy->gpiod_en, !phy->en_polarity);
 }
 
 static void pn544_hci_i2c_enable_mode(struct pn544_i2c_phy *phy, int run_mode)
 {
-	gpio_set_value_cansleep(phy->gpio_fw,
-				run_mode == PN544_FW_MODE ? 1 : 0);
-	gpio_set_value_cansleep(phy->gpio_en, phy->en_polarity);
+	gpiod_set_value_cansleep(phy->gpiod_fw, run_mode == PN544_FW_MODE ? 1 : 0);
+	gpiod_set_value_cansleep(phy->gpiod_en, phy->en_polarity);
 	usleep_range(10000, 15000);
 
 	phy->run_mode = run_mode;
@@ -270,14 +264,14 @@ static void pn544_hci_i2c_disable(void *phy_id)
 {
 	struct pn544_i2c_phy *phy = phy_id;
 
-	gpio_set_value_cansleep(phy->gpio_fw, 0);
-	gpio_set_value_cansleep(phy->gpio_en, !phy->en_polarity);
+	gpiod_set_value_cansleep(phy->gpiod_fw, 0);
+	gpiod_set_value_cansleep(phy->gpiod_en, !phy->en_polarity);
 	usleep_range(10000, 15000);
 
-	gpio_set_value_cansleep(phy->gpio_en, phy->en_polarity);
+	gpiod_set_value_cansleep(phy->gpiod_en, phy->en_polarity);
 	usleep_range(10000, 15000);
 
-	gpio_set_value_cansleep(phy->gpio_en, !phy->en_polarity);
+	gpiod_set_value_cansleep(phy->gpiod_en, !phy->en_polarity);
 	usleep_range(10000, 15000);
 
 	phy->powered = 0;
@@ -289,12 +283,12 @@ static void pn544_hci_i2c_add_len_crc(struct sk_buff *skb)
 	int len;
 
 	len = skb->len + 2;
-	*skb_push(skb, 1) = len;
+	*(u8 *)skb_push(skb, 1) = len;
 
 	crc = crc_ccitt(0xffff, skb->data, skb->len);
 	crc = ~crc;
-	*skb_put(skb, 1) = crc & 0xff;
-	*skb_put(skb, 1) = crc >> 8;
+	skb_put_u8(skb, crc & 0xff);
+	skb_put_u8(skb, crc >> 8);
 }
 
 static void pn544_hci_i2c_remove_len_crc(struct sk_buff *skb)
@@ -397,7 +391,7 @@ static int pn544_hci_i2c_read(struct pn544_i2c_phy *phy, struct sk_buff **skb)
 		goto flush;
 	}
 
-	*skb_put(*skb, 1) = len;
+	skb_put_u8(*skb, len);
 
 	r = i2c_master_recv(client, skb_put(*skb, len), len);
 	if (r != len) {
@@ -875,160 +869,20 @@ exit_state_wait_secure_write_answer:
 	}
 }
 
-static int pn544_hci_i2c_acpi_request_resources(struct i2c_client *client)
-{
-	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
-	const struct acpi_device_id *id;
-	struct gpio_desc *gpiod_en, *gpiod_irq, *gpiod_fw;
-	struct device *dev;
-	int ret;
+static const struct acpi_gpio_params enable_gpios = { 1, 0, false };
+static const struct acpi_gpio_params firmware_gpios = { 2, 0, false };
 
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* Match the struct device against a given list of ACPI IDs */
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-
-	if (!id)
-		return -ENODEV;
-
-	/* Get EN GPIO from ACPI */
-	gpiod_en = devm_gpiod_get_index(dev, PN544_GPIO_NAME_EN, 1,
-					GPIOD_OUT_LOW);
-	if (IS_ERR(gpiod_en)) {
-		nfc_err(dev, "Unable to get EN GPIO\n");
-		return -ENODEV;
-	}
-
-	phy->gpio_en = desc_to_gpio(gpiod_en);
-
-	/* Get FW GPIO from ACPI */
-	gpiod_fw = devm_gpiod_get_index(dev, PN544_GPIO_NAME_FW, 2,
-					GPIOD_OUT_LOW);
-	if (IS_ERR(gpiod_fw)) {
-		nfc_err(dev, "Unable to get FW GPIO\n");
-		return -ENODEV;
-	}
-
-	phy->gpio_fw = desc_to_gpio(gpiod_fw);
-
-	/* Get IRQ GPIO */
-	gpiod_irq = devm_gpiod_get_index(dev, PN544_GPIO_NAME_IRQ, 0,
-					 GPIOD_IN);
-	if (IS_ERR(gpiod_irq)) {
-		nfc_err(dev, "Unable to get IRQ GPIO\n");
-		return -ENODEV;
-	}
-
-	phy->gpio_irq = desc_to_gpio(gpiod_irq);
-
-	/* Map the pin to an IRQ */
-	ret = gpiod_to_irq(gpiod_irq);
-	if (ret < 0) {
-		nfc_err(dev, "Fail pin IRQ mapping\n");
-		return ret;
-	}
-
-	nfc_info(dev, "GPIO resource, no:%d irq:%d\n",
-		 desc_to_gpio(gpiod_irq), ret);
-	client->irq = ret;
-
-	return 0;
-}
-
-#ifdef CONFIG_OF
-
-static int pn544_hci_i2c_of_request_resources(struct i2c_client *client)
-{
-	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
-	struct device_node *pp;
-	int ret;
-
-	pp = client->dev.of_node;
-	if (!pp) {
-		ret = -ENODEV;
-		goto err_dt;
-	}
-
-	/* Obtention of EN GPIO from device tree */
-	ret = of_get_named_gpio(pp, "enable-gpios", 0);
-	if (ret < 0) {
-		if (ret != -EPROBE_DEFER)
-			nfc_err(&client->dev,
-				"Failed to get EN gpio, error: %d\n", ret);
-		goto err_dt;
-	}
-	phy->gpio_en = ret;
-
-	/* Configuration of EN GPIO */
-	ret = gpio_request(phy->gpio_en, PN544_GPIO_NAME_EN);
-	if (ret) {
-		nfc_err(&client->dev, "Fail EN pin\n");
-		goto err_dt;
-	}
-	ret = gpio_direction_output(phy->gpio_en, 0);
-	if (ret) {
-		nfc_err(&client->dev, "Fail EN pin direction\n");
-		goto err_gpio_en;
-	}
-
-	/* Obtention of FW GPIO from device tree */
-	ret = of_get_named_gpio(pp, "firmware-gpios", 0);
-	if (ret < 0) {
-		if (ret != -EPROBE_DEFER)
-			nfc_err(&client->dev,
-				"Failed to get FW gpio, error: %d\n", ret);
-		goto err_gpio_en;
-	}
-	phy->gpio_fw = ret;
-
-	/* Configuration of FW GPIO */
-	ret = gpio_request(phy->gpio_fw, PN544_GPIO_NAME_FW);
-	if (ret) {
-		nfc_err(&client->dev, "Fail FW pin\n");
-		goto err_gpio_en;
-	}
-	ret = gpio_direction_output(phy->gpio_fw, 0);
-	if (ret) {
-		nfc_err(&client->dev, "Fail FW pin direction\n");
-		goto err_gpio_fw;
-	}
-
-	/* IRQ */
-	ret = irq_of_parse_and_map(pp, 0);
-	if (ret < 0) {
-		nfc_err(&client->dev,
-			"Unable to get irq, error: %d\n", ret);
-		goto err_gpio_fw;
-	}
-	client->irq = ret;
-
-	return 0;
-
-err_gpio_fw:
-	gpio_free(phy->gpio_fw);
-err_gpio_en:
-	gpio_free(phy->gpio_en);
-err_dt:
-	return ret;
-}
-
-#else
-
-static int pn544_hci_i2c_of_request_resources(struct i2c_client *client)
-{
-	return -ENODEV;
-}
-
-#endif
+static const struct acpi_gpio_mapping acpi_pn544_gpios[] = {
+	{ "enable-gpios", &enable_gpios, 1 },
+	{ "firmware-gpios", &firmware_gpios, 1 },
+	{ },
+};
 
 static int pn544_hci_i2c_probe(struct i2c_client *client,
 			       const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct pn544_i2c_phy *phy;
-	struct pn544_nfc_platform_data *pdata;
 	int r = 0;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
@@ -1050,54 +904,33 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
 
-	pdata = client->dev.platform_data;
+	r = devm_acpi_dev_add_driver_gpios(dev, acpi_pn544_gpios);
+	if (r)
+		dev_dbg(dev, "Unable to add GPIO mapping table\n");
 
-	/* No platform data, using device tree. */
-	if (!pdata && client->dev.of_node) {
-		r = pn544_hci_i2c_of_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev, "No DT data\n");
-			return r;
-		}
-	/* Using platform data. */
-	} else if (pdata) {
+	/* Get EN GPIO */
+	phy->gpiod_en = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
+	if (IS_ERR(phy->gpiod_en)) {
+		nfc_err(dev, "Unable to get EN GPIO\n");
+		return PTR_ERR(phy->gpiod_en);
+	}
 
-		if (pdata->request_resources == NULL) {
-			nfc_err(&client->dev, "request_resources() missing\n");
-			return -EINVAL;
-		}
-
-		r = pdata->request_resources(client);
-		if (r) {
-			nfc_err(&client->dev,
-				"Cannot get platform resources\n");
-			return r;
-		}
-
-		phy->gpio_en = pdata->get_gpio(NFC_GPIO_ENABLE);
-		phy->gpio_fw = pdata->get_gpio(NFC_GPIO_FW_RESET);
-		phy->gpio_irq = pdata->get_gpio(NFC_GPIO_IRQ);
-	/* Using ACPI */
-	} else if (ACPI_HANDLE(&client->dev)) {
-		r = pn544_hci_i2c_acpi_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev,
-				"Cannot get ACPI data\n");
-			return r;
-		}
-	} else {
-		nfc_err(&client->dev, "No platform data\n");
-		return -EINVAL;
+	/* Get FW GPIO */
+	phy->gpiod_fw = devm_gpiod_get(dev, "firmware", GPIOD_OUT_LOW);
+	if (IS_ERR(phy->gpiod_fw)) {
+		nfc_err(dev, "Unable to get FW GPIO\n");
+		return PTR_ERR(phy->gpiod_fw);
 	}
 
 	pn544_hci_i2c_platform_init(phy);
 
-	r = request_threaded_irq(client->irq, NULL, pn544_hci_i2c_irq_thread_fn,
-				 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				 PN544_HCI_I2C_DRIVER_NAME, phy);
+	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+				      pn544_hci_i2c_irq_thread_fn,
+				      IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				      PN544_HCI_I2C_DRIVER_NAME, phy);
 	if (r < 0) {
 		nfc_err(&client->dev, "Unable to register IRQ handler\n");
-		goto err_rti;
+		return r;
 	}
 
 	r = pn544_hci_probe(phy, &i2c_phy_ops, LLC_SHDLC_NAME,
@@ -1105,28 +938,14 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 			    PN544_HCI_I2C_LLC_MAX_PAYLOAD,
 			    pn544_hci_i2c_fw_download, &phy->hdev);
 	if (r < 0)
-		goto err_hci;
+		return r;
 
 	return 0;
-
-err_hci:
-	free_irq(client->irq, phy);
-
-err_rti:
-	if (!pdata) {
-		gpio_free(phy->gpio_en);
-		gpio_free(phy->gpio_fw);
-	} else if (pdata->free_resources) {
-		pdata->free_resources();
-	}
-
-	return r;
 }
 
 static int pn544_hci_i2c_remove(struct i2c_client *client)
 {
 	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
-	struct pn544_nfc_platform_data *pdata = client->dev.platform_data;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -1138,17 +957,6 @@ static int pn544_hci_i2c_remove(struct i2c_client *client)
 
 	if (phy->powered)
 		pn544_hci_i2c_disable(phy);
-
-	free_irq(client->irq, phy);
-
-	/* No platform data, GPIOs have been requested by this driver */
-	if (!pdata) {
-		gpio_free(phy->gpio_en);
-		gpio_free(phy->gpio_fw);
-	/* Using platform data */
-	} else if (pdata->free_resources) {
-		pdata->free_resources();
-	}
 
 	return 0;
 }
@@ -1162,7 +970,6 @@ MODULE_DEVICE_TABLE(of, of_pn544_i2c_match);
 static struct i2c_driver pn544_hci_i2c_driver = {
 	.driver = {
 		   .name = PN544_HCI_I2C_DRIVER_NAME,
-		   .owner  = THIS_MODULE,
 		   .of_match_table = of_match_ptr(of_pn544_i2c_match),
 		   .acpi_match_table = ACPI_PTR(pn544_hci_i2c_acpi_match),
 		  },

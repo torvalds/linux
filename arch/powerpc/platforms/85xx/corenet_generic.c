@@ -27,7 +27,7 @@
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/ehv_pic.h>
-#include <asm/qe_ic.h>
+#include <soc/fsl/qe/qe_ic.h>
 
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
@@ -117,9 +117,6 @@ static const struct of_device_id of_device_ids[] = {
 	{
 		.compatible	= "fsl,qe",
 	},
-	{
-		.compatible    = "fsl,fman",
-	},
 	/* The following two are for the Freescale hypervisor */
 	{
 		.name		= "hypervisor",
@@ -160,6 +157,7 @@ static const char * const boards[] __initconst = {
 	"fsl,T1040RDB",
 	"fsl,T1042RDB",
 	"fsl,T1042RDB_PI",
+	"keymile,kmcent2",
 	"keymile,kmcoge4",
 	"varisys,CYRUS",
 	NULL
@@ -170,20 +168,19 @@ static const char * const boards[] __initconst = {
  */
 static int __init corenet_generic_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
 	char hv_compat[24];
 	int i;
 #ifdef CONFIG_SMP
 	extern struct smp_ops_t smp_85xx_ops;
 #endif
 
-	if (of_flat_dt_match(root, boards))
+	if (of_device_compatible_match(of_root, boards))
 		return 1;
 
 	/* Check if we're running under the Freescale hypervisor */
 	for (i = 0; boards[i]; i++) {
 		snprintf(hv_compat, sizeof(hv_compat), "%s-hv", boards[i]);
-		if (of_flat_dt_is_compatible(root, hv_compat)) {
+		if (of_machine_is_compatible(hv_compat)) {
 			ppc_md.init_IRQ = ehv_pic_init;
 
 			ppc_md.get_irq = ehv_pic_get_irq;
@@ -221,12 +218,11 @@ define_machine(corenet_generic) {
  *
  * Likewise, problems have been seen with kexec when coreint is enabled.
  */
-#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC)
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC_CORE)
 	.get_irq		= mpic_get_irq,
 #else
 	.get_irq		= mpic_get_coreint_irq,
 #endif
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 #ifdef CONFIG_PPC64

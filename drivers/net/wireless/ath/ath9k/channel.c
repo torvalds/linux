@@ -29,6 +29,7 @@ static int ath_set_channel(struct ath_softc *sc)
 	struct cfg80211_chan_def *chandef = &sc->cur_chan->chandef;
 	struct ieee80211_channel *chan = chandef->chan;
 	int pos = chan->hw_value;
+	unsigned long flags;
 	int old_pos = -1;
 	int r;
 
@@ -42,9 +43,9 @@ static int ath_set_channel(struct ath_softc *sc)
 		chan->center_freq, chandef->width);
 
 	/* update survey stats for the old channel before switching */
-	spin_lock_bh(&common->cc_lock);
+	spin_lock_irqsave(&common->cc_lock, flags);
 	ath_update_survey_stats(sc);
-	spin_unlock_bh(&common->cc_lock);
+	spin_unlock_irqrestore(&common->cc_lock, flags);
 
 	ath9k_cmn_get_channel(hw, ah, chandef);
 
@@ -107,9 +108,9 @@ void ath_chanctx_init(struct ath_softc *sc)
 	struct ieee80211_channel *chan;
 	int i, j;
 
-	sband = &common->sbands[IEEE80211_BAND_2GHZ];
+	sband = &common->sbands[NL80211_BAND_2GHZ];
 	if (!sband->n_channels)
-		sband = &common->sbands[IEEE80211_BAND_5GHZ];
+		sband = &common->sbands[NL80211_BAND_5GHZ];
 
 	chan = &sband->channels[0];
 	for (i = 0; i < ATH9K_NUM_CHANCTX; i++) {
@@ -118,8 +119,11 @@ void ath_chanctx_init(struct ath_softc *sc)
 		INIT_LIST_HEAD(&ctx->vifs);
 		ctx->txpower = ATH_TXPOWER_MAX;
 		ctx->flush_timeout = HZ / 5; /* 200ms */
-		for (j = 0; j < ARRAY_SIZE(ctx->acq); j++)
-			INIT_LIST_HEAD(&ctx->acq[j]);
+		for (j = 0; j < ARRAY_SIZE(ctx->acq); j++) {
+			INIT_LIST_HEAD(&ctx->acq[j].acq_new);
+			INIT_LIST_HEAD(&ctx->acq[j].acq_old);
+			spin_lock_init(&ctx->acq[j].lock);
+		}
 	}
 }
 
@@ -226,6 +230,20 @@ static const char *chanctx_state_string(enum ath_chanctx_state state)
 	}
 }
 
+static u32 chanctx_event_delta(struct ath_softc *sc)
+{
+	u64 ms;
+	struct timespec64 ts, *old;
+
+	ktime_get_raw_ts64(&ts);
+	old = &sc->last_event_time;
+	ms = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+	ms -= old->tv_sec * 1000 + old->tv_nsec / 1000000;
+	sc->last_event_time = ts;
+
+	return (u32)ms;
+}
+
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -316,7 +334,7 @@ ath_chanctx_get_next(struct ath_softc *sc, struct ath_chanctx *ctx)
 static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
 {
 	struct ath_chanctx *prev, *cur;
-	struct timespec ts;
+	struct timespec64 ts;
 	u32 cur_tsf, prev_tsf, beacon_int;
 	s32 offset;
 
@@ -328,7 +346,7 @@ static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
 	if (!prev->switch_after_beacon)
 		return;
 
-	getrawmonotonic(&ts);
+	ktime_get_raw_ts64(&ts);
 	cur_tsf = (u32) cur->tsf_val +
 		  ath9k_hw_get_tsf_offset(&cur->tsf_ts, &ts);
 
@@ -356,14 +374,16 @@ static void ath_chanctx_setup_timer(struct ath_softc *sc, u32 tsf_time)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
+	unsigned long timeout;
 
 	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, tsf_time, 1000000);
 	tsf_time -= ath9k_hw_gettsf32(ah);
-	tsf_time = msecs_to_jiffies(tsf_time / 1000) + 1;
-	mod_timer(&sc->sched.timer, jiffies + tsf_time);
+	timeout = msecs_to_jiffies(tsf_time / 1000) + 1;
+	mod_timer(&sc->sched.timer, jiffies + timeout);
 
 	ath_dbg(common, CHAN_CTX,
-		"Setup chanctx timer with timeout: %d ms\n", jiffies_to_msecs(tsf_time));
+		"Setup chanctx timer with timeout: %d (%d) ms\n",
+		tsf_time / 1000, jiffies_to_msecs(timeout));
 }
 
 static void ath_chanctx_handle_bmiss(struct ath_softc *sc,
@@ -403,7 +423,7 @@ static void ath_chanctx_offchannel_noa(struct ath_softc *sc,
 	avp->offchannel_duration = sc->sched.offchannel_duration;
 
 	ath_dbg(common, CHAN_CTX,
-		"offchannel noa_duration: %d, noa_start: %d, noa_index: %d\n",
+		"offchannel noa_duration: %d, noa_start: %u, noa_index: %d\n",
 		avp->offchannel_duration,
 		avp->offchannel_start,
 		avp->noa_index);
@@ -443,7 +463,7 @@ static void ath_chanctx_set_periodic_noa(struct ath_softc *sc,
 		avp->periodic_noa = true;
 
 	ath_dbg(common, CHAN_CTX,
-		"noa_duration: %d, noa_start: %d, noa_index: %d, periodic: %d\n",
+		"noa_duration: %d, noa_start: %u, noa_index: %d, periodic: %d\n",
 		avp->noa_duration,
 		avp->noa_start,
 		avp->noa_index,
@@ -464,7 +484,7 @@ static void ath_chanctx_set_oneshot_noa(struct ath_softc *sc,
 	avp->noa_duration = duration + sc->sched.channel_switch_time;
 
 	ath_dbg(common, CHAN_CTX,
-		"oneshot noa_duration: %d, noa_start: %d, noa_index: %d, periodic: %d\n",
+		"oneshot noa_duration: %d, noa_start: %u, noa_index: %d, periodic: %d\n",
 		avp->noa_duration,
 		avp->noa_start,
 		avp->noa_index,
@@ -487,10 +507,11 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 
 	spin_lock_bh(&sc->chan_lock);
 
-	ath_dbg(common, CHAN_CTX, "cur_chan: %d MHz, event: %s, state: %s\n",
+	ath_dbg(common, CHAN_CTX, "cur_chan: %d MHz, event: %s, state: %s, delta: %u ms\n",
 		sc->cur_chan->chandef.center_freq1,
 		chanctx_event_string(ev),
-		chanctx_state_string(sc->sched.state));
+		chanctx_state_string(sc->sched.state),
+		chanctx_event_delta(sc));
 
 	switch (ev) {
 	case ATH_CHANCTX_EVENT_BEACON_PREPARE:
@@ -943,6 +964,9 @@ void ath_roc_complete(struct ath_softc *sc, enum ath_roc_complete_reason reason)
 void ath_scan_complete(struct ath_softc *sc, bool abort)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct cfg80211_scan_info info = {
+		.aborted = abort,
+	};
 
 	if (abort)
 		ath_dbg(common, CHAN_CTX, "HW scan aborted\n");
@@ -952,7 +976,7 @@ void ath_scan_complete(struct ath_softc *sc, bool abort)
 	sc->offchannel.scan_req = NULL;
 	sc->offchannel.scan_vif = NULL;
 	sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
-	ieee80211_scan_completed(sc->hw, abort);
+	ieee80211_scan_completed(sc->hw, &info);
 	clear_bit(ATH_OP_SCANNING, &common->op_flags);
 	spin_lock_bh(&sc->chan_lock);
 	if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
@@ -982,7 +1006,7 @@ static void ath_scan_send_probe(struct ath_softc *sc,
 		info->flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 
 	if (req->ie_len)
-		memcpy(skb_put(skb, req->ie_len), req->ie, req->ie_len);
+		skb_put_data(skb, req->ie, req->ie_len);
 
 	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
 
@@ -990,7 +1014,6 @@ static void ath_scan_send_probe(struct ath_softc *sc,
 		goto error;
 
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
-	txctl.force_channel = true;
 	if (ath_tx_start(sc->hw, skb, &txctl))
 		goto error;
 
@@ -1020,9 +1043,9 @@ static void ath_scan_channel_start(struct ath_softc *sc)
 	mod_timer(&sc->offchannel.timer, jiffies + sc->offchannel.duration);
 }
 
-static void ath_chanctx_timer(unsigned long data)
+static void ath_chanctx_timer(struct timer_list *t)
 {
-	struct ath_softc *sc = (struct ath_softc *) data;
+	struct ath_softc *sc = from_timer(sc, t, sched.timer);
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	ath_dbg(common, CHAN_CTX,
@@ -1031,9 +1054,9 @@ static void ath_chanctx_timer(unsigned long data)
 	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_TSF_TIMER);
 }
 
-static void ath_offchannel_timer(unsigned long data)
+static void ath_offchannel_timer(struct timer_list *t)
 {
-	struct ath_softc *sc = (struct ath_softc *)data;
+	struct ath_softc *sc = from_timer(sc, t, offchannel.timer);
 	struct ath_chanctx *ctx;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
@@ -1090,7 +1113,7 @@ ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
 		if (!avp->assoc)
 			return false;
 
-		skb = ieee80211_nullfunc_get(sc->hw, vif);
+		skb = ieee80211_nullfunc_get(sc->hw, vif, false);
 		if (!skb)
 			return false;
 
@@ -1099,6 +1122,7 @@ ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
 			nullfunc->frame_control |=
 				cpu_to_le16(IEEE80211_FCTL_PM);
 
+		skb->priority = 7;
 		skb_set_queue_mapping(skb, IEEE80211_AC_VO);
 		if (!ieee80211_tx_prepare_skb(sc->hw, vif, skb, band, &sta)) {
 			dev_kfree_skb_any(skb);
@@ -1112,7 +1136,6 @@ ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
 	memset(&txctl, 0, sizeof(txctl));
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
 	txctl.sta = sta;
-	txctl.force_channel = true;
 	if (ath_tx_start(sc->hw, skb, &txctl)) {
 		ieee80211_free_txskb(sc->hw, skb);
 		return false;
@@ -1207,7 +1230,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_chanctx *old_ctx;
-	struct timespec ts;
+	struct timespec64 ts;
 	bool measure_time = false;
 	bool send_ps = false;
 	bool queues_stopped = false;
@@ -1237,7 +1260,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		spin_unlock_bh(&sc->chan_lock);
 
 		if (sc->next_chan == &sc->offchannel.chan) {
-			getrawmonotonic(&ts);
+			ktime_get_raw_ts64(&ts);
 			measure_time = true;
 		}
 
@@ -1254,7 +1277,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		spin_lock_bh(&sc->chan_lock);
 
 		if (sc->cur_chan != &sc->offchannel.chan) {
-			getrawmonotonic(&sc->cur_chan->tsf_ts);
+			ktime_get_raw_ts64(&sc->cur_chan->tsf_ts);
 			sc->cur_chan->tsf_val = ath9k_hw_gettsf64(sc->sc_ah);
 		}
 	}
@@ -1315,9 +1338,9 @@ void ath9k_offchannel_init(struct ath_softc *sc)
 	struct ieee80211_channel *chan;
 	int i;
 
-	sband = &common->sbands[IEEE80211_BAND_2GHZ];
+	sband = &common->sbands[NL80211_BAND_2GHZ];
 	if (!sband->n_channels)
-		sband = &common->sbands[IEEE80211_BAND_5GHZ];
+		sband = &common->sbands[NL80211_BAND_5GHZ];
 
 	chan = &sband->channels[0];
 
@@ -1326,8 +1349,11 @@ void ath9k_offchannel_init(struct ath_softc *sc)
 	ctx->txpower = ATH_TXPOWER_MAX;
 	cfg80211_chandef_create(&ctx->chandef, chan, NL80211_CHAN_HT20);
 
-	for (i = 0; i < ARRAY_SIZE(ctx->acq); i++)
-		INIT_LIST_HEAD(&ctx->acq[i]);
+	for (i = 0; i < ARRAY_SIZE(ctx->acq); i++) {
+		INIT_LIST_HEAD(&ctx->acq[i].acq_new);
+		INIT_LIST_HEAD(&ctx->acq[i].acq_old);
+		spin_lock_init(&ctx->acq[i].lock);
+	}
 
 	sc->offchannel.chan.offchannel = true;
 }
@@ -1336,10 +1362,8 @@ void ath9k_init_channel_context(struct ath_softc *sc)
 {
 	INIT_WORK(&sc->chanctx_work, ath_chanctx_work);
 
-	setup_timer(&sc->offchannel.timer, ath_offchannel_timer,
-		    (unsigned long)sc);
-	setup_timer(&sc->sched.timer, ath_chanctx_timer,
-		    (unsigned long)sc);
+	timer_setup(&sc->offchannel.timer, ath_offchannel_timer, 0);
+	timer_setup(&sc->sched.timer, ath_chanctx_timer, 0);
 
 	init_completion(&sc->go_beacon);
 }
@@ -1401,8 +1425,9 @@ void ath9k_chanctx_wake_queues(struct ath_softc *sc, struct ath_chanctx *ctx)
 
 static void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
-	s32 tsf, target_tsf;
+	u32 tsf, target_tsf;
 
 	if (!avp || !avp->noa.has_next_tsf)
 		return;
@@ -1414,11 +1439,17 @@ static void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 	target_tsf = avp->noa.next_tsf;
 	if (!avp->noa.absent)
 		target_tsf -= ATH_P2P_PS_STOP_TIME;
+	else
+		target_tsf += ATH_P2P_PS_STOP_TIME;
 
 	if (target_tsf - tsf < ATH_P2P_PS_STOP_TIME)
 		target_tsf = tsf + ATH_P2P_PS_STOP_TIME;
 
-	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, (u32) target_tsf, 1000000);
+	ath_dbg(common, CHAN_CTX, "%s absent %d tsf 0x%08X next_tsf 0x%08X (%dms)\n",
+		__func__, avp->noa.absent, tsf, target_tsf,
+		(target_tsf - tsf) / 1000);
+
+	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, target_tsf, 1000000);
 }
 
 static void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
@@ -1429,10 +1460,14 @@ static void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
 	if (!sc->p2p_ps_timer)
 		return;
 
-	if (vif->type != NL80211_IFTYPE_STATION || !vif->p2p)
+	if (vif->type != NL80211_IFTYPE_STATION)
 		return;
 
 	sc->p2p_ps_vif = avp;
+
+	if (sc->ps_flags & PS_BEACON_SYNC)
+		return;
+
 	tsf = ath9k_hw_gettsf32(sc->sc_ah);
 	ieee80211_parse_p2p_noa(&vif->bss_conf.p2p_noa_attr, &avp->noa, tsf);
 	ath9k_update_p2p_ps_timer(sc, avp);
@@ -1485,16 +1520,16 @@ void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 	noa_desc = !!avp->offchannel_duration + !!avp->noa_duration;
 	noa_len = 2 + sizeof(struct ieee80211_p2p_noa_desc) * noa_desc;
 
-	hdr = skb_put(skb, sizeof(noa_ie_hdr));
-	memcpy(hdr, noa_ie_hdr, sizeof(noa_ie_hdr));
+	hdr = skb_put_data(skb, noa_ie_hdr, sizeof(noa_ie_hdr));
 	hdr[1] = sizeof(noa_ie_hdr) + noa_len - 2;
 	hdr[7] = noa_len;
 
-	noa = (void *) skb_put(skb, noa_len);
-	memset(noa, 0, noa_len);
+	noa = skb_put_zero(skb, noa_len);
 
 	noa->index = avp->noa_index;
 	noa->oppps_ctwindow = ath9k_get_ctwin(sc, avp);
+	if (noa->oppps_ctwindow)
+		noa->oppps_ctwindow |= BIT(7);
 
 	if (avp->noa_duration) {
 		if (avp->periodic_noa) {
@@ -1536,6 +1571,8 @@ void ath9k_p2p_ps_timer(void *priv)
 	tsf = ath9k_hw_gettsf32(sc->sc_ah);
 	if (!avp->noa.absent)
 		tsf += ATH_P2P_PS_STOP_TIME;
+	else
+		tsf -= ATH_P2P_PS_STOP_TIME;
 
 	if (!avp->noa.has_next_tsf ||
 	    avp->noa.next_tsf - tsf > BIT(31))
@@ -1571,8 +1608,7 @@ void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
-	if (!(sc->ps_flags & PS_BEACON_SYNC))
-		ath9k_update_p2p_ps(sc, vif);
+	ath9k_update_p2p_ps(sc, vif);
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 	spin_unlock_bh(&sc->sc_pcu_lock);
 }

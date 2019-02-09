@@ -20,7 +20,7 @@ static int mx35_read_cpu_rev(void)
 {
 	u32 rev;
 
-	rev = __raw_readl(MX35_IO_ADDRESS(MX35_IIM_BASE_ADDR + MXC_IIMSREV));
+	rev = imx_readl(MX35_IO_ADDRESS(MX35_IIM_BASE_ADDR + MXC_IIMSREV));
 	switch (rev) {
 	case 0x00:
 		return IMX_CHIP_REVISION_1_0;

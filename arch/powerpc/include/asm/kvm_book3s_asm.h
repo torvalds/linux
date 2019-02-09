@@ -81,7 +81,17 @@ struct kvm_split_mode {
 	u8		subcore_size;
 	u8		do_nap;
 	u8		napped[MAX_SMT_THREADS];
-	struct kvmppc_vcore *master_vcs[MAX_SUBCORES];
+	struct kvmppc_vcore *vc[MAX_SUBCORES];
+	/* Bits for changing lpcr on P9 */
+	unsigned long	lpcr_req;
+	unsigned long	lpidr_req;
+	unsigned long	host_lpcr;
+	u32		do_set;
+	u32		do_restore;
+	union {
+		u32	allphases;
+		u8	phase[4];
+	} lpcr_sync;
 };
 
 /*
@@ -107,10 +117,14 @@ struct kvmppc_host_state {
 	u8 hwthread_req;
 	u8 hwthread_state;
 	u8 host_ipi;
-	u8 ptid;
+	u8 ptid;		/* thread number within subcore when split */
+	u8 tid;			/* thread number within whole core */
+	u8 fake_suspend;
 	struct kvm_vcpu *kvm_vcpu;
 	struct kvmppc_vcore *kvm_vcore;
-	unsigned long xics_phys;
+	void __iomem *xics_phys;
+	void __iomem *xive_tima_phys;
+	void __iomem *xive_tima_virt;
 	u32 saved_xirr;
 	u64 dabr;
 	u64 host_mmcr[7];	/* MMCR 0,1,A, SIAR, SDAR, MMCR2, SIER */
@@ -162,7 +176,7 @@ struct kvmppc_book3s_shadow_vcpu {
 
 /* Values for kvm_state */
 #define KVM_HWTHREAD_IN_KERNEL	0
-#define KVM_HWTHREAD_IN_NAP	1
+#define KVM_HWTHREAD_IN_IDLE	1
 #define KVM_HWTHREAD_IN_KVM	2
 
 #endif /* __ASM_KVM_BOOK3S_ASM_H__ */

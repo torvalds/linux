@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r2300.c: R2000 and R3000 specific mmu/cache code.
  *
@@ -244,7 +245,7 @@ static void r3k_flush_cache_page(struct vm_area_struct *vma,
 	pmd_t *pmdp;
 	pte_t *ptep;
 
-	pr_debug("cpage[%08lx,%08lx]\n",
+	pr_debug("cpage[%08llx,%08lx]\n",
 		 cpu_context(smp_processor_id(), mm), addr);
 
 	/* No ASID => no such page in the cache.  */
@@ -325,6 +326,8 @@ void r3k_cache_init(void)
 	flush_cache_page = r3k_flush_cache_page;
 	flush_icache_range = r3k_flush_icache_range;
 	local_flush_icache_range = r3k_flush_icache_range;
+	__flush_icache_user_range = r3k_flush_icache_range;
+	__local_flush_icache_user_range = r3k_flush_icache_range;
 
 	__flush_kernel_vmap_range = r3k_flush_kernel_vmap_range;
 

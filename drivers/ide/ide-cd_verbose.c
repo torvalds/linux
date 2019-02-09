@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Verbose error logging for ATAPI CD/DVD devices.
  *
@@ -315,12 +316,12 @@ void ide_cd_log_error(const char *name, struct request *failed_command,
 		while (hi > lo) {
 			mid = (lo + hi) / 2;
 			if (packet_command_texts[mid].packet_command ==
-			    failed_command->cmd[0]) {
+			    scsi_req(failed_command)->cmd[0]) {
 				s = packet_command_texts[mid].text;
 				break;
 			}
 			if (packet_command_texts[mid].packet_command >
-			    failed_command->cmd[0])
+			    scsi_req(failed_command)->cmd[0])
 				hi = mid;
 			else
 				lo = mid + 1;
@@ -329,7 +330,7 @@ void ide_cd_log_error(const char *name, struct request *failed_command,
 		printk(KERN_ERR "  The failed \"%s\" packet command "
 				"was: \n  \"", s);
 		for (i = 0; i < BLK_MAX_CDB; i++)
-			printk(KERN_CONT "%02x ", failed_command->cmd[i]);
+			printk(KERN_CONT "%02x ", scsi_req(failed_command)->cmd[i]);
 		printk(KERN_CONT "\"\n");
 	}
 

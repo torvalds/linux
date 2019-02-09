@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /***************************************************************************/
 
 /*
@@ -36,6 +37,7 @@ DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
 DEFINE_CLK(mcfuart2, "mcfuart.2", MCF_BUSCLK);
 DEFINE_CLK(mcfqspi0, "mcfqspi.0", MCF_BUSCLK);
 DEFINE_CLK(fec0, "fec.0", MCF_BUSCLK);
+DEFINE_CLK(mcfi2c0, "imx1-i2c.0", MCF_BUSCLK);
 
 struct clk *mcf_clks[] = {
 	&clk_pll,
@@ -49,6 +51,7 @@ struct clk *mcf_clks[] = {
 	&clk_mcfuart2,
 	&clk_mcfqspi0,
 	&clk_fec0,
+	&clk_mcfi2c0,
 	NULL
 };
 
@@ -60,6 +63,21 @@ static void __init m528x_qspi_init(void)
 	/* setup Port QS for QSPI with gpio CS control */
 	__raw_writeb(0x07, MCFGPIO_PQSPAR);
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
+}
+
+/***************************************************************************/
+
+static void __init m528x_i2c_init(void)
+{
+#if IS_ENABLED(CONFIG_I2C_IMX)
+	u16 paspar;
+
+	/* setup Port AS Pin Assignment Register for I2C */
+	/*  set PASPA0 to SCL and PASPA1 to SDA */
+	paspar = readw(MCFGPIO_PASPAR);
+	paspar |= 0xF;
+	writew(paspar, MCFGPIO_PASPAR);
+#endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 }
 
 /***************************************************************************/
@@ -102,14 +120,14 @@ void wildfiremod_halt(void)
 	printk(KERN_INFO "WildFireMod hibernating...\n");
 
 	/* Set portE.5 to Digital IO */
-	MCF5282_GPIO_PEPAR &= ~(1 << (5 * 2));
+	writew(readw(MCFGPIO_PEPAR) & ~(1 << (5 * 2)), MCFGPIO_PEPAR);
 
 	/* Make portE.5 an output */
-	MCF5282_GPIO_DDRE |= (1 << 5);
+	writeb(readb(MCFGPIO_PDDR_E) | (1 << 5), MCFGPIO_PDDR_E);
 
 	/* Now toggle portE.5 from low to high */
-	MCF5282_GPIO_PORTE &= ~(1 << 5);
-	MCF5282_GPIO_PORTE |= (1 << 5);
+	writeb(readb(MCFGPIO_PODR_E) & ~(1 << 5), MCFGPIO_PODR_E);
+	writeb(readb(MCFGPIO_PODR_E) | (1 << 5), MCFGPIO_PODR_E);
 
 	printk(KERN_EMERG "Failed to hibernate. Halting!\n");
 }
@@ -127,6 +145,7 @@ void __init config_BSP(char *commandp, int size)
 	m528x_uarts_init();
 	m528x_fec_init();
 	m528x_qspi_init();
+	m528x_i2c_init();
 }
 
 /***************************************************************************/

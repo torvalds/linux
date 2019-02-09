@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/regmap.h>
@@ -25,16 +25,121 @@
 #define PMIC_A0LOCK_REG		0xc5
 
 static struct pmic_table power_table[] = {
+/*	{
+		.address = 0x00,
+		.reg = ??,
+		.bit = ??,
+	}, ** VSYS */
+	{
+		.address = 0x04,
+		.reg = 0x63,
+		.bit = 0x00,
+	}, /* SYSX -> VSYS_SX */
+	{
+		.address = 0x08,
+		.reg = 0x62,
+		.bit = 0x00,
+	}, /* SYSU -> VSYS_U */
+	{
+		.address = 0x0c,
+		.reg = 0x64,
+		.bit = 0x00,
+	}, /* SYSS -> VSYS_S */
+	{
+		.address = 0x10,
+		.reg = 0x6a,
+		.bit = 0x00,
+	}, /* V50S -> V5P0S */
+	{
+		.address = 0x14,
+		.reg = 0x6b,
+		.bit = 0x00,
+	}, /* HOST -> VHOST, USB2/3 host */
+	{
+		.address = 0x18,
+		.reg = 0x6c,
+		.bit = 0x00,
+	}, /* VBUS -> VBUS, USB2/3 OTG */
+	{
+		.address = 0x1c,
+		.reg = 0x6d,
+		.bit = 0x00,
+	}, /* HDMI -> VHDMI */
+/*	{
+		.address = 0x20,
+		.reg = ??,
+		.bit = ??,
+	}, ** S285 */
 	{
 		.address = 0x24,
 		.reg = 0x66,
 		.bit = 0x00,
-	},
+	}, /* X285 -> V2P85SX, camera */
+/*	{
+		.address = 0x28,
+		.reg = ??,
+		.bit = ??,
+	}, ** V33A */
+	{
+		.address = 0x2c,
+		.reg = 0x69,
+		.bit = 0x00,
+	}, /* V33S -> V3P3S, display/ssd/audio */
+	{
+		.address = 0x30,
+		.reg = 0x68,
+		.bit = 0x00,
+	}, /* V33U -> V3P3U, SDIO wifi&bt */
+/*	{
+		.address = 0x34 .. 0x40,
+		.reg = ??,
+		.bit = ??,
+	}, ** V33I, V18A, REFQ, V12A */
+	{
+		.address = 0x44,
+		.reg = 0x5c,
+		.bit = 0x00,
+	}, /* V18S -> V1P8S, SOC/USB PHY/SIM */
 	{
 		.address = 0x48,
 		.reg = 0x5d,
 		.bit = 0x00,
-	},
+	}, /* V18X -> V1P8SX, eMMC/camara/audio */
+	{
+		.address = 0x4c,
+		.reg = 0x5b,
+		.bit = 0x00,
+	}, /* V18U -> V1P8U, LPDDR */
+	{
+		.address = 0x50,
+		.reg = 0x61,
+		.bit = 0x00,
+	}, /* V12X -> V1P2SX, SOC SFR */
+	{
+		.address = 0x54,
+		.reg = 0x60,
+		.bit = 0x00,
+	}, /* V12S -> V1P2S, MIPI */
+/*	{
+		.address = 0x58,
+		.reg = ??,
+		.bit = ??,
+	}, ** V10A */
+	{
+		.address = 0x5c,
+		.reg = 0x56,
+		.bit = 0x00,
+	}, /* V10S -> V1P0S, SOC GFX */
+	{
+		.address = 0x60,
+		.reg = 0x57,
+		.bit = 0x00,
+	}, /* V10X -> V1P0SX, SOC display/DDR IO/PCIe */
+	{
+		.address = 0x64,
+		.reg = 0x59,
+		.bit = 0x00,
+	}, /* V105 -> V1P05S, L2 SRAM */
 };
 
 static struct pmic_table thermal_table[] = {
@@ -141,7 +246,8 @@ static int intel_crc_pmic_update_aux(struct regmap *regmap, int reg, int raw)
 		regmap_update_bits(regmap, reg - 1, 0x3, raw >> 8) ? -EIO : 0;
 }
 
-static int intel_crc_pmic_get_policy(struct regmap *regmap, int reg, u64 *value)
+static int intel_crc_pmic_get_policy(struct regmap *regmap,
+					int reg, int bit, u64 *value)
 {
 	int pen;
 
@@ -152,7 +258,7 @@ static int intel_crc_pmic_get_policy(struct regmap *regmap, int reg, u64 *value)
 }
 
 static int intel_crc_pmic_update_policy(struct regmap *regmap,
-					int reg, int enable)
+					int reg, int bit, int enable)
 {
 	int alert0;
 
@@ -200,12 +306,4 @@ static struct platform_driver intel_crc_pmic_opregion_driver = {
 		.name = "crystal_cove_pmic",
 	},
 };
-
-static int __init intel_crc_pmic_opregion_driver_init(void)
-{
-	return platform_driver_register(&intel_crc_pmic_opregion_driver);
-}
-module_init(intel_crc_pmic_opregion_driver_init);
-
-MODULE_DESCRIPTION("CrystalCove ACPI operation region driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(intel_crc_pmic_opregion_driver);

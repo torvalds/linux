@@ -267,13 +267,11 @@ static int nuc900_dma_mmap(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	return dma_mmap_writecombine(substream->pcm->card->dev, vma,
-					runtime->dma_area,
-					runtime->dma_addr,
-					runtime->dma_bytes);
+	return dma_mmap_wc(substream->pcm->card->dev, vma, runtime->dma_area,
+			   runtime->dma_addr, runtime->dma_bytes);
 }
 
-static struct snd_pcm_ops nuc900_dma_ops = {
+static const struct snd_pcm_ops nuc900_dma_ops = {
 	.open		= nuc900_dma_open,
 	.close		= nuc900_dma_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -301,14 +299,15 @@ static int nuc900_dma_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_platform_driver nuc900_soc_platform = {
+static const struct snd_soc_component_driver nuc900_soc_component = {
 	.ops		= &nuc900_dma_ops,
 	.pcm_new	= nuc900_dma_new,
 };
 
 static int nuc900_soc_platform_probe(struct platform_device *pdev)
 {
-	return devm_snd_soc_register_platform(&pdev->dev, &nuc900_soc_platform);
+	return devm_snd_soc_register_component(&pdev->dev, &nuc900_soc_component,
+					       NULL, 0);
 }
 
 static struct platform_driver nuc900_pcm_driver = {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_PERCPU_H
 #define __LINUX_PERCPU_H
 
@@ -18,14 +19,27 @@
 #define PERCPU_MODULE_RESERVE		0
 #endif
 
-#ifndef PERCPU_ENOUGH_ROOM
-#define PERCPU_ENOUGH_ROOM						\
-	(ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES) +	\
-	 PERCPU_MODULE_RESERVE)
-#endif
-
 /* minimum unit size, also is the maximum supported allocation size */
 #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
+
+/* minimum allocation size and shift in bytes */
+#define PCPU_MIN_ALLOC_SHIFT		2
+#define PCPU_MIN_ALLOC_SIZE		(1 << PCPU_MIN_ALLOC_SHIFT)
+
+/* number of bits per page, used to trigger a scan if blocks are > PAGE_SIZE */
+#define PCPU_BITS_PER_PAGE		(PAGE_SIZE >> PCPU_MIN_ALLOC_SHIFT)
+
+/*
+ * This determines the size of each metadata block.  There are several subtle
+ * constraints around this constant.  The reserved region must be a multiple of
+ * PCPU_BITMAP_BLOCK_SIZE.  Additionally, PCPU_BITMAP_BLOCK_SIZE must be a
+ * multiple of PAGE_SIZE or PAGE_SIZE must be a multiple of
+ * PCPU_BITMAP_BLOCK_SIZE to align with the populated page map. The unit_size
+ * also has to be a multiple of PCPU_BITMAP_BLOCK_SIZE to ensure full blocks.
+ */
+#define PCPU_BITMAP_BLOCK_SIZE		PAGE_SIZE
+#define PCPU_BITMAP_BLOCK_BITS		(PCPU_BITMAP_BLOCK_SIZE >>	\
+					 PCPU_MIN_ALLOC_SHIFT)
 
 /*
  * Percpu allocator can serve percpu allocations before slab is
@@ -116,12 +130,12 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
 #endif
 
 extern void __percpu *__alloc_reserved_percpu(size_t size, size_t align);
+extern bool __is_kernel_percpu_address(unsigned long addr, unsigned long *can_addr);
 extern bool is_kernel_percpu_address(unsigned long addr);
 
 #if !defined(CONFIG_SMP) || !defined(CONFIG_HAVE_SETUP_PER_CPU_AREA)
 extern void __init setup_per_cpu_areas(void);
 #endif
-extern void __init percpu_init_late(void);
 
 extern void __percpu *__alloc_percpu_gfp(size_t size, size_t align, gfp_t gfp);
 extern void __percpu *__alloc_percpu(size_t size, size_t align);
@@ -135,7 +149,6 @@ extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
 	(typeof(type) __percpu *)__alloc_percpu(sizeof(type),		\
 						__alignof__(type))
 
-/* To avoid include hell, as printk can not declare this, we declare it here */
-DECLARE_PER_CPU(printk_func_t, printk_func);
+extern unsigned long pcpu_nr_pages(void);
 
 #endif /* __LINUX_PERCPU_H */

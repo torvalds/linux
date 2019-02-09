@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/crc32.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
 #include <linux/writeback.h>
@@ -1153,7 +1153,7 @@ static struct jffs2_sb_info *work_to_sb(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 
-	dwork = container_of(work, struct delayed_work, work);
+	dwork = to_delayed_work(work);
 	return container_of(dwork, struct jffs2_sb_info, wbuf_dwork);
 }
 
@@ -1162,7 +1162,7 @@ static void delayed_wbuf_sync(struct work_struct *work)
 	struct jffs2_sb_info *c = work_to_sb(work);
 	struct super_block *sb = OFNI_BS_2SFFJ(c);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		jffs2_dbg(1, "%s()\n", __func__);
 		jffs2_flush_wbuf_gc(c, 0);
 	}
@@ -1173,7 +1173,7 @@ void jffs2_dirty_trigger(struct jffs2_sb_info *c)
 	struct super_block *sb = OFNI_BS_2SFFJ(c);
 	unsigned long delay;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return;
 
 	delay = msecs_to_jiffies(dirty_writeback_interval * 10);
@@ -1183,22 +1183,20 @@ void jffs2_dirty_trigger(struct jffs2_sb_info *c)
 
 int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 {
-	struct nand_ecclayout *oinfo = c->mtd->ecclayout;
-
 	if (!c->mtd->oobsize)
 		return 0;
 
 	/* Cleanmarker is out-of-band, so inline size zero */
 	c->cleanmarker_size = 0;
 
-	if (!oinfo || oinfo->oobavail == 0) {
+	if (c->mtd->oobavail == 0) {
 		pr_err("inconsistent device description\n");
 		return -EINVAL;
 	}
 
 	jffs2_dbg(1, "using OOB on NAND\n");
 
-	c->oobavail = oinfo->oobavail;
+	c->oobavail = c->mtd->oobavail;
 
 	/* Initialise write buffer */
 	init_rwsem(&c->wbuf_sem);
@@ -1210,7 +1208,7 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 	if (!c->wbuf)
 		return -ENOMEM;
 
-	c->oobbuf = kmalloc(NR_OOB_SCAN_PAGES * c->oobavail, GFP_KERNEL);
+	c->oobbuf = kmalloc_array(NR_OOB_SCAN_PAGES, c->oobavail, GFP_KERNEL);
 	if (!c->oobbuf) {
 		kfree(c->wbuf);
 		return -ENOMEM;

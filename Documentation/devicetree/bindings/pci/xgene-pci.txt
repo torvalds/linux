@@ -8,7 +8,7 @@ Required properties:
        property.
 - reg-names: Must include the following entries:
   "csr": controller configuration registers.
-  "cfg": pcie configuration space registers.
+  "cfg": PCIe configuration space registers.
 - #address-cells: set to <3>
 - #size-cells: set to <2>
 - ranges: ranges for the outbound memory, I/O regions.
@@ -21,11 +21,9 @@ Required properties:
 
 Optional properties:
 - status: Either "ok" or "disabled".
-- dma-coherent: Present if dma operations are coherent
+- dma-coherent: Present if DMA operations are coherent
 
 Example:
-
-SoC specific DT Entry:
 
 	pcie0: pcie@1f2b0000 {
 		status = "disabled";
@@ -50,8 +48,3 @@ SoC specific DT Entry:
 		clocks = <&pcie0clk 0>;
 	};
 
-
-Board specific DT Entry:
-	&pcie0 {
-		status = "ok";
-	};

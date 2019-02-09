@@ -126,14 +126,14 @@ static int max1586_v6_set_voltage_sel(struct regulator_dev *rdev,
  * The Maxim 1586 controls V3 and V6 voltages, but offers no way of reading back
  * the set up value.
  */
-static struct regulator_ops max1586_v3_ops = {
+static const struct regulator_ops max1586_v3_ops = {
 	.get_voltage_sel = max1586_v3_get_voltage_sel,
 	.set_voltage_sel = max1586_v3_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
 };
 
-static struct regulator_ops max1586_v6_ops = {
+static const struct regulator_ops max1586_v6_ops = {
 	.get_voltage_sel = max1586_v6_get_voltage_sel,
 	.set_voltage_sel = max1586_v6_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_table,
@@ -169,7 +169,7 @@ static int of_get_max1586_platform_data(struct device *dev,
 
 	if (of_property_read_u32(np, "v3-gain",
 				 &pdata->v3_gain) < 0) {
-		dev_err(dev, "%s has no 'v3-gain' property\n", np->full_name);
+		dev_err(dev, "%pOF has no 'v3-gain' property\n", np);
 		return -EINVAL;
 	}
 
@@ -194,8 +194,10 @@ static int of_get_max1586_platform_data(struct device *dev,
 	if (matched <= 0)
 		return matched;
 
-	pdata->subdevs = devm_kzalloc(dev, sizeof(struct max1586_subdev_data) *
-						matched, GFP_KERNEL);
+	pdata->subdevs = devm_kcalloc(dev,
+				      matched,
+				      sizeof(struct max1586_subdev_data),
+				      GFP_KERNEL);
 	if (!pdata->subdevs)
 		return -ENOMEM;
 

@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014 Christoph Hellwig.
+ * Copyright (c) 2014-2016 Christoph Hellwig.
  */
 
 #include <linux/vmalloc.h>
@@ -121,6 +122,16 @@ ext_try_to_merge_right(struct rb_root *root, struct pnfs_block_extent *be)
 	return be;
 }
 
+static void __ext_put_deviceids(struct list_head *head)
+{
+	struct pnfs_block_extent *be, *tmp;
+
+	list_for_each_entry_safe(be, tmp, head, be_list) {
+		nfs4_put_deviceid_node(be->be_device);
+		kfree(be);
+	}
+}
+
 static void
 __ext_tree_insert(struct rb_root *root,
 		struct pnfs_block_extent *new, bool merge_ok)
@@ -163,7 +174,8 @@ free_new:
 }
 
 static int
-__ext_tree_remove(struct rb_root *root, sector_t start, sector_t end)
+__ext_tree_remove(struct rb_root *root,
+		sector_t start, sector_t end, struct list_head *tmp)
 {
 	struct pnfs_block_extent *be;
 	sector_t len1 = 0, len2 = 0;
@@ -223,8 +235,7 @@ __ext_tree_remove(struct rb_root *root, sector_t start, sector_t end)
 			struct pnfs_block_extent *next = ext_tree_next(be);
 
 			rb_erase(&be->be_node, root);
-			nfs4_put_deviceid_node(be->be_device);
-			kfree(be);
+			list_add_tail(&be->be_list, tmp);
 			be = next;
 		}
 
@@ -350,16 +361,18 @@ int ext_tree_remove(struct pnfs_block_layout *bl, bool rw,
 		sector_t start, sector_t end)
 {
 	int err, err2;
+	LIST_HEAD(tmp);
 
 	spin_lock(&bl->bl_ext_lock);
-	err = __ext_tree_remove(&bl->bl_ext_ro, start, end);
+	err = __ext_tree_remove(&bl->bl_ext_ro, start, end, &tmp);
 	if (rw) {
-		err2 = __ext_tree_remove(&bl->bl_ext_rw, start, end);
+		err2 = __ext_tree_remove(&bl->bl_ext_rw, start, end, &tmp);
 		if (!err)
 			err = err2;
 	}
 	spin_unlock(&bl->bl_ext_lock);
 
+	__ext_put_deviceids(&tmp);
 	return err;
 }
 
@@ -390,18 +403,19 @@ ext_tree_split(struct rb_root *root, struct pnfs_block_extent *be,
 
 int
 ext_tree_mark_written(struct pnfs_block_layout *bl, sector_t start,
-		sector_t len)
+		sector_t len, u64 lwb)
 {
 	struct rb_root *root = &bl->bl_ext_rw;
 	sector_t end = start + len;
 	struct pnfs_block_extent *be;
 	int err = 0;
+	LIST_HEAD(tmp);
 
 	spin_lock(&bl->bl_ext_lock);
 	/*
 	 * First remove all COW extents or holes from written to range.
 	 */
-	err = __ext_tree_remove(&bl->bl_ext_ro, start, end);
+	err = __ext_tree_remove(&bl->bl_ext_ro, start, end, &tmp);
 	if (err)
 		goto out;
 
@@ -458,14 +472,20 @@ ext_tree_mark_written(struct pnfs_block_layout *bl, sector_t start,
 		}
 	}
 out:
+	if (bl->bl_lwb < lwb)
+		bl->bl_lwb = lwb;
 	spin_unlock(&bl->bl_ext_lock);
+
+	__ext_put_deviceids(&tmp);
 	return err;
 }
 
-static size_t ext_tree_layoutupdate_size(size_t count)
+static size_t ext_tree_layoutupdate_size(struct pnfs_block_layout *bl, size_t count)
 {
-	return sizeof(__be32) /* number of entries */ +
-		PNFS_BLOCK_EXTENT_SIZE * count;
+	if (bl->bl_scsi_layout)
+		return sizeof(__be32) + PNFS_SCSI_RANGE_SIZE * count;
+	else
+		return sizeof(__be32) + PNFS_BLOCK_EXTENT_SIZE * count;
 }
 
 static void ext_tree_free_commitdata(struct nfs4_layoutcommit_args *arg,
@@ -476,14 +496,32 @@ static void ext_tree_free_commitdata(struct nfs4_layoutcommit_args *arg,
 
 		for (i = 0; i < nr_pages; i++)
 			put_page(arg->layoutupdate_pages[i]);
+		vfree(arg->start_p);
 		kfree(arg->layoutupdate_pages);
 	} else {
 		put_page(arg->layoutupdate_page);
 	}
 }
 
+static __be32 *encode_block_extent(struct pnfs_block_extent *be, __be32 *p)
+{
+	p = xdr_encode_opaque_fixed(p, be->be_device->deviceid.data,
+			NFS4_DEVICEID4_SIZE);
+	p = xdr_encode_hyper(p, be->be_f_offset << SECTOR_SHIFT);
+	p = xdr_encode_hyper(p, be->be_length << SECTOR_SHIFT);
+	p = xdr_encode_hyper(p, 0LL);
+	*p++ = cpu_to_be32(PNFS_BLOCK_READWRITE_DATA);
+	return p;
+}
+
+static __be32 *encode_scsi_range(struct pnfs_block_extent *be, __be32 *p)
+{
+	p = xdr_encode_hyper(p, be->be_f_offset << SECTOR_SHIFT);
+	return xdr_encode_hyper(p, be->be_length << SECTOR_SHIFT);
+}
+
 static int ext_tree_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
-		size_t buffer_size, size_t *count)
+		size_t buffer_size, size_t *count, __u64 *lastbyte)
 {
 	struct pnfs_block_extent *be;
 	int ret = 0;
@@ -495,21 +533,20 @@ static int ext_tree_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
 			continue;
 
 		(*count)++;
-		if (ext_tree_layoutupdate_size(*count) > buffer_size) {
+		if (ext_tree_layoutupdate_size(bl, *count) > buffer_size) {
 			/* keep counting.. */
 			ret = -ENOSPC;
 			continue;
 		}
 
-		p = xdr_encode_opaque_fixed(p, be->be_device->deviceid.data,
-				NFS4_DEVICEID4_SIZE);
-		p = xdr_encode_hyper(p, be->be_f_offset << SECTOR_SHIFT);
-		p = xdr_encode_hyper(p, be->be_length << SECTOR_SHIFT);
-		p = xdr_encode_hyper(p, 0LL);
-		*p++ = cpu_to_be32(PNFS_BLOCK_READWRITE_DATA);
-
+		if (bl->bl_scsi_layout)
+			p = encode_scsi_range(be, p);
+		else
+			p = encode_block_extent(be, p);
 		be->be_tag = EXTENT_COMMITTING;
 	}
+	*lastbyte = bl->bl_lwb - 1;
+	bl->bl_lwb = 0;
 	spin_unlock(&bl->bl_ext_lock);
 
 	return ret;
@@ -532,11 +569,11 @@ ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg)
 	arg->layoutupdate_pages = &arg->layoutupdate_page;
 
 retry:
-	ret = ext_tree_encode_commit(bl, start_p + 1, buffer_size, &count);
+	ret = ext_tree_encode_commit(bl, start_p + 1, buffer_size, &count, &arg->lastbytewritten);
 	if (unlikely(ret)) {
 		ext_tree_free_commitdata(arg, buffer_size);
 
-		buffer_size = ext_tree_layoutupdate_size(count);
+		buffer_size = ext_tree_layoutupdate_size(bl, count);
 		count = 0;
 
 		arg->layoutupdate_pages =
@@ -555,14 +592,19 @@ retry:
 	}
 
 	*start_p = cpu_to_be32(count);
-	arg->layoutupdate_len = ext_tree_layoutupdate_size(count);
+	arg->layoutupdate_len = ext_tree_layoutupdate_size(bl, count);
 
 	if (unlikely(arg->layoutupdate_pages != &arg->layoutupdate_page)) {
 		void *p = start_p, *end = p + arg->layoutupdate_len;
+		struct page *page = NULL;
 		int i = 0;
 
-		for ( ; p < end; p += PAGE_SIZE)
-			arg->layoutupdate_pages[i++] = vmalloc_to_page(p);
+		arg->start_p = start_p;
+		for ( ; p < end; p += PAGE_SIZE) {
+			page = vmalloc_to_page(p);
+			arg->layoutupdate_pages[i++] = page;
+			get_page(page);
+		}
 	}
 
 	dprintk("%s found %zu ranges\n", __func__, count);

@@ -135,7 +135,7 @@ static int pcf50633_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_mday, tm->tm_mon, tm->tm_year,
 		tm->tm_hour, tm->tm_min, tm->tm_sec);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int pcf50633_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -232,7 +232,7 @@ static int pcf50633_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return ret;
 }
 
-static struct rtc_class_ops pcf50633_rtc_ops = {
+static const struct rtc_class_ops pcf50633_rtc_ops = {
 	.read_time		= pcf50633_rtc_read_time,
 	.set_time		= pcf50633_rtc_set_time,
 	.read_alarm		= pcf50633_rtc_read_alarm,

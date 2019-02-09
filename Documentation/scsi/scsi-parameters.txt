@@ -1,7 +1,7 @@
                           SCSI Kernel Parameters
                           ~~~~~~~~~~~~~~~~~~~~~~
 
-See Documentation/kernel-parameters.txt for general information on
+See Documentation/admin-guide/kernel-parameters.rst for general information on
 specifying module parameters.
 
 This document may not be entirely up to date and comprehensive. The command
@@ -27,37 +27,29 @@ parameters may be changed at runtime by the command
 	aic79xx=	[HW,SCSI]
 			See Documentation/scsi/aic79xx.txt.
 
-	atascsi=	[HW,SCSI] Atari SCSI
+	atascsi=	[HW,SCSI]
+			See drivers/scsi/atari_scsi.c.
 
 	BusLogic=	[HW,SCSI]
 			See drivers/scsi/BusLogic.c, comment before function
 			BusLogic_ParseDriverOptions().
-
-	dtc3181e=	[HW,SCSI]
-
-	eata=		[HW,SCSI]
-
-	fdomain=	[HW,SCSI]
-			See header of drivers/scsi/fdomain.c.
 
 	gdth=		[HW,SCSI]
 			See header of drivers/scsi/gdth.c.
 
 	gvp11=		[HW,SCSI]
 
-	in2000=		[HW,SCSI]
-			See header of drivers/scsi/in2000.c.
-
 	ips=		[HW,SCSI] Adaptec / IBM ServeRAID controller
 			See header of drivers/scsi/ips.c.
 
-	mac5380=	[HW,SCSI] Format:
-			<can_queue>,<cmd_per_lun>,<sg_tablesize>,<hostid>,<use_tags>
+	mac5380=	[HW,SCSI]
+			See drivers/scsi/mac_scsi.c.
 
-	max_luns=	[SCSI] Maximum number of LUNs to probe.
+	scsi_mod.max_luns=
+			[SCSI] Maximum number of LUNs to probe.
 			Should be between 1 and 2^32-1.
 
-	max_report_luns=
+	scsi_mod.max_report_luns=
 			[SCSI] Maximum number of LUNs received.
 			Should be between 1 and 16384.
 
@@ -65,36 +57,34 @@ parameters may be changed at runtime by the command
 			See header of drivers/scsi/NCR_D700.c.
 
 	ncr5380=	[HW,SCSI]
+			See Documentation/scsi/g_NCR5380.txt.
 
 	ncr53c400=	[HW,SCSI]
+			See Documentation/scsi/g_NCR5380.txt.
 
 	ncr53c400a=	[HW,SCSI]
-
-	ncr53c406a=	[HW,SCSI]
+			See Documentation/scsi/g_NCR5380.txt.
 
 	ncr53c8xx=	[HW,SCSI]
-
-	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 
 	osst=		[HW,SCSI] SCSI Tape Driver
 			Format: <buffer_size>,<write_threshold>
 			See also Documentation/scsi/st.txt.
 
-	pas16=		[HW,SCSI]
-			See header of drivers/scsi/pas16.c.
-
 	scsi_debug_*=	[SCSI]
 			See drivers/scsi/scsi_debug.c.
 
-	scsi_default_dev_flags=
+	scsi_mod.default_dev_flags=
 			[SCSI] SCSI default device flags
 			Format: <integer>
 
-	scsi_dev_flags=	[SCSI] Black/white list entry for vendor and model
+	scsi_mod.dev_flags=
+			[SCSI] Black/white list entry for vendor and model
 			Format: <vendor>:<model>:<flags>
 			(flags are integer value)
 
-	scsi_logging_level=	[SCSI] a bit mask of logging levels
+	scsi_mod.scsi_logging_level=
+			[SCSI] a bit mask of logging levels
 			See drivers/scsi/scsi_logging.h for bits.  Also
 			settable via sysctl at dev.scsi.logging_level
 			(/proc/sys/dev/scsi/logging_level).
@@ -107,27 +97,16 @@ parameters may be changed at runtime by the command
 			allowing boot to proceed.  none ignores them, expecting
 			user space to do the scan.
 
+	scsi_mod.use_blk_mq=
+			[SCSI] use blk-mq I/O path by default
+			See SCSI_MQ_DEFAULT in drivers/scsi/Kconfig.
+			Format: <y/n>
+
 	sim710=		[SCSI,HW]
 			See header of drivers/scsi/sim710.c.
 
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
 			See Documentation/scsi/st.txt.
 
-	sym53c416=	[HW,SCSI]
-			See header of drivers/scsi/sym53c416.c.
-
-	t128=		[HW,SCSI]
-			See header of drivers/scsi/t128.c.
-
-	tmscsim=	[HW,SCSI]
-			See comment before function dc390_setup() in
-			drivers/scsi/tmscsim.c.
-
-	u14-34f=	[HW,SCSI] UltraStor 14F/34F SCSI host adapter
-			See header of drivers/scsi/u14-34f.c.
-
 	wd33c93=	[HW,SCSI]
 			See header of drivers/scsi/wd33c93.c.
-
-	wd7000=		[HW,SCSI]
-			See header of drivers/scsi/wd7000.c.

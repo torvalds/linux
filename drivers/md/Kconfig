@@ -115,7 +115,7 @@ config MD_RAID10
 
 	  RAID-10 requires mdadm-1.7.0 or later, available at:
 
-	  ftp://ftp.kernel.org/pub/linux/utils/raid/mdadm/
+	  https://www.kernel.org/pub/linux/utils/raid/mdadm/
 
 	  If unsure, say Y.
 
@@ -178,7 +178,7 @@ config MD_FAULTY
 
 
 config MD_CLUSTER
-	tristate "Cluster Support for MD (EXPERIMENTAL)"
+	tristate "Cluster Support for MD"
 	depends on BLK_DEV_MD
 	depends on DLM
 	default n
@@ -188,7 +188,8 @@ config MD_CLUSTER
 	nodes in the cluster can access the MD devices simultaneously.
 
 	This brings the redundancy (and uptime) of RAID levels across the
-	nodes of the cluster.
+	nodes of the cluster. Currently, it can work with raid1 and raid10
+	(limited support).
 
 	If unsure, say N.
 
@@ -200,6 +201,7 @@ config BLK_DEV_DM_BUILTIN
 config BLK_DEV_DM
 	tristate "Device mapper support"
 	select BLK_DEV_DM_BUILTIN
+	depends on DAX || DAX=n
 	---help---
 	  Device-mapper is a low level volume manager.  It works by allowing
 	  people to specify mappings for ranges of logical sectors.  Various
@@ -240,6 +242,24 @@ config DM_BUFIO
 	 as a cache, holding recently-read blocks in memory and performing
 	 delayed writes.
 
+config DM_DEBUG_BLOCK_MANAGER_LOCKING
+       bool "Block manager locking"
+       depends on DM_BUFIO
+       ---help---
+	 Block manager locking can catch various metadata corruption issues.
+
+	 If unsure, say N.
+
+config DM_DEBUG_BLOCK_STACK_TRACING
+       bool "Keep stack trace of persistent data block lock holders"
+       depends on STACKTRACE_SUPPORT && DM_DEBUG_BLOCK_MANAGER_LOCKING
+       select STACKTRACE
+       ---help---
+	 Enable this for messages that may help debug problems with the
+	 block manager locking used by thin provisioning and caching.
+
+	 If unsure, say N.
+
 config DM_BIO_PRISON
        tristate
        depends on BLK_DEV_DM
@@ -248,6 +268,13 @@ config DM_BIO_PRISON
 	 including thin provisioning.
 
 source "drivers/md/persistent-data/Kconfig"
+
+config DM_UNSTRIPED
+       tristate "Unstriped target"
+       depends on BLK_DEV_DM
+       ---help---
+	  Unstripes I/O so it is issued solely on a single drive in a HW
+	  RAID0 or dm-striped target.
 
 config DM_CRYPT
 	tristate "Crypt target support"
@@ -295,16 +322,6 @@ config DM_CACHE
          algorithms used to select which blocks are promoted, demoted,
          cleaned etc.  It supports writeback and writethrough modes.
 
-config DM_CACHE_MQ
-       tristate "MQ Cache Policy (EXPERIMENTAL)"
-       depends on DM_CACHE
-       default y
-       ---help---
-         A cache policy that uses a multiqueue ordered by recent hit
-         count to select which blocks should be promoted and demoted.
-         This is meant to be a general purpose policy.  It prioritises
-         reads over writes.
-
 config DM_CACHE_SMQ
        tristate "Stochastic MQ Cache Policy (EXPERIMENTAL)"
        depends on DM_CACHE
@@ -317,13 +334,16 @@ config DM_CACHE_SMQ
          of less memory utilization, improved performance and increased
          adaptability in the face of changing workloads.
 
-config DM_CACHE_CLEANER
-       tristate "Cleaner Cache Policy (EXPERIMENTAL)"
-       depends on DM_CACHE
-       default y
-       ---help---
-         A simple cache policy that writes back all data to the
-         origin.  Used when decommissioning a dm-cache.
+config DM_WRITECACHE
+	tristate "Writecache target"
+	depends on BLK_DEV_DM
+	---help---
+	   The writecache target caches writes on persistent memory or SSD.
+	   It is intended for databases or other programs that need extremely
+	   low commit latency.
+
+	   The writecache target doesn't cache reads because reads are supposed
+	   to be cached in standard RAM.
 
 config DM_ERA
        tristate "Era target (EXPERIMENTAL)"
@@ -357,6 +377,7 @@ config DM_LOG_USERSPACE
 config DM_RAID
        tristate "RAID 1/4/5/6/10 target"
        depends on BLK_DEV_DM
+       select MD_RAID0
        select MD_RAID1
        select MD_RAID10
        select MD_RAID456
@@ -458,6 +479,27 @@ config DM_VERITY
 
 	  If unsure, say N.
 
+config DM_VERITY_AVB
+	tristate "Support AVB specific verity error behavior"
+	depends on DM_VERITY
+	---help---
+	  Enables Android Verified Boot platform-specific error
+	  behavior. In particular, it will modify the vbmeta partition
+	  specified on the kernel command-line when non-transient error
+	  occurs (followed by a panic).
+
+config DM_VERITY_FEC
+	bool "Verity forward error correction support"
+	depends on DM_VERITY
+	select REED_SOLOMON
+	select REED_SOLOMON_DEC8
+	---help---
+	  Add forward error correction support to dm-verity. This option
+	  makes it possible to use pre-generated error correction data to
+	  recover from corrupted blocks.
+
+	  If unsure, say N.
+
 config DM_SWITCH
 	tristate "Switch target support (EXPERIMENTAL)"
 	depends on BLK_DEV_DM
@@ -485,6 +527,44 @@ config DM_LOG_WRITES
 
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-log-writes.
+
+	  If unsure, say N.
+
+config DM_INTEGRITY
+	tristate "Integrity target support"
+	depends on BLK_DEV_DM
+	select BLK_DEV_INTEGRITY
+	select DM_BUFIO
+	select CRYPTO
+	select ASYNC_XOR
+	---help---
+	  This device-mapper target emulates a block device that has
+	  additional per-sector tags that can be used for storing
+	  integrity information.
+
+	  This integrity target is used with the dm-crypt target to
+	  provide authenticated disk encryption or it can be used
+	  standalone.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called dm-integrity.
+
+config DM_ZONED
+	tristate "Drive-managed zoned block device target support"
+	depends on BLK_DEV_DM
+	depends on BLK_DEV_ZONED
+	---help---
+	  This device-mapper target takes a host-managed or host-aware zoned
+	  block device and exposes most of its capacity as a regular block
+	  device (drive-managed zoned block device) without any write
+	  constraints. This is mainly intended for use with file systems that
+	  do not natively support zoned block devices but still want to
+	  benefit from the increased capacity offered by SMR disks. Other uses
+	  by applications using raw block devices (for example object stores)
+	  are also possible.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called dm-zoned.
 
 	  If unsure, say N.
 

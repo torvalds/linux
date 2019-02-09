@@ -162,7 +162,7 @@ static int __init zevio_timer_add(struct device_node *node)
 		timer->clkevt.set_state_oneshot = zevio_timer_set_oneshot;
 		timer->clkevt.tick_resume	= zevio_timer_set_oneshot;
 		timer->clkevt.rating		= 200;
-		timer->clkevt.cpumask		= cpu_all_mask;
+		timer->clkevt.cpumask		= cpu_possible_mask;
 		timer->clkevt.features		= CLOCK_EVT_FEAT_ONESHOT;
 		timer->clkevt.irq		= irqnr;
 
@@ -210,9 +210,9 @@ error_free:
 	return ret;
 }
 
-static void __init zevio_timer_init(struct device_node *node)
+static int __init zevio_timer_init(struct device_node *node)
 {
-	BUG_ON(zevio_timer_add(node));
+	return zevio_timer_add(node);
 }
 
-CLOCKSOURCE_OF_DECLARE(zevio_timer, "lsi,zevio-timer", zevio_timer_init);
+TIMER_OF_DECLARE(zevio_timer, "lsi,zevio-timer", zevio_timer_init);

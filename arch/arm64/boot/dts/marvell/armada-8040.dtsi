@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2016 Marvell Technology Group Ltd.
+ *
+ * Device Tree file for the Armada 8040 SoC, made of an AP806 Quad and
+ * two CP110.
+ */
+
+#include "armada-ap806-quad.dtsi"
+#include "armada-80x0.dtsi"
+
+/ {
+	model = "Marvell Armada 8040";
+	compatible = "marvell,armada8040", "marvell,armada-ap806-quad",
+		     "marvell,armada-ap806";
+};
+
+/* The RTC requires external oscillator. But on Aramda 80x0, the RTC clock
+ * in CP master is not connected (by package) to the oscillator. So
+ * disable it. However, the RTC clock in CP slave is connected to the
+ * oscillator so this one is let enabled.
+ */
+&cp0_rtc {
+	status = "disabled";
+};

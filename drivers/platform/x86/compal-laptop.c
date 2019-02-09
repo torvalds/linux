@@ -679,18 +679,12 @@ static int bat_writeable_property(struct power_supply *psy,
 /* ============== */
 /* Driver Globals */
 /* ============== */
-static DEVICE_ATTR(wake_up_pme,
-		0644, wake_up_pme_show,		wake_up_pme_store);
-static DEVICE_ATTR(wake_up_modem,
-		0644, wake_up_modem_show,	wake_up_modem_store);
-static DEVICE_ATTR(wake_up_lan,
-		0644, wake_up_lan_show,	wake_up_lan_store);
-static DEVICE_ATTR(wake_up_wlan,
-		0644, wake_up_wlan_show,	wake_up_wlan_store);
-static DEVICE_ATTR(wake_up_key,
-		0644, wake_up_key_show,	wake_up_key_store);
-static DEVICE_ATTR(wake_up_mouse,
-		0644, wake_up_mouse_show,	wake_up_mouse_store);
+static DEVICE_ATTR_RW(wake_up_pme);
+static DEVICE_ATTR_RW(wake_up_modem);
+static DEVICE_ATTR_RW(wake_up_lan);
+static DEVICE_ATTR_RW(wake_up_wlan);
+static DEVICE_ATTR_RW(wake_up_key);
+static DEVICE_ATTR_RW(wake_up_mouse);
 
 static DEVICE_ATTR(fan1_input,  S_IRUGO, fan_show,          NULL);
 static DEVICE_ATTR(temp1_input, S_IRUGO, temp_cpu,          NULL);
@@ -718,7 +712,7 @@ static struct attribute *compal_platform_attrs[] = {
 	&dev_attr_wake_up_mouse.attr,
 	NULL
 };
-static struct attribute_group compal_platform_attr_group = {
+static const struct attribute_group compal_platform_attr_group = {
 	.attrs = compal_platform_attrs
 };
 
@@ -805,7 +799,7 @@ static int dmi_check_cb_extra(const struct dmi_system_id *id)
 	return 1;
 }
 
-static struct dmi_system_id __initdata compal_dmi_table[] = {
+static const struct dmi_system_id compal_dmi_table[] __initconst = {
 	{
 		.ident = "FL90/IFL90",
 		.matches = {

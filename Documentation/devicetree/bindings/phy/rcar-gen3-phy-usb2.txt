@@ -1,0 +1,48 @@
+* Renesas R-Car generation 3 USB 2.0 PHY
+
+This file provides information on what the device node for the R-Car generation
+3 USB 2.0 PHY contains.
+
+Required properties:
+- compatible: "renesas,usb2-phy-r8a7795" if the device is a part of an R8A7795
+	      SoC.
+	      "renesas,usb2-phy-r8a7796" if the device is a part of an R8A7796
+	      SoC.
+	      "renesas,usb2-phy-r8a77965" if the device is a part of an
+	      R8A77965 SoC.
+	      "renesas,usb2-phy-r8a77990" if the device is a part of an
+	      R8A77990 SoC.
+	      "renesas,usb2-phy-r8a77995" if the device is a part of an
+	      R8A77995 SoC.
+	      "renesas,rcar-gen3-usb2-phy" for a generic R-Car Gen3 compatible device.
+
+	      When compatible with the generic version, nodes must list the
+	      SoC-specific version corresponding to the platform first
+	      followed by the generic version.
+
+- reg: offset and length of the partial USB 2.0 Host register block.
+- clocks: clock phandle and specifier pair(s).
+- #phy-cells: see phy-bindings.txt in the same directory, must be <0>.
+
+Optional properties:
+To use a USB channel where USB 2.0 Host and HSUSB (USB 2.0 Peripheral) are
+combined, the device tree node should set interrupt properties to use the
+channel as USB OTG:
+- interrupts: interrupt specifier for the PHY.
+- vbus-supply: Phandle to a regulator that provides power to the VBUS. This
+	       regulator will be managed during the PHY power on/off sequence.
+
+Example (R-Car H3):
+
+	usb-phy@ee080200 {
+		compatible = "renesas,usb2-phy-r8a7795", "renesas,rcar-gen3-usb2-phy";
+		reg = <0 0xee080200 0 0x700>;
+		interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 703>;
+	};
+
+	usb-phy@ee0a0200 {
+		compatible = "renesas,usb2-phy-r8a7795", "renesas,rcar-gen3-usb2-phy";
+		reg = <0 0xee0a0200 0 0x700>;
+		clocks = <&cpg CPG_MOD 702>;
+	};

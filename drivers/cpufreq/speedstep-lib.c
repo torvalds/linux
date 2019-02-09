@@ -8,6 +8,8 @@
  *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -33,7 +35,7 @@ static int relaxed_check;
 static unsigned int pentium3_get_frequency(enum speedstep_processor processor)
 {
 	/* See table 14 of p3_ds.pdf and table 22 of 29834003.pdf */
-	struct {
+	static const struct {
 		unsigned int ratio;	/* Frequency Multiplier (x10) */
 		u8 bitmap;		/* power on configuration bits
 					[27, 25:22] (in MSR 0x2a) */
@@ -56,7 +58,7 @@ static unsigned int pentium3_get_frequency(enum speedstep_processor processor)
 	};
 
 	/* PIII(-M) FSB settings: see table b1-b of 24547206.pdf */
-	struct {
+	static const struct {
 		unsigned int value;	/* Front Side Bus speed in MHz */
 		u8 bitmap;		/* power on configuration bits [18: 19]
 					(in MSR 0x2a) */
@@ -153,7 +155,7 @@ static unsigned int pentium_core_get_frequency(void)
 		fsb = 333333;
 		break;
 	default:
-		printk(KERN_ERR "PCORE - MSR_FSB_FREQ undefined value");
+		pr_err("PCORE - MSR_FSB_FREQ undefined value\n");
 	}
 
 	rdmsr(MSR_IA32_EBL_CR_POWERON, msr_lo, msr_tmp);
@@ -250,7 +252,7 @@ EXPORT_SYMBOL_GPL(speedstep_get_frequency);
  *********************************************************************/
 
 /* Keep in sync with the x86_cpu_id tables in the different modules */
-unsigned int speedstep_detect_processor(void)
+enum speedstep_processor speedstep_detect_processor(void)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	u32 ebx, msr_lo, msr_hi;
@@ -270,9 +272,9 @@ unsigned int speedstep_detect_processor(void)
 		ebx = cpuid_ebx(0x00000001);
 		ebx &= 0x000000FF;
 
-		pr_debug("ebx value is %x, x86_mask is %x\n", ebx, c->x86_mask);
+		pr_debug("ebx value is %x, x86_stepping is %x\n", ebx, c->x86_stepping);
 
-		switch (c->x86_mask) {
+		switch (c->x86_stepping) {
 		case 4:
 			/*
 			 * B-stepping [M-P4-M]
@@ -359,13 +361,13 @@ unsigned int speedstep_detect_processor(void)
 				msr_lo, msr_hi);
 		if ((msr_hi & (1<<18)) &&
 		    (relaxed_check ? 1 : (msr_hi & (3<<24)))) {
-			if (c->x86_mask == 0x01) {
+			if (c->x86_stepping == 0x01) {
 				pr_debug("early PIII version\n");
 				return SPEEDSTEP_CPU_PIII_C_EARLY;
 			} else
 				return SPEEDSTEP_CPU_PIII_C;
 		}
-
+		/* fall through */
 	default:
 		return 0;
 	}
@@ -453,11 +455,8 @@ unsigned int speedstep_get_freqs(enum speedstep_processor processor,
 		 */
 		if (*transition_latency > 10000000 ||
 		    *transition_latency < 50000) {
-			printk(KERN_WARNING PFX "frequency transition "
-					"measured seems out of range (%u "
-					"nSec), falling back to a safe one of"
-					"%u nSec.\n",
-					*transition_latency, 500000);
+			pr_warn("frequency transition measured seems out of range (%u nSec), falling back to a safe one of %u nSec\n",
+				*transition_latency, 500000);
 			*transition_latency = 500000;
 		}
 	}

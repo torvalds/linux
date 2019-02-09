@@ -6,10 +6,11 @@ Required properties:
 	"fsl,imx6q-usbmisc" for imx6q
 	"fsl,vf610-usbmisc" for Vybrid vf610
 	"fsl,imx6sx-usbmisc" for imx6sx
+	"fsl,imx7d-usbmisc" for imx7d
 - reg: Should contain registers location and length
 
 Examples:
-usbmisc@02184800 {
+usbmisc@2184800 {
 	#index-cells = <1>;
 	compatible = "fsl,imx6q-usbmisc";
 	reg = <0x02184800 0x200>;

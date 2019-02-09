@@ -27,6 +27,11 @@ Optional properties
 - nokia,nvm-size: The size of the NVM, in bytes. If the size is not given,
   the NVM contents will not be read.
 - reset-gpios: XSHUTDOWN GPIO
+- flash-leds: See ../video-interfaces.txt
+- lens-focus: See ../video-interfaces.txt
+- rotation: Integer property; valid values are 0 (sensor mounted upright)
+	    and 180 (sensor mounted upside down). See
+	    ../video-interfaces.txt .
 
 
 Endpoint node mandatory properties

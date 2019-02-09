@@ -44,8 +44,6 @@ static bool msr_mtrr_valid(unsigned msr)
 	case MSR_MTRRdefType:
 	case MSR_IA32_CR_PAT:
 		return true;
-	case 0x2f8:
-		return true;
 	}
 	return false;
 }
@@ -132,7 +130,7 @@ static u8 mtrr_disabled_type(struct kvm_vcpu *vcpu)
 	 * enable MTRRs and it is obviously undesirable to run the
 	 * guest entirely with UC memory and we use WB.
 	 */
-	if (guest_cpuid_has_mtrr(vcpu))
+	if (guest_cpuid_has(vcpu, X86_FEATURE_MTRR))
 		return MTRR_TYPE_UNCACHABLE;
 	else
 		return MTRR_TYPE_WRBACK;
@@ -541,6 +539,7 @@ static void mtrr_lookup_var_start(struct mtrr_iter *iter)
 
 	iter->fixed = false;
 	iter->start_max = iter->start;
+	iter->range = NULL;
 	iter->range = list_prepare_entry(iter->range, &mtrr_state->head, node);
 
 	__mtrr_lookup_var_next(iter);

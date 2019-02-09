@@ -1,13 +1,9 @@
-/* arch/arm/plat-samsung/include/plat/pm.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Copyright (c) 2004 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Written by Ben Dooks, <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 /* s3c_pm_init
  *
@@ -40,14 +36,6 @@ static inline int s3c64xx_pm_init(void)
 /* configuration for the IRQ mask over sleep */
 extern unsigned long s3c_irqwake_intmask;
 extern unsigned long s3c_irqwake_eintmask;
-
-/* IRQ masks for IRQs allowed to go to sleep (see irq.c) */
-extern unsigned long s3c_irqwake_intallow;
-#ifdef CONFIG_PM_SLEEP
-extern unsigned long s3c_irqwake_eintallow;
-#else
-#define s3c_irqwake_eintallow 0
-#endif
 
 /* per-cpu sleep functions */
 

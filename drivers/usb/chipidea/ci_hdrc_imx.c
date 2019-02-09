@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright (C) 2012 Marek Vasut <marex@denx.de>
  * on behalf of DENX Software Engineering GmbH
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -18,6 +12,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/chipidea.h>
+#include <linux/usb/of.h>
 #include <linux/clk.h>
 
 #include "ci.h"
@@ -25,11 +20,15 @@
 
 struct ci_hdrc_imx_platform_flag {
 	unsigned int flags;
-	bool runtime_pm;
+};
+
+static const struct ci_hdrc_imx_platform_flag imx23_usb_data = {
+	.flags = CI_HDRC_TURN_VBUS_EARLY_ON |
+		CI_HDRC_DISABLE_STREAMING,
 };
 
 static const struct ci_hdrc_imx_platform_flag imx27_usb_data = {
-		CI_HDRC_DISABLE_STREAMING,
+	.flags = CI_HDRC_DISABLE_STREAMING,
 };
 
 static const struct ci_hdrc_imx_platform_flag imx28_usb_data = {
@@ -66,6 +65,7 @@ static const struct ci_hdrc_imx_platform_flag imx7d_usb_data = {
 };
 
 static const struct of_device_id ci_hdrc_imx_dt_ids[] = {
+	{ .compatible = "fsl,imx23-usb", .data = &imx23_usb_data},
 	{ .compatible = "fsl,imx28-usb", .data = &imx28_usb_data},
 	{ .compatible = "fsl,imx27-usb", .data = &imx27_usb_data},
 	{ .compatible = "fsl,imx6q-usb", .data = &imx6q_usb_data},
@@ -83,6 +83,7 @@ struct ci_hdrc_imx_data {
 	struct clk *clk;
 	struct imx_usbmisc_data *usbmisc_data;
 	bool supports_runtime_pm;
+	bool override_phy_control;
 	bool in_lpm;
 	/* SoC before i.mx6 (except imx23/imx28) needs three clks */
 	bool need_three_clks;
@@ -134,8 +135,14 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	if (of_find_property(np, "disable-over-current", NULL))
 		data->disable_oc = 1;
 
+	if (of_find_property(np, "over-current-active-high", NULL))
+		data->oc_polarity = 1;
+
 	if (of_find_property(np, "external-vbus-divider", NULL))
 		data->evdo = 1;
+
+	if (of_usb_get_phy_mode(np) == USBPHY_INTERFACE_MODE_ULPI)
+		data->ulpi = 1;
 
 	return data;
 }
@@ -244,11 +251,11 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	struct ci_hdrc_platform_data pdata = {
 		.name		= dev_name(&pdev->dev),
 		.capoffset	= DEF_CAPOFFSET,
-		.flags		= CI_HDRC_SET_NON_ZERO_TTHA,
 	};
 	int ret;
 	const struct of_device_id *of_id;
 	const struct ci_hdrc_imx_platform_flag *imx_platform_flag;
+	struct device_node *np = pdev->dev.of_node;
 
 	of_id = of_match_device(ci_hdrc_imx_dt_ids, &pdev->dev);
 	if (!of_id)
@@ -283,13 +290,18 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	}
 
 	pdata.usb_phy = data->phy;
+
+	if ((of_device_is_compatible(np, "fsl,imx53-usb") ||
+	     of_device_is_compatible(np, "fsl,imx51-usb")) && pdata.usb_phy &&
+	    of_usb_get_phy_mode(np) == USBPHY_INTERFACE_MODE_ULPI) {
+		pdata.flags |= CI_HDRC_OVERRIDE_PHY_CONTROL;
+		data->override_phy_control = true;
+		usb_phy_init(pdata.usb_phy);
+	}
+
 	pdata.flags |= imx_platform_flag->flags;
 	if (pdata.flags & CI_HDRC_SUPPORTS_RUNTIME_PM)
 		data->supports_runtime_pm = true;
-
-	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	if (ret)
-		goto err_clk;
 
 	ret = imx_usbmisc_init(data->usbmisc_data);
 	if (ret) {
@@ -302,9 +314,9 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 				&pdata);
 	if (IS_ERR(data->ci_pdev)) {
 		ret = PTR_ERR(data->ci_pdev);
-		dev_err(&pdev->dev,
-			"Can't register ci_hdrc platform device, err=%d\n",
-			ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"ci_hdrc_add_device failed, err=%d\n", ret);
 		goto err_clk;
 	}
 
@@ -340,9 +352,16 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 		pm_runtime_put_noidle(&pdev->dev);
 	}
 	ci_hdrc_remove_device(data->ci_pdev);
+	if (data->override_phy_control)
+		usb_phy_shutdown(data->phy);
 	imx_disable_unprepare_clks(&pdev->dev);
 
 	return 0;
+}
+
+static void ci_hdrc_imx_shutdown(struct platform_device *pdev)
+{
+	ci_hdrc_imx_remove(pdev);
 }
 
 #ifdef CONFIG_PM
@@ -462,6 +481,7 @@ static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
 static struct platform_driver ci_hdrc_imx_driver = {
 	.probe = ci_hdrc_imx_probe,
 	.remove = ci_hdrc_imx_remove,
+	.shutdown = ci_hdrc_imx_shutdown,
 	.driver = {
 		.name = "imx_usb",
 		.of_match_table = ci_hdrc_imx_dt_ids,

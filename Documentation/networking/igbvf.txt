@@ -62,7 +62,7 @@ Additional Configurations
   version 3.0 or later is required for this functionality, although we
   strongly recommend downloading the latest version at:
 
-  http://ftp.kernel.org/pub/software/network/ethtool/
+  https://www.kernel.org/pub/software/network/ethtool/
 
 Support
 =======

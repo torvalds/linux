@@ -264,8 +264,6 @@ static const char * const gcc_xo_gpll1_emclk_sleep[] = {
 	"sleep_clk",
 };
 
-#define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
-
 static struct clk_pll gpll0 = {
 	.l_reg = 0x21004,
 	.m_reg = 0x21008,
@@ -1107,7 +1105,7 @@ static struct clk_rcg2 sdcc1_apps_clk_src = {
 		.name = "sdcc1_apps_clk_src",
 		.parent_names = gcc_xo_gpll0,
 		.num_parents = 2,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -1132,7 +1130,7 @@ static struct clk_rcg2 sdcc2_apps_clk_src = {
 		.name = "sdcc2_apps_clk_src",
 		.parent_names = gcc_xo_gpll0,
 		.num_parents = 2,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -1176,7 +1174,7 @@ static struct clk_rcg2 bimc_gpu_clk_src = {
 		.parent_names = gcc_xo_gpll0_bimc,
 		.num_parents = 3,
 		.flags = CLK_GET_RATE_NOCACHE,
-		.ops = &clk_rcg2_shared_ops,
+		.ops = &clk_rcg2_ops,
 	},
 };
 
@@ -1259,20 +1257,25 @@ static struct clk_branch gcc_ultaudio_ahbfabric_ixfabric_lpm_clk = {
 };
 
 static const struct freq_tbl ftbl_gcc_ultaudio_lpaif_i2s_clk[] = {
+	F(128000, P_XO, 10, 1, 15),
 	F(256000, P_XO, 5, 1, 15),
+	F(384000, P_XO, 5, 1, 10),
 	F(512000, P_XO, 5, 2, 15),
+	F(576000, P_XO, 5, 3, 20),
 	F(705600, P_GPLL1, 16, 1, 80),
 	F(768000, P_XO, 5, 1, 5),
 	F(800000, P_XO, 5, 5, 24),
-	F(1024000, P_GPLL1, 14, 1, 63),
+	F(1024000, P_XO, 5, 4, 15),
 	F(1152000, P_XO, 1, 3, 50),
 	F(1411200, P_GPLL1, 16, 1, 40),
 	F(1536000, P_XO, 1, 2, 25),
 	F(1600000, P_XO, 12, 0, 0),
-	F(2048000, P_GPLL1, 9, 1, 49),
+	F(1728000, P_XO, 5, 9, 20),
+	F(2048000, P_XO, 5, 8, 15),
+	F(2304000, P_XO, 5, 3, 5),
 	F(2400000, P_XO, 8, 0, 0),
 	F(2822400, P_GPLL1, 16, 1, 20),
-	F(3072000, P_GPLL1, 14, 1, 21),
+	F(3072000, P_XO, 5, 4, 5),
 	F(4096000, P_GPLL1, 9, 2, 49),
 	F(4800000, P_XO, 4, 0, 0),
 	F(5644800, P_GPLL1, 16, 1, 10),
@@ -1430,6 +1433,8 @@ static struct clk_branch gcc_ultaudio_stc_xo_clk = {
 };
 
 static const struct freq_tbl ftbl_codec_clk[] = {
+	F(9600000, P_XO, 2, 0, 0),
+	F(12288000, P_XO, 1, 16, 25),
 	F(19200000, P_XO, 1, 0, 0),
 	F(11289600, P_EXT_MCLK, 1, 0, 0),
 	{ }
@@ -1437,6 +1442,7 @@ static const struct freq_tbl ftbl_codec_clk[] = {
 
 static struct clk_rcg2 codec_digcodec_clk_src = {
 	.cmd_rcgr = 0x1c09c,
+	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = gcc_xo_gpll1_emclk_sleep_map,
 	.freq_tbl = ftbl_codec_clk,
@@ -2346,6 +2352,7 @@ static struct clk_branch gcc_crypto_ahb_clk = {
 				"pcnoc_bfdcd_clk_src",
 			},
 			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2381,6 +2388,7 @@ static struct clk_branch gcc_crypto_clk = {
 				"crypto_clk_src",
 			},
 			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2582,6 +2590,23 @@ static struct clk_branch gcc_mss_cfg_ahb_clk = {
 			.name = "gcc_mss_cfg_ahb_clk",
 			.parent_names = (const char *[]){
 				"pcnoc_bfdcd_clk_src",
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_mss_q6_bimc_axi_clk = {
+	.halt_reg = 0x49004,
+	.clkr = {
+		.enable_reg = 0x49004,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_mss_q6_bimc_axi_clk",
+			.parent_names = (const char *[]){
+				"bimc_ddr_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3227,6 +3252,7 @@ static struct clk_regmap *gcc_msm8916_clocks[] = {
 	[GCC_ULTAUDIO_LPAIF_SEC_I2S_CLK] = &gcc_ultaudio_lpaif_sec_i2s_clk.clkr,
 	[GCC_ULTAUDIO_LPAIF_AUX_I2S_CLK] = &gcc_ultaudio_lpaif_aux_i2s_clk.clkr,
 	[GCC_CODEC_DIGCODEC_CLK] = &gcc_codec_digcodec_clk.clkr,
+	[GCC_MSS_Q6_BIMC_AXI_CLK] = &gcc_mss_q6_bimc_axi_clk.clkr,
 };
 
 static struct gdsc *gcc_msm8916_gdscs[] = {
@@ -3356,18 +3382,16 @@ MODULE_DEVICE_TABLE(of, gcc_msm8916_match_table);
 
 static int gcc_msm8916_probe(struct platform_device *pdev)
 {
-	struct clk *clk;
+	int ret;
 	struct device *dev = &pdev->dev;
 
-	/* Temporary until RPM clocks supported */
-	clk = clk_register_fixed_rate(dev, "xo", NULL, CLK_IS_ROOT, 19200000);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_board_clk(dev, "xo_board", "xo", 19200000);
+	if (ret)
+		return ret;
 
-	clk = clk_register_fixed_rate(dev, "sleep_clk_src", NULL,
-				      CLK_IS_ROOT, 32768);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_sleep_clk(dev);
+	if (ret)
+		return ret;
 
 	return qcom_cc_probe(pdev, &gcc_msm8916_desc);
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    ebcdic keycode functions for s390 console drivers
  *
@@ -12,6 +13,17 @@
 #define NR_FN_HANDLER	20
 
 struct kbd_data;
+
+extern int ebc_funcbufsize, ebc_funcbufleft;
+extern char *ebc_func_table[MAX_NR_FUNC];
+extern char ebc_func_buf[];
+extern char *ebc_funcbufptr;
+extern unsigned int ebc_keymap_count;
+
+extern struct kbdiacruc ebc_accent_table[];
+extern unsigned int ebc_accent_table_size;
+extern unsigned short *ebc_key_maps[MAX_NR_KEYMAPS];
+extern unsigned short ebc_plain_map[NR_KEYS];
 
 typedef void (fn_handler_fn)(struct kbd_data *);
 

@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: dbcmds - Miscellaneous debug commands and output routines
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -348,7 +312,7 @@ void acpi_db_display_table_info(char *table_arg)
 		} else {
 			/* If the pointer is null, the table has been unloaded */
 
-			ACPI_INFO((AE_INFO, "%4.4s - Table has been unloaded",
+			ACPI_INFO(("%4.4s - Table has been unloaded",
 				   table_desc->signature.ascii));
 		}
 	}
@@ -738,9 +702,9 @@ acpi_dm_test_resource_conversion(struct acpi_namespace_node *node, char *name)
 	original_aml = return_buffer.pointer;
 
 	acpi_dm_compare_aml_resources(original_aml->buffer.pointer,
-				      (acpi_rsdesc_size) original_aml->buffer.
+				      (acpi_rsdesc_size)original_aml->buffer.
 				      length, new_aml.pointer,
-				      (acpi_rsdesc_size) new_aml.length);
+				      (acpi_rsdesc_size)new_aml.length);
 
 	/* Cleanup and exit */
 
@@ -798,7 +762,7 @@ acpi_db_device_resources(acpi_handle obj_handle,
 	acpi_status status;
 
 	node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_handle);
-	parent_path = acpi_ns_get_external_pathname(node);
+	parent_path = acpi_ns_get_normalized_pathname(node, TRUE);
 	if (!parent_path) {
 		return (AE_NO_MEMORY);
 	}
@@ -1131,13 +1095,8 @@ void acpi_db_trace(char *enable_arg, char *method_arg, char *once_arg)
 	u32 debug_layer = 0;
 	u32 flags = 0;
 
-	if (enable_arg) {
-		acpi_ut_strupr(enable_arg);
-	}
-
-	if (once_arg) {
-		acpi_ut_strupr(once_arg);
-	}
+	acpi_ut_strupr(enable_arg);
+	acpi_ut_strupr(once_arg);
 
 	if (method_arg) {
 		if (acpi_db_trace_method_name) {

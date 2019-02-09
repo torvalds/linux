@@ -1,9 +1,7 @@
 Rockchip SuperSpeed DWC3 USB SoC controller
 
 Required properties:
-- compatible :	should be one of the listed compatibles:
-  - "rockchip,rk1808-dwc3": for rk1808 SoC;
-  - "rockchip,rk3399-dwc3": for rk3399 SoC;
+- compatible:	should contain "rockchip,rk3399-dwc3" for rk3399 SoC
 - clocks:	A list of phandle + clock-specifier pairs for the
 		clocks listed in clock-names
 - clock-names:	Should contain the following:
@@ -18,7 +16,8 @@ A child node must exist to represent the core DWC3 IP block. The name of
 the node is not important. The content of the node is defined in dwc3.txt.
 
 Phy documentation is provided in the following places:
-Documentation/devicetree/bindings/phy/rockchip,dwc3-usb-phy.txt
+Documentation/devicetree/bindings/phy/phy-rockchip-inno-usb2.txt - USB2.0 PHY
+Documentation/devicetree/bindings/phy/phy-rockchip-typec.txt     - Type-C PHY
 
 Example device nodes:
 
@@ -31,13 +30,11 @@ Example device nodes:
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		status = "disabled";
 		usbdrd_dwc3_0: dwc3@fe800000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0xfe800000 0x0 0x100000>;
 			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "otg";
-			status = "disabled";
 		};
 	};
 
@@ -50,12 +47,10 @@ Example device nodes:
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		status = "disabled";
 		usbdrd_dwc3_1: dwc3@fe900000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0xfe900000 0x0 0x100000>;
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "otg";
-			status = "disabled";
 		};
 	};

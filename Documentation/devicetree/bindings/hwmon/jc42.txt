@@ -1,0 +1,46 @@
+Properties for Jedec JC-42.4 compatible temperature sensors
+
+Required properties:
+- compatible: May include a device-specific string consisting of the
+	      manufacturer and the name of the chip. A list of supported
+	      chip names follows.
+	      Must include "jedec,jc-42.4-temp" for any Jedec JC-42.4
+	      compatible temperature sensor.
+
+	      Supported chip names:
+		adi,adt7408
+		atmel,at30ts00
+		atmel,at30tse004
+		onnn,cat6095
+		onnn,cat34ts02
+		maxim,max6604
+		microchip,mcp9804
+		microchip,mcp9805
+		microchip,mcp9808
+		microchip,mcp98243
+		microchip,mcp98244
+		microchip,mcp9843
+		nxp,se97
+		nxp,se98
+		st,stts2002
+		st,stts2004
+		st,stts3000
+		st,stts424
+		st,stts424e
+		idt,tse2002
+		idt,tse2004
+		idt,ts3000
+		idt,ts3001
+
+- reg: I2C address
+
+Optional properties:
+- smbus-timeout-disable: When set, the smbus timeout function will be disabled.
+			 This is not supported on all chips.
+
+Example:
+
+temp-sensor@1a {
+	compatible = "jedec,jc-42.4-temp";
+	reg = <0x1a>;
+};

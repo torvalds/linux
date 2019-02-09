@@ -128,7 +128,7 @@ void snd_device_disconnect(struct snd_card *card, void *device_data)
 	if (dev)
 		__snd_device_disconnect(dev);
 	else
-		dev_dbg(card->dev, "device disconnect %p (from %pF), not found\n",
+		dev_dbg(card->dev, "device disconnect %p (from %pS), not found\n",
 			device_data, __builtin_return_address(0));
 }
 EXPORT_SYMBOL_GPL(snd_device_disconnect);
@@ -152,7 +152,7 @@ void snd_device_free(struct snd_card *card, void *device_data)
 	if (dev)
 		__snd_device_free(dev);
 	else
-		dev_dbg(card->dev, "device free %p (from %pF), not found\n",
+		dev_dbg(card->dev, "device free %p (from %pS), not found\n",
 			device_data, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(snd_device_free);
@@ -240,6 +240,15 @@ void snd_device_free_all(struct snd_card *card)
 
 	if (snd_BUG_ON(!card))
 		return;
+	list_for_each_entry_safe_reverse(dev, next, &card->devices, list) {
+		/* exception: free ctl and lowlevel stuff later */
+		if (dev->type == SNDRV_DEV_CONTROL ||
+		    dev->type == SNDRV_DEV_LOWLEVEL)
+			continue;
+		__snd_device_free(dev);
+	}
+
+	/* free all */
 	list_for_each_entry_safe_reverse(dev, next, &card->devices, list)
 		__snd_device_free(dev);
 }

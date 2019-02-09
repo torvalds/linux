@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <inttypes.h>
 #include "perf.h"
 #include "util/debug.h"
 #include "util/symbol.h"
@@ -7,6 +9,7 @@
 #include "util/machine.h"
 #include "util/thread.h"
 #include "tests/hists_common.h"
+#include <linux/kernel.h>
 
 static struct {
 	u32 pid;
@@ -100,9 +103,11 @@ struct machine *setup_fake_machine(struct machines *machines)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fake_mmap_info); i++) {
+		struct perf_sample sample = {
+			.cpumode = PERF_RECORD_MISC_USER,
+		};
 		union perf_event fake_mmap_event = {
 			.mmap = {
-				.header = { .misc = PERF_RECORD_MISC_USER, },
 				.pid = fake_mmap_info[i].pid,
 				.tid = fake_mmap_info[i].pid,
 				.start = fake_mmap_info[i].start,
@@ -114,7 +119,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 		strcpy(fake_mmap_event.mmap.filename,
 		       fake_mmap_info[i].filename);
 
-		machine__process_mmap_event(machine, &fake_mmap_event, NULL);
+		machine__process_mmap_event(machine, &fake_mmap_event, &sample);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fake_symbols); i++) {
@@ -126,20 +131,20 @@ struct machine *setup_fake_machine(struct machines *machines)
 			goto out;
 
 		/* emulate dso__load() */
-		dso__set_loaded(dso, MAP__FUNCTION);
+		dso__set_loaded(dso);
 
 		for (k = 0; k < fake_symbols[i].nr_syms; k++) {
 			struct symbol *sym;
 			struct fake_sym *fsym = &fake_symbols[i].syms[k];
 
 			sym = symbol__new(fsym->start, fsym->length,
-					  STB_GLOBAL, fsym->name);
+					  STB_GLOBAL, STT_FUNC, fsym->name);
 			if (sym == NULL) {
 				dso__put(dso);
 				goto out;
 			}
 
-			symbols__insert(&dso->symbols[MAP__FUNCTION], sym);
+			symbols__insert(&dso->symbols, sym);
 		}
 
 		dso__put(dso);
@@ -150,7 +155,6 @@ struct machine *setup_fake_machine(struct machines *machines)
 out:
 	pr_debug("Not enough memory for machine setup\n");
 	machine__delete_threads(machine);
-	machine__delete(machine);
 	return NULL;
 }
 
@@ -160,7 +164,7 @@ void print_hists_in(struct hists *hists)
 	struct rb_root *root;
 	struct rb_node *node;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;

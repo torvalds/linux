@@ -57,8 +57,8 @@ MODULE_LICENSE("GPL v2");
  #define HIL_DATA		0x1
  #define HIL_CMD		0x3
  #define HIL_IRQ		2
- #define hil_readb(p)		readb(p)
- #define hil_writeb(v,p)	writeb((v),(p))
+ #define hil_readb(p)		readb((const volatile void __iomem *)(p))
+ #define hil_writeb(v, p)	writeb((v), (volatile void __iomem *)(p))
 
 #else
 #error "HIL is not supported on this platform"
@@ -299,7 +299,7 @@ static void hil_keyb_exit(void)
 }
 
 #if defined(CONFIG_PARISC)
-static int hil_probe_chip(struct parisc_device *dev)
+static int __init hil_probe_chip(struct parisc_device *dev)
 {
 	/* Only allow one HIL keyboard */
 	if (hil_dev.dev)
@@ -320,14 +320,14 @@ static int hil_probe_chip(struct parisc_device *dev)
 	return hil_keyb_init();
 }
 
-static int hil_remove_chip(struct parisc_device *dev)
+static int __exit hil_remove_chip(struct parisc_device *dev)
 {
 	hil_keyb_exit();
 
 	return 0;
 }
 
-static struct parisc_device_id hil_tbl[] = {
+static const struct parisc_device_id hil_tbl[] __initconst = {
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00073 },
 	{ 0, }
 };
@@ -337,11 +337,11 @@ static struct parisc_device_id hil_tbl[] = {
 MODULE_DEVICE_TABLE(parisc, hil_tbl);
 #endif
 
-static struct parisc_driver hil_driver = {
+static struct parisc_driver hil_driver __refdata = {
 	.name		= "hil",
 	.id_table	= hil_tbl,
 	.probe		= hil_probe_chip,
-	.remove		= hil_remove_chip,
+	.remove		= __exit_p(hil_remove_chip),
 };
 
 static int __init hil_init(void)

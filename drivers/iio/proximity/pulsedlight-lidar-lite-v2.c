@@ -1,19 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * pulsedlight-lidar-lite-v2.c - Support for PulsedLight LIDAR sensor
  *
- * Copyright (C) 2015 Matt Ranostay <mranostay@gmail.com>
+ * Copyright (C) 2015, 2017-2018
+ * Author: Matt Ranostay <matt.ranostay@konsulko.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * TODO: runtime pm, interrupt mode, and signal strength reporting
+ * TODO: interrupt mode, and signal strength reporting
  */
 
 #include <linux/err.h>
@@ -21,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
@@ -35,14 +28,20 @@
 #define LIDAR_REG_STATUS_INVALID	BIT(3)
 #define LIDAR_REG_STATUS_READY		BIT(0)
 
-#define LIDAR_REG_DATA_HBYTE	0x0f
-#define LIDAR_REG_DATA_LBYTE	0x10
+#define LIDAR_REG_DATA_HBYTE		0x0f
+#define LIDAR_REG_DATA_LBYTE		0x10
+#define LIDAR_REG_DATA_WORD_READ	BIT(7)
+
+#define LIDAR_REG_PWR_CONTROL	0x65
 
 #define LIDAR_DRV_NAME "lidar"
 
 struct lidar_data {
 	struct iio_dev *indio_dev;
 	struct i2c_client *client;
+
+	int (*xfer)(struct lidar_data *data, u8 reg, u8 *val, int len);
+	int i2c_enabled;
 
 	u16 buffer[8]; /* 2 byte distance + 8 byte timestamp */
 };
@@ -62,7 +61,28 @@ static const struct iio_chan_spec lidar_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
-static int lidar_read_byte(struct lidar_data *data, int reg)
+static int lidar_i2c_xfer(struct lidar_data *data, u8 reg, u8 *val, int len)
+{
+	struct i2c_client *client = data->client;
+	struct i2c_msg msg[2];
+	int ret;
+
+	msg[0].addr = client->addr;
+	msg[0].flags = client->flags | I2C_M_STOP;
+	msg[0].len = 1;
+	msg[0].buf  = (char *) &reg;
+
+	msg[1].addr = client->addr;
+	msg[1].flags = client->flags | I2C_M_RD;
+	msg[1].len = len;
+	msg[1].buf = (char *) val;
+
+	ret = i2c_transfer(client->adapter, msg, 2);
+
+	return (ret == 2) ? 0 : -EIO;
+}
+
+static int lidar_smbus_xfer(struct lidar_data *data, u8 reg, u8 *val, int len)
 {
 	struct i2c_client *client = data->client;
 	int ret;
@@ -72,17 +92,35 @@ static int lidar_read_byte(struct lidar_data *data, int reg)
 	 * so in turn i2c_smbus_read_byte_data cannot be used
 	 */
 
-	ret = i2c_smbus_write_byte(client, reg);
-	if (ret < 0) {
-		dev_err(&client->dev, "cannot write addr value");
-		return ret;
+	while (len--) {
+		ret = i2c_smbus_write_byte(client, reg++);
+		if (ret < 0) {
+			dev_err(&client->dev, "cannot write addr value");
+			return ret;
+		}
+
+		ret = i2c_smbus_read_byte(client);
+		if (ret < 0) {
+			dev_err(&client->dev, "cannot read data value");
+			return ret;
+		}
+
+		*(val++) = ret;
 	}
 
-	ret = i2c_smbus_read_byte(client);
-	if (ret < 0)
-		dev_err(&client->dev, "cannot read data value");
+	return 0;
+}
 
-	return ret;
+static int lidar_read_byte(struct lidar_data *data, u8 reg)
+{
+	int ret;
+	u8 val;
+
+	ret = data->xfer(data, reg, &val, 1);
+	if (ret < 0)
+		return ret;
+
+	return val;
 }
 
 static inline int lidar_write_control(struct lidar_data *data, int val)
@@ -90,24 +128,22 @@ static inline int lidar_write_control(struct lidar_data *data, int val)
 	return i2c_smbus_write_byte_data(data->client, LIDAR_REG_CONTROL, val);
 }
 
+static inline int lidar_write_power(struct lidar_data *data, int val)
+{
+	return i2c_smbus_write_byte_data(data->client,
+					 LIDAR_REG_PWR_CONTROL, val);
+}
+
 static int lidar_read_measurement(struct lidar_data *data, u16 *reg)
 {
-	int ret;
-	int val;
+	int ret = data->xfer(data, LIDAR_REG_DATA_HBYTE |
+			(data->i2c_enabled ? LIDAR_REG_DATA_WORD_READ : 0),
+			(u8 *) reg, 2);
 
-	ret = lidar_read_byte(data, LIDAR_REG_DATA_HBYTE);
-	if (ret < 0)
-		return ret;
-	val = ret << 8;
+	if (!ret)
+		*reg = be16_to_cpu(*reg);
 
-	ret = lidar_read_byte(data, LIDAR_REG_DATA_LBYTE);
-	if (ret < 0)
-		return ret;
-
-	val |= ret;
-	*reg = val;
-
-	return 0;
+	return ret;
 }
 
 static int lidar_get_measurement(struct lidar_data *data, u16 *reg)
@@ -115,6 +151,8 @@ static int lidar_get_measurement(struct lidar_data *data, u16 *reg)
 	struct i2c_client *client = data->client;
 	int tries = 10;
 	int ret;
+
+	pm_runtime_get_sync(&client->dev);
 
 	/* start sample */
 	ret = lidar_write_control(data, LIDAR_REG_CONTROL_ACQUIRE);
@@ -144,6 +182,8 @@ static int lidar_get_measurement(struct lidar_data *data, u16 *reg)
 		}
 		ret = -EIO;
 	}
+	pm_runtime_mark_last_busy(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
 
 	return ret;
 }
@@ -155,22 +195,19 @@ static int lidar_read_raw(struct iio_dev *indio_dev,
 	struct lidar_data *data = iio_priv(indio_dev);
 	int ret = -EINVAL;
 
-	mutex_lock(&indio_dev->mlock);
-
-	if (iio_buffer_enabled(indio_dev) && mask == IIO_CHAN_INFO_RAW) {
-		ret = -EBUSY;
-		goto error_busy;
-	}
-
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW: {
 		u16 reg;
+
+		if (iio_device_claim_direct_mode(indio_dev))
+			return -EBUSY;
 
 		ret = lidar_get_measurement(data, &reg);
 		if (!ret) {
 			*val = reg;
 			ret = IIO_VAL_INT;
 		}
+		iio_device_release_direct_mode(indio_dev);
 		break;
 	}
 	case IIO_CHAN_INFO_SCALE:
@@ -179,9 +216,6 @@ static int lidar_read_raw(struct iio_dev *indio_dev,
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	}
-
-error_busy:
-	mutex_unlock(&indio_dev->mlock);
 
 	return ret;
 }
@@ -196,7 +230,7 @@ static irqreturn_t lidar_trigger_handler(int irq, void *private)
 	ret = lidar_get_measurement(data, data->buffer);
 	if (!ret) {
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
-						   iio_get_time_ns());
+						   iio_get_time_ns(indio_dev));
 	} else if (ret != -EINVAL) {
 		dev_err(&data->client->dev, "cannot read LIDAR measurement");
 	}
@@ -207,7 +241,6 @@ static irqreturn_t lidar_trigger_handler(int irq, void *private)
 }
 
 static const struct iio_info lidar_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = lidar_read_raw,
 };
 
@@ -221,14 +254,24 @@ static int lidar_probe(struct i2c_client *client,
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
+	data = iio_priv(indio_dev);
+
+	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		data->xfer = lidar_i2c_xfer;
+		data->i2c_enabled = 1;
+	} else if (i2c_check_functionality(client->adapter,
+				I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BYTE))
+		data->xfer = lidar_smbus_xfer;
+	else
+		return -EOPNOTSUPP;
 
 	indio_dev->info = &lidar_info;
 	indio_dev->name = LIDAR_DRV_NAME;
 	indio_dev->channels = lidar_channels;
 	indio_dev->num_channels = ARRAY_SIZE(lidar_channels);
+	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 
 	data->client = client;
@@ -242,6 +285,15 @@ static int lidar_probe(struct i2c_client *client,
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_unreg_buffer;
+
+	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
+	pm_runtime_use_autosuspend(&client->dev);
+
+	ret = pm_runtime_set_active(&client->dev);
+	if (ret)
+		goto error_unreg_buffer;
+	pm_runtime_enable(&client->dev);
+	pm_runtime_idle(&client->dev);
 
 	return 0;
 
@@ -258,25 +310,58 @@ static int lidar_remove(struct i2c_client *client)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+
 	return 0;
 }
 
 static const struct i2c_device_id lidar_id[] = {
 	{"lidar-lite-v2", 0},
+	{"lidar-lite-v3", 0},
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, lidar_id);
 
 static const struct of_device_id lidar_dt_ids[] = {
 	{ .compatible = "pulsedlight,lidar-lite-v2" },
+	{ .compatible = "grmn,lidar-lite-v3" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, lidar_dt_ids);
+
+#ifdef CONFIG_PM
+static int lidar_pm_runtime_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct lidar_data *data = iio_priv(indio_dev);
+
+	return lidar_write_power(data, 0x0f);
+}
+
+static int lidar_pm_runtime_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct lidar_data *data = iio_priv(indio_dev);
+	int ret = lidar_write_power(data, 0);
+
+	/* regulator and FPGA needs settling time */
+	usleep_range(15000, 20000);
+
+	return ret;
+}
+#endif
+
+static const struct dev_pm_ops lidar_pm_ops = {
+	SET_RUNTIME_PM_OPS(lidar_pm_runtime_suspend,
+			   lidar_pm_runtime_resume, NULL)
+};
 
 static struct i2c_driver lidar_driver = {
 	.driver = {
 		.name	= LIDAR_DRV_NAME,
 		.of_match_table	= of_match_ptr(lidar_dt_ids),
+		.pm	= &lidar_pm_ops,
 	},
 	.probe		= lidar_probe,
 	.remove		= lidar_remove,
@@ -284,6 +369,6 @@ static struct i2c_driver lidar_driver = {
 };
 module_i2c_driver(lidar_driver);
 
-MODULE_AUTHOR("Matt Ranostay <mranostay@gmail.com>");
+MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
 MODULE_DESCRIPTION("PulsedLight LIDAR sensor");
 MODULE_LICENSE("GPL");

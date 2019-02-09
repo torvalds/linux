@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Interface to the libusual.
  *
@@ -79,6 +80,10 @@
 		/* Cannot handle MI_REPORT_SUPPORTED_OPERATION_CODES */	\
 	US_FLAG(MAX_SECTORS_240,	0x08000000)		\
 		/* Sets max_sectors to 240 */			\
+	US_FLAG(NO_REPORT_LUNS,	0x10000000)			\
+		/* Cannot handle REPORT_LUNS */			\
+	US_FLAG(ALWAYS_SYNC, 0x20000000)			\
+		/* lies about caching, so always sync */	\
 
 #define US_FLAG(name, value)	US_FL_##name = value ,
 enum { US_DO_ALL_FLAGS };

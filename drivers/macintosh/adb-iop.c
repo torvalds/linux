@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * I/O Processor (IOP) ADB Driver
  * Written and (C) 1999 by Joshua M. Thompson (funaho@jurai.org)
@@ -29,8 +30,6 @@
 
 /*#define DEBUG_ADB_IOP*/
 
-extern void iop_ism_irq(int, void *);
-
 static struct adb_request *current_req;
 static struct adb_request *last_req;
 #if 0
@@ -54,13 +53,13 @@ static void adb_iop_poll(void);
 static int adb_iop_reset_bus(void);
 
 struct adb_driver adb_iop_driver = {
-	"ISM IOP",
-	adb_iop_probe,
-	adb_iop_init,
-	adb_iop_send_request,
-	adb_iop_autopoll,
-	adb_iop_poll,
-	adb_iop_reset_bus
+	.name         = "ISM IOP",
+	.probe        = adb_iop_probe,
+	.init         = adb_iop_init,
+	.send_request = adb_iop_send_request,
+	.autopoll     = adb_iop_autopoll,
+	.poll         = adb_iop_poll,
+	.reset_bus    = adb_iop_reset_bus
 };
 
 static void adb_iop_end_req(struct adb_request *req, int state)
@@ -265,7 +264,7 @@ int adb_iop_autopoll(int devs)
 void adb_iop_poll(void)
 {
 	if (adb_iop_state == idle) adb_iop_start();
-	iop_ism_irq(0, (void *) ADB_IOP);
+	iop_ism_irq_poll(ADB_IOP);
 }
 
 int adb_iop_reset_bus(void)

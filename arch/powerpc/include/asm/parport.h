@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * parport.h: platform-specific PC-style parport initialisation
  *
@@ -28,7 +29,7 @@ static int parport_pc_find_nonpci_ports (int autoirq, int autodma)
 		io1 = prop[1]; io2 = prop[2];
 
 		virq = irq_of_parse_and_map(np, 0);
-		if (virq == NO_IRQ)
+		if (!virq)
 			continue;
 
 		if (parport_pc_probe_port(io1, io2, virq, autodma, NULL, 0)

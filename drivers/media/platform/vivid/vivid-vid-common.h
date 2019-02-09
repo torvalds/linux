@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * vivid-vid-common.h - common video support functions.
  *
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef _VIVID_VID_COMMON_H_
@@ -37,15 +25,6 @@ const struct vivid_fmt *vivid_get_format(struct vivid_dev *dev, u32 pixelformat)
 bool vivid_vid_can_loop(struct vivid_dev *dev);
 void vivid_send_source_change(struct vivid_dev *dev, unsigned type);
 
-bool rect_overlap(const struct v4l2_rect *r1, const struct v4l2_rect *r2);
-void rect_set_size_to(struct v4l2_rect *r, const struct v4l2_rect *size);
-void rect_set_min_size(struct v4l2_rect *r, const struct v4l2_rect *min_size);
-void rect_set_max_size(struct v4l2_rect *r, const struct v4l2_rect *max_size);
-void rect_map_inside(struct v4l2_rect *r, const struct v4l2_rect *boundary);
-bool rect_same_size(const struct v4l2_rect *r1, const struct v4l2_rect *r2);
-struct v4l2_rect rect_intersect(const struct v4l2_rect *a, const struct v4l2_rect *b);
-void rect_scale(struct v4l2_rect *r, const struct v4l2_rect *from,
-				     const struct v4l2_rect *to);
 int vivid_vid_adjust_sel(unsigned flags, struct v4l2_rect *r);
 
 int vivid_enum_fmt_vid(struct file *file, void  *priv, struct v4l2_fmtdesc *f);

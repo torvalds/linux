@@ -394,7 +394,8 @@ mpt_lan_open(struct net_device *dev)
 				"a moment.\n");
 	}
 
-	priv->mpt_txfidx = kmalloc(priv->tx_max_out * sizeof(int), GFP_KERNEL);
+	priv->mpt_txfidx = kmalloc_array(priv->tx_max_out, sizeof(int),
+					 GFP_KERNEL);
 	if (priv->mpt_txfidx == NULL)
 		goto out;
 	priv->mpt_txfidx_tail = -1;
@@ -408,8 +409,8 @@ mpt_lan_open(struct net_device *dev)
 
 	dlprintk((KERN_INFO MYNAM "@lo: Finished initializing SendCtl\n"));
 
-	priv->mpt_rxfidx = kmalloc(priv->max_buckets_out * sizeof(int),
-				   GFP_KERNEL);
+	priv->mpt_rxfidx = kmalloc_array(priv->max_buckets_out, sizeof(int),
+					 GFP_KERNEL);
 	if (priv->mpt_rxfidx == NULL)
 		goto out_SendCtl;
 	priv->mpt_rxfidx_tail = -1;
@@ -549,16 +550,6 @@ mpt_lan_close(struct net_device *dev)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-static int
-mpt_lan_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < MPT_LAN_MIN_MTU) || (new_mtu > MPT_LAN_MAX_MTU))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /* Tx timeout handler. */
 static void
 mpt_lan_tx_timeout(struct net_device *dev)
@@ -680,7 +671,7 @@ out:
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-static int
+static netdev_tx_t
 mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 {
 	struct mpt_lan_priv *priv = netdev_priv(dev);
@@ -791,7 +782,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 		pSimple->Address.High = 0;
 
 	mpt_put_msg_frame (LanCtx, mpt_dev, mf);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	dioprintk((KERN_INFO MYNAM ": %s/%s: Sending packet. FlagsLength = %08x.\n",
 			IOC_AND_NETDEV_NAMES_s_s(dev),
@@ -1304,7 +1295,6 @@ static const struct net_device_ops mpt_netdev_ops = {
 	.ndo_open       = mpt_lan_open,
 	.ndo_stop       = mpt_lan_close,
 	.ndo_start_xmit = mpt_lan_sdu_send,
-	.ndo_change_mtu = mpt_lan_change_mtu,
 	.ndo_tx_timeout = mpt_lan_tx_timeout,
 };
 
@@ -1374,6 +1364,10 @@ mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
 
 	dev->netdev_ops = &mpt_netdev_ops;
 	dev->watchdog_timeo = MPT_LAN_TX_TIMEOUT;
+
+	/* MTU range: 96 - 65280 */
+	dev->min_mtu = MPT_LAN_MIN_MTU;
+	dev->max_mtu = MPT_LAN_MAX_MTU;
 
 	dlprintk((KERN_INFO MYNAM ": Finished registering dev "
 		"and setting initial values\n"));

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * trace binary printk
  *
@@ -36,6 +37,10 @@ struct trace_bprintk_fmt {
 static inline struct trace_bprintk_fmt *lookup_format(const char *fmt)
 {
 	struct trace_bprintk_fmt *pos;
+
+	if (!fmt)
+		return ERR_PTR(-EINVAL);
+
 	list_for_each_entry(pos, &trace_bprintk_fmt_list, list) {
 		if (!strcmp(pos->fmt, fmt))
 			return pos;
@@ -57,7 +62,8 @@ void hold_module_trace_bprintk_format(const char **start, const char **end)
 	for (iter = start; iter < end; iter++) {
 		struct trace_bprintk_fmt *tb_fmt = lookup_format(*iter);
 		if (tb_fmt) {
-			*iter = tb_fmt->fmt;
+			if (!IS_ERR(tb_fmt))
+				*iter = tb_fmt->fmt;
 			continue;
 		}
 
@@ -191,7 +197,7 @@ struct notifier_block module_trace_bprintk_format_nb = {
 };
 
 int __trace_bprintk(unsigned long ip, const char *fmt, ...)
- {
+{
 	int ret;
 	va_list ap;
 
@@ -209,7 +215,7 @@ int __trace_bprintk(unsigned long ip, const char *fmt, ...)
 EXPORT_SYMBOL_GPL(__trace_bprintk);
 
 int __ftrace_vbprintk(unsigned long ip, const char *fmt, va_list ap)
- {
+{
 	if (unlikely(!fmt))
 		return 0;
 
@@ -295,6 +301,9 @@ static int t_show(struct seq_file *m, void *v)
 	const char **fmt = v;
 	const char *str = *fmt;
 	int i;
+
+	if (!*fmt)
+		return 0;
 
 	seq_printf(m, "0x%lx : \"", *(unsigned long *)fmt);
 

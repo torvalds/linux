@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Oracle.  All rights reserved.
+ * Copyright (c) 2007, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -40,7 +40,6 @@
 /*
  * XXX
  *  - build with sparse
- *  - should we limit the size of a mr region?  let transport return failure?
  *  - should we detect duplicate keys on a socket?  hmm.
  *  - an rdma is an mlock, apply rlimit?
  */
@@ -85,7 +84,7 @@ static struct rds_mr *rds_mr_tree_walk(struct rb_root *root, u64 key,
 	if (insert) {
 		rb_link_node(&insert->r_rb_node, parent, p);
 		rb_insert_color(&insert->r_rb_node, root);
-		atomic_inc(&insert->r_refcount);
+		refcount_inc(&insert->r_refcount);
 	}
 	return NULL;
 }
@@ -100,7 +99,7 @@ static void rds_destroy_mr(struct rds_mr *mr)
 	unsigned long flags;
 
 	rdsdebug("RDS: destroy mr key is %x refcnt %u\n",
-			mr->r_key, atomic_read(&mr->r_refcount));
+			mr->r_key, refcount_read(&mr->r_refcount));
 
 	if (test_and_set_bit(RDS_MR_DEAD, &mr->r_state))
 		return;
@@ -135,7 +134,7 @@ void rds_rdma_drop_keys(struct rds_sock *rs)
 	/* Release any MRs associated with this socket */
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	while ((node = rb_first(&rs->rs_rdma_keys))) {
-		mr = container_of(node, struct rds_mr, r_rb_node);
+		mr = rb_entry(node, struct rds_mr, r_rb_node);
 		if (mr->r_trans == rs->rs_transport)
 			mr->r_invalidate = 0;
 		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
@@ -171,7 +170,8 @@ static int rds_pin_pages(unsigned long user_addr, unsigned int nr_pages,
 }
 
 static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
-				u64 *cookie_ret, struct rds_mr **mr_ret)
+			  u64 *cookie_ret, struct rds_mr **mr_ret,
+			  struct rds_conn_path *cp)
 {
 	struct rds_mr *mr = NULL, *found;
 	unsigned int nr_pages;
@@ -184,7 +184,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	long i;
 	int ret;
 
-	if (rs->rs_bound_addr == 0) {
+	if (ipv6_addr_any(&rs->rs_bound_addr) || !rs->rs_transport) {
 		ret = -ENOTCONN; /* XXX not a great errno */
 		goto out;
 	}
@@ -197,6 +197,14 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	nr_pages = rds_pages_in_vec(&args->vec);
 	if (nr_pages == 0) {
 		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Restrict the size of mr irrespective of underlying transport
+	 * To account for unaligned mr regions, subtract one from nr_pages
+	 */
+	if ((nr_pages - 1) > (RDS_MAX_MSG_SIZE >> PAGE_SHIFT)) {
+		ret = -EMSGSIZE;
 		goto out;
 	}
 
@@ -216,7 +224,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 		goto out;
 	}
 
-	atomic_set(&mr->r_refcount, 1);
+	refcount_set(&mr->r_refcount, 1);
 	RB_CLEAR_NODE(&mr->r_rb_node);
 	mr->r_trans = rs->rs_transport;
 	mr->r_sock = rs;
@@ -262,7 +270,8 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	 * Note that dma_map() implies that pending writes are
 	 * flushed to RAM, so no dma_sync is needed here. */
 	trans_private = rs->rs_transport->get_mr(sg, nents, rs,
-						 &mr->r_key);
+						 &mr->r_key,
+						 cp ? cp->cp_conn : NULL);
 
 	if (IS_ERR(trans_private)) {
 		for (i = 0 ; i < nents; i++)
@@ -300,7 +309,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 
 	rdsdebug("RDS: get_mr key is %x\n", mr->r_key);
 	if (mr_ret) {
-		atomic_inc(&mr->r_refcount);
+		refcount_inc(&mr->r_refcount);
 		*mr_ret = mr;
 	}
 
@@ -323,7 +332,7 @@ int rds_get_mr(struct rds_sock *rs, char __user *optval, int optlen)
 			   sizeof(struct rds_get_mr_args)))
 		return -EFAULT;
 
-	return __rds_rdma_map(rs, &args, NULL, NULL);
+	return __rds_rdma_map(rs, &args, NULL, NULL, NULL);
 }
 
 int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen)
@@ -347,7 +356,7 @@ int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen)
 	new_args.cookie_addr = args.cookie_addr;
 	new_args.flags = args.flags;
 
-	return __rds_rdma_map(rs, &new_args, NULL, NULL);
+	return __rds_rdma_map(rs, &new_args, NULL, NULL, NULL);
 }
 
 /*
@@ -415,7 +424,8 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	mr = rds_mr_tree_walk(&rs->rs_rdma_keys, r_key, NULL);
 	if (!mr) {
-		printk(KERN_ERR "rds: trying to unuse MR with unknown r_key %u!\n", r_key);
+		pr_debug("rds: trying to unuse MR with unknown r_key %u!\n",
+			 r_key);
 		spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
 		return;
 	}
@@ -517,6 +527,9 @@ int rds_rdma_extra_size(struct rds_rdma_args *args)
 
 	local_vec = (struct rds_iovec __user *)(unsigned long) args->local_vec_addr;
 
+	if (args->nr_local == 0)
+		return -EINVAL;
+
 	/* figure out the number of pages in the vector */
 	for (i = 0; i < args->nr_local; i++) {
 		if (copy_from_user(&vec, &local_vec[i],
@@ -563,7 +576,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 
 	args = CMSG_DATA(cmsg);
 
-	if (rs->rs_bound_addr == 0) {
+	if (ipv6_addr_any(&rs->rs_bound_addr)) {
 		ret = -ENOTCONN; /* XXX not a great errno */
 		goto out_ret;
 	}
@@ -626,6 +639,16 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		}
 		op->op_notifier->n_user_token = args->user_token;
 		op->op_notifier->n_status = RDS_RDMA_SUCCESS;
+
+		/* Enable rmda notification on data operation for composite
+		 * rds messages and make sure notification is enabled only
+		 * for the data operation which follows it so that application
+		 * gets notified only after full message gets delivered.
+		 */
+		if (rm->data.op_sg) {
+			rm->rdma.op_notify = 0;
+			rm->data.op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
+		}
 	}
 
 	/* The cookie contains the R_Key of the remote memory region, and
@@ -738,7 +761,7 @@ int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 	if (!mr)
 		err = -EINVAL;	/* invalid r_key */
 	else
-		atomic_inc(&mr->r_refcount);
+		refcount_inc(&mr->r_refcount);
 	spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
 
 	if (mr) {
@@ -761,7 +784,8 @@ int rds_cmsg_rdma_map(struct rds_sock *rs, struct rds_message *rm,
 	    rm->m_rdma_cookie != 0)
 		return -EINVAL;
 
-	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie, &rm->rdma.op_rdma_mr);
+	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie,
+			      &rm->rdma.op_rdma_mr, rm->m_conn_path);
 }
 
 /*
@@ -856,6 +880,7 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 err:
 	if (page)
 		put_page(page);
+	rm->atomic.op_active = 0;
 	kfree(rm->atomic.op_notifier);
 
 	return ret;

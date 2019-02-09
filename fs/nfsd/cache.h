@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Request reply cache. This was heavily inspired by the
  * implementation in 4.3BSD/4.4BSD.
@@ -65,11 +66,6 @@ enum {
 	RC_REPLSTAT,
 	RC_REPLBUFF,
 };
-
-/*
- * If requests are retransmitted within this interval, they're dropped.
- */
-#define RC_DELAY		(HZ/5)
 
 /* Cache entries expire after this time period */
 #define RC_EXPIRE		(120 * HZ)

@@ -30,7 +30,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
-#include <linux/semaphore.h>
+#include <linux/mutex.h>
 
 #include <linux/delay.h>
 #include <linux/wireless.h>
@@ -76,7 +76,7 @@
 
 #define container_of_work_rsl(x, y, z) container_of(x, y, z)
 #define container_of_dwork_rsl(x, y, z)				\
-	container_of(container_of(x, struct delayed_work, work), y, z)
+	container_of(to_delayed_work(x), y, z)
 
 #define iwe_stream_add_event_rsl(info, start, stop, iwe, len)	\
 	iwe_stream_add_event(info, start, stop, iwe, len)
@@ -335,59 +335,7 @@ enum rt_op_mode {
 
 #define MGMT_QUEUE_NUM 5
 
-#define IEEE_CMD_SET_WPA_PARAM			1
-#define	IEEE_CMD_SET_WPA_IE			2
-#define IEEE_CMD_SET_ENCRYPTION			3
-#define IEEE_CMD_MLME				4
-
-#define IEEE_PARAM_WPA_ENABLED			1
-#define IEEE_PARAM_TKIP_COUNTERMEASURES		2
-#define IEEE_PARAM_DROP_UNENCRYPTED		3
-#define IEEE_PARAM_PRIVACY_INVOKED		4
-#define IEEE_PARAM_AUTH_ALGS			5
-#define IEEE_PARAM_IEEE_802_1X			6
-#define IEEE_PARAM_WPAX_SELECT			7
-
-#define IEEE_MLME_STA_DEAUTH			1
-#define IEEE_MLME_STA_DISASSOC			2
-
-
-#define IEEE_CRYPT_ERR_UNKNOWN_ALG		2
-#define IEEE_CRYPT_ERR_CRYPT_INIT_FAILED	4
-#define IEEE_CRYPT_ERR_KEY_SET_FAILED		5
-#define IEEE_CRYPT_ERR_CARD_CONF_FAILED		7
-#define	IEEE_CRYPT_ALG_NAME_LEN			16
-
 #define MAX_IE_LEN  0xff
-
-struct ieee_param {
-	u32 cmd;
-	u8 sta_addr[ETH_ALEN];
-	union {
-		struct {
-			u8 name;
-			u32 value;
-		} wpa_param;
-		struct {
-			u32 len;
-			u8 reserved[32];
-			u8 data[0];
-		} wpa_ie;
-		struct {
-			int command;
-			int reason_code;
-		} mlme;
-		struct {
-			u8 alg[IEEE_CRYPT_ALG_NAME_LEN];
-			u8 set_tx;
-			u32 err;
-			u8 idx;
-			u8 seq[8]; /* sequence counter (set: RX, get: TX) */
-			u16 key_len;
-			u8 key[0];
-		} crypt;
-	} u;
-};
 
 #define msleep_interruptible_rsl  msleep_interruptible
 
@@ -521,7 +469,7 @@ enum wireless_mode {
 };
 
 #ifndef ETH_P_PAE
-#define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
+#define ETH_P_PAE	0x888E		/* Port Access Entity (IEEE 802.1X) */
 #define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
 #define ETH_P_ARP	0x0806		/* Address Resolution packet	*/
 #endif /* ETH_P_PAE */
@@ -619,7 +567,8 @@ struct ieee_ibss_seq {
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
- *       any adverse affects. */
+ *       any adverse affects.
+ */
 struct rtllib_rx_stats {
 	u64 mac_time;
 	s8  rssi;
@@ -1138,7 +1087,8 @@ enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 
 #define	ETHER_ADDR_LEN		6	/* length of an Ethernet address */
 #define ETHERNET_HEADER_SIZE    14      /* length of two Ethernet address
-					 * plus ether type*/
+					 * plus ether type
+					 */
 
 enum erp_t {
 	ERP_NonERPpresent	= 0x01,
@@ -1651,9 +1601,9 @@ struct rtllib_device {
 	short proto_started;
 	short proto_stoppping;
 
-	struct semaphore wx_sem;
-	struct semaphore scan_sem;
-	struct semaphore ips_sem;
+	struct mutex wx_mutex;
+	struct mutex scan_mutex;
+	struct mutex ips_mutex;
 
 	spinlock_t mgmt_tx_lock;
 	spinlock_t beacon_lock;
@@ -1728,7 +1678,6 @@ struct rtllib_device {
 	struct delayed_work link_change_wq;
 	struct work_struct wx_sync_scan_wq;
 
-	struct workqueue_struct *wq;
 	union {
 		struct rtllib_rxb *RfdArray[REORDER_WIN_SIZE];
 		struct rtllib_rxb *stats_IndicateArray[REORDER_WIN_SIZE];
@@ -2065,8 +2014,6 @@ void rtllib_stop_all_queues(struct rtllib_device *ieee);
 struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee);
 void rtllib_start_send_beacons(struct rtllib_device *ieee);
 void rtllib_stop_send_beacons(struct rtllib_device *ieee);
-int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee,
-				struct iw_point *p, u8 is_mesh);
 
 void notify_wx_assoc_event(struct rtllib_device *ieee);
 void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success);
@@ -2166,9 +2113,9 @@ void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 void TsInitDelBA(struct rtllib_device *ieee,
 		 struct ts_common_info *pTsCommonInfo,
 		 enum tr_select TxRxSelect);
-void BaSetupTimeOut(unsigned long data);
-void TxBaInactTimeout(unsigned long data);
-void RxBaInactTimeout(unsigned long data);
+void BaSetupTimeOut(struct timer_list *t);
+void TxBaInactTimeout(struct timer_list *t);
+void RxBaInactTimeout(struct timer_list *t);
 void ResetBaEntry(struct ba_record *pBA);
 bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS, u8 *Addr,
 	   u8 TID, enum tr_select TxRxSelect, bool bAddNewTs);
@@ -2213,7 +2160,5 @@ void rtllib_indicate_packets(struct rtllib_device *ieee,
 void HTUseDefaultSetting(struct rtllib_device *ieee);
 #define RT_ASOC_RETRY_LIMIT	5
 u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee);
-#define SEM_DOWN_IEEE_WX(psem) down(psem)
-#define SEM_UP_IEEE_WX(psem) up(psem)
 
 #endif /* RTLLIB_H */

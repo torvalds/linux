@@ -17,6 +17,7 @@
 #include <linux/hash.h>
 #include <linux/types.h>
 #include <linux/rculist.h>
+#include <linux/completion.h>
 
 #include "vmci_resource.h"
 #include "vmci_driver.h"
@@ -56,7 +57,8 @@ static struct vmci_resource *vmci_resource_lookup(struct vmci_handle handle,
 
 		if (r->type == type &&
 		    rid == handle.resource &&
-		    (cid == handle.context || cid == VMCI_INVALID_ID)) {
+		    (cid == handle.context || cid == VMCI_INVALID_ID ||
+		     handle.context == VMCI_INVALID_ID)) {
 			resource = r;
 			break;
 		}

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_TC_IPT_H
 #define __LINUX_TC_IPT_H
 
@@ -14,6 +15,7 @@ enum {
 	TCA_IPT_CNT,
 	TCA_IPT_TM,
 	TCA_IPT_TARG,
+	TCA_IPT_PAD,
 	__TCA_IPT_MAX
 };
 #define TCA_IPT_MAX (__TCA_IPT_MAX - 1)

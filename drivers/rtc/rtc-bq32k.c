@@ -34,6 +34,11 @@
 #define BQ32K_CALIBRATION	0x07	/* CAL_CFG1, calibration and control */
 #define BQ32K_TCH2		0x08	/* Trickle charge enable */
 #define BQ32K_CFG2		0x09	/* Trickle charger control */
+#define BQ32K_TCFE		BIT(6)	/* Trickle charge FET bypass */
+
+#define MAX_LEN			10	/* Maximum number of consecutive
+					 * register for this particular RTC.
+					 */
 
 struct bq32k_regs {
 	uint8_t		seconds;
@@ -73,7 +78,7 @@ static int bq32k_read(struct device *dev, void *data, uint8_t off, uint8_t len)
 static int bq32k_write(struct device *dev, void *data, uint8_t off, uint8_t len)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	uint8_t buffer[len + 1];
+	uint8_t buffer[MAX_LEN + 1];
 
 	buffer[0] = off;
 	memcpy(&buffer[1], data, len);
@@ -93,8 +98,15 @@ static int bq32k_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (error)
 		return error;
 
+	/*
+	 * In case of oscillator failure, the register contents should be
+	 * considered invalid. The flag is cleared the next time the RTC is set.
+	 */
+	if (regs.minutes & BQ32K_OF)
+		return -EINVAL;
+
 	tm->tm_sec = bcd2bin(regs.seconds & BQ32K_SECONDS_MASK);
-	tm->tm_min = bcd2bin(regs.minutes & BQ32K_SECONDS_MASK);
+	tm->tm_min = bcd2bin(regs.minutes & BQ32K_MINUTES_MASK);
 	tm->tm_hour = bcd2bin(regs.cent_hours & BQ32K_HOURS_MASK);
 	tm->tm_mday = bcd2bin(regs.date);
 	tm->tm_wday = bcd2bin(regs.day) - 1;
@@ -102,7 +114,7 @@ static int bq32k_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_year = bcd2bin(regs.years) +
 				((regs.cent_hours & BQ32K_CENT) ? 100 : 0);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int bq32k_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -181,6 +193,65 @@ static int trickle_charger_of_init(struct device *dev, struct device_node *node)
 	return 0;
 }
 
+static ssize_t bq32k_sysfs_show_tricklecharge_bypass(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	int reg, error;
+
+	error = bq32k_read(dev, &reg, BQ32K_CFG2, 1);
+	if (error)
+		return error;
+
+	return sprintf(buf, "%d\n", (reg & BQ32K_TCFE) ? 1 : 0);
+}
+
+static ssize_t bq32k_sysfs_store_tricklecharge_bypass(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	int reg, enable, error;
+
+	if (kstrtoint(buf, 0, &enable))
+		return -EINVAL;
+
+	error = bq32k_read(dev, &reg, BQ32K_CFG2, 1);
+	if (error)
+		return error;
+
+	if (enable) {
+		reg |= BQ32K_TCFE;
+		error = bq32k_write(dev, &reg, BQ32K_CFG2, 1);
+		if (error)
+			return error;
+
+		dev_info(dev, "Enabled trickle charge FET bypass.\n");
+	} else {
+		reg &= ~BQ32K_TCFE;
+		error = bq32k_write(dev, &reg, BQ32K_CFG2, 1);
+		if (error)
+			return error;
+
+		dev_info(dev, "Disabled trickle charge FET bypass.\n");
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(trickle_charge_bypass, 0644,
+		   bq32k_sysfs_show_tricklecharge_bypass,
+		   bq32k_sysfs_store_tricklecharge_bypass);
+
+static int bq32k_sysfs_register(struct device *dev)
+{
+	return device_create_file(dev, &dev_attr_trickle_charge_bypass);
+}
+
+static void bq32k_sysfs_unregister(struct device *dev)
+{
+	device_remove_file(dev, &dev_attr_trickle_charge_bypass);
+}
+
 static int bq32k_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
@@ -204,13 +275,10 @@ static int bq32k_probe(struct i2c_client *client,
 
 	/* Check Oscillator Failure flag */
 	error = bq32k_read(dev, &reg, BQ32K_MINUTES, 1);
-	if (!error && (reg & BQ32K_OF)) {
-		dev_warn(dev, "Oscillator Failure. Check RTC battery.\n");
-		reg &= ~BQ32K_OF;
-		error = bq32k_write(dev, &reg, BQ32K_MINUTES, 1);
-	}
 	if (error)
 		return error;
+	if (reg & BQ32K_OF)
+		dev_warn(dev, "Oscillator Failure. Check RTC battery.\n");
 
 	if (client->dev.of_node)
 		trickle_charger_of_init(dev, client->dev.of_node);
@@ -220,7 +288,22 @@ static int bq32k_probe(struct i2c_client *client,
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
+	error = bq32k_sysfs_register(&client->dev);
+	if (error) {
+		dev_err(&client->dev,
+			"Unable to create sysfs entries for rtc bq32000\n");
+		return error;
+	}
+
+
 	i2c_set_clientdata(client, rtc);
+
+	return 0;
+}
+
+static int bq32k_remove(struct i2c_client *client)
+{
+	bq32k_sysfs_unregister(&client->dev);
 
 	return 0;
 }
@@ -231,11 +314,19 @@ static const struct i2c_device_id bq32k_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq32k_id);
 
+static const struct of_device_id bq32k_of_match[] = {
+	{ .compatible = "ti,bq32000" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, bq32k_of_match);
+
 static struct i2c_driver bq32k_driver = {
 	.driver = {
 		.name	= "bq32k",
+		.of_match_table = of_match_ptr(bq32k_of_match),
 	},
 	.probe		= bq32k_probe,
+	.remove		= bq32k_remove,
 	.id_table	= bq32k_id,
 };
 

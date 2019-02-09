@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2014 Marvell Technology Group Ltd.
  *
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  * Alexandre Belloni <alexandre.belloni@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/clk-provider.h>
 #include <linux/io.h>
@@ -188,7 +177,7 @@ static const struct clk_ops berlin2_avpll_vco_ops = {
 	.recalc_rate	= berlin2_avpll_vco_recalc_rate,
 };
 
-struct clk * __init berlin2_avpll_vco_register(void __iomem *base,
+int __init berlin2_avpll_vco_register(void __iomem *base,
 			       const char *name, const char *parent_name,
 			       u8 vco_flags, unsigned long flags)
 {
@@ -197,7 +186,7 @@ struct clk * __init berlin2_avpll_vco_register(void __iomem *base,
 
 	vco = kzalloc(sizeof(*vco), GFP_KERNEL);
 	if (!vco)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	vco->base = base;
 	vco->flags = vco_flags;
@@ -208,7 +197,7 @@ struct clk * __init berlin2_avpll_vco_register(void __iomem *base,
 	init.num_parents = 1;
 	init.flags = flags;
 
-	return clk_register(NULL, &vco->hw);
+	return clk_hw_register(NULL, &vco->hw);
 }
 
 struct berlin2_avpll_channel {
@@ -364,7 +353,7 @@ static const struct clk_ops berlin2_avpll_channel_ops = {
  */
 static const u8 quirk_index[] __initconst = { 0, 6, 5, 4, 3, 2, 1, 7 };
 
-struct clk * __init berlin2_avpll_channel_register(void __iomem *base,
+int __init berlin2_avpll_channel_register(void __iomem *base,
 			   const char *name, u8 index, const char *parent_name,
 			   u8 ch_flags, unsigned long flags)
 {
@@ -373,7 +362,7 @@ struct clk * __init berlin2_avpll_channel_register(void __iomem *base,
 
 	ch = kzalloc(sizeof(*ch), GFP_KERNEL);
 	if (!ch)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	ch->base = base;
 	if (ch_flags & BERLIN2_AVPLL_SCRAMBLE_QUIRK)
@@ -389,5 +378,5 @@ struct clk * __init berlin2_avpll_channel_register(void __iomem *base,
 	init.num_parents = 1;
 	init.flags = flags;
 
-	return clk_register(NULL, &ch->hw);
+	return clk_hw_register(NULL, &ch->hw);
 }

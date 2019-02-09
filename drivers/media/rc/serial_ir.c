@@ -273,7 +273,7 @@ static void frbwrite(unsigned int l, bool is_pulse)
 {
 	/* simple noise filter */
 	static unsigned int ptr, pulse, space;
-	struct ir_raw_event ev = {};
+	DEFINE_IR_RAW_EVENT(ev);
 
 	if (ptr > 0 && is_pulse) {
 		pulse += l;
@@ -470,12 +470,12 @@ static int hardware_init_port(void)
 	return 0;
 }
 
-static void serial_ir_timeout(unsigned long arg)
+static void serial_ir_timeout(struct timer_list *unused)
 {
-	struct ir_raw_event ev = {
-		.timeout = true,
-		.duration = serial_ir.rcdev->timeout
-	};
+	DEFINE_IR_RAW_EVENT(ev);
+
+	ev.timeout = true;
+	ev.duration = serial_ir.rcdev->timeout;
 	ir_raw_event_store_with_filter(serial_ir.rcdev, &ev);
 	ir_raw_event_handle(serial_ir.rcdev);
 }
@@ -540,8 +540,7 @@ static int serial_ir_probe(struct platform_device *dev)
 
 	serial_ir.rcdev = rcdev;
 
-	setup_timer(&serial_ir.timeout_timer, serial_ir_timeout,
-		    (unsigned long)&serial_ir);
+	timer_setup(&serial_ir.timeout_timer, serial_ir_timeout, 0);
 
 	result = devm_request_irq(&dev->dev, irq, serial_ir_irq_handler,
 				  share_irq ? IRQF_SHARED : 0,
@@ -827,11 +826,11 @@ MODULE_LICENSE("GPL");
 module_param(type, int, 0444);
 MODULE_PARM_DESC(type, "Hardware type (0 = home-brew, 1 = IRdeo, 2 = IRdeo Remote, 3 = AnimaX, 4 = IgorPlug");
 
-module_param(io, int, 0444);
+module_param_hw(io, int, ioport, 0444);
 MODULE_PARM_DESC(io, "I/O address base (0x3f8 or 0x2f8)");
 
 /* some architectures (e.g. intel xscale) have memory mapped registers */
-module_param(iommap, ulong, 0444);
+module_param_hw(iommap, ulong, other, 0444);
 MODULE_PARM_DESC(iommap, "physical base for memory mapped I/O (0 = no memory mapped io)");
 
 /*
@@ -839,13 +838,13 @@ MODULE_PARM_DESC(iommap, "physical base for memory mapped I/O (0 = no memory map
  * on 32bit word boundaries.
  * See linux-kernel/drivers/tty/serial/8250/8250.c serial_in()/out()
  */
-module_param(ioshift, int, 0444);
+module_param_hw(ioshift, int, other, 0444);
 MODULE_PARM_DESC(ioshift, "shift I/O register offset (0 = no shift)");
 
-module_param(irq, int, 0444);
+module_param_hw(irq, int, irq, 0444);
 MODULE_PARM_DESC(irq, "Interrupt (4 or 3)");
 
-module_param(share_irq, bool, 0444);
+module_param_hw(share_irq, bool, other, 0444);
 MODULE_PARM_DESC(share_irq, "Share interrupts (0 = off, 1 = on)");
 
 module_param(sense, int, 0444);

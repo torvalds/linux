@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	kernel/crash_dump.c - Memory preserving reboot related code.
  *
@@ -11,7 +12,7 @@
 #include <linux/crash_dump.h>
 
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /**
  * copy_oldmem_page - copy one page from "oldmem"

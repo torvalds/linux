@@ -140,7 +140,8 @@ static struct wf_control *fan_system;
 static struct wf_control *cpufreq_clamp;
 
 /* Set to kick the control loop into life */
-static int wf_smu_all_controls_ok, wf_smu_all_sensors_ok, wf_smu_started;
+static int wf_smu_all_controls_ok, wf_smu_all_sensors_ok;
+static bool wf_smu_started;
 
 /* Failure handling.. could be nicer */
 #define FAILURE_FAN		0x01
@@ -454,7 +455,7 @@ static void wf_smu_create_cpu_fans(void)
 	wf_cpu_pid_init(&wf_smu_cpu_fans->pid, &pid_param);
 
 	DBG("wf: CPU Fan control initialized.\n");
-	DBG("    ttarged=%d.%03d, tmax=%d.%03d, min=%d RPM, max=%d RPM\n",
+	DBG("    ttarget=%d.%03d, tmax=%d.%03d, min=%d RPM, max=%d RPM\n",
 	    FIX32TOPRINT(pid_param.ttarget), FIX32TOPRINT(pid_param.tmax),
 	    pid_param.min, pid_param.max);
 
@@ -549,7 +550,7 @@ static void wf_smu_tick(void)
 		DBG("wf: creating control loops !\n");
 		wf_smu_create_sys_fans();
 		wf_smu_create_cpu_fans();
-		wf_smu_started = 1;
+		wf_smu_started = true;
 	}
 
 	/* Skipping ticks */

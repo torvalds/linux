@@ -32,8 +32,6 @@
 #include <linux/proc_fs.h>
 #endif
 
-#define DRV_VERSION	"0.42.0"
-
 
 /* ----------------------------------------------------------------------- */
 /* Standard read/write functions if platform does not provide overrides */
@@ -102,6 +100,26 @@ ds1685_rtc_bin2bcd(struct ds1685_priv *rtc, u8 val, u8 bin_mask, u8 bcd_mask)
 		return (bin2bcd(val) & bcd_mask);
 
 	return (val & bin_mask);
+}
+
+/**
+ * s1685_rtc_check_mday - check validity of the day of month.
+ * @rtc: pointer to the ds1685 rtc structure.
+ * @mday: day of month.
+ *
+ * Returns -EDOM if the day of month is not within 1..31 range.
+ */
+static inline int
+ds1685_rtc_check_mday(struct ds1685_priv *rtc, u8 mday)
+{
+	if (rtc->bcd_mode) {
+		if (mday < 0x01 || mday > 0x31 || (mday & 0x0f) > 0x09)
+			return -EDOM;
+	} else {
+		if (mday < 1 || mday > 31)
+			return -EDOM;
+	}
+	return 0;
 }
 
 /**
@@ -187,9 +205,9 @@ ds1685_rtc_end_data_access(struct ds1685_priv *rtc)
  * Only use this where you are certain another lock will not be held.
  */
 static inline void
-ds1685_rtc_begin_ctrl_access(struct ds1685_priv *rtc, unsigned long flags)
+ds1685_rtc_begin_ctrl_access(struct ds1685_priv *rtc, unsigned long *flags)
 {
-	spin_lock_irqsave(&rtc->lock, flags);
+	spin_lock_irqsave(&rtc->lock, *flags);
 	ds1685_rtc_switch_to_bank1(rtc);
 }
 
@@ -249,8 +267,7 @@ ds1685_rtc_get_ssn(struct ds1685_priv *rtc, u8 *ssn)
 static int
 ds1685_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev);
 	u8 ctrlb, century;
 	u8 seconds, minutes, hours, wday, mday, month, years;
 
@@ -288,7 +305,7 @@ ds1685_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_yday  = rtc_year_days(tm->tm_mday, tm->tm_mon, tm->tm_year);
 	tm->tm_isdst = 0; /* RTC has hardcoded timezone, so don't use. */
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 /**
@@ -299,8 +316,7 @@ ds1685_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int
 ds1685_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev);
 	u8 ctrlb, seconds, minutes, hours, wday, mday, month, years, century;
 
 	/* Fetch the time info from rtc_time. */
@@ -376,9 +392,9 @@ ds1685_rtc_set_time(struct device *dev, struct rtc_time *tm)
 static int
 ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev);
 	u8 seconds, minutes, hours, mday, ctrlb, ctrlc;
+	int ret;
 
 	/* Fetch the alarm info from the RTC alarm registers. */
 	ds1685_rtc_begin_data_access(rtc);
@@ -390,34 +406,29 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	ctrlc	= rtc->read(rtc, RTC_CTRL_C);
 	ds1685_rtc_end_data_access(rtc);
 
-	/* Check month date. */
-	if (!(mday >= 1) && (mday <= 31))
-		return -EDOM;
+	/* Check the month date for validity. */
+	ret = ds1685_rtc_check_mday(rtc, mday);
+	if (ret)
+		return ret;
 
 	/*
 	 * Check the three alarm bytes.
 	 *
 	 * The Linux RTC system doesn't support the "don't care" capability
 	 * of this RTC chip.  We check for it anyways in case support is
-	 * added in the future.
+	 * added in the future and only assign when we care.
 	 */
-	if (unlikely(seconds >= 0xc0))
-		alrm->time.tm_sec = -1;
-	else
+	if (likely(seconds < 0xc0))
 		alrm->time.tm_sec = ds1685_rtc_bcd2bin(rtc, seconds,
 						       RTC_SECS_BCD_MASK,
 						       RTC_SECS_BIN_MASK);
 
-	if (unlikely(minutes >= 0xc0))
-		alrm->time.tm_min = -1;
-	else
+	if (likely(minutes < 0xc0))
 		alrm->time.tm_min = ds1685_rtc_bcd2bin(rtc, minutes,
 						       RTC_MINS_BCD_MASK,
 						       RTC_MINS_BIN_MASK);
 
-	if (unlikely(hours >= 0xc0))
-		alrm->time.tm_hour = -1;
-	else
+	if (likely(hours < 0xc0))
 		alrm->time.tm_hour = ds1685_rtc_bcd2bin(rtc, hours,
 							RTC_HRS_24_BCD_MASK,
 							RTC_HRS_24_BIN_MASK);
@@ -425,11 +436,6 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/* Write the data to rtc_wkalrm. */
 	alrm->time.tm_mday = ds1685_rtc_bcd2bin(rtc, mday, RTC_MDAY_BCD_MASK,
 						RTC_MDAY_BIN_MASK);
-	alrm->time.tm_mon = -1;
-	alrm->time.tm_year = -1;
-	alrm->time.tm_wday = -1;
-	alrm->time.tm_yday = -1;
-	alrm->time.tm_isdst = -1;
 	alrm->enabled = !!(ctrlb & RTC_CTRL_B_AIE);
 	alrm->pending = !!(ctrlc & RTC_CTRL_C_AF);
 
@@ -444,9 +450,9 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int
 ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev);
 	u8 ctrlb, seconds, minutes, hours, mday;
+	int ret;
 
 	/* Fetch the alarm info and convert to BCD. */
 	seconds	= ds1685_rtc_bin2bcd(rtc, alrm->time.tm_sec,
@@ -463,8 +469,9 @@ ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 				     RTC_MDAY_BCD_MASK);
 
 	/* Check the month date for validity. */
-	if (!(mday >= 1) && (mday <= 31))
-		return -EDOM;
+	ret = ds1685_rtc_check_mday(rtc, mday);
+	if (ret)
+		return ret;
 
 	/*
 	 * Check the three alarm bytes.
@@ -853,7 +860,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   "Periodic Rate\t: %s\n"
 	   "SQW Freq\t: %s\n"
 #ifdef CONFIG_RTC_DS1685_PROC_REGS
-	   "Serial #\t: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n"
+	   "Serial #\t: %8phC\n"
 	   "Register Status\t:\n"
 	   "   Ctrl A\t: UIP  DV2  DV1  DV0  RS3  RS2  RS1  RS0\n"
 	   "\t\t:  %s\n"
@@ -872,7 +879,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   "   Ctrl 4B\t: ABE  E32k  CS  RCE  PRS  RIE  WIE  KSE\n"
 	   "\t\t:  %s\n",
 #else
-	   "Serial #\t: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+	   "Serial #\t: %8phC\n",
 #endif
 	   model,
 	   ((ctrla & RTC_CTRL_A_DV1) ? "enabled" : "disabled"),
@@ -888,7 +895,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   (!((ctrl4b & RTC_CTRL_4B_E32K)) ?
 	    ds1685_rtc_sqw_freq[(ctrla & RTC_CTRL_A_RS_MASK)] : "32768Hz"),
 #ifdef CONFIG_RTC_DS1685_PROC_REGS
-	   ssn[0], ssn[1], ssn[2], ssn[3], ssn[4], ssn[5], ssn[6], ssn[7],
+	   ssn,
 	   ds1685_rtc_print_regs(ctrla, bits[0]),
 	   ds1685_rtc_print_regs(ctrlb, bits[1]),
 	   ds1685_rtc_print_regs(ctrlc, bits[2]),
@@ -896,7 +903,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   ds1685_rtc_print_regs(ctrl4a, bits[4]),
 	   ds1685_rtc_print_regs(ctrl4b, bits[5]));
 #else
-	   ssn[0], ssn[1], ssn[2], ssn[3], ssn[4], ssn[5], ssn[6], ssn[7]);
+	   ssn);
 #endif
 	return 0;
 }
@@ -1108,13 +1115,12 @@ static ssize_t
 ds1685_rtc_sysfs_battery_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev);
 	u8 ctrld;
 
 	ctrld = rtc->read(rtc, RTC_CTRL_D);
 
-	return snprintf(buf, 13, "%s\n",
+	return sprintf(buf, "%s\n",
 			(ctrld & RTC_CTRL_D_VRT) ? "ok" : "not ok or N/A");
 }
 static DEVICE_ATTR(battery, S_IRUGO, ds1685_rtc_sysfs_battery_show, NULL);
@@ -1129,15 +1135,14 @@ static ssize_t
 ds1685_rtc_sysfs_auxbatt_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev);
 	u8 ctrl4a;
 
 	ds1685_rtc_switch_to_bank1(rtc);
 	ctrl4a = rtc->read(rtc, RTC_EXT_CTRL_4A);
 	ds1685_rtc_switch_to_bank0(rtc);
 
-	return snprintf(buf, 13, "%s\n",
+	return sprintf(buf, "%s\n",
 			(ctrl4a & RTC_CTRL_4A_VRT2) ? "ok" : "not ok or N/A");
 }
 static DEVICE_ATTR(auxbatt, S_IRUGO, ds1685_rtc_sysfs_auxbatt_show, NULL);
@@ -1152,19 +1157,14 @@ static ssize_t
 ds1685_rtc_sysfs_serial_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev);
 	u8 ssn[8];
 
 	ds1685_rtc_switch_to_bank1(rtc);
 	ds1685_rtc_get_ssn(rtc, ssn);
 	ds1685_rtc_switch_to_bank0(rtc);
 
-	return snprintf(buf, 24, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-			ssn[0], ssn[1], ssn[2], ssn[3], ssn[4], ssn[5],
-			ssn[6], ssn[7]);
-
-	return 0;
+	return sprintf(buf, "%8phC\n", ssn);
 }
 static DEVICE_ATTR(serial, S_IRUGO, ds1685_rtc_sysfs_serial_show, NULL);
 
@@ -1188,552 +1188,6 @@ ds1685_rtc_sysfs_misc_grp = {
 	.attrs = ds1685_rtc_sysfs_misc_attrs,
 };
 
-#ifdef CONFIG_RTC_DS1685_SYSFS_REGS
-/**
- * struct ds1685_rtc_ctrl_regs.
- * @name: char pointer for the bit name.
- * @reg: control register the bit is in.
- * @bit: the bit's offset in the register.
- */
-struct ds1685_rtc_ctrl_regs {
-	const char *name;
-	const u8 reg;
-	const u8 bit;
-};
-
-/*
- * Ctrl register bit lookup table.
- */
-static const struct ds1685_rtc_ctrl_regs
-ds1685_ctrl_regs_table[] = {
-	{ "uip",  RTC_CTRL_A,      RTC_CTRL_A_UIP   },
-	{ "dv2",  RTC_CTRL_A,      RTC_CTRL_A_DV2   },
-	{ "dv1",  RTC_CTRL_A,      RTC_CTRL_A_DV1   },
-	{ "dv0",  RTC_CTRL_A,      RTC_CTRL_A_DV0   },
-	{ "rs3",  RTC_CTRL_A,      RTC_CTRL_A_RS3   },
-	{ "rs2",  RTC_CTRL_A,      RTC_CTRL_A_RS2   },
-	{ "rs1",  RTC_CTRL_A,      RTC_CTRL_A_RS1   },
-	{ "rs0",  RTC_CTRL_A,      RTC_CTRL_A_RS0   },
-	{ "set",  RTC_CTRL_B,      RTC_CTRL_B_SET   },
-	{ "pie",  RTC_CTRL_B,      RTC_CTRL_B_PIE   },
-	{ "aie",  RTC_CTRL_B,      RTC_CTRL_B_AIE   },
-	{ "uie",  RTC_CTRL_B,      RTC_CTRL_B_UIE   },
-	{ "sqwe", RTC_CTRL_B,      RTC_CTRL_B_SQWE  },
-	{ "dm",   RTC_CTRL_B,      RTC_CTRL_B_DM    },
-	{ "2412", RTC_CTRL_B,      RTC_CTRL_B_2412  },
-	{ "dse",  RTC_CTRL_B,      RTC_CTRL_B_DSE   },
-	{ "irqf", RTC_CTRL_C,      RTC_CTRL_C_IRQF  },
-	{ "pf",   RTC_CTRL_C,      RTC_CTRL_C_PF    },
-	{ "af",   RTC_CTRL_C,      RTC_CTRL_C_AF    },
-	{ "uf",   RTC_CTRL_C,      RTC_CTRL_C_UF    },
-	{ "vrt",  RTC_CTRL_D,      RTC_CTRL_D_VRT   },
-	{ "vrt2", RTC_EXT_CTRL_4A, RTC_CTRL_4A_VRT2 },
-	{ "incr", RTC_EXT_CTRL_4A, RTC_CTRL_4A_INCR },
-	{ "pab",  RTC_EXT_CTRL_4A, RTC_CTRL_4A_PAB  },
-	{ "rf",   RTC_EXT_CTRL_4A, RTC_CTRL_4A_RF   },
-	{ "wf",   RTC_EXT_CTRL_4A, RTC_CTRL_4A_WF   },
-	{ "kf",   RTC_EXT_CTRL_4A, RTC_CTRL_4A_KF   },
-#if !defined(CONFIG_RTC_DRV_DS1685) && !defined(CONFIG_RTC_DRV_DS1689)
-	{ "bme",  RTC_EXT_CTRL_4A, RTC_CTRL_4A_BME  },
-#endif
-	{ "abe",  RTC_EXT_CTRL_4B, RTC_CTRL_4B_ABE  },
-	{ "e32k", RTC_EXT_CTRL_4B, RTC_CTRL_4B_E32K },
-	{ "cs",   RTC_EXT_CTRL_4B, RTC_CTRL_4B_CS   },
-	{ "rce",  RTC_EXT_CTRL_4B, RTC_CTRL_4B_RCE  },
-	{ "prs",  RTC_EXT_CTRL_4B, RTC_CTRL_4B_PRS  },
-	{ "rie",  RTC_EXT_CTRL_4B, RTC_CTRL_4B_RIE  },
-	{ "wie",  RTC_EXT_CTRL_4B, RTC_CTRL_4B_WIE  },
-	{ "kse",  RTC_EXT_CTRL_4B, RTC_CTRL_4B_KSE  },
-	{ NULL,   0,               0                },
-};
-
-/**
- * ds1685_rtc_sysfs_ctrl_regs_lookup - ctrl register bit lookup function.
- * @name: ctrl register bit to look up in ds1685_ctrl_regs_table.
- */
-static const struct ds1685_rtc_ctrl_regs*
-ds1685_rtc_sysfs_ctrl_regs_lookup(const char *name)
-{
-	const struct ds1685_rtc_ctrl_regs *p = ds1685_ctrl_regs_table;
-
-	for (; p->name != NULL; ++p)
-		if (strcmp(p->name, name) == 0)
-			return p;
-
-	return NULL;
-}
-
-/**
- * ds1685_rtc_sysfs_ctrl_regs_show - reads a ctrl register bit via sysfs.
- * @dev: pointer to device structure.
- * @attr: pointer to device_attribute structure.
- * @buf: pointer to char array to hold the output.
- */
-static ssize_t
-ds1685_rtc_sysfs_ctrl_regs_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	u8 tmp;
-	struct ds1685_priv *rtc = dev_get_drvdata(dev);
-	const struct ds1685_rtc_ctrl_regs *reg_info =
-		ds1685_rtc_sysfs_ctrl_regs_lookup(attr->attr.name);
-
-	/* Make sure we actually matched something. */
-	if (!reg_info)
-		return -EINVAL;
-
-	/* No spinlock during a read -- mutex is already held. */
-	ds1685_rtc_switch_to_bank1(rtc);
-	tmp = rtc->read(rtc, reg_info->reg) & reg_info->bit;
-	ds1685_rtc_switch_to_bank0(rtc);
-
-	return snprintf(buf, 2, "%d\n", (tmp ? 1 : 0));
-}
-
-/**
- * ds1685_rtc_sysfs_ctrl_regs_store - writes a ctrl register bit via sysfs.
- * @dev: pointer to device structure.
- * @attr: pointer to device_attribute structure.
- * @buf: pointer to char array to hold the output.
- * @count: number of bytes written.
- */
-static ssize_t
-ds1685_rtc_sysfs_ctrl_regs_store(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct ds1685_priv *rtc = dev_get_drvdata(dev);
-	u8 reg = 0, bit = 0, tmp;
-	unsigned long flags = 0;
-	long int val = 0;
-	const struct ds1685_rtc_ctrl_regs *reg_info =
-		ds1685_rtc_sysfs_ctrl_regs_lookup(attr->attr.name);
-
-	/* We only accept numbers. */
-	if (kstrtol(buf, 10, &val) < 0)
-		return -EINVAL;
-
-	/* bits are binary, 0 or 1 only. */
-	if ((val != 0) && (val != 1))
-		return -ERANGE;
-
-	/* Make sure we actually matched something. */
-	if (!reg_info)
-		return -EINVAL;
-
-	reg = reg_info->reg;
-	bit = reg_info->bit;
-
-	/* Safe to spinlock during a write. */
-	ds1685_rtc_begin_ctrl_access(rtc, flags);
-	tmp = rtc->read(rtc, reg);
-	rtc->write(rtc, reg, (val ? (tmp | bit) : (tmp & ~(bit))));
-	ds1685_rtc_end_ctrl_access(rtc, flags);
-
-	return count;
-}
-
-/**
- * DS1685_RTC_SYSFS_CTRL_REG_RO - device_attribute for read-only register bit.
- * @bit: bit to read.
- */
-#define DS1685_RTC_SYSFS_CTRL_REG_RO(bit)				\
-	static DEVICE_ATTR(bit, S_IRUGO,				\
-	ds1685_rtc_sysfs_ctrl_regs_show, NULL)
-
-/**
- * DS1685_RTC_SYSFS_CTRL_REG_RW - device_attribute for read-write register bit.
- * @bit: bit to read or write.
- */
-#define DS1685_RTC_SYSFS_CTRL_REG_RW(bit)				\
-	static DEVICE_ATTR(bit, S_IRUGO | S_IWUSR,			\
-	ds1685_rtc_sysfs_ctrl_regs_show,				\
-	ds1685_rtc_sysfs_ctrl_regs_store)
-
-/*
- * Control Register A bits.
- */
-DS1685_RTC_SYSFS_CTRL_REG_RO(uip);
-DS1685_RTC_SYSFS_CTRL_REG_RW(dv2);
-DS1685_RTC_SYSFS_CTRL_REG_RW(dv1);
-DS1685_RTC_SYSFS_CTRL_REG_RO(dv0);
-DS1685_RTC_SYSFS_CTRL_REG_RW(rs3);
-DS1685_RTC_SYSFS_CTRL_REG_RW(rs2);
-DS1685_RTC_SYSFS_CTRL_REG_RW(rs1);
-DS1685_RTC_SYSFS_CTRL_REG_RW(rs0);
-
-static struct attribute*
-ds1685_rtc_sysfs_ctrla_attrs[] = {
-	&dev_attr_uip.attr,
-	&dev_attr_dv2.attr,
-	&dev_attr_dv1.attr,
-	&dev_attr_dv0.attr,
-	&dev_attr_rs3.attr,
-	&dev_attr_rs2.attr,
-	&dev_attr_rs1.attr,
-	&dev_attr_rs0.attr,
-	NULL,
-};
-
-static const struct attribute_group
-ds1685_rtc_sysfs_ctrla_grp = {
-	.name = "ctrla",
-	.attrs = ds1685_rtc_sysfs_ctrla_attrs,
-};
-
-
-/*
- * Control Register B bits.
- */
-DS1685_RTC_SYSFS_CTRL_REG_RO(set);
-DS1685_RTC_SYSFS_CTRL_REG_RW(pie);
-DS1685_RTC_SYSFS_CTRL_REG_RW(aie);
-DS1685_RTC_SYSFS_CTRL_REG_RW(uie);
-DS1685_RTC_SYSFS_CTRL_REG_RW(sqwe);
-DS1685_RTC_SYSFS_CTRL_REG_RO(dm);
-DS1685_RTC_SYSFS_CTRL_REG_RO(2412);
-DS1685_RTC_SYSFS_CTRL_REG_RO(dse);
-
-static struct attribute*
-ds1685_rtc_sysfs_ctrlb_attrs[] = {
-	&dev_attr_set.attr,
-	&dev_attr_pie.attr,
-	&dev_attr_aie.attr,
-	&dev_attr_uie.attr,
-	&dev_attr_sqwe.attr,
-	&dev_attr_dm.attr,
-	&dev_attr_2412.attr,
-	&dev_attr_dse.attr,
-	NULL,
-};
-
-static const struct attribute_group
-ds1685_rtc_sysfs_ctrlb_grp = {
-	.name = "ctrlb",
-	.attrs = ds1685_rtc_sysfs_ctrlb_attrs,
-};
-
-/*
- * Control Register C bits.
- *
- * Reading Control C clears these bits!  Reading them individually can
- * possibly cause an interrupt to be missed.  Use the /proc interface
- * to see all the bits in this register simultaneously.
- */
-DS1685_RTC_SYSFS_CTRL_REG_RO(irqf);
-DS1685_RTC_SYSFS_CTRL_REG_RO(pf);
-DS1685_RTC_SYSFS_CTRL_REG_RO(af);
-DS1685_RTC_SYSFS_CTRL_REG_RO(uf);
-
-static struct attribute*
-ds1685_rtc_sysfs_ctrlc_attrs[] = {
-	&dev_attr_irqf.attr,
-	&dev_attr_pf.attr,
-	&dev_attr_af.attr,
-	&dev_attr_uf.attr,
-	NULL,
-};
-
-static const struct attribute_group
-ds1685_rtc_sysfs_ctrlc_grp = {
-	.name = "ctrlc",
-	.attrs = ds1685_rtc_sysfs_ctrlc_attrs,
-};
-
-/*
- * Control Register D bits.
- */
-DS1685_RTC_SYSFS_CTRL_REG_RO(vrt);
-
-static struct attribute*
-ds1685_rtc_sysfs_ctrld_attrs[] = {
-	&dev_attr_vrt.attr,
-	NULL,
-};
-
-static const struct attribute_group
-ds1685_rtc_sysfs_ctrld_grp = {
-	.name = "ctrld",
-	.attrs = ds1685_rtc_sysfs_ctrld_attrs,
-};
-
-/*
- * Control Register 4A bits.
- */
-DS1685_RTC_SYSFS_CTRL_REG_RO(vrt2);
-DS1685_RTC_SYSFS_CTRL_REG_RO(incr);
-DS1685_RTC_SYSFS_CTRL_REG_RW(pab);
-DS1685_RTC_SYSFS_CTRL_REG_RW(rf);
-DS1685_RTC_SYSFS_CTRL_REG_RW(wf);
-DS1685_RTC_SYSFS_CTRL_REG_RW(kf);
-#if !defined(CONFIG_RTC_DRV_DS1685) && !defined(CONFIG_RTC_DRV_DS1689)
-DS1685_RTC_SYSFS_CTRL_REG_RO(bme);
-#endif
-
-static struct attribute*
-ds1685_rtc_sysfs_ctrl4a_attrs[] = {
-	&dev_attr_vrt2.attr,
-	&dev_attr_incr.attr,
-	&dev_attr_pab.attr,
-	&dev_attr_rf.attr,
-	&dev_attr_wf.attr,
-	&dev_attr_kf.attr,
-#if !defined(CONFIG_RTC_DRV_DS1685) && !defined(CONFIG_RTC_DRV_DS1689)
-	&dev_attr_bme.attr,
-#endif
-	NULL,
-};
-
-static const struct attribute_group
-ds1685_rtc_sysfs_ctrl4a_grp = {
-	.name = "ctrl4a",
-	.attrs = ds1685_rtc_sysfs_ctrl4a_attrs,
-};
-
-/*
- * Control Register 4B bits.
- */
-DS1685_RTC_SYSFS_CTRL_REG_RW(abe);
-DS1685_RTC_SYSFS_CTRL_REG_RW(e32k);
-DS1685_RTC_SYSFS_CTRL_REG_RO(cs);
-DS1685_RTC_SYSFS_CTRL_REG_RW(rce);
-DS1685_RTC_SYSFS_CTRL_REG_RW(prs);
-DS1685_RTC_SYSFS_CTRL_REG_RW(rie);
-DS1685_RTC_SYSFS_CTRL_REG_RW(wie);
-DS1685_RTC_SYSFS_CTRL_REG_RW(kse);
-
-static struct attribute*
-ds1685_rtc_sysfs_ctrl4b_attrs[] = {
-	&dev_attr_abe.attr,
-	&dev_attr_e32k.attr,
-	&dev_attr_cs.attr,
-	&dev_attr_rce.attr,
-	&dev_attr_prs.attr,
-	&dev_attr_rie.attr,
-	&dev_attr_wie.attr,
-	&dev_attr_kse.attr,
-	NULL,
-};
-
-static const struct attribute_group
-ds1685_rtc_sysfs_ctrl4b_grp = {
-	.name = "ctrl4b",
-	.attrs = ds1685_rtc_sysfs_ctrl4b_attrs,
-};
-
-
-/**
- * struct ds1685_rtc_ctrl_regs.
- * @name: char pointer for the bit name.
- * @reg: control register the bit is in.
- * @bit: the bit's offset in the register.
- */
-struct ds1685_rtc_time_regs {
-	const char *name;
-	const u8 reg;
-	const u8 mask;
-	const u8 min;
-	const u8 max;
-};
-
-/*
- * Time/Date register lookup tables.
- */
-static const struct ds1685_rtc_time_regs
-ds1685_time_regs_bcd_table[] = {
-	{ "seconds",       RTC_SECS,       RTC_SECS_BCD_MASK,   0, 59 },
-	{ "minutes",       RTC_MINS,       RTC_MINS_BCD_MASK,   0, 59 },
-	{ "hours",         RTC_HRS,        RTC_HRS_24_BCD_MASK, 0, 23 },
-	{ "wday",          RTC_WDAY,       RTC_WDAY_MASK,       1,  7 },
-	{ "mday",          RTC_MDAY,       RTC_MDAY_BCD_MASK,   1, 31 },
-	{ "month",         RTC_MONTH,      RTC_MONTH_BCD_MASK,  1, 12 },
-	{ "year",          RTC_YEAR,       RTC_YEAR_BCD_MASK,   0, 99 },
-	{ "century",       RTC_CENTURY,    RTC_CENTURY_MASK,    0, 99 },
-	{ "alarm_seconds", RTC_SECS_ALARM, RTC_SECS_BCD_MASK,   0, 59 },
-	{ "alarm_minutes", RTC_MINS_ALARM, RTC_MINS_BCD_MASK,   0, 59 },
-	{ "alarm_hours",   RTC_HRS_ALARM,  RTC_HRS_24_BCD_MASK, 0, 23 },
-	{ "alarm_mday",    RTC_MDAY_ALARM, RTC_MDAY_ALARM_MASK, 1, 31 },
-	{ NULL,            0,              0,                   0,  0 },
-};
-
-static const struct ds1685_rtc_time_regs
-ds1685_time_regs_bin_table[] = {
-	{ "seconds",       RTC_SECS,       RTC_SECS_BIN_MASK,   0x00, 0x3b },
-	{ "minutes",       RTC_MINS,       RTC_MINS_BIN_MASK,   0x00, 0x3b },
-	{ "hours",         RTC_HRS,        RTC_HRS_24_BIN_MASK, 0x00, 0x17 },
-	{ "wday",          RTC_WDAY,       RTC_WDAY_MASK,       0x01, 0x07 },
-	{ "mday",          RTC_MDAY,       RTC_MDAY_BIN_MASK,   0x01, 0x1f },
-	{ "month",         RTC_MONTH,      RTC_MONTH_BIN_MASK,  0x01, 0x0c },
-	{ "year",          RTC_YEAR,       RTC_YEAR_BIN_MASK,   0x00, 0x63 },
-	{ "century",       RTC_CENTURY,    RTC_CENTURY_MASK,    0x00, 0x63 },
-	{ "alarm_seconds", RTC_SECS_ALARM, RTC_SECS_BIN_MASK,   0x00, 0x3b },
-	{ "alarm_minutes", RTC_MINS_ALARM, RTC_MINS_BIN_MASK,   0x00, 0x3b },
-	{ "alarm_hours",   RTC_HRS_ALARM,  RTC_HRS_24_BIN_MASK, 0x00, 0x17 },
-	{ "alarm_mday",    RTC_MDAY_ALARM, RTC_MDAY_ALARM_MASK, 0x01, 0x1f },
-	{ NULL,            0,              0,                   0x00, 0x00 },
-};
-
-/**
- * ds1685_rtc_sysfs_time_regs_bcd_lookup - time/date reg bit lookup function.
- * @name: register bit to look up in ds1685_time_regs_bcd_table.
- */
-static const struct ds1685_rtc_time_regs*
-ds1685_rtc_sysfs_time_regs_lookup(const char *name, bool bcd_mode)
-{
-	const struct ds1685_rtc_time_regs *p;
-
-	if (bcd_mode)
-		p = ds1685_time_regs_bcd_table;
-	else
-		p = ds1685_time_regs_bin_table;
-
-	for (; p->name != NULL; ++p)
-		if (strcmp(p->name, name) == 0)
-			return p;
-
-	return NULL;
-}
-
-/**
- * ds1685_rtc_sysfs_time_regs_show - reads a time/date register via sysfs.
- * @dev: pointer to device structure.
- * @attr: pointer to device_attribute structure.
- * @buf: pointer to char array to hold the output.
- */
-static ssize_t
-ds1685_rtc_sysfs_time_regs_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	u8 tmp;
-	struct ds1685_priv *rtc = dev_get_drvdata(dev);
-	const struct ds1685_rtc_time_regs *bcd_reg_info =
-		ds1685_rtc_sysfs_time_regs_lookup(attr->attr.name, true);
-	const struct ds1685_rtc_time_regs *bin_reg_info =
-		ds1685_rtc_sysfs_time_regs_lookup(attr->attr.name, false);
-
-	/* Make sure we actually matched something. */
-	if (!bcd_reg_info || !bin_reg_info)
-		return -EINVAL;
-
-	/* bcd_reg_info->reg == bin_reg_info->reg. */
-	ds1685_rtc_begin_data_access(rtc);
-	tmp = rtc->read(rtc, bcd_reg_info->reg);
-	ds1685_rtc_end_data_access(rtc);
-
-	tmp = ds1685_rtc_bcd2bin(rtc, tmp, bcd_reg_info->mask,
-				 bin_reg_info->mask);
-
-	return snprintf(buf, 4, "%d\n", tmp);
-}
-
-/**
- * ds1685_rtc_sysfs_time_regs_store - writes a time/date register via sysfs.
- * @dev: pointer to device structure.
- * @attr: pointer to device_attribute structure.
- * @buf: pointer to char array to hold the output.
- * @count: number of bytes written.
- */
-static ssize_t
-ds1685_rtc_sysfs_time_regs_store(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	long int val = 0;
-	struct ds1685_priv *rtc = dev_get_drvdata(dev);
-	const struct ds1685_rtc_time_regs *bcd_reg_info =
-		ds1685_rtc_sysfs_time_regs_lookup(attr->attr.name, true);
-	const struct ds1685_rtc_time_regs *bin_reg_info =
-		ds1685_rtc_sysfs_time_regs_lookup(attr->attr.name, false);
-
-	/* We only accept numbers. */
-	if (kstrtol(buf, 10, &val) < 0)
-		return -EINVAL;
-
-	/* Make sure we actually matched something. */
-	if (!bcd_reg_info || !bin_reg_info)
-		return -EINVAL;
-
-	/* Check for a valid range. */
-	if (rtc->bcd_mode) {
-		if ((val < bcd_reg_info->min) || (val > bcd_reg_info->max))
-			return -ERANGE;
-	} else {
-		if ((val < bin_reg_info->min) || (val > bin_reg_info->max))
-			return -ERANGE;
-	}
-
-	val = ds1685_rtc_bin2bcd(rtc, val, bin_reg_info->mask,
-				 bcd_reg_info->mask);
-
-	/* bcd_reg_info->reg == bin_reg_info->reg. */
-	ds1685_rtc_begin_data_access(rtc);
-	rtc->write(rtc, bcd_reg_info->reg, val);
-	ds1685_rtc_end_data_access(rtc);
-
-	return count;
-}
-
-/**
- * DS1685_RTC_SYSFS_REG_RW - device_attribute for a read-write time register.
- * @reg: time/date register to read or write.
- */
-#define DS1685_RTC_SYSFS_TIME_REG_RW(reg)				\
-	static DEVICE_ATTR(reg, S_IRUGO | S_IWUSR,			\
-	ds1685_rtc_sysfs_time_regs_show,				\
-	ds1685_rtc_sysfs_time_regs_store)
-
-/*
- * Time/Date Register bits.
- */
-DS1685_RTC_SYSFS_TIME_REG_RW(seconds);
-DS1685_RTC_SYSFS_TIME_REG_RW(minutes);
-DS1685_RTC_SYSFS_TIME_REG_RW(hours);
-DS1685_RTC_SYSFS_TIME_REG_RW(wday);
-DS1685_RTC_SYSFS_TIME_REG_RW(mday);
-DS1685_RTC_SYSFS_TIME_REG_RW(month);
-DS1685_RTC_SYSFS_TIME_REG_RW(year);
-DS1685_RTC_SYSFS_TIME_REG_RW(century);
-DS1685_RTC_SYSFS_TIME_REG_RW(alarm_seconds);
-DS1685_RTC_SYSFS_TIME_REG_RW(alarm_minutes);
-DS1685_RTC_SYSFS_TIME_REG_RW(alarm_hours);
-DS1685_RTC_SYSFS_TIME_REG_RW(alarm_mday);
-
-static struct attribute*
-ds1685_rtc_sysfs_time_attrs[] = {
-	&dev_attr_seconds.attr,
-	&dev_attr_minutes.attr,
-	&dev_attr_hours.attr,
-	&dev_attr_wday.attr,
-	&dev_attr_mday.attr,
-	&dev_attr_month.attr,
-	&dev_attr_year.attr,
-	&dev_attr_century.attr,
-	NULL,
-};
-
-static const struct attribute_group
-ds1685_rtc_sysfs_time_grp = {
-	.name = "datetime",
-	.attrs = ds1685_rtc_sysfs_time_attrs,
-};
-
-static struct attribute*
-ds1685_rtc_sysfs_alarm_attrs[] = {
-	&dev_attr_alarm_seconds.attr,
-	&dev_attr_alarm_minutes.attr,
-	&dev_attr_alarm_hours.attr,
-	&dev_attr_alarm_mday.attr,
-	NULL,
-};
-
-static const struct attribute_group
-ds1685_rtc_sysfs_alarm_grp = {
-	.name = "alarm",
-	.attrs = ds1685_rtc_sysfs_alarm_attrs,
-};
-#endif /* CONFIG_RTC_DS1685_SYSFS_REGS */
-
-
 /**
  * ds1685_rtc_sysfs_register - register sysfs files.
  * @dev: pointer to device structure.
@@ -1752,39 +1206,6 @@ ds1685_rtc_sysfs_register(struct device *dev)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_RTC_DS1685_SYSFS_REGS
-	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_ctrla_grp);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_ctrlb_grp);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_ctrlc_grp);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_ctrld_grp);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_ctrl4a_grp);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_ctrl4b_grp);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_time_grp);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_alarm_grp);
-	if (ret)
-		return ret;
-#endif
 	return 0;
 }
 
@@ -1797,17 +1218,6 @@ ds1685_rtc_sysfs_unregister(struct device *dev)
 {
 	sysfs_remove_bin_file(&dev->kobj, &ds1685_rtc_sysfs_nvram_attr);
 	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_misc_grp);
-
-#ifdef CONFIG_RTC_DS1685_SYSFS_REGS
-	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_ctrla_grp);
-	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_ctrlb_grp);
-	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_ctrlc_grp);
-	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_ctrld_grp);
-	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_ctrl4a_grp);
-	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_ctrl4b_grp);
-	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_time_grp);
-	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_alarm_grp);
-#endif
 
 	return 0;
 }
@@ -2037,6 +1447,26 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	rtc->write(rtc, RTC_EXT_CTRL_4B,
 		   (rtc->read(rtc, RTC_EXT_CTRL_4B) | RTC_CTRL_4B_KSE));
 
+	rtc_dev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc_dev))
+		return PTR_ERR(rtc_dev);
+
+	rtc_dev->ops = &ds1685_rtc_ops;
+
+	/* Century bit is useless because leap year fails in 1900 and 2100 */
+	rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rtc_dev->range_max = RTC_TIMESTAMP_END_2099;
+
+	/* Maximum periodic rate is 8192Hz (0.122070ms). */
+	rtc_dev->max_user_freq = RTC_MAX_USER_FREQ;
+
+	/* See if the platform doesn't support UIE. */
+	if (pdata->uie_unsupported)
+		rtc_dev->uie_unsupported = 1;
+	rtc->uie_unsupported = pdata->uie_unsupported;
+
+	rtc->dev = rtc_dev;
+
 	/*
 	 * Fetch the IRQ and setup the interrupt handler.
 	 *
@@ -2069,32 +1499,13 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	/* Setup complete. */
 	ds1685_rtc_switch_to_bank0(rtc);
 
-	/* Register the device as an RTC. */
-	rtc_dev = rtc_device_register(pdev->name, &pdev->dev,
-				      &ds1685_rtc_ops, THIS_MODULE);
-
-	/* Success? */
-	if (IS_ERR(rtc_dev))
-		return PTR_ERR(rtc_dev);
-
-	/* Maximum periodic rate is 8192Hz (0.122070ms). */
-	rtc_dev->max_user_freq = RTC_MAX_USER_FREQ;
-
-	/* See if the platform doesn't support UIE. */
-	if (pdata->uie_unsupported)
-		rtc_dev->uie_unsupported = 1;
-	rtc->uie_unsupported = pdata->uie_unsupported;
-
-	rtc->dev = rtc_dev;
-
 #ifdef CONFIG_SYSFS
 	ret = ds1685_rtc_sysfs_register(&pdev->dev);
 	if (ret)
-		rtc_device_unregister(rtc->dev);
+		return ret;
 #endif
 
-	/* Done! */
-	return ret;
+	return rtc_register_device(rtc_dev);
 }
 
 /**
@@ -2109,8 +1520,6 @@ ds1685_rtc_remove(struct platform_device *pdev)
 #ifdef CONFIG_SYSFS
 	ds1685_rtc_sysfs_unregister(&pdev->dev);
 #endif
-
-	rtc_device_unregister(rtc->dev);
 
 	/* Read Ctrl B and clear PIE/AIE/UIE. */
 	rtc->write(rtc, RTC_CTRL_B,
@@ -2165,6 +1574,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 	/* Check for valid RTC data, else, spin forever. */
 	if (unlikely(!pdev)) {
 		pr_emerg("platform device data not available, spinning forever ...\n");
+		while(1);
 		unreachable();
 	} else {
 		/* Get the rtc data. */
@@ -2216,6 +1626,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 			   (ctrl4a | RTC_CTRL_4A_PAB));
 
 		/* Spin ... we do not switch back to bank0. */
+		while(1);
 		unreachable();
 	}
 }
@@ -2227,5 +1638,4 @@ MODULE_AUTHOR("Joshua Kinard <kumba@gentoo.org>");
 MODULE_AUTHOR("Matthias Fuchs <matthias.fuchs@esd-electronics.com>");
 MODULE_DESCRIPTION("Dallas/Maxim DS1685/DS1687-series RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:rtc-ds1685");

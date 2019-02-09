@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* ptrace.c */
 /* By Ross Biro 1/23/92 */
 /* edited by Linus Torvalds */
@@ -6,6 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/errno.h>
@@ -16,7 +18,7 @@
 #include <linux/tracehook.h>
 #include <linux/audit.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/fpu.h>
 
@@ -157,14 +159,16 @@ put_reg(struct task_struct *task, unsigned long regno, unsigned long data)
 static inline int
 read_int(struct task_struct *task, unsigned long addr, int * data)
 {
-	int copied = access_process_vm(task, addr, data, sizeof(int), 0);
+	int copied = access_process_vm(task, addr, data, sizeof(int),
+			FOLL_FORCE);
 	return (copied == sizeof(int)) ? 0 : -EIO;
 }
 
 static inline int
 write_int(struct task_struct *task, unsigned long addr, int data)
 {
-	int copied = access_process_vm(task, addr, &data, sizeof(int), 1);
+	int copied = access_process_vm(task, addr, &data, sizeof(int),
+			FOLL_FORCE | FOLL_WRITE);
 	return (copied == sizeof(int)) ? 0 : -EIO;
 }
 
@@ -281,7 +285,8 @@ long arch_ptrace(struct task_struct *child, long request,
 	/* When I and D space are separate, these will need to be fixed.  */
 	case PTRACE_PEEKTEXT: /* read word at location addr. */
 	case PTRACE_PEEKDATA:
-		copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
+		copied = ptrace_access_vm(child, addr, &tmp, sizeof(tmp),
+				FOLL_FORCE);
 		ret = -EIO;
 		if (copied != sizeof(tmp))
 			break;

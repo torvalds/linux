@@ -1,39 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Device Tree file for Google Chromecast
  *
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is licensed under the terms of the GNU General Public
- *     License version 2. This program is licensed "as is" without any
- *     warranty of any kind, whether express or implied.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 /dts-v1/;
@@ -50,24 +19,37 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
-		reg = <0x00000000 0x20000000>; /* 512 MB */
+
+		/*
+		 * We're using "linux,usable-memory" instead of "reg" here
+		 * because the (signed and encrypted) bootloader that shipped
+		 * with this device provides an incorrect memory range in
+		 * ATAG_MEM. Linux helpfully overrides the "reg" property with
+		 * data from the ATAG, so we can't specify the proper range
+		 * normally. Fortunately, this alternate property is checked
+		 * first by the OF driver, so we can (ab)use it instead.
+		 */
+		linux,usable-memory = <0x00000000 0x20000000>; /* 512 MB */
 	};
 
 	leds {
-		compatible = "gpio-leds";
+		compatible = "pwm-leds";
+		pinctrl-0 = <&ledpwm_pmux>;
+		pinctrl-names = "default";
 
 		white {
 			label = "white";
-			gpios = <&portc 1 GPIO_ACTIVE_HIGH>;
-			default-state = "keep";
+			pwms = <&pwm 0 600000 0>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
 		};
 
 		red {
 			label = "red";
-			gpios = <&portc 2 GPIO_ACTIVE_HIGH>;
-			default-state = "keep";
+			pwms = <&pwm 1 600000 0>;
+			max-brightness = <255>;
 		};
 	};
 };
@@ -86,3 +68,10 @@
 &usb_phy1 { status = "okay"; };
 
 &usb1 { status = "okay"; };
+
+&soc_pinctrl {
+	ledpwm_pmux: ledpwm-pmux {
+		groups = "G0";
+		function = "pwm";
+	};
+};

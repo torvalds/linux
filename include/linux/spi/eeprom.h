@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_SPI_EEPROM_H
 #define __LINUX_SPI_EEPROM_H
 
@@ -30,8 +31,6 @@ struct spi_eeprom {
 	 */
 #define EE_INSTR_BIT3_IS_ADDR	0x0010
 
-	/* for exporting this chip's data to other kernel code */
-	void (*setup)(struct memory_accessor *mem, void *context);
 	void *context;
 };
 

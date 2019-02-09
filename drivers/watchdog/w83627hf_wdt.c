@@ -36,8 +36,6 @@
 #include <linux/types.h>
 #include <linux/watchdog.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/io.h>
 
@@ -47,10 +45,12 @@
 static int wdt_io;
 static int cr_wdt_timeout;	/* WDT timeout register */
 static int cr_wdt_control;	/* WDT control register */
+static int cr_wdt_csr;		/* WDT control & status register */
 
 enum chips { w83627hf, w83627s, w83697hf, w83697ug, w83637hf, w83627thf,
 	     w83687thf, w83627ehf, w83627dhg, w83627uhg, w83667hg, w83627dhg_p,
-	     w83667hg_b, nct6775, nct6776, nct6779, nct6791, nct6792 };
+	     w83667hg_b, nct6775, nct6776, nct6779, nct6791, nct6792, nct6793,
+	     nct6795, nct6102 };
 
 static int timeout;			/* in seconds */
 module_param(timeout, int, 0);
@@ -94,15 +94,23 @@ MODULE_PARM_DESC(early_disable, "Disable watchdog at boot time (default=0)");
 #define W83667HG_B_ID		0xb3
 #define NCT6775_ID		0xb4
 #define NCT6776_ID		0xc3
+#define NCT6102_ID		0xc4
 #define NCT6779_ID		0xc5
 #define NCT6791_ID		0xc8
 #define NCT6792_ID		0xc9
+#define NCT6793_ID		0xd1
+#define NCT6795_ID		0xd3
 
 #define W83627HF_WDT_TIMEOUT	0xf6
 #define W83697HF_WDT_TIMEOUT	0xf4
+#define NCT6102D_WDT_TIMEOUT	0xf1
 
 #define W83627HF_WDT_CONTROL	0xf5
 #define W83697HF_WDT_CONTROL	0xf3
+#define NCT6102D_WDT_CONTROL	0xf0
+
+#define W836X7HF_WDT_CSR	0xf7
+#define NCT6102D_WDT_CSR	0xf2
 
 static void superio_outb(int reg, int val)
 {
@@ -199,6 +207,9 @@ static int w83627hf_init(struct watchdog_device *wdog, enum chips chip)
 	case nct6779:
 	case nct6791:
 	case nct6792:
+	case nct6793:
+	case nct6795:
+	case nct6102:
 		/*
 		 * These chips have a fixed WDTO# output pin (W83627UHG),
 		 * or support more than one WDTO# output pin.
@@ -231,8 +242,8 @@ static int w83627hf_init(struct watchdog_device *wdog, enum chips chip)
 	superio_outb(cr_wdt_control, t);
 
 	/* reset trigger, disable keyboard & mouse turning off watchdog */
-	t = superio_inb(0xF7) & ~0xD0;
-	superio_outb(0xF7, t);
+	t = superio_inb(cr_wdt_csr) & ~0xD0;
+	superio_outb(cr_wdt_csr, t);
 
 	superio_exit();
 
@@ -288,27 +299,15 @@ static unsigned int wdt_get_time(struct watchdog_device *wdog)
 }
 
 /*
- *	Notifier for system down
- */
-static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
-	void *unused)
-{
-	if (code == SYS_DOWN || code == SYS_HALT)
-		wdt_set_time(0);	/* Turn the WDT off */
-
-	return NOTIFY_DONE;
-}
-
-/*
  *	Kernel Interfaces
  */
 
-static struct watchdog_info wdt_info = {
+static const struct watchdog_info wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.identity = "W83627HF Watchdog",
 };
 
-static struct watchdog_ops wdt_ops = {
+static const struct watchdog_ops wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = wdt_start,
 	.stop = wdt_stop,
@@ -329,10 +328,6 @@ static struct watchdog_device wdt_dev = {
  *	turn the timebomb registers off.
  */
 
-static struct notifier_block wdt_notifier = {
-	.notifier_call = wdt_notify_sys,
-};
-
 static int wdt_find(int addr)
 {
 	u8 val;
@@ -340,6 +335,7 @@ static int wdt_find(int addr)
 
 	cr_wdt_timeout = W83627HF_WDT_TIMEOUT;
 	cr_wdt_control = W83627HF_WDT_CONTROL;
+	cr_wdt_csr = W836X7HF_WDT_CSR;
 
 	ret = superio_enter();
 	if (ret)
@@ -405,6 +401,18 @@ static int wdt_find(int addr)
 	case NCT6792_ID:
 		ret = nct6792;
 		break;
+	case NCT6793_ID:
+		ret = nct6793;
+		break;
+	case NCT6795_ID:
+		ret = nct6795;
+		break;
+	case NCT6102_ID:
+		ret = nct6102;
+		cr_wdt_timeout = NCT6102D_WDT_TIMEOUT;
+		cr_wdt_control = NCT6102D_WDT_CONTROL;
+		cr_wdt_csr = NCT6102D_WDT_CSR;
+		break;
 	case 0xff:
 		ret = -ENODEV;
 		break;
@@ -421,7 +429,7 @@ static int __init wdt_init(void)
 {
 	int ret;
 	int chip;
-	const char * const chip_name[] = {
+	static const char * const chip_name[] = {
 		"W83627HF",
 		"W83627S",
 		"W83697HF",
@@ -440,6 +448,9 @@ static int __init wdt_init(void)
 		"NCT6779",
 		"NCT6791",
 		"NCT6792",
+		"NCT6793",
+		"NCT6795",
+		"NCT6102",
 	};
 
 	wdt_io = 0x2e;
@@ -456,6 +467,7 @@ static int __init wdt_init(void)
 
 	watchdog_init_timeout(&wdt_dev, timeout, NULL);
 	watchdog_set_nowayout(&wdt_dev, nowayout);
+	watchdog_stop_on_reboot(&wdt_dev);
 
 	ret = w83627hf_init(&wdt_dev, chip);
 	if (ret) {
@@ -463,30 +475,19 @@ static int __init wdt_init(void)
 		return ret;
 	}
 
-	ret = register_reboot_notifier(&wdt_notifier);
-	if (ret != 0) {
-		pr_err("cannot register reboot notifier (err=%d)\n", ret);
-		return ret;
-	}
-
 	ret = watchdog_register_device(&wdt_dev);
 	if (ret)
-		goto unreg_reboot;
+		return ret;
 
 	pr_info("initialized. timeout=%d sec (nowayout=%d)\n",
 		wdt_dev.timeout, nowayout);
 
-	return ret;
-
-unreg_reboot:
-	unregister_reboot_notifier(&wdt_notifier);
 	return ret;
 }
 
 static void __exit wdt_exit(void)
 {
 	watchdog_unregister_device(&wdt_dev);
-	unregister_reboot_notifier(&wdt_notifier);
 }
 
 module_init(wdt_init);

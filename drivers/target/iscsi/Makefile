@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 iscsi_target_mod-y +=		iscsi_target_parameters.o \
 				iscsi_target_seq_pdu_list.o \
 				iscsi_target_auth.o \
@@ -18,3 +19,4 @@ iscsi_target_mod-y +=		iscsi_target_parameters.o \
 				iscsi_target_transport.o
 
 obj-$(CONFIG_ISCSI_TARGET)	+= iscsi_target_mod.o
+obj-$(CONFIG_ISCSI_TARGET_CXGB4) += cxgbit/

@@ -1,12 +1,8 @@
-/* arch/arm/plat-samsung/include/plat/fb-s3c2410.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Copyright (c) 2004 Arnaud Patard <arnaud.patard@rtp-net.org>
  *
  * Inspired by pxafb.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #ifndef __ASM_PLAT_FB_S3C2410_H
@@ -48,7 +44,7 @@ struct s3c2410fb_display {
 
 struct s3c2410fb_mach_info {
 
-	struct s3c2410fb_display *displays;	/* attached diplays info */
+	struct s3c2410fb_display *displays;	/* attached displays info */
 	unsigned num_displays;			/* number of defined displays */
 	unsigned default_display;
 

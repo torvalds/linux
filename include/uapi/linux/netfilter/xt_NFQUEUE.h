@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* iptables module for using NFQUEUE mechanism
  *
  * (C) 2005 Harald Welte <laforge@netfilter.org>

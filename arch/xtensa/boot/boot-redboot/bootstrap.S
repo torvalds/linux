@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <variant/core.h>
 #include <asm/regs.h>
 #include <asm/asmmacro.h>
@@ -41,6 +42,7 @@ __start_a0:
 	.align 4
 
 	.section .text, "ax"
+	.literal_position
 	.begin literal_prefix .text
 
 	/* put literals in here! */

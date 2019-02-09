@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_MMU_8XX_H_
 #define _ASM_POWERPC_MMU_8XX_H_
 /*
@@ -28,17 +29,17 @@
 #define MI_Kp		0x40000000	/* Should always be set */
 
 /*
- * All pages' PP exec bits are set to 000, which means Execute for Supervisor
- * and no Execute for User.
- * Then we use the APG to say whether accesses are according to Page rules,
- * "all Supervisor" rules (Exec for all) and "all User" rules (Exec for noone)
- * Therefore, we define 4 APG groups. msb is _PAGE_EXEC, lsb is _PAGE_USER
- * 0 (00) => Not User, no exec => 11 (all accesses performed as user)
- * 1 (01) => User but no exec => 11 (all accesses performed as user)
- * 2 (10) => Not User, exec => 01 (rights according to page definition)
- * 3 (11) => User, exec => 00 (all accesses performed as supervisor)
+ * All pages' PP data bits are set to either 001 or 011 by copying _PAGE_EXEC
+ * into bit 21 in the ITLBmiss handler (bit 21 is the middle bit), which means
+ * respectively NA for All or X for Supervisor and no access for User.
+ * Then we use the APG to say whether accesses are according to Page rules or
+ * "all Supervisor" rules (Access to all)
+ * Therefore, we define 2 APG groups. lsb is _PMD_USER
+ * 0 => No user => 01 (all accesses performed according to page definition)
+ * 1 => User => 00 (all accesses performed as supervisor iaw page definition)
+ * We define all 16 groups so that all other bits of APG can take any value
  */
-#define MI_APG_INIT	0xf4ffffff
+#define MI_APG_INIT	0x44444444
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MI_RPN is written, bits in
@@ -101,17 +102,17 @@
 #define MD_Kp		0x40000000	/* Should always be set */
 
 /*
- * All pages' PP data bits are set to either 000 or 011, which means
+ * All pages' PP data bits are set to either 000 or 011 or 001, which means
  * respectively RW for Supervisor and no access for User, or RO for
- * Supervisor and no access for user.
+ * Supervisor and no access for user and NA for ALL.
  * Then we use the APG to say whether accesses are according to Page rules or
  * "all Supervisor" rules (Access to all)
- * Therefore, we define 2 APG groups. lsb is _PAGE_USER
+ * Therefore, we define 2 APG groups. lsb is _PMD_USER
  * 0 => No user => 01 (all accesses performed according to page definition)
- * 1 => User => 00 (all accesses performed as supervisor
- *                                 according to page definition)
+ * 1 => User => 00 (all accesses performed as supervisor iaw page definition)
+ * We define all 16 groups so that all other bits of APG can take any value
  */
-#define MD_APG_INIT	0x4fffffff
+#define MD_APG_INIT	0x44444444
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MD_RPN is written, bits in
@@ -163,17 +164,76 @@
  */
 #define SPRN_M_TW	799
 
+#ifdef CONFIG_PPC_MM_SLICES
+#include <asm/nohash/32/slice.h>
+#define SLICE_ARRAY_SIZE	(1 << (32 - SLICE_LOW_SHIFT - 1))
+#endif
+
 #ifndef __ASSEMBLY__
+struct slice_mask {
+	u64 low_slices;
+	DECLARE_BITMAP(high_slices, 0);
+};
+
 typedef struct {
 	unsigned int id;
 	unsigned int active;
 	unsigned long vdso_base;
+#ifdef CONFIG_PPC_MM_SLICES
+	u16 user_psize;		/* page size index */
+	unsigned char low_slices_psize[SLICE_ARRAY_SIZE];
+	unsigned char high_slices_psize[0];
+	unsigned long slb_addr_limit;
+	struct slice_mask mask_base_psize; /* 4k or 16k */
+# ifdef CONFIG_HUGETLB_PAGE
+	struct slice_mask mask_512k;
+	struct slice_mask mask_8m;
+# endif
+#endif
 } mm_context_t;
+
+#define PHYS_IMMR_BASE (mfspr(SPRN_IMMR) & 0xfff80000)
+#define VIRT_IMMR_BASE (__fix_to_virt(FIX_IMMR_BASE))
+
+/* Page size definitions, common between 32 and 64-bit
+ *
+ *    shift : is the "PAGE_SHIFT" value for that page size
+ *    penc  : is the pte encoding mask
+ *
+ */
+struct mmu_psize_def {
+	unsigned int	shift;	/* number of bits */
+	unsigned int	enc;	/* PTE encoding */
+	unsigned int    ind;    /* Corresponding indirect page size shift */
+	unsigned int	flags;
+#define MMU_PAGE_SIZE_DIRECT	0x1	/* Supported as a direct size */
+#define MMU_PAGE_SIZE_INDIRECT	0x2	/* Supported as an indirect size */
+};
+
+extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+
+static inline int shift_to_mmu_psize(unsigned int shift)
+{
+	int psize;
+
+	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize)
+		if (mmu_psize_defs[psize].shift == shift)
+			return psize;
+	return -1;
+}
+
+static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
+{
+	if (mmu_psize_defs[mmu_psize].shift)
+		return mmu_psize_defs[mmu_psize].shift;
+	BUG();
+}
+
 #endif /* !__ASSEMBLY__ */
 
-#if (PAGE_SHIFT == 12)
+#if defined(CONFIG_PPC_4K_PAGES)
 #define mmu_virtual_psize	MMU_PAGE_4K
-#elif (PAGE_SHIFT == 14)
+#elif defined(CONFIG_PPC_16K_PAGES)
 #define mmu_virtual_psize	MMU_PAGE_16K
 #else
 #error "Unsupported PAGE_SIZE"

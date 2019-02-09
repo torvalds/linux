@@ -15,17 +15,18 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/hardirq.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/smp.h>
 #include <asm/apic.h>
 #include <asm/ipi.h>
+#include <asm/jailhouse_para.h>
 
 #include <linux/acpi.h>
 
 static struct apic apic_physflat;
 static struct apic apic_flat;
 
-struct apic __read_mostly *apic = &apic_flat;
+struct apic *apic __ro_after_init = &apic_flat;
 EXPORT_SYMBOL_GPL(apic);
 
 static int flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
@@ -53,7 +54,7 @@ void flat_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-static inline void _flat_send_IPI_mask(unsigned long mask, int vector)
+static void _flat_send_IPI_mask(unsigned long mask, int vector)
 {
 	unsigned long flags;
 
@@ -84,12 +85,8 @@ flat_send_IPI_mask_allbutself(const struct cpumask *cpumask, int vector)
 static void flat_send_IPI_allbutself(int vector)
 {
 	int cpu = smp_processor_id();
-#ifdef	CONFIG_HOTPLUG_CPU
-	int hotplug = 1;
-#else
-	int hotplug = 0;
-#endif
-	if (hotplug || vector == NMI_VECTOR) {
+
+	if (IS_ENABLED(CONFIG_HOTPLUG_CPU) || vector == NMI_VECTOR) {
 		if (!cpumask_equal(cpu_online_mask, cpumask_of(cpu))) {
 			unsigned long mask = cpumask_bits(cpu_online_mask)[0];
 
@@ -116,27 +113,17 @@ static void flat_send_IPI_all(int vector)
 
 static unsigned int flat_get_apic_id(unsigned long x)
 {
-	unsigned int id;
-
-	id = (((x)>>24) & 0xFFu);
-
-	return id;
+	return (x >> 24) & 0xFF;
 }
 
-static unsigned long set_apic_id(unsigned int id)
+static u32 set_apic_id(unsigned int id)
 {
-	unsigned long x;
-
-	x = ((id & 0xFFu)<<24);
-	return x;
+	return (id & 0xFF) << 24;
 }
 
 static unsigned int read_xapic_id(void)
 {
-	unsigned int id;
-
-	id = flat_get_apic_id(apic_read(APIC_ID));
-	return id;
+	return flat_get_apic_id(apic_read(APIC_ID));
 }
 
 static int flat_apic_id_registered(void)
@@ -154,22 +141,20 @@ static int flat_probe(void)
 	return 1;
 }
 
-static struct apic apic_flat =  {
+static struct apic apic_flat __ro_after_init = {
 	.name				= "flat",
 	.probe				= flat_probe,
 	.acpi_madt_oem_check		= flat_acpi_madt_oem_check,
 	.apic_id_valid			= default_apic_id_valid,
 	.apic_id_registered		= flat_apic_id_registered,
 
-	.irq_delivery_mode		= dest_LowestPrio,
+	.irq_delivery_mode		= dest_Fixed,
 	.irq_dest_mode			= 1, /* logical */
 
-	.target_cpus			= online_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= flat_vector_allocation_domain,
 	.init_apic_ldr			= flat_init_apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
@@ -181,10 +166,10 @@ static struct apic apic_flat =  {
 
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
-	.apic_id_mask			= 0xFFu << 24,
 
-	.cpu_mask_to_apicid_and		= flat_cpu_mask_to_apicid_and,
+	.calc_dest_apicid		= apic_flat_calc_apicid,
 
+	.send_IPI			= default_send_IPI_single,
 	.send_IPI_mask			= flat_send_IPI_mask,
 	.send_IPI_mask_allbutself	= flat_send_IPI_mask_allbutself,
 	.send_IPI_allbutself		= flat_send_IPI_allbutself,
@@ -230,15 +215,13 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;
 }
 
-static void physflat_send_IPI_mask(const struct cpumask *cpumask, int vector)
+static void physflat_init_apic_ldr(void)
 {
-	default_send_IPI_mask_sequence_phys(cpumask, vector);
-}
-
-static void physflat_send_IPI_mask_allbutself(const struct cpumask *cpumask,
-					      int vector)
-{
-	default_send_IPI_mask_allbutself_phys(cpumask, vector);
+	/*
+	 * LDR and DFR are not involved in physflat mode, rather:
+	 * "In physical destination mode, the destination processor is
+	 * specified by its local APIC ID [...]." (Intel SDM, 10.6.2.1)
+	 */
 }
 
 static void physflat_send_IPI_allbutself(int vector)
@@ -248,18 +231,19 @@ static void physflat_send_IPI_allbutself(int vector)
 
 static void physflat_send_IPI_all(int vector)
 {
-	physflat_send_IPI_mask(cpu_online_mask, vector);
+	default_send_IPI_mask_sequence_phys(cpu_online_mask, vector);
 }
 
 static int physflat_probe(void)
 {
-	if (apic == &apic_physflat || num_possible_cpus() > 8)
+	if (apic == &apic_physflat || num_possible_cpus() > 8 ||
+	    jailhouse_paravirt())
 		return 1;
 
 	return 0;
 }
 
-static struct apic apic_physflat =  {
+static struct apic apic_physflat __ro_after_init = {
 
 	.name				= "physical flat",
 	.probe				= physflat_probe,
@@ -270,14 +254,11 @@ static struct apic apic_physflat =  {
 	.irq_delivery_mode		= dest_Fixed,
 	.irq_dest_mode			= 0, /* physical */
 
-	.target_cpus			= online_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= 0,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= default_vector_allocation_domain,
-	/* not needed, but shouldn't hurt: */
-	.init_apic_ldr			= flat_init_apic_ldr,
+	.init_apic_ldr			= physflat_init_apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
@@ -288,12 +269,12 @@ static struct apic apic_physflat =  {
 
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
-	.apic_id_mask			= 0xFFu << 24,
 
-	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
+	.calc_dest_apicid		= apic_default_calc_apicid,
 
-	.send_IPI_mask			= physflat_send_IPI_mask,
-	.send_IPI_mask_allbutself	= physflat_send_IPI_mask_allbutself,
+	.send_IPI			= default_send_IPI_single_phys,
+	.send_IPI_mask			= default_send_IPI_mask_sequence_phys,
+	.send_IPI_mask_allbutself	= default_send_IPI_mask_allbutself_phys,
 	.send_IPI_allbutself		= physflat_send_IPI_allbutself,
 	.send_IPI_all			= physflat_send_IPI_all,
 	.send_IPI_self			= apic_send_IPI_self,

@@ -1,4 +1,6 @@
-/* Driver for USB Mass Storage compliant devices
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Driver for USB Mass Storage compliant devices
  * Main Header File
  *
  * Current development and maintenance by:
@@ -20,23 +22,6 @@
  *
  * Also, for certain devices, the interrupt endpoint is used to convey
  * status of a command.
- *
- * Please see http://www.one-eyed-alien.net/~mdharm/linux-usb for more
- * information about this driver.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _USB_H_
@@ -100,7 +85,8 @@ typedef void (*pm_hook)(struct us_data *, int);	/* power management hook */
 
 /* we allocate one of these for every device that we remember */
 struct us_data {
-	/* The device we're working with
+	/*
+	 * The device we're working with
 	 * It's important to note:
 	 *    (o) you must hold dev_mutex to change pusb_dev
 	 */
@@ -125,7 +111,7 @@ struct us_data {
 	u8			max_lun;
 
 	u8			ifnum;		 /* interface number   */
-	u8			ep_bInterval;	 /* interrupt interval */ 
+	u8			ep_bInterval;	 /* interrupt interval */
 
 	/* function pointers for this device */
 	trans_cmnd		transport;	 /* transport function	   */
@@ -175,8 +161,10 @@ static inline struct us_data *host_to_us(struct Scsi_Host *host) {
 extern void fill_inquiry_response(struct us_data *us,
 	unsigned char *data, unsigned int data_len);
 
-/* The scsi_lock() and scsi_unlock() macros protect the sm_state and the
- * single queue element srb for write access */
+/*
+ * The scsi_lock() and scsi_unlock() macros protect the sm_state and the
+ * single queue element srb for write access
+ */
 #define scsi_unlock(host)	spin_unlock_irq(host->host_lock)
 #define scsi_lock(host)		spin_lock_irq(host->host_lock)
 

@@ -20,10 +20,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *  Stripped of 2.4 stuff ready for main kernel submit by
  *		Alan Cox <alan@lxorguk.ukuu.org.uk>
  ****************************************************************************/
@@ -37,13 +33,13 @@
 
 static int frame_sizes[] = {
 	0,	// USBIF_CMDONLY
-	0, 	// USBIF_BULK
-	128, 	// USBIF_ISO_1
-	384, 	// USBIF_ISO_2
-	640, 	// USBIF_ISO_3
-	768, 	// USBIF_ISO_4
-	896, 	// USBIF_ISO_5
-	1023, 	// USBIF_ISO_6
+	0,	// USBIF_BULK
+	128,	// USBIF_ISO_1
+	384,	// USBIF_ISO_2
+	640,	// USBIF_ISO_3
+	768,	// USBIF_ISO_4
+	896,	// USBIF_ISO_5
+	1023,	// USBIF_ISO_6
 };
 
 #define FRAMES_PER_DESC    10
@@ -64,7 +60,7 @@ static int submit_urbs(struct camera_data *cam);
 static int set_alternate(struct camera_data *cam, unsigned int alt);
 static int configure_transfer_mode(struct camera_data *cam, unsigned int alt);
 
-static struct usb_device_id cpia2_id_table[] = {
+static const struct usb_device_id cpia2_id_table[] = {
 	{USB_DEVICE(0x0553, 0x0100)},
 	{USB_DEVICE(0x0553, 0x0140)},
 	{USB_DEVICE(0x0553, 0x0151)},  /* STV0676 */
@@ -545,18 +541,28 @@ static void free_sbufs(struct camera_data *cam)
 static int write_packet(struct usb_device *udev,
 			u8 request, u8 * registers, u16 start, size_t size)
 {
+	unsigned char *buf;
+	int ret;
+
 	if (!registers || size <= 0)
 		return -EINVAL;
 
-	return usb_control_msg(udev,
+	buf = kmemdup(registers, size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = usb_control_msg(udev,
 			       usb_sndctrlpipe(udev, 0),
 			       request,
 			       USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			       start,	/* value */
 			       0,	/* index */
-			       registers,	/* buffer */
+			       buf,	/* buffer */
 			       size,
 			       HZ);
+
+	kfree(buf);
+	return ret;
 }
 
 /****************************************************************************
@@ -567,18 +573,32 @@ static int write_packet(struct usb_device *udev,
 static int read_packet(struct usb_device *udev,
 		       u8 request, u8 * registers, u16 start, size_t size)
 {
+	unsigned char *buf;
+	int ret;
+
 	if (!registers || size <= 0)
 		return -EINVAL;
 
-	return usb_control_msg(udev,
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = usb_control_msg(udev,
 			       usb_rcvctrlpipe(udev, 0),
 			       request,
 			       USB_DIR_IN|USB_TYPE_VENDOR|USB_RECIP_DEVICE,
 			       start,	/* value */
 			       0,	/* index */
-			       registers,	/* buffer */
+			       buf,	/* buffer */
 			       size,
 			       HZ);
+
+	if (ret >= 0)
+		memcpy(registers, buf, size);
+
+	kfree(buf);
+
+	return ret;
 }
 
 /******************************************************************************
@@ -643,7 +663,8 @@ static int submit_urbs(struct camera_data *cam)
 		if (cam->sbuf[i].data)
 			continue;
 		cam->sbuf[i].data =
-		    kmalloc(FRAMES_PER_DESC * FRAME_SIZE_PER_DESC, GFP_KERNEL);
+		    kmalloc_array(FRAME_SIZE_PER_DESC, FRAMES_PER_DESC,
+				  GFP_KERNEL);
 		if (!cam->sbuf[i].data) {
 			while (--i >= 0) {
 				kfree(cam->sbuf[i].data);
@@ -662,7 +683,6 @@ static int submit_urbs(struct camera_data *cam)
 		}
 		urb = usb_alloc_urb(FRAMES_PER_DESC, GFP_KERNEL);
 		if (!urb) {
-			ERR("%s: usb_alloc_urb error!\n", __func__);
 			for (j = 0; j < i; j++)
 				usb_free_urb(cam->sbuf[j].urb);
 			return -ENOMEM;
@@ -734,9 +754,7 @@ int cpia2_usb_stream_start(struct camera_data *cam, unsigned int alternate)
 		cam->params.camera_state.stream_mode = old_alt;
 		ret2 = set_alternate(cam, USBIF_CMDONLY);
 		if (ret2 < 0) {
-			ERR("cpia2_usb_change_streaming_alternate(%d) =%d has already "
-			    "failed. Then tried to call "
-			    "set_alternate(USBIF_CMDONLY) = %d.\n",
+			ERR("cpia2_usb_change_streaming_alternate(%d) =%d has already failed. Then tried to call set_alternate(USBIF_CMDONLY) = %d.\n",
 			    alternate, ret, ret2);
 		}
 	} else {
@@ -890,12 +908,8 @@ static void cpia2_usb_disconnect(struct usb_interface *intf)
 		DBG("Wakeup waiting processes\n");
 		cam->curbuff->status = FRAME_READY;
 		cam->curbuff->length = 0;
-		if (waitqueue_active(&cam->wq_stream))
-			wake_up_interruptible(&cam->wq_stream);
+		wake_up_interruptible(&cam->wq_stream);
 	}
-
-	DBG("Releasing interface\n");
-	usb_driver_release_interface(&cpia2_driver, intf);
 
 	LOG("CPiA2 camera disconnected.\n");
 }

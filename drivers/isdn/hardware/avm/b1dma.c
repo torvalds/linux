@@ -23,7 +23,7 @@
 #include <linux/gfp.h>
 #include <asm/io.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/netdevice.h>
 #include <linux/isdn/capilli.h>
 #include "avmcard.h"
@@ -474,8 +474,8 @@ static void b1dma_handle_rx(avmcard *card)
 			printk(KERN_ERR "%s: incoming packet dropped\n",
 			       card->name);
 		} else {
-			memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
-			memcpy(skb_put(skb, DataB3Len), card->databuf, DataB3Len);
+			skb_put_data(skb, card->msgbuf, MsgLen);
+			skb_put_data(skb, card->databuf, DataB3Len);
 			capi_ctr_handle_message(ctrl, ApplId, skb);
 		}
 		break;
@@ -488,7 +488,7 @@ static void b1dma_handle_rx(avmcard *card)
 			printk(KERN_ERR "%s: incoming packet dropped\n",
 			       card->name);
 		} else {
-			memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
+			skb_put_data(skb, card->msgbuf, MsgLen);
 			if (CAPIMSG_CMD(skb->data) == CAPI_DATA_B3_CONF) {
 				spin_lock(&card->lock);
 				capilib_data_b3_conf(&cinfo->ncci_head, ApplId,
@@ -858,7 +858,7 @@ u16 b1dma_send_message(struct capi_ctr *ctrl, struct sk_buff *skb)
 
 /* ------------------------------------------------------------- */
 
-static int b1dmactl_proc_show(struct seq_file *m, void *v)
+int b1dma_proc_show(struct seq_file *m, void *v)
 {
 	struct capi_ctr *ctrl = m->private;
 	avmctrl_info *cinfo = (avmctrl_info *)(ctrl->driverdata);
@@ -941,20 +941,7 @@ static int b1dmactl_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int b1dmactl_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, b1dmactl_proc_show, PDE_DATA(inode));
-}
-
-const struct file_operations b1dmactl_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= b1dmactl_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-EXPORT_SYMBOL(b1dmactl_proc_fops);
+EXPORT_SYMBOL(b1dma_proc_show);
 
 /* ------------------------------------------------------------- */
 

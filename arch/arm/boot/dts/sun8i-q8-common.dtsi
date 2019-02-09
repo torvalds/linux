@@ -39,63 +39,61 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "sunxi-q8-common.dtsi"
-
-#include <dt-bindings/pwm/pwm.h>
+#include "sunxi-reference-design-tablet.dtsi"
+#include "sun8i-reference-design-tablet.dtsi"
 
 / {
 	aliases {
 		serial0 = &r_uart;
+		/* Make u-boot set mac-address for wifi without an eeprom */
+		ethernet0 = &sdio_wifi;
 	};
 
-	backlight: backlight {
-		compatible = "pwm-backlight";
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		/*
+		 * Q8 boards use various PL# pins as wifi-en. On other boards
+		 * these may be connected to a wifi module output pin. To avoid
+		 * short-circuits we configure these as inputs with pull-ups via
+		 * pinctrl, instead of listing them as active-low reset-gpios.
+		 */
 		pinctrl-names = "default";
-		pinctrl-0 = <&bl_en_pin_q8>;
-		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
-		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
-		default-brightness-level = <8>;
-		enable-gpios = <&pio 7 6 GPIO_ACTIVE_HIGH>; /* PH6 */
-		/* backlight is powered by AXP223 DC1SW */
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
+		pinctrl-0 = <&wifi_pwrseq_pin_q8>;
+		/* The esp8089 needs 200 ms after driving wifi-en high */
+		post-power-on-delay-ms = <200>;
 	};
 };
 
-&mmc0 {
+&ehci0 {
+	status  = "okay";
+};
+
+&mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_q8>;
-	vmmc-supply = <&reg_vcc3v0>;
+	pinctrl-0 = <&mmc1_pins_a>;
+	vmmc-supply = <&reg_dldo1>;
+	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
-	cd-inverted;
+	non-removable;
 	status = "okay";
-};
 
-&pio {
-	bl_en_pin_q8: bl_en_pin@0 {
-		allwinner,pins = "PH6";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	mmc0_cd_pin_q8: mmc0_cd_pin@0 {
-		allwinner,pins = "PB4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	sdio_wifi: sdio_wifi@1 {
+		reg = <1>;
 	};
 };
 
-&r_rsb {
-	status = "okay";
+&mmc1_pins_a {
+	bias-pull-up;
 };
 
-&r_uart {
-	pinctrl-names = "default";
-	pinctrl-0 = <&r_uart_pins_a>;
-	status = "okay";
+&r_pio {
+	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
+		pins = "PL6", "PL7", "PL11";
+		function = "gpio_in";
+		bias-pull-up;
+	};
+};
+
+&usbphy {
+	usb1_vbus-supply = <&reg_dldo1>;
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Dallas Semiconductors 1603 RTC driver
  *
@@ -135,7 +136,7 @@ static void rtc_end_op(void)
 	lasat_ndelay(1000);
 }
 
-void read_persistent_clock(struct timespec *ts)
+void read_persistent_clock64(struct timespec64 *ts)
 {
 	unsigned long word;
 	unsigned long flags;
@@ -151,14 +152,19 @@ void read_persistent_clock(struct timespec *ts)
 	ts->tv_nsec = 0;
 }
 
-int rtc_mips_set_mmss(unsigned long time)
+int update_persistent_clock64(struct timespec64 now)
 {
+	time64_t time = now.tv_sec;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtc_lock, flags);
 	rtc_init_op();
 	rtc_write_byte(SET_TIME_CMD);
-	rtc_write_word(time);
+	/*
+	 * Due to the hardware limitation, we cast to 'unsigned long' type,
+	 * so it will overflow in year 2106 on 32-bit machine.
+	 */
+	rtc_write_word((unsigned long)time);
 	rtc_end_op();
 	spin_unlock_irqrestore(&rtc_lock, flags);
 

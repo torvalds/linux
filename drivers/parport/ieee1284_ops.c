@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* IEEE-1284 operations for parport.
  *
  * This file is for generic IEEE 1284 operations.  The idea is that
@@ -17,8 +18,8 @@
 #include <linux/module.h>
 #include <linux/parport.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
-#include <asm/uaccess.h>
+#include <linux/sched/signal.h>
+#include <linux/uaccess.h>
 
 #undef DEBUG /* undef me for production */
 
@@ -307,7 +308,7 @@ size_t parport_ieee1284_read_byte (struct parport *port,
 		if (parport_read_status (port) & PARPORT_STATUS_ERROR) {
 		end_of_data:
 			DPRINTK (KERN_DEBUG
-				 "%s: No more byte data (%Zd bytes)\n",
+				 "%s: No more byte data (%zd bytes)\n",
 				 port->name, count);
 
 			/* Go to reverse idle phase. */

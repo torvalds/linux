@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 config M68K
 	bool
 	default y
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if HAS_DMA
 	select ARCH_MIGHT_HAVE_PC_PARPORT if ISA
+	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
+	select ARCH_NO_PREEMPT if !COLDFIRE
 	select HAVE_IDE
 	select HAVE_AOUT if MMU
 	select HAVE_DEBUG_BUGVERBOSE
@@ -14,7 +18,6 @@ config M68K
 	select GENERIC_IOMAP
 	select GENERIC_STRNCPY_FROM_USER if MMU
 	select GENERIC_STRNLEN_USER if MMU
-	select FPU if MMU
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_USES_GETTIMEOFFSET if MMU && !COLDFIRE
 	select HAVE_FUTEX_CMPXCHG if MMU && FUTEX
@@ -23,6 +26,13 @@ config M68K
 	select MODULES_USE_ELF_RELA
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
+	select DMA_NONCOHERENT_OPS if HAS_DMA
+	select HAVE_MEMBLOCK
+	select ARCH_DISCARD_MEMBLOCK
+	select NO_BOOTMEM
+
+config CPU_BIG_ENDIAN
+	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -70,10 +80,6 @@ config HZ
 config PGTABLE_LEVELS
 	default 2 if SUN3 || COLDFIRE
 	default 3
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
 
 config MMU
 	bool "MMU-based Paged Memory Management Support"
@@ -129,18 +135,6 @@ endmenu
 
 menu "Kernel Features"
 
-if COLDFIRE
-source "kernel/Kconfig.preempt"
-endif
-
-source "mm/Kconfig"
-
-endmenu
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
 endmenu
 
 if !MMU
@@ -154,18 +148,4 @@ config PM
 endmenu
 endif
 
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
 source "arch/m68k/Kconfig.devices"
-
-source "fs/Kconfig"
-
-source "arch/m68k/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

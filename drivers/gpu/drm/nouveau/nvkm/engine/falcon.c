@@ -99,7 +99,7 @@ nvkm_falcon_fini(struct nvkm_engine *engine, bool suspend)
 	const u32 base = falcon->addr;
 
 	if (!suspend) {
-		nvkm_memory_del(&falcon->core);
+		nvkm_memory_unref(&falcon->core);
 		if (falcon->external) {
 			vfree(falcon->data.data);
 			vfree(falcon->code.data);
@@ -348,6 +348,6 @@ nvkm_falcon_new_(const struct nvkm_falcon_func *func,
 	falcon->data.size = func->data.size;
 	*pengine = &falcon->engine;
 
-	return nvkm_engine_ctor(&nvkm_falcon, device, index, func->pmc_enable,
+	return nvkm_engine_ctor(&nvkm_falcon, device, index,
 				enable, &falcon->engine);
 }

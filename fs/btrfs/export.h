@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
 #ifndef BTRFS_EXPORT_H
 #define BTRFS_EXPORT_H
 

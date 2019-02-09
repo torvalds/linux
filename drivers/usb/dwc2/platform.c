@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * platform.c - DesignWare HS OTG Controller platform driver
  *
@@ -45,6 +46,7 @@
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/reset.h>
 
 #include <linux/usb/of.h>
 
@@ -54,66 +56,70 @@
 
 static const char dwc2_driver_name[] = "dwc2";
 
-static const struct dwc2_core_params params_bcm2835 = {
-	.otg_cap			= 0,	/* HNP/SRP capable */
-	.otg_ver			= 0,	/* 1.3 */
-	.dma_enable			= 1,
-	.dma_desc_enable		= 0,
-	.speed				= 0,	/* High Speed */
-	.enable_dynamic_fifo		= 1,
-	.en_multiple_tx_fifo		= 1,
-	.host_rx_fifo_size		= 774,	/* 774 DWORDs */
-	.host_nperio_tx_fifo_size	= 256,	/* 256 DWORDs */
-	.host_perio_tx_fifo_size	= 512,	/* 512 DWORDs */
-	.max_transfer_size		= 65535,
-	.max_packet_count		= 511,
-	.host_channels			= 8,
-	.phy_type			= 1,	/* UTMI */
-	.phy_utmi_width			= 8,	/* 8 bits */
-	.phy_ulpi_ddr			= 0,	/* Single */
-	.phy_ulpi_ext_vbus		= 0,
-	.i2c_enable			= 0,
-	.ulpi_fs_ls			= 0,
-	.host_support_fs_ls_low_power	= 0,
-	.host_ls_low_power_phy_clk	= 0,	/* 48 MHz */
-	.ts_dline			= 0,
-	.reload_ctl			= 0,
-	.ahbcfg				= 0x10,
-	.uframe_sched			= 0,
-	.external_id_pin_ctl		= -1,
-	.hibernation			= -1,
-};
+/*
+ * Check the dr_mode against the module configuration and hardware
+ * capabilities.
+ *
+ * The hardware, module, and dr_mode, can each be set to host, device,
+ * or otg. Check that all these values are compatible and adjust the
+ * value of dr_mode if possible.
+ *
+ *                      actual
+ *    HW  MOD dr_mode   dr_mode
+ *  ------------------------------
+ *   HST  HST  any    :  HST
+ *   HST  DEV  any    :  ---
+ *   HST  OTG  any    :  HST
+ *
+ *   DEV  HST  any    :  ---
+ *   DEV  DEV  any    :  DEV
+ *   DEV  OTG  any    :  DEV
+ *
+ *   OTG  HST  any    :  HST
+ *   OTG  DEV  any    :  DEV
+ *   OTG  OTG  any    :  dr_mode
+ */
+static int dwc2_get_dr_mode(struct dwc2_hsotg *hsotg)
+{
+	enum usb_dr_mode mode;
 
-static const struct dwc2_core_params params_rk3066 = {
-	.otg_cap			= 2,	/* non-HNP/non-SRP */
-	.otg_ver			= -1,
-	.dma_enable			= -1,
-	.dma_desc_enable		= 0,
-	.speed				= -1,
-	.enable_dynamic_fifo		= 1,
-	.en_multiple_tx_fifo		= -1,
-	.host_rx_fifo_size		= 520,	/* 520 DWORDs */
-	.host_nperio_tx_fifo_size	= 128,	/* 128 DWORDs */
-	.host_perio_tx_fifo_size	= 256,	/* 256 DWORDs */
-	.max_transfer_size		= 65535,
-	.max_packet_count		= -1,
-	.host_channels			= -1,
-	.phy_type			= -1,
-	.phy_utmi_width			= -1,
-	.phy_ulpi_ddr			= -1,
-	.phy_ulpi_ext_vbus		= -1,
-	.i2c_enable			= -1,
-	.ulpi_fs_ls			= -1,
-	.host_support_fs_ls_low_power	= -1,
-	.host_ls_low_power_phy_clk	= -1,
-	.ts_dline			= -1,
-	.reload_ctl			= -1,
-	.ahbcfg				= GAHBCFG_HBSTLEN_INCR16 <<
-					  GAHBCFG_HBSTLEN_SHIFT,
-	.uframe_sched			= -1,
-	.external_id_pin_ctl		= -1,
-	.hibernation			= -1,
-};
+	hsotg->dr_mode = usb_get_dr_mode(hsotg->dev);
+	if (hsotg->dr_mode == USB_DR_MODE_UNKNOWN)
+		hsotg->dr_mode = USB_DR_MODE_OTG;
+
+	mode = hsotg->dr_mode;
+
+	if (dwc2_hw_is_device(hsotg)) {
+		if (IS_ENABLED(CONFIG_USB_DWC2_HOST)) {
+			dev_err(hsotg->dev,
+				"Controller does not support host mode.\n");
+			return -EINVAL;
+		}
+		mode = USB_DR_MODE_PERIPHERAL;
+	} else if (dwc2_hw_is_host(hsotg)) {
+		if (IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL)) {
+			dev_err(hsotg->dev,
+				"Controller does not support device mode.\n");
+			return -EINVAL;
+		}
+		mode = USB_DR_MODE_HOST;
+	} else {
+		if (IS_ENABLED(CONFIG_USB_DWC2_HOST))
+			mode = USB_DR_MODE_HOST;
+		else if (IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL))
+			mode = USB_DR_MODE_PERIPHERAL;
+	}
+
+	if (mode != hsotg->dr_mode) {
+		dev_warn(hsotg->dev,
+			 "Configuration mismatch. dr_mode forced to %s\n",
+			mode == USB_DR_MODE_HOST ? "host" : "device");
+
+		hsotg->dr_mode = mode;
+	}
+
+	return 0;
+}
 
 static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 {
@@ -131,11 +137,11 @@ static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 			return ret;
 	}
 
-	if (hsotg->uphy)
+	if (hsotg->uphy) {
 		ret = usb_phy_init(hsotg->uphy);
-	else if (hsotg->plat && hsotg->plat->phy_init)
+	} else if (hsotg->plat && hsotg->plat->phy_init) {
 		ret = hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
-	else {
+	} else {
 		ret = phy_power_on(hsotg->phy);
 		if (ret == 0)
 			ret = phy_init(hsotg->phy);
@@ -165,11 +171,11 @@ static int __dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
 	int ret = 0;
 
-	if (hsotg->uphy)
+	if (hsotg->uphy) {
 		usb_phy_shutdown(hsotg->uphy);
-	else if (hsotg->plat && hsotg->plat->phy_exit)
+	} else if (hsotg->plat && hsotg->plat->phy_exit) {
 		ret = hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
-	else {
+	} else {
 		ret = phy_exit(hsotg->phy);
 		if (ret == 0)
 			ret = phy_power_off(hsotg->phy);
@@ -205,6 +211,24 @@ int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
 static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 {
 	int i, ret;
+
+	hsotg->reset = devm_reset_control_get_optional(hsotg->dev, "dwc2");
+	if (IS_ERR(hsotg->reset)) {
+		ret = PTR_ERR(hsotg->reset);
+		dev_err(hsotg->dev, "error getting reset control %d\n", ret);
+		return ret;
+	}
+
+	reset_control_deassert(hsotg->reset);
+
+	hsotg->reset_ecc = devm_reset_control_get_optional(hsotg->dev, "dwc2-ecc");
+	if (IS_ERR(hsotg->reset_ecc)) {
+		ret = PTR_ERR(hsotg->reset_ecc);
+		dev_err(hsotg->dev, "error getting reset control for ecc %d\n", ret);
+		return ret;
+	}
+
+	reset_control_deassert(hsotg->reset_ecc);
 
 	/* Set default UTMI width */
 	hsotg->phyif = GUSBCFG_PHYIF16;
@@ -303,17 +327,47 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	if (hsotg->ll_hw_enabled)
 		dwc2_lowlevel_hw_disable(hsotg);
 
+	reset_control_assert(hsotg->reset);
+	reset_control_assert(hsotg->reset_ecc);
+
 	return 0;
 }
 
-static const struct of_device_id dwc2_of_match_table[] = {
-	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
-	{ .compatible = "rockchip,rk3066-usb", .data = &params_rk3066 },
-	{ .compatible = "snps,dwc2", .data = NULL },
-	{ .compatible = "samsung,s3c6400-hsotg", .data = NULL},
-	{},
-};
-MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
+/**
+ * dwc2_driver_shutdown() - Called on device shutdown
+ *
+ * @dev: Platform device
+ *
+ * In specific conditions (involving usb hubs) dwc2 devices can create a
+ * lot of interrupts, even to the point of overwhelming devices running
+ * at low frequencies. Some devices need to do special clock handling
+ * at shutdown-time which may bring the system clock below the threshold
+ * of being able to handle the dwc2 interrupts. Disabling dwc2-irqs
+ * prevents reboots/poweroffs from getting stuck in such cases.
+ */
+static void dwc2_driver_shutdown(struct platform_device *dev)
+{
+	struct dwc2_hsotg *hsotg = platform_get_drvdata(dev);
+
+	disable_irq(hsotg->irq);
+}
+
+/**
+ * dwc2_check_core_endianness() - Returns true if core and AHB have
+ * opposite endianness.
+ * @hsotg:	Programming view of the DWC_otg controller.
+ */
+static bool dwc2_check_core_endianness(struct dwc2_hsotg *hsotg)
+{
+	u32 snpsid;
+
+	snpsid = ioread32(hsotg->regs + GSNPSID);
+	if ((snpsid & GSNPSID_ID_MASK) == DWC2_OTG_ID ||
+	    (snpsid & GSNPSID_ID_MASK) == DWC2_FS_IOT_ID ||
+	    (snpsid & GSNPSID_ID_MASK) == DWC2_HS_IOT_ID)
+		return false;
+	return true;
+}
 
 /**
  * dwc2_driver_probe() - Called when the DWC_otg core is bound to the DWC_otg
@@ -329,28 +383,9 @@ MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
  */
 static int dwc2_driver_probe(struct platform_device *dev)
 {
-	const struct of_device_id *match;
-	const struct dwc2_core_params *params;
-	struct dwc2_core_params defparams;
 	struct dwc2_hsotg *hsotg;
 	struct resource *res;
 	int retval;
-	int irq;
-
-	match = of_match_device(dwc2_of_match_table, &dev->dev);
-	if (match && match->data) {
-		params = match->data;
-	} else {
-		/* Default all params to autodetect */
-		dwc2_set_all_params(&defparams, -1);
-		params = &defparams;
-
-		/*
-		 * Disable descriptor dma mode by default as the HW can support
-		 * it, but does not support it for SPLIT transactions.
-		 */
-		defparams.dma_desc_enable = 0;
-	}
 
 	hsotg = devm_kzalloc(&dev->dev, sizeof(*hsotg), GFP_KERNEL);
 	if (!hsotg)
@@ -364,8 +399,10 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	if (!dev->dev.dma_mask)
 		dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
 	retval = dma_set_coherent_mask(&dev->dev, DMA_BIT_MASK(32));
-	if (retval)
+	if (retval) {
+		dev_err(&dev->dev, "can't set coherent DMA mask: %d\n", retval);
 		return retval;
+	}
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	hsotg->regs = devm_ioremap_resource(&dev->dev, res);
@@ -375,41 +412,21 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)res->start, hsotg->regs);
 
-	hsotg->dr_mode = usb_get_dr_mode(&dev->dev);
-	if (IS_ENABLED(CONFIG_USB_DWC2_HOST) &&
-			hsotg->dr_mode != USB_DR_MODE_HOST) {
-		hsotg->dr_mode = USB_DR_MODE_HOST;
-		dev_warn(hsotg->dev,
-			"Configuration mismatch. Forcing host mode\n");
-	} else if (IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) &&
-			hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
-		hsotg->dr_mode = USB_DR_MODE_PERIPHERAL;
-		dev_warn(hsotg->dev,
-			"Configuration mismatch. Forcing peripheral mode\n");
-	}
-
 	retval = dwc2_lowlevel_hw_init(hsotg);
 	if (retval)
 		return retval;
 
 	spin_lock_init(&hsotg->lock);
 
-	hsotg->core_params = devm_kzalloc(&dev->dev,
-				sizeof(*hsotg->core_params), GFP_KERNEL);
-	if (!hsotg->core_params)
-		return -ENOMEM;
-
-	dwc2_set_all_params(hsotg->core_params, -1);
-
-	irq = platform_get_irq(dev, 0);
-	if (irq < 0) {
+	hsotg->irq = platform_get_irq(dev, 0);
+	if (hsotg->irq < 0) {
 		dev_err(&dev->dev, "missing IRQ resource\n");
-		return irq;
+		return hsotg->irq;
 	}
 
 	dev_dbg(hsotg->dev, "registering common handler for irq%d\n",
-		irq);
-	retval = devm_request_irq(hsotg->dev, irq,
+		hsotg->irq);
+	retval = devm_request_irq(hsotg->dev, hsotg->irq,
 				  dwc2_handle_common_intr, IRQF_SHARED,
 				  dev_name(hsotg->dev), hsotg);
 	if (retval)
@@ -419,23 +436,45 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	if (retval)
 		return retval;
 
+	hsotg->needs_byte_swap = dwc2_check_core_endianness(hsotg);
+
+	retval = dwc2_get_dr_mode(hsotg);
+	if (retval)
+		goto error;
+
+	/*
+	 * Reset before dwc2_get_hwparams() then it could get power-on real
+	 * reset value form registers.
+	 */
+	retval = dwc2_core_reset(hsotg, false);
+	if (retval)
+		goto error;
+
 	/* Detect config values from hardware */
 	retval = dwc2_get_hwparams(hsotg);
 	if (retval)
 		goto error;
 
-	/* Validate parameter values */
-	dwc2_set_parameters(hsotg, params);
+	/*
+	 * For OTG cores, set the force mode bits to reflect the value
+	 * of dr_mode. Force mode bits should not be touched at any
+	 * other time after this.
+	 */
+	dwc2_force_dr_mode(hsotg);
+
+	retval = dwc2_init_params(hsotg);
+	if (retval)
+		goto error;
 
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
-		retval = dwc2_gadget_init(hsotg, irq);
+		retval = dwc2_gadget_init(hsotg);
 		if (retval)
 			goto error;
 		hsotg->gadget_enabled = 1;
 	}
 
 	if (hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
-		retval = dwc2_hcd_init(hsotg, irq);
+		retval = dwc2_hcd_init(hsotg);
 		if (retval) {
 			if (hsotg->gadget_enabled)
 				dwc2_hsotg_remove(hsotg);
@@ -445,6 +484,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	}
 
 	platform_set_drvdata(dev, hsotg);
+	hsotg->hibernated = 0;
 
 	dwc2_debugfs_init(hsotg);
 
@@ -502,6 +542,7 @@ static struct platform_driver dwc2_platform_driver = {
 	},
 	.probe = dwc2_driver_probe,
 	.remove = dwc2_driver_remove,
+	.shutdown = dwc2_driver_shutdown,
 };
 
 module_platform_driver(dwc2_platform_driver);

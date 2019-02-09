@@ -1,15 +1,12 @@
-/* linux/arch/arm/mach-s3c2410/include/pm-core.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Copyright 2008 Simtec Electronics
  *      Ben Dooks <ben@simtec.co.uk>
  *      http://armlinux.simtec.co.uk/
  *
  * S3C24xx - PM core support for arch/arm/plat-s3c/pm.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
+
 #include <linux/delay.h>
 #include <linux/io.h>
 
@@ -85,3 +82,17 @@ static inline void s3c_pm_arch_update_uart(void __iomem *regs,
 
 static inline void s3c_pm_restored_gpios(void) { }
 static inline void samsung_pm_saved_gpios(void) { }
+
+/* state for IRQs over sleep */
+
+/* default is to allow for EINT0..EINT15, and IRQ_RTC as wakeup sources
+ *
+ * set bit to 1 in allow bitfield to enable the wakeup settings on it
+*/
+#ifdef CONFIG_PM_SLEEP
+#define s3c_irqwake_intallow	(1L << 30 | 0xfL)
+#define s3c_irqwake_eintallow	(0x0000fff0L)
+#else
+#define s3c_irqwake_eintallow 0
+#define s3c_irqwake_intallow  0
+#endif

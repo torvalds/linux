@@ -1,10 +1,14 @@
 /*
- * rk808.h for Rockchip RK808
+ * Register definitions for Rockchip's RK808/RK818 PMIC
  *
  * Copyright (c) 2014, Fuzhou Rockchip Electronics Co., Ltd
  *
  * Author: Chris Zhong <zyw@rock-chips.com>
  * Author: Zhang Qing <zhangqing@rock-chips.com>
+ *
+ * Copyright (C) 2016 PHYTEC Messtechnik GmbH
+ *
+ * Author: Wadim Egorov <w.egorov@phytec.de>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,8 +20,8 @@
  * more details.
  */
 
-#ifndef __LINUX_REGULATOR_rk808_H
-#define __LINUX_REGULATOR_rk808_H
+#ifndef __LINUX_REGULATOR_RK808_H
+#define __LINUX_REGULATOR_RK808_H
 
 #include <linux/regulator/machine.h>
 #include <linux/regmap.h>
@@ -28,7 +32,7 @@
 
 #define RK808_DCDC1	0 /* (0+RK808_START) */
 #define RK808_LDO1	4 /* (4+RK808_START) */
-#define RK808_NUM_REGULATORS   14
+#define RK808_NUM_REGULATORS	14
 
 enum rk808_reg {
 	RK808_ID_DCDC1,
@@ -65,6 +69,8 @@ enum rk808_reg {
 #define RK808_RTC_INT_REG	0x12
 #define RK808_RTC_COMP_LSB_REG	0x13
 #define RK808_RTC_COMP_MSB_REG	0x14
+#define RK808_ID_MSB		0x17
+#define RK808_ID_LSB		0x18
 #define RK808_CLK32OUT_REG	0x20
 #define RK808_VB_MON_REG	0x21
 #define RK808_THERMAL_REG	0x22
@@ -115,7 +121,183 @@ enum rk808_reg {
 #define RK808_INT_STS_MSK_REG2	0x4f
 #define RK808_IO_POL_REG	0x50
 
-/* IRQ Definitions */
+/* RK818 */
+#define RK818_DCDC1			0
+#define RK818_LDO1			4
+#define RK818_NUM_REGULATORS		17
+
+enum rk818_reg {
+	RK818_ID_DCDC1,
+	RK818_ID_DCDC2,
+	RK818_ID_DCDC3,
+	RK818_ID_DCDC4,
+	RK818_ID_BOOST,
+	RK818_ID_LDO1,
+	RK818_ID_LDO2,
+	RK818_ID_LDO3,
+	RK818_ID_LDO4,
+	RK818_ID_LDO5,
+	RK818_ID_LDO6,
+	RK818_ID_LDO7,
+	RK818_ID_LDO8,
+	RK818_ID_LDO9,
+	RK818_ID_SWITCH,
+	RK818_ID_HDMI_SWITCH,
+	RK818_ID_OTG_SWITCH,
+};
+
+#define RK818_DCDC_EN_REG		0x23
+#define RK818_LDO_EN_REG		0x24
+#define RK818_SLEEP_SET_OFF_REG1	0x25
+#define RK818_SLEEP_SET_OFF_REG2	0x26
+#define RK818_DCDC_UV_STS_REG		0x27
+#define RK818_DCDC_UV_ACT_REG		0x28
+#define RK818_LDO_UV_STS_REG		0x29
+#define RK818_LDO_UV_ACT_REG		0x2a
+#define RK818_DCDC_PG_REG		0x2b
+#define RK818_LDO_PG_REG		0x2c
+#define RK818_VOUT_MON_TDB_REG		0x2d
+#define RK818_BUCK1_CONFIG_REG		0x2e
+#define RK818_BUCK1_ON_VSEL_REG		0x2f
+#define RK818_BUCK1_SLP_VSEL_REG	0x30
+#define RK818_BUCK2_CONFIG_REG		0x32
+#define RK818_BUCK2_ON_VSEL_REG		0x33
+#define RK818_BUCK2_SLP_VSEL_REG	0x34
+#define RK818_BUCK3_CONFIG_REG		0x36
+#define RK818_BUCK4_CONFIG_REG		0x37
+#define RK818_BUCK4_ON_VSEL_REG		0x38
+#define RK818_BUCK4_SLP_VSEL_REG	0x39
+#define RK818_BOOST_CONFIG_REG		0x3a
+#define RK818_LDO1_ON_VSEL_REG		0x3b
+#define RK818_LDO1_SLP_VSEL_REG		0x3c
+#define RK818_LDO2_ON_VSEL_REG		0x3d
+#define RK818_LDO2_SLP_VSEL_REG		0x3e
+#define RK818_LDO3_ON_VSEL_REG		0x3f
+#define RK818_LDO3_SLP_VSEL_REG		0x40
+#define RK818_LDO4_ON_VSEL_REG		0x41
+#define RK818_LDO4_SLP_VSEL_REG		0x42
+#define RK818_LDO5_ON_VSEL_REG		0x43
+#define RK818_LDO5_SLP_VSEL_REG		0x44
+#define RK818_LDO6_ON_VSEL_REG		0x45
+#define RK818_LDO6_SLP_VSEL_REG		0x46
+#define RK818_LDO7_ON_VSEL_REG		0x47
+#define RK818_LDO7_SLP_VSEL_REG		0x48
+#define RK818_LDO8_ON_VSEL_REG		0x49
+#define RK818_LDO8_SLP_VSEL_REG		0x4a
+#define RK818_BOOST_LDO9_ON_VSEL_REG	0x54
+#define RK818_BOOST_LDO9_SLP_VSEL_REG	0x55
+#define RK818_DEVCTRL_REG		0x4b
+#define RK818_INT_STS_REG1		0X4c
+#define RK818_INT_STS_MSK_REG1		0x4d
+#define RK818_INT_STS_REG2		0x4e
+#define RK818_INT_STS_MSK_REG2		0x4f
+#define RK818_IO_POL_REG		0x50
+#define RK818_H5V_EN_REG		0x52
+#define RK818_SLEEP_SET_OFF_REG3	0x53
+#define RK818_BOOST_LDO9_ON_VSEL_REG	0x54
+#define RK818_BOOST_LDO9_SLP_VSEL_REG	0x55
+#define RK818_BOOST_CTRL_REG		0x56
+#define RK818_DCDC_ILMAX		0x90
+#define RK818_USB_CTRL_REG		0xa1
+
+#define RK818_H5V_EN			BIT(0)
+#define RK818_REF_RDY_CTRL		BIT(1)
+#define RK818_USB_ILIM_SEL_MASK		0xf
+#define RK818_USB_ILMIN_2000MA		0x7
+#define RK818_USB_CHG_SD_VSEL_MASK	0x70
+
+/* RK805 */
+enum rk805_reg {
+	RK805_ID_DCDC1,
+	RK805_ID_DCDC2,
+	RK805_ID_DCDC3,
+	RK805_ID_DCDC4,
+	RK805_ID_LDO1,
+	RK805_ID_LDO2,
+	RK805_ID_LDO3,
+};
+
+/* CONFIG REGISTER */
+#define RK805_VB_MON_REG		0x21
+#define RK805_THERMAL_REG		0x22
+
+/* POWER CHANNELS ENABLE REGISTER */
+#define RK805_DCDC_EN_REG		0x23
+#define RK805_SLP_DCDC_EN_REG		0x25
+#define RK805_SLP_LDO_EN_REG		0x26
+#define RK805_LDO_EN_REG		0x27
+
+/* BUCK AND LDO CONFIG REGISTER */
+#define RK805_BUCK_LDO_SLP_LP_EN_REG	0x2A
+#define RK805_BUCK1_CONFIG_REG		0x2E
+#define RK805_BUCK1_ON_VSEL_REG		0x2F
+#define RK805_BUCK1_SLP_VSEL_REG	0x30
+#define RK805_BUCK2_CONFIG_REG		0x32
+#define RK805_BUCK2_ON_VSEL_REG		0x33
+#define RK805_BUCK2_SLP_VSEL_REG	0x34
+#define RK805_BUCK3_CONFIG_REG		0x36
+#define RK805_BUCK4_CONFIG_REG		0x37
+#define RK805_BUCK4_ON_VSEL_REG		0x38
+#define RK805_BUCK4_SLP_VSEL_REG	0x39
+#define RK805_LDO1_ON_VSEL_REG		0x3B
+#define RK805_LDO1_SLP_VSEL_REG		0x3C
+#define RK805_LDO2_ON_VSEL_REG		0x3D
+#define RK805_LDO2_SLP_VSEL_REG		0x3E
+#define RK805_LDO3_ON_VSEL_REG		0x3F
+#define RK805_LDO3_SLP_VSEL_REG		0x40
+
+/* INTERRUPT REGISTER */
+#define RK805_PWRON_LP_INT_TIME_REG	0x47
+#define RK805_PWRON_DB_REG		0x48
+#define RK805_DEV_CTRL_REG		0x4B
+#define RK805_INT_STS_REG		0x4C
+#define RK805_INT_STS_MSK_REG		0x4D
+#define RK805_GPIO_IO_POL_REG		0x50
+#define RK805_OUT_REG			0x52
+#define RK805_ON_SOURCE_REG		0xAE
+#define RK805_OFF_SOURCE_REG		0xAF
+
+#define RK805_NUM_REGULATORS		7
+
+#define RK805_PWRON_FALL_RISE_INT_EN	0x0
+#define RK805_PWRON_FALL_RISE_INT_MSK	0x81
+
+/* RK805 IRQ Definitions */
+#define RK805_IRQ_PWRON_RISE		0
+#define RK805_IRQ_VB_LOW		1
+#define RK805_IRQ_PWRON			2
+#define RK805_IRQ_PWRON_LP		3
+#define RK805_IRQ_HOTDIE		4
+#define RK805_IRQ_RTC_ALARM		5
+#define RK805_IRQ_RTC_PERIOD		6
+#define RK805_IRQ_PWRON_FALL		7
+
+#define RK805_IRQ_PWRON_RISE_MSK	BIT(0)
+#define RK805_IRQ_VB_LOW_MSK		BIT(1)
+#define RK805_IRQ_PWRON_MSK		BIT(2)
+#define RK805_IRQ_PWRON_LP_MSK		BIT(3)
+#define RK805_IRQ_HOTDIE_MSK		BIT(4)
+#define RK805_IRQ_RTC_ALARM_MSK		BIT(5)
+#define RK805_IRQ_RTC_PERIOD_MSK	BIT(6)
+#define RK805_IRQ_PWRON_FALL_MSK	BIT(7)
+
+#define RK805_PWR_RISE_INT_STATUS	BIT(0)
+#define RK805_VB_LOW_INT_STATUS		BIT(1)
+#define RK805_PWRON_INT_STATUS		BIT(2)
+#define RK805_PWRON_LP_INT_STATUS	BIT(3)
+#define RK805_HOTDIE_INT_STATUS		BIT(4)
+#define RK805_ALARM_INT_STATUS		BIT(5)
+#define RK805_PERIOD_INT_STATUS		BIT(6)
+#define RK805_PWR_FALL_INT_STATUS	BIT(7)
+
+#define RK805_BUCK1_2_ILMAX_MASK	(3 << 6)
+#define RK805_BUCK3_4_ILMAX_MASK        (3 << 3)
+#define RK805_RTC_PERIOD_INT_MASK	(1 << 6)
+#define RK805_RTC_ALARM_INT_MASK	(1 << 5)
+#define RK805_INT_ALARM_EN		(1 << 3)
+#define RK805_INT_TIMER_EN		(1 << 2)
+
+/* RK808 IRQ Definitions */
 #define RK808_IRQ_VOUT_LO	0
 #define RK808_IRQ_VB_LO		1
 #define RK808_IRQ_PWRON		2
@@ -136,6 +318,43 @@ enum rk808_reg {
 #define RK808_IRQ_RTC_PERIOD_MSK	BIT(6)
 #define RK808_IRQ_PLUG_IN_INT_MSK	BIT(0)
 #define RK808_IRQ_PLUG_OUT_INT_MSK	BIT(1)
+
+/* RK818 IRQ Definitions */
+#define RK818_IRQ_VOUT_LO	0
+#define RK818_IRQ_VB_LO		1
+#define RK818_IRQ_PWRON		2
+#define RK818_IRQ_PWRON_LP	3
+#define RK818_IRQ_HOTDIE	4
+#define RK818_IRQ_RTC_ALARM	5
+#define RK818_IRQ_RTC_PERIOD	6
+#define RK818_IRQ_USB_OV	7
+#define RK818_IRQ_PLUG_IN	8
+#define RK818_IRQ_PLUG_OUT	9
+#define RK818_IRQ_CHG_OK	10
+#define RK818_IRQ_CHG_TE	11
+#define RK818_IRQ_CHG_TS1	12
+#define RK818_IRQ_TS2		13
+#define RK818_IRQ_CHG_CVTLIM	14
+#define RK818_IRQ_DISCHG_ILIM	15
+
+#define RK818_IRQ_VOUT_LO_MSK		BIT(0)
+#define RK818_IRQ_VB_LO_MSK		BIT(1)
+#define RK818_IRQ_PWRON_MSK		BIT(2)
+#define RK818_IRQ_PWRON_LP_MSK		BIT(3)
+#define RK818_IRQ_HOTDIE_MSK		BIT(4)
+#define RK818_IRQ_RTC_ALARM_MSK		BIT(5)
+#define RK818_IRQ_RTC_PERIOD_MSK	BIT(6)
+#define RK818_IRQ_USB_OV_MSK		BIT(7)
+#define RK818_IRQ_PLUG_IN_MSK		BIT(0)
+#define RK818_IRQ_PLUG_OUT_MSK		BIT(1)
+#define RK818_IRQ_CHG_OK_MSK		BIT(2)
+#define RK818_IRQ_CHG_TE_MSK		BIT(3)
+#define RK818_IRQ_CHG_TS1_MSK		BIT(4)
+#define RK818_IRQ_TS2_MSK		BIT(5)
+#define RK818_IRQ_CHG_CVTLIM_MSK	BIT(6)
+#define RK818_IRQ_DISCHG_ILIM_MSK	BIT(7)
+
+#define RK818_NUM_IRQ		16
 
 #define RK808_VBAT_LOW_2V8	0x00
 #define RK808_VBAT_LOW_2V9	0x01
@@ -162,12 +381,21 @@ enum rk808_reg {
 #define SWITCH2_EN	BIT(6)
 #define SWITCH1_EN	BIT(5)
 #define DEV_OFF_RST	BIT(3)
+#define DEV_OFF		BIT(0)
 
 #define VB_LO_ACT		BIT(4)
 #define VB_LO_SEL_3500MV	(7 << 0)
 
 #define VOUT_LO_INT	BIT(0)
 #define CLK32KOUT2_EN	BIT(0)
+
+#define TEMP115C			0x0c
+#define TEMP_HOTDIE_MSK			0x0c
+#define SLP_SD_MSK			(0x3 << 2)
+#define SHUTDOWN_FUN			(0x2 << 2)
+#define SLEEP_FUN			(0x1 << 2)
+#define RK8XX_ID_MSK			0xfff0
+#define FPWM_MODE			BIT(7)
 
 enum {
 	BUCK_ILMIN_50MA,
@@ -191,9 +419,39 @@ enum {
 	BOOST_ILMIN_250MA,
 };
 
-struct rk808 {
-	struct i2c_client *i2c;
-	struct regmap_irq_chip_data *irq_data;
-	struct regmap *regmap;
+enum {
+	RK805_BUCK1_2_ILMAX_2500MA,
+	RK805_BUCK1_2_ILMAX_3000MA,
+	RK805_BUCK1_2_ILMAX_3500MA,
+	RK805_BUCK1_2_ILMAX_4000MA,
 };
-#endif /* __LINUX_REGULATOR_rk808_H */
+
+enum {
+	RK805_BUCK3_ILMAX_1500MA,
+	RK805_BUCK3_ILMAX_2000MA,
+	RK805_BUCK3_ILMAX_2500MA,
+	RK805_BUCK3_ILMAX_3000MA,
+};
+
+enum {
+	RK805_BUCK4_ILMAX_2000MA,
+	RK805_BUCK4_ILMAX_2500MA,
+	RK805_BUCK4_ILMAX_3000MA,
+	RK805_BUCK4_ILMAX_3500MA,
+};
+
+enum {
+	RK805_ID = 0x8050,
+	RK808_ID = 0x0000,
+	RK818_ID = 0x8181,
+};
+
+struct rk808 {
+	struct i2c_client		*i2c;
+	struct regmap_irq_chip_data	*irq_data;
+	struct regmap			*regmap;
+	long				variant;
+	const struct regmap_config	*regmap_cfg;
+	const struct regmap_irq_chip	*regmap_irq_chip;
+};
+#endif /* __LINUX_REGULATOR_RK808_H */

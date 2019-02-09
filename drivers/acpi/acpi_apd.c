@@ -11,6 +11,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/platform_data/clk-st.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/clkdev.h>
@@ -42,6 +43,7 @@ struct apd_private_data;
 struct apd_device_desc {
 	unsigned int flags;
 	unsigned int fixed_clk_rate;
+	struct property_entry *properties;
 	int (*setup)(struct apd_private_data *pdata);
 };
 
@@ -51,7 +53,7 @@ struct apd_private_data {
 	const struct apd_device_desc *dev_desc;
 };
 
-#ifdef CONFIG_X86_AMD_PLATFORM_DEVICE
+#if defined(CONFIG_X86_AMD_PLATFORM_DEVICE) || defined(CONFIG_ARM64)
 #define APD_ADDR(desc)	((unsigned long)&desc)
 
 static int acpi_apd_setup(struct apd_private_data *pdata)
@@ -62,8 +64,7 @@ static int acpi_apd_setup(struct apd_private_data *pdata)
 	if (dev_desc->fixed_clk_rate) {
 		clk = clk_register_fixed_rate(&pdata->adev->dev,
 					dev_name(&pdata->adev->dev),
-					NULL, CLK_IS_ROOT,
-					dev_desc->fixed_clk_rate);
+					NULL, 0, dev_desc->fixed_clk_rate);
 		clk_register_clkdev(clk, NULL, dev_name(&pdata->adev->dev));
 		pdata->clk = clk;
 	}
@@ -71,15 +72,101 @@ static int acpi_apd_setup(struct apd_private_data *pdata)
 	return 0;
 }
 
-static struct apd_device_desc cz_i2c_desc = {
+#ifdef CONFIG_X86_AMD_PLATFORM_DEVICE
+
+static int misc_check_res(struct acpi_resource *ares, void *data)
+{
+	struct resource res;
+
+	return !acpi_dev_resource_memory(ares, &res);
+}
+
+static int st_misc_setup(struct apd_private_data *pdata)
+{
+	struct acpi_device *adev = pdata->adev;
+	struct platform_device *clkdev;
+	struct st_clk_data *clk_data;
+	struct resource_entry *rentry;
+	struct list_head resource_list;
+	int ret;
+
+	clk_data = devm_kzalloc(&adev->dev, sizeof(*clk_data), GFP_KERNEL);
+	if (!clk_data)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(adev, &resource_list, misc_check_res,
+				     NULL);
+	if (ret < 0)
+		return -ENOENT;
+
+	list_for_each_entry(rentry, &resource_list, node) {
+		clk_data->base = devm_ioremap(&adev->dev, rentry->res->start,
+					      resource_size(rentry->res));
+		break;
+	}
+
+	acpi_dev_free_resource_list(&resource_list);
+
+	clkdev = platform_device_register_data(&adev->dev, "clk-st",
+					       PLATFORM_DEVID_NONE, clk_data,
+					       sizeof(*clk_data));
+	return PTR_ERR_OR_ZERO(clkdev);
+}
+
+static const struct apd_device_desc cz_i2c_desc = {
 	.setup = acpi_apd_setup,
 	.fixed_clk_rate = 133000000,
 };
 
-static struct apd_device_desc cz_uart_desc = {
+static const struct apd_device_desc wt_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 150000000,
+};
+
+static struct property_entry uart_properties[] = {
+	PROPERTY_ENTRY_U32("reg-io-width", 4),
+	PROPERTY_ENTRY_U32("reg-shift", 2),
+	PROPERTY_ENTRY_BOOL("snps,uart-16550-compatible"),
+	{ },
+};
+
+static const struct apd_device_desc cz_uart_desc = {
 	.setup = acpi_apd_setup,
 	.fixed_clk_rate = 48000000,
+	.properties = uart_properties,
 };
+
+static const struct apd_device_desc st_misc_desc = {
+	.setup = st_misc_setup,
+};
+#endif
+
+#ifdef CONFIG_ARM64
+static const struct apd_device_desc xgene_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 100000000,
+};
+
+static const struct apd_device_desc vulcan_spi_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 133000000,
+};
+
+static const struct apd_device_desc hip07_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 200000000,
+};
+
+static const struct apd_device_desc hip08_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 250000000,
+};
+static const struct apd_device_desc thunderx2_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 125000000,
+};
+#endif
 
 #else
 
@@ -100,7 +187,7 @@ static int acpi_apd_create_device(struct acpi_device *adev,
 	int ret;
 
 	if (!dev_desc) {
-		pdev = acpi_create_platform_device(adev);
+		pdev = acpi_create_platform_device(adev, NULL);
 		return IS_ERR_OR_NULL(pdev) ? PTR_ERR(pdev) : 1;
 	}
 
@@ -118,7 +205,7 @@ static int acpi_apd_create_device(struct acpi_device *adev,
 	}
 
 	adev->driver_data = pdata;
-	pdev = acpi_create_platform_device(adev);
+	pdev = acpi_create_platform_device(adev, dev_desc->properties);
 	if (!IS_ERR_OR_NULL(pdev))
 		return 1;
 
@@ -132,9 +219,22 @@ static int acpi_apd_create_device(struct acpi_device *adev,
 
 static const struct acpi_device_id acpi_apd_device_ids[] = {
 	/* Generic apd devices */
+#ifdef CONFIG_X86_AMD_PLATFORM_DEVICE
 	{ "AMD0010", APD_ADDR(cz_i2c_desc) },
+	{ "AMDI0010", APD_ADDR(wt_i2c_desc) },
 	{ "AMD0020", APD_ADDR(cz_uart_desc) },
+	{ "AMDI0020", APD_ADDR(cz_uart_desc) },
 	{ "AMD0030", },
+	{ "AMD0040", APD_ADDR(st_misc_desc)},
+#endif
+#ifdef CONFIG_ARM64
+	{ "APMC0D0F", APD_ADDR(xgene_i2c_desc) },
+	{ "BRCM900D", APD_ADDR(vulcan_spi_desc) },
+	{ "CAV900D",  APD_ADDR(vulcan_spi_desc) },
+	{ "CAV9007",  APD_ADDR(thunderx2_i2c_desc) },
+	{ "HISI02A1", APD_ADDR(hip07_i2c_desc) },
+	{ "HISI02A2", APD_ADDR(hip08_i2c_desc) },
+#endif
 	{ }
 };
 

@@ -1,24 +1,10 @@
-/*
- *   tm6000-video.c - driver for TM5600/TM6000/TM6010 USB video capture devices
- *
- *  Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
- *
- *  Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
- *	- Fixed module load/unload
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- */
+// SPDX-License-Identifier: GPL-2.0
+// tm6000-video.c - driver for TM5600/TM6000/TM6010 USB video capture devices
+//
+// Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@kernel.org>
+//
+// Copyright (c) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+//	- Fixed module load/unload
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -346,10 +332,10 @@ static inline void print_err_status(struct tm6000_core *dev,
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronuously";
+		errmsg = "unlinked synchronously";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronuously";
+		errmsg = "unlinked asynchronously";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
@@ -474,20 +460,17 @@ static int tm6000_alloc_urb_buffers(struct tm6000_core *dev)
 	int num_bufs = TM6000_NUM_URB_BUF;
 	int i;
 
-	if (dev->urb_buffer != NULL)
+	if (dev->urb_buffer)
 		return 0;
 
-	dev->urb_buffer = kmalloc(sizeof(void *)*num_bufs, GFP_KERNEL);
-	if (!dev->urb_buffer) {
-		tm6000_err("cannot allocate memory for urb buffers\n");
+	dev->urb_buffer = kmalloc_array(num_bufs, sizeof(void *), GFP_KERNEL);
+	if (!dev->urb_buffer)
 		return -ENOMEM;
-	}
 
-	dev->urb_dma = kmalloc(sizeof(dma_addr_t *)*num_bufs, GFP_KERNEL);
-	if (!dev->urb_dma) {
-		tm6000_err("cannot allocate memory for urb dma pointers\n");
+	dev->urb_dma = kmalloc_array(num_bufs, sizeof(dma_addr_t *),
+				     GFP_KERNEL);
+	if (!dev->urb_dma)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < num_bufs; i++) {
 		dev->urb_buffer[i] = usb_alloc_coherent(
@@ -511,7 +494,7 @@ static int tm6000_free_urb_buffers(struct tm6000_core *dev)
 {
 	int i;
 
-	if (dev->urb_buffer == NULL)
+	if (!dev->urb_buffer)
 		return 0;
 
 	for (i = 0; i < TM6000_NUM_URB_BUF; i++) {
@@ -601,22 +584,20 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
 
 	dev->isoc_ctl.num_bufs = num_bufs;
 
-	dev->isoc_ctl.urb = kmalloc(sizeof(void *)*num_bufs, GFP_KERNEL);
-	if (!dev->isoc_ctl.urb) {
-		tm6000_err("cannot alloc memory for usb buffers\n");
+	dev->isoc_ctl.urb = kmalloc_array(num_bufs, sizeof(void *),
+					  GFP_KERNEL);
+	if (!dev->isoc_ctl.urb)
 		return -ENOMEM;
-	}
 
-	dev->isoc_ctl.transfer_buffer = kmalloc(sizeof(void *)*num_bufs,
-				   GFP_KERNEL);
+	dev->isoc_ctl.transfer_buffer = kmalloc_array(num_bufs,
+						      sizeof(void *),
+						      GFP_KERNEL);
 	if (!dev->isoc_ctl.transfer_buffer) {
-		tm6000_err("cannot allocate memory for usbtransfer\n");
 		kfree(dev->isoc_ctl.urb);
 		return -ENOMEM;
 	}
 
-	dprintk(dev, V4L2_DEBUG_QUEUE, "Allocating %d x %d packets"
-		    " (%d bytes) of %d bytes each to handle %u size\n",
+	dprintk(dev, V4L2_DEBUG_QUEUE, "Allocating %d x %d packets (%d bytes) of %d bytes each to handle %u size\n",
 		    max_packets, num_bufs, sb_size,
 		    dev->isoc_in.maxsize, size);
 
@@ -635,9 +616,8 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 		if (!urb) {
-			tm6000_err("cannot alloc isoc_ctl.urb %i\n", i);
 			tm6000_uninit_isoc(dev);
-			usb_free_urb(urb);
+			tm6000_free_urb_buffers(dev);
 			return -ENOMEM;
 		}
 		dev->isoc_ctl.urb[i] = urb;
@@ -807,7 +787,7 @@ static void buffer_release(struct videobuf_queue *vq, struct videobuf_buffer *vb
 	free_buffer(vq, buf);
 }
 
-static struct videobuf_queue_ops tm6000_video_qops = {
+static const struct videobuf_queue_ops tm6000_video_qops = {
 	.buf_setup      = buffer_setup,
 	.buf_prepare    = buffer_prepare,
 	.buf_queue      = buffer_queue,
@@ -940,8 +920,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 	if (NULL == fmt) {
-		dprintk(dev, 2, "Fourcc format (0x%08x)"
-				" invalid.\n", f->fmt.pix.pixelformat);
+		dprintk(dev, 2, "Fourcc format (0x%08x) invalid.\n",
+			f->fmt.pix.pixelformat);
 		return -EINVAL;
 	}
 
@@ -1336,6 +1316,8 @@ static int __tm6000_open(struct file *file)
 	case VFL_TYPE_RADIO:
 		radio = 1;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	/* If more than one user, mutex should be added */
@@ -1367,19 +1349,20 @@ static int __tm6000_open(struct file *file)
 	fh->width = dev->width;
 	fh->height = dev->height;
 
-	dprintk(dev, V4L2_DEBUG_OPEN, "Open: fh=0x%08lx, dev=0x%08lx, "
-						"dev->vidq=0x%08lx\n",
-			(unsigned long)fh, (unsigned long)dev,
-			(unsigned long)&dev->vidq);
-	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty "
-				"queued=%d\n", list_empty(&dev->vidq.queued));
-	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty "
-				"active=%d\n", list_empty(&dev->vidq.active));
+	dprintk(dev, V4L2_DEBUG_OPEN, "Open: fh=%p, dev=%p, dev->vidq=%p\n",
+		fh, dev, &dev->vidq);
+	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty queued=%d\n",
+		list_empty(&dev->vidq.queued));
+	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty active=%d\n",
+		list_empty(&dev->vidq.active));
 
 	/* initialize hardware on analog mode */
 	rc = tm6000_init_analog_mode(dev);
-	if (rc < 0)
+	if (rc < 0) {
+		v4l2_fh_exit(&fh->fh);
+		kfree(fh);
 		return rc;
+	}
 
 	dev->mode = TM6000_MODE_ANALOG;
 
@@ -1434,45 +1417,45 @@ tm6000_read(struct file *file, char __user *data, size_t count, loff_t *pos)
 	return 0;
 }
 
-static unsigned int
+static __poll_t
 __tm6000_poll(struct file *file, struct poll_table_struct *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct tm6000_fh        *fh = file->private_data;
 	struct tm6000_buffer    *buf;
-	int res = 0;
+	__poll_t res = 0;
 
 	if (v4l2_event_pending(&fh->fh))
-		res = POLLPRI;
-	else if (req_events & POLLPRI)
+		res = EPOLLPRI;
+	else if (req_events & EPOLLPRI)
 		poll_wait(file, &fh->fh.wait, wait);
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != fh->type)
-		return res | POLLERR;
+		return res | EPOLLERR;
 
 	if (!!is_res_streaming(fh->dev, fh))
-		return res | POLLERR;
+		return res | EPOLLERR;
 
 	if (!is_res_read(fh->dev, fh)) {
 		/* streaming capture */
 		if (list_empty(&fh->vb_vidq.stream))
-			return res | POLLERR;
+			return res | EPOLLERR;
 		buf = list_entry(fh->vb_vidq.stream.next, struct tm6000_buffer, vb.stream);
 		poll_wait(file, &buf->vb.done, wait);
 		if (buf->vb.state == VIDEOBUF_DONE ||
 		    buf->vb.state == VIDEOBUF_ERROR)
-			return res | POLLIN | POLLRDNORM;
-	} else if (req_events & (POLLIN | POLLRDNORM)) {
+			return res | EPOLLIN | EPOLLRDNORM;
+	} else if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		/* read() capture */
 		return res | videobuf_poll_stream(file, &fh->vb_vidq, wait);
 	}
 	return res;
 }
 
-static unsigned int tm6000_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t tm6000_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct tm6000_fh *fh = file->private_data;
 	struct tm6000_core *dev = fh->dev;
-	unsigned int res;
+	__poll_t res;
 
 	mutex_lock(&dev->lock);
 	res = __tm6000_poll(file, wait);
@@ -1536,7 +1519,7 @@ static int tm6000_mmap(struct file *file, struct vm_area_struct * vma)
 	return res;
 }
 
-static struct v4l2_file_operations tm6000_fops = {
+static const struct v4l2_file_operations tm6000_fops = {
 	.owner = THIS_MODULE,
 	.open = tm6000_open,
 	.release = tm6000_release,

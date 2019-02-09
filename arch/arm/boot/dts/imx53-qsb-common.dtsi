@@ -1,14 +1,7 @@
-/*
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2011 Freescale Semiconductor, Inc.
+// Copyright 2011 Linaro Ltd.
 
 #include "imx53.dtsi"
 
@@ -17,12 +10,12 @@
 		stdout-path = &uart1;
 	};
 
-	memory {
+	memory@70000000 {
 		reg = <0x70000000 0x20000000>,
 		      <0xb0000000 0x20000000>;
 	};
 
-	display0: display@di0 {
+	display0: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "rgb565";
 		pinctrl-names = "default";
@@ -59,22 +52,22 @@
 
 		power {
 			label = "Power Button";
-			gpios = <&gpio1 8 0>;
-			linux,code = <116>; /* KEY_POWER */
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
 		};
 
 		volume-up {
 			label = "Volume Up";
-			gpios = <&gpio2 14 0>;
-			linux,code = <115>; /* KEY_VOLUMEUP */
-			gpio-key,wakeup;
+			gpios = <&gpio2 14 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			wakeup-source;
 		};
 
 		volume-down {
 			label = "Volume Down";
-			gpios = <&gpio2 15 0>;
-			linux,code = <114>; /* KEY_VOLUMEDOWN */
-			gpio-key,wakeup;
+			gpios = <&gpio2 15 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			wakeup-source;
 		};
 	};
 
@@ -130,6 +123,17 @@
 	};
 };
 
+&cpu0 {
+	/* CPU rated to 1GHz, not 1.2GHz as per the default settings */
+	operating-points = <
+		/* kHz   uV */
+		166666  850000
+		400000  900000
+		800000  1050000
+		1000000 1200000
+	>;
+};
+
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
@@ -160,7 +164,6 @@
 	imx53-qsb {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK 0x80000000
 				MX53_PAD_GPIO_8__GPIO1_8          0x80000000
 				MX53_PAD_PATA_DATA14__GPIO2_14    0x80000000
 				MX53_PAD_PATA_DATA15__GPIO2_15    0x80000000
@@ -172,7 +175,7 @@
 			>;
 		};
 
-		led_pin_gpio7_7: led_gpio7_7@0 {
+		led_pin_gpio7_7: led_gpio7_7 {
 			fsl,pins = <
 				MX53_PAD_PATA_DA_1__GPIO7_7 0x80000000
 			>;
@@ -184,6 +187,12 @@
 				MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD	0x80000000
 				MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS	0x80000000
 				MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD	0x80000000
+			>;
+		};
+
+		pinctrl_codec: codecgrp {
+			fsl,pins = <
+				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK	0x1c4
 			>;
 		};
 
@@ -215,16 +224,16 @@
 
 		pinctrl_fec: fecgrp {
 			fsl,pins = <
-				MX53_PAD_FEC_MDC__FEC_MDC		0x80000000
-				MX53_PAD_FEC_MDIO__FEC_MDIO		0x80000000
-				MX53_PAD_FEC_REF_CLK__FEC_TX_CLK	0x80000000
-				MX53_PAD_FEC_RX_ER__FEC_RX_ER		0x80000000
-				MX53_PAD_FEC_CRS_DV__FEC_RX_DV		0x80000000
-				MX53_PAD_FEC_RXD1__FEC_RDATA_1		0x80000000
-				MX53_PAD_FEC_RXD0__FEC_RDATA_0		0x80000000
-				MX53_PAD_FEC_TX_EN__FEC_TX_EN		0x80000000
-				MX53_PAD_FEC_TXD1__FEC_TDATA_1		0x80000000
-				MX53_PAD_FEC_TXD0__FEC_TDATA_0		0x80000000
+				MX53_PAD_FEC_MDC__FEC_MDC		0x4
+				MX53_PAD_FEC_MDIO__FEC_MDIO		0x1fc
+				MX53_PAD_FEC_REF_CLK__FEC_TX_CLK	0x180
+				MX53_PAD_FEC_RX_ER__FEC_RX_ER		0x180
+				MX53_PAD_FEC_CRS_DV__FEC_RX_DV		0x180
+				MX53_PAD_FEC_RXD1__FEC_RDATA_1		0x180
+				MX53_PAD_FEC_RXD0__FEC_RDATA_0		0x180
+				MX53_PAD_FEC_TX_EN__FEC_TX_EN		0x4
+				MX53_PAD_FEC_TXD1__FEC_TDATA_1		0x4
+				MX53_PAD_FEC_TXD0__FEC_TDATA_0		0x4
 			>;
 		};
 
@@ -314,9 +323,12 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	sgtl5000: codec@0a {
+	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_codec>;
+		#sound-dai-cells = <0>;
 		VDDA-supply = <&reg_3p2v>;
 		VDDIO-supply = <&reg_3p2v>;
 		clocks = <&clks IMX5_CLK_SSI_EXT1_GATE>;
@@ -344,7 +356,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio7 6 0>;
+	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

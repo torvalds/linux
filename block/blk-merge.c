@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions related to segment and merge handling
  */
@@ -6,6 +7,8 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
+
+#include <trace/events/block.h>
 
 #include "blk.h"
 
@@ -24,7 +27,8 @@ static struct bio *blk_bio_discard_split(struct request_queue *q,
 	/* Zero-sector (unknown) and one-sector granularities are the same.  */
 	granularity = max(q->limits.discard_granularity >> 9, 1U);
 
-	max_discard_sectors = min(q->limits.max_discard_sectors, UINT_MAX >> 9);
+	max_discard_sectors = min(q->limits.max_discard_sectors,
+			bio_allowed_max_sectors(q));
 	max_discard_sectors -= max_discard_sectors % granularity;
 
 	if (unlikely(!max_discard_sectors)) {
@@ -52,6 +56,20 @@ static struct bio *blk_bio_discard_split(struct request_queue *q,
 	return bio_split(bio, split_sectors, GFP_NOIO, bs);
 }
 
+static struct bio *blk_bio_write_zeroes_split(struct request_queue *q,
+		struct bio *bio, struct bio_set *bs, unsigned *nsegs)
+{
+	*nsegs = 1;
+
+	if (!q->limits.max_write_zeroes_sectors)
+		return NULL;
+
+	if (bio_sectors(bio) <= q->limits.max_write_zeroes_sectors)
+		return NULL;
+
+	return bio_split(bio, q->limits.max_write_zeroes_sectors, GFP_NOIO, bs);
+}
+
 static struct bio *blk_bio_write_same_split(struct request_queue *q,
 					    struct bio *bio,
 					    struct bio_set *bs,
@@ -68,6 +86,18 @@ static struct bio *blk_bio_write_same_split(struct request_queue *q,
 	return bio_split(bio, q->limits.max_write_same_sectors, GFP_NOIO, bs);
 }
 
+static inline unsigned get_max_io_size(struct request_queue *q,
+				       struct bio *bio)
+{
+	unsigned sectors = blk_max_size_offset(q, bio->bi_iter.bi_sector);
+	unsigned mask = queue_logical_block_size(q) - 1;
+
+	/* aligned to logical block size */
+	sectors &= ~(mask >> 9);
+
+	return sectors;
+}
+
 static struct bio *blk_bio_segment_split(struct request_queue *q,
 					 struct bio *bio,
 					 struct bio_set *bs,
@@ -79,17 +109,28 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	unsigned front_seg_size = bio->bi_seg_front_size;
 	bool do_split = true;
 	struct bio *new = NULL;
+	const unsigned max_sectors = get_max_io_size(q, bio);
 
 	bio_for_each_segment(bv, bio, iter) {
-		if (sectors + (bv.bv_len >> 9) > queue_max_sectors(q))
-			goto split;
-
 		/*
 		 * If the queue doesn't support SG gaps and adding this
 		 * offset would create a gap, disallow it.
 		 */
 		if (bvprvp && bvec_gap_to_prev(q, bvprvp, bv.bv_offset))
 			goto split;
+
+		if (sectors + (bv.bv_len >> 9) > max_sectors) {
+			/*
+			 * Consider this a new segment if we're splitting in
+			 * the middle of this vector.
+			 */
+			if (nsegs < queue_max_segments(q) &&
+			    sectors < max_sectors) {
+				nsegs++;
+				sectors = max_sectors;
+			}
+			goto split;
+		}
 
 		if (bvprvp && blk_queue_cluster(q)) {
 			if (seg_size + bv.bv_len > queue_max_segment_size(q))
@@ -104,13 +145,14 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 			bvprvp = &bvprv;
 			sectors += bv.bv_len >> 9;
 
-			if (nsegs == 1 && seg_size > front_seg_size)
-				front_seg_size = seg_size;
 			continue;
 		}
 new_segment:
 		if (nsegs == queue_max_segments(q))
 			goto split;
+
+		if (nsegs == 1 && seg_size > front_seg_size)
+			front_seg_size = seg_size;
 
 		nsegs++;
 		bvprv = bv;
@@ -118,8 +160,6 @@ new_segment:
 		seg_size = bv.bv_len;
 		sectors += bv.bv_len >> 9;
 
-		if (nsegs == 1 && seg_size > front_seg_size)
-			front_seg_size = seg_size;
 	}
 
 	do_split = false;
@@ -132,6 +172,8 @@ split:
 			bio = new;
 	}
 
+	if (nsegs == 1 && seg_size > front_seg_size)
+		front_seg_size = seg_size;
 	bio->bi_seg_front_size = front_seg_size;
 	if (seg_size > bio->bi_seg_back_size)
 		bio->bi_seg_back_size = seg_size;
@@ -139,18 +181,26 @@ split:
 	return do_split ? new : NULL;
 }
 
-void blk_queue_split(struct request_queue *q, struct bio **bio,
-		     struct bio_set *bs)
+void blk_queue_split(struct request_queue *q, struct bio **bio)
 {
 	struct bio *split, *res;
 	unsigned nsegs;
 
-	if ((*bio)->bi_rw & REQ_DISCARD)
-		split = blk_bio_discard_split(q, *bio, bs, &nsegs);
-	else if ((*bio)->bi_rw & REQ_WRITE_SAME)
-		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
-	else
-		split = blk_bio_segment_split(q, *bio, q->bio_split, &nsegs);
+	switch (bio_op(*bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+		split = blk_bio_discard_split(q, *bio, &q->bio_split, &nsegs);
+		break;
+	case REQ_OP_WRITE_ZEROES:
+		split = blk_bio_write_zeroes_split(q, *bio, &q->bio_split, &nsegs);
+		break;
+	case REQ_OP_WRITE_SAME:
+		split = blk_bio_write_same_split(q, *bio, &q->bio_split, &nsegs);
+		break;
+	default:
+		split = blk_bio_segment_split(q, *bio, &q->bio_split, &nsegs);
+		break;
+	}
 
 	/* physical segments can be figured out during splitting */
 	res = split ? split : *bio;
@@ -159,9 +209,20 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
 
 	if (split) {
 		/* there isn't chance to merge the splitted bio */
-		split->bi_rw |= REQ_NOMERGE;
+		split->bi_opf |= REQ_NOMERGE;
+
+		/*
+		 * Since we're recursing into make_request here, ensure
+		 * that we mark this bio as already having entered the queue.
+		 * If not, and the queue is going away, we can get stuck
+		 * forever on waiting for the queue reference to drop. But
+		 * that will never happen, as we're already holding a
+		 * reference to it.
+		 */
+		bio_set_flag(*bio, BIO_QUEUE_ENTERED);
 
 		bio_chain(split, *bio);
+		trace_block_split(q, split, (*bio)->bi_iter.bi_sector);
 		generic_make_request(*bio);
 		*bio = split;
 	}
@@ -181,15 +242,14 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	if (!bio)
 		return 0;
 
-	/*
-	 * This should probably be returning 0, but blk_add_request_payload()
-	 * (Christoph!!!!)
-	 */
-	if (bio->bi_rw & REQ_DISCARD)
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+	case REQ_OP_WRITE_ZEROES:
+		return 0;
+	case REQ_OP_WRITE_SAME:
 		return 1;
-
-	if (bio->bi_rw & REQ_WRITE_SAME)
-		return 1;
+	}
 
 	fbio = bio;
 	cluster = blk_queue_cluster(q);
@@ -276,7 +336,6 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 				   struct bio *nxt)
 {
 	struct bio_vec end_bv = { NULL }, nxt_bv;
-	struct bvec_iter iter;
 
 	if (!blk_queue_cluster(q))
 		return 0;
@@ -288,11 +347,8 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 	if (!bio_has_data(bio))
 		return 1;
 
-	bio_for_each_segment(end_bv, bio, iter)
-		if (end_bv.bv_len == iter.bi_size)
-			break;
-
-	nxt_bv = bio_iovec(nxt);
+	bio_get_last_bvec(bio, &end_bv);
+	bio_get_first_bvec(nxt, &nxt_bv);
 
 	if (!BIOVEC_PHYS_MERGEABLE(&end_bv, &nxt_bv))
 		return 0;
@@ -350,39 +406,21 @@ new_segment:
 	*bvprv = *bvec;
 }
 
+static inline int __blk_bvec_map_sg(struct request_queue *q, struct bio_vec bv,
+		struct scatterlist *sglist, struct scatterlist **sg)
+{
+	*sg = sglist;
+	sg_set_page(*sg, bv.bv_page, bv.bv_len, bv.bv_offset);
+	return 1;
+}
+
 static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
 			     struct scatterlist *sglist,
 			     struct scatterlist **sg)
 {
 	struct bio_vec bvec, bvprv = { NULL };
 	struct bvec_iter iter;
-	int nsegs, cluster;
-
-	nsegs = 0;
-	cluster = blk_queue_cluster(q);
-
-	if (bio->bi_rw & REQ_DISCARD) {
-		/*
-		 * This is a hack - drivers should be neither modifying the
-		 * biovec, nor relying on bi_vcnt - but because of
-		 * blk_add_request_payload(), a discard bio may or may not have
-		 * a payload we need to set up here (thank you Christoph) and
-		 * bi_vcnt is really the only way of telling if we need to.
-		 */
-
-		if (bio->bi_vcnt)
-			goto single_segment;
-
-		return 0;
-	}
-
-	if (bio->bi_rw & REQ_WRITE_SAME) {
-single_segment:
-		*sg = sglist;
-		bvec = bio_iovec(bio);
-		sg_set_page(*sg, bvec.bv_page, bvec.bv_len, bvec.bv_offset);
-		return 1;
-	}
+	int cluster = blk_queue_cluster(q), nsegs = 0;
 
 	for_each_bio(bio)
 		bio_for_each_segment(bvec, bio, iter)
@@ -402,10 +440,14 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	struct scatterlist *sg = NULL;
 	int nsegs = 0;
 
-	if (rq->bio)
+	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
+		nsegs = __blk_bvec_map_sg(q, rq->special_vec, sglist, &sg);
+	else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME)
+		nsegs = __blk_bvec_map_sg(q, bio_iovec(rq->bio), sglist, &sg);
+	else if (rq->bio)
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, &sg);
 
-	if (unlikely(rq->cmd_flags & REQ_COPY_USER) &&
+	if (unlikely(rq->rq_flags & RQF_COPY_USER) &&
 	    (blk_rq_bytes(rq) & q->dma_pad_mask)) {
 		unsigned int pad_len =
 			(q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
@@ -415,7 +457,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	}
 
 	if (q->dma_drain_size && q->dma_drain_needed(rq)) {
-		if (rq->cmd_flags & REQ_WRITE)
+		if (op_is_write(req_op(rq)))
 			memset(q->dma_drain_buffer, 0, q->dma_drain_size);
 
 		sg_unmark_end(sg);
@@ -435,7 +477,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	 * Something must have been wrong if the figured number of
 	 * segment is bigger than number of req's physical segments
 	 */
-	WARN_ON(nsegs > rq->nr_phys_segments);
+	WARN_ON(nsegs > blk_rq_nr_phys_segments(rq));
 
 	return nsegs;
 }
@@ -461,9 +503,7 @@ static inline int ll_new_hw_segment(struct request_queue *q,
 	return 1;
 
 no_merge:
-	req->cmd_flags |= REQ_NOMERGE;
-	if (req == q->last_merge)
-		q->last_merge = NULL;
+	req_set_nomerge(q, req);
 	return 0;
 }
 
@@ -476,10 +516,8 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 	    integrity_req_gap_back_merge(req, bio))
 		return 0;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
-	    blk_rq_get_max_sectors(req)) {
-		req->cmd_flags |= REQ_NOMERGE;
-		if (req == q->last_merge)
-			q->last_merge = NULL;
+	    blk_rq_get_max_sectors(req, blk_rq_pos(req))) {
+		req_set_nomerge(q, req);
 		return 0;
 	}
 	if (!bio_flagged(req->biotail, BIO_SEG_VALID))
@@ -500,10 +538,8 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 	    integrity_req_gap_front_merge(req, bio))
 		return 0;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
-	    blk_rq_get_max_sectors(req)) {
-		req->cmd_flags |= REQ_NOMERGE;
-		if (req == q->last_merge)
-			q->last_merge = NULL;
+	    blk_rq_get_max_sectors(req, bio->bi_iter.bi_sector)) {
+		req_set_nomerge(q, req);
 		return 0;
 	}
 	if (!bio_flagged(bio, BIO_SEG_VALID))
@@ -523,6 +559,24 @@ static bool req_no_special_merge(struct request *req)
 	struct request_queue *q = req->q;
 
 	return !q->mq_ops && req->special;
+}
+
+static bool req_attempt_discard_merge(struct request_queue *q, struct request *req,
+		struct request *next)
+{
+	unsigned short segments = blk_rq_nr_discard_segments(req);
+
+	if (segments >= queue_max_discard_segments(q))
+		goto no_merge;
+	if (blk_rq_sectors(req) + bio_sectors(next->bio) >
+	    blk_rq_get_max_sectors(req, blk_rq_pos(req)))
+		goto no_merge;
+
+	req->nr_phys_segments = segments + blk_rq_nr_discard_segments(next);
+	return true;
+no_merge:
+	req_set_nomerge(q, req);
+	return false;
 }
 
 static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
@@ -546,7 +600,7 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 	 * Will it become too large?
 	 */
 	if ((blk_rq_sectors(req) + blk_rq_sectors(next)) >
-	    blk_rq_get_max_sectors(req))
+	    blk_rq_get_max_sectors(req, blk_rq_pos(req)))
 		return 0;
 
 	total_phys_segments = req->nr_phys_segments + next->nr_phys_segments;
@@ -583,7 +637,7 @@ void blk_rq_set_mixed_merge(struct request *rq)
 	unsigned int ff = rq->cmd_flags & REQ_FAILFAST_MASK;
 	struct bio *bio;
 
-	if (rq->cmd_flags & REQ_MIXED_MERGE)
+	if (rq->rq_flags & RQF_MIXED_MERGE)
 		return;
 
 	/*
@@ -592,11 +646,11 @@ void blk_rq_set_mixed_merge(struct request *rq)
 	 * Distributes the attributs to each bio.
 	 */
 	for (bio = rq->bio; bio; bio = bio->bi_next) {
-		WARN_ON_ONCE((bio->bi_rw & REQ_FAILFAST_MASK) &&
-			     (bio->bi_rw & REQ_FAILFAST_MASK) != ff);
-		bio->bi_rw |= ff;
+		WARN_ON_ONCE((bio->bi_opf & REQ_FAILFAST_MASK) &&
+			     (bio->bi_opf & REQ_FAILFAST_MASK) != ff);
+		bio->bi_opf |= ff;
 	}
-	rq->cmd_flags |= REQ_MIXED_MERGE;
+	rq->rq_flags |= RQF_MIXED_MERGE;
 }
 
 static void blk_account_io_merge(struct request *req)
@@ -608,8 +662,8 @@ static void blk_account_io_merge(struct request *req)
 		cpu = part_stat_lock();
 		part = req->part;
 
-		part_round_stats(cpu, part);
-		part_dec_in_flight(part, rq_data_dir(req));
+		part_round_stats(req->q, cpu, part);
+		part_dec_in_flight(req->q, part, rq_data_dir(req));
 
 		hd_struct_put(part);
 		part_stat_unlock();
@@ -617,40 +671,55 @@ static void blk_account_io_merge(struct request *req)
 }
 
 /*
- * Has to be called with the request spinlock acquired
+ * For non-mq, this has to be called with the request spinlock acquired.
+ * For mq with scheduling, the appropriate queue wide lock should be held.
  */
-static int attempt_merge(struct request_queue *q, struct request *req,
-			  struct request *next)
+static struct request *attempt_merge(struct request_queue *q,
+				     struct request *req, struct request *next)
 {
-	if (!rq_mergeable(req) || !rq_mergeable(next))
-		return 0;
+	if (!q->mq_ops)
+		lockdep_assert_held(q->queue_lock);
 
-	if (!blk_check_merge_flags(req->cmd_flags, next->cmd_flags))
-		return 0;
+	if (!rq_mergeable(req) || !rq_mergeable(next))
+		return NULL;
+
+	if (req_op(req) != req_op(next))
+		return NULL;
 
 	/*
 	 * not contiguous
 	 */
 	if (blk_rq_pos(req) + blk_rq_sectors(req) != blk_rq_pos(next))
-		return 0;
+		return NULL;
 
 	if (rq_data_dir(req) != rq_data_dir(next)
 	    || req->rq_disk != next->rq_disk
 	    || req_no_special_merge(next))
-		return 0;
+		return NULL;
 
-	if (req->cmd_flags & REQ_WRITE_SAME &&
+	if (req_op(req) == REQ_OP_WRITE_SAME &&
 	    !blk_write_same_mergeable(req->bio, next->bio))
-		return 0;
+		return NULL;
+
+	/*
+	 * Don't allow merge of different write hints, or for a hint with
+	 * non-hint IO.
+	 */
+	if (req->write_hint != next->write_hint)
+		return NULL;
 
 	/*
 	 * If we are allowed to merge, then append bio list
 	 * from next to rq and release next. merge_requests_fn
 	 * will have updated segment counts, update sector
-	 * counts here.
+	 * counts here. Handle DISCARDs separately, as they
+	 * have separate settings.
 	 */
-	if (!ll_merge_requests_fn(q, req, next))
-		return 0;
+	if (req_op(req) == REQ_OP_DISCARD) {
+		if (!req_attempt_discard_merge(q, req, next))
+			return NULL;
+	} else if (!ll_merge_requests_fn(q, req, next))
+		return NULL;
 
 	/*
 	 * If failfast settings disagree or any of the two is already
@@ -658,7 +727,7 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	 * makes sure that all involved bios have mixable attributes
 	 * set properly.
 	 */
-	if ((req->cmd_flags | next->cmd_flags) & REQ_MIXED_MERGE ||
+	if (((req->rq_flags | next->rq_flags) & RQF_MIXED_MERGE) ||
 	    (req->cmd_flags & REQ_FAILFAST_MASK) !=
 	    (next->cmd_flags & REQ_FAILFAST_MASK)) {
 		blk_rq_set_mixed_merge(req);
@@ -666,20 +735,20 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	}
 
 	/*
-	 * At this point we have either done a back merge
-	 * or front merge. We need the smaller start_time of
-	 * the merged requests to be the current request
-	 * for accounting purposes.
+	 * At this point we have either done a back merge or front merge. We
+	 * need the smaller start_time_ns of the merged requests to be the
+	 * current request for accounting purposes.
 	 */
-	if (time_after(req->start_time, next->start_time))
-		req->start_time = next->start_time;
+	if (next->start_time_ns < req->start_time_ns)
+		req->start_time_ns = next->start_time_ns;
 
 	req->biotail->bi_next = next->bio;
 	req->biotail = next->biotail;
 
 	req->__data_len += blk_rq_bytes(next);
 
-	elv_merge_requests(q, req, next);
+	if (req_op(req) != REQ_OP_DISCARD)
+		elv_merge_requests(q, req, next);
 
 	/*
 	 * 'next' is going away, so update stats accordingly
@@ -690,36 +759,51 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	if (blk_rq_cpu_valid(next))
 		req->cpu = next->cpu;
 
-	/* owner-ship of bio passed from next to req */
+	/*
+	 * ownership of bio passed from next to req, return 'next' for
+	 * the caller to free
+	 */
 	next->bio = NULL;
-	__blk_put_request(q, next);
-	return 1;
+	return next;
 }
 
-int attempt_back_merge(struct request_queue *q, struct request *rq)
+struct request *attempt_back_merge(struct request_queue *q, struct request *rq)
 {
 	struct request *next = elv_latter_request(q, rq);
 
 	if (next)
 		return attempt_merge(q, rq, next);
 
-	return 0;
+	return NULL;
 }
 
-int attempt_front_merge(struct request_queue *q, struct request *rq)
+struct request *attempt_front_merge(struct request_queue *q, struct request *rq)
 {
 	struct request *prev = elv_former_request(q, rq);
 
 	if (prev)
 		return attempt_merge(q, prev, rq);
 
-	return 0;
+	return NULL;
 }
 
 int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 			  struct request *next)
 {
-	return attempt_merge(q, rq, next);
+	struct elevator_queue *e = q->elevator;
+	struct request *free;
+
+	if (!e->uses_mq && e->type->ops.sq.elevator_allow_rq_merge_fn)
+		if (!e->type->ops.sq.elevator_allow_rq_merge_fn(q, rq, next))
+			return 0;
+
+	free = attempt_merge(q, rq, next);
+	if (free) {
+		__blk_put_request(q, free);
+		return 1;
+	}
+
+	return 0;
 }
 
 bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
@@ -727,7 +811,7 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (!rq_mergeable(rq) || !bio_mergeable(bio))
 		return false;
 
-	if (!blk_check_merge_flags(rq->cmd_flags, bio->bi_rw))
+	if (req_op(rq) != bio_op(bio))
 		return false;
 
 	/* different data direction or already started, don't merge */
@@ -735,7 +819,7 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		return false;
 
 	/* must be same device and not a special request */
-	if (rq->rq_disk != bio->bi_bdev->bd_disk || req_no_special_merge(rq))
+	if (rq->rq_disk != bio->bi_disk || req_no_special_merge(rq))
 		return false;
 
 	/* only merge integrity protected bio into ditto rq */
@@ -743,16 +827,26 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		return false;
 
 	/* must be using the same buffer */
-	if (rq->cmd_flags & REQ_WRITE_SAME &&
+	if (req_op(rq) == REQ_OP_WRITE_SAME &&
 	    !blk_write_same_mergeable(rq->bio, bio))
+		return false;
+
+	/*
+	 * Don't allow merge of different write hints, or for a hint with
+	 * non-hint IO.
+	 */
+	if (rq->write_hint != bio->bi_write_hint)
 		return false;
 
 	return true;
 }
 
-int blk_try_merge(struct request *rq, struct bio *bio)
+enum elv_merge blk_try_merge(struct request *rq, struct bio *bio)
 {
-	if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
+	if (req_op(rq) == REQ_OP_DISCARD &&
+	    queue_max_discard_segments(rq->q) > 1)
+		return ELEVATOR_DISCARD_MERGE;
+	else if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
 		return ELEVATOR_BACK_MERGE;
 	else if (blk_rq_pos(rq) - bio_sectors(bio) == bio->bi_iter.bi_sector)
 		return ELEVATOR_FRONT_MERGE;

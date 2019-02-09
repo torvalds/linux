@@ -138,9 +138,7 @@ static void octeon_cf_set_piomode(struct ata_port *ap, struct ata_device *dev)
 	int trh;
 	int pause;
 	/* These names are timing parameters from the ATA spec */
-	int t1;
 	int t2;
-	int t2i;
 
 	/*
 	 * A divisor value of four will overflow the timing fields at
@@ -152,18 +150,11 @@ static void octeon_cf_set_piomode(struct ata_port *ap, struct ata_device *dev)
 		div = 8;
 	T = (int)((1000000000000LL * div) / octeon_get_io_clock_rate());
 
-	if (ata_timing_compute(dev, dev->pio_mode, &timing, T, T))
-		BUG();
+	BUG_ON(ata_timing_compute(dev, dev->pio_mode, &timing, T, T));
 
-	t1 = timing.setup;
-	if (t1)
-		t1--;
 	t2 = timing.active;
 	if (t2)
 		t2--;
-	t2i = timing.act8b;
-	if (t2i)
-		t2i--;
 
 	trh = ns_to_tim_reg(div, 20);
 	if (trh)
@@ -294,17 +285,17 @@ static void octeon_cf_set_dmamode(struct ata_port *ap, struct ata_device *dev)
 /**
  * Handle an 8 bit I/O request.
  *
- * @dev:        Device to access
+ * @qc:         Queued command
  * @buffer:     Data buffer
  * @buflen:     Length of the buffer.
  * @rw:         True to write.
  */
-static unsigned int octeon_cf_data_xfer8(struct ata_device *dev,
+static unsigned int octeon_cf_data_xfer8(struct ata_queued_cmd *qc,
 					 unsigned char *buffer,
 					 unsigned int buflen,
 					 int rw)
 {
-	struct ata_port *ap		= dev->link->ap;
+	struct ata_port *ap		= qc->dev->link->ap;
 	void __iomem *data_addr		= ap->ioaddr.data_addr;
 	unsigned long words;
 	int count;
@@ -333,17 +324,17 @@ static unsigned int octeon_cf_data_xfer8(struct ata_device *dev,
 /**
  * Handle a 16 bit I/O request.
  *
- * @dev:        Device to access
+ * @qc:         Queued command
  * @buffer:     Data buffer
  * @buflen:     Length of the buffer.
  * @rw:         True to write.
  */
-static unsigned int octeon_cf_data_xfer16(struct ata_device *dev,
+static unsigned int octeon_cf_data_xfer16(struct ata_queued_cmd *qc,
 					  unsigned char *buffer,
 					  unsigned int buflen,
 					  int rw)
 {
-	struct ata_port *ap		= dev->link->ap;
+	struct ata_port *ap		= qc->dev->link->ap;
 	void __iomem *data_addr		= ap->ioaddr.data_addr;
 	unsigned long words;
 	int count;
@@ -849,7 +840,6 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	struct property *reg_prop;
 	int n_addr, n_size, reg_len;
 	struct device_node *node;
-	const void *prop;
 	void __iomem *cs0;
 	void __iomem *cs1 = NULL;
 	struct ata_host *host;
@@ -859,7 +849,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	void __iomem *base;
 	struct octeon_cf_port *cf_port;
 	int rv = -ENOMEM;
-
+	u32 bus_width;
 
 	node = pdev->dev.of_node;
 	if (node == NULL)
@@ -869,11 +859,10 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	if (!cf_port)
 		return -ENOMEM;
 
-	cf_port->is_true_ide = (of_find_property(node, "cavium,true-ide", NULL) != NULL);
+	cf_port->is_true_ide = of_property_read_bool(node, "cavium,true-ide");
 
-	prop = of_get_property(node, "cavium,bus-width", NULL);
-	if (prop)
-		is_16bit = (be32_to_cpup(prop) == 16);
+	if (of_property_read_u32(node, "cavium,bus-width", &bus_width) == 0)
+		is_16bit = (bus_width == 16);
 	else
 		is_16bit = false;
 
@@ -1047,7 +1036,7 @@ static void octeon_cf_shutdown(struct device *dev)
 	}
 }
 
-static struct of_device_id octeon_cf_match[] = {
+static const struct of_device_id octeon_cf_match[] = {
 	{
 		.compatible = "cavium,ebt3000-compact-flash",
 	},

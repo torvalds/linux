@@ -1,0 +1,170 @@
+/*
+ * Copyright (C) 2015 Marek Vasut <marex@denx.de>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "at91-sama5d4_ma5d4.dtsi"
+
+/ {
+	model = "Aries/DENX MA5D4EVK";
+	compatible = "aries,ma5d4evk", "denx,ma5d4evk", "atmel,sama5d4", "atmel,sama5";
+
+	chosen {
+		stdout-path = "serial3:115200n8";
+	};
+
+	ahb {
+		usb0: gadget@400000 {
+			atmel,vbus-gpio = <&pioE 31 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usba_vbus>;
+			status = "okay";
+		};
+
+		usb1: ohci@500000 {
+			num-ports = <3>;
+			atmel,vbus-gpio = <0
+					   &pioE 11 GPIO_ACTIVE_LOW
+					   &pioE 14 GPIO_ACTIVE_LOW
+					  >;
+			status = "okay";
+		};
+
+		usb2: ehci@600000 {
+			status = "okay";
+		};
+
+		apb {
+			hlcdc: hlcdc@f0000000 {
+				status = "okay";
+
+				hlcdc-display-controller {
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_lcd_base &pinctrl_lcd_rgb888>;
+
+					port@0 {
+						hlcdc_panel_output: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&panel_input>;
+						};
+					};
+				};
+
+			};
+
+			macb0: ethernet@f8020000 {
+				phy-mode = "rmii";
+				status = "okay";
+
+				phy0: ethernet-phy@0 {
+					reg = <0>;
+				};
+			};
+
+			usart0: serial@f802c000 {
+				status = "okay";
+			};
+
+			usart1: serial@f8030000 {
+				status = "okay";
+			};
+
+			mmc1: mmc@fc000000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_mmc1_clk_cmd_dat0 &pinctrl_mmc1_dat1_3 &pinctrl_mmc1_cd>;
+				vmmc-supply = <&vcc_mmc1_reg>;
+				vqmmc-supply = <&vcc_3v3_reg>;
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioE 5 0>;
+				};
+			};
+
+			adc0: adc@fc034000 {
+				atmel,adc-ts-wires = <4>;
+				atmel,adc-ts-pressure-threshold = <10000>;
+			};
+
+
+			pinctrl@fc06a000 {
+				board {
+					pinctrl_mmc1_cd: mmc1_cd {
+						atmel,pins = <AT91_PIOE 5 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+					pinctrl_usba_vbus: usba_vbus {
+						atmel,pins =
+							<AT91_PIOE 31 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;
+					};
+				};
+			};
+		};
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&hlcdc_pwm 0 50000 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+		status = "okay";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		user1 {
+			label = "user1";
+			gpios = <&pioD 28 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		user2 {
+			label = "user2";
+			gpios = <&pioD 29 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		user3 {
+			label = "user3";
+			gpios = <&pioD 30 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	panel: panel {
+		/* Actually Ampire 800480R2 */
+		compatible = "foxlink,fl500wvr00-a0t", "simple-panel";
+		backlight = <&backlight>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			panel_input: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&hlcdc_panel_output>;
+			};
+		};
+	};
+
+	vcc_mmc1_reg: fixedregulator_mmc1 {
+		compatible = "regulator-fixed";
+		gpio = <&pioE 17 GPIO_ACTIVE_LOW>;
+		regulator-name = "VDD MCI1";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_reg>;
+	};
+};

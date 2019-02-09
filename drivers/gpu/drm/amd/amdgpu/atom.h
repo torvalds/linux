@@ -32,6 +32,7 @@
 #define ATOM_ATI_MAGIC_PTR	0x30
 #define ATOM_ATI_MAGIC		" 761295520"
 #define ATOM_ROM_TABLE_PTR	0x48
+#define ATOM_ROM_PART_NUMBER_PTR	0x6E
 
 #define ATOM_ROM_MAGIC		"ATOM"
 #define ATOM_ROM_MAGIC_PTR	4
@@ -92,7 +93,7 @@
 #define ATOM_WS_AND_MASK	0x45
 #define ATOM_WS_FB_WINDOW	0x46
 #define ATOM_WS_ATTRIBUTES	0x47
-#define ATOM_WS_REGPTR  	0x48
+#define ATOM_WS_REGPTR		0x48
 
 #define ATOM_IIO_NOP		0
 #define ATOM_IIO_START		1
@@ -139,6 +140,7 @@ struct atom_context {
 	int io_mode;
 	uint32_t *scratch;
 	int scratch_size_bytes;
+	char vbios_version[20];
 };
 
 extern int amdgpu_atom_debug;
@@ -151,7 +153,6 @@ bool amdgpu_atom_parse_data_header(struct atom_context *ctx, int index, uint16_t
 			    uint8_t *frev, uint8_t *crev, uint16_t *data_start);
 bool amdgpu_atom_parse_cmd_header(struct atom_context *ctx, int index,
 			   uint8_t *frev, uint8_t *crev);
-int amdgpu_atom_allocate_fb_scratch(struct atom_context *ctx);
 #include "atom-types.h"
 #include "atombios.h"
 #include "ObjectID.h"

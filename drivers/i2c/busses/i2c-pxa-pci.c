@@ -1,12 +1,16 @@
 /*
+ * CE4100 PCI-I2C glue code for PXA's driver
+ * Author: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+ * License: GPL v2
+ *
  * The CE4100's I2C device is more or less the same one as found on PXA.
  * It does not support slave mode, the register slightly moved. This PCI
  * device provides three bars, every contains a single I2C controller.
  */
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
@@ -134,35 +138,17 @@ err_mem:
 	return ret;
 }
 
-static void ce4100_i2c_remove(struct pci_dev *dev)
-{
-	struct ce4100_devices *sds;
-	unsigned int i;
-
-	sds = pci_get_drvdata(dev);
-
-	for (i = 0; i < ARRAY_SIZE(sds->pdev); i++)
-		platform_device_unregister(sds->pdev[i]);
-
-	pci_disable_device(dev);
-	kfree(sds);
-}
-
 static const struct pci_device_id ce4100_i2c_devices[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x2e68)},
 	{ },
 };
-MODULE_DEVICE_TABLE(pci, ce4100_i2c_devices);
 
 static struct pci_driver ce4100_i2c_driver = {
+	.driver = {
+		.suppress_bind_attrs = true,
+	},
 	.name           = "ce4100_i2c",
 	.id_table       = ce4100_i2c_devices,
 	.probe          = ce4100_i2c_probe,
-	.remove         = ce4100_i2c_remove,
 };
-
-module_pci_driver(ce4100_i2c_driver);
-
-MODULE_DESCRIPTION("CE4100 PCI-I2C glue code for PXA's driver");
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Sebastian Andrzej Siewior <bigeasy@linutronix.de>");
+builtin_pci_driver(ce4100_i2c_driver);

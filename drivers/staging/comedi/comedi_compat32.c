@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/comedi_compat32.c
  * 32-bit ioctl compatibility for 64-bit comedi kernel module.
@@ -7,16 +8,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2007 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/uaccess.h>
@@ -43,7 +34,7 @@
 struct comedi32_chaninfo_struct {
 	unsigned int subdev;
 	compat_uptr_t maxdata_list;	/* 32-bit 'unsigned int *' */
-	compat_uptr_t flaglist;		/* 32-bit 'unsigned int *' */
+	compat_uptr_t flaglist;	/* 32-bit 'unsigned int *' */
 	compat_uptr_t rangelist;	/* 32-bit 'unsigned int *' */
 	unsigned int unused[4];
 };
@@ -66,16 +57,16 @@ struct comedi32_cmd_struct {
 	unsigned int scan_end_arg;
 	unsigned int stop_src;
 	unsigned int stop_arg;
-	compat_uptr_t chanlist;		/* 32-bit 'unsigned int *' */
+	compat_uptr_t chanlist;	/* 32-bit 'unsigned int *' */
 	unsigned int chanlist_len;
-	compat_uptr_t data;		/* 32-bit 'short *' */
+	compat_uptr_t data;	/* 32-bit 'short *' */
 	unsigned int data_len;
 };
 
 struct comedi32_insn_struct {
 	unsigned int insn;
 	unsigned int n;
-	compat_uptr_t data;		/* 32-bit 'unsigned int *' */
+	compat_uptr_t data;	/* 32-bit 'unsigned int *' */
 	unsigned int subdev;
 	unsigned int chanspec;
 	unsigned int unused[3];
@@ -83,7 +74,7 @@ struct comedi32_insn_struct {
 
 struct comedi32_insnlist_struct {
 	unsigned int n_insns;
-	compat_uptr_t insns;		/* 32-bit 'struct comedi_insn *' */
+	compat_uptr_t insns;	/* 32-bit 'struct comedi_insn *' */
 };
 
 /* Handle translated ioctl. */
@@ -203,7 +194,7 @@ static int get_compat_cmd(struct comedi_cmd __user *cmd,
 	err |= __put_user(temp.uint, &cmd->stop_arg);
 	err |= __get_user(temp.uptr, &cmd32->chanlist);
 	err |= __put_user((unsigned int __force *)compat_ptr(temp.uptr),
-			&cmd->chanlist);
+			  &cmd->chanlist);
 	err |= __get_user(temp.uint, &cmd32->chanlist_len);
 	err |= __put_user(temp.uint, &cmd->chanlist_len);
 	err |= __get_user(temp.uptr, &cmd32->data);

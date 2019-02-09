@@ -1,17 +1,15 @@
-/* Speyside modules for Cragganmore - board data probing
- *
- * Copyright 2011 Wolfson Microelectronics plc
- *	Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Speyside modules for Cragganmore - board data probing
+//
+// Copyright 2011 Wolfson Microelectronics plc
+//	Mark Brown <broonie@opensource.wolfsonmicro.com>
 
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/gpio/machine.h>
 
 #include <linux/mfd/wm831x/irq.h>
 #include <linux/mfd/wm831x/gpio.h>
@@ -28,6 +26,9 @@
 #include <sound/wm9081.h>
 
 #include <linux/platform_data/spi-s3c64xx.h>
+
+#include <plat/cpu.h>
+#include <mach/irqs.h>
 
 #include "crag6410.h"
 
@@ -206,7 +207,6 @@ static const struct i2c_board_info wm1277_devs[] = {
 };
 
 static struct arizona_pdata wm5102_reva_pdata = {
-	.ldoena = S3C64XX_GPN(7),
 	.gpio_base = CODEC_GPIO_BASE,
 	.irq_flags = IRQF_TRIGGER_HIGH,
 	.micd_pol_gpio = CODEC_GPIO_BASE + 4,
@@ -235,8 +235,16 @@ static struct spi_board_info wm5102_reva_spi_devs[] = {
 	},
 };
 
+static struct gpiod_lookup_table wm5102_reva_gpiod_table = {
+	.dev_id = "spi0.1", /* SPI device name */
+	.table = {
+		GPIO_LOOKUP("GPION", 7,
+			    "wlf,ldoena", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct arizona_pdata wm5102_pdata = {
-	.ldoena = S3C64XX_GPN(7),
 	.gpio_base = CODEC_GPIO_BASE,
 	.irq_flags = IRQF_TRIGGER_HIGH,
 	.micd_pol_gpio = CODEC_GPIO_BASE + 2,
@@ -257,6 +265,15 @@ static struct spi_board_info wm5102_spi_devs[] = {
 				  WM831X_IRQ_GPIO_2,
 		.controller_data = &codec_spi_csinfo,
 		.platform_data = &wm5102_pdata,
+	},
+};
+
+static struct gpiod_lookup_table wm5102_gpiod_table = {
+	.dev_id = "spi0.1", /* SPI device name */
+	.table = {
+		GPIO_LOOKUP("GPION", 7,
+			    "wlf,ldo1ena", GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -362,6 +379,9 @@ static int wlf_gf_module_probe(struct i2c_client *i2c,
 					    rev == gf_mods[i].rev))
 			break;
 
+	gpiod_add_lookup_table(&wm5102_reva_gpiod_table);
+	gpiod_add_lookup_table(&wm5102_gpiod_table);
+
 	if (i < ARRAY_SIZE(gf_mods)) {
 		dev_info(&i2c->dev, "%s revision %d\n",
 			 gf_mods[i].name, rev + 1);
@@ -390,8 +410,7 @@ static const struct i2c_device_id wlf_gf_module_id[] = {
 
 static struct i2c_driver wlf_gf_module_driver = {
 	.driver = {
-		.name = "wlf-gf-module",
-		.owner = THIS_MODULE,
+		.name = "wlf-gf-module"
 	},
 	.probe = wlf_gf_module_probe,
 	.id_table = wlf_gf_module_id,
@@ -399,6 +418,9 @@ static struct i2c_driver wlf_gf_module_driver = {
 
 static int __init wlf_gf_module_register(void)
 {
+	if (!soc_is_s3c64xx())
+		return 0;
+
 	return i2c_add_driver(&wlf_gf_module_driver);
 }
 device_initcall(wlf_gf_module_register);

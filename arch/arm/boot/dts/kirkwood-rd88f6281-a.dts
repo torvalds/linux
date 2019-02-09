@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Marvell RD88F6181 A Board descrition
  *
  * Andrew Lunn <andrew@lunn.ch>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * This file contains the definitions for the board with the A0 or
  * higher stepping of the SoC. The ethernet switch does not have a
@@ -19,11 +16,6 @@
 	model = "Marvell RD88f6281 Reference design, with A0 or higher SoC";
 	compatible = "marvell,rd88f6281-a", "marvell,rd88f6281","marvell,kirkwood-88f6281", "marvell,kirkwood";
 
-	dsa@0 {
-		switch@0 {
-			reg = <10 0>;	 /* MDIO address 10, switch 0 in tree */
-		};
-	};
 };
 
 &mdio {
@@ -32,6 +24,10 @@
 	ethphy1: ethernet-phy@11 {
 		 reg = <11>;
 	};
+};
+
+&switch {
+	reg = <10>;
 };
 
 &eth1 {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Glue code for the ISP1760 driver and bus
  * Currently there is support for
@@ -21,11 +22,11 @@
 #include "isp1760-core.h"
 #include "isp1760-regs.h"
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 #include <linux/pci.h>
 #endif
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 static int isp1761_pci_init(struct pci_dev *dev)
 {
 	resource_size_t mem_start;
@@ -163,7 +164,7 @@ static void isp1761_pci_shutdown(struct pci_dev *dev)
 	printk(KERN_ERR "ips1761_pci_shutdown\n");
 }
 
-static const struct pci_device_id isp1760_plx [] = {
+static const struct pci_device_id isp1760_plx[] = {
 	{
 		.class          = PCI_CLASS_BRIDGE_OTHER << 8,
 		.class_mask     = ~0,
@@ -197,7 +198,7 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
-		pr_warning("isp1760: IRQ resource not available\n");
+		pr_warn("isp1760: IRQ resource not available\n");
 		return -ENODEV;
 	}
 	irqflags = irq_res->flags & IRQF_TRIGGER_MASK;
@@ -286,7 +287,7 @@ static int __init isp1760_init(void)
 	ret = platform_driver_register(&isp1760_plat_driver);
 	if (!ret)
 		any_ret = 0;
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	ret = pci_register_driver(&isp1761_pci_driver);
 	if (!ret)
 		any_ret = 0;
@@ -301,7 +302,7 @@ module_init(isp1760_init);
 static void __exit isp1760_exit(void)
 {
 	platform_driver_unregister(&isp1760_plat_driver);
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	pci_unregister_driver(&isp1761_pci_driver);
 #endif
 	isp1760_deinit_kmem_cache();

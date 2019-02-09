@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/m68k/kernel/process.c
  *
@@ -13,6 +14,9 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -27,7 +31,7 @@
 #include <linux/mqueue.h>
 #include <linux/rcupdate.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/setup.h>
@@ -36,20 +40,6 @@
 
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
-
-
-/*
- * Return saved PC from a blocked thread
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	struct switch_stack *sw = (struct switch_stack *)tsk->thread.ksp;
-	/* Check whether the thread is blocked in resume() */
-	if (in_sched_functions(sw->retpc))
-		return ((unsigned long *)sw->a6)[1];
-	else
-		return sw->retpc;
-}
 
 void arch_cpu_idle(void)
 {
@@ -87,17 +77,17 @@ EXPORT_SYMBOL(pm_power_off);
 
 void show_regs(struct pt_regs * regs)
 {
-	printk("\n");
-	printk("Format %02x  Vector: %04x  PC: %08lx  Status: %04x    %s\n",
-	       regs->format, regs->vector, regs->pc, regs->sr, print_tainted());
-	printk("ORIG_D0: %08lx  D0: %08lx  A2: %08lx  A1: %08lx\n",
-	       regs->orig_d0, regs->d0, regs->a2, regs->a1);
-	printk("A0: %08lx  D5: %08lx  D4: %08lx\n",
-	       regs->a0, regs->d5, regs->d4);
-	printk("D3: %08lx  D2: %08lx  D1: %08lx\n",
-	       regs->d3, regs->d2, regs->d1);
+	pr_info("Format %02x  Vector: %04x  PC: %08lx  Status: %04x    %s\n",
+		regs->format, regs->vector, regs->pc, regs->sr,
+		print_tainted());
+	pr_info("ORIG_D0: %08lx  D0: %08lx  A2: %08lx  A1: %08lx\n",
+		regs->orig_d0, regs->d0, regs->a2, regs->a1);
+	pr_info("A0: %08lx  D5: %08lx  D4: %08lx\n", regs->a0, regs->d5,
+		regs->d4);
+	pr_info("D3: %08lx  D2: %08lx  D1: %08lx\n", regs->d3, regs->d2,
+		regs->d1);
 	if (!(regs->sr & PS_S))
-		printk("USP: %08lx\n", rdusp());
+		pr_info("USP: %08lx\n", rdusp());
 }
 
 void flush_thread(void)
@@ -203,11 +193,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 }
 
 /* Fill in the fpu structure for a core dump.  */
-#ifdef CONFIG_FPU
 int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 {
-	char fpustate[216];
-
 	if (FPU_IS_EMU) {
 		int i;
 
@@ -222,37 +209,40 @@ int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 		return 1;
 	}
 
-	/* First dump the fpu context to avoid protocol violation.  */
-	asm volatile ("fsave %0" :: "m" (fpustate[0]) : "memory");
-	if (!CPU_IS_060 ? !fpustate[0] : !fpustate[2])
-		return 0;
+	if (IS_ENABLED(CONFIG_FPU)) {
+		char fpustate[216];
 
-	if (CPU_IS_COLDFIRE) {
-		asm volatile ("fmovel %/fpiar,%0\n\t"
-			      "fmovel %/fpcr,%1\n\t"
-			      "fmovel %/fpsr,%2\n\t"
-			      "fmovemd %/fp0-%/fp7,%3"
-			      :
-			      : "m" (fpu->fpcntl[0]),
-				"m" (fpu->fpcntl[1]),
-				"m" (fpu->fpcntl[2]),
-				"m" (fpu->fpregs[0])
-			      : "memory");
-	} else {
-		asm volatile ("fmovem %/fpiar/%/fpcr/%/fpsr,%0"
-			      :
-			      : "m" (fpu->fpcntl[0])
-			      : "memory");
-		asm volatile ("fmovemx %/fp0-%/fp7,%0"
-			      :
-			      : "m" (fpu->fpregs[0])
-			      : "memory");
+		/* First dump the fpu context to avoid protocol violation.  */
+		asm volatile ("fsave %0" :: "m" (fpustate[0]) : "memory");
+		if (!CPU_IS_060 ? !fpustate[0] : !fpustate[2])
+			return 0;
+
+		if (CPU_IS_COLDFIRE) {
+			asm volatile ("fmovel %/fpiar,%0\n\t"
+				      "fmovel %/fpcr,%1\n\t"
+				      "fmovel %/fpsr,%2\n\t"
+				      "fmovemd %/fp0-%/fp7,%3"
+				      :
+				      : "m" (fpu->fpcntl[0]),
+					"m" (fpu->fpcntl[1]),
+					"m" (fpu->fpcntl[2]),
+					"m" (fpu->fpregs[0])
+				      : "memory");
+		} else {
+			asm volatile ("fmovem %/fpiar/%/fpcr/%/fpsr,%0"
+				      :
+				      : "m" (fpu->fpcntl[0])
+				      : "memory");
+			asm volatile ("fmovemx %/fp0-%/fp7,%0"
+				      :
+				      : "m" (fpu->fpregs[0])
+				      : "memory");
+		}
 	}
 
 	return 1;
 }
 EXPORT_SYMBOL(dump_fpu);
-#endif /* CONFIG_FPU */
 
 unsigned long get_wchan(struct task_struct *p)
 {

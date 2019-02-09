@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 #ifdef __KERNEL__
 # include <linux/slab.h>
 # include <linux/crush/crush.h>
+void clear_choose_args(struct crush_map *c);
 #else
 # include "crush_compat.h"
 # include "crush.h"
@@ -45,7 +47,6 @@ int crush_get_bucket_item_weight(const struct crush_bucket *b, int p)
 
 void crush_destroy_bucket_uniform(struct crush_bucket_uniform *b)
 {
-	kfree(b->h.perm);
 	kfree(b->h.items);
 	kfree(b);
 }
@@ -54,14 +55,12 @@ void crush_destroy_bucket_list(struct crush_bucket_list *b)
 {
 	kfree(b->item_weights);
 	kfree(b->sum_weights);
-	kfree(b->h.perm);
 	kfree(b->h.items);
 	kfree(b);
 }
 
 void crush_destroy_bucket_tree(struct crush_bucket_tree *b)
 {
-	kfree(b->h.perm);
 	kfree(b->h.items);
 	kfree(b->node_weights);
 	kfree(b);
@@ -71,7 +70,6 @@ void crush_destroy_bucket_straw(struct crush_bucket_straw *b)
 {
 	kfree(b->straws);
 	kfree(b->item_weights);
-	kfree(b->h.perm);
 	kfree(b->h.items);
 	kfree(b);
 }
@@ -79,7 +77,6 @@ void crush_destroy_bucket_straw(struct crush_bucket_straw *b)
 void crush_destroy_bucket_straw2(struct crush_bucket_straw2 *b)
 {
 	kfree(b->item_weights);
-	kfree(b->h.perm);
 	kfree(b->h.items);
 	kfree(b);
 }
@@ -132,6 +129,8 @@ void crush_destroy(struct crush_map *map)
 
 #ifndef __KERNEL__
 	kfree(map->choose_tries);
+#else
+	clear_choose_args(map);
 #endif
 	kfree(map);
 }

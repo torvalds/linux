@@ -196,7 +196,7 @@ static int update_backups(struct inode * inode, u32 clusters, char *data)
 	for (i = 0; i < OCFS2_MAX_BACKUP_SUPERBLOCKS; i++) {
 		blkno = ocfs2_backup_super_blkno(inode->i_sb, i);
 		cluster = ocfs2_blocks_to_clusters(inode->i_sb, blkno);
-		if (cluster > clusters)
+		if (cluster >= clusters)
 			break;
 
 		ret = ocfs2_read_blocks_sync(osb, blkno, 1, &backup);
@@ -301,7 +301,7 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 		goto out;
 	}
 
-	mutex_lock(&main_bm_inode->i_mutex);
+	inode_lock(main_bm_inode);
 
 	ret = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 1);
 	if (ret < 0) {
@@ -375,7 +375,7 @@ out_unlock:
 	ocfs2_inode_unlock(main_bm_inode, 1);
 
 out_mutex:
-	mutex_unlock(&main_bm_inode->i_mutex);
+	inode_unlock(main_bm_inode);
 	iput(main_bm_inode);
 
 out:
@@ -486,7 +486,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 		goto out;
 	}
 
-	mutex_lock(&main_bm_inode->i_mutex);
+	inode_lock(main_bm_inode);
 
 	ret = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 1);
 	if (ret < 0) {
@@ -590,7 +590,7 @@ out_unlock:
 	ocfs2_inode_unlock(main_bm_inode, 1);
 
 out_mutex:
-	mutex_unlock(&main_bm_inode->i_mutex);
+	inode_unlock(main_bm_inode);
 	iput(main_bm_inode);
 
 out:

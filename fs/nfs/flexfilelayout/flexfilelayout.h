@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * NFSv4 flexfile layout driver data structures.
  *
@@ -10,8 +11,10 @@
 #define FS_NFS_NFS4FLEXFILELAYOUT_H
 
 #define FF_FLAGS_NO_LAYOUTCOMMIT 1
-#define FF_FLAGS_NO_IO_THRU_MDS 2
+#define FF_FLAGS_NO_IO_THRU_MDS  2
+#define FF_FLAGS_NO_READ_IO      4
 
+#include <linux/refcount.h>
 #include "../pnfs.h"
 
 /* XXX: Let's filter out insanely large mirror count for now to avoid oom
@@ -20,6 +23,7 @@
 
 /* LAYOUTSTATS report interval in ms */
 #define FF_LAYOUTSTATS_REPORT_INTERVAL (60000L)
+#define FF_LAYOUTSTATS_MAXDEV 4
 
 struct nfs4_ff_ds_version {
 	u32				version;
@@ -72,20 +76,23 @@ struct nfs4_ff_layout_mirror {
 	struct list_head		mirrors;
 	u32				ds_count;
 	u32				efficiency;
+	struct nfs4_deviceid		devid;
 	struct nfs4_ff_layout_ds	*mirror_ds;
 	u32				fh_versions_cnt;
 	struct nfs_fh			*fh_versions;
 	nfs4_stateid			stateid;
-	u32				uid;
-	u32				gid;
-	struct rpc_cred			*cred;
-	atomic_t			ref;
+	struct rpc_cred	__rcu		*ro_cred;
+	struct rpc_cred	__rcu		*rw_cred;
+	refcount_t			ref;
 	spinlock_t			lock;
+	unsigned long			flags;
 	struct nfs4_ff_layoutstat	read_stat;
 	struct nfs4_ff_layoutstat	write_stat;
 	ktime_t				start_time;
-	ktime_t				last_report_time;
+	u32				report_interval;
 };
+
+#define NFS4_FF_MIRROR_STAT_AVAIL	(0)
 
 struct nfs4_ff_layout_segment {
 	struct pnfs_layout_segment	generic_hdr;
@@ -100,6 +107,15 @@ struct nfs4_flexfile_layout {
 	struct pnfs_ds_commit_info commit_info;
 	struct list_head	mirrors;
 	struct list_head	error_list; /* nfs4_ff_layout_ds_err */
+	ktime_t			last_report_time; /* Layoutstat report times */
+};
+
+struct nfs4_flexfile_layoutreturn_args {
+	struct list_head errors;
+	struct nfs42_layoutstat_devinfo devinfo[FF_LAYOUTSTATS_MAXDEV];
+	unsigned int num_errors;
+	unsigned int num_dev;
+	struct page *pages[1];
 };
 
 static inline struct nfs4_flexfile_layout *
@@ -153,9 +169,27 @@ ff_layout_no_fallback_to_mds(struct pnfs_layout_segment *lseg)
 }
 
 static inline bool
+ff_layout_no_read_on_rw(struct pnfs_layout_segment *lseg)
+{
+	return FF_LAYOUT_LSEG(lseg)->flags & FF_FLAGS_NO_READ_IO;
+}
+
+static inline bool
 ff_layout_test_devid_unavailable(struct nfs4_deviceid_node *node)
 {
-	return nfs4_test_deviceid_unavailable(node);
+	/*
+	 * Flexfiles should never mark a DS unavailable, but if it does
+	 * print a (ratelimited) warning as this can affect performance.
+	 */
+	if (nfs4_test_deviceid_unavailable(node)) {
+		u32 *p = (u32 *)node->deviceid.data;
+
+		pr_warn_ratelimited("NFS: flexfiles layout referencing an "
+				"unavailable device [%x%x%x%x]\n",
+				p[0], p[1], p[2], p[3]);
+		return true;
+	}
+	return false;
 }
 
 static inline int
@@ -173,11 +207,18 @@ int ff_layout_track_ds_error(struct nfs4_flexfile_layout *flo,
 			     struct nfs4_ff_layout_mirror *mirror, u64 offset,
 			     u64 length, int status, enum nfs_opnum4 opnum,
 			     gfp_t gfp_flags);
-int ff_layout_encode_ds_ioerr(struct nfs4_flexfile_layout *flo,
-			      struct xdr_stream *xdr, int *count,
-			      const struct pnfs_layout_range *range);
+int ff_layout_encode_ds_ioerr(struct xdr_stream *xdr, const struct list_head *head);
+void ff_layout_free_ds_ioerr(struct list_head *head);
+unsigned int ff_layout_fetch_ds_ioerr(struct pnfs_layout_hdr *lo,
+		const struct pnfs_layout_range *range,
+		struct list_head *head,
+		unsigned int maxnum);
 struct nfs_fh *
 nfs4_ff_layout_select_ds_fh(struct pnfs_layout_segment *lseg, u32 mirror_idx);
+int
+nfs4_ff_layout_select_ds_stateid(struct pnfs_layout_segment *lseg,
+				u32 mirror_idx,
+				nfs4_stateid *stateid);
 
 struct nfs4_pnfs_ds *
 nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
@@ -190,5 +231,7 @@ nfs4_ff_find_or_create_ds_client(struct pnfs_layout_segment *lseg,
 				 struct inode *inode);
 struct rpc_cred *ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg,
 				       u32 ds_idx, struct rpc_cred *mdscred);
-bool ff_layout_has_available_ds(struct pnfs_layout_segment *lseg);
+bool ff_layout_avoid_mds_available_ds(struct pnfs_layout_segment *lseg);
+bool ff_layout_avoid_read_on_rw(struct pnfs_layout_segment *lseg);
+
 #endif /* FS_NFS_NFS4FLEXFILELAYOUT_H */

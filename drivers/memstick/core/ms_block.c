@@ -1201,7 +1201,8 @@ static int msb_read_boot_blocks(struct msb_data *msb)
 	dbg_verbose("Start of a scan for the boot blocks");
 
 	if (!msb->boot_page) {
-		page = kmalloc(sizeof(struct ms_boot_page)*2, GFP_KERNEL);
+		page = kmalloc_array(2, sizeof(struct ms_boot_page),
+				     GFP_KERNEL);
 		if (!page)
 			return -ENOMEM;
 
@@ -1220,7 +1221,7 @@ static int msb_read_boot_blocks(struct msb_data *msb)
 		}
 
 		if (extra.management_flag & MEMSTICK_MANAGEMENT_SYSFLG) {
-			dbg("managment flag doesn't indicate boot block %d",
+			dbg("management flag doesn't indicate boot block %d",
 									pba);
 			continue;
 		}
@@ -1341,7 +1342,8 @@ static int msb_ftl_initialize(struct msb_data *msb)
 	msb->used_blocks_bitmap = kzalloc(msb->block_count / 8, GFP_KERNEL);
 	msb->erased_blocks_bitmap = kzalloc(msb->block_count / 8, GFP_KERNEL);
 	msb->lba_to_pba_table =
-		kmalloc(msb->logical_block_count * sizeof(u16), GFP_KERNEL);
+		kmalloc_array(msb->logical_block_count, sizeof(u16),
+			      GFP_KERNEL);
 
 	if (!msb->used_blocks_bitmap || !msb->lba_to_pba_table ||
 						!msb->erased_blocks_bitmap) {
@@ -1367,7 +1369,7 @@ static int msb_ftl_initialize(struct msb_data *msb)
 static int msb_ftl_scan(struct msb_data *msb)
 {
 	u16 pba, lba, other_block;
-	u8 overwrite_flag, managment_flag, other_overwrite_flag;
+	u8 overwrite_flag, management_flag, other_overwrite_flag;
 	int error;
 	struct ms_extra_data_register extra;
 	u8 *overwrite_flags = kzalloc(msb->block_count, GFP_KERNEL);
@@ -1409,7 +1411,7 @@ static int msb_ftl_scan(struct msb_data *msb)
 		}
 
 		lba = be16_to_cpu(extra.logical_address);
-		managment_flag = extra.management_flag;
+		management_flag = extra.management_flag;
 		overwrite_flag = extra.overwrite_flag;
 		overwrite_flags[pba] = overwrite_flag;
 
@@ -1421,16 +1423,16 @@ static int msb_ftl_scan(struct msb_data *msb)
 		}
 
 		/* Skip system/drm blocks */
-		if ((managment_flag & MEMSTICK_MANAGMENT_FLAG_NORMAL) !=
-			MEMSTICK_MANAGMENT_FLAG_NORMAL) {
-			dbg("pba %05d -> [reserved managment flag %02x]",
-							pba, managment_flag);
+		if ((management_flag & MEMSTICK_MANAGEMENT_FLAG_NORMAL) !=
+			MEMSTICK_MANAGEMENT_FLAG_NORMAL) {
+			dbg("pba %05d -> [reserved management flag %02x]",
+							pba, management_flag);
 			msb_mark_block_used(msb, pba);
 			continue;
 		}
 
 		/* Erase temporary tables */
-		if (!(managment_flag & MEMSTICK_MANAGEMENT_ATFLG)) {
+		if (!(management_flag & MEMSTICK_MANAGEMENT_ATFLG)) {
 			dbg("pba %05d -> [temp table] - will erase", pba);
 
 			msb_mark_block_used(msb, pba);
@@ -1492,9 +1494,9 @@ static int msb_ftl_scan(struct msb_data *msb)
 	return 0;
 }
 
-static void msb_cache_flush_timer(unsigned long data)
+static void msb_cache_flush_timer(struct timer_list *t)
 {
-	struct msb_data *msb = (struct msb_data *)data;
+	struct msb_data *msb = from_timer(msb, t, cache_flush_timer);
 	msb->need_flush_cache = true;
 	queue_work(msb->io_queue, &msb->io_work);
 }
@@ -1514,8 +1516,7 @@ static void msb_cache_discard(struct msb_data *msb)
 
 static int msb_cache_init(struct msb_data *msb)
 {
-	setup_timer(&msb->cache_flush_timer, msb_cache_flush_timer,
-		(unsigned long)msb);
+	timer_setup(&msb->cache_flush_timer, msb_cache_flush_timer, 0);
 
 	if (!msb->cache)
 		msb->cache = kzalloc(msb->block_size, GFP_KERNEL);
@@ -1909,7 +1910,7 @@ static void msb_io_work(struct work_struct *work)
 		lba = blk_rq_pos(msb->req);
 
 		sector_div(lba, msb->page_size / 512);
-		page = do_div(lba, msb->pages_in_block);
+		page = sector_div(lba, msb->pages_in_block);
 
 		if (rq_data_dir(msb->req) == READ)
 			error = msb_do_read_request(msb, lba, page, sg,
@@ -1921,12 +1922,13 @@ static void msb_io_work(struct work_struct *work)
 		spin_lock_irqsave(&msb->q_lock, flags);
 
 		if (len)
-			if (!__blk_end_request(msb->req, 0, len))
+			if (!__blk_end_request(msb->req, BLK_STS_OK, len))
 				msb->req = NULL;
 
 		if (error && msb->req) {
+			blk_status_t ret = errno_to_blk_status(error);
 			dbg_verbose("IO: ending one sector of the request with error");
-			if (!__blk_end_request(msb->req, error, msb->page_size))
+			if (!__blk_end_request(msb->req, ret, msb->page_size))
 				msb->req = NULL;
 		}
 
@@ -2000,17 +2002,6 @@ static int msb_bd_getgeo(struct block_device *bdev,
 	return 0;
 }
 
-static int msb_prepare_req(struct request_queue *q, struct request *req)
-{
-	if (req->cmd_type != REQ_TYPE_FS &&
-				req->cmd_type != REQ_TYPE_BLOCK_PC) {
-		blk_dump_rq_flags(req, "MS unsupported request");
-		return BLKPREP_KILL;
-	}
-	req->cmd_flags |= REQ_DONTPREP;
-	return BLKPREP_OK;
-}
-
 static void msb_submit_req(struct request_queue *q)
 {
 	struct memstick_dev *card = q->queuedata;
@@ -2025,7 +2016,7 @@ static void msb_submit_req(struct request_queue *q)
 		WARN_ON(!msb->io_queue_stopped);
 
 		while ((req = blk_fetch_request(q)) != NULL)
-			__blk_end_request_all(req, -ENODEV);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 		return;
 	}
 
@@ -2105,13 +2096,8 @@ static const struct block_device_operations msb_bdops = {
 static int msb_init_disk(struct memstick_dev *card)
 {
 	struct msb_data *msb = memstick_get_drvdata(card);
-	struct memstick_host *host = card->host;
 	int rc;
-	u64 limit = BLK_BOUNCE_HIGH;
 	unsigned long capacity;
-
-	if (host->dev.dma_mask && *(host->dev.dma_mask))
-		limit = *(host->dev.dma_mask);
 
 	mutex_lock(&msb_disk_lock);
 	msb->disk_id = idr_alloc(&msb_disk_idr, card, 0, 256, GFP_KERNEL);
@@ -2133,9 +2119,7 @@ static int msb_init_disk(struct memstick_dev *card)
 	}
 
 	msb->queue->queuedata = card;
-	blk_queue_prep_rq(msb->queue, msb_prepare_req);
 
-	blk_queue_bounce_limit(msb->queue, limit);
 	blk_queue_max_hw_sectors(msb->queue, MS_BLOCK_MAX_PAGES);
 	blk_queue_max_segments(msb->queue, MS_BLOCK_MAX_SEGS);
 	blk_queue_max_segment_size(msb->queue,
@@ -2146,7 +2130,6 @@ static int msb_init_disk(struct memstick_dev *card)
 	msb->disk->fops = &msb_bdops;
 	msb->disk->private_data = msb;
 	msb->disk->queue = msb->queue;
-	msb->disk->driverfs_dev = &card->dev;
 	msb->disk->flags |= GENHD_FL_EXT_DEVT;
 
 	capacity = msb->pages_in_block * msb->logical_block_count;
@@ -2163,7 +2146,7 @@ static int msb_init_disk(struct memstick_dev *card)
 		set_disk_ro(msb->disk, 1);
 
 	msb_start(card);
-	add_disk(msb->disk);
+	device_add_disk(&card->dev, msb->disk);
 	dbg("Disk added");
 	return 0;
 
@@ -2340,23 +2323,11 @@ static struct memstick_driver msb_driver = {
 	.resume   = msb_resume
 };
 
-static int major;
-
 static int __init msb_init(void)
 {
-	int rc = register_blkdev(0, DRIVER_NAME);
-
-	if (rc < 0) {
-		pr_err("failed to register major (error %d)\n", rc);
-		return rc;
-	}
-
-	major = rc;
-	rc = memstick_register_driver(&msb_driver);
-	if (rc) {
-		unregister_blkdev(major, DRIVER_NAME);
+	int rc = memstick_register_driver(&msb_driver);
+	if (rc)
 		pr_err("failed to register memstick driver (error %d)\n", rc);
-	}
 
 	return rc;
 }
@@ -2364,7 +2335,6 @@ static int __init msb_init(void)
 static void __exit msb_exit(void)
 {
 	memstick_unregister_driver(&msb_driver);
-	unregister_blkdev(major, DRIVER_NAME);
 	idr_destroy(&msb_disk_idr);
 }
 

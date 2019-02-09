@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * zero.c -- Gadget Zero, for USB development
  *
  * Copyright (C) 2003-2008 David Brownell
  * Copyright (C) 2008 by Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 /*
@@ -68,6 +64,8 @@ static struct usb_zero_options gzero_options = {
 	.isoc_maxpacket = GZERO_ISOC_MAXPACKET,
 	.bulk_buflen = GZERO_BULK_BUFLEN,
 	.qlen = GZERO_QLEN,
+	.ss_bulk_qlen = GZERO_SS_BULK_QLEN,
+	.ss_iso_qlen = GZERO_SS_ISO_QLEN,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -113,7 +111,7 @@ static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		cpu_to_le16(0x0200),
+	/* .bcdUSB = DYNAMIC */
 	.bDeviceClass =		USB_CLASS_VENDOR_SPEC,
 
 	.idVendor =		cpu_to_le16(DRIVER_VENDOR_NUM),
@@ -152,10 +150,11 @@ static struct usb_gadget_strings *dev_strings[] = {
 /*-------------------------------------------------------------------------*/
 
 static struct timer_list	autoresume_timer;
+static struct usb_composite_dev *autoresume_cdev;
 
-static void zero_autoresume(unsigned long _c)
+static void zero_autoresume(struct timer_list *unused)
 {
-	struct usb_composite_dev	*cdev = (void *)_c;
+	struct usb_composite_dev	*cdev = autoresume_cdev;
 	struct usb_gadget		*g = cdev->gadget;
 
 	/* unconfigured devices can't issue wakeups */
@@ -255,6 +254,14 @@ static struct usb_function_instance *func_inst_lb;
 module_param_named(qlen, gzero_options.qlen, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(qlen, "depth of loopback queue");
 
+module_param_named(ss_bulk_qlen, gzero_options.ss_bulk_qlen, uint,
+		S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(bulk_qlen, "depth of sourcesink queue for bulk transfer");
+
+module_param_named(ss_iso_qlen, gzero_options.ss_iso_qlen, uint,
+		S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(iso_qlen, "depth of sourcesink queue for iso transfer");
+
 static int zero_bind(struct usb_composite_dev *cdev)
 {
 	struct f_ss_opts	*ss_opts;
@@ -272,7 +279,8 @@ static int zero_bind(struct usb_composite_dev *cdev)
 	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 	device_desc.iSerialNumber = strings_dev[USB_GADGET_SERIAL_IDX].id;
 
-	setup_timer(&autoresume_timer, zero_autoresume, (unsigned long) cdev);
+	autoresume_cdev = cdev;
+	timer_setup(&autoresume_timer, zero_autoresume, 0);
 
 	func_inst_ss = usb_get_function_instance("SourceSink");
 	if (IS_ERR(func_inst_ss))
@@ -285,6 +293,8 @@ static int zero_bind(struct usb_composite_dev *cdev)
 	ss_opts->isoc_mult = gzero_options.isoc_mult;
 	ss_opts->isoc_maxburst = gzero_options.isoc_maxburst;
 	ss_opts->bulk_buflen = gzero_options.bulk_buflen;
+	ss_opts->bulk_qlen = gzero_options.ss_bulk_qlen;
+	ss_opts->iso_qlen = gzero_options.ss_iso_qlen;
 
 	func_ss = usb_get_function(func_inst_ss);
 	if (IS_ERR(func_ss)) {

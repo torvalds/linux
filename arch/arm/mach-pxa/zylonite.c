@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
@@ -25,10 +26,10 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/pxa3xx.h>
+#include "pxa3xx.h"
 #include <mach/audio.h>
 #include <linux/platform_data/video-pxafb.h>
-#include <mach/zylonite.h>
+#include "zylonite.h"
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/keypad-pxa27x.h>
@@ -45,16 +46,6 @@ int wm9713_irq;
 
 int lcd_id;
 int lcd_orientation;
-
-struct platform_device pxa_device_wm9713_audio = {
-	.name		= "wm9713-codec",
-	.id		= -1,
-};
-
-static void __init zylonite_init_wm9713_audio(void)
-{
-	platform_device_register(&pxa_device_wm9713_audio);
-}
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -337,7 +328,7 @@ static void __init zylonite_init_keypad(void)
 static inline void zylonite_init_keypad(void) {}
 #endif
 
-#if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_MARVELL)
 static struct mtd_partition zylonite_nand_partitions[] = {
 	[0] = {
 		.name        = "Bootloader",
@@ -375,10 +366,8 @@ static struct mtd_partition zylonite_nand_partitions[] = {
 };
 
 static struct pxa3xx_nand_platform_data zylonite_nand_info = {
-	.enable_arbiter	= 1,
-	.num_cs		= 1,
-	.parts[0]	= zylonite_nand_partitions,
-	.nr_parts[0]	= ARRAY_SIZE(zylonite_nand_partitions),
+	.parts		= zylonite_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(zylonite_nand_partitions),
 };
 
 static void __init zylonite_init_nand(void)
@@ -387,7 +376,7 @@ static void __init zylonite_init_nand(void)
 }
 #else
 static inline void zylonite_init_nand(void) {}
-#endif /* CONFIG_MTD_NAND_PXA3xx || CONFIG_MTD_NAND_PXA3xx_MODULE */
+#endif /* IS_ENABLED(CONFIG_MTD_NAND_MARVELL) */
 
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 static struct pxaohci_platform_data zylonite_ohci_info = {
@@ -429,7 +418,6 @@ static void __init zylonite_init(void)
 	zylonite_init_nand();
 	zylonite_init_leds();
 	zylonite_init_ohci();
-	zylonite_init_wm9713_audio();
 }
 
 MACHINE_START(ZYLONITE, "PXA3xx Platform Development Kit (aka Zylonite)")

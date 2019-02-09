@@ -1,0 +1,176 @@
+UniPhier reset controller
+
+
+System reset
+------------
+
+Required properties:
+- compatible: should be one of the following:
+    "socionext,uniphier-ld4-reset"  - for LD4 SoC
+    "socionext,uniphier-pro4-reset" - for Pro4 SoC
+    "socionext,uniphier-sld8-reset" - for sLD8 SoC
+    "socionext,uniphier-pro5-reset" - for Pro5 SoC
+    "socionext,uniphier-pxs2-reset" - for PXs2/LD6b SoC
+    "socionext,uniphier-ld11-reset" - for LD11 SoC
+    "socionext,uniphier-ld20-reset" - for LD20 SoC
+    "socionext,uniphier-pxs3-reset" - for PXs3 SoC
+- #reset-cells: should be 1.
+
+Example:
+
+	sysctrl@61840000 {
+		compatible = "socionext,uniphier-ld11-sysctrl",
+			     "simple-mfd", "syscon";
+		reg = <0x61840000 0x4000>;
+
+		reset {
+			compatible = "socionext,uniphier-ld11-reset";
+			#reset-cells = <1>;
+		};
+
+		other nodes ...
+	};
+
+
+Media I/O (MIO) reset, SD reset
+-------------------------------
+
+Required properties:
+- compatible: should be one of the following:
+    "socionext,uniphier-ld4-mio-reset"  - for LD4 SoC
+    "socionext,uniphier-pro4-mio-reset" - for Pro4 SoC
+    "socionext,uniphier-sld8-mio-reset" - for sLD8 SoC
+    "socionext,uniphier-pro5-sd-reset"  - for Pro5 SoC
+    "socionext,uniphier-pxs2-sd-reset"  - for PXs2/LD6b SoC
+    "socionext,uniphier-ld11-mio-reset" - for LD11 SoC (MIO)
+    "socionext,uniphier-ld11-sd-reset"  - for LD11 SoC (SD)
+    "socionext,uniphier-ld20-sd-reset"  - for LD20 SoC
+    "socionext,uniphier-pxs3-sd-reset"  - for PXs3 SoC
+- #reset-cells: should be 1.
+
+Example:
+
+	mioctrl@59810000 {
+		compatible = "socionext,uniphier-ld11-mioctrl",
+			     "simple-mfd", "syscon";
+		reg = <0x59810000 0x800>;
+
+		reset {
+			compatible = "socionext,uniphier-ld11-mio-reset";
+			#reset-cells = <1>;
+		};
+
+		other nodes ...
+	};
+
+
+Peripheral reset
+----------------
+
+Required properties:
+- compatible: should be one of the following:
+    "socionext,uniphier-ld4-peri-reset"  - for LD4 SoC
+    "socionext,uniphier-pro4-peri-reset" - for Pro4 SoC
+    "socionext,uniphier-sld8-peri-reset" - for sLD8 SoC
+    "socionext,uniphier-pro5-peri-reset" - for Pro5 SoC
+    "socionext,uniphier-pxs2-peri-reset" - for PXs2/LD6b SoC
+    "socionext,uniphier-ld11-peri-reset" - for LD11 SoC
+    "socionext,uniphier-ld20-peri-reset" - for LD20 SoC
+    "socionext,uniphier-pxs3-peri-reset" - for PXs3 SoC
+- #reset-cells: should be 1.
+
+Example:
+
+	perictrl@59820000 {
+		compatible = "socionext,uniphier-ld11-perictrl",
+			     "simple-mfd", "syscon";
+		reg = <0x59820000 0x200>;
+
+		reset {
+			compatible = "socionext,uniphier-ld11-peri-reset";
+			#reset-cells = <1>;
+		};
+
+		other nodes ...
+	};
+
+
+Analog signal amplifier reset
+-----------------------------
+
+Required properties:
+- compatible: should be one of the following:
+    "socionext,uniphier-ld11-adamv-reset" - for LD11 SoC
+    "socionext,uniphier-ld20-adamv-reset" - for LD20 SoC
+- #reset-cells: should be 1.
+
+Example:
+
+	adamv@57920000 {
+		compatible = "socionext,uniphier-ld11-adamv",
+			     "simple-mfd", "syscon";
+		reg = <0x57920000 0x1000>;
+
+		adamv_rst: reset {
+			compatible = "socionext,uniphier-ld11-adamv-reset";
+			#reset-cells = <1>;
+		};
+
+		other nodes ...
+	};
+
+
+USB3 core reset
+---------------
+
+USB3 core reset belongs to USB3 glue layer. Before using the core reset,
+it is necessary to control the clocks and resets to enable this layer.
+These clocks and resets should be described in each property.
+
+Required properties:
+- compatible: Should be
+    "socionext,uniphier-pro4-usb3-reset" - for Pro4 SoC
+    "socionext,uniphier-pxs2-usb3-reset" - for PXs2 SoC
+    "socionext,uniphier-ld20-usb3-reset" - for LD20 SoC
+    "socionext,uniphier-pxs3-usb3-reset" - for PXs3 SoC
+- #reset-cells: Should be 1.
+- reg: Specifies offset and length of the register set for the device.
+- clocks: A list of phandles to the clock gate for USB3 glue layer.
+	According to the clock-names, appropriate clocks are required.
+- clock-names: Should contain
+    "gio", "link" - for Pro4 SoC
+    "link"        - for others
+- resets: A list of phandles to the reset control for USB3 glue layer.
+	According to the reset-names, appropriate resets are required.
+- reset-names: Should contain
+    "gio", "link" - for Pro4 SoC
+    "link"        - for others
+
+Example:
+
+	usb-glue@65b00000 {
+		compatible = "socionext,uniphier-ld20-dwc3-glue",
+			     "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x65b00000 0x400>;
+
+		usb_rst: reset@0 {
+			compatible = "socionext,uniphier-ld20-usb3-reset";
+			reg = <0x0 0x4>;
+			#reset-cells = <1>;
+			clock-names = "link";
+			clocks = <&sys_clk 14>;
+			reset-names = "link";
+			resets = <&sys_rst 14>;
+		};
+
+		regulator {
+			...
+		};
+
+		phy {
+			...
+		};
+		...
+	};

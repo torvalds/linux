@@ -1,50 +1,18 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: psobject - Support for parse objects
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
+#include "acconvert.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psobject")
@@ -66,7 +34,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state);
 
 static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 {
-	u32 aml_offset;
+	ACPI_ERROR_ONLY(u32 aml_offset);
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_aml_opcode, walk_state);
 
@@ -97,9 +65,11 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 		/* The opcode is unrecognized. Complain and skip unknown opcodes */
 
 		if (walk_state->pass_number == 2) {
-			aml_offset = (u32)ACPI_PTR_DIFF(walk_state->aml,
-							walk_state->
-							parser_state.aml_start);
+			ACPI_ERROR_ONLY(aml_offset =
+					(u32)ACPI_PTR_DIFF(walk_state->aml,
+							   walk_state->
+							   parser_state.
+							   aml_start));
 
 			ACPI_ERROR((AE_INFO,
 				    "Unknown opcode 0x%.2X at table offset 0x%.4X, ignoring",
@@ -121,6 +91,9 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 			     (u32)(aml_offset +
 				   sizeof(struct acpi_table_header)));
 
+			ACPI_ERROR((AE_INFO,
+				    "Aborting disassembly, AML byte code is corrupt"));
+
 			/* Dump the context surrounding the invalid opcode */
 
 			acpi_ut_dump_buffer(((u8 *)walk_state->parser_state.
@@ -129,6 +102,14 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 					     sizeof(struct acpi_table_header) -
 					     16));
 			acpi_os_printf(" */\n");
+
+			/*
+			 * Just abort the disassembly, cannot continue because the
+			 * parser is essentially lost. The disassembler can then
+			 * randomly fail because an ill-constructed parse tree
+			 * can result.
+			 */
+			return_ACPI_STATUS(AE_AML_BAD_OPCODE);
 #endif
 		}
 
@@ -190,6 +171,7 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	 */
 	while (GET_CURRENT_ARG_TYPE(walk_state->arg_types) &&
 	       (GET_CURRENT_ARG_TYPE(walk_state->arg_types) != ARGP_NAME)) {
+		ASL_CV_CAPTURE_COMMENTS(walk_state);
 		status =
 		    acpi_ps_get_next_arg(walk_state,
 					 &(walk_state->parser_state),
@@ -202,6 +184,18 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 		acpi_ps_append_arg(unnamed_op, arg);
 		INCREMENT_ARG_LIST(walk_state->arg_types);
 	}
+
+	/* are there any inline comments associated with the name_seg?? If so, save this. */
+
+	ASL_CV_CAPTURE_COMMENTS(walk_state);
+
+#ifdef ACPI_ASL_COMPILER
+	if (acpi_gbl_current_inline_comment != NULL) {
+		unnamed_op->common.name_comment =
+		    acpi_gbl_current_inline_comment;
+		acpi_gbl_current_inline_comment = NULL;
+	}
+#endif
 
 	/*
 	 * Make sure that we found a NAME and didn't run out of arguments
@@ -242,6 +236,30 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	}
 
 	acpi_ps_append_arg(*op, unnamed_op->common.value.arg);
+
+#ifdef ACPI_ASL_COMPILER
+
+	/* save any comments that might be associated with unnamed_op. */
+
+	(*op)->common.inline_comment = unnamed_op->common.inline_comment;
+	(*op)->common.end_node_comment = unnamed_op->common.end_node_comment;
+	(*op)->common.close_brace_comment =
+	    unnamed_op->common.close_brace_comment;
+	(*op)->common.name_comment = unnamed_op->common.name_comment;
+	(*op)->common.comment_list = unnamed_op->common.comment_list;
+	(*op)->common.end_blk_comment = unnamed_op->common.end_blk_comment;
+	(*op)->common.cv_filename = unnamed_op->common.cv_filename;
+	(*op)->common.cv_parent_filename =
+	    unnamed_op->common.cv_parent_filename;
+	(*op)->named.aml = unnamed_op->common.aml;
+
+	unnamed_op->common.inline_comment = NULL;
+	unnamed_op->common.end_node_comment = NULL;
+	unnamed_op->common.close_brace_comment = NULL;
+	unnamed_op->common.name_comment = NULL;
+	unnamed_op->common.comment_list = NULL;
+	unnamed_op->common.end_blk_comment = NULL;
+#endif
 
 	if ((*op)->common.aml_opcode == AML_REGION_OP ||
 	    (*op)->common.aml_opcode == AML_DATA_REGION_OP) {
@@ -293,6 +311,9 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 	if (status == AE_CTRL_PARSE_CONTINUE) {
 		return_ACPI_STATUS(AE_CTRL_PARSE_CONTINUE);
 	}
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	/* Create Op structure and append to parent's argument list */
 
@@ -307,6 +328,26 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 		    acpi_ps_build_named_op(walk_state, aml_op_start, op,
 					   &named_op);
 		acpi_ps_free_op(op);
+
+#ifdef ACPI_ASL_COMPILER
+		if (acpi_gbl_disasm_flag
+		    && walk_state->opcode == AML_EXTERNAL_OP
+		    && status == AE_NOT_FOUND) {
+			/*
+			 * If parsing of AML_EXTERNAL_OP's name path fails, then skip
+			 * past this opcode and keep parsing. This is a much better
+			 * alternative than to abort the entire disassembler. At this
+			 * point, the parser_state is at the end of the namepath of the
+			 * external declaration opcode. Setting walk_state->Aml to
+			 * walk_state->parser_state.Aml + 2 moves increments the
+			 * walk_state->Aml past the object type and the paramcount of the
+			 * external opcode.
+			 */
+			walk_state->aml = walk_state->parser_state.aml + 2;
+			walk_state->parser_state.aml = walk_state->aml;
+			return_ACPI_STATUS(AE_CTRL_PARSE_CONTINUE);
+		}
+#endif
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -348,7 +389,15 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 			    argument_count) {
 				op->common.flags |= ACPI_PARSEOP_TARGET;
 			}
-		} else if (parent_scope->common.aml_opcode == AML_INCREMENT_OP) {
+		}
+
+		/*
+		 * Special case for both Increment() and Decrement(), where
+		 * the lone argument is both a source and a target.
+		 */
+		else if ((parent_scope->common.aml_opcode == AML_INCREMENT_OP)
+			 || (parent_scope->common.aml_opcode ==
+			     AML_DECREMENT_OP)) {
 			op->common.flags |= ACPI_PARSEOP_TARGET;
 		}
 	}
@@ -501,6 +550,21 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 
 		do {
 			if (*op) {
+				/*
+				 * These Opcodes need to be removed from the namespace because they
+				 * get created even if these opcodes cannot be created due to
+				 * errors.
+				 */
+				if (((*op)->common.aml_opcode == AML_REGION_OP)
+				    || ((*op)->common.aml_opcode ==
+					AML_DATA_REGION_OP)) {
+					acpi_ns_delete_children((*op)->common.
+								node);
+					acpi_ns_remove_node((*op)->common.node);
+					(*op)->common.node = NULL;
+					acpi_ps_delete_parse_tree(*op);
+				}
+
 				status2 =
 				    acpi_ps_complete_this_op(walk_state, *op);
 				if (ACPI_FAILURE(status2)) {
@@ -526,6 +590,20 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 #endif
 		walk_state->prev_op = NULL;
 		walk_state->prev_arg_types = walk_state->arg_types;
+
+		if (walk_state->parse_flags & ACPI_PARSE_MODULE_LEVEL) {
+			/*
+			 * There was something that went wrong while executing code at the
+			 * module-level. We need to skip parsing whatever caused the
+			 * error and keep going. One runtime error during the table load
+			 * should not cause the entire table to not be loaded. This is
+			 * because there could be correct AML beyond the parts that caused
+			 * the runtime error.
+			 */
+			ACPI_ERROR((AE_INFO,
+				    "Ignore error and continue table load"));
+			return_ACPI_STATUS(AE_OK);
+		}
 		return_ACPI_STATUS(status);
 	}
 

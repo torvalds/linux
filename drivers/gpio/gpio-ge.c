@@ -21,10 +21,9 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/of_address.h>
 #include <linux/module.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 
 #define GEF_GPIO_DIRECT		0x00
 #define GEF_GPIO_IN		0x04
@@ -53,21 +52,19 @@ MODULE_DEVICE_TABLE(of, gef_gpio_ids);
 
 static int __init gef_gpio_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-		of_match_device(gef_gpio_ids, &pdev->dev);
-	struct bgpio_chip *bgc;
+	struct gpio_chip *gc;
 	void __iomem *regs;
 	int ret;
 
-	bgc = devm_kzalloc(&pdev->dev, sizeof(*bgc), GFP_KERNEL);
-	if (!bgc)
+	gc = devm_kzalloc(&pdev->dev, sizeof(*gc), GFP_KERNEL);
+	if (!gc)
 		return -ENOMEM;
 
 	regs = of_iomap(pdev->dev.of_node, 0);
 	if (!regs)
 		return -ENOMEM;
 
-	ret = bgpio_init(bgc, &pdev->dev, 4, regs + GEF_GPIO_IN,
+	ret = bgpio_init(gc, &pdev->dev, 4, regs + GEF_GPIO_IN,
 			 regs + GEF_GPIO_OUT, NULL, NULL,
 			 regs + GEF_GPIO_DIRECT, BGPIOF_BIG_ENDIAN_BYTE_ORDER);
 	if (ret) {
@@ -76,28 +73,26 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* Setup pointers to chip functions */
-	bgc->gc.label = devm_kstrdup(&pdev->dev, pdev->dev.of_node->full_name,
-				     GFP_KERNEL);
-	if (!bgc->gc.label) {
+	gc->label = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOF", pdev->dev.of_node);
+	if (!gc->label) {
 		ret = -ENOMEM;
 		goto err0;
 	}
 
-	bgc->gc.base = -1;
-	bgc->gc.ngpio = (u16)(uintptr_t)of_id->data;
-	bgc->gc.of_gpio_n_cells = 2;
-	bgc->gc.of_node = pdev->dev.of_node;
+	gc->base = -1;
+	gc->ngpio = (u16)(uintptr_t)of_device_get_match_data(&pdev->dev);
+	gc->of_gpio_n_cells = 2;
+	gc->of_node = pdev->dev.of_node;
 
 	/* This function adds a memory mapped GPIO chip */
-	ret = gpiochip_add(&bgc->gc);
+	ret = devm_gpiochip_add_data(&pdev->dev, gc, NULL);
 	if (ret)
 		goto err0;
 
 	return 0;
 err0:
 	iounmap(regs);
-	pr_err("%s: GPIO chip registration failed\n",
-			pdev->dev.of_node->full_name);
+	pr_err("%pOF: GPIO chip registration failed\n", pdev->dev.of_node);
 	return ret;
 };
 

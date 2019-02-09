@@ -29,6 +29,18 @@ struct fscache_cache_ops;
 struct fscache_object;
 struct fscache_operation;
 
+enum fscache_obj_ref_trace {
+	fscache_obj_get_add_to_deps,
+	fscache_obj_get_queue,
+	fscache_obj_put_alloc_fail,
+	fscache_obj_put_attach_fail,
+	fscache_obj_put_drop_obj,
+	fscache_obj_put_enq_dep,
+	fscache_obj_put_queue,
+	fscache_obj_put_work,
+	fscache_obj_ref__nr_traces
+};
+
 /*
  * cache tag definition
  */
@@ -123,7 +135,8 @@ extern void fscache_op_work_func(struct work_struct *work);
 extern void fscache_enqueue_operation(struct fscache_operation *);
 extern void fscache_op_complete(struct fscache_operation *, bool);
 extern void fscache_put_operation(struct fscache_operation *);
-extern void fscache_operation_init(struct fscache_operation *,
+extern void fscache_operation_init(struct fscache_cookie *,
+				   struct fscache_operation *,
 				   fscache_operation_processor_t,
 				   fscache_operation_cancel_t,
 				   fscache_operation_release_t);
@@ -183,9 +196,8 @@ static inline void fscache_enqueue_retrieval(struct fscache_retrieval *op)
 static inline void fscache_retrieval_complete(struct fscache_retrieval *op,
 					      int n_pages)
 {
-	atomic_sub(n_pages, &op->n_pages);
-	if (atomic_read(&op->n_pages) <= 0)
-		fscache_op_complete(&op->op, true);
+	if (atomic_sub_return_relaxed(n_pages, &op->n_pages) <= 0)
+		fscache_op_complete(&op->op, false);
 }
 
 /**
@@ -231,7 +243,8 @@ struct fscache_cache_ops {
 	void (*lookup_complete)(struct fscache_object *object);
 
 	/* increment the usage count on this object (may fail if unmounting) */
-	struct fscache_object *(*grab_object)(struct fscache_object *object);
+	struct fscache_object *(*grab_object)(struct fscache_object *object,
+					      enum fscache_obj_ref_trace why);
 
 	/* pin an object in the cache */
 	int (*pin_object)(struct fscache_object *object);
@@ -241,7 +254,7 @@ struct fscache_cache_ops {
 
 	/* check the consistency between the backing cache and the FS-Cache
 	 * cookie */
-	bool (*check_consistency)(struct fscache_operation *op);
+	int (*check_consistency)(struct fscache_operation *op);
 
 	/* store the updated auxiliary data on an object */
 	void (*update_object)(struct fscache_object *object);
@@ -254,7 +267,8 @@ struct fscache_cache_ops {
 	void (*drop_object)(struct fscache_object *object);
 
 	/* dispose of a reference to an object */
-	void (*put_object)(struct fscache_object *object);
+	void (*put_object)(struct fscache_object *object,
+			   enum fscache_obj_ref_trace why);
 
 	/* sync a cache */
 	void (*sync_cache)(struct fscache_cache *cache);
@@ -360,6 +374,7 @@ struct fscache_object {
 #define FSCACHE_OBJECT_IS_AVAILABLE	5	/* T if object has become active */
 #define FSCACHE_OBJECT_RETIRED		6	/* T if object was retired on relinquishment */
 #define FSCACHE_OBJECT_KILLED_BY_CACHE	7	/* T if object was killed by the cache */
+#define FSCACHE_OBJECT_RUN_AFTER_DEAD	8	/* T if object has been dispatched after death */
 
 	struct list_head	cache_link;	/* link in cache->object_list */
 	struct hlist_node	cookie_link;	/* link in cookie->backing_objects */
@@ -495,7 +510,7 @@ static inline bool __fscache_unuse_cookie(struct fscache_cookie *cookie)
 
 static inline void __fscache_wake_unused_cookie(struct fscache_cookie *cookie)
 {
-	wake_up_atomic_t(&cookie->n_active);
+	wake_up_var(&cookie->n_active);
 }
 
 /**
@@ -537,7 +552,8 @@ extern bool fscache_object_sleep_till_congested(signed long *timeoutp);
 
 extern enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
 					       const void *data,
-					       uint16_t datalen);
+					       uint16_t datalen,
+					       loff_t object_size);
 
 extern void fscache_object_retrying_stale(struct fscache_object *object);
 

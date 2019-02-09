@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IDE_H
 #define _IDE_H
 /*
@@ -20,18 +21,14 @@
 #include <linux/mutex.h>
 /* for request_sense */
 #include <linux/cdrom.h>
+#include <scsi/scsi_cmnd.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
-
-#if defined(CONFIG_CRIS) || defined(CONFIG_FRV) || defined(CONFIG_MN10300)
-# define SUPPORT_VLB_SYNC 0
-#else
-# define SUPPORT_VLB_SYNC 1
-#endif
 
 /*
  * Probably not wise to fiddle with these
  */
+#define SUPPORT_VLB_SYNC 1
 #define IDE_DEFAULT_MAX_FAILURES	1
 #define ERROR_MAX	8	/* Max read/write errors per sector */
 #define ERROR_RESET	3	/* Reset controller every 4th retry */
@@ -39,20 +36,55 @@
 
 struct device;
 
-/* IDE-specific values for req->cmd_type */
-enum ata_cmd_type_bits {
-	REQ_TYPE_ATA_TASKFILE = REQ_TYPE_DRV_PRIV + 1,
-	REQ_TYPE_ATA_PC,
-	REQ_TYPE_ATA_SENSE,	/* sense request */
-	REQ_TYPE_ATA_PM_SUSPEND,/* suspend request */
-	REQ_TYPE_ATA_PM_RESUME,	/* resume request */
+/* values for ide_request.type */
+enum ata_priv_type {
+	ATA_PRIV_MISC,
+	ATA_PRIV_TASKFILE,
+	ATA_PRIV_PC,
+	ATA_PRIV_SENSE,		/* sense request */
+	ATA_PRIV_PM_SUSPEND,	/* suspend request */
+	ATA_PRIV_PM_RESUME,	/* resume request */
 };
 
-#define ata_pm_request(rq)	\
-	((rq)->cmd_type == REQ_TYPE_ATA_PM_SUSPEND || \
-	 (rq)->cmd_type == REQ_TYPE_ATA_PM_RESUME)
+struct ide_request {
+	struct scsi_request sreq;
+	u8 sense[SCSI_SENSE_BUFFERSIZE];
+	u8 type;
+};
 
-/* Error codes returned in rq->errors to the higher part of the driver. */
+static inline struct ide_request *ide_req(struct request *rq)
+{
+	return blk_mq_rq_to_pdu(rq);
+}
+
+static inline bool ata_misc_request(struct request *rq)
+{
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_MISC;
+}
+
+static inline bool ata_taskfile_request(struct request *rq)
+{
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_TASKFILE;
+}
+
+static inline bool ata_pc_request(struct request *rq)
+{
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_PC;
+}
+
+static inline bool ata_sense_request(struct request *rq)
+{
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_SENSE;
+}
+
+static inline bool ata_pm_request(struct request *rq)
+{
+	return blk_rq_is_private(rq) &&
+		(ide_req(rq)->type == ATA_PRIV_PM_SUSPEND ||
+		 ide_req(rq)->type == ATA_PRIV_PM_RESUME);
+}
+
+/* Error codes returned in result to the higher part of the driver. */
 enum {
 	IDE_DRV_ERROR_GENERAL	= 101,
 	IDE_DRV_ERROR_FILEMARK	= 102,
@@ -128,7 +160,6 @@ struct ide_io_ports {
  */
 #define PARTN_BITS	6	/* number of minor dev bits for partitions */
 #define MAX_DRIVES	2	/* per interface; 2 assumed by lots of code */
-#define SECTOR_SIZE	512
 
 /*
  * Timeouts for various operations:
@@ -579,7 +610,7 @@ struct ide_drive_s {
 
 	/* current sense rq and buffer */
 	bool sense_rq_armed;
-	struct request sense_rq;
+	struct request *sense_rq;
 	struct request_sense sense_data;
 };
 
@@ -635,7 +666,7 @@ struct ide_port_ops {
 	void	(*init_dev)(ide_drive_t *);
 	void	(*set_pio_mode)(struct hwif_s *, ide_drive_t *);
 	void	(*set_dma_mode)(struct hwif_s *, ide_drive_t *);
-	int	(*reset_poll)(ide_drive_t *);
+	blk_status_t (*reset_poll)(ide_drive_t *);
 	void	(*pre_reset)(ide_drive_t *);
 	void	(*resetproc)(ide_drive_t *);
 	void	(*maskproc)(ide_drive_t *, int);
@@ -930,7 +961,7 @@ __IDE_PROC_DEVSET(_name, _min, _max, NULL, NULL)
 typedef struct {
 	const char	*name;
 	umode_t		mode;
-	const struct file_operations *proc_fops;
+	int (*show)(struct seq_file *, void *);
 } ide_proc_entry_t;
 
 void proc_ide_create(void);
@@ -942,8 +973,8 @@ void ide_proc_unregister_port(ide_hwif_t *);
 void ide_proc_register_driver(ide_drive_t *, struct ide_driver *);
 void ide_proc_unregister_driver(ide_drive_t *, struct ide_driver *);
 
-extern const struct file_operations ide_capacity_proc_fops;
-extern const struct file_operations ide_geometry_proc_fops;
+int ide_capacity_proc_show(struct seq_file *m, void *v);
+int ide_geometry_proc_show(struct seq_file *m, void *v);
 #else
 static inline void proc_ide_create(void) { ; }
 static inline void proc_ide_destroy(void) { ; }
@@ -1056,7 +1087,7 @@ int generic_ide_ioctl(ide_drive_t *, struct block_device *, unsigned, unsigned l
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
 
-int ide_end_rq(ide_drive_t *, struct request *, int, unsigned int);
+int ide_end_rq(ide_drive_t *, struct request *, blk_status_t, unsigned int);
 void ide_kill_rq(ide_drive_t *, struct request *);
 
 void __ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int);
@@ -1087,7 +1118,7 @@ extern int ide_devset_execute(ide_drive_t *drive,
 			      const struct ide_devset *setting, int arg);
 
 void ide_complete_cmd(ide_drive_t *, struct ide_cmd *, u8, u8);
-int ide_complete_rq(ide_drive_t *, int, unsigned int);
+int ide_complete_rq(ide_drive_t *, blk_status_t, unsigned int);
 
 void ide_tf_readback(ide_drive_t *drive, struct ide_cmd *cmd);
 void ide_tf_dump(const char *, struct ide_cmd *);
@@ -1175,7 +1206,7 @@ extern int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout);
 
 extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 
-extern void ide_timer_expiry(unsigned long);
+extern void ide_timer_expiry(struct timer_list *t);
 extern irqreturn_t ide_intr(int irq, void *dev_id);
 extern void do_ide_request(struct request_queue *);
 extern void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq);
@@ -1476,8 +1507,6 @@ static inline void ide_set_hwifdata (ide_hwif_t * hwif, void *data)
 {
 	hwif->hwif_data = data;
 }
-
-extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 
 u64 ide_get_lba_addr(struct ide_cmd *, int);
 u8 ide_dump_status(ide_drive_t *, const char *, u8);

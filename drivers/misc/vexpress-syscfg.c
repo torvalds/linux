@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/syscore_ops.h>
 #include <linux/vexpress.h>
@@ -182,8 +182,7 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 		val = energy_quirk;
 	}
 
-	func = kzalloc(sizeof(*func) + sizeof(*func->template) * num,
-			GFP_KERNEL);
+	func = kzalloc(struct_size(func, template, num), GFP_KERNEL);
 	if (!func)
 		return ERR_PTR(-ENOMEM);
 
@@ -259,21 +258,15 @@ static int vexpress_syscfg_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&syscfg->funcs);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-			resource_size(res), pdev->name))
-		return -EBUSY;
-
-	syscfg->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!syscfg->base)
-		return -EFAULT;
+	syscfg->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(syscfg->base))
+		return PTR_ERR(syscfg->base);
 
 	/* Must use dev.parent (MFD), as that's where DT phandle points at... */
 	bridge = vexpress_config_bridge_register(pdev->dev.parent,
 			&vexpress_syscfg_bridge_ops, syscfg);
-	if (IS_ERR(bridge))
-		return PTR_ERR(bridge);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(bridge);
 }
 
 static const struct platform_device_id vexpress_syscfg_id_table[] = {

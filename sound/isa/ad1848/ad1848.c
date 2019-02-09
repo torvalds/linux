@@ -55,11 +55,11 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for " CRD_NAME " soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable " CRD_NAME " soundcard.");
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for " CRD_NAME " driver.");
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for " CRD_NAME " driver.");
-module_param_array(dma1, int, NULL, 0444);
+module_param_hw_array(dma1, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma1, "DMA1 # for " CRD_NAME " driver.");
 module_param_array(thinkpad, bool, NULL, 0444);
 MODULE_PARM_DESC(thinkpad, "Enable only for the onboard CS4248 of IBM Thinkpad 360/750/755 series.");
@@ -110,13 +110,17 @@ static int snd_ad1848_probe(struct device *dev, unsigned int n)
 	if (error < 0)
 		goto out;
 
-	strcpy(card->driver, "AD1848");
-	strcpy(card->shortname, chip->pcm->name);
+	strlcpy(card->driver, "AD1848", sizeof(card->driver));
+	strlcpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
 
-	sprintf(card->longname, "%s at 0x%lx, irq %d, dma %d",
-		chip->pcm->name, chip->port, irq[n], dma1[n]);
-	if (thinkpad[n])
-		strcat(card->longname, " [Thinkpad]");
+	if (!thinkpad[n])
+		snprintf(card->longname, sizeof(card->longname),
+			 "%s at 0x%lx, irq %d, dma %d",
+			 chip->pcm->name, chip->port, irq[n], dma1[n]);
+	else
+		snprintf(card->longname, sizeof(card->longname),
+			 "%s at 0x%lx, irq %d, dma %d [Thinkpad]",
+			 chip->pcm->name, chip->port, irq[n], dma1[n]);
 
 	error = snd_card_register(card);
 	if (error < 0)
@@ -170,15 +174,4 @@ static struct isa_driver snd_ad1848_driver = {
 	}
 };
 
-static int __init alsa_card_ad1848_init(void)
-{
-	return isa_register_driver(&snd_ad1848_driver, SNDRV_CARDS);
-}
-
-static void __exit alsa_card_ad1848_exit(void)
-{
-	isa_unregister_driver(&snd_ad1848_driver);
-}
-
-module_init(alsa_card_ad1848_init);
-module_exit(alsa_card_ad1848_exit);
+module_isa_driver(snd_ad1848_driver, SNDRV_CARDS);

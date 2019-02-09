@@ -102,14 +102,16 @@ background_gc=%s       Turn on/off cleaning operations, namely garbage
                        collection, triggered in background when I/O subsystem is
                        idle. If background_gc=on, it will turn on the garbage
                        collection and if background_gc=off, garbage collection
-                       will be truned off. If background_gc=sync, it will turn
+                       will be turned off. If background_gc=sync, it will turn
                        on synchronous garbage collection running in background.
                        Default value for this option is on. So garbage
                        collection is on by default.
 disable_roll_forward   Disable the roll-forward recovery routine
 norecovery             Disable the roll-forward recovery routine, mounted read-
                        only (i.e., -o ro,disable_roll_forward)
-discard                Issue discard/TRIM commands when a segment is cleaned.
+discard/nodiscard      Enable/disable real-time discard in f2fs, if discard is
+                       enabled, f2fs will issue discard/TRIM commands when a
+		       segment is cleaned.
 no_heap                Disable heap-style segment allocation which finds free
                        segments for data from the beginning of main area, while
 		       for node from the end of main area.
@@ -123,12 +125,14 @@ active_logs=%u         Support configuring the number of active logs. In the
 disable_ext_identify   Disable the extension list configured by mkfs, so f2fs
                        does not aware of cold files such as media files.
 inline_xattr           Enable the inline xattrs feature.
+noinline_xattr         Disable the inline xattrs feature.
 inline_data            Enable the inline data feature: New created small(<~3.4k)
                        files can be written into inode block.
 inline_dentry          Enable the inline dir feature: data in new created
                        directory entries can be written into inode block. The
                        space of inode block which is used to store inline
                        dentries is limited to ~3.4k.
+noinline_dentry        Disable the inline dentry feature.
 flush_merge	       Merge concurrent cache_flush commands as much as possible
                        to eliminate redundant command issues. If the underlying
 		       device handles the cache_flush command relatively slowly,
@@ -145,10 +149,74 @@ extent_cache           Enable an extent cache based on rb-tree, it can cache
                        as many as extent which map between contiguous logical
                        address and physical address per inode, resulting in
                        increasing the cache hit ratio. Set by default.
-noextent_cache         Diable an extent cache based on rb-tree explicitly, see
+noextent_cache         Disable an extent cache based on rb-tree explicitly, see
                        the above extent_cache mount option.
 noinline_data          Disable the inline data feature, inline data feature is
                        enabled by default.
+data_flush             Enable data flushing before checkpoint in order to
+                       persist data of regular and symlink.
+fault_injection=%d     Enable fault injection in all supported types with
+                       specified injection rate.
+fault_type=%d          Support configuring fault injection type, should be
+                       enabled with fault_injection option, fault type value
+                       is shown below, it supports single or combined type.
+                       Type_Name		Type_Value
+                       FAULT_KMALLOC		0x000000001
+                       FAULT_KVMALLOC		0x000000002
+                       FAULT_PAGE_ALLOC		0x000000004
+                       FAULT_PAGE_GET		0x000000008
+                       FAULT_ALLOC_BIO		0x000000010
+                       FAULT_ALLOC_NID		0x000000020
+                       FAULT_ORPHAN		0x000000040
+                       FAULT_BLOCK		0x000000080
+                       FAULT_DIR_DEPTH		0x000000100
+                       FAULT_EVICT_INODE	0x000000200
+                       FAULT_TRUNCATE		0x000000400
+                       FAULT_READ_IO		0x000000800
+                       FAULT_CHECKPOINT		0x000001000
+                       FAULT_DISCARD		0x000002000
+                       FAULT_WRITE_IO		0x000004000
+mode=%s                Control block allocation mode which supports "adaptive"
+                       and "lfs". In "lfs" mode, there should be no random
+                       writes towards main area.
+io_bits=%u             Set the bit size of write IO requests. It should be set
+                       with "mode=lfs".
+usrquota               Enable plain user disk quota accounting.
+grpquota               Enable plain group disk quota accounting.
+prjquota               Enable plain project quota accounting.
+usrjquota=<file>       Appoint specified file and type during mount, so that quota
+grpjquota=<file>       information can be properly updated during recovery flow,
+prjjquota=<file>       <quota file>: must be in root directory;
+jqfmt=<quota type>     <quota type>: [vfsold,vfsv0,vfsv1].
+offusrjquota           Turn off user journelled quota.
+offgrpjquota           Turn off group journelled quota.
+offprjjquota           Turn off project journelled quota.
+quota                  Enable plain user disk quota accounting.
+noquota                Disable all plain disk quota option.
+whint_mode=%s          Control which write hints are passed down to block
+                       layer. This supports "off", "user-based", and
+                       "fs-based".  In "off" mode (default), f2fs does not pass
+                       down hints. In "user-based" mode, f2fs tries to pass
+                       down hints given by users. And in "fs-based" mode, f2fs
+                       passes down hints with its policy.
+alloc_mode=%s          Adjust block allocation policy, which supports "reuse"
+                       and "default".
+fsync_mode=%s          Control the policy of fsync. Currently supports "posix",
+                       "strict", and "nobarrier". In "posix" mode, which is
+                       default, fsync will follow POSIX semantics and does a
+                       light operation to improve the filesystem performance.
+                       In "strict" mode, fsync will be heavy and behaves in line
+                       with xfs, ext4 and btrfs, where xfstest generic/342 will
+                       pass, but the performance will regress. "nobarrier" is
+                       based on "posix", but doesn't issue flush command for
+                       non-atomic files likewise "nobarrier" mount option.
+test_dummy_encryption  Enable dummy encryption, which provides a fake fscrypt
+                       context. The fake fscrypt context is used by xfstests.
+checkpoint=%s          Set to "disable" to turn off checkpointing. Set to "enable"
+                       to reenable checkpointing. Is enabled by default. While
+                       disabled, any unmounting or unexpected shutdowns will cause
+                       the filesystem contents to appear as they did when the
+                       filesystem was mounted with that option.
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -166,7 +234,7 @@ f2fs. Each file shows the whole f2fs information.
 SYSFS ENTRIES
 ================================================================================
 
-Information about mounted f2f2 file systems can be found in
+Information about mounted f2fs file systems can be found in
 /sys/fs/f2fs.  Each mounted filesystem will have a directory in
 /sys/fs/f2fs based on its device name (i.e., /sys/fs/f2fs/sda).
 The files in each per-device directory are shown in table below.
@@ -192,7 +260,16 @@ Files in /sys/fs/f2fs/<devname>
                               policy for garbage collection. Setting gc_idle = 0
                               (default) will disable this option. Setting
                               gc_idle = 1 will select the Cost Benefit approach
-                              & setting gc_idle = 2 will select the greedy aproach.
+                              & setting gc_idle = 2 will select the greedy approach.
+
+ gc_urgent                    This parameter controls triggering background GCs
+                              urgently or not. Setting gc_urgent = 0 [default]
+                              makes back to default behavior, while if it is set
+                              to 1, background thread starts to do GC by given
+                              gc_urgent_sleep_time interval.
+
+ gc_urgent_sleep_time         This parameter controls sleep time for gc_urgent.
+                              500 ms is set by default. See above gc_urgent.
 
  reclaim_segments             This parameter controls the number of prefree
                               segments to be reclaimed. If the number of prefree
@@ -298,7 +375,7 @@ The dump.f2fs shows the information of specific inode and dumps SSA and SIT to
 file. Each file is dump_ssa and dump_sit.
 
 The dump.f2fs is used to debug on-disk data structures of the f2fs filesystem.
-It shows on-disk inode information reconized by a given inode number, and is
+It shows on-disk inode information recognized by a given inode number, and is
 able to dump all the SSA and SIT entries into predefined files, ./dump_ssa and
 ./dump_sit respectively.
 
@@ -577,3 +654,63 @@ algorithm.
 In order to identify whether the data in the victim segment are valid or not,
 F2FS manages a bitmap. Each bit represents the validity of a block, and the
 bitmap is composed of a bit stream covering whole blocks in main area.
+
+Write-hint Policy
+-----------------
+
+1) whint_mode=off. F2FS only passes down WRITE_LIFE_NOT_SET.
+
+2) whint_mode=user-based. F2FS tries to pass down hints given by
+users.
+
+User                  F2FS                     Block
+----                  ----                     -----
+                      META                     WRITE_LIFE_NOT_SET
+                      HOT_NODE                 "
+                      WARM_NODE                "
+                      COLD_NODE                "
+*ioctl(COLD)          COLD_DATA                WRITE_LIFE_EXTREME
+*extension list       "                        "
+
+-- buffered io
+WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
+WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
+WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
+WRITE_LIFE_NONE       "                        "
+WRITE_LIFE_MEDIUM     "                        "
+WRITE_LIFE_LONG       "                        "
+
+-- direct io
+WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
+WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
+WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
+WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
+WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
+WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG
+
+3) whint_mode=fs-based. F2FS passes down hints with its policy.
+
+User                  F2FS                     Block
+----                  ----                     -----
+                      META                     WRITE_LIFE_MEDIUM;
+                      HOT_NODE                 WRITE_LIFE_NOT_SET
+                      WARM_NODE                "
+                      COLD_NODE                WRITE_LIFE_NONE
+ioctl(COLD)           COLD_DATA                WRITE_LIFE_EXTREME
+extension list        "                        "
+
+-- buffered io
+WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
+WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
+WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_LONG
+WRITE_LIFE_NONE       "                        "
+WRITE_LIFE_MEDIUM     "                        "
+WRITE_LIFE_LONG       "                        "
+
+-- direct io
+WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
+WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
+WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
+WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
+WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
+WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG

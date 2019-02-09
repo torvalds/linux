@@ -34,6 +34,7 @@
 #include <linux/ctype.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
+#include <asm/unaligned.h>
 
 #include <scsi/scsi_proto.h>
 
@@ -216,8 +217,7 @@ static int iscsi_get_pr_transport_id(
 	if (padding != 0)
 		len += padding;
 
-	buf[2] = ((len >> 8) & 0xff);
-	buf[3] = (len & 0xff);
+	put_unaligned_be16(len, &buf[2]);
 	/*
 	 * Increment value for total payload + header length for
 	 * full status descriptor
@@ -273,7 +273,7 @@ static int iscsi_get_pr_transport_id_len(
 
 static char *iscsi_parse_pr_out_transport_id(
 	struct se_portal_group *se_tpg,
-	const char *buf,
+	char *buf,
 	u32 *out_tid_len,
 	char **port_nexus_ptr)
 {
@@ -306,7 +306,7 @@ static char *iscsi_parse_pr_out_transport_id(
 	 */
 	if (out_tid_len) {
 		/* The shift works thanks to integer promotion rules */
-		add_len = (buf[2] << 8) | buf[3];
+		add_len = get_unaligned_be16(&buf[2]);
 
 		tid_len = strlen(&buf[4]);
 		tid_len += 4; /* Add four bytes for iSCSI Transport ID header */
@@ -356,7 +356,7 @@ static char *iscsi_parse_pr_out_transport_id(
 		}
 	}
 
-	return (char *)&buf[4];
+	return &buf[4];
 }
 
 int target_get_pr_transport_id_len(struct se_node_acl *nacl,
@@ -405,7 +405,7 @@ int target_get_pr_transport_id(struct se_node_acl *nacl,
 }
 
 const char *target_parse_pr_out_transport_id(struct se_portal_group *tpg,
-		const char *buf, u32 *out_tid_len, char **port_nexus_ptr)
+		char *buf, u32 *out_tid_len, char **port_nexus_ptr)
 {
 	u32 offset;
 

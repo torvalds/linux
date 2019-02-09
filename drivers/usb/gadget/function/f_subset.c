@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_subset.c -- "CDC Subset" Ethernet link function driver
  *
  * Copyright (C) 2003-2005,2008 David Brownell
  * Copyright (C) 2008 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/slab.h>
@@ -362,7 +358,7 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 		fs_subset_out_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, fs_eth_function, hs_eth_function,
-			ss_eth_function);
+			ss_eth_function, NULL);
 	if (status)
 		goto fail;
 
@@ -412,7 +408,7 @@ static struct configfs_attribute *gether_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type gether_func_type = {
+static const struct config_item_type gether_func_type = {
 	.ct_item_ops	= &gether_item_ops,
 	.ct_attrs	= gether_attrs,
 	.ct_owner	= THIS_MODULE,

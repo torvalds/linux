@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/ext2/acl.c
  *
@@ -172,17 +173,11 @@ ext2_get_acl(struct inode *inode, int type)
 		acl = ERR_PTR(retval);
 	kfree(value);
 
-	if (!IS_ERR(acl))
-		set_cached_acl(inode, type, acl);
-
 	return acl;
 }
 
-/*
- * inode->i_mutex: down
- */
-int
-ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+static int
+__ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	int name_index;
 	void *value = NULL;
@@ -192,17 +187,6 @@ ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	switch(type) {
 		case ACL_TYPE_ACCESS:
 			name_index = EXT2_XATTR_INDEX_POSIX_ACL_ACCESS;
-			if (acl) {
-				error = posix_acl_equiv_mode(acl, &inode->i_mode);
-				if (error < 0)
-					return error;
-				else {
-					inode->i_ctime = CURRENT_TIME_SEC;
-					mark_inode_dirty(inode);
-					if (error == 0)
-						acl = NULL;
-				}
-			}
 			break;
 
 		case ACL_TYPE_DEFAULT:
@@ -229,6 +213,31 @@ ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 }
 
 /*
+ * inode->i_mutex: down
+ */
+int
+ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+{
+	int error;
+	int update_mode = 0;
+	umode_t mode = inode->i_mode;
+
+	if (type == ACL_TYPE_ACCESS && acl) {
+		error = posix_acl_update_mode(inode, &mode, &acl);
+		if (error)
+			return error;
+		update_mode = 1;
+	}
+	error = __ext2_set_acl(inode, acl, type);
+	if (!error && update_mode) {
+		inode->i_mode = mode;
+		inode->i_ctime = current_time(inode);
+		mark_inode_dirty(inode);
+	}
+	return error;
+}
+
+/*
  * Initialize the ACLs of a new inode. Called from ext2_new_inode.
  *
  * dir->i_mutex: down
@@ -245,12 +254,12 @@ ext2_init_acl(struct inode *inode, struct inode *dir)
 		return error;
 
 	if (default_acl) {
-		error = ext2_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		error = __ext2_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
 		posix_acl_release(default_acl);
 	}
 	if (acl) {
 		if (!error)
-			error = ext2_set_acl(inode, acl, ACL_TYPE_ACCESS);
+			error = __ext2_set_acl(inode, acl, ACL_TYPE_ACCESS);
 		posix_acl_release(acl);
 	}
 	return error;

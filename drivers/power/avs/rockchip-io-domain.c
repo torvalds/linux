@@ -39,13 +39,25 @@
 #define MAX_VOLTAGE_1_8		1980000
 #define MAX_VOLTAGE_3_3		3600000
 
+#define PX30_IO_VSEL			0x180
+#define PX30_IO_VSEL_VCCIO6_SRC		BIT(0)
+#define PX30_IO_VSEL_VCCIO6_SUPPLY_NUM	1
+
 #define RK3288_SOC_CON2			0x24c
 #define RK3288_SOC_CON2_FLASH0		BIT(7)
 #define RK3288_SOC_FLASH_SUPPLY_NUM	2
 
+#define RK3328_SOC_CON4			0x410
+#define RK3328_SOC_CON4_VCCIO2		BIT(7)
+#define RK3328_SOC_VCCIO2_SUPPLY_NUM	1
+
 #define RK3368_SOC_CON15		0x43c
 #define RK3368_SOC_CON15_FLASH0		BIT(14)
 #define RK3368_SOC_FLASH_SUPPLY_NUM	2
+
+#define RK3399_PMUGRF_CON0		0x180
+#define RK3399_PMUGRF_CON0_VSEL		BIT(8)
+#define RK3399_PMUGRF_VSEL_SUPPLY_NUM	9
 
 struct rockchip_iodomain;
 
@@ -68,7 +80,7 @@ struct rockchip_iodomain_supply {
 struct rockchip_iodomain {
 	struct device *dev;
 	struct regmap *grf;
-	struct rockchip_iodomain_soc_data *soc_data;
+	const struct rockchip_iodomain_soc_data *soc_data;
 	struct rockchip_iodomain_supply supplies[MAX_SUPPLIES];
 };
 
@@ -139,8 +151,27 @@ static int rockchip_iodomain_notify(struct notifier_block *nb,
 	if (ret && event == REGULATOR_EVENT_PRE_VOLTAGE_CHANGE)
 		return NOTIFY_BAD;
 
-	dev_info(supply->iod->dev, "Setting to %d done\n", uV);
+	dev_dbg(supply->iod->dev, "Setting to %d done\n", uV);
 	return NOTIFY_OK;
+}
+
+static void px30_iodomain_init(struct rockchip_iodomain *iod)
+{
+	int ret;
+	u32 val;
+
+	/* if no VCCIO0 supply we should leave things alone */
+	if (!iod->supplies[PX30_IO_VSEL_VCCIO6_SUPPLY_NUM].reg)
+		return;
+
+	/*
+	 * set vccio0 iodomain to also use this framework
+	 * instead of a special gpio.
+	 */
+	val = PX30_IO_VSEL_VCCIO6_SRC | (PX30_IO_VSEL_VCCIO6_SRC << 16);
+	ret = regmap_write(iod->grf, PX30_IO_VSEL, val);
+	if (ret < 0)
+		dev_warn(iod->dev, "couldn't update vccio0 ctrl\n");
 }
 
 static void rk3288_iodomain_init(struct rockchip_iodomain *iod)
@@ -162,6 +193,25 @@ static void rk3288_iodomain_init(struct rockchip_iodomain *iod)
 		dev_warn(iod->dev, "couldn't update flash0 ctrl\n");
 }
 
+static void rk3328_iodomain_init(struct rockchip_iodomain *iod)
+{
+	int ret;
+	u32 val;
+
+	/* if no vccio2 supply we should leave things alone */
+	if (!iod->supplies[RK3328_SOC_VCCIO2_SUPPLY_NUM].reg)
+		return;
+
+	/*
+	 * set vccio2 iodomain to also use this framework
+	 * instead of a special gpio.
+	 */
+	val = RK3328_SOC_CON4_VCCIO2 | (RK3328_SOC_CON4_VCCIO2 << 16);
+	ret = regmap_write(iod->grf, RK3328_SOC_CON4, val);
+	if (ret < 0)
+		dev_warn(iod->dev, "couldn't update vccio2 vsel ctrl\n");
+}
+
 static void rk3368_iodomain_init(struct rockchip_iodomain *iod)
 {
 	int ret;
@@ -180,6 +230,62 @@ static void rk3368_iodomain_init(struct rockchip_iodomain *iod)
 	if (ret < 0)
 		dev_warn(iod->dev, "couldn't update flash0 ctrl\n");
 }
+
+static void rk3399_pmu_iodomain_init(struct rockchip_iodomain *iod)
+{
+	int ret;
+	u32 val;
+
+	/* if no pmu io supply we should leave things alone */
+	if (!iod->supplies[RK3399_PMUGRF_VSEL_SUPPLY_NUM].reg)
+		return;
+
+	/*
+	 * set pmu io iodomain to also use this framework
+	 * instead of a special gpio.
+	 */
+	val = RK3399_PMUGRF_CON0_VSEL | (RK3399_PMUGRF_CON0_VSEL << 16);
+	ret = regmap_write(iod->grf, RK3399_PMUGRF_CON0, val);
+	if (ret < 0)
+		dev_warn(iod->dev, "couldn't update pmu io iodomain ctrl\n");
+}
+
+static const struct rockchip_iodomain_soc_data soc_data_px30 = {
+	.grf_offset = 0x180,
+	.supply_names = {
+		NULL,
+		"vccio6",
+		"vccio1",
+		"vccio2",
+		"vccio3",
+		"vccio4",
+		"vccio5",
+		"vccio-oscgpi",
+	},
+	.init = px30_iodomain_init,
+};
+
+static const struct rockchip_iodomain_soc_data soc_data_px30_pmu = {
+	.grf_offset = 0x100,
+	.supply_names = {
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		"pmuio1",
+		"pmuio2",
+	},
+};
 
 /*
  * On the rk3188 the io-domains are handled by a shared register with the
@@ -207,6 +313,16 @@ static const struct rockchip_iodomain_soc_data soc_data_rk3188 = {
 	},
 };
 
+static const struct rockchip_iodomain_soc_data soc_data_rk3228 = {
+	.grf_offset = 0x418,
+	.supply_names = {
+		"vccio1",
+		"vccio2",
+		"vccio3",
+		"vccio4",
+	},
+};
+
 static const struct rockchip_iodomain_soc_data soc_data_rk3288 = {
 	.grf_offset = 0x380,
 	.supply_names = {
@@ -222,6 +338,20 @@ static const struct rockchip_iodomain_soc_data soc_data_rk3288 = {
 		"gpio1830",	/* APIO2_VDD */
 	},
 	.init = rk3288_iodomain_init,
+};
+
+static const struct rockchip_iodomain_soc_data soc_data_rk3328 = {
+	.grf_offset = 0x410,
+	.supply_names = {
+		"vccio1",
+		"vccio2",
+		"vccio3",
+		"vccio4",
+		"vccio5",
+		"vccio6",
+		"pmuio",
+	},
+	.init = rk3328_iodomain_init,
 };
 
 static const struct rockchip_iodomain_soc_data soc_data_rk3368 = {
@@ -252,22 +382,111 @@ static const struct rockchip_iodomain_soc_data soc_data_rk3368_pmu = {
 	},
 };
 
+static const struct rockchip_iodomain_soc_data soc_data_rk3399 = {
+	.grf_offset = 0xe640,
+	.supply_names = {
+		"bt656",		/* APIO2_VDD */
+		"audio",		/* APIO5_VDD */
+		"sdmmc",		/* SDMMC0_VDD */
+		"gpio1830",		/* APIO4_VDD */
+	},
+};
+
+static const struct rockchip_iodomain_soc_data soc_data_rk3399_pmu = {
+	.grf_offset = 0x180,
+	.supply_names = {
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		"pmu1830",		/* PMUIO2_VDD */
+	},
+	.init = rk3399_pmu_iodomain_init,
+};
+
+static const struct rockchip_iodomain_soc_data soc_data_rv1108 = {
+	.grf_offset = 0x404,
+	.supply_names = {
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		"vccio1",
+		"vccio2",
+		"vccio3",
+		"vccio5",
+		"vccio6",
+	},
+
+};
+
+static const struct rockchip_iodomain_soc_data soc_data_rv1108_pmu = {
+	.grf_offset = 0x104,
+	.supply_names = {
+		"pmu",
+	},
+};
+
 static const struct of_device_id rockchip_iodomain_match[] = {
 	{
+		.compatible = "rockchip,px30-io-voltage-domain",
+		.data = (void *)&soc_data_px30
+	},
+	{
+		.compatible = "rockchip,px30-pmu-io-voltage-domain",
+		.data = (void *)&soc_data_px30_pmu
+	},
+	{
 		.compatible = "rockchip,rk3188-io-voltage-domain",
-		.data = (void *)&soc_data_rk3188
+		.data = &soc_data_rk3188
+	},
+	{
+		.compatible = "rockchip,rk3228-io-voltage-domain",
+		.data = &soc_data_rk3228
 	},
 	{
 		.compatible = "rockchip,rk3288-io-voltage-domain",
-		.data = (void *)&soc_data_rk3288
+		.data = &soc_data_rk3288
+	},
+	{
+		.compatible = "rockchip,rk3328-io-voltage-domain",
+		.data = &soc_data_rk3328
 	},
 	{
 		.compatible = "rockchip,rk3368-io-voltage-domain",
-		.data = (void *)&soc_data_rk3368
+		.data = &soc_data_rk3368
 	},
 	{
 		.compatible = "rockchip,rk3368-pmu-io-voltage-domain",
-		.data = (void *)&soc_data_rk3368_pmu
+		.data = &soc_data_rk3368_pmu
+	},
+	{
+		.compatible = "rockchip,rk3399-io-voltage-domain",
+		.data = &soc_data_rk3399
+	},
+	{
+		.compatible = "rockchip,rk3399-pmu-io-voltage-domain",
+		.data = &soc_data_rk3399_pmu
+	},
+	{
+		.compatible = "rockchip,rv1108-io-voltage-domain",
+		.data = &soc_data_rv1108
+	},
+	{
+		.compatible = "rockchip,rv1108-pmu-io-voltage-domain",
+		.data = &soc_data_rv1108_pmu
 	},
 	{ /* sentinel */ },
 };
@@ -278,6 +497,7 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	struct rockchip_iodomain *iod;
+	struct device *parent;
 	int i, ret = 0;
 
 	if (!np)
@@ -291,9 +511,16 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, iod);
 
 	match = of_match_node(rockchip_iodomain_match, np);
-	iod->soc_data = (struct rockchip_iodomain_soc_data *)match->data;
+	iod->soc_data = match->data;
 
-	iod->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	parent = pdev->dev.parent;
+	if (parent && parent->of_node) {
+		iod->grf = syscon_node_to_regmap(parent->of_node);
+	} else {
+		dev_dbg(&pdev->dev, "falling back to old binding\n");
+		iod->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	}
+
 	if (IS_ERR(iod->grf)) {
 		dev_err(&pdev->dev, "couldn't find grf regmap\n");
 		return PTR_ERR(iod->grf);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * builtin-bench.c
  *
@@ -16,7 +17,7 @@
  */
 #include "perf.h"
 #include "util/util.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "builtin.h"
 #include "bench/bench.h"
 
@@ -25,7 +26,7 @@
 #include <string.h>
 #include <sys/prctl.h>
 
-typedef int (*bench_fn_t)(int argc, const char **argv, const char *prefix);
+typedef int (*bench_fn_t)(int argc, const char **argv);
 
 struct bench {
 	const char	*name;
@@ -155,7 +156,7 @@ static int bench_str2int(const char *str)
  * to something meaningful:
  */
 static int run_bench(const char *coll_name, const char *bench_name, bench_fn_t fn,
-		     int argc, const char **argv, const char *prefix)
+		     int argc, const char **argv)
 {
 	int size;
 	char *name;
@@ -171,7 +172,7 @@ static int run_bench(const char *coll_name, const char *bench_name, bench_fn_t f
 	prctl(PR_SET_NAME, name);
 	argv[0] = name;
 
-	ret = fn(argc, argv, prefix);
+	ret = fn(argc, argv);
 
 	free(name);
 
@@ -198,7 +199,7 @@ static void run_collection(struct collection *coll)
 		fflush(stdout);
 
 		argv[1] = bench->name;
-		run_bench(coll->name, bench->name, bench->fn, 1, argv, NULL);
+		run_bench(coll->name, bench->name, bench->fn, 1, argv);
 		printf("\n");
 	}
 }
@@ -211,7 +212,7 @@ static void run_all_collections(void)
 		run_collection(coll);
 }
 
-int cmd_bench(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_bench(int argc, const char **argv)
 {
 	struct collection *coll;
 	int ret = 0;
@@ -270,7 +271,7 @@ int cmd_bench(int argc, const char **argv, const char *prefix __maybe_unused)
 			if (bench_format == BENCH_FORMAT_DEFAULT)
 				printf("# Running '%s/%s' benchmark:\n", coll->name, bench->name);
 			fflush(stdout);
-			ret = run_bench(coll->name, bench->name, bench->fn, argc-1, argv+1, prefix);
+			ret = run_bench(coll->name, bench->name, bench->fn, argc-1, argv+1);
 			goto end;
 		}
 

@@ -54,4 +54,4 @@ The first 4 bytes should be 0x1badface.
 If you have any patches, questions or suggestions regarding this BFS
 implementation please contact the author:
 
-Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
+Tigran Aivazian <aivazian.tigran@gmail.com>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Hardkernel's Exynos4412 based ODROID-U3 board device tree source
  *
@@ -5,21 +6,18 @@
  *
  * Device tree source file for Hardkernel's ODROID-U3 board which is based
  * on Samsung's Exynos4412 SoC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 /dts-v1/;
 #include "exynos4412-odroid-common.dtsi"
-#include <dt-bindings/gpio/gpio.h>
+#include "exynos4412-prime.dtsi"
 
 / {
 	model = "Hardkernel ODROID-U3 board based on Exynos4412";
 	compatible = "hardkernel,odroid-u3", "samsung,exynos4412", "samsung,exynos4";
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x7FF00000>;
 	};
 
@@ -47,11 +45,11 @@
 			cooling-maps {
 				map0 {
 				     trip = <&cpu_alert1>;
-				     cooling-device = <&cpu0 7 7>;
+				     cooling-device = <&cpu0 9 9>;
 				};
 				map1 {
 				     trip = <&cpu_alert2>;
-				     cooling-device = <&cpu0 13 13>;
+				     cooling-device = <&cpu0 15 15>;
 				};
 				map2 {
 				     trip = <&cpu_alert0>;
@@ -68,6 +66,28 @@
 			};
 		};
 	};
+};
+
+/* Supply for LAN9730/SMSC95xx */
+&buck8_reg {
+	regulator-name = "BUCK8_P3V3";
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+};
+
+&hdmicec {
+	needs-hpd;
+};
+
+/* VDDQ for MSHC (eMMC card) */
+&ldo22_reg {
+	regulator-name = "LDO22_VDDQ_MMC4_2.8V";
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+};
+
+&mshc_0 {
+	vqmmc-supply = <&ldo22_reg>;
 };
 
 &pwm {
@@ -93,11 +113,11 @@
 };
 
 &sound {
-	simple-audio-card,name = "Odroid-U3";
-	simple-audio-card,widgets =
+	model = "Odroid-U3";
+	samsung,audio-widgets =
 		"Headphone", "Headphone Jack",
 		"Speakers", "Speakers";
-	simple-audio-card,routing =
+	samsung,audio-routing =
 		"Headphone Jack", "HPL",
 		"Headphone Jack", "HPR",
 		"Headphone Jack", "MICBIAS",

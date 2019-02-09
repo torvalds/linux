@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/oprofile.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -18,7 +19,7 @@ struct stackframe {
 static inline int get_mem(unsigned long addr, unsigned long *result)
 {
 	unsigned long *address = (unsigned long *) addr;
-	if (!access_ok(VERIFY_READ, addr, sizeof(unsigned long)))
+	if (!access_ok(VERIFY_READ, address, sizeof(unsigned long)))
 		return -1;
 	if (__copy_from_user_inatomic(result, address, sizeof(unsigned long)))
 		return -3;

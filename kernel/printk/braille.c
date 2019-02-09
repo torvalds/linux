@@ -1,28 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/console.h>
+#include <linux/errno.h>
 #include <linux/string.h>
 
 #include "console_cmdline.h"
 #include "braille.h"
 
-char *_braille_console_setup(char **str, char **brl_options)
+int _braille_console_setup(char **str, char **brl_options)
 {
-	if (!memcmp(*str, "brl,", 4)) {
+	if (!strncmp(*str, "brl,", 4)) {
 		*brl_options = "";
 		*str += 4;
-	} else if (!memcmp(str, "brl=", 4)) {
+	} else if (!strncmp(*str, "brl=", 4)) {
 		*brl_options = *str + 4;
 		*str = strchr(*brl_options, ',');
-		if (!*str)
+		if (!*str) {
 			pr_err("need port name after brl=\n");
-		else
-			*((*str)++) = 0;
-	} else
-		return NULL;
+			return -EINVAL;
+		}
+		*((*str)++) = 0;
+	}
 
-	return *str;
+	return 0;
 }
 
 int

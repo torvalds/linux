@@ -1,7 +1,10 @@
 * Marvell XOR engines
 
 Required properties:
-- compatible: Should be "marvell,orion-xor" or "marvell,armada-380-xor"
+- compatible: Should be one of the following:
+  - "marvell,orion-xor"
+  - "marvell,armada-380-xor"
+  - "marvell,armada-3700-xor".
 - reg: Should contain registers location and length (two sets)
     the first set is the low registers, the second set the high
     registers for the XOR engine.
@@ -27,7 +30,6 @@ xor@d0060900 {
 	reg = <0xd0060900 0x100
 	       0xd0060b00 0x100>;
 	clocks = <&coreclk 0>;
-	status = "okay";
 
 	xor00 {
 	      interrupts = <51>;

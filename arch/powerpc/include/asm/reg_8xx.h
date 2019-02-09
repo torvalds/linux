@@ -1,8 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Contains register definitions common to PowerPC 8xx CPUs.  Notice
  */
 #ifndef _ASM_POWERPC_REG_8xx_H
 #define _ASM_POWERPC_REG_8xx_H
+
+#include <asm/mmu.h>
 
 /* Cache control on the MPC8xx is provided through some additional
  * special purpose registers.
@@ -13,6 +16,30 @@
 #define SPRN_DC_CST	568	/* Data cache control/status */
 #define SPRN_DC_ADR	569	/* Address needed for some commands */
 #define SPRN_DC_DAT	570	/* Read-only data register */
+
+/* Misc Debug */
+#define SPRN_DPDR	630
+#define SPRN_MI_CAM	816
+#define SPRN_MI_RAM0	817
+#define SPRN_MI_RAM1	818
+#define SPRN_MD_CAM	824
+#define SPRN_MD_RAM0	825
+#define SPRN_MD_RAM1	826
+
+/* Special MSR manipulation registers */
+#define SPRN_EIE	80	/* External interrupt enable (EE=1, RI=1) */
+#define SPRN_EID	81	/* External interrupt disable (EE=0, RI=1) */
+#define SPRN_NRI	82	/* Non recoverable interrupt (EE=0, RI=0) */
+
+/* Debug registers */
+#define SPRN_CMPA	144
+#define SPRN_COUNTA	150
+#define SPRN_CMPE	152
+#define SPRN_CMPF	153
+#define SPRN_LCTRL1	156
+#define SPRN_LCTRL2	157
+#define SPRN_ICTRL	158
+#define SPRN_BAR	159
 
 /* Commands.  Only the first few are available to the instruction cache.
 */

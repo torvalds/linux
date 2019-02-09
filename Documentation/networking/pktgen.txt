@@ -12,8 +12,8 @@ suitable sample script and configure that.
 On a dual CPU:
 
 ps aux | grep pkt
-root       129  0.3  0.0     0    0 ?        SW    2003 523:20 [pktgen/0]
-root       130  0.3  0.0     0    0 ?        SW    2003 509:50 [pktgen/1]
+root       129  0.3  0.0     0    0 ?        SW    2003 523:20 [kpktgend_0]
+root       130  0.3  0.0     0    0 ?        SW    2003 509:50 [kpktgend_1]
 
 
 For monitoring and control pktgen creates:
@@ -67,12 +67,12 @@ The two basic thread commands are:
  * add_device DEVICE@NAME -- adds a single device
  * rem_device_all         -- remove all associated devices
 
-When adding a device to a thread, a corrosponding procfile is created
+When adding a device to a thread, a corresponding procfile is created
 which is used for configuring this device. Thus, device names need to
 be unique.
 
 To support adding the same device to multiple threads, which is useful
-with multi queue NICs, a the device naming scheme is extended with "@":
+with multi queue NICs, the device naming scheme is extended with "@":
  device@something
 
 The part after "@" can be anything, but it is custom to use the thread
@@ -113,8 +113,15 @@ Configuring devices
 ===================
 This is done via the /proc interface, and most easily done via pgset
 as defined in the sample scripts.
+You need to specify PGDEV environment variable to use functions from sample
+scripts, i.e.:
+export PGDEV=/proc/net/pktgen/eth4@0
+source samples/pktgen/functions.sh
 
 Examples:
+
+ pg_ctrl start           starts injection.
+ pg_ctrl stop            aborts injection. Also, ^C aborts generator.
 
  pgset "clone_skb 1"     sets the number of copies of the same packet
  pgset "clone_skb 0"     use single SKB for all transmits
@@ -165,8 +172,12 @@ Examples:
                               IPSEC # IPsec encapsulation (needs CONFIG_XFRM)
                               NODE_ALLOC # node specific memory allocation
                               NO_TIMESTAMP # disable timestamping
+ pgset 'flag ![name]'    Clear a flag to determine behaviour.
+                         Note that you might need to use single quote in
+                         interactive mode, so that your shell wouldn't expand
+                         the specified flag as a history command.
 
- pgset spi SPI_VALUE     Set specific SA used to transform packet.
+ pgset "spi [SPI_VALUE]" Set specific SA used to transform packet.
 
  pgset "udp_src_min 9"   set UDP source port min, If < udp_src_max, then
                          cycle through the port range.
@@ -207,8 +218,6 @@ Examples:
  pgset "tos XX"           set former IPv4 TOS field (e.g. "tos 28" for AF11 no ECN, default 00)
  pgset "traffic_class XX" set former IPv6 TRAFFIC CLASS (e.g. "traffic_class B8" for EF no ECN, default 00)
 
- pgset stop    	          aborts injection. Also, ^C aborts generator.
-
  pgset "rate 300M"        set rate to 300 Mb/s
  pgset "ratep 1000000"    set rate to 1Mpps
 
@@ -221,7 +230,7 @@ Sample scripts
 
 A collection of tutorial scripts and helpers for pktgen is in the
 samples/pktgen directory. The helper parameters.sh file support easy
-and consistant parameter parsing across the sample scripts.
+and consistent parameter parsing across the sample scripts.
 
 Usage example and help:
  ./pktgen_sample01_simple.sh -i eth4 -m 00:1B:21:3C:9D:F8 -d 192.168.8.2

@@ -16,7 +16,9 @@
 #include <linux/of_platform.h>
 #include <linux/irqdomain.h>
 
+#include <asm/setup.h>
 #include <asm/mach/arch.h>
+#include <asm/system_info.h>
 
 #include "common.h"
 
@@ -26,13 +28,10 @@ static const struct of_device_id omap_dt_match_table[] __initconst = {
 	{ }
 };
 
-static void __init omap_generic_init(void)
+static void __init __maybe_unused omap_generic_init(void)
 {
-	omapdss_early_init_of();
-
 	pdata_quirks_init(omap_dt_match_table);
-
-	omapdss_init_of();
+	omap_soc_device_init();
 }
 
 #ifdef CONFIG_SOC_OMAP2420
@@ -76,8 +75,36 @@ static const char *const n900_boards_compat[] __initconst = {
 	NULL,
 };
 
+/* Set system_rev from atags */
+static void __init rx51_set_system_rev(const struct tag *tags)
+{
+	const struct tag *tag;
+
+	if (tags->hdr.tag != ATAG_CORE)
+		return;
+
+	for_each_tag(tag, tags) {
+		if (tag->hdr.tag == ATAG_REVISION) {
+			system_rev = tag->u.revision.rev;
+			break;
+		}
+	}
+}
+
+/* Legacy userspace on Nokia N900 needs ATAGS exported in /proc/atags,
+ * save them while the data is still not overwritten
+ */
+static void __init rx51_reserve(void)
+{
+	const struct tag *tags = (const struct tag *)(PAGE_OFFSET + 0x100);
+
+	save_atags(tags);
+	rx51_set_system_rev(tags);
+	omap_reserve();
+}
+
 DT_MACHINE_START(OMAP3_N900_DT, "Nokia RX-51 board")
-	.reserve	= omap_reserve,
+	.reserve	= rx51_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap3430_init_early,
 	.init_machine	= omap_generic_init,
@@ -276,7 +303,7 @@ DT_MACHINE_START(AM43_DT, "Generic AM43 (Flattened Device Tree)")
 	.init_late	= am43xx_init_late,
 	.init_irq	= omap_gic_of_init,
 	.init_machine	= omap_generic_init,
-	.init_time	= omap4_local_timer_init,
+	.init_time	= omap3_gptimer_timer_init,
 	.dt_compat	= am43_boards_compat,
 	.restart	= omap44xx_restart,
 MACHINE_END
@@ -284,6 +311,7 @@ MACHINE_END
 
 #ifdef CONFIG_SOC_DRA7XX
 static const char *const dra74x_boards_compat[] __initconst = {
+	"ti,dra762",
 	"ti,am5728",
 	"ti,am5726",
 	"ti,dra742",
@@ -311,6 +339,7 @@ static const char *const dra72x_boards_compat[] __initconst = {
 	"ti,am5718",
 	"ti,am5716",
 	"ti,dra722",
+	"ti,dra718",
 	NULL,
 };
 

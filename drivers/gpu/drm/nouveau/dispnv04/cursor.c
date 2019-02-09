@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <drm/drmP.h>
 #include <drm/drm_mode.h>
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_reg.h"
 #include "nouveau_crtc.h"
 #include "hw.h"
@@ -55,7 +56,7 @@ nv04_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR0_INDEX);
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR1_INDEX);
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR2_INDEX);
-	if (drm->device.info.family == NV_DEVICE_INFO_V0_CURIE)
+	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CURIE)
 		nv_fix_nv40_hw_cursor(dev, nv_crtc->index);
 }
 

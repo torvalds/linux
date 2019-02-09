@@ -138,7 +138,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 			if (event->length > 3 && event->data[3])
 				priv->btmrvl_dev.dev_type = HCI_AMP;
 			else
-				priv->btmrvl_dev.dev_type = HCI_BREDR;
+				priv->btmrvl_dev.dev_type = HCI_PRIMARY;
 
 			BT_DBG("dev_type: %d", priv->btmrvl_dev.dev_type);
 		} else if (priv->btmrvl_dev.sendcmdflag &&
@@ -183,20 +183,20 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 		return -EFAULT;
 	}
 
-	skb = bt_skb_alloc(HCI_COMMAND_HDR_SIZE + len, GFP_ATOMIC);
+	skb = bt_skb_alloc(HCI_COMMAND_HDR_SIZE + len, GFP_KERNEL);
 	if (!skb) {
 		BT_ERR("No free skb");
 		return -ENOMEM;
 	}
 
-	hdr = (struct hci_command_hdr *)skb_put(skb, HCI_COMMAND_HDR_SIZE);
+	hdr = skb_put(skb, HCI_COMMAND_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(opcode);
 	hdr->plen = len;
 
 	if (len)
-		memcpy(skb_put(skb, len), param, len);
+		skb_put_data(skb, param, len);
 
-	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
+	hci_skb_pkt_type(skb) = MRVL_VENDOR_PKT;
 
 	skb_queue_head(&priv->adapter->tx_queue, skb);
 
@@ -358,12 +358,6 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 	return ret;
 }
 
-void btmrvl_firmware_dump(struct btmrvl_private *priv)
-{
-	if (priv->firmware_dump)
-		priv->firmware_dump(priv);
-}
-
 static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
 {
 	int ret = 0;
@@ -387,7 +381,7 @@ static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
 	skb->data[0] = (skb->len & 0x0000ff);
 	skb->data[1] = (skb->len & 0x00ff00) >> 8;
 	skb->data[2] = (skb->len & 0xff0000) >> 16;
-	skb->data[3] = bt_cb(skb)->pkt_type;
+	skb->data[3] = hci_skb_pkt_type(skb);
 
 	if (priv->hw_host_to_card)
 		ret = priv->hw_host_to_card(priv, skb->data, skb->len);
@@ -434,9 +428,14 @@ static int btmrvl_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 
-	BT_DBG("type=%d, len=%d", skb->pkt_type, skb->len);
+	BT_DBG("type=%d, len=%d", hci_skb_pkt_type(skb), skb->len);
 
-	switch (bt_cb(skb)->pkt_type) {
+	if (priv->adapter->is_suspending || priv->adapter->is_suspended) {
+		BT_ERR("%s: Device is suspending or suspended", __func__);
+		return -EBUSY;
+	}
+
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		break;
@@ -452,7 +451,8 @@ static int btmrvl_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	skb_queue_tail(&priv->adapter->tx_queue, skb);
 
-	wake_up_interruptible(&priv->main_thread.wait_q);
+	if (!priv->adapter->is_suspended)
+		wake_up_interruptible(&priv->main_thread.wait_q);
 
 	return 0;
 }
@@ -496,7 +496,7 @@ static int btmrvl_download_cal_data(struct btmrvl_private *priv,
 	ret = btmrvl_send_sync_cmd(priv, BT_CMD_LOAD_CONFIG_DATA, data,
 				   BT_CAL_HDR_LEN + len);
 	if (ret)
-		BT_ERR("Failed to download caibration data");
+		BT_ERR("Failed to download calibration data");
 
 	return 0;
 }
@@ -504,34 +504,39 @@ static int btmrvl_download_cal_data(struct btmrvl_private *priv,
 static int btmrvl_check_device_tree(struct btmrvl_private *priv)
 {
 	struct device_node *dt_node;
+	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
 	u8 cal_data[BT_CAL_HDR_LEN + BT_CAL_DATA_SIZE];
-	int ret;
-	u32 val;
+	int ret = 0;
+	u16 gpio, gap;
 
-	for_each_compatible_node(dt_node, NULL, "btmrvl,cfgdata") {
-		ret = of_property_read_u32(dt_node, "btmrvl,gpio-gap", &val);
-		if (!ret)
-			priv->btmrvl_dev.gpio_gap = val;
+	if (card->plt_of_node) {
+		dt_node = card->plt_of_node;
+		ret = of_property_read_u16(dt_node, "marvell,wakeup-pin",
+					   &gpio);
+		if (ret)
+			gpio = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
 
-		ret = of_property_read_u8_array(dt_node, "btmrvl,cal-data",
+		ret = of_property_read_u16(dt_node, "marvell,wakeup-gap-ms",
+					   &gap);
+		if (ret)
+			gap = (u8)(priv->btmrvl_dev.gpio_gap & 0x00ff);
+
+		priv->btmrvl_dev.gpio_gap = (gpio << 8) + gap;
+
+		ret = of_property_read_u8_array(dt_node, "marvell,cal-data",
 						cal_data + BT_CAL_HDR_LEN,
 						BT_CAL_DATA_SIZE);
-		if (ret) {
-			of_node_put(dt_node);
+		if (ret)
 			return ret;
-		}
 
 		BT_DBG("Use cal data from device tree");
 		ret = btmrvl_download_cal_data(priv, cal_data,
 					       BT_CAL_DATA_SIZE);
-		if (ret) {
+		if (ret)
 			BT_ERR("Fail to download calibrate data");
-			of_node_put(dt_node);
-			return ret;
-		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static int btmrvl_setup(struct hci_dev *hdev)
@@ -543,7 +548,7 @@ static int btmrvl_setup(struct hci_dev *hdev)
 	if (ret)
 		return ret;
 
-	priv->btmrvl_dev.gpio_gap = 0xffff;
+	priv->btmrvl_dev.gpio_gap = 0xfffe;
 
 	btmrvl_check_device_tree(priv);
 
@@ -591,7 +596,7 @@ static int btmrvl_service_main_thread(void *data)
 	struct btmrvl_thread *thread = data;
 	struct btmrvl_private *priv = thread->priv;
 	struct btmrvl_adapter *adapter = priv->adapter;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	struct sk_buff *skb;
 	ulong flags;
 
@@ -643,7 +648,8 @@ static int btmrvl_service_main_thread(void *data)
 		if (adapter->ps_state == PS_SLEEP)
 			continue;
 
-		if (!priv->btmrvl_dev.tx_dnld_rdy)
+		if (!priv->btmrvl_dev.tx_dnld_rdy ||
+		    priv->adapter->is_suspended)
 			continue;
 
 		skb = skb_dequeue(&adapter->tx_queue);

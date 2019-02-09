@@ -5,11 +5,12 @@
  *   under the terms of the GNU General Public License as published by the Free
  *   Software Foundation, version 2.
  *
- * see Documentation/dvb/README.dvb-usb for more information
+ * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
+#include <media/tuner.h>
 
 #include "mxl111sf.h"
 #include "mxl111sf-reg.h"
@@ -23,13 +24,9 @@
 #include "lgdt3305.h"
 #include "lg2160.h"
 
-/* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  64
-
 int dvb_usb_mxl111sf_debug;
 module_param_named(debug, dvb_usb_mxl111sf_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level "
-		 "(1=info, 2=xfer, 4=i2c, 8=reg, 16=adv (or-able)).");
+MODULE_PARM_DESC(debug, "set debugging level (1=info, 2=xfer, 4=i2c, 8=reg, 16=adv (or-able)).");
 
 static int dvb_usb_mxl111sf_isoc;
 module_param_named(isoc, dvb_usb_mxl111sf_isoc, int, 0644);
@@ -55,27 +52,36 @@ MODULE_PARM_DESC(rfswitch, "force rf switch position (0=auto, 1=ext, 2=int).");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-int mxl111sf_ctrl_msg(struct dvb_usb_device *d,
+int mxl111sf_ctrl_msg(struct mxl111sf_state *state,
 		      u8 cmd, u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
+	struct dvb_usb_device *d = state->d;
 	int wo = (rbuf == NULL || rlen == 0); /* write-only */
 	int ret;
-	u8 sndbuf[MAX_XFER_SIZE];
 
-	if (1 + wlen > sizeof(sndbuf)) {
+	if (1 + wlen > MXL_MAX_XFER_SIZE) {
 		pr_warn("%s: len=%d is too big!\n", __func__, wlen);
 		return -EOPNOTSUPP;
 	}
 
 	pr_debug("%s(wlen = %d, rlen = %d)\n", __func__, wlen, rlen);
 
-	memset(sndbuf, 0, 1+wlen);
+	mutex_lock(&state->msg_lock);
+	memset(state->sndbuf, 0, 1+wlen);
+	memset(state->rcvbuf, 0, rlen);
 
-	sndbuf[0] = cmd;
-	memcpy(&sndbuf[1], wbuf, wlen);
+	state->sndbuf[0] = cmd;
+	memcpy(&state->sndbuf[1], wbuf, wlen);
 
-	ret = (wo) ? dvb_usbv2_generic_write(d, sndbuf, 1+wlen) :
-		dvb_usbv2_generic_rw(d, sndbuf, 1+wlen, rbuf, rlen);
+	ret = (wo) ? dvb_usbv2_generic_write(d, state->sndbuf, 1+wlen) :
+		dvb_usbv2_generic_rw(d, state->sndbuf, 1+wlen, state->rcvbuf,
+				     rlen);
+
+	if (rbuf)
+		memcpy(rbuf, state->rcvbuf, rlen);
+
+	mutex_unlock(&state->msg_lock);
+
 	mxl_fail(ret);
 
 	return ret;
@@ -91,7 +97,7 @@ int mxl111sf_read_reg(struct mxl111sf_state *state, u8 addr, u8 *data)
 	u8 buf[2];
 	int ret;
 
-	ret = mxl111sf_ctrl_msg(state->d, MXL_CMD_REG_READ, &addr, 1, buf, 2);
+	ret = mxl111sf_ctrl_msg(state, MXL_CMD_REG_READ, &addr, 1, buf, 2);
 	if (mxl_fail(ret)) {
 		mxl_debug("error reading reg: 0x%02x", addr);
 		goto fail;
@@ -117,7 +123,7 @@ int mxl111sf_write_reg(struct mxl111sf_state *state, u8 addr, u8 data)
 
 	pr_debug("W: (0x%02x, 0x%02x)\n", addr, data);
 
-	ret = mxl111sf_ctrl_msg(state->d, MXL_CMD_REG_WRITE, buf, 2, NULL, 0);
+	ret = mxl111sf_ctrl_msg(state, MXL_CMD_REG_WRITE, buf, 2, NULL, 0);
 	if (mxl_fail(ret))
 		pr_err("error writing reg: 0x%02x, val: 0x%02x", addr, data);
 	return ret;
@@ -136,8 +142,8 @@ int mxl111sf_write_reg_mask(struct mxl111sf_state *state,
 #if 1
 		/* dont know why this usually errors out on the first try */
 		if (mxl_fail(ret))
-			pr_err("error writing addr: 0x%02x, mask: 0x%02x, "
-			    "data: 0x%02x, retrying...", addr, mask, data);
+			pr_err("error writing addr: 0x%02x, mask: 0x%02x, data: 0x%02x, retrying...",
+			       addr, mask, data);
 
 		ret = mxl111sf_read_reg(state, addr, &val);
 #endif
@@ -288,9 +294,9 @@ static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 	err = mxl1x1sf_set_device_mode(state, adap_state->device_mode);
 
 	mxl_fail(err);
-	mxl111sf_enable_usb_output(state);
+	err = mxl111sf_enable_usb_output(state);
 	mxl_fail(err);
-	mxl1x1sf_top_master_ctrl(state, 1);
+	err = mxl1x1sf_top_master_ctrl(state, 1);
 	mxl_fail(err);
 
 	if ((MXL111SF_GPIO_MOD_DVBT != adap_state->gpio_mode) &&
@@ -731,7 +737,7 @@ fail:
 	return ret;
 }
 
-static struct mxl111sf_demod_config mxl_demod_config = {
+static const struct mxl111sf_demod_config mxl_demod_config = {
 	.read_reg        = mxl111sf_read_reg,
 	.write_reg       = mxl111sf_write_reg,
 	.program_regs    = mxl111sf_ctrl_program_regs,
@@ -855,7 +861,7 @@ static int mxl111sf_ant_hunt(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct mxl111sf_tuner_config mxl_tuner_config = {
+static const struct mxl111sf_tuner_config mxl_tuner_config = {
 	.if_freq         = MXL_IF_6_0, /* applies to external IF output, only */
 	.invert_spectrum = 0,
 	.read_reg        = mxl111sf_read_reg,
@@ -868,6 +874,10 @@ static struct mxl111sf_tuner_config mxl_tuner_config = {
 static int mxl111sf_attach_tuner(struct dvb_usb_adapter *adap)
 {
 	struct mxl111sf_state *state = adap_to_priv(adap);
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	struct media_device *mdev = dvb_get_media_controller(&adap->dvb_adap);
+	int ret;
+#endif
 	int i;
 
 	pr_debug("%s()\n", __func__);
@@ -879,6 +889,21 @@ static int mxl111sf_attach_tuner(struct dvb_usb_adapter *adap)
 		adap->fe[i]->ops.read_signal_strength = adap->fe[i]->ops.tuner_ops.get_rf_strength;
 	}
 
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	state->tuner.function = MEDIA_ENT_F_TUNER;
+	state->tuner.name = "mxl111sf tuner";
+	state->tuner_pads[TUNER_PAD_RF_INPUT].flags = MEDIA_PAD_FL_SINK;
+	state->tuner_pads[TUNER_PAD_OUTPUT].flags = MEDIA_PAD_FL_SOURCE;
+
+	ret = media_entity_pads_init(&state->tuner,
+				     TUNER_NUM_PADS, state->tuner_pads);
+	if (ret)
+		return ret;
+
+	ret = media_device_register_entity(mdev, &state->tuner);
+	if (ret)
+		return ret;
+#endif
 	return 0;
 }
 
@@ -900,7 +925,14 @@ static int mxl111sf_init(struct dvb_usb_device *d)
 	struct mxl111sf_state *state = d_to_priv(d);
 	int ret;
 	static u8 eeprom[256];
-	struct i2c_client c;
+	u8 reg = 0;
+	struct i2c_msg msg[2] = {
+		{ .addr = 0xa0 >> 1, .len = 1, .buf = &reg },
+		{ .addr = 0xa0 >> 1, .flags = I2C_M_RD,
+		  .len = sizeof(eeprom), .buf = eeprom },
+	};
+
+	mutex_init(&state->msg_lock);
 
 	ret = get_chip_info(state);
 	if (mxl_fail(ret))
@@ -911,14 +943,11 @@ static int mxl111sf_init(struct dvb_usb_device *d)
 	if (state->chip_rev > MXL111SF_V6)
 		mxl111sf_config_pin_mux_modes(state, PIN_MUX_TS_SPI_IN_MODE_1);
 
-	c.adapter = &d->i2c_adap;
-	c.addr = 0xa0 >> 1;
-
-	ret = tveeprom_read(&c, eeprom, sizeof(eeprom));
+	ret = i2c_transfer(&d->i2c_adap, msg, 2);
 	if (mxl_fail(ret))
 		return 0;
-	tveeprom_hauppauge_analog(&c, &state->tv, (0x84 == eeprom[0xa0]) ?
-			eeprom + 0xa0 : eeprom + 0x80);
+	tveeprom_hauppauge_analog(&state->tv, (0x84 == eeprom[0xa0]) ?
+				  eeprom + 0xa0 : eeprom + 0x80);
 #if 0
 	switch (state->tv.model) {
 	case 117001:
@@ -926,8 +955,7 @@ static int mxl111sf_init(struct dvb_usb_device *d)
 	case 138001:
 		break;
 	default:
-		printk(KERN_WARNING "%s: warning: "
-		       "unknown hauppauge model #%d\n",
+		printk(KERN_WARNING "%s: warning: unknown hauppauge model #%d\n",
 		       __func__, state->tv.model);
 	}
 #endif

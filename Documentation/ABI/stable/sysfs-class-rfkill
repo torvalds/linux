@@ -2,9 +2,8 @@ rfkill - radio frequency (RF) connector kill switch support
 
 For details to this subsystem look at Documentation/rfkill.txt.
 
-For the deprecated /sys/class/rfkill/*/state and
-/sys/class/rfkill/*/claim knobs of this interface look in
-Documentation/ABI/obsolete/sysfs-class-rfkill.
+For the deprecated /sys/class/rfkill/*/claim knobs of this interface look in
+Documentation/ABI/removed/sysfs-class-rfkill.
 
 What: 		/sys/class/rfkill
 Date:		09-Jul-2007
@@ -12,7 +11,7 @@ KernelVersion:	v2.6.22
 Contact:	linux-wireless@vger.kernel.org,
 Description: 	The rfkill class subsystem folder.
 		Each registered rfkill driver is represented by an rfkillX
-		subfolder (X being an integer > 0).
+		subfolder (X being an integer >= 0).
 
 
 What:		/sys/class/rfkill/rfkill[0-9]+/name
@@ -40,6 +39,28 @@ Description: 	Whether the soft blocked state is initialised from non-volatile
 Values: 	A numeric value.
 		0: false
 		1: true
+
+
+What:		/sys/class/rfkill/rfkill[0-9]+/state
+Date:		09-Jul-2007
+KernelVersion	v2.6.22
+Contact:	linux-wireless@vger.kernel.org
+Description: 	Current state of the transmitter.
+		This file was scheduled to be removed in 2014, but due to its
+		large number of users it will be sticking around for a bit
+		longer. Despite it being marked as stable, the newer "hard" and
+		"soft" interfaces should be preferred, since it is not possible
+		to express the 'soft and hard block' state of the rfkill driver
+		through this interface. There will likely be another attempt to
+		remove it in the future.
+Values: 	A numeric value.
+		0: RFKILL_STATE_SOFT_BLOCKED
+			transmitter is turned off by software
+		1: RFKILL_STATE_UNBLOCKED
+			transmitter is (potentially) active
+		2: RFKILL_STATE_HARD_BLOCKED
+			transmitter is forced off by something outside of
+			the driver's control.
 
 
 What:		/sys/class/rfkill/rfkill[0-9]+/hard

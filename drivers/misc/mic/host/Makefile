@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile - Intel MIC Linux driver.
 # Copyright(c) 2013, Intel Corporation.
@@ -9,5 +10,3 @@ mic_host-objs += mic_smpt.o
 mic_host-objs += mic_intr.o
 mic_host-objs += mic_boot.o
 mic_host-objs += mic_debugfs.o
-mic_host-objs += mic_fops.o
-mic_host-objs += mic_virtio.o

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Specific board support, not covered by a mach group.
 #
@@ -15,3 +16,5 @@ obj-$(CONFIG_SH_TITAN)		+= board-titan.o
 obj-$(CONFIG_SH_SH7757LCR)	+= board-sh7757lcr.o
 obj-$(CONFIG_SH_APSH4A3A)	+= board-apsh4a3a.o
 obj-$(CONFIG_SH_APSH4AD0A)	+= board-apsh4ad0a.o
+
+obj-$(CONFIG_SH_DEVICE_TREE)	+= of-generic.o

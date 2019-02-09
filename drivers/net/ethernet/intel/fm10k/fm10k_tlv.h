@@ -1,22 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #ifndef _FM10K_TLV_H_
 #define _FM10K_TLV_H_
@@ -38,9 +21,9 @@ struct fm10k_msg_data;
  * mailbox size we will provide a message with the above header and it
  * will be segmented and transported to the mailbox to the other side where
  * it is reassembled.  It contains the following fields:
- * Len: Length of the message in bytes excluding the message header
+ * Length: Length of the message in bytes excluding the message header
  * Flags: TBD
- * Rule: These will be the message/argument types we pass
+ * Type/ID: These will be the message/argument types we pass
  */
 /* message data header */
 #define FM10K_TLV_ID_SHIFT		0
@@ -106,8 +89,6 @@ struct fm10k_msg_data {
 #define FM10K_MSG_HANDLER(id, attr, func) { id, attr, func }
 
 s32 fm10k_tlv_msg_init(u32 *, u16);
-s32 fm10k_tlv_attr_put_null_string(u32 *, u16, const unsigned char *);
-s32 fm10k_tlv_attr_get_null_string(u32 *, unsigned char *);
 s32 fm10k_tlv_attr_put_mac_vlan(u32 *, u16, const u8 *, u16);
 s32 fm10k_tlv_attr_get_mac_vlan(u32 *, u8 *, u16 *);
 s32 fm10k_tlv_attr_put_bool(u32 *, u16);
@@ -147,9 +128,6 @@ s32 fm10k_tlv_attr_get_value(u32 *, void *, u32);
 		fm10k_tlv_attr_get_value(attr, ptr, sizeof(s64))
 s32 fm10k_tlv_attr_put_le_struct(u32 *, u16, const void *, u32);
 s32 fm10k_tlv_attr_get_le_struct(u32 *, void *, u32);
-u32 *fm10k_tlv_attr_nest_start(u32 *, u16);
-s32 fm10k_tlv_attr_nest_stop(u32 *);
-s32 fm10k_tlv_attr_parse(u32 *, u32 **, const struct fm10k_tlv_attr *);
 s32 fm10k_tlv_msg_parse(struct fm10k_hw *, u32 *, struct fm10k_mbx_info *,
 			const struct fm10k_msg_data *);
 s32 fm10k_tlv_msg_error(struct fm10k_hw *hw, u32 **results,

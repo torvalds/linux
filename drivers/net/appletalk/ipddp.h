@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	ipddp.h: Header for IP-over-DDP driver for Linux.
  */

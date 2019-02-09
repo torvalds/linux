@@ -58,42 +58,47 @@
 	sha1su1		v\s0\().4s, v\s3\().4s
 	.endm
 
-	/*
-	 * The SHA1 round constants
-	 */
-	.align		4
-.Lsha1_rcon:
-	.word		0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6
+	.macro		loadrc, k, val, tmp
+	movz		\tmp, :abs_g0_nc:\val
+	movk		\tmp, :abs_g1:\val
+	dup		\k, \tmp
+	.endm
 
 	/*
 	 * void sha1_ce_transform(struct sha1_ce_state *sst, u8 const *src,
 	 *			  int blocks)
 	 */
 ENTRY(sha1_ce_transform)
+	frame_push	3
+
+	mov		x19, x0
+	mov		x20, x1
+	mov		x21, x2
+
 	/* load round constants */
-	adr		x6, .Lsha1_rcon
-	ld1r		{k0.4s}, [x6], #4
-	ld1r		{k1.4s}, [x6], #4
-	ld1r		{k2.4s}, [x6], #4
-	ld1r		{k3.4s}, [x6]
+0:	loadrc		k0.4s, 0x5a827999, w6
+	loadrc		k1.4s, 0x6ed9eba1, w6
+	loadrc		k2.4s, 0x8f1bbcdc, w6
+	loadrc		k3.4s, 0xca62c1d6, w6
 
 	/* load state */
-	ldr		dga, [x0]
-	ldr		dgb, [x0, #16]
+	ld1		{dgav.4s}, [x19]
+	ldr		dgb, [x19, #16]
 
 	/* load sha1_ce_state::finalize */
-	ldr		w4, [x0, #:lo12:sha1_ce_offsetof_finalize]
+	ldr_l		w4, sha1_ce_offsetof_finalize, x4
+	ldr		w4, [x19, x4]
 
 	/* load input */
-0:	ld1		{v8.4s-v11.4s}, [x1], #64
-	sub		w2, w2, #1
+1:	ld1		{v8.4s-v11.4s}, [x20], #64
+	sub		w21, w21, #1
 
 CPU_LE(	rev32		v8.16b, v8.16b		)
 CPU_LE(	rev32		v9.16b, v9.16b		)
 CPU_LE(	rev32		v10.16b, v10.16b	)
 CPU_LE(	rev32		v11.16b, v11.16b	)
 
-1:	add		t0.4s, v8.4s, k0.4s
+2:	add		t0.4s, v8.4s, k0.4s
 	mov		dg0v.16b, dgav.16b
 
 	add_update	c, ev, k0,  8,  9, 10, 11, dgb
@@ -124,15 +129,25 @@ CPU_LE(	rev32		v11.16b, v11.16b	)
 	add		dgbv.2s, dgbv.2s, dg1v.2s
 	add		dgav.4s, dgav.4s, dg0v.4s
 
-	cbnz		w2, 0b
+	cbz		w21, 3f
+
+	if_will_cond_yield_neon
+	st1		{dgav.4s}, [x19]
+	str		dgb, [x19, #16]
+	do_cond_yield_neon
+	b		0b
+	endif_yield_neon
+
+	b		1b
 
 	/*
 	 * Final block: add padding and total bit count.
 	 * Skip if the input size was not a round multiple of the block size,
 	 * the padding is handled by the C code in that case.
 	 */
-	cbz		x4, 3f
-	ldr		x4, [x0, #:lo12:sha1_ce_offsetof_count]
+3:	cbz		x4, 4f
+	ldr_l		w4, sha1_ce_offsetof_count, x4
+	ldr		x4, [x19, x4]
 	movi		v9.2d, #0
 	mov		x8, #0x80000000
 	movi		v10.2d, #0
@@ -141,10 +156,11 @@ CPU_LE(	rev32		v11.16b, v11.16b	)
 	mov		x4, #0
 	mov		v11.d[0], xzr
 	mov		v11.d[1], x7
-	b		1b
+	b		2b
 
 	/* store new state */
-3:	str		dga, [x0]
-	str		dgb, [x0, #16]
+4:	st1		{dgav.4s}, [x19]
+	str		dgb, [x19, #16]
+	frame_pop
 	ret
 ENDPROC(sha1_ce_transform)

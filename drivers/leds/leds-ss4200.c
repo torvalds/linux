@@ -91,13 +91,26 @@ MODULE_PARM_DESC(nodetect, "Skip DMI-based hardware detection");
  * detected as working, but in reality it is not) as low as
  * possible.
  */
-static struct dmi_system_id nas_led_whitelist[] __initdata = {
+static const struct dmi_system_id nas_led_whitelist[] __initconst = {
 	{
 		.callback = ss4200_led_dmi_callback,
 		.ident = "Intel SS4200-E",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "SS4200-E"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "1.00.00")
+		}
+	},
+	{
+		/*
+		 * FUJITSU SIEMENS SCALEO Home Server/SS4200-E
+		 * BIOS V090L 12/19/2007
+		 */
+		.callback = ss4200_led_dmi_callback,
+		.ident = "Fujitsu Siemens SCALEO Home Server",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SCALEO Home Server"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "1.00.00")
 		}
 	},

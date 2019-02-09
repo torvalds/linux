@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Host Wire Adapter:
  * Driver glue, HWA-specific functions, bridges to WAHC and WUSBHC
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * The HWA driver is a simple layer that forwards requests to the WAHC
  * (Wire Adater Host Controller) or WUSBHC (Wireless USB Host
@@ -614,7 +600,7 @@ error:
 	return result;
 }
 
-static struct hc_driver hwahc_hc_driver = {
+static const struct hc_driver hwahc_hc_driver = {
 	.description = "hwa-hcd",
 	.product_desc = "Wireless USB HWA host controller",
 	.hcd_priv_size = sizeof(struct hwahc) - sizeof(struct usb_hcd),
@@ -654,7 +640,7 @@ static int hwahc_security_create(struct hwahc *hwahc)
 	top = itr + itr_size;
 	result = __usb_get_extra_descriptor(usb_dev->rawdescriptors[index],
 			le16_to_cpu(usb_dev->actconfig->desc.wTotalLength),
-			USB_DT_SECURITY, (void **) &secd);
+			USB_DT_SECURITY, (void **) &secd, sizeof(*secd));
 	if (result == -1) {
 		dev_warn(dev, "BUG? WUSB host has no security descriptors\n");
 		return 0;
@@ -860,7 +846,7 @@ static void hwahc_disconnect(struct usb_interface *usb_iface)
 	usb_put_hcd(usb_hcd);
 }
 
-static struct usb_device_id hwahc_id_table[] = {
+static const struct usb_device_id hwahc_id_table[] = {
 	/* Alereon 5310 */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x13dc, 0x5310, 0xe0, 0x02, 0x01),
 	  .driver_info = WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC |

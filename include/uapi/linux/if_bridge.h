@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  *	Linux ethernet bridge
  *
@@ -118,6 +119,7 @@ enum {
 	IFLA_BRIDGE_FLAGS,
 	IFLA_BRIDGE_MODE,
 	IFLA_BRIDGE_VLAN_INFO,
+	IFLA_BRIDGE_VLAN_TUNNEL_INFO,
 	__IFLA_BRIDGE_MAX,
 };
 #define IFLA_BRIDGE_MAX (__IFLA_BRIDGE_MAX - 1)
@@ -134,14 +136,40 @@ struct bridge_vlan_info {
 	__u16 vid;
 };
 
+enum {
+	IFLA_BRIDGE_VLAN_TUNNEL_UNSPEC,
+	IFLA_BRIDGE_VLAN_TUNNEL_ID,
+	IFLA_BRIDGE_VLAN_TUNNEL_VID,
+	IFLA_BRIDGE_VLAN_TUNNEL_FLAGS,
+	__IFLA_BRIDGE_VLAN_TUNNEL_MAX,
+};
+
+#define IFLA_BRIDGE_VLAN_TUNNEL_MAX (__IFLA_BRIDGE_VLAN_TUNNEL_MAX - 1)
+
+struct bridge_vlan_xstats {
+	__u64 rx_bytes;
+	__u64 rx_packets;
+	__u64 tx_bytes;
+	__u64 tx_packets;
+	__u16 vid;
+	__u16 flags;
+	__u32 pad2;
+};
+
 /* Bridge multicast database attributes
  * [MDBA_MDB] = {
  *     [MDBA_MDB_ENTRY] = {
- *         [MDBA_MDB_ENTRY_INFO]
+ *         [MDBA_MDB_ENTRY_INFO] {
+ *		struct br_mdb_entry
+ *		[MDBA_MDB_EATTR attributes]
+ *         }
  *     }
  * }
  * [MDBA_ROUTER] = {
- *    [MDBA_ROUTER_PORT]
+ *    [MDBA_ROUTER_PORT] = {
+ *        u32 ifindex
+ *        [MDBA_ROUTER_PATTR attributes]
+ *    }
  * }
  */
 enum {
@@ -166,12 +194,37 @@ enum {
 };
 #define MDBA_MDB_ENTRY_MAX (__MDBA_MDB_ENTRY_MAX - 1)
 
+/* per mdb entry additional attributes */
+enum {
+	MDBA_MDB_EATTR_UNSPEC,
+	MDBA_MDB_EATTR_TIMER,
+	__MDBA_MDB_EATTR_MAX
+};
+#define MDBA_MDB_EATTR_MAX (__MDBA_MDB_EATTR_MAX - 1)
+
+/* multicast router types */
+enum {
+	MDB_RTR_TYPE_DISABLED,
+	MDB_RTR_TYPE_TEMP_QUERY,
+	MDB_RTR_TYPE_PERM,
+	MDB_RTR_TYPE_TEMP
+};
+
 enum {
 	MDBA_ROUTER_UNSPEC,
 	MDBA_ROUTER_PORT,
 	__MDBA_ROUTER_MAX,
 };
 #define MDBA_ROUTER_MAX (__MDBA_ROUTER_MAX - 1)
+
+/* router port attributes */
+enum {
+	MDBA_ROUTER_PATTR_UNSPEC,
+	MDBA_ROUTER_PATTR_TIMER,
+	MDBA_ROUTER_PATTR_TYPE,
+	__MDBA_ROUTER_PATTR_MAX
+};
+#define MDBA_ROUTER_PATTR_MAX (__MDBA_ROUTER_PATTR_MAX - 1)
 
 struct br_port_msg {
 	__u8  family;
@@ -183,6 +236,8 @@ struct br_mdb_entry {
 #define MDB_TEMPORARY 0
 #define MDB_PERMANENT 1
 	__u8 state;
+#define MDB_FLAGS_OFFLOAD	(1 << 0)
+	__u8 flags;
 	__u16 vid;
 	struct {
 		union {
@@ -200,4 +255,41 @@ enum {
 };
 #define MDBA_SET_ENTRY_MAX (__MDBA_SET_ENTRY_MAX - 1)
 
+/* Embedded inside LINK_XSTATS_TYPE_BRIDGE */
+enum {
+	BRIDGE_XSTATS_UNSPEC,
+	BRIDGE_XSTATS_VLAN,
+	BRIDGE_XSTATS_MCAST,
+	BRIDGE_XSTATS_PAD,
+	__BRIDGE_XSTATS_MAX
+};
+#define BRIDGE_XSTATS_MAX (__BRIDGE_XSTATS_MAX - 1)
+
+enum {
+	BR_MCAST_DIR_RX,
+	BR_MCAST_DIR_TX,
+	BR_MCAST_DIR_SIZE
+};
+
+/* IGMP/MLD statistics */
+struct br_mcast_stats {
+	__u64 igmp_v1queries[BR_MCAST_DIR_SIZE];
+	__u64 igmp_v2queries[BR_MCAST_DIR_SIZE];
+	__u64 igmp_v3queries[BR_MCAST_DIR_SIZE];
+	__u64 igmp_leaves[BR_MCAST_DIR_SIZE];
+	__u64 igmp_v1reports[BR_MCAST_DIR_SIZE];
+	__u64 igmp_v2reports[BR_MCAST_DIR_SIZE];
+	__u64 igmp_v3reports[BR_MCAST_DIR_SIZE];
+	__u64 igmp_parse_errors;
+
+	__u64 mld_v1queries[BR_MCAST_DIR_SIZE];
+	__u64 mld_v2queries[BR_MCAST_DIR_SIZE];
+	__u64 mld_leaves[BR_MCAST_DIR_SIZE];
+	__u64 mld_v1reports[BR_MCAST_DIR_SIZE];
+	__u64 mld_v2reports[BR_MCAST_DIR_SIZE];
+	__u64 mld_parse_errors;
+
+	__u64 mcast_bytes[BR_MCAST_DIR_SIZE];
+	__u64 mcast_packets[BR_MCAST_DIR_SIZE];
+};
 #endif /* _UAPI_LINUX_IF_BRIDGE_H */

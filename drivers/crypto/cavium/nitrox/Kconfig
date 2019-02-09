@@ -1,0 +1,20 @@
+#
+# Cavium NITROX Crypto Device configuration
+#
+config CRYPTO_DEV_NITROX
+	tristate
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_AES
+	select CRYPTO_DES
+	select FW_LOADER
+
+config CRYPTO_DEV_NITROX_CNN55XX
+	tristate "Support for Cavium CNN55XX driver"
+	depends on PCI_MSI && 64BIT
+	select CRYPTO_DEV_NITROX
+	help
+	  Support for Cavium NITROX family CNN55XX driver
+	  for accelerating crypto workloads.
+
+	  To compile this as a module, choose M here: the module
+	  will be called n5pf.

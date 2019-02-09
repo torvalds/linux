@@ -1,0 +1,165 @@
+[
+    {
+        "EventCode": "0xC1",
+        "UMask": "0x8",
+        "BriefDescription": "Number of transitions from AVX-256 to legacy SSE when penalty applicable.",
+        "Counter": "0,1,2,3",
+        "EventName": "OTHER_ASSISTS.AVX_TO_SSE",
+        "Errata": "BDM30",
+        "PublicDescription": "This event counts the number of transitions from AVX-256 to legacy SSE when penalty is applicable.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC1",
+        "UMask": "0x10",
+        "BriefDescription": "Number of transitions from SSE to AVX-256 when penalty applicable.",
+        "Counter": "0,1,2,3",
+        "EventName": "OTHER_ASSISTS.SSE_TO_AVX",
+        "Errata": "BDM30",
+        "PublicDescription": "This event counts the number of transitions from legacy SSE to AVX-256 when penalty is applicable.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC7",
+        "UMask": "0x1",
+        "BriefDescription": "Number of SSE/AVX computational scalar double precision floating-point instructions retired.  Each count represents 1 computation. Applies to SSE* and AVX* scalar double precision floating-point instructions: ADD SUB MUL DIV MIN MAX SQRT FM(N)ADD/SUB.  FM(N)ADD/SUB instructions count twice as they perform multiple calculations per element.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ARITH_INST_RETIRED.SCALAR_DOUBLE",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC7",
+        "UMask": "0x2",
+        "BriefDescription": "Number of SSE/AVX computational scalar single precision floating-point instructions retired.  Each count represents 1 computation. Applies to SSE* and AVX* scalar single precision floating-point instructions: ADD SUB MUL DIV MIN MAX RCP RSQRT SQRT FM(N)ADD/SUB.  FM(N)ADD/SUB instructions count twice as they perform multiple calculations per element.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ARITH_INST_RETIRED.SCALAR_SINGLE",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC7",
+        "UMask": "0x3",
+        "BriefDescription": "Number of SSE/AVX computational scalar floating-point instructions retired. Applies to SSE* and AVX* scalar, double and single precision floating-point: ADD SUB MUL DIV MIN MAX RSQRT RCP SQRT FM(N)ADD/SUB. FM(N)ADD/SUB instructions count twice as they perform multiple calculations per element.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ARITH_INST_RETIRED.SCALAR",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC7",
+        "UMask": "0x4",
+        "BriefDescription": "Number of SSE/AVX computational 128-bit packed double precision floating-point instructions retired.  Each count represents 2 computations. Applies to SSE* and AVX* packed double precision floating-point instructions: ADD SUB MUL DIV MIN MAX SQRT DPP FM(N)ADD/SUB.  DPP and FM(N)ADD/SUB instructions count twice as they perform multiple calculations per element.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ARITH_INST_RETIRED.128B_PACKED_DOUBLE",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC7",
+        "UMask": "0x8",
+        "BriefDescription": "Number of SSE/AVX computational 128-bit packed single precision floating-point instructions retired.  Each count represents 4 computations. Applies to SSE* and AVX* packed single precision floating-point instructions: ADD SUB MUL DIV MIN MAX RCP RSQRT SQRT DPP FM(N)ADD/SUB.  DPP and FM(N)ADD/SUB instructions count twice as they perform multiple calculations per element.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC7",
+        "UMask": "0x10",
+        "BriefDescription": "Number of SSE/AVX computational 256-bit packed double precision floating-point instructions retired.  Each count represents 4 computations. Applies to SSE* and AVX* packed double precision floating-point instructions: ADD SUB MUL DIV MIN MAX SQRT DPP FM(N)ADD/SUB.  DPP and FM(N)ADD/SUB instructions count twice as they perform multiple calculations per element.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ARITH_INST_RETIRED.256B_PACKED_DOUBLE",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC7",
+        "UMask": "0x15",
+        "BriefDescription": "Number of SSE/AVX computational double precision floating-point instructions retired. Applies to SSE* and AVX*scalar, double and single precision floating-point: ADD SUB MUL DIV MIN MAX SQRT DPP FM(N)ADD/SUB.  DPP and FM(N)ADD/SUB instructions count twice as they perform multiple calculations per element.  ?.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ARITH_INST_RETIRED.DOUBLE",
+        "SampleAfterValue": "2000006",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xc7",
+        "UMask": "0x20",
+        "BriefDescription": "Number of SSE/AVX computational 256-bit packed single precision floating-point instructions retired.  Each count represents 8 computations. Applies to SSE* and AVX* packed single precision floating-point instructions: ADD SUB MUL DIV MIN MAX RCP RSQRT SQRT DPP FM(N)ADD/SUB.  DPP and FM(N)ADD/SUB instructions count twice as they perform multiple calculations per element.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC7",
+        "UMask": "0x2a",
+        "BriefDescription": "Number of SSE/AVX computational single precision floating-point instructions retired. Applies to SSE* and AVX*scalar, double and single precision floating-point: ADD SUB MUL DIV MIN MAX RCP RSQRT SQRT DPP FM(N)ADD/SUB.  DPP and FM(N)ADD/SUB instructions count twice as they perform multiple calculations per element. ?.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ARITH_INST_RETIRED.SINGLE",
+        "SampleAfterValue": "2000005",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC7",
+        "UMask": "0x3c",
+        "BriefDescription": "Number of SSE/AVX computational packed floating-point instructions retired. Applies to SSE* and AVX*, packed, double and single precision floating-point: ADD SUB MUL DIV MIN MAX RSQRT RCP SQRT DPP FM(N)ADD/SUB.  DPP and FM(N)ADD/SUB instructions count twice as they perform multiple calculations per element.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ARITH_INST_RETIRED.PACKED",
+        "SampleAfterValue": "2000004",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xCA",
+        "UMask": "0x2",
+        "BriefDescription": "Number of X87 assists due to output value.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ASSIST.X87_OUTPUT",
+        "PublicDescription": "This event counts the number of x87 floating point (FP) micro-code assist (numeric overflow/underflow, inexact result) when the output value (destination register) is invalid.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xCA",
+        "UMask": "0x4",
+        "BriefDescription": "Number of X87 assists due to input value.",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ASSIST.X87_INPUT",
+        "PublicDescription": "This event counts x87 floating point (FP) micro-code assist (invalid operation, denormal operand, SNaN operand) when the input value (one of the source operands to an FP instruction) is invalid.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xCA",
+        "UMask": "0x8",
+        "BriefDescription": "Number of SIMD FP assists due to Output values",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ASSIST.SIMD_OUTPUT",
+        "PublicDescription": "This event counts the number of SSE* floating point (FP) micro-code assist (numeric overflow/underflow) when the output value (destination register) is invalid. Counting covers only cases involving penalties that require micro-code assist intervention.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xCA",
+        "UMask": "0x10",
+        "BriefDescription": "Number of SIMD FP assists due to input values",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ASSIST.SIMD_INPUT",
+        "PublicDescription": "This event counts any input SSE* FP assist - invalid operation, denormal operand, dividing by zero, SNaN operand. Counting includes only cases involving penalties that required micro-code assist intervention.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xCA",
+        "UMask": "0x1e",
+        "BriefDescription": "Cycles with any input/output SSE or FP assist",
+        "Counter": "0,1,2,3",
+        "EventName": "FP_ASSIST.ANY",
+        "CounterMask": "1",
+        "PublicDescription": "This event counts cycles with any input and output SSE or x87 FP assist. If an input and output assist are detected on the same cycle the event increments by 1.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    }
+]

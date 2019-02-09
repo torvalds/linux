@@ -15,6 +15,7 @@
 #include <linux/module.h>
 
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/nls.h>
 #include <linux/ctype.h>
 #include <linux/statfs.h>
@@ -22,6 +23,8 @@
 #include <linux/parser.h>
 #include <linux/mpage.h>
 #include <linux/user_namespace.h>
+#include <linux/seq_file.h>
+#include <linux/blkdev.h>
 
 #include "isofs.h"
 #include "zisofs.h"
@@ -29,18 +32,15 @@
 #define BEQUIET
 
 static int isofs_hashi(const struct dentry *parent, struct qstr *qstr);
-static int isofs_dentry_cmpi(const struct dentry *parent,
-		const struct dentry *dentry,
+static int isofs_dentry_cmpi(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 
 #ifdef CONFIG_JOLIET
 static int isofs_hashi_ms(const struct dentry *parent, struct qstr *qstr);
 static int isofs_hash_ms(const struct dentry *parent, struct qstr *qstr);
-static int isofs_dentry_cmpi_ms(const struct dentry *parent,
-		const struct dentry *dentry,
+static int isofs_dentry_cmpi_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
-static int isofs_dentry_cmp_ms(const struct dentry *parent,
-		const struct dentry *dentry,
+static int isofs_dentry_cmp_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 #endif
 
@@ -59,6 +59,7 @@ static void isofs_put_super(struct super_block *sb)
 
 static int isofs_read_inode(struct inode *, int relocated);
 static int isofs_statfs (struct dentry *, struct kstatfs *);
+static int isofs_show_options(struct seq_file *, struct dentry *);
 
 static struct kmem_cache *isofs_inode_cachep;
 
@@ -94,9 +95,9 @@ static int __init init_inodecache(void)
 	isofs_inode_cachep = kmem_cache_create("isofs_inode_cache",
 					sizeof(struct iso_inode_info),
 					0, (SLAB_RECLAIM_ACCOUNT|
-					SLAB_MEM_SPREAD),
+					SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					init_once);
-	if (isofs_inode_cachep == NULL)
+	if (!isofs_inode_cachep)
 		return -ENOMEM;
 	return 0;
 }
@@ -114,7 +115,7 @@ static void destroy_inodecache(void)
 static int isofs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	if (!(*flags & MS_RDONLY))
+	if (!(*flags & SB_RDONLY))
 		return -EROFS;
 	return 0;
 }
@@ -125,7 +126,7 @@ static const struct super_operations isofs_sops = {
 	.put_super	= isofs_put_super,
 	.statfs		= isofs_statfs,
 	.remount_fs	= isofs_remount,
-	.show_options	= generic_show_options,
+	.show_options	= isofs_show_options,
 };
 
 
@@ -174,7 +175,7 @@ struct iso9660_options{
  * Compute the hash for the isofs name corresponding to the dentry.
  */
 static int
-isofs_hashi_common(struct qstr *qstr, int ms)
+isofs_hashi_common(const struct dentry *dentry, struct qstr *qstr, int ms)
 {
 	const char *name;
 	int len;
@@ -188,7 +189,7 @@ isofs_hashi_common(struct qstr *qstr, int ms)
 			len--;
 	}
 
-	hash = init_name_hash();
+	hash = init_name_hash(dentry);
 	while (len--) {
 		c = tolower(*name++);
 		hash = partial_name_hash(c, hash);
@@ -231,11 +232,11 @@ static int isofs_dentry_cmp_common(
 static int
 isofs_hashi(const struct dentry *dentry, struct qstr *qstr)
 {
-	return isofs_hashi_common(qstr, 0);
+	return isofs_hashi_common(dentry, qstr, 0);
 }
 
 static int
-isofs_dentry_cmpi(const struct dentry *parent, const struct dentry *dentry,
+isofs_dentry_cmpi(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return isofs_dentry_cmp_common(len, str, name, 0, 1);
@@ -246,7 +247,7 @@ isofs_dentry_cmpi(const struct dentry *parent, const struct dentry *dentry,
  * Compute the hash for the isofs name corresponding to the dentry.
  */
 static int
-isofs_hash_common(struct qstr *qstr, int ms)
+isofs_hash_common(const struct dentry *dentry, struct qstr *qstr, int ms)
 {
 	const char *name;
 	int len;
@@ -258,7 +259,7 @@ isofs_hash_common(struct qstr *qstr, int ms)
 			len--;
 	}
 
-	qstr->hash = full_name_hash(name, len);
+	qstr->hash = full_name_hash(dentry, name, len);
 
 	return 0;
 }
@@ -266,24 +267,24 @@ isofs_hash_common(struct qstr *qstr, int ms)
 static int
 isofs_hash_ms(const struct dentry *dentry, struct qstr *qstr)
 {
-	return isofs_hash_common(qstr, 1);
+	return isofs_hash_common(dentry, qstr, 1);
 }
 
 static int
 isofs_hashi_ms(const struct dentry *dentry, struct qstr *qstr)
 {
-	return isofs_hashi_common(qstr, 1);
+	return isofs_hashi_common(dentry, qstr, 1);
 }
 
 static int
-isofs_dentry_cmp_ms(const struct dentry *parent, const struct dentry *dentry,
+isofs_dentry_cmp_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return isofs_dentry_cmp_common(len, str, name, 1, 0);
 }
 
 static int
-isofs_dentry_cmpi_ms(const struct dentry *parent, const struct dentry *dentry,
+isofs_dentry_cmpi_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return isofs_dentry_cmp_common(len, str, name, 1, 1);
@@ -394,7 +395,10 @@ static int parse_options(char *options, struct iso9660_options *popt)
 			break;
 #ifdef CONFIG_JOLIET
 		case Opt_iocharset:
+			kfree(popt->iocharset);
 			popt->iocharset = match_strdup(&args[0]);
+			if (!popt->iocharset)
+				return 0;
 			break;
 #endif
 		case Opt_map_a:
@@ -410,7 +414,11 @@ static int parse_options(char *options, struct iso9660_options *popt)
 			if (match_int(&args[0], &option))
 				return 0;
 			n = option;
-			if (n > 99)
+			/*
+			 * Track numbers are supposed to be in range 1-99, the
+			 * mount option starts indexing at 0.
+			 */
+			if (n >= 99)
 				return 0;
 			popt->session = n + 1;
 			break;
@@ -475,6 +483,50 @@ static int parse_options(char *options, struct iso9660_options *popt)
 }
 
 /*
+ * Display the mount options in /proc/mounts.
+ */
+static int isofs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct isofs_sb_info *sbi = ISOFS_SB(root->d_sb);
+
+	if (!sbi->s_rock)		seq_puts(m, ",norock");
+	else if (!sbi->s_joliet_level)	seq_puts(m, ",nojoliet");
+	if (sbi->s_cruft)		seq_puts(m, ",cruft");
+	if (sbi->s_hide)		seq_puts(m, ",hide");
+	if (sbi->s_nocompress)		seq_puts(m, ",nocompress");
+	if (sbi->s_overriderockperm)	seq_puts(m, ",overriderockperm");
+	if (sbi->s_showassoc)		seq_puts(m, ",showassoc");
+	if (sbi->s_utf8)		seq_puts(m, ",utf8");
+
+	if (sbi->s_check)		seq_printf(m, ",check=%c", sbi->s_check);
+	if (sbi->s_mapping)		seq_printf(m, ",map=%c", sbi->s_mapping);
+	if (sbi->s_session != 255)	seq_printf(m, ",session=%u", sbi->s_session - 1);
+	if (sbi->s_sbsector != -1)	seq_printf(m, ",sbsector=%u", sbi->s_sbsector);
+
+	if (root->d_sb->s_blocksize != 1024)
+		seq_printf(m, ",blocksize=%lu", root->d_sb->s_blocksize);
+
+	if (sbi->s_uid_set)
+		seq_printf(m, ",uid=%u",
+			   from_kuid_munged(&init_user_ns, sbi->s_uid));
+	if (sbi->s_gid_set)
+		seq_printf(m, ",gid=%u",
+			   from_kgid_munged(&init_user_ns, sbi->s_gid));
+
+	if (sbi->s_dmode != ISOFS_INVALID_MODE)
+		seq_printf(m, ",dmode=%o", sbi->s_dmode);
+	if (sbi->s_fmode != ISOFS_INVALID_MODE)
+		seq_printf(m, ",fmode=%o", sbi->s_fmode);
+
+#ifdef CONFIG_JOLIET
+	if (sbi->s_nls_iocharset &&
+	    strcmp(sbi->s_nls_iocharset->charset, CONFIG_NLS_DEFAULT) != 0)
+		seq_printf(m, ",iocharset=%s", sbi->s_nls_iocharset->charset);
+#endif
+	return 0;
+}
+
+/*
  * look if the driver can tell the multi session redirection value
  *
  * don't change this if you don't know what you do, please!
@@ -501,7 +553,7 @@ static unsigned int isofs_get_last_session(struct super_block *sb, s32 session)
 
 	vol_desc_start=0;
 	ms_info.addr_format=CDROM_LBA;
-	if(session >= 0 && session <= 99) {
+	if (session > 0) {
 		struct cdrom_tocentry Te;
 		Te.cdte_track=session;
 		Te.cdte_format=CDROM_LBA;
@@ -585,8 +637,6 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	int table, error = -EINVAL;
 	unsigned int vol_desc_start;
 
-	save_mount_options(s, data);
-
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
@@ -604,9 +654,17 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	/*
 	 * What if bugger tells us to go beyond page size?
 	 */
+	if (bdev_logical_block_size(s->s_bdev) > 2048) {
+		printk(KERN_WARNING
+		       "ISOFS: unsupported/invalid hardware sector size %d\n",
+			bdev_logical_block_size(s->s_bdev));
+		goto out_freesbi;
+	}
 	opt.blocksize = sb_min_blocksize(s, opt.blocksize);
 
 	sbi->s_high_sierra = 0; /* default is iso9660 */
+	sbi->s_session = opt.session;
+	sbi->s_sbsector = opt.sbsector;
 
 	vol_desc_start = (opt.sbsector != -1) ?
 		opt.sbsector : isofs_get_last_session(s,opt.session);
@@ -632,7 +690,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 			if (isonum_711(vdp->type) == ISO_VD_END)
 				break;
 			if (isonum_711(vdp->type) == ISO_VD_PRIMARY) {
-				if (pri == NULL) {
+				if (!pri) {
 					pri = (struct iso_primary_descriptor *)vdp;
 					/* Save the buffer in case we need it ... */
 					pri_bh = bh;
@@ -690,8 +748,13 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	pri_bh = NULL;
 
 root_found:
+	/* We don't support read-write mounts */
+	if (!sb_rdonly(s)) {
+		error = -EACCES;
+		goto out_freebh;
+	}
 
-	if (joliet_level && (pri == NULL || !opt.rock)) {
+	if (joliet_level && (!pri || !opt.rock)) {
 		/* This is the case of Joliet with the norock mount flag.
 		 * A disc with both Joliet and Rock Ridge is handled later
 		 */
@@ -908,6 +971,7 @@ root_found:
 		table += 2;
 	if (opt.check == 'r')
 		table++;
+	sbi->s_check = opt.check;
 
 	if (table)
 		s->s_d_op = &isofs_dentry_ops[table - 1];
@@ -1021,7 +1085,7 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock,
 		 * the page with useless information without generating any
 		 * I/O errors.
 		 */
-		if (b_off > ((inode->i_size + PAGE_CACHE_SIZE - 1) >> ISOFS_BUFFER_BITS(inode))) {
+		if (b_off > ((inode->i_size + PAGE_SIZE - 1) >> ISOFS_BUFFER_BITS(inode))) {
 			printk(KERN_DEBUG "%s: block >= EOF (%lu, %llu)\n",
 				__func__, b_off,
 				(unsigned long long)inode->i_size);
@@ -1246,7 +1310,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
 	unsigned long block;
 	int high_sierra = sbi->s_high_sierra;
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	struct iso_directory_record *de;
 	struct iso_directory_record *tmpde = NULL;
 	unsigned int de_len;
@@ -1268,8 +1332,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 		int frag1 = bufsize - offset;
 
 		tmpde = kmalloc(de_len, GFP_KERNEL);
-		if (tmpde == NULL) {
-			printk(KERN_INFO "%s: out of memory\n", __func__);
+		if (!tmpde) {
 			ret = -ENOMEM;
 			goto fail;
 		}
@@ -1417,6 +1480,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 		inode->i_fop = &isofs_dir_operations;
 	} else if (S_ISLNK(inode->i_mode)) {
 		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_data.a_ops = &isofs_symlink_aops;
 	} else
 		/* XXX - parse_rock_ridge_inode() had already set i_rdev. */
@@ -1503,9 +1567,6 @@ struct inode *__isofs_iget(struct super_block *sb,
 static struct dentry *isofs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	/* We don't support read-write mounts */
-	if (!(flags & MS_RDONLY))
-		return ERR_PTR(-EACCES);
 	return mount_bdev(fs_type, flags, dev_name, data, isofs_fill_super);
 }
 

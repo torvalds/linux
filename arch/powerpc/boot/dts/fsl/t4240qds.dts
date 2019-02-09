@@ -1,7 +1,7 @@
 /*
  * T4240QDS Device Tree Source
  *
- * Copyright 2012 - 2014 Freescale Semiconductor Inc.
+ * Copyright 2012 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,6 +40,44 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
+
+	aliases{
+		phy_rgmii1 = &phyrgmii1;
+		phy_rgmii2 = &phyrgmii2;
+		phy_sgmii3 = &phy3;
+		phy_sgmii4 = &phy4;
+		phy_sgmii11 = &phy11;
+		phy_sgmii12 = &phy12;
+		sgmii_phy11 = &sgmiiphy11;
+		sgmii_phy12 = &sgmiiphy12;
+		sgmii_phy13 = &sgmiiphy13;
+		sgmii_phy14 = &sgmiiphy14;
+		sgmii_phy21 = &sgmiiphy21;
+		sgmii_phy22 = &sgmiiphy22;
+		sgmii_phy23 = &sgmiiphy23;
+		sgmii_phy24 = &sgmiiphy24;
+		sgmii_phy31 = &sgmiiphy31;
+		sgmii_phy32 = &sgmiiphy32;
+		sgmii_phy33 = &sgmiiphy33;
+		sgmii_phy34 = &sgmiiphy34;
+		sgmii_phy41 = &sgmiiphy41;
+		sgmii_phy42 = &sgmiiphy42;
+		sgmii_phy43 = &sgmiiphy43;
+		sgmii_phy44 = &sgmiiphy44;
+		phy_xfi1 = &xfiphy1;
+		phy_xfi2 = &xfiphy2;
+		phy_xfi3 = &xfiphy3;
+		phy_xfi4 = &xfiphy4;
+		xfi_pcs_mdio1 = &xfimdio0;
+		xfi_pcs_mdio2 = &xfimdio1;
+		xfi_pcs_mdio3 = &xfimdio2;
+		xfi_pcs_mdio4 = &xfimdio3;
+		emi1_rgmii = &t4240mdio0;
+		emi1_slot1 = &t4240mdio1;
+		emi1_slot2 = &t4240mdio2;
+		emi1_slot3 = &t4240mdio3;
+		emi1_slot4 = &t4240mdio4;
+	};
 
 	ifc: localbus@ffe124000 {
 		reg = <0xf 0xfe124000 0 0x2000>;
@@ -91,8 +129,190 @@
 		};
 
 		board-control@3,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			compatible = "fsl,t4240qds-fpga", "fsl,fpga-qixis";
 			reg = <3 0 0x300>;
+			ranges = <0 3 0 0x300>;
+
+			mdio-mux-emi1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "mdio-mux-mmioreg", "mdio-mux";
+				mdio-parent-bus = <&mdio1>;
+				reg = <0x54 1>;
+				mux-mask = <0xe0>;
+
+				t4240mdio0: mdio@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					phyrgmii1: ethernet-phy@1 {
+						reg = <0x1>;
+					};
+
+					phyrgmii2: ethernet-phy@2 {
+						reg = <0x2>;
+					};
+				};
+
+				t4240mdio1: mdio@20 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x20>;
+					status = "disabled";
+
+					phy1: ethernet-phy@0 {
+						reg = <0x0>;
+					};
+
+					phy2: ethernet-phy@1 {
+						reg = <0x1>;
+					};
+
+					phy3: ethernet-phy@2 {
+						reg = <0x2>;
+					};
+
+					phy4: ethernet-phy@3 {
+						reg = <0x3>;
+					};
+
+					sgmiiphy11: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					sgmiiphy12: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					sgmiiphy13: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					sgmiiphy14: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+
+				t4240mdio2: mdio@40 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x40>;
+					status = "disabled";
+
+					phy5: ethernet-phy@4 {
+						reg = <0x4>;
+					};
+
+					phy6: ethernet-phy@5 {
+						reg = <0x5>;
+					};
+
+					phy7: ethernet-phy@6 {
+						reg = <0x6>;
+					};
+
+					phy8: ethernet-phy@7 {
+						reg = <0x7>;
+					};
+
+					sgmiiphy21: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					sgmiiphy22: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					sgmiiphy23: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					sgmiiphy24: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+
+				t4240mdio3: mdio@60 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x60>;
+					status = "disabled";
+
+					phy9: ethernet-phy@8 {
+						reg = <0x8>;
+					};
+
+					phy10: ethernet-phy@9 {
+						reg = <0x9>;
+					};
+
+					phy11: ethernet-phy@a {
+						reg = <0xa>;
+					};
+
+					phy12: ethernet-phy@b {
+						reg = <0xb>;
+					};
+
+					sgmiiphy31: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					sgmiiphy32: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					sgmiiphy33: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					sgmiiphy34: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+
+				t4240mdio4: mdio@80 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x80>;
+					status = "disabled";
+
+					phy13: ethernet-phy@c {
+						reg = <0xc>;
+					};
+
+					phy14: ethernet-phy@d {
+						reg = <0xd>;
+					};
+
+					phy15: ethernet-phy@e {
+						reg = <0xe>;
+					};
+
+					phy16: ethernet-phy@f {
+						reg = <0xf>;
+					};
+
+					sgmiiphy41: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					sgmiiphy42: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					sgmiiphy43: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					sgmiiphy44: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+			};
 		};
 	};
 
@@ -138,7 +358,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "sst,sst25wf040";
+				compatible = "sst,sst25wf040", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <40000000>; /* input clock */
 			};
@@ -157,27 +377,27 @@
 					reg = <0>;
 
 					eeprom@51 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x51>;
 					};
 					eeprom@52 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x52>;
 					};
 					eeprom@53 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x53>;
 					};
 					eeprom@54 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x54>;
 					};
 					eeprom@55 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x55>;
 					};
 					eeprom@56 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x56>;
 					};
 					rtc@68 {
@@ -233,6 +453,184 @@
 
 		sdhc@114000 {
 			voltage-ranges = <1800 1800 3300 3300>;
+		};
+
+		fman@400000 {
+			port@83000 {
+				status = "disabled";
+			};
+
+			port@84000 {
+				status = "disabled";
+			};
+
+			port@85000 {
+				status = "disabled";
+			};
+
+			port@86000 {
+				status = "disabled";
+			};
+
+			port@87000 {
+				status = "disabled";
+			};
+
+			ethernet@e0000 {
+				phy-handle = <&phy5>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				phy-handle = <&phy6>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-handle = <&phy7>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-handle = <&phy8>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e8000 {
+				phy-handle = <&phyrgmii2>;
+				phy-connection-type = "rgmii";
+			};
+
+			ethernet@ea000 {
+				phy-handle = <&phy2>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&xauiphy1>;
+				phy-connection-type = "xgmii";
+			};
+
+			ethernet@f2000 {
+				phy-handle = <&xauiphy2>;
+				phy-connection-type = "xgmii";
+			};
+
+			xfimdio0: mdio@f1000 {
+				status = "disabled";
+
+				xfiphy1: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+			};
+
+			xfimdio1: mdio@f3000 {
+				status = "disabled";
+
+				xfiphy2: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+			};
+		};
+
+		fman@500000 {
+			port@84000 {
+				status = "disabled";
+			};
+
+			port@85000 {
+				status = "disabled";
+			};
+
+			port@86000 {
+				status = "disabled";
+			};
+
+			port@87000 {
+				status = "disabled";
+			};
+
+			ethernet@e0000 {
+				phy-handle = <&phy13>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				phy-handle = <&phy14>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-handle = <&phy15>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-handle = <&phy16>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e8000 {
+				phy-handle = <&phyrgmii1>;
+				phy-connection-type = "rgmii";
+			};
+
+			ethernet@ea000 {
+				phy-handle = <&phy10>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&xauiphy3>;
+				phy-connection-type = "xgmii";
+			};
+
+			ethernet@f2000 {
+				phy-handle = <&xauiphy4>;
+				phy-connection-type = "xgmii";
+			};
+
+			xfimdio2: mdio@f1000 {
+				status = "disabled";
+
+				xfiphy3: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+			};
+
+			xfimdio3: mdio@f3000 {
+				status = "disabled";
+
+				xfiphy4: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+			};
+
+			mdio@fd000 {
+				xauiphy1: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+
+				xauiphy2: ethernet-phy@1 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x1>;
+				};
+
+				xauiphy3: ethernet-phy@2 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x2>;
+				};
+
+				xauiphy4: ethernet-phy@3 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x3>;
+				};
+			};
 		};
 	};
 

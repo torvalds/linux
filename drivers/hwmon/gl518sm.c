@@ -86,9 +86,8 @@ enum chips { gl518sm_r00, gl518sm_r80 };
 #define BOOL_FROM_REG(val)	((val) ? 0 : 1)
 #define BOOL_TO_REG(val)	((val) ? 0 : 1)
 
-#define TEMP_TO_REG(val)	clamp_val(((((val) < 0 ? \
-				(val) - 500 : \
-				(val) + 500) / 1000) + 119), 0, 255)
+#define TEMP_CLAMP(val)		clamp_val(val, -119000, 136000)
+#define TEMP_TO_REG(val)	(DIV_ROUND_CLOSEST(TEMP_CLAMP(val), 1000) + 119)
 #define TEMP_FROM_REG(val)	(((val) - 119) * 1000)
 
 static inline u8 FAN_TO_REG(long rpm, int div)
@@ -101,11 +100,13 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 }
 #define FAN_FROM_REG(val, div)	((val) == 0 ? 0 : (480000 / ((val) * (div))))
 
-#define IN_TO_REG(val)		clamp_val((((val) + 9) / 19), 0, 255)
+#define IN_CLAMP(val)		clamp_val(val, 0, 255 * 19)
+#define IN_TO_REG(val)		DIV_ROUND_CLOSEST(IN_CLAMP(val), 19)
 #define IN_FROM_REG(val)	((val) * 19)
 
-#define VDD_TO_REG(val)		clamp_val((((val) * 4 + 47) / 95), 0, 255)
-#define VDD_FROM_REG(val)	(((val) * 95 + 2) / 4)
+#define VDD_CLAMP(val)		clamp_val(val, 0, 255 * 95 / 4)
+#define VDD_TO_REG(val)		DIV_ROUND_CLOSEST(VDD_CLAMP(val) * 4, 95)
+#define VDD_FROM_REG(val)	DIV_ROUND_CLOSEST((val) * 95, 4)
 
 #define DIV_FROM_REG(val)	(1 << (val))
 

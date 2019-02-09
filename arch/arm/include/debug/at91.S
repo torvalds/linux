@@ -9,14 +9,6 @@
  *
 */
 
-#ifdef CONFIG_MMU
-#define AT91_IO_P2V(x) ((x) - 0x01000000)
-#else
-#define AT91_IO_P2V(x) (x)
-#endif
-
-#define CONFIG_DEBUG_UART_VIRT AT91_IO_P2V(CONFIG_DEBUG_UART_PHYS)
-
 #define AT91_DBGU_SR		(0x14)	/* Status Register */
 #define AT91_DBGU_THR		(0x1c)	/* Transmitter Holding Register */
 #define AT91_DBGU_TXRDY		(1 << 1)	/* Transmitter Ready */

@@ -1,13 +1,6 @@
-/*
- * linux/arch/arm/mach-s3c64xx/mach-ncp.c
- *
- * Copyright (C) 2008-2009 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2008-2009 Samsung Electronics
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -31,6 +24,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/irqs.h>
 #include <mach/hardware.h>
 #include <mach/map.h>
 
@@ -100,6 +94,7 @@ static void __init ncp_machine_init(void)
 MACHINE_START(NCP, "NCP")
 	/* Maintainer: Samsung Electronics */
 	.atag_offset	= 0x100,
+	.nr_irqs	= S3C64XX_NR_IRQS,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= ncp_map_io,
 	.init_machine	= ncp_machine_init,

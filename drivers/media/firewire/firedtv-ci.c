@@ -15,7 +15,7 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 
-#include <dvbdev.h>
+#include <media/dvbdev.h>
 
 #include "firedtv.h"
 
@@ -207,9 +207,9 @@ static int fdtv_ca_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return err;
 }
 
-static unsigned int fdtv_ca_io_poll(struct file *file, poll_table *wait)
+static __poll_t fdtv_ca_io_poll(struct file *file, poll_table *wait)
 {
-	return POLLIN;
+	return EPOLLIN;
 }
 
 static const struct file_operations fdtv_ca_fops = {
@@ -241,7 +241,7 @@ int fdtv_ca_register(struct firedtv *fdtv)
 		return -EFAULT;
 
 	err = dvb_register_device(&fdtv->adapter, &fdtv->cadev,
-				  &fdtv_ca, fdtv, DVB_DEVICE_CA);
+				  &fdtv_ca, fdtv, DVB_DEVICE_CA, 0);
 
 	if (stat.ca_application_info == 0)
 		dev_err(fdtv->device, "CaApplicationInfo is not set\n");

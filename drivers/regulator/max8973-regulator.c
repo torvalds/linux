@@ -34,10 +34,14 @@
 #include <linux/regulator/max8973-regulator.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
+#include <linux/thermal.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
 
 /* Register definitions */
 #define MAX8973_VOUT					0x0
@@ -74,6 +78,7 @@
 #define MAX8973_WDTMR_ENABLE				BIT(6)
 #define MAX8973_DISCH_ENBABLE				BIT(5)
 #define MAX8973_FT_ENABLE				BIT(4)
+#define MAX77621_T_JUNCTION_120				BIT(7)
 
 #define MAX8973_CKKADV_TRIP_MASK			0xC
 #define MAX8973_CKKADV_TRIP_DISABLE			0xC
@@ -93,6 +98,12 @@
 #define MAX8973_VOLATGE_STEP				6250
 #define MAX8973_BUCK_N_VOLTAGE				0x80
 
+#define MAX77621_CHIPID_TJINT_S				BIT(0)
+
+#define MAX77621_NORMAL_OPERATING_TEMP			100000
+#define MAX77621_TJINT_WARNING_TEMP_120			120000
+#define MAX77621_TJINT_WARNING_TEMP_140			140000
+
 enum device_id {
 	MAX8973,
 	MAX77621
@@ -104,7 +115,6 @@ struct max8973_chip {
 	struct regulator_desc desc;
 	struct regmap *regmap;
 	bool enable_external_control;
-	int enable_gpio;
 	int dvs_gpio;
 	int lru_index[MAX8973_MAX_VOUT_REG];
 	int curr_vout_val[MAX8973_MAX_VOUT_REG];
@@ -112,6 +122,9 @@ struct max8973_chip {
 	int curr_gpio_val;
 	struct regulator_ops ops;
 	enum device_id id;
+	int junction_temp_warning;
+	int irq;
+	struct thermal_zone_device *tz_device;
 };
 
 /*
@@ -258,22 +271,18 @@ static int max8973_set_ramp_delay(struct regulator_dev *rdev,
 	struct max8973_chip *max = rdev_get_drvdata(rdev);
 	unsigned int control;
 	int ret;
-	int ret_val;
 
 	/* Set ramp delay */
-	if (ramp_delay < 25000) {
+	if (ramp_delay <= 12000)
 		control = MAX8973_RAMP_12mV_PER_US;
-		ret_val = 12000;
-	} else if (ramp_delay < 50000) {
+	else if (ramp_delay <= 25000)
 		control = MAX8973_RAMP_25mV_PER_US;
-		ret_val = 25000;
-	} else if (ramp_delay < 200000) {
+	else if (ramp_delay <= 50000)
 		control = MAX8973_RAMP_50mV_PER_US;
-		ret_val = 50000;
-	} else {
+	else if (ramp_delay <= 200000)
 		control = MAX8973_RAMP_200mV_PER_US;
-		ret_val = 200000;
-	}
+	else
+		return -EINVAL;
 
 	ret = regmap_update_bits(max->regmap, MAX8973_CONTROL1,
 			MAX8973_RAMP_MASK, control);
@@ -391,6 +400,10 @@ static int max8973_init_dcdc(struct max8973_chip *max,
 	if (pdata->control_flags & MAX8973_CONTROL_FREQ_SHIFT_9PER_ENABLE)
 		control1 |= MAX8973_FREQSHIFT_9PER;
 
+	if ((pdata->junction_temp_warning == MAX77621_TJINT_WARNING_TEMP_120) &&
+	    (max->id == MAX77621))
+		control2 |= MAX77621_T_JUNCTION_120;
+
 	if (!(pdata->control_flags & MAX8973_CONTROL_PULL_DOWN_ENABLE))
 		control2 |= MAX8973_DISCH_ENBABLE;
 
@@ -457,6 +470,80 @@ static int max8973_init_dcdc(struct max8973_chip *max,
 	return ret;
 }
 
+static int max8973_thermal_read_temp(void *data, int *temp)
+{
+	struct max8973_chip *mchip = data;
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(mchip->regmap, MAX8973_CHIPID1, &val);
+	if (ret < 0) {
+		dev_err(mchip->dev, "Failed to read register CHIPID1, %d", ret);
+		return ret;
+	}
+
+	/* +1 degC to trigger cool devive */
+	if (val & MAX77621_CHIPID_TJINT_S)
+		*temp = mchip->junction_temp_warning + 1000;
+	else
+		*temp = MAX77621_NORMAL_OPERATING_TEMP;
+
+	return 0;
+}
+
+static irqreturn_t max8973_thermal_irq(int irq, void *data)
+{
+	struct max8973_chip *mchip = data;
+
+	thermal_zone_device_update(mchip->tz_device,
+				   THERMAL_EVENT_UNSPECIFIED);
+
+	return IRQ_HANDLED;
+}
+
+static const struct thermal_zone_of_device_ops max77621_tz_ops = {
+	.get_temp = max8973_thermal_read_temp,
+};
+
+static int max8973_thermal_init(struct max8973_chip *mchip)
+{
+	struct thermal_zone_device *tzd;
+	struct irq_data *irq_data;
+	unsigned long irq_flags = 0;
+	int ret;
+
+	if (mchip->id != MAX77621)
+		return 0;
+
+	tzd = devm_thermal_zone_of_sensor_register(mchip->dev, 0, mchip,
+						   &max77621_tz_ops);
+	if (IS_ERR(tzd)) {
+		ret = PTR_ERR(tzd);
+		dev_err(mchip->dev, "Failed to register thermal sensor: %d\n",
+			ret);
+		return ret;
+	}
+
+	if (mchip->irq <= 0)
+		return 0;
+
+	irq_data = irq_get_irq_data(mchip->irq);
+	if (irq_data)
+		irq_flags = irqd_get_trigger_type(irq_data);
+
+	ret = devm_request_threaded_irq(mchip->dev, mchip->irq, NULL,
+					max8973_thermal_irq,
+					IRQF_ONESHOT | IRQF_SHARED | irq_flags,
+					dev_name(mchip->dev), mchip);
+	if (ret < 0) {
+		dev_err(mchip->dev, "Failed to request irq %d, %d\n",
+			mchip->irq, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct regmap_config max8973_regmap_config = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
@@ -480,7 +567,6 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 
 	pdata->enable_ext_control = of_property_read_bool(np,
 						"maxim,externally-enable");
-	pdata->enable_gpio = of_get_named_gpio(np, "maxim,enable-gpio", 0);
 	pdata->dvs_gpio = of_get_named_gpio(np, "maxim,dvs-gpio", 0);
 
 	ret = of_property_read_u32(np, "maxim,dvs-default-state", &pval);
@@ -521,6 +607,11 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 		pdata->control_flags |= MAX8973_CONTROL_CLKADV_TRIP_DISABLED;
 	}
 
+	pdata->junction_temp_warning = MAX77621_TJINT_WARNING_TEMP_140;
+	ret = of_property_read_u32(np, "junction-warn-millicelsius", &pval);
+	if (!ret && (pval <= MAX77621_TJINT_WARNING_TEMP_120))
+		pdata->junction_temp_warning = MAX77621_TJINT_WARNING_TEMP_120;
+
 	return pdata;
 }
 
@@ -541,6 +632,8 @@ static int max8973_probe(struct i2c_client *client,
 	struct max8973_chip *max;
 	bool pdata_from_dt = false;
 	unsigned int chip_id;
+	struct gpio_desc *gpiod;
+	enum gpiod_flags gflags;
 	int ret;
 
 	pdata = dev_get_platdata(&client->dev);
@@ -555,8 +648,7 @@ static int max8973_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	if ((pdata->dvs_gpio == -EPROBE_DEFER) ||
-		(pdata->enable_gpio == -EPROBE_DEFER))
+	if (pdata->dvs_gpio == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	max = devm_kzalloc(&client->dev, sizeof(*max), GFP_KERNEL);
@@ -604,13 +696,10 @@ static int max8973_probe(struct i2c_client *client,
 	max->desc.n_voltages = MAX8973_BUCK_N_VOLTAGE;
 
 	max->dvs_gpio = (pdata->dvs_gpio) ? pdata->dvs_gpio : -EINVAL;
-	max->enable_gpio = (pdata->enable_gpio) ? pdata->enable_gpio : -EINVAL;
 	max->enable_external_control = pdata->enable_ext_control;
 	max->curr_gpio_val = pdata->dvs_def_state;
 	max->curr_vout_reg = MAX8973_VOUT + pdata->dvs_def_state;
-
-	if (gpio_is_valid(max->enable_gpio))
-		max->enable_external_control = true;
+	max->junction_temp_warning = pdata->junction_temp_warning;
 
 	max->lru_index[0] = max->curr_vout_reg;
 
@@ -664,27 +753,35 @@ static int max8973_probe(struct i2c_client *client,
 			break;
 		}
 
-		if (gpio_is_valid(max->enable_gpio)) {
-			config.ena_gpio_flags = GPIOF_OUT_INIT_LOW;
-			if (ridata && (ridata->constraints.always_on ||
-					ridata->constraints.boot_on))
-				config.ena_gpio_flags = GPIOF_OUT_INIT_HIGH;
-			config.ena_gpio = max->enable_gpio;
+		if (ridata && (ridata->constraints.always_on ||
+			       ridata->constraints.boot_on))
+			gflags = GPIOD_OUT_HIGH;
+		else
+			gflags = GPIOD_OUT_LOW;
+		gpiod = devm_gpiod_get_optional(&client->dev,
+						"maxim,enable",
+						gflags);
+		if (IS_ERR(gpiod))
+			return PTR_ERR(gpiod);
+		if (gpiod) {
+			config.ena_gpiod = gpiod;
+			max->enable_external_control = true;
 		}
+
 		break;
 
 	case MAX77621:
-		if (gpio_is_valid(max->enable_gpio)) {
-			ret = devm_gpio_request_one(&client->dev,
-					max->enable_gpio, GPIOF_OUT_INIT_HIGH,
-					"max8973-en-gpio");
-			if (ret) {
-				dev_err(&client->dev,
-					"gpio_request for gpio %d failed: %d\n",
-					max->enable_gpio, ret);
-				return ret;
-			}
-		}
+		/*
+		 * We do not let the core switch this regulator on/off,
+		 * we just leave it on.
+		 */
+		gpiod = devm_gpiod_get_optional(&client->dev,
+						"maxim,enable",
+						GPIOD_OUT_HIGH);
+		if (IS_ERR(gpiod))
+			return PTR_ERR(gpiod);
+		if (gpiod)
+			max->enable_external_control = true;
 
 		max->desc.enable_reg = MAX8973_VOUT;
 		max->desc.enable_mask = MAX8973_VOUT_ENABLE;
@@ -718,6 +815,7 @@ static int max8973_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	max8973_thermal_init(max);
 	return 0;
 }
 

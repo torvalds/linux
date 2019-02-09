@@ -1,5 +1,6 @@
 config INTEL_TH
 	tristate "Intel(R) Trace Hub controller"
+	depends on HAS_DMA && HAS_IOMEM
 	help
 	  Intel(R) Trace Hub (TH) is a set of hardware blocks (subdevices) that
 	  produce, switch and output trace data from multiple hardware and
@@ -23,6 +24,18 @@ config INTEL_TH_PCI
 	  support glue layer for PCI-based Intel TH.
 
 	  Say Y here to enable PCI Intel TH support.
+
+config INTEL_TH_ACPI
+	tristate "Intel(R) Trace Hub ACPI controller"
+	depends on ACPI
+	help
+	  Intel(R) Trace Hub may exist as an ACPI device. This option enables
+	  support glue layer for ACPI-based Intel TH. This typically implies
+	  'host debugger' mode, that is, the trace configuration and capture
+	  is handled by an external debug host and corresponding controls will
+	  not be available on the target.
+
+	  Say Y here to enable ACPI Intel TH support.
 
 config INTEL_TH_GTH
 	tristate "Intel(R) Trace Hub Global Trace Hub"

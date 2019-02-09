@@ -1,13 +1,8 @@
-/* avermedia-m135a.c - Keytable for Avermedia M135A Remote Controllers
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- * Copyright (c) 2010 by Herton Ronaldo Krzesinski <herton@mandriva.com.br>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// avermedia-m135a.c - Keytable for Avermedia M135A Remote Controllers
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
+// Copyright (c) 2010 by Herton Ronaldo Krzesinski <herton@mandriva.com.br>
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -17,7 +12,7 @@
  *
  * On Avermedia M135A with IR model RM-JX, the same codes exist on both
  * Positivo (BR) and original IR, initial version and remote control codes
- * added by Mauro Carvalho Chehab <mchehab@infradead.org>
+ * added by Mauro Carvalho Chehab <mchehab@kernel.org>
  *
  * Positivo also ships Avermedia M135A with model RM-K6, extra control
  * codes added by Herton Ronaldo Krzesinski <herton@mandriva.com.br>
@@ -43,7 +38,8 @@ static struct rc_map_table avermedia_m135a[] = {
 	{ 0x0213, KEY_RIGHT },		/* -> or L */
 	{ 0x0212, KEY_LEFT },		/* <- or R */
 
-	{ 0x0217, KEY_SLEEP },		/* Capturar Imagem or Snapshot */
+	{ 0x0215, KEY_MENU },
+	{ 0x0217, KEY_CAMERA },		/* Capturar Imagem or Snapshot */
 	{ 0x0210, KEY_SHUFFLE },	/* Amostra or 16 chan prev */
 
 	{ 0x0303, KEY_CHANNELUP },
@@ -124,10 +120,10 @@ static struct rc_map_table avermedia_m135a[] = {
 
 static struct rc_map_list avermedia_m135a_map = {
 	.map = {
-		.scan    = avermedia_m135a,
-		.size    = ARRAY_SIZE(avermedia_m135a),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_AVERMEDIA_M135A,
+		.scan     = avermedia_m135a,
+		.size     = ARRAY_SIZE(avermedia_m135a),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_AVERMEDIA_M135A,
 	}
 };
 

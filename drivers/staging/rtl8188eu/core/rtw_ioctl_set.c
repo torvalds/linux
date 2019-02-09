@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #define _RTW_IOCTL_SET_C_
-
 
 #include <osdep_service.h>
 #include <drv_types.h>
@@ -27,13 +13,6 @@
 
 extern void indicate_wx_scan_complete_event(struct adapter *padapter);
 
-#define IS_MAC_ADDRESS_BROADCAST(addr) \
-(\
-	((addr[0] == 0xff) && (addr[1] == 0xff) && \
-		(addr[2] == 0xff) && (addr[3] == 0xff) && \
-		(addr[4] == 0xff) && (addr[5] == 0xff))  ? true : false \
-)
-
 u8 rtw_do_join(struct adapter *padapter)
 {
 	struct list_head *plist, *phead;
@@ -41,7 +20,6 @@ u8 rtw_do_join(struct adapter *padapter)
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
 	u8 ret = _SUCCESS;
-
 
 	spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 	phead = get_list_head(queue);
@@ -69,7 +47,7 @@ u8 rtw_do_join(struct adapter *padapter)
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("rtw_do_join(): site survey if scanned_queue is empty\n."));
 			/*  submit site_survey_cmd */
 			ret = rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
-			if (_SUCCESS != ret) {
+			if (ret != _SUCCESS) {
 				pmlmepriv->to_join = false;
 				RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("rtw_do_join(): site survey return error\n."));
 			}
@@ -123,7 +101,7 @@ u8 rtw_do_join(struct adapter *padapter)
 				if (!pmlmepriv->LinkDetectInfo.bBusyTraffic ||
 				    pmlmepriv->to_roaming > 0) {
 					ret = rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
-					if (_SUCCESS != ret) {
+					if (ret != _SUCCESS) {
 						pmlmepriv->to_join = false;
 						RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("do_join(): site survey return error\n."));
 					}
@@ -136,8 +114,6 @@ u8 rtw_do_join(struct adapter *padapter)
 	}
 
 exit:
-
-
 	return ret;
 }
 
@@ -146,7 +122,6 @@ u8 rtw_set_802_11_bssid(struct adapter *padapter, u8 *bssid)
 	u8 status = _SUCCESS;
 	u32 cur_time = 0;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
 
 	DBG_88E_LEVEL(_drv_info_, "set bssid:%pM\n", bssid);
 
@@ -159,7 +134,6 @@ u8 rtw_set_802_11_bssid(struct adapter *padapter, u8 *bssid)
 	}
 
 	spin_lock_bh(&pmlmepriv->lock);
-
 
 	DBG_88E("Set BSSID under fw_state = 0x%08x\n", get_fwstate(pmlmepriv));
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true)
@@ -220,8 +194,7 @@ release_mlme_lock:
 
 exit:
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-		 ("rtw_set_802_11_bssid: status=%d\n", status));
-
+		 ("%s: status=%d\n", __func__, status));
 
 	return status;
 }
@@ -233,7 +206,6 @@ u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *pnetwork = &pmlmepriv->cur_network;
-
 
 	DBG_88E_LEVEL(_drv_info_, "set ssid [%s] fw_state=0x%08x\n",
 		      ssid->Ssid, get_fwstate(pmlmepriv));
@@ -329,7 +301,7 @@ release_mlme_lock:
 
 exit:
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-		 ("-rtw_set_802_11_ssid: status =%d\n", status));
+		 ("-%s: status =%d\n", __func__, status));
 	return status;
 }
 
@@ -339,7 +311,6 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct	wlan_network	*cur_network = &pmlmepriv->cur_network;
 	enum ndis_802_11_network_infra *pold_state = &(cur_network->network.InfrastructureMode);
-
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_notice_,
 		 ("+rtw_set_802_11_infrastructure_mode: old =%d new =%d fw_state = 0x%08x\n",
@@ -397,15 +368,12 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 		spin_unlock_bh(&pmlmepriv->lock);
 	}
 
-
 	return true;
 }
-
 
 u8 rtw_set_802_11_disassociate(struct adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
 
 	spin_lock_bh(&pmlmepriv->lock);
 
@@ -421,7 +389,6 @@ u8 rtw_set_802_11_disassociate(struct adapter *padapter)
 
 	spin_unlock_bh(&pmlmepriv->lock);
 
-
 	return true;
 }
 
@@ -430,23 +397,22 @@ u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_s
 	struct	mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	u8	res = true;
 
+	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("+%s(), fw_state =%x\n", __func__, get_fwstate(pmlmepriv)));
 
-	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("+rtw_set_802_11_bssid_list_scan(), fw_state =%x\n", get_fwstate(pmlmepriv)));
-
-	if (padapter == NULL) {
+	if (!padapter) {
 		res = false;
 		goto exit;
 	}
 	if (!padapter->hw_init_completed) {
 		res = false;
-		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("\n === rtw_set_802_11_bssid_list_scan:hw_init_completed == false ===\n"));
+		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("\n === %s:hw_init_completed == false ===\n", __func__));
 		goto exit;
 	}
 
 	if ((check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING)) ||
 	    (pmlmepriv->LinkDetectInfo.bBusyTraffic)) {
 		/*  Scan or linking is in progress, do nothing. */
-		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("rtw_set_802_11_bssid_list_scan fail since fw_state = %x\n", get_fwstate(pmlmepriv)));
+		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("%s fail since fw_state = %x\n", __func__, get_fwstate(pmlmepriv)));
 		res = true;
 
 		if (check_fwstate(pmlmepriv,
@@ -469,8 +435,6 @@ u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_s
 		spin_unlock_bh(&pmlmepriv->lock);
 	}
 exit:
-
-
 	return res;
 }
 
@@ -480,13 +444,12 @@ u8 rtw_set_802_11_authentication_mode(struct adapter *padapter, enum ndis_802_11
 	int res;
 	u8 ret;
 
-
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("set_802_11_auth.mode(): mode =%x\n", authmode));
 
 	psecuritypriv->ndisauthtype = authmode;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-		 ("rtw_set_802_11_authentication_mode:psecuritypriv->ndisauthtype=%d",
+		 ("%s:psecuritypriv->ndisauthtype=%d", __func__,
 		 psecuritypriv->ndisauthtype));
 
 	if (psecuritypriv->ndisauthtype > 3)
@@ -499,7 +462,6 @@ u8 rtw_set_802_11_authentication_mode(struct adapter *padapter, enum ndis_802_11
 	else
 		ret = false;
 
-
 	return ret;
 }
 
@@ -508,7 +470,6 @@ u8 rtw_set_802_11_add_wep(struct adapter *padapter, struct ndis_802_11_wep *wep)
 	int		keyid, res;
 	struct security_priv *psecuritypriv = &(padapter->securitypriv);
 	u8		ret = _SUCCESS;
-
 
 	keyid = wep->KeyIndex & 0x3fffffff;
 
@@ -582,41 +543,28 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
 	struct wlan_bssid_ex  *pcur_bss = &pmlmepriv->cur_network.network;
-	struct rtw_ieee80211_ht_cap *pht_capie;
-	u8	rf_type = 0;
 	u8	bw_40MHz = 0, short_GI_20 = 0, short_GI_40 = 0;
-	u16	mcs_rate = 0;
 	u32	ht_ielen = 0;
-
-	if (adapter->registrypriv.mp_mode == 1) {
-		if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
-			return 0;
-	}
 
 	if ((!check_fwstate(pmlmepriv, _FW_LINKED)) &&
 	    (!check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)))
 		return 0;
 
 	if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N|WIRELESS_11_5N)) {
-		p = rtw_get_ie(&pcur_bss->IEs[12], _HT_CAPABILITY_IE_, &ht_ielen, pcur_bss->IELength-12);
+		p = rtw_get_ie(&pcur_bss->ies[12], _HT_CAPABILITY_IE_, &ht_ielen, pcur_bss->ie_length-12);
 		if (p && ht_ielen > 0) {
-			pht_capie = (struct rtw_ieee80211_ht_cap *)(p+2);
-
-			memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
-
 			/* cur_bwmod is updated by beacon, pmlmeinfo is updated by association response */
 			bw_40MHz = (pmlmeext->cur_bwmode && (HT_INFO_HT_PARAM_REC_TRANS_CHNL_WIDTH & pmlmeinfo->HT_info.infos[0])) ? 1 : 0;
 
-			short_GI_20 = (le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) & IEEE80211_HT_CAP_SGI_20) ? 1 : 0;
-			short_GI_40 = (le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) & IEEE80211_HT_CAP_SGI_40) ? 1 : 0;
+			short_GI_20 = (le16_to_cpu(pmlmeinfo->HT_caps.cap_info) & IEEE80211_HT_CAP_SGI_20) ? 1 : 0;
+			short_GI_40 = (le16_to_cpu(pmlmeinfo->HT_caps.cap_info) & IEEE80211_HT_CAP_SGI_40) ? 1 : 0;
 
-			rtw_hal_get_hwreg(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 			max_rate = rtw_mcs_rate(
-				rf_type,
+				RF_1T1R,
 				bw_40MHz & (pregistrypriv->cbw40_enable),
 				short_GI_20,
 				short_GI_40,
-				pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate
+				pmlmeinfo->HT_caps.mcs.rx_mask
 			);
 		}
 	} else {
@@ -647,7 +595,7 @@ int rtw_set_country(struct adapter *adapter, const char *country_code)
 
 	DBG_88E("%s country_code:%s\n", __func__, country_code);
 	for (i = 0; i < ARRAY_SIZE(channel_table); i++) {
-		if (0 == strcmp(channel_table[i].name, country_code)) {
+		if (strcmp(channel_table[i].name, country_code) == 0) {
 			channel_plan = channel_table[i].channel_plan;
 			break;
 		}

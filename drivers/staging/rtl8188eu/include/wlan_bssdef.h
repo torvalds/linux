@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *
  ******************************************************************************/
 #ifndef __WLAN_BSSDEF_H__
@@ -88,10 +75,11 @@ struct ndis_802_11_var_ie {
  *	[ETH_ALEN] + 2 + sizeof (struct ndis_802_11_ssid) + sizeof (u32)
  *	+ sizeof (NDIS_802_11_RSSI) + sizeof (enum NDIS_802_11_NETWORK_TYPE)
  *	+ sizeof (struct ndis_802_11_config)
- *	+ NDIS_802_11_LENGTH_RATES_EX + IELength
+ *	+ NDIS_802_11_LENGTH_RATES_EX + ie_length
  *
- * Except the IELength, all other fields are fixed length.
- * Therefore, we can define a macro to represent the partial sum. */
+ * Except the ie_length, all other fields are fixed length.
+ * Therefore, we can define a macro to represent the partial sum.
+ */
 
 enum ndis_802_11_auth_mode {
 	Ndis802_11AuthModeOpen,
@@ -128,52 +116,17 @@ enum ndis_802_11_wep_status {
 #define NDIS_802_11_AI_RESFI_STATUSCODE        2
 #define NDIS_802_11_AI_RESFI_ASSOCIATIONID     4
 
-struct ndis_802_11_ai_reqfi {
-    u16 Capabilities;
-    u16 ListenInterval;
-    unsigned char CurrentAPAddress[ETH_ALEN];
-};
-
-struct ndis_802_11_ai_resfi {
-    u16 Capabilities;
-    u16 StatusCode;
-    u16 AssociationId;
-};
-
-struct ndis_802_11_assoc_info {
-	u32  Length;
-	u16 AvailableRequestFixedIEs;
-	struct ndis_802_11_ai_reqfi    RequestFixedIEs;
-	u32  RequestIELength;
-	u32  OffsetRequestIEs;
-	u16 AvailableResponseFixedIEs;
-	struct ndis_802_11_ai_resfi    ResponseFixedIEs;
-	u32  ResponseIELength;
-	u32  OffsetResponseIEs;
-};
-
 enum ndis_802_11_reload_def {
 	Ndis802_11ReloadWEPKeys
-};
-
-struct ndis_802_11_remove_key {
-	u32                   Length;        /*  Length */
-	u32                   KeyIndex;
-	unsigned char BSSID[ETH_ALEN];
 };
 
 struct ndis_802_11_wep {
 	u32     Length;        /*  Length of this structure */
 	u32     KeyIndex;      /*  0 is the per-client key,
-				  * 1-N are the global keys */
+				* 1-N are the global keys
+				*/
 	u32     KeyLength;     /*  length of key in bytes */
 	u8     KeyMaterial[16];/*  variable len depending on above field */
-};
-
-struct ndis_802_11_auth_req {
-	u32 Length;            /*  Length of structure */
-	unsigned char Bssid[ETH_ALEN];
-	u32 Flags;
 };
 
 enum ndis_802_11_status_type {
@@ -181,11 +134,8 @@ enum ndis_802_11_status_type {
 	Ndis802_11StatusType_MediaStreamMode,
 	Ndis802_11StatusType_PMKID_CandidateList,
 	Ndis802_11StatusTypeMax    /*  not a real type, defined as
-				    * an upper bound */
-};
-
-struct ndis_802_11_status_ind {
-	enum ndis_802_11_status_type StatusType;
+				    * an upper bound
+				    */
 };
 
 /*  mask for authentication/integrity fields */
@@ -197,21 +147,6 @@ struct ndis_802_11_status_ind {
 
 /*  MIC check time, 60 seconds. */
 #define MIC_CHECK_TIME	60000000
-
-struct ndis_802_11_auth_evt {
-	struct ndis_802_11_status_ind       Status;
-	struct ndis_802_11_auth_req  Request[1];
-};
-
-struct ndis_802_11_test {
-	u32 Length;
-	u32 Type;
-	union {
-		struct ndis_802_11_auth_evt AuthenticationEvent;
-		NDIS_802_11_RSSI RssiTrigger;
-	} tt;
-};
-
 
 #ifndef Ndis802_11APMode
 #define Ndis802_11APMode (Ndis802_11InfrastructureMax+1)
@@ -226,7 +161,8 @@ struct wlan_phy_info {
 
 struct wlan_bcn_info {
 	/* these infor get from rtw_get_encrypt_info when
-	 *	 * translate scan to UI */
+	 *	 * translate scan to UI
+	 */
 	u8 encryp_protocol;/* ENCRYP_PROTOCOL_E: OPEN/WEP/WPA/WPA2/WAPI */
 	int group_cipher; /* WPA/WPA2 group cipher */
 	int pairwise_cipher;/* WPA/WPA2/WEP pairwise cipher */
@@ -238,8 +174,8 @@ struct wlan_bcn_info {
 };
 
 /* temporally add #pragma pack for structure alignment issue of
-*   struct wlan_bssid_ex and get_struct wlan_bssid_ex_sz()
-*/
+ *   struct wlan_bssid_ex and get_struct wlan_bssid_ex_sz()
+ */
 struct wlan_bssid_ex {
 	u32  Length;
 	unsigned char MacAddress[ETH_ALEN];
@@ -252,21 +188,23 @@ struct wlan_bssid_ex {
 	enum ndis_802_11_network_infra  InfrastructureMode;
 	unsigned char SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
 	struct wlan_phy_info	PhyInfo;
-	u32  IELength;
-	u8  IEs[MAX_IE_SZ];	/* timestamp, beacon interval, and
-				 * capability information) */
+	u32  ie_length;
+	u8  ies[MAX_IE_SZ];	/* timestamp, beacon interval, and
+				 * capability information)
+				 */
 } __packed;
 
 static inline uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 {
-	return sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + bss->IELength;
+	return sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + bss->ie_length;
 }
 
 struct	wlan_network {
 	struct list_head list;
 	int	network_type;	/* refer to ieee80211.h for WIRELESS_11A/B/G */
 	int	fixed;		/*  set fixed when not to be removed
-				 *  in site-surveying */
+				 *  in site-surveying
+				 */
 	unsigned long	last_scanned; /* timestamp for the network */
 	int	aid;		/* will only be valid when a BSS is joinned. */
 	int	join_res;
@@ -301,33 +239,5 @@ enum UAPSD_MAX_SP {
 
 #define NUM_PRE_AUTH_KEY 16
 #define NUM_PMKID_CACHE NUM_PRE_AUTH_KEY
-
-/*
-*	WPA2
-*/
-
-struct pmkid_candidate {
-	unsigned char BSSID[ETH_ALEN];
-	u32 Flags;
-};
-
-struct ndis_802_11_pmkid_list {
-	u32 Version;       /*  Version of the structure */
-	u32 NumCandidates; /*  No. of pmkid candidates */
-	struct pmkid_candidate CandidateList[1];
-};
-
-struct ndis_802_11_auth_encrypt {
-	enum ndis_802_11_auth_mode AuthModeSupported;
-	enum ndis_802_11_wep_status EncryptStatusSupported;
-};
-
-struct ndis_802_11_cap {
-	u32  Length;
-	u32  Version;
-	u32  NoOfPMKIDs;
-	u32  NoOfAuthEncryptPairsSupported;
-	struct ndis_802_11_auth_encrypt AuthenticationEncryptionSupported[1];
-};
 
 #endif /* ifndef WLAN_BSSDEF_H_ */

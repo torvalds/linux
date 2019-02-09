@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright(c) 2007 Intel Corporation. All rights reserved.
  *
@@ -190,6 +191,7 @@ enum fc_fh_type {
 	FC_TYPE_FCP =	0x08,	/* SCSI FCP */
 	FC_TYPE_CT =	0x20,	/* Fibre Channel Services (FC-CT) */
 	FC_TYPE_ILS =	0x22,	/* internal link service */
+	FC_TYPE_NVME =	0x28,	/* FC-NVME */
 };
 
 /*
@@ -203,6 +205,7 @@ enum fc_fh_type {
 	[FC_TYPE_FCP] =		"FCP",			\
 	[FC_TYPE_CT] =		"CT",			\
 	[FC_TYPE_ILS] =		"ILS",			\
+	[FC_TYPE_NVME] =	"NVME",			\
 }
 
 /*

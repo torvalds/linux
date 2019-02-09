@@ -323,16 +323,16 @@ xpc_handle_notify_IRQ_sn2(int irq, void *dev_id)
  * was received.
  */
 static void
-xpc_check_for_dropped_notify_IRQ_sn2(struct xpc_partition *part)
+xpc_check_for_dropped_notify_IRQ_sn2(struct timer_list *t)
 {
-	struct xpc_partition_sn2 *part_sn2 = &part->sn.sn2;
+	struct xpc_partition *part =
+		from_timer(part, t, sn.sn2.dropped_notify_IRQ_timer);
 
 	if (xpc_part_ref(part)) {
 		xpc_check_for_sent_chctl_flags_sn2(part);
 
-		part_sn2->dropped_notify_IRQ_timer.expires = jiffies +
-		    XPC_DROPPED_NOTIFY_IRQ_WAIT_INTERVAL;
-		add_timer(&part_sn2->dropped_notify_IRQ_timer);
+		t->expires = jiffies + XPC_DROPPED_NOTIFY_IRQ_WAIT_INTERVAL;
+		add_timer(t);
 		xpc_part_deref(part);
 	}
 }
@@ -1232,10 +1232,7 @@ xpc_setup_ch_structures_sn2(struct xpc_partition *part)
 
 	/* Setup a timer to check for dropped notify IRQs */
 	timer = &part_sn2->dropped_notify_IRQ_timer;
-	init_timer(timer);
-	timer->function =
-	    (void (*)(unsigned long))xpc_check_for_dropped_notify_IRQ_sn2;
-	timer->data = (unsigned long)part;
+	timer_setup(timer, xpc_check_for_dropped_notify_IRQ_sn2, 0);
 	timer->expires = jiffies + XPC_DROPPED_NOTIFY_IRQ_WAIT_INTERVAL;
 	add_timer(timer);
 

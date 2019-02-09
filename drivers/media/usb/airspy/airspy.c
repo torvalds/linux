@@ -104,9 +104,8 @@ struct airspy_frame_buf {
 };
 
 struct airspy {
-#define POWER_ON           (1 << 1)
-#define URB_BUF            (1 << 2)
-#define USB_STATE_URB_BUF  (1 << 3)
+#define POWER_ON	   1
+#define USB_STATE_URB_BUF  2
 	unsigned long flags;
 
 	struct device *dev;
@@ -316,7 +315,7 @@ static void airspy_urb_complete(struct urb *urb)
 		len = airspy_convert_stream(s, ptr, urb->transfer_buffer,
 				urb->actual_length);
 		vb2_set_plane_payload(&fbuf->vb.vb2_buf, 0, len);
-		v4l2_get_timestamp(&fbuf->vb.timestamp);
+		fbuf->vb.vb2_buf.timestamp = ktime_get_ns();
 		fbuf->vb.sequence = s->sequence++;
 		vb2_buffer_done(&fbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
@@ -359,7 +358,7 @@ static int airspy_submit_urbs(struct airspy *s)
 
 static int airspy_free_stream_bufs(struct airspy *s)
 {
-	if (s->flags & USB_STATE_URB_BUF) {
+	if (test_bit(USB_STATE_URB_BUF, &s->flags)) {
 		while (s->buf_num) {
 			s->buf_num--;
 			dev_dbg(s->dev, "free buf=%d\n", s->buf_num);
@@ -368,7 +367,7 @@ static int airspy_free_stream_bufs(struct airspy *s)
 					  s->dma_addr[s->buf_num]);
 		}
 	}
-	s->flags &= ~USB_STATE_URB_BUF;
+	clear_bit(USB_STATE_URB_BUF, &s->flags);
 
 	return 0;
 }
@@ -394,7 +393,7 @@ static int airspy_alloc_stream_bufs(struct airspy *s)
 		dev_dbg(s->dev, "alloc buf=%d %p (dma %llu)\n", s->buf_num,
 				s->buf_list[s->buf_num],
 				(long long)s->dma_addr[s->buf_num]);
-		s->flags |= USB_STATE_URB_BUF;
+		set_bit(USB_STATE_URB_BUF, &s->flags);
 	}
 
 	return 0;
@@ -427,7 +426,6 @@ static int airspy_alloc_urbs(struct airspy *s)
 		dev_dbg(s->dev, "alloc urb=%d\n", i);
 		s->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!s->urb_list[i]) {
-			dev_dbg(s->dev, "failed\n");
 			for (j = 0; j < i; j++)
 				usb_free_urb(s->urb_list[j]);
 			return -ENOMEM;
@@ -488,8 +486,8 @@ static void airspy_disconnect(struct usb_interface *intf)
 
 /* Videobuf2 operations */
 static int airspy_queue_setup(struct vb2_queue *vq,
-		const void *parg, unsigned int *nbuffers,
-		unsigned int *nplanes, unsigned int sizes[], void *alloc_ctxs[])
+		unsigned int *nbuffers,
+		unsigned int *nplanes, unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct airspy *s = vb2_get_drv_priv(vq);
 
@@ -607,7 +605,7 @@ static void airspy_stop_streaming(struct vb2_queue *vq)
 	mutex_unlock(&s->v4l2_lock);
 }
 
-static struct vb2_ops airspy_vb2_ops = {
+static const struct vb2_ops airspy_vb2_ops = {
 	.queue_setup            = airspy_queue_setup,
 	.buf_queue              = airspy_buf_queue,
 	.start_streaming        = airspy_start_streaming,
@@ -861,7 +859,7 @@ static const struct v4l2_file_operations airspy_fops = {
 	.unlocked_ioctl           = video_ioctl2,
 };
 
-static struct video_device airspy_template = {
+static const struct video_device airspy_template = {
 	.name                     = "AirSpy SDR",
 	.release                  = video_device_release_empty,
 	.fops                     = &airspy_fops,
@@ -1073,7 +1071,7 @@ static int airspy_probe(struct usb_interface *intf,
 	if (ret) {
 		dev_err(s->dev, "Failed to register as video device (%d)\n",
 				ret);
-		goto err_unregister_v4l2_dev;
+		goto err_free_controls;
 	}
 	dev_info(s->dev, "Registered as %s\n",
 			video_device_node_name(&s->vdev));
@@ -1082,7 +1080,6 @@ static int airspy_probe(struct usb_interface *intf,
 
 err_free_controls:
 	v4l2_ctrl_handler_free(&s->hdl);
-err_unregister_v4l2_dev:
 	v4l2_device_unregister(&s->v4l2_dev);
 err_free_mem:
 	kfree(s);
@@ -1090,7 +1087,7 @@ err_free_mem:
 }
 
 /* USB device ID list */
-static struct usb_device_id airspy_id_table[] = {
+static const struct usb_device_id airspy_id_table[] = {
 	{ USB_DEVICE(0x1d50, 0x60a1) }, /* AirSpy */
 	{ }
 };

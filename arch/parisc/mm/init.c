@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/parisc/mm/init.c
  *
@@ -14,15 +15,15 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/pci.h>		/* for hppa_dma_ops and pcxl_dma_ops */
 #include <linux/initrd.h>
 #include <linux/swap.h>
 #include <linux/unistd.h>
 #include <linux/nodemask.h>	/* for node_online_map */
-#include <linux/pagemap.h>	/* for release_pages and page_cache_release */
+#include <linux/pagemap.h>	/* for release_pages */
 #include <linux/compat.h>
 
 #include <asm/pgalloc.h>
@@ -55,12 +56,12 @@ signed char pfnnid_map[PFNNID_MAP_MAX] __read_mostly;
 
 static struct resource data_resource = {
 	.name	= "Kernel data",
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
 };
 
 static struct resource code_resource = {
 	.name	= "Kernel code",
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
 };
 
 static struct resource pdcdata_resource = {
@@ -78,6 +79,36 @@ static struct resource sysram_resources[MAX_PHYSMEM_RANGES] __read_mostly;
 
 physmem_range_t pmem_ranges[MAX_PHYSMEM_RANGES] __read_mostly;
 int npmem_ranges __read_mostly;
+
+/*
+ * get_memblock() allocates pages via memblock.
+ * We can't use memblock_find_in_range(0, KERNEL_INITIAL_SIZE) here since it
+ * doesn't allocate from bottom to top which is needed because we only created
+ * the initial mapping up to KERNEL_INITIAL_SIZE in the assembly bootup code.
+ */
+static void * __init get_memblock(unsigned long size)
+{
+	static phys_addr_t search_addr __initdata;
+	phys_addr_t phys;
+
+	if (!search_addr)
+		search_addr = PAGE_ALIGN(__pa((unsigned long) &_end));
+	search_addr = ALIGN(search_addr, size);
+	while (!memblock_is_region_memory(search_addr, size) ||
+		memblock_is_region_reserved(search_addr, size)) {
+		search_addr += size;
+	}
+	phys = search_addr;
+
+	if (phys)
+		memblock_reserve(phys, size);
+	else
+		panic("get_memblock() failed.\n");
+
+	memset(__va(phys), 0, size);
+
+	return __va(phys);
+}
 
 #ifdef CONFIG_64BIT
 #define MAX_MEM         (~0UL)
@@ -118,11 +149,7 @@ static void __init mem_limit_func(void)
 
 static void __init setup_bootmem(void)
 {
-	unsigned long bootmap_size;
 	unsigned long mem_max;
-	unsigned long bootmap_pages;
-	unsigned long bootmap_start_pfn;
-	unsigned long bootmap_pfn;
 #ifndef CONFIG_DISCONTIGMEM
 	physmem_range_t pmem_holes[MAX_PHYSMEM_RANGES - 1];
 	int npmem_holes;
@@ -178,32 +205,28 @@ static void __init setup_bootmem(void)
 	}
 #endif
 
-	if (npmem_ranges > 1) {
+	/* Print the memory ranges */
+	pr_info("Memory Ranges:\n");
 
-		/* Print the memory ranges */
+	for (i = 0; i < npmem_ranges; i++) {
+		struct resource *res = &sysram_resources[i];
+		unsigned long start;
+		unsigned long size;
 
-		printk(KERN_INFO "Memory Ranges:\n");
+		size = (pmem_ranges[i].pages << PAGE_SHIFT);
+		start = (pmem_ranges[i].start_pfn << PAGE_SHIFT);
+		pr_info("%2d) Start 0x%016lx End 0x%016lx Size %6ld MB\n",
+			i, start, start + (size - 1), size >> 20);
 
-		for (i = 0; i < npmem_ranges; i++) {
-			unsigned long start;
-			unsigned long size;
-
-			size = (pmem_ranges[i].pages << PAGE_SHIFT);
-			start = (pmem_ranges[i].start_pfn << PAGE_SHIFT);
-			printk(KERN_INFO "%2d) Start 0x%016lx End 0x%016lx Size %6ld MB\n",
-				i,start, start + (size - 1), size >> 20);
-		}
+		/* request memory resource */
+		res->name = "System RAM";
+		res->start = start;
+		res->end = start + size - 1;
+		res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+		request_resource(&iomem_resource, res);
 	}
 
 	sysram_resource_count = npmem_ranges;
-	for (i = 0; i < sysram_resource_count; i++) {
-		struct resource *res = &sysram_resources[i];
-		res->name = "System RAM";
-		res->start = pmem_ranges[i].start_pfn << PAGE_SHIFT;
-		res->end = res->start + (pmem_ranges[i].pages << PAGE_SHIFT)-1;
-		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		request_resource(&iomem_resource, res);
-	}
 
 	/*
 	 * For 32 bit kernels we limit the amount of memory we can
@@ -263,16 +286,9 @@ static void __init setup_bootmem(void)
 	}
 #endif
 
-	bootmap_pages = 0;
-	for (i = 0; i < npmem_ranges; i++)
-		bootmap_pages += bootmem_bootmap_pages(pmem_ranges[i].pages);
-
-	bootmap_start_pfn = PAGE_ALIGN(__pa((unsigned long) &_end)) >> PAGE_SHIFT;
-
 #ifdef CONFIG_DISCONTIGMEM
 	for (i = 0; i < MAX_PHYSMEM_RANGES; i++) {
 		memset(NODE_DATA(i), 0, sizeof(pg_data_t));
-		NODE_DATA(i)->bdata = &bootmem_node_data[i];
 	}
 	memset(pfnnid_map, 0xff, sizeof(pfnnid_map));
 
@@ -284,28 +300,24 @@ static void __init setup_bootmem(void)
 
 	/*
 	 * Initialize and free the full range of memory in each range.
-	 * Note that the only writing these routines do are to the bootmap,
-	 * and we've made sure to locate the bootmap properly so that they
-	 * won't be writing over anything important.
 	 */
 
-	bootmap_pfn = bootmap_start_pfn;
 	max_pfn = 0;
 	for (i = 0; i < npmem_ranges; i++) {
 		unsigned long start_pfn;
 		unsigned long npages;
+		unsigned long start;
+		unsigned long size;
 
 		start_pfn = pmem_ranges[i].start_pfn;
 		npages = pmem_ranges[i].pages;
 
-		bootmap_size = init_bootmem_node(NODE_DATA(i),
-						bootmap_pfn,
-						start_pfn,
-						(start_pfn + npages) );
-		free_bootmem_node(NODE_DATA(i),
-				  (start_pfn << PAGE_SHIFT),
-				  (npages << PAGE_SHIFT) );
-		bootmap_pfn += (bootmap_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		start = start_pfn << PAGE_SHIFT;
+		size = npages << PAGE_SHIFT;
+
+		/* add system RAM memblock */
+		memblock_add(start, size);
+
 		if ((start_pfn + npages) > max_pfn)
 			max_pfn = start_pfn + npages;
 	}
@@ -317,32 +329,22 @@ static void __init setup_bootmem(void)
 	 */
 	max_low_pfn = max_pfn;
 
-	/* bootmap sizing messed up? */
-	BUG_ON((bootmap_pfn - bootmap_start_pfn) != bootmap_pages);
-
 	/* reserve PAGE0 pdc memory, kernel text/data/bss & bootmap */
 
 #define PDC_CONSOLE_IO_IODC_SIZE 32768
 
-	reserve_bootmem_node(NODE_DATA(0), 0UL,
-			(unsigned long)(PAGE0->mem_free +
-				PDC_CONSOLE_IO_IODC_SIZE), BOOTMEM_DEFAULT);
-	reserve_bootmem_node(NODE_DATA(0), __pa(KERNEL_BINARY_TEXT_START),
-			(unsigned long)(_end - KERNEL_BINARY_TEXT_START),
-			BOOTMEM_DEFAULT);
-	reserve_bootmem_node(NODE_DATA(0), (bootmap_start_pfn << PAGE_SHIFT),
-			((bootmap_pfn - bootmap_start_pfn) << PAGE_SHIFT),
-			BOOTMEM_DEFAULT);
+	memblock_reserve(0UL, (unsigned long)(PAGE0->mem_free +
+				PDC_CONSOLE_IO_IODC_SIZE));
+	memblock_reserve(__pa(KERNEL_BINARY_TEXT_START),
+			(unsigned long)(_end - KERNEL_BINARY_TEXT_START));
 
 #ifndef CONFIG_DISCONTIGMEM
 
 	/* reserve the holes */
 
 	for (i = 0; i < npmem_holes; i++) {
-		reserve_bootmem_node(NODE_DATA(0),
-				(pmem_holes[i].start_pfn << PAGE_SHIFT),
-				(pmem_holes[i].pages << PAGE_SHIFT),
-				BOOTMEM_DEFAULT);
+		memblock_reserve((pmem_holes[i].start_pfn << PAGE_SHIFT),
+				(pmem_holes[i].pages << PAGE_SHIFT));
 	}
 #endif
 
@@ -360,8 +362,7 @@ static void __init setup_bootmem(void)
 			initrd_below_start_ok = 1;
 			printk(KERN_INFO "initrd: reserving %08lx-%08lx (mem_max %08lx)\n", __pa(initrd_start), __pa(initrd_start) + initrd_reserve, mem_max);
 
-			reserve_bootmem_node(NODE_DATA(0), __pa(initrd_start),
-					initrd_reserve, BOOTMEM_DEFAULT);
+			memblock_reserve(__pa(initrd_start), initrd_reserve);
 		}
 	}
 #endif
@@ -380,6 +381,9 @@ static void __init setup_bootmem(void)
 		request_resource(res, &data_resource);
 	}
 	request_resource(&sysram_resources[0], &pdcdata_resource);
+
+	/* Initialize Page Deallocation Table (PDT) and check for bad memory. */
+	pdc_pdt_init();
 }
 
 static int __init parisc_text_address(unsigned long vaddr)
@@ -439,7 +443,7 @@ static void __init map_pages(unsigned long start_vaddr,
 		 */
 
 		if (!pmd) {
-			pmd = (pmd_t *) alloc_bootmem_low_pages_node(NODE_DATA(0), PAGE_SIZE << PMD_ORDER);
+			pmd = (pmd_t *) get_memblock(PAGE_SIZE << PMD_ORDER);
 			pmd = (pmd_t *) __pa(pmd);
 		}
 
@@ -458,8 +462,7 @@ static void __init map_pages(unsigned long start_vaddr,
 
 			pg_table = (pte_t *)pmd_address(*pmd);
 			if (!pg_table) {
-				pg_table = (pte_t *)
-					alloc_bootmem_low_pages_node(NODE_DATA(0), PAGE_SIZE);
+				pg_table = (pte_t *) get_memblock(PAGE_SIZE);
 				pg_table = (pte_t *) __pa(pg_table);
 			}
 
@@ -491,12 +494,8 @@ static void __init map_pages(unsigned long start_vaddr,
 						pte = pte_mkhuge(pte);
 				}
 
-				if (address >= end_paddr) {
-					if (force)
-						break;
-					else
-						pte_val(pte) = 0;
-				}
+				if (address >= end_paddr)
+					break;
 
 				set_pte(pg_table, pte);
 
@@ -512,7 +511,7 @@ static void __init map_pages(unsigned long start_vaddr,
 	}
 }
 
-void free_initmem(void)
+void __ref free_initmem(void)
 {
 	unsigned long init_begin = (unsigned long)__init_begin;
 	unsigned long init_end = (unsigned long)__init_end;
@@ -545,7 +544,7 @@ void free_initmem(void)
 }
 
 
-#ifdef CONFIG_DEBUG_RODATA
+#ifdef CONFIG_STRICT_KERNEL_RWX
 void mark_rodata_ro(void)
 {
 	/* rodata memory was already mapped with KERNEL_RO access rights by
@@ -612,26 +611,27 @@ void __init mem_init(void)
 	free_all_bootmem();
 
 #ifdef CONFIG_PA11
-	if (hppa_dma_ops == &pcxl_dma_ops) {
+	if (boot_cpu_data.cpu_type == pcxl2 || boot_cpu_data.cpu_type == pcxl) {
 		pcxl_dma_start = (unsigned long)SET_MAP_OFFSET(MAP_START);
 		parisc_vmalloc_start = SET_MAP_OFFSET(pcxl_dma_start
 						+ PCXL_DMA_MAP_SIZE);
-	} else {
-		pcxl_dma_start = 0;
-		parisc_vmalloc_start = SET_MAP_OFFSET(MAP_START);
-	}
-#else
-	parisc_vmalloc_start = SET_MAP_OFFSET(MAP_START);
+	} else
 #endif
+		parisc_vmalloc_start = SET_MAP_OFFSET(MAP_START);
 
 	mem_init_print_info(NULL);
-#ifdef CONFIG_DEBUG_KERNEL /* double-sanity-check paranoia */
+
+#if 0
+	/*
+	 * Do not expose the virtual kernel memory layout to userspace.
+	 * But keep code for debugging purposes.
+	 */
 	printk("virtual kernel memory layout:\n"
-	       "    vmalloc : 0x%p - 0x%p   (%4ld MB)\n"
-	       "    memory  : 0x%p - 0x%p   (%4ld MB)\n"
-	       "      .init : 0x%p - 0x%p   (%4ld kB)\n"
-	       "      .data : 0x%p - 0x%p   (%4ld kB)\n"
-	       "      .text : 0x%p - 0x%p   (%4ld kB)\n",
+	       "    vmalloc : 0x%px - 0x%px   (%4ld MB)\n"
+	       "    memory  : 0x%px - 0x%px   (%4ld MB)\n"
+	       "      .init : 0x%px - 0x%px   (%4ld kB)\n"
+	       "      .data : 0x%px - 0x%px   (%4ld kB)\n"
+	       "      .text : 0x%px - 0x%px   (%4ld kB)\n",
 
 	       (void*)VMALLOC_START, (void*)VMALLOC_END,
 	       (VMALLOC_END - VMALLOC_START) >> 20,
@@ -652,55 +652,6 @@ void __init mem_init(void)
 
 unsigned long *empty_zero_page __read_mostly;
 EXPORT_SYMBOL(empty_zero_page);
-
-void show_mem(unsigned int filter)
-{
-	int total = 0,reserved = 0;
-	pg_data_t *pgdat;
-
-	printk(KERN_INFO "Mem-info:\n");
-	show_free_areas(filter);
-
-	for_each_online_pgdat(pgdat) {
-		unsigned long flags;
-		int zoneid;
-
-		pgdat_resize_lock(pgdat, &flags);
-		for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
-			struct zone *zone = &pgdat->node_zones[zoneid];
-			if (!populated_zone(zone))
-				continue;
-
-			total += zone->present_pages;
-			reserved = zone->present_pages - zone->managed_pages;
-		}
-		pgdat_resize_unlock(pgdat, &flags);
-	}
-
-	printk(KERN_INFO "%d pages of RAM\n", total);
-	printk(KERN_INFO "%d reserved pages\n", reserved);
-
-#ifdef CONFIG_DISCONTIGMEM
-	{
-		struct zonelist *zl;
-		int i, j;
-
-		for (i = 0; i < npmem_ranges; i++) {
-			zl = node_zonelist(i, 0);
-			for (j = 0; j < MAX_NR_ZONES; j++) {
-				struct zoneref *z;
-				struct zone *zone;
-
-				printk("Zone list for zone %d on node %d: ", j, i);
-				for_each_zone_zonelist(zone, z, zl, j)
-					printk("[%d/%s] ", zone_to_nid(zone),
-								zone->name);
-				printk("\n");
-			}
-		}
-	}
-#endif
-}
 
 /*
  * pagetable_init() sets up the page tables
@@ -737,7 +688,7 @@ static void __init pagetable_init(void)
 	}
 #endif
 
-	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
+	empty_zero_page = get_memblock(PAGE_SIZE);
 }
 
 static void __init gateway_init(void)

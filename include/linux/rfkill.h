@@ -66,7 +66,7 @@ struct rfkill_ops {
 
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 /**
- * rfkill_alloc - allocate rfkill structure
+ * rfkill_alloc - Allocate rfkill structure
  * @name: name of the struct -- the string is not copied internally
  * @parent: device that has rf switch on it
  * @type: type of the switch (RFKILL_TYPE_*)
@@ -104,14 +104,15 @@ int __must_check rfkill_register(struct rfkill *rfkill);
  *
  * Pause polling -- say transmitter is off for other reasons.
  * NOTE: not necessary for suspend/resume -- in that case the
- * core stops polling anyway
+ * core stops polling anyway (but will also correctly handle
+ * the case of polling having been paused before suspend.)
  */
 void rfkill_pause_polling(struct rfkill *rfkill);
 
 /**
  * rfkill_resume_polling(struct rfkill *rfkill)
  *
- * Pause polling -- say transmitter is off for other reasons.
+ * Resume polling
  * NOTE: not necessary for suspend/resume -- in that case the
  * core stops polling anyway
  */
@@ -129,7 +130,7 @@ void rfkill_resume_polling(struct rfkill *rfkill);
 void rfkill_unregister(struct rfkill *rfkill);
 
 /**
- * rfkill_destroy - free rfkill structure
+ * rfkill_destroy - Free rfkill structure
  * @rfkill: rfkill structure to be destroyed
  *
  * Destroys the rfkill structure.
@@ -139,7 +140,7 @@ void rfkill_destroy(struct rfkill *rfkill);
 /**
  * rfkill_set_hw_state - Set the internal rfkill hardware block state
  * @rfkill: pointer to the rfkill class to modify.
- * @state: the current hardware block state to set
+ * @blocked: the current hardware block state to set
  *
  * rfkill drivers that get events when the hard-blocked state changes
  * use this function to notify the rfkill core (and through that also
@@ -160,7 +161,7 @@ bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
 /**
  * rfkill_set_sw_state - Set the internal rfkill software block state
  * @rfkill: pointer to the rfkill class to modify.
- * @state: the current software block state to set
+ * @blocked: the current software block state to set
  *
  * rfkill drivers that get events when the soft-blocked state changes
  * (yes, some platforms directly act on input but allow changing again)
@@ -182,7 +183,7 @@ bool rfkill_set_sw_state(struct rfkill *rfkill, bool blocked);
 /**
  * rfkill_init_sw_state - Initialize persistent software block state
  * @rfkill: pointer to the rfkill class to modify.
- * @state: the current software block state to set
+ * @blocked: the current software block state to set
  *
  * rfkill drivers that preserve their software block state over power off
  * use this function to notify the rfkill core (and through that also
@@ -207,11 +208,20 @@ void rfkill_init_sw_state(struct rfkill *rfkill, bool blocked);
 void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw);
 
 /**
- * rfkill_blocked - query rfkill block
+ * rfkill_blocked - Query rfkill block state
  *
  * @rfkill: rfkill struct to query
  */
 bool rfkill_blocked(struct rfkill *rfkill);
+
+/**
+ * rfkill_find_type - Helper for finding rfkill type by name
+ * @name: the name of the type
+ *
+ * Returns enum rfkill_type that corresponds to the name.
+ */
+enum rfkill_type rfkill_find_type(const char *name);
+
 #else /* !RFKILL */
 static inline struct rfkill * __must_check
 rfkill_alloc(const char *name,
@@ -268,6 +278,12 @@ static inline bool rfkill_blocked(struct rfkill *rfkill)
 {
 	return false;
 }
+
+static inline enum rfkill_type rfkill_find_type(const char *name)
+{
+	return RFKILL_TYPE_ALL;
+}
+
 #endif /* RFKILL || RFKILL_MODULE */
 
 
@@ -280,7 +296,7 @@ static inline bool rfkill_blocked(struct rfkill *rfkill)
 const char *rfkill_get_led_trigger_name(struct rfkill *rfkill);
 
 /**
- * rfkill_set_led_trigger_name -- set the LED trigger name
+ * rfkill_set_led_trigger_name - Set the LED trigger name
  * @rfkill: rfkill struct
  * @name: LED trigger name
  *

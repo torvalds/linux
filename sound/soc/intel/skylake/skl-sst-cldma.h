@@ -203,7 +203,7 @@ struct sst_dsp;
 struct skl_cl_dev_ops {
 	void (*cl_setup_bdle)(struct sst_dsp *ctx,
 			struct snd_dma_buffer *dmab_data,
-			u32 **bdlp, int size, int with_ioc);
+			__le32 **bdlp, int size, int with_ioc);
 	void (*cl_setup_controller)(struct sst_dsp *ctx,
 			struct snd_dma_buffer *dmab_bdl,
 			unsigned int max_size, u32 page_count);
@@ -213,7 +213,7 @@ struct skl_cl_dev_ops {
 	void (*cl_trigger)(struct sst_dsp  *ctx, bool enable);
 	void (*cl_cleanup_controller)(struct sst_dsp  *ctx);
 	int (*cl_copy_to_dmabuf)(struct sst_dsp *ctx,
-			const void *bin, u32 size);
+			const void *bin, u32 size, bool wait);
 	void (*cl_stop_dma)(struct sst_dsp *ctx);
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "dvb_filter.h"
 #include "av7110_ipack.h"
 #include <linux/string.h>	/* for memcpy() */
@@ -23,7 +24,7 @@ void av7110_ipack_reset(struct ipack *p)
 int av7110_ipack_init(struct ipack *p, int size,
 		      void (*func)(u8 *buf, int size, void *priv))
 {
-	if (!(p->buf = vmalloc(size*sizeof(u8)))) {
+	if (!(p->buf = vmalloc(size))) {
 		printk(KERN_WARNING "Couldn't allocate memory for ipack\n");
 		return -ENOMEM;
 	}

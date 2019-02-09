@@ -1,0 +1,22 @@
+Samsung S3C2410 and compatible SoC USB controller
+
+OHCI
+
+Required properties:
+ - compatible: should be "samsung,s3c2410-ohci" for USB host controller
+ - reg: address and lenght of the controller memory mapped region
+ - interrupts: interrupt number for the USB OHCI controller
+ - clocks: Should reference the bus and host clocks
+ - clock-names: Should contain two strings
+		"usb-bus-host" for the USB bus clock
+		"usb-host" for the USB host clock
+
+Example:
+
+usb0: ohci@49000000 {
+	compatible = "samsung,s3c2410-ohci";
+	reg = <0x49000000 0x100>;
+	interrupts = <0 0 26 3>;
+	clocks = <&clocks UCLK>, <&clocks HCLK_USBH>;
+	clock-names = "usb-bus-host", "usb-host";
+};

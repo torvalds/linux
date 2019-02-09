@@ -136,7 +136,7 @@ static ssize_t iotlb_dump_cr(struct omap_iommu *obj, struct cr_regs *cr,
 			     struct seq_file *s)
 {
 	seq_printf(s, "%08x %08x %01x\n", cr->cam, cr->ram,
-			  (cr->cam & MMU_CAM_P) ? 1 : 0);
+		   (cr->cam & MMU_CAM_P) ? 1 : 0);
 	return 0;
 }
 
@@ -274,8 +274,8 @@ void omap_iommu_debugfs_add(struct omap_iommu *obj)
 	if (!obj->debug_dir)
 		return;
 
-	d = debugfs_create_u8("nr_tlb_entries", 0400, obj->debug_dir,
-			      (u8 *)&obj->nr_tlb_entries);
+	d = debugfs_create_u32("nr_tlb_entries", 0400, obj->debug_dir,
+			       &obj->nr_tlb_entries);
 	if (!d)
 		return;
 

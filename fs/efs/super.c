@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * super.c
  *
@@ -94,9 +95,9 @@ static void init_once(void *foo)
 static int __init init_inodecache(void)
 {
 	efs_inode_cachep = kmem_cache_create("efs_inode_cache",
-				sizeof(struct efs_inode_info),
-				0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
-				init_once);
+				sizeof(struct efs_inode_info), 0,
+				SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
+				SLAB_ACCOUNT, init_once);
 	if (efs_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;
@@ -115,7 +116,7 @@ static void destroy_inodecache(void)
 static int efs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_RDONLY;
+	*flags |= SB_RDONLY;
 	return 0;
 }
 
@@ -275,7 +276,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 
 	if (!bh) {
 		pr_err("cannot read volume header\n");
-		return -EINVAL;
+		return -EIO;
 	}
 
 	/*
@@ -293,7 +294,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	bh = sb_bread(s, sb->fs_start + EFS_SUPER);
 	if (!bh) {
 		pr_err("cannot read superblock\n");
-		return -EINVAL;
+		return -EIO;
 	}
 		
 	if (efs_validate_super(sb, (struct efs_super *) bh->b_data)) {
@@ -306,11 +307,11 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	}
 	brelse(bh);
 
-	if (!(s->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(s)) {
 #ifdef DEBUG
 		pr_info("forcing read-only mode\n");
 #endif
-		s->s_flags |= MS_RDONLY;
+		s->s_flags |= SB_RDONLY;
 	}
 	s->s_op   = &efs_superblock_operations;
 	s->s_export_op = &efs_export_ops;

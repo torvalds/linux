@@ -44,10 +44,10 @@ static long vexpress_osc_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct vexpress_osc *osc = to_vexpress_osc(hw);
 
-	if (WARN_ON(osc->rate_min && rate < osc->rate_min))
+	if (osc->rate_min && rate < osc->rate_min)
 		rate = osc->rate_min;
 
-	if (WARN_ON(osc->rate_max && rate > osc->rate_max))
+	if (osc->rate_max && rate > osc->rate_max)
 		rate = osc->rate_max;
 
 	return rate;
@@ -61,7 +61,7 @@ static int vexpress_osc_set_rate(struct clk_hw *hw, unsigned long rate,
 	return regmap_write(osc->reg, 0, rate);
 }
 
-static struct clk_ops vexpress_osc_ops = {
+static const struct clk_ops vexpress_osc_ops = {
 	.recalc_rate = vexpress_osc_recalc_rate,
 	.round_rate = vexpress_osc_round_rate,
 	.set_rate = vexpress_osc_set_rate,
@@ -94,7 +94,7 @@ static int vexpress_osc_probe(struct platform_device *pdev)
 		init.name = dev_name(&pdev->dev);
 
 	init.ops = &vexpress_osc_ops;
-	init.flags = CLK_IS_ROOT;
+	init.flags = 0;
 	init.num_parents = 0;
 
 	osc->hw.init = &init;
@@ -104,6 +104,7 @@ static int vexpress_osc_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 
 	of_clk_add_provider(pdev->dev.of_node, of_clk_src_simple_get, clk);
+	clk_hw_set_rate_range(&osc->hw, osc->rate_min, osc->rate_max);
 
 	dev_dbg(&pdev->dev, "Registered clock '%s'\n", init.name);
 

@@ -11,15 +11,6 @@
 
 / {
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <6000000>;
-		};
-
 		main_xtal {
 			clock-frequency = <6000000>;
 		};
@@ -27,25 +18,56 @@
 
 	ahb {
 		apb {
+			tcb0: timer@fffa0000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			dbgu: serial@fffff200 {
 				status = "okay";
 			};
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "soft";
-			nand-on-flash-bbt;
+		ebi: ebi@10000000 {
 			status = "okay";
 
-			boot@0 {
-				label = "boot";
-				reg = <0x0 0x7c0000>;
-			};
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+				pinctrl-names = "default";
 
-			root@07c0000 {
-				label = "root";
-				reg = <0x7c0000 0x7840000>;
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioC 13 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioC 14 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-on-flash-bbt;
+					label = "atmel_nand";
+
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						boot@0 {
+							label = "boot";
+							reg = <0x0 0x7c0000>;
+						};
+
+						root@7c0000 {
+							label = "root";
+							reg = <0x7c0000 0x7840000>;
+						};
+					};
+				};
 			};
 		};
 	};

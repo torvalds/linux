@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_SOCKET_H
 #define _UAPI_ASM_SOCKET_H
 
@@ -83,5 +84,27 @@
 
 #define SO_ATTACH_BPF		0x402B
 #define SO_DETACH_BPF		SO_DETACH_FILTER
+
+#define SO_ATTACH_REUSEPORT_CBPF	0x402C
+#define SO_ATTACH_REUSEPORT_EBPF	0x402D
+
+#define SO_CNX_ADVICE		0x402E
+
+#define SCM_TIMESTAMPING_OPT_STATS	0x402F
+
+#define SO_MEMINFO		0x4030
+
+#define SO_INCOMING_NAPI_ID	0x4031
+
+#define SO_COOKIE		0x4032
+
+#define SCM_TIMESTAMPING_PKTINFO	0x4033
+
+#define SO_PEERGROUPS		0x4034
+
+#define SO_ZEROCOPY		0x4035
+
+#define SO_TXTIME		0x4036
+#define SCM_TXTIME		SO_TXTIME
 
 #endif /* _UAPI_ASM_SOCKET_H */

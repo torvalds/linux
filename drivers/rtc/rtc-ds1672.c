@@ -13,8 +13,6 @@
 #include <linux/rtc.h>
 #include <linux/module.h>
 
-#define DRV_VERSION "0.4"
-
 /* Registers */
 
 #define DS1672_REG_CNT_BASE	0
@@ -165,8 +163,6 @@ static int ds1672_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
-
 	rtc = devm_rtc_device_register(&client->dev, ds1672_driver.driver.name,
 				  &ds1672_rtc_ops, THIS_MODULE);
 
@@ -194,16 +190,23 @@ static int ds1672_probe(struct i2c_client *client,
 	return 0;
 }
 
-static struct i2c_device_id ds1672_id[] = {
+static const struct i2c_device_id ds1672_id[] = {
 	{ "ds1672", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1672_id);
 
+static const struct of_device_id ds1672_of_match[] = {
+	{ .compatible = "dallas,ds1672" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ds1672_of_match);
+
 static struct i2c_driver ds1672_driver = {
 	.driver = {
 		   .name = "rtc-ds1672",
-		   },
+		   .of_match_table = of_match_ptr(ds1672_of_match),
+	},
 	.probe = &ds1672_probe,
 	.id_table = ds1672_id,
 };
@@ -213,4 +216,3 @@ module_i2c_driver(ds1672_driver);
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("Dallas/Maxim DS1672 timekeeper driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

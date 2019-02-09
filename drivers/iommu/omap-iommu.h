@@ -14,6 +14,7 @@
 #define _OMAP_IOMMU_H
 
 #include <linux/bitops.h>
+#include <linux/iommu.h>
 
 #define for_each_iotlb_cr(obj, n, __i, cr)				\
 	for (__i = 0;							\
@@ -25,6 +26,32 @@ struct iotlb_entry {
 	u32 pa;
 	u32 pgsz, prsvd, valid;
 	u32 endian, elsz, mixed;
+};
+
+/**
+ * struct omap_iommu_device - omap iommu device data
+ * @pgtable:	page table used by an omap iommu attached to a domain
+ * @iommu_dev:	pointer to store an omap iommu instance attached to a domain
+ */
+struct omap_iommu_device {
+	u32 *pgtable;
+	struct omap_iommu *iommu_dev;
+};
+
+/**
+ * struct omap_iommu_domain - omap iommu domain
+ * @num_iommus: number of iommus in this domain
+ * @iommus:	omap iommu device data for all iommus in this domain
+ * @dev:	Device using this domain.
+ * @lock:	domain lock, should be taken when attaching/detaching
+ * @domain:	generic domain handle used by iommu core code
+ */
+struct omap_iommu_domain {
+	u32 num_iommus;
+	struct omap_iommu_device *iommus;
+	struct device *dev;
+	spinlock_t lock;
+	struct iommu_domain domain;
 };
 
 struct omap_iommu {
@@ -43,6 +70,7 @@ struct omap_iommu {
 	 */
 	u32		*iopgd;
 	spinlock_t	page_table_lock; /* protect iopgd */
+	dma_addr_t	pd_dma;
 
 	int		nr_tlb_entries;
 
@@ -50,6 +78,22 @@ struct omap_iommu {
 
 	int has_bus_err_back;
 	u32 id;
+
+	struct iommu_device iommu;
+	struct iommu_group *group;
+};
+
+/**
+ * struct omap_iommu_arch_data - omap iommu private data
+ * @iommu_dev: handle of the iommu device
+ *
+ * This is an omap iommu private data object, which binds an iommu user
+ * to its iommu device. This object should be placed at the iommu user's
+ * dev_archdata so generic IOMMU API can be used without having to
+ * utilize omap-specific plumbing anymore.
+ */
+struct omap_iommu_arch_data {
+	struct omap_iommu *iommu_dev;
 };
 
 struct cr_regs {
@@ -61,17 +105,6 @@ struct iotlb_lock {
 	short base;
 	short vict;
 };
-
-/**
- * dev_to_omap_iommu() - retrieves an omap iommu object from a user device
- * @dev: iommu client device
- */
-static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
-{
-	struct omap_iommu_arch_data *arch_data = dev->archdata.iommu;
-
-	return arch_data->iommu_dev;
-}
 
 /*
  * MMU Register offsets

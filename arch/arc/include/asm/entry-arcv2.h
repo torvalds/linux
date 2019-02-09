@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __ASM_ARC_ENTRY_ARCV2_H
 #define __ASM_ARC_ENTRY_ARCV2_H
@@ -16,6 +17,12 @@
 	;
 	; Now manually save: r12, sp, fp, gp, r25
 
+#ifdef CONFIG_ARC_HAS_ACCL_REGS
+	PUSH	r59
+	PUSH	r58
+#endif
+
+	PUSH	r30
 	PUSH	r12
 
 	; Saving pt_regs->sp correctly requires some extra work due to the way
@@ -72,6 +79,12 @@
 	POPAX	AUX_USER_SP
 1:
 	POP	r12
+	POP	r30
+
+#ifdef CONFIG_ARC_HAS_ACCL_REGS
+	POP	r58
+	POP	r59
+#endif
 
 .endm
 
@@ -171,7 +184,7 @@
 .macro FAKE_RET_FROM_EXCPN
 	lr      r9, [status32]
 	bic     r9, r9, (STATUS_U_MASK|STATUS_DE_MASK|STATUS_AE_MASK)
-	or      r9, r9, (STATUS_L_MASK|STATUS_IE_MASK)
+	or      r9, r9, STATUS_IE_MASK
 	kflag   r9
 .endm
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * es8328.h  --  ES8328 ALSA SoC Audio driver
  */
@@ -22,7 +23,7 @@ int es8328_probe(struct device *dev, struct regmap *regmap);
 #define ES8328_CONTROL1_VMIDSEL_50k (1 << 0)
 #define ES8328_CONTROL1_VMIDSEL_500k (2 << 0)
 #define ES8328_CONTROL1_VMIDSEL_5k (3 << 0)
-#define ES8328_CONTROL1_VMIDSEL_MASK (7 << 0)
+#define ES8328_CONTROL1_VMIDSEL_MASK (3 << 0)
 #define ES8328_CONTROL1_ENREF (1 << 2)
 #define ES8328_CONTROL1_SEQEN (1 << 3)
 #define ES8328_CONTROL1_SAMEFS (1 << 4)
@@ -84,7 +85,20 @@ int es8328_probe(struct device *dev, struct regmap *regmap);
 #define ES8328_ADCCONTROL1	0x09
 #define ES8328_ADCCONTROL2	0x0a
 #define ES8328_ADCCONTROL3	0x0b
+
 #define ES8328_ADCCONTROL4	0x0c
+#define ES8328_ADCCONTROL4_ADCFORMAT_MASK (3 << 0)
+#define ES8328_ADCCONTROL4_ADCFORMAT_I2S (0 << 0)
+#define ES8328_ADCCONTROL4_ADCFORMAT_LJUST (1 << 0)
+#define ES8328_ADCCONTROL4_ADCFORMAT_RJUST (2 << 0)
+#define ES8328_ADCCONTROL4_ADCFORMAT_PCM (3 << 0)
+#define ES8328_ADCCONTROL4_ADCWL_SHIFT 2
+#define ES8328_ADCCONTROL4_ADCWL_MASK (7 << 2)
+#define ES8328_ADCCONTROL4_ADCLRP_I2S_POL_NORMAL (0 << 5)
+#define ES8328_ADCCONTROL4_ADCLRP_I2S_POL_INV (1 << 5)
+#define ES8328_ADCCONTROL4_ADCLRP_PCM_MSB_CLK2 (0 << 5)
+#define ES8328_ADCCONTROL4_ADCLRP_PCM_MSB_CLK1 (1 << 5)
+
 #define ES8328_ADCCONTROL5	0x0d
 #define ES8328_ADCCONTROL5_RATEMASK (0x1f << 0)
 
@@ -109,15 +123,13 @@ int es8328_probe(struct device *dev, struct regmap *regmap);
 #define ES8328_ADCCONTROL14	0x16
 
 #define ES8328_DACCONTROL1	0x17
+#define ES8328_DACCONTROL1_DACFORMAT_MASK (3 << 1)
 #define ES8328_DACCONTROL1_DACFORMAT_I2S (0 << 1)
 #define ES8328_DACCONTROL1_DACFORMAT_LJUST (1 << 1)
 #define ES8328_DACCONTROL1_DACFORMAT_RJUST (2 << 1)
 #define ES8328_DACCONTROL1_DACFORMAT_PCM (3 << 1)
-#define ES8328_DACCONTROL1_DACWL_24 (0 << 3)
-#define ES8328_DACCONTROL1_DACWL_20 (1 << 3)
-#define ES8328_DACCONTROL1_DACWL_18 (2 << 3)
-#define ES8328_DACCONTROL1_DACWL_16 (3 << 3)
-#define ES8328_DACCONTROL1_DACWL_32 (4 << 3)
+#define ES8328_DACCONTROL1_DACWL_SHIFT 3
+#define ES8328_DACCONTROL1_DACWL_MASK (7 << 3)
 #define ES8328_DACCONTROL1_DACLRP_I2S_POL_NORMAL (0 << 6)
 #define ES8328_DACCONTROL1_DACLRP_I2S_POL_INV (1 << 6)
 #define ES8328_DACCONTROL1_DACLRP_PCM_MSB_CLK2 (0 << 6)
@@ -266,43 +278,6 @@ int es8328_probe(struct device *dev, struct regmap *regmap);
 #define ES8328_SYSCLK		0
 
 #define ES8328_REG_MAX		0x35
-
-#define ES8328_PLL1		0
-#define ES8328_PLL2		1
-
-/* clock inputs */
-#define ES8328_MCLK		0
-#define ES8328_PCMCLK		1
-
-/* clock divider id's */
-#define ES8328_PCMDIV		0
-#define ES8328_BCLKDIV		1
-#define ES8328_VXCLKDIV		2
-
-/* PCM clock dividers */
-#define ES8328_PCM_DIV_1	(0 << 6)
-#define ES8328_PCM_DIV_3	(2 << 6)
-#define ES8328_PCM_DIV_5_5	(3 << 6)
-#define ES8328_PCM_DIV_2	(4 << 6)
-#define ES8328_PCM_DIV_4	(5 << 6)
-#define ES8328_PCM_DIV_6	(6 << 6)
-#define ES8328_PCM_DIV_8	(7 << 6)
-
-/* BCLK clock dividers */
-#define ES8328_BCLK_DIV_1	(0 << 7)
-#define ES8328_BCLK_DIV_2	(1 << 7)
-#define ES8328_BCLK_DIV_4	(2 << 7)
-#define ES8328_BCLK_DIV_8	(3 << 7)
-
-/* VXCLK clock dividers */
-#define ES8328_VXCLK_DIV_1	(0 << 6)
-#define ES8328_VXCLK_DIV_2	(1 << 6)
-#define ES8328_VXCLK_DIV_4	(2 << 6)
-#define ES8328_VXCLK_DIV_8	(3 << 6)
-#define ES8328_VXCLK_DIV_16	(4 << 6)
-
-#define ES8328_DAI_HIFI		0
-#define ES8328_DAI_VOICE	1
 
 #define ES8328_1536FS		1536
 #define ES8328_1024FS		1024

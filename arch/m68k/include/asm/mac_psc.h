@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Apple Peripheral System Controller (PSC)
  *
@@ -209,7 +210,6 @@
 #ifndef __ASSEMBLY__
 
 extern volatile __u8 *psc;
-extern int psc_present;
 
 extern void psc_register_interrupts(void);
 extern void psc_irq_enable(int);

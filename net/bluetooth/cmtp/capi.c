@@ -26,7 +26,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/fcntl.h>
@@ -100,10 +100,8 @@ static void cmtp_application_del(struct cmtp_session *session, struct cmtp_appli
 static struct cmtp_application *cmtp_application_get(struct cmtp_session *session, int pattern, __u16 value)
 {
 	struct cmtp_application *app;
-	struct list_head *p;
 
-	list_for_each(p, &session->applications) {
-		app = list_entry(p, struct cmtp_application, list);
+	list_for_each_entry(app, &session->applications, list) {
 		switch (pattern) {
 		case CMTP_MSGNUM:
 			if (app->msgnum == value)
@@ -511,32 +509,17 @@ static int cmtp_proc_show(struct seq_file *m, void *v)
 	struct capi_ctr *ctrl = m->private;
 	struct cmtp_session *session = ctrl->driverdata;
 	struct cmtp_application *app;
-	struct list_head *p;
 
 	seq_printf(m, "%s\n\n", cmtp_procinfo(ctrl));
 	seq_printf(m, "addr %s\n", session->name);
 	seq_printf(m, "ctrl %d\n", session->num);
 
-	list_for_each(p, &session->applications) {
-		app = list_entry(p, struct cmtp_application, list);
+	list_for_each_entry(app, &session->applications, list) {
 		seq_printf(m, "appl %d -> %d\n", app->appl, app->mapping);
 	}
 
 	return 0;
 }
-
-static int cmtp_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, cmtp_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations cmtp_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= cmtp_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 int cmtp_attach_device(struct cmtp_session *session)
 {
@@ -576,7 +559,7 @@ int cmtp_attach_device(struct cmtp_session *session)
 	session->ctrl.send_message  = cmtp_send_message;
 
 	session->ctrl.procinfo      = cmtp_procinfo;
-	session->ctrl.proc_fops = &cmtp_proc_fops;
+	session->ctrl.proc_show     = cmtp_proc_show;
 
 	if (attach_capi_ctr(&session->ctrl) < 0) {
 		BT_ERR("Can't attach new controller");

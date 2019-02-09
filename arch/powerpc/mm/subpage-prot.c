@@ -13,10 +13,10 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
+#include <linux/syscalls.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
-#include <asm/tlbflush.h>
+#include <linux/uaccess.h>
 
 /*
  * Free all pages allocated for subpage protection maps and pointers.
@@ -36,7 +36,7 @@ void subpage_prot_free(struct mm_struct *mm)
 		}
 	}
 	addr = 0;
-	for (i = 0; i < 2; ++i) {
+	for (i = 0; i < (TASK_SIZE_USER64 >> 43); ++i) {
 		p = spt->protptrs[i];
 		if (!p)
 			continue;
@@ -135,7 +135,7 @@ static int subpage_walk_pmd_entry(pmd_t *pmd, unsigned long addr,
 				  unsigned long end, struct mm_walk *walk)
 {
 	struct vm_area_struct *vma = walk->vma;
-	split_huge_page_pmd(vma, addr, pmd);
+	split_huge_pmd(vma, pmd, addr);
 	return 0;
 }
 
@@ -185,7 +185,8 @@ static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
  * in a 2-bit field won't allow writes to a page that is otherwise
  * write-protected.
  */
-long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
+SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
+		unsigned long, len, u32 __user *, map)
 {
 	struct mm_struct *mm = current->mm;
 	struct subpage_prot_table *spt = &mm->context.spt;
@@ -195,9 +196,13 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 	unsigned long next, limit;
 	int err;
 
+	if (radix_enabled())
+		return -ENOENT;
+
 	/* Check parameters */
 	if ((addr & ~PAGE_MASK) || (len & ~PAGE_MASK) ||
-	    addr >= TASK_SIZE || len >= TASK_SIZE || addr + len > TASK_SIZE)
+	    addr >= mm->task_size || len >= mm->task_size ||
+	    addr + len > mm->task_size)
 		return -EINVAL;
 
 	if (is_hugepage_only_range(mm, addr, len))
@@ -248,9 +253,8 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 			nw = (next - addr) >> PAGE_SHIFT;
 
 		up_write(&mm->mmap_sem);
-		err = -EFAULT;
 		if (__copy_from_user(spp, map, nw * sizeof(u32)))
-			goto out2;
+			return -EFAULT;
 		map += nw;
 		down_write(&mm->mmap_sem);
 
@@ -262,6 +266,5 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 	err = 0;
  out:
 	up_write(&mm->mmap_sem);
- out2:
 	return err;
 }

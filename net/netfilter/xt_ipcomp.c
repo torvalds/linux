@@ -26,6 +26,8 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Fan Du <fan.du@windriver.com>");
 MODULE_DESCRIPTION("Xtables: IPv4/6 IPsec-IPComp SPI match");
+MODULE_ALIAS("ipt_ipcomp");
+MODULE_ALIAS("ip6t_ipcomp");
 
 /* Returns 1 if the spi is matched by the range, 0 otherwise */
 static inline bool
@@ -56,7 +58,7 @@ static bool comp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		 */
 		pr_debug("Dropping evil IPComp tinygram.\n");
 		par->hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	return spi_match(compinfo->spis[0], compinfo->spis[1],
@@ -70,7 +72,7 @@ static int comp_mt_check(const struct xt_mtchk_param *par)
 
 	/* Must specify no unknown invflags */
 	if (compinfo->invflags & ~XT_IPCOMP_INV_MASK) {
-		pr_err("unknown flags %X\n", compinfo->invflags);
+		pr_info_ratelimited("unknown flags %X\n", compinfo->invflags);
 		return -EINVAL;
 	}
 	return 0;

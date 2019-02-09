@@ -611,7 +611,7 @@ static void pm72_tick(void)
 	int i, last_failure;
 
 	if (!started) {
-		started = 1;
+		started = true;
 		printk(KERN_INFO "windfarm: CPUs control loops started.\n");
 		for (i = 0; i < nr_chips; ++i) {
 			if (cpu_setup_pid(i) < 0) {
@@ -789,7 +789,6 @@ static struct platform_driver wf_pm72_driver = {
 	.remove	= wf_pm72_remove,
 	.driver	= {
 		.name = "windfarm",
-		.owner	= THIS_MODULE,
 	},
 };
 

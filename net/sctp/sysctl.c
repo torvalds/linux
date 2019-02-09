@@ -46,7 +46,7 @@ static int timer_max = 86400000; /* ms in one day */
 static int int_max = INT_MAX;
 static int sack_timer_min = 1;
 static int sack_timer_max = 500;
-static int addr_scope_max = 3; /* check sctp_scope_policy_t in include/net/sctp/constants.h for max entries */
+static int addr_scope_max = SCTP_SCOPE_POLICY_MAX;
 static int rwnd_scale_max = 16;
 static int rto_alpha_min = 0;
 static int rto_beta_min = 0;
@@ -275,11 +275,25 @@ static struct ctl_table sctp_net_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
+		.procname	= "reconf_enable",
+		.data		= &init_net.sctp.reconf_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "auth_enable",
 		.data		= &init_net.sctp.auth_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_sctp_do_auth,
+	},
+	{
+		.procname	= "intl_enable",
+		.data		= &init_net.sctp.intl_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "addr_scope_policy",
@@ -308,6 +322,13 @@ static struct ctl_table sctp_net_table[] = {
 		.extra1		= &max_autoclose_min,
 		.extra2		= &max_autoclose_max,
 	},
+	{
+		.procname	= "pf_enable",
+		.data		= &init_net.sctp.pf_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
 
 	{ /* sentinel */ }
 };
@@ -320,7 +341,7 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 	struct ctl_table tbl;
 	bool changed = false;
 	char *none = "none";
-	char tmp[8];
+	char tmp[8] = {0};
 	int ret;
 
 	memset(&tbl, 0, sizeof(struct ctl_table));

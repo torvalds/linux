@@ -18,31 +18,58 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #include "intel-lpss.h"
 
-static const struct intel_lpss_platform_info spt_info = {
+static struct property_entry spt_i2c_properties[] = {
+	PROPERTY_ENTRY_U32("i2c-sda-hold-time-ns", 230),
+	{ },
+};
+
+static const struct intel_lpss_platform_info spt_i2c_info = {
 	.clk_rate = 120000000,
+	.properties = spt_i2c_properties,
 };
 
 static const struct intel_lpss_platform_info bxt_info = {
 	.clk_rate = 100000000,
 };
 
+static struct property_entry bxt_i2c_properties[] = {
+	PROPERTY_ENTRY_U32("i2c-sda-hold-time-ns", 42),
+	PROPERTY_ENTRY_U32("i2c-sda-falling-time-ns", 171),
+	PROPERTY_ENTRY_U32("i2c-scl-falling-time-ns", 208),
+	{ },
+};
+
 static const struct intel_lpss_platform_info bxt_i2c_info = {
 	.clk_rate = 133000000,
+	.properties = bxt_i2c_properties,
+};
+
+static struct property_entry apl_i2c_properties[] = {
+	PROPERTY_ENTRY_U32("i2c-sda-hold-time-ns", 207),
+	PROPERTY_ENTRY_U32("i2c-sda-falling-time-ns", 171),
+	PROPERTY_ENTRY_U32("i2c-scl-falling-time-ns", 208),
+	{ },
+};
+
+static const struct intel_lpss_platform_info apl_i2c_info = {
+	.clk_rate = 133000000,
+	.properties = apl_i2c_properties,
 };
 
 static const struct acpi_device_id intel_lpss_acpi_ids[] = {
 	/* SPT */
-	{ "INT3446", (kernel_ulong_t)&spt_info },
-	{ "INT3447", (kernel_ulong_t)&spt_info },
+	{ "INT3446", (kernel_ulong_t)&spt_i2c_info },
+	{ "INT3447", (kernel_ulong_t)&spt_i2c_info },
 	/* BXT */
 	{ "80860AAC", (kernel_ulong_t)&bxt_i2c_info },
 	{ "80860ABC", (kernel_ulong_t)&bxt_info },
 	{ "80860AC2", (kernel_ulong_t)&bxt_info },
 	/* APL */
-	{ "80865AAC", (kernel_ulong_t)&bxt_i2c_info },
+	{ "80865AAC", (kernel_ulong_t)&apl_i2c_info },
 	{ "80865ABC", (kernel_ulong_t)&bxt_info },
 	{ "80865AC2", (kernel_ulong_t)&bxt_info },
 	{ }

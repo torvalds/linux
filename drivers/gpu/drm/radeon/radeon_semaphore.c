@@ -56,7 +56,7 @@ int radeon_semaphore_create(struct radeon_device *rdev,
 }
 
 bool radeon_semaphore_emit_signal(struct radeon_device *rdev, int ridx,
-			          struct radeon_semaphore *semaphore)
+				  struct radeon_semaphore *semaphore)
 {
 	struct radeon_ring *ring = &rdev->ring[ridx];
 
@@ -73,7 +73,7 @@ bool radeon_semaphore_emit_signal(struct radeon_device *rdev, int ridx,
 }
 
 bool radeon_semaphore_emit_wait(struct radeon_device *rdev, int ridx,
-			        struct radeon_semaphore *semaphore)
+				struct radeon_semaphore *semaphore)
 {
 	struct radeon_ring *ring = &rdev->ring[ridx];
 

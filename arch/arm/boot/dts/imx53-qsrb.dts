@@ -1,14 +1,7 @@
-/*
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2011 Freescale Semiconductor, Inc.
+// Copyright 2011 Linaro Ltd.
 
 /dts-v1/;
 
@@ -23,7 +16,7 @@
 	imx53-qsrb {
 		pinctrl_pmic: pmicgrp {
 			fsl,pins = <
-				MX53_PAD_CSI0_DAT5__GPIO5_23	0x1e4 /* IRQ */
+				MX53_PAD_CSI0_DAT5__GPIO5_23	0x1c4 /* IRQ */
 			>;
 		};
 	};
@@ -128,10 +121,8 @@
 
 			vdac_reg: vdac {
 				regulator-name = "VDAC";
-				regulator-min-microvolt = <2500000>;
-				regulator-max-microvolt = <2775000>;
-				regulator-boot-on;
-				regulator-always-on;
+				regulator-min-microvolt = <2750000>;
+				regulator-max-microvolt = <2750000>;
 			};
 
 			vgen1_reg: vgen1 {
@@ -151,4 +142,8 @@
 			};
 		};
 	};
+};
+
+&tve {
+	dac-supply = <&vdac_reg>;
 };

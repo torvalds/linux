@@ -63,15 +63,12 @@ struct snd_seq_queue {
 /* get the number of current queues */
 int snd_seq_queue_get_cur_queues(void);
 
-/* init queues structure */
-int snd_seq_queues_init(void);
-
 /* delete queues */ 
 void snd_seq_queues_delete(void);
 
 
 /* create new queue (constructor) */
-int snd_seq_queue_alloc(int client, int locked, unsigned int flags);
+struct snd_seq_queue *snd_seq_queue_alloc(int client, int locked, unsigned int flags);
 
 /* delete queue (destructor) */
 int snd_seq_queue_delete(int client, int queueid);
@@ -111,29 +108,5 @@ int snd_seq_queue_use(int queueid, int client, int use);
 int snd_seq_queue_is_used(int queueid, int client);
 
 int snd_seq_control_queue(struct snd_seq_event *ev, int atomic, int hop);
-
-/*
- * 64bit division - for sync stuff..
- */
-#if defined(i386) || defined(i486)
-
-#define udiv_qrnnd(q, r, n1, n0, d) \
-  __asm__ ("divl %4"		\
-	   : "=a" ((u32)(q)),	\
-	     "=d" ((u32)(r))	\
-	   : "0" ((u32)(n0)),	\
-	     "1" ((u32)(n1)),	\
-	     "rm" ((u32)(d)))
-
-#define u64_div(x,y,q) do {u32 __tmp; udiv_qrnnd(q, __tmp, (x)>>32, x, y);} while (0)
-#define u64_mod(x,y,r) do {u32 __tmp; udiv_qrnnd(__tmp, q, (x)>>32, x, y);} while (0)
-#define u64_divmod(x,y,q,r) udiv_qrnnd(q, r, (x)>>32, x, y)
-
-#else
-#define u64_div(x,y,q)	((q) = (u32)((u64)(x) / (u64)(y)))
-#define u64_mod(x,y,r)	((r) = (u32)((u64)(x) % (u64)(y)))
-#define u64_divmod(x,y,q,r) (u64_div(x,y,q), u64_mod(x,y,r))
-#endif
-
 
 #endif

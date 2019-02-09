@@ -619,7 +619,7 @@ static inline int ocfs2_calc_tree_trunc_credits(struct super_block *sb,
 
 static inline int ocfs2_jbd2_file_inode(handle_t *handle, struct inode *inode)
 {
-	return jbd2_journal_file_inode(handle, &OCFS2_I(inode)->ip_jinode);
+	return jbd2_journal_inode_add_write(handle, &OCFS2_I(inode)->ip_jinode);
 }
 
 static inline int ocfs2_begin_ordered_truncate(struct inode *inode,

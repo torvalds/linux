@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*  linux/include/linux/clockchips.h
  *
  *  This file contains the structure definitions for clockchips.
@@ -182,7 +183,6 @@ extern u64 clockevent_delta2ns(unsigned long latch, struct clock_event_device *e
 extern void clockevents_register_device(struct clock_event_device *dev);
 extern int clockevents_unbind_device(struct clock_event_device *ced, int cpu);
 
-extern void clockevents_config(struct clock_event_device *dev, u32 freq);
 extern void clockevents_config_and_register(struct clock_event_device *dev,
 					    u32 freq, unsigned long min_delta,
 					    unsigned long max_delta);
@@ -190,9 +190,9 @@ extern void clockevents_config_and_register(struct clock_event_device *dev,
 extern int clockevents_update_freq(struct clock_event_device *ce, u32 freq);
 
 static inline void
-clockevents_calc_mult_shift(struct clock_event_device *ce, u32 freq, u32 minsec)
+clockevents_calc_mult_shift(struct clock_event_device *ce, u32 freq, u32 maxsec)
 {
-	return clocks_calc_mult_shift(&ce->mult, &ce->shift, NSEC_PER_SEC, freq, minsec);
+	return clocks_calc_mult_shift(&ce->mult, &ce->shift, NSEC_PER_SEC, freq, maxsec);
 }
 
 extern void clockevents_suspend(void);

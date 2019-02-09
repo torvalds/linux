@@ -46,7 +46,7 @@ static void xadc_handle_event(struct iio_dev *indio_dev, unsigned int event)
 		iio_push_event(indio_dev,
 			IIO_UNMOD_EVENT_CODE(chan->type, chan->channel,
 				IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING),
-			iio_get_time_ns());
+			iio_get_time_ns(indio_dev));
 	} else {
 		/*
 		 * For other channels we don't know whether it is a upper or
@@ -56,7 +56,7 @@ static void xadc_handle_event(struct iio_dev *indio_dev, unsigned int event)
 		iio_push_event(indio_dev,
 			IIO_UNMOD_EVENT_CODE(chan->type, chan->channel,
 				IIO_EV_TYPE_THRESH, IIO_EV_DIR_EITHER),
-			iio_get_time_ns());
+			iio_get_time_ns(indio_dev));
 	}
 }
 
@@ -68,7 +68,7 @@ void xadc_handle_events(struct iio_dev *indio_dev, unsigned long events)
 		xadc_handle_event(indio_dev, i);
 }
 
-static unsigned xadc_get_threshold_offset(const struct iio_chan_spec *chan,
+static unsigned int xadc_get_threshold_offset(const struct iio_chan_spec *chan,
 	enum iio_event_direction dir)
 {
 	unsigned int offset;
@@ -90,26 +90,24 @@ static unsigned xadc_get_threshold_offset(const struct iio_chan_spec *chan,
 
 static unsigned int xadc_get_alarm_mask(const struct iio_chan_spec *chan)
 {
-	if (chan->type == IIO_TEMP) {
+	if (chan->type == IIO_TEMP)
 		return XADC_ALARM_OT_MASK;
-	} else {
-		switch (chan->channel) {
-		case 0:
-			return XADC_ALARM_VCCINT_MASK;
-		case 1:
-			return XADC_ALARM_VCCAUX_MASK;
-		case 2:
-			return XADC_ALARM_VCCBRAM_MASK;
-		case 3:
-			return XADC_ALARM_VCCPINT_MASK;
-		case 4:
-			return XADC_ALARM_VCCPAUX_MASK;
-		case 5:
-			return XADC_ALARM_VCCODDR_MASK;
-		default:
-			/* We will never get here */
-			return 0;
-		}
+	switch (chan->channel) {
+	case 0:
+		return XADC_ALARM_VCCINT_MASK;
+	case 1:
+		return XADC_ALARM_VCCAUX_MASK;
+	case 2:
+		return XADC_ALARM_VCCBRAM_MASK;
+	case 3:
+		return XADC_ALARM_VCCPINT_MASK;
+	case 4:
+		return XADC_ALARM_VCCPAUX_MASK;
+	case 5:
+		return XADC_ALARM_VCCODDR_MASK;
+	default:
+		/* We will never get here */
+		return 0;
 	}
 }
 

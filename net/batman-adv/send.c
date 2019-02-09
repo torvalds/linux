@@ -1,4 +1,5 @@
-/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -19,13 +20,16 @@
 #include "main.h"
 
 #include <linux/atomic.h>
+#include <linux/bug.h>
 #include <linux/byteorder/generic.h>
+#include <linux/errno.h>
 #include <linux/etherdevice.h>
-#include <linux/fs.h>
-#include <linux/if_ether.h>
+#include <linux/gfp.h>
 #include <linux/if.h>
+#include <linux/if_ether.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
@@ -41,6 +45,7 @@
 #include "fragmentation.h"
 #include "gateway_client.h"
 #include "hard-interface.h"
+#include "log.h"
 #include "network-coding.h"
 #include "originator.h"
 #include "routing.h"
@@ -49,15 +54,33 @@
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
 
-/* send out an already prepared packet to the given address via the
- * specified batman interface
+/**
+ * batadv_send_skb_packet() - send an already prepared packet
+ * @skb: the packet to send
+ * @hard_iface: the interface to use to send the broadcast packet
+ * @dst_addr: the payload destination
+ *
+ * Send out an already prepared packet to the given neighbor or broadcast it
+ * using the specified interface. Either hard_iface or neigh_node must be not
+ * NULL.
+ * If neigh_node is NULL, then the packet is broadcasted using hard_iface,
+ * otherwise it is sent as unicast to the given neighbor.
+ *
+ * Regardless of the return value, the skb is consumed.
+ *
+ * Return: A negative errno code is returned on a failure. A success does not
+ * guarantee the frame will be transmitted as it may be dropped due
+ * to congestion or traffic shaping.
  */
 int batadv_send_skb_packet(struct sk_buff *skb,
 			   struct batadv_hard_iface *hard_iface,
 			   const u8 *dst_addr)
 {
-	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_priv *bat_priv;
 	struct ethhdr *ethhdr;
+	int ret;
+
+	bat_priv = netdev_priv(hard_iface->soft_iface);
 
 	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		goto send_skb_err;
@@ -94,14 +117,62 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP
 	 * (which is > 0). This will not be treated as an error.
 	 */
-	return dev_queue_xmit(skb);
+	ret = dev_queue_xmit(skb);
+	return net_xmit_eval(ret);
 send_skb_err:
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
 }
 
 /**
- * batadv_send_skb_to_orig - Lookup next-hop and transmit skb.
+ * batadv_send_broadcast_skb() - Send broadcast packet via hard interface
+ * @skb: packet to be transmitted (with batadv header and no outer eth header)
+ * @hard_iface: outgoing interface
+ *
+ * Return: A negative errno code is returned on a failure. A success does not
+ * guarantee the frame will be transmitted as it may be dropped due
+ * to congestion or traffic shaping.
+ */
+int batadv_send_broadcast_skb(struct sk_buff *skb,
+			      struct batadv_hard_iface *hard_iface)
+{
+	return batadv_send_skb_packet(skb, hard_iface, batadv_broadcast_addr);
+}
+
+/**
+ * batadv_send_unicast_skb() - Send unicast packet to neighbor
+ * @skb: packet to be transmitted (with batadv header and no outer eth header)
+ * @neigh: neighbor which is used as next hop to destination
+ *
+ * Return: A negative errno code is returned on a failure. A success does not
+ * guarantee the frame will be transmitted as it may be dropped due
+ * to congestion or traffic shaping.
+ */
+int batadv_send_unicast_skb(struct sk_buff *skb,
+			    struct batadv_neigh_node *neigh)
+{
+#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+	struct batadv_hardif_neigh_node *hardif_neigh;
+#endif
+	int ret;
+
+	ret = batadv_send_skb_packet(skb, neigh->if_incoming, neigh->addr);
+
+#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+	hardif_neigh = batadv_hardif_neigh_get(neigh->if_incoming, neigh->addr);
+
+	if (hardif_neigh && ret != NET_XMIT_DROP)
+		hardif_neigh->bat_v.last_unicast_tx = jiffies;
+
+	if (hardif_neigh)
+		batadv_hardif_neigh_put(hardif_neigh);
+#endif
+
+	return ret;
+}
+
+/**
+ * batadv_send_skb_to_orig() - Lookup next-hop and transmit skb.
  * @skb: Packet to be transmitted.
  * @orig_node: Final destination of the packet.
  * @recv_if: Interface used when receiving the packet (can be NULL).
@@ -111,8 +182,9 @@ send_skb_err:
  * host, NULL can be passed as recv_if and no interface alternating is
  * attempted.
  *
- * Returns NET_XMIT_SUCCESS on success, NET_XMIT_DROP on failure, or
- * NET_XMIT_POLICED if the skb is buffered for later transmit.
+ * Return: negative errno code on a failure, -EINPROGRESS if the skb is
+ * buffered for later transmit or the NET_XMIT status returned by the
+ * lower routine if the packet has been passed down.
  */
 int batadv_send_skb_to_orig(struct sk_buff *skb,
 			    struct batadv_orig_node *orig_node,
@@ -120,12 +192,14 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 {
 	struct batadv_priv *bat_priv = orig_node->bat_priv;
 	struct batadv_neigh_node *neigh_node;
-	int ret = NET_XMIT_DROP;
+	int ret;
 
 	/* batadv_find_router() increases neigh_nodes refcount if found. */
 	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
-	if (!neigh_node)
-		goto out;
+	if (!neigh_node) {
+		ret = -EINVAL;
+		goto free_skb;
+	}
 
 	/* Check if the skb is too large to send in one piece and fragment
 	 * it if needed.
@@ -133,39 +207,41 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	if (atomic_read(&bat_priv->fragmentation) &&
 	    skb->len > neigh_node->if_incoming->net_dev->mtu) {
 		/* Fragment and send packet. */
-		if (batadv_frag_send_packet(skb, orig_node, neigh_node))
-			ret = NET_XMIT_SUCCESS;
+		ret = batadv_frag_send_packet(skb, orig_node, neigh_node);
+		/* skb was consumed */
+		skb = NULL;
 
-		goto out;
+		goto put_neigh_node;
 	}
 
 	/* try to network code the packet, if it is received on an interface
 	 * (i.e. being forwarded). If the packet originates from this node or if
 	 * network coding fails, then send the packet as usual.
 	 */
-	if (recv_if && batadv_nc_skb_forward(skb, neigh_node)) {
-		ret = NET_XMIT_POLICED;
-	} else {
-		batadv_send_skb_packet(skb, neigh_node->if_incoming,
-				       neigh_node->addr);
-		ret = NET_XMIT_SUCCESS;
-	}
+	if (recv_if && batadv_nc_skb_forward(skb, neigh_node))
+		ret = -EINPROGRESS;
+	else
+		ret = batadv_send_unicast_skb(skb, neigh_node);
 
-out:
-	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
+	/* skb was consumed */
+	skb = NULL;
+
+put_neigh_node:
+	batadv_neigh_node_put(neigh_node);
+free_skb:
+	kfree_skb(skb);
 
 	return ret;
 }
 
 /**
- * batadv_send_skb_push_fill_unicast - extend the buffer and initialize the
+ * batadv_send_skb_push_fill_unicast() - extend the buffer and initialize the
  *  common fields for unicast packets
  * @skb: the skb carrying the unicast header to initialize
  * @hdr_size: amount of bytes to push at the beginning of the skb
  * @orig_node: the destination node
  *
- * Returns false if the buffer extension was not possible or true otherwise.
+ * Return: false if the buffer extension was not possible or true otherwise.
  */
 static bool
 batadv_send_skb_push_fill_unicast(struct sk_buff *skb, int hdr_size,
@@ -192,11 +268,11 @@ batadv_send_skb_push_fill_unicast(struct sk_buff *skb, int hdr_size,
 }
 
 /**
- * batadv_send_skb_prepare_unicast - encapsulate an skb with a unicast header
+ * batadv_send_skb_prepare_unicast() - encapsulate an skb with a unicast header
  * @skb: the skb containing the payload to encapsulate
  * @orig_node: the destination node
  *
- * Returns false if the payload could not be encapsulated or true otherwise.
+ * Return: false if the payload could not be encapsulated or true otherwise.
  */
 static bool batadv_send_skb_prepare_unicast(struct sk_buff *skb,
 					    struct batadv_orig_node *orig_node)
@@ -207,14 +283,14 @@ static bool batadv_send_skb_prepare_unicast(struct sk_buff *skb,
 }
 
 /**
- * batadv_send_skb_prepare_unicast_4addr - encapsulate an skb with a
+ * batadv_send_skb_prepare_unicast_4addr() - encapsulate an skb with a
  *  unicast 4addr header
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the skb containing the payload to encapsulate
- * @orig_node: the destination node
+ * @orig: the destination node
  * @packet_subtype: the unicast 4addr packet subtype to use
  *
- * Returns false if the payload could not be encapsulated or true otherwise.
+ * Return: false if the payload could not be encapsulated or true otherwise.
  */
 bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb,
@@ -246,12 +322,12 @@ bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 	ret = true;
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 	return ret;
 }
 
 /**
- * batadv_send_skb_unicast - encapsulate and send an skb via unicast
+ * batadv_send_skb_unicast() - encapsulate and send an skb via unicast
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: payload to send
  * @packet_type: the batman unicast packet type to use
@@ -262,10 +338,9 @@ out:
  *
  * Wrap the given skb into a batman-adv unicast or unicast-4addr header
  * depending on whether BATADV_UNICAST or BATADV_UNICAST_4ADDR was supplied
- * as packet_type. Then send this frame to the given orig_node and release a
- * reference to this orig_node.
+ * as packet_type. Then send this frame to the given orig_node.
  *
- * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
+ * Return: NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
 int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 			    struct sk_buff *skb, int packet_type,
@@ -312,19 +387,17 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest, vid))
 		unicast_packet->ttvn = unicast_packet->ttvn - 1;
 
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
-		ret = NET_XMIT_SUCCESS;
+	ret = batadv_send_skb_to_orig(skb, orig_node, NULL);
+	 /* skb was consumed */
+	skb = NULL;
 
 out:
-	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
-	if (ret == NET_XMIT_DROP)
-		kfree_skb(skb);
+	kfree_skb(skb);
 	return ret;
 }
 
 /**
- * batadv_send_skb_via_tt_generic - send an skb via TT lookup
+ * batadv_send_skb_via_tt_generic() - send an skb via TT lookup
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: payload to send
  * @packet_type: the batman unicast packet type to use
@@ -339,7 +412,7 @@ out:
  * BATADV_UNICAST_4ADDR was supplied as packet_type. Then send this frame
  * to the according destination node.
  *
- * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
+ * Return: NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
 int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb, int packet_type,
@@ -349,6 +422,7 @@ int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct batadv_orig_node *orig_node;
 	u8 *src, *dst;
+	int ret;
 
 	src = ethhdr->h_source;
 	dst = ethhdr->h_dest;
@@ -360,12 +434,17 @@ int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 	}
 	orig_node = batadv_transtable_search(bat_priv, src, dst, vid);
 
-	return batadv_send_skb_unicast(bat_priv, skb, packet_type,
-				       packet_subtype, orig_node, vid);
+	ret = batadv_send_skb_unicast(bat_priv, skb, packet_type,
+				      packet_subtype, orig_node, vid);
+
+	if (orig_node)
+		batadv_orig_node_put(orig_node);
+
+	return ret;
 }
 
 /**
- * batadv_send_skb_via_gw - send an skb via gateway lookup
+ * batadv_send_skb_via_gw() - send an skb via gateway lookup
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: payload to send
  * @vid: the vid to be used to search the translation table
@@ -373,154 +452,445 @@ int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
  * Look up the currently selected gateway. Wrap the given skb into a batman-adv
  * unicast header and send this frame to this gateway node.
  *
- * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
+ * Return: NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
 int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			   unsigned short vid)
 {
 	struct batadv_orig_node *orig_node;
+	int ret;
 
 	orig_node = batadv_gw_get_selected_orig(bat_priv);
-	return batadv_send_skb_unicast(bat_priv, skb, BATADV_UNICAST, 0,
-				       orig_node, vid);
+	ret = batadv_send_skb_unicast(bat_priv, skb, BATADV_UNICAST_4ADDR,
+				      BATADV_P_DATA, orig_node, vid);
+
+	if (orig_node)
+		batadv_orig_node_put(orig_node);
+
+	return ret;
 }
 
-void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface)
+/**
+ * batadv_forw_packet_free() - free a forwarding packet
+ * @forw_packet: The packet to free
+ * @dropped: whether the packet is freed because is is dropped
+ *
+ * This frees a forwarding packet and releases any resources it might
+ * have claimed.
+ */
+void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet,
+			     bool dropped)
 {
-	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-
-	if ((hard_iface->if_status == BATADV_IF_NOT_IN_USE) ||
-	    (hard_iface->if_status == BATADV_IF_TO_BE_REMOVED))
-		return;
-
-	/* the interface gets activated here to avoid race conditions between
-	 * the moment of activating the interface in
-	 * hardif_activate_interface() where the originator mac is set and
-	 * outdated packets (especially uninitialized mac addresses) in the
-	 * packet queue
-	 */
-	if (hard_iface->if_status == BATADV_IF_TO_BE_ACTIVATED)
-		hard_iface->if_status = BATADV_IF_ACTIVE;
-
-	bat_priv->bat_algo_ops->bat_ogm_schedule(hard_iface);
-}
-
-static void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet)
-{
-	if (forw_packet->skb)
+	if (dropped)
 		kfree_skb(forw_packet->skb);
+	else
+		consume_skb(forw_packet->skb);
+
 	if (forw_packet->if_incoming)
-		batadv_hardif_free_ref(forw_packet->if_incoming);
+		batadv_hardif_put(forw_packet->if_incoming);
 	if (forw_packet->if_outgoing)
-		batadv_hardif_free_ref(forw_packet->if_outgoing);
+		batadv_hardif_put(forw_packet->if_outgoing);
+	if (forw_packet->queue_left)
+		atomic_inc(forw_packet->queue_left);
 	kfree(forw_packet);
 }
 
-static void
-_batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
-				 struct batadv_forw_packet *forw_packet,
-				 unsigned long send_time)
+/**
+ * batadv_forw_packet_alloc() - allocate a forwarding packet
+ * @if_incoming: The (optional) if_incoming to be grabbed
+ * @if_outgoing: The (optional) if_outgoing to be grabbed
+ * @queue_left: The (optional) queue counter to decrease
+ * @bat_priv: The bat_priv for the mesh of this forw_packet
+ * @skb: The raw packet this forwarding packet shall contain
+ *
+ * Allocates a forwarding packet and tries to get a reference to the
+ * (optional) if_incoming, if_outgoing and queue_left. If queue_left
+ * is NULL then bat_priv is optional, too.
+ *
+ * Return: An allocated forwarding packet on success, NULL otherwise.
+ */
+struct batadv_forw_packet *
+batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
+			 struct batadv_hard_iface *if_outgoing,
+			 atomic_t *queue_left,
+			 struct batadv_priv *bat_priv,
+			 struct sk_buff *skb)
 {
-	/* add new packet to packet list */
-	spin_lock_bh(&bat_priv->forw_bcast_list_lock);
-	hlist_add_head(&forw_packet->list, &bat_priv->forw_bcast_list);
-	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
+	struct batadv_forw_packet *forw_packet;
+	const char *qname;
 
-	/* start timer for this packet */
-	queue_delayed_work(batadv_event_workqueue, &forw_packet->delayed_work,
-			   send_time);
+	if (queue_left && !batadv_atomic_dec_not_zero(queue_left)) {
+		qname = "unknown";
+
+		if (queue_left == &bat_priv->bcast_queue_left)
+			qname = "bcast";
+
+		if (queue_left == &bat_priv->batman_queue_left)
+			qname = "batman";
+
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+			   "%s queue is full\n", qname);
+
+		return NULL;
+	}
+
+	forw_packet = kmalloc(sizeof(*forw_packet), GFP_ATOMIC);
+	if (!forw_packet)
+		goto err;
+
+	if (if_incoming)
+		kref_get(&if_incoming->refcount);
+
+	if (if_outgoing)
+		kref_get(&if_outgoing->refcount);
+
+	INIT_HLIST_NODE(&forw_packet->list);
+	INIT_HLIST_NODE(&forw_packet->cleanup_list);
+	forw_packet->skb = skb;
+	forw_packet->queue_left = queue_left;
+	forw_packet->if_incoming = if_incoming;
+	forw_packet->if_outgoing = if_outgoing;
+	forw_packet->num_packets = 0;
+
+	return forw_packet;
+
+err:
+	if (queue_left)
+		atomic_inc(queue_left);
+
+	return NULL;
 }
 
-/* add a broadcast packet to the queue and setup timers. broadcast packets
- * are sent multiple times to increase probability for being received.
+/**
+ * batadv_forw_packet_was_stolen() - check whether someone stole this packet
+ * @forw_packet: the forwarding packet to check
  *
- * This function returns NETDEV_TX_OK on success and NETDEV_TX_BUSY on
- * errors.
+ * This function checks whether the given forwarding packet was claimed by
+ * someone else for free().
+ *
+ * Return: True if someone stole it, false otherwise.
+ */
+static bool
+batadv_forw_packet_was_stolen(struct batadv_forw_packet *forw_packet)
+{
+	return !hlist_unhashed(&forw_packet->cleanup_list);
+}
+
+/**
+ * batadv_forw_packet_steal() - claim a forw_packet for free()
+ * @forw_packet: the forwarding packet to steal
+ * @lock: a key to the store to steal from (e.g. forw_{bat,bcast}_list_lock)
+ *
+ * This function tries to steal a specific forw_packet from global
+ * visibility for the purpose of getting it for free(). That means
+ * the caller is *not* allowed to requeue it afterwards.
+ *
+ * Return: True if stealing was successful. False if someone else stole it
+ * before us.
+ */
+bool batadv_forw_packet_steal(struct batadv_forw_packet *forw_packet,
+			      spinlock_t *lock)
+{
+	/* did purging routine steal it earlier? */
+	spin_lock_bh(lock);
+	if (batadv_forw_packet_was_stolen(forw_packet)) {
+		spin_unlock_bh(lock);
+		return false;
+	}
+
+	hlist_del_init(&forw_packet->list);
+
+	/* Just to spot misuse of this function */
+	hlist_add_fake(&forw_packet->cleanup_list);
+
+	spin_unlock_bh(lock);
+	return true;
+}
+
+/**
+ * batadv_forw_packet_list_steal() - claim a list of forward packets for free()
+ * @forw_list: the to be stolen forward packets
+ * @cleanup_list: a backup pointer, to be able to dispose the packet later
+ * @hard_iface: the interface to steal forward packets from
+ *
+ * This function claims responsibility to free any forw_packet queued on the
+ * given hard_iface. If hard_iface is NULL forwarding packets on all hard
+ * interfaces will be claimed.
+ *
+ * The packets are being moved from the forw_list to the cleanup_list and
+ * by that allows already running threads to notice the claiming.
+ */
+static void
+batadv_forw_packet_list_steal(struct hlist_head *forw_list,
+			      struct hlist_head *cleanup_list,
+			      const struct batadv_hard_iface *hard_iface)
+{
+	struct batadv_forw_packet *forw_packet;
+	struct hlist_node *safe_tmp_node;
+
+	hlist_for_each_entry_safe(forw_packet, safe_tmp_node,
+				  forw_list, list) {
+		/* if purge_outstanding_packets() was called with an argument
+		 * we delete only packets belonging to the given interface
+		 */
+		if (hard_iface &&
+		    forw_packet->if_incoming != hard_iface &&
+		    forw_packet->if_outgoing != hard_iface)
+			continue;
+
+		hlist_del(&forw_packet->list);
+		hlist_add_head(&forw_packet->cleanup_list, cleanup_list);
+	}
+}
+
+/**
+ * batadv_forw_packet_list_free() - free a list of forward packets
+ * @head: a list of to be freed forw_packets
+ *
+ * This function cancels the scheduling of any packet in the provided list,
+ * waits for any possibly running packet forwarding thread to finish and
+ * finally, safely frees this forward packet.
+ *
+ * This function might sleep.
+ */
+static void batadv_forw_packet_list_free(struct hlist_head *head)
+{
+	struct batadv_forw_packet *forw_packet;
+	struct hlist_node *safe_tmp_node;
+
+	hlist_for_each_entry_safe(forw_packet, safe_tmp_node, head,
+				  cleanup_list) {
+		cancel_delayed_work_sync(&forw_packet->delayed_work);
+
+		hlist_del(&forw_packet->cleanup_list);
+		batadv_forw_packet_free(forw_packet, true);
+	}
+}
+
+/**
+ * batadv_forw_packet_queue() - try to queue a forwarding packet
+ * @forw_packet: the forwarding packet to queue
+ * @lock: a key to the store (e.g. forw_{bat,bcast}_list_lock)
+ * @head: the shelve to queue it on (e.g. forw_{bat,bcast}_list)
+ * @send_time: timestamp (jiffies) when the packet is to be sent
+ *
+ * This function tries to (re)queue a forwarding packet. Requeuing
+ * is prevented if the according interface is shutting down
+ * (e.g. if batadv_forw_packet_list_steal() was called for this
+ * packet earlier).
+ *
+ * Calling batadv_forw_packet_queue() after a call to
+ * batadv_forw_packet_steal() is forbidden!
+ *
+ * Caller needs to ensure that forw_packet->delayed_work was initialized.
+ */
+static void batadv_forw_packet_queue(struct batadv_forw_packet *forw_packet,
+				     spinlock_t *lock, struct hlist_head *head,
+				     unsigned long send_time)
+{
+	spin_lock_bh(lock);
+
+	/* did purging routine steal it from us? */
+	if (batadv_forw_packet_was_stolen(forw_packet)) {
+		/* If you got it for free() without trouble, then
+		 * don't get back into the queue after stealing...
+		 */
+		WARN_ONCE(hlist_fake(&forw_packet->cleanup_list),
+			  "Requeuing after batadv_forw_packet_steal() not allowed!\n");
+
+		spin_unlock_bh(lock);
+		return;
+	}
+
+	hlist_del_init(&forw_packet->list);
+	hlist_add_head(&forw_packet->list, head);
+
+	queue_delayed_work(batadv_event_workqueue,
+			   &forw_packet->delayed_work,
+			   send_time - jiffies);
+	spin_unlock_bh(lock);
+}
+
+/**
+ * batadv_forw_packet_bcast_queue() - try to queue a broadcast packet
+ * @bat_priv: the bat priv with all the soft interface information
+ * @forw_packet: the forwarding packet to queue
+ * @send_time: timestamp (jiffies) when the packet is to be sent
+ *
+ * This function tries to (re)queue a broadcast packet.
+ *
+ * Caller needs to ensure that forw_packet->delayed_work was initialized.
+ */
+static void
+batadv_forw_packet_bcast_queue(struct batadv_priv *bat_priv,
+			       struct batadv_forw_packet *forw_packet,
+			       unsigned long send_time)
+{
+	batadv_forw_packet_queue(forw_packet, &bat_priv->forw_bcast_list_lock,
+				 &bat_priv->forw_bcast_list, send_time);
+}
+
+/**
+ * batadv_forw_packet_ogmv1_queue() - try to queue an OGMv1 packet
+ * @bat_priv: the bat priv with all the soft interface information
+ * @forw_packet: the forwarding packet to queue
+ * @send_time: timestamp (jiffies) when the packet is to be sent
+ *
+ * This function tries to (re)queue an OGMv1 packet.
+ *
+ * Caller needs to ensure that forw_packet->delayed_work was initialized.
+ */
+void batadv_forw_packet_ogmv1_queue(struct batadv_priv *bat_priv,
+				    struct batadv_forw_packet *forw_packet,
+				    unsigned long send_time)
+{
+	batadv_forw_packet_queue(forw_packet, &bat_priv->forw_bat_list_lock,
+				 &bat_priv->forw_bat_list, send_time);
+}
+
+/**
+ * batadv_add_bcast_packet_to_list() - queue broadcast packet for multiple sends
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: broadcast packet to add
+ * @delay: number of jiffies to wait before sending
+ * @own_packet: true if it is a self-generated broadcast packet
+ *
+ * add a broadcast packet to the queue and setup timers. broadcast packets
+ * are sent multiple times to increase probability for being received.
  *
  * The skb is not consumed, so the caller should make sure that the
  * skb is freed.
+ *
+ * Return: NETDEV_TX_OK on success and NETDEV_TX_BUSY on errors.
  */
 int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 				    const struct sk_buff *skb,
-				    unsigned long delay)
+				    unsigned long delay,
+				    bool own_packet)
 {
-	struct batadv_hard_iface *primary_if = NULL;
+	struct batadv_hard_iface *primary_if;
 	struct batadv_forw_packet *forw_packet;
 	struct batadv_bcast_packet *bcast_packet;
 	struct sk_buff *newskb;
 
-	if (!batadv_atomic_dec_not_zero(&bat_priv->bcast_queue_left)) {
-		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "bcast packet queue full\n");
-		goto out;
-	}
-
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
-		goto out_and_inc;
-
-	forw_packet = kmalloc(sizeof(*forw_packet), GFP_ATOMIC);
-
-	if (!forw_packet)
-		goto out_and_inc;
+		goto err;
 
 	newskb = skb_copy(skb, GFP_ATOMIC);
-	if (!newskb)
-		goto packet_free;
+	if (!newskb) {
+		batadv_hardif_put(primary_if);
+		goto err;
+	}
+
+	forw_packet = batadv_forw_packet_alloc(primary_if, NULL,
+					       &bat_priv->bcast_queue_left,
+					       bat_priv, newskb);
+	batadv_hardif_put(primary_if);
+	if (!forw_packet)
+		goto err_packet_free;
 
 	/* as we have a copy now, it is safe to decrease the TTL */
 	bcast_packet = (struct batadv_bcast_packet *)newskb->data;
 	bcast_packet->ttl--;
 
-	skb_reset_mac_header(newskb);
-
-	forw_packet->skb = newskb;
-	forw_packet->if_incoming = primary_if;
-	forw_packet->if_outgoing = NULL;
-
-	/* how often did we send the bcast packet ? */
-	forw_packet->num_packets = 0;
+	forw_packet->own = own_packet;
 
 	INIT_DELAYED_WORK(&forw_packet->delayed_work,
 			  batadv_send_outstanding_bcast_packet);
 
-	_batadv_add_bcast_packet_to_list(bat_priv, forw_packet, delay);
+	batadv_forw_packet_bcast_queue(bat_priv, forw_packet, jiffies + delay);
 	return NETDEV_TX_OK;
 
-packet_free:
-	kfree(forw_packet);
-out_and_inc:
-	atomic_inc(&bat_priv->bcast_queue_left);
-out:
-	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+err_packet_free:
+	kfree_skb(newskb);
+err:
 	return NETDEV_TX_BUSY;
+}
+
+/**
+ * batadv_forw_packet_bcasts_left() - check if a retransmission is necessary
+ * @forw_packet: the forwarding packet to check
+ * @hard_iface: the interface to check on
+ *
+ * Checks whether a given packet has any (re)transmissions left on the provided
+ * interface.
+ *
+ * hard_iface may be NULL: In that case the number of transmissions this skb had
+ * so far is compared with the maximum amount of retransmissions independent of
+ * any interface instead.
+ *
+ * Return: True if (re)transmissions are left, false otherwise.
+ */
+static bool
+batadv_forw_packet_bcasts_left(struct batadv_forw_packet *forw_packet,
+			       struct batadv_hard_iface *hard_iface)
+{
+	unsigned int max;
+
+	if (hard_iface)
+		max = hard_iface->num_bcasts;
+	else
+		max = BATADV_NUM_BCASTS_MAX;
+
+	return BATADV_SKB_CB(forw_packet->skb)->num_bcasts < max;
+}
+
+/**
+ * batadv_forw_packet_bcasts_inc() - increment retransmission counter of a
+ *  packet
+ * @forw_packet: the packet to increase the counter for
+ */
+static void
+batadv_forw_packet_bcasts_inc(struct batadv_forw_packet *forw_packet)
+{
+	BATADV_SKB_CB(forw_packet->skb)->num_bcasts++;
+}
+
+/**
+ * batadv_forw_packet_is_rebroadcast() - check packet for previous transmissions
+ * @forw_packet: the packet to check
+ *
+ * Return: True if this packet was transmitted before, false otherwise.
+ */
+bool batadv_forw_packet_is_rebroadcast(struct batadv_forw_packet *forw_packet)
+{
+	return BATADV_SKB_CB(forw_packet->skb)->num_bcasts > 0;
 }
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 {
 	struct batadv_hard_iface *hard_iface;
+	struct batadv_hardif_neigh_node *neigh_node;
 	struct delayed_work *delayed_work;
 	struct batadv_forw_packet *forw_packet;
+	struct batadv_bcast_packet *bcast_packet;
 	struct sk_buff *skb1;
 	struct net_device *soft_iface;
 	struct batadv_priv *bat_priv;
+	unsigned long send_time = jiffies + msecs_to_jiffies(5);
+	bool dropped = false;
+	u8 *neigh_addr;
+	u8 *orig_neigh;
+	int ret = 0;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
 				   delayed_work);
 	soft_iface = forw_packet->if_incoming->soft_iface;
 	bat_priv = netdev_priv(soft_iface);
 
-	spin_lock_bh(&bat_priv->forw_bcast_list_lock);
-	hlist_del(&forw_packet->list);
-	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
-
-	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
+	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING) {
+		dropped = true;
 		goto out;
+	}
 
-	if (batadv_dat_drop_broadcast_packet(bat_priv, forw_packet))
+	if (batadv_dat_drop_broadcast_packet(bat_priv, forw_packet)) {
+		dropped = true;
 		goto out;
+	}
+
+	bcast_packet = (struct batadv_bcast_packet *)forw_packet->skb->data;
 
 	/* rebroadcast packet */
 	rcu_read_lock();
@@ -528,137 +898,117 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
-		if (forw_packet->num_packets >= hard_iface->num_bcasts)
+		if (!batadv_forw_packet_bcasts_left(forw_packet, hard_iface))
+			continue;
+
+		if (forw_packet->own) {
+			neigh_node = NULL;
+		} else {
+			neigh_addr = eth_hdr(forw_packet->skb)->h_source;
+			neigh_node = batadv_hardif_neigh_get(hard_iface,
+							     neigh_addr);
+		}
+
+		orig_neigh = neigh_node ? neigh_node->orig : NULL;
+
+		ret = batadv_hardif_no_broadcast(hard_iface, bcast_packet->orig,
+						 orig_neigh);
+
+		if (ret) {
+			char *type;
+
+			switch (ret) {
+			case BATADV_HARDIF_BCAST_NORECIPIENT:
+				type = "no neighbor";
+				break;
+			case BATADV_HARDIF_BCAST_DUPFWD:
+				type = "single neighbor is source";
+				break;
+			case BATADV_HARDIF_BCAST_DUPORIG:
+				type = "single neighbor is originator";
+				break;
+			default:
+				type = "unknown";
+			}
+
+			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "BCAST packet from orig %pM on %s suppressed: %s\n",
+				   bcast_packet->orig,
+				   hard_iface->net_dev->name, type);
+
+			if (neigh_node)
+				batadv_hardif_neigh_put(neigh_node);
+
+			continue;
+		}
+
+		if (neigh_node)
+			batadv_hardif_neigh_put(neigh_node);
+
+		if (!kref_get_unless_zero(&hard_iface->refcount))
 			continue;
 
 		/* send a copy of the saved skb */
 		skb1 = skb_clone(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
-			batadv_send_skb_packet(skb1, hard_iface,
-					       batadv_broadcast_addr);
+			batadv_send_broadcast_skb(skb1, hard_iface);
+
+		batadv_hardif_put(hard_iface);
 	}
 	rcu_read_unlock();
 
-	forw_packet->num_packets++;
+	batadv_forw_packet_bcasts_inc(forw_packet);
 
 	/* if we still have some more bcasts to send */
-	if (forw_packet->num_packets < BATADV_NUM_BCASTS_MAX) {
-		_batadv_add_bcast_packet_to_list(bat_priv, forw_packet,
-						 msecs_to_jiffies(5));
+	if (batadv_forw_packet_bcasts_left(forw_packet, NULL)) {
+		batadv_forw_packet_bcast_queue(bat_priv, forw_packet,
+					       send_time);
 		return;
 	}
 
 out:
-	batadv_forw_packet_free(forw_packet);
-	atomic_inc(&bat_priv->bcast_queue_left);
+	/* do we get something for free()? */
+	if (batadv_forw_packet_steal(forw_packet,
+				     &bat_priv->forw_bcast_list_lock))
+		batadv_forw_packet_free(forw_packet, dropped);
 }
 
-void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
-{
-	struct delayed_work *delayed_work;
-	struct batadv_forw_packet *forw_packet;
-	struct batadv_priv *bat_priv;
-
-	delayed_work = container_of(work, struct delayed_work, work);
-	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
-				   delayed_work);
-	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
-	spin_lock_bh(&bat_priv->forw_bat_list_lock);
-	hlist_del(&forw_packet->list);
-	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
-
-	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
-		goto out;
-
-	bat_priv->bat_algo_ops->bat_ogm_emit(forw_packet);
-
-	/* we have to have at least one packet in the queue to determine the
-	 * queues wake up time unless we are shutting down.
-	 *
-	 * only re-schedule if this is the "original" copy, e.g. the OGM of the
-	 * primary interface should only be rescheduled once per period, but
-	 * this function will be called for the forw_packet instances of the
-	 * other secondary interfaces as well.
-	 */
-	if (forw_packet->own &&
-	    forw_packet->if_incoming == forw_packet->if_outgoing)
-		batadv_schedule_bat_ogm(forw_packet->if_incoming);
-
-out:
-	/* don't count own packet */
-	if (!forw_packet->own)
-		atomic_inc(&bat_priv->batman_queue_left);
-
-	batadv_forw_packet_free(forw_packet);
-}
-
+/**
+ * batadv_purge_outstanding_packets() - stop/purge scheduled bcast/OGMv1 packets
+ * @bat_priv: the bat priv with all the soft interface information
+ * @hard_iface: the hard interface to cancel and purge bcast/ogm packets on
+ *
+ * This method cancels and purges any broadcast and OGMv1 packet on the given
+ * hard_iface. If hard_iface is NULL, broadcast and OGMv1 packets on all hard
+ * interfaces will be canceled and purged.
+ *
+ * This function might sleep.
+ */
 void
 batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
 				 const struct batadv_hard_iface *hard_iface)
 {
-	struct batadv_forw_packet *forw_packet;
-	struct hlist_node *safe_tmp_node;
-	bool pending;
+	struct hlist_head head = HLIST_HEAD_INIT;
 
 	if (hard_iface)
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "purge_outstanding_packets(): %s\n",
-			   hard_iface->net_dev->name);
+			   "%s(): %s\n",
+			   __func__, hard_iface->net_dev->name);
 	else
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "purge_outstanding_packets()\n");
+			   "%s()\n", __func__);
 
-	/* free bcast list */
+	/* claim bcast list for free() */
 	spin_lock_bh(&bat_priv->forw_bcast_list_lock);
-	hlist_for_each_entry_safe(forw_packet, safe_tmp_node,
-				  &bat_priv->forw_bcast_list, list) {
-		/* if purge_outstanding_packets() was called with an argument
-		 * we delete only packets belonging to the given interface
-		 */
-		if ((hard_iface) &&
-		    (forw_packet->if_incoming != hard_iface) &&
-		    (forw_packet->if_outgoing != hard_iface))
-			continue;
-
-		spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
-
-		/* batadv_send_outstanding_bcast_packet() will lock the list to
-		 * delete the item from the list
-		 */
-		pending = cancel_delayed_work_sync(&forw_packet->delayed_work);
-		spin_lock_bh(&bat_priv->forw_bcast_list_lock);
-
-		if (pending) {
-			hlist_del(&forw_packet->list);
-			batadv_forw_packet_free(forw_packet);
-		}
-	}
+	batadv_forw_packet_list_steal(&bat_priv->forw_bcast_list, &head,
+				      hard_iface);
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
-	/* free batman packet list */
+	/* claim batman packet list for free() */
 	spin_lock_bh(&bat_priv->forw_bat_list_lock);
-	hlist_for_each_entry_safe(forw_packet, safe_tmp_node,
-				  &bat_priv->forw_bat_list, list) {
-		/* if purge_outstanding_packets() was called with an argument
-		 * we delete only packets belonging to the given interface
-		 */
-		if ((hard_iface) &&
-		    (forw_packet->if_incoming != hard_iface) &&
-		    (forw_packet->if_outgoing != hard_iface))
-			continue;
-
-		spin_unlock_bh(&bat_priv->forw_bat_list_lock);
-
-		/* send_outstanding_bat_packet() will lock the list to
-		 * delete the item from the list
-		 */
-		pending = cancel_delayed_work_sync(&forw_packet->delayed_work);
-		spin_lock_bh(&bat_priv->forw_bat_list_lock);
-
-		if (pending) {
-			hlist_del(&forw_packet->list);
-			batadv_forw_packet_free(forw_packet);
-		}
-	}
+	batadv_forw_packet_list_steal(&bat_priv->forw_bat_list, &head,
+				      hard_iface);
 	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
+
+	/* then cancel or wait for packet workers to finish and free */
+	batadv_forw_packet_list_free(&head);
 }

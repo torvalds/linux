@@ -48,7 +48,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "LeMaker Banana Pi";
@@ -62,6 +61,17 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
 	};
 
 	leds {
@@ -92,6 +102,10 @@
 	status = "okay";
 };
 
+&codec {
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&reg_dcdc2>;
 	operating-points = <
@@ -104,6 +118,10 @@
 		312000	1100000
 		144000	1050000
 		>;
+};
+
+&de {
+	status = "okay";
 };
 
 &ehci0 {
@@ -124,6 +142,16 @@
 
 	phy1: ethernet-phy@1 {
 		reg = <1>;
+	};
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
 	};
 };
 
@@ -156,8 +184,7 @@
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_bananapi>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 10 GPIO_ACTIVE_HIGH>; /* PH10 */
-	cd-inverted;
+	cd-gpios = <&pio 7 10 GPIO_ACTIVE_LOW>; /* PH10 */
 	status = "okay";
 };
 
@@ -174,32 +201,77 @@
 };
 
 &pio {
+	gpio-line-names =
+		/* PA */
+		"ERXD3", "ERXD2", "ERXD1", "ERXD0", "ETXD3",
+			"ETXD2", "ETXD1", "ETXD0",
+		"ERXCK", "ERXERR", "ERXDV", "EMDC", "EMDIO",
+			"ETXEN", "ETXCK", "ECRS",
+		"ECOL", "ETXERR", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		/* PB */
+		"PMU-SCK", "PMU-SDA", "", "", "", "", "", "",
+		"", "USB0-DRV", "", "", "", "", "", "",
+		"", "", "", "", "SCL", "SDA", "", "",
+		"", "", "", "", "", "", "", "",
+		/* PC */
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		/* PD */
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		/* PE */
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		/* PF */
+		"SD0-D1", "SD0-D0", "SD0-CLK", "SD0-CMD", "SD0-D3",
+			"SD0-D2", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		/* PG */
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		/* PH */
+		"TXD0", "RXD0", "IO-1", "PH3", "USB0-IDDET", "PH5", "", "",
+		"", "", "SD0-DET", "", "", "", "", "",
+		"", "", "", "", "IO-4", "IO-5", "", "EMAC-PWR-EN",
+		"LED1", "", "", "", "", "", "", "",
+		/* PI */
+		"", "", "", "IO-GCLK", "", "", "", "",
+		"", "", "SPI-CE0", "SPI-CLK", "SPI-MOSI",
+			"SPI-MISO", "SPI-CE1", "",
+		"IO-6", "IO-3", "IO-2", "IO-0", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PH4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH4";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	mmc0_cd_pin_bananapi: mmc0_cd_pin@0 {
-		allwinner,pins = "PH10";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH10";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	gmac_power_pin_bananapi: gmac_power_pin@0 {
-		allwinner,pins = "PH23";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH23";
+		function = "gpio_out";
 	};
 
 	led_pins_bananapi: led_pins@0 {
-		allwinner,pins = "PH24";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH24";
+		function = "gpio_out";
 	};
 };
 

@@ -69,14 +69,12 @@ static int __init pasemi_register_i2c_devices(void)
 			addr = of_get_property(node, "reg", &len);
 			if (!addr || len < sizeof(int) ||
 			    *addr > (1 << 10) - 1) {
-				printk(KERN_WARNING
-					"pasemi_register_i2c_devices: "
-					"invalid i2c device entry\n");
+				pr_warn("pasemi_register_i2c_devices: invalid i2c device entry\n");
 				continue;
 			}
 
 			info.irq = irq_of_parse_and_map(node, 0);
-			if (info.irq == NO_IRQ)
+			if (!info.irq)
 				info.irq = -1;
 
 			if (find_i2c_driver(node, &info) < 0)

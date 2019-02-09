@@ -36,6 +36,7 @@
 #ifndef __T4VF_COMMON_H__
 #define __T4VF_COMMON_H__
 
+#include "../cxgb4/t4_hw.h"
 #include "../cxgb4/t4fw_api.h"
 
 #define CHELSIO_CHIP_CODE(version, revision) (((version) << 4) | (revision))
@@ -103,22 +104,61 @@ struct t4vf_port_stats {
 /*
  * Per-"port" (Virtual Interface) link configuration ...
  */
-struct link_config {
-	unsigned int   supported;        /* link capabilities */
-	unsigned int   advertising;      /* advertised capabilities */
-	unsigned short requested_speed;  /* speed user has requested */
-	unsigned short speed;            /* actual link speed */
-	unsigned char  requested_fc;     /* flow control user has requested */
-	unsigned char  fc;               /* actual link flow control */
-	unsigned char  autoneg;          /* autonegotiating? */
-	unsigned char  link_ok;          /* link up? */
+typedef u16 fw_port_cap16_t;    /* 16-bit Port Capabilities integral value */
+typedef u32 fw_port_cap32_t;    /* 32-bit Port Capabilities integral value */
+
+enum fw_caps {
+	FW_CAPS_UNKNOWN	= 0,	/* 0'ed out initial state */
+	FW_CAPS16	= 1,	/* old Firmware: 16-bit Port Capabilities */
+	FW_CAPS32	= 2,	/* new Firmware: 32-bit Port Capabilities */
 };
 
-enum {
-	PAUSE_RX      = 1 << 0,
-	PAUSE_TX      = 1 << 1,
-	PAUSE_AUTONEG = 1 << 2
+enum cc_pause {
+	PAUSE_RX	= 1 << 0,
+	PAUSE_TX	= 1 << 1,
+	PAUSE_AUTONEG	= 1 << 2
 };
+
+enum cc_fec {
+	FEC_AUTO	= 1 << 0,	/* IEEE 802.3 "automatic" */
+	FEC_RS		= 1 << 1,	/* Reed-Solomon */
+	FEC_BASER_RS	= 1 << 2,	/* BaseR/Reed-Solomon */
+};
+
+struct link_config {
+	fw_port_cap32_t pcaps;		/* link capabilities */
+	fw_port_cap32_t	acaps;		/* advertised capabilities */
+	fw_port_cap32_t	lpacaps;	/* peer advertised capabilities */
+
+	fw_port_cap32_t	speed_caps;	/* speed(s) user has requested */
+	u32		speed;		/* actual link speed */
+
+	enum cc_pause	requested_fc;	/* flow control user has requested */
+	enum cc_pause	fc;		/* actual link flow control */
+
+	enum cc_fec	auto_fec;	/* Forward Error Correction: */
+	enum cc_fec	requested_fec;	/*   "automatic" (IEEE 802.3), */
+	enum cc_fec	fec;		/*   requested, and actual in use */
+
+	unsigned char	autoneg;	/* autonegotiating? */
+
+	unsigned char	link_ok;	/* link up? */
+	unsigned char	link_down_rc;	/* link down reason */
+};
+
+/* Return true if the Link Configuration supports "High Speeds" (those greater
+ * than 1Gb/s).
+ */
+static inline bool is_x_10g_port(const struct link_config *lc)
+{
+	fw_port_cap32_t speeds, high_speeds;
+
+	speeds = FW_PORT_CAP32_SPEED_V(FW_PORT_CAP32_SPEED_G(lc->pcaps));
+	high_speeds =
+		speeds & ~(FW_PORT_CAP32_SPEED_100M | FW_PORT_CAP32_SPEED_1G);
+
+	return high_speeds != 0;
+}
 
 /*
  * General device parameters ...
@@ -225,7 +265,36 @@ struct adapter_params {
 	struct arch_specific_params arch; /* chip specific params */
 	enum chip_type chip;		/* chip code */
 	u8 nports;			/* # of Ethernet "ports" */
+	u8 fw_caps_support;		/* 32-bit Port Capabilities */
 };
+
+/* Firmware Mailbox Command/Reply log.  All values are in Host-Endian format.
+ * The access and execute times are signed in order to accommodate negative
+ * error returns.
+ */
+struct mbox_cmd {
+	u64 cmd[MBOX_LEN / 8];		/* a Firmware Mailbox Command/Reply */
+	u64 timestamp;			/* OS-dependent timestamp */
+	u32 seqno;			/* sequence number */
+	s16 access;			/* time (ms) to access mailbox */
+	s16 execute;			/* time (ms) to execute */
+};
+
+struct mbox_cmd_log {
+	unsigned int size;		/* number of entries in the log */
+	unsigned int cursor;		/* next position in the log to write */
+	u32 seqno;			/* next sequence number */
+	/* variable length mailbox command log starts here */
+};
+
+/* Given a pointer to a Firmware Mailbox Command Log and a log entry index,
+ * return a pointer to the specified entry.
+ */
+static inline struct mbox_cmd *mbox_cmd_log_entry(struct mbox_cmd_log *log,
+						  unsigned int entry_idx)
+{
+	return &((struct mbox_cmd *)&(log)[1])[entry_idx];
+}
 
 #include "adapter.h"
 
@@ -235,17 +304,6 @@ struct adapter_params {
 
 #define for_each_port(adapter, iter) \
 	for (iter = 0; iter < (adapter)->params.nports; iter++)
-
-static inline bool is_10g_port(const struct link_config *lc)
-{
-	return (lc->supported & FW_PORT_CAP_SPEED_10G) != 0;
-}
-
-static inline bool is_x_10g_port(const struct link_config *lc)
-{
-	return (lc->supported & FW_PORT_CAP_SPEED_10G) != 0 ||
-		(lc->supported & FW_PORT_CAP_SPEED_40G) != 0;
-}
 
 static inline unsigned int core_ticks_per_usec(const struct adapter *adapter)
 {
@@ -285,12 +343,31 @@ static inline int is_t4(enum chip_type chip)
 	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T4;
 }
 
+/**
+ *	hash_mac_addr - return the hash value of a MAC address
+ *	@addr: the 48-bit Ethernet MAC address
+ *
+ *	Hashes a MAC address according to the hash function used by hardware
+ *	inexact (hash) address matching.
+ */
+static inline int hash_mac_addr(const u8 *addr)
+{
+	u32 a = ((u32)addr[0] << 16) | ((u32)addr[1] << 8) | addr[2];
+	u32 b = ((u32)addr[3] << 16) | ((u32)addr[4] << 8) | addr[5];
+
+	a ^= b;
+	a ^= (a >> 12);
+	a ^= (a >> 6);
+	return a & 0x3f;
+}
+
 int t4vf_wait_dev_ready(struct adapter *);
 int t4vf_port_init(struct adapter *, int);
 
 int t4vf_fw_reset(struct adapter *);
 int t4vf_set_params(struct adapter *, unsigned int, const u32 *, const u32 *);
 
+int t4vf_fl_pkt_align(struct adapter *adapter);
 enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
 int t4vf_bar2_sge_qregs(struct adapter *adapter,
 			unsigned int qid,
@@ -298,6 +375,7 @@ int t4vf_bar2_sge_qregs(struct adapter *adapter,
 			u64 *pbar2_qoffset,
 			unsigned int *pbar2_qid);
 
+unsigned int t4vf_get_pf_from_vf(struct adapter *);
 int t4vf_get_sge_params(struct adapter *);
 int t4vf_get_vpd_params(struct adapter *);
 int t4vf_get_dev_params(struct adapter *);
@@ -313,13 +391,18 @@ int t4vf_config_rss_range(struct adapter *, unsigned int, int, int,
 
 int t4vf_alloc_vi(struct adapter *, int);
 int t4vf_free_vi(struct adapter *, int);
-int t4vf_enable_vi(struct adapter *, unsigned int, bool, bool);
+int t4vf_enable_vi(struct adapter *adapter, unsigned int viid, bool rx_en,
+		   bool tx_en);
+int t4vf_enable_pi(struct adapter *adapter, struct port_info *pi, bool rx_en,
+		   bool tx_en);
 int t4vf_identify_port(struct adapter *, unsigned int, unsigned int);
 
 int t4vf_set_rxmode(struct adapter *, unsigned int, int, int, int, int, int,
 		    bool);
 int t4vf_alloc_mac_filt(struct adapter *, unsigned int, bool, unsigned int,
 			const u8 **, u16 *, u64 *, bool);
+int t4vf_free_mac_filt(struct adapter *, unsigned int, unsigned int naddr,
+		       const u8 **, bool);
 int t4vf_change_mac(struct adapter *, unsigned int, int, const u8 *, bool);
 int t4vf_set_addr_hash(struct adapter *, unsigned int, bool, u64, bool);
 int t4vf_get_port_stats(struct adapter *, int, struct t4vf_port_stats *);
@@ -328,7 +411,11 @@ int t4vf_iq_free(struct adapter *, unsigned int, unsigned int, unsigned int,
 		 unsigned int);
 int t4vf_eth_eq_free(struct adapter *, unsigned int);
 
+int t4vf_update_port_info(struct port_info *pi);
 int t4vf_handle_fw_rpl(struct adapter *, const __be64 *);
 int t4vf_prep_adapter(struct adapter *);
+int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
+			unsigned int *naddr, u8 *addr);
+int t4vf_get_vf_vlan_acl(struct adapter *adapter);
 
 #endif /* __T4VF_COMMON_H__ */

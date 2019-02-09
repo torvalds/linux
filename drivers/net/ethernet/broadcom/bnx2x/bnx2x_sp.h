@@ -265,6 +265,7 @@ enum {
 	BNX2X_ETH_MAC,
 	BNX2X_ISCSI_ETH_MAC,
 	BNX2X_NETQ_ETH_MAC,
+	BNX2X_VLAN,
 	BNX2X_DONT_CONSUME_CAM_CREDIT,
 	BNX2X_DONT_CONSUME_CAM_CREDIT_DEST,
 };
@@ -272,7 +273,8 @@ enum {
 #define BNX2X_VLAN_MAC_CMP_MASK	(1 << BNX2X_UC_LIST_MAC | \
 				 1 << BNX2X_ETH_MAC | \
 				 1 << BNX2X_ISCSI_ETH_MAC | \
-				 1 << BNX2X_NETQ_ETH_MAC)
+				 1 << BNX2X_NETQ_ETH_MAC | \
+				 1 << BNX2X_VLAN)
 #define BNX2X_VLAN_MAC_CMP_FLAGS(flags) \
 	((flags) & BNX2X_VLAN_MAC_CMP_MASK)
 
@@ -536,6 +538,15 @@ enum bnx2x_mcast_cmd {
 	BNX2X_MCAST_CMD_CONT,
 	BNX2X_MCAST_CMD_DEL,
 	BNX2X_MCAST_CMD_RESTORE,
+
+	/* Following this, multicast configuration should equal to approx
+	 * the set of MACs provided [i.e., remove all else].
+	 * The two sub-commands are used internally to decide whether a given
+	 * bin is to be added or removed
+	 */
+	BNX2X_MCAST_CMD_SET,
+	BNX2X_MCAST_CMD_SET_ADD,
+	BNX2X_MCAST_CMD_SET_DEL,
 };
 
 struct bnx2x_mcast_obj {
@@ -635,7 +646,8 @@ struct bnx2x_mcast_obj {
 	 */
 	void (*revert)(struct bnx2x *bp,
 		       struct bnx2x_mcast_ramrod_params *p,
-		       int old_num_bins);
+		       int old_num_bins,
+		       enum bnx2x_mcast_cmd cmd);
 
 	int (*get_registry_size)(struct bnx2x_mcast_obj *o);
 	void (*set_registry_size)(struct bnx2x_mcast_obj *o, int n);

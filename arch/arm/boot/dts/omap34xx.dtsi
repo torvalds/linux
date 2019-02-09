@@ -8,13 +8,14 @@
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/bus/ti-sysc.h>
 #include <dt-bindings/media/omap3-isp.h>
 
 #include "omap3.dtsi"
 
 / {
 	cpus {
-		cpu@0 {
+		cpu: cpu@0 {
 			/* OMAP343x/OMAP35xx variants OPP1-5 */
 			operating-points = <
 				/* kHz    uV */
@@ -28,12 +29,13 @@
 		};
 	};
 
-	ocp {
+	ocp@68000000 {
 		omap3_pmx_core2: pinmux@480025d8 {
 			compatible = "ti,omap3-padconf", "pinctrl-single";
 			reg = <0x480025d8 0x24>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#pinctrl-cells = <1>;
 			#interrupt-cells = <1>;
 			interrupt-controller;
 			pinctrl-single,register-width = <16>;
@@ -46,7 +48,7 @@
 			       0x480bd800 0x017c>;
 			interrupts = <24>;
 			iommus = <&mmu_isp>;
-			syscon = <&scm_conf 0xdc>;
+			syscon = <&scm_conf 0x6c>;
 			ti,phy-type = <OMAP3ISP_PHY_TYPE_COMPLEX_IO>;
 			#clock-cells = <1>;
 			ports {
@@ -54,6 +56,54 @@
 				#size-cells = <0>;
 			};
 		};
+
+		bandgap: bandgap@48002524 {
+			reg = <0x48002524 0x4>;
+			compatible = "ti,omap34xx-bandgap";
+			#thermal-sensor-cells = <0>;
+		};
+
+		target-module@480cb000 {
+			compatible = "ti,sysc-omap3430-sr", "ti,sysc";
+			ti,hwmods = "smartreflex_core";
+			reg = <0x480cb024 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP2_CLOCKACTIVITY>;
+			clocks = <&sr2_fck>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480cb000 0x001000>;
+
+			smartreflex_core: smartreflex@0 {
+				compatible = "ti,omap3-smartreflex-core";
+				reg = <0 0x400>;
+				interrupts = <19>;
+			};
+		};
+
+		target-module@480c9000 {
+			compatible = "ti,sysc-omap3430-sr", "ti,sysc";
+			ti,hwmods = "smartreflex_mpu_iva";
+			reg = <0x480c9024 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP2_CLOCKACTIVITY>;
+			clocks = <&sr1_fck>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480c9000 0x001000>;
+
+			smartreflex_mpu_iva: smartreflex@480c9000 {
+				compatible = "ti,omap3-smartreflex-mpu-iva";
+				reg = <0 0x400>;
+				interrupts = <18>;
+			};
+		};
+	};
+
+	thermal_zones: thermal-zones {
+		#include "omap3-cpu-thermal.dtsi"
 	};
 };
 

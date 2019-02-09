@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVIF_OBJECT_H__
 #define __NVIF_OBJECT_H__
 
@@ -16,7 +17,7 @@ struct nvif_object {
 	void *priv; /*XXX: hack */
 	struct {
 		void __iomem *ptr;
-		u32 size;
+		u64 size;
 	} map;
 };
 
@@ -29,7 +30,10 @@ void nvif_object_sclass_put(struct nvif_sclass **);
 u32  nvif_object_rd(struct nvif_object *, int, u64);
 void nvif_object_wr(struct nvif_object *, int, u64, u32);
 int  nvif_object_mthd(struct nvif_object *, u32, void *, u32);
-int  nvif_object_map(struct nvif_object *);
+int  nvif_object_map_handle(struct nvif_object *, void *, u32,
+			    u64 *handle, u64 *length);
+void nvif_object_unmap_handle(struct nvif_object *);
+int  nvif_object_map(struct nvif_object *, void *, u32);
 void nvif_object_unmap(struct nvif_object *);
 
 #define nvif_handle(a) (unsigned long)(void *)(a)
@@ -65,6 +69,51 @@ void nvif_object_unmap(struct nvif_object *);
 })
 
 #define nvif_mthd(a,b,c,d) nvif_object_mthd((a), (b), (c), (d))
+
+struct nvif_mclass {
+	s32 oclass;
+	int version;
+};
+
+#define nvif_mclass(o,m) ({                                                    \
+	struct nvif_object *object = (o);                                      \
+	struct nvif_sclass *sclass;                                            \
+	typeof(m[0]) *mclass = (m);                                            \
+	int ret = -ENODEV;                                                     \
+	int cnt, i, j;                                                         \
+                                                                               \
+	cnt = nvif_object_sclass_get(object, &sclass);                         \
+	if (cnt >= 0) {                                                        \
+		for (i = 0; ret < 0 && mclass[i].oclass; i++) {                \
+			for (j = 0; j < cnt; j++) {                            \
+				if (mclass[i].oclass  == sclass[j].oclass &&   \
+				    mclass[i].version >= sclass[j].minver &&   \
+				    mclass[i].version <= sclass[j].maxver) {   \
+					ret = i;                               \
+					break;                                 \
+				}                                              \
+			}                                                      \
+		}                                                              \
+		nvif_object_sclass_put(&sclass);                               \
+	}                                                                      \
+	ret;                                                                   \
+})
+
+#define nvif_sclass(o,m,u) ({                                                  \
+	const typeof(m[0]) *_mclass = (m);                                     \
+	s32 _oclass = (u);                                                     \
+	int _cid;                                                              \
+	if (_oclass) {                                                         \
+		for (_cid = 0; _mclass[_cid].oclass; _cid++) {                 \
+			if (_mclass[_cid].oclass == _oclass)                   \
+				break;                                         \
+		}                                                              \
+		_cid = _mclass[_cid].oclass ? _cid : -ENOSYS;                  \
+	} else {                                                               \
+		_cid = nvif_mclass((o), _mclass);                              \
+	}                                                                      \
+	_cid;                                                                  \
+})
 
 /*XXX*/
 #include <core/object.h>

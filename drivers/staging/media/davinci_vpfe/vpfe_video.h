@@ -52,6 +52,7 @@ enum vpfe_video_state {
 struct vpfe_pipeline {
 	/* media pipeline */
 	struct media_pipeline		*pipe;
+	struct media_graph	graph;
 	/* state of the pipeline, continuous,
 	 * single-shot or stopped
 	 */
@@ -122,14 +123,12 @@ struct vpfe_video_device {
 	/* Used to store pixel format */
 	struct v4l2_format			fmt;
 	struct vb2_queue			buffer_queue;
-	/* allocator-specific contexts for each plane */
-	struct vb2_alloc_ctx *alloc_ctx;
 	/* Queue of filled frames */
 	struct list_head			dma_queue;
 	spinlock_t				irqlock;
 	/* IRQ lock for DMA queue */
 	spinlock_t				dma_queue_lock;
-	/* lock used to access this structure */
+	/* lock used to serialize all video4linux ioctls */
 	struct mutex				lock;
 	/* number of users performing IO */
 	u32					io_usrs;

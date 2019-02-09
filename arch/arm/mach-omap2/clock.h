@@ -64,9 +64,7 @@
 #define OMAP4XXX_EN_DPLL_FRBYPASS		0x6
 #define OMAP4XXX_EN_DPLL_LOCKED			0x7
 
-void omap2_clk_print_new_rates(const char *hfclkin_ck_name,
-			       const char *core_ck_name,
-			       const char *mpu_ck_name);
+extern struct ti_clk_ll_ops omap_clk_ll_ops;
 
 extern u16 cpu_mask;
 

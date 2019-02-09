@@ -1,28 +1,5 @@
-/*******************************************************************************
-
-  Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 - 2012 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009 - 2018 Intel Corporation. */
 
 /* ethtool support for igbvf */
 
@@ -71,45 +48,45 @@ static const char igbvf_gstrings_test[][ETH_GSTRING_LEN] = {
 
 #define IGBVF_TEST_LEN ARRAY_SIZE(igbvf_gstrings_test)
 
-static int igbvf_get_settings(struct net_device *netdev,
-			      struct ethtool_cmd *ecmd)
+static int igbvf_get_link_ksettings(struct net_device *netdev,
+				    struct ethtool_link_ksettings *cmd)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	u32 status;
 
-	ecmd->supported   = SUPPORTED_1000baseT_Full;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, 1000baseT_Full);
+	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, 1000baseT_Full);
 
-	ecmd->advertising = ADVERTISED_1000baseT_Full;
-
-	ecmd->port = -1;
-	ecmd->transceiver = XCVR_DUMMY1;
+	cmd->base.port = -1;
 
 	status = er32(STATUS);
 	if (status & E1000_STATUS_LU) {
 		if (status & E1000_STATUS_SPEED_1000)
-			ethtool_cmd_speed_set(ecmd, SPEED_1000);
+			cmd->base.speed = SPEED_1000;
 		else if (status & E1000_STATUS_SPEED_100)
-			ethtool_cmd_speed_set(ecmd, SPEED_100);
+			cmd->base.speed = SPEED_100;
 		else
-			ethtool_cmd_speed_set(ecmd, SPEED_10);
+			cmd->base.speed = SPEED_10;
 
 		if (status & E1000_STATUS_FD)
-			ecmd->duplex = DUPLEX_FULL;
+			cmd->base.duplex = DUPLEX_FULL;
 		else
-			ecmd->duplex = DUPLEX_HALF;
+			cmd->base.duplex = DUPLEX_HALF;
 	} else {
-		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
-		ecmd->duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 
-	ecmd->autoneg = AUTONEG_DISABLE;
+	cmd->base.autoneg = AUTONEG_DISABLE;
 
 	return 0;
 }
 
-static int igbvf_set_settings(struct net_device *netdev,
-			      struct ethtool_cmd *ecmd)
+static int igbvf_set_link_ksettings(struct net_device *netdev,
+				    const struct ethtool_link_ksettings *cmd)
 {
 	return -EOPNOTSUPP;
 }
@@ -154,7 +131,8 @@ static void igbvf_get_regs(struct net_device *netdev,
 
 	memset(p, 0, IGBVF_REGS_LEN * sizeof(u32));
 
-	regs->version = (1 << 24) | (adapter->pdev->revision << 16) |
+	regs->version = (1u << 24) |
+			(adapter->pdev->revision << 16) |
 			adapter->pdev->device;
 
 	regs_buff[0] = er32(CTRL);
@@ -295,7 +273,11 @@ static int igbvf_link_test(struct igbvf_adapter *adapter, u64 *data)
 	struct e1000_hw *hw = &adapter->hw;
 	*data = 0;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	hw->mac.ops.check_for_link(hw);
+
+	spin_unlock_bh(&hw->mbx_lock);
 
 	if (!(er32(STATUS) & E1000_STATUS_LU))
 		*data = 1;
@@ -442,8 +424,6 @@ static void igbvf_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 static const struct ethtool_ops igbvf_ethtool_ops = {
-	.get_settings		= igbvf_get_settings,
-	.set_settings		= igbvf_set_settings,
 	.get_drvinfo		= igbvf_get_drvinfo,
 	.get_regs_len		= igbvf_get_regs_len,
 	.get_regs		= igbvf_get_regs,
@@ -466,6 +446,8 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 	.get_ethtool_stats	= igbvf_get_ethtool_stats,
 	.get_coalesce		= igbvf_get_coalesce,
 	.set_coalesce		= igbvf_set_coalesce,
+	.get_link_ksettings	= igbvf_get_link_ksettings,
+	.set_link_ksettings	= igbvf_set_link_ksettings,
 };
 
 void igbvf_set_ethtool_ops(struct net_device *netdev)

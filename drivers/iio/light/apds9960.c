@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * apds9960.c - Support for Avago APDS9960 gesture/RGB/ALS/proximity sensor
  *
- * Copyright (C) 2015 Matt Ranostay <mranostay@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * Copyright (C) 2015, 2018
+ * Author: Matt Ranostay <matt.ranostay@konsulko.com>
  *
  * TODO: gesture + proximity calib offsets
  */
@@ -321,8 +313,12 @@ static const struct iio_chan_spec apds9960_channels[] = {
 };
 
 /* integration time in us */
-static const int apds9960_int_time[][2] =
-	{ {28000, 246}, {100000, 219}, {200000, 182}, {700000, 0} };
+static const int apds9960_int_time[][2] = {
+	{ 28000, 246},
+	{100000, 219},
+	{200000, 182},
+	{700000,   0}
+};
 
 /* gain mapping */
 static const int apds9960_pxs_gain_map[] = {1, 2, 4, 8};
@@ -339,7 +335,7 @@ static struct attribute *apds9960_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group apds9960_attribute_group = {
+static const struct attribute_group apds9960_attribute_group = {
 	.attrs = apds9960_attributes,
 };
 
@@ -491,9 +487,10 @@ static int apds9960_read_raw(struct iio_dev *indio_dev,
 		case IIO_INTENSITY:
 			ret = regmap_bulk_read(data->regmap, chan->address,
 					       &buf, 2);
-			if (!ret)
+			if (!ret) {
 				ret = IIO_VAL_INT;
-			*val = le16_to_cpu(buf);
+				*val = le16_to_cpu(buf);
+			}
 			break;
 		default:
 			ret = -EINVAL;
@@ -739,7 +736,6 @@ static int apds9960_write_event_config(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info apds9960_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &apds9960_attribute_group,
 	.read_raw = apds9960_read_raw,
 	.write_raw = apds9960_write_raw,
@@ -769,7 +765,7 @@ static void apds9960_read_gesture_fifo(struct apds9960_data *data)
 	mutex_lock(&data->lock);
 	data->gesture_mode_running = 1;
 
-	while (cnt-- || (cnt = apds9660_fifo_is_empty(data) > 0)) {
+	while (cnt || (cnt = apds9660_fifo_is_empty(data) > 0)) {
 		ret = regmap_bulk_read(data->regmap, APDS9960_REG_GFIFO_BASE,
 				      &data->buffer, 4);
 
@@ -777,6 +773,7 @@ static void apds9960_read_gesture_fifo(struct apds9960_data *data)
 			goto err_read;
 
 		iio_push_to_buffers(data->indio_dev, data->buffer);
+		cnt--;
 	}
 
 err_read:
@@ -801,7 +798,7 @@ static irqreturn_t apds9960_interrupt_handler(int irq, void *private)
 			       IIO_UNMOD_EVENT_CODE(IIO_INTENSITY, 0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_EITHER),
-			       iio_get_time_ns());
+			       iio_get_time_ns(indio_dev));
 		regmap_write(data->regmap, APDS9960_REG_CICLEAR, 1);
 	}
 
@@ -810,7 +807,7 @@ static irqreturn_t apds9960_interrupt_handler(int irq, void *private)
 			       IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, 0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_EITHER),
-			       iio_get_time_ns());
+			       iio_get_time_ns(indio_dev));
 		regmap_write(data->regmap, APDS9960_REG_PICLEAR, 1);
 	}
 
@@ -1005,6 +1002,7 @@ static int apds9960_probe(struct i2c_client *client,
 
 	iio_device_attach_buffer(indio_dev, buffer);
 
+	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &apds9960_info;
 	indio_dev->name = APDS9960_DRV_NAME;
 	indio_dev->channels = apds9960_channels;
@@ -1105,6 +1103,8 @@ static int apds9960_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops apds9960_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(apds9960_runtime_suspend,
 			   apds9960_runtime_resume, NULL)
 };
@@ -1115,9 +1115,16 @@ static const struct i2c_device_id apds9960_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, apds9960_id);
 
+static const struct of_device_id apds9960_of_match[] = {
+	{ .compatible = "avago,apds9960" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, apds9960_of_match);
+
 static struct i2c_driver apds9960_driver = {
 	.driver = {
 		.name	= APDS9960_DRV_NAME,
+		.of_match_table = apds9960_of_match,
 		.pm	= &apds9960_pm_ops,
 	},
 	.probe		= apds9960_probe,
@@ -1126,6 +1133,6 @@ static struct i2c_driver apds9960_driver = {
 };
 module_i2c_driver(apds9960_driver);
 
-MODULE_AUTHOR("Matt Ranostay <mranostay@gmail.com>");
+MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
 MODULE_DESCRIPTION("ADPS9960 Gesture/RGB/ALS/Proximity sensor");
 MODULE_LICENSE("GPL");

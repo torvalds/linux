@@ -1,17 +1,11 @@
-/*
- * linux/arch/arm/mach-s3c64xx/mach-smartq.c
- *
- * Copyright (C) 2010 Maurus Cuelenaere
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2010 Maurus Cuelenaere
 
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
@@ -42,6 +36,7 @@
 #include <plat/samsung-time.h>
 
 #include "common.h"
+#include "mach-smartq.h"
 #include "regs-modem.h"
 
 #define UCON S3C2410_UCON_DEFAULT
@@ -211,15 +206,28 @@ static int __init smartq_lcd_setup_gpio(void)
 
 /* GPM0 -> CS */
 static struct spi_gpio_platform_data smartq_lcd_control = {
-	.sck			= S3C64XX_GPM(1),
-	.mosi			= S3C64XX_GPM(2),
-	.miso			= S3C64XX_GPM(2),
+	.num_chipselect	= 1,
 };
 
 static struct platform_device smartq_lcd_control_device = {
-	.name			= "spi-gpio",
+	.name			= "spi_gpio",
 	.id			= 1,
 	.dev.platform_data	= &smartq_lcd_control,
+};
+
+static struct gpiod_lookup_table smartq_lcd_control_gpiod_table = {
+	.dev_id         = "spi_gpio",
+	.table          = {
+		GPIO_LOOKUP("GPIOM", 1,
+			    "sck", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOM", 2,
+			    "mosi", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOM", 3,
+			    "miso", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOM", 0,
+			    "cs", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static void smartq_lcd_power_set(struct plat_lcd_data *pd, unsigned int power)
@@ -252,7 +260,6 @@ static struct platform_device *smartq_devices[] __initdata = {
 	&s3c_device_ohci,
 	&s3c_device_rtc,
 	&samsung_device_pwm,
-	&s3c_device_ts,
 	&s3c_device_usb_hsotg,
 	&s3c64xx_device_iis0,
 	&smartq_backlight_device,
@@ -383,6 +390,15 @@ void __init smartq_map_io(void)
 	smartq_lcd_mode_set();
 }
 
+static struct gpiod_lookup_table smartq_audio_gpios = {
+	.dev_id = "smartq-audio",
+	.table = {
+		GPIO_LOOKUP("GPL", 12, "headphone detect", 0),
+		GPIO_LOOKUP("GPK", 12, "amplifiers shutdown", 0),
+		{ },
+	},
+};
+
 void __init smartq_machine_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
@@ -390,7 +406,7 @@ void __init smartq_machine_init(void)
 	s3c_hwmon_set_platdata(&smartq_hwmon_pdata);
 	s3c_sdhci1_set_platdata(&smartq_internal_hsmmc_pdata);
 	s3c_sdhci2_set_platdata(&smartq_internal_hsmmc_pdata);
-	s3c24xx_ts_set_platdata(&smartq_touchscreen_pdata);
+	s3c64xx_ts_set_platdata(&smartq_touchscreen_pdata);
 
 	i2c_register_board_info(0, smartq_i2c_devs,
 				ARRAY_SIZE(smartq_i2c_devs));
@@ -401,5 +417,9 @@ void __init smartq_machine_init(void)
 	WARN_ON(smartq_wifi_init());
 
 	pwm_add_table(smartq_pwm_lookup, ARRAY_SIZE(smartq_pwm_lookup));
+	gpiod_add_lookup_table(&smartq_lcd_control_gpiod_table);
 	platform_add_devices(smartq_devices, ARRAY_SIZE(smartq_devices));
+
+	gpiod_add_lookup_table(&smartq_audio_gpios);
+	platform_device_register_simple("smartq-audio", -1, NULL, 0);
 }

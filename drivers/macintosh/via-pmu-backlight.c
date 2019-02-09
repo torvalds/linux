@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Backlight code for via-pmu
  *
@@ -136,7 +137,7 @@ void pmu_backlight_set_sleep(int sleep)
 }
 #endif /* CONFIG_PM */
 
-void __init pmu_backlight_init()
+void __init pmu_backlight_init(void)
 {
 	struct backlight_properties props;
 	struct backlight_device *bd;

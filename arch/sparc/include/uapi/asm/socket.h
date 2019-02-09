@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _ASM_SOCKET_H
 #define _ASM_SOCKET_H
 
@@ -80,6 +81,28 @@
 
 #define SO_ATTACH_BPF		0x0034
 #define SO_DETACH_BPF		SO_DETACH_FILTER
+
+#define SO_ATTACH_REUSEPORT_CBPF	0x0035
+#define SO_ATTACH_REUSEPORT_EBPF	0x0036
+
+#define SO_CNX_ADVICE		0x0037
+
+#define SCM_TIMESTAMPING_OPT_STATS	0x0038
+
+#define SO_MEMINFO		0x0039
+
+#define SO_INCOMING_NAPI_ID	0x003a
+
+#define SO_COOKIE		0x003b
+
+#define SCM_TIMESTAMPING_PKTINFO	0x003c
+
+#define SO_PEERGROUPS		0x003d
+
+#define SO_ZEROCOPY		0x003e
+
+#define SO_TXTIME		0x003f
+#define SCM_TXTIME		SO_TXTIME
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001

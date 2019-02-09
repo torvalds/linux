@@ -118,7 +118,7 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adjd_s311_data *data = iio_priv(indio_dev);
-	s64 time_ns = iio_get_time_ns();
+	s64 time_ns = iio_get_time_ns(indio_dev);
 	int i, j = 0;
 
 	int ret = adjd_s311_req_data(indio_dev);
@@ -245,7 +245,6 @@ static const struct iio_info adjd_s311_info = {
 	.read_raw = adjd_s311_read_raw,
 	.write_raw = adjd_s311_write_raw,
 	.update_scan_mode = adjd_s311_update_scan_mode,
-	.driver_module = THIS_MODULE,
 };
 
 static int adjd_s311_probe(struct i2c_client *client,

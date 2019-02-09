@@ -2,11 +2,14 @@
 
 Required properties:
 - compatible: should contain one of "brcm,genet-v1", "brcm,genet-v2",
-  "brcm,genet-v3", "brcm,genet-v4".
+  "brcm,genet-v3", "brcm,genet-v4", "brcm,genet-v5".
 - reg: address and length of the register set for the device
-- interrupts: must be two cells, the first cell is the general purpose
-  interrupt line, while the second cell is the interrupt for the ring
-  RX and TX queues operating in ring mode
+- interrupts and/or interrupts-extended: must be two cells, the first cell
+  is the general purpose interrupt line, while the second cell is the
+  interrupt for the ring RX and TX queues operating in ring mode.  An
+  optional third interrupt cell for Wake-on-LAN can be specified.
+  See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+  for information on the property specifics.
 - phy-mode: see ethernet.txt file in the same directory
 - #address-cells: should be 1
 - #size-cells: should be 1
@@ -29,15 +32,15 @@ Optional properties:
 
 Required child nodes:
 
-- mdio bus node: this node should always be present regarless of the PHY
+- mdio bus node: this node should always be present regardless of the PHY
   configuration of the GENET instance
 
 MDIO bus node required properties:
 
 - compatible: should contain one of "brcm,genet-mdio-v1", "brcm,genet-mdio-v2"
-  "brcm,genet-mdio-v3", "brcm,genet-mdio-v4", the version has to match the
-  parent node compatible property (e.g: brcm,genet-v4 pairs with
-  brcm,genet-mdio-v4)
+  "brcm,genet-mdio-v3", "brcm,genet-mdio-v4", "brcm,genet-mdio-v5", the version
+  has to match the parent node compatible property (e.g: brcm,genet-v4 pairs
+  with brcm,genet-mdio-v4)
 - reg: address and length relative to the parent node base register address
 - #address-cells: address cell for MDIO bus addressing, should be 1
 - #size-cells: size of the cells for MDIO bus addressing, should be 0
@@ -68,7 +71,7 @@ ethernet@f0b60000 {
 		phy1: ethernet-phy@1 {
 			max-speed = <1000>;
 			reg = <0x1>;
-			compatible = "brcm,28nm-gphy", "ethernet-phy-ieee802.3-c22";
+			compatible = "ethernet-phy-ieee802.3-c22";
 		};
 	};
 };
@@ -106,7 +109,7 @@ ethernet@f0ba0000 {
 	reg = <0xf0ba0000 0xfc4c>;
 	interrupts = <0x0 0x18 0x0>, <0x0 0x19 0x0>;
 
-	mdio@0e14 {
+	mdio@e14 {
 		compatible = "brcm,genet-mdio-v4";
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
@@ -115,7 +118,7 @@ ethernet@f0ba0000 {
 		phy0: ethernet-phy@0 {
 			max-speed = <1000>;
 			reg = <0x0>;
-			compatible = "brcm,bcm53125", "ethernet-phy-ieee802.3-c22";
+			compatible = "ethernet-phy-ieee802.3-c22";
 		};
 	};
 };

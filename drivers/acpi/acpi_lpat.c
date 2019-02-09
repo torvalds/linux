@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_lpat.h>
 
@@ -25,7 +25,7 @@
  * @raw: the raw value, used as a key to get the temerature from the
  *       above mapping table
  *
- * A positive converted temperarure value will be returned on success,
+ * A positive converted temperature value will be returned on success,
  * a negative errno will be returned in error cases.
  */
 int acpi_lpat_raw_to_temp(struct acpi_lpat_conversion_table *lpat_table,
@@ -55,11 +55,11 @@ EXPORT_SYMBOL_GPL(acpi_lpat_raw_to_temp);
  * acpi_lpat_temp_to_raw(): Return raw value from temperature through
  * LPAT conversion table
  *
- * @lpat: the temperature_raw mapping table
+ * @lpat_table: the temperature_raw mapping table
  * @temp: the temperature, used as a key to get the raw value from the
  *        above mapping table
  *
- * A positive converted temperature value will be returned on success,
+ * The raw value will be returned on success,
  * a negative errno will be returned in error cases.
  */
 int acpi_lpat_temp_to_raw(struct acpi_lpat_conversion_table *lpat_table,
@@ -157,5 +157,3 @@ void acpi_lpat_free_conversion_table(struct acpi_lpat_conversion_table
 	}
 }
 EXPORT_SYMBOL_GPL(acpi_lpat_free_conversion_table);
-
-MODULE_LICENSE("GPL");

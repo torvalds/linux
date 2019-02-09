@@ -13,7 +13,7 @@
  * option) any later version.
  */
 
-#include <mpc5121.dtsi>
+#include "mpc5121.dtsi"
 
 / {
 	model = "pdm360ng";
@@ -98,12 +98,12 @@
 			fsl,preserve-clocking;
 
 			eeprom@50 {
-				compatible = "at,24c01";
+				compatible = "atmel,24c01";
 				reg = <0x50>;
 			};
 
 			rtc@68 {
-				compatible = "stm,m41t00";
+				compatible = "st,m41t00";
 				reg = <0x68>;
 			};
 		};

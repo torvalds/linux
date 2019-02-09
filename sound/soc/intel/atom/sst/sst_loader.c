@@ -44,15 +44,15 @@ void memcpy32_toio(void __iomem *dst, const void *src, int count)
 	/* __iowrite32_copy uses 32-bit count values so divide by 4 for
 	 * right count in words
 	 */
-	__iowrite32_copy(dst, src, count/4);
+	__iowrite32_copy(dst, src, count / 4);
 }
 
 void memcpy32_fromio(void *dst, const void __iomem *src, int count)
 {
-	/* __iowrite32_copy uses 32-bit count values so divide by 4 for
+	/* __ioread32_copy uses 32-bit count values so divide by 4 for
 	 * right count in words
 	 */
-	__iowrite32_copy(dst, src, count/4);
+	__ioread32_copy(dst, src, count / 4);
 }
 
 /**
@@ -415,7 +415,6 @@ int sst_load_fw(struct intel_sst_drv *sst_drv_ctx)
 			return ret_val;
 	}
 
-	BUG_ON(!sst_drv_ctx->fw_in_mem);
 	block = sst_create_block(sst_drv_ctx, 0, FW_DWNL_ID);
 	if (block == NULL)
 		return -ENOMEM;

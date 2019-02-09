@@ -13,19 +13,11 @@
 	compatible = "ti,dra742", "ti,dra74", "ti,dra7";
 
 	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		cpu0: cpu@0 {
+		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
-			reg = <0>;
-
-			operating-points = <
-				/* kHz    uV */
-				1000000	1060000
-				1176000	1160000
-				>;
+			reg = <1>;
+			operating-points-v2 = <&cpu0_opp_table>;
 
 			clocks = <&dpll_mpu_ck>;
 			clock-names = "cpu";
@@ -33,14 +25,9 @@
 			clock-latency = <300000>; /* From omap-cpufreq driver */
 
 			/* cooling options */
-			cooling-min-level = <0>;
-			cooling-max-level = <2>;
 			#cooling-cells = <2>; /* min followed by max */
-		};
-		cpu@1 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <1>;
+
+			vbb-supply = <&abb_mpu>;
 		};
 	};
 
@@ -76,7 +63,6 @@
 				interrupt-names = "peripheral",
 						  "host",
 						  "otg";
-				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
 			};
@@ -104,18 +90,22 @@
 	};
 };
 
+&cpu0_opp_table {
+	opp-shared;
+};
+
 &dss {
 	reg = <0x58000000 0x80>,
 	      <0x58004054 0x4>,
 	      <0x58004300 0x20>,
-	      <0x58005054 0x4>,
-	      <0x58005300 0x20>;
+	      <0x58009054 0x4>,
+	      <0x58009300 0x20>;
 	reg-names = "dss", "pll1_clkctrl", "pll1",
 		    "pll2_clkctrl", "pll2";
 
-	clocks = <&dss_dss_clk>,
-		 <&dss_video1_clk>,
-		 <&dss_video2_clk>;
+	clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>,
+		 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 12>,
+		 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 13>;
 	clock-names = "fck", "video1_clk", "video2_clk";
 };
 
@@ -143,4 +133,16 @@
 		ti,mbox-rx = <1 2 2>;
 		status = "disabled";
 	};
+};
+
+&pcie1_rc {
+	compatible = "ti,dra746-pcie-rc", "ti,dra7-pcie";
+};
+
+&pcie1_ep {
+	compatible = "ti,dra746-pcie-ep", "ti,dra7-pcie-ep";
+};
+
+&pcie2_rc {
+	compatible = "ti,dra746-pcie-rc", "ti,dra7-pcie";
 };

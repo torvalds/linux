@@ -126,7 +126,7 @@
 		par_io@e0100 {
 			num-ports = <7>;
 
-			pio1: ucc_pin@01 {
+			pio1: ucc_pin@1 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0x4  0xa  0x1  0x0  0x2  0x0 	/* TxD0 */
@@ -154,7 +154,7 @@
 					0x1  0x1f  0x2  0x0  0x3  0x0>;	/* GTX125 */
 			};
 
-			pio2: ucc_pin@02 {
+			pio2: ucc_pin@2 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0x5  0xa 0x1  0x0  0x2  0x0   /* TxD0 */
@@ -228,22 +228,22 @@
 
 			/* These are the same PHYs as on
 			 * gianfar's MDIO bus */
-			qe_phy0: ethernet-phy@07 {
+			qe_phy0: ethernet-phy@7 {
 				interrupt-parent = <&mpic>;
 				interrupts = <1 1 0 0>;
 				reg = <0x7>;
 			};
-			qe_phy1: ethernet-phy@01 {
+			qe_phy1: ethernet-phy@1 {
 				interrupt-parent = <&mpic>;
 				interrupts = <2 1 0 0>;
 				reg = <0x1>;
 			};
-			qe_phy2: ethernet-phy@02 {
+			qe_phy2: ethernet-phy@2 {
 				interrupt-parent = <&mpic>;
 				interrupts = <1 1 0 0>;
 				reg = <0x2>;
 			};
-			qe_phy3: ethernet-phy@03 {
+			qe_phy3: ethernet-phy@3 {
 				interrupt-parent = <&mpic>;
 				interrupts = <2 1 0 0>;
 				reg = <0x3>;

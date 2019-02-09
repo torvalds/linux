@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * General overview:
  * full generic netlink message:
@@ -67,7 +68,7 @@
  *	genl_magic_func.h
  *		generates an entry in the static genl_ops array,
  *		and static register/unregister functions to
- *		genl_register_family_with_ops().
+ *		genl_register_family().
  *
  *	flags and handler:
  *		GENL_op_init( .doit = x, .dumpit = y, .flags = something)
@@ -123,15 +124,17 @@ GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
 	__u32_field_def(13,	DRBD_GENLA_F_MANDATORY,	c_fill_target, DRBD_C_FILL_TARGET_DEF)
 	__u32_field_def(14,	DRBD_GENLA_F_MANDATORY,	c_max_rate, DRBD_C_MAX_RATE_DEF)
 	__u32_field_def(15,	DRBD_GENLA_F_MANDATORY,	c_min_rate, DRBD_C_MIN_RATE_DEF)
+	__u32_field_def(20,     DRBD_GENLA_F_MANDATORY, disk_timeout, DRBD_DISK_TIMEOUT_DEF)
+	__u32_field_def(21,     0 /* OPTIONAL */,       read_balancing, DRBD_READ_BALANCING_DEF)
+	__u32_field_def(25,     0 /* OPTIONAL */,       rs_discard_granularity, DRBD_RS_DISCARD_GRANULARITY_DEF)
 
 	__flg_field_def(16, DRBD_GENLA_F_MANDATORY,	disk_barrier, DRBD_DISK_BARRIER_DEF)
 	__flg_field_def(17, DRBD_GENLA_F_MANDATORY,	disk_flushes, DRBD_DISK_FLUSHES_DEF)
 	__flg_field_def(18, DRBD_GENLA_F_MANDATORY,	disk_drain, DRBD_DISK_DRAIN_DEF)
 	__flg_field_def(19, DRBD_GENLA_F_MANDATORY,	md_flushes, DRBD_MD_FLUSHES_DEF)
-	__u32_field_def(20,	DRBD_GENLA_F_MANDATORY,	disk_timeout, DRBD_DISK_TIMEOUT_DEF)
-	__u32_field_def(21,	0 /* OPTIONAL */,       read_balancing, DRBD_READ_BALANCING_DEF)
-	/* 9: __u32_field_def(22,	DRBD_GENLA_F_MANDATORY,	unplug_watermark, DRBD_UNPLUG_WATERMARK_DEF) */
 	__flg_field_def(23,     0 /* OPTIONAL */,	al_updates, DRBD_AL_UPDATES_DEF)
+	__flg_field_def(24,     0 /* OPTIONAL */,	discard_zeroes_if_aligned, DRBD_DISCARD_ZEROES_IF_ALIGNED_DEF)
+	__flg_field_def(26,     0 /* OPTIONAL */,	disable_write_same, DRBD_DISABLE_WRITE_SAME_DEF)
 )
 
 GENL_struct(DRBD_NLA_RESOURCE_OPTS, 4, res_opts,
@@ -248,6 +251,76 @@ GENL_struct(DRBD_NLA_DISCONNECT_PARMS, 12, disconnect_parms,
 
 GENL_struct(DRBD_NLA_DETACH_PARMS, 13, detach_parms,
 	__flg_field(1, DRBD_GENLA_F_MANDATORY,	force_detach)
+)
+
+GENL_struct(DRBD_NLA_RESOURCE_INFO, 15, resource_info,
+	__u32_field(1, 0, res_role)
+	__flg_field(2, 0, res_susp)
+	__flg_field(3, 0, res_susp_nod)
+	__flg_field(4, 0, res_susp_fen)
+	/* __flg_field(5, 0, res_weak) */
+)
+
+GENL_struct(DRBD_NLA_DEVICE_INFO, 16, device_info,
+	__u32_field(1, 0, dev_disk_state)
+)
+
+GENL_struct(DRBD_NLA_CONNECTION_INFO, 17, connection_info,
+	__u32_field(1, 0, conn_connection_state)
+	__u32_field(2, 0, conn_role)
+)
+
+GENL_struct(DRBD_NLA_PEER_DEVICE_INFO, 18, peer_device_info,
+	__u32_field(1, 0, peer_repl_state)
+	__u32_field(2, 0, peer_disk_state)
+	__u32_field(3, 0, peer_resync_susp_user)
+	__u32_field(4, 0, peer_resync_susp_peer)
+	__u32_field(5, 0, peer_resync_susp_dependency)
+)
+
+GENL_struct(DRBD_NLA_RESOURCE_STATISTICS, 19, resource_statistics,
+	__u32_field(1, 0, res_stat_write_ordering)
+)
+
+GENL_struct(DRBD_NLA_DEVICE_STATISTICS, 20, device_statistics,
+	__u64_field(1, 0, dev_size)  /* (sectors) */
+	__u64_field(2, 0, dev_read)  /* (sectors) */
+	__u64_field(3, 0, dev_write)  /* (sectors) */
+	__u64_field(4, 0, dev_al_writes)  /* activity log writes (count) */
+	__u64_field(5, 0, dev_bm_writes)  /*  bitmap writes  (count) */
+	__u32_field(6, 0, dev_upper_pending)  /* application requests in progress */
+	__u32_field(7, 0, dev_lower_pending)  /* backing device requests in progress */
+	__flg_field(8, 0, dev_upper_blocked)
+	__flg_field(9, 0, dev_lower_blocked)
+	__flg_field(10, 0, dev_al_suspended)  /* activity log suspended */
+	__u64_field(11, 0, dev_exposed_data_uuid)
+	__u64_field(12, 0, dev_current_uuid)
+	__u32_field(13, 0, dev_disk_flags)
+	__bin_field(14, 0, history_uuids, HISTORY_UUIDS * sizeof(__u64))
+)
+
+GENL_struct(DRBD_NLA_CONNECTION_STATISTICS, 21, connection_statistics,
+	__flg_field(1, 0, conn_congested)
+)
+
+GENL_struct(DRBD_NLA_PEER_DEVICE_STATISTICS, 22, peer_device_statistics,
+	__u64_field(1, 0, peer_dev_received)  /* sectors */
+	__u64_field(2, 0, peer_dev_sent)  /* sectors */
+	__u32_field(3, 0, peer_dev_pending)  /* number of requests */
+	__u32_field(4, 0, peer_dev_unacked)  /* number of requests */
+	__u64_field(5, 0, peer_dev_out_of_sync)  /* sectors */
+	__u64_field(6, 0, peer_dev_resync_failed)  /* sectors */
+	__u64_field(7, 0, peer_dev_bitmap_uuid)
+	__u32_field(9, 0, peer_dev_flags)
+)
+
+GENL_struct(DRBD_NLA_NOTIFICATION_HEADER, 23, drbd_notification_header,
+	__u32_field(1, DRBD_GENLA_F_MANDATORY, nh_type)
+)
+
+GENL_struct(DRBD_NLA_HELPER, 24, drbd_helper_info,
+	__str_field(1, DRBD_GENLA_F_MANDATORY, helper_name, 32)
+	__u32_field(2, DRBD_GENLA_F_MANDATORY, helper_status)
 )
 
 /*
@@ -382,3 +455,82 @@ GENL_op(DRBD_ADM_GET_TIMEOUT_TYPE, 26, GENL_doit(drbd_adm_get_timeout_type),
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
 GENL_op(DRBD_ADM_DOWN,		27, GENL_doit(drbd_adm_down),
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
+
+GENL_op(DRBD_ADM_GET_RESOURCES, 30,
+	 GENL_op_init(
+		 .dumpit = drbd_adm_dump_resources,
+	 ),
+	 GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_RESOURCE_INFO, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_RESOURCE_STATISTICS, DRBD_GENLA_F_MANDATORY))
+
+GENL_op(DRBD_ADM_GET_DEVICES, 31,
+	 GENL_op_init(
+		 .dumpit = drbd_adm_dump_devices,
+		 .done = drbd_adm_dump_devices_done,
+	 ),
+	 GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_DEVICE_INFO, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_DEVICE_STATISTICS, DRBD_GENLA_F_MANDATORY))
+
+GENL_op(DRBD_ADM_GET_CONNECTIONS, 32,
+	 GENL_op_init(
+		 .dumpit = drbd_adm_dump_connections,
+		 .done = drbd_adm_dump_connections_done,
+	 ),
+	 GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_CONNECTION_INFO, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_CONNECTION_STATISTICS, DRBD_GENLA_F_MANDATORY))
+
+GENL_op(DRBD_ADM_GET_PEER_DEVICES, 33,
+	 GENL_op_init(
+		 .dumpit = drbd_adm_dump_peer_devices,
+		 .done = drbd_adm_dump_peer_devices_done,
+	 ),
+	 GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_PEER_DEVICE_INFO, DRBD_GENLA_F_MANDATORY)
+	 GENL_tla_expected(DRBD_NLA_PEER_DEVICE_STATISTICS, DRBD_GENLA_F_MANDATORY))
+
+GENL_notification(
+	DRBD_RESOURCE_STATE, 34, events,
+	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_NOTIFICATION_HEADER, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_RESOURCE_INFO, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_RESOURCE_STATISTICS, DRBD_F_REQUIRED))
+
+GENL_notification(
+	DRBD_DEVICE_STATE, 35, events,
+	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_NOTIFICATION_HEADER, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_DEVICE_INFO, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_DEVICE_STATISTICS, DRBD_F_REQUIRED))
+
+GENL_notification(
+	DRBD_CONNECTION_STATE, 36, events,
+	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_NOTIFICATION_HEADER, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_CONNECTION_INFO, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_CONNECTION_STATISTICS, DRBD_F_REQUIRED))
+
+GENL_notification(
+	DRBD_PEER_DEVICE_STATE, 37, events,
+	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_NOTIFICATION_HEADER, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_PEER_DEVICE_INFO, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_PEER_DEVICE_STATISTICS, DRBD_F_REQUIRED))
+
+GENL_op(
+	DRBD_ADM_GET_INITIAL_STATE, 38,
+	GENL_op_init(
+	        .dumpit = drbd_adm_get_initial_state,
+	),
+	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY))
+
+GENL_notification(
+	DRBD_HELPER, 40, events,
+	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_HELPER, DRBD_F_REQUIRED))
+
+GENL_notification(
+	DRBD_INITIAL_STATE_DONE, 41, events,
+	GENL_tla_expected(DRBD_NLA_NOTIFICATION_HEADER, DRBD_F_REQUIRED))

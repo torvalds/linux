@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ALPHA_PCI_H
 #define __ALPHA_PCI_H
 
@@ -7,15 +8,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <asm/machvec.h>
-#include <asm-generic/pci-bridge.h>
 
 /*
  * The following structure is used to manage multiple PCI busses.
  */
 
-struct pci_dev;
-struct pci_bus;
-struct resource;
 struct pci_iommu_arena;
 struct page;
 
@@ -57,21 +54,7 @@ struct pci_controller {
 #define PCIBIOS_MIN_IO		alpha_mv.min_io_address
 #define PCIBIOS_MIN_MEM		alpha_mv.min_mem_address
 
-extern void pcibios_set_master(struct pci_dev *dev);
-
 /* IOMMU controls.  */
-
-/* The PCI address space does not equal the physical memory address space.
-   The networking and block device layers use this boolean for bounce buffer
-   decisions.  */
-#define PCI_DMA_BUS_IS_PHYS  0
-
-#ifdef CONFIG_PCI
-
-/* implement the pci_ DMA API in terms of the generic device dma_ one */
-#include <asm-generic/pci-dma-compat.h>
-
-#endif
 
 /* TODO: integrate with include/asm-generic/pci.h ? */
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)

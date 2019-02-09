@@ -42,11 +42,11 @@
 #include <linux/personality.h>
 #include <linux/tty.h>
 #include <linux/binfmts.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/tracehook.h>
 
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/traps.h>
 #include <asm/ucontext.h>
@@ -88,7 +88,7 @@ static inline int frame_extra_sizes(int f)
 	return frame_size_change[f];
 }
 
-int handle_kernel_fault(struct pt_regs *regs)
+int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
 	struct pt_regs *tregs;
@@ -107,22 +107,6 @@ int handle_kernel_fault(struct pt_regs *regs)
 	tregs->sr = regs->sr;
 
 	return 1;
-}
-
-void ptrace_signal_deliver(void)
-{
-	struct pt_regs *regs = signal_pt_regs();
-	if (regs->orig_d0 < 0)
-		return;
-	switch (regs->d0) {
-	case -ERESTARTNOHAND:
-	case -ERESTARTSYS:
-	case -ERESTARTNOINTR:
-		regs->d0 = regs->orig_d0;
-		regs->orig_d0 = -1;
-		regs->pc -= 2;
-		break;
-	}
 }
 
 static inline void push_cache (unsigned long vaddr)
@@ -213,7 +197,6 @@ static inline int frame_extra_sizes(int f)
 
 static inline void adjustformat(struct pt_regs *regs)
 {
-	((struct switch_stack *)regs - 1)->a5 = current->mm->start_data;
 	/*
 	 * set format byte to make stack appear modulo 4, which it will
 	 * be when doing the rte
@@ -591,6 +574,67 @@ static inline int rt_save_fpu_state(struct ucontext __user *uc, struct pt_regs *
 
 #endif /* CONFIG_FPU */
 
+static inline void siginfo_build_tests(void)
+{
+	/*
+	 * This needs to be tested on m68k as it has a lesser
+	 * alignment requirement than x86 and that can cause surprises.
+	 */
+
+	/* This is part of the ABI and can never change in size: */
+	BUILD_BUG_ON(sizeof(siginfo_t) != 128);
+
+	/* Ensure the known fields never change in location */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_signo) != 0);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_errno) != 4);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_code)  != 8);
+
+	/* _kill */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pid) != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_uid) != 0x10);
+
+	/* _timer */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_tid)     != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_overrun) != 0x10);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_value)   != 0x14);
+
+	/* _rt */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pid)   != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_uid)   != 0x10);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_value) != 0x14);
+
+	/* _sigchld */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pid)    != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_uid)    != 0x10);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_status) != 0x14);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_utime)  != 0x18);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_stime)  != 0x1c);
+
+	/* _sigfault */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_addr) != 0x0c);
+
+	/* _sigfault._mcerr */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_addr_lsb) != 0x10);
+
+	/* _sigfault._addr_bnd */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_lower) != 0x12);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_upper) != 0x16);
+
+	/* _sigfault._addr_pkey */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pkey) != 0x12);
+
+	/* _sigpoll */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_band)   != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_fd)     != 0x10);
+
+	/* _sigsys */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_call_addr) != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_syscall)   != 0x10);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_arch)      != 0x14);
+
+	/* any new si_fields should be added here */
+}
+
 static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 			       void __user *fp)
 {
@@ -599,9 +643,7 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 		/*
 		 * user process trying to return with weird frame format
 		 */
-#ifdef DEBUG
-		printk("user process returning with weird frame format\n");
-#endif
+		pr_debug("user process returning with weird frame format\n");
 		return 1;
 	}
 	if (!fsize) {
@@ -653,6 +695,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *usc, void __u
 	int formatvec;
 	struct sigcontext context;
 	int err = 0;
+
+	siginfo_build_tests();
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
@@ -737,10 +781,8 @@ badframe:
 	return 1;
 }
 
-asmlinkage int do_sigreturn(unsigned long __unused)
+asmlinkage int do_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 {
-	struct switch_stack *sw = (struct switch_stack *) &__unused;
-	struct pt_regs *regs = (struct pt_regs *) (sw + 1);
 	unsigned long usp = rdusp();
 	struct sigframe __user *frame = (struct sigframe __user *)(usp - 4);
 	sigset_t set;
@@ -764,10 +806,8 @@ badframe:
 	return 0;
 }
 
-asmlinkage int do_rt_sigreturn(unsigned long __unused)
+asmlinkage int do_rt_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 {
-	struct switch_stack *sw = (struct switch_stack *) &__unused;
-	struct pt_regs *regs = (struct pt_regs *) (sw + 1);
 	unsigned long usp = rdusp();
 	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)(usp - 4);
 	sigset_t set;
@@ -851,10 +891,8 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	int err = 0, sig = ksig->sig;
 
 	if (fsize < 0) {
-#ifdef DEBUG
-		printk ("setup_frame: Unknown frame format %#x\n",
-			regs->format);
-#endif
+		pr_debug("setup_frame: Unknown frame format %#x\n",
+			 regs->format);
 		return -EFAULT;
 	}
 
@@ -910,9 +948,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	if (regs->stkadj) {
 		struct pt_regs *tregs =
 			(struct pt_regs *)((ulong)regs + regs->stkadj);
-#ifdef DEBUG
-		printk("Performing stackadjust=%04x\n", regs->stkadj);
-#endif
+		pr_debug("Performing stackadjust=%04lx\n", regs->stkadj);
 		/* This must be copied with decreasing addresses to
                    handle overlaps.  */
 		tregs->vector = 0;
@@ -931,10 +967,8 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	int err = 0, sig = ksig->sig;
 
 	if (fsize < 0) {
-#ifdef DEBUG
-		printk ("setup_frame: Unknown frame format %#x\n",
-			regs->format);
-#endif
+		pr_debug("setup_frame: Unknown frame format %#x\n",
+			 regs->format);
 		return -EFAULT;
 	}
 
@@ -998,9 +1032,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	if (regs->stkadj) {
 		struct pt_regs *tregs =
 			(struct pt_regs *)((ulong)regs + regs->stkadj);
-#ifdef DEBUG
-		printk("Performing stackadjust=%04x\n", regs->stkadj);
-#endif
+		pr_debug("Performing stackadjust=%04lx\n", regs->stkadj);
 		/* This must be copied with decreasing addresses to
                    handle overlaps.  */
 		tregs->vector = 0;

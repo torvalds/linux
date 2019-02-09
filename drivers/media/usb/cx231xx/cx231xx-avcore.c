@@ -105,7 +105,7 @@ void uninitGPIO(struct cx231xx *dev)
 
 /******************************************************************************
  *                    A F E - B L O C K    C O N T R O L   functions          *
- * 				[ANALOG FRONT END]			      *
+ *				[ANALOG FRONT END]			      *
  ******************************************************************************/
 static int afe_write_byte(struct cx231xx *dev, u16 saddr, u8 data)
 {
@@ -1264,7 +1264,10 @@ int cx231xx_set_agc_analog_digital_mux_select(struct cx231xx *dev,
 				   dev->board.agc_analog_digital_select_gpio,
 				   analog_or_digital);
 
-	return status;
+	if (status < 0)
+		return status;
+
+	return 0;
 }
 
 int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
@@ -2165,7 +2168,7 @@ int cx231xx_tuner_post_channel_change(struct cx231xx *dev)
 }
 
 /******************************************************************************
- *        	    I 2 S - B L O C K    C O N T R O L   functions            *
+ *		    I 2 S - B L O C K    C O N T R O L   functions            *
  ******************************************************************************/
 int cx231xx_i2s_blk_initialize(struct cx231xx *dev)
 {

@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung S3C2416 pinctrl settings
  *
  * Copyright (c) 2013 Heiko Stuebner <heiko@sntech.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
+
+#include <dt-bindings/pinctrl/samsung.h>
 
 &pinctrl_0 {
 	/*
@@ -83,91 +82,91 @@
 
 	uart0_data: uart0-data {
 		samsung,pins = "gph-0", "gph-1";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	uart0_fctl: uart0-fctl {
 		samsung,pins = "gph-8", "gph-9";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	uart1_data: uart1-data {
 		samsung,pins = "gph-2", "gph-3";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	uart1_fctl: uart1-fctl {
 		samsung,pins = "gph-10", "gph-11";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	uart2_data: uart2-data {
 		samsung,pins = "gph-4", "gph-5";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	uart2_fctl: uart2-fctl {
 		samsung,pins = "gph-6", "gph-7";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	uart3_data: uart3-data {
 		samsung,pins = "gph-6", "gph-7";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	extuart_clk: extuart-clk {
 		samsung,pins = "gph-12";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	i2c0_bus: i2c0-bus {
 		samsung,pins = "gpe-14", "gpe-15";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	spi0_bus: spi0-bus {
 		samsung,pins = "gpe-11", "gpe-12", "gpe-13";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	sd0_clk: sd0-clk {
 		samsung,pins = "gpe-5";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	sd0_cmd: sd0-cmd {
 		samsung,pins = "gpe-6";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	sd0_bus1: sd0-bus1 {
 		samsung,pins = "gpe-7";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	sd0_bus4: sd0-bus4 {
 		samsung,pins = "gpe-8", "gpe-9", "gpe-10";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	sd1_cmd: sd1-cmd {
 		samsung,pins = "gpl-8";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	sd1_clk: sd1-clk {
 		samsung,pins = "gpl-9";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	sd1_bus1: sd1-bus1 {
 		samsung,pins = "gpl-0";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 
 	sd1_bus4: sd1-bus4 {
 		samsung,pins = "gpl-1", "gpl-2", "gpl-3";
-		samsung,pin-function = <2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 	};
 };

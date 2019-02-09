@@ -18,7 +18,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
 	};
@@ -27,7 +27,14 @@
 		display0 = &lcd;
 	};
 
-	tv: connector@1 {
+	/* fixed 26MHz oscillator */
+	hfclk_26m: oscillator {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <26000000>;
+	};
+
+	tv: connector {
 		compatible = "connector-analog-tv";
 		label = "tv";
 
@@ -45,28 +52,28 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins>;
 
-		led@1 {
+		led1 {
 			label = "pandora::sd1";
 			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;	/* GPIO_128 */
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 
-		led@2 {
+		led2 {
 			label = "pandora::sd2";
 			gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;	/* GPIO_129 */
 			linux,default-trigger = "mmc1";
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "pandora::bluetooth";
 			gpios = <&gpio5 30 GPIO_ACTIVE_HIGH>;	/* GPIO_158 */
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
 
-		led@4 {
+		led4 {
 			label = "pandora::wifi";
 			gpios = <&gpio5 31 GPIO_ACTIVE_HIGH>;	/* GPIO_159 */
 			linux,default-trigger = "mmc2";
@@ -84,112 +91,112 @@
 			label = "up";
 			linux,code = <KEY_UP>;
 			gpios = <&gpio4 14 GPIO_ACTIVE_LOW>;	/* GPIO_110 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		down-button {
 			label = "down";
 			linux,code = <KEY_DOWN>;
 			gpios = <&gpio4 7 GPIO_ACTIVE_LOW>;	/* GPIO_103 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		left-button {
 			label = "left";
 			linux,code = <KEY_LEFT>;
 			gpios = <&gpio4 0 GPIO_ACTIVE_LOW>;	/* GPIO_96 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		right-button {
 			label = "right";
 			linux,code = <KEY_RIGHT>;
 			gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;	/* GPIO_98 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		pageup-button {
 			label = "game 1";
 			linux,code = <KEY_PAGEUP>;
 			gpios = <&gpio4 13 GPIO_ACTIVE_LOW>;	/* GPIO_109 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		pagedown-button {
 			label = "game 3";
 			linux,code = <KEY_PAGEDOWN>;
 			gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;	/* GPIO_106 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		home-button {
 			label = "game 4";
 			linux,code = <KEY_HOME>;
 			gpios = <&gpio4 5 GPIO_ACTIVE_LOW>;	/* GPIO_101 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		end-button {
 			label = "game 2";
 			linux,code = <KEY_END>;
 			gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;	/* GPIO_111 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		right-shift {
 			label = "l";
 			linux,code = <KEY_RIGHTSHIFT>;
 			gpios = <&gpio4 6 GPIO_ACTIVE_LOW>;	/* GPIO_102 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		kp-plus {
 			label = "l2";
 			linux,code = <KEY_KPPLUS>;
 			gpios = <&gpio4 1 GPIO_ACTIVE_LOW>;	/* GPIO_97 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		right-ctrl {
 			label = "r";
 			linux,code = <KEY_RIGHTCTRL>;
 			gpios = <&gpio4 9 GPIO_ACTIVE_LOW>;	/* GPIO_105 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		kp-minus {
 			label = "r2";
 			linux,code = <KEY_KPMINUS>;
 			gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;	/* GPIO_107 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		left-ctrl {
 			label = "ctrl";
 			linux,code = <KEY_LEFTCTRL>;
 			gpios = <&gpio4 8 GPIO_ACTIVE_LOW>;	/* GPIO_104 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		menu {
 			label = "menu";
 			linux,code = <KEY_MENU>;
 			gpios = <&gpio4 3 GPIO_ACTIVE_LOW>;	/* GPIO_99 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		hold {
 			label = "hold";
 			linux,code = <KEY_COFFEE>;
 			gpios = <&gpio6 16 GPIO_ACTIVE_LOW>;	/* GPIO_176 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		left-alt {
 			label = "alt";
 			linux,code = <KEY_LEFTALT>;
 			gpios = <&gpio4 4 GPIO_ACTIVE_HIGH>;	/* GPIO_100 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		lid {
@@ -205,6 +212,7 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>; /* GPIO_16 */
 		vcc-supply = <&vaux2>;
+		#phy-cells = <0>;
 	};
 
 	/* HS USB Host VBUS supply
@@ -355,6 +363,9 @@
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
+
+		clocks = <&hfclk_26m>;
+		clock-names = "fck";
 
 		twl_power: power {
 			compatible = "ti,twl4030-power-reset";
@@ -546,7 +557,11 @@
 	ranges = <0 0 0x30000000 0x1000000>; /* CS0: 16MB for NAND */
 
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		nand-bus-width = <16>;
 		ti,nand-ecc-opt = "sw";
 
@@ -606,7 +621,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&penirq_pins>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <30 0>;	/* GPIO_94 */
+		interrupts = <30 IRQ_TYPE_NONE>;	/* GPIO_94 */
 		pendown-gpio = <&gpio3 30 GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&vaux4>;
 
@@ -617,12 +632,12 @@
 		ti,x-plate-ohms = /bits/ 16 <40>;
 		ti,pressure-max = /bits/ 16 <255>;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 
 	lcd: lcd@1 {
 		reg = <1>;	/* CS1 */
-		compatible =	"omapdss,tpo,td043mtea1";
+		compatible =	"tpo,td043mtea1";
 		spi-max-frequency = <100000>;
 		spi-cpol;
 		spi-cpha;

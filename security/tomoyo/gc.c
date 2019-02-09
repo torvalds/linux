@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * security/tomoyo/gc.c
  *
@@ -645,11 +646,6 @@ void tomoyo_notify_gc(struct tomoyo_io_buffer *head, const bool is_register)
 		}
 	}
 	spin_unlock(&tomoyo_io_buffer_list_lock);
-	if (is_write) {
-		struct task_struct *task = kthread_create(tomoyo_gc_thread,
-							  NULL,
-							  "GC for TOMOYO");
-		if (!IS_ERR(task))
-			wake_up_process(task);
-	}
+	if (is_write)
+		kthread_run(tomoyo_gc_thread, NULL, "GC for TOMOYO");
 }

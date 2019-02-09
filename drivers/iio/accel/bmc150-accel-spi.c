@@ -25,18 +25,12 @@
 
 #include "bmc150-accel.h"
 
-static const struct regmap_config bmc150_spi_regmap_conf = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = 0x3f,
-};
-
 static int bmc150_accel_probe(struct spi_device *spi)
 {
 	struct regmap *regmap;
 	const struct spi_device_id *id = spi_get_device_id(spi);
 
-	regmap = devm_regmap_init_spi(spi, &bmc150_spi_regmap_conf);
+	regmap = devm_regmap_init_spi(spi, &bmc150_regmap_conf);
 	if (IS_ERR(regmap)) {
 		dev_err(&spi->dev, "Failed to initialize spi regmap\n");
 		return PTR_ERR(regmap);

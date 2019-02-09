@@ -15,6 +15,7 @@
  */
 
 #include <linux/perf_event.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/stacktrace.h>
 
@@ -25,8 +26,8 @@
  * the user stack callchains, we will add it here.
  */
 
-static void save_raw_perf_callchain(struct perf_callchain_entry *entry,
-	unsigned long reg29)
+static void save_raw_perf_callchain(struct perf_callchain_entry_ctx *entry,
+				    unsigned long reg29)
 {
 	unsigned long *sp = (unsigned long *)reg29;
 	unsigned long addr;
@@ -35,14 +36,14 @@ static void save_raw_perf_callchain(struct perf_callchain_entry *entry,
 		addr = *sp++;
 		if (__kernel_text_address(addr)) {
 			perf_callchain_store(entry, addr);
-			if (entry->nr >= PERF_MAX_STACK_DEPTH)
+			if (entry->nr >= entry->max_stack)
 				break;
 		}
 	}
 }
 
-void perf_callchain_kernel(struct perf_callchain_entry *entry,
-		      struct pt_regs *regs)
+void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
+			   struct pt_regs *regs)
 {
 	unsigned long sp = regs->regs[29];
 #ifdef CONFIG_KALLSYMS
@@ -59,7 +60,7 @@ void perf_callchain_kernel(struct perf_callchain_entry *entry,
 	}
 	do {
 		perf_callchain_store(entry, pc);
-		if (entry->nr >= PERF_MAX_STACK_DEPTH)
+		if (entry->nr >= entry->max_stack)
 			break;
 		pc = unwind_stack(current, &sp, pc, &ra);
 	} while (pc);

@@ -12,11 +12,11 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
-#include <linux/i2c/adp5588.h>
+#include <linux/platform_data/adp5588.h>
 
 #define DRV_NAME	"adp5588-gpio"
 
@@ -41,6 +41,8 @@ struct adp5588_gpio {
 	uint8_t int_en[3];
 	uint8_t irq_mask[3];
 	uint8_t irq_stat[3];
+	uint8_t int_input_en[3];
+	uint8_t int_lvl_cached[3];
 };
 
 static int adp5588_gpio_read(struct i2c_client *client, u8 reg)
@@ -65,8 +67,7 @@ static int adp5588_gpio_write(struct i2c_client *client, u8 reg, u8 val)
 
 static int adp5588_gpio_get_value(struct gpio_chip *chip, unsigned off)
 {
-	struct adp5588_gpio *dev =
-	    container_of(chip, struct adp5588_gpio, gpio_chip);
+	struct adp5588_gpio *dev = gpiochip_get_data(chip);
 	unsigned bank = ADP5588_BANK(off);
 	unsigned bit = ADP5588_BIT(off);
 	int val;
@@ -87,8 +88,7 @@ static void adp5588_gpio_set_value(struct gpio_chip *chip,
 				   unsigned off, int val)
 {
 	unsigned bank, bit;
-	struct adp5588_gpio *dev =
-	    container_of(chip, struct adp5588_gpio, gpio_chip);
+	struct adp5588_gpio *dev = gpiochip_get_data(chip);
 
 	bank = ADP5588_BANK(off);
 	bit = ADP5588_BIT(off);
@@ -108,8 +108,7 @@ static int adp5588_gpio_direction_input(struct gpio_chip *chip, unsigned off)
 {
 	int ret;
 	unsigned bank;
-	struct adp5588_gpio *dev =
-	    container_of(chip, struct adp5588_gpio, gpio_chip);
+	struct adp5588_gpio *dev = gpiochip_get_data(chip);
 
 	bank = ADP5588_BANK(off);
 
@@ -126,8 +125,7 @@ static int adp5588_gpio_direction_output(struct gpio_chip *chip,
 {
 	int ret;
 	unsigned bank, bit;
-	struct adp5588_gpio *dev =
-	    container_of(chip, struct adp5588_gpio, gpio_chip);
+	struct adp5588_gpio *dev = gpiochip_get_data(chip);
 
 	bank = ADP5588_BANK(off);
 	bit = ADP5588_BIT(off);
@@ -152,8 +150,8 @@ static int adp5588_gpio_direction_output(struct gpio_chip *chip,
 #ifdef CONFIG_GPIO_ADP5588_IRQ
 static int adp5588_gpio_to_irq(struct gpio_chip *chip, unsigned off)
 {
-	struct adp5588_gpio *dev =
-		container_of(chip, struct adp5588_gpio, gpio_chip);
+	struct adp5588_gpio *dev = gpiochip_get_data(chip);
+
 	return dev->irq_base + off;
 }
 
@@ -177,12 +175,28 @@ static void adp5588_irq_bus_sync_unlock(struct irq_data *d)
 	struct adp5588_gpio *dev = irq_data_get_irq_chip_data(d);
 	int i;
 
-	for (i = 0; i <= ADP5588_BANK(ADP5588_MAXGPIO); i++)
+	for (i = 0; i <= ADP5588_BANK(ADP5588_MAXGPIO); i++) {
+		if (dev->int_input_en[i]) {
+			mutex_lock(&dev->lock);
+			dev->dir[i] &= ~dev->int_input_en[i];
+			dev->int_input_en[i] = 0;
+			adp5588_gpio_write(dev->client, GPIO_DIR1 + i,
+					   dev->dir[i]);
+			mutex_unlock(&dev->lock);
+		}
+
+		if (dev->int_lvl_cached[i] != dev->int_lvl[i]) {
+			dev->int_lvl_cached[i] = dev->int_lvl[i];
+			adp5588_gpio_write(dev->client, GPIO_INT_LVL1 + i,
+					   dev->int_lvl[i]);
+		}
+
 		if (dev->int_en[i] ^ dev->irq_mask[i]) {
 			dev->int_en[i] = dev->irq_mask[i];
 			adp5588_gpio_write(dev->client, GPIO_INT_EN1 + i,
 					   dev->int_en[i]);
 		}
+	}
 
 	mutex_unlock(&dev->irq_lock);
 }
@@ -225,9 +239,7 @@ static int adp5588_irq_set_type(struct irq_data *d, unsigned int type)
 	else
 		return -EINVAL;
 
-	adp5588_gpio_direction_input(&dev->gpio_chip, gpio);
-	adp5588_gpio_write(dev->client, GPIO_INT_LVL1 + bank,
-			   dev->int_lvl[bank]);
+	dev->int_input_en[bank] |= bit;
 
 	return 0;
 }
@@ -418,7 +430,7 @@ static int adp5588_gpio_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = gpiochip_add(&dev->gpio_chip);
+	ret = devm_gpiochip_add_data(&client->dev, &dev->gpio_chip, dev);
 	if (ret)
 		goto err_irq;
 
@@ -460,8 +472,6 @@ static int adp5588_gpio_remove(struct i2c_client *client)
 
 	if (dev->irq_base)
 		free_irq(dev->client->irq, dev);
-
-	gpiochip_remove(&dev->gpio_chip);
 
 	return 0;
 }

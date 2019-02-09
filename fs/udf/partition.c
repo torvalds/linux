@@ -32,7 +32,7 @@ uint32_t udf_get_pblock(struct super_block *sb, uint32_t block,
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map;
 	if (partition >= sbi->s_partitions) {
-		udf_debug("block=%d, partition=%d, offset=%d: invalid partition\n",
+		udf_debug("block=%u, partition=%u, offset=%u: invalid partition\n",
 			  block, partition, offset);
 		return 0xFFFFFFFF;
 	}
@@ -59,7 +59,7 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 	vdata = &map->s_type_specific.s_virtual;
 
 	if (block > vdata->s_num_entries) {
-		udf_debug("Trying to access block beyond end of VAT (%d max %d)\n",
+		udf_debug("Trying to access block beyond end of VAT (%u max %u)\n",
 			  block, vdata->s_num_entries);
 		return 0xFFFFFFFF;
 	}
@@ -83,7 +83,7 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 
 	bh = sb_bread(sb, loc);
 	if (!bh) {
-		udf_debug("get_pblock(UDF_VIRTUAL_MAP:%p,%d,%d) VAT: %d[%d]\n",
+		udf_debug("get_pblock(UDF_VIRTUAL_MAP:%p,%u,%u) VAT: %u[%u]\n",
 			  sb, block, partition, loc, index);
 		return 0xFFFFFFFF;
 	}
@@ -295,7 +295,8 @@ static uint32_t udf_try_read_meta(struct inode *inode, uint32_t block,
 		map = &UDF_SB(sb)->s_partmaps[partition];
 		/* map to sparable/physical partition desc */
 		phyblock = udf_get_pblock(sb, eloc.logicalBlockNum,
-			map->s_partition_num, ext_offset + offset);
+			map->s_type_specific.s_metadata.s_phys_partition_ref,
+			ext_offset + offset);
 	}
 
 	brelse(epos.bh);
@@ -317,14 +318,18 @@ uint32_t udf_get_pblock_meta25(struct super_block *sb, uint32_t block,
 	mdata = &map->s_type_specific.s_metadata;
 	inode = mdata->s_metadata_fe ? : mdata->s_mirror_fe;
 
-	/* We shouldn't mount such media... */
-	BUG_ON(!inode);
+	if (!inode)
+		return 0xFFFFFFFF;
+
 	retblk = udf_try_read_meta(inode, block, partition, offset);
 	if (retblk == 0xFFFFFFFF && mdata->s_metadata_fe) {
 		udf_warn(sb, "error reading from METADATA, trying to read from MIRROR\n");
 		if (!(mdata->s_flags & MF_MIRROR_FE_LOADED)) {
 			mdata->s_mirror_fe = udf_find_metadata_inode_efe(sb,
-				mdata->s_mirror_file_loc, map->s_partition_num);
+				mdata->s_mirror_file_loc,
+				mdata->s_phys_partition_ref);
+			if (IS_ERR(mdata->s_mirror_fe))
+				mdata->s_mirror_fe = NULL;
 			mdata->s_flags |= MF_MIRROR_FE_LOADED;
 		}
 

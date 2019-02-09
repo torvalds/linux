@@ -12,12 +12,18 @@
  */
 #include <linux/device.h>
 #include <linux/ndctl.h>
+#include <linux/uuid.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/nd.h>
 #include "nd-core.h"
 #include "label.h"
 #include "nd.h"
+
+static guid_t nvdimm_btt_guid;
+static guid_t nvdimm_btt2_guid;
+static guid_t nvdimm_pfn_guid;
+static guid_t nvdimm_dax_guid;
 
 static u32 best_seq(u32 a, u32 b)
 {
@@ -34,34 +40,55 @@ static u32 best_seq(u32 a, u32 b)
 		return a;
 }
 
-size_t sizeof_namespace_index(struct nvdimm_drvdata *ndd)
+unsigned sizeof_namespace_label(struct nvdimm_drvdata *ndd)
 {
-	u32 index_span;
+	return ndd->nslabel_size;
+}
 
-	if (ndd->nsindex_size)
-		return ndd->nsindex_size;
+static size_t __sizeof_namespace_index(u32 nslot)
+{
+	return ALIGN(sizeof(struct nd_namespace_index) + DIV_ROUND_UP(nslot, 8),
+			NSINDEX_ALIGN);
+}
 
-	/*
-	 * The minimum index space is 512 bytes, with that amount of
-	 * index we can describe ~1400 labels which is less than a byte
-	 * of overhead per label.  Round up to a byte of overhead per
-	 * label and determine the size of the index region.  Yes, this
-	 * starts to waste space at larger config_sizes, but it's
-	 * unlikely we'll ever see anything but 128K.
-	 */
-	index_span = ndd->nsarea.config_size / 129;
-	index_span /= NSINDEX_ALIGN * 2;
-	ndd->nsindex_size = index_span * NSINDEX_ALIGN;
-
-	return ndd->nsindex_size;
+static int __nvdimm_num_label_slots(struct nvdimm_drvdata *ndd,
+		size_t index_size)
+{
+	return (ndd->nsarea.config_size - index_size * 2) /
+			sizeof_namespace_label(ndd);
 }
 
 int nvdimm_num_label_slots(struct nvdimm_drvdata *ndd)
 {
-	return ndd->nsarea.config_size / 129;
+	u32 tmp_nslot, n;
+
+	tmp_nslot = ndd->nsarea.config_size / sizeof_namespace_label(ndd);
+	n = __sizeof_namespace_index(tmp_nslot) / NSINDEX_ALIGN;
+
+	return __nvdimm_num_label_slots(ndd, NSINDEX_ALIGN * n);
 }
 
-int nd_label_validate(struct nvdimm_drvdata *ndd)
+size_t sizeof_namespace_index(struct nvdimm_drvdata *ndd)
+{
+	u32 nslot, space, size;
+
+	/*
+	 * Per UEFI 2.7, the minimum size of the Label Storage Area is large
+	 * enough to hold 2 index blocks and 2 labels.  The minimum index
+	 * block size is 256 bytes, and the minimum label size is 256 bytes.
+	 */
+	nslot = nvdimm_num_label_slots(ndd);
+	space = ndd->nsarea.config_size - nslot * sizeof_namespace_label(ndd);
+	size = __sizeof_namespace_index(nslot) * 2;
+	if (size <= space && nslot >= 2)
+		return size / 2;
+
+	dev_err(ndd->dev, "label area (%d) too small to host (%d byte) labels\n",
+			ndd->nsarea.config_size, sizeof_namespace_label(ndd));
+	return 0;
+}
+
+static int __nd_label_validate(struct nvdimm_drvdata *ndd)
 {
 	/*
 	 * On media label format consists of two index blocks followed
@@ -104,42 +131,55 @@ int nd_label_validate(struct nvdimm_drvdata *ndd)
 		u32 nslot;
 		u8 sig[NSINDEX_SIG_LEN];
 		u64 sum_save, sum, size;
+		unsigned int version, labelsize;
 
 		memcpy(sig, nsindex[i]->sig, NSINDEX_SIG_LEN);
 		if (memcmp(sig, NSINDEX_SIGNATURE, NSINDEX_SIG_LEN) != 0) {
-			dev_dbg(dev, "%s: nsindex%d signature invalid\n",
-					__func__, i);
+			dev_dbg(dev, "nsindex%d signature invalid\n", i);
 			continue;
 		}
+
+		/* label sizes larger than 128 arrived with v1.2 */
+		version = __le16_to_cpu(nsindex[i]->major) * 100
+			+ __le16_to_cpu(nsindex[i]->minor);
+		if (version >= 102)
+			labelsize = 1 << (7 + nsindex[i]->labelsize);
+		else
+			labelsize = 128;
+
+		if (labelsize != sizeof_namespace_label(ndd)) {
+			dev_dbg(dev, "nsindex%d labelsize %d invalid\n",
+					i, nsindex[i]->labelsize);
+			continue;
+		}
+
 		sum_save = __le64_to_cpu(nsindex[i]->checksum);
 		nsindex[i]->checksum = __cpu_to_le64(0);
 		sum = nd_fletcher64(nsindex[i], sizeof_namespace_index(ndd), 1);
 		nsindex[i]->checksum = __cpu_to_le64(sum_save);
 		if (sum != sum_save) {
-			dev_dbg(dev, "%s: nsindex%d checksum invalid\n",
-					__func__, i);
+			dev_dbg(dev, "nsindex%d checksum invalid\n", i);
 			continue;
 		}
 
 		seq = __le32_to_cpu(nsindex[i]->seq);
 		if ((seq & NSINDEX_SEQ_MASK) == 0) {
-			dev_dbg(dev, "%s: nsindex%d sequence: %#x invalid\n",
-					__func__, i, seq);
+			dev_dbg(dev, "nsindex%d sequence: %#x invalid\n", i, seq);
 			continue;
 		}
 
 		/* sanity check the index against expected values */
 		if (__le64_to_cpu(nsindex[i]->myoff)
 				!= i * sizeof_namespace_index(ndd)) {
-			dev_dbg(dev, "%s: nsindex%d myoff: %#llx invalid\n",
-					__func__, i, (unsigned long long)
+			dev_dbg(dev, "nsindex%d myoff: %#llx invalid\n",
+					i, (unsigned long long)
 					__le64_to_cpu(nsindex[i]->myoff));
 			continue;
 		}
 		if (__le64_to_cpu(nsindex[i]->otheroff)
 				!= (!i) * sizeof_namespace_index(ndd)) {
-			dev_dbg(dev, "%s: nsindex%d otheroff: %#llx invalid\n",
-					__func__, i, (unsigned long long)
+			dev_dbg(dev, "nsindex%d otheroff: %#llx invalid\n",
+					i, (unsigned long long)
 					__le64_to_cpu(nsindex[i]->otheroff));
 			continue;
 		}
@@ -147,18 +187,16 @@ int nd_label_validate(struct nvdimm_drvdata *ndd)
 		size = __le64_to_cpu(nsindex[i]->mysize);
 		if (size > sizeof_namespace_index(ndd)
 				|| size < sizeof(struct nd_namespace_index)) {
-			dev_dbg(dev, "%s: nsindex%d mysize: %#llx invalid\n",
-					__func__, i, size);
+			dev_dbg(dev, "nsindex%d mysize: %#llx invalid\n", i, size);
 			continue;
 		}
 
 		nslot = __le32_to_cpu(nsindex[i]->nslot);
-		if (nslot * sizeof(struct nd_namespace_label)
+		if (nslot * sizeof_namespace_label(ndd)
 				+ 2 * sizeof_namespace_index(ndd)
 				> ndd->nsarea.config_size) {
-			dev_dbg(dev, "%s: nsindex%d nslot: %u invalid, config_size: %#x\n",
-					__func__, i, nslot,
-					ndd->nsarea.config_size);
+			dev_dbg(dev, "nsindex%d nslot: %u invalid, config_size: %#x\n",
+					i, nslot, ndd->nsarea.config_size);
 			continue;
 		}
 		valid[i] = true;
@@ -189,6 +227,29 @@ int nd_label_validate(struct nvdimm_drvdata *ndd)
 	return -1;
 }
 
+int nd_label_validate(struct nvdimm_drvdata *ndd)
+{
+	/*
+	 * In order to probe for and validate namespace index blocks we
+	 * need to know the size of the labels, and we can't trust the
+	 * size of the labels until we validate the index blocks.
+	 * Resolve this dependency loop by probing for known label
+	 * sizes, but default to v1.2 256-byte namespace labels if
+	 * discovery fails.
+	 */
+	int label_size[] = { 128, 256 };
+	int i, rc;
+
+	for (i = 0; i < ARRAY_SIZE(label_size); i++) {
+		ndd->nslabel_size = label_size[i];
+		rc = __nd_label_validate(ndd);
+		if (rc >= 0)
+			return rc;
+	}
+
+	return -1;
+}
+
 void nd_label_copy(struct nvdimm_drvdata *ndd, struct nd_namespace_index *dst,
 		struct nd_namespace_index *src)
 {
@@ -210,7 +271,22 @@ static struct nd_namespace_label *nd_label_base(struct nvdimm_drvdata *ndd)
 static int to_slot(struct nvdimm_drvdata *ndd,
 		struct nd_namespace_label *nd_label)
 {
-	return nd_label - nd_label_base(ndd);
+	unsigned long label, base;
+
+	label = (unsigned long) nd_label;
+	base = (unsigned long) nd_label_base(ndd);
+
+	return (label - base) / sizeof_namespace_label(ndd);
+}
+
+static struct nd_namespace_label *to_label(struct nvdimm_drvdata *ndd, int slot)
+{
+	unsigned long label, base;
+
+	base = (unsigned long) nd_label_base(ndd);
+	label = base + sizeof_namespace_label(ndd) * slot;
+
+	return (struct nd_namespace_label *) label;
 }
 
 #define for_each_clear_bit_le(bit, addr, size) \
@@ -268,7 +344,8 @@ static bool preamble_next(struct nvdimm_drvdata *ndd,
 			free, nslot);
 }
 
-static bool slot_valid(struct nd_namespace_label *nd_label, u32 slot)
+static bool slot_valid(struct nvdimm_drvdata *ndd,
+		struct nd_namespace_label *nd_label, u32 slot)
 {
 	/* check that we are written where we expect to be written */
 	if (slot != __le32_to_cpu(nd_label->slot))
@@ -278,6 +355,21 @@ static bool slot_valid(struct nd_namespace_label *nd_label, u32 slot)
 	if ((__le64_to_cpu(nd_label->dpa)
 				| __le64_to_cpu(nd_label->rawsize)) % SZ_4K)
 		return false;
+
+	/* check checksum */
+	if (namespace_label_has(ndd, checksum)) {
+		u64 sum, sum_save;
+
+		sum_save = __le64_to_cpu(nd_label->checksum);
+		nd_label->checksum = __cpu_to_le64(0);
+		sum = nd_fletcher64(nd_label, sizeof_namespace_label(ndd), 1);
+		nd_label->checksum = __cpu_to_le64(sum_save);
+		if (sum != sum_save) {
+			dev_dbg(ndd->dev, "fail checksum. slot: %d expect: %#llx\n",
+				slot, sum);
+			return false;
+		}
+	}
 
 	return true;
 }
@@ -299,9 +391,9 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 		struct resource *res;
 		u32 flags;
 
-		nd_label = nd_label_base(ndd) + slot;
+		nd_label = to_label(ndd, slot);
 
-		if (!slot_valid(nd_label, slot))
+		if (!slot_valid(ndd, nd_label, slot))
 			continue;
 
 		memcpy(label_uuid, nd_label->uuid, NSLABEL_UUID_LEN);
@@ -331,16 +423,16 @@ int nd_label_active_count(struct nvdimm_drvdata *ndd)
 	for_each_clear_bit_le(slot, free, nslot) {
 		struct nd_namespace_label *nd_label;
 
-		nd_label = nd_label_base(ndd) + slot;
+		nd_label = to_label(ndd, slot);
 
-		if (!slot_valid(nd_label, slot)) {
+		if (!slot_valid(ndd, nd_label, slot)) {
 			u32 label_slot = __le32_to_cpu(nd_label->slot);
 			u64 size = __le64_to_cpu(nd_label->rawsize);
 			u64 dpa = __le64_to_cpu(nd_label->dpa);
 
 			dev_dbg(ndd->dev,
-				"%s: slot%d invalid slot: %d dpa: %llx size: %llx\n",
-					__func__, slot, label_slot, dpa, size);
+				"slot%d invalid slot: %d dpa: %llx size: %llx\n",
+					slot, label_slot, dpa, size);
 			continue;
 		}
 		count++;
@@ -360,12 +452,12 @@ struct nd_namespace_label *nd_label_active(struct nvdimm_drvdata *ndd, int n)
 	for_each_clear_bit_le(slot, free, nslot) {
 		struct nd_namespace_label *nd_label;
 
-		nd_label = nd_label_base(ndd) + slot;
-		if (!slot_valid(nd_label, slot))
+		nd_label = to_label(ndd, slot);
+		if (!slot_valid(ndd, nd_label, slot))
 			continue;
 
 		if (n-- == 0)
-			return nd_label_base(ndd) + slot;
+			return to_label(ndd, slot);
 	}
 
 	return NULL;
@@ -437,7 +529,8 @@ static int nd_label_write_index(struct nvdimm_drvdata *ndd, int index, u32 seq,
 		nslot = __le32_to_cpu(nsindex->nslot);
 
 	memcpy(nsindex->sig, NSINDEX_SIGNATURE, NSINDEX_SIG_LEN);
-	nsindex->flags = __cpu_to_le32(0);
+	memset(&nsindex->flags, 0, 3);
+	nsindex->labelsize = sizeof_namespace_label(ndd) >> 8;
 	nsindex->seq = __cpu_to_le32(seq);
 	offset = (unsigned long) nsindex
 		- (unsigned long) to_namespace_index(ndd, 0);
@@ -452,7 +545,10 @@ static int nd_label_write_index(struct nvdimm_drvdata *ndd, int index, u32 seq,
 	nsindex->labeloff = __cpu_to_le64(offset);
 	nsindex->nslot = __cpu_to_le32(nslot);
 	nsindex->major = __cpu_to_le16(1);
-	nsindex->minor = __cpu_to_le16(1);
+	if (sizeof_namespace_label(ndd) < 256)
+		nsindex->minor = __cpu_to_le16(1);
+	else
+		nsindex->minor = __cpu_to_le16(2);
 	nsindex->checksum = __cpu_to_le64(0);
 	if (flags & ND_NSINDEX_INIT) {
 		unsigned long *free = (unsigned long *) nsindex->free;
@@ -490,31 +586,83 @@ static unsigned long nd_label_offset(struct nvdimm_drvdata *ndd,
 		- (unsigned long) to_namespace_index(ndd, 0);
 }
 
+enum nvdimm_claim_class to_nvdimm_cclass(guid_t *guid)
+{
+	if (guid_equal(guid, &nvdimm_btt_guid))
+		return NVDIMM_CCLASS_BTT;
+	else if (guid_equal(guid, &nvdimm_btt2_guid))
+		return NVDIMM_CCLASS_BTT2;
+	else if (guid_equal(guid, &nvdimm_pfn_guid))
+		return NVDIMM_CCLASS_PFN;
+	else if (guid_equal(guid, &nvdimm_dax_guid))
+		return NVDIMM_CCLASS_DAX;
+	else if (guid_equal(guid, &guid_null))
+		return NVDIMM_CCLASS_NONE;
+
+	return NVDIMM_CCLASS_UNKNOWN;
+}
+
+static const guid_t *to_abstraction_guid(enum nvdimm_claim_class claim_class,
+	guid_t *target)
+{
+	if (claim_class == NVDIMM_CCLASS_BTT)
+		return &nvdimm_btt_guid;
+	else if (claim_class == NVDIMM_CCLASS_BTT2)
+		return &nvdimm_btt2_guid;
+	else if (claim_class == NVDIMM_CCLASS_PFN)
+		return &nvdimm_pfn_guid;
+	else if (claim_class == NVDIMM_CCLASS_DAX)
+		return &nvdimm_dax_guid;
+	else if (claim_class == NVDIMM_CCLASS_UNKNOWN) {
+		/*
+		 * If we're modifying a namespace for which we don't
+		 * know the claim_class, don't touch the existing guid.
+		 */
+		return target;
+	} else
+		return &guid_null;
+}
+
 static int __pmem_label_update(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, struct nd_namespace_pmem *nspm,
 		int pos)
 {
-	u64 cookie = nd_region_interleave_set_cookie(nd_region), rawsize;
+	struct nd_namespace_common *ndns = &nspm->nsio.common;
+	struct nd_interleave_set *nd_set = nd_region->nd_set;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
-	struct nd_namespace_label *victim_label;
+	struct nd_label_ent *label_ent, *victim = NULL;
 	struct nd_namespace_label *nd_label;
 	struct nd_namespace_index *nsindex;
+	struct nd_label_id label_id;
+	struct resource *res;
 	unsigned long *free;
 	u32 nslot, slot;
 	size_t offset;
+	u64 cookie;
 	int rc;
 
 	if (!preamble_next(ndd, &nsindex, &free, &nslot))
 		return -ENXIO;
 
+	cookie = nd_region_interleave_set_cookie(nd_region, nsindex);
+	nd_label_gen_id(&label_id, nspm->uuid, 0);
+	for_each_dpa_resource(ndd, res)
+		if (strcmp(res->name, label_id.id) == 0)
+			break;
+
+	if (!res) {
+		WARN_ON_ONCE(1);
+		return -ENXIO;
+	}
+
 	/* allocate and write the label to the staging (next) index */
 	slot = nd_label_alloc_slot(ndd);
 	if (slot == UINT_MAX)
 		return -ENXIO;
-	dev_dbg(ndd->dev, "%s: allocated: %d\n", __func__, slot);
+	dev_dbg(ndd->dev, "allocated: %d\n", slot);
 
-	nd_label = nd_label_base(ndd) + slot;
-	memset(nd_label, 0, sizeof(struct nd_namespace_label));
+	nd_label = to_label(ndd, slot);
+	memset(nd_label, 0, sizeof_namespace_label(ndd));
 	memcpy(nd_label->uuid, nspm->uuid, NSLABEL_UUID_LEN);
 	if (nspm->alt_name)
 		memcpy(nd_label->name, nspm->alt_name, NSLABEL_NAME_LEN);
@@ -522,52 +670,70 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	nd_label->nlabel = __cpu_to_le16(nd_region->ndr_mappings);
 	nd_label->position = __cpu_to_le16(pos);
 	nd_label->isetcookie = __cpu_to_le64(cookie);
-	rawsize = div_u64(resource_size(&nspm->nsio.res),
-			nd_region->ndr_mappings);
-	nd_label->rawsize = __cpu_to_le64(rawsize);
-	nd_label->dpa = __cpu_to_le64(nd_mapping->start);
+	nd_label->rawsize = __cpu_to_le64(resource_size(res));
+	nd_label->lbasize = __cpu_to_le64(nspm->lbasize);
+	nd_label->dpa = __cpu_to_le64(res->start);
 	nd_label->slot = __cpu_to_le32(slot);
+	if (namespace_label_has(ndd, type_guid))
+		guid_copy(&nd_label->type_guid, &nd_set->type_guid);
+	if (namespace_label_has(ndd, abstraction_guid))
+		guid_copy(&nd_label->abstraction_guid,
+				to_abstraction_guid(ndns->claim_class,
+					&nd_label->abstraction_guid));
+	if (namespace_label_has(ndd, checksum)) {
+		u64 sum;
+
+		nd_label->checksum = __cpu_to_le64(0);
+		sum = nd_fletcher64(nd_label, sizeof_namespace_label(ndd), 1);
+		nd_label->checksum = __cpu_to_le64(sum);
+	}
+	nd_dbg_dpa(nd_region, ndd, res, "\n");
 
 	/* update label */
 	offset = nd_label_offset(ndd, nd_label);
 	rc = nvdimm_set_config_data(ndd, offset, nd_label,
-			sizeof(struct nd_namespace_label));
+			sizeof_namespace_label(ndd));
 	if (rc < 0)
 		return rc;
 
 	/* Garbage collect the previous label */
-	victim_label = nd_mapping->labels[0];
-	if (victim_label) {
-		slot = to_slot(ndd, victim_label);
+	mutex_lock(&nd_mapping->lock);
+	list_for_each_entry(label_ent, &nd_mapping->labels, list) {
+		if (!label_ent->label)
+			continue;
+		if (memcmp(nspm->uuid, label_ent->label->uuid,
+					NSLABEL_UUID_LEN) != 0)
+			continue;
+		victim = label_ent;
+		list_move_tail(&victim->list, &nd_mapping->labels);
+		break;
+	}
+	if (victim) {
+		dev_dbg(ndd->dev, "free: %d\n", slot);
+		slot = to_slot(ndd, victim->label);
 		nd_label_free_slot(ndd, slot);
-		dev_dbg(ndd->dev, "%s: free: %d\n", __func__, slot);
+		victim->label = NULL;
 	}
 
 	/* update index */
 	rc = nd_label_write_index(ndd, ndd->ns_next,
 			nd_inc_seq(__le32_to_cpu(nsindex->seq)), 0);
-	if (rc < 0)
-		return rc;
+	if (rc == 0) {
+		list_for_each_entry(label_ent, &nd_mapping->labels, list)
+			if (!label_ent->label) {
+				label_ent->label = nd_label;
+				nd_label = NULL;
+				break;
+			}
+		dev_WARN_ONCE(&nspm->nsio.common.dev, nd_label,
+				"failed to track label: %d\n",
+				to_slot(ndd, nd_label));
+		if (nd_label)
+			rc = -ENXIO;
+	}
+	mutex_unlock(&nd_mapping->lock);
 
-	nd_mapping->labels[0] = nd_label;
-
-	return 0;
-}
-
-static void del_label(struct nd_mapping *nd_mapping, int l)
-{
-	struct nd_namespace_label *next_label, *nd_label;
-	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
-	unsigned int slot;
-	int j;
-
-	nd_label = nd_mapping->labels[l];
-	slot = to_slot(ndd, nd_label);
-	dev_vdbg(ndd->dev, "%s: clear: %d\n", __func__, slot);
-
-	for (j = l; (next_label = nd_mapping->labels[j + 1]); j++)
-		nd_mapping->labels[j] = next_label;
-	nd_mapping->labels[j] = NULL;
+	return rc;
 }
 
 static bool is_old_resource(struct resource *res, struct resource **list, int n)
@@ -607,14 +773,19 @@ static int __blk_label_update(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, struct nd_namespace_blk *nsblk,
 		int num_labels)
 {
-	int i, l, alloc, victims, nfree, old_num_resources, nlabel, rc = -ENXIO;
+	int i, alloc, victims, nfree, old_num_resources, nlabel, rc = -ENXIO;
+	struct nd_interleave_set *nd_set = nd_region->nd_set;
+	struct nd_namespace_common *ndns = &nsblk->common;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_namespace_label *nd_label;
+	struct nd_label_ent *label_ent, *e;
 	struct nd_namespace_index *nsindex;
 	unsigned long *free, *victim_map = NULL;
 	struct resource *res, **old_res_list;
 	struct nd_label_id label_id;
 	u8 uuid[NSLABEL_UUID_LEN];
+	int min_dpa_idx = 0;
+	LIST_HEAD(list);
 	u32 nslot, slot;
 
 	if (!preamble_next(ndd, &nsindex, &free, &nslot))
@@ -650,7 +821,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 
 		/* mark unused labels for garbage collection */
 		for_each_clear_bit_le(slot, free, nslot) {
-			nd_label = nd_label_base(ndd) + slot;
+			nd_label = to_label(ndd, slot);
 			memcpy(uuid, nd_label->uuid, NSLABEL_UUID_LEN);
 			if (memcmp(uuid, nsblk->uuid, NSLABEL_UUID_LEN) != 0)
 				continue;
@@ -685,6 +856,18 @@ static int __blk_label_update(struct nd_region *nd_region,
 		}
 	}
 
+	/*
+	 * Find the resource associated with the first label in the set
+	 * per the v1.2 namespace specification.
+	 */
+	for (i = 0; i < nsblk->num_resources; i++) {
+		struct resource *min = nsblk->res[min_dpa_idx];
+
+		res = nsblk->res[i];
+		if (res->start < min->start)
+			min_dpa_idx = i;
+	}
+
 	for (i = 0; i < nsblk->num_resources; i++) {
 		size_t offset;
 
@@ -694,34 +877,67 @@ static int __blk_label_update(struct nd_region *nd_region,
 		slot = nd_label_alloc_slot(ndd);
 		if (slot == UINT_MAX)
 			goto abort;
-		dev_dbg(ndd->dev, "%s: allocated: %d\n", __func__, slot);
+		dev_dbg(ndd->dev, "allocated: %d\n", slot);
 
-		nd_label = nd_label_base(ndd) + slot;
-		memset(nd_label, 0, sizeof(struct nd_namespace_label));
+		nd_label = to_label(ndd, slot);
+		memset(nd_label, 0, sizeof_namespace_label(ndd));
 		memcpy(nd_label->uuid, nsblk->uuid, NSLABEL_UUID_LEN);
 		if (nsblk->alt_name)
 			memcpy(nd_label->name, nsblk->alt_name,
 					NSLABEL_NAME_LEN);
 		nd_label->flags = __cpu_to_le32(NSLABEL_FLAG_LOCAL);
-		nd_label->nlabel = __cpu_to_le16(0); /* N/A */
-		nd_label->position = __cpu_to_le16(0); /* N/A */
-		nd_label->isetcookie = __cpu_to_le64(0); /* N/A */
+
+		/*
+		 * Use the presence of the type_guid as a flag to
+		 * determine isetcookie usage and nlabel + position
+		 * policy for blk-aperture namespaces.
+		 */
+		if (namespace_label_has(ndd, type_guid)) {
+			if (i == min_dpa_idx) {
+				nd_label->nlabel = __cpu_to_le16(nsblk->num_resources);
+				nd_label->position = __cpu_to_le16(0);
+			} else {
+				nd_label->nlabel = __cpu_to_le16(0xffff);
+				nd_label->position = __cpu_to_le16(0xffff);
+			}
+			nd_label->isetcookie = __cpu_to_le64(nd_set->cookie2);
+		} else {
+			nd_label->nlabel = __cpu_to_le16(0); /* N/A */
+			nd_label->position = __cpu_to_le16(0); /* N/A */
+			nd_label->isetcookie = __cpu_to_le64(0); /* N/A */
+		}
+
 		nd_label->dpa = __cpu_to_le64(res->start);
 		nd_label->rawsize = __cpu_to_le64(resource_size(res));
 		nd_label->lbasize = __cpu_to_le64(nsblk->lbasize);
 		nd_label->slot = __cpu_to_le32(slot);
+		if (namespace_label_has(ndd, type_guid))
+			guid_copy(&nd_label->type_guid, &nd_set->type_guid);
+		if (namespace_label_has(ndd, abstraction_guid))
+			guid_copy(&nd_label->abstraction_guid,
+					to_abstraction_guid(ndns->claim_class,
+						&nd_label->abstraction_guid));
+
+		if (namespace_label_has(ndd, checksum)) {
+			u64 sum;
+
+			nd_label->checksum = __cpu_to_le64(0);
+			sum = nd_fletcher64(nd_label,
+					sizeof_namespace_label(ndd), 1);
+			nd_label->checksum = __cpu_to_le64(sum);
+		}
 
 		/* update label */
 		offset = nd_label_offset(ndd, nd_label);
 		rc = nvdimm_set_config_data(ndd, offset, nd_label,
-				sizeof(struct nd_namespace_label));
+				sizeof_namespace_label(ndd));
 		if (rc < 0)
 			goto abort;
 	}
 
 	/* free up now unused slots in the new index */
 	for_each_set_bit(slot, victim_map, victim_map ? nslot : 0) {
-		dev_dbg(ndd->dev, "%s: free: %d\n", __func__, slot);
+		dev_dbg(ndd->dev, "free: %d\n", slot);
 		nd_label_free_slot(ndd, slot);
 	}
 
@@ -736,15 +952,22 @@ static int __blk_label_update(struct nd_region *nd_region,
 	 * entries in nd_mapping->labels
 	 */
 	nlabel = 0;
-	for_each_label(l, nd_label, nd_mapping->labels) {
+	mutex_lock(&nd_mapping->lock);
+	list_for_each_entry_safe(label_ent, e, &nd_mapping->labels, list) {
+		nd_label = label_ent->label;
+		if (!nd_label)
+			continue;
 		nlabel++;
 		memcpy(uuid, nd_label->uuid, NSLABEL_UUID_LEN);
 		if (memcmp(uuid, nsblk->uuid, NSLABEL_UUID_LEN) != 0)
 			continue;
 		nlabel--;
-		del_label(nd_mapping, l);
-		l--; /* retry with the new label at this index */
+		list_move(&label_ent->list, &list);
+		label_ent->label = NULL;
 	}
+	list_splice_tail_init(&list, &nd_mapping->labels);
+	mutex_unlock(&nd_mapping->lock);
+
 	if (nlabel + nsblk->num_resources > num_labels) {
 		/*
 		 * Bug, we can't end up with more resources than
@@ -755,18 +978,35 @@ static int __blk_label_update(struct nd_region *nd_region,
 		goto out;
 	}
 
+	mutex_lock(&nd_mapping->lock);
+	label_ent = list_first_entry_or_null(&nd_mapping->labels,
+			typeof(*label_ent), list);
+	if (!label_ent) {
+		WARN_ON(1);
+		mutex_unlock(&nd_mapping->lock);
+		rc = -ENXIO;
+		goto out;
+	}
 	for_each_clear_bit_le(slot, free, nslot) {
-		nd_label = nd_label_base(ndd) + slot;
+		nd_label = to_label(ndd, slot);
 		memcpy(uuid, nd_label->uuid, NSLABEL_UUID_LEN);
 		if (memcmp(uuid, nsblk->uuid, NSLABEL_UUID_LEN) != 0)
 			continue;
 		res = to_resource(ndd, nd_label);
 		res->flags &= ~DPA_RESOURCE_ADJUSTED;
-		dev_vdbg(&nsblk->common.dev, "assign label[%d] slot: %d\n",
-				l, slot);
-		nd_mapping->labels[l++] = nd_label;
+		dev_vdbg(&nsblk->common.dev, "assign label slot: %d\n", slot);
+		list_for_each_entry_from(label_ent, &nd_mapping->labels, list) {
+			if (label_ent->label)
+				continue;
+			label_ent->label = nd_label;
+			nd_label = NULL;
+			break;
+		}
+		if (nd_label)
+			dev_WARN(&nsblk->common.dev,
+					"failed to track label slot%d\n", slot);
 	}
-	nd_mapping->labels[l] = NULL;
+	mutex_unlock(&nd_mapping->lock);
 
  out:
 	kfree(old_res_list);
@@ -788,32 +1028,28 @@ static int __blk_label_update(struct nd_region *nd_region,
 
 static int init_labels(struct nd_mapping *nd_mapping, int num_labels)
 {
-	int i, l, old_num_labels = 0;
+	int i, old_num_labels = 0;
+	struct nd_label_ent *label_ent;
 	struct nd_namespace_index *nsindex;
-	struct nd_namespace_label *nd_label;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
-	size_t size = (num_labels + 1) * sizeof(struct nd_namespace_label *);
 
-	for_each_label(l, nd_label, nd_mapping->labels)
+	mutex_lock(&nd_mapping->lock);
+	list_for_each_entry(label_ent, &nd_mapping->labels, list)
 		old_num_labels++;
+	mutex_unlock(&nd_mapping->lock);
 
 	/*
 	 * We need to preserve all the old labels for the mapping so
 	 * they can be garbage collected after writing the new labels.
 	 */
-	if (num_labels > old_num_labels) {
-		struct nd_namespace_label **labels;
-
-		labels = krealloc(nd_mapping->labels, size, GFP_KERNEL);
-		if (!labels)
+	for (i = old_num_labels; i < num_labels; i++) {
+		label_ent = kzalloc(sizeof(*label_ent), GFP_KERNEL);
+		if (!label_ent)
 			return -ENOMEM;
-		nd_mapping->labels = labels;
+		mutex_lock(&nd_mapping->lock);
+		list_add_tail(&label_ent->list, &nd_mapping->labels);
+		mutex_unlock(&nd_mapping->lock);
 	}
-	if (!nd_mapping->labels)
-		return -ENOMEM;
-
-	for (i = old_num_labels; i <= num_labels; i++)
-		nd_mapping->labels[i] = NULL;
 
 	if (ndd->ns_current == -1 || ndd->ns_next == -1)
 		/* pass */;
@@ -823,7 +1059,7 @@ static int init_labels(struct nd_mapping *nd_mapping, int num_labels)
 	nsindex = to_namespace_index(ndd, 0);
 	memset(nsindex, 0, ndd->nsarea.config_size);
 	for (i = 0; i < 2; i++) {
-		int rc = nd_label_write_index(ndd, i, i*2, ND_NSINDEX_INIT);
+		int rc = nd_label_write_index(ndd, i, 3 - i, ND_NSINDEX_INIT);
 
 		if (rc)
 			return rc;
@@ -837,42 +1073,45 @@ static int init_labels(struct nd_mapping *nd_mapping, int num_labels)
 static int del_labels(struct nd_mapping *nd_mapping, u8 *uuid)
 {
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
-	struct nd_namespace_label *nd_label;
+	struct nd_label_ent *label_ent, *e;
 	struct nd_namespace_index *nsindex;
 	u8 label_uuid[NSLABEL_UUID_LEN];
-	int l, num_freed = 0;
 	unsigned long *free;
+	LIST_HEAD(list);
 	u32 nslot, slot;
+	int active = 0;
 
 	if (!uuid)
 		return 0;
 
 	/* no index || no labels == nothing to delete */
-	if (!preamble_next(ndd, &nsindex, &free, &nslot)
-			|| !nd_mapping->labels)
+	if (!preamble_next(ndd, &nsindex, &free, &nslot))
 		return 0;
 
-	for_each_label(l, nd_label, nd_mapping->labels) {
+	mutex_lock(&nd_mapping->lock);
+	list_for_each_entry_safe(label_ent, e, &nd_mapping->labels, list) {
+		struct nd_namespace_label *nd_label = label_ent->label;
+
+		if (!nd_label)
+			continue;
+		active++;
 		memcpy(label_uuid, nd_label->uuid, NSLABEL_UUID_LEN);
 		if (memcmp(label_uuid, uuid, NSLABEL_UUID_LEN) != 0)
 			continue;
+		active--;
 		slot = to_slot(ndd, nd_label);
 		nd_label_free_slot(ndd, slot);
-		dev_dbg(ndd->dev, "%s: free: %d\n", __func__, slot);
-		del_label(nd_mapping, l);
-		num_freed++;
-		l--; /* retry with new label at this index */
+		dev_dbg(ndd->dev, "free: %d\n", slot);
+		list_move_tail(&label_ent->list, &list);
+		label_ent->label = NULL;
 	}
+	list_splice_tail_init(&list, &nd_mapping->labels);
 
-	if (num_freed > l) {
-		/*
-		 * num_freed will only ever be > l when we delete the last
-		 * label
-		 */
-		kfree(nd_mapping->labels);
-		nd_mapping->labels = NULL;
-		dev_dbg(ndd->dev, "%s: no more labels\n", __func__);
+	if (active == 0) {
+		nd_mapping_free_labels(nd_mapping);
+		dev_dbg(ndd->dev, "no more active labels\n");
 	}
+	mutex_unlock(&nd_mapping->lock);
 
 	return nd_label_write_index(ndd, ndd->ns_next,
 			nd_inc_seq(__le32_to_cpu(nsindex->seq)), 0);
@@ -885,7 +1124,9 @@ int nd_pmem_namespace_label_update(struct nd_region *nd_region,
 
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
-		int rc;
+		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+		struct resource *res;
+		int rc, count = 0;
 
 		if (size == 0) {
 			rc = del_labels(nd_mapping, nspm->uuid);
@@ -894,7 +1135,12 @@ int nd_pmem_namespace_label_update(struct nd_region *nd_region,
 			continue;
 		}
 
-		rc = init_labels(nd_mapping, 1);
+		for_each_dpa_resource(ndd, res)
+			if (strncmp(res->name, "pmem", 4) == 0)
+				count++;
+		WARN_ON_ONCE(!count);
+
+		rc = init_labels(nd_mapping, count);
 		if (rc < 0)
 			return rc;
 
@@ -924,4 +1170,14 @@ int nd_blk_namespace_label_update(struct nd_region *nd_region,
 		return count;
 
 	return __blk_label_update(nd_region, nd_mapping, nsblk, count);
+}
+
+int __init nd_label_init(void)
+{
+	WARN_ON(guid_parse(NVDIMM_BTT_GUID, &nvdimm_btt_guid));
+	WARN_ON(guid_parse(NVDIMM_BTT2_GUID, &nvdimm_btt2_guid));
+	WARN_ON(guid_parse(NVDIMM_PFN_GUID, &nvdimm_pfn_guid));
+	WARN_ON(guid_parse(NVDIMM_DAX_GUID, &nvdimm_dax_guid));
+
+	return 0;
 }

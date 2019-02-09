@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC_CELL
 	bool
 	default n
@@ -17,10 +18,10 @@ config PPC_CELL_NATIVE
 	select PPC_CELL_COMMON
 	select MPIC
 	select PPC_IO_WORKAROUNDS
-	select IBM_EMAC_EMAC4
-	select IBM_EMAC_RGMII
-	select IBM_EMAC_ZMII #test only
-	select IBM_EMAC_TAH  #test only
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_RGMII if IBM_EMAC
+	select IBM_EMAC_ZMII if IBM_EMAC #test only
+	select IBM_EMAC_TAH if IBM_EMAC  #test only
 	default n
 
 config PPC_IBM_CELL_BLADE
@@ -32,11 +33,6 @@ config PPC_IBM_CELL_BLADE
 	select MMIO_NVRAM
 	select PPC_UDBG_16550
 	select UDBG_RTAS_CONSOLE
-
-config PPC_CELL_QPACE
-	bool "IBM Cell - QPACE"
-	depends on PPC64 && PPC_BOOK3S && CPU_BIG_ENDIAN
-	select PPC_CELL_COMMON
 
 config AXON_MSI
 	bool
@@ -51,7 +47,6 @@ config SPU_FS
 	default m
 	depends on PPC_CELL
 	select SPU_BASE
-	select MEMORY_HOTPLUG
 	help
 	  The SPU file system is used to access Synergistic Processing
 	  Units on machines implementing the Broadband Processor

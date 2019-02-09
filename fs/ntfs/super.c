@@ -473,7 +473,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 
 #ifndef NTFS_RW
 	/* For read-only compiled driver, enforce read-only flag. */
-	*flags |= MS_RDONLY;
+	*flags |= SB_RDONLY;
 #else /* NTFS_RW */
 	/*
 	 * For the read-write compiled driver, if we are remounting read-write,
@@ -487,7 +487,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 	 * When remounting read-only, mark the volume clean if no volume errors
 	 * have occurred.
 	 */
-	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
+	if (sb_rdonly(sb) && !(*flags & SB_RDONLY)) {
 		static const char *es = ".  Cannot remount read-write.";
 
 		/* Remounting read-write. */
@@ -548,7 +548,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 			NVolSetErrors(vol);
 			return -EROFS;
 		}
-	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY)) {
+	} else if (!sb_rdonly(sb) && (*flags & SB_RDONLY)) {
 		/* Remounting read-only. */
 		if (!NVolErrors(vol)) {
 			if (ntfs_clear_volume_flags(vol, VOLUME_IS_DIRTY))
@@ -732,7 +732,7 @@ hotfix_primary_boot_sector:
 		 * on a large sector device contains the whole boot loader or
 		 * just the first 512 bytes).
 		 */
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			ntfs_warning(sb, "Hot-fix: Recovering invalid primary "
 					"boot sector from backup copy.");
 			memcpy(bh_primary->b_data, bh_backup->b_data,
@@ -823,14 +823,14 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	ntfs_debug("vol->mft_record_size_bits = %i (0x%x)",
 			vol->mft_record_size_bits, vol->mft_record_size_bits);
 	/*
-	 * We cannot support mft record sizes above the PAGE_CACHE_SIZE since
+	 * We cannot support mft record sizes above the PAGE_SIZE since
 	 * we store $MFT/$DATA, the table of mft records in the page cache.
 	 */
-	if (vol->mft_record_size > PAGE_CACHE_SIZE) {
+	if (vol->mft_record_size > PAGE_SIZE) {
 		ntfs_error(vol->sb, "Mft record size (%i) exceeds the "
-				"PAGE_CACHE_SIZE on your system (%lu).  "
+				"PAGE_SIZE on your system (%lu).  "
 				"This is not supported.  Sorry.",
-				vol->mft_record_size, PAGE_CACHE_SIZE);
+				vol->mft_record_size, PAGE_SIZE);
 		return false;
 	}
 	/* We cannot support mft record sizes below the sector size. */
@@ -1096,7 +1096,7 @@ static bool check_mft_mirror(ntfs_volume *vol)
 
 	ntfs_debug("Entering.");
 	/* Compare contents of $MFT and $MFTMirr. */
-	mrecs_per_page = PAGE_CACHE_SIZE / vol->mft_record_size;
+	mrecs_per_page = PAGE_SIZE / vol->mft_record_size;
 	BUG_ON(!mrecs_per_page);
 	BUG_ON(!vol->mftmirr_size);
 	mft_page = mirr_page = NULL;
@@ -1284,10 +1284,10 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 	 * Find the inode number for the hibernation file by looking up the
 	 * filename hiberfil.sys in the root directory.
 	 */
-	mutex_lock(&vol->root_ino->i_mutex);
+	inode_lock(vol->root_ino);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->root_ino), hiberfil, 12,
 			&name);
-	mutex_unlock(&vol->root_ino->i_mutex);
+	inode_unlock(vol->root_ino);
 	if (IS_ERR_MREF(mref)) {
 		ret = MREF_ERR(mref);
 		/* If the file does not exist, Windows is not hibernated. */
@@ -1377,10 +1377,10 @@ static bool load_and_init_quota(ntfs_volume *vol)
 	 * Find the inode number for the quota file by looking up the filename
 	 * $Quota in the extended system files directory $Extend.
 	 */
-	mutex_lock(&vol->extend_ino->i_mutex);
+	inode_lock(vol->extend_ino);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), Quota, 6,
 			&name);
-	mutex_unlock(&vol->extend_ino->i_mutex);
+	inode_unlock(vol->extend_ino);
 	if (IS_ERR_MREF(mref)) {
 		/*
 		 * If the file does not exist, quotas are disabled and have
@@ -1460,10 +1460,10 @@ static bool load_and_init_usnjrnl(ntfs_volume *vol)
 	 * Find the inode number for the transaction log file by looking up the
 	 * filename $UsnJrnl in the extended system files directory $Extend.
 	 */
-	mutex_lock(&vol->extend_ino->i_mutex);
+	inode_lock(vol->extend_ino);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), UsnJrnl, 8,
 			&name);
-	mutex_unlock(&vol->extend_ino->i_mutex);
+	inode_unlock(vol->extend_ino);
 	if (IS_ERR_MREF(mref)) {
 		/*
 		 * If the file does not exist, transaction logging is disabled,
@@ -1615,20 +1615,20 @@ static bool load_and_init_attrdef(ntfs_volume *vol)
 	if (!vol->attrdef)
 		goto iput_failed;
 	index = 0;
-	max_index = i_size >> PAGE_CACHE_SHIFT;
-	size = PAGE_CACHE_SIZE;
+	max_index = i_size >> PAGE_SHIFT;
+	size = PAGE_SIZE;
 	while (index < max_index) {
 		/* Read the attrdef table and copy it into the linear buffer. */
 read_partial_attrdef_page:
 		page = ntfs_map_page(ino->i_mapping, index);
 		if (IS_ERR(page))
 			goto free_iput_failed;
-		memcpy((u8*)vol->attrdef + (index++ << PAGE_CACHE_SHIFT),
+		memcpy((u8*)vol->attrdef + (index++ << PAGE_SHIFT),
 				page_address(page), size);
 		ntfs_unmap_page(page);
 	};
-	if (size == PAGE_CACHE_SIZE) {
-		size = i_size & ~PAGE_CACHE_MASK;
+	if (size == PAGE_SIZE) {
+		size = i_size & ~PAGE_MASK;
 		if (size)
 			goto read_partial_attrdef_page;
 	}
@@ -1684,20 +1684,20 @@ static bool load_and_init_upcase(ntfs_volume *vol)
 	if (!vol->upcase)
 		goto iput_upcase_failed;
 	index = 0;
-	max_index = i_size >> PAGE_CACHE_SHIFT;
-	size = PAGE_CACHE_SIZE;
+	max_index = i_size >> PAGE_SHIFT;
+	size = PAGE_SIZE;
 	while (index < max_index) {
 		/* Read the upcase table and copy it into the linear buffer. */
 read_partial_upcase_page:
 		page = ntfs_map_page(ino->i_mapping, index);
 		if (IS_ERR(page))
 			goto iput_upcase_failed;
-		memcpy((char*)vol->upcase + (index++ << PAGE_CACHE_SHIFT),
+		memcpy((char*)vol->upcase + (index++ << PAGE_SHIFT),
 				page_address(page), size);
 		ntfs_unmap_page(page);
 	};
-	if (size == PAGE_CACHE_SIZE) {
-		size = i_size & ~PAGE_CACHE_MASK;
+	if (size == PAGE_SIZE) {
+		size = i_size & ~PAGE_MASK;
 		if (size)
 			goto read_partial_upcase_page;
 	}
@@ -1789,7 +1789,7 @@ static bool load_system_files(ntfs_volume *vol)
 		static const char *es3 = ".  Run ntfsfix and/or chkdsk.";
 
 		/* If a read-write mount, convert it to a read-only mount. */
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
@@ -1799,7 +1799,7 @@ static bool load_system_files(ntfs_volume *vol)
 						es3);
 				goto iput_mirr_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s",
 					!vol->mftmirr_ino ? es1 : es2, es3);
 		} else
@@ -1928,7 +1928,7 @@ get_ctx_vol_failed:
 					(unsigned)le16_to_cpu(vol->vol_flags));
 		}
 		/* If a read-write mount, convert it to a read-only mount. */
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
@@ -1937,7 +1937,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_vol_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -1961,7 +1961,7 @@ get_ctx_vol_failed:
 
 		es1 = !vol->logfile_ino ? es1a : es1b;
 		/* If a read-write mount, convert it to a read-only mount. */
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
@@ -1974,7 +1974,7 @@ get_ctx_vol_failed:
 				}
 				goto iput_logfile_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2010,7 +2010,7 @@ get_ctx_vol_failed:
 
 		es1 = err < 0 ? es1a : es1b;
 		/* If a read-write mount, convert it to a read-only mount. */
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
@@ -2019,7 +2019,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_root_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2028,8 +2028,7 @@ get_ctx_vol_failed:
 		NVolSetErrors(vol);
 	}
 	/* If (still) a read-write mount, mark the volume dirty. */
-	if (!(sb->s_flags & MS_RDONLY) &&
-			ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY)) {
+	if (!sb_rdonly(sb) && ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY)) {
 		static const char *es1 = "Failed to set dirty bit in volume "
 				"information flags";
 		static const char *es2 = ".  Run chkdsk.";
@@ -2043,7 +2042,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		/*
 		 * Do not set NVolErrors() because ntfs_remount() might manage
 		 * to set the dirty flag in which case all would be well.
@@ -2056,7 +2055,7 @@ get_ctx_vol_failed:
 	 * If (still) a read-write mount, set the NT4 compatibility flag on
 	 * newer NTFS version volumes.
 	 */
-	if (!(sb->s_flags & MS_RDONLY) && (vol->major_ver > 1) &&
+	if (!(sb->s_flags & SB_RDONLY) && (vol->major_ver > 1) &&
 			ntfs_set_volume_flags(vol, VOLUME_MOUNTED_ON_NT4)) {
 		static const char *es1 = "Failed to set NT4 compatibility flag";
 		static const char *es2 = ".  Run chkdsk.";
@@ -2070,13 +2069,12 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif
 	/* If (still) a read-write mount, empty the logfile. */
-	if (!(sb->s_flags & MS_RDONLY) &&
-			!ntfs_empty_logfile(vol->logfile_ino)) {
+	if (!sb_rdonly(sb) && !ntfs_empty_logfile(vol->logfile_ino)) {
 		static const char *es1 = "Failed to empty $LogFile";
 		static const char *es2 = ".  Mount in Windows.";
 
@@ -2089,7 +2087,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
@@ -2121,7 +2119,7 @@ get_ctx_vol_failed:
 		static const char *es2 = ".  Run chkdsk.";
 
 		/* If a read-write mount, convert it to a read-only mount. */
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
@@ -2130,7 +2128,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_quota_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2139,8 +2137,7 @@ get_ctx_vol_failed:
 		NVolSetErrors(vol);
 	}
 	/* If (still) a read-write mount, mark the quotas out of date. */
-	if (!(sb->s_flags & MS_RDONLY) &&
-			!ntfs_mark_quotas_out_of_date(vol)) {
+	if (!sb_rdonly(sb) && !ntfs_mark_quotas_out_of_date(vol)) {
 		static const char *es1 = "Failed to mark quotas out of date";
 		static const char *es2 = ".  Run chkdsk.";
 
@@ -2153,7 +2150,7 @@ get_ctx_vol_failed:
 			goto iput_quota_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		NVolSetErrors(vol);
 	}
 	/*
@@ -2165,7 +2162,7 @@ get_ctx_vol_failed:
 		static const char *es2 = ".  Run chkdsk.";
 
 		/* If a read-write mount, convert it to a read-only mount. */
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
@@ -2174,7 +2171,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_usnjrnl_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2183,7 +2180,7 @@ get_ctx_vol_failed:
 		NVolSetErrors(vol);
 	}
 	/* If (still) a read-write mount, stamp the transaction log. */
-	if (!(sb->s_flags & MS_RDONLY) && !ntfs_stamp_usnjrnl(vol)) {
+	if (!sb_rdonly(sb) && !ntfs_stamp_usnjrnl(vol)) {
 		static const char *es1 = "Failed to stamp transaction log "
 				"($UsnJrnl)";
 		static const char *es2 = ".  Run chkdsk.";
@@ -2197,7 +2194,7 @@ get_ctx_vol_failed:
 			goto iput_usnjrnl_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
@@ -2314,7 +2311,7 @@ static void ntfs_put_super(struct super_block *sb)
 	 * If a read-write mount and no volume errors have occurred, mark the
 	 * volume clean.  Also, re-commit all affected inodes.
 	 */
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		if (!NVolErrors(vol)) {
 			if (ntfs_clear_volume_flags(vol, VOLUME_IS_DIRTY))
 				ntfs_warning(sb, "Failed to clear dirty bit "
@@ -2471,14 +2468,14 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 	down_read(&vol->lcnbmp_lock);
 	/*
 	 * Convert the number of bits into bytes rounded up, then convert into
-	 * multiples of PAGE_CACHE_SIZE, rounding up so that if we have one
+	 * multiples of PAGE_SIZE, rounding up so that if we have one
 	 * full and one partial page max_index = 2.
 	 */
-	max_index = (((vol->nr_clusters + 7) >> 3) + PAGE_CACHE_SIZE - 1) >>
-			PAGE_CACHE_SHIFT;
-	/* Use multiples of 4 bytes, thus max_size is PAGE_CACHE_SIZE / 4. */
+	max_index = (((vol->nr_clusters + 7) >> 3) + PAGE_SIZE - 1) >>
+			PAGE_SHIFT;
+	/* Use multiples of 4 bytes, thus max_size is PAGE_SIZE / 4. */
 	ntfs_debug("Reading $Bitmap, max_index = 0x%lx, max_size = 0x%lx.",
-			max_index, PAGE_CACHE_SIZE / 4);
+			max_index, PAGE_SIZE / 4);
 	for (index = 0; index < max_index; index++) {
 		unsigned long *kaddr;
 
@@ -2491,7 +2488,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 		if (IS_ERR(page)) {
 			ntfs_debug("read_mapping_page() error. Skipping "
 					"page (index 0x%lx).", index);
-			nr_free -= PAGE_CACHE_SIZE * 8;
+			nr_free -= PAGE_SIZE * 8;
 			continue;
 		}
 		kaddr = kmap_atomic(page);
@@ -2503,9 +2500,9 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 		 * ntfs_readpage().
 		 */
 		nr_free -= bitmap_weight(kaddr,
-					PAGE_CACHE_SIZE * BITS_PER_BYTE);
+					PAGE_SIZE * BITS_PER_BYTE);
 		kunmap_atomic(kaddr);
-		page_cache_release(page);
+		put_page(page);
 	}
 	ntfs_debug("Finished reading $Bitmap, last index = 0x%lx.", index - 1);
 	/*
@@ -2547,9 +2544,9 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 	pgoff_t index;
 
 	ntfs_debug("Entering.");
-	/* Use multiples of 4 bytes, thus max_size is PAGE_CACHE_SIZE / 4. */
+	/* Use multiples of 4 bytes, thus max_size is PAGE_SIZE / 4. */
 	ntfs_debug("Reading $MFT/$BITMAP, max_index = 0x%lx, max_size = "
-			"0x%lx.", max_index, PAGE_CACHE_SIZE / 4);
+			"0x%lx.", max_index, PAGE_SIZE / 4);
 	for (index = 0; index < max_index; index++) {
 		unsigned long *kaddr;
 
@@ -2562,7 +2559,7 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		if (IS_ERR(page)) {
 			ntfs_debug("read_mapping_page() error. Skipping "
 					"page (index 0x%lx).", index);
-			nr_free -= PAGE_CACHE_SIZE * 8;
+			nr_free -= PAGE_SIZE * 8;
 			continue;
 		}
 		kaddr = kmap_atomic(page);
@@ -2574,9 +2571,9 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		 * ntfs_readpage().
 		 */
 		nr_free -= bitmap_weight(kaddr,
-					PAGE_CACHE_SIZE * BITS_PER_BYTE);
+					PAGE_SIZE * BITS_PER_BYTE);
 		kunmap_atomic(kaddr);
-		page_cache_release(page);
+		put_page(page);
 	}
 	ntfs_debug("Finished reading $MFT/$BITMAP, last index = 0x%lx.",
 			index - 1);
@@ -2618,17 +2615,17 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	/* Type of filesystem. */
 	sfs->f_type   = NTFS_SB_MAGIC;
 	/* Optimal transfer block size. */
-	sfs->f_bsize  = PAGE_CACHE_SIZE;
+	sfs->f_bsize  = PAGE_SIZE;
 	/*
 	 * Total data blocks in filesystem in units of f_bsize and since
 	 * inodes are also stored in data blocs ($MFT is a file) this is just
 	 * the total clusters.
 	 */
 	sfs->f_blocks = vol->nr_clusters << vol->cluster_size_bits >>
-				PAGE_CACHE_SHIFT;
+				PAGE_SHIFT;
 	/* Free data blocks in filesystem in units of f_bsize. */
 	size	      = get_nr_free_clusters(vol) << vol->cluster_size_bits >>
-				PAGE_CACHE_SHIFT;
+				PAGE_SHIFT;
 	if (size < 0LL)
 		size = 0LL;
 	/* Free blocks avail to non-superuser, same as above on NTFS. */
@@ -2639,11 +2636,11 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	size = i_size_read(vol->mft_ino) >> vol->mft_record_size_bits;
 	/*
 	 * Convert the maximum number of set bits into bytes rounded up, then
-	 * convert into multiples of PAGE_CACHE_SIZE, rounding up so that if we
+	 * convert into multiples of PAGE_SIZE, rounding up so that if we
 	 * have one full and one partial page max_index = 2.
 	 */
 	max_index = ((((mft_ni->initialized_size >> vol->mft_record_size_bits)
-			+ 7) >> 3) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+			+ 7) >> 3) + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
 	/* Number of inodes in filesystem (at this point in time). */
 	sfs->f_files = size;
@@ -2731,7 +2728,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	lockdep_off();
 	ntfs_debug("Entering.");
 #ifndef NTFS_RW
-	sb->s_flags |= MS_RDONLY;
+	sb->s_flags |= SB_RDONLY;
 #endif /* ! NTFS_RW */
 	/* Allocate a new ntfs_volume and place it in sb->s_fs_info. */
 	sb->s_fs_info = kmalloc(sizeof(ntfs_volume), GFP_NOFS);
@@ -2765,15 +2762,15 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	if (!parse_options(vol, (char*)opt))
 		goto err_out_now;
 
-	/* We support sector sizes up to the PAGE_CACHE_SIZE. */
-	if (bdev_logical_block_size(sb->s_bdev) > PAGE_CACHE_SIZE) {
+	/* We support sector sizes up to the PAGE_SIZE. */
+	if (bdev_logical_block_size(sb->s_bdev) > PAGE_SIZE) {
 		if (!silent)
 			ntfs_error(sb, "Device has unsupported sector size "
 					"(%i).  The maximum supported sector "
 					"size on this architecture is %lu "
 					"bytes.",
 					bdev_logical_block_size(sb->s_bdev),
-					PAGE_CACHE_SIZE);
+					PAGE_SIZE);
 		goto err_out_now;
 	}
 	/*
@@ -3139,8 +3136,8 @@ static int __init init_ntfs_fs(void)
 
 	ntfs_big_inode_cache = kmem_cache_create(ntfs_big_inode_cache_name,
 			sizeof(big_ntfs_inode), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
-			ntfs_big_inode_init_once);
+			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
+			SLAB_ACCOUNT, ntfs_big_inode_init_once);
 	if (!ntfs_big_inode_cache) {
 		pr_crit("Failed to create %s!\n", ntfs_big_inode_cache_name);
 		goto big_inode_err_out;

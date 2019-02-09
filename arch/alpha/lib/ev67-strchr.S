@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/alpha/lib/ev67-strchr.S
  * 21264 version contributed by Rick Gorton <rick.gorton@alpha-processor.com>
@@ -15,7 +16,7 @@
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
  * Try not to change the actual algorithm if possible for consistency.
  */
-
+#include <asm/export.h>
 #include <asm/regdef.h>
 
 	.set noreorder
@@ -86,3 +87,4 @@ $found:	negq    t0, t1		# E : clear all but least set bit
 	ret			# L0 :
 
 	.end strchr
+	EXPORT_SYMBOL(strchr)

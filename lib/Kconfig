@@ -46,10 +46,6 @@ config GENERIC_IOMAP
 	bool
 	select GENERIC_PCI_IOMAP
 
-config GENERIC_IO
-	bool
-	default n
-
 config STMP_DEVICE
 	bool
 
@@ -58,6 +54,22 @@ config ARCH_USE_CMPXCHG_LOCKREF
 
 config ARCH_HAS_FAST_MULTIPLIER
 	bool
+
+config INDIRECT_PIO
+	bool "Access I/O in non-MMIO mode"
+	depends on ARM64
+	help
+	  On some platforms where no separate I/O space exists, there are I/O
+	  hosts which can not be accessed in MMIO mode. Using the logical PIO
+	  mechanism, the host-local I/O resource can be mapped into system
+	  logic PIO space shared with MMIO hosts, such as PCI/PCIe, then the
+	  system can access the I/O devices with the mapped-logic PIO through
+	  I/O accessors.
+
+	  This way has relatively little I/O performance cost. Please make
+	  sure your devices really need this configure item enabled.
+
+	  When in doubt, say N.
 
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
@@ -103,8 +115,7 @@ config CRC32
 	  functions require M here.
 
 config CRC32_SELFTEST
-	bool "CRC32 perform self test on init"
-	default n
+	tristate "CRC32 perform self test on init"
 	depends on CRC32
 	help
 	  This option enables the CRC32 library functions to perform a
@@ -159,6 +170,22 @@ config CRC32_BIT
 
 endchoice
 
+config CRC64
+	tristate "CRC64 functions"
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require CRC64 functions, but a module built outside
+	  the kernel tree does. Such modules that use library CRC64
+	  functions require M here.
+
+config CRC4
+	tristate "CRC4 functions"
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require CRC4 functions, but a module built outside
+	  the kernel tree does. Such modules that use library CRC4
+	  functions require M here.
+
 config CRC7
 	tristate "CRC7 functions"
 	help
@@ -185,6 +212,9 @@ config CRC8
 	  when they need to do cyclic redundancy check according CRC8
 	  algorithm. Module will be called crc8.
 
+config XXHASH
+	tristate
+
 config AUDIT_GENERIC
 	bool
 	depends on AUDIT && !AUDIT_ARCH
@@ -201,7 +231,6 @@ config AUDIT_COMPAT_GENERIC
 
 config RANDOM32_SELFTEST
 	bool "PRNG perform self test on init"
-	default n
 	help
 	  This option enables the 32 bit PRNG library functions to perform a
 	  self test on initialization.
@@ -210,9 +239,11 @@ config RANDOM32_SELFTEST
 # compression support is select'ed if needed
 #
 config 842_COMPRESS
+	select CRC32
 	tristate
 
 config 842_DECOMPRESS
+	select CRC32
 	tristate
 
 config ZLIB_INFLATE
@@ -235,6 +266,14 @@ config LZ4HC_COMPRESS
 	tristate
 
 config LZ4_DECOMPRESS
+	tristate
+
+config ZSTD_COMPRESS
+	select XXHASH
+	tristate
+
+config ZSTD_DECOMPRESS
+	select XXHASH
 	tristate
 
 source "lib/xz/Kconfig"
@@ -360,6 +399,9 @@ config INTERVAL_TREE
 
 	  for more information.
 
+config RADIX_TREE_MULTIORDER
+	bool
+
 config ASSOCIATIVE_ARRAY
 	bool
 	help
@@ -370,7 +412,7 @@ config ASSOCIATIVE_ARRAY
 
 	  See:
 
-		Documentation/assoc_array.txt
+		Documentation/core-api/assoc_array.rst
 
 	  for more information.
 
@@ -385,10 +427,14 @@ config HAS_IOPORT_MAP
 	depends on HAS_IOMEM && !NO_IOPORT_MAP
 	default y
 
-config HAS_DMA
+source "kernel/dma/Kconfig"
+
+config SGL_ALLOC
 	bool
-	depends on !NO_DMA
-	default y
+	default n
+
+config IOMMU_HELPER
+	bool
 
 config CHECK_SIGNATURE
 	bool
@@ -427,8 +473,7 @@ config GLOB
 	  depends on this.
 
 config GLOB_SELFTEST
-	bool "glob self-test on init"
-	default n
+	tristate "glob self-test on init"
 	depends on GLOB
 	help
 	  This option enables a simple self-test of the glob_match
@@ -452,9 +497,6 @@ config NLATTR
 config GENERIC_ATOMIC64
        bool
 
-config ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
-	def_bool y if GENERIC_ATOMIC64
-
 config LRU_CACHE
 	tristate
 
@@ -474,6 +516,11 @@ config DDR
 	  particularly the AC timing parameters and addressing
 	  information. This data is useful for drivers handling
 	  DDR SDRAM controllers.
+
+config IRQ_POLL
+	bool "IRQ polling library"
+	help
+	  Helper library to poll interrupt mitigation using polling.
 
 config MPILIB
 	tristate
@@ -512,9 +559,16 @@ source "lib/fonts/Kconfig"
 config SG_SPLIT
 	def_bool n
 	help
-	 Provides a heler to split scatterlists into chunks, each chunk being a
-	 scatterlist. This should be selected by a driver or an API which
-	 whishes to split a scatterlist amongst multiple DMA channel.
+	 Provides a helper to split scatterlists into chunks, each chunk being
+	 a scatterlist. This should be selected by a driver or an API which
+	 whishes to split a scatterlist amongst multiple DMA channels.
+
+config SG_POOL
+	def_bool n
+	help
+	 Provides a helper to allocate chained scatterlists. This should be
+	 selected by a driver or an API which whishes to allocate chained
+	 scatterlist.
 
 #
 # sg chaining option
@@ -526,7 +580,44 @@ config ARCH_HAS_SG_CHAIN
 config ARCH_HAS_PMEM_API
 	bool
 
-config ARCH_HAS_MMIO_FLUSH
+config ARCH_HAS_UACCESS_FLUSHCACHE
 	bool
 
+config ARCH_HAS_UACCESS_MCSAFE
+	bool
+
+config STACKDEPOT
+	bool
+	select STACKTRACE
+
+config SBITMAP
+	bool
+
+config PARMAN
+	tristate "parman" if COMPILE_TEST
+
+config PRIME_NUMBERS
+	tristate
+
+config STRING_SELFTEST
+	tristate "Test string functions"
+
 endmenu
+
+config GENERIC_LIB_ASHLDI3
+	bool
+
+config GENERIC_LIB_ASHRDI3
+	bool
+
+config GENERIC_LIB_LSHRDI3
+	bool
+
+config GENERIC_LIB_MULDI3
+	bool
+
+config GENERIC_LIB_CMPDI2
+	bool
+
+config GENERIC_LIB_UCMPDI2
+	bool

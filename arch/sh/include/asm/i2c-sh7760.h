@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * MMIO/IRQ and platform data for SH7760 I2C channels
  */

@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <malloc.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "../utils.h"
+#include "utils.h"
 
 #define MAX_LEN 8192
 #define MAX_OFFSET 16

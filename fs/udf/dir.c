@@ -30,6 +30,7 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/bio.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"
@@ -42,10 +43,10 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 	struct udf_fileident_bh fibh = { .sbh = NULL, .ebh = NULL};
 	struct fileIdentDesc *fi = NULL;
 	struct fileIdentDesc cfi;
-	int block, iblock;
+	udf_pblk_t block, iblock;
 	loff_t nf_pos;
 	int flen;
-	unsigned char *fname = NULL;
+	unsigned char *fname = NULL, *copy_name = NULL;
 	unsigned char *nameptr;
 	uint16_t liu;
 	uint8_t lfi;
@@ -113,7 +114,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 					brelse(tmp);
 			}
 			if (num) {
-				ll_rw_block(READA, num, bha);
+				ll_rw_block(REQ_OP_READ, REQ_RAHEAD, num, bha);
 				for (i = 0; i < num; i++)
 					brelse(bha[i]);
 			}
@@ -143,7 +144,15 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 			if (poffset >= lfi) {
 				nameptr = (char *)(fibh.ebh->b_data + poffset - lfi);
 			} else {
-				nameptr = fname;
+				if (!copy_name) {
+					copy_name = kmalloc(UDF_NAME_LEN,
+							    GFP_NOFS);
+					if (!copy_name) {
+						ret = -ENOMEM;
+						goto out;
+					}
+				}
+				nameptr = copy_name;
 				memcpy(nameptr, fi->fileIdent + liu,
 				       lfi - poffset);
 				memcpy(nameptr + lfi - poffset,
@@ -185,6 +194,7 @@ out:
 	brelse(fibh.sbh);
 	brelse(epos.bh);
 	kfree(fname);
+	kfree(copy_name);
 
 	return ret;
 }
@@ -193,7 +203,7 @@ out:
 const struct file_operations udf_dir_operations = {
 	.llseek			= generic_file_llseek,
 	.read			= generic_read_dir,
-	.iterate		= udf_readdir,
+	.iterate_shared		= udf_readdir,
 	.unlocked_ioctl		= udf_ioctl,
 	.fsync			= generic_file_fsync,
 };

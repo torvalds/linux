@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Freescale QUICC Engine USB Host Controller Driver
  *
@@ -8,11 +9,6 @@
  *               Peter Barada <peterb@logicpd.com>
  * Copyright (c) MontaVista Software, Inc. 2008.
  *               Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef __FHCI_H
@@ -27,8 +23,8 @@
 #include <linux/io.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
-#include <asm/qe.h>
-#include <asm/immap_qe.h>
+#include <soc/fsl/qe/qe.h>
+#include <soc/fsl/qe/immap_qe.h>
 
 #define USB_CLOCK	48000000
 
@@ -266,8 +262,6 @@ struct fhci_hcd {
 #ifdef CONFIG_FHCI_DEBUG
 	int usb_irq_stat[13];
 	struct dentry *dfs_root;
-	struct dentry *dfs_regs;
-	struct dentry *dfs_irq_stat;
 #endif
 };
 

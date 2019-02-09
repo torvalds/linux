@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_NEIGHBOUR_H
 #define __LINUX_NEIGHBOUR_H
 
@@ -26,6 +27,7 @@ enum {
 	NDA_IFINDEX,
 	NDA_MASTER,
 	NDA_LINK_NETNSID,
+	NDA_SRC_VNI,
 	__NDA_MAX
 };
 
@@ -40,6 +42,7 @@ enum {
 #define NTF_MASTER	0x04
 #define NTF_PROXY	0x08	/* == ATF_PUBL */
 #define NTF_EXT_LEARNED	0x10
+#define NTF_OFFLOADED   0x20
 #define NTF_ROUTER	0x80
 
 /*
@@ -128,6 +131,7 @@ enum {
 	NDTPA_LOCKTIME,			/* u64, msecs */
 	NDTPA_QUEUE_LENBYTES,		/* u32 */
 	NDTPA_MCAST_REPROBES,		/* u32 */
+	NDTPA_PAD,
 	__NDTPA_MAX
 };
 #define NDTPA_MAX (__NDTPA_MAX - 1)
@@ -160,6 +164,7 @@ enum {
 	NDTA_PARMS,			/* nested TLV NDTPA_* */
 	NDTA_STATS,			/* struct ndt_stats, read-only */
 	NDTA_GC_INTERVAL,		/* u64, msecs */
+	NDTA_PAD,
 	__NDTA_MAX
 };
 #define NDTA_MAX (__NDTA_MAX - 1)

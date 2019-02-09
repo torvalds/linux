@@ -74,6 +74,7 @@ struct pie_sched_data {
 	struct pie_vars vars;
 	struct pie_stats stats;
 	struct timer_list adapt_timer;
+	struct Qdisc *sch;
 };
 
 static void pie_params_init(struct pie_params *params)
@@ -134,7 +135,8 @@ static bool drop_early(struct Qdisc *sch, u32 packet_size)
 	return false;
 }
 
-static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+			     struct sk_buff **to_free)
 {
 	struct pie_sched_data *q = qdisc_priv(sch);
 	bool enqueue = false;
@@ -166,7 +168,7 @@ static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 out:
 	q->stats.dropped++;
-	return qdisc_drop(skb, sch);
+	return qdisc_drop(skb, sch, to_free);
 }
 
 static const struct nla_policy pie_policy[TCA_PIE_MAX + 1] = {
@@ -179,17 +181,18 @@ static const struct nla_policy pie_policy[TCA_PIE_MAX + 1] = {
 	[TCA_PIE_BYTEMODE] = {.type = NLA_U32},
 };
 
-static int pie_change(struct Qdisc *sch, struct nlattr *opt)
+static int pie_change(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	struct pie_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_PIE_MAX + 1];
-	unsigned int qlen;
+	unsigned int qlen, dropped = 0;
 	int err;
 
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_PIE_MAX, opt, pie_policy);
+	err = nla_parse_nested(tb, TCA_PIE_MAX, opt, pie_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -230,12 +233,13 @@ static int pie_change(struct Qdisc *sch, struct nlattr *opt)
 	/* Drop excess packets if new limit is lower */
 	qlen = sch->q.qlen;
 	while (sch->q.qlen > sch->limit) {
-		struct sk_buff *skb = __skb_dequeue(&sch->q);
+		struct sk_buff *skb = __qdisc_dequeue_head(&sch->q);
 
+		dropped += qdisc_pkt_len(skb);
 		qdisc_qstats_backlog_dec(sch, skb);
-		qdisc_drop(skb, sch);
+		rtnl_qdisc_drop(skb, sch);
 	}
-	qdisc_tree_decrease_qlen(sch, qlen - sch->q.qlen);
+	qdisc_tree_reduce_backlog(sch, qlen - sch->q.qlen, dropped);
 
 	sch_tree_unlock(sch);
 	return 0;
@@ -420,10 +424,10 @@ static void calculate_probability(struct Qdisc *sch)
 		pie_vars_init(&q->vars);
 }
 
-static void pie_timer(unsigned long arg)
+static void pie_timer(struct timer_list *t)
 {
-	struct Qdisc *sch = (struct Qdisc *)arg;
-	struct pie_sched_data *q = qdisc_priv(sch);
+	struct pie_sched_data *q = from_timer(q, t, adapt_timer);
+	struct Qdisc *sch = q->sch;
 	spinlock_t *root_lock = qdisc_lock(qdisc_root_sleeping(sch));
 
 	spin_lock(root_lock);
@@ -436,7 +440,8 @@ static void pie_timer(unsigned long arg)
 
 }
 
-static int pie_init(struct Qdisc *sch, struct nlattr *opt)
+static int pie_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct pie_sched_data *q = qdisc_priv(sch);
 
@@ -444,10 +449,11 @@ static int pie_init(struct Qdisc *sch, struct nlattr *opt)
 	pie_vars_init(&q->vars);
 	sch->limit = q->params.limit;
 
-	setup_timer(&q->adapt_timer, pie_timer, (unsigned long)sch);
+	q->sch = sch;
+	timer_setup(&q->adapt_timer, pie_timer, 0);
 
 	if (opt) {
-		int err = pie_change(sch, opt);
+		int err = pie_change(sch, opt, extack);
 
 		if (err)
 			return err;
@@ -509,7 +515,7 @@ static int pie_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 static struct sk_buff *pie_qdisc_dequeue(struct Qdisc *sch)
 {
 	struct sk_buff *skb;
-	skb = __qdisc_dequeue_head(sch, &sch->q);
+	skb = qdisc_dequeue_head(sch);
 
 	if (!skb)
 		return NULL;

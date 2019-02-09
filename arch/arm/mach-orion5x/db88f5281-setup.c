@@ -16,17 +16,17 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 #include <linux/mtd/physmap.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/timer.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/i2c.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <mach/orion5x.h>
 #include <linux/platform_data/mtd-orion_nand.h>
 #include "common.h"
 #include "mpp.h"
+#include "orion5x.h"
 
 /*****************************************************************************
  * DB-88F5281 on board devices
@@ -172,7 +172,7 @@ static struct platform_device db88f5281_nand_flash = {
 static void __iomem *db88f5281_7seg;
 static struct timer_list db88f5281_timer;
 
-static void db88f5281_7seg_event(unsigned long data)
+static void db88f5281_7seg_event(struct timer_list *unused)
 {
 	static int count = 0;
 	writel(0, db88f5281_7seg + (count << 4));
@@ -189,7 +189,7 @@ static int __init db88f5281_7seg_init(void)
 			printk(KERN_ERR "Failed to ioremap db88f5281_7seg\n");
 			return -EIO;
 		}
-		setup_timer(&db88f5281_timer, db88f5281_7seg_event, 0);
+		timer_setup(&db88f5281_timer, db88f5281_7seg_event, 0);
 		mod_timer(&db88f5281_timer, jiffies + 2 * HZ);
 	}
 
@@ -369,6 +369,7 @@ static void __init db88f5281_init(void)
 MACHINE_START(DB88F5281, "Marvell Orion-2 Development Board")
 	/* Maintainer: Tzachi Perelstein <tzachi@marvell.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= db88f5281_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

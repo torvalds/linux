@@ -25,10 +25,6 @@
 #include <linux/spinlock.h>
 #include <linux/clk.h>
 
-#define MCBSP_CONFIG_TYPE2	0x2
-#define MCBSP_CONFIG_TYPE3	0x3
-#define MCBSP_CONFIG_TYPE4	0x4
-
 /* Platform specific configuration */
 struct omap_mcbsp_ops {
 	void (*request)(unsigned int);
@@ -44,15 +40,9 @@ struct omap_mcbsp_platform_data {
 	/* McBSP platform and instance specific features */
 	bool has_wakeup; /* Wakeup capability */
 	bool has_ccr; /* Transceiver has configuration control registers */
-	int (*enable_st_clock)(unsigned int, bool);
+	int (*force_ick_on)(struct clk *clk, bool force_on);
 };
 
-/**
- * omap_mcbsp_dev_attr - OMAP McBSP device attributes for omap_hwmod
- * @sidetone: name of the sidetone device
- */
-struct omap_mcbsp_dev_attr {
-	const char *sidetone;
-};
+void omap3_mcbsp_init_pdata_callback(struct omap_mcbsp_platform_data *pdata);
 
 #endif

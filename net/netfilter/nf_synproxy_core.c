@@ -24,7 +24,7 @@
 #include <net/netfilter/nf_conntrack_synproxy.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 
-int synproxy_net_id;
+unsigned int synproxy_net_id;
 EXPORT_SYMBOL_GPL(synproxy_net_id);
 
 bool
@@ -66,8 +66,8 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 			case TCPOPT_WINDOW:
 				if (opsize == TCPOLEN_WINDOW) {
 					opts->wscale = *ptr;
-					if (opts->wscale > 14)
-						opts->wscale = 14;
+					if (opts->wscale > TCP_MAX_WSCALE)
+						opts->wscale = TCP_MAX_WSCALE;
 					opts->options |= XT_SYNPROXY_OPT_WSCALE;
 				}
 				break;
@@ -152,7 +152,7 @@ void synproxy_init_timestamp_cookie(const struct xt_synproxy_info *info,
 				    struct synproxy_options *opts)
 {
 	opts->tsecr = opts->tsval;
-	opts->tsval = tcp_time_stamp & ~0x3f;
+	opts->tsval = tcp_time_stamp_raw() & ~0x3f;
 
 	if (opts->options & XT_SYNPROXY_OPT_WSCALE) {
 		opts->tsval |= opts->wscale;
@@ -287,9 +287,9 @@ static int synproxy_cpu_seq_show(struct seq_file *seq, void *v)
 	struct synproxy_stats *stats = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries\t\tsyn_received\t"
-				"cookie_invalid\tcookie_valid\t"
-				"cookie_retrans\tconn_reopened\n");
+		seq_puts(seq, "entries\t\tsyn_received\t"
+			      "cookie_invalid\tcookie_valid\t"
+			      "cookie_retrans\tconn_reopened\n");
 		return 0;
 	}
 
@@ -310,24 +310,10 @@ static const struct seq_operations synproxy_cpu_seq_ops = {
 	.show		= synproxy_cpu_seq_show,
 };
 
-static int synproxy_cpu_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &synproxy_cpu_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations synproxy_cpu_seq_fops = {
-	.owner		= THIS_MODULE,
-	.open		= synproxy_cpu_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
 static int __net_init synproxy_proc_init(struct net *net)
 {
-	if (!proc_create("synproxy", S_IRUGO, net->proc_net_stat,
-			 &synproxy_cpu_seq_fops))
+	if (!proc_create_net("synproxy", 0444, net->proc_net_stat,
+			&synproxy_cpu_seq_ops, sizeof(struct seq_net_private)))
 		return -ENOMEM;
 	return 0;
 }

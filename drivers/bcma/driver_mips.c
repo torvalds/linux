@@ -14,8 +14,6 @@
 
 #include <linux/bcma/bcma.h>
 
-#include <linux/mtd/physmap.h>
-#include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
@@ -30,26 +28,6 @@ enum bcma_boot_dev {
 	BCMA_BOOT_DEV_PARALLEL,
 	BCMA_BOOT_DEV_SERIAL,
 	BCMA_BOOT_DEV_NAND,
-};
-
-static const char * const part_probes[] = { "bcm47xxpart", NULL };
-
-static struct physmap_flash_data bcma_pflash_data = {
-	.part_probe_types	= part_probes,
-};
-
-static struct resource bcma_pflash_resource = {
-	.name	= "bcma_pflash",
-	.flags  = IORESOURCE_MEM,
-};
-
-struct platform_device bcma_pflash_dev = {
-	.name		= "physmap-flash",
-	.dev		= {
-		.platform_data  = &bcma_pflash_data,
-	},
-	.resource	= &bcma_pflash_resource,
-	.num_resources	= 1,
 };
 
 /* The 47162a0 hangs when reading MIPS DMP registers registers */
@@ -206,10 +184,14 @@ static void bcma_core_mips_print_irq(struct bcma_device *dev, unsigned int irq)
 {
 	int i;
 	static const char *irq_name[] = {"2(S)", "3", "4", "5", "6", "D", "I"};
-	printk(KERN_DEBUG KBUILD_MODNAME ": core 0x%04x, irq :", dev->id.id);
-	for (i = 0; i <= 6; i++)
-		printk(" %s%s", irq_name[i], i == irq ? "*" : " ");
-	printk("\n");
+	char interrupts[25];
+	char *ints = interrupts;
+
+	for (i = 0; i < ARRAY_SIZE(irq_name); i++)
+		ints += sprintf(ints, " %s%c",
+				irq_name[i], i == irq ? '*' : ' ');
+
+	bcma_debug(dev->bus, "core 0x%04x, irq:%s\n", dev->id.id, interrupts);
 }
 
 static void bcma_core_mips_dump_irq(struct bcma_bus *bus)
@@ -272,47 +254,10 @@ static enum bcma_boot_dev bcma_boot_dev(struct bcma_bus *bus)
 	return BCMA_BOOT_DEV_SERIAL;
 }
 
-static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
+static void bcma_core_mips_nvram_init(struct bcma_drv_mips *mcore)
 {
 	struct bcma_bus *bus = mcore->core->bus;
-	struct bcma_drv_cc *cc = &bus->drv_cc;
-	struct bcma_pflash *pflash = &cc->pflash;
 	enum bcma_boot_dev boot_dev;
-
-	switch (cc->capabilities & BCMA_CC_CAP_FLASHT) {
-	case BCMA_CC_FLASHT_STSER:
-	case BCMA_CC_FLASHT_ATSER:
-		bcma_debug(bus, "Found serial flash\n");
-		bcma_sflash_init(cc);
-		break;
-	case BCMA_CC_FLASHT_PARA:
-		bcma_debug(bus, "Found parallel flash\n");
-		pflash->present = true;
-		pflash->window = BCMA_SOC_FLASH2;
-		pflash->window_size = BCMA_SOC_FLASH2_SZ;
-
-		if ((bcma_read32(cc->core, BCMA_CC_FLASH_CFG) &
-		     BCMA_CC_FLASH_CFG_DS) == 0)
-			pflash->buswidth = 1;
-		else
-			pflash->buswidth = 2;
-
-		bcma_pflash_data.width = pflash->buswidth;
-		bcma_pflash_resource.start = pflash->window;
-		bcma_pflash_resource.end = pflash->window + pflash->window_size;
-
-		break;
-	default:
-		bcma_err(bus, "Flash type not supported\n");
-	}
-
-	if (cc->core->id.rev == 38 ||
-	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
-		if (cc->capabilities & BCMA_CC_CAP_NFLASH) {
-			bcma_debug(bus, "Found NAND flash\n");
-			bcma_nflash_init(cc);
-		}
-	}
 
 	/* Determine flash type this SoC boots from */
 	boot_dev = bcma_boot_dev(bus);
@@ -343,7 +288,7 @@ void bcma_core_mips_early_init(struct bcma_drv_mips *mcore)
 		return;
 
 	bcma_chipco_serial_init(&bus->drv_cc);
-	bcma_core_mips_flash_detect(mcore);
+	bcma_core_mips_nvram_init(mcore);
 
 	mcore->early_setup_done = true;
 }

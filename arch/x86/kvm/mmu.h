@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KVM_X86_MMU_H
 #define __KVM_X86_MMU_H
 
@@ -10,10 +11,11 @@
 #define PT32_ENT_PER_PAGE (1 << PT32_PT_BITS)
 
 #define PT_WRITABLE_SHIFT 1
+#define PT_USER_SHIFT 2
 
 #define PT_PRESENT_MASK (1ULL << 0)
 #define PT_WRITABLE_MASK (1ULL << PT_WRITABLE_SHIFT)
-#define PT_USER_MASK (1ULL << 2)
+#define PT_USER_MASK (1ULL << PT_USER_SHIFT)
 #define PT_PWT_MASK (1ULL << 3)
 #define PT_PCD_MASK (1ULL << 4)
 #define PT_ACCESSED_SHIFT 5
@@ -36,7 +38,8 @@
 #define PT32_DIR_PSE36_MASK \
 	(((1ULL << PT32_DIR_PSE36_SIZE) - 1) << PT32_DIR_PSE36_SHIFT)
 
-#define PT64_ROOT_LEVEL 4
+#define PT64_ROOT_5LEVEL 5
+#define PT64_ROOT_4LEVEL 4
 #define PT32_ROOT_LEVEL 2
 #define PT32E_ROOT_LEVEL 3
 
@@ -47,33 +50,24 @@
 
 static inline u64 rsvd_bits(int s, int e)
 {
+	if (e < s)
+		return 0;
+
 	return ((1ULL << (e - s + 1)) - 1) << s;
 }
 
-void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask);
+void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask, u64 mmio_value);
 
 void
 reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context);
 
-/*
- * Return values of handle_mmio_page_fault:
- * RET_MMIO_PF_EMULATE: it is a real mmio page fault, emulate the instruction
- *			directly.
- * RET_MMIO_PF_INVALID: invalid spte is detected then let the real page
- *			fault path update the mmio spte.
- * RET_MMIO_PF_RETRY: let CPU fault again on the address.
- * RET_MMIO_PF_BUG: a bug was detected (and a WARN was printed).
- */
-enum {
-	RET_MMIO_PF_EMULATE = 1,
-	RET_MMIO_PF_INVALID = 2,
-	RET_MMIO_PF_RETRY = 0,
-	RET_MMIO_PF_BUG = -1
-};
-
-int handle_mmio_page_fault(struct kvm_vcpu *vcpu, u64 addr, bool direct);
+void kvm_init_mmu(struct kvm_vcpu *vcpu, bool reset_roots);
 void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu);
-void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly);
+void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
+			     bool accessed_dirty, gpa_t new_eptp);
+bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu);
+int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
+				u64 fault_address, char *insn, int insn_len);
 
 static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 {
@@ -92,9 +86,25 @@ static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 	return kvm_mmu_load(vcpu);
 }
 
-static inline int is_present_gpte(unsigned long pte)
+static inline unsigned long kvm_get_pcid(struct kvm_vcpu *vcpu, gpa_t cr3)
 {
-	return pte & PT_PRESENT_MASK;
+	BUILD_BUG_ON((X86_CR3_PCID_MASK & PAGE_MASK) != 0);
+
+	return kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE)
+	       ? cr3 & X86_CR3_PCID_MASK
+	       : 0;
+}
+
+static inline unsigned long kvm_get_active_pcid(struct kvm_vcpu *vcpu)
+{
+	return kvm_get_pcid(vcpu, kvm_read_cr3(vcpu));
+}
+
+static inline void kvm_mmu_load_cr3(struct kvm_vcpu *vcpu)
+{
+	if (VALID_PAGE(vcpu->arch.mmu.root_hpa))
+		vcpu->arch.mmu.set_cr3(vcpu, vcpu->arch.mmu.root_hpa |
+					     kvm_get_active_pcid(vcpu));
 }
 
 /*
@@ -141,11 +151,16 @@ static inline bool is_write_protection(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Will a fault with a given page-fault error code (pfec) cause a permission
- * fault with the given access (in ACC_* format)?
+ * Check if a given access (described through the I/D, W/R and U/S bits of a
+ * page fault error code pfec) causes a permission fault with the given PTE
+ * access rights (in ACC_* format).
+ *
+ * Return zero if the access does not fault; return the page fault error code
+ * if the access faults.
  */
-static inline bool permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-				    unsigned pte_access, unsigned pfec)
+static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+				  unsigned pte_access, unsigned pte_pkey,
+				  unsigned pfec)
 {
 	int cpl = kvm_x86_ops->get_cpl(vcpu);
 	unsigned long rflags = kvm_x86_ops->get_rflags(vcpu);
@@ -166,12 +181,39 @@ static inline bool permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	unsigned long smap = (cpl - 3) & (rflags & X86_EFLAGS_AC);
 	int index = (pfec >> 1) +
 		    (smap >> (X86_EFLAGS_AC_BIT - PFERR_RSVD_BIT + 1));
+	bool fault = (mmu->permissions[index] >> pte_access) & 1;
+	u32 errcode = PFERR_PRESENT_MASK;
 
-	WARN_ON(pfec & PFERR_RSVD_MASK);
+	WARN_ON(pfec & (PFERR_PK_MASK | PFERR_RSVD_MASK));
+	if (unlikely(mmu->pkru_mask)) {
+		u32 pkru_bits, offset;
 
-	return (mmu->permissions[index] >> pte_access) & 1;
+		/*
+		* PKRU defines 32 bits, there are 16 domains and 2
+		* attribute bits per domain in pkru.  pte_pkey is the
+		* index of the protection domain, so pte_pkey * 2 is
+		* is the index of the first bit for the domain.
+		*/
+		pkru_bits = (vcpu->arch.pkru >> (pte_pkey * 2)) & 3;
+
+		/* clear present bit, replace PFEC.RSVD with ACC_USER_MASK. */
+		offset = (pfec & ~1) +
+			((pte_access & PT_USER_MASK) << (PFERR_RSVD_BIT - PT_USER_SHIFT));
+
+		pkru_bits &= mmu->pkru_mask >> offset;
+		errcode |= -pkru_bits & PFERR_PK_MASK;
+		fault |= (pkru_bits != 0);
+	}
+
+	return -(u32)fault & errcode;
 }
 
 void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm);
 void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end);
+
+void kvm_mmu_gfn_disallow_lpage(struct kvm_memory_slot *slot, gfn_t gfn);
+void kvm_mmu_gfn_allow_lpage(struct kvm_memory_slot *slot, gfn_t gfn);
+bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
+				    struct kvm_memory_slot *slot, u64 gfn);
+int kvm_arch_write_log_dirty(struct kvm_vcpu *vcpu);
 #endif

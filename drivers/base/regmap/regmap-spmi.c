@@ -83,7 +83,7 @@ static int regmap_spmi_base_write(void *context, const void *data,
 					     count - 1);
 }
 
-static struct regmap_bus regmap_spmi_base = {
+static const struct regmap_bus regmap_spmi_base = {
 	.read				= regmap_spmi_base_read,
 	.write				= regmap_spmi_base_write,
 	.gather_write			= regmap_spmi_base_gather_write,
@@ -142,7 +142,7 @@ static int regmap_spmi_ext_read(void *context,
 	while (val_size) {
 		len = min_t(size_t, val_size, 8);
 
-		err = spmi_ext_register_readl(context, addr, val, val_size);
+		err = spmi_ext_register_readl(context, addr, val, len);
 		if (err)
 			goto err_out;
 
@@ -203,7 +203,7 @@ static int regmap_spmi_ext_write(void *context, const void *data,
 					    count - 2);
 }
 
-static struct regmap_bus regmap_spmi_ext = {
+static const struct regmap_bus regmap_spmi_ext = {
 	.read				= regmap_spmi_ext_read,
 	.write				= regmap_spmi_ext_write,
 	.gather_write			= regmap_spmi_ext_gather_write,

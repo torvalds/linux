@@ -23,12 +23,12 @@
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/spi/spi.h>
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 #include <linux/smc91x.h>
 #include <linux/omapfb.h>
 #include <linux/platform_data/gpio-omap.h>
@@ -44,7 +44,7 @@
 #include <mach/tc.h>
 #include <linux/platform_data/keypad-omap.h>
 #include <linux/omap-dma.h>
-#include <mach/flash.h>
+#include "flash.h"
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -326,7 +326,7 @@ static struct spi_board_info h3_spi_board_info[] __initdata = {
 	},
 };
 
-static struct gpio_led h3_gpio_led_pins[] = {
+static const struct gpio_led h3_gpio_led_pins[] = {
 	{
 		.name		= "h3:red",
 		.default_trigger = "heartbeat",
@@ -368,7 +368,7 @@ static struct omap_usb_config h3_usb_config __initdata = {
 
 #if IS_ENABLED(CONFIG_USB_OMAP)
 	.hmc_mode       = 19,   /* 0:host(off) 1:dev|otg 2:disabled */
-#elif  defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+#elif IS_ENABLED(CONFIG_USB_OHCI_HCD)
 	/* NONSTANDARD CABLE NEEDED (B-to-Mini-B) */
 	.hmc_mode       = 20,   /* 1:dev|otg(off) 1:host 2:disabled */
 #endif
@@ -376,7 +376,7 @@ static struct omap_usb_config h3_usb_config __initdata = {
 	.pins[1]	= 3,
 };
 
-static struct omap_lcd_config h3_lcd_config __initdata = {
+static const struct omap_lcd_config h3_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 

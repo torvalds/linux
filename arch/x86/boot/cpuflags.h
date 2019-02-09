@@ -1,11 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BOOT_CPUFLAGS_H
 #define BOOT_CPUFLAGS_H
 
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/processor-flags.h>
 
 struct cpu_features {
 	int level;		/* Family, or 64 for x86-64 */
+	int family;		/* Family, always */
 	int model;
 	u32 flags[NCAPINTS];
 };

@@ -1,6 +1,6 @@
 /* Signature verification with an asymmetric key
  *
- * See Documentation/security/asymmetric-keys.txt
+ * See Documentation/crypto/asymmetric-keys.txt
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -13,10 +13,28 @@
 
 #define pr_fmt(fmt) "SIG: "fmt
 #include <keys/asymmetric-subtype.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <crypto/public_key.h>
 #include "asymmetric_keys.h"
+
+/*
+ * Destroy a public key signature.
+ */
+void public_key_signature_free(struct public_key_signature *sig)
+{
+	int i;
+
+	if (sig) {
+		for (i = 0; i < ARRAY_SIZE(sig->auth_ids); i++)
+			kfree(sig->auth_ids[i]);
+		kfree(sig->s);
+		kfree(sig->digest);
+		kfree(sig);
+	}
+}
+EXPORT_SYMBOL_GPL(public_key_signature_free);
 
 /**
  * verify_signature - Initiate the use of an asymmetric key to verify a signature

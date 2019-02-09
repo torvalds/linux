@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #if !defined(_UAPI_XTENSA_UNISTD_H) || defined(__SYSCALL)
 #define _UAPI_XTENSA_UNISTD_H
 
@@ -754,7 +755,30 @@ __SYSCALL(340, sys_bpf, 3)
 #define __NR_execveat				341
 __SYSCALL(341, sys_execveat, 5)
 
-#define __NR_syscall_count			342
+#define __NR_userfaultfd			342
+__SYSCALL(342, sys_userfaultfd, 1)
+#define __NR_membarrier				343
+__SYSCALL(343, sys_membarrier, 2)
+#define __NR_mlock2				344
+__SYSCALL(344, sys_mlock2, 3)
+#define __NR_copy_file_range			345
+__SYSCALL(345, sys_copy_file_range, 6)
+#define __NR_preadv2				346
+__SYSCALL(346, sys_preadv2, 6)
+#define __NR_pwritev2				347
+__SYSCALL(347, sys_pwritev2, 6)
+
+#define __NR_pkey_mprotect			348
+__SYSCALL(348, sys_pkey_mprotect, 4)
+#define __NR_pkey_alloc				349
+__SYSCALL(349, sys_pkey_alloc, 2)
+#define __NR_pkey_free				350
+__SYSCALL(350, sys_pkey_free, 1)
+
+#define __NR_statx				351
+__SYSCALL(351, sys_statx, 5)
+
+#define __NR_syscall_count			352
 
 /*
  * sysxtensa syscall handler

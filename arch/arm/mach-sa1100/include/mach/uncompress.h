@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/arm/mach-sa1100/include/mach/uncompress.h
  *
@@ -19,7 +20,7 @@
 
 #define UART(x)		(*(volatile unsigned long *)(serial_port + (x)))
 
-static void putc(int c)
+static inline void putc(int c)
 {
 	unsigned long serial_port;
 

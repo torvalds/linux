@@ -915,6 +915,11 @@
 #define DCCG_AUDIO_DTO1_PHASE                           0x05c0
 #define DCCG_AUDIO_DTO1_MODULE                          0x05c4
 
+#define DENTIST_DISPCLK_CNTL				0x0490
+#	define DENTIST_DPREFCLK_WDIVIDER(x)		(((x) & 0x7f) << 24)
+#	define DENTIST_DPREFCLK_WDIVIDER_MASK		(0x7f << 24)
+#	define DENTIST_DPREFCLK_WDIVIDER_SHIFT		24
+
 #define AFMT_AUDIO_SRC_CONTROL                          0x713c
 #define		AFMT_AUDIO_SRC_SELECT(x)		(((x) & 7) << 0)
 /* AFMT_AUDIO_SRC_SELECT
@@ -1140,6 +1145,7 @@
 #define	SPI_LB_CU_MASK					0x9354
 
 #define	TA_CNTL_AUX					0x9508
+#define	TA_CS_BC_BASE_ADDR				0x950C
 
 #define CC_RB_BACKEND_DISABLE				0x98F4
 #define		BACKEND_DISABLE(x)     			((x) << 16)
@@ -1554,6 +1560,7 @@
 #define UVD_UDEC_ADDR_CONFIG				0xEF4C
 #define UVD_UDEC_DB_ADDR_CONFIG				0xEF50
 #define UVD_UDEC_DBW_ADDR_CONFIG			0xEF54
+#define UVD_NO_OP					0xEFFC
 #define UVD_RBC_RB_RPTR					0xF690
 #define UVD_RBC_RB_WPTR					0xF694
 #define UVD_STATUS					0xf6bc

@@ -33,6 +33,8 @@
 #include <mqueue.h>
 #include <error.h>
 
+#include "../kselftest.h"
+
 static char *usage =
 "Usage:\n"
 "  %s path\n"
@@ -53,6 +55,7 @@ int saved_def_msgs, saved_def_msgsize, saved_max_msgs, saved_max_msgsize;
 int cur_def_msgs, cur_def_msgsize, cur_max_msgs, cur_max_msgsize;
 FILE *def_msgs, *def_msgsize, *max_msgs, *max_msgsize;
 char *queue_path;
+char *default_queue_path = "/test1";
 mqd_t queue = -1;
 
 static inline void __set(FILE *stream, int value, char *err_msg);
@@ -238,35 +241,33 @@ int main(int argc, char *argv[])
 	struct mq_attr attr, result;
 
 	if (argc != 2) {
-		fprintf(stderr, "Must pass a valid queue name\n\n");
-		fprintf(stderr, usage, argv[0]);
-		exit(1);
-	}
+		printf("Using Default queue path - %s\n", default_queue_path);
+		queue_path = default_queue_path;
+	} else {
 
 	/*
 	 * Although we can create a msg queue with a non-absolute path name,
 	 * unlink will fail.  So, if the name doesn't start with a /, add one
 	 * when we save it.
 	 */
-	if (*argv[1] == '/')
-		queue_path = strdup(argv[1]);
-	else {
-		queue_path = malloc(strlen(argv[1]) + 2);
-		if (!queue_path) {
-			perror("malloc()");
-			exit(1);
+		if (*argv[1] == '/')
+			queue_path = strdup(argv[1]);
+		else {
+			queue_path = malloc(strlen(argv[1]) + 2);
+			if (!queue_path) {
+				perror("malloc()");
+				exit(1);
+			}
+			queue_path[0] = '/';
+			queue_path[1] = 0;
+			strcat(queue_path, argv[1]);
 		}
-		queue_path[0] = '/';
-		queue_path[1] = 0;
-		strcat(queue_path, argv[1]);
 	}
 
-	if (getuid() != 0) {
-		fprintf(stderr, "Not running as root, but almost all tests "
+	if (getuid() != 0)
+		ksft_exit_skip("Not running as root, but almost all tests "
 			"require root in order to modify\nsystem settings.  "
 			"Exiting.\n");
-		exit(1);
-	}
 
 	/* Find out what files there are for us to make tweaks in */
 	def_msgs = fopen(DEF_MSGS, "r+");

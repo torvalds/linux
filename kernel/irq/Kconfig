@@ -21,6 +21,10 @@ config GENERIC_IRQ_SHOW
 config GENERIC_IRQ_SHOW_LEVEL
        bool
 
+# Supports effective affinity mask
+config GENERIC_IRQ_EFFECTIVE_AFF_MASK
+       bool
+
 # Facility to allocate a hardware interrupt. This is legacy support
 # and should not be used in new code. Use irq domains instead.
 config GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
@@ -59,10 +63,23 @@ config GENERIC_IRQ_CHIP
 config IRQ_DOMAIN
 	bool
 
+# Support for simulated interrupts
+config IRQ_SIM
+	bool
+	select IRQ_WORK
+
 # Support for hierarchical irq domains
 config IRQ_DOMAIN_HIERARCHY
 	bool
 	select IRQ_DOMAIN
+
+# Support for hierarchical fasteoi+edge and fasteoi+level handlers
+config IRQ_FASTEOI_HIERARCHY_HANDLERS
+	bool
+
+# Generic IRQ IPI support
+config GENERIC_IRQ_IPI
+	bool
 
 # Generic MSI interrupt support
 config GENERIC_MSI_IRQ
@@ -77,15 +94,14 @@ config GENERIC_MSI_IRQ_DOMAIN
 config HANDLE_DOMAIN_IRQ
 	bool
 
-config IRQ_DOMAIN_DEBUG
-	bool "Expose hardware/virtual IRQ mapping via debugfs"
-	depends on IRQ_DOMAIN && DEBUG_FS
-	help
-	  This option will show the mapping relationship between hardware irq
-	  numbers and Linux irq numbers. The mapping is exposed via debugfs
-	  in the file "irq_domain_mapping".
+config IRQ_TIMINGS
+	bool
 
-	  If you don't know what this means you don't need it.
+config GENERIC_IRQ_MATRIX_ALLOCATOR
+	bool
+
+config GENERIC_IRQ_RESERVATION_MODE
+	bool
 
 # Support forced irq threading
 config IRQ_FORCED_THREADING
@@ -104,4 +120,20 @@ config SPARSE_IRQ
 
 	  If you don't know what to do here, say N.
 
+config GENERIC_IRQ_DEBUGFS
+	bool "Expose irq internals in debugfs"
+	depends on DEBUG_FS
+	default n
+	---help---
+
+	  Exposes internal state information through debugfs. Mostly for
+	  developers and debugging of hard to diagnose interrupt problems.
+
+	  If you don't know what to do here, say N.
+
 endmenu
+
+config GENERIC_IRQ_MULTI_HANDLER
+	bool
+	help
+	  Allow to specify the low level IRQ handler at run time.

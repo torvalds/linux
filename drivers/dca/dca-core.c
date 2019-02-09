@@ -270,7 +270,7 @@ EXPORT_SYMBOL_GPL(dca_remove_requester);
  * @dev - the device that wants dca service
  * @cpu - the cpuid as returned by get_cpu()
  */
-u8 dca_common_get_tag(struct device *dev, int cpu)
+static u8 dca_common_get_tag(struct device *dev, int cpu)
 {
 	struct dca_provider *dca;
 	u8 tag;
@@ -321,7 +321,8 @@ EXPORT_SYMBOL_GPL(dca_get_tag);
  * @ops - pointer to struct of dca operation function pointers
  * @priv_size - size of extra mem to be added for provider's needs
  */
-struct dca_provider *alloc_dca_provider(struct dca_ops *ops, int priv_size)
+struct dca_provider *alloc_dca_provider(const struct dca_ops *ops,
+					int priv_size)
 {
 	struct dca_provider *dca;
 	int alloc_size;

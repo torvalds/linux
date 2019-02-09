@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's S5PV210 SoC device tree source
  *
@@ -7,10 +8,6 @@
  * Tomasz Figa <t.figa@samsung.com>
  *
  * Board device tree source for Samsung Aquila board.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -29,7 +26,7 @@
 		bootargs = "console=ttySAC2,115200n8 root=/dev/mmcblk1p5 rw rootwait ignore_loglevel earlyprintk";
 	};
 
-	memory {
+	memory@30000000 {
 		device_type = "memory";
 		reg = <0x30000000 0x05000000
 			0x40000000 0x18000000>;
@@ -257,7 +254,7 @@
 			linux,code = <KEY_POWER>;
 			label = "power";
 			debounce-interval = <1>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 };
@@ -268,7 +265,7 @@
 
 &keypad {
 	linux,input-no-autorepeat;
-	linux,input-wakeup;
+	wakeup-source;
 	samsung,keypad-num-rows = <3>;
 	samsung,keypad-num-columns = <3>;
 	pinctrl-names = "default";
@@ -387,7 +384,7 @@
 &pinctrl0 {
 	t_flash_detect: t-flash-detect {
 		samsung,pins = "gph3-4";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 };

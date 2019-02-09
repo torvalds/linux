@@ -18,7 +18,7 @@
 /*
  * HIGHMEM API:
  *
- * kmap() API provides sleep semantics hence refered to as "permanent maps"
+ * kmap() API provides sleep semantics hence referred to as "permanent maps"
  * It allows mapping LAST_PKMAP pages, using @last_pkmap_nr as the cursor
  * for book-keeping
  *
@@ -61,6 +61,7 @@ void *kmap(struct page *page)
 
 	return kmap_high(page);
 }
+EXPORT_SYMBOL(kmap);
 
 void *kmap_atomic(struct page *page)
 {

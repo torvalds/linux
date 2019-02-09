@@ -1,12 +1,53 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <Python.h>
 #include <structmember.h>
 #include <inttypes.h>
 #include <poll.h>
+#include <linux/err.h>
 #include "evlist.h"
+#include "callchain.h"
 #include "evsel.h"
 #include "event.h"
 #include "cpumap.h"
+#include "print_binary.h"
 #include "thread_map.h"
+#include "mmap.h"
+
+#if PY_MAJOR_VERSION < 3
+#define _PyUnicode_FromString(arg) \
+  PyString_FromString(arg)
+#define _PyUnicode_AsString(arg) \
+  PyString_AsString(arg)
+#define _PyUnicode_FromFormat(...) \
+  PyString_FromFormat(__VA_ARGS__)
+#define _PyLong_FromLong(arg) \
+  PyInt_FromLong(arg)
+
+#else
+
+#define _PyUnicode_FromString(arg) \
+  PyUnicode_FromString(arg)
+#define _PyUnicode_FromFormat(...) \
+  PyUnicode_FromFormat(__VA_ARGS__)
+#define _PyLong_FromLong(arg) \
+  PyLong_FromLong(arg)
+#endif
+
+#ifndef Py_TYPE
+#define Py_TYPE(ob) (((PyObject*)(ob))->ob_type)
+#endif
+
+/*
+ * Provide these two so that we don't have to link against callchain.c and
+ * start dragging hist.c, etc.
+ */
+struct callchain_param callchain_param;
+
+int parse_callchain_record(const char *arg __maybe_unused,
+			   struct callchain_param *param __maybe_unused)
+{
+	return 0;
+}
 
 /*
  * Support debug printing even though util/debug.c is not linked.  That means
@@ -33,7 +74,11 @@ int eprintf(int level, int var, const char *fmt, ...)
 # define PyVarObject_HEAD_INIT(type, size) PyObject_HEAD_INIT(type) size,
 #endif
 
+#if PY_MAJOR_VERSION < 3
 PyMODINIT_FUNC initperf(void);
+#else
+PyMODINIT_FUNC PyInit_perf(void);
+#endif
 
 #define member_def(type, member, ptype, help) \
 	{ #member, ptype, \
@@ -47,6 +92,7 @@ PyMODINIT_FUNC initperf(void);
 
 struct pyrf_event {
 	PyObject_HEAD
+	struct perf_evsel *evsel;
 	struct perf_sample sample;
 	union perf_event   event;
 };
@@ -90,7 +136,7 @@ static PyObject *pyrf_mmap_event__repr(struct pyrf_event *pevent)
 		     pevent->event.mmap.pgoff, pevent->event.mmap.filename) < 0) {
 		ret = PyErr_NoMemory();
 	} else {
-		ret = PyString_FromString(s);
+		ret = _PyUnicode_FromString(s);
 		free(s);
 	}
 	return ret;
@@ -121,7 +167,7 @@ static PyMemberDef pyrf_task_event__members[] = {
 
 static PyObject *pyrf_task_event__repr(struct pyrf_event *pevent)
 {
-	return PyString_FromFormat("{ type: %s, pid: %u, ppid: %u, tid: %u, "
+	return _PyUnicode_FromFormat("{ type: %s, pid: %u, ppid: %u, tid: %u, "
 				   "ptid: %u, time: %" PRIu64 "}",
 				   pevent->event.header.type == PERF_RECORD_FORK ? "fork" : "exit",
 				   pevent->event.fork.pid,
@@ -154,7 +200,7 @@ static PyMemberDef pyrf_comm_event__members[] = {
 
 static PyObject *pyrf_comm_event__repr(struct pyrf_event *pevent)
 {
-	return PyString_FromFormat("{ type: comm, pid: %u, tid: %u, comm: %s }",
+	return _PyUnicode_FromFormat("{ type: comm, pid: %u, tid: %u, comm: %s }",
 				   pevent->event.comm.pid,
 				   pevent->event.comm.tid,
 				   pevent->event.comm.comm);
@@ -185,7 +231,7 @@ static PyObject *pyrf_throttle_event__repr(struct pyrf_event *pevent)
 {
 	struct throttle_event *te = (struct throttle_event *)(&pevent->event.header + 1);
 
-	return PyString_FromFormat("{ type: %sthrottle, time: %" PRIu64 ", id: %" PRIu64
+	return _PyUnicode_FromFormat("{ type: %sthrottle, time: %" PRIu64 ", id: %" PRIu64
 				   ", stream_id: %" PRIu64 " }",
 				   pevent->event.header.type == PERF_RECORD_THROTTLE ? "" : "un",
 				   te->time, te->id, te->stream_id);
@@ -220,7 +266,7 @@ static PyObject *pyrf_lost_event__repr(struct pyrf_event *pevent)
 		     pevent->event.lost.id, pevent->event.lost.lost) < 0) {
 		ret = PyErr_NoMemory();
 	} else {
-		ret = PyString_FromString(s);
+		ret = _PyUnicode_FromString(s);
 		free(s);
 	}
 	return ret;
@@ -247,7 +293,7 @@ static PyMemberDef pyrf_read_event__members[] = {
 
 static PyObject *pyrf_read_event__repr(struct pyrf_event *pevent)
 {
-	return PyString_FromFormat("{ type: read, pid: %u, tid: %u }",
+	return _PyUnicode_FromFormat("{ type: read, pid: %u, tid: %u }",
 				   pevent->event.read.pid,
 				   pevent->event.read.tid);
 	/*
@@ -282,10 +328,89 @@ static PyObject *pyrf_sample_event__repr(struct pyrf_event *pevent)
 	if (asprintf(&s, "{ type: sample }") < 0) {
 		ret = PyErr_NoMemory();
 	} else {
-		ret = PyString_FromString(s);
+		ret = _PyUnicode_FromString(s);
 		free(s);
 	}
 	return ret;
+}
+
+static bool is_tracepoint(struct pyrf_event *pevent)
+{
+	return pevent->evsel->attr.type == PERF_TYPE_TRACEPOINT;
+}
+
+static PyObject*
+tracepoint_field(struct pyrf_event *pe, struct format_field *field)
+{
+	struct tep_handle *pevent = field->event->pevent;
+	void *data = pe->sample.raw_data;
+	PyObject *ret = NULL;
+	unsigned long long val;
+	unsigned int offset, len;
+
+	if (field->flags & FIELD_IS_ARRAY) {
+		offset = field->offset;
+		len    = field->size;
+		if (field->flags & FIELD_IS_DYNAMIC) {
+			val     = tep_read_number(pevent, data + offset, len);
+			offset  = val;
+			len     = offset >> 16;
+			offset &= 0xffff;
+		}
+		if (field->flags & FIELD_IS_STRING &&
+		    is_printable_array(data + offset, len)) {
+			ret = _PyUnicode_FromString((char *)data + offset);
+		} else {
+			ret = PyByteArray_FromStringAndSize((const char *) data + offset, len);
+			field->flags &= ~FIELD_IS_STRING;
+		}
+	} else {
+		val = tep_read_number(pevent, data + field->offset,
+				      field->size);
+		if (field->flags & FIELD_IS_POINTER)
+			ret = PyLong_FromUnsignedLong((unsigned long) val);
+		else if (field->flags & FIELD_IS_SIGNED)
+			ret = PyLong_FromLong((long) val);
+		else
+			ret = PyLong_FromUnsignedLong((unsigned long) val);
+	}
+
+	return ret;
+}
+
+static PyObject*
+get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
+{
+	const char *str = _PyUnicode_AsString(PyObject_Str(attr_name));
+	struct perf_evsel *evsel = pevent->evsel;
+	struct format_field *field;
+
+	if (!evsel->tp_format) {
+		struct event_format *tp_format;
+
+		tp_format = trace_event__tp_format_id(evsel->attr.config);
+		if (!tp_format)
+			return NULL;
+
+		evsel->tp_format = tp_format;
+	}
+
+	field = tep_find_any_field(evsel->tp_format, str);
+	if (!field)
+		return NULL;
+
+	return tracepoint_field(pevent, field);
+}
+
+static PyObject*
+pyrf_sample_event__getattro(struct pyrf_event *pevent, PyObject *attr_name)
+{
+	PyObject *obj = NULL;
+
+	if (is_tracepoint(pevent))
+		obj = get_tracepoint_field(pevent, attr_name);
+
+	return obj ?: PyObject_GenericGetAttr((PyObject *) pevent, attr_name);
 }
 
 static PyTypeObject pyrf_sample_event__type = {
@@ -296,6 +421,7 @@ static PyTypeObject pyrf_sample_event__type = {
 	.tp_doc		= pyrf_sample_event__doc,
 	.tp_members	= pyrf_sample_event__members,
 	.tp_repr	= (reprfunc)pyrf_sample_event__repr,
+	.tp_getattro	= (getattrofunc) pyrf_sample_event__getattro,
 };
 
 static char pyrf_context_switch_event__doc[] = PyDoc_STR("perf context_switch event object.");
@@ -319,7 +445,7 @@ static PyObject *pyrf_context_switch_event__repr(struct pyrf_event *pevent)
 		     !!(pevent->event.header.misc & PERF_RECORD_MISC_SWITCH_OUT)) < 0) {
 		ret = PyErr_NoMemory();
 	} else {
-		ret = PyString_FromString(s);
+		ret = _PyUnicode_FromString(s);
 		free(s);
 	}
 	return ret;
@@ -431,7 +557,7 @@ static int pyrf_cpu_map__init(struct pyrf_cpu_map *pcpus,
 static void pyrf_cpu_map__delete(struct pyrf_cpu_map *pcpus)
 {
 	cpu_map__put(pcpus->cpus);
-	pcpus->ob_type->tp_free((PyObject*)pcpus);
+	Py_TYPE(pcpus)->tp_free((PyObject*)pcpus);
 }
 
 static Py_ssize_t pyrf_cpu_map__length(PyObject *obj)
@@ -500,7 +626,7 @@ static int pyrf_thread_map__init(struct pyrf_thread_map *pthreads,
 static void pyrf_thread_map__delete(struct pyrf_thread_map *pthreads)
 {
 	thread_map__put(pthreads->threads);
-	pthreads->ob_type->tp_free((PyObject*)pthreads);
+	Py_TYPE(pthreads)->tp_free((PyObject*)pthreads);
 }
 
 static Py_ssize_t pyrf_thread_map__length(PyObject *obj)
@@ -653,6 +779,7 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 	attr.precise_ip	    = precise_ip;
 	attr.mmap_data	    = mmap_data;
 	attr.sample_id_all  = sample_id_all;
+	attr.size	    = sizeof(attr);
 
 	perf_evsel__init(&pevsel->evsel, &attr, idx);
 	return 0;
@@ -661,7 +788,7 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 static void pyrf_evsel__delete(struct pyrf_evsel *pevsel)
 {
 	perf_evsel__exit(&pevsel->evsel);
-	pevsel->ob_type->tp_free((PyObject*)pevsel);
+	Py_TYPE(pevsel)->tp_free((PyObject*)pevsel);
 }
 
 static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
@@ -752,7 +879,7 @@ static int pyrf_evlist__init(struct pyrf_evlist *pevlist,
 static void pyrf_evlist__delete(struct pyrf_evlist *pevlist)
 {
 	perf_evlist__exit(&pevlist->evlist);
-	pevlist->ob_type->tp_free((PyObject*)pevlist);
+	Py_TYPE(pevlist)->tp_free((PyObject*)pevlist);
 }
 
 static PyObject *pyrf_evlist__mmap(struct pyrf_evlist *pevlist,
@@ -766,7 +893,7 @@ static PyObject *pyrf_evlist__mmap(struct pyrf_evlist *pevlist,
 					 &pages, &overwrite))
 		return NULL;
 
-	if (perf_evlist__mmap(evlist, pages, overwrite) < 0) {
+	if (perf_evlist__mmap(evlist, pages) < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
 	}
@@ -804,12 +931,16 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
 
 	for (i = 0; i < evlist->pollfd.nr; ++i) {
 		PyObject *file;
+#if PY_MAJOR_VERSION < 3
 		FILE *fp = fdopen(evlist->pollfd.entries[i].fd, "r");
 
 		if (fp == NULL)
 			goto free_list;
 
 		file = PyFile_FromFile(fp, "perf", "r", NULL);
+#else
+		file = PyFile_FromFd(evlist->pollfd.entries[i].fd, "perf", "r", -1, NULL, NULL, NULL, 1);
+#endif
 		if (file == NULL)
 			goto free_list;
 
@@ -846,6 +977,20 @@ static PyObject *pyrf_evlist__add(struct pyrf_evlist *pevlist,
 	return Py_BuildValue("i", evlist->nr_entries);
 }
 
+static struct perf_mmap *get_md(struct perf_evlist *evlist, int cpu)
+{
+	int i;
+
+	for (i = 0; i < evlist->nr_mmaps; i++) {
+		struct perf_mmap *md = &evlist->mmap[i];
+
+		if (md->cpu == cpu)
+			return md;
+	}
+
+	return NULL;
+}
+
 static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 					  PyObject *args, PyObject *kwargs)
 {
@@ -853,29 +998,48 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	union perf_event *event;
 	int sample_id_all = 1, cpu;
 	static char *kwlist[] = { "cpu", "sample_id_all", NULL };
+	struct perf_mmap *md;
 	int err;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|i", kwlist,
 					 &cpu, &sample_id_all))
 		return NULL;
 
-	event = perf_evlist__mmap_read(evlist, cpu);
+	md = get_md(evlist, cpu);
+	if (!md)
+		return NULL;
+
+	if (perf_mmap__read_init(md) < 0)
+		goto end;
+
+	event = perf_mmap__read_event(md);
 	if (event != NULL) {
 		PyObject *pyevent = pyrf_event__new(event);
 		struct pyrf_event *pevent = (struct pyrf_event *)pyevent;
-
-		perf_evlist__mmap_consume(evlist, cpu);
+		struct perf_evsel *evsel;
 
 		if (pyevent == NULL)
 			return PyErr_NoMemory();
 
-		err = perf_evlist__parse_sample(evlist, event, &pevent->sample);
+		evsel = perf_evlist__event2evsel(evlist, event);
+		if (!evsel) {
+			Py_INCREF(Py_None);
+			return Py_None;
+		}
+
+		pevent->evsel = evsel;
+
+		err = perf_evsel__parse_sample(evsel, event, &pevent->sample);
+
+		/* Consume the even only after we parsed it out. */
+		perf_mmap__consume(md);
+
 		if (err)
 			return PyErr_Format(PyExc_OSError,
 					    "perf: can't parse sample, err=%d", err);
 		return pyevent;
 	}
-
+end:
 	Py_INCREF(Py_None);
 	return Py_None;
 }
@@ -957,7 +1121,7 @@ static PyObject *pyrf_evlist__item(PyObject *obj, Py_ssize_t i)
 	if (i >= pevlist->evlist.nr_entries)
 		return NULL;
 
-	evlist__for_each(&pevlist->evlist, pos) {
+	evlist__for_each_entry(&pevlist->evlist, pos) {
 		if (i-- == 0)
 			break;
 	}
@@ -1073,15 +1237,60 @@ static struct {
 	{ .name = NULL, },
 };
 
+static PyObject *pyrf__tracepoint(struct pyrf_evsel *pevsel,
+				  PyObject *args, PyObject *kwargs)
+{
+	struct event_format *tp_format;
+	static char *kwlist[] = { "sys", "name", NULL };
+	char *sys  = NULL;
+	char *name = NULL;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|ss", kwlist,
+					 &sys, &name))
+		return NULL;
+
+	tp_format = trace_event__tp_format(sys, name);
+	if (IS_ERR(tp_format))
+		return _PyLong_FromLong(-1);
+
+	return _PyLong_FromLong(tp_format->id);
+}
+
 static PyMethodDef perf__methods[] = {
+	{
+		.ml_name  = "tracepoint",
+		.ml_meth  = (PyCFunction) pyrf__tracepoint,
+		.ml_flags = METH_VARARGS | METH_KEYWORDS,
+		.ml_doc	  = PyDoc_STR("Get tracepoint config.")
+	},
 	{ .ml_name = NULL, }
 };
 
+#if PY_MAJOR_VERSION < 3
 PyMODINIT_FUNC initperf(void)
+#else
+PyMODINIT_FUNC PyInit_perf(void)
+#endif
 {
 	PyObject *obj;
 	int i;
-	PyObject *dict, *module = Py_InitModule("perf", perf__methods);
+	PyObject *dict;
+#if PY_MAJOR_VERSION < 3
+	PyObject *module = Py_InitModule("perf", perf__methods);
+#else
+	static struct PyModuleDef moduledef = {
+		PyModuleDef_HEAD_INIT,
+		"perf",			/* m_name */
+		"",			/* m_doc */
+		-1,			/* m_size */
+		perf__methods,		/* m_methods */
+		NULL,			/* m_reload */
+		NULL,			/* m_traverse */
+		NULL,			/* m_clear */
+		NULL,			/* m_free */
+	};
+	PyObject *module = PyModule_Create(&moduledef);
+#endif
 
 	if (module == NULL ||
 	    pyrf_event__setup_types() < 0 ||
@@ -1089,7 +1298,11 @@ PyMODINIT_FUNC initperf(void)
 	    pyrf_evsel__setup_types() < 0 ||
 	    pyrf_thread_map__setup_types() < 0 ||
 	    pyrf_cpu_map__setup_types() < 0)
+#if PY_MAJOR_VERSION < 3
 		return;
+#else
+		return module;
+#endif
 
 	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
@@ -1099,6 +1312,33 @@ PyMODINIT_FUNC initperf(void)
 
 	Py_INCREF(&pyrf_evsel__type);
 	PyModule_AddObject(module, "evsel", (PyObject*)&pyrf_evsel__type);
+
+	Py_INCREF(&pyrf_mmap_event__type);
+	PyModule_AddObject(module, "mmap_event", (PyObject *)&pyrf_mmap_event__type);
+
+	Py_INCREF(&pyrf_lost_event__type);
+	PyModule_AddObject(module, "lost_event", (PyObject *)&pyrf_lost_event__type);
+
+	Py_INCREF(&pyrf_comm_event__type);
+	PyModule_AddObject(module, "comm_event", (PyObject *)&pyrf_comm_event__type);
+
+	Py_INCREF(&pyrf_task_event__type);
+	PyModule_AddObject(module, "task_event", (PyObject *)&pyrf_task_event__type);
+
+	Py_INCREF(&pyrf_throttle_event__type);
+	PyModule_AddObject(module, "throttle_event", (PyObject *)&pyrf_throttle_event__type);
+
+	Py_INCREF(&pyrf_task_event__type);
+	PyModule_AddObject(module, "task_event", (PyObject *)&pyrf_task_event__type);
+
+	Py_INCREF(&pyrf_read_event__type);
+	PyModule_AddObject(module, "read_event", (PyObject *)&pyrf_read_event__type);
+
+	Py_INCREF(&pyrf_sample_event__type);
+	PyModule_AddObject(module, "sample_event", (PyObject *)&pyrf_sample_event__type);
+
+	Py_INCREF(&pyrf_context_switch_event__type);
+	PyModule_AddObject(module, "switch_event", (PyObject *)&pyrf_context_switch_event__type);
 
 	Py_INCREF(&pyrf_thread_map__type);
 	PyModule_AddObject(module, "thread_map", (PyObject*)&pyrf_thread_map__type);
@@ -1111,7 +1351,7 @@ PyMODINIT_FUNC initperf(void)
 		goto error;
 
 	for (i = 0; perf__constants[i].name != NULL; i++) {
-		obj = PyInt_FromLong(perf__constants[i].value);
+		obj = _PyLong_FromLong(perf__constants[i].value);
 		if (obj == NULL)
 			goto error;
 		PyDict_SetItemString(dict, perf__constants[i].name, obj);
@@ -1121,6 +1361,9 @@ PyMODINIT_FUNC initperf(void)
 error:
 	if (PyErr_Occurred())
 		PyErr_SetString(PyExc_ImportError, "perf: Init failed!");
+#if PY_MAJOR_VERSION >= 3
+	return module;
+#endif
 }
 
 /*

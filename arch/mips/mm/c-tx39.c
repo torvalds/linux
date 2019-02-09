@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r2300.c: R2000 and R3000 specific mmu/cache code.
  *
@@ -410,6 +411,9 @@ void tx39_cache_init(void)
 
 		break;
 	}
+
+	__flush_icache_user_range = flush_icache_range;
+	__local_flush_icache_user_range = local_flush_icache_range;
 
 	current_cpu_data.icache.waysize = icache_size / current_cpu_data.icache.ways;
 	current_cpu_data.dcache.waysize = dcache_size / current_cpu_data.dcache.ways;

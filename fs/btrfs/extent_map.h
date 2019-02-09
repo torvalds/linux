@@ -1,7 +1,10 @@
-#ifndef __EXTENTMAP__
-#define __EXTENTMAP__
+/* SPDX-License-Identifier: GPL-2.0 */
+
+#ifndef BTRFS_EXTENT_MAP_H
+#define BTRFS_EXTENT_MAP_H
 
 #include <linux/rbtree.h>
+#include <linux/refcount.h>
 
 #define EXTENT_MAP_LAST_BYTE ((u64)-4)
 #define EXTENT_MAP_HOLE ((u64)-3)
@@ -11,7 +14,6 @@
 /* bits for the flags field */
 #define EXTENT_FLAG_PINNED 0 /* this entry not yet on disk, don't free it */
 #define EXTENT_FLAG_COMPRESSED 1
-#define EXTENT_FLAG_VACANCY 2 /* no file extent item found */
 #define EXTENT_FLAG_PREALLOC 3 /* pre-allocated extent */
 #define EXTENT_FLAG_LOGGING 4 /* Logging this extent */
 #define EXTENT_FLAG_FILLING 5 /* Filling in a preallocated extent */
@@ -32,8 +34,16 @@ struct extent_map {
 	u64 block_len;
 	u64 generation;
 	unsigned long flags;
-	struct block_device *bdev;
-	atomic_t refs;
+	union {
+		struct block_device *bdev;
+
+		/*
+		 * used for chunk mappings
+		 * flags & EXTENT_FLAG_FS_MAPPING must be set
+		 */
+		struct map_lookup *map_lookup;
+	};
+	refcount_t refs;
 	unsigned int compress_type;
 	struct list_head list;
 };
@@ -77,9 +87,13 @@ void replace_extent_mapping(struct extent_map_tree *tree,
 struct extent_map *alloc_extent_map(void);
 void free_extent_map(struct extent_map *em);
 int __init extent_map_init(void);
-void extent_map_exit(void);
+void __cold extent_map_exit(void);
 int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len, u64 gen);
 void clear_em_logging(struct extent_map_tree *tree, struct extent_map *em);
 struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
 					 u64 start, u64 len);
+int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
+			     struct extent_map_tree *em_tree,
+			     struct extent_map **em_in, u64 start, u64 len);
+
 #endif

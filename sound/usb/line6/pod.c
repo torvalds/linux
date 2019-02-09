@@ -83,7 +83,6 @@ struct usb_line6_pod {
 };
 
 #define POD_SYSEX_CODE 3
-#define POD_BYTES_PER_FRAME 6	/* 24bit audio (stereo) */
 
 /* *INDENT-OFF* */
 
@@ -167,7 +166,7 @@ static struct line6_pcm_properties pod_pcm_properties = {
 	.rates = {
 			    .nrats = 1,
 			    .rats = &pod_ratden},
-	.bytes_per_frame = POD_BYTES_PER_FRAME
+	.bytes_per_channel = 3 /* SNDRV_PCM_FMTBIT_S24_3LE */
 };
 
 static const char pod_version_header[] = {
@@ -175,7 +174,7 @@ static const char pod_version_header[] = {
 };
 
 /* forward declarations: */
-static void pod_startup2(unsigned long data);
+static void pod_startup2(struct timer_list *t);
 static void pod_startup3(struct usb_line6_pod *pod);
 
 static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
@@ -244,8 +243,8 @@ static int pod_set_system_param_int(struct usb_line6_pod *pod, int value,
 static ssize_t serial_number_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+	struct snd_card *card = dev_to_snd_card(dev);
+	struct usb_line6_pod *pod = card->private_data;
 
 	return sprintf(buf, "%u\n", pod->serial_number);
 }
@@ -256,8 +255,8 @@ static ssize_t serial_number_show(struct device *dev,
 static ssize_t firmware_version_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+	struct snd_card *card = dev_to_snd_card(dev);
+	struct usb_line6_pod *pod = card->private_data;
 
 	return sprintf(buf, "%d.%02d\n", pod->firmware_version / 100,
 		       pod->firmware_version % 100);
@@ -269,8 +268,8 @@ static ssize_t firmware_version_show(struct device *dev,
 static ssize_t device_id_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+	struct snd_card *card = dev_to_snd_card(dev);
+	struct usb_line6_pod *pod = card->private_data;
 
 	return sprintf(buf, "%d\n", pod->device_id);
 }
@@ -287,13 +286,12 @@ static void pod_startup1(struct usb_line6_pod *pod)
 	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_INIT);
 
 	/* delay startup procedure: */
-	line6_start_timer(&pod->startup_timer, POD_STARTUP_DELAY, pod_startup2,
-			  (unsigned long)pod);
+	line6_start_timer(&pod->startup_timer, POD_STARTUP_DELAY, pod_startup2);
 }
 
-static void pod_startup2(unsigned long data)
+static void pod_startup2(struct timer_list *t)
 {
-	struct usb_line6_pod *pod = (struct usb_line6_pod *)data;
+	struct usb_line6_pod *pod = from_timer(pod, t, startup_timer);
 	struct usb_line6 *line6 = &pod->line6;
 
 	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_VERSIONREQ);
@@ -381,7 +379,7 @@ static int snd_pod_control_monitor_put(struct snd_kcontrol *kcontrol,
 }
 
 /* control definition */
-static struct snd_kcontrol_new pod_control_monitor = {
+static const struct snd_kcontrol_new pod_control_monitor = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Monitor Playback Volume",
 	.index = 0,
@@ -414,7 +412,7 @@ static int pod_init(struct usb_line6 *line6,
 	line6->process_message = line6_pod_process_message;
 	line6->disconnect = line6_pod_disconnect;
 
-	init_timer(&pod->startup_timer);
+	timer_setup(&pod->startup_timer, NULL, 0);
 	INIT_WORK(&pod->startup_work, pod_startup4);
 
 	/* create sysfs entries: */
@@ -476,6 +474,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "BassPODxt",
 		.name = "BassPODxt",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 5,
@@ -488,6 +487,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "BassPODxtLive",
 		.name = "BassPODxt Live",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 1,
@@ -500,6 +500,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "BassPODxtPro",
 		.name = "BassPODxt Pro",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 5,
@@ -511,7 +512,8 @@ static const struct line6_properties pod_properties_table[] = {
 	[LINE6_POCKETPOD] = {
 		.id = "PocketPOD",
 		.name = "Pocket POD",
-		.capabilities	= LINE6_CAP_CONTROL,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI,
 		.altsetting = 0,
 		.ep_ctrl_r = 0x82,
 		.ep_ctrl_w = 0x02,
@@ -521,6 +523,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "PODxt",
 		.name = "PODxt",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 5,
@@ -533,6 +536,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "PODxtLive",
 		.name = "PODxt Live",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 1,
@@ -545,6 +549,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "PODxtPro",
 		.name = "PODxt Pro",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 5,

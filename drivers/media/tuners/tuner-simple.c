@@ -53,7 +53,7 @@ MODULE_PARM_DESC(dtv_input, "specify dtv rf input, 0 for autoselect");
 /* tv tuner system standard selection for Philips FQ1216ME
    this value takes the low bits of control byte 2
    from datasheet "1999 Nov 16" (supersedes "1999 Mar 23")
-     standard 		BG	DK	I	L	L`
+     standard		BG	DK	I	L	L`
      picture carrier	38.90	38.90	38.90	38.90	33.95
      colour		34.47	34.47	34.47	34.47	38.38
      sound 1		33.40	32.40	32.90	32.40	40.45
@@ -275,8 +275,7 @@ static int simple_config_lookup(struct dvb_frontend *fe,
 	*config = t_params->ranges[i].config;
 	*cb     = t_params->ranges[i].cb;
 
-	tuner_dbg("freq = %d.%02d (%d), range = %d, "
-		  "config = 0x%02x, cb = 0x%02x\n",
+	tuner_dbg("freq = %d.%02d (%d), range = %d, config = 0x%02x, cb = 0x%02x\n",
 		  *frequency / 16, *frequency % 16 * 100 / 16, *frequency,
 		  i, *config, *cb);
 
@@ -404,12 +403,12 @@ static int simple_std_setup(struct dvb_frontend *fe,
 		i2c.addr = 0x0a;
 		rc = tuner_i2c_xfer_send(&i2c, &buffer[0], 2);
 		if (2 != rc)
-			tuner_warn("i2c i/o error: rc == %d "
-				   "(should be 2)\n", rc);
+			tuner_warn("i2c i/o error: rc == %d (should be 2)\n",
+				   rc);
 		rc = tuner_i2c_xfer_send(&i2c, &buffer[2], 2);
 		if (2 != rc)
-			tuner_warn("i2c i/o error: rc == %d "
-				   "(should be 2)\n", rc);
+			tuner_warn("i2c i/o error: rc == %d (should be 2)\n",
+				   rc);
 		break;
 	}
 	}
@@ -463,8 +462,8 @@ static int simple_post_tune(struct dvb_frontend *fe, u8 *buffer,
 			rc = tuner_i2c_xfer_recv(&priv->i2c_props,
 						 &status_byte, 1);
 			if (1 != rc) {
-				tuner_warn("i2c i/o read error: rc == %d "
-					   "(should be 1)\n", rc);
+				tuner_warn("i2c i/o read error: rc == %d (should be 1)\n",
+					   rc);
 				break;
 			}
 			if (status_byte & TUNER_PLL_LOCKED)
@@ -483,8 +482,8 @@ static int simple_post_tune(struct dvb_frontend *fe, u8 *buffer,
 
 		rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 4);
 		if (4 != rc)
-			tuner_warn("i2c i/o error: rc == %d "
-				   "(should be 4)\n", rc);
+			tuner_warn("i2c i/o error: rc == %d (should be 4)\n",
+				   rc);
 		break;
 	}
 	}
@@ -499,8 +498,7 @@ static int simple_radio_bandswitch(struct dvb_frontend *fe, u8 *buffer)
 	switch (priv->type) {
 	case TUNER_TENA_9533_DI:
 	case TUNER_YMEC_TVF_5533MF:
-		tuner_dbg("This tuner doesn't have FM. "
-			  "Most cards have a TEA5767 for FM\n");
+		tuner_dbg("This tuner doesn't have FM. Most cards have a TEA5767 for FM\n");
 		return 0;
 	case TUNER_PHILIPS_FM1216ME_MK3:
 	case TUNER_PHILIPS_FM1236_MK3:
@@ -586,8 +584,7 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 
 	div = params->frequency + IFPCoff + offset;
 
-	tuner_dbg("Freq= %d.%02d MHz, V_IF=%d.%02d MHz, "
-		  "Offset=%d.%02d MHz, div=%0d\n",
+	tuner_dbg("Freq= %d.%02d MHz, V_IF=%d.%02d MHz, Offset=%d.%02d MHz, div=%0d\n",
 		  params->frequency / 16, params->frequency % 16 * 100 / 16,
 		  IFPCoff / 16, IFPCoff % 16 * 100 / 16,
 		  offset / 16, offset % 16 * 100 / 16, div);
@@ -673,6 +670,7 @@ static int simple_set_radio_freq(struct dvb_frontend *fe,
 	int rc, j;
 	struct tuner_params *t_params;
 	unsigned int freq = params->frequency;
+	bool mono = params->audmode == V4L2_TUNER_MODE_MONO;
 
 	tun = priv->tun;
 
@@ -739,8 +737,8 @@ static int simple_set_radio_freq(struct dvb_frontend *fe,
 			config |= TDA9887_PORT2_ACTIVE;
 		if (t_params->intercarrier_mode)
 			config |= TDA9887_INTERCARRIER;
-/*		if (t_params->port1_set_for_fm_mono)
-			config &= ~TDA9887_PORT1_ACTIVE;*/
+		if (t_params->port1_set_for_fm_mono && mono)
+			config &= ~TDA9887_PORT1_ACTIVE;
 		if (t_params->fm_gain_normal)
 			config |= TDA9887_GAIN_NORMAL;
 		if (t_params->radio_if == 2)
@@ -849,7 +847,7 @@ static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 	/* This function returns the tuned frequency on success, 0 on error */
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	struct tunertype *tun = priv->tun;
-	static struct tuner_params *t_params;
+	struct tuner_params *t_params;
 	u8 config, cb;
 	u32 div;
 	int ret;
@@ -858,8 +856,7 @@ static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 	if (!tun->stepsize) {
 		/* tuner-core was loaded before the digital tuner was
 		 * configured and somehow picked the wrong tuner type */
-		tuner_err("attempt to treat tuner %d (%s) as digital tuner "
-			  "without stepsize defined.\n",
+		tuner_err("attempt to treat tuner %d (%s) as digital tuner without stepsize defined.\n",
 			  priv->type, priv->tun->name);
 		return 0; /* failure */
 	}
@@ -1005,7 +1002,7 @@ static int simple_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int simple_release(struct dvb_frontend *fe)
+static void simple_release(struct dvb_frontend *fe)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 
@@ -1017,8 +1014,6 @@ static int simple_release(struct dvb_frontend *fe)
 	mutex_unlock(&tuner_simple_list_mutex);
 
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static int simple_get_frequency(struct dvb_frontend *fe, u32 *frequency)
@@ -1035,7 +1030,7 @@ static int simple_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
-static struct dvb_tuner_ops simple_tuner_ops = {
+static const struct dvb_tuner_ops simple_tuner_ops = {
 	.init              = simple_init,
 	.sleep             = simple_sleep,
 	.set_analog_params = simple_set_params,
@@ -1077,8 +1072,7 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 			fe->ops.i2c_gate_ctrl(fe, 1);
 
 		if (1 != i2c_transfer(i2c_adap, &msg, 1))
-			printk(KERN_WARNING "tuner-simple %d-%04x: "
-			       "unable to probe %s, proceeding anyway.",
+			printk(KERN_WARNING "tuner-simple %d-%04x: unable to probe %s, proceeding anyway.",
 			       i2c_adapter_id(i2c_adap), i2c_addr,
 			       tuners[type].name);
 
@@ -1123,18 +1117,16 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 	if ((debug) || ((atv_input[priv->nr] > 0) ||
 			(dtv_input[priv->nr] > 0))) {
 		if (0 == atv_input[priv->nr])
-			tuner_info("tuner %d atv rf input will be "
-				   "autoselected\n", priv->nr);
+			tuner_info("tuner %d atv rf input will be autoselected\n",
+				   priv->nr);
 		else
-			tuner_info("tuner %d atv rf input will be "
-				   "set to input %d (insmod option)\n",
+			tuner_info("tuner %d atv rf input will be set to input %d (insmod option)\n",
 				   priv->nr, atv_input[priv->nr]);
 		if (0 == dtv_input[priv->nr])
-			tuner_info("tuner %d dtv rf input will be "
-				   "autoselected\n", priv->nr);
+			tuner_info("tuner %d dtv rf input will be autoselected\n",
+				   priv->nr);
 		else
-			tuner_info("tuner %d dtv rf input will be "
-				   "set to input %d (insmod option)\n",
+			tuner_info("tuner %d dtv rf input will be set to input %d (insmod option)\n",
 				   priv->nr, dtv_input[priv->nr]);
 	}
 

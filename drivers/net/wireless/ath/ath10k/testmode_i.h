@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014,2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -33,6 +33,7 @@ enum ath10k_tm_attr {
 	ATH10K_TM_ATTR_WMI_CMDID	= 3,
 	ATH10K_TM_ATTR_VERSION_MAJOR	= 4,
 	ATH10K_TM_ATTR_VERSION_MINOR	= 5,
+	ATH10K_TM_ATTR_WMI_OP_VERSION	= 6,
 
 	/* keep last */
 	__ATH10K_TM_ATTR_AFTER_LAST,

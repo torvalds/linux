@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* $Date: 2005/11/12 02:13:49 $ $RCSfile: my3126.c,v $ $Revision: 1.15 $ */
 #include "cphy.h"
 #include "elmer0.h"
@@ -154,7 +155,7 @@ static void my3126_destroy(struct cphy *cphy)
 	kfree(cphy);
 }
 
-static struct cphy_ops my3126_ops = {
+static const struct cphy_ops my3126_ops = {
 	.destroy		= my3126_destroy,
 	.reset			= my3126_reset,
 	.interrupt_enable	= my3126_interrupt_enable,

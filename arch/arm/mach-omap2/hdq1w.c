@@ -75,25 +75,3 @@ int omap_hdq1w_reset(struct omap_hwmod *oh)
 
 	return 0;
 }
-
-#ifndef CONFIG_OF
-static int __init omap_init_hdq(void)
-{
-	int id = -1;
-	struct platform_device *pdev;
-	struct omap_hwmod *oh;
-	char *oh_name = "hdq1w";
-	char *devname = "omap_hdq";
-
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh)
-		return 0;
-
-	pdev = omap_device_build(devname, id, oh, NULL, 0);
-	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s.\n",
-	     devname, oh->name);
-
-	return 0;
-}
-omap_arch_initcall(omap_init_hdq);
-#endif

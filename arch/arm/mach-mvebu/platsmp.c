@@ -35,6 +35,8 @@
 #define AXP_BOOTROM_BASE 0xfff00000
 #define AXP_BOOTROM_SIZE 0x100000
 
+static struct clk *boot_cpu_clk;
+
 static struct clk *get_cpu_clk(int cpu)
 {
 	struct clk *cpu_clk;
@@ -48,30 +50,6 @@ static struct clk *get_cpu_clk(int cpu)
 	return cpu_clk;
 }
 
-static void set_secondary_cpu_clock(unsigned int cpu)
-{
-	int thiscpu;
-	unsigned long rate;
-	struct clk *cpu_clk;
-
-	thiscpu = get_cpu();
-
-	cpu_clk = get_cpu_clk(thiscpu);
-	if (!cpu_clk)
-		goto out;
-	clk_prepare_enable(cpu_clk);
-	rate = clk_get_rate(cpu_clk);
-
-	cpu_clk = get_cpu_clk(cpu);
-	if (!cpu_clk)
-		goto out;
-	clk_set_rate(cpu_clk, rate);
-	clk_prepare_enable(cpu_clk);
-
-out:
-	put_cpu();
-}
-
 static int armada_xp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int ret, hw_cpu;
@@ -79,7 +57,6 @@ static int armada_xp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	pr_info("Booting CPU %d\n", cpu);
 
 	hw_cpu = cpu_logical_map(cpu);
-	set_secondary_cpu_clock(hw_cpu);
 	mvebu_pmsu_set_cpu_boot_addr(hw_cpu, armada_xp_secondary_startup);
 
 	/*
@@ -122,6 +99,19 @@ static void __init armada_xp_smp_init_cpus(void)
 		panic("Invalid number of CPUs in DT\n");
 }
 
+static int armada_xp_sync_secondary_clk(unsigned int cpu)
+{
+	struct clk *cpu_clk = get_cpu_clk(cpu);
+
+	if (!cpu_clk || !boot_cpu_clk)
+		return 0;
+
+	clk_prepare_enable(cpu_clk);
+	clk_set_rate(cpu_clk, clk_get_rate(boot_cpu_clk));
+
+	return 0;
+}
+
 static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 {
 	struct device_node *node;
@@ -130,6 +120,14 @@ static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 
 	flush_cache_all();
 	set_cpu_coherent();
+
+	boot_cpu_clk = get_cpu_clk(smp_processor_id());
+	if (boot_cpu_clk) {
+		clk_prepare_enable(boot_cpu_clk);
+		cpuhp_setup_state_nocalls(CPUHP_AP_ARM_MVEBU_SYNC_CLOCKS,
+					  "arm/mvebu/sync_clocks:online",
+					  armada_xp_sync_secondary_clk, NULL);
+	}
 
 	/*
 	 * In order to boot the secondary CPUs we need to ensure
@@ -140,6 +138,7 @@ static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 		panic("Cannot find 'marvell,bootrom' compatible node");
 
 	err = of_address_to_resource(node, 0, &res);
+	of_node_put(node);
 	if (err < 0)
 		panic("Cannot get 'bootrom' node address");
 
@@ -170,7 +169,7 @@ static int armada_xp_cpu_kill(unsigned int cpu)
 }
 #endif
 
-struct smp_operations armada_xp_smp_ops __initdata = {
+const struct smp_operations armada_xp_smp_ops __initconst = {
 	.smp_init_cpus		= armada_xp_smp_init_cpus,
 	.smp_prepare_cpus	= armada_xp_smp_prepare_cpus,
 	.smp_boot_secondary	= armada_xp_boot_secondary,
@@ -183,3 +182,77 @@ struct smp_operations armada_xp_smp_ops __initdata = {
 
 CPU_METHOD_OF_DECLARE(armada_xp_smp, "marvell,armada-xp-smp",
 		      &armada_xp_smp_ops);
+
+#define MV98DX3236_CPU_RESUME_CTRL_REG 0x08
+#define MV98DX3236_CPU_RESUME_ADDR_REG 0x04
+
+static const struct of_device_id of_mv98dx3236_resume_table[] = {
+	{
+		.compatible = "marvell,98dx3336-resume-ctrl",
+	},
+	{ /* end of list */ },
+};
+
+static int mv98dx3236_resume_set_cpu_boot_addr(int hw_cpu, void *boot_addr)
+{
+	struct device_node *np;
+	void __iomem *base;
+	WARN_ON(hw_cpu != 1);
+
+	np = of_find_matching_node(NULL, of_mv98dx3236_resume_table);
+	if (!np)
+		return -ENODEV;
+
+	base = of_io_request_and_map(np, 0, of_node_full_name(np));
+	of_node_put(np);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	writel(0, base + MV98DX3236_CPU_RESUME_CTRL_REG);
+	writel(__pa_symbol(boot_addr), base + MV98DX3236_CPU_RESUME_ADDR_REG);
+
+	iounmap(base);
+
+	return 0;
+}
+
+static int mv98dx3236_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	int ret, hw_cpu;
+
+	hw_cpu = cpu_logical_map(cpu);
+	mv98dx3236_resume_set_cpu_boot_addr(hw_cpu,
+					    armada_xp_secondary_startup);
+
+	/*
+	 * This is needed to wake up CPUs in the offline state after
+	 * using CPU hotplug.
+	 */
+	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
+
+	/*
+	 * This is needed to take secondary CPUs out of reset on the
+	 * initial boot.
+	 */
+	ret = mvebu_cpu_reset_deassert(hw_cpu);
+	if (ret) {
+		pr_warn("unable to boot CPU: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static const struct smp_operations mv98dx3236_smp_ops __initconst = {
+	.smp_init_cpus		= armada_xp_smp_init_cpus,
+	.smp_prepare_cpus	= armada_xp_smp_prepare_cpus,
+	.smp_boot_secondary	= mv98dx3236_boot_secondary,
+	.smp_secondary_init     = armada_xp_secondary_init,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= armada_xp_cpu_die,
+	.cpu_kill               = armada_xp_cpu_kill,
+#endif
+};
+
+CPU_METHOD_OF_DECLARE(mv98dx3236_smp, "marvell,98dx3236-smp",
+		      &mv98dx3236_smp_ops);

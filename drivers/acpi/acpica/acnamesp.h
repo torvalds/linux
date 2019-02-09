@@ -1,45 +1,11 @@
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #ifndef __ACNAMESP_H__
 #define __ACNAMESP_H__
@@ -59,14 +25,15 @@
 /* Flags for acpi_ns_lookup, acpi_ns_search_and_enter */
 
 #define ACPI_NS_NO_UPSEARCH         0
-#define ACPI_NS_SEARCH_PARENT       0x01
-#define ACPI_NS_DONT_OPEN_SCOPE     0x02
-#define ACPI_NS_NO_PEER_SEARCH      0x04
-#define ACPI_NS_ERROR_IF_FOUND      0x08
-#define ACPI_NS_PREFIX_IS_SCOPE     0x10
-#define ACPI_NS_EXTERNAL            0x20
-#define ACPI_NS_TEMPORARY           0x40
-#define ACPI_NS_OVERRIDE_IF_FOUND   0x80
+#define ACPI_NS_SEARCH_PARENT       0x0001
+#define ACPI_NS_DONT_OPEN_SCOPE     0x0002
+#define ACPI_NS_NO_PEER_SEARCH      0x0004
+#define ACPI_NS_ERROR_IF_FOUND      0x0008
+#define ACPI_NS_PREFIX_IS_SCOPE     0x0010
+#define ACPI_NS_EXTERNAL            0x0020
+#define ACPI_NS_TEMPORARY           0x0040
+#define ACPI_NS_OVERRIDE_IF_FOUND   0x0080
+#define ACPI_NS_EARLY_INIT          0x0100
 
 /* Flags for acpi_ns_walk_namespace */
 
@@ -77,6 +44,7 @@
 /* Object is not a package element */
 
 #define ACPI_NOT_PACKAGE_ELEMENT    ACPI_UINT32_MAX
+#define ACPI_ALL_PACKAGE_ELEMENTS   (ACPI_UINT32_MAX-1)
 
 /* Always emit warning message, not dependent on node flags */
 
@@ -87,7 +55,11 @@
  */
 acpi_status acpi_ns_initialize_objects(void);
 
-acpi_status acpi_ns_initialize_devices(void);
+acpi_status acpi_ns_initialize_devices(u32 flags);
+
+acpi_status
+acpi_ns_init_one_package(acpi_handle obj_handle,
+			 u32 level, void *context, void **return_value);
 
 /*
  * nsload -  Namespace loading
@@ -127,6 +99,9 @@ struct acpi_namespace_node *acpi_ns_get_next_node_typed(acpi_object_type type,
  */
 acpi_status
 acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node);
+
+acpi_status
+acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node);
 
 acpi_status
 acpi_ns_one_complete_parse(u32 pass_number,
@@ -183,12 +158,19 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
 			  union acpi_operand_object **return_object);
 
 acpi_status
-acpi_ns_convert_to_unicode(union acpi_operand_object *original_object,
+acpi_ns_convert_to_unicode(struct acpi_namespace_node *scope,
+			   union acpi_operand_object *original_object,
 			   union acpi_operand_object **return_object);
 
 acpi_status
-acpi_ns_convert_to_resource(union acpi_operand_object *original_object,
+acpi_ns_convert_to_resource(struct acpi_namespace_node *scope,
+			    union acpi_operand_object *original_object,
 			    union acpi_operand_object **return_object);
+
+acpi_status
+acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
+			     union acpi_operand_object *original_object,
+			     union acpi_operand_object **return_object);
 
 /*
  * nsdump - Namespace dump/print utilities
@@ -198,9 +180,10 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth);
 void acpi_ns_dump_entry(acpi_handle handle, u32 debug_level);
 
 void
-acpi_ns_dump_pathname(acpi_handle handle, char *msg, u32 level, u32 component);
+acpi_ns_dump_pathname(acpi_handle handle,
+		      const char *msg, u32 level, u32 component);
 
-void acpi_ns_print_pathname(u32 num_segments, char *pathname);
+void acpi_ns_print_pathname(u32 num_segments, const char *pathname);
 
 acpi_status
 acpi_ns_dump_one_object(acpi_handle obj_handle,
@@ -277,7 +260,13 @@ acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 				      u8 no_trailing);
 
+char *acpi_ns_build_prefixed_pathname(union acpi_generic_state *prefix_scope,
+				      const char *internal_path);
+
 char *acpi_ns_name_of_current_scope(struct acpi_walk_state *walk_state);
+
+acpi_status
+acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer);
 
 acpi_status
 acpi_ns_handle_to_pathname(acpi_handle target_handle,
@@ -285,6 +274,11 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 u8
 acpi_ns_pattern_match(struct acpi_namespace_node *obj_node, char *search_for);
+
+acpi_status
+acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
+			  const char *external_pathname,
+			  u32 flags, struct acpi_namespace_node **out_node);
 
 acpi_status
 acpi_ns_get_node(struct acpi_namespace_node *prefix_node,

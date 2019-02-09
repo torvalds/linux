@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/time.h>
 #include <linux/timer.h>
@@ -12,7 +13,7 @@
 
 #define MAX_RTC_WAIT 5000	/* 5 sec */
 #define RTAS_CLOCK_BUSY (-2)
-unsigned long __init rtas_get_boot_time(void)
+time64_t __init rtas_get_boot_time(void)
 {
 	int ret[8];
 	int error;
@@ -37,7 +38,7 @@ unsigned long __init rtas_get_boot_time(void)
 		return 0;
 	}
 
-	return mktime(ret[0], ret[1], ret[2], ret[3], ret[4], ret[5]);
+	return mktime64(ret[0], ret[1], ret[2], ret[3], ret[4], ret[5]);
 }
 
 /* NOTE: get_rtc_time will get an error if executed in interrupt context

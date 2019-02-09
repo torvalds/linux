@@ -29,7 +29,7 @@
 #include <asm/opal-prd.h>
 #include <asm/opal.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 /**
@@ -147,13 +147,13 @@ static bool opal_msg_queue_empty(void)
 	return ret;
 }
 
-static unsigned int opal_prd_poll(struct file *file,
+static __poll_t opal_prd_poll(struct file *file,
 		struct poll_table_struct *wait)
 {
 	poll_wait(file, &opal_prd_msg_wait, wait);
 
 	if (!opal_msg_queue_empty())
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }
@@ -241,15 +241,9 @@ static ssize_t opal_prd_write(struct file *file, const char __user *buf,
 
 	size = be16_to_cpu(hdr.size);
 
-	msg = kmalloc(size, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-
-	rc = copy_from_user(msg, buf, size);
-	if (rc) {
-		size = -EFAULT;
-		goto out_free;
-	}
+	msg = memdup_user(buf, size);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
 	rc = opal_prd_msg(msg);
 	if (rc) {
@@ -257,7 +251,6 @@ static ssize_t opal_prd_write(struct file *file, const char __user *buf,
 		size = -EIO;
 	}
 
-out_free:
 	kfree(msg);
 
 	return size;
@@ -434,7 +427,6 @@ static const struct of_device_id opal_prd_match[] = {
 static struct platform_driver opal_prd_driver = {
 	.driver = {
 		.name		= "opal-prd",
-		.owner		= THIS_MODULE,
 		.of_match_table	= opal_prd_match,
 	},
 	.probe	= opal_prd_probe,

@@ -99,6 +99,7 @@ static void tx_complete(struct urb *req)
 	struct net_device *dev = skb->dev;
 	struct usbpn_dev *pnd = netdev_priv(dev);
 	int status = req->status;
+	unsigned long flags;
 
 	switch (status) {
 	case 0:
@@ -109,16 +110,17 @@ static void tx_complete(struct urb *req)
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		dev->stats.tx_aborted_errors++;
+		/* fall through */
 	default:
 		dev->stats.tx_errors++;
 		dev_dbg(&dev->dev, "TX error (%d)\n", status);
 	}
 	dev->stats.tx_packets++;
 
-	spin_lock(&pnd->tx_lock);
+	spin_lock_irqsave(&pnd->tx_lock, flags);
 	pnd->tx_queue--;
 	netif_wake_queue(dev);
-	spin_unlock(&pnd->tx_lock);
+	spin_unlock_irqrestore(&pnd->tx_lock, flags);
 
 	dev_kfree_skb_any(skb);
 	usb_free_urb(req);
@@ -162,7 +164,7 @@ static void rx_complete(struct urb *req)
 			skb = pnd->rx_skb = netdev_alloc_skb(dev, 12);
 			if (likely(skb)) {
 				/* Can't use pskb_pull() on page in IRQ */
-				memcpy(skb_put(skb, 1), page_address(page), 1);
+				skb_put_data(skb, page_address(page), 1);
 				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 						page, 1, req->actual_length,
 						PAGE_SIZE);
@@ -276,21 +278,11 @@ static int usbpn_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -ENOIOCTLCMD;
 }
 
-static int usbpn_set_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < PHONET_MIN_MTU) || (new_mtu > PHONET_MAX_MTU))
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static const struct net_device_ops usbpn_ops = {
 	.ndo_open	= usbpn_open,
 	.ndo_stop	= usbpn_close,
 	.ndo_start_xmit = usbpn_xmit,
 	.ndo_do_ioctl	= usbpn_ioctl,
-	.ndo_change_mtu = usbpn_set_mtu,
 };
 
 static void usbpn_setup(struct net_device *dev)
@@ -301,18 +293,20 @@ static void usbpn_setup(struct net_device *dev)
 	dev->type		= ARPHRD_PHONET;
 	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu		= PHONET_MAX_MTU;
+	dev->min_mtu		= PHONET_MIN_MTU;
+	dev->max_mtu		= PHONET_MAX_MTU;
 	dev->hard_header_len	= 1;
 	dev->dev_addr[0]	= PN_MEDIA_USB;
 	dev->addr_len		= 1;
 	dev->tx_queue_len	= 3;
 
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 }
 
 /*
  * USB driver callbacks
  */
-static struct usb_device_id usbpn_ids[] = {
+static const struct usb_device_id usbpn_ids[] = {
 	{
 		.match_flags = USB_DEVICE_ID_MATCH_VENDOR
 			| USB_DEVICE_ID_MATCH_INT_CLASS

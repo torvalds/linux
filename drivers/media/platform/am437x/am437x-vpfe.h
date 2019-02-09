@@ -264,8 +264,6 @@ struct vpfe_device {
 	struct v4l2_rect crop;
 	/* Buffer queue used in video-buf */
 	struct vb2_queue buffer_queue;
-	/* Allocator-specific contexts for each plane */
-	struct vb2_alloc_ctx *alloc_ctx;
 	/* Queue of filled frames */
 	struct list_head dma_queue;
 	/* IRQ lock for DMA queue */

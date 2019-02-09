@@ -3,6 +3,7 @@
 config SND_WSS_LIB
         tristate
         select SND_PCM
+	select SND_TIMER
 
 config SND_SB_COMMON
         tristate
@@ -19,7 +20,8 @@ config SND_SB16_DSP
 
 menuconfig SND_ISA
 	bool "ISA sound devices"
-	depends on ISA && ISA_DMA_API
+	depends on ISA || COMPILE_TEST
+	depends on ISA_DMA_API
 	default y
 	help
 	  Support for sound devices connected via the ISA bus.
@@ -42,6 +44,7 @@ config SND_AD1816A
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_TIMER
 	help
 	  Say Y here to include support for Analog Devices SoundPort
 	  AD1816A or compatible sound chips.
@@ -209,6 +212,7 @@ config SND_GUSCLASSIC
 	tristate "Gravis UltraSound Classic"
 	select SND_RAWMIDI
 	select SND_PCM
+	select SND_TIMER
 	help
 	  Say Y here to include support for Gravis UltraSound Classic
 	  soundcards.
@@ -221,6 +225,7 @@ config SND_GUSEXTREME
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_TIMER
 	help
 	  Say Y here to include support for Gravis UltraSound Extreme
 	  soundcards.
@@ -373,12 +378,20 @@ config SND_SBAWE
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_SB16_DSP
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 	help
 	  Say Y here to include support for Sound Blaster AWE soundcards
 	  (including the Plug and Play version).
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sbawe.
+
+# select SEQ stuff to min(SND_SEQUENCER,SND_XXX)
+config SND_SBAWE_SEQ
+	def_tristate SND_SEQUENCER && SND_SBAWE
+	select SND_SEQ_MIDI_EMUL
+	select SND_SEQ_VIRMIDI
+	select SND_SYNTH_EMUX
 
 config SND_SB16_CSP
 	bool "Sound Blaster 16/AWE CSP support"
@@ -446,7 +459,7 @@ config SND_MSND_CLASSIC
 	  Say M here if you have a Turtle Beach MultiSound Classic, Tahiti or
 	  Monterey (not for the Pinnacle or Fiji).
 
-	  See <file:Documentation/sound/oss/MultiSound> for important information
+	  See <file:Documentation/sound/cards/multisound.sh> for important information
 	  about this driver.  Note that it has been discontinued, but the
 	  Voyetra Turtle Beach knowledge base entry for it is still available
 	  at <http://www.turtlebeach.com/site/kb_ftp/790.asp>.

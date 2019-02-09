@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DRM_AGPSUPPORT_H_
 #define _DRM_AGPSUPPORT_H_
 
@@ -37,7 +38,7 @@ struct agp_memory *drm_agp_bind_pages(struct drm_device *dev,
 				uint32_t type);
 
 struct drm_agp_head *drm_agp_init(struct drm_device *dev);
-void drm_agp_clear(struct drm_device *dev);
+void drm_legacy_agp_clear(struct drm_device *dev);
 int drm_agp_acquire(struct drm_device *dev);
 int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
@@ -93,7 +94,7 @@ static inline struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 	return NULL;
 }
 
-static inline void drm_agp_clear(struct drm_device *dev)
+static inline void drm_legacy_agp_clear(struct drm_device *dev)
 {
 }
 

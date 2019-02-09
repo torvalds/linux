@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *
  ******************************************************************************/
 #ifndef __RTW_CMD_H_
@@ -44,8 +31,8 @@ struct cmd_obj {
 };
 
 struct cmd_priv {
-	struct semaphore cmd_queue_sema;
-	struct semaphore terminate_cmdthread_sema;
+	struct completion cmd_queue_comp;
+	struct completion terminate_cmdthread_comp;
 	struct __queue cmd_queue;
 	u8 cmdthd_running;
 	struct adapter *padapter;
@@ -102,13 +89,13 @@ enum RFINTFS {
 };
 
 /*
-Caller Mode: Infra, Ad-HoC(C)
-
-Notes: To disconnect the current associated BSS
-
-Command Mode
-
-*/
+ * Caller Mode: Infra, Ad-HoC(C)
+ *
+ * Notes: To disconnect the current associated BSS
+ *
+ * Command Mode
+ *
+ */
 struct disconnect_parm {
 	u32 deauth_timeout_ms;
 };
@@ -119,13 +106,13 @@ struct	setopmode_parm {
 };
 
 /*
-Caller Mode: AP, Ad-HoC, Infra
-
-Notes: To ask RTL8711 performing site-survey
-
-Command-Event Mode
-
-*/
+ * Caller Mode: AP, Ad-HoC, Infra
+ *
+ * Notes: To ask RTL8711 performing site-survey
+ *
+ * Command-Event Mode
+ *
+ */
 
 #define RTW_SSID_SCAN_AMOUNT 9 /*  for WEXT_CSCAN_AMOUNT 9 */
 #define RTW_CHANNEL_SCAN_AMOUNT (14+37)
@@ -138,13 +125,13 @@ struct sitesurvey_parm {
 };
 
 /*
-Caller Mode: Any
-
-Notes: To set the auth type of RTL8711. open/shared/802.1x
-
-Command Mode
-
-*/
+ * Caller Mode: Any
+ *
+ * Notes: To set the auth type of RTL8711. open/shared/802.1x
+ *
+ * Command Mode
+ *
+ */
 struct setauth_parm {
 	u8 mode;  /* 0: legacy open, 1: legacy shared 2: 802.1x */
 	u8 _1x;   /* 0: PSK, 1: TLS */
@@ -152,40 +139,42 @@ struct setauth_parm {
 };
 
 /*
-Caller Mode: Infra
-
-a. algorithm: wep40, wep104, tkip & aes
-b. keytype: grp key/unicast key
-c. key contents
-
-when shared key ==> keyid is the camid
-when 802.1x ==> keyid [0:1] ==> grp key
-when 802.1x ==> keyid > 2 ==> unicast key
-
-*/
+ * Caller Mode: Infra
+ *
+ * a. algorithm: wep40, wep104, tkip & aes
+ * b. keytype: grp key/unicast key
+ * c. key contents
+ *
+ * when shared key ==> keyid is the camid
+ * when 802.1x ==> keyid [0:1] ==> grp key
+ * when 802.1x ==> keyid > 2 ==> unicast key
+ *
+ */
 struct setkey_parm {
 	u8	algorithm;	/* could be none, wep40, TKIP, CCMP, wep104 */
 	u8	keyid;
 	u8	grpkey;		/* 1: this is the grpkey for 802.1x.
-				 * 0: this is the unicast key for 802.1x */
+				 * 0: this is the unicast key for 802.1x
+				 */
 	u8	set_tx;		/* 1: main tx key for wep. 0: other key. */
 	u8	key[16];	/* this could be 40 or 104 */
 };
 
 /*
-When in AP or Ad-Hoc mode, this is used to
-allocate an sw/hw entry for a newly associated sta.
-
-Command
-
-when shared key ==> algorithm/keyid
-
-*/
+ * When in AP or Ad-Hoc mode, this is used to
+ * allocate an sw/hw entry for a newly associated sta.
+ *
+ * Command
+ *
+ * when shared key ==> algorithm/keyid
+ *
+ */
 struct set_stakey_parm {
 	u8	addr[ETH_ALEN];
 	u8	algorithm;
 	u8	id;/* currently for erasing cam entry if
-		    * algorithm == _NO_PRIVACY_ */
+		    * algorithm == _NO_PRIVACY_
+		    */
 	u8	key[16];
 };
 
@@ -196,15 +185,15 @@ struct set_stakey_rsp {
 };
 
 /*
-Caller Ad-Hoc/AP
-
-Command -Rsp(AID == CAMID) mode
-
-This is to force fw to add an sta_data entry per driver's request.
-
-FW will write an cam entry associated with it.
-
-*/
+ * Caller Ad-Hoc/AP
+ *
+ * Command -Rsp(AID == CAMID) mode
+ *
+ * This is to force fw to add an sta_data entry per driver's request.
+ *
+ * FW will write an cam entry associated with it.
+ *
+ */
 struct set_assocsta_parm {
 	u8	addr[ETH_ALEN];
 };
@@ -215,83 +204,57 @@ struct set_assocsta_rsp {
 };
 
 /*
-	Caller Ad-Hoc/AP
-
-	Command mode
-
-	This is to force fw to del an sta_data entry per driver's request
-
-	FW will invalidate the cam entry associated with it.
-
-*/
-struct del_assocsta_parm {
-	u8	addr[ETH_ALEN];
-};
-
-/*
-Caller Mode: AP/Ad-HoC(M)
-
-Notes: To notify fw that given staid has changed its power state
-
-Command Mode
-
-*/
-struct setstapwrstate_parm {
-	u8	staid;
-	u8	status;
-	u8	hwaddr[6];
-};
-
-/*
-	Notes: This command is used for H2C/C2H loopback testing
-
-	mac[0] == 0
-	==> CMD mode, return H2C_SUCCESS.
-	The following condition must be ture under CMD mode
-		mac[1] == mac[4], mac[2] == mac[3], mac[0]=mac[5]= 0;
-		s0 == 0x1234, s1 == 0xabcd, w0 == 0x78563412, w1 == 0x5aa5def7;
-		s2 == (b1 << 8 | b0);
-
-	mac[0] == 1
-	==> CMD_RSP mode, return H2C_SUCCESS_RSP
-
-	The rsp layout shall be:
-	rsp:			parm:
-		mac[0]  =   mac[5];
-		mac[1]  =   mac[4];
-		mac[2]  =   mac[3];
-		mac[3]  =   mac[2];
-		mac[4]  =   mac[1];
-		mac[5]  =   mac[0];
-		s0		=   s1;
-		s1		=   swap16(s0);
-		w0		=	swap32(w1);
-		b0		=	b1
-		s2		=	s0 + s1
-		b1		=	b0
-		w1		=	w0
-
-	mac[0] ==	2
-	==> CMD_EVENT mode, return	H2C_SUCCESS
-	The event layout shall be:
-	event:			parm:
-		mac[0]  =   mac[5];
-		mac[1]  =   mac[4];
-		mac[2]  =   event's seq no, starting from 1 to parm's marc[3]
-		mac[3]  =   mac[2];
-		mac[4]  =   mac[1];
-		mac[5]  =   mac[0];
-		s0		=   swap16(s0) - event.mac[2];
-		s1		=   s1 + event.mac[2];
-		w0		=	swap32(w0);
-		b0		=	b1
-		s2		=	s0 + event.mac[2]
-		b1		=	b0
-		w1		=	swap32(w1) - event.mac[2];
-
-		parm->mac[3] is the total event counts that host requested.
-	event will be the same with the cmd's param.
-*/
+ *	Notes: This command is used for H2C/C2H loopback testing
+ *
+ *	mac[0] == 0
+ *	==> CMD mode, return H2C_SUCCESS.
+ *	The following condition must be true under CMD mode
+ *		mac[1] == mac[4], mac[2] == mac[3], mac[0]=mac[5]= 0;
+ *		s0 == 0x1234, s1 == 0xabcd, w0 == 0x78563412, w1 == 0x5aa5def7;
+ *		s2 == (b1 << 8 | b0);
+ *
+ *	mac[0] == 1
+ *	==> CMD_RSP mode, return H2C_SUCCESS_RSP
+ *
+ *	The rsp layout shall be:
+ *	rsp:			parm:
+ *		mac[0]  =   mac[5];
+ *		mac[1]  =   mac[4];
+ *		mac[2]  =   mac[3];
+ *		mac[3]  =   mac[2];
+ *		mac[4]  =   mac[1];
+ *		mac[5]  =   mac[0];
+ *		s0		=   s1;
+ *		s1		=   swap16(s0);
+ *		w0		=	swap32(w1);
+ *		b0		=	b1
+ *		s2		=	s0 + s1
+ *		b1		=	b0
+ *		w1		=	w0
+ *
+ *	mac[0] ==	2
+ *	==> CMD_EVENT mode, return	H2C_SUCCESS
+ *	The event layout shall be:
+ *	event:			parm:
+ *		mac[0]  =   mac[5];
+ *		mac[1]  =   mac[4];
+ *		mac[2]  =   event's seq no, starting from 1 to parm's marc[3]
+ *		mac[2]  =   event's seq no, starting from 1 to parm's marc[3]
+ *		mac[2]  =   event's seq no, starting from 1 to parm's marc[3]
+ *		mac[3]  =   mac[2];
+ *		mac[4]  =   mac[1];
+ *		mac[5]  =   mac[0];
+ *		s0		=   swap16(s0) - event.mac[2];
+ *		s1		=   s1 + event.mac[2];
+ *		w0		=	swap32(w0);
+ *		b0		=	b1
+ *		s2		=	s0 + event.mac[2]
+ *		b1		=	b0
+ *		w1		=	swap32(w1) - event.mac[2];
+ *
+ *		parm->mac[3] is the total event counts that host requested.
+ *	event will be the same with the cmd's param.
+ */
 
 /*  CMD param Format for driver extra cmd handler */
 struct drvextra_cmd_parm {
@@ -317,18 +280,16 @@ struct SetChannelPlan_param {
 	u8 channel_plan;
 };
 
-#define GEN_CMD_CODE(cmd)	cmd ## _CMD_
-
 /*
-
-Result:
-0x00: success
-0x01: success, and check Response.
-0x02: cmd ignored due to duplicated sequcne number
-0x03: cmd dropped due to invalid cmd code
-0x04: reserved.
-
-*/
+ *
+ * Result:
+ * 0x00: success
+ * 0x01: success, and check Response.
+ * 0x02: cmd ignored due to duplicated sequcne number
+ * 0x03: cmd dropped due to invalid cmd code
+ * 0x04: reserved.
+ *
+ */
 
 #define H2C_SUCCESS		0x00
 #define H2C_SUCCESS_RSP		0x01
@@ -381,42 +342,42 @@ struct _cmd_callback {
 };
 
 enum rtw_h2c_cmd {
-	GEN_CMD_CODE(_JoinBss),
-	GEN_CMD_CODE(_DisConnect),
-	GEN_CMD_CODE(_CreateBss),
-	GEN_CMD_CODE(_SetOpMode),
-	GEN_CMD_CODE(_SiteSurvey),
-	GEN_CMD_CODE(_SetAuth),
-	GEN_CMD_CODE(_SetKey),
-	GEN_CMD_CODE(_SetStaKey),
-	GEN_CMD_CODE(_SetAssocSta),
-	GEN_CMD_CODE(_AddBAReq),
-	GEN_CMD_CODE(_SetChannel),
-	GEN_CMD_CODE(_TX_Beacon),
-	GEN_CMD_CODE(_Set_MLME_EVT),
-	GEN_CMD_CODE(_Set_Drv_Extra),
-	GEN_CMD_CODE(_SetChannelPlan),
+	_JoinBss_CMD_,
+	_DisConnect_CMD_,
+	_CreateBss_CMD_,
+	_SetOpMode_CMD_,
+	_SiteSurvey_CMD_,
+	_SetAuth_CMD_,
+	_SetKey_CMD_,
+	_SetStaKey_CMD_,
+	_SetAssocSta_CMD_,
+	_AddBAReq_CMD_,
+	_SetChannel_CMD_,
+	_TX_Beacon_CMD_,
+	_Set_MLME_EVT_CMD_,
+	_Set_Drv_Extra_CMD_,
+	_SetChannelPlan_CMD_,
 
 	MAX_H2CCMD
 };
 
 #ifdef _RTW_CMD_C_
 static struct _cmd_callback	rtw_cmd_callback[] = {
-	{GEN_CMD_CODE(_JoinBss), &rtw_joinbss_cmd_callback},
-	{GEN_CMD_CODE(_DisConnect), &rtw_disassoc_cmd_callback},
-	{GEN_CMD_CODE(_CreateBss), &rtw_createbss_cmd_callback},
-	{GEN_CMD_CODE(_SetOpMode), NULL},
-	{GEN_CMD_CODE(_SiteSurvey), &rtw_survey_cmd_callback},
-	{GEN_CMD_CODE(_SetAuth), NULL},
-	{GEN_CMD_CODE(_SetKey), NULL},
-	{GEN_CMD_CODE(_SetStaKey), &rtw_setstaKey_cmdrsp_callback},
-	{GEN_CMD_CODE(_SetAssocSta), &rtw_setassocsta_cmdrsp_callback},
-	{GEN_CMD_CODE(_AddBAReq), NULL},
-	{GEN_CMD_CODE(_SetChannel), NULL},
-	{GEN_CMD_CODE(_TX_Beacon), NULL},
-	{GEN_CMD_CODE(_Set_MLME_EVT), NULL},
-	{GEN_CMD_CODE(_Set_Drv_Extra), NULL},
-	{GEN_CMD_CODE(_SetChannelPlan), NULL},
+	{_JoinBss_CMD_, &rtw_joinbss_cmd_callback},
+	{_DisConnect_CMD_, &rtw_disassoc_cmd_callback},
+	{_CreateBss_CMD_, &rtw_createbss_cmd_callback},
+	{_SetOpMode_CMD_, NULL},
+	{_SiteSurvey_CMD_, &rtw_survey_cmd_callback},
+	{_SetAuth_CMD_, NULL},
+	{_SetKey_CMD_, NULL},
+	{_SetStaKey_CMD_, &rtw_setstaKey_cmdrsp_callback},
+	{_SetAssocSta_CMD_, &rtw_setassocsta_cmdrsp_callback},
+	{_AddBAReq_CMD_, NULL},
+	{_SetChannel_CMD_, NULL},
+	{_TX_Beacon_CMD_, NULL},
+	{_Set_MLME_EVT_CMD_, NULL},
+	{_Set_Drv_Extra_CMD_, NULL},
+	{_SetChannelPlan_CMD_, NULL},
 };
 #endif
 

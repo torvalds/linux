@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for the KZM-A9-GT board
  *
@@ -5,10 +6,6 @@
  *
  * Based on sh73a0-kzm9g.dts
  * Copyright (C) 2012 Renesas Solutions Corp.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 /dts-v1/;
@@ -22,7 +19,7 @@
 	compatible = "renesas,kzm9g", "renesas,sh73a0";
 
 	aliases {
-		serial4 = &scifa4;
+		serial0 = &scifa4;
 	};
 
 	cpus {
@@ -39,16 +36,16 @@
 	};
 
 	chosen {
-		bootargs = "console=tty0 console=ttySC4,115200 root=/dev/nfs ip=dhcp ignore_loglevel rw";
-		stdout-path = &scifa4;
+		bootargs = "root=/dev/nfs ip=dhcp ignore_loglevel rw";
+		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x20000000>;
 	};
 
-	reg_1p8v: regulator@0 {
+	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
 		regulator-min-microvolt = <1800000>;
@@ -57,7 +54,7 @@
 		regulator-boot-on;
 	};
 
-	reg_3p3v: regulator@1 {
+	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
 		regulator-min-microvolt = <3300000>;
@@ -66,7 +63,7 @@
 		regulator-boot-on;
 	};
 
-	vmmc_sdhi0: regulator@2 {
+	vmmc_sdhi0: regulator-vmmc-sdhi0 {
 		compatible = "regulator-fixed";
 		regulator-name = "SDHI0 Vcc";
 		regulator-min-microvolt = <3300000>;
@@ -75,7 +72,7 @@
 		enable-active-high;
 	};
 
-	vmmc_sdhi2: regulator@3 {
+	vmmc_sdhi2: regulator-vmmc-sdhi2 {
 		compatible = "regulator-fixed";
 		regulator-name = "SDHI2 Vcc";
 		regulator-min-microvolt = <3300000>;
@@ -147,7 +144,14 @@
 			gpios = <&pcf8575 14 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
 			label = "SW1";
-			gpio-key,wakeup;
+			wakeup-source;
+		};
+
+		wakeup-key {
+			gpios = <&pfc 159 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_WAKEUP>;
+			label = "NMI";
+			wakeup-source;
 		};
 	};
 
@@ -329,41 +333,41 @@
 
 &pfc {
 	i2c3_pins: i2c3 {
-		renesas,groups = "i2c3_1";
-		renesas,function = "i2c3";
+		groups = "i2c3_1";
+		function = "i2c3";
 	};
 
 	mmcif_pins: mmc {
 		mux {
-			renesas,groups = "mmc0_data8_0", "mmc0_ctrl_0";
-			renesas,function = "mmc0";
+			groups = "mmc0_data8_0", "mmc0_ctrl_0";
+			function = "mmc0";
 		};
 		cfg {
-			renesas,groups = "mmc0_data8_0";
-			renesas,pins = "PORT279";
+			groups = "mmc0_data8_0";
+			pins = "PORT279";
 			bias-pull-up;
 		};
 	};
 
-	scifa4_pins: serial4 {
-		renesas,groups = "scifa4_data", "scifa4_ctrl";
-		renesas,function = "scifa4";
+	scifa4_pins: scifa4 {
+		groups = "scifa4_data", "scifa4_ctrl";
+		function = "scifa4";
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd", "sdhi0_wp";
-		renesas,function = "sdhi0";
+		groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd", "sdhi0_wp";
+		function = "sdhi0";
 	};
 
 	sdhi2_pins: sd2 {
-		renesas,groups = "sdhi2_data4", "sdhi2_ctrl";
-		renesas,function = "sdhi2";
+		groups = "sdhi2_data4", "sdhi2_ctrl";
+		function = "sdhi2";
 	};
 
 	fsia_pins: sounda {
-		renesas,groups = "fsia_mclk_in", "fsia_sclk_in",
-				 "fsia_data_in", "fsia_data_out";
-		renesas,function = "fsia";
+		groups = "fsia_mclk_in", "fsia_sclk_in",
+			 "fsia_data_in", "fsia_data_out";
+		function = "fsia";
 	};
 };
 
@@ -371,6 +375,7 @@
 	pinctrl-0 = <&scifa4_pins>;
 	pinctrl-names = "default";
 
+	uart-has-rtscts;
 	status = "okay";
 };
 

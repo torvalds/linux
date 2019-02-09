@@ -24,8 +24,6 @@
 			clock-latency = <300000>; /* From legacy driver */
 
 			/* cooling options */
-			cooling-min-level = <0>;
-			cooling-max-level = <3>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
@@ -35,7 +33,7 @@
 	};
 
 	ocp {
-		bandgap: bandgap {
+		bandgap: bandgap@4a002260 {
 			reg = <0x4a002260 0x4
 			       0x4a00232C 0x4>;
 			compatible = "ti,omap4430-bandgap";
@@ -69,6 +67,10 @@
 
 	};
 
+};
+
+&cpu_thermal {
+	coefficients = <0 20000>;
 };
 
 /include/ "omap443x-clocks.dtsi"

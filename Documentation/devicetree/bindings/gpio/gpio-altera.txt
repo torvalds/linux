@@ -12,7 +12,7 @@ Required properties:
 - #interrupt-cells : Should be 1. The interrupt type is fixed in the hardware.
   - The first cell is the GPIO offset number within the GPIO controller.
 - interrupts: Specify the interrupt.
-- altr,interrupt-trigger: Specifies the interrupt trigger type the GPIO
+- altr,interrupt-type: Specifies the interrupt trigger type the GPIO
   hardware is synthesized. This field is required if the Altera GPIO controller
   used has IRQ enabled as the interrupt type is not software controlled,
   but hardware synthesized. Required if GPIO is used as an interrupt
@@ -30,12 +30,12 @@ Optional properties:
 
 Example:
 
-gpio_altr: gpio@0xff200000 {
+gpio_altr: gpio@ff200000 {
 	compatible = "altr,pio-1.0";
 	reg = <0xff200000 0x10>;
 	interrupts = <0 45 4>;
 	altr,ngpio = <32>;
-	altr,interrupt-trigger = <IRQ_TYPE_EDGE_RISING>;
+	altr,interrupt-type = <IRQ_TYPE_EDGE_RISING>;
 	#gpio-cells = <2>;
 	gpio-controller;
 	#interrupt-cells = <1>;

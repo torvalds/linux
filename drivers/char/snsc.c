@@ -16,7 +16,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/device.h>
 #include <linux/poll.h>
 #include <linux/init.h>
@@ -285,7 +285,7 @@ scdrv_write(struct file *file, const char __user *buf,
 		DECLARE_WAITQUEUE(wait, current);
 
 		if (file->f_flags & O_NONBLOCK) {
-			spin_unlock(&sd->sd_wlock);
+			spin_unlock_irqrestore(&sd->sd_wlock, flags);
 			up(&sd->sd_wbs);
 			return -EAGAIN;
 		}
@@ -321,10 +321,10 @@ scdrv_write(struct file *file, const char __user *buf,
 	return status;
 }
 
-static unsigned int
+static __poll_t
 scdrv_poll(struct file *file, struct poll_table_struct *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	int status = 0;
 	struct subch_data_s *sd = (struct subch_data_s *) file->private_data;
 	unsigned long flags;
@@ -340,10 +340,10 @@ scdrv_poll(struct file *file, struct poll_table_struct *wait)
 
 	if (status > 0) {
 		if (status & SAL_IROUTER_INTR_RECV) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		}
 		if (status & SAL_IROUTER_INTR_XMIT) {
-			mask |= POLLOUT | POLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRNORM;
 		}
 	}
 
@@ -385,13 +385,18 @@ scdrv_init(void)
 
 	event_nasid = ia64_sn_get_console_nasid();
 
+	snsc_class = class_create(THIS_MODULE, SYSCTL_BASENAME);
+	if (IS_ERR(snsc_class)) {
+		printk("%s: failed to allocate class\n", __func__);
+		return PTR_ERR(snsc_class);
+	}
+
 	if (alloc_chrdev_region(&first_dev, 0, num_cnodes,
 				SYSCTL_BASENAME) < 0) {
 		printk("%s: failed to register SN system controller device\n",
 		       __func__);
 		return -ENODEV;
 	}
-	snsc_class = class_create(THIS_MODULE, SYSCTL_BASENAME);
 
 	for (cnode = 0; cnode < num_cnodes; cnode++) {
 			geoid = cnodeid_get_geoid(cnode);

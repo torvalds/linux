@@ -364,7 +364,7 @@ steps you should take:
 
 - The contents of your report will vary a lot depending upon the
   problem.  If it's a kernel crash then you should refer to the
-  REPORTING-BUGS file.
+  admin-guide/reporting-bugs.rst file.
 
   But for most problems it is useful to provide the following:
 

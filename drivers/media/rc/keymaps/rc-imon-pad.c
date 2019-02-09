@@ -132,11 +132,10 @@ static struct rc_map_table imon_pad[] = {
 
 static struct rc_map_list imon_pad_map = {
 	.map = {
-		.scan    = imon_pad,
-		.size    = ARRAY_SIZE(imon_pad),
-		/* actual protocol details unknown, hardware decoder */
-		.rc_type = RC_TYPE_OTHER,
-		.name    = RC_MAP_IMON_PAD,
+		.scan     = imon_pad,
+		.size     = ARRAY_SIZE(imon_pad),
+		.rc_proto = RC_PROTO_IMON,
+		.name     = RC_MAP_IMON_PAD,
 	}
 };
 

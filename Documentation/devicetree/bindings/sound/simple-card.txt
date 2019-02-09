@@ -22,6 +22,8 @@ Optional properties:
 					  headphones are attached.
 - simple-audio-card,mic-det-gpio	: Reference to GPIO that signals when
 					  a microphone is attached.
+- simple-audio-card,aux-devs		: List of phandles pointing to auxiliary devices, such
+					  as amplifiers, to be added to the sound card.
 
 Optional subnodes:
 
@@ -30,7 +32,7 @@ Optional subnodes:
 					  sub-nodes. This container may be
 					  omitted when the card has only one
 					  DAI link. See the examples and the
-					  section bellow.
+					  section below.
 
 Dai-link subnode properties and subnodes:
 
@@ -84,6 +86,14 @@ Optional CPU/CODEC subnodes properties:
 					  in dai startup() and disabled with
 					  clk_disable_unprepare() in dai
 					  shutdown().
+					  If a clock is specified and a
+					  multiplication factor is given with
+					  mclk-fs, the clock will be set to the
+					  calculated mclk frequency when the
+					  stream starts.
+- system-clock-direction-out		: specifies clock direction as 'out' on
+					  initialization. It is useful for some aCPUs with
+					  fixed clocks.
 
 Example 1 - single DAI link:
 
@@ -135,6 +145,7 @@ sound {
 	simple-audio-card,name = "Cubox Audio";
 
 	simple-audio-card,dai-link@0 {		/* I2S - HDMI */
+		reg = <0>;
 		format = "i2s";
 		cpu {
 			sound-dai = <&audio1 0>;
@@ -145,6 +156,7 @@ sound {
 	};
 
 	simple-audio-card,dai-link@1 {		/* S/PDIF - HDMI */
+		reg = <1>;
 		cpu {
 			sound-dai = <&audio1 1>;
 		};
@@ -154,11 +166,47 @@ sound {
 	};
 
 	simple-audio-card,dai-link@2 {		/* S/PDIF - S/PDIF */
+		reg = <2>;
 		cpu {
 			sound-dai = <&audio1 1>;
 		};
 		codec {
 			sound-dai = <&spdif_codec>;
 		};
+	};
+};
+
+Example 3 - route audio from IMX6 SSI2 through TLV320DAC3100 codec
+through TPA6130A2 amplifier to headphones:
+
+&i2c0 {
+	codec: tlv320dac3100@18 {
+		compatible = "ti,tlv320dac3100";
+		...
+	}
+
+	amp: tpa6130a2@60 {
+		compatible = "ti,tpa6130a2";
+		...
+	}
+}
+
+sound {
+	compatible = "simple-audio-card";
+	...
+	simple-audio-card,widgets =
+		"Headphone", "Headphone Jack";
+	simple-audio-card,routing =
+		"Headphone Jack", "HPLEFT",
+		"Headphone Jack", "HPRIGHT",
+		"LEFTIN", "HPL",
+		"RIGHTIN", "HPR";
+	simple-audio-card,aux-devs = <&amp>;
+	simple-audio-card,cpu {
+		sound-dai = <&ssi2>;
+	};
+	simple-audio-card,codec {
+		sound-dai = <&codec>;
+		clocks = ...
 	};
 };

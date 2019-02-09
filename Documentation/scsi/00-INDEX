@@ -64,8 +64,6 @@ hpsa.txt
 	- HP Smart Array Controller SCSI driver.
 hptiop.txt
 	- HIGHPOINT ROCKETRAID 3xxx RAID DRIVER
-in2000.txt
-	- info on in2000 driver
 libsas.txt
 	- Serial Attached SCSI management layer.
 link_power_management_policy.txt

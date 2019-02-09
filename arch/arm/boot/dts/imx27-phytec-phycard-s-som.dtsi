@@ -17,13 +17,12 @@
 	model = "Phytec pca100";
 	compatible = "phytec,imx27-pca100", "fsl,imx27";
 
-	memory {
+	memory@a0000000 {
 		reg = <0xa0000000 0x08000000>; /* 128MB */
 	};
 };
 
 &cspi1 {
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>,
 		   <&gpio4 27 GPIO_ACTIVE_HIGH>;
 	status = "okay";
@@ -41,7 +40,7 @@
 	status = "okay";
 
 	at24@52 {
-		compatible = "at,24c32";
+		compatible = "atmel,24c32";
 		pagesize = <32>;
 		reg = <0x52>;
 	};

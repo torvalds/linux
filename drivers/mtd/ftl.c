@@ -70,7 +70,7 @@
 #include <linux/hdreg.h>
 #include <linux/vmalloc.h>
 #include <linux/blkpg.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/mtd/ftl.h>
 
@@ -140,12 +140,6 @@ typedef struct partition_t {
 #define XFER_PREPARED	0x03
 #define XFER_FAILED	0x04
 
-/*====================================================================*/
-
-
-static void ftl_erase_callback(struct erase_info *done);
-
-
 /*======================================================================
 
     Scan_header() checks to see if a memory region contains an FTL
@@ -207,15 +201,16 @@ static int build_maps(partition_t *part)
     /* Set up erase unit maps */
     part->DataUnits = le16_to_cpu(part->header.NumEraseUnits) -
 	part->header.NumTransferUnits;
-    part->EUNInfo = kmalloc(part->DataUnits * sizeof(struct eun_info_t),
-			    GFP_KERNEL);
+    part->EUNInfo = kmalloc_array(part->DataUnits, sizeof(struct eun_info_t),
+                                  GFP_KERNEL);
     if (!part->EUNInfo)
 	    goto out;
     for (i = 0; i < part->DataUnits; i++)
 	part->EUNInfo[i].Offset = 0xffffffff;
     part->XferInfo =
-	kmalloc(part->header.NumTransferUnits * sizeof(struct xfer_info_t),
-		GFP_KERNEL);
+	kmalloc_array(part->header.NumTransferUnits,
+                      sizeof(struct xfer_info_t),
+                      GFP_KERNEL);
     if (!part->XferInfo)
 	    goto out_EUNInfo;
 
@@ -268,15 +263,15 @@ static int build_maps(partition_t *part)
 
     /* Set up virtual page map */
     blocks = le32_to_cpu(header.FormattedSize) >> header.BlockSize;
-    part->VirtualBlockMap = vmalloc(blocks * sizeof(uint32_t));
+    part->VirtualBlockMap = vmalloc(array_size(blocks, sizeof(uint32_t)));
     if (!part->VirtualBlockMap)
 	    goto out_XferInfo;
 
     memset(part->VirtualBlockMap, 0xff, blocks * sizeof(uint32_t));
     part->BlocksPerUnit = (1 << header.EraseUnitSize) >> header.BlockSize;
 
-    part->bam_cache = kmalloc(part->BlocksPerUnit * sizeof(uint32_t),
-			      GFP_KERNEL);
+    part->bam_cache = kmalloc_array(part->BlocksPerUnit, sizeof(uint32_t),
+                                    GFP_KERNEL);
     if (!part->bam_cache)
 	    goto out_VirtualBlockMap;
 
@@ -348,18 +343,19 @@ static int erase_xfer(partition_t *part,
     if (!erase)
             return -ENOMEM;
 
-    erase->mtd = part->mbd.mtd;
-    erase->callback = ftl_erase_callback;
     erase->addr = xfer->Offset;
     erase->len = 1 << part->header.EraseUnitSize;
-    erase->priv = (u_long)part;
 
     ret = mtd_erase(part->mbd.mtd, erase);
+    if (!ret) {
+	xfer->state = XFER_ERASED;
+	xfer->EraseCount++;
+    } else {
+	xfer->state = XFER_FAILED;
+	pr_notice("ftl_cs: erase failed: err = %d\n", ret);
+    }
 
-    if (!ret)
-	    xfer->EraseCount++;
-    else
-	    kfree(erase);
+    kfree(erase);
 
     return ret;
 } /* erase_xfer */
@@ -370,37 +366,6 @@ static int erase_xfer(partition_t *part,
     it an appropriate header.
 
 ======================================================================*/
-
-static void ftl_erase_callback(struct erase_info *erase)
-{
-    partition_t *part;
-    struct xfer_info_t *xfer;
-    int i;
-
-    /* Look up the transfer unit */
-    part = (partition_t *)(erase->priv);
-
-    for (i = 0; i < part->header.NumTransferUnits; i++)
-	if (part->XferInfo[i].Offset == erase->addr) break;
-
-    if (i == part->header.NumTransferUnits) {
-	printk(KERN_NOTICE "ftl_cs: internal error: "
-	       "erase lookup failed!\n");
-	return;
-    }
-
-    xfer = &part->XferInfo[i];
-    if (erase->state == MTD_ERASE_DONE)
-	xfer->state = XFER_ERASED;
-    else {
-	xfer->state = XFER_FAILED;
-	printk(KERN_NOTICE "ftl_cs: erase failed: state = %d\n",
-	       erase->state);
-    }
-
-    kfree(erase);
-
-} /* ftl_erase_callback */
 
 static int prepare_xfer(partition_t *part, int i)
 {
@@ -429,8 +394,8 @@ static int prepare_xfer(partition_t *part, int i)
     }
 
     /* Write the BAM stub */
-    nbam = (part->BlocksPerUnit * sizeof(uint32_t) +
-	    le32_to_cpu(part->header.BAMOffset) + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    nbam = DIV_ROUND_UP(part->BlocksPerUnit * sizeof(uint32_t) +
+			le32_to_cpu(part->header.BAMOffset), SECTOR_SIZE);
 
     offset = xfer->Offset + le32_to_cpu(part->header.BAMOffset);
     ctl = cpu_to_le32(BLOCK_CONTROL);
@@ -571,12 +536,8 @@ static int copy_erase_unit(partition_t *part, uint16_t srcunit,
 
 
     /* Update the maps and usage stats*/
-    i = xfer->EraseCount;
-    xfer->EraseCount = eun->EraseCount;
-    eun->EraseCount = i;
-    i = xfer->Offset;
-    xfer->Offset = eun->Offset;
-    eun->Offset = i;
+    swap(xfer->EraseCount, eun->EraseCount);
+    swap(xfer->Offset, eun->Offset);
     part->FreeTotal -= eun->Free;
     part->FreeTotal += free;
     eun->Free = free;

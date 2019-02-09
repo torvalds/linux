@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: baseband.c
  *
@@ -68,11 +54,11 @@ int vnt_download_firmware(struct vnt_private *priv)
 		memcpy(buffer, fw->data + ii, length);
 
 		status = vnt_control_out(priv,
-						0,
-						0x1200+ii,
-						0x0000,
-						length,
-						buffer);
+					 0,
+					 0x1200 + ii,
+					 0x0000,
+					 length,
+					 buffer);
 
 		dev_dbg(dev, "Download firmware...%d %zu\n", ii, fw->size);
 
@@ -98,11 +84,11 @@ int vnt_firmware_branch_to_sram(struct vnt_private *priv)
 	dev_dbg(&priv->usb->dev, "---->Branch to Sram\n");
 
 	status = vnt_control_out(priv,
-					1,
-					0x1200,
-					0x0000,
-					0,
-					NULL);
+				 1,
+				 0x1200,
+				 0x0000,
+				 0,
+				 NULL);
 	return status == STATUS_SUCCESS;
 }
 
@@ -111,14 +97,14 @@ int vnt_check_firmware_version(struct vnt_private *priv)
 	int status;
 
 	status = vnt_control_in(priv,
-					MESSAGE_TYPE_READ,
-					0,
-					MESSAGE_REQUEST_VERSION,
-					2,
-					(u8 *)&priv->firmware_version);
+				MESSAGE_TYPE_READ,
+				0,
+				MESSAGE_REQUEST_VERSION,
+				2,
+				(u8 *)&priv->firmware_version);
 
 	dev_dbg(&priv->usb->dev, "Firmware Version [%04x]\n",
-						priv->firmware_version);
+		priv->firmware_version);
 
 	if (status != STATUS_SUCCESS) {
 		dev_dbg(&priv->usb->dev, "Firmware Invalid.\n");
@@ -130,7 +116,7 @@ int vnt_check_firmware_version(struct vnt_private *priv)
 	}
 
 	dev_dbg(&priv->usb->dev, "Firmware Version [%04x]\n",
-						priv->firmware_version);
+		priv->firmware_version);
 
 	if (priv->firmware_version < FIRMWARE_VERSION) {
 		/* branch to loader for download new firmware */

@@ -114,6 +114,7 @@ struct omap_hwmod;
  * @wkdep_srcs: Clockdomains that can be told to wake this powerdomain up
  * @sleepdep_srcs: Clockdomains that can be told to keep this clkdm from inact
  * @usecount: Usecount tracking
+ * @forcewake_count: Usecount for forcing the domain active
  * @node: list_head to link all clockdomains together
  *
  * @prcm_partition should be a macro from mach-omap2/prcm44xx.h (OMAP4 only)
@@ -138,7 +139,9 @@ struct clockdomain {
 	struct clkdm_dep *wkdep_srcs;
 	struct clkdm_dep *sleepdep_srcs;
 	int usecount;
+	int forcewake_count;
 	struct list_head node;
+	u32 context;
 };
 
 /**
@@ -157,6 +160,8 @@ struct clockdomain {
  * @clkdm_deny_idle: Disable hw supervised idle transitions for clock domain
  * @clkdm_clk_enable: Put the clkdm in right state for a clock enable
  * @clkdm_clk_disable: Put the clkdm in right state for a clock disable
+ * @clkdm_save_context: Save the current clkdm context
+ * @clkdm_restore_context: Restore the clkdm context
  */
 struct clkdm_ops {
 	int	(*clkdm_add_wkdep)(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
@@ -173,6 +178,8 @@ struct clkdm_ops {
 	void	(*clkdm_deny_idle)(struct clockdomain *clkdm);
 	int	(*clkdm_clk_enable)(struct clockdomain *clkdm);
 	int	(*clkdm_clk_disable)(struct clockdomain *clkdm);
+	int	(*clkdm_save_context)(struct clockdomain *clkdm);
+	int	(*clkdm_restore_context)(struct clockdomain *clkdm);
 };
 
 int clkdm_register_platform_funcs(struct clkdm_ops *co);
@@ -211,6 +218,9 @@ int clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk);
 int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk);
 int clkdm_hwmod_enable(struct clockdomain *clkdm, struct omap_hwmod *oh);
 int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh);
+
+void clkdm_save_context(void);
+void clkdm_restore_context(void);
 
 extern void __init omap242x_clockdomains_init(void);
 extern void __init omap243x_clockdomains_init(void);

@@ -1,0 +1,25 @@
+Mediatek hifsys controller
+============================
+
+The Mediatek hifsys controller provides various clocks and reset
+outputs to the system.
+
+Required Properties:
+
+- compatible: Should be:
+	- "mediatek,mt2701-hifsys", "syscon"
+	- "mediatek,mt7622-hifsys", "syscon"
+- #clock-cells: Must be 1
+
+The hifsys controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+hifsys: clock-controller@1a000000 {
+	compatible = "mediatek,mt2701-hifsys", "syscon";
+	reg = <0 0x1a000000 0 0x1000>;
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+};

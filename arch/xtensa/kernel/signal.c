@@ -20,14 +20,13 @@
 #include <linux/ptrace.h>
 #include <linux/personality.h>
 #include <linux/tracehook.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/coprocessor.h>
 #include <asm/unistd.h>
-
-#define DEBUG_SIG  0
 
 extern struct task_struct *coproc_owners[];
 
@@ -90,14 +89,14 @@ flush_window_regs_user(struct pt_regs *regs)
 			inc = 1;
 
 		} else if (m & 4) {		/* call8 */
-			if (copy_to_user((void*)(sp - 32),
-					   &regs->areg[(base + 1) * 4], 16))
+			if (copy_to_user(&SPILL_SLOT_CALL8(sp, 4),
+					 &regs->areg[(base + 1) * 4], 16))
 				goto errout;
 			inc = 2;
 
 		} else if (m & 8) {	/* call12 */
-			if (copy_to_user((void*)(sp - 48),
-					   &regs->areg[(base + 1) * 4], 32))
+			if (copy_to_user(&SPILL_SLOT_CALL12(sp, 4),
+					 &regs->areg[(base + 1) * 4], 32))
 				goto errout;
 			inc = 3;
 		}
@@ -105,7 +104,7 @@ flush_window_regs_user(struct pt_regs *regs)
 		/* Save current frame a0..a3 under next SP */
 
 		sp = regs->areg[((base + inc) * 4 + 1) % XCHAL_NUM_AREGS];
-		if (copy_to_user((void*)(sp - 16), &regs->areg[base * 4], 16))
+		if (copy_to_user(&SPILL_SLOT(sp, 0), &regs->areg[base * 4], 16))
 			goto errout;
 
 		/* Get current stack pointer for next loop iteration. */
@@ -398,10 +397,8 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	regs->areg[8] = (unsigned long) &frame->uc;
 	regs->threadptr = tp;
 
-#if DEBUG_SIG
-	printk("SIG rt deliver (%s:%d): signal=%d sp=%p pc=%08x\n",
-		current->comm, current->pid, sig, frame, regs->pc);
-#endif
+	pr_debug("SIG rt deliver (%s:%d): signal=%d sp=%p pc=%08lx\n",
+		 current->comm, current->pid, sig, frame, regs->pc);
 
 	return 0;
 }

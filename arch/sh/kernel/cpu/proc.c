@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/seq_file.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -27,6 +28,7 @@ static const char *cpu_name[] = {
 	[CPU_MXG]	= "MX-G",	[CPU_SH7723]	= "SH7723",
 	[CPU_SH7366]	= "SH7366",	[CPU_SH7724]	= "SH7724",
 	[CPU_SH7372]	= "SH7372",	[CPU_SH7734]	= "SH7734",
+	[CPU_J2]	= "J2",
 	[CPU_SH_NONE]	= "Unknown"
 };
 

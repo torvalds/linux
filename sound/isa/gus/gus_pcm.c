@@ -27,6 +27,8 @@
 
 #include <asm/dma.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
+
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/gus.h>
@@ -58,8 +60,6 @@ struct gus_pcm_private {
 	atomic_t dma_count;
 	int final_volume;
 };
-
-static int snd_gf1_pcm_use_dma = 1;
 
 static void snd_gf1_pcm_block_change_ack(struct snd_gus_card * gus, void *private_data)
 {
@@ -353,66 +353,83 @@ static int snd_gf1_pcm_poke_block(struct snd_gus_card *gus, unsigned char *buf,
 	return 0;
 }
 
-static int snd_gf1_pcm_playback_copy(struct snd_pcm_substream *substream,
-				     int voice,
-				     snd_pcm_uframes_t pos,
-				     void __user *src,
-				     snd_pcm_uframes_t count)
+static int get_bpos(struct gus_pcm_private *pcmp, int voice, unsigned int pos,
+		    unsigned int len)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct gus_pcm_private *pcmp = runtime->private_data;
-	unsigned int bpos, len;
-	
-	bpos = samples_to_bytes(runtime, pos) + (voice * (pcmp->dma_size / 2));
-	len = samples_to_bytes(runtime, count);
+	unsigned int bpos = pos + (voice * (pcmp->dma_size / 2));
 	if (snd_BUG_ON(bpos > pcmp->dma_size))
 		return -EIO;
 	if (snd_BUG_ON(bpos + len > pcmp->dma_size))
 		return -EIO;
+	return bpos;
+}
+
+static int playback_copy_ack(struct snd_pcm_substream *substream,
+			     unsigned int bpos, unsigned int len)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct gus_pcm_private *pcmp = runtime->private_data;
+	struct snd_gus_card *gus = pcmp->gus;
+	int w16, invert;
+
+	if (len > 32)
+		return snd_gf1_pcm_block_change(substream, bpos,
+						pcmp->memory + bpos, len);
+
+	w16 = (snd_pcm_format_width(runtime->format) == 16);
+	invert = snd_pcm_format_unsigned(runtime->format);
+	return snd_gf1_pcm_poke_block(gus, runtime->dma_area + bpos,
+				      pcmp->memory + bpos, len, w16, invert);
+}
+
+static int snd_gf1_pcm_playback_copy(struct snd_pcm_substream *substream,
+				     int voice, unsigned long pos,
+				     void __user *src, unsigned long count)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct gus_pcm_private *pcmp = runtime->private_data;
+	unsigned int len = count;
+	int bpos;
+
+	bpos = get_bpos(pcmp, voice, pos, len);
+	if (bpos < 0)
+		return pos;
 	if (copy_from_user(runtime->dma_area + bpos, src, len))
 		return -EFAULT;
-	if (snd_gf1_pcm_use_dma && len > 32) {
-		return snd_gf1_pcm_block_change(substream, bpos, pcmp->memory + bpos, len);
-	} else {
-		struct snd_gus_card *gus = pcmp->gus;
-		int err, w16, invert;
+	return playback_copy_ack(substream, bpos, len);
+}
 
-		w16 = (snd_pcm_format_width(runtime->format) == 16);
-		invert = snd_pcm_format_unsigned(runtime->format);
-		if ((err = snd_gf1_pcm_poke_block(gus, runtime->dma_area + bpos, pcmp->memory + bpos, len, w16, invert)) < 0)
-			return err;
-	}
-	return 0;
+static int snd_gf1_pcm_playback_copy_kernel(struct snd_pcm_substream *substream,
+					    int voice, unsigned long pos,
+					    void *src, unsigned long count)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct gus_pcm_private *pcmp = runtime->private_data;
+	unsigned int len = count;
+	int bpos;
+
+	bpos = get_bpos(pcmp, voice, pos, len);
+	if (bpos < 0)
+		return pos;
+	memcpy(runtime->dma_area + bpos, src, len);
+	return playback_copy_ack(substream, bpos, len);
 }
 
 static int snd_gf1_pcm_playback_silence(struct snd_pcm_substream *substream,
-					int voice,
-					snd_pcm_uframes_t pos,
-					snd_pcm_uframes_t count)
+					int voice, unsigned long pos,
+					unsigned long count)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct gus_pcm_private *pcmp = runtime->private_data;
-	unsigned int bpos, len;
+	unsigned int len = count;
+	int bpos;
 	
-	bpos = samples_to_bytes(runtime, pos) + (voice * (pcmp->dma_size / 2));
-	len = samples_to_bytes(runtime, count);
-	if (snd_BUG_ON(bpos > pcmp->dma_size))
-		return -EIO;
-	if (snd_BUG_ON(bpos + len > pcmp->dma_size))
-		return -EIO;
-	snd_pcm_format_set_silence(runtime->format, runtime->dma_area + bpos, count);
-	if (snd_gf1_pcm_use_dma && len > 32) {
-		return snd_gf1_pcm_block_change(substream, bpos, pcmp->memory + bpos, len);
-	} else {
-		struct snd_gus_card *gus = pcmp->gus;
-		int err, w16, invert;
-
-		w16 = (snd_pcm_format_width(runtime->format) == 16);
-		invert = snd_pcm_format_unsigned(runtime->format);
-		if ((err = snd_gf1_pcm_poke_block(gus, runtime->dma_area + bpos, pcmp->memory + bpos, len, w16, invert)) < 0)
-			return err;
-	}
-	return 0;
+	bpos = get_bpos(pcmp, voice, pos, len);
+	if (bpos < 0)
+		return pos;
+	snd_pcm_format_set_silence(runtime->format, runtime->dma_area + bpos,
+				   bytes_to_samples(runtime, count));
+	return playback_copy_ack(substream, bpos, len);
 }
 
 static int snd_gf1_pcm_playback_hw_params(struct snd_pcm_substream *substream,
@@ -545,14 +562,14 @@ static snd_pcm_uframes_t snd_gf1_pcm_playback_pointer(struct snd_pcm_substream *
 	return pos;
 }
 
-static struct snd_ratnum clock = {
+static const struct snd_ratnum clock = {
 	.num = 9878400/16,
 	.den_min = 2,
 	.den_max = 257,
 	.den_step = 1,
 };
 
-static struct snd_pcm_hw_constraint_ratnums hw_constraints_clocks  = {
+static const struct snd_pcm_hw_constraint_ratnums hw_constraints_clocks  = {
 	.nrats = 1,
 	.rats = &clock,
 };
@@ -633,7 +650,7 @@ static void snd_gf1_pcm_interrupt_dma_read(struct snd_gus_card * gus)
 	}
 }
 
-static struct snd_pcm_hardware snd_gf1_pcm_playback =
+static const struct snd_pcm_hardware snd_gf1_pcm_playback =
 {
 	.info =			SNDRV_PCM_INFO_NONINTERLEAVED,
 	.formats		= (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 |
@@ -651,7 +668,7 @@ static struct snd_pcm_hardware snd_gf1_pcm_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_gf1_pcm_capture =
+static const struct snd_pcm_hardware snd_gf1_pcm_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -807,7 +824,7 @@ static int snd_gf1_pcm_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	return change;
 }
 
-static struct snd_kcontrol_new snd_gf1_pcm_volume_control =
+static const struct snd_kcontrol_new snd_gf1_pcm_volume_control =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Volume",
@@ -816,7 +833,7 @@ static struct snd_kcontrol_new snd_gf1_pcm_volume_control =
 	.put = snd_gf1_pcm_volume_put
 };
 
-static struct snd_kcontrol_new snd_gf1_pcm_volume_control1 =
+static const struct snd_kcontrol_new snd_gf1_pcm_volume_control1 =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "GPCM Playback Volume",
@@ -825,7 +842,7 @@ static struct snd_kcontrol_new snd_gf1_pcm_volume_control1 =
 	.put = snd_gf1_pcm_volume_put
 };
 
-static struct snd_pcm_ops snd_gf1_pcm_playback_ops = {
+static const struct snd_pcm_ops snd_gf1_pcm_playback_ops = {
 	.open =		snd_gf1_pcm_playback_open,
 	.close =	snd_gf1_pcm_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -834,11 +851,12 @@ static struct snd_pcm_ops snd_gf1_pcm_playback_ops = {
 	.prepare =	snd_gf1_pcm_playback_prepare,
 	.trigger =	snd_gf1_pcm_playback_trigger,
 	.pointer =	snd_gf1_pcm_playback_pointer,
-	.copy =		snd_gf1_pcm_playback_copy,
-	.silence =	snd_gf1_pcm_playback_silence,
+	.copy_user =	snd_gf1_pcm_playback_copy,
+	.copy_kernel =	snd_gf1_pcm_playback_copy_kernel,
+	.fill_silence =	snd_gf1_pcm_playback_silence,
 };
 
-static struct snd_pcm_ops snd_gf1_pcm_capture_ops = {
+static const struct snd_pcm_ops snd_gf1_pcm_capture_ops = {
 	.open =		snd_gf1_pcm_capture_open,
 	.close =	snd_gf1_pcm_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,

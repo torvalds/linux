@@ -22,32 +22,26 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "head.h"
+#include "ior.h"
 #include "rootnv50.h"
 
 static const struct nv50_disp_func
 gk104_disp = {
+	.init = gf119_disp_init,
+	.fini = gf119_disp_fini,
 	.intr = gf119_disp_intr,
+	.intr_error = gf119_disp_intr_error,
 	.uevent = &gf119_disp_chan_uevent,
-	.super = gf119_disp_intr_supervisor,
+	.super = gf119_disp_super,
 	.root = &gk104_disp_root_oclass,
-	.head.vblank_init = gf119_disp_vblank_init,
-	.head.vblank_fini = gf119_disp_vblank_fini,
-	.head.scanoutpos = gf119_disp_root_scanoutpos,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.internal.dp = gf119_sor_dp_new,
-	.dac.nr = 3,
-	.dac.power = nv50_dac_power,
-	.dac.sense = nv50_dac_sense,
-	.sor.nr = 4,
-	.sor.power = nv50_sor_power,
-	.sor.hda_eld = gf119_hda_eld,
-	.sor.hdmi = gk104_hdmi_ctrl,
+	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
+	.dac = { .cnt = gf119_dac_cnt, .new = gf119_dac_new },
+	.sor = { .cnt = gf119_sor_cnt, .new = gk104_sor_new },
 };
 
 int
 gk104_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return gf119_disp_new_(&gk104_disp, device, index, pdisp);
+	return nv50_disp_new_(&gk104_disp, device, index, pdisp);
 }

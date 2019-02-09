@@ -1,18 +1,50 @@
 * Amlogic Meson DWMAC Ethernet controller
 
 The device inherits all the properties of the dwmac/stmmac devices
-described in the file net/stmmac.txt with the following changes.
+described in the file stmmac.txt in the current directory with the
+following changes.
 
-Required properties:
+Required properties on all platforms:
 
-- compatible: should be "amlogic,meson6-dwmac" along with "snps,dwmac"
-	      and any applicable more detailed version number
-	      described in net/stmmac.txt
+- compatible:	Depending on the platform this should be one of:
+			- "amlogic,meson6-dwmac"
+			- "amlogic,meson8b-dwmac"
+			- "amlogic,meson8m2-dwmac"
+			- "amlogic,meson-gxbb-dwmac"
+			- "amlogic,meson-axg-dwmac"
+		Additionally "snps,dwmac" and any applicable more
+		detailed version number described in net/stmmac.txt
+		should be used.
 
-- reg: should contain a register range for the dwmac controller and
-       another one for the Amlogic specific configuration
+- reg:	The first register range should be the one of the DWMAC
+	controller. The second range is is for the Amlogic specific
+	configuration (for example the PRG_ETHERNET register range
+	on Meson8b and newer)
 
-Example:
+Required properties on Meson8b, Meson8m2, GXBB and newer:
+- clock-names:	Should contain the following:
+		- "stmmaceth" - see stmmac.txt
+		- "clkin0" - first parent clock of the internal mux
+		- "clkin1" - second parent clock of the internal mux
+
+Optional properties on Meson8b, Meson8m2, GXBB and newer:
+- amlogic,tx-delay-ns:	The internal RGMII TX clock delay (provided
+			by this driver) in nanoseconds. Allowed values
+			are: 0ns, 2ns, 4ns, 6ns.
+			When phy-mode is set to "rgmii" then the TX
+			delay should be explicitly configured. When
+			not configured a fallback of 2ns is used.
+			When the phy-mode is set to either "rgmii-id"
+			or "rgmii-txid" the TX clock delay is already
+			provided by the PHY. In that case this
+			property should be set to 0ns (which disables
+			the TX clock delay in the MAC to prevent the
+			clock from going off because both PHY and MAC
+			are adding a delay).
+			Any configuration is ignored when the phy-mode
+			is set to "rmii".
+
+Example for Meson6:
 
 	ethmac: ethernet@c9410000 {
 		compatible = "amlogic,meson6-dwmac", "snps,dwmac";
@@ -23,3 +55,17 @@ Example:
 		clocks = <&clk81>;
 		clock-names = "stmmaceth";
 	}
+
+Example for GXBB:
+	ethmac: ethernet@c9410000 {
+		compatible = "amlogic,meson-gxbb-dwmac", "snps,dwmac";
+		reg = <0x0 0xc9410000 0x0 0x10000>,
+			<0x0 0xc8834540 0x0 0x8>;
+		interrupts = <0 8 1>;
+		interrupt-names = "macirq";
+		clocks = <&clkc CLKID_ETH>,
+				<&clkc CLKID_FCLK_DIV2>,
+				<&clkc CLKID_MPLL2>;
+		clock-names = "stmmaceth", "clkin0", "clkin1";
+		phy-mode = "rgmii";
+	};

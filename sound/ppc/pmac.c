@@ -34,7 +34,6 @@
 #include "pmac.h"
 #include <sound/pcm_params.h>
 #include <asm/pmac_feature.h>
-#include <asm/pci-bridge.h>
 
 
 /* fixed frequency table for awacs, screamer, burgundy, DACA (44100 max) */
@@ -510,7 +509,7 @@ static void snd_pmac_pcm_update(struct snd_pmac *chip, struct pmac_stream *rec)
  * hw info
  */
 
-static struct snd_pcm_hardware snd_pmac_playback =
+static const struct snd_pcm_hardware snd_pmac_playback =
 {
 	.info =			(SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP |
@@ -529,7 +528,7 @@ static struct snd_pcm_hardware snd_pmac_playback =
 	.periods_max =		PMAC_MAX_FRAGS,
 };
 
-static struct snd_pcm_hardware snd_pmac_capture =
+static const struct snd_pcm_hardware snd_pmac_capture =
 {
 	.info =			(SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP |
@@ -682,7 +681,7 @@ static int snd_pmac_capture_close(struct snd_pcm_substream *subs)
 /*
  */
 
-static struct snd_pcm_ops snd_pmac_playback_ops = {
+static const struct snd_pcm_ops snd_pmac_playback_ops = {
 	.open =		snd_pmac_playback_open,
 	.close =	snd_pmac_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -693,7 +692,7 @@ static struct snd_pcm_ops snd_pmac_playback_ops = {
 	.pointer =	snd_pmac_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_pmac_capture_ops = {
+static const struct snd_pcm_ops snd_pmac_capture_ops = {
 	.open =		snd_pmac_capture_open,
 	.close =	snd_pmac_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,

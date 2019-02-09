@@ -63,13 +63,13 @@
 			vcc-supply = <&reg_5v0>;
 			clocks = <&clks IMX27_CLK_DUMMY>;
 			clock-names = "main_clk";
+			#phy-cells = <0>;
 		};
 	};
 };
 
 &cspi1 {
 	pinctrl-0 = <&pinctrl_cspi1>, <&pinctrl_cspi1cs1>;
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>,
 		   <&gpio4 27 GPIO_ACTIVE_LOW>;
 };
@@ -283,14 +283,14 @@
 };
 
 &uart1 {
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
 };
 
 &uart2 {
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
 	status = "okay";

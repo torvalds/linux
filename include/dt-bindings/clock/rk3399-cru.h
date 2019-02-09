@@ -16,8 +16,6 @@
 #ifndef _DT_BINDINGS_CLK_ROCKCHIP_RK3399_H
 #define _DT_BINDINGS_CLK_ROCKCHIP_RK3399_H
 
-#define RK3399_TWO_PLL_FOR_VOP
-
 /* core clocks */
 #define PLL_APLLL			1
 #define PLL_APLLB			2
@@ -30,7 +28,6 @@
 #define ARMCLKB				9
 
 /* sclk gates (special clocks) */
-#define SCLK_I2SOUT_SRC			64
 #define SCLK_I2C1			65
 #define SCLK_I2C2			66
 #define SCLK_I2C3			67
@@ -134,18 +131,9 @@
 #define SCLK_DPHY_RX0_CFG		165
 #define SCLK_RMII_SRC			166
 #define SCLK_PCIEPHY_REF100M		167
-#define SCLK_USBPHY0_480M_SRC		168
-#define SCLK_USBPHY1_480M_SRC		169
-#define SCLK_DDRCLK			170
-#define SCLK_TESTCLKOUT2		171
-#define SCLK_UART0_SRC			172
-#define SCLK_UART_SRC			173
-#define SCLK_I2S0_DIV			174
-#define SCLK_I2S1_DIV			175
-#define SCLK_I2S2_DIV			176
-#define SCLK_SPDIF_DIV			177
-#define SCLK_CIF_OUT_SRC		178
-#define SCLK_TESTCLKOUT1		179
+#define SCLK_DDRC			168
+#define SCLK_TESTCLKOUT1		169
+#define SCLK_TESTCLKOUT2		170
 
 #define DCLK_VOP0			180
 #define DCLK_VOP1			181
@@ -155,7 +143,7 @@
 #define DCLK_VOP0_FRAC			185
 #define DCLK_VOP1_FRAC			186
 
-#define FCLK_CM0S 			190
+#define FCLK_CM0S			190
 
 /* aclk gates */
 #define ACLK_PERIHP			192
@@ -226,11 +214,11 @@
 #define ACLK_CORE_ADB400_CORE_B_2_CCI500 257
 #define ACLK_ADB400M_PD_CORE_L		258
 #define ACLK_ADB400M_PD_CORE_B		259
-#define ACLK_PERF_CORE_L 		260
-#define ACLK_PERF_CORE_B 		261
-#define ACLK_GIC_PRE	 		262
-#define ACLK_VOP0_PRE	 		263
-#define ACLK_VOP1_PRE	 		264
+#define ACLK_PERF_CORE_L		260
+#define ACLK_PERF_CORE_B		261
+#define ACLK_GIC_PRE			262
+#define ACLK_VOP0_PRE			263
+#define ACLK_VOP1_PRE			264
 
 /* pclk gates */
 #define PCLK_PERIHP			320
@@ -298,12 +286,12 @@
 #define PCLK_EFUSE1024S			382
 #define PCLK_PMU_INTR_ARB		383
 #define PCLK_MAILBOX0			384
-#define PCLK_USBPHY_MUX_G 		385
-#define PCLK_UPHY0_TCPHY_G 		386
-#define PCLK_UPHY0_TCPD_G 		387
-#define PCLK_UPHY1_TCPHY_G 		388
-#define PCLK_UPHY1_TCPD_G 		389
-#define PCLK_ALIVE	 		390
+#define PCLK_USBPHY_MUX_G		385
+#define PCLK_UPHY0_TCPHY_G		386
+#define PCLK_UPHY0_TCPD_G		387
+#define PCLK_UPHY1_TCPHY_G		388
+#define PCLK_UPHY1_TCPD_G		389
+#define PCLK_ALIVE			390
 
 /* hclk gates */
 #define HCLK_PERIHP			448
@@ -372,7 +360,6 @@
 #define SCLK_I2C0_PMU			9
 #define SCLK_I2C4_PMU			10
 #define SCLK_I2C8_PMU			11
-#define SCLK_UART4_SRC			12
 
 #define PCLK_SRC_PMU			19
 #define PCLK_PMU			20
@@ -443,7 +430,7 @@
 #define SRST_A_ADB400_GIC2COREB		40
 #define SRST_A_ADB400_COREB2GIC		41
 #define SRST_P_DBG_B			42
-#define SRST_L2_B_T			44
+#define SRST_L2_B_T			43
 #define SRST_ADB_B_T			45
 #define SRST_A_RKPERF_B			46
 #define SRST_PVTM_CORE_B		47
@@ -616,13 +603,13 @@
 #define SRST_P_SPI0			214
 #define SRST_P_SPI1			215
 #define SRST_P_SPI2			216
-#define SRST_P_SPI4			217
-#define SRST_P_SPI5			218
+#define SRST_P_SPI3			217
+#define SRST_P_SPI4			218
 #define SRST_SPI0			219
 #define SRST_SPI1			220
 #define SRST_SPI2			221
-#define SRST_SPI4			222
-#define SRST_SPI5			223
+#define SRST_SPI3			222
+#define SRST_SPI4			223
 
 /* cru_softrst_con14 */
 #define SRST_I2S0_8CH			224
@@ -744,8 +731,8 @@
 #define SRST_H_CM0S_NOC			3
 #define SRST_DBG_CM0S			4
 #define SRST_PO_CM0S			5
-#define SRST_P_SPI3			6
-#define SRST_SPI3			7
+#define SRST_P_SPI6			6
+#define SRST_SPI6			7
 #define SRST_P_TIMER_0_1		8
 #define SRST_P_TIMER_0			9
 #define SRST_P_TIMER_1			10

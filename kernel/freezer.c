@@ -15,7 +15,9 @@
 atomic_t system_freezing_cnt = ATOMIC_INIT(0);
 EXPORT_SYMBOL(system_freezing_cnt);
 
-/* indicate whether PM freezing is in effect, protected by pm_mutex */
+/* indicate whether PM freezing is in effect, protected by
+ * system_transition_mutex
+ */
 bool pm_freezing;
 bool pm_nosig_freezing;
 
@@ -42,7 +44,7 @@ bool freezing_slow_path(struct task_struct *p)
 	if (p->flags & (PF_NOFREEZE | PF_SUSPEND_TASK))
 		return false;
 
-	if (test_thread_flag(TIF_MEMDIE))
+	if (test_tsk_thread_flag(p, TIF_MEMDIE))
 		return false;
 
 	if (pm_nosig_freezing || cgroup_freezing(p))

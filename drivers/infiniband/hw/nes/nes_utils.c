@@ -44,6 +44,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -727,7 +728,7 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 	if (action == NES_ARP_DELETE) {
 		nes_debug(NES_DBG_NETDEV, "DELETE, arp_index=%d\n", arp_index);
 		nesadapter->arp_table[arp_index].ip_addr = 0;
-		memset(nesadapter->arp_table[arp_index].mac_addr, 0x00, ETH_ALEN);
+		eth_zero_addr(nesadapter->arp_table[arp_index].mac_addr);
 		nes_free_resource(nesadapter, nesadapter->allocated_arps, arp_index);
 		return arp_index;
 	}
@@ -739,11 +740,11 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 /**
  * nes_mh_fix
  */
-void nes_mh_fix(unsigned long parm)
+void nes_mh_fix(struct timer_list *t)
 {
+	struct nes_adapter *nesadapter = from_timer(nesadapter, t, mh_timer);
+	struct nes_device *nesdev = nesadapter->nesdev;
 	unsigned long flags;
-	struct nes_device *nesdev = (struct nes_device *)parm;
-	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	struct nes_vnic *nesvnic;
 	u32 used_chunks_tx;
 	u32 temp_used_chunks_tx;
@@ -752,7 +753,6 @@ void nes_mh_fix(unsigned long parm)
 	u32 mac_tx_frames_low;
 	u32 mac_tx_frames_high;
 	u32 mac_tx_pauses;
-	u32 serdes_status;
 	u32 reset_value;
 	u32 tx_control;
 	u32 tx_config;
@@ -845,7 +845,7 @@ void nes_mh_fix(unsigned long parm)
 		}
 
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0, 0x00000008);
-		serdes_status = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS0);
+		nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS0);
 
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_EMP0, 0x000bdef7);
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_DRIVE0, 0x9ce73000);
@@ -858,7 +858,7 @@ void nes_mh_fix(unsigned long parm)
 		} else {
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_RX_EQ_CONTROL0, 0xf0042222);
 		}
-		serdes_status = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_RX_EQ_STATUS0);
+		nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_RX_EQ_STATUS0);
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_CDR_CONTROL0, 0x000000ff);
 
 		nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONTROL, tx_control);
@@ -880,17 +880,16 @@ no_mh_work:
 /**
  * nes_clc
  */
-void nes_clc(unsigned long parm)
+void nes_clc(struct timer_list *t)
 {
+	struct nes_adapter *nesadapter = from_timer(nesadapter, t, lc_timer);
 	unsigned long flags;
-	struct nes_device *nesdev = (struct nes_device *)parm;
-	struct nes_adapter *nesadapter = nesdev->nesadapter;
 
 	spin_lock_irqsave(&nesadapter->phy_lock, flags);
-    nesadapter->link_interrupt_count[0] = 0;
-    nesadapter->link_interrupt_count[1] = 0;
-    nesadapter->link_interrupt_count[2] = 0;
-    nesadapter->link_interrupt_count[3] = 0;
+	nesadapter->link_interrupt_count[0] = 0;
+	nesadapter->link_interrupt_count[1] = 0;
+	nesadapter->link_interrupt_count[2] = 0;
+	nesadapter->link_interrupt_count[3] = 0;
 	spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 
 	nesadapter->lc_timer.expires = jiffies + 3600 * HZ;  /* 1 hour */
@@ -903,70 +902,15 @@ void nes_clc(unsigned long parm)
  */
 void nes_dump_mem(unsigned int dump_debug_level, void *addr, int length)
 {
-	char  xlate[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-		'a', 'b', 'c', 'd', 'e', 'f'};
-	char  *ptr;
-	char  hex_buf[80];
-	char  ascii_buf[20];
-	int   num_char;
-	int   num_ascii;
-	int   num_hex;
-
 	if (!(nes_debug_level & dump_debug_level)) {
 		return;
 	}
 
-	ptr = addr;
 	if (length > 0x100) {
 		nes_debug(dump_debug_level, "Length truncated from %x to %x\n", length, 0x100);
 		length = 0x100;
 	}
-	nes_debug(dump_debug_level, "Address=0x%p, length=0x%x (%d)\n", ptr, length, length);
+	nes_debug(dump_debug_level, "Address=0x%p, length=0x%x (%d)\n", addr, length, length);
 
-	memset(ascii_buf, 0, 20);
-	memset(hex_buf, 0, 80);
-
-	num_ascii = 0;
-	num_hex = 0;
-	for (num_char = 0; num_char < length; num_char++) {
-		if (num_ascii == 8) {
-			ascii_buf[num_ascii++] = ' ';
-			hex_buf[num_hex++] = '-';
-			hex_buf[num_hex++] = ' ';
-		}
-
-		if (*ptr < 0x20 || *ptr > 0x7e)
-			ascii_buf[num_ascii++] = '.';
-		else
-			ascii_buf[num_ascii++] = *ptr;
-		hex_buf[num_hex++] = xlate[((*ptr & 0xf0) >> 4)];
-		hex_buf[num_hex++] = xlate[*ptr & 0x0f];
-		hex_buf[num_hex++] = ' ';
-		ptr++;
-
-		if (num_ascii >= 17) {
-			/* output line and reset */
-			nes_debug(dump_debug_level, "   %s |  %s\n", hex_buf, ascii_buf);
-			memset(ascii_buf, 0, 20);
-			memset(hex_buf, 0, 80);
-			num_ascii = 0;
-			num_hex = 0;
-		}
-	}
-
-	/* output the rest */
-	if (num_ascii) {
-		while (num_ascii < 17) {
-			if (num_ascii == 8) {
-				hex_buf[num_hex++] = ' ';
-				hex_buf[num_hex++] = ' ';
-			}
-			hex_buf[num_hex++] = ' ';
-			hex_buf[num_hex++] = ' ';
-			hex_buf[num_hex++] = ' ';
-			num_ascii++;
-		}
-
-		nes_debug(dump_debug_level, "   %s |  %s\n", hex_buf, ascii_buf);
-	}
+	print_hex_dump(KERN_ERR, PFX, DUMP_PREFIX_NONE, 16, 1, addr, length, true);
 }

@@ -294,8 +294,6 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	.tpg_check_prod_mode_write_protect = " + fabric_mod_name + "_check_false,\n"
 	buf += "	.tpg_get_inst_index		= " + fabric_mod_name + "_tpg_get_inst_index,\n"
 	buf += "	.release_cmd			= " + fabric_mod_name + "_release_cmd,\n"
-	buf += "	.shutdown_session		= " + fabric_mod_name + "_shutdown_session,\n"
-	buf += "	.close_session			= " + fabric_mod_name + "_close_session,\n"
 	buf += "	.sess_get_index			= " + fabric_mod_name + "_sess_get_index,\n"
 	buf += "	.sess_get_initiator_sid		= NULL,\n"
 	buf += "	.write_pending			= " + fabric_mod_name + "_write_pending,\n"
@@ -466,20 +464,6 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			buf += "	return;\n"
 			buf += "}\n\n"
 			bufi += "void " + fabric_mod_name + "_release_cmd(struct se_cmd *);\n"
-
-		if re.search('shutdown_session\)\(', fo):
-			buf += "int " + fabric_mod_name + "_shutdown_session(struct se_session *se_sess)\n"
-			buf += "{\n"
-			buf += "	return 0;\n"
-			buf += "}\n\n"
-			bufi += "int " + fabric_mod_name + "_shutdown_session(struct se_session *);\n"
-
-		if re.search('close_session\)\(', fo):
-			buf += "void " + fabric_mod_name + "_close_session(struct se_session *se_sess)\n"
-			buf += "{\n"
-			buf += "	return;\n"
-			buf += "}\n\n"
-			bufi += "void " + fabric_mod_name + "_close_session(struct se_session *);\n"
 
 		if re.search('sess_get_index\)\(', fo):
 			buf += "u32 " + fabric_mod_name + "_sess_get_index(struct se_session *se_sess)\n"

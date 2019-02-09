@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *
  ******************************************************************************/
 
@@ -41,7 +28,8 @@
 /*  Mainly, it just retains last scan result and scan again. */
 /*  After that, it compares the scan result to see which one gets better
  *  RSSI. It selects antenna with better receiving power and returns better
- *  scan result. */
+ *  scan result.
+ */
 
 #define	TP_MODE			0
 #define	RSSI_MODE		1
@@ -84,11 +72,6 @@
 #define DM_DIG_FA_TH1_LPS		15 /*  15 lps */
 #define DM_DIG_FA_TH2_LPS		30 /*  30 lps */
 #define RSSI_OFFSET_DIG			0x05;
-
-/* ANT Test */
-#define ANTTESTALL		0x00	/* Ant A or B will be Testing */
-#define ANTTESTA		0x01	/* Ant A will be Testing */
-#define ANTTESTB		0x02	/* Ant B will be testing */
 
 struct rtw_dig {
 	u8		Dig_Enable_Flag;
@@ -183,10 +166,12 @@ struct rx_hpc {
 
 /*  This indicates two different steps. */
 /*  In SWAW_STEP_PEAK, driver needs to switch antenna and listen to
- *  the signal on the air. */
+ *  the signal on the air.
+ */
 /*  In SWAW_STEP_DETERMINE, driver just compares the signal captured in
  *  SWAW_STEP_PEAK with original RSSI to determine if it is necessary to
- *  switch antenna. */
+ *  switch antenna.
+ */
 
 #define SWAW_STEP_PEAK		0
 #define SWAW_STEP_DETERMINE	1
@@ -275,7 +260,8 @@ struct odm_phy_status_info {
 	s8	RxPower; /*  in dBm Translate from PWdB */
 	s8	RecvSignalPower;/*  Real power in dBm for this packet, no
 				 * beautification and aggregation. Keep this raw
-				 * info to be used for the other procedures. */
+				 * info to be used for the other procedures.
+				 */
 	u8	BTRxRSSIPercentage;
 	u8	SignalStrength; /*  in 0-100 index. */
 	u8	RxPwr[MAX_PATH_NUM_92CS];/* per-path's pwdb */
@@ -320,22 +306,6 @@ enum odm_ability {
 	ODM_PSD2AFH		= 0x00000800
 };
 
-/*  2011/20/20 MH For MP driver RT_WLAN_STA =  struct sta_info */
-/*  Please declare below ODM relative info in your STA info structure. */
-
-struct odm_sta_info {
-	/*  Driver Write */
-	bool	bUsed;		/*  record the sta status link or not? */
-	u8	IOTPeer;	/*  Enum value.	HT_IOT_PEER_E */
-
-	/*  ODM Write */
-	/* 1 PHY_STATUS_INFO */
-	u8	RSSI_Path[4];		/*  */
-	u8	RSSI_Ave;
-	u8	RXEVM[4];
-	u8	RXSNR[4];
-};
-
 /*  2011/10/20 MH Define Common info enum for all team. */
 
 enum odm_common_info_def {
@@ -348,7 +318,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_MP_TEST_CHIP,
 	ODM_CMNINFO_IC_TYPE,		/* ODM_IC_TYPE_E */
 	ODM_CMNINFO_CUT_VER,		/* ODM_CUT_VERSION_E */
-	ODM_CMNINFO_FAB_VER,		/* ODM_FAB_E */
 	ODM_CMNINFO_RF_TYPE,		/* ODM_RF_PATH_E or ODM_RF_TYPE_E? */
 	ODM_CMNINFO_BOARD_TYPE,		/* ODM_BOARD_TYPE_E */
 	ODM_CMNINFO_EXT_LNA,		/* true */
@@ -451,12 +420,6 @@ enum odm_cut_version {
 	ODM_CUT_TEST	=	7,
 };
 
-/*  ODM_CMNINFO_FAB_VER */
-enum odm_fab_Version {
-	ODM_TSMC	=	0,
-	ODM_UMC		=	1,
-};
-
 /*  ODM_CMNINFO_RF_TYPE */
 /*  For example 1T2R (A+AB = BIT0|BIT4|BIT5) */
 enum odm_rf_path {
@@ -511,7 +474,7 @@ enum odm_operation_mode {
 
 /*  ODM_CMNINFO_WM_MODE */
 enum odm_wireless_mode {
-	ODM_WM_UNKNOW	= 0x0,
+	ODM_WM_UNKNOWN	= 0x0,
 	ODM_WM_B	= BIT(0),
 	ODM_WM_G	= BIT(1),
 	ODM_WM_A	= BIT(2),
@@ -542,7 +505,7 @@ enum odm_security {
 	ODM_SEC_RESERVE		= 3,
 	ODM_SEC_AESCCMP		= 4,
 	ODM_SEC_WEP104		= 5,
-	ODM_WEP_WPA_MIXED   	= 6, /*  WEP + WPA */
+	ODM_WEP_WPA_MIXED	= 6, /*  WEP + WPA */
 	ODM_SEC_SMS4		= 7,
 };
 
@@ -600,7 +563,8 @@ struct odm_ra_info {
 	u8 PTPreRssi;	/*  if RSSI change 5% do PT */
 	u8 PTModeSS;	/*  decide whitch rate should do PT */
 	u8 RAstage;	/*  StageRA, decide how many times RA will be done
-			 * between PT */
+			 * between PT
+			 */
 	u8 PTSmoothFactor;
 };
 
@@ -618,15 +582,16 @@ struct odm_rf_cal {
 	s32	RegEBC;
 
 	u8	TXPowercount;
-	bool	bTXPowerTrackingInit;
 	bool	bTXPowerTracking;
 	u8	TxPowerTrackControl; /* for mp mode, turn off txpwrtracking
-				      * as default */
+				      * as default
+				      */
 	u8	TM_Trigger;
 	u8	InternalPA5G[2];	/* pathA / pathB */
 
 	u8	ThermalMeter[2];    /* ThermalMeter, index 0 for RFIC0,
-				     * and 1 for RFIC1 */
+				     * and 1 for RFIC1
+				     */
 	u8	ThermalValue;
 	u8	ThermalValue_LCK;
 	u8	ThermalValue_IQK;
@@ -722,7 +687,7 @@ enum ant_div_type {
 
 /* Copy from SD4 defined structure. We use to support PHY DM integration. */
 struct odm_dm_struct {
-	/* 	Add for different team use temporarily */
+	/*	Add for different team use temporarily */
 	struct adapter *Adapter;	/*  For CE/NIC team */
 	struct rtl8192cd_priv *priv;	/*  For AP/ADSL team */
 	/*  WHen you use above pointers, they must be initialized. */
@@ -743,19 +708,16 @@ struct odm_dm_struct {
 /* HOOK BEFORE REG INIT----------- */
 	/*  ODM Platform info AP/ADSL/CE/MP = 1/2/3/4 */
 	u8	SupportPlatform;
-	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/ ¡K¡K = 1/2/3/¡K */
+	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/... = 1/2/3/... */
 	u32	SupportAbility;
 	/*  ODM PCIE/USB/SDIO/GSPI = 0/1/2/3 */
 	u8	SupportInterface;
 	/*  ODM composite or independent. Bit oriented/ 92C+92D+ .... or any
-	 *  other type = 1/2/3/... */
+	 *  other type = 1/2/3/...
+	 */
 	u32	SupportICType;
 	/*  Cut Version TestChip/A-cut/B-cut... = 0/1/2/3/... */
 	u8	CutVersion;
-	/*  Fab Version TSMC/UMC = 0/1 */
-	u8	FabVersion;
-	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
-	u8	RFType;
 	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/. = 0/1/2/3/4/. */
 	u8	BoardType;
 	/*  with external LNA  NO/Yes = 0/1 */
@@ -826,19 +788,21 @@ struct odm_dm_struct {
 	bool	bBtHsOperation;	/*  BT HS mode is under progress */
 	u8	btHsDigVal;	/*  use BT rssi to decide the DIG value */
 	bool	bBtDisableEdcaTurbo;/* Under some condition, don't enable the
-				     * EDCA Turbo */
+				     * EDCA Turbo
+				     */
 	bool	bBtBusy;			/*  BT is busy. */
 /* CALL BY VALUE------------- */
 
 	/* 2 Define STA info. */
 	/*  _ODM_STA_INFO */
-	/*  For MP, we need to reduce one array pointer for default port.?? */
+	/*  For MP, we need to reduce one array pointer for default port.??*/
 	struct sta_info *pODM_StaInfo[ODM_ASSOCIATE_ENTRY_NUM];
 
 	u16	CurrminRptTime;
 	struct odm_ra_info RAInfo[ODM_ASSOCIATE_ENTRY_NUM]; /* Use MacID as
-			* array index. STA MacID=0,
-			* VWiFi Client MacID={1, ODM_ASSOCIATE_ENTRY_NUM-1} */
+							     * array index. STA MacID=0,
+							     * VWiFi Client MacID={1, ODM_ASSOCIATE_ENTRY_NUM-1}
+							     */
 	/*  */
 	/*  2012/02/14 MH Add to share 88E ra with other SW team. */
 	/*  We need to colelct all support abilit to a proper area. */
@@ -1067,9 +1031,11 @@ extern	u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8];
 /*  20100514 Joseph: Add definition for antenna switching test after link. */
 /*  This indicates two different the steps. */
 /*  In SWAW_STEP_PEAK, driver needs to switch antenna and listen to the
- *  signal on the air. */
+ *  signal on the air.
+ */
 /*  In SWAW_STEP_DETERMINE, driver just compares the signal captured in
- *  SWAW_STEP_PEAK */
+ *  SWAW_STEP_PEAK
+ */
 /*  with original RSSI to determine if it is necessary to switch antenna. */
 #define SWAW_STEP_PEAK		0
 #define SWAW_STEP_DETERMINE	1

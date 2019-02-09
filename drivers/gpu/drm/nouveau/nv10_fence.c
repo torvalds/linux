@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nv10_fence.h"
 
@@ -57,16 +57,13 @@ void
 nv10_fence_context_del(struct nouveau_channel *chan)
 {
 	struct nv10_fence_chan *fctx = chan->fence;
-	int i;
 	nouveau_fence_context_del(&fctx->base);
-	for (i = 0; i < ARRAY_SIZE(fctx->head); i++)
-		nvif_object_fini(&fctx->head[i]);
 	nvif_object_fini(&fctx->sema);
 	chan->fence = NULL;
 	nouveau_fence_context_free(&fctx->base);
 }
 
-int
+static int
 nv10_fence_context_new(struct nouveau_channel *chan)
 {
 	struct nv10_fence_chan *fctx;
@@ -106,8 +103,6 @@ nv10_fence_create(struct nouveau_drm *drm)
 	priv->base.dtor = nv10_fence_destroy;
 	priv->base.context_new = nv10_fence_context_new;
 	priv->base.context_del = nv10_fence_context_del;
-	priv->base.contexts = 31;
-	priv->base.context_base = fence_context_alloc(priv->base.contexts);
 	spin_lock_init(&priv->lock);
 	return 0;
 }

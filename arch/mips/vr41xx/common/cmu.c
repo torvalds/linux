@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2001-2002  MontaVista Software Inc.
  *    Author: Yoichi Yuasa <source@mvista.com>
- *  Copuright (C) 2003-2005  Yoichi Yuasa <yuasa@linux-mips.org>
+ *  Copyright (C) 2003-2005  Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,9 +28,9 @@
  *  Yoichi Yuasa <yuasa@linux-mips.org>
  *  - Added support for NEC VR4133.
  */
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>

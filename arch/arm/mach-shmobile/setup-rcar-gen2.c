@@ -1,21 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * R-Car Generation 2 support
  *
  * Copyright (C) 2013  Renesas Solutions Corp.
  * Copyright (C) 2013  Magnus Damm
  * Copyright (C) 2014  Ulrich Hecht
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <linux/clk/shmobile.h>
+#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/device.h>
 #include <linux/dma-contiguous.h>
@@ -24,26 +16,42 @@
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/of_platform.h>
 #include <asm/mach/arch.h>
+#include <asm/secure_cntvoff.h>
 #include "common.h"
 #include "rcar-gen2.h"
 
-#define MODEMR 0xe6160060
+static const struct of_device_id cpg_matches[] __initconst = {
+	{ .compatible = "renesas,rcar-gen2-cpg-clocks", },
+	{ .compatible = "renesas,r8a7743-cpg-mssr", .data = "extal" },
+	{ .compatible = "renesas,r8a7790-cpg-mssr", .data = "extal" },
+	{ .compatible = "renesas,r8a7791-cpg-mssr", .data = "extal" },
+	{ .compatible = "renesas,r8a7793-cpg-mssr", .data = "extal" },
+	{ /* sentinel */ }
+};
 
-u32 rcar_gen2_read_mode_pins(void)
+static unsigned int __init get_extal_freq(void)
 {
-	static u32 mode;
-	static bool mode_valid;
+	const struct of_device_id *match;
+	struct device_node *cpg, *extal;
+	u32 freq = 20000000;
+	int idx = 0;
 
-	if (!mode_valid) {
-		void __iomem *modemr = ioremap_nocache(MODEMR, 4);
-		BUG_ON(!modemr);
-		mode = ioread32(modemr);
-		iounmap(modemr);
-		mode_valid = true;
-	}
+	cpg = of_find_matching_node_and_match(NULL, cpg_matches, &match);
+	if (!cpg)
+		return freq;
 
-	return mode;
+	if (match->data)
+		idx = of_property_match_string(cpg, "clock-names", match->data);
+	extal = of_parse_phandle(cpg, "clocks", idx);
+	of_node_put(cpg);
+	if (!extal)
+		return freq;
+
+	of_property_read_u32(extal, "clock-frequency", &freq);
+	of_node_put(extal);
+	return freq;
 }
 
 #define CNTCR 0
@@ -51,57 +59,24 @@ u32 rcar_gen2_read_mode_pins(void)
 
 void __init rcar_gen2_timer_init(void)
 {
-	u32 mode = rcar_gen2_read_mode_pins();
-#ifdef CONFIG_ARM_ARCH_TIMER
 	void __iomem *base;
-	int extal_mhz = 0;
 	u32 freq;
 
-	if (of_machine_is_compatible("renesas,r8a7794")) {
+	secure_cntvoff_init();
+
+	if (of_machine_is_compatible("renesas,r8a7745") ||
+	    of_machine_is_compatible("renesas,r8a77470") ||
+	    of_machine_is_compatible("renesas,r8a7792") ||
+	    of_machine_is_compatible("renesas,r8a7794")) {
 		freq = 260000000 / 8;	/* ZS / 8 */
-		/* CNTVOFF has to be initialized either from non-secure
-		 * Hypervisor mode or secure Monitor mode with SCR.NS==1.
-		 * If TrustZone is enabled then it should be handled by the
-		 * secure code.
-		 */
-		asm volatile(
-		"	cps	0x16\n"
-		"	mrc	p15, 0, r1, c1, c1, 0\n"
-		"	orr	r0, r1, #1\n"
-		"	mcr	p15, 0, r0, c1, c1, 0\n"
-		"	isb\n"
-		"	mov	r0, #0\n"
-		"	mcrr	p15, 4, r0, r0, c14\n"
-		"	isb\n"
-		"	mcr	p15, 0, r1, c1, c1, 0\n"
-		"	isb\n"
-		"	cps	0x13\n"
-			: : : "r0", "r1");
 	} else {
 		/* At Linux boot time the r8a7790 arch timer comes up
 		 * with the counter disabled. Moreover, it may also report
 		 * a potentially incorrect fixed 13 MHz frequency. To be
 		 * correct these registers need to be updated to use the
-		 * frequency EXTAL / 2 which can be determined by the MD pins.
+		 * frequency EXTAL / 2.
 		 */
-
-		switch (mode & (MD(14) | MD(13))) {
-		case 0:
-			extal_mhz = 15;
-			break;
-		case MD(13):
-			extal_mhz = 20;
-			break;
-		case MD(14):
-			extal_mhz = 26;
-			break;
-		case MD(13) | MD(14):
-			extal_mhz = 30;
-			break;
-		}
-
-		/* The arch timer frequency equals EXTAL / 2 */
-		freq = extal_mhz * (1000000 / 2);
+		freq = get_extal_freq() / 2;
 	}
 
 	/* Remap "armgcnt address map" space */
@@ -125,10 +100,9 @@ void __init rcar_gen2_timer_init(void)
 	}
 
 	iounmap(base);
-#endif /* CONFIG_ARM_ARCH_TIMER */
 
-	rcar_gen2_clocks_init(mode);
-	clocksource_probe();
+	of_clk_init(NULL);
+	timer_probe();
 }
 
 struct memory_reserve_config {
@@ -182,8 +156,6 @@ static int __init rcar_gen2_scan_mem(unsigned long node, const char *uname,
 	return 0;
 }
 
-struct cma *rcar_gen2_dma_contiguous;
-
 void __init rcar_gen2_reserve(void)
 {
 	struct memory_reserve_config mrc;
@@ -194,8 +166,41 @@ void __init rcar_gen2_reserve(void)
 
 	of_scan_flat_dt(rcar_gen2_scan_mem, &mrc);
 #ifdef CONFIG_DMA_CMA
-	if (mrc.size && memblock_is_region_memory(mrc.base, mrc.size))
+	if (mrc.size && memblock_is_region_memory(mrc.base, mrc.size)) {
+		static struct cma *rcar_gen2_dma_contiguous;
+
 		dma_contiguous_reserve_area(mrc.size, mrc.base, 0,
 					    &rcar_gen2_dma_contiguous, true);
+	}
 #endif
 }
+
+static const char * const rcar_gen2_boards_compat_dt[] __initconst = {
+	"renesas,r8a7790",
+	"renesas,r8a7791",
+	"renesas,r8a7792",
+	"renesas,r8a7793",
+	"renesas,r8a7794",
+	NULL,
+};
+
+DT_MACHINE_START(RCAR_GEN2_DT, "Generic R-Car Gen2 (Flattened Device Tree)")
+	.init_late	= shmobile_init_late,
+	.init_time	= rcar_gen2_timer_init,
+	.reserve	= rcar_gen2_reserve,
+	.dt_compat	= rcar_gen2_boards_compat_dt,
+MACHINE_END
+
+static const char * const rz_g1_boards_compat_dt[] __initconst = {
+	"renesas,r8a7743",
+	"renesas,r8a7745",
+	"renesas,r8a77470",
+	NULL,
+};
+
+DT_MACHINE_START(RZ_G1_DT, "Generic RZ/G1 (Flattened Device Tree)")
+	.init_late	= shmobile_init_late,
+	.init_time	= rcar_gen2_timer_init,
+	.reserve	= rcar_gen2_reserve,
+	.dt_compat	= rz_g1_boards_compat_dt,
+MACHINE_END

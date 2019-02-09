@@ -1,9 +1,8 @@
-/*
- * mt9v011 -Micron 1/4-Inch VGA Digital Image Sensor
- *
- * Copyright (c) 2009 Mauro Carvalho Chehab
- * This code is placed under the terms of the GNU General Public License v2
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// mt9v011 -Micron 1/4-Inch VGA Digital Image Sensor
+//
+// Copyright (c) 2009 Mauro Carvalho Chehab <mchehab@kernel.org>
 
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -13,11 +12,11 @@
 #include <asm/div64.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/mt9v011.h>
+#include <media/i2c/mt9v011.h>
 
 MODULE_DESCRIPTION("Micron mt9v011 sensor driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 static int debug;
 module_param(debug, int, 0);
@@ -50,6 +49,9 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 struct mt9v011 {
 	struct v4l2_subdev sd;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_pad pad;
+#endif
 	struct v4l2_ctrl_handler ctrls;
 	unsigned width, height;
 	unsigned xtal;
@@ -362,32 +364,21 @@ static int mt9v011_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9v011_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+static int mt9v011_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *ival)
 {
-	struct v4l2_captureparm *cp = &parms->parm.capture;
-
-	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	memset(cp, 0, sizeof(struct v4l2_captureparm));
-	cp->capability = V4L2_CAP_TIMEPERFRAME;
 	calc_fps(sd,
-		 &cp->timeperframe.numerator,
-		 &cp->timeperframe.denominator);
+		 &ival->interval.numerator,
+		 &ival->interval.denominator);
 
 	return 0;
 }
 
-static int mt9v011_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+static int mt9v011_s_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *ival)
 {
-	struct v4l2_captureparm *cp = &parms->parm.capture;
-	struct v4l2_fract *tpf = &cp->timeperframe;
+	struct v4l2_fract *tpf = &ival->interval;
 	u16 speed;
-
-	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	if (cp->extendedmode != 0)
-		return -EINVAL;
 
 	speed = calc_speed(sd, tpf->numerator, tpf->denominator);
 
@@ -454,7 +445,7 @@ static int mt9v011_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops mt9v011_ctrl_ops = {
+static const struct v4l2_ctrl_ops mt9v011_ctrl_ops = {
 	.s_ctrl = mt9v011_s_ctrl,
 };
 
@@ -467,8 +458,8 @@ static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops mt9v011_video_ops = {
-	.g_parm = mt9v011_g_parm,
-	.s_parm = mt9v011_s_parm,
+	.g_frame_interval = mt9v011_g_frame_interval,
+	.s_frame_interval = mt9v011_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops mt9v011_pad_ops = {
@@ -493,6 +484,9 @@ static int mt9v011_probe(struct i2c_client *c,
 	u16 version;
 	struct mt9v011 *core;
 	struct v4l2_subdev *sd;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	int ret;
+#endif
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(c->adapter,
@@ -505,6 +499,15 @@ static int mt9v011_probe(struct i2c_client *c,
 
 	sd = &core->sd;
 	v4l2_i2c_subdev_init(sd, c, &mt9v011_ops);
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	core->pad.flags = MEDIA_PAD_FL_SOURCE;
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+
+	ret = media_entity_pads_init(&sd->entity, 1, &core->pad);
+	if (ret < 0)
+		return ret;
+#endif
 
 	/* Check if the sensor is really a MT9V011 */
 	version = mt9v011_read(sd, R00_MT9V011_CHIP_VERSION);

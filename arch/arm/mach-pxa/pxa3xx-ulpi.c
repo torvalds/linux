@@ -26,7 +26,7 @@
 #include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
-#include <mach/regs-u2d.h>
+#include "regs-u2d.h"
 #include <linux/platform_data/usb-pxa3xx-ulpi.h>
 
 struct pxa3xx_u2d_ulpi {
@@ -256,7 +256,7 @@ int pxa3xx_u2d_start_hc(struct usb_bus *host)
 	if (!u2d)
 		return 0;
 
-	clk_enable(u2d->clk);
+	clk_prepare_enable(u2d->clk);
 
 	if (cpu_is_pxa310()) {
 		pxa310_u2d_setup_otg_hc();
@@ -276,7 +276,7 @@ void pxa3xx_u2d_stop_hc(struct usb_bus *host)
 	if (cpu_is_pxa310())
 		pxa310_stop_otg_hc();
 
-	clk_disable(u2d->clk);
+	clk_disable_unprepare(u2d->clk);
 }
 EXPORT_SYMBOL_GPL(pxa3xx_u2d_stop_hc);
 
@@ -286,11 +286,9 @@ static int pxa3xx_u2d_probe(struct platform_device *pdev)
 	struct resource *r;
 	int err;
 
-	u2d = kzalloc(sizeof(struct pxa3xx_u2d_ulpi), GFP_KERNEL);
-	if (!u2d) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	u2d = kzalloc(sizeof(*u2d), GFP_KERNEL);
+	if (!u2d)
 		return -ENOMEM;
-	}
 
 	u2d->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(u2d->clk)) {
@@ -333,7 +331,7 @@ static int pxa3xx_u2d_probe(struct platform_device *pdev)
 			goto err_free_plat;
 	}
 
-	platform_set_drvdata(pdev, &u2d);
+	platform_set_drvdata(pdev, u2d);
 
 	return 0;
 

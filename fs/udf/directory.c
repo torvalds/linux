@@ -16,6 +16,7 @@
 
 #include <linux/fs.h>
 #include <linux/string.h>
+#include <linux/bio.h>
 
 struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 					 struct udf_fileident_bh *fibh,
@@ -25,7 +26,8 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 					 sector_t *offset)
 {
 	struct fileIdentDesc *fi;
-	int i, num, block;
+	int i, num;
+	udf_pblk_t block;
 	struct buffer_head *tmp, *bha[16];
 	struct udf_inode_info *iinfo = UDF_I(dir);
 
@@ -50,7 +52,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 	}
 
 	if (fibh->eoffset == dir->i_sb->s_blocksize) {
-		int lextoffset = epos->offset;
+		uint32_t lextoffset = epos->offset;
 		unsigned char blocksize_bits = dir->i_sb->s_blocksize_bits;
 
 		if (udf_next_aext(dir, epos, eloc, elen, 1) !=
@@ -87,7 +89,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 					brelse(tmp);
 			}
 			if (num) {
-				ll_rw_block(READA, num, bha);
+				ll_rw_block(REQ_OP_READ, REQ_RAHEAD, num, bha);
 				for (i = 0; i < num; i++)
 					brelse(bha[i]);
 			}
@@ -109,7 +111,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 		memcpy((uint8_t *)cfi, (uint8_t *)fi,
 		       sizeof(struct fileIdentDesc));
 	} else if (fibh->eoffset > dir->i_sb->s_blocksize) {
-		int lextoffset = epos->offset;
+		uint32_t lextoffset = epos->offset;
 
 		if (udf_next_aext(dir, epos, eloc, elen, 1) !=
 		    (EXT_RECORDED_ALLOCATED >> 30))
@@ -139,10 +141,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 			       fibh->ebh->b_data,
 			       sizeof(struct fileIdentDesc) + fibh->soffset);
 
-			fi_len = (sizeof(struct fileIdentDesc) +
-				  cfi->lengthFileIdent +
-				  le16_to_cpu(cfi->lengthOfImpUse) + 3) & ~3;
-
+			fi_len = udf_dir_entry_len(cfi);
 			*nf_pos += fi_len - (fibh->eoffset - fibh->soffset);
 			fibh->eoffset = fibh->soffset + fi_len;
 		} else {
@@ -150,6 +149,9 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 			       sizeof(struct fileIdentDesc));
 		}
 	}
+	/* Got last entry outside of dir size - fs is corrupted! */
+	if (*nf_pos > dir->i_size)
+		return NULL;
 	return fi;
 }
 
@@ -174,7 +176,7 @@ struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize, int *offset)
 	if (fi->descTag.tagIdent != cpu_to_le16(TAG_IDENT_FID)) {
 		udf_debug("0x%x != TAG_IDENT_FID\n",
 			  le16_to_cpu(fi->descTag.tagIdent));
-		udf_debug("offset: %u sizeof: %lu bufsize: %u\n",
+		udf_debug("offset: %d sizeof: %lu bufsize: %d\n",
 			  *offset, (unsigned long)sizeof(struct fileIdentDesc),
 			  bufsize);
 		return NULL;

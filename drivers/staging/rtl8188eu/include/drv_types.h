@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *
  ******************************************************************************/
 /*-----------------------------------------------------------------------------
@@ -58,42 +45,22 @@
 #define SPEC_DEV_ID_ASSIGN_IFNAME	BIT(5)
 
 struct registry_priv {
-	u8	chip_version;
-	u8	rfintfs;
-	u8	lbkmode;
-	u8	hci;
 	struct ndis_802_11_ssid	ssid;
-	u8	network_mode;	/* infra, ad-hoc, auto */
 	u8	channel;/* ad-hoc support requirement */
 	u8	wireless_mode;/* A, B, G, auto */
-	u8	scan_mode;/* active, passive */
-	u8	radio_enable;
 	u8	preamble;/* long, short, auto */
 	u8	vrtl_carrier_sense;/* Enable, Disable, Auto */
 	u8	vcs_type;/* RTS/CTS, CTS-to-self */
 	u16	rts_thresh;
 	u16	frag_thresh;
-	u8	adhoc_tx_pwr;
-	u8	soft_ap;
 	u8	power_mgnt;
 	u8	ips_mode;
 	u8	smart_ps;
-	u8	long_retry_lmt;
-	u8	short_retry_lmt;
-	u16	busy_thresh;
-	u8	ack_policy;
 	u8	mp_mode;
-	u8	software_encrypt;
-	u8	software_decrypt;
 	u8	acm_method;
 	  /* UAPSD */
 	u8	wmm_enable;
 	u8	uapsd_enable;
-	u8	uapsd_max_sp;
-	u8	uapsd_acbk_en;
-	u8	uapsd_acbe_en;
-	u8	uapsd_acvi_en;
-	u8	uapsd_acvo_en;
 
 	struct wlan_bssid_ex    dev_network;
 
@@ -102,24 +69,17 @@ struct registry_priv {
 	u8	ampdu_enable;/* for tx */
 	u8	rx_stbc;
 	u8	ampdu_amsdu;/* A-MPDU Supports A-MSDU is permitted */
-	u8	lowrate_two_xmit;
-
-	u8	rf_config;
-	u8	low_power;
 
 	u8	wifi_spec;/*  !turbo_mode */
 
 	u8	channel_plan;
-	bool	bAcceptAddbaReq;
+	bool	accept_addba_req; /* true = accept AP's Add BA req */
 
 	u8	antdiv_cfg;
 	u8	antdiv_type;
 
 	u8	usbss_enable;/* 0:disable,1:enable */
 	u8	hwpdn_mode;/* 0:disable,1:enable,2:decide by EFUSE config */
-	u8	hwpwrp_detect;/* 0:disable,1:enable */
-
-	u8	hw_wps_pbc;/* 0:disable,1:enable */
 
 	u8	max_roaming_times; /*  the max number driver will try */
 
@@ -133,12 +93,6 @@ struct registry_priv {
 	u8	notch_filter;
 	bool	monitor_enable;
 };
-
-/* For registry parameters */
-#define RGTRY_OFT(field) ((u32)FIELD_OFFSET(struct registry_priv, field))
-#define RGTRY_SZ(field)   sizeof(((struct registry_priv *)0)->field)
-#define BSSID_OFT(field) ((u32)FIELD_OFFSET(struct wlan_bssid_ex, field))
-#define BSSID_SZ(field)   sizeof(((struct wlan_bssid_ex *)0)->field)
 
 #define MAX_CONTINUAL_URB_ERR		4
 
@@ -154,15 +108,10 @@ struct dvobj_priv {
 	u8	Queue2Pipe[HW_QUEUE_ENTRY];/* for out pipe mapping */
 
 /*-------- below is for USB INTERFACE --------*/
-
-	u8	nr_endpoint;
 	u8	ishighspeed;
 	u8	RtNumInPipes;
 	u8	RtNumOutPipes;
-	int	ep_num[5]; /* endpoint number */
 	struct mutex  usb_vendor_req_mutex;
-
-	u8 *usb_vendor_req_buf;
 
 	struct usb_interface *pusbintf;
 	struct usb_device *pusbdev;
@@ -171,13 +120,12 @@ struct dvobj_priv {
 static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 {
 	/* todo: get interface type from dvobj and the return
-	 * the dev accordingly */
+	 * the dev accordingly
+	 */
 	return &dvobj->pusbintf->dev;
 };
 
 struct adapter {
-	u16	chip_type;
-
 	struct dvobj_priv *dvobj;
 	struct	mlme_priv mlmepriv;
 	struct	mlme_ext_priv mlmeextpriv;
@@ -191,14 +139,7 @@ struct adapter {
 	struct	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
 
-#ifdef CONFIG_88EU_AP_MODE
-	struct	hostapd_priv	*phostapdpriv;
-#endif
-
-	struct wifidirect_info	wdinfo;
-
-	void *HalData;
-	struct hal_ops	HalFunc;
+	struct hal_data_8188e *HalData;
 
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;
@@ -206,19 +147,8 @@ struct adapter {
 	u8	hw_init_completed;
 
 	void *cmdThread;
-	void *evtThread;
-	void (*intf_start)(struct adapter *adapter);
-	void (*intf_stop)(struct adapter *adapter);
 	struct  net_device *pnetdev;
 	struct  net_device *pmondev;
-
-	/*  used by rtw_rereg_nd_name related function */
-	struct rereg_nd_name_data {
-		struct  net_device *old_pnetdev;
-		char old_ifname[IFNAMSIZ];
-		u8 old_ips_mode;
-		u8 old_bRegUseLed;
-	} rereg_nd_name_priv;
 
 	int bup;
 	struct net_device_stats stats;
@@ -229,23 +159,11 @@ struct adapter {
 	u8 bFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
-	u8 bRxRSSIDisplay;
-	/* The driver will show up the desired channel number
-	 * when this flag is 1. */
-	u8 bNotifyChannelChange;
 
 	struct mutex hw_init_mutex;
-
-	spinlock_t br_ext_lock;
-
-	u8	fix_rate;
-
-	unsigned char     in_cta_test;
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
-
-int rtw_handle_dualmac(struct adapter *adapter, bool init);
 
 static inline u8 *myid(struct eeprom_priv *peepriv)
 {

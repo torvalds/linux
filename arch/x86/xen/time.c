@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Xen time implementation.
  *
@@ -11,11 +12,10 @@
 #include <linux/interrupt.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
-#include <linux/kernel_stat.h>
-#include <linux/math64.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/pvclock_gtod.h>
+#include <linux/timekeeper_internal.h>
 
 #include <asm/pvclock.h>
 #include <asm/xen/hypervisor.h>
@@ -30,118 +30,8 @@
 
 /* Xen may fire a timer up to this many ns early */
 #define TIMER_SLOP	100000
-#define NS_PER_TICK	(1000000000LL / HZ)
 
-/* runstate info updated by Xen */
-static DEFINE_PER_CPU(struct vcpu_runstate_info, xen_runstate);
-
-/* snapshots of runstate info */
-static DEFINE_PER_CPU(struct vcpu_runstate_info, xen_runstate_snapshot);
-
-/* unused ns of stolen time */
-static DEFINE_PER_CPU(u64, xen_residual_stolen);
-
-/* return an consistent snapshot of 64-bit time/counter value */
-static u64 get64(const u64 *p)
-{
-	u64 ret;
-
-	if (BITS_PER_LONG < 64) {
-		u32 *p32 = (u32 *)p;
-		u32 h, l;
-
-		/*
-		 * Read high then low, and then make sure high is
-		 * still the same; this will only loop if low wraps
-		 * and carries into high.
-		 * XXX some clean way to make this endian-proof?
-		 */
-		do {
-			h = p32[1];
-			barrier();
-			l = p32[0];
-			barrier();
-		} while (p32[1] != h);
-
-		ret = (((u64)h) << 32) | l;
-	} else
-		ret = *p;
-
-	return ret;
-}
-
-/*
- * Runstate accounting
- */
-static void get_runstate_snapshot(struct vcpu_runstate_info *res)
-{
-	u64 state_time;
-	struct vcpu_runstate_info *state;
-
-	BUG_ON(preemptible());
-
-	state = this_cpu_ptr(&xen_runstate);
-
-	/*
-	 * The runstate info is always updated by the hypervisor on
-	 * the current CPU, so there's no need to use anything
-	 * stronger than a compiler barrier when fetching it.
-	 */
-	do {
-		state_time = get64(&state->state_entry_time);
-		barrier();
-		*res = *state;
-		barrier();
-	} while (get64(&state->state_entry_time) != state_time);
-}
-
-/* return true when a vcpu could run but has no real cpu to run on */
-bool xen_vcpu_stolen(int vcpu)
-{
-	return per_cpu(xen_runstate, vcpu).state == RUNSTATE_runnable;
-}
-
-void xen_setup_runstate_info(int cpu)
-{
-	struct vcpu_register_runstate_memory_area area;
-
-	area.addr.v = &per_cpu(xen_runstate, cpu);
-
-	if (HYPERVISOR_vcpu_op(VCPUOP_register_runstate_memory_area,
-			       cpu, &area))
-		BUG();
-}
-
-static void do_stolen_accounting(void)
-{
-	struct vcpu_runstate_info state;
-	struct vcpu_runstate_info *snap;
-	s64 runnable, offline, stolen;
-	cputime_t ticks;
-
-	get_runstate_snapshot(&state);
-
-	WARN_ON(state.state != RUNSTATE_running);
-
-	snap = this_cpu_ptr(&xen_runstate_snapshot);
-
-	/* work out how much time the VCPU has not been runn*ing*  */
-	runnable = state.time[RUNSTATE_runnable] - snap->time[RUNSTATE_runnable];
-	offline = state.time[RUNSTATE_offline] - snap->time[RUNSTATE_offline];
-
-	*snap = state;
-
-	/* Add the appropriate number of ticks of stolen time,
-	   including any left-overs from last time. */
-	stolen = runnable + offline + __this_cpu_read(xen_residual_stolen);
-
-	if (stolen < 0)
-		stolen = 0;
-
-	ticks = iter_div_u64_rem(stolen, NS_PER_TICK, &stolen);
-	__this_cpu_write(xen_residual_stolen, stolen);
-	account_steal_ticks(ticks);
-}
+static u64 xen_sched_clock_offset __read_mostly;
 
 /* Get the TSC speed from Xen */
 static unsigned long xen_tsc_khz(void)
@@ -152,10 +42,10 @@ static unsigned long xen_tsc_khz(void)
 	return pvclock_tsc_khz(info);
 }
 
-cycle_t xen_clocksource_read(void)
+static u64 xen_clocksource_read(void)
 {
         struct pvclock_vcpu_time_info *src;
-	cycle_t ret;
+	u64 ret;
 
 	preempt_disable_notrace();
 	src = &__this_cpu_read(xen_vcpu)->time;
@@ -164,12 +54,17 @@ cycle_t xen_clocksource_read(void)
 	return ret;
 }
 
-static cycle_t xen_clocksource_get_cycles(struct clocksource *cs)
+static u64 xen_clocksource_get_cycles(struct clocksource *cs)
 {
 	return xen_clocksource_read();
 }
 
-static void xen_read_wallclock(struct timespec *ts)
+static u64 xen_sched_clock(void)
+{
+	return xen_clocksource_read() - xen_sched_clock_offset;
+}
+
+static void xen_read_wallclock(struct timespec64 *ts)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct pvclock_wall_clock *wall_clock = &(s->wc);
@@ -180,40 +75,60 @@ static void xen_read_wallclock(struct timespec *ts)
 	put_cpu_var(xen_vcpu);
 }
 
-static void xen_get_wallclock(struct timespec *now)
+static void xen_get_wallclock(struct timespec64 *now)
 {
 	xen_read_wallclock(now);
 }
 
-static int xen_set_wallclock(const struct timespec *now)
+static int xen_set_wallclock(const struct timespec64 *now)
 {
-	return -1;
+	return -ENODEV;
 }
 
 static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 				   unsigned long was_set, void *priv)
 {
 	/* Protected by the calling core code serialization */
-	static struct timespec next_sync;
+	static struct timespec64 next_sync;
 
 	struct xen_platform_op op;
-	struct timespec now;
+	struct timespec64 now;
+	struct timekeeper *tk = priv;
+	static bool settime64_supported = true;
+	int ret;
 
-	now = __current_kernel_time();
+	now.tv_sec = tk->xtime_sec;
+	now.tv_nsec = (long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
 
 	/*
 	 * We only take the expensive HV call when the clock was set
 	 * or when the 11 minutes RTC synchronization time elapsed.
 	 */
-	if (!was_set && timespec_compare(&now, &next_sync) < 0)
+	if (!was_set && timespec64_compare(&now, &next_sync) < 0)
 		return NOTIFY_OK;
 
-	op.cmd = XENPF_settime;
-	op.u.settime.secs = now.tv_sec;
-	op.u.settime.nsecs = now.tv_nsec;
-	op.u.settime.system_time = xen_clocksource_read();
+again:
+	if (settime64_supported) {
+		op.cmd = XENPF_settime64;
+		op.u.settime64.mbz = 0;
+		op.u.settime64.secs = now.tv_sec;
+		op.u.settime64.nsecs = now.tv_nsec;
+		op.u.settime64.system_time = xen_clocksource_read();
+	} else {
+		op.cmd = XENPF_settime32;
+		op.u.settime32.secs = now.tv_sec;
+		op.u.settime32.nsecs = now.tv_nsec;
+		op.u.settime32.system_time = xen_clocksource_read();
+	}
 
-	(void)HYPERVISOR_dom0_op(&op);
+	ret = HYPERVISOR_platform_op(&op);
+
+	if (ret == -ENOSYS && settime64_supported) {
+		settime64_supported = false;
+		goto again;
+	}
+	if (ret < 0)
+		return NOTIFY_BAD;
 
 	/*
 	 * Move the next drift compensation time 11 minutes
@@ -302,7 +217,9 @@ static const struct clock_event_device xen_timerop_clockevent = {
 	.features		= CLOCK_EVT_FEAT_ONESHOT,
 
 	.max_delta_ns		= 0xffffffff,
+	.max_delta_ticks	= 0xffffffff,
 	.min_delta_ns		= TIMER_SLOP,
+	.min_delta_ticks	= TIMER_SLOP,
 
 	.mult			= 1,
 	.shift			= 0,
@@ -316,8 +233,10 @@ static int xen_vcpuop_shutdown(struct clock_event_device *evt)
 {
 	int cpu = smp_processor_id();
 
-	if (HYPERVISOR_vcpu_op(VCPUOP_stop_singleshot_timer, cpu, NULL) ||
-	    HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_singleshot_timer, xen_vcpu_nr(cpu),
+			       NULL) ||
+	    HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
+			       NULL))
 		BUG();
 
 	return 0;
@@ -327,7 +246,8 @@ static int xen_vcpuop_set_oneshot(struct clock_event_device *evt)
 {
 	int cpu = smp_processor_id();
 
-	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
+			       NULL))
 		BUG();
 
 	return 0;
@@ -343,11 +263,12 @@ static int xen_vcpuop_set_next_event(unsigned long delta,
 	WARN_ON(!clockevent_state_oneshot(evt));
 
 	single.timeout_abs_ns = get_abs_timeout(delta);
-	single.flags = VCPU_SSHOTTMR_future;
+	/* Get an event anyway, even if the timeout is already expired */
+	single.flags = 0;
 
-	ret = HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, cpu, &single);
-
-	BUG_ON(ret != 0 && ret != -ETIME);
+	ret = HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, xen_vcpu_nr(cpu),
+				 &single);
+	BUG_ON(ret != 0);
 
 	return ret;
 }
@@ -357,7 +278,9 @@ static const struct clock_event_device xen_vcpuop_clockevent = {
 	.features = CLOCK_EVT_FEAT_ONESHOT,
 
 	.max_delta_ns = 0xffffffff,
+	.max_delta_ticks = 0xffffffff,
 	.min_delta_ns = TIMER_SLOP,
+	.min_delta_ticks = TIMER_SLOP,
 
 	.mult = 1,
 	.shift = 0,
@@ -388,15 +311,12 @@ static irqreturn_t xen_timer_interrupt(int irq, void *dev_id)
 		ret = IRQ_HANDLED;
 	}
 
-	do_stolen_accounting();
-
 	return ret;
 }
 
 void xen_teardown_timer(int cpu)
 {
 	struct clock_event_device *evt;
-	BUG_ON(cpu == 0);
 	evt = &per_cpu(xen_clock_events, cpu).evt;
 
 	if (evt->irq >= 0) {
@@ -441,25 +361,120 @@ void xen_timer_resume(void)
 {
 	int cpu;
 
-	pvclock_resume();
-
 	if (xen_clockevent != &xen_vcpuop_clockevent)
 		return;
 
 	for_each_online_cpu(cpu) {
-		if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
+		if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer,
+				       xen_vcpu_nr(cpu), NULL))
 			BUG();
 	}
 }
 
 static const struct pv_time_ops xen_time_ops __initconst = {
-	.sched_clock = xen_clocksource_read,
+	.sched_clock = xen_sched_clock,
+	.steal_clock = xen_steal_clock,
 };
+
+static struct pvclock_vsyscall_time_info *xen_clock __read_mostly;
+static u64 xen_clock_value_saved;
+
+void xen_save_time_memory_area(void)
+{
+	struct vcpu_register_time_memory_area t;
+	int ret;
+
+	xen_clock_value_saved = xen_clocksource_read() - xen_sched_clock_offset;
+
+	if (!xen_clock)
+		return;
+
+	t.addr.v = NULL;
+
+	ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area, 0, &t);
+	if (ret != 0)
+		pr_notice("Cannot save secondary vcpu_time_info (err %d)",
+			  ret);
+	else
+		clear_page(xen_clock);
+}
+
+void xen_restore_time_memory_area(void)
+{
+	struct vcpu_register_time_memory_area t;
+	int ret;
+
+	if (!xen_clock)
+		goto out;
+
+	t.addr.v = &xen_clock->pvti;
+
+	ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area, 0, &t);
+
+	/*
+	 * We don't disable VCLOCK_PVCLOCK entirely if it fails to register the
+	 * secondary time info with Xen or if we migrated to a host without the
+	 * necessary flags. On both of these cases what happens is either
+	 * process seeing a zeroed out pvti or seeing no PVCLOCK_TSC_STABLE_BIT
+	 * bit set. Userspace checks the latter and if 0, it discards the data
+	 * in pvti and fallbacks to a system call for a reliable timestamp.
+	 */
+	if (ret != 0)
+		pr_notice("Cannot restore secondary vcpu_time_info (err %d)",
+			  ret);
+
+out:
+	/* Need pvclock_resume() before using xen_clocksource_read(). */
+	pvclock_resume();
+	xen_sched_clock_offset = xen_clocksource_read() - xen_clock_value_saved;
+}
+
+static void xen_setup_vsyscall_time_info(void)
+{
+	struct vcpu_register_time_memory_area t;
+	struct pvclock_vsyscall_time_info *ti;
+	int ret;
+
+	ti = (struct pvclock_vsyscall_time_info *)get_zeroed_page(GFP_KERNEL);
+	if (!ti)
+		return;
+
+	t.addr.v = &ti->pvti;
+
+	ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area, 0, &t);
+	if (ret) {
+		pr_notice("xen: VCLOCK_PVCLOCK not supported (err %d)\n", ret);
+		free_page((unsigned long)ti);
+		return;
+	}
+
+	/*
+	 * If primary time info had this bit set, secondary should too since
+	 * it's the same data on both just different memory regions. But we
+	 * still check it in case hypervisor is buggy.
+	 */
+	if (!(ti->pvti.flags & PVCLOCK_TSC_STABLE_BIT)) {
+		t.addr.v = NULL;
+		ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area,
+					 0, &t);
+		if (!ret)
+			free_page((unsigned long)ti);
+
+		pr_notice("xen: VCLOCK_PVCLOCK not supported (tsc unstable)\n");
+		return;
+	}
+
+	xen_clock = ti;
+	pvclock_set_pvti_cpu0_va(xen_clock);
+
+	xen_clocksource.archdata.vclock_mode = VCLOCK_PVCLOCK;
+}
 
 static void __init xen_time_init(void)
 {
+	struct pvclock_vcpu_time_info *pvti;
 	int cpu = smp_processor_id();
-	struct timespec tp;
+	struct timespec64 tp;
 
 	/* As Dom0 is never moved, no penalty on using TSC there */
 	if (xen_initial_domain())
@@ -467,7 +482,8 @@ static void __init xen_time_init(void)
 
 	clocksource_register_hz(&xen_clocksource, NSEC_PER_SEC);
 
-	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL) == 0) {
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
+			       NULL) == 0) {
 		/* Successfully turned off 100Hz tick, so we have the
 		   vcpuop-based timer interface */
 		printk(KERN_DEBUG "Xen: using vcpuop timer interface\n");
@@ -476,13 +492,25 @@ static void __init xen_time_init(void)
 
 	/* Set initial system time with full resolution */
 	xen_read_wallclock(&tp);
-	do_settimeofday(&tp);
+	do_settimeofday64(&tp);
 
 	setup_force_cpu_cap(X86_FEATURE_TSC);
+
+	/*
+	 * We check ahead on the primary time info if this
+	 * bit is supported hence speeding up Xen clocksource.
+	 */
+	pvti = &__this_cpu_read(xen_vcpu)->time;
+	if (pvti->flags & PVCLOCK_TSC_STABLE_BIT) {
+		pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
+		xen_setup_vsyscall_time_info();
+	}
 
 	xen_setup_runstate_info(cpu);
 	xen_setup_timer(cpu);
 	xen_setup_cpu_clockevents();
+
+	xen_time_setup_guest();
 
 	if (xen_initial_domain())
 		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
@@ -490,6 +518,7 @@ static void __init xen_time_init(void)
 
 void __init xen_init_time_ops(void)
 {
+	xen_sched_clock_offset = xen_clocksource_read();
 	pv_time_ops = xen_time_ops;
 
 	x86_init.timers.timer_init = xen_time_init;
@@ -518,17 +547,20 @@ static void xen_hvm_setup_cpu_clockevents(void)
 
 void __init xen_hvm_init_time_ops(void)
 {
-	/* vector callback is needed otherwise we cannot receive interrupts
+	/*
+	 * vector callback is needed otherwise we cannot receive interrupts
 	 * on cpu > 0 and at this point we don't know how many cpus are
-	 * available */
+	 * available.
+	 */
 	if (!xen_have_vector_callback)
 		return;
+
 	if (!xen_feature(XENFEAT_hvm_safe_pvclock)) {
-		printk(KERN_INFO "Xen doesn't support pvclock on HVM,"
-				"disable pv timer\n");
+		pr_info("Xen doesn't support pvclock on HVM, disable pv timer");
 		return;
 	}
 
+	xen_sched_clock_offset = xen_clocksource_read();
 	pv_time_ops = xen_time_ops;
 	x86_init.timers.setup_percpu_clockev = xen_time_init;
 	x86_cpuinit.setup_percpu_clockev = xen_hvm_setup_cpu_clockevents;

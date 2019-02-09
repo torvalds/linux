@@ -13,6 +13,12 @@ Required properties:
 - clock-names: must contain "bam_clk" entry
 - qcom,ee : indicates the active Execution Environment identifier (0-7) used in
   the secure world.
+- qcom,controlled-remotely : optional, indicates that the bam is controlled by
+  remote proccessor i.e. execution environment.
+- num-channels : optional, indicates supported number of DMA channels in a
+  remotely controlled bam.
+- qcom,num-ees : optional, indicates supported number of Execution Environments
+  in a remotely controlled bam.
 
 Example:
 

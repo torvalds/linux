@@ -1,46 +1,12 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: dsargs - Support for execution of dynamic arguments for static
  *                       objects (regions, fields, buffer fields, etc.)
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -82,7 +48,7 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
 	union acpi_parse_object *op;
 	struct acpi_walk_state *walk_state;
 
-	ACPI_FUNCTION_TRACE(ds_execute_arguments);
+	ACPI_FUNCTION_TRACE_PTR(ds_execute_arguments, aml_start);
 
 	/* Allocate a new parser op to be the root of the parsed tree */
 
@@ -194,8 +160,8 @@ acpi_ds_get_buffer_field_arguments(union acpi_operand_object *obj_desc)
 	extra_desc = acpi_ns_get_secondary_object(obj_desc);
 	node = obj_desc->buffer_field.node;
 
-	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname(ACPI_TYPE_BUFFER_FIELD,
-						      node, NULL));
+	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
+			(ACPI_TYPE_BUFFER_FIELD, node, NULL));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "[%4.4s] BufferField Arg Init\n",
 			  acpi_ut_get_node_name(node)));
@@ -338,13 +304,15 @@ acpi_status acpi_ds_get_package_arguments(union acpi_operand_object *obj_desc)
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Package Arg Init\n"));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Package Argument Init, AML Ptr: %p\n",
+			  obj_desc->package.aml_start));
 
 	/* Execute the AML code for the term_arg arguments */
 
 	status = acpi_ds_execute_arguments(node, node,
 					   obj_desc->package.aml_length,
 					   obj_desc->package.aml_start);
+
 	return_ACPI_STATUS(status);
 }
 
@@ -385,7 +353,8 @@ acpi_status acpi_ds_get_region_arguments(union acpi_operand_object *obj_desc)
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
 			(ACPI_TYPE_REGION, node, NULL));
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "[%4.4s] OpRegion Arg Init at AML %p\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "[%4.4s] OpRegion Arg Init at AML %p\n",
 			  acpi_ut_get_node_name(node),
 			  extra_desc->extra.aml_start));
 

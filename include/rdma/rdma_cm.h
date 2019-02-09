@@ -38,6 +38,7 @@
 #include <linux/in6.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_sa.h>
+#include <uapi/rdma/rdma_user_cm.h>
 
 /*
  * Upon receiving a device removal event, users must destroy the associated
@@ -64,14 +65,6 @@ enum rdma_cm_event_type {
 
 const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event);
 
-enum rdma_port_space {
-	RDMA_PS_SDP   = 0x0001,
-	RDMA_PS_IPOIB = 0x0002,
-	RDMA_PS_IB    = 0x013F,
-	RDMA_PS_TCP   = 0x0106,
-	RDMA_PS_UDP   = 0x0111,
-};
-
 #define RDMA_IB_IP_PS_MASK   0xFFFFFFFFFFFF0000ULL
 #define RDMA_IB_IP_PS_TCP    0x0000000001060000ULL
 #define RDMA_IB_IP_PS_UDP    0x0000000001110000ULL
@@ -85,7 +78,7 @@ struct rdma_addr {
 
 struct rdma_route {
 	struct rdma_addr addr;
-	struct ib_sa_path_rec *path_rec;
+	struct sa_path_rec *path_rec;
 	int num_paths;
 };
 
@@ -106,7 +99,7 @@ struct rdma_conn_param {
 struct rdma_ud_param {
 	const void *private_data;
 	u8 private_data_len;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	u32 qp_num;
 	u32 qkey;
 };
@@ -118,20 +111,6 @@ struct rdma_cm_event {
 		struct rdma_conn_param	conn;
 		struct rdma_ud_param	ud;
 	} param;
-};
-
-enum rdma_cm_state {
-	RDMA_CM_IDLE,
-	RDMA_CM_ADDR_QUERY,
-	RDMA_CM_ADDR_RESOLVED,
-	RDMA_CM_ROUTE_QUERY,
-	RDMA_CM_ROUTE_RESOLVED,
-	RDMA_CM_CONNECT,
-	RDMA_CM_DISCONNECT,
-	RDMA_CM_ADDR_BOUND,
-	RDMA_CM_LISTEN,
-	RDMA_CM_DEVICE_REMOVAL,
-	RDMA_CM_DESTROYING
 };
 
 struct rdma_cm_id;
@@ -152,10 +131,16 @@ struct rdma_cm_id {
 	struct ib_qp		*qp;
 	rdma_cm_event_handler	 event_handler;
 	struct rdma_route	 route;
-	enum rdma_port_space	 ps;
+	enum rdma_ucm_port_space ps;
 	enum ib_qp_type		 qp_type;
 	u8			 port_num;
 };
+
+struct rdma_cm_id *__rdma_create_id(struct net *net,
+				    rdma_cm_event_handler event_handler,
+				    void *context, enum rdma_ucm_port_space ps,
+				    enum ib_qp_type qp_type,
+				    const char *caller);
 
 /**
  * rdma_create_id - Create an RDMA identifier.
@@ -169,10 +154,9 @@ struct rdma_cm_id {
  *
  * The id holds a reference on the network namespace until it is destroyed.
  */
-struct rdma_cm_id *rdma_create_id(struct net *net,
-				  rdma_cm_event_handler event_handler,
-				  void *context, enum rdma_port_space ps,
-				  enum ib_qp_type qp_type);
+#define rdma_create_id(net, event_handler, context, ps, qp_type) \
+	__rdma_create_id((net), (event_handler), (context), (ps), (qp_type), \
+			 KBUILD_MODNAME)
 
 /**
   * rdma_destroy_id - Destroys an RDMA identifier.
@@ -208,7 +192,7 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr);
  * @timeout_ms: Time to wait for resolution to complete.
  */
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
-		      struct sockaddr *dst_addr, int timeout_ms);
+		      const struct sockaddr *dst_addr, int timeout_ms);
 
 /**
  * rdma_resolve_route - Resolve the RDMA address bound to the RDMA identifier
@@ -284,6 +268,9 @@ int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
  */
 int rdma_listen(struct rdma_cm_id *id, int backlog);
 
+int __rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		  const char *caller);
+
 /**
  * rdma_accept - Called to accept a connection request or response.
  * @id: Connection identifier associated with the request.
@@ -299,7 +286,8 @@ int rdma_listen(struct rdma_cm_id *id, int backlog);
  * state of the qp associated with the id is modified to error, such that any
  * previously posted receive buffers would be flushed.
  */
-int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
+#define rdma_accept(id, conn_param) \
+	__rdma_accept((id), (conn_param),  KBUILD_MODNAME)
 
 /**
  * rdma_notify - Notifies the RDMA CM of an asynchronous event that has
@@ -333,11 +321,13 @@ int rdma_disconnect(struct rdma_cm_id *id);
  *   address.
  * @id: Communication identifier associated with the request.
  * @addr: Multicast address identifying the group to join.
+ * @join_state: Multicast JoinState bitmap requested by port.
+ *		Bitmap is based on IB_SA_MCMEMBER_REC_JOIN_STATE bits.
  * @context: User-defined context associated with the join request, returned
  * to the user through the private_data pointer in multicast events.
  */
 int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
-			void *context);
+			u8 join_state, void *context);
 
 /**
  * rdma_leave_multicast - Leave the multicast group specified by the given
@@ -385,5 +375,52 @@ int rdma_set_afonly(struct rdma_cm_id *id, int afonly);
  * @addr: Address for the service ID.
  */
 __be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr);
+
+/**
+ * rdma_reject_msg - return a pointer to a reject message string.
+ * @id: Communication identifier that received the REJECT event.
+ * @reason: Value returned in the REJECT event status field.
+ */
+const char *__attribute_const__ rdma_reject_msg(struct rdma_cm_id *id,
+						int reason);
+/**
+ * rdma_is_consumer_reject - return true if the consumer rejected the connect
+ *                           request.
+ * @id: Communication identifier that received the REJECT event.
+ * @reason: Value returned in the REJECT event status field.
+ */
+bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason);
+
+/**
+ * rdma_consumer_reject_data - return the consumer reject private data and
+ *			       length, if any.
+ * @id: Communication identifier that received the REJECT event.
+ * @ev: RDMA CM reject event.
+ * @data_len: Pointer to the resulting length of the consumer data.
+ */
+const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
+				      struct rdma_cm_event *ev, u8 *data_len);
+
+/**
+ * rdma_read_gids - Return the SGID and DGID used for establishing
+ *                  connection. This can be used after rdma_resolve_addr()
+ *                  on client side. This can be use on new connection
+ *                  on server side. This is applicable to IB, RoCE, iWarp.
+ *                  If cm_id is not bound yet to the RDMA device, it doesn't
+ *                  copy and SGID or DGID to the given pointers.
+ * @id: Communication identifier whose GIDs are queried.
+ * @sgid: Pointer to SGID where SGID will be returned. It is optional.
+ * @dgid: Pointer to DGID where DGID will be returned. It is optional.
+ * Note: This API should not be used by any new ULPs or new code.
+ * Instead, users interested in querying GIDs should refer to path record
+ * of the rdma_cm_id to query the GIDs.
+ * This API is provided for compatibility for existing users.
+ */
+
+void rdma_read_gids(struct rdma_cm_id *cm_id, union ib_gid *sgid,
+		    union ib_gid *dgid);
+
+struct iw_cm_id *rdma_iw_cm_id(struct rdma_cm_id *cm_id);
+struct rdma_cm_id *rdma_res_to_id(struct rdma_restrack_entry *res);
 
 #endif /* RDMA_CM_H */

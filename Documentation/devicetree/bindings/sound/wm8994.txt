@@ -26,11 +26,10 @@ Optional properties:
   - interrupt-controller : These devices contain interrupt controllers
     and may provide interrupt services to other devices if they have an
     interrupt line connected.
-  - interrupt-parent : The parent interrupt controller.
   - #interrupt-cells: the number of cells to describe an IRQ, this should be 2.
     The first cell is the IRQ number.
     The second cell is the flags, encoded as the trigger masks from
-    Documentation/devicetree/bindings/interrupts.txt
+    Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 
   - clocks : A list of up to two phandle and clock specifier pairs
   - clock-names : A list of clock names sorted in the same order as clocks.
@@ -57,9 +56,15 @@ Optional properties:
 
   - wlf,ldoena-always-driven : If present LDOENA is always driven.
 
+  - wlf,spkmode-pu : If present enable the internal pull-up resistor on
+    the SPKMODE pin.
+
+  - wlf,csnaddr-pd : If present enable the internal pull-down resistor on
+    the CS/ADDR pin.
+
 Example:
 
-codec: wm8994@1a {
+wm8994: codec@1a {
 	compatible = "wlf,wm8994";
 	reg = <0x1a>;
 

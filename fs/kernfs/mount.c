@@ -14,6 +14,9 @@
 #include <linux/magic.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
+#include <linux/namei.h>
+#include <linux/seq_file.h>
+#include <linux/exportfs.h>
 
 #include "kernfs-internal.h"
 
@@ -31,11 +34,24 @@ static int kernfs_sop_remount_fs(struct super_block *sb, int *flags, char *data)
 
 static int kernfs_sop_show_options(struct seq_file *sf, struct dentry *dentry)
 {
-	struct kernfs_root *root = kernfs_root(dentry->d_fsdata);
+	struct kernfs_root *root = kernfs_root(kernfs_dentry_node(dentry));
 	struct kernfs_syscall_ops *scops = root->syscall_ops;
 
 	if (scops && scops->show_options)
 		return scops->show_options(sf, root);
+	return 0;
+}
+
+static int kernfs_sop_show_path(struct seq_file *sf, struct dentry *dentry)
+{
+	struct kernfs_node *node = kernfs_dentry_node(dentry);
+	struct kernfs_root *root = kernfs_root(node);
+	struct kernfs_syscall_ops *scops = root->syscall_ops;
+
+	if (scops && scops->show_path)
+		return scops->show_path(sf, node, root);
+
+	seq_dentry(sf, dentry, " \t\n\\");
 	return 0;
 }
 
@@ -46,6 +62,79 @@ const struct super_operations kernfs_sops = {
 
 	.remount_fs	= kernfs_sop_remount_fs,
 	.show_options	= kernfs_sop_show_options,
+	.show_path	= kernfs_sop_show_path,
+};
+
+/*
+ * Similar to kernfs_fh_get_inode, this one gets kernfs node from inode
+ * number and generation
+ */
+struct kernfs_node *kernfs_get_node_by_id(struct kernfs_root *root,
+	const union kernfs_node_id *id)
+{
+	struct kernfs_node *kn;
+
+	kn = kernfs_find_and_get_node_by_ino(root, id->ino);
+	if (!kn)
+		return NULL;
+	if (kn->id.generation != id->generation) {
+		kernfs_put(kn);
+		return NULL;
+	}
+	return kn;
+}
+
+static struct inode *kernfs_fh_get_inode(struct super_block *sb,
+		u64 ino, u32 generation)
+{
+	struct kernfs_super_info *info = kernfs_info(sb);
+	struct inode *inode;
+	struct kernfs_node *kn;
+
+	if (ino == 0)
+		return ERR_PTR(-ESTALE);
+
+	kn = kernfs_find_and_get_node_by_ino(info->root, ino);
+	if (!kn)
+		return ERR_PTR(-ESTALE);
+	inode = kernfs_get_inode(sb, kn);
+	kernfs_put(kn);
+	if (!inode)
+		return ERR_PTR(-ESTALE);
+
+	if (generation && inode->i_generation != generation) {
+		/* we didn't find the right inode.. */
+		iput(inode);
+		return ERR_PTR(-ESTALE);
+	}
+	return inode;
+}
+
+static struct dentry *kernfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
+		int fh_len, int fh_type)
+{
+	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
+				    kernfs_fh_get_inode);
+}
+
+static struct dentry *kernfs_fh_to_parent(struct super_block *sb, struct fid *fid,
+		int fh_len, int fh_type)
+{
+	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
+				    kernfs_fh_get_inode);
+}
+
+static struct dentry *kernfs_get_parent_dentry(struct dentry *child)
+{
+	struct kernfs_node *kn = kernfs_dentry_node(child);
+
+	return d_obtain_alias(kernfs_get_inode(child->d_sb, kn->parent));
+}
+
+static const struct export_operations kernfs_export_ops = {
+	.fh_to_dentry	= kernfs_fh_to_dentry,
+	.fh_to_parent	= kernfs_fh_to_parent,
+	.get_parent	= kernfs_get_parent_dentry,
 };
 
 /**
@@ -62,6 +151,73 @@ struct kernfs_root *kernfs_root_from_sb(struct super_block *sb)
 	return NULL;
 }
 
+/*
+ * find the next ancestor in the path down to @child, where @parent was the
+ * ancestor whose descendant we want to find.
+ *
+ * Say the path is /a/b/c/d.  @child is d, @parent is NULL.  We return the root
+ * node.  If @parent is b, then we return the node for c.
+ * Passing in d as @parent is not ok.
+ */
+static struct kernfs_node *find_next_ancestor(struct kernfs_node *child,
+					      struct kernfs_node *parent)
+{
+	if (child == parent) {
+		pr_crit_once("BUG in find_next_ancestor: called with parent == child");
+		return NULL;
+	}
+
+	while (child->parent != parent) {
+		if (!child->parent)
+			return NULL;
+		child = child->parent;
+	}
+
+	return child;
+}
+
+/**
+ * kernfs_node_dentry - get a dentry for the given kernfs_node
+ * @kn: kernfs_node for which a dentry is needed
+ * @sb: the kernfs super_block
+ */
+struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
+				  struct super_block *sb)
+{
+	struct dentry *dentry;
+	struct kernfs_node *knparent = NULL;
+
+	BUG_ON(sb->s_op != &kernfs_sops);
+
+	dentry = dget(sb->s_root);
+
+	/* Check if this is the root kernfs_node */
+	if (!kn->parent)
+		return dentry;
+
+	knparent = find_next_ancestor(kn, NULL);
+	if (WARN_ON(!knparent))
+		return ERR_PTR(-EINVAL);
+
+	do {
+		struct dentry *dtmp;
+		struct kernfs_node *kntmp;
+
+		if (kn == knparent)
+			return dentry;
+		kntmp = find_next_ancestor(kn, knparent);
+		if (WARN_ON(!kntmp))
+			return ERR_PTR(-EINVAL);
+		dtmp = lookup_one_len_unlocked(kntmp->name, dentry,
+					       strlen(kntmp->name));
+		dput(dentry);
+		if (IS_ERR(dtmp))
+			return dtmp;
+		knparent = kntmp;
+		dentry = dtmp;
+	} while (true);
+}
+
 static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);
@@ -69,10 +225,15 @@ static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 	struct dentry *root;
 
 	info->sb = sb;
-	sb->s_blocksize = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	/* Userspace would break if executables or devices appear on sysfs */
+	sb->s_iflags |= SB_I_NOEXEC | SB_I_NODEV;
+	sb->s_blocksize = PAGE_SIZE;
+	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = magic;
 	sb->s_op = &kernfs_sops;
+	sb->s_xattr = kernfs_xattr_handlers;
+	if (info->root->flags & KERNFS_ROOT_SUPPORT_EXPORTOP)
+		sb->s_export_op = &kernfs_export_ops;
 	sb->s_time_gran = 1;
 
 	/* get root inode, initialize and unlock it */
@@ -90,8 +251,6 @@ static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 		pr_debug("%s: could not get root dentry!\n", __func__);
 		return -ENOMEM;
 	}
-	kernfs_get(info->root->kn);
-	root->d_fsdata = info->root->kn;
 	sb->s_root = root;
 	sb->s_d_op = &kernfs_dops;
 	return 0;
@@ -157,8 +316,10 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 
 	info->root = root;
 	info->ns = ns;
+	INIT_LIST_HEAD(&info->node);
 
-	sb = sget(fs_type, kernfs_test_super, kernfs_set_super, flags, info);
+	sb = sget_userns(fs_type, kernfs_test_super, kernfs_set_super, flags,
+			 &init_user_ns, info);
 	if (IS_ERR(sb) || sb->s_fs_info != info)
 		kfree(info);
 	if (IS_ERR(sb))
@@ -175,7 +336,7 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 			deactivate_locked_super(sb);
 			return ERR_PTR(error);
 		}
-		sb->s_flags |= MS_ACTIVE;
+		sb->s_flags |= SB_ACTIVE;
 
 		mutex_lock(&kernfs_mutex);
 		list_add(&info->node, &root->supers);
@@ -196,7 +357,6 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 void kernfs_kill_sb(struct super_block *sb)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);
-	struct kernfs_node *root_kn = sb->s_root->d_fsdata;
 
 	mutex_lock(&kernfs_mutex);
 	list_del(&info->node);
@@ -208,7 +368,6 @@ void kernfs_kill_sb(struct super_block *sb)
 	 */
 	kill_anon_super(sb);
 	kfree(info);
-	kernfs_put(root_kn);
 }
 
 /**
@@ -243,7 +402,16 @@ struct super_block *kernfs_pin_sb(struct kernfs_root *root, const void *ns)
 
 void __init kernfs_init(void)
 {
+
+	/*
+	 * the slab is freed in RCU context, so kernfs_find_and_get_node_by_ino
+	 * can access the slab lock free. This could introduce stale nodes,
+	 * please see how kernfs_find_and_get_node_by_ino filters out stale
+	 * nodes.
+	 */
 	kernfs_node_cache = kmem_cache_create("kernfs_node_cache",
 					      sizeof(struct kernfs_node),
-					      0, SLAB_PANIC, NULL);
+					      0,
+					      SLAB_PANIC | SLAB_TYPESAFE_BY_RCU,
+					      NULL);
 }

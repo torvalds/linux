@@ -46,7 +46,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "A10s-Wobo i5";
@@ -79,6 +78,7 @@
 		regulator-name = "emac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20000>;
 		enable-active-high;
 		gpio = <&pio 0 2 GPIO_ACTIVE_HIGH>;
 	};
@@ -94,7 +94,7 @@
 
 &emac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_b>;
+	pinctrl-0 = <&emac_pins_a>;
 	phy = <&phy1>;
 	status = "okay";
 };
@@ -130,8 +130,7 @@
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_wobo_i5>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 1 3 GPIO_ACTIVE_HIGH>; /* PB3 */
-	cd-inverted;
+	cd-gpios = <&pio 1 3 GPIO_ACTIVE_LOW>; /* PB3 */
 	status = "okay";
 };
 
@@ -145,24 +144,19 @@
 
 &pio {
 	led_pins_wobo_i5: led_pins@0 {
-		allwinner,pins = "PB2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB2";
+		function = "gpio_out";
 	};
 
 	mmc0_cd_pin_wobo_i5: mmc0_cd_pin@0 {
-		allwinner,pins = "PB3";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PB3";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	emac_power_pin_wobo: emac_power_pin@0 {
-		allwinner,pins = "PA02";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PA02";
+		function = "gpio_out";
 	};
 };
 
@@ -195,7 +189,14 @@
 	regulator-always-on;
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-wifi";
+	regulator-name = "vcc-wifi1";
+};
+
+&reg_ldo4 {
+	regulator-always-on;
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi2";
 };
 
 &reg_usb1_vbus {
@@ -212,10 +213,6 @@
 &usb_otg {
 	dr_mode = "host";
 	status = "okay";
-};
-
-&usb1_vbus_pin_a {
-	allwinner,pins = "PG12";
 };
 
 &usbphy {

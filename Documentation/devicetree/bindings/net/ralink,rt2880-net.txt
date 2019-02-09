@@ -1,0 +1,59 @@
+Ralink Frame Engine Ethernet controller
+=======================================
+
+The Ralink frame engine ethernet controller can be found on Ralink and
+Mediatek SoCs (RT288x, RT3x5x, RT366x, RT388x, rt5350, mt7620, mt7621, mt76x8).
+
+Depending on the SoC, there is a number of ports connected to the CPU port
+directly and/or via a (gigabit-)switch.
+
+* Ethernet controller node
+
+Required properties:
+- compatible: Should be one of "ralink,rt2880-eth", "ralink,rt3050-eth",
+  "ralink,rt3050-eth", "ralink,rt3883-eth", "ralink,rt5350-eth",
+  "mediatek,mt7620-eth", "mediatek,mt7621-eth"
+- reg: Address and length of the register set for the device
+- interrupts: Should contain the frame engines interrupt
+- resets: Should contain the frame engines resets
+- reset-names: Should contain the reset names "fe". If a switch is present
+  "esw" is also required.
+
+
+* Ethernet port node
+
+Required properties:
+- compatible: Should be "ralink,eth-port"
+- reg: The number of the physical port
+- phy-handle: reference to the node describing the phy
+
+Example:
+
+mdio-bus {
+	...
+	phy0: ethernet-phy@0 {
+		phy-mode = "mii";
+		reg = <0>;
+	};
+};
+
+ethernet@400000 {
+	compatible = "ralink,rt2880-eth";
+	reg = <0x00400000 10000>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	resets = <&rstctrl 18>;
+	reset-names = "fe";
+
+	interrupt-parent = <&cpuintc>;
+	interrupts = <5>;
+
+	port@0 {
+		compatible = "ralink,eth-port";
+		reg = <0>;
+		phy-handle = <&phy0>;
+	};
+
+};

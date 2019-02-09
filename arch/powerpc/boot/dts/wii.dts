@@ -13,6 +13,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 
 /*
  * This is commented-out for now.
@@ -65,14 +66,14 @@
 			  0x0d800000 0x0d800000 0x00800000>;
 		interrupt-parent = <&PIC0>;
 
-		video@0c002000 {
+		video@c002000 {
 			compatible = "nintendo,hollywood-vi",
 					"nintendo,flipper-vi";
 			reg = <0x0c002000 0x100>;
 			interrupts = <8>;
 		};
 
-		processor-interface@0c003000 {
+		processor-interface@c003000 {
 			compatible = "nintendo,hollywood-pi",
 					"nintendo,flipper-pi";
 			reg = <0x0c003000 0x100>;
@@ -84,7 +85,7 @@
 			};
 		};
 
-		dsp@0c005000 {
+		dsp@c005000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "nintendo,hollywood-dsp",
@@ -93,14 +94,14 @@
 			interrupts = <6>;
 		};
 
-		gamepad-controller@0d006400 {
+		gamepad-controller@d006400 {
 			compatible = "nintendo,hollywood-si",
 					"nintendo,flipper-si";
 			reg = <0x0d006400 0x100>;
 			interrupts = <3>;
 		};
 
-		audio@0c006c00 {
+		audio@c006c00 {
 			compatible = "nintendo,hollywood-ai",
 					"nintendo,flipper-ai";
 			reg = <0x0d006c00 0x20>;
@@ -108,7 +109,7 @@
 		};
 
 		/* External Interface bus */
-		exi@0d006800 {
+		exi@d006800 {
 			compatible = "nintendo,hollywood-exi",
 					"nintendo,flipper-exi";
 			reg = <0x0d006800 0x40>;
@@ -116,7 +117,7 @@
 			interrupts = <4>;
 		};
 
-		usb@0d040000 {
+		usb@d040000 {
 			compatible = "nintendo,hollywood-usb-ehci",
 					"usb-ehci";
 			reg = <0x0d040000 0x100>;
@@ -124,7 +125,7 @@
 			interrupt-parent = <&PIC1>;
 		};
 
-		usb@0d050000 {
+		usb@d050000 {
 			compatible = "nintendo,hollywood-usb-ohci",
 					"usb-ohci";
 			reg = <0x0d050000 0x100>;
@@ -132,7 +133,7 @@
 			interrupt-parent = <&PIC1>;
 		};
 
-		usb@0d060000 {
+		usb@d060000 {
 			compatible = "nintendo,hollywood-usb-ohci",
 					"usb-ohci";
 			reg = <0x0d060000 0x100>;
@@ -140,7 +141,7 @@
 			interrupt-parent = <&PIC1>;
 		};
 
-		sd@0d070000 {
+		sd@d070000 {
 			compatible = "nintendo,hollywood-sdhci",
 					"sdhci";
 			reg = <0x0d070000 0x200>;
@@ -148,7 +149,7 @@
 			interrupt-parent = <&PIC1>;
 		};
 
-		sdio@0d080000 {
+		sdio@d080000 {
 			compatible = "nintendo,hollywood-sdhci",
 					"sdhci";
 			reg = <0x0d080000 0x200>;
@@ -156,14 +157,14 @@
 			interrupt-parent = <&PIC1>;
 		};
 
-		ipc@0d000000 {
+		ipc@d000000 {
 			compatible = "nintendo,hollywood-ipc";
 			reg = <0x0d000000 0x10>;
 			interrupts = <30>;
 			interrupt-parent = <&PIC1>;
 		};
 
-		PIC1: pic1@0d800030 {
+		PIC1: pic1@d800030 {
 			#interrupt-cells = <1>;
 			compatible = "nintendo,hollywood-pic";
 			reg = <0x0d800030 0x10>;
@@ -171,11 +172,20 @@
 			interrupts = <14>;
 		};
 
-		GPIO: gpio@0d8000c0 {
+		GPIO: gpio@d8000c0 {
 			#gpio-cells = <2>;
 			compatible = "nintendo,hollywood-gpio";
 			reg = <0x0d8000c0 0x40>;
 			gpio-controller;
+			ngpios = <24>;
+
+			gpio-line-names =
+				"POWER", "SHUTDOWN", "FAN", "DC_DC",
+				"DI_SPIN", "SLOT_LED", "EJECT_BTN", "SLOT_IN",
+				"SENSOR_BAR", "DO_EJECT", "EEP_CS", "EEP_CLK",
+				"EEP_MOSI", "EEP_MISO", "AVE_SCL", "AVE_SDA",
+				"DEBUG0", "DEBUG1", "DEBUG2", "DEBUG3",
+				"DEBUG4", "DEBUG5", "DEBUG6", "DEBUG7";
 
 			/*
 			 * This is commented out while a standard binding
@@ -203,15 +213,26 @@
 			*/
 		};
 
-		control@0d800100 {
+		control@d800100 {
 			compatible = "nintendo,hollywood-control";
 			reg = <0x0d800100 0x300>;
 		};
 
-		disk@0d806000 {
+		disk@d806000 {
 			compatible = "nintendo,hollywood-di";
 			reg = <0x0d806000 0x40>;
 			interrupts = <2>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		/* This is the blue LED in the disk drive slot */
+		drive-slot {
+			label = "wii:blue:drive_slot";
+			gpios = <&GPIO 5 GPIO_ACTIVE_HIGH>;
+			panic-indicator;
 		};
 	};
 };

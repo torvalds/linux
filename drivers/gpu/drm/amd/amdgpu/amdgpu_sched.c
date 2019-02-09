@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2017 Valve Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,90 +19,82 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- *
+ * Authors: Andres Rodriguez <andresx7@gmail.com>
  */
-#include <linux/kthread.h>
-#include <linux/wait.h>
-#include <linux/sched.h>
-#include <drm/drmP.h>
+
+#include <linux/fdtable.h>
+#include <linux/pid.h>
+#include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
-#include "amdgpu_trace.h"
 
-static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
+#include "amdgpu_vm.h"
+
+enum drm_sched_priority amdgpu_to_sched_priority(int amdgpu_priority)
 {
-	struct amdgpu_job *job = to_amdgpu_job(sched_job);
-	return amdgpu_sync_get_fence(&job->ibs->sync);
+	switch (amdgpu_priority) {
+	case AMDGPU_CTX_PRIORITY_VERY_HIGH:
+		return DRM_SCHED_PRIORITY_HIGH_HW;
+	case AMDGPU_CTX_PRIORITY_HIGH:
+		return DRM_SCHED_PRIORITY_HIGH_SW;
+	case AMDGPU_CTX_PRIORITY_NORMAL:
+		return DRM_SCHED_PRIORITY_NORMAL;
+	case AMDGPU_CTX_PRIORITY_LOW:
+	case AMDGPU_CTX_PRIORITY_VERY_LOW:
+		return DRM_SCHED_PRIORITY_LOW;
+	case AMDGPU_CTX_PRIORITY_UNSET:
+		return DRM_SCHED_PRIORITY_UNSET;
+	default:
+		WARN(1, "Invalid context priority %d\n", amdgpu_priority);
+		return DRM_SCHED_PRIORITY_INVALID;
+	}
 }
 
-static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
+static int amdgpu_sched_process_priority_override(struct amdgpu_device *adev,
+						  int fd,
+						  enum drm_sched_priority priority)
 {
-	struct amdgpu_fence *fence = NULL;
-	struct amdgpu_job *job;
-	int r;
+	struct file *filp = fget(fd);
+	struct drm_file *file;
+	struct amdgpu_fpriv *fpriv;
+	struct amdgpu_ctx *ctx;
+	uint32_t id;
 
-	if (!sched_job) {
-		DRM_ERROR("job is null\n");
-		return NULL;
-	}
-	job = to_amdgpu_job(sched_job);
-	trace_amdgpu_sched_run_job(job);
-	r = amdgpu_ib_schedule(job->adev, job->num_ibs, job->ibs, job->owner);
-	if (r) {
-		DRM_ERROR("Error scheduling IBs (%d)\n", r);
-		goto err;
-	}
+	if (!filp)
+		return -EINVAL;
 
-	fence = job->ibs[job->num_ibs - 1].fence;
-	fence_get(&fence->base);
+	file = filp->private_data;
+	fpriv = file->driver_priv;
+	idr_for_each_entry(&fpriv->ctx_mgr.ctx_handles, ctx, id)
+		amdgpu_ctx_priority_override(ctx, priority);
 
-err:
-	if (job->free_job)
-		job->free_job(job);
-
-	kfree(job);
-	return fence ? &fence->base : NULL;
-}
-
-struct amd_sched_backend_ops amdgpu_sched_ops = {
-	.dependency = amdgpu_sched_dependency,
-	.run_job = amdgpu_sched_run_job,
-};
-
-int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
-					 struct amdgpu_ring *ring,
-					 struct amdgpu_ib *ibs,
-					 unsigned num_ibs,
-					 int (*free_job)(struct amdgpu_job *),
-					 void *owner,
-					 struct fence **f)
-{
-	int r = 0;
-	if (amdgpu_enable_scheduler) {
-		struct amdgpu_job *job =
-			kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
-		if (!job)
-			return -ENOMEM;
-		job->base.sched = &ring->sched;
-		job->base.s_entity = &adev->kernel_ctx.rings[ring->idx].entity;
-		job->base.s_fence = amd_sched_fence_create(job->base.s_entity, owner);
-		if (!job->base.s_fence) {
-			kfree(job);
-			return -ENOMEM;
-		}
-		*f = fence_get(&job->base.s_fence->base);
-
-		job->adev = adev;
-		job->ibs = ibs;
-		job->num_ibs = num_ibs;
-		job->owner = owner;
-		job->free_job = free_job;
-		amd_sched_entity_push_job(&job->base);
-	} else {
-		r = amdgpu_ib_schedule(adev, num_ibs, ibs, owner);
-		if (r)
-			return r;
-		*f = fence_get(&ibs[num_ibs - 1].fence->base);
-	}
+	fput(filp);
 
 	return 0;
+}
+
+int amdgpu_sched_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *filp)
+{
+	union drm_amdgpu_sched *args = data;
+	struct amdgpu_device *adev = dev->dev_private;
+	enum drm_sched_priority priority;
+	int r;
+
+	priority = amdgpu_to_sched_priority(args->in.priority);
+	if (args->in.flags || priority == DRM_SCHED_PRIORITY_INVALID)
+		return -EINVAL;
+
+	switch (args->in.op) {
+	case AMDGPU_SCHED_OP_PROCESS_PRIORITY_OVERRIDE:
+		r = amdgpu_sched_process_priority_override(adev,
+							   args->in.fd,
+							   priority);
+		break;
+	default:
+		DRM_ERROR("Invalid sched op specified: %d\n", args->in.op);
+		r = -EINVAL;
+		break;
+	}
+
+	return r;
 }

@@ -34,11 +34,14 @@ config SND_OXFW
 	   * LaCie Firewire Speakers
 	   * Behringer F-Control Audio 202
 	   * Mackie(Loud) Onyx-i series (former models)
+	   * Mackie(Loud) Onyx 1640i (former model)
 	   * Mackie(Loud) Onyx Satellite
 	   * Mackie(Loud) Tapco Link.Firewire
 	   * Mackie(Loud) d.2 pro/d.4 pro
 	   * Mackie(Loud) U.420/U.420d
 	   * TASCAM FireOne
+	   * Stanton Controllers & Systems 1 Deck/Mixer
+	   * APOGEE duet FireWire
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-oxfw.
@@ -52,17 +55,6 @@ config SND_ISIGHT
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-isight.
-
-config SND_SCS1X
-	tristate "Stanton Control System 1 MIDI"
-	select SND_FIREWIRE_LIB
-	help
-	  Say Y here to include support for the MIDI ports of the Stanton
-	  SCS.1d/SCS.1m DJ controllers.  (SCS.1m audio is still handled
-	  by FFADO.)
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-scs1x.
 
 config SND_FIREWORKS
 	tristate "Echo Fireworks board module support"
@@ -144,8 +136,29 @@ config SND_FIREWIRE_TASCAM
 	 Say Y here to include support for TASCAM.
 	  * FW-1884
 	  * FW-1082
+	  * FW-1804
 
 	 To compile this driver as a module, choose M here: the module
 	 will be called snd-firewire-tascam.
+
+config SND_FIREWIRE_MOTU
+	tristate "Mark of the unicorn FireWire series support"
+	select SND_FIREWIRE_LIB
+	select SND_HWDEP
+	help
+	 Say Y here to enable support for FireWire devices which MOTU produced:
+	  * 828mk2
+	  * 828mk3
+
+	 To compile this driver as a module, choose M here: the module
+	 will be called snd-firewire-motu.
+
+config SND_FIREFACE
+	tristate "RME Fireface series support"
+	select SND_FIREWIRE_LIB
+	select SND_HWDEP
+	help
+	 Say Y here to include support for RME fireface series.
+	  * Fireface 400
 
 endif # SND_FIREWIRE

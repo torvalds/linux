@@ -93,6 +93,8 @@
 
 #define DEFAULT_DMA_HINT_REG	0
 
+#define SBA_MAPPING_ERROR    (~(dma_addr_t)0)
+
 struct sba_device *sba_list;
 EXPORT_SYMBOL_GPL(sba_list);
 
@@ -691,6 +693,8 @@ static int sba_dma_supported( struct device *dev, u64 mask)
 		return 0;
 
 	ioc = GET_IOC(dev);
+	if (!ioc)
+		return 0;
 
 	/*
 	 * check if mask is >= than the current max IO Virt Address
@@ -722,6 +726,8 @@ sba_map_single(struct device *dev, void *addr, size_t size,
 	int pide;
 
 	ioc = GET_IOC(dev);
+	if (!ioc)
+		return SBA_MAPPING_ERROR;
 
 	/* save offset bits */
 	offset = ((dma_addr_t) (long) addr) & ~IOVP_MASK;
@@ -780,8 +786,18 @@ sba_map_single(struct device *dev, void *addr, size_t size,
 }
 
 
+static dma_addr_t
+sba_map_page(struct device *dev, struct page *page, unsigned long offset,
+		size_t size, enum dma_data_direction direction,
+		unsigned long attrs)
+{
+	return sba_map_single(dev, page_address(page) + offset, size,
+			direction);
+}
+
+
 /**
- * sba_unmap_single - unmap one IOVA and free resources
+ * sba_unmap_page - unmap one IOVA and free resources
  * @dev: instance of PCI owned by the driver that's asking.
  * @iova:  IOVA of driver buffer previously mapped.
  * @size:  number of bytes mapped in driver buffer.
@@ -790,8 +806,8 @@ sba_map_single(struct device *dev, void *addr, size_t size,
  * See Documentation/DMA-API-HOWTO.txt
  */
 static void
-sba_unmap_single(struct device *dev, dma_addr_t iova, size_t size,
-		 enum dma_data_direction direction)
+sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
+		enum dma_data_direction direction, unsigned long attrs)
 {
 	struct ioc *ioc;
 #if DELAYED_RESOURCE_CNT > 0
@@ -803,6 +819,10 @@ sba_unmap_single(struct device *dev, dma_addr_t iova, size_t size,
 	DBG_RUN("%s() iovp 0x%lx/%x\n", __func__, (long) iova, size);
 
 	ioc = GET_IOC(dev);
+	if (!ioc) {
+		WARN_ON(!ioc);
+		return;
+	}
 	offset = iova & ~IOVP_MASK;
 	iova ^= offset;        /* clear offset bits */
 	size += offset;
@@ -858,15 +878,15 @@ sba_unmap_single(struct device *dev, dma_addr_t iova, size_t size,
 
 
 /**
- * sba_alloc_consistent - allocate/map shared mem for DMA
+ * sba_alloc - allocate/map shared mem for DMA
  * @hwdev: instance of PCI owned by the driver that's asking.
  * @size:  number of bytes mapped in driver buffer.
  * @dma_handle:  IOVA of new buffer.
  *
  * See Documentation/DMA-API-HOWTO.txt
  */
-static void *sba_alloc_consistent(struct device *hwdev, size_t size,
-					dma_addr_t *dma_handle, gfp_t gfp)
+static void *sba_alloc(struct device *hwdev, size_t size, dma_addr_t *dma_handle,
+		gfp_t gfp, unsigned long attrs)
 {
 	void *ret;
 
@@ -888,7 +908,7 @@ static void *sba_alloc_consistent(struct device *hwdev, size_t size,
 
 
 /**
- * sba_free_consistent - free/unmap shared mem for DMA
+ * sba_free - free/unmap shared mem for DMA
  * @hwdev: instance of PCI owned by the driver that's asking.
  * @size:  number of bytes mapped in driver buffer.
  * @vaddr:  virtual address IOVA of "consistent" buffer.
@@ -897,10 +917,10 @@ static void *sba_alloc_consistent(struct device *hwdev, size_t size,
  * See Documentation/DMA-API-HOWTO.txt
  */
 static void
-sba_free_consistent(struct device *hwdev, size_t size, void *vaddr,
-		    dma_addr_t dma_handle)
+sba_free(struct device *hwdev, size_t size, void *vaddr,
+		    dma_addr_t dma_handle, unsigned long attrs)
 {
-	sba_unmap_single(hwdev, dma_handle, size, 0);
+	sba_unmap_page(hwdev, dma_handle, size, 0, 0);
 	free_pages((unsigned long) vaddr, get_order(size));
 }
 
@@ -933,7 +953,7 @@ int dump_run_sg = 0;
  */
 static int
 sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
-	   enum dma_data_direction direction)
+	   enum dma_data_direction direction, unsigned long attrs)
 {
 	struct ioc *ioc;
 	int coalesced, filled = 0;
@@ -942,6 +962,8 @@ sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	DBG_RUN_SG("%s() START %d entries\n", __func__, nents);
 
 	ioc = GET_IOC(dev);
+	if (!ioc)
+		return 0;
 
 	/* Fast path single entry scatterlists. */
 	if (nents == 1) {
@@ -1016,7 +1038,7 @@ sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
  */
 static void 
 sba_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
-	     enum dma_data_direction direction)
+	     enum dma_data_direction direction, unsigned long attrs)
 {
 	struct ioc *ioc;
 #ifdef ASSERT_PDIR_SANITY
@@ -1027,6 +1049,10 @@ sba_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 		__func__, nents, sg_virt(sglist), sglist->length);
 
 	ioc = GET_IOC(dev);
+	if (!ioc) {
+		WARN_ON(!ioc);
+		return;
+	}
 
 #ifdef SBA_COLLECT_STATS
 	ioc->usg_calls++;
@@ -1040,7 +1066,8 @@ sba_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 
 	while (sg_dma_len(sglist) && nents--) {
 
-		sba_unmap_single(dev, sg_dma_address(sglist), sg_dma_len(sglist), direction);
+		sba_unmap_page(dev, sg_dma_address(sglist), sg_dma_len(sglist),
+				direction, 0);
 #ifdef SBA_COLLECT_STATS
 		ioc->usg_pages += ((sg_dma_address(sglist) & ~IOVP_MASK) + sg_dma_len(sglist) + IOVP_SIZE - 1) >> PAGE_SHIFT;
 		ioc->usingle_calls--;	/* kluge since call is unmap_sg() */
@@ -1058,19 +1085,20 @@ sba_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 
 }
 
-static struct hppa_dma_ops sba_ops = {
+static int sba_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return dma_addr == SBA_MAPPING_ERROR;
+}
+
+static const struct dma_map_ops sba_ops = {
 	.dma_supported =	sba_dma_supported,
-	.alloc_consistent =	sba_alloc_consistent,
-	.alloc_noncoherent =	sba_alloc_consistent,
-	.free_consistent =	sba_free_consistent,
-	.map_single =		sba_map_single,
-	.unmap_single =		sba_unmap_single,
+	.alloc =		sba_alloc,
+	.free =			sba_free,
+	.map_page =		sba_map_page,
+	.unmap_page =		sba_unmap_page,
 	.map_sg =		sba_map_sg,
 	.unmap_sg =		sba_unmap_sg,
-	.dma_sync_single_for_cpu =	NULL,
-	.dma_sync_single_for_device =	NULL,
-	.dma_sync_sg_for_cpu =		NULL,
-	.dma_sync_sg_for_device =	NULL,
+	.mapping_error =	sba_mapping_error,
 };
 
 
@@ -1836,20 +1864,6 @@ static int sba_proc_info(struct seq_file *m, void *p)
 }
 
 static int
-sba_proc_open(struct inode *i, struct file *f)
-{
-	return single_open(f, &sba_proc_info, NULL);
-}
-
-static const struct file_operations sba_proc_fops = {
-	.owner = THIS_MODULE,
-	.open = sba_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static int
 sba_proc_bitmap_info(struct seq_file *m, void *p)
 {
 	struct sba_device *sba_dev = sba_list;
@@ -1861,23 +1875,9 @@ sba_proc_bitmap_info(struct seq_file *m, void *p)
 
 	return 0;
 }
-
-static int
-sba_proc_bitmap_open(struct inode *i, struct file *f)
-{
-	return single_open(f, &sba_proc_bitmap_info, NULL);
-}
-
-static const struct file_operations sba_proc_bitmap_fops = {
-	.owner = THIS_MODULE,
-	.open = sba_proc_bitmap_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
 #endif /* CONFIG_PROC_FS */
 
-static struct parisc_device_id sba_tbl[] = {
+static const struct parisc_device_id sba_tbl[] __initconst = {
 	{ HPHW_IOA, HVERSION_REV_ANY_ID, ASTRO_RUNWAY_PORT, 0xb },
 	{ HPHW_BCPORT, HVERSION_REV_ANY_ID, IKE_MERCED_PORT, 0xc },
 	{ HPHW_BCPORT, HVERSION_REV_ANY_ID, REO_MERCED_PORT, 0xc },
@@ -1888,7 +1888,7 @@ static struct parisc_device_id sba_tbl[] = {
 
 static int sba_driver_callback(struct parisc_device *);
 
-static struct parisc_driver sba_driver = {
+static struct parisc_driver sba_driver __refdata = {
 	.name =		MODULE_NAME,
 	.id_table =	sba_tbl,
 	.probe =	sba_driver_callback,
@@ -1899,7 +1899,7 @@ static struct parisc_driver sba_driver = {
 ** If so, initialize the chip and tell other partners in crime they
 ** have work to do.
 */
-static int sba_driver_callback(struct parisc_device *dev)
+static int __init sba_driver_callback(struct parisc_device *dev)
 {
 	struct sba_device *sba_dev;
 	u32 func_class;
@@ -1986,11 +1986,9 @@ static int sba_driver_callback(struct parisc_device *dev)
 		break;
 	}
 
-	proc_create("sba_iommu", 0, root, &sba_proc_fops);
-	proc_create("sba_iommu-bitmap", 0, root, &sba_proc_bitmap_fops);
+	proc_create_single("sba_iommu", 0, root, sba_proc_info);
+	proc_create_single("sba_iommu-bitmap", 0, root, sba_proc_bitmap_info);
 #endif
-
-	parisc_has_iommu();
 	return 0;
 }
 

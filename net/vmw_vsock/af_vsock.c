@@ -36,7 +36,7 @@
  * not support simultaneous connects (two "client" sockets connecting).
  *
  * - "Server" sockets are referred to as listener sockets throughout this
- * implementation because they are in the VSOCK_SS_LISTEN state.  When a
+ * implementation because they are in the TCP_LISTEN state.  When a
  * connection request is received (the second kind of socket mentioned above),
  * we create a new socket and refer to it as a pending socket.  These pending
  * sockets are placed on the pending connection list of the listener socket.
@@ -61,6 +61,14 @@
  * function will also cleanup rejected sockets, those that reach the connected
  * state but leave it before they have been accepted.
  *
+ * - Lock ordering for pending or accept queue sockets is:
+ *
+ *     lock_sock(listener);
+ *     lock_sock_nested(pending, SINGLE_DEPTH_NESTING);
+ *
+ * Using explicit nested locking keeps lockdep happy since normally only one
+ * lock of a given class may be taken at a time.
+ *
  * - Sockets created by user action will be cleaned up when the user process
  * calls close(2), causing our release implementation to be called. Our release
  * implementation will perform some cleanup then drop the last reference so our
@@ -74,6 +82,15 @@
  * argument, we must ensure the reference count is increased to ensure the
  * socket isn't freed before the function is run; the deferred function will
  * then drop the reference.
+ *
+ * - sk->sk_state uses the TCP state constants because they are widely used by
+ * other address families and exposed to userspace tools like ss(8):
+ *
+ *   TCP_CLOSE - unconnected
+ *   TCP_SYN_SENT - connecting
+ *   TCP_ESTABLISHED - connected
+ *   TCP_CLOSING - disconnecting
+ *   TCP_LISTEN - listening
  */
 
 #include <linux/types.h>
@@ -82,6 +99,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/kmod.h>
 #include <linux/list.h>
 #include <linux/miscdevice.h>
@@ -144,7 +162,6 @@ EXPORT_SYMBOL_GPL(vm_sockets_get_local_cid);
  * vsock_bind_table[VSOCK_HASH_SIZE] is for unbound sockets.  The hash function
  * mods with VSOCK_HASH_SIZE to ensure this.
  */
-#define VSOCK_HASH_SIZE         251
 #define MAX_PORT_RETRIES        24
 
 #define VSOCK_HASH(addr)        ((addr)->svm_port % VSOCK_HASH_SIZE)
@@ -159,9 +176,12 @@ EXPORT_SYMBOL_GPL(vm_sockets_get_local_cid);
 #define vsock_connected_sockets_vsk(vsk)				\
 	vsock_connected_sockets(&(vsk)->remote_addr, &(vsk)->local_addr)
 
-static struct list_head vsock_bind_table[VSOCK_HASH_SIZE + 1];
-static struct list_head vsock_connected_table[VSOCK_HASH_SIZE];
-static DEFINE_SPINLOCK(vsock_table_lock);
+struct list_head vsock_bind_table[VSOCK_HASH_SIZE + 1];
+EXPORT_SYMBOL_GPL(vsock_bind_table);
+struct list_head vsock_connected_table[VSOCK_HASH_SIZE];
+EXPORT_SYMBOL_GPL(vsock_connected_table);
+DEFINE_SPINLOCK(vsock_table_lock);
+EXPORT_SYMBOL_GPL(vsock_table_lock);
 
 /* Autobind this socket to the local address if necessary. */
 static int vsock_auto_bind(struct vsock_sock *vsk)
@@ -175,7 +195,7 @@ static int vsock_auto_bind(struct vsock_sock *vsk)
 	return __vsock_bind(sk, &local_addr);
 }
 
-static void vsock_init_tables(void)
+static int __init vsock_init_tables(void)
 {
 	int i;
 
@@ -184,6 +204,7 @@ static void vsock_init_tables(void)
 
 	for (i = 0; i < ARRAY_SIZE(vsock_connected_table); i++)
 		INIT_LIST_HEAD(&vsock_connected_table[i]);
+	return 0;
 }
 
 static void __vsock_insert_bound(struct list_head *list,
@@ -237,16 +258,6 @@ static struct sock *__vsock_find_connected_socket(struct sockaddr_vm *src,
 	}
 
 	return NULL;
-}
-
-static bool __vsock_in_bound_table(struct vsock_sock *vsk)
-{
-	return !list_empty(&vsk->bound_table);
-}
-
-static bool __vsock_in_connected_table(struct vsock_sock *vsk)
-{
-	return !list_empty(&vsk->connected_table);
 }
 
 static void vsock_insert_unbound(struct vsock_sock *vsk)
@@ -335,6 +346,16 @@ static bool vsock_in_connected_table(struct vsock_sock *vsk)
 
 	return ret;
 }
+
+void vsock_remove_sock(struct vsock_sock *vsk)
+{
+	if (vsock_in_bound_table(vsk))
+		vsock_remove_bound(vsk);
+
+	if (vsock_in_connected_table(vsk))
+		vsock_remove_connected(vsk);
+}
+EXPORT_SYMBOL_GPL(vsock_remove_sock);
 
 void vsock_for_each_connected_socket(void (*fn)(struct sock *sk))
 {
@@ -430,23 +451,25 @@ static int vsock_send_shutdown(struct sock *sk, int mode)
 	return transport->shutdown(vsock_sk(sk), mode);
 }
 
-void vsock_pending_work(struct work_struct *work)
+static void vsock_pending_work(struct work_struct *work)
 {
 	struct sock *sk;
 	struct sock *listener;
 	struct vsock_sock *vsk;
 	bool cleanup;
 
-	vsk = container_of(work, struct vsock_sock, dwork.work);
+	vsk = container_of(work, struct vsock_sock, pending_work.work);
 	sk = sk_vsock(vsk);
 	listener = vsk->listener;
 	cleanup = true;
 
 	lock_sock(listener);
-	lock_sock(sk);
+	lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
 
 	if (vsock_is_pending(sk)) {
 		vsock_remove_pending(listener, sk);
+
+		listener->sk_ack_backlog--;
 	} else if (!vsk->rejected) {
 		/* We are not on the pending list and accept() did not reject
 		 * us, so we must have been accepted by our user process.  We
@@ -457,8 +480,6 @@ void vsock_pending_work(struct work_struct *work)
 		goto out;
 	}
 
-	listener->sk_ack_backlog--;
-
 	/* We need to remove ourself from the global connected sockets list so
 	 * incoming packets can't find this socket, and to reduce the reference
 	 * count.
@@ -466,7 +487,7 @@ void vsock_pending_work(struct work_struct *work)
 	if (vsock_in_connected_table(vsk))
 		vsock_remove_connected(vsk);
 
-	sk->sk_state = SS_FREE;
+	sk->sk_state = TCP_CLOSE;
 
 out:
 	release_sock(sk);
@@ -477,7 +498,6 @@ out:
 	sock_put(sk);
 	sock_put(listener);
 }
-EXPORT_SYMBOL_GPL(vsock_pending_work);
 
 /**** SOCKET OPERATIONS ****/
 
@@ -576,6 +596,8 @@ static int __vsock_bind(struct sock *sk, struct sockaddr_vm *addr)
 	return retval;
 }
 
+static void vsock_connect_timeout(struct work_struct *work);
+
 struct sock *__vsock_create(struct net *net,
 			    struct socket *sock,
 			    struct sock *parent,
@@ -606,7 +628,6 @@ struct sock *__vsock_create(struct net *net,
 
 	sk->sk_destruct = vsock_sk_destruct;
 	sk->sk_backlog_rcv = vsock_queue_rcv_skb;
-	sk->sk_state = 0;
 	sock_reset_flag(sk, SOCK_DONE);
 
 	INIT_LIST_HEAD(&vsk->bound_table);
@@ -618,6 +639,8 @@ struct sock *__vsock_create(struct net *net,
 	vsk->sent_request = false;
 	vsk->ignore_connecting_rst = false;
 	vsk->peer_shutdown = 0;
+	INIT_DELAYED_WORK(&vsk->connect_work, vsock_connect_timeout);
+	INIT_DELAYED_WORK(&vsk->pending_work, vsock_pending_work);
 
 	psk = parent ? vsock_sk(parent) : NULL;
 	if (parent) {
@@ -651,12 +674,6 @@ static void __vsock_release(struct sock *sk)
 
 		vsk = vsock_sk(sk);
 		pending = NULL;	/* Compiler warning. */
-
-		if (vsock_in_bound_table(vsk))
-			vsock_remove_bound(vsk);
-
-		if (vsock_in_connected_table(vsk))
-			vsock_remove_connected(vsk);
 
 		transport->release(vsk);
 
@@ -745,7 +762,7 @@ vsock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 }
 
 static int vsock_getname(struct socket *sock,
-			 struct sockaddr *addr, int *addr_len, int peer)
+			 struct sockaddr *addr, int peer)
 {
 	int err;
 	struct sock *sk;
@@ -780,7 +797,7 @@ static int vsock_getname(struct socket *sock,
 	 */
 	BUILD_BUG_ON(sizeof(*vm_addr) > 128);
 	memcpy(addr, vm_addr, sizeof(*vm_addr));
-	*addr_len = sizeof(*vm_addr);
+	err = sizeof(*vm_addr);
 
 out:
 	release_sock(sk);
@@ -836,11 +853,11 @@ static int vsock_shutdown(struct socket *sock, int mode)
 	return err;
 }
 
-static unsigned int vsock_poll(struct file *file, struct socket *sock,
+static __poll_t vsock_poll(struct file *file, struct socket *sock,
 			       poll_table *wait)
 {
 	struct sock *sk;
-	unsigned int mask;
+	__poll_t mask;
 	struct vsock_sock *vsk;
 
 	sk = sock->sk;
@@ -851,20 +868,20 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 
 	if (sk->sk_err)
 		/* Signify that there has been an error on this socket. */
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 
 	/* INET sockets treat local write shutdown and peer write shutdown as a
-	 * case of POLLHUP set.
+	 * case of EPOLLHUP set.
 	 */
 	if ((sk->sk_shutdown == SHUTDOWN_MASK) ||
 	    ((sk->sk_shutdown & SEND_SHUTDOWN) &&
 	     (vsk->peer_shutdown & SEND_SHUTDOWN))) {
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 	}
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN ||
 	    vsk->peer_shutdown & SEND_SHUTDOWN) {
-		mask |= POLLRDHUP;
+		mask |= EPOLLRDHUP;
 	}
 
 	if (sock->type == SOCK_DGRAM) {
@@ -874,11 +891,11 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 		 */
 		if (!skb_queue_empty(&sk->sk_receive_queue) ||
 		    (sk->sk_shutdown & RCV_SHUTDOWN)) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		}
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN))
-			mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+			mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 
 	} else if (sock->type == SOCK_STREAM) {
 		lock_sock(sk);
@@ -886,9 +903,9 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 		/* Listening sockets that have connections in their accept
 		 * queue can be read.
 		 */
-		if (sk->sk_state == VSOCK_SS_LISTEN
+		if (sk->sk_state == TCP_LISTEN
 		    && !vsock_is_accept_queue_empty(sk))
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 
 		/* If there is something in the queue then we can read. */
 		if (transport->stream_is_active(vsk) &&
@@ -897,10 +914,10 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 			int ret = transport->notify_poll_in(
 					vsk, 1, &data_ready_now);
 			if (ret < 0) {
-				mask |= POLLERR;
+				mask |= EPOLLERR;
 			} else {
 				if (data_ready_now)
-					mask |= POLLIN | POLLRDNORM;
+					mask |= EPOLLIN | EPOLLRDNORM;
 
 			}
 		}
@@ -911,35 +928,35 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 		 */
 		if (sk->sk_shutdown & RCV_SHUTDOWN ||
 		    vsk->peer_shutdown & SEND_SHUTDOWN) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		}
 
 		/* Connected sockets that can produce data can be written. */
-		if (sk->sk_state == SS_CONNECTED) {
+		if (sk->sk_state == TCP_ESTABLISHED) {
 			if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
 				bool space_avail_now = false;
 				int ret = transport->notify_poll_out(
 						vsk, 1, &space_avail_now);
 				if (ret < 0) {
-					mask |= POLLERR;
+					mask |= EPOLLERR;
 				} else {
 					if (space_avail_now)
-						/* Remove POLLWRBAND since INET
+						/* Remove EPOLLWRBAND since INET
 						 * sockets are not setting it.
 						 */
-						mask |= POLLOUT | POLLWRNORM;
+						mask |= EPOLLOUT | EPOLLWRNORM;
 
 				}
 			}
 		}
 
 		/* Simulate INET socket poll behaviors, which sets
-		 * POLLOUT|POLLWRNORM when peer is closed and nothing to read,
+		 * EPOLLOUT|EPOLLWRNORM when peer is closed and nothing to read,
 		 * but local send is not shutdown.
 		 */
-		if (sk->sk_state == SS_UNCONNECTED) {
+		if (sk->sk_state == TCP_CLOSE || sk->sk_state == TCP_CLOSING) {
 			if (!(sk->sk_shutdown & SEND_SHUTDOWN))
-				mask |= POLLOUT | POLLWRNORM;
+				mask |= EPOLLOUT | EPOLLWRNORM;
 
 		}
 
@@ -1089,22 +1106,34 @@ static const struct proto_ops vsock_dgram_ops = {
 	.sendpage = sock_no_sendpage,
 };
 
+static int vsock_transport_cancel_pkt(struct vsock_sock *vsk)
+{
+	if (!transport->cancel_pkt)
+		return -EOPNOTSUPP;
+
+	return transport->cancel_pkt(vsk);
+}
+
 static void vsock_connect_timeout(struct work_struct *work)
 {
 	struct sock *sk;
 	struct vsock_sock *vsk;
+	int cancel = 0;
 
-	vsk = container_of(work, struct vsock_sock, dwork.work);
+	vsk = container_of(work, struct vsock_sock, connect_work.work);
 	sk = sk_vsock(vsk);
 
 	lock_sock(sk);
-	if (sk->sk_state == SS_CONNECTING &&
+	if (sk->sk_state == TCP_SYN_SENT &&
 	    (sk->sk_shutdown != SHUTDOWN_MASK)) {
-		sk->sk_state = SS_UNCONNECTED;
+		sk->sk_state = TCP_CLOSE;
 		sk->sk_err = ETIMEDOUT;
 		sk->sk_error_report(sk);
+		cancel = 1;
 	}
 	release_sock(sk);
+	if (cancel)
+		vsock_transport_cancel_pkt(vsk);
 
 	sock_put(sk);
 }
@@ -1143,7 +1172,7 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 		err = -EALREADY;
 		break;
 	default:
-		if ((sk->sk_state == VSOCK_SS_LISTEN) ||
+		if ((sk->sk_state == TCP_LISTEN) ||
 		    vsock_addr_cast(addr, addr_len, &remote_addr) != 0) {
 			err = -EINVAL;
 			goto out;
@@ -1166,7 +1195,7 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 		if (err)
 			goto out;
 
-		sk->sk_state = SS_CONNECTING;
+		sk->sk_state = TCP_SYN_SENT;
 
 		err = transport->connect(vsk);
 		if (err < 0)
@@ -1186,7 +1215,7 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 	timeout = vsk->connect_timeout;
 	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
-	while (sk->sk_state != SS_CONNECTED && sk->sk_err == 0) {
+	while (sk->sk_state != TCP_ESTABLISHED && sk->sk_err == 0) {
 		if (flags & O_NONBLOCK) {
 			/* If we're not going to block, we schedule a timeout
 			 * function to generate a timeout on the connection
@@ -1195,9 +1224,7 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 			 * timeout fires.
 			 */
 			sock_hold(sk);
-			INIT_DELAYED_WORK(&vsk->dwork,
-					  vsock_connect_timeout);
-			schedule_delayed_work(&vsk->dwork, timeout);
+			schedule_delayed_work(&vsk->connect_work, timeout);
 
 			/* Skip ahead to preserve error code set above. */
 			goto out_wait;
@@ -1209,10 +1236,16 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 
 		if (signal_pending(current)) {
 			err = sock_intr_errno(timeout);
-			goto out_wait_error;
+			sk->sk_state = TCP_CLOSE;
+			sock->state = SS_UNCONNECTED;
+			vsock_transport_cancel_pkt(vsk);
+			goto out_wait;
 		} else if (timeout == 0) {
 			err = -ETIMEDOUT;
-			goto out_wait_error;
+			sk->sk_state = TCP_CLOSE;
+			sock->state = SS_UNCONNECTED;
+			vsock_transport_cancel_pkt(vsk);
+			goto out_wait;
 		}
 
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
@@ -1220,23 +1253,21 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 
 	if (sk->sk_err) {
 		err = -sk->sk_err;
-		goto out_wait_error;
-	} else
+		sk->sk_state = TCP_CLOSE;
+		sock->state = SS_UNCONNECTED;
+	} else {
 		err = 0;
+	}
 
 out_wait:
 	finish_wait(sk_sleep(sk), &wait);
 out:
 	release_sock(sk);
 	return err;
-
-out_wait_error:
-	sk->sk_state = SS_UNCONNECTED;
-	sock->state = SS_UNCONNECTED;
-	goto out_wait;
 }
 
-static int vsock_accept(struct socket *sock, struct socket *newsock, int flags)
+static int vsock_accept(struct socket *sock, struct socket *newsock, int flags,
+			bool kern)
 {
 	struct sock *listener;
 	int err;
@@ -1255,7 +1286,7 @@ static int vsock_accept(struct socket *sock, struct socket *newsock, int flags)
 		goto out;
 	}
 
-	if (listener->sk_state != VSOCK_SS_LISTEN) {
+	if (listener->sk_state != TCP_LISTEN) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -1270,18 +1301,20 @@ static int vsock_accept(struct socket *sock, struct socket *newsock, int flags)
 	       listener->sk_err == 0) {
 		release_sock(listener);
 		timeout = schedule_timeout(timeout);
+		finish_wait(sk_sleep(listener), &wait);
 		lock_sock(listener);
 
 		if (signal_pending(current)) {
 			err = sock_intr_errno(timeout);
-			goto out_wait;
+			goto out;
 		} else if (timeout == 0) {
 			err = -EAGAIN;
-			goto out_wait;
+			goto out;
 		}
 
 		prepare_to_wait(sk_sleep(listener), &wait, TASK_INTERRUPTIBLE);
 	}
+	finish_wait(sk_sleep(listener), &wait);
 
 	if (listener->sk_err)
 		err = -listener->sk_err;
@@ -1289,7 +1322,7 @@ static int vsock_accept(struct socket *sock, struct socket *newsock, int flags)
 	if (connected) {
 		listener->sk_ack_backlog--;
 
-		lock_sock(connected);
+		lock_sock_nested(connected, SINGLE_DEPTH_NESTING);
 		vconnected = vsock_sk(connected);
 
 		/* If the listener socket has received an error, then we should
@@ -1301,19 +1334,15 @@ static int vsock_accept(struct socket *sock, struct socket *newsock, int flags)
 		 */
 		if (err) {
 			vconnected->rejected = true;
-			release_sock(connected);
-			sock_put(connected);
-			goto out_wait;
+		} else {
+			newsock->state = SS_CONNECTED;
+			sock_graft(connected, newsock);
 		}
 
-		newsock->state = SS_CONNECTED;
-		sock_graft(connected, newsock);
 		release_sock(connected);
 		sock_put(connected);
 	}
 
-out_wait:
-	finish_wait(sk_sleep(listener), &wait);
 out:
 	release_sock(listener);
 	return err;
@@ -1347,7 +1376,7 @@ static int vsock_listen(struct socket *sock, int backlog)
 	}
 
 	sk->sk_max_ack_backlog = backlog;
-	sk->sk_state = VSOCK_SS_LISTEN;
+	sk->sk_state = TCP_LISTEN;
 
 	err = 0;
 
@@ -1513,8 +1542,7 @@ static int vsock_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 	long timeout;
 	int err;
 	struct vsock_transport_send_notify_data send_data;
-
-	DEFINE_WAIT(wait);
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 	sk = sock->sk;
 	vsk = vsock_sk(sk);
@@ -1528,7 +1556,7 @@ static int vsock_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	/* Callers should not provide a destination with stream sockets. */
 	if (msg->msg_namelen) {
-		err = sk->sk_state == SS_CONNECTED ? -EISCONN : -EOPNOTSUPP;
+		err = sk->sk_state == TCP_ESTABLISHED ? -EISCONN : -EOPNOTSUPP;
 		goto out;
 	}
 
@@ -1539,7 +1567,7 @@ static int vsock_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 		goto out;
 	}
 
-	if (sk->sk_state != SS_CONNECTED ||
+	if (sk->sk_state != TCP_ESTABLISHED ||
 	    !vsock_addr_bound(&vsk->local_addr)) {
 		err = -ENOTCONN;
 		goto out;
@@ -1557,11 +1585,10 @@ static int vsock_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 	if (err < 0)
 		goto out;
 
-	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-
 	while (total_written < len) {
 		ssize_t written;
 
+		add_wait_queue(sk_sleep(sk), &wait);
 		while (vsock_stream_has_space(vsk) == 0 &&
 		       sk->sk_err == 0 &&
 		       !(sk->sk_shutdown & SEND_SHUTDOWN) &&
@@ -1570,27 +1597,30 @@ static int vsock_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 			/* Don't wait for non-blocking sockets. */
 			if (timeout == 0) {
 				err = -EAGAIN;
-				goto out_wait;
+				remove_wait_queue(sk_sleep(sk), &wait);
+				goto out_err;
 			}
 
 			err = transport->notify_send_pre_block(vsk, &send_data);
-			if (err < 0)
-				goto out_wait;
+			if (err < 0) {
+				remove_wait_queue(sk_sleep(sk), &wait);
+				goto out_err;
+			}
 
 			release_sock(sk);
-			timeout = schedule_timeout(timeout);
+			timeout = wait_woken(&wait, TASK_INTERRUPTIBLE, timeout);
 			lock_sock(sk);
 			if (signal_pending(current)) {
 				err = sock_intr_errno(timeout);
-				goto out_wait;
+				remove_wait_queue(sk_sleep(sk), &wait);
+				goto out_err;
 			} else if (timeout == 0) {
 				err = -EAGAIN;
-				goto out_wait;
+				remove_wait_queue(sk_sleep(sk), &wait);
+				goto out_err;
 			}
-
-			prepare_to_wait(sk_sleep(sk), &wait,
-					TASK_INTERRUPTIBLE);
 		}
+		remove_wait_queue(sk_sleep(sk), &wait);
 
 		/* These checks occur both as part of and after the loop
 		 * conditional since we need to check before and after
@@ -1598,16 +1628,16 @@ static int vsock_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 		 */
 		if (sk->sk_err) {
 			err = -sk->sk_err;
-			goto out_wait;
+			goto out_err;
 		} else if ((sk->sk_shutdown & SEND_SHUTDOWN) ||
 			   (vsk->peer_shutdown & RCV_SHUTDOWN)) {
 			err = -EPIPE;
-			goto out_wait;
+			goto out_err;
 		}
 
 		err = transport->notify_send_pre_enqueue(vsk, &send_data);
 		if (err < 0)
-			goto out_wait;
+			goto out_err;
 
 		/* Note that enqueue will only write as many bytes as are free
 		 * in the produce queue, so we don't need to ensure len is
@@ -1620,7 +1650,7 @@ static int vsock_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 				len - total_written);
 		if (written < 0) {
 			err = -ENOMEM;
-			goto out_wait;
+			goto out_err;
 		}
 
 		total_written += written;
@@ -1628,14 +1658,13 @@ static int vsock_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 		err = transport->notify_send_post_enqueue(
 				vsk, written, &send_data);
 		if (err < 0)
-			goto out_wait;
+			goto out_err;
 
 	}
 
-out_wait:
+out_err:
 	if (total_written > 0)
 		err = total_written;
-	finish_wait(sk_sleep(sk), &wait);
 out:
 	release_sock(sk);
 	return err;
@@ -1662,7 +1691,7 @@ vsock_stream_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 	lock_sock(sk);
 
-	if (sk->sk_state != SS_CONNECTED) {
+	if (sk->sk_state != TCP_ESTABLISHED) {
 		/* Recvmsg is supposed to return 0 if a peer performs an
 		 * orderly shutdown. Differentiate between that case and when a
 		 * peer has not connected or a local shutdown occured with the
@@ -1716,20 +1745,60 @@ vsock_stream_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (err < 0)
 		goto out;
 
-	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
 	while (1) {
-		s64 ready = vsock_stream_has_data(vsk);
+		s64 ready;
 
-		if (ready < 0) {
-			/* Invalid queue pair content. XXX This should be
-			 * changed to a connection reset in a later change.
-			 */
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+		ready = vsock_stream_has_data(vsk);
 
-			err = -ENOMEM;
-			goto out_wait;
-		} else if (ready > 0) {
+		if (ready == 0) {
+			if (sk->sk_err != 0 ||
+			    (sk->sk_shutdown & RCV_SHUTDOWN) ||
+			    (vsk->peer_shutdown & SEND_SHUTDOWN)) {
+				finish_wait(sk_sleep(sk), &wait);
+				break;
+			}
+			/* Don't wait for non-blocking sockets. */
+			if (timeout == 0) {
+				err = -EAGAIN;
+				finish_wait(sk_sleep(sk), &wait);
+				break;
+			}
+
+			err = transport->notify_recv_pre_block(
+					vsk, target, &recv_data);
+			if (err < 0) {
+				finish_wait(sk_sleep(sk), &wait);
+				break;
+			}
+			release_sock(sk);
+			timeout = schedule_timeout(timeout);
+			lock_sock(sk);
+
+			if (signal_pending(current)) {
+				err = sock_intr_errno(timeout);
+				finish_wait(sk_sleep(sk), &wait);
+				break;
+			} else if (timeout == 0) {
+				err = -EAGAIN;
+				finish_wait(sk_sleep(sk), &wait);
+				break;
+			}
+		} else {
 			ssize_t read;
+
+			finish_wait(sk_sleep(sk), &wait);
+
+			if (ready < 0) {
+				/* Invalid queue pair content. XXX This should
+				* be changed to a connection reset in a later
+				* change.
+				*/
+
+				err = -ENOMEM;
+				goto out;
+			}
 
 			err = transport->notify_recv_pre_dequeue(
 					vsk, target, &recv_data);
@@ -1750,42 +1819,12 @@ vsock_stream_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 					vsk, target, read,
 					!(flags & MSG_PEEK), &recv_data);
 			if (err < 0)
-				goto out_wait;
+				goto out;
 
 			if (read >= target || flags & MSG_PEEK)
 				break;
 
 			target -= read;
-		} else {
-			if (sk->sk_err != 0 || (sk->sk_shutdown & RCV_SHUTDOWN)
-			    || (vsk->peer_shutdown & SEND_SHUTDOWN)) {
-				break;
-			}
-			/* Don't wait for non-blocking sockets. */
-			if (timeout == 0) {
-				err = -EAGAIN;
-				break;
-			}
-
-			err = transport->notify_recv_pre_block(
-					vsk, target, &recv_data);
-			if (err < 0)
-				break;
-
-			release_sock(sk);
-			timeout = schedule_timeout(timeout);
-			lock_sock(sk);
-
-			if (signal_pending(current)) {
-				err = sock_intr_errno(timeout);
-				break;
-			} else if (timeout == 0) {
-				err = -EAGAIN;
-				break;
-			}
-
-			prepare_to_wait(sk_sleep(sk), &wait,
-					TASK_INTERRUPTIBLE);
 		}
 	}
 
@@ -1794,30 +1833,9 @@ vsock_stream_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	else if (sk->sk_shutdown & RCV_SHUTDOWN)
 		err = 0;
 
-	if (copied > 0) {
-		/* We only do these additional bookkeeping/notification steps
-		 * if we actually copied something out of the queue pair
-		 * instead of just peeking ahead.
-		 */
-
-		if (!(flags & MSG_PEEK)) {
-			/* If the other side has shutdown for sending and there
-			 * is nothing more to read, then modify the socket
-			 * state.
-			 */
-			if (vsk->peer_shutdown & SEND_SHUTDOWN) {
-				if (vsock_stream_has_data(vsk) <= 0) {
-					sk->sk_state = SS_UNCONNECTED;
-					sock_set_flag(sk, SOCK_DONE);
-					sk->sk_state_change(sk);
-				}
-			}
-		}
+	if (copied > 0)
 		err = copied;
-	}
 
-out_wait:
-	finish_wait(sk_sleep(sk), &wait);
 out:
 	release_sock(sk);
 	return err;
@@ -1941,8 +1959,6 @@ int __vsock_core_init(const struct vsock_transport *t, struct module *owner)
 	vsock_proto.owner = owner;
 	transport = t;
 
-	vsock_init_tables();
-
 	vsock_device.minor = MISC_DYNAMIC_MINOR;
 	err = misc_register(&vsock_device);
 	if (err) {
@@ -1994,7 +2010,24 @@ void vsock_core_exit(void)
 }
 EXPORT_SYMBOL_GPL(vsock_core_exit);
 
+const struct vsock_transport *vsock_core_get_transport(void)
+{
+	/* vsock_register_mutex not taken since only the transport uses this
+	 * function and only while registered.
+	 */
+	return transport;
+}
+EXPORT_SYMBOL_GPL(vsock_core_get_transport);
+
+static void __exit vsock_exit(void)
+{
+	/* Do nothing.  This function makes this module removable. */
+}
+
+module_init(vsock_init_tables);
+module_exit(vsock_exit);
+
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Socket Family");
-MODULE_VERSION("1.0.1.0-k");
+MODULE_VERSION("1.0.2.0-k");
 MODULE_LICENSE("GPL v2");

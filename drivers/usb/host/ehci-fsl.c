@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2005-2009 MontaVista Software, Inc.
  * Copyright 2008,2012,2015      Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Ported to 834x by Randy Vinson <rvinson@mvista.com> using code provided
  * by Hunter Wu.
@@ -35,6 +22,7 @@
 #include <linux/usb/otg.h>
 #include <linux/platform_device.h>
 #include <linux/fsl_devices.h>
+#include <linux/of_platform.h>
 
 #include "ehci.h"
 #include "ehci-fsl.h"
@@ -95,8 +83,8 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 	}
 	irq = res->start;
 
-	hcd = usb_create_hcd(&fsl_ehci_hc_driver, &pdev->dev,
-				dev_name(&pdev->dev));
+	hcd = __usb_create_hcd(&fsl_ehci_hc_driver, pdev->dev.parent,
+			       &pdev->dev, dev_name(&pdev->dev), NULL);
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err1;
@@ -167,6 +155,8 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 			retval = -ENODEV;
 			goto err2;
 		}
+
+		hcd->skip_phy_initialization = 1;
 	}
 #endif
 	return retval;
@@ -241,7 +231,8 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	 * to portsc
 	 */
 	if (pdata->check_phy_clk_valid) {
-		if (!(in_be32(non_ehci + FSL_SOC_USB_CTRL) & PHY_CLK_VALID)) {
+		if (!(ioread32be(non_ehci + FSL_SOC_USB_CTRL) &
+		    PHY_CLK_VALID)) {
 			dev_warn(hcd->self.controller,
 				 "USB PHY clock invalid\n");
 			return -EINVAL;
@@ -273,14 +264,19 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 
 		/* Setup Snooping for all the 4GB space */
 		/* SNOOP1 starts from 0x0, size 2G */
-		out_be32(non_ehci + FSL_SOC_USB_SNOOP1, 0x0 | SNOOP_SIZE_2GB);
+		iowrite32be(0x0 | SNOOP_SIZE_2GB,
+			    non_ehci + FSL_SOC_USB_SNOOP1);
 		/* SNOOP2 starts from 0x80000000, size 2G */
-		out_be32(non_ehci + FSL_SOC_USB_SNOOP2, 0x80000000 | SNOOP_SIZE_2GB);
+		iowrite32be(0x80000000 | SNOOP_SIZE_2GB,
+			    non_ehci + FSL_SOC_USB_SNOOP2);
 	}
 
 	/* Deal with USB erratum A-005275 */
 	if (pdata->has_fsl_erratum_a005275 == 1)
 		ehci->has_fsl_hs_errata = 1;
+
+	if (pdata->has_fsl_erratum_a005697 == 1)
+		ehci->has_fsl_susp_errata = 1;
 
 	if ((pdata->operating_mode == FSL_USB2_DR_HOST) ||
 			(pdata->operating_mode == FSL_USB2_DR_OTG))
@@ -309,13 +305,13 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 
 	if (pdata->have_sysif_regs) {
 #ifdef CONFIG_FSL_SOC_BOOKE
-		out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x00000008);
-		out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000080);
+		iowrite32be(0x00000008, non_ehci + FSL_SOC_USB_PRICTRL);
+		iowrite32be(0x00000080, non_ehci + FSL_SOC_USB_AGECNTTHRSH);
 #else
-		out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x0000000c);
-		out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000040);
+		iowrite32be(0x0000000c, non_ehci + FSL_SOC_USB_PRICTRL);
+		iowrite32be(0x00000040, non_ehci + FSL_SOC_USB_AGECNTTHRSH);
 #endif
-		out_be32(non_ehci + FSL_SOC_USB_SICTRL, 0x00000001);
+		iowrite32be(0x00000001, non_ehci + FSL_SOC_USB_SICTRL);
 	}
 
 	return 0;
@@ -554,7 +550,7 @@ static int ehci_fsl_drv_suspend(struct device *dev)
 	if (!fsl_deep_sleep())
 		return 0;
 
-	ehci_fsl->usb_ctrl = in_be32(non_ehci + FSL_SOC_USB_CTRL);
+	ehci_fsl->usb_ctrl = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
 	return 0;
 }
 
@@ -577,7 +573,7 @@ static int ehci_fsl_drv_resume(struct device *dev)
 	usb_root_hub_lost_power(hcd->self.root_hub);
 
 	/* Restore USB PHY settings and enable the controller. */
-	out_be32(non_ehci + FSL_SOC_USB_CTRL, ehci_fsl->usb_ctrl);
+	iowrite32be(ehci_fsl->usb_ctrl, non_ehci + FSL_SOC_USB_CTRL);
 
 	ehci_reset(ehci);
 	ehci_fsl_reinit(ehci);
@@ -593,7 +589,7 @@ static int ehci_fsl_drv_restore(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops ehci_fsl_pm_ops = {
+static const struct dev_pm_ops ehci_fsl_pm_ops = {
 	.suspend = ehci_fsl_drv_suspend,
 	.resume = ehci_fsl_drv_resume,
 	.restore = ehci_fsl_drv_restore,
@@ -635,7 +631,7 @@ static int ehci_start_port_reset(struct usb_hcd *hcd, unsigned port)
 #define ehci_start_port_reset	NULL
 #endif /* CONFIG_USB_OTG */
 
-static struct ehci_driver_overrides ehci_fsl_overrides __initdata = {
+static const struct ehci_driver_overrides ehci_fsl_overrides __initconst = {
 	.extra_priv_size = sizeof(struct ehci_fsl),
 	.reset = ehci_fsl_setup,
 };

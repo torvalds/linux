@@ -138,6 +138,7 @@
 #define GSC_OUT_YUV420_3P		(3 << 4)
 #define GSC_OUT_YUV422_1P		(4 << 4)
 #define GSC_OUT_YUV422_2P		(5 << 4)
+#define GSC_OUT_YUV422_3P		(6 << 4)
 #define GSC_OUT_YUV444			(7 << 4)
 #define GSC_OUT_TILE_TYPE_MASK		(1 << 2)
 #define GSC_OUT_TILE_C_16x8		(0 << 2)
@@ -273,12 +274,12 @@
 #define GSC_CLK_GATE_MODE_SNOOP_CNT(x)	((x) << 0)
 
 /* SYSCON. GSCBLK_CFG */
-#define SYSREG_GSCBLK_CFG1		(S3C_VA_SYS + 0x0224)
+#define SYSREG_GSCBLK_CFG1		0x0224
 #define GSC_BLK_DISP1WB_DEST(x)		(x << 10)
 #define GSC_BLK_SW_RESET_WB_DEST(x)	(1 << (18 + x))
 #define GSC_BLK_PXLASYNC_LO_MASK_WB(x)	(0 << (14 + x))
 #define GSC_BLK_GSCL_WB_IN_SRC_SEL(x)	(1 << (2 * x))
-#define SYSREG_GSCBLK_CFG2		(S3C_VA_SYS + 0x2000)
+#define SYSREG_GSCBLK_CFG2		0x2000
 #define PXLASYNC_LO_MASK_CAMIF_GSCL(x)	(1 << (x))
 
 #endif /* EXYNOS_REGS_GSC_H_ */

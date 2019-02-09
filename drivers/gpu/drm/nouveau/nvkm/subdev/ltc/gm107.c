@@ -26,16 +26,16 @@
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
-static void
+void
 gm107_ltc_cbc_clear(struct nvkm_ltc *ltc, u32 start, u32 limit)
 {
 	struct nvkm_device *device = ltc->subdev.device;
 	nvkm_wr32(device, 0x17e270, start);
 	nvkm_wr32(device, 0x17e274, limit);
-	nvkm_wr32(device, 0x17e26c, 0x00000004);
+	nvkm_mask(device, 0x17e26c, 0x00000000, 0x00000004);
 }
 
-static void
+void
 gm107_ltc_cbc_wait(struct nvkm_ltc *ltc)
 {
 	struct nvkm_device *device = ltc->subdev.device;
@@ -43,15 +43,13 @@ gm107_ltc_cbc_wait(struct nvkm_ltc *ltc)
 	for (c = 0; c < ltc->ltc_nr; c++) {
 		for (s = 0; s < ltc->lts_nr; s++) {
 			const u32 addr = 0x14046c + (c * 0x2000) + (s * 0x200);
-			nvkm_msec(device, 2000,
-				if (!nvkm_rd32(device, addr))
-					break;
-			);
+			nvkm_wait_msec(device, 2000, addr,
+				       0x00000004, 0x00000000);
 		}
 	}
 }
 
-static void
+void
 gm107_ltc_zbc_clear_color(struct nvkm_ltc *ltc, int i, const u32 color[4])
 {
 	struct nvkm_device *device = ltc->subdev.device;
@@ -62,7 +60,7 @@ gm107_ltc_zbc_clear_color(struct nvkm_ltc *ltc, int i, const u32 color[4])
 	nvkm_wr32(device, 0x17e348, color[3]);
 }
 
-static void
+void
 gm107_ltc_zbc_clear_depth(struct nvkm_ltc *ltc, int i, const u32 depth)
 {
 	struct nvkm_device *device = ltc->subdev.device;
@@ -70,21 +68,25 @@ gm107_ltc_zbc_clear_depth(struct nvkm_ltc *ltc, int i, const u32 depth)
 	nvkm_wr32(device, 0x17e34c, depth);
 }
 
-static void
-gm107_ltc_lts_isr(struct nvkm_ltc *ltc, int c, int s)
+void
+gm107_ltc_intr_lts(struct nvkm_ltc *ltc, int c, int s)
 {
 	struct nvkm_subdev *subdev = &ltc->subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 base = 0x140000 + (c * 0x2000) + (s * 0x400);
-	u32 stat = nvkm_rd32(device, base + 0x00c);
+	u32 base = 0x140400 + (c * 0x2000) + (s * 0x200);
+	u32 intr = nvkm_rd32(device, base + 0x00c);
+	u16 stat = intr & 0x0000ffff;
+	char msg[128];
 
 	if (stat) {
-		nvkm_error(subdev, "LTC%d_LTS%d: %08x\n", c, s, stat);
-		nvkm_wr32(device, base + 0x00c, stat);
+		nvkm_snprintbf(msg, sizeof(msg), gf100_ltc_lts_intr_name, stat);
+		nvkm_error(subdev, "LTC%d_LTS%d: %08x [%s]\n", c, s, intr, msg);
 	}
+
+	nvkm_wr32(device, base + 0x00c, intr);
 }
 
-static void
+void
 gm107_ltc_intr(struct nvkm_ltc *ltc)
 {
 	struct nvkm_device *device = ltc->subdev.device;
@@ -94,7 +96,7 @@ gm107_ltc_intr(struct nvkm_ltc *ltc)
 	while (mask) {
 		u32 s, c = __ffs(mask);
 		for (s = 0; s < ltc->lts_nr; s++)
-			gm107_ltc_lts_isr(ltc, c, s);
+			gm107_ltc_intr_lts(ltc, c, s);
 		mask &= ~(1 << c);
 	}
 }

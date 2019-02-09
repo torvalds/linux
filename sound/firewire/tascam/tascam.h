@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
+#include <linux/sched/signal.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -39,11 +40,27 @@ struct snd_tscm_spec {
 	unsigned int pcm_playback_analog_channels;
 	unsigned int midi_capture_ports;
 	unsigned int midi_playback_ports;
-	bool is_controller;
 };
 
 #define TSCM_MIDI_IN_PORT_MAX	4
 #define TSCM_MIDI_OUT_PORT_MAX	4
+
+struct snd_fw_async_midi_port {
+	struct fw_device *parent;
+	struct work_struct work;
+	bool idling;
+	ktime_t next_ktime;
+	bool error;
+
+	struct fw_transaction transaction;
+
+	u8 buf[4];
+	u8 running_status;
+	bool on_sysex;
+
+	struct snd_rawmidi_substream *substream;
+	int consume_bytes;
+};
 
 struct snd_tscm {
 	struct snd_card *card;
@@ -52,6 +69,8 @@ struct snd_tscm {
 	struct mutex mutex;
 	spinlock_t lock;
 
+	bool registered;
+	struct delayed_work dwork;
 	const struct snd_tscm_spec *spec;
 
 	struct fw_iso_resources tx_resources;
@@ -70,11 +89,6 @@ struct snd_tscm {
 
 	/* For MIDI message outgoing transactions. */
 	struct snd_fw_async_midi_port out_ports[TSCM_MIDI_OUT_PORT_MAX];
-	u8 running_status[TSCM_MIDI_OUT_PORT_MAX];
-	bool on_sysex[TSCM_MIDI_OUT_PORT_MAX];
-
-	/* For control messages. */
-	struct snd_firewire_tascam_status *status;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull
@@ -117,7 +131,6 @@ int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
 int amdtp_tscm_set_parameters(struct amdtp_stream *s, unsigned int rate);
 int amdtp_tscm_add_pcm_hw_constraints(struct amdtp_stream *s,
 				      struct snd_pcm_runtime *runtime);
-void amdtp_tscm_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format);
 
 int snd_tscm_stream_get_rate(struct snd_tscm *tscm, unsigned int *rate);
 int snd_tscm_stream_get_clock(struct snd_tscm *tscm,
@@ -131,6 +144,26 @@ void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm);
 void snd_tscm_stream_lock_changed(struct snd_tscm *tscm);
 int snd_tscm_stream_lock_try(struct snd_tscm *tscm);
 void snd_tscm_stream_lock_release(struct snd_tscm *tscm);
+
+void snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port);
+
+static inline void
+snd_fw_async_midi_port_run(struct snd_fw_async_midi_port *port,
+			   struct snd_rawmidi_substream *substream)
+{
+	if (!port->error) {
+		port->substream = substream;
+		schedule_work(&port->work);
+	}
+}
+
+static inline void
+snd_fw_async_midi_port_finish(struct snd_fw_async_midi_port *port)
+{
+	port->substream = NULL;
+	cancel_work_sync(&port->work);
+	port->error = false;
+}
 
 int snd_tscm_transaction_register(struct snd_tscm *tscm);
 int snd_tscm_transaction_reregister(struct snd_tscm *tscm);

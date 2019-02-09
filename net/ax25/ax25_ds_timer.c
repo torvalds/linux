@@ -24,12 +24,12 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 
-static void ax25_ds_timeout(unsigned long);
+static void ax25_ds_timeout(struct timer_list *);
 
 /*
  *	Add DAMA slave timeout timer to timer list.
@@ -41,8 +41,7 @@ static void ax25_ds_timeout(unsigned long);
 
 void ax25_ds_setup_timer(ax25_dev *ax25_dev)
 {
-	setup_timer(&ax25_dev->dama.slave_timer, ax25_ds_timeout,
-		    (unsigned long)ax25_dev);
+	timer_setup(&ax25_dev->dama.slave_timer, ax25_ds_timeout, 0);
 }
 
 void ax25_ds_del_timer(ax25_dev *ax25_dev)
@@ -66,9 +65,9 @@ void ax25_ds_set_timer(ax25_dev *ax25_dev)
  *	Silently discard all (slave) connections in case our master forgot us...
  */
 
-static void ax25_ds_timeout(unsigned long arg)
+static void ax25_ds_timeout(struct timer_list *t)
 {
-	ax25_dev *ax25_dev = (struct ax25_dev *) arg;
+	ax25_dev *ax25_dev = from_timer(ax25_dev, t, dama.slave_timer);
 	ax25_cb *ax25;
 
 	if (ax25_dev == NULL || !ax25_dev->dama.slave)
@@ -102,6 +101,7 @@ void ax25_ds_heartbeat_expiry(ax25_cb *ax25)
 	switch (ax25->state) {
 
 	case AX25_STATE_0:
+	case AX25_STATE_2:
 		/* Magic here: If we listen() and a new link dies before it
 		   is accepted() it isn't 'dead' so doesn't get removed. */
 		if (!sk || sock_flag(sk, SOCK_DESTROY) ||
@@ -111,6 +111,7 @@ void ax25_ds_heartbeat_expiry(ax25_cb *ax25)
 				sock_hold(sk);
 				ax25_destroy_socket(ax25);
 				bh_unlock_sock(sk);
+				/* Ungrab socket and destroy it */
 				sock_put(sk);
 			} else
 				ax25_destroy_socket(ax25);
@@ -213,7 +214,8 @@ void ax25_ds_t1_timeout(ax25_cb *ax25)
 	case AX25_STATE_2:
 		if (ax25->n2count == ax25->n2) {
 			ax25_send_control(ax25, AX25_DISC, AX25_POLLON, AX25_COMMAND);
-			ax25_disconnect(ax25, ETIMEDOUT);
+			if (!sock_flag(ax25->sk, SOCK_DESTROY))
+				ax25_disconnect(ax25, ETIMEDOUT);
 			return;
 		} else {
 			ax25->n2count++;

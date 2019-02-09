@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,7 +29,7 @@ extern struct core_boot_config *mips_cps_core_bootcfg;
 extern void mips_cps_core_entry(void);
 extern void mips_cps_core_init(void);
 
-extern struct vpe_boot_config *mips_cps_boot_vpes(void);
+extern void mips_cps_boot_vpes(struct core_boot_config *cfg, unsigned vpe);
 
 extern void mips_cps_pm_save(void);
 extern void mips_cps_pm_restore(void);

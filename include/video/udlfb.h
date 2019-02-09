@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef UDLFB_H
 #define UDLFB_H
 
@@ -18,8 +19,7 @@ struct dloarea {
 
 struct urb_node {
 	struct list_head entry;
-	struct dlfb_data *dev;
-	struct delayed_work release_urb_work;
+	struct dlfb_data *dlfb;
 	struct urb *urb;
 };
 
@@ -34,7 +34,6 @@ struct urb_list {
 
 struct dlfb_data {
 	struct usb_device *udev;
-	struct device *gdev; /* &udev->dev */
 	struct fb_info *info;
 	struct urb_list urbs;
 	struct kref kref;
@@ -52,11 +51,14 @@ struct dlfb_data {
 	int base8;
 	u32 pseudo_palette[256];
 	int blank_mode; /*one of FB_BLANK_ */
+	struct fb_ops ops;
 	/* blit-only rendering path metrics, exposed through sysfs */
 	atomic_t bytes_rendered; /* raw pixel-bytes driver asked to render */
 	atomic_t bytes_identical; /* saved effort with backbuffer comparison */
 	atomic_t bytes_sent; /* to usb, after compression including overhead */
 	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
+	struct fb_var_screeninfo current_mode;
+	struct list_head deferred_free;
 };
 
 #define NR_USB_REQUEST_I2C_SUB_IO 0x02
@@ -87,11 +89,11 @@ struct dlfb_data {
 #define MIN_RAW_PIX_BYTES	2
 #define MIN_RAW_CMD_BYTES	(RAW_HEADER_BYTES + MIN_RAW_PIX_BYTES)
 
-#define DL_DEFIO_WRITE_DELAY    5 /* fb_deferred_io.delay in jiffies */
+#define DL_DEFIO_WRITE_DELAY    msecs_to_jiffies(HZ <= 300 ? 4 : 10) /* optimal value for 720p video */
 #define DL_DEFIO_WRITE_DISABLE  (HZ*60) /* "disable" with long delay */
 
 /* remove these once align.h patch is taken into kernel */
 #define DL_ALIGN_UP(x, a) ALIGN(x, a)
-#define DL_ALIGN_DOWN(x, a) ALIGN(x-(a-1), a)
+#define DL_ALIGN_DOWN(x, a) ALIGN_DOWN(x, a)
 
 #endif

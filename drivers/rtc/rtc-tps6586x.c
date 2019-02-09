@@ -58,7 +58,6 @@ struct tps6586x_rtc {
 	struct rtc_device	*rtc;
 	int			irq;
 	bool			irq_en;
-	unsigned long long	epoch_start;
 };
 
 static inline struct device *to_tps6586x_dev(struct device *dev)
@@ -68,10 +67,9 @@ static inline struct device *to_tps6586x_dev(struct device *dev)
 
 static int tps6586x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct tps6586x_rtc *rtc = dev_get_drvdata(dev);
 	struct device *tps_dev = to_tps6586x_dev(dev);
 	unsigned long long ticks = 0;
-	unsigned long seconds;
+	time64_t seconds;
 	u8 buff[6];
 	int ret;
 	int i;
@@ -88,26 +86,20 @@ static int tps6586x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	}
 
 	seconds = ticks >> 10;
-	seconds += rtc->epoch_start;
-	rtc_time_to_tm(seconds, tm);
-	return rtc_valid_tm(tm);
+	rtc_time64_to_tm(seconds, tm);
+
+	return 0;
 }
 
 static int tps6586x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct tps6586x_rtc *rtc = dev_get_drvdata(dev);
 	struct device *tps_dev = to_tps6586x_dev(dev);
 	unsigned long long ticks;
-	unsigned long seconds;
+	time64_t seconds;
 	u8 buff[5];
 	int ret;
 
-	rtc_tm_to_time(tm, &seconds);
-	if (seconds < rtc->epoch_start) {
-		dev_err(dev, "requested time unsupported\n");
-		return -EINVAL;
-	}
-	seconds -= rtc->epoch_start;
+	seconds = rtc_tm_to_time64(tm);
 
 	ticks = (unsigned long long)seconds << 10;
 	buff[0] = (ticks >> 32) & 0xff;
@@ -155,9 +147,8 @@ static int tps6586x_rtc_alarm_irq_enable(struct device *dev,
 
 static int tps6586x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct tps6586x_rtc *rtc = dev_get_drvdata(dev);
 	struct device *tps_dev = to_tps6586x_dev(dev);
-	unsigned long seconds;
+	time64_t seconds;
 	unsigned long ticks;
 	unsigned long rtc_current_time;
 	unsigned long long rticks = 0;
@@ -166,12 +157,7 @@ static int tps6586x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	int ret;
 	int i;
 
-	rtc_tm_to_time(&alrm->time, &seconds);
-
-	if (alrm->enabled && (seconds < rtc->epoch_start)) {
-		dev_err(dev, "can't set alarm to requested time\n");
-		return -EINVAL;
-	}
+	seconds = rtc_tm_to_time64(&alrm->time);
 
 	ret = tps6586x_rtc_alarm_irq_enable(dev, alrm->enabled);
 	if (ret < 0) {
@@ -179,7 +165,6 @@ static int tps6586x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		return ret;
 	}
 
-	seconds -= rtc->epoch_start;
 	ret = tps6586x_reads(tps_dev, RTC_COUNT4_DUMMYREAD,
 			sizeof(rbuff), rbuff);
 	if (ret < 0) {
@@ -210,10 +195,9 @@ static int tps6586x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int tps6586x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct tps6586x_rtc *rtc = dev_get_drvdata(dev);
 	struct device *tps_dev = to_tps6586x_dev(dev);
 	unsigned long ticks;
-	unsigned long seconds;
+	time64_t seconds;
 	u8 buff[3];
 	int ret;
 
@@ -225,9 +209,8 @@ static int tps6586x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	ticks = (buff[0] << 16) | (buff[1] << 8) | buff[2];
 	seconds = ticks >> 10;
-	seconds += rtc->epoch_start;
 
-	rtc_time_to_tm(seconds, &alrm->time);
+	rtc_time64_to_tm(seconds, &alrm->time);
 	return 0;
 }
 
@@ -260,9 +243,6 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	rtc->dev = &pdev->dev;
 	rtc->irq = platform_get_irq(pdev, 0);
 
-	/* Set epoch start as 00:00:00:01:01:2009 */
-	rtc->epoch_start = mktime(2009, 1, 1, 0, 0, 0);
-
 	/* 1 kHz tick mode, enable tick counting */
 	ret = tps6586x_update(tps_dev, RTC_CTRL,
 		RTC_ENABLE | OSC_SRC_SEL |
@@ -276,17 +256,21 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 
 	platform_set_drvdata(pdev, rtc);
-	rtc->rtc = devm_rtc_device_register(&pdev->dev, dev_name(&pdev->dev),
-				       &tps6586x_rtc_ops, THIS_MODULE);
+	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
-		dev_err(&pdev->dev, "RTC device register: ret %d\n", ret);
+		dev_err(&pdev->dev, "RTC allocate device: ret %d\n", ret);
 		goto fail_rtc_register;
 	}
 
+	rtc->rtc->ops = &tps6586x_rtc_ops;
+	rtc->rtc->range_max = (1ULL << 30) - 1; /* 30-bit seconds */
+	rtc->rtc->start_secs = mktime64(2009, 1, 1, 0, 0, 0);
+	rtc->rtc->set_start_time = true;
+
 	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
 				tps6586x_rtc_irq,
-				IRQF_ONESHOT | IRQF_EARLY_RESUME,
+				IRQF_ONESHOT,
 				dev_name(&pdev->dev), rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request IRQ(%d) failed with ret %d\n",
@@ -294,6 +278,13 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 		goto fail_rtc_register;
 	}
 	disable_irq(rtc->irq);
+
+	ret = rtc_register_device(rtc->rtc);
+	if (ret) {
+		dev_err(&pdev->dev, "RTC device register: ret %d\n", ret);
+		goto fail_rtc_register;
+	}
+
 	return 0;
 
 fail_rtc_register:
@@ -344,7 +335,7 @@ static struct platform_driver tps6586x_rtc_driver = {
 };
 module_platform_driver(tps6586x_rtc_driver);
 
-MODULE_ALIAS("platform:rtc-tps6586x");
+MODULE_ALIAS("platform:tps6586x-rtc");
 MODULE_DESCRIPTION("TI TPS6586x RTC driver");
 MODULE_AUTHOR("Laxman dewangan <ldewangan@nvidia.com>");
 MODULE_LICENSE("GPL v2");

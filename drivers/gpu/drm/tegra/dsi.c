@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
 #include <linux/regulator/consumer.h>
@@ -27,6 +28,7 @@
 #include "drm.h"
 #include "dsi.h"
 #include "mipi-phy.h"
+#include "trace.h"
 
 struct tegra_dsi_state {
 	struct drm_connector_state base;
@@ -63,8 +65,6 @@ struct tegra_dsi {
 	struct clk *clk;
 
 	struct drm_info_list *debugfs_files;
-	struct drm_minor *minor;
-	struct dentry *debugfs;
 
 	unsigned long flags;
 	enum mipi_dsi_pixel_format format;
@@ -104,16 +104,97 @@ static struct tegra_dsi_state *tegra_dsi_get_state(struct tegra_dsi *dsi)
 	return to_dsi_state(dsi->output.connector.state);
 }
 
-static inline u32 tegra_dsi_readl(struct tegra_dsi *dsi, unsigned long reg)
+static inline u32 tegra_dsi_readl(struct tegra_dsi *dsi, unsigned int offset)
 {
-	return readl(dsi->regs + (reg << 2));
+	u32 value = readl(dsi->regs + (offset << 2));
+
+	trace_dsi_readl(dsi->dev, offset, value);
+
+	return value;
 }
 
 static inline void tegra_dsi_writel(struct tegra_dsi *dsi, u32 value,
-				    unsigned long reg)
+				    unsigned int offset)
 {
-	writel(value, dsi->regs + (reg << 2));
+	trace_dsi_writel(dsi->dev, offset, value);
+	writel(value, dsi->regs + (offset << 2));
 }
+
+#define DEBUGFS_REG32(_name) { .name = #_name, .offset = _name }
+
+static const struct debugfs_reg32 tegra_dsi_regs[] = {
+	DEBUGFS_REG32(DSI_INCR_SYNCPT),
+	DEBUGFS_REG32(DSI_INCR_SYNCPT_CONTROL),
+	DEBUGFS_REG32(DSI_INCR_SYNCPT_ERROR),
+	DEBUGFS_REG32(DSI_CTXSW),
+	DEBUGFS_REG32(DSI_RD_DATA),
+	DEBUGFS_REG32(DSI_WR_DATA),
+	DEBUGFS_REG32(DSI_POWER_CONTROL),
+	DEBUGFS_REG32(DSI_INT_ENABLE),
+	DEBUGFS_REG32(DSI_INT_STATUS),
+	DEBUGFS_REG32(DSI_INT_MASK),
+	DEBUGFS_REG32(DSI_HOST_CONTROL),
+	DEBUGFS_REG32(DSI_CONTROL),
+	DEBUGFS_REG32(DSI_SOL_DELAY),
+	DEBUGFS_REG32(DSI_MAX_THRESHOLD),
+	DEBUGFS_REG32(DSI_TRIGGER),
+	DEBUGFS_REG32(DSI_TX_CRC),
+	DEBUGFS_REG32(DSI_STATUS),
+	DEBUGFS_REG32(DSI_INIT_SEQ_CONTROL),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_0),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_1),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_2),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_3),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_4),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_5),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_6),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_7),
+	DEBUGFS_REG32(DSI_PKT_SEQ_0_LO),
+	DEBUGFS_REG32(DSI_PKT_SEQ_0_HI),
+	DEBUGFS_REG32(DSI_PKT_SEQ_1_LO),
+	DEBUGFS_REG32(DSI_PKT_SEQ_1_HI),
+	DEBUGFS_REG32(DSI_PKT_SEQ_2_LO),
+	DEBUGFS_REG32(DSI_PKT_SEQ_2_HI),
+	DEBUGFS_REG32(DSI_PKT_SEQ_3_LO),
+	DEBUGFS_REG32(DSI_PKT_SEQ_3_HI),
+	DEBUGFS_REG32(DSI_PKT_SEQ_4_LO),
+	DEBUGFS_REG32(DSI_PKT_SEQ_4_HI),
+	DEBUGFS_REG32(DSI_PKT_SEQ_5_LO),
+	DEBUGFS_REG32(DSI_PKT_SEQ_5_HI),
+	DEBUGFS_REG32(DSI_DCS_CMDS),
+	DEBUGFS_REG32(DSI_PKT_LEN_0_1),
+	DEBUGFS_REG32(DSI_PKT_LEN_2_3),
+	DEBUGFS_REG32(DSI_PKT_LEN_4_5),
+	DEBUGFS_REG32(DSI_PKT_LEN_6_7),
+	DEBUGFS_REG32(DSI_PHY_TIMING_0),
+	DEBUGFS_REG32(DSI_PHY_TIMING_1),
+	DEBUGFS_REG32(DSI_PHY_TIMING_2),
+	DEBUGFS_REG32(DSI_BTA_TIMING),
+	DEBUGFS_REG32(DSI_TIMEOUT_0),
+	DEBUGFS_REG32(DSI_TIMEOUT_1),
+	DEBUGFS_REG32(DSI_TO_TALLY),
+	DEBUGFS_REG32(DSI_PAD_CONTROL_0),
+	DEBUGFS_REG32(DSI_PAD_CONTROL_CD),
+	DEBUGFS_REG32(DSI_PAD_CD_STATUS),
+	DEBUGFS_REG32(DSI_VIDEO_MODE_CONTROL),
+	DEBUGFS_REG32(DSI_PAD_CONTROL_1),
+	DEBUGFS_REG32(DSI_PAD_CONTROL_2),
+	DEBUGFS_REG32(DSI_PAD_CONTROL_3),
+	DEBUGFS_REG32(DSI_PAD_CONTROL_4),
+	DEBUGFS_REG32(DSI_GANGED_MODE_CONTROL),
+	DEBUGFS_REG32(DSI_GANGED_MODE_START),
+	DEBUGFS_REG32(DSI_GANGED_MODE_SIZE),
+	DEBUGFS_REG32(DSI_RAW_DATA_BYTE_COUNT),
+	DEBUGFS_REG32(DSI_ULTRA_LOW_POWER_CONTROL),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_8),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_9),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_10),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_11),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_12),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_13),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_14),
+	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_15),
+};
 
 static int tegra_dsi_show_regs(struct seq_file *s, void *data)
 {
@@ -121,6 +202,7 @@ static int tegra_dsi_show_regs(struct seq_file *s, void *data)
 	struct tegra_dsi *dsi = node->info_ent->data;
 	struct drm_crtc *crtc = dsi->output.encoder.crtc;
 	struct drm_device *drm = node->minor->dev;
+	unsigned int i;
 	int err = 0;
 
 	drm_modeset_lock_all(drm);
@@ -130,93 +212,12 @@ static int tegra_dsi_show_regs(struct seq_file *s, void *data)
 		goto unlock;
 	}
 
-#define DUMP_REG(name)						\
-	seq_printf(s, "%-32s %#05x %08x\n", #name, name,	\
-		   tegra_dsi_readl(dsi, name))
+	for (i = 0; i < ARRAY_SIZE(tegra_dsi_regs); i++) {
+		unsigned int offset = tegra_dsi_regs[i].offset;
 
-	DUMP_REG(DSI_INCR_SYNCPT);
-	DUMP_REG(DSI_INCR_SYNCPT_CONTROL);
-	DUMP_REG(DSI_INCR_SYNCPT_ERROR);
-	DUMP_REG(DSI_CTXSW);
-	DUMP_REG(DSI_RD_DATA);
-	DUMP_REG(DSI_WR_DATA);
-	DUMP_REG(DSI_POWER_CONTROL);
-	DUMP_REG(DSI_INT_ENABLE);
-	DUMP_REG(DSI_INT_STATUS);
-	DUMP_REG(DSI_INT_MASK);
-	DUMP_REG(DSI_HOST_CONTROL);
-	DUMP_REG(DSI_CONTROL);
-	DUMP_REG(DSI_SOL_DELAY);
-	DUMP_REG(DSI_MAX_THRESHOLD);
-	DUMP_REG(DSI_TRIGGER);
-	DUMP_REG(DSI_TX_CRC);
-	DUMP_REG(DSI_STATUS);
-
-	DUMP_REG(DSI_INIT_SEQ_CONTROL);
-	DUMP_REG(DSI_INIT_SEQ_DATA_0);
-	DUMP_REG(DSI_INIT_SEQ_DATA_1);
-	DUMP_REG(DSI_INIT_SEQ_DATA_2);
-	DUMP_REG(DSI_INIT_SEQ_DATA_3);
-	DUMP_REG(DSI_INIT_SEQ_DATA_4);
-	DUMP_REG(DSI_INIT_SEQ_DATA_5);
-	DUMP_REG(DSI_INIT_SEQ_DATA_6);
-	DUMP_REG(DSI_INIT_SEQ_DATA_7);
-
-	DUMP_REG(DSI_PKT_SEQ_0_LO);
-	DUMP_REG(DSI_PKT_SEQ_0_HI);
-	DUMP_REG(DSI_PKT_SEQ_1_LO);
-	DUMP_REG(DSI_PKT_SEQ_1_HI);
-	DUMP_REG(DSI_PKT_SEQ_2_LO);
-	DUMP_REG(DSI_PKT_SEQ_2_HI);
-	DUMP_REG(DSI_PKT_SEQ_3_LO);
-	DUMP_REG(DSI_PKT_SEQ_3_HI);
-	DUMP_REG(DSI_PKT_SEQ_4_LO);
-	DUMP_REG(DSI_PKT_SEQ_4_HI);
-	DUMP_REG(DSI_PKT_SEQ_5_LO);
-	DUMP_REG(DSI_PKT_SEQ_5_HI);
-
-	DUMP_REG(DSI_DCS_CMDS);
-
-	DUMP_REG(DSI_PKT_LEN_0_1);
-	DUMP_REG(DSI_PKT_LEN_2_3);
-	DUMP_REG(DSI_PKT_LEN_4_5);
-	DUMP_REG(DSI_PKT_LEN_6_7);
-
-	DUMP_REG(DSI_PHY_TIMING_0);
-	DUMP_REG(DSI_PHY_TIMING_1);
-	DUMP_REG(DSI_PHY_TIMING_2);
-	DUMP_REG(DSI_BTA_TIMING);
-
-	DUMP_REG(DSI_TIMEOUT_0);
-	DUMP_REG(DSI_TIMEOUT_1);
-	DUMP_REG(DSI_TO_TALLY);
-
-	DUMP_REG(DSI_PAD_CONTROL_0);
-	DUMP_REG(DSI_PAD_CONTROL_CD);
-	DUMP_REG(DSI_PAD_CD_STATUS);
-	DUMP_REG(DSI_VIDEO_MODE_CONTROL);
-	DUMP_REG(DSI_PAD_CONTROL_1);
-	DUMP_REG(DSI_PAD_CONTROL_2);
-	DUMP_REG(DSI_PAD_CONTROL_3);
-	DUMP_REG(DSI_PAD_CONTROL_4);
-
-	DUMP_REG(DSI_GANGED_MODE_CONTROL);
-	DUMP_REG(DSI_GANGED_MODE_START);
-	DUMP_REG(DSI_GANGED_MODE_SIZE);
-
-	DUMP_REG(DSI_RAW_DATA_BYTE_COUNT);
-	DUMP_REG(DSI_ULTRA_LOW_POWER_CONTROL);
-
-	DUMP_REG(DSI_INIT_SEQ_DATA_8);
-	DUMP_REG(DSI_INIT_SEQ_DATA_9);
-	DUMP_REG(DSI_INIT_SEQ_DATA_10);
-	DUMP_REG(DSI_INIT_SEQ_DATA_11);
-	DUMP_REG(DSI_INIT_SEQ_DATA_12);
-	DUMP_REG(DSI_INIT_SEQ_DATA_13);
-	DUMP_REG(DSI_INIT_SEQ_DATA_14);
-	DUMP_REG(DSI_INIT_SEQ_DATA_15);
-
-#undef DUMP_REG
+		seq_printf(s, "%-32s %#05x %08x\n", tegra_dsi_regs[i].name,
+			   offset, tegra_dsi_readl(dsi, offset));
+	}
 
 unlock:
 	drm_modeset_unlock_all(drm);
@@ -227,58 +228,46 @@ static struct drm_info_list debugfs_files[] = {
 	{ "regs", tegra_dsi_show_regs, 0, NULL },
 };
 
-static int tegra_dsi_debugfs_init(struct tegra_dsi *dsi,
-				  struct drm_minor *minor)
+static int tegra_dsi_late_register(struct drm_connector *connector)
 {
-	const char *name = dev_name(dsi->dev);
-	unsigned int i;
+	struct tegra_output *output = connector_to_output(connector);
+	unsigned int i, count = ARRAY_SIZE(debugfs_files);
+	struct drm_minor *minor = connector->dev->primary;
+	struct dentry *root = connector->debugfs_entry;
+	struct tegra_dsi *dsi = to_dsi(output);
 	int err;
-
-	dsi->debugfs = debugfs_create_dir(name, minor->debugfs_root);
-	if (!dsi->debugfs)
-		return -ENOMEM;
 
 	dsi->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
 				     GFP_KERNEL);
-	if (!dsi->debugfs_files) {
-		err = -ENOMEM;
-		goto remove;
-	}
+	if (!dsi->debugfs_files)
+		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(debugfs_files); i++)
+	for (i = 0; i < count; i++)
 		dsi->debugfs_files[i].data = dsi;
 
-	err = drm_debugfs_create_files(dsi->debugfs_files,
-				       ARRAY_SIZE(debugfs_files),
-				       dsi->debugfs, minor);
+	err = drm_debugfs_create_files(dsi->debugfs_files, count, root, minor);
 	if (err < 0)
 		goto free;
-
-	dsi->minor = minor;
 
 	return 0;
 
 free:
 	kfree(dsi->debugfs_files);
 	dsi->debugfs_files = NULL;
-remove:
-	debugfs_remove(dsi->debugfs);
-	dsi->debugfs = NULL;
 
 	return err;
 }
 
-static void tegra_dsi_debugfs_exit(struct tegra_dsi *dsi)
+static void tegra_dsi_early_unregister(struct drm_connector *connector)
 {
-	drm_debugfs_remove_files(dsi->debugfs_files, ARRAY_SIZE(debugfs_files),
-				 dsi->minor);
-	dsi->minor = NULL;
+	struct tegra_output *output = connector_to_output(connector);
+	unsigned int count = ARRAY_SIZE(debugfs_files);
+	struct tegra_dsi *dsi = to_dsi(output);
 
+	drm_debugfs_remove_files(dsi->debugfs_files, count,
+				 connector->dev->primary);
 	kfree(dsi->debugfs_files);
 	dsi->debugfs_files = NULL;
-
-	debugfs_remove(dsi->debugfs);
-	dsi->debugfs = NULL;
 }
 
 #define PKT_ID0(id)	((((id) & 0x3f) <<  3) | (1 <<  9))
@@ -677,6 +666,45 @@ static void tegra_dsi_ganged_disable(struct tegra_dsi *dsi)
 	tegra_dsi_writel(dsi, 0, DSI_GANGED_MODE_CONTROL);
 }
 
+static int tegra_dsi_pad_enable(struct tegra_dsi *dsi)
+{
+	u32 value;
+
+	value = DSI_PAD_CONTROL_VS1_PULLDN(0) | DSI_PAD_CONTROL_VS1_PDIO(0);
+	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_0);
+
+	return 0;
+}
+
+static int tegra_dsi_pad_calibrate(struct tegra_dsi *dsi)
+{
+	u32 value;
+
+	/*
+	 * XXX Is this still needed? The module reset is deasserted right
+	 * before this function is called.
+	 */
+	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_0);
+	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_1);
+	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_2);
+	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_3);
+	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_4);
+
+	/* start calibration */
+	tegra_dsi_pad_enable(dsi);
+
+	value = DSI_PAD_SLEW_UP(0x7) | DSI_PAD_SLEW_DN(0x7) |
+		DSI_PAD_LP_UP(0x1) | DSI_PAD_LP_DN(0x1) |
+		DSI_PAD_OUT_CLK(0x0);
+	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_2);
+
+	value = DSI_PAD_PREEMP_PD_CLK(0x3) | DSI_PAD_PREEMP_PU_CLK(0x3) |
+		DSI_PAD_PREEMP_PD(0x03) | DSI_PAD_PREEMP_PU(0x3);
+	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_3);
+
+	return tegra_mipi_calibrate(dsi->mipi);
+}
+
 static void tegra_dsi_set_timeout(struct tegra_dsi *dsi, unsigned long bclk,
 				  unsigned int vrefresh)
 {
@@ -745,14 +773,17 @@ static void tegra_dsi_soft_reset(struct tegra_dsi *dsi)
 
 static void tegra_dsi_connector_reset(struct drm_connector *connector)
 {
-	struct tegra_dsi_state *state;
+	struct tegra_dsi_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
 
-	kfree(connector->state);
-	connector->state = NULL;
+	if (!state)
+		return;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state)
-		connector->state = &state->base;
+	if (connector->state) {
+		__drm_atomic_helper_connector_destroy_state(connector->state);
+		kfree(connector->state);
+	}
+
+	__drm_atomic_helper_connector_reset(connector, &state->base);
 }
 
 static struct drm_connector_state *
@@ -765,17 +796,21 @@ tegra_dsi_connector_duplicate_state(struct drm_connector *connector)
 	if (!copy)
 		return NULL;
 
+	__drm_atomic_helper_connector_duplicate_state(connector,
+						      &copy->base);
+
 	return &copy->base;
 }
 
 static const struct drm_connector_funcs tegra_dsi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = tegra_dsi_connector_reset,
 	.detect = tegra_output_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = tegra_output_connector_destroy,
 	.atomic_duplicate_state = tegra_dsi_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.late_register = tegra_dsi_late_register,
+	.early_unregister = tegra_dsi_early_unregister,
 };
 
 static enum drm_mode_status
@@ -788,12 +823,26 @@ tegra_dsi_connector_mode_valid(struct drm_connector *connector,
 static const struct drm_connector_helper_funcs tegra_dsi_connector_helper_funcs = {
 	.get_modes = tegra_output_connector_get_modes,
 	.mode_valid = tegra_dsi_connector_mode_valid,
-	.best_encoder = tegra_output_connector_best_encoder,
 };
 
 static const struct drm_encoder_funcs tegra_dsi_encoder_funcs = {
 	.destroy = tegra_output_encoder_destroy,
 };
+
+static void tegra_dsi_unprepare(struct tegra_dsi *dsi)
+{
+	int err;
+
+	if (dsi->slave)
+		tegra_dsi_unprepare(dsi->slave);
+
+	err = tegra_mipi_disable(dsi->mipi);
+	if (err < 0)
+		dev_err(dsi->dev, "failed to disable MIPI calibration: %d\n",
+			err);
+
+	pm_runtime_put(dsi->dev);
+}
 
 static void tegra_dsi_encoder_disable(struct drm_encoder *encoder)
 {
@@ -831,7 +880,26 @@ static void tegra_dsi_encoder_disable(struct drm_encoder *encoder)
 
 	tegra_dsi_disable(dsi);
 
-	return;
+	tegra_dsi_unprepare(dsi);
+}
+
+static void tegra_dsi_prepare(struct tegra_dsi *dsi)
+{
+	int err;
+
+	pm_runtime_get_sync(dsi->dev);
+
+	err = tegra_mipi_enable(dsi->mipi);
+	if (err < 0)
+		dev_err(dsi->dev, "failed to enable MIPI calibration: %d\n",
+			err);
+
+	err = tegra_dsi_pad_calibrate(dsi);
+	if (err < 0)
+		dev_err(dsi->dev, "MIPI calibration failed: %d\n", err);
+
+	if (dsi->slave)
+		tegra_dsi_prepare(dsi->slave);
 }
 
 static void tegra_dsi_encoder_enable(struct drm_encoder *encoder)
@@ -842,6 +910,8 @@ static void tegra_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct tegra_dsi *dsi = to_dsi(output);
 	struct tegra_dsi_state *state;
 	u32 value;
+
+	tegra_dsi_prepare(dsi);
 
 	state = tegra_dsi_get_state(dsi);
 
@@ -870,8 +940,6 @@ static void tegra_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	if (output->panel)
 		drm_panel_enable(output->panel);
-
-	return;
 }
 
 static int
@@ -961,54 +1029,11 @@ static const struct drm_encoder_helper_funcs tegra_dsi_encoder_helper_funcs = {
 	.atomic_check = tegra_dsi_encoder_atomic_check,
 };
 
-static int tegra_dsi_pad_enable(struct tegra_dsi *dsi)
-{
-	u32 value;
-
-	value = DSI_PAD_CONTROL_VS1_PULLDN(0) | DSI_PAD_CONTROL_VS1_PDIO(0);
-	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_0);
-
-	return 0;
-}
-
-static int tegra_dsi_pad_calibrate(struct tegra_dsi *dsi)
-{
-	u32 value;
-
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_0);
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_1);
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_2);
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_3);
-	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_4);
-
-	/* start calibration */
-	tegra_dsi_pad_enable(dsi);
-
-	value = DSI_PAD_SLEW_UP(0x7) | DSI_PAD_SLEW_DN(0x7) |
-		DSI_PAD_LP_UP(0x1) | DSI_PAD_LP_DN(0x1) |
-		DSI_PAD_OUT_CLK(0x0);
-	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_2);
-
-	value = DSI_PAD_PREEMP_PD_CLK(0x3) | DSI_PAD_PREEMP_PU_CLK(0x3) |
-		DSI_PAD_PREEMP_PD(0x03) | DSI_PAD_PREEMP_PU(0x3);
-	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_3);
-
-	return tegra_mipi_calibrate(dsi->mipi);
-}
-
 static int tegra_dsi_init(struct host1x_client *client)
 {
 	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_dsi *dsi = host1x_client_to_dsi(client);
 	int err;
-
-	reset_control_deassert(dsi->rst);
-
-	err = tegra_dsi_pad_calibrate(dsi);
-	if (err < 0) {
-		dev_err(dsi->dev, "MIPI calibration failed: %d\n", err);
-		goto reset;
-	}
 
 	/* Gangsters must not register their own outputs. */
 	if (!dsi->master) {
@@ -1023,36 +1048,23 @@ static int tegra_dsi_init(struct host1x_client *client)
 
 		drm_encoder_init(drm, &dsi->output.encoder,
 				 &tegra_dsi_encoder_funcs,
-				 DRM_MODE_ENCODER_DSI);
+				 DRM_MODE_ENCODER_DSI, NULL);
 		drm_encoder_helper_add(&dsi->output.encoder,
 				       &tegra_dsi_encoder_helper_funcs);
 
-		drm_mode_connector_attach_encoder(&dsi->output.connector,
+		drm_connector_attach_encoder(&dsi->output.connector,
 						  &dsi->output.encoder);
 		drm_connector_register(&dsi->output.connector);
 
 		err = tegra_output_init(drm, &dsi->output);
-		if (err < 0) {
-			dev_err(client->dev,
-				"failed to initialize output: %d\n",
+		if (err < 0)
+			dev_err(dsi->dev, "failed to initialize output: %d\n",
 				err);
-			goto reset;
-		}
 
 		dsi->output.encoder.possible_crtcs = 0x3;
 	}
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_dsi_debugfs_init(dsi, drm->primary);
-		if (err < 0)
-			dev_err(dsi->dev, "debugfs setup failed: %d\n", err);
-	}
-
 	return 0;
-
-reset:
-	reset_control_assert(dsi->rst);
-	return err;
 }
 
 static int tegra_dsi_exit(struct host1x_client *client)
@@ -1060,11 +1072,6 @@ static int tegra_dsi_exit(struct host1x_client *client)
 	struct tegra_dsi *dsi = host1x_client_to_dsi(client);
 
 	tegra_output_exit(&dsi->output);
-
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		tegra_dsi_debugfs_exit(dsi);
-
-	reset_control_assert(dsi->rst);
 
 	return 0;
 }
@@ -1404,6 +1411,9 @@ static int tegra_dsi_host_attach(struct mipi_dsi_host *host,
 		struct tegra_output *output = &dsi->output;
 
 		output->panel = of_drm_find_panel(device->dev.of_node);
+		if (IS_ERR(output->panel))
+			output->panel = NULL;
+
 		if (output->panel && output->connector.dev) {
 			drm_panel_attach(output->panel, &output->connector);
 			drm_helper_hpd_irq_event(output->connector.dev);
@@ -1488,74 +1498,50 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->lanes = 4;
 
-	dsi->rst = devm_reset_control_get(&pdev->dev, "dsi");
-	if (IS_ERR(dsi->rst))
-		return PTR_ERR(dsi->rst);
+	if (!pdev->dev.pm_domain) {
+		dsi->rst = devm_reset_control_get(&pdev->dev, "dsi");
+		if (IS_ERR(dsi->rst))
+			return PTR_ERR(dsi->rst);
+	}
 
 	dsi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dsi->clk)) {
 		dev_err(&pdev->dev, "cannot get DSI clock\n");
-		err = PTR_ERR(dsi->clk);
-		goto reset;
-	}
-
-	err = clk_prepare_enable(dsi->clk);
-	if (err < 0) {
-		dev_err(&pdev->dev, "cannot enable DSI clock\n");
-		goto reset;
+		return PTR_ERR(dsi->clk);
 	}
 
 	dsi->clk_lp = devm_clk_get(&pdev->dev, "lp");
 	if (IS_ERR(dsi->clk_lp)) {
 		dev_err(&pdev->dev, "cannot get low-power clock\n");
-		err = PTR_ERR(dsi->clk_lp);
-		goto disable_clk;
-	}
-
-	err = clk_prepare_enable(dsi->clk_lp);
-	if (err < 0) {
-		dev_err(&pdev->dev, "cannot enable low-power clock\n");
-		goto disable_clk;
+		return PTR_ERR(dsi->clk_lp);
 	}
 
 	dsi->clk_parent = devm_clk_get(&pdev->dev, "parent");
 	if (IS_ERR(dsi->clk_parent)) {
 		dev_err(&pdev->dev, "cannot get parent clock\n");
-		err = PTR_ERR(dsi->clk_parent);
-		goto disable_clk_lp;
+		return PTR_ERR(dsi->clk_parent);
 	}
 
 	dsi->vdd = devm_regulator_get(&pdev->dev, "avdd-dsi-csi");
 	if (IS_ERR(dsi->vdd)) {
 		dev_err(&pdev->dev, "cannot get VDD supply\n");
-		err = PTR_ERR(dsi->vdd);
-		goto disable_clk_lp;
-	}
-
-	err = regulator_enable(dsi->vdd);
-	if (err < 0) {
-		dev_err(&pdev->dev, "cannot enable VDD supply\n");
-		goto disable_clk_lp;
+		return PTR_ERR(dsi->vdd);
 	}
 
 	err = tegra_dsi_setup_clocks(dsi);
 	if (err < 0) {
 		dev_err(&pdev->dev, "cannot setup clocks\n");
-		goto disable_vdd;
+		return err;
 	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dsi->regs = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(dsi->regs)) {
-		err = PTR_ERR(dsi->regs);
-		goto disable_vdd;
-	}
+	if (IS_ERR(dsi->regs))
+		return PTR_ERR(dsi->regs);
 
 	dsi->mipi = tegra_mipi_request(&pdev->dev);
-	if (IS_ERR(dsi->mipi)) {
-		err = PTR_ERR(dsi->mipi);
-		goto disable_vdd;
-	}
+	if (IS_ERR(dsi->mipi))
+		return PTR_ERR(dsi->mipi);
 
 	dsi->host.ops = &tegra_dsi_host_ops;
 	dsi->host.dev = &pdev->dev;
@@ -1565,6 +1551,9 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register DSI host: %d\n", err);
 		goto mipi_free;
 	}
+
+	platform_set_drvdata(pdev, dsi);
+	pm_runtime_enable(&pdev->dev);
 
 	INIT_LIST_HEAD(&dsi->client.list);
 	dsi->client.ops = &dsi_client_ops;
@@ -1577,22 +1566,12 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 		goto unregister;
 	}
 
-	platform_set_drvdata(pdev, dsi);
-
 	return 0;
 
 unregister:
 	mipi_dsi_host_unregister(&dsi->host);
 mipi_free:
 	tegra_mipi_free(dsi->mipi);
-disable_vdd:
-	regulator_disable(dsi->vdd);
-disable_clk_lp:
-	clk_disable_unprepare(dsi->clk_lp);
-disable_clk:
-	clk_disable_unprepare(dsi->clk);
-reset:
-	reset_control_assert(dsi->rst);
 	return err;
 }
 
@@ -1600,6 +1579,8 @@ static int tegra_dsi_remove(struct platform_device *pdev)
 {
 	struct tegra_dsi *dsi = platform_get_drvdata(pdev);
 	int err;
+
+	pm_runtime_disable(&pdev->dev);
 
 	err = host1x_client_unregister(&dsi->client);
 	if (err < 0) {
@@ -1613,13 +1594,81 @@ static int tegra_dsi_remove(struct platform_device *pdev)
 	mipi_dsi_host_unregister(&dsi->host);
 	tegra_mipi_free(dsi->mipi);
 
-	regulator_disable(dsi->vdd);
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int tegra_dsi_suspend(struct device *dev)
+{
+	struct tegra_dsi *dsi = dev_get_drvdata(dev);
+	int err;
+
+	if (dsi->rst) {
+		err = reset_control_assert(dsi->rst);
+		if (err < 0) {
+			dev_err(dev, "failed to assert reset: %d\n", err);
+			return err;
+		}
+	}
+
+	usleep_range(1000, 2000);
+
 	clk_disable_unprepare(dsi->clk_lp);
 	clk_disable_unprepare(dsi->clk);
-	reset_control_assert(dsi->rst);
+
+	regulator_disable(dsi->vdd);
 
 	return 0;
 }
+
+static int tegra_dsi_resume(struct device *dev)
+{
+	struct tegra_dsi *dsi = dev_get_drvdata(dev);
+	int err;
+
+	err = regulator_enable(dsi->vdd);
+	if (err < 0) {
+		dev_err(dsi->dev, "failed to enable VDD supply: %d\n", err);
+		return err;
+	}
+
+	err = clk_prepare_enable(dsi->clk);
+	if (err < 0) {
+		dev_err(dev, "cannot enable DSI clock: %d\n", err);
+		goto disable_vdd;
+	}
+
+	err = clk_prepare_enable(dsi->clk_lp);
+	if (err < 0) {
+		dev_err(dev, "cannot enable low-power clock: %d\n", err);
+		goto disable_clk;
+	}
+
+	usleep_range(1000, 2000);
+
+	if (dsi->rst) {
+		err = reset_control_deassert(dsi->rst);
+		if (err < 0) {
+			dev_err(dev, "cannot assert reset: %d\n", err);
+			goto disable_clk_lp;
+		}
+	}
+
+	return 0;
+
+disable_clk_lp:
+	clk_disable_unprepare(dsi->clk_lp);
+disable_clk:
+	clk_disable_unprepare(dsi->clk);
+disable_vdd:
+	regulator_disable(dsi->vdd);
+	return err;
+}
+#endif
+
+static const struct dev_pm_ops tegra_dsi_pm_ops = {
+	SET_RUNTIME_PM_OPS(tegra_dsi_suspend, tegra_dsi_resume, NULL)
+};
 
 static const struct of_device_id tegra_dsi_of_match[] = {
 	{ .compatible = "nvidia,tegra210-dsi", },
@@ -1634,6 +1683,7 @@ struct platform_driver tegra_dsi_driver = {
 	.driver = {
 		.name = "tegra-dsi",
 		.of_match_table = tegra_dsi_of_match,
+		.pm = &tegra_dsi_pm_ops,
 	},
 	.probe = tegra_dsi_probe,
 	.remove = tegra_dsi_remove,

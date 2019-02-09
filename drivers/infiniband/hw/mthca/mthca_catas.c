@@ -130,9 +130,9 @@ static void handle_catas(struct mthca_dev *dev)
 	spin_unlock_irqrestore(&catas_lock, flags);
 }
 
-static void poll_catas(unsigned long dev_ptr)
+static void poll_catas(struct timer_list *t)
 {
-	struct mthca_dev *dev = (struct mthca_dev *) dev_ptr;
+	struct mthca_dev *dev = from_timer(dev, t, catas_err.timer);
 	int i;
 
 	for (i = 0; i < dev->catas_err.size; ++i)
@@ -149,7 +149,7 @@ void mthca_start_catas_poll(struct mthca_dev *dev)
 {
 	phys_addr_t addr;
 
-	init_timer(&dev->catas_err.timer);
+	timer_setup(&dev->catas_err.timer, poll_catas, 0);
 	dev->catas_err.map  = NULL;
 
 	addr = pci_resource_start(dev->pdev, 0) +
@@ -164,8 +164,6 @@ void mthca_start_catas_poll(struct mthca_dev *dev)
 		return;
 	}
 
-	dev->catas_err.timer.data     = (unsigned long) dev;
-	dev->catas_err.timer.function = poll_catas;
 	dev->catas_err.timer.expires  = jiffies + MTHCA_CATAS_POLL_INTERVAL;
 	INIT_LIST_HEAD(&dev->catas_err.list);
 	add_timer(&dev->catas_err.timer);
@@ -187,7 +185,7 @@ int __init mthca_catas_init(void)
 {
 	INIT_WORK(&catas_work, catas_reset);
 
-	catas_wq = create_singlethread_workqueue("mthca_catas");
+	catas_wq = alloc_ordered_workqueue("mthca_catas", WQ_MEM_RECLAIM);
 	if (!catas_wq)
 		return -ENOMEM;
 

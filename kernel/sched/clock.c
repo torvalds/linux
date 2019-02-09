@@ -1,5 +1,5 @@
 /*
- * sched_clock for unstable cpu clocks
+ * sched_clock() for unstable CPU clocks
  *
  *  Copyright (C) 2008 Red Hat, Inc., Peter Zijlstra
  *
@@ -11,7 +11,7 @@
  *   Guillaume Chazarain <guichaz@gmail.com>
  *
  *
- * What:
+ * What this file implements:
  *
  * cpu_clock(i) provides a fast (execution time) high resolution
  * clock with bounded drift between CPUs. The value of cpu_clock(i)
@@ -26,11 +26,11 @@
  * at 0 on boot (but people really shouldn't rely on that).
  *
  * cpu_clock(i)       -- can be used from any context, including NMI.
- * local_clock()      -- is cpu_clock() on the current cpu.
+ * local_clock()      -- is cpu_clock() on the current CPU.
  *
  * sched_clock_cpu(i)
  *
- * How:
+ * How it is implemented:
  *
  * The implementation either uses sched_clock() when
  * !CONFIG_HAVE_UNSTABLE_SCHED_CLOCK, which means in that case the
@@ -52,15 +52,8 @@
  * that is otherwise invisible (TSC gets stopped).
  *
  */
-#include <linux/spinlock.h>
-#include <linux/hardirq.h>
-#include <linux/export.h>
-#include <linux/percpu.h>
-#include <linux/ktime.h>
-#include <linux/sched.h>
-#include <linux/static_key.h>
-#include <linux/workqueue.h>
-#include <linux/compiler.h>
+#include "sched.h"
+#include <linux/sched_clock.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -74,55 +67,24 @@ unsigned long long __weak sched_clock(void)
 }
 EXPORT_SYMBOL_GPL(sched_clock);
 
-__read_mostly int sched_clock_running;
+static DEFINE_STATIC_KEY_FALSE(sched_clock_running);
 
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-static struct static_key __sched_clock_stable = STATIC_KEY_INIT;
-static int __sched_clock_stable_early;
+/*
+ * We must start with !__sched_clock_stable because the unstable -> stable
+ * transition is accurate, while the stable -> unstable transition is not.
+ *
+ * Similarly we start with __sched_clock_stable_early, thereby assuming we
+ * will become stable, such that there's only a single 1 -> 0 transition.
+ */
+static DEFINE_STATIC_KEY_FALSE(__sched_clock_stable);
+static int __sched_clock_stable_early = 1;
 
-int sched_clock_stable(void)
-{
-	return static_key_false(&__sched_clock_stable);
-}
-
-static void __set_sched_clock_stable(void)
-{
-	if (!sched_clock_stable())
-		static_key_slow_inc(&__sched_clock_stable);
-}
-
-void set_sched_clock_stable(void)
-{
-	__sched_clock_stable_early = 1;
-
-	smp_mb(); /* matches sched_clock_init() */
-
-	if (!sched_clock_running)
-		return;
-
-	__set_sched_clock_stable();
-}
-
-static void __clear_sched_clock_stable(struct work_struct *work)
-{
-	/* XXX worry about clock continuity */
-	if (sched_clock_stable())
-		static_key_slow_dec(&__sched_clock_stable);
-}
-
-static DECLARE_WORK(sched_clock_work, __clear_sched_clock_stable);
-
-void clear_sched_clock_stable(void)
-{
-	__sched_clock_stable_early = 0;
-
-	smp_mb(); /* matches sched_clock_init() */
-
-	if (!sched_clock_running)
-		return;
-
-	schedule_work(&sched_clock_work);
-}
+/*
+ * We want: ktime_get_ns() + __gtod_offset == sched_clock() + __sched_clock_offset
+ */
+__read_mostly u64 __sched_clock_offset;
+static __read_mostly u64 __gtod_offset;
 
 struct sched_clock_data {
 	u64			tick_raw;
@@ -142,21 +104,127 @@ static inline struct sched_clock_data *cpu_sdc(int cpu)
 	return &per_cpu(sched_clock_data, cpu);
 }
 
-void sched_clock_init(void)
+int sched_clock_stable(void)
 {
-	u64 ktime_now = ktime_to_ns(ktime_get());
+	return static_branch_likely(&__sched_clock_stable);
+}
+
+static void __scd_stamp(struct sched_clock_data *scd)
+{
+	scd->tick_gtod = ktime_get_ns();
+	scd->tick_raw = sched_clock();
+}
+
+static void __set_sched_clock_stable(void)
+{
+	struct sched_clock_data *scd;
+
+	/*
+	 * Since we're still unstable and the tick is already running, we have
+	 * to disable IRQs in order to get a consistent scd->tick* reading.
+	 */
+	local_irq_disable();
+	scd = this_scd();
+	/*
+	 * Attempt to make the (initial) unstable->stable transition continuous.
+	 */
+	__sched_clock_offset = (scd->tick_gtod + __gtod_offset) - (scd->tick_raw);
+	local_irq_enable();
+
+	printk(KERN_INFO "sched_clock: Marking stable (%lld, %lld)->(%lld, %lld)\n",
+			scd->tick_gtod, __gtod_offset,
+			scd->tick_raw,  __sched_clock_offset);
+
+	static_branch_enable(&__sched_clock_stable);
+	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
+}
+
+/*
+ * If we ever get here, we're screwed, because we found out -- typically after
+ * the fact -- that TSC wasn't good. This means all our clocksources (including
+ * ktime) could have reported wrong values.
+ *
+ * What we do here is an attempt to fix up and continue sort of where we left
+ * off in a coherent manner.
+ *
+ * The only way to fully avoid random clock jumps is to boot with:
+ * "tsc=unstable".
+ */
+static void __sched_clock_work(struct work_struct *work)
+{
+	struct sched_clock_data *scd;
 	int cpu;
 
-	for_each_possible_cpu(cpu) {
-		struct sched_clock_data *scd = cpu_sdc(cpu);
+	/* take a current timestamp and set 'now' */
+	preempt_disable();
+	scd = this_scd();
+	__scd_stamp(scd);
+	scd->clock = scd->tick_gtod + __gtod_offset;
+	preempt_enable();
 
-		scd->tick_raw = 0;
-		scd->tick_gtod = ktime_now;
-		scd->clock = ktime_now;
-	}
+	/* clone to all CPUs */
+	for_each_possible_cpu(cpu)
+		per_cpu(sched_clock_data, cpu) = *scd;
 
-	sched_clock_running = 1;
+	printk(KERN_WARNING "TSC found unstable after boot, most likely due to broken BIOS. Use 'tsc=unstable'.\n");
+	printk(KERN_INFO "sched_clock: Marking unstable (%lld, %lld)<-(%lld, %lld)\n",
+			scd->tick_gtod, __gtod_offset,
+			scd->tick_raw,  __sched_clock_offset);
 
+	static_branch_disable(&__sched_clock_stable);
+}
+
+static DECLARE_WORK(sched_clock_work, __sched_clock_work);
+
+static void __clear_sched_clock_stable(void)
+{
+	if (!sched_clock_stable())
+		return;
+
+	tick_dep_set(TICK_DEP_BIT_CLOCK_UNSTABLE);
+	schedule_work(&sched_clock_work);
+}
+
+void clear_sched_clock_stable(void)
+{
+	__sched_clock_stable_early = 0;
+
+	smp_mb(); /* matches sched_clock_init_late() */
+
+	if (static_key_count(&sched_clock_running.key) == 2)
+		__clear_sched_clock_stable();
+}
+
+static void __sched_clock_gtod_offset(void)
+{
+	struct sched_clock_data *scd = this_scd();
+
+	__scd_stamp(scd);
+	__gtod_offset = (scd->tick_raw + __sched_clock_offset) - scd->tick_gtod;
+}
+
+void __init sched_clock_init(void)
+{
+	/*
+	 * Set __gtod_offset such that once we mark sched_clock_running,
+	 * sched_clock_tick() continues where sched_clock() left off.
+	 *
+	 * Even if TSC is buggered, we're still UP at this point so it
+	 * can't really be out of sync.
+	 */
+	local_irq_disable();
+	__sched_clock_gtod_offset();
+	local_irq_enable();
+
+	static_branch_inc(&sched_clock_running);
+}
+/*
+ * We run this as late_initcall() such that it runs after all built-in drivers,
+ * notably: acpi_processor and intel_idle, which can mark the TSC as unstable.
+ */
+static int __init sched_clock_init_late(void)
+{
+	static_branch_inc(&sched_clock_running);
 	/*
 	 * Ensure that it is impossible to not do a static_key update.
 	 *
@@ -168,9 +236,10 @@ void sched_clock_init(void)
 
 	if (__sched_clock_stable_early)
 		__set_sched_clock_stable();
-	else
-		__clear_sched_clock_stable(NULL);
+
+	return 0;
 }
+late_initcall(sched_clock_init_late);
 
 /*
  * min, max except they take wrapping into account
@@ -194,7 +263,7 @@ static inline u64 wrap_max(u64 x, u64 y)
  */
 static u64 sched_clock_local(struct sched_clock_data *scd)
 {
-	u64 now, clock, old_clock, min_clock, max_clock;
+	u64 now, clock, old_clock, min_clock, max_clock, gtod;
 	s64 delta;
 
 again:
@@ -211,9 +280,10 @@ again:
 	 *		      scd->tick_gtod + TICK_NSEC);
 	 */
 
-	clock = scd->tick_gtod + delta;
-	min_clock = wrap_max(scd->tick_gtod, old_clock);
-	max_clock = wrap_max(old_clock, scd->tick_gtod + TICK_NSEC);
+	gtod = scd->tick_gtod + __gtod_offset;
+	clock = gtod + delta;
+	min_clock = wrap_max(gtod, old_clock);
+	max_clock = wrap_max(old_clock, gtod + TICK_NSEC);
 
 	clock = wrap_max(clock, min_clock);
 	clock = wrap_min(clock, max_clock);
@@ -239,21 +309,21 @@ again:
 	 * cmpxchg64 below only protects one readout.
 	 *
 	 * We must reread via sched_clock_local() in the retry case on
-	 * 32bit as an NMI could use sched_clock_local() via the
+	 * 32-bit kernels as an NMI could use sched_clock_local() via the
 	 * tracer and hit between the readout of
-	 * the low32bit and the high 32bit portion.
+	 * the low 32-bit and the high 32-bit portion.
 	 */
 	this_clock = sched_clock_local(my_scd);
 	/*
-	 * We must enforce atomic readout on 32bit, otherwise the
-	 * update on the remote cpu can hit inbetween the readout of
-	 * the low32bit and the high 32bit portion.
+	 * We must enforce atomic readout on 32-bit, otherwise the
+	 * update on the remote CPU can hit inbetween the readout of
+	 * the low 32-bit and the high 32-bit portion.
 	 */
 	remote_clock = cmpxchg64(&scd->clock, 0, 0);
 #else
 	/*
-	 * On 64bit the read of [my]scd->clock is atomic versus the
-	 * update, so we can avoid the above 32bit dance.
+	 * On 64-bit kernels the read of [my]scd->clock is atomic versus the
+	 * update, so we can avoid the above 32-bit dance.
 	 */
 	sched_clock_local(my_scd);
 again:
@@ -297,10 +367,10 @@ u64 sched_clock_cpu(int cpu)
 	u64 clock;
 
 	if (sched_clock_stable())
-		return sched_clock();
+		return sched_clock() + __sched_clock_offset;
 
-	if (unlikely(!sched_clock_running))
-		return 0ull;
+	if (!static_branch_unlikely(&sched_clock_running))
+		return sched_clock();
 
 	preempt_disable_notrace();
 	scd = cpu_sdc(cpu);
@@ -313,27 +383,40 @@ u64 sched_clock_cpu(int cpu)
 
 	return clock;
 }
+EXPORT_SYMBOL_GPL(sched_clock_cpu);
 
 void sched_clock_tick(void)
 {
 	struct sched_clock_data *scd;
-	u64 now, now_gtod;
 
 	if (sched_clock_stable())
 		return;
 
-	if (unlikely(!sched_clock_running))
+	if (!static_branch_unlikely(&sched_clock_running))
 		return;
 
-	WARN_ON_ONCE(!irqs_disabled());
+	lockdep_assert_irqs_disabled();
 
 	scd = this_scd();
-	now_gtod = ktime_to_ns(ktime_get());
-	now = sched_clock();
-
-	scd->tick_raw = now;
-	scd->tick_gtod = now_gtod;
+	__scd_stamp(scd);
 	sched_clock_local(scd);
+}
+
+void sched_clock_tick_stable(void)
+{
+	if (!sched_clock_stable())
+		return;
+
+	/*
+	 * Called under watchdog_lock.
+	 *
+	 * The watchdog just found this TSC to (still) be stable, so now is a
+	 * good moment to update our __gtod_offset. Because once we find the
+	 * TSC to be unstable, any computation will be computing crap.
+	 */
+	local_irq_disable();
+	__sched_clock_gtod_offset();
+	local_irq_enable();
 }
 
 /*
@@ -346,80 +429,43 @@ void sched_clock_idle_sleep_event(void)
 EXPORT_SYMBOL_GPL(sched_clock_idle_sleep_event);
 
 /*
- * We just idled delta nanoseconds (called with irqs disabled):
+ * We just idled; resync with ktime.
  */
-void sched_clock_idle_wakeup_event(u64 delta_ns)
+void sched_clock_idle_wakeup_event(void)
 {
-	if (timekeeping_suspended)
+	unsigned long flags;
+
+	if (sched_clock_stable())
 		return;
 
+	if (unlikely(timekeeping_suspended))
+		return;
+
+	local_irq_save(flags);
 	sched_clock_tick();
-	touch_softlockup_watchdog();
+	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
 
-/*
- * As outlined at the top, provides a fast, high resolution, nanosecond
- * time source that is monotonic per cpu argument and has bounded drift
- * between cpus.
- *
- * ######################### BIG FAT WARNING ##########################
- * # when comparing cpu_clock(i) to cpu_clock(j) for i != j, time can #
- * # go backwards !!                                                  #
- * ####################################################################
- */
-u64 cpu_clock(int cpu)
-{
-	if (!sched_clock_stable())
-		return sched_clock_cpu(cpu);
-
-	return sched_clock();
-}
-
-/*
- * Similar to cpu_clock() for the current cpu. Time will only be observed
- * to be monotonic if care is taken to only compare timestampt taken on the
- * same CPU.
- *
- * See cpu_clock().
- */
-u64 local_clock(void)
-{
-	if (!sched_clock_stable())
-		return sched_clock_cpu(raw_smp_processor_id());
-
-	return sched_clock();
-}
-
 #else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 
-void sched_clock_init(void)
+void __init sched_clock_init(void)
 {
-	sched_clock_running = 1;
+	static_branch_inc(&sched_clock_running);
+	local_irq_disable();
+	generic_sched_clock_init();
+	local_irq_enable();
 }
 
 u64 sched_clock_cpu(int cpu)
 {
-	if (unlikely(!sched_clock_running))
+	if (!static_branch_unlikely(&sched_clock_running))
 		return 0;
 
 	return sched_clock();
 }
 
-u64 cpu_clock(int cpu)
-{
-	return sched_clock();
-}
-
-u64 local_clock(void)
-{
-	return sched_clock();
-}
-
 #endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
-
-EXPORT_SYMBOL_GPL(cpu_clock);
-EXPORT_SYMBOL_GPL(local_clock);
 
 /*
  * Running clock - returns the time that has elapsed while a guest has been

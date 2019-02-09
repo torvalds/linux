@@ -54,7 +54,7 @@ static struct {
 	struct timer_list timer;	/* The timer that pings the watchdog */
 } pikawdt_private;
 
-static struct watchdog_info ident = {
+static struct watchdog_info ident __ro_after_init = {
 	.identity	= DRV_NAME,
 	.options	= WDIOF_CARDRESET |
 			  WDIOF_SETTIMEOUT |
@@ -85,7 +85,7 @@ static inline void pikawdt_reset(void)
 /*
  * Timer tick
  */
-static void pikawdt_ping(unsigned long data)
+static void pikawdt_ping(struct timer_list *unused)
 {
 	if (time_before(jiffies, pikawdt_private.next_heartbeat) ||
 			(!nowayout && !pikawdt_private.open)) {
@@ -269,7 +269,7 @@ static int __init pikawdt_init(void)
 
 	iounmap(fpga);
 
-	setup_timer(&pikawdt_private.timer, pikawdt_ping, 0);
+	timer_setup(&pikawdt_private.timer, pikawdt_ping, 0);
 
 	ret = misc_register(&pikawdt_miscdev);
 	if (ret) {

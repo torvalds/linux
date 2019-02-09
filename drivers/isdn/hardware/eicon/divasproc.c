@@ -16,7 +16,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/list.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "platform.h"
 #include "debuglib.h"
@@ -99,9 +99,9 @@ divas_write(struct file *file, const char __user *buf, size_t count, loff_t *off
 	return (-ENODEV);
 }
 
-static unsigned int divas_poll(struct file *file, poll_table *wait)
+static __poll_t divas_poll(struct file *file, poll_table *wait)
 {
-	return (POLLERR);
+	return (EPOLLERR);
 }
 
 static int divas_open(struct inode *inode, struct file *file)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IRQ_H
 #define _ASM_IRQ_H
 
@@ -7,11 +8,8 @@
 
 #define NR_IRQS_BASE	3
 
-#ifdef CONFIG_PCI_NR_MSI
-# define NR_IRQS	(NR_IRQS_BASE + CONFIG_PCI_NR_MSI)
-#else
-# define NR_IRQS	NR_IRQS_BASE
-#endif
+#define NR_IRQS	NR_IRQS_BASE
+#define NR_IRQS_LEGACY NR_IRQS_BASE
 
 /* External interruption codes */
 #define EXT_IRQ_INTERRUPT_KEY	0x0040

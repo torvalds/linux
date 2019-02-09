@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014 Marvell Technology Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/io.h>
@@ -15,6 +12,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
+#include <asm/memory.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
@@ -75,12 +73,11 @@ static void __init berlin_smp_prepare_cpus(unsigned int max_cpus)
 	if (!cpu_ctrl)
 		goto unmap_scu;
 
-	vectors_base = ioremap(CONFIG_VECTORS_BASE, SZ_32K);
+	vectors_base = ioremap(VECTORS_BASE, SZ_32K);
 	if (!vectors_base)
 		goto unmap_scu;
 
 	scu_enable(scu_base);
-	flush_cache_all();
 
 	/*
 	 * Write the first instruction the CPU will execute after being reset
@@ -92,7 +89,7 @@ static void __init berlin_smp_prepare_cpus(unsigned int max_cpus)
 	 * Write the secondary startup address into the SW reset address
 	 * vector. This is used by boot_inst.
 	 */
-	writel(virt_to_phys(secondary_startup), vectors_base + SW_RESET_ADDR);
+	writel(__pa_symbol(secondary_startup), vectors_base + SW_RESET_ADDR);
 
 	iounmap(vectors_base);
 unmap_scu:
@@ -119,7 +116,7 @@ static int berlin_cpu_kill(unsigned int cpu)
 }
 #endif
 
-static struct smp_operations berlin_smp_ops __initdata = {
+static const struct smp_operations berlin_smp_ops __initconst = {
 	.smp_prepare_cpus	= berlin_smp_prepare_cpus,
 	.smp_boot_secondary	= berlin_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU

@@ -1,26 +1,8 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "fm10k.h"
 
-#ifdef CONFIG_DCB
 /**
  * fm10k_dcbnl_ieee_getets - get the ETS configuration for the device
  * @dev: netdev interface for the device
@@ -155,7 +137,6 @@ static const struct dcbnl_rtnl_ops fm10k_dcbnl_ops = {
 	.setdcbx	= fm10k_dcbnl_setdcbx,
 };
 
-#endif /* CONFIG_DCB */
 /**
  * fm10k_dcbnl_set_ops - Configures dcbnl ops pointer for netdev
  * @dev: netdev interface for the device
@@ -164,11 +145,9 @@ static const struct dcbnl_rtnl_ops fm10k_dcbnl_ops = {
  **/
 void fm10k_dcbnl_set_ops(struct net_device *dev)
 {
-#ifdef CONFIG_DCB
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	struct fm10k_hw *hw = &interface->hw;
 
 	if (hw->mac.type == fm10k_mac_pf)
 		dev->dcbnl_ops = &fm10k_dcbnl_ops;
-#endif /* CONFIG_DCB */
 }

@@ -47,19 +47,15 @@ static ssize_t __name ## _write(struct file *file,			      \
 				 size_t count, loff_t *ppos)		      \
 {									      \
 	struct hci_dev *hdev = file->private_data;			      \
-	char buf[32];							      \
-	size_t buf_size = min(count, (sizeof(buf) - 1));		      \
 	bool enable;							      \
+	int err;							      \
 									      \
 	if (test_bit(HCI_UP, &hdev->flags))				      \
 		return -EBUSY;						      \
 									      \
-	if (copy_from_user(buf, user_buf, buf_size))			      \
-		return -EFAULT;						      \
-									      \
-	buf[buf_size] = '\0';						      \
-	if (strtobool(buf, &enable))					      \
-		return -EINVAL;						      \
+	err = kstrtobool_from_user(user_buf, count, &enable);		      \
+	if (err)							      \
+		return err;						      \
 									      \
 	if (enable == test_bit(__quirk, &hdev->quirks))			      \
 		return -EALREADY;					      \
@@ -76,43 +72,36 @@ static const struct file_operations __name ## _fops = {			      \
 	.llseek		= default_llseek,				      \
 }									      \
 
+#define DEFINE_INFO_ATTRIBUTE(__name, __field)				      \
+static int __name ## _show(struct seq_file *f, void *ptr)		      \
+{									      \
+	struct hci_dev *hdev = f->private;				      \
+									      \
+	hci_dev_lock(hdev);						      \
+	seq_printf(f, "%s\n", hdev->__field ? : "");			      \
+	hci_dev_unlock(hdev);						      \
+									      \
+	return 0;							      \
+}									      \
+									      \
+DEFINE_SHOW_ATTRIBUTE(__name)
+
 static int features_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
 	u8 p;
 
 	hci_dev_lock(hdev);
-	for (p = 0; p < HCI_MAX_PAGES && p <= hdev->max_page; p++) {
-		seq_printf(f, "%2u: 0x%2.2x 0x%2.2x 0x%2.2x 0x%2.2x "
-			   "0x%2.2x 0x%2.2x 0x%2.2x 0x%2.2x\n", p,
-			   hdev->features[p][0], hdev->features[p][1],
-			   hdev->features[p][2], hdev->features[p][3],
-			   hdev->features[p][4], hdev->features[p][5],
-			   hdev->features[p][6], hdev->features[p][7]);
-	}
+	for (p = 0; p < HCI_MAX_PAGES && p <= hdev->max_page; p++)
+		seq_printf(f, "%2u: %8ph\n", p, hdev->features[p]);
 	if (lmp_le_capable(hdev))
-		seq_printf(f, "LE: 0x%2.2x 0x%2.2x 0x%2.2x 0x%2.2x "
-			   "0x%2.2x 0x%2.2x 0x%2.2x 0x%2.2x\n",
-			   hdev->le_features[0], hdev->le_features[1],
-			   hdev->le_features[2], hdev->le_features[3],
-			   hdev->le_features[4], hdev->le_features[5],
-			   hdev->le_features[6], hdev->le_features[7]);
+		seq_printf(f, "LE: %8ph\n", hdev->le_features);
 	hci_dev_unlock(hdev);
 
 	return 0;
 }
 
-static int features_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, features_show, inode->i_private);
-}
-
-static const struct file_operations features_fops = {
-	.open		= features_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(features);
 
 static int device_id_show(struct seq_file *f, void *ptr)
 {
@@ -126,17 +115,7 @@ static int device_id_show(struct seq_file *f, void *ptr)
 	return 0;
 }
 
-static int device_id_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, device_id_show, inode->i_private);
-}
-
-static const struct file_operations device_id_fops = {
-	.open		= device_id_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(device_id);
 
 static int device_list_show(struct seq_file *f, void *ptr)
 {
@@ -156,17 +135,7 @@ static int device_list_show(struct seq_file *f, void *ptr)
 	return 0;
 }
 
-static int device_list_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, device_list_show, inode->i_private);
-}
-
-static const struct file_operations device_list_fops = {
-	.open		= device_list_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(device_list);
 
 static int blacklist_show(struct seq_file *f, void *p)
 {
@@ -181,17 +150,7 @@ static int blacklist_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int blacklist_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, blacklist_show, inode->i_private);
-}
-
-static const struct file_operations blacklist_fops = {
-	.open		= blacklist_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(blacklist);
 
 static int uuids_show(struct seq_file *f, void *p)
 {
@@ -216,17 +175,7 @@ static int uuids_show(struct seq_file *f, void *p)
        return 0;
 }
 
-static int uuids_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, uuids_show, inode->i_private);
-}
-
-static const struct file_operations uuids_fops = {
-	.open		= uuids_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(uuids);
 
 static int remote_oob_show(struct seq_file *f, void *ptr)
 {
@@ -245,17 +194,7 @@ static int remote_oob_show(struct seq_file *f, void *ptr)
 	return 0;
 }
 
-static int remote_oob_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, remote_oob_show, inode->i_private);
-}
-
-static const struct file_operations remote_oob_fops = {
-	.open		= remote_oob_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(remote_oob);
 
 static int conn_info_min_age_set(void *data, u64 val)
 {
@@ -349,6 +288,9 @@ static const struct file_operations sc_only_mode_fops = {
 	.llseek		= default_llseek,
 };
 
+DEFINE_INFO_ATTRIBUTE(hardware_info, hw_info);
+DEFINE_INFO_ATTRIBUTE(firmware_info, fw_info);
+
 void hci_debugfs_create_common(struct hci_dev *hdev)
 {
 	debugfs_create_file("features", 0444, hdev->debugfs, hdev,
@@ -382,6 +324,14 @@ void hci_debugfs_create_common(struct hci_dev *hdev)
 	if (lmp_sc_capable(hdev) || lmp_le_capable(hdev))
 		debugfs_create_file("sc_only_mode", 0444, hdev->debugfs,
 				    hdev, &sc_only_mode_fops);
+
+	if (hdev->hw_info)
+		debugfs_create_file("hardware_info", 0444, hdev->debugfs,
+				    hdev, &hardware_info_fops);
+
+	if (hdev->fw_info)
+		debugfs_create_file("firmware_info", 0444, hdev->debugfs,
+				    hdev, &firmware_info_fops);
 }
 
 static int inquiry_cache_show(struct seq_file *f, void *p)
@@ -408,17 +358,7 @@ static int inquiry_cache_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int inquiry_cache_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, inquiry_cache_show, inode->i_private);
-}
-
-static const struct file_operations inquiry_cache_fops = {
-	.open		= inquiry_cache_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(inquiry_cache);
 
 static int link_keys_show(struct seq_file *f, void *ptr)
 {
@@ -434,17 +374,7 @@ static int link_keys_show(struct seq_file *f, void *ptr)
 	return 0;
 }
 
-static int link_keys_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, link_keys_show, inode->i_private);
-}
-
-static const struct file_operations link_keys_fops = {
-	.open		= link_keys_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(link_keys);
 
 static int dev_class_show(struct seq_file *f, void *ptr)
 {
@@ -458,17 +388,7 @@ static int dev_class_show(struct seq_file *f, void *ptr)
 	return 0;
 }
 
-static int dev_class_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dev_class_show, inode->i_private);
-}
-
-static const struct file_operations dev_class_fops = {
-	.open		= dev_class_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dev_class);
 
 static int voice_setting_get(void *data, u64 *val)
 {
@@ -657,17 +577,7 @@ static int identity_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int identity_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, identity_show, inode->i_private);
-}
-
-static const struct file_operations identity_fops = {
-	.open		= identity_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(identity);
 
 static int rpa_timeout_set(void *data, u64 val)
 {
@@ -711,17 +621,7 @@ static int random_address_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int random_address_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, random_address_show, inode->i_private);
-}
-
-static const struct file_operations random_address_fops = {
-	.open		= random_address_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(random_address);
 
 static int static_address_show(struct seq_file *f, void *p)
 {
@@ -734,17 +634,7 @@ static int static_address_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int static_address_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, static_address_show, inode->i_private);
-}
-
-static const struct file_operations static_address_fops = {
-	.open		= static_address_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(static_address);
 
 static ssize_t force_static_address_read(struct file *file,
 					 char __user *user_buf,
@@ -764,19 +654,15 @@ static ssize_t force_static_address_write(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct hci_dev *hdev = file->private_data;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf)-1));
 	bool enable;
+	int err;
 
 	if (test_bit(HCI_UP, &hdev->flags))
 		return -EBUSY;
 
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-	if (strtobool(buf, &enable))
-		return -EINVAL;
+	err = kstrtobool_from_user(user_buf, count, &enable);
+	if (err)
+		return err;
 
 	if (enable == hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR))
 		return -EALREADY;
@@ -806,17 +692,22 @@ static int white_list_show(struct seq_file *f, void *ptr)
 	return 0;
 }
 
-static int white_list_open(struct inode *inode, struct file *file)
+DEFINE_SHOW_ATTRIBUTE(white_list);
+
+static int resolv_list_show(struct seq_file *f, void *ptr)
 {
-	return single_open(file, white_list_show, inode->i_private);
+	struct hci_dev *hdev = f->private;
+	struct bdaddr_list *b;
+
+	hci_dev_lock(hdev);
+	list_for_each_entry(b, &hdev->le_resolv_list, list)
+		seq_printf(f, "%pMR (type %u)\n", &b->bdaddr, b->bdaddr_type);
+	hci_dev_unlock(hdev);
+
+	return 0;
 }
 
-static const struct file_operations white_list_fops = {
-	.open		= white_list_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(resolv_list);
 
 static int identity_resolving_keys_show(struct seq_file *f, void *ptr)
 {
@@ -834,18 +725,7 @@ static int identity_resolving_keys_show(struct seq_file *f, void *ptr)
 	return 0;
 }
 
-static int identity_resolving_keys_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, identity_resolving_keys_show,
-			   inode->i_private);
-}
-
-static const struct file_operations identity_resolving_keys_fops = {
-	.open		= identity_resolving_keys_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(identity_resolving_keys);
 
 static int long_term_keys_show(struct seq_file *f, void *ptr)
 {
@@ -863,17 +743,7 @@ static int long_term_keys_show(struct seq_file *f, void *ptr)
 	return 0;
 }
 
-static int long_term_keys_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, long_term_keys_show, inode->i_private);
-}
-
-static const struct file_operations long_term_keys_fops = {
-	.open		= long_term_keys_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(long_term_keys);
 
 static int conn_min_interval_set(void *data, u64 val)
 {
@@ -1100,6 +970,10 @@ void hci_debugfs_create_le(struct hci_dev *hdev)
 			  &hdev->le_white_list_size);
 	debugfs_create_file("white_list", 0444, hdev->debugfs, hdev,
 			    &white_list_fops);
+	debugfs_create_u8("resolv_list_size", 0444, hdev->debugfs,
+			  &hdev->le_resolv_list_size);
+	debugfs_create_file("resolv_list", 0444, hdev->debugfs, hdev,
+			    &resolv_list_fops);
 	debugfs_create_file("identity_resolving_keys", 0400, hdev->debugfs,
 			    hdev, &identity_resolving_keys_fops);
 	debugfs_create_file("long_term_keys", 0400, hdev->debugfs, hdev,

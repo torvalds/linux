@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_BCM47XX_PRIVATE_H_
 #define LINUX_BCM47XX_PRIVATE_H_
 
@@ -9,9 +10,6 @@
 
 /* prom.c */
 void __init bcm47xx_prom_highmem_init(void);
-
-/* sprom.c */
-void bcm47xx_sprom_register_fallbacks(void);
 
 /* buttons.c */
 int __init bcm47xx_buttons_register(void);

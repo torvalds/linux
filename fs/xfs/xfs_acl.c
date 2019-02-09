@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2008, Christoph Hellwig
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_format.h"
@@ -158,28 +146,20 @@ xfs_get_acl(struct inode *inode, int type)
 	if (error) {
 		/*
 		 * If the attribute doesn't exist make sure we have a negative
-		 * cache entry, for any other error assume it is transient and
-		 * leave the cache entry as ACL_NOT_CACHED.
+		 * cache entry, for any other error assume it is transient.
 		 */
-		if (error == -ENOATTR)
-			goto out_update_cache;
-		acl = ERR_PTR(error);
-		goto out;
+		if (error != -ENOATTR)
+			acl = ERR_PTR(error);
+	} else  {
+		acl = xfs_acl_from_disk(xfs_acl, len,
+					XFS_ACL_MAX_ENTRIES(ip->i_mount));
 	}
-
-	acl = xfs_acl_from_disk(xfs_acl, len, XFS_ACL_MAX_ENTRIES(ip->i_mount));
-	if (IS_ERR(acl))
-		goto out;
-
-out_update_cache:
-	set_cached_acl(inode, type, acl);
-out:
 	kmem_free(xfs_acl);
 	return acl;
 }
 
-STATIC int
-__xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
+int
+__xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	struct xfs_inode *ip = XFS_I(inode);
 	unsigned char *ea_name;
@@ -244,7 +224,7 @@ xfs_set_mode(struct inode *inode, umode_t mode)
 
 		iattr.ia_valid = ATTR_MODE | ATTR_CTIME;
 		iattr.ia_mode = mode;
-		iattr.ia_ctime = current_fs_time(inode->i_sb);
+		iattr.ia_ctime = current_time(inode);
 
 		error = xfs_setattr_nonsize(XFS_I(inode), &iattr, XFS_ATTR_NOACL);
 	}
@@ -252,32 +232,11 @@ xfs_set_mode(struct inode *inode, umode_t mode)
 	return error;
 }
 
-static int
-xfs_acl_exists(struct inode *inode, unsigned char *name)
-{
-	int len = XFS_ACL_MAX_SIZE(XFS_M(inode->i_sb));
-
-	return (xfs_attr_get(XFS_I(inode), name, NULL, &len,
-			    ATTR_ROOT|ATTR_KERNOVAL) == 0);
-}
-
-int
-posix_acl_access_exists(struct inode *inode)
-{
-	return xfs_acl_exists(inode, SGI_ACL_FILE);
-}
-
-int
-posix_acl_default_exists(struct inode *inode)
-{
-	if (!S_ISDIR(inode->i_mode))
-		return 0;
-	return xfs_acl_exists(inode, SGI_ACL_DEFAULT);
-}
-
 int
 xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
+	umode_t mode;
+	bool set_mode = false;
 	int error = 0;
 
 	if (!acl)
@@ -288,21 +247,24 @@ xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		return error;
 
 	if (type == ACL_TYPE_ACCESS) {
-		umode_t mode = inode->i_mode;
-		error = posix_acl_equiv_mode(acl, &mode);
-
-		if (error <= 0) {
-			acl = NULL;
-
-			if (error < 0)
-				return error;
-		}
-
-		error = xfs_set_mode(inode, mode);
+		error = posix_acl_update_mode(inode, &mode, &acl);
 		if (error)
 			return error;
+		set_mode = true;
 	}
 
  set_acl:
-	return __xfs_set_acl(inode, type, acl);
+	error =  __xfs_set_acl(inode, acl, type);
+	if (error)
+		return error;
+
+	/*
+	 * We set the mode after successfully updating the ACL xattr because the
+	 * xattr update can fail at ENOSPC and we don't want to change the mode
+	 * if the ACL update hasn't been applied.
+	 */
+	if (set_mode)
+		error = xfs_set_mode(inode, mode);
+
+	return error;
 }

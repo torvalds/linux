@@ -27,10 +27,10 @@ int bpf_prog2(struct pt_regs *ctx)
 	long init_val = 1;
 	long *value;
 
-	/* x64/s390x specific: read ip of kfree_skb caller.
+	/* read ip of kfree_skb caller.
 	 * non-portable version of __builtin_return_address(0)
 	 */
-	bpf_probe_read(&loc, sizeof(loc), (void *)PT_REGS_RET(ctx));
+	BPF_KPROBE_READ_RET_IP(loc, ctx);
 
 	value = bpf_map_lookup_elem(&my_map, &loc);
 	if (value)
@@ -66,11 +66,11 @@ struct hist_key {
 	char comm[16];
 	u64 pid_tgid;
 	u64 uid_gid;
-	u32 index;
+	u64 index;
 };
 
 struct bpf_map_def SEC("maps") my_hist_map = {
-	.type = BPF_MAP_TYPE_HASH,
+	.type = BPF_MAP_TYPE_PERCPU_HASH,
 	.key_size = sizeof(struct hist_key),
 	.value_size = sizeof(long),
 	.max_entries = 1024,
@@ -82,7 +82,7 @@ int bpf_prog3(struct pt_regs *ctx)
 	long write_size = PT_REGS_PARM3(ctx);
 	long init_val = 1;
 	long *value;
-	struct hist_key key = {};
+	struct hist_key key;
 
 	key.index = log2l(write_size);
 	key.pid_tgid = bpf_get_current_pid_tgid();

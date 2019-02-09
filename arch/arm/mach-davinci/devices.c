@@ -26,7 +26,6 @@
 
 
 #include "davinci.h"
-#include "clock.h"
 
 #define DAVINCI_I2C_BASE	     0x01C21000
 #define DAVINCI_ATA_BASE	     0x01C66000
@@ -35,9 +34,6 @@
 #define DM355_MMCSD1_BASE	     0x01E00000
 #define DM365_MMCSD0_BASE	     0x01D11000
 #define DM365_MMCSD1_BASE	     0x01D00000
-
-#define DAVINCI_DMA_MMCRXEVT	26
-#define DAVINCI_DMA_MMCTXEVT	27
 
 void __iomem  *davinci_sysmod_base;
 
@@ -144,14 +140,6 @@ static struct resource mmcsd0_resources[] = {
 		.start = IRQ_SDIOINT,
 		.flags = IORESOURCE_IRQ,
 	},
-	/* DMA channels: RX, then TX */
-	{
-		.start = EDMA_CTLR_CHAN(0, DAVINCI_DMA_MMCRXEVT),
-		.flags = IORESOURCE_DMA,
-	}, {
-		.start = EDMA_CTLR_CHAN(0, DAVINCI_DMA_MMCTXEVT),
-		.flags = IORESOURCE_DMA,
-	},
 };
 
 static struct platform_device davinci_mmcsd0_device = {
@@ -180,14 +168,6 @@ static struct resource mmcsd1_resources[] = {
 	}, {
 		.start = IRQ_DM355_SDIOINT1,
 		.flags = IORESOURCE_IRQ,
-	},
-	/* DMA channels: RX, then TX */
-	{
-		.start = EDMA_CTLR_CHAN(0, 30),	/* rx */
-		.flags = IORESOURCE_DMA,
-	}, {
-		.start = EDMA_CTLR_CHAN(0, 31),	/* tx */
-		.flags = IORESOURCE_DMA,
 	},
 };
 
@@ -301,17 +281,12 @@ static struct resource wdt_resources[] = {
 	},
 };
 
-struct platform_device davinci_wdt_device = {
+static struct platform_device davinci_wdt_device = {
 	.name		= "davinci-wdt",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(wdt_resources),
 	.resource	= wdt_resources,
 };
-
-void davinci_restart(enum reboot_mode mode, const char *cmd)
-{
-	davinci_watchdog_reset(&davinci_wdt_device);
-}
 
 int davinci_init_wdt(void)
 {

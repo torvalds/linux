@@ -15,3 +15,4 @@ value must be one of the following values:
   ralink,rt5350-soc
   ralink,mt7620a-soc
   ralink,mt7620n-soc
+  ralink,mt7628a-soc

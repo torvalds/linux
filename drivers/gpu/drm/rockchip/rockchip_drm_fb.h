@@ -17,12 +17,9 @@
 
 struct drm_framebuffer *
 rockchip_drm_framebuffer_init(struct drm_device *dev,
-			      struct drm_mode_fb_cmd2 *mode_cmd,
+			      const struct drm_mode_fb_cmd2 *mode_cmd,
 			      struct drm_gem_object *obj);
 void rockchip_drm_framebuffer_fini(struct drm_framebuffer *fb);
 
 void rockchip_drm_mode_config_init(struct drm_device *dev);
-
-struct drm_gem_object *rockchip_fb_get_gem_obj(struct drm_framebuffer *fb,
-					       unsigned int plane);
 #endif /* _ROCKCHIP_DRM_FB_H */

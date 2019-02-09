@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * EZ-USB specific functions used by some of the USB to Serial drivers.
  *
  * Copyright (C) 1999 - 2002 Greg Kroah-Hartman (greg@kroah.com)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -22,7 +19,7 @@ struct ezusb_fx_type {
 	unsigned short max_internal_adress;
 };
 
-static struct ezusb_fx_type ezusb_fx1 = {
+static const struct ezusb_fx_type ezusb_fx1 = {
 	.cpucs_reg = 0x7F92,
 	.max_internal_adress = 0x1B3F,
 };

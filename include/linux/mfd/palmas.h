@@ -20,7 +20,7 @@
 #include <linux/leds.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/of_gpio.h>
 #include <linux/usb/phy_companion.h>
 
@@ -134,21 +134,32 @@ struct palmas_pmic_driver_data {
 			    struct regulator_config config);
 };
 
+struct palmas_adc_wakeup_property {
+	int adc_channel_number;
+	int adc_high_threshold;
+	int adc_low_threshold;
+};
+
 struct palmas_gpadc_platform_data {
 	/* Channel 3 current source is only enabled during conversion */
-	int ch3_current;
+	int ch3_current;	/* 0: off; 1: 10uA; 2: 400uA; 3: 800 uA */
 
 	/* Channel 0 current source can be used for battery detection.
 	 * If used for battery detection this will cause a permanent current
 	 * consumption depending on current level set here.
 	 */
-	int ch0_current;
+	int ch0_current;	/* 0: off; 1: 5uA; 2: 15uA; 3: 20 uA */
+	bool extended_delay;	/* use extended delay for conversion */
 
 	/* default BAT_REMOVAL_DAT setting on device probe */
 	int bat_removal;
 
 	/* Sets the START_POLARITY bit in the RT_CTRL register */
 	int start_polarity;
+
+	int auto_conversion_period_ms;
+	struct palmas_adc_wakeup_property *adc_wakeup1_data;
+	struct palmas_adc_wakeup_property *adc_wakeup2_data;
 };
 
 struct palmas_reg_init {
@@ -239,6 +250,7 @@ enum tps65917_regulators {
 	TPS65917_REG_SMPS3,
 	TPS65917_REG_SMPS4,
 	TPS65917_REG_SMPS5,
+	TPS65917_REG_SMPS12,
 	/* LDO regulators */
 	TPS65917_REG_LDO1,
 	TPS65917_REG_LDO2,
@@ -306,6 +318,7 @@ enum tps65917_external_requestor_id {
 	TPS65917_EXTERNAL_REQSTR_ID_SMPS3,
 	TPS65917_EXTERNAL_REQSTR_ID_SMPS4,
 	TPS65917_EXTERNAL_REQSTR_ID_SMPS5,
+	TPS65917_EXTERNAL_REQSTR_ID_SMPS12,
 	TPS65917_EXTERNAL_REQSTR_ID_LDO1,
 	TPS65917_EXTERNAL_REQSTR_ID_LDO2,
 	TPS65917_EXTERNAL_REQSTR_ID_LDO3,
@@ -405,28 +418,7 @@ struct palmas_gpadc_calibration {
 	s32 offset_error;
 };
 
-struct palmas_gpadc {
-	struct device *dev;
-	struct palmas *palmas;
-
-	int ch3_current;
-	int ch0_current;
-
-	int gpadc_force;
-
-	int bat_removal;
-
-	struct mutex reading_lock;
-	struct completion irq_complete;
-
-	int eoc_sw_irq;
-
-	struct palmas_gpadc_calibration *palmas_cal_tbl;
-
-	int conv0_channel;
-	int conv1_channel;
-	int rt_channel;
-};
+#define PALMAS_DATASHEET_NAME(_name)	"palmas-gpadc-chan-"#_name
 
 struct palmas_gpadc_result {
 	s32 raw_code;
@@ -520,6 +512,43 @@ enum palmas_irqs {
 	PALMAS_NUM_IRQ,
 };
 
+/* Palmas GPADC Channels */
+enum {
+	PALMAS_ADC_CH_IN0,
+	PALMAS_ADC_CH_IN1,
+	PALMAS_ADC_CH_IN2,
+	PALMAS_ADC_CH_IN3,
+	PALMAS_ADC_CH_IN4,
+	PALMAS_ADC_CH_IN5,
+	PALMAS_ADC_CH_IN6,
+	PALMAS_ADC_CH_IN7,
+	PALMAS_ADC_CH_IN8,
+	PALMAS_ADC_CH_IN9,
+	PALMAS_ADC_CH_IN10,
+	PALMAS_ADC_CH_IN11,
+	PALMAS_ADC_CH_IN12,
+	PALMAS_ADC_CH_IN13,
+	PALMAS_ADC_CH_IN14,
+	PALMAS_ADC_CH_IN15,
+	PALMAS_ADC_CH_MAX,
+};
+
+/* Palmas GPADC Channel0 Current Source */
+enum {
+	PALMAS_ADC_CH0_CURRENT_SRC_0,
+	PALMAS_ADC_CH0_CURRENT_SRC_5,
+	PALMAS_ADC_CH0_CURRENT_SRC_15,
+	PALMAS_ADC_CH0_CURRENT_SRC_20,
+};
+
+/* Palmas GPADC Channel3 Current Source */
+enum {
+	PALMAS_ADC_CH3_CURRENT_SRC_0,
+	PALMAS_ADC_CH3_CURRENT_SRC_10,
+	PALMAS_ADC_CH3_CURRENT_SRC_400,
+	PALMAS_ADC_CH3_CURRENT_SRC_800,
+};
+
 struct palmas_pmic {
 	struct palmas *palmas;
 	struct device *dev;
@@ -553,7 +582,9 @@ struct palmas_usb {
 	int vbus_irq;
 
 	int gpio_id_irq;
+	int gpio_vbus_irq;
 	struct gpio_desc *id_gpiod;
+	struct gpio_desc *vbus_gpiod;
 	unsigned long sw_debounce_jiffies;
 	struct delayed_work wq_detectid;
 
@@ -562,6 +593,7 @@ struct palmas_usb {
 	bool enable_vbus_detection;
 	bool enable_id_detection;
 	bool enable_gpio_id_detection;
+	bool enable_gpio_vbus_detection;
 };
 
 #define comparator_to_palmas(x) container_of((x), struct palmas_usb, comparator)
@@ -3700,6 +3732,9 @@ enum usb_irq_events {
 #define TPS65917_REGEN3_CTRL_MODE_SLEEP_SHIFT			0x02
 #define TPS65917_REGEN3_CTRL_MODE_ACTIVE			0x01
 #define TPS65917_REGEN3_CTRL_MODE_ACTIVE_SHIFT			0x00
+
+/* POWERHOLD Mask field for PRIMARY_SECONDARY_PAD2 register */
+#define TPS65917_PRIMARY_SECONDARY_PAD2_GPIO_5_MASK		0xC
 
 /* Registers for function RESOURCE */
 #define TPS65917_REGEN1_CTRL					0x2

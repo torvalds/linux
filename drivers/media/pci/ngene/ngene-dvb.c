@@ -19,12 +19,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -42,6 +38,9 @@
 
 #include "ngene.h"
 
+static int ci_tsfix = 1;
+module_param(ci_tsfix, int, 0444);
+MODULE_PARM_DESC(ci_tsfix, "Detect and fix TS buffer offset shifts in conjunction with CI expansions (default: 1/enabled)");
 
 /****************************************************************************/
 /* COMMAND API interface ****************************************************/
@@ -88,18 +87,41 @@ static ssize_t ts_read(struct file *file, char __user *buf,
 	return count;
 }
 
+static __poll_t ts_poll(struct file *file, poll_table *wait)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct ngene_channel *chan = dvbdev->priv;
+	struct ngene *dev = chan->dev;
+	struct dvb_ringbuffer *rbuf = &dev->tsin_rbuf;
+	struct dvb_ringbuffer *wbuf = &dev->tsout_rbuf;
+	__poll_t mask = 0;
+
+	poll_wait(file, &rbuf->queue, wait);
+	poll_wait(file, &wbuf->queue, wait);
+
+	if (!dvb_ringbuffer_empty(rbuf))
+		mask |= EPOLLIN | EPOLLRDNORM;
+	if (dvb_ringbuffer_free(wbuf) >= 188)
+		mask |= EPOLLOUT | EPOLLWRNORM;
+
+	return mask;
+}
+
 static const struct file_operations ci_fops = {
 	.owner   = THIS_MODULE,
 	.read    = ts_read,
 	.write   = ts_write,
 	.open    = dvb_generic_open,
 	.release = dvb_generic_release,
+	.poll    = ts_poll,
+	.mmap    = NULL,
 };
 
 struct dvb_device ngene_dvbdev_ci = {
-	.readers = -1,
-	.writers = -1,
-	.users   = -1,
+	.priv    = NULL,
+	.readers = 1,
+	.writers = 1,
+	.users   = 2,
 	.fops    = &ci_fops,
 };
 
@@ -120,47 +142,118 @@ static void swap_buffer(u32 *p, u32 len)
 /* start of filler packet */
 static u8 fill_ts[] = { 0x47, 0x1f, 0xff, 0x10, TS_FILLER };
 
-/* #define DEBUG_CI_XFER */
-#ifdef DEBUG_CI_XFER
-static u32 ok;
-static u32 overflow;
-static u32 stripped;
-#endif
+static int tsin_find_offset(void *buf, u32 len)
+{
+	int i, l;
+
+	l = len - sizeof(fill_ts);
+	if (l <= 0)
+		return -1;
+
+	for (i = 0; i < l; i++) {
+		if (((char *)buf)[i] == 0x47) {
+			if (!memcmp(buf + i, fill_ts, sizeof(fill_ts)))
+				return i % 188;
+		}
+	}
+
+	return -1;
+}
+
+static inline void tsin_copy_stripped(struct ngene *dev, void *buf)
+{
+	if (memcmp(buf, fill_ts, sizeof(fill_ts)) != 0) {
+		if (dvb_ringbuffer_free(&dev->tsin_rbuf) >= 188) {
+			dvb_ringbuffer_write(&dev->tsin_rbuf, buf, 188);
+			wake_up(&dev->tsin_rbuf.queue);
+		}
+	}
+}
 
 void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 {
 	struct ngene_channel *chan = priv;
 	struct ngene *dev = chan->dev;
-
+	int tsoff;
 
 	if (flags & DF_SWAP32)
 		swap_buffer(buf, len);
 
 	if (dev->ci.en && chan->number == 2) {
-		while (len >= 188) {
-			if (memcmp(buf, fill_ts, sizeof fill_ts) != 0) {
-				if (dvb_ringbuffer_free(&dev->tsin_rbuf) >= 188) {
-					dvb_ringbuffer_write(&dev->tsin_rbuf, buf, 188);
-					wake_up(&dev->tsin_rbuf.queue);
-#ifdef DEBUG_CI_XFER
-					ok++;
-#endif
-				}
-#ifdef DEBUG_CI_XFER
-				else
-					overflow++;
-#endif
-			}
-#ifdef DEBUG_CI_XFER
-			else
-				stripped++;
+		/* blindly copy buffers if ci_tsfix is disabled */
+		if (!ci_tsfix) {
+			while (len >= 188) {
+				tsin_copy_stripped(dev, buf);
 
-			if (ok % 100 == 0 && overflow)
-				printk(KERN_WARNING "%s: ok %u overflow %u dropped %u\n", __func__, ok, overflow, stripped);
-#endif
+				buf += 188;
+				len -= 188;
+			}
+			return NULL;
+		}
+
+		/* ci_tsfix = 1 */
+
+		/*
+		 * since the remainder of the TS packet which got cut off
+		 * in the previous tsin_exchange() run is at the beginning
+		 * of the new TS buffer, append this to the temp buffer and
+		 * send it to the DVB ringbuffer afterwards.
+		 */
+		if (chan->tsin_offset) {
+			memcpy(&chan->tsin_buffer[(188 - chan->tsin_offset)],
+			       buf, chan->tsin_offset);
+			tsin_copy_stripped(dev, &chan->tsin_buffer);
+
+			buf += chan->tsin_offset;
+			len -= chan->tsin_offset;
+		}
+
+		/*
+		 * copy TS packets to the DVB ringbuffer and detect new offset
+		 * shifts by checking for a valid TS SYNC byte
+		 */
+		while (len >= 188) {
+			if (*((char *)buf) != 0x47) {
+				/*
+				 * no SYNC header, find new offset shift
+				 * (max. 188 bytes, tsoff will be mod 188)
+				 */
+				tsoff = tsin_find_offset(buf, len);
+				if (tsoff > 0) {
+					chan->tsin_offset += tsoff;
+					chan->tsin_offset %= 188;
+
+					buf += tsoff;
+					len -= tsoff;
+
+					dev_info(&dev->pci_dev->dev,
+						 "%s(): tsin_offset shift by %d on channel %d\n",
+						 __func__, tsoff,
+						 chan->number);
+
+					/*
+					 * offset corrected. re-check remaining
+					 * len for a full TS frame, break and
+					 * skip to fragment handling if < 188.
+					 */
+					if (len < 188)
+						break;
+				}
+			}
+
+			tsin_copy_stripped(dev, buf);
+
 			buf += 188;
 			len -= 188;
 		}
+
+		/*
+		 * if a fragment is left, copy to temp buffer. The remainder
+		 * will be appended in the next tsin_exchange() iteration.
+		 */
+		if (len > 0 && len < 188)
+			memcpy(&chan->tsin_buffer, buf, len);
+
 		return NULL;
 	}
 

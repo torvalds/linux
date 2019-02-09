@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IPV6_H
 #define _IPV6_H
 
@@ -18,6 +19,7 @@ struct ipv6_devconf {
 	__s32		dad_transmits;
 	__s32		rtr_solicits;
 	__s32		rtr_solicit_interval;
+	__s32		rtr_solicit_max_interval;
 	__s32		rtr_solicit_delay;
 	__s32		force_mld_version;
 	__s32		mldv1_unsolicited_report_interval;
@@ -36,9 +38,11 @@ struct ipv6_devconf {
 	__s32		accept_ra_rtr_pref;
 	__s32		rtr_probe_interval;
 #ifdef CONFIG_IPV6_ROUTE_INFO
+	__s32		accept_ra_rt_info_min_plen;
 	__s32		accept_ra_rt_info_max_plen;
 #endif
 #endif
+	__s32		accept_ra_rt_table;
 	__s32		proxy_ndp;
 	__s32		accept_source_route;
 	__s32		accept_ra_from_local;
@@ -50,17 +54,29 @@ struct ipv6_devconf {
 	__s32		mc_forwarding;
 #endif
 	__s32		disable_ipv6;
+	__s32		drop_unicast_in_l2_multicast;
 	__s32		accept_dad;
 	__s32		force_tllao;
 	__s32           ndisc_notify;
 	__s32		suppress_frag_ndisc;
 	__s32		accept_ra_mtu;
+	__s32		drop_unsolicited_na;
 	struct ipv6_stable_secret {
 		bool initialized;
 		struct in6_addr secret;
 	} stable_secret;
 	__s32		use_oif_addrs_only;
-	void		*sysctl;
+	__s32		keep_addr_on_down;
+	__s32		seg6_enabled;
+#ifdef CONFIG_IPV6_SEG6_HMAC
+	__s32		seg6_require_hmac;
+#endif
+	__u32		enhanced_dad;
+	__u32		addr_gen_mode;
+	__s32		disable_policy;
+	__s32           ndisc_tclass;
+
+	struct ctl_table_header *sysctl_header;
 };
 
 struct ipv6_params {
@@ -114,14 +130,56 @@ struct inet6_skb_parm {
 #define IP6SKB_ROUTERALERT	8
 #define IP6SKB_FRAGMENTED      16
 #define IP6SKB_HOPBYHOP        32
+#define IP6SKB_L3SLAVE         64
+#define IP6SKB_JUMBOGRAM      128
 };
+
+#if defined(CONFIG_NET_L3_MASTER_DEV)
+static inline bool ipv6_l3mdev_skb(__u16 flags)
+{
+	return flags & IP6SKB_L3SLAVE;
+}
+#else
+static inline bool ipv6_l3mdev_skb(__u16 flags)
+{
+	return false;
+}
+#endif
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
 #define IP6CBMTU(skb)	((struct ip6_mtuinfo *)((skb)->cb))
 
 static inline int inet6_iif(const struct sk_buff *skb)
 {
-	return IP6CB(skb)->iif;
+	bool l3_slave = ipv6_l3mdev_skb(IP6CB(skb)->flags);
+
+	return l3_slave ? skb->skb_iif : IP6CB(skb)->iif;
+}
+
+static inline bool inet6_is_jumbogram(const struct sk_buff *skb)
+{
+	return !!(IP6CB(skb)->flags & IP6SKB_JUMBOGRAM);
+}
+
+/* can not be used in TCP layer after tcp_v6_fill_cb */
+static inline int inet6_sdif(const struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (skb && ipv6_l3mdev_skb(IP6CB(skb)->flags))
+		return IP6CB(skb)->iif;
+#endif
+	return 0;
+}
+
+/* can not be used in TCP layer after tcp_v6_fill_cb */
+static inline bool inet6_exact_dif_match(struct net *net, struct sk_buff *skb)
+{
+#if defined(CONFIG_NET_L3_MASTER_DEV)
+	if (!net->ipv4.sysctl_tcp_l3mdev_accept &&
+	    skb && ipv6_l3mdev_skb(IP6CB(skb)->flags))
+		return true;
+#endif
+	return false;
 }
 
 struct tcp6_request_sock {
@@ -198,8 +256,9 @@ struct ipv6_pinfo {
                                 rxflow:1,
 				rxtclass:1,
 				rxpmtu:1,
-				rxorigdstaddr:1;
-				/* 2 bits hole */
+				rxorigdstaddr:1,
+				recvfragsize:1;
+				/* 1 bits hole */
 		} bits;
 		__u16		all;
 	} rxopt;
@@ -215,7 +274,8 @@ struct ipv6_pinfo {
 						 * 100: prefer care-of address
 						 */
 				dontfrag:1,
-				autoflowlabel:1;
+				autoflowlabel:1,
+				autoflowlabel_set:1;
 	__u8			min_hopcount;
 	__u8			tclass;
 	__be32			rcv_flowinfo;
@@ -264,6 +324,8 @@ struct tcp6_timewait_sock {
 };
 
 #if IS_ENABLED(CONFIG_IPV6)
+bool ipv6_mod_enabled(void);
+
 static inline struct ipv6_pinfo *inet6_sk(const struct sock *__sk)
 {
 	return sk_fullsock(__sk) ? inet_sk(__sk)->pinet6 : NULL;
@@ -306,6 +368,11 @@ static inline int inet_v6_ipv6only(const struct sock *sk)
 #define __ipv6_only_sock(sk)	0
 #define ipv6_only_sock(sk)	0
 #define ipv6_sk_rxinfo(sk)	0
+
+static inline bool ipv6_mod_enabled(void)
+{
+	return false;
+}
 
 static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * L2TP-over-IP socket for L2TPv3.
  *
@@ -9,9 +10,8 @@
 
 #include <linux/types.h>
 #include <linux/socket.h>
-#ifndef __KERNEL__
-#include <netinet/in.h>
-#endif
+#include <linux/in.h>
+#include <linux/in6.h>
 
 #define IPPROTO_L2TP		115
 
@@ -31,7 +31,7 @@ struct sockaddr_l2tpip {
 	__u32		l2tp_conn_id;	/* Connection ID of tunnel */
 
 	/* Pad to size of `struct sockaddr'. */
-	unsigned char	__pad[sizeof(struct sockaddr) -
+	unsigned char	__pad[__SOCK_SIZE__ -
 			      sizeof(__kernel_sa_family_t) -
 			      sizeof(__be16) - sizeof(struct in_addr) -
 			      sizeof(__u32)];
@@ -60,14 +60,14 @@ struct sockaddr_l2tpip6 {
 /*
  * Commands.
  * Valid TLVs of each command are:-
- * TUNNEL_CREATE	- CONN_ID, pw_type, netns, ifname, ipinfo, udpinfo, udpcsum, vlanid
+ * TUNNEL_CREATE	- CONN_ID, pw_type, netns, ifname, ipinfo, udpinfo, udpcsum
  * TUNNEL_DELETE	- CONN_ID
  * TUNNEL_MODIFY	- CONN_ID, udpcsum
  * TUNNEL_GETSTATS	- CONN_ID, (stats)
  * TUNNEL_GET		- CONN_ID, (...)
- * SESSION_CREATE	- SESSION_ID, PW_TYPE, offset, data_seq, cookie, peer_cookie, offset, l2spec
+ * SESSION_CREATE	- SESSION_ID, PW_TYPE, cookie, peer_cookie, l2spec
  * SESSION_DELETE	- SESSION_ID
- * SESSION_MODIFY	- SESSION_ID, data_seq
+ * SESSION_MODIFY	- SESSION_ID
  * SESSION_GET		- SESSION_ID, (...)
  * SESSION_GETSTATS	- SESSION_ID, (stats)
  *
@@ -94,10 +94,10 @@ enum {
 	L2TP_ATTR_NONE,			/* no data */
 	L2TP_ATTR_PW_TYPE,		/* u16, enum l2tp_pwtype */
 	L2TP_ATTR_ENCAP_TYPE,		/* u16, enum l2tp_encap_type */
-	L2TP_ATTR_OFFSET,		/* u16 */
-	L2TP_ATTR_DATA_SEQ,		/* u16 */
+	L2TP_ATTR_OFFSET,		/* u16 (not used) */
+	L2TP_ATTR_DATA_SEQ,		/* u16 (not used) */
 	L2TP_ATTR_L2SPEC_TYPE,		/* u8, enum l2tp_l2spec_type */
-	L2TP_ATTR_L2SPEC_LEN,		/* u8, enum l2tp_l2spec_type */
+	L2TP_ATTR_L2SPEC_LEN,		/* u8 (not used) */
 	L2TP_ATTR_PROTO_VERSION,	/* u8 */
 	L2TP_ATTR_IFNAME,		/* string */
 	L2TP_ATTR_CONN_ID,		/* u32 */
@@ -105,10 +105,10 @@ enum {
 	L2TP_ATTR_SESSION_ID,		/* u32 */
 	L2TP_ATTR_PEER_SESSION_ID,	/* u32 */
 	L2TP_ATTR_UDP_CSUM,		/* u8 */
-	L2TP_ATTR_VLAN_ID,		/* u16 */
+	L2TP_ATTR_VLAN_ID,		/* u16 (not used) */
 	L2TP_ATTR_COOKIE,		/* 0, 4 or 8 bytes */
 	L2TP_ATTR_PEER_COOKIE,		/* 0, 4 or 8 bytes */
-	L2TP_ATTR_DEBUG,		/* u32 */
+	L2TP_ATTR_DEBUG,		/* u32, enum l2tp_debug_flags */
 	L2TP_ATTR_RECV_SEQ,		/* u8 */
 	L2TP_ATTR_SEND_SEQ,		/* u8 */
 	L2TP_ATTR_LNS_MODE,		/* u8 */
@@ -119,13 +119,14 @@ enum {
 	L2TP_ATTR_IP_DADDR,		/* u32 */
 	L2TP_ATTR_UDP_SPORT,		/* u16 */
 	L2TP_ATTR_UDP_DPORT,		/* u16 */
-	L2TP_ATTR_MTU,			/* u16 */
-	L2TP_ATTR_MRU,			/* u16 */
+	L2TP_ATTR_MTU,			/* u16 (not used) */
+	L2TP_ATTR_MRU,			/* u16 (not used) */
 	L2TP_ATTR_STATS,		/* nested */
 	L2TP_ATTR_IP6_SADDR,		/* struct in6_addr */
 	L2TP_ATTR_IP6_DADDR,		/* struct in6_addr */
-	L2TP_ATTR_UDP_ZERO_CSUM6_TX,	/* u8 */
-	L2TP_ATTR_UDP_ZERO_CSUM6_RX,	/* u8 */
+	L2TP_ATTR_UDP_ZERO_CSUM6_TX,	/* flag */
+	L2TP_ATTR_UDP_ZERO_CSUM6_RX,	/* flag */
+	L2TP_ATTR_PAD,
 	__L2TP_ATTR_MAX,
 };
 
@@ -142,6 +143,7 @@ enum {
 	L2TP_ATTR_RX_SEQ_DISCARDS,	/* u64 */
 	L2TP_ATTR_RX_OOS_PACKETS,	/* u64 */
 	L2TP_ATTR_RX_ERRORS,		/* u64 */
+	L2TP_ATTR_STATS_PAD,
 	__L2TP_ATTR_STATS_MAX,
 };
 
@@ -167,10 +169,26 @@ enum l2tp_encap_type {
 	L2TP_ENCAPTYPE_IP,
 };
 
+/* For L2TP_ATTR_DATA_SEQ. Unused. */
 enum l2tp_seqmode {
 	L2TP_SEQ_NONE = 0,
 	L2TP_SEQ_IP = 1,
 	L2TP_SEQ_ALL = 2,
+};
+
+/**
+ * enum l2tp_debug_flags - debug message categories for L2TP tunnels/sessions
+ *
+ * @L2TP_MSG_DEBUG: verbose debug (if compiled in)
+ * @L2TP_MSG_CONTROL: userspace - kernel interface
+ * @L2TP_MSG_SEQ: sequence numbers
+ * @L2TP_MSG_DATA: data packets
+ */
+enum l2tp_debug_flags {
+	L2TP_MSG_DEBUG		= (1 << 0),
+	L2TP_MSG_CONTROL	= (1 << 1),
+	L2TP_MSG_SEQ		= (1 << 2),
+	L2TP_MSG_DATA		= (1 << 3),
 };
 
 /*

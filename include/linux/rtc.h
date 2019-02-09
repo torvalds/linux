@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Generic RTC interface.
  * This version contains the part of the user interface to the Real Time Clock
@@ -14,6 +15,7 @@
 
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/nvmem-provider.h>
 #include <uapi/linux/rtc.h>
 
 extern int rtc_month_days(unsigned int month, unsigned int year);
@@ -32,17 +34,11 @@ static inline time64_t rtc_tm_sub(struct rtc_time *lhs, struct rtc_time *rhs)
 	return rtc_tm_to_time64(lhs) - rtc_tm_to_time64(rhs);
 }
 
-/**
- * Deprecated. Use rtc_time64_to_tm().
- */
 static inline void rtc_time_to_tm(unsigned long time, struct rtc_time *tm)
 {
 	rtc_time64_to_tm(time, tm);
 }
 
-/**
- * Deprecated. Use rtc_tm_to_time64().
- */
 static inline int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time)
 {
 	*time = rtc_tm_to_time64(tm);
@@ -77,8 +73,6 @@ extern struct class *rtc_class;
  * issued through ioctl() ...
  */
 struct rtc_class_ops {
-	int (*open)(struct device *);
-	void (*release)(struct device *);
 	int (*ioctl)(struct device *, unsigned int, unsigned long);
 	int (*read_time)(struct device *, struct rtc_time *);
 	int (*set_time)(struct device *, struct rtc_time *);
@@ -89,19 +83,15 @@ struct rtc_class_ops {
 	int (*set_mmss)(struct device *, unsigned long secs);
 	int (*read_callback)(struct device *, int data);
 	int (*alarm_irq_enable)(struct device *, unsigned int enabled);
+	int (*read_offset)(struct device *, long *offset);
+	int (*set_offset)(struct device *, long offset);
 };
 
-#define RTC_DEVICE_NAME_SIZE 20
-typedef struct rtc_task {
-	void (*func)(void *private_data);
-	void *private_data;
-} rtc_task_t;
-
-
 struct rtc_timer {
-	struct rtc_task	task;
 	struct timerqueue_node node;
 	ktime_t period;
+	void (*func)(void *private_data);
+	void *private_data;
 	int enabled;
 };
 
@@ -114,7 +104,6 @@ struct rtc_device {
 	struct module *owner;
 
 	int id;
-	char name[RTC_DEVICE_NAME_SIZE];
 
 	const struct rtc_class_ops *ops;
 	struct mutex ops_lock;
@@ -127,8 +116,6 @@ struct rtc_device {
 	wait_queue_head_t irq_queue;
 	struct fasync_struct *async_queue;
 
-	struct rtc_task *irq_task;
-	spinlock_t irq_task_lock;
 	int irq_freq;
 	int max_user_freq;
 
@@ -140,6 +127,27 @@ struct rtc_device {
 	struct work_struct irqwork;
 	/* Some hardware can't support UIE mode */
 	int uie_unsupported;
+
+	/* Number of nsec it takes to set the RTC clock. This influences when
+	 * the set ops are called. An offset:
+	 *   - of 0.5 s will call RTC set for wall clock time 10.0 s at 9.5 s
+	 *   - of 1.5 s will call RTC set for wall clock time 10.0 s at 8.5 s
+	 *   - of -0.5 s will call RTC set for wall clock time 10.0 s at 10.5 s
+	 */
+	long set_offset_nsec;
+
+	bool registered;
+
+	struct nvmem_device *nvmem;
+	/* Old ABI support */
+	bool nvram_old_abi;
+	struct bin_attribute *nvram;
+
+	time64_t range_min;
+	timeu64_t range_max;
+	time64_t start_secs;
+	time64_t offset_secs;
+	bool set_start_time;
 
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	struct work_struct uie_task;
@@ -154,6 +162,11 @@ struct rtc_device {
 };
 #define to_rtc_device(d) container_of(d, struct rtc_device, dev)
 
+/* useful timestamps */
+#define RTC_TIMESTAMP_BEGIN_1900	-2208989361LL /* 1900-01-01 00:00:00 */
+#define RTC_TIMESTAMP_BEGIN_2000	946684800LL /* 2000-01-01 00:00:00 */
+#define RTC_TIMESTAMP_END_2099		4102444799LL /* 2099-12-31 23:59:59 */
+
 extern struct rtc_device *rtc_device_register(const char *name,
 					struct device *dev,
 					const struct rtc_class_ops *ops,
@@ -162,13 +175,15 @@ extern struct rtc_device *devm_rtc_device_register(struct device *dev,
 					const char *name,
 					const struct rtc_class_ops *ops,
 					struct module *owner);
+struct rtc_device *devm_rtc_allocate_device(struct device *dev);
+int __rtc_register_device(struct module *owner, struct rtc_device *rtc);
 extern void rtc_device_unregister(struct rtc_device *rtc);
 extern void devm_rtc_device_unregister(struct device *dev,
 					struct rtc_device *rtc);
 
 extern int rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm);
 extern int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm);
-extern int rtc_set_ntp_time(struct timespec64 now);
+extern int rtc_set_ntp_time(struct timespec64 now, unsigned long *target_nsec);
 int __rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm);
 extern int rtc_read_alarm(struct rtc_device *rtc,
 			struct rtc_wkalrm *alrm);
@@ -182,14 +197,8 @@ extern void rtc_update_irq(struct rtc_device *rtc,
 extern struct rtc_device *rtc_class_open(const char *name);
 extern void rtc_class_close(struct rtc_device *rtc);
 
-extern int rtc_irq_register(struct rtc_device *rtc,
-				struct rtc_task *task);
-extern void rtc_irq_unregister(struct rtc_device *rtc,
-				struct rtc_task *task);
-extern int rtc_irq_set_state(struct rtc_device *rtc,
-				struct rtc_task *task, int enabled);
-extern int rtc_irq_set_freq(struct rtc_device *rtc,
-				struct rtc_task *task, int freq);
+extern int rtc_irq_set_state(struct rtc_device *rtc, int enabled);
+extern int rtc_irq_set_freq(struct rtc_device *rtc, int freq);
 extern int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled);
 extern int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled);
 extern int rtc_dev_update_irq_enable_emul(struct rtc_device *rtc,
@@ -200,14 +209,12 @@ void rtc_aie_update_irq(void *private);
 void rtc_uie_update_irq(void *private);
 enum hrtimer_restart rtc_pie_update_irq(struct hrtimer *timer);
 
-int rtc_register(rtc_task_t *task);
-int rtc_unregister(rtc_task_t *task);
-int rtc_control(rtc_task_t *t, unsigned int cmd, unsigned long arg);
-
 void rtc_timer_init(struct rtc_timer *timer, void (*f)(void *p), void *data);
 int rtc_timer_start(struct rtc_device *rtc, struct rtc_timer *timer,
 		    ktime_t expires, ktime_t period);
 void rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer);
+int rtc_read_offset(struct rtc_device *rtc, long *offset);
+int rtc_set_offset(struct rtc_device *rtc, long offset);
 void rtc_timer_do_work(struct work_struct *work);
 
 static inline bool is_leap_year(unsigned int year)
@@ -215,10 +222,59 @@ static inline bool is_leap_year(unsigned int year)
 	return (!(year % 4) && (year % 100)) || !(year % 400);
 }
 
+/* Determine if we can call to driver to set the time. Drivers can only be
+ * called to set a second aligned time value, and the field set_offset_nsec
+ * specifies how far away from the second aligned time to call the driver.
+ *
+ * This also computes 'to_set' which is the time we are trying to set, and has
+ * a zero in tv_nsecs, such that:
+ *    to_set - set_delay_nsec == now +/- FUZZ
+ *
+ */
+static inline bool rtc_tv_nsec_ok(s64 set_offset_nsec,
+				  struct timespec64 *to_set,
+				  const struct timespec64 *now)
+{
+	/* Allowed error in tv_nsec, arbitarily set to 5 jiffies in ns. */
+	const unsigned long TIME_SET_NSEC_FUZZ = TICK_NSEC * 5;
+	struct timespec64 delay = {.tv_sec = 0,
+				   .tv_nsec = set_offset_nsec};
+
+	*to_set = timespec64_add(*now, delay);
+
+	if (to_set->tv_nsec < TIME_SET_NSEC_FUZZ) {
+		to_set->tv_nsec = 0;
+		return true;
+	}
+
+	if (to_set->tv_nsec > NSEC_PER_SEC - TIME_SET_NSEC_FUZZ) {
+		to_set->tv_sec++;
+		to_set->tv_nsec = 0;
+		return true;
+	}
+	return false;
+}
+
+#define rtc_register_device(device) \
+	__rtc_register_device(THIS_MODULE, device)
+
 #ifdef CONFIG_RTC_HCTOSYS_DEVICE
 extern int rtc_hctosys_ret;
 #else
 #define rtc_hctosys_ret -ENODEV
+#endif
+
+#ifdef CONFIG_RTC_NVMEM
+int rtc_nvmem_register(struct rtc_device *rtc,
+		       struct nvmem_config *nvmem_config);
+void rtc_nvmem_unregister(struct rtc_device *rtc);
+#else
+static inline int rtc_nvmem_register(struct rtc_device *rtc,
+				     struct nvmem_config *nvmem_config)
+{
+	return 0;
+}
+static inline void rtc_nvmem_unregister(struct rtc_device *rtc) {}
 #endif
 
 #endif /* _LINUX_RTC_H_ */

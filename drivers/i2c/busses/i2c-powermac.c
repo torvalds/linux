@@ -150,13 +150,11 @@ static int i2c_powermac_master_xfer(	struct i2c_adapter *adap,
 {
 	struct pmac_i2c_bus	*bus = i2c_get_adapdata(adap);
 	int			rc = 0;
-	int			read;
 	int			addrdir;
 
 	if (msgs->flags & I2C_M_TEN)
 		return -EINVAL;
-	read = (msgs->flags & I2C_M_RD) != 0;
-	addrdir = (msgs->addr << 1) | read;
+	addrdir = i2c_8bit_addr_from_msg(msgs);
 
 	rc = pmac_i2c_open(bus, 0);
 	if (rc) {
@@ -199,7 +197,7 @@ static const struct i2c_algorithm i2c_powermac_algorithm = {
 	.functionality	= i2c_powermac_func,
 };
 
-static struct i2c_adapter_quirks i2c_powermac_quirks = {
+static const struct i2c_adapter_quirks i2c_powermac_quirks = {
 	.max_num_msgs = 1,
 };
 
@@ -236,7 +234,7 @@ static u32 i2c_powermac_get_addr(struct i2c_adapter *adap,
 	else if (!strcmp(node->name, "deq"))
 		return 0x34;
 
-	dev_warn(&adap->dev, "No i2c address for %s\n", node->full_name);
+	dev_warn(&adap->dev, "No i2c address for %pOF\n", node);
 
 	return 0xffffffff;
 }
@@ -317,8 +315,7 @@ static bool i2c_powermac_get_type(struct i2c_adapter *adap,
 		}
 	}
 
-	dev_err(&adap->dev, "i2c-powermac: modalias failure"
-		" on %s\n", node->full_name);
+	dev_err(&adap->dev, "i2c-powermac: modalias failure on %pOF\n", node);
 	return false;
 }
 
@@ -350,8 +347,7 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 		if (!pmac_i2c_match_adapter(node, adap))
 			continue;
 
-		dev_dbg(&adap->dev, "i2c-powermac: register %s\n",
-			node->full_name);
+		dev_dbg(&adap->dev, "i2c-powermac: register %pOF\n", node);
 
 		/*
 		 * Keep track of some device existence to handle
@@ -374,7 +370,7 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 		newdev = i2c_new_device(adap, &info);
 		if (!newdev) {
 			dev_err(&adap->dev, "i2c-powermac: Failure to register"
-				" %s\n", node->full_name);
+				" %pOF\n", node);
 			of_node_put(node);
 			/* We do not dispose of the interrupt mapping on
 			 * purpose. It's not necessary (interrupt cannot be

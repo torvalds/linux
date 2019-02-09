@@ -525,7 +525,7 @@ l3dss1_message_cause(struct l3_process *pc, u_char mt, u_char cause)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 }
 
@@ -551,7 +551,7 @@ l3dss1_status_send(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 }
 
@@ -587,7 +587,7 @@ l3dss1_msg_without_setup(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 	dss1_release_l3_process(pc);
 }
@@ -944,7 +944,7 @@ l3dss1_msg_with_uus(struct l3_process *pc, u_char cmd)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 } /* l3dss1_msg_with_uus */
 
@@ -1282,6 +1282,7 @@ l3dss1_setup_req(struct l3_process *pc, u_char pr,
 			switch (0x5f & *teln) {
 			case 'C':
 				channel = 0x08;
+				/* fall through */
 			case 'P':
 				channel |= 0x80;
 				teln++;
@@ -1420,7 +1421,7 @@ l3dss1_setup_req(struct l3_process *pc, u_char pr,
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	L3DelTimer(&pc->timer);
 	L3AddTimer(&pc->timer, T303, CC_T303);
 	newl3state(pc, 1);
@@ -1786,7 +1787,7 @@ l3dss1_disconnect_req(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	newl3state(pc, 11);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 	L3AddTimer(&pc->timer, T305, CC_T305);
@@ -1848,7 +1849,7 @@ l3dss1_reject_req(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 	pc->st->l3.l3l4(pc->st, CC_RELEASE | INDICATION, pc);
 	newl3state(pc, 0);
@@ -2145,7 +2146,7 @@ static void l3dss1_redir_req(struct l3_process *pc, u_char pr, void *arg)
 
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l))) return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 } /* l3dss1_redir_req */
@@ -2216,7 +2217,7 @@ static int l3dss1_cmd_global(struct PStack *st, isdn_ctrl *ic)
 				if (pc) dss1_release_l3_process(pc);
 				return (-2);
 			}
-			memcpy(skb_put(skb, l), temp, l);
+			skb_put_data(skb, temp, l);
 
 			if (pc)
 			{ pc->prot.dss1.invoke_id = id; /* remember id */
@@ -2359,7 +2360,7 @@ l3dss1_t305(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	newl3state(pc, 19);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 	L3AddTimer(&pc->timer, T308, CC_T308_1);
@@ -2528,7 +2529,7 @@ l3dss1_suspend_req(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 	newl3state(pc, 15);
 	L3AddTimer(&pc->timer, T319, CC_T319);
@@ -2603,7 +2604,7 @@ l3dss1_resume_req(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 	newl3state(pc, 17);
 	L3AddTimer(&pc->timer, T318, CC_T318);
@@ -2721,7 +2722,7 @@ l3dss1_global_restart(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	newl3state(pc, 0);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 }
@@ -2929,7 +2930,7 @@ global_handler(struct PStack *st, int mt, struct sk_buff *skb)
 		l = p - tmp;
 		if (!(skb = l3_alloc_skb(l)))
 			return;
-		memcpy(skb_put(skb, l), tmp, l);
+		skb_put_data(skb, tmp, l);
 		l3_msg(proc->st, DL_DATA | REQUEST, skb);
 	} else {
 		if (st->l3.debug & L3_DEB_STATE) {

@@ -3,7 +3,7 @@
  *
  * This code provides the generic "frontend" layer to call a matching
  * "backend" driver implementation of cleancache.  See
- * Documentation/vm/cleancache.txt for more information.
+ * Documentation/vm/cleancache.rst for more information.
  *
  * Copyright (C) 2009-2010 Oracle Corp. All rights reserved.
  * Author: Dan Magenheimer
@@ -22,7 +22,7 @@
  * cleancache_ops is set by cleancache_register_ops to contain the pointers
  * to the cleancache "backend" implementation functions.
  */
-static struct cleancache_ops *cleancache_ops __read_mostly;
+static const struct cleancache_ops *cleancache_ops __read_mostly;
 
 /*
  * Counters available via /sys/kernel/debug/cleancache (if debugfs is
@@ -49,7 +49,7 @@ static void cleancache_register_ops_sb(struct super_block *sb, void *unused)
 /*
  * Register operations for cleancache. Returns 0 on success.
  */
-int cleancache_register_ops(struct cleancache_ops *ops)
+int cleancache_register_ops(const struct cleancache_ops *ops)
 {
 	if (cmpxchg(&cleancache_ops, NULL, ops))
 		return -EBUSY;
@@ -130,7 +130,7 @@ void __cleancache_init_shared_fs(struct super_block *sb)
 	int pool_id = CLEANCACHE_NO_BACKEND_SHARED;
 
 	if (cleancache_ops) {
-		pool_id = cleancache_ops->init_shared_fs(sb->s_uuid, PAGE_SIZE);
+		pool_id = cleancache_ops->init_shared_fs(&sb->s_uuid, PAGE_SIZE);
 		if (pool_id < 0)
 			pool_id = CLEANCACHE_NO_POOL;
 	}
@@ -307,12 +307,10 @@ static int __init init_cleancache(void)
 	struct dentry *root = debugfs_create_dir("cleancache", NULL);
 	if (root == NULL)
 		return -ENXIO;
-	debugfs_create_u64("succ_gets", S_IRUGO, root, &cleancache_succ_gets);
-	debugfs_create_u64("failed_gets", S_IRUGO,
-				root, &cleancache_failed_gets);
-	debugfs_create_u64("puts", S_IRUGO, root, &cleancache_puts);
-	debugfs_create_u64("invalidates", S_IRUGO,
-				root, &cleancache_invalidates);
+	debugfs_create_u64("succ_gets", 0444, root, &cleancache_succ_gets);
+	debugfs_create_u64("failed_gets", 0444, root, &cleancache_failed_gets);
+	debugfs_create_u64("puts", 0444, root, &cleancache_puts);
+	debugfs_create_u64("invalidates", 0444, root, &cleancache_invalidates);
 #endif
 	return 0;
 }

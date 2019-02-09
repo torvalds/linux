@@ -19,6 +19,8 @@
 #include <linux/regmap.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
+#include "mtk-eint.h"
+
 #define NO_EINT_SUPPORT    255
 #define MT_EDGE_SENSITIVE           0
 #define MT_LEVEL_SENSITIVE          1
@@ -209,7 +211,14 @@ struct mtk_eint_offsets {
  * means when user set smt, input enable is set at the same time. So they
  * also need special control. If special control is success, this should
  * return 0, otherwise return non-zero value.
- *
+ * @spec_pinmux_set: In some cases, there are two pinmux functions share
+ * the same value in the same segment of pinmux control register. If user
+ * want to use one of the two functions, they need an extra bit setting to
+ * select the right one.
+ * @spec_dir_set: In very few SoCs, direction control registers are not
+ * arranged continuously, they may be cut to parts. So they need special
+ * dir setting.
+
  * @dir_offset: The direction register offset.
  * @pullen_offset: The pull-up/pull-down enable register offset.
  * @pinmux_offset: The pinmux register offset.
@@ -234,6 +243,9 @@ struct mtk_pinctrl_devdata {
 			unsigned char align, bool isup, unsigned int arg);
 	int (*spec_ies_smt_set)(struct regmap *reg, unsigned int pin,
 			unsigned char align, int value, enum pin_config_param arg);
+	void (*spec_pinmux_set)(struct regmap *reg, unsigned int pin,
+			unsigned int mode);
+	void (*spec_dir_set)(unsigned int *reg_addr, unsigned int pin);
 	unsigned int dir_offset;
 	unsigned int ies_offset;
 	unsigned int smt_offset;
@@ -248,9 +260,8 @@ struct mtk_pinctrl_devdata {
 	unsigned char  port_shf;
 	unsigned char  port_mask;
 	unsigned char  port_align;
-	struct mtk_eint_offsets eint_offsets;
-	unsigned int	ap_num;
-	unsigned int	db_cnt;
+	struct mtk_eint_hw eint_hw;
+	struct mtk_eint_regs *eint_regs;
 };
 
 struct mtk_pinctrl {
@@ -264,11 +275,7 @@ struct mtk_pinctrl {
 	const char          **grp_names;
 	struct pinctrl_dev      *pctl_dev;
 	const struct mtk_pinctrl_devdata  *devdata;
-	void __iomem		*eint_reg_base;
-	struct irq_domain	*domain;
-	int			*eint_dual_edges;
-	u32 *wake_mask;
-	u32 *cur_mask;
+	struct mtk_eint *eint;
 };
 
 int mtk_pctrl_init(struct platform_device *pdev,

@@ -10,7 +10,7 @@
 
 #include "omap34xx.dtsi"
 / {
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>;	/* 256 MB */
 	};
@@ -64,11 +64,11 @@
 			label = "user";
 			gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
 			linux,code = <BTN_EXTRA>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
-	tfp410: encoder@0 {
+	tfp410: encoder0 {
 		compatible = "ti,tfp410";
 		powerdown-gpios = <&twl_gpio 7 GPIO_ACTIVE_LOW>;
 
@@ -79,7 +79,7 @@
 			port@0 {
 				reg = <0>;
 
-				tfp410_in: endpoint@0 {
+				tfp410_in: endpoint {
 					remote-endpoint = <&dpi_dvi_out>;
 				};
 			};
@@ -87,14 +87,14 @@
 			port@1 {
 				reg = <1>;
 
-				tfp410_out: endpoint@0 {
+				tfp410_out: endpoint {
 					remote-endpoint = <&dvi_connector_in>;
 				};
 			};
 		};
 	};
 
-	dvi0: connector@0 {
+	dvi0: connector0 {
 		compatible = "dvi-connector";
 		label = "dvi";
 
@@ -109,7 +109,7 @@
 		};
 	};
 
-	tv0: connector@1 {
+	tv0: connector1 {
 		compatible = "svideo-connector";
 		label = "tv";
 
@@ -149,7 +149,7 @@
 
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
-	vmmc_aux-supply = <&vsim>;
+	vqmmc-supply = <&vsim>;
 	bus-width = <8>;
 };
 
@@ -201,10 +201,15 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x30000000 0x1000000>;       /* CS0: 16MB for NAND */
+	ranges = <0 0 0x30000000 0x1000000	/* CS0: 16MB for NAND */
+		  6 0 0x2c000000 0x1000000>;	/* CS6: 16MB for DM9000 */
 
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		nand-bus-width = <16>;
 		gpmc,device-width = <2>;
 		ti,nand-ecc-opt = "sw";
@@ -252,12 +257,8 @@
 			reg = <0x680000 0xf980000>;
 		};
 	};
-};
 
-&gpmc {
-	ranges = <6 0 0x2c000000 0x1000000>;       /* CS6: 16MB for DM9000 */
-
-	ethernet@0,0 {
+	ethernet@6,0 {
 		compatible = "davicom,dm9000";
 		reg =  <6 0x000 2
 			6 0x400 2>; /* CS6, offset 0 and 0x400, IO size 2 */
@@ -348,9 +349,16 @@
 	vdda_dac-supply = <&vdac>;
 
 	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		dpi_dvi_out: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&tfp410_in>;
 			data-lines = <24>;
+		};
+
+		endpoint@1 {
+			reg = <1>;
 		};
 	};
 };

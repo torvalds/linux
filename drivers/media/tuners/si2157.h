@@ -17,8 +17,8 @@
 #ifndef SI2157_H
 #define SI2157_H
 
-#include <linux/kconfig.h>
-#include "dvb_frontend.h"
+#include <media/media-device.h>
+#include <media/dvb_frontend.h>
 
 /*
  * I2C address
@@ -29,6 +29,10 @@ struct si2157_config {
 	 * frontend
 	 */
 	struct dvb_frontend *fe;
+
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_device *mdev;
+#endif
 
 	/*
 	 * Spectral Inversion

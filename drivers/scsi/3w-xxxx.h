@@ -1,7 +1,7 @@
 /* 
    3w-xxxx.h -- 3ware Storage Controller device driver for Linux.
    
-   Written By: Adam Radford <linuxraid@lsi.com>
+   Written By: Adam Radford <aradford@gmail.com>
    Modifications By: Joel Jacobson <linux@3ware.com>
    		     Arnaldo Carvalho de Melo <acme@conectiva.com.br>
                      Brad Strand <linux@3ware.com>
@@ -45,7 +45,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
 
    Bugs/Comments/Suggestions should be mailed to:                            
-   linuxraid@lsi.com
+
+   aradford@gmail.com
    
    For more information, goto:
    http://www.lsi.com

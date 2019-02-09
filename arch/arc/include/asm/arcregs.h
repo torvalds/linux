@@ -10,18 +10,20 @@
 #define _ASM_ARC_ARCREGS_H
 
 /* Build Configuration Registers */
-#define ARC_REG_DCCMBASE_BCR	0x61	/* DCCM Base Addr */
+#define ARC_REG_AUX_DCCM	0x18	/* DCCM Base Addr ARCv2 */
+#define ARC_REG_ERP_CTRL	0x3F	/* ARCv2 Error protection control */
+#define ARC_REG_DCCM_BASE_BUILD	0x61	/* DCCM Base Addr ARCompact */
 #define ARC_REG_CRC_BCR		0x62
 #define ARC_REG_VECBASE_BCR	0x68
 #define ARC_REG_PERIBASE_BCR	0x69
 #define ARC_REG_FP_BCR		0x6B	/* ARCompact: Single-Precision FPU */
 #define ARC_REG_DPFP_BCR	0x6C	/* ARCompact: Dbl Precision FPU */
+#define ARC_REG_ERP_BUILD	0xc7	/* ARCv2 Error protection Build: ECC/Parity */
 #define ARC_REG_FP_V2_BCR	0xc8	/* ARCv2 FPU */
 #define ARC_REG_SLC_BCR		0xce
-#define ARC_REG_DCCM_BCR	0x74	/* DCCM Present + SZ */
-#define ARC_REG_TIMERS_BCR	0x75
+#define ARC_REG_DCCM_BUILD	0x74	/* DCCM size (common) */
 #define ARC_REG_AP_BCR		0x76
-#define ARC_REG_ICCM_BCR	0x78
+#define ARC_REG_ICCM_BUILD	0x78	/* ICCM size (common) */
 #define ARC_REG_XY_MEM_BCR	0x79
 #define ARC_REG_MAC_BCR		0x7a
 #define ARC_REG_MUL_BCR		0x7b
@@ -32,21 +34,30 @@
 #define ARC_REG_D_UNCACH_BCR	0x6A
 #define ARC_REG_BPU_BCR		0xc0
 #define ARC_REG_ISA_CFG_BCR	0xc1
+#define ARC_REG_LPB_BUILD	0xE9	/* ARCv2 Loop Buffer Build */
 #define ARC_REG_RTT_BCR		0xF2
 #define ARC_REG_IRQ_BCR		0xF3
+#define ARC_REG_MICRO_ARCH_BCR	0xF9	/* ARCv2 Product revision */
 #define ARC_REG_SMART_BCR	0xFF
 #define ARC_REG_CLUSTER_BCR	0xcf
+#define ARC_REG_AUX_ICCM	0x208	/* ICCM Base Addr (ARCv2) */
+#define ARC_REG_LPB_CTRL	0x488	/* ARCv2 Loop Buffer control */
+
+/* Common for ARCompact and ARCv2 status register */
+#define ARC_REG_STATUS32	0x0A
 
 /* status32 Bits Positions */
 #define STATUS_AE_BIT		5	/* Exception active */
 #define STATUS_DE_BIT		6	/* PC is in delay slot */
 #define STATUS_U_BIT		7	/* User/Kernel mode */
+#define STATUS_Z_BIT            11
 #define STATUS_L_BIT		12	/* Loop inhibit */
 
 /* These masks correspond to the status word(STATUS_32) bits */
 #define STATUS_AE_MASK		(1<<STATUS_AE_BIT)
 #define STATUS_DE_MASK		(1<<STATUS_DE_BIT)
 #define STATUS_U_MASK		(1<<STATUS_U_BIT)
+#define STATUS_Z_MASK		(1<<STATUS_Z_BIT)
 #define STATUS_L_MASK		(1<<STATUS_L_BIT)
 
 /*
@@ -92,8 +103,9 @@
 
 /* Auxiliary registers */
 #define AUX_IDENTITY		4
+#define AUX_EXEC_CTRL		8
 #define AUX_INTR_VEC_BASE	0x25
-#define AUX_NON_VOL		0x5e
+#define AUX_VOL			0x5e
 
 /*
  * Floating Pt Registers
@@ -108,90 +120,7 @@
 
 #ifndef __ASSEMBLY__
 
-/*
- ******************************************************************
- *      Inline ASM macros to read/write AUX Regs
- *      Essentially invocation of lr/sr insns from "C"
- */
-
-#if 1
-
-#define read_aux_reg(reg)	__builtin_arc_lr(reg)
-
-/* gcc builtin sr needs reg param to be long immediate */
-#define write_aux_reg(reg_immed, val)		\
-		__builtin_arc_sr((unsigned int)(val), reg_immed)
-
-#else
-
-#define read_aux_reg(reg)		\
-({					\
-	unsigned int __ret;		\
-	__asm__ __volatile__(		\
-	"	lr    %0, [%1]"		\
-	: "=r"(__ret)			\
-	: "i"(reg));			\
-	__ret;				\
-})
-
-/*
- * Aux Reg address is specified as long immediate by caller
- * e.g.
- *    write_aux_reg(0x69, some_val);
- * This generates tightest code.
- */
-#define write_aux_reg(reg_imm, val)	\
-({					\
-	__asm__ __volatile__(		\
-	"	sr   %0, [%1]	\n"	\
-	:				\
-	: "ir"(val), "i"(reg_imm));	\
-})
-
-/*
- * Aux Reg address is specified in a variable
- *  * e.g.
- *      reg_num = 0x69
- *      write_aux_reg2(reg_num, some_val);
- * This has to generate glue code to load the reg num from
- *  memory to a reg hence not recommended.
- */
-#define write_aux_reg2(reg_in_var, val)		\
-({						\
-	unsigned int tmp;			\
-						\
-	__asm__ __volatile__(			\
-	"	ld   %0, [%2]	\n\t"		\
-	"	sr   %1, [%0]	\n\t"		\
-	: "=&r"(tmp)				\
-	: "r"(val), "memory"(&reg_in_var));	\
-})
-
-#endif
-
-#define READ_BCR(reg, into)				\
-{							\
-	unsigned int tmp;				\
-	tmp = read_aux_reg(reg);			\
-	if (sizeof(tmp) == sizeof(into)) {		\
-		into = *((typeof(into) *)&tmp);		\
-	} else {					\
-		extern void bogus_undefined(void);	\
-		bogus_undefined();			\
-	}						\
-}
-
-#define WRITE_AUX(reg, into)				\
-{							\
-	unsigned int tmp;				\
-	if (sizeof(tmp) == sizeof(into)) {		\
-		tmp = (*(unsigned int *)&(into));	\
-		write_aux_reg(reg, tmp);		\
-	} else  {					\
-		extern void bogus_undefined(void);	\
-		bogus_undefined();			\
-	}						\
-}
+#include <soc/arc/aux.h>
 
 /* Helpers */
 #define TO_KB(bytes)		((bytes) >> 10)
@@ -212,12 +141,12 @@ struct bcr_identity {
 #endif
 };
 
-struct bcr_isa {
+struct bcr_isa_arcv2 {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int div_rem:4, pad2:4, ldd:1, unalign:1, atomic:1, be:1,
-		     pad1:11, atomic1:1, ver:8;
+		     pad1:12, ver:8;
 #else
-	unsigned int ver:8, atomic1:1, pad1:11, be:1, atomic:1, unalign:1,
+	unsigned int ver:8, pad1:12, be:1, atomic:1, unalign:1,
 		     ldd:1, pad2:4, div_rem:4;
 #endif
 };
@@ -238,15 +167,7 @@ struct bcr_extn_xymem {
 #endif
 };
 
-struct bcr_perip {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int start:8, pad2:8, sz:8, ver:8;
-#else
-	unsigned int ver:8, sz:8, pad2:8, start:8;
-#endif
-};
-
-struct bcr_iccm {
+struct bcr_iccm_arcompact {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int base:16, pad:5, sz:3, ver:8;
 #else
@@ -254,21 +175,27 @@ struct bcr_iccm {
 #endif
 };
 
-/* DCCM Base Address Register: ARC_REG_DCCMBASE_BCR */
-struct bcr_dccm_base {
+struct bcr_iccm_arcv2 {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int addr:24, ver:8;
+	unsigned int pad:8, sz11:4, sz01:4, sz10:4, sz00:4, ver:8;
 #else
-	unsigned int ver:8, addr:24;
+	unsigned int ver:8, sz00:4, sz10:4, sz01:4, sz11:4, pad:8;
 #endif
 };
 
-/* DCCM RAM Configuration Register: ARC_REG_DCCM_BCR */
-struct bcr_dccm {
+struct bcr_dccm_arcompact {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int res:21, sz:3, ver:8;
 #else
 	unsigned int ver:8, sz:3, res:21;
+#endif
+};
+
+struct bcr_dccm_arcv2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad2:12, cyc:3, pad1:1, sz1:4, sz0:4, ver:8;
+#else
+	unsigned int ver:8, sz0:4, sz1:4, pad1:1, cyc:3, pad2:12;
 #endif
 };
 
@@ -289,13 +216,7 @@ struct bcr_fp_arcv2 {
 #endif
 };
 
-struct bcr_timer {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int pad2:15, rtsc:1, pad1:5, rtc:1, t1:1, t0:1, ver:8;
-#else
-	unsigned int ver:8, t0:1, t1:1, rtc:1, pad1:5, rtsc:1, pad2:15;
-#endif
-};
+#include <soc/arc/timers.h>
 
 struct bcr_bpu_arcompact {
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -313,11 +234,37 @@ struct bcr_bpu_arcv2 {
 #endif
 };
 
+/* Error Protection Build: ECC/Parity */
+struct bcr_erp {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad3:5, mmu:3, pad2:4, ic:3, dc:3, pad1:6, ver:8;
+#else
+	unsigned int ver:8, pad1:6, dc:3, ic:3, pad2:4, mmu:3, pad3:5;
+#endif
+};
+
+/* Error Protection Control */
+struct ctl_erp {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad2:27, mpd:1, pad1:2, dpd:1, dpi:1;
+#else
+	unsigned int dpi:1, dpd:1, pad1:2, mpd:1, pad2:27;
+#endif
+};
+
+struct bcr_lpb {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:16, entries:8, ver:8;
+#else
+	unsigned int ver:8, entries:8, pad:16;
+#endif
+};
+
 struct bcr_generic {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int pad:24, ver:8;
+	unsigned int info:24, ver:8;
 #else
-	unsigned int ver:8, pad:24;
+	unsigned int ver:8, info:24;
 #endif
 };
 
@@ -332,7 +279,7 @@ struct cpuinfo_arc_mmu {
 };
 
 struct cpuinfo_arc_cache {
-	unsigned int sz_k:14, line_len:8, assoc:4, ver:4, alias:1, vipt:1;
+	unsigned int sz_k:14, line_len:8, assoc:4, alias:1, vipt:1, pad:4;
 };
 
 struct cpuinfo_arc_bpu {
@@ -348,15 +295,15 @@ struct cpuinfo_arc {
 	struct cpuinfo_arc_mmu mmu;
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;
-	struct bcr_isa isa;
-	struct bcr_timer timers;
+	struct bcr_isa_arcv2 isa;
+	const char *details, *name;
 	unsigned int vec_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
 	struct {
-		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, pad1:3,
-			     fpu_sp:1, fpu_dp:1, pad2:6,
+		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
+			     fpu_sp:1, fpu_dp:1, dual:1, dual_enb:1, pad2:4,
 			     debug:1, ap:1, smart:1, rtt:1, pad3:4,
-			     pad4:8;
+			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;
 	} extn;
 	struct bcr_mpy extn_mpy;
 	struct bcr_extn_xymem extn_xymem;
@@ -373,12 +320,6 @@ static inline int is_isa_arcompact(void)
 {
 	return IS_ENABLED(CONFIG_ISA_ARCOMPACT);
 }
-
-#if defined(CONFIG_ISA_ARCOMPACT) && !defined(_CPU_DEFAULT_A7)
-#error "Toolchain not configured for ARCompact builds"
-#elif defined(CONFIG_ISA_ARCV2) && !defined(_CPU_DEFAULT_HS)
-#error "Toolchain not configured for ARCv2 builds"
-#endif
 
 #endif /* __ASEMBLY__ */
 

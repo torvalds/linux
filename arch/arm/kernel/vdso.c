@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/cache.h>
 #include <linux/elf.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -38,8 +39,10 @@
 
 static struct page **vdso_text_pagelist;
 
+extern char vdso_start[], vdso_end[];
+
 /* Total number of pages needed for the data and text portions of the VDSO. */
-unsigned int vdso_total_pages __read_mostly;
+unsigned int vdso_total_pages __ro_after_init;
 
 /*
  * The VDSO data page.
@@ -47,14 +50,32 @@ unsigned int vdso_total_pages __read_mostly;
 static union vdso_data_store vdso_data_store __page_aligned_data;
 static struct vdso_data *vdso_data = &vdso_data_store.data;
 
-static struct page *vdso_data_page;
-static struct vm_special_mapping vdso_data_mapping = {
+static struct page *vdso_data_page __ro_after_init;
+static const struct vm_special_mapping vdso_data_mapping = {
 	.name = "[vvar]",
 	.pages = &vdso_data_page,
 };
 
-static struct vm_special_mapping vdso_text_mapping = {
+static int vdso_mremap(const struct vm_special_mapping *sm,
+		struct vm_area_struct *new_vma)
+{
+	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
+	unsigned long vdso_size;
+
+	/* without VVAR page */
+	vdso_size = (vdso_total_pages - 1) << PAGE_SHIFT;
+
+	if (vdso_size != new_size)
+		return -EINVAL;
+
+	current->mm->context.vdso = new_vma->vm_start;
+
+	return 0;
+}
+
+static struct vm_special_mapping vdso_text_mapping __ro_after_init = {
 	.name = "[vdso]",
+	.mremap = vdso_mremap,
 };
 
 struct elfinfo {
@@ -67,7 +88,7 @@ struct elfinfo {
 /* Cached result of boot-time check for whether the arch timer exists,
  * and if so, whether the virtual counter is useable.
  */
-static bool cntvct_ok __read_mostly;
+static bool cntvct_ok __ro_after_init;
 
 static bool __init cntvct_functional(void)
 {
@@ -178,13 +199,13 @@ static int __init vdso_init(void)
 	unsigned int text_pages;
 	int i;
 
-	if (memcmp(&vdso_start, "\177ELF", 4)) {
+	if (memcmp(vdso_start, "\177ELF", 4)) {
 		pr_err("VDSO is not a valid ELF object!\n");
 		return -ENOEXEC;
 	}
 
-	text_pages = (&vdso_end - &vdso_start) >> PAGE_SHIFT;
-	pr_debug("vdso: %i text pages at base %p\n", text_pages, &vdso_start);
+	text_pages = (vdso_end - vdso_start) >> PAGE_SHIFT;
+	pr_debug("vdso: %i text pages at base %p\n", text_pages, vdso_start);
 
 	/* Allocate the VDSO text pagelist */
 	vdso_text_pagelist = kcalloc(text_pages, sizeof(struct page *),
@@ -199,7 +220,7 @@ static int __init vdso_init(void)
 	for (i = 0; i < text_pages; i++) {
 		struct page *page;
 
-		page = virt_to_page(&vdso_start + i * PAGE_SIZE);
+		page = virt_to_page(vdso_start + i * PAGE_SIZE);
 		vdso_text_pagelist[i] = page;
 	}
 
@@ -210,7 +231,7 @@ static int __init vdso_init(void)
 
 	cntvct_ok = cntvct_functional();
 
-	patch_vdso(&vdso_start);
+	patch_vdso(vdso_start);
 
 	return 0;
 }
@@ -224,7 +245,7 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
 				       VM_READ | VM_MAYREAD,
 				       &vdso_data_mapping);
 
-	return IS_ERR(vma) ? PTR_ERR(vma) : 0;
+	return PTR_ERR_OR_ZERO(vma);
 }
 
 /* assumes mmap_sem is write-locked */
@@ -270,7 +291,7 @@ static bool tk_is_cntvct(const struct timekeeper *tk)
 	if (!IS_ENABLED(CONFIG_ARM_ARCH_TIMER))
 		return false;
 
-	if (strcmp(tk->tkr_mono.clock->name, "arch_sys_counter") != 0)
+	if (!tk->tkr_mono.clock->archdata.vdso_direct)
 		return false;
 
 	return true;

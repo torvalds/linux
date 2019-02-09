@@ -209,6 +209,11 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 		}
 		create_info = (struct hci_create_pipe_resp *)skb->data;
 
+		if (create_info->pipe >= NFC_HCI_MAX_PIPES) {
+			status = NFC_HCI_ANY_E_NOK;
+			goto exit;
+		}
+
 		/* Save the new created pipe and bind with local gate,
 		 * the description for skb->data[3] is destination gate id
 		 * but since we received this cmd from host controller, we
@@ -231,6 +236,11 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 			goto exit;
 		}
 		delete_info = (struct hci_delete_pipe_noti *)skb->data;
+
+		if (delete_info->pipe >= NFC_HCI_MAX_PIPES) {
+			status = NFC_HCI_ANY_E_NOK;
+			goto exit;
+		}
 
 		hdev->pipes[delete_info->pipe].gate = NFC_HCI_INVALID_GATE;
 		hdev->pipes[delete_info->pipe].dest_host = NFC_HCI_INVALID_HOST;
@@ -428,9 +438,9 @@ exit_noskb:
 		nfc_hci_driver_failure(hdev, r);
 }
 
-static void nfc_hci_cmd_timeout(unsigned long data)
+static void nfc_hci_cmd_timeout(struct timer_list *t)
 {
-	struct nfc_hci_dev *hdev = (struct nfc_hci_dev *)data;
+	struct nfc_hci_dev *hdev = from_timer(hdev, t, cmd_timer);
 
 	schedule_work(&hdev->msg_tx_work);
 }
@@ -727,7 +737,7 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 				break;
 		}
 
-		*skb_push(skb, 1) = 0;	/* CTR, see spec:10.2.2.1 */
+		*(u8 *)skb_push(skb, 1) = 0;	/* CTR, see spec:10.2.2.1 */
 
 		hdev->async_cb_type = HCI_CB_TYPE_TRANSCEIVE;
 		hdev->async_cb = cb;
@@ -874,13 +884,13 @@ static void nfc_hci_recv_from_llc(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 			return;
 		}
 
-		*skb_put(hcp_skb, NFC_HCI_HCP_PACKET_HEADER_LEN) = pipe;
+		skb_put_u8(hcp_skb, pipe);
 
 		skb_queue_walk(&hdev->rx_hcp_frags, frag_skb) {
 			msg_len = frag_skb->len - NFC_HCI_HCP_PACKET_HEADER_LEN;
-			memcpy(skb_put(hcp_skb, msg_len),
-			       frag_skb->data + NFC_HCI_HCP_PACKET_HEADER_LEN,
-			       msg_len);
+			skb_put_data(hcp_skb,
+				     frag_skb->data + NFC_HCI_HCP_PACKET_HEADER_LEN,
+				     msg_len);
 		}
 
 		skb_queue_purge(&hdev->rx_hcp_frags);
@@ -1004,9 +1014,7 @@ int nfc_hci_register_device(struct nfc_hci_dev *hdev)
 
 	INIT_WORK(&hdev->msg_tx_work, nfc_hci_msg_tx_work);
 
-	init_timer(&hdev->cmd_timer);
-	hdev->cmd_timer.data = (unsigned long)hdev;
-	hdev->cmd_timer.function = nfc_hci_cmd_timeout;
+	timer_setup(&hdev->cmd_timer, nfc_hci_cmd_timeout, 0);
 
 	skb_queue_head_init(&hdev->rx_hcp_frags);
 

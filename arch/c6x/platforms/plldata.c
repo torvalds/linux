@@ -19,6 +19,7 @@
 
 #include <asm/clock.h>
 #include <asm/setup.h>
+#include <asm/special_insns.h>
 #include <asm/irq.h>
 
 /*
@@ -436,8 +437,8 @@ void __init c64x_setup_clocks(void)
 
 	err = of_property_read_u32(node, "clock-frequency", &val);
 	if (err || val == 0) {
-		pr_err("%s: no clock-frequency found! Using %dMHz\n",
-		       node->full_name, (int)val / 1000000);
+		pr_err("%pOF: no clock-frequency found! Using %dMHz\n",
+		       node, (int)val / 1000000);
 		val = 25000000;
 	}
 	clkin1.rate = val;

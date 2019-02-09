@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * addi_apci_3xxx.c
  * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
@@ -10,16 +11,6 @@
  *	Fax: +49(0)7223/9493-92
  *	http://www.addi-data.com
  *	info@addi-data.com
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -496,13 +487,13 @@ static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
 		switch (flags & CMDF_ROUND_MASK) {
 		case CMDF_ROUND_NEAREST:
 		default:
-			timer = (*ns + base / 2) / base;
+			timer = DIV_ROUND_CLOSEST(*ns, base);
 			break;
 		case CMDF_ROUND_DOWN:
 			timer = *ns / base;
 			break;
 		case CMDF_ROUND_UP:
-			timer = (*ns + base - 1) / base;
+			timer = DIV_ROUND_UP(*ns, base);
 			break;
 		}
 
@@ -787,6 +778,8 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 
 	dev->iobase = pci_resource_start(pcidev, 2);
 	dev->mmio = pci_ioremap_bar(pcidev, 3);
+	if (!dev->mmio)
+		return -ENOMEM;
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci3xxx_irq_handler,

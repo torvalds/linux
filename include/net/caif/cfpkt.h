@@ -32,6 +32,33 @@ void cfpkt_destroy(struct cfpkt *pkt);
  */
 int cfpkt_extr_head(struct cfpkt *pkt, void *data, u16 len);
 
+static inline u8 cfpkt_extr_head_u8(struct cfpkt *pkt)
+{
+	u8 tmp;
+
+	cfpkt_extr_head(pkt, &tmp, 1);
+
+	return tmp;
+}
+
+static inline u16 cfpkt_extr_head_u16(struct cfpkt *pkt)
+{
+	__le16 tmp;
+
+	cfpkt_extr_head(pkt, &tmp, 2);
+
+	return le16_to_cpu(tmp);
+}
+
+static inline u32 cfpkt_extr_head_u32(struct cfpkt *pkt)
+{
+	__le32 tmp;
+
+	cfpkt_extr_head(pkt, &tmp, 4);
+
+	return le32_to_cpu(tmp);
+}
+
 /*
  * Peek header from packet.
  * Reads data from packet without changing packet.

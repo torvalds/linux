@@ -28,7 +28,14 @@ struct fimc_is_i2c {
  * is implemented in the FIMC-IS subsystem firmware and the host CPU
  * doesn't access the I2C bus controller.
  */
-static const struct i2c_algorithm fimc_is_i2c_algorithm;
+static u32 is_i2c_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C;
+}
+
+static const struct i2c_algorithm fimc_is_i2c_algorithm = {
+	.functionality	= is_i2c_func,
+};
 
 static int fimc_is_i2c_probe(struct platform_device *pdev)
 {
@@ -55,26 +62,33 @@ static int fimc_is_i2c_probe(struct platform_device *pdev)
 	i2c_adap->algo = &fimc_is_i2c_algorithm;
 	i2c_adap->class = I2C_CLASS_SPD;
 
-	ret = i2c_add_adapter(i2c_adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add I2C bus %s\n",
-						node->full_name);
-		return ret;
-	}
-
 	platform_set_drvdata(pdev, isp_i2c);
-
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_enable(&i2c_adap->dev);
 
+	ret = i2c_add_adapter(i2c_adap);
+	if (ret < 0)
+		goto err_pm_dis;
+	/*
+	 * Client drivers of this adapter don't do any I2C transfers as that
+	 * is handled by the ISP firmware.  But we rely on the runtime PM
+	 * state propagation from the clients up to the adapter driver so
+	 * clear the ignore_children flags here.  PM rutnime calls are not
+	 * used in probe() handler of clients of this adapter so there is
+	 * no issues with clearing the flag right after registering the I2C
+	 * adapter.
+	 */
+	pm_suspend_ignore_children(&i2c_adap->dev, false);
 	return 0;
+
+err_pm_dis:
+	pm_runtime_disable(&pdev->dev);
+	return ret;
 }
 
 static int fimc_is_i2c_remove(struct platform_device *pdev)
 {
 	struct fimc_is_i2c *isp_i2c = platform_get_drvdata(pdev);
 
-	pm_runtime_disable(&isp_i2c->adapter.dev);
 	pm_runtime_disable(&pdev->dev);
 	i2c_del_adapter(&isp_i2c->adapter);
 
@@ -116,7 +130,7 @@ static int fimc_is_i2c_resume(struct device *dev)
 }
 #endif
 
-static struct dev_pm_ops fimc_is_i2c_pm_ops = {
+static const struct dev_pm_ops fimc_is_i2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(fimc_is_i2c_runtime_suspend,
 					fimc_is_i2c_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(fimc_is_i2c_suspend, fimc_is_i2c_resume)

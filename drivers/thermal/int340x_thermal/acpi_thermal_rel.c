@@ -62,8 +62,8 @@ static int acpi_thermal_rel_release(struct inode *inode, struct file *file)
  * acpi_parse_trt - Thermal Relationship Table _TRT for passive cooling
  *
  * @handle: ACPI handle of the device contains _TRT
- * @art_count: the number of valid entries resulted from parsing _TRT
- * @artp: pointer to pointer of array of art entries in parsing result
+ * @trt_count: the number of valid entries resulted from parsing _TRT
+ * @trtp: pointer to pointer of array of _TRT entries in parsing result
  * @create_dev: whether to create platform devices for target and source
  *
  */
@@ -96,7 +96,7 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 	}
 
 	*trt_count = p->package.count;
-	trts = kzalloc(*trt_count * sizeof(struct trt), GFP_KERNEL);
+	trts = kcalloc(*trt_count, sizeof(struct trt), GFP_KERNEL);
 	if (!trts) {
 		result = -ENOMEM;
 		goto end;
@@ -178,7 +178,7 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 
 	/* ignore p->package.elements[0], as this is _ART Revision field */
 	*art_count = p->package.count - 1;
-	arts = kzalloc(*art_count * sizeof(struct art), GFP_KERNEL);
+	arts = kcalloc(*art_count, sizeof(struct art), GFP_KERNEL);
 	if (!arts) {
 		result = -ENOMEM;
 		goto end;
@@ -208,7 +208,7 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 		if (art->target) {
 			result = acpi_bus_get_device(art->target, &adev);
 			if (result)
-				pr_warn("Failed to get source ACPI device\n");
+				pr_warn("Failed to get target ACPI device\n");
 		}
 	}
 
@@ -228,7 +228,7 @@ static void get_single_name(acpi_handle handle, char *name)
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER};
 
 	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)))
-		pr_warn("Failed get name from handle\n");
+		pr_warn("Failed to get device name from acpi handle\n");
 	else {
 		memcpy(name, buffer.pointer, ACPI_NAME_SIZE);
 		kfree(buffer.pointer);

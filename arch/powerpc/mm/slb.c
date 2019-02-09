@@ -22,6 +22,9 @@
 #include <asm/cacheflush.h>
 #include <asm/smp.h>
 #include <linux/compiler.h>
+#include <linux/context_tracking.h>
+#include <linux/mm_types.h>
+
 #include <asm/udbg.h>
 #include <asm/code-patching.h>
 
@@ -31,16 +34,7 @@ enum slb_index {
 	KSTACK_INDEX	= 2, /* Kernel stack map */
 };
 
-extern void slb_allocate_realmode(unsigned long ea);
-extern void slb_allocate_user(unsigned long ea);
-
-static void slb_allocate(unsigned long ea)
-{
-	/* Currently, we do real mode for all SLBs including user, but
-	 * that will change if we bring back dynamic VSIDs
-	 */
-	slb_allocate_realmode(ea);
-}
+extern void slb_allocate(unsigned long ea);
 
 #define slb_esid_mask(ssize)	\
 	(((ssize) == MMU_SEGSIZE_256M)? ESID_MASK: ESID_MASK_1T)
@@ -69,14 +63,14 @@ static inline void slb_shadow_update(unsigned long ea, int ssize,
 	 * updating it.  No write barriers are needed here, provided
 	 * we only update the current CPU's SLB shadow buffer.
 	 */
-	p->save_area[index].esid = 0;
-	p->save_area[index].vsid = cpu_to_be64(mk_vsid_data(ea, ssize, flags));
-	p->save_area[index].esid = cpu_to_be64(mk_esid_data(ea, ssize, index));
+	WRITE_ONCE(p->save_area[index].esid, 0);
+	WRITE_ONCE(p->save_area[index].vsid, cpu_to_be64(mk_vsid_data(ea, ssize, flags)));
+	WRITE_ONCE(p->save_area[index].esid, cpu_to_be64(mk_esid_data(ea, ssize, index)));
 }
 
 static inline void slb_shadow_clear(enum slb_index index)
 {
-	get_slb_shadow()->save_area[index].esid = 0;
+	WRITE_ONCE(get_slb_shadow()->save_area[index].esid, cpu_to_be64(index));
 }
 
 static inline void create_shadowed_slbe(unsigned long ea, int ssize,
@@ -94,6 +88,45 @@ static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 		     : "r" (mk_vsid_data(ea, ssize, flags)),
 		       "r" (mk_esid_data(ea, ssize, index))
 		     : "memory" );
+}
+
+/*
+ * Insert bolted entries into SLB (which may not be empty, so don't clear
+ * slb_cache_ptr).
+ */
+void __slb_restore_bolted_realmode(void)
+{
+	struct slb_shadow *p = get_slb_shadow();
+	enum slb_index index;
+
+	 /* No isync needed because realmode. */
+	for (index = 0; index < SLB_NUM_BOLTED; index++) {
+		asm volatile("slbmte  %0,%1" :
+		     : "r" (be64_to_cpu(p->save_area[index].vsid)),
+		       "r" (be64_to_cpu(p->save_area[index].esid)));
+	}
+}
+
+/*
+ * Insert the bolted entries into an empty SLB.
+ * This is not the same as rebolt because the bolted segments are not
+ * changed, just loaded from the shadow area.
+ */
+void slb_restore_bolted_realmode(void)
+{
+	__slb_restore_bolted_realmode();
+	get_paca()->slb_cache_ptr = 0;
+}
+
+/*
+ * This flushes all SLB entries including 0, so it must be realmode.
+ */
+void slb_flush_all_realmode(void)
+{
+	/*
+	 * This flushes all SLB entries including 0, so it must be realmode.
+	 */
+	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
 }
 
 static void __slb_flush_and_rebolt(void)
@@ -130,7 +163,7 @@ static void __slb_flush_and_rebolt(void)
 		     "slbmte	%2,%3\n"
 		     "isync"
 		     :: "r"(mk_vsid_data(VMALLOC_START, mmu_kernel_ssize, vflags)),
-		        "r"(mk_esid_data(VMALLOC_START, mmu_kernel_ssize, 1)),
+		        "r"(mk_esid_data(VMALLOC_START, mmu_kernel_ssize, VMALLOC_INDEX)),
 		        "r"(ksp_vsid_data),
 		        "r"(ksp_esid_data)
 		     : "memory");
@@ -228,7 +261,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 		asm volatile("slbie %0" : : "r" (slbie_data));
 
 	get_paca()->slb_cache_ptr = 0;
-	get_paca()->context = mm->context;
+	copy_mm_to_paca(mm);
 
 	/*
 	 * preload some userspace segments into the SLB.
@@ -346,4 +379,124 @@ void slb_initialize(void)
 				     mmu_kernel_ssize, lflags, KSTACK_INDEX);
 
 	asm volatile("isync":::"memory");
+}
+
+static void insert_slb_entry(unsigned long vsid, unsigned long ea,
+			     int bpsize, int ssize)
+{
+	unsigned long flags, vsid_data, esid_data;
+	enum slb_index index;
+	int slb_cache_index;
+
+	/*
+	 * We are irq disabled, hence should be safe to access PACA.
+	 */
+	VM_WARN_ON(!irqs_disabled());
+
+	/*
+	 * We can't take a PMU exception in the following code, so hard
+	 * disable interrupts.
+	 */
+	hard_irq_disable();
+
+	index = get_paca()->stab_rr;
+
+	/*
+	 * simple round-robin replacement of slb starting at SLB_NUM_BOLTED.
+	 */
+	if (index < (mmu_slb_size - 1))
+		index++;
+	else
+		index = SLB_NUM_BOLTED;
+
+	get_paca()->stab_rr = index;
+
+	flags = SLB_VSID_USER | mmu_psize_defs[bpsize].sllp;
+	vsid_data = (vsid << slb_vsid_shift(ssize)) | flags |
+		    ((unsigned long) ssize << SLB_VSID_SSIZE_SHIFT);
+	esid_data = mk_esid_data(ea, ssize, index);
+
+	/*
+	 * No need for an isync before or after this slbmte. The exception
+	 * we enter with and the rfid we exit with are context synchronizing.
+	 * Also we only handle user segments here.
+	 */
+	asm volatile("slbmte %0, %1" : : "r" (vsid_data), "r" (esid_data)
+		     : "memory");
+
+	/*
+	 * Now update slb cache entries
+	 */
+	slb_cache_index = get_paca()->slb_cache_ptr;
+	if (slb_cache_index < SLB_CACHE_ENTRIES) {
+		/*
+		 * We have space in slb cache for optimized switch_slb().
+		 * Top 36 bits from esid_data as per ISA
+		 */
+		get_paca()->slb_cache[slb_cache_index++] = esid_data >> 28;
+		get_paca()->slb_cache_ptr++;
+	} else {
+		/*
+		 * Our cache is full and the current cache content strictly
+		 * doesn't indicate the active SLB conents. Bump the ptr
+		 * so that switch_slb() will ignore the cache.
+		 */
+		get_paca()->slb_cache_ptr = SLB_CACHE_ENTRIES + 1;
+	}
+}
+
+static void handle_multi_context_slb_miss(int context_id, unsigned long ea)
+{
+	struct mm_struct *mm = current->mm;
+	unsigned long vsid;
+	int bpsize;
+
+	/*
+	 * We are always above 1TB, hence use high user segment size.
+	 */
+	vsid = get_vsid(context_id, ea, mmu_highuser_ssize);
+	bpsize = get_slice_psize(mm, ea);
+	insert_slb_entry(vsid, ea, bpsize, mmu_highuser_ssize);
+}
+
+void slb_miss_large_addr(struct pt_regs *regs)
+{
+	enum ctx_state prev_state = exception_enter();
+	unsigned long ea = regs->dar;
+	int context;
+
+	if (REGION_ID(ea) != USER_REGION_ID)
+		goto slb_bad_addr;
+
+	/*
+	 * Are we beyound what the page table layout supports ?
+	 */
+	if ((ea & ~REGION_MASK) >= H_PGTABLE_RANGE)
+		goto slb_bad_addr;
+
+	/* Lower address should have been handled by asm code */
+	if (ea < (1UL << MAX_EA_BITS_PER_CONTEXT))
+		goto slb_bad_addr;
+
+	/*
+	 * consider this as bad access if we take a SLB miss
+	 * on an address above addr limit.
+	 */
+	if (ea >= current->mm->context.slb_addr_limit)
+		goto slb_bad_addr;
+
+	context = get_ea_context(&current->mm->context, ea);
+	if (!context)
+		goto slb_bad_addr;
+
+	handle_multi_context_slb_miss(context, ea);
+	exception_exit(prev_state);
+	return;
+
+slb_bad_addr:
+	if (user_mode(regs))
+		_exception(SIGSEGV, regs, SEGV_BNDERR, ea);
+	else
+		bad_page_fault(regs, ea, SIGSEGV);
+	exception_exit(prev_state);
 }

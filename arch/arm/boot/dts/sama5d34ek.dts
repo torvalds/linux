@@ -9,6 +9,7 @@
 /dts-v1/;
 #include "sama5d34.dtsi"
 #include "sama5d3xmb.dtsi"
+#include "sama5d3xmb_gmac.dtsi"
 #include "sama5d3xdm.dtsi"
 
 / {
@@ -37,7 +38,7 @@
 				status = "okay";
 
 				24c256@50 {
-					compatible = "24c256";
+					compatible = "atmel,24c256";
 					reg = <0x50>;
 					pagesize = <64>;
 				};

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Intel PXA25x and IXP4xx on-chip full speed USB device controllers
  *
@@ -6,11 +7,6 @@
  * Copyright (C) 2003 Benedikt Spranger, Pengutronix
  * Copyright (C) 2003 David Brownell
  * Copyright (C) 2003 Joshua Wise
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 /* #define VERBOSE_DEBUG */
@@ -48,17 +44,156 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 
-/*
- * This driver is PXA25x only.  Grab the right register definitions.
- */
-#ifdef CONFIG_ARCH_PXA
-#include <mach/pxa25x-udc.h>
-#include <mach/hardware.h>
-#endif
-
 #ifdef CONFIG_ARCH_LUBBOCK
 #include <mach/lubbock.h>
 #endif
+
+#define UDCCR	 0x0000 /* UDC Control Register */
+#define UDC_RES1 0x0004 /* UDC Undocumented - Reserved1 */
+#define UDC_RES2 0x0008 /* UDC Undocumented - Reserved2 */
+#define UDC_RES3 0x000C /* UDC Undocumented - Reserved3 */
+#define UDCCS0	 0x0010 /* UDC Endpoint 0 Control/Status Register */
+#define UDCCS1	 0x0014 /* UDC Endpoint 1 (IN) Control/Status Register */
+#define UDCCS2	 0x0018 /* UDC Endpoint 2 (OUT) Control/Status Register */
+#define UDCCS3	 0x001C /* UDC Endpoint 3 (IN) Control/Status Register */
+#define UDCCS4	 0x0020 /* UDC Endpoint 4 (OUT) Control/Status Register */
+#define UDCCS5	 0x0024 /* UDC Endpoint 5 (Interrupt) Control/Status Register */
+#define UDCCS6	 0x0028 /* UDC Endpoint 6 (IN) Control/Status Register */
+#define UDCCS7	 0x002C /* UDC Endpoint 7 (OUT) Control/Status Register */
+#define UDCCS8	 0x0030 /* UDC Endpoint 8 (IN) Control/Status Register */
+#define UDCCS9	 0x0034 /* UDC Endpoint 9 (OUT) Control/Status Register */
+#define UDCCS10	 0x0038 /* UDC Endpoint 10 (Interrupt) Control/Status Register */
+#define UDCCS11	 0x003C /* UDC Endpoint 11 (IN) Control/Status Register */
+#define UDCCS12	 0x0040 /* UDC Endpoint 12 (OUT) Control/Status Register */
+#define UDCCS13	 0x0044 /* UDC Endpoint 13 (IN) Control/Status Register */
+#define UDCCS14	 0x0048 /* UDC Endpoint 14 (OUT) Control/Status Register */
+#define UDCCS15	 0x004C /* UDC Endpoint 15 (Interrupt) Control/Status Register */
+#define UFNRH	 0x0060 /* UDC Frame Number Register High */
+#define UFNRL	 0x0064 /* UDC Frame Number Register Low */
+#define UBCR2	 0x0068 /* UDC Byte Count Reg 2 */
+#define UBCR4	 0x006c /* UDC Byte Count Reg 4 */
+#define UBCR7	 0x0070 /* UDC Byte Count Reg 7 */
+#define UBCR9	 0x0074 /* UDC Byte Count Reg 9 */
+#define UBCR12	 0x0078 /* UDC Byte Count Reg 12 */
+#define UBCR14	 0x007c /* UDC Byte Count Reg 14 */
+#define UDDR0	 0x0080 /* UDC Endpoint 0 Data Register */
+#define UDDR1	 0x0100 /* UDC Endpoint 1 Data Register */
+#define UDDR2	 0x0180 /* UDC Endpoint 2 Data Register */
+#define UDDR3	 0x0200 /* UDC Endpoint 3 Data Register */
+#define UDDR4	 0x0400 /* UDC Endpoint 4 Data Register */
+#define UDDR5	 0x00A0 /* UDC Endpoint 5 Data Register */
+#define UDDR6	 0x0600 /* UDC Endpoint 6 Data Register */
+#define UDDR7	 0x0680 /* UDC Endpoint 7 Data Register */
+#define UDDR8	 0x0700 /* UDC Endpoint 8 Data Register */
+#define UDDR9	 0x0900 /* UDC Endpoint 9 Data Register */
+#define UDDR10	 0x00C0 /* UDC Endpoint 10 Data Register */
+#define UDDR11	 0x0B00 /* UDC Endpoint 11 Data Register */
+#define UDDR12	 0x0B80 /* UDC Endpoint 12 Data Register */
+#define UDDR13	 0x0C00 /* UDC Endpoint 13 Data Register */
+#define UDDR14	 0x0E00 /* UDC Endpoint 14 Data Register */
+#define UDDR15	 0x00E0 /* UDC Endpoint 15 Data Register */
+
+#define UICR0	 0x0050 /* UDC Interrupt Control Register 0 */
+#define UICR1	 0x0054 /* UDC Interrupt Control Register 1 */
+
+#define USIR0	 0x0058 /* UDC Status Interrupt Register 0 */
+#define USIR1	 0x005C /* UDC Status Interrupt Register 1 */
+
+#define UDCCR_UDE	(1 << 0)	/* UDC enable */
+#define UDCCR_UDA	(1 << 1)	/* UDC active */
+#define UDCCR_RSM	(1 << 2)	/* Device resume */
+#define UDCCR_RESIR	(1 << 3)	/* Resume interrupt request */
+#define UDCCR_SUSIR	(1 << 4)	/* Suspend interrupt request */
+#define UDCCR_SRM	(1 << 5)	/* Suspend/resume interrupt mask */
+#define UDCCR_RSTIR	(1 << 6)	/* Reset interrupt request */
+#define UDCCR_REM	(1 << 7)	/* Reset interrupt mask */
+
+#define UDCCS0_OPR	(1 << 0)	/* OUT packet ready */
+#define UDCCS0_IPR	(1 << 1)	/* IN packet ready */
+#define UDCCS0_FTF	(1 << 2)	/* Flush Tx FIFO */
+#define UDCCS0_DRWF	(1 << 3)	/* Device remote wakeup feature */
+#define UDCCS0_SST	(1 << 4)	/* Sent stall */
+#define UDCCS0_FST	(1 << 5)	/* Force stall */
+#define UDCCS0_RNE	(1 << 6)	/* Receive FIFO no empty */
+#define UDCCS0_SA	(1 << 7)	/* Setup active */
+
+#define UDCCS_BI_TFS	(1 << 0)	/* Transmit FIFO service */
+#define UDCCS_BI_TPC	(1 << 1)	/* Transmit packet complete */
+#define UDCCS_BI_FTF	(1 << 2)	/* Flush Tx FIFO */
+#define UDCCS_BI_TUR	(1 << 3)	/* Transmit FIFO underrun */
+#define UDCCS_BI_SST	(1 << 4)	/* Sent stall */
+#define UDCCS_BI_FST	(1 << 5)	/* Force stall */
+#define UDCCS_BI_TSP	(1 << 7)	/* Transmit short packet */
+
+#define UDCCS_BO_RFS	(1 << 0)	/* Receive FIFO service */
+#define UDCCS_BO_RPC	(1 << 1)	/* Receive packet complete */
+#define UDCCS_BO_DME	(1 << 3)	/* DMA enable */
+#define UDCCS_BO_SST	(1 << 4)	/* Sent stall */
+#define UDCCS_BO_FST	(1 << 5)	/* Force stall */
+#define UDCCS_BO_RNE	(1 << 6)	/* Receive FIFO not empty */
+#define UDCCS_BO_RSP	(1 << 7)	/* Receive short packet */
+
+#define UDCCS_II_TFS	(1 << 0)	/* Transmit FIFO service */
+#define UDCCS_II_TPC	(1 << 1)	/* Transmit packet complete */
+#define UDCCS_II_FTF	(1 << 2)	/* Flush Tx FIFO */
+#define UDCCS_II_TUR	(1 << 3)	/* Transmit FIFO underrun */
+#define UDCCS_II_TSP	(1 << 7)	/* Transmit short packet */
+
+#define UDCCS_IO_RFS	(1 << 0)	/* Receive FIFO service */
+#define UDCCS_IO_RPC	(1 << 1)	/* Receive packet complete */
+#ifdef CONFIG_ARCH_IXP4XX /* FIXME: is this right?, datasheed says '2' */
+#define UDCCS_IO_ROF	(1 << 3)	/* Receive overflow */
+#endif
+#ifdef CONFIG_ARCH_PXA
+#define UDCCS_IO_ROF	(1 << 2)	/* Receive overflow */
+#endif
+#define UDCCS_IO_DME	(1 << 3)	/* DMA enable */
+#define UDCCS_IO_RNE	(1 << 6)	/* Receive FIFO not empty */
+#define UDCCS_IO_RSP	(1 << 7)	/* Receive short packet */
+
+#define UDCCS_INT_TFS	(1 << 0)	/* Transmit FIFO service */
+#define UDCCS_INT_TPC	(1 << 1)	/* Transmit packet complete */
+#define UDCCS_INT_FTF	(1 << 2)	/* Flush Tx FIFO */
+#define UDCCS_INT_TUR	(1 << 3)	/* Transmit FIFO underrun */
+#define UDCCS_INT_SST	(1 << 4)	/* Sent stall */
+#define UDCCS_INT_FST	(1 << 5)	/* Force stall */
+#define UDCCS_INT_TSP	(1 << 7)	/* Transmit short packet */
+
+#define UICR0_IM0	(1 << 0)	/* Interrupt mask ep 0 */
+#define UICR0_IM1	(1 << 1)	/* Interrupt mask ep 1 */
+#define UICR0_IM2	(1 << 2)	/* Interrupt mask ep 2 */
+#define UICR0_IM3	(1 << 3)	/* Interrupt mask ep 3 */
+#define UICR0_IM4	(1 << 4)	/* Interrupt mask ep 4 */
+#define UICR0_IM5	(1 << 5)	/* Interrupt mask ep 5 */
+#define UICR0_IM6	(1 << 6)	/* Interrupt mask ep 6 */
+#define UICR0_IM7	(1 << 7)	/* Interrupt mask ep 7 */
+
+#define UICR1_IM8	(1 << 0)	/* Interrupt mask ep 8 */
+#define UICR1_IM9	(1 << 1)	/* Interrupt mask ep 9 */
+#define UICR1_IM10	(1 << 2)	/* Interrupt mask ep 10 */
+#define UICR1_IM11	(1 << 3)	/* Interrupt mask ep 11 */
+#define UICR1_IM12	(1 << 4)	/* Interrupt mask ep 12 */
+#define UICR1_IM13	(1 << 5)	/* Interrupt mask ep 13 */
+#define UICR1_IM14	(1 << 6)	/* Interrupt mask ep 14 */
+#define UICR1_IM15	(1 << 7)	/* Interrupt mask ep 15 */
+
+#define USIR0_IR0	(1 << 0)	/* Interrupt request ep 0 */
+#define USIR0_IR1	(1 << 1)	/* Interrupt request ep 1 */
+#define USIR0_IR2	(1 << 2)	/* Interrupt request ep 2 */
+#define USIR0_IR3	(1 << 3)	/* Interrupt request ep 3 */
+#define USIR0_IR4	(1 << 4)	/* Interrupt request ep 4 */
+#define USIR0_IR5	(1 << 5)	/* Interrupt request ep 5 */
+#define USIR0_IR6	(1 << 6)	/* Interrupt request ep 6 */
+#define USIR0_IR7	(1 << 7)	/* Interrupt request ep 7 */
+
+#define USIR1_IR8	(1 << 0)	/* Interrupt request ep 8 */
+#define USIR1_IR9	(1 << 1)	/* Interrupt request ep 9 */
+#define USIR1_IR10	(1 << 2)	/* Interrupt request ep 10 */
+#define USIR1_IR11	(1 << 3)	/* Interrupt request ep 11 */
+#define USIR1_IR12	(1 << 4)	/* Interrupt request ep 12 */
+#define USIR1_IR13	(1 << 5)	/* Interrupt request ep 13 */
+#define USIR1_IR14	(1 << 6)	/* Interrupt request ep 14 */
+#define USIR1_IR15	(1 << 7)	/* Interrupt request ep 15 */
 
 /*
  * This driver handles the USB Device Controller (UDC) in Intel's PXA 25x
@@ -150,25 +285,61 @@ static void pullup_on(void)
 		mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
 }
 
-static void pio_irq_enable(int bEndpointAddress)
+#if defined(CONFIG_CPU_BIG_ENDIAN)
+/*
+ * IXP4xx has its buses wired up in a way that relies on never doing any
+ * byte swaps, independent of whether it runs in big-endian or little-endian
+ * mode, as explained by Krzysztof Hałasa.
+ *
+ * We only support pxa25x in little-endian mode, but it is very likely
+ * that it works the same way.
+ */
+static inline void udc_set_reg(struct pxa25x_udc *dev, u32 reg, u32 val)
 {
-        bEndpointAddress &= 0xf;
+	iowrite32be(val, dev->regs + reg);
+}
+
+static inline u32 udc_get_reg(struct pxa25x_udc *dev, u32 reg)
+{
+	return ioread32be(dev->regs + reg);
+}
+#else
+static inline void udc_set_reg(struct pxa25x_udc *dev, u32 reg, u32 val)
+{
+	writel(val, dev->regs + reg);
+}
+
+static inline u32 udc_get_reg(struct pxa25x_udc *dev, u32 reg)
+{
+	return readl(dev->regs + reg);
+}
+#endif
+
+static void pio_irq_enable(struct pxa25x_ep *ep)
+{
+	u32 bEndpointAddress = ep->bEndpointAddress & 0xf;
+
         if (bEndpointAddress < 8)
-                UICR0 &= ~(1 << bEndpointAddress);
+		udc_set_reg(ep->dev, UICR0, udc_get_reg(ep->dev, UICR0) &
+						~(1 << bEndpointAddress));
         else {
                 bEndpointAddress -= 8;
-                UICR1 &= ~(1 << bEndpointAddress);
+		udc_set_reg(ep->dev, UICR1, udc_get_reg(ep->dev, UICR1) &
+						~(1 << bEndpointAddress));
 	}
 }
 
-static void pio_irq_disable(int bEndpointAddress)
+static void pio_irq_disable(struct pxa25x_ep *ep)
 {
-        bEndpointAddress &= 0xf;
+	u32 bEndpointAddress = ep->bEndpointAddress & 0xf;
+
         if (bEndpointAddress < 8)
-                UICR0 |= 1 << bEndpointAddress;
+                udc_set_reg(ep->dev, UICR0, udc_get_reg(ep->dev, UICR0) |
+						(1 << bEndpointAddress));
         else {
                 bEndpointAddress -= 8;
-                UICR1 |= 1 << bEndpointAddress;
+                udc_set_reg(ep->dev, UICR1, udc_get_reg(ep->dev, UICR1) |
+						(1 << bEndpointAddress));
         }
 }
 
@@ -177,22 +348,61 @@ static void pio_irq_disable(int bEndpointAddress)
  */
 #define UDCCR_MASK_BITS         (UDCCR_REM | UDCCR_SRM | UDCCR_UDE)
 
-static inline void udc_set_mask_UDCCR(int mask)
+static inline void udc_set_mask_UDCCR(struct pxa25x_udc *dev, int mask)
 {
-	UDCCR = (UDCCR & UDCCR_MASK_BITS) | (mask & UDCCR_MASK_BITS);
+	u32 udccr = udc_get_reg(dev, UDCCR);
+
+	udc_set_reg(dev, (udccr & UDCCR_MASK_BITS) | (mask & UDCCR_MASK_BITS), UDCCR);
 }
 
-static inline void udc_clear_mask_UDCCR(int mask)
+static inline void udc_clear_mask_UDCCR(struct pxa25x_udc *dev, int mask)
 {
-	UDCCR = (UDCCR & UDCCR_MASK_BITS) & ~(mask & UDCCR_MASK_BITS);
+	u32 udccr = udc_get_reg(dev, UDCCR);
+
+	udc_set_reg(dev, (udccr & UDCCR_MASK_BITS) & ~(mask & UDCCR_MASK_BITS), UDCCR);
 }
 
-static inline void udc_ack_int_UDCCR(int mask)
+static inline void udc_ack_int_UDCCR(struct pxa25x_udc *dev, int mask)
 {
 	/* udccr contains the bits we dont want to change */
-	__u32 udccr = UDCCR & UDCCR_MASK_BITS;
+	u32 udccr = udc_get_reg(dev, UDCCR) & UDCCR_MASK_BITS;
 
-	UDCCR = udccr | (mask & ~UDCCR_MASK_BITS);
+	udc_set_reg(dev, udccr | (mask & ~UDCCR_MASK_BITS), UDCCR);
+}
+
+static inline u32 udc_ep_get_UDCCS(struct pxa25x_ep *ep)
+{
+	return udc_get_reg(ep->dev, ep->regoff_udccs);
+}
+
+static inline void udc_ep_set_UDCCS(struct pxa25x_ep *ep, u32 data)
+{
+	udc_set_reg(ep->dev, data, ep->regoff_udccs);
+}
+
+static inline u32 udc_ep0_get_UDCCS(struct pxa25x_udc *dev)
+{
+	return udc_get_reg(dev, UDCCS0);
+}
+
+static inline void udc_ep0_set_UDCCS(struct pxa25x_udc *dev, u32 data)
+{
+	udc_set_reg(dev, data, UDCCS0);
+}
+
+static inline u32 udc_ep_get_UDDR(struct pxa25x_ep *ep)
+{
+	return udc_get_reg(ep->dev, ep->regoff_uddr);
+}
+
+static inline void udc_ep_set_UDDR(struct pxa25x_ep *ep, u32 data)
+{
+	udc_set_reg(ep->dev, data, ep->regoff_uddr);
+}
+
+static inline u32 udc_ep_get_UBCR(struct pxa25x_ep *ep)
+{
+	return udc_get_reg(ep->dev, ep->regoff_ubcr);
 }
 
 /*
@@ -358,7 +568,7 @@ static inline void ep0_idle (struct pxa25x_udc *dev)
 }
 
 static int
-write_packet(volatile u32 *uddr, struct pxa25x_request *req, unsigned max)
+write_packet(struct pxa25x_ep *ep, struct pxa25x_request *req, unsigned max)
 {
 	u8		*buf;
 	unsigned	length, count;
@@ -372,7 +582,7 @@ write_packet(volatile u32 *uddr, struct pxa25x_request *req, unsigned max)
 
 	count = length;
 	while (likely(count--))
-		*uddr = *buf++;
+		udc_ep_set_UDDR(ep, *buf++);
 
 	return length;
 }
@@ -392,7 +602,7 @@ write_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 		unsigned	count;
 		int		is_last, is_short;
 
-		count = write_packet(ep->reg_uddr, req, max);
+		count = write_packet(ep, req, max);
 
 		/* last packet is usually short (or a zlp) */
 		if (unlikely (count != max))
@@ -416,15 +626,15 @@ write_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 		 * double buffering might work.  TSP, TPC, and TFS
 		 * bit values are the same for all normal IN endpoints.
 		 */
-		*ep->reg_udccs = UDCCS_BI_TPC;
+		udc_ep_set_UDCCS(ep, UDCCS_BI_TPC);
 		if (is_short)
-			*ep->reg_udccs = UDCCS_BI_TSP;
+			udc_ep_set_UDCCS(ep, UDCCS_BI_TSP);
 
 		/* requests complete when all IN data is in the FIFO */
 		if (is_last) {
 			done (ep, req, 0);
 			if (list_empty(&ep->queue))
-				pio_irq_disable (ep->bEndpointAddress);
+				pio_irq_disable(ep);
 			return 1;
 		}
 
@@ -432,7 +642,7 @@ write_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 		// double buffering is off in the default fifo mode, which
 		// prevents TFS from being set here.
 
-	} while (*ep->reg_udccs & UDCCS_BI_TFS);
+	} while (udc_ep_get_UDCCS(ep) & UDCCS_BI_TFS);
 	return 0;
 }
 
@@ -442,20 +652,21 @@ write_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 static inline
 void ep0start(struct pxa25x_udc *dev, u32 flags, const char *tag)
 {
-	UDCCS0 = flags|UDCCS0_SA|UDCCS0_OPR;
-	USIR0 = USIR0_IR0;
+	udc_ep0_set_UDCCS(dev, flags|UDCCS0_SA|UDCCS0_OPR);
+	udc_set_reg(dev, USIR0, USIR0_IR0);
 	dev->req_pending = 0;
 	DBG(DBG_VERY_NOISY, "%s %s, %02x/%02x\n",
-		__func__, tag, UDCCS0, flags);
+		__func__, tag, udc_ep0_get_UDCCS(dev), flags);
 }
 
 static int
 write_ep0_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 {
+	struct pxa25x_udc *dev = ep->dev;
 	unsigned	count;
 	int		is_short;
 
-	count = write_packet(&UDDR0, req, EP0_FIFO_SIZE);
+	count = write_packet(&dev->ep[0], req, EP0_FIFO_SIZE);
 	ep->dev->stats.write.bytes += count;
 
 	/* last packet "must be" short (or a zlp) */
@@ -468,7 +679,7 @@ write_ep0_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 		if (ep->dev->req_pending)
 			ep0start(ep->dev, UDCCS0_IPR, "short IN");
 		else
-			UDCCS0 = UDCCS0_IPR;
+			udc_ep0_set_UDCCS(dev, UDCCS0_IPR);
 
 		count = req->req.length;
 		done (ep, req, 0);
@@ -484,9 +695,9 @@ write_ep0_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 		if (count >= EP0_FIFO_SIZE) {
 			count = 100;
 			do {
-				if ((UDCCS0 & UDCCS0_OPR) != 0) {
+				if ((udc_ep0_get_UDCCS(dev) & UDCCS0_OPR) != 0) {
 					/* clear OPR, generate ack */
-					UDCCS0 = UDCCS0_OPR;
+					udc_ep0_set_UDCCS(dev, UDCCS0_OPR);
 					break;
 				}
 				count--;
@@ -521,7 +732,7 @@ read_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 		 * UDCCS_{BO,IO}_RPC are all the same bit value.
 		 * UDCCS_{BO,IO}_RNE are all the same bit value.
 		 */
-		udccs = *ep->reg_udccs;
+		udccs = udc_ep_get_UDCCS(ep);
 		if (unlikely ((udccs & UDCCS_BO_RPC) == 0))
 			break;
 		buf = req->req.buf + req->req.actual;
@@ -530,7 +741,7 @@ read_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 
 		/* read all bytes from this packet */
 		if (likely (udccs & UDCCS_BO_RNE)) {
-			count = 1 + (0x0ff & *ep->reg_ubcr);
+			count = 1 + (0x0ff & udc_ep_get_UBCR(ep));
 			req->req.actual += min (count, bufferspace);
 		} else /* zlp */
 			count = 0;
@@ -540,7 +751,7 @@ read_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 			is_short ? "/S" : "",
 			req, req->req.actual, req->req.length);
 		while (likely (count-- != 0)) {
-			u8	byte = (u8) *ep->reg_uddr;
+			u8	byte = (u8) udc_ep_get_UDDR(ep);
 
 			if (unlikely (bufferspace == 0)) {
 				/* this happens when the driver's buffer
@@ -556,7 +767,7 @@ read_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 				bufferspace--;
 			}
 		}
-		*ep->reg_udccs =  UDCCS_BO_RPC;
+		udc_ep_set_UDCCS(ep, UDCCS_BO_RPC);
 		/* RPC/RSP/RNE could now reflect the other packet buffer */
 
 		/* iso is one request per packet */
@@ -571,7 +782,7 @@ read_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 		if (is_short || req->req.actual == req->req.length) {
 			done (ep, req, 0);
 			if (list_empty(&ep->queue))
-				pio_irq_disable (ep->bEndpointAddress);
+				pio_irq_disable(ep);
 			return 1;
 		}
 
@@ -595,7 +806,7 @@ read_ep0_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 	buf = req->req.buf + req->req.actual;
 	bufferspace = req->req.length - req->req.actual;
 
-	while (UDCCS0 & UDCCS0_RNE) {
+	while (udc_ep_get_UDCCS(ep) & UDCCS0_RNE) {
 		byte = (u8) UDDR0;
 
 		if (unlikely (bufferspace == 0)) {
@@ -613,7 +824,7 @@ read_ep0_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 		}
 	}
 
-	UDCCS0 = UDCCS0_OPR | UDCCS0_IPR;
+	udc_ep_set_UDCCS(ep, UDCCS0_OPR | UDCCS0_IPR);
 
 	/* completion */
 	if (req->req.actual >= req->req.length)
@@ -687,8 +898,8 @@ pxa25x_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 					DBG(DBG_VERBOSE, "ep0 config ack%s\n",
 						dev->has_cfr ?  "" : " raced");
 					if (dev->has_cfr)
-						UDCCFR = UDCCFR_AREN|UDCCFR_ACM
-							|UDCCFR_MB1;
+						udc_set_reg(dev, UDCCFR, UDCCFR_AREN |
+							    UDCCFR_ACM | UDCCFR_MB1);
 					done(ep, req, 0);
 					dev->ep0state = EP0_END_XFER;
 					local_irq_restore (flags);
@@ -696,7 +907,7 @@ pxa25x_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 				}
 				if (dev->req_pending)
 					ep0start(dev, UDCCS0_IPR, "OUT");
-				if (length == 0 || ((UDCCS0 & UDCCS0_RNE) != 0
+				if (length == 0 || ((udc_ep0_get_UDCCS(dev) & UDCCS0_RNE) != 0
 						&& read_ep0_fifo(ep, req))) {
 					ep0_idle(dev);
 					done(ep, req, 0);
@@ -711,16 +922,16 @@ pxa25x_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			}
 		/* can the FIFO can satisfy the request immediately? */
 		} else if ((ep->bEndpointAddress & USB_DIR_IN) != 0) {
-			if ((*ep->reg_udccs & UDCCS_BI_TFS) != 0
+			if ((udc_ep_get_UDCCS(ep) & UDCCS_BI_TFS) != 0
 					&& write_fifo(ep, req))
 				req = NULL;
-		} else if ((*ep->reg_udccs & UDCCS_BO_RFS) != 0
+		} else if ((udc_ep_get_UDCCS(ep) & UDCCS_BO_RFS) != 0
 				&& read_fifo(ep, req)) {
 			req = NULL;
 		}
 
 		if (likely(req && ep->ep.desc))
-			pio_irq_enable(ep->bEndpointAddress);
+			pio_irq_enable(ep);
 	}
 
 	/* pio or dma irq handler advances the queue. */
@@ -747,7 +958,7 @@ static void nuke(struct pxa25x_ep *ep, int status)
 		done(ep, req, status);
 	}
 	if (ep->ep.desc)
-		pio_irq_disable (ep->bEndpointAddress);
+		pio_irq_disable(ep);
 }
 
 
@@ -807,14 +1018,14 @@ static int pxa25x_ep_set_halt(struct usb_ep *_ep, int value)
 	local_irq_save(flags);
 
 	if ((ep->bEndpointAddress & USB_DIR_IN) != 0
-			&& ((*ep->reg_udccs & UDCCS_BI_TFS) == 0
+			&& ((udc_ep_get_UDCCS(ep) & UDCCS_BI_TFS) == 0
 			   || !list_empty(&ep->queue))) {
 		local_irq_restore(flags);
 		return -EAGAIN;
 	}
 
 	/* FST bit is the same for control, bulk in, bulk out, interrupt in */
-	*ep->reg_udccs = UDCCS_BI_FST|UDCCS_BI_FTF;
+	udc_ep_set_UDCCS(ep, UDCCS_BI_FST|UDCCS_BI_FTF);
 
 	/* ep0 needs special care */
 	if (!ep->ep.desc) {
@@ -826,7 +1037,7 @@ static int pxa25x_ep_set_halt(struct usb_ep *_ep, int value)
 	} else {
 		unsigned i;
 		for (i = 0; i < 1000; i += 20) {
-			if (*ep->reg_udccs & UDCCS_BI_SST)
+			if (udc_ep_get_UDCCS(ep) & UDCCS_BI_SST)
 				break;
 			udelay(20);
 		}
@@ -850,10 +1061,10 @@ static int pxa25x_ep_fifo_status(struct usb_ep *_ep)
 	if ((ep->bEndpointAddress & USB_DIR_IN) != 0)
 		return -EOPNOTSUPP;
 	if (ep->dev->gadget.speed == USB_SPEED_UNKNOWN
-			|| (*ep->reg_udccs & UDCCS_BO_RFS) == 0)
+			|| (udc_ep_get_UDCCS(ep) & UDCCS_BO_RFS) == 0)
 		return 0;
 	else
-		return (*ep->reg_ubcr & 0xfff) + 1;
+		return (udc_ep_get_UBCR(ep) & 0xfff) + 1;
 }
 
 static void pxa25x_ep_fifo_flush(struct usb_ep *_ep)
@@ -870,15 +1081,15 @@ static void pxa25x_ep_fifo_flush(struct usb_ep *_ep)
 
 	/* for OUT, just read and discard the FIFO contents. */
 	if ((ep->bEndpointAddress & USB_DIR_IN) == 0) {
-		while (((*ep->reg_udccs) & UDCCS_BO_RNE) != 0)
-			(void) *ep->reg_uddr;
+		while (((udc_ep_get_UDCCS(ep)) & UDCCS_BO_RNE) != 0)
+			(void)udc_ep_get_UDDR(ep);
 		return;
 	}
 
 	/* most IN status is the same, but ISO can't stall */
-	*ep->reg_udccs = UDCCS_BI_TPC|UDCCS_BI_FTF|UDCCS_BI_TUR
+	udc_ep_set_UDCCS(ep, UDCCS_BI_TPC|UDCCS_BI_FTF|UDCCS_BI_TUR
 		| (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC
-			? 0 : UDCCS_BI_SST);
+			? 0 : UDCCS_BI_SST));
 }
 
 
@@ -905,15 +1116,23 @@ static struct usb_ep_ops pxa25x_ep_ops = {
 
 static int pxa25x_udc_get_frame(struct usb_gadget *_gadget)
 {
-	return ((UFNRH & 0x07) << 8) | (UFNRL & 0xff);
+	struct pxa25x_udc	*dev;
+
+	dev = container_of(_gadget, struct pxa25x_udc, gadget);
+	return ((udc_get_reg(dev, UFNRH) & 0x07) << 8) |
+		(udc_get_reg(dev, UFNRL) & 0xff);
 }
 
 static int pxa25x_udc_wakeup(struct usb_gadget *_gadget)
 {
+	struct pxa25x_udc	*udc;
+
+	udc = container_of(_gadget, struct pxa25x_udc, gadget);
+
 	/* host may not have enabled remote wakeup */
-	if ((UDCCS0 & UDCCS0_DRWF) == 0)
+	if ((udc_ep0_get_UDCCS(udc) & UDCCS0_DRWF) == 0)
 		return -EHOSTUNREACH;
-	udc_set_mask_UDCCR(UDCCR_RSM);
+	udc_set_mask_UDCCR(udc, UDCCR_RSM);
 	return 0;
 }
 
@@ -1014,8 +1233,7 @@ static const struct usb_gadget_ops pxa25x_udc_ops = {
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 
-static int
-udc_seq_show(struct seq_file *m, void *_d)
+static int udc_debug_show(struct seq_file *m, void *_d)
 {
 	struct pxa25x_udc	*dev = m->private;
 	unsigned long		flags;
@@ -1034,9 +1252,11 @@ udc_seq_show(struct seq_file *m, void *_d)
 	/* registers for device and ep0 */
 	seq_printf(m,
 		"uicr %02X.%02X, usir %02X.%02x, ufnr %02X.%02X\n",
-		UICR1, UICR0, USIR1, USIR0, UFNRH, UFNRL);
+		udc_get_reg(dev, UICR1), udc_get_reg(dev, UICR0),
+		udc_get_reg(dev, USIR1), udc_get_reg(dev, USIR0),
+		udc_get_reg(dev, UFNRH), udc_get_reg(dev, UFNRL));
 
-	tmp = UDCCR;
+	tmp = udc_get_reg(dev, UDCCR);
 	seq_printf(m,
 		"udccr %02X =%s%s%s%s%s%s%s%s\n", tmp,
 		(tmp & UDCCR_REM) ? " rem" : "",
@@ -1048,7 +1268,7 @@ udc_seq_show(struct seq_file *m, void *_d)
 		(tmp & UDCCR_UDA) ? " uda" : "",
 		(tmp & UDCCR_UDE) ? " ude" : "");
 
-	tmp = UDCCS0;
+	tmp = udc_ep0_get_UDCCS(dev);
 	seq_printf(m,
 		"udccs0 %02X =%s%s%s%s%s%s%s%s\n", tmp,
 		(tmp & UDCCS0_SA) ? " sa" : "",
@@ -1061,7 +1281,7 @@ udc_seq_show(struct seq_file *m, void *_d)
 		(tmp & UDCCS0_OPR) ? " opr" : "");
 
 	if (dev->has_cfr) {
-		tmp = UDCCFR;
+		tmp = udc_get_reg(dev, UDCCFR);
 		seq_printf(m,
 			"udccfr %02X =%s%s\n", tmp,
 			(tmp & UDCCFR_AREN) ? " aren" : "",
@@ -1087,7 +1307,7 @@ udc_seq_show(struct seq_file *m, void *_d)
 			desc = ep->ep.desc;
 			if (!desc)
 				continue;
-			tmp = *dev->ep [i].reg_udccs;
+			tmp = udc_ep_get_UDCCS(&dev->ep[i]);
 			seq_printf(m,
 				"%s max %d %s udccs %02x irqs %lu\n",
 				ep->ep.name, usb_endpoint_maxp(desc),
@@ -1114,25 +1334,12 @@ done:
 	local_irq_restore(flags);
 	return 0;
 }
-
-static int
-udc_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, udc_seq_show, inode->i_private);
-}
-
-static const struct file_operations debug_fops = {
-	.open		= udc_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.owner		= THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(udc_debug);
 
 #define create_debug_files(dev) \
 	do { \
 		dev->debugfs_udc = debugfs_create_file(dev->gadget.name, \
-			S_IRUGO, NULL, dev, &debug_fops); \
+			S_IRUGO, NULL, dev, &udc_debug_fops); \
 	} while (0)
 #define remove_debug_files(dev) debugfs_remove(dev->debugfs_udc)
 
@@ -1151,14 +1358,15 @@ static const struct file_operations debug_fops = {
 static void udc_disable(struct pxa25x_udc *dev)
 {
 	/* block all irqs */
-	udc_set_mask_UDCCR(UDCCR_SRM|UDCCR_REM);
-	UICR0 = UICR1 = 0xff;
-	UFNRH = UFNRH_SIM;
+	udc_set_mask_UDCCR(dev, UDCCR_SRM|UDCCR_REM);
+	udc_set_reg(dev, UICR0, 0xff);
+	udc_set_reg(dev, UICR1, 0xff);
+	udc_set_reg(dev, UFNRH, UFNRH_SIM);
 
 	/* if hardware supports it, disconnect from usb */
 	pullup_off();
 
-	udc_clear_mask_UDCCR(UDCCR_UDE);
+	udc_clear_mask_UDCCR(dev, UDCCR_UDE);
 
 	ep0_idle (dev);
 	dev->gadget.speed = USB_SPEED_UNKNOWN;
@@ -1200,10 +1408,10 @@ static void udc_reinit(struct pxa25x_udc *dev)
  */
 static void udc_enable (struct pxa25x_udc *dev)
 {
-	udc_clear_mask_UDCCR(UDCCR_UDE);
+	udc_clear_mask_UDCCR(dev, UDCCR_UDE);
 
 	/* try to clear these bits before we enable the udc */
-	udc_ack_int_UDCCR(UDCCR_SUSIR|/*UDCCR_RSTIR|*/UDCCR_RESIR);
+	udc_ack_int_UDCCR(dev, UDCCR_SUSIR|/*UDCCR_RSTIR|*/UDCCR_RESIR);
 
 	ep0_idle(dev);
 	dev->gadget.speed = USB_SPEED_UNKNOWN;
@@ -1215,15 +1423,15 @@ static void udc_enable (struct pxa25x_udc *dev)
 	 * - if RESET is already in progress, ack interrupt
 	 * - unmask reset interrupt
 	 */
-	udc_set_mask_UDCCR(UDCCR_UDE);
-	if (!(UDCCR & UDCCR_UDA))
-		udc_ack_int_UDCCR(UDCCR_RSTIR);
+	udc_set_mask_UDCCR(dev, UDCCR_UDE);
+	if (!(udc_get_reg(dev, UDCCR) & UDCCR_UDA))
+		udc_ack_int_UDCCR(dev, UDCCR_RSTIR);
 
 	if (dev->has_cfr /* UDC_RES2 is defined */) {
 		/* pxa255 (a0+) can avoid a set_config race that could
 		 * prevent gadget drivers from configuring correctly
 		 */
-		UDCCFR = UDCCFR_ACM | UDCCFR_MB1;
+		udc_set_reg(dev, UDCCFR, UDCCFR_ACM | UDCCFR_MB1);
 	} else {
 		/* "USB test mode" for pxa250 errata 40-42 (stepping a0, a1)
 		 * which could result in missing packets and interrupts.
@@ -1231,15 +1439,15 @@ static void udc_enable (struct pxa25x_udc *dev)
 		 * double buffers or not; ACM/AREN bits fit into the holes.
 		 * zero bits (like USIR0_IRx) disable double buffering.
 		 */
-		UDC_RES1 = 0x00;
-		UDC_RES2 = 0x00;
+		udc_set_reg(dev, UDC_RES1, 0x00);
+		udc_set_reg(dev, UDC_RES2, 0x00);
 	}
 
 	/* enable suspend/resume and reset irqs */
-	udc_clear_mask_UDCCR(UDCCR_SRM | UDCCR_REM);
+	udc_clear_mask_UDCCR(dev, UDCCR_SRM | UDCCR_REM);
 
 	/* enable ep0 irqs */
-	UICR0 &= ~UICR0_IM0;
+	udc_set_reg(dev, UICR0, udc_get_reg(dev, UICR0) & ~UICR0_IM0);
 
 	/* if hardware supports it, pullup D+ and wait for reset */
 	pullup_on();
@@ -1402,15 +1610,15 @@ static inline void clear_ep_state (struct pxa25x_udc *dev)
 		nuke(&dev->ep[i], -ECONNABORTED);
 }
 
-static void udc_watchdog(unsigned long _dev)
+static void udc_watchdog(struct timer_list *t)
 {
-	struct pxa25x_udc	*dev = (void *)_dev;
+	struct pxa25x_udc	*dev = from_timer(dev, t, timer);
 
 	local_irq_disable();
 	if (dev->ep0state == EP0_STALL
-			&& (UDCCS0 & UDCCS0_FST) == 0
-			&& (UDCCS0 & UDCCS0_SST) == 0) {
-		UDCCS0 = UDCCS0_FST|UDCCS0_FTF;
+			&& (udc_ep0_get_UDCCS(dev) & UDCCS0_FST) == 0
+			&& (udc_ep0_get_UDCCS(dev) & UDCCS0_SST) == 0) {
+		udc_ep0_set_UDCCS(dev, UDCCS0_FST|UDCCS0_FTF);
 		DBG(DBG_VERBOSE, "ep0 re-stall\n");
 		start_watchdog(dev);
 	}
@@ -1419,7 +1627,7 @@ static void udc_watchdog(unsigned long _dev)
 
 static void handle_ep0 (struct pxa25x_udc *dev)
 {
-	u32			udccs0 = UDCCS0;
+	u32			udccs0 = udc_ep0_get_UDCCS(dev);
 	struct pxa25x_ep	*ep = &dev->ep [0];
 	struct pxa25x_request	*req;
 	union {
@@ -1436,7 +1644,7 @@ static void handle_ep0 (struct pxa25x_udc *dev)
 	/* clear stall status */
 	if (udccs0 & UDCCS0_SST) {
 		nuke(ep, -EPIPE);
-		UDCCS0 = UDCCS0_SST;
+		udc_ep0_set_UDCCS(dev, UDCCS0_SST);
 		del_timer(&dev->timer);
 		ep0_idle(dev);
 	}
@@ -1451,7 +1659,7 @@ static void handle_ep0 (struct pxa25x_udc *dev)
 	switch (dev->ep0state) {
 	case EP0_IDLE:
 		/* late-breaking status? */
-		udccs0 = UDCCS0;
+		udccs0 = udc_ep0_get_UDCCS(dev);
 
 		/* start control request? */
 		if (likely((udccs0 & (UDCCS0_OPR|UDCCS0_SA|UDCCS0_RNE))
@@ -1462,14 +1670,14 @@ static void handle_ep0 (struct pxa25x_udc *dev)
 
 			/* read SETUP packet */
 			for (i = 0; i < 8; i++) {
-				if (unlikely(!(UDCCS0 & UDCCS0_RNE))) {
+				if (unlikely(!(udc_ep0_get_UDCCS(dev) & UDCCS0_RNE))) {
 bad_setup:
 					DMSG("SETUP %d!\n", i);
 					goto stall;
 				}
 				u.raw [i] = (u8) UDDR0;
 			}
-			if (unlikely((UDCCS0 & UDCCS0_RNE) != 0))
+			if (unlikely((udc_ep0_get_UDCCS(dev) & UDCCS0_RNE) != 0))
 				goto bad_setup;
 
 got_setup:
@@ -1545,7 +1753,7 @@ config_change:
 					 */
 				}
 				DBG(DBG_VERBOSE, "protocol STALL, "
-					"%02x err %d\n", UDCCS0, i);
+					"%02x err %d\n", udc_ep0_get_UDCCS(dev), i);
 stall:
 				/* the watchdog timer helps deal with cases
 				 * where udc seems to clear FST wrongly, and
@@ -1592,12 +1800,12 @@ stall:
 			 * - IPR cleared
 			 * - OPR got set, without SA (likely status stage)
 			 */
-			UDCCS0 = udccs0 & (UDCCS0_SA|UDCCS0_OPR);
+			udc_ep0_set_UDCCS(dev, udccs0 & (UDCCS0_SA|UDCCS0_OPR));
 		}
 		break;
 	case EP0_IN_DATA_PHASE:			/* GET_DESCRIPTOR etc */
 		if (udccs0 & UDCCS0_OPR) {
-			UDCCS0 = UDCCS0_OPR|UDCCS0_FTF;
+			udc_ep0_set_UDCCS(dev, UDCCS0_OPR|UDCCS0_FTF);
 			DBG(DBG_VERBOSE, "ep0in premature status\n");
 			if (req)
 				done(ep, req, 0);
@@ -1631,14 +1839,14 @@ stall:
 		 * also appears after some config change events.
 		 */
 		if (udccs0 & UDCCS0_OPR)
-			UDCCS0 = UDCCS0_OPR;
+			udc_ep0_set_UDCCS(dev, UDCCS0_OPR);
 		ep0_idle(dev);
 		break;
 	case EP0_STALL:
-		UDCCS0 = UDCCS0_FST;
+		udc_ep0_set_UDCCS(dev, UDCCS0_FST);
 		break;
 	}
-	USIR0 = USIR0_IR0;
+	udc_set_reg(dev, USIR0, USIR0_IR0);
 }
 
 static void handle_ep(struct pxa25x_ep *ep)
@@ -1658,14 +1866,14 @@ static void handle_ep(struct pxa25x_ep *ep)
 
 		// TODO check FST handling
 
-		udccs = *ep->reg_udccs;
+		udccs = udc_ep_get_UDCCS(ep);
 		if (unlikely(is_in)) {	/* irq from TPC, SST, or (ISO) TUR */
 			tmp = UDCCS_BI_TUR;
 			if (likely(ep->bmAttributes == USB_ENDPOINT_XFER_BULK))
 				tmp |= UDCCS_BI_SST;
 			tmp &= udccs;
 			if (likely (tmp))
-				*ep->reg_udccs = tmp;
+				udc_ep_set_UDCCS(ep, tmp);
 			if (req && likely ((udccs & UDCCS_BI_TFS) != 0))
 				completed = write_fifo(ep, req);
 
@@ -1676,13 +1884,13 @@ static void handle_ep(struct pxa25x_ep *ep)
 				tmp = UDCCS_IO_ROF | UDCCS_IO_DME;
 			tmp &= udccs;
 			if (likely(tmp))
-				*ep->reg_udccs = tmp;
+				udc_ep_set_UDCCS(ep, tmp);
 
 			/* fifos can hold packets, ready for reading... */
 			if (likely(req)) {
 				completed = read_fifo(ep, req);
 			} else
-				pio_irq_disable (ep->bEndpointAddress);
+				pio_irq_disable(ep);
 		}
 		ep->pio_irqs++;
 	} while (completed);
@@ -1703,13 +1911,13 @@ pxa25x_udc_irq(int irq, void *_dev)
 
 	dev->stats.irqs++;
 	do {
-		u32		udccr = UDCCR;
+		u32		udccr = udc_get_reg(dev, UDCCR);
 
 		handled = 0;
 
 		/* SUSpend Interrupt Request */
 		if (unlikely(udccr & UDCCR_SUSIR)) {
-			udc_ack_int_UDCCR(UDCCR_SUSIR);
+			udc_ack_int_UDCCR(dev, UDCCR_SUSIR);
 			handled = 1;
 			DBG(DBG_VERBOSE, "USB suspend\n");
 
@@ -1722,7 +1930,7 @@ pxa25x_udc_irq(int irq, void *_dev)
 
 		/* RESume Interrupt Request */
 		if (unlikely(udccr & UDCCR_RESIR)) {
-			udc_ack_int_UDCCR(UDCCR_RESIR);
+			udc_ack_int_UDCCR(dev, UDCCR_RESIR);
 			handled = 1;
 			DBG(DBG_VERBOSE, "USB resume\n");
 
@@ -1734,10 +1942,10 @@ pxa25x_udc_irq(int irq, void *_dev)
 
 		/* ReSeT Interrupt Request - USB reset */
 		if (unlikely(udccr & UDCCR_RSTIR)) {
-			udc_ack_int_UDCCR(UDCCR_RSTIR);
+			udc_ack_int_UDCCR(dev, UDCCR_RSTIR);
 			handled = 1;
 
-			if ((UDCCR & UDCCR_UDA) == 0) {
+			if ((udc_get_reg(dev, UDCCR) & UDCCR_UDA) == 0) {
 				DBG(DBG_VERBOSE, "USB reset start\n");
 
 				/* reset driver and endpoints,
@@ -1753,8 +1961,10 @@ pxa25x_udc_irq(int irq, void *_dev)
 			}
 
 		} else {
-			u32	usir0 = USIR0 & ~UICR0;
-			u32	usir1 = USIR1 & ~UICR1;
+			u32	usir0 = udc_get_reg(dev, USIR0) &
+					~udc_get_reg(dev, UICR0);
+			u32	usir1 = udc_get_reg(dev, USIR1) &
+					~udc_get_reg(dev, UICR1);
 			int	i;
 
 			if (unlikely (!usir0 && !usir1))
@@ -1775,13 +1985,15 @@ pxa25x_udc_irq(int irq, void *_dev)
 
 				if (i && (usir0 & tmp)) {
 					handle_ep(&dev->ep[i]);
-					USIR0 |= tmp;
+					udc_set_reg(dev, USIR0,
+						udc_get_reg(dev, USIR0) | tmp);
 					handled = 1;
 				}
 #ifndef	CONFIG_USB_PXA25X_SMALL
 				if (usir1 & tmp) {
 					handle_ep(&dev->ep[i+8]);
-					USIR1 |= tmp;
+					udc_set_reg(dev, USIR1,
+						udc_get_reg(dev, USIR1) | tmp);
 					handled = 1;
 				}
 #endif
@@ -1826,8 +2038,8 @@ static struct pxa25x_udc memory = {
 						USB_EP_CAPS_DIR_ALL),
 		},
 		.dev		= &memory,
-		.reg_udccs	= &UDCCS0,
-		.reg_uddr	= &UDDR0,
+		.regoff_udccs	= UDCCS0,
+		.regoff_uddr	= UDDR0,
 	},
 
 	/* first group of endpoints */
@@ -1843,8 +2055,8 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 1,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
-		.reg_udccs	= &UDCCS1,
-		.reg_uddr	= &UDDR1,
+		.regoff_udccs	= UDCCS1,
+		.regoff_uddr	= UDDR1,
 	},
 	.ep[2] = {
 		.ep = {
@@ -1858,9 +2070,9 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = 2,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
-		.reg_udccs	= &UDCCS2,
-		.reg_ubcr	= &UBCR2,
-		.reg_uddr	= &UDDR2,
+		.regoff_udccs	= UDCCS2,
+		.regoff_ubcr	= UBCR2,
+		.regoff_uddr	= UDDR2,
 	},
 #ifndef CONFIG_USB_PXA25X_SMALL
 	.ep[3] = {
@@ -1875,8 +2087,8 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 3,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
-		.reg_udccs	= &UDCCS3,
-		.reg_uddr	= &UDDR3,
+		.regoff_udccs	= UDCCS3,
+		.regoff_uddr	= UDDR3,
 	},
 	.ep[4] = {
 		.ep = {
@@ -1890,9 +2102,9 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = 4,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
-		.reg_udccs	= &UDCCS4,
-		.reg_ubcr	= &UBCR4,
-		.reg_uddr	= &UDDR4,
+		.regoff_udccs	= UDCCS4,
+		.regoff_ubcr	= UBCR4,
+		.regoff_uddr	= UDDR4,
 	},
 	.ep[5] = {
 		.ep = {
@@ -1905,8 +2117,8 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= INT_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 5,
 		.bmAttributes	= USB_ENDPOINT_XFER_INT,
-		.reg_udccs	= &UDCCS5,
-		.reg_uddr	= &UDDR5,
+		.regoff_udccs	= UDCCS5,
+		.regoff_uddr	= UDDR5,
 	},
 
 	/* second group of endpoints */
@@ -1922,8 +2134,8 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 6,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
-		.reg_udccs	= &UDCCS6,
-		.reg_uddr	= &UDDR6,
+		.regoff_udccs	= UDCCS6,
+		.regoff_uddr	= UDDR6,
 	},
 	.ep[7] = {
 		.ep = {
@@ -1937,9 +2149,9 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = 7,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
-		.reg_udccs	= &UDCCS7,
-		.reg_ubcr	= &UBCR7,
-		.reg_uddr	= &UDDR7,
+		.regoff_udccs	= UDCCS7,
+		.regoff_ubcr	= UBCR7,
+		.regoff_uddr	= UDDR7,
 	},
 	.ep[8] = {
 		.ep = {
@@ -1953,8 +2165,8 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 8,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
-		.reg_udccs	= &UDCCS8,
-		.reg_uddr	= &UDDR8,
+		.regoff_udccs	= UDCCS8,
+		.regoff_uddr	= UDDR8,
 	},
 	.ep[9] = {
 		.ep = {
@@ -1968,9 +2180,9 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = 9,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
-		.reg_udccs	= &UDCCS9,
-		.reg_ubcr	= &UBCR9,
-		.reg_uddr	= &UDDR9,
+		.regoff_udccs	= UDCCS9,
+		.regoff_ubcr	= UBCR9,
+		.regoff_uddr	= UDDR9,
 	},
 	.ep[10] = {
 		.ep = {
@@ -1983,8 +2195,8 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= INT_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 10,
 		.bmAttributes	= USB_ENDPOINT_XFER_INT,
-		.reg_udccs	= &UDCCS10,
-		.reg_uddr	= &UDDR10,
+		.regoff_udccs	= UDCCS10,
+		.regoff_uddr	= UDDR10,
 	},
 
 	/* third group of endpoints */
@@ -2000,8 +2212,8 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 11,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
-		.reg_udccs	= &UDCCS11,
-		.reg_uddr	= &UDDR11,
+		.regoff_udccs	= UDCCS11,
+		.regoff_uddr	= UDDR11,
 	},
 	.ep[12] = {
 		.ep = {
@@ -2015,9 +2227,9 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= BULK_FIFO_SIZE,
 		.bEndpointAddress = 12,
 		.bmAttributes	= USB_ENDPOINT_XFER_BULK,
-		.reg_udccs	= &UDCCS12,
-		.reg_ubcr	= &UBCR12,
-		.reg_uddr	= &UDDR12,
+		.regoff_udccs	= UDCCS12,
+		.regoff_ubcr	= UBCR12,
+		.regoff_uddr	= UDDR12,
 	},
 	.ep[13] = {
 		.ep = {
@@ -2031,8 +2243,8 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 13,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
-		.reg_udccs	= &UDCCS13,
-		.reg_uddr	= &UDDR13,
+		.regoff_udccs	= UDCCS13,
+		.regoff_uddr	= UDDR13,
 	},
 	.ep[14] = {
 		.ep = {
@@ -2046,9 +2258,9 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= ISO_FIFO_SIZE,
 		.bEndpointAddress = 14,
 		.bmAttributes	= USB_ENDPOINT_XFER_ISOC,
-		.reg_udccs	= &UDCCS14,
-		.reg_ubcr	= &UBCR14,
-		.reg_uddr	= &UDDR14,
+		.regoff_udccs	= UDCCS14,
+		.regoff_ubcr	= UBCR14,
+		.regoff_uddr	= UDDR14,
 	},
 	.ep[15] = {
 		.ep = {
@@ -2061,8 +2273,8 @@ static struct pxa25x_udc memory = {
 		.fifo_size	= INT_FIFO_SIZE,
 		.bEndpointAddress = USB_DIR_IN | 15,
 		.bmAttributes	= USB_ENDPOINT_XFER_INT,
-		.reg_udccs	= &UDCCS15,
-		.reg_uddr	= &UDDR15,
+		.regoff_udccs	= UDCCS15,
+		.regoff_uddr	= UDDR15,
 	},
 #endif /* !CONFIG_USB_PXA25X_SMALL */
 };
@@ -2109,6 +2321,7 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	struct pxa25x_udc *dev = &memory;
 	int retval, irq;
 	u32 chiprev;
+	struct resource *res;
 
 	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
 
@@ -2154,6 +2367,11 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENODEV;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	dev->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dev->regs))
+		return PTR_ERR(dev->regs);
+
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk))
 		return PTR_ERR(dev->clk);
@@ -2181,9 +2399,7 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 		gpio_direction_output(dev->mach->gpio_pullup, 0);
 	}
 
-	init_timer(&dev->timer);
-	dev->timer.function = udc_watchdog;
-	dev->timer.data = (unsigned long) dev;
+	timer_setup(&dev->timer, udc_watchdog, 0);
 
 	the_controller = dev;
 	platform_set_drvdata(pdev, dev);

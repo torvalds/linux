@@ -1,0 +1,20 @@
+menu "NVIDIA Tegra thermal drivers"
+depends on ARCH_TEGRA
+
+config TEGRA_SOCTHERM
+	tristate "Tegra SOCTHERM thermal management"
+	help
+	  Enable this option for integrated thermal management support on NVIDIA
+	  Tegra systems-on-chip. The driver supports four thermal zones
+	  (CPU, GPU, MEM, PLLX). Cooling devices can be bound to the thermal
+	  zones to manage temperatures. This option is also required for the
+	  emergency thermal reset (thermtrip) feature to function.
+
+config TEGRA_BPMP_THERMAL
+	tristate "Tegra BPMP thermal sensing"
+	depends on TEGRA_BPMP || COMPILE_TEST
+	help
+	 Enable this option for support for sensing system temperature of NVIDIA
+	 Tegra systems-on-chip with the BPMP coprocessor (Tegra186).
+
+endmenu

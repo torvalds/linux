@@ -25,7 +25,7 @@
 
 #include <linux/cdev.h>
 #include <linux/poll.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/hid-roccat.h>
 #include <linux/module.h>
 
@@ -137,14 +137,14 @@ exit_unlock:
 	return retval;
 }
 
-static unsigned int roccat_poll(struct file *file, poll_table *wait)
+static __poll_t roccat_poll(struct file *file, poll_table *wait)
 {
 	struct roccat_reader *reader = file->private_data;
 	poll_wait(file, &reader->device->wait, wait);
 	if (reader->cbuf_start != reader->device->cbuf_end)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	if (!reader->device->exist)
-		return POLLERR | POLLHUP;
+		return EPOLLERR | EPOLLHUP;
 	return 0;
 }
 
@@ -421,13 +421,12 @@ static int __init roccat_init(void)
 
 	retval = alloc_chrdev_region(&dev_id, ROCCAT_FIRST_MINOR,
 			ROCCAT_MAX_DEVICES, "roccat");
-
-	roccat_major = MAJOR(dev_id);
-
 	if (retval < 0) {
 		pr_warn("can't get major number\n");
 		goto error;
 	}
+
+	roccat_major = MAJOR(dev_id);
 
 	cdev_init(&roccat_cdev, &roccat_ops);
 	retval = cdev_add(&roccat_cdev, dev_id, ROCCAT_MAX_DEVICES);

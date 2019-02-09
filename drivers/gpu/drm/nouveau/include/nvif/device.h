@@ -1,12 +1,21 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVIF_DEVICE_H__
 #define __NVIF_DEVICE_H__
 
 #include <nvif/object.h>
-#include <nvif/class.h>
+#include <nvif/cl0080.h>
+#include <nvif/user.h>
 
 struct nvif_device {
 	struct nvif_object object;
 	struct nv_device_info_v0 info;
+
+	struct nvif_fifo_runlist {
+		u64 engines;
+	} *runlist;
+	int runlists;
+
+	struct nvif_user user;
 };
 
 int  nvif_device_init(struct nvif_object *, u32 handle, s32 oclass, void *, u32,
@@ -38,7 +47,6 @@ u64  nvif_device_time(struct nvif_device *);
 /*XXX*/
 #include <subdev/bios.h>
 #include <subdev/fb.h>
-#include <subdev/mmu.h>
 #include <subdev/bar.h>
 #include <subdev/gpio.h>
 #include <subdev/clk.h>
@@ -57,18 +65,15 @@ u64  nvif_device_time(struct nvif_device *);
 })
 #define nvxx_bios(a) nvxx_device(a)->bios
 #define nvxx_fb(a) nvxx_device(a)->fb
-#define nvxx_mmu(a) nvxx_device(a)->mmu
-#define nvxx_bar(a) nvxx_device(a)->bar
 #define nvxx_gpio(a) nvxx_device(a)->gpio
 #define nvxx_clk(a) nvxx_device(a)->clk
 #define nvxx_i2c(a) nvxx_device(a)->i2c
+#define nvxx_iccsense(a) nvxx_device(a)->iccsense
 #define nvxx_therm(a) nvxx_device(a)->therm
+#define nvxx_volt(a) nvxx_device(a)->volt
 
-#include <core/device.h>
 #include <engine/fifo.h>
 #include <engine/gr.h>
-#include <engine/sw.h>
 
-#define nvxx_fifo(a) nvxx_device(a)->fifo
 #define nvxx_gr(a) nvxx_device(a)->gr
 #endif

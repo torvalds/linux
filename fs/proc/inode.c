@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/proc/inode.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
+#include <linux/cache.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
@@ -24,7 +26,7 @@
 #include <linux/mount.h>
 #include <linux/magic.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "internal.h"
 
@@ -43,21 +45,23 @@ static void proc_evict_inode(struct inode *inode)
 	de = PDE(inode);
 	if (de)
 		pde_put(de);
+
 	head = PROC_I(inode)->sysctl;
 	if (head) {
 		RCU_INIT_POINTER(PROC_I(inode)->sysctl, NULL);
-		sysctl_head_put(head);
+		proc_sys_evict_inode(inode, head);
 	}
 }
 
-static struct kmem_cache * proc_inode_cachep;
+static struct kmem_cache *proc_inode_cachep __ro_after_init;
+static struct kmem_cache *pde_opener_cache __ro_after_init;
 
 static struct inode *proc_alloc_inode(struct super_block *sb)
 {
 	struct proc_inode *ei;
 	struct inode *inode;
 
-	ei = (struct proc_inode *)kmem_cache_alloc(proc_inode_cachep, GFP_KERNEL);
+	ei = kmem_cache_alloc(proc_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	ei->pid = NULL;
@@ -68,7 +72,6 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei->sysctl_entry = NULL;
 	ei->ns_ops = NULL;
 	inode = &ei->vfs_inode;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	return inode;
 }
 
@@ -90,13 +93,22 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-void __init proc_init_inodecache(void)
+void __init proc_init_kmemcache(void)
 {
 	proc_inode_cachep = kmem_cache_create("proc_inode_cache",
 					     sizeof(struct proc_inode),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_PANIC),
+						SLAB_MEM_SPREAD|SLAB_ACCOUNT|
+						SLAB_PANIC),
 					     init_once);
+	pde_opener_cache =
+		kmem_cache_create("pde_opener", sizeof(struct pde_opener), 0,
+				  SLAB_ACCOUNT|SLAB_PANIC, NULL);
+	proc_dir_entry_cache = kmem_cache_create_usercopy(
+		"proc_dir_entry", SIZEOF_PDE, 0, SLAB_PANIC,
+		offsetof(struct proc_dir_entry, inline_name),
+		SIZEOF_PDE_INLINE_NAME, NULL);
+	BUILD_BUG_ON(sizeof(struct proc_dir_entry) >= SIZEOF_PDE);
 }
 
 static int proc_show_options(struct seq_file *seq, struct dentry *root)
@@ -106,7 +118,7 @@ static int proc_show_options(struct seq_file *seq, struct dentry *root)
 
 	if (!gid_eq(pid->pid_gid, GLOBAL_ROOT_GID))
 		seq_printf(seq, ",gid=%u", from_kgid_munged(&init_user_ns, pid->pid_gid));
-	if (pid->hide_pid != 0)
+	if (pid->hide_pid != HIDEPID_OFF)
 		seq_printf(seq, ",hidepid=%u", pid->hide_pid);
 
 	return 0;
@@ -126,36 +138,50 @@ enum {BIAS = -1U<<31};
 
 static inline int use_pde(struct proc_dir_entry *pde)
 {
-	return atomic_inc_unless_negative(&pde->in_use);
+	return likely(atomic_inc_unless_negative(&pde->in_use));
 }
 
 static void unuse_pde(struct proc_dir_entry *pde)
 {
-	if (atomic_dec_return(&pde->in_use) == BIAS)
+	if (unlikely(atomic_dec_return(&pde->in_use) == BIAS))
 		complete(pde->pde_unload_completion);
 }
 
-/* pde is locked */
+/* pde is locked on entry, unlocked on exit */
 static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 {
+	/*
+	 * close() (proc_reg_release()) can't delete an entry and proceed:
+	 * ->release hook needs to be available at the right moment.
+	 *
+	 * rmmod (remove_proc_entry() et al) can't delete an entry and proceed:
+	 * "struct file" needs to be available at the right moment.
+	 *
+	 * Therefore, first process to enter this function does ->release() and
+	 * signals its completion to the other process which does nothing.
+	 */
 	if (pdeo->closing) {
 		/* somebody else is doing that, just wait */
 		DECLARE_COMPLETION_ONSTACK(c);
 		pdeo->c = &c;
 		spin_unlock(&pde->pde_unload_lock);
 		wait_for_completion(&c);
-		spin_lock(&pde->pde_unload_lock);
 	} else {
 		struct file *file;
-		pdeo->closing = 1;
+		struct completion *c;
+
+		pdeo->closing = true;
 		spin_unlock(&pde->pde_unload_lock);
 		file = pdeo->file;
 		pde->proc_fops->release(file_inode(file), file);
 		spin_lock(&pde->pde_unload_lock);
-		list_del_init(&pdeo->lh);
-		if (pdeo->c)
-			complete(pdeo->c);
-		kfree(pdeo);
+		/* After ->release. */
+		list_del(&pdeo->lh);
+		c = pdeo->c;
+		spin_unlock(&pde->pde_unload_lock);
+		if (unlikely(c))
+			complete(c);
+		kmem_cache_free(pde_opener_cache, pdeo);
 	}
 }
 
@@ -167,11 +193,14 @@ void proc_entry_rundown(struct proc_dir_entry *de)
 	if (atomic_add_return(BIAS, &de->in_use) != BIAS)
 		wait_for_completion(&c);
 
+	/* ->pde_openers list can't grow from now on. */
+
 	spin_lock(&de->pde_unload_lock);
 	while (!list_empty(&de->pde_openers)) {
 		struct pde_opener *pdeo;
 		pdeo = list_first_entry(&de->pde_openers, struct pde_opener, lh);
 		close_pdeo(de, pdeo);
+		spin_lock(&de->pde_unload_lock);
 	}
 	spin_unlock(&de->pde_unload_lock);
 }
@@ -219,11 +248,11 @@ static ssize_t proc_reg_write(struct file *file, const char __user *buf, size_t 
 	return rv;
 }
 
-static unsigned int proc_reg_poll(struct file *file, struct poll_table_struct *pts)
+static __poll_t proc_reg_poll(struct file *file, struct poll_table_struct *pts)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
-	unsigned int rv = DEFAULT_POLLMASK;
-	unsigned int (*poll)(struct file *, struct poll_table_struct *);
+	__poll_t rv = DEFAULT_POLLMASK;
+	__poll_t (*poll)(struct file *, struct poll_table_struct *);
 	if (use_pde(pde)) {
 		poll = pde->proc_fops->poll;
 		if (poll)
@@ -312,39 +341,46 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	struct pde_opener *pdeo;
 
 	/*
-	 * What for, you ask? Well, we can have open, rmmod, remove_proc_entry
-	 * sequence. ->release won't be called because ->proc_fops will be
-	 * cleared. Depending on complexity of ->release, consequences vary.
+	 * Ensure that
+	 * 1) PDE's ->release hook will be called no matter what
+	 *    either normally by close()/->release, or forcefully by
+	 *    rmmod/remove_proc_entry.
 	 *
-	 * We can't wait for mercy when close will be done for real, it's
-	 * deadlockable: rmmod foo </proc/foo . So, we're going to do ->release
-	 * by hand in remove_proc_entry(). For this, save opener's credentials
-	 * for later.
+	 * 2) rmmod isn't blocked by opening file in /proc and sitting on
+	 *    the descriptor (including "rmmod foo </proc/foo" scenario).
+	 *
+	 * Save every "struct file" with custom ->release hook.
 	 */
-	pdeo = kzalloc(sizeof(struct pde_opener), GFP_KERNEL);
-	if (!pdeo)
-		return -ENOMEM;
-
-	if (!use_pde(pde)) {
-		kfree(pdeo);
+	if (!use_pde(pde))
 		return -ENOENT;
-	}
-	open = pde->proc_fops->open;
-	release = pde->proc_fops->release;
 
+	release = pde->proc_fops->release;
+	if (release) {
+		pdeo = kmem_cache_alloc(pde_opener_cache, GFP_KERNEL);
+		if (!pdeo) {
+			rv = -ENOMEM;
+			goto out_unuse;
+		}
+	}
+
+	open = pde->proc_fops->open;
 	if (open)
 		rv = open(inode, file);
 
-	if (rv == 0 && release) {
-		/* To know what to release. */
-		pdeo->file = file;
-		/* Strictly for "too late" ->release in proc_reg_release(). */
-		spin_lock(&pde->pde_unload_lock);
-		list_add(&pdeo->lh, &pde->pde_openers);
-		spin_unlock(&pde->pde_unload_lock);
-	} else
-		kfree(pdeo);
+	if (release) {
+		if (rv == 0) {
+			/* To know what to release. */
+			pdeo->file = file;
+			pdeo->closing = false;
+			pdeo->c = NULL;
+			spin_lock(&pde->pde_unload_lock);
+			list_add(&pdeo->lh, &pde->pde_openers);
+			spin_unlock(&pde->pde_unload_lock);
+		} else
+			kmem_cache_free(pde_opener_cache, pdeo);
+	}
 
+out_unuse:
 	unuse_pde(pde);
 	return rv;
 }
@@ -357,7 +393,7 @@ static int proc_reg_release(struct inode *inode, struct file *file)
 	list_for_each_entry(pdeo, &pde->pde_openers, lh) {
 		if (pdeo->file == file) {
 			close_pdeo(pde, pdeo);
-			break;
+			return 0;
 		}
 	}
 	spin_unlock(&pde->pde_unload_lock);
@@ -393,24 +429,24 @@ static const struct file_operations proc_reg_file_ops_no_compat = {
 };
 #endif
 
-static const char *proc_follow_link(struct dentry *dentry, void **cookie)
-{
-	struct proc_dir_entry *pde = PDE(d_inode(dentry));
-	if (unlikely(!use_pde(pde)))
-		return ERR_PTR(-EINVAL);
-	*cookie = pde;
-	return pde->data;
-}
-
-static void proc_put_link(struct inode *unused, void *p)
+static void proc_put_link(void *p)
 {
 	unuse_pde(p);
 }
 
+static const char *proc_get_link(struct dentry *dentry,
+				 struct inode *inode,
+				 struct delayed_call *done)
+{
+	struct proc_dir_entry *pde = PDE(inode);
+	if (!use_pde(pde))
+		return ERR_PTR(-EINVAL);
+	set_delayed_call(done, proc_put_link, pde);
+	return pde->data;
+}
+
 const struct inode_operations proc_link_inode_operations = {
-	.readlink	= generic_readlink,
-	.follow_link	= proc_follow_link,
-	.put_link	= proc_put_link,
+	.get_link	= proc_get_link,
 };
 
 struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
@@ -419,7 +455,7 @@ struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 
 	if (inode) {
 		inode->i_ino = de->low_ino;
-		inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+		inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 		PROC_I(inode)->pde = de;
 
 		if (is_empty_pde(de)) {
@@ -460,12 +496,21 @@ int proc_fill_super(struct super_block *s)
 	struct inode *root_inode;
 	int ret;
 
-	s->s_flags |= MS_NODIRATIME | MS_NOSUID | MS_NOEXEC;
+	/* User space would break if executables or devices appear on proc */
+	s->s_iflags |= SB_I_USERNS_VISIBLE | SB_I_NODEV;
+	s->s_flags |= SB_NODIRATIME | SB_NOSUID | SB_NOEXEC;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
 	s->s_magic = PROC_SUPER_MAGIC;
 	s->s_op = &proc_sops;
 	s->s_time_gran = 1;
+
+	/*
+	 * procfs isn't actually a stacking filesystem; however, there is
+	 * too much magic going on inside it to permit stacking things on
+	 * top of it
+	 */
+	s->s_stack_depth = FILESYSTEM_MAX_STACK_DEPTH;
 	
 	pde_get(&proc_root);
 	root_inode = proc_get_inode(s, &proc_root);

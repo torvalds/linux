@@ -39,6 +39,48 @@ int dm_bitset_empty(struct dm_disk_bitset *info, dm_block_t *root)
 }
 EXPORT_SYMBOL_GPL(dm_bitset_empty);
 
+struct packer_context {
+	bit_value_fn fn;
+	unsigned nr_bits;
+	void *context;
+};
+
+static int pack_bits(uint32_t index, void *value, void *context)
+{
+	int r;
+	struct packer_context *p = context;
+	unsigned bit, nr = min(64u, p->nr_bits - (index * 64));
+	uint64_t word = 0;
+	bool bv;
+
+	for (bit = 0; bit < nr; bit++) {
+		r = p->fn(index * 64 + bit, &bv, p->context);
+		if (r)
+			return r;
+
+		if (bv)
+			set_bit(bit, (unsigned long *) &word);
+		else
+			clear_bit(bit, (unsigned long *) &word);
+	}
+
+	*((__le64 *) value) = cpu_to_le64(word);
+
+	return 0;
+}
+
+int dm_bitset_new(struct dm_disk_bitset *info, dm_block_t *root,
+		  uint32_t size, bit_value_fn fn, void *context)
+{
+	struct packer_context p;
+	p.fn = fn;
+	p.nr_bits = size;
+	p.context = context;
+
+	return dm_array_new(&info->array_info, root, dm_div_up(size, 64), pack_bits, &p);
+}
+EXPORT_SYMBOL_GPL(dm_bitset_new);
+
 int dm_bitset_resize(struct dm_disk_bitset *info, dm_block_t root,
 		     uint32_t old_nr_entries, uint32_t new_nr_entries,
 		     bool default_value, dm_block_t *new_root)
@@ -167,5 +209,109 @@ int dm_bitset_test_bit(struct dm_disk_bitset *info, dm_block_t root,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dm_bitset_test_bit);
+
+static int cursor_next_array_entry(struct dm_bitset_cursor *c)
+{
+	int r;
+	__le64 *value;
+
+	r = dm_array_cursor_next(&c->cursor);
+	if (r)
+		return r;
+
+	dm_array_cursor_get_value(&c->cursor, (void **) &value);
+	c->array_index++;
+	c->bit_index = 0;
+	c->current_bits = le64_to_cpu(*value);
+	return 0;
+}
+
+int dm_bitset_cursor_begin(struct dm_disk_bitset *info,
+			   dm_block_t root, uint32_t nr_entries,
+			   struct dm_bitset_cursor *c)
+{
+	int r;
+	__le64 *value;
+
+	if (!nr_entries)
+		return -ENODATA;
+
+	c->info = info;
+	c->entries_remaining = nr_entries;
+
+	r = dm_array_cursor_begin(&info->array_info, root, &c->cursor);
+	if (r)
+		return r;
+
+	dm_array_cursor_get_value(&c->cursor, (void **) &value);
+	c->array_index = 0;
+	c->bit_index = 0;
+	c->current_bits = le64_to_cpu(*value);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_bitset_cursor_begin);
+
+void dm_bitset_cursor_end(struct dm_bitset_cursor *c)
+{
+	return dm_array_cursor_end(&c->cursor);
+}
+EXPORT_SYMBOL_GPL(dm_bitset_cursor_end);
+
+int dm_bitset_cursor_next(struct dm_bitset_cursor *c)
+{
+	int r = 0;
+
+	if (!c->entries_remaining)
+		return -ENODATA;
+
+	c->entries_remaining--;
+	if (++c->bit_index > 63)
+		r = cursor_next_array_entry(c);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_bitset_cursor_next);
+
+int dm_bitset_cursor_skip(struct dm_bitset_cursor *c, uint32_t count)
+{
+	int r;
+	__le64 *value;
+	uint32_t nr_array_skip;
+	uint32_t remaining_in_word = 64 - c->bit_index;
+
+	if (c->entries_remaining < count)
+		return -ENODATA;
+
+	if (count < remaining_in_word) {
+		c->bit_index += count;
+		c->entries_remaining -= count;
+		return 0;
+
+	} else {
+		c->entries_remaining -= remaining_in_word;
+		count -= remaining_in_word;
+	}
+
+	nr_array_skip = (count / 64) + 1;
+	r = dm_array_cursor_skip(&c->cursor, nr_array_skip);
+	if (r)
+		return r;
+
+	dm_array_cursor_get_value(&c->cursor, (void **) &value);
+	c->entries_remaining -= count;
+	c->array_index += nr_array_skip;
+	c->bit_index = count & 63;
+	c->current_bits = le64_to_cpu(*value);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dm_bitset_cursor_skip);
+
+bool dm_bitset_cursor_get_value(struct dm_bitset_cursor *c)
+{
+	return test_bit(c->bit_index, (unsigned long *) &c->current_bits);
+}
+EXPORT_SYMBOL_GPL(dm_bitset_cursor_get_value);
 
 /*----------------------------------------------------------------*/

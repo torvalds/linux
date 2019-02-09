@@ -1,5 +1,42 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RAID1_H
 #define _RAID1_H
+
+/*
+ * each barrier unit size is 64MB fow now
+ * note: it must be larger than RESYNC_DEPTH
+ */
+#define BARRIER_UNIT_SECTOR_BITS	17
+#define BARRIER_UNIT_SECTOR_SIZE	(1<<17)
+/*
+ * In struct r1conf, the following members are related to I/O barrier
+ * buckets,
+ *	atomic_t	*nr_pending;
+ *	atomic_t	*nr_waiting;
+ *	atomic_t	*nr_queued;
+ *	atomic_t	*barrier;
+ * Each of them points to array of atomic_t variables, each array is
+ * designed to have BARRIER_BUCKETS_NR elements and occupy a single
+ * memory page. The data width of atomic_t variables is 4 bytes, equal
+ * to 1<<(ilog2(sizeof(atomic_t))), BARRIER_BUCKETS_NR_BITS is defined
+ * as (PAGE_SHIFT - ilog2(sizeof(int))) to make sure an array of
+ * atomic_t variables with BARRIER_BUCKETS_NR elements just exactly
+ * occupies a single memory page.
+ */
+#define BARRIER_BUCKETS_NR_BITS		(PAGE_SHIFT - ilog2(sizeof(atomic_t)))
+#define BARRIER_BUCKETS_NR		(1<<BARRIER_BUCKETS_NR_BITS)
+
+/* Note: raid1_info.rdev can be set to NULL asynchronously by raid1_remove_disk.
+ * There are three safe ways to access raid1_info.rdev.
+ * 1/ when holding mddev->reconfig_mutex
+ * 2/ when resync/recovery is known to be happening - i.e. in code that is
+ *    called as part of performing resync/recovery.
+ * 3/ while holding rcu_read_lock(), use rcu_dereference to get the pointer
+ *    and if it is non-NULL, increment rdev->nr_pending before dropping the
+ *    RCU lock.
+ * When .rdev is set to NULL, the nr_pending count checked again and if it has
+ * been incremented, the pointer is put back in .rdev.
+ */
 
 struct raid1_info {
 	struct md_rdev	*rdev;
@@ -35,25 +72,6 @@ struct r1conf {
 						 */
 	int			raid_disks;
 
-	/* During resync, read_balancing is only allowed on the part
-	 * of the array that has been resynced.  'next_resync' tells us
-	 * where that is.
-	 */
-	sector_t		next_resync;
-
-	/* When raid1 starts resync, we divide array into four partitions
-	 * |---------|--------------|---------------------|-------------|
-	 *        next_resync   start_next_window       end_window
-	 * start_next_window = next_resync + NEXT_NORMALIO_DISTANCE
-	 * end_window = start_next_window + NEXT_NORMALIO_DISTANCE
-	 * current_window_requests means the count of normalIO between
-	 *   start_next_window and end_window.
-	 * next_window_requests means the count of normalIO after end_window.
-	 * */
-	sector_t		start_next_window;
-	int			current_window_requests;
-	int			next_window_requests;
-
 	spinlock_t		device_lock;
 
 	/* list of 'struct r1bio' that need to be processed by raid1d,
@@ -79,10 +97,11 @@ struct r1conf {
 	 */
 	wait_queue_head_t	wait_barrier;
 	spinlock_t		resync_lock;
-	int			nr_pending;
-	int			nr_waiting;
-	int			nr_queued;
-	int			barrier;
+	atomic_t		nr_sync_pending;
+	atomic_t		*nr_pending;
+	atomic_t		*nr_waiting;
+	atomic_t		*nr_queued;
+	atomic_t		*barrier;
 	int			array_frozen;
 
 	/* Set to 1 if a full sync is needed, (fresh device added).
@@ -99,8 +118,10 @@ struct r1conf {
 	 * mempools - it changes when the array grows or shrinks
 	 */
 	struct pool_info	*poolinfo;
-	mempool_t		*r1bio_pool;
-	mempool_t		*r1buf_pool;
+	mempool_t		r1bio_pool;
+	mempool_t		r1buf_pool;
+
+	struct bio_set		bio_split;
 
 	/* temporary buffer to synchronous IO when attempting to repair
 	 * a read error.
@@ -135,7 +156,6 @@ struct r1bio {
 						 * in this BehindIO request
 						 */
 	sector_t		sector;
-	sector_t		start_next_window;
 	int			sectors;
 	unsigned long		state;
 	struct mddev		*mddev;
@@ -149,9 +169,13 @@ struct r1bio {
 	int			read_disk;
 
 	struct list_head	retry_list;
-	/* Next two are only valid when R1BIO_BehindIO is set */
-	struct bio_vec		*behind_bvecs;
-	int			behind_page_count;
+
+	/*
+	 * When R1BIO_BehindIO is set, we store pages for write behind
+	 * in behind_master_bio.
+	 */
+	struct bio		*behind_master_bio;
+
 	/*
 	 * if the IO is in WRITE direction, then multiple bios are used.
 	 * We choose the number when they are allocated.
@@ -161,14 +185,15 @@ struct r1bio {
 };
 
 /* bits for r1bio.state */
-#define	R1BIO_Uptodate	0
-#define	R1BIO_IsSync	1
-#define	R1BIO_Degraded	2
-#define	R1BIO_BehindIO	3
+enum r1bio_state {
+	R1BIO_Uptodate,
+	R1BIO_IsSync,
+	R1BIO_Degraded,
+	R1BIO_BehindIO,
 /* Set ReadError on bios that experience a readerror so that
  * raid1d knows what to do with them.
  */
-#define R1BIO_ReadError 4
+	R1BIO_ReadError,
 /* For write-behind requests, we call bi_end_io when
  * the last non-write-behind device completes, providing
  * any write was successful.  Otherwise we call when
@@ -176,10 +201,18 @@ struct r1bio {
  * with failure when last write completes (and all failed).
  * Record that bi_end_io was called with this flag...
  */
-#define	R1BIO_Returned 6
+	R1BIO_Returned,
 /* If a write for this request means we can clear some
  * known-bad-block records, we set this flag
  */
-#define	R1BIO_MadeGood 7
-#define	R1BIO_WriteError 8
+	R1BIO_MadeGood,
+	R1BIO_WriteError,
+	R1BIO_FailFast,
+};
+
+static inline int sector_to_idx(sector_t sector)
+{
+	return hash_long(sector >> BARRIER_UNIT_SECTOR_BITS,
+			 BARRIER_BUCKETS_NR_BITS);
+}
 #endif

@@ -5,8 +5,9 @@
  */
 
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
+
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/sections.h>
@@ -31,7 +32,7 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 	if (!pmd)
 		goto out_pmd;
 
-	pte = pte_alloc_map(mm, NULL, pmd, proc);
+	pte = pte_alloc_map(mm, pmd, proc);
 	if (!pte)
 		goto out_pte;
 

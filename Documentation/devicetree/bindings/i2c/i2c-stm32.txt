@@ -1,0 +1,56 @@
+* I2C controller embedded in STMicroelectronics STM32 I2C platform
+
+Required properties :
+- compatible : Must be one of the following
+  - "st,stm32f4-i2c"
+  - "st,stm32f7-i2c"
+- reg : Offset and length of the register set for the device
+- interrupts : Must contain the interrupt id for I2C event and then the
+  interrupt id for I2C error.
+- resets: Must contain the phandle to the reset controller.
+- clocks: Must contain the input clock of the I2C instance.
+- A pinctrl state named "default" must be defined to set pins in mode of
+  operation for I2C transfer
+- #address-cells = <1>;
+- #size-cells = <0>;
+
+Optional properties :
+- clock-frequency : Desired I2C bus clock frequency in Hz. If not specified,
+  the default 100 kHz frequency will be used.
+  For STM32F4 SoC Standard-mode and Fast-mode are supported, possible values are
+  100000 and 400000.
+  For STM32F7 SoC, Standard-mode, Fast-mode and Fast-mode Plus are supported,
+  possible values are 100000, 400000 and 1000000.
+- i2c-scl-rising-time-ns : Only for STM32F7, I2C SCL Rising time for the board
+  (default: 25)
+- i2c-scl-falling-time-ns : Only for STM32F7, I2C SCL Falling time for the board
+  (default: 10)
+  I2C Timings are derived from these 2 values
+
+Example :
+
+	i2c@40005400 {
+		compatible = "st,stm32f4-i2c";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x40005400 0x400>;
+		interrupts = <31>,
+			     <32>;
+		resets = <&rcc 277>;
+		clocks = <&rcc 0 149>;
+		pinctrl-0 = <&i2c1_sda_pin>, <&i2c1_scl_pin>;
+		pinctrl-names = "default";
+	};
+
+	i2c@40005400 {
+		compatible = "st,stm32f7-i2c";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x40005400 0x400>;
+		interrupts = <31>,
+			     <32>;
+		resets = <&rcc STM32F7_APB1_RESET(I2C1)>;
+		clocks = <&rcc 1 CLK_I2C1>;
+		pinctrl-0 = <&i2c1_sda_pin>, <&i2c1_scl_pin>;
+		pinctrl-names = "default";
+	};

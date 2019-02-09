@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /***************************************************************************
  * Linux PPP over L2TP (PPPoL2TP) Socket Implementation (RFC 2661)
  *
@@ -16,7 +17,9 @@
 #define _UAPI__LINUX_IF_PPPOL2TP_H
 
 #include <linux/types.h>
-
+#include <linux/in.h>
+#include <linux/in6.h>
+#include <linux/l2tp.h>
 
 /* Structure used to connect() the socket to a particular tunnel UDP
  * socket over IPv4.
@@ -89,14 +92,12 @@ enum {
 	PPPOL2TP_SO_REORDERTO	= 5,
 };
 
-/* Debug message categories for the DEBUG socket option */
+/* Debug message categories for the DEBUG socket option (deprecated) */
 enum {
-	PPPOL2TP_MSG_DEBUG	= (1 << 0),	/* verbose debug (if
-						 * compiled in) */
-	PPPOL2TP_MSG_CONTROL	= (1 << 1),	/* userspace - kernel
-						 * interface */
-	PPPOL2TP_MSG_SEQ	= (1 << 2),	/* sequence numbers */
-	PPPOL2TP_MSG_DATA	= (1 << 3),	/* data packets */
+	PPPOL2TP_MSG_DEBUG	= L2TP_MSG_DEBUG,
+	PPPOL2TP_MSG_CONTROL	= L2TP_MSG_CONTROL,
+	PPPOL2TP_MSG_SEQ	= L2TP_MSG_SEQ,
+	PPPOL2TP_MSG_DATA	= L2TP_MSG_DATA,
 };
 
 

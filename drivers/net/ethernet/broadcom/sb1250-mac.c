@@ -63,24 +63,24 @@ MODULE_DESCRIPTION("Broadcom SiByte SOC GB Ethernet driver");
 
 /* 1 normal messages, 0 quiet .. 7 verbose. */
 static int debug = 1;
-module_param(debug, int, S_IRUGO);
+module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Debug messages");
 
 #ifdef CONFIG_SBMAC_COALESCE
 static int int_pktcnt_tx = 255;
-module_param(int_pktcnt_tx, int, S_IRUGO);
+module_param(int_pktcnt_tx, int, 0444);
 MODULE_PARM_DESC(int_pktcnt_tx, "TX packet count");
 
 static int int_timeout_tx = 255;
-module_param(int_timeout_tx, int, S_IRUGO);
+module_param(int_timeout_tx, int, 0444);
 MODULE_PARM_DESC(int_timeout_tx, "TX timeout value");
 
 static int int_pktcnt_rx = 64;
-module_param(int_pktcnt_rx, int, S_IRUGO);
+module_param(int_pktcnt_rx, int, 0444);
 MODULE_PARM_DESC(int_pktcnt_rx, "RX packet count");
 
 static int int_timeout_rx = 64;
-module_param(int_timeout_rx, int, S_IRUGO);
+module_param(int_timeout_rx, int, 0444);
 MODULE_PARM_DESC(int_timeout_rx, "RX timeout value");
 #endif
 
@@ -238,7 +238,6 @@ struct sbmac_softc {
 	struct napi_struct	napi;
 	struct phy_device	*phy_dev;	/* the associated PHY device */
 	struct mii_bus		*mii_bus;	/* the MII bus */
-	int			phy_irq[PHY_MAX_ADDR];
 	spinlock_t		sbm_lock;	/* spin lock */
 	int			sbm_devflags;	/* current device flags */
 
@@ -1368,15 +1367,11 @@ static int sbmac_initctx(struct sbmac_softc *s)
 
 static void sbdma_uninitctx(struct sbmacdma *d)
 {
-	if (d->sbdma_dscrtable_unaligned) {
-		kfree(d->sbdma_dscrtable_unaligned);
-		d->sbdma_dscrtable_unaligned = d->sbdma_dscrtable = NULL;
-	}
+	kfree(d->sbdma_dscrtable_unaligned);
+	d->sbdma_dscrtable_unaligned = d->sbdma_dscrtable = NULL;
 
-	if (d->sbdma_ctxtable) {
-		kfree(d->sbdma_ctxtable);
-		d->sbdma_ctxtable = NULL;
-	}
+	kfree(d->sbdma_ctxtable);
+	d->sbdma_ctxtable = NULL;
 }
 
 
@@ -2148,15 +2143,6 @@ static void sbmac_setmulti(struct sbmac_softc *sc)
 	}
 }
 
-static int sb1250_change_mtu(struct net_device *_dev, int new_mtu)
-{
-	if (new_mtu >  ENET_PACKET_SIZE)
-		return -EINVAL;
-	_dev->mtu = new_mtu;
-	pr_info("changing the mtu to %d\n", new_mtu);
-	return 0;
-}
-
 static const struct net_device_ops sbmac_netdev_ops = {
 	.ndo_open		= sbmac_open,
 	.ndo_stop		= sbmac_close,
@@ -2164,7 +2150,6 @@ static const struct net_device_ops sbmac_netdev_ops = {
 	.ndo_set_rx_mode	= sbmac_set_rx_mode,
 	.ndo_tx_timeout		= sbmac_tx_timeout,
 	.ndo_do_ioctl		= sbmac_mii_ioctl,
-	.ndo_change_mtu		= sb1250_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2230,6 +2215,8 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 
 	dev->netdev_ops = &sbmac_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
+	dev->min_mtu = 0;
+	dev->max_mtu = ENET_PACKET_SIZE;
 
 	netif_napi_add(dev, &sc->napi, sbmac_poll, 16);
 
@@ -2250,9 +2237,6 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	sc->mii_bus->priv = sc;
 	sc->mii_bus->read = sbmac_mii_read;
 	sc->mii_bus->write = sbmac_mii_write;
-	sc->mii_bus->irq = sc->phy_irq;
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		sc->mii_bus->irq[i] = SBMAC_PHY_INT;
 
 	sc->mii_bus->parent = &pldev->dev;
 	/*
@@ -2358,20 +2342,15 @@ static int sbmac_mii_probe(struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
 	struct phy_device *phy_dev;
-	int i;
 
-	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		phy_dev = sc->mii_bus->phy_map[i];
-		if (phy_dev)
-			break;
-	}
+	phy_dev = phy_find_first(sc->mii_bus);
 	if (!phy_dev) {
 		printk(KERN_ERR "%s: no PHY found\n", dev->name);
 		return -ENXIO;
 	}
 
-	phy_dev = phy_connect(dev, dev_name(&phy_dev->dev), &sbmac_mii_poll,
-			      PHY_INTERFACE_MODE_GMII);
+	phy_dev = phy_connect(dev, dev_name(&phy_dev->mdio.dev),
+			      &sbmac_mii_poll, PHY_INTERFACE_MODE_GMII);
 	if (IS_ERR(phy_dev)) {
 		printk(KERN_ERR "%s: could not attach to PHY\n", dev->name);
 		return PTR_ERR(phy_dev);
@@ -2388,11 +2367,10 @@ static int sbmac_mii_probe(struct net_device *dev)
 			      SUPPORTED_MII |
 			      SUPPORTED_Pause |
 			      SUPPORTED_Asym_Pause;
-	phy_dev->advertising = phy_dev->supported;
 
-	pr_info("%s: attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		dev->name, phy_dev->drv->name,
-		dev_name(&phy_dev->dev), phy_dev->irq);
+	phy_attached_info(phy_dev);
+
+	phy_dev->advertising = phy_dev->supported;
 
 	sc->phy_dev = phy_dev;
 
@@ -2472,7 +2450,7 @@ static void sbmac_tx_timeout (struct net_device *dev)
 	spin_lock_irqsave(&sc->sbm_lock, flags);
 
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
 
 	spin_unlock_irqrestore(&sc->sbm_lock, flags);
@@ -2555,7 +2533,7 @@ static int sbmac_poll(struct napi_struct *napi, int budget)
 	sbdma_tx_process(sc, &(sc->sbm_txdma), 1);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 #ifdef CONFIG_SBMAC_COALESCE
 		__raw_writeq(((M_MAC_INT_EOP_COUNT | M_MAC_INT_EOP_TIMER) << S_MAC_TX_CH0) |
@@ -2635,7 +2613,7 @@ out_out:
 	return err;
 }
 
-static int __exit sbmac_remove(struct platform_device *pldev)
+static int sbmac_remove(struct platform_device *pldev)
 {
 	struct net_device *dev = platform_get_drvdata(pldev);
 	struct sbmac_softc *sc = netdev_priv(dev);
@@ -2652,10 +2630,11 @@ static int __exit sbmac_remove(struct platform_device *pldev)
 
 static struct platform_driver sbmac_driver = {
 	.probe = sbmac_probe,
-	.remove = __exit_p(sbmac_remove),
+	.remove = sbmac_remove,
 	.driver = {
 		.name = sbmac_string,
 	},
 };
 
 module_platform_driver(sbmac_driver);
+MODULE_LICENSE("GPL");

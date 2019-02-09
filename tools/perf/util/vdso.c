@@ -1,4 +1,5 @@
-
+// SPDX-License-Identifier: GPL-2.0
+#include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -134,18 +135,14 @@ static struct dso *__machine__addnew_vdso(struct machine *machine, const char *s
 	return dso;
 }
 
-#if BITS_PER_LONG == 64
-
 static enum dso_type machine__thread_dso_type(struct machine *machine,
 					      struct thread *thread)
 {
 	enum dso_type dso_type = DSO__TYPE_UNKNOWN;
-	struct map *map;
-	struct dso *dso;
+	struct map *map = map_groups__first(thread->mg);
 
-	map = map_groups__first(thread->mg, MAP__FUNCTION);
 	for (; map ; map = map_groups__next(map)) {
-		dso = map->dso;
+		struct dso *dso = map->dso;
 		if (!dso || dso->long_name[0] != '/')
 			continue;
 		dso_type = dso__type(dso, machine);
@@ -155,6 +152,8 @@ static enum dso_type machine__thread_dso_type(struct machine *machine,
 
 	return dso_type;
 }
+
+#if BITS_PER_LONG == 64
 
 static int vdso__do_copy_compat(FILE *f, int fd)
 {
@@ -283,18 +282,52 @@ static int __machine__findnew_vdso_compat(struct machine *machine,
 
 #endif
 
+static struct dso *machine__find_vdso(struct machine *machine,
+				      struct thread *thread)
+{
+	struct dso *dso = NULL;
+	enum dso_type dso_type;
+
+	dso_type = machine__thread_dso_type(machine, thread);
+	switch (dso_type) {
+	case DSO__TYPE_32BIT:
+		dso = __dsos__find(&machine->dsos, DSO__NAME_VDSO32, true);
+		if (!dso) {
+			dso = __dsos__find(&machine->dsos, DSO__NAME_VDSO,
+					   true);
+			if (dso && dso_type != dso__type(dso, machine))
+				dso = NULL;
+		}
+		break;
+	case DSO__TYPE_X32BIT:
+		dso = __dsos__find(&machine->dsos, DSO__NAME_VDSOX32, true);
+		break;
+	case DSO__TYPE_64BIT:
+	case DSO__TYPE_UNKNOWN:
+	default:
+		dso = __dsos__find(&machine->dsos, DSO__NAME_VDSO, true);
+		break;
+	}
+
+	return dso;
+}
+
 struct dso *machine__findnew_vdso(struct machine *machine,
-				  struct thread *thread __maybe_unused)
+				  struct thread *thread)
 {
 	struct vdso_info *vdso_info;
 	struct dso *dso = NULL;
 
-	pthread_rwlock_wrlock(&machine->dsos.lock);
+	down_write(&machine->dsos.lock);
 	if (!machine->vdso_info)
 		machine->vdso_info = vdso_info__new();
 
 	vdso_info = machine->vdso_info;
 	if (!vdso_info)
+		goto out_unlock;
+
+	dso = machine__find_vdso(machine, thread);
+	if (dso)
 		goto out_unlock;
 
 #if BITS_PER_LONG == 64
@@ -313,7 +346,7 @@ struct dso *machine__findnew_vdso(struct machine *machine,
 
 out_unlock:
 	dso__get(dso);
-	pthread_rwlock_unlock(&machine->dsos.lock);
+	up_write(&machine->dsos.lock);
 	return dso;
 }
 

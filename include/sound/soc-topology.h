@@ -1,12 +1,9 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * linux/sound/soc-topology.h -- ALSA SoC Firmware Controls and DAPM
  *
  * Copyright (C) 2012 Texas Instruments Inc.
  * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Simple file API to load FW that includes mixers, coefficients, DAPM graphs,
  * algorithms, equalisers, DAIs, widgets, FE caps, BE caps, codec link caps etc.
@@ -28,6 +25,11 @@ struct snd_soc_component;
 struct snd_soc_tplg_pcm_fe;
 struct snd_soc_dapm_context;
 struct snd_soc_card;
+struct snd_kcontrol_new;
+struct snd_soc_dai_link;
+struct snd_soc_dai_driver;
+struct snd_soc_dai;
+struct snd_soc_dapm_route;
 
 /* object scan be loaded and unloaded in groups with identfying indexes */
 #define SND_SOC_TPLG_INDEX_ALL	0	/* ID that matches all FW objects */
@@ -53,13 +55,7 @@ struct snd_soc_dobj_control {
 
 /* dynamic widget object */
 struct snd_soc_dobj_widget {
-	unsigned int kcontrol_enum:1;	/* this widget is an enum kcontrol */
-};
-
-/* dynamic PCM DAI object */
-struct snd_soc_dobj_pcm_dai {
-	struct snd_soc_tplg_pcm_dai *pd;
-	unsigned int count;
+	unsigned int kcontrol_type;	/* kcontrol type: mixer, enum, bytes */
 };
 
 /* generic dynamic object - all dynamic objects belong to this struct */
@@ -71,7 +67,6 @@ struct snd_soc_dobj {
 	union {
 		struct snd_soc_dobj_control control;
 		struct snd_soc_dobj_widget widget;
-		struct snd_soc_dobj_pcm_dai pcm_dai;
 	};
 	void *private; /* core does not touch this */
 };
@@ -92,8 +87,10 @@ struct snd_soc_tplg_kcontrol_ops {
 /* Bytes ext operations, for TLV byte controls */
 struct snd_soc_tplg_bytes_ext_ops {
 	u32 id;
-	int (*get)(unsigned int __user *bytes, unsigned int size);
-	int (*put)(const unsigned int __user *bytes, unsigned int size);
+	int (*get)(struct snd_kcontrol *kcontrol, unsigned int __user *bytes,
+							unsigned int size);
+	int (*put)(struct snd_kcontrol *kcontrol,
+			const unsigned int __user *bytes, unsigned int size);
 };
 
 /*
@@ -112,26 +109,44 @@ struct snd_soc_tplg_widget_events {
 struct snd_soc_tplg_ops {
 
 	/* external kcontrol init - used for any driver specific init */
-	int (*control_load)(struct snd_soc_component *,
+	int (*control_load)(struct snd_soc_component *, int index,
 		struct snd_kcontrol_new *, struct snd_soc_tplg_ctl_hdr *);
 	int (*control_unload)(struct snd_soc_component *,
 		struct snd_soc_dobj *);
 
+	/* DAPM graph route element loading and unloading */
+	int (*dapm_route_load)(struct snd_soc_component *, int index,
+		struct snd_soc_dapm_route *route);
+	int (*dapm_route_unload)(struct snd_soc_component *,
+		struct snd_soc_dobj *);
+
 	/* external widget init - used for any driver specific init */
-	int (*widget_load)(struct snd_soc_component *,
+	int (*widget_load)(struct snd_soc_component *, int index,
+		struct snd_soc_dapm_widget *,
+		struct snd_soc_tplg_dapm_widget *);
+	int (*widget_ready)(struct snd_soc_component *, int index,
 		struct snd_soc_dapm_widget *,
 		struct snd_soc_tplg_dapm_widget *);
 	int (*widget_unload)(struct snd_soc_component *,
 		struct snd_soc_dobj *);
 
-	/* FE - used for any driver specific init */
-	int (*pcm_dai_load)(struct snd_soc_component *,
-		struct snd_soc_tplg_pcm_dai *pcm_dai, int num_fe);
-	int (*pcm_dai_unload)(struct snd_soc_component *,
+	/* FE DAI - used for any driver specific init */
+	int (*dai_load)(struct snd_soc_component *, int index,
+		struct snd_soc_dai_driver *dai_drv,
+		struct snd_soc_tplg_pcm *pcm, struct snd_soc_dai *dai);
+
+	int (*dai_unload)(struct snd_soc_component *,
+		struct snd_soc_dobj *);
+
+	/* DAI link - used for any driver specific init */
+	int (*link_load)(struct snd_soc_component *, int index,
+		struct snd_soc_dai_link *link,
+		struct snd_soc_tplg_link_config *cfg);
+	int (*link_unload)(struct snd_soc_component *,
 		struct snd_soc_dobj *);
 
 	/* callback to handle vendor bespoke data */
-	int (*vendor_load)(struct snd_soc_component *,
+	int (*vendor_load)(struct snd_soc_component *, int index,
 		struct snd_soc_tplg_hdr *);
 	int (*vendor_unload)(struct snd_soc_component *,
 		struct snd_soc_tplg_hdr *);
@@ -140,7 +155,7 @@ struct snd_soc_tplg_ops {
 	void (*complete)(struct snd_soc_component *);
 
 	/* manifest - optional to inform component of manifest */
-	int (*manifest)(struct snd_soc_component *,
+	int (*manifest)(struct snd_soc_component *, int index,
 		struct snd_soc_tplg_manifest *);
 
 	/* vendor specific kcontrol handlers available for binding */

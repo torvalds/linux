@@ -1,8 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Written 2003 by Andi Kleen, based on a kernel by Evandro Menezes */
 
 #include <linux/linkage.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
+#include <asm/export.h>
 
 /*
  * Some CPUs run faster using the string copy instructions (sane microcode).
@@ -17,6 +19,7 @@ ENTRY(copy_page)
 	rep	movsq
 	ret
 ENDPROC(copy_page)
+EXPORT_SYMBOL(copy_page)
 
 ENTRY(copy_page_regs)
 	subq	$2*8,	%rsp

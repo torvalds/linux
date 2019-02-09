@@ -216,8 +216,7 @@ static void slc_bump(struct slcan *sl)
 	can_skb_prv(skb)->ifindex = sl->dev->ifindex;
 	can_skb_prv(skb)->skbcnt = 0;
 
-	memcpy(skb_put(skb, sizeof(struct can_frame)),
-	       &cf, sizeof(struct can_frame));
+	skb_put_data(skb, &cf, sizeof(struct can_frame));
 
 	sl->dev->stats.rx_packets++;
 	sl->dev->stats.rx_bytes += cf.can_dlc;
@@ -354,7 +353,7 @@ static netdev_tx_t slc_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct slcan *sl = netdev_priv(dev);
 
-	if (skb->len != sizeof(struct can_frame))
+	if (skb->len != CAN_MTU)
 		goto out;
 
 	spin_lock(&sl->lock);
@@ -417,7 +416,7 @@ static int slc_open(struct net_device *dev)
 static void slc_free_netdev(struct net_device *dev)
 {
 	int i = dev->base_addr;
-	free_netdev(dev);
+
 	slcan_devs[i] = NULL;
 }
 
@@ -436,13 +435,14 @@ static const struct net_device_ops slc_netdev_ops = {
 static void slc_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &slc_netdev_ops;
-	dev->destructor		= slc_free_netdev;
+	dev->needs_free_netdev	= true;
+	dev->priv_destructor	= slc_free_netdev;
 
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
 	dev->tx_queue_len	= 10;
 
-	dev->mtu		= sizeof(struct can_frame);
+	dev->mtu		= CAN_MTU;
 	dev->type		= ARPHRD_CAN;
 
 	/* New-style flags. */
@@ -508,7 +508,7 @@ static void slc_sync(void)
 }
 
 /* Find a free SLCAN channel, and link in this `tty' line. */
-static struct slcan *slc_alloc(dev_t line)
+static struct slcan *slc_alloc(void)
 {
 	int i;
 	char name[IFNAMSIZ];
@@ -583,7 +583,7 @@ static int slcan_open(struct tty_struct *tty)
 
 	/* OK.  Find a free SLCAN channel to use. */
 	err = -ENFILE;
-	sl = slc_alloc(tty_devnum(tty));
+	sl = slc_alloc();
 	if (sl == NULL)
 		goto err_exit;
 
@@ -703,7 +703,7 @@ static int __init slcan_init(void)
 	pr_info("slcan: serial line CAN interface driver\n");
 	pr_info("slcan: %d dynamic interface channels.\n", maxdev);
 
-	slcan_devs = kzalloc(sizeof(struct net_device *)*maxdev, GFP_KERNEL);
+	slcan_devs = kcalloc(maxdev, sizeof(struct net_device *), GFP_KERNEL);
 	if (!slcan_devs)
 		return -ENOMEM;
 
@@ -761,8 +761,6 @@ static void __exit slcan_exit(void)
 		if (sl->tty) {
 			printk(KERN_ERR "%s: tty discipline still running\n",
 			       dev->name);
-			/* Intentionally leak the control block. */
-			dev->destructor = NULL;
 		}
 
 		unregister_netdev(dev);

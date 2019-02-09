@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * idprom.c: Routines to load the idprom into kernel addresses and
  *           interpret the data contained within.
@@ -64,12 +65,14 @@ static void __init display_system_type(unsigned char machtype)
 	for (i = 0; i < NUM_SUN_MACHINES; i++) {
 		if(Sun_Machines[i].id_machtype == machtype) {
 			if (machtype != (SM_SUN4M_OBP | 0x00))
-				printk("TYPE: %s\n", Sun_Machines[i].name);
+				pr_info("TYPE: %s\n", Sun_Machines[i].name);
 			else {
 #if 0
+				char sysname[128];
+
 				prom_getproperty(prom_root_node, "banner-name",
 						 sysname, sizeof(sysname));
-				printk("TYPE: %s\n", sysname);
+				pr_info("TYPE: %s\n", sysname);
 #endif
 			}
 			return;
@@ -125,5 +128,5 @@ void __init idprom_init(void)
 
 	display_system_type(idprom->id_machtype);
 
-	printk("Ethernet address: %pM\n", idprom->id_ethaddr);
+	pr_info("Ethernet address: %pM\n", idprom->id_ethaddr);
 }

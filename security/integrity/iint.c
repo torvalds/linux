@@ -21,11 +21,14 @@
 #include <linux/rbtree.h>
 #include <linux/file.h>
 #include <linux/uaccess.h>
+#include <linux/security.h>
 #include "integrity.h"
 
 static struct rb_root integrity_iint_tree = RB_ROOT;
 static DEFINE_RWLOCK(integrity_iint_lock);
 static struct kmem_cache *iint_cache __read_mostly;
+
+struct dentry *integrity_dir;
 
 /*
  * __integrity_iint_find - return the iint associated with an inode
@@ -74,11 +77,14 @@ static void iint_free(struct integrity_iint_cache *iint)
 	iint->ima_hash = NULL;
 	iint->version = 0;
 	iint->flags = 0UL;
+	iint->atomic_flags = 0UL;
 	iint->ima_file_status = INTEGRITY_UNKNOWN;
 	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
 	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
-	iint->ima_module_status = INTEGRITY_UNKNOWN;
+	iint->ima_read_status = INTEGRITY_UNKNOWN;
+	iint->ima_creds_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
+	iint->measured_pcrs = 0;
 	kmem_cache_free(iint_cache, iint);
 }
 
@@ -152,13 +158,13 @@ static void init_once(void *foo)
 	struct integrity_iint_cache *iint = foo;
 
 	memset(iint, 0, sizeof(*iint));
-	iint->version = 0;
-	iint->flags = 0UL;
 	iint->ima_file_status = INTEGRITY_UNKNOWN;
 	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
 	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
-	iint->ima_module_status = INTEGRITY_UNKNOWN;
+	iint->ima_read_status = INTEGRITY_UNKNOWN;
+	iint->ima_creds_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
+	mutex_init(&iint->mutex);
 }
 
 static int __init integrity_iintcache_init(void)
@@ -180,7 +186,7 @@ security_initcall(integrity_iintcache_init);
  *
  */
 int integrity_kernel_read(struct file *file, loff_t offset,
-			  char *addr, unsigned long count)
+			  void *addr, unsigned long count)
 {
 	mm_segment_t old_fs;
 	char __user *buf = (char __user *)addr;
@@ -198,54 +204,6 @@ int integrity_kernel_read(struct file *file, loff_t offset,
 }
 
 /*
- * integrity_read_file - read entire file content into the buffer
- *
- * This is function opens a file, allocates the buffer of required
- * size, read entire file content to the buffer and closes the file
- *
- * It is used only by init code.
- *
- */
-int __init integrity_read_file(const char *path, char **data)
-{
-	struct file *file;
-	loff_t size;
-	char *buf;
-	int rc = -EINVAL;
-
-	if (!path || !*path)
-		return -EINVAL;
-
-	file = filp_open(path, O_RDONLY, 0);
-	if (IS_ERR(file)) {
-		rc = PTR_ERR(file);
-		pr_err("Unable to open file: %s (%d)", path, rc);
-		return rc;
-	}
-
-	size = i_size_read(file_inode(file));
-	if (size <= 0)
-		goto out;
-
-	buf = kmalloc(size, GFP_KERNEL);
-	if (!buf) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	rc = integrity_kernel_read(file, 0, buf, size);
-	if (rc < 0)
-		kfree(buf);
-	else if (rc != size)
-		rc = -EIO;
-	else
-		*data = buf;
-out:
-	fput(file);
-	return rc;
-}
-
-/*
  * integrity_load_keys - load integrity keys hook
  *
  * Hooks is called from init/main.c:kernel_init_freeable()
@@ -254,4 +212,23 @@ out:
 void __init integrity_load_keys(void)
 {
 	ima_load_x509();
+	evm_load_x509();
 }
+
+static int __init integrity_fs_init(void)
+{
+	integrity_dir = securityfs_create_dir("integrity", NULL);
+	if (IS_ERR(integrity_dir)) {
+		int ret = PTR_ERR(integrity_dir);
+
+		if (ret != -ENODEV)
+			pr_err("Unable to create integrity sysfs dir: %d\n",
+			       ret);
+		integrity_dir = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
+late_initcall(integrity_fs_init)

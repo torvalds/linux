@@ -50,21 +50,26 @@
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <rdma/ib_mad.h>
 #include <rdma/ib_user_mad.h>
+
+#include "core_priv.h"
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand userspace MAD packet access");
 MODULE_LICENSE("Dual BSD/GPL");
 
 enum {
-	IB_UMAD_MAX_PORTS  = 64,
+	IB_UMAD_MAX_PORTS  = RDMA_MAX_PORTS,
 	IB_UMAD_MAX_AGENTS = 32,
 
 	IB_UMAD_MAJOR      = 231,
-	IB_UMAD_MINOR_BASE = 0
+	IB_UMAD_MINOR_BASE = 0,
+	IB_UMAD_NUM_FIXED_MINOR = 64,
+	IB_UMAD_NUM_DYNAMIC_MINOR = IB_UMAD_MAX_PORTS - IB_UMAD_NUM_FIXED_MINOR,
+	IB_ISSM_MINOR_BASE        = IB_UMAD_NUM_FIXED_MINOR,
 };
 
 /*
@@ -127,9 +132,12 @@ struct ib_umad_packet {
 
 static struct class *umad_class;
 
-static const dev_t base_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
+static const dev_t base_umad_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
+static const dev_t base_issm_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE) +
+				   IB_UMAD_NUM_FIXED_MINOR;
+static dev_t dynamic_umad_dev;
+static dev_t dynamic_issm_dev;
 
-static DEFINE_SPINLOCK(port_lock);
 static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS);
 
 static void ib_umad_add_one(struct ib_device *device);
@@ -197,7 +205,7 @@ static void send_handler(struct ib_mad_agent *agent,
 	struct ib_umad_packet *packet = send_wc->send_buf->context[0];
 
 	dequeue_send(file, packet);
-	ib_destroy_ah(packet->msg->ah);
+	rdma_destroy_ah(packet->msg->ah);
 	ib_free_send_mad(packet->msg);
 
 	if (send_wc->status == IB_WC_RESP_TIMEOUT_ERR) {
@@ -210,6 +218,7 @@ static void send_handler(struct ib_mad_agent *agent,
 }
 
 static void recv_handler(struct ib_mad_agent *agent,
+			 struct ib_mad_send_buf *send_buf,
 			 struct ib_mad_recv_wc *mad_recv_wc)
 {
 	struct ib_umad_file *file = agent->context;
@@ -228,23 +237,38 @@ static void recv_handler(struct ib_mad_agent *agent,
 	packet->mad.hdr.status	   = 0;
 	packet->mad.hdr.length	   = hdr_size(file) + mad_recv_wc->mad_len;
 	packet->mad.hdr.qpn	   = cpu_to_be32(mad_recv_wc->wc->src_qp);
-	packet->mad.hdr.lid	   = cpu_to_be16(mad_recv_wc->wc->slid);
+	/*
+	 * On OPA devices it is okay to lose the upper 16 bits of LID as this
+	 * information is obtained elsewhere. Mask off the upper 16 bits.
+	 */
+	if (rdma_cap_opa_mad(agent->device, agent->port_num))
+		packet->mad.hdr.lid = ib_lid_be16(0xFFFF &
+						  mad_recv_wc->wc->slid);
+	else
+		packet->mad.hdr.lid = ib_lid_be16(mad_recv_wc->wc->slid);
 	packet->mad.hdr.sl	   = mad_recv_wc->wc->sl;
 	packet->mad.hdr.path_bits  = mad_recv_wc->wc->dlid_path_bits;
 	packet->mad.hdr.pkey_index = mad_recv_wc->wc->pkey_index;
 	packet->mad.hdr.grh_present = !!(mad_recv_wc->wc->wc_flags & IB_WC_GRH);
 	if (packet->mad.hdr.grh_present) {
-		struct ib_ah_attr ah_attr;
+		struct rdma_ah_attr ah_attr;
+		const struct ib_global_route *grh;
+		int ret;
 
-		ib_init_ah_from_wc(agent->device, agent->port_num,
-				   mad_recv_wc->wc, mad_recv_wc->recv_buf.grh,
-				   &ah_attr);
+		ret = ib_init_ah_attr_from_wc(agent->device, agent->port_num,
+					      mad_recv_wc->wc,
+					      mad_recv_wc->recv_buf.grh,
+					      &ah_attr);
+		if (ret)
+			goto err2;
 
-		packet->mad.hdr.gid_index = ah_attr.grh.sgid_index;
-		packet->mad.hdr.hop_limit = ah_attr.grh.hop_limit;
-		packet->mad.hdr.traffic_class = ah_attr.grh.traffic_class;
-		memcpy(packet->mad.hdr.gid, &ah_attr.grh.dgid, 16);
-		packet->mad.hdr.flow_label = cpu_to_be32(ah_attr.grh.flow_label);
+		grh = rdma_ah_read_grh(&ah_attr);
+		packet->mad.hdr.gid_index = grh->sgid_index;
+		packet->mad.hdr.hop_limit = grh->hop_limit;
+		packet->mad.hdr.traffic_class = grh->traffic_class;
+		memcpy(packet->mad.hdr.gid, &grh->dgid, 16);
+		packet->mad.hdr.flow_label = cpu_to_be32(grh->flow_label);
+		rdma_destroy_ah_attr(&ah_attr);
 	}
 
 	if (queue_packet(file, agent, packet))
@@ -448,7 +472,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	struct ib_umad_file *file = filp->private_data;
 	struct ib_umad_packet *packet;
 	struct ib_mad_agent *agent;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	struct ib_ah *ah;
 	struct ib_rmpp_mad *rmpp_mad;
 	__be64 *tid;
@@ -488,20 +512,22 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	}
 
 	memset(&ah_attr, 0, sizeof ah_attr);
-	ah_attr.dlid          = be16_to_cpu(packet->mad.hdr.lid);
-	ah_attr.sl            = packet->mad.hdr.sl;
-	ah_attr.src_path_bits = packet->mad.hdr.path_bits;
-	ah_attr.port_num      = file->port->port_num;
+	ah_attr.type = rdma_ah_find_type(agent->device,
+					 file->port->port_num);
+	rdma_ah_set_dlid(&ah_attr, be16_to_cpu(packet->mad.hdr.lid));
+	rdma_ah_set_sl(&ah_attr, packet->mad.hdr.sl);
+	rdma_ah_set_path_bits(&ah_attr, packet->mad.hdr.path_bits);
+	rdma_ah_set_port_num(&ah_attr, file->port->port_num);
 	if (packet->mad.hdr.grh_present) {
-		ah_attr.ah_flags = IB_AH_GRH;
-		memcpy(ah_attr.grh.dgid.raw, packet->mad.hdr.gid, 16);
-		ah_attr.grh.sgid_index	   = packet->mad.hdr.gid_index;
-		ah_attr.grh.flow_label	   = be32_to_cpu(packet->mad.hdr.flow_label);
-		ah_attr.grh.hop_limit	   = packet->mad.hdr.hop_limit;
-		ah_attr.grh.traffic_class  = packet->mad.hdr.traffic_class;
+		rdma_ah_set_grh(&ah_attr, NULL,
+				be32_to_cpu(packet->mad.hdr.flow_label),
+				packet->mad.hdr.gid_index,
+				packet->mad.hdr.hop_limit,
+				packet->mad.hdr.traffic_class);
+		rdma_ah_set_dgid_raw(&ah_attr, packet->mad.hdr.gid);
 	}
 
-	ah = ib_create_ah(agent->qp->pd, &ah_attr);
+	ah = rdma_create_user_ah(agent->qp->pd, &ah_attr, NULL);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_up;
@@ -595,7 +621,7 @@ err_send:
 err_msg:
 	ib_free_send_mad(packet->msg);
 err_ah:
-	ib_destroy_ah(ah);
+	rdma_destroy_ah(ah);
 err_up:
 	mutex_unlock(&file->mutex);
 err:
@@ -603,17 +629,17 @@ err:
 	return ret;
 }
 
-static unsigned int ib_umad_poll(struct file *filp, struct poll_table_struct *wait)
+static __poll_t ib_umad_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct ib_umad_file *file = filp->private_data;
 
 	/* we will always be able to post a MAD send */
-	unsigned int mask = POLLOUT | POLLWRNORM;
+	__poll_t mask = EPOLLOUT | EPOLLWRNORM;
 
 	poll_wait(filp, &file->recv_wait, wait);
 
 	if (!list_empty(&file->recv_list))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }
@@ -1125,54 +1151,26 @@ static DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
 static CLASS_ATTR_STRING(abi_version, S_IRUGO,
 			 __stringify(IB_USER_MAD_ABI_VERSION));
 
-static dev_t overflow_maj;
-static DECLARE_BITMAP(overflow_map, IB_UMAD_MAX_PORTS);
-static int find_overflow_devnum(struct ib_device *device)
-{
-	int ret;
-
-	if (!overflow_maj) {
-		ret = alloc_chrdev_region(&overflow_maj, 0, IB_UMAD_MAX_PORTS * 2,
-					  "infiniband_mad");
-		if (ret) {
-			dev_err(&device->dev,
-				"couldn't register dynamic device number\n");
-			return ret;
-		}
-	}
-
-	ret = find_first_zero_bit(overflow_map, IB_UMAD_MAX_PORTS);
-	if (ret >= IB_UMAD_MAX_PORTS)
-		return -1;
-
-	return ret;
-}
-
 static int ib_umad_init_port(struct ib_device *device, int port_num,
 			     struct ib_umad_device *umad_dev,
 			     struct ib_umad_port *port)
 {
 	int devnum;
-	dev_t base;
+	dev_t base_umad;
+	dev_t base_issm;
 
-	spin_lock(&port_lock);
 	devnum = find_first_zero_bit(dev_map, IB_UMAD_MAX_PORTS);
-	if (devnum >= IB_UMAD_MAX_PORTS) {
-		spin_unlock(&port_lock);
-		devnum = find_overflow_devnum(device);
-		if (devnum < 0)
-			return -1;
-
-		spin_lock(&port_lock);
-		port->dev_num = devnum + IB_UMAD_MAX_PORTS;
-		base = devnum + overflow_maj;
-		set_bit(devnum, overflow_map);
+	if (devnum >= IB_UMAD_MAX_PORTS)
+		return -1;
+	port->dev_num = devnum;
+	set_bit(devnum, dev_map);
+	if (devnum >= IB_UMAD_NUM_FIXED_MINOR) {
+		base_umad = dynamic_umad_dev + devnum - IB_UMAD_NUM_FIXED_MINOR;
+		base_issm = dynamic_issm_dev + devnum - IB_UMAD_NUM_FIXED_MINOR;
 	} else {
-		port->dev_num = devnum;
-		base = devnum + base_dev;
-		set_bit(devnum, dev_map);
+		base_umad = devnum + base_umad_dev;
+		base_issm = devnum + base_issm_dev;
 	}
-	spin_unlock(&port_lock);
 
 	port->ib_dev   = device;
 	port->port_num = port_num;
@@ -1182,12 +1180,12 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 
 	cdev_init(&port->cdev, &umad_fops);
 	port->cdev.owner = THIS_MODULE;
-	port->cdev.kobj.parent = &umad_dev->kobj;
+	cdev_set_parent(&port->cdev, &umad_dev->kobj);
 	kobject_set_name(&port->cdev.kobj, "umad%d", port->dev_num);
-	if (cdev_add(&port->cdev, base, 1))
+	if (cdev_add(&port->cdev, base_umad, 1))
 		goto err_cdev;
 
-	port->dev = device_create(umad_class, device->dma_device,
+	port->dev = device_create(umad_class, device->dev.parent,
 				  port->cdev.dev, port,
 				  "umad%d", port->dev_num);
 	if (IS_ERR(port->dev))
@@ -1198,15 +1196,14 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (device_create_file(port->dev, &dev_attr_port))
 		goto err_dev;
 
-	base += IB_UMAD_MAX_PORTS;
 	cdev_init(&port->sm_cdev, &umad_sm_fops);
 	port->sm_cdev.owner = THIS_MODULE;
-	port->sm_cdev.kobj.parent = &umad_dev->kobj;
+	cdev_set_parent(&port->sm_cdev, &umad_dev->kobj);
 	kobject_set_name(&port->sm_cdev.kobj, "issm%d", port->dev_num);
-	if (cdev_add(&port->sm_cdev, base, 1))
+	if (cdev_add(&port->sm_cdev, base_issm, 1))
 		goto err_sm_cdev;
 
-	port->sm_dev = device_create(umad_class, device->dma_device,
+	port->sm_dev = device_create(umad_class, device->dev.parent,
 				     port->sm_cdev.dev, port,
 				     "issm%d", port->dev_num);
 	if (IS_ERR(port->sm_dev))
@@ -1230,10 +1227,7 @@ err_dev:
 
 err_cdev:
 	cdev_del(&port->cdev);
-	if (port->dev_num < IB_UMAD_MAX_PORTS)
-		clear_bit(devnum, dev_map);
-	else
-		clear_bit(devnum, overflow_map);
+	clear_bit(devnum, dev_map);
 
 	return -1;
 }
@@ -1267,11 +1261,7 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	}
 
 	mutex_unlock(&port->file_mutex);
-
-	if (port->dev_num < IB_UMAD_MAX_PORTS)
-		clear_bit(port->dev_num, dev_map);
-	else
-		clear_bit(port->dev_num - IB_UMAD_MAX_PORTS, overflow_map);
+	clear_bit(port->dev_num, dev_map);
 }
 
 static void ib_umad_add_one(struct ib_device *device)
@@ -1347,12 +1337,22 @@ static int __init ib_umad_init(void)
 {
 	int ret;
 
-	ret = register_chrdev_region(base_dev, IB_UMAD_MAX_PORTS * 2,
+	ret = register_chrdev_region(base_umad_dev,
+				     IB_UMAD_NUM_FIXED_MINOR * 2,
 				     "infiniband_mad");
 	if (ret) {
 		pr_err("couldn't register device number\n");
 		goto out;
 	}
+
+	ret = alloc_chrdev_region(&dynamic_umad_dev, 0,
+				  IB_UMAD_NUM_DYNAMIC_MINOR * 2,
+				  "infiniband_mad");
+	if (ret) {
+		pr_err("couldn't register dynamic device number\n");
+		goto out_alloc;
+	}
+	dynamic_issm_dev = dynamic_umad_dev + IB_UMAD_NUM_DYNAMIC_MINOR;
 
 	umad_class = class_create(THIS_MODULE, "infiniband_mad");
 	if (IS_ERR(umad_class)) {
@@ -1381,7 +1381,12 @@ out_class:
 	class_destroy(umad_class);
 
 out_chrdev:
-	unregister_chrdev_region(base_dev, IB_UMAD_MAX_PORTS * 2);
+	unregister_chrdev_region(dynamic_umad_dev,
+				 IB_UMAD_NUM_DYNAMIC_MINOR * 2);
+
+out_alloc:
+	unregister_chrdev_region(base_umad_dev,
+				 IB_UMAD_NUM_FIXED_MINOR * 2);
 
 out:
 	return ret;
@@ -1391,9 +1396,10 @@ static void __exit ib_umad_cleanup(void)
 {
 	ib_unregister_client(&umad_client);
 	class_destroy(umad_class);
-	unregister_chrdev_region(base_dev, IB_UMAD_MAX_PORTS * 2);
-	if (overflow_maj)
-		unregister_chrdev_region(overflow_maj, IB_UMAD_MAX_PORTS * 2);
+	unregister_chrdev_region(base_umad_dev,
+				 IB_UMAD_NUM_FIXED_MINOR * 2);
+	unregister_chrdev_region(dynamic_umad_dev,
+				 IB_UMAD_NUM_DYNAMIC_MINOR * 2);
 }
 
 module_init(ib_umad_init);

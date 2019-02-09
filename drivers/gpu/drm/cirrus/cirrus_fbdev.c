@@ -13,8 +13,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
-#include <linux/fb.h>
-
 #include "cirrus_drv.h"
 
 static void cirrus_dirty_update(struct cirrus_fbdev *afbdev,
@@ -24,14 +22,14 @@ static void cirrus_dirty_update(struct cirrus_fbdev *afbdev,
 	struct drm_gem_object *obj;
 	struct cirrus_bo *bo;
 	int src_offset, dst_offset;
-	int bpp = (afbdev->gfb.base.bits_per_pixel + 7)/8;
+	int bpp = afbdev->gfb.format->cpp[0];
 	int ret = -EBUSY;
 	bool unmap = false;
 	bool store_for_later = false;
 	int x2, y2;
 	unsigned long flags;
 
-	obj = afbdev->gfb.obj;
+	obj = afbdev->gfb.obj[0];
 	bo = gem_to_cirrus_bo(obj);
 
 	/*
@@ -84,7 +82,7 @@ static void cirrus_dirty_update(struct cirrus_fbdev *afbdev,
 	}
 	for (i = y; i < y + height; i++) {
 		/* assume equal stride for now */
-		src_offset = dst_offset = i * afbdev->gfb.base.pitches[0] + (x * bpp);
+		src_offset = dst_offset = i * afbdev->gfb.pitches[0] + (x * bpp);
 		memcpy_toio(bo->kmap.virtual + src_offset, afbdev->sysram + src_offset, width * bpp);
 
 	}
@@ -135,17 +133,17 @@ static struct fb_ops cirrusfb_ops = {
 };
 
 static int cirrusfb_create_object(struct cirrus_fbdev *afbdev,
-			       struct drm_mode_fb_cmd2 *mode_cmd,
+			       const struct drm_mode_fb_cmd2 *mode_cmd,
 			       struct drm_gem_object **gobj_p)
 {
 	struct drm_device *dev = afbdev->helper.dev;
 	struct cirrus_device *cdev = dev->dev_private;
-	u32 bpp, depth;
+	u32 bpp;
 	u32 size;
 	struct drm_gem_object *gobj;
-
 	int ret = 0;
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+
+	bpp = drm_format_plane_cpp(mode_cmd->pixel_format, 0) * 8;
 
 	if (!cirrus_check_framebuffer(cdev, mode_cmd->width, mode_cmd->height,
 				      bpp, mode_cmd->pitches[0]))
@@ -206,7 +204,7 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	gfbdev->sysram = sysram;
 	gfbdev->size = size;
 
-	fb = &gfbdev->gfb.base;
+	fb = &gfbdev->gfb;
 	if (!fb) {
 		DRM_INFO("fb is NULL\n");
 		return -EINVAL;
@@ -217,10 +215,9 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "cirrusdrmfb");
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &cirrusfb_ops;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &gfbdev->helper, sizes->fb_width,
 			       sizes->fb_height);
 
@@ -240,7 +237,7 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	DRM_INFO("fb mappable at 0x%lX\n", info->fix.smem_start);
 	DRM_INFO("vram aper at 0x%lX\n", (unsigned long)info->fix.smem_start);
 	DRM_INFO("size %lu\n", (unsigned long)info->fix.smem_len);
-	DRM_INFO("fb depth is %d\n", fb->depth);
+	DRM_INFO("fb depth is %d\n", fb->format->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
 	return 0;
@@ -249,27 +246,24 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 static int cirrus_fbdev_destroy(struct drm_device *dev,
 				struct cirrus_fbdev *gfbdev)
 {
-	struct cirrus_framebuffer *gfb = &gfbdev->gfb;
+	struct drm_framebuffer *gfb = &gfbdev->gfb;
 
 	drm_fb_helper_unregister_fbi(&gfbdev->helper);
-	drm_fb_helper_release_fbi(&gfbdev->helper);
 
-	if (gfb->obj) {
-		drm_gem_object_unreference_unlocked(gfb->obj);
-		gfb->obj = NULL;
+	if (gfb->obj[0]) {
+		drm_gem_object_put_unlocked(gfb->obj[0]);
+		gfb->obj[0] = NULL;
 	}
 
 	vfree(gfbdev->sysram);
 	drm_fb_helper_fini(&gfbdev->helper);
-	drm_framebuffer_unregister_private(&gfb->base);
-	drm_framebuffer_cleanup(&gfb->base);
+	drm_framebuffer_unregister_private(gfb);
+	drm_framebuffer_cleanup(gfb);
 
 	return 0;
 }
 
 static const struct drm_fb_helper_funcs cirrus_fb_helper_funcs = {
-	.gamma_set = cirrus_crtc_fb_gamma_set,
-	.gamma_get = cirrus_crtc_fb_gamma_get,
 	.fb_probe = cirrusfb_create,
 };
 
@@ -291,7 +285,7 @@ int cirrus_fbdev_init(struct cirrus_device *cdev)
 			      &cirrus_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(cdev->dev, &gfbdev->helper,
-				 cdev->num_crtc, CIRRUSFB_CONN_LIMIT);
+				 CIRRUSFB_CONN_LIMIT);
 	if (ret)
 		return ret;
 

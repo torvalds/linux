@@ -340,7 +340,7 @@ static void *bsd_alloc(struct isdn_ppp_comp_data *data)
 	 * Allocate space for the dictionary. This may be more than one page in
 	 * length.
 	 */
-	db->dict = vmalloc(hsize * sizeof(struct bsd_dict));
+	db->dict = vmalloc(array_size(hsize, sizeof(struct bsd_dict)));
 	if (!db->dict) {
 		bsd_free(db);
 		return NULL;
@@ -353,7 +353,8 @@ static void *bsd_alloc(struct isdn_ppp_comp_data *data)
 	if (!decomp)
 		db->lens = NULL;
 	else {
-		db->lens = vmalloc((maxmaxcode + 1) * sizeof(db->lens[0]));
+		db->lens = vmalloc(array_size(sizeof(db->lens[0]),
+					      maxmaxcode + 1));
 		if (!db->lens) {
 			bsd_free(db);
 			return (NULL);
@@ -472,7 +473,7 @@ static int bsd_compress(void *state, struct sk_buff *skb_in, struct sk_buff *skb
 		accm |= ((ent) << bitno);				\
 		do	{						\
 			if (skb_out && skb_tailroom(skb_out) > 0)	\
-				*(skb_put(skb_out, 1)) = (unsigned char)(accm >> 24); \
+				skb_put_u8(skb_out, (u8)(accm >> 24));	\
 			accm <<= 8;					\
 			bitno += 8;					\
 		} while (bitno <= 24);					\
@@ -602,7 +603,8 @@ static int bsd_compress(void *state, struct sk_buff *skb_in, struct sk_buff *skb
 	 * Do not emit a completely useless byte of ones.
 	 */
 	if (bitno < 32 && skb_out && skb_tailroom(skb_out) > 0)
-		*(skb_put(skb_out, 1)) = (unsigned char)((accm | (0xff << (bitno - 8))) >> 24);
+		skb_put_u8(skb_out,
+			   (unsigned char)((accm | (0xff << (bitno - 8))) >> 24));
 
 	/*
 	 * Increase code size if we would have without the packet
@@ -698,7 +700,7 @@ static int bsd_decompress(void *state, struct sk_buff *skb_in, struct sk_buff *s
 	db->bytes_out += ilen;
 
 	if (skb_tailroom(skb_out) > 0)
-		*(skb_put(skb_out, 1)) = 0;
+		skb_put_u8(skb_out, 0);
 	else
 		return DECOMP_ERR_NOMEM;
 
@@ -816,7 +818,7 @@ static int bsd_decompress(void *state, struct sk_buff *skb_in, struct sk_buff *s
 #endif
 
 		if (extra)		/* the KwKwK case again */
-			*(skb_put(skb_out, 1)) = finchar;
+			skb_put_u8(skb_out, finchar);
 
 		/*
 		 * If not first code in a packet, and

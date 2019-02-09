@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/ioctl.h>
 #include <linux/uaccess.h>
 #include <linux/pm_qos.h>
@@ -444,18 +444,18 @@ static void cs_hsi_read_on_control_complete(struct hsi_msg *msg)
 	hi->control_state &= ~SSI_CHANNEL_STATE_READING;
 	if (msg->status == HSI_STATUS_ERROR) {
 		dev_err(&hi->cl->device, "Control RX error detected\n");
-		cs_hsi_control_read_error(hi, msg);
 		spin_unlock(&hi->lock);
+		cs_hsi_control_read_error(hi, msg);
 		goto out;
 	}
 	dev_dbg(&hi->cl->device, "Read on control: %08X\n", cmd);
 	cs_release_cmd(msg);
 	if (hi->flags & CS_FEAT_TSTAMP_RX_CTRL) {
-		struct timespec tspec;
+		struct timespec64 tspec;
 		struct cs_timestamp *tstamp =
 			&hi->mmap_cfg->tstamp_rx_ctrl;
 
-		ktime_get_ts(&tspec);
+		ktime_get_ts64(&tspec);
 
 		tstamp->tv_sec = (__u32) tspec.tv_sec;
 		tstamp->tv_nsec = (__u32) tspec.tv_nsec;
@@ -1098,9 +1098,9 @@ static void cs_hsi_stop(struct cs_hsi_iface *hi)
 	kfree(hi);
 }
 
-static int cs_char_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static vm_fault_t cs_char_vma_fault(struct vm_fault *vmf)
 {
-	struct cs_char *csdata = vma->vm_private_data;
+	struct cs_char *csdata = vmf->vma->vm_private_data;
 	struct page *page;
 
 	page = virt_to_page(csdata->mmap_base);
@@ -1124,17 +1124,17 @@ static int cs_char_fasync(int fd, struct file *file, int on)
 	return 0;
 }
 
-static unsigned int cs_char_poll(struct file *file, poll_table *wait)
+static __poll_t cs_char_poll(struct file *file, poll_table *wait)
 {
 	struct cs_char *csdata = file->private_data;
-	unsigned int ret = 0;
+	__poll_t ret = 0;
 
 	poll_wait(file, &cs_char_data.wait, wait);
 	spin_lock_bh(&csdata->lock);
 	if (!list_empty(&csdata->chardev_queue))
-		ret = POLLIN | POLLRDNORM;
+		ret = EPOLLIN | EPOLLRDNORM;
 	else if (!list_empty(&csdata->dataind_queue))
-		ret = POLLIN | POLLRDNORM;
+		ret = EPOLLIN | EPOLLRDNORM;
 	spin_unlock_bh(&csdata->lock);
 
 	return ret;
@@ -1275,7 +1275,7 @@ static int cs_char_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_end < vma->vm_start)
 		return -EINVAL;
 
-	if (((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) != 1)
+	if (vma_pages(vma) != 1)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_DONTDUMP | VM_DONTEXPAND;

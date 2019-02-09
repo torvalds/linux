@@ -508,7 +508,7 @@ static void it821x_quirkproc(ide_drive_t *drive)
 
 }
 
-static struct ide_dma_ops it821x_pass_through_dma_ops = {
+static const struct ide_dma_ops it821x_pass_through_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
 	.dma_start		= it821x_dma_start,
@@ -652,7 +652,7 @@ static int it821x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	struct it821x_dev *itdevs;
 	int rc;
 
-	itdevs = kzalloc(2 * sizeof(*itdevs), GFP_KERNEL);
+	itdevs = kcalloc(2, sizeof(*itdevs), GFP_KERNEL);
 	if (itdevs == NULL) {
 		printk(KERN_ERR DRV_NAME " %s: out of memory\n", pci_name(dev));
 		return -ENOMEM;

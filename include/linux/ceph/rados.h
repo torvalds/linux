@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef CEPH_RADOS_H
 #define CEPH_RADOS_H
 
@@ -50,7 +51,7 @@ struct ceph_timespec {
 #define CEPH_PG_LAYOUT_LINEAR 2
 #define CEPH_PG_LAYOUT_HYBRID 3
 
-#define CEPH_PG_MAX_SIZE      16  /* max # osds in a single pg */
+#define CEPH_PG_MAX_SIZE      32  /* max # osds in a single pg */
 
 /*
  * placement group.
@@ -114,8 +115,8 @@ struct ceph_object_layout {
  * compound epoch+version, used by storage layer to serialize mutations
  */
 struct ceph_eversion {
-	__le32 epoch;
 	__le64 version;
+	__le32 epoch;
 } __attribute__ ((packed));
 
 /*
@@ -153,6 +154,15 @@ extern const char *ceph_osd_state_name(int s);
 #define CEPH_OSDMAP_NOIN     (1<<8)  /* block osd auto mark-in */
 #define CEPH_OSDMAP_NOBACKFILL (1<<9) /* block osd backfill */
 #define CEPH_OSDMAP_NORECOVER (1<<10) /* block osd recovery and backfill */
+#define CEPH_OSDMAP_NOSCRUB  (1<<11) /* block periodic scrub */
+#define CEPH_OSDMAP_NODEEP_SCRUB (1<<12) /* block periodic deep-scrub */
+#define CEPH_OSDMAP_NOTIERAGENT (1<<13) /* disable tiering agent */
+#define CEPH_OSDMAP_NOREBALANCE (1<<14) /* block osd backfill unless pg is degraded */
+#define CEPH_OSDMAP_SORTBITWISE (1<<15) /* use bitwise hobject_t sort */
+#define CEPH_OSDMAP_REQUIRE_JEWEL    (1<<16) /* require jewel for booting osds */
+#define CEPH_OSDMAP_REQUIRE_KRAKEN   (1<<17) /* require kraken for booting osds */
+#define CEPH_OSDMAP_REQUIRE_LUMINOUS (1<<18) /* require l for booting osds */
+#define CEPH_OSDMAP_RECOVERY_DELETES (1<<19) /* deletes performed during recovery instead of peering */
 
 /*
  * The error code to return when an OSD can't handle a write
@@ -221,7 +231,6 @@ extern const char *ceph_osd_state_name(int s);
 									    \
 	/* fancy write */						    \
 	f(APPEND,	__CEPH_OSD_OP(WR, DATA, 6),	"append")	    \
-	f(STARTSYNC,	__CEPH_OSD_OP(WR, DATA, 7),	"startsync")	    \
 	f(SETTRUNC,	__CEPH_OSD_OP(WR, DATA, 8),	"settrunc")	    \
 	f(TRIMTRUNC,	__CEPH_OSD_OP(WR, DATA, 9),	"trimtrunc")	    \
 									    \
@@ -389,6 +398,13 @@ enum {
 	CEPH_OSD_FLAG_SKIPRWLOCKS =   0x10000,  /* skip rw locks */
 	CEPH_OSD_FLAG_IGNORE_OVERLAY = 0x20000, /* ignore pool overlay */
 	CEPH_OSD_FLAG_FLUSH =         0x40000,  /* this is part of flush */
+	CEPH_OSD_FLAG_MAP_SNAP_CLONE = 0x80000,  /* map snap direct to clone id */
+	CEPH_OSD_FLAG_ENFORCE_SNAPC   = 0x100000,  /* use snapc provided even if
+						      pool uses pool snaps */
+	CEPH_OSD_FLAG_REDIRECTED   = 0x200000,  /* op has been redirected */
+	CEPH_OSD_FLAG_KNOWN_REDIR = 0x400000,  /* redirect bit is authoritative */
+	CEPH_OSD_FLAG_FULL_TRY =    0x800000,  /* try op despite full flag */
+	CEPH_OSD_FLAG_FULL_FORCE = 0x1000000,  /* force op despite full flag */
 };
 
 enum {
@@ -415,7 +431,23 @@ enum {
 	CEPH_OSD_CMPXATTR_MODE_U64    = 2
 };
 
-#define RADOS_NOTIFY_VER	1
+enum {
+	CEPH_OSD_WATCH_OP_UNWATCH = 0,
+	CEPH_OSD_WATCH_OP_LEGACY_WATCH = 1,
+	/* note: use only ODD ids to prevent pre-giant code from
+	   interpreting the op as UNWATCH */
+	CEPH_OSD_WATCH_OP_WATCH = 3,
+	CEPH_OSD_WATCH_OP_RECONNECT = 5,
+	CEPH_OSD_WATCH_OP_PING = 7,
+};
+
+const char *ceph_osd_watch_op_name(int o);
+
+enum {
+	CEPH_OSD_BACKOFF_OP_BLOCK = 1,
+	CEPH_OSD_BACKOFF_OP_ACK_BLOCK = 2,
+	CEPH_OSD_BACKOFF_OP_UNBLOCK = 3,
+};
 
 /*
  * an individual object operation.  each may be accompanied by some data
@@ -450,9 +482,13 @@ struct ceph_osd_op {
 	        } __attribute__ ((packed)) snap;
 		struct {
 			__le64 cookie;
-			__le64 ver;
-			__u8 flag;	/* 0 = unwatch, 1 = watch */
+			__le64 ver;     /* no longer used */
+			__u8 op;	/* CEPH_OSD_WATCH_OP_* */
+			__le32 gen;     /* registration generation */
 		} __attribute__ ((packed)) watch;
+		struct {
+			__le64 cookie;
+		} __attribute__ ((packed)) notify;
 		struct {
 			__le64 offset, length;
 			__le64 src_offset;

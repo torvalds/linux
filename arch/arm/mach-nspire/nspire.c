@@ -33,11 +33,6 @@ static const char *const nspire_dt_match[] __initconst = {
 	NULL,
 };
 
-static void __init nspire_map_io(void)
-{
-	debug_ll_io_init();
-}
-
 static struct clcd_board nspire_clcd_data = {
 	.name		= "LCD",
 	.caps		= CLCD_CAP_5551 | CLCD_CAP_565,
@@ -57,8 +52,7 @@ static struct of_dev_auxdata nspire_auxdata[] __initdata = {
 
 static void __init nspire_init(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table,
-			nspire_auxdata, NULL);
+	of_platform_default_populate(NULL, nspire_auxdata, NULL);
 }
 
 static void nspire_restart(enum reboot_mode mode, const char *cmd)
@@ -72,7 +66,6 @@ static void nspire_restart(enum reboot_mode mode, const char *cmd)
 
 DT_MACHINE_START(NSPIRE, "TI-NSPIRE")
 	.dt_compat	= nspire_dt_match,
-	.map_io		= nspire_map_io,
 	.init_machine	= nspire_init,
 	.restart	= nspire_restart,
 MACHINE_END

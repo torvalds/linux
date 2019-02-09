@@ -20,8 +20,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#define DRV_VERSION "0.1"
-
 /* ISL register offsets */
 #define ISL12022_REG_SC		0x00
 #define ISL12022_REG_MN		0x01
@@ -106,8 +104,9 @@ static int isl12022_write_reg(struct i2c_client *client,
  * In the routines that deal directly with the isl12022 hardware, we use
  * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
  */
-static int isl12022_get_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	uint8_t buf[ISL12022_REG_INT + 1];
 	int ret;
 
@@ -151,11 +150,12 @@ static int isl12022_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
-static int isl12022_set_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct isl12022 *isl12022 = i2c_get_clientdata(client);
 	size_t i;
 	int ret;
@@ -201,7 +201,7 @@ static int isl12022_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 				return ret;
 		}
 
-		isl12022->write_enabled = 1;
+		isl12022->write_enabled = true;
 	}
 
 	/* hours, minutes and seconds */
@@ -230,16 +230,6 @@ static int isl12022_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return 0;
 }
 
-static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return isl12022_get_datetime(to_i2c_client(dev), tm);
-}
-
-static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
-{
-	return isl12022_set_datetime(to_i2c_client(dev), tm);
-}
-
 static const struct rtc_class_ops isl12022_rtc_ops = {
 	.read_time	= isl12022_rtc_read_time,
 	.set_time	= isl12022_rtc_set_time,
@@ -257,8 +247,6 @@ static int isl12022_probe(struct i2c_client *client,
 				GFP_KERNEL);
 	if (!isl12022)
 		return -ENOMEM;
-
-	dev_dbg(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
 	i2c_set_clientdata(client, isl12022);
 
@@ -299,4 +287,3 @@ module_i2c_driver(isl12022_driver);
 MODULE_AUTHOR("roman.fietze@telemotive.de");
 MODULE_DESCRIPTION("ISL 12022 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

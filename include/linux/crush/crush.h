@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef CEPH_CRUSH_CRUSH_H
 #define CEPH_CRUSH_CRUSH_H
 
 #ifdef __KERNEL__
+# include <linux/rbtree.h>
 # include <linux/types.h>
 #else
 # include "crush_compat.h"
@@ -59,7 +61,8 @@ enum {
 	CRUSH_RULE_SET_CHOOSELEAF_TRIES = 9, /* override chooseleaf_descend_once */
 	CRUSH_RULE_SET_CHOOSE_LOCAL_TRIES = 10,
 	CRUSH_RULE_SET_CHOOSE_LOCAL_FALLBACK_TRIES = 11,
-	CRUSH_RULE_SET_CHOOSELEAF_VARY_R = 12
+	CRUSH_RULE_SET_CHOOSELEAF_VARY_R = 12,
+	CRUSH_RULE_SET_CHOOSELEAF_STABLE = 13
 };
 
 /*
@@ -134,13 +137,68 @@ struct crush_bucket {
 	__u32 size;      /* num items */
 	__s32 *items;
 
-	/*
-	 * cached random permutation: used for uniform bucket and for
-	 * the linear search fallback for the other bucket types.
-	 */
-	__u32 perm_x;  /* @x for which *perm is defined */
-	__u32 perm_n;  /* num elements of *perm that are permuted/defined */
-	__u32 *perm;
+};
+
+/** @ingroup API
+ *
+ * Replacement weights for each item in a bucket. The size of the
+ * array must be exactly the size of the straw2 bucket, just as the
+ * item_weights array.
+ *
+ */
+struct crush_weight_set {
+	__u32 *weights; /*!< 16.16 fixed point weights
+                             in the same order as items */
+	__u32 size;     /*!< size of the __weights__ array */
+};
+
+/** @ingroup API
+ *
+ * Replacement weights and ids for a given straw2 bucket, for
+ * placement purposes.
+ *
+ * When crush_do_rule() chooses the Nth item from a straw2 bucket, the
+ * replacement weights found at __weight_set[N]__ are used instead of
+ * the weights from __item_weights__. If __N__ is greater than
+ * __weight_set_size__, the weights found at __weight_set_size-1__ are
+ * used instead. For instance if __weight_set__ is:
+ *
+ *    [ [ 0x10000, 0x20000 ],   // position 0
+ *      [ 0x20000, 0x40000 ] ]  // position 1
+ *
+ * choosing the 0th item will use position 0 weights [ 0x10000, 0x20000 ]
+ * choosing the 1th item will use position 1 weights [ 0x20000, 0x40000 ]
+ * choosing the 2th item will use position 1 weights [ 0x20000, 0x40000 ]
+ * etc.
+ *
+ */
+struct crush_choose_arg {
+	__s32 *ids;            /*!< values to use instead of items */
+	__u32 ids_size;        /*!< size of the __ids__ array */
+	struct crush_weight_set *weight_set; /*!< weight replacements for
+                                                  a given position */
+	__u32 weight_set_size; /*!< size of the __weight_set__ array */
+};
+
+/** @ingroup API
+ *
+ * Replacement weights and ids for each bucket in the crushmap. The
+ * __size__ of the __args__ array must be exactly the same as the
+ * __map->max_buckets__.
+ *
+ * The __crush_choose_arg__ at index N will be used when choosing
+ * an item from the bucket __map->buckets[N]__ bucket, provided it
+ * is a straw2 bucket.
+ *
+ */
+struct crush_choose_arg_map {
+#ifdef __KERNEL__
+	struct rb_node node;
+	s64 choose_args_index;
+#endif
+	struct crush_choose_arg *args; /*!< replacement for each bucket
+                                            in the crushmap */
+	__u32 size;                    /*!< size of the __args__ array */
 };
 
 struct crush_bucket_uniform {
@@ -205,6 +263,26 @@ struct crush_map {
 	 * mappings line up a bit better with previous mappings. */
 	__u8 chooseleaf_vary_r;
 
+	/* if true, it makes chooseleaf firstn to return stable results (if
+	 * no local retry) so that data migrations would be optimal when some
+	 * device fails. */
+	__u8 chooseleaf_stable;
+
+	/*
+	 * This value is calculated after decode or construction by
+	 * the builder. It is exposed here (rather than having a
+	 * 'build CRUSH working space' function) so that callers can
+	 * reserve a static buffer, allocate space on the stack, or
+	 * otherwise avoid calling into the heap allocator if they
+	 * want to. The size of the working space depends on the map,
+	 * while the size of the scratch vector passed to the mapper
+	 * depends on the size of the desired result set.
+	 *
+	 * Nothing stops the caller from allocating both in one swell
+	 * foop and passing in two points, though.
+	 */
+	size_t working_size;
+
 #ifndef __KERNEL__
 	/*
 	 * version 0 (original) of straw_calc has various flaws.  version 1
@@ -222,6 +300,9 @@ struct crush_map {
 	__u32 allowed_bucket_algs;
 
 	__u32 *choose_tries;
+#else
+	/* CrushWrapper::choose_args */
+	struct rb_root choose_args;
 #endif
 };
 
@@ -241,5 +322,24 @@ static inline int crush_calc_tree_node(int i)
 {
 	return ((i+1) << 1)-1;
 }
+
+/*
+ * These data structures are private to the CRUSH implementation. They
+ * are exposed in this header file because builder needs their
+ * definitions to calculate the total working size.
+ *
+ * Moving this out of the crush map allow us to treat the CRUSH map as
+ * immutable within the mapper and removes the requirement for a CRUSH
+ * map lock.
+ */
+struct crush_work_bucket {
+	__u32 perm_x; /* @x for which *perm is defined */
+	__u32 perm_n; /* num elements of *perm that are permuted/defined */
+	__u32 *perm;  /* Permutation of the bucket's items */
+};
+
+struct crush_work {
+	struct crush_work_bucket **work; /* Per-bucket working store */
+};
 
 #endif

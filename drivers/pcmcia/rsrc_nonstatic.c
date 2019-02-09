@@ -367,7 +367,7 @@ static int do_validate_mem(struct pcmcia_socket *s,
 		}
 	}
 
-	dev_dbg(&s->dev, "cs: memory probe 0x%06lx-0x%06lx: %p %p %u %u %u",
+	dev_dbg(&s->dev, "cs: memory probe 0x%06lx-0x%06lx: %pr %pr %u %u %u",
 		base, base+size-1, res1, res2, ret, info1, info2);
 
 	free_region(res2);

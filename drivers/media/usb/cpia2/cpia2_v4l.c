@@ -21,10 +21,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *  Stripped of 2.4 stuff ready for main kernel submit by
  *		Alan Cox <alan@lxorguk.ukuu.org.uk>
  ****************************************************************************/
@@ -173,10 +169,10 @@ static ssize_t cpia2_v4l_read(struct file *file, char __user *buf, size_t count,
  *  cpia2_v4l_poll
  *
  *****************************************************************************/
-static unsigned int cpia2_v4l_poll(struct file *filp, struct poll_table_struct *wait)
+static __poll_t cpia2_v4l_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct camera_data *cam = video_drvdata(filp);
-	unsigned int res;
+	__poll_t res;
 
 	mutex_lock(&cam->v4l2_lock);
 	res = cpia2_poll(cam, filp, wait);
@@ -812,7 +808,7 @@ static int cpia2_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	struct camera_data *cam = video_drvdata(file);
 
 	if(buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-	   buf->index > cam->num_frames)
+	   buf->index >= cam->num_frames)
 		return -EINVAL;
 
 	buf->m.offset = cam->buffers[buf->index].data - cam->frame_buffer;
@@ -863,7 +859,7 @@ static int cpia2_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 	if(buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
 	   buf->memory != V4L2_MEMORY_MMAP ||
-	   buf->index > cam->num_frames)
+	   buf->index >= cam->num_frames)
 		return -EINVAL;
 
 	DBG("QBUF #%d\n", buf->index);
@@ -1079,7 +1075,7 @@ static const struct v4l2_file_operations cpia2_fops = {
 	.mmap		= cpia2_mmap,
 };
 
-static struct video_device cpia2_template = {
+static const struct video_device cpia2_template = {
 	/* I could not find any place for the old .initialize initializer?? */
 	.name =		"CPiA2 Camera",
 	.fops =		&cpia2_fops,

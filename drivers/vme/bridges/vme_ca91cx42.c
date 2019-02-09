@@ -47,6 +47,8 @@ static const struct pci_device_id ca91cx42_ids[] = {
 	{ },
 };
 
+MODULE_DEVICE_TABLE(pci, ca91cx42_ids);
+
 static struct pci_driver ca91cx42_driver = {
 	.name = driver_name,
 	.id_table = ca91cx42_ids,
@@ -69,7 +71,7 @@ static u32 ca91cx42_LM_irqhandler(struct ca91cx42_driver *bridge, u32 stat)
 	for (i = 0; i < 4; i++) {
 		if (stat & CA91CX42_LINT_LM[i]) {
 			/* We only enable interrupts if the callback is set */
-			bridge->lm_callback[i](i);
+			bridge->lm_callback[i](bridge->lm_data[i]);
 			serviced |= CA91CX42_LINT_LM[i];
 		}
 	}
@@ -202,11 +204,7 @@ static int ca91cx42_irq_init(struct vme_bridge *ca91cx42_bridge)
 	bridge = ca91cx42_bridge->driver_priv;
 
 	/* Need pdev */
-	pdev = container_of(ca91cx42_bridge->parent, struct pci_dev, dev);
-
-	INIT_LIST_HEAD(&ca91cx42_bridge->vme_error_handlers);
-
-	mutex_init(&ca91cx42_bridge->irq_mtx);
+	pdev = to_pci_dev(ca91cx42_bridge->parent);
 
 	/* Disable interrupts from PCI to VME */
 	iowrite32(0, bridge->base + VINT_EN);
@@ -293,8 +291,7 @@ static void ca91cx42_irq_set(struct vme_bridge *ca91cx42_bridge, int level,
 	iowrite32(tmp, bridge->base + LINT_EN);
 
 	if ((state == 0) && (sync != 0)) {
-		pdev = container_of(ca91cx42_bridge->parent, struct pci_dev,
-			dev);
+		pdev = to_pci_dev(ca91cx42_bridge->parent);
 
 		synchronize_irq(pdev->irq);
 	}
@@ -467,7 +464,7 @@ static int ca91cx42_slave_get(struct vme_slave_resource *image, int *enabled,
 	vme_bound = ioread32(bridge->base + CA91CX42_VSI_BD[i]);
 	pci_offset = ioread32(bridge->base + CA91CX42_VSI_TO[i]);
 
-	*pci_base = (dma_addr_t)vme_base + pci_offset;
+	*pci_base = (dma_addr_t)*vme_base + pci_offset;
 	*size = (unsigned long long)((vme_bound - *vme_base) + granularity);
 
 	*enabled = 0;
@@ -514,11 +511,11 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 	ca91cx42_bridge = image->parent;
 
 	/* Find pci_dev container of dev */
-	if (ca91cx42_bridge->parent == NULL) {
+	if (!ca91cx42_bridge->parent) {
 		dev_err(ca91cx42_bridge->parent, "Dev entry NULL\n");
 		return -EINVAL;
 	}
-	pdev = container_of(ca91cx42_bridge->parent, struct pci_dev, dev);
+	pdev = to_pci_dev(ca91cx42_bridge->parent);
 
 	existing_size = (unsigned long long)(image->bus_resource.end -
 		image->bus_resource.start);
@@ -532,14 +529,12 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 		image->kern_base = NULL;
 		kfree(image->bus_resource.name);
 		release_resource(&image->bus_resource);
-		memset(&image->bus_resource, 0, sizeof(struct resource));
+		memset(&image->bus_resource, 0, sizeof(image->bus_resource));
 	}
 
-	if (image->bus_resource.name == NULL) {
+	if (!image->bus_resource.name) {
 		image->bus_resource.name = kmalloc(VMENAMSIZ+3, GFP_ATOMIC);
-		if (image->bus_resource.name == NULL) {
-			dev_err(ca91cx42_bridge->parent, "Unable to allocate "
-				"memory for resource name\n");
+		if (!image->bus_resource.name) {
 			retval = -ENOMEM;
 			goto err_name;
 		}
@@ -565,7 +560,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 
 	image->kern_base = ioremap_nocache(
 		image->bus_resource.start, size);
-	if (image->kern_base == NULL) {
+	if (!image->kern_base) {
 		dev_err(ca91cx42_bridge->parent, "Failed to remap resource\n");
 		retval = -ENOMEM;
 		goto err_remap;
@@ -577,7 +572,7 @@ err_remap:
 	release_resource(&image->bus_resource);
 err_resource:
 	kfree(image->bus_resource.name);
-	memset(&image->bus_resource, 0, sizeof(struct resource));
+	memset(&image->bus_resource, 0, sizeof(image->bus_resource));
 err_name:
 	return retval;
 }
@@ -591,7 +586,7 @@ static void ca91cx42_free_resource(struct vme_master_resource *image)
 	image->kern_base = NULL;
 	release_resource(&image->bus_resource);
 	kfree(image->bus_resource.name);
-	memset(&image->bus_resource, 0, sizeof(struct resource));
+	memset(&image->bus_resource, 0, sizeof(image->bus_resource));
 }
 
 
@@ -975,7 +970,6 @@ static unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 {
 	u32 result;
 	uintptr_t pci_addr;
-	int i;
 	struct ca91cx42_driver *bridge;
 	struct device *dev;
 
@@ -983,7 +977,6 @@ static unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 	dev = image->parent->parent;
 
 	/* Find the PCI address that maps to the desired VME address */
-	i = image->number;
 
 	/* Locking as we can only do one of these at a time */
 	mutex_lock(&bridge->vme_rmw);
@@ -1039,10 +1032,8 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 	dev = list->parent->parent->parent;
 
 	/* XXX descriptor must be aligned on 64-bit boundaries */
-	entry = kmalloc(sizeof(struct ca91cx42_dma_entry), GFP_KERNEL);
-	if (entry == NULL) {
-		dev_err(dev, "Failed to allocate memory for dma resource "
-			"structure\n");
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
 		retval = -ENOMEM;
 		goto err_mem;
 	}
@@ -1055,7 +1046,7 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 		goto err_align;
 	}
 
-	memset(&entry->descriptor, 0, sizeof(struct ca91cx42_dma_descriptor));
+	memset(&entry->descriptor, 0, sizeof(entry->descriptor));
 
 	if (dest->type == VME_DMA_VME) {
 		entry->descriptor.dctl |= CA91CX42_DCTL_L2V;
@@ -1326,7 +1317,7 @@ static int ca91cx42_lm_set(struct vme_lm_resource *lm,
 
 	/* If we already have a callback attached, we can't move it! */
 	for (i = 0; i < lm->monitors; i++) {
-		if (bridge->lm_callback[i] != NULL) {
+		if (bridge->lm_callback[i]) {
 			mutex_unlock(&lm->mtx);
 			dev_err(dev, "Location monitor callback attached, "
 				"can't reset\n");
@@ -1415,7 +1406,7 @@ static int ca91cx42_lm_get(struct vme_lm_resource *lm,
  * Callback will be passed the monitor triggered.
  */
 static int ca91cx42_lm_attach(struct vme_lm_resource *lm, int monitor,
-	void (*callback)(int))
+	void (*callback)(void *), void *data)
 {
 	u32 lm_ctl, tmp;
 	struct ca91cx42_driver *bridge;
@@ -1435,7 +1426,7 @@ static int ca91cx42_lm_attach(struct vme_lm_resource *lm, int monitor,
 	}
 
 	/* Check that a callback isn't already attached */
-	if (bridge->lm_callback[monitor] != NULL) {
+	if (bridge->lm_callback[monitor]) {
 		mutex_unlock(&lm->mtx);
 		dev_err(dev, "Existing callback attached\n");
 		return -EBUSY;
@@ -1443,6 +1434,7 @@ static int ca91cx42_lm_attach(struct vme_lm_resource *lm, int monitor,
 
 	/* Attach callback */
 	bridge->lm_callback[monitor] = callback;
+	bridge->lm_data[monitor] = data;
 
 	/* Enable Location Monitor interrupt */
 	tmp = ioread32(bridge->base + LINT_EN);
@@ -1482,6 +1474,7 @@ static int ca91cx42_lm_detach(struct vme_lm_resource *lm, int monitor)
 
 	/* Detach callback */
 	bridge->lm_callback[monitor] = NULL;
+	bridge->lm_data[monitor] = NULL;
 
 	/* If all location monitors disabled, disable global Location Monitor */
 	if ((tmp & (CA91CX42_LINT_LM0 | CA91CX42_LINT_LM1 | CA91CX42_LINT_LM2 |
@@ -1519,7 +1512,7 @@ static void *ca91cx42_alloc_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = container_of(parent, struct pci_dev, dev);
+	pdev = to_pci_dev(parent);
 
 	return pci_alloc_consistent(pdev, size, dma);
 }
@@ -1530,7 +1523,7 @@ static void ca91cx42_free_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = container_of(parent, struct pci_dev, dev);
+	pdev = to_pci_dev(parent);
 
 	pci_free_consistent(pdev, size, vaddr, dma);
 }
@@ -1568,7 +1561,7 @@ static int ca91cx42_crcsr_init(struct vme_bridge *ca91cx42_bridge,
 	/* Allocate mem for CR/CSR image */
 	bridge->crcsr_kernel = pci_zalloc_consistent(pdev, VME_CRCSR_BUF_SIZE,
 						     &bridge->crcsr_bus);
-	if (bridge->crcsr_kernel == NULL) {
+	if (!bridge->crcsr_kernel) {
 		dev_err(&pdev->dev, "Failed to allocate memory for CR/CSR "
 			"image\n");
 		return -ENOMEM;
@@ -1619,20 +1612,15 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* We want to support more than one of each bridge so we need to
 	 * dynamically allocate the bridge structure
 	 */
-	ca91cx42_bridge = kzalloc(sizeof(struct vme_bridge), GFP_KERNEL);
-
-	if (ca91cx42_bridge == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate memory for device "
-			"structure\n");
+	ca91cx42_bridge = kzalloc(sizeof(*ca91cx42_bridge), GFP_KERNEL);
+	if (!ca91cx42_bridge) {
 		retval = -ENOMEM;
 		goto err_struct;
 	}
+	vme_init_bridge(ca91cx42_bridge);
 
-	ca91cx42_device = kzalloc(sizeof(struct ca91cx42_driver), GFP_KERNEL);
-
-	if (ca91cx42_device == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate memory for device "
-			"structure\n");
+	ca91cx42_device = kzalloc(sizeof(*ca91cx42_device), GFP_KERNEL);
+	if (!ca91cx42_device) {
 		retval = -ENOMEM;
 		goto err_driver;
 	}
@@ -1687,13 +1675,9 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add master windows to list */
-	INIT_LIST_HEAD(&ca91cx42_bridge->master_resources);
 	for (i = 0; i < CA91C142_MAX_MASTER; i++) {
-		master_image = kmalloc(sizeof(struct vme_master_resource),
-			GFP_KERNEL);
-		if (master_image == NULL) {
-			dev_err(&pdev->dev, "Failed to allocate memory for "
-			"master resource structure\n");
+		master_image = kmalloc(sizeof(*master_image), GFP_KERNEL);
+		if (!master_image) {
 			retval = -ENOMEM;
 			goto err_master;
 		}
@@ -1707,20 +1691,16 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			VME_SUPER | VME_USER | VME_PROG | VME_DATA;
 		master_image->width_attr = VME_D8 | VME_D16 | VME_D32 | VME_D64;
 		memset(&master_image->bus_resource, 0,
-			sizeof(struct resource));
+		       sizeof(master_image->bus_resource));
 		master_image->kern_base  = NULL;
 		list_add_tail(&master_image->list,
 			&ca91cx42_bridge->master_resources);
 	}
 
 	/* Add slave windows to list */
-	INIT_LIST_HEAD(&ca91cx42_bridge->slave_resources);
 	for (i = 0; i < CA91C142_MAX_SLAVE; i++) {
-		slave_image = kmalloc(sizeof(struct vme_slave_resource),
-			GFP_KERNEL);
-		if (slave_image == NULL) {
-			dev_err(&pdev->dev, "Failed to allocate memory for "
-			"slave resource structure\n");
+		slave_image = kmalloc(sizeof(*slave_image), GFP_KERNEL);
+		if (!slave_image) {
 			retval = -ENOMEM;
 			goto err_slave;
 		}
@@ -1742,13 +1722,9 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add dma engines to list */
-	INIT_LIST_HEAD(&ca91cx42_bridge->dma_resources);
 	for (i = 0; i < CA91C142_MAX_DMA; i++) {
-		dma_ctrlr = kmalloc(sizeof(struct vme_dma_resource),
-			GFP_KERNEL);
-		if (dma_ctrlr == NULL) {
-			dev_err(&pdev->dev, "Failed to allocate memory for "
-			"dma resource structure\n");
+		dma_ctrlr = kmalloc(sizeof(*dma_ctrlr), GFP_KERNEL);
+		if (!dma_ctrlr) {
 			retval = -ENOMEM;
 			goto err_dma;
 		}
@@ -1765,11 +1741,8 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add location monitor to list */
-	INIT_LIST_HEAD(&ca91cx42_bridge->lm_resources);
-	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
-	if (lm == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate memory for "
-		"location monitor resource structure\n");
+	lm = kmalloc(sizeof(*lm), GFP_KERNEL);
+	if (!lm) {
 		retval = -ENOMEM;
 		goto err_lm;
 	}

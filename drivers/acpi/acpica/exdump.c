@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: exdump - Interpreter debug output routines
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -55,9 +21,9 @@ ACPI_MODULE_NAME("exdump")
  */
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 /* Local prototypes */
-static void acpi_ex_out_string(char *title, char *value);
+static void acpi_ex_out_string(const char *title, const char *value);
 
-static void acpi_ex_out_pointer(char *title, void *value);
+static void acpi_ex_out_pointer(const char *title, const void *value);
 
 static void
 acpi_ex_dump_object(union acpi_operand_object *obj_desc,
@@ -102,7 +68,7 @@ static struct acpi_exdump_info acpi_ex_dump_package[6] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_package), NULL},
 	{ACPI_EXD_NODE, ACPI_EXD_OFFSET(package.node), "Parent Node"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(package.flags), "Flags"},
-	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(package.count), "Elements"},
+	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(package.count), "Element Count"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(package.elements), "Element List"},
 	{ACPI_EXD_PACKAGE, 0, NULL}
 };
@@ -365,8 +331,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 		    struct acpi_exdump_info *info)
 {
 	u8 *target;
-	char *name;
-	const char *reference_name;
+	const char *name;
 	u8 count;
 	union acpi_operand_object *start;
 	union acpi_operand_object *data = NULL;
@@ -385,6 +350,10 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 	count = info->offset;
 
 	while (count) {
+		if (!obj_desc) {
+			return;
+		}
+
 		target = ACPI_ADD_PTR(u8, obj_desc, info->offset);
 		name = info->name;
 
@@ -459,9 +428,9 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 
 		case ACPI_EXD_REFERENCE:
 
-			reference_name = acpi_ut_get_reference_name(obj_desc);
 			acpi_ex_out_string("Class Name",
-					   ACPI_CAST_PTR(char, reference_name));
+					   acpi_ut_get_reference_name
+					   (obj_desc));
 			acpi_ex_dump_reference_obj(obj_desc);
 			break;
 
@@ -470,9 +439,9 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 			start = *ACPI_CAST_PTR(void *, target);
 			next = start;
 
-			acpi_os_printf("%20s : %p", name, next);
+			acpi_os_printf("%20s : %p ", name, next);
 			if (next) {
-				acpi_os_printf("(%s %2.2X)",
+				acpi_os_printf("%s (Type %2.2X)",
 					       acpi_ut_get_object_type_name
 					       (next), next->common.type);
 
@@ -494,6 +463,8 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 						break;
 					}
 				}
+			} else {
+				acpi_os_printf("- No attached objects");
 			}
 
 			acpi_os_printf("\n");
@@ -508,7 +479,8 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 			if (next) {
 				acpi_os_printf("(%s %2.2X)",
 					       acpi_ut_get_object_type_name
-					       (next), next->common.type);
+					       (next),
+					       next->address_space.space_id);
 
 				while (next->address_space.next) {
 					if ((next->common.type ==
@@ -520,7 +492,8 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 					acpi_os_printf("->%p(%s %2.2X)", next,
 						       acpi_ut_get_object_type_name
 						       (next),
-						       next->common.type);
+						       next->address_space.
+						       space_id);
 
 					if ((next == start) || (next == data)) {
 						acpi_os_printf
@@ -610,10 +583,11 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	u32 length;
 	u32 index;
 
-	ACPI_FUNCTION_NAME(ex_dump_operand)
+	ACPI_FUNCTION_NAME(ex_dump_operand);
 
-	    /* Check if debug output enabled */
-	    if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_EXEC, _COMPONENT)) {
+	/* Check if debug output enabled */
+
+	if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_EXEC, _COMPONENT)) {
 		return;
 	}
 
@@ -644,10 +618,12 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	/* obj_desc is a valid object */
 
 	if (depth > 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%*s[%u] %p ",
-				  depth, " ", depth, obj_desc));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%*s[%u] %p Refs=%u ",
+				  depth, " ", depth, obj_desc,
+				  obj_desc->common.reference_count));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%p ", obj_desc));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%p Refs=%u ",
+				  obj_desc, obj_desc->common.reference_count));
 	}
 
 	/* Decode object type */
@@ -689,8 +665,11 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		case ACPI_REFCLASS_NAME:
 
-			acpi_os_printf("- [%4.4s]\n",
-				       obj_desc->reference.node->name.ascii);
+			acpi_ut_repair_name(obj_desc->reference.node->name.
+					    ascii);
+			acpi_os_printf("- [%4.4s] (Node %p)\n",
+				       obj_desc->reference.node->name.ascii,
+				       obj_desc->reference.node);
 			break;
 
 		case ACPI_REFCLASS_ARG:
@@ -892,7 +871,7 @@ void
 acpi_ex_dump_operands(union acpi_operand_object **operands,
 		      const char *opcode_name, u32 num_operands)
 {
-	ACPI_FUNCTION_NAME(ex_dump_operands);
+	ACPI_FUNCTION_TRACE(ex_dump_operands);
 
 	if (!opcode_name) {
 		opcode_name = "UNKNOWN";
@@ -916,7 +895,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "**** End operand dump for [%s]\n", opcode_name));
-	return;
+	return_VOID;
 }
 
 /*******************************************************************************
@@ -932,12 +911,12 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
  *
  ******************************************************************************/
 
-static void acpi_ex_out_string(char *title, char *value)
+static void acpi_ex_out_string(const char *title, const char *value)
 {
 	acpi_os_printf("%20s : %s\n", title, value);
 }
 
-static void acpi_ex_out_pointer(char *title, void *value)
+static void acpi_ex_out_pointer(const char *title, const void *value)
 {
 	acpi_os_printf("%20s : %p\n", title, value);
 }
@@ -998,9 +977,15 @@ static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc)
 		status = acpi_ns_handle_to_pathname(obj_desc->reference.node,
 						    &ret_buf, TRUE);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf(" Could not convert name to pathname\n");
+			acpi_os_printf
+			    (" Could not convert name to pathname: %s\n",
+			     acpi_format_exception(status));
 		} else {
-			acpi_os_printf("%s\n", (char *)ret_buf.pointer);
+			acpi_os_printf("%s: %s\n",
+				       acpi_ut_get_type_name(obj_desc->
+							     reference.node->
+							     type),
+				       (char *)ret_buf.pointer);
 			ACPI_FREE(ret_buf.pointer);
 		}
 	} else if (obj_desc->reference.object) {
@@ -1110,15 +1095,16 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		acpi_os_printf("[Object Reference] Type [%s] %2.2X",
-			       acpi_ut_get_reference_name(obj_desc),
-			       obj_desc->reference.class);
+		acpi_os_printf("[Object Reference] Class [%s]",
+			       acpi_ut_get_reference_name(obj_desc));
 		acpi_ex_dump_reference_obj(obj_desc);
 		break;
 
 	default:
 
-		acpi_os_printf("[Unknown Type] %X\n", obj_desc->common.type);
+		acpi_os_printf("[%s] Type: %2.2X\n",
+			       acpi_ut_get_type_name(obj_desc->common.type),
+			       obj_desc->common.type);
 		break;
 	}
 }
@@ -1156,11 +1142,17 @@ acpi_ex_dump_object_descriptor(union acpi_operand_object *obj_desc, u32 flags)
 		acpi_ex_dump_namespace_node((struct acpi_namespace_node *)
 					    obj_desc, flags);
 
-		acpi_os_printf("\nAttached Object (%p):\n",
-			       ((struct acpi_namespace_node *)obj_desc)->
-			       object);
-
 		obj_desc = ((struct acpi_namespace_node *)obj_desc)->object;
+		if (!obj_desc) {
+			return_VOID;
+		}
+
+		acpi_os_printf("\nAttached Object %p", obj_desc);
+		if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) == ACPI_DESC_TYPE_NAMED) {
+			acpi_os_printf(" - Namespace Node");
+		}
+
+		acpi_os_printf(":\n");
 		goto dump_object;
 	}
 
@@ -1179,6 +1171,10 @@ acpi_ex_dump_object_descriptor(union acpi_operand_object *obj_desc, u32 flags)
 	}
 
 dump_object:
+
+	if (!obj_desc) {
+		return_VOID;
+	}
 
 	/* Common Fields */
 

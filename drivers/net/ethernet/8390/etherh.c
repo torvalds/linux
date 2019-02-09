@@ -64,8 +64,6 @@ static char version[] =
 
 #include "lib8390.c"
 
-static u32 etherh_msg_enable;
-
 struct etherh_priv {
 	void __iomem	*ioc_fast;
 	void __iomem	*memc;
@@ -502,18 +500,6 @@ etherh_close(struct net_device *dev)
 }
 
 /*
- * Initialisation
- */
-
-static void __init etherh_banner(void)
-{
-	static int version_printed;
-
-	if ((etherh_msg_enable & NETIF_MSG_DRV) && (version_printed++ == 0))
-		pr_info("%s", version);
-}
-
-/*
  * Read the ethernet address string from the on board rom.
  * This is an ascii string...
  */
@@ -654,7 +640,6 @@ static const struct net_device_ops etherh_netdev_ops = {
 	.ndo_set_rx_mode	= __ei_set_multicast_list,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= __ei_poll,
 #endif
@@ -671,8 +656,6 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	struct net_device *dev;
 	struct etherh_priv *eh;
 	int ret;
-
-	etherh_banner();
 
 	ret = ecard_request_resources(ec);
 	if (ret)
@@ -758,7 +741,6 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	ei_local->block_output  = etherh_block_output;
 	ei_local->get_8390_hdr  = etherh_get_header;
 	ei_local->interface_num = 0;
-	ei_local->msg_enable = etherh_msg_enable;
 
 	etherh_reset(dev);
 	__NS8390_init(dev, 0);

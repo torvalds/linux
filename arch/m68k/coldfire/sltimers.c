@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /***************************************************************************/
 
 /*
@@ -97,7 +98,7 @@ static struct irqaction mcfslt_timer_irq = {
 	.handler = mcfslt_tick,
 };
 
-static cycle_t mcfslt_read_clk(struct clocksource *cs)
+static u64 mcfslt_read_clk(struct clocksource *cs)
 {
 	unsigned long flags;
 	u32 cycles, scnt;

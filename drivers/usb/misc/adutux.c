@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * adutux - driver for ADU devices from Ontrak Control Systems
  * This is an experimental driver. Use at your own risk.
  * This driver is not supported by Ontrak Control Systems.
  *
  * Copyright (c) 2003 John Homppi (SCO, leave this notice here)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  *
  * derived from the Lego USB Tower driver 0.56:
  * Copyright (c) 2003 David Glance <davidgsf@sourceforge.net>
@@ -21,6 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -28,8 +25,6 @@
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
 
-/* Version Information */
-#define DRIVER_VERSION "v0.0.13"
 #define DRIVER_AUTHOR "John Homppi"
 #define DRIVER_DESC "adutux (see www.ontrak.net)"
 
@@ -59,7 +54,7 @@ MODULE_DEVICE_TABLE(usb, device_table);
 /* we can have up to this number of device plugged in at once */
 #define MAX_DEVICES	16
 
-#define COMMAND_TIMEOUT	(2*HZ)	/* 60 second timeout for a command */
+#define COMMAND_TIMEOUT	(2*HZ)
 
 /*
  * The locking scheme is a vanilla 3-lock:
@@ -137,6 +132,8 @@ static void adu_abort_transfers(struct adu_device *dev)
 	spin_lock_irqsave(&dev->buflock, flags);
 	if (!dev->out_urb_finished) {
 		spin_unlock_irqrestore(&dev->buflock, flags);
+		wait_event_timeout(dev->write_wait, dev->out_urb_finished,
+			COMMAND_TIMEOUT);
 		usb_kill_urb(dev->interrupt_out_urb);
 	} else
 		spin_unlock_irqrestore(&dev->buflock, flags);
@@ -158,11 +155,12 @@ static void adu_interrupt_in_callback(struct urb *urb)
 {
 	struct adu_device *dev = urb->context;
 	int status = urb->status;
+	unsigned long flags;
 
 	adu_debug_data(&dev->udev->dev, __func__,
 		       urb->actual_length, urb->transfer_buffer);
 
-	spin_lock(&dev->buflock);
+	spin_lock_irqsave(&dev->buflock, flags);
 
 	if (status != 0) {
 		if ((status != -ENOENT) && (status != -ECONNRESET) &&
@@ -193,7 +191,7 @@ static void adu_interrupt_in_callback(struct urb *urb)
 
 exit:
 	dev->read_urb_finished = 1;
-	spin_unlock(&dev->buflock);
+	spin_unlock_irqrestore(&dev->buflock, flags);
 	/* always wake up so we recover from errors */
 	wake_up_interruptible(&dev->read_wait);
 }
@@ -202,6 +200,7 @@ static void adu_interrupt_out_callback(struct urb *urb)
 {
 	struct adu_device *dev = urb->context;
 	int status = urb->status;
+	unsigned long flags;
 
 	adu_debug_data(&dev->udev->dev, __func__,
 		       urb->actual_length, urb->transfer_buffer);
@@ -216,10 +215,10 @@ static void adu_interrupt_out_callback(struct urb *urb)
 		return;
 	}
 
-	spin_lock(&dev->buflock);
+	spin_lock_irqsave(&dev->buflock, flags);
 	dev->out_urb_finished = 1;
 	wake_up(&dev->write_wait);
-	spin_unlock(&dev->buflock);
+	spin_unlock_irqrestore(&dev->buflock, flags);
 }
 
 static int adu_open(struct inode *inode, struct file *file)
@@ -389,10 +388,6 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 			dev->secondary_head += (amount - i);
 			bytes_read += (amount - i);
 			bytes_to_read -= (amount - i);
-			if (i) {
-				retval = bytes_read ? bytes_read : -EFAULT;
-				goto exit;
-			}
 		} else {
 			/* we check the primary buffer */
 			spin_lock_irqsave (&dev->buflock, flags);
@@ -567,20 +562,20 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 			}
 
 			dev_dbg(&dev->udev->dev,
-				"%s : in progress, count = %Zd\n",
+				"%s : in progress, count = %zd\n",
 				__func__, count);
 		} else {
 			spin_unlock_irqrestore(&dev->buflock, flags);
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&dev->write_wait, &waita);
-			dev_dbg(&dev->udev->dev, "%s : sending, count = %Zd\n",
+			dev_dbg(&dev->udev->dev, "%s : sending, count = %zd\n",
 				__func__, count);
 
 			/* write the data into interrupt_out_buffer from userspace */
 			buffer_size = usb_endpoint_maxp(dev->interrupt_out_endpoint);
 			bytes_to_write = count > buffer_size ? buffer_size : count;
 			dev_dbg(&dev->udev->dev,
-				"%s : buffer_size = %Zd, count = %Zd, bytes_to_write = %Zd\n",
+				"%s : buffer_size = %zd, count = %zd, bytes_to_write = %zd\n",
 				__func__, buffer_size, count, bytes_to_write);
 
 			if (copy_from_user(dev->interrupt_out_buffer, buffer, bytes_to_write) != 0) {
@@ -658,25 +653,15 @@ static int adu_probe(struct usb_interface *interface,
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct adu_device *dev = NULL;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	int retval = -ENODEV;
+	int retval = -ENOMEM;
 	int in_end_size;
 	int out_end_size;
-	int i;
-
-	if (udev == NULL) {
-		dev_err(&interface->dev, "udev is NULL.\n");
-		goto exit;
-	}
+	int res;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct adu_device), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
-		retval = -ENOMEM;
-		goto exit;
-	}
+	if (!dev)
+		return -ENOMEM;
 
 	mutex_init(&dev->mtx);
 	spin_lock_init(&dev->buflock);
@@ -684,24 +669,13 @@ static int adu_probe(struct usb_interface *interface,
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
 
-	iface_desc = &interface->altsetting[0];
-
-	/* set up the endpoint information */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_int_in(endpoint))
-			dev->interrupt_in_endpoint = endpoint;
-
-		if (usb_endpoint_is_int_out(endpoint))
-			dev->interrupt_out_endpoint = endpoint;
-	}
-	if (dev->interrupt_in_endpoint == NULL) {
-		dev_err(&interface->dev, "interrupt in endpoint not found\n");
-		goto error;
-	}
-	if (dev->interrupt_out_endpoint == NULL) {
-		dev_err(&interface->dev, "interrupt out endpoint not found\n");
+	res = usb_find_common_endpoints_reverse(&interface->altsetting[0],
+			NULL, NULL,
+			&dev->interrupt_in_endpoint,
+			&dev->interrupt_out_endpoint);
+	if (res) {
+		dev_err(&interface->dev, "interrupt endpoints not found\n");
+		retval = res;
 		goto error;
 	}
 
@@ -709,11 +683,8 @@ static int adu_probe(struct usb_interface *interface,
 	out_end_size = usb_endpoint_maxp(dev->interrupt_out_endpoint);
 
 	dev->read_buffer_primary = kmalloc((4 * in_end_size), GFP_KERNEL);
-	if (!dev->read_buffer_primary) {
-		dev_err(&interface->dev, "Couldn't allocate read_buffer_primary\n");
-		retval = -ENOMEM;
+	if (!dev->read_buffer_primary)
 		goto error;
-	}
 
 	/* debug code prime the buffer */
 	memset(dev->read_buffer_primary, 'a', in_end_size);
@@ -722,11 +693,8 @@ static int adu_probe(struct usb_interface *interface,
 	memset(dev->read_buffer_primary + (3 * in_end_size), 'd', in_end_size);
 
 	dev->read_buffer_secondary = kmalloc((4 * in_end_size), GFP_KERNEL);
-	if (!dev->read_buffer_secondary) {
-		dev_err(&interface->dev, "Couldn't allocate read_buffer_secondary\n");
-		retval = -ENOMEM;
+	if (!dev->read_buffer_secondary)
 		goto error;
-	}
 
 	/* debug code prime the buffer */
 	memset(dev->read_buffer_secondary, 'e', in_end_size);
@@ -735,33 +703,26 @@ static int adu_probe(struct usb_interface *interface,
 	memset(dev->read_buffer_secondary + (3 * in_end_size), 'h', in_end_size);
 
 	dev->interrupt_in_buffer = kmalloc(in_end_size, GFP_KERNEL);
-	if (!dev->interrupt_in_buffer) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_in_buffer\n");
+	if (!dev->interrupt_in_buffer)
 		goto error;
-	}
 
 	/* debug code prime the buffer */
 	memset(dev->interrupt_in_buffer, 'i', in_end_size);
 
 	dev->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->interrupt_in_urb) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_in_urb\n");
+	if (!dev->interrupt_in_urb)
 		goto error;
-	}
 	dev->interrupt_out_buffer = kmalloc(out_end_size, GFP_KERNEL);
-	if (!dev->interrupt_out_buffer) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_out_buffer\n");
+	if (!dev->interrupt_out_buffer)
 		goto error;
-	}
 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->interrupt_out_urb) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_out_urb\n");
+	if (!dev->interrupt_out_urb)
 		goto error;
-	}
 
 	if (!usb_string(udev, udev->descriptor.iSerialNumber, dev->serial_number,
 			sizeof(dev->serial_number))) {
 		dev_err(&interface->dev, "Could not retrieve serial number\n");
+		retval = -EIO;
 		goto error;
 	}
 	dev_dbg(&interface->dev,"serial_number=%s", dev->serial_number);
@@ -784,8 +745,8 @@ static int adu_probe(struct usb_interface *interface,
 	dev_info(&interface->dev, "ADU%d %s now attached to /dev/usb/adutux%d\n",
 		 le16_to_cpu(udev->descriptor.idProduct), dev->serial_number,
 		 (dev->minor - ADU_MINOR_BASE));
-exit:
-	return retval;
+
+	return 0;
 
 error:
 	adu_delete(dev);
@@ -800,13 +761,11 @@ error:
 static void adu_disconnect(struct usb_interface *interface)
 {
 	struct adu_device *dev;
-	int minor;
 
 	dev = usb_get_intfdata(interface);
 
 	mutex_lock(&dev->mtx);	/* not interruptible */
 	dev->udev = NULL;	/* poison */
-	minor = dev->minor;
 	usb_deregister_dev(interface, &adu_class);
 	mutex_unlock(&dev->mtx);
 

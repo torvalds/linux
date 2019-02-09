@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/include/linux/lockd/lockd.h
  *
@@ -16,6 +17,7 @@
 #include <net/ipv6.h>
 #include <linux/fs.h>
 #include <linux/kref.h>
+#include <linux/refcount.h>
 #include <linux/utsname.h>
 #include <linux/lockd/bind.h>
 #include <linux/lockd/xdr.h>
@@ -57,7 +59,7 @@ struct nlm_host {
 	u32			h_state;	/* pseudo-state counter */
 	u32			h_nsmstate;	/* true remote NSM state */
 	u32			h_pidcount;	/* Pseudopids */
-	atomic_t		h_count;	/* reference count */
+	refcount_t		h_count;	/* reference count */
 	struct mutex		h_mutex;	/* mutex for pmap binding */
 	unsigned long		h_nextrebind;	/* next portmap call */
 	unsigned long		h_expires;	/* eligible for GC */
@@ -69,6 +71,7 @@ struct nlm_host {
 	char			*h_addrbuf;	/* address eyecatcher */
 	struct net		*net;		/* host net */
 	char			nodename[UNX_MAXNODENAME + 1];
+	const struct nlmclnt_operations	*h_nlmclnt_ops;	/* Callback ops for NLM users */
 };
 
 /*
@@ -81,7 +84,7 @@ struct nlm_host {
 
 struct nsm_handle {
 	struct list_head	sm_link;
-	atomic_t		sm_count;
+	refcount_t		sm_count;
 	char			*sm_mon_name;
 	char			*sm_name;
 	struct sockaddr_storage	sm_addr;
@@ -120,7 +123,7 @@ static inline struct sockaddr *nlm_srcaddr(const struct nlm_host *host)
  */
 struct nlm_lockowner {
 	struct list_head list;
-	atomic_t count;
+	refcount_t count;
 
 	struct nlm_host *host;
 	fl_owner_t owner;
@@ -134,7 +137,7 @@ struct nlm_wait;
  */
 #define NLMCLNT_OHSIZE		((__NEW_UTS_LEN) + 10u)
 struct nlm_rqst {
-	atomic_t		a_count;
+	refcount_t		a_count;
 	unsigned int		a_flags;	/* initial RPC task flags */
 	struct nlm_host *	a_host;		/* host handle */
 	struct nlm_args		a_args;		/* arguments */
@@ -142,6 +145,7 @@ struct nlm_rqst {
 	struct nlm_block *	a_block;
 	unsigned int		a_retries;	/* Retry count */
 	u8			a_owner[NLMCLNT_OHSIZE];
+	void *	a_callback_data; /* sent to nlmclnt_operations callbacks */
 };
 
 /*
@@ -190,9 +194,9 @@ struct nlm_block {
  * Global variables
  */
 extern const struct rpc_program	nlm_program;
-extern struct svc_procedure	nlmsvc_procedures[];
+extern const struct svc_procedure nlmsvc_procedures[];
 #ifdef CONFIG_LOCKD_V4
-extern struct svc_procedure	nlmsvc_procedures4[];
+extern const struct svc_procedure nlmsvc_procedures4[];
 #endif
 extern int			nlmsvc_grace_period;
 extern unsigned long		nlmsvc_timeout;
@@ -295,7 +299,7 @@ int           nlmsvc_unlock_all_by_ip(struct sockaddr *server_addr);
 
 static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 {
-	return file_inode(file->f_file);
+	return locks_inode(file->f_file);
 }
 
 static inline int __nlm_privileged_request4(const struct sockaddr *sap)
@@ -355,7 +359,8 @@ static inline int nlm_privileged_requester(const struct svc_rqst *rqstp)
 static inline int nlm_compare_locks(const struct file_lock *fl1,
 				    const struct file_lock *fl2)
 {
-	return	fl1->fl_pid   == fl2->fl_pid
+	return locks_inode(fl1->fl_file) == locks_inode(fl2->fl_file)
+	     && fl1->fl_pid   == fl2->fl_pid
 	     && fl1->fl_owner == fl2->fl_owner
 	     && fl1->fl_start == fl2->fl_start
 	     && fl1->fl_end   == fl2->fl_end

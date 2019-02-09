@@ -27,13 +27,13 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 
 #include "nouveau_bo.h"
 #include "nouveau_connector.h"
 #include "nouveau_display.h"
 #include "nvreg.h"
-
+#include "disp.h"
 
 struct nouveau_plane {
 	struct drm_plane base;
@@ -46,7 +46,6 @@ struct nouveau_plane {
 		struct drm_property *brightness;
 		struct drm_property *hue;
 		struct drm_property *saturation;
-		struct drm_property *iturbt_709;
 	} props;
 
 	int colorkey;
@@ -54,7 +53,7 @@ struct nouveau_plane {
 	int brightness;
 	int hue;
 	int saturation;
-	int iturbt_709;
+	enum drm_color_encoding color_encoding;
 
 	void (*set_params)(struct nouveau_plane *);
 };
@@ -63,6 +62,7 @@ static uint32_t formats[] = {
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV21,
 };
 
 /* Sine can be approximated with
@@ -90,14 +90,35 @@ cos_mul(int degrees, int factor)
 }
 
 static int
+verify_scaling(const struct drm_framebuffer *fb, uint8_t shift,
+               uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h,
+               uint32_t crtc_w, uint32_t crtc_h)
+{
+	if (crtc_w < (src_w >> shift) || crtc_h < (src_h >> shift)) {
+		DRM_DEBUG_KMS("Unsuitable framebuffer scaling: %dx%d -> %dx%d\n",
+			      src_w, src_h, crtc_w, crtc_h);
+		return -ERANGE;
+	}
+
+	if (src_x != 0 || src_y != 0) {
+		DRM_DEBUG_KMS("Unsuitable framebuffer offset: %d,%d\n",
+                              src_x, src_y);
+		return -ERANGE;
+	}
+
+	return 0;
+}
+
+static int
 nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		  unsigned int crtc_w, unsigned int crtc_h,
 		  uint32_t src_x, uint32_t src_y,
-		  uint32_t src_w, uint32_t src_h)
+		  uint32_t src_w, uint32_t src_h,
+		  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
-	struct nvif_object *dev = &drm->device.object;
+	struct nvif_object *dev = &drm->client.device.object;
 	struct nouveau_plane *nv_plane =
 		container_of(plane, struct nouveau_plane, base);
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
@@ -106,7 +127,9 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	bool flip = nv_plane->flip;
 	int soff = NV_PCRTC0_SIZE * nv_crtc->index;
 	int soff2 = NV_PCRTC0_SIZE * !nv_crtc->index;
-	int format, ret;
+	unsigned shift = drm->client.device.info.chipset >= 0x30 ? 1 : 3;
+	unsigned format = 0;
+	int ret;
 
 	/* Source parameters given in 16.16 fixed point, ignore fractional. */
 	src_x >>= 16;
@@ -114,18 +137,9 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	src_w >>= 16;
 	src_h >>= 16;
 
-	format = ALIGN(src_w * 4, 0x100);
-
-	if (format > 0xffff)
-		return -ERANGE;
-
-	if (drm->device.info.chipset >= 0x30) {
-		if (crtc_w < (src_w >> 1) || crtc_h < (src_h >> 1))
-			return -ERANGE;
-	} else {
-		if (crtc_w < (src_w >> 3) || crtc_h < (src_h >> 3))
-			return -ERANGE;
-	}
+	ret = verify_scaling(fb, shift, 0, 0, src_w, src_h, crtc_w, crtc_h);
+	if (ret)
+		return ret;
 
 	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret)
@@ -145,21 +159,23 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	nvif_wr32(dev, NV_PVIDEO_POINT_OUT(flip), crtc_y << 16 | crtc_x);
 	nvif_wr32(dev, NV_PVIDEO_SIZE_OUT(flip), crtc_h << 16 | crtc_w);
 
-	if (fb->pixel_format != DRM_FORMAT_UYVY)
+	if (fb->format->format == DRM_FORMAT_YUYV ||
+	    fb->format->format == DRM_FORMAT_NV12)
 		format |= NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8;
-	if (fb->pixel_format == DRM_FORMAT_NV12)
+	if (fb->format->format == DRM_FORMAT_NV12 ||
+	    fb->format->format == DRM_FORMAT_NV21)
 		format |= NV_PVIDEO_FORMAT_PLANAR;
-	if (nv_plane->iturbt_709)
+	if (nv_plane->color_encoding == DRM_COLOR_YCBCR_BT709)
 		format |= NV_PVIDEO_FORMAT_MATRIX_ITURBT709;
 	if (nv_plane->colorkey & (1 << 24))
 		format |= NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY;
 
-	if (fb->pixel_format == DRM_FORMAT_NV12) {
+	if (format & NV_PVIDEO_FORMAT_PLANAR) {
 		nvif_wr32(dev, NV_PVIDEO_UVPLANE_BASE(flip), 0);
 		nvif_wr32(dev, NV_PVIDEO_UVPLANE_OFFSET_BUFF(flip),
 			nv_fb->nvbo->bo.offset + fb->offsets[1]);
 	}
-	nvif_wr32(dev, NV_PVIDEO_FORMAT(flip), format);
+	nvif_wr32(dev, NV_PVIDEO_FORMAT(flip), format | fb->pitches[0]);
 	nvif_wr32(dev, NV_PVIDEO_STOP, 0);
 	/* TODO: wait for vblank? */
 	nvif_wr32(dev, NV_PVIDEO_BUFFER, flip ? 0x10 : 0x1);
@@ -172,9 +188,10 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 }
 
 static int
-nv10_disable_plane(struct drm_plane *plane)
+nv10_disable_plane(struct drm_plane *plane,
+		   struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->dev)->device.object;
+	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
 	struct nouveau_plane *nv_plane =
 		container_of(plane, struct nouveau_plane, base);
 
@@ -190,7 +207,7 @@ nv10_disable_plane(struct drm_plane *plane)
 static void
 nv_destroy_plane(struct drm_plane *plane)
 {
-	plane->funcs->disable_plane(plane);
+	drm_plane_force_disable(plane);
 	drm_plane_cleanup(plane);
 	kfree(plane);
 }
@@ -198,7 +215,7 @@ nv_destroy_plane(struct drm_plane *plane)
 static void
 nv10_set_params(struct nouveau_plane *plane)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->base.dev)->device.object;
+	struct nvif_object *dev = &nouveau_drm(plane->base.dev)->client.device.object;
 	u32 luma = (plane->brightness - 512) << 16 | plane->contrast;
 	u32 chroma = ((sin_mul(plane->hue, plane->saturation) & 0xffff) << 16) |
 		(cos_mul(plane->hue, plane->saturation) & 0xffff);
@@ -211,7 +228,7 @@ nv10_set_params(struct nouveau_plane *plane)
 	nvif_wr32(dev, NV_PVIDEO_COLOR_KEY, plane->colorkey & 0xffffff);
 
 	if (plane->cur) {
-		if (plane->iturbt_709)
+		if (plane->color_encoding == DRM_COLOR_YCBCR_BT709)
 			format |= NV_PVIDEO_FORMAT_MATRIX_ITURBT709;
 		if (plane->colorkey & (1 << 24))
 			format |= NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY;
@@ -240,8 +257,8 @@ nv_set_property(struct drm_plane *plane,
 		nv_plane->hue = value;
 	else if (property == nv_plane->props.saturation)
 		nv_plane->saturation = value;
-	else if (property == nv_plane->props.iturbt_709)
-		nv_plane->iturbt_709 = value;
+	else if (property == nv_plane->base.color_encoding_property)
+		nv_plane->color_encoding = value;
 	else
 		return -EINVAL;
 
@@ -268,7 +285,7 @@ nv10_overlay_init(struct drm_device *device)
 	if (!plane)
 		return;
 
-	switch (drm->device.info.chipset) {
+	switch (drm->client.device.info.chipset) {
 	case 0x10:
 	case 0x11:
 	case 0x15:
@@ -295,14 +312,11 @@ nv10_overlay_init(struct drm_device *device)
 			device, 0, "hue", 0, 359);
 	plane->props.saturation = drm_property_create_range(
 			device, 0, "saturation", 0, 8192 - 1);
-	plane->props.iturbt_709 = drm_property_create_range(
-			device, 0, "iturbt_709", 0, 1);
 	if (!plane->props.colorkey ||
 	    !plane->props.contrast ||
 	    !plane->props.brightness ||
 	    !plane->props.hue ||
-	    !plane->props.saturation ||
-	    !plane->props.iturbt_709)
+	    !plane->props.saturation)
 		goto cleanup;
 
 	plane->colorkey = 0;
@@ -325,13 +339,17 @@ nv10_overlay_init(struct drm_device *device)
 	drm_object_attach_property(&plane->base.base,
 				   plane->props.saturation, plane->saturation);
 
-	plane->iturbt_709 = 0;
-	drm_object_attach_property(&plane->base.base,
-				   plane->props.iturbt_709, plane->iturbt_709);
+	plane->color_encoding = DRM_COLOR_YCBCR_BT601;
+	drm_plane_create_color_properties(&plane->base,
+					  BIT(DRM_COLOR_YCBCR_BT601) |
+					  BIT(DRM_COLOR_YCBCR_BT709),
+					  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE),
+					  DRM_COLOR_YCBCR_BT601,
+					  DRM_COLOR_YCBCR_LIMITED_RANGE);
 
 	plane->set_params = nv10_set_params;
 	nv10_set_params(plane);
-	nv10_disable_plane(&plane->base);
+	drm_plane_force_disable(&plane->base);
 	return;
 cleanup:
 	drm_plane_cleanup(&plane->base);
@@ -345,16 +363,17 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		  unsigned int crtc_w, unsigned int crtc_h,
 		  uint32_t src_x, uint32_t src_y,
-		  uint32_t src_w, uint32_t src_h)
+		  uint32_t src_w, uint32_t src_h,
+		  struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->dev)->device.object;
+	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
 	struct nouveau_plane *nv_plane =
 		container_of(plane, struct nouveau_plane, base);
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nouveau_bo *cur = nv_plane->cur;
 	uint32_t overlay = 1;
 	int brightness = (nv_plane->brightness - 512) * 62 / 512;
-	int pitch, ret, i;
+	int ret, i;
 
 	/* Source parameters given in 16.16 fixed point, ignore fractional. */
 	src_x >>= 16;
@@ -362,17 +381,9 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	src_w >>= 16;
 	src_h >>= 16;
 
-	pitch = ALIGN(src_w * 4, 0x100);
-
-	if (pitch > 0xffff)
-		return -ERANGE;
-
-	/* TODO: Compute an offset? Not sure how to do this for YUYV. */
-	if (src_x != 0 || src_y != 0)
-		return -ERANGE;
-
-	if (crtc_w < src_w || crtc_h < src_h)
-		return -ERANGE;
+	ret = verify_scaling(fb, 0, src_x, src_y, src_w, src_h, crtc_w, crtc_h);
+	if (ret)
+		return ret;
 
 	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret)
@@ -386,8 +397,9 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	for (i = 0; i < 2; i++) {
 		nvif_wr32(dev, NV_PVIDEO_BUFF0_START_ADDRESS + 4 * i,
-			nv_fb->nvbo->bo.offset);
-		nvif_wr32(dev, NV_PVIDEO_BUFF0_PITCH_LENGTH + 4 * i, pitch);
+			  nv_fb->nvbo->bo.offset);
+		nvif_wr32(dev, NV_PVIDEO_BUFF0_PITCH_LENGTH + 4 * i,
+			  fb->pitches[0]);
 		nvif_wr32(dev, NV_PVIDEO_BUFF0_OFFSET + 4 * i, 0);
 	}
 	nvif_wr32(dev, NV_PVIDEO_WINDOW_START, crtc_y << 16 | crtc_x);
@@ -411,7 +423,7 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (nv_plane->colorkey & (1 << 24))
 		overlay |= 0x10;
-	if (fb->pixel_format == DRM_FORMAT_YUYV)
+	if (fb->format->format == DRM_FORMAT_YUYV)
 		overlay |= 0x100;
 
 	nvif_wr32(dev, NV_PVIDEO_OVERLAY, overlay);
@@ -425,9 +437,10 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 }
 
 static int
-nv04_disable_plane(struct drm_plane *plane)
+nv04_disable_plane(struct drm_plane *plane,
+		   struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->dev)->device.object;
+	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
 	struct nouveau_plane *nv_plane =
 		container_of(plane, struct nouveau_plane, base);
 
@@ -483,7 +496,7 @@ nv04_overlay_init(struct drm_device *device)
 	drm_object_attach_property(&plane->base.base,
 				   plane->props.brightness, plane->brightness);
 
-	nv04_disable_plane(&plane->base);
+	drm_plane_force_disable(&plane->base);
 	return;
 cleanup:
 	drm_plane_cleanup(&plane->base);
@@ -495,7 +508,7 @@ err:
 void
 nouveau_overlay_init(struct drm_device *device)
 {
-	struct nvif_device *dev = &nouveau_drm(device)->device;
+	struct nvif_device *dev = &nouveau_drm(device)->client.device;
 	if (dev->info.chipset < 0x10)
 		nv04_overlay_init(device);
 	else if (dev->info.chipset <= 0x40)

@@ -1,7 +1,6 @@
-#include "skeleton.dtsi"
-
+// SPDX-License-Identifier: GPL-2.0
 / {
-	nvic: nv-interrupt-controller  {
+	nvic: interrupt-controller@e000e100  {
 		compatible = "arm,armv7m-nvic";
 		interrupt-controller;
 		#interrupt-cells = <1>;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the NXP ISP1761 device controller
  *
@@ -5,10 +6,6 @@
  *
  * Contacts:
  *	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/interrupt.h>
@@ -1250,7 +1247,7 @@ static int isp1760_udc_stop(struct usb_gadget *gadget)
 	return 0;
 }
 
-static struct usb_gadget_ops isp1760_udc_ops = {
+static const struct usb_gadget_ops isp1760_udc_ops = {
 	.get_frame = isp1760_udc_get_frame,
 	.wakeup = isp1760_udc_wakeup,
 	.set_selfpowered = isp1760_udc_set_selfpowered,
@@ -1331,9 +1328,9 @@ static irqreturn_t isp1760_udc_irq(int irq, void *dev)
 	return status ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static void isp1760_udc_vbus_poll(unsigned long data)
+static void isp1760_udc_vbus_poll(struct timer_list *t)
 {
-	struct isp1760_udc *udc = (struct isp1760_udc *)data;
+	struct isp1760_udc *udc = from_timer(udc, t, vbus_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&udc->lock, flags);
@@ -1444,7 +1441,6 @@ int isp1760_udc_register(struct isp1760_device *isp, int irq,
 			 unsigned long irqflags)
 {
 	struct isp1760_udc *udc = &isp->udc;
-	const char *devname;
 	int ret;
 
 	udc->irq = -1;
@@ -1452,19 +1448,15 @@ int isp1760_udc_register(struct isp1760_device *isp, int irq,
 	udc->regs = isp->regs;
 
 	spin_lock_init(&udc->lock);
-	setup_timer(&udc->vbus_timer, isp1760_udc_vbus_poll,
-		    (unsigned long)udc);
+	timer_setup(&udc->vbus_timer, isp1760_udc_vbus_poll, 0);
 
 	ret = isp1760_udc_init(udc);
 	if (ret < 0)
 		return ret;
 
-	devname = dev_name(isp->dev);
-	udc->irqname = kmalloc(strlen(devname) + 7, GFP_KERNEL);
+	udc->irqname = kasprintf(GFP_KERNEL, "%s (udc)", dev_name(isp->dev));
 	if (!udc->irqname)
 		return -ENOMEM;
-
-	sprintf(udc->irqname, "%s (udc)", devname);
 
 	ret = request_irq(irq, isp1760_udc_irq, IRQF_SHARED | irqflags,
 			  udc->irqname, udc);

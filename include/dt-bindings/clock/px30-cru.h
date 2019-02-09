@@ -1,17 +1,4 @@
-/*
- * Copyright (c) 2017 Rockchip Electronics Co. Ltd.
- * Author: Elaine <zhangqing@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef _DT_BINDINGS_CLK_ROCKCHIP_PX30_H
 #define _DT_BINDINGS_CLK_ROCKCHIP_PX30_H
@@ -98,10 +85,6 @@
 #define SCLK_EMMC_DIV50		83
 #define SCLK_DDRCLK		84
 #define SCLK_UART1_SRC		85
-#define SCLK_SDMMC_DIV		86
-#define SCLK_SDMMC_DIV50	87
-#define SCLK_I2S0_TX_MUX	88
-#define SCLK_I2S0_RX_MUX	89
 
 /* dclk gates */
 #define DCLK_VOPB		150

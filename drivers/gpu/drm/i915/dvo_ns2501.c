@@ -191,8 +191,8 @@ enum {
 };
 
 struct ns2501_reg {
-	 uint8_t offset;
-	 uint8_t value;
+	u8 offset;
+	u8 value;
 };
 
 /*
@@ -202,23 +202,23 @@ struct ns2501_reg {
  * read all this with a grain of salt.
  */
 struct ns2501_configuration {
-	uint8_t sync;		/* configuration of the C0 register */
-	uint8_t conf;		/* configuration register 8 */
-	uint8_t syncb;		/* configuration register 41 */
-	uint8_t	dither;		/* configuration of the dithering */
-	uint8_t pll_a;		/* PLL configuration, register A, 1B */
-	uint16_t pll_b;		/* PLL configuration, register B, 1C/1D */
-	uint16_t hstart;	/* horizontal start, registers C1/C2 */
-	uint16_t hstop;		/* horizontal total, registers C3/C4 */
-	uint16_t vstart;	/* vertical start, registers C5/C6 */
-	uint16_t vstop;		/* vertical total, registers C7/C8 */
-	uint16_t vsync;         /* manual vertical sync start, 80/81 */
-	uint16_t vtotal;        /* number of lines generated, 82/83 */
-	uint16_t hpos;		/* horizontal position + 256, 98/99  */
-	uint16_t vpos;		/* vertical position, 8e/8f */
-	uint16_t voffs;		/* vertical output offset, 9c/9d */
-	uint16_t hscale;	/* horizontal scaling factor, b8/b9 */
-	uint16_t vscale;	/* vertical scaling factor, 10/11 */
+	u8 sync;		/* configuration of the C0 register */
+	u8 conf;		/* configuration register 8 */
+	u8 syncb;		/* configuration register 41 */
+	u8 dither;		/* configuration of the dithering */
+	u8 pll_a;		/* PLL configuration, register A, 1B */
+	u16 pll_b;		/* PLL configuration, register B, 1C/1D */
+	u16 hstart;		/* horizontal start, registers C1/C2 */
+	u16 hstop;		/* horizontal total, registers C3/C4 */
+	u16 vstart;		/* vertical start, registers C5/C6 */
+	u16 vstop;		/* vertical total, registers C7/C8 */
+	u16 vsync;		/* manual vertical sync start, 80/81 */
+	u16 vtotal;		/* number of lines generated, 82/83 */
+	u16 hpos;		/* horizontal position + 256, 98/99  */
+	u16 vpos;		/* vertical position, 8e/8f */
+	u16 voffs;		/* vertical output offset, 9c/9d */
+	u16 hscale;		/* horizontal scaling factor, b8/b9 */
+	u16 vscale;		/* vertical scaling factor, 10/11 */
 };
 
 /*
@@ -389,7 +389,7 @@ struct ns2501_priv {
 ** If it returns false, it might be wise to enable the
 ** DVO with the above function.
 */
-static bool ns2501_readb(struct intel_dvo_device *dvo, int addr, uint8_t * ch)
+static bool ns2501_readb(struct intel_dvo_device *dvo, int addr, u8 *ch)
 {
 	struct ns2501_priv *ns = dvo->dev_priv;
 	struct i2c_adapter *adapter = dvo->i2c_bus;
@@ -434,11 +434,11 @@ static bool ns2501_readb(struct intel_dvo_device *dvo, int addr, uint8_t * ch)
 ** If it returns false, it might be wise to enable the
 ** DVO with the above function.
 */
-static bool ns2501_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
+static bool ns2501_writeb(struct intel_dvo_device *dvo, int addr, u8 ch)
 {
 	struct ns2501_priv *ns = dvo->dev_priv;
 	struct i2c_adapter *adapter = dvo->i2c_bus;
-	uint8_t out_buf[2];
+	u8 out_buf[2];
 
 	struct i2c_msg msg = {
 		.addr = dvo->slave_addr,
@@ -698,7 +698,7 @@ static void ns2501_destroy(struct intel_dvo_device *dvo)
 	}
 }
 
-struct intel_dvo_dev_ops ns2501_ops = {
+const struct intel_dvo_dev_ops ns2501_ops = {
 	.init = ns2501_init,
 	.detect = ns2501_detect,
 	.mode_valid = ns2501_mode_valid,

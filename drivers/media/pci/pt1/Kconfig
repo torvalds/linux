@@ -1,6 +1,9 @@
 config DVB_PT1
 	tristate "PT1 cards"
 	depends on DVB_CORE && PCI && I2C
+	select DVB_TC90522 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_QM1D1B0004 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for Earthsoft PT1 PCI cards.
 

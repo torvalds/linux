@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/err.h>
@@ -46,12 +33,7 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 		!= btrfs_root_generation_v2(item)) {
 		if (btrfs_root_generation_v2(item) != 0) {
 			btrfs_warn(eb->fs_info,
-					"mismatching "
-					"generation and generation_v2 "
-					"found in root item. This root "
-					"was probably mounted with an "
-					"older kernel. Resetting all "
-					"new fields.");
+					"mismatching generation and generation_v2 found in root item. This root was probably mounted with an older kernel. Resetting all new fields.");
 		}
 		need_reset = 1;
 	}
@@ -71,15 +53,15 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
  * search_key: the key to search
  * path: the path we search
  * root_item: the root item of the tree we look for
- * root_key: the reak key of the tree we look for
+ * root_key: the root key of the tree we look for
  *
- * If ->offset of 'seach_key' is -1ULL, it means we are not sure the offset
+ * If ->offset of 'search_key' is -1ULL, it means we are not sure the offset
  * of the search key, just lookup the root with the highest offset for a
  * given objectid.
  *
  * If we find something return 0, otherwise > 0, < 0 on error.
  */
-int btrfs_find_root(struct btrfs_root *root, struct btrfs_key *search_key,
+int btrfs_find_root(struct btrfs_root *root, const struct btrfs_key *search_key,
 		    struct btrfs_path *path, struct btrfs_root_item *root_item,
 		    struct btrfs_key *root_key)
 {
@@ -137,6 +119,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, struct btrfs_root_item
 		      *item)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
 	struct extent_buffer *l;
 	int ret;
@@ -150,14 +133,14 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	ret = btrfs_search_slot(trans, root, key, path, 0, 1);
 	if (ret < 0) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
 	if (ret != 0) {
-		btrfs_print_leaf(root, path->nodes[0]);
-		btrfs_crit(root->fs_info, "unable to update root key %llu %u %llu",
-		       key->objectid, key->type, key->offset);
+		btrfs_print_leaf(path->nodes[0]);
+		btrfs_crit(fs_info, "unable to update root key %llu %u %llu",
+			   key->objectid, key->type, key->offset);
 		BUG_ON(1);
 	}
 
@@ -176,20 +159,20 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		ret = btrfs_search_slot(trans, root, key, path,
 				-1, 1);
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
 		ret = btrfs_del_item(trans, root, path);
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 		btrfs_release_path(path);
 		ret = btrfs_insert_empty_item(trans, root, path,
 				key, sizeof(*item));
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 		l = path->nodes[0];
@@ -211,7 +194,7 @@ out:
 }
 
 int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		      struct btrfs_key *key, struct btrfs_root_item *item)
+		      const struct btrfs_key *key, struct btrfs_root_item *item)
 {
 	/*
 	 * Make sure generation v1 and v2 match. See update_root for details.
@@ -220,8 +203,9 @@ int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	return btrfs_insert_item(trans, root, key, item, sizeof(*item));
 }
 
-int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
+int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 {
+	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct extent_buffer *leaf;
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -229,10 +213,6 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 	struct btrfs_root *root;
 	int err = 0;
 	int ret;
-	bool can_recover = true;
-
-	if (tree_root->fs_info->sb->s_flags & MS_RDONLY)
-		can_recover = false;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -272,6 +252,22 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 		root_key.objectid = key.offset;
 		key.offset++;
 
+		/*
+		 * The root might have been inserted already, as before we look
+		 * for orphan roots, log replay might have happened, which
+		 * triggers a transaction commit and qgroup accounting, which
+		 * in turn reads and inserts fs roots while doing backref
+		 * walking.
+		 */
+		root = btrfs_lookup_fs_root(fs_info, root_key.objectid);
+		if (root) {
+			WARN_ON(!test_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED,
+					  &root->state));
+			if (btrfs_root_refs(&root->root_item) == 0)
+				btrfs_add_dead_root(root);
+			continue;
+		}
+
 		root = btrfs_read_fs_root(tree_root, &root_key);
 		err = PTR_ERR_OR_ZERO(root);
 		if (err && err != -ENOENT) {
@@ -284,18 +280,16 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 			trans = btrfs_join_transaction(tree_root);
 			if (IS_ERR(trans)) {
 				err = PTR_ERR(trans);
-				btrfs_std_error(tree_root->fs_info, err,
-					    "Failed to start trans to delete "
-					    "orphan item");
+				btrfs_handle_fs_error(fs_info, err,
+					    "Failed to start trans to delete orphan item");
 				break;
 			}
 			err = btrfs_del_orphan_item(trans, tree_root,
 						    root_key.objectid);
-			btrfs_end_transaction(trans, tree_root);
+			btrfs_end_transaction(trans);
 			if (err) {
-				btrfs_std_error(tree_root->fs_info, err,
-					    "Failed to delete root orphan "
-					    "item");
+				btrfs_handle_fs_error(fs_info, err,
+					    "Failed to delete root orphan item");
 				break;
 			}
 			continue;
@@ -309,7 +303,7 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 
 		set_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state);
 
-		err = btrfs_insert_fs_root(root->fs_info, root);
+		err = btrfs_insert_fs_root(fs_info, root);
 		if (err) {
 			BUG_ON(err == -EEXIST);
 			btrfs_free_fs_root(root);
@@ -324,10 +318,11 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 	return err;
 }
 
-/* drop the root item for 'key' from 'root' */
-int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		   struct btrfs_key *key)
+/* drop the root item for 'key' from the tree root */
+int btrfs_del_root(struct btrfs_trans_handle *trans,
+		   const struct btrfs_key *key)
 {
+	struct btrfs_root *root = trans->fs_info->tree_root;
 	struct btrfs_path *path;
 	int ret;
 
@@ -346,12 +341,12 @@ out:
 	return ret;
 }
 
-int btrfs_del_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *tree_root,
-		       u64 root_id, u64 ref_id, u64 dirid, u64 *sequence,
-		       const char *name, int name_len)
+int btrfs_del_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
+		       u64 ref_id, u64 dirid, u64 *sequence, const char *name,
+		       int name_len)
 
 {
+	struct btrfs_root *tree_root = trans->fs_info->tree_root;
 	struct btrfs_path *path;
 	struct btrfs_root_ref *ref;
 	struct extent_buffer *leaf;
@@ -417,11 +412,11 @@ out:
  *
  * Will return 0, -ENOMEM, or anything from the CoW path
  */
-int btrfs_add_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *tree_root,
-		       u64 root_id, u64 ref_id, u64 dirid, u64 sequence,
-		       const char *name, int name_len)
+int btrfs_add_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
+		       u64 ref_id, u64 dirid, u64 sequence, const char *name,
+		       int name_len)
 {
+	struct btrfs_root *tree_root = trans->fs_info->tree_root;
 	struct btrfs_key key;
 	int ret;
 	struct btrfs_path *path;
@@ -440,7 +435,7 @@ again:
 	ret = btrfs_insert_empty_item(trans, tree_root, path, &key,
 				      sizeof(*ref) + name_len);
 	if (ret) {
-		btrfs_abort_transaction(trans, tree_root, ret);
+		btrfs_abort_transaction(trans, ret);
 		btrfs_free_path(path);
 		return ret;
 	}
@@ -488,8 +483,9 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root)
 {
 	struct btrfs_root_item *item = &root->root_item;
-	struct timespec ct = CURRENT_TIME;
+	struct timespec64 ct;
 
+	ktime_get_real_ts64(&ct);
 	spin_lock(&root->root_item_lock);
 	btrfs_set_root_ctransid(item, trans->transid);
 	btrfs_set_stack_timespec_sec(&item->ctime, ct.tv_sec);

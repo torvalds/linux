@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Based upon linux/arch/m68k/mm/sun3mmu.c
  * Based upon linux/arch/ppc/mm/mmu_context.c
@@ -13,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
@@ -27,7 +29,7 @@ mm_context_t next_mmu_context;
 unsigned long context_map[LAST_CONTEXT / BITS_PER_LONG + 1];
 atomic_t nr_free_contexts;
 struct mm_struct *context_mm[LAST_CONTEXT+1];
-extern unsigned long num_pages;
+unsigned long num_pages;
 
 /*
  * ColdFire paging_init derived from sun3.
@@ -150,11 +152,40 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	return 0;
 }
 
+void __init cf_bootmem_alloc(void)
+{
+	unsigned long memstart;
+
+	/* _rambase and _ramend will be naturally page aligned */
+	m68k_memory[0].addr = _rambase;
+	m68k_memory[0].size = _ramend - _rambase;
+
+	memblock_add(m68k_memory[0].addr, m68k_memory[0].size);
+
+	/* compute total pages in system */
+	num_pages = PFN_DOWN(_ramend - _rambase);
+
+	/* page numbers */
+	memstart = PAGE_ALIGN(_ramstart);
+	min_low_pfn = PFN_DOWN(_rambase);
+	max_pfn = max_low_pfn = PFN_DOWN(_ramend);
+	high_memory = (void *)_ramend;
+
+	/* Reserve kernel text/data/bss */
+	memblock_reserve(_rambase, memstart - _rambase);
+
+	m68k_virt_to_node_shift = fls(_ramend - 1) - 6;
+	module_fixup(NULL, __start_fixup, __stop_fixup);
+
+	/* setup node data */
+	m68k_setup_node(0);
+}
+
 /*
  * Initialize the context management stuff.
  * The following was taken from arch/ppc/mmu_context.c
  */
-void __init mmu_context_init(void)
+void __init cf_mmu_context_init(void)
 {
 	/*
 	 * Some processors have too few contexts to reserve one for

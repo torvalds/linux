@@ -2,10 +2,14 @@ config VIRTIO
 	tristate
 	---help---
 	  This option is selected by any driver which implements the virtio
-	  bus, such as CONFIG_VIRTIO_PCI, CONFIG_VIRTIO_MMIO, CONFIG_LGUEST,
-	  CONFIG_RPMSG or CONFIG_S390_GUEST.
+	  bus, such as CONFIG_VIRTIO_PCI, CONFIG_VIRTIO_MMIO, CONFIG_RPMSG
+	  or CONFIG_S390_GUEST.
 
-menu "Virtio drivers"
+menuconfig VIRTIO_MENU
+	bool "Virtio drivers"
+	default y
+
+if VIRTIO_MENU
 
 config VIRTIO_PCI
 	tristate "PCI driver for virtio devices"
@@ -60,7 +64,7 @@ config VIRTIO_INPUT
 
  config VIRTIO_MMIO
 	tristate "Platform bus driver for memory mapped virtio devices"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && HAS_DMA
  	select VIRTIO
  	---help---
  	 This drivers provides support for memory mapped virtio
@@ -75,8 +79,8 @@ config VIRTIO_MMIO_CMDLINE_DEVICES
 	 Allow virtio-mmio devices instantiation via the kernel command line
 	 or module parameters. Be aware that using incorrect parameters (base
 	 address in particular) can crash your system - you have been warned.
-	 See Documentation/kernel-parameters.txt for details.
+	 See Documentation/admin-guide/kernel-parameters.rst for details.
 
 	 If unsure, say 'N'.
 
-endmenu
+endif # VIRTIO_MENU

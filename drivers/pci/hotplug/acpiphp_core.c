@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ACPI PCI Hot Plug Controller Driver
  *
@@ -11,21 +12,6 @@
  * Copyright (C) 2003-2005 Hewlett Packard
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <kristen.c.accardi@intel.com>
  *
@@ -63,13 +49,13 @@ MODULE_LICENSE("GPL");
 MODULE_PARM_DESC(disable, "disable acpiphp driver");
 module_param_named(disable, acpiphp_disabled, bool, 0444);
 
-static int enable_slot		(struct hotplug_slot *slot);
-static int disable_slot		(struct hotplug_slot *slot);
-static int set_attention_status (struct hotplug_slot *slot, u8 value);
-static int get_power_status	(struct hotplug_slot *slot, u8 *value);
-static int get_attention_status (struct hotplug_slot *slot, u8 *value);
-static int get_latch_status	(struct hotplug_slot *slot, u8 *value);
-static int get_adapter_status	(struct hotplug_slot *slot, u8 *value);
+static int enable_slot(struct hotplug_slot *slot);
+static int disable_slot(struct hotplug_slot *slot);
+static int set_attention_status(struct hotplug_slot *slot, u8 value);
+static int get_power_status(struct hotplug_slot *slot, u8 *value);
+static int get_attention_status(struct hotplug_slot *slot, u8 *value);
+static int get_latch_status(struct hotplug_slot *slot, u8 *value);
+static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
 
 static struct hotplug_slot_ops acpi_hotplug_slot_ops = {
 	.enable_slot		= enable_slot,
@@ -268,20 +254,6 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
-/**
- * release_slot - free up the memory used by a slot
- * @hotplug_slot: slot to free
- */
-static void release_slot(struct hotplug_slot *hotplug_slot)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
-
-	kfree(slot->hotplug_slot);
-	kfree(slot);
-}
-
 /* callback routine to initialize 'struct slot' for each slot */
 int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
 				  unsigned int sun)
@@ -301,7 +273,6 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
 	slot->hotplug_slot->info = &slot->info;
 
 	slot->hotplug_slot->private = slot;
-	slot->hotplug_slot->release = &release_slot;
 	slot->hotplug_slot->ops = &acpi_hotplug_slot_ops;
 
 	slot->acpi_slot = acpiphp_slot;
@@ -338,13 +309,12 @@ error:
 void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 {
 	struct slot *slot = acpiphp_slot->slot;
-	int retval = 0;
 
 	pr_info("Slot [%s] unregistered\n", slot_name(slot));
 
-	retval = pci_hp_deregister(slot->hotplug_slot);
-	if (retval)
-		pr_err("pci_hp_deregister failed with error %d\n", retval);
+	pci_hp_deregister(slot->hotplug_slot);
+	kfree(slot->hotplug_slot);
+	kfree(slot);
 }
 
 

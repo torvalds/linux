@@ -255,8 +255,8 @@ static void rs400_gpu_init(struct radeon_device *rdev)
 	/* FIXME: is this correct ? */
 	r420_pipes_init(rdev);
 	if (rs400_mc_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "rs400: Failed to wait MC idle while "
-		       "programming pipes. Bad things might happen. %08x\n", RREG32(RADEON_MC_STATUS));
+		pr_warn("rs400: Failed to wait MC idle while programming pipes. Bad things might happen. %08x\n",
+			RREG32(RADEON_MC_STATUS));
 	}
 }
 

@@ -720,26 +720,6 @@ EXPORT_SYMBOL(clk_get_parent);
  * OMAP specific clock functions shared between omap1 and omap2
  */
 
-int __initdata mpurate;
-
-/*
- * By default we use the rate set by the bootloader.
- * You can override this with mpurate= cmdline option.
- */
-static int __init omap_clk_setup(char *str)
-{
-	get_option(&str, &mpurate);
-
-	if (!mpurate)
-		return 1;
-
-	if (mpurate < 1000)
-		mpurate *= 1000000;
-
-	return 1;
-}
-__setup("mpurate=", omap_clk_setup);
-
 /* Used for clocks that always have same value as the parent clock */
 unsigned long followparent_recalc(struct clk *clk)
 {
@@ -1031,17 +1011,17 @@ static int clk_debugfs_register_one(struct clk *c)
 		return -ENOMEM;
 	c->dent = d;
 
-	d = debugfs_create_u8("usecount", S_IRUGO, c->dent, (u8 *)&c->usecount);
+	d = debugfs_create_u8("usecount", S_IRUGO, c->dent, &c->usecount);
 	if (!d) {
 		err = -ENOMEM;
 		goto err_out;
 	}
-	d = debugfs_create_u32("rate", S_IRUGO, c->dent, (u32 *)&c->rate);
+	d = debugfs_create_ulong("rate", S_IRUGO, c->dent, &c->rate);
 	if (!d) {
 		err = -ENOMEM;
 		goto err_out;
 	}
-	d = debugfs_create_x32("flags", S_IRUGO, c->dent, (u32 *)&c->flags);
+	d = debugfs_create_x8("flags", S_IRUGO, c->dent, &c->flags);
 	if (!d) {
 		err = -ENOMEM;
 		goto err_out;

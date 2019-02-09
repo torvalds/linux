@@ -16,9 +16,9 @@
 #include <asm/types.h>
 #include <sound/soc.h>
 
-#define WM8962_SYSCLK_MCLK 1
-#define WM8962_SYSCLK_FLL  2
-#define WM8962_SYSCLK_PLL3 3
+#define WM8962_SYSCLK_MCLK 0
+#define WM8962_SYSCLK_FLL  1
+#define WM8962_SYSCLK_PLL3 2
 
 #define WM8962_FLL  1
 
@@ -3779,6 +3779,6 @@
 #define WM8962_VSS_ENA_SHIFT                         0  /* VSS_ENA */
 #define WM8962_VSS_ENA_WIDTH                         1  /* VSS_ENA */
 
-int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
+int wm8962_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack);
 
 #endif

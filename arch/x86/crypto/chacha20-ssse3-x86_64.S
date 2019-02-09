@@ -11,11 +11,14 @@
 
 #include <linux/linkage.h>
 
-.data
+.section	.rodata.cst16.ROT8, "aM", @progbits, 16
 .align 16
-
 ROT8:	.octa 0x0e0d0c0f0a09080b0605040702010003
+.section	.rodata.cst16.ROT16, "aM", @progbits, 16
+.align 16
 ROT16:	.octa 0x0d0c0f0e09080b0a0504070601000302
+.section	.rodata.cst16.CTRINC, "aM", @progbits, 16
+.align 16
 CTRINC:	.octa 0x00000003000000020000000100000000
 
 .text
@@ -157,7 +160,9 @@ ENTRY(chacha20_4block_xor_ssse3)
 	# done with the slightly better performing SSSE3 byte shuffling,
 	# 7/12-bit word rotation uses traditional shift+OR.
 
-	sub		$0x40,%rsp
+	lea		8(%rsp),%r10
+	sub		$0x80,%rsp
+	and		$~63,%rsp
 
 	# x0..15[0-3] = s0..3[0..3]
 	movq		0x00(%rdi),%xmm1
@@ -620,6 +625,6 @@ ENTRY(chacha20_4block_xor_ssse3)
 	pxor		%xmm1,%xmm15
 	movdqu		%xmm15,0xf0(%rsi)
 
-	add		$0x40,%rsp
+	lea		-8(%r10),%rsp
 	ret
 ENDPROC(chacha20_4block_xor_ssse3)

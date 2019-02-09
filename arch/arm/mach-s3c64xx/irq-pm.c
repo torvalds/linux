@@ -1,16 +1,11 @@
-/* arch/arm/plat-s3c64xx/irq-pm.c
- *
- * Copyright 2008 Openmoko, Inc.
- * Copyright 2008 Simtec Electronics
- *      Ben Dooks <ben@simtec.co.uk>
- *      http://armlinux.simtec.co.uk/
- *
- * S3C64XX - Interrupt handling Power Management
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2008 Openmoko, Inc.
+// Copyright 2008 Simtec Electronics
+//      Ben Dooks <ben@simtec.co.uk>
+//      http://armlinux.simtec.co.uk/
+//
+// S3C64XX - Interrupt handling Power Management
 
 /*
  * NOTE: Code in this file is not used when booting with Device Tree support.
@@ -113,7 +108,7 @@ static struct syscore_ops s3c64xx_irq_syscore_ops = {
 static __init int s3c64xx_syscore_init(void)
 {
 	/* Appropriate drivers (pinctrl, uart) handle this when using DT. */
-	if (of_have_populated_dt())
+	if (of_have_populated_dt() || !soc_is_s3c64xx())
 		return 0;
 
 	register_syscore_ops(&s3c64xx_irq_syscore_ops);

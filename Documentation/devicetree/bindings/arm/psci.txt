@@ -23,17 +23,20 @@ Main node required properties:
 
  - compatible    : should contain at least one of:
 
-				 * "arm,psci" : for implementations complying to PSCI versions prior to
-					0.2. For these cases function IDs must be provided.
+     * "arm,psci"     : For implementations complying to PSCI versions prior
+			to 0.2.
+			For these cases function IDs must be provided.
 
-				 * "arm,psci-0.2" : for implementations complying to PSCI 0.2. Function
-					IDs are not required and should be ignored by an OS with PSCI 0.2
-					support, but are permitted to be present for compatibility with
-					existing software when "arm,psci" is later in the compatible list.
+     * "arm,psci-0.2" : For implementations complying to PSCI 0.2.
+			Function IDs are not required and should be ignored by
+			an OS with PSCI 0.2 support, but are permitted to be
+			present for compatibility with existing software when
+			"arm,psci" is later in the compatible list.
 
-				* "arm,psci-1.0" : for implementations complying to PSCI 1.0. PSCI 1.0 is
-					backward compatible with PSCI 0.2 with minor specification updates,
-					as defined in the PSCI specification[2].
+     * "arm,psci-1.0" : For implementations complying to PSCI 1.0.
+			PSCI 1.0 is backward compatible with PSCI 0.2 with
+			minor specification updates, as defined in the PSCI
+			specification[2].
 
  - method        : The method of calling the PSCI firmware. Permitted
                    values are:

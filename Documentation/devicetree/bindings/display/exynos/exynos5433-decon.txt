@@ -5,30 +5,27 @@ Exynos series of SoCs which transfers the image data from a video memory
 buffer to an external LCD interface.
 
 Required properties:
-- compatible: value should be "samsung,exynos5433-decon";
+- compatible: value should be one of:
+	"samsung,exynos5433-decon", "samsung,exynos5433-decon-tv";
 - reg: physical base address and length of the DECON registers set.
-- interrupts: should contain a list of all DECON IP block interrupts in the
-	      order: VSYNC, LCD_SYSTEM. The interrupt specifier format
-	      depends on the interrupt controller used.
-- interrupt-names: should contain the interrupt names: "vsync", "lcd_sys"
-		   in the same order as they were listed in the interrupts
-		   property.
+- interrupt-names: should contain the interrupt names depending on mode of work:
+		video mode: "vsync",
+		command mode: "lcd_sys",
+		command mode with software trigger: "lcd_sys", "te".
+- interrupts or interrupts-extended: list of interrupt specifiers corresponding
+		to names privided in interrupt-names, as described in
+		interrupt-controller/interrupts.txt
 - clocks: must include clock specifiers corresponding to entries in the
 	  clock-names property.
 - clock-names: list of clock names sorted in the same order as the clocks
-	       property. Must contain "aclk_decon", "aclk_smmu_decon0x",
-	       "aclk_xiu_decon0x", "pclk_smmu_decon0x", clk_decon_vclk",
+	       property. Must contain "pclk", "aclk_decon", "aclk_smmu_decon0x",
+	       "aclk_xiu_decon0x", "pclk_smmu_decon0x", "aclk_smmu_decon1x",
+	       "aclk_xiu_decon1x", "pclk_smmu_decon1x", clk_decon_vclk",
 	       "sclk_decon_eclk"
 - ports: contains a port which is connected to mic node. address-cells and
 	 size-cells must 1 and 0, respectively.
 - port: contains an endpoint node which is connected to the endpoint in the mic
 	node. The reg value muset be 0.
-- i80-if-timings: specify whether the panel which is connected to decon uses
-		  i80 lcd interface or mipi video interface. This node contains
-		  no timing information as that of fimd does. Because there is
-		  no register in decon to specify i80 interface timing value,
-		  it is not needed, but make it remain to use same kind of node
-		  in fimd and exynos7 decon.
 
 Example:
 SoC specific DT entry:
@@ -38,10 +35,14 @@ decon: decon@13800000 {
 	clocks = <&cmu_disp CLK_ACLK_DECON>, <&cmu_disp CLK_ACLK_SMMU_DECON0X>,
 		<&cmu_disp CLK_ACLK_XIU_DECON0X>,
 		<&cmu_disp CLK_PCLK_SMMU_DECON0X>,
+		<&cmu_disp CLK_ACLK_SMMU_DECON1X>,
+		<&cmu_disp CLK_ACLK_XIU_DECON1X>,
+		<&cmu_disp CLK_PCLK_SMMU_DECON1X>,
 		<&cmu_disp CLK_SCLK_DECON_VCLK>,
 		<&cmu_disp CLK_SCLK_DECON_ECLK>;
 	clock-names = "aclk_decon", "aclk_smmu_decon0x", "aclk_xiu_decon0x",
-		"pclk_smmu_decon0x", "sclk_decon_vclk", "sclk_decon_eclk";
+		"pclk_smmu_decon0x", "aclk_smmu_decon1x", "aclk_xiu_decon1x",
+		"pclk_smmu_decon1x", "sclk_decon_vclk", "sclk_decon_eclk";
 	interrupt-names = "vsync", "lcd_sys";
 	interrupts = <0 202 0>, <0 203 0>;
 
@@ -55,11 +56,5 @@ decon: decon@13800000 {
 				remote-endpoint = <&mic_to_decon>;
 			};
 		};
-	};
-};
-
-Board specific DT entry:
-&decon {
-	i80-if-timings {
 	};
 };

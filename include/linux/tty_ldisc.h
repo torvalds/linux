@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_TTY_LDISC_H
 #define _LINUX_TTY_LDISC_H
 
@@ -24,12 +25,6 @@
  *	This function instructs the line discipline to clear its
  *	buffers of any input characters it may have queued to be
  *	delivered to the user mode process.
- *
- * ssize_t (*chars_in_buffer)(struct tty_struct *tty);
- *
- *	This function returns the number of input characters the line
- *	discipline may have queued up to be delivered to the user mode
- *	process.
  *
  * ssize_t (*read)(struct tty_struct * tty, struct file * file,
  *		   unsigned char * buf, size_t nr);
@@ -104,11 +99,6 @@
  *	seek to perform this action quickly but should wait until
  *	any pending driver I/O is completed.
  *
- * void (*fasync)(struct tty_struct *, int on)
- *
- *	Notify line discipline when signal-driven I/O is enabled or
- *	disabled.
- *
  * void (*dcd_change)(struct tty_struct *tty, unsigned int status)
  *
  *	Tells the discipline that the DCD pin has changed its status.
@@ -129,13 +119,13 @@
 
 #include <linux/fs.h>
 #include <linux/wait.h>
-
+#include <linux/atomic.h>
 
 /*
  * the semaphore definition
  */
 struct ld_semaphore {
-	long			count;
+	atomic_long_t		count;
 	raw_spinlock_t		wait_lock;
 	unsigned int		wait_readers;
 	struct list_head	read_wait;
@@ -188,7 +178,6 @@ struct tty_ldisc_ops {
 	int	(*open)(struct tty_struct *);
 	void	(*close)(struct tty_struct *);
 	void	(*flush_buffer)(struct tty_struct *tty);
-	ssize_t	(*chars_in_buffer)(struct tty_struct *tty);
 	ssize_t	(*read)(struct tty_struct *tty, struct file *file,
 			unsigned char __user *buf, size_t nr);
 	ssize_t	(*write)(struct tty_struct *tty, struct file *file,
@@ -198,7 +187,7 @@ struct tty_ldisc_ops {
 	long	(*compat_ioctl)(struct tty_struct *tty, struct file *file,
 				unsigned int cmd, unsigned long arg);
 	void	(*set_termios)(struct tty_struct *tty, struct ktermios *old);
-	unsigned int (*poll)(struct tty_struct *, struct file *,
+	__poll_t (*poll)(struct tty_struct *, struct file *,
 			     struct poll_table_struct *);
 	int	(*hangup)(struct tty_struct *tty);
 
@@ -209,7 +198,6 @@ struct tty_ldisc_ops {
 			       char *fp, int count);
 	void	(*write_wakeup)(struct tty_struct *);
 	void	(*dcd_change)(struct tty_struct *, unsigned int);
-	void	(*fasync)(struct tty_struct *tty, int on);
 	int	(*receive_buf2)(struct tty_struct *, const unsigned char *cp,
 				char *fp, int count);
 

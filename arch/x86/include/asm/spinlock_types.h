@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_SPINLOCK_TYPES_H
 #define _ASM_X86_SPINLOCK_TYPES_H
 
@@ -23,20 +24,7 @@ typedef u32 __ticketpair_t;
 
 #define TICKET_SHIFT	(sizeof(__ticket_t) * 8)
 
-#ifdef CONFIG_QUEUED_SPINLOCKS
 #include <asm-generic/qspinlock_types.h>
-#else
-typedef struct arch_spinlock {
-	union {
-		__ticketpair_t head_tail;
-		struct __raw_tickets {
-			__ticket_t head, tail;
-		} tickets;
-	};
-} arch_spinlock_t;
-
-#define __ARCH_SPIN_LOCK_UNLOCKED	{ { 0 } }
-#endif /* CONFIG_QUEUED_SPINLOCKS */
 
 #include <asm-generic/qrwlock_types.h>
 

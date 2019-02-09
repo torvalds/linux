@@ -33,7 +33,7 @@
 #define PAGE_SHIFT	16
 #endif
 #define PAGE_SIZE	(_AC(1,UL) << PAGE_SHIFT)
-#define PAGE_MASK	(~(PAGE_SIZE - 1))
+#define PAGE_MASK	(~((1 << PAGE_SHIFT) - 1))
 
 /*
  * This is used for calculating the real page sizes
@@ -80,7 +80,12 @@ extern void build_copy_page(void);
  * used in our early mem init code for all memory models.
  * So always define it.
  */
-#define ARCH_PFN_OFFSET		PFN_UP(PHYS_OFFSET)
+#ifdef CONFIG_MIPS_AUTO_PFN_OFFSET
+extern unsigned long ARCH_PFN_OFFSET;
+# define ARCH_PFN_OFFSET	ARCH_PFN_OFFSET
+#else
+# define ARCH_PFN_OFFSET	PFN_UP(PHYS_OFFSET)
+#endif
 
 extern void clear_page(void * page);
 extern void copy_page(void * to, void * from);
@@ -162,16 +167,34 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 /*
  * __pa()/__va() should be used only during mem init.
  */
-#ifdef CONFIG_64BIT
-#define __pa(x)								\
-({									\
-    unsigned long __x = (unsigned long)(x);				\
-    __x < CKSEG0 ? XPHYSADDR(__x) : CPHYSADDR(__x);			\
-})
-#else
-#define __pa(x)								\
-    ((unsigned long)(x) - PAGE_OFFSET + PHYS_OFFSET)
-#endif
+static inline unsigned long ___pa(unsigned long x)
+{
+	if (IS_ENABLED(CONFIG_64BIT)) {
+		/*
+		 * For MIPS64 the virtual address may either be in one of
+		 * the compatibility segements ckseg0 or ckseg1, or it may
+		 * be in xkphys.
+		 */
+		return x < CKSEG0 ? XPHYSADDR(x) : CPHYSADDR(x);
+	}
+
+	if (!IS_ENABLED(CONFIG_EVA)) {
+		/*
+		 * We're using the standard MIPS32 legacy memory map, ie.
+		 * the address x is going to be in kseg0 or kseg1. We can
+		 * handle either case by masking out the desired bits using
+		 * CPHYSADDR.
+		 */
+		return CPHYSADDR(x);
+	}
+
+	/*
+	 * EVA is in use so the memory map could be anything, making it not
+	 * safe to just mask out bits.
+	 */
+	return x - PAGE_OFFSET + PHYS_OFFSET;
+}
+#define __pa(x)		___pa((unsigned long)(x))
 #define __va(x)		((void *)((unsigned long)(x) + PAGE_OFFSET - PHYS_OFFSET))
 #include <asm/io.h>
 
@@ -222,18 +245,20 @@ static inline int pfn_valid(unsigned long pfn)
 
 #endif
 
-#define virt_to_page(kaddr)	pfn_to_page(PFN_DOWN(virt_to_phys((void *)     \
-								  (kaddr))))
+#define virt_to_pfn(kaddr)   	PFN_DOWN(virt_to_phys((void *)(kaddr)))
+#define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 
 extern int __virt_addr_valid(const volatile void *kaddr);
 #define virt_addr_valid(kaddr)						\
 	__virt_addr_valid((const volatile void *) (kaddr))
 
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+#define VM_DATA_DEFAULT_FLAGS \
+	(VM_READ | VM_WRITE | \
+	 ((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0) | \
+	 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + UNCAC_BASE)
-#define CAC_ADDR(addr)		((addr) - UNCAC_BASE + PAGE_OFFSET)
+#define UNCAC_ADDR(addr)	(UNCAC_BASE + __pa(addr))
+#define CAC_ADDR(addr)		((unsigned long)__va((addr) - UNCAC_BASE))
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

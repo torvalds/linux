@@ -43,12 +43,12 @@ static void virqfd_deactivate(struct virqfd *virqfd)
 	queue_work(vfio_irqfd_cleanup_wq, &virqfd->shutdown);
 }
 
-static int virqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int virqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	struct virqfd *virqfd = container_of(wait, struct virqfd, wait);
-	unsigned long flags = (unsigned long)key;
+	__poll_t flags = key_to_poll(key);
 
-	if (flags & POLLIN) {
+	if (flags & EPOLLIN) {
 		/* An event has been signaled, call function */
 		if ((!virqfd->handler ||
 		     virqfd->handler(virqfd->opaque, virqfd->data)) &&
@@ -56,7 +56,7 @@ static int virqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
 			schedule_work(&virqfd->inject);
 	}
 
-	if (flags & POLLHUP) {
+	if (flags & EPOLLHUP) {
 		unsigned long flags;
 		spin_lock_irqsave(&virqfd_lock, flags);
 
@@ -113,7 +113,7 @@ int vfio_virqfd_enable(void *opaque,
 	struct eventfd_ctx *ctx;
 	struct virqfd *virqfd;
 	int ret = 0;
-	unsigned int events;
+	__poll_t events;
 
 	virqfd = kzalloc(sizeof(*virqfd), GFP_KERNEL);
 	if (!virqfd)
@@ -166,20 +166,20 @@ int vfio_virqfd_enable(void *opaque,
 	init_waitqueue_func_entry(&virqfd->wait, virqfd_wakeup);
 	init_poll_funcptr(&virqfd->pt, virqfd_ptable_queue_proc);
 
-	events = irqfd.file->f_op->poll(irqfd.file, &virqfd->pt);
+	events = vfs_poll(irqfd.file, &virqfd->pt);
 
 	/*
 	 * Check if there was an event already pending on the eventfd
 	 * before we registered and trigger it as if we didn't miss it.
 	 */
-	if (events & POLLIN) {
+	if (events & EPOLLIN) {
 		if ((!handler || handler(opaque, data)) && thread)
 			schedule_work(&virqfd->inject);
 	}
 
 	/*
 	 * Do not drop the file until the irqfd is fully initialized,
-	 * otherwise we might race against the POLLHUP.
+	 * otherwise we might race against the EPOLLHUP.
 	 */
 	fdput(irqfd);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Tracepoint definitions for s390
  *
@@ -18,6 +19,9 @@ void trace_s390_diagnose_norecursion(int diag_nr)
 	unsigned long flags;
 	unsigned int *depth;
 
+	/* Avoid lockdep recursion. */
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		return;
 	local_irq_save(flags);
 	depth = this_cpu_ptr(&diagnose_trace_depth);
 	if (*depth == 0) {

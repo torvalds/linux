@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * HD-audio core stuff
  */
@@ -7,8 +8,10 @@
 
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <linux/timecounter.h>
 #include <sound/core.h>
+#include <sound/pcm.h>
 #include <sound/memalloc.h>
 #include <sound/hda_verbs.h>
 #include <drm/i915_component.h>
@@ -111,8 +114,7 @@ void snd_hdac_device_unregister(struct hdac_device *codec);
 int snd_hdac_device_set_chip_name(struct hdac_device *codec, const char *name);
 int snd_hdac_codec_modalias(struct hdac_device *hdac, char *buf, size_t size);
 
-int snd_hdac_refresh_widgets(struct hdac_device *codec);
-int snd_hdac_refresh_widget_sysfs(struct hdac_device *codec);
+int snd_hdac_refresh_widgets(struct hdac_device *codec, bool sysfs);
 
 unsigned int snd_hdac_make_cmd(struct hdac_device *codec, hda_nid_t nid,
 			       unsigned int verb, unsigned int parm);
@@ -132,7 +134,7 @@ int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
 			   hda_nid_t *start_id);
 unsigned int snd_hdac_calc_stream_format(unsigned int rate,
 					 unsigned int channels,
-					 unsigned int format,
+					 snd_pcm_format_t format,
 					 unsigned int maxbps,
 					 unsigned short spdif_ctls);
 int snd_hdac_query_supported_pcm(struct hdac_device *codec, hda_nid_t nid,
@@ -146,6 +148,8 @@ int snd_hdac_codec_write(struct hdac_device *hdac, hda_nid_t nid,
 			int flags, unsigned int verb, unsigned int parm);
 bool snd_hdac_check_power_state(struct hdac_device *hdac,
 		hda_nid_t nid, unsigned int target_state);
+unsigned int snd_hdac_sync_power_state(struct hdac_device *hdac,
+		      hda_nid_t nid, unsigned int target_state);
 /**
  * snd_hdac_read_parm - read a codec parameter
  * @codec: the codec object
@@ -168,11 +172,39 @@ int snd_hdac_power_up(struct hdac_device *codec);
 int snd_hdac_power_down(struct hdac_device *codec);
 int snd_hdac_power_up_pm(struct hdac_device *codec);
 int snd_hdac_power_down_pm(struct hdac_device *codec);
+int snd_hdac_keep_power_up(struct hdac_device *codec);
+
+/* call this at entering into suspend/resume callbacks in codec driver */
+static inline void snd_hdac_enter_pm(struct hdac_device *codec)
+{
+	atomic_inc(&codec->in_pm);
+}
+
+/* call this at leaving from suspend/resume callbacks in codec driver */
+static inline void snd_hdac_leave_pm(struct hdac_device *codec)
+{
+	atomic_dec(&codec->in_pm);
+}
+
+static inline bool snd_hdac_is_in_pm(struct hdac_device *codec)
+{
+	return atomic_read(&codec->in_pm);
+}
+
+static inline bool snd_hdac_is_power_on(struct hdac_device *codec)
+{
+	return !pm_runtime_suspended(&codec->dev);
+}
 #else
 static inline int snd_hdac_power_up(struct hdac_device *codec) { return 0; }
 static inline int snd_hdac_power_down(struct hdac_device *codec) { return 0; }
 static inline int snd_hdac_power_up_pm(struct hdac_device *codec) { return 0; }
 static inline int snd_hdac_power_down_pm(struct hdac_device *codec) { return 0; }
+static inline int snd_hdac_keep_power_up(struct hdac_device *codec) { return 0; }
+static inline void snd_hdac_enter_pm(struct hdac_device *codec) {}
+static inline void snd_hdac_leave_pm(struct hdac_device *codec) {}
+static inline bool snd_hdac_is_in_pm(struct hdac_device *codec) { return 0; }
+static inline bool snd_hdac_is_power_on(struct hdac_device *codec) { return 1; }
 #endif
 
 /*
@@ -184,6 +216,11 @@ struct hdac_driver {
 	const struct hda_device_id *id_table;
 	int (*match)(struct hdac_device *dev, struct hdac_driver *drv);
 	void (*unsol_event)(struct hdac_device *dev, unsigned int event);
+
+	/* fields used by ext bus APIs */
+	int (*probe)(struct hdac_device *dev);
+	int (*remove)(struct hdac_device *dev);
+	void (*shutdown)(struct hdac_device *dev);
 };
 
 #define drv_to_hdac_driver(_drv) container_of(_drv, struct hdac_driver, driver)
@@ -202,6 +239,14 @@ struct hdac_bus_ops {
 			    unsigned int *res);
 	/* control the link power  */
 	int (*link_power)(struct hdac_bus *bus, bool enable);
+};
+
+/*
+ * ops used for ASoC HDA codec drivers
+ */
+struct hdac_ext_bus_ops {
+	int (*hdev_attach)(struct hdac_device *hdev);
+	int (*hdev_detach)(struct hdac_device *hdev);
 };
 
 /*
@@ -225,9 +270,6 @@ struct hdac_io_ops {
 #define HDA_UNSOL_QUEUE_SIZE	64
 #define HDA_MAX_CODECS		8	/* limit by controller side */
 
-/* HD Audio class code */
-#define PCI_CLASS_MULTIMEDIA_HD_AUDIO	0x0403
-
 /*
  * CORB/RIRB
  *
@@ -243,16 +285,34 @@ struct hdac_rb {
 
 /*
  * HD-audio bus base driver
+ *
+ * @ppcap: pp capabilities pointer
+ * @spbcap: SPIB capabilities pointer
+ * @mlcap: MultiLink capabilities pointer
+ * @gtscap: gts capabilities pointer
+ * @drsmcap: dma resume capabilities pointer
+ * @num_streams: streams supported
+ * @idx: HDA link index
+ * @hlink_list: link list of HDA links
+ * @lock: lock for link mgmt
+ * @cmd_dma_state: state of cmd DMAs: CORB and RIRB
  */
 struct hdac_bus {
 	struct device *dev;
 	const struct hdac_bus_ops *ops;
 	const struct hdac_io_ops *io_ops;
+	const struct hdac_ext_bus_ops *ext_ops;
 
 	/* h/w resources */
 	unsigned long addr;
 	void __iomem *remap_addr;
 	int irq;
+
+	void __iomem *ppcap;
+	void __iomem *spbcap;
+	void __iomem *mlcap;
+	void __iomem *gtscap;
+	void __iomem *drsmcap;
 
 	/* codec linked list */
 	struct list_head codec_list;
@@ -301,9 +361,19 @@ struct hdac_bus {
 	spinlock_t reg_lock;
 	struct mutex cmd_mutex;
 
-	/* i915 component interface */
-	struct i915_audio_component *audio_component;
-	int i915_power_refcount;
+	/* DRM component interface */
+	struct drm_audio_component *audio_component;
+	int drm_power_refcount;
+
+	/* parameters required for enhanced capabilities */
+	int num_streams;
+	int idx;
+
+	struct list_head hlink_list;
+
+	struct mutex lock;
+	bool cmd_dma_state;
+
 };
 
 int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
@@ -333,6 +403,7 @@ static inline void snd_hdac_codec_link_down(struct hdac_device *codec)
 int snd_hdac_bus_send_cmd(struct hdac_bus *bus, unsigned int val);
 int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 			      unsigned int *res);
+int snd_hdac_bus_parse_capabilities(struct hdac_bus *bus);
 int snd_hdac_link_power(struct hdac_device *codec, bool enable);
 
 bool snd_hdac_bus_init_chip(struct hdac_bus *bus, bool full_reset);
@@ -341,9 +412,10 @@ void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus);
 void snd_hdac_bus_stop_cmd_io(struct hdac_bus *bus);
 void snd_hdac_bus_enter_link_reset(struct hdac_bus *bus);
 void snd_hdac_bus_exit_link_reset(struct hdac_bus *bus);
+int snd_hdac_bus_reset_link(struct hdac_bus *bus, bool full_reset);
 
 void snd_hdac_bus_update_rirb(struct hdac_bus *bus);
-void snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
+int snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
 				    void (*ack)(struct hdac_bus *,
 						struct hdac_stream *));
 
@@ -353,24 +425,32 @@ void snd_hdac_bus_free_stream_pages(struct hdac_bus *bus);
 /*
  * macros for easy use
  */
-#define _snd_hdac_chip_write(type, chip, reg, value) \
-	((chip)->io_ops->reg_write ## type(value, (chip)->remap_addr + (reg)))
-#define _snd_hdac_chip_read(type, chip, reg) \
-	((chip)->io_ops->reg_read ## type((chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_writeb(chip, reg, value) \
+	((chip)->io_ops->reg_writeb(value, (chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_readb(chip, reg) \
+	((chip)->io_ops->reg_readb((chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_writew(chip, reg, value) \
+	((chip)->io_ops->reg_writew(value, (chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_readw(chip, reg) \
+	((chip)->io_ops->reg_readw((chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_writel(chip, reg, value) \
+	((chip)->io_ops->reg_writel(value, (chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_readl(chip, reg) \
+	((chip)->io_ops->reg_readl((chip)->remap_addr + (reg)))
 
 /* read/write a register, pass without AZX_REG_ prefix */
 #define snd_hdac_chip_writel(chip, reg, value) \
-	_snd_hdac_chip_write(l, chip, AZX_REG_ ## reg, value)
+	_snd_hdac_chip_writel(chip, AZX_REG_ ## reg, value)
 #define snd_hdac_chip_writew(chip, reg, value) \
-	_snd_hdac_chip_write(w, chip, AZX_REG_ ## reg, value)
+	_snd_hdac_chip_writew(chip, AZX_REG_ ## reg, value)
 #define snd_hdac_chip_writeb(chip, reg, value) \
-	_snd_hdac_chip_write(b, chip, AZX_REG_ ## reg, value)
+	_snd_hdac_chip_writeb(chip, AZX_REG_ ## reg, value)
 #define snd_hdac_chip_readl(chip, reg) \
-	_snd_hdac_chip_read(l, chip, AZX_REG_ ## reg)
+	_snd_hdac_chip_readl(chip, AZX_REG_ ## reg)
 #define snd_hdac_chip_readw(chip, reg) \
-	_snd_hdac_chip_read(w, chip, AZX_REG_ ## reg)
+	_snd_hdac_chip_readw(chip, AZX_REG_ ## reg)
 #define snd_hdac_chip_readb(chip, reg) \
-	_snd_hdac_chip_read(b, chip, AZX_REG_ ## reg)
+	_snd_hdac_chip_readb(chip, AZX_REG_ ## reg)
 
 /* update a register, pass without AZX_REG_ prefix */
 #define snd_hdac_chip_updatel(chip, reg, mask, val) \
@@ -548,5 +628,10 @@ static inline unsigned int snd_array_index(struct snd_array *array, void *ptr)
 {
 	return (unsigned long)(ptr - array->list) / array->elem_size;
 }
+
+/* a helper macro to iterate for each snd_array element */
+#define snd_array_for_each(array, idx, ptr) \
+	for ((idx) = 0, (ptr) = (array)->list; (idx) < (array)->used; \
+	     (ptr) = snd_array_elem(array, ++(idx)))
 
 #endif /* __SOUND_HDAUDIO_H */

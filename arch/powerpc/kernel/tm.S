@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Transactional memory support routines to reclaim and recheckpoint
  * transactional process state.
@@ -11,6 +12,8 @@
 #include <asm/ptrace.h>
 #include <asm/reg.h>
 #include <asm/bug.h>
+#include <asm/export.h>
+#include <asm/feature-fixups.h>
 
 #ifdef CONFIG_VSX
 /* See fpu.S, this is borrowed from there */
@@ -54,6 +57,16 @@ _GLOBAL(tm_enable)
 	or	r4, r4, r3
 	mtmsrd	r4
 1:	blr
+EXPORT_SYMBOL_GPL(tm_enable);
+
+_GLOBAL(tm_disable)
+	mfmsr	r4
+	li	r3, MSR_TM >> 32
+	sldi	r3, r3, 32
+	andc	r4, r4, r3
+	mtmsrd	r4
+	blr
+EXPORT_SYMBOL_GPL(tm_disable);
 
 _GLOBAL(tm_save_sprs)
 	mfspr	r0, SPRN_TFHAR
@@ -77,17 +90,15 @@ _GLOBAL(tm_restore_sprs)
 _GLOBAL(tm_abort)
 	TABORT(R3)
 	blr
+EXPORT_SYMBOL_GPL(tm_abort);
 
 /* void tm_reclaim(struct thread_struct *thread,
- *                 unsigned long orig_msr,
  *		   uint8_t cause)
  *
  *	- Performs a full reclaim.  This destroys outstanding
  *	  transactions and updates thread->regs.tm_ckpt_* with the
  *	  original checkpointed state.  Note that thread->regs is
  *	  unchanged.
- *	- FP regs are written back to thread->transact_fpr before
- *	  reclaiming.  These are the transactional (current) versions.
  *
  * Purpose is to both abort transactions of, and preserve the state of,
  * a transactions at a context switch. We preserve/restore both sets of process
@@ -98,9 +109,9 @@ _GLOBAL(tm_abort)
  * Call with IRQs off, stacks get all out of sync for some periods in here!
  */
 _GLOBAL(tm_reclaim)
-	mfcr	r6
+	mfcr	r5
 	mflr	r0
-	stw	r6, 8(r1)
+	stw	r5, 8(r1)
 	std	r0, 16(r1)
 	std	r2, STK_GOT(r1)
 	stdu	r1, -TM_FRAME_SIZE(r1)
@@ -110,17 +121,11 @@ _GLOBAL(tm_reclaim)
 	std	r3, STK_PARAM(R3)(r1)
 	SAVE_NVGPRS(r1)
 
-	/* We need to setup MSR for VSX register save instructions.  Here we
-	 * also clear the MSR RI since when we do the treclaim, we won't have a
-	 * valid kernel pointer for a while.  We clear RI here as it avoids
-	 * adding another mtmsr closer to the treclaim.  This makes the region
-	 * maked as non-recoverable wider than it needs to be but it saves on
-	 * inserting another mtmsrd later.
-	 */
+	/* We need to setup MSR for VSX register save instructions. */
 	mfmsr	r14
 	mr	r15, r14
 	ori	r15, r15, MSR_FP
-	li	r16, MSR_RI
+	li	r16, 0
 	ori	r16, r16, MSR_EE /* IRQs hard off */
 	andc	r15, r15, r16
 	oris	r15, r15, MSR_VEC@h
@@ -132,43 +137,6 @@ _GLOBAL(tm_reclaim)
 	mtmsrd	r15
 	std	r14, TM_FRAME_L0(r1)
 
-	/* Stash the stack pointer away for use after reclaim */
-	std	r1, PACAR1(r13)
-
-	/* ******************** FPR/VR/VSRs ************
-	 * Before reclaiming, capture the current/transactional FPR/VR
-	* versions /if used/.
-	 *
-	 * (If VSX used, FP and VMX are implied.  Or, we don't need to look
-	 * at MSR.VSX as copying FP regs if .FP, vector regs if .VMX covers it.)
-	 *
-	 * We're passed the thread's MSR as parameter 2.
-	 *
-	 * We enabled VEC/FP/VSX in the msr above, so we can execute these
-	 * instructions!
-	 */
-	andis.		r0, r4, MSR_VEC@h
-	beq	dont_backup_vec
-
-	addi	r7, r3, THREAD_TRANSACT_VRSTATE
-	SAVE_32VRS(0, r6, r7)	/* r6 scratch, r7 transact vr state */
-	mfvscr	v0
-	li	r6, VRSTATE_VSCR
-	stvx	v0, r7, r6
-dont_backup_vec:
-	mfspr	r0, SPRN_VRSAVE
-	std	r0, THREAD_TRANSACT_VRSAVE(r3)
-
-	andi.	r0, r4, MSR_FP
-	beq	dont_backup_fp
-
-	addi	r7, r3, THREAD_TRANSACT_FPSTATE
-	SAVE_32FPRS_VSRS(0, R6, R7)	/* r6 scratch, r7 transact fp state */
-
-	mffs    fr0
-	stfd    fr0,FPSTATE_FPSCR(r7)
-
-dont_backup_fp:
 	/* Do sanity check on MSR to make sure we are suspended */
 	li	r7, (MSR_TS_S)@higher
 	srdi	r6, r14, 32
@@ -176,11 +144,24 @@ dont_backup_fp:
 1:	tdeqi   r6, 0
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
 
-	/* The moment we treclaim, ALL of our GPRs will switch
+	/* Stash the stack pointer away for use after reclaim */
+	std	r1, PACAR1(r13)
+
+	/* Clear MSR RI since we are about to change r1, EE is already off. */
+	li	r5, 0
+	mtmsrd	r5, 1
+
+	/*
+	 * BE CAREFUL HERE:
+	 * At this point we can't take an SLB miss since we have MSR_RI
+	 * off. Load only to/from the stack/paca which are in SLB bolted regions
+	 * until we turn MSR RI back on.
+	 *
+	 * The moment we treclaim, ALL of our GPRs will switch
 	 * to user register state.  (FPRs, CCR etc. also!)
 	 * Use an sprg and a tm_scratch in the PACA to shuffle.
 	 */
-	TRECLAIM(R5)				/* Cause in r5 */
+	TRECLAIM(R4)				/* Cause in r4 */
 
 	/* ******************** GPRs ******************** */
 	/* Stash the checkpointed r13 away in the scratch SPR and get the real
@@ -195,8 +176,27 @@ dont_backup_fp:
 	std	r1, PACATMSCRATCH(r13)
 	ld	r1, PACAR1(r13)
 
-	/* Store the PPR in r11 and reset to decent value */
 	std	r11, GPR11(r1)			/* Temporary stash */
+
+	/*
+	 * Move the saved user r1 to the kernel stack in case PACATMSCRATCH is
+	 * clobbered by an exception once we turn on MSR_RI below.
+	 */
+	ld	r11, PACATMSCRATCH(r13)
+	std	r11, GPR1(r1)
+
+	/*
+	 * Store r13 away so we can free up the scratch SPR for the SLB fault
+	 * handler (needed once we start accessing the thread_struct).
+	 */
+	GET_SCRATCH0(r11)
+	std	r11, GPR13(r1)
+
+	/* Reset MSR RI so we can take SLB faults again */
+	li	r11, MSR_RI
+	mtmsrd	r11, 1
+
+	/* Store the PPR in r11 and reset to decent value */
 	mfspr	r11, SPRN_PPR
 	HMT_MEDIUM
 
@@ -221,11 +221,11 @@ dont_backup_fp:
 	SAVE_GPR(8, r7)				/* user r8 */
 	SAVE_GPR(9, r7)				/* user r9 */
 	SAVE_GPR(10, r7)			/* user r10 */
-	ld	r3, PACATMSCRATCH(r13)		/* user r1 */
+	ld	r3, GPR1(r1)			/* user r1 */
 	ld	r4, GPR7(r1)			/* user r7 */
 	ld	r5, GPR11(r1)			/* user r11 */
 	ld	r6, GPR12(r1)			/* user r12 */
-	GET_SCRATCH0(8)				/* user r13 */
+	ld	r8, GPR13(r1)			/* user r13 */
 	std	r3, GPR1(r7)
 	std	r4, GPR7(r7)
 	std	r5, GPR11(r7)
@@ -264,6 +264,33 @@ dont_backup_fp:
 	 * MSR.
 	 */
 
+
+	/* ******************** FPR/VR/VSRs ************
+	 * After reclaiming, capture the checkpointed FPRs/VRs.
+	 *
+	 * We enabled VEC/FP/VSX in the msr above, so we can execute these
+	 * instructions!
+	 */
+	mr	r3, r12
+
+	/* Altivec (VEC/VMX/VR)*/
+	addi	r7, r3, THREAD_CKVRSTATE
+	SAVE_32VRS(0, r6, r7)	/* r6 scratch, r7 transact vr state */
+	mfvscr	v0
+	li	r6, VRSTATE_VSCR
+	stvx	v0, r7, r6
+
+	/* VRSAVE */
+	mfspr	r0, SPRN_VRSAVE
+	std	r0, THREAD_CKVRSAVE(r3)
+
+	/* Floating Point (FP) */
+	addi	r7, r3, THREAD_CKFPSTATE
+	SAVE_32FPRS_VSRS(0, R6, R7)	/* r6 scratch, r7 transact fp state */
+	mffs    fr0
+	stfd    fr0,FPSTATE_FPSCR(r7)
+
+
 	/* TM regs, incl TEXASR -- these live in thread_struct.  Note they've
 	 * been updated by the treclaim, to explain to userland the failure
 	 * cause (aborted).
@@ -279,6 +306,7 @@ dont_backup_fp:
 
 	/* Restore original MSR/IRQ state & clear TM mode */
 	ld	r14, TM_FRAME_L0(r1)		/* Orig MSR */
+
 	li	r15, 0
 	rldimi  r14, r15, MSR_TS_LG, (63-MSR_TS_LG)-1
 	mtmsrd  r14
@@ -299,8 +327,8 @@ dont_backup_fp:
 	blr
 
 
-	/* void tm_recheckpoint(struct thread_struct *thread,
-	 *			unsigned long orig_msr)
+       /*
+	 * void __tm_recheckpoint(struct thread_struct *thread)
 	 *	- Restore the checkpointed register state saved by tm_reclaim
 	 *	  when we switch_to a process.
 	 *
@@ -329,53 +357,41 @@ _GLOBAL(__tm_recheckpoint)
 	 */
 	subi	r7, r7, STACK_FRAME_OVERHEAD
 
-	SET_SCRATCH0(r1)
-
+	/* We need to setup MSR for FP/VMX/VSX register save instructions. */
 	mfmsr	r6
-	/* R4 = original MSR to indicate whether thread used FP/Vector etc. */
-
-	/* Enable FP/vec in MSR if necessary! */
-	lis	r5, MSR_VEC@h
+	mr	r5, r6
 	ori	r5, r5, MSR_FP
-	and.	r5, r4, r5
-	beq	restore_gprs			/* if neither, skip both */
-
+#ifdef CONFIG_ALTIVEC
+	oris	r5, r5, MSR_VEC@h
+#endif
 #ifdef CONFIG_VSX
 	BEGIN_FTR_SECTION
-	oris	r5, r5, MSR_VSX@h
+	oris	r5,r5, MSR_VSX@h
 	END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
-	or	r5, r6, r5			/* Set MSR.FP+.VSX/.VEC */
-	mtmsr	r5
+	mtmsrd	r5
 
 #ifdef CONFIG_ALTIVEC
-	/* FP and VEC registers:  These are recheckpointed from thread.fpr[]
-	 * and thread.vr[] respectively.  The thread.transact_fpr[] version
-	 * is more modern, and will be loaded subsequently by any FPUnavailable
-	 * trap.
+	/*
+	 * FP and VEC registers: These are recheckpointed from
+	 * thread.ckfp_state and thread.ckvr_state respectively. The
+	 * thread.fp_state[] version holds the 'live' (transactional)
+	 * and will be loaded subsequently by any FPUnavailable trap.
 	 */
-	andis.	r0, r4, MSR_VEC@h
-	beq	dont_restore_vec
-
-	addi	r8, r3, THREAD_VRSTATE
+	addi	r8, r3, THREAD_CKVRSTATE
 	li	r5, VRSTATE_VSCR
 	lvx	v0, r8, r5
 	mtvscr	v0
 	REST_32VRS(0, r5, r8)			/* r5 scratch, r8 ptr */
-dont_restore_vec:
-	ld	r5, THREAD_VRSAVE(r3)
+	ld	r5, THREAD_CKVRSAVE(r3)
 	mtspr	SPRN_VRSAVE, r5
 #endif
 
-	andi.	r0, r4, MSR_FP
-	beq	dont_restore_fp
-
-	addi	r8, r3, THREAD_FPSTATE
+	addi	r8, r3, THREAD_CKFPSTATE
 	lfd	fr0, FPSTATE_FPSCR(r8)
 	MTFSF_L(fr0)
 	REST_32FPRS_VSRS(0, R4, R8)
 
-dont_restore_fp:
 	mtmsr	r6				/* FP/Vec off again! */
 
 restore_gprs:
@@ -396,11 +412,6 @@ restore_gprs:
 	/* Load up the PPR and DSCR in GPRs only at this stage */
 	ld	r5, THREAD_TM_DSCR(r3)
 	ld	r6, THREAD_TM_PPR(r3)
-
-	/* Clear the MSR RI since we are about to change R1.  EE is already off
-	 */
-	li	r4, 0
-	mtmsrd	r4, 1
 
 	REST_GPR(0, r7)				/* GPR0 */
 	REST_2GPRS(2, r7)			/* GPR2-3 */
@@ -439,10 +450,34 @@ restore_gprs:
 	ld	r6, _CCR(r7)
 	mtcr    r6
 
-	REST_GPR(1, r7)				/* GPR1 */
-	REST_GPR(5, r7)				/* GPR5-7 */
 	REST_GPR(6, r7)
-	ld	r7, GPR7(r7)
+
+	/*
+	 * Store r1 and r5 on the stack so that we can access them
+	 * after we clear MSR RI.
+	 */
+
+	REST_GPR(5, r7)
+	std	r5, -8(r1)
+	ld	r5, GPR1(r7)
+	std	r5, -16(r1)
+
+	REST_GPR(7, r7)
+
+	/* Clear MSR RI since we are about to change r1. EE is already off */
+	li	r5, 0
+	mtmsrd	r5, 1
+
+	/*
+	 * BE CAREFUL HERE:
+	 * At this point we can't take an SLB miss since we have MSR_RI
+	 * off. Load only to/from the stack/paca which are in SLB bolted regions
+	 * until we turn MSR RI back on.
+	 */
+
+	SET_SCRATCH0(r1)
+	ld	r5, -8(r1)
+	ld	r1, -16(r1)
 
 	/* Commit register state as checkpointed state: */
 	TRECHKPT

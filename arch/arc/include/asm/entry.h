@@ -86,9 +86,6 @@
 	POP	r1
 	POP	r0
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-	ld	r25, [sp, 12]
-#endif
 .endm
 
 /*--------------------------------------------------------------
@@ -142,7 +139,7 @@
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 	; Retrieve orig r25 and save it with rest of callee_regs
-	ld.as   r12, [r12, PT_user_r25]
+	ld	r12, [r12, PT_user_r25]
 	PUSH	r12
 #else
 	PUSH	r25
@@ -198,7 +195,7 @@
 
 	; SP is back to start of pt_regs
 #ifdef CONFIG_ARC_CURR_IN_REG
-	st.as   r12, [sp, PT_user_r25]
+	st	r12, [sp, PT_user_r25]
 #endif
 .endm
 

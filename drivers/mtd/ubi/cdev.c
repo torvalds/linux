@@ -174,9 +174,9 @@ static int vol_cdev_fsync(struct file *file, loff_t start, loff_t end,
 	struct ubi_device *ubi = desc->vol->ubi;
 	struct inode *inode = file_inode(file);
 	int err;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	err = ubi_sync(ubi->ubi_num);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return err;
 }
 
@@ -367,6 +367,10 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 			return count;
 		}
 
+		/*
+		 * We voluntarily do not take into account the skip_check flag
+		 * as we want to make sure what we wrote was correctly written.
+		 */
 		err = ubi_check_volume(ubi, vol->vol_id);
 		if (err < 0)
 			return err;
@@ -416,7 +420,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		rsvd_bytes = (long long)vol->reserved_pebs *
-					ubi->leb_size-vol->data_pad;
+					vol->usable_leb_size;
 		if (bytes < 0 || bytes > rsvd_bytes) {
 			err = -EINVAL;
 			break;
@@ -454,7 +458,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 
 		/* Validate the request */
 		err = -EINVAL;
-		if (req.lnum < 0 || req.lnum >= vol->reserved_pebs ||
+		if (!ubi_leb_valid(vol, req.lnum) ||
 		    req.bytes < 0 || req.bytes > vol->usable_leb_size)
 			break;
 
@@ -485,7 +489,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		if (lnum < 0 || lnum >= vol->reserved_pebs) {
+		if (!ubi_leb_valid(vol, lnum)) {
 			err = -EINVAL;
 			break;
 		}
@@ -619,6 +623,13 @@ static int verify_mkvol_req(const struct ubi_device *ubi,
 		goto bad;
 
 	if (req->vol_type != UBI_DYNAMIC_VOLUME &&
+	    req->vol_type != UBI_STATIC_VOLUME)
+		goto bad;
+
+	if (req->flags & ~UBI_VOL_VALID_FLGS)
+		goto bad;
+
+	if (req->flags & UBI_VOL_SKIP_CRC_CHECK_FLG &&
 	    req->vol_type != UBI_STATIC_VOLUME)
 		goto bad;
 

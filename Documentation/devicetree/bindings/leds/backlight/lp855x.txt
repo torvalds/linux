@@ -13,6 +13,7 @@ Optional properties:
   - rom-addr: Register address of ROM area to be updated (u8)
   - rom-val: Register value to be updated (u8)
   - power-supply: Regulator which controls the 3V rail
+  - enable-supply: Regulator which controls the EN/VDDIO input
 
 Example:
 
@@ -57,6 +58,7 @@ Example:
 	backlight@2c {
 		compatible = "ti,lp8557";
 		reg = <0x2c>;
+		enable-supply = <&backlight_vddio>;
 		power-supply = <&backlight_vdd>;
 
 		dev-ctrl = /bits/ 8 <0x41>;

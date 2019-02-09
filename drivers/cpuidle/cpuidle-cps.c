@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -37,7 +37,7 @@ static int cps_nc_enter(struct cpuidle_device *dev,
 	 * TODO: don't treat core 0 specially, just prevent the final core
 	 * TODO: remap interrupt affinity temporarily
 	 */
-	if (!cpu_data[dev->cpu].core && (index > STATE_NC_WAIT))
+	if (cpus_are_siblings(0, dev->cpu) && (index > STATE_NC_WAIT))
 		index = STATE_NC_WAIT;
 
 	/* Select the appropriate cps_pm_state */
@@ -118,7 +118,7 @@ static void __init cps_cpuidle_unregister(void)
 
 static int __init cps_cpuidle_init(void)
 {
-	int err, cpu, core, i;
+	int err, cpu, i;
 	struct cpuidle_device *device;
 
 	/* Detect supported states */
@@ -160,10 +160,9 @@ static int __init cps_cpuidle_init(void)
 	}
 
 	for_each_possible_cpu(cpu) {
-		core = cpu_data[cpu].core;
 		device = &per_cpu(cpuidle_dev, cpu);
 		device->cpu = cpu;
-#ifdef CONFIG_MIPS_MT
+#ifdef CONFIG_ARCH_NEEDS_CPU_IDLE_COUPLED
 		cpumask_copy(&device->coupled_cpus, &cpu_sibling_map[cpu]);
 #endif
 

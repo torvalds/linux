@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * config.c
  *
@@ -8,11 +9,20 @@
  * Copyright (C) Johannes Schindelin, 2005
  *
  */
+#include <errno.h>
+#include <sys/param.h>
 #include "util.h"
 #include "cache.h"
-#include "exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "util/hist.h"  /* perf_hist_config */
 #include "util/llvm-utils.h"   /* perf_llvm_config */
+#include "config.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <linux/string.h>
+
+#include "sane_ctype.h"
 
 #define MAXNAME (256)
 
@@ -25,8 +35,9 @@ static FILE *config_file;
 static const char *config_file_name;
 static int config_linenr;
 static int config_file_eof;
+static struct perf_config_set *config_set;
 
-static const char *config_exclusive_filename;
+const char *config_exclusive_filename;
 
 static int get_next_char(void)
 {
@@ -274,7 +285,8 @@ static int perf_parse_file(config_fn_t fn, void *data)
 			break;
 		}
 	}
-	die("bad config file line %d in %s", config_linenr, config_file_name);
+	pr_err("bad config file line %d in %s\n", config_linenr, config_file_name);
+	return -1;
 }
 
 static int parse_unit_factor(const char *end, unsigned long *val)
@@ -325,32 +337,42 @@ static int perf_parse_long(const char *value, long *ret)
 	return 0;
 }
 
-static void die_bad_config(const char *name)
+static void bad_config(const char *name)
 {
 	if (config_file_name)
-		die("bad config value for '%s' in %s", name, config_file_name);
-	die("bad config value for '%s'", name);
+		pr_warning("bad config value for '%s' in %s, ignoring...\n", name, config_file_name);
+	else
+		pr_warning("bad config value for '%s', ignoring...\n", name);
 }
 
-u64 perf_config_u64(const char *name, const char *value)
+int perf_config_u64(u64 *dest, const char *name, const char *value)
 {
 	long long ret = 0;
 
-	if (!perf_parse_llong(value, &ret))
-		die_bad_config(name);
-	return (u64) ret;
+	if (!perf_parse_llong(value, &ret)) {
+		bad_config(name);
+		return -1;
+	}
+
+	*dest = ret;
+	return 0;
 }
 
-int perf_config_int(const char *name, const char *value)
+int perf_config_int(int *dest, const char *name, const char *value)
 {
 	long ret = 0;
-	if (!perf_parse_long(value, &ret))
-		die_bad_config(name);
-	return ret;
+	if (!perf_parse_long(value, &ret)) {
+		bad_config(name);
+		return -1;
+	}
+	*dest = ret;
+	return 0;
 }
 
 static int perf_config_bool_or_int(const char *name, const char *value, int *is_bool)
 {
+	int ret;
+
 	*is_bool = 1;
 	if (!value)
 		return 1;
@@ -361,7 +383,7 @@ static int perf_config_bool_or_int(const char *name, const char *value, int *is_
 	if (!strcasecmp(value, "false") || !strcasecmp(value, "no") || !strcasecmp(value, "off"))
 		return 0;
 	*is_bool = 0;
-	return perf_config_int(name, value);
+	return perf_config_int(&ret, name, value) < 0 ? -1 : ret;
 }
 
 int perf_config_bool(const char *name, const char *value)
@@ -370,11 +392,28 @@ int perf_config_bool(const char *name, const char *value)
 	return !!perf_config_bool_or_int(name, value, &discard);
 }
 
-const char *perf_config_dirname(const char *name, const char *value)
+static const char *perf_config_dirname(const char *name, const char *value)
 {
 	if (!name)
 		return NULL;
 	return value;
+}
+
+static int perf_buildid_config(const char *var, const char *value)
+{
+	/* same dir for all commands */
+	if (!strcmp(var, "buildid.dir")) {
+		const char *dir = perf_config_dirname(var, value);
+
+		if (!dir) {
+			pr_err("Invalid buildid directory!\n");
+			return -1;
+		}
+		strncpy(buildid_dir, dir, MAXPATHLEN-1);
+		buildid_dir[MAXPATHLEN-1] = '\0';
+	}
+
+	return 0;
 }
 
 static int perf_default_core_config(const char *var __maybe_unused,
@@ -387,30 +426,32 @@ static int perf_default_core_config(const char *var __maybe_unused,
 static int perf_ui_config(const char *var, const char *value)
 {
 	/* Add other config variables here. */
-	if (!strcmp(var, "ui.show-headers")) {
+	if (!strcmp(var, "ui.show-headers"))
 		symbol_conf.show_hist_headers = perf_config_bool(var, value);
-		return 0;
-	}
+
 	return 0;
 }
 
 int perf_default_config(const char *var, const char *value,
 			void *dummy __maybe_unused)
 {
-	if (!prefixcmp(var, "core."))
+	if (strstarts(var, "core."))
 		return perf_default_core_config(var, value);
 
-	if (!prefixcmp(var, "hist."))
+	if (strstarts(var, "hist."))
 		return perf_hist_config(var, value);
 
-	if (!prefixcmp(var, "ui."))
+	if (strstarts(var, "ui."))
 		return perf_ui_config(var, value);
 
-	if (!prefixcmp(var, "call-graph."))
+	if (strstarts(var, "call-graph."))
 		return perf_callchain_config(var, value);
 
-	if (!prefixcmp(var, "llvm."))
+	if (strstarts(var, "llvm."))
 		return perf_llvm_config(var, value);
+
+	if (strstarts(var, "buildid."))
+		return perf_buildid_config(var, value);
 
 	/* Add other config variables here. */
 	return 0;
@@ -434,7 +475,7 @@ static int perf_config_from_file(config_fn_t fn, const char *filename, void *dat
 	return ret;
 }
 
-static const char *perf_etc_perfconfig(void)
+const char *perf_etc_perfconfig(void)
 {
 	static const char *system_wide;
 	if (!system_wide)
@@ -458,52 +499,303 @@ static int perf_config_global(void)
 	return !perf_env_bool("PERF_CONFIG_NOGLOBAL", 0);
 }
 
-int perf_config(config_fn_t fn, void *data)
+static struct perf_config_section *find_section(struct list_head *sections,
+						const char *section_name)
 {
-	int ret = 0, found = 0;
+	struct perf_config_section *section;
+
+	list_for_each_entry(section, sections, node)
+		if (!strcmp(section->name, section_name))
+			return section;
+
+	return NULL;
+}
+
+static struct perf_config_item *find_config_item(const char *name,
+						 struct perf_config_section *section)
+{
+	struct perf_config_item *item;
+
+	list_for_each_entry(item, &section->items, node)
+		if (!strcmp(item->name, name))
+			return item;
+
+	return NULL;
+}
+
+static struct perf_config_section *add_section(struct list_head *sections,
+					       const char *section_name)
+{
+	struct perf_config_section *section = zalloc(sizeof(*section));
+
+	if (!section)
+		return NULL;
+
+	INIT_LIST_HEAD(&section->items);
+	section->name = strdup(section_name);
+	if (!section->name) {
+		pr_debug("%s: strdup failed\n", __func__);
+		free(section);
+		return NULL;
+	}
+
+	list_add_tail(&section->node, sections);
+	return section;
+}
+
+static struct perf_config_item *add_config_item(struct perf_config_section *section,
+						const char *name)
+{
+	struct perf_config_item *item = zalloc(sizeof(*item));
+
+	if (!item)
+		return NULL;
+
+	item->name = strdup(name);
+	if (!item->name) {
+		pr_debug("%s: strdup failed\n", __func__);
+		free(item);
+		return NULL;
+	}
+
+	list_add_tail(&item->node, &section->items);
+	return item;
+}
+
+static int set_value(struct perf_config_item *item, const char *value)
+{
+	char *val = strdup(value);
+
+	if (!val)
+		return -1;
+
+	zfree(&item->value);
+	item->value = val;
+	return 0;
+}
+
+static int collect_config(const char *var, const char *value,
+			  void *perf_config_set)
+{
+	int ret = -1;
+	char *ptr, *key;
+	char *section_name, *name;
+	struct perf_config_section *section = NULL;
+	struct perf_config_item *item = NULL;
+	struct perf_config_set *set = perf_config_set;
+	struct list_head *sections;
+
+	if (set == NULL)
+		return -1;
+
+	sections = &set->sections;
+	key = ptr = strdup(var);
+	if (!key) {
+		pr_debug("%s: strdup failed\n", __func__);
+		return -1;
+	}
+
+	section_name = strsep(&ptr, ".");
+	name = ptr;
+	if (name == NULL || value == NULL)
+		goto out_free;
+
+	section = find_section(sections, section_name);
+	if (!section) {
+		section = add_section(sections, section_name);
+		if (!section)
+			goto out_free;
+	}
+
+	item = find_config_item(name, section);
+	if (!item) {
+		item = add_config_item(section, name);
+		if (!item)
+			goto out_free;
+	}
+
+	/* perf_config_set can contain both user and system config items.
+	 * So we should know where each value is from.
+	 * The classification would be needed when a particular config file
+	 * is overwrited by setting feature i.e. set_config().
+	 */
+	if (strcmp(config_file_name, perf_etc_perfconfig()) == 0) {
+		section->from_system_config = true;
+		item->from_system_config = true;
+	} else {
+		section->from_system_config = false;
+		item->from_system_config = false;
+	}
+
+	ret = set_value(item, value);
+	return ret;
+
+out_free:
+	free(key);
+	return -1;
+}
+
+int perf_config_set__collect(struct perf_config_set *set, const char *file_name,
+			     const char *var, const char *value)
+{
+	config_file_name = file_name;
+	return collect_config(var, value, set);
+}
+
+static int perf_config_set__init(struct perf_config_set *set)
+{
+	int ret = -1;
 	const char *home = NULL;
+	char *user_config;
+	struct stat st;
 
 	/* Setting $PERF_CONFIG makes perf read _only_ the given config file. */
 	if (config_exclusive_filename)
-		return perf_config_from_file(fn, config_exclusive_filename, data);
+		return perf_config_from_file(collect_config, config_exclusive_filename, set);
 	if (perf_config_system() && !access(perf_etc_perfconfig(), R_OK)) {
-		ret += perf_config_from_file(fn, perf_etc_perfconfig(),
-					    data);
-		found += 1;
+		if (perf_config_from_file(collect_config, perf_etc_perfconfig(), set) < 0)
+			goto out;
 	}
 
 	home = getenv("HOME");
-	if (perf_config_global() && home) {
-		char *user_config = strdup(mkpath("%s/.perfconfig", home));
-		struct stat st;
 
-		if (user_config == NULL) {
-			warning("Not enough memory to process %s/.perfconfig, "
-				"ignoring it.", home);
-			goto out;
-		}
+	/*
+	 * Skip reading user config if:
+	 *   - there is no place to read it from (HOME)
+	 *   - we are asked not to (PERF_CONFIG_NOGLOBAL=1)
+	 */
+	if (!home || !*home || !perf_config_global())
+		return 0;
 
-		if (stat(user_config, &st) < 0)
-			goto out_free;
-
-		if (st.st_uid && (st.st_uid != geteuid())) {
-			warning("File %s not owned by current user or root, "
-				"ignoring it.", user_config);
-			goto out_free;
-		}
-
-		if (!st.st_size)
-			goto out_free;
-
-		ret += perf_config_from_file(fn, user_config, data);
-		found += 1;
-out_free:
-		free(user_config);
+	user_config = strdup(mkpath("%s/.perfconfig", home));
+	if (user_config == NULL) {
+		pr_warning("Not enough memory to process %s/.perfconfig, ignoring it.", home);
+		goto out;
 	}
+
+	if (stat(user_config, &st) < 0) {
+		if (errno == ENOENT)
+			ret = 0;
+		goto out_free;
+	}
+
+	ret = 0;
+
+	if (st.st_uid && (st.st_uid != geteuid())) {
+		pr_warning("File %s not owned by current user or root, ignoring it.", user_config);
+		goto out_free;
+	}
+
+	if (st.st_size)
+		ret = perf_config_from_file(collect_config, user_config, set);
+
+out_free:
+	free(user_config);
 out:
-	if (found == 0)
-		return -1;
 	return ret;
+}
+
+struct perf_config_set *perf_config_set__new(void)
+{
+	struct perf_config_set *set = zalloc(sizeof(*set));
+
+	if (set) {
+		INIT_LIST_HEAD(&set->sections);
+		perf_config_set__init(set);
+	}
+
+	return set;
+}
+
+static int perf_config__init(void)
+{
+	if (config_set == NULL)
+		config_set = perf_config_set__new();
+
+	return config_set == NULL;
+}
+
+int perf_config(config_fn_t fn, void *data)
+{
+	int ret = 0;
+	char key[BUFSIZ];
+	struct perf_config_section *section;
+	struct perf_config_item *item;
+
+	if (config_set == NULL && perf_config__init())
+		return -1;
+
+	perf_config_set__for_each_entry(config_set, section, item) {
+		char *value = item->value;
+
+		if (value) {
+			scnprintf(key, sizeof(key), "%s.%s",
+				  section->name, item->name);
+			ret = fn(key, value, data);
+			if (ret < 0) {
+				pr_err("Error: wrong config key-value pair %s=%s\n",
+				       key, value);
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
+void perf_config__exit(void)
+{
+	perf_config_set__delete(config_set);
+	config_set = NULL;
+}
+
+void perf_config__refresh(void)
+{
+	perf_config__exit();
+	perf_config__init();
+}
+
+static void perf_config_item__delete(struct perf_config_item *item)
+{
+	zfree(&item->name);
+	zfree(&item->value);
+	free(item);
+}
+
+static void perf_config_section__purge(struct perf_config_section *section)
+{
+	struct perf_config_item *item, *tmp;
+
+	list_for_each_entry_safe(item, tmp, &section->items, node) {
+		list_del_init(&item->node);
+		perf_config_item__delete(item);
+	}
+}
+
+static void perf_config_section__delete(struct perf_config_section *section)
+{
+	perf_config_section__purge(section);
+	zfree(&section->name);
+	free(section);
+}
+
+static void perf_config_set__purge(struct perf_config_set *set)
+{
+	struct perf_config_section *section, *tmp;
+
+	list_for_each_entry_safe(section, tmp, &set->sections, node) {
+		list_del_init(&section->node);
+		perf_config_section__delete(section);
+	}
+}
+
+void perf_config_set__delete(struct perf_config_set *set)
+{
+	if (set == NULL)
+		return;
+
+	perf_config_set__purge(set);
+	free(set);
 }
 
 /*
@@ -512,35 +804,8 @@ out:
  */
 int config_error_nonbool(const char *var)
 {
-	return error("Missing value for '%s'", var);
-}
-
-struct buildid_dir_config {
-	char *dir;
-};
-
-static int buildid_dir_command_config(const char *var, const char *value,
-				      void *data)
-{
-	struct buildid_dir_config *c = data;
-	const char *v;
-
-	/* same dir for all commands */
-	if (!strcmp(var, "buildid.dir")) {
-		v = perf_config_dirname(var, value);
-		if (!v)
-			return -1;
-		strncpy(c->dir, v, MAXPATHLEN-1);
-		c->dir[MAXPATHLEN-1] = '\0';
-	}
-	return 0;
-}
-
-static void check_buildid_dir_config(void)
-{
-	struct buildid_dir_config c;
-	c.dir = buildid_dir;
-	perf_config(buildid_dir_command_config, &c);
+	pr_err("Missing value for '%s'", var);
+	return -1;
 }
 
 void set_buildid_dir(const char *dir)
@@ -548,16 +813,13 @@ void set_buildid_dir(const char *dir)
 	if (dir)
 		scnprintf(buildid_dir, MAXPATHLEN-1, "%s", dir);
 
-	/* try config file */
-	if (buildid_dir[0] == '\0')
-		check_buildid_dir_config();
-
 	/* default to $HOME/.debug */
 	if (buildid_dir[0] == '\0') {
-		char *v = getenv("HOME");
-		if (v) {
+		char *home = getenv("HOME");
+
+		if (home) {
 			snprintf(buildid_dir, MAXPATHLEN-1, "%s/%s",
-				 v, DEBUG_CACHE_DIR);
+				 home, DEBUG_CACHE_DIR);
 		} else {
 			strncpy(buildid_dir, DEBUG_CACHE_DIR, MAXPATHLEN-1);
 		}

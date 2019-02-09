@@ -8,6 +8,8 @@
 
 		    Dominik Brodowski  <linux@brodo.de>
 		     David Kimdon <dwhedon@debian.org>
+		Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+		   Viresh Kumar <viresh.kumar@linaro.org>
 
 
 
@@ -36,10 +38,11 @@ speed limits (like LCD drivers on ARM architecture). Additionally, the
 kernel "constant" loops_per_jiffy is updated on frequency changes
 here.
 
-Reference counting is done by cpufreq_get_cpu and cpufreq_put_cpu,
-which make sure that the cpufreq processor driver is correctly
-registered with the core, and will not be unloaded until
-cpufreq_put_cpu is called.
+Reference counting of the cpufreq policies is done by cpufreq_cpu_get
+and cpufreq_cpu_put, which make sure that the cpufreq driver is
+correctly registered with the core, and will not be unloaded until
+cpufreq_put_cpu is called. That also ensures that the respective cpufreq
+policy doesn't get freed while being used.
 
 2. CPUFreq notifiers
 ====================
@@ -69,18 +72,16 @@ CPUFreq policy notifier is called twice for a policy transition:
 The phase is specified in the second argument to the notifier.
 
 The third argument, a void *pointer, points to a struct cpufreq_policy
-consisting of five values: cpu, min, max, policy and max_cpu_freq. min 
-and max are the lower and upper frequencies (in kHz) of the new
-policy, policy the new policy, cpu the number of the affected CPU; and 
-max_cpu_freq the maximum supported CPU frequency. This value is given 
-for informational purposes only.
+consisting of several values, including min, max (the lower and upper
+frequencies (in kHz) of the new policy).
 
 
 2.2 CPUFreq transition notifiers
 --------------------------------
 
-These are notified twice when the CPUfreq driver switches the CPU core
-frequency and this change has any external implications.
+These are notified twice for each online CPU in the policy, when the
+CPUfreq driver switches the CPU core frequency and this change has no
+any external implications.
 
 The second argument specifies the phase - CPUFREQ_PRECHANGE or
 CPUFREQ_POSTCHANGE.
@@ -90,17 +91,16 @@ values:
 cpu	- number of the affected CPU
 old	- old frequency
 new	- new frequency
+flags	- flags of the cpufreq driver
 
 3. CPUFreq Table Generation with Operating Performance Point (OPP)
 ==================================================================
 For details about OPP, see Documentation/power/opp.txt
 
-dev_pm_opp_init_cpufreq_table - cpufreq framework typically is initialized with
-	cpufreq_frequency_table_cpuinfo which is provided with the list of
-	frequencies that are available for operation. This function provides
-	a ready to use conversion routine to translate the OPP layer's internal
-	information about the available frequencies into a format readily
-	providable to cpufreq.
+dev_pm_opp_init_cpufreq_table -
+	This function provides a ready to use conversion routine to translate
+	the OPP layer's internal information about the available frequencies
+	into a format readily providable to cpufreq.
 
 	WARNING: Do not use this function in interrupt context.
 
@@ -110,7 +110,7 @@ dev_pm_opp_init_cpufreq_table - cpufreq framework typically is initialized with
 		/* Do things */
 		r = dev_pm_opp_init_cpufreq_table(dev, &freq_table);
 		if (!r)
-			cpufreq_frequency_table_cpuinfo(policy, freq_table);
+			policy->freq_table = freq_table;
 		/* Do other things */
 	 }
 

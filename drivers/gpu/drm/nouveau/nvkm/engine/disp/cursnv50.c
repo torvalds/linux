@@ -22,47 +22,43 @@
  * Authors: Ben Skeggs
  */
 #include "channv50.h"
-#include "rootnv50.h"
+#include "head.h"
 
 #include <core/client.h>
 
-#include <nvif/class.h>
+#include <nvif/cl507a.h>
 #include <nvif/unpack.h>
 
 int
-nv50_disp_curs_new(const struct nv50_disp_chan_func *func,
-		   const struct nv50_disp_chan_mthd *mthd,
-		   struct nv50_disp_root *root, int chid,
-		   const struct nvkm_oclass *oclass, void *data, u32 size,
-		   struct nvkm_object **pobject)
+nv50_disp_curs_new_(const struct nv50_disp_chan_func *func,
+		    struct nv50_disp *disp, int ctrl, int user,
+		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nvkm_object **pobject)
 {
 	union {
 		struct nv50_disp_cursor_v0 v0;
-	} *args = data;
+	} *args = argv;
 	struct nvkm_object *parent = oclass->parent;
-	struct nv50_disp *disp = root->disp;
-	int head, ret;
+	int head, ret = -ENOSYS;
 
-	nvif_ioctl(parent, "create disp cursor size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	nvif_ioctl(parent, "create disp cursor size %d\n", argc);
+	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create disp cursor vers %d head %d\n",
 			   args->v0.version, args->v0.head);
-		if (args->v0.head > disp->base.head.nr)
+		if (!nvkm_head_find(&disp->base, args->v0.head))
 			return -EINVAL;
 		head = args->v0.head;
 	} else
 		return ret;
 
-	return nv50_disp_chan_new_(func, mthd, root, chid + head,
+	return nv50_disp_chan_new_(func, NULL, disp, ctrl + head, user + head,
 				   head, oclass, pobject);
 }
 
-const struct nv50_disp_pioc_oclass
-nv50_disp_curs_oclass = {
-	.base.oclass = NV50_DISP_CURSOR,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_curs_new,
-	.func = &nv50_disp_pioc_func,
-	.chid = 7,
-};
+int
+nv50_disp_curs_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		   struct nv50_disp *disp, struct nvkm_object **pobject)
+{
+	return nv50_disp_curs_new_(&nv50_disp_pioc_func, disp, 7, 7,
+				   oclass, argv, argc, pobject);
+}

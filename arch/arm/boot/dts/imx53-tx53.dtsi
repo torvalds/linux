@@ -1,15 +1,45 @@
 /*
- * Copyright 2012 <LW@KARO-electronics.de>
+ * Copyright 2012-2017 <LW@KARO-electronics.de>
  * based on imx53-qsb.dts
  *   Copyright 2011 Freescale Semiconductor, Inc.
  *   Copyright 2011 Linaro Ltd.
  *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 at the following locations:
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
  *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include "imx53.dtsi"
@@ -19,11 +49,16 @@
 	model = "Ka-Ro electronics TX53 module";
 	compatible = "karo,tx53", "fsl,imx53";
 
+	/* Will be filled by the bootloader */
+	memory@70000000 {
+		reg = <0x70000000 0>;
+	};
+
 	aliases {
 		can0 = &can2; /* Make the can interface indices consistent with TX28/TX48 modules */
 		can1 = &can1;
 		ipu = &ipu;
-		reg_can_xcvr = &reg_can_xcvr;
+		reg-can-xcvr = &reg_can_xcvr;
 		usbh1 = &usbh1;
 		usbotg = &usbotg;
 	};
@@ -32,13 +67,12 @@
 		ckih1 {
 			clock-frequency = <0>;
 		};
+	};
 
-		mclk: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <27000000>;
-		};
+	mclk: clock-mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
 	};
 
 	gpio-keys {
@@ -50,7 +84,7 @@
 			label = "Power Button";
 			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <116>; /* KEY_POWER */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -66,61 +100,50 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	reg_2v5: regulator-2v5 {
+		compatible = "regulator-fixed";
+		regulator-name = "2V5";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+	};
 
-		reg_2v5: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "2V5";
-			regulator-min-microvolt = <2500000>;
-			regulator-max-microvolt = <2500000>;
-		};
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 
-		reg_3v3: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "3V3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-		};
+	reg_can_xcvr: regulator-can-xcvr {
+		compatible = "regulator-fixed";
+		regulator-name = "CAN XCVR";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_can_xcvr>;
+		gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
+	};
 
-		reg_can_xcvr: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "CAN XCVR";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_can_xcvr>;
-			gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
-		};
+	reg_usbh1_vbus: regulator-usbh1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usbh1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbh1_vbus>;
+		gpio = <&gpio3 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-		reg_usbh1_vbus: regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "usbh1_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usbh1_vbus>;
-			gpio = <&gpio3 31 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
-		reg_usbotg_vbus: regulator@4 {
-			compatible = "regulator-fixed";
-			reg = <4>;
-			regulator-name = "usbotg_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usbotg_vbus>;
-			gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	reg_usbotg_vbus: regulator-usbotg-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usbotg_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbotg_vbus>;
+		gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	sound {
@@ -161,7 +184,6 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	fsl,spi-num-chipselects = <2>;
 	status = "okay";
 
 	cs-gpios = <
@@ -202,21 +224,30 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
 	phy-handle = <&phy0>;
 	mac-address = [000000000000]; /* placeholder; will be overwritten by bootloader */
 	status = "okay";
 
-	phy0: ethernet-phy@0 {
-		interrupt-parent = <&gpio2>;
-		interrupts = <4>;
-		device_type = "ethernet-phy";
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			reg = <0>;
+			interrupt-parent = <&gpio2>;
+			interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+			device_type = "ethernet-phy";
+		};
 	};
 };
 
 &i2c1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-0 = <&pinctrl_i2c1_gpio>;
+	scl-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio3 28 GPIO_ACTIVE_HIGH>;
 	clock-frequency = <400000>;
 	status = "okay";
 
@@ -226,7 +257,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ds1339>;
 		interrupt-parent = <&gpio4>;
-		interrupts = <20 0>;
+		interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
+		trickle-resistor-ohms = <250>;
+		trickle-diode-disable;
 	};
 };
 
@@ -369,15 +402,29 @@
 
 		pinctrl_i2c1: i2c1grp {
 			fsl,pins = <
-				MX53_PAD_EIM_D21__I2C1_SCL		0xc0000000
-				MX53_PAD_EIM_D28__I2C1_SDA		0xc0000000
+				MX53_PAD_EIM_D21__I2C1_SCL		0x400001e4
+				MX53_PAD_EIM_D28__I2C1_SDA		0x400001e4
+			>;
+		};
+
+		pinctrl_i2c1_gpio: i2c1-gpiogrp {
+			fsl,pins = <
+				MX53_PAD_EIM_D21__GPIO3_21		0x400001e6
+				MX53_PAD_EIM_D28__GPIO3_28		0x400001e6
 			>;
 		};
 
 		pinctrl_i2c3: i2c3grp {
 			fsl,pins = <
-				MX53_PAD_GPIO_3__I2C3_SCL		0xc0000000
-				MX53_PAD_GPIO_6__I2C3_SDA		0xc0000000
+				MX53_PAD_GPIO_3__I2C3_SCL		0x400001e4
+				MX53_PAD_GPIO_6__I2C3_SDA		0x400001e4
+			>;
+		};
+
+		pinctrl_i2c3_gpio: i2c3-gpiogrp {
+			fsl,pins = <
+				MX53_PAD_GPIO_3__GPIO1_3		0x400001e6
+				MX53_PAD_GPIO_6__GPIO1_6		0x400001e6
 			>;
 		};
 
@@ -502,7 +549,6 @@
 };
 
 &ssi1 {
-	codec-handle = <&sgtl5000>;
 	status = "okay";
 };
 
@@ -513,21 +559,21 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 

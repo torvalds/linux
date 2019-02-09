@@ -32,8 +32,6 @@
 #define ST21NFCA_EVT_CONNECTIVITY		0x10
 #define ST21NFCA_EVT_TRANSACTION		0x12
 
-#define ST21NFCA_ESE_HOST_ID			0xc0
-
 #define ST21NFCA_SE_TO_HOT_PLUG			1000
 /* Connectivity pipe only */
 #define ST21NFCA_SE_COUNT_PIPE_UICC		0x01
@@ -254,7 +252,7 @@ int st21nfca_hci_se_io(struct nfc_hci_dev *hdev, u32 se_idx,
 }
 EXPORT_SYMBOL(st21nfca_hci_se_io);
 
-static void st21nfca_se_wt_timeout(unsigned long data)
+static void st21nfca_se_wt_timeout(struct timer_list *t)
 {
 	/*
 	 * No answer from the secure element
@@ -267,7 +265,8 @@ static void st21nfca_se_wt_timeout(unsigned long data)
 	 */
 	/* hardware reset managed through VCC_UICC_OUT power supply */
 	u8 param = 0x01;
-	struct st21nfca_hci_info *info = (struct st21nfca_hci_info *) data;
+	struct st21nfca_hci_info *info = from_timer(info, t,
+						    se_info.bwi_timer);
 
 	pr_debug("\n");
 
@@ -285,9 +284,10 @@ static void st21nfca_se_wt_timeout(unsigned long data)
 	info->se_info.cb(info->se_info.cb_context, NULL, 0, -ETIME);
 }
 
-static void st21nfca_se_activation_timeout(unsigned long data)
+static void st21nfca_se_activation_timeout(struct timer_list *t)
 {
-	struct st21nfca_hci_info *info = (struct st21nfca_hci_info *) data;
+	struct st21nfca_hci_info *info = from_timer(info, t,
+						    se_info.se_active_timer);
 
 	pr_debug("\n");
 
@@ -312,7 +312,8 @@ int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 
 	switch (event) {
 	case ST21NFCA_EVT_CONNECTIVITY:
-		break;
+		r = nfc_se_connectivity(hdev->ndev, host);
+	break;
 	case ST21NFCA_EVT_TRANSACTION:
 		/*
 		 * According to specification etsi 102 622
@@ -342,7 +343,7 @@ int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 		       transaction->aid_len + 4, transaction->params_len);
 
 		r = nfc_se_transaction(hdev->ndev, host, transaction);
-		break;
+	break;
 	default:
 		nfc_err(&hdev->ndev->dev, "Unexpected event on connectivity gate\n");
 		return 1;
@@ -393,14 +394,11 @@ void st21nfca_se_init(struct nfc_hci_dev *hdev)
 
 	init_completion(&info->se_info.req_completion);
 	/* initialize timers */
-	init_timer(&info->se_info.bwi_timer);
-	info->se_info.bwi_timer.data = (unsigned long)info;
-	info->se_info.bwi_timer.function = st21nfca_se_wt_timeout;
+	timer_setup(&info->se_info.bwi_timer, st21nfca_se_wt_timeout, 0);
 	info->se_info.bwi_active = false;
 
-	init_timer(&info->se_info.se_active_timer);
-	info->se_info.se_active_timer.data = (unsigned long)info;
-	info->se_info.se_active_timer.function = st21nfca_se_activation_timeout;
+	timer_setup(&info->se_info.se_active_timer,
+		    st21nfca_se_activation_timeout, 0);
 	info->se_info.se_active = false;
 
 	info->se_info.count_pipes = 0;

@@ -100,3 +100,74 @@ $(obj)/uImage.lzo: $(obj)/vmlinux.bin.lzo FORCE
 $(obj)/uImage: $(obj)/uImage.$(suffix-y)
 	@ln -sf $(notdir $<) $@
 	@echo '  Image $@ is ready'
+
+#
+# Flattened Image Tree (.itb) images
+#
+
+ifeq ($(ADDR_BITS),32)
+itb_addr_cells = 1
+endif
+ifeq ($(ADDR_BITS),64)
+itb_addr_cells = 2
+endif
+
+targets += vmlinux.its.S
+
+quiet_cmd_its_cat = CAT     $@
+      cmd_its_cat = cat $(filter-out $(PHONY), $^) >$@
+
+$(obj)/vmlinux.its.S: $(addprefix $(srctree)/arch/mips/$(PLATFORM)/,$(ITS_INPUTS)) FORCE
+	$(call if_changed,its_cat)
+
+targets += vmlinux.its
+targets += vmlinux.gz.its
+targets += vmlinux.bz2.its
+targets += vmlinux.lzmo.its
+targets += vmlinux.lzo.its
+
+quiet_cmd_cpp_its_S = ITS     $@
+      cmd_cpp_its_S = $(CPP) -P -C -o $@ $< \
+		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
+			-DVMLINUX_BINARY="\"$(3)\"" \
+			-DVMLINUX_COMPRESSION="\"$(2)\"" \
+			-DVMLINUX_LOAD_ADDRESS=$(VMLINUX_LOAD_ADDRESS) \
+			-DVMLINUX_ENTRY_ADDRESS=$(VMLINUX_ENTRY_ADDRESS) \
+			-DADDR_BITS=$(ADDR_BITS) \
+			-DADDR_CELLS=$(itb_addr_cells)
+
+$(obj)/vmlinux.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
+	$(call if_changed,cpp_its_S,none,vmlinux.bin)
+
+$(obj)/vmlinux.gz.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
+	$(call if_changed,cpp_its_S,gzip,vmlinux.bin.gz)
+
+$(obj)/vmlinux.bz2.its: $(obj)/vmlinux.its.S $(VMLINUX)  FORCE
+	$(call if_changed,cpp_its_S,bzip2,vmlinux.bin.bz2)
+
+$(obj)/vmlinux.lzma.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
+	$(call if_changed,cpp_its_S,lzma,vmlinux.bin.lzma)
+
+$(obj)/vmlinux.lzo.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
+	$(call if_changed,cpp_its_S,lzo,vmlinux.bin.lzo)
+
+targets += vmlinux.itb
+targets += vmlinux.gz.itb
+targets += vmlinux.bz2.itb
+targets += vmlinux.lzma.itb
+targets += vmlinux.lzo.itb
+
+quiet_cmd_itb-image = ITB     $@
+      cmd_itb-image = \
+		env PATH="$(objtree)/scripts/dtc:$(PATH)" \
+		$(CONFIG_SHELL) $(MKIMAGE) \
+		-D "-I dts -O dtb -p 500 \
+			--include $(objtree)/arch/mips \
+			--warning no-unit_address_vs_reg" \
+		-f $(2) $@
+
+$(obj)/vmlinux.itb: $(obj)/vmlinux.its $(obj)/vmlinux.bin FORCE
+	$(call if_changed,itb-image,$<)
+
+$(obj)/vmlinux.%.itb: $(obj)/vmlinux.%.its $(obj)/vmlinux.bin.% FORCE
+	$(call if_changed,itb-image,$<)

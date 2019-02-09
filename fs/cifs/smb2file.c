@@ -41,7 +41,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	int rc;
 	__le16 *smb2_path;
 	struct smb2_file_all_info *smb2_data = NULL;
-	__u8 smb2_oplock[17];
+	__u8 smb2_oplock;
 	struct cifs_fid *fid = oparms->fid;
 	struct network_resiliency_req nr_ioctl_req;
 
@@ -59,12 +59,10 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	}
 
 	oparms->desired_access |= FILE_READ_ATTRIBUTES;
-	*smb2_oplock = SMB2_OPLOCK_LEVEL_BATCH;
+	smb2_oplock = SMB2_OPLOCK_LEVEL_BATCH;
 
-	if (oparms->tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING)
-		memcpy(smb2_oplock + 1, fid->lease_key, SMB2_LEASE_KEY_SIZE);
-
-	rc = SMB2_open(xid, oparms, smb2_path, smb2_oplock, smb2_data, NULL);
+	rc = SMB2_open(xid, oparms, smb2_path, &smb2_oplock, smb2_data, NULL,
+		       NULL);
 	if (rc)
 		goto out;
 
@@ -73,7 +71,8 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 		nr_ioctl_req.Timeout = 0; /* use server default (120 seconds) */
 		nr_ioctl_req.Reserved = 0;
 		rc = SMB2_ioctl(xid, oparms->tcon, fid->persistent_fid,
-			fid->volatile_fid, FSCTL_LMR_REQUEST_RESILIENCY, true,
+			fid->volatile_fid, FSCTL_LMR_REQUEST_RESILIENCY,
+			true /* is_fsctl */,
 			(char *)&nr_ioctl_req, sizeof(nr_ioctl_req),
 			NULL, NULL /* no return info */);
 		if (rc == -EOPNOTSUPP) {
@@ -99,7 +98,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 		move_smb2_info_to_cifs(buf, smb2_data);
 	}
 
-	*oplock = *smb2_oplock;
+	*oplock = smb2_oplock;
 out:
 	kfree(smb2_data);
 	kfree(smb2_path);
@@ -123,10 +122,10 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 
 	/*
 	 * Accessing maxBuf is racy with cifs_reconnect - need to store value
-	 * and check it for zero before using.
+	 * and check it before using.
 	 */
 	max_buf = tcon->ses->server->maxBuf;
-	if (!max_buf)
+	if (max_buf < sizeof(struct smb2_lock_element))
 		return -EINVAL;
 
 	max_num = max_buf / sizeof(struct smb2_lock_element);
@@ -260,7 +259,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	 * and check it for zero before using.
 	 */
 	max_buf = tlink_tcon(cfile->tlink)->ses->server->maxBuf;
-	if (!max_buf) {
+	if (max_buf < sizeof(struct smb2_lock_element)) {
 		free_xid(xid);
 		return -EINVAL;
 	}

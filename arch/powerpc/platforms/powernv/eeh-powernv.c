@@ -36,20 +36,37 @@
 #include <asm/msi_bitmap.h>
 #include <asm/opal.h>
 #include <asm/ppc-pci.h>
+#include <asm/pnv-pci.h>
 
 #include "powernv.h"
 #include "pci.h"
 
-static bool pnv_eeh_nb_init = false;
 static int eeh_event_irq = -EINVAL;
+
+void pnv_pcibios_bus_add_device(struct pci_dev *pdev)
+{
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+
+	if (!pdev->is_virtfn)
+		return;
+
+	/*
+	 * The following operations will fail if VF's sysfs files
+	 * aren't created or its resources aren't finalized.
+	 */
+	eeh_add_device_early(pdn);
+	eeh_add_device_late(pdev);
+	eeh_sysfs_add_device(pdev);
+}
 
 static int pnv_eeh_init(void)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
+	int max_diag_size = PNV_PCI_DIAG_BUF_SIZE;
 
-	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
-		pr_warn("%s: OPALv3 is required !\n",
+	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
+		pr_warn("%s: OPAL is required !\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -68,6 +85,9 @@ static int pnv_eeh_init(void)
 		if (phb->model == PNV_PHB_MODEL_P7IOC)
 			eeh_add_flag(EEH_ENABLE_IO_FOR_LOG);
 
+		if (phb->diag_data_size > max_diag_size)
+			max_diag_size = phb->diag_data_size;
+
 		/*
 		 * PE#0 should be regarded as valid by EEH core
 		 * if it's not the reserved one. Currently, we
@@ -75,11 +95,14 @@ static int pnv_eeh_init(void)
 		 * and P7IOC separately. So we should regard
 		 * PE#0 as valid for PHB3 and P7IOC.
 		 */
-		if (phb->ioda.reserved_pe != 0)
+		if (phb->ioda.reserved_pe_idx != 0)
 			eeh_add_flag(EEH_VALID_PE_ZERO);
 
 		break;
 	}
+
+	eeh_set_pe_aux_size(max_diag_size);
+	ppc_md.pcibios_bus_add_device = pnv_pcibios_bus_add_device;
 
 	return 0;
 }
@@ -106,7 +129,6 @@ static ssize_t pnv_eeh_ei_write(struct file *filp,
 				size_t count, loff_t *ppos)
 {
 	struct pci_controller *hose = filp->private_data;
-	struct eeh_dev *edev;
 	struct eeh_pe *pe;
 	int pe_no, type, func;
 	unsigned long addr, mask;
@@ -128,13 +150,7 @@ static ssize_t pnv_eeh_ei_write(struct file *filp,
 		return -EINVAL;
 
 	/* Retrieve PE */
-	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
-	if (!edev)
-		return -ENOMEM;
-	edev->phb = hose;
-	edev->pe_config_addr = pe_no;
-	pe = eeh_pe_get(edev);
-	kfree(edev);
+	pe = eeh_pe_get(hose, pe_no, 0);
 	if (!pe)
 		return -ENODEV;
 
@@ -167,42 +183,26 @@ static int pnv_eeh_dbgfs_get(void *data, int offset, u64 *val)
 	return 0;
 }
 
-static int pnv_eeh_outb_dbgfs_set(void *data, u64 val)
-{
-	return pnv_eeh_dbgfs_set(data, 0xD10, val);
-}
+#define PNV_EEH_DBGFS_ENTRY(name, reg)				\
+static int pnv_eeh_dbgfs_set_##name(void *data, u64 val)	\
+{								\
+	return pnv_eeh_dbgfs_set(data, reg, val);		\
+}								\
+								\
+static int pnv_eeh_dbgfs_get_##name(void *data, u64 *val)	\
+{								\
+	return pnv_eeh_dbgfs_get(data, reg, val);		\
+}								\
+								\
+DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_dbgfs_ops_##name,		\
+			pnv_eeh_dbgfs_get_##name,		\
+                        pnv_eeh_dbgfs_set_##name,		\
+			"0x%llx\n")
 
-static int pnv_eeh_outb_dbgfs_get(void *data, u64 *val)
-{
-	return pnv_eeh_dbgfs_get(data, 0xD10, val);
-}
+PNV_EEH_DBGFS_ENTRY(outb, 0xD10);
+PNV_EEH_DBGFS_ENTRY(inbA, 0xD90);
+PNV_EEH_DBGFS_ENTRY(inbB, 0xE10);
 
-static int pnv_eeh_inbA_dbgfs_set(void *data, u64 val)
-{
-	return pnv_eeh_dbgfs_set(data, 0xD90, val);
-}
-
-static int pnv_eeh_inbA_dbgfs_get(void *data, u64 *val)
-{
-	return pnv_eeh_dbgfs_get(data, 0xD90, val);
-}
-
-static int pnv_eeh_inbB_dbgfs_set(void *data, u64 val)
-{
-	return pnv_eeh_dbgfs_set(data, 0xE10, val);
-}
-
-static int pnv_eeh_inbB_dbgfs_get(void *data, u64 *val)
-{
-	return pnv_eeh_dbgfs_get(data, 0xE10, val);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_outb_dbgfs_ops, pnv_eeh_outb_dbgfs_get,
-			pnv_eeh_outb_dbgfs_set, "0x%llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_inbA_dbgfs_ops, pnv_eeh_inbA_dbgfs_get,
-			pnv_eeh_inbA_dbgfs_set, "0x%llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_inbB_dbgfs_ops, pnv_eeh_inbB_dbgfs_get,
-			pnv_eeh_inbB_dbgfs_set, "0x%llx\n");
 #endif /* CONFIG_DEBUG_FS */
 
 /**
@@ -213,31 +213,39 @@ DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_inbB_dbgfs_ops, pnv_eeh_inbB_dbgfs_get,
  * been built. If the I/O cache staff has been built, EEH is
  * ready to supply service.
  */
-static int pnv_eeh_post_init(void)
+int pnv_eeh_post_init(void)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 	int ret = 0;
 
+	/* Probe devices & build address cache */
+	eeh_probe_devices();
+	eeh_addr_cache_build();
+
+	if (eeh_has_flag(EEH_POSTPONED_PROBE)) {
+		eeh_clear_flag(EEH_POSTPONED_PROBE);
+		if (eeh_enabled())
+			pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
+		else
+			pr_info("EEH: No capable adapters found\n");
+	}
+
 	/* Register OPAL event notifier */
-	if (!pnv_eeh_nb_init) {
-		eeh_event_irq = opal_event_request(ilog2(OPAL_EVENT_PCI_ERROR));
-		if (eeh_event_irq < 0) {
-			pr_err("%s: Can't register OPAL event interrupt (%d)\n",
-			       __func__, eeh_event_irq);
-			return eeh_event_irq;
-		}
+	eeh_event_irq = opal_event_request(ilog2(OPAL_EVENT_PCI_ERROR));
+	if (eeh_event_irq < 0) {
+		pr_err("%s: Can't register OPAL event interrupt (%d)\n",
+		       __func__, eeh_event_irq);
+		return eeh_event_irq;
+	}
 
-		ret = request_irq(eeh_event_irq, pnv_eeh_event,
-				IRQ_TYPE_LEVEL_HIGH, "opal-eeh", NULL);
-		if (ret < 0) {
-			irq_dispose_mapping(eeh_event_irq);
-			pr_err("%s: Can't request OPAL event interrupt (%d)\n",
-			       __func__, eeh_event_irq);
-			return ret;
-		}
-
-		pnv_eeh_nb_init = true;
+	ret = request_irq(eeh_event_irq, pnv_eeh_event,
+			  IRQ_TYPE_LEVEL_HIGH, "opal-eeh", NULL);
+	if (ret < 0) {
+		irq_dispose_mapping(eeh_event_irq);
+		pr_err("%s: Can't request OPAL event interrupt (%d)\n",
+		       __func__, eeh_event_irq);
+		return ret;
 	}
 
 	if (!eeh_enabled())
@@ -268,13 +276,13 @@ static int pnv_eeh_post_init(void)
 
 		debugfs_create_file("err_injct_outbound", 0600,
 				    phb->dbgfs, hose,
-				    &pnv_eeh_outb_dbgfs_ops);
+				    &pnv_eeh_dbgfs_ops_outb);
 		debugfs_create_file("err_injct_inboundA", 0600,
 				    phb->dbgfs, hose,
-				    &pnv_eeh_inbA_dbgfs_ops);
+				    &pnv_eeh_dbgfs_ops_inbA);
 		debugfs_create_file("err_injct_inboundB", 0600,
 				    phb->dbgfs, hose,
-				    &pnv_eeh_inbB_dbgfs_ops);
+				    &pnv_eeh_dbgfs_ops_inbB);
 #endif /* CONFIG_DEBUG_FS */
 	}
 
@@ -368,6 +376,7 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	uint32_t pcie_flags;
 	int ret;
+	int config_addr = (pdn->busno << 8) | (pdn->devfn);
 
 	/*
 	 * When probing the root bridge, which doesn't have any
@@ -382,11 +391,18 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	if ((pdn->class_code >> 8) == PCI_CLASS_BRIDGE_ISA)
 		return NULL;
 
+	/* Skip if we haven't probed yet */
+	if (phb->ioda.pe_rmap[config_addr] == IODA_INVALID_PE) {
+		eeh_add_flag(EEH_POSTPONED_PROBE);
+		return NULL;
+	}
+
 	/* Initialize eeh device */
 	edev->class_code = pdn->class_code;
 	edev->mode	&= 0xFFFFFF00;
 	edev->pcix_cap = pnv_eeh_find_cap(pdn, PCI_CAP_ID_PCIX);
 	edev->pcie_cap = pnv_eeh_find_cap(pdn, PCI_CAP_ID_EXP);
+	edev->af_cap   = pnv_eeh_find_cap(pdn, PCI_CAP_ID_AF);
 	edev->aer_cap  = pnv_eeh_find_ecap(pdn, PCI_EXT_CAP_ID_ERR);
 	if ((edev->class_code >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		edev->mode |= EEH_DEV_BRIDGE;
@@ -401,13 +417,12 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 		}
 	}
 
-	edev->config_addr    = (pdn->busno << 8) | (pdn->devfn);
-	edev->pe_config_addr = phb->ioda.pe_rmap[edev->config_addr];
+	edev->pe_config_addr = phb->ioda.pe_rmap[config_addr];
 
 	/* Create PE */
 	ret = eeh_add_to_parent_pe(edev);
 	if (ret) {
-		pr_warn("%s: Can't add PCI dev %04x:%02x:%02x.%01x to parent PE (%d)\n",
+		pr_warn("%s: Can't add PCI dev %04x:%02x:%02x.%01x to parent PE (%x)\n",
 			__func__, hose->global_number, pdn->busno,
 			PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn), ret);
 		return NULL;
@@ -426,11 +441,14 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 * been set for the PE, we will set EEH_PE_CFG_BLOCKED for
 	 * that PE to block its config space.
 	 *
+	 * Broadcom BCM5718 2-ports NICs (14e4:1656)
 	 * Broadcom Austin 4-ports NICs (14e4:1657)
 	 * Broadcom Shiner 4-ports 1G NICs (14e4:168a)
 	 * Broadcom Shiner 2-ports 10G NICs (14e4:168e)
 	 */
 	if ((pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
+	     pdn->device_id == 0x1656) ||
+	    (pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
 	     pdn->device_id == 0x1657) ||
 	    (pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
 	     pdn->device_id == 0x168a) ||
@@ -444,9 +462,12 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 * PCI devices of the PE are expected to be removed prior
 	 * to PE reset.
 	 */
-	if (!edev->pe->bus)
+	if (!(edev->pe->state & EEH_PE_PRI_BUS)) {
 		edev->pe->bus = pci_find_bus(hose->global_number,
 					     pdn->busno);
+		if (edev->pe->bus)
+			edev->pe->state |= EEH_PE_PRI_BUS;
+	}
 
 	/*
 	 * Enable EEH explicitly so that we will do EEH check
@@ -548,7 +569,7 @@ static void pnv_eeh_get_phb_diag(struct eeh_pe *pe)
 	s64 rc;
 
 	rc = opal_pci_get_phb_diag_data2(phb->opal_id, pe->data,
-					 PNV_PCI_DIAG_BUF_SIZE);
+					 phb->diag_data_size);
 	if (rc != OPAL_SUCCESS)
 		pr_warn("%s: Failure %lld getting PHB#%x diag-data\n",
 			__func__, rc, pe->phb->global_number);
@@ -729,12 +750,12 @@ static int pnv_eeh_get_state(struct eeh_pe *pe, int *delay)
 	return ret;
 }
 
-static s64 pnv_eeh_phb_poll(struct pnv_phb *phb)
+static s64 pnv_eeh_poll(unsigned long id)
 {
 	s64 rc = OPAL_HARDWARE;
 
 	while (1) {
-		rc = opal_pci_poll(phb->opal_id);
+		rc = opal_pci_poll(id);
 		if (rc <= 0)
 			break;
 
@@ -774,7 +795,8 @@ int pnv_eeh_phb_reset(struct pci_controller *hose, int option)
 	 * reset followed by hot reset on root bus. So we also
 	 * need the PCI bus settlement delay.
 	 */
-	rc = pnv_eeh_phb_poll(phb);
+	if (rc > 0)
+		rc = pnv_eeh_poll(phb->opal_id);
 	if (option == EEH_RESET_DEACTIVATE) {
 		if (system_state < SYSTEM_RUNNING)
 			udelay(1000 * EEH_PE_RST_SETTLE_TIME);
@@ -817,7 +839,8 @@ static int pnv_eeh_root_reset(struct pci_controller *hose, int option)
 		goto out;
 
 	/* Poll state of the PHB until the request is done */
-	rc = pnv_eeh_phb_poll(phb);
+	if (rc > 0)
+		rc = pnv_eeh_poll(phb->opal_id);
 	if (option == EEH_RESET_DEACTIVATE)
 		msleep(EEH_PE_RST_SETTLE_TIME);
 out:
@@ -827,7 +850,7 @@ out:
 	return 0;
 }
 
-static int pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
+static int __pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
 {
 	struct pci_dn *pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
@@ -878,6 +901,44 @@ static int pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
 	return 0;
 }
 
+static int pnv_eeh_bridge_reset(struct pci_dev *pdev, int option)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
+	struct device_node *dn = pci_device_to_OF_node(pdev);
+	uint64_t id = PCI_SLOT_ID(phb->opal_id,
+				  (pdev->bus->number << 8) | pdev->devfn);
+	uint8_t scope;
+	int64_t rc;
+
+	/* Hot reset to the bus if firmware cannot handle */
+	if (!dn || !of_get_property(dn, "ibm,reset-by-firmware", NULL))
+		return __pnv_eeh_bridge_reset(pdev, option);
+
+	switch (option) {
+	case EEH_RESET_FUNDAMENTAL:
+		scope = OPAL_RESET_PCI_FUNDAMENTAL;
+		break;
+	case EEH_RESET_HOT:
+		scope = OPAL_RESET_PCI_HOT;
+		break;
+	case EEH_RESET_DEACTIVATE:
+		return 0;
+	default:
+		dev_dbg(&pdev->dev, "%s: Unsupported reset %d\n",
+			__func__, option);
+		return -EINVAL;
+	}
+
+	rc = opal_pci_reset(id, scope, OPAL_ASSERT_RESET);
+	if (rc <= OPAL_SUCCESS)
+		goto out;
+
+	rc = pnv_eeh_poll(id);
+out:
+	return (rc == OPAL_SUCCESS) ? 0 : -EIO;
+}
+
 void pnv_pci_reset_secondary_bus(struct pci_dev *dev)
 {
 	struct pci_controller *hose;
@@ -890,6 +951,119 @@ void pnv_pci_reset_secondary_bus(struct pci_dev *dev)
 		pnv_eeh_bridge_reset(dev, EEH_RESET_HOT);
 		pnv_eeh_bridge_reset(dev, EEH_RESET_DEACTIVATE);
 	}
+}
+
+static void pnv_eeh_wait_for_pending(struct pci_dn *pdn, const char *type,
+				     int pos, u16 mask)
+{
+	int i, status = 0;
+
+	/* Wait for Transaction Pending bit to be cleared */
+	for (i = 0; i < 4; i++) {
+		eeh_ops->read_config(pdn, pos, 2, &status);
+		if (!(status & mask))
+			return;
+
+		msleep((1 << i) * 100);
+	}
+
+	pr_warn("%s: Pending transaction while issuing %sFLR to %04x:%02x:%02x.%01x\n",
+		__func__, type,
+		pdn->phb->global_number, pdn->busno,
+		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
+}
+
+static int pnv_eeh_do_flr(struct pci_dn *pdn, int option)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	u32 reg = 0;
+
+	if (WARN_ON(!edev->pcie_cap))
+		return -ENOTTY;
+
+	eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCAP, 4, &reg);
+	if (!(reg & PCI_EXP_DEVCAP_FLR))
+		return -ENOTTY;
+
+	switch (option) {
+	case EEH_RESET_HOT:
+	case EEH_RESET_FUNDAMENTAL:
+		pnv_eeh_wait_for_pending(pdn, "",
+					 edev->pcie_cap + PCI_EXP_DEVSTA,
+					 PCI_EXP_DEVSTA_TRPND);
+		eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				     4, &reg);
+		reg |= PCI_EXP_DEVCTL_BCR_FLR;
+		eeh_ops->write_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				      4, reg);
+		msleep(EEH_PE_RST_HOLD_TIME);
+		break;
+	case EEH_RESET_DEACTIVATE:
+		eeh_ops->read_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				     4, &reg);
+		reg &= ~PCI_EXP_DEVCTL_BCR_FLR;
+		eeh_ops->write_config(pdn, edev->pcie_cap + PCI_EXP_DEVCTL,
+				      4, reg);
+		msleep(EEH_PE_RST_SETTLE_TIME);
+		break;
+	}
+
+	return 0;
+}
+
+static int pnv_eeh_do_af_flr(struct pci_dn *pdn, int option)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	u32 cap = 0;
+
+	if (WARN_ON(!edev->af_cap))
+		return -ENOTTY;
+
+	eeh_ops->read_config(pdn, edev->af_cap + PCI_AF_CAP, 1, &cap);
+	if (!(cap & PCI_AF_CAP_TP) || !(cap & PCI_AF_CAP_FLR))
+		return -ENOTTY;
+
+	switch (option) {
+	case EEH_RESET_HOT:
+	case EEH_RESET_FUNDAMENTAL:
+		/*
+		 * Wait for Transaction Pending bit to clear. A word-aligned
+		 * test is used, so we use the conrol offset rather than status
+		 * and shift the test bit to match.
+		 */
+		pnv_eeh_wait_for_pending(pdn, "AF",
+					 edev->af_cap + PCI_AF_CTRL,
+					 PCI_AF_STATUS_TP << 8);
+		eeh_ops->write_config(pdn, edev->af_cap + PCI_AF_CTRL,
+				      1, PCI_AF_CTRL_FLR);
+		msleep(EEH_PE_RST_HOLD_TIME);
+		break;
+	case EEH_RESET_DEACTIVATE:
+		eeh_ops->write_config(pdn, edev->af_cap + PCI_AF_CTRL, 1, 0);
+		msleep(EEH_PE_RST_SETTLE_TIME);
+		break;
+	}
+
+	return 0;
+}
+
+static int pnv_eeh_reset_vf_pe(struct eeh_pe *pe, int option)
+{
+	struct eeh_dev *edev;
+	struct pci_dn *pdn;
+	int ret;
+
+	/* The VF PE should have only one child device */
+	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, list);
+	pdn = eeh_dev_to_pdn(edev);
+	if (!pdn)
+		return -ENXIO;
+
+	ret = pnv_eeh_do_flr(pdn, option);
+	if (!ret)
+		return ret;
+
+	return pnv_eeh_do_af_flr(pdn, option);
 }
 
 /**
@@ -907,8 +1081,9 @@ void pnv_pci_reset_secondary_bus(struct pci_dev *dev)
 static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 {
 	struct pci_controller *hose = pe->phb;
+	struct pnv_phb *phb;
 	struct pci_bus *bus;
-	int ret;
+	int64_t rc;
 
 	/*
 	 * For PHB reset, we always have complete reset. For those PEs whose
@@ -924,43 +1099,52 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 	 * reset. The side effect is that EEH core has to clear the frozen
 	 * state explicitly after BAR restore.
 	 */
-	if (pe->type & EEH_PE_PHB) {
-		ret = pnv_eeh_phb_reset(hose, option);
-	} else {
-		struct pnv_phb *phb;
-		s64 rc;
+	if (pe->type & EEH_PE_PHB)
+		return pnv_eeh_phb_reset(hose, option);
 
-		/*
-		 * The frozen PE might be caused by PAPR error injection
-		 * registers, which are expected to be cleared after hitting
-		 * frozen PE as stated in the hardware spec. Unfortunately,
-		 * that's not true on P7IOC. So we have to clear it manually
-		 * to avoid recursive EEH errors during recovery.
-		 */
-		phb = hose->private_data;
-		if (phb->model == PNV_PHB_MODEL_P7IOC &&
-		    (option == EEH_RESET_HOT ||
-		    option == EEH_RESET_FUNDAMENTAL)) {
-			rc = opal_pci_reset(phb->opal_id,
-					    OPAL_RESET_PHB_ERROR,
-					    OPAL_ASSERT_RESET);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld clearing "
-					"error injection registers\n",
-					__func__, rc);
-				return -EIO;
-			}
+	/*
+	 * The frozen PE might be caused by PAPR error injection
+	 * registers, which are expected to be cleared after hitting
+	 * frozen PE as stated in the hardware spec. Unfortunately,
+	 * that's not true on P7IOC. So we have to clear it manually
+	 * to avoid recursive EEH errors during recovery.
+	 */
+	phb = hose->private_data;
+	if (phb->model == PNV_PHB_MODEL_P7IOC &&
+	    (option == EEH_RESET_HOT ||
+	     option == EEH_RESET_FUNDAMENTAL)) {
+		rc = opal_pci_reset(phb->opal_id,
+				    OPAL_RESET_PHB_ERROR,
+				    OPAL_ASSERT_RESET);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld clearing error injection registers\n",
+				__func__, rc);
+			return -EIO;
 		}
-
-		bus = eeh_pe_bus_get(pe);
-		if (pci_is_root_bus(bus) ||
-			pci_is_root_bus(bus->parent))
-			ret = pnv_eeh_root_reset(hose, option);
-		else
-			ret = pnv_eeh_bridge_reset(bus->self, option);
 	}
 
-	return ret;
+	if (pe->type & EEH_PE_VF)
+		return pnv_eeh_reset_vf_pe(pe, option);
+
+	bus = eeh_pe_bus_get(pe);
+	if (!bus) {
+		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
+			__func__, pe->phb->global_number, pe->addr);
+		return -EIO;
+	}
+
+	/*
+	 * If dealing with the root bus (or the bus underneath the
+	 * root port), we reset the bus underneath the root port.
+	 *
+	 * The cxl driver depends on this behaviour for bi-modal card
+	 * switching.
+	 */
+	if (pci_is_root_bus(bus) ||
+	    pci_is_root_bus(bus->parent))
+		return pnv_eeh_root_reset(hose, option);
+
+	return pnv_eeh_bridge_reset(bus->self, option);
 }
 
 /**
@@ -1092,6 +1276,14 @@ static inline bool pnv_eeh_cfg_blocked(struct pci_dn *pdn)
 	if (!edev || !edev->pe)
 		return false;
 
+	/*
+	 * We will issue FLR or AF FLR to all VFs, which are contained
+	 * in VF PE. It relies on the EEH PCI config accessors. So we
+	 * can't block them during the window.
+	 */
+	if (edev->physfn && (edev->pe->state & EEH_PE_RESET))
+		return false;
+
 	if (edev->pe->state & EEH_PE_CFG_BLOCKED)
 		return true;
 
@@ -1150,7 +1342,8 @@ static void pnv_eeh_dump_hub_diag_common(struct OpalIoP7IOCErrorData *data)
 static void pnv_eeh_get_and_dump_hub_diag(struct pci_controller *hose)
 {
 	struct pnv_phb *phb = hose->private_data;
-	struct OpalIoP7IOCErrorData *data = &phb->diag.hub_diag;
+	struct OpalIoP7IOCErrorData *data =
+		(struct OpalIoP7IOCErrorData*)phb->diag_data;
 	long rc;
 
 	rc = opal_pci_get_hub_diag_data(phb->hub_id, data, sizeof(*data));
@@ -1160,7 +1353,7 @@ static void pnv_eeh_get_and_dump_hub_diag(struct pci_controller *hose)
 		return;
 	}
 
-	switch (data->type) {
+	switch (be16_to_cpu(data->type)) {
 	case OPAL_P7IOC_DIAG_TYPE_RGC:
 		pr_info("P7IOC diag-data for RGC\n\n");
 		pnv_eeh_dump_hub_diag_common(data);
@@ -1210,7 +1403,6 @@ static int pnv_eeh_get_pe(struct pci_controller *hose,
 	struct pnv_phb *phb = hose->private_data;
 	struct pnv_ioda_pe *pnv_pe;
 	struct eeh_pe *dev_pe;
-	struct eeh_dev edev;
 
 	/*
 	 * If PHB supports compound PE, to fetch
@@ -1226,10 +1418,7 @@ static int pnv_eeh_get_pe(struct pci_controller *hose,
 	}
 
 	/* Find the PE according to PE# */
-	memset(&edev, 0, sizeof(struct eeh_dev));
-	edev.phb = hose;
-	edev.pe_config_addr = pe_no;
-	dev_pe = eeh_pe_get(&edev);
+	dev_pe = eeh_pe_get(hose, pe_no, 0);
 	if (!dev_pe)
 		return -EEXIST;
 
@@ -1246,11 +1435,8 @@ static int pnv_eeh_get_pe(struct pci_controller *hose,
 	dev_pe = dev_pe->parent;
 	while (dev_pe && !(dev_pe->type & EEH_PE_PHB)) {
 		int ret;
-		int active_flags = (EEH_STATE_MMIO_ACTIVE |
-				    EEH_STATE_DMA_ACTIVE);
-
 		ret = eeh_ops->get_state(dev_pe, NULL);
-		if (ret <= 0 || (ret & active_flags) == active_flags) {
+		if (ret <= 0 || eeh_state_active(ret)) {
 			dev_pe = dev_pe->parent;
 			continue;
 		}
@@ -1284,7 +1470,6 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 	struct eeh_pe *phb_pe, *parent_pe;
 	__be64 frozen_pe_no;
 	__be16 err_type, severity;
-	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	long rc;
 	int state, ret = EEH_NEXT_ERR_NONE;
 
@@ -1385,14 +1570,14 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 
 				/* Dump PHB diag-data */
 				rc = opal_pci_get_phb_diag_data2(phb->opal_id,
-					phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
+					phb->diag_data, phb->diag_data_size);
 				if (rc == OPAL_SUCCESS)
 					pnv_pci_dump_phb_diag_data(hose,
-							phb->diag.blob);
+							phb->diag_data);
 
 				/* Try best to clear it */
 				opal_pci_eeh_freeze_clear(phb->opal_id,
-					frozen_pe_no,
+					be64_to_cpu(frozen_pe_no),
 					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 				ret = EEH_NEXT_ERR_NONE;
 			} else if ((*pe)->state & EEH_PE_ISOLATED ||
@@ -1447,8 +1632,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 
 				/* Frozen parent PE ? */
 				state = eeh_ops->get_state(parent_pe, NULL);
-				if (state > 0 &&
-				    (state & active_flags) != active_flags)
+				if (state > 0 && !eeh_state_active(state))
 					*pe = parent_pe;
 
 				/* Next parent level */
@@ -1480,27 +1664,39 @@ static int pnv_eeh_restore_config(struct pci_dn *pdn)
 {
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	struct pnv_phb *phb;
-	s64 ret;
+	s64 ret = 0;
+	int config_addr = (pdn->busno << 8) | (pdn->devfn);
 
 	if (!edev)
 		return -EEXIST;
 
-	phb = edev->phb->private_data;
-	ret = opal_pci_reinit(phb->opal_id,
-			      OPAL_REINIT_PCI_DEV, edev->config_addr);
+	/*
+	 * We have to restore the PCI config space after reset since the
+	 * firmware can't see SRIOV VFs.
+	 *
+	 * FIXME: The MPS, error routing rules, timeout setting are worthy
+	 * to be exported by firmware in extendible way.
+	 */
+	if (edev->physfn) {
+		ret = eeh_restore_vf_config(pdn);
+	} else {
+		phb = pdn->phb->private_data;
+		ret = opal_pci_reinit(phb->opal_id,
+				      OPAL_REINIT_PCI_DEV, config_addr);
+	}
+
 	if (ret) {
 		pr_warn("%s: Can't reinit PCI dev 0x%x (%lld)\n",
-			__func__, edev->config_addr, ret);
+			__func__, config_addr, ret);
 		return -EIO;
 	}
 
-	return 0;
+	return ret;
 }
 
 static struct eeh_ops pnv_eeh_ops = {
 	.name                   = "powernv",
 	.init                   = pnv_eeh_init,
-	.post_init              = pnv_eeh_post_init,
 	.probe			= pnv_eeh_probe,
 	.set_option             = pnv_eeh_set_option,
 	.get_pe_addr            = pnv_eeh_get_pe_addr,
@@ -1513,8 +1709,27 @@ static struct eeh_ops pnv_eeh_ops = {
 	.read_config            = pnv_eeh_read_config,
 	.write_config           = pnv_eeh_write_config,
 	.next_error		= pnv_eeh_next_error,
-	.restore_config		= pnv_eeh_restore_config
+	.restore_config		= pnv_eeh_restore_config,
+	.notify_resume		= NULL
 };
+
+#ifdef CONFIG_PCI_IOV
+static void pnv_pci_fixup_vf_mps(struct pci_dev *pdev)
+{
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+	int parent_mps;
+
+	if (!pdev->is_virtfn)
+		return;
+
+	/* Synchronize MPS for VF and PF */
+	parent_mps = pcie_get_mps(pdev->physfn);
+	if ((128 << pdev->pcie_mpss) >= parent_mps)
+		pcie_set_mps(pdev, parent_mps);
+	pdn->mps = pcie_get_mps(pdev);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pnv_pci_fixup_vf_mps);
+#endif /* CONFIG_PCI_IOV */
 
 /**
  * eeh_powernv_init - Register platform dependent EEH operations
@@ -1526,7 +1741,6 @@ static int __init eeh_powernv_init(void)
 {
 	int ret = -EINVAL;
 
-	eeh_set_pe_aux_size(PNV_PCI_DIAG_BUF_SIZE);
 	ret = eeh_ops_register(&pnv_eeh_ops);
 	if (!ret)
 		pr_info("EEH: PowerNV platform initialized\n");

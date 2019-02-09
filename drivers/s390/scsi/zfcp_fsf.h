@@ -1,9 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * zfcp device driver
  *
  * Interface to the FSF support functions.
  *
- * Copyright IBM Corp. 2002, 2010
+ * Copyright IBM Corp. 2002, 2018
  */
 
 #ifndef FSF_H
@@ -78,6 +79,7 @@
 #define FSF_APP_TAG_CHECK_FAILURE		0x00000082
 #define FSF_REF_TAG_CHECK_FAILURE		0x00000083
 #define FSF_ADAPTER_STATUS_AVAILABLE		0x000000AD
+#define FSF_FCP_RSP_AVAILABLE			0x000000AF
 #define FSF_UNKNOWN_COMMAND			0x000000E2
 #define FSF_UNKNOWN_OP_SUBTYPE                  0x000000E3
 #define FSF_INVALID_COMMAND_OPTION              0x000000E5
@@ -311,8 +313,14 @@ struct fsf_qtcb_bottom_io {
 	u32 data_block_length;
 	u32 prot_data_length;
 	u8  res2[4];
-	u8  fcp_cmnd[FSF_FCP_CMND_SIZE];
-	u8  fcp_rsp[FSF_FCP_RSP_SIZE];
+	union {
+		u8		byte[FSF_FCP_CMND_SIZE];
+		struct fcp_cmnd iu;
+	}   fcp_cmnd;
+	union {
+		u8			 byte[FSF_FCP_RSP_SIZE];
+		struct fcp_resp_with_ext iu;
+	}   fcp_rsp;
 	u8  res3[64];
 } __attribute__ ((packed));
 
@@ -348,7 +356,7 @@ struct fsf_qtcb_bottom_config {
 	u32 adapter_features;
 	u32 connection_features;
 	u32 fc_topology;
-	u32 fc_link_speed;
+	u32 fc_link_speed;	/* one of ZFCP_FSF_PORTSPEED_* */
 	u32 adapter_type;
 	u8 res0;
 	u8 peer_d_id[3];
@@ -374,7 +382,7 @@ struct fsf_qtcb_bottom_port {
 	u32 class_of_service;	/* should be 0x00000006 for class 2 and 3 */
 	u8 supported_fc4_types[32]; /* should be 0x00000100 for scsi fcp */
 	u8 active_fc4_types[32];
-	u32 supported_speed;	/* 0x0001 for 1 GBit/s or 0x0002 for 2 GBit/s */
+	u32 supported_speed;	/* any combination of ZFCP_FSF_PORTSPEED_* */
 	u32 maximum_frame_size;	/* fixed value of 2112 */
 	u64 seconds_since_last_reset;
 	u64 tx_frames;
@@ -436,6 +444,7 @@ struct zfcp_blk_drv_data {
  * @handler_data: data passed to handler function
  * @port: Optional pointer to port for zfcp internal ELS (only test link ADISC)
  * @status: used to pass error status to calling function
+ * @d_id: Destination ID of either open WKA port for CT or of D_ID for ELS
  */
 struct zfcp_fsf_ct_els {
 	struct scatterlist *req;
@@ -444,6 +453,7 @@ struct zfcp_fsf_ct_els {
 	void *handler_data;
 	struct zfcp_port *port;
 	int status;
+	u32 d_id;
 };
 
 #endif				/* FSF_H */

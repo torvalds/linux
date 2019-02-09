@@ -45,7 +45,7 @@
 #include <linux/backing-dev.h>
 #include <linux/poll.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "stackglue.h"
 #include "userdlm.h"
@@ -71,7 +71,7 @@ struct workqueue_struct *user_dlm_worker;
  * Over time, dlmfs has added some features that were not part of the
  * initial ABI.  Unfortunately, some of these features are not detectable
  * via standard usage.  For example, Linux's default poll always returns
- * POLLIN, so there is no way for a caller of poll(2) to know when dlmfs
+ * EPOLLIN, so there is no way for a caller of poll(2) to know when dlmfs
  * added poll support.  Instead, we provide this list of new capabilities.
  *
  * Capabilities is a read-only attribute.  We do it as a module parameter
@@ -83,18 +83,18 @@ struct workqueue_struct *user_dlm_worker;
  * interaction.
  *
  * Capabilities:
- * - bast	: POLLIN against the file descriptor of a held lock
+ * - bast	: EPOLLIN against the file descriptor of a held lock
  *		  signifies a bast fired on the lock.
  */
 #define DLMFS_CAPABILITIES "bast stackglue"
 static int param_set_dlmfs_capabilities(const char *val,
-					struct kernel_param *kp)
+					const struct kernel_param *kp)
 {
 	printk(KERN_ERR "%s: readonly parameter\n", kp->name);
 	return -EINVAL;
 }
 static int param_get_dlmfs_capabilities(char *buffer,
-					struct kernel_param *kp)
+					const struct kernel_param *kp)
 {
 	return strlcpy(buffer, DLMFS_CAPABILITIES,
 		       strlen(DLMFS_CAPABILITIES) + 1);
@@ -211,7 +211,7 @@ static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = d_inode(dentry);
 
 	attr->ia_valid &= ~ATTR_SIZE;
-	error = inode_change_ok(inode, attr);
+	error = setattr_prepare(dentry, attr);
 	if (error)
 		return error;
 
@@ -220,9 +220,9 @@ static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
-static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)
+static __poll_t dlmfs_file_poll(struct file *file, poll_table *wait)
 {
-	int event = 0;
+	__poll_t event = 0;
 	struct inode *inode = file_inode(file);
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
 
@@ -230,7 +230,7 @@ static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)
 
 	spin_lock(&ip->ip_lockres.l_lock);
 	if (ip->ip_lockres.l_flags & USER_LOCK_BLOCKED)
-		event = POLLIN | POLLRDNORM;
+		event = EPOLLIN | EPOLLRDNORM;
 	spin_unlock(&ip->ip_lockres.l_lock);
 
 	return event;
@@ -398,7 +398,7 @@ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 	if (inode) {
 		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, NULL, mode);
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 		inc_nlink(inode);
 
 		inode->i_fop = &simple_dir_operations;
@@ -421,7 +421,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 
 	inode->i_ino = get_next_ino();
 	inode_init_owner(inode, parent, mode);
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 
 	ip = DLMFS_I(inode);
 	ip->ip_conn = DLMFS_I(parent)->ip_conn;
@@ -469,7 +469,7 @@ static int dlmfs_mkdir(struct inode * dir,
 {
 	int status;
 	struct inode *inode = NULL;
-	struct qstr *domain = &dentry->d_name;
+	const struct qstr *domain = &dentry->d_name;
 	struct dlmfs_inode_private *ip;
 	struct ocfs2_cluster_connection *conn;
 
@@ -518,7 +518,7 @@ static int dlmfs_create(struct inode *dir,
 {
 	int status = 0;
 	struct inode *inode;
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 
 	mlog(0, "create %.*s\n", name->len, name->name);
 
@@ -571,8 +571,8 @@ static int dlmfs_fill_super(struct super_block * sb,
 			    int silent)
 {
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
-	sb->s_blocksize = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	sb->s_blocksize = PAGE_SIZE;
+	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = DLMFS_MAGIC;
 	sb->s_op = &dlmfs_ops;
 	sb->s_root = d_make_root(dlmfs_get_root_inode(sb));
@@ -638,7 +638,7 @@ static int __init init_dlmfs_fs(void)
 	dlmfs_inode_cache = kmem_cache_create("dlmfs_inode_cache",
 				sizeof(struct dlmfs_inode_private),
 				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
-					SLAB_MEM_SPREAD),
+					SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 				dlmfs_init_once);
 	if (!dlmfs_inode_cache) {
 		status = -ENOMEM;
@@ -646,7 +646,7 @@ static int __init init_dlmfs_fs(void)
 	}
 	cleanup_inode = 1;
 
-	user_dlm_worker = create_singlethread_workqueue("user_dlm");
+	user_dlm_worker = alloc_workqueue("user_dlm", WQ_MEM_RECLAIM, 0);
 	if (!user_dlm_worker) {
 		status = -ENOMEM;
 		goto bail;
@@ -670,7 +670,6 @@ static void __exit exit_dlmfs_fs(void)
 {
 	unregister_filesystem(&dlmfs_fs_type);
 
-	flush_workqueue(user_dlm_worker);
 	destroy_workqueue(user_dlm_worker);
 
 	/*

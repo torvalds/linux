@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_TEXTSEARCH_H
 #define __LINUX_TEXTSEARCH_H
 
@@ -61,7 +62,7 @@ struct ts_config
 	int 			flags;
 
 	/**
-	 * get_next_block - fetch next block of data
+	 * @get_next_block: fetch next block of data
 	 * @consumed: number of bytes consumed by the caller
 	 * @dst: destination buffer
 	 * @conf: search configuration
@@ -78,7 +79,7 @@ struct ts_config
 						  struct ts_state *state);
 
 	/**
-	 * finish - finalize/clean a series of get_next_block() calls
+	 * @finish: finalize/clean a series of get_next_block() calls
 	 * @conf: search configuration
 	 * @state: search state
 	 *

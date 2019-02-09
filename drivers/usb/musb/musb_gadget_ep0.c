@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MUSB OTG peripheral driver ep0 handling
  *
@@ -5,32 +6,6 @@
  * Copyright (C) 2005-2006 by Texas Instruments
  * Copyright (C) 2006-2007 Nokia Corporation
  * Copyright (C) 2008-2009 MontaVista Software, Inc. <source@mvista.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- * NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
- * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #include <linux/kernel.h>
@@ -114,15 +89,19 @@ static int service_tx_status_request(
 		}
 
 		is_in = epnum & USB_DIR_IN;
-		if (is_in) {
-			epnum &= 0x0f;
-			ep = &musb->endpoints[epnum].ep_in;
-		} else {
-			ep = &musb->endpoints[epnum].ep_out;
+		epnum &= 0x0f;
+		if (epnum >= MUSB_C_NUM_EPS) {
+			handled = -EINVAL;
+			break;
 		}
+
+		if (is_in)
+			ep = &musb->endpoints[epnum].ep_in;
+		else
+			ep = &musb->endpoints[epnum].ep_out;
 		regs = musb->endpoints[epnum].regs;
 
-		if (epnum >= MUSB_C_NUM_EPS || !ep->desc) {
+		if (!ep->desc) {
 			handled = -EINVAL;
 			break;
 		}
@@ -206,7 +185,7 @@ static inline void musb_try_b_hnp_enable(struct musb *musb)
 	void __iomem	*mbase = musb->mregs;
 	u8		devctl;
 
-	dev_dbg(musb->controller, "HNP: Setting HR\n");
+	musb_dbg(musb, "HNP: Setting HR");
 	devctl = musb_readb(mbase, MUSB_DEVCTL);
 	musb_writeb(mbase, MUSB_DEVCTL, devctl | MUSB_DEVCTL_HR);
 }
@@ -303,7 +282,7 @@ __acquires(musb->lock)
 				/* Maybe start the first request in the queue */
 				request = next_request(musb_ep);
 				if (!musb_ep->busy && request) {
-					dev_dbg(musb->controller, "restarting the request\n");
+					musb_dbg(musb, "restarting the request");
 					musb_ep_restart(musb, request);
 				}
 
@@ -550,7 +529,7 @@ static void ep0_txstate(struct musb *musb)
 
 	if (!req) {
 		/* WARN_ON(1); */
-		dev_dbg(musb->controller, "odd; csr0 %04x\n", musb_readw(regs, MUSB_CSR0));
+		musb_dbg(musb, "odd; csr0 %04x", musb_readw(regs, MUSB_CSR0));
 		return;
 	}
 
@@ -607,7 +586,7 @@ musb_read_setup(struct musb *musb, struct usb_ctrlrequest *req)
 	/* NOTE:  earlier 2.6 versions changed setup packets to host
 	 * order, but now USB packets always stay in USB byte order.
 	 */
-	dev_dbg(musb->controller, "SETUP req%02x.%02x v%04x i%04x l%d\n",
+	musb_dbg(musb, "SETUP req%02x.%02x v%04x i%04x l%d",
 		req->bRequestType,
 		req->bRequest,
 		le16_to_cpu(req->wValue),
@@ -675,7 +654,7 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 	csr = musb_readw(regs, MUSB_CSR0);
 	len = musb_readb(regs, MUSB_COUNT0);
 
-	dev_dbg(musb->controller, "csr %04x, count %d, ep0stage %s\n",
+	musb_dbg(musb, "csr %04x, count %d, ep0stage %s",
 			csr, len, decode_ep0stage(musb->ep0_state));
 
 	if (csr & MUSB_CSR0_P_DATAEND) {
@@ -752,7 +731,7 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 
 		/* enter test mode if needed (exit by reset) */
 		else if (musb->test_mode) {
-			dev_dbg(musb->controller, "entering TESTMODE\n");
+			musb_dbg(musb, "entering TESTMODE");
 
 			if (MUSB_TEST_PACKET == musb->test_mode_nr)
 				musb_load_testpacket(musb);
@@ -864,7 +843,7 @@ setup:
 				break;
 			}
 
-			dev_dbg(musb->controller, "handled %d, csr %04x, ep0stage %s\n",
+			musb_dbg(musb, "handled %d, csr %04x, ep0stage %s",
 				handled, csr,
 				decode_ep0stage(musb->ep0_state));
 
@@ -881,7 +860,7 @@ setup:
 			if (handled < 0) {
 				musb_ep_select(mbase, 0);
 stall:
-				dev_dbg(musb->controller, "stall (%d)\n", handled);
+				musb_dbg(musb, "stall (%d)", handled);
 				musb->ackpend |= MUSB_CSR0_P_SENDSTALL;
 				musb->ep0_state = MUSB_EP0_STAGE_IDLE;
 finish:
@@ -961,7 +940,7 @@ musb_g_ep0_queue(struct usb_ep *e, struct usb_request *r, gfp_t gfp_flags)
 		status = 0;
 		break;
 	default:
-		dev_dbg(musb->controller, "ep0 request queued in state %d\n",
+		musb_dbg(musb, "ep0 request queued in state %d",
 				musb->ep0_state);
 		status = -EINVAL;
 		goto cleanup;
@@ -970,7 +949,7 @@ musb_g_ep0_queue(struct usb_ep *e, struct usb_request *r, gfp_t gfp_flags)
 	/* add request to the list */
 	list_add_tail(&req->list, &ep->req_list);
 
-	dev_dbg(musb->controller, "queue to %s (%s), length=%d\n",
+	musb_dbg(musb, "queue to %s (%s), length=%d",
 			ep->name, ep->is_in ? "IN/TX" : "OUT/RX",
 			req->request.length);
 
@@ -1063,7 +1042,7 @@ static int musb_g_ep0_halt(struct usb_ep *e, int value)
 		musb->ackpend = 0;
 		break;
 	default:
-		dev_dbg(musb->controller, "ep0 can't halt in state %d\n", musb->ep0_state);
+		musb_dbg(musb, "ep0 can't halt in state %d", musb->ep0_state);
 		status = -EINVAL;
 	}
 

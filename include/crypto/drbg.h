@@ -43,6 +43,7 @@
 #include <linux/random.h>
 #include <linux/scatterlist.h>
 #include <crypto/hash.h>
+#include <crypto/skcipher.h>
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/slab.h>
@@ -107,20 +108,27 @@ struct drbg_test_data {
 struct drbg_state {
 	struct mutex drbg_mutex;	/* lock around DRBG */
 	unsigned char *V;	/* internal state 10.1.1.1 1a) */
+	unsigned char *Vbuf;
 	/* hash: static value 10.1.1.1 1b) hmac / ctr: key */
 	unsigned char *C;
+	unsigned char *Cbuf;
 	/* Number of RNG requests since last reseed -- 10.1.1.1 1c) */
 	size_t reseed_ctr;
 	size_t reseed_threshold;
 	 /* some memory the DRBG can use for its operation */
 	unsigned char *scratchpad;
+	unsigned char *scratchpadbuf;
 	void *priv_data;	/* Cipher handle */
+
+	struct crypto_skcipher *ctr_handle;	/* CTR mode cipher handle */
+	struct skcipher_request *ctr_req;	/* CTR mode request handle */
+	__u8 *outscratchpadbuf;			/* CTR mode output scratchpad */
+        __u8 *outscratchpad;			/* CTR mode aligned outbuf */
+	struct crypto_wait ctr_wait;		/* CTR mode async wait obj */
+	struct scatterlist sg_in, sg_out;	/* CTR mode SGLs */
+
 	bool seeded;		/* DRBG fully seeded? */
 	bool pr;		/* Prediction resistance enabled? */
-#ifdef CONFIG_CRYPTO_FIPS
-	bool fips_primed;	/* Continuous test primed? */
-	unsigned char *prev;	/* FIPS 140-2 continuous test value */
-#endif
 	struct work_struct seed_work;	/* asynchronous seeding support */
 	struct crypto_rng *jent;
 	const struct drbg_state_ops *d_ops;

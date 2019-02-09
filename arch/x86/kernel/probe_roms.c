@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
@@ -14,7 +15,7 @@
 
 #include <asm/probe_roms.h>
 #include <asm/pci-direct.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mmzone.h>
 #include <asm/setup.h>
 #include <asm/sections.h>

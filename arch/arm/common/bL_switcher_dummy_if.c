@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/bL_switcher.h>
 
 static ssize_t bL_switcher_write(struct file *file, const char __user *buf,
@@ -56,16 +56,8 @@ static struct miscdevice bL_switcher_device = {
 	"b.L_switcher",
 	&bL_switcher_fops
 };
+module_misc_device(bL_switcher_device);
 
-static int __init bL_switcher_dummy_if_init(void)
-{
-	return misc_register(&bL_switcher_device);
-}
-
-static void __exit bL_switcher_dummy_if_exit(void)
-{
-	misc_deregister(&bL_switcher_device);
-}
-
-module_init(bL_switcher_dummy_if_init);
-module_exit(bL_switcher_dummy_if_exit);
+MODULE_AUTHOR("Nicolas Pitre <nico@linaro.org>");
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("big.LITTLE switcher dummy user interface");

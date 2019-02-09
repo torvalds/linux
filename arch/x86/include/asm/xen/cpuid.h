@@ -74,18 +74,43 @@
 #define XEN_CPUID_FEAT1_MMU_PT_UPDATE_PRESERVE_AD  (1u<<0)
 
 /*
- * Leaf 5 (0x40000x04)
- * HVM-specific features
+ * Leaf 4 (0x40000x03)
+ * Sub-leaf 0: EAX: bit 0: emulated tsc
+ *                  bit 1: host tsc is known to be reliable
+ *                  bit 2: RDTSCP instruction available
+ *             EBX: tsc_mode: 0=default (emulate if necessary), 1=emulate,
+ *                            2=no emulation, 3=no emulation + TSC_AUX support
+ *             ECX: guest tsc frequency in kHz
+ *             EDX: guest tsc incarnation (migration count)
+ * Sub-leaf 1: EAX: tsc offset low part
+ *             EBX: tsc offset high part
+ *             ECX: multiplicator for tsc->ns conversion
+ *             EDX: shift amount for tsc->ns conversion
+ * Sub-leaf 2: EAX: host tsc frequency in kHz
  */
 
-/* EAX Features */
-/* Virtualized APIC registers */
-#define XEN_HVM_CPUID_APIC_ACCESS_VIRT (1u << 0)
-/* Virtualized x2APIC accesses */
-#define XEN_HVM_CPUID_X2APIC_VIRT      (1u << 1)
+/*
+ * Leaf 5 (0x40000x04)
+ * HVM-specific features
+ * Sub-leaf 0: EAX: Features
+ * Sub-leaf 0: EBX: vcpu id (iff EAX has XEN_HVM_CPUID_VCPU_ID_PRESENT flag)
+ */
+#define XEN_HVM_CPUID_APIC_ACCESS_VIRT (1u << 0) /* Virtualized APIC registers */
+#define XEN_HVM_CPUID_X2APIC_VIRT      (1u << 1) /* Virtualized x2APIC accesses */
 /* Memory mapped from other domains has valid IOMMU entries */
 #define XEN_HVM_CPUID_IOMMU_MAPPINGS   (1u << 2)
+#define XEN_HVM_CPUID_VCPU_ID_PRESENT  (1u << 3) /* vcpu id is present in EBX */
 
-#define XEN_CPUID_MAX_NUM_LEAVES 4
+/*
+ * Leaf 6 (0x40000x05)
+ * PV-specific parameters
+ * Sub-leaf 0: EAX: max available sub-leaf
+ * Sub-leaf 0: EBX: bits 0-7: max machine address width
+ */
+
+/* Max. address width in bits taking memory hotplug into account. */
+#define XEN_CPUID_MACHINE_ADDRESS_WIDTH_MASK (0xffu << 0)
+
+#define XEN_CPUID_MAX_NUM_LEAVES 5
 
 #endif /* __XEN_PUBLIC_ARCH_X86_CPUID_H__ */

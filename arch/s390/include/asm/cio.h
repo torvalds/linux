@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Common interface for I/O on S/390
  */
@@ -32,6 +33,24 @@ struct ccw1 {
 	__u16 count;
 	__u32 cda;
 } __attribute__ ((packed,aligned(8)));
+
+/**
+ * struct ccw0 - channel command word
+ * @cmd_code: command code
+ * @cda: data address
+ * @flags: flags, like IDA addressing, etc.
+ * @reserved: will be ignored
+ * @count: byte count
+ *
+ * The format-0 ccw structure.
+ */
+struct ccw0 {
+	__u8 cmd_code;
+	__u32 cda : 24;
+	__u8  flags;
+	__u8  reserved;
+	__u16 count;
+} __packed __aligned(8);
 
 #define CCW_FLAG_DC		0x80
 #define CCW_FLAG_CC		0x40
@@ -208,7 +227,7 @@ struct esw_eadm {
  * a field is valid; a field not being valid is always passed as %0.
  * If a unit check occurred, @ecw may contain sense data; this is retrieved
  * by the common I/O layer itself if the device doesn't support concurrent
- * sense (so that the device driver never needs to perform basic sene itself).
+ * sense (so that the device driver never needs to perform basic sense itself).
  * For unsolicited interrupts, the irb is passed as-is (expect for sense data,
  * if applicable).
  */
@@ -309,18 +328,8 @@ static inline u8 pathmask_to_pos(u8 mask)
 void channel_subsystem_reinit(void);
 extern void css_schedule_reprobe(void);
 
-extern void reipl_ccw_dev(struct ccw_dev_id *id);
-
-struct cio_iplinfo {
-	u8 ssid;
-	u16 devno;
-	int is_qdio;
-};
-
-extern int cio_get_iplinfo(struct cio_iplinfo *iplinfo);
-
 /* Function from drivers/s390/cio/chsc.c */
-int chsc_sstpc(void *page, unsigned int op, u16 ctrl);
+int chsc_sstpc(void *page, unsigned int op, u16 ctrl, u64 *clock_delta);
 int chsc_sstpi(void *page, void *result, size_t size);
 
 #endif

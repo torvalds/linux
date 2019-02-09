@@ -270,7 +270,6 @@ static const struct net_device_ops plip_netdev_ops = {
 	.ndo_stop		 = plip_close,
 	.ndo_start_xmit		 = plip_tx_packet,
 	.ndo_do_ioctl		 = plip_ioctl,
-	.ndo_change_mtu		 = eth_change_mtu,
 	.ndo_set_mac_address	 = eth_mac_addr,
 	.ndo_validate_addr	 = eth_validate_addr,
 };
@@ -503,6 +502,7 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
 		*data_p = (c0 >> 3) & 0x0f;
 		write_data (dev, 0x10); /* send ACK */
 		*ns_p = PLIP_NB_1;
+		/* fall through */
 
 	case PLIP_NB_1:
 		cx = nibble_timeout;
@@ -598,6 +598,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			printk(KERN_DEBUG "%s: receive start\n", dev->name);
 		rcv->state = PLIP_PK_LENGTH_LSB;
 		rcv->nibble = PLIP_NB_BEGIN;
+		/* fall through */
 
 	case PLIP_PK_LENGTH_LSB:
 		if (snd->state != PLIP_PK_DONE) {
@@ -618,6 +619,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 				return TIMEOUT;
 		}
 		rcv->state = PLIP_PK_LENGTH_MSB;
+		/* fall through */
 
 	case PLIP_PK_LENGTH_MSB:
 		if (plip_receive(nibble_timeout, dev,
@@ -640,6 +642,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 		rcv->state = PLIP_PK_DATA;
 		rcv->byte = 0;
 		rcv->checksum = 0;
+		/* fall through */
 
 	case PLIP_PK_DATA:
 		lbuf = rcv->skb->data;
@@ -652,6 +655,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			rcv->checksum += lbuf[--rcv->byte];
 		} while (rcv->byte);
 		rcv->state = PLIP_PK_CHECKSUM;
+		/* fall through */
 
 	case PLIP_PK_CHECKSUM:
 		if (plip_receive(nibble_timeout, dev,
@@ -664,6 +668,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			return ERROR;
 		}
 		rcv->state = PLIP_PK_DONE;
+		/* fall through */
 
 	case PLIP_PK_DONE:
 		/* Inform the upper layer for the arrival of a packet. */
@@ -709,6 +714,7 @@ plip_send(unsigned short nibble_timeout, struct net_device *dev,
 	case PLIP_NB_BEGIN:
 		write_data (dev, data & 0x0f);
 		*ns_p = PLIP_NB_1;
+		/* fall through */
 
 	case PLIP_NB_1:
 		write_data (dev, 0x10 | (data & 0x0f));
@@ -723,6 +729,7 @@ plip_send(unsigned short nibble_timeout, struct net_device *dev,
 		}
 		write_data (dev, 0x10 | (data >> 4));
 		*ns_p = PLIP_NB_2;
+		/* fall through */
 
 	case PLIP_NB_2:
 		write_data (dev, (data >> 4));
@@ -811,6 +818,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 			      &snd->nibble, snd->length.b.lsb))
 			return TIMEOUT;
 		snd->state = PLIP_PK_LENGTH_MSB;
+		/* fall through */
 
 	case PLIP_PK_LENGTH_MSB:
 		if (plip_send(nibble_timeout, dev,
@@ -819,6 +827,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 		snd->state = PLIP_PK_DATA;
 		snd->byte = 0;
 		snd->checksum = 0;
+		/* fall through */
 
 	case PLIP_PK_DATA:
 		do {
@@ -830,6 +839,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 			snd->checksum += lbuf[--snd->byte];
 		} while (snd->byte);
 		snd->state = PLIP_PK_CHECKSUM;
+		/* fall through */
 
 	case PLIP_PK_CHECKSUM:
 		if (plip_send(nibble_timeout, dev,
@@ -840,6 +850,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 		dev_kfree_skb(snd->skb);
 		dev->stats.tx_packets++;
 		snd->state = PLIP_PK_DONE;
+		/* fall through */
 
 	case PLIP_PK_DONE:
 		/* Close the connection */
@@ -928,6 +939,7 @@ plip_interrupt(void *dev_id)
 	switch (nl->connection) {
 	case PLIP_CN_CLOSING:
 		netif_wake_queue (dev);
+		/* fall through */
 	case PLIP_CN_NONE:
 	case PLIP_CN_SEND:
 		rcv->state = PLIP_PK_TRIGGER;
@@ -1249,6 +1261,7 @@ static void plip_attach (struct parport *port)
 	struct net_device *dev;
 	struct net_local *nl;
 	char name[IFNAMSIZ];
+	struct pardev_cb plip_cb;
 
 	if ((parport[0] == -1 && (!timid || !port->devices)) ||
 	    plip_searchfor(parport, port->number)) {
@@ -1273,9 +1286,15 @@ static void plip_attach (struct parport *port)
 
 		nl = netdev_priv(dev);
 		nl->dev = dev;
-		nl->pardev = parport_register_device(port, dev->name, plip_preempt,
-						 plip_wakeup, plip_interrupt,
-						 0, dev);
+
+		memset(&plip_cb, 0, sizeof(plip_cb));
+		plip_cb.private = dev;
+		plip_cb.preempt = plip_preempt;
+		plip_cb.wakeup = plip_wakeup;
+		plip_cb.irq_func = plip_interrupt;
+
+		nl->pardev = parport_register_dev_model(port, dev->name,
+							&plip_cb, unit);
 
 		if (!nl->pardev) {
 			printk(KERN_ERR "%s: parport_register failed\n", name);
@@ -1315,18 +1334,29 @@ static void plip_detach (struct parport *port)
 	/* Nothing to do */
 }
 
+static int plip_probe(struct pardevice *par_dev)
+{
+	struct device_driver *drv = par_dev->dev.driver;
+	int len = strlen(drv->name);
+
+	if (strncmp(par_dev->name, drv->name, len))
+		return -ENODEV;
+
+	return 0;
+}
+
 static struct parport_driver plip_driver = {
-	.name	= "plip",
-	.attach = plip_attach,
-	.detach = plip_detach
+	.name		= "plip",
+	.probe		= plip_probe,
+	.match_port	= plip_attach,
+	.detach		= plip_detach,
+	.devmodel	= true,
 };
 
 static void __exit plip_cleanup_module (void)
 {
 	struct net_device *dev;
 	int i;
-
-	parport_unregister_driver (&plip_driver);
 
 	for (i=0; i < PLIP_MAX; i++) {
 		if ((dev = dev_plip[i])) {
@@ -1339,6 +1369,8 @@ static void __exit plip_cleanup_module (void)
 			dev_plip[i] = NULL;
 		}
 	}
+
+	parport_unregister_driver(&plip_driver);
 }
 
 #ifndef MODULE

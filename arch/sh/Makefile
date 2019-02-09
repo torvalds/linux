@@ -15,6 +15,12 @@ ifneq ($(SUBARCH),$(ARCH))
   endif
 endif
 
+ifeq ($(ARCH),sh)
+KBUILD_DEFCONFIG	:= shx3_defconfig
+else
+KBUILD_DEFCONFIG	:= cayman_defconfig
+endif
+
 isa-y					:= any
 isa-$(CONFIG_SH_DSP)			:= sh
 isa-$(CONFIG_CPU_SH2)			:= sh2
@@ -31,6 +37,7 @@ isa-y					:= $(isa-y)-up
 endif
 
 cflags-$(CONFIG_CPU_SH2)		:= $(call cc-option,-m2,)
+cflags-$(CONFIG_CPU_J2)			+= $(call cc-option,-mj2,)
 cflags-$(CONFIG_CPU_SH2A)		+= $(call cc-option,-m2a,) \
 					   $(call cc-option,-m2a-nofpu,) \
 					   $(call cc-option,-m4-nofpu,)
@@ -93,7 +100,8 @@ defaultimage-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= vmlinux
 defaultimage-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= vmlinux
 
 # Set some sensible Kbuild defaults
-KBUILD_IMAGE		:= $(defaultimage-y)
+boot := arch/sh/boot
+KBUILD_IMAGE		:= $(boot)/$(defaultimage-y)
 
 #
 # Choosing incompatible machines durings configuration will result in
@@ -103,24 +111,22 @@ ifdef CONFIG_SUPERH32
 UTS_MACHINE		:= sh
 BITS			:= 32
 LDFLAGS_vmlinux		+= -e _stext
-KBUILD_DEFCONFIG	:= shx3_defconfig
 else
 UTS_MACHINE		:= sh64
 BITS			:= 64
 LDFLAGS_vmlinux		+= --defsym phys_stext=_stext-$(CONFIG_PAGE_OFFSET) \
 			   --defsym phys_stext_shmedia=phys_stext+1 \
 			   -e phys_stext_shmedia
-KBUILD_DEFCONFIG	:= cayman_defconfig
 endif
 
 ifdef CONFIG_CPU_LITTLE_ENDIAN
 ld-bfd			:= elf32-$(UTS_MACHINE)-linux
 LDFLAGS_vmlinux		+= --defsym jiffies=jiffies_64 --oformat $(ld-bfd)
-LDFLAGS			+= -EL
+KBUILD_LDFLAGS		+= -EL
 else
 ld-bfd			:= elf32-$(UTS_MACHINE)big-linux
 LDFLAGS_vmlinux		+= --defsym jiffies=jiffies_64+4 --oformat $(ld-bfd)
-LDFLAGS			+= -EB
+KBUILD_LDFLAGS		+= -EB
 endif
 
 export ld-bfd BITS
@@ -129,6 +135,8 @@ head-y	:= arch/sh/kernel/head_$(BITS).o
 
 core-y				+= arch/sh/kernel/ arch/sh/mm/ arch/sh/boards/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
+
+core-$(CONFIG_USE_BUILTIN_DTB)	+= arch/sh/boot/dts/
 
 # Mach groups
 machdir-$(CONFIG_SOLUTION_ENGINE)		+= mach-se
@@ -183,8 +191,6 @@ cpuincdir-y			+= cpu-common	# Must be last
 drivers-y			+= arch/sh/drivers/
 drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 
-boot := arch/sh/boot
-
 cflags-y	+= $(foreach d, $(cpuincdir-y), -Iarch/sh/include/$(d)) \
 		   $(foreach d, $(machdir-y), -Iarch/sh/include/$(d))
 
@@ -208,7 +214,7 @@ BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.xz uImage.lzo \
 	       romImage
 PHONY += $(BOOT_TARGETS)
 
-all: $(KBUILD_IMAGE)
+all: $(notdir $(KBUILD_IMAGE))
 
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@

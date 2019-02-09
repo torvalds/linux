@@ -17,10 +17,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -37,7 +33,7 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
@@ -87,11 +83,6 @@ MODULE_PARM_DESC(adjust_y_offset, "adjust Y offset display [core]");
 #define DBG_PARSE	(1 << 3)
 #define DBG_SCRATCH	(1 << 4)
 #define DBG_FUNC	(1 << 5)
-
-static const int max_imgwidth = MAX_FRAME_WIDTH;
-static const int max_imgheight = MAX_FRAME_HEIGHT;
-static const int min_imgwidth = MIN_FRAME_WIDTH;
-static const int min_imgheight = MIN_FRAME_HEIGHT;
 
 /* The value of 'scratch_buf_size' affects quality of the picture
  * in many ways. Shorter buffers may cause loss of data when client
@@ -1422,8 +1413,6 @@ static void usbvision_ctrl_urb_complete(struct urb *urb)
 
 	PDEBUG(DBG_IRQ, "");
 	usbvision->ctrl_urb_busy = 0;
-	if (waitqueue_active(&usbvision->ctrl_urb_wq))
-		wake_up_interruptible(&usbvision->ctrl_urb_wq);
 }
 
 
@@ -1661,8 +1650,8 @@ static int usbvision_set_video_format(struct usb_usbvision *usbvision, int forma
 			     (__u16) USBVISION_FILT_CONT, value, 2, HZ);
 
 	if (rc < 0) {
-		printk(KERN_ERR "%s: ERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%s: ERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 	}
 	usbvision->isoc_mode = format;
 	return rc;
@@ -1868,7 +1857,7 @@ int usbvision_stream_interrupt(struct usb_usbvision *usbvision)
 
 static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 {
-	static const char proc[] = "usbvision_set_compresion_params: ";
+	static const char proc[] = "usbvision_set_compression_params: ";
 	int rc;
 	unsigned char *value = usbvision->ctrl_urb_buffer;
 
@@ -1895,8 +1884,8 @@ static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 			     (__u16) USBVISION_INTRA_CYC, value, 5, HZ);
 
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 		return rc;
 	}
 
@@ -1926,8 +1915,8 @@ static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 			     (__u16) USBVISION_PCM_THR1, value, 6, HZ);
 
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 	}
 	return rc;
 }
@@ -1965,8 +1954,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 
 	rc = usbvision_write_reg(usbvision, USBVISION_VIN_REG1, value[0]);
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 		return rc;
 	}
 
@@ -2031,8 +2020,8 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 			     USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT, 0,
 			     (__u16) USBVISION_LXSIZE_I, value, 8, HZ);
 	if (rc < 0) {
-		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - "
-		       "reconnect or reload driver.\n", proc, rc);
+		printk(KERN_ERR "%sERROR=%d. USBVISION stopped - reconnect or reload driver.\n",
+		       proc, rc);
 		return rc;
 	}
 
@@ -2308,11 +2297,8 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		struct urb *urb;
 
 		urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
-		if (urb == NULL) {
-			dev_err(&usbvision->dev->dev,
-				"%s: usb_alloc_urb() failed\n", __func__);
+		if (urb == NULL)
 			return -ENOMEM;
-		}
 		usbvision->sbuf[buf_idx].urb = urb;
 		usbvision->sbuf[buf_idx].data =
 			usb_alloc_coherent(usbvision->dev,

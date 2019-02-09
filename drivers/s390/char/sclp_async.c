@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Enable Asynchronous Notification via SCLP.
  *
@@ -63,42 +64,18 @@ static struct notifier_block call_home_panic_nb = {
 	.priority = INT_MAX,
 };
 
-static int proc_handler_callhome(struct ctl_table *ctl, int write,
-				 void __user *buffer, size_t *count,
-				 loff_t *ppos)
-{
-	unsigned long val;
-	int len, rc;
-	char buf[3];
-
-	if (!*count || (*ppos && !write)) {
-		*count = 0;
-		return 0;
-	}
-	if (!write) {
-		len = snprintf(buf, sizeof(buf), "%d\n", callhome_enabled);
-		rc = copy_to_user(buffer, buf, sizeof(buf));
-		if (rc != 0)
-			return -EFAULT;
-	} else {
-		len = *count;
-		rc = kstrtoul_from_user(buffer, len, 0, &val);
-		if (rc)
-			return rc;
-		if (val != 0 && val != 1)
-			return -EINVAL;
-		callhome_enabled = val;
-	}
-	*count = len;
-	*ppos += len;
-	return 0;
-}
+static int zero;
+static int one = 1;
 
 static struct ctl_table callhome_table[] = {
 	{
 		.procname	= "callhome",
+		.data		= &callhome_enabled,
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_handler_callhome,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
 	},
 	{}
 };

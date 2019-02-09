@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 2007
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
@@ -29,12 +30,22 @@ struct sclp_ipl_info {
 
 struct sclp_core_entry {
 	u8 core_id;
-	u8 reserved0[2];
-	u8 : 3;
+	u8 reserved0;
+	u8 : 4;
+	u8 sief2 : 1;
+	u8 skey : 1;
+	u8 : 2;
+	u8 : 2;
+	u8 gpere : 1;
 	u8 siif : 1;
 	u8 sigpif : 1;
 	u8 : 3;
-	u8 reserved2[10];
+	u8 reserved2[3];
+	u8 : 2;
+	u8 ib : 1;
+	u8 cei : 1;
+	u8 : 4;
+	u8 reserved3[6];
 	u8 type;
 	u8 reserved1;
 } __attribute__((packed));
@@ -53,20 +64,54 @@ struct sclp_info {
 	unsigned char has_sigpif : 1;
 	unsigned char has_core_type : 1;
 	unsigned char has_sprp : 1;
+	unsigned char has_hvs : 1;
+	unsigned char has_esca : 1;
+	unsigned char has_sief2 : 1;
+	unsigned char has_64bscao : 1;
+	unsigned char has_gpere : 1;
+	unsigned char has_cmma : 1;
+	unsigned char has_gsls : 1;
+	unsigned char has_ib : 1;
+	unsigned char has_cei : 1;
+	unsigned char has_pfmfi : 1;
+	unsigned char has_ibs : 1;
+	unsigned char has_skey : 1;
+	unsigned char has_kss : 1;
+	unsigned char has_gisaf : 1;
 	unsigned int ibc;
 	unsigned int mtid;
 	unsigned int mtid_cp;
 	unsigned int mtid_prev;
-	unsigned long long rzm;
-	unsigned long long rnmax;
-	unsigned long long hamax;
+	unsigned long rzm;
+	unsigned long rnmax;
+	unsigned long hamax;
 	unsigned int max_cores;
 	unsigned long hsa_size;
-	unsigned long long facilities;
+	unsigned long facilities;
+	unsigned int hmfai;
 };
 extern struct sclp_info sclp;
 
-int sclp_get_core_info(struct sclp_core_info *info);
+struct zpci_report_error_header {
+	u8 version;	/* Interface version byte */
+	u8 action;	/* Action qualifier byte
+			 * 1: Deconfigure and repair action requested
+			 *	(OpenCrypto Problem Call Home)
+			 * 2: Informational Report
+			 *	(OpenCrypto Successful Diagnostics Execution)
+			 */
+	u16 length;	/* Length of Subsequent Data (up to 4K – SCLP header */
+	u8 data[0];	/* Subsequent Data passed verbatim to SCLP ET 24 */
+} __packed;
+
+int sclp_early_get_core_info(struct sclp_core_info *info);
+void sclp_early_get_ipl_info(struct sclp_ipl_info *info);
+void sclp_early_detect(void);
+void sclp_early_printk(const char *s);
+void sclp_early_printk_force(const char *s);
+void __sclp_early_printk(const char *s, unsigned int len, unsigned int force);
+
+int _sclp_get_core_info(struct sclp_core_info *info);
 int sclp_core_configure(u8 core);
 int sclp_core_deconfigure(u8 core);
 int sclp_sdias_blk_count(void);
@@ -74,11 +119,18 @@ int sclp_sdias_copy(void *dest, int blk_num, int nr_blks);
 int sclp_chp_configure(struct chp_id chpid);
 int sclp_chp_deconfigure(struct chp_id chpid);
 int sclp_chp_read_info(struct sclp_chp_info *info);
-void sclp_get_ipl_info(struct sclp_ipl_info *info);
 int sclp_pci_configure(u32 fid);
 int sclp_pci_deconfigure(u32 fid);
-int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode);
-void sclp_early_detect(void);
-int _sclp_print_early(const char *);
+int sclp_pci_report(struct zpci_report_error_header *report, u32 fh, u32 fid);
+int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count);
+int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count);
+void sclp_ocf_cpc_name_copy(char *dst);
+
+static inline int sclp_get_core_info(struct sclp_core_info *info, int early)
+{
+	if (early)
+		return sclp_early_get_core_info(info);
+	return _sclp_get_core_info(info);
+}
 
 #endif /* _ASM_S390_SCLP_H */

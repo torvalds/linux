@@ -1,0 +1,133 @@
+Cadence DSI bridge
+==================
+
+The Cadence DSI bridge is a DPI to DSI bridge supporting up to 4 DSI lanes.
+
+Required properties:
+- compatible: should be set to "cdns,dsi".
+- reg: physical base address and length of the controller's registers.
+- interrupts: interrupt line connected to the DSI bridge.
+- clocks: DSI bridge clocks.
+- clock-names: must contain "dsi_p_clk" and "dsi_sys_clk".
+- phys: phandle link to the MIPI D-PHY controller.
+- phy-names: must contain "dphy".
+- #address-cells: must be set to 1.
+- #size-cells: must be set to 0.
+
+Optional properties:
+- resets: DSI reset lines.
+- reset-names: can contain "dsi_p_rst".
+
+Required subnodes:
+- ports: Ports as described in Documentation/devicetree/bindings/graph.txt.
+  2 ports are available:
+  * port 0: this port is only needed if some of your DSI devices are
+	    controlled through  an external bus like I2C or SPI. Can have at
+	    most 4 endpoints. The endpoint number is directly encoding the
+	    DSI virtual channel used by this device.
+  * port 1: represents the DPI input.
+  Other ports will be added later to support the new kind of inputs.
+
+- one subnode per DSI device connected on the DSI bus. Each DSI device should
+  contain a reg property encoding its virtual channel.
+
+Cadence DPHY
+============
+
+Cadence DPHY block.
+
+Required properties:
+- compatible: should be set to "cdns,dphy".
+- reg: physical base address and length of the DPHY registers.
+- clocks: DPHY reference clocks.
+- clock-names: must contain "psm" and "pll_ref".
+- #phy-cells: must be set to 0.
+
+
+Example:
+	dphy0: dphy@fd0e0000{
+		compatible = "cdns,dphy";
+		reg = <0x0 0xfd0e0000 0x0 0x1000>;
+		clocks = <&psm_clk>, <&pll_ref_clk>;
+		clock-names = "psm", "pll_ref";
+		#phy-cells = <0>;
+	};
+
+	dsi0: dsi@fd0c0000 {
+		compatible = "cdns,dsi";
+		reg = <0x0 0xfd0c0000 0x0 0x1000>;
+		clocks = <&pclk>, <&sysclk>;
+		clock-names = "dsi_p_clk", "dsi_sys_clk";
+		interrupts = <1>;
+		phys = <&dphy0>;
+		phy-names = "dphy";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@1 {
+				reg = <1>;
+				dsi0_dpi_input: endpoint {
+					remote-endpoint = <&xxx_dpi_output>;
+				};
+			};
+		};
+
+		panel: dsi-dev@0 {
+			compatible = "<vendor,panel>";
+			reg = <0>;
+		};
+	};
+
+or
+
+	dsi0: dsi@fd0c0000 {
+		compatible = "cdns,dsi";
+		reg = <0x0 0xfd0c0000 0x0 0x1000>;
+		clocks = <&pclk>, <&sysclk>;
+		clock-names = "dsi_p_clk", "dsi_sys_clk";
+		interrupts = <1>;
+		phys = <&dphy1>;
+		phy-names = "dphy";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dsi0_output: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&dsi_panel_input>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				dsi0_dpi_input: endpoint {
+					remote-endpoint = <&xxx_dpi_output>;
+				};
+			};
+		};
+	};
+
+	i2c@xxx {
+		panel: panel@59 {
+			compatible = "<vendor,panel>";
+			reg = <0x59>;
+
+			port {
+				dsi_panel_input: endpoint {
+					remote-endpoint = <&dsi0_output>;
+				};
+			};
+		};
+	};

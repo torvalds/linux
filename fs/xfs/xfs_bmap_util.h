@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_BMAP_UTIL_H__
 #define	__XFS_BMAP_UTIL_H__
@@ -21,30 +9,42 @@
 /* Kernel only BMAP related definitions and functions */
 
 struct xfs_bmbt_irec;
-struct xfs_bmap_free_item;
+struct xfs_extent_free_item;
 struct xfs_ifork;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_bmalloca;
 
+#ifdef CONFIG_XFS_RT
 int	xfs_bmap_rtalloc(struct xfs_bmalloca *ap);
+#else /* !CONFIG_XFS_RT */
+/*
+ * Attempts to allocate RT extents when RT is disable indicates corruption and
+ * should trigger a shutdown.
+ */
+static inline int
+xfs_bmap_rtalloc(struct xfs_bmalloca *ap)
+{
+	return -EFSCORRUPTED;
+}
+#endif /* CONFIG_XFS_RT */
+
 int	xfs_bmap_eof(struct xfs_inode *ip, xfs_fileoff_t endoff,
 		     int whichfork, int *eof);
-int	xfs_bmap_count_blocks(struct xfs_trans *tp, struct xfs_inode *ip,
-			      int whichfork, int *count);
 int	xfs_bmap_punch_delalloc_range(struct xfs_inode *ip,
 		xfs_fileoff_t start_fsb, xfs_fileoff_t length);
 
-/* bmap to userspace formatter - copy to user & advance pointer */
-typedef int (*xfs_bmap_format_t)(void **, struct getbmapx *, int *);
+struct kgetbmap {
+	__s64		bmv_offset;	/* file offset of segment in blocks */
+	__s64		bmv_block;	/* starting block (64-bit daddr_t)  */
+	__s64		bmv_length;	/* length of segment, blocks	    */
+	__s32		bmv_oflags;	/* output flags */
+};
 int	xfs_getbmap(struct xfs_inode *ip, struct getbmapx *bmv,
-		xfs_bmap_format_t formatter, void *arg);
+		struct kgetbmap *out);
 
 /* functions in xfs_bmap.c that are only needed by xfs_bmap_util.c */
-void	xfs_bmap_del_free(struct xfs_bmap_free *flist,
-			  struct xfs_bmap_free_item *prev,
-			  struct xfs_bmap_free_item *free);
 int	xfs_bmap_extsize_align(struct xfs_mount *mp, struct xfs_bmbt_irec *gotp,
 			       struct xfs_bmbt_irec *prevp, xfs_extlen_t extsz,
 			       int rt, int eof, int delay, int convert,
@@ -68,12 +68,16 @@ int	xfs_insert_file_space(struct xfs_inode *, xfs_off_t offset,
 
 /* EOF block manipulation functions */
 bool	xfs_can_free_eofblocks(struct xfs_inode *ip, bool force);
-int	xfs_free_eofblocks(struct xfs_mount *mp, struct xfs_inode *ip,
-			   bool need_iolock);
+int	xfs_free_eofblocks(struct xfs_inode *ip);
 
 int	xfs_swap_extents(struct xfs_inode *ip, struct xfs_inode *tip,
 			 struct xfs_swapext *sx);
 
 xfs_daddr_t xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb);
+
+xfs_extnum_t xfs_bmap_count_leaves(struct xfs_ifork *ifp, xfs_filblks_t *count);
+int xfs_bmap_count_blocks(struct xfs_trans *tp, struct xfs_inode *ip,
+			  int whichfork, xfs_extnum_t *nextents,
+			  xfs_filblks_t *count);
 
 #endif	/* __XFS_BMAP_UTIL_H__ */

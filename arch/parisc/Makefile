@@ -24,14 +24,19 @@ KBUILD_DEFCONFIG := default_defconfig
 NM		= sh $(srctree)/arch/parisc/nm
 CHECKFLAGS	+= -D__hppa__=1
 LIBGCC		= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
+export LIBGCC
 
 ifdef CONFIG_64BIT
 UTS_MACHINE	:= parisc64
-CHECKFLAGS	+= -D__LP64__=1 -m64
+CHECKFLAGS	+= -D__LP64__=1
 CC_ARCHES	= hppa64
+LD_BFD		:= elf64-hppa-linux
 else # 32-bit
 CC_ARCHES	= hppa hppa2.0 hppa1.1
+LD_BFD		:= elf32-hppa-linux
 endif
+
+export LD_BFD
 
 ifneq ($(SUBARCH),$(UTS_MACHINE))
 	ifeq ($(CROSS_COMPILE),)
@@ -60,16 +65,17 @@ endif
 # kernel.
 cflags-y	+= -mdisable-fpregs
 
-# Without this, "ld -r" results in .text sections that are too big
-# (> 0x40000) for branches to reach stubs.
-ifndef CONFIG_FUNCTION_TRACER
-  cflags-y	+= -ffunction-sections
-endif
-
 # Use long jumps instead of long branches (needed if your linker fails to
 # link a too big vmlinux executable). Not enabled for building modules.
 ifdef CONFIG_MLONGCALLS
 KBUILD_CFLAGS_KERNEL += -mlong-calls
+endif
+
+# Without this, "ld -r" results in .text sections that are too big (> 0x40000)
+# for branches to reach stubs. And multiple .text sections trigger a warning
+# when creating the sysfs module information section.
+ifndef CONFIG_64BIT
+KBUILD_CFLAGS_MODULE += -ffunction-sections
 endif
 
 # select which processor to optimise for
@@ -89,6 +95,8 @@ core-y	+= $(addprefix arch/parisc/, $(kernel-y))
 libs-y	+= arch/parisc/lib/ $(LIBGCC)
 
 drivers-$(CONFIG_OPROFILE)		+= arch/parisc/oprofile/
+
+boot	:= arch/parisc/boot
 
 PALO := $(shell if (which palo 2>&1); then : ; \
 	elif [ -x /sbin/palo ]; then echo /sbin/palo; \
@@ -118,11 +126,22 @@ INSTALL_TARGETS = zinstall install
 
 PHONY += bzImage $(BOOT_TARGETS) $(INSTALL_TARGETS)
 
-bzImage zImage: vmlinuz
+# Default kernel to build
+all: bzImage
+
+zImage: vmlinuz
 Image: vmlinux
 
+bzImage: vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+ifdef CONFIG_PARISC_SELF_EXTRACT
+vmlinuz: bzImage
+	$(OBJCOPY) $(boot)/bzImage $@
+else
 vmlinuz: vmlinux
 	@gzip -cf -9 $< > $@
+endif
 
 install:
 	$(CONFIG_SHELL) $(src)/arch/parisc/install.sh \

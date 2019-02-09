@@ -8,9 +8,10 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
-#include <linux/ssb/ssb.h>
-
 #include "ssb_private.h"
+
+#include <linux/bcm47xx_nvram.h>
+#include <linux/ssb/ssb.h>
 
 static u8 ssb_host_soc_read8(struct ssb_device *dev, u16 offset)
 {
@@ -60,7 +61,7 @@ static void ssb_host_soc_block_read(struct ssb_device *dev, void *buffer,
 	case sizeof(u16): {
 		__le16 *buf = buffer;
 
-		SSB_WARN_ON(count & 1);
+		WARN_ON(count & 1);
 		while (count) {
 			*buf = (__force __le16)__raw_readw(addr);
 			buf++;
@@ -71,7 +72,7 @@ static void ssb_host_soc_block_read(struct ssb_device *dev, void *buffer,
 	case sizeof(u32): {
 		__le32 *buf = buffer;
 
-		SSB_WARN_ON(count & 3);
+		WARN_ON(count & 3);
 		while (count) {
 			*buf = (__force __le32)__raw_readl(addr);
 			buf++;
@@ -80,7 +81,7 @@ static void ssb_host_soc_block_read(struct ssb_device *dev, void *buffer,
 		break;
 	}
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 }
 #endif /* CONFIG_SSB_BLOCKIO */
@@ -133,7 +134,7 @@ static void ssb_host_soc_block_write(struct ssb_device *dev, const void *buffer,
 	case sizeof(u16): {
 		const __le16 *buf = buffer;
 
-		SSB_WARN_ON(count & 1);
+		WARN_ON(count & 1);
 		while (count) {
 			__raw_writew((__force u16)(*buf), addr);
 			buf++;
@@ -144,7 +145,7 @@ static void ssb_host_soc_block_write(struct ssb_device *dev, const void *buffer,
 	case sizeof(u32): {
 		const __le32 *buf = buffer;
 
-		SSB_WARN_ON(count & 3);
+		WARN_ON(count & 3);
 		while (count) {
 			__raw_writel((__force u32)(*buf), addr);
 			buf++;
@@ -153,7 +154,7 @@ static void ssb_host_soc_block_write(struct ssb_device *dev, const void *buffer,
 		break;
 	}
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 }
 #endif /* CONFIG_SSB_BLOCKIO */
@@ -171,3 +172,39 @@ const struct ssb_bus_ops ssb_host_soc_ops = {
 	.block_write	= ssb_host_soc_block_write,
 #endif
 };
+
+int ssb_host_soc_get_invariants(struct ssb_bus *bus,
+				struct ssb_init_invariants *iv)
+{
+	char buf[20];
+	int len, err;
+
+	/* Fill boardinfo structure */
+	memset(&iv->boardinfo, 0, sizeof(struct ssb_boardinfo));
+
+	len = bcm47xx_nvram_getenv("boardvendor", buf, sizeof(buf));
+	if (len > 0) {
+		err = kstrtou16(strim(buf), 0, &iv->boardinfo.vendor);
+		if (err)
+			pr_warn("Couldn't parse nvram board vendor entry with value \"%s\"\n",
+				buf);
+	}
+	if (!iv->boardinfo.vendor)
+		iv->boardinfo.vendor = SSB_BOARDVENDOR_BCM;
+
+	len = bcm47xx_nvram_getenv("boardtype", buf, sizeof(buf));
+	if (len > 0) {
+		err = kstrtou16(strim(buf), 0, &iv->boardinfo.type);
+		if (err)
+			pr_warn("Couldn't parse nvram board type entry with value \"%s\"\n",
+				buf);
+	}
+
+	memset(&iv->sprom, 0, sizeof(struct ssb_sprom));
+	ssb_fill_sprom_with_fallback(bus, &iv->sprom);
+
+	if (bcm47xx_nvram_getenv("cardbus", buf, sizeof(buf)) >= 0)
+		iv->has_cardbus_slot = !!simple_strtoul(buf, NULL, 10);
+
+	return 0;
+}

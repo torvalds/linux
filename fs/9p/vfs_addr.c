@@ -34,6 +34,7 @@
 #include <linux/idr.h>
 #include <linux/sched.h>
 #include <linux/uio.h>
+#include <linux/bvec.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -153,7 +154,7 @@ static void v9fs_invalidate_page(struct page *page, unsigned int offset,
 	 * If called with zero offset, we should release
 	 * the private state assocated with the page
 	 */
-	if (offset == 0 && length == PAGE_CACHE_SIZE)
+	if (offset == 0 && length == PAGE_SIZE)
 		v9fs_fscache_invalidate_page(page);
 }
 
@@ -166,10 +167,10 @@ static int v9fs_vfs_writepage_locked(struct page *page)
 	struct bio_vec bvec;
 	int err, len;
 
-	if (page->index == size >> PAGE_CACHE_SHIFT)
-		len = size & ~PAGE_CACHE_MASK;
+	if (page->index == size >> PAGE_SHIFT)
+		len = size & ~PAGE_MASK;
 	else
-		len = PAGE_CACHE_SIZE;
+		len = PAGE_SIZE;
 
 	bvec.bv_page = page;
 	bvec.bv_offset = 0;
@@ -231,7 +232,6 @@ static int v9fs_launder_page(struct page *page)
 /**
  * v9fs_direct_IO - 9P address space operation for direct I/O
  * @iocb: target I/O control block
- * @pos: offset in file to begin the operation
  *
  * The presence of v9fs_direct_IO() in the address space ops vector
  * allowes open() O_DIRECT flags which would have failed otherwise.
@@ -245,9 +245,10 @@ static int v9fs_launder_page(struct page *page)
  *
  */
 static ssize_t
-v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
+v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
+	loff_t pos = iocb->ki_pos;
 	ssize_t n;
 	int err = 0;
 	if (iov_iter_rw(iter) == WRITE) {
@@ -271,7 +272,7 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 	int retval = 0;
 	struct page *page;
 	struct v9fs_inode *v9inode;
-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	pgoff_t index = pos >> PAGE_SHIFT;
 	struct inode *inode = mapping->host;
 
 
@@ -288,11 +289,11 @@ start:
 	if (PageUptodate(page))
 		goto out;
 
-	if (len == PAGE_CACHE_SIZE)
+	if (len == PAGE_SIZE)
 		goto out;
 
 	retval = v9fs_fid_readpage(v9inode->writeback_fid, page);
-	page_cache_release(page);
+	put_page(page);
 	if (!retval)
 		goto start;
 out:
@@ -309,18 +310,14 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 
 	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
 
-	if (unlikely(copied < len)) {
-		/*
-		 * zero out the rest of the area
-		 */
-		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
-
-		zero_user(page, from + copied, len - copied);
-		flush_dcache_page(page);
+	if (!PageUptodate(page)) {
+		if (unlikely(copied < len)) {
+			copied = 0;
+			goto out;
+		} else if (len == PAGE_SIZE) {
+			SetPageUptodate(page);
+		}
 	}
-
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
 	/*
 	 * No need to use i_size_read() here, the i_size
 	 * cannot change under us because we hold the i_mutex.
@@ -330,8 +327,9 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 		i_size_write(inode, last_pos);
 	}
 	set_page_dirty(page);
+out:
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	return copied;
 }

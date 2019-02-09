@@ -18,31 +18,28 @@
 
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/poll.h>
-#include <linux/types.h>
-#include <linux/kdev_t.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <ctype.h>
 #include <errno.h>
 #include <linux/hyperv.h>
+#include <linux/limits.h>
 #include <syslog.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <dirent.h>
 #include <getopt.h>
 
 static int target_fd;
-static char target_fname[W_MAX_PATH];
+static char target_fname[PATH_MAX];
+static unsigned long long filesize;
 
 static int hv_start_fcopy(struct hv_start_fcopy *smsg)
 {
 	int error = HV_E_FAIL;
 	char *q, *p;
 
+	filesize = 0;
 	p = (char *)smsg->path_name;
 	snprintf(target_fname, sizeof(target_fname), "%s/%s",
 		 (char *)smsg->path_name, (char *)smsg->file_name);
@@ -98,14 +95,26 @@ done:
 static int hv_copy_data(struct hv_do_fcopy *cpmsg)
 {
 	ssize_t bytes_written;
+	int ret = 0;
 
 	bytes_written = pwrite(target_fd, cpmsg->data, cpmsg->size,
 				cpmsg->offset);
 
-	if (bytes_written != cpmsg->size)
-		return HV_E_FAIL;
+	filesize += cpmsg->size;
+	if (bytes_written != cpmsg->size) {
+		switch (errno) {
+		case ENOSPC:
+			ret = HV_ERROR_DISK_FULL;
+			break;
+		default:
+			ret = HV_E_FAIL;
+			break;
+		}
+		syslog(LOG_ERR, "pwrite failed to write %llu bytes: %ld (%s)",
+		       filesize, (long)bytes_written, strerror(errno));
+	}
 
-	return 0;
+	return ret;
 }
 
 static int hv_copy_finished(void)
@@ -131,14 +140,17 @@ void print_usage(char *argv[])
 
 int main(int argc, char *argv[])
 {
-	int fcopy_fd, len;
+	int fcopy_fd;
 	int error;
 	int daemonize = 1, long_index = 0, opt;
 	int version = FCOPY_CURRENT_VERSION;
-	char *buffer[4096 * 2];
-	struct hv_fcopy_hdr *in_msg;
+	union {
+		struct hv_fcopy_hdr hdr;
+		struct hv_start_fcopy start;
+		struct hv_do_fcopy copy;
+		__u32 kernel_modver;
+	} buffer = { };
 	int in_handshake = 1;
-	__u32 kernel_modver;
 
 	static struct option long_options[] = {
 		{"help",	no_argument,	   0,  'h' },
@@ -165,7 +177,7 @@ int main(int argc, char *argv[])
 	}
 
 	openlog("HV_FCOPY", 0, LOG_USER);
-	syslog(LOG_INFO, "HV_FCOPY starting; pid is:%d", getpid());
+	syslog(LOG_INFO, "starting; pid is:%d", getpid());
 
 	fcopy_fd = open("/dev/vmbus/hv_fcopy", O_RDWR);
 
@@ -188,32 +200,31 @@ int main(int argc, char *argv[])
 		 * In this loop we process fcopy messages after the
 		 * handshake is complete.
 		 */
-		len = pread(fcopy_fd, buffer, (4096 * 2), 0);
+		ssize_t len;
+
+		len = pread(fcopy_fd, &buffer, sizeof(buffer), 0);
 		if (len < 0) {
 			syslog(LOG_ERR, "pread failed: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 
 		if (in_handshake) {
-			if (len != sizeof(kernel_modver)) {
+			if (len != sizeof(buffer.kernel_modver)) {
 				syslog(LOG_ERR, "invalid version negotiation");
 				exit(EXIT_FAILURE);
 			}
-			kernel_modver = *(__u32 *)buffer;
 			in_handshake = 0;
-			syslog(LOG_INFO, "HV_FCOPY: kernel module version: %d",
-			       kernel_modver);
+			syslog(LOG_INFO, "kernel module version: %u",
+			       buffer.kernel_modver);
 			continue;
 		}
 
-		in_msg = (struct hv_fcopy_hdr *)buffer;
-
-		switch (in_msg->operation) {
+		switch (buffer.hdr.operation) {
 		case START_FILE_COPY:
-			error = hv_start_fcopy((struct hv_start_fcopy *)in_msg);
+			error = hv_start_fcopy(&buffer.start);
 			break;
 		case WRITE_TO_FILE:
-			error = hv_copy_data((struct hv_do_fcopy *)in_msg);
+			error = hv_copy_data(&buffer.copy);
 			break;
 		case COMPLETE_FCOPY:
 			error = hv_copy_finished();
@@ -223,8 +234,9 @@ int main(int argc, char *argv[])
 			break;
 
 		default:
+			error = HV_E_FAIL;
 			syslog(LOG_ERR, "Unknown operation: %d",
-				in_msg->operation);
+				buffer.hdr.operation);
 
 		}
 

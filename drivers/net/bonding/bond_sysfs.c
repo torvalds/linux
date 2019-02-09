@@ -24,7 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -42,7 +42,6 @@
 
 #include <net/bonding.h>
 
-#define to_dev(obj)	container_of(obj, struct device, kobj)
 #define to_bond(cd)	((struct bonding *)(netdev_priv(to_net_dev(cd))))
 
 /* "show" function for the bond_masters attribute.
@@ -148,7 +147,7 @@ err_no_cmd:
 static const struct class_attribute class_attr_bonding_masters = {
 	.attr = {
 		.name = "bonding_masters",
-		.mode = S_IWUSR | S_IRUGO,
+		.mode = 0644,
 	},
 	.show = bonding_show_bonds,
 	.store = bonding_store_bonds,
@@ -161,14 +160,19 @@ static ssize_t bonding_sysfs_store_option(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_option *opt;
+	char *buffer_clone;
 	int ret;
 
 	opt = bond_opt_get_by_name(attr->attr.name);
 	if (WARN_ON(!opt))
 		return -ENOENT;
-	ret = bond_opt_tryset_rtnl(bond, opt->id, (char *)buffer);
+	buffer_clone = kstrndup(buffer, count, GFP_KERNEL);
+	if (!buffer_clone)
+		return -ENOMEM;
+	ret = bond_opt_tryset_rtnl(bond, opt->id, buffer_clone);
 	if (!ret)
 		ret = count;
+	kfree(buffer_clone);
 
 	return ret;
 }
@@ -203,7 +207,7 @@ static ssize_t bonding_show_slaves(struct device *d,
 
 	return res;
 }
-static DEVICE_ATTR(slaves, S_IRUGO | S_IWUSR, bonding_show_slaves,
+static DEVICE_ATTR(slaves, 0644, bonding_show_slaves,
 		   bonding_sysfs_store_option);
 
 /* Show the bonding mode. */
@@ -217,8 +221,7 @@ static ssize_t bonding_show_mode(struct device *d,
 
 	return sprintf(buf, "%s %d\n", val->string, BOND_MODE(bond));
 }
-static DEVICE_ATTR(mode, S_IRUGO | S_IWUSR,
-		   bonding_show_mode, bonding_sysfs_store_option);
+static DEVICE_ATTR(mode, 0644, bonding_show_mode, bonding_sysfs_store_option);
 
 /* Show the bonding transmit hash method. */
 static ssize_t bonding_show_xmit_hash(struct device *d,
@@ -232,7 +235,7 @@ static ssize_t bonding_show_xmit_hash(struct device *d,
 
 	return sprintf(buf, "%s %d\n", val->string, bond->params.xmit_policy);
 }
-static DEVICE_ATTR(xmit_hash_policy, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(xmit_hash_policy, 0644,
 		   bonding_show_xmit_hash, bonding_sysfs_store_option);
 
 /* Show arp_validate. */
@@ -248,7 +251,7 @@ static ssize_t bonding_show_arp_validate(struct device *d,
 
 	return sprintf(buf, "%s %d\n", val->string, bond->params.arp_validate);
 }
-static DEVICE_ATTR(arp_validate, S_IRUGO | S_IWUSR, bonding_show_arp_validate,
+static DEVICE_ATTR(arp_validate, 0644, bonding_show_arp_validate,
 		   bonding_sysfs_store_option);
 
 /* Show arp_all_targets. */
@@ -264,7 +267,7 @@ static ssize_t bonding_show_arp_all_targets(struct device *d,
 	return sprintf(buf, "%s %d\n",
 		       val->string, bond->params.arp_all_targets);
 }
-static DEVICE_ATTR(arp_all_targets, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(arp_all_targets, 0644,
 		   bonding_show_arp_all_targets, bonding_sysfs_store_option);
 
 /* Show fail_over_mac. */
@@ -280,7 +283,7 @@ static ssize_t bonding_show_fail_over_mac(struct device *d,
 
 	return sprintf(buf, "%s %d\n", val->string, bond->params.fail_over_mac);
 }
-static DEVICE_ATTR(fail_over_mac, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(fail_over_mac, 0644,
 		   bonding_show_fail_over_mac, bonding_sysfs_store_option);
 
 /* Show the arp timer interval. */
@@ -292,7 +295,7 @@ static ssize_t bonding_show_arp_interval(struct device *d,
 
 	return sprintf(buf, "%d\n", bond->params.arp_interval);
 }
-static DEVICE_ATTR(arp_interval, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(arp_interval, 0644,
 		   bonding_show_arp_interval, bonding_sysfs_store_option);
 
 /* Show the arp targets. */
@@ -313,7 +316,7 @@ static ssize_t bonding_show_arp_targets(struct device *d,
 
 	return res;
 }
-static DEVICE_ATTR(arp_ip_target, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(arp_ip_target, 0644,
 		   bonding_show_arp_targets, bonding_sysfs_store_option);
 
 /* Show the up and down delays. */
@@ -325,7 +328,7 @@ static ssize_t bonding_show_downdelay(struct device *d,
 
 	return sprintf(buf, "%d\n", bond->params.downdelay * bond->params.miimon);
 }
-static DEVICE_ATTR(downdelay, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(downdelay, 0644,
 		   bonding_show_downdelay, bonding_sysfs_store_option);
 
 static ssize_t bonding_show_updelay(struct device *d,
@@ -337,7 +340,7 @@ static ssize_t bonding_show_updelay(struct device *d,
 	return sprintf(buf, "%d\n", bond->params.updelay * bond->params.miimon);
 
 }
-static DEVICE_ATTR(updelay, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(updelay, 0644,
 		   bonding_show_updelay, bonding_sysfs_store_option);
 
 /* Show the LACP interval. */
@@ -352,7 +355,7 @@ static ssize_t bonding_show_lacp(struct device *d,
 
 	return sprintf(buf, "%s %d\n", val->string, bond->params.lacp_fast);
 }
-static DEVICE_ATTR(lacp_rate, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(lacp_rate, 0644,
 		   bonding_show_lacp, bonding_sysfs_store_option);
 
 static ssize_t bonding_show_min_links(struct device *d,
@@ -363,7 +366,7 @@ static ssize_t bonding_show_min_links(struct device *d,
 
 	return sprintf(buf, "%u\n", bond->params.min_links);
 }
-static DEVICE_ATTR(min_links, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(min_links, 0644,
 		   bonding_show_min_links, bonding_sysfs_store_option);
 
 static ssize_t bonding_show_ad_select(struct device *d,
@@ -377,7 +380,7 @@ static ssize_t bonding_show_ad_select(struct device *d,
 
 	return sprintf(buf, "%s %d\n", val->string, bond->params.ad_select);
 }
-static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(ad_select, 0644,
 		   bonding_show_ad_select, bonding_sysfs_store_option);
 
 /* Show the number of peer notifications to send after a failover event. */
@@ -388,9 +391,9 @@ static ssize_t bonding_show_num_peer_notif(struct device *d,
 	struct bonding *bond = to_bond(d);
 	return sprintf(buf, "%d\n", bond->params.num_peer_notif);
 }
-static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(num_grat_arp, 0644,
 		   bonding_show_num_peer_notif, bonding_sysfs_store_option);
-static DEVICE_ATTR(num_unsol_na, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(num_unsol_na, 0644,
 		   bonding_show_num_peer_notif, bonding_sysfs_store_option);
 
 /* Show the MII monitor interval. */
@@ -402,7 +405,7 @@ static ssize_t bonding_show_miimon(struct device *d,
 
 	return sprintf(buf, "%d\n", bond->params.miimon);
 }
-static DEVICE_ATTR(miimon, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(miimon, 0644,
 		   bonding_show_miimon, bonding_sysfs_store_option);
 
 /* Show the primary slave. */
@@ -422,7 +425,7 @@ static ssize_t bonding_show_primary(struct device *d,
 
 	return count;
 }
-static DEVICE_ATTR(primary, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(primary, 0644,
 		   bonding_show_primary, bonding_sysfs_store_option);
 
 /* Show the primary_reselect flag. */
@@ -439,7 +442,7 @@ static ssize_t bonding_show_primary_reselect(struct device *d,
 	return sprintf(buf, "%s %d\n",
 		       val->string, bond->params.primary_reselect);
 }
-static DEVICE_ATTR(primary_reselect, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(primary_reselect, 0644,
 		   bonding_show_primary_reselect, bonding_sysfs_store_option);
 
 /* Show the use_carrier flag. */
@@ -451,7 +454,7 @@ static ssize_t bonding_show_carrier(struct device *d,
 
 	return sprintf(buf, "%d\n", bond->params.use_carrier);
 }
-static DEVICE_ATTR(use_carrier, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(use_carrier, 0644,
 		   bonding_show_carrier, bonding_sysfs_store_option);
 
 
@@ -472,7 +475,7 @@ static ssize_t bonding_show_active_slave(struct device *d,
 
 	return count;
 }
-static DEVICE_ATTR(active_slave, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(active_slave, 0644,
 		   bonding_show_active_slave, bonding_sysfs_store_option);
 
 /* Show link status of the bond interface. */
@@ -481,11 +484,11 @@ static ssize_t bonding_show_mii_status(struct device *d,
 				       char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	bool active = !!rcu_access_pointer(bond->curr_active_slave);
+	bool active = netif_carrier_ok(bond->dev);
 
 	return sprintf(buf, "%s\n", active ? "up" : "down");
 }
-static DEVICE_ATTR(mii_status, S_IRUGO, bonding_show_mii_status, NULL);
+static DEVICE_ATTR(mii_status, 0444, bonding_show_mii_status, NULL);
 
 /* Show current 802.3ad aggregator ID. */
 static ssize_t bonding_show_ad_aggregator(struct device *d,
@@ -504,7 +507,7 @@ static ssize_t bonding_show_ad_aggregator(struct device *d,
 
 	return count;
 }
-static DEVICE_ATTR(ad_aggregator, S_IRUGO, bonding_show_ad_aggregator, NULL);
+static DEVICE_ATTR(ad_aggregator, 0444, bonding_show_ad_aggregator, NULL);
 
 
 /* Show number of active 802.3ad ports. */
@@ -524,7 +527,7 @@ static ssize_t bonding_show_ad_num_ports(struct device *d,
 
 	return count;
 }
-static DEVICE_ATTR(ad_num_ports, S_IRUGO, bonding_show_ad_num_ports, NULL);
+static DEVICE_ATTR(ad_num_ports, 0444, bonding_show_ad_num_ports, NULL);
 
 
 /* Show current 802.3ad actor key. */
@@ -544,7 +547,7 @@ static ssize_t bonding_show_ad_actor_key(struct device *d,
 
 	return count;
 }
-static DEVICE_ATTR(ad_actor_key, S_IRUGO, bonding_show_ad_actor_key, NULL);
+static DEVICE_ATTR(ad_actor_key, 0444, bonding_show_ad_actor_key, NULL);
 
 
 /* Show current 802.3ad partner key. */
@@ -564,7 +567,7 @@ static ssize_t bonding_show_ad_partner_key(struct device *d,
 
 	return count;
 }
-static DEVICE_ATTR(ad_partner_key, S_IRUGO, bonding_show_ad_partner_key, NULL);
+static DEVICE_ATTR(ad_partner_key, 0444, bonding_show_ad_partner_key, NULL);
 
 
 /* Show current 802.3ad partner mac. */
@@ -583,7 +586,7 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 
 	return count;
 }
-static DEVICE_ATTR(ad_partner_mac, S_IRUGO, bonding_show_ad_partner_mac, NULL);
+static DEVICE_ATTR(ad_partner_mac, 0444, bonding_show_ad_partner_mac, NULL);
 
 /* Show the queue_ids of the slaves in the current bond. */
 static ssize_t bonding_show_queue_id(struct device *d,
@@ -616,7 +619,7 @@ static ssize_t bonding_show_queue_id(struct device *d,
 
 	return res;
 }
-static DEVICE_ATTR(queue_id, S_IRUGO | S_IWUSR, bonding_show_queue_id,
+static DEVICE_ATTR(queue_id, 0644, bonding_show_queue_id,
 		   bonding_sysfs_store_option);
 
 
@@ -629,7 +632,7 @@ static ssize_t bonding_show_slaves_active(struct device *d,
 
 	return sprintf(buf, "%d\n", bond->params.all_slaves_active);
 }
-static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(all_slaves_active, 0644,
 		   bonding_show_slaves_active, bonding_sysfs_store_option);
 
 /* Show the number of IGMP membership reports to send on link failure */
@@ -641,7 +644,7 @@ static ssize_t bonding_show_resend_igmp(struct device *d,
 
 	return sprintf(buf, "%d\n", bond->params.resend_igmp);
 }
-static DEVICE_ATTR(resend_igmp, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(resend_igmp, 0644,
 		   bonding_show_resend_igmp, bonding_sysfs_store_option);
 
 
@@ -653,7 +656,7 @@ static ssize_t bonding_show_lp_interval(struct device *d,
 
 	return sprintf(buf, "%d\n", bond->params.lp_interval);
 }
-static DEVICE_ATTR(lp_interval, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(lp_interval, 0644,
 		   bonding_show_lp_interval, bonding_sysfs_store_option);
 
 static ssize_t bonding_show_tlb_dynamic_lb(struct device *d,
@@ -663,7 +666,7 @@ static ssize_t bonding_show_tlb_dynamic_lb(struct device *d,
 	struct bonding *bond = to_bond(d);
 	return sprintf(buf, "%d\n", bond->params.tlb_dynamic_lb);
 }
-static DEVICE_ATTR(tlb_dynamic_lb, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(tlb_dynamic_lb, 0644,
 		   bonding_show_tlb_dynamic_lb, bonding_sysfs_store_option);
 
 static ssize_t bonding_show_packets_per_slave(struct device *d,
@@ -675,7 +678,7 @@ static ssize_t bonding_show_packets_per_slave(struct device *d,
 
 	return sprintf(buf, "%u\n", packets_per_slave);
 }
-static DEVICE_ATTR(packets_per_slave, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(packets_per_slave, 0644,
 		   bonding_show_packets_per_slave, bonding_sysfs_store_option);
 
 static ssize_t bonding_show_ad_actor_sys_prio(struct device *d,
@@ -689,7 +692,7 @@ static ssize_t bonding_show_ad_actor_sys_prio(struct device *d,
 
 	return 0;
 }
-static DEVICE_ATTR(ad_actor_sys_prio, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(ad_actor_sys_prio, 0644,
 		   bonding_show_ad_actor_sys_prio, bonding_sysfs_store_option);
 
 static ssize_t bonding_show_ad_actor_system(struct device *d,
@@ -704,7 +707,7 @@ static ssize_t bonding_show_ad_actor_system(struct device *d,
 	return 0;
 }
 
-static DEVICE_ATTR(ad_actor_system, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(ad_actor_system, 0644,
 		   bonding_show_ad_actor_system, bonding_sysfs_store_option);
 
 static ssize_t bonding_show_ad_user_port_key(struct device *d,
@@ -718,7 +721,7 @@ static ssize_t bonding_show_ad_user_port_key(struct device *d,
 
 	return 0;
 }
-static DEVICE_ATTR(ad_user_port_key, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(ad_user_port_key, 0644,
 		   bonding_show_ad_user_port_key, bonding_sysfs_store_option);
 
 static struct attribute *per_bond_attrs[] = {
@@ -760,7 +763,7 @@ static struct attribute *per_bond_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group bonding_group = {
+static const struct attribute_group bonding_group = {
 	.name = "bonding",
 	.attrs = per_bond_attrs,
 };

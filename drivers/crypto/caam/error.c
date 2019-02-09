@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * CAAM Error Reporting
  *
@@ -6,10 +7,48 @@
 
 #include "compat.h"
 #include "regs.h"
-#include "intern.h"
 #include "desc.h"
-#include "jr.h"
 #include "error.h"
+
+#ifdef DEBUG
+#include <linux/highmem.h>
+
+void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
+		  int rowsize, int groupsize, struct scatterlist *sg,
+		  size_t tlen, bool ascii)
+{
+	struct scatterlist *it;
+	void *it_page;
+	size_t len;
+	void *buf;
+
+	for (it = sg; it && tlen > 0 ; it = sg_next(sg)) {
+		/*
+		 * make sure the scatterlist's page
+		 * has a valid virtual memory mapping
+		 */
+		it_page = kmap_atomic(sg_page(it));
+		if (unlikely(!it_page)) {
+			pr_err("caam_dump_sg: kmap failed\n");
+			return;
+		}
+
+		buf = it_page + it->offset;
+		len = min_t(size_t, tlen, it->length);
+		print_hex_dump(level, prefix_str, prefix_type, rowsize,
+			       groupsize, buf, len, ascii);
+		tlen -= len;
+
+		kunmap_atomic(it_page);
+	}
+}
+#else
+void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
+		  int rowsize, int groupsize, struct scatterlist *sg,
+		  size_t tlen, bool ascii)
+{}
+#endif /* DEBUG */
+EXPORT_SYMBOL(caam_dump_sg);
 
 static const struct {
 	u8 value;
@@ -146,10 +185,9 @@ static void report_ccb_status(struct device *jrdev, const u32 status,
 	    strlen(rng_err_id_list[err_id])) {
 		/* RNG-only error */
 		err_str = rng_err_id_list[err_id];
-	} else if (err_id < ARRAY_SIZE(err_id_list))
+	} else {
 		err_str = err_id_list[err_id];
-	else
-		snprintf(err_err_code, sizeof(err_err_code), "%02x", err_id);
+	}
 
 	/*
 	 * CCB ICV check failures are part of normal operation life;

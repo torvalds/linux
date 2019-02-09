@@ -1,4 +1,5 @@
 #!/bin/awk -f
+# SPDX-License-Identifier: GPL-2.0
 # gen-insn-attr-x86.awk: Instruction attribute table generator
 # Written by Masami Hiramatsu <mhiramat@redhat.com>
 #
@@ -72,12 +73,14 @@ BEGIN {
 	lprefix_expr = "\\((66|F2|F3)\\)"
 	max_lprefix = 4
 
-	# All opcodes starting with lower-case 'v' or with (v1) superscript
+	# All opcodes starting with lower-case 'v', 'k' or with (v1) superscript
 	# accepts VEX prefix
-	vexok_opcode_expr = "^v.*"
+	vexok_opcode_expr = "^[vk].*"
 	vexok_expr = "\\(v1\\)"
 	# All opcodes with (v) superscript supports *only* VEX prefix
 	vexonly_expr = "\\(v\\)"
+	# All opcodes with (ev) superscript supports *only* EVEX prefix
+	evexonly_expr = "\\(ev\\)"
 
 	prefix_expr = "\\(Prefix\\)"
 	prefix_num["Operand-Size"] = "INAT_PFX_OPNDSZ"
@@ -95,6 +98,7 @@ BEGIN {
 	prefix_num["Address-Size"] = "INAT_PFX_ADDRSZ"
 	prefix_num["VEX+1byte"] = "INAT_PFX_VEX2"
 	prefix_num["VEX+2byte"] = "INAT_PFX_VEX3"
+	prefix_num["EVEX"] = "INAT_PFX_EVEX"
 
 	clear_vars()
 }
@@ -319,7 +323,9 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 			flags = add_flags(flags, "INAT_MODRM")
 
 		# check VEX codes
-		if (match(ext, vexonly_expr))
+		if (match(ext, evexonly_expr))
+			flags = add_flags(flags, "INAT_VEXOK | INAT_EVEXONLY")
+		else if (match(ext, vexonly_expr))
 			flags = add_flags(flags, "INAT_VEXOK | INAT_VEXONLY")
 		else if (match(ext, vexok_expr) || match(opcode, vexok_opcode_expr))
 			flags = add_flags(flags, "INAT_VEXOK")

@@ -35,7 +35,7 @@
 
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda1002x.h"
 
 #define REG0_INIT_VAL 0x23
@@ -72,8 +72,7 @@ static u8 tda10023_readreg (struct tda10023_state* state, u8 reg)
 	ret = i2c_transfer (state->i2c, msg, 2);
 	if (ret != 2) {
 		int num = state->frontend.dvb ? state->frontend.dvb->num : -1;
-		printk(KERN_ERR "DVB: TDA10023(%d): %s: readreg error "
-			"(reg == 0x%02x, ret == %i)\n",
+		printk(KERN_ERR "DVB: TDA10023(%d): %s: readreg error (reg == 0x%02x, ret == %i)\n",
 			num, __func__, reg, ret);
 	}
 	return b1[0];
@@ -88,8 +87,7 @@ static int tda10023_writereg (struct tda10023_state* state, u8 reg, u8 data)
 	ret = i2c_transfer (state->i2c, &msg, 1);
 	if (ret != 1) {
 		int num = state->frontend.dvb ? state->frontend.dvb->num : -1;
-		printk(KERN_ERR "DVB: TDA10023(%d): %s, writereg error "
-			"(reg == 0x%02x, val == 0x%02x, ret == %i)\n",
+		printk(KERN_ERR "DVB: TDA10023(%d): %s, writereg error (reg == 0x%02x, val == 0x%02x, ret == %i)\n",
 			num, __func__, reg, data, ret);
 	}
 	return (ret != 1) ? -EREMOTEIO : 0;
@@ -213,7 +211,7 @@ static int tda10023_set_symbolrate (struct tda10023_state* state, u32 sr)
 
 		BDRX=1<<(24+NDEC);
 		BDRX*=sr;
-		do_div(BDRX, state->sysclk); 	/* BDRX/=SYSCLK; */
+		do_div(BDRX, state->sysclk);	/* BDRX/=SYSCLK; */
 
 		BDR=(s32)BDRX;
 	}
@@ -457,9 +455,9 @@ static int tda10023_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int tda10023_get_frontend(struct dvb_frontend *fe)
+static int tda10023_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct tda10023_state* state = fe->demodulator_priv;
 	int sync,inv;
 	s8 afc = 0;
@@ -516,7 +514,7 @@ static void tda10023_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops tda10023_ops;
+static const struct dvb_frontend_ops tda10023_ops;
 
 struct dvb_frontend *tda10023_attach(const struct tda10023_config *config,
 				     struct i2c_adapter *i2c,
@@ -573,13 +571,13 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops tda10023_ops = {
+static const struct dvb_frontend_ops tda10023_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_C },
 	.info = {
 		.name = "Philips TDA10023 DVB-C",
-		.frequency_stepsize = 62500,
-		.frequency_min =  47000000,
-		.frequency_max = 862000000,
+		.frequency_min_hz =  47 * MHz,
+		.frequency_max_hz = 862 * MHz,
+		.frequency_stepsize_hz = 62500,
 		.symbol_rate_min = 0,  /* set in tda10023_attach */
 		.symbol_rate_max = 0,  /* set in tda10023_attach */
 		.caps = 0x400 | //FE_CAN_QAM_4

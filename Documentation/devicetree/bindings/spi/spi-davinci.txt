@@ -21,9 +21,19 @@ Required properties:
 	IP to the interrupt controller within the SoC. Possible values
 	are 0 and 1. Manual says one of the two possible interrupt
 	lines can be tied to the interrupt controller. Set this
-	based on a specifc SoC configuration.
+	based on a specific SoC configuration.
 - interrupts: interrupt number mapped to CPU.
 - clocks: spi clk phandle
+          For 66AK2G this property should be set per binding,
+          Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+
+SoC-specific Required Properties:
+
+The following are mandatory properties for Keystone 2 66AK2G SoCs only:
+
+- power-domains:	Should contain a phandle to a PM domain provider node
+			and an args specifier containing the SPI device id
+			value. This property is as per the binding,
 
 Optional:
 - cs-gpios: gpio chip selects
@@ -58,7 +68,7 @@ SPI_SOMI/SIMO+-----------------+                           +-----------
 Example of a NOR flash slave device (n25q032) connected to DaVinci
 SPI controller device over the SPI bus.
 
-spi0:spi@20BF0000 {
+spi0:spi@20bf0000 {
 	#address-cells			= <1>;
 	#size-cells			= <0>;
 	compatible			= "ti,dm6446-spi";

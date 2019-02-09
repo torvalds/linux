@@ -54,7 +54,7 @@
 
 #include "umem.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #define MM_MAXCARDS 4
@@ -344,7 +344,6 @@ static int add_bio(struct cardinfo *card)
 	int offset;
 	struct bio *bio;
 	struct bio_vec vec;
-	int rw;
 
 	bio = card->currentbio;
 	if (!bio && card->bio) {
@@ -359,7 +358,6 @@ static int add_bio(struct cardinfo *card)
 	if (!bio)
 		return 0;
 
-	rw = bio_rw(bio);
 	if (card->mm_pages[card->Ready].cnt >= DESC_PER_PAGE)
 		return 0;
 
@@ -369,7 +367,7 @@ static int add_bio(struct cardinfo *card)
 				  vec.bv_page,
 				  vec.bv_offset,
 				  vec.bv_len,
-				  (rw == READ) ?
+				  bio_op(bio) == REQ_OP_READ ?
 				  PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE);
 
 	p = &card->mm_pages[card->Ready];
@@ -398,7 +396,7 @@ static int add_bio(struct cardinfo *card)
 					 DMASCR_CHAIN_EN |
 					 DMASCR_SEM_EN |
 					 pci_cmds);
-	if (rw == WRITE)
+	if (bio_op(bio) == REQ_OP_WRITE)
 		desc->control_bits |= cpu_to_le32(DMASCR_TRANSFER_READ);
 	desc->sem_control_bits = desc->control_bits;
 
@@ -456,13 +454,13 @@ static void process_page(unsigned long data)
 				PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
 		if (control & DMASCR_HARD_ERROR) {
 			/* error */
-			bio->bi_error = -EIO;
+			bio->bi_status = BLK_STS_IOERR;
 			dev_printk(KERN_WARNING, &card->dev->dev,
 				"I/O error on sector %d/%d\n",
 				le32_to_cpu(desc->local_addr)>>9,
 				le32_to_cpu(desc->transfer_size));
 			dump_dmastat(card, control);
-		} else if ((bio->bi_rw & REQ_WRITE) &&
+		} else if (op_is_write(bio_op(bio)) &&
 			   le32_to_cpu(desc->local_addr) >> 9 ==
 				card->init_size) {
 			card->init_size += le32_to_cpu(desc->transfer_size) >> 9;
@@ -531,13 +529,13 @@ static blk_qc_t mm_make_request(struct request_queue *q, struct bio *bio)
 		 (unsigned long long)bio->bi_iter.bi_sector,
 		 bio->bi_iter.bi_size);
 
-	blk_queue_split(q, &bio, q->bio_split);
+	blk_queue_split(q, &bio);
 
 	spin_lock_irq(&card->lock);
 	*card->biotail = bio;
 	bio->bi_next = NULL;
 	card->biotail = &bio->bi_next;
-	if (bio->bi_rw & REQ_SYNC || !mm_check_plugged(card))
+	if (op_is_sync(bio->bi_opf) || !mm_check_plugged(card))
 		activate(card);
 	spin_unlock_irq(&card->lock);
 
@@ -720,7 +718,7 @@ static void check_batteries(struct cardinfo *card)
 		set_fault_to_battery_status(card);
 }
 
-static void check_all_batteries(unsigned long ptr)
+static void check_all_batteries(struct timer_list *unused)
 {
 	int i;
 
@@ -740,8 +738,7 @@ static void check_all_batteries(unsigned long ptr)
 
 static void init_battery_timer(void)
 {
-	init_timer(&battery_timer);
-	battery_timer.function = check_all_batteries;
+	timer_setup(&battery_timer, check_all_batteries, 0);
 	battery_timer.expires = jiffies + (HZ * 60);
 	add_timer(&battery_timer);
 }
@@ -891,13 +888,14 @@ static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	card->Active = -1;	/* no page is active */
 	card->bio = NULL;
 	card->biotail = &card->bio;
+	spin_lock_init(&card->lock);
 
-	card->queue = blk_alloc_queue(GFP_KERNEL);
+	card->queue = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE,
+					   &card->lock);
 	if (!card->queue)
 		goto failed_alloc;
 
 	blk_queue_make_request(card->queue, mm_make_request);
-	card->queue->queue_lock = &card->lock;
 	card->queue->queuedata = card;
 
 	tasklet_init(&card->tasklet, process_page, (unsigned long)card);
@@ -970,8 +968,6 @@ static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	dev_printk(KERN_INFO, &card->dev->dev,
 		"Window size %d bytes, IRQ %d\n", data, dev->irq);
-
-	spin_lock_init(&card->lock);
 
 	pci_set_drvdata(dev, card);
 

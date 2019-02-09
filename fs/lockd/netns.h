@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LOCKD_NETNS_H__
 #define __LOCKD_NETNS_H__
 
@@ -15,6 +16,6 @@ struct lockd_net {
 	struct list_head nsm_handles;
 };
 
-extern int lockd_net_id;
+extern unsigned int lockd_net_id;
 
 #endif

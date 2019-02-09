@@ -22,7 +22,7 @@
 	model = "Eukrea Electromatique MBMX287LC";
 	compatible = "eukrea,mbmx287lc", "eukrea,mbmx283lc", "eukrea,mbmx28lc", "fsl,imx28";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x08000000>;
 	};
 };
@@ -31,7 +31,7 @@
 	phy-mode = "rmii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mac1_pins_a>;
-	phy-reset-gpios = <&gpio3 27 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio3 27 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

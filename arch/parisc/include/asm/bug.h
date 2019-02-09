@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PARISC_BUG_H
 #define _PARISC_BUG_H
 
@@ -27,7 +28,7 @@
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
-			     "\t.pushsection __bug_table,\"a\"\n"	\
+			     "\t.pushsection __bug_table,\"aw\"\n"	\
 			     "2:\t" ASM_WORD_INSN "1b, %c0\n"		\
 			     "\t.short %c1, %c2\n"			\
 			     "\t.org 2b+%c3\n"				\
@@ -46,30 +47,30 @@
 #endif
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
-#define __WARN_TAINT(taint)						\
+#define __WARN_FLAGS(flags)						\
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
-			     "\t.pushsection __bug_table,\"a\"\n"	\
+			     "\t.pushsection __bug_table,\"aw\"\n"	\
 			     "2:\t" ASM_WORD_INSN "1b, %c0\n"		\
 			     "\t.short %c1, %c2\n"			\
 			     "\t.org 2b+%c3\n"				\
 			     "\t.popsection"				\
 			     : : "i" (__FILE__), "i" (__LINE__),	\
-			     "i" (BUGFLAG_TAINT(taint)), 		\
+			     "i" (BUGFLAG_WARNING|(flags)),		\
 			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
 #else
-#define __WARN_TAINT(taint)						\
+#define __WARN_FLAGS(flags)						\
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
-			     "\t.pushsection __bug_table,\"a\"\n"	\
+			     "\t.pushsection __bug_table,\"aw\"\n"	\
 			     "2:\t" ASM_WORD_INSN "1b\n"		\
 			     "\t.short %c0\n"				\
 			     "\t.org 2b+%c1\n"				\
 			     "\t.popsection"				\
-			     : : "i" (BUGFLAG_TAINT(taint)),		\
+			     : : "i" (BUGFLAG_WARNING|(flags)),		\
 			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
 #endif

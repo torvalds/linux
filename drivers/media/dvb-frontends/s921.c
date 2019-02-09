@@ -25,7 +25,7 @@
 #include <linux/kernel.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "s921.h"
 
 static int debug = 1;
@@ -214,8 +214,8 @@ static int s921_i2c_writereg(struct s921_state *state,
 
 	rc = i2c_transfer(state->i2c, &msg, 1);
 	if (rc != 1) {
-		printk("%s: writereg rcor(rc == %i, reg == 0x%02x,"
-			 " data == 0x%02x)\n", __func__, rc, reg, data);
+		printk("%s: writereg rcor(rc == %i, reg == 0x%02x, data == 0x%02x)\n",
+		       __func__, rc, reg, data);
 		return rc;
 	}
 
@@ -433,9 +433,9 @@ static int s921_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int s921_get_frontend(struct dvb_frontend *fe)
+static int s921_get_frontend(struct dvb_frontend *fe,
+			     struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s921_state *state = fe->demodulator_priv;
 
 	/* FIXME: Probably it is possible to get it from regs f1 and f2 */
@@ -464,7 +464,7 @@ static int s921_tune(struct dvb_frontend *fe,
 	return rc;
 }
 
-static int s921_get_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo s921_get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
 }
@@ -477,7 +477,7 @@ static void s921_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops s921_ops;
+static const struct dvb_frontend_ops s921_ops;
 
 struct dvb_frontend *s921_attach(const struct s921_config *config,
 				    struct i2c_adapter *i2c)
@@ -505,20 +505,19 @@ struct dvb_frontend *s921_attach(const struct s921_config *config,
 }
 EXPORT_SYMBOL(s921_attach);
 
-static struct dvb_frontend_ops s921_ops = {
+static const struct dvb_frontend_ops s921_ops = {
 	.delsys = { SYS_ISDBT },
 	/* Use dib8000 values per default */
 	.info = {
 		.name = "Sharp S921",
-		.frequency_min = 470000000,
+		.frequency_min_hz = 470 * MHz,
 		/*
 		 * Max should be 770MHz instead, according with Sharp docs,
 		 * but Leadership doc says it works up to 806 MHz. This is
 		 * required to get channel 69, used in Brazil
 		 */
-		.frequency_max = 806000000,
-		.frequency_tolerance = 0,
-		 .caps = FE_CAN_INVERSION_AUTO |
+		.frequency_max_hz = 806 * MHz,
+		.caps =  FE_CAN_INVERSION_AUTO |
 			 FE_CAN_FEC_1_2  | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			 FE_CAN_FEC_5_6  | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			 FE_CAN_QPSK     | FE_CAN_QAM_16 | FE_CAN_QAM_64 |

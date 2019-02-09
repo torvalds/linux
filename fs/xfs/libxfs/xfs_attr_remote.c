@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * Copyright (c) 2013 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -24,6 +12,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
+#include "xfs_defer.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_inode.h"
@@ -64,7 +53,7 @@ xfs_attr3_rmt_blocks(
  * does CRC, location and bounds checking, the unpacking function checks the
  * attribute parameters and owner.
  */
-static bool
+static xfs_failaddr_t
 xfs_attr3_rmt_hdr_ok(
 	void			*ptr,
 	xfs_ino_t		ino,
@@ -75,19 +64,19 @@ xfs_attr3_rmt_hdr_ok(
 	struct xfs_attr3_rmt_hdr *rmt = ptr;
 
 	if (bno != be64_to_cpu(rmt->rm_blkno))
-		return false;
+		return __this_address;
 	if (offset != be32_to_cpu(rmt->rm_offset))
-		return false;
+		return __this_address;
 	if (size != be32_to_cpu(rmt->rm_bytes))
-		return false;
+		return __this_address;
 	if (ino != be64_to_cpu(rmt->rm_owner))
-		return false;
+		return __this_address;
 
 	/* ok */
-	return true;
+	return NULL;
 }
 
-static bool
+static xfs_failaddr_t
 xfs_attr3_rmt_verify(
 	struct xfs_mount	*mp,
 	void			*ptr,
@@ -97,27 +86,29 @@ xfs_attr3_rmt_verify(
 	struct xfs_attr3_rmt_hdr *rmt = ptr;
 
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
-		return false;
+		return __this_address;
 	if (rmt->rm_magic != cpu_to_be32(XFS_ATTR3_RMT_MAGIC))
-		return false;
+		return __this_address;
 	if (!uuid_equal(&rmt->rm_uuid, &mp->m_sb.sb_meta_uuid))
-		return false;
+		return __this_address;
 	if (be64_to_cpu(rmt->rm_blkno) != bno)
-		return false;
+		return __this_address;
 	if (be32_to_cpu(rmt->rm_bytes) > fsbsize - sizeof(*rmt))
-		return false;
+		return __this_address;
 	if (be32_to_cpu(rmt->rm_offset) +
 				be32_to_cpu(rmt->rm_bytes) > XFS_XATTR_SIZE_MAX)
-		return false;
+		return __this_address;
 	if (rmt->rm_owner == 0)
-		return false;
+		return __this_address;
 
-	return true;
+	return NULL;
 }
 
-static void
-xfs_attr3_rmt_read_verify(
-	struct xfs_buf	*bp)
+static int
+__xfs_attr3_rmt_read_verify(
+	struct xfs_buf	*bp,
+	bool		check_crc,
+	xfs_failaddr_t	*failaddr)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
 	char		*ptr;
@@ -127,7 +118,7 @@ xfs_attr3_rmt_read_verify(
 
 	/* no verification of non-crc buffers */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
-		return;
+		return 0;
 
 	ptr = bp->b_addr;
 	bno = bp->b_bn;
@@ -135,23 +126,48 @@ xfs_attr3_rmt_read_verify(
 	ASSERT(len >= blksize);
 
 	while (len > 0) {
-		if (!xfs_verify_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF)) {
-			xfs_buf_ioerror(bp, -EFSBADCRC);
-			break;
+		if (check_crc &&
+		    !xfs_verify_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF)) {
+			*failaddr = __this_address;
+			return -EFSBADCRC;
 		}
-		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
-			xfs_buf_ioerror(bp, -EFSCORRUPTED);
-			break;
-		}
+		*failaddr = xfs_attr3_rmt_verify(mp, ptr, blksize, bno);
+		if (*failaddr)
+			return -EFSCORRUPTED;
 		len -= blksize;
 		ptr += blksize;
 		bno += BTOBB(blksize);
 	}
 
-	if (bp->b_error)
-		xfs_verifier_error(bp);
-	else
-		ASSERT(len == 0);
+	if (len != 0) {
+		*failaddr = __this_address;
+		return -EFSCORRUPTED;
+	}
+
+	return 0;
+}
+
+static void
+xfs_attr3_rmt_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_failaddr_t	fa;
+	int		error;
+
+	error = __xfs_attr3_rmt_read_verify(bp, true, &fa);
+	if (error)
+		xfs_verifier_error(bp, error, fa);
+}
+
+static xfs_failaddr_t
+xfs_attr3_rmt_verify_struct(
+	struct xfs_buf	*bp)
+{
+	xfs_failaddr_t	fa;
+	int		error;
+
+	error = __xfs_attr3_rmt_read_verify(bp, false, &fa);
+	return error ? fa : NULL;
 }
 
 static void
@@ -159,6 +175,7 @@ xfs_attr3_rmt_write_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
+	xfs_failaddr_t	fa;
 	int		blksize = mp->m_attr_geo->blksize;
 	char		*ptr;
 	int		len;
@@ -176,9 +193,9 @@ xfs_attr3_rmt_write_verify(
 	while (len > 0) {
 		struct xfs_attr3_rmt_hdr *rmt = (struct xfs_attr3_rmt_hdr *)ptr;
 
-		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
-			xfs_buf_ioerror(bp, -EFSCORRUPTED);
-			xfs_verifier_error(bp);
+		fa = xfs_attr3_rmt_verify(mp, ptr, blksize, bno);
+		if (fa) {
+			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 			return;
 		}
 
@@ -187,8 +204,7 @@ xfs_attr3_rmt_write_verify(
 		 * xfs_attr3_rmt_hdr_set() for the explanation.
 		 */
 		if (rmt->rm_lsn != cpu_to_be64(NULLCOMMITLSN)) {
-			xfs_buf_ioerror(bp, -EFSCORRUPTED);
-			xfs_verifier_error(bp);
+			xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 			return;
 		}
 		xfs_update_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF);
@@ -197,12 +213,16 @@ xfs_attr3_rmt_write_verify(
 		ptr += blksize;
 		bno += BTOBB(blksize);
 	}
-	ASSERT(len == 0);
+
+	if (len != 0)
+		xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 }
 
 const struct xfs_buf_ops xfs_attr3_rmt_buf_ops = {
+	.name = "xfs_attr3_rmt",
 	.verify_read = xfs_attr3_rmt_read_verify,
 	.verify_write = xfs_attr3_rmt_write_verify,
+	.verify_struct = xfs_attr3_rmt_verify_struct,
 };
 
 STATIC int
@@ -251,7 +271,7 @@ xfs_attr_rmtval_copyout(
 	xfs_ino_t	ino,
 	int		*offset,
 	int		*valuelen,
-	__uint8_t	**dst)
+	uint8_t		**dst)
 {
 	char		*src = bp->b_addr;
 	xfs_daddr_t	bno = bp->b_bn;
@@ -267,7 +287,7 @@ xfs_attr_rmtval_copyout(
 		byte_cnt = min(*valuelen, byte_cnt);
 
 		if (xfs_sb_version_hascrc(&mp->m_sb)) {
-			if (!xfs_attr3_rmt_hdr_ok(src, ino, *offset,
+			if (xfs_attr3_rmt_hdr_ok(src, ino, *offset,
 						  byte_cnt, bno)) {
 				xfs_alert(mp,
 "remote attribute header mismatch bno/off/len/owner (0x%llx/0x%x/Ox%x/0x%llx)",
@@ -299,7 +319,7 @@ xfs_attr_rmtval_copyin(
 	xfs_ino_t	ino,
 	int		*offset,
 	int		*valuelen,
-	__uint8_t	**src)
+	uint8_t		**src)
 {
 	char		*dst = bp->b_addr;
 	xfs_daddr_t	bno = bp->b_bn;
@@ -353,7 +373,7 @@ xfs_attr_rmtval_get(
 	struct xfs_mount	*mp = args->dp->i_mount;
 	struct xfs_buf		*bp;
 	xfs_dablk_t		lblkno = args->rmtblkno;
-	__uint8_t		*dst = args->value;
+	uint8_t			*dst = args->value;
 	int			valuelen;
 	int			nmap;
 	int			error;
@@ -384,7 +404,8 @@ xfs_attr_rmtval_get(
 			       (map[i].br_startblock != HOLESTARTBLOCK));
 			dblkno = XFS_FSB_TO_DADDR(mp, map[i].br_startblock);
 			dblkcnt = XFS_FSB_TO_BB(mp, map[i].br_blockcount);
-			error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
+			error = xfs_trans_read_buf(mp, args->trans,
+						   mp->m_ddev_targp,
 						   dblkno, dblkcnt, 0, &bp,
 						   &xfs_attr3_rmt_buf_ops);
 			if (error)
@@ -393,7 +414,7 @@ xfs_attr_rmtval_get(
 			error = xfs_attr_rmtval_copyout(mp, bp, args->dp->i_ino,
 							&offset, &valuelen,
 							&dst);
-			xfs_buf_relse(bp);
+			xfs_trans_brelse(args->trans, bp);
 			if (error)
 				return error;
 
@@ -419,7 +440,7 @@ xfs_attr_rmtval_set(
 	struct xfs_bmbt_irec	map;
 	xfs_dablk_t		lblkno;
 	xfs_fileoff_t		lfileoff = 0;
-	__uint8_t		*src = args->value;
+	uint8_t			*src = args->value;
 	int			blkcnt;
 	int			valuelen;
 	int			nmap;
@@ -447,8 +468,6 @@ xfs_attr_rmtval_set(
 	 * Roll through the "value", allocating blocks on disk as required.
 	 */
 	while (blkcnt > 0) {
-		int	committed;
-
 		/*
 		 * Allocate a single extent, up to the size of the value.
 		 *
@@ -461,28 +480,15 @@ xfs_attr_rmtval_set(
 		 * extent and then crash then the block may not contain the
 		 * correct metadata after log recovery occurs.
 		 */
-		xfs_bmap_init(args->flist, args->firstblock);
 		nmap = 1;
 		error = xfs_bmapi_write(args->trans, dp, (xfs_fileoff_t)lblkno,
-				  blkcnt, XFS_BMAPI_ATTRFORK, args->firstblock,
-				  args->total, &map, &nmap, args->flist);
-		if (!error) {
-			error = xfs_bmap_finish(&args->trans, args->flist,
-						&committed);
-		}
-		if (error) {
-			ASSERT(committed);
-			args->trans = NULL;
-			xfs_bmap_cancel(args->flist);
+				  blkcnt, XFS_BMAPI_ATTRFORK, args->total, &map,
+				  &nmap);
+		if (error)
 			return error;
-		}
-
-		/*
-		 * bmap_finish() may have committed the last trans and started
-		 * a new one.  We need the inode to be in all transactions.
-		 */
-		if (committed)
-			xfs_trans_ijoin(args->trans, dp, 0);
+		error = xfs_defer_finish(&args->trans);
+		if (error)
+			return error;
 
 		ASSERT(nmap == 1);
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
@@ -493,7 +499,7 @@ xfs_attr_rmtval_set(
 		/*
 		 * Start the next trans in the chain.
 		 */
-		error = xfs_trans_roll(&args->trans, dp);
+		error = xfs_trans_roll_inode(&args->trans, dp);
 		if (error)
 			return error;
 	}
@@ -514,7 +520,6 @@ xfs_attr_rmtval_set(
 
 		ASSERT(blkcnt > 0);
 
-		xfs_bmap_init(args->flist, args->firstblock);
 		nmap = 1;
 		error = xfs_bmapi_read(dp, (xfs_fileoff_t)lblkno,
 				       blkcnt, &map, &nmap,
@@ -596,7 +601,7 @@ xfs_attr_rmtval_remove(
 		/*
 		 * If the "remote" value is in the cache, remove it.
 		 */
-		bp = xfs_incore(mp->m_ddev_targp, dblkno, dblkcnt, XBF_TRYLOCK);
+		bp = xfs_buf_incore(mp->m_ddev_targp, dblkno, dblkcnt, XBF_TRYLOCK);
 		if (bp) {
 			xfs_buf_stale(bp);
 			xfs_buf_relse(bp);
@@ -614,34 +619,18 @@ xfs_attr_rmtval_remove(
 	blkcnt = args->rmtblkcnt;
 	done = 0;
 	while (!done) {
-		int committed;
-
-		xfs_bmap_init(args->flist, args->firstblock);
 		error = xfs_bunmapi(args->trans, args->dp, lblkno, blkcnt,
-				    XFS_BMAPI_ATTRFORK, 1, args->firstblock,
-				    args->flist, &done);
-		if (!error) {
-			error = xfs_bmap_finish(&args->trans, args->flist,
-						&committed);
-		}
-		if (error) {
-			ASSERT(committed);
-			args->trans = NULL;
-			xfs_bmap_cancel(args->flist);
+				    XFS_BMAPI_ATTRFORK, 1, &done);
+		if (error)
 			return error;
-		}
-
-		/*
-		 * bmap_finish() may have committed the last trans and started
-		 * a new one.  We need the inode to be in all transactions.
-		 */
-		if (committed)
-			xfs_trans_ijoin(args->trans, args->dp, 0);
+		error = xfs_defer_finish(&args->trans);
+		if (error)
+			return error;
 
 		/*
 		 * Close out trans and start the next one in the chain.
 		 */
-		error = xfs_trans_roll(&args->trans, args->dp);
+		error = xfs_trans_roll_inode(&args->trans, args->dp);
 		if (error)
 			return error;
 	}

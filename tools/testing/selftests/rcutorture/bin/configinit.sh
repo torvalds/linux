@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Usage: configinit.sh config-spec-file [ build output dir ]
+# Usage: configinit.sh config-spec-file build-output-dir results-dir
 #
 # Create a .config file from the spec file.  Run from the kernel source tree.
 # Exits with 0 if all went well, with 1 if all went well but the config
@@ -32,7 +32,7 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-T=/tmp/configinit.sh.$$
+T=${TMPDIR-/tmp}/configinit.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
@@ -40,20 +40,18 @@ mkdir $T
 
 c=$1
 buildloc=$2
+resdir=$3
 builddir=
-if test -n $buildloc
+if echo $buildloc | grep -q '^O='
 then
-	if echo $buildloc | grep -q '^O='
+	builddir=`echo $buildloc | sed -e 's/^O=//'`
+	if test ! -d $builddir
 	then
-		builddir=`echo $buildloc | sed -e 's/^O=//'`
-		if test ! -d $builddir
-		then
-			mkdir $builddir
-		fi
-	else
-		echo Bad build directory: \"$builddir\"
-		exit 2
+		mkdir $builddir
 	fi
+else
+	echo Bad build directory: \"$buildloc\"
+	exit 2
 fi
 
 sed -e 's/^\(CONFIG[0-9A-Z_]*\)=.*$/grep -v "^# \1" |/' < $c > $T/u.sh
@@ -61,12 +59,12 @@ sed -e 's/^\(CONFIG[0-9A-Z_]*=\).*$/grep -v \1 |/' < $c >> $T/u.sh
 grep '^grep' < $T/u.sh > $T/upd.sh
 echo "cat - $c" >> $T/upd.sh
 make mrproper
-make $buildloc distclean > $builddir/Make.distclean 2>&1
-make $buildloc $TORTURE_DEFCONFIG > $builddir/Make.defconfig.out 2>&1
+make $buildloc distclean > $resdir/Make.distclean 2>&1
+make $buildloc $TORTURE_DEFCONFIG > $resdir/Make.defconfig.out 2>&1
 mv $builddir/.config $builddir/.config.sav
 sh $T/upd.sh < $builddir/.config.sav > $builddir/.config
 cp $builddir/.config $builddir/.config.new
-yes '' | make $buildloc oldconfig > $builddir/Make.oldconfig.out 2> $builddir/Make.oldconfig.err
+yes '' | make $buildloc oldconfig > $resdir/Make.oldconfig.out 2> $resdir/Make.oldconfig.err
 
 # verify new config matches specification.
 configcheck.sh $builddir/.config $c

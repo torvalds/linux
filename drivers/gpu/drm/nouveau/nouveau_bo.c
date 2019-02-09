@@ -30,13 +30,19 @@
 #include <linux/dma-mapping.h>
 #include <linux/swiotlb.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
 
 #include "nouveau_bo.h"
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
+#include "nouveau_mem.h"
+#include "nouveau_vmm.h"
+
+#include <nvif/class.h>
+#include <nvif/if500b.h>
+#include <nvif/if900b.h>
 
 /*
  * NV10-NV40 tiling helpers
@@ -48,8 +54,7 @@ nv10_bo_update_tile_region(struct drm_device *dev, struct nouveau_drm_tile *reg,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	int i = reg - drm->tile.reg;
-	struct nvkm_device *device = nvxx_device(&drm->device);
-	struct nvkm_fb *fb = device->fb;
+	struct nvkm_fb *fb = nvxx_fb(&drm->client.device);
 	struct nvkm_fb_tile *tile = &fb->tile.region[i];
 
 	nouveau_fence_unref(&reg->fence);
@@ -83,13 +88,13 @@ nv10_bo_get_tile_region(struct drm_device *dev, int i)
 
 static void
 nv10_bo_put_tile_region(struct drm_device *dev, struct nouveau_drm_tile *tile,
-			struct fence *fence)
+			struct dma_fence *fence)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (tile) {
 		spin_lock(&drm->tile.lock);
-		tile->fence = (struct nouveau_fence *)fence_get(fence);
+		tile->fence = (struct nouveau_fence *)dma_fence_get(fence);
 		tile->used = false;
 		spin_unlock(&drm->tile.lock);
 	}
@@ -97,10 +102,10 @@ nv10_bo_put_tile_region(struct drm_device *dev, struct nouveau_drm_tile *tile,
 
 static struct nouveau_drm_tile *
 nv10_bo_set_tiling(struct drm_device *dev, u32 addr,
-		   u32 size, u32 pitch, u32 flags)
+		   u32 size, u32 pitch, u32 zeta)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_fb *fb = nvxx_fb(&drm->device);
+	struct nvkm_fb *fb = nvxx_fb(&drm->client.device);
 	struct nouveau_drm_tile *tile, *found = NULL;
 	int i;
 
@@ -120,8 +125,7 @@ nv10_bo_set_tiling(struct drm_device *dev, u32 addr,
 	}
 
 	if (found)
-		nv10_bo_update_tile_region(dev, found, addr, size,
-					    pitch, flags);
+		nv10_bo_update_tile_region(dev, found, addr, size, pitch, zeta);
 	return found;
 }
 
@@ -139,60 +143,64 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	kfree(nvbo);
 }
 
+static inline u64
+roundup_64(u64 x, u32 y)
+{
+	x += y - 1;
+	do_div(x, y);
+	return x * y;
+}
+
 static void
 nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
-		       int *align, int *size)
+		       int *align, u64 *size)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 
 	if (device->info.family < NV_DEVICE_INFO_V0_TESLA) {
-		if (nvbo->tile_mode) {
+		if (nvbo->mode) {
 			if (device->info.chipset >= 0x40) {
 				*align = 65536;
-				*size = roundup(*size, 64 * nvbo->tile_mode);
+				*size = roundup_64(*size, 64 * nvbo->mode);
 
 			} else if (device->info.chipset >= 0x30) {
 				*align = 32768;
-				*size = roundup(*size, 64 * nvbo->tile_mode);
+				*size = roundup_64(*size, 64 * nvbo->mode);
 
 			} else if (device->info.chipset >= 0x20) {
 				*align = 16384;
-				*size = roundup(*size, 64 * nvbo->tile_mode);
+				*size = roundup_64(*size, 64 * nvbo->mode);
 
 			} else if (device->info.chipset >= 0x10) {
 				*align = 16384;
-				*size = roundup(*size, 32 * nvbo->tile_mode);
+				*size = roundup_64(*size, 32 * nvbo->mode);
 			}
 		}
 	} else {
-		*size = roundup(*size, (1 << nvbo->page_shift));
-		*align = max((1 <<  nvbo->page_shift), *align);
+		*size = roundup_64(*size, (1 << nvbo->page));
+		*align = max((1 <<  nvbo->page), *align);
 	}
 
-	*size = roundup(*size, PAGE_SIZE);
+	*size = roundup_64(*size, PAGE_SIZE);
 }
 
 int
-nouveau_bo_new(struct drm_device *dev, int size, int align,
+nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	       uint32_t flags, uint32_t tile_mode, uint32_t tile_flags,
 	       struct sg_table *sg, struct reservation_object *robj,
 	       struct nouveau_bo **pnvbo)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_drm *drm = cli->drm;
 	struct nouveau_bo *nvbo;
+	struct nvif_mmu *mmu = &cli->mmu;
+	struct nvif_vmm *vmm = &cli->vmm.vmm;
 	size_t acc_size;
-	int ret;
 	int type = ttm_bo_type_device;
-	int lpg_shift = 12;
-	int max_size;
+	int ret, i, pi = -1;
 
-	if (drm->client.vm)
-		lpg_shift = drm->client.vm->mmu->lpg_shift;
-	max_size = INT_MAX & ~((1 << lpg_shift) - 1);
-
-	if (size <= 0 || size > max_size) {
-		NV_WARN(drm, "skipped size %x\n", (u32)size);
+	if (!size) {
+		NV_WARN(drm, "skipped size %016llx\n", size);
 		return -EINVAL;
 	}
 
@@ -205,18 +213,80 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	INIT_LIST_HEAD(&nvbo->head);
 	INIT_LIST_HEAD(&nvbo->entry);
 	INIT_LIST_HEAD(&nvbo->vma_list);
-	nvbo->tile_mode = tile_mode;
-	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &drm->ttm.bdev;
 
-	if (!nvxx_device(&drm->device)->func->cpu_coherent)
-		nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
-
-	nvbo->page_shift = 12;
-	if (drm->client.vm) {
-		if (!(flags & TTM_PL_FLAG_TT) && size > 256 * 1024)
-			nvbo->page_shift = drm->client.vm->mmu->lpg_shift;
+	/* This is confusing, and doesn't actually mean we want an uncached
+	 * mapping, but is what NOUVEAU_GEM_DOMAIN_COHERENT gets translated
+	 * into in nouveau_gem_new().
+	 */
+	if (flags & TTM_PL_FLAG_UNCACHED) {
+		/* Determine if we can get a cache-coherent map, forcing
+		 * uncached mapping if we can't.
+		 */
+		if (!nouveau_drm_use_coherent_gpu_mapping(drm))
+			nvbo->force_coherent = true;
 	}
+
+	if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI) {
+		nvbo->kind = (tile_flags & 0x0000ff00) >> 8;
+		if (!nvif_mmu_kind_valid(mmu, nvbo->kind)) {
+			kfree(nvbo);
+			return -EINVAL;
+		}
+
+		nvbo->comp = mmu->kind[nvbo->kind] != nvbo->kind;
+	} else
+	if (cli->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		nvbo->kind = (tile_flags & 0x00007f00) >> 8;
+		nvbo->comp = (tile_flags & 0x00030000) >> 16;
+		if (!nvif_mmu_kind_valid(mmu, nvbo->kind)) {
+			kfree(nvbo);
+			return -EINVAL;
+		}
+	} else {
+		nvbo->zeta = (tile_flags & 0x00000007);
+	}
+	nvbo->mode = tile_mode;
+	nvbo->contig = !(tile_flags & NOUVEAU_GEM_TILE_NONCONTIG);
+
+	/* Determine the desirable target GPU page size for the buffer. */
+	for (i = 0; i < vmm->page_nr; i++) {
+		/* Because we cannot currently allow VMM maps to fail
+		 * during buffer migration, we need to determine page
+		 * size for the buffer up-front, and pre-allocate its
+		 * page tables.
+		 *
+		 * Skip page sizes that can't support needed domains.
+		 */
+		if (cli->device.info.family > NV_DEVICE_INFO_V0_CURIE &&
+		    (flags & TTM_PL_FLAG_VRAM) && !vmm->page[i].vram)
+			continue;
+		if ((flags & TTM_PL_FLAG_TT) &&
+		    (!vmm->page[i].host || vmm->page[i].shift > PAGE_SHIFT))
+			continue;
+
+		/* Select this page size if it's the first that supports
+		 * the potential memory domains, or when it's compatible
+		 * with the requested compression settings.
+		 */
+		if (pi < 0 || !nvbo->comp || vmm->page[i].comp)
+			pi = i;
+
+		/* Stop once the buffer is larger than the current page size. */
+		if (size >= 1ULL << vmm->page[i].shift)
+			break;
+	}
+
+	if (WARN_ON(pi < 0))
+		return -EINVAL;
+
+	/* Disable compression if suitable settings couldn't be found. */
+	if (nvbo->comp && !vmm->page[pi].comp) {
+		if (mmu->object.oclass >= NVIF_CLASS_MMU_GF100)
+			nvbo->kind = mmu->kind[nvbo->kind];
+		nvbo->comp = 0;
+	}
+	nvbo->page = vmm->page[pi].shift;
 
 	nouveau_bo_fixup_align(nvbo, flags, &align, &size);
 	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
@@ -227,7 +297,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 
 	ret = ttm_bo_init(&drm->ttm.bdev, &nvbo->bo, size,
 			  type, &nvbo->placement,
-			  align >> PAGE_SHIFT, false, NULL, acc_size, sg,
+			  align >> PAGE_SHIFT, false, acc_size, sg,
 			  robj, nouveau_bo_del_ttm);
 	if (ret) {
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */
@@ -255,11 +325,11 @@ static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	u32 vram_pages = drm->device.info.ram_size >> PAGE_SHIFT;
+	u32 vram_pages = drm->client.device.info.ram_size >> PAGE_SHIFT;
 	unsigned i, fpfn, lpfn;
 
-	if (drm->device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
-	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
+	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
+	    nvbo->mode && (type & TTM_PL_FLAG_VRAM) &&
 	    nvbo->bo.mem.num_pages < vram_pages / 4) {
 		/*
 		 * Make sure that the color and depth buffers are handled
@@ -267,7 +337,7 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 		 * speed up when alpha-blending and depth-test are enabled
 		 * at the same time.
 		 */
-		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_ZETA) {
+		if (nvbo->zeta) {
 			fpfn = vram_pages / 2;
 			lpfn = ~0;
 		} else {
@@ -312,20 +382,16 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype, bool contig)
 	bool force = false, evict = false;
 	int ret;
 
-	ret = ttm_bo_reserve(bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(bo, false, false, NULL);
 	if (ret)
 		return ret;
 
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
 	    memtype == TTM_PL_FLAG_VRAM && contig) {
-		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) {
-			if (bo->mem.mem_type == TTM_PL_VRAM) {
-				struct nvkm_mem *mem = bo->mem.mm_node;
-				if (!list_is_singular(&mem->regions))
-					evict = true;
-			}
-			nvbo->tile_flags &= ~NOUVEAU_GEM_TILE_NONCONTIG;
+		if (!nvbo->contig) {
+			nvbo->contig = true;
 			force = true;
+			evict = true;
 		}
 	}
 
@@ -373,7 +439,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype, bool contig)
 
 out:
 	if (force && ret)
-		nvbo->tile_flags |= NOUVEAU_GEM_TILE_NONCONTIG;
+		nvbo->contig = false;
 	ttm_bo_unreserve(bo);
 	return ret;
 }
@@ -385,7 +451,7 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	int ret, ref;
 
-	ret = ttm_bo_reserve(bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(bo, false, false, NULL);
 	if (ret)
 		return ret;
 
@@ -420,17 +486,11 @@ nouveau_bo_map(struct nouveau_bo *nvbo)
 {
 	int ret;
 
-	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(&nvbo->bo, false, false, NULL);
 	if (ret)
 		return ret;
 
-	/*
-	 * TTM buffers allocated using the DMA API already have a mapping, let's
-	 * use it instead.
-	 */
-	if (!nvbo->force_coherent)
-		ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages,
-				  &nvbo->kmap);
+	ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages, &nvbo->kmap);
 
 	ttm_bo_unreserve(&nvbo->bo);
 	return ret;
@@ -442,19 +502,13 @@ nouveau_bo_unmap(struct nouveau_bo *nvbo)
 	if (!nvbo)
 		return;
 
-	/*
-	 * TTM buffers allocated using the DMA API already had a coherent
-	 * mapping which we used, no need to unmap.
-	 */
-	if (!nvbo->force_coherent)
-		ttm_bo_kunmap(&nvbo->kmap);
+	ttm_bo_kunmap(&nvbo->kmap);
 }
 
 void
 nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nvkm_device *device = nvxx_device(&drm->device);
 	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
 	int i;
 
@@ -466,7 +520,8 @@ nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 		return;
 
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
-		dma_sync_single_for_device(device->dev, ttm_dma->dma_address[i],
+		dma_sync_single_for_device(drm->dev->dev,
+					   ttm_dma->dma_address[i],
 					   PAGE_SIZE, DMA_TO_DEVICE);
 }
 
@@ -474,7 +529,6 @@ void
 nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nvkm_device *device = nvxx_device(&drm->device);
 	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
 	int i;
 
@@ -486,7 +540,7 @@ nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 		return;
 
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
-		dma_sync_single_for_cpu(device->dev, ttm_dma->dma_address[i],
+		dma_sync_single_for_cpu(drm->dev->dev, ttm_dma->dma_address[i],
 					PAGE_SIZE, DMA_FROM_DEVICE);
 }
 
@@ -494,10 +548,10 @@ int
 nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 		    bool no_wait_gpu)
 {
+	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
 	int ret;
 
-	ret = ttm_bo_validate(&nvbo->bo, &nvbo->placement,
-			      interruptible, no_wait_gpu);
+	ret = ttm_bo_validate(&nvbo->bo, &nvbo->placement, &ctx);
 	if (ret)
 		return ret;
 
@@ -506,35 +560,13 @@ nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 	return 0;
 }
 
-static inline void *
-_nouveau_bo_mem_index(struct nouveau_bo *nvbo, unsigned index, void *mem, u8 sz)
-{
-	struct ttm_dma_tt *dma_tt;
-	u8 *m = mem;
-
-	index *= sz;
-
-	if (m) {
-		/* kmap'd address, return the corresponding offset */
-		m += index;
-	} else {
-		/* DMA-API mapping, lookup the right address */
-		dma_tt = (struct ttm_dma_tt *)nvbo->bo.ttm;
-		m = dma_tt->cpu_address[index / PAGE_SIZE];
-		m += index % PAGE_SIZE;
-	}
-
-	return m;
-}
-#define nouveau_bo_mem_index(o, i, m) _nouveau_bo_mem_index(o, i, m, sizeof(*m))
-
 void
 nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val)
 {
 	bool is_iomem;
 	u16 *mem = ttm_kmap_obj_virtual(&nvbo->kmap, &is_iomem);
 
-	mem = nouveau_bo_mem_index(nvbo, index, mem);
+	mem += index;
 
 	if (is_iomem)
 		iowrite16_native(val, (void __force __iomem *)mem);
@@ -548,7 +580,7 @@ nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index)
 	bool is_iomem;
 	u32 *mem = ttm_kmap_obj_virtual(&nvbo->kmap, &is_iomem);
 
-	mem = nouveau_bo_mem_index(nvbo, index, mem);
+	mem += index;
 
 	if (is_iomem)
 		return ioread32_native((void __force __iomem *)mem);
@@ -562,7 +594,7 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 	bool is_iomem;
 	u32 *mem = ttm_kmap_obj_virtual(&nvbo->kmap, &is_iomem);
 
-	mem = nouveau_bo_mem_index(nvbo, index, mem);
+	mem += index;
 
 	if (is_iomem)
 		iowrite32_native(val, (void __force __iomem *)mem);
@@ -571,19 +603,17 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 }
 
 static struct ttm_tt *
-nouveau_ttm_tt_create(struct ttm_bo_device *bdev, unsigned long size,
-		      uint32_t page_flags, struct page *dummy_read)
+nouveau_ttm_tt_create(struct ttm_buffer_object *bo, uint32_t page_flags)
 {
 #if IS_ENABLED(CONFIG_AGP)
-	struct nouveau_drm *drm = nouveau_bdev(bdev);
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 
 	if (drm->agp.bridge) {
-		return ttm_agp_tt_create(bdev, drm->agp.bridge, size,
-					 page_flags, dummy_read);
+		return ttm_agp_tt_create(bo, drm->agp.bridge, page_flags);
 	}
 #endif
 
-	return nouveau_sgdma_create_ttm(bdev, size, page_flags, dummy_read);
+	return nouveau_sgdma_create_ttm(bo, page_flags);
 }
 
 static int
@@ -598,6 +628,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			 struct ttm_mem_type_manager *man)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
+	struct nvif_mmu *mmu = &drm->client.mmu;
 
 	switch (type) {
 	case TTM_PL_SYSTEM:
@@ -612,9 +643,10 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 					 TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
 
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			/* Some BARs do not support being ioremapped WC */
-			if (nvxx_bar(&drm->device)->iomap_uncached) {
+			const u8 type = mmu->type[drm->ttm.type_vram].type;
+			if (type & NVIF_MEM_UNCACHED) {
 				man->available_caching = TTM_PL_FLAG_UNCACHED;
 				man->default_caching = TTM_PL_FLAG_UNCACHED;
 			}
@@ -627,7 +659,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		}
 		break;
 	case TTM_PL_TT:
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA)
+		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 			man->func = &nouveau_gart_manager;
 		else
 		if (!drm->agp.bridge)
@@ -687,20 +719,20 @@ nve0_bo_move_init(struct nouveau_channel *chan, u32 handle)
 
 static int
 nve0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
-	struct nvkm_mem *node = old_mem->mm_node;
+	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	int ret = RING_SPACE(chan, 10);
 	if (ret == 0) {
 		BEGIN_NVC0(chan, NvSubCopy, 0x0400, 8);
-		OUT_RING  (chan, upper_32_bits(node->vma[0].offset));
-		OUT_RING  (chan, lower_32_bits(node->vma[0].offset));
-		OUT_RING  (chan, upper_32_bits(node->vma[1].offset));
-		OUT_RING  (chan, lower_32_bits(node->vma[1].offset));
+		OUT_RING  (chan, upper_32_bits(mem->vma[0].addr));
+		OUT_RING  (chan, lower_32_bits(mem->vma[0].addr));
+		OUT_RING  (chan, upper_32_bits(mem->vma[1].addr));
+		OUT_RING  (chan, lower_32_bits(mem->vma[1].addr));
 		OUT_RING  (chan, PAGE_SIZE);
 		OUT_RING  (chan, PAGE_SIZE);
 		OUT_RING  (chan, PAGE_SIZE);
-		OUT_RING  (chan, new_mem->num_pages);
+		OUT_RING  (chan, new_reg->num_pages);
 		BEGIN_IMC0(chan, NvSubCopy, 0x0300, 0x0386);
 	}
 	return ret;
@@ -719,15 +751,15 @@ nvc0_bo_move_init(struct nouveau_channel *chan, u32 handle)
 
 static int
 nvc0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
-	struct nvkm_mem *node = old_mem->mm_node;
-	u64 src_offset = node->vma[0].offset;
-	u64 dst_offset = node->vma[1].offset;
-	u32 page_count = new_mem->num_pages;
+	struct nouveau_mem *mem = nouveau_mem(old_reg);
+	u64 src_offset = mem->vma[0].addr;
+	u64 dst_offset = mem->vma[1].addr;
+	u32 page_count = new_reg->num_pages;
 	int ret;
 
-	page_count = new_mem->num_pages;
+	page_count = new_reg->num_pages;
 	while (page_count) {
 		int line_count = (page_count > 8191) ? 8191 : page_count;
 
@@ -757,15 +789,15 @@ nvc0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 static int
 nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
-	struct nvkm_mem *node = old_mem->mm_node;
-	u64 src_offset = node->vma[0].offset;
-	u64 dst_offset = node->vma[1].offset;
-	u32 page_count = new_mem->num_pages;
+	struct nouveau_mem *mem = nouveau_mem(old_reg);
+	u64 src_offset = mem->vma[0].addr;
+	u64 dst_offset = mem->vma[1].addr;
+	u32 page_count = new_reg->num_pages;
 	int ret;
 
-	page_count = new_mem->num_pages;
+	page_count = new_reg->num_pages;
 	while (page_count) {
 		int line_count = (page_count > 2047) ? 2047 : page_count;
 
@@ -796,15 +828,15 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 static int
 nva3_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
-	struct nvkm_mem *node = old_mem->mm_node;
-	u64 src_offset = node->vma[0].offset;
-	u64 dst_offset = node->vma[1].offset;
-	u32 page_count = new_mem->num_pages;
+	struct nouveau_mem *mem = nouveau_mem(old_reg);
+	u64 src_offset = mem->vma[0].addr;
+	u64 dst_offset = mem->vma[1].addr;
+	u32 page_count = new_reg->num_pages;
 	int ret;
 
-	page_count = new_mem->num_pages;
+	page_count = new_reg->num_pages;
 	while (page_count) {
 		int line_count = (page_count > 8191) ? 8191 : page_count;
 
@@ -834,35 +866,35 @@ nva3_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 static int
 nv98_bo_move_exec(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
-	struct nvkm_mem *node = old_mem->mm_node;
+	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	int ret = RING_SPACE(chan, 7);
 	if (ret == 0) {
 		BEGIN_NV04(chan, NvSubCopy, 0x0320, 6);
-		OUT_RING  (chan, upper_32_bits(node->vma[0].offset));
-		OUT_RING  (chan, lower_32_bits(node->vma[0].offset));
-		OUT_RING  (chan, upper_32_bits(node->vma[1].offset));
-		OUT_RING  (chan, lower_32_bits(node->vma[1].offset));
+		OUT_RING  (chan, upper_32_bits(mem->vma[0].addr));
+		OUT_RING  (chan, lower_32_bits(mem->vma[0].addr));
+		OUT_RING  (chan, upper_32_bits(mem->vma[1].addr));
+		OUT_RING  (chan, lower_32_bits(mem->vma[1].addr));
 		OUT_RING  (chan, 0x00000000 /* COPY */);
-		OUT_RING  (chan, new_mem->num_pages << PAGE_SHIFT);
+		OUT_RING  (chan, new_reg->num_pages << PAGE_SHIFT);
 	}
 	return ret;
 }
 
 static int
 nv84_bo_move_exec(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
-	struct nvkm_mem *node = old_mem->mm_node;
+	struct nouveau_mem *mem = nouveau_mem(old_reg);
 	int ret = RING_SPACE(chan, 7);
 	if (ret == 0) {
 		BEGIN_NV04(chan, NvSubCopy, 0x0304, 6);
-		OUT_RING  (chan, new_mem->num_pages << PAGE_SHIFT);
-		OUT_RING  (chan, upper_32_bits(node->vma[0].offset));
-		OUT_RING  (chan, lower_32_bits(node->vma[0].offset));
-		OUT_RING  (chan, upper_32_bits(node->vma[1].offset));
-		OUT_RING  (chan, lower_32_bits(node->vma[1].offset));
+		OUT_RING  (chan, new_reg->num_pages << PAGE_SHIFT);
+		OUT_RING  (chan, upper_32_bits(mem->vma[0].addr));
+		OUT_RING  (chan, lower_32_bits(mem->vma[0].addr));
+		OUT_RING  (chan, upper_32_bits(mem->vma[1].addr));
+		OUT_RING  (chan, lower_32_bits(mem->vma[1].addr));
 		OUT_RING  (chan, 0x00000000 /* MODE_COPY, QUERY_NONE */);
 	}
 	return ret;
@@ -886,14 +918,14 @@ nv50_bo_move_init(struct nouveau_channel *chan, u32 handle)
 
 static int
 nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
-	struct nvkm_mem *node = old_mem->mm_node;
-	u64 length = (new_mem->num_pages << PAGE_SHIFT);
-	u64 src_offset = node->vma[0].offset;
-	u64 dst_offset = node->vma[1].offset;
-	int src_tiled = !!node->memtype;
-	int dst_tiled = !!((struct nvkm_mem *)new_mem->mm_node)->memtype;
+	struct nouveau_mem *mem = nouveau_mem(old_reg);
+	u64 length = (new_reg->num_pages << PAGE_SHIFT);
+	u64 src_offset = mem->vma[0].addr;
+	u64 dst_offset = mem->vma[1].addr;
+	int src_tiled = !!mem->kind;
+	int dst_tiled = !!nouveau_mem(new_reg)->kind;
 	int ret;
 
 	while (length) {
@@ -973,20 +1005,20 @@ nv04_bo_move_init(struct nouveau_channel *chan, u32 handle)
 
 static inline uint32_t
 nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
-		      struct nouveau_channel *chan, struct ttm_mem_reg *mem)
+		      struct nouveau_channel *chan, struct ttm_mem_reg *reg)
 {
-	if (mem->mem_type == TTM_PL_TT)
+	if (reg->mem_type == TTM_PL_TT)
 		return NvDmaTT;
 	return chan->vram.handle;
 }
 
 static int
 nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
-		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+		  struct ttm_mem_reg *old_reg, struct ttm_mem_reg *new_reg)
 {
-	u32 src_offset = old_mem->start << PAGE_SHIFT;
-	u32 dst_offset = new_mem->start << PAGE_SHIFT;
-	u32 page_count = new_mem->num_pages;
+	u32 src_offset = old_reg->start << PAGE_SHIFT;
+	u32 dst_offset = new_reg->start << PAGE_SHIFT;
+	u32 page_count = new_reg->num_pages;
 	int ret;
 
 	ret = RING_SPACE(chan, 3);
@@ -994,10 +1026,10 @@ nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		return ret;
 
 	BEGIN_NV04(chan, NvSubCopy, NV_MEMORY_TO_MEMORY_FORMAT_DMA_SOURCE, 2);
-	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, old_mem));
-	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, new_mem));
+	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, old_reg));
+	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, new_reg));
 
-	page_count = new_mem->num_pages;
+	page_count = new_reg->num_pages;
 	while (page_count) {
 		int line_count = (page_count > 2047) ? 2047 : page_count;
 
@@ -1028,33 +1060,39 @@ nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 static int
 nouveau_bo_move_prep(struct nouveau_drm *drm, struct ttm_buffer_object *bo,
-		     struct ttm_mem_reg *mem)
+		     struct ttm_mem_reg *reg)
 {
-	struct nvkm_mem *old_node = bo->mem.mm_node;
-	struct nvkm_mem *new_node = mem->mm_node;
-	u64 size = (u64)mem->num_pages << PAGE_SHIFT;
+	struct nouveau_mem *old_mem = nouveau_mem(&bo->mem);
+	struct nouveau_mem *new_mem = nouveau_mem(reg);
+	struct nvif_vmm *vmm = &drm->client.vmm.vmm;
 	int ret;
 
-	ret = nvkm_vm_get(drm->client.vm, size, old_node->page_shift,
-			  NV_MEM_ACCESS_RW, &old_node->vma[0]);
+	ret = nvif_vmm_get(vmm, LAZY, false, old_mem->mem.page, 0,
+			   old_mem->mem.size, &old_mem->vma[0]);
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_get(drm->client.vm, size, new_node->page_shift,
-			  NV_MEM_ACCESS_RW, &old_node->vma[1]);
-	if (ret) {
-		nvkm_vm_put(&old_node->vma[0]);
-		return ret;
-	}
+	ret = nvif_vmm_get(vmm, LAZY, false, new_mem->mem.page, 0,
+			   new_mem->mem.size, &old_mem->vma[1]);
+	if (ret)
+		goto done;
 
-	nvkm_vm_map(&old_node->vma[0], old_node);
-	nvkm_vm_map(&old_node->vma[1], new_node);
+	ret = nouveau_mem_map(old_mem, vmm, &old_mem->vma[0]);
+	if (ret)
+		goto done;
+
+	ret = nouveau_mem_map(new_mem, vmm, &old_mem->vma[1]);
+done:
+	if (ret) {
+		nvif_vmm_put(vmm, &old_mem->vma[1]);
+		nvif_vmm_put(vmm, &old_mem->vma[0]);
+	}
 	return 0;
 }
 
 static int
 nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
-		     bool no_wait_gpu, struct ttm_mem_reg *new_mem)
+		     bool no_wait_gpu, struct ttm_mem_reg *new_reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_channel *chan = drm->ttm.chan;
@@ -1066,8 +1104,8 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	 * old nvkm_mem node, these will get cleaned up after ttm has
 	 * destroyed the ttm_mem_reg
 	 */
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_bo_move_prep(drm, bo, new_mem);
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		ret = nouveau_bo_move_prep(drm, bo, new_reg);
 		if (ret)
 			return ret;
 	}
@@ -1075,15 +1113,14 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	mutex_lock_nested(&cli->mutex, SINGLE_DEPTH_NESTING);
 	ret = nouveau_fence_sync(nouveau_bo(bo), chan, true, intr);
 	if (ret == 0) {
-		ret = drm->ttm.move(chan, bo, &bo->mem, new_mem);
+		ret = drm->ttm.move(chan, bo, &bo->mem, new_reg);
 		if (ret == 0) {
 			ret = nouveau_fence_new(chan, false, &fence);
 			if (ret == 0) {
 				ret = ttm_bo_move_accel_cleanup(bo,
 								&fence->base,
 								evict,
-								no_wait_gpu,
-								new_mem);
+								new_reg);
 				nouveau_fence_unref(&fence);
 			}
 		}
@@ -1104,6 +1141,12 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
+		{  "COPY", 4, 0xc3b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "GRCE", 0, 0xc3b5, nve0_bo_move_copy, nvc0_bo_move_init },
+		{  "COPY", 4, 0xc1b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "GRCE", 0, 0xc1b5, nve0_bo_move_copy, nvc0_bo_move_init },
+		{  "COPY", 4, 0xc0b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "GRCE", 0, 0xc0b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xb0b5, nve0_bo_move_copy, nve0_bo_move_init },
 		{  "GRCE", 0, 0xb0b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xa0b5, nve0_bo_move_copy, nve0_bo_move_init },
@@ -1154,113 +1197,118 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 
 static int
 nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
-		      bool no_wait_gpu, struct ttm_mem_reg *new_mem)
+		      bool no_wait_gpu, struct ttm_mem_reg *new_reg)
 {
+	struct ttm_operation_ctx ctx = { intr, no_wait_gpu };
 	struct ttm_place placement_memtype = {
 		.fpfn = 0,
 		.lpfn = 0,
 		.flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING
 	};
 	struct ttm_placement placement;
-	struct ttm_mem_reg tmp_mem;
+	struct ttm_mem_reg tmp_reg;
 	int ret;
 
 	placement.num_placement = placement.num_busy_placement = 1;
 	placement.placement = placement.busy_placement = &placement_memtype;
 
-	tmp_mem = *new_mem;
-	tmp_mem.mm_node = NULL;
-	ret = ttm_bo_mem_space(bo, &placement, &tmp_mem, intr, no_wait_gpu);
+	tmp_reg = *new_reg;
+	tmp_reg.mm_node = NULL;
+	ret = ttm_bo_mem_space(bo, &placement, &tmp_reg, &ctx);
 	if (ret)
 		return ret;
 
-	ret = ttm_tt_bind(bo->ttm, &tmp_mem);
+	ret = ttm_tt_bind(bo->ttm, &tmp_reg, &ctx);
 	if (ret)
 		goto out;
 
-	ret = nouveau_bo_move_m2mf(bo, true, intr, no_wait_gpu, &tmp_mem);
+	ret = nouveau_bo_move_m2mf(bo, true, intr, no_wait_gpu, &tmp_reg);
 	if (ret)
 		goto out;
 
-	ret = ttm_bo_move_ttm(bo, true, no_wait_gpu, new_mem);
+	ret = ttm_bo_move_ttm(bo, &ctx, new_reg);
 out:
-	ttm_bo_mem_put(bo, &tmp_mem);
+	ttm_bo_mem_put(bo, &tmp_reg);
 	return ret;
 }
 
 static int
 nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
-		      bool no_wait_gpu, struct ttm_mem_reg *new_mem)
+		      bool no_wait_gpu, struct ttm_mem_reg *new_reg)
 {
+	struct ttm_operation_ctx ctx = { intr, no_wait_gpu };
 	struct ttm_place placement_memtype = {
 		.fpfn = 0,
 		.lpfn = 0,
 		.flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING
 	};
 	struct ttm_placement placement;
-	struct ttm_mem_reg tmp_mem;
+	struct ttm_mem_reg tmp_reg;
 	int ret;
 
 	placement.num_placement = placement.num_busy_placement = 1;
 	placement.placement = placement.busy_placement = &placement_memtype;
 
-	tmp_mem = *new_mem;
-	tmp_mem.mm_node = NULL;
-	ret = ttm_bo_mem_space(bo, &placement, &tmp_mem, intr, no_wait_gpu);
+	tmp_reg = *new_reg;
+	tmp_reg.mm_node = NULL;
+	ret = ttm_bo_mem_space(bo, &placement, &tmp_reg, &ctx);
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_move_ttm(bo, true, no_wait_gpu, &tmp_mem);
+	ret = ttm_bo_move_ttm(bo, &ctx, &tmp_reg);
 	if (ret)
 		goto out;
 
-	ret = nouveau_bo_move_m2mf(bo, true, intr, no_wait_gpu, new_mem);
+	ret = nouveau_bo_move_m2mf(bo, true, intr, no_wait_gpu, new_reg);
 	if (ret)
 		goto out;
 
 out:
-	ttm_bo_mem_put(bo, &tmp_mem);
+	ttm_bo_mem_put(bo, &tmp_reg);
 	return ret;
 }
 
 static void
-nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
+nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
+		     struct ttm_mem_reg *new_reg)
 {
+	struct nouveau_mem *mem = new_reg ? nouveau_mem(new_reg) : NULL;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nvkm_vma *vma;
+	struct nouveau_vma *vma;
 
 	/* ttm can now (stupidly) pass the driver bos it didn't create... */
 	if (bo->destroy != nouveau_bo_del_ttm)
 		return;
 
-	list_for_each_entry(vma, &nvbo->vma_list, head) {
-		if (new_mem && new_mem->mem_type != TTM_PL_SYSTEM &&
-			      (new_mem->mem_type == TTM_PL_VRAM ||
-			       nvbo->page_shift != vma->vm->mmu->lpg_shift)) {
-			nvkm_vm_map(vma, new_mem->mm_node);
-		} else {
-			nvkm_vm_unmap(vma);
+	if (mem && new_reg->mem_type != TTM_PL_SYSTEM &&
+	    mem->mem.page == nvbo->page) {
+		list_for_each_entry(vma, &nvbo->vma_list, head) {
+			nouveau_vma_map(vma, mem);
+		}
+	} else {
+		list_for_each_entry(vma, &nvbo->vma_list, head) {
+			WARN_ON(ttm_bo_wait(bo, false, false));
+			nouveau_vma_unmap(vma);
 		}
 	}
 }
 
 static int
-nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
+nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_reg,
 		   struct nouveau_drm_tile **new_tile)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct drm_device *dev = drm->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	u64 offset = new_mem->start << PAGE_SHIFT;
+	u64 offset = new_reg->start << PAGE_SHIFT;
 
 	*new_tile = NULL;
-	if (new_mem->mem_type != TTM_PL_VRAM)
+	if (new_reg->mem_type != TTM_PL_VRAM)
 		return 0;
 
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_CELSIUS) {
-		*new_tile = nv10_bo_set_tiling(dev, offset, new_mem->size,
-						nvbo->tile_mode,
-						nvbo->tile_flags);
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS) {
+		*new_tile = nv10_bo_set_tiling(dev, offset, new_reg->size,
+					       nvbo->mode, nvbo->zeta);
 	}
 
 	return 0;
@@ -1273,61 +1321,69 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct drm_device *dev = drm->dev;
-	struct fence *fence = reservation_object_get_excl(bo->resv);
+	struct dma_fence *fence = reservation_object_get_excl(bo->resv);
 
 	nv10_bo_put_tile_region(dev, *old_tile, fence);
 	*old_tile = new_tile;
 }
 
 static int
-nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
-		bool no_wait_gpu, struct ttm_mem_reg *new_mem)
+nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
+		struct ttm_operation_ctx *ctx,
+		struct ttm_mem_reg *new_reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct ttm_mem_reg *old_reg = &bo->mem;
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
+
+	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+	if (ret)
+		return ret;
 
 	if (nvbo->pin_refcnt)
 		NV_WARN(drm, "Moving pinned object %p!\n", nvbo);
 
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_bo_vm_bind(bo, new_mem, &new_tile);
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+		ret = nouveau_bo_vm_bind(bo, new_reg, &new_tile);
 		if (ret)
 			return ret;
 	}
 
 	/* Fake bo copy. */
-	if (old_mem->mem_type == TTM_PL_SYSTEM && !bo->ttm) {
+	if (old_reg->mem_type == TTM_PL_SYSTEM && !bo->ttm) {
 		BUG_ON(bo->mem.mm_node != NULL);
-		bo->mem = *new_mem;
-		new_mem->mm_node = NULL;
+		bo->mem = *new_reg;
+		new_reg->mm_node = NULL;
 		goto out;
 	}
 
 	/* Hardware assisted copy. */
 	if (drm->ttm.move) {
-		if (new_mem->mem_type == TTM_PL_SYSTEM)
-			ret = nouveau_bo_move_flipd(bo, evict, intr,
-						    no_wait_gpu, new_mem);
-		else if (old_mem->mem_type == TTM_PL_SYSTEM)
-			ret = nouveau_bo_move_flips(bo, evict, intr,
-						    no_wait_gpu, new_mem);
+		if (new_reg->mem_type == TTM_PL_SYSTEM)
+			ret = nouveau_bo_move_flipd(bo, evict,
+						    ctx->interruptible,
+						    ctx->no_wait_gpu, new_reg);
+		else if (old_reg->mem_type == TTM_PL_SYSTEM)
+			ret = nouveau_bo_move_flips(bo, evict,
+						    ctx->interruptible,
+						    ctx->no_wait_gpu, new_reg);
 		else
-			ret = nouveau_bo_move_m2mf(bo, evict, intr,
-						   no_wait_gpu, new_mem);
+			ret = nouveau_bo_move_m2mf(bo, evict,
+						   ctx->interruptible,
+						   ctx->no_wait_gpu, new_reg);
 		if (!ret)
 			goto out;
 	}
 
 	/* Fallback to software copy. */
-	ret = ttm_bo_wait(bo, true, intr, no_wait_gpu);
+	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 	if (ret == 0)
-		ret = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
+		ret = ttm_bo_move_memcpy(bo, ctx, new_reg);
 
 out:
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 		if (ret)
 			nouveau_bo_vm_cleanup(bo, NULL, &new_tile);
 		else
@@ -1342,58 +1398,81 @@ nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
-	return drm_vma_node_verify_access(&nvbo->gem.vma_node, filp);
+	return drm_vma_node_verify_access(&nvbo->gem.vma_node,
+					  filp->private_data);
 }
 
 static int
-nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
+nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
+	struct ttm_mem_type_manager *man = &bdev->man[reg->mem_type];
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
-	struct nvkm_device *device = nvxx_device(&drm->device);
-	struct nvkm_mem *node = mem->mm_node;
-	int ret;
+	struct nvkm_device *device = nvxx_device(&drm->client.device);
+	struct nouveau_mem *mem = nouveau_mem(reg);
 
-	mem->bus.addr = NULL;
-	mem->bus.offset = 0;
-	mem->bus.size = mem->num_pages << PAGE_SHIFT;
-	mem->bus.base = 0;
-	mem->bus.is_iomem = false;
+	reg->bus.addr = NULL;
+	reg->bus.offset = 0;
+	reg->bus.size = reg->num_pages << PAGE_SHIFT;
+	reg->bus.base = 0;
+	reg->bus.is_iomem = false;
 	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
 		return -EINVAL;
-	switch (mem->mem_type) {
+	switch (reg->mem_type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
 		return 0;
 	case TTM_PL_TT:
 #if IS_ENABLED(CONFIG_AGP)
 		if (drm->agp.bridge) {
-			mem->bus.offset = mem->start << PAGE_SHIFT;
-			mem->bus.base = drm->agp.base;
-			mem->bus.is_iomem = !drm->agp.cma;
+			reg->bus.offset = reg->start << PAGE_SHIFT;
+			reg->bus.base = drm->agp.base;
+			reg->bus.is_iomem = !drm->agp.cma;
 		}
 #endif
-		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA || !node->memtype)
+		if (drm->client.mem->oclass < NVIF_CLASS_MEM_NV50 || !mem->kind)
 			/* untiled */
 			break;
 		/* fallthrough, tiled memory */
 	case TTM_PL_VRAM:
-		mem->bus.offset = mem->start << PAGE_SHIFT;
-		mem->bus.base = device->func->resource_addr(device, 1);
-		mem->bus.is_iomem = true;
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-			struct nvkm_bar *bar = nvxx_bar(&drm->device);
-			int page_shift = 12;
-			if (drm->device.info.family >= NV_DEVICE_INFO_V0_FERMI)
-				page_shift = node->page_shift;
+		reg->bus.offset = reg->start << PAGE_SHIFT;
+		reg->bus.base = device->func->resource_addr(device, 1);
+		reg->bus.is_iomem = true;
+		if (drm->client.mem->oclass >= NVIF_CLASS_MEM_NV50) {
+			union {
+				struct nv50_mem_map_v0 nv50;
+				struct gf100_mem_map_v0 gf100;
+			} args;
+			u64 handle, length;
+			u32 argc = 0;
+			int ret;
 
-			ret = nvkm_bar_umap(bar, node->size << 12, page_shift,
-					    &node->bar_vma);
-			if (ret)
-				return ret;
+			switch (mem->mem.object.oclass) {
+			case NVIF_CLASS_MEM_NV50:
+				args.nv50.version = 0;
+				args.nv50.ro = 0;
+				args.nv50.kind = mem->kind;
+				args.nv50.comp = mem->comp;
+				argc = sizeof(args.nv50);
+				break;
+			case NVIF_CLASS_MEM_GF100:
+				args.gf100.version = 0;
+				args.gf100.ro = 0;
+				args.gf100.kind = mem->kind;
+				argc = sizeof(args.gf100);
+				break;
+			default:
+				WARN_ON(1);
+				break;
+			}
 
-			nvkm_vm_map(&node->bar_vma, node);
-			mem->bus.offset = node->bar_vma.offset;
+			ret = nvif_object_map_handle(&mem->mem.object,
+						     &args, argc,
+						     &handle, &length);
+			if (ret != 1)
+				return ret ? ret : -EINVAL;
+
+			reg->bus.base = 0;
+			reg->bus.offset = handle;
 		}
 		break;
 	default:
@@ -1403,15 +1482,24 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 }
 
 static void
-nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
+nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 {
-	struct nvkm_mem *node = mem->mm_node;
+	struct nouveau_drm *drm = nouveau_bdev(bdev);
+	struct nouveau_mem *mem = nouveau_mem(reg);
 
-	if (!node->bar_vma.node)
-		return;
-
-	nvkm_vm_unmap(&node->bar_vma);
-	nvkm_vm_put(&node->bar_vma);
+	if (drm->client.mem->oclass >= NVIF_CLASS_MEM_NV50) {
+		switch (reg->mem_type) {
+		case TTM_PL_TT:
+			if (mem->kind)
+				nvif_object_unmap_handle(&mem->mem.object);
+			break;
+		case TTM_PL_VRAM:
+			nvif_object_unmap_handle(&mem->mem.object);
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static int
@@ -1419,7 +1507,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nvkm_device *device = nvxx_device(&drm->device);
+	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	u32 mappable = device->func->resource_size(device, 1) >> PAGE_SHIFT;
 	int i, ret;
 
@@ -1427,8 +1515,8 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	 * nothing to do here.
 	 */
 	if (bo->mem.mem_type != TTM_PL_VRAM) {
-		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA ||
-		    !nouveau_bo_tile_layout(nvbo))
+		if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA ||
+		    !nvbo->kind)
 			return 0;
 
 		if (bo->mem.mem_type == TTM_PL_SYSTEM) {
@@ -1442,7 +1530,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	}
 
 	/* make sure bo is in mappable vram */
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA ||
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA ||
 	    bo->mem.start + bo->mem.num_pages < mappable)
 		return 0;
 
@@ -1461,13 +1549,11 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 }
 
 static int
-nouveau_ttm_tt_populate(struct ttm_tt *ttm)
+nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
-	struct nvkm_device *device;
-	struct drm_device *dev;
-	struct device *pdev;
+	struct device *dev;
 	unsigned i;
 	int r;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
@@ -1484,31 +1570,21 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	}
 
 	drm = nouveau_bdev(ttm->bdev);
-	device = nvxx_device(&drm->device);
-	dev = drm->dev;
-	pdev = device->dev;
-
-	/*
-	 * Objects matching this condition have been marked as force_coherent,
-	 * so use the DMA API for them.
-	 */
-	if (!nvxx_device(&drm->device)->func->cpu_coherent &&
-	    ttm->caching_state == tt_uncached)
-		return ttm_dma_populate(ttm_dma, dev->dev);
+	dev = drm->dev->dev;
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
-		return ttm_agp_tt_populate(ttm);
+		return ttm_agp_tt_populate(ttm, ctx);
 	}
 #endif
 
-#ifdef CONFIG_SWIOTLB
+#if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
 	if (swiotlb_nr_tbl()) {
-		return ttm_dma_populate((void *)ttm, dev->dev);
+		return ttm_dma_populate((void *)ttm, dev, ctx);
 	}
 #endif
 
-	r = ttm_pool_populate(ttm);
+	r = ttm_pool_populate(ttm, ctx);
 	if (r) {
 		return r;
 	}
@@ -1516,12 +1592,12 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	for (i = 0; i < ttm->num_pages; i++) {
 		dma_addr_t addr;
 
-		addr = dma_map_page(pdev, ttm->pages[i], 0, PAGE_SIZE,
+		addr = dma_map_page(dev, ttm->pages[i], 0, PAGE_SIZE,
 				    DMA_BIDIRECTIONAL);
 
-		if (dma_mapping_error(pdev, addr)) {
-			while (--i) {
-				dma_unmap_page(pdev, ttm_dma->dma_address[i],
+		if (dma_mapping_error(dev, addr)) {
+			while (i--) {
+				dma_unmap_page(dev, ttm_dma->dma_address[i],
 					       PAGE_SIZE, DMA_BIDIRECTIONAL);
 				ttm_dma->dma_address[i] = 0;
 			}
@@ -1539,9 +1615,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
-	struct nvkm_device *device;
-	struct drm_device *dev;
-	struct device *pdev;
+	struct device *dev;
 	unsigned i;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
@@ -1549,19 +1623,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 		return;
 
 	drm = nouveau_bdev(ttm->bdev);
-	device = nvxx_device(&drm->device);
-	dev = drm->dev;
-	pdev = device->dev;
-
-	/*
-	 * Objects matching this condition have been marked as force_coherent,
-	 * so use the DMA API for them.
-	 */
-	if (!nvxx_device(&drm->device)->func->cpu_coherent &&
-	    ttm->caching_state == tt_uncached) {
-		ttm_dma_unpopulate(ttm_dma, dev->dev);
-		return;
-	}
+	dev = drm->dev->dev;
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
@@ -1570,16 +1632,16 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	}
 #endif
 
-#ifdef CONFIG_SWIOTLB
+#if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
 	if (swiotlb_nr_tbl()) {
-		ttm_dma_unpopulate((void *)ttm, dev->dev);
+		ttm_dma_unpopulate((void *)ttm, dev);
 		return;
 	}
 #endif
 
 	for (i = 0; i < ttm->num_pages; i++) {
 		if (ttm_dma->dma_address[i]) {
-			dma_unmap_page(pdev, ttm_dma->dma_address[i], PAGE_SIZE,
+			dma_unmap_page(dev, ttm_dma->dma_address[i], PAGE_SIZE,
 				       DMA_BIDIRECTIONAL);
 		}
 	}
@@ -1604,6 +1666,7 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_unpopulate = &nouveau_ttm_tt_unpopulate,
 	.invalidate_caches = nouveau_bo_invalidate_caches,
 	.init_mem_type = nouveau_bo_init_mem_type,
+	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = nouveau_bo_evict_flags,
 	.move_notify = nouveau_bo_move_ntfy,
 	.move = nouveau_bo_move,
@@ -1612,48 +1675,3 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,
 	.io_mem_free = &nouveau_ttm_io_mem_free,
 };
-
-struct nvkm_vma *
-nouveau_bo_vma_find(struct nouveau_bo *nvbo, struct nvkm_vm *vm)
-{
-	struct nvkm_vma *vma;
-	list_for_each_entry(vma, &nvbo->vma_list, head) {
-		if (vma->vm == vm)
-			return vma;
-	}
-
-	return NULL;
-}
-
-int
-nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nvkm_vm *vm,
-		   struct nvkm_vma *vma)
-{
-	const u32 size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
-	int ret;
-
-	ret = nvkm_vm_get(vm, size, nvbo->page_shift,
-			     NV_MEM_ACCESS_RW, vma);
-	if (ret)
-		return ret;
-
-	if ( nvbo->bo.mem.mem_type != TTM_PL_SYSTEM &&
-	    (nvbo->bo.mem.mem_type == TTM_PL_VRAM ||
-	     nvbo->page_shift != vma->vm->mmu->lpg_shift))
-		nvkm_vm_map(vma, nvbo->bo.mem.mm_node);
-
-	list_add_tail(&vma->head, &nvbo->vma_list);
-	vma->refcount = 1;
-	return 0;
-}
-
-void
-nouveau_bo_vma_del(struct nouveau_bo *nvbo, struct nvkm_vma *vma)
-{
-	if (vma->node) {
-		if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM)
-			nvkm_vm_unmap(vma);
-		nvkm_vm_put(vma);
-		list_del(&vma->head);
-	}
-}

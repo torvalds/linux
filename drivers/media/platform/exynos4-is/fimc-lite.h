@@ -23,7 +23,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
-#include <media/exynos-fimc.h>
+#include <media/drv-intf/exynos-fimc.h>
 
 #define FIMC_LITE_DRV_NAME	"exynos-fimc-lite"
 #define FLITE_CLK_NAME		"flite"
@@ -56,9 +56,9 @@ enum {
  * @max_height: maximum camera interface input height in pixels
  * @out_width_align: minimum output width alignment in pixels
  * @win_hor_offs_align: minimum camera interface crop window horizontal
- * 			offset alignment in pixels
+ *			offset alignment in pixels
  * @out_hor_offs_align: minimum output DMA compose rectangle horizontal
- * 			offset alignment in pixels
+ *			offset alignment in pixels
  * @max_dma_bufs: number of output DMA buffer start address registers
  * @num_instances: total number of FIMC-LITE IP instances available
  */
@@ -113,7 +113,6 @@ struct flite_buffer {
  * @ve: exynos video device entity structure
  * @v4l2_dev: pointer to top the level v4l2_device
  * @fh: v4l2 file handle
- * @alloc_ctx: videobuf2 memory allocator context
  * @subdev: FIMC-LITE subdev
  * @vd_pad: media (sink) pad for the capture video node
  * @subdev_pads: the subdev media pads
@@ -148,7 +147,6 @@ struct fimc_lite {
 	struct exynos_video_entity ve;
 	struct v4l2_device	*v4l2_dev;
 	struct v4l2_fh		fh;
-	struct vb2_alloc_ctx	*alloc_ctx;
 	struct v4l2_subdev	subdev;
 	struct media_pad	vd_pad;
 	struct media_pad	subdev_pads[FLITE_SD_PADS_NUM];

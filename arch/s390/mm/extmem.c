@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author(s)......: Carsten Otte <cotte@de.ibm.com>
  * 		    Rob M van der Heij <rvdheij@nl.ibm.com>
@@ -14,7 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/bootmem.h>
 #include <linux/ctype.h>
 #include <linux/ioport.h>
@@ -79,7 +80,7 @@ struct qin64 {
 struct dcss_segment {
 	struct list_head list;
 	char dcss_name[8];
-	char res_name[15];
+	char res_name[16];
 	unsigned long start_addr;
 	unsigned long end;
 	atomic_t ref_count;
@@ -94,7 +95,7 @@ static DEFINE_MUTEX(dcss_lock);
 static LIST_HEAD(dcss_list);
 static char *segtype_string[] = { "SW", "EW", "SR", "ER", "SN", "EN", "SC",
 					"EW/EN-MIXED" };
-static int loadshr_scode, loadnsr_scode, findseg_scode;
+static int loadshr_scode, loadnsr_scode;
 static int segext_scode, purgeseg_scode;
 static int scode_set;
 
@@ -102,7 +103,7 @@ static int scode_set;
 static int
 dcss_set_subcodes(void)
 {
-	char *name = kmalloc(8 * sizeof(char), GFP_KERNEL | GFP_DMA);
+	char *name = kmalloc(8, GFP_KERNEL | GFP_DMA);
 	unsigned long rx, ry;
 	int rc;
 
@@ -122,7 +123,7 @@ dcss_set_subcodes(void)
 		"1:	la	%2,3\n"
 		"2:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
+		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc", "memory");
 
 	kfree(name);
 	/* Diag x'64' new subcodes are supported, set to new subcodes */
@@ -130,7 +131,6 @@ dcss_set_subcodes(void)
 		loadshr_scode = DCSS_LOADSHRX;
 		loadnsr_scode = DCSS_LOADNSRX;
 		purgeseg_scode = DCSS_PURGESEG;
-		findseg_scode = DCSS_FINDSEGX;
 		segext_scode = DCSS_SEGEXTX;
 		return 0;
 	}
@@ -138,7 +138,6 @@ dcss_set_subcodes(void)
 	loadshr_scode = DCSS_LOADNOLY;
 	loadnsr_scode = DCSS_LOADNSR;
 	purgeseg_scode = DCSS_PURGESEG;
-	findseg_scode = DCSS_FINDSEG;
 	segext_scode = DCSS_SEGEXT;
 	return 0;
 }
@@ -156,7 +155,7 @@ dcss_mkname(char *name, char *dcss_name)
 		if (name[i] == '\0')
 			break;
 		dcss_name[i] = toupper(name[i]);
-	};
+	}
 	for (; i < 8; i++)
 		dcss_name[i] = ' ';
 	ASCEBC(dcss_name, 8);
@@ -267,7 +266,7 @@ query_segment_type (struct dcss_segment *seg)
 		goto out_free;
 	}
 	if (diag_cc > 1) {
-		pr_warning("Querying a DCSS type failed with rc=%ld\n", vmrc);
+		pr_warn("Querying a DCSS type failed with rc=%ld\n", vmrc);
 		rc = dcss_diag_translate_rc (vmrc);
 		goto out_free;
 	}
@@ -434,7 +433,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	memcpy(&seg->res_name, seg->dcss_name, 8);
 	EBCASC(seg->res_name, 8);
 	seg->res_name[8] = '\0';
-	strncat(seg->res_name, " (DCSS)", 7);
+	strlcat(seg->res_name, " (DCSS)", sizeof(seg->res_name));
 	seg->res->name = seg->res_name;
 	rc = seg->vm_segtype;
 	if (rc == SEG_TYPE_SC ||
@@ -459,8 +458,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 		goto out_resource;
 	}
 	if (diag_cc > 1) {
-		pr_warning("Loading DCSS %s failed with rc=%ld\n", name,
-			   end_addr);
+		pr_warn("Loading DCSS %s failed with rc=%ld\n", name, end_addr);
 		rc = dcss_diag_translate_rc(end_addr);
 		dcss_diag(&purgeseg_scode, seg->dcss_name,
 				&dummy, &dummy);
@@ -576,8 +574,7 @@ segment_modify_shared (char *name, int do_nonshared)
 		goto out_unlock;
 	}
 	if (atomic_read (&seg->ref_count) != 1) {
-		pr_warning("DCSS %s is in use and cannot be reloaded\n",
-			   name);
+		pr_warn("DCSS %s is in use and cannot be reloaded\n", name);
 		rc = -EAGAIN;
 		goto out_unlock;
 	}
@@ -590,8 +587,8 @@ segment_modify_shared (char *name, int do_nonshared)
 			seg->res->flags |= IORESOURCE_READONLY;
 
 	if (request_resource(&iomem_resource, seg->res)) {
-		pr_warning("DCSS %s overlaps with used memory resources "
-			   "and cannot be reloaded\n", name);
+		pr_warn("DCSS %s overlaps with used memory resources and cannot be reloaded\n",
+			name);
 		rc = -EBUSY;
 		kfree(seg->res);
 		goto out_del_mem;
@@ -609,8 +606,8 @@ segment_modify_shared (char *name, int do_nonshared)
 		goto out_del_res;
 	}
 	if (diag_cc > 1) {
-		pr_warning("Reloading DCSS %s failed with rc=%ld\n", name,
-			   end_addr);
+		pr_warn("Reloading DCSS %s failed with rc=%ld\n",
+			name, end_addr);
 		rc = dcss_diag_translate_rc(end_addr);
 		goto out_del_res;
 	}

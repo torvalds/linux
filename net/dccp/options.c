@@ -227,8 +227,8 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			 * Ack vectors are processed by the TX CCID if it is
 			 * interested. The RX CCID need not parse Ack Vectors,
 			 * since it is only interested in clearing old state.
-			 * Fall through.
 			 */
+			/* fall through */
 		case DCCPO_MIN_TX_CCID_SPECIFIC ... DCCPO_MAX_TX_CCID_SPECIFIC:
 			if (ccid_hc_tx_parse_options(dp->dccps_hc_tx_ccid, sk,
 						     pkt_type, opt, value, len))
@@ -253,7 +253,7 @@ out_nonsensical_length:
 	return 0;
 
 out_invalid_option:
-	DCCP_INC_STATS_BH(DCCP_MIB_INVALIDOPT);
+	DCCP_INC_STATS(DCCP_MIB_INVALIDOPT);
 	rc = DCCP_RESET_CODE_OPTION_ERROR;
 out_featneg_failed:
 	DCCP_WARN("DCCP(%p): Option %d (len=%d) error=%u\n", sk, opt, len, rc);
@@ -484,7 +484,7 @@ int dccp_insert_option_mandatory(struct sk_buff *skb)
 		return -1;
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len++;
-	*skb_push(skb, 1) = DCCPO_MANDATORY;
+	*(u8 *)skb_push(skb, 1) = DCCPO_MANDATORY;
 	return 0;
 }
 

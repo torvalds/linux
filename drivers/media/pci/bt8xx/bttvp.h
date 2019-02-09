@@ -41,8 +41,8 @@
 #include <media/videobuf-dma-sg.h>
 #include <media/tveeprom.h>
 #include <media/rc-core.h>
-#include <media/ir-kbd-i2c.h>
-#include <media/tea575x.h>
+#include <media/i2c/ir-kbd-i2c.h>
+#include <media/drv-intf/tea575x.h>
 
 #include "bt848.h"
 #include "bttv.h"
@@ -122,6 +122,7 @@ struct bttv_format {
 
 struct bttv_ir {
 	struct rc_dev           *dev;
+	struct bttv		*btv;
 	struct timer_list       timer;
 
 	char                    name[32];
@@ -140,7 +141,7 @@ struct bttv_ir {
 	bool			rc5_gpio;   /* Is RC5 legacy GPIO enabled? */
 	u32                     last_bit;   /* last raw bit seen */
 	u32                     code;       /* raw code under construction */
-	ktime_t          				base_time;  /* time of last seen code */
+	ktime_t						base_time;  /* time of last seen code */
 	bool                    active;     /* building raw code */
 };
 
@@ -232,7 +233,7 @@ struct bttv_fh {
 	const struct bttv_format *ovfmt;
 	struct bttv_overlay      ov;
 
-	/* Application called VIDIOC_S_CROP. */
+	/* Application called VIDIOC_S_SELECTION. */
 	int                      do_crop;
 
 	/* vbi capture */
@@ -281,7 +282,7 @@ int bttv_try_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
 int bttv_g_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
 int bttv_s_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
 
-extern struct videobuf_queue_ops bttv_vbi_qops;
+extern const struct videobuf_queue_ops bttv_vbi_qops;
 
 /* ---------------------------------------------------------- */
 /* bttv-gpio.c */
@@ -399,8 +400,8 @@ struct bttv {
 	int                        i2c_state, i2c_rc;
 	int                        i2c_done;
 	wait_queue_head_t          i2c_queue;
-	struct v4l2_subdev 	  *sd_msp34xx;
-	struct v4l2_subdev 	  *sd_tvaudio;
+	struct v4l2_subdev	  *sd_msp34xx;
+	struct v4l2_subdev	  *sd_tvaudio;
 	struct v4l2_subdev	  *sd_tda7432;
 
 	/* video4linux (1) */

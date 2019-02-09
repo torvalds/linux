@@ -22,9 +22,8 @@
 
 #include <linux/io.h>
 #include <asm/barrier.h>
-
-#define __ACCESS_CP15(CRn, Op1, CRm, Op2)	p15, Op1, %0, CRn, CRm, Op2
-#define __ACCESS_CP15_64(Op1, CRm)		p15, Op1, %Q0, %R0, CRm
+#include <asm/cacheflush.h>
+#include <asm/cp15.h>
 
 #define ICC_EOIR1			__ACCESS_CP15(c12, 0, c12, 1)
 #define ICC_DIR				__ACCESS_CP15(c12, 0, c11, 1)
@@ -34,6 +33,19 @@
 #define ICC_CTLR			__ACCESS_CP15(c12, 0, c12, 4)
 #define ICC_SRE				__ACCESS_CP15(c12, 0, c12, 5)
 #define ICC_IGRPEN1			__ACCESS_CP15(c12, 0, c12, 7)
+#define ICC_BPR1			__ACCESS_CP15(c12, 0, c12, 3)
+
+#define __ICC_AP0Rx(x)			__ACCESS_CP15(c12, 0, c8, 4 | x)
+#define ICC_AP0R0			__ICC_AP0Rx(0)
+#define ICC_AP0R1			__ICC_AP0Rx(1)
+#define ICC_AP0R2			__ICC_AP0Rx(2)
+#define ICC_AP0R3			__ICC_AP0Rx(3)
+
+#define __ICC_AP1Rx(x)			__ACCESS_CP15(c12, 0, c9, x)
+#define ICC_AP1R0			__ICC_AP1Rx(0)
+#define ICC_AP1R1			__ICC_AP1Rx(1)
+#define ICC_AP1R2			__ICC_AP1Rx(2)
+#define ICC_AP1R3			__ICC_AP1Rx(3)
 
 #define ICC_HSRE			__ACCESS_CP15(c12, 4, c9, 5)
 
@@ -86,74 +98,151 @@
 #define ICH_LRC14			__LRC8(6)
 #define ICH_LRC15			__LRC8(7)
 
-#define __AP0Rx(x)			__ACCESS_CP15(c12, 4, c8, x)
-#define ICH_AP0R0			__AP0Rx(0)
-#define ICH_AP0R1			__AP0Rx(1)
-#define ICH_AP0R2			__AP0Rx(2)
-#define ICH_AP0R3			__AP0Rx(3)
+#define __ICH_AP0Rx(x)			__ACCESS_CP15(c12, 4, c8, x)
+#define ICH_AP0R0			__ICH_AP0Rx(0)
+#define ICH_AP0R1			__ICH_AP0Rx(1)
+#define ICH_AP0R2			__ICH_AP0Rx(2)
+#define ICH_AP0R3			__ICH_AP0Rx(3)
 
-#define __AP1Rx(x)			__ACCESS_CP15(c12, 4, c9, x)
-#define ICH_AP1R0			__AP1Rx(0)
-#define ICH_AP1R1			__AP1Rx(1)
-#define ICH_AP1R2			__AP1Rx(2)
-#define ICH_AP1R3			__AP1Rx(3)
+#define __ICH_AP1Rx(x)			__ACCESS_CP15(c12, 4, c9, x)
+#define ICH_AP1R0			__ICH_AP1Rx(0)
+#define ICH_AP1R1			__ICH_AP1Rx(1)
+#define ICH_AP1R2			__ICH_AP1Rx(2)
+#define ICH_AP1R3			__ICH_AP1Rx(3)
+
+/* A32-to-A64 mappings used by VGIC save/restore */
+
+#define CPUIF_MAP(a32, a64)			\
+static inline void write_ ## a64(u32 val)	\
+{						\
+	write_sysreg(val, a32);			\
+}						\
+static inline u32 read_ ## a64(void)		\
+{						\
+	return read_sysreg(a32); 		\
+}						\
+
+#define CPUIF_MAP_LO_HI(a32lo, a32hi, a64)	\
+static inline void write_ ## a64(u64 val)	\
+{						\
+	write_sysreg(lower_32_bits(val), a32lo);\
+	write_sysreg(upper_32_bits(val), a32hi);\
+}						\
+static inline u64 read_ ## a64(void)		\
+{						\
+	u64 val = read_sysreg(a32lo);		\
+						\
+	val |=	(u64)read_sysreg(a32hi) << 32;	\
+						\
+	return val; 				\
+}
+
+CPUIF_MAP(ICC_PMR, ICC_PMR_EL1)
+CPUIF_MAP(ICC_AP0R0, ICC_AP0R0_EL1)
+CPUIF_MAP(ICC_AP0R1, ICC_AP0R1_EL1)
+CPUIF_MAP(ICC_AP0R2, ICC_AP0R2_EL1)
+CPUIF_MAP(ICC_AP0R3, ICC_AP0R3_EL1)
+CPUIF_MAP(ICC_AP1R0, ICC_AP1R0_EL1)
+CPUIF_MAP(ICC_AP1R1, ICC_AP1R1_EL1)
+CPUIF_MAP(ICC_AP1R2, ICC_AP1R2_EL1)
+CPUIF_MAP(ICC_AP1R3, ICC_AP1R3_EL1)
+
+CPUIF_MAP(ICH_HCR, ICH_HCR_EL2)
+CPUIF_MAP(ICH_VTR, ICH_VTR_EL2)
+CPUIF_MAP(ICH_MISR, ICH_MISR_EL2)
+CPUIF_MAP(ICH_EISR, ICH_EISR_EL2)
+CPUIF_MAP(ICH_ELSR, ICH_ELSR_EL2)
+CPUIF_MAP(ICH_VMCR, ICH_VMCR_EL2)
+CPUIF_MAP(ICH_AP0R3, ICH_AP0R3_EL2)
+CPUIF_MAP(ICH_AP0R2, ICH_AP0R2_EL2)
+CPUIF_MAP(ICH_AP0R1, ICH_AP0R1_EL2)
+CPUIF_MAP(ICH_AP0R0, ICH_AP0R0_EL2)
+CPUIF_MAP(ICH_AP1R3, ICH_AP1R3_EL2)
+CPUIF_MAP(ICH_AP1R2, ICH_AP1R2_EL2)
+CPUIF_MAP(ICH_AP1R1, ICH_AP1R1_EL2)
+CPUIF_MAP(ICH_AP1R0, ICH_AP1R0_EL2)
+CPUIF_MAP(ICC_HSRE, ICC_SRE_EL2)
+CPUIF_MAP(ICC_SRE, ICC_SRE_EL1)
+
+CPUIF_MAP_LO_HI(ICH_LR15, ICH_LRC15, ICH_LR15_EL2)
+CPUIF_MAP_LO_HI(ICH_LR14, ICH_LRC14, ICH_LR14_EL2)
+CPUIF_MAP_LO_HI(ICH_LR13, ICH_LRC13, ICH_LR13_EL2)
+CPUIF_MAP_LO_HI(ICH_LR12, ICH_LRC12, ICH_LR12_EL2)
+CPUIF_MAP_LO_HI(ICH_LR11, ICH_LRC11, ICH_LR11_EL2)
+CPUIF_MAP_LO_HI(ICH_LR10, ICH_LRC10, ICH_LR10_EL2)
+CPUIF_MAP_LO_HI(ICH_LR9, ICH_LRC9, ICH_LR9_EL2)
+CPUIF_MAP_LO_HI(ICH_LR8, ICH_LRC8, ICH_LR8_EL2)
+CPUIF_MAP_LO_HI(ICH_LR7, ICH_LRC7, ICH_LR7_EL2)
+CPUIF_MAP_LO_HI(ICH_LR6, ICH_LRC6, ICH_LR6_EL2)
+CPUIF_MAP_LO_HI(ICH_LR5, ICH_LRC5, ICH_LR5_EL2)
+CPUIF_MAP_LO_HI(ICH_LR4, ICH_LRC4, ICH_LR4_EL2)
+CPUIF_MAP_LO_HI(ICH_LR3, ICH_LRC3, ICH_LR3_EL2)
+CPUIF_MAP_LO_HI(ICH_LR2, ICH_LRC2, ICH_LR2_EL2)
+CPUIF_MAP_LO_HI(ICH_LR1, ICH_LRC1, ICH_LR1_EL2)
+CPUIF_MAP_LO_HI(ICH_LR0, ICH_LRC0, ICH_LR0_EL2)
+
+#define read_gicreg(r)                 read_##r()
+#define write_gicreg(v, r)             write_##r(v)
 
 /* Low-level accessors */
 
 static inline void gic_write_eoir(u32 irq)
 {
-	asm volatile("mcr " __stringify(ICC_EOIR1) : : "r" (irq));
+	write_sysreg(irq, ICC_EOIR1);
 	isb();
 }
 
 static inline void gic_write_dir(u32 val)
 {
-	asm volatile("mcr " __stringify(ICC_DIR) : : "r" (val));
+	write_sysreg(val, ICC_DIR);
 	isb();
 }
 
 static inline u32 gic_read_iar(void)
 {
-	u32 irqstat;
+	u32 irqstat = read_sysreg(ICC_IAR1);
 
-	asm volatile("mrc " __stringify(ICC_IAR1) : "=r" (irqstat));
+	dsb(sy);
+
 	return irqstat;
-}
-
-static inline void gic_write_pmr(u32 val)
-{
-	asm volatile("mcr " __stringify(ICC_PMR) : : "r" (val));
 }
 
 static inline void gic_write_ctlr(u32 val)
 {
-	asm volatile("mcr " __stringify(ICC_CTLR) : : "r" (val));
+	write_sysreg(val, ICC_CTLR);
 	isb();
+}
+
+static inline u32 gic_read_ctlr(void)
+{
+	return read_sysreg(ICC_CTLR);
 }
 
 static inline void gic_write_grpen1(u32 val)
 {
-	asm volatile("mcr " __stringify(ICC_IGRPEN1) : : "r" (val));
+	write_sysreg(val, ICC_IGRPEN1);
 	isb();
 }
 
 static inline void gic_write_sgi1r(u64 val)
 {
-	asm volatile("mcrr " __stringify(ICC_SGI1R) : : "r" (val));
+	write_sysreg(val, ICC_SGI1R);
 }
 
 static inline u32 gic_read_sre(void)
 {
-	u32 val;
-
-	asm volatile("mrc " __stringify(ICC_SRE) : "=r" (val));
-	return val;
+	return read_sysreg(ICC_SRE);
 }
 
 static inline void gic_write_sre(u32 val)
 {
-	asm volatile("mcr " __stringify(ICC_SRE) : : "r" (val));
+	write_sysreg(val, ICC_SRE);
 	isb();
+}
+
+static inline void gic_write_bpr1(u32 val)
+{
+	write_sysreg(val, ICC_BPR1);
 }
 
 /*
@@ -164,19 +253,14 @@ static inline void gic_write_sre(u32 val)
  * AArch32, since the syndrome register doesn't provide any information for
  * them.
  * Consequently, the following IO helpers use 32bit accesses.
- *
- * There are only two registers that need 64bit accesses in this driver:
- * - GICD_IROUTERn, contain the affinity values associated to each interrupt.
- *   The upper-word (aff3) will always be 0, so there is no need for a lock.
- * - GICR_TYPER is an ID register and doesn't need atomicity.
  */
-static inline void gic_write_irouter(u64 val, volatile void __iomem *addr)
+static inline void __gic_writeq_nonatomic(u64 val, volatile void __iomem *addr)
 {
 	writel_relaxed((u32)val, addr);
 	writel_relaxed((u32)(val >> 32), addr + 4);
 }
 
-static inline u64 gic_read_typer(const volatile void __iomem *addr)
+static inline u64 __gic_readq_nonatomic(const volatile void __iomem *addr)
 {
 	u64 val;
 
@@ -184,6 +268,84 @@ static inline u64 gic_read_typer(const volatile void __iomem *addr)
 	val |= (u64)readl_relaxed(addr + 4) << 32;
 	return val;
 }
+
+#define gic_flush_dcache_to_poc(a,l)    __cpuc_flush_dcache_area((a), (l))
+
+/*
+ *  GICD_IROUTERn, contain the affinity values associated to each interrupt.
+ *  The upper-word (aff3) will always be 0, so there is no need for a lock.
+ */
+#define gic_write_irouter(v, c)		__gic_writeq_nonatomic(v, c)
+
+/*
+ * GICR_TYPER is an ID register and doesn't need atomicity.
+ */
+#define gic_read_typer(c)		__gic_readq_nonatomic(c)
+
+/*
+ * GITS_BASER - hi and lo bits may be accessed independently.
+ */
+#define gits_read_baser(c)		__gic_readq_nonatomic(c)
+#define gits_write_baser(v, c)		__gic_writeq_nonatomic(v, c)
+
+/*
+ * GICR_PENDBASER and GICR_PROPBASE are changed with LPIs disabled, so they
+ * won't be being used during any updates and can be changed non-atomically
+ */
+#define gicr_read_propbaser(c)		__gic_readq_nonatomic(c)
+#define gicr_write_propbaser(v, c)	__gic_writeq_nonatomic(v, c)
+#define gicr_read_pendbaser(c)		__gic_readq_nonatomic(c)
+#define gicr_write_pendbaser(v, c)	__gic_writeq_nonatomic(v, c)
+
+/*
+ * GICR_xLPIR - only the lower bits are significant
+ */
+#define gic_read_lpir(c)		readl_relaxed(c)
+#define gic_write_lpir(v, c)		writel_relaxed(lower_32_bits(v), c)
+
+/*
+ * GITS_TYPER is an ID register and doesn't need atomicity.
+ */
+#define gits_read_typer(c)		__gic_readq_nonatomic(c)
+
+/*
+ * GITS_CBASER - hi and lo bits may be accessed independently.
+ */
+#define gits_read_cbaser(c)		__gic_readq_nonatomic(c)
+#define gits_write_cbaser(v, c)		__gic_writeq_nonatomic(v, c)
+
+/*
+ * GITS_CWRITER - hi and lo bits may be accessed independently.
+ */
+#define gits_write_cwriter(v, c)	__gic_writeq_nonatomic(v, c)
+
+/*
+ * GITS_VPROPBASER - hi and lo bits may be accessed independently.
+ */
+#define gits_write_vpropbaser(v, c)	__gic_writeq_nonatomic(v, c)
+
+/*
+ * GITS_VPENDBASER - the Valid bit must be cleared before changing
+ * anything else.
+ */
+static inline void gits_write_vpendbaser(u64 val, void * __iomem addr)
+{
+	u32 tmp;
+
+	tmp = readl_relaxed(addr + 4);
+	if (tmp & (GICR_VPENDBASER_Valid >> 32)) {
+		tmp &= ~(GICR_VPENDBASER_Valid >> 32);
+		writel_relaxed(tmp, addr + 4);
+	}
+
+	/*
+	 * Use the fact that __gic_writeq_nonatomic writes the second
+	 * half of the 64bit quantity after the first.
+	 */
+	__gic_writeq_nonatomic(val, addr);
+}
+
+#define gits_read_vpendbaser(c)		__gic_readq_nonatomic(c)
 
 #endif /* !__ASSEMBLY__ */
 #endif /* !__ASM_ARCH_GICV3_H */

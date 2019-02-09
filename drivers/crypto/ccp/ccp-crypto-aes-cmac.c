@@ -46,7 +46,7 @@ static int ccp_aes_cmac_complete(struct crypto_async_request *async_req,
 	}
 
 	/* Update result area if supplied */
-	if (req->result)
+	if (req->result && rctx->final)
 		memcpy(req->result, rctx->iv, digest_size);
 
 e_free:
@@ -220,6 +220,42 @@ static int ccp_aes_cmac_digest(struct ahash_request *req)
 	return ccp_aes_cmac_finup(req);
 }
 
+static int ccp_aes_cmac_export(struct ahash_request *req, void *out)
+{
+	struct ccp_aes_cmac_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_aes_cmac_exp_ctx state;
+
+	/* Don't let anything leak to 'out' */
+	memset(&state, 0, sizeof(state));
+
+	state.null_msg = rctx->null_msg;
+	memcpy(state.iv, rctx->iv, sizeof(state.iv));
+	state.buf_count = rctx->buf_count;
+	memcpy(state.buf, rctx->buf, sizeof(state.buf));
+
+	/* 'out' may not be aligned so memcpy from local variable */
+	memcpy(out, &state, sizeof(state));
+
+	return 0;
+}
+
+static int ccp_aes_cmac_import(struct ahash_request *req, const void *in)
+{
+	struct ccp_aes_cmac_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_aes_cmac_exp_ctx state;
+
+	/* 'in' may not be aligned so memcpy to local variable */
+	memcpy(&state, in, sizeof(state));
+
+	memset(rctx, 0, sizeof(*rctx));
+	rctx->null_msg = state.null_msg;
+	memcpy(rctx->iv, state.iv, sizeof(rctx->iv));
+	rctx->buf_count = state.buf_count;
+	memcpy(rctx->buf, state.buf, sizeof(rctx->buf));
+
+	return 0;
+}
+
 static int ccp_aes_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 			       unsigned int key_len)
 {
@@ -352,21 +388,23 @@ int ccp_register_aes_cmac_algs(struct list_head *head)
 	alg->final = ccp_aes_cmac_final;
 	alg->finup = ccp_aes_cmac_finup;
 	alg->digest = ccp_aes_cmac_digest;
+	alg->export = ccp_aes_cmac_export;
+	alg->import = ccp_aes_cmac_import;
 	alg->setkey = ccp_aes_cmac_setkey;
 
 	halg = &alg->halg;
 	halg->digestsize = AES_BLOCK_SIZE;
+	halg->statesize = sizeof(struct ccp_aes_cmac_exp_ctx);
 
 	base = &halg->base;
 	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "cmac(aes)");
 	snprintf(base->cra_driver_name, CRYPTO_MAX_ALG_NAME, "cmac-aes-ccp");
-	base->cra_flags = CRYPTO_ALG_TYPE_AHASH | CRYPTO_ALG_ASYNC |
+	base->cra_flags = CRYPTO_ALG_ASYNC |
 			  CRYPTO_ALG_KERN_DRIVER_ONLY |
 			  CRYPTO_ALG_NEED_FALLBACK;
 	base->cra_blocksize = AES_BLOCK_SIZE;
 	base->cra_ctxsize = sizeof(struct ccp_ctx);
 	base->cra_priority = CCP_CRA_PRIORITY;
-	base->cra_type = &crypto_ahash_type;
 	base->cra_init = ccp_aes_cmac_cra_init;
 	base->cra_exit = ccp_aes_cmac_cra_exit;
 	base->cra_module = THIS_MODULE;

@@ -111,21 +111,23 @@ static int incl_3d_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
+	s32 min;
 
 	*val = 0;
 	*val2 = 0;
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		hid_sensor_power_state(&incl_state->common_attributes, true);
-		report_id =
-			incl_state->incl[chan->scan_index].report_id;
+		report_id = incl_state->incl[chan->scan_index].report_id;
+		min = incl_state->incl[chan->scan_index].logical_minimum;
 		address = incl_3d_addresses[chan->scan_index];
 		if (report_id >= 0)
 			*val = sensor_hub_input_attr_get_raw_value(
 				incl_state->common_attributes.hsdev,
 				HID_USAGE_SENSOR_INCLINOMETER_3D, address,
 				report_id,
-				SENSOR_HUB_SYNC);
+				SENSOR_HUB_SYNC,
+				min < 0);
 		else {
 			hid_sensor_power_state(&incl_state->common_attributes,
 						false);
@@ -186,7 +188,6 @@ static int incl_3d_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info incl_3d_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &incl_3d_read_raw,
 	.write_raw = &incl_3d_write_raw,
 };

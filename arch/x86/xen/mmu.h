@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _XEN_MMU_H
 
 #include <linux/linkage.h>
@@ -5,6 +6,7 @@
 
 enum pt_level {
 	PT_PGD,
+	PT_P4D,
 	PT_PUD,
 	PT_PMD,
 	PT_PTE

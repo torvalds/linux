@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * UHCI-specific debugging code. Invaluable when something
  * goes wrong, but don't get in my face.
@@ -584,27 +585,8 @@ static int uhci_debug_open(struct inode *inode, struct file *file)
 
 static loff_t uhci_debug_lseek(struct file *file, loff_t off, int whence)
 {
-	struct uhci_debug *up;
-	loff_t new = -1;
-
-	up = file->private_data;
-
-	/*
-	 * XXX: atomic 64bit seek access, but that needs to be fixed in the VFS
-	 */
-	switch (whence) {
-	case 0:
-		new = off;
-		break;
-	case 1:
-		new = file->f_pos + off;
-		break;
-	}
-
-	if (new < 0 || new > up->size)
-		return -EINVAL;
-
-	return (file->f_pos = new);
+	struct uhci_debug *up = file->private_data;
+	return no_seek_end_llseek_size(file, off, whence, up->size);
 }
 
 static ssize_t uhci_debug_read(struct file *file, char __user *buf,

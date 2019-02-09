@@ -95,10 +95,8 @@ void local_flush_tlb_range(struct vm_area_struct *vma,
 	if (mm->context.asid[cpu] == NO_CONTEXT)
 		return;
 
-#if 0
-	printk("[tlbrange<%02lx,%08lx,%08lx>]\n",
-			(unsigned long)mm->context.asid[cpu], start, end);
-#endif
+	pr_debug("[tlbrange<%02lx,%08lx,%08lx>]\n",
+		 (unsigned long)mm->context.asid[cpu], start, end);
 	local_irq_save(flags);
 
 	if (end-start + (PAGE_SIZE-1) <= _TLB_ENTRIES << PAGE_SHIFT) {
@@ -245,7 +243,7 @@ static int check_tlb_entry(unsigned w, unsigned e, bool dtlb)
 						page_mapcount(p));
 				if (!page_count(p))
 					rc |= TLB_INSANE;
-				else if (page_mapped(p))
+				else if (page_mapcount(p))
 					rc |= TLB_SUSPICIOUS;
 			} else {
 				rc |= TLB_INSANE;

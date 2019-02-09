@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Precise Delay Loops for S390
  *
@@ -9,7 +10,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/timex.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/irqflags.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -57,7 +58,7 @@ static void __udelay_enabled(unsigned long long usecs)
 	end = get_tod_clock_fast() + (usecs << 12);
 	do {
 		clock_saved = 0;
-		if (end < S390_lowcore.clock_comparator) {
+		if (tod_after(S390_lowcore.clock_comparator, end)) {
 			clock_saved = local_tick_disable();
 			set_clock_comparator(end);
 		}

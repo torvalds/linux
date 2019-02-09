@@ -50,6 +50,7 @@ enum ocfs2_lock_type {
 	OCFS2_LOCK_TYPE_NFS_SYNC,
 	OCFS2_LOCK_TYPE_ORPHAN_SCAN,
 	OCFS2_LOCK_TYPE_REFCOUNT,
+	OCFS2_LOCK_TYPE_TRIM_FS,
 	OCFS2_NUM_LOCK_TYPES
 };
 
@@ -93,6 +94,9 @@ static inline char ocfs2_lock_type_char(enum ocfs2_lock_type type)
 		case OCFS2_LOCK_TYPE_REFCOUNT:
 			c = 'T';
 			break;
+		case OCFS2_LOCK_TYPE_TRIM_FS:
+			c = 'I';
+			break;
 		default:
 			c = '\0';
 	}
@@ -115,6 +119,7 @@ static char *ocfs2_lock_type_strings[] = {
 	[OCFS2_LOCK_TYPE_NFS_SYNC] = "NFSSync",
 	[OCFS2_LOCK_TYPE_ORPHAN_SCAN] = "OrphanScan",
 	[OCFS2_LOCK_TYPE_REFCOUNT] = "Refcount",
+	[OCFS2_LOCK_TYPE_TRIM_FS] = "TrimFs",
 };
 
 static inline const char *ocfs2_lock_type_string(enum ocfs2_lock_type type)

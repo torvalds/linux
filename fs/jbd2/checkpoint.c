@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * linux/fs/jbd2/checkpoint.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1999
  *
  * Copyright 1999 Red Hat Software --- All Rights Reserved
- *
- * This file is part of the Linux kernel and is made available under
- * the terms of the GNU General Public License, version 2, or at your
- * option, any later version, incorporated herein by reference.
  *
  * Checkpoint routines for the generic filesystem journaling code.
  * Part of the ext2fs journaling system.
@@ -186,7 +183,7 @@ __flush_batch(journal_t *journal, int *batch_count)
 
 	blk_start_plug(&plug);
 	for (i = 0; i < *batch_count; i++)
-		write_dirty_buffer(journal->j_chkpt_bhs[i], WRITE_SYNC);
+		write_dirty_buffer(journal->j_chkpt_bhs[i], REQ_SYNC);
 	blk_finish_plug(&plug);
 
 	for (i = 0; i < *batch_count; i++) {
@@ -254,8 +251,8 @@ restart:
 		bh = jh2bh(jh);
 
 		if (buffer_locked(bh)) {
-			spin_unlock(&journal->j_list_lock);
 			get_bh(bh);
+			spin_unlock(&journal->j_list_lock);
 			wait_on_buffer(bh);
 			/* the journal_head may have gone by now */
 			BUFFER_TRACE(bh, "brelse");
@@ -336,8 +333,8 @@ restart2:
 		jh = transaction->t_checkpoint_io_list;
 		bh = jh2bh(jh);
 		if (buffer_locked(bh)) {
-			spin_unlock(&journal->j_list_lock);
 			get_bh(bh);
+			spin_unlock(&journal->j_list_lock);
 			wait_on_buffer(bh);
 			/* the journal_head may have gone by now */
 			BUFFER_TRACE(bh, "brelse");

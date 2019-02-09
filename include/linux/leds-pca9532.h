@@ -16,24 +16,24 @@
 
 #include <linux/leds.h>
 #include <linux/workqueue.h>
+#include <dt-bindings/leds/leds-pca9532.h>
 
 enum pca9532_state {
 	PCA9532_OFF  = 0x0,
 	PCA9532_ON   = 0x1,
 	PCA9532_PWM0 = 0x2,
-	PCA9532_PWM1 = 0x3
+	PCA9532_PWM1 = 0x3,
+	PCA9532_KEEP = 0xff,
 };
-
-enum pca9532_type { PCA9532_TYPE_NONE, PCA9532_TYPE_LED,
-	PCA9532_TYPE_N2100_BEEP, PCA9532_TYPE_GPIO };
 
 struct pca9532_led {
 	u8 id;
 	struct i2c_client *client;
-	char *name;
+	const char *name;
+	const char *default_trigger;
 	struct led_classdev ldev;
 	struct work_struct work;
-	enum pca9532_type type;
+	u32 type;
 	enum pca9532_state state;
 };
 
@@ -45,4 +45,3 @@ struct pca9532_platform_data {
 };
 
 #endif /* __LINUX_PCA9532_H */
-

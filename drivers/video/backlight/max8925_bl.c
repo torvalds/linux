@@ -116,7 +116,7 @@ static void max8925_backlight_dt_init(struct platform_device *pdev)
 	if (!pdata)
 		return;
 
-	np = of_find_node_by_name(nproot, "backlight");
+	np = of_get_child_by_name(nproot, "backlight");
 	if (!np) {
 		dev_err(&pdev->dev, "failed to find backlight node\n");
 		return;
@@ -124,6 +124,8 @@ static void max8925_backlight_dt_init(struct platform_device *pdev)
 
 	if (!of_property_read_u32(np, "maxim,max8925-dual-string", &val))
 		pdata->dual_string = val;
+
+	of_node_put(np);
 
 	pdev->dev.platform_data = pdata;
 }

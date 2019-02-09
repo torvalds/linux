@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Super block/filesystem wide operations
  *
@@ -74,9 +75,9 @@ static void init_once(void *foo)
 int __init coda_init_inodecache(void)
 {
 	coda_inode_cachep = kmem_cache_create("coda_inode_cache",
-				sizeof(struct coda_inode_info),
-				0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
-				init_once);
+				sizeof(struct coda_inode_info), 0,
+				SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
+				SLAB_ACCOUNT, init_once);
 	if (coda_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;
@@ -95,7 +96,7 @@ void coda_destroy_inodecache(void)
 static int coda_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_NOATIME;
+	*flags |= SB_NOATIME;
 	return 0;
 }
 
@@ -183,21 +184,20 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 		goto unlock_out;
 	}
 
-	error = bdi_setup_and_register(&vc->bdi, "coda");
-	if (error)
-		goto unlock_out;
-
 	vc->vc_sb = sb;
 	mutex_unlock(&vc->vc_mutex);
 
 	sb->s_fs_info = vc;
-	sb->s_flags |= MS_NOATIME;
+	sb->s_flags |= SB_NOATIME;
 	sb->s_blocksize = 4096;	/* XXXXX  what do we put here?? */
 	sb->s_blocksize_bits = 12;
 	sb->s_magic = CODA_SUPER_MAGIC;
 	sb->s_op = &coda_super_operations;
 	sb->s_d_op = &coda_dentry_operations;
-	sb->s_bdi = &vc->bdi;
+
+	error = super_setup_bdi(sb);
+	if (error)
+		goto error;
 
 	/* get root fid from Venus: this needs the root inode */
 	error = venus_rootfid(sb, &fid);
@@ -228,7 +228,6 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 
 error:
 	mutex_lock(&vc->vc_mutex);
-	bdi_destroy(&vc->bdi);
 	vc->vc_sb = NULL;
 	sb->s_fs_info = NULL;
 unlock_out:
@@ -240,7 +239,6 @@ static void coda_put_super(struct super_block *sb)
 {
 	struct venus_comm *vcp = coda_vcp(sb);
 	mutex_lock(&vcp->vc_mutex);
-	bdi_destroy(&vcp->bdi);
 	vcp->vc_sb = NULL;
 	sb->s_fs_info = NULL;
 	mutex_unlock(&vcp->vc_mutex);
@@ -255,11 +253,12 @@ static void coda_evict_inode(struct inode *inode)
 	coda_cache_clear_inode(inode);
 }
 
-int coda_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+int coda_getattr(const struct path *path, struct kstat *stat,
+		 u32 request_mask, unsigned int flags)
 {
-	int err = coda_revalidate_inode(d_inode(dentry));
+	int err = coda_revalidate_inode(d_inode(path->dentry));
 	if (!err)
-		generic_fillattr(d_inode(dentry), stat);
+		generic_fillattr(d_inode(path->dentry), stat);
 	return err;
 }
 
@@ -271,7 +270,7 @@ int coda_setattr(struct dentry *de, struct iattr *iattr)
 
 	memset(&vattr, 0, sizeof(vattr)); 
 
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	coda_iattr_to_vattr(iattr, &vattr);
 	vattr.va_type = C_VNON; /* cannot set type */
 

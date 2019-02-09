@@ -19,11 +19,12 @@
 #define ST_MAX_RELATIVE_THROUGHPUT	100
 #define ST_MAX_RELATIVE_THROUGHPUT_SHIFT	7
 #define ST_MAX_INFLIGHT_SIZE	((size_t)-1 >> ST_MAX_RELATIVE_THROUGHPUT_SHIFT)
-#define ST_VERSION	"0.2.0"
+#define ST_VERSION	"0.3.0"
 
 struct selector {
 	struct list_head valid_paths;
 	struct list_head failed_paths;
+	spinlock_t lock;
 };
 
 struct path_info {
@@ -41,6 +42,7 @@ static struct selector *alloc_selector(void)
 	if (s) {
 		INIT_LIST_HEAD(&s->valid_paths);
 		INIT_LIST_HEAD(&s->failed_paths);
+		spin_lock_init(&s->lock);
 	}
 
 	return s;
@@ -111,6 +113,7 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 	unsigned repeat_count = ST_MIN_IO;
 	unsigned relative_throughput = 1;
 	char dummy;
+	unsigned long flags;
 
 	/*
 	 * Arguments: [<repeat_count> [<relative_throughput>]]
@@ -134,6 +137,11 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 		return -EINVAL;
 	}
 
+	if (repeat_count > 1) {
+		DMWARN_LIMIT("repeat_count > 1 is deprecated, using 1 instead");
+		repeat_count = 1;
+	}
+
 	if ((argc == 2) &&
 	    (sscanf(argv[1], "%u%c", &relative_throughput, &dummy) != 1 ||
 	     relative_throughput > ST_MAX_RELATIVE_THROUGHPUT)) {
@@ -155,7 +163,9 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 
 	path->pscontext = pi;
 
+	spin_lock_irqsave(&s->lock, flags);
 	list_add_tail(&pi->list, &s->valid_paths);
+	spin_unlock_irqrestore(&s->lock, flags);
 
 	return 0;
 }
@@ -164,16 +174,22 @@ static void st_fail_path(struct path_selector *ps, struct dm_path *path)
 {
 	struct selector *s = ps->context;
 	struct path_info *pi = path->pscontext;
+	unsigned long flags;
 
+	spin_lock_irqsave(&s->lock, flags);
 	list_move(&pi->list, &s->failed_paths);
+	spin_unlock_irqrestore(&s->lock, flags);
 }
 
 static int st_reinstate_path(struct path_selector *ps, struct dm_path *path)
 {
 	struct selector *s = ps->context;
 	struct path_info *pi = path->pscontext;
+	unsigned long flags;
 
+	spin_lock_irqsave(&s->lock, flags);
 	list_move_tail(&pi->list, &s->valid_paths);
+	spin_unlock_irqrestore(&s->lock, flags);
 
 	return 0;
 }
@@ -255,28 +271,31 @@ static int st_compare_load(struct path_info *pi1, struct path_info *pi2,
 	return pi2->relative_throughput - pi1->relative_throughput;
 }
 
-static struct dm_path *st_select_path(struct path_selector *ps,
-				      unsigned *repeat_count, size_t nr_bytes)
+static struct dm_path *st_select_path(struct path_selector *ps, size_t nr_bytes)
 {
 	struct selector *s = ps->context;
 	struct path_info *pi = NULL, *best = NULL;
+	struct dm_path *ret = NULL;
+	unsigned long flags;
 
+	spin_lock_irqsave(&s->lock, flags);
 	if (list_empty(&s->valid_paths))
-		return NULL;
-
-	/* Change preferred (first in list) path to evenly balance. */
-	list_move_tail(s->valid_paths.next, &s->valid_paths);
+		goto out;
 
 	list_for_each_entry(pi, &s->valid_paths, list)
 		if (!best || (st_compare_load(pi, best, nr_bytes) < 0))
 			best = pi;
 
 	if (!best)
-		return NULL;
+		goto out;
 
-	*repeat_count = best->repeat_count;
+	/* Move most recently used to least preferred to evenly balance. */
+	list_move_tail(&best->list, &s->valid_paths);
 
-	return best->path;
+	ret = best->path;
+out:
+	spin_unlock_irqrestore(&s->lock, flags);
+	return ret;
 }
 
 static int st_start_io(struct path_selector *ps, struct dm_path *path,

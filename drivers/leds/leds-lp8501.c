@@ -118,19 +118,19 @@ static int lp8501_post_init_device(struct lp55xx_chip *chip)
 static void lp8501_load_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
-	u8 mask[] = {
+	static const u8 mask[] = {
 		[LP55XX_ENGINE_1] = LP8501_MODE_ENG1_M,
 		[LP55XX_ENGINE_2] = LP8501_MODE_ENG2_M,
 		[LP55XX_ENGINE_3] = LP8501_MODE_ENG3_M,
 	};
 
-	u8 val[] = {
+	static const u8 val[] = {
 		[LP55XX_ENGINE_1] = LP8501_LOAD_ENG1,
 		[LP55XX_ENGINE_2] = LP8501_LOAD_ENG2,
 		[LP55XX_ENGINE_3] = LP8501_LOAD_ENG3,
 	};
 
-	u8 page_sel[] = {
+	static const u8 page_sel[] = {
 		[LP55XX_ENGINE_1] = LP8501_PAGE_ENG1,
 		[LP55XX_ENGINE_2] = LP8501_PAGE_ENG2,
 		[LP55XX_ENGINE_3] = LP8501_PAGE_ENG3,
@@ -272,16 +272,17 @@ static void lp8501_firmware_loaded(struct lp55xx_chip *chip)
 	lp8501_update_program_memory(chip, fw->data, fw->size);
 }
 
-static void lp8501_led_brightness_work(struct work_struct *work)
+static int lp8501_led_brightness(struct lp55xx_led *led)
 {
-	struct lp55xx_led *led = container_of(work, struct lp55xx_led,
-					      brightness_work);
 	struct lp55xx_chip *chip = led->chip;
+	int ret;
 
 	mutex_lock(&chip->lock);
-	lp55xx_write(chip, LP8501_REG_LED_PWM_BASE + led->chan_nr,
+	ret = lp55xx_write(chip, LP8501_REG_LED_PWM_BASE + led->chan_nr,
 		     led->brightness);
 	mutex_unlock(&chip->lock);
+
+	return ret;
 }
 
 /* Chip specific configurations */
@@ -296,7 +297,7 @@ static struct lp55xx_device_config lp8501_cfg = {
 	},
 	.max_channel  = LP8501_MAX_LEDS,
 	.post_init_device   = lp8501_post_init_device,
-	.brightness_work_fn = lp8501_led_brightness_work,
+	.brightness_fn      = lp8501_led_brightness,
 	.set_led_current    = lp8501_set_led_current,
 	.firmware_cb        = lp8501_firmware_loaded,
 	.run_engine         = lp8501_run_engine,
@@ -326,8 +327,8 @@ static int lp8501_probe(struct i2c_client *client,
 	if (!chip)
 		return -ENOMEM;
 
-	led = devm_kzalloc(&client->dev,
-			sizeof(*led) * pdata->num_channels, GFP_KERNEL);
+	led = devm_kcalloc(&client->dev,
+			pdata->num_channels, sizeof(*led), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
 

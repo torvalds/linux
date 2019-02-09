@@ -221,7 +221,7 @@ void i2400m_tx_prep_header(struct sk_buff *skb)
 {
 	struct i2400m_pl_data_hdr *pl_hdr;
 	skb_pull(skb, ETH_HLEN);
-	pl_hdr = (struct i2400m_pl_data_hdr *) skb_push(skb, sizeof(*pl_hdr));
+	pl_hdr = skb_push(skb, sizeof(*pl_hdr));
 	pl_hdr->reserved = 0;
 }
 
@@ -334,7 +334,7 @@ int i2400m_net_tx(struct i2400m *i2400m, struct net_device *net_dev,
 	d_fnstart(3, dev, "(i2400m %p net_dev %p skb %p)\n",
 		  i2400m, net_dev, skb);
 	/* FIXME: check eth hdr, only IPv4 is routed by the device as of now */
-	net_dev->trans_start = jiffies;
+	netif_trans_update(net_dev);
 	i2400m_tx_prep_header(skb);
 	d_printf(3, dev, "NETTX: skb %p sending %d bytes to radio\n",
 		 skb, skb->len);
@@ -391,25 +391,6 @@ drop:
 	dev_kfree_skb(skb);
 	d_fnend(3, dev, "(skb %p net_dev %p) = %d\n", skb, net_dev, result);
 	return NETDEV_TX_OK;
-}
-
-
-static
-int i2400m_change_mtu(struct net_device *net_dev, int new_mtu)
-{
-	int result;
-	struct i2400m *i2400m = net_dev_to_i2400m(net_dev);
-	struct device *dev = i2400m_dev(i2400m);
-
-	if (new_mtu >= I2400M_MAX_MTU) {
-		dev_err(dev, "Cannot change MTU to %d (max is %d)\n",
-			new_mtu, I2400M_MAX_MTU);
-		result = -EINVAL;
-	} else {
-		net_dev->mtu = new_mtu;
-		result = 0;
-	}
-	return result;
 }
 
 
@@ -507,7 +488,7 @@ void i2400m_net_rx(struct i2400m *i2400m, struct sk_buff *skb_rx,
 			net_dev->stats.rx_dropped++;
 			goto error_skb_realloc;
 		}
-		memcpy(skb_put(skb, buf_len), buf, buf_len);
+		skb_put_data(skb, buf, buf_len);
 	}
 	i2400m_rx_fake_eth_header(i2400m->wimax_dev.net_dev,
 				  skb->data - ETH_HLEN,
@@ -554,14 +535,12 @@ void i2400m_net_erx(struct i2400m *i2400m, struct sk_buff *skb,
 {
 	struct net_device *net_dev = i2400m->wimax_dev.net_dev;
 	struct device *dev = i2400m_dev(i2400m);
-	int protocol;
 
 	d_fnstart(2, dev, "(i2400m %p skb %p [%u] cs %d)\n",
 		  i2400m, skb, skb->len, cs);
 	switch(cs) {
 	case I2400M_CS_IPV4_0:
 	case I2400M_CS_IPV4:
-		protocol = ETH_P_IP;
 		i2400m_rx_fake_eth_header(i2400m->wimax_dev.net_dev,
 					  skb->data - ETH_HLEN,
 					  cpu_to_be16(ETH_P_IP));
@@ -590,7 +569,6 @@ static const struct net_device_ops i2400m_netdev_ops = {
 	.ndo_stop = i2400m_stop,
 	.ndo_start_xmit = i2400m_hard_start_xmit,
 	.ndo_tx_timeout = i2400m_tx_timeout,
-	.ndo_change_mtu = i2400m_change_mtu,
 };
 
 static void i2400m_get_drvinfo(struct net_device *net_dev,
@@ -621,6 +599,8 @@ void i2400m_netdev_setup(struct net_device *net_dev)
 	d_fnstart(3, NULL, "(net_dev %p)\n", net_dev);
 	ether_setup(net_dev);
 	net_dev->mtu = I2400M_MAX_MTU;
+	net_dev->min_mtu = 0;
+	net_dev->max_mtu = I2400M_MAX_MTU;
 	net_dev->tx_queue_len = I2400M_TX_QLEN;
 	net_dev->features =
 		  NETIF_F_VLAN_CHALLENGED

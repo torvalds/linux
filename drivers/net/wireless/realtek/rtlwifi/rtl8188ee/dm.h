@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -274,7 +270,7 @@ void rtl88e_dm_set_tx_ant_by_tx_info(struct ieee80211_hw *hw,
 void rtl88e_dm_ant_sel_statistics(struct ieee80211_hw *hw,
 				  u8 antsel_tr_mux, u32 mac_id,
 				  u32 rx_pwdb_all);
-void rtl88e_dm_fast_antenna_training_callback(unsigned long data);
+void rtl88e_dm_fast_antenna_training_callback(struct timer_list *t);
 void rtl88e_dm_init(struct ieee80211_hw *hw);
 void rtl88e_dm_watchdog(struct ieee80211_hw *hw);
 void rtl88e_dm_write_dig(struct ieee80211_hw *hw);

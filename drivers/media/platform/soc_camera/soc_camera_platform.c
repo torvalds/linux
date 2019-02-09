@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generic Platform Camera Driver
  *
  * Copyright (C) 2008 Magnus Damm
  * Based on mt9m001 driver,
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -18,7 +15,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-subdev.h>
 #include <media/soc_camera.h>
-#include <media/soc_camera_platform.h>
+#include <linux/platform_data/media/soc_camera_platform.h>
 
 struct soc_camera_platform_priv {
 	struct v4l2_subdev subdev;
@@ -59,7 +56,7 @@ static int soc_camera_platform_s_power(struct v4l2_subdev *sd, int on)
 	return soc_camera_set_power(p->icd->control, &p->icd->sdesc->subdev_desc, NULL, on);
 }
 
-static struct v4l2_subdev_core_ops platform_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops platform_subdev_core_ops = {
 	.s_power = soc_camera_platform_s_power,
 };
 
@@ -76,35 +73,27 @@ static int soc_camera_platform_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int soc_camera_platform_g_crop(struct v4l2_subdev *sd,
-				      struct v4l2_crop *a)
+static int soc_camera_platform_get_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
 	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
 
-	a->c.left	= 0;
-	a->c.top	= 0;
-	a->c.width	= p->format.width;
-	a->c.height	= p->format.height;
-	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
-	return 0;
-}
-
-static int soc_camera_platform_cropcap(struct v4l2_subdev *sd,
-				       struct v4l2_cropcap *a)
-{
-	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
-
-	a->bounds.left			= 0;
-	a->bounds.top			= 0;
-	a->bounds.width			= p->format.width;
-	a->bounds.height		= p->format.height;
-	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP:
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = p->format.width;
+		sel->r.height = p->format.height;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int soc_camera_platform_g_mbus_config(struct v4l2_subdev *sd,
@@ -118,20 +107,19 @@ static int soc_camera_platform_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops platform_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops platform_subdev_video_ops = {
 	.s_stream	= soc_camera_platform_s_stream,
-	.cropcap	= soc_camera_platform_cropcap,
-	.g_crop		= soc_camera_platform_g_crop,
 	.g_mbus_config	= soc_camera_platform_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops platform_subdev_pad_ops = {
 	.enum_mbus_code = soc_camera_platform_enum_mbus_code,
+	.get_selection	= soc_camera_platform_get_selection,
 	.get_fmt	= soc_camera_platform_fill_fmt,
 	.set_fmt	= soc_camera_platform_fill_fmt,
 };
 
-static struct v4l2_subdev_ops platform_subdev_ops = {
+static const struct v4l2_subdev_ops platform_subdev_ops = {
 	.core	= &platform_subdev_core_ops,
 	.video	= &platform_subdev_video_ops,
 	.pad	= &platform_subdev_pad_ops,
@@ -168,7 +156,8 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 
 	v4l2_subdev_init(&priv->subdev, &platform_subdev_ops);
 	v4l2_set_subdevdata(&priv->subdev, p);
-	strncpy(priv->subdev.name, dev_name(&pdev->dev), V4L2_SUBDEV_NAME_SIZE);
+	strlcpy(priv->subdev.name, dev_name(&pdev->dev),
+		sizeof(priv->subdev.name));
 
 	return v4l2_device_register_subdev(&ici->v4l2_dev, &priv->subdev);
 }

@@ -508,8 +508,8 @@ static void __init p1022_ds_setup_arch(void)
 				 * allocate one static local variable for each
 				 * call to this function.
 				 */
-				pr_info("p1022ds: disabling %s node",
-					np2->full_name);
+				pr_info("p1022ds: disabling %pOF node",
+					np2);
 				of_update_property(np2, &nor_status);
 				of_node_put(np2);
 			}
@@ -524,8 +524,8 @@ static void __init p1022_ds_setup_arch(void)
 					.length = sizeof("disabled"),
 				};
 
-				pr_info("p1022ds: disabling %s node",
-					np2->full_name);
+				pr_info("p1022ds: disabling %pOF node",
+					np2);
 				of_update_property(np2, &nand_status);
 				of_node_put(np2);
 			}
@@ -555,9 +555,7 @@ machine_arch_initcall(p1022_ds, swiotlb_setup_bus_notifier);
  */
 static int __init p1022_ds_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "fsl,p1022ds");
+	return of_machine_is_compatible("fsl,p1022ds");
 }
 
 define_machine(p1022_ds) {
@@ -570,7 +568,6 @@ define_machine(p1022_ds) {
 	.pcibios_fixup_phb	= fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

@@ -27,6 +27,8 @@
 #include <asm/asm-offsets.h>
 #include <asm/exception-64s.h>
 #include <asm/ppc-opcode.h>
+#include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
 
 /*****************************************************************************
  *                                                                           *
@@ -61,13 +63,6 @@ BEGIN_FTR_SECTION
 	std	r3, HSTATE_DABR(r13)
 END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 
-	/* Hard-disable interrupts */
-	mfmsr   r10
-	std	r10, HSTATE_HOST_MSR(r13)
-	rldicl  r10,r10,48,1
-	rotldi  r10,r10,16
-	mtmsrd  r10,1
-
 	/* Save host PMU registers */
 BEGIN_FTR_SECTION
 	/* Work around P8 PMAE bug */
@@ -86,8 +81,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	li	r5, 0
 	mtspr	SPRN_MMCRA, r5
 	isync
-	ld	r3, PACALPPACAPTR(r13)	/* is the host using the PMU? */
-	lbz	r5, LPPACA_PMCINUSE(r3)
+	lbz	r5, PACA_PMCINUSE(r13)	/* is the host using the PMU? */
 	cmpwi	r5, 0
 	beq	31f			/* skip if not */
 	mfspr	r5, SPRN_MMCR1
@@ -121,10 +115,20 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	 * Put whatever is in the decrementer into the
 	 * hypervisor decrementer.
 	 */
+BEGIN_FTR_SECTION
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	ld	r6, VCORE_KVM(r5)
+	ld	r9, KVM_HOST_LPCR(r6)
+	andis.	r9, r9, LPCR_LD@h
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	mfspr	r8,SPRN_DEC
 	mftb	r7
-	mtspr	SPRN_HDEC,r8
+BEGIN_FTR_SECTION
+	/* On POWER9, don't sign-extend if host LPCR[LD] bit is set */
+	bne	32f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	extsw	r8,r8
+32:	mtspr	SPRN_HDEC,r8
 	add	r8,r8,r7
 	std	r8,HSTATE_DECEXP(r13)
 
@@ -135,7 +139,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 /*
  * We return here in virtual mode after the guest exits
  * with something that we can't handle in real mode.
- * Interrupts are enabled again at this point.
+ * Interrupts are still hard-disabled.
  */
 
 	/*
@@ -143,6 +147,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	 *
 	 * R1       = host R1
 	 * R2       = host R2
+	 * R3       = trap number on this thread
 	 * R12      = exit handler id
 	 * R13      = PACA
 	 */

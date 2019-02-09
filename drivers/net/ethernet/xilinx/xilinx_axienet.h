@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for Xilinx Axi Ethernet device driver.
  *
@@ -382,16 +383,14 @@ struct axidma_bd {
  * struct axienet_local - axienet private per device data
  * @ndev:	Pointer for net_device to which it will be attached.
  * @dev:	Pointer to device structure
- * @phy_dev:	Pointer to PHY device structure attached to the axienet_local
  * @phy_node:	Pointer to device node structure
  * @mii_bus:	Pointer to MII bus structure
- * @mdio_irqs:	IRQs table for MDIO bus required in mii_bus structure
  * @regs:	Base address for the axienet_local device address space
  * @dma_regs:	Base address for the axidma device address space
  * @dma_err_tasklet: Tasklet structure to process Axi DMA errors
  * @tx_irq:	Axidma TX IRQ number
  * @rx_irq:	Axidma RX IRQ number
- * @phy_type:	Phy type to identify between MII/GMII/RGMII/SGMII/1000 Base-X
+ * @phy_mode:	Phy type to identify between MII/GMII/RGMII/SGMII/1000 Base-X
  * @options:	AxiEthernet option word
  * @last_link:	Phy link state in which the PHY was negotiated earlier
  * @features:	Stores the extended features supported by the axienet hw
@@ -421,12 +420,10 @@ struct axienet_local {
 	struct device *dev;
 
 	/* Connection to PHY device */
-	struct phy_device *phy_dev;	/* Pointer to PHY device */
 	struct device_node *phy_node;
 
 	/* MDIO bus data */
 	struct mii_bus *mii_bus;	/* MII bus reference */
-	int mdio_irqs[PHY_MAX_ADDR];	/* IRQs table for MDIO bus */
 
 	/* IO registers, dma functions and IRQs */
 	void __iomem *regs;
@@ -436,7 +433,7 @@ struct axienet_local {
 
 	int tx_irq;
 	int rx_irq;
-	u32 phy_type;
+	phy_interface_t phy_mode;
 
 	u32 options;			/* Current options word */
 	u32 last_link;

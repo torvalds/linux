@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi_parport.c
  * Comedi driver for standard parallel port
@@ -7,16 +8,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998,2001 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -75,8 +66,8 @@
 #define PARPORT_DATA_REG	0x00
 #define PARPORT_STATUS_REG	0x01
 #define PARPORT_CTRL_REG	0x02
-#define PARPORT_CTRL_IRQ_ENA	(1 << 4)
-#define PARPORT_CTRL_BIDIR_ENA	(1 << 5)
+#define PARPORT_CTRL_IRQ_ENA	BIT(4)
+#define PARPORT_CTRL_BIDIR_ENA	BIT(5)
 
 static int parport_data_reg_insn_bits(struct comedi_device *dev,
 				      struct comedi_subdevice *s,

@@ -23,11 +23,13 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/signal.h>
 #include <linux/ratelimit.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/hardirq.h>
+#include <asm/traps.h>
 
 /* #define DEBUG_UNALIGNED 1 */
 
@@ -129,8 +131,6 @@
 #define ERR_PAGEFAULT	-2
 
 int unaligned_enabled __read_mostly = 1;
-
-void die_if_kernel (char *str, struct pt_regs *regs, long err);
 
 static int emulate_ldh(struct pt_regs *regs, int toreg)
 {
@@ -452,7 +452,6 @@ void handle_unaligned(struct pt_regs *regs)
 	unsigned long newbase = R1(regs->iir)?regs->gr[R1(regs->iir)]:0;
 	int modify = 0;
 	int ret = ERR_NOTHANDLED;
-	struct siginfo si;
 	register int flop=0;	/* true if this is a flop */
 
 	__inc_irq_stat(irq_unaligned_count);
@@ -666,7 +665,7 @@ void handle_unaligned(struct pt_regs *regs)
 		break;
 	}
 
-	if (modify && R1(regs->iir))
+	if (ret == 0 && modify && R1(regs->iir))
 		regs->gr[R1(regs->iir)] = newbase;
 
 
@@ -677,26 +676,28 @@ void handle_unaligned(struct pt_regs *regs)
 
 	if (ret)
 	{
+		/*
+		 * The unaligned handler failed.
+		 * If we were called by __get_user() or __put_user() jump
+		 * to it's exception fixup handler instead of crashing.
+		 */
+		if (!user_mode(regs) && fixup_exception(regs))
+			return;
+
 		printk(KERN_CRIT "Unaligned handler failed, ret = %d\n", ret);
 		die_if_kernel("Unaligned data reference", regs, 28);
 
 		if (ret == ERR_PAGEFAULT)
 		{
-			si.si_signo = SIGSEGV;
-			si.si_errno = 0;
-			si.si_code = SEGV_MAPERR;
-			si.si_addr = (void __user *)regs->ior;
-			force_sig_info(SIGSEGV, &si, current);
+			force_sig_fault(SIGSEGV, SEGV_MAPERR,
+					(void __user *)regs->ior, current);
 		}
 		else
 		{
 force_sigbus:
 			/* couldn't handle it ... */
-			si.si_signo = SIGBUS;
-			si.si_errno = 0;
-			si.si_code = BUS_ADRALN;
-			si.si_addr = (void __user *)regs->ior;
-			force_sig_info(SIGBUS, &si, current);
+			force_sig_fault(SIGBUS, BUS_ADRALN,
+					(void __user *)regs->ior, current);
 		}
 		
 		return;

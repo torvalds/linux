@@ -39,7 +39,6 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/fips.h>
 #include <linux/time.h>
 #include <linux/crypto.h>
@@ -87,24 +86,28 @@ void jent_memcpy(void *dest, const void *src, unsigned int n)
 	memcpy(dest, src, n);
 }
 
+/*
+ * Obtain a high-resolution time stamp value. The time stamp is used to measure
+ * the execution time of a given code path and its variations. Hence, the time
+ * stamp must have a sufficiently high resolution.
+ *
+ * Note, if the function returns zero because a given architecture does not
+ * implement a high-resolution time stamp, the RNG code's runtime test
+ * will detect it and will not produce output.
+ */
 void jent_get_nstime(__u64 *out)
 {
-	struct timespec ts;
 	__u64 tmp = 0;
 
 	tmp = random_get_entropy();
 
 	/*
-	 * If random_get_entropy does not return a value (which is possible on,
-	 * for example, MIPS), invoke __getnstimeofday
+	 * If random_get_entropy does not return a value, i.e. it is not
+	 * implemented for a given architecture, use a clock source.
 	 * hoping that there are timers we can work with.
 	 */
-	if ((0 == tmp) &&
-	   (0 == __getnstimeofday(&ts))) {
-		tmp = ts.tv_sec;
-		tmp = tmp << 32;
-		tmp = tmp | ts.tv_nsec;
-	}
+	if (tmp == 0)
+		tmp = ktime_get_ns();
 
 	*out = tmp;
 }

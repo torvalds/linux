@@ -58,7 +58,7 @@ void nlm_node_init(int node)
 		nodep->coremask = 1;	/* node 0, boot cpu */
 	nodep->sysbase = nlm_get_sys_regbase(node);
 	nodep->picbase = nlm_get_pic_regbase(node);
-	nodep->ebase = read_c0_ebase() & (~((1 << 12) - 1));
+	nodep->ebase = read_c0_ebase() & MIPS_EBASE_BASE;
 	if (cpu_is_xlp9xx())
 		nodep->socbus = xlp9xx_get_socbus(node);
 	else

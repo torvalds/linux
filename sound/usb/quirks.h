@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __USBAUDIO_QUIRKS_H
 #define __USBAUDIO_QUIRKS_H
 
@@ -16,7 +17,8 @@ int snd_usb_apply_interface_quirk(struct snd_usb_audio *chip,
 
 int snd_usb_apply_boot_quirk(struct usb_device *dev,
 			     struct usb_interface *intf,
-			     const struct snd_usb_audio_quirk *quirk);
+			     const struct snd_usb_audio_quirk *quirk,
+			     unsigned int usb_id);
 
 void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 			      struct audioformat *fmt);
@@ -39,5 +41,9 @@ int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 					struct audioformat *fp,
 					unsigned int sample_bytes);
+
+void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
+					  struct audioformat *fp,
+					  int stream);
 
 #endif /* __USBAUDIO_QUIRKS_H */

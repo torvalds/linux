@@ -24,13 +24,8 @@
 #ifndef __GMC_V8_0_H__
 #define __GMC_V8_0_H__
 
-extern const struct amd_ip_funcs gmc_v8_0_ip_funcs;
-
-/* XXX these shouldn't be exported */
-void gmc_v8_0_mc_stop(struct amdgpu_device *adev,
-		      struct amdgpu_mode_mc_save *save);
-void gmc_v8_0_mc_resume(struct amdgpu_device *adev,
-			struct amdgpu_mode_mc_save *save);
-int gmc_v8_0_mc_wait_for_idle(struct amdgpu_device *adev);
+extern const struct amdgpu_ip_block_version gmc_v8_0_ip_block;
+extern const struct amdgpu_ip_block_version gmc_v8_1_ip_block;
+extern const struct amdgpu_ip_block_version gmc_v8_5_ip_block;
 
 #endif

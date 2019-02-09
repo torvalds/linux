@@ -1,0 +1,35 @@
+config WLAN_VENDOR_ZYDAS
+	bool "ZyDAS devices"
+	default y
+	---help---
+	  If you have a wireless card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all the
+	  questions about these cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if WLAN_VENDOR_ZYDAS
+
+config USB_ZD1201
+	tristate "USB ZD1201 based Wireless device support"
+	depends on CFG80211 && USB
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	select FW_LOADER
+	---help---
+	  Say Y if you want to use wireless LAN adapters based on the ZyDAS
+	  ZD1201 chip.
+
+	  This driver makes the adapter appear as a normal Ethernet interface,
+	  typically on wlan0.
+
+	  The zd1201 device requires external firmware to be loaded.
+	  This can be found at http://linux-lc100020.sourceforge.net/
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zd1201.
+
+source "drivers/net/wireless/zydas/zd1211rw/Kconfig"
+
+endif # WLAN_VENDOR_ZYDAS

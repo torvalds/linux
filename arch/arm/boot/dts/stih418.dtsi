@@ -30,8 +30,9 @@
 	};
 
 	soc {
-		usb2_picophy1: phy2 {
+		usb2_picophy1: phy2@0 {
 			compatible = "st,stih407-usb2-phy";
+			reg = <0 0>;
 			#phy-cells = <0>;
 			st,syscfg = <&syscfg_core 0xf8 0xf4>;
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
@@ -39,8 +40,9 @@
 			reset-names = "global", "port";
 		};
 
-		usb2_picophy2: phy3 {
+		usb2_picophy2: phy3@0 {
 			compatible = "st,stih407-usb2-phy";
+			reg = <0 0>;
 			#phy-cells = <0>;
 			st,syscfg = <&syscfg_core 0xfc 0xf4>;
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
@@ -100,7 +102,7 @@
 			phy-names = "usb";
 		};
 
-		mmc0: sdhci@09060000 {
+		mmc0: sdhci@9060000 {
 			assigned-clocks = <&clk_s_c0_flexgen CLK_MMC_0>;
 			assigned-clock-parents = <&clk_s_c0_pll1 0>;
 			assigned-clock-rates = <200000000>;

@@ -21,9 +21,16 @@
 #define TP_COMMAND		0xE2	/* Commands start with this */
 
 #define TP_READ_ID		0xE1	/* Sent for device identification */
-#define TP_MAGIC_IDENT		0x01	/* Sent after a TP_READ_ID followed */
-					/* by the firmware ID */
 
+/*
+ * Valid first byte responses to the "Read Secondary ID" (0xE1) command.
+ * 0x01 was the original IBM trackpoint, others implement very limited
+ * subset of trackpoint features.
+ */
+#define TP_VARIANT_IBM		0x01
+#define TP_VARIANT_ALPS		0x02
+#define TP_VARIANT_ELAN		0x03
+#define TP_VARIANT_NXP		0x04
 
 /*
  * Commands
@@ -135,18 +142,20 @@
 
 #define MAKE_PS2_CMD(params, results, cmd) ((params<<12) | (results<<8) | (cmd))
 
-struct trackpoint_data
-{
-	unsigned char sensitivity, speed, inertia, reach;
-	unsigned char draghys, mindrag;
-	unsigned char thresh, upthresh;
-	unsigned char ztime, jenks;
-	unsigned char drift_time;
+struct trackpoint_data {
+	u8 variant_id;
+	u8 firmware_id;
+
+	u8 sensitivity, speed, inertia, reach;
+	u8 draghys, mindrag;
+	u8 thresh, upthresh;
+	u8 ztime, jenks;
+	u8 drift_time;
 
 	/* toggles */
-	unsigned char press_to_select;
-	unsigned char skipback;
-	unsigned char ext_dev;
+	bool press_to_select;
+	bool skipback;
+	bool ext_dev;
 };
 
 #ifdef CONFIG_MOUSE_PS2_TRACKPOINT

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kmem
 
@@ -6,7 +7,7 @@
 
 #include <linux/types.h>
 #include <linux/tracepoint.h>
-#include <trace/events/gfpflags.h>
+#include <trace/events/mmflags.h>
 
 DECLARE_EVENT_CLASS(kmem_alloc,
 
@@ -140,41 +141,18 @@ DEFINE_EVENT(kmem_free, kfree,
 	TP_ARGS(call_site, ptr)
 );
 
-DEFINE_EVENT_CONDITION(kmem_free, kmem_cache_free,
+DEFINE_EVENT(kmem_free, kmem_cache_free,
 
 	TP_PROTO(unsigned long call_site, const void *ptr),
 
-	TP_ARGS(call_site, ptr),
-
-	/*
-	 * This trace can be potentially called from an offlined cpu.
-	 * Since trace points use RCU and RCU should not be used from
-	 * offline cpus, filter such calls out.
-	 * While this trace can be called from a preemptable section,
-	 * it has no impact on the condition since tasks can migrate
-	 * only from online cpus to other online cpus. Thus its safe
-	 * to use raw_smp_processor_id.
-	 */
-	TP_CONDITION(cpu_online(raw_smp_processor_id()))
+	TP_ARGS(call_site, ptr)
 );
 
-TRACE_EVENT_CONDITION(mm_page_free,
+TRACE_EVENT(mm_page_free,
 
 	TP_PROTO(struct page *page, unsigned int order),
 
 	TP_ARGS(page, order),
-
-
-	/*
-	 * This trace can be potentially called from an offlined cpu.
-	 * Since trace points use RCU and RCU should not be used from
-	 * offline cpus, filter such calls out.
-	 * While this trace can be called from a preemptable section,
-	 * it has no impact on the condition since tasks can migrate
-	 * only from online cpus to other online cpus. Thus its safe
-	 * to use raw_smp_processor_id.
-	 */
-	TP_CONDITION(cpu_online(raw_smp_processor_id())),
 
 	TP_STRUCT__entry(
 		__field(	unsigned long,	pfn		)
@@ -194,24 +172,21 @@ TRACE_EVENT_CONDITION(mm_page_free,
 
 TRACE_EVENT(mm_page_free_batched,
 
-	TP_PROTO(struct page *page, int cold),
+	TP_PROTO(struct page *page),
 
-	TP_ARGS(page, cold),
+	TP_ARGS(page),
 
 	TP_STRUCT__entry(
 		__field(	unsigned long,	pfn		)
-		__field(	int,		cold		)
 	),
 
 	TP_fast_assign(
 		__entry->pfn		= page_to_pfn(page);
-		__entry->cold		= cold;
 	),
 
-	TP_printk("page=%p pfn=%lu order=0 cold=%d",
+	TP_printk("page=%p pfn=%lu order=0",
 			pfn_to_page(__entry->pfn),
-			__entry->pfn,
-			__entry->cold)
+			__entry->pfn)
 );
 
 TRACE_EVENT(mm_page_alloc,
@@ -276,22 +251,11 @@ DEFINE_EVENT(mm_page, mm_page_alloc_zone_locked,
 	TP_ARGS(page, order, migratetype)
 );
 
-TRACE_EVENT_CONDITION(mm_page_pcpu_drain,
+TRACE_EVENT(mm_page_pcpu_drain,
 
 	TP_PROTO(struct page *page, unsigned int order, int migratetype),
 
 	TP_ARGS(page, order, migratetype),
-
-	/*
-	 * This trace can be potentially called from an offlined cpu.
-	 * Since trace points use RCU and RCU should not be used from
-	 * offline cpus, filter such calls out.
-	 * While this trace can be called from a preemptable section,
-	 * it has no impact on the condition since tasks can migrate
-	 * only from online cpus to other online cpus. Thus its safe
-	 * to use raw_smp_processor_id.
-	 */
-	TP_CONDITION(cpu_online(raw_smp_processor_id())),
 
 	TP_STRUCT__entry(
 		__field(	unsigned long,	pfn		)

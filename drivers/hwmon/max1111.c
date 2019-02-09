@@ -85,6 +85,9 @@ static struct max1111_data *the_max1111;
 
 int max1111_read_channel(int channel)
 {
+	if (!the_max1111 || !the_max1111->spi)
+		return -ENODEV;
+
 	return max1111_read(&the_max1111->spi->dev, channel);
 }
 EXPORT_SYMBOL(max1111_read_channel);
@@ -95,7 +98,7 @@ EXPORT_SYMBOL(max1111_read_channel);
  * likely to be used by hwmon applications to distinguish between
  * different devices, explicitly add a name attribute here.
  */
-static ssize_t show_name(struct device *dev,
+static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_spi_device(dev)->modalias);
@@ -122,7 +125,7 @@ static ssize_t show_adc(struct device *dev,
 #define MAX1111_ADC_ATTR(_id)		\
 	SENSOR_DEVICE_ATTR(in##_id##_input, S_IRUGO, show_adc, NULL, _id)
 
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 static MAX1111_ADC_ATTR(0);
 static MAX1111_ADC_ATTR(1);
 static MAX1111_ADC_ATTR(2);
@@ -258,6 +261,9 @@ static int max1111_remove(struct spi_device *spi)
 {
 	struct max1111_data *data = spi_get_drvdata(spi);
 
+#ifdef CONFIG_SHARPSL_PM
+	the_max1111 = NULL;
+#endif
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&spi->dev.kobj, &max1110_attr_group);
 	sysfs_remove_group(&spi->dev.kobj, &max1111_attr_group);

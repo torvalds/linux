@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _LINUX_TTY_FLAGS_H
 #define _LINUX_TTY_FLAGS_H
 
@@ -12,7 +13,7 @@
  */
 #define ASYNCB_HUP_NOTIFY	 0 /* Notify getty on hangups and closes
 				    * on the callout port */
-#define ASYNCB_FOURPORT		 1 /* Set OU1, OUT2 per AST Fourport settings */
+#define ASYNCB_FOURPORT		 1 /* Set OUT1, OUT2 per AST Fourport settings */
 #define ASYNCB_SAK		 2 /* Secure Attention Key (Orange book) */
 #define ASYNCB_SPLIT_TERMIOS	 3 /* [x] Separate termios for dialin/callout */
 #define ASYNCB_SPD_HI		 4 /* Use 57600 instead of 38400 bps */
@@ -32,7 +33,13 @@
 #define ASYNCB_MAGIC_MULTIPLIER	16 /* Use special CLK or divisor */
 #define ASYNCB_LAST_USER	16
 
-/* Internal flags used only by kernel */
+/*
+ * Internal flags used only by kernel (read-only)
+ *
+ * WARNING: These flags are no longer used and have been superceded by the
+ *	    TTY_PORT_ flags in the iflags field (and not userspace-visible)
+ */
+#ifndef _KERNEL_
 #define ASYNCB_INITIALIZED	31 /* Serial port was initialized */
 #define ASYNCB_SUSPENDED	30 /* Serial port is suspended */
 #define ASYNCB_NORMAL_ACTIVE	29 /* Normal device is active */
@@ -43,7 +50,9 @@
 #define ASYNCB_SHARE_IRQ	24 /* for multifunction cards, no longer used */
 #define ASYNCB_CONS_FLOW	23 /* flow control for console  */
 #define ASYNCB_FIRST_KERNEL	22
+#endif
 
+/* Masks */
 #define ASYNC_HUP_NOTIFY	(1U << ASYNCB_HUP_NOTIFY)
 #define ASYNC_SUSPENDED		(1U << ASYNCB_SUSPENDED)
 #define ASYNC_FOURPORT		(1U << ASYNCB_FOURPORT)
@@ -72,6 +81,8 @@
 #define ASYNC_SPD_WARP		(ASYNC_SPD_HI|ASYNC_SPD_SHI)
 #define ASYNC_SPD_MASK		(ASYNC_SPD_HI|ASYNC_SPD_VHI|ASYNC_SPD_SHI)
 
+#ifndef _KERNEL_
+/* These flags are no longer used (and were always masked from userspace) */
 #define ASYNC_INITIALIZED	(1U << ASYNCB_INITIALIZED)
 #define ASYNC_NORMAL_ACTIVE	(1U << ASYNCB_NORMAL_ACTIVE)
 #define ASYNC_BOOT_AUTOCONF	(1U << ASYNCB_BOOT_AUTOCONF)
@@ -81,5 +92,6 @@
 #define ASYNC_SHARE_IRQ		(1U << ASYNCB_SHARE_IRQ)
 #define ASYNC_CONS_FLOW		(1U << ASYNCB_CONS_FLOW)
 #define ASYNC_INTERNAL_FLAGS	(~((1U << ASYNCB_FIRST_KERNEL) - 1))
+#endif
 
 #endif

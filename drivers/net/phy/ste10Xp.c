@@ -89,13 +89,10 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.features = PHY_BASIC_FEATURES | SUPPORTED_Pause,
 	.flags = PHY_HAS_INTERRUPT,
 	.config_init = ste10Xp_config_init,
-	.config_aneg = genphy_config_aneg,
-	.read_status = genphy_read_status,
 	.ack_interrupt = ste10Xp_ack_interrupt,
 	.config_intr = ste10Xp_config_intr,
 	.suspend = genphy_suspend,
 	.resume = genphy_resume,
-	.driver = {.owner = THIS_MODULE,}
 }, {
 	.phy_id = STE100P_PHY_ID,
 	.phy_id_mask = 0xffffffff,
@@ -103,13 +100,10 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.features = PHY_BASIC_FEATURES | SUPPORTED_Pause,
 	.flags = PHY_HAS_INTERRUPT,
 	.config_init = ste10Xp_config_init,
-	.config_aneg = genphy_config_aneg,
-	.read_status = genphy_read_status,
 	.ack_interrupt = ste10Xp_ack_interrupt,
 	.config_intr = ste10Xp_config_intr,
 	.suspend = genphy_suspend,
 	.resume = genphy_resume,
-	.driver = {.owner = THIS_MODULE,}
 } };
 
 module_phy_driver(ste10xp_pdriver);

@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "platform.h"
 #include "di_defs.h"
@@ -45,7 +45,6 @@ char *DRIVERRELEASE_MNT = "2.0";
 
 static wait_queue_head_t msgwaitq;
 static unsigned long opened;
-static struct timeval start_time;
 
 extern int mntfunc_init(int *, void **, unsigned long);
 extern void mntfunc_finit(void);
@@ -88,41 +87,25 @@ int diva_os_copy_from_user(void *os_handle, void *dst, const void __user *src,
  */
 void diva_os_get_time(dword *sec, dword *usec)
 {
-	struct timeval tv;
+	struct timespec64 time;
 
-	do_gettimeofday(&tv);
+	ktime_get_ts64(&time);
 
-	if (tv.tv_sec > start_time.tv_sec) {
-		if (start_time.tv_usec > tv.tv_usec) {
-			tv.tv_sec--;
-			tv.tv_usec += 1000000;
-		}
-		*sec = (dword) (tv.tv_sec - start_time.tv_sec);
-		*usec = (dword) (tv.tv_usec - start_time.tv_usec);
-	} else if (tv.tv_sec == start_time.tv_sec) {
-		*sec = 0;
-		if (start_time.tv_usec < tv.tv_usec) {
-			*usec = (dword) (tv.tv_usec - start_time.tv_usec);
-		} else {
-			*usec = 0;
-		}
-	} else {
-		*sec = (dword) tv.tv_sec;
-		*usec = (dword) tv.tv_usec;
-	}
+	*sec = (dword) time.tv_sec;
+	*usec = (dword) (time.tv_nsec / NSEC_PER_USEC);
 }
 
 /*
  * device node operations
  */
-static unsigned int maint_poll(struct file *file, poll_table *wait)
+static __poll_t maint_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &msgwaitq, wait);
-	mask = POLLOUT | POLLWRNORM;
+	mask = EPOLLOUT | EPOLLWRNORM;
 	if (file->private_data || diva_dbg_q_length()) {
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	}
 	return (mask);
 }
@@ -213,7 +196,6 @@ static int __init maint_init(void)
 	int ret = 0;
 	void *buffer = NULL;
 
-	do_gettimeofday(&start_time);
 	init_waitqueue_head(&msgwaitq);
 
 	printk(KERN_INFO "%s\n", DRIVERNAME);

@@ -1,0 +1,44 @@
+menu "STMicroelectronics STM32 SOC audio support"
+
+config SND_SOC_STM32_SAI
+	tristate "STM32 SAI interface (Serial Audio Interface) support"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	depends on SND_SOC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	select SND_PCM_IEC958
+	help
+	  Say Y if you want to enable SAI for STM32
+
+config SND_SOC_STM32_I2S
+	tristate "STM32 I2S interface (SPI/I2S block) support"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	depends on SND_SOC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y if you want to enable I2S for STM32
+
+config SND_SOC_STM32_SPDIFRX
+	tristate "STM32 S/PDIF receiver (SPDIFRX) support"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	depends on SND_SOC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	select SND_SOC_SPDIF
+	help
+	  Say Y if you want to enable S/PDIF capture for STM32
+
+config SND_SOC_STM32_DFSDM
+	tristate "SoC Audio support for STM32 DFSDM"
+	depends on ARCH_STM32 || COMPILE_TEST
+	depends on SND_SOC
+	depends on STM32_DFSDM_ADC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select SND_SOC_DMIC
+	select IIO_BUFFER_CB
+	help
+	  Select this option to enable the STM32 Digital Filter
+	  for Sigma Delta Modulators (DFSDM) driver used
+	  in various STM32 series for digital microphone capture.
+endmenu

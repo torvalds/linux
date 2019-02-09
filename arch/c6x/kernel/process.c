@@ -17,6 +17,8 @@
 #include <linux/mqueue.h>
 #include <linux/syscalls.h>
 #include <linux/reboot.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/syscalls.h>
 
@@ -79,10 +81,6 @@ void machine_power_off(void)
 }
 
 void flush_thread(void)
-{
-}
-
-void exit_thread(void)
 {
 }
 

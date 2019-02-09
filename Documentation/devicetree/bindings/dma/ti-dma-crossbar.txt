@@ -14,6 +14,10 @@ The DMA controller node need to have the following poroperties:
 
 Optional properties:
 - ti,dma-safe-map: Safe routing value for unused request lines
+- ti,reserved-dma-request-ranges: DMA request ranges which should not be used
+		when mapping xbar input to DMA request, they are either
+		allocated to be used by for example the DSP or they are used as
+		memcpy channels in eDMA.
 
 Notes:
 When requesting channel via ti,dra7-dma-crossbar, the DMA clinet must request
@@ -46,6 +50,8 @@ sdma_xbar: dma-router@4a002b78 {
 	#dma-cells = <1>;
 	dma-requests = <205>;
 	ti,dma-safe-map = <0>;
+	/* Protect the sDMA request ranges: 10-14 and 100-126 */
+	ti,reserved-dma-request-ranges = <10 5>, <100 27>;
 	dma-masters = <&sdma>;
 };
 
@@ -56,7 +62,6 @@ uart1: serial@4806a000 {
 	interrupts-extended = <&gic GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 	ti,hwmods = "uart1";
 	clock-frequency = <48000000>;
-	status = "disabled";
 	/* Requesting crossbar input 49 and 50 */
 	dmas = <&sdma_xbar 49>, <&sdma_xbar 50>;
 	dma-names = "tx", "rx";

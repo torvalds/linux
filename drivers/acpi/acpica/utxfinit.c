@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: utxfinit - External interfaces for ACPICA initialization
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #define EXPORT_ACPI_INTERFACES
 
@@ -69,7 +35,7 @@ void ae_do_object_overrides(void);
  *
  ******************************************************************************/
 
-acpi_status __init acpi_initialize_subsystem(void)
+acpi_status ACPI_INIT_FUNCTION acpi_initialize_subsystem(void)
 {
 	acpi_status status;
 
@@ -141,11 +107,18 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_subsystem)
  *              Puts system into ACPI mode if it isn't already.
  *
  ******************************************************************************/
-acpi_status __init acpi_enable_subsystem(u32 flags)
+acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 {
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(acpi_enable_subsystem);
+
+	/*
+	 * The early initialization phase is complete. The namespace is loaded,
+	 * and we can now support address spaces other than Memory, I/O, and
+	 * PCI_Config.
+	 */
+	acpi_gbl_early_initialization = FALSE;
 
 #if (!ACPI_REDUCED_HARDWARE)
 
@@ -175,23 +148,7 @@ acpi_status __init acpi_enable_subsystem(u32 flags)
 			return_ACPI_STATUS(status);
 		}
 	}
-#endif				/* !ACPI_REDUCED_HARDWARE */
 
-	/*
-	 * Install the default op_region handlers. These are installed unless
-	 * other handlers have already been installed via the
-	 * install_address_space_handler interface.
-	 */
-	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Installing default address space handlers\n"));
-
-		status = acpi_ev_install_region_handlers();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-#if (!ACPI_REDUCED_HARDWARE)
 	/*
 	 * Initialize ACPI Event handling (Fixed and General Purpose)
 	 *
@@ -248,55 +205,32 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_enable_subsystem)
  *              objects and executing AML code for Regions, buffers, etc.
  *
  ******************************************************************************/
-acpi_status __init acpi_initialize_objects(u32 flags)
+acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 {
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(acpi_initialize_objects);
 
 	/*
-	 * Run all _REG methods
+	 * This case handles the legacy option that groups all module-level
+	 * code blocks together and defers execution until all of the tables
+	 * are loaded. Execute all of these blocks at this time.
+	 * Execute any module-level code that was detected during the table
+	 * load phase.
 	 *
-	 * Note: Any objects accessed by the _REG methods will be automatically
-	 * initialized, even if they contain executable AML (see the call to
-	 * acpi_ns_initialize_objects below).
-	 */
-	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Executing _REG OpRegion methods\n"));
-
-		status = acpi_ev_initialize_op_regions();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-#ifdef ACPI_EXEC_APP
-	/*
-	 * This call implements the "initialization file" option for acpi_exec.
-	 * This is the precise point that we want to perform the overrides.
-	 */
-	ae_do_object_overrides();
-#endif
-
-	/*
-	 * Execute any module-level code that was detected during the table load
-	 * phase. Although illegal since ACPI 2.0, there are many machines that
-	 * contain this type of code. Each block of detected executable AML code
-	 * outside of any control method is wrapped with a temporary control
-	 * method object and placed on a global list. The methods on this list
-	 * are executed below.
+	 * Note: this option is deprecated and will be eliminated in the
+	 * future. Use of this option can cause problems with AML code that
+	 * depends upon in-order immediate execution of module-level code.
 	 */
 	acpi_ns_exec_module_code_list();
 
 	/*
-	 * Initialize the objects that remain uninitialized. This runs the
-	 * executable AML that may be part of the declaration of these objects:
+	 * Initialize the objects that remain uninitialized. This
+	 * runs the executable AML that may be part of the
+	 * declaration of these objects:
 	 * operation_regions, buffer_fields, Buffers, and Packages.
 	 */
 	if (!(flags & ACPI_NO_OBJECT_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Completing Initialization of ACPI Objects\n"));
-
 		status = acpi_ns_initialize_objects();
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
@@ -304,14 +238,11 @@ acpi_status __init acpi_initialize_objects(u32 flags)
 	}
 
 	/*
-	 * Initialize all device objects in the namespace. This runs the device
-	 * _STA and _INI methods.
+	 * Initialize all device/region objects in the namespace. This runs
+	 * the device _STA and _INI methods and region _REG methods.
 	 */
-	if (!(flags & ACPI_NO_DEVICE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Initializing ACPI Devices\n"));
-
-		status = acpi_ns_initialize_devices();
+	if (!(flags & (ACPI_NO_DEVICE_INIT | ACPI_NO_ADDRESS_SPACE_INIT))) {
+		status = acpi_ns_initialize_devices(flags);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}

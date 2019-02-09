@@ -66,11 +66,28 @@ static int gsc_m2m_start_streaming(struct vb2_queue *q, unsigned int count)
 	return ret > 0 ? 0 : ret;
 }
 
+static void __gsc_m2m_cleanup_queue(struct gsc_ctx *ctx)
+{
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
+
+	while (v4l2_m2m_num_src_bufs_ready(ctx->m2m_ctx) > 0) {
+		src_vb = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
+		v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_ERROR);
+	}
+
+	while (v4l2_m2m_num_dst_bufs_ready(ctx->m2m_ctx) > 0) {
+		dst_vb = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
+		v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_ERROR);
+	}
+}
+
 static void gsc_m2m_stop_streaming(struct vb2_queue *q)
 {
 	struct gsc_ctx *ctx = q->drv_priv;
 
 	__gsc_m2m_job_abort(ctx);
+
+	__gsc_m2m_cleanup_queue(ctx);
 
 	pm_runtime_put(&ctx->gsc_dev->pdev->dev);
 }
@@ -86,7 +103,7 @@ void gsc_m2m_job_finish(struct gsc_ctx *ctx, int vb_state)
 	dst_vb = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 
 	if (src_vb && dst_vb) {
-		dst_vb->timestamp = src_vb->timestamp;
+		dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
 		dst_vb->timecode = src_vb->timecode;
 		dst_vb->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 		dst_vb->flags |=
@@ -125,7 +142,7 @@ static int gsc_get_bufs(struct gsc_ctx *ctx)
 	if (ret)
 		return ret;
 
-	dst_vb->timestamp = src_vb->timestamp;
+	dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
 
 	return 0;
 }
@@ -212,9 +229,8 @@ put_device:
 }
 
 static int gsc_m2m_queue_setup(struct vb2_queue *vq,
-			const void *parg,
 			unsigned int *num_buffers, unsigned int *num_planes,
-			unsigned int sizes[], void *allocators[])
+			unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct gsc_ctx *ctx = vb2_get_drv_priv(vq);
 	struct gsc_frame *frame;
@@ -228,10 +244,8 @@ static int gsc_m2m_queue_setup(struct vb2_queue *vq,
 		return -EINVAL;
 
 	*num_planes = frame->fmt->num_planes;
-	for (i = 0; i < frame->fmt->num_planes; i++) {
+	for (i = 0; i < frame->fmt->num_planes; i++)
 		sizes[i] = frame->payload[i];
-		allocators[i] = ctx->gsc_dev->alloc_ctx;
-	}
 	return 0;
 }
 
@@ -264,7 +278,7 @@ static void gsc_m2m_buf_queue(struct vb2_buffer *vb)
 		v4l2_m2m_buf_queue(ctx->m2m_ctx, vbuf);
 }
 
-static struct vb2_ops gsc_m2m_qops = {
+static const struct vb2_ops gsc_m2m_qops = {
 	.queue_setup	 = gsc_m2m_queue_setup,
 	.buf_prepare	 = gsc_m2m_buf_prepare,
 	.buf_queue	 = gsc_m2m_buf_queue,
@@ -280,12 +294,11 @@ static int gsc_m2m_querycap(struct file *file, void *fh,
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
 	struct gsc_dev *gsc = ctx->gsc_dev;
 
-	strlcpy(cap->driver, gsc->pdev->name, sizeof(cap->driver));
-	strlcpy(cap->card, gsc->pdev->name, sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform", sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE |
-		V4L2_CAP_VIDEO_CAPTURE_MPLANE |	V4L2_CAP_VIDEO_OUTPUT_MPLANE;
-
+	strlcpy(cap->driver, GSC_MODULE_NAME, sizeof(cap->driver));
+	strlcpy(cap->card, GSC_MODULE_NAME " gscaler", sizeof(cap->card));
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
+		 dev_name(&gsc->pdev->dev));
+	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
@@ -367,14 +380,8 @@ static int gsc_m2m_reqbufs(struct file *file, void *fh,
 
 	max_cnt = (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ?
 		gsc->variant->in_buf_cnt : gsc->variant->out_buf_cnt;
-	if (reqbufs->count > max_cnt) {
+	if (reqbufs->count > max_cnt)
 		return -EINVAL;
-	} else if (reqbufs->count == 0) {
-		if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-			gsc_ctx_state_lock_clear(GSC_SRC_FMT, ctx);
-		else
-			gsc_ctx_state_lock_clear(GSC_DST_FMT, ctx);
-	}
 
 	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
 }
@@ -451,8 +458,8 @@ static int gsc_m2m_g_selection(struct file *file, void *fh,
 	struct gsc_frame *frame;
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
 
-	if ((s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) &&
-	    (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE))
+	if ((s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+	    (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT))
 		return -EINVAL;
 
 	frame = ctx_get_frame(ctx, s->type);
@@ -494,8 +501,8 @@ static int gsc_m2m_s_selection(struct file *file, void *fh,
 	cr.type = s->type;
 	cr.c = s->r;
 
-	if ((s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) &&
-	    (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE))
+	if ((s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+	    (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT))
 		return -EINVAL;
 
 	ret = gsc_try_crop(ctx, &cr);
@@ -592,6 +599,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &ctx->gsc_dev->lock;
+	src_vq->dev = &ctx->gsc_dev->pdev->dev;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -606,6 +614,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &ctx->gsc_dev->lock;
+	dst_vq->dev = &ctx->gsc_dev->pdev->dev;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -664,8 +673,8 @@ static int gsc_m2m_open(struct file *file)
 
 error_ctrls:
 	gsc_ctrls_delete(ctx);
-error_fh:
 	v4l2_fh_del(&ctx->fh);
+error_fh:
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 unlock:
@@ -696,15 +705,15 @@ static int gsc_m2m_release(struct file *file)
 	return 0;
 }
 
-static unsigned int gsc_m2m_poll(struct file *file,
+static __poll_t gsc_m2m_poll(struct file *file,
 					struct poll_table_struct *wait)
 {
 	struct gsc_ctx *ctx = fh_to_ctx(file->private_data);
 	struct gsc_dev *gsc = ctx->gsc_dev;
-	int ret;
+	__poll_t ret;
 
 	if (mutex_lock_interruptible(&gsc->lock))
-		return -ERESTARTSYS;
+		return EPOLLERR;
 
 	ret = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
 	mutex_unlock(&gsc->lock);
@@ -736,7 +745,7 @@ static const struct v4l2_file_operations gsc_m2m_fops = {
 	.mmap		= gsc_m2m_mmap,
 };
 
-static struct v4l2_m2m_ops gsc_m2m_ops = {
+static const struct v4l2_m2m_ops gsc_m2m_ops = {
 	.device_run	= gsc_m2m_device_run,
 	.job_abort	= gsc_m2m_job_abort,
 };
@@ -766,30 +775,29 @@ int gsc_register_m2m_device(struct gsc_dev *gsc)
 	gsc->m2m.m2m_dev = v4l2_m2m_init(&gsc_m2m_ops);
 	if (IS_ERR(gsc->m2m.m2m_dev)) {
 		dev_err(&pdev->dev, "failed to initialize v4l2-m2m device\n");
-		ret = PTR_ERR(gsc->m2m.m2m_dev);
-		goto err_m2m_r1;
+		return PTR_ERR(gsc->m2m.m2m_dev);
 	}
 
 	ret = video_register_device(&gsc->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret) {
 		dev_err(&pdev->dev,
 			 "%s(): failed to register video device\n", __func__);
-		goto err_m2m_r2;
+		goto err_m2m_release;
 	}
 
 	pr_debug("gsc m2m driver registered as /dev/video%d", gsc->vdev.num);
 	return 0;
 
-err_m2m_r2:
+err_m2m_release:
 	v4l2_m2m_release(gsc->m2m.m2m_dev);
-err_m2m_r1:
-	video_device_release(gsc->m2m.vfd);
 
 	return ret;
 }
 
 void gsc_unregister_m2m_device(struct gsc_dev *gsc)
 {
-	if (gsc)
+	if (gsc) {
 		v4l2_m2m_release(gsc->m2m.m2m_dev);
+		video_unregister_device(&gsc->vdev);
+	}
 }

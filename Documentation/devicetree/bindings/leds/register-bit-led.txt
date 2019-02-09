@@ -23,13 +23,8 @@ Optional properties:
   see Documentation/devicetree/bindings/leds/common.txt
 - linux,default-trigger : (optional)
   see Documentation/devicetree/bindings/leds/common.txt
-- default-state: (optional) The initial state of the LED. Valid
-  values are "on", "off", and "keep". If the LED is already on or off
-  and the default-state property is set the to same value, then no
-  glitch should be produced where the LED momentarily turns off (or
-  on). The "keep" setting will keep the LED at whatever its current
-  state is, without producing a glitch.  The default is off if this
-  property is not present.
+- default-state: (optional) The initial state of the LED
+  see Documentation/devicetree/bindings/leds/common.txt
 
 Example:
 
@@ -37,7 +32,7 @@ syscon: syscon@10000000 {
 	compatible = "arm,realview-pb1176-syscon", "syscon";
 	reg = <0x10000000 0x1000>;
 
-	led@08.0 {
+	led@8.0 {
 		compatible = "register-bit-led";
 		offset = <0x08>;
 		mask = <0x01>;
@@ -45,7 +40,7 @@ syscon: syscon@10000000 {
 		linux,default-trigger = "heartbeat";
 		default-state = "on";
 	};
-	led@08.1 {
+	led@8.1 {
 		compatible = "register-bit-led";
 		offset = <0x08>;
 		mask = <0x02>;
@@ -53,7 +48,7 @@ syscon: syscon@10000000 {
 		linux,default-trigger = "mmc0";
 		default-state = "off";
 	};
-	led@08.2 {
+	led@8.2 {
 		compatible = "register-bit-led";
 		offset = <0x08>;
 		mask = <0x04>;
@@ -61,35 +56,35 @@ syscon: syscon@10000000 {
 		linux,default-trigger = "cpu0";
 		default-state = "off";
 	};
-	led@08.3 {
+	led@8.3 {
 		compatible = "register-bit-led";
 		offset = <0x08>;
 		mask = <0x08>;
 		label = "versatile:3";
 		default-state = "off";
 	};
-	led@08.4 {
+	led@8.4 {
 		compatible = "register-bit-led";
 		offset = <0x08>;
 		mask = <0x10>;
 		label = "versatile:4";
 		default-state = "off";
 	};
-	led@08.5 {
+	led@8.5 {
 		compatible = "register-bit-led";
 		offset = <0x08>;
 		mask = <0x20>;
 		label = "versatile:5";
 		default-state = "off";
 	};
-	led@08.6 {
+	led@8.6 {
 		compatible = "register-bit-led";
 		offset = <0x08>;
 		mask = <0x40>;
 		label = "versatile:6";
 		default-state = "off";
 	};
-	led@08.7 {
+	led@8.7 {
 		compatible = "register-bit-led";
 		offset = <0x08>;
 		mask = <0x80>;

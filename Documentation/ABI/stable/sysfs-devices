@@ -1,10 +1,24 @@
 # Note: This documents additional properties of any device beyond what
-# is documented in Documentation/sysfs-rules.txt
+# is documented in Documentation/admin-guide/sysfs-rules.rst
 
-What:		/sys/devices/*/of_path
+What:		/sys/devices/*/of_node
 Date:		February 2015
 Contact:	Device Tree mailing list <devicetree@vger.kernel.org>
 Description:
 		Any device associated with a device-tree node will have
 		an of_path symlink pointing to the corresponding device
 		node in /sys/firmware/devicetree/
+
+What:		/sys/devices/*/devspec
+Date:		October 2016
+Contact:	Device Tree mailing list <devicetree@vger.kernel.org>
+Description:
+		If CONFIG_OF is enabled, then this file is present. When
+		read, it returns full name of the device node.
+
+What:		/sys/devices/*/obppath
+Date:		October 2016
+Contact:	Device Tree mailing list <devicetree@vger.kernel.org>
+Description:
+		If CONFIG_OF is enabled, then this file is present. When
+		read, it returns full name of the device node.

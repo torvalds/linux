@@ -761,27 +761,116 @@ out:
 static int
 csio_hw_get_flash_params(struct csio_hw *hw)
 {
+	/* Table for non-Numonix supported flash parts.  Numonix parts are left
+	 * to the preexisting code.  All flash parts have 64KB sectors.
+	 */
+	static struct flash_desc {
+		u32 vendor_and_model_id;
+		u32 size_mb;
+	} supported_flash[] = {
+		{ 0x150201, 4 << 20 },       /* Spansion 4MB S25FL032P */
+	};
+
+	u32 part, manufacturer;
+	u32 density, size = 0;
+	u32 flashid = 0;
 	int ret;
-	uint32_t info = 0;
 
 	ret = csio_hw_sf1_write(hw, 1, 1, 0, SF_RD_ID);
 	if (!ret)
-		ret = csio_hw_sf1_read(hw, 3, 0, 1, &info);
+		ret = csio_hw_sf1_read(hw, 3, 0, 1, &flashid);
 	csio_wr_reg32(hw, 0, SF_OP_A);    /* unlock SF */
-	if (ret != 0)
+	if (ret)
 		return ret;
 
-	if ((info & 0xff) != 0x20)		/* not a Numonix flash */
-		return -EINVAL;
-	info >>= 16;				/* log2 of size */
-	if (info >= 0x14 && info < 0x18)
-		hw->params.sf_nsec = 1 << (info - 16);
-	else if (info == 0x18)
-		hw->params.sf_nsec = 64;
-	else
-		return -EINVAL;
-	hw->params.sf_size = 1 << info;
+	/* Check to see if it's one of our non-standard supported Flash parts.
+	 */
+	for (part = 0; part < ARRAY_SIZE(supported_flash); part++)
+		if (supported_flash[part].vendor_and_model_id == flashid) {
+			hw->params.sf_size = supported_flash[part].size_mb;
+			hw->params.sf_nsec =
+				hw->params.sf_size / SF_SEC_SIZE;
+			goto found;
+		}
 
+	/* Decode Flash part size.  The code below looks repetative with
+	 * common encodings, but that's not guaranteed in the JEDEC
+	 * specification for the Read JADEC ID command.  The only thing that
+	 * we're guaranteed by the JADEC specification is where the
+	 * Manufacturer ID is in the returned result.  After that each
+	 * Manufacturer ~could~ encode things completely differently.
+	 * Note, all Flash parts must have 64KB sectors.
+	 */
+	manufacturer = flashid & 0xff;
+	switch (manufacturer) {
+	case 0x20: { /* Micron/Numonix */
+		/* This Density -> Size decoding table is taken from Micron
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x14 ... 0x19: /* 1MB - 32MB */
+			size = 1 << density;
+			break;
+		case 0x20: /* 64MB */
+			size = 1 << 26;
+			break;
+		case 0x21: /* 128MB */
+			size = 1 << 27;
+			break;
+		case 0x22: /* 256MB */
+			size = 1 << 28;
+		}
+		break;
+	}
+	case 0x9d: { /* ISSI -- Integrated Silicon Solution, Inc. */
+		/* This Density -> Size decoding table is taken from ISSI
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x16: /* 32 MB */
+			size = 1 << 25;
+			break;
+		case 0x17: /* 64MB */
+			size = 1 << 26;
+		}
+		break;
+	}
+	case 0xc2: /* Macronix */
+	case 0xef: /* Winbond */ {
+		/* This Density -> Size decoding table is taken from
+		 * Macronix and Winbond Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x17: /* 8MB */
+		case 0x18: /* 16MB */
+			size = 1 << density;
+		}
+	}
+	}
+
+	/* If we didn't recognize the FLASH part, that's no real issue: the
+	 * Hardware/Software contract says that Hardware will _*ALWAYS*_
+	 * use a FLASH part which is at least 4MB in size and has 64KB
+	 * sectors.  The unrecognized FLASH part is likely to be much larger
+	 * than 4MB, but that's all we really need.
+	 */
+	if (size == 0) {
+		csio_warn(hw, "Unknown Flash Part, ID = %#x, assuming 4MB\n",
+			  flashid);
+		size = 1 << 22;
+	}
+
+	/* Store decoded Flash size */
+	hw->params.sf_size = size;
+	hw->params.sf_nsec = size / SF_SEC_SIZE;
+
+found:
+	if (hw->params.sf_size < FLASH_MIN_SIZE)
+		csio_warn(hw, "WARNING: Flash Part ID %#x, size %#x < %#x\n",
+			  flashid, hw->params.sf_size, FLASH_MIN_SIZE);
 	return 0;
 }
 
@@ -794,18 +883,24 @@ csio_hw_dev_ready(struct csio_hw *hw)
 {
 	uint32_t reg;
 	int cnt = 6;
+	int src_pf;
 
 	while (((reg = csio_rd_reg32(hw, PL_WHOAMI_A)) == 0xFFFFFFFF) &&
 	       (--cnt != 0))
 		mdelay(100);
 
-	if ((cnt == 0) && (((int32_t)(SOURCEPF_G(reg)) < 0) ||
-			   (SOURCEPF_G(reg) >= CSIO_MAX_PFN))) {
+	if (csio_is_t5(hw->pdev->device & CSIO_HW_CHIP_MASK))
+		src_pf = SOURCEPF_G(reg);
+	else
+		src_pf = T6_SOURCEPF_G(reg);
+
+	if ((cnt == 0) && (((int32_t)(src_pf) < 0) ||
+			   (src_pf >= CSIO_MAX_PFN))) {
 		csio_err(hw, "PL_WHOAMI returned 0x%x, cnt:%d\n", reg, cnt);
 		return -EIO;
 	}
 
-	hw->pfn = SOURCEPF_G(reg);
+	hw->pfn = src_pf;
 
 	return 0;
 }
@@ -1403,6 +1498,275 @@ out:
 	return rv;
 }
 
+static inline enum cc_fec fwcap_to_cc_fec(fw_port_cap32_t fw_fec)
+{
+	enum cc_fec cc_fec = 0;
+
+	if (fw_fec & FW_PORT_CAP32_FEC_RS)
+		cc_fec |= FEC_RS;
+	if (fw_fec & FW_PORT_CAP32_FEC_BASER_RS)
+		cc_fec |= FEC_BASER_RS;
+
+	return cc_fec;
+}
+
+static inline fw_port_cap32_t cc_to_fwcap_pause(enum cc_pause cc_pause)
+{
+	fw_port_cap32_t fw_pause = 0;
+
+	if (cc_pause & PAUSE_RX)
+		fw_pause |= FW_PORT_CAP32_FC_RX;
+	if (cc_pause & PAUSE_TX)
+		fw_pause |= FW_PORT_CAP32_FC_TX;
+
+	return fw_pause;
+}
+
+static inline fw_port_cap32_t cc_to_fwcap_fec(enum cc_fec cc_fec)
+{
+	fw_port_cap32_t fw_fec = 0;
+
+	if (cc_fec & FEC_RS)
+		fw_fec |= FW_PORT_CAP32_FEC_RS;
+	if (cc_fec & FEC_BASER_RS)
+		fw_fec |= FW_PORT_CAP32_FEC_BASER_RS;
+
+	return fw_fec;
+}
+
+/**
+ * fwcap_to_fwspeed - return highest speed in Port Capabilities
+ * @acaps: advertised Port Capabilities
+ *
+ * Get the highest speed for the port from the advertised Port
+ * Capabilities.
+ */
+fw_port_cap32_t fwcap_to_fwspeed(fw_port_cap32_t acaps)
+{
+	#define TEST_SPEED_RETURN(__caps_speed) \
+		do { \
+			if (acaps & FW_PORT_CAP32_SPEED_##__caps_speed) \
+				return FW_PORT_CAP32_SPEED_##__caps_speed; \
+		} while (0)
+
+	TEST_SPEED_RETURN(400G);
+	TEST_SPEED_RETURN(200G);
+	TEST_SPEED_RETURN(100G);
+	TEST_SPEED_RETURN(50G);
+	TEST_SPEED_RETURN(40G);
+	TEST_SPEED_RETURN(25G);
+	TEST_SPEED_RETURN(10G);
+	TEST_SPEED_RETURN(1G);
+	TEST_SPEED_RETURN(100M);
+
+	#undef TEST_SPEED_RETURN
+
+	return 0;
+}
+
+/**
+ *      fwcaps16_to_caps32 - convert 16-bit Port Capabilities to 32-bits
+ *      @caps16: a 16-bit Port Capabilities value
+ *
+ *      Returns the equivalent 32-bit Port Capabilities value.
+ */
+fw_port_cap32_t fwcaps16_to_caps32(fw_port_cap16_t caps16)
+{
+	fw_port_cap32_t caps32 = 0;
+
+	#define CAP16_TO_CAP32(__cap) \
+		do { \
+			if (caps16 & FW_PORT_CAP_##__cap) \
+				caps32 |= FW_PORT_CAP32_##__cap; \
+		} while (0)
+
+	CAP16_TO_CAP32(SPEED_100M);
+	CAP16_TO_CAP32(SPEED_1G);
+	CAP16_TO_CAP32(SPEED_25G);
+	CAP16_TO_CAP32(SPEED_10G);
+	CAP16_TO_CAP32(SPEED_40G);
+	CAP16_TO_CAP32(SPEED_100G);
+	CAP16_TO_CAP32(FC_RX);
+	CAP16_TO_CAP32(FC_TX);
+	CAP16_TO_CAP32(ANEG);
+	CAP16_TO_CAP32(MDIAUTO);
+	CAP16_TO_CAP32(MDISTRAIGHT);
+	CAP16_TO_CAP32(FEC_RS);
+	CAP16_TO_CAP32(FEC_BASER_RS);
+	CAP16_TO_CAP32(802_3_PAUSE);
+	CAP16_TO_CAP32(802_3_ASM_DIR);
+
+	#undef CAP16_TO_CAP32
+
+	return caps32;
+}
+
+/**
+ *	fwcaps32_to_caps16 - convert 32-bit Port Capabilities to 16-bits
+ *	@caps32: a 32-bit Port Capabilities value
+ *
+ *	Returns the equivalent 16-bit Port Capabilities value.  Note that
+ *	not all 32-bit Port Capabilities can be represented in the 16-bit
+ *	Port Capabilities and some fields/values may not make it.
+ */
+fw_port_cap16_t fwcaps32_to_caps16(fw_port_cap32_t caps32)
+{
+	fw_port_cap16_t caps16 = 0;
+
+	#define CAP32_TO_CAP16(__cap) \
+		do { \
+			if (caps32 & FW_PORT_CAP32_##__cap) \
+				caps16 |= FW_PORT_CAP_##__cap; \
+		} while (0)
+
+	CAP32_TO_CAP16(SPEED_100M);
+	CAP32_TO_CAP16(SPEED_1G);
+	CAP32_TO_CAP16(SPEED_10G);
+	CAP32_TO_CAP16(SPEED_25G);
+	CAP32_TO_CAP16(SPEED_40G);
+	CAP32_TO_CAP16(SPEED_100G);
+	CAP32_TO_CAP16(FC_RX);
+	CAP32_TO_CAP16(FC_TX);
+	CAP32_TO_CAP16(802_3_PAUSE);
+	CAP32_TO_CAP16(802_3_ASM_DIR);
+	CAP32_TO_CAP16(ANEG);
+	CAP32_TO_CAP16(FORCE_PAUSE);
+	CAP32_TO_CAP16(MDIAUTO);
+	CAP32_TO_CAP16(MDISTRAIGHT);
+	CAP32_TO_CAP16(FEC_RS);
+	CAP32_TO_CAP16(FEC_BASER_RS);
+
+	#undef CAP32_TO_CAP16
+
+	return caps16;
+}
+
+/**
+ *      lstatus_to_fwcap - translate old lstatus to 32-bit Port Capabilities
+ *      @lstatus: old FW_PORT_ACTION_GET_PORT_INFO lstatus value
+ *
+ *      Translates old FW_PORT_ACTION_GET_PORT_INFO lstatus field into new
+ *      32-bit Port Capabilities value.
+ */
+fw_port_cap32_t lstatus_to_fwcap(u32 lstatus)
+{
+	fw_port_cap32_t linkattr = 0;
+
+	/* The format of the Link Status in the old
+	 * 16-bit Port Information message isn't the same as the
+	 * 16-bit Port Capabilities bitfield used everywhere else.
+	 */
+	if (lstatus & FW_PORT_CMD_RXPAUSE_F)
+		linkattr |= FW_PORT_CAP32_FC_RX;
+	if (lstatus & FW_PORT_CMD_TXPAUSE_F)
+		linkattr |= FW_PORT_CAP32_FC_TX;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
+		linkattr |= FW_PORT_CAP32_SPEED_100M;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
+		linkattr |= FW_PORT_CAP32_SPEED_1G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
+		linkattr |= FW_PORT_CAP32_SPEED_10G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_25G))
+		linkattr |= FW_PORT_CAP32_SPEED_25G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
+		linkattr |= FW_PORT_CAP32_SPEED_40G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100G))
+		linkattr |= FW_PORT_CAP32_SPEED_100G;
+
+	return linkattr;
+}
+
+/**
+ *      csio_init_link_config - initialize a link's SW state
+ *      @lc: pointer to structure holding the link state
+ *      @pcaps: link Port Capabilities
+ *      @acaps: link current Advertised Port Capabilities
+ *
+ *      Initializes the SW state maintained for each link, including the link's
+ *      capabilities and default speed/flow-control/autonegotiation settings.
+ */
+static void csio_init_link_config(struct link_config *lc, fw_port_cap32_t pcaps,
+				  fw_port_cap32_t acaps)
+{
+	lc->pcaps = pcaps;
+	lc->def_acaps = acaps;
+	lc->lpacaps = 0;
+	lc->speed_caps = 0;
+	lc->speed = 0;
+	lc->requested_fc = PAUSE_RX | PAUSE_TX;
+	lc->fc = lc->requested_fc;
+
+	/*
+	 * For Forward Error Control, we default to whatever the Firmware
+	 * tells us the Link is currently advertising.
+	 */
+	lc->requested_fec = FEC_AUTO;
+	lc->fec = fwcap_to_cc_fec(lc->def_acaps);
+
+	/* If the Port is capable of Auto-Negtotiation, initialize it as
+	 * "enabled" and copy over all of the Physical Port Capabilities
+	 * to the Advertised Port Capabilities.  Otherwise mark it as
+	 * Auto-Negotiate disabled and select the highest supported speed
+	 * for the link.  Note parallel structure in t4_link_l1cfg_core()
+	 * and t4_handle_get_port_info().
+	 */
+	if (lc->pcaps & FW_PORT_CAP32_ANEG) {
+		lc->acaps = lc->pcaps & ADVERT_MASK;
+		lc->autoneg = AUTONEG_ENABLE;
+		lc->requested_fc |= PAUSE_AUTONEG;
+	} else {
+		lc->acaps = 0;
+		lc->autoneg = AUTONEG_DISABLE;
+	}
+}
+
+static void csio_link_l1cfg(struct link_config *lc, uint16_t fw_caps,
+			    uint32_t *rcaps)
+{
+	unsigned int fw_mdi = FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO);
+	fw_port_cap32_t fw_fc, cc_fec, fw_fec, lrcap;
+
+	lc->link_ok = 0;
+
+	/*
+	 * Convert driver coding of Pause Frame Flow Control settings into the
+	 * Firmware's API.
+	 */
+	fw_fc = cc_to_fwcap_pause(lc->requested_fc);
+
+	/*
+	 * Convert Common Code Forward Error Control settings into the
+	 * Firmware's API.  If the current Requested FEC has "Automatic"
+	 * (IEEE 802.3) specified, then we use whatever the Firmware
+	 * sent us as part of it's IEEE 802.3-based interpratation of
+	 * the Transceiver Module EPROM FEC parameters.  Otherwise we
+	 * use whatever is in the current Requested FEC settings.
+	 */
+	if (lc->requested_fec & FEC_AUTO)
+		cc_fec = fwcap_to_cc_fec(lc->def_acaps);
+	else
+		cc_fec = lc->requested_fec;
+	fw_fec = cc_to_fwcap_fec(cc_fec);
+
+	/* Figure out what our Requested Port Capabilities are going to be.
+	 * Note parallel structure in t4_handle_get_port_info() and
+	 * init_link_config().
+	 */
+	if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
+		lrcap = (lc->pcaps & ADVERT_MASK) | fw_fc | fw_fec;
+		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
+		lc->fec = cc_fec;
+	} else if (lc->autoneg == AUTONEG_DISABLE) {
+		lrcap = lc->speed_caps | fw_fc | fw_fec | fw_mdi;
+		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
+		lc->fec = cc_fec;
+	} else {
+		lrcap = lc->acaps | fw_fc | fw_fec | fw_mdi;
+	}
+
+	*rcaps = lrcap;
+}
+
 /*
  * csio_enable_ports - Bring up all available ports.
  * @hw: HW module.
@@ -1412,8 +1776,10 @@ static int
 csio_enable_ports(struct csio_hw *hw)
 {
 	struct csio_mb  *mbp;
+	u16 fw_caps = FW_CAPS_UNKNOWN;
 	enum fw_retval retval;
 	uint8_t portid;
+	fw_port_cap32_t pcaps, acaps, rcaps;
 	int i;
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
@@ -1425,9 +1791,32 @@ csio_enable_ports(struct csio_hw *hw)
 	for (i = 0; i < hw->num_pports; i++) {
 		portid = hw->pport[i].portid;
 
+		if (fw_caps == FW_CAPS_UNKNOWN) {
+			u32 param, val;
+
+			param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) |
+			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_PORT_CAPS32));
+			val = 1;
+
+			csio_mb_params(hw, mbp, CSIO_MB_DEFAULT_TMO,
+				       hw->pfn, 0, 1, &param, &val, true,
+				       NULL);
+
+			if (csio_mb_issue(hw, mbp)) {
+				csio_err(hw, "failed to issue FW_PARAMS_CMD(r) port:%d\n",
+					 portid);
+				mempool_free(mbp, hw->mb_mempool);
+				return -EINVAL;
+			}
+
+			csio_mb_process_read_params_rsp(hw, mbp, &retval,
+							0, NULL);
+			fw_caps = retval ? FW_CAPS16 : FW_CAPS32;
+		}
+
 		/* Read PORT information */
 		csio_mb_port(hw, mbp, CSIO_MB_DEFAULT_TMO, portid,
-			     false, 0, 0, NULL);
+			     false, 0, fw_caps, NULL);
 
 		if (csio_mb_issue(hw, mbp)) {
 			csio_err(hw, "failed to issue FW_PORT_CMD(r) port:%d\n",
@@ -1436,8 +1825,8 @@ csio_enable_ports(struct csio_hw *hw)
 			return -EINVAL;
 		}
 
-		csio_mb_process_read_port_rsp(hw, mbp, &retval,
-					      &hw->pport[i].pcap);
+		csio_mb_process_read_port_rsp(hw, mbp, &retval, fw_caps,
+					      &pcaps, &acaps);
 		if (retval != FW_SUCCESS) {
 			csio_err(hw, "FW_PORT_CMD(r) port:%d failed: 0x%x\n",
 				 portid, retval);
@@ -1445,9 +1834,13 @@ csio_enable_ports(struct csio_hw *hw)
 			return -EINVAL;
 		}
 
+		csio_init_link_config(&hw->pport[i].link_cfg, pcaps, acaps);
+
+		csio_link_l1cfg(&hw->pport[i].link_cfg, fw_caps, &rcaps);
+
 		/* Write back PORT information */
-		csio_mb_port(hw, mbp, CSIO_MB_DEFAULT_TMO, portid, true,
-			     (PAUSE_RX | PAUSE_TX), hw->pport[i].pcap, NULL);
+		csio_mb_port(hw, mbp, CSIO_MB_DEFAULT_TMO, portid,
+			     true, rcaps, fw_caps, NULL);
 
 		if (csio_mb_issue(hw, mbp)) {
 			csio_err(hw, "failed to issue FW_PORT_CMD(w) port:%d\n",
@@ -1581,10 +1974,16 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 	unsigned int mtype = 0, maddr = 0;
 	uint32_t *cfg_data;
 	int value_to_add = 0;
+	const char *fw_cfg_file;
 
-	if (request_firmware(&cf, FW_CFG_NAME_T5, dev) < 0) {
+	if (csio_is_t5(pci_dev->device & CSIO_HW_CHIP_MASK))
+		fw_cfg_file = FW_CFG_NAME_T5;
+	else
+		fw_cfg_file = FW_CFG_NAME_T6;
+
+	if (request_firmware(&cf, fw_cfg_file, dev) < 0) {
 		csio_err(hw, "could not find config file %s, err: %d\n",
-			 FW_CFG_NAME_T5, ret);
+			 fw_cfg_file, ret);
 		return -ENOENT;
 	}
 
@@ -1623,9 +2022,8 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 		ret = csio_memory_write(hw, mtype, maddr + size, 4, &last.word);
 	}
 	if (ret == 0) {
-		csio_info(hw, "config file upgraded to %s\n",
-			  FW_CFG_NAME_T5);
-		snprintf(path, 64, "%s%s", "/lib/firmware/", FW_CFG_NAME_T5);
+		csio_info(hw, "config file upgraded to %s\n", fw_cfg_file);
+		snprintf(path, 64, "%s%s", "/lib/firmware/", fw_cfg_file);
 	}
 
 leave:
@@ -1769,7 +2167,6 @@ csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
 		goto bye;
 	}
 
-	mempool_free(mbp, hw->mb_mempool);
 	if (finicsum != cfcsum) {
 		csio_warn(hw,
 		      "Config File checksum mismatch: csum=%#x, computed=%#x\n",
@@ -1780,6 +2177,10 @@ csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
 	rv = csio_hw_validate_caps(hw, mbp);
 	if (rv != 0)
 		goto bye;
+
+	mempool_free(mbp, hw->mb_mempool);
+	mbp = NULL;
+
 	/*
 	 * Note that we're operating with parameters
 	 * not supplied by the driver, rather than from hard-wired
@@ -1883,6 +2284,19 @@ static struct fw_info fw_info_array[] = {
 			.intfver_iscsi = FW_INTFVER(T5, ISCSI),
 			.intfver_fcoe = FW_INTFVER(T5, FCOE),
 		},
+	}, {
+		.chip = CHELSIO_T6,
+		.fs_name = FW_CFG_NAME_T6,
+		.fw_mod_name = FW_FNAME_T6,
+		.fw_hdr = {
+			.chip = FW_HDR_CHIP_T6,
+			.fw_ver = __cpu_to_be32(FW_VERSION(T6)),
+			.intfver_nic = FW_INTFVER(T6, NIC),
+			.intfver_vnic = FW_INTFVER(T6, VNIC),
+			.intfver_ri = FW_INTFVER(T6, RI),
+			.intfver_iscsi = FW_INTFVER(T6, ISCSI),
+			.intfver_fcoe = FW_INTFVER(T6, FCOE),
+		},
 	}
 };
 
@@ -1983,8 +2397,8 @@ bye:
 }
 
 /*
- * Returns -EINVAL if attempts to flash the firmware failed
- * else returns 0,
+ * Returns -EINVAL if attempts to flash the firmware failed,
+ * -ENOMEM if memory allocation failed else returns 0,
  * if flashing was not attempted because the card had the
  * latest firmware ECANCELED is returned
  */
@@ -1999,6 +2413,7 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 	struct device *dev = &pci_dev->dev ;
 	const u8 *fw_data = NULL;
 	unsigned int fw_size = 0;
+	const char *fw_bin_file;
 
 	/* This is the firmware whose headers the driver was compiled
 	 * against
@@ -2011,18 +2426,25 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		return -EINVAL;
 	}
 
-	if (request_firmware(&fw, FW_FNAME_T5, dev) < 0) {
-		csio_err(hw, "could not find firmware image %s, err: %d\n",
-			 FW_FNAME_T5, ret);
-	} else {
-		fw_data = fw->data;
-		fw_size = fw->size;
-	}
-
 	/* allocate memory to read the header of the firmware on the
 	 * card
 	 */
 	card_fw = kmalloc(sizeof(*card_fw), GFP_KERNEL);
+	if (!card_fw)
+		return -ENOMEM;
+
+	if (csio_is_t5(pci_dev->device & CSIO_HW_CHIP_MASK))
+		fw_bin_file = FW_FNAME_T5;
+	else
+		fw_bin_file = FW_FNAME_T6;
+
+	if (request_firmware(&fw, fw_bin_file, dev) < 0) {
+		csio_err(hw, "could not find firmware image %s, err: %d\n",
+			 fw_bin_file, ret);
+	} else {
+		fw_data = fw->data;
+		fw_size = fw->size;
+	}
 
 	/* upgrade FW logic */
 	ret = csio_hw_prep_fw(hw, fw_info, fw_data, fw_size, card_fw,
@@ -2033,6 +2455,17 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		release_firmware(fw);
 	kfree(card_fw);
 	return ret;
+}
+
+static int csio_hw_check_fwver(struct csio_hw *hw)
+{
+	if (csio_is_t6(hw->pdev->device & CSIO_HW_CHIP_MASK) &&
+	    (hw->fwrev < CSIO_MIN_T6_FW)) {
+		csio_hw_print_fw_version(hw, "T6 unsupported fw");
+		return -1;
+	}
+
+	return 0;
 }
 
 /*
@@ -2102,6 +2535,10 @@ csio_hw_configure(struct csio_hw *hw)
 		if (rv != 0)
 			goto out;
 
+		rv = csio_hw_check_fwver(hw);
+		if (rv < 0)
+			goto out;
+
 		/* If the firmware doesn't support Configuration Files,
 		 * return an error.
 		 */
@@ -2129,6 +2566,10 @@ csio_hw_configure(struct csio_hw *hw)
 		}
 
 	} else {
+		rv = csio_hw_check_fwver(hw);
+		if (rv < 0)
+			goto out;
+
 		if (hw->fw_state == CSIO_DEV_STATE_INIT) {
 
 			hw->flags |= CSIO_HWF_USING_SOFT_PARAMS;
@@ -2238,8 +2679,13 @@ static void
 csio_hw_intr_enable(struct csio_hw *hw)
 {
 	uint16_t vec = (uint16_t)csio_get_mb_intr_idx(csio_hw_to_mbm(hw));
-	uint32_t pf = SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
+	u32 pf = 0;
 	uint32_t pl = csio_rd_reg32(hw, PL_INT_ENABLE_A);
+
+	if (csio_is_t5(hw->pdev->device & CSIO_HW_CHIP_MASK))
+		pf = SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
+	else
+		pf = T6_SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
 
 	/*
 	 * Set aivec for MSI/MSIX. PCIE_PF_CFG.INTXType is set up
@@ -2290,7 +2736,12 @@ csio_hw_intr_enable(struct csio_hw *hw)
 void
 csio_hw_intr_disable(struct csio_hw *hw)
 {
-	uint32_t pf = SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
+	u32 pf = 0;
+
+	if (csio_is_t5(hw->pdev->device & CSIO_HW_CHIP_MASK))
+		pf = SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
+	else
+		pf = T6_SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
 
 	if (!(hw->flags & CSIO_HWF_HW_INTR_ENABLED))
 		return;
@@ -2915,6 +3366,8 @@ static void csio_cplsw_intr_handler(struct csio_hw *hw)
  */
 static void csio_le_intr_handler(struct csio_hw *hw)
 {
+	enum chip_type chip = CHELSIO_CHIP_VERSION(hw->chip_id);
+
 	static struct intr_info le_intr_info[] = {
 		{ LIPMISS_F, "LE LIP miss", -1, 0 },
 		{ LIP0_F, "LE 0 LIP error", -1, 0 },
@@ -2924,7 +3377,18 @@ static void csio_le_intr_handler(struct csio_hw *hw)
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, LE_DB_INT_CAUSE_A, le_intr_info))
+	static struct intr_info t6_le_intr_info[] = {
+		{ T6_LIPMISS_F, "LE LIP miss", -1, 0 },
+		{ T6_LIP0_F, "LE 0 LIP error", -1, 0 },
+		{ TCAMINTPERR_F, "LE parity error", -1, 1 },
+		{ T6_UNKNOWNCMD_F, "LE unknown command", -1, 1 },
+		{ SSRAMINTPERR_F, "LE request queue parity error", -1, 1 },
+		{ 0, NULL, 0, 0 }
+	};
+
+	if (csio_handle_intr_status(hw, LE_DB_INT_CAUSE_A,
+				    (chip == CHELSIO_T5) ?
+				    le_intr_info : t6_le_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -3272,9 +3736,10 @@ csio_mberr_worker(void *data)
  *
  **/
 static void
-csio_hw_mb_timer(uintptr_t data)
+csio_hw_mb_timer(struct timer_list *t)
 {
-	struct csio_hw *hw = (struct csio_hw *)data;
+	struct csio_mbm *mbm = from_timer(mbm, t, timer);
+	struct csio_hw *hw = mbm->hw;
 	struct csio_mb *mbp = NULL;
 
 	spin_lock_irq(&hw->lock);
@@ -3640,9 +4105,9 @@ csio_mgmt_req_lookup(struct csio_mgmtm *mgmtm, struct csio_ioreq *io_req)
  * Return - none.
  */
 static void
-csio_mgmt_tmo_handler(uintptr_t data)
+csio_mgmt_tmo_handler(struct timer_list *t)
 {
-	struct csio_mgmtm *mgmtm = (struct csio_mgmtm *) data;
+	struct csio_mgmtm *mgmtm = from_timer(mgmtm, t, mgmt_timer);
 	struct list_head *tmp;
 	struct csio_ioreq *io_req;
 
@@ -3722,11 +4187,7 @@ csio_mgmtm_cleanup(struct csio_mgmtm *mgmtm)
 static int
 csio_mgmtm_init(struct csio_mgmtm *mgmtm, struct csio_hw *hw)
 {
-	struct timer_list *timer = &mgmtm->mgmt_timer;
-
-	init_timer(timer);
-	timer->function = csio_mgmt_tmo_handler;
-	timer->data = (unsigned long)mgmtm;
+	timer_setup(&mgmtm->mgmt_timer, csio_mgmt_tmo_handler, 0);
 
 	INIT_LIST_HEAD(&mgmtm->active_q);
 	INIT_LIST_HEAD(&mgmtm->cbfn_q);
@@ -3770,8 +4231,10 @@ csio_hw_start(struct csio_hw *hw)
 
 	if (csio_is_hw_ready(hw))
 		return 0;
-	else
+	else if (csio_match_state(hw, csio_hws_uninit))
 		return -EINVAL;
+	else
+		return -ENODEV;
 }
 
 int

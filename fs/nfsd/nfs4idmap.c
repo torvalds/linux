@@ -178,7 +178,7 @@ static struct ent *idtoname_lookup(struct cache_detail *, struct ent *);
 static struct ent *idtoname_update(struct cache_detail *, struct ent *,
 				   struct ent *);
 
-static struct cache_detail idtoname_cache_template = {
+static const struct cache_detail idtoname_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= ENT_HASHMAX,
 	.name		= "nfs4.idtoname",
@@ -341,7 +341,7 @@ static struct ent *nametoid_update(struct cache_detail *, struct ent *,
 				   struct ent *);
 static int         nametoid_parse(struct cache_detail *, char *, int);
 
-static struct cache_detail nametoid_cache_template = {
+static const struct cache_detail nametoid_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= ENT_HASHMAX,
 	.name		= "nfs4.nametoid",
@@ -628,6 +628,10 @@ nfsd_map_name_to_uid(struct svc_rqst *rqstp, const char *name, size_t namelen,
 {
 	__be32 status;
 	u32 id = -1;
+
+	if (name == NULL || namelen == 0)
+		return nfserr_inval;
+
 	status = do_name_to_id(rqstp, IDMAP_TYPE_USER, name, namelen, &id);
 	*uid = make_kuid(&init_user_ns, id);
 	if (!uid_valid(*uid))
@@ -641,6 +645,10 @@ nfsd_map_name_to_gid(struct svc_rqst *rqstp, const char *name, size_t namelen,
 {
 	__be32 status;
 	u32 id = -1;
+
+	if (name == NULL || namelen == 0)
+		return nfserr_inval;
+
 	status = do_name_to_id(rqstp, IDMAP_TYPE_GROUP, name, namelen, &id);
 	*gid = make_kgid(&init_user_ns, id);
 	if (!gid_valid(*gid))

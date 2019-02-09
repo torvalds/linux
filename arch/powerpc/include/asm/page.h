@@ -16,8 +16,7 @@
 #else
 #include <asm/types.h>
 #endif
-#include <asm/asm-compat.h>
-#include <asm/kdump.h>
+#include <asm/asm-const.h>
 
 /*
  * On regular PPC32 page size is 4K (but we support 4K/16K/64K/256K pages
@@ -39,6 +38,7 @@
 
 #ifndef __ASSEMBLY__
 #ifdef CONFIG_HUGETLB_PAGE
+extern bool hugetlb_disabled;
 extern unsigned int HPAGE_SHIFT;
 #else
 #define HPAGE_SHIFT PAGE_SHIFT
@@ -96,7 +96,7 @@ extern unsigned int HPAGE_SHIFT;
 extern phys_addr_t memstart_addr;
 extern phys_addr_t kernstart_addr;
 
-#ifdef CONFIG_RELOCATABLE_PPC32
+#if defined(CONFIG_RELOCATABLE) && defined(CONFIG_PPC32)
 extern long long virt_phys_offset;
 #endif
 
@@ -126,22 +126,42 @@ extern long long virt_phys_offset;
 
 #ifdef CONFIG_FLATMEM
 #define ARCH_PFN_OFFSET		((unsigned long)(MEMORY_START >> PAGE_SHIFT))
-#define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && (pfn) < max_mapnr)
+#ifndef __ASSEMBLY__
+extern unsigned long max_mapnr;
+static inline bool pfn_valid(unsigned long pfn)
+{
+	unsigned long min_pfn = ARCH_PFN_OFFSET;
+
+	return pfn >= min_pfn && pfn < max_mapnr;
+}
+#endif
 #endif
 
 #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
+
+#ifdef CONFIG_PPC_BOOK3S_64
+/*
+ * On hash the vmalloc and other regions alias to the kernel region when passed
+ * through __pa(), which virt_to_pfn() uses. That means virt_addr_valid() can
+ * return true for some vmalloc addresses, which is incorrect. So explicitly
+ * check that the address is in the kernel region.
+ */
+#define virt_addr_valid(kaddr) (REGION_ID(kaddr) == KERNEL_REGION_ID && \
+				pfn_valid(virt_to_pfn(kaddr)))
+#else
 #define virt_addr_valid(kaddr)	pfn_valid(virt_to_pfn(kaddr))
+#endif
 
 /*
  * On Book-E parts we need __va to parse the device tree and we can't
  * determine MEMORY_START until then.  However we can determine PHYSICAL_START
  * from information at hand (program counter, TLB lookup).
  *
- * On BookE with RELOCATABLE (RELOCATABLE_PPC32)
+ * On BookE with RELOCATABLE && PPC32
  *
- *   With RELOCATABLE_PPC32,  we support loading the kernel at any physical 
+ *   With RELOCATABLE && PPC32,  we support loading the kernel at any physical
  *   address without any restriction on the page alignment.
  *
  *   We find the runtime address of _stext and relocate ourselves based on 
@@ -230,7 +250,9 @@ extern long long virt_phys_offset;
  * and needs to be executable.  This means the whole heap ends
  * up being executable.
  */
-#define VM_DATA_DEFAULT_FLAGS32	(VM_READ | VM_WRITE | VM_EXEC | \
+#define VM_DATA_DEFAULT_FLAGS32 \
+	(((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0) | \
+				 VM_READ | VM_WRITE | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #define VM_DATA_DEFAULT_FLAGS64	(VM_READ | VM_WRITE | \
@@ -271,6 +293,13 @@ extern long long virt_phys_offset;
 #else
 #define PD_HUGE 0x80000000
 #endif
+
+#else	/* CONFIG_PPC_BOOK3S_64 */
+/*
+ * Book3S 64 stores real addresses in the hugepd entries to
+ * avoid overlaps with _PAGE_PRESENT and _PAGE_PTE.
+ */
+#define HUGEPD_ADDR_MASK	(0x0ffffffffffffffful & ~HUGEPD_SHIFT_MASK)
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 /*
@@ -281,128 +310,17 @@ extern long long virt_phys_offset;
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_STRICT_MM_TYPECHECKS
-/* These are used to make use of C type-checking. */
-
-/* PTE level */
-typedef struct { pte_basic_t pte; } pte_t;
-#define pte_val(x)	((x).pte)
-#define __pte(x)	((pte_t) { (x) })
-
-/* 64k pages additionally define a bigger "real PTE" type that gathers
- * the "second half" part of the PTE for pseudo 64k pages
- */
-#if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_PPC_STD_MMU_64)
-typedef struct { pte_t pte; unsigned long hidx; } real_pte_t;
-#else
-typedef struct { pte_t pte; } real_pte_t;
-#endif
-
-/* PMD level */
-#ifdef CONFIG_PPC64
-typedef struct { unsigned long pmd; } pmd_t;
-#define pmd_val(x)	((x).pmd)
-#define __pmd(x)	((pmd_t) { (x) })
-
-/* PUD level exusts only on 4k pages */
-#ifndef CONFIG_PPC_64K_PAGES
-typedef struct { unsigned long pud; } pud_t;
-#define pud_val(x)	((x).pud)
-#define __pud(x)	((pud_t) { (x) })
-#endif /* !CONFIG_PPC_64K_PAGES */
-#endif /* CONFIG_PPC64 */
-
-/* PGD level */
-typedef struct { unsigned long pgd; } pgd_t;
-#define pgd_val(x)	((x).pgd)
-#define __pgd(x)	((pgd_t) { (x) })
-
-/* Page protection bits */
-typedef struct { unsigned long pgprot; } pgprot_t;
-#define pgprot_val(x)	((x).pgprot)
-#define __pgprot(x)	((pgprot_t) { (x) })
-
-#else
-
-/*
- * .. while these make it easier on the compiler
- */
-
-typedef pte_basic_t pte_t;
-#define pte_val(x)	(x)
-#define __pte(x)	(x)
-
-#if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_PPC_STD_MMU_64)
-typedef struct { pte_t pte; unsigned long hidx; } real_pte_t;
-#else
-typedef pte_t real_pte_t;
-#endif
-
-
-#ifdef CONFIG_PPC64
-typedef unsigned long pmd_t;
-#define pmd_val(x)	(x)
-#define __pmd(x)	(x)
-
-#ifndef CONFIG_PPC_64K_PAGES
-typedef unsigned long pud_t;
-#define pud_val(x)	(x)
-#define __pud(x)	(x)
-#endif /* !CONFIG_PPC_64K_PAGES */
-#endif /* CONFIG_PPC64 */
-
-typedef unsigned long pgd_t;
-#define pgd_val(x)	(x)
-#define pgprot_val(x)	(x)
-
-typedef unsigned long pgprot_t;
-#define __pgd(x)	(x)
-#define __pgprot(x)	(x)
-
-#endif
-
-typedef struct { signed long pd; } hugepd_t;
-
-#ifdef CONFIG_HUGETLB_PAGE
 #ifdef CONFIG_PPC_BOOK3S_64
-#ifdef CONFIG_PPC_64K_PAGES
-/*
- * With 64k page size, we have hugepage ptes in the pgd and pmd entries. We don't
- * need to setup hugepage directory for them. Our pte and page directory format
- * enable us to have this enabled. But to avoid errors when implementing new
- * features disable hugepd for 64K. We enable a debug version here, So we catch
- * wrong usage.
- */
-#ifdef CONFIG_DEBUG_VM
-extern int hugepd_ok(hugepd_t hpd);
+#include <asm/pgtable-be-types.h>
 #else
-#define hugepd_ok(x)	(0)
-#endif
-#else
-static inline int hugepd_ok(hugepd_t hpd)
-{
-	/*
-	 * hugepd pointer, bottom two bits == 00 and next 4 bits
-	 * indicate size of table
-	 */
-	return (((hpd.pd & 0x3) == 0x0) && ((hpd.pd & HUGEPD_SHIFT_MASK) != 0));
-}
-#endif
-#else
-static inline int hugepd_ok(hugepd_t hpd)
-{
-	return (hpd.pd > 0);
-}
+#include <asm/pgtable-types.h>
 #endif
 
-#define is_hugepd(hpd)               (hugepd_ok(hpd))
-#define pgd_huge pgd_huge
-int pgd_huge(pgd_t pgd);
-#else /* CONFIG_HUGETLB_PAGE */
-#define is_hugepd(pdep)			0
-#define pgd_huge(pgd)			0
+
+#ifndef CONFIG_HUGETLB_PAGE
+#define is_hugepd(pdep)		(0)
+#define pgd_huge(pgd)		(0)
 #endif /* CONFIG_HUGETLB_PAGE */
-#define __hugepd(x) ((hugepd_t) { (x) })
 
 struct page;
 extern void clear_user_page(void *page, unsigned long vaddr, struct page *pg);
@@ -417,14 +335,23 @@ void arch_free_page(struct page *page, int order);
 #endif
 
 struct vm_area_struct;
-
+#ifdef CONFIG_PPC_BOOK3S_64
+/*
+ * For BOOK3s 64 with 4k and 64K linux page size
+ * we want to use pointers, because the page table
+ * actually store pfn
+ */
+typedef pte_t *pgtable_t;
+#else
 #if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_PPC64)
 typedef pte_t *pgtable_t;
 #else
 typedef struct page *pgtable_t;
 #endif
+#endif
 
 #include <asm-generic/memory_model.h>
 #endif /* __ASSEMBLY__ */
+#include <asm/slice.h>
 
 #endif /* _ASM_POWERPC_PAGE_H */

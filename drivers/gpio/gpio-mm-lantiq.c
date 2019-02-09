@@ -3,7 +3,7 @@
  *  under the terms of the GNU General Public License version 2 as published
  *  by the Free Software Foundation.
  *
- *  Copyright (C) 2012 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
 
 #include <linux/init.h>
@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>
@@ -61,9 +61,7 @@ static void ltq_mm_apply(struct ltq_mm *chip)
  */
 static void ltq_mm_set(struct gpio_chip *gc, unsigned offset, int value)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct ltq_mm *chip =
-		container_of(mm_gc, struct ltq_mm, mmchip);
+	struct ltq_mm *chip = gpiochip_get_data(gc);
 
 	if (value)
 		chip->shadow |= (1 << offset);
@@ -122,7 +120,7 @@ static int ltq_mm_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,shadow", &shadow))
 		chip->shadow = shadow;
 
-	return of_mm_gpiochip_add(pdev->dev.of_node, &chip->mmchip);
+	return of_mm_gpiochip_add_data(pdev->dev.of_node, &chip->mmchip, chip);
 }
 
 static int ltq_mm_remove(struct platform_device *pdev)

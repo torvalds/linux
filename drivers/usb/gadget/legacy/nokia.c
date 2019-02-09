@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * nokia.c -- Nokia Composite Gadget Driver
  *
@@ -9,10 +10,6 @@
  * Copyright (C) 2003 Al Borchers (alborchers@steinerpoint.com)
  * Copyright (C) 2008 by David Brownell
  * Copyright (C) 2008 by Nokia Corporation
- *
- * This software is distributed under the terms of the GNU General
- * Public License ("GPL") as published by the Free Software Foundation,
- * version 2 of that License.
  */
 
 #include <linux/kernel.h>
@@ -89,7 +86,7 @@ static struct usb_gadget_strings *dev_strings[] = {
 static struct usb_device_descriptor device_desc = {
 	.bLength		= USB_DT_DEVICE_SIZE,
 	.bDescriptorType	= USB_DT_DEVICE,
-	.bcdUSB			= cpu_to_le16(0x0200),
+	/* .bcdUSB = DYNAMIC */
 	.bDeviceClass		= USB_CLASS_COMM,
 	.idVendor		= cpu_to_le16(NOKIA_VENDOR_ID),
 	.idProduct		= cpu_to_le16(NOKIA_PRODUCT_ID),
@@ -152,7 +149,6 @@ static int nokia_bind_config(struct usb_configuration *c)
 	struct usb_function *f_ecm;
 	struct usb_function *f_obex2 = NULL;
 	struct usb_function *f_msg;
-	struct fsg_opts *fsg_opts;
 	int status = 0;
 	int obex1_stat = -1;
 	int obex2_stat = -1;
@@ -221,12 +217,6 @@ static int nokia_bind_config(struct usb_configuration *c)
 		pr_debug("could not bind ecm config %d\n", status);
 		goto err_ecm;
 	}
-
-	fsg_opts = fsg_opts_from_func_inst(fi_msg);
-
-	status = fsg_common_run_thread(fsg_opts->common);
-	if (status)
-		goto err_msg;
 
 	status = usb_add_function(c, f_msg);
 	if (status)

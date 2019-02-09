@@ -172,8 +172,8 @@ int ubifs_orphan_start_commit(struct ubifs_info *c)
 	spin_lock(&c->orphan_lock);
 	last = &c->orph_cnext;
 	list_for_each_entry(orphan, &c->orph_new, new_list) {
-		ubifs_assert(orphan->new);
-		ubifs_assert(!orphan->cmt);
+		ubifs_assert(c, orphan->new);
+		ubifs_assert(c, !orphan->cmt);
 		orphan->new = 0;
 		orphan->cmt = 1;
 		*last = orphan;
@@ -244,7 +244,7 @@ static int do_write_orph_node(struct ubifs_info *c, int len, int atomic)
 	int err = 0;
 
 	if (atomic) {
-		ubifs_assert(c->ohead_offs == 0);
+		ubifs_assert(c, c->ohead_offs == 0);
 		ubifs_prepare_node(c, c->orph_buf, len, 1);
 		len = ALIGN(len, c->min_io_size);
 		err = ubifs_leb_change(c, c->ohead_lnum, c->orph_buf, len);
@@ -276,7 +276,7 @@ static int write_orph_node(struct ubifs_info *c, int atomic)
 	struct ubifs_orph_node *orph;
 	int gap, err, len, cnt, i;
 
-	ubifs_assert(c->cmt_orphans > 0);
+	ubifs_assert(c, c->cmt_orphans > 0);
 	gap = c->leb_size - c->ohead_offs;
 	if (gap < UBIFS_ORPH_NODE_SZ + sizeof(__le64)) {
 		c->ohead_lnum += 1;
@@ -295,14 +295,14 @@ static int write_orph_node(struct ubifs_info *c, int atomic)
 	if (cnt > c->cmt_orphans)
 		cnt = c->cmt_orphans;
 	len = UBIFS_ORPH_NODE_SZ + cnt * sizeof(__le64);
-	ubifs_assert(c->orph_buf);
+	ubifs_assert(c, c->orph_buf);
 	orph = c->orph_buf;
 	orph->ch.node_type = UBIFS_ORPH_NODE;
 	spin_lock(&c->orphan_lock);
 	cnext = c->orph_cnext;
 	for (i = 0; i < cnt; i++) {
 		orphan = cnext;
-		ubifs_assert(orphan->cmt);
+		ubifs_assert(c, orphan->cmt);
 		orph->inos[i] = cpu_to_le64(orphan->inum);
 		orphan->cmt = 0;
 		cnext = orphan->cnext;
@@ -316,9 +316,9 @@ static int write_orph_node(struct ubifs_info *c, int atomic)
 	else
 		/* Mark the last node of the commit */
 		orph->cmt_no = cpu_to_le64((c->cmt_no) | (1ULL << 63));
-	ubifs_assert(c->ohead_offs + len <= c->leb_size);
-	ubifs_assert(c->ohead_lnum >= c->orph_first);
-	ubifs_assert(c->ohead_lnum <= c->orph_last);
+	ubifs_assert(c, c->ohead_offs + len <= c->leb_size);
+	ubifs_assert(c, c->ohead_lnum >= c->orph_first);
+	ubifs_assert(c, c->ohead_lnum <= c->orph_last);
 	err = do_write_orph_node(c, len, atomic);
 	c->ohead_offs += ALIGN(len, c->min_io_size);
 	c->ohead_offs = ALIGN(c->ohead_offs, 8);
@@ -388,7 +388,7 @@ static int consolidate(struct ubifs_info *c)
 			cnt += 1;
 		}
 		*last = NULL;
-		ubifs_assert(cnt == c->tot_orphans - c->new_orphans);
+		ubifs_assert(c, cnt == c->tot_orphans - c->new_orphans);
 		c->cmt_orphans = cnt;
 		c->ohead_lnum = c->orph_first;
 		c->ohead_offs = 0;
@@ -415,7 +415,7 @@ static int commit_orphans(struct ubifs_info *c)
 {
 	int avail, atomic = 0, err;
 
-	ubifs_assert(c->cmt_orphans > 0);
+	ubifs_assert(c, c->cmt_orphans > 0);
 	avail = avail_orphs(c);
 	if (avail < c->cmt_orphans) {
 		/* Not enough space to write new orphans, so consolidate */
@@ -446,8 +446,8 @@ static void erase_deleted(struct ubifs_info *c)
 	while (dnext) {
 		orphan = dnext;
 		dnext = orphan->dnext;
-		ubifs_assert(!orphan->new);
-		ubifs_assert(orphan->del);
+		ubifs_assert(c, !orphan->new);
+		ubifs_assert(c, orphan->del);
 		rb_erase(&orphan->rb, &c->orph_tree);
 		list_del(&orphan->list);
 		c->tot_orphans -= 1;

@@ -23,7 +23,7 @@
 	};
 
 	chosen {
-		linux,stdout-path = &uart0;
+		stdout-path = &uart0;
 	};
 
 	clocks {

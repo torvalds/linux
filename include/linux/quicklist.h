@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_QUICKLIST_H
 #define LINUX_QUICKLIST_H
 /*
@@ -5,7 +6,7 @@
  * as needed after allocation when they are freed. Per cpu lists of pages
  * are kept that only contain node local pages.
  *
- * (C) 2007, SGI. Christoph Lameter <clameter@sgi.com>
+ * (C) 2007, SGI. Christoph Lameter <cl@linux.com>
  */
 #include <linux/kernel.h>
 #include <linux/gfp.h>

@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "kirkwood.dtsi"
 #include "kirkwood-6282.dtsi"
 
 / {
-	model = "Univeral Scientific Industrial Co. Topkick-1281P2";
+	model = "Universal Scientific Industrial Co. Topkick-1281P2";
 	compatible = "usi,topkick-1281P2", "usi,topkick", "marvell,kirkwood-88f6282", "marvell,kirkwood";
 
 	memory {
@@ -129,7 +130,7 @@
 		disk {
 			label = "topkick:yellow:disk";
 			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "ide-disk";
+			linux,default-trigger = "disk-activity";
 		};
 		system2 {
 			label = "topkick:red:system";

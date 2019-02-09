@@ -27,9 +27,8 @@
 #ifndef STV0288_H
 #define STV0288_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct stv0288_config {
 	/* the demodulator's i2c address */

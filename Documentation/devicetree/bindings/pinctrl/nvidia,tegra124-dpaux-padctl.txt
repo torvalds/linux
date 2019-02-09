@@ -1,0 +1,59 @@
+Device tree binding for NVIDIA Tegra DPAUX pad controller
+========================================================
+
+The Tegra Display Port Auxiliary (DPAUX) pad controller manages two pins
+which can be assigned to either the DPAUX channel or to an I2C
+controller.
+
+This document defines the device-specific binding for the DPAUX pad
+controller. Refer to pinctrl-bindings.txt in this directory for generic
+information about pin controller device tree bindings. Please refer to
+the binding document ../display/tegra/nvidia,tegra20-host1x.txt for more
+details on the DPAUX binding.
+
+Pin muxing:
+-----------
+
+Child nodes contain the pinmux configurations following the conventions
+from the pinctrl-bindings.txt document.
+
+Since only three configurations are possible, only three child nodes are
+needed to describe the pin mux'ing options for the DPAUX pads.
+Furthermore, given that the pad functions are only applicable to a
+single set of pads, the child nodes only need to describe the pad group
+the functions are being applied to rather than the individual pads.
+
+Required properties:
+- groups: Must be "dpaux-io"
+- function: Must be either "aux", "i2c" or "off".
+
+Example:
+--------
+
+	dpaux@545c0000 {
+		...
+
+		state_dpaux_aux: pinmux-aux {
+			groups = "dpaux-io";
+			function = "aux";
+		};
+
+		state_dpaux_i2c: pinmux-i2c {
+			groups = "dpaux-io";
+			function = "i2c";
+		};
+
+		state_dpaux_off: pinmux-off {
+			groups = "dpaux-io";
+			function = "off";
+		};
+	};
+
+	...
+
+	i2c@7000d100 {
+		...
+		pinctrl-0 = <&state_dpaux_i2c>;
+		pinctrl-1 = <&state_dpaux_off>;
+		pinctrl-names = "default", "idle";
+	};

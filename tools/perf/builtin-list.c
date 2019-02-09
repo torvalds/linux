@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * builtin-list.c
  *
@@ -14,18 +15,32 @@
 #include "util/parse-events.h"
 #include "util/cache.h"
 #include "util/pmu.h"
-#include "util/parse-options.h"
+#include "util/debug.h"
+#include "util/metricgroup.h"
+#include <subcmd/parse-options.h>
 
-int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
+static bool desc_flag = true;
+static bool details_flag;
+
+int cmd_list(int argc, const char **argv)
 {
 	int i;
 	bool raw_dump = false;
+	bool long_desc_flag = false;
 	struct option list_options[] = {
 		OPT_BOOLEAN(0, "raw-dump", &raw_dump, "Dump raw events"),
+		OPT_BOOLEAN('d', "desc", &desc_flag,
+			    "Print extra event descriptions. --no-desc to not print."),
+		OPT_BOOLEAN('v', "long-desc", &long_desc_flag,
+			    "Print longer event descriptions."),
+		OPT_BOOLEAN(0, "details", &details_flag,
+			    "Print information on the perf event names and expressions used internally by events."),
+		OPT_INCR(0, "debug", &verbose,
+			     "Enable debugging output"),
 		OPT_END()
 	};
 	const char * const list_usage[] = {
-		"perf list [hw|sw|cache|tracepoint|pmu|event_glob]",
+		"perf list [<options>] [hw|sw|cache|tracepoint|pmu|sdt|event_glob]",
 		NULL
 	};
 
@@ -40,7 +55,8 @@ int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 		printf("\nList of pre-defined events (to be used in -e):\n\n");
 
 	if (argc == 0) {
-		print_events(NULL, raw_dump);
+		print_events(NULL, raw_dump, !desc_flag, long_desc_flag,
+				details_flag);
 		return 0;
 	}
 
@@ -61,12 +77,21 @@ int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 			 strcmp(argv[i], "hwcache") == 0)
 			print_hwcache_events(NULL, raw_dump);
 		else if (strcmp(argv[i], "pmu") == 0)
-			print_pmu_events(NULL, raw_dump);
+			print_pmu_events(NULL, raw_dump, !desc_flag,
+						long_desc_flag, details_flag);
+		else if (strcmp(argv[i], "sdt") == 0)
+			print_sdt_events(NULL, NULL, raw_dump);
+		else if (strcmp(argv[i], "metric") == 0)
+			metricgroup__print(true, false, NULL, raw_dump);
+		else if (strcmp(argv[i], "metricgroup") == 0)
+			metricgroup__print(false, true, NULL, raw_dump);
 		else if ((sep = strchr(argv[i], ':')) != NULL) {
 			int sep_idx;
 
 			if (sep == NULL) {
-				print_events(argv[i], raw_dump);
+				print_events(argv[i], raw_dump, !desc_flag,
+							long_desc_flag,
+							details_flag);
 				continue;
 			}
 			sep_idx = sep - argv[i];
@@ -76,6 +101,8 @@ int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 
 			s[sep_idx] = '\0';
 			print_tracepoint_events(s, s + sep_idx + 1, raw_dump);
+			print_sdt_events(s, s + sep_idx + 1, raw_dump);
+			metricgroup__print(true, true, s, raw_dump);
 			free(s);
 		} else {
 			if (asprintf(&s, "*%s*", argv[i]) < 0) {
@@ -87,8 +114,12 @@ int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 			print_symbol_events(s, PERF_TYPE_SOFTWARE,
 					    event_symbols_sw, PERF_COUNT_SW_MAX, raw_dump);
 			print_hwcache_events(s, raw_dump);
-			print_pmu_events(s, raw_dump);
+			print_pmu_events(s, raw_dump, !desc_flag,
+						long_desc_flag,
+						details_flag);
 			print_tracepoint_events(NULL, s, raw_dump);
+			print_sdt_events(NULL, s, raw_dump);
+			metricgroup__print(true, true, NULL, raw_dump);
 			free(s);
 		}
 	}

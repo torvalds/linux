@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This is <linux/capability.h>
  *
@@ -38,9 +39,8 @@ struct cpu_vfs_cap_data {
 struct file;
 struct inode;
 struct dentry;
+struct task_struct;
 struct user_namespace;
-
-struct user_namespace *current_user_ns(void);
 
 extern const kernel_cap_t __cap_empty_set;
 extern const kernel_cap_t __cap_init_eff_set;
@@ -145,24 +145,24 @@ static inline kernel_cap_t cap_invert(const kernel_cap_t c)
 	return dest;
 }
 
-static inline int cap_isclear(const kernel_cap_t a)
+static inline bool cap_isclear(const kernel_cap_t a)
 {
 	unsigned __capi;
 	CAP_FOR_EACH_U32(__capi) {
 		if (a.cap[__capi] != 0)
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 /*
  * Check if "a" is a subset of "set".
- * return 1 if ALL of the capabilities in "a" are also in "set"
- *	cap_issubset(0101, 1111) will return 1
- * return 0 if ANY of the capabilities in "a" are not in "set"
- *	cap_issubset(1111, 0101) will return 0
+ * return true if ALL of the capabilities in "a" are also in "set"
+ *	cap_issubset(0101, 1111) will return true
+ * return false if ANY of the capabilities in "a" are not in "set"
+ *	cap_issubset(1111, 0101) will return false
  */
-static inline int cap_issubset(const kernel_cap_t a, const kernel_cap_t set)
+static inline bool cap_issubset(const kernel_cap_t a, const kernel_cap_t set)
 {
 	kernel_cap_t dest;
 	dest = cap_drop(a, set);
@@ -170,12 +170,6 @@ static inline int cap_issubset(const kernel_cap_t a, const kernel_cap_t set)
 }
 
 /* Used to decide between falling back on the old suser() or fsuser(). */
-
-static inline int cap_is_fs_cap(int cap)
-{
-	const kernel_cap_t __cap_fs_set = CAP_FS_SET;
-	return !!(CAP_TO_MASK(cap) & __cap_fs_set.cap[CAP_TO_INDEX(cap)]);
-}
 
 static inline kernel_cap_t cap_drop_fs_set(const kernel_cap_t a)
 {
@@ -214,6 +208,7 @@ extern bool has_ns_capability_noaudit(struct task_struct *t,
 				      struct user_namespace *ns, int cap);
 extern bool capable(int cap);
 extern bool ns_capable(struct user_namespace *ns, int cap);
+extern bool ns_capable_noaudit(struct user_namespace *ns, int cap);
 #else
 static inline bool has_capability(struct task_struct *t, int cap)
 {
@@ -241,11 +236,19 @@ static inline bool ns_capable(struct user_namespace *ns, int cap)
 {
 	return true;
 }
+static inline bool ns_capable_noaudit(struct user_namespace *ns, int cap)
+{
+	return true;
+}
 #endif /* CONFIG_MULTIUSER */
+extern bool privileged_wrt_inode_uidgid(struct user_namespace *ns, const struct inode *inode);
 extern bool capable_wrt_inode_uidgid(const struct inode *inode, int cap);
 extern bool file_ns_capable(const struct file *file, struct user_namespace *ns, int cap);
+extern bool ptracer_capable(struct task_struct *tsk, struct user_namespace *ns);
 
 /* audit system wants to get cap info from files as well */
 extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);
+
+extern int cap_convert_nscap(struct dentry *dentry, void **ivalue, size_t size);
 
 #endif /* !_LINUX_CAPABILITY_H */

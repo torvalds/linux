@@ -26,6 +26,7 @@ enum stmpe_partnum {
 	STMPE610,
 	STMPE801,
 	STMPE811,
+	STMPE1600,
 	STMPE1601,
 	STMPE1801,
 	STMPE2401,
@@ -39,22 +40,42 @@ enum stmpe_partnum {
  */
 enum {
 	STMPE_IDX_CHIP_ID,
+	STMPE_IDX_SYS_CTRL,
+	STMPE_IDX_SYS_CTRL2,
 	STMPE_IDX_ICR_LSB,
 	STMPE_IDX_IER_LSB,
+	STMPE_IDX_IER_MSB,
 	STMPE_IDX_ISR_LSB,
 	STMPE_IDX_ISR_MSB,
 	STMPE_IDX_GPMR_LSB,
+	STMPE_IDX_GPMR_CSB,
+	STMPE_IDX_GPMR_MSB,
 	STMPE_IDX_GPSR_LSB,
+	STMPE_IDX_GPSR_CSB,
+	STMPE_IDX_GPSR_MSB,
 	STMPE_IDX_GPCR_LSB,
+	STMPE_IDX_GPCR_CSB,
+	STMPE_IDX_GPCR_MSB,
 	STMPE_IDX_GPDR_LSB,
+	STMPE_IDX_GPDR_CSB,
+	STMPE_IDX_GPDR_MSB,
+	STMPE_IDX_GPEDR_LSB,
+	STMPE_IDX_GPEDR_CSB,
 	STMPE_IDX_GPEDR_MSB,
 	STMPE_IDX_GPRER_LSB,
+	STMPE_IDX_GPRER_CSB,
+	STMPE_IDX_GPRER_MSB,
 	STMPE_IDX_GPFER_LSB,
+	STMPE_IDX_GPFER_CSB,
+	STMPE_IDX_GPFER_MSB,
 	STMPE_IDX_GPPUR_LSB,
 	STMPE_IDX_GPPDR_LSB,
 	STMPE_IDX_GPAFR_U_MSB,
 	STMPE_IDX_IEGPIOR_LSB,
+	STMPE_IDX_IEGPIOR_CSB,
+	STMPE_IDX_IEGPIOR_MSB,
 	STMPE_IDX_ISGPIOR_LSB,
+	STMPE_IDX_ISGPIOR_CSB,
 	STMPE_IDX_ISGPIOR_MSB,
 	STMPE_IDX_MAX,
 };
@@ -62,6 +83,7 @@ enum {
 
 struct stmpe_variant_info;
 struct stmpe_client_info;
+struct stmpe_platform_data;
 
 /**
  * struct stmpe - STMPE MFD structure
@@ -116,26 +138,5 @@ extern int stmpe_enable(struct stmpe *stmpe, unsigned int blocks);
 extern int stmpe_disable(struct stmpe *stmpe, unsigned int blocks);
 
 #define STMPE_GPIO_NOREQ_811_TOUCH	(0xf0)
-
-/**
- * struct stmpe_platform_data - STMPE platform data
- * @id: device id to distinguish between multiple STMPEs on the same board
- * @blocks: bitmask of blocks to enable (use STMPE_BLOCK_*)
- * @irq_trigger: IRQ trigger to use for the interrupt to the host
- * @autosleep: bool to enable/disable stmpe autosleep
- * @autosleep_timeout: inactivity timeout in milliseconds for autosleep
- * @irq_over_gpio: true if gpio is used to get irq
- * @irq_gpio: gpio number over which irq will be requested (significant only if
- *	      irq_over_gpio is true)
- */
-struct stmpe_platform_data {
-	int id;
-	unsigned int blocks;
-	unsigned int irq_trigger;
-	bool autosleep;
-	bool irq_over_gpio;
-	int irq_gpio;
-	int autosleep_timeout;
-};
 
 #endif

@@ -5,21 +5,12 @@
 #include <asm/unaligned.h>
 
 /*
- * Version Information
- * v0.0.1 - Original, extremely basic version, 2.4.xx only
- * v0.0.2 - Updated, works with 2.5.62 and 2.4.20;
- *           - added pressure-threshold modules param code from
- *              Alex Perry <alex.perry@ieee.org>
+ * Pressure-threshold modules param code from Alex Perry <alex.perry@ieee.org>
  */
 
-#define DRIVER_VERSION "v0.0.2"
-#define DRIVER_AUTHOR "Josh Myer <josh@joshisanerd.com>"
-#define DRIVER_DESC "USB KB Gear JamStudio Tablet driver"
-#define DRIVER_LICENSE "GPL"
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_AUTHOR("Josh Myer <josh@joshisanerd.com>");
+MODULE_DESCRIPTION("USB KB Gear JamStudio Tablet driver");
+MODULE_LICENSE("GPL");
 
 #define USB_VENDOR_ID_KBGEAR	0x084e
 
@@ -31,7 +22,6 @@ struct kbtab {
 	unsigned char *data;
 	dma_addr_t data_dma;
 	struct input_dev *dev;
-	struct usb_device *usbdev;
 	struct usb_interface *intf;
 	struct urb *irq;
 	char phys[32];
@@ -89,7 +79,7 @@ static void kbtab_irq(struct urb *urb)
 			__func__, retval);
 }
 
-static struct usb_device_id kbtab_ids[] = {
+static const struct usb_device_id kbtab_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_KBGEAR, 0x1001), .driver_info = 0 },
 	{ }
 };
@@ -99,8 +89,9 @@ MODULE_DEVICE_TABLE(usb, kbtab_ids);
 static int kbtab_open(struct input_dev *dev)
 {
 	struct kbtab *kbtab = input_get_drvdata(dev);
+	struct usb_device *udev = interface_to_usbdev(kbtab->intf);
 
-	kbtab->irq->dev = kbtab->usbdev;
+	kbtab->irq->dev = udev;
 	if (usb_submit_urb(kbtab->irq, GFP_KERNEL))
 		return -EIO;
 
@@ -122,6 +113,9 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct input_dev *input_dev;
 	int error = -ENOMEM;
 
+	if (intf->cur_altsetting->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
 	kbtab = kzalloc(sizeof(struct kbtab), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!kbtab || !input_dev)
@@ -135,7 +129,6 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (!kbtab->irq)
 		goto fail2;
 
-	kbtab->usbdev = dev;
 	kbtab->intf = intf;
 	kbtab->dev = input_dev;
 
@@ -188,12 +181,13 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 static void kbtab_disconnect(struct usb_interface *intf)
 {
 	struct kbtab *kbtab = usb_get_intfdata(intf);
+	struct usb_device *udev = interface_to_usbdev(intf);
 
 	usb_set_intfdata(intf, NULL);
 
 	input_unregister_device(kbtab->dev);
 	usb_free_urb(kbtab->irq);
-	usb_free_coherent(kbtab->usbdev, 8, kbtab->data, kbtab->data_dma);
+	usb_free_coherent(udev, 8, kbtab->data, kbtab->data_dma);
 	kfree(kbtab);
 }
 

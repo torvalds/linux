@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
   Some of this code is credited to Linux USB open source files that are
   distributed with Linux.
@@ -45,6 +46,7 @@ struct metrousb_private {
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID_BI) },
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID_UNI) },
+	{ USB_DEVICE_INTERFACE_CLASS(0x0c2e, 0x0730, 0xff) },	/* MS7820 */
 	{ }, /* Terminating entry. */
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -53,12 +55,24 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define UNI_CMD_OPEN	0x80
 #define UNI_CMD_CLOSE	0xFF
 
-static inline int metrousb_is_unidirectional_mode(struct usb_serial_port *port)
+static int metrousb_is_unidirectional_mode(struct usb_serial *serial)
 {
-	__u16 product_id = le16_to_cpu(
-		port->serial->dev->descriptor.idProduct);
+	u16 product_id = le16_to_cpu(serial->dev->descriptor.idProduct);
 
 	return product_id == FOCUS_PRODUCT_ID_UNI;
+}
+
+static int metrousb_calc_num_ports(struct usb_serial *serial,
+				   struct usb_serial_endpoints *epds)
+{
+	if (metrousb_is_unidirectional_mode(serial)) {
+		if (epds->num_interrupt_out == 0) {
+			dev_err(&serial->interface->dev, "interrupt-out endpoint missing\n");
+			return -ENODEV;
+		}
+	}
+
+	return 1;
 }
 
 static int metrousb_send_unidirectional_cmd(u8 cmd, struct usb_serial_port *port)
@@ -67,7 +81,7 @@ static int metrousb_send_unidirectional_cmd(u8 cmd, struct usb_serial_port *port
 	int actual_len;
 	u8 *buffer_cmd = NULL;
 
-	if (!metrousb_is_unidirectional_mode(port))
+	if (!metrousb_is_unidirectional_mode(port->serial))
 		return 0;
 
 	buffer_cmd = kzalloc(sizeof(cmd), GFP_KERNEL);
@@ -135,23 +149,8 @@ static void metrousb_read_int_callback(struct urb *urb)
 	throttled = metro_priv->throttled;
 	spin_unlock_irqrestore(&metro_priv->lock, flags);
 
-	/* Continue trying to read if set. */
-	if (!throttled) {
-		usb_fill_int_urb(port->interrupt_in_urb, port->serial->dev,
-				 usb_rcvintpipe(port->serial->dev, port->interrupt_in_endpointAddress),
-				 port->interrupt_in_urb->transfer_buffer,
-				 port->interrupt_in_urb->transfer_buffer_length,
-				 metrousb_read_int_callback, port, 1);
-
-		result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
-
-		if (result)
-			dev_err(&port->dev,
-				"%s - failed submitting interrupt in urb, error code=%d\n",
-				__func__, result);
-	}
-	return;
-
+	if (throttled)
+		return;
 exit:
 	/* Try to resubmit the urb. */
 	result = usb_submit_urb(urb, GFP_ATOMIC);
@@ -161,19 +160,8 @@ exit:
 			__func__, result);
 }
 
-static void metrousb_write_int_callback(struct urb *urb)
-{
-	struct usb_serial_port *port = urb->context;
-
-	dev_warn(&port->dev, "%s not implemented yet.\n",
-		__func__);
-}
-
 static void metrousb_cleanup(struct usb_serial_port *port)
 {
-	dev_dbg(&port->dev, "%s\n", __func__);
-
-	usb_unlink_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_in_urb);
 
 	metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
@@ -185,15 +173,6 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	unsigned long flags = 0;
 	int result = 0;
-
-	dev_dbg(&port->dev, "%s\n", __func__);
-
-	/* Make sure the urb is initialized. */
-	if (!port->interrupt_in_urb) {
-		dev_err(&port->dev, "%s - interrupt urb not initialized\n",
-			__func__);
-		return -ENODEV;
-	}
 
 	/* Set the private data information for the port. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
@@ -216,7 +195,7 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev,
 			"%s - failed submitting interrupt in urb, error code=%d\n",
 			__func__, result);
-		goto exit;
+		return result;
 	}
 
 	/* Send activate cmd to device */
@@ -225,11 +204,14 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev,
 			"%s - failed to configure device, error code=%d\n",
 			__func__, result);
-		goto exit;
+		goto err_kill_urb;
 	}
 
-	dev_dbg(&port->dev, "%s - port open\n", __func__);
-exit:
+	return 0;
+
+err_kill_urb:
+	usb_kill_urb(port->interrupt_in_urb);
+
 	return result;
 }
 
@@ -290,8 +272,6 @@ static void metrousb_throttle(struct tty_struct *tty)
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	unsigned long flags = 0;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
-
 	/* Set the private information for the port to stop reading data. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	metro_priv->throttled = 1;
@@ -304,8 +284,6 @@ static int metrousb_tiocmget(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	unsigned long flags = 0;
-
-	dev_dbg(tty->dev, "%s\n", __func__);
 
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	control_state = metro_priv->control_state;
@@ -350,15 +328,12 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 	unsigned long flags = 0;
 	int result = 0;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
-
 	/* Set the private information for the port to resume reading data. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	metro_priv->throttled = 0;
 	spin_unlock_irqrestore(&metro_priv->lock, flags);
 
 	/* Submit the urb to read from the port. */
-	port->interrupt_in_urb->dev = port->serial->dev;
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	if (result)
 		dev_err(tty->dev,
@@ -373,11 +348,11 @@ static struct usb_serial_driver metrousb_device = {
 	},
 	.description		= "Metrologic USB to Serial",
 	.id_table		= id_table,
-	.num_ports		= 1,
+	.num_interrupt_in	= 1,
+	.calc_num_ports		= metrousb_calc_num_ports,
 	.open			= metrousb_open,
 	.close			= metrousb_cleanup,
 	.read_int_callback	= metrousb_read_int_callback,
-	.write_int_callback	= metrousb_write_int_callback,
 	.port_probe		= metrousb_port_probe,
 	.port_remove		= metrousb_port_remove,
 	.throttle		= metrousb_throttle,
@@ -393,7 +368,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 module_usb_serial_driver(serial_drivers, id_table);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Philip Nicastro");
 MODULE_AUTHOR("Aleksey Babahin <tamerlan311@gmail.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);

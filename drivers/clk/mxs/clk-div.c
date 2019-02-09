@@ -33,7 +33,7 @@ struct clk_div {
 
 static inline struct clk_div *to_clk_div(struct clk_hw *hw)
 {
-	struct clk_divider *divider = container_of(hw, struct clk_divider, hw);
+	struct clk_divider *divider = to_clk_divider(hw);
 
 	return container_of(divider, struct clk_div, divider);
 }
@@ -67,7 +67,7 @@ static int clk_div_set_rate(struct clk_hw *hw, unsigned long rate,
 	return ret;
 }
 
-static struct clk_ops clk_div_ops = {
+static const struct clk_ops clk_div_ops = {
 	.recalc_rate = clk_div_recalc_rate,
 	.round_rate = clk_div_round_rate,
 	.set_rate = clk_div_set_rate,

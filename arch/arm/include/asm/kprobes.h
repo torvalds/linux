@@ -16,6 +16,9 @@
 #ifndef _ARM_KPROBES_H
 #define _ARM_KPROBES_H
 
+#include <asm-generic/kprobes.h>
+
+#ifdef CONFIG_KPROBES
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/notifier.h>
@@ -41,8 +44,6 @@ struct prev_kprobe {
 struct kprobe_ctlblk {
 	unsigned int kprobe_status;
 	struct prev_kprobe prev_kprobe;
-	struct pt_regs jprobe_saved_regs;
-	char jprobes_stack[MAX_STACK_SIZE];
 };
 
 void arch_remove_kprobe(struct kprobe *);
@@ -83,4 +84,5 @@ struct arch_optimized_insn {
 	 */
 };
 
+#endif /* CONFIG_KPROBES */
 #endif /* _ARM_KPROBES_H */

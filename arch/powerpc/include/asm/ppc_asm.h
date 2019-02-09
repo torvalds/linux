@@ -9,10 +9,9 @@
 #include <asm/processor.h>
 #include <asm/ppc-opcode.h>
 #include <asm/firmware.h>
+#include <asm/feature-fixups.h>
 
-#ifndef __ASSEMBLY__
-#error __FILE__ should only be used in assembler files
-#else
+#ifdef __ASSEMBLY__
 
 #define SZL			(BITS_PER_LONG/8)
 
@@ -24,27 +23,27 @@
  */
 
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-#define ACCOUNT_CPU_USER_ENTRY(ra, rb)
-#define ACCOUNT_CPU_USER_EXIT(ra, rb)
+#define ACCOUNT_CPU_USER_ENTRY(ptr, ra, rb)
+#define ACCOUNT_CPU_USER_EXIT(ptr, ra, rb)
 #define ACCOUNT_STOLEN_TIME
 #else
-#define ACCOUNT_CPU_USER_ENTRY(ra, rb)					\
+#define ACCOUNT_CPU_USER_ENTRY(ptr, ra, rb)				\
 	MFTB(ra);			/* get timebase */		\
-	ld	rb,PACA_STARTTIME_USER(r13);				\
-	std	ra,PACA_STARTTIME(r13);					\
+	PPC_LL	rb, ACCOUNT_STARTTIME_USER(ptr);			\
+	PPC_STL	ra, ACCOUNT_STARTTIME(ptr);				\
 	subf	rb,rb,ra;		/* subtract start value */	\
-	ld	ra,PACA_USER_TIME(r13);					\
+	PPC_LL	ra, ACCOUNT_USER_TIME(ptr);				\
 	add	ra,ra,rb;		/* add on to user time */	\
-	std	ra,PACA_USER_TIME(r13);					\
+	PPC_STL	ra, ACCOUNT_USER_TIME(ptr);				\
 
-#define ACCOUNT_CPU_USER_EXIT(ra, rb)					\
+#define ACCOUNT_CPU_USER_EXIT(ptr, ra, rb)				\
 	MFTB(ra);			/* get timebase */		\
-	ld	rb,PACA_STARTTIME(r13);					\
-	std	ra,PACA_STARTTIME_USER(r13);				\
+	PPC_LL	rb, ACCOUNT_STARTTIME(ptr);				\
+	PPC_STL	ra, ACCOUNT_STARTTIME_USER(ptr);			\
 	subf	rb,rb,ra;		/* subtract start value */	\
-	ld	ra,PACA_SYSTEM_TIME(r13);				\
+	PPC_LL	ra, ACCOUNT_SYSTEM_TIME(ptr);				\
 	add	ra,ra,rb;		/* add on to system time */	\
-	std	ra,PACA_SYSTEM_TIME(r13)
+	PPC_STL	ra, ACCOUNT_SYSTEM_TIME(ptr)
 
 #ifdef CONFIG_PPC_SPLPAR
 #define ACCOUNT_STOLEN_TIME						\
@@ -82,10 +81,8 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #else
 #define SAVE_GPR(n, base)	stw	n,GPR0+4*(n)(base)
 #define REST_GPR(n, base)	lwz	n,GPR0+4*(n)(base)
-#define SAVE_NVGPRS(base)	SAVE_GPR(13, base); SAVE_8GPRS(14, base); \
-				SAVE_10GPRS(22, base)
-#define REST_NVGPRS(base)	REST_GPR(13, base); REST_8GPRS(14, base); \
-				REST_10GPRS(22, base)
+#define SAVE_NVGPRS(base)	stmw	13, GPR0+4*13(base)
+#define REST_NVGPRS(base)	lmw	13, GPR0+4*13(base)
 #endif
 
 #define SAVE_2GPRS(n, base)	SAVE_GPR(n, base); SAVE_GPR(n+1, base)
@@ -189,7 +186,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define __STK_REG(i)   (112 + ((i)-14)*8)
 #define STK_REG(i)     __STK_REG(__REG_##i)
 
-#if defined(_CALL_ELF) && _CALL_ELF == 2
+#ifdef PPC64_ELF_ABI_v2
 #define STK_GOT		24
 #define __STK_PARAM(i)	(32 + ((i)-3)*8)
 #else
@@ -198,17 +195,15 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #endif
 #define STK_PARAM(i)	__STK_PARAM(__REG_##i)
 
-#if defined(_CALL_ELF) && _CALL_ELF == 2
+#ifdef PPC64_ELF_ABI_v2
 
 #define _GLOBAL(name) \
-	.section ".text"; \
 	.align 2 ; \
 	.type name,@function; \
 	.globl name; \
 name:
 
 #define _GLOBAL_TOC(name) \
-	.section ".text"; \
 	.align 2 ; \
 	.type name,@function; \
 	.globl name; \
@@ -216,13 +211,6 @@ name: \
 0:	addis r2,r12,(.TOC.-0b)@ha; \
 	addi r2,r2,(.TOC.-0b)@l; \
 	.localentry name,.-name
-
-#define _KPROBE(name) \
-	.section ".kprobes.text","a"; \
-	.align 2 ; \
-	.type name,@function; \
-	.globl name; \
-name:
 
 #define DOTSYM(a)	a
 
@@ -232,34 +220,19 @@ name:
 #define GLUE(a,b) XGLUE(a,b)
 
 #define _GLOBAL(name) \
-	.section ".text"; \
 	.align 2 ; \
 	.globl name; \
 	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
+	.pushsection ".opd","aw"; \
 name: \
 	.quad GLUE(.,name); \
 	.quad .TOC.@tocbase; \
 	.quad 0; \
-	.previous; \
+	.popsection; \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
 #define _GLOBAL_TOC(name) _GLOBAL(name)
-
-#define _KPROBE(name) \
-	.section ".kprobes.text","a"; \
-	.align 2 ; \
-	.globl name; \
-	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
 
 #define DOTSYM(a)	GLUE(.,a)
 
@@ -272,19 +245,34 @@ GLUE(.,name):
 n:
 
 #define _GLOBAL(n)	\
-	.text;		\
 	.stabs __stringify(n:F-1),N_FUN,0,0,n;\
 	.globl n;	\
 n:
 
 #define _GLOBAL_TOC(name) _GLOBAL(name)
 
-#define _KPROBE(n)	\
-	.section ".kprobes.text","a";	\
-	.globl	n;	\
-n:
-
 #endif
+
+/*
+ * __kprobes (the C annotation) puts the symbol into the .kprobes.text
+ * section, which gets emitted at the end of regular text.
+ *
+ * _ASM_NOKPROBE_SYMBOL and NOKPROBE_SYMBOL just adds the symbol to
+ * a blacklist. The former is for core kprobe functions/data, the
+ * latter is for those that incdentially must be excluded from probing
+ * and allows them to be linked at more optimal location within text.
+ */
+#ifdef CONFIG_KPROBES
+#define _ASM_NOKPROBE_SYMBOL(entry)			\
+	.pushsection "_kprobe_blacklist","aw";		\
+	PPC_LONG (entry) ;				\
+	.popsection
+#else
+#define _ASM_NOKPROBE_SYMBOL(entry)
+#endif
+
+#define FUNC_START(name)	_GLOBAL(name)
+#define FUNC_END(name)
 
 /* 
  * LOAD_REG_IMMEDIATE(rn, expr)
@@ -389,10 +377,16 @@ BEGIN_FTR_SECTION_NESTED(96);		\
 	cmpwi dest,0;			\
 	beq-  90b;			\
 END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
-#elif defined(CONFIG_8xx)
-#define MFTB(dest)			mftb dest
 #else
-#define MFTB(dest)			mfspr dest, SPRN_TBRL
+#define MFTB(dest)			MFTBL(dest)
+#endif
+
+#ifdef CONFIG_PPC_8xx
+#define MFTBL(dest)			mftb dest
+#define MFTBU(dest)			mftbu dest
+#else
+#define MFTBL(dest)			mfspr dest, SPRN_TBRL
+#define MFTBU(dest)			mfspr dest, SPRN_TBRU
 #endif
 
 #ifndef CONFIG_SMP
@@ -413,24 +407,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	FTR_SECTION_ELSE_NESTED(848);	\
 	mtocrf (FXM), RS;		\
 	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_NOEXECUTE, 848)
-
-/*
- * PPR restore macros used in entry_64.S
- * Used for P7 or later processors
- */
-#define HMT_MEDIUM_LOW_HAS_PPR						\
-BEGIN_FTR_SECTION_NESTED(944)						\
-	HMT_MEDIUM_LOW;							\
-END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,944)
-
-#define SET_DEFAULT_THREAD_PPR(ra, rb)					\
-BEGIN_FTR_SECTION_NESTED(945)						\
-	lis	ra,INIT_PPR@highest;	/* default ppr=3 */		\
-	ld	rb,PACACURRENT(r13);					\
-	sldi	ra,ra,32;	/* 11- 13 bits are used for ppr */	\
-	std	ra,TASKTHREADPPR(rb);					\
-END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,945)
-
 #endif
 
 /*
@@ -440,12 +416,15 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,945)
  * and they must be used.
  */
 
-#if !defined(CONFIG_4xx) && !defined(CONFIG_8xx)
+#if !defined(CONFIG_4xx) && !defined(CONFIG_PPC_8xx)
 #define tlbia					\
 	li	r4,1024;			\
 	mtctr	r4;				\
 	lis	r4,KERNELBASE@h;		\
+	.machine push;				\
+	.machine "power4";			\
 0:	tlbie	r4;				\
+	.machine pop;				\
 	addi	r4,r4,0x1000;			\
 	bdnz	0b
 #endif
@@ -459,14 +438,11 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,945)
 
 /* The following stops all load and store data streams associated with stream
  * ID (ie. streams created explicitly).  The embedded and server mnemonics for
- * dcbt are different so we use machine "power4" here explicitly.
+ * dcbt are different so this must only be used for server.
  */
-#define DCBT_STOP_ALL_STREAM_IDS(scratch)	\
-.machine push ;					\
-.machine "power4" ;				\
-       lis     scratch,0x60000000@h;		\
-       dcbt    r0,scratch,0b01010;		\
-.machine pop
+#define DCBT_BOOK3S_STOP_ALL_STREAM_IDS(scratch)	\
+       lis     scratch,0x60000000@h;			\
+       dcbt    0,scratch,0b01010
 
 /*
  * toreal/fromreal/tophys/tovirt macros. 32-bit BookE makes them
@@ -531,7 +507,6 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,945)
 #define MTMSRD(r)	mtmsrd	r
 #define MTMSR_EERI(reg)	mtmsrd	reg,1
 #else
-#define FIX_SRR1(ra, rb)
 #ifndef CONFIG_40x
 #define	RFI		rfi
 #else
@@ -539,7 +514,6 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,945)
 #endif
 #define MTMSRD(r)	mtmsr	r
 #define MTMSR_EERI(reg)	mtmsr	reg
-#define CLR_TOP32(r)
 #endif
 
 #endif /* __KERNEL__ */
@@ -796,17 +770,55 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,945)
 #ifdef CONFIG_PPC_BOOK3E
 #define FIXUP_ENDIAN
 #else
+/*
+ * This version may be used in in HV or non-HV context.
+ * MSR[EE] must be disabled.
+ */
 #define FIXUP_ENDIAN						   \
 	tdi   0,0,0x48;	  /* Reverse endian of b . + 8		*/ \
-	b     $+36;	  /* Skip trampoline if endian is good	*/ \
-	.long 0x05009f42; /* bcl 20,31,$+4			*/ \
-	.long 0xa602487d; /* mflr r10				*/ \
-	.long 0x1c004a39; /* addi r10,r10,28			*/ \
+	b     191f;	  /* Skip trampoline if endian is good	*/ \
 	.long 0xa600607d; /* mfmsr r11				*/ \
 	.long 0x01006b69; /* xori r11,r11,1			*/ \
+	.long 0x00004039; /* li r10,0				*/ \
+	.long 0x6401417d; /* mtmsrd r10,1			*/ \
+	.long 0x05009f42; /* bcl 20,31,$+4			*/ \
+	.long 0xa602487d; /* mflr r10				*/ \
+	.long 0x14004a39; /* addi r10,r10,20			*/ \
 	.long 0xa6035a7d; /* mtsrr0 r10				*/ \
 	.long 0xa6037b7d; /* mtsrr1 r11				*/ \
-	.long 0x2400004c  /* rfid				*/
+	.long 0x2400004c; /* rfid				*/ \
+191:
+
+/*
+ * This version that may only be used with MSR[HV]=1
+ * - Does not clear MSR[RI], so more robust.
+ * - Slightly smaller and faster.
+ */
+#define FIXUP_ENDIAN_HV						   \
+	tdi   0,0,0x48;	  /* Reverse endian of b . + 8		*/ \
+	b     191f;	  /* Skip trampoline if endian is good	*/ \
+	.long 0xa600607d; /* mfmsr r11				*/ \
+	.long 0x01006b69; /* xori r11,r11,1			*/ \
+	.long 0x05009f42; /* bcl 20,31,$+4			*/ \
+	.long 0xa602487d; /* mflr r10				*/ \
+	.long 0x14004a39; /* addi r10,r10,20			*/ \
+	.long 0xa64b5a7d; /* mthsrr0 r10			*/ \
+	.long 0xa64b7b7d; /* mthsrr1 r11			*/ \
+	.long 0x2402004c; /* hrfid				*/ \
+191:
+
 #endif /* !CONFIG_PPC_BOOK3E */
+
 #endif /*  __ASSEMBLY__ */
+
+/*
+ * Helper macro for exception table entries
+ */
+#define EX_TABLE(_fault, _target)		\
+	stringify_in_c(.section __ex_table,"a";)\
+	stringify_in_c(.balign 4;)		\
+	stringify_in_c(.long (_fault) - . ;)	\
+	stringify_in_c(.long (_target) - . ;)	\
+	stringify_in_c(.previous)
+
 #endif /* _ASM_POWERPC_PPC_ASM_H */

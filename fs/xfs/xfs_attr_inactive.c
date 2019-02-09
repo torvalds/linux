@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * Copyright (c) 2013 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -38,6 +26,7 @@
 #include "xfs_quota.h"
 #include "xfs_trace.h"
 #include "xfs_dir2.h"
+#include "xfs_defer.h"
 
 /*
  * Look at all the extents for this logical region,
@@ -97,7 +86,7 @@ xfs_attr3_leaf_freextent(
 			/*
 			 * Roll to next transaction.
 			 */
-			error = xfs_trans_roll(trans, dp);
+			error = xfs_trans_roll_inode(trans, dp);
 			if (error)
 				return error;
 		}
@@ -251,47 +240,44 @@ xfs_attr3_node_inactive(
 		 * traversal of the tree so we may deal with many blocks
 		 * before we come back to this one.
 		 */
-		error = xfs_da3_node_read(*trans, dp, child_fsb, -2, &child_bp,
-						XFS_ATTR_FORK);
+		error = xfs_da3_node_read(*trans, dp, child_fsb, -1, &child_bp,
+					  XFS_ATTR_FORK);
 		if (error)
 			return error;
-		if (child_bp) {
-						/* save for re-read later */
-			child_blkno = XFS_BUF_ADDR(child_bp);
 
-			/*
-			 * Invalidate the subtree, however we have to.
-			 */
-			info = child_bp->b_addr;
-			switch (info->magic) {
-			case cpu_to_be16(XFS_DA_NODE_MAGIC):
-			case cpu_to_be16(XFS_DA3_NODE_MAGIC):
-				error = xfs_attr3_node_inactive(trans, dp,
-							child_bp, level + 1);
-				break;
-			case cpu_to_be16(XFS_ATTR_LEAF_MAGIC):
-			case cpu_to_be16(XFS_ATTR3_LEAF_MAGIC):
-				error = xfs_attr3_leaf_inactive(trans, dp,
-							child_bp);
-				break;
-			default:
-				error = -EIO;
-				xfs_trans_brelse(*trans, child_bp);
-				break;
-			}
-			if (error)
-				return error;
+		/* save for re-read later */
+		child_blkno = XFS_BUF_ADDR(child_bp);
 
-			/*
-			 * Remove the subsidiary block from the cache
-			 * and from the log.
-			 */
-			error = xfs_da_get_buf(*trans, dp, 0, child_blkno,
-				&child_bp, XFS_ATTR_FORK);
-			if (error)
-				return error;
-			xfs_trans_binval(*trans, child_bp);
+		/*
+		 * Invalidate the subtree, however we have to.
+		 */
+		info = child_bp->b_addr;
+		switch (info->magic) {
+		case cpu_to_be16(XFS_DA_NODE_MAGIC):
+		case cpu_to_be16(XFS_DA3_NODE_MAGIC):
+			error = xfs_attr3_node_inactive(trans, dp, child_bp,
+							level + 1);
+			break;
+		case cpu_to_be16(XFS_ATTR_LEAF_MAGIC):
+		case cpu_to_be16(XFS_ATTR3_LEAF_MAGIC):
+			error = xfs_attr3_leaf_inactive(trans, dp, child_bp);
+			break;
+		default:
+			error = -EIO;
+			xfs_trans_brelse(*trans, child_bp);
+			break;
 		}
+		if (error)
+			return error;
+
+		/*
+		 * Remove the subsidiary block from the cache and from the log.
+		 */
+		error = xfs_da_get_buf(*trans, dp, 0, child_blkno, &child_bp,
+				       XFS_ATTR_FORK);
+		if (error)
+			return error;
+		xfs_trans_binval(*trans, child_bp);
 
 		/*
 		 * If we're not done, re-read the parent to get the next
@@ -302,13 +288,15 @@ xfs_attr3_node_inactive(
 						 &bp, XFS_ATTR_FORK);
 			if (error)
 				return error;
+			node = bp->b_addr;
+			btree = dp->d_ops->node_tree_p(node);
 			child_fsb = be32_to_cpu(btree[i + 1].before);
 			xfs_trans_brelse(*trans, bp);
 		}
 		/*
 		 * Atomically commit the whole invalidate stuff.
 		 */
-		error = xfs_trans_roll(trans, dp);
+		error = xfs_trans_roll_inode(trans, dp);
 		if (error)
 			return  error;
 	}
@@ -322,7 +310,7 @@ xfs_attr3_node_inactive(
  * Recurse (gasp!) through the attribute nodes until we find leaves.
  * We're doing a depth-first traversal in order to invalidate everything.
  */
-int
+static int
 xfs_attr3_root_inactive(
 	struct xfs_trans	**trans,
 	struct xfs_inode	*dp)
@@ -375,7 +363,7 @@ xfs_attr3_root_inactive(
 	/*
 	 * Commit the invalidate and start the next transaction.
 	 */
-	error = xfs_trans_roll(trans, dp);
+	error = xfs_trans_roll_inode(trans, dp);
 
 	return error;
 }
@@ -405,21 +393,11 @@ xfs_attr_inactive(
 		goto out_destroy_fork;
 	xfs_iunlock(dp, lock_mode);
 
-	/*
-	 * Start our first transaction of the day.
-	 *
-	 * All future transactions during this code must be "chained" off
-	 * this one via the trans_dup() call.  All transactions will contain
-	 * the inode, and the inode will always be marked with trans_ihold().
-	 * Since the inode will be locked in all transactions, we must log
-	 * the inode in every transaction to let it float upward through
-	 * the log.
-	 */
 	lock_mode = 0;
-	trans = xfs_trans_alloc(mp, XFS_TRANS_ATTRINVAL);
-	error = xfs_trans_reserve(trans, &M_RES(mp)->tr_attrinval, 0, 0);
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_attrinval, 0, 0, 0, &trans);
 	if (error)
-		goto out_cancel;
+		goto out_destroy_fork;
 
 	lock_mode = XFS_ILOCK_EXCL;
 	xfs_ilock(dp, lock_mode);

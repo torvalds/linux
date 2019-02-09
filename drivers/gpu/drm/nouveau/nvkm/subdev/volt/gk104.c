@@ -27,6 +27,7 @@
 #include <subdev/gpio.h>
 #include <subdev/bios.h>
 #include <subdev/bios/volt.h>
+#include <subdev/fuse.h>
 
 #define gk104_volt(p) container_of((p), struct gk104_volt, base)
 struct gk104_volt {
@@ -34,7 +35,7 @@ struct gk104_volt {
 	struct nvbios_volt bios;
 };
 
-int
+static int
 gk104_volt_get(struct nvkm_volt *base)
 {
 	struct nvbios_volt *bios = &gk104_volt(base)->bios;
@@ -47,7 +48,7 @@ gk104_volt_get(struct nvkm_volt *base)
 	return bios->base + bios->pwm_range * duty / div;
 }
 
-int
+static int
 gk104_volt_set(struct nvkm_volt *base, u32 uv)
 {
 	struct nvbios_volt *bios = &gk104_volt(base)->bios;
@@ -56,7 +57,7 @@ gk104_volt_set(struct nvkm_volt *base, u32 uv)
 
 	/* the blob uses this crystal frequency, let's use it too. */
 	div = 27648000 / bios->pwm_freq;
-	duty = (uv - bios->base) * div / bios->pwm_range;
+	duty = DIV_ROUND_UP((uv - bios->base) * div, bios->pwm_range);
 
 	nvkm_wr32(device, 0x20340, div);
 	nvkm_wr32(device, 0x20344, 0x80000000 | duty);
@@ -64,13 +65,33 @@ gk104_volt_set(struct nvkm_volt *base, u32 uv)
 	return 0;
 }
 
+static int
+gk104_volt_speedo_read(struct nvkm_volt *volt)
+{
+	struct nvkm_device *device = volt->subdev.device;
+	struct nvkm_fuse *fuse = device->fuse;
+	int ret;
+
+	if (!fuse)
+		return -EINVAL;
+
+	nvkm_wr32(device, 0x122634, 0x0);
+	ret = nvkm_fuse_read(fuse, 0x3a8);
+	nvkm_wr32(device, 0x122634, 0x41);
+	return ret;
+}
+
 static const struct nvkm_volt_func
 gk104_volt_pwm = {
+	.oneinit = gf100_volt_oneinit,
 	.volt_get = gk104_volt_get,
 	.volt_set = gk104_volt_set,
+	.speedo_read = gk104_volt_speedo_read,
 }, gk104_volt_gpio = {
+	.oneinit = gf100_volt_oneinit,
 	.vid_get = nvkm_voltgpio_get,
 	.vid_set = nvkm_voltgpio_set,
+	.speedo_read = gk104_volt_speedo_read,
 };
 
 int

@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -25,8 +15,6 @@
 #include <linux/usb/cdc.h>
 
 #include "gdm_mux.h"
-
-static struct workqueue_struct *mux_rx_wq;
 
 static u16 packet_type[TTY_MAX_COUNT] = {0xF011, 0xF010};
 
@@ -64,7 +52,7 @@ static int packet_type_to_index(u16 packetType)
 
 static struct mux_tx *alloc_mux_tx(int len)
 {
-	struct mux_tx *t = NULL;
+	struct mux_tx *t;
 
 	t = kzalloc(sizeof(*t), GFP_ATOMIC);
 	if (!t)
@@ -93,7 +81,7 @@ static void free_mux_tx(struct mux_tx *t)
 
 static struct mux_rx *alloc_mux_rx(void)
 {
-	struct mux_rx *r = NULL;
+	struct mux_rx *r;
 
 	r = kzalloc(sizeof(*r), GFP_KERNEL);
 	if (!r)
@@ -275,13 +263,14 @@ static void gdm_mux_rcv_complete(struct urb *urb)
 		r->len = r->urb->actual_length;
 		spin_lock_irqsave(&rx->to_host_lock, flags);
 		list_add_tail(&r->to_host_list, &rx->to_host_list);
-		queue_work(mux_rx_wq, &mux_dev->work_rx.work);
+		schedule_work(&mux_dev->work_rx.work);
 		spin_unlock_irqrestore(&rx->to_host_lock, flags);
 	}
 }
 
-static int gdm_mux_recv(void *priv_dev, int (*cb)(void *data, int len,
-			int tty_index, struct tty_dev *tty_dev, int complete))
+static int gdm_mux_recv(void *priv_dev,
+			int (*cb)(void *data, int len, int tty_index,
+				  struct tty_dev *tty_dev, int complete))
 {
 	struct mux_dev *mux_dev = priv_dev;
 	struct usb_device *usbdev = mux_dev->usbdev;
@@ -435,7 +424,7 @@ static int gdm_mux_send_control(void *priv_dev, int request, int value,
 	if (ret < 0)
 		pr_err("usb_control_msg error: %d\n", ret);
 
-	return ret < 0 ? ret : 0;
+	return min(ret, 0);
 }
 
 static void release_usb(struct mux_dev *mux_dev)
@@ -602,6 +591,8 @@ static int gdm_mux_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	mux_dev = tty_dev->priv_dev;
 	rx = &mux_dev->rx;
 
+	cancel_work_sync(&mux_dev->work_rx.work);
+
 	if (mux_dev->usb_state != PM_NORMAL) {
 		dev_err(intf->usb_dev, "usb suspend - invalid state\n");
 		return -1;
@@ -656,28 +647,19 @@ static struct usb_driver gdm_mux_driver = {
 
 static int __init gdm_usb_mux_init(void)
 {
+	int ret;
 
-	mux_rx_wq = create_workqueue("mux_rx_wq");
-	if (!mux_rx_wq) {
-		pr_err("work queue create fail\n");
-		return -1;
-	}
-
-	register_lte_tty_driver();
+	ret = register_lte_tty_driver();
+	if (ret)
+		return ret;
 
 	return usb_register(&gdm_mux_driver);
 }
 
 static void __exit gdm_usb_mux_exit(void)
 {
-	unregister_lte_tty_driver();
-
-	if (mux_rx_wq) {
-		flush_workqueue(mux_rx_wq);
-		destroy_workqueue(mux_rx_wq);
-	}
-
 	usb_deregister(&gdm_mux_driver);
+	unregister_lte_tty_driver();
 }
 
 module_init(gdm_usb_mux_init);

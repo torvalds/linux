@@ -45,7 +45,7 @@ static struct dentry *rproc_dbg;
  * as it provides very early tracing with little to no dependencies at all.
  */
 static ssize_t rproc_trace_read(struct file *filp, char __user *userbuf,
-						size_t count, loff_t *ppos)
+				size_t count, loff_t *ppos)
 {
 	struct rproc_mem_entry *trace = filp->private_data;
 	int len = strnlen(trace->va, trace->len);
@@ -59,44 +59,9 @@ static const struct file_operations trace_rproc_ops = {
 	.llseek	= generic_file_llseek,
 };
 
-/*
- * A state-to-string lookup table, for exposing a human readable state
- * via debugfs. Always keep in sync with enum rproc_state
- */
-static const char * const rproc_state_string[] = {
-	"offline",
-	"suspended",
-	"running",
-	"crashed",
-	"invalid",
-};
-
-/* expose the state of the remote processor via debugfs */
-static ssize_t rproc_state_read(struct file *filp, char __user *userbuf,
-						size_t count, loff_t *ppos)
-{
-	struct rproc *rproc = filp->private_data;
-	unsigned int state;
-	char buf[30];
-	int i;
-
-	state = rproc->state > RPROC_LAST ? RPROC_LAST : rproc->state;
-
-	i = scnprintf(buf, 30, "%.28s (%d)\n", rproc_state_string[state],
-							rproc->state);
-
-	return simple_read_from_buffer(userbuf, count, ppos, buf, i);
-}
-
-static const struct file_operations rproc_state_ops = {
-	.read = rproc_state_read,
-	.open = simple_open,
-	.llseek	= generic_file_llseek,
-};
-
 /* expose the name of the remote processor via debugfs */
 static ssize_t rproc_name_read(struct file *filp, char __user *userbuf,
-						size_t count, loff_t *ppos)
+			       size_t count, loff_t *ppos)
 {
 	struct rproc *rproc = filp->private_data;
 	/* need room for the name, a newline and a terminating null */
@@ -157,7 +122,7 @@ rproc_recovery_write(struct file *filp, const char __user *user_buf,
 	int ret;
 
 	if (count < 1 || count > sizeof(buf))
-		return count;
+		return -EINVAL;
 
 	ret = copy_from_user(buf, user_buf, count);
 	if (ret)
@@ -190,18 +155,144 @@ static const struct file_operations rproc_recovery_ops = {
 	.llseek = generic_file_llseek,
 };
 
+/* Expose resource table content via debugfs */
+static int rproc_rsc_table_show(struct seq_file *seq, void *p)
+{
+	static const char * const types[] = {"carveout", "devmem", "trace", "vdev"};
+	struct rproc *rproc = seq->private;
+	struct resource_table *table = rproc->table_ptr;
+	struct fw_rsc_carveout *c;
+	struct fw_rsc_devmem *d;
+	struct fw_rsc_trace *t;
+	struct fw_rsc_vdev *v;
+	int i, j;
+
+	if (!table) {
+		seq_puts(seq, "No resource table found\n");
+		return 0;
+	}
+
+	for (i = 0; i < table->num; i++) {
+		int offset = table->offset[i];
+		struct fw_rsc_hdr *hdr = (void *)table + offset;
+		void *rsc = (void *)hdr + sizeof(*hdr);
+
+		switch (hdr->type) {
+		case RSC_CARVEOUT:
+			c = rsc;
+			seq_printf(seq, "Entry %d is of type %s\n", i, types[hdr->type]);
+			seq_printf(seq, "  Device Address 0x%x\n", c->da);
+			seq_printf(seq, "  Physical Address 0x%x\n", c->pa);
+			seq_printf(seq, "  Length 0x%x Bytes\n", c->len);
+			seq_printf(seq, "  Flags 0x%x\n", c->flags);
+			seq_printf(seq, "  Reserved (should be zero) [%d]\n", c->reserved);
+			seq_printf(seq, "  Name %s\n\n", c->name);
+			break;
+		case RSC_DEVMEM:
+			d = rsc;
+			seq_printf(seq, "Entry %d is of type %s\n", i, types[hdr->type]);
+			seq_printf(seq, "  Device Address 0x%x\n", d->da);
+			seq_printf(seq, "  Physical Address 0x%x\n", d->pa);
+			seq_printf(seq, "  Length 0x%x Bytes\n", d->len);
+			seq_printf(seq, "  Flags 0x%x\n", d->flags);
+			seq_printf(seq, "  Reserved (should be zero) [%d]\n", d->reserved);
+			seq_printf(seq, "  Name %s\n\n", d->name);
+			break;
+		case RSC_TRACE:
+			t = rsc;
+			seq_printf(seq, "Entry %d is of type %s\n", i, types[hdr->type]);
+			seq_printf(seq, "  Device Address 0x%x\n", t->da);
+			seq_printf(seq, "  Length 0x%x Bytes\n", t->len);
+			seq_printf(seq, "  Reserved (should be zero) [%d]\n", t->reserved);
+			seq_printf(seq, "  Name %s\n\n", t->name);
+			break;
+		case RSC_VDEV:
+			v = rsc;
+			seq_printf(seq, "Entry %d is of type %s\n", i, types[hdr->type]);
+
+			seq_printf(seq, "  ID %d\n", v->id);
+			seq_printf(seq, "  Notify ID %d\n", v->notifyid);
+			seq_printf(seq, "  Device features 0x%x\n", v->dfeatures);
+			seq_printf(seq, "  Guest features 0x%x\n", v->gfeatures);
+			seq_printf(seq, "  Config length 0x%x\n", v->config_len);
+			seq_printf(seq, "  Status 0x%x\n", v->status);
+			seq_printf(seq, "  Number of vrings %d\n", v->num_of_vrings);
+			seq_printf(seq, "  Reserved (should be zero) [%d][%d]\n\n",
+				   v->reserved[0], v->reserved[1]);
+
+			for (j = 0; j < v->num_of_vrings; j++) {
+				seq_printf(seq, "  Vring %d\n", j);
+				seq_printf(seq, "    Device Address 0x%x\n", v->vring[j].da);
+				seq_printf(seq, "    Alignment %d\n", v->vring[j].align);
+				seq_printf(seq, "    Number of buffers %d\n", v->vring[j].num);
+				seq_printf(seq, "    Notify ID %d\n", v->vring[j].notifyid);
+				seq_printf(seq, "    Physical Address 0x%x\n\n",
+					   v->vring[j].pa);
+			}
+			break;
+		default:
+			seq_printf(seq, "Unknown resource type found: %d [hdr: %pK]\n",
+				   hdr->type, hdr);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int rproc_rsc_table_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rproc_rsc_table_show, inode->i_private);
+}
+
+static const struct file_operations rproc_rsc_table_ops = {
+	.open		= rproc_rsc_table_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/* Expose carveout content via debugfs */
+static int rproc_carveouts_show(struct seq_file *seq, void *p)
+{
+	struct rproc *rproc = seq->private;
+	struct rproc_mem_entry *carveout;
+
+	list_for_each_entry(carveout, &rproc->carveouts, node) {
+		seq_puts(seq, "Carveout memory entry:\n");
+		seq_printf(seq, "\tVirtual address: %pK\n", carveout->va);
+		seq_printf(seq, "\tDMA address: %pad\n", &carveout->dma);
+		seq_printf(seq, "\tDevice address: 0x%x\n", carveout->da);
+		seq_printf(seq, "\tLength: 0x%x Bytes\n\n", carveout->len);
+	}
+
+	return 0;
+}
+
+static int rproc_carveouts_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rproc_carveouts_show, inode->i_private);
+}
+
+static const struct file_operations rproc_carveouts_ops = {
+	.open		= rproc_carveouts_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 void rproc_remove_trace_file(struct dentry *tfile)
 {
 	debugfs_remove(tfile);
 }
 
 struct dentry *rproc_create_trace_file(const char *name, struct rproc *rproc,
-					struct rproc_mem_entry *trace)
+				       struct rproc_mem_entry *trace)
 {
 	struct dentry *tfile;
 
-	tfile = debugfs_create_file(name, 0400, rproc->dbg_dir,
-						trace, &trace_rproc_ops);
+	tfile = debugfs_create_file(name, 0400, rproc->dbg_dir, trace,
+				    &trace_rproc_ops);
 	if (!tfile) {
 		dev_err(&rproc->dev, "failed to create debugfs trace entry\n");
 		return NULL;
@@ -230,11 +321,13 @@ void rproc_create_debug_dir(struct rproc *rproc)
 		return;
 
 	debugfs_create_file("name", 0400, rproc->dbg_dir,
-					rproc, &rproc_name_ops);
-	debugfs_create_file("state", 0400, rproc->dbg_dir,
-					rproc, &rproc_state_ops);
+			    rproc, &rproc_name_ops);
 	debugfs_create_file("recovery", 0400, rproc->dbg_dir,
-					rproc, &rproc_recovery_ops);
+			    rproc, &rproc_recovery_ops);
+	debugfs_create_file("resource_table", 0400, rproc->dbg_dir,
+			    rproc, &rproc_rsc_table_ops);
+	debugfs_create_file("carveout_memories", 0400, rproc->dbg_dir,
+			    rproc, &rproc_carveouts_ops);
 }
 
 void __init rproc_init_debugfs(void)

@@ -375,7 +375,7 @@ static struct tps6507x_board *tps6507x_parse_dt_reg_data(
 	struct device_node *np = pdev->dev.parent->of_node;
 	struct device_node *regulators;
 	struct of_regulator_match *matches;
-	static struct regulator_init_data *reg_data;
+	struct regulator_init_data *reg_data;
 	int idx = 0, count, ret;
 
 	tps_board = devm_kzalloc(&pdev->dev, sizeof(*tps_board),

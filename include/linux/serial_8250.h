@@ -36,6 +36,9 @@ struct plat_serial8250_port {
 	void		(*set_termios)(struct uart_port *,
 			               struct ktermios *new,
 			               struct ktermios *old);
+	void		(*set_ldisc)(struct uart_port *,
+				     struct ktermios *);
+	unsigned int	(*get_mctrl)(struct uart_port *);
 	int		(*handle_irq)(struct uart_port *);
 	void		(*pm)(struct uart_port *, unsigned int state,
 			      unsigned old);
@@ -76,6 +79,13 @@ struct uart_8250_ops {
 	void		(*release_irq)(struct uart_8250_port *);
 };
 
+struct uart_8250_em485 {
+	struct hrtimer		start_tx_timer; /* "rs485 start tx" timer */
+	struct hrtimer		stop_tx_timer;  /* "rs485 stop tx" timer */
+	struct hrtimer		*active_timer;  /* pointer to active timer */
+	struct uart_8250_port	*port;          /* for hrtimer callbacks */
+};
+
 /*
  * This should be used by drivers which want to register
  * their own 8250 ports without registering their own
@@ -87,7 +97,7 @@ struct uart_8250_port {
 	struct uart_port	port;
 	struct timer_list	timer;		/* "no irq" timer */
 	struct list_head	list;		/* ports on this IRQ */
-	unsigned short		capabilities;	/* port capabilities */
+	u32			capabilities;	/* port capabilities */
 	unsigned short		bugs;		/* port bugs */
 	bool			fifo_bug;	/* min RX trigger if enabled */
 	unsigned int		tx_loadsz;	/* transmit fifo load size */
@@ -122,6 +132,8 @@ struct uart_8250_port {
 	/* 8250 specific callbacks */
 	int			(*dl_read)(struct uart_8250_port *);
 	void			(*dl_write)(struct uart_8250_port *, int);
+
+	struct uart_8250_em485 *em485;
 };
 
 static inline struct uart_8250_port *up_to_u8250p(struct uart_port *up)
@@ -140,14 +152,21 @@ extern int early_serial8250_setup(struct earlycon_device *device,
 					 const char *options);
 extern void serial8250_do_set_termios(struct uart_port *port,
 		struct ktermios *termios, struct ktermios *old);
+extern void serial8250_do_set_ldisc(struct uart_port *port,
+				    struct ktermios *termios);
+extern unsigned int serial8250_do_get_mctrl(struct uart_port *port);
 extern int serial8250_do_startup(struct uart_port *port);
 extern void serial8250_do_shutdown(struct uart_port *port);
 extern void serial8250_do_pm(struct uart_port *port, unsigned int state,
 			     unsigned int oldstate);
 extern void serial8250_do_set_mctrl(struct uart_port *port, unsigned int mctrl);
+extern void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
+				      unsigned int quot,
+				      unsigned int quot_frac);
 extern int fsl8250_handle_irq(struct uart_port *port);
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir);
 unsigned char serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr);
+void serial8250_read_char(struct uart_8250_port *up, unsigned char lsr);
 void serial8250_tx_chars(struct uart_8250_port *up);
 unsigned int serial8250_modem_status(struct uart_8250_port *up);
 void serial8250_init_port(struct uart_8250_port *up);
@@ -158,6 +177,6 @@ int serial8250_console_setup(struct uart_port *port, char *options, bool probe);
 
 extern void serial8250_set_isa_configurator(void (*v)
 					(int port, struct uart_port *up,
-						unsigned short *capabilities));
+						u32 *capabilities));
 
 #endif

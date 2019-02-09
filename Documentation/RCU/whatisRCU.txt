@@ -1,3 +1,5 @@
+What is RCU?  --  "Read, Copy, Update"
+
 Please note that the "What is RCU?" LWN series is an excellent place
 to start learning about RCU:
 
@@ -5,6 +7,9 @@ to start learning about RCU:
 2.	What is RCU? Part 2: Usage   http://lwn.net/Articles/263130/
 3.	RCU part 3: the RCU API      http://lwn.net/Articles/264090/
 4.	The RCU API, 2010 Edition    http://lwn.net/Articles/418853/
+	2010 Big API Table           http://lwn.net/Articles/419086/
+5.	The RCU API, 2014 Edition    http://lwn.net/Articles/609904/
+	2014 Big API Table           http://lwn.net/Articles/609973/
 
 
 What is RCU?
@@ -234,7 +239,7 @@ rcu_dereference()
 
 	The reader uses rcu_dereference() to fetch an RCU-protected
 	pointer, which returns a value that may then be safely
-	dereferenced.  Note that rcu_deference() does not actually
+	dereferenced.  Note that rcu_dereference() does not actually
 	dereference the pointer, instead, it protects the pointer for
 	later dereferencing.  It also executes any needed memory-barrier
 	instructions for a given CPU architecture.  Currently, only Alpha
@@ -559,7 +564,9 @@ This section presents a "toy" RCU implementation that is based on
 familiar locking primitives.  Its overhead makes it a non-starter for
 real-life use, as does its lack of scalability.  It is also unsuitable
 for realtime use, since it allows scheduling latency to "bleed" from
-one read-side critical section to another.
+one read-side critical section to another.  It also assumes recursive
+reader-writer locks:  If you try this with non-recursive locks, and
+you allow nested rcu_read_lock() calls, you can deadlock.
 
 However, it is probably the easiest implementation to relate to, so is
 a good starting point.
@@ -581,33 +588,37 @@ It is extremely simple:
 	void synchronize_rcu(void)
 	{
 		write_lock(&rcu_gp_mutex);
+		smp_mb__after_spinlock();
 		write_unlock(&rcu_gp_mutex);
 	}
 
-[You can ignore rcu_assign_pointer() and rcu_dereference() without
-missing much.  But here they are anyway.  And whatever you do, don't
-forget about them when submitting patches making use of RCU!]
+[You can ignore rcu_assign_pointer() and rcu_dereference() without missing
+much.  But here are simplified versions anyway.  And whatever you do,
+don't forget about them when submitting patches making use of RCU!]
 
-	#define rcu_assign_pointer(p, v)	({ \
-							smp_wmb(); \
-							(p) = (v); \
-						})
+	#define rcu_assign_pointer(p, v) \
+	({ \
+		smp_store_release(&(p), (v)); \
+	})
 
-	#define rcu_dereference(p)     ({ \
-					typeof(p) _________p1 = p; \
-					smp_read_barrier_depends(); \
-					(_________p1); \
-					})
+	#define rcu_dereference(p) \
+	({ \
+		typeof(p) _________p1 = READ_ONCE(p); \
+		(_________p1); \
+	})
 
 
 The rcu_read_lock() and rcu_read_unlock() primitive read-acquire
 and release a global reader-writer lock.  The synchronize_rcu()
-primitive write-acquires this same lock, then immediately releases
-it.  This means that once synchronize_rcu() exits, all RCU read-side
-critical sections that were in progress before synchronize_rcu() was
-called are guaranteed to have completed -- there is no way that
-synchronize_rcu() would have been able to write-acquire the lock
-otherwise.
+primitive write-acquires this same lock, then releases it.  This means
+that once synchronize_rcu() exits, all RCU read-side critical sections
+that were in progress before synchronize_rcu() was called are guaranteed
+to have completed -- there is no way that synchronize_rcu() would have
+been able to write-acquire the lock otherwise.  The smp_mb__after_spinlock()
+promotes synchronize_rcu() to a full memory barrier in compliance with
+the "Memory-Barrier Guarantees" listed in:
+
+	Documentation/RCU/Design/Requirements/Requirements.html.
 
 It is possible to nest rcu_read_lock(), since reader-writer locks may
 be recursively acquired.  Note also that rcu_read_lock() is immune
@@ -681,22 +692,30 @@ Although RCU can be used in many different ways, a very common use of
 RCU is analogous to reader-writer locking.  The following unified
 diff shows how closely related RCU and reader-writer locking can be.
 
+	@@ -5,5 +5,5 @@ struct el {
+	 	int data;
+	 	/* Other data fields */
+	 };
+	-rwlock_t listmutex;
+	+spinlock_t listmutex;
+	 struct el head;
+
 	@@ -13,15 +14,15 @@
 		struct list_head *lp;
 		struct el *p;
 
-	-	read_lock();
+	-	read_lock(&listmutex);
 	-	list_for_each_entry(p, head, lp) {
 	+	rcu_read_lock();
 	+	list_for_each_entry_rcu(p, head, lp) {
 			if (p->key == key) {
 				*result = p->data;
-	-			read_unlock();
+	-			read_unlock(&listmutex);
 	+			rcu_read_unlock();
 				return 1;
 			}
 		}
-	-	read_unlock();
+	-	read_unlock(&listmutex);
 	+	rcu_read_unlock();
 		return 0;
 	 }
@@ -732,7 +751,7 @@ Or, for those who prefer a side-by-side listing:
  5   int data;                          5   int data;
  6   /* Other data fields */            6   /* Other data fields */
  7 };                                   7 };
- 8 spinlock_t listmutex;                8 spinlock_t listmutex;
+ 8 rwlock_t listmutex;                  8 spinlock_t listmutex;
  9 struct el head;                      9 struct el head;
 
  1 int search(long key, int *result)    1 int search(long key, int *result)
@@ -740,15 +759,15 @@ Or, for those who prefer a side-by-side listing:
  3   struct list_head *lp;              3   struct list_head *lp;
  4   struct el *p;                      4   struct el *p;
  5                                      5
- 6   read_lock();                       6   rcu_read_lock();
+ 6   read_lock(&listmutex);             6   rcu_read_lock();
  7   list_for_each_entry(p, head, lp) { 7   list_for_each_entry_rcu(p, head, lp) {
  8     if (p->key == key) {             8     if (p->key == key) {
  9       *result = p->data;             9       *result = p->data;
-10       read_unlock();                10       rcu_read_unlock();
+10       read_unlock(&listmutex);      10       rcu_read_unlock();
 11       return 1;                     11       return 1;
 12     }                               12     }
 13   }                                 13   }
-14   read_unlock();                    14   rcu_read_unlock();
+14   read_unlock(&listmutex);          14   rcu_read_unlock();
 15   return 0;                         15   return 0;
 16 }                                   16 }
 
@@ -801,11 +820,13 @@ RCU list traversal:
 	list_next_rcu
 	list_for_each_entry_rcu
 	list_for_each_entry_continue_rcu
+	list_for_each_entry_from_rcu
 	hlist_first_rcu
 	hlist_next_rcu
 	hlist_pprev_rcu
 	hlist_for_each_entry_rcu
 	hlist_for_each_entry_rcu_bh
+	hlist_for_each_entry_from_rcu
 	hlist_for_each_entry_continue_rcu
 	hlist_for_each_entry_continue_rcu_bh
 	hlist_nulls_first_rcu
@@ -876,6 +897,8 @@ SRCU:	Critical sections	Grace period		Barrier
 	srcu_read_lock_held
 
 SRCU:	Initialization/cleanup
+	DEFINE_SRCU
+	DEFINE_STATIC_SRCU
 	init_srcu_struct
 	cleanup_srcu_struct
 
@@ -899,7 +922,8 @@ a.	Will readers need to block?  If so, you need SRCU.
 b.	What about the -rt patchset?  If readers would need to block
 	in an non-rt kernel, you need SRCU.  If readers would block
 	in a -rt kernel, but not in a non-rt kernel, SRCU is not
-	necessary.
+	necessary.  (The -rt patchset turns spinlocks into sleeplocks,
+	hence this distinction.)
 
 c.	Do you need to treat NMI handlers, hardirq handlers,
 	and code segments with preemption disabled (whether
@@ -914,7 +938,8 @@ d.	Do you need RCU grace periods to complete even in the face
 
 e.	Is your workload too update-intensive for normal use of
 	RCU, but inappropriate for other synchronization mechanisms?
-	If so, consider SLAB_DESTROY_BY_RCU.  But please be careful!
+	If so, consider SLAB_TYPESAFE_BY_RCU (which was originally
+	named SLAB_DESTROY_BY_RCU).  But please be careful!
 
 f.	Do you need read-side critical sections that are respected
 	even though they are in the middle of the idle loop, during

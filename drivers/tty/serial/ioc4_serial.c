@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Copyright (C) 2003-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
@@ -210,7 +207,7 @@
 #define IOC4_SSCR_PAUSE_STATE   0x40000000  /* Sets when PAUSE takes effect */
 #define IOC4_SSCR_RESET	        0x80000000  /* Reset DMA channels */
 
-/* All producer/comsumer pointers are the same bitfield */
+/* All producer/consumer pointers are the same bitfield */
 #define IOC4_PROD_CONS_PTR_4K   0x00000ff8	/* For 4K buffers */
 #define IOC4_PROD_CONS_PTR_1K   0x000003f8	/* For 1K buffers */
 #define IOC4_PROD_CONS_PTR_OFF           3
@@ -824,7 +821,7 @@ pending_intrs(struct ioc4_soft *soft, int type)
  *			called per port from attach...
  * @port: port to initialize
  */
-static int inline port_init(struct ioc4_port *port)
+static inline int port_init(struct ioc4_port *port)
 {
 	uint32_t sio_cr;
 	struct hooks *hooks = port->ip_hooks;
@@ -1048,7 +1045,7 @@ static irqreturn_t ioc4_intr(int irq, void *arg)
  *			IOC4 with serial ports in the system.
  * @idd: Master module data for this IOC4
  */
-static int inline ioc4_attach_local(struct ioc4_driver_data *idd)
+static inline int ioc4_attach_local(struct ioc4_driver_data *idd)
 {
 	struct ioc4_port *port;
 	struct ioc4_port *ports[IOC4_NUM_SERIAL_PORTS];
@@ -1082,7 +1079,7 @@ static int inline ioc4_attach_local(struct ioc4_driver_data *idd)
 		if (!port) {
 			printk(KERN_WARNING
 				"IOC4 serial memory not available for port\n");
-			return -ENOMEM;
+			goto free;
 		}
 		spin_lock_init(&port->ip_lock);
 
@@ -1190,6 +1187,11 @@ static int inline ioc4_attach_local(struct ioc4_driver_data *idd)
 				handle_dma_error_intr, port);
 	}
 	return 0;
+
+free:
+	while (port_number)
+		kfree(ports[--port_number]);
+	return -ENOMEM;
 }
 
 /**
@@ -2591,7 +2593,7 @@ static int ic4_request_port(struct uart_port *port)
 
 /* Associate the uart functions above - given to serial core */
 
-static struct uart_ops ioc4_ops = {
+static const struct uart_ops ioc4_ops = {
 	.tx_empty	= ic4_tx_empty,
 	.set_mctrl	= ic4_set_mctrl,
 	.get_mctrl	= ic4_get_mctrl,

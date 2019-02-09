@@ -1,25 +1,5 @@
-/* Intel(R) Gigabit Ethernet Linux driver
- * Copyright(c) 2007-2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 #ifndef _E1000_I210_H_
 #define _E1000_I210_H_
@@ -34,6 +14,7 @@ s32 igb_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 data);
 s32 igb_init_nvm_params_i210(struct e1000_hw *hw);
 bool igb_get_flash_presence_i210(struct e1000_hw *hw);
 s32 igb_pll_workaround_i210(struct e1000_hw *hw);
+s32 igb_get_cfg_done_i210(struct e1000_hw *hw);
 
 #define E1000_STM_OPCODE		0xDB00
 #define E1000_EEPROM_FLASH_SIZE_WORD	0x11
@@ -84,7 +65,7 @@ enum E1000_INVM_STRUCTURE_TYPE {
 #define E1000_PCI_PMCSR_D3		0x03
 #define E1000_MAX_PLL_TRIES		5
 #define E1000_PHY_PLL_UNCONF		0xFF
-#define E1000_PHY_PLL_FREQ_PAGE		0xFC0000
+#define E1000_PHY_PLL_FREQ_PAGE		0xFC
 #define E1000_PHY_PLL_FREQ_REG		0x000E
 #define E1000_INVM_DEFAULT_AL		0x202F
 #define E1000_INVM_AUTOLOAD		0x0A

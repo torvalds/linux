@@ -73,7 +73,6 @@
 #define I2C_OVER_INTR		BIT(0)
 
 #define HIX5I2C_MAX_FREQ	400000		/* 400k */
-#define HIX5I2C_READ_OPERATION	0x01
 
 enum hix5hd2_i2c_state {
 	HIX5I2C_STAT_RW_ERR = -1,
@@ -311,12 +310,8 @@ static void hix5hd2_i2c_message_start(struct hix5hd2_i2c_priv *priv, int stop)
 	hix5hd2_i2c_clr_all_irq(priv);
 	hix5hd2_i2c_enable_irq(priv);
 
-	if (priv->msg->flags & I2C_M_RD)
-		writel_relaxed((priv->msg->addr << 1) | HIX5I2C_READ_OPERATION,
-			       priv->regs + HIX5I2C_TXR);
-	else
-		writel_relaxed(priv->msg->addr << 1,
-			       priv->regs + HIX5I2C_TXR);
+	writel_relaxed(i2c_8bit_addr_from_msg(priv->msg),
+		       priv->regs + HIX5I2C_TXR);
 
 	writel_relaxed(I2C_WRITE | I2C_START, priv->regs + HIX5I2C_COM);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -377,17 +372,7 @@ static int hix5hd2_i2c_xfer(struct i2c_adapter *adap,
 			goto out;
 	}
 
-	if (i == num) {
-		ret = num;
-	} else {
-		/* Only one message, cannot access the device */
-		if (i == 1)
-			ret = -EREMOTEIO;
-		else
-			ret = i;
-
-		dev_warn(priv->dev, "xfer message failed\n");
-	}
+	ret = num;
 
 out:
 	pm_runtime_mark_last_busy(priv->dev);
@@ -471,17 +456,14 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_set_autosuspend_delay(priv->dev, MSEC_PER_SEC);
 	pm_runtime_use_autosuspend(priv->dev);
 	pm_runtime_set_active(priv->dev);
 	pm_runtime_enable(priv->dev);
 
 	ret = i2c_add_adapter(&priv->adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
+	if (ret < 0)
 		goto err_runtime;
-	}
 
 	return ret;
 
@@ -507,8 +489,7 @@ static int hix5hd2_i2c_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int hix5hd2_i2c_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct hix5hd2_i2c_priv *priv = platform_get_drvdata(pdev);
+	struct hix5hd2_i2c_priv *priv = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(priv->clk);
 
@@ -517,8 +498,7 @@ static int hix5hd2_i2c_runtime_suspend(struct device *dev)
 
 static int hix5hd2_i2c_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct hix5hd2_i2c_priv *priv = platform_get_drvdata(pdev);
+	struct hix5hd2_i2c_priv *priv = dev_get_drvdata(dev);
 
 	clk_prepare_enable(priv->clk);
 	hix5hd2_i2c_init(priv);

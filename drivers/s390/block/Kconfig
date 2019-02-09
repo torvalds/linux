@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 comment "S/390 block device drivers"
 	depends on S390 && BLOCK
 
@@ -14,6 +15,8 @@ config BLK_DEV_XPRAM
 
 config DCSSBLK
 	def_tristate m
+	select FS_DAX_LIMITED
+	select DAX_DRIVER
 	prompt "DCSSBLK support"
 	depends on S390 && BLOCK
 	help
@@ -81,10 +84,3 @@ config SCM_BLOCK
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called scm_block.
-
-config SCM_BLOCK_CLUSTER_WRITE
-	def_bool y
-	prompt "SCM force cluster writes"
-	depends on SCM_BLOCK
-	help
-	  Force writes to Storage Class Memory (SCM) to be in done in clusters.

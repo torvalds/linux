@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
@@ -110,7 +110,7 @@ typedef struct _diva_os_thread_dpc {
 /*
   This table should be sorted by PCI device ID
 */
-static struct pci_device_id divas_pci_tbl[] = {
+static const struct pci_device_id divas_pci_tbl[] = {
 	/* Diva Server BRI-2M PCI 0xE010 */
 	{ PCI_VDEVICE(EICON, PCI_DEVICE_ID_EICON_MAESTRA),
 	  CARDTYPE_MAESTRA_PCI },
@@ -445,32 +445,32 @@ void divasa_unmap_pci_bar(void __iomem *bar)
 /*********************************************************
  ** I/O port access
  *********************************************************/
-byte __inline__ inpp(void __iomem *addr)
+inline byte inpp(void __iomem *addr)
 {
 	return (inb((unsigned long) addr));
 }
 
-word __inline__ inppw(void __iomem *addr)
+inline word inppw(void __iomem *addr)
 {
 	return (inw((unsigned long) addr));
 }
 
-void __inline__ inppw_buffer(void __iomem *addr, void *P, int length)
+inline void inppw_buffer(void __iomem *addr, void *P, int length)
 {
 	insw((unsigned long) addr, (word *) P, length >> 1);
 }
 
-void __inline__ outppw_buffer(void __iomem *addr, void *P, int length)
+inline void outppw_buffer(void __iomem *addr, void *P, int length)
 {
 	outsw((unsigned long) addr, (word *) P, length >> 1);
 }
 
-void __inline__ outppw(void __iomem *addr, word w)
+inline void outppw(void __iomem *addr, word w)
 {
 	outw(w, (unsigned long) addr);
 }
 
-void __inline__ outpp(void __iomem *addr, word p)
+inline void outpp(void __iomem *addr, word p)
 {
 	outb(p, (unsigned long) addr);
 }
@@ -591,19 +591,22 @@ static int divas_release(struct inode *inode, struct file *file)
 static ssize_t divas_write(struct file *file, const char __user *buf,
 			   size_t count, loff_t *ppos)
 {
+	diva_xdi_um_cfg_cmd_t msg;
 	int ret = -EINVAL;
 
 	if (!file->private_data) {
 		file->private_data = diva_xdi_open_adapter(file, buf,
-							   count,
+							   count, &msg,
 							   xdi_copy_from_user);
-	}
-	if (!file->private_data) {
-		return (-ENODEV);
+		if (!file->private_data)
+			return (-ENODEV);
+		ret = diva_xdi_write(file->private_data, file,
+				     buf, count, &msg, xdi_copy_from_user);
+	} else {
+		ret = diva_xdi_write(file->private_data, file,
+				     buf, count, NULL, xdi_copy_from_user);
 	}
 
-	ret = diva_xdi_write(file->private_data, file,
-			     buf, count, xdi_copy_from_user);
 	switch (ret) {
 	case -1:		/* Message should be removed from rx mailbox first */
 		ret = -EBUSY;
@@ -622,11 +625,12 @@ static ssize_t divas_write(struct file *file, const char __user *buf,
 static ssize_t divas_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
+	diva_xdi_um_cfg_cmd_t msg;
 	int ret = -EINVAL;
 
 	if (!file->private_data) {
 		file->private_data = diva_xdi_open_adapter(file, buf,
-							   count,
+							   count, &msg,
 							   xdi_copy_from_user);
 	}
 	if (!file->private_data) {
@@ -650,12 +654,12 @@ static ssize_t divas_read(struct file *file, char __user *buf,
 	return (ret);
 }
 
-static unsigned int divas_poll(struct file *file, poll_table *wait)
+static __poll_t divas_poll(struct file *file, poll_table *wait)
 {
 	if (!file->private_data) {
-		return (POLLERR);
+		return (EPOLLERR);
 	}
-	return (POLLIN | POLLRDNORM);
+	return (EPOLLIN | EPOLLRDNORM);
 }
 
 static const struct file_operations divas_fops = {

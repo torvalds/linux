@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * P/N 861037:      Sensor HDCS1000        ASIC STV0600
  * P/N 861050-0010: Sensor HDCS1000        ASIC STV0600
  * P/N 861050-0020: Sensor Photobit PB100  ASIC STV0600-1 - QuickCam Express
@@ -63,7 +59,7 @@
 
 /* Refers to the CIF 352x288 and QCIF 176x144 */
 /* 1: 288 lines, 2: 144 lines */
-#define STV_Y_CTRL		        0x15c3
+#define STV_Y_CTRL			0x15c3
 
 #define STV_RESET                       0x1620
 

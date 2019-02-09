@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* pci.c: UltraSparc PCI controller support.
  *
  * Copyright (C) 1997, 1998, 1999 David S. Miller (davem@redhat.com)
@@ -21,7 +22,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
@@ -213,8 +214,8 @@ static void pci_parse_of_addrs(struct platform_device *op,
 	if (!addrs)
 		return;
 	if (ofpci_verbose)
-		printk("    parse addresses (%d bytes) @ %p\n",
-		       proplen, addrs);
+		pci_info(dev, "    parse addresses (%d bytes) @ %p\n",
+			 proplen, addrs);
 	op_res = &op->resource[0];
 	for (; proplen >= 20; proplen -= 20, addrs += 5, op_res++) {
 		struct resource *res;
@@ -226,8 +227,8 @@ static void pci_parse_of_addrs(struct platform_device *op,
 			continue;
 		i = addrs[0] & 0xff;
 		if (ofpci_verbose)
-			printk("  start: %llx, end: %llx, i: %x\n",
-			       op_res->start, op_res->end, i);
+			pci_info(dev, "  start: %llx, end: %llx, i: %x\n",
+				 op_res->start, op_res->end, i);
 
 		if (PCI_BASE_ADDRESS_0 <= i && i <= PCI_BASE_ADDRESS_5) {
 			res = &dev->resource[(i - PCI_BASE_ADDRESS_0) >> 2];
@@ -235,14 +236,28 @@ static void pci_parse_of_addrs(struct platform_device *op,
 			res = &dev->resource[PCI_ROM_RESOURCE];
 			flags |= IORESOURCE_READONLY | IORESOURCE_SIZEALIGN;
 		} else {
-			printk(KERN_ERR "PCI: bad cfg reg num 0x%x\n", i);
+			pci_err(dev, "bad cfg reg num 0x%x\n", i);
 			continue;
 		}
 		res->start = op_res->start;
 		res->end = op_res->end;
 		res->flags = flags;
 		res->name = pci_name(dev);
+
+		pci_info(dev, "reg 0x%x: %pR\n", i, res);
 	}
+}
+
+static void pci_init_dev_archdata(struct dev_archdata *sd, void *iommu,
+				  void *stc, void *host_controller,
+				  struct platform_device  *op,
+				  int numa_node)
+{
+	sd->iommu = iommu;
+	sd->stc = stc;
+	sd->host_controller = host_controller;
+	sd->op = op;
+	sd->numa_node = numa_node;
 }
 
 static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
@@ -259,13 +274,10 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	if (!dev)
 		return NULL;
 
+	op = of_find_device_by_node(node);
 	sd = &dev->dev.archdata;
-	sd->iommu = pbm->iommu;
-	sd->stc = &pbm->stc;
-	sd->host_controller = pbm;
-	sd->op = op = of_find_device_by_node(node);
-	sd->numa_node = pbm->numa_node;
-
+	pci_init_dev_archdata(sd, pbm->iommu, &pbm->stc, pbm, op,
+			      pbm->numa_node);
 	sd = &op->dev.archdata;
 	sd->iommu = pbm->iommu;
 	sd->stc = &pbm->stc;
@@ -279,8 +291,8 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 		type = "";
 
 	if (ofpci_verbose)
-		printk("    create device, devfn: %x, type: %s\n",
-		       devfn, type);
+		pci_info(bus,"    create device, devfn: %x, type: %s\n",
+			 devfn, type);
 
 	dev->sysdata = node;
 	dev->dev.parent = bus->bridge;
@@ -313,10 +325,6 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev_set_name(&dev->dev, "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
-	if (ofpci_verbose)
-		printk("    class: 0x%x device name: %s\n",
-		       dev->class, pci_name(dev));
-
 	/* I have seen IDE devices which will not respond to
 	 * the bmdma simplex check reads if bus mastering is
 	 * disabled.
@@ -343,10 +351,13 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 			dev->irq = PCI_IRQ_NONE;
 	}
 
+	pci_info(dev, "[%04x:%04x] type %02x class %#08x\n",
+		 dev->vendor, dev->device, dev->hdr_type, dev->class);
+
 	pci_parse_of_addrs(sd->op, node, dev);
 
 	if (ofpci_verbose)
-		printk("    adding to system ...\n");
+		pci_info(dev, "    adding to system ...\n");
 
 	pci_device_add(dev, bus);
 
@@ -420,19 +431,19 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	u64 size;
 
 	if (ofpci_verbose)
-		printk("of_scan_pci_bridge(%s)\n", node->full_name);
+		pci_info(dev, "of_scan_pci_bridge(%s)\n", node->full_name);
 
 	/* parse bus-range property */
 	busrange = of_get_property(node, "bus-range", &len);
 	if (busrange == NULL || len != 8) {
-		printk(KERN_DEBUG "Can't get bus-range for PCI-PCI bridge %s\n",
+		pci_info(dev, "Can't get bus-range for PCI-PCI bridge %s\n",
 		       node->full_name);
 		return;
 	}
 
 	if (ofpci_verbose)
-		printk("    Bridge bus range [%u --> %u]\n",
-		       busrange[0], busrange[1]);
+		pci_info(dev, "    Bridge bus range [%u --> %u]\n",
+			 busrange[0], busrange[1]);
 
 	ranges = of_get_property(node, "ranges", &len);
 	simba = 0;
@@ -444,8 +455,8 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 
 	bus = pci_add_new_bus(dev->bus, dev, busrange[0]);
 	if (!bus) {
-		printk(KERN_ERR "Failed to create pci bus for %s\n",
-		       node->full_name);
+		pci_err(dev, "Failed to create pci bus for %s\n",
+			node->full_name);
 		return;
 	}
 
@@ -454,8 +465,8 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	bus->bridge_ctl = 0;
 
 	if (ofpci_verbose)
-		printk("    Bridge ranges[%p] simba[%d]\n",
-		       ranges, simba);
+		pci_info(dev, "    Bridge ranges[%p] simba[%d]\n",
+			 ranges, simba);
 
 	/* parse ranges property, or cook one up by hand for Simba */
 	/* PCI #address-cells == 3 and #size-cells == 2 always */
@@ -477,10 +488,10 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		u64 start;
 
 		if (ofpci_verbose)
-			printk("    RAW Range[%08x:%08x:%08x:%08x:%08x:%08x:"
-			       "%08x:%08x]\n",
-			       ranges[0], ranges[1], ranges[2], ranges[3],
-			       ranges[4], ranges[5], ranges[6], ranges[7]);
+			pci_info(dev, "    RAW Range[%08x:%08x:%08x:%08x:%08x:%08x:"
+				 "%08x:%08x]\n",
+				 ranges[0], ranges[1], ranges[2], ranges[3],
+				 ranges[4], ranges[5], ranges[6], ranges[7]);
 
 		flags = pci_parse_of_flags(ranges[0]);
 		size = GET_64BIT(ranges, 6);
@@ -500,14 +511,14 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		if (flags & IORESOURCE_IO) {
 			res = bus->resource[0];
 			if (res->flags) {
-				printk(KERN_ERR "PCI: ignoring extra I/O range"
-				       " for bridge %s\n", node->full_name);
+				pci_err(dev, "ignoring extra I/O range"
+					" for bridge %s\n", node->full_name);
 				continue;
 			}
 		} else {
 			if (i >= PCI_NUM_RESOURCES - PCI_BRIDGE_RESOURCES) {
-				printk(KERN_ERR "PCI: too many memory ranges"
-				       " for bridge %s\n", node->full_name);
+				pci_err(dev, "too many memory ranges"
+					" for bridge %s\n", node->full_name);
 				continue;
 			}
 			res = bus->resource[i];
@@ -519,8 +530,8 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		region.end = region.start + size - 1;
 
 		if (ofpci_verbose)
-			printk("      Using flags[%08x] start[%016llx] size[%016llx]\n",
-			       flags, start, size);
+			pci_info(dev, "      Using flags[%08x] start[%016llx] size[%016llx]\n",
+				 flags, start, size);
 
 		pcibios_bus_to_resource(dev->bus, res, &region);
 	}
@@ -528,7 +539,7 @@ after_ranges:
 	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
 		bus->number);
 	if (ofpci_verbose)
-		printk("    bus name: %s\n", bus->name);
+		pci_info(dev, "    bus name: %s\n", bus->name);
 
 	pci_of_scan_bus(pbm, node, bus);
 }
@@ -543,14 +554,14 @@ static void pci_of_scan_bus(struct pci_pbm_info *pbm,
 	struct pci_dev *dev;
 
 	if (ofpci_verbose)
-		printk("PCI: scan_bus[%s] bus no %d\n",
-		       node->full_name, bus->number);
+		pci_info(bus, "scan_bus[%s] bus no %d\n",
+			 node->full_name, bus->number);
 
 	child = NULL;
 	prev_devfn = -1;
 	while ((child = of_get_next_child(node, child)) != NULL) {
 		if (ofpci_verbose)
-			printk("  * %s\n", child->full_name);
+			pci_info(bus, "  * %s\n", child->full_name);
 		reg = of_get_property(child, "reg", &reglen);
 		if (reg == NULL || reglen < 20)
 			continue;
@@ -571,8 +582,7 @@ static void pci_of_scan_bus(struct pci_pbm_info *pbm,
 		if (!dev)
 			continue;
 		if (ofpci_verbose)
-			printk("PCI: dev header type: %x\n",
-			       dev->hdr_type);
+			pci_info(dev, "dev header type: %x\n", dev->hdr_type);
 
 		if (pci_is_bridge(dev))
 			of_scan_pci_bridge(pbm, child, dev);
@@ -614,6 +624,45 @@ static void pci_bus_register_of_sysfs(struct pci_bus *bus)
 		pci_bus_register_of_sysfs(child_bus);
 }
 
+static void pci_claim_legacy_resources(struct pci_dev *dev)
+{
+	struct pci_bus_region region;
+	struct resource *p, *root, *conflict;
+
+	if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
+		return;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return;
+
+	p->name = "Video RAM area";
+	p->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+
+	region.start = 0xa0000UL;
+	region.end = region.start + 0x1ffffUL;
+	pcibios_bus_to_resource(dev->bus, p, &region);
+
+	root = pci_find_parent_resource(dev, p);
+	if (!root) {
+		pci_info(dev, "can't claim VGA legacy %pR: no compatible bridge window\n", p);
+		goto err;
+	}
+
+	conflict = request_resource_conflict(root, p);
+	if (conflict) {
+		pci_info(dev, "can't claim VGA legacy %pR: address conflict with %s %pR\n",
+			 p, conflict->name, conflict);
+		goto err;
+	}
+
+	pci_info(dev, "VGA legacy framebuffer %pR\n", p);
+	return;
+
+err:
+	kfree(p);
+}
+
 static void pci_claim_bus_resources(struct pci_bus *bus)
 {
 	struct pci_bus *child_bus;
@@ -629,15 +678,13 @@ static void pci_claim_bus_resources(struct pci_bus *bus)
 				continue;
 
 			if (ofpci_verbose)
-				printk("PCI: Claiming %s: "
-				       "Resource %d: %016llx..%016llx [%x]\n",
-				       pci_name(dev), i,
-				       (unsigned long long)r->start,
-				       (unsigned long long)r->end,
-				       (unsigned int)r->flags);
+				pci_info(dev, "Claiming Resource %d: %pR\n",
+					 i, r);
 
 			pci_claim_resource(dev, i);
 		}
+
+		pci_claim_legacy_resources(dev);
 	}
 
 	list_for_each_entry(child_bus, &bus->children, node)
@@ -654,12 +701,12 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	printk("PCI: Scanning PBM %s\n", node->full_name);
 
 	pci_add_resource_offset(&resources, &pbm->io_space,
-				pbm->io_space.start);
+				pbm->io_offset);
 	pci_add_resource_offset(&resources, &pbm->mem_space,
-				pbm->mem_space.start);
+				pbm->mem_offset);
 	if (pbm->mem64_space.flags)
 		pci_add_resource_offset(&resources, &pbm->mem64_space,
-					pbm->mem_space.start);
+					pbm->mem64_offset);
 	pbm->busn.start = pbm->pci_first_busno;
 	pbm->busn.end	= pbm->pci_last_busno;
 	pbm->busn.flags	= IORESOURCE_BUS;
@@ -677,18 +724,9 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	pci_bus_register_of_sysfs(bus);
 
 	pci_claim_bus_resources(bus);
+
 	pci_bus_add_devices(bus);
 	return bus;
-}
-
-void pcibios_fixup_bus(struct pci_bus *pbus)
-{
-}
-
-resource_size_t pcibios_align_resource(void *data, const struct resource *res,
-				resource_size_t size, resource_size_t align)
-{
-	return res->start;
 }
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
@@ -713,9 +751,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	}
 
 	if (cmd != oldcmd) {
-		printk(KERN_DEBUG "PCI: Enabling device: (%s), cmd %x\n",
-		       pci_name(dev), cmd);
-                /* Enable the appropriate bits in the PCI command register.  */
+		pci_info(dev, "enabling device (%04x -> %04x)\n", oldcmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 	return 0;
@@ -853,9 +889,9 @@ static void __pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vm
  *
  * Returns a negative error code on failure, zero on success.
  */
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state,
-			int write_combine)
+int pci_mmap_page_range(struct pci_dev *dev, int bar,
+			struct vm_area_struct *vma,
+			enum pci_mmap_state mmap_state, int write_combine)
 {
 	int ret;
 
@@ -977,22 +1013,45 @@ void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 			  const struct resource *rp, resource_size_t *start,
 			  resource_size_t *end)
 {
-	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	unsigned long offset;
+	struct pci_bus_region region;
 
-	if (rp->flags & IORESOURCE_IO)
-		offset = pbm->io_space.start;
-	else
-		offset = pbm->mem_space.start;
-
-	*start = rp->start - offset;
-	*end = rp->end - offset;
+	/*
+	 * "User" addresses are shown in /sys/devices/pci.../.../resource
+	 * and /proc/bus/pci/devices and used as mmap offsets for
+	 * /proc/bus/pci/BB/DD.F files (see proc_bus_pci_mmap()).
+	 *
+	 * On sparc, these are PCI bus addresses, i.e., raw BAR values.
+	 */
+	pcibios_resource_to_bus(pdev->bus, &region, (struct resource *) rp);
+	*start = region.start;
+	*end = region.end;
 }
 
 void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling */
 }
+
+#ifdef CONFIG_PCI_IOV
+int pcibios_add_device(struct pci_dev *dev)
+{
+	struct pci_dev *pdev;
+
+	/* Add sriov arch specific initialization here.
+	 * Copy dev_archdata from PF to VF
+	 */
+	if (dev->is_virtfn) {
+		struct dev_archdata *psd;
+
+		pdev = dev->physfn;
+		psd = &pdev->dev.archdata;
+		pci_init_dev_archdata(&dev->dev.archdata, psd->iommu,
+				      psd->stc, psd->host_controller, NULL,
+				      psd->numa_node);
+	}
+	return 0;
+}
+#endif /* CONFIG_PCI_IOV */
 
 static int __init pcibios_init(void)
 {
@@ -1052,8 +1111,8 @@ static void pci_bus_slot_names(struct device_node *node, struct pci_bus *bus)
 	sp = prop->names;
 
 	if (ofpci_verbose)
-		printk("PCI: Making slots for [%s] mask[0x%02x]\n",
-		       node->full_name, mask);
+		pci_info(bus, "Making slots for [%s] mask[0x%02x]\n",
+			 node->full_name, mask);
 
 	i = 0;
 	while (mask) {
@@ -1066,12 +1125,12 @@ static void pci_bus_slot_names(struct device_node *node, struct pci_bus *bus)
 		}
 
 		if (ofpci_verbose)
-			printk("PCI: Making slot [%s]\n", sp);
+			pci_info(bus, "Making slot [%s]\n", sp);
 
 		pci_slot = pci_create_slot(bus, i, sp, NULL);
 		if (IS_ERR(pci_slot))
-			printk(KERN_ERR "PCI: pci_create_slot returned %ld\n",
-			       PTR_ERR(pci_slot));
+			pci_err(bus, "pci_create_slot returned %ld\n",
+				PTR_ERR(pci_slot));
 
 		sp += strlen(sp) + 1;
 		mask &= ~this_bit;

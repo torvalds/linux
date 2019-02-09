@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	linux/arch/alpha/kernel/sys_nautilus.c
  *
@@ -62,7 +63,7 @@ nautilus_init_irq(void)
 	common_init_isa_dma();
 }
 
-static int __init
+static int
 nautilus_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	/* Preserve the IRQ set up by the console.  */
@@ -194,25 +195,49 @@ static struct resource irongate_mem = {
 	.name	= "Irongate PCI MEM",
 	.flags	= IORESOURCE_MEM,
 };
+static struct resource busn_resource = {
+	.name	= "PCI busn",
+	.start	= 0,
+	.end	= 255,
+	.flags	= IORESOURCE_BUS,
+};
 
 void __init
 nautilus_init_pci(void)
 {
 	struct pci_controller *hose = hose_head;
+	struct pci_host_bridge *bridge;
 	struct pci_bus *bus;
 	struct pci_dev *irongate;
 	unsigned long bus_align, bus_size, pci_mem;
 	unsigned long memtop = max_low_pfn << PAGE_SHIFT;
+	int ret;
 
-	/* Scan our single hose.  */
-	bus = pci_scan_bus(0, alpha_mv.pci_ops, hose);
-	if (!bus)
+	bridge = pci_alloc_host_bridge(0);
+	if (!bridge)
 		return;
 
-	hose->bus = bus;
+	pci_add_resource(&bridge->windows, &ioport_resource);
+	pci_add_resource(&bridge->windows, &iomem_resource);
+	pci_add_resource(&bridge->windows, &busn_resource);
+	bridge->dev.parent = NULL;
+	bridge->sysdata = hose;
+	bridge->busnr = 0;
+	bridge->ops = alpha_mv.pci_ops;
+	bridge->swizzle_irq = alpha_mv.pci_swizzle;
+	bridge->map_irq = alpha_mv.pci_map_irq;
+
+	/* Scan our single hose.  */
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret) {
+		pci_free_host_bridge(bridge);
+		return;
+	}
+
+	bus = hose->bus = bridge->bus;
 	pcibios_claim_one_bus(bus);
 
-	irongate = pci_get_bus_and_slot(0, 0);
+	irongate = pci_get_domain_bus_and_slot(pci_domain_nr(bus), 0, 0);
 	bus->self = irongate;
 	bus->resource[0] = &irongate_io;
 	bus->resource[1] = &irongate_mem;
@@ -254,7 +279,6 @@ nautilus_init_pci(void)
 	/* pci_common_swizzle() relies on bus->self being NULL
 	   for the root bus, so just clear it. */
 	bus->self = NULL;
-	pci_fixup_irqs(alpha_mv.pci_swizzle, alpha_mv.pci_map_irq);
 	pci_bus_add_devices(bus);
 }
 

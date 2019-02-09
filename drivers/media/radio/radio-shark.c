@@ -19,10 +19,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */
 
 #include <linux/init.h>
@@ -33,7 +29,7 @@
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <media/v4l2-device.h>
-#include <media/tea575x.h>
+#include <media/drv-intf/tea575x.h>
 
 #if defined(CONFIG_LEDS_CLASS) || \
     (defined(CONFIG_LEDS_CLASS_MODULE) && defined(CONFIG_RADIO_SHARK_MODULE))
@@ -150,7 +146,7 @@ static u32 shark_read_val(struct snd_tea575x *tea)
 	return val;
 }
 
-static struct snd_tea575x_ops shark_tea_ops = {
+static const struct snd_tea575x_ops shark_tea_ops = {
 	.write_val = shark_write_val,
 	.read_val  = shark_read_val,
 };
@@ -396,7 +392,7 @@ static int usb_shark_resume(struct usb_interface *intf)
 #endif
 
 /* Specify the bcdDevice value, as the radioSHARK and radioSHARK2 share ids */
-static struct usb_device_id usb_shark_device_table[] = {
+static const struct usb_device_id usb_shark_device_table[] = {
 	{ .match_flags = USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
 			 USB_DEVICE_ID_MATCH_INT_CLASS,
 	  .idVendor     = 0x077d,

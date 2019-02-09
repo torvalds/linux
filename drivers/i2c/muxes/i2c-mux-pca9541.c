@@ -16,15 +16,14 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
-#include <linux/jiffies.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-
-#include <linux/i2c/pca954x.h>
+#include <linux/jiffies.h>
+#include <linux/module.h>
+#include <linux/platform_data/pca954x.h>
+#include <linux/slab.h>
 
 /*
  * The PCA9541 is a bus master selector. It supports two I2C masters connected
@@ -73,7 +72,7 @@
 #define SELECT_DELAY_LONG	1000
 
 struct pca9541 {
-	struct i2c_adapter *mux_adap;
+	struct i2c_client *client;
 	unsigned long select_timeout;
 	unsigned long arb_timeout;
 };
@@ -85,6 +84,14 @@ static const struct i2c_device_id pca9541_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, pca9541_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id pca9541_of_match[] = {
+	{ .compatible = "nxp,pca9541" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, pca9541_of_match);
+#endif
+
 /*
  * Write to chip register. Don't use i2c_transfer()/i2c_smbus_xfer()
  * as they will try to lock the adapter a second time.
@@ -92,31 +99,11 @@ MODULE_DEVICE_TABLE(i2c, pca9541_id);
 static int pca9541_reg_write(struct i2c_client *client, u8 command, u8 val)
 {
 	struct i2c_adapter *adap = client->adapter;
-	int ret;
+	union i2c_smbus_data data = { .byte = val };
 
-	if (adap->algo->master_xfer) {
-		struct i2c_msg msg;
-		char buf[2];
-
-		msg.addr = client->addr;
-		msg.flags = 0;
-		msg.len = 2;
-		buf[0] = command;
-		buf[1] = val;
-		msg.buf = buf;
-		ret = __i2c_transfer(adap, &msg, 1);
-	} else {
-		union i2c_smbus_data data;
-
-		data.byte = val;
-		ret = adap->algo->smbus_xfer(adap, client->addr,
-					     client->flags,
-					     I2C_SMBUS_WRITE,
-					     command,
-					     I2C_SMBUS_BYTE_DATA, &data);
-	}
-
-	return ret;
+	return __i2c_smbus_xfer(adap, client->addr, client->flags,
+				I2C_SMBUS_WRITE, command,
+				I2C_SMBUS_BYTE_DATA, &data);
 }
 
 /*
@@ -126,41 +113,14 @@ static int pca9541_reg_write(struct i2c_client *client, u8 command, u8 val)
 static int pca9541_reg_read(struct i2c_client *client, u8 command)
 {
 	struct i2c_adapter *adap = client->adapter;
+	union i2c_smbus_data data;
 	int ret;
-	u8 val;
 
-	if (adap->algo->master_xfer) {
-		struct i2c_msg msg[2] = {
-			{
-				.addr = client->addr,
-				.flags = 0,
-				.len = 1,
-				.buf = &command
-			},
-			{
-				.addr = client->addr,
-				.flags = I2C_M_RD,
-				.len = 1,
-				.buf = &val
-			}
-		};
-		ret = __i2c_transfer(adap, msg, 2);
-		if (ret == 2)
-			ret = val;
-		else if (ret >= 0)
-			ret = -EIO;
-	} else {
-		union i2c_smbus_data data;
+	ret = __i2c_smbus_xfer(adap, client->addr, client->flags,
+			       I2C_SMBUS_READ, command,
+			       I2C_SMBUS_BYTE_DATA, &data);
 
-		ret = adap->algo->smbus_xfer(adap, client->addr,
-					     client->flags,
-					     I2C_SMBUS_READ,
-					     command,
-					     I2C_SMBUS_BYTE_DATA, &data);
-		if (!ret)
-			ret = data.byte;
-	}
-	return ret;
+	return ret ?: data.byte;
 }
 
 /*
@@ -217,7 +177,8 @@ static const u8 pca9541_control[16] = {
  */
 static int pca9541_arbitrate(struct i2c_client *client)
 {
-	struct pca9541 *data = i2c_get_clientdata(client);
+	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
+	struct pca9541 *data = i2c_mux_priv(muxc);
 	int reg;
 
 	reg = pca9541_reg_read(client, PCA9541_CONTROL);
@@ -285,9 +246,10 @@ static int pca9541_arbitrate(struct i2c_client *client)
 	return 0;
 }
 
-static int pca9541_select_chan(struct i2c_adapter *adap, void *client, u32 chan)
+static int pca9541_select_chan(struct i2c_mux_core *muxc, u32 chan)
 {
-	struct pca9541 *data = i2c_get_clientdata(client);
+	struct pca9541 *data = i2c_mux_priv(muxc);
+	struct i2c_client *client = data->client;
 	int ret;
 	unsigned long timeout = jiffies + ARB2_TIMEOUT;
 		/* give up after this time */
@@ -309,9 +271,11 @@ static int pca9541_select_chan(struct i2c_adapter *adap, void *client, u32 chan)
 	return -ETIMEDOUT;
 }
 
-static int pca9541_release_chan(struct i2c_adapter *adap,
-				void *client, u32 chan)
+static int pca9541_release_chan(struct i2c_mux_core *muxc, u32 chan)
 {
+	struct pca9541 *data = i2c_mux_priv(muxc);
+	struct i2c_client *client = data->client;
+
 	pca9541_release_bus(client);
 	return 0;
 }
@@ -324,68 +288,60 @@ static int pca9541_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adap = client->adapter;
 	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
+	struct i2c_mux_core *muxc;
 	struct pca9541 *data;
 	int force;
-	int ret = -ENODEV;
+	int ret;
 
 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_BYTE_DATA))
-		goto err;
-
-	data = kzalloc(sizeof(struct pca9541), GFP_KERNEL);
-	if (!data) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	i2c_set_clientdata(client, data);
+		return -ENODEV;
 
 	/*
 	 * I2C accesses are unprotected here.
-	 * We have to lock the adapter before releasing the bus.
+	 * We have to lock the I2C segment before releasing the bus.
 	 */
-	i2c_lock_adapter(adap);
+	i2c_lock_bus(adap, I2C_LOCK_SEGMENT);
 	pca9541_release_bus(client);
-	i2c_unlock_adapter(adap);
+	i2c_unlock_bus(adap, I2C_LOCK_SEGMENT);
 
 	/* Create mux adapter */
 
 	force = 0;
 	if (pdata)
 		force = pdata->modes[0].adap_id;
-	data->mux_adap = i2c_add_mux_adapter(adap, &client->dev, client,
-					     force, 0, 0,
-					     pca9541_select_chan,
-					     pca9541_release_chan);
+	muxc = i2c_mux_alloc(adap, &client->dev, 1, sizeof(*data),
+			     I2C_MUX_ARBITRATOR,
+			     pca9541_select_chan, pca9541_release_chan);
+	if (!muxc)
+		return -ENOMEM;
 
-	if (data->mux_adap == NULL) {
-		dev_err(&client->dev, "failed to register master selector\n");
-		goto exit_free;
-	}
+	data = i2c_mux_priv(muxc);
+	data->client = client;
+
+	i2c_set_clientdata(client, muxc);
+
+	ret = i2c_mux_add_adapter(muxc, force, 0, 0);
+	if (ret)
+		return ret;
 
 	dev_info(&client->dev, "registered master selector for I2C %s\n",
 		 client->name);
 
 	return 0;
-
-exit_free:
-	kfree(data);
-err:
-	return ret;
 }
 
 static int pca9541_remove(struct i2c_client *client)
 {
-	struct pca9541 *data = i2c_get_clientdata(client);
+	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
 
-	i2c_del_mux_adapter(data->mux_adap);
-
-	kfree(data);
+	i2c_mux_del_adapters(muxc);
 	return 0;
 }
 
 static struct i2c_driver pca9541_driver = {
 	.driver = {
 		   .name = "pca9541",
+		   .of_match_table = of_match_ptr(pca9541_of_match),
 		   },
 	.probe = pca9541_probe,
 	.remove = pca9541_remove,

@@ -123,7 +123,7 @@ struct pch_dma_chan {
 struct pch_dma {
 	struct dma_device	dma;
 	void __iomem *membase;
-	struct pci_pool		*pool;
+	struct dma_pool		*pool;
 	struct pch_dma_regs	regs;
 	struct pch_dma_desc_regs ch_regs[MAX_CHAN_NR];
 	struct pch_dma_chan	channels[MAX_CHAN_NR];
@@ -357,14 +357,13 @@ static void pdc_chain_complete(struct pch_dma_chan *pd_chan,
 			       struct pch_dma_desc *desc)
 {
 	struct dma_async_tx_descriptor *txd = &desc->txd;
-	dma_async_tx_callback callback = txd->callback;
-	void *param = txd->callback_param;
+	struct dmaengine_desc_callback cb;
 
+	dmaengine_desc_get_callback(txd, &cb);
 	list_splice_init(&desc->tx_list, &pd_chan->free_list);
 	list_move(&desc->desc_node, &pd_chan->free_list);
 
-	if (callback)
-		callback(param);
+	dmaengine_desc_callback_invoke(&cb, NULL);
 }
 
 static void pdc_complete_all(struct pch_dma_chan *pd_chan)
@@ -418,10 +417,8 @@ static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 {
 	struct pch_dma_desc *desc = to_pd_desc(txd);
 	struct pch_dma_chan *pd_chan = to_pd_chan(txd->chan);
-	dma_cookie_t cookie;
 
 	spin_lock(&pd_chan->lock);
-	cookie = dma_cookie_assign(txd);
 
 	if (list_empty(&pd_chan->active_list)) {
 		list_add_tail(&desc->desc_node, &pd_chan->active_list);
@@ -440,9 +437,8 @@ static struct pch_dma_desc *pdc_alloc_desc(struct dma_chan *chan, gfp_t flags)
 	struct pch_dma *pd = to_pd(chan->device);
 	dma_addr_t addr;
 
-	desc = pci_pool_alloc(pd->pool, flags, &addr);
+	desc = dma_pool_zalloc(pd->pool, flags, &addr);
 	if (desc) {
-		memset(desc, 0, sizeof(struct pch_dma_desc));
 		INIT_LIST_HEAD(&desc->tx_list);
 		dma_async_tx_descriptor_init(&desc->txd, chan);
 		desc->txd.tx_submit = pd_tx_submit;
@@ -553,7 +549,7 @@ static void pd_free_chan_resources(struct dma_chan *chan)
 	spin_unlock_irq(&pd_chan->lock);
 
 	list_for_each_entry_safe(desc, _d, &tmp_list, desc_node)
-		pci_pool_free(pd->pool, desc, desc->txd.phys);
+		dma_pool_free(pd->pool, desc, desc->txd.phys);
 
 	pdc_enable_irq(chan, 0);
 }
@@ -884,7 +880,7 @@ static int pch_dma_probe(struct pci_dev *pdev,
 		goto err_iounmap;
 	}
 
-	pd->pool = pci_pool_create("pch_dma_desc_pool", pdev,
+	pd->pool = dma_pool_create("pch_dma_desc_pool", &pdev->dev,
 				   sizeof(struct pch_dma_desc), 4, 0);
 	if (!pd->pool) {
 		dev_err(&pdev->dev, "Failed to alloc DMA descriptors\n");
@@ -935,7 +931,7 @@ static int pch_dma_probe(struct pci_dev *pdev,
 	return 0;
 
 err_free_pool:
-	pci_pool_destroy(pd->pool);
+	dma_pool_destroy(pd->pool);
 err_free_irq:
 	free_irq(pdev->irq, pd);
 err_iounmap:
@@ -967,7 +963,7 @@ static void pch_dma_remove(struct pci_dev *pdev)
 			tasklet_kill(&pd_chan->tasklet);
 		}
 
-		pci_pool_destroy(pd->pool);
+		dma_pool_destroy(pd->pool);
 		pci_iounmap(pdev, pd->membase);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);

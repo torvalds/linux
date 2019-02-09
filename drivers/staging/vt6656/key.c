@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: key.c
  *
@@ -48,8 +34,8 @@ int vnt_key_init_table(struct vnt_private *priv)
 }
 
 static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
-	struct ieee80211_key_conf *key, u32 key_type, u32 mode,
-	bool onfly_latch)
+			   struct ieee80211_key_conf *key, u32 key_type,
+			   u32 mode, bool onfly_latch)
 {
 	struct vnt_private *priv = hw->priv;
 	u8 broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -119,7 +105,7 @@ static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
 }
 
 int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
-	struct ieee80211_vif *vif, struct ieee80211_key_conf *key)
+		 struct ieee80211_vif *vif, struct ieee80211_key_conf *key)
 {
 	struct ieee80211_bss_conf *conf = &vif->bss_conf;
 	struct vnt_private *priv = hw->priv;
@@ -142,7 +128,7 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 			vnt_mac_disable_keyentry(priv, u);
 
 		vnt_set_keymode(hw, mac_addr, key, VNT_KEY_DEFAULTKEY,
-			KEY_CTL_WEP, true);
+				KEY_CTL_WEP, true);
 
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 
@@ -163,16 +149,15 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 	}
 
-
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
 		vnt_set_keymode(hw, mac_addr, key, VNT_KEY_PAIRWISE,
-					key_dec_mode, true);
+				key_dec_mode, true);
 	} else {
 		vnt_set_keymode(hw, mac_addr, key, VNT_KEY_DEFAULTKEY,
-						key_dec_mode, true);
+				key_dec_mode, true);
 
 		vnt_set_keymode(hw, (u8 *)conf->bssid, key,
-			VNT_KEY_GROUP_ADDRESS, key_dec_mode, true);
+				VNT_KEY_GROUP_ADDRESS, key_dec_mode, true);
 	}
 
 	return 0;

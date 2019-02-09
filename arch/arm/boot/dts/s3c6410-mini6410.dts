@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's S3C6410 based Mini6410 board device tree source
  *
@@ -5,11 +6,7 @@
  *
  * Device tree source file for FriendlyARM Mini6410 board which is based on
  * Samsung's S3C6410 SoC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 /dts-v1/;
 
@@ -22,7 +19,8 @@
 	model = "FriendlyARM Mini6410 board based on S3C6410";
 	compatible = "friendlyarm,mini6410", "samsung,s3c6410";
 
-	memory {
+	memory@50000000 {
+		device_type = "memory";
 		reg = <0x50000000 0x10000000>;
 	};
 
@@ -201,13 +199,13 @@
 &pinctrl0 {
 	gpio_leds: gpio-leds {
 		samsung,pins = "gpk-4", "gpk-5", "gpk-6", "gpk-7";
-		samsung,pin-pud = <PIN_PULL_NONE>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 
 	gpio_keys: gpio-keys {
 		samsung,pins = "gpn-0", "gpn-1", "gpn-2", "gpn-3",
 				"gpn-4", "gpn-5", "gpl-11", "gpl-12";
-		samsung,pin-pud = <PIN_PULL_NONE>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 };
 

@@ -1,27 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * FPU register's regset abstraction, for ptrace, core dumps, etc.
  */
 #include <asm/fpu/internal.h>
 #include <asm/fpu/signal.h>
 #include <asm/fpu/regset.h>
+#include <asm/fpu/xstate.h>
+#include <linux/sched/task_stack.h>
 
 /*
  * The xstateregs_active() routine is the same as the regset_fpregs_active() routine,
  * as the "regset->n" for the xstate regset will be updated based on the feature
- * capabilites supported by the xsave.
+ * capabilities supported by the xsave.
  */
 int regset_fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
 	struct fpu *target_fpu = &target->thread.fpu;
 
-	return target_fpu->fpstate_active ? regset->n : 0;
+	return target_fpu->initialized ? regset->n : 0;
 }
 
 int regset_xregset_fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
 	struct fpu *target_fpu = &target->thread.fpu;
 
-	return (cpu_has_fxsr && target_fpu->fpstate_active) ? regset->n : 0;
+	if (boot_cpu_has(X86_FEATURE_FXSR) && target_fpu->initialized)
+		return regset->n;
+	else
+		return 0;
 }
 
 int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
@@ -30,10 +36,10 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 {
 	struct fpu *fpu = &target->thread.fpu;
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return -ENODEV;
 
-	fpu__activate_fpstate_read(fpu);
+	fpu__prepare_read(fpu);
 	fpstate_sanitize_xstate(fpu);
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
@@ -47,10 +53,10 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct fpu *fpu = &target->thread.fpu;
 	int ret;
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return -ENODEV;
 
-	fpu__activate_fpstate_write(fpu);
+	fpu__prepare_write(fpu);
 	fpstate_sanitize_xstate(fpu);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -65,7 +71,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * update the header bits in the xsave header, indicating the
 	 * presence of FP and SSE state.
 	 */
-	if (cpu_has_xsave)
+	if (boot_cpu_has(X86_FEATURE_XSAVE))
 		fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FPSSE;
 
 	return ret;
@@ -79,24 +85,32 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	struct xregs_state *xsave;
 	int ret;
 
-	if (!cpu_has_xsave)
+	if (!boot_cpu_has(X86_FEATURE_XSAVE))
 		return -ENODEV;
-
-	fpu__activate_fpstate_read(fpu);
 
 	xsave = &fpu->state.xsave;
 
-	/*
-	 * Copy the 48bytes defined by the software first into the xstate
-	 * memory layout in the thread struct, so that we can copy the entire
-	 * xstateregs to the user using one user_regset_copyout().
-	 */
-	memcpy(&xsave->i387.sw_reserved,
-		xstate_fx_sw_bytes, sizeof(xstate_fx_sw_bytes));
-	/*
-	 * Copy the xstate memory layout.
-	 */
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
+	fpu__prepare_read(fpu);
+
+	if (using_compacted_format()) {
+		if (kbuf)
+			ret = copy_xstate_to_kernel(kbuf, xsave, pos, count);
+		else
+			ret = copy_xstate_to_user(ubuf, xsave, pos, count);
+	} else {
+		fpstate_sanitize_xstate(fpu);
+		/*
+		 * Copy the 48 bytes defined by the software into the xsave
+		 * area in the thread struct, so that we can copy the whole
+		 * area to user using one user_regset_copyout().
+		 */
+		memcpy(&xsave->i387.sw_reserved, xstate_fx_sw_bytes, sizeof(xstate_fx_sw_bytes));
+
+		/*
+		 * Copy the xstate memory layout.
+		 */
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
+	}
 	return ret;
 }
 
@@ -108,23 +122,40 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct xregs_state *xsave;
 	int ret;
 
-	if (!cpu_has_xsave)
+	if (!boot_cpu_has(X86_FEATURE_XSAVE))
 		return -ENODEV;
 
-	fpu__activate_fpstate_write(fpu);
+	/*
+	 * A whole standard-format XSAVE buffer is needed:
+	 */
+	if ((pos != 0) || (count < fpu_user_xstate_size))
+		return -EFAULT;
 
 	xsave = &fpu->state.xsave;
 
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
+	fpu__prepare_write(fpu);
+
+	if (using_compacted_format()) {
+		if (kbuf)
+			ret = copy_kernel_to_xstate(xsave, kbuf);
+		else
+			ret = copy_user_to_xstate(xsave, ubuf);
+	} else {
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
+		if (!ret)
+			ret = validate_xstate_header(&xsave->header);
+	}
+
 	/*
 	 * mxcsr reserved bits must be masked to zero for security reasons.
 	 */
 	xsave->i387.mxcsr &= mxcsr_feature_mask;
-	xsave->header.xfeatures &= xfeatures_mask;
+
 	/*
-	 * These bits must be zero.
+	 * In case of failure, mark all states as init:
 	 */
-	memset(&xsave->header.reserved, 0, 48);
+	if (ret)
+		fpstate_init(&fpu->state);
 
 	return ret;
 }
@@ -273,12 +304,12 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	struct fpu *fpu = &target->thread.fpu;
 	struct user_i387_ia32_struct env;
 
-	fpu__activate_fpstate_read(fpu);
+	fpu__prepare_read(fpu);
 
-	if (!static_cpu_has(X86_FEATURE_FPU))
+	if (!boot_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					   &fpu->state.fsave, 0,
 					   -1);
@@ -303,13 +334,13 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	fpu__activate_fpstate_write(fpu);
+	fpu__prepare_write(fpu);
 	fpstate_sanitize_xstate(fpu);
 
-	if (!static_cpu_has(X86_FEATURE_FPU))
+	if (!boot_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					  &fpu->state.fsave, 0,
 					  -1);
@@ -325,7 +356,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * update the header bit in the xsave header, indicating the
 	 * presence of FP.
 	 */
-	if (cpu_has_xsave)
+	if (boot_cpu_has(X86_FEATURE_XSAVE))
 		fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FP;
 	return ret;
 }
@@ -343,7 +374,7 @@ int dump_fpu(struct pt_regs *regs, struct user_i387_struct *ufpu)
 	struct fpu *fpu = &tsk->thread.fpu;
 	int fpvalid;
 
-	fpvalid = fpu->fpstate_active;
+	fpvalid = fpu->initialized;
 	if (fpvalid)
 		fpvalid = !fpregs_get(tsk, NULL,
 				      0, sizeof(struct user_i387_ia32_struct),

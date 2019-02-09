@@ -19,7 +19,7 @@
 #include <linux/proc_fs.h>
 #include <linux/reboot.h>
 #include <asm/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/rtas.h>
 
 #define MODULE_VERS "1.0"
@@ -727,7 +727,7 @@ static int __init rtas_flash_init(void)
 		const struct rtas_flash_file *f = &rtas_flash_files[i];
 		int token;
 
-		if (!proc_create(f->filename, S_IRUSR | S_IWUSR, NULL, &f->fops))
+		if (!proc_create(f->filename, 0600, NULL, &f->fops))
 			goto enomem;
 
 		/*

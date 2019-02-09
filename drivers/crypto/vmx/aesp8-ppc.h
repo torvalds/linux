@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/types.h>
 #include <crypto/aes.h>
 
@@ -19,3 +20,7 @@ void aes_p8_cbc_encrypt(const u8 *in, u8 *out, size_t len,
 void aes_p8_ctr32_encrypt_blocks(const u8 *in, u8 *out,
 				 size_t len, const struct aes_key *key,
 				 const u8 *iv);
+void aes_p8_xts_encrypt(const u8 *in, u8 *out, size_t len,
+			const struct aes_key *key1, const struct aes_key *key2, u8 *iv);
+void aes_p8_xts_decrypt(const u8 *in, u8 *out, size_t len,
+			const struct aes_key *key1, const struct aes_key *key2, u8 *iv);

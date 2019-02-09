@@ -49,6 +49,9 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for control of 16-bit SoundBlaster cards and clones");
 MODULE_LICENSE("GPL");
 
+#define runtime_format_bits(runtime) \
+	((unsigned int)pcm_format_to_bits((runtime)->format))
+
 #ifdef CONFIG_SND_SB16_CSP
 static void snd_sb16_csp_playback_prepare(struct snd_sb *chip, struct snd_pcm_runtime *runtime)
 {
@@ -58,7 +61,7 @@ static void snd_sb16_csp_playback_prepare(struct snd_sb *chip, struct snd_pcm_ru
 		if (csp->running & SNDRV_SB_CSP_ST_LOADED) {
 			/* manually loaded codec */
 			if ((csp->mode & SNDRV_SB_CSP_MODE_DSP_WRITE) &&
-			    ((1U << runtime->format) == csp->acc_format)) {
+			    (runtime_format_bits(runtime) == csp->acc_format)) {
 				/* Supported runtime PCM format for playback */
 				if (csp->ops.csp_use(csp) == 0) {
 					/* If CSP was successfully acquired */
@@ -66,7 +69,7 @@ static void snd_sb16_csp_playback_prepare(struct snd_sb *chip, struct snd_pcm_ru
 				}
 			} else if ((csp->mode & SNDRV_SB_CSP_MODE_QSOUND) && (csp->q_enabled)) {
 				/* QSound decoder is loaded and enabled */
-				if ((1 << runtime->format) & (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 |
+				if (runtime_format_bits(runtime) & (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 |
 							      SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_U16_LE)) {
 					/* Only for simple PCM formats */
 					if (csp->ops.csp_use(csp) == 0) {
@@ -106,7 +109,7 @@ static void snd_sb16_csp_capture_prepare(struct snd_sb *chip, struct snd_pcm_run
 		if (csp->running & SNDRV_SB_CSP_ST_LOADED) {
 			/* manually loaded codec */
 			if ((csp->mode & SNDRV_SB_CSP_MODE_DSP_READ) &&
-			    ((1U << runtime->format) == csp->acc_format)) {
+			    (runtime_format_bits(runtime) == csp->acc_format)) {
 				/* Supported runtime PCM format for capture */
 				if (csp->ops.csp_use(csp) == 0) {
 					/* If CSP was successfully acquired */
@@ -473,7 +476,7 @@ static snd_pcm_uframes_t snd_sb16_capture_pointer(struct snd_pcm_substream *subs
 
  */
 
-static struct snd_pcm_hardware snd_sb16_playback =
+static const struct snd_pcm_hardware snd_sb16_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -491,7 +494,7 @@ static struct snd_pcm_hardware snd_sb16_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_sb16_capture =
+static const struct snd_pcm_hardware snd_sb16_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -737,7 +740,7 @@ static int snd_sb16_dma_control_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	return change;
 }
 
-static struct snd_kcontrol_new snd_sb16_dma_control = {
+static const struct snd_kcontrol_new snd_sb16_dma_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.name = "16-bit DMA Allocation",
 	.info = snd_sb16_dma_control_info,
@@ -838,7 +841,7 @@ int snd_sb16dsp_configure(struct snd_sb * chip)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_sb16_playback_ops = {
+static const struct snd_pcm_ops snd_sb16_playback_ops = {
 	.open =		snd_sb16_playback_open,
 	.close =	snd_sb16_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -849,7 +852,7 @@ static struct snd_pcm_ops snd_sb16_playback_ops = {
 	.pointer =	snd_sb16_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_sb16_capture_ops = {
+static const struct snd_pcm_ops snd_sb16_capture_ops = {
 	.open =		snd_sb16_capture_open,
 	.close =	snd_sb16_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -897,19 +900,3 @@ EXPORT_SYMBOL(snd_sb16dsp_pcm);
 EXPORT_SYMBOL(snd_sb16dsp_get_pcm_ops);
 EXPORT_SYMBOL(snd_sb16dsp_configure);
 EXPORT_SYMBOL(snd_sb16dsp_interrupt);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_sb16_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_sb16_exit(void)
-{
-}
-
-module_init(alsa_sb16_init)
-module_exit(alsa_sb16_exit)

@@ -117,12 +117,12 @@
 # endif
 #endif
 
+#if defined(CONFIG_CACHE_B15_RAC)
+# define MULTI_CACHE 1
+#endif
+
 #if defined(CONFIG_CPU_V7M)
-# ifdef _CACHE
 #  define MULTI_CACHE 1
-# else
-#  define _CACHE nop
-# endif
 #endif
 
 #if !defined(_CACHE) && !defined(MULTI_CACHE)

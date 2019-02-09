@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/errno.h>
 #include <linux/numa.h>
 #include <linux/slab.h>
@@ -10,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/device-mapper.h>
 
-#include "dm.h"
+#include "dm-core.h"
 #include "dm-stats.h"
 
 #define DM_MSG_PREFIX "stats"
@@ -146,12 +147,7 @@ static void *dm_kvzalloc(size_t alloc_size, int node)
 	if (!claim_shared_memory(alloc_size))
 		return NULL;
 
-	if (alloc_size <= KMALLOC_MAX_SIZE) {
-		p = kzalloc_node(alloc_size, GFP_KERNEL | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN, node);
-		if (p)
-			return p;
-	}
-	p = vzalloc_node(alloc_size, node);
+	p = kvzalloc_node(alloc_size, GFP_KERNEL | __GFP_NOMEMALLOC, node);
 	if (p)
 		return p;
 
@@ -175,6 +171,7 @@ static void dm_stat_free(struct rcu_head *head)
 	int cpu;
 	struct dm_stat *s = container_of(head, struct dm_stat, rcu_head);
 
+	kfree(s->histogram_boundaries);
 	kfree(s->program_id);
 	kfree(s->aux_data);
 	for_each_possible_cpu(cpu) {
@@ -231,6 +228,7 @@ void dm_stats_cleanup(struct dm_stats *stats)
 		dm_stat_free(&s->rcu_head);
 	}
 	free_percpu(stats->last);
+	mutex_destroy(&stats->mutex);
 }
 
 static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
@@ -435,7 +433,7 @@ do_sync_free:
 		synchronize_rcu_expedited();
 		dm_stat_free(&s->rcu_head);
 	} else {
-		ACCESS_ONCE(dm_stat_need_rcu_barrier) = 1;
+		WRITE_ONCE(dm_stat_need_rcu_barrier, 1);
 		call_rcu(&s->rcu_head, dm_stat_free);
 	}
 	return 0;
@@ -514,11 +512,10 @@ static void dm_stat_round(struct dm_stat *s, struct dm_stat_shared *shared,
 }
 
 static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
-			      unsigned long bi_rw, sector_t len,
+			      int idx, sector_t len,
 			      struct dm_stats_aux *stats_aux, bool end,
 			      unsigned long duration_jiffies)
 {
-	unsigned long idx = bi_rw & REQ_WRITE;
 	struct dm_stat_shared *shared = &s->stat_shared[entry];
 	struct dm_stat_percpu *p;
 
@@ -584,7 +581,7 @@ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
 #endif
 }
 
-static void __dm_stat_bio(struct dm_stat *s, unsigned long bi_rw,
+static void __dm_stat_bio(struct dm_stat *s, int bi_rw,
 			  sector_t bi_sector, sector_t end_sector,
 			  bool end, unsigned long duration_jiffies,
 			  struct dm_stats_aux *stats_aux)
@@ -644,12 +641,12 @@ void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
 		 */
 		last = raw_cpu_ptr(stats->last);
 		stats_aux->merged =
-			(bi_sector == (ACCESS_ONCE(last->last_sector) &&
-				       ((bi_rw & (REQ_WRITE | REQ_DISCARD)) ==
-					(ACCESS_ONCE(last->last_rw) & (REQ_WRITE | REQ_DISCARD)))
+			(bi_sector == (READ_ONCE(last->last_sector) &&
+				       ((bi_rw == WRITE) ==
+					(READ_ONCE(last->last_rw) == WRITE))
 				       ));
-		ACCESS_ONCE(last->last_sector) = end_sector;
-		ACCESS_ONCE(last->last_rw) = bi_rw;
+		WRITE_ONCE(last->last_sector, end_sector);
+		WRITE_ONCE(last->last_rw, bi_rw);
 	}
 
 	rcu_read_lock();
@@ -698,22 +695,22 @@ static void __dm_stat_init_temporary_percpu_totals(struct dm_stat_shared *shared
 
 	for_each_possible_cpu(cpu) {
 		p = &s->stat_percpu[cpu][x];
-		shared->tmp.sectors[READ] += ACCESS_ONCE(p->sectors[READ]);
-		shared->tmp.sectors[WRITE] += ACCESS_ONCE(p->sectors[WRITE]);
-		shared->tmp.ios[READ] += ACCESS_ONCE(p->ios[READ]);
-		shared->tmp.ios[WRITE] += ACCESS_ONCE(p->ios[WRITE]);
-		shared->tmp.merges[READ] += ACCESS_ONCE(p->merges[READ]);
-		shared->tmp.merges[WRITE] += ACCESS_ONCE(p->merges[WRITE]);
-		shared->tmp.ticks[READ] += ACCESS_ONCE(p->ticks[READ]);
-		shared->tmp.ticks[WRITE] += ACCESS_ONCE(p->ticks[WRITE]);
-		shared->tmp.io_ticks[READ] += ACCESS_ONCE(p->io_ticks[READ]);
-		shared->tmp.io_ticks[WRITE] += ACCESS_ONCE(p->io_ticks[WRITE]);
-		shared->tmp.io_ticks_total += ACCESS_ONCE(p->io_ticks_total);
-		shared->tmp.time_in_queue += ACCESS_ONCE(p->time_in_queue);
+		shared->tmp.sectors[READ] += READ_ONCE(p->sectors[READ]);
+		shared->tmp.sectors[WRITE] += READ_ONCE(p->sectors[WRITE]);
+		shared->tmp.ios[READ] += READ_ONCE(p->ios[READ]);
+		shared->tmp.ios[WRITE] += READ_ONCE(p->ios[WRITE]);
+		shared->tmp.merges[READ] += READ_ONCE(p->merges[READ]);
+		shared->tmp.merges[WRITE] += READ_ONCE(p->merges[WRITE]);
+		shared->tmp.ticks[READ] += READ_ONCE(p->ticks[READ]);
+		shared->tmp.ticks[WRITE] += READ_ONCE(p->ticks[WRITE]);
+		shared->tmp.io_ticks[READ] += READ_ONCE(p->io_ticks[READ]);
+		shared->tmp.io_ticks[WRITE] += READ_ONCE(p->io_ticks[WRITE]);
+		shared->tmp.io_ticks_total += READ_ONCE(p->io_ticks_total);
+		shared->tmp.time_in_queue += READ_ONCE(p->time_in_queue);
 		if (s->n_histogram_entries) {
 			unsigned i;
 			for (i = 0; i < s->n_histogram_entries + 1; i++)
-				shared->tmp.histogram[i] += ACCESS_ONCE(p->histogram[i]);
+				shared->tmp.histogram[i] += READ_ONCE(p->histogram[i]);
 		}
 	}
 }
@@ -918,7 +915,9 @@ static int parse_histogram(const char *h, unsigned *n_histogram_entries,
 		if (*q == ',')
 			(*n_histogram_entries)++;
 
-	*histogram_boundaries = kmalloc(*n_histogram_entries * sizeof(unsigned long long), GFP_KERNEL);
+	*histogram_boundaries = kmalloc_array(*n_histogram_entries,
+					      sizeof(unsigned long long),
+					      GFP_KERNEL);
 	if (!*histogram_boundaries)
 		return -ENOMEM;
 

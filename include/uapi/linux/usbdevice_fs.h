@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*****************************************************************************/
 
 /*
@@ -78,7 +79,7 @@ struct usbdevfs_connectinfo {
 #define USBDEVFS_URB_SHORT_NOT_OK	0x01
 #define USBDEVFS_URB_ISO_ASAP		0x02
 #define USBDEVFS_URB_BULK_CONTINUATION	0x04
-#define USBDEVFS_URB_NO_FSBR		0x20
+#define USBDEVFS_URB_NO_FSBR		0x20	/* Not used */
 #define USBDEVFS_URB_ZERO_PACKET	0x40
 #define USBDEVFS_URB_NO_INTERRUPT	0x80
 
@@ -134,6 +135,8 @@ struct usbdevfs_hub_portinfo {
 #define USBDEVFS_CAP_NO_PACKET_SIZE_LIM		0x04
 #define USBDEVFS_CAP_BULK_SCATTER_GATHER	0x08
 #define USBDEVFS_CAP_REAP_AFTER_DISCONNECT	0x10
+#define USBDEVFS_CAP_MMAP			0x20
+#define USBDEVFS_CAP_DROP_PRIVILEGES		0x40
 
 /* USBDEVFS_DISCONNECT_CLAIM flags & struct */
 
@@ -153,6 +156,11 @@ struct usbdevfs_streams {
 	unsigned int num_eps;
 	unsigned char eps[0];
 };
+
+/*
+ * USB_SPEED_* values returned by USBDEVFS_GET_SPEED are defined in
+ * linux/usb/ch9.h
+ */
 
 #define USBDEVFS_CONTROL           _IOWR('U', 0, struct usbdevfs_ctrltransfer)
 #define USBDEVFS_CONTROL32           _IOWR('U', 0, struct usbdevfs_ctrltransfer32)
@@ -187,5 +195,7 @@ struct usbdevfs_streams {
 #define USBDEVFS_DISCONNECT_CLAIM  _IOR('U', 27, struct usbdevfs_disconnect_claim)
 #define USBDEVFS_ALLOC_STREAMS     _IOR('U', 28, struct usbdevfs_streams)
 #define USBDEVFS_FREE_STREAMS      _IOR('U', 29, struct usbdevfs_streams)
+#define USBDEVFS_DROP_PRIVILEGES   _IOW('U', 30, __u32)
+#define USBDEVFS_GET_SPEED         _IO('U', 31)
 
 #endif /* _UAPI_LINUX_USBDEVICE_FS_H */

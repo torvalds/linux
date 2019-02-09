@@ -26,6 +26,7 @@
 #include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/reboot.h>
+#include <linux/syscalls.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -35,7 +36,7 @@
 #include <asm/page.h>
 #include <asm/param.h>
 #include <asm/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/udbg.h>
 #include <asm/syscalls.h>
 #include <asm/smp.h>
@@ -43,6 +44,9 @@
 #include <asm/time.h>
 #include <asm/mmu.h>
 #include <asm/topology.h>
+
+/* This is here deliberately so it's only used in this file */
+void enter_rtas(unsigned long);
 
 struct rtas_t rtas = {
 	.lock = __ARCH_SPIN_LOCK_UNLOCKED
@@ -75,7 +79,7 @@ static unsigned long lock_rtas(void)
 
 	local_irq_save(flags);
 	preempt_disable();
-	arch_spin_lock_flags(&rtas.lock, flags);
+	arch_spin_lock(&rtas.lock);
 	return flags;
 }
 
@@ -93,21 +97,13 @@ static void unlock_rtas(unsigned long flags)
  */
 static void call_rtas_display_status(unsigned char c)
 {
-	struct rtas_args *args = &rtas.args;
 	unsigned long s;
 
 	if (!rtas.base)
 		return;
+
 	s = lock_rtas();
-
-	args->token = cpu_to_be32(10);
-	args->nargs = cpu_to_be32(1);
-	args->nret  = cpu_to_be32(1);
-	args->rets  = &(args->args[1]);
-	args->args[0] = cpu_to_be32(c);
-
-	enter_rtas(__pa(args));
-
+	rtas_call_unlocked(&rtas.args, 10, 1, 1, NULL, c);
 	unlock_rtas(s);
 }
 
@@ -418,6 +414,36 @@ static char *__fetch_rtas_last_error(char *altbuf)
 #define get_errorlog_buffer()		NULL
 #endif
 
+
+static void
+va_rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret,
+		      va_list list)
+{
+	int i;
+
+	args->token = cpu_to_be32(token);
+	args->nargs = cpu_to_be32(nargs);
+	args->nret  = cpu_to_be32(nret);
+	args->rets  = &(args->args[nargs]);
+
+	for (i = 0; i < nargs; ++i)
+		args->args[i] = cpu_to_be32(va_arg(list, __u32));
+
+	for (i = 0; i < nret; ++i)
+		args->rets[i] = 0;
+
+	enter_rtas(__pa(args));
+}
+
+void rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret, ...)
+{
+	va_list list;
+
+	va_start(list, nret);
+	va_rtas_call_unlocked(args, token, nargs, nret, list);
+	va_end(list);
+}
+
 int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 {
 	va_list list;
@@ -431,21 +457,13 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 		return -1;
 
 	s = lock_rtas();
+
+	/* We use the global rtas args buffer */
 	rtas_args = &rtas.args;
 
-	rtas_args->token = cpu_to_be32(token);
-	rtas_args->nargs = cpu_to_be32(nargs);
-	rtas_args->nret  = cpu_to_be32(nret);
-	rtas_args->rets  = &(rtas_args->args[nargs]);
 	va_start(list, outputs);
-	for (i = 0; i < nargs; ++i)
-		rtas_args->args[i] = cpu_to_be32(va_arg(list, __u32));
+	va_rtas_call_unlocked(rtas_args, token, nargs, nret, list);
 	va_end(list);
-
-	for (i = 0; i < nret; ++i)
-		rtas_args->rets[i] = 0;
-
-	enter_rtas(__pa(rtas_args));
 
 	/* A -1 return code indicates that the last command couldn't
 	   be completed due to a hardware error. */
@@ -668,7 +686,7 @@ int rtas_set_indicator_fast(int indicator, int index, int new_value)
 	return rc;
 }
 
-void rtas_restart(char *cmd)
+void __noreturn rtas_restart(char *cmd)
 {
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_RESTART);
@@ -687,7 +705,7 @@ void rtas_power_off(void)
 	for (;;);
 }
 
-void rtas_halt(void)
+void __noreturn rtas_halt(void)
 {
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_HALT);
@@ -897,7 +915,7 @@ int rtas_online_cpus_mask(cpumask_var_t cpus)
 	if (ret) {
 		cpumask_var_t tmp_mask;
 
-		if (!alloc_cpumask_var(&tmp_mask, GFP_TEMPORARY))
+		if (!alloc_cpumask_var(&tmp_mask, GFP_KERNEL))
 			return ret;
 
 		/* Use tmp_mask to preserve cpus mask from first failure */
@@ -945,7 +963,7 @@ int rtas_ibm_suspend_me(u64 handle)
 		return -EIO;
 	}
 
-	if (!alloc_cpumask_var(&offline_mask, GFP_TEMPORARY))
+	if (!alloc_cpumask_var(&offline_mask, GFP_KERNEL))
 		return -ENOMEM;
 
 	atomic_set(&data.working, 0);
@@ -1033,7 +1051,7 @@ struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 }
 
 /* We assume to be passed big endian arguments */
-asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
+SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 {
 	struct rtas_args args;
 	unsigned long flags;
@@ -1053,7 +1071,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	nret  = be32_to_cpu(args.nret);
 	token = be32_to_cpu(args.token);
 
-	if (nargs > ARRAY_SIZE(args.args)
+	if (nargs >= ARRAY_SIZE(args.args)
 	    || nret > ARRAY_SIZE(args.args)
 	    || nargs + nret > ARRAY_SIZE(args.args))
 		return -EINVAL;
@@ -1128,36 +1146,34 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 void __init rtas_initialize(void)
 {
 	unsigned long rtas_region = RTAS_INSTANTIATE_MAX;
+	u32 base, size, entry;
+	int no_base, no_size, no_entry;
 
 	/* Get RTAS dev node and fill up our "rtas" structure with infos
 	 * about it.
 	 */
 	rtas.dev = of_find_node_by_name(NULL, "rtas");
-	if (rtas.dev) {
-		const __be32 *basep, *entryp, *sizep;
-
-		basep = of_get_property(rtas.dev, "linux,rtas-base", NULL);
-		sizep = of_get_property(rtas.dev, "rtas-size", NULL);
-		if (basep != NULL && sizep != NULL) {
-			rtas.base = __be32_to_cpu(*basep);
-			rtas.size = __be32_to_cpu(*sizep);
-			entryp = of_get_property(rtas.dev,
-					"linux,rtas-entry", NULL);
-			if (entryp == NULL) /* Ugh */
-				rtas.entry = rtas.base;
-			else
-				rtas.entry = __be32_to_cpu(*entryp);
-		} else
-			rtas.dev = NULL;
-	}
 	if (!rtas.dev)
 		return;
+
+	no_base = of_property_read_u32(rtas.dev, "linux,rtas-base", &base);
+	no_size = of_property_read_u32(rtas.dev, "rtas-size", &size);
+	if (no_base || no_size) {
+		of_node_put(rtas.dev);
+		rtas.dev = NULL;
+		return;
+	}
+
+	rtas.base = base;
+	rtas.size = size;
+	no_entry = of_property_read_u32(rtas.dev, "linux,rtas-entry", &entry);
+	rtas.entry = no_entry ? rtas.base : entry;
 
 	/* If RTAS was found, allocate the RMO buffer for it and look for
 	 * the stop-self token if any
 	 */
 #ifdef CONFIG_PPC64
-	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR)) {
+	if (firmware_has_feature(FW_FEATURE_LPAR)) {
 		rtas_region = min(ppc64_rma_size, RTAS_INSTANTIATE_MAX);
 		ibm_suspend_me_token = rtas_token("ibm,suspend-me");
 	}

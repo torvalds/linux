@@ -986,7 +986,7 @@ static inline void mv_write_cached_reg(void __iomem *addr, u32 *old, u32 new)
 		 * Looks like a lot of fuss, but it avoids an unnecessary
 		 * +1 usec read-after-write delay for unaffected registers.
 		 */
-		laddr = (long)addr & 0xffff;
+		laddr = (unsigned long)addr & 0xffff;
 		if (laddr >= 0x300 && laddr <= 0x33c) {
 			laddr &= 0x000f;
 			if (laddr == 0x4 || laddr == 0xc) {
@@ -1727,15 +1727,13 @@ static int mv_port_start(struct ata_port *ap)
 		return -ENOMEM;
 	ap->private_data = pp;
 
-	pp->crqb = dma_pool_alloc(hpriv->crqb_pool, GFP_KERNEL, &pp->crqb_dma);
+	pp->crqb = dma_pool_zalloc(hpriv->crqb_pool, GFP_KERNEL, &pp->crqb_dma);
 	if (!pp->crqb)
 		return -ENOMEM;
-	memset(pp->crqb, 0, MV_CRQB_Q_SZ);
 
-	pp->crpb = dma_pool_alloc(hpriv->crpb_pool, GFP_KERNEL, &pp->crpb_dma);
+	pp->crpb = dma_pool_zalloc(hpriv->crpb_pool, GFP_KERNEL, &pp->crpb_dma);
 	if (!pp->crpb)
 		goto out_port_free_dma_mem;
-	memset(pp->crpb, 0, MV_CRPB_Q_SZ);
 
 	/* 6041/6081 Rev. "C0" (and newer) are okay with async notify */
 	if (hpriv->hp_flags & MV_HP_ERRATA_60X1C0)
@@ -1804,7 +1802,7 @@ static void mv_fill_sg(struct ata_queued_cmd *qc)
 	struct mv_sg *mv_sg, *last_sg = NULL;
 	unsigned int si;
 
-	mv_sg = pp->sg_tbl[qc->tag];
+	mv_sg = pp->sg_tbl[qc->hw_tag];
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		dma_addr_t addr = sg_dma_address(sg);
 		u32 sg_len = sg_dma_len(sg);
@@ -1905,9 +1903,9 @@ static void mv_bmdma_setup(struct ata_queued_cmd *qc)
 	writel(0, port_mmio + BMDMA_CMD);
 
 	/* load PRD table addr. */
-	writel((pp->sg_tbl_dma[qc->tag] >> 16) >> 16,
+	writel((pp->sg_tbl_dma[qc->hw_tag] >> 16) >> 16,
 		port_mmio + BMDMA_PRD_HIGH);
-	writelfl(pp->sg_tbl_dma[qc->tag],
+	writelfl(pp->sg_tbl_dma[qc->hw_tag],
 		port_mmio + BMDMA_PRD_LOW);
 
 	/* issue r/w command */
@@ -2073,17 +2071,17 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	 */
 	if (!(tf->flags & ATA_TFLAG_WRITE))
 		flags |= CRQB_FLAG_READ;
-	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
-	flags |= qc->tag << CRQB_TAG_SHIFT;
+	WARN_ON(MV_MAX_Q_DEPTH <= qc->hw_tag);
+	flags |= qc->hw_tag << CRQB_TAG_SHIFT;
 	flags |= (qc->dev->link->pmp & 0xf) << CRQB_PMP_SHIFT;
 
 	/* get current queue index from software */
 	in_index = pp->req_idx;
 
 	pp->crqb[in_index].sg_addr =
-		cpu_to_le32(pp->sg_tbl_dma[qc->tag] & 0xffffffff);
+		cpu_to_le32(pp->sg_tbl_dma[qc->hw_tag] & 0xffffffff);
 	pp->crqb[in_index].sg_addr_hi =
-		cpu_to_le32((pp->sg_tbl_dma[qc->tag] >> 16) >> 16);
+		cpu_to_le32((pp->sg_tbl_dma[qc->hw_tag] >> 16) >> 16);
 	pp->crqb[in_index].ctrl_flags = cpu_to_le16(flags);
 
 	cw = &pp->crqb[in_index].ata_cmd[0];
@@ -2166,17 +2164,17 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 	if (!(tf->flags & ATA_TFLAG_WRITE))
 		flags |= CRQB_FLAG_READ;
 
-	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
-	flags |= qc->tag << CRQB_TAG_SHIFT;
-	flags |= qc->tag << CRQB_HOSTQ_SHIFT;
+	WARN_ON(MV_MAX_Q_DEPTH <= qc->hw_tag);
+	flags |= qc->hw_tag << CRQB_TAG_SHIFT;
+	flags |= qc->hw_tag << CRQB_HOSTQ_SHIFT;
 	flags |= (qc->dev->link->pmp & 0xf) << CRQB_PMP_SHIFT;
 
 	/* get current queue index from software */
 	in_index = pp->req_idx;
 
 	crqb = (struct mv_crqb_iie *) &pp->crqb[in_index];
-	crqb->addr = cpu_to_le32(pp->sg_tbl_dma[qc->tag] & 0xffffffff);
-	crqb->addr_hi = cpu_to_le32((pp->sg_tbl_dma[qc->tag] >> 16) >> 16);
+	crqb->addr = cpu_to_le32(pp->sg_tbl_dma[qc->hw_tag] & 0xffffffff);
+	crqb->addr_hi = cpu_to_le32((pp->sg_tbl_dma[qc->hw_tag] >> 16) >> 16);
 	crqb->flags = cpu_to_le32(flags);
 
 	crqb->ata_cmd[0] = cpu_to_le32(
@@ -2389,7 +2387,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 				      ": attempting PIO w/multiple DRQ: "
 				      "this may fail due to h/w errata\n");
 		}
-		/* drop through */
+		/* fall through */
 	case ATA_PROT_NODATA:
 	case ATAPI_PROT_PIO:
 	case ATAPI_PROT_NODATA:
@@ -2480,20 +2478,18 @@ static unsigned int mv_get_err_pmp_map(struct ata_port *ap)
 
 static void mv_pmp_eh_prep(struct ata_port *ap, unsigned int pmp_map)
 {
-	struct ata_eh_info *ehi;
 	unsigned int pmp;
 
 	/*
 	 * Initialize EH info for PMPs which saw device errors
 	 */
-	ehi = &ap->link.eh_info;
 	for (pmp = 0; pmp_map != 0; pmp++) {
 		unsigned int this_pmp = (1 << pmp);
 		if (pmp_map & this_pmp) {
 			struct ata_link *link = &ap->pmp_link[pmp];
+			struct ata_eh_info *ehi = &link->eh_info;
 
 			pmp_map &= ~this_pmp;
-			ehi = &link->eh_info;
 			ata_ehi_clear_desc(ehi);
 			ata_ehi_push_desc(ehi, "dev err");
 			ehi->err_mask |= AC_ERR_DEV;
@@ -2543,7 +2539,7 @@ static int mv_handle_fbs_ncq_dev_err(struct ata_port *ap)
 	failed_links = hweight16(new_map);
 
 	ata_port_info(ap,
-		      "%s: pmp_map=%04x qc_map=%04x failed_links=%d nr_active_links=%d\n",
+		      "%s: pmp_map=%04x qc_map=%04llx failed_links=%d nr_active_links=%d\n",
 		      __func__, pp->delayed_eh_pmp_map,
 		      ap->qc_active, failed_links,
 		      ap->nr_active_links);
@@ -3600,7 +3596,7 @@ static void mv_reset_channel(struct mv_host_priv *hpriv, void __iomem *mmio,
 	hpriv->ops->phy_errata(hpriv, mmio, port_no);
 
 	if (IS_GEN_I(hpriv))
-		mdelay(1);
+		usleep_range(500, 1000);
 }
 
 static void mv_pmp_select(struct ata_port *ap, int pmp)
@@ -3879,7 +3875,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 				" and avoid the final two gigabytes on"
 				" all RocketRAID BIOS initialized drives.\n");
 		}
-		/* drop through */
+		/* fall through */
 	case chip_6042:
 		hpriv->ops = &mv6xxx_ops;
 		hp_flags |= MV_HP_GEN_IIE;
@@ -4092,7 +4088,20 @@ static int mv_platform_probe(struct platform_device *pdev)
 
 	/* allocate host */
 	if (pdev->dev.of_node) {
-		of_property_read_u32(pdev->dev.of_node, "nr-ports", &n_ports);
+		rc = of_property_read_u32(pdev->dev.of_node, "nr-ports",
+					   &n_ports);
+		if (rc) {
+			dev_err(&pdev->dev,
+				"error parsing nr-ports property: %d\n", rc);
+			return rc;
+		}
+
+		if (n_ports <= 0) {
+			dev_err(&pdev->dev, "nr-ports must be positive: %d\n",
+				n_ports);
+			return -EINVAL;
+		}
+
 		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	} else {
 		mv_platform_data = dev_get_platdata(&pdev->dev);
@@ -4105,13 +4114,13 @@ static int mv_platform_probe(struct platform_device *pdev)
 
 	if (!host || !hpriv)
 		return -ENOMEM;
-	hpriv->port_clks = devm_kzalloc(&pdev->dev,
-					sizeof(struct clk *) * n_ports,
+	hpriv->port_clks = devm_kcalloc(&pdev->dev,
+					n_ports, sizeof(struct clk *),
 					GFP_KERNEL);
 	if (!hpriv->port_clks)
 		return -ENOMEM;
-	hpriv->port_phys = devm_kzalloc(&pdev->dev,
-					sizeof(struct phy *) * n_ports,
+	hpriv->port_phys = devm_kcalloc(&pdev->dev,
+					n_ports, sizeof(struct phy *),
 					GFP_KERNEL);
 	if (!hpriv->port_phys)
 		return -ENOMEM;
@@ -4121,6 +4130,9 @@ static int mv_platform_probe(struct platform_device *pdev)
 	host->iomap = NULL;
 	hpriv->base = devm_ioremap(&pdev->dev, res->start,
 				   resource_size(res));
+	if (!hpriv->base)
+		return -ENOMEM;
+
 	hpriv->base -= SATAHC0_REG_BASE;
 
 	hpriv->clk = clk_get(&pdev->dev, NULL);
@@ -4275,7 +4287,7 @@ static int mv_platform_resume(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_OF
-static struct of_device_id mv_sata_dt_ids[] = {
+static const struct of_device_id mv_sata_dt_ids[] = {
 	{ .compatible = "marvell,armada-370-sata", },
 	{ .compatible = "marvell,orion-sata", },
 	{},
@@ -4515,7 +4527,7 @@ static void __exit mv_exit(void)
 
 MODULE_AUTHOR("Brett Russ");
 MODULE_DESCRIPTION("SCSI low-level driver for Marvell SATA controllers");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(pci, mv_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:" DRV_NAME);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -118,19 +119,19 @@ unsigned long long process_xen_hypercall_name(struct trace_seq *s,
 	return 0;
 }
 
-int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
-	pevent_register_print_function(pevent,
-				       process_xen_hypercall_name,
-				       PEVENT_FUNC_ARG_STRING,
-				       "xen_hypercall_name",
-				       PEVENT_FUNC_ARG_INT,
-				       PEVENT_FUNC_ARG_VOID);
+	tep_register_print_function(pevent,
+				    process_xen_hypercall_name,
+				    TEP_FUNC_ARG_STRING,
+				    "xen_hypercall_name",
+				    TEP_FUNC_ARG_INT,
+				    TEP_FUNC_ARG_VOID);
 	return 0;
 }
 
-void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
+void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
-	pevent_unregister_print_function(pevent, process_xen_hypercall_name,
-					 "xen_hypercall_name");
+	tep_unregister_print_function(pevent, process_xen_hypercall_name,
+				      "xen_hypercall_name");
 }

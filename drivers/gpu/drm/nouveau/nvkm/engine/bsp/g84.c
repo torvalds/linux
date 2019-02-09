@@ -27,7 +27,6 @@
 
 static const struct nvkm_xtensa_func
 g84_bsp = {
-	.pmc_enable = 0x04008000,
 	.fifo_val = 0x1111,
 	.unkd28 = 0x90044,
 	.sclass = {
@@ -40,5 +39,5 @@ int
 g84_bsp_new(struct nvkm_device *device, int index, struct nvkm_engine **pengine)
 {
 	return nvkm_xtensa_new_(&g84_bsp, device, index,
-				true, 0x103000, pengine);
+				device->chipset != 0x92, 0x103000, pengine);
 }

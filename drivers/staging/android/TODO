@@ -1,5 +1,4 @@
 TODO:
-	- checkpatch.pl cleanups
 	- sparse fixes
 	- rename files to be not so "generic"
 	- add proper arch dependencies as needed
@@ -7,23 +6,19 @@ TODO:
 
 
 ion/
- - Remove ION_IOC_SYNC: Flushing for devices should be purely a kernel internal
-   interface on top of dma-buf. flush_for_device needs to be added to dma-buf
-   first.
- - Remove ION_IOC_CUSTOM: Atm used for cache flushing for cpu access in some
-   vendor trees. Should be replaced with an ioctl on the dma-buf to expose the
-   begin/end_cpu_access hooks to userspace.
- - Clarify the tricks ion plays with explicitly managing coherency behind the
-   dma api's back (this is absolutely needed for high-perf gpu drivers): Add an
-   explicit coherency management mode to flush_for_device to be used by drivers
-   which want to manage caches themselves and which indicates whether cpu caches
-   need flushing.
- - With those removed there's probably no use for ION_IOC_IMPORT anymore either
-   since ion would just be the central allocator for shared buffers.
- - Add dt-binding to expose cma regions as ion heaps, with the rule that any
-   such cma regions must already be used by some device for dma. I.e. ion only
-   exposes existing cma regions and doesn't reserve unecessarily memory when
-   booting a system which doesn't use ion.
+ - Add dt-bindings for remaining heaps (chunk and carveout heaps). This would
+   involve putting appropriate bindings in a memory node for Ion to find.
+ - Split /dev/ion up into multiple nodes (e.g. /dev/ion/heap0)
+ - Better test framework (integration with VGEM was suggested)
+
+vsoc.c, uapi/vsoc_shm.h
+ - The current driver uses the same wait queue for all of the futexes in a
+   region. This will cause false wakeups in regions with a large number of
+   waiting threads. We should eventually use multiple queues and select the
+   queue based on the region.
+ - Add debugfs support for examining the permissions of regions.
+ - Remove VSOC_WAIT_FOR_INCOMING_INTERRUPT ioctl. This functionality has been
+   superseded by the futex and is there for legacy reasons.
 
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc:
 Arve Hjønnevåg <arve@android.com> and Riley Andrews <riandrews@android.com>

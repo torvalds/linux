@@ -73,18 +73,28 @@ static inline u32 dfixed_div(fixed20_12 A, fixed20_12 B)
 #define DRM_FIXED_ONE		(1ULL << DRM_FIXED_POINT)
 #define DRM_FIXED_DECIMAL_MASK	(DRM_FIXED_ONE - 1)
 #define DRM_FIXED_DIGITS_MASK	(~DRM_FIXED_DECIMAL_MASK)
+#define DRM_FIXED_EPSILON	1LL
+#define DRM_FIXED_ALMOST_ONE	(DRM_FIXED_ONE - DRM_FIXED_EPSILON)
 
 static inline s64 drm_int2fixp(int a)
 {
 	return ((s64)a) << DRM_FIXED_POINT;
 }
 
-static inline int drm_fixp2int(int64_t a)
+static inline int drm_fixp2int(s64 a)
 {
 	return ((s64)a) >> DRM_FIXED_POINT;
 }
 
-static inline unsigned drm_fixp_msbset(int64_t a)
+static inline int drm_fixp2int_ceil(s64 a)
+{
+	if (a > 0)
+		return drm_fixp2int(a + DRM_FIXED_ALMOST_ONE);
+	else
+		return drm_fixp2int(a - DRM_FIXED_ALMOST_ONE);
+}
+
+static inline unsigned drm_fixp_msbset(s64 a)
 {
 	unsigned shift, sign = (a >> 63) & 1;
 
@@ -134,6 +144,45 @@ static inline s64 drm_fixp_div(s64 a, s64 b)
 		return result >> (shift - DRM_FIXED_POINT);
 
 	return result;
+}
+
+static inline s64 drm_fixp_from_fraction(s64 a, s64 b)
+{
+	s64 res;
+	bool a_neg = a < 0;
+	bool b_neg = b < 0;
+	u64 a_abs = a_neg ? -a : a;
+	u64 b_abs = b_neg ? -b : b;
+	u64 rem;
+
+	/* determine integer part */
+	u64 res_abs  = div64_u64_rem(a_abs, b_abs, &rem);
+
+	/* determine fractional part */
+	{
+		u32 i = DRM_FIXED_POINT;
+
+		do {
+			rem <<= 1;
+			res_abs <<= 1;
+			if (rem >= b_abs) {
+				res_abs |= 1;
+				rem -= b_abs;
+			}
+		} while (--i != 0);
+	}
+
+	/* round up LSB */
+	{
+		u64 summand = (rem << 1) >= b_abs;
+
+		res_abs += summand;
+	}
+
+	res = (s64) res_abs;
+	if (a_neg ^ b_neg)
+		res = -res;
+	return res;
 }
 
 static inline s64 drm_fixp_exp(s64 x)

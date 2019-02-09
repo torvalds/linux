@@ -1422,6 +1422,5 @@ nv04_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 	spin_lock_init(&gr->lock);
 	*pgr = &gr->base;
 
-	return nvkm_gr_ctor(&nv04_gr, device, index, 0x00001000,
-			    true, &gr->base);
+	return nvkm_gr_ctor(&nv04_gr, device, index, true, &gr->base);
 }

@@ -43,9 +43,14 @@ Required properties:
 			  Please refer to 2.4.1 Message RAM Configuration in
 			  Bosch M_CAN user manual for details.
 
+Optional Subnode:
+- can-transceiver	: Can-transceiver subnode describing maximum speed
+			  that can be used for CAN/CAN-FD modes. See
+			  Documentation/devicetree/bindings/net/can/can-transceiver.txt
+			  for details.
 Example:
 SoC dtsi:
-m_can1: can@020e8000 {
+m_can1: can@20e8000 {
 	compatible = "bosch,m_can";
 	reg = <0x020e8000 0x4000>, <0x02298000 0x4000>;
 	reg-names = "m_can", "message_ram";
@@ -56,7 +61,6 @@ m_can1: can@020e8000 {
 		 <&clks IMX6SX_CLK_CANFD>;
 	clock-names = "hclk", "cclk";
 	bosch,mram-cfg = <0x0 0 0 32 0 0 0 1>;
-	status = "disabled";
 };
 
 Board dts:
@@ -64,4 +68,8 @@ Board dts:
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_m_can1>;
 	status = "enabled";
+
+	can-transceiver {
+		max-bitrate = <5000000>;
+	};
 };

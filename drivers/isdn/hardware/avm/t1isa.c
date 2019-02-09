@@ -171,8 +171,8 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 				printk(KERN_ERR "%s: incoming packet dropped\n",
 				       card->name);
 			} else {
-				memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
-				memcpy(skb_put(skb, DataB3Len), card->databuf, DataB3Len);
+				skb_put_data(skb, card->msgbuf, MsgLen);
+				skb_put_data(skb, card->databuf, DataB3Len);
 				capi_ctr_handle_message(ctrl, ApplId, skb);
 			}
 			break;
@@ -186,7 +186,7 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 				printk(KERN_ERR "%s: incoming packet dropped\n",
 				       card->name);
 			} else {
-				memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
+				skb_put_data(skb, card->msgbuf, MsgLen);
 				if (CAPIMSG_CMD(skb->data) == CAPI_DATA_B3)
 					capilib_data_b3_conf(&cinfo->ncci_head, ApplId,
 							     CAPIMSG_NCCI(skb->data),
@@ -430,7 +430,7 @@ static int t1isa_probe(struct pci_dev *pdev, int cardnr)
 	cinfo->capi_ctrl.load_firmware = t1isa_load_firmware;
 	cinfo->capi_ctrl.reset_ctr     = t1isa_reset_ctr;
 	cinfo->capi_ctrl.procinfo      = t1isa_procinfo;
-	cinfo->capi_ctrl.proc_fops = &b1ctl_proc_fops;
+	cinfo->capi_ctrl.proc_show     = b1_proc_show;
 	strcpy(cinfo->capi_ctrl.name, card->name);
 
 	retval = attach_capi_ctr(&cinfo->capi_ctrl);
@@ -516,8 +516,8 @@ static int io[MAX_CARDS];
 static int irq[MAX_CARDS];
 static int cardnr[MAX_CARDS];
 
-module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 module_param_array(cardnr, int, NULL, 0);
 MODULE_PARM_DESC(io, "I/O base address(es)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (assigned)");

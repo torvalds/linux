@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2008 Rodolfo Giometti <giometti@linux.it>
  * Copyright (c) 2008 Eurotech S.p.A. <info@eurtech.it>
  *
  * This code is *strongly* based on EHCI-HCD code by David Brownell since
  * the chip is a quasi-EHCI compatible.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -394,8 +381,7 @@ static void ehci_quiesce(struct oxu_hcd *oxu)
 	u32	temp;
 
 #ifdef DEBUG
-	if (!HC_IS_RUNNING(oxu_to_hcd(oxu)->state))
-		BUG();
+	BUG_ON(!HC_IS_RUNNING(oxu_to_hcd(oxu)->state));
 #endif
 
 	/* wait for any schedule enables/disables to take effect */
@@ -982,7 +968,7 @@ static int qh_schedule(struct oxu_hcd *oxu, struct ehci_qh *qh);
 static unsigned qh_completions(struct oxu_hcd *oxu, struct ehci_qh *qh)
 {
 	struct ehci_qtd *last = NULL, *end = qh->dummy;
-	struct list_head *entry, *tmp;
+	struct ehci_qtd	*qtd, *tmp;
 	int stopped;
 	unsigned count = 0;
 	int do_status = 0;
@@ -1007,12 +993,10 @@ static unsigned qh_completions(struct oxu_hcd *oxu, struct ehci_qh *qh)
 	 * then let the queue advance.
 	 * if queue is stopped, handles unlinks.
 	 */
-	list_for_each_safe(entry, tmp, &qh->qtd_list) {
-		struct ehci_qtd	*qtd;
+	list_for_each_entry_safe(qtd, tmp, &qh->qtd_list, qtd_list) {
 		struct urb *urb;
 		u32 token = 0;
 
-		qtd = list_entry(entry, struct ehci_qtd, qtd_list);
 		urb = qtd->urb;
 
 		/* Clean up any state from previous QTD ...*/
@@ -1175,14 +1159,11 @@ halt:
  * used for cleanup after errors, before HC sees an URB's TDs.
  */
 static void qtd_list_free(struct oxu_hcd *oxu,
-				struct urb *urb, struct list_head *qtd_list)
+				struct urb *urb, struct list_head *head)
 {
-	struct list_head *entry, *temp;
+	struct ehci_qtd	*qtd, *temp;
 
-	list_for_each_safe(entry, temp, qtd_list) {
-		struct ehci_qtd	*qtd;
-
-		qtd = list_entry(entry, struct ehci_qtd, qtd_list);
+	list_for_each_entry_safe(qtd, temp, head, qtd_list) {
 		list_del(&qtd->qtd_list);
 		oxu_qtd_free(oxu, qtd);
 	}
@@ -1709,9 +1690,8 @@ static void start_unlink_async(struct oxu_hcd *oxu, struct ehci_qh *qh)
 
 #ifdef DEBUG
 	assert_spin_locked(&oxu->lock);
-	if (oxu->reclaim || (qh->qh_state != QH_STATE_LINKED
-				&& qh->qh_state != QH_STATE_UNLINK_WAIT))
-		BUG();
+	BUG_ON(oxu->reclaim || (qh->qh_state != QH_STATE_LINKED
+				&& qh->qh_state != QH_STATE_UNLINK_WAIT));
 #endif
 
 	/* stop async schedule right now? */
@@ -2295,9 +2275,7 @@ restart:
 
 		while (q.ptr != NULL) {
 			union ehci_shadow temp;
-			int live;
 
-			live = HC_IS_RUNNING(oxu_to_hcd(oxu)->state);
 			switch (type) {
 			case Q_TYPE_QH:
 				/* handle any completions */
@@ -2561,9 +2539,9 @@ static irqreturn_t oxu_irq(struct usb_hcd *hcd)
 	return ret;
 }
 
-static void oxu_watchdog(unsigned long param)
+static void oxu_watchdog(struct timer_list *t)
 {
-	struct oxu_hcd	*oxu = (struct oxu_hcd *) param;
+	struct oxu_hcd	*oxu = from_timer(oxu, t, watchdog);
 	unsigned long flags;
 
 	spin_lock_irqsave(&oxu->lock, flags);
@@ -2599,7 +2577,7 @@ static int oxu_hcd_init(struct usb_hcd *hcd)
 
 	spin_lock_init(&oxu->lock);
 
-	setup_timer(&oxu->watchdog, oxu_watchdog, (unsigned long)oxu);
+	timer_setup(&oxu->watchdog, oxu_watchdog, 0);
 
 	/*
 	 * hw default: 1K periodic list heads, one per frame.
@@ -2717,7 +2695,7 @@ static int oxu_run(struct usb_hcd *hcd)
 
 	/* hcc_params controls whether oxu->regs->segment must (!!!)
 	 * be used; it constrains QH/ITD/SITD and QTD locations.
-	 * pci_pool consistent memory always uses segment zero.
+	 * dma_pool consistent memory always uses segment zero.
 	 * streaming mappings for I/O buffers, like pci_map_single(),
 	 * can return segments above 4GB, if the device allows.
 	 *
@@ -3049,7 +3027,7 @@ idle_timeout:
 			qh_put(qh);
 			break;
 		}
-		/* else FALL THROUGH */
+		/* fall through */
 	default:
 nogood:
 		/* caller was supposed to have unlinked any requests;

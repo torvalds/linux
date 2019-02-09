@@ -25,37 +25,19 @@
 #include <asm-generic/qrwlock_types.h>
 
 /*
- * Writer states & reader shift and bias
+ * Writer states & reader shift and bias.
  */
-#define	_QW_WAITING	1		/* A writer is waiting	   */
-#define	_QW_LOCKED	0xff		/* A writer holds the lock */
-#define	_QW_WMASK	0xff		/* Writer mask		   */
-#define	_QR_SHIFT	8		/* Reader count shift	   */
+#define	_QW_WAITING	0x100		/* A writer is waiting	   */
+#define	_QW_LOCKED	0x0ff		/* A writer holds the lock */
+#define	_QW_WMASK	0x1ff		/* Writer mask		   */
+#define	_QR_SHIFT	9		/* Reader count shift	   */
 #define _QR_BIAS	(1U << _QR_SHIFT)
 
 /*
  * External function declarations
  */
-extern void queued_read_lock_slowpath(struct qrwlock *lock, u32 cnts);
+extern void queued_read_lock_slowpath(struct qrwlock *lock);
 extern void queued_write_lock_slowpath(struct qrwlock *lock);
-
-/**
- * queued_read_can_lock- would read_trylock() succeed?
- * @lock: Pointer to queue rwlock structure
- */
-static inline int queued_read_can_lock(struct qrwlock *lock)
-{
-	return !(atomic_read(&lock->cnts) & _QW_WMASK);
-}
-
-/**
- * queued_write_can_lock- would write_trylock() succeed?
- * @lock: Pointer to queue rwlock structure
- */
-static inline int queued_write_can_lock(struct qrwlock *lock)
-{
-	return !atomic_read(&lock->cnts);
-}
 
 /**
  * queued_read_trylock - try to acquire read lock of a queue rwlock
@@ -105,7 +87,7 @@ static inline void queued_read_lock(struct qrwlock *lock)
 		return;
 
 	/* The slowpath will decrement the reader count, if necessary. */
-	queued_read_lock_slowpath(lock, cnts);
+	queued_read_lock_slowpath(lock);
 }
 
 /**
@@ -139,15 +121,13 @@ static inline void queued_read_unlock(struct qrwlock *lock)
  */
 static inline void queued_write_unlock(struct qrwlock *lock)
 {
-	smp_store_release((u8 *)&lock->cnts, 0);
+	smp_store_release(&lock->wlocked, 0);
 }
 
 /*
  * Remapping rwlock architecture specific functions to the corresponding
  * queue rwlock functions.
  */
-#define arch_read_can_lock(l)	queued_read_can_lock(l)
-#define arch_write_can_lock(l)	queued_write_can_lock(l)
 #define arch_read_lock(l)	queued_read_lock(l)
 #define arch_write_lock(l)	queued_write_lock(l)
 #define arch_read_trylock(l)	queued_read_trylock(l)

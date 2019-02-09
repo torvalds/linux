@@ -28,6 +28,7 @@
 #include <linux/string.h>
 #include <linux/configfs.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <scsi/scsi_proto.h>
@@ -38,8 +39,6 @@
 #include <asm/unaligned.h>
 
 #include "sbp_target.h"
-
-static const struct target_core_fabric_ops sbp_ops;
 
 /* FireWire address region for management and command block address handlers */
 static const struct fw_address_region sbp_register_region = {
@@ -198,44 +197,28 @@ static struct sbp_session *sbp_session_create(
 	struct sbp_session *sess;
 	int ret;
 	char guid_str[17];
-	struct se_node_acl *se_nacl;
-
-	sess = kmalloc(sizeof(*sess), GFP_KERNEL);
-	if (!sess) {
-		pr_err("failed to allocate session descriptor\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	sess->se_sess = transport_init_session(TARGET_PROT_NORMAL);
-	if (IS_ERR(sess->se_sess)) {
-		pr_err("failed to init se_session\n");
-
-		ret = PTR_ERR(sess->se_sess);
-		kfree(sess);
-		return ERR_PTR(ret);
-	}
 
 	snprintf(guid_str, sizeof(guid_str), "%016llx", guid);
 
-	se_nacl = core_tpg_check_initiator_node_acl(&tpg->se_tpg, guid_str);
-	if (!se_nacl) {
-		pr_warn("Node ACL not found for %s\n", guid_str);
-
-		transport_free_session(sess->se_sess);
-		kfree(sess);
-
-		return ERR_PTR(-EPERM);
-	}
-
-	sess->se_sess->se_node_acl = se_nacl;
+	sess = kmalloc(sizeof(*sess), GFP_KERNEL);
+	if (!sess)
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&sess->lock);
 	INIT_LIST_HEAD(&sess->login_list);
 	INIT_DELAYED_WORK(&sess->maint_work, session_maintenance_work);
-
 	sess->guid = guid;
 
-	transport_register_session(&tpg->se_tpg, se_nacl, sess->se_sess, sess);
+	sess->se_sess = target_setup_session(&tpg->se_tpg, 128,
+					     sizeof(struct sbp_target_request),
+					     TARGET_PROT_NORMAL, guid_str,
+					     sess, NULL);
+	if (IS_ERR(sess->se_sess)) {
+		pr_err("failed to init se_session\n");
+		ret = PTR_ERR(sess->se_sess);
+		kfree(sess);
+		return ERR_PTR(ret);
+	}
 
 	return sess;
 }
@@ -252,8 +235,7 @@ static void sbp_session_release(struct sbp_session *sess, bool cancel_work)
 	if (cancel_work)
 		cancel_delayed_work_sync(&sess->maint_work);
 
-	transport_deregister_session_configfs(sess->se_sess);
-	transport_deregister_session(sess->se_sess);
+	target_remove_session(sess->se_sess);
 
 	if (sess->card)
 		fw_card_put(sess->card);
@@ -910,7 +892,6 @@ static void tgt_agent_process_work(struct work_struct *work)
 					STATUS_BLOCK_SBP_STATUS(
 						SBP_STATUS_REQ_TYPE_NOTSUPP));
 			sbp_send_status(req);
-			sbp_free_request(req);
 			return;
 		case 3: /* Dummy ORB */
 			req->status.status |= cpu_to_be32(
@@ -921,7 +902,6 @@ static void tgt_agent_process_work(struct work_struct *work)
 					STATUS_BLOCK_SBP_STATUS(
 						SBP_STATUS_DUMMY_ORB_COMPLETE));
 			sbp_send_status(req);
-			sbp_free_request(req);
 			return;
 		default:
 			BUG();
@@ -940,6 +920,26 @@ static inline bool tgt_agent_check_active(struct sbp_target_agent *agent)
 	return active;
 }
 
+static struct sbp_target_request *sbp_mgt_get_req(struct sbp_session *sess,
+	struct fw_card *card, u64 next_orb)
+{
+	struct se_session *se_sess = sess->se_sess;
+	struct sbp_target_request *req;
+	int tag, cpu;
+
+	tag = sbitmap_queue_get(&se_sess->sess_tag_pool, &cpu);
+	if (tag < 0)
+		return ERR_PTR(-ENOMEM);
+
+	req = &((struct sbp_target_request *)se_sess->sess_cmd_map)[tag];
+	memset(req, 0, sizeof(*req));
+	req->se_cmd.map_tag = tag;
+	req->se_cmd.map_cpu = cpu;
+	req->se_cmd.tag = next_orb;
+
+	return req;
+}
+
 static void tgt_agent_fetch_work(struct work_struct *work)
 {
 	struct sbp_target_agent *agent =
@@ -951,8 +951,8 @@ static void tgt_agent_fetch_work(struct work_struct *work)
 	u64 next_orb = agent->orb_pointer;
 
 	while (next_orb && tgt_agent_check_active(agent)) {
-		req = kzalloc(sizeof(*req), GFP_KERNEL);
-		if (!req) {
+		req = sbp_mgt_get_req(sess, sess->card, next_orb);
+		if (IS_ERR(req)) {
 			spin_lock_bh(&agent->lock);
 			agent->state = AGENT_STATE_DEAD;
 			spin_unlock_bh(&agent->lock);
@@ -987,7 +987,6 @@ static void tgt_agent_fetch_work(struct work_struct *work)
 			spin_unlock_bh(&agent->lock);
 
 			sbp_send_status(req);
-			sbp_free_request(req);
 			return;
 		}
 
@@ -1234,7 +1233,7 @@ static void sbp_handle_command(struct sbp_target_request *req)
 	req->se_cmd.tag = req->orb_pointer;
 	if (target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
 			      req->sense_buf, unpacked_lun, data_length,
-			      TCM_SIMPLE_TAG, data_dir, 0))
+			      TCM_SIMPLE_TAG, data_dir, TARGET_SCF_ACK_KREF))
 		goto err;
 
 	return;
@@ -1246,7 +1245,6 @@ err:
 		STATUS_BLOCK_LEN(1) |
 		STATUS_BLOCK_SBP_STATUS(SBP_STATUS_UNSPECIFIED_ERROR));
 	sbp_send_status(req);
-	sbp_free_request(req);
 }
 
 /*
@@ -1345,22 +1343,29 @@ static int sbp_rw_data(struct sbp_target_request *req)
 
 static int sbp_send_status(struct sbp_target_request *req)
 {
-	int ret, length;
+	int rc, ret = 0, length;
 	struct sbp_login_descriptor *login = req->login;
 
 	length = (((be32_to_cpu(req->status.status) >> 24) & 0x07) + 1) * 4;
 
-	ret = sbp_run_request_transaction(req, TCODE_WRITE_BLOCK_REQUEST,
+	rc = sbp_run_request_transaction(req, TCODE_WRITE_BLOCK_REQUEST,
 			login->status_fifo_addr, &req->status, length);
-	if (ret != RCODE_COMPLETE) {
-		pr_debug("sbp_send_status: write failed: 0x%x\n", ret);
-		return -EIO;
+	if (rc != RCODE_COMPLETE) {
+		pr_debug("sbp_send_status: write failed: 0x%x\n", rc);
+		ret = -EIO;
+		goto put_ref;
 	}
 
 	pr_debug("sbp_send_status: status write complete for ORB: 0x%llx\n",
 			req->orb_pointer);
-
-	return 0;
+	/*
+	 * Drop the extra ACK_KREF reference taken by target_submit_cmd()
+	 * ahead of sbp_check_stop_free() -> transport_generic_free_cmd()
+	 * final se_cmd->cmd_kref put.
+	 */
+put_ref:
+	target_put_sess_cmd(&req->se_cmd);
+	return ret;
 }
 
 static void sbp_sense_mangle(struct sbp_target_request *req)
@@ -1449,9 +1454,13 @@ static int sbp_send_sense(struct sbp_target_request *req)
 
 static void sbp_free_request(struct sbp_target_request *req)
 {
+	struct se_cmd *se_cmd = &req->se_cmd;
+	struct se_session *se_sess = se_cmd->se_sess;
+
 	kfree(req->pg_tbl);
 	kfree(req->cmd_buf);
-	kfree(req);
+
+	target_free_tag(se_sess, se_cmd);
 }
 
 static void sbp_mgt_agent_process(struct work_struct *work)
@@ -1611,7 +1620,6 @@ static void sbp_mgt_agent_rw(struct fw_card *card,
 			rcode = RCODE_CONFLICT_ERROR;
 			goto out;
 		}
-
 		req = kzalloc(sizeof(*req), GFP_ATOMIC);
 		if (!req) {
 			rcode = RCODE_CONFLICT_ERROR;
@@ -1718,16 +1726,6 @@ static void sbp_release_cmd(struct se_cmd *se_cmd)
 	sbp_free_request(req);
 }
 
-static int sbp_shutdown_session(struct se_session *se_sess)
-{
-	return 0;
-}
-
-static void sbp_close_session(struct se_session *se_sess)
-{
-	return;
-}
-
 static u32 sbp_sess_get_index(struct se_session *se_sess)
 {
 	return 0;
@@ -1817,8 +1815,7 @@ static int sbp_check_stop_free(struct se_cmd *se_cmd)
 	struct sbp_target_request *req = container_of(se_cmd,
 			struct sbp_target_request, se_cmd);
 
-	transport_generic_free_cmd(&req->se_cmd, 0);
-	return 1;
+	return transport_generic_free_cmd(&req->se_cmd, 0);
 }
 
 static int sbp_count_se_tpg_luns(struct se_portal_group *tpg)
@@ -2008,10 +2005,8 @@ static void sbp_pre_unlink_lun(
 		pr_err("unlink LUN: failed to update unit directory\n");
 }
 
-static struct se_portal_group *sbp_make_tpg(
-		struct se_wwn *wwn,
-		struct config_group *group,
-		const char *name)
+static struct se_portal_group *sbp_make_tpg(struct se_wwn *wwn,
+					    const char *name)
 {
 	struct sbp_tport *tport =
 		container_of(wwn, struct sbp_tport, tport_wwn);
@@ -2031,10 +2026,8 @@ static struct se_portal_group *sbp_make_tpg(
 	}
 
 	tpg = kzalloc(sizeof(*tpg), GFP_KERNEL);
-	if (!tpg) {
-		pr_err("Unable to allocate struct sbp_tpg\n");
+	if (!tpg)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
@@ -2090,10 +2083,8 @@ static struct se_wwn *sbp_make_tport(
 		return ERR_PTR(-EINVAL);
 
 	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
-	if (!tport) {
-		pr_err("Unable to allocate struct sbp_tport\n");
+	if (!tport)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	tport->guid = guid;
 	sbp_format_wwn(tport->tport_name, SBP_NAMELEN, guid);
@@ -2342,8 +2333,6 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.tpg_check_prod_mode_write_protect = sbp_check_false,
 	.tpg_get_inst_index		= sbp_tpg_get_inst_index,
 	.release_cmd			= sbp_release_cmd,
-	.shutdown_session		= sbp_shutdown_session,
-	.close_session			= sbp_close_session,
 	.sess_get_index			= sbp_sess_get_index,
 	.write_pending			= sbp_write_pending,
 	.write_pending_status		= sbp_write_pending_status,

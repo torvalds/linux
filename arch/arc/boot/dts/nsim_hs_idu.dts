@@ -7,14 +7,15 @@
  */
 /dts-v1/;
 
-/include/ "skeleton.dtsi"
+/include/ "skeleton_hs_idu.dtsi"
 
 / {
+	model = "snps,nsim_hs-smp";
 	compatible = "snps,nsim_hs";
 	interrupt-parent = <&core_intc>;
 
 	chosen {
-		bootargs = "earlycon=arc_uart,mmio32,0xc0fc1000,115200n8 console=ttyARC0,115200n8";
+		bootargs = "earlycon=arc_uart,mmio32,0xc0fc1000,115200n8 console=ttyARC0,115200n8 print-fatal-signals=1";
 	};
 
 	aliases {
@@ -29,6 +30,12 @@
 		/* child and parent address space 1:1 mapped */
 		ranges;
 
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <80000000>;
+		};
+
 		core_intc: core-interrupt-controller {
 			compatible = "snps,archs-intc";
 			interrupt-controller;
@@ -39,25 +46,14 @@
 			compatible = "snps,archs-idu-intc";
 			interrupt-controller;
 			interrupt-parent = <&core_intc>;
-
-			/*
-			 * <hwirq  distribution>
-			 * distribution: 0=RR; 1=cpu0, 2=cpu1, 4=cpu2, 8=cpu3
-			 */
-			#interrupt-cells = <2>;
-
-			/*
-			 * upstream irqs to core intc - downstream these are
-			 * "COMMON" irq 0,1..
-			 */
-			interrupts = <24 25 26 27 28 29 30 31>;
+			#interrupt-cells = <1>;
 		};
 
 		arcuart0: serial@c0fc1000 {
 			compatible = "snps,arc-uart";
 			reg = <0xc0fc1000 0x100>;
 			interrupt-parent = <&idu_intc>;
-			interrupts = <0 0>;
+			interrupts = <0>;
 			clock-frequency = <80000000>;
 			current-speed = <115200>;
 			status = "okay";

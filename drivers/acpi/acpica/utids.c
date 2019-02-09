@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: utids - support for device Ids - HID, UID, CID, SUB, CLS
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -95,7 +61,7 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 
 	hid =
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
-				 (acpi_size) length);
+				 (acpi_size)length);
 	if (!hid) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -116,73 +82,6 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 
 	hid->length = length;
 	*return_id = hid;
-
-cleanup:
-
-	/* On exit, we must delete the return object */
-
-	acpi_ut_remove_reference(obj_desc);
-	return_ACPI_STATUS(status);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_execute_SUB
- *
- * PARAMETERS:  device_node         - Node for the device
- *              return_id           - Where the _SUB is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Executes the _SUB control method that returns the subsystem
- *              ID of the device. The _SUB value is always a string containing
- *              either a valid PNP or ACPI ID.
- *
- *              NOTE: Internal function, no parameter validation
- *
- ******************************************************************************/
-
-acpi_status
-acpi_ut_execute_SUB(struct acpi_namespace_node *device_node,
-		    struct acpi_pnp_device_id **return_id)
-{
-	union acpi_operand_object *obj_desc;
-	struct acpi_pnp_device_id *sub;
-	u32 length;
-	acpi_status status;
-
-	ACPI_FUNCTION_TRACE(ut_execute_SUB);
-
-	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__SUB,
-					 ACPI_BTYPE_STRING, &obj_desc);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
-	/* Get the size of the String to be returned, includes null terminator */
-
-	length = obj_desc->string.length + 1;
-
-	/* Allocate a buffer for the SUB */
-
-	sub =
-	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
-				 (acpi_size) length);
-	if (!sub) {
-		status = AE_NO_MEMORY;
-		goto cleanup;
-	}
-
-	/* Area for the string starts after PNP_DEVICE_ID struct */
-
-	sub->string =
-	    ACPI_ADD_PTR(char, sub, sizeof(struct acpi_pnp_device_id));
-
-	/* Simply copy existing string */
-
-	strcpy(sub->string, obj_desc->string.pointer);
-	sub->length = length;
-	*return_id = sub;
 
 cleanup:
 
@@ -240,7 +139,7 @@ acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
 
 	uid =
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
-				 (acpi_size) length);
+				 (acpi_size)length);
 	if (!uid) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -376,7 +275,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 	/* Area for CID strings starts after the CID PNP_DEVICE_ID array */
 
 	next_id_string = ACPI_CAST_PTR(char, cid_list->ids) +
-	    ((acpi_size) count * sizeof(struct acpi_pnp_device_id));
+	    ((acpi_size)count * sizeof(struct acpi_pnp_device_id));
 
 	/* Copy/convert the CIDs to the return buffer */
 
@@ -480,7 +379,7 @@ acpi_ut_execute_CLS(struct acpi_namespace_node *device_node,
 
 	cls =
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
-				 (acpi_size) length);
+				 (acpi_size)length);
 	if (!cls) {
 		status = AE_NO_MEMORY;
 		goto cleanup;

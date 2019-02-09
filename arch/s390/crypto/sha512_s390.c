@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Cryptographic API.
  *
@@ -5,12 +6,6 @@
  *
  * Copyright IBM Corp. 2007
  * Author(s): Jan Glauber (jang@de.ibm.com)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
@@ -19,9 +14,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/cpufeature.h>
+#include <asm/cpacf.h>
 
 #include "sha.h"
-#include "crypt_s390.h"
 
 static int sha512_init(struct shash_desc *desc)
 {
@@ -36,7 +31,7 @@ static int sha512_init(struct shash_desc *desc)
 	*(__u64 *)&ctx->state[12] = 0x1f83d9abfb41bd6bULL;
 	*(__u64 *)&ctx->state[14] = 0x5be0cd19137e2179ULL;
 	ctx->count = 0;
-	ctx->func = KIMD_SHA_512;
+	ctx->func = CPACF_KIMD_SHA_512;
 
 	return 0;
 }
@@ -64,7 +59,7 @@ static int sha512_import(struct shash_desc *desc, const void *in)
 
 	memcpy(sctx->state, ictx->state, sizeof(ictx->state));
 	memcpy(sctx->buf, ictx->buf, sizeof(ictx->buf));
-	sctx->func = KIMD_SHA_512;
+	sctx->func = CPACF_KIMD_SHA_512;
 	return 0;
 }
 
@@ -80,8 +75,7 @@ static struct shash_alg sha512_alg = {
 	.base		=	{
 		.cra_name	=	"sha512",
 		.cra_driver_name=	"sha512-s390",
-		.cra_priority	=	CRYPT_S390_PRIORITY,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_priority	=	300,
 		.cra_blocksize	=	SHA512_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -102,7 +96,7 @@ static int sha384_init(struct shash_desc *desc)
 	*(__u64 *)&ctx->state[12] = 0xdb0c2e0d64f98fa7ULL;
 	*(__u64 *)&ctx->state[14] = 0x47b5481dbefa4fa4ULL;
 	ctx->count = 0;
-	ctx->func = KIMD_SHA_512;
+	ctx->func = CPACF_KIMD_SHA_512;
 
 	return 0;
 }
@@ -119,8 +113,7 @@ static struct shash_alg sha384_alg = {
 	.base		=	{
 		.cra_name	=	"sha384",
 		.cra_driver_name=	"sha384-s390",
-		.cra_priority	=	CRYPT_S390_PRIORITY,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_priority	=	300,
 		.cra_blocksize	=	SHA384_BLOCK_SIZE,
 		.cra_ctxsize	=	sizeof(struct s390_sha_ctx),
 		.cra_module	=	THIS_MODULE,
@@ -133,7 +126,7 @@ static int __init init(void)
 {
 	int ret;
 
-	if (!crypt_s390_func_available(KIMD_SHA_512, CRYPT_S390_MSA))
+	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_SHA_512))
 		return -EOPNOTSUPP;
 	if ((ret = crypto_register_shash(&sha512_alg)) < 0)
 		goto out;

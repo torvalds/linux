@@ -32,7 +32,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-usb@210000 {
+usb0: usb@210000 {
 	compatible = "fsl-usb2-dr";
 	reg = <0x210000 0x1000>;
 	#address-cells = <1>;

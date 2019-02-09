@@ -13,112 +13,126 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/mfd/axp20x.h>
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
-#include <linux/iio/consumer.h>
 #include "intel_pmic.h"
 
 #define XPOWER_GPADC_LOW	0x5b
+#define XPOWER_GPI1_CTRL	0x92
+
+#define GPI1_LDO_MASK		GENMASK(2, 0)
+#define GPI1_LDO_ON		(3 << 0)
+#define GPI1_LDO_OFF		(4 << 0)
+
+#define AXP288_ADC_TS_CURRENT_ON_OFF_MASK		GENMASK(1, 0)
+#define AXP288_ADC_TS_CURRENT_OFF			(0 << 0)
+#define AXP288_ADC_TS_CURRENT_ON_WHEN_CHARGING		(1 << 0)
+#define AXP288_ADC_TS_CURRENT_ON_ONDEMAND		(2 << 0)
+#define AXP288_ADC_TS_CURRENT_ON			(3 << 0)
 
 static struct pmic_table power_table[] = {
 	{
 		.address = 0x00,
 		.reg = 0x13,
 		.bit = 0x05,
-	},
+	}, /* ALD1 */
 	{
 		.address = 0x04,
 		.reg = 0x13,
 		.bit = 0x06,
-	},
+	}, /* ALD2 */
 	{
 		.address = 0x08,
 		.reg = 0x13,
 		.bit = 0x07,
-	},
+	}, /* ALD3 */
 	{
 		.address = 0x0c,
 		.reg = 0x12,
 		.bit = 0x03,
-	},
+	}, /* DLD1 */
 	{
 		.address = 0x10,
 		.reg = 0x12,
 		.bit = 0x04,
-	},
+	}, /* DLD2 */
 	{
 		.address = 0x14,
 		.reg = 0x12,
 		.bit = 0x05,
-	},
+	}, /* DLD3 */
 	{
 		.address = 0x18,
 		.reg = 0x12,
 		.bit = 0x06,
-	},
+	}, /* DLD4 */
 	{
 		.address = 0x1c,
 		.reg = 0x12,
 		.bit = 0x00,
-	},
+	}, /* ELD1 */
 	{
 		.address = 0x20,
 		.reg = 0x12,
 		.bit = 0x01,
-	},
+	}, /* ELD2 */
 	{
 		.address = 0x24,
 		.reg = 0x12,
 		.bit = 0x02,
-	},
+	}, /* ELD3 */
 	{
 		.address = 0x28,
 		.reg = 0x13,
 		.bit = 0x02,
-	},
+	}, /* FLD1 */
 	{
 		.address = 0x2c,
 		.reg = 0x13,
 		.bit = 0x03,
-	},
+	}, /* FLD2 */
 	{
 		.address = 0x30,
 		.reg = 0x13,
 		.bit = 0x04,
-	},
+	}, /* FLD3 */
+	{
+		.address = 0x34,
+		.reg = 0x10,
+		.bit = 0x03,
+	}, /* BUC1 */
 	{
 		.address = 0x38,
 		.reg = 0x10,
-		.bit = 0x03,
-	},
+		.bit = 0x06,
+	}, /* BUC2 */
 	{
 		.address = 0x3c,
 		.reg = 0x10,
-		.bit = 0x06,
-	},
+		.bit = 0x05,
+	}, /* BUC3 */
 	{
 		.address = 0x40,
 		.reg = 0x10,
-		.bit = 0x05,
-	},
+		.bit = 0x04,
+	}, /* BUC4 */
 	{
 		.address = 0x44,
 		.reg = 0x10,
-		.bit = 0x04,
-	},
+		.bit = 0x01,
+	}, /* BUC5 */
 	{
 		.address = 0x48,
 		.reg = 0x10,
-		.bit = 0x01,
-	},
+		.bit = 0x00
+	}, /* BUC6 */
 	{
 		.address = 0x4c,
-		.reg = 0x10,
-		.bit = 0x00
-	},
+		.reg = 0x92,
+	}, /* GPI1 */
 };
 
 /* TMP0 - TMP5 are the same, all from GPADC */
@@ -157,7 +171,12 @@ static int intel_xpower_pmic_get_power(struct regmap *regmap, int reg,
 	if (regmap_read(regmap, reg, &data))
 		return -EIO;
 
-	*value = (data & BIT(bit)) ? 1 : 0;
+	/* GPIO1 LDO regulator needs special handling */
+	if (reg == XPOWER_GPI1_CTRL)
+		*value = ((data & GPI1_LDO_MASK) == GPI1_LDO_ON);
+	else
+		*value = (data & BIT(bit)) ? 1 : 0;
+
 	return 0;
 }
 
@@ -165,6 +184,11 @@ static int intel_xpower_pmic_update_power(struct regmap *regmap, int reg,
 					  int bit, bool on)
 {
 	int data;
+
+	/* GPIO1 LDO regulator needs special handling */
+	if (reg == XPOWER_GPI1_CTRL)
+		return regmap_update_bits(regmap, reg, GPI1_LDO_MASK,
+					  on ? GPI1_LDO_ON : GPI1_LDO_OFF);
 
 	if (regmap_read(regmap, reg, &data))
 		return -EIO;
@@ -186,28 +210,50 @@ static int intel_xpower_pmic_update_power(struct regmap *regmap, int reg,
  * @regmap: regmap of the PMIC device
  * @reg: register to get the reading
  *
- * We could get the sensor value by manipulating the HW regs here, but since
- * the axp288 IIO driver may also access the same regs at the same time, the
- * APIs provided by IIO subsystem are used here instead to avoid problems. As
- * a result, the two passed in params are of no actual use.
- *
  * Return a positive value on success, errno on failure.
  */
 static int intel_xpower_pmic_get_raw_temp(struct regmap *regmap, int reg)
 {
-	struct iio_channel *gpadc_chan;
-	int ret, val;
+	int ret, adc_ts_pin_ctrl;
+	u8 buf[2];
 
-	gpadc_chan = iio_channel_get(NULL, "axp288-system-temp");
-	if (IS_ERR_OR_NULL(gpadc_chan))
-		return -EACCES;
+	/*
+	 * The current-source used for the battery temp-sensor (TS) is shared
+	 * with the GPADC. For proper fuel-gauge and charger operation the TS
+	 * current-source needs to be permanently on. But to read the GPADC we
+	 * need to temporary switch the TS current-source to ondemand, so that
+	 * the GPADC can use it, otherwise we will always read an all 0 value.
+	 *
+	 * Note that the switching from on to on-ondemand is not necessary
+	 * when the TS current-source is off (this happens on devices which
+	 * do not use the TS-pin).
+	 */
+	ret = regmap_read(regmap, AXP288_ADC_TS_PIN_CTRL, &adc_ts_pin_ctrl);
+	if (ret)
+		return ret;
 
-	ret = iio_read_channel_raw(gpadc_chan, &val);
-	if (ret < 0)
-		val = ret;
+	if (adc_ts_pin_ctrl & AXP288_ADC_TS_CURRENT_ON_OFF_MASK) {
+		ret = regmap_update_bits(regmap, AXP288_ADC_TS_PIN_CTRL,
+					 AXP288_ADC_TS_CURRENT_ON_OFF_MASK,
+					 AXP288_ADC_TS_CURRENT_ON_ONDEMAND);
+		if (ret)
+			return ret;
 
-	iio_channel_release(gpadc_chan);
-	return val;
+		/* Wait a bit after switching the current-source */
+		usleep_range(6000, 10000);
+	}
+
+	ret = regmap_bulk_read(regmap, AXP288_GP_ADC_H, buf, 2);
+	if (ret == 0)
+		ret = (buf[0] << 4) + ((buf[1] >> 4) & 0x0f);
+
+	if (adc_ts_pin_ctrl & AXP288_ADC_TS_CURRENT_ON_OFF_MASK) {
+		regmap_update_bits(regmap, AXP288_ADC_TS_PIN_CTRL,
+				   AXP288_ADC_TS_CURRENT_ON_OFF_MASK,
+				   AXP288_ADC_TS_CURRENT_ON);
+	}
+
+	return ret;
 }
 
 static struct intel_pmic_opregion_data intel_xpower_pmic_opregion_data = {
@@ -257,12 +303,4 @@ static struct platform_driver intel_xpower_pmic_opregion_driver = {
 		.name = "axp288_pmic_acpi",
 	},
 };
-
-static int __init intel_xpower_pmic_opregion_driver_init(void)
-{
-	return platform_driver_register(&intel_xpower_pmic_opregion_driver);
-}
-module_init(intel_xpower_pmic_opregion_driver_init);
-
-MODULE_DESCRIPTION("XPower AXP288 ACPI operation region driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(intel_xpower_pmic_opregion_driver);

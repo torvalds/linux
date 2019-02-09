@@ -7,33 +7,28 @@
  */
 #include <dt-bindings/clock/stih418-clks.h>
 / {
+	/*
+	 * Fixed 30MHz oscillator inputs to SoC
+	 */
+	clk_sysin: clk-sysin {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <30000000>;
+		clock-output-names = "CLK_SYSIN";
+	};
+
+	clk_tmdsout_hdmi: clk-tmdsout-hdmi {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+	};
+
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
 		compatible = "st,stih418-clk", "simple-bus";
-
-		/*
-		 * Fixed 30MHz oscillator inputs to SoC
-		 */
-		clk_sysin: clk-sysin {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <30000000>;
-			clock-output-names = "CLK_SYSIN";
-		};
-
-		/*
-		 * ARM Peripheral clock for timers
-		 */
-		arm_periph_clk: clk-m-a9-periphs {
-			#clock-cells = <0>;
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_m_a9>;
-			clock-div = <2>;
-			clock-mult = <1>;
-		};
 
 		/*
 		 * A9 PLL.
@@ -44,7 +39,7 @@
 
 			clockgen_a9_pll: clockgen-a9-pll {
 				#clock-cells = <1>;
-				compatible = "st,stih418-plls-c28-a9", "st,clkgen-plls-c32";
+				compatible = "st,stih418-clkgen-plla9";
 
 				clocks = <&clk_sysin>;
 
@@ -64,41 +59,26 @@
 				 <&clockgen_a9_pll 0>,
 				 <&clk_s_c0_flexgen 13>,
 				 <&clk_m_a9_ext2f_div2>;
+
+			/*
+			 * ARM Peripheral clock for timers
+			 */
+			arm_periph_clk: clk-m-a9-periphs {
+				#clock-cells = <0>;
+				compatible = "fixed-factor-clock";
+				clocks = <&clk_m_a9>;
+				clock-div = <2>;
+				clock-mult = <1>;
+			};
 		};
 
-		/*
-		 * ARM Peripheral clock for timers
-		 */
-		clk_m_a9_ext2f_div2: clk-m-a9-ext2f-div2s {
-			#clock-cells = <0>;
-			compatible = "fixed-factor-clock";
-
-			clocks = <&clk_s_c0_flexgen 13>;
-
-			clock-output-names = "clk-m-a9-ext2f-div2";
-
-			clock-div = <2>;
-			clock-mult = <1>;
-		};
-
-		/*
-		 * Bootloader initialized system infrastructure clock for
-		 * serial devices.
-		 */
-		clk_ext2f_a9: clockgen-c0@13 {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <200000000>;
-			clock-output-names = "clk-s-icn-reg-0";
-		};
-
-		clockgen-a@090ff000 {
+		clockgen-a@90ff000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x90ff000 0x1000>;
 
 			clk_s_a0_pll: clk-s-a0-pll {
 				#clock-cells = <1>;
-				compatible = "st,stih407-plls-c32-a0", "st,clkgen-plls-c32";
+				compatible = "st,clkgen-pll0";
 
 				clocks = <&clk_sysin>;
 
@@ -120,7 +100,7 @@
 
 		clk_s_c0_quadfs: clk-s-c0-quadfs@9103000 {
 			#clock-cells = <1>;
-			compatible = "st,stih407-quadfs660-C", "st,quadfs";
+			compatible = "st,quadfs-pll";
 			reg = <0x9103000 0x1000>;
 
 			clocks = <&clk_sysin>;
@@ -131,13 +111,13 @@
 					     "clk-s-c0-fs0-ch3";
 		};
 
-		clk_s_c0: clockgen-c@09103000 {
+		clk_s_c0: clockgen-c@9103000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x9103000 0x1000>;
 
 			clk_s_c0_pll0: clk-s-c0-pll0 {
 				#clock-cells = <1>;
-				compatible = "st,plls-c32-cx_0", "st,clkgen-plls-c32";
+				compatible = "st,clkgen-pll0";
 
 				clocks = <&clk_sysin>;
 
@@ -146,7 +126,7 @@
 
 			clk_s_c0_pll1: clk-s-c0-pll1 {
 				#clock-cells = <1>;
-				compatible = "st,plls-c32-cx_1", "st,clkgen-plls-c32";
+				compatible = "st,clkgen-pll1";
 
 				clocks = <&clk_sysin>;
 
@@ -207,12 +187,27 @@
 						     "clk-proc-mixer",
 						     "clk-proc-sc",
 						     "clk-avsp-hevc";
+
+				/*
+				 * ARM Peripheral clock for timers
+				 */
+				clk_m_a9_ext2f_div2: clk-m-a9-ext2f-div2s {
+					#clock-cells = <0>;
+					compatible = "fixed-factor-clock";
+
+					clocks = <&clk_s_c0_flexgen 13>;
+
+					clock-output-names = "clk-m-a9-ext2f-div2";
+
+					clock-div = <2>;
+					clock-mult = <1>;
+				};
 			};
 		};
 
 		clk_s_d0_quadfs: clk-s-d0-quadfs@9104000 {
 			#clock-cells = <1>;
-			compatible = "st,stih407-quadfs660-D", "st,quadfs";
+			compatible = "st,quadfs";
 			reg = <0x9104000 0x1000>;
 
 			clocks = <&clk_sysin>;
@@ -223,13 +218,13 @@
 					     "clk-s-d0-fs0-ch3";
 		};
 
-		clockgen-d0@09104000 {
+		clockgen-d0@9104000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x9104000 0x1000>;
 
 			clk_s_d0_flexgen: clk-s-d0-flexgen {
 				#clock-cells = <1>;
-				compatible = "st,flexgen";
+				compatible = "st,flexgen-audio", "st,flexgen";
 
 				clocks = <&clk_s_d0_quadfs 0>,
 					 <&clk_s_d0_quadfs 1>,
@@ -248,7 +243,7 @@
 
 		clk_s_d2_quadfs: clk-s-d2-quadfs@9106000 {
 			#clock-cells = <1>;
-			compatible = "st,stih407-quadfs660-D", "st,quadfs";
+			compatible = "st,quadfs";
 			reg = <0x9106000 0x1000>;
 
 			clocks = <&clk_sysin>;
@@ -259,19 +254,13 @@
 					     "clk-s-d2-fs0-ch3";
 		};
 
-		clk_tmdsout_hdmi: clk-tmdsout-hdmi {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <0>;
-		};
-
-		clockgen-d2@x9106000 {
+		clockgen-d2@9106000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x9106000 0x1000>;
 
 			clk_s_d2_flexgen: clk-s-d2-flexgen {
 				#clock-cells = <1>;
-				compatible = "st,flexgen";
+				compatible = "st,flexgen-video", "st,flexgen";
 
 				clocks = <&clk_s_d2_quadfs 0>,
 					 <&clk_s_d2_quadfs 1>,
@@ -309,7 +298,7 @@
 
 		clk_s_d3_quadfs: clk-s-d3-quadfs@9107000 {
 			#clock-cells = <1>;
-			compatible = "st,stih407-quadfs660-D", "st,quadfs";
+			compatible = "st,quadfs";
 			reg = <0x9107000 0x1000>;
 
 			clocks = <&clk_sysin>;

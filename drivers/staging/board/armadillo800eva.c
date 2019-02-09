@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Staging board support for Armadillo 800 eva.
  * Enable not-yet-DT-capable devices here.
@@ -6,15 +7,6 @@
  *
  * Copyright (C) 2012 Renesas Solutions Corp.
  * Copyright (C) 2012 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/dma-mapping.h>
@@ -26,7 +18,6 @@
 #include <video/sh_mobile_lcdc.h>
 
 #include "board.h"
-
 
 static struct fb_videomode lcdc0_mode = {
 	.name		= "AMPIER/AM-800480",
@@ -88,16 +79,16 @@ static const struct board_staging_clk lcdc0_clocks[] __initconst = {
 
 static const struct board_staging_dev armadillo800eva_devices[] __initconst = {
 	{
-		.pdev		= &lcdc0_device,
-		.clocks		= lcdc0_clocks,
-		.nclocks	= ARRAY_SIZE(lcdc0_clocks),
-		.domain		= "/system-controller@e6180000/pm-domains/c5/a4lc@1"
+		.pdev	 = &lcdc0_device,
+		.clocks	 = lcdc0_clocks,
+		.nclocks = ARRAY_SIZE(lcdc0_clocks),
+		.domain	 = "/system-controller@e6180000/pm-domains/c5/a4lc@1"
 	},
 };
 
 static void __init armadillo800eva_init(void)
 {
-	board_staging_gic_setup_xlate("arm,cortex-a9-gic", 32);
+	board_staging_gic_setup_xlate("arm,pl390", 32);
 	board_staging_register_devices(armadillo800eva_devices,
 				       ARRAY_SIZE(armadillo800eva_devices));
 }

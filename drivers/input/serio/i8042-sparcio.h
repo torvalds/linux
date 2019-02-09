@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _I8042_SPARCIO_H
 #define _I8042_SPARCIO_H
 
@@ -130,7 +131,7 @@ static int __init i8042_platform_init(void)
 		}
 	}
 
-	i8042_reset = 1;
+	i8042_reset = I8042_RESET_ALWAYS;
 
 	return 0;
 }

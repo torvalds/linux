@@ -25,12 +25,12 @@
 #include <linux/netfilter/xt_LOG.h>
 #include <net/netfilter/nf_log.h>
 
-static struct nf_loginfo default_loginfo = {
+static const struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
 			.level	  = LOGLEVEL_NOTICE,
-			.logflags = NF_LOG_MASK,
+			.logflags = NF_LOG_DEFAULT_MASK,
 		},
 	},
 };
@@ -62,14 +62,14 @@ static void dump_arp_packet(struct nf_log_buf *m,
 	/* If it's for Ethernet and the lengths are OK, then log the ARP
 	 * payload.
 	 */
-	if (ah->ar_hrd != htons(1) ||
+	if (ah->ar_hrd != htons(ARPHRD_ETHER) ||
 	    ah->ar_hln != ETH_ALEN ||
 	    ah->ar_pln != sizeof(__be32))
 		return;
 
 	ap = skb_header_pointer(skb, sizeof(_arph), sizeof(_arpp), &_arpp);
 	if (ap == NULL) {
-		nf_log_buf_add(m, " INCOMPLETE [%Zu bytes]",
+		nf_log_buf_add(m, " INCOMPLETE [%zu bytes]",
 			       skb->len - sizeof(_arph));
 		return;
 	}
@@ -87,7 +87,7 @@ static void nf_log_arp_packet(struct net *net, u_int8_t pf,
 	struct nf_log_buf *m;
 
 	/* FIXME: Disabled from containers until syslog ns is supported */
-	if (!net_eq(net, &init_net))
+	if (!net_eq(net, &init_net) && !sysctl_nf_log_all_netns)
 		return;
 
 	m = nf_log_buf_open();
@@ -111,8 +111,7 @@ static struct nf_logger nf_arp_logger __read_mostly = {
 
 static int __net_init nf_log_arp_net_init(struct net *net)
 {
-	nf_log_set(net, NFPROTO_ARP, &nf_arp_logger);
-	return 0;
+	return nf_log_set(net, NFPROTO_ARP, &nf_arp_logger);
 }
 
 static void __net_exit nf_log_arp_net_exit(struct net *net)

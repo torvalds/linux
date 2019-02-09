@@ -119,7 +119,7 @@ static int cm3232_reg_init(struct cm3232_chip *chip)
 	if (ret < 0)
 		dev_err(&chip->client->dev, "Error writing reg_cmd\n");
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -322,7 +322,6 @@ static const struct attribute_group cm3232_attribute_group = {
 };
 
 static const struct iio_info cm3232_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= &cm3232_read_raw,
 	.write_raw		= &cm3232_write_raw,
 	.attrs			= &cm3232_attribute_group,

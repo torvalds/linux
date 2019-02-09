@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*****************************************************************************
  *	Copyright(c) 2007,  RealTEK Technology Inc. All Right Reserved.
  *
@@ -20,196 +21,138 @@
 #ifndef	__R8192UDM_H__
 #define __R8192UDM_H__
 
-
 /*--------------------------Define Parameters-------------------------------*/
-#define		DM_DIG_THRESH_HIGH					40
-#define		DM_DIG_THRESH_LOW					35
+#define         DM_DIG_THRESH_HIGH                      40
+#define         DM_DIG_THRESH_LOW                       35
 
-#define		DM_DIG_HIGH_PWR_THRESH_HIGH		75
-#define		DM_DIG_HIGH_PWR_THRESH_LOW		70
+#define         DM_DIG_HIGH_PWR_THRESH_HIGH             75
+#define         DM_DIG_HIGH_PWR_THRESH_LOW              70
 
-#define		BW_AUTO_SWITCH_HIGH_LOW			25
-#define		BW_AUTO_SWITCH_LOW_HIGH			30
+#define         BW_AUTO_SWITCH_HIGH_LOW                 25
+#define         BW_AUTO_SWITCH_LOW_HIGH                 30
 
-#define		DM_check_fsync_time_interval				500
+#define         DM_DIG_BACKOFF                          12
+#define         DM_DIG_MAX                            0x36
+#define         DM_DIG_MIN                            0x1c
+#define         DM_DIG_MIN_NETCORE                    0x12
 
+#define         RX_PATH_SELECTION_SS_TH_LOW             30
+#define         RX_PATH_SELECTION_DIFF_TH               18
 
-#define		DM_DIG_BACKOFF				12
-#define		DM_DIG_MAX					0x36
-#define		DM_DIG_MIN					0x1c
-#define		DM_DIG_MIN_Netcore			0x12
-
-#define		RxPathSelection_SS_TH_low		30
-#define		RxPathSelection_diff_TH			18
-
-#define		RateAdaptiveTH_High			50
-#define		RateAdaptiveTH_Low_20M		30
-#define		RateAdaptiveTH_Low_40M		10
-#define		VeryLowRSSI					15
-#define		CTSToSelfTHVal					30
+#define         RATE_ADAPTIVE_TH_HIGH                   50
+#define         RATE_ADAPTIVE_TH_LOW_20M                30
+#define         RATE_ADAPTIVE_TH_LOW_40M                10
+#define         VERY_LOW_RSSI                           15
+#define         CTS_TO_SELF_TH_VAL                      30
 
 /* defined by vivi, for tx power track */
-#define		E_FOR_TX_POWER_TRACK               300
+#define         E_FOR_TX_POWER_TRACK                   300
 /* Dynamic Tx Power Control Threshold */
-#define		TX_POWER_NEAR_FIELD_THRESH_HIGH		68
-#define		TX_POWER_NEAR_FIELD_THRESH_LOW		62
+#define         TX_POWER_NEAR_FIELD_THRESH_HIGH         68
+#define         TX_POWER_NEAR_FIELD_THRESH_LOW          62
 /* added by amy for atheros AP */
 #define         TX_POWER_ATHEROAP_THRESH_HIGH           78
-#define		TX_POWER_ATHEROAP_THRESH_LOW		72
+#define         TX_POWER_ATHEROAP_THRESH_LOW            72
 
 /* defined by vivi, for showing on UI */
-#define			Current_Tx_Rate_Reg         0x1b8
-#define			Initial_Tx_Rate_Reg		  0x1b9
-#define			Tx_Retry_Count_Reg         0x1ac
-#define		RegC38_TH				 20
+#define         CURRENT_TX_RATE_REG                  0x1b8
+#define         INITIAL_TX_RATE_REG                  0x1b9
+#define         TX_RETRY_COUNT_REG                   0x1ac
+#define         REG_C38_TH                              20
 /*--------------------------Define Parameters-------------------------------*/
 
-
 /*------------------------------Define structure----------------------------*/
-/* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
-struct dig {
-	u8		dig_enable_flag;
-	u8		dig_algorithm;
-	u8		dbg_mode;
-	u8		dig_algorithm_switch;
 
-	long		rssi_low_thresh;
-	long		rssi_high_thresh;
-
-	long		rssi_high_power_lowthresh;
-	long		rssi_high_power_highthresh;
-
-	u8		dig_state;
-	u8		dig_highpwr_state;
-	u8		cur_connect_state;
-	u8		pre_connect_state;
-
-	u8		curpd_thstate;
-	u8		prepd_thstate;
-	u8		curcs_ratio_state;
-	u8		precs_ratio_state;
-
-	u32		pre_ig_value;
-	u32		cur_ig_value;
-
-	u8		backoff_val;
-	u8		rx_gain_range_max;
-	u8		rx_gain_range_min;
-	bool		initialgain_lowerbound_state;
-
-	long		rssi_val;
+enum dig_algorithm {
+	DIG_ALGO_BY_FALSE_ALARM = 0,
+	DIG_ALGO_BY_RSSI	= 1,
 };
 
-typedef enum tag_dynamic_init_gain_state_definition {
+enum dynamic_init_gain_state {
 	DM_STA_DIG_OFF = 0,
 	DM_STA_DIG_ON,
 	DM_STA_DIG_MAX
-} dm_dig_sta_e;
-
-
-/* 2007/10/08 MH Define RATR state. */
-typedef enum tag_dynamic_ratr_state_definition {
-	DM_RATR_STA_HIGH = 0,
-	DM_RATR_STA_MIDDLE = 1,
-	DM_RATR_STA_LOW = 2,
-	DM_RATR_STA_MAX
-} dm_ratr_sta_e;
-
-/* 2007/10/11 MH Define DIG operation type. */
-typedef enum tag_dynamic_init_gain_operation_type_definition {
-	DIG_TYPE_THRESH_HIGH	= 0,
-	DIG_TYPE_THRESH_LOW	= 1,
-	DIG_TYPE_THRESH_HIGHPWR_HIGH	= 2,
-	DIG_TYPE_THRESH_HIGHPWR_LOW	= 3,
-	DIG_TYPE_DBG_MODE				= 4,
-	DIG_TYPE_RSSI						= 5,
-	DIG_TYPE_ALGORITHM				= 6,
-	DIG_TYPE_BACKOFF					= 7,
-	DIG_TYPE_PWDB_FACTOR			= 8,
-	DIG_TYPE_RX_GAIN_MIN				= 9,
-	DIG_TYPE_RX_GAIN_MAX				= 10,
-	DIG_TYPE_ENABLE			= 20,
-	DIG_TYPE_DISABLE		= 30,
-	DIG_OP_TYPE_MAX
-} dm_dig_op_e;
-
-typedef enum tag_dig_algorithm_definition {
-	DIG_ALGO_BY_FALSE_ALARM = 0,
-	DIG_ALGO_BY_RSSI	= 1,
-	DIG_ALGO_MAX
-} dm_dig_alg_e;
-
-typedef enum tag_dig_dbgmode_definition {
-	DIG_DBG_OFF = 0,
-	DIG_DBG_ON = 1,
-	DIG_DBG_MAX
-} dm_dig_dbg_e;
-
-typedef enum tag_dig_connect_definition {
-	DIG_DISCONNECT = 0,
-	DIG_CONNECT = 1,
-	DIG_CONNECT_MAX
-} dm_dig_connect_e;
-
-typedef enum tag_dig_packetdetection_threshold_definition {
-	DIG_PD_AT_LOW_POWER = 0,
-	DIG_PD_AT_NORMAL_POWER = 1,
-	DIG_PD_AT_HIGH_POWER = 2,
-	DIG_PD_MAX
-} dm_dig_pd_th_e;
-
-typedef enum tag_dig_cck_cs_ratio_state_definition {
-	DIG_CS_RATIO_LOWER = 0,
-	DIG_CS_RATIO_HIGHER = 1,
-	DIG_CS_MAX
-} dm_dig_cs_ratio_e;
-struct dynamic_rx_path_sel {
-	u8		Enable;
-	u8		DbgMode;
-	u8		cck_method;
-	u8		cck_Rx_path;
-
-	u8		SS_TH_low;
-	u8		diff_TH;
-	u8		disabledRF;
-	u8		reserved;
-
-	u8		rf_rssi[4];
-	u8		rf_enable_rssi_th[4];
-	long		cck_pwdb_sta[4];
 };
 
-typedef enum tag_CCK_Rx_Path_Method_Definition {
-	CCK_Rx_Version_1 = 0,
-	CCK_Rx_Version_2 = 1,
-	CCK_Rx_Version_MAX
-} DM_CCK_Rx_Path_Method;
+enum dig_connect {
+	DIG_DISCONNECT = 0,
+	DIG_CONNECT    = 1,
+};
 
-typedef enum tag_DM_DbgMode_Definition {
-	DM_DBG_OFF = 0,
-	DM_DBG_ON = 1,
-	DM_DBG_MAX
-} DM_DBG_E;
+enum dig_pkt_detection_threshold {
+	DIG_PD_AT_LOW_POWER    = 0,
+	DIG_PD_AT_NORMAL_POWER = 1,
+	DIG_PD_AT_HIGH_POWER   = 2,
+};
 
-typedef struct tag_Tx_Config_Cmd_Format {
-	u32	Op;			/* Command packet type. */
-	u32	Length;			/* Command packet length. */
-	u32	Value;
-} DCMD_TXCMD_T, *PDCMD_TXCMD_T;
+enum dig_cck_cs_ratio_state {
+	DIG_CS_RATIO_LOWER  = 0,
+	DIG_CS_RATIO_HIGHER = 1,
+};
+
+/* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
+struct dig {
+	u8                                 dig_enable_flag;
+	enum dig_algorithm                 dig_algorithm;
+	u8                                 dig_algorithm_switch;
+
+	long                               rssi_low_thresh;
+	long                               rssi_high_thresh;
+
+	long                               rssi_high_power_lowthresh;
+	long                               rssi_high_power_highthresh;
+
+	enum dynamic_init_gain_state       dig_state;
+	enum dynamic_init_gain_state       dig_highpwr_state;
+	enum dig_connect                   cur_connect_state;
+	enum dig_connect                   pre_connect_state;
+
+	enum dig_pkt_detection_threshold   curpd_thstate;
+	enum dig_pkt_detection_threshold   prepd_thstate;
+	enum dig_cck_cs_ratio_state        curcs_ratio_state;
+	enum dig_cck_cs_ratio_state        precs_ratio_state;
+
+	u32                                pre_ig_value;
+	u32                                cur_ig_value;
+
+	u8                                 backoff_val;
+	u8                                 rx_gain_range_min;
+
+	long                               rssi_val;
+};
+
+enum cck_rx_path_method {
+	CCK_RX_VERSION_1 = 0,
+	CCK_RX_VERSION_2 = 1,
+};
+
+struct dynamic_rx_path_sel {
+	enum cck_rx_path_method            cck_method;
+	u8                                 cck_rx_path;
+
+	u8                                 disabled_rf;
+
+	u8                                 rf_rssi[4];
+	u8                                 rf_enable_rssi_th[4];
+	long                               cck_pwdb_sta[4];
+};
+
+struct tx_config_cmd {
+	u32     cmd_op;        /* Command packet type. */
+	u32     cmd_length;    /* Command packet length. */
+	u32     cmd_value;
+};
+
 /*------------------------------Define structure----------------------------*/
-
 
 /*------------------------Export global variable----------------------------*/
 extern struct dig dm_digtable;
 extern u8 dm_shadow[16][256];
-extern struct dynamic_rx_path_sel DM_RxPathSelTable;
 /*------------------------Export global variable----------------------------*/
 
-
 /*------------------------Export Marco Definition---------------------------*/
 
 /*------------------------Export Marco Definition---------------------------*/
-
 
 /*--------------------------Exported Function prototype---------------------*/
 void init_hal_dm(struct net_device *dev);
@@ -219,21 +162,17 @@ void init_rate_adaptive(struct net_device *dev);
 void dm_txpower_trackingcallback(struct work_struct *work);
 void dm_restore_dynamic_mechanism_state(struct net_device *dev);
 void dm_backup_dynamic_mechanism_state(struct net_device *dev);
-void dm_change_dynamic_initgain_thresh(struct net_device *dev,
-				       u32 dm_type, u32 dm_value);
 void dm_force_tx_fw_info(struct net_device *dev,
 			 u32 force_type, u32 force_value);
 void dm_init_edca_turbo(struct net_device *dev);
 void dm_rf_operation_test_callback(unsigned long data);
 void dm_rf_pathcheck_workitemcallback(struct work_struct *work);
-void dm_fsync_timer_callback(unsigned long data);
+void dm_fsync_timer_callback(struct timer_list *t);
 void dm_cck_txpower_adjust(struct net_device *dev, bool  binch14);
 void dm_shadow_init(struct net_device *dev);
 void dm_initialize_txpower_tracking(struct net_device *dev);
 /*--------------------------Exported Function prototype---------------------*/
 
-
 #endif	/*__R8192UDM_H__ */
-
 
 /* End of r8192U_dm.h */

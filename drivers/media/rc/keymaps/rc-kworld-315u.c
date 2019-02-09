@@ -1,14 +1,9 @@
-/* kworld-315u.h - Keytable for kworld_315u Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// kworld-315u.h - Keytable for kworld_315u Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -60,10 +55,10 @@ static struct rc_map_table kworld_315u[] = {
 
 static struct rc_map_list kworld_315u_map = {
 	.map = {
-		.scan    = kworld_315u,
-		.size    = ARRAY_SIZE(kworld_315u),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_KWORLD_315U,
+		.scan     = kworld_315u,
+		.size     = ARRAY_SIZE(kworld_315u),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_KWORLD_315U,
 	}
 };
 

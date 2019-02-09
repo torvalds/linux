@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * P/N 861037:      Sensor HDCS1000        ASIC STV0600
  * P/N 861050-0010: Sensor HDCS1000        ASIC STV0600
  * P/N 861050-0020: Sensor Photobit PB100  ASIC STV0600-1 - QuickCam Express
@@ -233,7 +229,7 @@ static int pb0100_start(struct sd *sd)
 	}
 
 	err = stv06xx_write_sensor(sd, PB_CONTROL, BIT(5)|BIT(3)|BIT(1));
-	PDEBUG(D_STREAM, "Started stream, status: %d", err);
+	gspca_dbg(gspca_dev, D_STREAM, "Started stream, status: %d\n", err);
 
 	return (err < 0) ? err : 0;
 }
@@ -251,7 +247,7 @@ static int pb0100_stop(struct sd *sd)
 	/* Set bit 1 to zero */
 	err = stv06xx_write_sensor(sd, PB_CONTROL, BIT(5)|BIT(3));
 
-	PDEBUG(D_STREAM, "Halting stream");
+	gspca_dbg(gspca_dev, D_STREAM, "Halting stream\n");
 out:
 	return (err < 0) ? err : 0;
 }
@@ -336,7 +332,8 @@ static int pb0100_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	err = stv06xx_write_sensor(sd, PB_G1GAIN, val);
 	if (!err)
 		err = stv06xx_write_sensor(sd, PB_G2GAIN, val);
-	PDEBUG(D_CONF, "Set green gain to %d, status: %d", val, err);
+	gspca_dbg(gspca_dev, D_CONF, "Set green gain to %d, status: %d\n",
+		  val, err);
 
 	if (!err)
 		err = pb0100_set_red_balance(gspca_dev, ctrls->red->val);
@@ -359,7 +356,8 @@ static int pb0100_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 		val = 255;
 
 	err = stv06xx_write_sensor(sd, PB_RGAIN, val);
-	PDEBUG(D_CONF, "Set red gain to %d, status: %d", val, err);
+	gspca_dbg(gspca_dev, D_CONF, "Set red gain to %d, status: %d\n",
+		  val, err);
 
 	return err;
 }
@@ -377,7 +375,8 @@ static int pb0100_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 		val = 255;
 
 	err = stv06xx_write_sensor(sd, PB_BGAIN, val);
-	PDEBUG(D_CONF, "Set blue gain to %d, status: %d", val, err);
+	gspca_dbg(gspca_dev, D_CONF, "Set blue gain to %d, status: %d\n",
+		  val, err);
 
 	return err;
 }
@@ -388,7 +387,8 @@ static int pb0100_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	err = stv06xx_write_sensor(sd, PB_RINTTIME, val);
-	PDEBUG(D_CONF, "Set exposure to %d, status: %d", val, err);
+	gspca_dbg(gspca_dev, D_CONF, "Set exposure to %d, status: %d\n",
+		  val, err);
 
 	return err;
 }
@@ -408,8 +408,8 @@ static int pb0100_set_autogain(struct gspca_dev *gspca_dev, __s32 val)
 		val = 0;
 
 	err = stv06xx_write_sensor(sd, PB_EXPGAIN, val);
-	PDEBUG(D_CONF, "Set autogain to %d (natural: %d), status: %d",
-	       val, ctrls->natural->val, err);
+	gspca_dbg(gspca_dev, D_CONF, "Set autogain to %d (natural: %d), status: %d\n",
+		  val, ctrls->natural->val, err);
 
 	return err;
 }
@@ -430,7 +430,8 @@ static int pb0100_set_autogain_target(struct gspca_dev *gspca_dev, __s32 val)
 	if (!err)
 		err = stv06xx_write_sensor(sd, PB_R22, darkpixels);
 
-	PDEBUG(D_CONF, "Set autogain target to %d, status: %d", val, err);
+	gspca_dbg(gspca_dev, D_CONF, "Set autogain target to %d, status: %d\n",
+		  val, err);
 
 	return err;
 }

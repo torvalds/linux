@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include <subdev/ibus.h>
+#include "priv.h"
 
 static void
 gk104_ibus_intr_hub(struct nvkm_subdev *ibus, int i)
@@ -30,7 +30,7 @@ gk104_ibus_intr_hub(struct nvkm_subdev *ibus, int i)
 	u32 addr = nvkm_rd32(device, 0x122120 + (i * 0x0800));
 	u32 data = nvkm_rd32(device, 0x122124 + (i * 0x0800));
 	u32 stat = nvkm_rd32(device, 0x122128 + (i * 0x0800));
-	nvkm_error(ibus, "HUB%d: %06x %08x (%08x)\n", i, addr, data, stat);
+	nvkm_debug(ibus, "HUB%d: %06x %08x (%08x)\n", i, addr, data, stat);
 	nvkm_mask(device, 0x122128 + (i * 0x0800), 0x00000200, 0x00000000);
 }
 
@@ -41,7 +41,7 @@ gk104_ibus_intr_rop(struct nvkm_subdev *ibus, int i)
 	u32 addr = nvkm_rd32(device, 0x124120 + (i * 0x0800));
 	u32 data = nvkm_rd32(device, 0x124124 + (i * 0x0800));
 	u32 stat = nvkm_rd32(device, 0x124128 + (i * 0x0800));
-	nvkm_error(ibus, "ROP%d: %06x %08x (%08x)\n", i, addr, data, stat);
+	nvkm_debug(ibus, "ROP%d: %06x %08x (%08x)\n", i, addr, data, stat);
 	nvkm_mask(device, 0x124128 + (i * 0x0800), 0x00000200, 0x00000000);
 }
 
@@ -52,11 +52,11 @@ gk104_ibus_intr_gpc(struct nvkm_subdev *ibus, int i)
 	u32 addr = nvkm_rd32(device, 0x128120 + (i * 0x0800));
 	u32 data = nvkm_rd32(device, 0x128124 + (i * 0x0800));
 	u32 stat = nvkm_rd32(device, 0x128128 + (i * 0x0800));
-	nvkm_error(ibus, "GPC%d: %06x %08x (%08x)\n", i, addr, data, stat);
+	nvkm_debug(ibus, "GPC%d: %06x %08x (%08x)\n", i, addr, data, stat);
 	nvkm_mask(device, 0x128128 + (i * 0x0800), 0x00000200, 0x00000000);
 }
 
-static void
+void
 gk104_ibus_intr(struct nvkm_subdev *ibus)
 {
 	struct nvkm_device *device = ibus->device;
@@ -120,6 +120,6 @@ gk104_ibus_new(struct nvkm_device *device, int index,
 	struct nvkm_subdev *ibus;
 	if (!(ibus = *pibus = kzalloc(sizeof(*ibus), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&gk104_ibus, device, index, 0, ibus);
+	nvkm_subdev_ctor(&gk104_ibus, device, index, ibus);
 	return 0;
 }

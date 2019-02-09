@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 
 #include <asm/pgtable.h>
 #include <asm/proto.h>
+#include <asm/cpufeature.h>
 
 static int disable_nx;
 
@@ -31,7 +33,7 @@ early_param("noexec", noexec_setup);
 
 void x86_configure_nx(void)
 {
-	if (cpu_has_nx && !disable_nx)
+	if (boot_cpu_has(X86_FEATURE_NX) && !disable_nx)
 		__supported_pte_mask |= _PAGE_NX;
 	else
 		__supported_pte_mask &= ~_PAGE_NX;
@@ -39,7 +41,7 @@ void x86_configure_nx(void)
 
 void __init x86_report_nx(void)
 {
-	if (!cpu_has_nx) {
+	if (!boot_cpu_has(X86_FEATURE_NX)) {
 		printk(KERN_NOTICE "Notice: NX (Execute Disable) protection "
 		       "missing in CPU!\n");
 	} else {

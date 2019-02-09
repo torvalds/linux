@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -55,9 +45,6 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct workqueue_struct *usb_tx_wq;
-static struct workqueue_struct *usb_rx_wq;
-
 static void do_tx(struct work_struct *work);
 static void do_rx(struct work_struct *work);
 
@@ -75,8 +62,8 @@ static int request_mac_address(struct lte_udev *udev)
 	int actual;
 	int ret = -1;
 
-	hci->cmd_evt = gdm_cpu_to_dev16(&udev->gdm_ed, LTE_GET_INFORMATION);
-	hci->len = gdm_cpu_to_dev16(&udev->gdm_ed, 1);
+	hci->cmd_evt = gdm_cpu_to_dev16(udev->gdm_ed, LTE_GET_INFORMATION);
+	hci->len = gdm_cpu_to_dev16(udev->gdm_ed, 1);
 	hci->data[0] = MAC_ADDRESS;
 
 	ret = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 2), buf, 5,
@@ -413,15 +400,15 @@ static void do_rx(struct work_struct *work)
 		phy_dev = r->cb_data;
 		udev = phy_dev->priv_dev;
 		hci = (struct hci_packet *)r->buf;
-		cmd_evt = gdm_dev16_to_cpu(&udev->gdm_ed, hci->cmd_evt);
+		cmd_evt = gdm_dev16_to_cpu(udev->gdm_ed, hci->cmd_evt);
 
 		switch (cmd_evt) {
 		case LTE_GET_INFORMATION_RESULT:
 			if (set_mac_address(hci->data, r->cb_data) == 0) {
-				ret = r->callback(r->cb_data,
-						  r->buf,
-						  r->urb->actual_length,
-						  KERNEL_THREAD);
+				r->callback(r->cb_data,
+					    r->buf,
+					    r->urb->actual_length,
+					    KERNEL_THREAD);
 			}
 			break;
 
@@ -476,7 +463,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 	if (!urb->status && r->callback) {
 		spin_lock_irqsave(&rx->to_host_lock, flags);
 		list_add_tail(&r->to_host_list, &rx->to_host_list);
-		queue_work(usb_rx_wq, &udev->work_rx.work);
+		schedule_work(&udev->work_rx.work);
 		spin_unlock_irqrestore(&rx->to_host_lock, flags);
 	} else {
 		if (urb->status && udev->usb_state == PM_NORMAL)
@@ -568,7 +555,7 @@ static void gdm_usb_send_complete(struct urb *urb)
 
 	spin_lock_irqsave(&tx->lock, flags);
 	udev->send_complete = 1;
-	queue_work(usb_tx_wq, &udev->work_tx.work);
+	schedule_work(&udev->work_tx.work);
 	spin_unlock_irqrestore(&tx->lock, flags);
 }
 
@@ -607,7 +594,7 @@ static u32 packet_aggregation(struct lte_udev *udev, u8 *send_buf)
 	u16 num_packet = 0;
 	unsigned long flags;
 
-	multi_sdu->cmd_evt = gdm_cpu_to_dev16(&udev->gdm_ed, LTE_TX_MULTI_SDU);
+	multi_sdu->cmd_evt = gdm_cpu_to_dev16(udev->gdm_ed, LTE_TX_MULTI_SDU);
 
 	while (num_packet < MAX_PACKET_IN_MULTI_SDU) {
 		spin_lock_irqsave(&tx->lock, flags);
@@ -638,8 +625,8 @@ static u32 packet_aggregation(struct lte_udev *udev, u8 *send_buf)
 		spin_unlock_irqrestore(&tx->lock, flags);
 	}
 
-	multi_sdu->len = gdm_cpu_to_dev16(&udev->gdm_ed, send_len);
-	multi_sdu->num_packet = gdm_cpu_to_dev16(&udev->gdm_ed, num_packet);
+	multi_sdu->len = gdm_cpu_to_dev16(udev->gdm_ed, send_len);
+	multi_sdu->num_packet = gdm_cpu_to_dev16(udev->gdm_ed, num_packet);
 
 	return send_len + offsetof(struct multi_sdu, data);
 }
@@ -711,7 +698,7 @@ static void do_tx(struct work_struct *work)
 
 #define SDU_PARAM_LEN 12
 static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
-			    unsigned int dftEpsId, unsigned int epsId,
+			    unsigned int dft_eps_ID, unsigned int eps_ID,
 			    void (*cb)(void *data), void *cb_data,
 			    int dev_idx, int nic_type)
 {
@@ -738,20 +725,20 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	}
 
 	sdu = (struct sdu *)t_sdu->buf;
-	sdu->cmd_evt = gdm_cpu_to_dev16(&udev->gdm_ed, LTE_TX_SDU);
+	sdu->cmd_evt = gdm_cpu_to_dev16(udev->gdm_ed, LTE_TX_SDU);
 	if (nic_type == NIC_TYPE_ARP) {
 		send_len = len + SDU_PARAM_LEN;
-	    memcpy(sdu->data, data, len);
+		memcpy(sdu->data, data, len);
 	} else {
-	    send_len = len - ETH_HLEN;
-	    send_len += SDU_PARAM_LEN;
-	    memcpy(sdu->data, data + ETH_HLEN, len - ETH_HLEN);
+		send_len = len - ETH_HLEN;
+		send_len += SDU_PARAM_LEN;
+		memcpy(sdu->data, data + ETH_HLEN, len - ETH_HLEN);
 	}
 
-	sdu->len = gdm_cpu_to_dev16(&udev->gdm_ed, send_len);
-	sdu->dftEpsId = gdm_cpu_to_dev32(&udev->gdm_ed, dftEpsId);
-	sdu->bearer_ID = gdm_cpu_to_dev32(&udev->gdm_ed, epsId);
-	sdu->nic_type = gdm_cpu_to_dev32(&udev->gdm_ed, nic_type);
+	sdu->len = gdm_cpu_to_dev16(udev->gdm_ed, send_len);
+	sdu->dft_eps_ID = gdm_cpu_to_dev32(udev->gdm_ed, dft_eps_ID);
+	sdu->bearer_ID = gdm_cpu_to_dev32(udev->gdm_ed, eps_ID);
+	sdu->nic_type = gdm_cpu_to_dev32(udev->gdm_ed, nic_type);
 
 	t_sdu->len = send_len + HCI_HEADER_SIZE;
 	t_sdu->callback = cb;
@@ -759,7 +746,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 
 	spin_lock_irqsave(&tx->lock, flags);
 	list_add_tail(&t_sdu->list, &tx->sdu_list);
-	queue_work(usb_tx_wq, &udev->work_tx.work);
+	schedule_work(&udev->work_tx.work);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	if (no_spc)
@@ -796,17 +783,17 @@ static int gdm_usb_hci_send(void *priv_dev, void *data, int len,
 
 	spin_lock_irqsave(&tx->lock, flags);
 	list_add_tail(&t->list, &tx->hci_list);
-	queue_work(usb_tx_wq, &udev->work_tx.work);
+	schedule_work(&udev->work_tx.work);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	return 0;
 }
 
-static struct gdm_endian *gdm_usb_get_endian(void *priv_dev)
+static u8 gdm_usb_get_endian(void *priv_dev)
 {
 	struct lte_udev *udev = priv_dev;
 
-	return &udev->gdm_ed;
+	return udev->gdm_ed;
 }
 
 static int gdm_usb_probe(struct usb_interface *intf,
@@ -862,9 +849,9 @@ static int gdm_usb_probe(struct usb_interface *intf,
 	 * defaults to little endian
 	 */
 	if (idProduct == PID_GDM7243)
-		gdm_set_endian(&udev->gdm_ed, ENDIANNESS_BIG);
+		udev->gdm_ed = ENDIANNESS_BIG;
 	else
-		gdm_set_endian(&udev->gdm_ed, ENDIANNESS_LITTLE);
+		udev->gdm_ed = ENDIANNESS_LITTLE;
 
 	ret = request_mac_address(udev);
 	if (ret < 0) {
@@ -892,14 +879,9 @@ static void gdm_usb_disconnect(struct usb_interface *intf)
 {
 	struct phy_dev *phy_dev;
 	struct lte_udev *udev;
-	u16 idVendor, idProduct;
 	struct usb_device *usbdev;
 
 	usbdev = interface_to_usbdev(intf);
-
-	idVendor = __le16_to_cpu(usbdev->descriptor.idVendor);
-	idProduct = __le16_to_cpu(usbdev->descriptor.idProduct);
-
 	phy_dev = usb_get_intfdata(intf);
 
 	udev = phy_dev->priv_dev;
@@ -944,6 +926,9 @@ static int gdm_usb_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	}
 	spin_unlock_irqrestore(&rx->submit_lock, flags);
 
+	cancel_work_sync(&udev->work_tx.work);
+	cancel_work_sync(&udev->work_rx.work);
+
 	return 0;
 }
 
@@ -981,7 +966,7 @@ static int gdm_usb_resume(struct usb_interface *intf)
 
 	tx = &udev->tx;
 	spin_lock_irqsave(&tx->lock, flags);
-	queue_work(usb_tx_wq, &udev->work_tx.work);
+	schedule_work(&udev->work_tx.work);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	return 0;
@@ -1005,14 +990,6 @@ static int __init gdm_usb_lte_init(void)
 		return -1;
 	}
 
-	usb_tx_wq = create_workqueue("usb_tx_wq");
-	if (!usb_tx_wq)
-		return -1;
-
-	usb_rx_wq = create_workqueue("usb_rx_wq");
-	if (!usb_rx_wq)
-		return -1;
-
 	return usb_register(&gdm_usb_lte_driver);
 }
 
@@ -1021,16 +998,6 @@ static void __exit gdm_usb_lte_exit(void)
 	gdm_lte_event_exit();
 
 	usb_deregister(&gdm_usb_lte_driver);
-
-	if (usb_tx_wq) {
-		flush_workqueue(usb_tx_wq);
-		destroy_workqueue(usb_tx_wq);
-	}
-
-	if (usb_rx_wq) {
-		flush_workqueue(usb_rx_wq);
-		destroy_workqueue(usb_rx_wq);
-	}
 }
 
 module_init(gdm_usb_lte_init);

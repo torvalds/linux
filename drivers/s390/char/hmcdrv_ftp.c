@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    HMC Drive FTP Services
  *
@@ -37,7 +38,7 @@ struct hmcdrv_ftp_ops {
 static enum hmcdrv_ftp_cmdid hmcdrv_ftp_cmd_getid(const char *cmd, int len);
 static int hmcdrv_ftp_parse(char *cmd, struct hmcdrv_ftp_cmdspec *ftp);
 
-static struct hmcdrv_ftp_ops *hmcdrv_ftp_funcs; /* current operations */
+static const struct hmcdrv_ftp_ops *hmcdrv_ftp_funcs; /* current operations */
 static DEFINE_MUTEX(hmcdrv_ftp_mutex); /* mutex for hmcdrv_ftp_funcs */
 static unsigned hmcdrv_ftp_refcnt; /* start/shutdown reference counter */
 
@@ -290,13 +291,13 @@ ssize_t hmcdrv_ftp_cmd(char __kernel *cmd, loff_t offset,
  */
 int hmcdrv_ftp_startup(void)
 {
-	static struct hmcdrv_ftp_ops hmcdrv_ftp_zvm = {
+	static const struct hmcdrv_ftp_ops hmcdrv_ftp_zvm = {
 		.startup = diag_ftp_startup,
 		.shutdown = diag_ftp_shutdown,
 		.transfer = diag_ftp_cmd
 	};
 
-	static struct hmcdrv_ftp_ops hmcdrv_ftp_lpar = {
+	static const struct hmcdrv_ftp_ops hmcdrv_ftp_lpar = {
 		.startup = sclp_ftp_startup,
 		.shutdown = sclp_ftp_shutdown,
 		.transfer = sclp_ftp_cmd

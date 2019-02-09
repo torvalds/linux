@@ -23,6 +23,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_mmu.h>
+#include <asm/virt.h>
 
 /********************************************************************
  * Hypervisor initialization
@@ -32,23 +33,17 @@
  *       r2,r3 = Hypervisor pgd pointer
  *
  * The init scenario is:
- * - We jump in HYP with four parameters: boot HYP pgd, runtime HYP pgd,
- *   runtime stack, runtime vectors
- * - Enable the MMU with the boot pgd
- * - Jump to a target into the trampoline page (remember, this is the same
- *   physical page!)
- * - Now switch to the runtime pgd (same VA, and still the same physical
- *   page!)
+ * - We jump in HYP with 3 parameters: runtime HYP pgd, runtime stack,
+ *   runtime vectors
  * - Invalidate TLBs
  * - Set stack and vectors
+ * - Setup the page tables
+ * - Enable the MMU
  * - Profit! (or eret, if you only care about the code).
  *
- * As we only have four registers available to pass parameters (and we
- * need six), we split the init in two phases:
- * - Phase 1: r0 = 0, r1 = 0, r2,r3 contain the boot PGD.
- *   Provides the basic HYP init, and enable the MMU.
- * - Phase 2: r0 = ToS, r1 = vectors, r2,r3 contain the runtime PGD.
- *   Switches to the runtime PGD, set stack and vectors.
+ * Another possibility is to get a HYP stub hypercall.
+ * We discriminate between the two by checking if r0 contains a value
+ * that is less than HVC_STUB_HCALL_NR.
  */
 
 	.text
@@ -68,8 +63,15 @@ __kvm_hyp_init:
 	W(b)	.
 
 __do_hyp_init:
-	cmp	r0, #0			@ We have a SP?
-	bne	phase2			@ Yes, second stage init
+	@ Check for a stub hypercall
+	cmp	r0, #HVC_STUB_HCALL_NR
+	blo	__kvm_handle_stub_hvc
+
+	@ Set stack pointer
+	mov	sp, r0
+
+	@ Set HVBAR to point to the HYP vectors
+	mcr	p15, 4, r1, c12, c0, 0	@ HVBAR
 
 	@ Set the HTTBR to point to the hypervisor PGD pointer passed
 	mcrr	p15, 4, rr_lo_hi(r2, r3), c2
@@ -83,14 +85,6 @@ __do_hyp_init:
 	and	r1, r1, #(HTCR_MASK & ~TTBCR_T0SZ)
 	orr	r0, r0, r1
 	mcr	p15, 4, r0, c2, c0, 2	@ HTCR
-
-	mrc	p15, 4, r1, c2, c1, 2	@ VTCR
-	ldr	r2, =VTCR_MASK
-	bic	r1, r1, r2
-	bic	r0, r0, #(~VTCR_HTCR_SH)	@ clear non-reusable HTCR bits
-	orr	r1, r0, r1
-	orr	r1, r1, #(KVM_VTCR_SL0 | KVM_VTCR_T0SZ | KVM_VTCR_S)
-	mcr	p15, 4, r1, c2, c1, 2	@ VTCR
 
 	@ Use the same memory attributes for hyp. accesses as the kernel
 	@ (copy MAIRx ro HMAIRx).
@@ -110,7 +104,6 @@ __do_hyp_init:
 	@  - Write permission implies XN: disabled
 	@  - Instruction cache: enabled
 	@  - Data/Unified cache: enabled
-	@  - Memory alignment checks: enabled
 	@  - MMU: enabled (this code must be run from an identity mapping)
 	mrc	p15, 4, r0, c1, c0, 0	@ HSCR
 	ldr	r2, =HSCTLR_MASK
@@ -118,38 +111,55 @@ __do_hyp_init:
 	mrc	p15, 0, r1, c1, c0, 0	@ SCTLR
 	ldr	r2, =(HSCTLR_EE | HSCTLR_FI | HSCTLR_I | HSCTLR_C)
 	and	r1, r1, r2
- ARM(	ldr	r2, =(HSCTLR_M | HSCTLR_A)			)
- THUMB(	ldr	r2, =(HSCTLR_M | HSCTLR_A | HSCTLR_TE)		)
+ ARM(	ldr	r2, =(HSCTLR_M)					)
+ THUMB(	ldr	r2, =(HSCTLR_M | HSCTLR_TE)			)
 	orr	r1, r1, r2
 	orr	r0, r0, r1
-	isb
 	mcr	p15, 4, r0, c1, c0, 0	@ HSCR
-
-	@ End of init phase-1
-	eret
-
-phase2:
-	@ Set stack pointer
-	mov	sp, r0
-
-	@ Set HVBAR to point to the HYP vectors
-	mcr	p15, 4, r1, c12, c0, 0	@ HVBAR
-
-	@ Jump to the trampoline page
-	ldr	r0, =TRAMPOLINE_VA
-	adr	r1, target
-	bfi	r0, r1, #0, #PAGE_SHIFT
-	ret	r0
-
-target:	@ We're now in the trampoline code, switch page tables
-	mcrr	p15, 4, rr_lo_hi(r2, r3), c2
 	isb
 
-	@ Invalidate the old TLBs
-	mcr	p15, 4, r0, c8, c7, 0	@ TLBIALLH
-	dsb	ish
-
 	eret
+
+ENTRY(__kvm_handle_stub_hvc)
+	cmp	r0, #HVC_SOFT_RESTART
+	bne	1f
+
+	/* The target is expected in r1 */
+	msr	ELR_hyp, r1
+	mrs	r0, cpsr
+	bic	r0, r0, #MODE_MASK
+	orr	r0, r0, #HYP_MODE
+THUMB(	orr	r0, r0, #PSR_T_BIT	)
+	msr	spsr_cxsf, r0
+	b	reset
+
+1:	cmp	r0, #HVC_RESET_VECTORS
+	bne	1f
+
+reset:
+	/* We're now in idmap, disable MMU */
+	mrc	p15, 4, r1, c1, c0, 0	@ HSCTLR
+	ldr	r0, =(HSCTLR_M | HSCTLR_A | HSCTLR_C | HSCTLR_I)
+	bic	r1, r1, r0
+	mcr	p15, 4, r1, c1, c0, 0	@ HSCTLR
+
+	/*
+	 * Install stub vectors, using ardb's VA->PA trick.
+	 */
+0:	adr	r0, 0b					@ PA(0)
+	movw	r1, #:lower16:__hyp_stub_vectors - 0b   @ VA(stub) - VA(0)
+	movt	r1, #:upper16:__hyp_stub_vectors - 0b
+	add	r1, r1, r0				@ PA(stub)
+	mcr	p15, 4, r1, c12, c0, 0	@ HVBAR
+	b	exit
+
+1:	ldr	r0, =HVC_STUB_ERR
+	eret
+
+exit:
+	mov	r0, #0
+	eret
+ENDPROC(__kvm_handle_stub_hvc)
 
 	.ltorg
 

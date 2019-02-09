@@ -19,10 +19,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
 #include "iforce.h"
@@ -164,7 +160,7 @@ static void iforce_serio_disconnect(struct serio *serio)
 	kfree(iforce);
 }
 
-static struct serio_device_id iforce_serio_ids[] = {
+static const struct serio_device_id iforce_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_IFORCE,

@@ -54,8 +54,10 @@ static void dsi_dphy_timing_calc_clk_zero(struct msm_dsi_dphy_timing *timing,
 }
 
 int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
-	const unsigned long bit_rate, const unsigned long esc_rate)
+			     struct msm_dsi_phy_clk_request *clk_req)
 {
+	const unsigned long bit_rate = clk_req->bitclk_rate;
+	const unsigned long esc_rate = clk_req->escclk_rate;
 	s32 ui, lpx;
 	s32 tmax, tmin;
 	s32 pcnt0 = 10;
@@ -115,8 +117,8 @@ int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
 	temp = ((timing->hs_exit >> 1) + 1) * 2 * ui;
 	temp = 60 * coeff + 52 * ui - 24 * ui - temp;
 	tmin = S_DIV_ROUND_UP(temp, 8 * ui) - 1;
-	timing->clk_post = linear_inter(tmax, tmin, pcnt2, 0, false);
-
+	timing->shared_timings.clk_post = linear_inter(tmax, tmin, pcnt2, 0,
+						       false);
 	tmax = 63;
 	temp = ((timing->clk_prepare >> 1) + 1) * 2 * ui;
 	temp += ((timing->clk_zero >> 1) + 1) * 2 * ui;
@@ -124,20 +126,250 @@ int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
 	tmin = S_DIV_ROUND_UP(temp, 8 * ui) - 1;
 	if (tmin > tmax) {
 		temp = linear_inter(2 * tmax, tmin, pcnt2, 0, false);
-		timing->clk_pre = temp >> 1;
+		timing->shared_timings.clk_pre = temp >> 1;
+		timing->shared_timings.clk_pre_inc_by_2 = true;
 	} else {
-		timing->clk_pre = linear_inter(tmax, tmin, pcnt2, 0, false);
+		timing->shared_timings.clk_pre =
+				linear_inter(tmax, tmin, pcnt2, 0, false);
+		timing->shared_timings.clk_pre_inc_by_2 = false;
 	}
 
 	timing->ta_go = 3;
 	timing->ta_sure = 0;
 	timing->ta_get = 4;
 
-	DBG("PHY timings: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
-		timing->clk_pre, timing->clk_post, timing->clk_zero,
+	DBG("PHY timings: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
+		timing->shared_timings.clk_pre, timing->shared_timings.clk_post,
+		timing->shared_timings.clk_pre_inc_by_2, timing->clk_zero,
 		timing->clk_trail, timing->clk_prepare, timing->hs_exit,
 		timing->hs_zero, timing->hs_prepare, timing->hs_trail,
 		timing->hs_rqst);
+
+	return 0;
+}
+
+int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
+				struct msm_dsi_phy_clk_request *clk_req)
+{
+	const unsigned long bit_rate = clk_req->bitclk_rate;
+	const unsigned long esc_rate = clk_req->escclk_rate;
+	s32 ui, ui_x8, lpx;
+	s32 tmax, tmin;
+	s32 pcnt0 = 50;
+	s32 pcnt1 = 50;
+	s32 pcnt2 = 10;
+	s32 pcnt3 = 30;
+	s32 pcnt4 = 10;
+	s32 pcnt5 = 2;
+	s32 coeff = 1000; /* Precision, should avoid overflow */
+	s32 hb_en, hb_en_ckln, pd_ckln, pd;
+	s32 val, val_ckln;
+	s32 temp;
+
+	if (!bit_rate || !esc_rate)
+		return -EINVAL;
+
+	timing->hs_halfbyte_en = 0;
+	hb_en = 0;
+	timing->hs_halfbyte_en_ckln = 0;
+	hb_en_ckln = 0;
+	timing->hs_prep_dly_ckln = (bit_rate > 100000000) ? 0 : 3;
+	pd_ckln = timing->hs_prep_dly_ckln;
+	timing->hs_prep_dly = (bit_rate > 120000000) ? 0 : 1;
+	pd = timing->hs_prep_dly;
+
+	val = (hb_en << 2) + (pd << 1);
+	val_ckln = (hb_en_ckln << 2) + (pd_ckln << 1);
+
+	ui = mult_frac(NSEC_PER_MSEC, coeff, bit_rate / 1000);
+	ui_x8 = ui << 3;
+	lpx = mult_frac(NSEC_PER_MSEC, coeff, esc_rate / 1000);
+
+	temp = S_DIV_ROUND_UP(38 * coeff - val_ckln * ui, ui_x8);
+	tmin = max_t(s32, temp, 0);
+	temp = (95 * coeff - val_ckln * ui) / ui_x8;
+	tmax = max_t(s32, temp, 0);
+	timing->clk_prepare = linear_inter(tmax, tmin, pcnt0, 0, false);
+
+	temp = 300 * coeff - ((timing->clk_prepare << 3) + val_ckln) * ui;
+	tmin = S_DIV_ROUND_UP(temp - 11 * ui, ui_x8) - 3;
+	tmax = (tmin > 255) ? 511 : 255;
+	timing->clk_zero = linear_inter(tmax, tmin, pcnt5, 0, false);
+
+	tmin = DIV_ROUND_UP(60 * coeff + 3 * ui, ui_x8);
+	temp = 105 * coeff + 12 * ui - 20 * coeff;
+	tmax = (temp + 3 * ui) / ui_x8;
+	timing->clk_trail = linear_inter(tmax, tmin, pcnt3, 0, false);
+
+	temp = S_DIV_ROUND_UP(40 * coeff + 4 * ui - val * ui, ui_x8);
+	tmin = max_t(s32, temp, 0);
+	temp = (85 * coeff + 6 * ui - val * ui) / ui_x8;
+	tmax = max_t(s32, temp, 0);
+	timing->hs_prepare = linear_inter(tmax, tmin, pcnt1, 0, false);
+
+	temp = 145 * coeff + 10 * ui - ((timing->hs_prepare << 3) + val) * ui;
+	tmin = S_DIV_ROUND_UP(temp - 11 * ui, ui_x8) - 3;
+	tmax = 255;
+	timing->hs_zero = linear_inter(tmax, tmin, pcnt4, 0, false);
+
+	tmin = DIV_ROUND_UP(60 * coeff + 4 * ui + 3 * ui, ui_x8);
+	temp = 105 * coeff + 12 * ui - 20 * coeff;
+	tmax = (temp + 3 * ui) / ui_x8;
+	timing->hs_trail = linear_inter(tmax, tmin, pcnt3, 0, false);
+
+	temp = 50 * coeff + ((hb_en << 2) - 8) * ui;
+	timing->hs_rqst = S_DIV_ROUND_UP(temp, ui_x8);
+
+	tmin = DIV_ROUND_UP(100 * coeff, ui_x8) - 1;
+	tmax = 255;
+	timing->hs_exit = linear_inter(tmax, tmin, pcnt2, 0, false);
+
+	temp = 50 * coeff + ((hb_en_ckln << 2) - 8) * ui;
+	timing->hs_rqst_ckln = S_DIV_ROUND_UP(temp, ui_x8);
+
+	temp = 60 * coeff + 52 * ui - 43 * ui;
+	tmin = DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 63;
+	timing->shared_timings.clk_post =
+				linear_inter(tmax, tmin, pcnt2, 0, false);
+
+	temp = 8 * ui + ((timing->clk_prepare << 3) + val_ckln) * ui;
+	temp += (((timing->clk_zero + 3) << 3) + 11 - (pd_ckln << 1)) * ui;
+	temp += hb_en_ckln ? (((timing->hs_rqst_ckln << 3) + 4) * ui) :
+				(((timing->hs_rqst_ckln << 3) + 8) * ui);
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 63;
+	if (tmin > tmax) {
+		temp = linear_inter(tmax << 1, tmin, pcnt2, 0, false);
+		timing->shared_timings.clk_pre = temp >> 1;
+		timing->shared_timings.clk_pre_inc_by_2 = 1;
+	} else {
+		timing->shared_timings.clk_pre =
+				linear_inter(tmax, tmin, pcnt2, 0, false);
+		timing->shared_timings.clk_pre_inc_by_2 = 0;
+	}
+
+	timing->ta_go = 3;
+	timing->ta_sure = 0;
+	timing->ta_get = 4;
+
+	DBG("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
+	    timing->shared_timings.clk_pre, timing->shared_timings.clk_post,
+	    timing->shared_timings.clk_pre_inc_by_2, timing->clk_zero,
+	    timing->clk_trail, timing->clk_prepare, timing->hs_exit,
+	    timing->hs_zero, timing->hs_prepare, timing->hs_trail,
+	    timing->hs_rqst, timing->hs_rqst_ckln, timing->hs_halfbyte_en,
+	    timing->hs_halfbyte_en_ckln, timing->hs_prep_dly,
+	    timing->hs_prep_dly_ckln);
+
+	return 0;
+}
+
+int msm_dsi_dphy_timing_calc_v3(struct msm_dsi_dphy_timing *timing,
+	struct msm_dsi_phy_clk_request *clk_req)
+{
+	const unsigned long bit_rate = clk_req->bitclk_rate;
+	const unsigned long esc_rate = clk_req->escclk_rate;
+	s32 ui, ui_x8, lpx;
+	s32 tmax, tmin;
+	s32 pcnt0 = 50;
+	s32 pcnt1 = 50;
+	s32 pcnt2 = 10;
+	s32 pcnt3 = 30;
+	s32 pcnt4 = 10;
+	s32 pcnt5 = 2;
+	s32 coeff = 1000; /* Precision, should avoid overflow */
+	s32 hb_en, hb_en_ckln;
+	s32 temp;
+
+	if (!bit_rate || !esc_rate)
+		return -EINVAL;
+
+	timing->hs_halfbyte_en = 0;
+	hb_en = 0;
+	timing->hs_halfbyte_en_ckln = 0;
+	hb_en_ckln = 0;
+
+	ui = mult_frac(NSEC_PER_MSEC, coeff, bit_rate / 1000);
+	ui_x8 = ui << 3;
+	lpx = mult_frac(NSEC_PER_MSEC, coeff, esc_rate / 1000);
+
+	temp = S_DIV_ROUND_UP(38 * coeff, ui_x8);
+	tmin = max_t(s32, temp, 0);
+	temp = (95 * coeff) / ui_x8;
+	tmax = max_t(s32, temp, 0);
+	timing->clk_prepare = linear_inter(tmax, tmin, pcnt0, 0, false);
+
+	temp = 300 * coeff - (timing->clk_prepare << 3) * ui;
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = (tmin > 255) ? 511 : 255;
+	timing->clk_zero = linear_inter(tmax, tmin, pcnt5, 0, false);
+
+	tmin = DIV_ROUND_UP(60 * coeff + 3 * ui, ui_x8);
+	temp = 105 * coeff + 12 * ui - 20 * coeff;
+	tmax = (temp + 3 * ui) / ui_x8;
+	timing->clk_trail = linear_inter(tmax, tmin, pcnt3, 0, false);
+
+	temp = S_DIV_ROUND_UP(40 * coeff + 4 * ui, ui_x8);
+	tmin = max_t(s32, temp, 0);
+	temp = (85 * coeff + 6 * ui) / ui_x8;
+	tmax = max_t(s32, temp, 0);
+	timing->hs_prepare = linear_inter(tmax, tmin, pcnt1, 0, false);
+
+	temp = 145 * coeff + 10 * ui - (timing->hs_prepare << 3) * ui;
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 255;
+	timing->hs_zero = linear_inter(tmax, tmin, pcnt4, 0, false);
+
+	tmin = DIV_ROUND_UP(60 * coeff + 4 * ui, ui_x8) - 1;
+	temp = 105 * coeff + 12 * ui - 20 * coeff;
+	tmax = (temp / ui_x8) - 1;
+	timing->hs_trail = linear_inter(tmax, tmin, pcnt3, 0, false);
+
+	temp = 50 * coeff + ((hb_en << 2) - 8) * ui;
+	timing->hs_rqst = S_DIV_ROUND_UP(temp, ui_x8);
+
+	tmin = DIV_ROUND_UP(100 * coeff, ui_x8) - 1;
+	tmax = 255;
+	timing->hs_exit = linear_inter(tmax, tmin, pcnt2, 0, false);
+
+	temp = 50 * coeff + ((hb_en_ckln << 2) - 8) * ui;
+	timing->hs_rqst_ckln = S_DIV_ROUND_UP(temp, ui_x8);
+
+	temp = 60 * coeff + 52 * ui - 43 * ui;
+	tmin = DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 63;
+	timing->shared_timings.clk_post =
+		linear_inter(tmax, tmin, pcnt2, 0, false);
+
+	temp = 8 * ui + (timing->clk_prepare << 3) * ui;
+	temp += (((timing->clk_zero + 3) << 3) + 11) * ui;
+	temp += hb_en_ckln ? (((timing->hs_rqst_ckln << 3) + 4) * ui) :
+		(((timing->hs_rqst_ckln << 3) + 8) * ui);
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 63;
+	if (tmin > tmax) {
+		temp = linear_inter(tmax << 1, tmin, pcnt2, 0, false);
+		timing->shared_timings.clk_pre = temp >> 1;
+		timing->shared_timings.clk_pre_inc_by_2 = 1;
+	} else {
+		timing->shared_timings.clk_pre =
+			linear_inter(tmax, tmin, pcnt2, 0, false);
+			timing->shared_timings.clk_pre_inc_by_2 = 0;
+	}
+
+	timing->ta_go = 3;
+	timing->ta_sure = 0;
+	timing->ta_get = 4;
+
+	DBG("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
+		timing->shared_timings.clk_pre, timing->shared_timings.clk_post,
+		timing->shared_timings.clk_pre_inc_by_2, timing->clk_zero,
+		timing->clk_trail, timing->clk_prepare, timing->hs_exit,
+		timing->hs_zero, timing->hs_prepare, timing->hs_trail,
+		timing->hs_rqst, timing->hs_rqst_ckln, timing->hs_halfbyte_en,
+		timing->hs_halfbyte_en_ckln, timing->hs_prep_dly,
+		timing->hs_prep_dly_ckln);
 
 	return 0;
 }
@@ -175,19 +407,6 @@ static int dsi_phy_regulator_init(struct msm_dsi_phy *phy)
 		dev_err(dev, "%s: failed to init regulator, ret=%d\n",
 						__func__, ret);
 		return ret;
-	}
-
-	for (i = 0; i < num; i++) {
-		if (regulator_can_change_voltage(s[i].consumer)) {
-			ret = regulator_set_voltage(s[i].consumer,
-				regs[i].min_voltage, regs[i].max_voltage);
-			if (ret < 0) {
-				dev_err(dev,
-					"regulator %d set voltage failed, %d\n",
-					i, ret);
-				return ret;
-			}
-		}
 	}
 
 	return 0;
@@ -263,7 +482,7 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 static void dsi_phy_disable_resource(struct msm_dsi_phy *phy)
 {
 	clk_disable_unprepare(phy->ahb_clk);
-	pm_runtime_put_sync(&phy->pdev->dev);
+	pm_runtime_put_autosuspend(&phy->pdev->dev);
 }
 
 static const struct of_device_id dsi_phy_dt_match[] = {
@@ -277,8 +496,62 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 	{ .compatible = "qcom,dsi-phy-20nm",
 	  .data = &dsi_phy_20nm_cfgs },
 #endif
+#ifdef CONFIG_DRM_MSM_DSI_28NM_8960_PHY
+	{ .compatible = "qcom,dsi-phy-28nm-8960",
+	  .data = &dsi_phy_28nm_8960_cfgs },
+#endif
+#ifdef CONFIG_DRM_MSM_DSI_14NM_PHY
+	{ .compatible = "qcom,dsi-phy-14nm",
+	  .data = &dsi_phy_14nm_cfgs },
+#endif
+#ifdef CONFIG_DRM_MSM_DSI_10NM_PHY
+	{ .compatible = "qcom,dsi-phy-10nm",
+	  .data = &dsi_phy_10nm_cfgs },
+#endif
 	{}
 };
+
+/*
+ * Currently, we only support one SoC for each PHY type. When we have multiple
+ * SoCs for the same PHY, we can try to make the index searching a bit more
+ * clever.
+ */
+static int dsi_phy_get_id(struct msm_dsi_phy *phy)
+{
+	struct platform_device *pdev = phy->pdev;
+	const struct msm_dsi_phy_cfg *cfg = phy->cfg;
+	struct resource *res;
+	int i;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dsi_phy");
+	if (!res)
+		return -EINVAL;
+
+	for (i = 0; i < cfg->num_dsi_phy; i++) {
+		if (cfg->io_start[i] == res->start)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+int msm_dsi_phy_init_common(struct msm_dsi_phy *phy)
+{
+	struct platform_device *pdev = phy->pdev;
+	int ret = 0;
+
+	phy->reg_base = msm_ioremap(pdev, "dsi_phy_regulator",
+				"DSI_PHY_REG");
+	if (IS_ERR(phy->reg_base)) {
+		dev_err(&pdev->dev, "%s: failed to map phy regulator base\n",
+			__func__);
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+fail:
+	return ret;
+}
 
 static int dsi_phy_driver_probe(struct platform_device *pdev)
 {
@@ -298,10 +571,10 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	phy->cfg = match->data;
 	phy->pdev = pdev;
 
-	ret = of_property_read_u32(dev->of_node,
-				"qcom,dsi-phy-index", &phy->id);
-	if (ret) {
-		dev_err(dev, "%s: PHY index not specified, %d\n",
+	phy->id = dsi_phy_get_id(phy);
+	if (phy->id < 0) {
+		ret = phy->id;
+		dev_err(dev, "%s: couldn't identify PHY index, %d\n",
 			__func__, ret);
 		goto fail;
 	}
@@ -316,26 +589,23 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	phy->reg_base = msm_ioremap(pdev, "dsi_phy_regulator",
-				"DSI_PHY_REG");
-	if (IS_ERR(phy->reg_base)) {
-		dev_err(dev, "%s: failed to map phy regulator base\n",
-			__func__);
-		ret = -ENOMEM;
-		goto fail;
-	}
-
 	ret = dsi_phy_regulator_init(phy);
 	if (ret) {
 		dev_err(dev, "%s: failed to init regulator\n", __func__);
 		goto fail;
 	}
 
-	phy->ahb_clk = devm_clk_get(dev, "iface_clk");
+	phy->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(phy->ahb_clk)) {
 		dev_err(dev, "%s: Unable to get ahb clk\n", __func__);
 		ret = PTR_ERR(phy->ahb_clk);
 		goto fail;
+	}
+
+	if (phy->cfg->ops.init) {
+		ret = phy->cfg->ops.init(phy);
+		if (ret)
+			goto fail;
 	}
 
 	/* PLL init will call into clk_register which requires
@@ -346,10 +616,10 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 
 	phy->pll = msm_dsi_pll_init(pdev, phy->cfg->type, phy->id);
-	if (!phy->pll)
+	if (IS_ERR_OR_NULL(phy->pll))
 		dev_info(dev,
-			"%s: pll init failed, need separate pll clk driver\n",
-			__func__);
+			"%s: pll init failed: %ld, need separate pll clk driver\n",
+			__func__, PTR_ERR(phy->pll));
 
 	dsi_phy_disable_resource(phy);
 
@@ -395,7 +665,7 @@ void __exit msm_dsi_phy_driver_unregister(void)
 }
 
 int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
-	const unsigned long bit_rate, const unsigned long esc_rate)
+			struct msm_dsi_phy_clk_request *clk_req)
 {
 	struct device *dev = &phy->pdev->dev;
 	int ret;
@@ -403,21 +673,52 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	if (!phy || !phy->cfg->ops.enable)
 		return -EINVAL;
 
+	ret = dsi_phy_enable_resource(phy);
+	if (ret) {
+		dev_err(dev, "%s: resource enable failed, %d\n",
+			__func__, ret);
+		goto res_en_fail;
+	}
+
 	ret = dsi_phy_regulator_enable(phy);
 	if (ret) {
 		dev_err(dev, "%s: regulator enable failed, %d\n",
 			__func__, ret);
-		return ret;
+		goto reg_en_fail;
 	}
 
-	ret = phy->cfg->ops.enable(phy, src_pll_id, bit_rate, esc_rate);
+	ret = phy->cfg->ops.enable(phy, src_pll_id, clk_req);
 	if (ret) {
 		dev_err(dev, "%s: phy enable failed, %d\n", __func__, ret);
-		dsi_phy_regulator_disable(phy);
-		return ret;
+		goto phy_en_fail;
+	}
+
+	/*
+	 * Resetting DSI PHY silently changes its PLL registers to reset status,
+	 * which will confuse clock driver and result in wrong output rate of
+	 * link clocks. Restore PLL status if its PLL is being used as clock
+	 * source.
+	 */
+	if (phy->usecase != MSM_DSI_PHY_SLAVE) {
+		ret = msm_dsi_pll_restore_state(phy->pll);
+		if (ret) {
+			dev_err(dev, "%s: failed to restore pll state, %d\n",
+				__func__, ret);
+			goto pll_restor_fail;
+		}
 	}
 
 	return 0;
+
+pll_restor_fail:
+	if (phy->cfg->ops.disable)
+		phy->cfg->ops.disable(phy);
+phy_en_fail:
+	dsi_phy_regulator_disable(phy);
+reg_en_fail:
+	dsi_phy_disable_resource(phy);
+res_en_fail:
+	return ret;
 }
 
 void msm_dsi_phy_disable(struct msm_dsi_phy *phy)
@@ -425,21 +726,21 @@ void msm_dsi_phy_disable(struct msm_dsi_phy *phy)
 	if (!phy || !phy->cfg->ops.disable)
 		return;
 
+	/* Save PLL status if it is a clock source */
+	if (phy->usecase != MSM_DSI_PHY_SLAVE)
+		msm_dsi_pll_save_state(phy->pll);
+
 	phy->cfg->ops.disable(phy);
 
 	dsi_phy_regulator_disable(phy);
+	dsi_phy_disable_resource(phy);
 }
 
-void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,
-					u32 *clk_pre, u32 *clk_post)
+void msm_dsi_phy_get_shared_timings(struct msm_dsi_phy *phy,
+			struct msm_dsi_phy_shared_timings *shared_timings)
 {
-	if (!phy)
-		return;
-
-	if (clk_pre)
-		*clk_pre = phy->timing.clk_pre;
-	if (clk_post)
-		*clk_post = phy->timing.clk_post;
+	memcpy(shared_timings, &phy->timing.shared_timings,
+	       sizeof(*shared_timings));
 }
 
 struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy)
@@ -450,3 +751,9 @@ struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy)
 	return phy->pll;
 }
 
+void msm_dsi_phy_set_usecase(struct msm_dsi_phy *phy,
+			     enum msm_dsi_phy_usecase uc)
+{
+	if (phy)
+		phy->usecase = uc;
+}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Library implementing the most common irq chip callback functions
  *
@@ -135,17 +136,26 @@ void irq_gc_ack_clr_bit(struct irq_data *d)
 }
 
 /**
- * irq_gc_mask_disable_reg_and_ack - Mask and ack pending interrupt
+ * irq_gc_mask_disable_and_ack_set - Mask and ack pending interrupt
  * @d: irq_data
+ *
+ * This generic implementation of the irq_mask_ack method is for chips
+ * with separate enable/disable registers instead of a single mask
+ * register and where a pending interrupt is acknowledged by setting a
+ * bit.
+ *
+ * Note: This is the only permutation currently used.  Similar generic
+ * functions should be added here if other permutations are required.
  */
-void irq_gc_mask_disable_reg_and_ack(struct irq_data *d)
+void irq_gc_mask_disable_and_ack_set(struct irq_data *d)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	u32 mask = d->mask;
 
 	irq_gc_lock(gc);
-	irq_reg_writel(gc, mask, ct->regs.mask);
+	irq_reg_writel(gc, mask, ct->regs.disable);
+	*ct->mask_cache &= ~mask;
 	irq_reg_writel(gc, mask, ct->regs.ack);
 	irq_gc_unlock(gc);
 }
@@ -201,10 +211,9 @@ static void irq_writel_be(u32 val, void __iomem *addr)
 	iowrite32be(val, addr);
 }
 
-static void
-irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
-		      int num_ct, unsigned int irq_base,
-		      void __iomem *reg_base, irq_flow_handler_t handler)
+void irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
+			   int num_ct, unsigned int irq_base,
+			   void __iomem *reg_base, irq_flow_handler_t handler)
 {
 	raw_spin_lock_init(&gc->lock);
 	gc->num_ct = num_ct;
@@ -260,9 +269,9 @@ irq_gc_init_mask_cache(struct irq_chip_generic *gc, enum irq_gc_flags flags)
 }
 
 /**
- * irq_alloc_domain_generic_chip - Allocate generic chips for an irq domain
+ * __irq_alloc_domain_generic_chip - Allocate generic chips for an irq domain
  * @d:			irq domain for which to allocate chips
- * @irqs_per_chip:	Number of interrupts each chip handles
+ * @irqs_per_chip:	Number of interrupts each chip handles (max 32)
  * @num_ct:		Number of irq_chip_type instances associated with this
  * @name:		Name of the irq chip
  * @handler:		Default flow handler associated with these chips
@@ -270,11 +279,11 @@ irq_gc_init_mask_cache(struct irq_chip_generic *gc, enum irq_gc_flags flags)
  * @set:		IRQ_* bits to set in the mapping function
  * @gcflags:		Generic chip specific setup flags
  */
-int irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
-				   int num_ct, const char *name,
-				   irq_flow_handler_t handler,
-				   unsigned int clr, unsigned int set,
-				   enum irq_gc_flags gcflags)
+int __irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
+				     int num_ct, const char *name,
+				     irq_flow_handler_t handler,
+				     unsigned int clr, unsigned int set,
+				     enum irq_gc_flags gcflags)
 {
 	struct irq_domain_chip_generic *dgc;
 	struct irq_chip_generic *gc;
@@ -323,10 +332,23 @@ int irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
 		/* Calc pointer to the next generic chip */
 		tmp += sizeof(*gc) + num_ct * sizeof(struct irq_chip_type);
 	}
-	d->name = name;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(irq_alloc_domain_generic_chips);
+EXPORT_SYMBOL_GPL(__irq_alloc_domain_generic_chips);
+
+static struct irq_chip_generic *
+__irq_get_domain_generic_chip(struct irq_domain *d, unsigned int hw_irq)
+{
+	struct irq_domain_chip_generic *dgc = d->gc;
+	int idx;
+
+	if (!dgc)
+		return ERR_PTR(-ENODEV);
+	idx = hw_irq / dgc->irqs_per_chip;
+	if (idx >= dgc->num_chips)
+		return ERR_PTR(-EINVAL);
+	return dgc->gc[idx];
+}
 
 /**
  * irq_get_domain_generic_chip - Get a pointer to the generic chip of a hw_irq
@@ -336,23 +358,18 @@ EXPORT_SYMBOL_GPL(irq_alloc_domain_generic_chips);
 struct irq_chip_generic *
 irq_get_domain_generic_chip(struct irq_domain *d, unsigned int hw_irq)
 {
-	struct irq_domain_chip_generic *dgc = d->gc;
-	int idx;
+	struct irq_chip_generic *gc = __irq_get_domain_generic_chip(d, hw_irq);
 
-	if (!dgc)
-		return NULL;
-	idx = hw_irq / dgc->irqs_per_chip;
-	if (idx >= dgc->num_chips)
-		return NULL;
-	return dgc->gc[idx];
+	return !IS_ERR(gc) ? gc : NULL;
 }
 EXPORT_SYMBOL_GPL(irq_get_domain_generic_chip);
 
 /*
- * Separate lockdep class for interrupt chip which can nest irq_desc
- * lock.
+ * Separate lockdep classes for interrupt chip which can nest irq_desc
+ * lock and request mutex.
  */
 static struct lock_class_key irq_nested_lock_class;
+static struct lock_class_key irq_nested_request_class;
 
 /*
  * irq_map_generic_chip - Map a generic chip for an irq domain
@@ -368,13 +385,9 @@ int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 	unsigned long flags;
 	int idx;
 
-	if (!d->gc)
-		return -ENODEV;
-
-	idx = hw_irq / dgc->irqs_per_chip;
-	if (idx >= dgc->num_chips)
-		return -EINVAL;
-	gc = dgc->gc[idx];
+	gc = __irq_get_domain_generic_chip(d, hw_irq);
+	if (IS_ERR(gc))
+		return PTR_ERR(gc);
 
 	idx = hw_irq % dgc->irqs_per_chip;
 
@@ -398,7 +411,8 @@ int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 	set_bit(idx, &gc->installed);
 
 	if (dgc->gc_flags & IRQ_GC_INIT_NESTED_LOCK)
-		irq_set_lockdep_class(virq, &irq_nested_lock_class);
+		irq_set_lockdep_class(virq, &irq_nested_lock_class,
+				      &irq_nested_request_class);
 
 	if (chip->irq_calc_mask)
 		chip->irq_calc_mask(data);
@@ -409,10 +423,30 @@ int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 	irq_modify_status(virq, dgc->irq_flags_to_clear, dgc->irq_flags_to_set);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(irq_map_generic_chip);
+
+static void irq_unmap_generic_chip(struct irq_domain *d, unsigned int virq)
+{
+	struct irq_data *data = irq_domain_get_irq_data(d, virq);
+	struct irq_domain_chip_generic *dgc = d->gc;
+	unsigned int hw_irq = data->hwirq;
+	struct irq_chip_generic *gc;
+	int irq_idx;
+
+	gc = irq_get_domain_generic_chip(d, hw_irq);
+	if (!gc)
+		return;
+
+	irq_idx = hw_irq % dgc->irqs_per_chip;
+
+	clear_bit(irq_idx, &gc->installed);
+	irq_domain_set_info(d, virq, hw_irq, &no_irq_chip, NULL, NULL, NULL,
+			    NULL);
+
+}
 
 struct irq_domain_ops irq_generic_chip_ops = {
 	.map	= irq_map_generic_chip,
+	.unmap  = irq_unmap_generic_chip,
 	.xlate	= irq_domain_xlate_onetwocell,
 };
 EXPORT_SYMBOL_GPL(irq_generic_chip_ops);
@@ -448,7 +482,8 @@ void irq_setup_generic_chip(struct irq_chip_generic *gc, u32 msk,
 			continue;
 
 		if (flags & IRQ_GC_INIT_NESTED_LOCK)
-			irq_set_lockdep_class(i, &irq_nested_lock_class);
+			irq_set_lockdep_class(i, &irq_nested_lock_class,
+					      &irq_nested_request_class);
 
 		if (!(flags & IRQ_GC_NO_MASK)) {
 			struct irq_data *d = irq_get_irq_data(i);

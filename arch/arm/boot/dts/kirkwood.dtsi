@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /include/ "skeleton.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -27,7 +28,7 @@
 	       i2c0 = &i2c0;
 	};
 
-	mbus {
+	mbus@f1000000 {
 		compatible = "marvell,kirkwood-mbus", "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
@@ -40,7 +41,7 @@
 		pcie-mem-aperture = <0xe0000000 0x10000000>; /* 256 MiB memory space */
 		pcie-io-aperture  = <0xf2000000 0x100000>;   /*   1 MiB    I/O space */
 
-		nand: nand@012f {
+		nand: nand@12f {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			cle = <0>;
@@ -56,7 +57,7 @@
 			status = "disabled";
 		};
 
-		crypto_sram: sa-sram@0301 {
+		crypto_sram: sa-sram@301 {
 			compatible = "mmio-sram";
 			reg = <MBUS_ID(0x03, 0x01) 0x0 0x800>;
 			clocks = <&gate_clk 17>;

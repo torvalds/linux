@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "util.h"
-#include "string.h"
+#include "string2.h"
 #include "strfilter.h"
+
+#include <errno.h>
+#include "sane_ctype.h"
 
 /* Operators */
 static const char *OP_and	= "&";	/* Logical AND */
@@ -269,6 +273,7 @@ static int strfilter_node__sprint(struct strfilter_node *node, char *buf)
 		len = strfilter_node__sprint_pt(node->l, buf);
 		if (len < 0)
 			return len;
+		__fallthrough;
 	case '!':
 		if (buf) {
 			*(buf + len++) = *node->p;

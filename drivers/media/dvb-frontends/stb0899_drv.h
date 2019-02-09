@@ -25,7 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define STB0899_TSMODE_SERIAL		1
 #define STB0899_CLKPOL_FALLING		2
@@ -82,7 +82,7 @@ enum stb0899_inversion {
  * 1. POWER ON/OFF		(index 0)
  * 2. FE_HAS_LOCK/LOCK_LOSS	(index 1)
  *
- * @gpio 	= one of the above listed GPIO's
+ * @gpio	= one of the above listed GPIO's
  * @level	= output state: pulled up or low
  */
 struct stb0899_postproc {

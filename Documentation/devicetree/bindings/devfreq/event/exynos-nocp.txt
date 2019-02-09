@@ -1,0 +1,26 @@
+
+* Samsung Exynos NoC (Network on Chip) Probe device
+
+The Samsung Exynos542x SoC has NoC (Network on Chip) Probe for NoC bus.
+NoC provides the primitive values to get the performance data. The packets
+that the Network on Chip (NoC) probes detects are transported over
+the network infrastructure to observer units. You can configure probes to
+capture packets with header or data on the data request response network,
+or as traffic debug or statistic collectors. Exynos542x bus has multiple
+NoC probes to provide bandwidth information about behavior of the SoC
+that you can use while analyzing system performance.
+
+Required properties:
+- compatible: Should be "samsung,exynos5420-nocp"
+- reg: physical base address of each NoC Probe and length of memory mapped region.
+
+Optional properties:
+- clock-names : the name of clock used by the NoC Probe, "nocp"
+- clocks : phandles for clock specified in "clock-names" property
+
+Example : NoC Probe nodes in Device Tree are listed below.
+
+	nocp_mem0_0: nocp@10ca1000 {
+		compatible = "samsung,exynos5420-nocp";
+		reg = <0x10CA1000 0x200>;
+	};

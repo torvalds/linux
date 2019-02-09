@@ -24,19 +24,19 @@
 #define WIFI_AFEPLL_CONFIGS              BIT(7)
 #define WIFI_SWITCH_CLK_CONFIGS          BIT(8)
 
-#define TA_PLL_M_VAL_20                  8
-#define TA_PLL_N_VAL_20                  1
+#define TA_PLL_M_VAL_20                  9
+#define TA_PLL_N_VAL_20                  0
 #define TA_PLL_P_VAL_20                  4
 
 #define PLL960_M_VAL_20                  0x14
 #define PLL960_N_VAL_20                  0
 #define PLL960_P_VAL_20                  5
 
-#define UMAC_CLK_40MHZ                   40
+#define UMAC_CLK_40MHZ                   80
 
-#define TA_PLL_M_VAL_40                  46
-#define TA_PLL_N_VAL_40                  3
-#define TA_PLL_P_VAL_40                  3
+#define TA_PLL_M_VAL_40                  9
+#define TA_PLL_N_VAL_40                  0
+#define TA_PLL_P_VAL_40                  4
 
 #define PLL960_M_VAL_40                  0x14
 #define PLL960_N_VAL_40                  0
@@ -46,7 +46,8 @@
 	(((TA_PLL_M_VAL_20 + 1) * 40) / \
 	 ((TA_PLL_N_VAL_20 + 1) * (TA_PLL_P_VAL_20 + 1)))
 #define VALID_20 \
-	(WIFI_PLL960_CONFIGS | WIFI_AFEPLL_CONFIGS | WIFI_SWITCH_CLK_CONFIGS)
+	(WIFI_TAPLL_CONFIGS | WIFI_PLL960_CONFIGS | WIFI_AFEPLL_CONFIGS | \
+	 WIFI_SWITCH_CLK_CONFIGS | BOOTUP_MODE_INFO | CRYSTAL_GOOD_TIME)
 #define UMAC_CLK_40BW   \
 	(((TA_PLL_M_VAL_40 + 1) * 40) / \
 	 ((TA_PLL_N_VAL_40 + 1) * (TA_PLL_P_VAL_40 + 1)))
@@ -122,5 +123,8 @@ struct bootup_params {
 	/* dcdc modes configs */
 	__le32 dcdc_operation_mode;
 	__le32 soc_reset_wait_cnt;
+	__le32 waiting_time_at_fresh_sleep;
+	__le32 max_threshold_to_avoid_sleep;
+	u8 beacon_resedue_alg_en;
 } __packed;
 #endif

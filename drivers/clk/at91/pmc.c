@@ -12,35 +12,17 @@
 #include <linux/clkdev.h>
 #include <linux/clk/at91_pmc.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/io.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/irqchip/chained_irq.h>
-#include <linux/irqdomain.h>
-#include <linux/of_irq.h>
+#include <linux/mfd/syscon.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/proc-fns.h>
 
 #include "pmc.h"
 
-void __iomem *at91_pmc_base;
-EXPORT_SYMBOL_GPL(at91_pmc_base);
-
-void at91rm9200_idle(void)
-{
-	/*
-	 * Disable the processor clock.  The processor will be automatically
-	 * re-enabled by an interrupt or by a reset.
-	 */
-	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
-}
-
-void at91sam9_idle(void)
-{
-	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
-	cpu_do_idle();
-}
+#define PMC_MAX_IDS 128
+#define PMC_MAX_PCKS 8
 
 int of_at91_get_clk_range(struct device_node *np, const char *propname,
 			  struct clk_range *range)
@@ -65,401 +47,169 @@ int of_at91_get_clk_range(struct device_node *np, const char *propname,
 }
 EXPORT_SYMBOL_GPL(of_at91_get_clk_range);
 
-static void pmc_irq_mask(struct irq_data *d)
-{
-	struct at91_pmc *pmc = irq_data_get_irq_chip_data(d);
+#ifdef CONFIG_PM
+static struct regmap *pmcreg;
 
-	pmc_write(pmc, AT91_PMC_IDR, 1 << d->hwirq);
+static u8 registered_ids[PMC_MAX_IDS];
+static u8 registered_pcks[PMC_MAX_PCKS];
+
+static struct
+{
+	u32 scsr;
+	u32 pcsr0;
+	u32 uckr;
+	u32 mor;
+	u32 mcfr;
+	u32 pllar;
+	u32 mckr;
+	u32 usb;
+	u32 imr;
+	u32 pcsr1;
+	u32 pcr[PMC_MAX_IDS];
+	u32 audio_pll0;
+	u32 audio_pll1;
+	u32 pckr[PMC_MAX_PCKS];
+} pmc_cache;
+
+/*
+ * As Peripheral ID 0 is invalid on AT91 chips, the identifier is stored
+ * without alteration in the table, and 0 is for unused clocks.
+ */
+void pmc_register_id(u8 id)
+{
+	int i;
+
+	for (i = 0; i < PMC_MAX_IDS; i++) {
+		if (registered_ids[i] == 0) {
+			registered_ids[i] = id;
+			break;
+		}
+		if (registered_ids[i] == id)
+			break;
+	}
 }
 
-static void pmc_irq_unmask(struct irq_data *d)
+/*
+ * As Programmable Clock 0 is valid on AT91 chips, there is an offset
+ * of 1 between the stored value and the real clock ID.
+ */
+void pmc_register_pck(u8 pck)
 {
-	struct at91_pmc *pmc = irq_data_get_irq_chip_data(d);
+	int i;
 
-	pmc_write(pmc, AT91_PMC_IER, 1 << d->hwirq);
+	for (i = 0; i < PMC_MAX_PCKS; i++) {
+		if (registered_pcks[i] == 0) {
+			registered_pcks[i] = pck + 1;
+			break;
+		}
+		if (registered_pcks[i] == (pck + 1))
+			break;
+	}
 }
 
-static int pmc_irq_set_type(struct irq_data *d, unsigned type)
+static int pmc_suspend(void)
 {
-	if (type != IRQ_TYPE_LEVEL_HIGH) {
-		pr_warn("PMC: type not supported (support only IRQ_TYPE_LEVEL_HIGH type)\n");
-		return -EINVAL;
+	int i;
+	u8 num;
+
+	regmap_read(pmcreg, AT91_PMC_SCSR, &pmc_cache.scsr);
+	regmap_read(pmcreg, AT91_PMC_PCSR, &pmc_cache.pcsr0);
+	regmap_read(pmcreg, AT91_CKGR_UCKR, &pmc_cache.uckr);
+	regmap_read(pmcreg, AT91_CKGR_MOR, &pmc_cache.mor);
+	regmap_read(pmcreg, AT91_CKGR_MCFR, &pmc_cache.mcfr);
+	regmap_read(pmcreg, AT91_CKGR_PLLAR, &pmc_cache.pllar);
+	regmap_read(pmcreg, AT91_PMC_MCKR, &pmc_cache.mckr);
+	regmap_read(pmcreg, AT91_PMC_USB, &pmc_cache.usb);
+	regmap_read(pmcreg, AT91_PMC_IMR, &pmc_cache.imr);
+	regmap_read(pmcreg, AT91_PMC_PCSR1, &pmc_cache.pcsr1);
+
+	for (i = 0; registered_ids[i]; i++) {
+		regmap_write(pmcreg, AT91_PMC_PCR,
+			     (registered_ids[i] & AT91_PMC_PCR_PID_MASK));
+		regmap_read(pmcreg, AT91_PMC_PCR,
+			    &pmc_cache.pcr[registered_ids[i]]);
+	}
+	for (i = 0; registered_pcks[i]; i++) {
+		num = registered_pcks[i] - 1;
+		regmap_read(pmcreg, AT91_PMC_PCKR(num), &pmc_cache.pckr[num]);
 	}
 
 	return 0;
 }
 
-static void pmc_irq_suspend(struct irq_data *d)
+static bool pmc_ready(unsigned int mask)
 {
-	struct at91_pmc *pmc = irq_data_get_irq_chip_data(d);
+	unsigned int status;
 
-	pmc->imr = pmc_read(pmc, AT91_PMC_IMR);
-	pmc_write(pmc, AT91_PMC_IDR, pmc->imr);
+	regmap_read(pmcreg, AT91_PMC_SR, &status);
+
+	return ((status & mask) == mask) ? 1 : 0;
 }
 
-static void pmc_irq_resume(struct irq_data *d)
+static void pmc_resume(void)
 {
-	struct at91_pmc *pmc = irq_data_get_irq_chip_data(d);
+	int i;
+	u8 num;
+	u32 tmp;
+	u32 mask = AT91_PMC_MCKRDY | AT91_PMC_LOCKA;
 
-	pmc_write(pmc, AT91_PMC_IER, pmc->imr);
-}
+	regmap_read(pmcreg, AT91_PMC_MCKR, &tmp);
+	if (pmc_cache.mckr != tmp)
+		pr_warn("MCKR was not configured properly by the firmware\n");
+	regmap_read(pmcreg, AT91_CKGR_PLLAR, &tmp);
+	if (pmc_cache.pllar != tmp)
+		pr_warn("PLLAR was not configured properly by the firmware\n");
 
-static struct irq_chip pmc_irq = {
-	.name = "PMC",
-	.irq_disable = pmc_irq_mask,
-	.irq_mask = pmc_irq_mask,
-	.irq_unmask = pmc_irq_unmask,
-	.irq_set_type = pmc_irq_set_type,
-	.irq_suspend = pmc_irq_suspend,
-	.irq_resume = pmc_irq_resume,
-};
+	regmap_write(pmcreg, AT91_PMC_SCER, pmc_cache.scsr);
+	regmap_write(pmcreg, AT91_PMC_PCER, pmc_cache.pcsr0);
+	regmap_write(pmcreg, AT91_CKGR_UCKR, pmc_cache.uckr);
+	regmap_write(pmcreg, AT91_CKGR_MOR, pmc_cache.mor);
+	regmap_write(pmcreg, AT91_CKGR_MCFR, pmc_cache.mcfr);
+	regmap_write(pmcreg, AT91_PMC_USB, pmc_cache.usb);
+	regmap_write(pmcreg, AT91_PMC_IMR, pmc_cache.imr);
+	regmap_write(pmcreg, AT91_PMC_PCER1, pmc_cache.pcsr1);
 
-static struct lock_class_key pmc_lock_class;
-
-static int pmc_irq_map(struct irq_domain *h, unsigned int virq,
-		       irq_hw_number_t hw)
-{
-	struct at91_pmc	*pmc = h->host_data;
-
-	irq_set_lockdep_class(virq, &pmc_lock_class);
-
-	irq_set_chip_and_handler(virq, &pmc_irq,
-				 handle_level_irq);
-	irq_set_chip_data(virq, pmc);
-
-	return 0;
-}
-
-static int pmc_irq_domain_xlate(struct irq_domain *d,
-				struct device_node *ctrlr,
-				const u32 *intspec, unsigned int intsize,
-				irq_hw_number_t *out_hwirq,
-				unsigned int *out_type)
-{
-	struct at91_pmc *pmc = d->host_data;
-	const struct at91_pmc_caps *caps = pmc->caps;
-
-	if (WARN_ON(intsize < 1))
-		return -EINVAL;
-
-	*out_hwirq = intspec[0];
-
-	if (!(caps->available_irqs & (1 << *out_hwirq)))
-		return -EINVAL;
-
-	*out_type = IRQ_TYPE_LEVEL_HIGH;
-
-	return 0;
-}
-
-static const struct irq_domain_ops pmc_irq_ops = {
-	.map	= pmc_irq_map,
-	.xlate	= pmc_irq_domain_xlate,
-};
-
-static irqreturn_t pmc_irq_handler(int irq, void *data)
-{
-	struct at91_pmc *pmc = (struct at91_pmc *)data;
-	unsigned long sr;
-	int n;
-
-	sr = pmc_read(pmc, AT91_PMC_SR) & pmc_read(pmc, AT91_PMC_IMR);
-	if (!sr)
-		return IRQ_NONE;
-
-	for_each_set_bit(n, &sr, BITS_PER_LONG)
-		generic_handle_irq(irq_find_mapping(pmc->irqdomain, n));
-
-	return IRQ_HANDLED;
-}
-
-static const struct at91_pmc_caps at91rm9200_caps = {
-	.available_irqs = AT91_PMC_MOSCS | AT91_PMC_LOCKA | AT91_PMC_LOCKB |
-			  AT91_PMC_MCKRDY | AT91_PMC_PCK0RDY |
-			  AT91_PMC_PCK1RDY | AT91_PMC_PCK2RDY |
-			  AT91_PMC_PCK3RDY,
-};
-
-static const struct at91_pmc_caps at91sam9260_caps = {
-	.available_irqs = AT91_PMC_MOSCS | AT91_PMC_LOCKA | AT91_PMC_LOCKB |
-			  AT91_PMC_MCKRDY | AT91_PMC_PCK0RDY |
-			  AT91_PMC_PCK1RDY,
-};
-
-static const struct at91_pmc_caps at91sam9g45_caps = {
-	.available_irqs = AT91_PMC_MOSCS | AT91_PMC_LOCKA | AT91_PMC_MCKRDY |
-			  AT91_PMC_LOCKU | AT91_PMC_PCK0RDY |
-			  AT91_PMC_PCK1RDY,
-};
-
-static const struct at91_pmc_caps at91sam9n12_caps = {
-	.available_irqs = AT91_PMC_MOSCS | AT91_PMC_LOCKA | AT91_PMC_LOCKB |
-			  AT91_PMC_MCKRDY | AT91_PMC_PCK0RDY |
-			  AT91_PMC_PCK1RDY | AT91_PMC_MOSCSELS |
-			  AT91_PMC_MOSCRCS | AT91_PMC_CFDEV,
-};
-
-static const struct at91_pmc_caps at91sam9x5_caps = {
-	.available_irqs = AT91_PMC_MOSCS | AT91_PMC_LOCKA | AT91_PMC_MCKRDY |
-			  AT91_PMC_LOCKU | AT91_PMC_PCK0RDY |
-			  AT91_PMC_PCK1RDY | AT91_PMC_MOSCSELS |
-			  AT91_PMC_MOSCRCS | AT91_PMC_CFDEV,
-};
-
-static const struct at91_pmc_caps sama5d2_caps = {
-	.available_irqs = AT91_PMC_MOSCS | AT91_PMC_LOCKA | AT91_PMC_MCKRDY |
-			  AT91_PMC_LOCKU | AT91_PMC_PCK0RDY |
-			  AT91_PMC_PCK1RDY | AT91_PMC_PCK2RDY |
-			  AT91_PMC_MOSCSELS | AT91_PMC_MOSCRCS |
-			  AT91_PMC_CFDEV | AT91_PMC_GCKRDY,
-};
-
-static const struct at91_pmc_caps sama5d3_caps = {
-	.available_irqs = AT91_PMC_MOSCS | AT91_PMC_LOCKA | AT91_PMC_MCKRDY |
-			  AT91_PMC_LOCKU | AT91_PMC_PCK0RDY |
-			  AT91_PMC_PCK1RDY | AT91_PMC_PCK2RDY |
-			  AT91_PMC_MOSCSELS | AT91_PMC_MOSCRCS |
-			  AT91_PMC_CFDEV,
-};
-
-static struct at91_pmc *__init at91_pmc_init(struct device_node *np,
-					     void __iomem *regbase, int virq,
-					     const struct at91_pmc_caps *caps)
-{
-	struct at91_pmc *pmc;
-
-	if (!regbase || !virq ||  !caps)
-		return NULL;
-
-	at91_pmc_base = regbase;
-
-	pmc = kzalloc(sizeof(*pmc), GFP_KERNEL);
-	if (!pmc)
-		return NULL;
-
-	spin_lock_init(&pmc->lock);
-	pmc->regbase = regbase;
-	pmc->virq = virq;
-	pmc->caps = caps;
-
-	pmc->irqdomain = irq_domain_add_linear(np, 32, &pmc_irq_ops, pmc);
-
-	if (!pmc->irqdomain)
-		goto out_free_pmc;
-
-	pmc_write(pmc, AT91_PMC_IDR, 0xffffffff);
-	if (request_irq(pmc->virq, pmc_irq_handler,
-			IRQF_SHARED | IRQF_COND_SUSPEND, "pmc", pmc))
-		goto out_remove_irqdomain;
-
-	return pmc;
-
-out_remove_irqdomain:
-	irq_domain_remove(pmc->irqdomain);
-out_free_pmc:
-	kfree(pmc);
-
-	return NULL;
-}
-
-static const struct of_device_id pmc_clk_ids[] __initconst = {
-	/* Slow oscillator */
-	{
-		.compatible = "atmel,at91sam9260-clk-slow",
-		.data = of_at91sam9260_clk_slow_setup,
-	},
-	/* Main clock */
-	{
-		.compatible = "atmel,at91rm9200-clk-main-osc",
-		.data = of_at91rm9200_clk_main_osc_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9x5-clk-main-rc-osc",
-		.data = of_at91sam9x5_clk_main_rc_osc_setup,
-	},
-	{
-		.compatible = "atmel,at91rm9200-clk-main",
-		.data = of_at91rm9200_clk_main_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9x5-clk-main",
-		.data = of_at91sam9x5_clk_main_setup,
-	},
-	/* PLL clocks */
-	{
-		.compatible = "atmel,at91rm9200-clk-pll",
-		.data = of_at91rm9200_clk_pll_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9g45-clk-pll",
-		.data = of_at91sam9g45_clk_pll_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9g20-clk-pllb",
-		.data = of_at91sam9g20_clk_pllb_setup,
-	},
-	{
-		.compatible = "atmel,sama5d3-clk-pll",
-		.data = of_sama5d3_clk_pll_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9x5-clk-plldiv",
-		.data = of_at91sam9x5_clk_plldiv_setup,
-	},
-	/* Master clock */
-	{
-		.compatible = "atmel,at91rm9200-clk-master",
-		.data = of_at91rm9200_clk_master_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9x5-clk-master",
-		.data = of_at91sam9x5_clk_master_setup,
-	},
-	/* System clocks */
-	{
-		.compatible = "atmel,at91rm9200-clk-system",
-		.data = of_at91rm9200_clk_sys_setup,
-	},
-	/* Peripheral clocks */
-	{
-		.compatible = "atmel,at91rm9200-clk-peripheral",
-		.data = of_at91rm9200_clk_periph_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9x5-clk-peripheral",
-		.data = of_at91sam9x5_clk_periph_setup,
-	},
-	/* Programmable clocks */
-	{
-		.compatible = "atmel,at91rm9200-clk-programmable",
-		.data = of_at91rm9200_clk_prog_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9g45-clk-programmable",
-		.data = of_at91sam9g45_clk_prog_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9x5-clk-programmable",
-		.data = of_at91sam9x5_clk_prog_setup,
-	},
-	/* UTMI clock */
-#if defined(CONFIG_HAVE_AT91_UTMI)
-	{
-		.compatible = "atmel,at91sam9x5-clk-utmi",
-		.data = of_at91sam9x5_clk_utmi_setup,
-	},
-#endif
-	/* USB clock */
-#if defined(CONFIG_HAVE_AT91_USB_CLK)
-	{
-		.compatible = "atmel,at91rm9200-clk-usb",
-		.data = of_at91rm9200_clk_usb_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9x5-clk-usb",
-		.data = of_at91sam9x5_clk_usb_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9n12-clk-usb",
-		.data = of_at91sam9n12_clk_usb_setup,
-	},
-#endif
-	/* SMD clock */
-#if defined(CONFIG_HAVE_AT91_SMD)
-	{
-		.compatible = "atmel,at91sam9x5-clk-smd",
-		.data = of_at91sam9x5_clk_smd_setup,
-	},
-#endif
-#if defined(CONFIG_HAVE_AT91_H32MX)
-	{
-		.compatible = "atmel,sama5d4-clk-h32mx",
-		.data = of_sama5d4_clk_h32mx_setup,
-	},
-#endif
-#if defined(CONFIG_HAVE_AT91_GENERATED_CLK)
-	{
-		.compatible = "atmel,sama5d2-clk-generated",
-		.data = of_sama5d2_clk_generated_setup,
-	},
-#endif
-	{ /*sentinel*/ }
-};
-
-static void __init of_at91_pmc_setup(struct device_node *np,
-				     const struct at91_pmc_caps *caps)
-{
-	struct at91_pmc *pmc;
-	struct device_node *childnp;
-	void (*clk_setup)(struct device_node *, struct at91_pmc *);
-	const struct of_device_id *clk_id;
-	void __iomem *regbase = of_iomap(np, 0);
-	int virq;
-
-	if (!regbase)
-		return;
-
-	virq = irq_of_parse_and_map(np, 0);
-	if (!virq)
-		return;
-
-	pmc = at91_pmc_init(np, regbase, virq, caps);
-	if (!pmc)
-		return;
-	for_each_child_of_node(np, childnp) {
-		clk_id = of_match_node(pmc_clk_ids, childnp);
-		if (!clk_id)
-			continue;
-		clk_setup = clk_id->data;
-		clk_setup(childnp, pmc);
+	for (i = 0; registered_ids[i]; i++) {
+		regmap_write(pmcreg, AT91_PMC_PCR,
+			     pmc_cache.pcr[registered_ids[i]] |
+			     AT91_PMC_PCR_CMD);
 	}
+	for (i = 0; registered_pcks[i]; i++) {
+		num = registered_pcks[i] - 1;
+		regmap_write(pmcreg, AT91_PMC_PCKR(num), pmc_cache.pckr[num]);
+	}
+
+	if (pmc_cache.uckr & AT91_PMC_UPLLEN)
+		mask |= AT91_PMC_LOCKU;
+
+	while (!pmc_ready(mask))
+		cpu_relax();
 }
 
-static void __init of_at91rm9200_pmc_setup(struct device_node *np)
-{
-	of_at91_pmc_setup(np, &at91rm9200_caps);
-}
-CLK_OF_DECLARE(at91rm9200_clk_pmc, "atmel,at91rm9200-pmc",
-	       of_at91rm9200_pmc_setup);
+static struct syscore_ops pmc_syscore_ops = {
+	.suspend = pmc_suspend,
+	.resume = pmc_resume,
+};
 
-static void __init of_at91sam9260_pmc_setup(struct device_node *np)
-{
-	of_at91_pmc_setup(np, &at91sam9260_caps);
-}
-CLK_OF_DECLARE(at91sam9260_clk_pmc, "atmel,at91sam9260-pmc",
-	       of_at91sam9260_pmc_setup);
+static const struct of_device_id sama5d2_pmc_dt_ids[] = {
+	{ .compatible = "atmel,sama5d2-pmc" },
+	{ /* sentinel */ }
+};
 
-static void __init of_at91sam9g45_pmc_setup(struct device_node *np)
+static int __init pmc_register_ops(void)
 {
-	of_at91_pmc_setup(np, &at91sam9g45_caps);
-}
-CLK_OF_DECLARE(at91sam9g45_clk_pmc, "atmel,at91sam9g45-pmc",
-	       of_at91sam9g45_pmc_setup);
+	struct device_node *np;
 
-static void __init of_at91sam9n12_pmc_setup(struct device_node *np)
-{
-	of_at91_pmc_setup(np, &at91sam9n12_caps);
-}
-CLK_OF_DECLARE(at91sam9n12_clk_pmc, "atmel,at91sam9n12-pmc",
-	       of_at91sam9n12_pmc_setup);
+	np = of_find_matching_node(NULL, sama5d2_pmc_dt_ids);
 
-static void __init of_at91sam9x5_pmc_setup(struct device_node *np)
-{
-	of_at91_pmc_setup(np, &at91sam9x5_caps);
-}
-CLK_OF_DECLARE(at91sam9x5_clk_pmc, "atmel,at91sam9x5-pmc",
-	       of_at91sam9x5_pmc_setup);
+	pmcreg = syscon_node_to_regmap(np);
+	if (IS_ERR(pmcreg))
+		return PTR_ERR(pmcreg);
 
-static void __init of_sama5d2_pmc_setup(struct device_node *np)
-{
-	of_at91_pmc_setup(np, &sama5d2_caps);
-}
-CLK_OF_DECLARE(sama5d2_clk_pmc, "atmel,sama5d2-pmc",
-	       of_sama5d2_pmc_setup);
+	register_syscore_ops(&pmc_syscore_ops);
 
-static void __init of_sama5d3_pmc_setup(struct device_node *np)
-{
-	of_at91_pmc_setup(np, &sama5d3_caps);
+	return 0;
 }
-CLK_OF_DECLARE(sama5d3_clk_pmc, "atmel,sama5d3-pmc",
-	       of_sama5d3_pmc_setup);
+/* This has to happen before arch_initcall because of the tcb_clksrc driver */
+postcore_initcall(pmc_register_ops);
+#endif

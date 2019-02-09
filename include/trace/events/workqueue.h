@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM workqueue
 
@@ -23,6 +24,8 @@ DECLARE_EVENT_CLASS(workqueue_work,
 
 	TP_printk("work struct %p", __entry->work)
 );
+
+struct pool_workqueue;
 
 /**
  * workqueue_queue_work - called when a work gets queued

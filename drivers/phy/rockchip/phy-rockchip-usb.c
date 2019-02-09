@@ -70,7 +70,7 @@ struct rockchip_usb_phy {
 };
 
 static int rockchip_usb_phy_power(struct rockchip_usb_phy *phy,
-				  bool siddq)
+					   bool siddq)
 {
 	u32 val = HIWORD_UPDATE(siddq ? UOC_CON0_SIDDQ : 0, UOC_CON0_SIDDQ);
 
@@ -194,7 +194,6 @@ static void rockchip_usb_phy_action(void *data)
 static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 				 struct device_node *child)
 {
-	struct device_node *np = base->dev->of_node;
 	struct rockchip_usb_phy *rk_phy;
 	unsigned int reg_offset;
 	const char *clk_name;
@@ -249,7 +248,7 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 			init.parent_names = &clk_name;
 			init.num_parents = 1;
 		} else {
-			init.flags = CLK_IS_ROOT;
+			init.flags = 0;
 			init.parent_names = NULL;
 			init.num_parents = 0;
 		}
@@ -264,14 +263,15 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 		}
 
 		err = of_clk_add_provider(child, of_clk_src_simple_get,
-					  rk_phy->clk480m);
+					rk_phy->clk480m);
 		if (err < 0)
 			goto err_clk_prov;
 	}
 
-	err = devm_add_action(base->dev, rockchip_usb_phy_action, rk_phy);
+	err = devm_add_action_or_reset(base->dev, rockchip_usb_phy_action,
+				       rk_phy);
 	if (err)
-		goto err_devm_action;
+		return err;
 
 	rk_phy->phy = devm_phy_create(base->dev, child, &ops);
 	if (IS_ERR(rk_phy->phy)) {
@@ -288,21 +288,6 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 	}
 
 	/*
-	 * Setting the COMMONONN to 1'b0 for EHCI PHY on RK3288 SoC.
-	 *
-	 * EHCI (auto) suspend causes the corresponding usb-phy into suspend
-	 * mode which would power down the inner PLL blocks in usb-phy if the
-	 * COMMONONN is set to 1'b1. The PLL output clocks contained CLK480M,
-	 * CLK12MOHCI, CLK48MOHCI, PHYCLOCK0 and so on, these clocks are not
-	 * only supplied for EHCI and OHCI, but also supplied for GPU and other
-	 * external modules, so setting COMMONONN to 1'b0 to keep the inner PLL
-	 * blocks in usb-phy always powered.
-	 */
-	if (of_device_is_compatible(np, "rockchip,rk3288-usb-phy") &&
-	    reg_offset == 0x334)
-		regmap_write(base->reg_base, reg_offset, BIT(16));
-
-	/*
 	 * When acting as uart-pipe, just keep clock on otherwise
 	 * only power up usb phy when it use, so disable it when init
 	 */
@@ -311,9 +296,6 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 	else
 		return rockchip_usb_phy_power(rk_phy, 1);
 
-err_devm_action:
-	if (!rk_phy->uart_enabled)
-		of_clk_del_provider(child);
 err_clk_prov:
 	if (!rk_phy->uart_enabled)
 		clk_unregister(rk_phy->clk480m);
@@ -348,9 +330,9 @@ static const struct rockchip_usb_phy_pdata rk3188_pdata = {
 
 #define RK3288_UOC0_CON3				0x32c
 #define RK3288_UOC0_CON3_UTMI_SUSPENDN			BIT(0)
-#define RK3288_UOC0_CON3_UTMI_OPMODE_NODRIVING		BIT(1)
+#define RK3288_UOC0_CON3_UTMI_OPMODE_NODRIVING		(1 << 1)
 #define RK3288_UOC0_CON3_UTMI_OPMODE_MASK		(3 << 1)
-#define RK3288_UOC0_CON3_UTMI_XCVRSEELCT_FSTRANSC	BIT(3)
+#define RK3288_UOC0_CON3_UTMI_XCVRSEELCT_FSTRANSC	(1 << 3)
 #define RK3288_UOC0_CON3_UTMI_XCVRSEELCT_MASK		(3 << 3)
 #define RK3288_UOC0_CON3_UTMI_TERMSEL_FULLSPEED		BIT(5)
 #define RK3288_UOC0_CON3_BYPASSDMEN			BIT(6)
@@ -550,7 +532,6 @@ static int __init rockchip_usb_uart(char *buf)
 	enable_usb_uart = true;
 	return 0;
 }
-
 early_param("rockchip.usb_uart", rockchip_usb_uart);
 #endif
 

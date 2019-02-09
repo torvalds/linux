@@ -13,11 +13,15 @@
 
 #include <linux/bcd.h>
 #include <linux/bitops.h>
+#include <linux/log2.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/rtc.h>
+
+#define RV8803_I2C_TRY_COUNT		4
 
 #define RV8803_SEC			0x00
 #define RV8803_MIN			0x01
@@ -49,25 +53,104 @@
 #define RV8803_CTRL_TIE			BIT(4)
 #define RV8803_CTRL_UIE			BIT(5)
 
+#define RX8900_BACKUP_CTRL		0x18
+#define RX8900_FLAG_SWOFF		BIT(2)
+#define RX8900_FLAG_VDETOFF		BIT(3)
+
+enum rv8803_type {
+	rv_8803,
+	rx_8900
+};
+
 struct rv8803_data {
 	struct i2c_client *client;
 	struct rtc_device *rtc;
-	spinlock_t flags_lock;
+	struct mutex flags_lock;
 	u8 ctrl;
+	enum rv8803_type type;
 };
+
+static int rv8803_read_reg(const struct i2c_client *client, u8 reg)
+{
+	int try = RV8803_I2C_TRY_COUNT;
+	s32 ret;
+
+	/*
+	 * There is a 61µs window during which the RTC does not acknowledge I2C
+	 * transfers. In that case, ensure that there are multiple attempts.
+	 */
+	do
+		ret = i2c_smbus_read_byte_data(client, reg);
+	while ((ret == -ENXIO || ret == -EIO) && --try);
+	if (ret < 0)
+		dev_err(&client->dev, "Unable to read register 0x%02x\n", reg);
+
+	return ret;
+}
+
+static int rv8803_read_regs(const struct i2c_client *client,
+			    u8 reg, u8 count, u8 *values)
+{
+	int try = RV8803_I2C_TRY_COUNT;
+	s32 ret;
+
+	do
+		ret = i2c_smbus_read_i2c_block_data(client, reg, count, values);
+	while ((ret == -ENXIO || ret == -EIO) && --try);
+	if (ret != count) {
+		dev_err(&client->dev,
+			"Unable to read registers 0x%02x..0x%02x\n",
+			reg, reg + count - 1);
+		return ret < 0 ? ret : -EIO;
+	}
+
+	return 0;
+}
+
+static int rv8803_write_reg(const struct i2c_client *client, u8 reg, u8 value)
+{
+	int try = RV8803_I2C_TRY_COUNT;
+	s32 ret;
+
+	do
+		ret = i2c_smbus_write_byte_data(client, reg, value);
+	while ((ret == -ENXIO || ret == -EIO) && --try);
+	if (ret)
+		dev_err(&client->dev, "Unable to write register 0x%02x\n", reg);
+
+	return ret;
+}
+
+static int rv8803_write_regs(const struct i2c_client *client,
+			     u8 reg, u8 count, const u8 *values)
+{
+	int try = RV8803_I2C_TRY_COUNT;
+	s32 ret;
+
+	do
+		ret = i2c_smbus_write_i2c_block_data(client, reg, count,
+						     values);
+	while ((ret == -ENXIO || ret == -EIO) && --try);
+	if (ret)
+		dev_err(&client->dev,
+			"Unable to write registers 0x%02x..0x%02x\n",
+			reg, reg + count - 1);
+
+	return ret;
+}
 
 static irqreturn_t rv8803_handle_irq(int irq, void *dev_id)
 {
 	struct i2c_client *client = dev_id;
 	struct rv8803_data *rv8803 = i2c_get_clientdata(client);
 	unsigned long events = 0;
-	u8 flags;
+	int flags;
 
-	spin_lock(&rv8803->flags_lock);
+	mutex_lock(&rv8803->flags_lock);
 
-	flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
+	flags = rv8803_read_reg(client, RV8803_FLAG);
 	if (flags <= 0) {
-		spin_unlock(&rv8803->flags_lock);
+		mutex_unlock(&rv8803->flags_lock);
 		return IRQ_NONE;
 	}
 
@@ -97,12 +180,11 @@ static irqreturn_t rv8803_handle_irq(int irq, void *dev_id)
 
 	if (events) {
 		rtc_update_irq(rv8803->rtc, 1, events);
-		i2c_smbus_write_byte_data(client, RV8803_FLAG, flags);
-		i2c_smbus_write_byte_data(rv8803->client, RV8803_CTRL,
-					  rv8803->ctrl);
+		rv8803_write_reg(client, RV8803_FLAG, flags);
+		rv8803_write_reg(rv8803->client, RV8803_CTRL, rv8803->ctrl);
 	}
 
-	spin_unlock(&rv8803->flags_lock);
+	mutex_unlock(&rv8803->flags_lock);
 
 	return IRQ_HANDLED;
 }
@@ -115,7 +197,7 @@ static int rv8803_get_time(struct device *dev, struct rtc_time *tm)
 	u8 *date = date1;
 	int ret, flags;
 
-	flags = i2c_smbus_read_byte_data(rv8803->client, RV8803_FLAG);
+	flags = rv8803_read_reg(rv8803->client, RV8803_FLAG);
 	if (flags < 0)
 		return flags;
 
@@ -124,16 +206,14 @@ static int rv8803_get_time(struct device *dev, struct rtc_time *tm)
 		return -EINVAL;
 	}
 
-	ret = i2c_smbus_read_i2c_block_data(rv8803->client, RV8803_SEC,
-					    7, date);
-	if (ret != 7)
-		return ret < 0 ? ret : -EIO;
+	ret = rv8803_read_regs(rv8803->client, RV8803_SEC, 7, date);
+	if (ret)
+		return ret;
 
 	if ((date1[RV8803_SEC] & 0x7f) == bin2bcd(59)) {
-		ret = i2c_smbus_read_i2c_block_data(rv8803->client, RV8803_SEC,
-						    7, date2);
-		if (ret != 7)
-			return ret < 0 ? ret : -EIO;
+		ret = rv8803_read_regs(rv8803->client, RV8803_SEC, 7, date2);
+		if (ret)
+			return ret;
 
 		if ((date2[RV8803_SEC] & 0x7f) != bin2bcd(59))
 			date = date2;
@@ -142,23 +222,32 @@ static int rv8803_get_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_sec  = bcd2bin(date[RV8803_SEC] & 0x7f);
 	tm->tm_min  = bcd2bin(date[RV8803_MIN] & 0x7f);
 	tm->tm_hour = bcd2bin(date[RV8803_HOUR] & 0x3f);
-	tm->tm_wday = ffs(date[RV8803_WEEK] & 0x7f);
+	tm->tm_wday = ilog2(date[RV8803_WEEK] & 0x7f);
 	tm->tm_mday = bcd2bin(date[RV8803_DAY] & 0x3f);
 	tm->tm_mon  = bcd2bin(date[RV8803_MONTH] & 0x1f) - 1;
 	tm->tm_year = bcd2bin(date[RV8803_YEAR]) + 100;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct rv8803_data *rv8803 = dev_get_drvdata(dev);
 	u8 date[7];
-	int flags, ret;
-	unsigned long irqflags;
+	int ctrl, flags, ret;
 
 	if ((tm->tm_year < 100) || (tm->tm_year > 199))
 		return -EINVAL;
+
+	ctrl = rv8803_read_reg(rv8803->client, RV8803_CTRL);
+	if (ctrl < 0)
+		return ctrl;
+
+	/* Stop the clock */
+	ret = rv8803_write_reg(rv8803->client, RV8803_CTRL,
+			       ctrl | RV8803_CTRL_RESET);
+	if (ret)
+		return ret;
 
 	date[RV8803_SEC]   = bin2bcd(tm->tm_sec);
 	date[RV8803_MIN]   = bin2bcd(tm->tm_min);
@@ -168,23 +257,28 @@ static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 	date[RV8803_MONTH] = bin2bcd(tm->tm_mon + 1);
 	date[RV8803_YEAR]  = bin2bcd(tm->tm_year - 100);
 
-	ret = i2c_smbus_write_i2c_block_data(rv8803->client, RV8803_SEC,
-					     7, date);
-	if (ret < 0)
+	ret = rv8803_write_regs(rv8803->client, RV8803_SEC, 7, date);
+	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&rv8803->flags_lock, irqflags);
+	/* Restart the clock */
+	ret = rv8803_write_reg(rv8803->client, RV8803_CTRL,
+			       ctrl & ~RV8803_CTRL_RESET);
+	if (ret)
+		return ret;
 
-	flags = i2c_smbus_read_byte_data(rv8803->client, RV8803_FLAG);
+	mutex_lock(&rv8803->flags_lock);
+
+	flags = rv8803_read_reg(rv8803->client, RV8803_FLAG);
 	if (flags < 0) {
-		spin_unlock_irqrestore(&rv8803->flags_lock, irqflags);
+		mutex_unlock(&rv8803->flags_lock);
 		return flags;
 	}
 
-	ret = i2c_smbus_write_byte_data(rv8803->client, RV8803_FLAG,
-					flags & ~RV8803_FLAG_V2F);
+	ret = rv8803_write_reg(rv8803->client, RV8803_FLAG,
+			       flags & ~(RV8803_FLAG_V1F | RV8803_FLAG_V2F));
 
-	spin_unlock_irqrestore(&rv8803->flags_lock, irqflags);
+	mutex_unlock(&rv8803->flags_lock);
 
 	return ret;
 }
@@ -196,22 +290,18 @@ static int rv8803_get_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u8 alarmvals[3];
 	int flags, ret;
 
-	ret = i2c_smbus_read_i2c_block_data(client, RV8803_ALARM_MIN,
-					    3, alarmvals);
-	if (ret != 3)
-		return ret < 0 ? ret : -EIO;
+	ret = rv8803_read_regs(client, RV8803_ALARM_MIN, 3, alarmvals);
+	if (ret)
+		return ret;
 
-	flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
+	flags = rv8803_read_reg(client, RV8803_FLAG);
 	if (flags < 0)
 		return flags;
 
 	alrm->time.tm_sec  = 0;
 	alrm->time.tm_min  = bcd2bin(alarmvals[0] & 0x7f);
 	alrm->time.tm_hour = bcd2bin(alarmvals[1] & 0x3f);
-	alrm->time.tm_wday = -1;
 	alrm->time.tm_mday = bcd2bin(alarmvals[2] & 0x3f);
-	alrm->time.tm_mon  = -1;
-	alrm->time.tm_year = -1;
 
 	alrm->enabled = !!(rv8803->ctrl & RV8803_CTRL_AIE);
 	alrm->pending = (flags & RV8803_FLAG_AF) && alrm->enabled;
@@ -226,7 +316,6 @@ static int rv8803_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u8 alarmvals[3];
 	u8 ctrl[2];
 	int ret, err;
-	unsigned long irqflags;
 
 	/* The alarm has no seconds, round up to nearest minute */
 	if (alrm->time.tm_sec) {
@@ -236,12 +325,12 @@ static int rv8803_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		rtc_time64_to_tm(alarm_time, &alrm->time);
 	}
 
-	spin_lock_irqsave(&rv8803->flags_lock, irqflags);
+	mutex_lock(&rv8803->flags_lock);
 
-	ret = i2c_smbus_read_i2c_block_data(client, RV8803_FLAG, 2, ctrl);
-	if (ret != 2) {
-		spin_unlock_irqrestore(&rv8803->flags_lock, irqflags);
-		return ret < 0 ? ret : -EIO;
+	ret = rv8803_read_regs(client, RV8803_FLAG, 2, ctrl);
+	if (ret) {
+		mutex_unlock(&rv8803->flags_lock);
+		return ret;
 	}
 
 	alarmvals[0] = bin2bcd(alrm->time.tm_min);
@@ -250,22 +339,21 @@ static int rv8803_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	if (rv8803->ctrl & (RV8803_CTRL_AIE | RV8803_CTRL_UIE)) {
 		rv8803->ctrl &= ~(RV8803_CTRL_AIE | RV8803_CTRL_UIE);
-		err = i2c_smbus_write_byte_data(rv8803->client, RV8803_CTRL,
-						rv8803->ctrl);
+		err = rv8803_write_reg(rv8803->client, RV8803_CTRL,
+				       rv8803->ctrl);
 		if (err) {
-			spin_unlock_irqrestore(&rv8803->flags_lock, irqflags);
+			mutex_unlock(&rv8803->flags_lock);
 			return err;
 		}
 	}
 
 	ctrl[1] &= ~RV8803_FLAG_AF;
-	err = i2c_smbus_write_byte_data(rv8803->client, RV8803_FLAG, ctrl[1]);
-	spin_unlock_irqrestore(&rv8803->flags_lock, irqflags);
+	err = rv8803_write_reg(rv8803->client, RV8803_FLAG, ctrl[1]);
+	mutex_unlock(&rv8803->flags_lock);
 	if (err)
 		return err;
 
-	err = i2c_smbus_write_i2c_block_data(rv8803->client, RV8803_ALARM_MIN,
-					     3, alarmvals);
+	err = rv8803_write_regs(rv8803->client, RV8803_ALARM_MIN, 3, alarmvals);
 	if (err)
 		return err;
 
@@ -275,8 +363,8 @@ static int rv8803_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		if (rv8803->rtc->aie_timer.enabled)
 			rv8803->ctrl |= RV8803_CTRL_AIE;
 
-		err = i2c_smbus_write_byte_data(rv8803->client, RV8803_CTRL,
-						rv8803->ctrl);
+		err = rv8803_write_reg(rv8803->client, RV8803_CTRL,
+				       rv8803->ctrl);
 		if (err)
 			return err;
 	}
@@ -289,7 +377,6 @@ static int rv8803_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rv8803_data *rv8803 = dev_get_drvdata(dev);
 	int ctrl, flags, err;
-	unsigned long irqflags;
 
 	ctrl = rv8803->ctrl;
 
@@ -305,22 +392,21 @@ static int rv8803_alarm_irq_enable(struct device *dev, unsigned int enabled)
 			ctrl &= ~RV8803_CTRL_AIE;
 	}
 
-	spin_lock_irqsave(&rv8803->flags_lock, irqflags);
-	flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
+	mutex_lock(&rv8803->flags_lock);
+	flags = rv8803_read_reg(client, RV8803_FLAG);
 	if (flags < 0) {
-		spin_unlock_irqrestore(&rv8803->flags_lock, irqflags);
+		mutex_unlock(&rv8803->flags_lock);
 		return flags;
 	}
 	flags &= ~(RV8803_FLAG_AF | RV8803_FLAG_UF);
-	err = i2c_smbus_write_byte_data(client, RV8803_FLAG, flags);
-	spin_unlock_irqrestore(&rv8803->flags_lock, irqflags);
+	err = rv8803_write_reg(client, RV8803_FLAG, flags);
+	mutex_unlock(&rv8803->flags_lock);
 	if (err)
 		return err;
 
 	if (ctrl != rv8803->ctrl) {
 		rv8803->ctrl = ctrl;
-		err = i2c_smbus_write_byte_data(client, RV8803_CTRL,
-						rv8803->ctrl);
+		err = rv8803_write_reg(client, RV8803_CTRL, rv8803->ctrl);
 		if (err)
 			return err;
 	}
@@ -333,11 +419,10 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rv8803_data *rv8803 = dev_get_drvdata(dev);
 	int flags, ret = 0;
-	unsigned long irqflags;
 
 	switch (cmd) {
 	case RTC_VL_READ:
-		flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
+		flags = rv8803_read_reg(client, RV8803_FLAG);
 		if (flags < 0)
 			return flags;
 
@@ -355,17 +440,17 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		return 0;
 
 	case RTC_VL_CLR:
-		spin_lock_irqsave(&rv8803->flags_lock, irqflags);
-		flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
+		mutex_lock(&rv8803->flags_lock);
+		flags = rv8803_read_reg(client, RV8803_FLAG);
 		if (flags < 0) {
-			spin_unlock_irqrestore(&rv8803->flags_lock, irqflags);
+			mutex_unlock(&rv8803->flags_lock);
 			return flags;
 		}
 
 		flags &= ~(RV8803_FLAG_V1F | RV8803_FLAG_V2F);
-		ret = i2c_smbus_write_byte_data(client, RV8803_FLAG, flags);
-		spin_unlock_irqrestore(&rv8803->flags_lock, irqflags);
-		if (ret < 0)
+		ret = rv8803_write_reg(client, RV8803_FLAG, flags);
+		mutex_unlock(&rv8803->flags_lock);
+		if (ret)
 			return ret;
 
 		return 0;
@@ -375,47 +460,31 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static ssize_t rv8803_nvram_write(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *attr,
-				  char *buf, loff_t off, size_t count)
+static int rv8803_nvram_write(void *priv, unsigned int offset, void *val,
+			      size_t bytes)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct i2c_client *client = to_i2c_client(dev);
 	int ret;
 
-	ret = i2c_smbus_write_byte_data(client, RV8803_RAM, buf[0]);
+	ret = rv8803_write_reg(priv, RV8803_RAM, *(u8 *)val);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int rv8803_nvram_read(void *priv, unsigned int offset,
+			     void *val, size_t bytes)
+{
+	int ret;
+
+	ret = rv8803_read_reg(priv, RV8803_RAM);
 	if (ret < 0)
 		return ret;
 
-	return 1;
+	*(u8 *)val = ret;
+
+	return 0;
 }
-
-static ssize_t rv8803_nvram_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *attr,
-				 char *buf, loff_t off, size_t count)
-{
-	struct device *dev = kobj_to_dev(kobj);
-	struct i2c_client *client = to_i2c_client(dev);
-	int ret;
-
-	ret = i2c_smbus_read_byte_data(client, RV8803_RAM);
-	if (ret < 0)
-		return ret;
-
-	buf[0] = ret;
-
-	return 1;
-}
-
-static struct bin_attribute rv8803_nvram_attr = {
-	.attr = {
-		.name = "nvram",
-		.mode = S_IRUGO | S_IWUSR,
-	},
-	.size = 1,
-	.read = rv8803_nvram_read,
-	.write = rv8803_nvram_write,
-};
 
 static struct rtc_class_ops rv8803_rtc_ops = {
 	.read_time = rv8803_get_time,
@@ -423,12 +492,50 @@ static struct rtc_class_ops rv8803_rtc_ops = {
 	.ioctl = rv8803_ioctl,
 };
 
+static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
+{
+	struct i2c_client *client = rv8803->client;
+	struct device_node *node = client->dev.of_node;
+	int err;
+	u8 flags;
+
+	if (!node)
+		return 0;
+
+	if (rv8803->type != rx_8900)
+		return 0;
+
+	err = i2c_smbus_read_byte_data(rv8803->client, RX8900_BACKUP_CTRL);
+	if (err < 0)
+		return err;
+
+	flags = ~(RX8900_FLAG_VDETOFF | RX8900_FLAG_SWOFF) & (u8)err;
+
+	if (of_property_read_bool(node, "epson,vdet-disable"))
+		flags |= RX8900_FLAG_VDETOFF;
+
+	if (of_property_read_bool(node, "trickle-diode-disable"))
+		flags |= RX8900_FLAG_SWOFF;
+
+	return i2c_smbus_write_byte_data(rv8803->client, RX8900_BACKUP_CTRL,
+					 flags);
+}
+
 static int rv8803_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct rv8803_data *rv8803;
 	int err, flags;
+	struct nvmem_config nvmem_cfg = {
+		.name = "rv8803_nvram",
+		.word_size = 1,
+		.stride = 1,
+		.size = 1,
+		.reg_read = rv8803_nvram_read,
+		.reg_write = rv8803_nvram_write,
+		.priv = client,
+	};
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_I2C_BLOCK)) {
@@ -441,10 +548,16 @@ static int rv8803_probe(struct i2c_client *client,
 	if (!rv8803)
 		return -ENOMEM;
 
+	mutex_init(&rv8803->flags_lock);
 	rv8803->client = client;
+	if (client->dev.of_node)
+		rv8803->type = (enum rv8803_type)
+			of_device_get_match_data(&client->dev);
+	else
+		rv8803->type = id->driver_data;
 	i2c_set_clientdata(client, rv8803);
 
-	flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
+	flags = rv8803_read_reg(client, RV8803_FLAG);
 	if (flags < 0)
 		return flags;
 
@@ -456,6 +569,11 @@ static int rv8803_probe(struct i2c_client *client,
 
 	if (flags & RV8803_FLAG_AF)
 		dev_warn(&client->dev, "An alarm maybe have been missed.\n");
+
+	rv8803->rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(rv8803->rtc)) {
+		return PTR_ERR(rv8803->rtc);
+	}
 
 	if (client->irq > 0) {
 		err = devm_request_threaded_irq(&client->dev, client->irq,
@@ -472,46 +590,55 @@ static int rv8803_probe(struct i2c_client *client,
 		}
 	}
 
-	rv8803->rtc = devm_rtc_device_register(&client->dev, client->name,
-					       &rv8803_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rv8803->rtc)) {
-		dev_err(&client->dev, "unable to register the class device\n");
-		return PTR_ERR(rv8803->rtc);
+	err = rv8803_write_reg(rv8803->client, RV8803_EXT, RV8803_EXT_WADA);
+	if (err)
+		return err;
+
+	err = rx8900_trickle_charger_init(rv8803);
+	if (err) {
+		dev_err(&client->dev, "failed to init charger\n");
+		return err;
 	}
 
-	err = i2c_smbus_write_byte_data(rv8803->client, RV8803_EXT,
-					RV8803_EXT_WADA);
+	rv8803->rtc->ops = &rv8803_rtc_ops;
+	rv8803->rtc->nvram_old_abi = true;
+	err = rtc_register_device(rv8803->rtc);
 	if (err)
 		return err;
 
-	err = device_create_bin_file(&client->dev, &rv8803_nvram_attr);
-	if (err)
-		return err;
+	rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
 
 	rv8803->rtc->max_user_freq = 1;
 
 	return 0;
 }
 
-static int rv8803_remove(struct i2c_client *client)
-{
-	device_remove_bin_file(&client->dev, &rv8803_nvram_attr);
-
-	return 0;
-}
-
 static const struct i2c_device_id rv8803_id[] = {
-	{ "rv8803", 0 },
+	{ "rv8803", rv_8803 },
+	{ "rx8900", rx_8900 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rv8803_id);
 
+static const struct of_device_id rv8803_of_match[] = {
+	{
+		.compatible = "microcrystal,rv8803",
+		.data = (void *)rx_8900
+	},
+	{
+		.compatible = "epson,rx8900",
+		.data = (void *)rx_8900
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rv8803_of_match);
+
 static struct i2c_driver rv8803_driver = {
 	.driver = {
 		.name = "rtc-rv8803",
+		.of_match_table = of_match_ptr(rv8803_of_match),
 	},
 	.probe		= rv8803_probe,
-	.remove		= rv8803_remove,
 	.id_table	= rv8803_id,
 };
 module_i2c_driver(rv8803_driver);

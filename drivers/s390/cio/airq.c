@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Support for adapter interruptions
  *
@@ -89,6 +90,7 @@ static irqreturn_t do_airq_interrupt(int irq, void *dummy)
 
 	set_cpu_flag(CIF_NOHZ_DELAY);
 	tpi_info = (struct tpi_info *) &get_irq_regs()->int_code;
+	trace_s390_cio_adapter_int(tpi_info);
 	head = &airq_lists[tpi_info->isc];
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(airq, head, list)

@@ -110,26 +110,28 @@ Type: system ioctl
 Parameters: machine type identifier (KVM_VM_*)
 Returns: a VM fd that can be used to control the new virtual machine.
 
-The new VM has no virtual cpus and no memory.  An mmap() of a VM fd
-will access the virtual machine's physical address space; offset zero
-corresponds to guest physical address zero.  Use of mmap() on a VM fd
-is discouraged if userspace memory allocation (KVM_CAP_USER_MEMORY) is
-available.
-You most certainly want to use 0 as machine type.
+The new VM has no virtual cpus and no memory.
+You probably want to use 0 as machine type.
 
 In order to create user controlled virtual machines on S390, check
 KVM_CAP_S390_UCONTROL and use the flag KVM_VM_S390_UCONTROL as
 privileged user (CAP_SYS_ADMIN).
 
+To use hardware assisted virtualization on MIPS (VZ ASE) rather than
+the default trap & emulate implementation (which changes the virtual
+memory layout to fit in user mode), check KVM_CAP_MIPS_VZ and use the
+flag KVM_VM_MIPS_VZ.
 
-4.3 KVM_GET_MSR_INDEX_LIST
 
-Capability: basic
+4.3 KVM_GET_MSR_INDEX_LIST, KVM_GET_MSR_FEATURE_INDEX_LIST
+
+Capability: basic, KVM_CAP_GET_MSR_FEATURES for KVM_GET_MSR_FEATURE_INDEX_LIST
 Architectures: x86
-Type: system
+Type: system ioctl
 Parameters: struct kvm_msr_list (in/out)
 Returns: 0 on success; -1 on error
 Errors:
+  EFAULT:    the msr index list cannot be read from or written to
   E2BIG:     the msr index list is to be to fit in the array specified by
              the user.
 
@@ -138,15 +140,22 @@ struct kvm_msr_list {
 	__u32 indices[0];
 };
 
-This ioctl returns the guest msrs that are supported.  The list varies
-by kvm version and host processor, but does not change otherwise.  The
-user fills in the size of the indices array in nmsrs, and in return
-kvm adjusts nmsrs to reflect the actual number of msrs and fills in
-the indices array with their numbers.
+The user fills in the size of the indices array in nmsrs, and in return
+kvm adjusts nmsrs to reflect the actual number of msrs and fills in the
+indices array with their numbers.
+
+KVM_GET_MSR_INDEX_LIST returns the guest msrs that are supported.  The list
+varies by kvm version and host processor, but does not change otherwise.
 
 Note: if kvm indicates supports MCE (KVM_CAP_MCE), then the MCE bank MSRs are
 not returned in the MSR list, as different vcpus can have a different number
 of banks, as set via the KVM_X86_SETUP_MCE ioctl.
+
+KVM_GET_MSR_FEATURE_INDEX_LIST returns the list of MSRs that can be passed
+to the KVM_GET_MSRS system ioctl.  This lets userspace probe host capabilities
+and processor features that are exposed via MSRs (e.g., VMX capabilities).
+This list also varies by kvm version and host processor, but does not change
+otherwise.
 
 
 4.4 KVM_CHECK_EXTENSION
@@ -199,8 +208,8 @@ Type: vm ioctl
 Parameters: vcpu id (apic id on x86)
 Returns: vcpu fd on success, -1 on error
 
-This API adds a vcpu to a virtual machine.  The vcpu id is a small integer
-in the range [0, max_vcpus).
+This API adds a vcpu to a virtual machine. No more than max_vcpus may be added.
+The vcpu id is an integer in the range [0, max_vcpu_id).
 
 The recommended max_vcpus value can be retrieved using the KVM_CAP_NR_VCPUS of
 the KVM_CHECK_EXTENSION ioctl() at run-time.
@@ -211,6 +220,12 @@ If the KVM_CAP_NR_VCPUS does not exist, you should assume that max_vcpus is 4
 cpus max.
 If the KVM_CAP_MAX_VCPUS does not exist, you should assume that max_vcpus is
 same as the value returned from KVM_CAP_NR_VCPUS.
+
+The maximum possible value for max_vcpu_id can be retrieved using the
+KVM_CAP_MAX_VCPU_ID of the KVM_CHECK_EXTENSION ioctl() at run-time.
+
+If the KVM_CAP_MAX_VCPU_ID does not exist, you should assume that max_vcpu_id
+is the same as the value returned from KVM_CAP_MAX_VCPUS.
 
 On powerpc using book3s_hv mode, the vcpus are mapped onto virtual
 threads in one or more virtual CPU cores.  (This is because the
@@ -468,14 +483,22 @@ Support for this has been removed.  Use KVM_SET_GUEST_DEBUG instead.
 
 4.18 KVM_GET_MSRS
 
-Capability: basic
+Capability: basic (vcpu), KVM_CAP_GET_MSR_FEATURES (system)
 Architectures: x86
-Type: vcpu ioctl
+Type: system ioctl, vcpu ioctl
 Parameters: struct kvm_msrs (in/out)
-Returns: 0 on success, -1 on error
+Returns: number of msrs successfully returned;
+        -1 on error
 
+When used as a system ioctl:
+Reads the values of MSR-based features that are available for the VM.  This
+is similar to KVM_GET_SUPPORTED_CPUID, but it returns MSR indices and values.
+The list of msr-based features can be obtained using KVM_GET_MSR_FEATURE_INDEX_LIST
+in a system ioctl.
+
+When used as a vcpu ioctl:
 Reads model-specific registers from the vcpu.  Supported msr indices can
-be obtained using KVM_GET_MSR_INDEX_LIST.
+be obtained using KVM_GET_MSR_INDEX_LIST in a system ioctl.
 
 struct kvm_msrs {
 	__u32 nmsrs; /* number of msrs in entries */
@@ -771,6 +794,17 @@ Gets the current timestamp of kvmclock as seen by the current guest. In
 conjunction with KVM_SET_CLOCK, it is used to ensure monotonicity on scenarios
 such as migration.
 
+When KVM_CAP_ADJUST_CLOCK is passed to KVM_CHECK_EXTENSION, it returns the
+set of bits that KVM can return in struct kvm_clock_data's flag member.
+
+The only flag defined now is KVM_CLOCK_TSC_STABLE.  If set, the returned
+value is the exact kvmclock value seen by all VCPUs at the instant
+when KVM_GET_CLOCK was called.  If clear, the returned value is simply
+CLOCK_MONOTONIC plus a constant offset; the offset can be modified
+with KVM_SET_CLOCK.  KVM will try to make all VCPUs follow this clock,
+but the exact value read by each VCPU could differ, because the host
+TSC is not stable.
+
 struct kvm_clock_data {
 	__u64 clock;  /* kvmclock current value */
 	__u32 flags;
@@ -801,10 +835,12 @@ struct kvm_clock_data {
 
 Capability: KVM_CAP_VCPU_EVENTS
 Extended by: KVM_CAP_INTR_SHADOW
-Architectures: x86
-Type: vm ioctl
+Architectures: x86, arm, arm64
+Type: vcpu ioctl
 Parameters: struct kvm_vcpu_event (out)
 Returns: 0 on success, -1 on error
+
+X86:
 
 Gets currently pending exceptions, interrupts, and NMIs as well as related
 states of the vcpu.
@@ -847,14 +883,63 @@ Only two fields are defined in the flags field:
 - KVM_VCPUEVENT_VALID_SMM may be set in the flags field to signal that
   smi contains a valid state.
 
+ARM/ARM64:
+
+If the guest accesses a device that is being emulated by the host kernel in
+such a way that a real device would generate a physical SError, KVM may make
+a virtual SError pending for that VCPU. This system error interrupt remains
+pending until the guest takes the exception by unmasking PSTATE.A.
+
+Running the VCPU may cause it to take a pending SError, or make an access that
+causes an SError to become pending. The event's description is only valid while
+the VPCU is not running.
+
+This API provides a way to read and write the pending 'event' state that is not
+visible to the guest. To save, restore or migrate a VCPU the struct representing
+the state can be read then written using this GET/SET API, along with the other
+guest-visible registers. It is not possible to 'cancel' an SError that has been
+made pending.
+
+A device being emulated in user-space may also wish to generate an SError. To do
+this the events structure can be populated by user-space. The current state
+should be read first, to ensure no existing SError is pending. If an existing
+SError is pending, the architecture's 'Multiple SError interrupts' rules should
+be followed. (2.5.3 of DDI0587.a "ARM Reliability, Availability, and
+Serviceability (RAS) Specification").
+
+SError exceptions always have an ESR value. Some CPUs have the ability to
+specify what the virtual SError's ESR value should be. These systems will
+advertise KVM_CAP_ARM_INJECT_SERROR_ESR. In this case exception.has_esr will
+always have a non-zero value when read, and the agent making an SError pending
+should specify the ISS field in the lower 24 bits of exception.serror_esr. If
+the system supports KVM_CAP_ARM_INJECT_SERROR_ESR, but user-space sets the events
+with exception.has_esr as zero, KVM will choose an ESR.
+
+Specifying exception.has_esr on a system that does not support it will return
+-EINVAL. Setting anything other than the lower 24bits of exception.serror_esr
+will return -EINVAL.
+
+struct kvm_vcpu_events {
+	struct {
+		__u8 serror_pending;
+		__u8 serror_has_esr;
+		/* Align it to 8 bytes */
+		__u8 pad[6];
+		__u64 serror_esr;
+	} exception;
+	__u32 reserved[12];
+};
+
 4.32 KVM_SET_VCPU_EVENTS
 
 Capability: KVM_CAP_VCPU_EVENTS
 Extended by: KVM_CAP_INTR_SHADOW
-Architectures: x86
-Type: vm ioctl
+Architectures: x86, arm, arm64
+Type: vcpu ioctl
 Parameters: struct kvm_vcpu_event (in)
 Returns: 0 on success, -1 on error
+
+X86:
 
 Set pending exceptions, interrupts, and NMIs as well as related states of the
 vcpu.
@@ -875,6 +960,13 @@ the flags field to signal that interrupt.shadow contains a valid state and
 shall be written into the VCPU.
 
 KVM_VCPUEVENT_VALID_SMM can only be set if KVM_CAP_X86_SMM is available.
+
+ARM/ARM64:
+
+Set the pending SError exception state for this VCPU. It is not possible to
+'cancel' an Serror that has been made pending.
+
+See KVM_GET_VCPU_EVENTS for the data structure.
 
 
 4.33 KVM_GET_DEBUGREGS
@@ -934,6 +1026,10 @@ This ioctl allows the user to create or modify a guest physical memory
 slot.  When changing an existing slot, it may be moved in the guest
 physical memory space, or its flags may be modified.  It may not be
 resized.  Slots may not overlap in guest physical address space.
+Bits 0-15 of "slot" specifies the slot id and this value should be
+less than the maximum number of user memory slots supported per VM.
+The maximum allowed slots can be queried using KVM_CAP_NR_MEMSLOTS,
+if this capability is supported by the architecture.
 
 If KVM_CAP_MULTI_ADDRESS_SPACE is available, bits 16-31 of "slot"
 specifies the address space which is being modified.  They must be
@@ -1102,10 +1198,14 @@ guest physical address space and must not conflict with any memory slot
 or any mmio address.  The guest may malfunction if it accesses this memory
 region.
 
+Setting the address to 0 will result in resetting the address to its default
+(0xfffbc000).
+
 This ioctl is required on Intel-based hosts.  This is needed on Intel hardware
 because of a quirk in the virtualization implementation (see the internals
 documentation when it pops into existence).
 
+Fails if any VCPU has already been created.
 
 4.41 KVM_SET_BOOT_CPU_ID
 
@@ -1227,12 +1327,18 @@ struct kvm_cpuid_entry2 {
 	__u32 padding[3];
 };
 
-This ioctl returns x86 cpuid features which are supported by both the hardware
-and kvm.  Userspace can use the information returned by this ioctl to
-construct cpuid information (for KVM_SET_CPUID2) that is consistent with
-hardware, kernel, and userspace capabilities, and with user requirements (for
-example, the user may wish to constrain cpuid to emulate older hardware,
-or for feature consistency across a cluster).
+This ioctl returns x86 cpuid features which are supported by both the
+hardware and kvm in its default configuration.  Userspace can use the
+information returned by this ioctl to construct cpuid information (for
+KVM_SET_CPUID2) that is consistent with hardware, kernel, and
+userspace capabilities, and with user requirements (for example, the
+user may wish to constrain cpuid to emulate older hardware, or for
+feature consistency across a cluster).
+
+Note that certain capabilities, such as KVM_CAP_X86_DISABLE_EXITS, may
+expose cpuid features (e.g. MONITOR) which are not supported by kvm in
+its default configuration. If userspace enables such capabilities, it
+is responsible for modifying the results of this ioctl appropriately.
 
 Userspace invokes KVM_GET_SUPPORTED_CPUID by passing a kvm_cpuid2 structure
 with the 'nent' field indicating the number of entries in the variable-size
@@ -1300,139 +1406,18 @@ The flags bitmap is defined as:
    /* the host supports the ePAPR idle hcall
    #define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
 
-4.48 KVM_ASSIGN_PCI_DEVICE (deprecated)
-
-Capability: none
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_pci_dev (in)
-Returns: 0 on success, -1 on error
-
-Assigns a host PCI device to the VM.
-
-struct kvm_assigned_pci_dev {
-	__u32 assigned_dev_id;
-	__u32 busnr;
-	__u32 devfn;
-	__u32 flags;
-	__u32 segnr;
-	union {
-		__u32 reserved[11];
-	};
-};
-
-The PCI device is specified by the triple segnr, busnr, and devfn.
-Identification in succeeding service requests is done via assigned_dev_id. The
-following flags are specified:
-
-/* Depends on KVM_CAP_IOMMU */
-#define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
-/* The following two depend on KVM_CAP_PCI_2_3 */
-#define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)
-#define KVM_DEV_ASSIGN_MASK_INTX	(1 << 2)
-
-If KVM_DEV_ASSIGN_PCI_2_3 is set, the kernel will manage legacy INTx interrupts
-via the PCI-2.3-compliant device-level mask, thus enable IRQ sharing with other
-assigned devices or host devices. KVM_DEV_ASSIGN_MASK_INTX specifies the
-guest's view on the INTx mask, see KVM_ASSIGN_SET_INTX_MASK for details.
-
-The KVM_DEV_ASSIGN_ENABLE_IOMMU flag is a mandatory option to ensure
-isolation of the device.  Usages not specifying this flag are deprecated.
-
-Only PCI header type 0 devices with PCI BAR resources are supported by
-device assignment.  The user requesting this ioctl must have read/write
-access to the PCI sysfs resource files associated with the device.
-
-Errors:
-  ENOTTY: kernel does not support this ioctl
-
-  Other error conditions may be defined by individual device types or
-  have their standard meanings.
-
-
-4.49 KVM_DEASSIGN_PCI_DEVICE (deprecated)
-
-Capability: none
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_pci_dev (in)
-Returns: 0 on success, -1 on error
-
-Ends PCI device assignment, releasing all associated resources.
-
-See KVM_ASSIGN_PCI_DEVICE for the data structure. Only assigned_dev_id is
-used in kvm_assigned_pci_dev to identify the device.
-
-Errors:
-  ENOTTY: kernel does not support this ioctl
-
-  Other error conditions may be defined by individual device types or
-  have their standard meanings.
-
-4.50 KVM_ASSIGN_DEV_IRQ (deprecated)
-
-Capability: KVM_CAP_ASSIGN_DEV_IRQ
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_irq (in)
-Returns: 0 on success, -1 on error
-
-Assigns an IRQ to a passed-through device.
-
-struct kvm_assigned_irq {
-	__u32 assigned_dev_id;
-	__u32 host_irq; /* ignored (legacy field) */
-	__u32 guest_irq;
-	__u32 flags;
-	union {
-		__u32 reserved[12];
-	};
-};
-
-The following flags are defined:
-
-#define KVM_DEV_IRQ_HOST_INTX    (1 << 0)
-#define KVM_DEV_IRQ_HOST_MSI     (1 << 1)
-#define KVM_DEV_IRQ_HOST_MSIX    (1 << 2)
-
-#define KVM_DEV_IRQ_GUEST_INTX   (1 << 8)
-#define KVM_DEV_IRQ_GUEST_MSI    (1 << 9)
-#define KVM_DEV_IRQ_GUEST_MSIX   (1 << 10)
-
-It is not valid to specify multiple types per host or guest IRQ. However, the
-IRQ type of host and guest can differ or can even be null.
-
-Errors:
-  ENOTTY: kernel does not support this ioctl
-
-  Other error conditions may be defined by individual device types or
-  have their standard meanings.
-
-
-4.51 KVM_DEASSIGN_DEV_IRQ (deprecated)
-
-Capability: KVM_CAP_ASSIGN_DEV_IRQ
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_irq (in)
-Returns: 0 on success, -1 on error
-
-Ends an IRQ assignment to a passed-through device.
-
-See KVM_ASSIGN_DEV_IRQ for the data structure. The target device is specified
-by assigned_dev_id, flags must correspond to the IRQ type specified on
-KVM_ASSIGN_DEV_IRQ. Partial deassignment of host or guest IRQ is allowed.
-
-
 4.52 KVM_SET_GSI_ROUTING
 
 Capability: KVM_CAP_IRQ_ROUTING
-Architectures: x86 s390
+Architectures: x86 s390 arm arm64
 Type: vm ioctl
 Parameters: struct kvm_irq_routing (in)
 Returns: 0 on success, -1 on error
 
 Sets the GSI routing table entries, overwriting any previously set entries.
+
+On arm/arm64, GSI routing has the following limitation:
+- GSI routing does not apply to KVM_IRQ_LINE but only to KVM_IRQFD.
 
 struct kvm_irq_routing {
 	__u32 nr;
@@ -1451,6 +1436,7 @@ struct kvm_irq_routing_entry {
 		struct kvm_irq_routing_irqchip irqchip;
 		struct kvm_irq_routing_msi msi;
 		struct kvm_irq_routing_s390_adapter adapter;
+		struct kvm_irq_routing_hv_sint hv_sint;
 		__u32 pad[8];
 	} u;
 };
@@ -1459,8 +1445,15 @@ struct kvm_irq_routing_entry {
 #define KVM_IRQ_ROUTING_IRQCHIP 1
 #define KVM_IRQ_ROUTING_MSI 2
 #define KVM_IRQ_ROUTING_S390_ADAPTER 3
+#define KVM_IRQ_ROUTING_HV_SINT 4
 
-No flags are specified so far, the corresponding field must be set to zero.
+flags:
+- KVM_MSI_VALID_DEVID: used along with KVM_IRQ_ROUTING_MSI routing entry
+  type, specifies that the devid field contains a valid value.  The per-VM
+  KVM_CAP_MSI_DEVID capability advertises the requirement to provide
+  the device ID.  If this capability is not available, userspace should
+  never set the KVM_MSI_VALID_DEVID flag as the ioctl might fail.
+- zero otherwise
 
 struct kvm_irq_routing_irqchip {
 	__u32 irqchip;
@@ -1471,8 +1464,20 @@ struct kvm_irq_routing_msi {
 	__u32 address_lo;
 	__u32 address_hi;
 	__u32 data;
-	__u32 pad;
+	union {
+		__u32 pad;
+		__u32 devid;
+	};
 };
+
+If KVM_MSI_VALID_DEVID is set, devid contains a unique device identifier
+for the device that wrote the MSI message.  For PCI, this is usually a
+BFD identifier in the lower 16 bits.
+
+On x86, address_hi is ignored unless the KVM_X2APIC_API_USE_32BIT_IDS
+feature of KVM_CAP_X2APIC_API capability is enabled.  If it is enabled,
+address_hi bits 31-8 provide bits 31-8 of the destination id.  Bits 7-0 of
+address_hi must be zero.
 
 struct kvm_irq_routing_s390_adapter {
 	__u64 ind_addr;
@@ -1482,52 +1487,10 @@ struct kvm_irq_routing_s390_adapter {
 	__u32 adapter_id;
 };
 
-
-4.53 KVM_ASSIGN_SET_MSIX_NR (deprecated)
-
-Capability: none
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_msix_nr (in)
-Returns: 0 on success, -1 on error
-
-Set the number of MSI-X interrupts for an assigned device. The number is
-reset again by terminating the MSI-X assignment of the device via
-KVM_DEASSIGN_DEV_IRQ. Calling this service more than once at any earlier
-point will fail.
-
-struct kvm_assigned_msix_nr {
-	__u32 assigned_dev_id;
-	__u16 entry_nr;
-	__u16 padding;
+struct kvm_irq_routing_hv_sint {
+	__u32 vcpu;
+	__u32 sint;
 };
-
-#define KVM_MAX_MSIX_PER_DEV		256
-
-
-4.54 KVM_ASSIGN_SET_MSIX_ENTRY (deprecated)
-
-Capability: none
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_msix_entry (in)
-Returns: 0 on success, -1 on error
-
-Specifies the routing of an MSI-X assigned device interrupt to a GSI. Setting
-the GSI vector to zero means disabling the interrupt.
-
-struct kvm_assigned_msix_entry {
-	__u32 assigned_dev_id;
-	__u32 gsi;
-	__u16 entry; /* The index of entry in the MSI-X table */
-	__u16 padding[3];
-};
-
-Errors:
-  ENOTTY: kernel does not support this ioctl
-
-  Other error conditions may be defined by individual device types or
-  have their standard meanings.
 
 
 4.55 KVM_SET_TSC_KHZ
@@ -1571,6 +1534,17 @@ struct kvm_lapic_state {
 Reads the Local APIC registers and copies them into the input argument.  The
 data format and layout are the same as documented in the architecture manual.
 
+If KVM_X2APIC_API_USE_32BIT_IDS feature of KVM_CAP_X2APIC_API is
+enabled, then the format of APIC_ID register depends on the APIC mode
+(reported by MSR_IA32_APICBASE) of its VCPU.  x2APIC stores APIC ID in
+the APIC_ID register (bytes 32-35).  xAPIC only allows an 8-bit APIC ID
+which is stored in bits 31-24 of the APIC register, or equivalently in
+byte 35 of struct kvm_lapic_state's regs field.  KVM_GET_LAPIC must then
+be called after MSR_IA32_APICBASE has been set with KVM_SET_MSR.
+
+If KVM_X2APIC_API_USE_32BIT_IDS feature is disabled, struct kvm_lapic_state
+always uses xAPIC format.
+
 
 4.58 KVM_SET_LAPIC
 
@@ -1587,6 +1561,10 @@ struct kvm_lapic_state {
 
 Copies the input argument into the Local APIC registers.  The data format
 and layout are the same as documented in the architecture manual.
+
+The format of the APIC ID register (bytes 32-35 of struct kvm_lapic_state's
+regs field) depends on the state of the KVM_CAP_X2APIC_API capability.
+See the note in KVM_GET_LAPIC.
 
 
 4.59 KVM_IOEVENTFD
@@ -1663,40 +1641,6 @@ This avoids any complications with differing word sizes.
 The "num_dirty" field is a performance hint for KVM to determine whether it
 should skip processing the bitmap and just invalidate everything.  It must
 be set to the number of set bits in the bitmap.
-
-
-4.61 KVM_ASSIGN_SET_INTX_MASK (deprecated)
-
-Capability: KVM_CAP_PCI_2_3
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_pci_dev (in)
-Returns: 0 on success, -1 on error
-
-Allows userspace to mask PCI INTx interrupts from the assigned device.  The
-kernel will not deliver INTx interrupts to the guest between setting and
-clearing of KVM_ASSIGN_SET_INTX_MASK via this interface.  This enables use of
-and emulation of PCI 2.3 INTx disable command register behavior.
-
-This may be used for both PCI 2.3 devices supporting INTx disable natively and
-older devices lacking this support. Userspace is responsible for emulating the
-read value of the INTx disable bit in the guest visible PCI command register.
-When modifying the INTx disable state, userspace should precede updating the
-physical device command register by calling this ioctl to inform the kernel of
-the new intended INTx mask state.
-
-Note that the kernel uses the device INTx disable bit to internally manage the
-device interrupt state for PCI 2.3 devices.  Reads of this register may
-therefore not match the expected value.  Writes should always use the guest
-intended INTx disable value rather than attempting to read-copy-update the
-current physical device state.  Races between user and kernel updates to the
-INTx disable bit are handled lazily in the kernel.  It's possible the device
-may generate unintended interrupts, but they will not be injected into the
-guest.
-
-See KVM_ASSIGN_DEV_IRQ for the data structure.  The target device is specified
-by assigned_dev_id.  In the flags field, only KVM_DEV_ASSIGN_MASK_INTX is
-evaluated.
 
 
 4.62 KVM_CREATE_SPAPR_TCE
@@ -1975,6 +1919,9 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_WORT              | 64
   PPC	| KVM_REG_PPC_SPRG9             | 64
   PPC	| KVM_REG_PPC_DBSR              | 32
+  PPC   | KVM_REG_PPC_TIDR              | 64
+  PPC   | KVM_REG_PPC_PSSCR             | 64
+  PPC   | KVM_REG_PPC_DEC_EXPIRY        | 64
   PPC   | KVM_REG_PPC_TM_GPR0           | 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31          | 64
@@ -1991,6 +1938,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TM_VSCR           | 32
   PPC   | KVM_REG_PPC_TM_DSCR           | 64
   PPC   | KVM_REG_PPC_TM_TAR            | 64
+  PPC   | KVM_REG_PPC_TM_XER            | 64
         |                               |
   MIPS  | KVM_REG_MIPS_R0               | 64
           ...
@@ -1999,19 +1947,35 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_LO               | 64
   MIPS  | KVM_REG_MIPS_PC               | 64
   MIPS  | KVM_REG_MIPS_CP0_INDEX        | 32
+  MIPS  | KVM_REG_MIPS_CP0_ENTRYLO0     | 64
+  MIPS  | KVM_REG_MIPS_CP0_ENTRYLO1     | 64
   MIPS  | KVM_REG_MIPS_CP0_CONTEXT      | 64
+  MIPS  | KVM_REG_MIPS_CP0_CONTEXTCONFIG| 32
   MIPS  | KVM_REG_MIPS_CP0_USERLOCAL    | 64
+  MIPS  | KVM_REG_MIPS_CP0_XCONTEXTCONFIG| 64
   MIPS  | KVM_REG_MIPS_CP0_PAGEMASK     | 32
+  MIPS  | KVM_REG_MIPS_CP0_PAGEGRAIN    | 32
+  MIPS  | KVM_REG_MIPS_CP0_SEGCTL0      | 64
+  MIPS  | KVM_REG_MIPS_CP0_SEGCTL1      | 64
+  MIPS  | KVM_REG_MIPS_CP0_SEGCTL2      | 64
+  MIPS  | KVM_REG_MIPS_CP0_PWBASE       | 64
+  MIPS  | KVM_REG_MIPS_CP0_PWFIELD      | 64
+  MIPS  | KVM_REG_MIPS_CP0_PWSIZE       | 64
   MIPS  | KVM_REG_MIPS_CP0_WIRED        | 32
+  MIPS  | KVM_REG_MIPS_CP0_PWCTL        | 32
   MIPS  | KVM_REG_MIPS_CP0_HWRENA       | 32
   MIPS  | KVM_REG_MIPS_CP0_BADVADDR     | 64
+  MIPS  | KVM_REG_MIPS_CP0_BADINSTR     | 32
+  MIPS  | KVM_REG_MIPS_CP0_BADINSTRP    | 32
   MIPS  | KVM_REG_MIPS_CP0_COUNT        | 32
   MIPS  | KVM_REG_MIPS_CP0_ENTRYHI      | 64
   MIPS  | KVM_REG_MIPS_CP0_COMPARE      | 32
   MIPS  | KVM_REG_MIPS_CP0_STATUS       | 32
+  MIPS  | KVM_REG_MIPS_CP0_INTCTL       | 32
   MIPS  | KVM_REG_MIPS_CP0_CAUSE        | 32
   MIPS  | KVM_REG_MIPS_CP0_EPC          | 64
   MIPS  | KVM_REG_MIPS_CP0_PRID         | 32
+  MIPS  | KVM_REG_MIPS_CP0_EBASE        | 64
   MIPS  | KVM_REG_MIPS_CP0_CONFIG       | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG1      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG2      | 32
@@ -2019,7 +1983,15 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_CONFIG4      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG5      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG7      | 32
+  MIPS  | KVM_REG_MIPS_CP0_XCONTEXT     | 64
   MIPS  | KVM_REG_MIPS_CP0_ERROREPC     | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH1    | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH2    | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH3    | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH4    | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH5    | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH6    | 64
+  MIPS  | KVM_REG_MIPS_CP0_MAAR(0..63)  | 64
   MIPS  | KVM_REG_MIPS_COUNT_CTL        | 64
   MIPS  | KVM_REG_MIPS_COUNT_RESUME     | 64
   MIPS  | KVM_REG_MIPS_COUNT_HZ         | 64
@@ -2052,6 +2024,9 @@ ARM 32-bit VFP control registers have the following id bit patterns:
 ARM 64-bit FP registers have the following id bit patterns:
   0x4030 0000 0012 0 <regno:12>
 
+ARM firmware pseudo-registers have the following bit pattern:
+  0x4030 0000 0014 <regno:16>
+
 
 arm64 registers are mapped using the lower 32 bits. The upper 16 of
 that is the register group type, or coprocessor number:
@@ -2068,6 +2043,9 @@ arm64 CCSIDR registers are demultiplexed by CSSELR value:
 arm64 system registers have the following id bit patterns:
   0x6030 0000 0013 <op0:2> <op1:3> <crn:4> <crm:4> <op2:3>
 
+arm64 firmware pseudo-registers have the following bit pattern:
+  0x6030 0000 0014 <regno:16>
+
 
 MIPS registers are mapped using the lower 32 bits.  The upper 16 of that is
 the register group type:
@@ -2079,6 +2057,16 @@ MIPS CP0 registers (see KVM_REG_MIPS_CP0_* above) have the following id bit
 patterns depending on whether they're 32-bit or 64-bit registers:
   0x7020 0000 0001 00 <reg:5> <sel:3>   (32-bit)
   0x7030 0000 0001 00 <reg:5> <sel:3>   (64-bit)
+
+Note: KVM_REG_MIPS_CP0_ENTRYLO0 and KVM_REG_MIPS_CP0_ENTRYLO1 are the MIPS64
+versions of the EntryLo registers regardless of the word size of the host
+hardware, host kernel, guest, and whether XPA is present in the guest, i.e.
+with the RI and XI bits (if they exist) in bits 63 and 62 respectively, and
+the PFNX field starting at bit 30.
+
+MIPS MAARs (see KVM_REG_MIPS_CP0_MAAR(*) above) have the following id bit
+patterns:
+  0x7030 0000 0001 01 <reg:8>
 
 MIPS KVM control registers (see above) have the following id bit patterns:
   0x7030 0000 0002 <reg:16>
@@ -2144,7 +2132,7 @@ after pausing the vcpu, but before it is resumed.
 4.71 KVM_SIGNAL_MSI
 
 Capability: KVM_CAP_SIGNAL_MSI
-Architectures: x86
+Architectures: x86 arm arm64
 Type: vm ioctl
 Parameters: struct kvm_msi (in)
 Returns: >0 on delivery, 0 if guest blocked the MSI, and -1 on error
@@ -2157,10 +2145,23 @@ struct kvm_msi {
 	__u32 address_hi;
 	__u32 data;
 	__u32 flags;
-	__u8  pad[16];
+	__u32 devid;
+	__u8  pad[12];
 };
 
-No flags are defined so far. The corresponding field must be 0.
+flags: KVM_MSI_VALID_DEVID: devid contains a valid value.  The per-VM
+  KVM_CAP_MSI_DEVID capability advertises the requirement to provide
+  the device ID.  If this capability is not available, userspace
+  should never set the KVM_MSI_VALID_DEVID flag as the ioctl might fail.
+
+If KVM_MSI_VALID_DEVID is set, devid contains a unique device identifier
+for the device that wrote the MSI message.  For PCI, this is usually a
+BFD identifier in the lower 16 bits.
+
+On x86, address_hi is ignored unless the KVM_X2APIC_API_USE_32BIT_IDS
+feature of KVM_CAP_X2APIC_API capability is enabled.  If it is enabled,
+address_hi bits 31-8 provide bits 31-8 of the destination id.  Bits 7-0 of
+address_hi must be zero.
 
 
 4.71 KVM_CREATE_PIT2
@@ -2333,9 +2334,13 @@ Note that closing the resamplefd is not sufficient to disable the
 irqfd.  The KVM_IRQFD_FLAG_RESAMPLE is only necessary on assignment
 and need not be specified with KVM_IRQFD_FLAG_DEASSIGN.
 
-On ARM/ARM64, the gsi field in the kvm_irqfd struct specifies the Shared
-Peripheral Interrupt (SPI) index, such that the GIC interrupt ID is
-given by gsi + 32.
+On arm/arm64, gsi routing being supported, the following can happen:
+- in case no routing entry is associated to this gsi, injection fails
+- in case the gsi is associated to an irqchip routing entry,
+  irqchip.pin + 32 corresponds to the injected SPI ID.
+- in case the gsi is associated to an MSI routing entry, the MSI
+  message and device ID are translated into an LPI (support restricted
+  to GICv3 ITS in-kernel emulation).
 
 4.76 KVM_PPC_ALLOCATE_HTAB
 
@@ -2358,18 +2363,20 @@ are, it will do nothing and return an EBUSY error.
 The parameter is a pointer to a 32-bit unsigned integer variable
 containing the order (log base 2) of the desired size of the hash
 table, which must be between 18 and 46.  On successful return from the
-ioctl, it will have been updated with the order of the hash table that
-was allocated.
+ioctl, the value will not be changed by the kernel.
 
 If no hash table has been allocated when any vcpu is asked to run
 (with the KVM_RUN ioctl), the host kernel will allocate a
 default-sized hash table (16 MB).
 
 If this ioctl is called when a hash table has already been allocated,
-the kernel will clear out the existing hash table (zero all HPTEs) and
-return the hash table order in the parameter.  (If the guest is using
-the virtualized real-mode area (VRMA) facility, the kernel will
-re-create the VMRA HPTEs on the next KVM_RUN of any vcpu.)
+with a different order from the existing hash table, the existing hash
+table will be freed and a new one allocated.  If this is ioctl is
+called when a hash table has already been allocated of the same order
+as specified, the kernel will clear out the existing hash table (zero
+all HPTEs).  In either case, if the guest is using the virtualized
+real-mode area (VRMA) facility, the kernel will re-create the VMRA
+HPTEs on the next KVM_RUN of any vcpu.
 
 4.77 KVM_S390_INTERRUPT
 
@@ -2501,12 +2508,14 @@ struct kvm_create_device {
 
 4.80 KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR
 
-Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device
-Type: device ioctl, vm ioctl
+Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
+  KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+Type: device ioctl, vm ioctl, vcpu ioctl
 Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
   ENXIO:  The group or attribute is unknown/unsupported for this device
+          or hardware support is missing.
   EPERM:  The attribute cannot (currently) be accessed this way
           (e.g. read-only attribute, or attribute that only makes
           sense when the device is in a different state)
@@ -2527,12 +2536,14 @@ struct kvm_device_attr {
 
 4.81 KVM_HAS_DEVICE_ATTR
 
-Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device
-Type: device ioctl, vm ioctl
+Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
+  KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+Type: device ioctl, vm ioctl, vcpu ioctl
 Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
   ENXIO:  The group or attribute is unknown/unsupported for this device
+          or hardware support is missing.
 
 Tests whether a device supports a particular attribute.  A successful
 return indicates the attribute is implemented.  It does not necessarily
@@ -2569,8 +2580,11 @@ Possible features:
 	  and execute guest code when KVM_RUN is called.
 	- KVM_ARM_VCPU_EL1_32BIT: Starts the CPU in a 32bit mode.
 	  Depends on KVM_CAP_ARM_EL1_32BIT (arm64 only).
-	- KVM_ARM_VCPU_PSCI_0_2: Emulate PSCI v0.2 for the CPU.
+	- KVM_ARM_VCPU_PSCI_0_2: Emulate PSCI v0.2 (or a future revision
+          backward compatible with v0.2) for the CPU.
 	  Depends on KVM_CAP_ARM_PSCI_0_2.
+	- KVM_ARM_VCPU_PMU_V3: Emulate PMUv3 for the CPU.
+	  Depends on KVM_CAP_ARM_PMU_V3.
 
 
 4.83 KVM_ARM_PREFERRED_TARGET
@@ -2975,13 +2989,18 @@ userspace buffer and its length:
 
 struct kvm_s390_irq_state {
 	__u64 buf;
-	__u32 flags;
+	__u32 flags;        /* will stay unused for compatibility reasons */
 	__u32 len;
-	__u32 reserved[4];
+	__u32 reserved[4];  /* will stay unused for compatibility reasons */
 };
 
 Userspace passes in the above struct and for each pending interrupt a
 struct kvm_s390_irq is copied to the provided buffer.
+
+The structure contains a flags and a reserved field for future extensions. As
+the kernel never checked for flags == 0 and QEMU never pre-zeroed flags and
+reserved, these fields can not be used in the future without breaking
+compatibility.
 
 If -ENOBUFS is returned the buffer provided was too small and userspace
 may retry with a bigger buffer.
@@ -3006,9 +3025,13 @@ containing a struct kvm_s390_irq_state:
 
 struct kvm_s390_irq_state {
 	__u64 buf;
+	__u32 flags;        /* will stay unused for compatibility reasons */
 	__u32 len;
-	__u32 pad;
+	__u32 reserved[4];  /* will stay unused for compatibility reasons */
 };
+
+The restrictions for flags and reserved apply as well.
+(see KVM_S390_GET_IRQ_STATE)
 
 The userspace memory referenced by buf contains a struct kvm_s390_irq
 for each interrupt to be injected into the guest.
@@ -3019,7 +3042,7 @@ len must be a multiple of sizeof(struct kvm_s390_irq). It must be > 0
 and it must not exceed (max_vcpus + 32) * sizeof(struct kvm_s390_irq),
 which is the maximum number of possibly pending cpu-local interrupts.
 
-4.90 KVM_SMI
+4.96 KVM_SMI
 
 Capability: KVM_CAP_X86_SMM
 Architectures: x86
@@ -3028,6 +3051,630 @@ Parameters: none
 Returns: 0 on success, -1 on error
 
 Queues an SMI on the thread's vcpu.
+
+4.97 KVM_CAP_PPC_MULTITCE
+
+Capability: KVM_CAP_PPC_MULTITCE
+Architectures: ppc
+Type: vm
+
+This capability means the kernel is capable of handling hypercalls
+H_PUT_TCE_INDIRECT and H_STUFF_TCE without passing those into the user
+space. This significantly accelerates DMA operations for PPC KVM guests.
+User space should expect that its handlers for these hypercalls
+are not going to be called if user space previously registered LIOBN
+in KVM (via KVM_CREATE_SPAPR_TCE or similar calls).
+
+In order to enable H_PUT_TCE_INDIRECT and H_STUFF_TCE use in the guest,
+user space might have to advertise it for the guest. For example,
+IBM pSeries (sPAPR) guest starts using them if "hcall-multi-tce" is
+present in the "ibm,hypertas-functions" device-tree property.
+
+The hypercalls mentioned above may or may not be processed successfully
+in the kernel based fast path. If they can not be handled by the kernel,
+they will get passed on to user space. So user space still has to have
+an implementation for these despite the in kernel acceleration.
+
+This capability is always enabled.
+
+4.98 KVM_CREATE_SPAPR_TCE_64
+
+Capability: KVM_CAP_SPAPR_TCE_64
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_create_spapr_tce_64 (in)
+Returns: file descriptor for manipulating the created TCE table
+
+This is an extension for KVM_CAP_SPAPR_TCE which only supports 32bit
+windows, described in 4.62 KVM_CREATE_SPAPR_TCE
+
+This capability uses extended struct in ioctl interface:
+
+/* for KVM_CAP_SPAPR_TCE_64 */
+struct kvm_create_spapr_tce_64 {
+	__u64 liobn;
+	__u32 page_shift;
+	__u32 flags;
+	__u64 offset;	/* in pages */
+	__u64 size; 	/* in pages */
+};
+
+The aim of extension is to support an additional bigger DMA window with
+a variable page size.
+KVM_CREATE_SPAPR_TCE_64 receives a 64bit window size, an IOMMU page shift and
+a bus offset of the corresponding DMA window, @size and @offset are numbers
+of IOMMU pages.
+
+@flags are not used at the moment.
+
+The rest of functionality is identical to KVM_CREATE_SPAPR_TCE.
+
+4.99 KVM_REINJECT_CONTROL
+
+Capability: KVM_CAP_REINJECT_CONTROL
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_reinject_control (in)
+Returns: 0 on success,
+         -EFAULT if struct kvm_reinject_control cannot be read,
+         -ENXIO if KVM_CREATE_PIT or KVM_CREATE_PIT2 didn't succeed earlier.
+
+i8254 (PIT) has two modes, reinject and !reinject.  The default is reinject,
+where KVM queues elapsed i8254 ticks and monitors completion of interrupt from
+vector(s) that i8254 injects.  Reinject mode dequeues a tick and injects its
+interrupt whenever there isn't a pending interrupt from i8254.
+!reinject mode injects an interrupt as soon as a tick arrives.
+
+struct kvm_reinject_control {
+	__u8 pit_reinject;
+	__u8 reserved[31];
+};
+
+pit_reinject = 0 (!reinject mode) is recommended, unless running an old
+operating system that uses the PIT for timing (e.g. Linux 2.4.x).
+
+4.100 KVM_PPC_CONFIGURE_V3_MMU
+
+Capability: KVM_CAP_PPC_RADIX_MMU or KVM_CAP_PPC_HASH_MMU_V3
+Architectures: ppc
+Type: vm ioctl
+Parameters: struct kvm_ppc_mmuv3_cfg (in)
+Returns: 0 on success,
+         -EFAULT if struct kvm_ppc_mmuv3_cfg cannot be read,
+         -EINVAL if the configuration is invalid
+
+This ioctl controls whether the guest will use radix or HPT (hashed
+page table) translation, and sets the pointer to the process table for
+the guest.
+
+struct kvm_ppc_mmuv3_cfg {
+	__u64	flags;
+	__u64	process_table;
+};
+
+There are two bits that can be set in flags; KVM_PPC_MMUV3_RADIX and
+KVM_PPC_MMUV3_GTSE.  KVM_PPC_MMUV3_RADIX, if set, configures the guest
+to use radix tree translation, and if clear, to use HPT translation.
+KVM_PPC_MMUV3_GTSE, if set and if KVM permits it, configures the guest
+to be able to use the global TLB and SLB invalidation instructions;
+if clear, the guest may not use these instructions.
+
+The process_table field specifies the address and size of the guest
+process table, which is in the guest's space.  This field is formatted
+as the second doubleword of the partition table entry, as defined in
+the Power ISA V3.00, Book III section 5.7.6.1.
+
+4.101 KVM_PPC_GET_RMMU_INFO
+
+Capability: KVM_CAP_PPC_RADIX_MMU
+Architectures: ppc
+Type: vm ioctl
+Parameters: struct kvm_ppc_rmmu_info (out)
+Returns: 0 on success,
+	 -EFAULT if struct kvm_ppc_rmmu_info cannot be written,
+	 -EINVAL if no useful information can be returned
+
+This ioctl returns a structure containing two things: (a) a list
+containing supported radix tree geometries, and (b) a list that maps
+page sizes to put in the "AP" (actual page size) field for the tlbie
+(TLB invalidate entry) instruction.
+
+struct kvm_ppc_rmmu_info {
+	struct kvm_ppc_radix_geom {
+		__u8	page_shift;
+		__u8	level_bits[4];
+		__u8	pad[3];
+	}	geometries[8];
+	__u32	ap_encodings[8];
+};
+
+The geometries[] field gives up to 8 supported geometries for the
+radix page table, in terms of the log base 2 of the smallest page
+size, and the number of bits indexed at each level of the tree, from
+the PTE level up to the PGD level in that order.  Any unused entries
+will have 0 in the page_shift field.
+
+The ap_encodings gives the supported page sizes and their AP field
+encodings, encoded with the AP value in the top 3 bits and the log
+base 2 of the page size in the bottom 6 bits.
+
+4.102 KVM_PPC_RESIZE_HPT_PREPARE
+
+Capability: KVM_CAP_SPAPR_RESIZE_HPT
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_ppc_resize_hpt (in)
+Returns: 0 on successful completion,
+	 >0 if a new HPT is being prepared, the value is an estimated
+             number of milliseconds until preparation is complete
+         -EFAULT if struct kvm_reinject_control cannot be read,
+	 -EINVAL if the supplied shift or flags are invalid
+	 -ENOMEM if unable to allocate the new HPT
+	 -ENOSPC if there was a hash collision when moving existing
+                  HPT entries to the new HPT
+	 -EIO on other error conditions
+
+Used to implement the PAPR extension for runtime resizing of a guest's
+Hashed Page Table (HPT).  Specifically this starts, stops or monitors
+the preparation of a new potential HPT for the guest, essentially
+implementing the H_RESIZE_HPT_PREPARE hypercall.
+
+If called with shift > 0 when there is no pending HPT for the guest,
+this begins preparation of a new pending HPT of size 2^(shift) bytes.
+It then returns a positive integer with the estimated number of
+milliseconds until preparation is complete.
+
+If called when there is a pending HPT whose size does not match that
+requested in the parameters, discards the existing pending HPT and
+creates a new one as above.
+
+If called when there is a pending HPT of the size requested, will:
+  * If preparation of the pending HPT is already complete, return 0
+  * If preparation of the pending HPT has failed, return an error
+    code, then discard the pending HPT.
+  * If preparation of the pending HPT is still in progress, return an
+    estimated number of milliseconds until preparation is complete.
+
+If called with shift == 0, discards any currently pending HPT and
+returns 0 (i.e. cancels any in-progress preparation).
+
+flags is reserved for future expansion, currently setting any bits in
+flags will result in an -EINVAL.
+
+Normally this will be called repeatedly with the same parameters until
+it returns <= 0.  The first call will initiate preparation, subsequent
+ones will monitor preparation until it completes or fails.
+
+struct kvm_ppc_resize_hpt {
+	__u64 flags;
+	__u32 shift;
+	__u32 pad;
+};
+
+4.103 KVM_PPC_RESIZE_HPT_COMMIT
+
+Capability: KVM_CAP_SPAPR_RESIZE_HPT
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_ppc_resize_hpt (in)
+Returns: 0 on successful completion,
+         -EFAULT if struct kvm_reinject_control cannot be read,
+	 -EINVAL if the supplied shift or flags are invalid
+	 -ENXIO is there is no pending HPT, or the pending HPT doesn't
+                 have the requested size
+	 -EBUSY if the pending HPT is not fully prepared
+	 -ENOSPC if there was a hash collision when moving existing
+                  HPT entries to the new HPT
+	 -EIO on other error conditions
+
+Used to implement the PAPR extension for runtime resizing of a guest's
+Hashed Page Table (HPT).  Specifically this requests that the guest be
+transferred to working with the new HPT, essentially implementing the
+H_RESIZE_HPT_COMMIT hypercall.
+
+This should only be called after KVM_PPC_RESIZE_HPT_PREPARE has
+returned 0 with the same parameters.  In other cases
+KVM_PPC_RESIZE_HPT_COMMIT will return an error (usually -ENXIO or
+-EBUSY, though others may be possible if the preparation was started,
+but failed).
+
+This will have undefined effects on the guest if it has not already
+placed itself in a quiescent state where no vcpu will make MMU enabled
+memory accesses.
+
+On succsful completion, the pending HPT will become the guest's active
+HPT and the previous HPT will be discarded.
+
+On failure, the guest will still be operating on its previous HPT.
+
+struct kvm_ppc_resize_hpt {
+	__u64 flags;
+	__u32 shift;
+	__u32 pad;
+};
+
+4.104 KVM_X86_GET_MCE_CAP_SUPPORTED
+
+Capability: KVM_CAP_MCE
+Architectures: x86
+Type: system ioctl
+Parameters: u64 mce_cap (out)
+Returns: 0 on success, -1 on error
+
+Returns supported MCE capabilities. The u64 mce_cap parameter
+has the same format as the MSR_IA32_MCG_CAP register. Supported
+capabilities will have the corresponding bits set.
+
+4.105 KVM_X86_SETUP_MCE
+
+Capability: KVM_CAP_MCE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: u64 mcg_cap (in)
+Returns: 0 on success,
+         -EFAULT if u64 mcg_cap cannot be read,
+         -EINVAL if the requested number of banks is invalid,
+         -EINVAL if requested MCE capability is not supported.
+
+Initializes MCE support for use. The u64 mcg_cap parameter
+has the same format as the MSR_IA32_MCG_CAP register and
+specifies which capabilities should be enabled. The maximum
+supported number of error-reporting banks can be retrieved when
+checking for KVM_CAP_MCE. The supported capabilities can be
+retrieved with KVM_X86_GET_MCE_CAP_SUPPORTED.
+
+4.106 KVM_X86_SET_MCE
+
+Capability: KVM_CAP_MCE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_x86_mce (in)
+Returns: 0 on success,
+         -EFAULT if struct kvm_x86_mce cannot be read,
+         -EINVAL if the bank number is invalid,
+         -EINVAL if VAL bit is not set in status field.
+
+Inject a machine check error (MCE) into the guest. The input
+parameter is:
+
+struct kvm_x86_mce {
+	__u64 status;
+	__u64 addr;
+	__u64 misc;
+	__u64 mcg_status;
+	__u8 bank;
+	__u8 pad1[7];
+	__u64 pad2[3];
+};
+
+If the MCE being reported is an uncorrected error, KVM will
+inject it as an MCE exception into the guest. If the guest
+MCG_STATUS register reports that an MCE is in progress, KVM
+causes an KVM_EXIT_SHUTDOWN vmexit.
+
+Otherwise, if the MCE is a corrected error, KVM will just
+store it in the corresponding bank (provided this bank is
+not holding a previously reported uncorrected error).
+
+4.107 KVM_S390_GET_CMMA_BITS
+
+Capability: KVM_CAP_S390_CMMA_MIGRATION
+Architectures: s390
+Type: vm ioctl
+Parameters: struct kvm_s390_cmma_log (in, out)
+Returns: 0 on success, a negative value on error
+
+This ioctl is used to get the values of the CMMA bits on the s390
+architecture. It is meant to be used in two scenarios:
+- During live migration to save the CMMA values. Live migration needs
+  to be enabled via the KVM_REQ_START_MIGRATION VM property.
+- To non-destructively peek at the CMMA values, with the flag
+  KVM_S390_CMMA_PEEK set.
+
+The ioctl takes parameters via the kvm_s390_cmma_log struct. The desired
+values are written to a buffer whose location is indicated via the "values"
+member in the kvm_s390_cmma_log struct.  The values in the input struct are
+also updated as needed.
+Each CMMA value takes up one byte.
+
+struct kvm_s390_cmma_log {
+	__u64 start_gfn;
+	__u32 count;
+	__u32 flags;
+	union {
+		__u64 remaining;
+		__u64 mask;
+	};
+	__u64 values;
+};
+
+start_gfn is the number of the first guest frame whose CMMA values are
+to be retrieved,
+
+count is the length of the buffer in bytes,
+
+values points to the buffer where the result will be written to.
+
+If count is greater than KVM_S390_SKEYS_MAX, then it is considered to be
+KVM_S390_SKEYS_MAX. KVM_S390_SKEYS_MAX is re-used for consistency with
+other ioctls.
+
+The result is written in the buffer pointed to by the field values, and
+the values of the input parameter are updated as follows.
+
+Depending on the flags, different actions are performed. The only
+supported flag so far is KVM_S390_CMMA_PEEK.
+
+The default behaviour if KVM_S390_CMMA_PEEK is not set is:
+start_gfn will indicate the first page frame whose CMMA bits were dirty.
+It is not necessarily the same as the one passed as input, as clean pages
+are skipped.
+
+count will indicate the number of bytes actually written in the buffer.
+It can (and very often will) be smaller than the input value, since the
+buffer is only filled until 16 bytes of clean values are found (which
+are then not copied in the buffer). Since a CMMA migration block needs
+the base address and the length, for a total of 16 bytes, we will send
+back some clean data if there is some dirty data afterwards, as long as
+the size of the clean data does not exceed the size of the header. This
+allows to minimize the amount of data to be saved or transferred over
+the network at the expense of more roundtrips to userspace. The next
+invocation of the ioctl will skip over all the clean values, saving
+potentially more than just the 16 bytes we found.
+
+If KVM_S390_CMMA_PEEK is set:
+the existing storage attributes are read even when not in migration
+mode, and no other action is performed;
+
+the output start_gfn will be equal to the input start_gfn,
+
+the output count will be equal to the input count, except if the end of
+memory has been reached.
+
+In both cases:
+the field "remaining" will indicate the total number of dirty CMMA values
+still remaining, or 0 if KVM_S390_CMMA_PEEK is set and migration mode is
+not enabled.
+
+mask is unused.
+
+values points to the userspace buffer where the result will be stored.
+
+This ioctl can fail with -ENOMEM if not enough memory can be allocated to
+complete the task, with -ENXIO if CMMA is not enabled, with -EINVAL if
+KVM_S390_CMMA_PEEK is not set but migration mode was not enabled, with
+-EFAULT if the userspace address is invalid or if no page table is
+present for the addresses (e.g. when using hugepages).
+
+4.108 KVM_S390_SET_CMMA_BITS
+
+Capability: KVM_CAP_S390_CMMA_MIGRATION
+Architectures: s390
+Type: vm ioctl
+Parameters: struct kvm_s390_cmma_log (in)
+Returns: 0 on success, a negative value on error
+
+This ioctl is used to set the values of the CMMA bits on the s390
+architecture. It is meant to be used during live migration to restore
+the CMMA values, but there are no restrictions on its use.
+The ioctl takes parameters via the kvm_s390_cmma_values struct.
+Each CMMA value takes up one byte.
+
+struct kvm_s390_cmma_log {
+	__u64 start_gfn;
+	__u32 count;
+	__u32 flags;
+	union {
+		__u64 remaining;
+		__u64 mask;
+	};
+	__u64 values;
+};
+
+start_gfn indicates the starting guest frame number,
+
+count indicates how many values are to be considered in the buffer,
+
+flags is not used and must be 0.
+
+mask indicates which PGSTE bits are to be considered.
+
+remaining is not used.
+
+values points to the buffer in userspace where to store the values.
+
+This ioctl can fail with -ENOMEM if not enough memory can be allocated to
+complete the task, with -ENXIO if CMMA is not enabled, with -EINVAL if
+the count field is too large (e.g. more than KVM_S390_CMMA_SIZE_MAX) or
+if the flags field was not 0, with -EFAULT if the userspace address is
+invalid, if invalid pages are written to (e.g. after the end of memory)
+or if no page table is present for the addresses (e.g. when using
+hugepages).
+
+4.109 KVM_PPC_GET_CPU_CHAR
+
+Capability: KVM_CAP_PPC_GET_CPU_CHAR
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_ppc_cpu_char (out)
+Returns: 0 on successful completion
+	 -EFAULT if struct kvm_ppc_cpu_char cannot be written
+
+This ioctl gives userspace information about certain characteristics
+of the CPU relating to speculative execution of instructions and
+possible information leakage resulting from speculative execution (see
+CVE-2017-5715, CVE-2017-5753 and CVE-2017-5754).  The information is
+returned in struct kvm_ppc_cpu_char, which looks like this:
+
+struct kvm_ppc_cpu_char {
+	__u64	character;		/* characteristics of the CPU */
+	__u64	behaviour;		/* recommended software behaviour */
+	__u64	character_mask;		/* valid bits in character */
+	__u64	behaviour_mask;		/* valid bits in behaviour */
+};
+
+For extensibility, the character_mask and behaviour_mask fields
+indicate which bits of character and behaviour have been filled in by
+the kernel.  If the set of defined bits is extended in future then
+userspace will be able to tell whether it is running on a kernel that
+knows about the new bits.
+
+The character field describes attributes of the CPU which can help
+with preventing inadvertent information disclosure - specifically,
+whether there is an instruction to flash-invalidate the L1 data cache
+(ori 30,30,0 or mtspr SPRN_TRIG2,rN), whether the L1 data cache is set
+to a mode where entries can only be used by the thread that created
+them, whether the bcctr[l] instruction prevents speculation, and
+whether a speculation barrier instruction (ori 31,31,0) is provided.
+
+The behaviour field describes actions that software should take to
+prevent inadvertent information disclosure, and thus describes which
+vulnerabilities the hardware is subject to; specifically whether the
+L1 data cache should be flushed when returning to user mode from the
+kernel, and whether a speculation barrier should be placed between an
+array bounds check and the array access.
+
+These fields use the same bit definitions as the new
+H_GET_CPU_CHARACTERISTICS hypercall.
+
+4.110 KVM_MEMORY_ENCRYPT_OP
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: an opaque platform specific structure (in/out)
+Returns: 0 on success; -1 on error
+
+If the platform supports creating encrypted VMs then this ioctl can be used
+for issuing platform-specific memory encryption commands to manage those
+encrypted VMs.
+
+Currently, this ioctl is used for issuing Secure Encrypted Virtualization
+(SEV) commands on AMD Processors. The SEV commands are defined in
+Documentation/virtual/kvm/amd-memory-encryption.rst.
+
+4.111 KVM_MEMORY_ENCRYPT_REG_REGION
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: struct kvm_enc_region (in)
+Returns: 0 on success; -1 on error
+
+This ioctl can be used to register a guest memory region which may
+contain encrypted data (e.g. guest RAM, SMRAM etc).
+
+It is used in the SEV-enabled guest. When encryption is enabled, a guest
+memory region may contain encrypted data. The SEV memory encryption
+engine uses a tweak such that two identical plaintext pages, each at
+different locations will have differing ciphertexts. So swapping or
+moving ciphertext of those pages will not result in plaintext being
+swapped. So relocating (or migrating) physical backing pages for the SEV
+guest will require some additional steps.
+
+Note: The current SEV key management spec does not provide commands to
+swap or migrate (move) ciphertext pages. Hence, for now we pin the guest
+memory region registered with the ioctl.
+
+4.112 KVM_MEMORY_ENCRYPT_UNREG_REGION
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: struct kvm_enc_region (in)
+Returns: 0 on success; -1 on error
+
+This ioctl can be used to unregister the guest memory region registered
+with KVM_MEMORY_ENCRYPT_REG_REGION ioctl above.
+
+4.113 KVM_HYPERV_EVENTFD
+
+Capability: KVM_CAP_HYPERV_EVENTFD
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_hyperv_eventfd (in)
+
+This ioctl (un)registers an eventfd to receive notifications from the guest on
+the specified Hyper-V connection id through the SIGNAL_EVENT hypercall, without
+causing a user exit.  SIGNAL_EVENT hypercall with non-zero event flag number
+(bits 24-31) still triggers a KVM_EXIT_HYPERV_HCALL user exit.
+
+struct kvm_hyperv_eventfd {
+	__u32 conn_id;
+	__s32 fd;
+	__u32 flags;
+	__u32 padding[3];
+};
+
+The conn_id field should fit within 24 bits:
+
+#define KVM_HYPERV_CONN_ID_MASK		0x00ffffff
+
+The acceptable values for the flags field are:
+
+#define KVM_HYPERV_EVENTFD_DEASSIGN	(1 << 0)
+
+Returns: 0 on success,
+	-EINVAL if conn_id or flags is outside the allowed range
+	-ENOENT on deassign if the conn_id isn't registered
+	-EEXIST on assign if the conn_id is already registered
+
+4.114 KVM_GET_NESTED_STATE
+
+Capability: KVM_CAP_NESTED_STATE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_nested_state (in/out)
+Returns: 0 on success, -1 on error
+Errors:
+  E2BIG:     the total state size (including the fixed-size part of struct
+             kvm_nested_state) exceeds the value of 'size' specified by
+             the user; the size required will be written into size.
+
+struct kvm_nested_state {
+	__u16 flags;
+	__u16 format;
+	__u32 size;
+	union {
+		struct kvm_vmx_nested_state vmx;
+		struct kvm_svm_nested_state svm;
+		__u8 pad[120];
+	};
+	__u8 data[0];
+};
+
+#define KVM_STATE_NESTED_GUEST_MODE	0x00000001
+#define KVM_STATE_NESTED_RUN_PENDING	0x00000002
+
+#define KVM_STATE_NESTED_SMM_GUEST_MODE	0x00000001
+#define KVM_STATE_NESTED_SMM_VMXON	0x00000002
+
+struct kvm_vmx_nested_state {
+	__u64 vmxon_pa;
+	__u64 vmcs_pa;
+
+	struct {
+		__u16 flags;
+	} smm;
+};
+
+This ioctl copies the vcpu's nested virtualization state from the kernel to
+userspace.
+
+The maximum size of the state, including the fixed-size part of struct
+kvm_nested_state, can be retrieved by passing KVM_CAP_NESTED_STATE to
+the KVM_CHECK_EXTENSION ioctl().
+
+4.115 KVM_SET_NESTED_STATE
+
+Capability: KVM_CAP_NESTED_STATE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_nested_state (in)
+Returns: 0 on success, -1 on error
+
+This copies the vcpu's kvm_nested_state struct from userspace to the kernel.  For
+the definition of struct kvm_nested_state, see KVM_GET_NESTED_STATE.
 
 5. The kvm_run structure
 ------------------------
@@ -3045,7 +3692,18 @@ struct kvm_run {
 Request that KVM_RUN return when it becomes possible to inject external
 interrupts into the guest.  Useful in conjunction with KVM_INTERRUPT.
 
-	__u8 padding1[7];
+	__u8 immediate_exit;
+
+This field is polled once when KVM_RUN starts; if non-zero, KVM_RUN
+exits immediately, returning -EINTR.  In the common scenario where a
+signal is used to "kick" a VCPU out of KVM_RUN, this field can be used
+to avoid usage of KVM_SET_SIGNAL_MASK, which has worse scalability.
+Rather than blocking the signal outside KVM_RUN, userspace can set up
+a signal handler that sets run->immediate_exit to a non-zero value.
+
+This field is ignored if KVM_CAP_IMMEDIATE_EXIT is not available.
+
+	__u8 padding1[6];
 
 	/* out */
 	__u32 exit_reason;
@@ -3331,6 +3989,34 @@ the userspace IOAPIC should process the EOI and retrigger the interrupt if
 it is still asserted.  Vector is the LAPIC interrupt vector for which the
 EOI was received.
 
+		struct kvm_hyperv_exit {
+#define KVM_EXIT_HYPERV_SYNIC          1
+#define KVM_EXIT_HYPERV_HCALL          2
+			__u32 type;
+			union {
+				struct {
+					__u32 msr;
+					__u64 control;
+					__u64 evt_page;
+					__u64 msg_page;
+				} synic;
+				struct {
+					__u64 input;
+					__u64 result;
+					__u64 params[2];
+				} hcall;
+			} u;
+		};
+		/* KVM_EXIT_HYPERV */
+                struct kvm_hyperv_exit hyperv;
+Indicates that the VCPU exits into userspace to process some tasks
+related to Hyper-V emulation.
+Valid values for 'type' are:
+	KVM_EXIT_HYPERV_SYNIC -- synchronously notify user-space about
+Hyper-V SynIC state change. Notification is used to remap SynIC
+event/message pages and to enable/disable SynIC messages/events processing
+in userspace.
+
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -3346,7 +4032,7 @@ EOI was received.
 	__u64 kvm_dirty_regs;
 	union {
 		struct kvm_sync_regs regs;
-		char padding[1024];
+		char padding[SYNC_REGS_SIZE_BYTES];
 	} s;
 
 If KVM_CAP_SYNC_REGS is defined, these fields allow userspace to access
@@ -3551,6 +4237,46 @@ Once this is done the KVM_REG_MIPS_VEC_* and KVM_REG_MIPS_MSA_* registers can be
 accessed, and the Config5.MSAEn bit is accessible via the KVM API and also from
 the guest.
 
+6.74 KVM_CAP_SYNC_REGS
+Architectures: s390, x86
+Target: s390: always enabled, x86: vcpu
+Parameters: none
+Returns: x86: KVM_CHECK_EXTENSION returns a bit-array indicating which register
+sets are supported (bitfields defined in arch/x86/include/uapi/asm/kvm.h).
+
+As described above in the kvm_sync_regs struct info in section 5 (kvm_run):
+KVM_CAP_SYNC_REGS "allow[s] userspace to access certain guest registers
+without having to call SET/GET_*REGS". This reduces overhead by eliminating
+repeated ioctl calls for setting and/or getting register values. This is
+particularly important when userspace is making synchronous guest state
+modifications, e.g. when emulating and/or intercepting instructions in
+userspace.
+
+For s390 specifics, please refer to the source code.
+
+For x86:
+- the register sets to be copied out to kvm_run are selectable
+  by userspace (rather that all sets being copied out for every exit).
+- vcpu_events are available in addition to regs and sregs.
+
+For x86, the 'kvm_valid_regs' field of struct kvm_run is overloaded to
+function as an input bit-array field set by userspace to indicate the
+specific register sets to be copied out on the next exit.
+
+To indicate when userspace has modified values that should be copied into
+the vCPU, the all architecture bitarray field, 'kvm_dirty_regs' must be set.
+This is done using the same bitflags as for the 'kvm_valid_regs' field.
+If the dirty bit is not set, then the register set values will not be copied
+into the vCPU even if they've been modified.
+
+Unused bitfields in the bitarrays must be set to zero.
+
+struct kvm_sync_regs {
+        struct kvm_regs regs;
+        struct kvm_sregs sregs;
+        struct kvm_vcpu_events events;
+};
+
 7. Capabilities that can be enabled on VMs
 ------------------------------------------
 
@@ -3669,6 +4395,141 @@ a KVM_EXIT_IOAPIC_EOI vmexit will be reported to userspace.
 Fails if VCPU has already been created, or if the irqchip is already in the
 kernel (i.e. KVM_CREATE_IRQCHIP has already been called).
 
+7.6 KVM_CAP_S390_RI
+
+Architectures: s390
+Parameters: none
+
+Allows use of runtime-instrumentation introduced with zEC12 processor.
+Will return -EINVAL if the machine does not support runtime-instrumentation.
+Will return -EBUSY if a VCPU has already been created.
+
+7.7 KVM_CAP_X2APIC_API
+
+Architectures: x86
+Parameters: args[0] - features that should be enabled
+Returns: 0 on success, -EINVAL when args[0] contains invalid features
+
+Valid feature flags in args[0] are
+
+#define KVM_X2APIC_API_USE_32BIT_IDS            (1ULL << 0)
+#define KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK  (1ULL << 1)
+
+Enabling KVM_X2APIC_API_USE_32BIT_IDS changes the behavior of
+KVM_SET_GSI_ROUTING, KVM_SIGNAL_MSI, KVM_SET_LAPIC, and KVM_GET_LAPIC,
+allowing the use of 32-bit APIC IDs.  See KVM_CAP_X2APIC_API in their
+respective sections.
+
+KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK must be enabled for x2APIC to work
+in logical mode or with more than 255 VCPUs.  Otherwise, KVM treats 0xff
+as a broadcast even in x2APIC mode in order to support physical x2APIC
+without interrupt remapping.  This is undesirable in logical mode,
+where 0xff represents CPUs 0-7 in cluster 0.
+
+7.8 KVM_CAP_S390_USER_INSTR0
+
+Architectures: s390
+Parameters: none
+
+With this capability enabled, all illegal instructions 0x0000 (2 bytes) will
+be intercepted and forwarded to user space. User space can use this
+mechanism e.g. to realize 2-byte software breakpoints. The kernel will
+not inject an operating exception for these instructions, user space has
+to take care of that.
+
+This capability can be enabled dynamically even if VCPUs were already
+created and are running.
+
+7.9 KVM_CAP_S390_GS
+
+Architectures: s390
+Parameters: none
+Returns: 0 on success; -EINVAL if the machine does not support
+	 guarded storage; -EBUSY if a VCPU has already been created.
+
+Allows use of guarded storage for the KVM guest.
+
+7.10 KVM_CAP_S390_AIS
+
+Architectures: s390
+Parameters: none
+
+Allow use of adapter-interruption suppression.
+Returns: 0 on success; -EBUSY if a VCPU has already been created.
+
+7.11 KVM_CAP_PPC_SMT
+
+Architectures: ppc
+Parameters: vsmt_mode, flags
+
+Enabling this capability on a VM provides userspace with a way to set
+the desired virtual SMT mode (i.e. the number of virtual CPUs per
+virtual core).  The virtual SMT mode, vsmt_mode, must be a power of 2
+between 1 and 8.  On POWER8, vsmt_mode must also be no greater than
+the number of threads per subcore for the host.  Currently flags must
+be 0.  A successful call to enable this capability will result in
+vsmt_mode being returned when the KVM_CAP_PPC_SMT capability is
+subsequently queried for the VM.  This capability is only supported by
+HV KVM, and can only be set before any VCPUs have been created.
+The KVM_CAP_PPC_SMT_POSSIBLE capability indicates which virtual SMT
+modes are available.
+
+7.12 KVM_CAP_PPC_FWNMI
+
+Architectures: ppc
+Parameters: none
+
+With this capability a machine check exception in the guest address
+space will cause KVM to exit the guest with NMI exit reason. This
+enables QEMU to build error log and branch to guest kernel registered
+machine check handling routine. Without this capability KVM will
+branch to guests' 0x200 interrupt vector.
+
+7.13 KVM_CAP_X86_DISABLE_EXITS
+
+Architectures: x86
+Parameters: args[0] defines which exits are disabled
+Returns: 0 on success, -EINVAL when args[0] contains invalid exits
+
+Valid bits in args[0] are
+
+#define KVM_X86_DISABLE_EXITS_MWAIT            (1 << 0)
+#define KVM_X86_DISABLE_EXITS_HLT              (1 << 1)
+
+Enabling this capability on a VM provides userspace with a way to no
+longer intercept some instructions for improved latency in some
+workloads, and is suggested when vCPUs are associated to dedicated
+physical CPUs.  More bits can be added in the future; userspace can
+just pass the KVM_CHECK_EXTENSION result to KVM_ENABLE_CAP to disable
+all such vmexits.
+
+Do not enable KVM_FEATURE_PV_UNHALT if you disable HLT exits.
+
+7.14 KVM_CAP_S390_HPAGE_1M
+
+Architectures: s390
+Parameters: none
+Returns: 0 on success, -EINVAL if hpage module parameter was not set
+	 or cmma is enabled, or the VM has the KVM_VM_S390_UCONTROL
+	 flag set
+
+With this capability the KVM support for memory backing with 1m pages
+through hugetlbfs can be enabled for a VM. After the capability is
+enabled, cmma can't be enabled anymore and pfmfi and the storage key
+interpretation are disabled. If cmma has already been enabled or the
+hpage module parameter is not set to 1, -EINVAL is returned.
+
+While it is generally possible to create a huge page backed VM without
+this capability, the VM will not be able to run.
+
+7.14 KVM_CAP_MSR_PLATFORM_INFO
+
+Architectures: x86
+Parameters: args[0] whether feature should be enabled or not
+
+With this capability, a guest may read the MSR_PLATFORM_INFO MSR. Otherwise,
+a #GP would be raised when the guest tries to access. Currently, this
+capability does not enable write permissions of this MSR for the guest.
 
 8. Other capabilities.
 ----------------------
@@ -3685,3 +4546,229 @@ available, means that that the kernel has an implementation of the
 H_RANDOM hypercall backed by a hardware random-number generator.
 If present, the kernel H_RANDOM handler can be enabled for guest use
 with the KVM_CAP_PPC_ENABLE_HCALL capability.
+
+8.2 KVM_CAP_HYPERV_SYNIC
+
+Architectures: x86
+This capability, if KVM_CHECK_EXTENSION indicates that it is
+available, means that that the kernel has an implementation of the
+Hyper-V Synthetic interrupt controller(SynIC). Hyper-V SynIC is
+used to support Windows Hyper-V based guest paravirt drivers(VMBus).
+
+In order to use SynIC, it has to be activated by setting this
+capability via KVM_ENABLE_CAP ioctl on the vcpu fd. Note that this
+will disable the use of APIC hardware virtualization even if supported
+by the CPU, as it's incompatible with SynIC auto-EOI behavior.
+
+8.3 KVM_CAP_PPC_RADIX_MMU
+
+Architectures: ppc
+
+This capability, if KVM_CHECK_EXTENSION indicates that it is
+available, means that that the kernel can support guests using the
+radix MMU defined in Power ISA V3.00 (as implemented in the POWER9
+processor).
+
+8.4 KVM_CAP_PPC_HASH_MMU_V3
+
+Architectures: ppc
+
+This capability, if KVM_CHECK_EXTENSION indicates that it is
+available, means that that the kernel can support guests using the
+hashed page table MMU defined in Power ISA V3.00 (as implemented in
+the POWER9 processor), including in-memory segment tables.
+
+8.5 KVM_CAP_MIPS_VZ
+
+Architectures: mips
+
+This capability, if KVM_CHECK_EXTENSION on the main kvm handle indicates that
+it is available, means that full hardware assisted virtualization capabilities
+of the hardware are available for use through KVM. An appropriate
+KVM_VM_MIPS_* type must be passed to KVM_CREATE_VM to create a VM which
+utilises it.
+
+If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is
+available, it means that the VM is using full hardware assisted virtualization
+capabilities of the hardware. This is useful to check after creating a VM with
+KVM_VM_MIPS_DEFAULT.
+
+The value returned by KVM_CHECK_EXTENSION should be compared against known
+values (see below). All other values are reserved. This is to allow for the
+possibility of other hardware assisted virtualization implementations which
+may be incompatible with the MIPS VZ ASE.
+
+ 0: The trap & emulate implementation is in use to run guest code in user
+    mode. Guest virtual memory segments are rearranged to fit the guest in the
+    user mode address space.
+
+ 1: The MIPS VZ ASE is in use, providing full hardware assisted
+    virtualization, including standard guest virtual memory segments.
+
+8.6 KVM_CAP_MIPS_TE
+
+Architectures: mips
+
+This capability, if KVM_CHECK_EXTENSION on the main kvm handle indicates that
+it is available, means that the trap & emulate implementation is available to
+run guest code in user mode, even if KVM_CAP_MIPS_VZ indicates that hardware
+assisted virtualisation is also available. KVM_VM_MIPS_TE (0) must be passed
+to KVM_CREATE_VM to create a VM which utilises it.
+
+If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is
+available, it means that the VM is using trap & emulate.
+
+8.7 KVM_CAP_MIPS_64BIT
+
+Architectures: mips
+
+This capability indicates the supported architecture type of the guest, i.e. the
+supported register and address width.
+
+The values returned when this capability is checked by KVM_CHECK_EXTENSION on a
+kvm VM handle correspond roughly to the CP0_Config.AT register field, and should
+be checked specifically against known values (see below). All other values are
+reserved.
+
+ 0: MIPS32 or microMIPS32.
+    Both registers and addresses are 32-bits wide.
+    It will only be possible to run 32-bit guest code.
+
+ 1: MIPS64 or microMIPS64 with access only to 32-bit compatibility segments.
+    Registers are 64-bits wide, but addresses are 32-bits wide.
+    64-bit guest code may run but cannot access MIPS64 memory segments.
+    It will also be possible to run 32-bit guest code.
+
+ 2: MIPS64 or microMIPS64 with access to all address segments.
+    Both registers and addresses are 64-bits wide.
+    It will be possible to run 64-bit or 32-bit guest code.
+
+8.9 KVM_CAP_ARM_USER_IRQ
+
+Architectures: arm, arm64
+This capability, if KVM_CHECK_EXTENSION indicates that it is available, means
+that if userspace creates a VM without an in-kernel interrupt controller, it
+will be notified of changes to the output level of in-kernel emulated devices,
+which can generate virtual interrupts, presented to the VM.
+For such VMs, on every return to userspace, the kernel
+updates the vcpu's run->s.regs.device_irq_level field to represent the actual
+output level of the device.
+
+Whenever kvm detects a change in the device output level, kvm guarantees at
+least one return to userspace before running the VM.  This exit could either
+be a KVM_EXIT_INTR or any other exit event, like KVM_EXIT_MMIO. This way,
+userspace can always sample the device output level and re-compute the state of
+the userspace interrupt controller.  Userspace should always check the state
+of run->s.regs.device_irq_level on every kvm exit.
+The value in run->s.regs.device_irq_level can represent both level and edge
+triggered interrupt signals, depending on the device.  Edge triggered interrupt
+signals will exit to userspace with the bit in run->s.regs.device_irq_level
+set exactly once per edge signal.
+
+The field run->s.regs.device_irq_level is available independent of
+run->kvm_valid_regs or run->kvm_dirty_regs bits.
+
+If KVM_CAP_ARM_USER_IRQ is supported, the KVM_CHECK_EXTENSION ioctl returns a
+number larger than 0 indicating the version of this capability is implemented
+and thereby which bits in in run->s.regs.device_irq_level can signal values.
+
+Currently the following bits are defined for the device_irq_level bitmap:
+
+  KVM_CAP_ARM_USER_IRQ >= 1:
+
+    KVM_ARM_DEV_EL1_VTIMER -  EL1 virtual timer
+    KVM_ARM_DEV_EL1_PTIMER -  EL1 physical timer
+    KVM_ARM_DEV_PMU        -  ARM PMU overflow interrupt signal
+
+Future versions of kvm may implement additional events. These will get
+indicated by returning a higher number from KVM_CHECK_EXTENSION and will be
+listed above.
+
+8.10 KVM_CAP_PPC_SMT_POSSIBLE
+
+Architectures: ppc
+
+Querying this capability returns a bitmap indicating the possible
+virtual SMT modes that can be set using KVM_CAP_PPC_SMT.  If bit N
+(counting from the right) is set, then a virtual SMT mode of 2^N is
+available.
+
+8.11 KVM_CAP_HYPERV_SYNIC2
+
+Architectures: x86
+
+This capability enables a newer version of Hyper-V Synthetic interrupt
+controller (SynIC).  The only difference with KVM_CAP_HYPERV_SYNIC is that KVM
+doesn't clear SynIC message and event flags pages when they are enabled by
+writing to the respective MSRs.
+
+8.12 KVM_CAP_HYPERV_VP_INDEX
+
+Architectures: x86
+
+This capability indicates that userspace can load HV_X64_MSR_VP_INDEX msr.  Its
+value is used to denote the target vcpu for a SynIC interrupt.  For
+compatibilty, KVM initializes this msr to KVM's internal vcpu index.  When this
+capability is absent, userspace can still query this msr's value.
+
+8.13 KVM_CAP_S390_AIS_MIGRATION
+
+Architectures: s390
+Parameters: none
+
+This capability indicates if the flic device will be able to get/set the
+AIS states for migration via the KVM_DEV_FLIC_AISM_ALL attribute and allows
+to discover this without having to create a flic device.
+
+8.14 KVM_CAP_S390_PSW
+
+Architectures: s390
+
+This capability indicates that the PSW is exposed via the kvm_run structure.
+
+8.15 KVM_CAP_S390_GMAP
+
+Architectures: s390
+
+This capability indicates that the user space memory used as guest mapping can
+be anywhere in the user memory address space, as long as the memory slots are
+aligned and sized to a segment (1MB) boundary.
+
+8.16 KVM_CAP_S390_COW
+
+Architectures: s390
+
+This capability indicates that the user space memory used as guest mapping can
+use copy-on-write semantics as well as dirty pages tracking via read-only page
+tables.
+
+8.17 KVM_CAP_S390_BPB
+
+Architectures: s390
+
+This capability indicates that kvm will implement the interfaces to handle
+reset, migration and nested KVM for branch prediction blocking. The stfle
+facility 82 should not be provided to the guest without this capability.
+
+8.18 KVM_CAP_HYPERV_TLBFLUSH
+
+Architectures: x86
+
+This capability indicates that KVM supports paravirtualized Hyper-V TLB Flush
+hypercalls:
+HvFlushVirtualAddressSpace, HvFlushVirtualAddressSpaceEx,
+HvFlushVirtualAddressList, HvFlushVirtualAddressListEx.
+
+8.19 KVM_CAP_ARM_INJECT_SERROR_ESR
+
+Architectures: arm, arm64
+
+This capability indicates that userspace can specify (via the
+KVM_SET_VCPU_EVENTS ioctl) the syndrome value reported to the guest when it
+takes a virtual SError interrupt exception.
+If KVM advertises this capability, userspace can only specify the ISS field for
+the ESR syndrome. Other parts of the ESR, such as the EC are generated by the
+CPU when the exception is taken. If this virtual SError is taken to EL1 using
+AArch64, this value will be reported in the ISS field of ESR_ELx.
+
+See KVM_CAP_VCPU_EVENTS for more details.

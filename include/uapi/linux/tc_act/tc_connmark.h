@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __UAPI_TC_CONNMARK_H
 #define __UAPI_TC_CONNMARK_H
 
@@ -15,6 +16,7 @@ enum {
 	TCA_CONNMARK_UNSPEC,
 	TCA_CONNMARK_PARMS,
 	TCA_CONNMARK_TM,
+	TCA_CONNMARK_PAD,
 	__TCA_CONNMARK_MAX
 };
 #define TCA_CONNMARK_MAX (__TCA_CONNMARK_MAX - 1)

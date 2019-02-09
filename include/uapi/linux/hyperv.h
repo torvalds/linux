@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
  * Copyright (c) 2011, Microsoft Corporation.
@@ -313,6 +314,7 @@ enum hv_kvp_exchg_pool {
 #define HV_INVALIDARG			0x80070057
 #define HV_GUID_NOTFOUND		0x80041002
 #define HV_ERROR_ALREADY_EXISTS		0x80070050
+#define HV_ERROR_DISK_FULL		0x80070070
 
 #define ADDR_FAMILY_NONE	0x00
 #define ADDR_FAMILY_IPV4	0x01

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/input/input.h>
 
 #include "qcom-msm8660.dtsi"
@@ -23,21 +24,32 @@
 			};
 		};
 
+		/* Temporary fixed regulator */
+		vsdcc_fixed: vsdcc-regulator {
+			compatible = "regulator-fixed";
+			regulator-name = "SDCC Power";
+			regulator-min-microvolt = <2700000>;
+			regulator-max-microvolt = <2700000>;
+			regulator-always-on;
+		};
+
 		amba {
 			/* eMMC */
 			sdcc1: sdcc@12400000 {
 				status = "okay";
+				vmmc-supply = <&vsdcc_fixed>;
 			};
 
 			/* External micro SD card */
 			sdcc3: sdcc@12180000 {
 				status = "okay";
+				vmmc-supply = <&vsdcc_fixed>;
 			};
 		};
 	};
 };
 
-&pmicintc {
+&pm8058 {
 	keypad@148 {
 		linux,keymap = <
 			MATRIX_KEY(0, 0, KEY_FN_F1)

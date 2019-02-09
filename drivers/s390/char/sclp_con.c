@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SCLP line mode console driver
  *
@@ -124,7 +125,7 @@ static void sclp_console_sync_queue(void)
  * temporary write buffer without further waiting on a final new line.
  */
 static void
-sclp_console_timeout(unsigned long data)
+sclp_console_timeout(struct timer_list *unused)
 {
 	sclp_conbuf_emit();
 }
@@ -210,11 +211,7 @@ sclp_console_write(struct console *console, const char *message,
 	/* Setup timer to output current console buffer after 1/10 second */
 	if (sclp_conbuf != NULL && sclp_chars_in_buffer(sclp_conbuf) != 0 &&
 	    !timer_pending(&sclp_con_timer)) {
-		init_timer(&sclp_con_timer);
-		sclp_con_timer.function = sclp_console_timeout;
-		sclp_con_timer.data = 0UL;
-		sclp_con_timer.expires = jiffies + HZ/10;
-		add_timer(&sclp_con_timer);
+		mod_timer(&sclp_con_timer, jiffies + HZ / 10);
 	}
 out:
 	spin_unlock_irqrestore(&sclp_con_lock, flags);
@@ -319,7 +316,8 @@ sclp_console_init(void)
 	int i;
 	int rc;
 
-	if (!CONSOLE_IS_SCLP)
+	/* SCLP consoles are handled together */
+	if (!(CONSOLE_IS_SCLP || CONSOLE_IS_VT220))
 		return 0;
 	rc = sclp_rw_init();
 	if (rc)
@@ -333,7 +331,7 @@ sclp_console_init(void)
 	INIT_LIST_HEAD(&sclp_con_outqueue);
 	spin_lock_init(&sclp_con_lock);
 	sclp_conbuf = NULL;
-	init_timer(&sclp_con_timer);
+	timer_setup(&sclp_con_timer, sclp_console_timeout, 0);
 
 	/* Set output format */
 	if (MACHINE_IS_VM)

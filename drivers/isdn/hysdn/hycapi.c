@@ -171,16 +171,16 @@ hycapi_register_internal(struct capi_ctr *ctrl, __u16 appl,
 		       card->myid);
 		return;
 	}
-	memcpy(skb_put(skb, sizeof(__u16)), &len, sizeof(__u16));
-	memcpy(skb_put(skb, sizeof(__u16)), &appl, sizeof(__u16));
-	memcpy(skb_put(skb, sizeof(__u8)), &_command, sizeof(_command));
-	memcpy(skb_put(skb, sizeof(__u8)), &_subcommand, sizeof(_subcommand));
-	memcpy(skb_put(skb, sizeof(__u16)), &MessageNumber, sizeof(__u16));
-	memcpy(skb_put(skb, sizeof(__u16)), &MessageBufferSize, sizeof(__u16));
-	memcpy(skb_put(skb, sizeof(__u16)), &(rp->level3cnt), sizeof(__u16));
-	memcpy(skb_put(skb, sizeof(__u16)), &(rp->datablkcnt), sizeof(__u16));
-	memcpy(skb_put(skb, sizeof(__u16)), &(rp->datablklen), sizeof(__u16));
-	memcpy(skb_put(skb, slen), ExtFeatureDefaults, slen);
+	skb_put_data(skb, &len, sizeof(__u16));
+	skb_put_data(skb, &appl, sizeof(__u16));
+	skb_put_data(skb, &_command, sizeof(__u8));
+	skb_put_data(skb, &_subcommand, sizeof(__u8));
+	skb_put_data(skb, &MessageNumber, sizeof(__u16));
+	skb_put_data(skb, &MessageBufferSize, sizeof(__u16));
+	skb_put_data(skb, &(rp->level3cnt), sizeof(__u16));
+	skb_put_data(skb, &(rp->datablkcnt), sizeof(__u16));
+	skb_put_data(skb, &(rp->datablklen), sizeof(__u16));
+	skb_put_data(skb, ExtFeatureDefaults, slen);
 	hycapi_applications[appl - 1].ctrl_mask |= (1 << (ctrl->cnr - 1));
 	hycapi_send_message(ctrl, skb);
 }
@@ -279,11 +279,11 @@ static void hycapi_release_internal(struct capi_ctr *ctrl, __u16 appl)
 		       card->myid);
 		return;
 	}
-	memcpy(skb_put(skb, sizeof(__u16)), &len, sizeof(__u16));
-	memcpy(skb_put(skb, sizeof(__u16)), &appl, sizeof(__u16));
-	memcpy(skb_put(skb, sizeof(__u8)), &_command, sizeof(_command));
-	memcpy(skb_put(skb, sizeof(__u8)), &_subcommand, sizeof(_subcommand));
-	memcpy(skb_put(skb, sizeof(__u16)), &MessageNumber, sizeof(__u16));
+	skb_put_data(skb, &len, sizeof(__u16));
+	skb_put_data(skb, &appl, sizeof(__u16));
+	skb_put_data(skb, &_command, sizeof(__u8));
+	skb_put_data(skb, &_subcommand, sizeof(__u8));
+	skb_put_data(skb, &MessageNumber, sizeof(__u16));
 	hycapi_send_message(ctrl, skb);
 	hycapi_applications[appl - 1].ctrl_mask &= ~(1 << (ctrl->cnr - 1));
 }
@@ -467,19 +467,6 @@ static int hycapi_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int hycapi_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, hycapi_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations hycapi_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= hycapi_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /**************************************************************
 hycapi_load_firmware
 
@@ -557,10 +544,9 @@ hycapi_rx_capipkt(hysdn_card *card, unsigned char *buf, unsigned short len)
 			       card->myid);
 			return;
 		}
-		memcpy(skb_put(skb, MsgLen), buf, MsgLen);
-		memcpy(skb_put(skb, 2 * sizeof(__u32)), CP64, 2 * sizeof(__u32));
-		memcpy(skb_put(skb, len - MsgLen), buf + MsgLen,
-		       len - MsgLen);
+		skb_put_data(skb, buf, MsgLen);
+		skb_put_data(skb, CP64, 2 * sizeof(__u32));
+		skb_put_data(skb, buf + MsgLen, len - MsgLen);
 		CAPIMSG_SETLEN(skb->data, 30);
 	} else {
 		if (!(skb = alloc_skb(len, GFP_ATOMIC))) {
@@ -568,7 +554,7 @@ hycapi_rx_capipkt(hysdn_card *card, unsigned char *buf, unsigned short len)
 			       card->myid);
 			return;
 		}
-		memcpy(skb_put(skb, len), buf, len);
+		skb_put_data(skb, buf, len);
 	}
 	switch (CAPIMSG_CMD(skb->data))
 	{
@@ -775,7 +761,7 @@ hycapi_capi_create(hysdn_card *card)
 		ctrl->load_firmware = hycapi_load_firmware;
 		ctrl->reset_ctr     = hycapi_reset_ctr;
 		ctrl->procinfo      = hycapi_procinfo;
-		ctrl->proc_fops = &hycapi_proc_fops;
+		ctrl->proc_show     = hycapi_proc_show;
 		strcpy(ctrl->name, cinfo->cardname);
 		ctrl->owner = THIS_MODULE;
 

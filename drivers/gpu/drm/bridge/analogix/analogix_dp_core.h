@@ -15,11 +15,15 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_dp_helper.h>
-#include <linux/gpio/consumer.h>
 
 #define DP_TIMEOUT_LOOP_COUNT 100
 #define MAX_CR_LOOP 5
 #define MAX_EQ_LOOP 5
+#define MAX_PLL_LOCK_LOOP 5
+
+/* Training takes 22ms if AUX channel comm fails. Use this as retry interval */
+#define DP_TIMEOUT_TRAINING_US			22000
+#define DP_TIMEOUT_PSR_LOOP_MS			300
 
 /* DP_MAX_LANE_COUNT */
 #define DPCD_ENHANCED_FRAME_CAP(x)		(((x) >> 7) & 0x1)
@@ -67,7 +71,6 @@ enum pattern_set {
 	D10_2,
 	TRAINING_PTN1,
 	TRAINING_PTN2,
-	TRAINING_PTN3,
 	DP_NONE
 };
 
@@ -128,7 +131,6 @@ enum dp_irq_type {
 
 struct video_info {
 	char *name;
-	struct drm_display_mode mode;
 
 	bool h_sync_polarity;
 	bool v_sync_polarity;
@@ -141,8 +143,6 @@ struct video_info {
 
 	int max_link_rate;
 	enum link_lane_count_type max_lane_count;
-
-	bool video_bist_enable;
 };
 
 struct link_train {
@@ -171,8 +171,13 @@ struct analogix_dp_device {
 	struct link_train	link_train;
 	struct phy		*phy;
 	int			dpms_mode;
-	struct gpio_desc	*hpd_gpio;
+	int			hpd_gpio;
 	bool                    force_hpd;
+	bool			psr_enable;
+	bool			fast_train_enable;
+
+	struct mutex		panel_lock;
+	bool			panel_is_modeset;
 
 	struct analogix_dp_plat_data *plat_data;
 };
@@ -193,7 +198,7 @@ void analogix_dp_set_pll_power_down(struct analogix_dp_device *dp, bool enable);
 void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 				       enum analog_power_block block,
 				       bool enable);
-void analogix_dp_init_analog_func(struct analogix_dp_device *dp);
+int analogix_dp_init_analog_func(struct analogix_dp_device *dp);
 void analogix_dp_init_hpd(struct analogix_dp_device *dp);
 void analogix_dp_force_hpd(struct analogix_dp_device *dp);
 enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp);
@@ -247,8 +252,10 @@ int analogix_dp_is_video_stream_on(struct analogix_dp_device *dp);
 void analogix_dp_config_video_slave_mode(struct analogix_dp_device *dp);
 void analogix_dp_enable_scrambling(struct analogix_dp_device *dp);
 void analogix_dp_disable_scrambling(struct analogix_dp_device *dp);
-void analogix_dp_set_video_format(struct analogix_dp_device *dp);
-void analogix_dp_video_bist_enable(struct analogix_dp_device *dp);
+void analogix_dp_enable_psr_crc(struct analogix_dp_device *dp);
+int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
+			     struct edp_vsc_psr *vsc, bool blocking);
 ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			     struct drm_dp_aux_msg *msg);
+
 #endif /* _ANALOGIX_DP_CORE_H */

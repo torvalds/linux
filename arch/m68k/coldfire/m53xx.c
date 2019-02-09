@@ -38,7 +38,7 @@ DEFINE_CLK(0, "edma", 17, MCF_CLK);
 DEFINE_CLK(0, "intc.0", 18, MCF_CLK);
 DEFINE_CLK(0, "intc.1", 19, MCF_CLK);
 DEFINE_CLK(0, "iack.0", 21, MCF_CLK);
-DEFINE_CLK(0, "mcfi2c.0", 22, MCF_CLK);
+DEFINE_CLK(0, "imx1-i2c.0", 22, MCF_CLK);
 DEFINE_CLK(0, "mcfqspi.0", 23, MCF_CLK);
 DEFINE_CLK(0, "mcfuart.0", 24, MCF_BUSCLK);
 DEFINE_CLK(0, "mcfuart.1", 25, MCF_BUSCLK);
@@ -77,7 +77,7 @@ struct clk *mcf_clks[] = {
 	&__clk_0_18,	/* intc.0 */
 	&__clk_0_19,	/* intc.1 */
 	&__clk_0_21,	/* iack.0 */
-	&__clk_0_22,	/* mcfi2c.0 */
+	&__clk_0_22,	/* imx1-i2c.0 */
 	&__clk_0_23,	/* mcfqspi.0 */
 	&__clk_0_24,	/* mcfuart.0 */
 	&__clk_0_25,	/* mcfuart.1 */
@@ -133,7 +133,7 @@ static struct clk * const disable_clks[] __initconst = {
 	&__clk_0_8,	/* mcfcan.0 */
 	&__clk_0_12,	/* fec.0 */
 	&__clk_0_17,	/* edma */
-	&__clk_0_22,	/* mcfi2c.0 */
+	&__clk_0_22,	/* imx1-i2c.0 */
 	&__clk_0_23,	/* mcfqspi.0 */
 	&__clk_0_30,	/* mcftmr.2 */
 	&__clk_0_31,	/* mcftmr.3 */
@@ -172,6 +172,19 @@ static void __init m53xx_qspi_init(void)
 	/* setup QSPS pins for QSPI with gpio CS control */
 	writew(0x01f0, MCFGPIO_PAR_QSPI);
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
+}
+
+/***************************************************************************/
+
+static void __init m53xx_i2c_init(void)
+{
+#if IS_ENABLED(CONFIG_I2C_IMX)
+	/* setup Port AS Pin Assignment Register for I2C */
+	/*  set PASPA0 to SCL and PASPA1 to SDA */
+	u8 r = readb(MCFGPIO_PAR_FECI2C);
+	r |= 0x0f;
+	writeb(r, MCFGPIO_PAR_FECI2C);
+#endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 }
 
 /***************************************************************************/
@@ -218,6 +231,7 @@ void __init config_BSP(char *commandp, int size)
 	m53xx_uarts_init();
 	m53xx_fec_init();
 	m53xx_qspi_init();
+	m53xx_i2c_init();
 
 #ifdef CONFIG_BDM_DISABLE
 	/*
@@ -271,9 +285,6 @@ void __init config_BSP(char *commandp, int size)
 
 #define NAND_FLASH_ADDRESS	(0xD0000000)
 
-int sys_clk_khz = 0;
-int sys_clk_mhz = 0;
-
 void wtm_init(void);
 void scm_init(void);
 void gpio_init(void);
@@ -286,9 +297,8 @@ int  get_sys_clock (void);
 
 asmlinkage void __init sysinit(void)
 {
-	sys_clk_khz = clock_pll(0, 0);
-	sys_clk_mhz = sys_clk_khz/1000;
-	
+	clock_pll(0, 0);
+
 	wtm_init();
 	scm_init();
 	gpio_init();

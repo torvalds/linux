@@ -7,7 +7,20 @@ This file documents differences between the core properties described
 by mmc.txt and the properties used by the sdhci-esdhc driver.
 
 Required properties:
-  - interrupt-parent : interrupt source phandle.
+  - compatible : should be "fsl,esdhc", or "fsl,<chip>-esdhc".
+    Possible compatibles for PowerPC:
+	"fsl,mpc8536-esdhc"
+	"fsl,mpc8378-esdhc"
+	"fsl,p2020-esdhc"
+	"fsl,p4080-esdhc"
+	"fsl,t1040-esdhc"
+	"fsl,t4240-esdhc"
+    Possible compatibles for ARM:
+	"fsl,ls1012a-esdhc"
+	"fsl,ls1088a-esdhc"
+	"fsl,ls1043a-esdhc"
+	"fsl,ls1046a-esdhc"
+	"fsl,ls2080a-esdhc"
   - clock-frequency : specifies eSDHC base clock frequency.
 
 Optional properties:

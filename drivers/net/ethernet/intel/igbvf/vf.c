@@ -1,28 +1,5 @@
-/*******************************************************************************
-
-  Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 - 2012 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009 - 2018 Intel Corporation. */
 
 #include "vf.h"
 
@@ -36,6 +13,7 @@ static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw, u8 *,
 					 u32, u32, u32);
 static void e1000_rar_set_vf(struct e1000_hw *, u8 *, u32);
 static s32 e1000_read_mac_addr_vf(struct e1000_hw *);
+static s32 e1000_set_uc_addr_vf(struct e1000_hw *hw, u32 subcmd, u8 *addr);
 static s32 e1000_set_vfta_vf(struct e1000_hw *, u16, bool);
 
 /**
@@ -66,6 +44,8 @@ static s32 e1000_init_mac_params_vf(struct e1000_hw *hw)
 	mac->ops.rar_set = e1000_rar_set_vf;
 	/* read mac address */
 	mac->ops.read_mac_addr = e1000_read_mac_addr_vf;
+	/* set mac filter */
+	mac->ops.set_uc_addr = e1000_set_uc_addr_vf;
 	/* set vlan filter table array */
 	mac->ops.set_vfta = e1000_set_vfta_vf;
 
@@ -146,7 +126,7 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 		msgbuf[0] = E1000_VF_RESET;
 		mbx->ops.write_posted(hw, msgbuf, 1);
 
-		msleep(10);
+		mdelay(10);
 
 		/* set our "perm_addr" based on info provided by PF */
 		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
@@ -227,6 +207,7 @@ static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
 	u16 *hash_list = (u16 *)&msgbuf[1];
 	u32 hash_value;
 	u32 cnt, i;
+	s32 ret_val;
 
 	/* Each entry in the list uses 1 16 bit word.  We have 30
 	 * 16 bit words available in our HW msg buffer (minus 1 for the
@@ -247,7 +228,9 @@ static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
 		mc_addr_list += ETH_ALEN;
 	}
 
-	mbx->ops.write_posted(hw, msgbuf, E1000_VFMAILBOX_SIZE);
+	ret_val = mbx->ops.write_posted(hw, msgbuf, E1000_VFMAILBOX_SIZE);
+	if (!ret_val)
+		mbx->ops.read_posted(hw, msgbuf, 1);
 }
 
 /**
@@ -266,7 +249,7 @@ static s32 e1000_set_vfta_vf(struct e1000_hw *hw, u16 vid, bool set)
 	msgbuf[1] = vid;
 	/* Setting the 8 bit field MSG INFO to true indicates "add" */
 	if (set)
-		msgbuf[0] |= 1 << E1000_VT_MSGINFO_SHIFT;
+		msgbuf[0] |= BIT(E1000_VT_MSGINFO_SHIFT);
 
 	mbx->ops.write_posted(hw, msgbuf, 2);
 
@@ -290,11 +273,14 @@ void e1000_rlpml_set_vf(struct e1000_hw *hw, u16 max_size)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
+	s32 ret_val;
 
 	msgbuf[0] = E1000_VF_SET_LPE;
 	msgbuf[1] = max_size;
 
-	mbx->ops.write_posted(hw, msgbuf, 2);
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 2);
+	if (!ret_val)
+		mbx->ops.read_posted(hw, msgbuf, 1);
 }
 
 /**
@@ -335,6 +321,44 @@ static s32 e1000_read_mac_addr_vf(struct e1000_hw *hw)
 	memcpy(hw->mac.addr, hw->mac.perm_addr, ETH_ALEN);
 
 	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_set_uc_addr_vf - Set or clear unicast filters
+ *  @hw: pointer to the HW structure
+ *  @sub_cmd: add or clear filters
+ *  @addr: pointer to the filter MAC address
+ **/
+static s32 e1000_set_uc_addr_vf(struct e1000_hw *hw, u32 sub_cmd, u8 *addr)
+{
+	struct e1000_mbx_info *mbx = &hw->mbx;
+	u32 msgbuf[3], msgbuf_chk;
+	u8 *msg_addr = (u8 *)(&msgbuf[1]);
+	s32 ret_val;
+
+	memset(msgbuf, 0, sizeof(msgbuf));
+	msgbuf[0] |= sub_cmd;
+	msgbuf[0] |= E1000_VF_SET_MAC_ADDR;
+	msgbuf_chk = msgbuf[0];
+
+	if (addr)
+		memcpy(msg_addr, addr, ETH_ALEN);
+
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
+
+	if (!ret_val)
+		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
+
+	msgbuf[0] &= ~E1000_VT_MSGTYPE_CTS;
+
+	if (!ret_val) {
+		msgbuf[0] &= ~E1000_VT_MSGTYPE_CTS;
+
+		if (msgbuf[0] == (msgbuf_chk | E1000_VT_MSGTYPE_NACK))
+			return -ENOSPC;
+	}
+
+	return ret_val;
 }
 
 /**

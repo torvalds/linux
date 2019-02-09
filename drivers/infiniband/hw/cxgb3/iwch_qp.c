@@ -39,8 +39,8 @@
 
 #define NO_SUPPORT -1
 
-static int build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
-				u8 * flit_cnt)
+static int build_rdma_send(union t3_wr *wqe, const struct ib_send_wr *wr,
+			   u8 *flit_cnt)
 {
 	int i;
 	u32 plen;
@@ -84,8 +84,8 @@ static int build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
-				 u8 *flit_cnt)
+static int build_rdma_write(union t3_wr *wqe, const struct ib_send_wr *wr,
+			    u8 *flit_cnt)
 {
 	int i;
 	u32 plen;
@@ -125,8 +125,8 @@ static int build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
-				u8 *flit_cnt)
+static int build_rdma_read(union t3_wr *wqe, const struct ib_send_wr *wr,
+			   u8 *flit_cnt)
 {
 	if (wr->num_sge > 1)
 		return -EINVAL;
@@ -146,8 +146,8 @@ static int build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int build_memreg(union t3_wr *wqe, struct ib_reg_wr *wr,
-			  u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
+static int build_memreg(union t3_wr *wqe, const struct ib_reg_wr *wr,
+			u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
 {
 	struct iwch_mr *mhp = to_iwch_mr(wr->mr);
 	int i;
@@ -189,8 +189,8 @@ static int build_memreg(union t3_wr *wqe, struct ib_reg_wr *wr,
 	return 0;
 }
 
-static int build_inv_stag(union t3_wr *wqe, struct ib_send_wr *wr,
-				u8 *flit_cnt)
+static int build_inv_stag(union t3_wr *wqe, const struct ib_send_wr *wr,
+			  u8 *flit_cnt)
 {
 	wqe->local_inv.stag = cpu_to_be32(wr->ex.invalidate_rkey);
 	wqe->local_inv.reserved = 0;
@@ -208,30 +208,30 @@ static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 
 		mhp = get_mhp(rhp, (sg_list[i].lkey) >> 8);
 		if (!mhp) {
-			PDBG("%s %d\n", __func__, __LINE__);
+			pr_debug("%s %d\n", __func__, __LINE__);
 			return -EIO;
 		}
 		if (!mhp->attr.state) {
-			PDBG("%s %d\n", __func__, __LINE__);
+			pr_debug("%s %d\n", __func__, __LINE__);
 			return -EIO;
 		}
 		if (mhp->attr.zbva) {
-			PDBG("%s %d\n", __func__, __LINE__);
+			pr_debug("%s %d\n", __func__, __LINE__);
 			return -EIO;
 		}
 
 		if (sg_list[i].addr < mhp->attr.va_fbo) {
-			PDBG("%s %d\n", __func__, __LINE__);
+			pr_debug("%s %d\n", __func__, __LINE__);
 			return -EINVAL;
 		}
 		if (sg_list[i].addr + ((u64) sg_list[i].length) <
 		    sg_list[i].addr) {
-			PDBG("%s %d\n", __func__, __LINE__);
+			pr_debug("%s %d\n", __func__, __LINE__);
 			return -EINVAL;
 		}
 		if (sg_list[i].addr + ((u64) sg_list[i].length) >
 		    mhp->attr.va_fbo + ((u64) mhp->attr.len)) {
-			PDBG("%s %d\n", __func__, __LINE__);
+			pr_debug("%s %d\n", __func__, __LINE__);
 			return -EINVAL;
 		}
 		offset = sg_list[i].addr - mhp->attr.va_fbo;
@@ -246,7 +246,7 @@ static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 }
 
 static int build_rdma_recv(struct iwch_qp *qhp, union t3_wr *wqe,
-				struct ib_recv_wr *wr)
+			   const struct ib_recv_wr *wr)
 {
 	int i, err = 0;
 	u32 pbl_addr[T3_MAX_SGE];
@@ -286,7 +286,7 @@ static int build_rdma_recv(struct iwch_qp *qhp, union t3_wr *wqe,
 }
 
 static int build_zero_stag_recv(struct iwch_qp *qhp, union t3_wr *wqe,
-				struct ib_recv_wr *wr)
+				const struct ib_recv_wr *wr)
 {
 	int i;
 	u32 pbl_addr;
@@ -348,8 +348,8 @@ static int build_zero_stag_recv(struct iwch_qp *qhp, union t3_wr *wqe,
 	return 0;
 }
 
-int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		      struct ib_send_wr **bad_wr)
+int iwch_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		   const struct ib_send_wr **bad_wr)
 {
 	int err = 0;
 	u8 uninitialized_var(t3_wr_flit_cnt);
@@ -427,8 +427,8 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			err = build_inv_stag(wqe, wr, &t3_wr_flit_cnt);
 			break;
 		default:
-			PDBG("%s post of type=%d TBD!\n", __func__,
-			     wr->opcode);
+			pr_debug("%s post of type=%d TBD!\n", __func__,
+				 wr->opcode);
 			err = -EINVAL;
 		}
 		if (err)
@@ -444,10 +444,10 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			       Q_GENBIT(qhp->wq.wptr, qhp->wq.size_log2),
 			       0, t3_wr_flit_cnt,
 			       (wr_cnt == 1) ? T3_SOPEOP : T3_SOP);
-		PDBG("%s cookie 0x%llx wq idx 0x%x swsq idx %ld opcode %d\n",
-		     __func__, (unsigned long long) wr->wr_id, idx,
-		     Q_PTR2IDX(qhp->wq.sq_wptr, qhp->wq.sq_size_log2),
-		     sqp->opcode);
+		pr_debug("%s cookie 0x%llx wq idx 0x%x swsq idx %ld opcode %d\n",
+			 __func__, (unsigned long long)wr->wr_id, idx,
+			 Q_PTR2IDX(qhp->wq.sq_wptr, qhp->wq.sq_size_log2),
+			 sqp->opcode);
 		wr = wr->next;
 		num_wrs--;
 		qhp->wq.wptr += wr_cnt;
@@ -463,8 +463,8 @@ out:
 	return err;
 }
 
-int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int iwch_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	int err = 0;
 	struct iwch_qp *qhp;
@@ -508,9 +508,9 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		build_fw_riwrh((void *) wqe, T3_WR_RCV, T3_COMPLETION_FLAG,
 			       Q_GENBIT(qhp->wq.wptr, qhp->wq.size_log2),
 			       0, sizeof(struct t3_receive_wr) >> 3, T3_SOPEOP);
-		PDBG("%s cookie 0x%llx idx 0x%x rq_wptr 0x%x rw_rptr 0x%x "
-		     "wqe %p \n", __func__, (unsigned long long) wr->wr_id,
-		     idx, qhp->wq.rq_wptr, qhp->wq.rq_rptr, wqe);
+		pr_debug("%s cookie 0x%llx idx 0x%x rq_wptr 0x%x rw_rptr 0x%x wqe %p\n",
+			 __func__, (unsigned long long)wr->wr_id,
+			 idx, qhp->wq.rq_wptr, qhp->wq.rq_rptr, wqe);
 		++(qhp->wq.rq_wptr);
 		++(qhp->wq.wptr);
 		wr = wr->next;
@@ -523,88 +523,6 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 out:
 	if (err)
 		*bad_wr = wr;
-	return err;
-}
-
-int iwch_bind_mw(struct ib_qp *qp,
-			     struct ib_mw *mw,
-			     struct ib_mw_bind *mw_bind)
-{
-	struct iwch_dev *rhp;
-	struct iwch_mw *mhp;
-	struct iwch_qp *qhp;
-	union t3_wr *wqe;
-	u32 pbl_addr;
-	u8 page_size;
-	u32 num_wrs;
-	unsigned long flag;
-	struct ib_sge sgl;
-	int err=0;
-	enum t3_wr_flags t3_wr_flags;
-	u32 idx;
-	struct t3_swsq *sqp;
-
-	qhp = to_iwch_qp(qp);
-	mhp = to_iwch_mw(mw);
-	rhp = qhp->rhp;
-
-	spin_lock_irqsave(&qhp->lock, flag);
-	if (qhp->attr.state > IWCH_QP_STATE_RTS) {
-		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -EINVAL;
-	}
-	num_wrs = Q_FREECNT(qhp->wq.sq_rptr, qhp->wq.sq_wptr,
-			    qhp->wq.sq_size_log2);
-	if (num_wrs == 0) {
-		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -ENOMEM;
-	}
-	idx = Q_PTR2IDX(qhp->wq.wptr, qhp->wq.size_log2);
-	PDBG("%s: idx 0x%0x, mw 0x%p, mw_bind 0x%p\n", __func__, idx,
-	     mw, mw_bind);
-	wqe = (union t3_wr *) (qhp->wq.queue + idx);
-
-	t3_wr_flags = 0;
-	if (mw_bind->send_flags & IB_SEND_SIGNALED)
-		t3_wr_flags = T3_COMPLETION_FLAG;
-
-	sgl.addr = mw_bind->bind_info.addr;
-	sgl.lkey = mw_bind->bind_info.mr->lkey;
-	sgl.length = mw_bind->bind_info.length;
-	wqe->bind.reserved = 0;
-	wqe->bind.type = TPT_VATO;
-
-	/* TBD: check perms */
-	wqe->bind.perms = iwch_ib_to_tpt_bind_access(
-		mw_bind->bind_info.mw_access_flags);
-	wqe->bind.mr_stag = cpu_to_be32(mw_bind->bind_info.mr->lkey);
-	wqe->bind.mw_stag = cpu_to_be32(mw->rkey);
-	wqe->bind.mw_len = cpu_to_be32(mw_bind->bind_info.length);
-	wqe->bind.mw_va = cpu_to_be64(mw_bind->bind_info.addr);
-	err = iwch_sgl2pbl_map(rhp, &sgl, 1, &pbl_addr, &page_size);
-	if (err) {
-		spin_unlock_irqrestore(&qhp->lock, flag);
-		return err;
-	}
-	wqe->send.wrid.id0.hi = qhp->wq.sq_wptr;
-	sqp = qhp->wq.sq + Q_PTR2IDX(qhp->wq.sq_wptr, qhp->wq.sq_size_log2);
-	sqp->wr_id = mw_bind->wr_id;
-	sqp->opcode = T3_BIND_MW;
-	sqp->sq_wptr = qhp->wq.sq_wptr;
-	sqp->complete = 0;
-	sqp->signaled = (mw_bind->send_flags & IB_SEND_SIGNALED);
-	wqe->bind.mr_pbl_addr = cpu_to_be32(pbl_addr);
-	wqe->bind.mr_pagesz = page_size;
-	build_fw_riwrh((void *)wqe, T3_WR_BIND, t3_wr_flags,
-		       Q_GENBIT(qhp->wq.wptr, qhp->wq.size_log2), 0,
-		       sizeof(struct t3_bind_mw_wr) >> 3, T3_SOPEOP);
-	++(qhp->wq.wptr);
-	++(qhp->wq.sq_wptr);
-	spin_unlock_irqrestore(&qhp->lock, flag);
-
-	if (cxio_wq_db_enabled(&qhp->wq))
-		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
-
 	return err;
 }
 
@@ -746,14 +664,13 @@ int iwch_post_zb_read(struct iwch_ep *ep)
 	struct sk_buff *skb;
 	u8 flit_cnt = sizeof(struct t3_rdma_read_wr) >> 3;
 
-	PDBG("%s enter\n", __func__);
+	pr_debug("%s enter\n", __func__);
 	skb = alloc_skb(40, GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR "%s cannot send zb_read!!\n", __func__);
+		pr_err("%s cannot send zb_read!!\n", __func__);
 		return -ENOMEM;
 	}
-	wqe = (union t3_wr *)skb_put(skb, sizeof(struct t3_rdma_read_wr));
-	memset(wqe, 0, sizeof(struct t3_rdma_read_wr));
+	wqe = skb_put_zero(skb, sizeof(struct t3_rdma_read_wr));
 	wqe->read.rdmaop = T3_READ_REQ;
 	wqe->read.reserved[0] = 0;
 	wqe->read.reserved[1] = 0;
@@ -778,14 +695,13 @@ int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg)
 	struct terminate_message *term;
 	struct sk_buff *skb;
 
-	PDBG("%s %d\n", __func__, __LINE__);
+	pr_debug("%s %d\n", __func__, __LINE__);
 	skb = alloc_skb(40, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_ERR "%s cannot send TERMINATE!\n", __func__);
+		pr_err("%s cannot send TERMINATE!\n", __func__);
 		return -ENOMEM;
 	}
-	wqe = (union t3_wr *)skb_put(skb, 40);
-	memset(wqe, 0, 40);
+	wqe = skb_put_zero(skb, 40);
 	wqe->send.rdmaop = T3_TERMINATE;
 
 	/* immediate data length */
@@ -806,12 +722,15 @@ int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg)
  */
 static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
 				struct iwch_cq *schp)
+	__releases(&qhp->lock)
+	__acquires(&qhp->lock)
 {
 	int count;
 	int flushed;
 
+	lockdep_assert_held(&qhp->lock);
 
-	PDBG("%s qhp %p rchp %p schp %p\n", __func__, qhp, rchp, schp);
+	pr_debug("%s qhp %p rchp %p schp %p\n", __func__, qhp, rchp, schp);
 	/* take a ref on the qhp since we must release the lock */
 	atomic_inc(&qhp->refcnt);
 	spin_unlock(&qhp->lock);
@@ -889,7 +808,7 @@ u16 iwch_rqes_posted(struct iwch_qp *qhp)
 		count++;
 		wqe++;
 	}
-	PDBG("%s qhp %p count %u\n", __func__, qhp, count);
+	pr_debug("%s qhp %p count %u\n", __func__, qhp, count);
 	return count;
 }
 
@@ -936,12 +855,12 @@ static int rdma_init(struct iwch_dev *rhp, struct iwch_qp *qhp,
 	} else
 		init_attr.rtr_type = 0;
 	init_attr.irs = qhp->ep->rcv_seq;
-	PDBG("%s init_attr.rq_addr 0x%x init_attr.rq_size = %d "
-	     "flags 0x%x qpcaps 0x%x\n", __func__,
-	     init_attr.rq_addr, init_attr.rq_size,
-	     init_attr.flags, init_attr.qpcaps);
+	pr_debug("%s init_attr.rq_addr 0x%x init_attr.rq_size = %d flags 0x%x qpcaps 0x%x\n",
+		 __func__,
+		 init_attr.rq_addr, init_attr.rq_size,
+		 init_attr.flags, init_attr.qpcaps);
 	ret = cxio_rdma_init(&rhp->rdev, &init_attr);
-	PDBG("%s ret %d\n", __func__, ret);
+	pr_debug("%s ret %d\n", __func__, ret);
 	return ret;
 }
 
@@ -959,9 +878,9 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 	int free = 0;
 	struct iwch_ep *ep = NULL;
 
-	PDBG("%s qhp %p qpid 0x%x ep %p state %d -> %d\n", __func__,
-	     qhp, qhp->wq.qpid, qhp->ep, qhp->attr.state,
-	     (mask & IWCH_QP_ATTR_NEXT_STATE) ? attrs->next_state : -1);
+	pr_debug("%s qhp %p qpid 0x%x ep %p state %d -> %d\n", __func__,
+		 qhp, qhp->wq.qpid, qhp->ep, qhp->attr.state,
+		 (mask & IWCH_QP_ATTR_NEXT_STATE) ? attrs->next_state : -1);
 
 	spin_lock_irqsave(&qhp->lock, flag);
 
@@ -1043,7 +962,7 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 	case IWCH_QP_STATE_RTS:
 		switch (attrs->next_state) {
 		case IWCH_QP_STATE_CLOSING:
-			BUG_ON(atomic_read(&qhp->ep->com.kref.refcount) < 2);
+			BUG_ON(kref_read(&qhp->ep->com.kref) < 2);
 			qhp->attr.state = IWCH_QP_STATE_CLOSING;
 			if (!internal) {
 				abort=0;
@@ -1116,16 +1035,15 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 		goto err;
 		break;
 	default:
-		printk(KERN_ERR "%s in a bad state %d\n",
-		       __func__, qhp->attr.state);
+		pr_err("%s in a bad state %d\n", __func__, qhp->attr.state);
 		ret = -EINVAL;
 		goto err;
 		break;
 	}
 	goto out;
 err:
-	PDBG("%s disassociating ep %p qpid 0x%x\n", __func__, qhp->ep,
-	     qhp->wq.qpid);
+	pr_debug("%s disassociating ep %p qpid 0x%x\n", __func__, qhp->ep,
+		 qhp->wq.qpid);
 
 	/* disassociate the LLP connection */
 	qhp->attr.llp_stream_handle = NULL;
@@ -1159,6 +1077,6 @@ out:
 	if (free)
 		put_ep(&ep->com);
 
-	PDBG("%s exit state %d\n", __func__, qhp->attr.state);
+	pr_debug("%s exit state %d\n", __func__, qhp->attr.state);
 	return ret;
 }

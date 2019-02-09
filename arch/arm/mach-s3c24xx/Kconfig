@@ -1,20 +1,19 @@
-# arch/arm/mach-s3c24xx/Kconfig
+# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (c) 2012 Samsung Electronics Co., Ltd.
 #		http://www.samsung.com/
 #
 # Copyright 2007 Simtec Electronics
-#
-# Licensed under GPLv2
 
 if ARCH_S3C24XX
 
 config PLAT_S3C24XX
 	def_bool y
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select NO_IOPORT_MAP
 	select S3C_DEV_NAND
 	select IRQ_DOMAIN
+	select COMMON_CLK
 	help
 	  Base platform code for any Samsung S3C24XX device
 
@@ -228,7 +227,7 @@ config ARCH_H1940
 config H1940BT
 	tristate "Control the state of H1940 bluetooth chip"
 	depends on ARCH_H1940
-	select RFKILL
+	depends on RFKILL
 	help
 	  This is a simple driver that is able to control
 	  the state of built in bluetooth chip on h1940.
@@ -393,7 +392,7 @@ config MACH_SMDK2416
 
 config MACH_S3C2416_DT
 	bool "Samsung S3C2416 machine using devicetree"
-	select CLKSRC_OF
+	select TIMER_OF
 	select USE_OF
 	select PINCTRL
 	select PINCTRL_S3C24XX
@@ -405,7 +404,7 @@ config MACH_S3C2416_DT
 
 endif	# CPU_S3C2416
 
-if CPU_S3C2440
+if CPU_S3C2440 || CPU_S3C2442
 
 config S3C2440_XTAL_12000000
 	bool
@@ -432,6 +431,9 @@ config S3C2440_PLL_16934400
 	default y if S3C24XX_PLL
 	help
 	  PLL tables for S3C2440 or S3C2442 CPUs with 16.934MHz crystals.
+endif
+
+if CPU_S3C2440
 
 comment "S3C2440 Boards"
 
@@ -460,7 +462,6 @@ config MACH_AT2440EVB
 
 config MACH_MINI2440
 	bool "MINI2440 development board"
-	select EEPROM_AT24 if I2C
 	select LEDS_CLASS
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_BACKLIGHT

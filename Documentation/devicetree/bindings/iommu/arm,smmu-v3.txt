@@ -1,6 +1,6 @@
 * ARM SMMUv3 Architecture Implementation
 
-The SMMUv3 architecture is a significant deparature from previous
+The SMMUv3 architecture is a significant departure from previous
 revisions, replacing the MMIO register interface with in-memory command
 and event queues and adding support for the ATS and PRI components of
 the PCIe specification.
@@ -26,6 +26,18 @@ the PCIe specification.
                       * "priq"      - PRI Queue not empty
                       * "cmdq-sync" - CMD_SYNC complete
                       * "gerror"    - Global Error activated
+                      * "combined"  - The combined interrupt is optional,
+				      and should only be provided if the
+				      hardware supports just a single,
+				      combined interrupt line.
+				      If provided, then the combined interrupt
+				      will be used in preference to any others.
+
+- #iommu-cells      : See the generic IOMMU binding described in
+                        devicetree/bindings/pci/pci-iommu.txt
+                      for details. For SMMUv3, must be 1, with each cell
+                      describing a single stream ID. All possible stream
+                      IDs which a device may emit must be described.
 
 ** SMMUv3 optional properties:
 
@@ -43,6 +55,12 @@ the PCIe specification.
 - hisilicon,broken-prefetch-cmd
                     : Avoid sending CMD_PREFETCH_* commands to the SMMU.
 
+- cavium,cn9900-broken-page1-regspace
+                    : Replaces all page 1 offsets used for EVTQ_PROD/CONS,
+		      PRIQ_PROD/CONS register access with page 0 offsets.
+		      Set for Cavium ThunderX2 silicon that doesn't support
+		      SMMU page1 register space.
+
 ** Example
 
         smmu@2b400000 {
@@ -54,6 +72,6 @@ the PCIe specification.
                              <GIC_SPI 79 IRQ_TYPE_EDGE_RISING>;
                 interrupt-names = "eventq", "priq", "cmdq-sync", "gerror";
                 dma-coherent;
-                #iommu-cells = <0>;
+                #iommu-cells = <1>;
                 msi-parent = <&its 0xff0000>;
         };

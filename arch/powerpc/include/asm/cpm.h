@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CPM_H
 #define __CPM_H
 
@@ -5,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/of.h>
+#include <soc/fsl/qe/qe.h>
 
 /*
  * SPI Parameter RAM common to QE and CPM.
@@ -155,49 +157,6 @@ typedef struct cpm_buf_desc {
  */
 #define BD_I2C_START		(0x0400)
 
-int cpm_muram_init(void);
-
-#if defined(CONFIG_CPM) || defined(CONFIG_QUICC_ENGINE)
-unsigned long cpm_muram_alloc(unsigned long size, unsigned long align);
-int cpm_muram_free(unsigned long offset);
-unsigned long cpm_muram_alloc_fixed(unsigned long offset, unsigned long size);
-void __iomem *cpm_muram_addr(unsigned long offset);
-unsigned long cpm_muram_offset(void __iomem *addr);
-dma_addr_t cpm_muram_dma(void __iomem *addr);
-#else
-static inline unsigned long cpm_muram_alloc(unsigned long size,
-					    unsigned long align)
-{
-	return -ENOSYS;
-}
-
-static inline int cpm_muram_free(unsigned long offset)
-{
-	return -ENOSYS;
-}
-
-static inline unsigned long cpm_muram_alloc_fixed(unsigned long offset,
-						  unsigned long size)
-{
-	return -ENOSYS;
-}
-
-static inline void __iomem *cpm_muram_addr(unsigned long offset)
-{
-	return NULL;
-}
-
-static inline unsigned long cpm_muram_offset(void __iomem *addr)
-{
-	return -ENOSYS;
-}
-
-static inline dma_addr_t cpm_muram_dma(void __iomem *addr)
-{
-	return 0;
-}
-#endif /* defined(CONFIG_CPM) || defined(CONFIG_QUICC_ENGINE) */
-
 #ifdef CONFIG_CPM
 int cpm_command(u32 command, u8 opcode);
 #else
@@ -207,6 +166,6 @@ static inline int cpm_command(u32 command, u8 opcode)
 }
 #endif /* CONFIG_CPM */
 
-int cpm2_gpiochip_add32(struct device_node *np);
+int cpm2_gpiochip_add32(struct device *dev);
 
 #endif

@@ -237,7 +237,7 @@ static void esas2r_claim_interrupts(struct esas2r_adapter *a)
 		flags |= IRQF_SHARED;
 
 	esas2r_log(ESAS2R_LOG_INFO,
-		   "esas2r_claim_interrupts irq=%d (%p, %s, %x)",
+		   "esas2r_claim_interrupts irq=%d (%p, %s, %lx)",
 		   a->pcid->irq, a, a->name, flags);
 
 	if (request_irq(a->pcid->irq,
@@ -327,8 +327,8 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 	esas2r_debug("new adapter %p, name %s", a, a->name);
 	spin_lock_init(&a->request_lock);
 	spin_lock_init(&a->fw_event_lock);
-	sema_init(&a->fm_api_semaphore, 1);
-	sema_init(&a->fs_api_semaphore, 1);
+	mutex_init(&a->fm_api_mutex);
+	mutex_init(&a->fs_api_mutex);
 	sema_init(&a->nvram_semaphore, 1);
 
 	esas2r_fw_event_off(a);
@@ -661,27 +661,6 @@ void esas2r_kill_adapter(int i)
 	}
 }
 
-int esas2r_cleanup(struct Scsi_Host *host)
-{
-	struct esas2r_adapter *a;
-	int index;
-
-	if (host == NULL) {
-		int i;
-
-		esas2r_debug("esas2r_cleanup everything");
-		for (i = 0; i < MAX_ADAPTERS; i++)
-			esas2r_kill_adapter(i);
-		return -1;
-	}
-
-	esas2r_debug("esas2r_cleanup called for host %p", host);
-	a = (struct esas2r_adapter *)host->hostdata;
-	index = a->index;
-	esas2r_kill_adapter(index);
-	return index;
-}
-
 int esas2r_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
@@ -854,7 +833,7 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 
 	/* allocate requests for asynchronous events */
 	a->first_ae_req =
-		kzalloc(num_ae_requests * sizeof(struct esas2r_request),
+		kcalloc(num_ae_requests, sizeof(struct esas2r_request),
 			GFP_KERNEL);
 
 	if (a->first_ae_req == NULL) {
@@ -864,8 +843,8 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 	}
 
 	/* allocate the S/G list memory descriptors */
-	a->sg_list_mds = kzalloc(
-		num_sg_lists * sizeof(struct esas2r_mem_desc), GFP_KERNEL);
+	a->sg_list_mds = kcalloc(num_sg_lists, sizeof(struct esas2r_mem_desc),
+				 GFP_KERNEL);
 
 	if (a->sg_list_mds == NULL) {
 		esas2r_log(ESAS2R_LOG_CRIT,
@@ -875,8 +854,9 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 
 	/* allocate the request table */
 	a->req_table =
-		kzalloc((num_requests + num_ae_requests +
-			 1) * sizeof(struct esas2r_request *), GFP_KERNEL);
+		kcalloc(num_requests + num_ae_requests + 1,
+			sizeof(struct esas2r_request *),
+			GFP_KERNEL);
 
 	if (a->req_table == NULL) {
 		esas2r_log(ESAS2R_LOG_CRIT,
@@ -963,10 +943,6 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 
 	/* initialize the allocated memory */
 	if (test_bit(AF_FIRST_INIT, &a->flags)) {
-		memset(a->req_table, 0,
-		       (num_requests + num_ae_requests +
-			1) * sizeof(struct esas2r_request *));
-
 		esas2r_targ_db_initialize(a);
 
 		/* prime parts of the inbound list */
@@ -1227,8 +1203,6 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 	case ESAS2R_INIT_MSG_START:
 	case ESAS2R_INIT_MSG_REINIT:
 	{
-		struct timeval now;
-		do_gettimeofday(&now);
 		esas2r_hdebug("CFG init");
 		esas2r_build_cfg_req(a,
 				     rq,
@@ -1237,7 +1211,8 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 				     NULL);
 		ci = (struct atto_vda_cfg_init *)&rq->vrq->cfg.data.init;
 		ci->sgl_page_size = cpu_to_le32(sgl_page_size);
-		ci->epoch_time = cpu_to_le32(now.tv_sec);
+		/* firmware interface overflows in y2106 */
+		ci->epoch_time = cpu_to_le32(ktime_get_real_seconds());
 		rq->flags |= RF_FAILURE_OK;
 		a->init_msg = ESAS2R_INIT_MSG_INIT;
 		break;

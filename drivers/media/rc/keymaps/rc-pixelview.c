@@ -1,14 +1,9 @@
-/* pixelview.h - Keytable for pixelview Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// pixelview.h - Keytable for pixelview Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -59,10 +54,10 @@ static struct rc_map_table pixelview[] = {
 
 static struct rc_map_list pixelview_map = {
 	.map = {
-		.scan    = pixelview,
-		.size    = ARRAY_SIZE(pixelview),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_PIXELVIEW,
+		.scan     = pixelview,
+		.size     = ARRAY_SIZE(pixelview),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_PIXELVIEW,
 	}
 };
 

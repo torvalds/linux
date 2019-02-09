@@ -34,6 +34,24 @@
 #include "rt5670.h"
 #include "rt5670-dsp.h"
 
+#define RT5670_DEV_GPIO     BIT(0)
+#define RT5670_IN2_DIFF     BIT(1)
+#define RT5670_DMIC_EN      BIT(2)
+#define RT5670_DMIC1_IN2P   BIT(3)
+#define RT5670_DMIC1_GPIO6  BIT(4)
+#define RT5670_DMIC1_GPIO7  BIT(5)
+#define RT5670_DMIC2_INR    BIT(6)
+#define RT5670_DMIC2_GPIO8  BIT(7)
+#define RT5670_DMIC3_GPIO5  BIT(8)
+#define RT5670_JD_MODE1     BIT(9)
+#define RT5670_JD_MODE2     BIT(10)
+#define RT5670_JD_MODE3     BIT(11)
+
+static unsigned long rt5670_quirk;
+static unsigned int quirk_override;
+module_param_named(quirk, quirk_override, uint, 0444);
+MODULE_PARM_DESC(quirk, "Board-specific quirk override");
+
 #define RT5670_DEVICE_ID 0x6271
 
 #define RT5670_PR_RANGE_BASE (0xff + 1)
@@ -53,8 +71,9 @@ static const struct regmap_range_cfg rt5670_ranges[] = {
 
 static const struct reg_sequence init_list[] = {
 	{ RT5670_PR_BASE + 0x14, 0x9a8a },
-	{ RT5670_PR_BASE + 0x38, 0x3ba1 },
+	{ RT5670_PR_BASE + 0x38, 0x1fe1 },
 	{ RT5670_PR_BASE + 0x3d, 0x3640 },
+	{ 0x8a, 0x0123 },
 };
 
 static const struct reg_default rt5670_reg[] = {
@@ -131,7 +150,7 @@ static const struct reg_default rt5670_reg[] = {
 	{ 0x87, 0x0000 },
 	{ 0x88, 0x0000 },
 	{ 0x89, 0x0000 },
-	{ 0x8a, 0x0000 },
+	{ 0x8a, 0x0123 },
 	{ 0x8b, 0x0000 },
 	{ 0x8c, 0x0003 },
 	{ 0x8d, 0x0000 },
@@ -404,7 +423,7 @@ static bool rt5670_readable_register(struct device *dev, unsigned int reg)
 
 /**
  * rt5670_headset_detect - Detect headset.
- * @codec: SoC audio codec device.
+ * @component: SoC audio component device.
  * @jack_insert: Jack insert or not.
  *
  * Detect whether is headset or not when jack inserted.
@@ -412,46 +431,46 @@ static bool rt5670_readable_register(struct device *dev, unsigned int reg)
  * Returns detect status.
  */
 
-static int rt5670_headset_detect(struct snd_soc_codec *codec, int jack_insert)
+static int rt5670_headset_detect(struct snd_soc_component *component, int jack_insert)
 {
 	int val;
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	if (jack_insert) {
 		snd_soc_dapm_force_enable_pin(dapm, "Mic Det Power");
 		snd_soc_dapm_sync(dapm);
-		snd_soc_update_bits(codec, RT5670_GEN_CTRL3, 0x4, 0x0);
-		snd_soc_update_bits(codec, RT5670_CJ_CTRL2,
+		snd_soc_component_update_bits(component, RT5670_GEN_CTRL3, 0x4, 0x0);
+		snd_soc_component_update_bits(component, RT5670_CJ_CTRL2,
 			RT5670_CBJ_DET_MODE | RT5670_CBJ_MN_JD,
 			RT5670_CBJ_MN_JD);
-		snd_soc_write(codec, RT5670_GPIO_CTRL2, 0x0004);
-		snd_soc_update_bits(codec, RT5670_GPIO_CTRL1,
+		snd_soc_component_write(component, RT5670_GPIO_CTRL2, 0x0004);
+		snd_soc_component_update_bits(component, RT5670_GPIO_CTRL1,
 			RT5670_GP1_PIN_MASK, RT5670_GP1_PIN_IRQ);
-		snd_soc_update_bits(codec, RT5670_CJ_CTRL1,
+		snd_soc_component_update_bits(component, RT5670_CJ_CTRL1,
 			RT5670_CBJ_BST1_EN, RT5670_CBJ_BST1_EN);
-		snd_soc_write(codec, RT5670_JD_CTRL3, 0x00f0);
-		snd_soc_update_bits(codec, RT5670_CJ_CTRL2,
+		snd_soc_component_write(component, RT5670_JD_CTRL3, 0x00f0);
+		snd_soc_component_update_bits(component, RT5670_CJ_CTRL2,
 			RT5670_CBJ_MN_JD, RT5670_CBJ_MN_JD);
-		snd_soc_update_bits(codec, RT5670_CJ_CTRL2,
+		snd_soc_component_update_bits(component, RT5670_CJ_CTRL2,
 			RT5670_CBJ_MN_JD, 0);
 		msleep(300);
-		val = snd_soc_read(codec, RT5670_CJ_CTRL3) & 0x7;
+		val = snd_soc_component_read32(component, RT5670_CJ_CTRL3) & 0x7;
 		if (val == 0x1 || val == 0x2) {
 			rt5670->jack_type = SND_JACK_HEADSET;
 			/* for push button */
-			snd_soc_update_bits(codec, RT5670_INT_IRQ_ST, 0x8, 0x8);
-			snd_soc_update_bits(codec, RT5670_IL_CMD, 0x40, 0x40);
-			snd_soc_read(codec, RT5670_IL_CMD);
+			snd_soc_component_update_bits(component, RT5670_INT_IRQ_ST, 0x8, 0x8);
+			snd_soc_component_update_bits(component, RT5670_IL_CMD, 0x40, 0x40);
+			snd_soc_component_read32(component, RT5670_IL_CMD);
 		} else {
-			snd_soc_update_bits(codec, RT5670_GEN_CTRL3, 0x4, 0x4);
+			snd_soc_component_update_bits(component, RT5670_GEN_CTRL3, 0x4, 0x4);
 			rt5670->jack_type = SND_JACK_HEADPHONE;
 			snd_soc_dapm_disable_pin(dapm, "Mic Det Power");
 			snd_soc_dapm_sync(dapm);
 		}
 	} else {
-		snd_soc_update_bits(codec, RT5670_INT_IRQ_ST, 0x8, 0x0);
-		snd_soc_update_bits(codec, RT5670_GEN_CTRL3, 0x4, 0x4);
+		snd_soc_component_update_bits(component, RT5670_INT_IRQ_ST, 0x8, 0x0);
+		snd_soc_component_update_bits(component, RT5670_GEN_CTRL3, 0x4, 0x4);
 		rt5670->jack_type = 0;
 		snd_soc_dapm_disable_pin(dapm, "Mic Det Power");
 		snd_soc_dapm_sync(dapm);
@@ -460,35 +479,35 @@ static int rt5670_headset_detect(struct snd_soc_codec *codec, int jack_insert)
 	return rt5670->jack_type;
 }
 
-void rt5670_jack_suspend(struct snd_soc_codec *codec)
+void rt5670_jack_suspend(struct snd_soc_component *component)
 {
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	rt5670->jack_type_saved = rt5670->jack_type;
-	rt5670_headset_detect(codec, 0);
+	rt5670_headset_detect(component, 0);
 }
 EXPORT_SYMBOL_GPL(rt5670_jack_suspend);
 
-void rt5670_jack_resume(struct snd_soc_codec *codec)
+void rt5670_jack_resume(struct snd_soc_component *component)
 {
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	if (rt5670->jack_type_saved)
-		rt5670_headset_detect(codec, 1);
+		rt5670_headset_detect(component, 1);
 }
 EXPORT_SYMBOL_GPL(rt5670_jack_resume);
 
-static int rt5670_button_detect(struct snd_soc_codec *codec)
+static int rt5670_button_detect(struct snd_soc_component *component)
 {
 	int btn_type, val;
 
-	val = snd_soc_read(codec, RT5670_IL_CMD);
+	val = snd_soc_component_read32(component, RT5670_IL_CMD);
 	btn_type = val & 0xff80;
-	snd_soc_write(codec, RT5670_IL_CMD, val);
+	snd_soc_component_write(component, RT5670_IL_CMD, val);
 	if (btn_type != 0) {
 		msleep(20);
-		val = snd_soc_read(codec, RT5670_IL_CMD);
-		snd_soc_write(codec, RT5670_IL_CMD, val);
+		val = snd_soc_component_read32(component, RT5670_IL_CMD);
+		snd_soc_component_write(component, RT5670_IL_CMD, val);
 	}
 
 	return btn_type;
@@ -502,25 +521,25 @@ static int rt5670_irq_detection(void *data)
 	int val, btn_type, report = jack->status;
 
 	if (rt5670->pdata.jd_mode == 1) /* 2 port */
-		val = snd_soc_read(rt5670->codec, RT5670_A_JD_CTRL1) & 0x0070;
+		val = snd_soc_component_read32(rt5670->component, RT5670_A_JD_CTRL1) & 0x0070;
 	else
-		val = snd_soc_read(rt5670->codec, RT5670_A_JD_CTRL1) & 0x0020;
+		val = snd_soc_component_read32(rt5670->component, RT5670_A_JD_CTRL1) & 0x0020;
 
 	switch (val) {
 	/* jack in */
 	case 0x30: /* 2 port */
 	case 0x0: /* 1 port or 2 port */
 		if (rt5670->jack_type == 0) {
-			report = rt5670_headset_detect(rt5670->codec, 1);
+			report = rt5670_headset_detect(rt5670->component, 1);
 			/* for push button and jack out */
 			gpio->debounce_time = 25;
 			break;
 		}
 		btn_type = 0;
-		if (snd_soc_read(rt5670->codec, RT5670_INT_IRQ_ST) & 0x4) {
+		if (snd_soc_component_read32(rt5670->component, RT5670_INT_IRQ_ST) & 0x4) {
 			/* button pressed */
 			report = SND_JACK_HEADSET;
-			btn_type = rt5670_button_detect(rt5670->codec);
+			btn_type = rt5670_button_detect(rt5670->component);
 			switch (btn_type) {
 			case 0x2000: /* up */
 				report |= SND_JACK_BTN_1;
@@ -532,7 +551,7 @@ static int rt5670_irq_detection(void *data)
 				report |= SND_JACK_BTN_2;
 				break;
 			default:
-				dev_err(rt5670->codec->dev,
+				dev_err(rt5670->component->dev,
 					"Unexpected button code 0x%04x\n",
 					btn_type);
 				break;
@@ -547,8 +566,8 @@ static int rt5670_irq_detection(void *data)
 	case 0x10: /* 2 port */
 	case 0x20: /* 1 port */
 		report = 0;
-		snd_soc_update_bits(rt5670->codec, RT5670_INT_IRQ_ST, 0x1, 0x0);
-		rt5670_headset_detect(rt5670->codec, 0);
+		snd_soc_component_update_bits(rt5670->component, RT5670_INT_IRQ_ST, 0x1, 0x0);
+		rt5670_headset_detect(rt5670->component, 0);
 		gpio->debounce_time = 150; /* for jack in */
 		break;
 	default:
@@ -558,15 +577,15 @@ static int rt5670_irq_detection(void *data)
 	return report;
 }
 
-int rt5670_set_jack_detect(struct snd_soc_codec *codec,
+int rt5670_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack)
 {
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	rt5670->jack = jack;
-	rt5670->hp_gpio.gpiod_dev = codec->dev;
-	rt5670->hp_gpio.name = "headphone detect";
+	rt5670->hp_gpio.gpiod_dev = component->dev;
+	rt5670->hp_gpio.name = "headset";
 	rt5670->hp_gpio.report = SND_JACK_HEADSET |
 		SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2;
 	rt5670->hp_gpio.debounce_time = 150;
@@ -577,7 +596,7 @@ int rt5670_set_jack_detect(struct snd_soc_codec *codec,
 	ret = snd_soc_jack_add_gpios(rt5670->jack, 1,
 			&rt5670->hp_gpio);
 	if (ret) {
-		dev_err(codec->dev, "Adding jack GPIO failed\n");
+		dev_err(component->dev, "Adding jack GPIO failed\n");
 		return ret;
 	}
 
@@ -619,7 +638,7 @@ static const struct snd_kcontrol_new rt5670_snd_controls[] = {
 		RT5670_L_MUTE_SFT, RT5670_R_MUTE_SFT, 1, 1),
 	SOC_DOUBLE_TLV("HP Playback Volume", RT5670_HP_VOL,
 		RT5670_L_VOL_SFT, RT5670_R_VOL_SFT,
-		39, 0, out_vol_tlv),
+		39, 1, out_vol_tlv),
 	/* OUTPUT Control */
 	SOC_DOUBLE("OUT Channel Switch", RT5670_LOUT1,
 		RT5670_VOL_L_SFT, RT5670_VOL_R_SFT, 1, 1),
@@ -680,17 +699,17 @@ static const struct snd_kcontrol_new rt5670_snd_controls[] = {
 static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 	int idx, rate;
 
 	rate = rt5670->sysclk / rl6231_get_pre_div(rt5670->regmap,
 		RT5670_ADDA_CLK1, RT5670_I2S_PD1_SFT);
 	idx = rl6231_calc_dmic_clk(rate);
 	if (idx < 0)
-		dev_err(codec->dev, "Failed to set DMIC clock\n");
+		dev_err(component->dev, "Failed to set DMIC clock\n");
 	else
-		snd_soc_update_bits(codec, RT5670_DMIC_CTRL1,
+		snd_soc_component_update_bits(component, RT5670_DMIC_CTRL1,
 			RT5670_DMIC_CLK_MASK, idx << RT5670_DMIC_CLK_SFT);
 	return idx;
 }
@@ -698,8 +717,8 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	if (rt5670->sysclk_src == RT5670_SCLK_S_PLL1)
 		return 1;
@@ -710,7 +729,7 @@ static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 static int is_using_asrc(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int reg, shift, val;
 
 	switch (source->shift) {
@@ -746,7 +765,7 @@ static int is_using_asrc(struct snd_soc_dapm_widget *source,
 		return 0;
 	}
 
-	val = (snd_soc_read(codec, reg) >> shift) & 0xf;
+	val = (snd_soc_component_read32(component, reg) >> shift) & 0xf;
 	switch (val) {
 	case 1:
 	case 2:
@@ -762,8 +781,8 @@ static int is_using_asrc(struct snd_soc_dapm_widget *source,
 static int can_use_asrc(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	if (rt5670->sysclk > rt5670->lrck[RT5670_AIF1] * 384)
 		return 1;
@@ -774,7 +793,7 @@ static int can_use_asrc(struct snd_soc_dapm_widget *source,
 
 /**
  * rt5670_sel_asrc_clk_src - select ASRC clock source for a set of filters
- * @codec: SoC audio codec device.
+ * @component: SoC audio component device.
  * @filter_mask: mask of filters.
  * @clk_src: clock source
  *
@@ -786,7 +805,7 @@ static int can_use_asrc(struct snd_soc_dapm_widget *source,
  * set of filters specified by the mask. And the codec driver will turn on ASRC
  * for these filters if ASRC is selected as their clock source.
  */
-int rt5670_sel_asrc_clk_src(struct snd_soc_codec *codec,
+int rt5670_sel_asrc_clk_src(struct snd_soc_component *component,
 			    unsigned int filter_mask, unsigned int clk_src)
 {
 	unsigned int asrc2_mask = 0, asrc2_value = 0;
@@ -844,11 +863,11 @@ int rt5670_sel_asrc_clk_src(struct snd_soc_codec *codec,
 	}
 
 	if (asrc2_mask)
-		snd_soc_update_bits(codec, RT5670_ASRC_2,
+		snd_soc_component_update_bits(component, RT5670_ASRC_2,
 				    asrc2_mask, asrc2_value);
 
 	if (asrc3_mask)
-		snd_soc_update_bits(codec, RT5670_ASRC_3,
+		snd_soc_component_update_bits(component, RT5670_ASRC_3,
 				    asrc3_mask, asrc3_value);
 	return 0;
 }
@@ -1150,20 +1169,15 @@ static const char * const rt5670_stereo_adc1_src[] = {
 static SOC_ENUM_SINGLE_DECL(rt5670_stereo1_adc1_enum, RT5670_STO1_ADC_MIXER,
 	RT5670_ADC_1_SRC_SFT, rt5670_stereo_adc1_src);
 
-static const struct snd_kcontrol_new rt5670_sto_adc_l1_mux =
-	SOC_DAPM_ENUM("Stereo1 ADC L1 source", rt5670_stereo1_adc1_enum);
-
-static const struct snd_kcontrol_new rt5670_sto_adc_r1_mux =
-	SOC_DAPM_ENUM("Stereo1 ADC R1 source", rt5670_stereo1_adc1_enum);
+static const struct snd_kcontrol_new rt5670_sto_adc_1_mux =
+	SOC_DAPM_ENUM("Stereo1 ADC 1 Mux", rt5670_stereo1_adc1_enum);
 
 static SOC_ENUM_SINGLE_DECL(rt5670_stereo2_adc1_enum, RT5670_STO2_ADC_MIXER,
 	RT5670_ADC_1_SRC_SFT, rt5670_stereo_adc1_src);
 
-static const struct snd_kcontrol_new rt5670_sto2_adc_l1_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC L1 source", rt5670_stereo2_adc1_enum);
+static const struct snd_kcontrol_new rt5670_sto2_adc_1_mux =
+	SOC_DAPM_ENUM("Stereo2 ADC 1 Mux", rt5670_stereo2_adc1_enum);
 
-static const struct snd_kcontrol_new rt5670_sto2_adc_r1_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC R1 source", rt5670_stereo2_adc1_enum);
 
 /* MX-27 MX-26 [11] */
 static const char * const rt5670_stereo_adc2_src[] = {
@@ -1173,20 +1187,15 @@ static const char * const rt5670_stereo_adc2_src[] = {
 static SOC_ENUM_SINGLE_DECL(rt5670_stereo1_adc2_enum, RT5670_STO1_ADC_MIXER,
 	RT5670_ADC_2_SRC_SFT, rt5670_stereo_adc2_src);
 
-static const struct snd_kcontrol_new rt5670_sto_adc_l2_mux =
-	SOC_DAPM_ENUM("Stereo1 ADC L2 source", rt5670_stereo1_adc2_enum);
-
-static const struct snd_kcontrol_new rt5670_sto_adc_r2_mux =
-	SOC_DAPM_ENUM("Stereo1 ADC R2 source", rt5670_stereo1_adc2_enum);
+static const struct snd_kcontrol_new rt5670_sto_adc_2_mux =
+	SOC_DAPM_ENUM("Stereo1 ADC 2 Mux", rt5670_stereo1_adc2_enum);
 
 static SOC_ENUM_SINGLE_DECL(rt5670_stereo2_adc2_enum, RT5670_STO2_ADC_MIXER,
 	RT5670_ADC_2_SRC_SFT, rt5670_stereo_adc2_src);
 
-static const struct snd_kcontrol_new rt5670_sto2_adc_l2_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC L2 source", rt5670_stereo2_adc2_enum);
+static const struct snd_kcontrol_new rt5670_sto2_adc_2_mux =
+	SOC_DAPM_ENUM("Stereo2 ADC 2 Mux", rt5670_stereo2_adc2_enum);
 
-static const struct snd_kcontrol_new rt5670_sto2_adc_r2_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC R2 source", rt5670_stereo2_adc2_enum);
 
 /* MX-27 MX26 [10] */
 static const char * const rt5670_stereo_adc_src[] = {
@@ -1412,8 +1421,8 @@ static const struct snd_kcontrol_new rt5670_vad_adc_mux =
 static int rt5670_hp_power_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1448,8 +1457,8 @@ static int rt5670_hp_power_event(struct snd_soc_dapm_widget *w,
 static int rt5670_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1498,16 +1507,16 @@ static int rt5670_hp_event(struct snd_soc_dapm_widget *w,
 static int rt5670_bst1_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, RT5670_PWR_ANLG2,
+		snd_soc_component_update_bits(component, RT5670_PWR_ANLG2,
 				    RT5670_PWR_BST1_P, RT5670_PWR_BST1_P);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, RT5670_PWR_ANLG2,
+		snd_soc_component_update_bits(component, RT5670_PWR_ANLG2,
 				    RT5670_PWR_BST1_P, 0);
 		break;
 
@@ -1521,16 +1530,16 @@ static int rt5670_bst1_event(struct snd_soc_dapm_widget *w,
 static int rt5670_bst2_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, RT5670_PWR_ANLG2,
+		snd_soc_component_update_bits(component, RT5670_PWR_ANLG2,
 				    RT5670_PWR_BST2_P, RT5670_PWR_BST2_P);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, RT5670_PWR_ANLG2,
+		snd_soc_component_update_bits(component, RT5670_PWR_ANLG2,
 				    RT5670_PWR_BST2_P, 0);
 		break;
 
@@ -1641,23 +1650,23 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("Stereo1 DMIC Mux", SND_SOC_NOPM, 0, 0,
 			 &rt5670_sto1_dmic_mux),
 	SND_SOC_DAPM_MUX("Stereo1 ADC L2 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto_adc_l2_mux),
+			 &rt5670_sto_adc_2_mux),
 	SND_SOC_DAPM_MUX("Stereo1 ADC R2 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto_adc_r2_mux),
+			 &rt5670_sto_adc_2_mux),
 	SND_SOC_DAPM_MUX("Stereo1 ADC L1 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto_adc_l1_mux),
+			 &rt5670_sto_adc_1_mux),
 	SND_SOC_DAPM_MUX("Stereo1 ADC R1 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto_adc_r1_mux),
+			 &rt5670_sto_adc_1_mux),
 	SND_SOC_DAPM_MUX("Stereo2 DMIC Mux", SND_SOC_NOPM, 0, 0,
 			 &rt5670_sto2_dmic_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC L2 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto2_adc_l2_mux),
+			 &rt5670_sto2_adc_2_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC R2 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto2_adc_r2_mux),
+			 &rt5670_sto2_adc_2_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC L1 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto2_adc_l1_mux),
+			 &rt5670_sto2_adc_1_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC R1 Mux", SND_SOC_NOPM, 0, 0,
-			 &rt5670_sto2_adc_r1_mux),
+			 &rt5670_sto2_adc_1_mux),
 	SND_SOC_DAPM_MUX("Stereo2 ADC LR Mux", SND_SOC_NOPM, 0, 0,
 			 &rt5670_sto2_adc_lr_mux),
 	SND_SOC_DAPM_MUX("Mono DMIC L Mux", SND_SOC_NOPM, 0, 0,
@@ -1716,7 +1725,6 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("IF1_ADC1", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF1_ADC2", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF1_ADC3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1_ADC4", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	/* DSP */
 	SND_SOC_DAPM_PGA("TxDP_ADC", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -2022,7 +2030,6 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 
 	{ "Stereo1 ADC MIXL", NULL, "Sto1 ADC MIXL" },
 	{ "Stereo1 ADC MIXL", NULL, "ADC Stereo1 Filter" },
-	{ "ADC Stereo1 Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "Stereo1 ADC MIXR", NULL, "Sto1 ADC MIXR" },
 	{ "Stereo1 ADC MIXR", NULL, "ADC Stereo1 Filter" },
@@ -2061,7 +2068,6 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 
 	{ "Stereo2 ADC MIXL", NULL, "Stereo2 ADC LR Mux" },
 	{ "Stereo2 ADC MIXL", NULL, "ADC Stereo2 Filter" },
-	{ "ADC Stereo2 Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "Stereo2 ADC MIXR", NULL, "Sto2 ADC MIXR" },
 	{ "Stereo2 ADC MIXR", NULL, "ADC Stereo2 Filter" },
@@ -2085,13 +2091,13 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "IF1 ADC1 IN1 Mux", "IF1_ADC3", "IF1_ADC3" },
 
 	{ "IF1 ADC1 IN2 Mux", "IF1_ADC1_IN1", "IF1 ADC1 IN1 Mux" },
-	{ "IF1 ADC1 IN2 Mux", "IF1_ADC4", "IF1_ADC4" },
+	{ "IF1 ADC1 IN2 Mux", "IF1_ADC4", "TxDP_ADC" },
 
 	{ "IF1 ADC2 IN Mux", "IF_ADC2", "IF_ADC2" },
 	{ "IF1 ADC2 IN Mux", "VAD_ADC", "VAD_ADC" },
 
 	{ "IF1 ADC2 IN1 Mux", "IF1_ADC2_IN", "IF1 ADC2 IN Mux" },
-	{ "IF1 ADC2 IN1 Mux", "IF1_ADC4", "IF1_ADC4" },
+	{ "IF1 ADC2 IN1 Mux", "IF1_ADC4", "TxDP_ADC" },
 
 	{ "IF1_ADC1" , NULL, "IF1 ADC1 IN2 Mux" },
 	{ "IF1_ADC2" , NULL, "IF1 ADC2 IN1 Mux" },
@@ -2316,21 +2322,21 @@ static const struct snd_soc_dapm_route rt5672_specific_dapm_routes[] = {
 static int rt5670_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 	unsigned int val_len = 0, val_clk, mask_clk;
 	int pre_div, bclk_ms, frame_size;
 
 	rt5670->lrck[dai->id] = params_rate(params);
 	pre_div = rl6231_get_clk_info(rt5670->sysclk, rt5670->lrck[dai->id]);
 	if (pre_div < 0) {
-		dev_err(codec->dev, "Unsupported clock setting %d for DAI %d\n",
+		dev_err(component->dev, "Unsupported clock setting %d for DAI %d\n",
 			rt5670->lrck[dai->id], dai->id);
 		return -EINVAL;
 	}
 	frame_size = snd_soc_params_to_frame_size(params);
 	if (frame_size < 0) {
-		dev_err(codec->dev, "Unsupported frame size: %d\n", frame_size);
+		dev_err(component->dev, "Unsupported frame size: %d\n", frame_size);
 		return -EINVAL;
 	}
 	bclk_ms = frame_size > 32;
@@ -2362,20 +2368,20 @@ static int rt5670_hw_params(struct snd_pcm_substream *substream,
 		mask_clk = RT5670_I2S_BCLK_MS1_MASK | RT5670_I2S_PD1_MASK;
 		val_clk = bclk_ms << RT5670_I2S_BCLK_MS1_SFT |
 			pre_div << RT5670_I2S_PD1_SFT;
-		snd_soc_update_bits(codec, RT5670_I2S1_SDP,
+		snd_soc_component_update_bits(component, RT5670_I2S1_SDP,
 			RT5670_I2S_DL_MASK, val_len);
-		snd_soc_update_bits(codec, RT5670_ADDA_CLK1, mask_clk, val_clk);
+		snd_soc_component_update_bits(component, RT5670_ADDA_CLK1, mask_clk, val_clk);
 		break;
 	case RT5670_AIF2:
 		mask_clk = RT5670_I2S_BCLK_MS2_MASK | RT5670_I2S_PD2_MASK;
 		val_clk = bclk_ms << RT5670_I2S_BCLK_MS2_SFT |
 			pre_div << RT5670_I2S_PD2_SFT;
-		snd_soc_update_bits(codec, RT5670_I2S2_SDP,
+		snd_soc_component_update_bits(component, RT5670_I2S2_SDP,
 			RT5670_I2S_DL_MASK, val_len);
-		snd_soc_update_bits(codec, RT5670_ADDA_CLK1, mask_clk, val_clk);
+		snd_soc_component_update_bits(component, RT5670_ADDA_CLK1, mask_clk, val_clk);
 		break;
 	default:
-		dev_err(codec->dev, "Invalid dai->id: %d\n", dai->id);
+		dev_err(component->dev, "Invalid dai->id: %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -2384,8 +2390,8 @@ static int rt5670_hw_params(struct snd_pcm_substream *substream,
 
 static int rt5670_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 	unsigned int reg_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -2428,27 +2434,26 @@ static int rt5670_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (dai->id) {
 	case RT5670_AIF1:
-		snd_soc_update_bits(codec, RT5670_I2S1_SDP,
+		snd_soc_component_update_bits(component, RT5670_I2S1_SDP,
 			RT5670_I2S_MS_MASK | RT5670_I2S_BP_MASK |
 			RT5670_I2S_DF_MASK, reg_val);
 		break;
 	case RT5670_AIF2:
-		snd_soc_update_bits(codec, RT5670_I2S2_SDP,
+		snd_soc_component_update_bits(component, RT5670_I2S2_SDP,
 			RT5670_I2S_MS_MASK | RT5670_I2S_BP_MASK |
 			RT5670_I2S_DF_MASK, reg_val);
 		break;
 	default:
-		dev_err(codec->dev, "Invalid dai->id: %d\n", dai->id);
+		dev_err(component->dev, "Invalid dai->id: %d\n", dai->id);
 		return -EINVAL;
 	}
 	return 0;
 }
 
-static int rt5670_set_dai_sysclk(struct snd_soc_dai *dai,
-		int clk_id, unsigned int freq, int dir)
+static int rt5670_set_codec_sysclk(struct snd_soc_component *component, int clk_id,
+				   int source, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 	unsigned int reg_val = 0;
 
 	switch (clk_id) {
@@ -2462,16 +2467,16 @@ static int rt5670_set_dai_sysclk(struct snd_soc_dai *dai,
 		reg_val |= RT5670_SCLK_SRC_RCCLK;
 		break;
 	default:
-		dev_err(codec->dev, "Invalid clock id (%d)\n", clk_id);
+		dev_err(component->dev, "Invalid clock id (%d)\n", clk_id);
 		return -EINVAL;
 	}
-	snd_soc_update_bits(codec, RT5670_GLB_CLK,
+	snd_soc_component_update_bits(component, RT5670_GLB_CLK,
 		RT5670_SCLK_SRC_MASK, reg_val);
 	rt5670->sysclk = freq;
 	if (clk_id != RT5670_SCLK_S_RCCLK)
 		rt5670->sysclk_src = clk_id;
 
-	dev_dbg(dai->dev, "Sysclk is %dHz and clock id is %d\n", freq, clk_id);
+	dev_dbg(component->dev, "Sysclk : %dHz clock id : %d\n", freq, clk_id);
 
 	return 0;
 }
@@ -2479,8 +2484,8 @@ static int rt5670_set_dai_sysclk(struct snd_soc_dai *dai,
 static int rt5670_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 			unsigned int freq_in, unsigned int freq_out)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 	struct rl6231_pll_code pll_code;
 	int ret;
 
@@ -2489,18 +2494,18 @@ static int rt5670_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		return 0;
 
 	if (!freq_in || !freq_out) {
-		dev_dbg(codec->dev, "PLL disabled\n");
+		dev_dbg(component->dev, "PLL disabled\n");
 
 		rt5670->pll_in = 0;
 		rt5670->pll_out = 0;
-		snd_soc_update_bits(codec, RT5670_GLB_CLK,
+		snd_soc_component_update_bits(component, RT5670_GLB_CLK,
 			RT5670_SCLK_SRC_MASK, RT5670_SCLK_SRC_MCLK);
 		return 0;
 	}
 
 	switch (source) {
 	case RT5670_PLL1_S_MCLK:
-		snd_soc_update_bits(codec, RT5670_GLB_CLK,
+		snd_soc_component_update_bits(component, RT5670_GLB_CLK,
 			RT5670_PLL1_SRC_MASK, RT5670_PLL1_SRC_MCLK);
 		break;
 	case RT5670_PLL1_S_BCLK1:
@@ -2509,36 +2514,36 @@ static int rt5670_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	case RT5670_PLL1_S_BCLK4:
 		switch (dai->id) {
 		case RT5670_AIF1:
-			snd_soc_update_bits(codec, RT5670_GLB_CLK,
+			snd_soc_component_update_bits(component, RT5670_GLB_CLK,
 				RT5670_PLL1_SRC_MASK, RT5670_PLL1_SRC_BCLK1);
 			break;
 		case RT5670_AIF2:
-			snd_soc_update_bits(codec, RT5670_GLB_CLK,
+			snd_soc_component_update_bits(component, RT5670_GLB_CLK,
 				RT5670_PLL1_SRC_MASK, RT5670_PLL1_SRC_BCLK2);
 			break;
 		default:
-			dev_err(codec->dev, "Invalid dai->id: %d\n", dai->id);
+			dev_err(component->dev, "Invalid dai->id: %d\n", dai->id);
 			return -EINVAL;
 		}
 		break;
 	default:
-		dev_err(codec->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unknown PLL source %d\n", source);
 		return -EINVAL;
 	}
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(codec->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
 		return ret;
 	}
 
-	dev_dbg(codec->dev, "bypass=%d m=%d n=%d k=%d\n",
+	dev_dbg(component->dev, "bypass=%d m=%d n=%d k=%d\n",
 		pll_code.m_bp, (pll_code.m_bp ? 0 : pll_code.m_code),
 		pll_code.n_code, pll_code.k_code);
 
-	snd_soc_write(codec, RT5670_PLL_CTRL1,
+	snd_soc_component_write(component, RT5670_PLL_CTRL1,
 		pll_code.n_code << RT5670_PLL_N_SFT | pll_code.k_code);
-	snd_soc_write(codec, RT5670_PLL_CTRL2,
+	snd_soc_component_write(component, RT5670_PLL_CTRL2,
 		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5670_PLL_M_SFT |
 		pll_code.m_bp << RT5670_PLL_M_BP_SFT);
 
@@ -2552,7 +2557,7 @@ static int rt5670_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 static int rt5670_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			unsigned int rx_mask, int slots, int slot_width)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	unsigned int val = 0;
 
 	if (rx_mask || tx_mask)
@@ -2590,57 +2595,75 @@ static int rt5670_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, RT5670_TDM_CTRL_1, 0x7c00, val);
+	snd_soc_component_update_bits(component, RT5670_TDM_CTRL_1, 0x7c00, val);
 
 	return 0;
 }
 
-static int rt5670_set_bias_level(struct snd_soc_codec *codec,
+static int rt5670_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
+{
+	struct snd_soc_component *component = dai->component;
+
+	dev_dbg(component->dev, "%s ratio=%d\n", __func__, ratio);
+	if (dai->id != RT5670_AIF1)
+		return 0;
+
+	if ((ratio % 50) == 0)
+		snd_soc_component_update_bits(component, RT5670_GEN_CTRL3,
+			RT5670_TDM_DATA_MODE_SEL, RT5670_TDM_DATA_MODE_50FS);
+	else
+		snd_soc_component_update_bits(component, RT5670_GEN_CTRL3,
+			RT5670_TDM_DATA_MODE_SEL, RT5670_TDM_DATA_MODE_NOR);
+
+	return 0;
+}
+
+static int rt5670_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (SND_SOC_BIAS_STANDBY == snd_soc_codec_get_bias_level(codec)) {
-			snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
+		if (SND_SOC_BIAS_STANDBY == snd_soc_component_get_bias_level(component)) {
+			snd_soc_component_update_bits(component, RT5670_PWR_ANLG1,
 				RT5670_PWR_VREF1 | RT5670_PWR_MB |
 				RT5670_PWR_BG | RT5670_PWR_VREF2,
 				RT5670_PWR_VREF1 | RT5670_PWR_MB |
 				RT5670_PWR_BG | RT5670_PWR_VREF2);
 			mdelay(10);
-			snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
+			snd_soc_component_update_bits(component, RT5670_PWR_ANLG1,
 				RT5670_PWR_FV1 | RT5670_PWR_FV2,
 				RT5670_PWR_FV1 | RT5670_PWR_FV2);
-			snd_soc_update_bits(codec, RT5670_CHARGE_PUMP,
+			snd_soc_component_update_bits(component, RT5670_CHARGE_PUMP,
 				RT5670_OSW_L_MASK | RT5670_OSW_R_MASK,
 				RT5670_OSW_L_DIS | RT5670_OSW_R_DIS);
-			snd_soc_update_bits(codec, RT5670_DIG_MISC, 0x1, 0x1);
-			snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
-				RT5670_LDO_SEL_MASK, 0x3);
+			snd_soc_component_update_bits(component, RT5670_DIG_MISC, 0x1, 0x1);
+			snd_soc_component_update_bits(component, RT5670_PWR_ANLG1,
+				RT5670_LDO_SEL_MASK, 0x5);
 		}
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
+		snd_soc_component_update_bits(component, RT5670_PWR_ANLG1,
 				RT5670_PWR_VREF1 | RT5670_PWR_VREF2 |
 				RT5670_PWR_FV1 | RT5670_PWR_FV2, 0);
-		snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
-				RT5670_LDO_SEL_MASK, 0x1);
+		snd_soc_component_update_bits(component, RT5670_PWR_ANLG1,
+				RT5670_LDO_SEL_MASK, 0x3);
 		break;
 	case SND_SOC_BIAS_OFF:
 		if (rt5670->pdata.jd_mode)
-			snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
+			snd_soc_component_update_bits(component, RT5670_PWR_ANLG1,
 				RT5670_PWR_VREF1 | RT5670_PWR_MB |
 				RT5670_PWR_BG | RT5670_PWR_VREF2 |
 				RT5670_PWR_FV1 | RT5670_PWR_FV2,
 				RT5670_PWR_MB | RT5670_PWR_BG);
 		else
-			snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
+			snd_soc_component_update_bits(component, RT5670_PWR_ANLG1,
 				RT5670_PWR_VREF1 | RT5670_PWR_MB |
 				RT5670_PWR_BG | RT5670_PWR_VREF2 |
 				RT5670_PWR_FV1 | RT5670_PWR_FV2, 0);
 
-		snd_soc_update_bits(codec, RT5670_DIG_MISC, 0x1, 0x0);
+		snd_soc_component_update_bits(component, RT5670_DIG_MISC, 0x1, 0x0);
 		break;
 
 	default:
@@ -2650,12 +2673,12 @@ static int rt5670_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int rt5670_probe(struct snd_soc_codec *codec)
+static int rt5670_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
-	switch (snd_soc_read(codec, RT5670_RESET) & RT5670_ID_MASK) {
+	switch (snd_soc_component_read32(component, RT5670_RESET) & RT5670_ID_MASK) {
 	case RT5670_ID_5670:
 	case RT5670_ID_5671:
 		snd_soc_dapm_new_controls(dapm,
@@ -2674,37 +2697,36 @@ static int rt5670_probe(struct snd_soc_codec *codec)
 			ARRAY_SIZE(rt5672_specific_dapm_routes));
 		break;
 	default:
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"The driver is for RT5670 RT5671 or RT5672 only\n");
 		return -ENODEV;
 	}
-	rt5670->codec = codec;
+	rt5670->component = component;
 
 	return 0;
 }
 
-static int rt5670_remove(struct snd_soc_codec *codec)
+static void rt5670_remove(struct snd_soc_component *component)
 {
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	regmap_write(rt5670->regmap, RT5670_RESET, 0);
 	snd_soc_jack_free_gpios(rt5670->jack, 1, &rt5670->hp_gpio);
-	return 0;
 }
 
 #ifdef CONFIG_PM
-static int rt5670_suspend(struct snd_soc_codec *codec)
+static int rt5670_suspend(struct snd_soc_component *component)
 {
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(rt5670->regmap, true);
 	regcache_mark_dirty(rt5670->regmap);
 	return 0;
 }
 
-static int rt5670_resume(struct snd_soc_codec *codec)
+static int rt5670_resume(struct snd_soc_component *component)
 {
-	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(rt5670->regmap, false);
 	regcache_sync(rt5670->regmap);
@@ -2723,9 +2745,9 @@ static int rt5670_resume(struct snd_soc_codec *codec)
 static const struct snd_soc_dai_ops rt5670_aif_dai_ops = {
 	.hw_params = rt5670_hw_params,
 	.set_fmt = rt5670_set_dai_fmt,
-	.set_sysclk = rt5670_set_dai_sysclk,
 	.set_tdm_slot = rt5670_set_tdm_slot,
 	.set_pll = rt5670_set_dai_pll,
+	.set_bclk_ratio = rt5670_set_bclk_ratio,
 };
 
 static struct snd_soc_dai_driver rt5670_dai[] = {
@@ -2747,6 +2769,7 @@ static struct snd_soc_dai_driver rt5670_dai[] = {
 			.formats = RT5670_FORMATS,
 		},
 		.ops = &rt5670_aif_dai_ops,
+		.symmetric_rates = 1,
 	},
 	{
 		.name = "rt5670-aif2",
@@ -2766,22 +2789,26 @@ static struct snd_soc_dai_driver rt5670_dai[] = {
 			.formats = RT5670_FORMATS,
 		},
 		.ops = &rt5670_aif_dai_ops,
+		.symmetric_rates = 1,
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5670 = {
-	.probe = rt5670_probe,
-	.remove = rt5670_remove,
-	.suspend = rt5670_suspend,
-	.resume = rt5670_resume,
-	.set_bias_level = rt5670_set_bias_level,
-	.idle_bias_off = true,
-	.controls = rt5670_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5670_snd_controls),
-	.dapm_widgets = rt5670_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5670_dapm_widgets),
-	.dapm_routes = rt5670_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5670_dapm_routes),
+static const struct snd_soc_component_driver soc_component_dev_rt5670 = {
+	.probe			= rt5670_probe,
+	.remove			= rt5670_remove,
+	.suspend		= rt5670_suspend,
+	.resume			= rt5670_resume,
+	.set_bias_level		= rt5670_set_bias_level,
+	.set_sysclk		= rt5670_set_codec_sysclk,
+	.controls		= rt5670_snd_controls,
+	.num_controls		= ARRAY_SIZE(rt5670_snd_controls),
+	.dapm_widgets		= rt5670_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(rt5670_dapm_widgets),
+	.dapm_routes		= rt5670_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(rt5670_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5670_regmap = {
@@ -2810,18 +2837,91 @@ MODULE_DEVICE_TABLE(i2c, rt5670_i2c_id);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5670_acpi_match[] = {
 	{ "10EC5670", 0},
+	{ "10EC5672", 0},
+	{ "10EC5640", 0}, /* quirk */
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, rt5670_acpi_match);
 #endif
 
-static const struct dmi_system_id dmi_platform_intel_braswell[] = {
+static int rt5670_quirk_cb(const struct dmi_system_id *id)
+{
+	rt5670_quirk = (unsigned long)id->driver_data;
+	return 1;
+}
+
+static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 	{
+		.callback = rt5670_quirk_cb,
 		.ident = "Intel Braswell",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 			DMI_MATCH(DMI_BOARD_NAME, "Braswell CRB"),
 		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE1),
+	},
+	{
+		.callback = rt5670_quirk_cb,
+		.ident = "Dell Wyse 3040",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Wyse 3040"),
+		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE1),
+	},
+	{
+		.callback = rt5670_quirk_cb,
+		.ident = "Lenovo Thinkpad Tablet 10",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 10"),
+		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE1),
+	},
+	{
+		.callback = rt5670_quirk_cb,
+		.ident = "Lenovo Thinkpad Tablet 10",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Tablet B"),
+		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE1),
+	},
+	{
+		.callback = rt5670_quirk_cb,
+		.ident = "Lenovo Thinkpad Tablet 10",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Miix 2 10"),
+		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE2),
+	},
+	{
+		.callback = rt5670_quirk_cb,
+		.ident = "Dell Venue 8 Pro 5855",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Venue 8 Pro 5855"),
+		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC2_INR |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE3),
 	},
 	{}
 };
@@ -2845,11 +2945,61 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	if (pdata)
 		rt5670->pdata = *pdata;
 
-	if (dmi_check_system(dmi_platform_intel_braswell)) {
-		rt5670->pdata.dmic_en = true;
-		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
+	dmi_check_system(dmi_platform_intel_quirks);
+	if (quirk_override) {
+		dev_info(&i2c->dev, "Overriding quirk 0x%x => 0x%x\n",
+			 (unsigned int)rt5670_quirk, quirk_override);
+		rt5670_quirk = quirk_override;
+	}
+
+	if (rt5670_quirk & RT5670_DEV_GPIO) {
 		rt5670->pdata.dev_gpio = true;
+		dev_info(&i2c->dev, "quirk dev_gpio\n");
+	}
+	if (rt5670_quirk & RT5670_IN2_DIFF) {
+		rt5670->pdata.in2_diff = true;
+		dev_info(&i2c->dev, "quirk IN2_DIFF\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC_EN) {
+		rt5670->pdata.dmic_en = true;
+		dev_info(&i2c->dev, "quirk DMIC enabled\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC1_IN2P) {
+		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
+		dev_info(&i2c->dev, "quirk DMIC1 on IN2P pin\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC1_GPIO6) {
+		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_GPIO6;
+		dev_info(&i2c->dev, "quirk DMIC1 on GPIO6 pin\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC1_GPIO7) {
+		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_GPIO7;
+		dev_info(&i2c->dev, "quirk DMIC1 on GPIO7 pin\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC2_INR) {
+		rt5670->pdata.dmic2_data_pin = RT5670_DMIC_DATA_IN3N;
+		dev_info(&i2c->dev, "quirk DMIC2 on INR pin\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC2_GPIO8) {
+		rt5670->pdata.dmic2_data_pin = RT5670_DMIC_DATA_GPIO8;
+		dev_info(&i2c->dev, "quirk DMIC2 on GPIO8 pin\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC3_GPIO5) {
+		rt5670->pdata.dmic3_data_pin = RT5670_DMIC_DATA_GPIO5;
+		dev_info(&i2c->dev, "quirk DMIC3 on GPIO5 pin\n");
+	}
+
+	if (rt5670_quirk & RT5670_JD_MODE1) {
 		rt5670->pdata.jd_mode = 1;
+		dev_info(&i2c->dev, "quirk JD mode 1\n");
+	}
+	if (rt5670_quirk & RT5670_JD_MODE2) {
+		rt5670->pdata.jd_mode = 2;
+		dev_info(&i2c->dev, "quirk JD mode 2\n");
+	}
+	if (rt5670_quirk & RT5670_JD_MODE3) {
+		rt5670->pdata.jd_mode = 3;
+		dev_info(&i2c->dev, "quirk JD mode 3\n");
 	}
 
 	rt5670->regmap = devm_regmap_init_i2c(i2c, &rt5670_regmap);
@@ -2886,6 +3036,9 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0)
 		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
 
+	regmap_update_bits(rt5670->regmap, RT5670_DIG_MISC,
+				 RT5670_MCLK_DET, RT5670_MCLK_DET);
+
 	if (rt5670->pdata.in2_diff)
 		regmap_update_bits(rt5670->regmap, RT5670_IN2,
 					RT5670_IN_DF2, RT5670_IN_DF2);
@@ -2900,7 +3053,6 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 				   RT5670_GP1_PIN_MASK, RT5670_GP1_PIN_IRQ);
 		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL2,
 				   RT5670_GP1_PF_MASK, RT5670_GP1_PF_OUT);
-		regmap_update_bits(rt5670->regmap, RT5670_DIG_MISC, 0x8, 0x8);
 	}
 
 	if (rt5670->pdata.jd_mode) {
@@ -3018,7 +3170,8 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	pm_runtime_enable(&i2c->dev);
 	pm_request_idle(&i2c->dev);
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5670,
+	ret = devm_snd_soc_register_component(&i2c->dev,
+			&soc_component_dev_rt5670,
 			rt5670_dai, ARRAY_SIZE(rt5670_dai));
 	if (ret < 0)
 		goto err;
@@ -3035,7 +3188,6 @@ err:
 static int rt5670_i2c_remove(struct i2c_client *i2c)
 {
 	pm_runtime_disable(&i2c->dev);
-	snd_soc_unregister_codec(&i2c->dev);
 
 	return 0;
 }

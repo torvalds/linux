@@ -1,17 +1,13 @@
-/*
- * Copyright (C) 2013 Samsung Electronics Co., Ltd.
- *	Tomasz Figa <t.figa@samsung.com>
- * Copyright (C) 2008 Openmoko, Inc.
- * Copyright (C) 2004-2008 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *	http://armlinux.simtec.co.uk/
- *
- * Samsung common power management helper functions.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2013 Samsung Electronics Co., Ltd.
+//	Tomasz Figa <t.figa@samsung.com>
+// Copyright (C) 2008 Openmoko, Inc.
+// Copyright (C) 2004-2008 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
+//	http://armlinux.simtec.co.uk/
+//
+// Samsung common power management helper functions.
 
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -31,7 +27,7 @@
 void s3c_pm_do_save(struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++) {
-		ptr->val = __raw_readl(ptr->reg);
+		ptr->val = readl_relaxed(ptr->reg);
 		S3C_PMDBG("saved %p value %08lx\n", ptr->reg, ptr->val);
 	}
 }
@@ -51,9 +47,9 @@ void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++) {
 		pr_debug("restore %p (restore %08lx, was %08x)\n",
-				ptr->reg, ptr->val, __raw_readl(ptr->reg));
+				ptr->reg, ptr->val, readl_relaxed(ptr->reg));
 
-		__raw_writel(ptr->val, ptr->reg);
+		writel_relaxed(ptr->val, ptr->reg);
 	}
 }
 
@@ -71,5 +67,5 @@ void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
 void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++)
-		__raw_writel(ptr->val, ptr->reg);
+		writel_relaxed(ptr->val, ptr->reg);
 }

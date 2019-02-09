@@ -32,7 +32,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* ------------------------------------------------------------------------- */
 /* The Quality Semiconductor QS6612 is used on the RPX CLLF                  */
@@ -118,11 +118,8 @@ static struct phy_driver qs6612_driver[] = { {
 	.features	= PHY_BASIC_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= qs6612_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= qs6612_ack_interrupt,
 	.config_intr	= qs6612_config_intr,
-	.driver 	= { .owner = THIS_MODULE,},
 } };
 
 module_phy_driver(qs6612_driver);

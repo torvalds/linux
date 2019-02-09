@@ -1,5 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef TARGET_CORE_FABRIC_H
 #define TARGET_CORE_FABRIC_H
+
+#include <linux/configfs.h>
+#include <linux/types.h>
+#include <target/target_core_base.h>
 
 struct target_core_fabric_ops {
 	struct module *module;
@@ -43,17 +48,13 @@ struct target_core_fabric_ops {
 	u32 (*tpg_get_inst_index)(struct se_portal_group *);
 	/*
 	 * Optional to release struct se_cmd and fabric dependent allocated
-	 * I/O descriptor in transport_cmd_check_stop().
+	 * I/O descriptor after command execution has finished.
 	 *
 	 * Returning 1 will signal a descriptor has been released.
 	 * Returning 0 will signal a descriptor has not been released.
 	 */
 	int (*check_stop_free)(struct se_cmd *);
 	void (*release_cmd)(struct se_cmd *);
-	/*
-	 * Called with spin_lock_bh(struct se_portal_group->session_lock held.
-	 */
-	int (*shutdown_session)(struct se_session *);
 	void (*close_session)(struct se_session *);
 	u32 (*sess_get_index)(struct se_session *);
 	/*
@@ -76,8 +77,9 @@ struct target_core_fabric_ops {
 	struct se_wwn *(*fabric_make_wwn)(struct target_fabric_configfs *,
 				struct config_group *, const char *);
 	void (*fabric_drop_wwn)(struct se_wwn *);
+	void (*add_wwn_groups)(struct se_wwn *);
 	struct se_portal_group *(*fabric_make_tpg)(struct se_wwn *,
-				struct config_group *, const char *);
+						   const char *);
 	void (*fabric_drop_tpg)(struct se_portal_group *);
 	int (*fabric_post_link)(struct se_portal_group *,
 				struct se_lun *);
@@ -87,7 +89,6 @@ struct target_core_fabric_ops {
 				struct config_group *, const char *);
 	void (*fabric_drop_np)(struct se_tpg_np *);
 	int (*fabric_init_nodeacl)(struct se_node_acl *, const char *);
-	void (*fabric_cleanup_nodeacl)(struct se_node_acl *);
 
 	struct configfs_attribute **tfc_discovery_attrs;
 	struct configfs_attribute **tfc_wwn_attrs;
@@ -108,17 +109,21 @@ void target_unregister_template(const struct target_core_fabric_ops *fo);
 int target_depend_item(struct config_item *item);
 void target_undepend_item(struct config_item *item);
 
-struct se_session *transport_init_session(enum target_prot_op);
+struct se_session *target_setup_session(struct se_portal_group *,
+		unsigned int, unsigned int, enum target_prot_op prot_op,
+		const char *, void *,
+		int (*callback)(struct se_portal_group *,
+				struct se_session *, void *));
+void target_remove_session(struct se_session *);
+
+int transport_init_session(struct se_session *se_sess);
+struct se_session *transport_alloc_session(enum target_prot_op);
 int transport_alloc_session_tags(struct se_session *, unsigned int,
 		unsigned int);
-struct se_session *transport_init_session_tags(unsigned int, unsigned int,
-		enum target_prot_op);
 void	__transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
 void	transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
-void	target_get_session(struct se_session *);
-void	target_put_session(struct se_session *);
 ssize_t	target_show_dynamic_sessions(struct se_portal_group *, char *);
 void	transport_free_session(struct se_session *);
 void	target_put_nacl(struct se_node_acl *);
@@ -140,7 +145,7 @@ int	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
 int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 		unsigned char *sense, u64 unpacked_lun,
 		void *fabric_tmr_ptr, unsigned char tm_type,
-		gfp_t, unsigned int, int);
+		gfp_t, u64, int);
 int	transport_handle_cdb_direct(struct se_cmd *);
 sense_reason_t	transport_generic_new_cmd(struct se_cmd *);
 
@@ -156,6 +161,7 @@ int	target_get_sess_cmd(struct se_cmd *, bool);
 int	target_put_sess_cmd(struct se_cmd *);
 void	target_sess_cmd_list_set_waiting(struct se_session *);
 void	target_wait_for_sess_cmds(struct se_session *);
+void	target_show_cmd(const char *pfx, struct se_cmd *cmd);
 
 int	core_alua_check_nonop_delay(struct se_cmd *);
 
@@ -163,20 +169,24 @@ int	core_tmr_alloc_req(struct se_cmd *, void *, u8, gfp_t);
 void	core_tmr_release_req(struct se_tmr_req *);
 int	transport_generic_handle_tmr(struct se_cmd *);
 void	transport_generic_request_failure(struct se_cmd *, sense_reason_t);
-void	__target_execute_cmd(struct se_cmd *);
 int	transport_lookup_tmr_lun(struct se_cmd *, u64);
 void	core_allocate_nexus_loss_ua(struct se_node_acl *acl);
 
 struct se_node_acl *core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
 		unsigned char *);
+bool	target_tpg_has_node_acl(struct se_portal_group *tpg,
+		const char *);
 struct se_node_acl *core_tpg_check_initiator_node_acl(struct se_portal_group *,
 		unsigned char *);
-int	core_tpg_set_initiator_node_queue_depth(struct se_portal_group *,
-		unsigned char *, u32, int);
+int	core_tpg_set_initiator_node_queue_depth(struct se_node_acl *, u32);
 int	core_tpg_set_initiator_node_tag(struct se_portal_group *,
 		struct se_node_acl *, const char *);
 int	core_tpg_register(struct se_wwn *, struct se_portal_group *, int);
 int	core_tpg_deregister(struct se_portal_group *);
+
+int	target_alloc_sgl(struct scatterlist **sgl, unsigned int *nents,
+		u32 length, bool zero_page, bool chainable);
+void	target_free_sgl(struct scatterlist *sgl, int nents);
 
 /*
  * The LIO target core uses DMA_TO_DEVICE to mean that data is going

@@ -1285,7 +1285,7 @@ flash_temp:
 int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
-	static const struct qlcnic_dump_operations *fw_dump_ops;
+	const struct qlcnic_dump_operations *fw_dump_ops;
 	struct qlcnic_83xx_dump_template_hdr *hdr_83xx;
 	u32 entry_offset, dump, no_entries, buf_offset = 0;
 	int i, k, ops_cnt, ops_index, dump_size = 0;
@@ -1417,6 +1417,7 @@ void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *adapter)
 	struct qlcnic_fw_dump *fw_dump = &ahw->fw_dump;
 	struct pci_dev *pdev = adapter->pdev;
 	bool extended = false;
+	int ret;
 
 	prev_version = adapter->fw_version;
 	current_version = qlcnic_83xx_get_fw_version(adapter);
@@ -1427,8 +1428,11 @@ void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *adapter)
 		if (qlcnic_83xx_md_check_extended_dump_capability(adapter))
 			extended = !qlcnic_83xx_extend_md_capab(adapter);
 
-		if (!qlcnic_fw_cmd_get_minidump_temp(adapter))
-			dev_info(&pdev->dev, "Supports FW dump capability\n");
+		ret = qlcnic_fw_cmd_get_minidump_temp(adapter);
+		if (ret)
+			return;
+
+		dev_info(&pdev->dev, "Supports FW dump capability\n");
 
 		/* Once we have minidump template with extended iSCSI dump
 		 * capability, update the minidump capture mask to 0x1f as

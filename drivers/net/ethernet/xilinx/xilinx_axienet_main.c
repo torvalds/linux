@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
@@ -292,14 +293,15 @@ out:
  * This function is called to initialize the MAC address of the Axi Ethernet
  * core. It writes to the UAW0 and UAW1 registers of the core.
  */
-static void axienet_set_mac_address(struct net_device *ndev, void *address)
+static void axienet_set_mac_address(struct net_device *ndev,
+				    const void *address)
 {
 	struct axienet_local *lp = netdev_priv(ndev);
 
 	if (address)
 		memcpy(ndev->dev_addr, address, ETH_ALEN);
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		eth_random_addr(ndev->dev_addr);
+		eth_hw_addr_random(ndev);
 
 	/* Set up unicast MAC address filter set its mac address */
 	axienet_iow(lp, XAE_UAW0_OFFSET,
@@ -431,8 +433,7 @@ static void axienet_setoptions(struct net_device *ndev, u32 options)
 	lp->options |= options;
 }
 
-static void __axienet_device_reset(struct axienet_local *lp,
-				   struct device *dev, off_t offset)
+static void __axienet_device_reset(struct axienet_local *lp, off_t offset)
 {
 	u32 timeout;
 	/* Reset Axi DMA. This would reset Axi Ethernet core as well. The reset
@@ -468,8 +469,8 @@ static void axienet_device_reset(struct net_device *ndev)
 	u32 axienet_status;
 	struct axienet_local *lp = netdev_priv(ndev);
 
-	__axienet_device_reset(lp, &ndev->dev, XAXIDMA_TX_CR_OFFSET);
-	__axienet_device_reset(lp, &ndev->dev, XAXIDMA_RX_CR_OFFSET);
+	__axienet_device_reset(lp, XAXIDMA_TX_CR_OFFSET);
+	__axienet_device_reset(lp, XAXIDMA_RX_CR_OFFSET);
 
 	lp->max_frm_size = XAE_MAX_VLAN_FRAME_SIZE;
 	lp->options |= XAE_OPTION_VLAN;
@@ -508,7 +509,7 @@ static void axienet_device_reset(struct net_device *ndev)
 	axienet_set_multicast_list(ndev);
 	axienet_setoptions(ndev, lp->options);
 
-	ndev->trans_start = jiffies;
+	netif_trans_update(ndev);
 }
 
 /**
@@ -525,16 +526,16 @@ static void axienet_adjust_link(struct net_device *ndev)
 	u32 link_state;
 	u32 setspeed = 1;
 	struct axienet_local *lp = netdev_priv(ndev);
-	struct phy_device *phy = lp->phy_dev;
+	struct phy_device *phy = ndev->phydev;
 
 	link_state = phy->speed | (phy->duplex << 1) | phy->link;
 	if (lp->last_link != link_state) {
 		if ((phy->speed == SPEED_10) || (phy->speed == SPEED_100)) {
-			if (lp->phy_type == XAE_PHY_TYPE_1000BASE_X)
+			if (lp->phy_mode == PHY_INTERFACE_MODE_1000BASEX)
 				setspeed = 0;
 		} else {
 			if ((phy->speed == SPEED_1000) &&
-			    (lp->phy_type == XAE_PHY_TYPE_MII))
+			    (lp->phy_mode == PHY_INTERFACE_MODE_MII))
 				setspeed = 0;
 		}
 
@@ -818,7 +819,7 @@ static irqreturn_t axienet_tx_irq(int irq, void *_ndev)
 		goto out;
 	}
 	if (!(status & XAXIDMA_IRQ_ALL_MASK))
-		dev_err(&ndev->dev, "No interrupts asserted in Tx path");
+		dev_err(&ndev->dev, "No interrupts asserted in Tx path\n");
 	if (status & XAXIDMA_IRQ_ERROR_MASK) {
 		dev_err(&ndev->dev, "DMA Tx error 0x%x\n", status);
 		dev_err(&ndev->dev, "Current BD is at: 0x%x\n",
@@ -867,7 +868,7 @@ static irqreturn_t axienet_rx_irq(int irq, void *_ndev)
 		goto out;
 	}
 	if (!(status & XAXIDMA_IRQ_ALL_MASK))
-		dev_err(&ndev->dev, "No interrupts asserted in Rx path");
+		dev_err(&ndev->dev, "No interrupts asserted in Rx path\n");
 	if (status & XAXIDMA_IRQ_ERROR_MASK) {
 		dev_err(&ndev->dev, "DMA Rx error 0x%x\n", status);
 		dev_err(&ndev->dev, "Current BD is at: 0x%x\n",
@@ -899,7 +900,6 @@ static void axienet_dma_err_handler(unsigned long data);
  * @ndev:	Pointer to net_device structure
  *
  * Return: 0, on success.
- *	    -ENODEV, if PHY cannot be connected to
  *	    non-zero error value on failure
  *
  * This is the driver open routine. It calls phy_start to start the PHY device.
@@ -911,6 +911,7 @@ static int axienet_open(struct net_device *ndev)
 {
 	int ret, mdio_mcreg;
 	struct axienet_local *lp = netdev_priv(ndev);
+	struct phy_device *phydev = NULL;
 
 	dev_dbg(&ndev->dev, "axienet_open()\n");
 
@@ -933,20 +934,13 @@ static int axienet_open(struct net_device *ndev)
 		return ret;
 
 	if (lp->phy_node) {
-		if (lp->phy_type == XAE_PHY_TYPE_GMII) {
-			lp->phy_dev = of_phy_connect(lp->ndev, lp->phy_node,
-					     axienet_adjust_link, 0,
-					     PHY_INTERFACE_MODE_GMII);
-		} else if (lp->phy_type == XAE_PHY_TYPE_RGMII_2_0) {
-			lp->phy_dev = of_phy_connect(lp->ndev, lp->phy_node,
-					     axienet_adjust_link, 0,
-					     PHY_INTERFACE_MODE_RGMII_ID);
-		}
+		phydev = of_phy_connect(lp->ndev, lp->phy_node,
+					axienet_adjust_link, 0, lp->phy_mode);
 
-		if (!lp->phy_dev)
+		if (!phydev)
 			dev_err(lp->dev, "of_phy_connect() failed\n");
 		else
-			phy_start(lp->phy_dev);
+			phy_start(phydev);
 	}
 
 	/* Enable tasklets for Axi DMA error handling */
@@ -967,9 +961,8 @@ static int axienet_open(struct net_device *ndev)
 err_rx_irq:
 	free_irq(lp->tx_irq, ndev);
 err_tx_irq:
-	if (lp->phy_dev)
-		phy_disconnect(lp->phy_dev);
-	lp->phy_dev = NULL;
+	if (phydev)
+		phy_disconnect(phydev);
 	tasklet_kill(&lp->dma_err_tasklet);
 	dev_err(lp->dev, "request_irq() failed\n");
 	return ret;
@@ -1006,9 +999,8 @@ static int axienet_stop(struct net_device *ndev)
 	free_irq(lp->tx_irq, ndev);
 	free_irq(lp->rx_irq, ndev);
 
-	if (lp->phy_dev)
-		phy_disconnect(lp->phy_dev);
-	lp->phy_dev = NULL;
+	if (ndev->phydev)
+		phy_disconnect(ndev->phydev);
 
 	axienet_dma_bd_release(ndev);
 	return 0;
@@ -1034,9 +1026,6 @@ static int axienet_change_mtu(struct net_device *ndev, int new_mtu)
 
 	if ((new_mtu + VLAN_ETH_HLEN +
 		XAE_TRL_SIZE) > lp->rxmem)
-		return -EINVAL;
-
-	if ((new_mtu > XAE_JUMBO_MTU) || (new_mtu < 64))
 		return -EINVAL;
 
 	ndev->mtu = new_mtu;
@@ -1076,51 +1065,6 @@ static const struct net_device_ops axienet_netdev_ops = {
 	.ndo_poll_controller = axienet_poll_controller,
 #endif
 };
-
-/**
- * axienet_ethtools_get_settings - Get Axi Ethernet settings related to PHY.
- * @ndev:	Pointer to net_device structure
- * @ecmd:	Pointer to ethtool_cmd structure
- *
- * This implements ethtool command for getting PHY settings. If PHY could
- * not be found, the function returns -ENODEV. This function calls the
- * relevant PHY ethtool API to get the PHY settings.
- * Issue "ethtool ethX" under linux prompt to execute this function.
- *
- * Return: 0 on success, -ENODEV if PHY doesn't exist
- */
-static int axienet_ethtools_get_settings(struct net_device *ndev,
-					 struct ethtool_cmd *ecmd)
-{
-	struct axienet_local *lp = netdev_priv(ndev);
-	struct phy_device *phydev = lp->phy_dev;
-	if (!phydev)
-		return -ENODEV;
-	return phy_ethtool_gset(phydev, ecmd);
-}
-
-/**
- * axienet_ethtools_set_settings - Set PHY settings as passed in the argument.
- * @ndev:	Pointer to net_device structure
- * @ecmd:	Pointer to ethtool_cmd structure
- *
- * This implements ethtool command for setting various PHY settings. If PHY
- * could not be found, the function returns -ENODEV. This function calls the
- * relevant PHY ethtool API to set the PHY.
- * Issue e.g. "ethtool -s ethX speed 1000" under linux prompt to execute this
- * function.
- *
- * Return: 0 on success, -ENODEV if PHY doesn't exist
- */
-static int axienet_ethtools_set_settings(struct net_device *ndev,
-					 struct ethtool_cmd *ecmd)
-{
-	struct axienet_local *lp = netdev_priv(ndev);
-	struct phy_device *phydev = lp->phy_dev;
-	if (!phydev)
-		return -ENODEV;
-	return phy_ethtool_sset(phydev, ecmd);
-}
 
 /**
  * axienet_ethtools_get_drvinfo - Get various Axi Ethernet driver information.
@@ -1343,9 +1287,7 @@ static int axienet_ethtools_set_coalesce(struct net_device *ndev,
 	return 0;
 }
 
-static struct ethtool_ops axienet_ethtool_ops = {
-	.get_settings   = axienet_ethtools_get_settings,
-	.set_settings   = axienet_ethtools_set_settings,
+static const struct ethtool_ops axienet_ethtool_ops = {
 	.get_drvinfo    = axienet_ethtools_get_drvinfo,
 	.get_regs_len   = axienet_ethtools_get_regs_len,
 	.get_regs       = axienet_ethtools_get_regs,
@@ -1354,6 +1296,8 @@ static struct ethtool_ops axienet_ethtool_ops = {
 	.set_pauseparam = axienet_ethtools_set_pauseparam,
 	.get_coalesce   = axienet_ethtools_get_coalesce,
 	.set_coalesce   = axienet_ethtools_set_coalesce,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 /**
@@ -1384,8 +1328,8 @@ static void axienet_dma_err_handler(unsigned long data)
 	axienet_iow(lp, XAE_MDIO_MC_OFFSET, (mdio_mcreg &
 		    ~XAE_MDIO_MC_MDIOEN_MASK));
 
-	__axienet_device_reset(lp, &ndev->dev, XAXIDMA_TX_CR_OFFSET);
-	__axienet_device_reset(lp, &ndev->dev, XAXIDMA_RX_CR_OFFSET);
+	__axienet_device_reset(lp, XAXIDMA_TX_CR_OFFSET);
+	__axienet_device_reset(lp, XAXIDMA_RX_CR_OFFSET);
 
 	axienet_iow(lp, XAE_MDIO_MC_OFFSET, mdio_mcreg);
 	axienet_mdio_wait_until_ready(lp);
@@ -1506,7 +1450,7 @@ static int axienet_probe(struct platform_device *pdev)
 	struct device_node *np;
 	struct axienet_local *lp;
 	struct net_device *ndev;
-	u8 mac_addr[6];
+	const void *mac_addr;
 	struct resource *ethres, dmares;
 	u32 value;
 
@@ -1521,6 +1465,10 @@ static int axienet_probe(struct platform_device *pdev)
 	ndev->features = NETIF_F_SG;
 	ndev->netdev_ops = &axienet_netdev_ops;
 	ndev->ethtool_ops = &axienet_ethtool_ops;
+
+	/* MTU range: 64 - 9000 */
+	ndev->min_mtu = 64;
+	ndev->max_mtu = XAE_JUMBO_MTU;
 
 	lp = netdev_priv(ndev);
 	lp->ndev = ndev;
@@ -1583,13 +1531,44 @@ static int axienet_probe(struct platform_device *pdev)
 	 * the device-tree and accordingly set flags.
 	 */
 	of_property_read_u32(pdev->dev.of_node, "xlnx,rxmem", &lp->rxmem);
-	of_property_read_u32(pdev->dev.of_node, "xlnx,phy-type", &lp->phy_type);
+
+	/* Start with the proprietary, and broken phy_type */
+	ret = of_property_read_u32(pdev->dev.of_node, "xlnx,phy-type", &value);
+	if (!ret) {
+		netdev_warn(ndev, "Please upgrade your device tree binary blob to use phy-mode");
+		switch (value) {
+		case XAE_PHY_TYPE_MII:
+			lp->phy_mode = PHY_INTERFACE_MODE_MII;
+			break;
+		case XAE_PHY_TYPE_GMII:
+			lp->phy_mode = PHY_INTERFACE_MODE_GMII;
+			break;
+		case XAE_PHY_TYPE_RGMII_2_0:
+			lp->phy_mode = PHY_INTERFACE_MODE_RGMII_ID;
+			break;
+		case XAE_PHY_TYPE_SGMII:
+			lp->phy_mode = PHY_INTERFACE_MODE_SGMII;
+			break;
+		case XAE_PHY_TYPE_1000BASE_X:
+			lp->phy_mode = PHY_INTERFACE_MODE_1000BASEX;
+			break;
+		default:
+			ret = -EINVAL;
+			goto free_netdev;
+		}
+	} else {
+		lp->phy_mode = of_get_phy_mode(pdev->dev.of_node);
+		if (lp->phy_mode < 0) {
+			ret = -EINVAL;
+			goto free_netdev;
+		}
+	}
 
 	/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */
 	np = of_parse_phandle(pdev->dev.of_node, "axistream-connected", 0);
-	if (IS_ERR(np)) {
+	if (!np) {
 		dev_err(&pdev->dev, "could not find DMA node\n");
-		ret = PTR_ERR(np);
+		ret = -ENODEV;
 		goto free_netdev;
 	}
 	ret = of_address_to_resource(np, 0, &dmares);
@@ -1613,13 +1592,12 @@ static int axienet_probe(struct platform_device *pdev)
 	}
 
 	/* Retrieve the MAC address */
-	ret = of_property_read_u8_array(pdev->dev.of_node,
-					"local-mac-address", mac_addr, 6);
-	if (ret) {
+	mac_addr = of_get_mac_address(pdev->dev.of_node);
+	if (!mac_addr) {
 		dev_err(&pdev->dev, "could not find MAC address\n");
 		goto free_netdev;
 	}
-	axienet_set_mac_address(ndev, (void *)mac_addr);
+	axienet_set_mac_address(ndev, mac_addr);
 
 	lp->coalesce_count_rx = XAXIDMA_DFT_RX_THRESHOLD;
 	lp->coalesce_count_tx = XAXIDMA_DFT_TX_THRESHOLD;

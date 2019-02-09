@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Mostly platform independent upcall operations to Venus:
  *  -- upcalls
@@ -15,7 +16,7 @@
  */
 
 #include <linux/signal.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -446,8 +447,7 @@ int venus_fsync(struct super_block *sb, struct CodaFid *fid)
 	UPARG(CODA_FSYNC);
 
 	inp->coda_fsync.VFid = *fid;
-	error = coda_upcall(coda_vcp(sb), sizeof(union inputArgs),
-			    &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 
 	CODA_FREE(inp, insize);
 	return error;

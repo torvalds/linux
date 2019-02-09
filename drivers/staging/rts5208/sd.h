@@ -118,7 +118,7 @@
 #define	SUPPORT_MAX_POWER_PERMANCE		0x10000000
 #define	SUPPORT_1V8				0x01000000
 
-#define	SWTICH_NO_ERR		0x00
+#define	SWITCH_NO_ERR		0x00
 #define	CARD_NOT_EXIST		0x01
 #define	SPEC_NOT_SUPPORT	0x02
 #define	CHECK_MODE_ERR		0x03
@@ -280,14 +280,15 @@ int reset_sd_card(struct rtsx_chip *chip);
 int sd_switch_clock(struct rtsx_chip *chip);
 void sd_stop_seq_mode(struct rtsx_chip *chip);
 int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
-	u32 start_sector, u16 sector_cnt);
+	  u32 start_sector, u16 sector_cnt);
 void sd_cleanup_work(struct rtsx_chip *chip);
 int sd_power_off_card3v3(struct rtsx_chip *chip);
 int release_sd_card(struct rtsx_chip *chip);
 #ifdef SUPPORT_CPRM
 int soft_reset_sd_card(struct rtsx_chip *chip);
 int ext_sd_send_cmd_get_rsp(struct rtsx_chip *chip, u8 cmd_idx,
-		u32 arg, u8 rsp_type, u8 *rsp, int rsp_len, bool special_check);
+			    u32 arg, u8 rsp_type, u8 *rsp, int rsp_len,
+			    bool special_check);
 int ext_sd_get_rsp(struct rtsx_chip *chip, int len, u8 *rsp, u8 rsp_type);
 
 int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip);

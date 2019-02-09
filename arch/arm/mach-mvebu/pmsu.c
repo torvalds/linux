@@ -20,16 +20,15 @@
 
 #include <linux/clk.h>
 #include <linux/cpu_pm.h>
-#include <linux/cpufreq-dt.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mbus.h>
+#include <linux/mvebu-pmsu.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/pm_opp.h>
 #include <linux/resource.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -40,7 +39,7 @@
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
 #include "common.h"
-
+#include "pmsu.h"
 
 #define PMSU_BASE_OFFSET    0x100
 #define PMSU_REG_SIZE	    0x1000
@@ -113,12 +112,12 @@ static const struct of_device_id of_pmsu_table[] = {
 
 void mvebu_pmsu_set_cpu_boot_addr(int hw_cpu, void *boot_addr)
 {
-	writel(virt_to_phys(boot_addr), pmsu_mp_base +
+	writel(__pa_symbol(boot_addr), pmsu_mp_base +
 		PMSU_BOOT_ADDR_REDIRECT_OFFSET(hw_cpu));
 }
 
-extern unsigned char mvebu_boot_wa_start;
-extern unsigned char mvebu_boot_wa_end;
+extern unsigned char mvebu_boot_wa_start[];
+extern unsigned char mvebu_boot_wa_end[];
 
 /*
  * This function sets up the boot address workaround needed for SMP
@@ -131,7 +130,7 @@ int mvebu_setup_boot_addr_wa(unsigned int crypto_eng_target,
 			     phys_addr_t resume_addr_reg)
 {
 	void __iomem *sram_virt_base;
-	u32 code_len = &mvebu_boot_wa_end - &mvebu_boot_wa_start;
+	u32 code_len = mvebu_boot_wa_end - mvebu_boot_wa_start;
 
 	mvebu_mbus_del_window(BOOTROM_BASE, BOOTROM_SIZE);
 	mvebu_mbus_add_window_by_id(crypto_eng_target, crypto_eng_attribute,
@@ -608,86 +607,3 @@ int mvebu_pmsu_dfs_request(int cpu)
 
 	return 0;
 }
-
-struct cpufreq_dt_platform_data cpufreq_dt_pd = {
-	.independent_clocks = true,
-};
-
-static int __init armada_xp_pmsu_cpufreq_init(void)
-{
-	struct device_node *np;
-	struct resource res;
-	int ret, cpu;
-
-	if (!of_machine_is_compatible("marvell,armadaxp"))
-		return 0;
-
-	/*
-	 * In order to have proper cpufreq handling, we need to ensure
-	 * that the Device Tree description of the CPU clock includes
-	 * the definition of the PMU DFS registers. If not, we do not
-	 * register the clock notifier and the cpufreq driver. This
-	 * piece of code is only for compatibility with old Device
-	 * Trees.
-	 */
-	np = of_find_compatible_node(NULL, NULL, "marvell,armada-xp-cpu-clock");
-	if (!np)
-		return 0;
-
-	ret = of_address_to_resource(np, 1, &res);
-	if (ret) {
-		pr_warn(FW_WARN "not enabling cpufreq, deprecated armada-xp-cpu-clock binding\n");
-		of_node_put(np);
-		return 0;
-	}
-
-	of_node_put(np);
-
-	/*
-	 * For each CPU, this loop registers the operating points
-	 * supported (which are the nominal CPU frequency and half of
-	 * it), and registers the clock notifier that will take care
-	 * of doing the PMSU part of a frequency transition.
-	 */
-	for_each_possible_cpu(cpu) {
-		struct device *cpu_dev;
-		struct clk *clk;
-		int ret;
-
-		cpu_dev = get_cpu_device(cpu);
-		if (!cpu_dev) {
-			pr_err("Cannot get CPU %d\n", cpu);
-			continue;
-		}
-
-		clk = clk_get(cpu_dev, 0);
-		if (IS_ERR(clk)) {
-			pr_err("Cannot get clock for CPU %d\n", cpu);
-			return PTR_ERR(clk);
-		}
-
-		/*
-		 * In case of a failure of dev_pm_opp_add(), we don't
-		 * bother with cleaning up the registered OPP (there's
-		 * no function to do so), and simply cancel the
-		 * registration of the cpufreq device.
-		 */
-		ret = dev_pm_opp_add(cpu_dev, clk_get_rate(clk), 0);
-		if (ret) {
-			clk_put(clk);
-			return ret;
-		}
-
-		ret = dev_pm_opp_add(cpu_dev, clk_get_rate(clk) / 2, 0);
-		if (ret) {
-			clk_put(clk);
-			return ret;
-		}
-	}
-
-	platform_device_register_data(NULL, "cpufreq-dt", -1,
-				      &cpufreq_dt_pd, sizeof(cpufreq_dt_pd));
-	return 0;
-}
-
-device_initcall(armada_xp_pmsu_cpufreq_init);

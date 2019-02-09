@@ -124,7 +124,7 @@ regulator_haptic_parse_dt(struct device *dev, struct regulator_haptic *haptic)
 
 	node = dev->of_node;
 	if(!node) {
-		dev_err(dev, "Missing dveice tree data\n");
+		dev_err(dev, "Missing device tree data\n");
 		return -EINVAL;
 	}
 
@@ -233,7 +233,7 @@ static int __maybe_unused regulator_haptic_resume(struct device *dev)
 
 	haptic->suspended = false;
 
-	magnitude = ACCESS_ONCE(haptic->magnitude);
+	magnitude = READ_ONCE(haptic->magnitude);
 	if (magnitude)
 		regulator_haptic_set_voltage(haptic, magnitude);
 

@@ -347,8 +347,8 @@ static int io;			/* use the insmod io= irq= shmem= options */
 static int irq;
 static char device[9];		/* use eg. device=arc1 to change name */
 
-module_param(io, int, 0);
-module_param(irq, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
 module_param_string(device, device, sizeof(device), 0);
 MODULE_LICENSE("GPL");
 

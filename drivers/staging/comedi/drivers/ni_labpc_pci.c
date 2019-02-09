@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/ni_labpc_pci.c
  * Driver for National Instruments Lab-PC PCI-1200
  * Copyright (C) 2001, 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -51,8 +42,8 @@ static const struct labpc_boardinfo labpc_pci_boards[] = {
 };
 
 /* ripped from mite.h and mite_setup2() to avoid mite dependency */
-#define MITE_IODWBSR	0xc0	 /* IO Device Window Base Size Register */
-#define WENAB		(1 << 7) /* window enable */
+#define MITE_IODWBSR	0xc0	/* IO Device Window Base Size Register */
+#define WENAB		BIT(7)	/* window enable */
 
 static int labpc_pci_mite_init(struct pci_dev *pcidev)
 {

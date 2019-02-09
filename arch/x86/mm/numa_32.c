@@ -24,7 +24,7 @@
 
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
-#include <linux/module.h>
+#include <linux/init.h>
 
 #include "numa_internal.h"
 
@@ -60,17 +60,6 @@ void memory_present(int nid, unsigned long start, unsigned long end)
 	}
 	printk(KERN_CONT "\n");
 }
-
-unsigned long node_memmap_size_bytes(int nid, unsigned long start_pfn,
-					      unsigned long end_pfn)
-{
-	unsigned long nr_pages = end_pfn - start_pfn;
-
-	if (!nr_pages)
-		return 0;
-
-	return (nr_pages + 1) * sizeof(struct page);
-}
 #endif
 
 extern unsigned long highend_pfn, highstart_pfn;
@@ -100,5 +89,6 @@ void __init initmem_init(void)
 	printk(KERN_DEBUG "High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
 
+	__vmalloc_start_set = true;
 	setup_bootmem_allocator();
 }

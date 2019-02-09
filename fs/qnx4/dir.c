@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * QNX4 file system, Linux implementation.
  *
@@ -71,7 +72,7 @@ const struct file_operations qnx4_dir_operations =
 {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= qnx4_readdir,
+	.iterate_shared	= qnx4_readdir,
 	.fsync		= generic_file_fsync,
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * c6xdigio.c
  * Hardware driver for Mechatronic Systems Inc. C6x_DIGIO DSP daughter card.
@@ -5,16 +6,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1999 Dan Block
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -47,8 +38,8 @@
  */
 #define C6XDIGIO_DATA_REG	0x00
 #define C6XDIGIO_DATA_CHAN(x)	(((x) + 1) << 4)
-#define C6XDIGIO_DATA_PWM	(1 << 5)
-#define C6XDIGIO_DATA_ENCODER	(1 << 6)
+#define C6XDIGIO_DATA_PWM	BIT(5)
+#define C6XDIGIO_DATA_ENCODER	BIT(6)
 #define C6XDIGIO_STATUS_REG	0x01
 #define C6XDIGIO_CTRL_REG	0x02
 

@@ -1,35 +1,12 @@
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #ifndef _I40E_PROTOTYPE_H_
 #define _I40E_PROTOTYPE_H_
 
 #include "i40e_type.h"
 #include "i40e_alloc.h"
-#include "i40e_virtchnl.h"
+#include <linux/avf/virtchnl.h>
 
 /* Prototypes for shared code functions that are not in
  * the standard function pointer structures.  These are
@@ -87,10 +64,10 @@ static inline struct i40e_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
 
 /* i40e_common for VF drivers*/
 void i40e_vf_parse_hw_config(struct i40e_hw *hw,
-			     struct i40e_virtchnl_vf_resource *msg);
+			     struct virtchnl_vf_resource *msg);
 i40e_status i40e_vf_reset(struct i40e_hw *hw);
 i40e_status i40e_aq_send_msg_to_pf(struct i40e_hw *hw,
-				enum i40e_virtchnl_ops v_opcode,
+				enum virtchnl_ops v_opcode,
 				i40e_status v_retval,
 				u8 *msg, u16 msglen,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -103,4 +80,51 @@ i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 void i40e_add_filter_to_drop_tx_flow_control_frames(struct i40e_hw *hw,
 						    u16 vsi_seid);
+i40e_status i40evf_aq_rx_ctl_read_register(struct i40e_hw *hw,
+				u32 reg_addr, u32 *reg_val,
+				struct i40e_asq_cmd_details *cmd_details);
+u32 i40evf_read_rx_ctl(struct i40e_hw *hw, u32 reg_addr);
+i40e_status i40evf_aq_rx_ctl_write_register(struct i40e_hw *hw,
+				u32 reg_addr, u32 reg_val,
+				struct i40e_asq_cmd_details *cmd_details);
+void i40evf_write_rx_ctl(struct i40e_hw *hw, u32 reg_addr, u32 reg_val);
+i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
+				     u8 phy_select, u8 dev_addr,
+				     u32 reg_addr, u32 reg_val,
+				     struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
+				     u8 phy_select, u8 dev_addr,
+				     u32 reg_addr, u32 *reg_val,
+				     struct i40e_asq_cmd_details *cmd_details);
+
+i40e_status i40e_read_phy_register(struct i40e_hw *hw, u8 page,
+				   u16 reg, u8 phy_addr, u16 *value);
+i40e_status i40e_write_phy_register(struct i40e_hw *hw, u8 page,
+				    u16 reg, u8 phy_addr, u16 value);
+i40e_status i40e_read_phy_register(struct i40e_hw *hw, u8 page, u16 reg,
+				   u8 phy_addr, u16 *value);
+i40e_status i40e_write_phy_register(struct i40e_hw *hw, u8 page, u16 reg,
+				    u8 phy_addr, u16 value);
+u8 i40e_get_phy_address(struct i40e_hw *hw, u8 dev_num);
+i40e_status i40e_blink_phy_link_led(struct i40e_hw *hw,
+				    u32 time, u32 interval);
+i40e_status i40evf_aq_write_ddp(struct i40e_hw *hw, void *buff,
+				u16 buff_size, u32 track_id,
+				u32 *error_offset, u32 *error_info,
+				struct i40e_asq_cmd_details *
+				cmd_details);
+i40e_status i40evf_aq_get_ddp_list(struct i40e_hw *hw, void *buff,
+				   u16 buff_size, u8 flags,
+				   struct i40e_asq_cmd_details *
+				   cmd_details);
+struct i40e_generic_seg_header *
+i40evf_find_segment_in_package(u32 segment_type,
+			       struct i40e_package_header *pkg_header);
+enum i40e_status_code
+i40evf_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *i40e_seg,
+		     u32 track_id);
+enum i40e_status_code
+i40evf_add_pinfo_to_list(struct i40e_hw *hw,
+			 struct i40e_profile_segment *profile,
+			 u8 *profile_info_sec, u32 track_id);
 #endif /* _I40E_PROTOTYPE_H_ */

@@ -13,15 +13,36 @@ Required Properties:
   - "samsung,s3c2450-pinctrl": for S3C2450-compatible pin-controller,
   - "samsung,s3c64xx-pinctrl": for S3C64xx-compatible pin-controller,
   - "samsung,s5pv210-pinctrl": for S5PV210-compatible pin-controller,
+  - "samsung,exynos3250-pinctrl": for Exynos3250 compatible pin-controller.
   - "samsung,exynos4210-pinctrl": for Exynos4210 compatible pin-controller.
   - "samsung,exynos4x12-pinctrl": for Exynos4x12 compatible pin-controller.
   - "samsung,exynos5250-pinctrl": for Exynos5250 compatible pin-controller.
   - "samsung,exynos5260-pinctrl": for Exynos5260 compatible pin-controller.
+  - "samsung,exynos5410-pinctrl": for Exynos5410 compatible pin-controller.
   - "samsung,exynos5420-pinctrl": for Exynos5420 compatible pin-controller.
+  - "samsung,exynos5433-pinctrl": for Exynos5433 compatible pin-controller.
   - "samsung,exynos7-pinctrl": for Exynos7 compatible pin-controller.
 
 - reg: Base address of the pin controller hardware module and length of
   the address space it occupies.
+
+  - reg: Second base address of the pin controller if the specific registers
+  of the pin controller are separated into the different base address.
+
+	Eg: GPF[1-5] of Exynos5433 are separated into the two base address.
+	- First base address is for GPAx and GPF[1-5] external interrupt
+	  registers.
+	- Second base address is for GPF[1-5] pinctrl registers.
+
+	pinctrl_0: pinctrl@10580000 {
+		compatible = "samsung,exynos5433-pinctrl";
+		reg = <0x10580000 0x1a20>, <0x11090000 0x100>;
+
+		wakeup-interrupt-controller {
+			compatible = "samsung,exynos7-wakeup-eint";
+			interrupts = <0 16 0>;
+		};
+	};
 
 - Pin banks as child nodes: Pin banks of the controller are represented by child
   nodes of the controller node. Bank name is taken from name of the node. Each
@@ -103,8 +124,6 @@ used as system wakeup events.
 A. External GPIO Interrupts: For supporting external gpio interrupts, the
    following properties should be specified in the pin-controller device node.
 
-   - interrupt-parent: phandle of the interrupt parent to which the external
-     GPIO interrupts are forwarded to.
    - interrupts: interrupt specifier for the controller. The format and value of
      the interrupt specifier depends on the interrupt parent for the controller.
 
@@ -124,8 +143,13 @@ A. External GPIO Interrupts: For supporting external gpio interrupts, the
 
 B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
    child node representing the external wakeup interrupt controller should be
-   included in the pin-controller device node. This child node should include
-   the following properties.
+   included in the pin-controller device node.
+
+   Only one pin-controller device node can include external wakeup interrupts
+   child node (in other words, only one External Wakeup Interrupts
+   pin-controller is supported).
+
+   This child node should include following properties:
 
    - compatible: identifies the type of the external wakeup interrupt controller
      The possible values are:
@@ -135,12 +159,12 @@ B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
        found on Samsung S3C2412 and S3C2413 SoCs,
      - samsung,s3c64xx-wakeup-eint: represents wakeup interrupt controller
        found on Samsung S3C64xx SoCs,
+     - samsung,s5pv210-wakeup-eint: represents wakeup interrupt controller
+       found on Samsung S5Pv210 SoCs,
      - samsung,exynos4210-wakeup-eint: represents wakeup interrupt controller
        found on Samsung Exynos4210 and S5PC110/S5PV210 SoCs.
      - samsung,exynos7-wakeup-eint: represents wakeup interrupt controller
        found on Samsung Exynos7 SoC.
-   - interrupt-parent: phandle of the interrupt parent to which the external
-     wakeup interrupts are forwarded to.
    - interrupts: interrupt used by multiplexed wakeup interrupts.
 
    In addition, following properties must be present in node of every bank
@@ -160,8 +184,6 @@ B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
    Node of every bank of pins supporting direct wake-up interrupts (without
    multiplexing) must contain following properties:
 
-   - interrupt-parent: phandle of the interrupt parent to which the external
-     wakeup interrupts are forwarded to.
    - interrupts: interrupts of the interrupt parent which are used for external
      wakeup interrupts from pins of the bank, must contain interrupts for all
      pins of the bank.
@@ -228,6 +250,8 @@ Example: A pin-controller node with pin banks:
 
 Example 1: A pin-controller node with pin groups.
 
+	#include <dt-bindings/pinctrl/samsung.h>
+
 	pinctrl_0: pinctrl@11400000 {
 		compatible = "samsung,exynos4210-pinctrl";
 		reg = <0x11400000 0x1000>;
@@ -237,53 +261,53 @@ Example 1: A pin-controller node with pin groups.
 
 		uart0_data: uart0-data {
 			samsung,pins = "gpa0-0", "gpa0-1";
-			samsung,pin-function = <2>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 		};
 
 		uart0_fctl: uart0-fctl {
 			samsung,pins = "gpa0-2", "gpa0-3";
-			samsung,pin-function = <2>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 		};
 
 		uart1_data: uart1-data {
 			samsung,pins = "gpa0-4", "gpa0-5";
-			samsung,pin-function = <2>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 		};
 
 		uart1_fctl: uart1-fctl {
 			samsung,pins = "gpa0-6", "gpa0-7";
-			samsung,pin-function = <2>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 		};
 
 		i2c2_bus: i2c2-bus {
 			samsung,pins = "gpa0-6", "gpa0-7";
-			samsung,pin-function = <3>;
-			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+			samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 		};
 
 		sd4_bus8: sd4-bus-width8 {
 			part-1 {
 				samsung,pins = "gpk0-3", "gpk0-4",
 						"gpk0-5", "gpk0-6";
-				samsung,pin-function = <3>;
-				samsung,pin-pud = <3>;
-				samsung,pin-drv = <3>;
+				samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
+				samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+				samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
 			};
 			part-2 {
 				samsung,pins = "gpk1-3", "gpk1-4",
 						"gpk1-5", "gpk1-6";
-				samsung,pin-function = <4>;
-				samsung,pin-pud = <4>;
-				samsung,pin-drv = <3>;
+				samsung,pin-function = <EXYNOS_PIN_FUNC_4>;
+				samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+				samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
 			};
 		};
 	};

@@ -1,14 +1,10 @@
-/* arch/arm/mach-s3c2410/include/mach/regs-clock.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Copyright (c) 2003-2006 Simtec Electronics <linux@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * S3C2410 clock register definitions
-*/
+ */
 
 #ifndef __ASM_ARM_REGS_CLOCK
 #define __ASM_ARM_REGS_CLOCK
@@ -77,7 +73,7 @@
 
 #endif /* CONFIG_CPU_S3C2440 or CONFIG_CPU_S3C2442 */
 
-#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
+#if defined(CONFIG_CPU_S3C2412)
 
 #define S3C2412_OSCSET		S3C2410_CLKREG(0x18)
 #define S3C2412_CLKSRC		S3C2410_CLKREG(0x1C)
@@ -141,7 +137,7 @@
 #define S3C2412_CLKSRC_UREFCLK_EXTCLK	(1<<12)
 #define S3C2412_CLKSRC_EREFCLK_EXTCLK	(1<<14)
 
-#endif /* CONFIG_CPU_S3C2412 | CONFIG_CPU_S3C2413 */
+#endif /* CONFIG_CPU_S3C2412 */
 
 #define S3C2416_CLKDIV2		S3C2410_CLKREG(0x28)
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Device Tree Include file for Marvell Armada 370 family SoC
  *
@@ -7,52 +8,16 @@
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This file is distributed in the hope that it will be useful
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
- *
  * Contains definitions specific to the Armada 370 SoC that are not
  * common to all Armada SoCs.
  */
 
 #include "armada-370-xp.dtsi"
-/include/ "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	model = "Marvell Armada 370 family SoC";
 	compatible = "marvell,armada370", "marvell,armada-370-xp";
 
@@ -70,7 +35,7 @@
 			reg = <MBUS_ID(0x01, 0xe0) 0 0x100000>;
 		};
 
-		pcie-controller {
+		pciec: pcie@82000000 {
 			compatible = "marvell,armada-370-pcie";
 			status = "disabled";
 			device_type = "pci";
@@ -89,7 +54,7 @@
 				0x82000000 0x2 0     MBUS_ID(0x08, 0xe8) 0       1 0 /* Port 1.0 MEM */
 				0x81000000 0x2 0     MBUS_ID(0x08, 0xe0) 0       1 0 /* Port 1.0 IO  */>;
 
-			pcie@1,0 {
+			pcie0: pcie@1,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
 				reg = <0x0800 0 0 0 0>;
@@ -98,6 +63,7 @@
 				#interrupt-cells = <1>;
                                 ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
                                           0x81000000 0 0 0x81000000 0x1 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 58>;
 				marvell,pcie-port = <0>;
@@ -106,7 +72,7 @@
 				status = "disabled";
 			};
 
-			pcie@2,0 {
+			pcie2: pcie@2,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82002800 0 0x80000 0 0x2000>;
 				reg = <0x1000 0 0 0 0>;
@@ -115,6 +81,7 @@
 				#interrupt-cells = <1>;
                                 ranges = <0x82000000 0 0 0x82000000 0x2 0 1 0
                                           0x81000000 0 0 0x81000000 0x2 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 62>;
 				marvell,pcie-port = <1>;
@@ -125,7 +92,7 @@
 		};
 
 		internal-regs {
-			L2: l2-cache {
+			L2: l2-cache@8000 {
 				compatible = "marvell,aurora-outer-cache";
 				reg = <0x08000 0x1000>;
 				cache-id-part = <0x100>;
@@ -134,56 +101,39 @@
 				wt-override;
 			};
 
-			/*
-			 * Default SPI pinctrl setting, can be overwritten on
-			 * board level if a different configuration is used.
-			 */
-			spi0: spi@10600 {
-				compatible = "marvell,armada-370-spi",
-						"marvell,orion-spi";
-				pinctrl-0 = <&spi0_pins1>;
-				pinctrl-names = "default";
-			};
-
-			spi1: spi@10680 {
-				compatible = "marvell,armada-370-spi",
-						"marvell,orion-spi";
-				pinctrl-0 = <&spi1_pins>;
-				pinctrl-names = "default";
-			};
-
-			i2c0: i2c@11000 {
-				reg = <0x11000 0x20>;
-			};
-
-			i2c1: i2c@11100 {
-				reg = <0x11100 0x20>;
-			};
-
 			gpio0: gpio@18100 {
-				compatible = "marvell,orion-gpio";
-				reg = <0x18100 0x40>;
+				compatible = "marvell,armada-370-gpio",
+					     "marvell,orion-gpio";
+				reg = <0x18100 0x40>, <0x181c0 0x08>;
+				reg-names = "gpio", "pwm";
 				ngpios = <32>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				#pwm-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				interrupts = <82>, <83>, <84>, <85>;
+				clocks = <&coreclk 0>;
 			};
 
 			gpio1: gpio@18140 {
-				compatible = "marvell,orion-gpio";
-				reg = <0x18140 0x40>;
+				compatible = "marvell,armada-370-gpio",
+					     "marvell,orion-gpio";
+				reg = <0x18140 0x40>, <0x181c8 0x08>;
+				reg-names = "gpio", "pwm";
 				ngpios = <32>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				#pwm-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				interrupts = <87>, <88>, <89>, <90>;
+				clocks = <&coreclk 0>;
 			};
 
 			gpio2: gpio@18180 {
-				compatible = "marvell,orion-gpio";
+				compatible = "marvell,armada-370-gpio",
+					     "marvell,orion-gpio";
 				reg = <0x18180 0x40>;
 				ngpios = <2>;
 				gpio-controller;
@@ -193,22 +143,8 @@
 				interrupts = <91>;
 			};
 
-			/*
-			 * Default UART pinctrl setting without RTS/CTS, can
-			 * be overwritten on board level if a different
-			 * configuration is used.
-			 */
-			uart0: serial@12000 {
-				pinctrl-0 = <&uart0_pins>;
-				pinctrl-names = "default";
-			};
 
-			uart1: serial@12100 {
-				pinctrl-0 = <&uart1_pins>;
-				pinctrl-names = "default";
-			};
-
-			system-controller@18200 {
+			systemc: system-controller@18200 {
 				compatible = "marvell,armada-370-xp-system-controller";
 				reg = <0x18200 0x100>;
 			};
@@ -226,37 +162,18 @@
 				#clock-cells = <1>;
 			};
 
-			thermal@18300 {
+			thermal: thermal@18300 {
 				compatible = "marvell,armada370-thermal";
 				reg = <0x18300 0x4
 					0x18304 0x4>;
 				status = "okay";
 			};
 
-			sscg@18330 {
+			sscg: sscg@18330 {
 				reg = <0x18330 0x4>;
 			};
 
-			interrupt-controller@20a00 {
-				reg = <0x20a00 0x1d0>, <0x21870 0x58>;
-			};
-
-			timer@20300 {
-				compatible = "marvell,armada-370-timer";
-				clocks = <&coreclk 2>;
-			};
-
-			watchdog@20300 {
-				compatible = "marvell,armada-370-wdt";
-				clocks = <&coreclk 2>;
-			};
-
-			cpurst@20800 {
-				compatible = "marvell,armada-370-cpu-reset";
-				reg = <0x20800 0x8>;
-			};
-
-			cpu-config@21000 {
+			cpuconf: cpu-config@21000 {
 				compatible = "marvell,armada-370-cpu-config";
 				reg = <0x21000 0x8>;
 			};
@@ -271,15 +188,7 @@
 				status = "disabled";
 			};
 
-			usb@50000 {
-				clocks = <&coreclk 0>;
-			};
-
-			usb@51000 {
-				clocks = <&coreclk 0>;
-			};
-
-			xor@60800 {
+			xor0: xor@60800 {
 				compatible = "marvell,orion-xor";
 				reg = <0x60800 0x100
 				       0x60A00 0x100>;
@@ -298,7 +207,7 @@
 				};
 			};
 
-			xor@60900 {
+			xor1: xor@60900 {
 				compatible = "marvell,orion-xor";
 				reg = <0x60900 0x100
 				       0x60b00 0x100>;
@@ -317,15 +226,7 @@
 				};
 			};
 
-			ethernet@70000 {
-				compatible = "marvell,armada-370-neta";
-			};
-
-			ethernet@74000 {
-				compatible = "marvell,armada-370-neta";
-			};
-
-			crypto@90000 {
+			cesa: crypto@90000 {
 				compatible = "marvell,armada-370-crypto";
 				reg = <0x90000 0x10000>;
 				reg-names = "regs";
@@ -358,6 +259,59 @@
 			};
 		};
 	};
+};
+
+/*
+ * Default UART pinctrl setting without RTS/CTS, can be overwritten on
+ * board level if a different configuration is used.
+ */
+
+&uart0 {
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+};
+
+&uart1 {
+	pinctrl-0 = <&uart1_pins>;
+	pinctrl-names = "default";
+};
+
+&i2c0 {
+	reg = <0x11000 0x20>;
+};
+
+&i2c1 {
+	reg = <0x11100 0x20>;
+};
+
+&mpic {
+	reg = <0x20a00 0x1d0>, <0x21870 0x58>;
+};
+
+&timer {
+	compatible = "marvell,armada-370-timer";
+	clocks = <&coreclk 2>;
+};
+
+&watchdog {
+	compatible = "marvell,armada-370-wdt";
+	clocks = <&coreclk 2>;
+};
+
+&usb0 {
+	clocks = <&coreclk 0>;
+};
+
+&usb1 {
+	clocks = <&coreclk 0>;
+};
+
+&eth0 {
+	compatible = "marvell,armada-370-neta";
+};
+
+&eth1 {
+	compatible = "marvell,armada-370-neta";
 };
 
 &pinctrl {
@@ -446,4 +400,20 @@
 			       "mpp27", "mpp28", "mpp29", "mpp30";
 		marvell,function = "ge1";
 	};
+};
+
+/*
+ * Default SPI pinctrl setting, can be overwritten on
+ * board level if a different configuration is used.
+ */
+&spi0 {
+	compatible = "marvell,armada-370-spi", "marvell,orion-spi";
+	pinctrl-0 = <&spi0_pins1>;
+	pinctrl-names = "default";
+};
+
+&spi1 {
+	compatible = "marvell,armada-370-spi", "marvell,orion-spi";
+	pinctrl-0 = <&spi1_pins>;
+	pinctrl-names = "default";
 };

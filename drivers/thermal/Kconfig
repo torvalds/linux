@@ -15,6 +15,30 @@ menuconfig THERMAL
 
 if THERMAL
 
+config THERMAL_STATISTICS
+	bool "Thermal state transition statistics"
+	help
+	  Export thermal state transition statistics information through sysfs.
+
+	  If in doubt, say N.
+
+config THERMAL_EMERGENCY_POWEROFF_DELAY_MS
+	int "Emergency poweroff delay in milli-seconds"
+	depends on THERMAL
+	default 0
+	help
+	  Thermal subsystem will issue a graceful shutdown when
+	  critical temperatures are reached using orderly_poweroff(). In
+	  case of failure of an orderly_poweroff(), the thermal emergency
+	  poweroff kicks in after a delay has elapsed and shuts down the system.
+	  This config is number of milliseconds to delay before emergency
+	  poweroff kicks in. Similarly to the critical trip point,
+	  the delay should be carefully profiled so as to give adequate
+	  time for orderly_poweroff() to finish on regular execution.
+	  If set to 0 emergency poweroff will not be supported.
+
+	  In doubt, leave as 0.
+
 config THERMAL_HWMON
 	bool
 	prompt "Expose thermal sensors as hwmon device"
@@ -177,7 +201,10 @@ config THERMAL_EMULATION
 
 config HISI_THERMAL
 	tristate "Hisilicon thermal driver"
-	depends on (ARCH_HISI && CPU_THERMAL && OF) || COMPILE_TEST
+	depends on ARCH_HISI || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on OF
+	default y
 	help
 	  Enable this to plug hisilicon's thermal sensor driver into the Linux
 	  thermal framework. cpufreq is used as the cooling device to throttle
@@ -185,7 +212,8 @@ config HISI_THERMAL
 
 config IMX_THERMAL
 	tristate "Temperature sensor driver for Freescale i.MX SoCs"
-	depends on CPU_THERMAL
+	depends on (ARCH_MXC && CPU_THERMAL) || COMPILE_TEST
+	depends on NVMEM || !NVMEM
 	depends on MFD_SYSCON
 	depends on OF
 	help
@@ -194,9 +222,30 @@ config IMX_THERMAL
 	  cpufreq is used as the cooling device to throttle CPUs when the
 	  passive trip is crossed.
 
+config MAX77620_THERMAL
+	tristate "Temperature sensor driver for Maxim MAX77620 PMIC"
+	depends on MFD_MAX77620
+	depends on OF
+	help
+	  Support for die junction temperature warning alarm for Maxim
+	  Semiconductor PMIC MAX77620 device. Device generates two alarm
+	  interrupts when PMIC die temperature cross the threshold of
+	  120 degC and 140 degC.
+
+config QORIQ_THERMAL
+	tristate "QorIQ Thermal Monitoring Unit"
+	depends on THERMAL_OF
+	depends on HAS_IOMEM
+	help
+	  Support for Thermal Monitoring Unit (TMU) found on QorIQ platforms.
+	  It supports one critical trip point and one passive trip point. The
+	  cpufreq is used as the cooling device to throttle CPUs when the
+	  passive trip is crossed.
+
 config SPEAR_THERMAL
-	bool "SPEAr thermal sensor driver"
+	tristate "SPEAr thermal sensor driver"
 	depends on PLAT_SPEAR || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on OF
 	help
 	  Enable this to plug the SPEAr thermal sensor driver into the Linux
@@ -206,6 +255,7 @@ config ROCKCHIP_THERMAL
 	tristate "Rockchip thermal driver"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on RESET_CONTROLLER
+	depends on HAS_IOMEM
 	help
 	  Rockchip thermal driver provides support for Temperature sensor
 	  ADC (TS-ADC) found on Rockchip SoCs. It supports one critical
@@ -214,15 +264,25 @@ config ROCKCHIP_THERMAL
 
 config RCAR_THERMAL
 	tristate "Renesas R-Car thermal driver"
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  Enable this to plug the R-Car thermal sensor driver into the Linux
 	  thermal framework.
 
+config RCAR_GEN3_THERMAL
+	tristate "Renesas R-Car Gen3 thermal driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on OF
+	help
+	  Enable this to plug the R-Car Gen3 thermal sensor driver into the Linux
+	  thermal framework.
+
 config KIRKWOOD_THERMAL
 	tristate "Temperature sensor on Marvell Kirkwood SoCs"
 	depends on MACH_KIRKWOOD || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on OF
 	help
 	  Support for the Kirkwood thermal sensor driver into the Linux thermal
@@ -231,14 +291,15 @@ config KIRKWOOD_THERMAL
 config DOVE_THERMAL
 	tristate "Temperature sensor on Marvell Dove SoCs"
 	depends on ARCH_DOVE || MACH_DOVE || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on OF
 	help
 	  Support for the Dove thermal sensor driver in the Linux thermal
 	  framework.
 
 config DB8500_THERMAL
-	bool "DB8500 thermal management"
-	depends on ARCH_U8500
+	tristate "DB8500 thermal management"
+	depends on MFD_DB8500_PRCMU
 	default y
 	help
 	  Adds DB8500 thermal management implementation according to the thermal
@@ -247,33 +308,23 @@ config DB8500_THERMAL
 	  thermal zone if trip points reached.
 
 config ARMADA_THERMAL
-	tristate "Armada 370/XP thermal management"
+	tristate "Marvell EBU Armada SoCs thermal management"
 	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on OF
 	help
 	  Enable this option if you want to have support for thermal management
-	  controller present in Armada 370 and Armada XP SoC.
+	  controller present in Marvell EBU Armada SoCs (370,375,XP,38x,7K,8K).
 
-config TEGRA_SOCTHERM
-	tristate "Tegra SOCTHERM thermal management"
-	depends on ARCH_TEGRA
+config DA9062_THERMAL
+	tristate "DA9062/DA9061 Dialog Semiconductor thermal driver"
+	depends on MFD_DA9062 || COMPILE_TEST
+	depends on OF
 	help
-	  Enable this option for integrated thermal management support on NVIDIA
-	  Tegra124 systems-on-chip. The driver supports four thermal zones
-	  (CPU, GPU, MEM, PLLX). Cooling devices can be bound to the thermal
-	  zones to manage temperatures. This option is also required for the
-	  emergency thermal reset (thermtrip) feature to function.
-
-config DB8500_CPUFREQ_COOLING
-	tristate "DB8500 cpufreq cooling"
-	depends on ARCH_U8500
-	depends on CPU_THERMAL
-	default y
-	help
-	  Adds DB8500 cpufreq cooling devices, and these cooling devices can be
-	  bound to thermal zone trip points. When a trip point reached, the
-	  bound cpufreq cooling device turns active to set CPU frequency low to
-	  cool down the CPU.
+	  Enable this for the Dialog Semiconductor thermal sensor driver.
+	  This will report PMIC junction over-temperature for one thermal trip
+	  zone.
+	  Compatible with the DA9062 and DA9061 PMICs.
 
 config INTEL_POWERCLAMP
 	tristate "Intel PowerClamp idle injection driver"
@@ -299,7 +350,7 @@ config X86_PKG_TEMP_THERMAL
 
 config INTEL_SOC_DTS_IOSF_CORE
 	tristate
-	depends on X86
+	depends on X86 && PCI
 	select IOSF_MBI
 	help
 	  This is becoming a common feature for Intel SoCs to expose the additional
@@ -309,7 +360,7 @@ config INTEL_SOC_DTS_IOSF_CORE
 
 config INTEL_SOC_DTS_THERMAL
 	tristate "Intel SoCs DTS thermal driver"
-	depends on X86
+	depends on X86 && PCI && ACPI
 	select INTEL_SOC_DTS_IOSF_CORE
 	select THERMAL_WRITABLE_TRIPS
 	help
@@ -331,31 +382,19 @@ config INTEL_QUARK_DTS_THERMAL
 	  hot & critical. The critical trip point default value is set by
 	  underlying BIOS/Firmware.
 
-config INT340X_THERMAL
-	tristate "ACPI INT340X thermal drivers"
-	depends on X86 && ACPI
-	select THERMAL_GOV_USER_SPACE
-	select ACPI_THERMAL_REL
-	select ACPI_FAN
-	select INTEL_SOC_DTS_IOSF_CORE
-	select THERMAL_WRITABLE_TRIPS
-	help
-	  Newer laptops and tablets that use ACPI may have thermal sensors and
-	  other devices with thermal control capabilities outside the core
-	  CPU/SOC, for thermal safety reasons.
-	  They are exposed for the OS to use via the INT3400 ACPI device object
-	  as the master, and INT3401~INT340B ACPI device objects as the slaves.
-	  Enable this to expose the temperature information and cooling ability
-	  from these objects to userspace via the normal thermal framework.
-	  This means that a wide range of applications and GUI widgets can show
-	  the information to the user or use this information for making
-	  decisions. For example, the Intel Thermal Daemon can use this
-	  information to allow the user to select his laptop to run without
-	  turning on the fans.
+menu "ACPI INT340X thermal drivers"
+source drivers/thermal/int340x_thermal/Kconfig
+endmenu
 
-config ACPI_THERMAL_REL
-	tristate
-	depends on ACPI
+config INTEL_BXT_PMIC_THERMAL
+	tristate "Intel Broxton PMIC thermal driver"
+	depends on X86 && INTEL_SOC_PMIC_BXTWC && REGMAP
+	help
+	  Select this driver for Intel Broxton PMIC with ADC channels monitoring
+	  system temperature measurements and alerts.
+	  This driver is used for monitoring the ADC channels of PMIC and handles
+	  the alert trip point interrupts and notifies the thermal framework with
+	  the trip point and temperature details of the zone.
 
 config INTEL_PCH_THERMAL
 	tristate "Intel PCH Thermal Reporting Driver"
@@ -365,8 +404,25 @@ config INTEL_PCH_THERMAL
 	  Thermal reporting device will provide temperature reading,
 	  programmable trip points and other information.
 
+config MTK_THERMAL
+	tristate "Temperature sensor driver for mediatek SoCs"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on NVMEM || NVMEM=n
+	depends on RESET_CONTROLLER
+	default y
+	help
+	  Enable this option if you want to have support for thermal management
+	  controller present in Mediatek SoCs
+
+menu "Broadcom thermal drivers"
+depends on ARCH_BCM || ARCH_BRCMSTB || ARCH_BCM2835 || COMPILE_TEST
+source "drivers/thermal/broadcom/Kconfig"
+endmenu
+
 menu "Texas Instruments thermal drivers"
 depends on ARCH_HAS_BANDGAP || COMPILE_TEST
+depends on HAS_IOMEM
 source "drivers/thermal/ti-soc-thermal/Kconfig"
 endmenu
 
@@ -380,6 +436,17 @@ depends on ARCH_STI && OF
 source "drivers/thermal/st/Kconfig"
 endmenu
 
+config TANGO_THERMAL
+	tristate "Tango thermal management"
+	depends on ARCH_TANGO || COMPILE_TEST
+	help
+	  Enable the Tango thermal driver, which supports the primitive
+	  temperature sensor embedded in Tango chips since the SMP8758.
+	  This sensor only generates a 1-bit signal to indicate whether
+	  the die temperature exceeds a programmable threshold.
+
+source "drivers/thermal/tegra/Kconfig"
+
 config QCOM_SPMI_TEMP_ALARM
 	tristate "Qualcomm SPMI PMIC Temperature Alarm"
 	depends on OF && SPMI && IIO
@@ -391,4 +458,35 @@ config QCOM_SPMI_TEMP_ALARM
 	  real time die temperature if an ADC is present or an estimate of the
 	  temperature based upon the over temperature stage value.
 
+config GENERIC_ADC_THERMAL
+	tristate "Generic ADC based thermal sensor"
+	depends on IIO
+	help
+	  This enabled a thermal sysfs driver for the temperature sensor
+	  which is connected to the General Purpose ADC. The ADC channel
+	  is read via IIO framework and the channel information is provided
+	  to this driver. This driver reports the temperature by reading ADC
+	  channel and converts it to temperature based on lookup table.
+
+menu "Qualcomm thermal drivers"
+depends on (ARCH_QCOM && OF) || COMPILE_TEST
+source "drivers/thermal/qcom/Kconfig"
+endmenu
+
+config ZX2967_THERMAL
+	tristate "Thermal sensors on zx2967 SoC"
+	depends on ARCH_ZX || COMPILE_TEST
+	help
+	  Enable the zx2967 thermal sensors driver, which supports
+	  the primitive temperature sensor embedded in zx2967 SoCs.
+	  This sensor generates the real time die temperature.
+
+config UNIPHIER_THERMAL
+	tristate "Socionext UniPhier thermal driver"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on THERMAL_OF && MFD_SYSCON
+	help
+	  Enable this to plug in UniPhier on-chip PVT thermal driver into the
+	  thermal framework. The driver supports CPU thermal zone temperature
+	  reporting and a couple of trip points.
 endif

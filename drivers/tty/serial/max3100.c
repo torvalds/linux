@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *
  *  Copyright (C) 2008 Christian Pellegrin <chripell@evolware.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  *
  * Notes: the MAX3100 doesn't provide an interrupt on CTS so we have
  * to use polling for flow control. TX empty IRQ is unusable, since
@@ -183,9 +178,9 @@ static void max3100_dowork(struct max3100_port *s)
 		queue_work(s->workqueue, &s->work);
 }
 
-static void max3100_timeout(unsigned long data)
+static void max3100_timeout(struct timer_list *t)
 {
-	struct max3100_port *s = (struct max3100_port *)data;
+	struct max3100_port *s = from_timer(s, t, timer);
 
 	if (s->port.state) {
 		max3100_dowork(s);
@@ -263,7 +258,7 @@ static void max3100_work(struct work_struct *w)
 	struct max3100_port *s = container_of(w, struct max3100_port, work);
 	int rxchars;
 	u16 tx, rx;
-	int conf, cconf, rts, crts;
+	int conf, cconf, crts;
 	struct circ_buf *xmit = &s->port.state->xmit;
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
@@ -274,7 +269,6 @@ static void max3100_work(struct work_struct *w)
 		conf = s->conf;
 		cconf = s->conf_commit;
 		s->conf_commit = 0;
-		rts = s->rts;
 		crts = s->rts_commit;
 		s->rts_commit = 0;
 		spin_unlock(&s->conf_lock);
@@ -436,7 +430,6 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
 	cflag = termios->c_cflag;
-	param_new = 0;
 	param_mask = 0;
 
 	baud = tty_termios_baud_rate(termios);
@@ -712,7 +705,7 @@ static void max3100_break_ctl(struct uart_port *port, int break_state)
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 }
 
-static struct uart_ops max3100_ops = {
+static const struct uart_ops max3100_ops = {
 	.tx_empty	= max3100_tx_empty,
 	.set_mctrl	= max3100_set_mctrl,
 	.get_mctrl	= max3100_get_mctrl,
@@ -787,9 +780,7 @@ static int max3100_probe(struct spi_device *spi)
 		max3100s[i]->poll_time = 1;
 	max3100s[i]->max3100_hw_suspend = pdata->max3100_hw_suspend;
 	max3100s[i]->minor = i;
-	init_timer(&max3100s[i]->timer);
-	max3100s[i]->timer.function = max3100_timeout;
-	max3100s[i]->timer.data = (unsigned long) max3100s[i];
+	timer_setup(&max3100s[i]->timer, max3100_timeout, 0);
 
 	dev_dbg(&spi->dev, "%s: adding port %d\n", __func__, i);
 	max3100s[i]->port.irq = max3100s[i]->irq;

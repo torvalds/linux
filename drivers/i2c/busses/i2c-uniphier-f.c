@@ -14,6 +14,7 @@
 
 #include <linux/clk.h>
 #include <linux/i2c.h>
+#include <linux/iopoll.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -96,6 +97,7 @@ struct uniphier_fi2c_priv {
 	int error;
 	unsigned int flags;
 	unsigned int busy_cnt;
+	unsigned int clk_cycle;
 };
 
 static void uniphier_fi2c_fill_txfifo(struct uniphier_fi2c_priv *priv,
@@ -348,14 +350,19 @@ static int uniphier_fi2c_master_xfer_one(struct i2c_adapter *adap,
 	dev_dbg(&adap->dev, "complete\n");
 
 	if (unlikely(priv->flags & UNIPHIER_FI2C_DEFER_STOP_COMP)) {
-		u32 status = readl(priv->membase + UNIPHIER_FI2C_SR);
+		u32 status;
+		int ret;
 
-		if (!(status & UNIPHIER_FI2C_SR_STS) ||
-		    status & UNIPHIER_FI2C_SR_BB) {
+		ret = readl_poll_timeout(priv->membase + UNIPHIER_FI2C_SR,
+					 status,
+					 (status & UNIPHIER_FI2C_SR_STS) &&
+					 !(status & UNIPHIER_FI2C_SR_BB),
+					 1, 20);
+		if (ret) {
 			dev_err(&adap->dev,
 				"stop condition was not completed.\n");
 			uniphier_fi2c_recover(priv);
-			return -EBUSY;
+			return ret;
 		}
 	}
 
@@ -394,11 +401,8 @@ static int uniphier_fi2c_master_xfer(struct i2c_adapter *adap,
 		return ret;
 
 	for (msg = msgs; msg < emsg; msg++) {
-		/* If next message is read, skip the stop condition */
-		bool stop = !(msg + 1 < emsg && msg[1].flags & I2C_M_RD);
-		/* but, force it if I2C_M_STOP is set */
-		if (msg->flags & I2C_M_STOP)
-			stop = true;
+		/* Emit STOP if it is the last message or I2C_M_STOP is set. */
+		bool stop = (msg + 1 == emsg) || (msg->flags & I2C_M_STOP);
 
 		ret = uniphier_fi2c_master_xfer_one(adap, msg, stop);
 		if (ret)
@@ -455,45 +459,40 @@ static struct i2c_bus_recovery_info uniphier_fi2c_bus_recovery_info = {
 	.unprepare_recovery = uniphier_fi2c_unprepare_recovery,
 };
 
-static int uniphier_fi2c_clk_init(struct device *dev,
-				  struct uniphier_fi2c_priv *priv)
+static void uniphier_fi2c_hw_init(struct uniphier_fi2c_priv *priv)
 {
-	struct device_node *np = dev->of_node;
-	unsigned long clk_rate;
-	u32 bus_speed, clk_count;
-	int ret;
+	unsigned int cyc = priv->clk_cycle;
+	u32 tmp;
 
-	if (of_property_read_u32(np, "clock-frequency", &bus_speed))
-		bus_speed = UNIPHIER_FI2C_DEFAULT_SPEED;
-
-	if (bus_speed > UNIPHIER_FI2C_MAX_SPEED)
-		bus_speed = UNIPHIER_FI2C_MAX_SPEED;
-
-	/* Get input clk rate through clk driver */
-	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to get clock\n");
-		return PTR_ERR(priv->clk);
-	}
-
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return ret;
-
-	clk_rate = clk_get_rate(priv->clk);
+	tmp = readl(priv->membase + UNIPHIER_FI2C_CR);
+	tmp |= UNIPHIER_FI2C_CR_MST;
+	writel(tmp, priv->membase + UNIPHIER_FI2C_CR);
 
 	uniphier_fi2c_reset(priv);
 
-	clk_count = clk_rate / bus_speed;
-
-	writel(clk_count, priv->membase + UNIPHIER_FI2C_CYC);
-	writel(clk_count / 2, priv->membase + UNIPHIER_FI2C_LCTL);
-	writel(clk_count / 2, priv->membase + UNIPHIER_FI2C_SSUT);
-	writel(clk_count / 16, priv->membase + UNIPHIER_FI2C_DSUT);
+	/*
+	 *  Standard-mode: tLOW + tHIGH = 10 us
+	 *  Fast-mode:     tLOW + tHIGH = 2.5 us
+	 */
+	writel(cyc, priv->membase + UNIPHIER_FI2C_CYC);
+	/*
+	 *  Standard-mode: tLOW = 4.7 us, tHIGH = 4.0 us, tBUF = 4.7 us
+	 *  Fast-mode:     tLOW = 1.3 us, tHIGH = 0.6 us, tBUF = 1.3 us
+	 * "tLow/tHIGH = 5/4" meets both.
+	 */
+	writel(cyc * 5 / 9, priv->membase + UNIPHIER_FI2C_LCTL);
+	/*
+	 *  Standard-mode: tHD;STA = 4.0 us, tSU;STA = 4.7 us, tSU;STO = 4.0 us
+	 *  Fast-mode:     tHD;STA = 0.6 us, tSU;STA = 0.6 us, tSU;STO = 0.6 us
+	 */
+	writel(cyc / 2, priv->membase + UNIPHIER_FI2C_SSUT);
+	/*
+	 *  Standard-mode: tSU;DAT = 250 ns
+	 *  Fast-mode:     tSU;DAT = 100 ns
+	 */
+	writel(cyc / 16, priv->membase + UNIPHIER_FI2C_DSUT);
 
 	uniphier_fi2c_prepare_operation(priv);
-
-	return 0;
 }
 
 static int uniphier_fi2c_probe(struct platform_device *pdev)
@@ -501,8 +500,9 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct uniphier_fi2c_priv *priv;
 	struct resource *regs;
-	int irq;
-	int ret;
+	u32 bus_speed;
+	unsigned long clk_rate;
+	int irq, ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -515,10 +515,36 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "failed to get IRQ number");
+		dev_err(dev, "failed to get IRQ number\n");
 		return irq;
 	}
 
+	if (of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed))
+		bus_speed = UNIPHIER_FI2C_DEFAULT_SPEED;
+
+	if (!bus_speed || bus_speed > UNIPHIER_FI2C_MAX_SPEED) {
+		dev_err(dev, "invalid clock-frequency %d\n", bus_speed);
+		return -EINVAL;
+	}
+
+	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		dev_err(dev, "failed to get clock\n");
+		return PTR_ERR(priv->clk);
+	}
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
+
+	clk_rate = clk_get_rate(priv->clk);
+	if (!clk_rate) {
+		dev_err(dev, "input clock rate should not be zero\n");
+		ret = -EINVAL;
+		goto disable_clk;
+	}
+
+	priv->clk_cycle = clk_rate / bus_speed;
 	init_completion(&priv->comp);
 	priv->adap.owner = THIS_MODULE;
 	priv->adap.algo = &uniphier_fi2c_algo;
@@ -529,24 +555,17 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&priv->adap, priv);
 	platform_set_drvdata(pdev, priv);
 
-	ret = uniphier_fi2c_clk_init(dev, priv);
-	if (ret)
-		return ret;
+	uniphier_fi2c_hw_init(priv);
 
 	ret = devm_request_irq(dev, irq, uniphier_fi2c_interrupt, 0,
 			       pdev->name, priv);
 	if (ret) {
 		dev_err(dev, "failed to request irq %d\n", irq);
-		goto err;
+		goto disable_clk;
 	}
 
 	ret = i2c_add_adapter(&priv->adap);
-	if (ret) {
-		dev_err(dev, "failed to add I2C adapter\n");
-		goto err;
-	}
-
-err:
+disable_clk:
 	if (ret)
 		clk_disable_unprepare(priv->clk);
 
@@ -563,6 +582,33 @@ static int uniphier_fi2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused uniphier_fi2c_suspend(struct device *dev)
+{
+	struct uniphier_fi2c_priv *priv = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(priv->clk);
+
+	return 0;
+}
+
+static int __maybe_unused uniphier_fi2c_resume(struct device *dev)
+{
+	struct uniphier_fi2c_priv *priv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
+
+	uniphier_fi2c_hw_init(priv);
+
+	return 0;
+}
+
+static const struct dev_pm_ops uniphier_fi2c_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(uniphier_fi2c_suspend, uniphier_fi2c_resume)
+};
+
 static const struct of_device_id uniphier_fi2c_match[] = {
 	{ .compatible = "socionext,uniphier-fi2c" },
 	{ /* sentinel */ }
@@ -575,6 +621,7 @@ static struct platform_driver uniphier_fi2c_drv = {
 	.driver = {
 		.name  = "uniphier-fi2c",
 		.of_match_table = uniphier_fi2c_match,
+		.pm = &uniphier_fi2c_pm_ops,
 	},
 };
 module_platform_driver(uniphier_fi2c_drv);

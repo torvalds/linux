@@ -26,7 +26,6 @@ spi1: spi@fffcc000 {
 	clock-names = "spi_clk";
 	cs-gpios = <&pioB 3 0>;
 	atmel,fifo-size = <32>;
-	status = "okay";
 
 	mmc-slot@0 {
 		compatible = "mmc-spi-slot";

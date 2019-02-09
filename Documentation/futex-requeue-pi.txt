@@ -1,5 +1,6 @@
+================
 Futex Requeue PI
-----------------
+================
 
 Requeueing of tasks from a non-PI futex to a PI futex requires
 special handling in order to ensure the underlying rt_mutex is never
@@ -20,28 +21,28 @@ implementation would wake the highest-priority waiter, and leave the
 rest to the natural wakeup inherent in unlocking the mutex
 associated with the condvar.
 
-Consider the simplified glibc calls:
+Consider the simplified glibc calls::
 
-/* caller must lock mutex */
-pthread_cond_wait(cond, mutex)
-{
-	lock(cond->__data.__lock);
-	unlock(mutex);
-	do {
-	   unlock(cond->__data.__lock);
-	   futex_wait(cond->__data.__futex);
-	   lock(cond->__data.__lock);
-	} while(...)
-	unlock(cond->__data.__lock);
-	lock(mutex);
-}
+	/* caller must lock mutex */
+	pthread_cond_wait(cond, mutex)
+	{
+		lock(cond->__data.__lock);
+		unlock(mutex);
+		do {
+		unlock(cond->__data.__lock);
+		futex_wait(cond->__data.__futex);
+		lock(cond->__data.__lock);
+		} while(...)
+		unlock(cond->__data.__lock);
+		lock(mutex);
+	}
 
-pthread_cond_broadcast(cond)
-{
-	lock(cond->__data.__lock);
-	unlock(cond->__data.__lock);
-	futex_requeue(cond->data.__futex, cond->mutex);
-}
+	pthread_cond_broadcast(cond)
+	{
+		lock(cond->__data.__lock);
+		unlock(cond->__data.__lock);
+		futex_requeue(cond->data.__futex, cond->mutex);
+	}
 
 Once pthread_cond_broadcast() requeues the tasks, the cond->mutex
 has waiters. Note that pthread_cond_wait() attempts to lock the
@@ -53,29 +54,29 @@ In order to support PI-aware pthread_condvar's, the kernel needs to
 be able to requeue tasks to PI futexes.  This support implies that
 upon a successful futex_wait system call, the caller would return to
 user space already holding the PI futex.  The glibc implementation
-would be modified as follows:
+would be modified as follows::
 
 
-/* caller must lock mutex */
-pthread_cond_wait_pi(cond, mutex)
-{
-	lock(cond->__data.__lock);
-	unlock(mutex);
-	do {
-	   unlock(cond->__data.__lock);
-	   futex_wait_requeue_pi(cond->__data.__futex);
-	   lock(cond->__data.__lock);
-	} while(...)
-	unlock(cond->__data.__lock);
-        /* the kernel acquired the mutex for us */
-}
+	/* caller must lock mutex */
+	pthread_cond_wait_pi(cond, mutex)
+	{
+		lock(cond->__data.__lock);
+		unlock(mutex);
+		do {
+		unlock(cond->__data.__lock);
+		futex_wait_requeue_pi(cond->__data.__futex);
+		lock(cond->__data.__lock);
+		} while(...)
+		unlock(cond->__data.__lock);
+		/* the kernel acquired the mutex for us */
+	}
 
-pthread_cond_broadcast_pi(cond)
-{
-	lock(cond->__data.__lock);
-	unlock(cond->__data.__lock);
-	futex_requeue_pi(cond->data.__futex, cond->mutex);
-}
+	pthread_cond_broadcast_pi(cond)
+	{
+		lock(cond->__data.__lock);
+		unlock(cond->__data.__lock);
+		futex_requeue_pi(cond->data.__futex, cond->mutex);
+	}
 
 The actual glibc implementation will likely test for PI and make the
 necessary changes inside the existing calls rather than creating new

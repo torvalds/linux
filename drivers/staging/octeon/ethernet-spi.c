@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file is based on code from OCTEON SDK by Cavium Networks.
  *
  * Copyright (c) 2003-2007 Cavium Networks
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, Version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -167,9 +164,7 @@ static void cvm_oct_spi_poll(struct net_device *dev)
 	int interface;
 
 	for (interface = 0; interface < 2; interface++) {
-
 		if ((priv->port == interface * 16) && need_retrain[interface]) {
-
 			if (cvmx_spi_restart_interface
 			    (interface, CVMX_SPI_MODE_DUPLEX, 10) == 0) {
 				need_retrain[interface] = 0;

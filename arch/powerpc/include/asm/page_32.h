@@ -1,5 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_PAGE_32_H
 #define _ASM_POWERPC_PAGE_32_H
+
+#include <asm/cache.h>
 
 #if defined(CONFIG_PHYSICAL_ALIGN) && (CONFIG_PHYSICAL_START != 0)
 #if (CONFIG_PHYSICAL_START % CONFIG_PHYSICAL_ALIGN) != 0
@@ -36,9 +39,18 @@ typedef unsigned long long pte_basic_t;
 typedef unsigned long pte_basic_t;
 #endif
 
-struct page;
-extern void clear_pages(void *page, int order);
-static inline void clear_page(void *page) { clear_pages(page, 0); }
+/*
+ * Clear page using the dcbz instruction, which doesn't cause any
+ * memory traffic (except to write out any cache lines which get
+ * displaced).  This only works on cacheable memory.
+ */
+static inline void clear_page(void *addr)
+{
+	unsigned int i;
+
+	for (i = 0; i < PAGE_SIZE / L1_CACHE_BYTES; i++, addr += L1_CACHE_BYTES)
+		dcbz(addr);
+}
 extern void copy_page(void *to, void *from);
 
 #include <asm-generic/getorder.h>

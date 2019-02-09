@@ -91,6 +91,7 @@ static const struct usb_device_id pwc_device_table [] = {
 	{ USB_DEVICE(0x0471, 0x0312) },
 	{ USB_DEVICE(0x0471, 0x0313) }, /* the 'new' 720K */
 	{ USB_DEVICE(0x0471, 0x0329) }, /* Philips SPC 900NC PC Camera */
+	{ USB_DEVICE(0x0471, 0x032C) }, /* Philips SPC 880NC PC Camera */
 	{ USB_DEVICE(0x069A, 0x0001) }, /* Askey */
 	{ USB_DEVICE(0x046D, 0x08B0) }, /* Logitech QuickCam Pro 3000 */
 	{ USB_DEVICE(0x046D, 0x08B1) }, /* Logitech QuickCam Notebook Pro */
@@ -145,7 +146,7 @@ static const struct v4l2_file_operations pwc_fops = {
 	.mmap =		vb2_fop_mmap,
 	.unlocked_ioctl = video_ioctl2,
 };
-static struct video_device pwc_template = {
+static const struct video_device pwc_template = {
 	.name =		"Philips Webcam",	/* Filled in later */
 	.release =	video_device_release_empty,
 	.fops =         &pwc_fops,
@@ -237,8 +238,8 @@ static void pwc_frame_complete(struct pwc_device *pdev)
 	} else {
 		/* Check for underflow first */
 		if (fbuf->filled < pdev->frame_total_size) {
-			PWC_DEBUG_FLOW("Frame buffer underflow (%d bytes);"
-				       " discarded.\n", fbuf->filled);
+			PWC_DEBUG_FLOW("Frame buffer underflow (%d bytes); discarded.\n",
+				       fbuf->filled);
 		} else {
 			fbuf->vb.field = V4L2_FIELD_NONE;
 			fbuf->vb.sequence = pdev->vframe_count;
@@ -261,7 +262,8 @@ static void pwc_isoc_handler(struct urb *urb)
 
 	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
 	    urb->status == -ESHUTDOWN) {
-		PWC_DEBUG_OPEN("URB (%p) unlinked %ssynchronuously.\n", urb, urb->status == -ENOENT ? "" : "a");
+		PWC_DEBUG_OPEN("URB (%p) unlinked %ssynchronously.\n",
+			       urb, urb->status == -ENOENT ? "" : "a");
 		return;
 	}
 
@@ -316,8 +318,7 @@ static void pwc_isoc_handler(struct urb *urb)
 			struct pwc_frame_buf *fbuf = pdev->fill_buf;
 
 			if (pdev->vsync == 1) {
-				v4l2_get_timestamp(
-					&fbuf->vb.timestamp);
+				fbuf->vb.vb2_buf.timestamp = ktime_get_ns();
 				pdev->vsync = 2;
 			}
 
@@ -410,7 +411,6 @@ retry:
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
-			PWC_ERROR("Failed to allocate urb %d\n", i);
 			pwc_isoc_cleanup(pdev);
 			return -ENOMEM;
 		}
@@ -571,9 +571,9 @@ static void pwc_video_release(struct v4l2_device *v)
 /***************************************************************************/
 /* Videobuf2 operations */
 
-static int queue_setup(struct vb2_queue *vq, const void *parg,
+static int queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 	int size;
@@ -708,7 +708,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	mutex_unlock(&pdev->v4l2_lock);
 }
 
-static struct vb2_ops pwc_vb_queue_ops = {
+static const struct vb2_ops pwc_vb_queue_ops = {
 	.queue_setup		= queue_setup,
 	.buf_init		= buffer_init,
 	.buf_prepare		= buffer_prepare,
@@ -809,6 +809,11 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		case 0x0329:
 			PWC_INFO("Philips SPC 900NC USB webcam detected.\n");
 			name = "Philips SPC 900NC webcam";
+			type_id = 740;
+			break;
+		case 0x032C:
+			PWC_INFO("Philips SPC 880NC USB webcam detected.\n");
+			name = "Philips SPC 880NC webcam";
 			type_id = 740;
 			break;
 		default:
@@ -1113,8 +1118,10 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	return 0;
 
+#ifdef CONFIG_USB_PWC_INPUT_EVDEV
 err_video_unreg:
 	video_unregister_device(&pdev->vdev);
+#endif
 err_unregister_v4l2_dev:
 	v4l2_device_unregister(&pdev->v4l2_dev);
 err_free_controls:

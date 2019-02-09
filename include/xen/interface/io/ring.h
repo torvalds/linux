@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  * ring.h
  *
@@ -8,6 +9,8 @@
 
 #ifndef __XEN_PUBLIC_IO_RING_H__
 #define __XEN_PUBLIC_IO_RING_H__
+
+#include <xen/interface/grant_table.h>
 
 typedef unsigned int RING_IDX;
 
@@ -208,12 +211,12 @@ struct __name##_back_ring {						\
 
 
 #define RING_PUSH_REQUESTS(_r) do {					\
-    wmb(); /* back sees requests /before/ updated producer index */	\
+    virt_wmb(); /* back sees requests /before/ updated producer index */	\
     (_r)->sring->req_prod = (_r)->req_prod_pvt;				\
 } while (0)
 
 #define RING_PUSH_RESPONSES(_r) do {					\
-    wmb(); /* front sees responses /before/ updated producer index */	\
+    virt_wmb(); /* front sees responses /before/ updated producer index */	\
     (_r)->sring->rsp_prod = (_r)->rsp_prod_pvt;				\
 } while (0)
 
@@ -250,9 +253,9 @@ struct __name##_back_ring {						\
 #define RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(_r, _notify) do {		\
     RING_IDX __old = (_r)->sring->req_prod;				\
     RING_IDX __new = (_r)->req_prod_pvt;				\
-    wmb(); /* back sees requests /before/ updated producer index */	\
+    virt_wmb(); /* back sees requests /before/ updated producer index */	\
     (_r)->sring->req_prod = __new;					\
-    mb(); /* back sees new requests /before/ we check req_event */	\
+    virt_mb(); /* back sees new requests /before/ we check req_event */	\
     (_notify) = ((RING_IDX)(__new - (_r)->sring->req_event) <		\
 		 (RING_IDX)(__new - __old));				\
 } while (0)
@@ -260,9 +263,9 @@ struct __name##_back_ring {						\
 #define RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(_r, _notify) do {		\
     RING_IDX __old = (_r)->sring->rsp_prod;				\
     RING_IDX __new = (_r)->rsp_prod_pvt;				\
-    wmb(); /* front sees responses /before/ updated producer index */	\
+    virt_wmb(); /* front sees responses /before/ updated producer index */	\
     (_r)->sring->rsp_prod = __new;					\
-    mb(); /* front sees new responses /before/ we check rsp_event */	\
+    virt_mb(); /* front sees new responses /before/ we check rsp_event */	\
     (_notify) = ((RING_IDX)(__new - (_r)->sring->rsp_event) <		\
 		 (RING_IDX)(__new - __old));				\
 } while (0)
@@ -271,7 +274,7 @@ struct __name##_back_ring {						\
     (_work_to_do) = RING_HAS_UNCONSUMED_REQUESTS(_r);			\
     if (_work_to_do) break;						\
     (_r)->sring->req_event = (_r)->req_cons + 1;			\
-    mb();								\
+    virt_mb();								\
     (_work_to_do) = RING_HAS_UNCONSUMED_REQUESTS(_r);			\
 } while (0)
 
@@ -279,8 +282,151 @@ struct __name##_back_ring {						\
     (_work_to_do) = RING_HAS_UNCONSUMED_RESPONSES(_r);			\
     if (_work_to_do) break;						\
     (_r)->sring->rsp_event = (_r)->rsp_cons + 1;			\
-    mb();								\
+    virt_mb();								\
     (_work_to_do) = RING_HAS_UNCONSUMED_RESPONSES(_r);			\
 } while (0)
+
+
+/*
+ * DEFINE_XEN_FLEX_RING_AND_INTF defines two monodirectional rings and
+ * functions to check if there is data on the ring, and to read and
+ * write to them.
+ *
+ * DEFINE_XEN_FLEX_RING is similar to DEFINE_XEN_FLEX_RING_AND_INTF, but
+ * does not define the indexes page. As different protocols can have
+ * extensions to the basic format, this macro allow them to define their
+ * own struct.
+ *
+ * XEN_FLEX_RING_SIZE
+ *   Convenience macro to calculate the size of one of the two rings
+ *   from the overall order.
+ *
+ * $NAME_mask
+ *   Function to apply the size mask to an index, to reduce the index
+ *   within the range [0-size].
+ *
+ * $NAME_read_packet
+ *   Function to read data from the ring. The amount of data to read is
+ *   specified by the "size" argument.
+ *
+ * $NAME_write_packet
+ *   Function to write data to the ring. The amount of data to write is
+ *   specified by the "size" argument.
+ *
+ * $NAME_get_ring_ptr
+ *   Convenience function that returns a pointer to read/write to the
+ *   ring at the right location.
+ *
+ * $NAME_data_intf
+ *   Indexes page, shared between frontend and backend. It also
+ *   contains the array of grant refs.
+ *
+ * $NAME_queued
+ *   Function to calculate how many bytes are currently on the ring,
+ *   ready to be read. It can also be used to calculate how much free
+ *   space is currently on the ring (XEN_FLEX_RING_SIZE() -
+ *   $NAME_queued()).
+ */
+
+#ifndef XEN_PAGE_SHIFT
+/* The PAGE_SIZE for ring protocols and hypercall interfaces is always
+ * 4K, regardless of the architecture, and page granularity chosen by
+ * operating systems.
+ */
+#define XEN_PAGE_SHIFT 12
+#endif
+#define XEN_FLEX_RING_SIZE(order)                                             \
+    (1UL << ((order) + XEN_PAGE_SHIFT - 1))
+
+#define DEFINE_XEN_FLEX_RING(name)                                            \
+static inline RING_IDX name##_mask(RING_IDX idx, RING_IDX ring_size)          \
+{                                                                             \
+    return idx & (ring_size - 1);                                             \
+}                                                                             \
+                                                                              \
+static inline unsigned char *name##_get_ring_ptr(unsigned char *buf,          \
+                                                 RING_IDX idx,                \
+                                                 RING_IDX ring_size)          \
+{                                                                             \
+    return buf + name##_mask(idx, ring_size);                                 \
+}                                                                             \
+                                                                              \
+static inline void name##_read_packet(void *opaque,                           \
+                                      const unsigned char *buf,               \
+                                      size_t size,                            \
+                                      RING_IDX masked_prod,                   \
+                                      RING_IDX *masked_cons,                  \
+                                      RING_IDX ring_size)                     \
+{                                                                             \
+    if (*masked_cons < masked_prod ||                                         \
+        size <= ring_size - *masked_cons) {                                   \
+        memcpy(opaque, buf + *masked_cons, size);                             \
+    } else {                                                                  \
+        memcpy(opaque, buf + *masked_cons, ring_size - *masked_cons);         \
+        memcpy((unsigned char *)opaque + ring_size - *masked_cons, buf,       \
+               size - (ring_size - *masked_cons));                            \
+    }                                                                         \
+    *masked_cons = name##_mask(*masked_cons + size, ring_size);               \
+}                                                                             \
+                                                                              \
+static inline void name##_write_packet(unsigned char *buf,                    \
+                                       const void *opaque,                    \
+                                       size_t size,                           \
+                                       RING_IDX *masked_prod,                 \
+                                       RING_IDX masked_cons,                  \
+                                       RING_IDX ring_size)                    \
+{                                                                             \
+    if (*masked_prod < masked_cons ||                                         \
+        size <= ring_size - *masked_prod) {                                   \
+        memcpy(buf + *masked_prod, opaque, size);                             \
+    } else {                                                                  \
+        memcpy(buf + *masked_prod, opaque, ring_size - *masked_prod);         \
+        memcpy(buf, (unsigned char *)opaque + (ring_size - *masked_prod),     \
+               size - (ring_size - *masked_prod));                            \
+    }                                                                         \
+    *masked_prod = name##_mask(*masked_prod + size, ring_size);               \
+}                                                                             \
+                                                                              \
+static inline RING_IDX name##_queued(RING_IDX prod,                           \
+                                     RING_IDX cons,                           \
+                                     RING_IDX ring_size)                      \
+{                                                                             \
+    RING_IDX size;                                                            \
+                                                                              \
+    if (prod == cons)                                                         \
+        return 0;                                                             \
+                                                                              \
+    prod = name##_mask(prod, ring_size);                                      \
+    cons = name##_mask(cons, ring_size);                                      \
+                                                                              \
+    if (prod == cons)                                                         \
+        return ring_size;                                                     \
+                                                                              \
+    if (prod > cons)                                                          \
+        size = prod - cons;                                                   \
+    else                                                                      \
+        size = ring_size - (cons - prod);                                     \
+    return size;                                                              \
+}                                                                             \
+                                                                              \
+struct name##_data {                                                          \
+    unsigned char *in; /* half of the allocation */                           \
+    unsigned char *out; /* half of the allocation */                          \
+}
+
+#define DEFINE_XEN_FLEX_RING_AND_INTF(name)                                   \
+struct name##_data_intf {                                                     \
+    RING_IDX in_cons, in_prod;                                                \
+                                                                              \
+    uint8_t pad1[56];                                                         \
+                                                                              \
+    RING_IDX out_cons, out_prod;                                              \
+                                                                              \
+    uint8_t pad2[56];                                                         \
+                                                                              \
+    RING_IDX ring_order;                                                      \
+    grant_ref_t ref[];                                                        \
+};                                                                            \
+DEFINE_XEN_FLEX_RING(name)
 
 #endif /* __XEN_PUBLIC_IO_RING_H__ */

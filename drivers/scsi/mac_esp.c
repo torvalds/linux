@@ -55,6 +55,7 @@ struct mac_esp_priv {
 	int error;
 };
 static struct esp *esp_chips[2];
+static DEFINE_SPINLOCK(esp_chips_lock);
 
 #define MAC_ESP_GET_PRIV(esp) ((struct mac_esp_priv *) \
 			       platform_get_drvdata((struct platform_device *) \
@@ -347,26 +348,24 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 				 u32 dma_count, int write, u8 cmd)
 {
 	struct mac_esp_priv *mep = MAC_ESP_GET_PRIV(esp);
-	u8 *fifo = esp->regs + ESP_FDATA * 16;
+	u8 __iomem *fifo = esp->regs + ESP_FDATA * 16;
+	u8 phase = esp->sreg & ESP_STAT_PMASK;
 
 	cmd &= ~ESP_CMD_DMA;
 	mep->error = 0;
 
 	if (write) {
+		u8 *dst = (u8 *)addr;
+		u8 mask = ~(phase == ESP_MIP ? ESP_INTR_FDONE : ESP_INTR_BSERV);
+
 		scsi_esp_cmd(esp, cmd);
 
 		while (1) {
-			unsigned int n;
-
-			n = mac_esp_wait_for_fifo(esp);
-			if (!n)
+			if (!mac_esp_wait_for_fifo(esp))
 				break;
 
-			if (n > esp_count)
-				n = esp_count;
-			esp_count -= n;
-
-			MAC_ESP_PIO_LOOP("%2@,%0@+", n);
+			*dst++ = esp_read8(ESP_FDATA);
+			--esp_count;
 
 			if (!esp_count)
 				break;
@@ -374,14 +373,17 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			if (mac_esp_wait_for_intr(esp))
 				break;
 
-			if (((esp->sreg & ESP_STAT_PMASK) != ESP_DIP) &&
-			    ((esp->sreg & ESP_STAT_PMASK) != ESP_MIP))
+			if ((esp->sreg & ESP_STAT_PMASK) != phase)
 				break;
 
 			esp->ireg = esp_read8(ESP_INTRPT);
-			if ((esp->ireg & (ESP_INTR_DC | ESP_INTR_BSERV)) !=
-			    ESP_INTR_BSERV)
+			if (esp->ireg & mask) {
+				mep->error = 1;
 				break;
+			}
+
+			if (phase == ESP_MIP)
+				scsi_esp_cmd(esp, ESP_CMD_MOK);
 
 			scsi_esp_cmd(esp, ESP_CMD_TI);
 		}
@@ -401,14 +403,14 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			if (mac_esp_wait_for_intr(esp))
 				break;
 
-			if (((esp->sreg & ESP_STAT_PMASK) != ESP_DOP) &&
-			    ((esp->sreg & ESP_STAT_PMASK) != ESP_MOP))
+			if ((esp->sreg & ESP_STAT_PMASK) != phase)
 				break;
 
 			esp->ireg = esp_read8(ESP_INTRPT);
-			if ((esp->ireg & (ESP_INTR_DC | ESP_INTR_BSERV)) !=
-			    ESP_INTR_BSERV)
+			if (esp->ireg & ~ESP_INTR_BSERV) {
+				mep->error = 1;
 				break;
+			}
 
 			n = MAC_ESP_FIFO_SIZE -
 			    (esp_read8(ESP_FFLAGS) & ESP_FF_FBYTES);
@@ -425,6 +427,8 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			scsi_esp_cmd(esp, ESP_CMD_TI);
 		}
 	}
+
+	esp->send_cmd_residual = esp_count;
 }
 
 static int mac_esp_irq_pending(struct esp *esp)
@@ -562,15 +566,18 @@ static int esp_mac_probe(struct platform_device *dev)
 	}
 
 	host->irq = IRQ_MAC_SCSI;
-	esp_chips[dev->id] = esp;
-	mb();
-	if (esp_chips[!dev->id] == NULL) {
-		err = request_irq(host->irq, mac_scsi_esp_intr, 0, "ESP", NULL);
-		if (err < 0) {
-			esp_chips[dev->id] = NULL;
-			goto fail_free_priv;
-		}
+
+	/* The request_irq() call is intended to succeed for the first device
+	 * and fail for the second device.
+	 */
+	err = request_irq(host->irq, mac_scsi_esp_intr, 0, "ESP", NULL);
+	spin_lock(&esp_chips_lock);
+	if (err < 0 && esp_chips[!dev->id] == NULL) {
+		spin_unlock(&esp_chips_lock);
+		goto fail_free_priv;
 	}
+	esp_chips[dev->id] = esp;
+	spin_unlock(&esp_chips_lock);
 
 	err = scsi_esp_register(esp, &dev->dev);
 	if (err)
@@ -579,8 +586,13 @@ static int esp_mac_probe(struct platform_device *dev)
 	return 0;
 
 fail_free_irq:
-	if (esp_chips[!dev->id] == NULL)
-		free_irq(host->irq, esp);
+	spin_lock(&esp_chips_lock);
+	esp_chips[dev->id] = NULL;
+	if (esp_chips[!dev->id] == NULL) {
+		spin_unlock(&esp_chips_lock);
+		free_irq(host->irq, NULL);
+	} else
+		spin_unlock(&esp_chips_lock);
 fail_free_priv:
 	kfree(mep);
 fail_free_command_block:
@@ -599,9 +611,13 @@ static int esp_mac_remove(struct platform_device *dev)
 
 	scsi_esp_unregister(esp);
 
+	spin_lock(&esp_chips_lock);
 	esp_chips[dev->id] = NULL;
-	if (!(esp_chips[0] || esp_chips[1]))
+	if (esp_chips[!dev->id] == NULL) {
+		spin_unlock(&esp_chips_lock);
 		free_irq(irq, NULL);
+	} else
+		spin_unlock(&esp_chips_lock);
 
 	kfree(mep);
 
@@ -631,7 +647,7 @@ static void __exit mac_esp_exit(void)
 }
 
 MODULE_DESCRIPTION("Mac ESP SCSI driver");
-MODULE_AUTHOR("Finn Thain <fthain@telegraphics.com.au>");
+MODULE_AUTHOR("Finn Thain");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:" DRV_MODULE_NAME);

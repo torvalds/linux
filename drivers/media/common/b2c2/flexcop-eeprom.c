@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
  * flexcop-eeprom.c - eeprom access methods (currently only MAC address reading)
@@ -136,8 +137,7 @@ int flexcop_eeprom_check_mac_addr(struct flexcop_device *fc, int extended)
 
 	if ((ret = flexcop_eeprom_lrc_read(fc,0x3f8,buf,8,4)) == 0) {
 		if (extended != 0) {
-			err("TODO: extended (EUI64) MAC addresses aren't "
-				"completely supported yet");
+			err("TODO: extended (EUI64) MAC addresses aren't completely supported yet");
 			ret = -EINVAL;
 		} else
 			memcpy(fc->dvb_adapter.proposed_mac,buf,6);

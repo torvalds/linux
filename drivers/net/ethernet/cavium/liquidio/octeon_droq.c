@@ -1,51 +1,34 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-#include <linux/version.h>
-#include <linux/types.h>
-#include <linux/list.h>
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 #include <linux/pci.h>
-#include <linux/kthread.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_nic.h"
 #include "octeon_main.h"
 #include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
-#include "cn68xx_regs.h"
-#include "cn68xx_device.h"
-#include "liquidio_image.h"
-#include "octeon_mem_ops.h"
-
-/* #define CAVIUM_ONLY_PERF_MODE */
-
-#define     CVM_MIN(d1, d2)           (((d1) < (d2)) ? (d1) : (d2))
-#define     CVM_MAX(d1, d2)           (((d1) > (d2)) ? (d1) : (d2))
+#include "cn23xx_pf_device.h"
+#include "cn23xx_vf_device.h"
 
 struct niclist {
 	struct list_head list;
@@ -69,8 +52,8 @@ struct __dispatch {
  *  @return  Failure: NULL
  *
  */
-static inline void *octeon_get_dispatch_arg(struct octeon_device *octeon_dev,
-					    u16 opcode, u16 subcode)
+void *octeon_get_dispatch_arg(struct octeon_device *octeon_dev,
+			      u16 opcode, u16 subcode)
 {
 	int idx;
 	struct list_head *dispatch;
@@ -104,18 +87,25 @@ static inline void *octeon_get_dispatch_arg(struct octeon_device *octeon_dev,
 	return fn_arg;
 }
 
-u32 octeon_droq_check_hw_for_pkts(struct octeon_device *oct,
-				  struct octeon_droq *droq)
+/** Check for packets on Droq. This function should be called with lock held.
+ *  @param  droq - Droq on which count is checked.
+ *  @return Returns packet count.
+ */
+u32 octeon_droq_check_hw_for_pkts(struct octeon_droq *droq)
 {
 	u32 pkt_count = 0;
+	u32 last_count;
 
 	pkt_count = readl(droq->pkts_sent_reg);
-	if (pkt_count) {
-		atomic_add(pkt_count, &droq->pkts_pending);
-		writel(pkt_count, droq->pkts_sent_reg);
-	}
 
-	return pkt_count;
+	last_count = pkt_count - droq->pkt_count;
+	droq->pkt_count = pkt_count;
+
+	/* we shall write to cnts  at napi irq enable or end of droq tasklet */
+	if (last_count)
+		atomic_add(last_count, &droq->pkts_pending);
+
+	return last_count;
 }
 
 static void octeon_droq_compute_max_packet_bufs(struct octeon_droq *droq)
@@ -151,22 +141,23 @@ octeon_droq_destroy_ring_buffers(struct octeon_device *oct,
 				 struct octeon_droq *droq)
 {
 	u32 i;
+	struct octeon_skb_page_info *pg_info;
 
 	for (i = 0; i < droq->max_count; i++) {
-		if (droq->recv_buf_list[i].buffer) {
-			if (droq->desc_ring) {
-				lio_unmap_ring_info(oct->pci_dev,
-						    (u64)droq->
-						    desc_ring[i].info_ptr,
-						    OCT_DROQ_INFO_SIZE);
-				lio_unmap_ring(oct->pci_dev,
-					       (u64)droq->desc_ring[i].
-					       buffer_ptr,
-					       droq->buffer_size);
-			}
-			recv_buffer_free(droq->recv_buf_list[i].buffer);
-			droq->recv_buf_list[i].buffer = NULL;
-		}
+		pg_info = &droq->recv_buf_list[i].pg_info;
+		if (!pg_info)
+			continue;
+
+		if (pg_info->dma)
+			lio_unmap_ring(oct->pci_dev,
+				       (u64)pg_info->dma);
+		pg_info->dma = 0;
+
+		if (pg_info->page)
+			recv_buffer_destroy(droq->recv_buf_list[i].buffer,
+					    pg_info);
+
+		droq->recv_buf_list[i].buffer = NULL;
 	}
 
 	octeon_droq_reset_indices(droq);
@@ -181,25 +172,20 @@ octeon_droq_setup_ring_buffers(struct octeon_device *oct,
 	struct octeon_droq_desc *desc_ring = droq->desc_ring;
 
 	for (i = 0; i < droq->max_count; i++) {
-		buf = recv_buffer_alloc(oct, droq->q_no, droq->buffer_size);
+		buf = recv_buffer_alloc(oct, &droq->recv_buf_list[i].pg_info);
 
 		if (!buf) {
 			dev_err(&oct->pci_dev->dev, "%s buffer alloc failed\n",
 				__func__);
+			droq->stats.rx_alloc_failure++;
 			return -ENOMEM;
 		}
 
 		droq->recv_buf_list[i].buffer = buf;
 		droq->recv_buf_list[i].data = get_rbd(buf);
-
-		droq->info_list[i].length = 0;
-
-		/* map ring buffers into memory */
-		desc_ring[i].info_ptr = lio_map_ring_info(droq, i);
+		desc_ring[i].info_ptr = 0;
 		desc_ring[i].buffer_ptr =
-			lio_map_ring(oct->pci_dev,
-				     droq->recv_buf_list[i].buffer,
-				     droq->buffer_size);
+			lio_map_ring(droq->recv_buf_list[i].buffer);
 	}
 
 	octeon_droq_reset_indices(droq);
@@ -218,17 +204,15 @@ int octeon_delete_droq(struct octeon_device *oct, u32 q_no)
 	octeon_droq_destroy_ring_buffers(oct, droq);
 	vfree(droq->recv_buf_list);
 
-	if (droq->info_base_addr)
-		cnnic_free_aligned_dma(oct->pci_dev, droq->info_list,
-				       droq->info_alloc_size,
-				       droq->info_base_addr,
-				       droq->info_list_dma);
-
 	if (droq->desc_ring)
 		lio_dma_free(oct, (droq->max_count * OCT_DROQ_DESC_SIZE),
 			     droq->desc_ring, droq->desc_ring_dma);
 
 	memset(droq, 0, OCT_DROQ_SIZE);
+	oct->io_qmask.oq &= ~(1ULL << q_no);
+	vfree(oct->droq[q_no]);
+	oct->droq[q_no] = NULL;
+	oct->num_oqs--;
 
 	return 0;
 }
@@ -242,6 +226,7 @@ int octeon_init_droq(struct octeon_device *oct,
 	struct octeon_droq *droq;
 	u32 desc_ring_size = 0, c_num_descs = 0, c_buf_size = 0;
 	u32 c_pkts_per_intr = 0, c_refill_threshold = 0;
+	int numa_node = dev_to_node(&oct->pci_dev->dev);
 
 	dev_dbg(&oct->pci_dev->dev, "%s[%d]\n", __func__, q_no);
 
@@ -258,10 +243,23 @@ int octeon_init_droq(struct octeon_device *oct,
 	c_num_descs = num_descs;
 	c_buf_size = desc_size;
 	if (OCTEON_CN6XXX(oct)) {
-		struct octeon_config *conf6x = CHIP_FIELD(oct, cn6xxx, conf);
+		struct octeon_config *conf6x = CHIP_CONF(oct, cn6xxx);
 
 		c_pkts_per_intr = (u32)CFG_GET_OQ_PKTS_PER_INTR(conf6x);
-		c_refill_threshold = (u32)CFG_GET_OQ_REFILL_THRESHOLD(conf6x);
+		c_refill_threshold =
+			(u32)CFG_GET_OQ_REFILL_THRESHOLD(conf6x);
+	} else if (OCTEON_CN23XX_PF(oct)) {
+		struct octeon_config *conf23 = CHIP_CONF(oct, cn23xx_pf);
+
+		c_pkts_per_intr = (u32)CFG_GET_OQ_PKTS_PER_INTR(conf23);
+		c_refill_threshold = (u32)CFG_GET_OQ_REFILL_THRESHOLD(conf23);
+	} else if (OCTEON_CN23XX_VF(oct)) {
+		struct octeon_config *conf23 = CHIP_CONF(oct, cn23xx_vf);
+
+		c_pkts_per_intr = (u32)CFG_GET_OQ_PKTS_PER_INTR(conf23);
+		c_refill_threshold = (u32)CFG_GET_OQ_REFILL_THRESHOLD(conf23);
+	} else {
+		return 1;
 	}
 
 	droq->max_count = c_num_descs;
@@ -282,23 +280,13 @@ int octeon_init_droq(struct octeon_device *oct,
 	dev_dbg(&oct->pci_dev->dev, "droq[%d]: num_desc: %d\n", q_no,
 		droq->max_count);
 
-	droq->info_list =
-		cnnic_alloc_aligned_dma(oct->pci_dev,
-					(droq->max_count * OCT_DROQ_INFO_SIZE),
-					&droq->info_alloc_size,
-					&droq->info_base_addr,
-					&droq->info_list_dma);
-
-	if (!droq->info_list) {
-		dev_err(&oct->pci_dev->dev, "Cannot allocate memory for info list.\n");
-		lio_dma_free(oct, (droq->max_count * OCT_DROQ_DESC_SIZE),
-			     droq->desc_ring, droq->desc_ring_dma);
-		return 1;
-	}
-
 	droq->recv_buf_list = (struct octeon_recv_buffer *)
-			      vmalloc(droq->max_count *
-						OCT_DROQ_RECVBUF_SIZE);
+	      vzalloc_node(array_size(droq->max_count, OCT_DROQ_RECVBUF_SIZE),
+			   numa_node);
+	if (!droq->recv_buf_list)
+		droq->recv_buf_list = (struct octeon_recv_buffer *)
+		      vzalloc(array_size(droq->max_count,
+					 OCT_DROQ_RECVBUF_SIZE));
 	if (!droq->recv_buf_list) {
 		dev_err(&oct->pci_dev->dev, "Output queue recv buf list alloc failed\n");
 		goto init_droq_fail;
@@ -320,7 +308,7 @@ int octeon_init_droq(struct octeon_device *oct,
 	/* For 56xx Pass1, this function won't be called, so no checks. */
 	oct->fn_list.setup_oq_regs(oct, q_no);
 
-	oct->io_qmask.oq |= (1 << q_no);
+	oct->io_qmask.oq |= BIT_ULL(q_no);
 
 	return 0;
 
@@ -358,8 +346,9 @@ static inline struct octeon_recv_info *octeon_create_recv_info(
 	struct octeon_recv_pkt *recv_pkt;
 	struct octeon_recv_info *recv_info;
 	u32 i, bytes_left;
+	struct octeon_skb_page_info *pg_info;
 
-	info = &droq->info_list[idx];
+	info = (struct octeon_droq_info *)droq->recv_buf_list[idx].data;
 
 	recv_info = octeon_alloc_recv_info(sizeof(struct __dispatch));
 	if (!recv_info)
@@ -375,9 +364,14 @@ static inline struct octeon_recv_info *octeon_create_recv_info(
 	bytes_left = (u32)info->length;
 
 	while (buf_cnt) {
-		lio_unmap_ring(octeon_dev->pci_dev,
-			       (u64)droq->desc_ring[idx].buffer_ptr,
-			       droq->buffer_size);
+		{
+			pg_info = &droq->recv_buf_list[idx].pg_info;
+
+			lio_unmap_ring(octeon_dev->pci_dev,
+				       (u64)pg_info->dma);
+			pg_info->page = NULL;
+			pg_info->dma = 0;
+		}
 
 		recv_pkt->buffer_size[i] =
 			(bytes_left >=
@@ -386,7 +380,7 @@ static inline struct octeon_recv_info *octeon_create_recv_info(
 		recv_pkt->buffer_ptr[i] = droq->recv_buf_list[idx].buffer;
 		droq->recv_buf_list[idx].buffer = NULL;
 
-		INCR_INDEX_BY1(idx, droq->max_count);
+		idx = incr_index(idx, 1, droq->max_count);
 		bytes_left -= droq->buffer_size;
 		i++;
 		buf_cnt--;
@@ -417,14 +411,14 @@ octeon_droq_refill_pullup_descs(struct octeon_droq *droq,
 			droq->recv_buf_list[refill_index].buffer = NULL;
 			desc_ring[refill_index].buffer_ptr = 0;
 			do {
-				INCR_INDEX_BY1(droq->refill_idx,
-					       droq->max_count);
+				droq->refill_idx = incr_index(droq->refill_idx,
+							      1,
+							      droq->max_count);
 				desc_refilled++;
 				droq->refill_count--;
-			} while (droq->recv_buf_list[droq->refill_idx].
-				 buffer);
+			} while (droq->recv_buf_list[droq->refill_idx].buffer);
 		}
-		INCR_INDEX_BY1(refill_index, droq->max_count);
+		refill_index = incr_index(refill_index, 1, droq->max_count);
 	}                       /* while */
 	return desc_refilled;
 }
@@ -449,6 +443,7 @@ octeon_droq_refill(struct octeon_device *octeon_dev, struct octeon_droq *droq)
 	void *buf = NULL;
 	u8 *data;
 	u32 desc_refilled = 0;
+	struct octeon_skb_page_info *pg_info;
 
 	desc_ring = droq->desc_ring;
 
@@ -458,13 +453,22 @@ octeon_droq_refill(struct octeon_device *octeon_dev, struct octeon_droq *droq)
 		 * the buffer, else allocate.
 		 */
 		if (!droq->recv_buf_list[droq->refill_idx].buffer) {
-			buf = recv_buffer_alloc(octeon_dev, droq->q_no,
-						droq->buffer_size);
+			pg_info =
+				&droq->recv_buf_list[droq->refill_idx].pg_info;
+			/* Either recycle the existing pages or go for
+			 * new page alloc
+			 */
+			if (pg_info->page)
+				buf = recv_buffer_reuse(octeon_dev, pg_info);
+			else
+				buf = recv_buffer_alloc(octeon_dev, pg_info);
 			/* If a buffer could not be allocated, no point in
 			 * continuing
 			 */
-			if (!buf)
+			if (!buf) {
+				droq->stats.rx_alloc_failure++;
 				break;
+			}
 			droq->recv_buf_list[droq->refill_idx].buffer =
 				buf;
 			data = get_rbd(buf);
@@ -476,15 +480,11 @@ octeon_droq_refill(struct octeon_device *octeon_dev, struct octeon_droq *droq)
 		droq->recv_buf_list[droq->refill_idx].data = data;
 
 		desc_ring[droq->refill_idx].buffer_ptr =
-			lio_map_ring(octeon_dev->pci_dev,
-				     droq->recv_buf_list[droq->
-				     refill_idx].buffer,
-				     droq->buffer_size);
+			lio_map_ring(droq->recv_buf_list[
+				     droq->refill_idx].buffer);
 
-		/* Reset any previous values in the length field. */
-		droq->info_list[droq->refill_idx].length = 0;
-
-		INCR_INDEX_BY1(droq->refill_idx, droq->max_count);
+		droq->refill_idx = incr_index(droq->refill_idx, 1,
+					      droq->max_count);
 		desc_refilled++;
 		droq->refill_count--;
 	}
@@ -501,14 +501,36 @@ octeon_droq_refill(struct octeon_device *octeon_dev, struct octeon_droq *droq)
 	return desc_refilled;
 }
 
+/** check if we can allocate packets to get out of oom.
+ *  @param  droq - Droq being checked.
+ *  @return does not return anything
+ */
+void octeon_droq_check_oom(struct octeon_droq *droq)
+{
+	int desc_refilled;
+	struct octeon_device *oct = droq->oct_dev;
+
+	if (readl(droq->pkts_credit_reg) <= CN23XX_SLI_DEF_BP) {
+		spin_lock_bh(&droq->lock);
+		desc_refilled = octeon_droq_refill(oct, droq);
+		if (desc_refilled) {
+			/* Flush the droq descriptor data to memory to be sure
+			 * that when we update the credits the data in memory
+			 * is accurate.
+			 */
+			wmb();
+			writel(desc_refilled, droq->pkts_credit_reg);
+			/* make sure mmio write completes */
+			mmiowb();
+		}
+		spin_unlock_bh(&droq->lock);
+	}
+}
+
 static inline u32
 octeon_droq_get_bufcount(u32 buf_size, u32 total_len)
 {
-	u32 buf_cnt = 0;
-
-	while (total_len > (buf_size * buf_cnt))
-		buf_cnt++;
-	return buf_cnt;
+	return ((total_len + buf_size - 1) / buf_size);
 }
 
 static int
@@ -539,9 +561,11 @@ octeon_droq_dispatch_pkt(struct octeon_device *oct,
 			droq->stats.dropped_nomem++;
 		}
 	} else {
-		dev_err(&oct->pci_dev->dev, "DROQ: No dispatch function\n");
+		dev_err(&oct->pci_dev->dev, "DROQ: No dispatch function (opcode %u/%u)\n",
+			(unsigned int)rh->r.opcode,
+			(unsigned int)rh->r.subcode);
 		droq->stats.dropped_nodispatch++;
-	}                       /* else (dispatch_fn ... */
+	}
 
 	return cnt;
 }
@@ -554,11 +578,12 @@ static inline void octeon_droq_drop_packets(struct octeon_device *oct,
 	struct octeon_droq_info *info;
 
 	for (i = 0; i < cnt; i++) {
-		info = &droq->info_list[droq->read_idx];
+		info = (struct octeon_droq_info *)
+			droq->recv_buf_list[droq->read_idx].data;
 		octeon_swap_8B_data((u64 *)info, 2);
 
 		if (info->length) {
-			info->length -= OCT_RH_SIZE;
+			info->length += OCTNET_FRM_LENGTH_SIZE;
 			droq->stats.bytes_received += info->length;
 			buf_cnt = octeon_droq_get_bufcount(droq->buffer_size,
 							   (u32)info->length);
@@ -567,7 +592,8 @@ static inline void octeon_droq_drop_packets(struct octeon_device *oct,
 			buf_cnt = 1;
 		}
 
-		INCR_INDEX(droq->read_idx, buf_cnt, droq->max_count);
+		droq->read_idx = incr_index(droq->read_idx, buf_cnt,
+					    droq->max_count);
 		droq->refill_count += buf_cnt;
 	}
 }
@@ -586,8 +612,11 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 	for (pkt = 0; pkt < pkt_count; pkt++) {
 		u32 pkt_len = 0;
 		struct sk_buff *nicbuf = NULL;
+		struct octeon_skb_page_info *pg_info;
+		void *buf;
 
-		info = &droq->info_list[droq->read_idx];
+		info = (struct octeon_droq_info *)
+			droq->recv_buf_list[droq->read_idx].data;
 		octeon_swap_8B_data((u64 *)info, 2);
 
 		if (!info->length) {
@@ -601,79 +630,79 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 		}
 
 		/* Len of resp hdr in included in the received data len. */
-		info->length -= OCT_RH_SIZE;
 		rh = &info->rh;
 
+		info->length += OCTNET_FRM_LENGTH_SIZE;
+		rh->r_dh.len += (ROUNDUP8(OCT_DROQ_INFO_SIZE) / sizeof(u64));
 		total_len += (u32)info->length;
-
-		if (OPCODE_SLOW_PATH(rh)) {
+		if (opcode_slow_path(rh)) {
 			u32 buf_cnt;
 
 			buf_cnt = octeon_droq_dispatch_pkt(oct, droq, rh, info);
-			INCR_INDEX(droq->read_idx, buf_cnt, droq->max_count);
+			droq->read_idx = incr_index(droq->read_idx,
+						    buf_cnt, droq->max_count);
 			droq->refill_count += buf_cnt;
 		} else {
 			if (info->length <= droq->buffer_size) {
-				lio_unmap_ring(oct->pci_dev,
-					       (u64)droq->desc_ring[
-					       droq->read_idx].buffer_ptr,
-					       droq->buffer_size);
 				pkt_len = (u32)info->length;
 				nicbuf = droq->recv_buf_list[
 					droq->read_idx].buffer;
+				pg_info = &droq->recv_buf_list[
+					droq->read_idx].pg_info;
+				if (recv_buffer_recycle(oct, pg_info))
+					pg_info->page = NULL;
 				droq->recv_buf_list[droq->read_idx].buffer =
 					NULL;
-				INCR_INDEX_BY1(droq->read_idx, droq->max_count);
-				skb_put(nicbuf, pkt_len);
+
+				droq->read_idx = incr_index(droq->read_idx, 1,
+							    droq->max_count);
 				droq->refill_count++;
 			} else {
-				nicbuf = octeon_fast_packet_alloc(oct, droq,
-								  droq->q_no,
-								  (u32)
+				nicbuf = octeon_fast_packet_alloc((u32)
 								  info->length);
 				pkt_len = 0;
 				/* nicbuf allocation can fail. We'll handle it
 				 * inside the loop.
 				 */
 				while (pkt_len < info->length) {
-					int cpy_len;
+					int cpy_len, idx = droq->read_idx;
 
-					cpy_len = ((pkt_len +
-						droq->buffer_size) >
-						info->length) ?
+					cpy_len = ((pkt_len + droq->buffer_size)
+						   > info->length) ?
 						((u32)info->length - pkt_len) :
 						droq->buffer_size;
 
 					if (nicbuf) {
-						lio_unmap_ring(oct->pci_dev,
-							       (u64)
-							       droq->desc_ring
-							       [droq->read_idx].
-							       buffer_ptr,
-							       droq->
-							       buffer_size);
 						octeon_fast_packet_next(droq,
 									nicbuf,
 									cpy_len,
-									droq->
-									read_idx
-									);
+									idx);
+						buf = droq->recv_buf_list[
+							idx].buffer;
+						recv_buffer_fast_free(buf);
+						droq->recv_buf_list[idx].buffer
+							= NULL;
+					} else {
+						droq->stats.rx_alloc_failure++;
 					}
 
 					pkt_len += cpy_len;
-					INCR_INDEX_BY1(droq->read_idx,
-						       droq->max_count);
+					droq->read_idx =
+						incr_index(droq->read_idx, 1,
+							   droq->max_count);
 					droq->refill_count++;
 				}
 			}
 
 			if (nicbuf) {
-				if (droq->ops.fptr)
+				if (droq->ops.fptr) {
 					droq->ops.fptr(oct->octeon_id,
-					nicbuf, pkt_len,
-					rh, &droq->napi);
-				else
+						       nicbuf, pkt_len,
+						       rh, &droq->napi,
+						       droq->ops.farg);
+				} else {
 					recv_buffer_free(nicbuf);
+				}
 			}
 		}
 
@@ -681,16 +710,16 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 			int desc_refilled = octeon_droq_refill(oct, droq);
 
 			/* Flush the droq descriptor data to memory to be sure
-			* that when we update the credits the data in memory
-			* is accurate.
-			*/
+			 * that when we update the credits the data in memory
+			 * is accurate.
+			 */
 			wmb();
 			writel((desc_refilled), droq->pkts_credit_reg);
 			/* make sure mmio write completes */
 			mmiowb();
 		}
 
-	}                       /* for ( each packet )... */
+	}                       /* for (each packet)... */
 
 	/* Increment refill_count by the number of buffers processed. */
 	droq->stats.pkts_received += pkt;
@@ -714,15 +743,19 @@ octeon_droq_process_packets(struct octeon_device *oct,
 	u32 pkt_count = 0, pkts_processed = 0;
 	struct list_head *tmp, *tmp2;
 
+	/* Grab the droq lock */
+	spin_lock(&droq->lock);
+
+	octeon_droq_check_hw_for_pkts(droq);
 	pkt_count = atomic_read(&droq->pkts_pending);
-	if (!pkt_count)
+
+	if (!pkt_count) {
+		spin_unlock(&droq->lock);
 		return 0;
+	}
 
 	if (pkt_count > budget)
 		pkt_count = budget;
-
-	/* Grab the lock */
-	spin_lock(&droq->lock);
 
 	pkts_processed = octeon_droq_fast_process_packets(oct, droq, pkt_count);
 
@@ -754,7 +787,7 @@ octeon_droq_process_packets(struct octeon_device *oct,
  * called before calling this routine.
  */
 
-static int
+int
 octeon_droq_process_poll_pkts(struct octeon_device *oct,
 			      struct octeon_droq *droq, u32 budget)
 {
@@ -768,9 +801,10 @@ octeon_droq_process_poll_pkts(struct octeon_device *oct,
 	spin_lock(&droq->lock);
 
 	while (total_pkts_processed < budget) {
-		pkts_available =
-			CVM_MIN((budget - total_pkts_processed),
-				(u32)(atomic_read(&droq->pkts_pending)));
+		octeon_droq_check_hw_for_pkts(droq);
+
+		pkts_available = min((budget - total_pkts_processed),
+				     (u32)(atomic_read(&droq->pkts_pending)));
 
 		if (pkts_available == 0)
 			break;
@@ -782,8 +816,6 @@ octeon_droq_process_poll_pkts(struct octeon_device *oct,
 		atomic_sub(pkts_processed, &droq->pkts_pending);
 
 		total_pkts_processed += pkts_processed;
-
-		octeon_droq_check_hw_for_pkts(oct, droq);
 	}
 
 	spin_unlock(&droq->lock);
@@ -802,76 +834,46 @@ octeon_droq_process_poll_pkts(struct octeon_device *oct,
 	return total_pkts_processed;
 }
 
+/* Enable Pkt Interrupt */
 int
-octeon_process_droq_poll_cmd(struct octeon_device *oct, u32 q_no, int cmd,
-			     u32 arg)
+octeon_enable_irq(struct octeon_device *oct, u32 q_no)
 {
-	struct octeon_droq *droq;
-	struct octeon_config *oct_cfg = NULL;
-
-	oct_cfg = octeon_get_conf(oct);
-
-	if (!oct_cfg)
-		return -EINVAL;
-
-	if (q_no >= CFG_GET_OQ_MAX_Q(oct_cfg)) {
-		dev_err(&oct->pci_dev->dev, "%s: droq id (%d) exceeds MAX (%d)\n",
-			__func__, q_no, (oct->num_oqs - 1));
-		return -EINVAL;
-	}
-
-	droq = oct->droq[q_no];
-
-	if (cmd == POLL_EVENT_PROCESS_PKTS)
-		return octeon_droq_process_poll_pkts(oct, droq, arg);
-
-	if (cmd == POLL_EVENT_PENDING_PKTS) {
-		u32 pkt_cnt = atomic_read(&droq->pkts_pending);
-
-		return  octeon_droq_process_packets(oct, droq, pkt_cnt);
-	}
-
-	if (cmd == POLL_EVENT_ENABLE_INTR) {
-		u32 value;
+	switch (oct->chip_id) {
+	case OCTEON_CN66XX:
+	case OCTEON_CN68XX: {
+		struct octeon_cn6xxx *cn6xxx =
+			(struct octeon_cn6xxx *)oct->chip;
 		unsigned long flags;
+		u32 value;
 
-		/* Enable Pkt Interrupt */
-		switch (oct->chip_id) {
-		case OCTEON_CN66XX:
-		case OCTEON_CN68XX: {
-			struct octeon_cn6xxx *cn6xxx =
-				(struct octeon_cn6xxx *)oct->chip;
-			spin_lock_irqsave
-				(&cn6xxx->lock_for_droq_int_enb_reg, flags);
-			value =
-				octeon_read_csr(oct,
-						CN6XXX_SLI_PKT_TIME_INT_ENB);
-			value |= (1 << q_no);
-			octeon_write_csr(oct,
-					 CN6XXX_SLI_PKT_TIME_INT_ENB,
-					 value);
-			value =
-				octeon_read_csr(oct,
-						CN6XXX_SLI_PKT_CNT_INT_ENB);
-			value |= (1 << q_no);
-			octeon_write_csr(oct,
-					 CN6XXX_SLI_PKT_CNT_INT_ENB,
-					 value);
+		spin_lock_irqsave
+			(&cn6xxx->lock_for_droq_int_enb_reg, flags);
+		value = octeon_read_csr(oct, CN6XXX_SLI_PKT_TIME_INT_ENB);
+		value |= (1 << q_no);
+		octeon_write_csr(oct, CN6XXX_SLI_PKT_TIME_INT_ENB, value);
+		value = octeon_read_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB);
+		value |= (1 << q_no);
+		octeon_write_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB, value);
 
-			/* don't bother flushing the enables */
+		/* don't bother flushing the enables */
 
-			spin_unlock_irqrestore
-				(&cn6xxx->lock_for_droq_int_enb_reg, flags);
-			return 0;
-		}
+		spin_unlock_irqrestore
+			(&cn6xxx->lock_for_droq_int_enb_reg, flags);
+	}
 		break;
-		}
+	case OCTEON_CN23XX_PF_VID:
+		lio_enable_irq(oct->droq[q_no], oct->instr_queue[q_no]);
+		break;
 
-		return 0;
+	case OCTEON_CN23XX_VF_VID:
+		lio_enable_irq(oct->droq[q_no], oct->instr_queue[q_no]);
+		break;
+	default:
+		dev_err(&oct->pci_dev->dev, "%s Unknown Chip\n", __func__);
+		return 1;
 	}
 
-	dev_err(&oct->pci_dev->dev, "%s Unknown command: %d\n", __func__, cmd);
-	return -EINVAL;
+	return 0;
 }
 
 int octeon_register_droq_ops(struct octeon_device *oct, u32 q_no,
@@ -937,6 +939,7 @@ int octeon_unregister_droq_ops(struct octeon_device *oct, u32 q_no)
 	spin_lock_irqsave(&droq->lock, flags);
 
 	droq->ops.fptr = NULL;
+	droq->ops.farg = NULL;
 	droq->ops.drop_on_max = 0;
 
 	spin_unlock_irqrestore(&droq->lock, flags);
@@ -949,6 +952,7 @@ int octeon_create_droq(struct octeon_device *oct,
 		       u32 desc_size, void *app_ctx)
 {
 	struct octeon_droq *droq;
+	int numa_node = dev_to_node(&oct->pci_dev->dev);
 
 	if (oct->droq[q_no]) {
 		dev_dbg(&oct->pci_dev->dev, "Droq already in use. Cannot create droq %d again\n",
@@ -957,9 +961,12 @@ int octeon_create_droq(struct octeon_device *oct,
 	}
 
 	/* Allocate the DS for the new droq. */
-	droq = vmalloc(sizeof(*droq));
+	droq = vmalloc_node(sizeof(*droq), numa_node);
 	if (!droq)
-		goto create_droq_fail;
+		droq = vmalloc(sizeof(*droq));
+	if (!droq)
+		return -1;
+
 	memset(droq, 0, sizeof(struct octeon_droq));
 
 	/*Disable the pkt o/p for this Q  */
@@ -967,7 +974,11 @@ int octeon_create_droq(struct octeon_device *oct,
 	oct->droq[q_no] = droq;
 
 	/* Initialize the Droq */
-	octeon_init_droq(oct, q_no, num_descs, desc_size, app_ctx);
+	if (octeon_init_droq(oct, q_no, num_descs, desc_size, app_ctx)) {
+		vfree(oct->droq[q_no]);
+		oct->droq[q_no] = NULL;
+		return -1;
+	}
 
 	oct->num_oqs++;
 
@@ -980,8 +991,4 @@ int octeon_create_droq(struct octeon_device *oct,
 	 * the same time.
 	 */
 	return 0;
-
-create_droq_fail:
-	octeon_delete_droq(oct, q_no);
-	return -1;
 }

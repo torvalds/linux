@@ -135,6 +135,8 @@ int __init ath25_find_config(phys_addr_t base, unsigned long size)
 	}
 
 	board_data = kzalloc(BOARD_CONFIG_BUFSZ, GFP_KERNEL);
+	if (!board_data)
+		goto error;
 	ath25_board.config = (struct ath25_boarddata *)board_data;
 	memcpy_fromio(board_data, bcfg, 0x100);
 	if (broken_boarddata) {
@@ -144,10 +146,10 @@ int __init ath25_find_config(phys_addr_t base, unsigned long size)
 			pr_info("Fixing up empty mac addresses\n");
 			config->reset_config_gpio = 0xffff;
 			config->sys_led_gpio = 0xffff;
-			random_ether_addr(config->wlan0_mac);
+			eth_random_addr(config->wlan0_mac);
 			config->wlan0_mac[0] &= ~0x06;
-			random_ether_addr(config->enet0_mac);
-			random_ether_addr(config->enet1_mac);
+			eth_random_addr(config->enet0_mac);
+			eth_random_addr(config->enet1_mac);
 		}
 	}
 

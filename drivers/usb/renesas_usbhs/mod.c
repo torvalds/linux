@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 #include <linux/interrupt.h>
 
@@ -282,9 +273,16 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 	if (usbhs_mod_is_host(priv))
 		usbhs_write(priv, INTSTS1, ~irq_state.intsts1 & INTSTS1_MAGIC);
 
-	usbhs_write(priv, BRDYSTS, ~irq_state.brdysts);
+	/*
+	 * The driver should not clear the xxxSTS after the line of
+	 * "call irq callback functions" because each "if" statement is
+	 * possible to call the callback function for avoiding any side effects.
+	 */
+	if (irq_state.intsts0 & BRDY)
+		usbhs_write(priv, BRDYSTS, ~irq_state.brdysts);
 	usbhs_write(priv, NRDYSTS, ~irq_state.nrdysts);
-	usbhs_write(priv, BEMPSTS, ~irq_state.bempsts);
+	if (irq_state.intsts0 & BEMP)
+		usbhs_write(priv, BEMPSTS, ~irq_state.bempsts);
 
 	/*
 	 * call irq callback functions

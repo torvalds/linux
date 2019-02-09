@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Common defines for v7m cpus
  */
@@ -24,6 +25,9 @@
 
 #define V7M_SCB_CCR			0x14
 #define V7M_SCB_CCR_STKALIGN			(1 << 9)
+#define V7M_SCB_CCR_DC				(1 << 16)
+#define V7M_SCB_CCR_IC				(1 << 17)
+#define V7M_SCB_CCR_BP				(1 << 18)
 
 #define V7M_SCB_SHPR2			0x1c
 #define V7M_SCB_SHPR3			0x20
@@ -46,6 +50,43 @@
  */
 #define EXC_RET_STACK_MASK			0x00000004
 #define EXC_RET_THREADMODE_PROCESSSTACK		0xfffffffd
+
+/* Cache related definitions */
+
+#define	V7M_SCB_CLIDR		0x78	/* Cache Level ID register */
+#define	V7M_SCB_CTR		0x7c	/* Cache Type register */
+#define	V7M_SCB_CCSIDR		0x80	/* Cache size ID register */
+#define	V7M_SCB_CSSELR		0x84	/* Cache size selection register */
+
+/* Memory-mapped MPU registers for M-class */
+#define MPU_TYPE		0x90
+#define MPU_CTRL		0x94
+#define MPU_CTRL_ENABLE		1
+#define MPU_CTRL_PRIVDEFENA	(1 << 2)
+
+#define PMSAv7_RNR		0x98
+#define PMSAv7_RBAR		0x9c
+#define PMSAv7_RASR		0xa0
+
+#define PMSAv8_RNR		0x98
+#define PMSAv8_RBAR		0x9c
+#define PMSAv8_RLAR		0xa0
+#define PMSAv8_RBAR_A(n)	(PMSAv8_RBAR + 8*(n))
+#define PMSAv8_RLAR_A(n)	(PMSAv8_RLAR + 8*(n))
+#define PMSAv8_MAIR0		0xc0
+#define PMSAv8_MAIR1		0xc4
+
+/* Cache opeartions */
+#define	V7M_SCB_ICIALLU		0x250	/* I-cache invalidate all to PoU */
+#define	V7M_SCB_ICIMVAU		0x258	/* I-cache invalidate by MVA to PoU */
+#define	V7M_SCB_DCIMVAC		0x25c	/* D-cache invalidate by MVA to PoC */
+#define	V7M_SCB_DCISW		0x260	/* D-cache invalidate by set-way */
+#define	V7M_SCB_DCCMVAU		0x264	/* D-cache clean by MVA to PoU */
+#define	V7M_SCB_DCCMVAC		0x268	/* D-cache clean by MVA to PoC */
+#define	V7M_SCB_DCCSW		0x26c	/* D-cache clean by set-way */
+#define	V7M_SCB_DCCIMVAC	0x270	/* D-cache clean and invalidate by MVA to PoC */
+#define	V7M_SCB_DCCISW		0x274	/* D-cache clean and invalidate by set-way */
+#define	V7M_SCB_BPIALL		0x278	/* D-cache clean and invalidate by set-way */
 
 #ifndef __ASSEMBLY__
 

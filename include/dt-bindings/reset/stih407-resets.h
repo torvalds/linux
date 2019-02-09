@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header provides constants for the reset controller
  * based peripheral powerdown requests on the STMicroelectronics
@@ -52,6 +53,10 @@
 #define STIH407_KEYSCAN_SOFTRESET	26
 #define STIH407_USB2_PORT0_SOFTRESET	27
 #define STIH407_USB2_PORT1_SOFTRESET	28
+#define STIH407_ST231_AUD_SOFTRESET	29
+#define STIH407_ST231_DMU_SOFTRESET	30
+#define STIH407_ST231_GP0_SOFTRESET	31
+#define STIH407_ST231_GP1_SOFTRESET	32
 
 /* Picophy reset defines */
 #define STIH407_PICOPHY0_RESET		0

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_KDEV_T_H
 #define _LINUX_KDEV_T_H
 
@@ -33,11 +34,6 @@ static inline u16 old_encode_dev(dev_t dev)
 static inline dev_t old_decode_dev(u16 val)
 {
 	return MKDEV((val >> 8) & 255, val & 255);
-}
-
-static inline bool new_valid_dev(dev_t dev)
-{
-	return 1;
 }
 
 static inline u32 new_encode_dev(dev_t dev)

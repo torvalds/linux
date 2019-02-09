@@ -1,6 +1,6 @@
 /*
  * Block chaining cipher operations.
- * 
+ *
  * Generic encrypt/decrypt wrapper for ciphers, handles operations across
  * multiple page boundaries by using temporary blocks.  In user context,
  * the kernel is given a chance to schedule us once per page.
@@ -9,7 +9,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
+ * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
  */
@@ -18,14 +18,13 @@
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 #include <linux/errno.h>
-#include <linux/hardirq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/scatterlist.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/cryptouser.h>
+#include <linux/compiler.h>
 #include <net/netlink.h>
 
 #include "internal.h"
@@ -71,19 +70,18 @@ static inline u8 *blkcipher_get_spot(u8 *start, unsigned int len)
 	return max(start, end_page);
 }
 
-static inline unsigned int blkcipher_done_slow(struct blkcipher_walk *walk,
-					       unsigned int bsize)
+static inline void blkcipher_done_slow(struct blkcipher_walk *walk,
+				       unsigned int bsize)
 {
 	u8 *addr;
 
 	addr = (u8 *)ALIGN((unsigned long)walk->buffer, walk->alignmask + 1);
 	addr = blkcipher_get_spot(addr, bsize);
 	scatterwalk_copychunks(addr, &walk->out, bsize, 1);
-	return bsize;
 }
 
-static inline unsigned int blkcipher_done_fast(struct blkcipher_walk *walk,
-					       unsigned int n)
+static inline void blkcipher_done_fast(struct blkcipher_walk *walk,
+				       unsigned int n)
 {
 	if (walk->flags & BLKCIPHER_WALK_COPY) {
 		blkcipher_map_dst(walk);
@@ -97,49 +95,48 @@ static inline unsigned int blkcipher_done_fast(struct blkcipher_walk *walk,
 
 	scatterwalk_advance(&walk->in, n);
 	scatterwalk_advance(&walk->out, n);
-
-	return n;
 }
 
 int blkcipher_walk_done(struct blkcipher_desc *desc,
 			struct blkcipher_walk *walk, int err)
 {
-	unsigned int nbytes = 0;
+	unsigned int n; /* bytes processed */
+	bool more;
 
-	if (likely(err >= 0)) {
-		unsigned int n = walk->nbytes - err;
+	if (unlikely(err < 0))
+		goto finish;
 
-		if (likely(!(walk->flags & BLKCIPHER_WALK_SLOW)))
-			n = blkcipher_done_fast(walk, n);
-		else if (WARN_ON(err)) {
+	n = walk->nbytes - err;
+	walk->total -= n;
+	more = (walk->total != 0);
+
+	if (likely(!(walk->flags & BLKCIPHER_WALK_SLOW))) {
+		blkcipher_done_fast(walk, n);
+	} else {
+		if (WARN_ON(err)) {
+			/* unexpected case; didn't process all bytes */
 			err = -EINVAL;
-			goto err;
-		} else
-			n = blkcipher_done_slow(walk, n);
-
-		nbytes = walk->total - n;
-		err = 0;
+			goto finish;
+		}
+		blkcipher_done_slow(walk, n);
 	}
 
-	scatterwalk_done(&walk->in, 0, nbytes);
-	scatterwalk_done(&walk->out, 1, nbytes);
+	scatterwalk_done(&walk->in, 0, more);
+	scatterwalk_done(&walk->out, 1, more);
 
-err:
-	walk->total = nbytes;
-	walk->nbytes = nbytes;
-
-	if (nbytes) {
+	if (more) {
 		crypto_yield(desc->flags);
 		return blkcipher_walk_next(desc, walk);
 	}
-
+	err = 0;
+finish:
+	walk->nbytes = 0;
 	if (walk->iv != desc->info)
 		memcpy(desc->info, walk->iv, walk->ivsize);
 	if (walk->buffer != walk->page)
 		kfree(walk->buffer);
 	if (walk->page)
 		free_page((unsigned long)walk->page);
-
 	return err;
 }
 EXPORT_SYMBOL_GPL(blkcipher_walk_done);
@@ -234,6 +231,8 @@ static int blkcipher_walk_next(struct blkcipher_desc *desc,
 		return blkcipher_walk_done(desc, walk, -EINVAL);
 	}
 
+	bsize = min(walk->walk_blocksize, n);
+
 	walk->flags &= ~(BLKCIPHER_WALK_SLOW | BLKCIPHER_WALK_COPY |
 			 BLKCIPHER_WALK_DIFF);
 	if (!scatterwalk_aligned(&walk->in, walk->alignmask) ||
@@ -246,7 +245,6 @@ static int blkcipher_walk_next(struct blkcipher_desc *desc,
 		}
 	}
 
-	bsize = min(walk->walk_blocksize, n);
 	n = scatterwalk_clamp(&walk->in, n);
 	n = scatterwalk_clamp(&walk->out, n);
 
@@ -466,10 +464,6 @@ static int crypto_init_blkcipher_ops_async(struct crypto_tfm *tfm)
 	crt->setkey = async_setkey;
 	crt->encrypt = async_encrypt;
 	crt->decrypt = async_decrypt;
-	if (!alg->ivsize) {
-		crt->givencrypt = skcipher_null_givencrypt;
-		crt->givdecrypt = skcipher_null_givdecrypt;
-	}
 	crt->base = __crypto_ablkcipher_cast(tfm);
 	crt->ivsize = alg->ivsize;
 
@@ -516,6 +510,7 @@ static int crypto_blkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 	strncpy(rblkcipher.type, "blkcipher", sizeof(rblkcipher.type));
 	strncpy(rblkcipher.geniv, alg->cra_blkcipher.geniv ?: "<default>",
 		sizeof(rblkcipher.geniv));
+	rblkcipher.geniv[sizeof(rblkcipher.geniv) - 1] = '\0';
 
 	rblkcipher.blocksize = alg->cra_blocksize;
 	rblkcipher.min_keysize = alg->cra_blkcipher.min_keysize;
@@ -538,7 +533,7 @@ static int crypto_blkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 #endif
 
 static void crypto_blkcipher_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute__ ((unused));
+	__maybe_unused;
 static void crypto_blkcipher_show(struct seq_file *m, struct crypto_alg *alg)
 {
 	seq_printf(m, "type         : blkcipher\n");
@@ -559,186 +554,6 @@ const struct crypto_type crypto_blkcipher_type = {
 	.report = crypto_blkcipher_report,
 };
 EXPORT_SYMBOL_GPL(crypto_blkcipher_type);
-
-static int crypto_grab_nivcipher(struct crypto_skcipher_spawn *spawn,
-				const char *name, u32 type, u32 mask)
-{
-	struct crypto_alg *alg;
-	int err;
-
-	type = crypto_skcipher_type(type);
-	mask = crypto_skcipher_mask(mask)| CRYPTO_ALG_GENIV;
-
-	alg = crypto_alg_mod_lookup(name, type, mask);
-	if (IS_ERR(alg))
-		return PTR_ERR(alg);
-
-	err = crypto_init_spawn(&spawn->base, alg, spawn->base.inst, mask);
-	crypto_mod_put(alg);
-	return err;
-}
-
-struct crypto_instance *skcipher_geniv_alloc(struct crypto_template *tmpl,
-					     struct rtattr **tb, u32 type,
-					     u32 mask)
-{
-	struct {
-		int (*setkey)(struct crypto_ablkcipher *tfm, const u8 *key,
-			      unsigned int keylen);
-		int (*encrypt)(struct ablkcipher_request *req);
-		int (*decrypt)(struct ablkcipher_request *req);
-
-		unsigned int min_keysize;
-		unsigned int max_keysize;
-		unsigned int ivsize;
-
-		const char *geniv;
-	} balg;
-	const char *name;
-	struct crypto_skcipher_spawn *spawn;
-	struct crypto_attr_type *algt;
-	struct crypto_instance *inst;
-	struct crypto_alg *alg;
-	int err;
-
-	algt = crypto_get_attr_type(tb);
-	if (IS_ERR(algt))
-		return ERR_CAST(algt);
-
-	if ((algt->type ^ (CRYPTO_ALG_TYPE_GIVCIPHER | CRYPTO_ALG_GENIV)) &
-	    algt->mask)
-		return ERR_PTR(-EINVAL);
-
-	name = crypto_attr_alg_name(tb[1]);
-	if (IS_ERR(name))
-		return ERR_CAST(name);
-
-	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
-	if (!inst)
-		return ERR_PTR(-ENOMEM);
-
-	spawn = crypto_instance_ctx(inst);
-
-	/* Ignore async algorithms if necessary. */
-	mask |= crypto_requires_sync(algt->type, algt->mask);
-
-	crypto_set_skcipher_spawn(spawn, inst);
-	err = crypto_grab_nivcipher(spawn, name, type, mask);
-	if (err)
-		goto err_free_inst;
-
-	alg = crypto_skcipher_spawn_alg(spawn);
-
-	if ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) ==
-	    CRYPTO_ALG_TYPE_BLKCIPHER) {
-		balg.ivsize = alg->cra_blkcipher.ivsize;
-		balg.min_keysize = alg->cra_blkcipher.min_keysize;
-		balg.max_keysize = alg->cra_blkcipher.max_keysize;
-
-		balg.setkey = async_setkey;
-		balg.encrypt = async_encrypt;
-		balg.decrypt = async_decrypt;
-
-		balg.geniv = alg->cra_blkcipher.geniv;
-	} else {
-		balg.ivsize = alg->cra_ablkcipher.ivsize;
-		balg.min_keysize = alg->cra_ablkcipher.min_keysize;
-		balg.max_keysize = alg->cra_ablkcipher.max_keysize;
-
-		balg.setkey = alg->cra_ablkcipher.setkey;
-		balg.encrypt = alg->cra_ablkcipher.encrypt;
-		balg.decrypt = alg->cra_ablkcipher.decrypt;
-
-		balg.geniv = alg->cra_ablkcipher.geniv;
-	}
-
-	err = -EINVAL;
-	if (!balg.ivsize)
-		goto err_drop_alg;
-
-	/*
-	 * This is only true if we're constructing an algorithm with its
-	 * default IV generator.  For the default generator we elide the
-	 * template name and double-check the IV generator.
-	 */
-	if (algt->mask & CRYPTO_ALG_GENIV) {
-		if (!balg.geniv)
-			balg.geniv = crypto_default_geniv(alg);
-		err = -EAGAIN;
-		if (strcmp(tmpl->name, balg.geniv))
-			goto err_drop_alg;
-
-		memcpy(inst->alg.cra_name, alg->cra_name, CRYPTO_MAX_ALG_NAME);
-		memcpy(inst->alg.cra_driver_name, alg->cra_driver_name,
-		       CRYPTO_MAX_ALG_NAME);
-	} else {
-		err = -ENAMETOOLONG;
-		if (snprintf(inst->alg.cra_name, CRYPTO_MAX_ALG_NAME,
-			     "%s(%s)", tmpl->name, alg->cra_name) >=
-		    CRYPTO_MAX_ALG_NAME)
-			goto err_drop_alg;
-		if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
-			     "%s(%s)", tmpl->name, alg->cra_driver_name) >=
-		    CRYPTO_MAX_ALG_NAME)
-			goto err_drop_alg;
-	}
-
-	inst->alg.cra_flags = CRYPTO_ALG_TYPE_GIVCIPHER | CRYPTO_ALG_GENIV;
-	inst->alg.cra_flags |= alg->cra_flags & CRYPTO_ALG_ASYNC;
-	inst->alg.cra_priority = alg->cra_priority;
-	inst->alg.cra_blocksize = alg->cra_blocksize;
-	inst->alg.cra_alignmask = alg->cra_alignmask;
-	inst->alg.cra_type = &crypto_givcipher_type;
-
-	inst->alg.cra_ablkcipher.ivsize = balg.ivsize;
-	inst->alg.cra_ablkcipher.min_keysize = balg.min_keysize;
-	inst->alg.cra_ablkcipher.max_keysize = balg.max_keysize;
-	inst->alg.cra_ablkcipher.geniv = balg.geniv;
-
-	inst->alg.cra_ablkcipher.setkey = balg.setkey;
-	inst->alg.cra_ablkcipher.encrypt = balg.encrypt;
-	inst->alg.cra_ablkcipher.decrypt = balg.decrypt;
-
-out:
-	return inst;
-
-err_drop_alg:
-	crypto_drop_skcipher(spawn);
-err_free_inst:
-	kfree(inst);
-	inst = ERR_PTR(err);
-	goto out;
-}
-EXPORT_SYMBOL_GPL(skcipher_geniv_alloc);
-
-void skcipher_geniv_free(struct crypto_instance *inst)
-{
-	crypto_drop_skcipher(crypto_instance_ctx(inst));
-	kfree(inst);
-}
-EXPORT_SYMBOL_GPL(skcipher_geniv_free);
-
-int skcipher_geniv_init(struct crypto_tfm *tfm)
-{
-	struct crypto_instance *inst = (void *)tfm->__crt_alg;
-	struct crypto_ablkcipher *cipher;
-
-	cipher = crypto_spawn_skcipher(crypto_instance_ctx(inst));
-	if (IS_ERR(cipher))
-		return PTR_ERR(cipher);
-
-	tfm->crt_ablkcipher.base = cipher;
-	tfm->crt_ablkcipher.reqsize += crypto_ablkcipher_reqsize(cipher);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(skcipher_geniv_init);
-
-void skcipher_geniv_exit(struct crypto_tfm *tfm)
-{
-	crypto_free_ablkcipher(tfm->crt_ablkcipher.base);
-}
-EXPORT_SYMBOL_GPL(skcipher_geniv_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic block chaining cipher type");

@@ -13,6 +13,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
+#include <asm/feature-fixups.h>
 
 	.section	".text"
 	
@@ -23,7 +24,7 @@
 
 	.globl hcall_tracepoint_refcount
 hcall_tracepoint_refcount:
-	.llong	0
+	.8byte	0
 
 	.section	".text"
 #endif

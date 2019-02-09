@@ -23,33 +23,10 @@
 #ifndef __AMD_SHARED_H__
 #define __AMD_SHARED_H__
 
-#define AMD_MAX_USEC_TIMEOUT		100000  /* 100 ms */
+#include <drm/amd_asic_type.h>
 
-/*
-* Supported GPU families (aligned with amdgpu_drm.h)
-*/
-#define AMD_FAMILY_UNKNOWN              0
-#define AMD_FAMILY_CI                   120 /* Bonaire, Hawaii */
-#define AMD_FAMILY_KV                   125 /* Kaveri, Kabini, Mullins */
-#define AMD_FAMILY_VI                   130 /* Iceland, Tonga */
-#define AMD_FAMILY_CZ                   135 /* Carrizo */
 
-/*
- * Supported ASIC types
- */
-enum amd_asic_type {
-	CHIP_BONAIRE = 0,
-	CHIP_KAVERI,
-	CHIP_KABINI,
-	CHIP_HAWAII,
-	CHIP_MULLINS,
-	CHIP_TOPAZ,
-	CHIP_TONGA,
-	CHIP_FIJI,
-	CHIP_CARRIZO,
-	CHIP_STONEY,
-	CHIP_LAST,
-};
+#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
 
 /*
  * Chip flags
@@ -68,11 +45,14 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_GMC,
 	AMD_IP_BLOCK_TYPE_IH,
 	AMD_IP_BLOCK_TYPE_SMC,
+	AMD_IP_BLOCK_TYPE_PSP,
 	AMD_IP_BLOCK_TYPE_DCE,
 	AMD_IP_BLOCK_TYPE_GFX,
 	AMD_IP_BLOCK_TYPE_SDMA,
 	AMD_IP_BLOCK_TYPE_UVD,
 	AMD_IP_BLOCK_TYPE_VCE,
+	AMD_IP_BLOCK_TYPE_ACP,
+	AMD_IP_BLOCK_TYPE_VCN
 };
 
 enum amd_clockgating_state {
@@ -80,42 +60,127 @@ enum amd_clockgating_state {
 	AMD_CG_STATE_UNGATE,
 };
 
+
 enum amd_powergating_state {
 	AMD_PG_STATE_GATE = 0,
 	AMD_PG_STATE_UNGATE,
 };
 
+
+/* CG flags */
+#define AMD_CG_SUPPORT_GFX_MGCG			(1 << 0)
+#define AMD_CG_SUPPORT_GFX_MGLS			(1 << 1)
+#define AMD_CG_SUPPORT_GFX_CGCG			(1 << 2)
+#define AMD_CG_SUPPORT_GFX_CGLS			(1 << 3)
+#define AMD_CG_SUPPORT_GFX_CGTS			(1 << 4)
+#define AMD_CG_SUPPORT_GFX_CGTS_LS		(1 << 5)
+#define AMD_CG_SUPPORT_GFX_CP_LS		(1 << 6)
+#define AMD_CG_SUPPORT_GFX_RLC_LS		(1 << 7)
+#define AMD_CG_SUPPORT_MC_LS			(1 << 8)
+#define AMD_CG_SUPPORT_MC_MGCG			(1 << 9)
+#define AMD_CG_SUPPORT_SDMA_LS			(1 << 10)
+#define AMD_CG_SUPPORT_SDMA_MGCG		(1 << 11)
+#define AMD_CG_SUPPORT_BIF_LS			(1 << 12)
+#define AMD_CG_SUPPORT_UVD_MGCG			(1 << 13)
+#define AMD_CG_SUPPORT_VCE_MGCG			(1 << 14)
+#define AMD_CG_SUPPORT_HDP_LS			(1 << 15)
+#define AMD_CG_SUPPORT_HDP_MGCG			(1 << 16)
+#define AMD_CG_SUPPORT_ROM_MGCG			(1 << 17)
+#define AMD_CG_SUPPORT_DRM_LS			(1 << 18)
+#define AMD_CG_SUPPORT_BIF_MGCG			(1 << 19)
+#define AMD_CG_SUPPORT_GFX_3D_CGCG		(1 << 20)
+#define AMD_CG_SUPPORT_GFX_3D_CGLS		(1 << 21)
+#define AMD_CG_SUPPORT_DRM_MGCG			(1 << 22)
+#define AMD_CG_SUPPORT_DF_MGCG			(1 << 23)
+#define AMD_CG_SUPPORT_VCN_MGCG			(1 << 24)
+/* PG flags */
+#define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
+#define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
+#define AMD_PG_SUPPORT_GFX_DMG			(1 << 2)
+#define AMD_PG_SUPPORT_UVD			(1 << 3)
+#define AMD_PG_SUPPORT_VCE			(1 << 4)
+#define AMD_PG_SUPPORT_CP			(1 << 5)
+#define AMD_PG_SUPPORT_GDS			(1 << 6)
+#define AMD_PG_SUPPORT_RLC_SMU_HS		(1 << 7)
+#define AMD_PG_SUPPORT_SDMA			(1 << 8)
+#define AMD_PG_SUPPORT_ACP			(1 << 9)
+#define AMD_PG_SUPPORT_SAMU			(1 << 10)
+#define AMD_PG_SUPPORT_GFX_QUICK_MG		(1 << 11)
+#define AMD_PG_SUPPORT_GFX_PIPELINE		(1 << 12)
+#define AMD_PG_SUPPORT_MMHUB			(1 << 13)
+#define AMD_PG_SUPPORT_VCN			(1 << 14)
+
+enum PP_FEATURE_MASK {
+	PP_SCLK_DPM_MASK = 0x1,
+	PP_MCLK_DPM_MASK = 0x2,
+	PP_PCIE_DPM_MASK = 0x4,
+	PP_SCLK_DEEP_SLEEP_MASK = 0x8,
+	PP_POWER_CONTAINMENT_MASK = 0x10,
+	PP_UVD_HANDSHAKE_MASK = 0x20,
+	PP_SMC_VOLTAGE_CONTROL_MASK = 0x40,
+	PP_VBI_TIME_SUPPORT_MASK = 0x80,
+	PP_ULV_MASK = 0x100,
+	PP_ENABLE_GFX_CG_THRU_SMU = 0x200,
+	PP_CLOCK_STRETCH_MASK = 0x400,
+	PP_OD_FUZZY_FAN_CONTROL_MASK = 0x800,
+	PP_SOCCLK_DPM_MASK = 0x1000,
+	PP_DCEFCLK_DPM_MASK = 0x2000,
+	PP_OVERDRIVE_MASK = 0x4000,
+	PP_GFXOFF_MASK = 0x8000,
+	PP_ACG_MASK = 0x10000,
+	PP_STUTTER_MODE = 0x20000,
+};
+
+/**
+ * struct amd_ip_funcs - general hooks for managing amdgpu IP Blocks
+ */
 struct amd_ip_funcs {
-	/* sets up early driver state (pre sw_init), does not configure hw - Optional */
+	/** @name: Name of IP block */
+	char *name;
+	/**
+	 * @early_init:
+	 *
+	 * sets up early driver state (pre sw_init),
+	 * does not configure hw - Optional
+	 */
 	int (*early_init)(void *handle);
-	/* sets up late driver/hw state (post hw_init) - Optional */
+	/** @late_init: sets up late driver/hw state (post hw_init) - Optional */
 	int (*late_init)(void *handle);
-	/* sets up driver state, does not configure hw */
+	/** @sw_init: sets up driver state, does not configure hw */
 	int (*sw_init)(void *handle);
-	/* tears down driver state, does not configure hw */
+	/** @sw_fini: tears down driver state, does not configure hw */
 	int (*sw_fini)(void *handle);
-	/* sets up the hw state */
+	/** @hw_init: sets up the hw state */
 	int (*hw_init)(void *handle);
-	/* tears down the hw state */
+	/** @hw_fini: tears down the hw state */
 	int (*hw_fini)(void *handle);
-	/* handles IP specific hw/sw changes for suspend */
+	/** @late_fini: final cleanup */
+	void (*late_fini)(void *handle);
+	/** @suspend: handles IP specific hw/sw changes for suspend */
 	int (*suspend)(void *handle);
-	/* handles IP specific hw/sw changes for resume */
+	/** @resume: handles IP specific hw/sw changes for resume */
 	int (*resume)(void *handle);
-	/* returns current IP block idle status */
+	/** @is_idle: returns current IP block idle status */
 	bool (*is_idle)(void *handle);
-	/* poll for idle */
+	/** @wait_for_idle: poll for idle */
 	int (*wait_for_idle)(void *handle);
-	/* soft reset the IP block */
+	/** @check_soft_reset: check soft reset the IP block */
+	bool (*check_soft_reset)(void *handle);
+	/** @pre_soft_reset: pre soft reset the IP block */
+	int (*pre_soft_reset)(void *handle);
+	/** @soft_reset: soft reset the IP block */
 	int (*soft_reset)(void *handle);
-	/* dump the IP block status registers */
-	void (*print_status)(void *handle);
-	/* enable/disable cg for the IP block */
+	/** @post_soft_reset: post soft reset the IP block */
+	int (*post_soft_reset)(void *handle);
+	/** @set_clockgating_state: enable/disable cg for the IP block */
 	int (*set_clockgating_state)(void *handle,
 				     enum amd_clockgating_state state);
-	/* enable/disable pg for the IP block */
+	/** @set_powergating_state: enable/disable pg for the IP block */
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
+	/** @get_clockgating_state: get current clockgating status */
+	void (*get_clockgating_state)(void *handle, u32 *flags);
 };
+
 
 #endif /* __AMD_SHARED_H__ */

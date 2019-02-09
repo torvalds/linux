@@ -1,11 +1,8 @@
-/*
- * For Philips TEA5761 FM Chip
- * I2C address is allways 0x20 (0x10 at 7-bit mode).
- *
- * Copyright (c) 2005-2007 Mauro Carvalho Chehab (mchehab@infradead.org)
- * This code is placed under the terms of the GNUv2 General Public License
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+// For Philips TEA5761 FM Chip
+// I2C address is always 0x20 (0x10 at 7-bit mode).
+//
+// Copyright (c) 2005-2007 Mauro Carvalho Chehab <mchehab@kernel.org>
 
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -274,24 +271,20 @@ int tea5761_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 	}
 
 	if ((buffer[13] != 0x2b) || (buffer[14] != 0x57) || (buffer[15] != 0x061)) {
-		printk(KERN_WARNING "Manufacturer ID= 0x%02x, Chip ID = %02x%02x."
-				    " It is not a TEA5761\n",
+		printk(KERN_WARNING "Manufacturer ID= 0x%02x, Chip ID = %02x%02x. It is not a TEA5761\n",
 				    buffer[13], buffer[14], buffer[15]);
 		return -EINVAL;
 	}
-	printk(KERN_WARNING "tea5761: TEA%02x%02x detected. "
-			    "Manufacturer ID= 0x%02x\n",
+	printk(KERN_WARNING "tea5761: TEA%02x%02x detected. Manufacturer ID= 0x%02x\n",
 			    buffer[14], buffer[15], buffer[13]);
 
 	return 0;
 }
 
-static int tea5761_release(struct dvb_frontend *fe)
+static void tea5761_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static int tea5761_get_frequency(struct dvb_frontend *fe, u32 *frequency)
@@ -301,7 +294,7 @@ static int tea5761_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static struct dvb_tuner_ops tea5761_tuner_ops = {
+static const struct dvb_tuner_ops tea5761_tuner_ops = {
 	.info = {
 		.name           = "tea5761", // Philips TEA5761HN FM Radio
 	},
@@ -344,5 +337,5 @@ EXPORT_SYMBOL_GPL(tea5761_attach);
 EXPORT_SYMBOL_GPL(tea5761_autodetection);
 
 MODULE_DESCRIPTION("Philips TEA5761 FM tuner driver");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
+MODULE_LICENSE("GPL v2");

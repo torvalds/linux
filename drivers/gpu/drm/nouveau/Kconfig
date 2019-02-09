@@ -1,15 +1,9 @@
 config DRM_NOUVEAU
 	tristate "Nouveau (NVIDIA) cards"
-	depends on DRM && PCI
+	depends on DRM && PCI && MMU
         select FW_LOADER
 	select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
 	select DRM_TTM
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	select FB
-	select FRAMEBUFFER_CONSOLE if !EXPERT
 	select FB_BACKLIGHT if DRM_NOUVEAU_BACKLIGHT
 	select ACPI_VIDEO if ACPI && X86 && BACKLIGHT_CLASS_DEVICE && INPUT
 	select X86_PLATFORM_DEVICES if ACPI && X86
@@ -22,6 +16,7 @@ config DRM_NOUVEAU
 	select INPUT if ACPI && X86
 	select THERMAL if ACPI && X86
 	select ACPI_VIDEO if ACPI && X86
+	select DRM_VM
 	help
 	  Choose this option for open-source NVIDIA support.
 
@@ -60,6 +55,13 @@ config NOUVEAU_DEBUG_DEFAULT
 	default 3
 	help
 	  Selects the default debug level
+
+config NOUVEAU_DEBUG_MMU
+	bool "Enable additional MMU debugging"
+	depends on DRM_NOUVEAU
+	default n
+	help
+	  Say Y here if you want to enable verbose MMU debug output.
 
 config DRM_NOUVEAU_BACKLIGHT
 	bool "Support for backlight control"

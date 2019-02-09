@@ -1,17 +1,23 @@
-/*
- * Copyright 2012 Steffen Trumtrar, Pengutronix
- *
- * based on imx27.dtsi
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2012 Steffen Trumtrar, Pengutronix
+//
+// based on imx27.dtsi
 
-#include "skeleton.dtsi"
 #include "imx35-pinfunc.h"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; };
+
 	aliases {
 		ethernet0 = &fec;
 		gpio0 = &gpio1;
@@ -25,12 +31,13 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm1136jf-s";
 			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
@@ -134,6 +141,14 @@
 				clocks = <&clks 35 &clks 35>;
 				clock-names = "ipg", "per";
 				interrupts = <14>;
+				status = "disabled";
+			};
+
+			kpp: kpp@43fa8000 {
+				compatible = "fsl,imx35-kpp", "fsl,imx21-kpp";
+				reg = <0x43fa8000 0x4000>;
+				interrupts = <24>;
+				clocks = <&clks 56>;
 				status = "disabled";
 			};
 
@@ -284,7 +299,7 @@
 			};
 
 			can1: can@53fe4000 {
-				compatible = "fsl,imx35-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx35-flexcan", "fsl,imx25-flexcan";
 				reg = <0x53fe4000 0x1000>;
 				clocks = <&clks 33>, <&clks 33>;
 				clock-names = "ipg", "per";
@@ -293,7 +308,7 @@
 			};
 
 			can2: can@53fe8000 {
-				compatible = "fsl,imx35-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx35-flexcan", "fsl,imx25-flexcan";
 				reg = <0x53fe8000 0x1000>;
 				clocks = <&clks 34>, <&clks 34>;
 				clock-names = "ipg", "per";
@@ -301,11 +316,19 @@
 				status = "disabled";
 			};
 
+			iim@53ff0000 {
+				compatible = "fsl,imx35-iim";
+				reg = <0x53ff0000 0x4000>;
+				interrupts = <19>;
+				clocks = <&clks 80>;
+			};
+
 			usbotg: usb@53ff4000 {
 				compatible = "fsl,imx35-usb", "fsl,imx27-usb";
 				reg = <0x53ff4000 0x0200>;
 				interrupts = <37>;
-				clocks = <&clks 73>;
+				clocks = <&clks 9>, <&clks 73>, <&clks 28>;
+				clock-names = "ipg", "ahb", "per";
 				fsl,usbmisc = <&usbmisc 0>;
 				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
@@ -315,7 +338,8 @@
 				compatible = "fsl,imx35-usb", "fsl,imx27-usb";
 				reg = <0x53ff4400 0x0200>;
 				interrupts = <35>;
-				clocks = <&clks 73>;
+				clocks = <&clks 9>, <&clks 73>, <&clks 28>;
+				clock-names = "ipg", "ahb", "per";
 				fsl,usbmisc = <&usbmisc 1>;
 				fsl,usbphy = <&usbphy1>;
 				dr_mode = "host";
@@ -325,8 +349,6 @@
 			usbmisc: usbmisc@53ff4600 {
 				#index-cells = <1>;
 				compatible = "fsl,imx35-usbmisc";
-				clocks = <&clks 9>, <&clks 73>, <&clks 28>;
-				clock-names = "ipg", "ahb", "per";
 				reg = <0x53ff4600 0x00f>;
 			};
 		};
@@ -376,11 +398,13 @@
 		usbphy0: usb-phy@0 {
 			reg = <0>;
 			compatible = "usb-nop-xceiv";
+			#phy-cells = <0>;
 		};
 
 		usbphy1: usb-phy@1 {
 			reg = <1>;
 			compatible = "usb-nop-xceiv";
+			#phy-cells = <0>;
 		};
 	};
 };

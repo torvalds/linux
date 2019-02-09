@@ -23,6 +23,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/hwmon.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -40,8 +41,8 @@ struct mc13783_adc_priv {
 	char name[PLATFORM_NAME_SIZE];
 };
 
-static ssize_t mc13783_adc_show_name(struct device *dev, struct device_attribute
-			      *devattr, char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
 {
 	struct mc13783_adc_priv *priv = dev_get_drvdata(dev);
 
@@ -62,6 +63,10 @@ static int mc13783_adc_read(struct device *dev,
 			channel, 0, 0, sample);
 	if (ret)
 		return ret;
+
+	/* ADIN7 subchannels */
+	if (channel >= 16)
+		channel = 7;
 
 	channel &= 0x7;
 
@@ -111,7 +116,58 @@ static ssize_t mc13783_adc_read_gp(struct device *dev,
 	return sprintf(buf, "%u\n", val);
 }
 
-static DEVICE_ATTR(name, S_IRUGO, mc13783_adc_show_name, NULL);
+static ssize_t mc13783_adc_read_uid(struct device *dev,
+		struct device_attribute *devattr, char *buf)
+{
+	unsigned int val;
+	struct platform_device *pdev = to_platform_device(dev);
+	kernel_ulong_t driver_data = platform_get_device_id(pdev)->driver_data;
+	int ret = mc13783_adc_read(dev, devattr, &val);
+
+	if (ret)
+		return ret;
+
+	if (driver_data & MC13783_ADC_BPDIV2)
+		/* MC13892 have 1/2 divider, input range is [0, 4.800V] */
+		val = DIV_ROUND_CLOSEST(val * 4800, 1024);
+	else
+		/* MC13783 have 0.9 divider, input range is [0, 2.555V] */
+		val = DIV_ROUND_CLOSEST(val * 2555, 1024);
+
+	return sprintf(buf, "%u\n", val);
+}
+
+static ssize_t mc13783_adc_read_temp(struct device *dev,
+		struct device_attribute *devattr, char *buf)
+{
+	unsigned int val;
+	struct platform_device *pdev = to_platform_device(dev);
+	kernel_ulong_t driver_data = platform_get_device_id(pdev)->driver_data;
+	int ret = mc13783_adc_read(dev, devattr, &val);
+
+	if (ret)
+		return ret;
+
+	if (driver_data & MC13783_ADC_BPDIV2) {
+		/*
+		 * MC13892:
+		 * Die Temperature Read Out Code at 25C 680
+		 * Temperature change per LSB +0.4244C
+		 */
+		ret = DIV_ROUND_CLOSEST(-2635920 + val * 4244, 10);
+	} else {
+		/*
+		 * MC13783:
+		 * Die Temperature Read Out Code at 25C 282
+		 * Temperature change per LSB -1.14C
+		 */
+		ret = 346480 - 1140 * val;
+	}
+
+	return sprintf(buf, "%d\n", ret);
+}
+
+static DEVICE_ATTR_RO(name);
 static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, mc13783_adc_read_bp, NULL, 2);
 static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, mc13783_adc_read_gp, NULL, 5);
 static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, mc13783_adc_read_gp, NULL, 6);
@@ -124,6 +180,9 @@ static SENSOR_DEVICE_ATTR(in12_input, S_IRUGO, mc13783_adc_read_gp, NULL, 12);
 static SENSOR_DEVICE_ATTR(in13_input, S_IRUGO, mc13783_adc_read_gp, NULL, 13);
 static SENSOR_DEVICE_ATTR(in14_input, S_IRUGO, mc13783_adc_read_gp, NULL, 14);
 static SENSOR_DEVICE_ATTR(in15_input, S_IRUGO, mc13783_adc_read_gp, NULL, 15);
+static SENSOR_DEVICE_ATTR(in16_input, S_IRUGO, mc13783_adc_read_uid, NULL, 16);
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO,
+			  mc13783_adc_read_temp, NULL, 17);
 
 static struct attribute *mc13783_attr_base[] = {
 	&dev_attr_name.attr,
@@ -131,6 +190,8 @@ static struct attribute *mc13783_attr_base[] = {
 	&sensor_dev_attr_in5_input.dev_attr.attr,
 	&sensor_dev_attr_in6_input.dev_attr.attr,
 	&sensor_dev_attr_in7_input.dev_attr.attr,
+	&sensor_dev_attr_in16_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	NULL
 };
 

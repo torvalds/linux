@@ -54,30 +54,6 @@ MODULE_PARM_DESC(sdma_descq_cnt, "Number of SDMA descq entries");
 #define SDMA_DESC_COUNT_LSB     16
 #define SDMA_DESC_GEN_LSB       30
 
-char *qib_sdma_state_names[] = {
-	[qib_sdma_state_s00_hw_down]          = "s00_HwDown",
-	[qib_sdma_state_s10_hw_start_up_wait] = "s10_HwStartUpWait",
-	[qib_sdma_state_s20_idle]             = "s20_Idle",
-	[qib_sdma_state_s30_sw_clean_up_wait] = "s30_SwCleanUpWait",
-	[qib_sdma_state_s40_hw_clean_up_wait] = "s40_HwCleanUpWait",
-	[qib_sdma_state_s50_hw_halt_wait]     = "s50_HwHaltWait",
-	[qib_sdma_state_s99_running]          = "s99_Running",
-};
-
-char *qib_sdma_event_names[] = {
-	[qib_sdma_event_e00_go_hw_down]   = "e00_GoHwDown",
-	[qib_sdma_event_e10_go_hw_start]  = "e10_GoHwStart",
-	[qib_sdma_event_e20_hw_started]   = "e20_HwStarted",
-	[qib_sdma_event_e30_go_running]   = "e30_GoRunning",
-	[qib_sdma_event_e40_sw_cleaned]   = "e40_SwCleaned",
-	[qib_sdma_event_e50_hw_cleaned]   = "e50_HwCleaned",
-	[qib_sdma_event_e60_hw_halted]    = "e60_HwHalted",
-	[qib_sdma_event_e70_go_idle]      = "e70_GoIdle",
-	[qib_sdma_event_e7220_err_halted] = "e7220_ErrHalted",
-	[qib_sdma_event_e7322_err_halted] = "e7322_ErrHalted",
-	[qib_sdma_event_e90_timer_tick]   = "e90_TimerTick",
-};
-
 /* declare all statics here rather than keep sorting */
 static int alloc_sdma(struct qib_pportdata *);
 static void sdma_complete(struct kref *);
@@ -513,7 +489,9 @@ int qib_sdma_running(struct qib_pportdata *ppd)
 static void complete_sdma_err_req(struct qib_pportdata *ppd,
 				  struct qib_verbs_txreq *tx)
 {
-	atomic_inc(&tx->qp->s_dma_busy);
+	struct qib_qp_priv *priv = tx->qp->priv;
+
+	atomic_inc(&priv->s_dma_busy);
 	/* no sdma descriptors, so no unmap_desc */
 	tx->txreq.start_idx = 0;
 	tx->txreq.next_descq_idx = 0;
@@ -531,18 +509,19 @@ static void complete_sdma_err_req(struct qib_pportdata *ppd,
  * 3) The SGE addresses are suitable for passing to dma_map_single().
  */
 int qib_sdma_verbs_send(struct qib_pportdata *ppd,
-			struct qib_sge_state *ss, u32 dwords,
+			struct rvt_sge_state *ss, u32 dwords,
 			struct qib_verbs_txreq *tx)
 {
 	unsigned long flags;
-	struct qib_sge *sge;
-	struct qib_qp *qp;
+	struct rvt_sge *sge;
+	struct rvt_qp *qp;
 	int ret = 0;
 	u16 tail;
 	__le64 *descqp;
 	u64 sdmadesc[2];
 	u32 dwoffset;
 	dma_addr_t addr;
+	struct qib_qp_priv *priv;
 
 	spin_lock_irqsave(&ppd->sdma_lock, flags);
 
@@ -621,7 +600,7 @@ retry:
 			if (--ss->num_sge)
 				*sge = *ss->sg_list++;
 		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= QIB_SEGSZ) {
+			if (++sge->n >= RVT_SEGSZ) {
 				if (++sge->m >= sge->mr->mapsz)
 					break;
 				sge->n = 0;
@@ -644,8 +623,8 @@ retry:
 		descqp[0] |= cpu_to_le64(SDMA_DESC_DMA_HEAD);
 	if (tx->txreq.flags & QIB_SDMA_TXREQ_F_INTREQ)
 		descqp[0] |= cpu_to_le64(SDMA_DESC_INTR);
-
-	atomic_inc(&tx->qp->s_dma_busy);
+	priv = tx->qp->priv;
+	atomic_inc(&priv->s_dma_busy);
 	tx->txreq.next_descq_idx = tail;
 	ppd->dd->f_sdma_update_tail(ppd, tail);
 	ppd->sdma_descq_added += tx->txreq.sg_count;
@@ -663,13 +642,14 @@ unmap:
 		unmap_desc(ppd, tail);
 	}
 	qp = tx->qp;
+	priv = qp->priv;
 	qib_put_txreq(tx);
 	spin_lock(&qp->r_lock);
 	spin_lock(&qp->s_lock);
 	if (qp->ibqp.qp_type == IB_QPT_RC) {
 		/* XXX what about error sending RDMA read responses? */
-		if (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK)
-			qib_error_qp(qp, IB_WC_GENERAL_ERR);
+		if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK)
+			rvt_error_qp(qp, IB_WC_GENERAL_ERR);
 	} else if (qp->s_wqe)
 		qib_send_complete(qp, qp->s_wqe, IB_WC_GENERAL_ERR);
 	spin_unlock(&qp->s_lock);
@@ -679,8 +659,9 @@ unmap:
 
 busy:
 	qp = tx->qp;
+	priv = qp->priv;
 	spin_lock(&qp->s_lock);
-	if (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK) {
+	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		struct qib_ibdev *dev;
 
 		/*
@@ -690,19 +671,19 @@ busy:
 		 */
 		tx->ss = ss;
 		tx->dwords = dwords;
-		qp->s_tx = tx;
+		priv->s_tx = tx;
 		dev = &ppd->dd->verbs_dev;
-		spin_lock(&dev->pending_lock);
-		if (list_empty(&qp->iowait)) {
+		spin_lock(&dev->rdi.pending_lock);
+		if (list_empty(&priv->iowait)) {
 			struct qib_ibport *ibp;
 
 			ibp = &ppd->ibport_data;
-			ibp->n_dmawait++;
-			qp->s_flags |= QIB_S_WAIT_DMA_DESC;
-			list_add_tail(&qp->iowait, &dev->dmawait);
+			ibp->rvp.n_dmawait++;
+			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
+			list_add_tail(&priv->iowait, &dev->dmawait);
 		}
-		spin_unlock(&dev->pending_lock);
-		qp->s_flags &= ~QIB_S_BUSY;
+		spin_unlock(&dev->rdi.pending_lock);
+		qp->s_flags &= ~RVT_S_BUSY;
 		spin_unlock(&qp->s_lock);
 		ret = -EBUSY;
 	} else {
@@ -803,7 +784,7 @@ void __qib_sdma_process_event(struct qib_pportdata *ppd,
 			 * bringing the link up with traffic active on
 			 * 7220, e.g. */
 			ss->go_s99_running = 1;
-			/* fall through and start dma engine */
+			/* fall through -- and start dma engine */
 		case qib_sdma_event_e10_go_hw_start:
 			/* This reference means the state machine is started */
 			sdma_get(&ppd->sdma_state);

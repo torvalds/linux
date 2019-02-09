@@ -63,6 +63,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>
@@ -176,11 +177,12 @@ META_COLLECTOR(int_vlan_tag)
 {
 	unsigned short tag;
 
-	tag = skb_vlan_tag_get(skb);
-	if (!tag && __vlan_get_tag(skb, &tag))
-		*err = -1;
-	else
+	if (skb_vlan_tag_present(skb))
+		dst->value = skb_vlan_tag_get(skb);
+	else if (!__vlan_get_tag(skb, &tag))
 		dst->value = tag;
+	else
+		*err = -1;
 }
 
 
@@ -338,7 +340,7 @@ META_COLLECTOR(int_sk_refcnt)
 		*err = -1;
 		return;
 	}
-	dst->value = atomic_read(&skb->sk->sk_refcnt);
+	dst->value = refcount_read(&skb->sk->sk_refcnt);
 }
 
 META_COLLECTOR(int_sk_rcvbuf)
@@ -796,7 +798,7 @@ struct meta_type_ops {
 	int	(*dump)(struct sk_buff *, struct meta_value *, int);
 };
 
-static struct meta_type_ops __meta_type_ops[TCF_META_TYPE_MAX + 1] = {
+static const struct meta_type_ops __meta_type_ops[TCF_META_TYPE_MAX + 1] = {
 	[TCF_META_TYPE_VAR] = {
 		.destroy = meta_var_destroy,
 		.compare = meta_var_compare,
@@ -812,7 +814,7 @@ static struct meta_type_ops __meta_type_ops[TCF_META_TYPE_MAX + 1] = {
 	}
 };
 
-static inline struct meta_type_ops *meta_type_ops(struct meta_value *v)
+static inline const struct meta_type_ops *meta_type_ops(struct meta_value *v)
 {
 	return &__meta_type_ops[meta_type(v)];
 }
@@ -870,7 +872,7 @@ static int em_meta_match(struct sk_buff *skb, struct tcf_ematch *m,
 static void meta_delete(struct meta_match *meta)
 {
 	if (meta) {
-		struct meta_type_ops *ops = meta_type_ops(&meta->lvalue);
+		const struct meta_type_ops *ops = meta_type_ops(&meta->lvalue);
 
 		if (ops && ops->destroy) {
 			ops->destroy(&meta->lvalue);
@@ -910,7 +912,7 @@ static int em_meta_change(struct net *net, void *data, int len,
 	struct tcf_meta_hdr *hdr;
 	struct meta_match *meta = NULL;
 
-	err = nla_parse(tb, TCA_EM_META_MAX, data, len, meta_policy);
+	err = nla_parse(tb, TCA_EM_META_MAX, data, len, meta_policy, NULL);
 	if (err < 0)
 		goto errout;
 
@@ -964,7 +966,7 @@ static int em_meta_dump(struct sk_buff *skb, struct tcf_ematch *em)
 {
 	struct meta_match *meta = (struct meta_match *) em->data;
 	struct tcf_meta_hdr hdr;
-	struct meta_type_ops *ops;
+	const struct meta_type_ops *ops;
 
 	memset(&hdr, 0, sizeof(hdr));
 	memcpy(&hdr.left, &meta->lvalue.hdr, sizeof(hdr.left));

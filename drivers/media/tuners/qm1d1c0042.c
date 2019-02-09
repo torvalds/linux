@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Sharp QM1D1C0042 8PSK tuner driver
  *
  * Copyright (C) 2014 Akihiro Tsukada <tskd08@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -32,13 +23,23 @@
 #include "qm1d1c0042.h"
 
 #define QM1D1C0042_NUM_REGS 0x20
+#define QM1D1C0042_NUM_REG_ROWS 2
 
-static const u8 reg_initval[QM1D1C0042_NUM_REGS] = {
-	0x48, 0x1c, 0xa0, 0x10, 0xbc, 0xc5, 0x20, 0x33,
-	0x06, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
-	0x00, 0xff, 0xf3, 0x00, 0x2a, 0x64, 0xa6, 0x86,
-	0x8c, 0xcf, 0xb8, 0xf1, 0xa8, 0xf2, 0x89, 0x00
+static const u8
+reg_initval[QM1D1C0042_NUM_REG_ROWS][QM1D1C0042_NUM_REGS] = { {
+		0x48, 0x1c, 0xa0, 0x10, 0xbc, 0xc5, 0x20, 0x33,
+		0x06, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+		0x00, 0xff, 0xf3, 0x00, 0x2a, 0x64, 0xa6, 0x86,
+		0x8c, 0xcf, 0xb8, 0xf1, 0xa8, 0xf2, 0x89, 0x00
+	}, {
+		0x68, 0x1c, 0xc0, 0x10, 0xbc, 0xc1, 0x11, 0x33,
+		0x03, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+		0x00, 0xff, 0xf3, 0x00, 0x3f, 0x25, 0x5c, 0xd6,
+		0x55, 0xcf, 0x95, 0xf6, 0x36, 0xf2, 0x09, 0x00
+	}
 };
+
+static int reg_index;
 
 static const struct qm1d1c0042_config default_cfg = {
 	.xtal_freq = 16000,
@@ -320,7 +321,6 @@ static int qm1d1c0042_init(struct dvb_frontend *fe)
 	int i, ret;
 
 	state = fe->tuner_priv;
-	memcpy(state->regs, reg_initval, sizeof(reg_initval));
 
 	reg_write(state, 0x01, 0x0c);
 	reg_write(state, 0x01, 0x0c);
@@ -330,15 +330,22 @@ static int qm1d1c0042_init(struct dvb_frontend *fe)
 		goto failed;
 	usleep_range(2000, 3000);
 
-	val = state->regs[0x01] | 0x10;
-	ret = reg_write(state, 0x01, val); /* soft reset off */
+	ret = reg_write(state, 0x01, 0x1c); /* soft reset off */
 	if (ret < 0)
 		goto failed;
 
-	/* check ID */
+	/* check ID and choose initial registers corresponding ID */
 	ret = reg_read(state, 0x00, &val);
-	if (ret < 0 || val != 0x48)
+	if (ret < 0)
 		goto failed;
+	for (reg_index = 0; reg_index < QM1D1C0042_NUM_REG_ROWS;
+	     reg_index++) {
+		if (val == reg_initval[reg_index][0x00])
+			break;
+	}
+	if (reg_index >= QM1D1C0042_NUM_REG_ROWS)
+		goto failed;
+	memcpy(state->regs, reg_initval[reg_index], QM1D1C0042_NUM_REGS);
 	usleep_range(2000, 3000);
 
 	state->regs[0x0c] |= 0x40;
@@ -381,8 +388,8 @@ static const struct dvb_tuner_ops qm1d1c0042_ops = {
 	.info = {
 		.name = "Sharp QM1D1C0042",
 
-		.frequency_min =  950000,
-		.frequency_max = 2150000,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
 	},
 
 	.init = qm1d1c0042_init,

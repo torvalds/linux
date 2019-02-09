@@ -1,0 +1,49 @@
+Qualcomm RPM Clock Controller Binding
+------------------------------------------------
+The RPM is a dedicated hardware engine for managing the shared
+SoC resources in order to keep the lowest power profile. It
+communicates with other hardware subsystems via shared memory
+and accepts clock requests, aggregates the requests and turns
+the clocks on/off or scales them on demand.
+
+Required properties :
+- compatible : shall contain only one of the following. The generic
+               compatible "qcom,rpmcc" should be also included.
+
+			"qcom,rpmcc-msm8660", "qcom,rpmcc"
+			"qcom,rpmcc-apq8060", "qcom,rpmcc"
+			"qcom,rpmcc-msm8916", "qcom,rpmcc"
+			"qcom,rpmcc-msm8974", "qcom,rpmcc"
+			"qcom,rpmcc-apq8064", "qcom,rpmcc"
+			"qcom,rpmcc-msm8996", "qcom,rpmcc"
+
+- #clock-cells : shall contain 1
+
+The clock enumerators are defined in <dt-bindings/clock/qcom,rpmcc.h>
+and come in pairs: FOO_CLK followed by FOO_A_CLK. The latter clock
+is an "active" clock, which means that the consumer only care that the
+clock is available when the apps CPU subsystem is active, i.e. not
+suspended or in deep idle. If it is important that the clock keeps running
+during system suspend, you need to specify the non-active clock, the one
+not containing *_A_* in the enumerator name.
+
+Example:
+	smd {
+		compatible = "qcom,smd";
+
+		rpm {
+			interrupts = <0 168 1>;
+			qcom,ipc = <&apcs 8 0>;
+			qcom,smd-edge = <15>;
+
+			rpm_requests {
+				compatible = "qcom,rpm-msm8916";
+				qcom,smd-channels = "rpm_requests";
+
+				rpmcc: clock-controller {
+					compatible = "qcom,rpmcc-msm8916", "qcom,rpmcc";
+					#clock-cells = <1>;
+				};
+			};
+		};
+	};

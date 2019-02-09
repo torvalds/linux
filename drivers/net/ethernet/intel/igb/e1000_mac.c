@@ -1,25 +1,5 @@
-/* Intel(R) Gigabit Ethernet Linux driver
- * Copyright(c) 2007-2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 #include <linux/if_ether.h>
 #include <linux/delay.h>
@@ -92,10 +72,8 @@ void igb_clear_vfta(struct e1000_hw *hw)
 {
 	u32 offset;
 
-	for (offset = 0; offset < E1000_VLAN_FILTER_TBL_SIZE; offset++) {
-		array_wr32(E1000_VFTA, offset, 0);
-		wrfl();
-	}
+	for (offset = E1000_VLAN_FILTER_TBL_SIZE; offset--;)
+		hw->mac.ops.write_vfta(hw, offset, 0);
 }
 
 /**
@@ -107,54 +85,14 @@ void igb_clear_vfta(struct e1000_hw *hw)
  *  Writes value at the given offset in the register array which stores
  *  the VLAN filter table.
  **/
-static void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
+void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 {
+	struct igb_adapter *adapter = hw->back;
+
 	array_wr32(E1000_VFTA, offset, value);
 	wrfl();
-}
 
-/* Due to a hw errata, if the host tries to  configure the VFTA register
- * while performing queries from the BMC or DMA, then the VFTA in some
- * cases won't be written.
- */
-
-/**
- *  igb_clear_vfta_i350 - Clear VLAN filter table
- *  @hw: pointer to the HW structure
- *
- *  Clears the register array which contains the VLAN filter table by
- *  setting all the values to 0.
- **/
-void igb_clear_vfta_i350(struct e1000_hw *hw)
-{
-	u32 offset;
-	int i;
-
-	for (offset = 0; offset < E1000_VLAN_FILTER_TBL_SIZE; offset++) {
-		for (i = 0; i < 10; i++)
-			array_wr32(E1000_VFTA, offset, 0);
-
-		wrfl();
-	}
-}
-
-/**
- *  igb_write_vfta_i350 - Write value to VLAN filter table
- *  @hw: pointer to the HW structure
- *  @offset: register offset in VLAN filter table
- *  @value: register value written to VLAN filter table
- *
- *  Writes value at the given offset in the register array which stores
- *  the VLAN filter table.
- **/
-static void igb_write_vfta_i350(struct e1000_hw *hw, u32 offset, u32 value)
-{
-	int i;
-
-	for (i = 0; i < 10; i++)
-		array_wr32(E1000_VFTA, offset, value);
-
-	wrfl();
+	adapter->shadow_vfta[offset] = value;
 }
 
 /**
@@ -183,40 +121,155 @@ void igb_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 }
 
 /**
+ *  igb_find_vlvf_slot - find the VLAN id or the first empty slot
+ *  @hw: pointer to hardware structure
+ *  @vlan: VLAN id to write to VLAN filter
+ *  @vlvf_bypass: skip VLVF if no match is found
+ *
+ *  return the VLVF index where this VLAN id should be placed
+ *
+ **/
+static s32 igb_find_vlvf_slot(struct e1000_hw *hw, u32 vlan, bool vlvf_bypass)
+{
+	s32 regindex, first_empty_slot;
+	u32 bits;
+
+	/* short cut the special case */
+	if (vlan == 0)
+		return 0;
+
+	/* if vlvf_bypass is set we don't want to use an empty slot, we
+	 * will simply bypass the VLVF if there are no entries present in the
+	 * VLVF that contain our VLAN
+	 */
+	first_empty_slot = vlvf_bypass ? -E1000_ERR_NO_SPACE : 0;
+
+	/* Search for the VLAN id in the VLVF entries. Save off the first empty
+	 * slot found along the way.
+	 *
+	 * pre-decrement loop covering (IXGBE_VLVF_ENTRIES - 1) .. 1
+	 */
+	for (regindex = E1000_VLVF_ARRAY_SIZE; --regindex > 0;) {
+		bits = rd32(E1000_VLVF(regindex)) & E1000_VLVF_VLANID_MASK;
+		if (bits == vlan)
+			return regindex;
+		if (!first_empty_slot && !bits)
+			first_empty_slot = regindex;
+	}
+
+	return first_empty_slot ? : -E1000_ERR_NO_SPACE;
+}
+
+/**
  *  igb_vfta_set - enable or disable vlan in VLAN filter table
  *  @hw: pointer to the HW structure
- *  @vid: VLAN id to add or remove
- *  @add: if true add filter, if false remove
+ *  @vlan: VLAN id to add or remove
+ *  @vind: VMDq output index that maps queue to VLAN id
+ *  @vlan_on: if true add filter, if false remove
  *
  *  Sets or clears a bit in the VLAN filter table array based on VLAN id
  *  and if we are adding or removing the filter
  **/
-s32 igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add)
+s32 igb_vfta_set(struct e1000_hw *hw, u32 vlan, u32 vind,
+		 bool vlan_on, bool vlvf_bypass)
 {
-	u32 index = (vid >> E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK;
-	u32 mask = 1 << (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
-	u32 vfta;
 	struct igb_adapter *adapter = hw->back;
-	s32 ret_val = 0;
+	u32 regidx, vfta_delta, vfta, bits;
+	s32 vlvf_index;
 
-	vfta = adapter->shadow_vfta[index];
+	if ((vlan > 4095) || (vind > 7))
+		return -E1000_ERR_PARAM;
 
-	/* bit was set/cleared before we started */
-	if ((!!(vfta & mask)) == add) {
-		ret_val = -E1000_ERR_CONFIG;
-	} else {
-		if (add)
-			vfta |= mask;
-		else
-			vfta &= ~mask;
+	/* this is a 2 part operation - first the VFTA, then the
+	 * VLVF and VLVFB if VT Mode is set
+	 * We don't write the VFTA until we know the VLVF part succeeded.
+	 */
+
+	/* Part 1
+	 * The VFTA is a bitstring made up of 128 32-bit registers
+	 * that enable the particular VLAN id, much like the MTA:
+	 *    bits[11-5]: which register
+	 *    bits[4-0]:  which bit in the register
+	 */
+	regidx = vlan / 32;
+	vfta_delta = BIT(vlan % 32);
+	vfta = adapter->shadow_vfta[regidx];
+
+	/* vfta_delta represents the difference between the current value
+	 * of vfta and the value we want in the register.  Since the diff
+	 * is an XOR mask we can just update vfta using an XOR.
+	 */
+	vfta_delta &= vlan_on ? ~vfta : vfta;
+	vfta ^= vfta_delta;
+
+	/* Part 2
+	 * If VT Mode is set
+	 *   Either vlan_on
+	 *     make sure the VLAN is in VLVF
+	 *     set the vind bit in the matching VLVFB
+	 *   Or !vlan_on
+	 *     clear the pool bit and possibly the vind
+	 */
+	if (!adapter->vfs_allocated_count)
+		goto vfta_update;
+
+	vlvf_index = igb_find_vlvf_slot(hw, vlan, vlvf_bypass);
+	if (vlvf_index < 0) {
+		if (vlvf_bypass)
+			goto vfta_update;
+		return vlvf_index;
 	}
-	if ((hw->mac.type == e1000_i350) || (hw->mac.type == e1000_i354))
-		igb_write_vfta_i350(hw, index, vfta);
-	else
-		igb_write_vfta(hw, index, vfta);
-	adapter->shadow_vfta[index] = vfta;
 
-	return ret_val;
+	bits = rd32(E1000_VLVF(vlvf_index));
+
+	/* set the pool bit */
+	bits |= BIT(E1000_VLVF_POOLSEL_SHIFT + vind);
+	if (vlan_on)
+		goto vlvf_update;
+
+	/* clear the pool bit */
+	bits ^= BIT(E1000_VLVF_POOLSEL_SHIFT + vind);
+
+	if (!(bits & E1000_VLVF_POOLSEL_MASK)) {
+		/* Clear VFTA first, then disable VLVF.  Otherwise
+		 * we run the risk of stray packets leaking into
+		 * the PF via the default pool
+		 */
+		if (vfta_delta)
+			hw->mac.ops.write_vfta(hw, regidx, vfta);
+
+		/* disable VLVF and clear remaining bit from pool */
+		wr32(E1000_VLVF(vlvf_index), 0);
+
+		return 0;
+	}
+
+	/* If there are still bits set in the VLVFB registers
+	 * for the VLAN ID indicated we need to see if the
+	 * caller is requesting that we clear the VFTA entry bit.
+	 * If the caller has requested that we clear the VFTA
+	 * entry bit but there are still pools/VFs using this VLAN
+	 * ID entry then ignore the request.  We're not worried
+	 * about the case where we're turning the VFTA VLAN ID
+	 * entry bit on, only when requested to turn it off as
+	 * there may be multiple pools and/or VFs using the
+	 * VLAN ID entry.  In that case we cannot clear the
+	 * VFTA bit until all pools/VFs using that VLAN ID have also
+	 * been cleared.  This will be indicated by "bits" being
+	 * zero.
+	 */
+	vfta_delta = 0;
+
+vlvf_update:
+	/* record pool change and enable VLAN ID if not already enabled */
+	wr32(E1000_VLVF(vlvf_index), bits | vlan | E1000_VLVF_VLANID_ENABLE);
+
+vfta_update:
+	/* bit was set/cleared before we started */
+	if (vfta_delta)
+		hw->mac.ops.write_vfta(hw, regidx, vfta);
+
+	return 0;
 }
 
 /**
@@ -354,7 +407,7 @@ void igb_mta_set(struct e1000_hw *hw, u32 hash_value)
 
 	mta = array_rd32(E1000_MTA, hash_reg);
 
-	mta |= (1 << hash_bit);
+	mta |= BIT(hash_bit);
 
 	array_wr32(E1000_MTA, hash_reg, mta);
 	wrfl();
@@ -454,7 +507,7 @@ void igb_update_mc_addr_list(struct e1000_hw *hw,
 		hash_reg = (hash_value >> 5) & (hw->mac.mta_reg_count - 1);
 		hash_bit = hash_value & 0x1F;
 
-		hw->mac.mta_shadow[hash_reg] |= (1 << hash_bit);
+		hw->mac.mta_shadow[hash_reg] |= BIT(hash_bit);
 		mc_addr_list += (ETH_ALEN);
 	}
 
@@ -719,15 +772,13 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
-	if (hw->mac.type == e1000_i350) {
+	if (hw->mac.type == e1000_i350)
 		lan_offset = NVM_82580_LAN_FUNC_OFFSET(hw->bus.func);
-		ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG
-					   + lan_offset, 1, &nvm_data);
-	 } else {
-		ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG,
-					   1, &nvm_data);
-	 }
+	else
+		lan_offset = 0;
 
+	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG + lan_offset,
+				   1, &nvm_data);
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");
 		goto out;
@@ -735,8 +786,7 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 
 	if ((nvm_data & NVM_WORD0F_PAUSE_MASK) == 0)
 		hw->fc.requested_mode = e1000_fc_none;
-	else if ((nvm_data & NVM_WORD0F_PAUSE_MASK) ==
-		 NVM_WORD0F_ASM_DIR)
+	else if ((nvm_data & NVM_WORD0F_PAUSE_MASK) == NVM_WORD0F_ASM_DIR)
 		hw->fc.requested_mode = e1000_fc_tx_pause;
 	else
 		hw->fc.requested_mode = e1000_fc_full;

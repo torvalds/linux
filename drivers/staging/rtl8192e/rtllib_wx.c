@@ -1,30 +1,30 @@
 /******************************************************************************
-
-  Copyright(c) 2004 Intel Corporation. All rights reserved.
-
-  Portions of this file are based on the WEP enablement code provided by the
-  Host AP project hostap-drivers v0.1.3
-  Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
-  <jkmaline@cc.hut.fi>
-  Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-
-  Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-******************************************************************************/
+ *
+ * Copyright(c) 2004 Intel Corporation. All rights reserved.
+ *
+ * Portions of this file are based on the WEP enablement code provided by the
+ * Host AP project hostap-drivers v0.1.3
+ * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
+ * <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ *
+ *****************************************************************************/
 #include <linux/wireless.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
@@ -263,7 +263,7 @@ int rtllib_wx_get_scan(struct rtllib_device *ieee,
 	int err = 0;
 
 	netdev_dbg(ieee->dev, "Getting scan\n");
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	list_for_each_entry(network, &ieee->network_list, list) {
@@ -287,7 +287,7 @@ int rtllib_wx_get_scan(struct rtllib_device *ieee,
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	wrqu->data.length = ev -  extra;
 	wrqu->data.flags = 0;
 
@@ -371,8 +371,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		struct lib80211_crypt_data *new_crypt;
 
 		/* take WEP into use */
-		new_crypt = kzalloc(sizeof(struct lib80211_crypt_data),
-				    GFP_KERNEL);
+		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
 		if (new_crypt == NULL)
 			return -ENOMEM;
 		new_crypt->ops = lib80211_get_crypto_ops("R-WEP");
@@ -595,7 +594,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		ret = -EINVAL;
 		goto done;
 	}
-	netdev_info(dev, "alg name:%s\n", alg);
+	netdev_dbg(dev, "alg name:%s\n", alg);
 
 	ops = lib80211_get_crypto_ops(alg);
 	if (ops == NULL) {
@@ -623,7 +622,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			goto done;
 		}
 		new_crypt->ops = ops;
-		if (new_crypt->ops)
+		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
 			new_crypt->priv = new_crypt->ops->init(idx);
 
 		if (new_crypt->priv == NULL) {
@@ -668,7 +667,7 @@ done:
 	if (ieee->set_security)
 		ieee->set_security(ieee->dev, &sec);
 
-	 if (ieee->reset_on_keychange &&
+	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port && ieee->reset_port(dev)) {
 		netdev_dbg(ieee->dev, "Port reset failed\n");
@@ -689,13 +688,12 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 	if (ieee->state != RTLLIB_LINKED)
 		return -ENOLINK;
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
 		deauth = true;
-		/* leave break out intentionly */
-
+		/* fall through */
 	case IW_MLME_DISASSOC:
 		if (deauth)
 			netdev_info(ieee->dev, "disauth packet !\n");
@@ -716,11 +714,11 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 		ieee->current_network.ssid_len = 0;
 		break;
 	default:
-		up(&ieee->wx_sem);
+		mutex_unlock(&ieee->wx_mutex);
 		return -EOPNOTSUPP;
 	}
 
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 
 	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2004
  *
@@ -53,10 +54,10 @@ struct tape_class_device *register_tape_dev(
 	if (!tcd)
 		return ERR_PTR(-ENOMEM);
 
-	strncpy(tcd->device_name, device_name, TAPECLASS_NAME_LEN);
+	strlcpy(tcd->device_name, device_name, TAPECLASS_NAME_LEN);
 	for (s = strchr(tcd->device_name, '/'); s; s = strchr(s, '/'))
 		*s = '!';
-	strncpy(tcd->mode_name, mode_name, TAPECLASS_NAME_LEN);
+	strlcpy(tcd->mode_name, mode_name, TAPECLASS_NAME_LEN);
 	for (s = strchr(tcd->mode_name, '/'); s; s = strchr(s, '/'))
 		*s = '!';
 
@@ -68,16 +69,15 @@ struct tape_class_device *register_tape_dev(
 
 	tcd->char_device->owner = fops->owner;
 	tcd->char_device->ops   = fops;
-	tcd->char_device->dev   = dev;
 
-	rc = cdev_add(tcd->char_device, tcd->char_device->dev, 1);
+	rc = cdev_add(tcd->char_device, dev, 1);
 	if (rc)
 		goto fail_with_cdev;
 
 	tcd->class_device = device_create(tape_class, device,
 					  tcd->char_device->dev, NULL,
 					  "%s", tcd->device_name);
-	rc = PTR_RET(tcd->class_device);
+	rc = PTR_ERR_OR_ZERO(tcd->class_device);
 	if (rc)
 		goto fail_with_cdev;
 	rc = sysfs_create_link(

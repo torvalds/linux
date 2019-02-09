@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -99,6 +63,7 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 	for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++) {
 		ACPI_MOVE_32_TO_32(&walk_state->arguments[i].name,
 				   NAMEOF_ARG_NTE);
+
 		walk_state->arguments[i].name.integer |= (i << 24);
 		walk_state->arguments[i].descriptor_type = ACPI_DESC_TYPE_NAMED;
 		walk_state->arguments[i].type = ACPI_TYPE_ANY;
@@ -201,7 +166,7 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 
 	if (!params) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "No param list passed to method\n"));
+				  "No parameter list passed to method\n"));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -214,9 +179,9 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 		 * Store the argument in the method/walk descriptor.
 		 * Do not copy the arg in order to implement call by reference
 		 */
-		status = acpi_ds_method_data_set_value(ACPI_REFCLASS_ARG, index,
-						       params[index],
-						       walk_state);
+		status =
+		    acpi_ds_method_data_set_value(ACPI_REFCLASS_ARG, index,
+						  params[index], walk_state);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -610,11 +575,11 @@ acpi_ds_store_object_to_local(u8 type,
 			 * do the indirect store
 			 */
 			if ((ACPI_GET_DESCRIPTOR_TYPE(current_obj_desc) ==
-			     ACPI_DESC_TYPE_OPERAND)
-			    && (current_obj_desc->common.type ==
-				ACPI_TYPE_LOCAL_REFERENCE)
-			    && (current_obj_desc->reference.class ==
-				ACPI_REFCLASS_REFOF)) {
+			     ACPI_DESC_TYPE_OPERAND) &&
+			    (current_obj_desc->common.type ==
+			     ACPI_TYPE_LOCAL_REFERENCE) &&
+			    (current_obj_desc->reference.class ==
+			     ACPI_REFCLASS_REFOF)) {
 				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 						  "Arg (%p) is an ObjRef(Node), storing in node %p\n",
 						  new_obj_desc,
@@ -638,6 +603,7 @@ acpi_ds_store_object_to_local(u8 type,
 				if (new_obj_desc != obj_desc) {
 					acpi_ut_remove_reference(new_obj_desc);
 				}
+
 				return_ACPI_STATUS(status);
 			}
 		}
@@ -670,7 +636,8 @@ acpi_ds_store_object_to_local(u8 type,
  *
  * FUNCTION:    acpi_ds_method_data_get_type
  *
- * PARAMETERS:  opcode              - Either AML_LOCAL_OP or AML_ARG_OP
+ * PARAMETERS:  opcode              - Either AML_FIRST LOCAL_OP or
+ *                                    AML_FIRST_ARG_OP
  *              index               - Which Local or Arg whose type to get
  *              walk_state          - Current walk state object
  *

@@ -12,12 +12,12 @@
 	model = "Variscite VAR-SOM-OM44";
 	compatible = "variscite,var-som-om44", "ti,omap4460", "ti,omap4";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
 
-	sound: sound@0 {
+	sound: sound {
 		compatible = "ti,abe-twl6040";
 		ti,model = "VAR-SOM-OM44";
 
@@ -44,6 +44,7 @@
 
 		reset-gpios = <&gpio6 17 GPIO_ACTIVE_LOW>; /* gpio 177 */
 		vcc-supply = <&vbat>;
+		#phy-cells = <0>;
 
 		clocks = <&auxclk3_ck>;
 		clock-names = "main_clk";
@@ -189,6 +190,7 @@
 
 	twl6040: twl@4b {
 		compatible = "ti,twl6040";
+		#clock-cells = <0>;
 		reg = <0x4b>;
 
 		pinctrl-names = "default";
@@ -240,7 +242,7 @@
 	};
 
 	eeprom@50 {
-		compatible = "microchip,24c32";
+		compatible = "microchip,24c32", "atmel,24c32";
 		reg = <0x50>;
 	};
 };
@@ -252,6 +254,10 @@
 &mcpdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcpdm_pins>;
+
+	clocks = <&twl6040>;
+	clock-names = "pdmclk";
+
 	status = "okay";
 };
 

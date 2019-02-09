@@ -33,9 +33,6 @@
 /*  task_struct, defined elsewhere, is the "process descriptor" */
 struct task_struct;
 
-/*  this is defined in arch/process.c  */
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
-
 extern void start_thread(struct pt_regs *, unsigned long, unsigned long);
 
 /*
@@ -56,7 +53,6 @@ struct thread_struct {
 }
 
 #define cpu_relax() __vmyield()
-#define cpu_relax_lowlatency() cpu_relax()
 
 /*
  * Decides where the kernel will search for a free chunk of vm space during

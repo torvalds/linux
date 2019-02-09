@@ -18,7 +18,7 @@
 #include <linux/vmalloc.h>
 #include <linux/fcntl.h>
 #include <linux/kobject.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/opal.h>
 
 struct elog_obj {
@@ -83,9 +83,9 @@ static ssize_t elog_ack_store(struct elog_obj *elog_obj,
 }
 
 static struct elog_attribute id_attribute =
-	__ATTR(id, S_IRUGO, elog_id_show, NULL);
+	__ATTR(id, 0444, elog_id_show, NULL);
 static struct elog_attribute type_attribute =
-	__ATTR(type, S_IRUGO, elog_type_show, NULL);
+	__ATTR(type, 0444, elog_type_show, NULL);
 static struct elog_attribute ack_attribute =
 	__ATTR(acknowledge, 0660, elog_ack_show, elog_ack_store);
 
@@ -247,6 +247,7 @@ static irqreturn_t elog_event(int irq, void *data)
 	uint64_t elog_type;
 	int rc;
 	char name[2+16+1];
+	struct kobject *kobj;
 
 	rc = opal_get_elog_size(&id, &size, &type);
 	if (rc != OPAL_SUCCESS) {
@@ -269,8 +270,12 @@ static irqreturn_t elog_event(int irq, void *data)
 	 * that gracefully and not create two conflicting
 	 * entries.
 	 */
-	if (kset_find_obj(elog_kset, name))
+	kobj = kset_find_obj(elog_kset, name);
+	if (kobj) {
+		/* Drop reference added by kset_find_obj() */
+		kobject_put(kobj);
 		return IRQ_HANDLED;
+	}
 
 	create_elog_obj(log_id, elog_size, elog_type);
 

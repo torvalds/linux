@@ -1,48 +1,32 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /**
  * @file octeon_console.c
  */
-#include <linux/version.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
+#include <linux/moduleparam.h>
 #include <linux/pci.h>
-#include <linux/kthread.h>
 #include <linux/netdevice.h>
-#include "octeon_config.h"
+#include <linux/crc32.h>
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_nic.h"
-#include "octeon_main.h"
-#include "octeon_network.h"
-#include "cn66xx_regs.h"
-#include "cn66xx_device.h"
-#include "cn68xx_regs.h"
-#include "cn68xx_device.h"
 #include "liquidio_image.h"
 #include "octeon_mem_ops.h"
 
@@ -51,9 +35,8 @@ static void octeon_remote_unlock(void);
 static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 					     const char *name,
 					     u32 flags);
-
-#define MIN(a, b) min((a), (b))
-#define CAST_ULL(v) ((u64)(v))
+static int octeon_console_read(struct octeon_device *oct, u32 console_num,
+			       char *buffer, u32 buf_size);
 
 #define BOOTLOADER_PCI_READ_BUFFER_DATA_ADDR    0x0006c008
 #define BOOTLOADER_PCI_READ_BUFFER_LEN_ADDR     0x0006c004
@@ -82,9 +65,9 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 #define OCTEON_CONSOLE_POLL_INTERVAL_MS  100    /* 10 times per second */
 
 /* First three members of cvmx_bootmem_desc are left in original
-** positions for backwards compatibility.
-** Assumes big endian target
-*/
+ * positions for backwards compatibility.
+ * Assumes big endian target
+ */
 struct cvmx_bootmem_desc {
 	/** spinlock to control access to list */
 	u32 lock;
@@ -149,47 +132,6 @@ struct octeon_pci_console_desc {
 };
 
 /**
- * This macro returns the size of a member of a structure.
- * Logically it is the same as "sizeof(s::field)" in C++, but
- * C lacks the "::" operator.
- */
-#define SIZEOF_FIELD(s, field) sizeof(((s *)NULL)->field)
-
-/**
- * This macro returns a member of the cvmx_bootmem_desc
- * structure. These members can't be directly addressed as
- * they might be in memory not directly reachable. In the case
- * where bootmem is compiled with LINUX_HOST, the structure
- * itself might be located on a remote Octeon. The argument
- * "field" is the member name of the cvmx_bootmem_desc to read.
- * Regardless of the type of the field, the return type is always
- * a u64.
- */
-#define CVMX_BOOTMEM_DESC_GET_FIELD(oct, field)                              \
-	__cvmx_bootmem_desc_get(oct, oct->bootmem_desc_addr,                 \
-				offsetof(struct cvmx_bootmem_desc, field),   \
-				SIZEOF_FIELD(struct cvmx_bootmem_desc, field))
-
-#define __cvmx_bootmem_lock(flags)
-#define __cvmx_bootmem_unlock(flags)
-
-/**
- * This macro returns a member of the
- * cvmx_bootmem_named_block_desc structure. These members can't
- * be directly addressed as they might be in memory not directly
- * reachable. In the case where bootmem is compiled with
- * LINUX_HOST, the structure itself might be located on a remote
- * Octeon. The argument "field" is the member name of the
- * cvmx_bootmem_named_block_desc to read. Regardless of the type
- * of the field, the return type is always a u64. The "addr"
- * parameter is the physical address of the structure.
- */
-#define CVMX_BOOTMEM_NAMED_GET_FIELD(oct, addr, field)                   \
-	__cvmx_bootmem_desc_get(oct, addr,                               \
-		offsetof(struct cvmx_bootmem_named_block_desc, field),   \
-		SIZEOF_FIELD(struct cvmx_bootmem_named_block_desc, field))
-
-/**
  * This function is the implementation of the get macros defined
  * for individual structure members. The argument are generated
  * by the macros inorder to read only the needed memory.
@@ -234,7 +176,7 @@ static void CVMX_BOOTMEM_NAMED_GET_NAME(struct octeon_device *oct,
 					u32 len)
 {
 	addr += offsetof(struct cvmx_bootmem_named_block_desc, name);
-	octeon_pci_read_core_mem(oct, addr, str, len);
+	octeon_pci_read_core_mem(oct, addr, (u8 *)str, len);
 	str[len] = 0;
 }
 
@@ -260,17 +202,22 @@ static int __cvmx_bootmem_check_version(struct octeon_device *oct,
 		oct->bootmem_desc_addr =
 			octeon_read_device_mem64(oct,
 						 BOOTLOADER_PCI_READ_DESC_ADDR);
-	major_version =
-		(u32)CVMX_BOOTMEM_DESC_GET_FIELD(oct, major_version);
-	minor_version =
-		(u32)CVMX_BOOTMEM_DESC_GET_FIELD(oct, minor_version);
+	major_version = (u32)__cvmx_bootmem_desc_get(
+			oct, oct->bootmem_desc_addr,
+			offsetof(struct cvmx_bootmem_desc, major_version),
+			FIELD_SIZEOF(struct cvmx_bootmem_desc, major_version));
+	minor_version = (u32)__cvmx_bootmem_desc_get(
+			oct, oct->bootmem_desc_addr,
+			offsetof(struct cvmx_bootmem_desc, minor_version),
+			FIELD_SIZEOF(struct cvmx_bootmem_desc, minor_version));
+
 	dev_dbg(&oct->pci_dev->dev, "%s: major_version=%d\n", __func__,
 		major_version);
 	if ((major_version > 3) ||
 	    (exact_match && major_version != exact_match)) {
 		dev_err(&oct->pci_dev->dev, "bootmem ver mismatch %d.%d addr:0x%llx\n",
 			major_version, minor_version,
-			CAST_ULL(oct->bootmem_desc_addr));
+			(long long)oct->bootmem_desc_addr);
 		return -1;
 	} else {
 		return 0;
@@ -286,10 +233,20 @@ static const struct cvmx_bootmem_named_block_desc
 	u64 named_addr = cvmx_bootmem_phy_named_block_find(oct, name, flags);
 
 	if (named_addr) {
-		desc->base_addr = CVMX_BOOTMEM_NAMED_GET_FIELD(oct, named_addr,
-							       base_addr);
-		desc->size =
-			CVMX_BOOTMEM_NAMED_GET_FIELD(oct, named_addr, size);
+		desc->base_addr = __cvmx_bootmem_desc_get(
+				oct, named_addr,
+				offsetof(struct cvmx_bootmem_named_block_desc,
+					 base_addr),
+				FIELD_SIZEOF(
+					struct cvmx_bootmem_named_block_desc,
+					base_addr));
+		desc->size = __cvmx_bootmem_desc_get(oct, named_addr,
+				offsetof(struct cvmx_bootmem_named_block_desc,
+					 size),
+				FIELD_SIZEOF(
+					struct cvmx_bootmem_named_block_desc,
+					size));
+
 		strncpy(desc->name, name, sizeof(desc->name));
 		desc->name[sizeof(desc->name) - 1] = 0;
 		return &oct->bootmem_named_block_desc;
@@ -304,25 +261,47 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 {
 	u64 result = 0;
 
-	__cvmx_bootmem_lock(flags);
 	if (!__cvmx_bootmem_check_version(oct, 3)) {
 		u32 i;
-		u64 named_block_array_addr =
-			CVMX_BOOTMEM_DESC_GET_FIELD(oct,
-						    named_block_array_addr);
-		u32 num_blocks = (u32)
-			CVMX_BOOTMEM_DESC_GET_FIELD(oct, nb_num_blocks);
-		u32 name_length = (u32)
-			CVMX_BOOTMEM_DESC_GET_FIELD(oct, named_block_name_len);
+
+		u64 named_block_array_addr = __cvmx_bootmem_desc_get(
+					oct, oct->bootmem_desc_addr,
+					offsetof(struct cvmx_bootmem_desc,
+						 named_block_array_addr),
+					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+						     named_block_array_addr));
+		u32 num_blocks = (u32)__cvmx_bootmem_desc_get(
+					oct, oct->bootmem_desc_addr,
+					offsetof(struct cvmx_bootmem_desc,
+						 nb_num_blocks),
+					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+						     nb_num_blocks));
+
+		u32 name_length = (u32)__cvmx_bootmem_desc_get(
+					oct, oct->bootmem_desc_addr,
+					offsetof(struct cvmx_bootmem_desc,
+						 named_block_name_len),
+					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+						     named_block_name_len));
+
 		u64 named_addr = named_block_array_addr;
 
 		for (i = 0; i < num_blocks; i++) {
-			u64 named_size =
-				CVMX_BOOTMEM_NAMED_GET_FIELD(oct, named_addr,
-							     size);
+			u64 named_size = __cvmx_bootmem_desc_get(
+					oct, named_addr,
+					 offsetof(
+					struct cvmx_bootmem_named_block_desc,
+					size),
+					 FIELD_SIZEOF(
+					struct cvmx_bootmem_named_block_desc,
+					size));
+
 			if (name && named_size) {
 				char *name_tmp =
 					kmalloc(name_length + 1, GFP_KERNEL);
+				if (!name_tmp)
+					break;
+
 				CVMX_BOOTMEM_NAMED_GET_NAME(oct, named_addr,
 							    name_tmp,
 							    name_length);
@@ -341,7 +320,6 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 				sizeof(struct cvmx_bootmem_named_block_desc);
 		}
 	}
-	__cvmx_bootmem_unlock(flags);
 	return result;
 }
 
@@ -383,7 +361,7 @@ static void octeon_remote_unlock(void)
 int octeon_console_send_cmd(struct octeon_device *oct, char *cmd_str,
 			    u32 wait_hundredths)
 {
-	u32 len = strlen(cmd_str);
+	u32 len = (u32)strlen(cmd_str);
 
 	dev_dbg(&oct->pci_dev->dev, "sending \"%s\" to bootloader\n", cmd_str);
 
@@ -440,8 +418,7 @@ int octeon_wait_for_bootloader(struct octeon_device *oct,
 }
 
 static void octeon_console_handle_result(struct octeon_device *oct,
-					 size_t console_num,
-					 char *buffer, s32 bytes_read)
+					 size_t console_num)
 {
 	struct octeon_console *console;
 
@@ -460,20 +437,31 @@ static void output_console_line(struct octeon_device *oct,
 {
 	char *line;
 	s32 i;
+	size_t len;
 
 	line = console_buffer;
 	for (i = 0; i < bytes_read; i++) {
 		/* Output a line at a time, prefixed */
 		if (console_buffer[i] == '\n') {
 			console_buffer[i] = '\0';
-			if (console->leftover[0]) {
-				dev_info(&oct->pci_dev->dev, "%lu: %s%s\n",
-					 console_num, console->leftover,
-					 line);
+			/* We need to output 'line', prefaced by 'leftover'.
+			 * However, it is possible we're being called to
+			 * output 'leftover' by itself (in the case of nothing
+			 * having been read from the console).
+			 *
+			 * To avoid duplication, check for this condition.
+			 */
+			if (console->leftover[0] &&
+			    (line != console->leftover)) {
+				if (console->print)
+					(*console->print)(oct, (u32)console_num,
+							  console->leftover,
+							  line);
 				console->leftover[0] = '\0';
 			} else {
-				dev_info(&oct->pci_dev->dev, "%lu: %s\n",
-					 console_num, line);
+				if (console->print)
+					(*console->print)(oct, (u32)console_num,
+							  line, NULL);
 			}
 			line = &console_buffer[i + 1];
 		}
@@ -482,17 +470,20 @@ static void output_console_line(struct octeon_device *oct,
 	/* Save off any leftovers */
 	if (line != &console_buffer[bytes_read]) {
 		console_buffer[bytes_read] = '\0';
-		strcpy(console->leftover, line);
+		len = strlen(console->leftover);
+		strncpy(&console->leftover[len], line,
+			sizeof(console->leftover) - len);
 	}
 }
 
 static void check_console(struct work_struct *work)
 {
 	s32 bytes_read, tries, total_read;
+	size_t len;
 	struct octeon_console *console;
 	struct cavium_wk *wk = (struct cavium_wk *)work;
 	struct octeon_device *oct = (struct octeon_device *)wk->ctxptr;
-	size_t console_num = wk->ctxul;
+	u32 console_num = (u32)wk->ctxul;
 	u32 delay;
 
 	console = &oct->console[console_num];
@@ -505,20 +496,17 @@ static void check_console(struct work_struct *work)
 		 */
 		bytes_read =
 			octeon_console_read(oct, console_num, console_buffer,
-					    sizeof(console_buffer) - 1, 0);
+					    sizeof(console_buffer) - 1);
 		if (bytes_read > 0) {
 			total_read += bytes_read;
-			if (console->waiting) {
-				octeon_console_handle_result(oct, console_num,
-							     console_buffer,
-							     bytes_read);
-			}
-			if (octeon_console_debug_enabled(console_num)) {
+			if (console->waiting)
+				octeon_console_handle_result(oct, console_num);
+			if (console->print) {
 				output_console_line(oct, console, console_num,
 						    console_buffer, bytes_read);
 			}
 		} else if (bytes_read < 0) {
-			dev_err(&oct->pci_dev->dev, "Error reading console %lu, ret=%d\n",
+			dev_err(&oct->pci_dev->dev, "Error reading console %u, ret=%d\n",
 				console_num, bytes_read);
 		}
 
@@ -528,10 +516,13 @@ static void check_console(struct work_struct *work)
 	/* If nothing is read after polling the console,
 	 * output any leftovers if any
 	 */
-	if (octeon_console_debug_enabled(console_num) &&
-	    (total_read == 0) && (console->leftover[0])) {
-		dev_info(&oct->pci_dev->dev, "%lu: %s\n",
-			 console_num, console->leftover);
+	if (console->print && (total_read == 0) &&
+	    (console->leftover[0])) {
+		/* append '\n' as terminator for 'output_console_line' */
+		len = strlen(console->leftover);
+		console->leftover[len] = '\n';
+		output_console_line(oct, console, console_num,
+				    console->leftover, (s32)(len + 1));
 		console->leftover[0] = '\0';
 	}
 
@@ -559,6 +550,16 @@ int octeon_init_consoles(struct octeon_device *oct)
 		return ret;
 	}
 
+	/* Dedicate one of Octeon's BAR1 index registers to create a static
+	 * mapping to a region of Octeon DRAM that contains the PCI console
+	 * named block.
+	 */
+	oct->console_nb_info.bar1_index = BAR1_INDEX_STATIC_MAP;
+	oct->fn_list.bar1_idx_setup(oct, addr, oct->console_nb_info.bar1_index,
+				    true);
+	oct->console_nb_info.dram_region_base = addr
+		& ~(OCTEON_BAR1_ENTRY_SIZE - 1ULL);
+
 	/* num_consoles > 0, is an indication that the consoles
 	 * are accessible
 	 */
@@ -573,7 +574,84 @@ int octeon_init_consoles(struct octeon_device *oct)
 	return ret;
 }
 
-int octeon_add_console(struct octeon_device *oct, u32 console_num)
+static void octeon_get_uboot_version(struct octeon_device *oct)
+{
+	s32 bytes_read, tries, total_read;
+	struct octeon_console *console;
+	u32 console_num = 0;
+	char *uboot_ver;
+	char *buf;
+	char *p;
+
+#define OCTEON_UBOOT_VER_BUF_SIZE 512
+	buf = kmalloc(OCTEON_UBOOT_VER_BUF_SIZE, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	if (octeon_console_send_cmd(oct, "setenv stdout pci\n", 50)) {
+		kfree(buf);
+		return;
+	}
+
+	if (octeon_console_send_cmd(oct, "version\n", 1)) {
+		kfree(buf);
+		return;
+	}
+
+	console = &oct->console[console_num];
+	tries = 0;
+	total_read = 0;
+
+	do {
+		/* Take console output regardless of whether it will
+		 * be logged
+		 */
+		bytes_read =
+			octeon_console_read(oct,
+					    console_num, buf + total_read,
+					    OCTEON_UBOOT_VER_BUF_SIZE - 1 -
+					    total_read);
+		if (bytes_read > 0) {
+			buf[bytes_read] = '\0';
+
+			total_read += bytes_read;
+			if (console->waiting)
+				octeon_console_handle_result(oct, console_num);
+		} else if (bytes_read < 0) {
+			dev_err(&oct->pci_dev->dev, "Error reading console %u, ret=%d\n",
+				console_num, bytes_read);
+		}
+
+		tries++;
+	} while ((bytes_read > 0) && (tries < 16));
+
+	/* If nothing is read after polling the console,
+	 * output any leftovers if any
+	 */
+	if ((total_read == 0) && (console->leftover[0])) {
+		dev_dbg(&oct->pci_dev->dev, "%u: %s\n",
+			console_num, console->leftover);
+		console->leftover[0] = '\0';
+	}
+
+	buf[OCTEON_UBOOT_VER_BUF_SIZE - 1] = '\0';
+
+	uboot_ver = strstr(buf, "U-Boot");
+	if (uboot_ver) {
+		p = strstr(uboot_ver, "mips");
+		if (p) {
+			p--;
+			*p = '\0';
+			dev_info(&oct->pci_dev->dev, "%s\n", uboot_ver);
+		}
+	}
+
+	kfree(buf);
+	octeon_console_send_cmd(oct, "setenv stdout serial\n", 50);
+}
+
+int octeon_add_console(struct octeon_device *oct, u32 console_num,
+		       char *dbg_enb)
 {
 	int ret = 0;
 	u32 delay;
@@ -609,17 +687,19 @@ int octeon_add_console(struct octeon_device *oct, u32 console_num)
 
 		work = &oct->console_poll_work[console_num].work;
 
+		octeon_get_uboot_version(oct);
+
 		INIT_DELAYED_WORK(work, check_console);
 		oct->console_poll_work[console_num].ctxptr = (void *)oct;
 		oct->console_poll_work[console_num].ctxul = console_num;
 		delay = OCTEON_CONSOLE_POLL_INTERVAL_MS;
 		schedule_delayed_work(work, msecs_to_jiffies(delay));
 
-		if (octeon_console_debug_enabled(console_num)) {
-			ret = octeon_console_send_cmd(oct,
-						      "setenv pci_console_active 1",
-						      2000);
-		}
+		/* an empty string means use default debug console enablement */
+		if (dbg_enb && !dbg_enb[0])
+			dbg_enb = "setenv pci_console_active 1";
+		if (dbg_enb)
+			ret = octeon_console_send_cmd(oct, dbg_enb, 2000);
 
 		console->active = 1;
 	}
@@ -675,8 +755,8 @@ static inline int octeon_console_avail_bytes(u32 buffer_size,
 	       octeon_console_free_bytes(buffer_size, wr_idx, rd_idx);
 }
 
-int octeon_console_read(struct octeon_device *oct, u32 console_num,
-			char *buffer, u32 buf_size, u32 flags)
+static int octeon_console_read(struct octeon_device *oct, u32 console_num,
+			       char *buffer, u32 buf_size)
 {
 	int bytes_to_read;
 	u32 rd_idx, wr_idx;
@@ -703,7 +783,7 @@ int octeon_console_read(struct octeon_device *oct, u32 console_num,
 	if (bytes_to_read <= 0)
 		return bytes_to_read;
 
-	bytes_to_read = MIN(bytes_to_read, (s32)buf_size);
+	bytes_to_read = min_t(s32, bytes_to_read, buf_size);
 
 	/* Check to see if what we want to read is not contiguous, and limit
 	 * ourselves to the contiguous block
@@ -712,7 +792,7 @@ int octeon_console_read(struct octeon_device *oct, u32 console_num,
 		bytes_to_read = console->buffer_size - rd_idx;
 
 	octeon_pci_read_core_mem(oct, console->output_base_addr + rd_idx,
-				 buffer, bytes_to_read);
+				 (u8 *)buffer, bytes_to_read);
 	octeon_write_device_mem32(oct, console->addr +
 				  offsetof(struct octeon_pci_console,
 					   output_read_index),
@@ -720,4 +800,127 @@ int octeon_console_read(struct octeon_device *oct, u32 console_num,
 				  console->buffer_size);
 
 	return bytes_to_read;
+}
+
+#define FBUF_SIZE	(4 * 1024 * 1024)
+#define MAX_BOOTTIME_SIZE    80
+
+int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
+			     size_t size)
+{
+	struct octeon_firmware_file_header *h;
+	char boottime[MAX_BOOTTIME_SIZE];
+	struct timespec64 ts;
+	u32 crc32_result;
+	u64 load_addr;
+	u32 image_len;
+	int ret = 0;
+	u32 i, rem;
+
+	if (size < sizeof(struct octeon_firmware_file_header)) {
+		dev_err(&oct->pci_dev->dev, "Firmware file too small (%d < %d).\n",
+			(u32)size,
+			(u32)sizeof(struct octeon_firmware_file_header));
+		return -EINVAL;
+	}
+
+	h = (struct octeon_firmware_file_header *)data;
+
+	if (be32_to_cpu(h->magic) != LIO_NIC_MAGIC) {
+		dev_err(&oct->pci_dev->dev, "Unrecognized firmware file.\n");
+		return -EINVAL;
+	}
+
+	crc32_result = crc32((unsigned int)~0, data,
+			     sizeof(struct octeon_firmware_file_header) -
+			     sizeof(u32)) ^ ~0U;
+	if (crc32_result != be32_to_cpu(h->crc32)) {
+		dev_err(&oct->pci_dev->dev, "Firmware CRC mismatch (0x%08x != 0x%08x).\n",
+			crc32_result, be32_to_cpu(h->crc32));
+		return -EINVAL;
+	}
+
+	if (strncmp(LIQUIDIO_PACKAGE, h->version, strlen(LIQUIDIO_PACKAGE))) {
+		dev_err(&oct->pci_dev->dev, "Unmatched firmware package type. Expected %s, got %s.\n",
+			LIQUIDIO_PACKAGE, h->version);
+		return -EINVAL;
+	}
+
+	if (memcmp(LIQUIDIO_BASE_VERSION, h->version + strlen(LIQUIDIO_PACKAGE),
+		   strlen(LIQUIDIO_BASE_VERSION))) {
+		dev_err(&oct->pci_dev->dev, "Unmatched firmware version. Expected %s.x, got %s.\n",
+			LIQUIDIO_BASE_VERSION,
+			h->version + strlen(LIQUIDIO_PACKAGE));
+		return -EINVAL;
+	}
+
+	if (be32_to_cpu(h->num_images) > LIO_MAX_IMAGES) {
+		dev_err(&oct->pci_dev->dev, "Too many images in firmware file (%d).\n",
+			be32_to_cpu(h->num_images));
+		return -EINVAL;
+	}
+
+	dev_info(&oct->pci_dev->dev, "Firmware version: %s\n", h->version);
+	snprintf(oct->fw_info.liquidio_firmware_version, 32, "LIQUIDIO: %s",
+		 h->version);
+
+	data += sizeof(struct octeon_firmware_file_header);
+
+	dev_info(&oct->pci_dev->dev, "%s: Loading %d images\n", __func__,
+		 be32_to_cpu(h->num_images));
+	/* load all images */
+	for (i = 0; i < be32_to_cpu(h->num_images); i++) {
+		load_addr = be64_to_cpu(h->desc[i].addr);
+		image_len = be32_to_cpu(h->desc[i].len);
+
+		dev_info(&oct->pci_dev->dev, "Loading firmware %d at %llx\n",
+			 image_len, load_addr);
+
+		/* Write in 4MB chunks*/
+		rem = image_len;
+
+		while (rem) {
+			if (rem < FBUF_SIZE)
+				size = rem;
+			else
+				size = FBUF_SIZE;
+
+			/* download the image */
+			octeon_pci_write_core_mem(oct, load_addr, data, (u32)size);
+
+			data += size;
+			rem -= (u32)size;
+			load_addr += size;
+		}
+	}
+
+	/* Pass date and time information to NIC at the time of loading
+	 * firmware and periodically update the host time to NIC firmware.
+	 * This is to make NIC firmware use the same time reference as Host,
+	 * so that it is easy to correlate logs from firmware and host for
+	 * debugging.
+	 *
+	 * Octeon always uses UTC time. so timezone information is not sent.
+	 */
+	ktime_get_real_ts64(&ts);
+	ret = snprintf(boottime, MAX_BOOTTIME_SIZE,
+		       " time_sec=%lld time_nsec=%ld",
+		       (s64)ts.tv_sec, ts.tv_nsec);
+	if ((sizeof(h->bootcmd) - strnlen(h->bootcmd, sizeof(h->bootcmd))) <
+		ret) {
+		dev_err(&oct->pci_dev->dev, "Boot command buffer too small\n");
+		return -EINVAL;
+	}
+	strncat(h->bootcmd, boottime,
+		sizeof(h->bootcmd) - strnlen(h->bootcmd, sizeof(h->bootcmd)));
+
+	dev_info(&oct->pci_dev->dev, "Writing boot command: %s\n",
+		 h->bootcmd);
+
+	/* Invoke the bootcmd */
+	ret = octeon_console_send_cmd(oct, h->bootcmd, 50);
+	if (ret)
+		dev_info(&oct->pci_dev->dev, "Boot command send failed\n");
+
+	return ret;
 }

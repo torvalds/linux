@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* tcp_metrics.h - TCP Metrics Interface */
 
 #ifndef _LINUX_TCP_METRICS_H
@@ -40,6 +41,7 @@ enum {
 	TCP_METRICS_ATTR_FOPEN_COOKIE,		/* binary */
 	TCP_METRICS_ATTR_SADDR_IPV4,		/* u32 */
 	TCP_METRICS_ATTR_SADDR_IPV6,		/* binary */
+	TCP_METRICS_ATTR_PAD,
 
 	__TCP_METRICS_ATTR_MAX,
 };

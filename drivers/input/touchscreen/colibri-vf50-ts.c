@@ -21,13 +21,13 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
 #define DRIVER_NAME			"colibri-vf50-ts"
-#define DRV_VERSION			"1.0"
 
 #define VF_ADC_MAX			((1 << 12) - 1)
 
@@ -310,8 +310,6 @@ static int vf50_ts_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(pdev, touchdev);
-
 	input->name = DRIVER_NAME;
 	input->id.bustype = BUS_HOST;
 	input->dev.parent = dev;
@@ -383,4 +381,3 @@ module_platform_driver(vf50_touch_driver);
 MODULE_AUTHOR("Sanchayan Maity");
 MODULE_DESCRIPTION("Colibri VF50 Touchscreen driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

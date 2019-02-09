@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for the armadillo 800 eva board
  *
  * Copyright (C) 2012 Renesas Solutions Corp.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 /dts-v1/;
@@ -20,20 +17,20 @@
 	compatible = "renesas,armadillo800eva", "renesas,r8a7740";
 
 	aliases {
-		serial1 = &scifa1;
+		serial0 = &scifa1;
 	};
 
 	chosen {
-		bootargs = "console=tty0 console=ttySC1,115200 earlyprintk=sh-sci.1,115200 ignore_loglevel root=/dev/nfs ip=dhcp rw";
-		stdout-path = &scifa1;
+		bootargs = "earlyprintk ignore_loglevel root=/dev/nfs ip=dhcp rw";
+		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x20000000>;
 	};
 
-	reg_3p3v: regulator@0 {
+	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
 		regulator-min-microvolt = <3300000>;
@@ -42,7 +39,7 @@
 		regulator-boot-on;
 	};
 
-	vcc_sdhi0: regulator@1 {
+	vcc_sdhi0: regulator-vcc-sdhi0 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "SDHI0 Vcc";
@@ -53,7 +50,7 @@
 		enable-active-high;
 	};
 
-	vccq_sdhi0: regulator@2 {
+	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
 
 		regulator-name = "SDHI0 VccQ";
@@ -69,7 +66,7 @@
 		enable-active-high;
 	};
 
-	reg_5p0v: regulator@3 {
+	reg_5p0v: regulator-5p0v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-5.0V";
 		regulator-min-microvolt = <5000000>;
@@ -85,7 +82,7 @@
 			gpios = <&pfc 99 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "SW3";
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		back-key {
@@ -127,13 +124,12 @@
 		};
 	};
 
-	i2c2: i2c@2 {
+	i2c2: i2c-2 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "i2c-gpio";
-		gpios = <&pfc 208 GPIO_ACTIVE_HIGH /* sda */
-			 &pfc 91 GPIO_ACTIVE_HIGH /* scl */
-			>;
+		sda-gpios = <&pfc 208 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&pfc 91 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		i2c-gpio,delay-us = <5>;
 	};
 
@@ -180,7 +176,7 @@
 };
 
 &extal1_clk {
-	clock-frequency = <25000000>;
+	clock-frequency = <24000000>;
 };
 &extal2_clk {
 	clock-frequency = <48000000>;
@@ -228,45 +224,47 @@
 	pinctrl-names = "default";
 
 	ether_pins: ether {
-		renesas,groups = "gether_mii", "gether_int";
-		renesas,function = "gether";
+		groups = "gether_mii", "gether_int";
+		function = "gether";
 	};
 
-	scifa1_pins: serial1 {
-		renesas,groups = "scifa1_data";
-		renesas,function = "scifa1";
+	scifa1_pins: scifa1 {
+		groups = "scifa1_data";
+		function = "scifa1";
 	};
 
 	st1232_pins: touchscreen {
-		renesas,groups = "intc_irq10";
-		renesas,function = "intc";
+		groups = "intc_irq10";
+		function = "intc";
 	};
 
 	backlight_pins: backlight {
-		renesas,groups = "tpu0_to2_1";
-		renesas,function = "tpu0";
+		groups = "tpu0_to2_1";
+		function = "tpu0";
 	};
 
 	mmc0_pins: mmc0 {
-		renesas,groups = "mmc0_data8_1", "mmc0_ctrl_1";
-		renesas,function = "mmc0";
+		groups = "mmc0_data8_1", "mmc0_ctrl_1";
+		function = "mmc0";
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_wp";
-		renesas,function = "sdhi0";
+		groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_wp";
+		function = "sdhi0";
 	};
 
 	fsia_pins: sounda {
-		renesas,groups = "fsia_sclk_in", "fsia_mclk_out",
-				 "fsia_data_in_1", "fsia_data_out_0";
-		renesas,function = "fsia";
+		groups = "fsia_sclk_in", "fsia_mclk_out",
+			 "fsia_data_in_1", "fsia_data_out_0";
+		function = "fsia";
 	};
 
 	lcd0_pins: lcd0 {
-		renesas,groups = "lcd0_data24_0", "lcd0_lclk_1", "lcd0_sync";
-		renesas,function = "lcd0";
+		groups = "lcd0_data24_0", "lcd0_lclk_1", "lcd0_sync";
+		function = "lcd0";
+	};
 
+	lcd0_mux {
 		/* DBGMD/LCDC0/FSIA MUX */
 		gpio-hog;
 		gpios = <176 0>;

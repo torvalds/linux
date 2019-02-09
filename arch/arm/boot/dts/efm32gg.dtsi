@@ -1,13 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device tree for Energy Micro EFM32 Giant Gecko SoC.
  *
  * Documentation available from
  * http://www.silabs.com/Support%20Documents/TechnicalDocs/EFM32GG-RM.pdf
  */
+
 #include "armv7-m.dtsi"
 #include "dt-bindings/clock/efm32-cmu.h"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;

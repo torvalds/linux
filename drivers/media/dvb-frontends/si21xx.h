@@ -1,9 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SI21XX_H
 #define SI21XX_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct si21xx_config {
 	/* the demodulator's i2c address */

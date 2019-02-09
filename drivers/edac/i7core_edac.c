@@ -39,7 +39,7 @@
 #include <asm/processor.h>
 #include <asm/div64.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /* Static vars */
 static LIST_HEAD(i7core_edac_list);
@@ -271,16 +271,6 @@ struct i7core_pvt {
 
 	bool		is_registered, enable_scrub;
 
-	/* Fifo double buffers */
-	struct mce		mce_entry[MCE_LOG_LEN];
-	struct mce		mce_outentry[MCE_LOG_LEN];
-
-	/* Fifo in/out counters */
-	unsigned		mce_in, mce_out;
-
-	/* Count indicator to show errors not got */
-	unsigned		mce_overrun;
-
 	/* DCLK Frequency used for computing scrub rate */
 	int			dclk_freq;
 
@@ -471,7 +461,7 @@ static struct i7core_dev *alloc_i7core_dev(u8 socket,
 	if (!i7core_dev)
 		return NULL;
 
-	i7core_dev->pdev = kzalloc(sizeof(*i7core_dev->pdev) * table->n_devs,
+	i7core_dev->pdev = kcalloc(table->n_devs, sizeof(*i7core_dev->pdev),
 				   GFP_KERNEL);
 	if (!i7core_dev->pdev) {
 		kfree(i7core_dev);
@@ -1089,7 +1079,7 @@ static struct attribute *i7core_addrmatch_attrs[] = {
 	NULL
 };
 
-static struct attribute_group addrmatch_grp = {
+static const struct attribute_group addrmatch_grp = {
 	.attrs	= i7core_addrmatch_attrs,
 };
 
@@ -1104,7 +1094,7 @@ static void addrmatch_release(struct device *device)
 	kfree(device);
 }
 
-static struct device_type addrmatch_type = {
+static const struct device_type addrmatch_type = {
 	.groups		= addrmatch_groups,
 	.release	= addrmatch_release,
 };
@@ -1120,7 +1110,7 @@ static struct attribute *i7core_udimm_counters_attrs[] = {
 	NULL
 };
 
-static struct attribute_group all_channel_counts_grp = {
+static const struct attribute_group all_channel_counts_grp = {
 	.attrs	= i7core_udimm_counters_attrs,
 };
 
@@ -1135,7 +1125,7 @@ static void all_channel_counts_release(struct device *device)
 	kfree(device);
 }
 
-static struct device_type all_channel_counts_type = {
+static const struct device_type all_channel_counts_type = {
 	.groups		= all_channel_counts_groups,
 	.release	= all_channel_counts_release,
 };
@@ -1187,15 +1177,14 @@ static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 
 	rc = device_add(pvt->addrmatch_dev);
 	if (rc < 0)
-		return rc;
+		goto err_put_addrmatch;
 
 	if (!pvt->is_registered) {
 		pvt->chancounts_dev = kzalloc(sizeof(*pvt->chancounts_dev),
 					      GFP_KERNEL);
 		if (!pvt->chancounts_dev) {
-			put_device(pvt->addrmatch_dev);
-			device_del(pvt->addrmatch_dev);
-			return -ENOMEM;
+			rc = -ENOMEM;
+			goto err_del_addrmatch;
 		}
 
 		pvt->chancounts_dev->type = &all_channel_counts_type;
@@ -1209,9 +1198,18 @@ static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 
 		rc = device_add(pvt->chancounts_dev);
 		if (rc < 0)
-			return rc;
+			goto err_put_chancounts;
 	}
 	return 0;
+
+err_put_chancounts:
+	put_device(pvt->chancounts_dev);
+err_del_addrmatch:
+	device_del(pvt->addrmatch_dev);
+err_put_addrmatch:
+	put_device(pvt->addrmatch_dev);
+
+	return rc;
 }
 
 static void i7core_delete_sysfs_devices(struct mem_ctl_info *mci)
@@ -1221,11 +1219,11 @@ static void i7core_delete_sysfs_devices(struct mem_ctl_info *mci)
 	edac_dbg(1, "\n");
 
 	if (!pvt->is_registered) {
-		put_device(pvt->chancounts_dev);
 		device_del(pvt->chancounts_dev);
+		put_device(pvt->chancounts_dev);
 	}
-	put_device(pvt->addrmatch_dev);
 	device_del(pvt->addrmatch_dev);
+	put_device(pvt->addrmatch_dev);
 }
 
 /****************************************************************************
@@ -1713,6 +1711,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 	u32 errnum = find_first_bit(&error, 32);
 
 	if (uncorrected_error) {
+		core_err_cnt = 1;
 		if (ripv)
 			tp_event = HW_EVENT_ERR_FATAL;
 		else
@@ -1753,7 +1752,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 		err = "write parity error";
 		break;
 	case 19:
-		err = "redundacy loss";
+		err = "redundancy loss";
 		break;
 	case 20:
 		err = "reserved";
@@ -1792,56 +1791,15 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
  *	i7core_check_error	Retrieve and process errors reported by the
  *				hardware. Called by the Core module.
  */
-static void i7core_check_error(struct mem_ctl_info *mci)
+static void i7core_check_error(struct mem_ctl_info *mci, struct mce *m)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
-	int i;
-	unsigned count = 0;
-	struct mce *m;
 
-	/*
-	 * MCE first step: Copy all mce errors into a temporary buffer
-	 * We use a double buffering here, to reduce the risk of
-	 * losing an error.
-	 */
-	smp_rmb();
-	count = (pvt->mce_out + MCE_LOG_LEN - pvt->mce_in)
-		% MCE_LOG_LEN;
-	if (!count)
-		goto check_ce_error;
-
-	m = pvt->mce_outentry;
-	if (pvt->mce_in + count > MCE_LOG_LEN) {
-		unsigned l = MCE_LOG_LEN - pvt->mce_in;
-
-		memcpy(m, &pvt->mce_entry[pvt->mce_in], sizeof(*m) * l);
-		smp_wmb();
-		pvt->mce_in = 0;
-		count -= l;
-		m += l;
-	}
-	memcpy(m, &pvt->mce_entry[pvt->mce_in], sizeof(*m) * count);
-	smp_wmb();
-	pvt->mce_in += count;
-
-	smp_rmb();
-	if (pvt->mce_overrun) {
-		i7core_printk(KERN_ERR, "Lost %d memory errors\n",
-			      pvt->mce_overrun);
-		smp_wmb();
-		pvt->mce_overrun = 0;
-	}
-
-	/*
-	 * MCE second step: parse errors and display
-	 */
-	for (i = 0; i < count; i++)
-		i7core_mce_output_error(mci, &pvt->mce_outentry[i]);
+	i7core_mce_output_error(mci, m);
 
 	/*
 	 * Now, let's increment CE error counts
 	 */
-check_ce_error:
 	if (!pvt->is_registered)
 		i7core_udimm_check_mc_ecc_err(mci);
 	else
@@ -1849,12 +1807,8 @@ check_ce_error:
 }
 
 /*
- * i7core_mce_check_error	Replicates mcelog routine to get errors
- *				This routine simply queues mcelog errors, and
- *				return. The error itself should be handled later
- *				by i7core_check_error.
- * WARNING: As this routine should be called at NMI time, extra care should
- * be taken to avoid deadlocks, and to be as fast as possible.
+ * Check that logging is enabled and that this is the right type
+ * of error for us to handle.
  */
 static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 				  void *data)
@@ -1866,7 +1820,7 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 	i7_dev = get_i7core_dev(mce->socketid);
 	if (!i7_dev)
-		return NOTIFY_BAD;
+		return NOTIFY_DONE;
 
 	mci = i7_dev->mci;
 	pvt = mci->pvt_info;
@@ -1882,21 +1836,7 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if (mce->bank != 8)
 		return NOTIFY_DONE;
 
-	smp_rmb();
-	if ((pvt->mce_out + 1) % MCE_LOG_LEN == pvt->mce_in) {
-		smp_wmb();
-		pvt->mce_overrun++;
-		return NOTIFY_DONE;
-	}
-
-	/* Copy memory error at the ringbuffer */
-	memcpy(&pvt->mce_entry[pvt->mce_out], mce, sizeof(*mce));
-	smp_wmb();
-	pvt->mce_out = (pvt->mce_out + 1) % MCE_LOG_LEN;
-
-	/* Handle fatal errors immediately */
-	if (mce->mcgstatus & 1)
-		i7core_check_error(mci);
+	i7core_check_error(mci, mce);
 
 	/* Advise mcelog that the errors were handled */
 	return NOTIFY_STOP;
@@ -1904,6 +1844,7 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 static struct notifier_block i7_mce_dec = {
 	.notifier_call	= i7core_mce_check_error,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 struct memdev_dmi_entry {
@@ -2227,9 +2168,13 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i7core_edac.c";
-	mci->mod_ver = I7CORE_REVISION;
-	mci->ctl_name = kasprintf(GFP_KERNEL, "i7 core #%d",
-				  i7core_dev->socket);
+
+	mci->ctl_name = kasprintf(GFP_KERNEL, "i7 core #%d", i7core_dev->socket);
+	if (!mci->ctl_name) {
+		rc = -ENOMEM;
+		goto fail1;
+	}
+
 	mci->dev_name = pci_name(i7core_dev->pdev[0]);
 	mci->ctl_page_to_phys = NULL;
 
@@ -2243,8 +2188,6 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	get_dimm_config(mci);
 	/* record ptr to the generic device */
 	mci->pdev = &i7core_dev->pdev[0]->dev;
-	/* Set the function pointer to an actual operation function */
-	mci->edac_check = i7core_check_error;
 
 	/* Enable scrubrate setting */
 	if (pvt->enable_scrub)
@@ -2285,6 +2228,8 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 
 fail0:
 	kfree(mci->ctl_name);
+
+fail1:
 	edac_mc_free(mci);
 	i7core_dev->mci = NULL;
 	return rc;

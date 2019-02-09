@@ -56,13 +56,12 @@ static const struct file_operations r128_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG |
+	    DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG | DRIVER_LEGACY |
 	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
 	.dev_priv_size = sizeof(drm_r128_buf_priv_t),
 	.load = r128_driver_load,
 	.preclose = r128_driver_preclose,
 	.lastclose = r128_driver_lastclose,
-	.set_busid = drm_pci_set_busid,
 	.get_vblank_counter = r128_get_vblank_counter,
 	.enable_vblank = r128_enable_vblank,
 	.disable_vblank = r128_disable_vblank,
@@ -96,12 +95,12 @@ static int __init r128_init(void)
 {
 	driver.num_ioctls = r128_max_ioctl;
 
-	return drm_pci_init(&driver, &r128_pci_driver);
+	return drm_legacy_pci_init(&driver, &r128_pci_driver);
 }
 
 static void __exit r128_exit(void)
 {
-	drm_pci_exit(&driver, &r128_pci_driver);
+	drm_legacy_pci_exit(&driver, &r128_pci_driver);
 }
 
 module_init(r128_init);

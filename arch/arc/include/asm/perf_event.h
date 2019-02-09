@@ -103,7 +103,8 @@ static const char * const arc_pmu_ev_hw_map[] = {
 
 	/* counts condition */
 	[PERF_COUNT_HW_INSTRUCTIONS] = "iall",
-	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = "ijmp", /* Excludes ZOL jumps */
+	/* All jump instructions that are taken */
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = "ijmptak",
 	[PERF_COUNT_ARC_BPOK]         = "bpok",	  /* NP-NT, PT-T, PNT-NT */
 #ifdef CONFIG_ISA_ARCV2
 	[PERF_COUNT_HW_BRANCH_MISSES] = "bpmp",
@@ -118,6 +119,9 @@ static const char * const arc_pmu_ev_hw_map[] = {
 	[PERF_COUNT_ARC_ICM] = "icm",		/* I-cache Miss */
 	[PERF_COUNT_ARC_EDTLB] = "edtlb",	/* D-TLB Miss */
 	[PERF_COUNT_ARC_EITLB] = "eitlb",	/* I-TLB Miss */
+
+	[PERF_COUNT_HW_CACHE_REFERENCES] = "imemrdc",	/* Instr: mem read cached */
+	[PERF_COUNT_HW_CACHE_MISSES] = "dclm",		/* D-cache Load Miss */
 };
 
 #define C(_x)			PERF_COUNT_HW_CACHE_##_x

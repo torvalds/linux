@@ -538,7 +538,7 @@ static int read_file_interrupt(struct seq_file *file, void *data)
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		PR_IS("RXLP", rxlp);
 		PR_IS("RXHP", rxhp);
-		PR_IS("WATHDOG", bb_watchdog);
+		PR_IS("WATCHDOG", bb_watchdog);
 	} else {
 		PR_IS("RX", rxok);
 	}
@@ -600,7 +600,6 @@ static int read_file_xmit(struct seq_file *file, void *data)
 	PR("MPDUs XRetried:  ", xretries);
 	PR("Aggregates:      ", a_aggr);
 	PR("AMPDUs Queued HW:", a_queued_hw);
-	PR("AMPDUs Queued SW:", a_queued_sw);
 	PR("AMPDUs Completed:", a_completed);
 	PR("AMPDUs Retried:  ", a_retries);
 	PR("AMPDUs XRetried: ", a_xretries);
@@ -629,8 +628,7 @@ static void print_queue(struct ath_softc *sc, struct ath_txq *txq,
 	seq_printf(file, "%s: %d ", "qnum", txq->axq_qnum);
 	seq_printf(file, "%s: %2d ", "qdepth", txq->axq_depth);
 	seq_printf(file, "%s: %2d ", "ampdu-depth", txq->axq_ampdu_depth);
-	seq_printf(file, "%s: %3d ", "pending", txq->pending_frames);
-	seq_printf(file, "%s: %d\n", "stopped", txq->stopped);
+	seq_printf(file, "%s: %3d\n", "pending", txq->pending_frames);
 
 	ath_txq_unlock(sc, txq);
 }
@@ -916,10 +914,21 @@ static int open_file_regdump(struct inode *inode, struct file *file)
 	struct ath_softc *sc = inode->i_private;
 	unsigned int len = 0;
 	u8 *buf;
-	int i;
+	int i, j = 0;
 	unsigned long num_regs, regdump_len, max_reg_offset;
+	static const struct reg_hole {
+		u32 start;
+		u32 end;
+	} reg_hole_list[] = {
+		{0x0200, 0x07fc},
+		{0x0c00, 0x0ffc},
+		{0x2000, 0x3ffc},
+		{0x4100, 0x6ffc},
+		{0x705c, 0x7ffc},
+		{0x0000, 0x0000}
+	};
 
-	max_reg_offset = AR_SREV_9300_20_OR_LATER(sc->sc_ah) ? 0x16bd4 : 0xb500;
+	max_reg_offset = AR_SREV_9300_20_OR_LATER(sc->sc_ah) ? 0x8800 : 0xb500;
 	num_regs = max_reg_offset / 4 + 1;
 	regdump_len = num_regs * REGDUMP_LINE_SIZE + 1;
 	buf = vmalloc(regdump_len);
@@ -927,9 +936,16 @@ static int open_file_regdump(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	ath9k_ps_wakeup(sc);
-	for (i = 0; i < num_regs; i++)
+	for (i = 0; i < num_regs; i++) {
+		if (reg_hole_list[j].start == i << 2) {
+			i = reg_hole_list[j].end >> 2;
+			j++;
+			continue;
+		}
+
 		len += scnprintf(buf + len, regdump_len - len,
 			"0x%06x 0x%08x\n", i << 2, REG_READ(sc->sc_ah, i << 2));
+	}
 	ath9k_ps_restore(sc);
 
 	file->private_data = buf;
@@ -1151,7 +1167,7 @@ static ssize_t write_file_tpc(struct file *file, const char __user *user_buf,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 1)
+	if (val > 1)
 		return -EINVAL;
 
 	tpc_enabled = !!val;
@@ -1175,6 +1191,65 @@ static const struct file_operations fops_tpc = {
 	.llseek = default_llseek,
 };
 
+static ssize_t read_file_nf_override(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	char buf[32];
+	unsigned int len;
+
+	if (ah->nf_override == 0)
+		len = sprintf(buf, "off\n");
+	else
+		len = sprintf(buf, "%d\n", ah->nf_override);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_nf_override(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	long val;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (strncmp("off", buf, 3) == 0)
+		val = 0;
+	else if (kstrtol(buf, 0, &val))
+		return -EINVAL;
+
+	if (val > 0)
+		return -EINVAL;
+
+	if (val < -120)
+		return -EINVAL;
+
+	ah->nf_override = val;
+
+	if (ah->curchan)
+		ath9k_hw_loadnf(ah, ah->curchan);
+
+	return count;
+}
+
+static const struct file_operations fops_nf_override = {
+	.read = read_file_nf_override,
+	.write = write_file_nf_override,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 /* Ethtool support for get-stats */
 
 #define AMKSTR(nm) #nm "_BE", #nm "_BK", #nm "_VI", #nm "_VO"
@@ -1190,7 +1265,6 @@ static const char ath9k_gstrings_stats[][ETH_GSTRING_LEN] = {
 	AMKSTR(d_tx_mpdu_xretries),
 	AMKSTR(d_tx_aggregates),
 	AMKSTR(d_tx_ampdus_queued_hw),
-	AMKSTR(d_tx_ampdus_queued_sw),
 	AMKSTR(d_tx_ampdus_completed),
 	AMKSTR(d_tx_ampdu_retries),
 	AMKSTR(d_tx_ampdu_xretries),
@@ -1270,7 +1344,6 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 	AWDATA(xretries);
 	AWDATA(a_aggr);
 	AWDATA(a_queued_hw);
-	AWDATA(a_queued_sw);
 	AWDATA(a_completed);
 	AWDATA(a_retries);
 	AWDATA(a_xretries);
@@ -1312,7 +1385,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 		return -ENOMEM;
 
 #ifdef CONFIG_ATH_DEBUG
-	debugfs_create_file("debug", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("debug", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_debug);
 #endif
 
@@ -1328,14 +1401,6 @@ int ath9k_init_debug(struct ath_hw *ah)
 				    read_file_xmit);
 	debugfs_create_devm_seqfile(sc->dev, "queues", sc->debug.debugfs_phy,
 				    read_file_queues);
-	debugfs_create_u32("qlen_bk", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[IEEE80211_AC_BK]);
-	debugfs_create_u32("qlen_be", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[IEEE80211_AC_BE]);
-	debugfs_create_u32("qlen_vi", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[IEEE80211_AC_VI]);
-	debugfs_create_u32("qlen_vo", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[IEEE80211_AC_VO]);
 	debugfs_create_devm_seqfile(sc->dev, "misc", sc->debug.debugfs_phy,
 				    read_file_misc);
 	debugfs_create_devm_seqfile(sc->dev, "reset", sc->debug.debugfs_phy,
@@ -1344,22 +1409,22 @@ int ath9k_init_debug(struct ath_hw *ah)
 	ath9k_cmn_debug_recv(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
 	ath9k_cmn_debug_phy_err(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
 
-	debugfs_create_u8("rx_chainmask", S_IRUSR, sc->debug.debugfs_phy,
+	debugfs_create_u8("rx_chainmask", 0400, sc->debug.debugfs_phy,
 			  &ah->rxchainmask);
-	debugfs_create_u8("tx_chainmask", S_IRUSR, sc->debug.debugfs_phy,
+	debugfs_create_u8("tx_chainmask", 0400, sc->debug.debugfs_phy,
 			  &ah->txchainmask);
-	debugfs_create_file("ani", S_IRUSR | S_IWUSR,
+	debugfs_create_file("ani", 0600,
 			    sc->debug.debugfs_phy, sc, &fops_ani);
-	debugfs_create_bool("paprd", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_bool("paprd", 0600, sc->debug.debugfs_phy,
 			    &sc->sc_ah->config.enable_paprd);
-	debugfs_create_file("regidx", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("regidx", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_regidx);
-	debugfs_create_file("regval", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("regval", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_regval);
-	debugfs_create_bool("ignore_extcca", S_IRUSR | S_IWUSR,
+	debugfs_create_bool("ignore_extcca", 0600,
 			    sc->debug.debugfs_phy,
 			    &ah->config.cwm_ignore_extcca);
-	debugfs_create_file("regdump", S_IRUSR, sc->debug.debugfs_phy, sc,
+	debugfs_create_file("regdump", 0400, sc->debug.debugfs_phy, sc,
 			    &fops_regdump);
 	debugfs_create_devm_seqfile(sc->dev, "dump_nfcal",
 				    sc->debug.debugfs_phy,
@@ -1368,30 +1433,34 @@ int ath9k_init_debug(struct ath_hw *ah)
 	ath9k_cmn_debug_base_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
 	ath9k_cmn_debug_modal_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
 
-	debugfs_create_u32("gpio_mask", S_IRUSR | S_IWUSR,
+	debugfs_create_u32("gpio_mask", 0600,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);
-	debugfs_create_u32("gpio_val", S_IRUSR | S_IWUSR,
+	debugfs_create_u32("gpio_val", 0600,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
-	debugfs_create_file("antenna_diversity", S_IRUSR,
+	debugfs_create_file("antenna_diversity", 0400,
 			    sc->debug.debugfs_phy, sc, &fops_antenna_diversity);
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
-	debugfs_create_file("bt_ant_diversity", S_IRUSR | S_IWUSR,
+	debugfs_create_file("bt_ant_diversity", 0600,
 			    sc->debug.debugfs_phy, sc, &fops_bt_ant_diversity);
-	debugfs_create_file("btcoex", S_IRUSR, sc->debug.debugfs_phy, sc,
+	debugfs_create_file("btcoex", 0400, sc->debug.debugfs_phy, sc,
 			    &fops_btcoex);
 #endif
 
 #ifdef CONFIG_ATH9K_WOW
-	debugfs_create_file("wow", S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc, &fops_wow);
+	debugfs_create_file("wow", 0600, sc->debug.debugfs_phy, sc, &fops_wow);
 #endif
 
 #ifdef CONFIG_ATH9K_DYNACK
-	debugfs_create_file("ack_to", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("ack_to", 0400, sc->debug.debugfs_phy,
 			    sc, &fops_ackto);
 #endif
-	debugfs_create_file("tpc", S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc, &fops_tpc);
+	debugfs_create_file("tpc", 0600, sc->debug.debugfs_phy, sc, &fops_tpc);
+
+	debugfs_create_u16("airtime_flags", 0600,
+			   sc->debug.debugfs_phy, &sc->airtime_flags);
+
+	debugfs_create_file("nf_override", 0600,
+			    sc->debug.debugfs_phy, sc, &fops_nf_override);
 
 	return 0;
 }

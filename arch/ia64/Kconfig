@@ -1,11 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
 config PGTABLE_LEVELS
 	int "Page Table Levels" if !IA64_PAGE_SIZE_64KB
 	range 3 4 if !IA64_PAGE_SIZE_64KB
 	default 3
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -15,9 +12,11 @@ config IA64
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select PCI if (!IA64_HP_SIM)
 	select ACPI if (!IA64_HP_SIM)
+	select ARCH_SUPPORTS_ACPI if (!IA64_HP_SIM)
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT if ACPI
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
 	select HAVE_UNSTABLE_SCHED_CLOCK
+	select HAVE_EXIT_THREAD
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
@@ -25,13 +24,13 @@ config IA64
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE if (!ITANIUM)
 	select HAVE_FUNCTION_TRACER
-	select HAVE_DMA_ATTRS
 	select TTY
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_DMA_API_DEBUG
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
+	select NO_BOOTMEM
 	select HAVE_VIRT_CPU_ACCOUNTING
+	select ARCH_HAS_DMA_MARK_CLEAN
 	select ARCH_HAS_SG_CHAIN
 	select VIRT_TO_BUS
 	select ARCH_DISCARD_MEMBLOCK
@@ -39,20 +38,21 @@ config IA64
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IRQ_LEGACY
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_IOMAP
 	select GENERIC_SMP_IDLE_THREAD
-	select ARCH_INIT_TASK
+	select ARCH_TASK_STRUCT_ON_STACK
 	select ARCH_TASK_STRUCT_ALLOCATOR
-	select ARCH_THREAD_INFO_ALLOCATOR
+	select ARCH_THREAD_STACK_ALLOCATOR
 	select ARCH_CLOCKSOURCE_DATA
-	select GENERIC_TIME_VSYSCALL_OLD
+	select GENERIC_TIME_VSYSCALL
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select HAVE_ARCH_AUDITSYSCALL
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -65,7 +65,7 @@ config 64BIT
 	select ATA_NONSTANDARD if ATA
 	default y
 
-config ZONE_DMA
+config ZONE_DMA32
 	def_bool y
 	depends on !IA64_SGI_SN2
 
@@ -76,18 +76,6 @@ config QUICKLIST
 config MMU
 	bool
 	default y
-
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-
-config NEED_DMA_MAP_STATE
-	def_bool y
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
-
-config SWIOTLB
-       bool
 
 config STACKTRACE_SUPPORT
 	def_bool y
@@ -378,10 +366,6 @@ config FORCE_CPEI_RETARGET
 	This option it useful to enable this feature on older BIOS's as well.
 	You can also enable this by using boot command line option force_cpei=1.
 
-source "kernel/Kconfig.preempt"
-
-source "mm/Kconfig"
-
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 
@@ -391,7 +375,7 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  Say Y to support efficient handling of discontiguous physical memory,
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
- 	  See <file:Documentation/vm/numa> for more.
+	  See <file:Documentation/vm/numa.rst> for more.
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
@@ -465,6 +449,7 @@ config IA64_MCA_RECOVERY
 
 config PERFMON
 	bool "Performance monitor support"
+	depends on BROKEN
 	help
 	  Selects whether support for the IA-64 performance monitor hardware
 	  is included in the kernel.  This makes some kernel data-structures a
@@ -541,8 +526,6 @@ config CRASH_DUMP
 
 source "drivers/firmware/Kconfig"
 
-source "fs/Kconfig.binfmt"
-
 endmenu
 
 menu "Power management and ACPI options"
@@ -575,21 +558,13 @@ config PCI_DOMAINS
 config PCI_SYSCALL
 	def_bool PCI
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
 
 endmenu
 
 endif
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
 
 source "arch/ia64/hp/sim/Kconfig"
 
@@ -601,16 +576,3 @@ config MSPEC
 	  If you have an ia64 and you want to enable memory special
 	  operations support (formerly known as fetchop), say Y here,
 	  otherwise say N.
-
-source "fs/Kconfig"
-
-source "arch/ia64/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
-
-config IOMMU_HELPER
-	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC || SWIOTLB)

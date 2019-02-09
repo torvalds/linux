@@ -1,0 +1,166 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier LD11 Global Board
+//
+// Copyright (C) 2016-2017 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
+//           Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+
+/dts-v1/;
+#include <dt-bindings/gpio/uniphier-gpio.h>
+#include "uniphier-ld11.dtsi"
+
+/ {
+	model = "UniPhier LD11 Global Board (REF_LD11_GP)";
+	compatible = "socionext,uniphier-ld11-global",
+		     "socionext,uniphier-ld11";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
+		serial2 = &serial2;
+		serial3 = &serial3;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0 0x80000000 0 0x40000000>;
+	};
+
+	dvdd_reg: reg-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "DVDD";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	amp_vcc_reg: reg-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "AMP_VCC";
+		regulator-min-microvolt = <24000000>;
+		regulator-max-microvolt = <24000000>;
+	};
+
+	sound {
+		compatible = "audio-graph-card";
+		label = "UniPhier LD11";
+		widgets = "Headphone", "Headphones";
+		dais = <&i2s_port2
+			&i2s_port3
+			&i2s_port4
+			&spdif_port0
+			&comp_spdif_port0>;
+		hp-det-gpio = <&gpio UNIPHIER_GPIO_IRQ(0) GPIO_ACTIVE_LOW>;
+	};
+
+	spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+
+		port@0 {
+			spdif_tx: endpoint {
+				remote-endpoint = <&spdif_hiecout1>;
+			};
+		};
+	};
+
+	comp-spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+
+		port@0 {
+			comp_spdif_tx: endpoint {
+				remote-endpoint = <&comp_spdif_hiecout1>;
+			};
+		};
+	};
+};
+
+&serial0 {
+	status = "okay";
+};
+
+&serial1 {
+	status = "okay";
+};
+
+&i2s_hpcmout1 {
+	dai-format = "i2s";
+	remote-endpoint = <&tas_speaker>;
+};
+
+&spdif_hiecout1 {
+	remote-endpoint = <&spdif_tx>;
+};
+
+&comp_spdif_hiecout1 {
+	remote-endpoint = <&comp_spdif_tx>;
+};
+
+&i2c0 {
+	status = "okay";
+
+	tas5707a@1d {
+		compatible = "ti,tas5711";
+		reg = <0x1d>;
+		reset-gpios = <&gpio UNIPHIER_GPIO_PORT(23, 4) GPIO_ACTIVE_LOW>;
+		pdn-gpios = <&gpio UNIPHIER_GPIO_PORT(23, 5) GPIO_ACTIVE_LOW>;
+		#sound-dai-cells = <0>;
+		AVDD-supply = <&dvdd_reg>;
+		DVDD-supply = <&dvdd_reg>;
+		PVDD_A-supply = <&amp_vcc_reg>;
+		PVDD_B-supply = <&amp_vcc_reg>;
+		PVDD_C-supply = <&amp_vcc_reg>;
+		PVDD_D-supply = <&amp_vcc_reg>;
+
+		port@0 {
+			tas_speaker: endpoint {
+				dai-format = "i2s";
+				remote-endpoint = <&i2s_hpcmout1>;
+			};
+		};
+	};
+
+	eeprom@50 {
+		compatible = "st,24c64", "atmel,24c64";
+		reg = <0x50>;
+		pagesize = <32>;
+	};
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+
+&usb2 {
+	status = "okay";
+};
+
+&eth {
+	status = "okay";
+	phy-handle = <&ethphy>;
+};
+
+&mdio {
+	ethphy: ethphy@1 {
+		reg = <1>;
+	};
+};
+
+&nand {
+	status = "okay";
+};

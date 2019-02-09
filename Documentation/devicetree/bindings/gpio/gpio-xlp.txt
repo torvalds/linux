@@ -3,6 +3,8 @@ Netlogic XLP Family GPIO
 
 This GPIO driver is used for following Netlogic XLP SoCs:
 	XLP832, XLP316, XLP208, XLP980, XLP532
+This GPIO driver is also compatible with GPIO controller found on
+Broadcom Vulcan ARM64.
 
 Required properties:
 -------------------
@@ -13,6 +15,7 @@ Required properties:
   - "netlogic,xlp208-gpio": For Netlogic XLP208
   - "netlogic,xlp980-gpio": For Netlogic XLP980
   - "netlogic,xlp532-gpio": For Netlogic XLP532
+  - "brcm,vulcan-gpio": For Broadcom Vulcan ARM64
 - reg: Physical base address and length of the controller's registers.
 - #gpio-cells: Should be two. The first cell is the pin number and the second
   cell is used to specify optional parameters (currently unused).
@@ -27,7 +30,6 @@ Required properties:
 	4 = active high level-sensitive.
 	8 = active low level-sensitive.
 - interrupts: Interrupt number for this device.
-- interrupt-parent: phandle of the parent interrupt controller.
 - interrupt-controller: Identifies the node as an interrupt controller.
 
 Example:

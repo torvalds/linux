@@ -34,7 +34,8 @@ module_param(emulate_scroll_wheel, bool, 0644);
 MODULE_PARM_DESC(emulate_scroll_wheel, "Emulate a scroll wheel");
 
 static unsigned int scroll_speed = 32;
-static int param_set_scroll_speed(const char *val, struct kernel_param *kp) {
+static int param_set_scroll_speed(const char *val,
+				  const struct kernel_param *kp) {
 	unsigned long speed;
 	if (!val || kstrtoul(val, 0, &speed) || speed > 63)
 		return -EINVAL;
@@ -493,7 +494,8 @@ static int magicmouse_input_configured(struct hid_device *hdev,
 static int magicmouse_probe(struct hid_device *hdev,
 	const struct hid_device_id *id)
 {
-	__u8 feature[] = { 0xd7, 0x01 };
+	const u8 feature[] = { 0xd7, 0x01 };
+	u8 *buf;
 	struct magicmouse_sc *msc;
 	struct hid_report *report;
 	int ret;
@@ -529,12 +531,12 @@ static int magicmouse_probe(struct hid_device *hdev,
 
 	if (id->product == USB_DEVICE_ID_APPLE_MAGICMOUSE)
 		report = hid_register_report(hdev, HID_INPUT_REPORT,
-			MOUSE_REPORT_ID);
+			MOUSE_REPORT_ID, 0);
 	else { /* USB_DEVICE_ID_APPLE_MAGICTRACKPAD */
 		report = hid_register_report(hdev, HID_INPUT_REPORT,
-			TRACKPAD_REPORT_ID);
+			TRACKPAD_REPORT_ID, 0);
 		report = hid_register_report(hdev, HID_INPUT_REPORT,
-			DOUBLE_REPORT_ID);
+			DOUBLE_REPORT_ID, 0);
 	}
 
 	if (!report) {
@@ -544,6 +546,12 @@ static int magicmouse_probe(struct hid_device *hdev,
 	}
 	report->size = 6;
 
+	buf = kmemdup(feature, sizeof(feature), GFP_KERNEL);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto err_stop_hw;
+	}
+
 	/*
 	 * Some devices repond with 'invalid report id' when feature
 	 * report switching it into multitouch mode is sent to it.
@@ -552,8 +560,9 @@ static int magicmouse_probe(struct hid_device *hdev,
 	 * but there seems to be no other way of switching the mode.
 	 * Thus the super-ugly hacky success check below.
 	 */
-	ret = hid_hw_raw_request(hdev, feature[0], feature, sizeof(feature),
+	ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(feature),
 				HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+	kfree(buf);
 	if (ret != -EIO && ret != sizeof(feature)) {
 		hid_err(hdev, "unable to request touch data (%d)\n", ret);
 		goto err_stop_hw;

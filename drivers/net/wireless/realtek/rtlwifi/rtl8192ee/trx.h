@@ -26,24 +26,6 @@
 #ifndef __RTL92E_TRX_H__
 #define __RTL92E_TRX_H__
 
-#if (DMA_IS_64BIT == 1)
-#if (RTL8192EE_SEG_NUM == 2)
-#define TX_BD_DESC_SIZE					128
-#elif (RTL8192EE_SEG_NUM == 1)
-#define TX_BD_DESC_SIZE					64
-#elif (RTL8192EE_SEG_NUM == 0)
-#define TX_BD_DESC_SIZE					32
-#endif
-#else
-#if (RTL8192EE_SEG_NUM == 2)
-#define TX_BD_DESC_SIZE					64
-#elif (RTL8192EE_SEG_NUM == 1)
-#define TX_BD_DESC_SIZE					32
-#elif (RTL8192EE_SEG_NUM == 0)
-#define TX_BD_DESC_SIZE					16
-#endif
-#endif
-
 #define TX_DESC_SIZE					64
 
 #define RX_DRV_INFO_SIZE_UNIT				8
@@ -159,7 +141,7 @@
 #define SET_TX_DESC_NULL_0(__pdesc, __val)		\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 14, 1, __val)
 #define SET_TX_DESC_NULL_1(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+8, 15, 1, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 8, 15, 1, __val)
 #define SET_TX_DESC_BK(__pdesc, __val)			\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 16, 1, __val)
 #define SET_TX_DESC_MORE_FRAG(__pdesc, __val)		\
@@ -167,7 +149,7 @@
 #define SET_TX_DESC_RAW(__pdesc, __val)			\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 18, 1, __val)
 #define SET_TX_DESC_SPE_RPT(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+8, 19, 1, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 8, 19, 1, __val)
 #define SET_TX_DESC_AMPDU_DENSITY(__pdesc, __val)	\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 20, 3, __val)
 #define SET_TX_DESC_BT_NULL(__pdesc, __val)		\
@@ -252,15 +234,15 @@
 
 /* Dword 6 */
 #define SET_TX_DESC_SW_DEFINE(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+24, 0, 12, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 0, 12, __val)
 #define SET_TX_DESC_ANTSEL_A(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+24, 16, 3, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 16, 3, __val)
 #define SET_TX_DESC_ANTSEL_B(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+24, 19, 3, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 19, 3, __val)
 #define SET_TX_DESC_ANTSEL_C(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+24, 22, 3, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 22, 3, __val)
 #define SET_TX_DESC_ANTSEL_D(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+24, 25, 3, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 25, 3, __val)
 
 /* Dword 7 */
 #define SET_TX_DESC_TX_BUFFER_SIZE(__pdesc, __val)	\
@@ -331,111 +313,34 @@
 	SET_BITS_TO_LE_4BYTE(__pdesc+(__set*16)+8, 0, 32, __val)
 
 /* for Txfilldescroptor92ee, fill the desc content. */
-#if (DMA_IS_64BIT == 1)
-#define SET_TXBUFFER_DESC_LEN_WITH_OFFSET(__pdesc, __offset, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+(__offset*16), 0, 16, __val)
-#define SET_TXBUFFER_DESC_AMSDU_WITH_OFFSET(__pdesc, __offset, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+(__offset*16), 31, 1, __val)
-#define SET_TXBUFFER_DESC_ADD_LOW_WITH_OFFSET(__pdesc, __offset, __val) \
-	SET_BITS_TO_LE_4BYTE(__pdesc+(__offset*16)+4, 0, 32, __val)
-#define SET_TXBUFFER_DESC_ADD_HIGT_WITH_OFFSET(__pdesc, __offset, __val)\
-	SET_BITS_TO_LE_4BYTE(__pdesc+(__offset*16)+8, 0, 32, __val)
-#define GET_TXBUFFER_DESC_ADDR_LOW(__pdesc, __offset)			\
-	LE_BITS_TO_4BYTE(__pdesc+(__offset*16)+4, 0, 32)
-#else
-#define SET_TXBUFFER_DESC_LEN_WITH_OFFSET(__pdesc, __offset, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+(__offset*8), 0, 16, __val)
-#define SET_TXBUFFER_DESC_AMSDU_WITH_OFFSET(__pdesc, __offset, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+(__offset*8), 31, 1, __val)
-#define SET_TXBUFFER_DESC_ADD_LOW_WITH_OFFSET(__pdesc, __offset, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+(__offset*8)+4, 0, 32, __val)
-#define SET_TXBUFFER_DESC_ADD_HIGT_WITH_OFFSET(__pdesc, __offset, __val)
-#define GET_TXBUFFER_DESC_ADDR_LOW(__pdesc, __offset)			\
-	LE_BITS_TO_4BYTE(__pdesc+(__offset*8)+4, 0, 32)
-#endif
+#define SET_TXBUFFER_DESC_LEN_WITH_OFFSET(__pdesc, __offset, __val)            \
+	SET_BITS_TO_LE_4BYTE((__pdesc) + ((__offset) * 16), 0, 16, __val)
+#define SET_TXBUFFER_DESC_AMSDU_WITH_OFFSET(__pdesc, __offset, __val)          \
+	SET_BITS_TO_LE_4BYTE((__pdesc) + ((__offset) * 16), 31, 1, __val)
+#define SET_TXBUFFER_DESC_ADD_LOW_WITH_OFFSET(__pdesc, __offset, __val)        \
+	SET_BITS_TO_LE_4BYTE((__pdesc) + ((__offset) * 16) + 4, 0, 32, __val)
+#define SET_TXBUFFER_DESC_ADD_HIGH_WITH_OFFSET(pbd, off, val, dma64)	       \
+	(dma64 ? SET_BITS_TO_LE_4BYTE((pbd) + ((off) * 16) + 8, 0, 32, val) : 0)
+#define GET_TXBUFFER_DESC_ADDR_LOW(__pdesc, __offset)                          \
+	LE_BITS_TO_4BYTE((__pdesc) + ((__offset) * 16) + 4, 0, 32)
+#define GET_TXBUFFER_DESC_ADDR_HIGH(pbd, off, dma64)			       \
+	(dma64 ? LE_BITS_TO_4BYTE((pbd) + ((off) * 16) + 8, 0, 32) : 0)
 
 /* Dword 0 */
-#define SET_TX_BUFF_DESC_LEN_0(__pdesc, __val)		\
+#define SET_TX_BUFF_DESC_LEN_0(__pdesc, __val)                                 \
 	SET_BITS_TO_LE_4BYTE(__pdesc, 0, 14, __val)
-#define SET_TX_BUFF_DESC_PSB(__pdesc, __val)		\
+#define SET_TX_BUFF_DESC_PSB(__pdesc, __val)                                   \
 	SET_BITS_TO_LE_4BYTE(__pdesc, 16, 15, __val)
-#define SET_TX_BUFF_DESC_OWN(__pdesc, __val)		\
+#define SET_TX_BUFF_DESC_OWN(__pdesc, __val)                                   \
 	SET_BITS_TO_LE_4BYTE(__pdesc, 31, 1, __val)
 
 /* Dword 1 */
-#define SET_TX_BUFF_DESC_ADDR_LOW_0(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+4, 0, 32, __val)
-#if (DMA_IS_64BIT == 1)
+#define SET_TX_BUFF_DESC_ADDR_LOW_0(__pdesc, __val)                            \
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 4, 0, 32, __val)
 /* Dword 2 */
-#define SET_TX_BUFF_DESC_ADDR_HIGH_0(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+8, 0, 32, __val)
+#define SET_TX_BUFF_DESC_ADDR_HIGH_0(bdesc, val, dma64)			       \
+	SET_TXBUFFER_DESC_ADD_HIGH_WITH_OFFSET(bdesc, 0, val, dma64)
 /* Dword 3 / RESERVED 0 */
-/* Dword 4 */
-#define SET_TX_BUFF_DESC_LEN_1(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+16, 0, 16, __val)
-#define SET_TX_BUFF_DESC_AMSDU_1(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+16, 31, 1, __val)
-/* Dword 5 */
-#define SET_TX_BUFF_DESC_ADDR_LOW_1(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+20, 0, 32, __val)
-/* Dword 6 */
-#define SET_TX_BUFF_DESC_ADDR_HIGH_1(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+24, 0, 32, __val)
-/* Dword 7 / RESERVED 0 */
-/* Dword 8 */
-#define SET_TX_BUFF_DESC_LEN_2(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+32, 0, 16, __val)
-#define SET_TX_BUFF_DESC_AMSDU_2(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+32, 31, 1, __val)
-/* Dword 9 */
-#define SET_TX_BUFF_DESC_ADDR_LOW_2(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+36, 0, 32, __val)
-/* Dword 10 */
-#define SET_TX_BUFF_DESC_ADDR_HIGH_2(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+40, 0, 32, __val)
-/* Dword 11 / RESERVED 0 */
-/* Dword 12 */
-#define SET_TX_BUFF_DESC_LEN_3(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+48, 0, 16, __val)
-#define SET_TX_BUFF_DESC_AMSDU_3(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+48, 31, 1, __val)
-/* Dword 13 */
-#define SET_TX_BUFF_DESC_ADDR_LOW_3(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+52, 0, 32, __val)
-/* Dword 14 */
-#define SET_TX_BUFF_DESC_ADDR_HIGH_3(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+56, 0, 32, __val)
-/* Dword 15 / RESERVED 0 */
-#else
-#define SET_TX_BUFF_DESC_ADDR_HIGH_0(__pdesc, __val)
-/* Dword 2 */
-#define SET_TX_BUFF_DESC_LEN_1(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+8, 0, 16, __val)
-#define SET_TX_BUFF_DESC_AMSDU_1(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+8, 31, 1, __val)
-/* Dword 3 */
-#define SET_TX_BUFF_DESC_ADDR_LOW_1(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+12, 0, 32, __val)
-#define SET_TX_BUFF_DESC_ADDR_HIGH_1(__pdesc, __val)
-/* Dword 4 */
-#define SET_TX_BUFF_DESC_LEN_2(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+16, 0, 16, __val)
-#define SET_TX_BUFF_DESC_AMSDU_2(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+16, 31, 1, __val)
-/* Dword 5 */
-#define SET_TX_BUFF_DESC_ADDR_LOW_2(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+20, 0, 32, __val)
-#define SET_TX_BUFF_DESC_ADDR_HIGH_2(__pdesc, __val)
-/* Dword 6 */
-#define SET_TX_BUFF_DESC_LEN_3(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+24, 0, 16, __val)
-#define SET_TX_BUFF_DESC_AMSDU_3(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+24, 31, 1, __val)
-/* Dword 7 */
-#define SET_TX_BUFF_DESC_ADDR_LOW_3(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+28, 0, 32, __val)
-#define SET_TX_BUFF_DESC_ADDR_HIGH_3(__pdesc, __val)
-#endif
 
 /* RX buffer  */
 
@@ -463,8 +368,8 @@
 	SET_BITS_TO_LE_4BYTE(__status+4, 0, 32, __val)
 
 /* DWORD 2 */
-#define SET_RX_BUFFER_PHYSICAL_HIGH(__status, __val)	\
-	SET_BITS_TO_LE_4BYTE(__status+8, 0, 32, __val)
+#define SET_RX_BUFFER_PHYSICAL_HIGH(__rx_status_desc, __val, dma64)            \
+	(dma64 ? SET_BITS_TO_LE_4BYTE((__rx_status_desc) + 8, 0, 32, __val) : 0)
 
 #define GET_RX_DESC_PKT_LEN(__pdesc)			\
 	LE_BITS_TO_4BYTE(__pdesc, 0, 14)
@@ -650,8 +555,8 @@ struct rx_fwinfo {
 	u8 pwdb_all;
 	u8 cfosho[4];
 	u8 cfotail[4];
-	char rxevm[2];
-	char rxsnr[4];
+	s8 rxevm[2];
+	s8 rxsnr[4];
 	u8 pdsnr[2];
 	u8 csi_current[2];
 	u8 csi_target[2];
@@ -850,13 +755,11 @@ bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 void rtl92ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 		      u8 desc_name, u8 *val);
 
-u32 rtl92ee_get_desc(u8 *pdesc, bool istx, u8 desc_name);
+u64 rtl92ee_get_desc(struct ieee80211_hw *hw,
+		     u8 *pdesc, bool istx, u8 desc_name);
 bool rtl92ee_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue, u16 index);
 void rtl92ee_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);
 void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 			     bool firstseg, bool lastseg,
 			     struct sk_buff *skb);
-u32 rtl92ee_rx_command_packet(struct ieee80211_hw *hw,
-			      struct rtl_stats status,
-			      struct sk_buff *skb);
 #endif

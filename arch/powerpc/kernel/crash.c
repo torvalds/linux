@@ -23,7 +23,6 @@
 #include <asm/processor.h>
 #include <asm/machdep.h>
 #include <asm/kexec.h>
-#include <asm/kdump.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/setjmp.h>
@@ -43,13 +42,19 @@
 #define IPI_TIMEOUT		10000
 #define REAL_MODE_TIMEOUT	10000
 
-/* This keeps a track of which one is the crashing cpu. */
-int crashing_cpu = -1;
 static int time_to_dump;
+/*
+ * crash_wake_offline should be set to 1 by platforms that intend to wake
+ * up offline cpus prior to jumping to a kdump kernel. Currently powernv
+ * sets it to 1, since we want to avoid things from happening when an
+ * offline CPU wakes up due to something like an HMI (malfunction error),
+ * which propagates to all threads.
+ */
+int crash_wake_offline;
 
 #define CRASH_HANDLER_MAX 3
-/* NULL terminated list of shutdown handles */
-static crash_shutdown_t crash_shutdown_handles[CRASH_HANDLER_MAX+1];
+/* List of shutdown handles */
+static crash_shutdown_t crash_shutdown_handles[CRASH_HANDLER_MAX];
 static DEFINE_SPINLOCK(crash_handlers_lock);
 
 static unsigned long crash_shutdown_buf[JMP_BUF_LEN];
@@ -70,9 +75,6 @@ void crash_ipi_callback(struct pt_regs *regs)
 	static cpumask_t cpus_state_saved = CPU_MASK_NONE;
 
 	int cpu = smp_processor_id();
-
-	if (!cpu_online(cpu))
-		return;
 
 	hard_irq_disable();
 	if (!cpumask_test_cpu(cpu, &cpus_state_saved)) {
@@ -110,6 +112,9 @@ static void crash_kexec_prepare_cpus(int cpu)
 	int (*old_handler)(struct pt_regs *regs);
 
 	printk(KERN_EMERG "Sending IPI to other CPUs\n");
+
+	if (crash_wake_offline)
+		ncpus = num_present_cpus() - 1;
 
 	crash_send_ipi(crash_ipi_callback);
 	smp_wmb();
@@ -232,7 +237,7 @@ static void __maybe_unused crash_kexec_wait_realmode(int cpu)
 		if (i == cpu)
 			continue;
 
-		while (paca[i].kexec_state < KEXEC_STATE_REAL_MODE) {
+		while (paca_ptrs[i]->kexec_state < KEXEC_STATE_REAL_MODE) {
 			barrier();
 			if (!cpu_possible(i) || !cpu_online(i) || (msecs <= 0))
 				break;
@@ -288,9 +293,14 @@ int crash_shutdown_unregister(crash_shutdown_t handler)
 		rc = 1;
 	} else {
 		/* Shift handles down */
-		for (; crash_shutdown_handles[i]; i++)
+		for (; i < (CRASH_HANDLER_MAX - 1); i++)
 			crash_shutdown_handles[i] =
 				crash_shutdown_handles[i+1];
+		/*
+		 * Reset last entry to NULL now that it has been shifted down,
+		 * this will allow new handles to be added here.
+		 */
+		crash_shutdown_handles[i] = NULL;
 		rc = 0;
 	}
 
@@ -346,7 +356,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	old_handler = __debugger_fault_handler;
 	__debugger_fault_handler = handle_fault;
 	crash_shutdown_cpu = smp_processor_id();
-	for (i = 0; crash_shutdown_handles[i]; i++) {
+	for (i = 0; i < CRASH_HANDLER_MAX && crash_shutdown_handles[i]; i++) {
 		if (setjmp(crash_shutdown_buf) == 0) {
 			/*
 			 * Insert syncs and delay to ensure

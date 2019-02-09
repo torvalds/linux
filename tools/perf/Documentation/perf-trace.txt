@@ -35,9 +35,17 @@ OPTIONS
 
 -e::
 --expr::
-	List of syscalls to show, currently only syscall names.
+--event::
+	List of syscalls and other perf events (tracepoints, HW cache events,
+	etc) to show. Globbing is supported, e.g.: "epoll_*", "*msg*", etc.
+	See 'perf list' for a complete list of events.
 	Prefixing with ! shows all syscalls but the ones specified.  You may
 	need to escape it.
+
+-D msecs::
+--delay msecs::
+After starting the program, wait msecs before measuring. This is useful to
+filter out the startup phase of the program, which is often very different.
 
 -o::
 --output=::
@@ -54,6 +62,31 @@ OPTIONS
 -u::
 --uid=::
         Record events in threads owned by uid. Name or number.
+
+-G::
+--cgroup::
+	Record events in threads in a cgroup.
+
+	Look for cgroups to set at the /sys/fs/cgroup/perf_event directory, then
+	remove the /sys/fs/cgroup/perf_event/ part and try:
+
+		perf trace -G A -e sched:*switch
+
+	Will set all raw_syscalls:sys_{enter,exit}, pgfault, vfs_getname, etc
+	_and_ sched:sched_switch to the 'A' cgroup, while:
+
+		perf trace -e sched:*switch -G A
+
+	will only set the sched:sched_switch event to the 'A' cgroup, all the
+	other events (raw_syscalls:sys_{enter,exit}, etc are left "without"
+	a cgroup (on the root cgroup, sys wide, etc).
+
+	Multiple cgroups:
+
+		perf trace -G A -e sched:*switch -G B
+
+	the syscall ones go to the 'A' cgroup, the sched:sched_switch goes
+	to the 'B' cgroup.
 
 --filter-pids=::
 	Filter out events for these pids and for 'trace' itself (comma separated list).
@@ -78,18 +111,21 @@ comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-
 In per-thread mode with inheritance mode on (default), Events are captured only when
 the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
---duration:
+--duration::
 	Show only events that had a duration greater than N.M ms.
 
---sched:
+--sched::
 	Accrue thread runtime and provide a summary at the end of the session.
 
--i
---input
+--failure::
+	Show only syscalls that failed, i.e. that returned < 0.
+
+-i::
+--input::
 	Process events from a given perf data file.
 
--T
---time
+-T::
+--time::
 	Print full timestamp rather time relative to first sample.
 
 --comm::
@@ -109,16 +145,55 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	Show tool stats such as number of times fd->pathname was discovered thru
 	hooking the open syscall return + vfs_getname or via reading /proc/pid/fd, etc.
 
+-f::
+--force::
+	Don't complain, do it.
+
 -F=[all|min|maj]::
 --pf=[all|min|maj]::
 	Trace pagefaults. Optionally, you can specify whether you want minor,
 	major or all pagefaults. Default value is maj.
 
 --syscalls::
-	Trace system calls. This options is enabled by default.
+	Trace system calls. This options is enabled by default, disable with
+	--no-syscalls.
 
---event::
-	Trace other events, see 'perf list' for a complete list.
+--call-graph [mode,type,min[,limit],order[,key][,branch]]::
+        Setup and enable call-graph (stack chain/backtrace) recording.
+        See `--call-graph` section in perf-record and perf-report
+        man pages for details. The ones that are most useful in 'perf trace'
+        are 'dwarf' and 'lbr', where available, try: 'perf trace --call-graph dwarf'.
+
+        Using this will, for the root user, bump the value of --mmap-pages to 4
+        times the maximum for non-root users, based on the kernel.perf_event_mlock_kb
+        sysctl. This is done only if the user doesn't specify a --mmap-pages value.
+
+--kernel-syscall-graph::
+	 Show the kernel callchains on the syscall exit path.
+
+--max-stack::
+        Set the stack depth limit when parsing the callchain, anything
+        beyond the specified depth will be ignored. Note that at this point
+        this is just about the presentation part, i.e. the kernel is still
+        not limiting, the overhead of callchains needs to be set via the
+        knobs in --call-graph dwarf.
+
+        Implies '--call-graph dwarf' when --call-graph not present on the
+        command line, on systems where DWARF unwinding was built in.
+
+        Default: /proc/sys/kernel/perf_event_max_stack when present for
+                 live sessions (without --input/-i), 127 otherwise.
+
+--min-stack::
+        Set the stack depth limit when parsing the callchain, anything
+        below the specified depth will be ignored. Disabled by default.
+
+        Implies '--call-graph dwarf' when --call-graph not present on the
+        command line, on systems where DWARF unwinding was built in.
+
+--print-sample::
+	Print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info for the
+	raw_syscalls:sys_{enter,exit} tracepoints, for debugging.
 
 --proc-map-timeout::
 	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,

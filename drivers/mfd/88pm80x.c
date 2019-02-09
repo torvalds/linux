@@ -135,7 +135,7 @@ EXPORT_SYMBOL_GPL(pm80x_deinit);
 #ifdef CONFIG_PM_SLEEP
 static int pm80x_suspend(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pm80x_chip *chip = i2c_get_clientdata(client);
 
 	if (chip && chip->wu_flag)
@@ -147,7 +147,7 @@ static int pm80x_suspend(struct device *dev)
 
 static int pm80x_resume(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pm80x_chip *chip = i2c_get_clientdata(client);
 
 	if (chip && chip->wu_flag)

@@ -17,6 +17,8 @@
  * @MCDI_STATE_RUNNING_SYNC: There is a synchronous MCDI request pending.
  *	Only the thread that moved into this state is allowed to move out of it.
  * @MCDI_STATE_RUNNING_ASYNC: There is an asynchronous MCDI request pending.
+ * @MCDI_STATE_PROXY_WAIT: An MCDI request has completed with a response that
+ *	indicates we must wait for a proxy try again message.
  * @MCDI_STATE_COMPLETED: An MCDI request has completed, but the owning thread
  *	has not yet consumed the result. For all other threads, equivalent to
  *	%MCDI_STATE_RUNNING.
@@ -25,6 +27,7 @@ enum efx_mcdi_state {
 	MCDI_STATE_QUIESCENT,
 	MCDI_STATE_RUNNING_SYNC,
 	MCDI_STATE_RUNNING_ASYNC,
+	MCDI_STATE_PROXY_WAIT,
 	MCDI_STATE_COMPLETED,
 };
 
@@ -60,6 +63,9 @@ enum efx_mcdi_mode {
  * @async_timer: Timer for asynchronous request timeout
  * @logging_buffer: buffer that may be used to build MCDI tracing messages
  * @logging_enabled: whether to trace MCDI
+ * @proxy_rx_handle: Most recently received proxy authorisation handle
+ * @proxy_rx_status: Status of most recent proxy authorisation
+ * @proxy_rx_wq: Wait queue for updates to proxy_rx_handle
  */
 struct efx_mcdi_iface {
 	struct efx_nic *efx;
@@ -71,6 +77,7 @@ struct efx_mcdi_iface {
 	unsigned int credits;
 	unsigned int seqno;
 	int resprc;
+	int resprc_raw;
 	size_t resp_hdr_len;
 	size_t resp_data_len;
 	spinlock_t async_lock;
@@ -80,6 +87,9 @@ struct efx_mcdi_iface {
 	char *logging_buffer;
 	bool logging_enabled;
 #endif
+	unsigned int proxy_rx_handle;
+	int proxy_rx_status;
+	wait_queue_head_t proxy_rx_wq;
 };
 
 struct efx_mcdi_mon {
@@ -119,19 +129,20 @@ struct efx_mcdi_data {
 
 static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
 {
-	EFX_BUG_ON_PARANOID(!efx->mcdi);
+	EFX_WARN_ON_PARANOID(!efx->mcdi);
 	return &efx->mcdi->iface;
 }
 
 #ifdef CONFIG_SFC_MCDI_MON
 static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
 {
-	EFX_BUG_ON_PARANOID(!efx->mcdi);
+	EFX_WARN_ON_PARANOID(!efx->mcdi);
 	return &efx->mcdi->hwmon;
 }
 #endif
 
 int efx_mcdi_init(struct efx_nic *efx);
+void efx_mcdi_detach(struct efx_nic *efx);
 void efx_mcdi_fini(struct efx_nic *efx);
 
 int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd, const efx_dword_t *inbuf,
@@ -197,6 +208,9 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 #define _MCDI_DWORD(_buf, _field)					\
 	((_buf) + (_MCDI_CHECK_ALIGN(MC_CMD_ ## _field ## _OFST, 4) >> 2))
 
+#define MCDI_BYTE(_buf, _field)						\
+	((void)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 1),	\
+	 *MCDI_PTR(_buf, _field))
 #define MCDI_WORD(_buf, _field)						\
 	((u16)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 2) +	\
 	 le16_to_cpu(*(__force const __le16 *)MCDI_PTR(_buf, _field)))

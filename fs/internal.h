@@ -11,6 +11,8 @@
 
 struct super_block;
 struct file_system_type;
+struct iomap;
+struct iomap_ops;
 struct linux_binprm;
 struct path;
 struct mount;
@@ -39,6 +41,10 @@ static inline int __sync_blockdev(struct block_device *bdev, int wait)
  * buffer.c
  */
 extern void guard_bio_eod(int rw, struct bio *bio);
+extern int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
+		get_block_t *get_block, struct iomap *iomap);
+int __generic_write_end(struct inode *inode, loff_t pos, unsigned copied,
+		struct page *page);
 
 /*
  * char_dev.c
@@ -49,16 +55,23 @@ extern void __init chrdev_init(void);
  * namei.c
  */
 extern int user_path_mountpoint_at(int, const char __user *, unsigned int, struct path *);
-extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
-			   const char *, unsigned int, struct path *);
+long do_mknodat(int dfd, const char __user *filename, umode_t mode,
+		unsigned int dev);
+long do_mkdirat(int dfd, const char __user *pathname, umode_t mode);
+long do_rmdir(int dfd, const char __user *pathname);
+long do_unlinkat(int dfd, struct filename *name);
+long do_symlinkat(const char __user *oldname, int newdfd,
+		  const char __user *newname);
+int do_linkat(int olddfd, const char __user *oldname, int newdfd,
+	      const char __user *newname, int flags);
 
 /*
  * namespace.c
  */
-extern int copy_mount_options(const void __user *, unsigned long *);
+extern void *copy_mount_options(const void __user *);
 extern char *copy_mount_string(const void __user *);
 
-extern struct vfsmount *lookup_mnt(struct path *);
+extern struct vfsmount *lookup_mnt(const struct path *);
 extern int finish_automount(struct vfsmount *, struct path *);
 
 extern int sb_prepare_remount_readonly(struct super_block *);
@@ -78,15 +91,18 @@ extern void chroot_fs_refs(const struct path *, const struct path *);
 /*
  * file_table.c
  */
-extern struct file *get_empty_filp(void);
+extern struct file *alloc_empty_file(int, const struct cred *);
+extern struct file *alloc_empty_file_noaccount(int, const struct cred *);
 
 /*
  * super.c
  */
 extern int do_remount_sb(struct super_block *, int, void *, int);
+extern int do_remount_sb2(struct vfsmount *, struct super_block *, int,
+								void *, int);
 extern bool trylock_super(struct super_block *sb);
 extern struct dentry *mount_fs(struct file_system_type *,
-			       int, const char *, void *);
+			       int, const char *, struct vfsmount *, void *);
 extern struct super_block *user_get_super(dev_t);
 
 /*
@@ -104,16 +120,20 @@ extern struct file *do_filp_open(int dfd, struct filename *pathname,
 extern struct file *do_file_open_root(struct dentry *, struct vfsmount *,
 		const char *, const struct open_flags *);
 
-extern long do_handle_open(int mountdirfd,
-			   struct file_handle __user *ufh, int open_flag);
-extern int open_check_o_direct(struct file *f);
-extern int vfs_open(const struct path *, struct file *, const struct cred *);
+long do_sys_ftruncate(unsigned int fd, loff_t length, int small);
+long do_faccessat(int dfd, const char __user *filename, int mode);
+int do_fchmodat(int dfd, const char __user *filename, umode_t mode);
+int do_fchownat(int dfd, const char __user *filename, uid_t user, gid_t group,
+		int flag);
+
+extern int vfs_open(const struct path *, struct file *);
 
 /*
  * inode.c
  */
 extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
 extern void inode_add_lru(struct inode *inode);
+extern int dentry_needs_remove_privs(struct dentry *dentry);
 
 /*
  * fs-writeback.c
@@ -121,7 +141,6 @@ extern void inode_add_lru(struct inode *inode);
 extern void inode_io_list_del(struct inode *inode);
 
 extern long get_nr_dirty_inodes(void);
-extern void evict_inodes(struct super_block *);
 extern int invalidate_inodes(struct super_block *, bool);
 
 /*
@@ -130,6 +149,7 @@ extern int invalidate_inodes(struct super_block *, bool);
 extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
 extern int d_set_mounted(struct dentry *dentry);
 extern long prune_dcache_sb(struct super_block *sb, struct shrink_control *sc);
+extern struct dentry *d_alloc_cursor(struct dentry *);
 
 /*
  * read_write.c
@@ -150,4 +170,23 @@ extern void mnt_pin_kill(struct mount *m);
 /*
  * fs/nsfs.c
  */
-extern struct dentry_operations ns_dentry_operations;
+extern const struct dentry_operations ns_dentry_operations;
+
+/*
+ * fs/ioctl.c
+ */
+extern int do_vfs_ioctl(struct file *file, unsigned int fd, unsigned int cmd,
+		    unsigned long arg);
+
+/*
+ * iomap support:
+ */
+typedef loff_t (*iomap_actor_t)(struct inode *inode, loff_t pos, loff_t len,
+		void *data, struct iomap *iomap);
+
+loff_t iomap_apply(struct inode *inode, loff_t pos, loff_t length,
+		unsigned flags, const struct iomap_ops *ops, void *data,
+		iomap_actor_t actor);
+
+/* direct-io.c: */
+int sb_init_dio_done_wq(struct super_block *sb);

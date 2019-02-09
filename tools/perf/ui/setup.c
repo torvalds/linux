@@ -1,14 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <pthread.h>
 #include <dlfcn.h>
 
 #include "../util/cache.h"
 #include "../util/debug.h"
 #include "../util/hist.h"
+#include "../util/util.h"
 
 pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
 void *perf_gtk_handle;
+int use_browser = -1;
+
+#define PERF_GTK_DSO "libperf-gtk.so"
 
 #ifdef HAVE_GTK2_SUPPORT
+
 static int setup_gtk_browser(void)
 {
 	int (*perf_ui_init)(void);
@@ -59,6 +65,13 @@ out_close:
 static inline int setup_gtk_browser(void) { return -1; }
 static inline void exit_gtk_browser(bool wait_for_ok __maybe_unused) {}
 #endif
+
+int stdio__config_color(const struct option *opt __maybe_unused,
+			const char *mode, int unset __maybe_unused)
+{
+	perf_use_color_default = perf_config_colorbool("color.ui", mode, -1);
+	return 0;
+}
 
 void setup_browser(bool fallback_to_pager)
 {

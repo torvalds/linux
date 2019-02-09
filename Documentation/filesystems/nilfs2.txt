@@ -25,8 +25,8 @@ available from the following download page.  At least "mkfs.nilfs2",
 cleaner or garbage collector) are required.  Details on the tools are
 described in the man pages included in the package.
 
-Project web page:    http://nilfs.sourceforge.net/
-Download page:       http://nilfs.sourceforge.net/en/download.html
+Project web page:    https://nilfs.sourceforge.io/
+Download page:       https://nilfs.sourceforge.io/en/download.html
 List info:           http://vger.kernel.org/vger-lists.html#linux-nilfs
 
 Caveats
@@ -267,4 +267,10 @@ among NILFS2 files can be depicted as follows:
                                   `-- file (ino=yy)
                                     ( regular file, directory, or symlink )
 
-For detail on the format of each file, please see include/linux/nilfs2_fs.h.
+For detail on the format of each file, please see nilfs2_ondisk.h
+located at include/uapi/linux directory.
+
+There are no patents or other intellectual property that we protect
+with regard to the design of NILFS2.  It is allowed to replicate the
+design in hopes that other operating systems could share (mount, read,
+write, etc.) data stored in this format.

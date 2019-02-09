@@ -48,7 +48,7 @@ static u8 _rtl8821ae_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 hw_queue)
 	return skb->priority;
 }
 
-static u16 odm_cfo(char value)
+static u16 odm_cfo(s8 value)
 {
 	int ret_val;
 
@@ -64,9 +64,9 @@ static u16 odm_cfo(char value)
 	return ret_val;
 }
 
-static u8 _rtl8821ae_evm_dbm_jaguar(char value)
+static u8 _rtl8821ae_evm_dbm_jaguar(s8 value)
 {
-	char ret_val = value;
+	s8 ret_val = value;
 
 	/* -33dB~0dB to 33dB ~ 0dB*/
 	if (ret_val == -128)
@@ -88,7 +88,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 	struct phy_status_rpt *p_phystrpt = (struct phy_status_rpt *)p_drvinfo;
 	struct rtl_dm *rtldm = rtl_dm(rtl_priv(hw));
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	char rx_pwr_all = 0, rx_pwr[4];
+	s8 rx_pwr_all = 0, rx_pwr[4];
 	u8 rf_rx_num = 0, evm, evmdbm, pwdb_all;
 	u8 i, max_spatial_stream;
 	u32 rssi, total_rssi = 0;
@@ -170,7 +170,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 					pwdb_all = 100;
 			}
 		} else { /* 8821 */
-			char pout = -6;
+			s8 pout = -6;
 
 			switch (lan_idx) {
 			case 5:
@@ -275,7 +275,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 		if (bpacket_match_bssid) {
 			for (i = RF90_PATH_A; i <= RF90_PATH_B; i++)
 				rtl_priv(hw)->dm.cfo_tail[i] =
-					(char)p_phystrpt->cfotail[i];
+					(s8)p_phystrpt->cfotail[i];
 
 			rtl_priv(hw)->dm.packet_count++;
 		}
@@ -520,18 +520,18 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
 	if (status->rx_packet_bw == HT_CHANNEL_WIDTH_20_40)
-		rx_status->flag |= RX_FLAG_40MHZ;
+		rx_status->bw = RATE_INFO_BW_40;
 	else if (status->rx_packet_bw == HT_CHANNEL_WIDTH_80)
-		rx_status->vht_flag |= RX_VHT_FLAG_80MHZ;
+		rx_status->bw = RATE_INFO_BW_80;
 	if (status->is_ht)
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 	if (status->is_vht)
-		rx_status->flag |= RX_FLAG_VHT;
+		rx_status->encoding = RX_ENC_VHT;
 
 	if (status->is_short_gi)
-		rx_status->flag |= RX_FLAG_SHORT_GI;
+		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
-	rx_status->vht_nss = status->vht_nss;
+	rx_status->nss = status->vht_nss;
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 
 	/* hw will set status->decrypted true, if it finds the
@@ -691,6 +691,7 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+	struct rtlwifi_tx_info *tx_info = rtl_tx_skb_cb_info(skb);
 	u8 *pdesc = (u8 *)pdesc_tx;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
@@ -716,7 +717,7 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 				 PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error");
+			 "DMA mapping error\n");
 		return;
 	}
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, sizeof(struct tx_desc_8821ae));
@@ -739,6 +740,7 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 		} else {
 			SET_TX_DESC_OFFSET(pdesc, USB_HWDESC_HEADER_LEN);
 		}
+
 
 		/* ptcb_desc->use_driver_rate = true; */
 		SET_TX_DESC_TX_RATE(pdesc, ptcb_desc->hw_rate);
@@ -815,6 +817,8 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 				SET_TX_DESC_HTC(pdesc, 1);
 			}
 		}
+		/* tx report */
+		rtl_set_tx_report(ptcb_desc, pdesc, hw, tx_info);
 	}
 
 	SET_TX_DESC_FIRST_SEG(pdesc, (firstseg ? 1 : 0));
@@ -857,7 +861,7 @@ void rtl8821ae_tx_fill_cmddesc(struct ieee80211_hw *hw,
 
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error");
+			 "DMA mapping error\n");
 		return;
 	}
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE);
@@ -904,8 +908,9 @@ void rtl8821ae_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 			SET_TX_DESC_NEXT_DESC_ADDRESS(pdesc, *(u32 *)val);
 			break;
 		default:
-			RT_ASSERT(false,
-				  "ERR txdesc :%d not process\n", desc_name);
+			WARN_ONCE(true,
+				  "rtl8821ae: ERR txdesc :%d not processed\n",
+				  desc_name);
 			break;
 		}
 	} else {
@@ -923,14 +928,16 @@ void rtl8821ae_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 			SET_RX_DESC_EOR(pdesc, 1);
 			break;
 		default:
-			RT_ASSERT(false,
-				  "ERR rxdesc :%d not process\n", desc_name);
+			WARN_ONCE(true,
+				  "rtl8821ae: ERR rxdesc :%d not processed\n",
+				  desc_name);
 			break;
 		}
 	}
 }
 
-u32 rtl8821ae_get_desc(u8 *pdesc, bool istx, u8 desc_name)
+u64 rtl8821ae_get_desc(struct ieee80211_hw *hw,
+		       u8 *pdesc, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
 
@@ -943,8 +950,9 @@ u32 rtl8821ae_get_desc(u8 *pdesc, bool istx, u8 desc_name)
 			ret = GET_TX_DESC_TX_BUFFER_ADDRESS(pdesc);
 			break;
 		default:
-			RT_ASSERT(false,
-				  "ERR txdesc :%d not process\n", desc_name);
+			WARN_ONCE(true,
+				  "rtl8821ae: ERR txdesc :%d not processed\n",
+				  desc_name);
 			break;
 		}
 	} else {
@@ -959,8 +967,9 @@ u32 rtl8821ae_get_desc(u8 *pdesc, bool istx, u8 desc_name)
 			ret = GET_RX_DESC_BUFF_ADDR(pdesc);
 			break;
 		default:
-			RT_ASSERT(false,
-				  "ERR rxdesc :%d not process\n", desc_name);
+			WARN_ONCE(true,
+				  "rtl8821ae: ERR rxdesc :%d not processed\n",
+				  desc_name);
 			break;
 		}
 	}
@@ -973,7 +982,7 @@ bool rtl8821ae_is_tx_desc_closed(struct ieee80211_hw *hw,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
 	u8 *entry = (u8 *)(&ring->desc[ring->idx]);
-	u8 own = (u8)rtl8821ae_get_desc(entry, true, HW_DESC_OWN);
+	u8 own = (u8)rtl8821ae_get_desc(hw, entry, true, HW_DESC_OWN);
 
 	/**
 	 *beacon packet will only use the first
@@ -995,30 +1004,4 @@ void rtl8821ae_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
 		rtl_write_word(rtlpriv, REG_PCIE_CTRL_REG,
 			       BIT(0) << (hw_queue));
 	}
-}
-
-u32 rtl8821ae_rx_command_packet(struct ieee80211_hw *hw,
-				struct rtl_stats status,
-				struct sk_buff *skb)
-{
-	u32 result = 0;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	switch (status.packet_report_type) {
-	case NORMAL_RX:
-		result = 0;
-		break;
-	case C2H_PACKET:
-		rtl8821ae_c2h_packet_handler(hw, skb->data, (u8)skb->len);
-		result = 1;
-		RT_TRACE(rtlpriv, COMP_RECV, DBG_LOUD,
-			 "skb->len=%d\n\n", skb->len);
-		break;
-	default:
-		RT_TRACE(rtlpriv, COMP_RECV, DBG_LOUD,
-			 "No this packet type!!\n");
-		break;
-	}
-
-	return result;
 }

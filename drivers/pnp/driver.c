@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * driver.c - device id matching, driver model, etc.
  *
@@ -74,7 +75,6 @@ void pnp_device_detach(struct pnp_dev *pnp_dev)
 	if (pnp_dev->status == PNP_ATTACHED)
 		pnp_dev->status = PNP_READY;
 	mutex_unlock(&pnp_lock);
-	pnp_disable_dev(pnp_dev);
 }
 
 static int pnp_device_probe(struct device *dev)
@@ -131,6 +131,11 @@ static int pnp_device_remove(struct device *dev)
 			drv->remove(pnp_dev);
 		pnp_dev->driver = NULL;
 	}
+
+	if (pnp_dev->active &&
+	    (!drv || !(drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE)))
+		pnp_disable_dev(pnp_dev);
+
 	pnp_device_detach(pnp_dev);
 	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MAX3421 Host Controller driver for USB.
  *
@@ -60,6 +61,7 @@
 #include <linux/spi/spi.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/of.h>
 
 #include <linux/platform_data/max3421-hcd.h>
 
@@ -84,6 +86,8 @@
 			  USB_PORT_STAT_C_SUSPEND |	\
 			  USB_PORT_STAT_C_OVERCURRENT | \
 			  USB_PORT_STAT_C_RESET) << 16)
+
+#define MAX3421_GPOUT_COUNT	8
 
 enum max3421_rh_state {
 	MAX3421_RH_RESET,
@@ -797,19 +801,16 @@ max3421_check_unlink(struct usb_hcd *hcd)
 {
 	struct spi_device *spi = to_spi_device(hcd->self.controller);
 	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
-	struct list_head *pos, *upos, *next_upos;
 	struct max3421_ep *max3421_ep;
 	struct usb_host_endpoint *ep;
-	struct urb *urb;
+	struct urb *urb, *next;
 	unsigned long flags;
 	int retval = 0;
 
 	spin_lock_irqsave(&max3421_hcd->lock, flags);
-	list_for_each(pos, &max3421_hcd->ep_list) {
-		max3421_ep = container_of(pos, struct max3421_ep, ep_list);
+	list_for_each_entry(max3421_ep, &max3421_hcd->ep_list, ep_list) {
 		ep = max3421_ep->ep;
-		list_for_each_safe(upos, next_upos, &ep->urb_list) {
-			urb = container_of(upos, struct urb, urb_list);
+		list_for_each_entry_safe(urb, next, &ep->urb_list, urb_list) {
 			if (urb->unlinked) {
 				retval = 1;
 				dev_dbg(&spi->dev, "%s: URB %p unlinked=%d",
@@ -1184,22 +1185,19 @@ dump_eps(struct usb_hcd *hcd)
 	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
 	struct max3421_ep *max3421_ep;
 	struct usb_host_endpoint *ep;
-	struct list_head *pos, *upos;
 	char ubuf[512], *dp, *end;
 	unsigned long flags;
 	struct urb *urb;
 	int epnum, ret;
 
 	spin_lock_irqsave(&max3421_hcd->lock, flags);
-	list_for_each(pos, &max3421_hcd->ep_list) {
-		max3421_ep = container_of(pos, struct max3421_ep, ep_list);
+	list_for_each_entry(max3421_ep, &max3421_hcd->ep_list, ep_list) {
 		ep = max3421_ep->ep;
 
 		dp = ubuf;
 		end = dp + sizeof(ubuf);
 		*dp = '\0';
-		list_for_each(upos, &ep->urb_list) {
-			urb = container_of(upos, struct urb, urb_list);
+		list_for_each_entry(urb, &ep->urb_list, urb_list) {
 			ret = snprintf(dp, end - dp, " %p(%d.%s %d/%d)", urb,
 				       usb_pipetype(urb->pipe),
 				       usb_urb_dir_in(urb) ? "IN" : "OUT",
@@ -1678,10 +1676,10 @@ max3421_gpout_set_value(struct usb_hcd *hcd, u8 pin_number, u8 value)
 	u8 mask, idx;
 
 	--pin_number;
-	if (pin_number > 7)
+	if (pin_number >= MAX3421_GPOUT_COUNT)
 		return;
 
-	mask = 1u << pin_number;
+	mask = 1u << (pin_number % 4);
 	idx = pin_number / 4;
 
 	if (value)
@@ -1702,9 +1700,9 @@ max3421_hub_control(struct usb_hcd *hcd, u16 type_req, u16 value, u16 index,
 	unsigned long flags;
 	int retval = 0;
 
-	spin_lock_irqsave(&max3421_hcd->lock, flags);
-
 	pdata = spi->dev.platform_data;
+
+	spin_lock_irqsave(&max3421_hcd->lock, flags);
 
 	switch (type_req) {
 	case ClearHubFeature:
@@ -1817,7 +1815,7 @@ max3421_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 {
 }
 
-static struct hc_driver max3421_hcd_desc = {
+static const struct hc_driver max3421_hcd_desc = {
 	.description =		"max3421",
 	.product_desc =		DRIVER_DESC,
 	.hcd_priv_size =	sizeof(struct max3421_hcd),
@@ -1838,15 +1836,74 @@ static struct hc_driver max3421_hcd_desc = {
 };
 
 static int
+max3421_of_vbus_en_pin(struct device *dev, struct max3421_hcd_platform_data *pdata)
+{
+	int retval;
+	uint32_t value[2];
+
+	if (!pdata)
+		return -EINVAL;
+
+	retval = of_property_read_u32_array(dev->of_node, "maxim,vbus-en-pin", value, 2);
+	if (retval) {
+		dev_err(dev, "device tree node property 'maxim,vbus-en-pin' is missing\n");
+		return retval;
+	}
+	dev_info(dev, "property 'maxim,vbus-en-pin' value is <%d %d>\n", value[0], value[1]);
+
+	pdata->vbus_gpout = value[0];
+	pdata->vbus_active_level = value[1];
+
+	return 0;
+}
+
+static int
 max3421_probe(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
 	struct max3421_hcd *max3421_hcd;
 	struct usb_hcd *hcd = NULL;
+	struct max3421_hcd_platform_data *pdata = NULL;
 	int retval = -ENOMEM;
 
 	if (spi_setup(spi) < 0) {
 		dev_err(&spi->dev, "Unable to setup SPI bus");
 		return -EFAULT;
+	}
+
+	if (!spi->irq) {
+		dev_err(dev, "Failed to get SPI IRQ");
+		return -EFAULT;
+	}
+
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+		pdata = devm_kzalloc(&spi->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata) {
+			retval = -ENOMEM;
+			goto error;
+		}
+		retval = max3421_of_vbus_en_pin(dev, pdata);
+		if (retval)
+			goto error;
+
+		spi->dev.platform_data = pdata;
+	}
+
+	pdata = spi->dev.platform_data;
+	if (!pdata) {
+		dev_err(&spi->dev, "driver configuration data is not provided\n");
+		retval = -EFAULT;
+		goto error;
+	}
+	if (pdata->vbus_active_level > 1) {
+		dev_err(&spi->dev, "vbus active level value %d is out of range (0/1)\n", pdata->vbus_active_level);
+		retval = -EINVAL;
+		goto error;
+	}
+	if (pdata->vbus_gpout < 1 || pdata->vbus_gpout > MAX3421_GPOUT_COUNT) {
+		dev_err(&spi->dev, "vbus gpout value %d is out of range (1..8)\n", pdata->vbus_gpout);
+		retval = -EINVAL;
+		goto error;
 	}
 
 	hcd = usb_create_hcd(&max3421_hcd_desc, &spi->dev,
@@ -1862,15 +1919,11 @@ max3421_probe(struct spi_device *spi)
 	INIT_LIST_HEAD(&max3421_hcd->ep_list);
 
 	max3421_hcd->tx = kmalloc(sizeof(*max3421_hcd->tx), GFP_KERNEL);
-	if (!max3421_hcd->tx) {
-		dev_err(&spi->dev, "failed to kmalloc tx buffer\n");
+	if (!max3421_hcd->tx)
 		goto error;
-	}
 	max3421_hcd->rx = kmalloc(sizeof(*max3421_hcd->rx), GFP_KERNEL);
-	if (!max3421_hcd->rx) {
-		dev_err(&spi->dev, "failed to kmalloc rx buffer\n");
+	if (!max3421_hcd->rx)
 		goto error;
-	}
 
 	max3421_hcd->spi_thread = kthread_run(max3421_spi_thread, hcd,
 					      "max3421_spi_thread");
@@ -1895,6 +1948,11 @@ max3421_probe(struct spi_device *spi)
 	return 0;
 
 error:
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node && pdata) {
+		devm_kfree(&spi->dev, pdata);
+		spi->dev.platform_data = NULL;
+	}
+
 	if (hcd) {
 		kfree(max3421_hcd->tx);
 		kfree(max3421_hcd->rx);
@@ -1939,11 +1997,18 @@ max3421_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id max3421_of_match_table[] = {
+	{ .compatible = "maxim,max3421", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, max3421_of_match_table);
+
 static struct spi_driver max3421_driver = {
 	.probe		= max3421_probe,
 	.remove		= max3421_remove,
 	.driver		= {
 		.name	= "max3421-hcd",
+		.of_match_table = of_match_ptr(max3421_of_match_table),
 	},
 };
 

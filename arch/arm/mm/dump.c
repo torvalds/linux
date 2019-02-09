@@ -17,13 +17,11 @@
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 
+#include <asm/domain.h>
 #include <asm/fixmap.h>
+#include <asm/memory.h>
 #include <asm/pgtable.h>
-
-struct addr_marker {
-	unsigned long start_address;
-	const char *name;
-};
+#include <asm/ptdump.h>
 
 static struct addr_marker address_markers[] = {
 	{ MODULES_VADDR,	"Modules" },
@@ -31,10 +29,22 @@ static struct addr_marker address_markers[] = {
 	{ 0,			"vmalloc() Area" },
 	{ VMALLOC_END,		"vmalloc() End" },
 	{ FIXADDR_START,	"Fixmap Area" },
-	{ CONFIG_VECTORS_BASE,	"Vectors" },
-	{ CONFIG_VECTORS_BASE + PAGE_SIZE * 2, "Vectors End" },
+	{ VECTORS_BASE,	"Vectors" },
+	{ VECTORS_BASE + PAGE_SIZE * 2, "Vectors End" },
 	{ -1,			NULL },
 };
+
+#define pt_dump_seq_printf(m, fmt, args...) \
+({                      \
+	if (m)					\
+		seq_printf(m, fmt, ##args);	\
+})
+
+#define pt_dump_seq_puts(m, fmt)    \
+({						\
+	if (m)					\
+		seq_printf(m, fmt);	\
+})
 
 struct pg_state {
 	struct seq_file *seq;
@@ -42,6 +52,9 @@ struct pg_state {
 	unsigned long start_address;
 	unsigned level;
 	u64 current_prot;
+	bool check_wx;
+	unsigned long wx_pages;
+	const char *current_domain;
 };
 
 struct prot_bits {
@@ -49,6 +62,8 @@ struct prot_bits {
 	u64		val;
 	const char	*set;
 	const char	*clear;
+	bool		ro_bit;
+	bool		nx_bit;
 };
 
 static const struct prot_bits pte_bits[] = {
@@ -62,11 +77,13 @@ static const struct prot_bits pte_bits[] = {
 		.val	= L_PTE_RDONLY,
 		.set	= "ro",
 		.clear	= "RW",
+		.ro_bit	= true,
 	}, {
 		.mask	= L_PTE_XN,
 		.val	= L_PTE_XN,
 		.set	= "NX",
 		.clear	= "x ",
+		.nx_bit	= true,
 	}, {
 		.mask	= L_PTE_SHARED,
 		.val	= L_PTE_SHARED,
@@ -126,15 +143,17 @@ static const struct prot_bits section_bits[] = {
 		.val	= PMD_SECT_USER,
 		.set	= "USR",
 	}, {
-		.mask	= L_PMD_SECT_RDONLY,
-		.val	= L_PMD_SECT_RDONLY,
+		.mask	= L_PMD_SECT_RDONLY | PMD_SECT_AP2,
+		.val	= L_PMD_SECT_RDONLY | PMD_SECT_AP2,
 		.set	= "ro",
 		.clear	= "RW",
+		.ro_bit	= true,
 #elif __LINUX_ARM_ARCH__ >= 6
 	{
 		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
 		.val	= PMD_SECT_APX | PMD_SECT_AP_WRITE,
 		.set	= "    ro",
+		.ro_bit	= true,
 	}, {
 		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
 		.val	= PMD_SECT_AP_WRITE,
@@ -153,6 +172,7 @@ static const struct prot_bits section_bits[] = {
 		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
 		.val    = 0,
 		.set    = "    ro",
+		.ro_bit	= true,
 	}, {
 		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
 		.val    = PMD_SECT_AP_WRITE,
@@ -171,6 +191,7 @@ static const struct prot_bits section_bits[] = {
 		.val	= PMD_SECT_XN,
 		.set	= "NX",
 		.clear	= "x ",
+		.nx_bit	= true,
 	}, {
 		.mask	= PMD_SECT_S,
 		.val	= PMD_SECT_S,
@@ -183,6 +204,8 @@ struct pg_level {
 	const struct prot_bits *bits;
 	size_t num;
 	u64 mask;
+	const struct prot_bits *ro_bit;
+	const struct prot_bits *nx_bit;
 };
 
 static struct pg_level pg_level[] = {
@@ -211,11 +234,29 @@ static void dump_prot(struct pg_state *st, const struct prot_bits *bits, size_t 
 			s = bits->clear;
 
 		if (s)
-			seq_printf(st->seq, " %s", s);
+			pt_dump_seq_printf(st->seq, " %s", s);
 	}
 }
 
-static void note_page(struct pg_state *st, unsigned long addr, unsigned level, u64 val)
+static void note_prot_wx(struct pg_state *st, unsigned long addr)
+{
+	if (!st->check_wx)
+		return;
+	if ((st->current_prot & pg_level[st->level].ro_bit->mask) ==
+				pg_level[st->level].ro_bit->val)
+		return;
+	if ((st->current_prot & pg_level[st->level].nx_bit->mask) ==
+				pg_level[st->level].nx_bit->val)
+		return;
+
+	WARN_ONCE(1, "arm/mm: Found insecure W+X mapping at address %pS\n",
+			(void *)st->start_address);
+
+	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
+}
+
+static void note_page(struct pg_state *st, unsigned long addr,
+		      unsigned int level, u64 val, const char *domain)
 {
 	static const char units[] = "KMGTPE";
 	u64 prot = val & pg_level[level].mask;
@@ -223,14 +264,17 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level, u
 	if (!st->level) {
 		st->level = level;
 		st->current_prot = prot;
-		seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
+		st->current_domain = domain;
+		pt_dump_seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
 	} else if (prot != st->current_prot || level != st->level ||
+		   domain != st->current_domain ||
 		   addr >= st->marker[1].start_address) {
 		const char *unit = units;
 		unsigned long delta;
 
 		if (st->current_prot) {
-			seq_printf(st->seq, "0x%08lx-0x%08lx   ",
+			note_prot_wx(st, addr);
+			pt_dump_seq_printf(st->seq, "0x%08lx-0x%08lx   ",
 				   st->start_address, addr);
 
 			delta = (addr - st->start_address) >> 10;
@@ -238,23 +282,29 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level, u
 				delta >>= 10;
 				unit++;
 			}
-			seq_printf(st->seq, "%9lu%c", delta, *unit);
+			pt_dump_seq_printf(st->seq, "%9lu%c", delta, *unit);
+			if (st->current_domain)
+				pt_dump_seq_printf(st->seq, " %s",
+							st->current_domain);
 			if (pg_level[st->level].bits)
 				dump_prot(st, pg_level[st->level].bits, pg_level[st->level].num);
-			seq_printf(st->seq, "\n");
+			pt_dump_seq_printf(st->seq, "\n");
 		}
 
 		if (addr >= st->marker[1].start_address) {
 			st->marker++;
-			seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
+			pt_dump_seq_printf(st->seq, "---[ %s ]---\n",
+							st->marker->name);
 		}
 		st->start_address = addr;
 		st->current_prot = prot;
+		st->current_domain = domain;
 		st->level = level;
 	}
 }
 
-static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)
+static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start,
+		     const char *domain)
 {
 	pte_t *pte = pte_offset_kernel(pmd, 0);
 	unsigned long addr;
@@ -262,8 +312,27 @@ static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PTE; i++, pte++) {
 		addr = start + i * PAGE_SIZE;
-		note_page(st, addr, 4, pte_val(*pte));
+		note_page(st, addr, 4, pte_val(*pte), domain);
 	}
+}
+
+static const char *get_domain_name(pmd_t *pmd)
+{
+#ifndef CONFIG_ARM_LPAE
+	switch (pmd_val(*pmd) & PMD_DOMAIN_MASK) {
+	case PMD_DOMAIN(DOMAIN_KERNEL):
+		return "KERNEL ";
+	case PMD_DOMAIN(DOMAIN_USER):
+		return "USER   ";
+	case PMD_DOMAIN(DOMAIN_IO):
+		return "IO     ";
+	case PMD_DOMAIN(DOMAIN_VECTORS):
+		return "VECTORS";
+	default:
+		return "unknown";
+	}
+#endif
+	return NULL;
 }
 
 static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
@@ -271,16 +340,22 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 	pmd_t *pmd = pmd_offset(pud, 0);
 	unsigned long addr;
 	unsigned i;
+	const char *domain;
 
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++) {
 		addr = start + i * PMD_SIZE;
+		domain = get_domain_name(pmd);
 		if (pmd_none(*pmd) || pmd_large(*pmd) || !pmd_present(*pmd))
-			note_page(st, addr, 3, pmd_val(*pmd));
+			note_page(st, addr, 3, pmd_val(*pmd), domain);
 		else
-			walk_pte(st, pmd, addr);
+			walk_pte(st, pmd, addr, domain);
 
-		if (SECTION_SIZE < PMD_SIZE && pmd_large(pmd[1]))
-			note_page(st, addr + SECTION_SIZE, 3, pmd_val(pmd[1]));
+		if (SECTION_SIZE < PMD_SIZE && pmd_large(pmd[1])) {
+			addr += SECTION_SIZE;
+			pmd++;
+			domain = get_domain_name(pmd);
+			note_page(st, addr, 3, pmd_val(*pmd), domain);
+		}
 	}
 }
 
@@ -295,66 +370,87 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 		if (!pud_none(*pud)) {
 			walk_pmd(st, pud, addr);
 		} else {
-			note_page(st, addr, 2, pud_val(*pud));
+			note_page(st, addr, 2, pud_val(*pud), NULL);
 		}
 	}
 }
 
-static void walk_pgd(struct seq_file *m)
+static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
+			unsigned long start)
 {
-	pgd_t *pgd = swapper_pg_dir;
-	struct pg_state st;
-	unsigned long addr;
+	pgd_t *pgd = pgd_offset(mm, 0UL);
 	unsigned i;
-
-	memset(&st, 0, sizeof(st));
-	st.seq = m;
-	st.marker = address_markers;
+	unsigned long addr;
 
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++) {
-		addr = i * PGDIR_SIZE;
+		addr = start + i * PGDIR_SIZE;
 		if (!pgd_none(*pgd)) {
-			walk_pud(&st, pgd, addr);
+			walk_pud(st, pgd, addr);
 		} else {
-			note_page(&st, addr, 1, pgd_val(*pgd));
+			note_page(st, addr, 1, pgd_val(*pgd), NULL);
 		}
 	}
-
-	note_page(&st, 0, 0, 0);
 }
 
-static int ptdump_show(struct seq_file *m, void *v)
+void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
 {
-	walk_pgd(m);
-	return 0;
+	struct pg_state st = {
+		.seq = m,
+		.marker = info->markers,
+		.check_wx = false,
+	};
+
+	walk_pgd(&st, info->mm, info->base_addr);
+	note_page(&st, 0, 0, 0, NULL);
 }
 
-static int ptdump_open(struct inode *inode, struct file *file)
+static void ptdump_initialize(void)
 {
-	return single_open(file, ptdump_show, NULL);
-}
-
-static const struct file_operations ptdump_fops = {
-	.open		= ptdump_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int ptdump_init(void)
-{
-	struct dentry *pe;
 	unsigned i, j;
 
 	for (i = 0; i < ARRAY_SIZE(pg_level); i++)
 		if (pg_level[i].bits)
-			for (j = 0; j < pg_level[i].num; j++)
+			for (j = 0; j < pg_level[i].num; j++) {
 				pg_level[i].mask |= pg_level[i].bits[j].mask;
+				if (pg_level[i].bits[j].ro_bit)
+					pg_level[i].ro_bit = &pg_level[i].bits[j];
+				if (pg_level[i].bits[j].nx_bit)
+					pg_level[i].nx_bit = &pg_level[i].bits[j];
+			}
 
 	address_markers[2].start_address = VMALLOC_START;
+}
 
-	pe = debugfs_create_file("kernel_page_tables", 0400, NULL, NULL,
-				 &ptdump_fops);
-	return pe ? 0 : -ENOMEM;
+static struct ptdump_info kernel_ptdump_info = {
+	.mm = &init_mm,
+	.markers = address_markers,
+	.base_addr = 0,
+};
+
+void ptdump_check_wx(void)
+{
+	struct pg_state st = {
+		.seq = NULL,
+		.marker = (struct addr_marker[]) {
+			{ 0, NULL},
+			{ -1, NULL},
+		},
+		.check_wx = true,
+	};
+
+	walk_pgd(&st, &init_mm, 0);
+	note_page(&st, 0, 0, 0, NULL);
+	if (st.wx_pages)
+		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found\n",
+			st.wx_pages);
+	else
+		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+}
+
+static int ptdump_init(void)
+{
+	ptdump_initialize();
+	return ptdump_debugfs_register(&kernel_ptdump_info,
+					"kernel_page_tables");
 }
 __initcall(ptdump_init);

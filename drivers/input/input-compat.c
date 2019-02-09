@@ -9,7 +9,7 @@
  */
 
 #include <linux/export.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "input-compat.h"
 
 #ifdef CONFIG_COMPAT
@@ -17,15 +17,15 @@
 int input_event_from_user(const char __user *buffer,
 			  struct input_event *event)
 {
-	if (INPUT_COMPAT_TEST && !COMPAT_USE_64BIT_TIME) {
+	if (in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
 		struct input_event_compat compat_event;
 
 		if (copy_from_user(&compat_event, buffer,
 				   sizeof(struct input_event_compat)))
 			return -EFAULT;
 
-		event->time.tv_sec = compat_event.time.tv_sec;
-		event->time.tv_usec = compat_event.time.tv_usec;
+		event->input_event_sec = compat_event.sec;
+		event->input_event_usec = compat_event.usec;
 		event->type = compat_event.type;
 		event->code = compat_event.code;
 		event->value = compat_event.value;
@@ -41,11 +41,11 @@ int input_event_from_user(const char __user *buffer,
 int input_event_to_user(char __user *buffer,
 			const struct input_event *event)
 {
-	if (INPUT_COMPAT_TEST && !COMPAT_USE_64BIT_TIME) {
+	if (in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
 		struct input_event_compat compat_event;
 
-		compat_event.time.tv_sec = event->time.tv_sec;
-		compat_event.time.tv_usec = event->time.tv_usec;
+		compat_event.sec = event->input_event_sec;
+		compat_event.usec = event->input_event_usec;
 		compat_event.type = event->type;
 		compat_event.code = event->code;
 		compat_event.value = event->value;
@@ -65,7 +65,7 @@ int input_event_to_user(char __user *buffer,
 int input_ff_effect_from_user(const char __user *buffer, size_t size,
 			      struct ff_effect *effect)
 {
-	if (INPUT_COMPAT_TEST) {
+	if (in_compat_syscall()) {
 		struct ff_effect_compat *compat_effect;
 
 		if (size != sizeof(struct ff_effect_compat))

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * procfs-based user access to knfsd statistics
  *
@@ -84,7 +85,6 @@ static int nfsd_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations nfsd_proc_fops = {
-	.owner = THIS_MODULE,
 	.open = nfsd_proc_open,
 	.read  = seq_read,
 	.llseek = seq_lseek,

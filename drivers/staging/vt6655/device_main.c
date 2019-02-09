@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * File: device_main.c
  *
@@ -32,6 +19,7 @@
  *   device_print_info - print out resource
  *   device_rx_srv - rx service function
  *   device_alloc_rx_buf - rx buffer pre-allocated function
+ *   device_free_rx_buf - free rx buffer function
  *   device_free_tx_buf - free tx buffer function
  *   device_init_rd0_ring- initial rd dma0 ring
  *   device_init_rd1_ring- initial rd dma1 ring
@@ -113,10 +101,10 @@ DEVICE_PARAM(ShortRetryLimit, "Short frame retry limits");
 DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
 
 /* BasebandType[] baseband type selected
-   0: indicate 802.11a type
-   1: indicate 802.11b type
-   2: indicate 802.11g type
-*/
+ * 0: indicate 802.11a type
+ * 1: indicate 802.11b type
+ * 2: indicate 802.11g type
+ */
 #define BBP_TYPE_MIN     0
 #define BBP_TYPE_MAX     2
 #define BBP_TYPE_DEF     2
@@ -137,14 +125,15 @@ static int  vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent);
 static void device_free_info(struct vnt_private *priv);
 static void device_print_info(struct vnt_private *priv);
 
-static void device_init_rd0_ring(struct vnt_private *priv);
-static void device_init_rd1_ring(struct vnt_private *priv);
-static void device_init_td0_ring(struct vnt_private *priv);
-static void device_init_td1_ring(struct vnt_private *priv);
+static int device_init_rd0_ring(struct vnt_private *priv);
+static int device_init_rd1_ring(struct vnt_private *priv);
+static int device_init_td0_ring(struct vnt_private *priv);
+static int device_init_td1_ring(struct vnt_private *priv);
 
 static int  device_rx_srv(struct vnt_private *priv, unsigned int idx);
 static int  device_tx_srv(struct vnt_private *priv, unsigned int idx);
 static bool device_alloc_rx_buf(struct vnt_private *, struct vnt_rx_desc *);
+static void device_free_rx_buf(struct vnt_private *priv, struct vnt_rx_desc *rd);
 static void device_init_registers(struct vnt_private *priv);
 static void device_free_tx_buf(struct vnt_private *, struct vnt_tx_desc *);
 static void device_free_td0_ring(struct vnt_private *priv);
@@ -161,7 +150,7 @@ static void vt6655_remove(struct pci_dev *pcid)
 {
 	struct vnt_private *priv = pci_get_drvdata(pcid);
 
-	if (priv == NULL)
+	if (!priv)
 		return;
 	device_free_info(priv);
 }
@@ -211,11 +200,11 @@ static void device_init_registers(struct vnt_private *priv)
 	unsigned char byCCKPwrdBm = 0;
 	unsigned char byOFDMPwrdBm = 0;
 
-	MACbShutdown(priv->PortOffset);
+	MACbShutdown(priv);
 	BBvSoftwareReset(priv);
 
 	/* Do MACbSoftwareReset in MACvInitialize */
-	MACbSoftwareReset(priv->PortOffset);
+	MACbSoftwareReset(priv);
 
 	priv->bAES = false;
 
@@ -229,7 +218,7 @@ static void device_init_registers(struct vnt_private *priv)
 	priv->byTopCCKBasicRate = RATE_1M;
 
 	/* init MAC */
-	MACvInitialize(priv->PortOffset);
+	MACvInitialize(priv);
 
 	/* Get Local ID */
 	VNSvInPortB(priv->PortOffset + MAC_REG_LOCALID, &priv->byLocalID);
@@ -314,7 +303,7 @@ static void device_init_registers(struct vnt_private *priv)
 			SROMbyReadEmbedded(priv->PortOffset,
 					   (unsigned char)(ii + EEP_OFS_CCK_PWR_TBL));
 		if (priv->abyCCKPwrTbl[ii + 1] == 0)
-			priv->abyCCKPwrTbl[ii+1] = priv->byCCKPwr;
+			priv->abyCCKPwrTbl[ii + 1] = priv->byCCKPwr;
 
 		priv->abyOFDMPwrTbl[ii + 1] =
 			SROMbyReadEmbedded(priv->PortOffset,
@@ -357,8 +346,8 @@ static void device_init_registers(struct vnt_private *priv)
 			  MAC_REG_CFG, (CFG_TKIPOPT | CFG_NOTXTIMEOUT));
 
 	/* set performance parameter by registry */
-	MACvSetShortRetryLimit(priv->PortOffset, priv->byShortRetryLimit);
-	MACvSetLongRetryLimit(priv->PortOffset, priv->byLongRetryLimit);
+	MACvSetShortRetryLimit(priv, priv->byShortRetryLimit);
+	MACvSetLongRetryLimit(priv, priv->byLongRetryLimit);
 
 	/* reset TSF counter */
 	VNSvOutPortB(priv->PortOffset + MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
@@ -457,7 +446,7 @@ static bool device_init_rings(struct vnt_private *priv)
 				       priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc) +
 				       priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
 				       &priv->pool_dma, GFP_ATOMIC);
-	if (vir_pool == NULL) {
+	if (!vir_pool) {
 		dev_err(&priv->pcid->dev, "allocate desc dma memory failed\n");
 		return false;
 	}
@@ -477,7 +466,7 @@ static bool device_init_rings(struct vnt_private *priv)
 					     CB_MAX_BUF_SIZE,
 					     &priv->tx_bufs_dma0,
 					     GFP_ATOMIC);
-	if (priv->tx0_bufs == NULL) {
+	if (!priv->tx0_bufs) {
 		dev_err(&priv->pcid->dev, "allocate buf dma memory failed\n");
 
 		dma_free_coherent(&priv->pcid->dev,
@@ -541,52 +530,96 @@ static void device_free_rings(struct vnt_private *priv)
 				  priv->tx0_bufs, priv->tx_bufs_dma0);
 }
 
-static void device_init_rd0_ring(struct vnt_private *priv)
+static int device_init_rd0_ring(struct vnt_private *priv)
 {
 	int i;
 	dma_addr_t      curr = priv->rd0_pool_dma;
 	struct vnt_rx_desc *desc;
+	int ret;
 
 	/* Init the RD0 ring entries */
 	for (i = 0; i < priv->opts.rx_descs0;
 	     i ++, curr += sizeof(struct vnt_rx_desc)) {
 		desc = &priv->aRD0Ring[i];
-		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_ATOMIC);
+		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_KERNEL);
+		if (!desc->rd_info) {
+			ret = -ENOMEM;
+			goto err_free_desc;
+		}
 
-		if (!device_alloc_rx_buf(priv, desc))
+		if (!device_alloc_rx_buf(priv, desc)) {
 			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
+			ret = -ENOMEM;
+			goto err_free_rd;
+		}
 
-		desc->next = &(priv->aRD0Ring[(i+1) % priv->opts.rx_descs0]);
+		desc->next = &priv->aRD0Ring[(i + 1) % priv->opts.rx_descs0];
 		desc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_rx_desc));
 	}
 
 	if (i > 0)
 		priv->aRD0Ring[i-1].next_desc = cpu_to_le32(priv->rd0_pool_dma);
 	priv->pCurrRD[0] = &priv->aRD0Ring[0];
+
+	return 0;
+
+err_free_rd:
+	kfree(desc->rd_info);
+
+err_free_desc:
+	while (--i) {
+		desc = &priv->aRD0Ring[i];
+		device_free_rx_buf(priv, desc);
+		kfree(desc->rd_info);
+	}
+
+	return ret;
 }
 
-static void device_init_rd1_ring(struct vnt_private *priv)
+static int device_init_rd1_ring(struct vnt_private *priv)
 {
 	int i;
 	dma_addr_t      curr = priv->rd1_pool_dma;
 	struct vnt_rx_desc *desc;
+	int ret;
 
 	/* Init the RD1 ring entries */
 	for (i = 0; i < priv->opts.rx_descs1;
 	     i ++, curr += sizeof(struct vnt_rx_desc)) {
 		desc = &priv->aRD1Ring[i];
-		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_ATOMIC);
+		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_KERNEL);
+		if (!desc->rd_info) {
+			ret = -ENOMEM;
+			goto err_free_desc;
+		}
 
-		if (!device_alloc_rx_buf(priv, desc))
+		if (!device_alloc_rx_buf(priv, desc)) {
 			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
+			ret = -ENOMEM;
+			goto err_free_rd;
+		}
 
-		desc->next = &(priv->aRD1Ring[(i+1) % priv->opts.rx_descs1]);
+		desc->next = &priv->aRD1Ring[(i+1) % priv->opts.rx_descs1];
 		desc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_rx_desc));
 	}
 
 	if (i > 0)
 		priv->aRD1Ring[i-1].next_desc = cpu_to_le32(priv->rd1_pool_dma);
 	priv->pCurrRD[1] = &priv->aRD1Ring[0];
+
+	return 0;
+
+err_free_rd:
+	kfree(desc->rd_info);
+
+err_free_desc:
+	while (--i) {
+		desc = &priv->aRD1Ring[i];
+		device_free_rx_buf(priv, desc);
+		kfree(desc->rd_info);
+	}
+
+	return ret;
 }
 
 static void device_free_rd0_ring(struct vnt_private *priv)
@@ -594,14 +627,9 @@ static void device_free_rd0_ring(struct vnt_private *priv)
 	int i;
 
 	for (i = 0; i < priv->opts.rx_descs0; i++) {
-		struct vnt_rx_desc *desc = &(priv->aRD0Ring[i]);
-		struct vnt_rd_info *rd_info = desc->rd_info;
+		struct vnt_rx_desc *desc = &priv->aRD0Ring[i];
 
-		dma_unmap_single(&priv->pcid->dev, rd_info->skb_dma,
-				 priv->rx_buf_sz, DMA_FROM_DEVICE);
-
-		dev_kfree_skb(rd_info->skb);
-
+		device_free_rx_buf(priv, desc);
 		kfree(desc->rd_info);
 	}
 }
@@ -612,28 +640,28 @@ static void device_free_rd1_ring(struct vnt_private *priv)
 
 	for (i = 0; i < priv->opts.rx_descs1; i++) {
 		struct vnt_rx_desc *desc = &priv->aRD1Ring[i];
-		struct vnt_rd_info *rd_info = desc->rd_info;
 
-		dma_unmap_single(&priv->pcid->dev, rd_info->skb_dma,
-				 priv->rx_buf_sz, DMA_FROM_DEVICE);
-
-		dev_kfree_skb(rd_info->skb);
-
+		device_free_rx_buf(priv, desc);
 		kfree(desc->rd_info);
 	}
 }
 
-static void device_init_td0_ring(struct vnt_private *priv)
+static int device_init_td0_ring(struct vnt_private *priv)
 {
 	int i;
 	dma_addr_t  curr;
 	struct vnt_tx_desc *desc;
+	int ret;
 
 	curr = priv->td0_pool_dma;
 	for (i = 0; i < priv->opts.tx_descs[0];
 	     i++, curr += sizeof(struct vnt_tx_desc)) {
 		desc = &priv->apTD0Rings[i];
-		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_ATOMIC);
+		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_KERNEL);
+		if (!desc->td_info) {
+			ret = -ENOMEM;
+			goto err_free_desc;
+		}
 
 		desc->td_info->buf = priv->tx0_bufs + i * PKT_BUF_SZ;
 		desc->td_info->buf_dma = priv->tx_bufs_dma0 + i * PKT_BUF_SZ;
@@ -645,20 +673,35 @@ static void device_init_td0_ring(struct vnt_private *priv)
 	if (i > 0)
 		priv->apTD0Rings[i-1].next_desc = cpu_to_le32(priv->td0_pool_dma);
 	priv->apTailTD[0] = priv->apCurrTD[0] = &priv->apTD0Rings[0];
+
+	return 0;
+
+err_free_desc:
+	while (--i) {
+		desc = &priv->apTD0Rings[i];
+		kfree(desc->td_info);
+	}
+
+	return ret;
 }
 
-static void device_init_td1_ring(struct vnt_private *priv)
+static int device_init_td1_ring(struct vnt_private *priv)
 {
 	int i;
 	dma_addr_t  curr;
 	struct vnt_tx_desc *desc;
+	int ret;
 
 	/* Init the TD ring entries */
 	curr = priv->td1_pool_dma;
 	for (i = 0; i < priv->opts.tx_descs[1];
 	     i++, curr += sizeof(struct vnt_tx_desc)) {
 		desc = &priv->apTD1Rings[i];
-		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_ATOMIC);
+		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_KERNEL);
+		if (!desc->td_info) {
+			ret = -ENOMEM;
+			goto err_free_desc;
+		}
 
 		desc->td_info->buf = priv->tx1_bufs + i * PKT_BUF_SZ;
 		desc->td_info->buf_dma = priv->tx_bufs_dma1 + i * PKT_BUF_SZ;
@@ -670,6 +713,16 @@ static void device_init_td1_ring(struct vnt_private *priv)
 	if (i > 0)
 		priv->apTD1Rings[i-1].next_desc = cpu_to_le32(priv->td1_pool_dma);
 	priv->apTailTD[1] = priv->apCurrTD[1] = &priv->apTD1Rings[0];
+
+	return 0;
+
+err_free_desc:
+	while (--i) {
+		desc = &priv->apTD1Rings[i];
+		kfree(desc->td_info);
+	}
+
+	return ret;
 }
 
 static void device_free_td0_ring(struct vnt_private *priv)
@@ -735,13 +788,18 @@ static bool device_alloc_rx_buf(struct vnt_private *priv,
 	struct vnt_rd_info *rd_info = rd->rd_info;
 
 	rd_info->skb = dev_alloc_skb((int)priv->rx_buf_sz);
-	if (rd_info->skb == NULL)
+	if (!rd_info->skb)
 		return false;
 
 	rd_info->skb_dma =
 		dma_map_single(&priv->pcid->dev,
 			       skb_put(rd_info->skb, skb_tailroom(rd_info->skb)),
 			       priv->rx_buf_sz, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&priv->pcid->dev, rd_info->skb_dma)) {
+		dev_kfree_skb(rd_info->skb);
+		rd_info->skb = NULL;
+		return false;
+	}
 
 	*((unsigned int *)&rd->rd0) = 0; /* FIX cast */
 
@@ -751,6 +809,16 @@ static bool device_alloc_rx_buf(struct vnt_private *priv,
 	rd->buff_addr = cpu_to_le32(rd_info->skb_dma);
 
 	return true;
+}
+
+static void device_free_rx_buf(struct vnt_private *priv,
+				struct vnt_rx_desc *rd)
+{
+	struct vnt_rd_info *rd_info = rd->rd_info;
+
+	dma_unmap_single(&priv->pcid->dev, rd_info->skb_dma,
+			priv->rx_buf_sz, DMA_FROM_DEVICE);
+	dev_kfree_skb(rd_info->skb);
 }
 
 static const u8 fallback_rate0[5][5] = {
@@ -807,7 +875,7 @@ static int vnt_int_report_rate(struct vnt_private *priv,
 		else if (fb_option & FIFOCTL_AUTO_FB_1)
 			tx_rate = fallback_rate1[tx_rate][retry];
 
-		if (info->band == IEEE80211_BAND_5GHZ)
+		if (info->band == NL80211_BAND_5GHZ)
 			idx = tx_rate - RATE_6M;
 		else
 			idx = tx_rate;
@@ -884,7 +952,7 @@ static void device_error(struct vnt_private *priv, unsigned short status)
 	if (status & ISR_FETALERR) {
 		dev_err(&priv->pcid->dev, "Hardware fatal error\n");
 
-		MACbShutdown(priv->PortOffset);
+		MACbShutdown(priv);
 		return;
 	}
 }
@@ -1012,12 +1080,11 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 			if ((priv->op_mode == NL80211_IFTYPE_AP ||
 			    priv->op_mode == NL80211_IFTYPE_ADHOC) &&
 			    priv->vif->bss_conf.enable_beacon) {
-				MACvOneShotTimer1MicroSec(priv->PortOffset,
+				MACvOneShotTimer1MicroSec(priv,
 							  (priv->vif->bss_conf.beacon_int - MAKE_BEACON_RESERVED) << 10);
 			}
 
 			/* TODO: adhoc PS mode */
-
 		}
 
 		if (isr & ISR_BNTX) {
@@ -1166,18 +1233,26 @@ static int vnt_start(struct ieee80211_hw *hw)
 	if (!device_init_rings(priv))
 		return -ENOMEM;
 
-	ret = request_irq(priv->pcid->irq, &vnt_interrupt,
+	ret = request_irq(priv->pcid->irq, vnt_interrupt,
 			  IRQF_SHARED, "vt6655", priv);
 	if (ret) {
 		dev_dbg(&priv->pcid->dev, "failed to start irq\n");
-		return ret;
+		goto err_free_rings;
 	}
 
 	dev_dbg(&priv->pcid->dev, "call device init rd0 ring\n");
-	device_init_rd0_ring(priv);
-	device_init_rd1_ring(priv);
-	device_init_td0_ring(priv);
-	device_init_td1_ring(priv);
+	ret = device_init_rd0_ring(priv);
+	if (ret)
+		goto err_free_irq;
+	ret = device_init_rd1_ring(priv);
+	if (ret)
+		goto err_free_rd0_ring;
+	ret = device_init_td0_ring(priv);
+	if (ret)
+		goto err_free_rd1_ring;
+	ret = device_init_td1_ring(priv);
+	if (ret)
+		goto err_free_td0_ring;
 
 	device_init_registers(priv);
 
@@ -1187,6 +1262,18 @@ static int vnt_start(struct ieee80211_hw *hw)
 	ieee80211_wake_queues(hw);
 
 	return 0;
+
+err_free_td0_ring:
+	device_free_td0_ring(priv);
+err_free_rd1_ring:
+	device_free_rd1_ring(priv);
+err_free_rd0_ring:
+	device_free_rd0_ring(priv);
+err_free_irq:
+	free_irq(priv->pcid->irq, priv);
+err_free_rings:
+	device_free_rings(priv);
+	return ret;
 }
 
 static void vnt_stop(struct ieee80211_hw *hw)
@@ -1197,8 +1284,8 @@ static void vnt_stop(struct ieee80211_hw *hw)
 
 	cancel_work_sync(&priv->interrupt_work);
 
-	MACbShutdown(priv->PortOffset);
-	MACbSoftwareReset(priv->PortOffset);
+	MACbShutdown(priv);
+	MACbSoftwareReset(priv);
 	CARDbRadioPowerOff(priv);
 
 	device_free_td0_ring(priv);
@@ -1267,7 +1354,6 @@ static void vnt_remove_interface(struct ieee80211_hw *hw,
 	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
 }
 
-
 static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct vnt_private *priv = hw->priv;
@@ -1285,7 +1371,7 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 	    (conf->flags & IEEE80211_CONF_OFFCHANNEL)) {
 		set_channel(priv, conf->chandef.chan);
 
-		if (conf->chandef.chan->band == IEEE80211_BAND_5GHZ)
+		if (conf->chandef.chan->band == NL80211_BAND_5GHZ)
 			bb_type = BB_TYPE_11A;
 		else
 			bb_type = BB_TYPE_11G;
@@ -1311,8 +1397,8 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static void vnt_bss_info_changed(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif, struct ieee80211_bss_conf *conf,
-		u32 changed)
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *conf, u32 changed)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -1402,7 +1488,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 }
 
 static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
-	struct netdev_hw_addr_list *mc_list)
+				 struct netdev_hw_addr_list *mc_list)
 {
 	struct vnt_private *priv = hw->priv;
 	struct netdev_hw_addr *ha;
@@ -1421,7 +1507,8 @@ static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
 }
 
 static void vnt_configure(struct ieee80211_hw *hw,
-	unsigned int changed_flags, unsigned int *total_flags, u64 multicast)
+			  unsigned int changed_flags,
+			  unsigned int *total_flags, u64 multicast)
 {
 	struct vnt_private *priv = hw->priv;
 	u8 rx_mode = 0;
@@ -1482,8 +1569,8 @@ static void vnt_configure(struct ieee80211_hw *hw,
 }
 
 static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-	struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		struct ieee80211_key_conf *key)
+		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -1636,13 +1723,13 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	INIT_WORK(&priv->interrupt_work, vnt_interrupt_work);
 
 	/* do reset */
-	if (!MACbSoftwareReset(priv->PortOffset)) {
+	if (!MACbSoftwareReset(priv)) {
 		dev_err(&pcid->dev, ": Failed to access MAC hardware..\n");
 		device_free_info(priv);
 		return -ENODEV;
 	}
 	/* initial to reload eeprom */
-	MACvInitialize(priv->PortOffset);
+	MACvInitialize(priv);
 	MACvReadEtherAddress(priv->PortOffset, priv->abyCurrentNetAddr);
 
 	/* Get RFType */
@@ -1690,19 +1777,19 @@ static int vt6655_suspend(struct pci_dev *pcid, pm_message_t state)
 
 	pci_save_state(pcid);
 
-	MACbShutdown(priv->PortOffset);
+	MACbShutdown(priv);
 
 	pci_disable_device(pcid);
-	pci_set_power_state(pcid, pci_choose_state(pcid, state));
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	pci_set_power_state(pcid, pci_choose_state(pcid, state));
 
 	return 0;
 }
 
 static int vt6655_resume(struct pci_dev *pcid)
 {
-
 	pci_set_power_state(pcid, PCI_D0);
 	pci_enable_wake(pcid, PCI_D0, 0);
 	pci_restore_state(pcid);

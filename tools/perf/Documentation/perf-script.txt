@@ -36,7 +36,7 @@ There are several variants of perf script:
 
   'perf script report <script> [args]' to run and display the results
   of <script>.  <script> is the name displayed in the output of 'perf
-  trace --list' i.e. the actual script name minus any language
+  script --list' i.e. the actual script name minus any language
   extension.  The perf.data output from a previous run of 'perf script
   record <script>' is used and should be present for this command to
   succeed.  [args] refers to the (mainly optional) args expected by
@@ -76,7 +76,7 @@ OPTIONS
 	Any command you can specify in a shell.
 
 -D::
---dump-raw-script=::
+--dump-raw-trace=::
         Display verbose dump of the trace data.
 
 -L::
@@ -116,26 +116,35 @@ OPTIONS
 --fields::
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
-	srcline, period, iregs, brstack, brstacksym, flags.
+        srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output, brstackinsn,
+        brstackoff, callindent, insn, insnlen, synth, phys_addr, metric, misc.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
-        e.g., -f sw:comm,tid,time,ip,sym  and -f trace:time,cpu,trace
+        e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
 
-		perf script -f <fields>
+		perf script -F <fields>
 
 	is equivalent to:
 
-		perf script -f trace:<fields> -f sw:<fields> -f hw:<fields>
+		perf script -F trace:<fields> -F sw:<fields> -F hw:<fields>
 
 	i.e., the specified fields apply to all event types if the type string
 	is not given.
 
+	In addition to overriding fields, it is also possible to add or remove
+	fields from the defaults. For example
+
+		-F -cpu,+insn
+
+	removes the cpu field and adds the insn field. Adding/removing fields
+	cannot be mixed with normal overriding.
+
 	The arguments are processed in the order received. A later usage can
 	reset a prior request. e.g.:
 
-		-f trace: -f comm,tid,time,ip,sym
+		-F trace: -F comm,tid,time,ip,sym
 
-	The first -f suppresses trace events (field list is ""), but then the
+	The first -F suppresses trace events (field list is ""), but then the
 	second invocation sets the fields to comm,tid,time,ip,sym. In this case a
 	warning is given to the user:
 
@@ -143,9 +152,9 @@ OPTIONS
 
 	Alternatively, consider the order:
 
-		-f comm,tid,time,ip,sym -f trace:
+		-F comm,tid,time,ip,sym -F trace:
 
-	The first -f sets the fields for all events and the second -f
+	The first -F sets the fields for all events and the second -F
 	suppresses trace events. The user is given a warning message about
 	the override, and the result of the above is that only S/W and H/W
 	events are displayed with the given fields.
@@ -154,14 +163,14 @@ OPTIONS
 	event type, a message is displayed to the user that the option is
 	ignored for that type. For example:
 
-		$ perf script -f comm,tid,trace
+		$ perf script -F comm,tid,trace
 		'trace' not valid for hardware events. Ignoring.
 		'trace' not valid for software events. Ignoring.
 
 	Alternatively, if the type is given an invalid field is specified it
 	is an error. For example:
 
-        perf script -v -f sw:comm,tid,trace
+        perf script -v -F sw:comm,tid,trace
         'trace' not valid for software events.
 
 	At this point usage is displayed, and perf-script exits.
@@ -170,20 +179,70 @@ OPTIONS
 	Trace decoding. The flags are "bcrosyiABEx" which stand for branch,
 	call, return, conditional, system, asynchronous, interrupt,
 	transaction abort, trace begin, trace end, and in transaction,
-	respectively.
+	respectively. Known combinations of flags are printed more nicely e.g.
+	"call" for "bc", "return" for "br", "jcc" for "bo", "jmp" for "b",
+	"int" for "bci", "iret" for "bri", "syscall" for "bcs", "sysret" for "brs",
+	"async" for "by", "hw int" for "bcyi", "tx abrt" for "bA", "tr strt" for "bB",
+	"tr end" for "bE". However the "x" flag will be display separately in those
+	cases e.g. "jcc     (x)" for a condition branch within a transaction.
+
+	The callindent field is synthesized and may have a value when
+	Instruction Trace decoding. For calls and returns, it will display the
+	name of the symbol indented with spaces to reflect the stack depth.
+
+	When doing instruction trace decoding insn and insnlen give the
+	instruction bytes and the instruction length of the current
+	instruction.
+
+	The synth field is used by synthesized events which may be created when
+	Instruction Trace decoding.
 
 	Finally, a user may not set fields to none for all event types.
-	i.e., -f "" is not allowed.
+	i.e., -F "" is not allowed.
 
 	The brstack output includes branch related information with raw addresses using the
-	/v/v/v/v/ syntax in the following order:
+	/v/v/v/v/cycles syntax in the following order:
 	FROM: branch source instruction
 	TO  : branch target instruction
         M/P/-: M=branch target mispredicted or branch direction was mispredicted, P=target predicted or direction predicted, -=not supported
 	X/- : X=branch inside a transactional region, -=not in transaction region or not supported
 	A/- : A=TSX abort entry, -=not aborted region or not supported
+	cycles
 
 	The brstacksym is identical to brstack, except that the FROM and TO addresses are printed in a symbolic form if possible.
+
+	When brstackinsn is specified the full assembler sequences of branch sequences for each sample
+	is printed. This is the full execution path leading to the sample. This is only supported when the
+	sample was recorded with perf record -b or -j any.
+
+	The brstackoff field will print an offset into a specific dso/binary.
+
+	With the metric option perf script can compute metrics for
+	sampling periods, similar to perf stat. This requires
+	specifying a group with multiple metrics with the :S option
+	for perf record. perf will sample on the first event, and
+	compute metrics for all the events in the group. Please note
+	that the metric computed is averaged over the whole sampling
+	period, not just for the sample point.
+
+	For sample events it's possible to display misc field with -F +misc option,
+	following letters are displayed for each bit:
+
+	  PERF_RECORD_MISC_KERNEL               K
+	  PERF_RECORD_MISC_USER                 U
+	  PERF_RECORD_MISC_HYPERVISOR           H
+	  PERF_RECORD_MISC_GUEST_KERNEL         G
+	  PERF_RECORD_MISC_GUEST_USER           g
+	  PERF_RECORD_MISC_MMAP_DATA*           M
+	  PERF_RECORD_MISC_COMM_EXEC            E
+	  PERF_RECORD_MISC_SWITCH_OUT           S
+	  PERF_RECORD_MISC_SWITCH_OUT_PREEMPT   Sp
+
+	  $ perf script -F +misc ...
+	   sched-messaging  1414 K     28690.636582:       4590 cycles ...
+	   sched-messaging  1407 U     28690.636600:     325620 cycles ...
+	   sched-messaging  1414 K     28690.636608:      19473 cycles ...
+	  misc field ___________/
 
 -k::
 --vmlinux=<file>::
@@ -198,6 +257,9 @@ OPTIONS
 -G::
 --hide-call-graph::
         When printing symbols do not display call chain.
+
+--stop-bt::
+        Stop display of callgraph at these symbols
 
 -C::
 --cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
@@ -232,9 +294,18 @@ OPTIONS
 --show-mmap-events
 	Display mmap related events (e.g. MMAP, MMAP2).
 
+--show-namespace-events
+	Display namespace events i.e. events of type PERF_RECORD_NAMESPACES.
+
 --show-switch-events
 	Display context switch events i.e. events of type PERF_RECORD_SWITCH or
 	PERF_RECORD_SWITCH_CPU_WIDE.
+
+--show-lost-events
+	Display lost events i.e. events of type PERF_RECORD_LOST.
+
+--show-round-events
+	Display finished round events i.e. events of type PERF_RECORD_FINISHED_ROUND.
 
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
@@ -259,8 +330,58 @@ include::itrace.txt[]
 --full-source-path::
 	Show the full path for source files for srcline output.
 
+--max-stack::
+        Set the stack depth limit when parsing the callchain, anything
+        beyond the specified depth will be ignored. This is a trade-off
+        between information loss and faster processing especially for
+        workloads that can have a very long callchain stack.
+        Note that when using the --itrace option the synthesized callchain size
+        will override this value if the synthesized callchain size is bigger.
+
+        Default: 127
+
 --ns::
 	Use 9 decimal places when displaying time (i.e. show the nanoseconds)
+
+-f::
+--force::
+	Don't do ownership validation.
+
+--time::
+	Only analyze samples within given time window: <start>,<stop>. Times
+	have the format seconds.microseconds. If start is not given (i.e., time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	to end of file.
+
+	Also support time percent with multipe time range. Time string is
+	'a%/n,b%/m,...' or 'a%-b%,c%-%d,...'.
+
+	For example:
+	Select the second 10% time slice:
+	perf script --time 10%/2
+
+	Select from 0% to 10% time slice:
+	perf script --time 0%-10%
+
+	Select the first and second 10% time slices:
+	perf script --time 10%/1,10%/2
+
+	Select from 0% to 10% and 30% to 40% slices:
+	perf script --time 0%-10%,30%-40%
+
+--max-blocks::
+	Set the maximum number of program blocks to print with brstackasm for
+	each sample.
+
+--per-event-dump::
+	Create per event files with a "perf.data.EVENT.dump" name instead of
+        printing to stdout, useful, for instance, for generating flamegraphs.
+
+--inline::
+	If a callgraph address belongs to an inlined function, the inline stack
+	will be printed. Each entry has function name and file/line. Enabled by
+	default, disable with --no-inline.
 
 SEE ALSO
 --------

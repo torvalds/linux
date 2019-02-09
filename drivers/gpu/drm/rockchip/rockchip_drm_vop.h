@@ -15,111 +15,155 @@
 #ifndef _ROCKCHIP_DRM_VOP_H
 #define _ROCKCHIP_DRM_VOP_H
 
-/* register definition */
-#define REG_CFG_DONE			0x0000
-#define VERSION_INFO			0x0004
-#define SYS_CTRL			0x0008
-#define SYS_CTRL1			0x000c
-#define DSP_CTRL0			0x0010
-#define DSP_CTRL1			0x0014
-#define DSP_BG				0x0018
-#define MCU_CTRL			0x001c
-#define INTR_CTRL0			0x0020
-#define INTR_CTRL1			0x0024
-#define WIN0_CTRL0			0x0030
-#define WIN0_CTRL1			0x0034
-#define WIN0_COLOR_KEY			0x0038
-#define WIN0_VIR			0x003c
-#define WIN0_YRGB_MST			0x0040
-#define WIN0_CBR_MST			0x0044
-#define WIN0_ACT_INFO			0x0048
-#define WIN0_DSP_INFO			0x004c
-#define WIN0_DSP_ST			0x0050
-#define WIN0_SCL_FACTOR_YRGB		0x0054
-#define WIN0_SCL_FACTOR_CBR		0x0058
-#define WIN0_SCL_OFFSET			0x005c
-#define WIN0_SRC_ALPHA_CTRL		0x0060
-#define WIN0_DST_ALPHA_CTRL		0x0064
-#define WIN0_FADING_CTRL		0x0068
-/* win1 register */
-#define WIN1_CTRL0			0x0070
-#define WIN1_CTRL1			0x0074
-#define WIN1_COLOR_KEY			0x0078
-#define WIN1_VIR			0x007c
-#define WIN1_YRGB_MST			0x0080
-#define WIN1_CBR_MST			0x0084
-#define WIN1_ACT_INFO			0x0088
-#define WIN1_DSP_INFO			0x008c
-#define WIN1_DSP_ST			0x0090
-#define WIN1_SCL_FACTOR_YRGB		0x0094
-#define WIN1_SCL_FACTOR_CBR		0x0098
-#define WIN1_SCL_OFFSET			0x009c
-#define WIN1_SRC_ALPHA_CTRL		0x00a0
-#define WIN1_DST_ALPHA_CTRL		0x00a4
-#define WIN1_FADING_CTRL		0x00a8
-/* win2 register */
-#define WIN2_CTRL0			0x00b0
-#define WIN2_CTRL1			0x00b4
-#define WIN2_VIR0_1			0x00b8
-#define WIN2_VIR2_3			0x00bc
-#define WIN2_MST0			0x00c0
-#define WIN2_DSP_INFO0			0x00c4
-#define WIN2_DSP_ST0			0x00c8
-#define WIN2_COLOR_KEY			0x00cc
-#define WIN2_MST1			0x00d0
-#define WIN2_DSP_INFO1			0x00d4
-#define WIN2_DSP_ST1			0x00d8
-#define WIN2_SRC_ALPHA_CTRL		0x00dc
-#define WIN2_MST2			0x00e0
-#define WIN2_DSP_INFO2			0x00e4
-#define WIN2_DSP_ST2			0x00e8
-#define WIN2_DST_ALPHA_CTRL		0x00ec
-#define WIN2_MST3			0x00f0
-#define WIN2_DSP_INFO3			0x00f4
-#define WIN2_DSP_ST3			0x00f8
-#define WIN2_FADING_CTRL		0x00fc
-/* win3 register */
-#define WIN3_CTRL0			0x0100
-#define WIN3_CTRL1			0x0104
-#define WIN3_VIR0_1			0x0108
-#define WIN3_VIR2_3			0x010c
-#define WIN3_MST0			0x0110
-#define WIN3_DSP_INFO0			0x0114
-#define WIN3_DSP_ST0			0x0118
-#define WIN3_COLOR_KEY			0x011c
-#define WIN3_MST1			0x0120
-#define WIN3_DSP_INFO1			0x0124
-#define WIN3_DSP_ST1			0x0128
-#define WIN3_SRC_ALPHA_CTRL		0x012c
-#define WIN3_MST2			0x0130
-#define WIN3_DSP_INFO2			0x0134
-#define WIN3_DSP_ST2			0x0138
-#define WIN3_DST_ALPHA_CTRL		0x013c
-#define WIN3_MST3			0x0140
-#define WIN3_DSP_INFO3			0x0144
-#define WIN3_DSP_ST3			0x0148
-#define WIN3_FADING_CTRL		0x014c
-/* hwc register */
-#define HWC_CTRL0			0x0150
-#define HWC_CTRL1			0x0154
-#define HWC_MST				0x0158
-#define HWC_DSP_ST			0x015c
-#define HWC_SRC_ALPHA_CTRL		0x0160
-#define HWC_DST_ALPHA_CTRL		0x0164
-#define HWC_FADING_CTRL			0x0168
-/* post process register */
-#define POST_DSP_HACT_INFO		0x0170
-#define POST_DSP_VACT_INFO		0x0174
-#define POST_SCL_FACTOR_YRGB		0x0178
-#define POST_SCL_CTRL			0x0180
-#define POST_DSP_VACT_INFO_F1		0x0184
-#define DSP_HTOTAL_HS_END		0x0188
-#define DSP_HACT_ST_END			0x018c
-#define DSP_VTOTAL_VS_END		0x0190
-#define DSP_VACT_ST_END			0x0194
-#define DSP_VS_ST_END_F1		0x0198
-#define DSP_VACT_ST_END_F1		0x019c
-/* register definition end */
+/*
+ * major: IP major version, used for IP structure
+ * minor: big feature change under same structure
+ */
+#define VOP_VERSION(major, minor)	((major) << 8 | (minor))
+#define VOP_MAJOR(version)		((version) >> 8)
+#define VOP_MINOR(version)		((version) & 0xff)
+
+enum vop_data_format {
+	VOP_FMT_ARGB8888 = 0,
+	VOP_FMT_RGB888,
+	VOP_FMT_RGB565,
+	VOP_FMT_YUV420SP = 4,
+	VOP_FMT_YUV422SP,
+	VOP_FMT_YUV444SP,
+};
+
+struct vop_reg {
+	uint32_t mask;
+	uint16_t offset;
+	uint8_t shift;
+	bool write_mask;
+	bool relaxed;
+};
+
+struct vop_modeset {
+	struct vop_reg htotal_pw;
+	struct vop_reg hact_st_end;
+	struct vop_reg hpost_st_end;
+	struct vop_reg vtotal_pw;
+	struct vop_reg vact_st_end;
+	struct vop_reg vpost_st_end;
+};
+
+struct vop_output {
+	struct vop_reg pin_pol;
+	struct vop_reg dp_pin_pol;
+	struct vop_reg edp_pin_pol;
+	struct vop_reg hdmi_pin_pol;
+	struct vop_reg mipi_pin_pol;
+	struct vop_reg rgb_pin_pol;
+	struct vop_reg dp_en;
+	struct vop_reg edp_en;
+	struct vop_reg hdmi_en;
+	struct vop_reg mipi_en;
+	struct vop_reg rgb_en;
+};
+
+struct vop_common {
+	struct vop_reg cfg_done;
+	struct vop_reg dsp_blank;
+	struct vop_reg data_blank;
+	struct vop_reg pre_dither_down;
+	struct vop_reg dither_down;
+	struct vop_reg dither_up;
+	struct vop_reg gate_en;
+	struct vop_reg mmu_en;
+	struct vop_reg out_mode;
+	struct vop_reg standby;
+};
+
+struct vop_misc {
+	struct vop_reg global_regdone_en;
+};
+
+struct vop_intr {
+	const int *intrs;
+	uint32_t nintrs;
+
+	struct vop_reg line_flag_num[2];
+	struct vop_reg enable;
+	struct vop_reg clear;
+	struct vop_reg status;
+};
+
+struct vop_scl_extension {
+	struct vop_reg cbcr_vsd_mode;
+	struct vop_reg cbcr_vsu_mode;
+	struct vop_reg cbcr_hsd_mode;
+	struct vop_reg cbcr_ver_scl_mode;
+	struct vop_reg cbcr_hor_scl_mode;
+	struct vop_reg yrgb_vsd_mode;
+	struct vop_reg yrgb_vsu_mode;
+	struct vop_reg yrgb_hsd_mode;
+	struct vop_reg yrgb_ver_scl_mode;
+	struct vop_reg yrgb_hor_scl_mode;
+	struct vop_reg line_load_mode;
+	struct vop_reg cbcr_axi_gather_num;
+	struct vop_reg yrgb_axi_gather_num;
+	struct vop_reg vsd_cbcr_gt2;
+	struct vop_reg vsd_cbcr_gt4;
+	struct vop_reg vsd_yrgb_gt2;
+	struct vop_reg vsd_yrgb_gt4;
+	struct vop_reg bic_coe_sel;
+	struct vop_reg cbcr_axi_gather_en;
+	struct vop_reg yrgb_axi_gather_en;
+	struct vop_reg lb_mode;
+};
+
+struct vop_scl_regs {
+	const struct vop_scl_extension *ext;
+
+	struct vop_reg scale_yrgb_x;
+	struct vop_reg scale_yrgb_y;
+	struct vop_reg scale_cbcr_x;
+	struct vop_reg scale_cbcr_y;
+};
+
+struct vop_win_phy {
+	const struct vop_scl_regs *scl;
+	const uint32_t *data_formats;
+	uint32_t nformats;
+
+	struct vop_reg enable;
+	struct vop_reg gate;
+	struct vop_reg format;
+	struct vop_reg rb_swap;
+	struct vop_reg act_info;
+	struct vop_reg dsp_info;
+	struct vop_reg dsp_st;
+	struct vop_reg yrgb_mst;
+	struct vop_reg uv_mst;
+	struct vop_reg yrgb_vir;
+	struct vop_reg uv_vir;
+
+	struct vop_reg dst_alpha_ctl;
+	struct vop_reg src_alpha_ctl;
+	struct vop_reg channel;
+};
+
+struct vop_win_data {
+	uint32_t base;
+	const struct vop_win_phy *phy;
+	enum drm_plane_type type;
+};
+
+struct vop_data {
+	uint32_t version;
+	const struct vop_intr *intr;
+	const struct vop_common *common;
+	const struct vop_misc *misc;
+	const struct vop_modeset *modeset;
+	const struct vop_output *output;
+	const struct vop_win_data *win;
+	unsigned int win_size;
+
+#define VOP_FEATURE_OUTPUT_RGB10	BIT(0)
+	u64 feature;
+};
 
 /* interrupt define */
 #define DSP_HOLD_VALID_INTR		(1 << 0)
@@ -223,6 +267,13 @@ enum scale_down_mode {
 	SCALE_DOWN_AVG = 0x1
 };
 
+enum vop_pol {
+	HSYNC_POSITIVE = 0,
+	VSYNC_POSITIVE = 1,
+	DEN_NEGATIVE   = 2,
+	DCLK_INVERT    = 3
+};
+
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
 #define SCL_FT_DEFAULT_FIXPOINT_SHIFT	12
 #define SCL_MAX_VSKIPLINES		4
@@ -231,6 +282,11 @@ enum scale_down_mode {
 static inline uint16_t scl_cal_scale(int src, int dst, int shift)
 {
 	return ((src * 2 - 3) << (shift - 1)) / (dst - 1);
+}
+
+static inline uint16_t scl_cal_scale2(int src, int dst)
+{
+	return ((src - 1) << 12) / (dst - 1);
 }
 
 #define GET_SCL_FT_BILI_DN(src, dst)	scl_cal_scale(src, dst, 12)
@@ -243,6 +299,9 @@ static inline uint16_t scl_get_bili_dn_vskip(int src_h, int dst_h,
 	int act_height;
 
 	act_height = (src_h + vskiplines - 1) / vskiplines;
+
+	if (act_height == dst_h)
+		return GET_SCL_FT_BILI_DN(src_h, dst_h) / vskiplines;
 
 	return GET_SCL_FT_BILI_DN(act_height, dst_h);
 }
@@ -272,18 +331,22 @@ static inline int scl_vop_cal_lb_mode(int width, bool is_yuv)
 {
 	int lb_mode;
 
-	if (width > 2560)
-		lb_mode = LB_RGB_3840X2;
-	else if (width > 1920)
-		lb_mode = LB_RGB_2560X4;
-	else if (!is_yuv)
-		lb_mode = LB_RGB_1920X5;
-	else if (width > 1280)
-		lb_mode = LB_YUV_3840X5;
-	else
-		lb_mode = LB_YUV_2560X8;
+	if (is_yuv) {
+		if (width > 1280)
+			lb_mode = LB_YUV_3840X5;
+		else
+			lb_mode = LB_YUV_2560X8;
+	} else {
+		if (width > 2560)
+			lb_mode = LB_RGB_3840X2;
+		else if (width > 1920)
+			lb_mode = LB_RGB_2560X4;
+		else
+			lb_mode = LB_RGB_1920X5;
+	}
 
 	return lb_mode;
 }
 
+extern const struct component_ops vop_component_ops;
 #endif /* _ROCKCHIP_DRM_VOP_H */

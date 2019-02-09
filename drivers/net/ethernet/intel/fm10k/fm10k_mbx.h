@@ -1,22 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #ifndef _FM10K_MBX_H_
 #define _FM10K_MBX_H_
@@ -41,6 +24,8 @@ struct fm10k_mbx_info;
 #define FM10K_MBX_ACK_INTERRUPT			0x00000010
 #define FM10K_MBX_INTERRUPT_ENABLE		0x00000020
 #define FM10K_MBX_INTERRUPT_DISABLE		0x00000040
+#define FM10K_MBX_GLOBAL_REQ_INTERRUPT		0x00000200
+#define FM10K_MBX_GLOBAL_ACK_INTERRUPT		0x00000400
 #define FM10K_MBICR(_n)		((_n) + 0x18840)
 #define FM10K_GMBX		0x18842
 
@@ -128,11 +113,11 @@ enum fm10k_mbx_state {
  *		The maximum message size is provided during connect to avoid
  *		jamming the mailbox with messages that do not fit.
  * Err_no: Error number - Applies only to error headers
- *		The error number provides a indication of the type of error
+ *		The error number provides an indication of the type of error
  *		experienced.
  */
 
-/* macros for retriving and setting header values */
+/* macros for retrieving and setting header values */
 #define FM10K_MSG_HDR_MASK(name) \
 	((0x1u << FM10K_MSG_##name##_SIZE) - 1)
 #define FM10K_MSG_HDR_FIELD_SET(value, name) \
@@ -291,8 +276,10 @@ struct fm10k_mbx_info {
 	u64 tx_dropped;
 	u64 tx_messages;
 	u64 tx_dwords;
+	u64 tx_mbmem_pulled;
 	u64 rx_messages;
 	u64 rx_dwords;
+	u64 rx_mbmem_pushed;
 	u64 rx_parse_err;
 
 	/* Buffer to store messages */

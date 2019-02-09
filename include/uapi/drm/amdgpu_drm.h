@@ -34,6 +34,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define DRM_AMDGPU_GEM_CREATE		0x00
 #define DRM_AMDGPU_GEM_MMAP		0x01
 #define DRM_AMDGPU_CTX			0x02
@@ -46,6 +50,10 @@
 #define DRM_AMDGPU_WAIT_CS		0x09
 #define DRM_AMDGPU_GEM_OP		0x10
 #define DRM_AMDGPU_GEM_USERPTR		0x11
+#define DRM_AMDGPU_WAIT_FENCES		0x12
+#define DRM_AMDGPU_VM			0x13
+#define DRM_AMDGPU_FENCE_TO_HANDLE	0x14
+#define DRM_AMDGPU_SCHED		0x15
 
 #define DRM_IOCTL_AMDGPU_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_CREATE, union drm_amdgpu_gem_create)
 #define DRM_IOCTL_AMDGPU_GEM_MMAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_MMAP, union drm_amdgpu_gem_mmap)
@@ -59,13 +67,46 @@
 #define DRM_IOCTL_AMDGPU_WAIT_CS	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_WAIT_CS, union drm_amdgpu_wait_cs)
 #define DRM_IOCTL_AMDGPU_GEM_OP		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_OP, struct drm_amdgpu_gem_op)
 #define DRM_IOCTL_AMDGPU_GEM_USERPTR	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_USERPTR, struct drm_amdgpu_gem_userptr)
+#define DRM_IOCTL_AMDGPU_WAIT_FENCES	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_WAIT_FENCES, union drm_amdgpu_wait_fences)
+#define DRM_IOCTL_AMDGPU_VM		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_VM, union drm_amdgpu_vm)
+#define DRM_IOCTL_AMDGPU_FENCE_TO_HANDLE DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_FENCE_TO_HANDLE, union drm_amdgpu_fence_to_handle)
+#define DRM_IOCTL_AMDGPU_SCHED		DRM_IOW(DRM_COMMAND_BASE + DRM_AMDGPU_SCHED, union drm_amdgpu_sched)
 
+/**
+ * DOC: memory domains
+ *
+ * %AMDGPU_GEM_DOMAIN_CPU	System memory that is not GPU accessible.
+ * Memory in this pool could be swapped out to disk if there is pressure.
+ *
+ * %AMDGPU_GEM_DOMAIN_GTT	GPU accessible system memory, mapped into the
+ * GPU's virtual address space via gart. Gart memory linearizes non-contiguous
+ * pages of system memory, allows GPU access system memory in a linezrized
+ * fashion.
+ *
+ * %AMDGPU_GEM_DOMAIN_VRAM	Local video memory. For APUs, it is memory
+ * carved out by the BIOS.
+ *
+ * %AMDGPU_GEM_DOMAIN_GDS	Global on-chip data storage used to share data
+ * across shader threads.
+ *
+ * %AMDGPU_GEM_DOMAIN_GWS	Global wave sync, used to synchronize the
+ * execution of all the waves on a device.
+ *
+ * %AMDGPU_GEM_DOMAIN_OA	Ordered append, used by 3D or Compute engines
+ * for appending data.
+ */
 #define AMDGPU_GEM_DOMAIN_CPU		0x1
 #define AMDGPU_GEM_DOMAIN_GTT		0x2
 #define AMDGPU_GEM_DOMAIN_VRAM		0x4
 #define AMDGPU_GEM_DOMAIN_GDS		0x8
 #define AMDGPU_GEM_DOMAIN_GWS		0x10
 #define AMDGPU_GEM_DOMAIN_OA		0x20
+#define AMDGPU_GEM_DOMAIN_MASK		(AMDGPU_GEM_DOMAIN_CPU | \
+					 AMDGPU_GEM_DOMAIN_GTT | \
+					 AMDGPU_GEM_DOMAIN_VRAM | \
+					 AMDGPU_GEM_DOMAIN_GDS | \
+					 AMDGPU_GEM_DOMAIN_GWS | \
+					 AMDGPU_GEM_DOMAIN_OA)
 
 /* Flag that CPU access will be required for the case of VRAM domain */
 #define AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED	(1 << 0)
@@ -73,22 +114,36 @@
 #define AMDGPU_GEM_CREATE_NO_CPU_ACCESS		(1 << 1)
 /* Flag that USWC attributes should be used for GTT */
 #define AMDGPU_GEM_CREATE_CPU_GTT_USWC		(1 << 2)
+/* Flag that the memory should be in VRAM and cleared */
+#define AMDGPU_GEM_CREATE_VRAM_CLEARED		(1 << 3)
+/* Flag that create shadow bo(GTT) while allocating vram bo */
+#define AMDGPU_GEM_CREATE_SHADOW		(1 << 4)
+/* Flag that allocating the BO should use linear VRAM */
+#define AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS	(1 << 5)
+/* Flag that BO is always valid in this VM */
+#define AMDGPU_GEM_CREATE_VM_ALWAYS_VALID	(1 << 6)
+/* Flag that BO sharing will be explicitly synchronized */
+#define AMDGPU_GEM_CREATE_EXPLICIT_SYNC		(1 << 7)
+/* Flag that indicates allocating MQD gart on GFX9, where the mtype
+ * for the second page onward should be set to NC.
+ */
+#define AMDGPU_GEM_CREATE_MQD_GFX9		(1 << 8)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
-	uint64_t bo_size;
+	__u64 bo_size;
 	/** physical start_addr alignment in bytes for some HW requirements */
-	uint64_t alignment;
+	__u64 alignment;
 	/** the requested memory domains */
-	uint64_t domains;
+	__u64 domains;
 	/** allocation flags */
-	uint64_t domain_flags;
+	__u64 domain_flags;
 };
 
 struct drm_amdgpu_gem_create_out  {
 	/** returned GEM object handle */
-	uint32_t handle;
-	uint32_t _pad;
+	__u32 handle;
+	__u32 _pad;
 };
 
 union drm_amdgpu_gem_create {
@@ -105,28 +160,28 @@ union drm_amdgpu_gem_create {
 
 struct drm_amdgpu_bo_list_in {
 	/** Type of operation */
-	uint32_t operation;
+	__u32 operation;
 	/** Handle of list or 0 if we want to create one */
-	uint32_t list_handle;
+	__u32 list_handle;
 	/** Number of BOs in list  */
-	uint32_t bo_number;
+	__u32 bo_number;
 	/** Size of each element describing BO */
-	uint32_t bo_info_size;
+	__u32 bo_info_size;
 	/** Pointer to array describing BOs */
-	uint64_t bo_info_ptr;
+	__u64 bo_info_ptr;
 };
 
 struct drm_amdgpu_bo_list_entry {
 	/** Handle of BO */
-	uint32_t bo_handle;
+	__u32 bo_handle;
 	/** New (if specified) BO priority to be used during migration */
-	uint32_t bo_priority;
+	__u32 bo_priority;
 };
 
 struct drm_amdgpu_bo_list_out {
 	/** Handle of resource list  */
-	uint32_t list_handle;
-	uint32_t _pad;
+	__u32 list_handle;
+	__u32 _pad;
 };
 
 union drm_amdgpu_bo_list {
@@ -138,6 +193,7 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_OP_ALLOC_CTX	1
 #define AMDGPU_CTX_OP_FREE_CTX	2
 #define AMDGPU_CTX_OP_QUERY_STATE	3
+#define AMDGPU_CTX_OP_QUERY_STATE2	4
 
 /* GPU reset status */
 #define AMDGPU_CTX_NO_RESET		0
@@ -148,34 +204,85 @@ union drm_amdgpu_bo_list {
 /* unknown cause */
 #define AMDGPU_CTX_UNKNOWN_RESET	3
 
+/* indicate gpu reset occured after ctx created */
+#define AMDGPU_CTX_QUERY2_FLAGS_RESET    (1<<0)
+/* indicate vram lost occured after ctx created */
+#define AMDGPU_CTX_QUERY2_FLAGS_VRAMLOST (1<<1)
+/* indicate some job from this context once cause gpu hang */
+#define AMDGPU_CTX_QUERY2_FLAGS_GUILTY   (1<<2)
+
+/* Context priority level */
+#define AMDGPU_CTX_PRIORITY_UNSET       -2048
+#define AMDGPU_CTX_PRIORITY_VERY_LOW    -1023
+#define AMDGPU_CTX_PRIORITY_LOW         -512
+#define AMDGPU_CTX_PRIORITY_NORMAL      0
+/* Selecting a priority above NORMAL requires CAP_SYS_NICE or DRM_MASTER */
+#define AMDGPU_CTX_PRIORITY_HIGH        512
+#define AMDGPU_CTX_PRIORITY_VERY_HIGH   1023
+
 struct drm_amdgpu_ctx_in {
 	/** AMDGPU_CTX_OP_* */
-	uint32_t	op;
+	__u32	op;
 	/** For future use, no flags defined so far */
-	uint32_t	flags;
-	uint32_t	ctx_id;
-	uint32_t	_pad;
+	__u32	flags;
+	__u32	ctx_id;
+	__s32	priority;
 };
 
 union drm_amdgpu_ctx_out {
 		struct {
-			uint32_t	ctx_id;
-			uint32_t	_pad;
+			__u32	ctx_id;
+			__u32	_pad;
 		} alloc;
 
 		struct {
 			/** For future use, no flags defined so far */
-			uint64_t	flags;
+			__u64	flags;
 			/** Number of resets caused by this context so far. */
-			uint32_t	hangs;
+			__u32	hangs;
 			/** Reset status since the last call of the ioctl. */
-			uint32_t	reset_status;
+			__u32	reset_status;
 		} state;
 };
 
 union drm_amdgpu_ctx {
 	struct drm_amdgpu_ctx_in in;
 	union drm_amdgpu_ctx_out out;
+};
+
+/* vm ioctl */
+#define AMDGPU_VM_OP_RESERVE_VMID	1
+#define AMDGPU_VM_OP_UNRESERVE_VMID	2
+
+struct drm_amdgpu_vm_in {
+	/** AMDGPU_VM_OP_* */
+	__u32	op;
+	__u32	flags;
+};
+
+struct drm_amdgpu_vm_out {
+	/** For future use, no flags defined so far */
+	__u64	flags;
+};
+
+union drm_amdgpu_vm {
+	struct drm_amdgpu_vm_in in;
+	struct drm_amdgpu_vm_out out;
+};
+
+/* sched ioctl */
+#define AMDGPU_SCHED_OP_PROCESS_PRIORITY_OVERRIDE	1
+
+struct drm_amdgpu_sched_in {
+	/* AMDGPU_SCHED_OP_* */
+	__u32	op;
+	__u32	fd;
+	__s32	priority;
+	__u32	flags;
+};
+
+union drm_amdgpu_sched {
+	struct drm_amdgpu_sched_in in;
 };
 
 /*
@@ -189,14 +296,15 @@ union drm_amdgpu_ctx {
 #define AMDGPU_GEM_USERPTR_REGISTER	(1 << 3)
 
 struct drm_amdgpu_gem_userptr {
-	uint64_t		addr;
-	uint64_t		size;
+	__u64		addr;
+	__u64		size;
 	/* AMDGPU_GEM_USERPTR_* */
-	uint32_t		flags;
+	__u32		flags;
 	/* Resulting GEM handle */
-	uint32_t		handle;
+	__u32		handle;
 };
 
+/* SI-CI-VI: */
 /* same meaning as the GB_TILE_MODE and GL_MACRO_TILE_MODE fields */
 #define AMDGPU_TILING_ARRAY_MODE_SHIFT			0
 #define AMDGPU_TILING_ARRAY_MODE_MASK			0xf
@@ -215,10 +323,15 @@ struct drm_amdgpu_gem_userptr {
 #define AMDGPU_TILING_NUM_BANKS_SHIFT			21
 #define AMDGPU_TILING_NUM_BANKS_MASK			0x3
 
+/* GFX9 and later: */
+#define AMDGPU_TILING_SWIZZLE_MODE_SHIFT		0
+#define AMDGPU_TILING_SWIZZLE_MODE_MASK			0x1f
+
+/* Set/Get helpers for tiling flags. */
 #define AMDGPU_TILING_SET(field, value) \
-	(((value) & AMDGPU_TILING_##field##_MASK) << AMDGPU_TILING_##field##_SHIFT)
+	(((__u64)(value) & AMDGPU_TILING_##field##_MASK) << AMDGPU_TILING_##field##_SHIFT)
 #define AMDGPU_TILING_GET(value, field) \
-	(((value) >> AMDGPU_TILING_##field##_SHIFT) & AMDGPU_TILING_##field##_MASK)
+	(((__u64)(value) >> AMDGPU_TILING_##field##_SHIFT) & AMDGPU_TILING_##field##_MASK)
 
 #define AMDGPU_GEM_METADATA_OP_SET_METADATA                  1
 #define AMDGPU_GEM_METADATA_OP_GET_METADATA                  2
@@ -226,28 +339,28 @@ struct drm_amdgpu_gem_userptr {
 /** The same structure is shared for input/output */
 struct drm_amdgpu_gem_metadata {
 	/** GEM Object handle */
-	uint32_t	handle;
+	__u32	handle;
 	/** Do we want get or set metadata */
-	uint32_t	op;
+	__u32	op;
 	struct {
 		/** For future use, no flags defined so far */
-		uint64_t	flags;
+		__u64	flags;
 		/** family specific tiling info */
-		uint64_t	tiling_info;
-		uint32_t	data_size_bytes;
-		uint32_t	data[64];
+		__u64	tiling_info;
+		__u32	data_size_bytes;
+		__u32	data[64];
 	} data;
 };
 
 struct drm_amdgpu_gem_mmap_in {
 	/** the GEM object handle */
-	uint32_t handle;
-	uint32_t _pad;
+	__u32 handle;
+	__u32 _pad;
 };
 
 struct drm_amdgpu_gem_mmap_out {
 	/** mmap offset from the vma offset manager */
-	uint64_t addr_ptr;
+	__u64 addr_ptr;
 };
 
 union drm_amdgpu_gem_mmap {
@@ -257,18 +370,18 @@ union drm_amdgpu_gem_mmap {
 
 struct drm_amdgpu_gem_wait_idle_in {
 	/** GEM object handle */
-	uint32_t handle;
+	__u32 handle;
 	/** For future use, no flags defined so far */
-	uint32_t flags;
+	__u32 flags;
 	/** Absolute timeout to wait */
-	uint64_t timeout;
+	__u64 timeout;
 };
 
 struct drm_amdgpu_gem_wait_idle_out {
 	/** BO status:  0 - BO is idle, 1 - BO is busy */
-	uint32_t status;
+	__u32 status;
 	/** Returned current memory domain */
-	uint32_t domain;
+	__u32 domain;
 };
 
 union drm_amdgpu_gem_wait_idle {
@@ -277,24 +390,53 @@ union drm_amdgpu_gem_wait_idle {
 };
 
 struct drm_amdgpu_wait_cs_in {
-	/** Command submission handle */
-	uint64_t handle;
+	/* Command submission handle
+         * handle equals 0 means none to wait for
+         * handle equals ~0ull means wait for the latest sequence number
+         */
+	__u64 handle;
 	/** Absolute timeout to wait */
-	uint64_t timeout;
-	uint32_t ip_type;
-	uint32_t ip_instance;
-	uint32_t ring;
-	uint32_t ctx_id;
+	__u64 timeout;
+	__u32 ip_type;
+	__u32 ip_instance;
+	__u32 ring;
+	__u32 ctx_id;
 };
 
 struct drm_amdgpu_wait_cs_out {
 	/** CS status:  0 - CS completed, 1 - CS still busy */
-	uint64_t status;
+	__u64 status;
 };
 
 union drm_amdgpu_wait_cs {
 	struct drm_amdgpu_wait_cs_in in;
 	struct drm_amdgpu_wait_cs_out out;
+};
+
+struct drm_amdgpu_fence {
+	__u32 ctx_id;
+	__u32 ip_type;
+	__u32 ip_instance;
+	__u32 ring;
+	__u64 seq_no;
+};
+
+struct drm_amdgpu_wait_fences_in {
+	/** This points to uint64_t * which points to fences */
+	__u64 fences;
+	__u32 fence_count;
+	__u32 wait_all;
+	__u64 timeout_ns;
+};
+
+struct drm_amdgpu_wait_fences_out {
+	__u32 status;
+	__u32 first_signaled;
+};
+
+union drm_amdgpu_wait_fences {
+	struct drm_amdgpu_wait_fences_in in;
+	struct drm_amdgpu_wait_fences_out out;
 };
 
 #define AMDGPU_GEM_OP_GET_GEM_CREATE_INFO	0
@@ -303,15 +445,17 @@ union drm_amdgpu_wait_cs {
 /* Sets or returns a value associated with a buffer. */
 struct drm_amdgpu_gem_op {
 	/** GEM object handle */
-	uint32_t	handle;
+	__u32	handle;
 	/** AMDGPU_GEM_OP_* */
-	uint32_t	op;
+	__u32	op;
 	/** Input or return value */
-	uint64_t	value;
+	__u64	value;
 };
 
 #define AMDGPU_VA_OP_MAP			1
 #define AMDGPU_VA_OP_UNMAP			2
+#define AMDGPU_VA_OP_CLEAR			3
+#define AMDGPU_VA_OP_REPLACE			4
 
 /* Delay the page table update till the next CS */
 #define AMDGPU_VM_DELAY_UPDATE		(1 << 0)
@@ -323,21 +467,35 @@ struct drm_amdgpu_gem_op {
 #define AMDGPU_VM_PAGE_WRITEABLE	(1 << 2)
 /* executable mapping, new for VI */
 #define AMDGPU_VM_PAGE_EXECUTABLE	(1 << 3)
+/* partially resident texture */
+#define AMDGPU_VM_PAGE_PRT		(1 << 4)
+/* MTYPE flags use bit 5 to 8 */
+#define AMDGPU_VM_MTYPE_MASK		(0xf << 5)
+/* Default MTYPE. Pre-AI must use this.  Recommended for newer ASICs. */
+#define AMDGPU_VM_MTYPE_DEFAULT		(0 << 5)
+/* Use NC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_NC		(1 << 5)
+/* Use WC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_WC		(2 << 5)
+/* Use CC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_CC		(3 << 5)
+/* Use UC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_UC		(4 << 5)
 
 struct drm_amdgpu_gem_va {
 	/** GEM object handle */
-	uint32_t handle;
-	uint32_t _pad;
+	__u32 handle;
+	__u32 _pad;
 	/** AMDGPU_VA_OP_* */
-	uint32_t operation;
+	__u32 operation;
 	/** AMDGPU_VM_PAGE_* */
-	uint32_t flags;
+	__u32 flags;
 	/** va address to assign . Must be correctly aligned.*/
-	uint64_t va_address;
+	__u64 va_address;
 	/** Specify offset inside of BO to assign. Must be correctly aligned.*/
-	uint64_t offset_in_bo;
+	__u64 offset_in_bo;
 	/** Specify mapping size. Must be correctly aligned. */
-	uint64_t map_size;
+	__u64 map_size;
 };
 
 #define AMDGPU_HW_IP_GFX          0
@@ -345,33 +503,40 @@ struct drm_amdgpu_gem_va {
 #define AMDGPU_HW_IP_DMA          2
 #define AMDGPU_HW_IP_UVD          3
 #define AMDGPU_HW_IP_VCE          4
-#define AMDGPU_HW_IP_NUM          5
+#define AMDGPU_HW_IP_UVD_ENC      5
+#define AMDGPU_HW_IP_VCN_DEC      6
+#define AMDGPU_HW_IP_VCN_ENC      7
+#define AMDGPU_HW_IP_VCN_JPEG     8
+#define AMDGPU_HW_IP_NUM          9
 
 #define AMDGPU_HW_IP_INSTANCE_MAX_COUNT 1
 
 #define AMDGPU_CHUNK_ID_IB		0x01
 #define AMDGPU_CHUNK_ID_FENCE		0x02
 #define AMDGPU_CHUNK_ID_DEPENDENCIES	0x03
+#define AMDGPU_CHUNK_ID_SYNCOBJ_IN      0x04
+#define AMDGPU_CHUNK_ID_SYNCOBJ_OUT     0x05
+#define AMDGPU_CHUNK_ID_BO_HANDLES      0x06
 
 struct drm_amdgpu_cs_chunk {
-	uint32_t		chunk_id;
-	uint32_t		length_dw;
-	uint64_t		chunk_data;
+	__u32		chunk_id;
+	__u32		length_dw;
+	__u64		chunk_data;
 };
 
 struct drm_amdgpu_cs_in {
 	/** Rendering context id */
-	uint32_t		ctx_id;
+	__u32		ctx_id;
 	/**  Handle of resource list associated with CS */
-	uint32_t		bo_list_handle;
-	uint32_t		num_chunks;
-	uint32_t		_pad;
-	/** this points to uint64_t * which point to cs chunks */
-	uint64_t		chunks;
+	__u32		bo_list_handle;
+	__u32		num_chunks;
+	__u32		_pad;
+	/** this points to __u64 * which point to cs chunks */
+	__u64		chunks;
 };
 
 struct drm_amdgpu_cs_out {
-	uint64_t handle;
+	__u64 handle;
 };
 
 union drm_amdgpu_cs {
@@ -384,36 +549,62 @@ union drm_amdgpu_cs {
 /* This IB should be submitted to CE */
 #define AMDGPU_IB_FLAG_CE	(1<<0)
 
-/* CE Preamble */
+/* Preamble flag, which means the IB could be dropped if no context switch */
 #define AMDGPU_IB_FLAG_PREAMBLE (1<<1)
 
+/* Preempt flag, IB should set Pre_enb bit if PREEMPT flag detected */
+#define AMDGPU_IB_FLAG_PREEMPT (1<<2)
+
+/* The IB fence should do the L2 writeback but not invalidate any shader
+ * caches (L2/vL1/sL1/I$). */
+#define AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE (1 << 3)
+
 struct drm_amdgpu_cs_chunk_ib {
-	uint32_t _pad;
+	__u32 _pad;
 	/** AMDGPU_IB_FLAG_* */
-	uint32_t flags;
+	__u32 flags;
 	/** Virtual address to begin IB execution */
-	uint64_t va_start;
+	__u64 va_start;
 	/** Size of submission */
-	uint32_t ib_bytes;
+	__u32 ib_bytes;
 	/** HW IP to submit to */
-	uint32_t ip_type;
+	__u32 ip_type;
 	/** HW IP index of the same type to submit to  */
-	uint32_t ip_instance;
+	__u32 ip_instance;
 	/** Ring index to submit to */
-	uint32_t ring;
+	__u32 ring;
 };
 
 struct drm_amdgpu_cs_chunk_dep {
-	uint32_t ip_type;
-	uint32_t ip_instance;
-	uint32_t ring;
-	uint32_t ctx_id;
-	uint64_t handle;
+	__u32 ip_type;
+	__u32 ip_instance;
+	__u32 ring;
+	__u32 ctx_id;
+	__u64 handle;
 };
 
 struct drm_amdgpu_cs_chunk_fence {
-	uint32_t handle;
-	uint32_t offset;
+	__u32 handle;
+	__u32 offset;
+};
+
+struct drm_amdgpu_cs_chunk_sem {
+	__u32 handle;
+};
+
+#define AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ	0
+#define AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ_FD	1
+#define AMDGPU_FENCE_TO_HANDLE_GET_SYNC_FILE_FD	2
+
+union drm_amdgpu_fence_to_handle {
+	struct {
+		struct drm_amdgpu_fence fence;
+		__u32 what;
+		__u32 pad;
+	} in;
+	struct {
+		__u32 handle;
+	} out;
 };
 
 struct drm_amdgpu_cs_chunk_data {
@@ -428,6 +619,7 @@ struct drm_amdgpu_cs_chunk_data {
  *
  */
 #define AMDGPU_IDS_FLAGS_FUSION         0x1
+#define AMDGPU_IDS_FLAGS_PREEMPTION     0x2
 
 /* indicate if acceleration can be working */
 #define AMDGPU_INFO_ACCEL_WORKING		0x00
@@ -461,6 +653,18 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_FW_SMC		0x0a
 	/* Subquery id: Query SDMA firmware version */
 	#define AMDGPU_INFO_FW_SDMA		0x0b
+	/* Subquery id: Query PSP SOS firmware version */
+	#define AMDGPU_INFO_FW_SOS		0x0c
+	/* Subquery id: Query PSP ASD firmware version */
+	#define AMDGPU_INFO_FW_ASD		0x0d
+	/* Subquery id: Query VCN firmware version */
+	#define AMDGPU_INFO_FW_VCN		0x0e
+	/* Subquery id: Query GFX RLC SRLC firmware version */
+	#define AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_CNTL 0x0f
+	/* Subquery id: Query GFX RLC SRLG firmware version */
+	#define AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_GPM_MEM 0x10
+	/* Subquery id: Query GFX RLC SRLS firmware version */
+	#define AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_SRM_MEM 0x11
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
 /* the used VRAM size */
@@ -477,92 +681,168 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_DEV_INFO			0x16
 /* visible vram usage */
 #define AMDGPU_INFO_VIS_VRAM_USAGE		0x17
+/* number of TTM buffer evictions */
+#define AMDGPU_INFO_NUM_EVICTIONS		0x18
+/* Query memory about VRAM and GTT domains */
+#define AMDGPU_INFO_MEMORY			0x19
+/* Query vce clock table */
+#define AMDGPU_INFO_VCE_CLOCK_TABLE		0x1A
+/* Query vbios related information */
+#define AMDGPU_INFO_VBIOS			0x1B
+	/* Subquery id: Query vbios size */
+	#define AMDGPU_INFO_VBIOS_SIZE		0x1
+	/* Subquery id: Query vbios image */
+	#define AMDGPU_INFO_VBIOS_IMAGE		0x2
+/* Query UVD handles */
+#define AMDGPU_INFO_NUM_HANDLES			0x1C
+/* Query sensor related information */
+#define AMDGPU_INFO_SENSOR			0x1D
+	/* Subquery id: Query GPU shader clock */
+	#define AMDGPU_INFO_SENSOR_GFX_SCLK		0x1
+	/* Subquery id: Query GPU memory clock */
+	#define AMDGPU_INFO_SENSOR_GFX_MCLK		0x2
+	/* Subquery id: Query GPU temperature */
+	#define AMDGPU_INFO_SENSOR_GPU_TEMP		0x3
+	/* Subquery id: Query GPU load */
+	#define AMDGPU_INFO_SENSOR_GPU_LOAD		0x4
+	/* Subquery id: Query average GPU power	*/
+	#define AMDGPU_INFO_SENSOR_GPU_AVG_POWER	0x5
+	/* Subquery id: Query northbridge voltage */
+	#define AMDGPU_INFO_SENSOR_VDDNB		0x6
+	/* Subquery id: Query graphics voltage */
+	#define AMDGPU_INFO_SENSOR_VDDGFX		0x7
+	/* Subquery id: Query GPU stable pstate shader clock */
+	#define AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_SCLK		0x8
+	/* Subquery id: Query GPU stable pstate memory clock */
+	#define AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_MCLK		0x9
+/* Number of VRAM page faults on CPU access. */
+#define AMDGPU_INFO_NUM_VRAM_CPU_PAGE_FAULTS	0x1E
+#define AMDGPU_INFO_VRAM_LOST_COUNTER		0x1F
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
 #define AMDGPU_INFO_MMR_SH_INDEX_SHIFT	8
 #define AMDGPU_INFO_MMR_SH_INDEX_MASK	0xff
 
+struct drm_amdgpu_query_fw {
+	/** AMDGPU_INFO_FW_* */
+	__u32 fw_type;
+	/**
+	 * Index of the IP if there are more IPs of
+	 * the same type.
+	 */
+	__u32 ip_instance;
+	/**
+	 * Index of the engine. Whether this is used depends
+	 * on the firmware type. (e.g. MEC, SDMA)
+	 */
+	__u32 index;
+	__u32 _pad;
+};
+
 /* Input structure for the INFO ioctl */
 struct drm_amdgpu_info {
 	/* Where the return value will be stored */
-	uint64_t return_pointer;
+	__u64 return_pointer;
 	/* The size of the return value. Just like "size" in "snprintf",
 	 * it limits how many bytes the kernel can write. */
-	uint32_t return_size;
+	__u32 return_size;
 	/* The query request id. */
-	uint32_t query;
+	__u32 query;
 
 	union {
 		struct {
-			uint32_t id;
-			uint32_t _pad;
+			__u32 id;
+			__u32 _pad;
 		} mode_crtc;
 
 		struct {
 			/** AMDGPU_HW_IP_* */
-			uint32_t type;
+			__u32 type;
 			/**
 			 * Index of the IP if there are more IPs of the same
 			 * type. Ignored by AMDGPU_INFO_HW_IP_COUNT.
 			 */
-			uint32_t ip_instance;
+			__u32 ip_instance;
 		} query_hw_ip;
 
 		struct {
-			uint32_t dword_offset;
+			__u32 dword_offset;
 			/** number of registers to read */
-			uint32_t count;
-			uint32_t instance;
+			__u32 count;
+			__u32 instance;
 			/** For future use, no flags defined so far */
-			uint32_t flags;
+			__u32 flags;
 		} read_mmr_reg;
 
+		struct drm_amdgpu_query_fw query_fw;
+
 		struct {
-			/** AMDGPU_INFO_FW_* */
-			uint32_t fw_type;
-			/**
-			 * Index of the IP if there are more IPs of
-			 * the same type.
-			 */
-			uint32_t ip_instance;
-			/**
-			 * Index of the engine. Whether this is used depends
-			 * on the firmware type. (e.g. MEC, SDMA)
-			 */
-			uint32_t index;
-			uint32_t _pad;
-		} query_fw;
+			__u32 type;
+			__u32 offset;
+		} vbios_info;
+
+		struct {
+			__u32 type;
+		} sensor_info;
 	};
 };
 
 struct drm_amdgpu_info_gds {
 	/** GDS GFX partition size */
-	uint32_t gds_gfx_partition_size;
+	__u32 gds_gfx_partition_size;
 	/** GDS compute partition size */
-	uint32_t compute_partition_size;
+	__u32 compute_partition_size;
 	/** total GDS memory size */
-	uint32_t gds_total_size;
+	__u32 gds_total_size;
 	/** GWS size per GFX partition */
-	uint32_t gws_per_gfx_partition;
+	__u32 gws_per_gfx_partition;
 	/** GSW size per compute partition */
-	uint32_t gws_per_compute_partition;
+	__u32 gws_per_compute_partition;
 	/** OA size per GFX partition */
-	uint32_t oa_per_gfx_partition;
+	__u32 oa_per_gfx_partition;
 	/** OA size per compute partition */
-	uint32_t oa_per_compute_partition;
-	uint32_t _pad;
+	__u32 oa_per_compute_partition;
+	__u32 _pad;
 };
 
 struct drm_amdgpu_info_vram_gtt {
-	uint64_t vram_size;
-	uint64_t vram_cpu_accessible_size;
-	uint64_t gtt_size;
+	__u64 vram_size;
+	__u64 vram_cpu_accessible_size;
+	__u64 gtt_size;
+};
+
+struct drm_amdgpu_heap_info {
+	/** max. physical memory */
+	__u64 total_heap_size;
+
+	/** Theoretical max. available memory in the given heap */
+	__u64 usable_heap_size;
+
+	/**
+	 * Number of bytes allocated in the heap. This includes all processes
+	 * and private allocations in the kernel. It changes when new buffers
+	 * are allocated, freed, and moved. It cannot be larger than
+	 * heap_size.
+	 */
+	__u64 heap_usage;
+
+	/**
+	 * Theoretical possible max. size of buffer which
+	 * could be allocated in the given heap
+	 */
+	__u64 max_allocation;
+};
+
+struct drm_amdgpu_memory_info {
+	struct drm_amdgpu_heap_info vram;
+	struct drm_amdgpu_heap_info cpu_accessible_vram;
+	struct drm_amdgpu_heap_info gtt;
 };
 
 struct drm_amdgpu_info_firmware {
-	uint32_t ver;
-	uint32_t feature;
+	__u32 ver;
+	__u32 feature;
 };
 
 #define AMDGPU_VRAM_TYPE_UNKNOWN 0
@@ -573,73 +853,142 @@ struct drm_amdgpu_info_firmware {
 #define AMDGPU_VRAM_TYPE_GDDR5 5
 #define AMDGPU_VRAM_TYPE_HBM   6
 #define AMDGPU_VRAM_TYPE_DDR3  7
+#define AMDGPU_VRAM_TYPE_DDR4  8
 
 struct drm_amdgpu_info_device {
 	/** PCI Device ID */
-	uint32_t device_id;
+	__u32 device_id;
 	/** Internal chip revision: A0, A1, etc.) */
-	uint32_t chip_rev;
-	uint32_t external_rev;
+	__u32 chip_rev;
+	__u32 external_rev;
 	/** Revision id in PCI Config space */
-	uint32_t pci_rev;
-	uint32_t family;
-	uint32_t num_shader_engines;
-	uint32_t num_shader_arrays_per_engine;
+	__u32 pci_rev;
+	__u32 family;
+	__u32 num_shader_engines;
+	__u32 num_shader_arrays_per_engine;
 	/* in KHz */
-	uint32_t gpu_counter_freq;
-	uint64_t max_engine_clock;
-	uint64_t max_memory_clock;
+	__u32 gpu_counter_freq;
+	__u64 max_engine_clock;
+	__u64 max_memory_clock;
 	/* cu information */
-	uint32_t cu_active_number;
-	uint32_t cu_ao_mask;
-	uint32_t cu_bitmap[4][4];
+	__u32 cu_active_number;
+	/* NOTE: cu_ao_mask is INVALID, DON'T use it */
+	__u32 cu_ao_mask;
+	__u32 cu_bitmap[4][4];
 	/** Render backend pipe mask. One render backend is CB+DB. */
-	uint32_t enabled_rb_pipes_mask;
-	uint32_t num_rb_pipes;
-	uint32_t num_hw_gfx_contexts;
-	uint32_t _pad;
-	uint64_t ids_flags;
+	__u32 enabled_rb_pipes_mask;
+	__u32 num_rb_pipes;
+	__u32 num_hw_gfx_contexts;
+	__u32 _pad;
+	__u64 ids_flags;
 	/** Starting virtual address for UMDs. */
-	uint64_t virtual_address_offset;
+	__u64 virtual_address_offset;
 	/** The maximum virtual address */
-	uint64_t virtual_address_max;
+	__u64 virtual_address_max;
 	/** Required alignment of virtual addresses. */
-	uint32_t virtual_address_alignment;
+	__u32 virtual_address_alignment;
 	/** Page table entry - fragment size */
-	uint32_t pte_fragment_size;
-	uint32_t gart_page_size;
+	__u32 pte_fragment_size;
+	__u32 gart_page_size;
 	/** constant engine ram size*/
-	uint32_t ce_ram_size;
+	__u32 ce_ram_size;
 	/** video memory type info*/
-	uint32_t vram_type;
+	__u32 vram_type;
 	/** video memory bit width*/
-	uint32_t vram_bit_width;
+	__u32 vram_bit_width;
 	/* vce harvesting instance */
-	uint32_t vce_harvest_config;
+	__u32 vce_harvest_config;
+	/* gfx double offchip LDS buffers */
+	__u32 gc_double_offchip_lds_buf;
+	/* NGG Primitive Buffer */
+	__u64 prim_buf_gpu_addr;
+	/* NGG Position Buffer */
+	__u64 pos_buf_gpu_addr;
+	/* NGG Control Sideband */
+	__u64 cntl_sb_buf_gpu_addr;
+	/* NGG Parameter Cache */
+	__u64 param_buf_gpu_addr;
+	__u32 prim_buf_size;
+	__u32 pos_buf_size;
+	__u32 cntl_sb_buf_size;
+	__u32 param_buf_size;
+	/* wavefront size*/
+	__u32 wave_front_size;
+	/* shader visible vgprs*/
+	__u32 num_shader_visible_vgprs;
+	/* CU per shader array*/
+	__u32 num_cu_per_sh;
+	/* number of tcc blocks*/
+	__u32 num_tcc_blocks;
+	/* gs vgt table depth*/
+	__u32 gs_vgt_table_depth;
+	/* gs primitive buffer depth*/
+	__u32 gs_prim_buffer_depth;
+	/* max gs wavefront per vgt*/
+	__u32 max_gs_waves_per_vgt;
+	__u32 _pad1;
+	/* always on cu bitmap */
+	__u32 cu_ao_bitmap[4][4];
+	/** Starting high virtual address for UMDs. */
+	__u64 high_va_offset;
+	/** The maximum high virtual address */
+	__u64 high_va_max;
 };
 
 struct drm_amdgpu_info_hw_ip {
 	/** Version of h/w IP */
-	uint32_t  hw_ip_version_major;
-	uint32_t  hw_ip_version_minor;
+	__u32  hw_ip_version_major;
+	__u32  hw_ip_version_minor;
 	/** Capabilities */
-	uint64_t  capabilities_flags;
+	__u64  capabilities_flags;
 	/** command buffer address start alignment*/
-	uint32_t  ib_start_alignment;
+	__u32  ib_start_alignment;
 	/** command buffer size alignment*/
-	uint32_t  ib_size_alignment;
+	__u32  ib_size_alignment;
 	/** Bitmask of available rings. Bit 0 means ring 0, etc. */
-	uint32_t  available_rings;
-	uint32_t  _pad;
+	__u32  available_rings;
+	__u32  _pad;
+};
+
+struct drm_amdgpu_info_num_handles {
+	/** Max handles as supported by firmware for UVD */
+	__u32  uvd_max_handles;
+	/** Handles currently in use for UVD */
+	__u32  uvd_used_handles;
+};
+
+#define AMDGPU_VCE_CLOCK_TABLE_ENTRIES		6
+
+struct drm_amdgpu_info_vce_clock_table_entry {
+	/** System clock */
+	__u32 sclk;
+	/** Memory clock */
+	__u32 mclk;
+	/** VCE clock */
+	__u32 eclk;
+	__u32 pad;
+};
+
+struct drm_amdgpu_info_vce_clock_table {
+	struct drm_amdgpu_info_vce_clock_table_entry entries[AMDGPU_VCE_CLOCK_TABLE_ENTRIES];
+	__u32 num_valid_entries;
+	__u32 pad;
 };
 
 /*
  * Supported GPU families
  */
 #define AMDGPU_FAMILY_UNKNOWN			0
+#define AMDGPU_FAMILY_SI			110 /* Hainan, Oland, Verde, Pitcairn, Tahiti */
 #define AMDGPU_FAMILY_CI			120 /* Bonaire, Hawaii */
 #define AMDGPU_FAMILY_KV			125 /* Kaveri, Kabini, Mullins */
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */
 #define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
+#define AMDGPU_FAMILY_AI			141 /* Vega10 */
+#define AMDGPU_FAMILY_RV			142 /* Raven */
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

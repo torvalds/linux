@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Broxton SoC pinctrl/GPIO driver
  *
- * Copyright (C) 2015, Intel Corporation
+ * Copyright (C) 2015, 2016 Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -19,7 +16,7 @@
 
 #define BXT_PAD_OWN	0x020
 #define BXT_HOSTSW_OWN	0x080
-#define BXT_PADCFGLOCK	0x090
+#define BXT_PADCFGLOCK	0x060
 #define BXT_GPI_IE	0x110
 
 #define BXT_COMMUNITY(s, e)				\
@@ -1003,29 +1000,46 @@ static const struct acpi_device_id bxt_pinctrl_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, bxt_pinctrl_acpi_match);
 
+static const struct platform_device_id bxt_pinctrl_platform_ids[] = {
+	{ "apollolake-pinctrl", (kernel_ulong_t)apl_pinctrl_soc_data },
+	{ "broxton-pinctrl", (kernel_ulong_t)bxt_pinctrl_soc_data },
+	{ },
+};
+
 static int bxt_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct intel_pinctrl_soc_data *soc_data = NULL;
 	const struct intel_pinctrl_soc_data **soc_table;
-	const struct acpi_device_id *id;
 	struct acpi_device *adev;
 	int i;
 
 	adev = ACPI_COMPANION(&pdev->dev);
-	if (!adev)
-		return -ENODEV;
+	if (adev) {
+		const struct acpi_device_id *id;
 
-	id = acpi_match_device(bxt_pinctrl_acpi_match, &pdev->dev);
-	if (!id)
-		return -ENODEV;
+		id = acpi_match_device(bxt_pinctrl_acpi_match, &pdev->dev);
+		if (!id)
+			return -ENODEV;
 
-	soc_table = (const struct intel_pinctrl_soc_data **)id->driver_data;
+		soc_table = (const struct intel_pinctrl_soc_data **)
+			id->driver_data;
 
-	for (i = 0; soc_table[i]; i++) {
-		if (!strcmp(adev->pnp.unique_id, soc_table[i]->uid)) {
-			soc_data = soc_table[i];
-			break;
+		for (i = 0; soc_table[i]; i++) {
+			if (!strcmp(adev->pnp.unique_id, soc_table[i]->uid)) {
+				soc_data = soc_table[i];
+				break;
+			}
 		}
+	} else {
+		const struct platform_device_id *pid;
+
+		pid = platform_get_device_id(pdev);
+		if (!pid)
+			return -ENODEV;
+
+		soc_table = (const struct intel_pinctrl_soc_data **)
+			pid->driver_data;
+		soc_data = soc_table[pdev->id];
 	}
 
 	if (!soc_data)
@@ -1041,12 +1055,12 @@ static const struct dev_pm_ops bxt_pinctrl_pm_ops = {
 
 static struct platform_driver bxt_pinctrl_driver = {
 	.probe = bxt_pinctrl_probe,
-	.remove = intel_pinctrl_remove,
 	.driver = {
 		.name = "broxton-pinctrl",
 		.acpi_match_table = bxt_pinctrl_acpi_match,
 		.pm = &bxt_pinctrl_pm_ops,
 	},
+	.id_table = bxt_pinctrl_platform_ids,
 };
 
 static int __init bxt_pinctrl_init(void)
@@ -1064,3 +1078,4 @@ module_exit(bxt_pinctrl_exit);
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
 MODULE_DESCRIPTION("Intel Broxton SoC pinctrl/GPIO driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:broxton-pinctrl");

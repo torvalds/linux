@@ -1,11 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_TOP_H
 #define __PERF_TOP_H 1
 
 #include "tool.h"
+#include "annotate.h"
 #include <linux/types.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <termios.h>
+#include <sys/ioctl.h>
 
 struct perf_evlist;
 struct perf_evsel;
@@ -15,6 +17,7 @@ struct perf_top {
 	struct perf_tool   tool;
 	struct perf_evlist *evlist;
 	struct record_opts record_opts;
+	struct annotation_options annotation_opts;
 	/*
 	 * Symbols will be added here in perf_event__process_sample and will
 	 * get out after decayed.
@@ -27,7 +30,6 @@ struct perf_top {
 	int		   max_stack;
 	bool		   hide_kernel_symbols, hide_user_symbols, zero;
 	bool		   use_tui, use_stdio;
-	bool		   kptr_restrict_warned;
 	bool		   vmlinux_warned;
 	bool		   dump_symtab;
 	struct hist_entry  *sym_filter_entry;
@@ -35,9 +37,9 @@ struct perf_top {
 	struct perf_session *session;
 	struct winsize	   winsize;
 	int		   realtime_prio;
-	int		   sym_pcnt_filter;
 	const char	   *sym_filter;
 	float		   min_percent;
+	unsigned int	   nr_threads_synthesize;
 };
 
 #define CONSOLE_CLEAR "[H[2J"

@@ -33,6 +33,8 @@
 #include <asm/kexec.h>
 #include <asm/bug.h>
 #include <asm/ptrace.h>
+#include <asm/export.h>
+#include <asm/feature-fixups.h>
 
 	.text
 
@@ -91,31 +93,16 @@ _GLOBAL(mulhdu)
 	addc	r7,r0,r7
 	addze	r4,r4
 1:	beqlr	cr1		/* all done if high part of A is 0 */
-	mr	r10,r3
 	mullw	r9,r3,r5
-	mulhwu	r3,r3,r5
+	mulhwu	r10,r3,r5
 	beq	2f
-	mullw	r0,r10,r6
-	mulhwu	r8,r10,r6
+	mullw	r0,r3,r6
+	mulhwu	r8,r3,r6
 	addc	r7,r0,r7
 	adde	r4,r4,r8
-	addze	r3,r3
+	addze	r10,r10
 2:	addc	r4,r4,r9
-	addze	r3,r3
-	blr
-
-/*
- * sub_reloc_offset(x) returns x - reloc_offset().
- */
-_GLOBAL(sub_reloc_offset)
-	mflr	r0
-	bl	1f
-1:	mflr	r5
-	lis	r4,1b@ha
-	addi	r4,r4,1b@l
-	subf	r5,r4,r5
-	subf	r3,r5,r3
-	mtlr	r0
+	addze	r3,r10
 	blr
 
 /*
@@ -258,8 +245,7 @@ _GLOBAL(_nmask_and_or_msr)
  */
 _GLOBAL(real_readb)
 	mfmsr	r7
-	ori	r0,r7,MSR_DR
-	xori	r0,r0,MSR_DR
+	rlwinm	r0,r7,0,~MSR_DR
 	sync
 	mtmsr	r0
 	sync
@@ -276,8 +262,7 @@ _GLOBAL(real_readb)
  */
 _GLOBAL(real_writeb)
 	mfmsr	r7
-	ori	r0,r7,MSR_DR
-	xori	r0,r0,MSR_DR
+	rlwinm	r0,r7,0,~MSR_DR
 	sync
 	mtmsr	r0
 	sync
@@ -296,12 +281,9 @@ _GLOBAL(real_writeb)
  * Flush instruction cache.
  * This is a no-op on the 601.
  */
+#ifndef CONFIG_PPC_8xx
 _GLOBAL(flush_instruction_cache)
-#if defined(CONFIG_8xx)
-	isync
-	lis	r5, IDC_INVALL@h
-	mtspr	SPRN_IC_CST, r5
-#elif defined(CONFIG_4xx)
+#if defined(CONFIG_4xx)
 #ifdef CONFIG_403GCX
 	li      r3, 512
 	mtctr   r3
@@ -313,7 +295,7 @@ _GLOBAL(flush_instruction_cache)
 	lis	r3, KERNELBASE@h
 	iccci	0,r3
 #endif
-#elif CONFIG_FSL_BOOKE
+#elif defined(CONFIG_FSL_BOOKE)
 BEGIN_FTR_SECTION
 	mfspr   r3,SPRN_L1CSR0
 	ori     r3,r3,L1CSR0_CFI|L1CSR0_CLFC
@@ -334,9 +316,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_UNIFIED_ID_CACHE)
 	mfspr	r3,SPRN_HID0
 	ori	r3,r3,HID0_ICFI
 	mtspr	SPRN_HID0,r3
-#endif /* CONFIG_8xx/4xx */
+#endif /* CONFIG_4xx */
 	isync
 	blr
+EXPORT_SYMBOL(flush_instruction_cache)
+#endif /* CONFIG_PPC_8xx */
 
 /*
  * Write any modified data cache blocks out to memory
@@ -345,15 +329,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_UNIFIED_ID_CACHE)
  *
  * flush_icache_range(unsigned long start, unsigned long stop)
  */
-_KPROBE(flush_icache_range)
+_GLOBAL(flush_icache_range)
 BEGIN_FTR_SECTION
 	PURGE_PREFETCHED_INS
 	blr				/* for 601, do nothing */
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
-	li	r5,L1_CACHE_BYTES-1
-	andc	r3,r3,r5
+	rlwinm	r3,r3,0,0,31 - L1_CACHE_SHIFT
 	subf	r4,r3,r4
-	add	r4,r4,r5
+	addi	r4,r4,L1_CACHE_BYTES - 1
 	srwi.	r4,r4,L1_CACHE_SHIFT
 	beqlr
 	mtctr	r4
@@ -376,70 +359,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	sync				/* additional sync needed on g4 */
 	isync
 	blr
-/*
- * Write any modified data cache blocks out to memory.
- * Does not invalidate the corresponding cache lines (especially for
- * any corresponding instruction cache).
- *
- * clean_dcache_range(unsigned long start, unsigned long stop)
- */
-_GLOBAL(clean_dcache_range)
-	li	r5,L1_CACHE_BYTES-1
-	andc	r3,r3,r5
-	subf	r4,r3,r4
-	add	r4,r4,r5
-	srwi.	r4,r4,L1_CACHE_SHIFT
-	beqlr
-	mtctr	r4
-
-1:	dcbst	0,r3
-	addi	r3,r3,L1_CACHE_BYTES
-	bdnz	1b
-	sync				/* wait for dcbst's to get to ram */
-	blr
-
-/*
- * Write any modified data cache blocks out to memory and invalidate them.
- * Does not invalidate the corresponding instruction cache blocks.
- *
- * flush_dcache_range(unsigned long start, unsigned long stop)
- */
-_GLOBAL(flush_dcache_range)
-	li	r5,L1_CACHE_BYTES-1
-	andc	r3,r3,r5
-	subf	r4,r3,r4
-	add	r4,r4,r5
-	srwi.	r4,r4,L1_CACHE_SHIFT
-	beqlr
-	mtctr	r4
-
-1:	dcbf	0,r3
-	addi	r3,r3,L1_CACHE_BYTES
-	bdnz	1b
-	sync				/* wait for dcbst's to get to ram */
-	blr
-
-/*
- * Like above, but invalidate the D-cache.  This is used by the 8xx
- * to invalidate the cache so the PPC core doesn't get stale data
- * from the CPM (no cache snooping here :-).
- *
- * invalidate_dcache_range(unsigned long start, unsigned long stop)
- */
-_GLOBAL(invalidate_dcache_range)
-	li	r5,L1_CACHE_BYTES-1
-	andc	r3,r3,r5
-	subf	r4,r3,r4
-	add	r4,r4,r5
-	srwi.	r4,r4,L1_CACHE_SHIFT
-	beqlr
-	mtctr	r4
-
-1:	dcbi	0,r3
-	addi	r3,r3,L1_CACHE_BYTES
-	bdnz	1b
-	sync				/* wait for dcbi's to get to ram */
-	blr
+_ASM_NOKPROBE_SYMBOL(flush_icache_range)
+EXPORT_SYMBOL(flush_icache_range)
 
 /*
  * Flush a particular page from the data cache to RAM.
@@ -519,22 +440,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 #endif /* CONFIG_BOOKE */
 
 /*
- * Clear pages using the dcbz instruction, which doesn't cause any
- * memory traffic (except to write out any cache lines which get
- * displaced).  This only works on cacheable memory.
- *
- * void clear_pages(void *page, int order) ;
- */
-_GLOBAL(clear_pages)
-	li	r0,PAGE_SIZE/L1_CACHE_BYTES
-	slw	r0,r0,r4
-	mtctr	r0
-1:	dcbz	0,r3
-	addi	r3,r3,L1_CACHE_BYTES
-	bdnz	1b
-	blr
-
-/*
  * Copy a whole page.  We use the dcbz instruction on the destination
  * to reduce memory traffic (it eliminates the unnecessary reads of
  * the destination into cache).  This requires that the destination
@@ -594,6 +499,7 @@ _GLOBAL(copy_page)
 	li	r0,MAX_COPY_PREFETCH
 	li	r11,4
 	b	2b
+EXPORT_SYMBOL(copy_page)
 
 /*
  * Extended precision shifts.
@@ -621,6 +527,7 @@ _GLOBAL(__ashrdi3)
 	sraw	r3,r3,r5	# MSW = MSW >> count
 	or	r4,r4,r7	# LSW |= t2
 	blr
+EXPORT_SYMBOL(__ashrdi3)
 
 _GLOBAL(__ashldi3)
 	subfic	r6,r5,32
@@ -632,6 +539,7 @@ _GLOBAL(__ashldi3)
 	slw	r4,r4,r5	# LSW = LSW << count
 	or	r3,r3,r7	# MSW |= t2
 	blr
+EXPORT_SYMBOL(__ashldi3)
 
 _GLOBAL(__lshrdi3)
 	subfic	r6,r5,32
@@ -643,6 +551,7 @@ _GLOBAL(__lshrdi3)
 	srw	r3,r3,r5	# MSW = MSW >> count
 	or	r4,r4,r7	# LSW |= t2
 	blr
+EXPORT_SYMBOL(__lshrdi3)
 
 /*
  * 64-bit comparison: __cmpdi2(s64 a, s64 b)
@@ -658,6 +567,7 @@ _GLOBAL(__cmpdi2)
 	bltlr
 	li	r3,2
 	blr
+EXPORT_SYMBOL(__cmpdi2)
 /*
  * 64-bit comparison: __ucmpdi2(u64 a, u64 b)
  * Returns 0 if a < b, 1 if a == b, 2 if a > b.
@@ -672,6 +582,7 @@ _GLOBAL(__ucmpdi2)
 	bltlr
 	li	r3,2
 	blr
+EXPORT_SYMBOL(__ucmpdi2)
 
 _GLOBAL(__bswapdi2)
 	rotlwi  r9,r4,8
@@ -683,12 +594,7 @@ _GLOBAL(__bswapdi2)
 	mr      r3,r9
 	mr      r4,r10
 	blr
-
-_GLOBAL(abs)
-	srawi	r4,r3,31
-	xor	r3,r3,r4
-	sub	r3,r3,r4
-	blr
+EXPORT_SYMBOL(__bswapdi2)
 
 #ifdef CONFIG_SMP
 _GLOBAL(start_secondary_resume)
@@ -707,7 +613,7 @@ _GLOBAL(start_secondary_resume)
 _GLOBAL(__main)
 	blr
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	/*
 	 * Must be relocatable PIC code callable as a C function.
 	 */
@@ -743,6 +649,8 @@ relocate_new_kernel:
 	/* Check for 47x cores */
 	mfspr	r3,SPRN_PVR
 	srwi	r3,r3,16
+	cmplwi	cr0,r3,PVR_476FPE@h
+	beq	setup_map_47x
 	cmplwi	cr0,r3,PVR_476@h
 	beq	setup_map_47x
 	cmplwi	cr0,r3,PVR_476_ISS@h

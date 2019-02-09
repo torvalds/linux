@@ -23,8 +23,8 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 	num_parents = of_count_phandle_with_args(node, "assigned-clock-parents",
 						 "#clock-cells");
 	if (num_parents == -EINVAL)
-		pr_err("clk: invalid value of clock-parents property at %s\n",
-		       node->full_name);
+		pr_err("clk: invalid value of clock-parents property at %pOF\n",
+		       node);
 
 	for (index = 0; index < num_parents; index++) {
 		rc = of_parse_phandle_with_args(node, "assigned-clock-parents",
@@ -40,8 +40,9 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 			return 0;
 		pclk = of_clk_get_from_provider(&clkspec);
 		if (IS_ERR(pclk)) {
-			pr_warn("clk: couldn't get parent clock %d for %s\n",
-				index, node->full_name);
+			if (PTR_ERR(pclk) != -EPROBE_DEFER)
+				pr_warn("clk: couldn't get parent clock %d for %pOF\n",
+					index, node);
 			return PTR_ERR(pclk);
 		}
 
@@ -55,8 +56,9 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 		}
 		clk = of_clk_get_from_provider(&clkspec);
 		if (IS_ERR(clk)) {
-			pr_warn("clk: couldn't get parent clock %d for %s\n",
-				index, node->full_name);
+			if (PTR_ERR(clk) != -EPROBE_DEFER)
+				pr_warn("clk: couldn't get assigned clock %d for %pOF\n",
+					index, node);
 			rc = PTR_ERR(clk);
 			goto err;
 		}
@@ -99,14 +101,15 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 
 			clk = of_clk_get_from_provider(&clkspec);
 			if (IS_ERR(clk)) {
-				pr_warn("clk: couldn't get clock %d for %s\n",
-					index, node->full_name);
+				if (PTR_ERR(clk) != -EPROBE_DEFER)
+					pr_warn("clk: couldn't get clock %d for %pOF\n",
+						index, node);
 				return PTR_ERR(clk);
 			}
 
 			rc = clk_set_rate(clk, rate);
 			if (rc < 0)
-				pr_err("clk: couldn't set %s clk rate to %d (%d), current rate: %ld\n",
+				pr_err("clk: couldn't set %s clk rate to %u (%d), current rate: %lu\n",
 				       __clk_get_name(clk), rate, rc,
 				       clk_get_rate(clk));
 			clk_put(clk);

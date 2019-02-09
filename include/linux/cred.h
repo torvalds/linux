@@ -1,4 +1,4 @@
-/* Credentials management - see Documentation/security/credentials.txt
+/* Credentials management - see Documentation/security/credentials.rst
  *
  * Copyright (C) 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -18,24 +18,20 @@
 #include <linux/selinux.h>
 #include <linux/atomic.h>
 #include <linux/uidgid.h>
+#include <linux/sched.h>
+#include <linux/sched/user.h>
 
-struct user_struct;
 struct cred;
 struct inode;
 
 /*
  * COW Supplementary groups list
  */
-#define NGROUPS_SMALL		32
-#define NGROUPS_PER_BLOCK	((unsigned int)(PAGE_SIZE / sizeof(kgid_t)))
-
 struct group_info {
 	atomic_t	usage;
 	int		ngroups;
-	int		nblocks;
-	kgid_t		small_block[NGROUPS_SMALL];
-	kgid_t		*blocks[0];
-};
+	kgid_t		gid[0];
+} __randomize_layout;
 
 /**
  * get_group_info - Get a reference to a group info structure
@@ -69,6 +65,12 @@ extern void groups_free(struct group_info *);
 
 extern int in_group_p(kgid_t);
 extern int in_egroup_p(kgid_t);
+extern int groups_search(const struct group_info *, kgid_t);
+
+extern int set_current_groups(struct group_info *);
+extern void set_groups(struct cred *, struct group_info *);
+extern bool may_setgroups(void);
+extern void groups_sort(struct group_info *);
 #else
 static inline void groups_free(struct group_info *group_info)
 {
@@ -82,15 +84,11 @@ static inline int in_egroup_p(kgid_t grp)
 {
         return 1;
 }
+static inline int groups_search(const struct group_info *group_info, kgid_t grp)
+{
+	return 1;
+}
 #endif
-extern int set_current_groups(struct group_info *);
-extern void set_groups(struct cred *, struct group_info *);
-extern int groups_search(const struct group_info *, kgid_t);
-extern bool may_setgroups(void);
-
-/* access the groups "array" with this macro */
-#define GROUP_AT(gi, i) \
-	((gi)->blocks[(i) / NGROUPS_PER_BLOCK][(i) % NGROUPS_PER_BLOCK])
 
 /*
  * The security context of a task
@@ -153,7 +151,7 @@ struct cred {
 	struct user_namespace *user_ns; /* user_ns the caps and keyrings are relative to. */
 	struct group_info *group_info;	/* supplementary groups for euid/fsgid */
 	struct rcu_head	rcu;		/* RCU deletion hook */
-};
+} __randomize_layout;
 
 extern void __put_cred(struct cred *);
 extern void exit_creds(struct task_struct *);
@@ -377,7 +375,10 @@ extern struct user_namespace init_user_ns;
 #ifdef CONFIG_USER_NS
 #define current_user_ns()	(current_cred_xxx(user_ns))
 #else
-#define current_user_ns()	(&init_user_ns)
+static inline struct user_namespace *current_user_ns(void)
+{
+	return &init_user_ns;
+}
 #endif
 
 

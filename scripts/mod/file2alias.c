@@ -125,7 +125,7 @@ do {                                                            \
                 sprintf(str + strlen(str), "*");                \
 } while(0)
 
-/* Always end in a wildcard, for future extension */
+/* End in a wildcard, for future extension */
 static inline void add_wildcard(char *str)
 {
 	int len = strlen(str);
@@ -369,6 +369,49 @@ static void do_usb_table(void *symval, unsigned long size,
 
 	for (i = 0; i < size; i += id_size)
 		do_usb_entry_multi(symval + i, mod);
+}
+
+static void do_of_entry_multi(void *symval, struct module *mod)
+{
+	char alias[500];
+	int len;
+	char *tmp;
+
+	DEF_FIELD_ADDR(symval, of_device_id, name);
+	DEF_FIELD_ADDR(symval, of_device_id, type);
+	DEF_FIELD_ADDR(symval, of_device_id, compatible);
+
+	len = sprintf(alias, "of:N%sT%s", (*name)[0] ? *name : "*",
+		      (*type)[0] ? *type : "*");
+
+	if ((*compatible)[0])
+		sprintf(&alias[len], "%sC%s", (*type)[0] ? "*" : "",
+			*compatible);
+
+	/* Replace all whitespace with underscores */
+	for (tmp = alias; tmp && *tmp; tmp++)
+		if (isspace(*tmp))
+			*tmp = '_';
+
+	buf_printf(&mod->dev_table_buf, "MODULE_ALIAS(\"%s\");\n", alias);
+	strcat(alias, "C");
+	add_wildcard(alias);
+	buf_printf(&mod->dev_table_buf, "MODULE_ALIAS(\"%s\");\n", alias);
+}
+
+static void do_of_table(void *symval, unsigned long size,
+			struct module *mod)
+{
+	unsigned int i;
+	const unsigned long id_size = SIZE_of_device_id;
+
+	device_id_check(mod->name, "of", size, id_size, symval);
+
+	/* Leave last one: it's the terminator. */
+	size -= id_size;
+
+	for (i = 0; i < size; i += id_size)
+		do_of_entry_multi(symval + i, mod);
 }
 
 /* Looks like: hid:bNvNpN */
@@ -684,31 +727,6 @@ static int do_pcmcia_entry(const char *filename,
 }
 ADD_TO_DEVTABLE("pcmcia", pcmcia_device_id, do_pcmcia_entry);
 
-static int do_of_entry (const char *filename, void *symval, char *alias)
-{
-	int len;
-	char *tmp;
-	DEF_FIELD_ADDR(symval, of_device_id, name);
-	DEF_FIELD_ADDR(symval, of_device_id, type);
-	DEF_FIELD_ADDR(symval, of_device_id, compatible);
-
-	len = sprintf(alias, "of:N%sT%s", (*name)[0] ? *name : "*",
-		      (*type)[0] ? *type : "*");
-
-	if (compatible[0])
-		sprintf(&alias[len], "%sC%s", (*type)[0] ? "*" : "",
-			*compatible);
-
-	/* Replace all whitespace with underscores */
-	for (tmp = alias; tmp && *tmp; tmp++)
-		if (isspace (*tmp))
-			*tmp = '_';
-
-	add_wildcard(alias);
-	return 1;
-}
-ADD_TO_DEVTABLE("of", of_device_id, do_of_entry);
-
 static int do_vio_entry(const char *filename, void *symval,
 		char *alias)
 {
@@ -917,7 +935,7 @@ static int do_vmbus_entry(const char *filename, void *symval,
 	char guid_name[(sizeof(*guid) + 1) * 2];
 
 	for (i = 0; i < (sizeof(*guid) * 2); i += 2)
-		sprintf(&guid_name[i], "%02x", TO_NATIVE((*guid)[i/2]));
+		sprintf(&guid_name[i], "%02x", TO_NATIVE((guid->b)[i/2]));
 
 	strcpy(alias, "vmbus:");
 	strcat(alias, guid_name);
@@ -925,6 +943,17 @@ static int do_vmbus_entry(const char *filename, void *symval,
 	return 1;
 }
 ADD_TO_DEVTABLE("vmbus", hv_vmbus_device_id, do_vmbus_entry);
+
+/* Looks like: rpmsg:S */
+static int do_rpmsg_entry(const char *filename, void *symval,
+			  char *alias)
+{
+	DEF_FIELD_ADDR(symval, rpmsg_device_id, name);
+	sprintf(alias, RPMSG_DEVICE_MODALIAS_FMT, *name);
+
+	return 1;
+}
+ADD_TO_DEVTABLE("rpmsg", rpmsg_device_id, do_rpmsg_entry);
 
 /* Looks like: i2c:S */
 static int do_i2c_entry(const char *filename, void *symval,
@@ -1271,6 +1300,71 @@ static int do_hda_entry(const char *filename, void *symval, char *alias)
 }
 ADD_TO_DEVTABLE("hdaudio", hda_device_id, do_hda_entry);
 
+/* Looks like: sdw:mNpN */
+static int do_sdw_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, sdw_device_id, mfg_id);
+	DEF_FIELD(symval, sdw_device_id, part_id);
+
+	strcpy(alias, "sdw:");
+	ADD(alias, "m", mfg_id != 0, mfg_id);
+	ADD(alias, "p", part_id != 0, part_id);
+
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("sdw", sdw_device_id, do_sdw_entry);
+
+/* Looks like: fsl-mc:vNdN */
+static int do_fsl_mc_entry(const char *filename, void *symval,
+			   char *alias)
+{
+	DEF_FIELD(symval, fsl_mc_device_id, vendor);
+	DEF_FIELD_ADDR(symval, fsl_mc_device_id, obj_type);
+
+	sprintf(alias, "fsl-mc:v%08Xd%s", vendor, *obj_type);
+	return 1;
+}
+ADD_TO_DEVTABLE("fslmc", fsl_mc_device_id, do_fsl_mc_entry);
+
+/* Looks like: tbsvc:kSpNvNrN */
+static int do_tbsvc_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, tb_service_id, match_flags);
+	DEF_FIELD_ADDR(symval, tb_service_id, protocol_key);
+	DEF_FIELD(symval, tb_service_id, protocol_id);
+	DEF_FIELD(symval, tb_service_id, protocol_version);
+	DEF_FIELD(symval, tb_service_id, protocol_revision);
+
+	strcpy(alias, "tbsvc:");
+	if (match_flags & TBSVC_MATCH_PROTOCOL_KEY)
+		sprintf(alias + strlen(alias), "k%s", *protocol_key);
+	else
+		strcat(alias + strlen(alias), "k*");
+	ADD(alias, "p", match_flags & TBSVC_MATCH_PROTOCOL_ID, protocol_id);
+	ADD(alias, "v", match_flags & TBSVC_MATCH_PROTOCOL_VERSION,
+	    protocol_version);
+	ADD(alias, "r", match_flags & TBSVC_MATCH_PROTOCOL_REVISION,
+	    protocol_revision);
+
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("tbsvc", tb_service_id, do_tbsvc_entry);
+
+/* Looks like: typec:idNmN */
+static int do_typec_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, typec_device_id, svid);
+	DEF_FIELD(symval, typec_device_id, mode);
+
+	sprintf(alias, "typec:id%04X", svid);
+	ADD(alias, "m", mode != TYPEC_ANY_MODE, mode);
+
+	return 1;
+}
+ADD_TO_DEVTABLE("typec", typec_device_id, do_typec_entry);
+
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 {
@@ -1349,6 +1443,8 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	/* First handle the "special" cases */
 	if (sym_is(name, namelen, "usb"))
 		do_usb_table(symval, sym->st_size, mod);
+	if (sym_is(name, namelen, "of"))
+		do_of_table(symval, sym->st_size, mod);
 	else if (sym_is(name, namelen, "pnp"))
 		do_pnp_device_entry(symval, sym->st_size, mod);
 	else if (sym_is(name, namelen, "pnp_card"))

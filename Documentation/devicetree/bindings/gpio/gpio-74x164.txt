@@ -1,7 +1,9 @@
 * Generic 8-bits shift register GPIO driver
 
 Required properties:
-- compatible : Should be "fairchild,74hc595"
+- compatible: Should contain one of the following:
+    "fairchild,74hc595"
+    "nxp,74lvc594"
 - reg : chip select number
 - gpio-controller : Marks the device node as a gpio controller.
 - #gpio-cells : Should be two.  The first cell is the pin number and
@@ -9,6 +11,9 @@ Required properties:
       0 = active high
       1 = active low
 - registers-number: Number of daisy-chained shift registers
+
+Optional properties:
+- enable-gpios: GPIO connected to the OE (Output Enable) pin.
 
 Example:
 

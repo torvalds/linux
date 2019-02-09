@@ -33,7 +33,7 @@
 		stdout-path = &uart0;
 	};
 
-	memory {
+	memory@28000000 {
 		device_type = "memory";
 		reg = <0x28000000 0x800000>; /* 8 MB */
 	};
@@ -45,50 +45,50 @@
 		poll-interval = <100>;
 		autorepeat;
 
-		button@0 {
+		button0 {
 			label = "joy:right";
 			linux,code = <KEY_RIGHT>;
 			gpios = <&pca_gpio 8 GPIO_ACTIVE_LOW>;
 		};
 
-		button@1 {
+		button1 {
 			label = "joy:up";
 			linux,code = <KEY_UP>;
 			gpios = <&pca_gpio 9 GPIO_ACTIVE_LOW>;
 		};
 
 
-		button@2 {
+		button2 {
 			label = "joy:enter";
 			linux,code = <KEY_ENTER>;
 			gpios = <&pca_gpio 10 GPIO_ACTIVE_LOW>;
 		};
 
-		button@3 {
+		button3 {
 			label = "joy:left";
 			linux,code = <KEY_LEFT>;
 			gpios = <&pca_gpio 11 GPIO_ACTIVE_LOW>;
 		};
 
-		button@4 {
+		button4 {
 			label = "joy:down";
 			linux,code = <KEY_DOWN>;
 			gpios = <&pca_gpio 12 GPIO_ACTIVE_LOW>;
 		};
 
-		button@5 {
+		button5 {
 			label = "user:sw3";
 			linux,code = <KEY_F1>;
 			gpios = <&pca_gpio 13 GPIO_ACTIVE_LOW>;
 		};
 
-		button@6 {
+		button6 {
 			label = "user:sw4";
 			linux,code = <KEY_F2>;
 			gpios = <&pca_gpio 14 GPIO_ACTIVE_LOW>;
 		};
 
-		button@7 {
+		button7 {
 			label = "user:sw5";
 			linux,code = <KEY_F3>;
 			gpios = <&pca_gpio 15 GPIO_ACTIVE_LOW>;
@@ -119,9 +119,25 @@
 			gpios = <&pca_gpio 3 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	vcc: vcc_fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3io";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &pinctrl {
+	adc1_pins: adc1-pins {
+		adc1_pins_cfg {
+			pins = "pf_9";
+			function = "adc";
+			input-disable;
+			bias-disable;
+		};
+	};
+
 	emc_pins: emc-pins {
 		emc_addr0_23_cfg {
 			pins =	"p2_9",  "p2_10", "p2_11", "p2_12",
@@ -325,6 +341,13 @@
 	};
 };
 
+&adc1 {
+	status = "okay";
+	vref-supply = <&vcc>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&adc1_pins>;
+};
+
 &emc {
 	status = "okay";
 	pinctrl-names = "default";
@@ -401,12 +424,12 @@
 
 	/* NXP SE97BTP with temperature sensor + eeprom */
 	sensor@18 {
-		compatible = "nxp,jc42";
+		compatible = "nxp,se97", "jedec,jc-42.4-temp";
 		reg = <0x18>;
 	};
 
 	eeprom@50 {
-		compatible = "nxp,24c02";
+		compatible = "nxp,24c02", "atmel,24c02";
 		reg = <0x50>;
 	};
 
@@ -430,7 +453,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spifi_pins>;
 
-	flash@0 {
+	flash {
 		compatible = "jedec,spi-nor";
 		spi-rx-bus-width = <4>;
 		#address-cells = <1>;

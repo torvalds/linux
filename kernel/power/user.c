@@ -25,7 +25,7 @@
 #include <linux/cpu.h>
 #include <linux/freezer.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "power.h"
 
@@ -47,7 +47,7 @@ atomic_t snapshot_device_available = ATOMIC_INIT(1);
 static int snapshot_open(struct inode *inode, struct file *filp)
 {
 	struct snapshot_data *data;
-	int error;
+	int error, nr_calls = 0;
 
 	if (!hibernation_available())
 		return -EPERM;
@@ -74,9 +74,9 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 			swap_type_of(swsusp_resume_device, 0, NULL) : -1;
 		data->mode = O_RDONLY;
 		data->free_bitmaps = false;
-		error = pm_notifier_call_chain(PM_HIBERNATION_PREPARE);
+		error = __pm_notifier_call_chain(PM_HIBERNATION_PREPARE, -1, &nr_calls);
 		if (error)
-			pm_notifier_call_chain(PM_POST_HIBERNATION);
+			__pm_notifier_call_chain(PM_POST_HIBERNATION, --nr_calls, NULL);
 	} else {
 		/*
 		 * Resuming.  We may need to wait for the image device to
@@ -86,13 +86,15 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 
 		data->swap = -1;
 		data->mode = O_WRONLY;
-		error = pm_notifier_call_chain(PM_RESTORE_PREPARE);
+		error = __pm_notifier_call_chain(PM_RESTORE_PREPARE, -1, &nr_calls);
 		if (!error) {
 			error = create_basic_memory_bitmaps();
 			data->free_bitmaps = !error;
-		}
+		} else
+			nr_calls--;
+
 		if (error)
-			pm_notifier_call_chain(PM_POST_RESTORE);
+			__pm_notifier_call_chain(PM_POST_RESTORE, nr_calls, NULL);
 	}
 	if (error)
 		atomic_inc(&snapshot_device_available);
@@ -184,6 +186,11 @@ static ssize_t snapshot_write(struct file *filp, const char __user *buf,
 		res = PAGE_SIZE - pg_offp;
 	}
 
+	if (!data_of(data->handle)) {
+		res = -EINVAL;
+		goto unlock;
+	}
+
 	res = simple_write_to_buffer(data_of(data->handle), res, &pg_offp,
 			buf, count);
 	if (res > 0)
@@ -209,7 +216,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!mutex_trylock(&pm_mutex))
+	if (!mutex_trylock(&system_transition_mutex))
 		return -EBUSY;
 
 	lock_device_hotplug();
@@ -222,7 +229,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 			break;
 
 		printk("Syncing filesystems ... ");
-		sys_sync();
+		ksys_sync();
 		printk("done.\n");
 
 		error = freeze_processes();
@@ -387,7 +394,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 	}
 
 	unlock_device_hotplug();
-	mutex_unlock(&pm_mutex);
+	mutex_unlock(&system_transition_mutex);
 
 	return error;
 }

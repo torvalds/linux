@@ -12,7 +12,7 @@
 #ifndef __RT5651_H__
 #define __RT5651_H__
 
-#include <sound/rt5651.h>
+#include <dt-bindings/sound/rt5651.h>
 
 /* Info */
 #define RT5651_RESET				0x00
@@ -138,6 +138,7 @@
 /* Index of Codec Private Register definition */
 #define RT5651_BIAS_CUR1			0x12
 #define RT5651_BIAS_CUR3			0x14
+#define RT5651_BIAS_CUR4			0x15
 #define RT5651_CLSD_INT_REG1			0x1c
 #define RT5651_CHPUMP_INT_REG1			0x24
 #define RT5651_MAMP_INT_REG2			0x37
@@ -1966,6 +1967,15 @@
 #define RT5651_D_GATE_EN_SFT			0
 
 /* Codec Private Register definition */
+
+/* MIC Over current threshold scale factor (0x15) */
+#define RT5651_MIC_OVCD_SF_MASK			(0x3 << 8)
+#define RT5651_MIC_OVCD_SF_SFT			8
+#define RT5651_MIC_OVCD_SF_0P5			(0x0 << 8)
+#define RT5651_MIC_OVCD_SF_0P75			(0x1 << 8)
+#define RT5651_MIC_OVCD_SF_1P0			(0x2 << 8)
+#define RT5651_MIC_OVCD_SF_1P5			(0x3 << 8)
+
 /* 3D Speaker Control (0x63) */
 #define RT5651_3D_SPK_MASK			(0x1 << 15)
 #define RT5651_3D_SPK_SFT			15
@@ -2059,10 +2069,23 @@ struct rt5651_pll_code {
 };
 
 struct rt5651_priv {
-	struct snd_soc_codec *codec;
-	struct rt5651_platform_data pdata;
+	struct snd_soc_component *component;
 	struct regmap *regmap;
+	/* Jack and button detect data */
+	struct snd_soc_jack *hp_jack;
+	struct work_struct jack_detect_work;
+	struct delayed_work bp_work;
+	bool ovcd_irq_enabled;
+	bool pressed;
+	bool press_reported;
+	int press_count;
+	int release_count;
+	int poll_count;
+	unsigned int jd_src;
+	unsigned int ovcd_th;
+	unsigned int ovcd_sf;
 
+	int irq;
 	int sysclk;
 	int sysclk_src;
 	int lrck[RT5651_AIFS];

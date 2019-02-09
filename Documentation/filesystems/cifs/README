@@ -1,44 +1,30 @@
-The CIFS VFS support for Linux supports many advanced network filesystem 
-features such as hierarchical dfs like namespace, hardlinks, locking and more.  
+This module supports the SMB3 family of advanced network protocols (as well
+as older dialects, originally called "CIFS" or SMB1).
+
+The CIFS VFS module for Linux supports many advanced network filesystem
+features such as hierarchical DFS like namespace, hardlinks, locking and more.
 It was designed to comply with the SNIA CIFS Technical Reference (which 
 supersedes the 1992 X/Open SMB Standard) as well as to perform best practice 
 practical interoperability with Windows 2000, Windows XP, Samba and equivalent 
 servers.  This code was developed in participation with the Protocol Freedom
-Information Foundation.
+Information Foundation.  CIFS and now SMB3 has now become a defacto
+standard for interoperating between Macs and Windows and major NAS appliances.
 
 Please see
+  MS-SMB2 (for detailed SMB2/SMB3/SMB3.1.1 protocol specification)
   http://protocolfreedom.org/ and
   http://samba.org/samba/PFIF/
 for more details.
 
 
 For questions or bug reports please contact:
-    sfrench@samba.org (sfrench@us.ibm.com) 
+    smfrench@gmail.com
+
+See the project page at: https://wiki.samba.org/index.php/LinuxCIFS_utils
 
 Build instructions:
 ==================
-For Linux 2.4:
-1) Get the kernel source (e.g.from http://www.kernel.org)
-and download the cifs vfs source (see the project page
-at http://us1.samba.org/samba/Linux_CIFS_client.html)
-and change directory into the top of the kernel directory
-then patch the kernel (e.g. "patch -p1 < cifs_24.patch") 
-to add the cifs vfs to your kernel configure options if
-it has not already been added (e.g. current SuSE and UL
-users do not need to apply the cifs_24.patch since the cifs vfs is
-already in the kernel configure menu) and then
-mkdir linux/fs/cifs and then copy the current cifs vfs files from
-the cifs download to your kernel build directory e.g.
-
-	cp <cifs_download_dir>/fs/cifs/* to <kernel_download_dir>/fs/cifs
-	
-2) make menuconfig (or make xconfig)
-3) select cifs from within the network filesystem choices
-4) save and exit
-5) make dep
-6) make modules (or "make" if CIFS VFS not to be built as a module)
-
-For Linux 2.6:
+For Linux:
 1) Download the kernel (e.g. from http://www.kernel.org)
 and change directory into the top of the kernel directory tree
 (e.g. /usr/src/linux-2.5.73)
@@ -52,25 +38,22 @@ Installation instructions:
 =========================
 If you have built the CIFS vfs as module (successfully) simply
 type "make modules_install" (or if you prefer, manually copy the file to
-the modules directory e.g. /lib/modules/2.4.10-4GB/kernel/fs/cifs/cifs.o).
+the modules directory e.g. /lib/modules/2.4.10-4GB/kernel/fs/cifs/cifs.ko).
 
 If you have built the CIFS vfs into the kernel itself, follow the instructions
 for your distribution on how to install a new kernel (usually you
 would simply type "make install").
 
-If you do not have the utility mount.cifs (in the Samba 3.0 source tree and on 
-the CIFS VFS web site) copy it to the same directory in which mount.smbfs and 
-similar files reside (usually /sbin).  Although the helper software is not  
-required, mount.cifs is recommended.  Eventually the Samba 3.0 utility program 
-"net" may also be helpful since it may someday provide easier mount syntax for
-users who are used to Windows e.g.
-	net use <mount point> <UNC name or cifs URL>
+If you do not have the utility mount.cifs (in the Samba 4.x source tree and on
+the CIFS VFS web site) copy it to the same directory in which mount helpers
+reside (usually /sbin).  Although the helper software is not
+required, mount.cifs is recommended.  Most distros include a "cifs-utils"
+package that includes this utility so it is recommended to install this.
+
 Note that running the Winbind pam/nss module (logon service) on all of your
 Linux clients is useful in mapping Uids and Gids consistently across the
 domain to the proper network user.  The mount.cifs mount helper can be
-trivially built from Samba 3.0 or later source e.g. by executing:
-
-	gcc samba/source/client/mount.cifs.c -o mount.cifs
+found at cifs-utils.git on git.samba.org
 
 If cifs is built as a module, then the size and number of network buffers
 and maximum number of simultaneous requests to one server can be configured.
@@ -78,6 +61,18 @@ Changing these from their defaults is not recommended. By executing modinfo
 	modinfo kernel/fs/cifs/cifs.ko
 on kernel/fs/cifs/cifs.ko the list of configuration changes that can be made
 at module initialization time (by running insmod cifs.ko) can be seen.
+
+Recommendations
+===============
+To improve security the SMB2.1 dialect or later (usually will get SMB3) is now
+the new default. To use old dialects (e.g. to mount Windows XP) use "vers=1.0"
+on mount (or vers=2.0 for Windows Vista).  Note that the CIFS (vers=1.0) is
+much older and less secure than the default dialect SMB3 which includes
+many advanced security features such as downgrade attack detection
+and encrypted shares and stronger signing and authentication algorithms.
+There are additional mount options that may be helpful for SMB3 to get
+improved POSIX behavior (NB: can use vers=3.0 to force only SMB3, never 2.1):
+     "mfsymlinks" and "cifsacl" and "idsfromsid"
 
 Allowing User Mounts
 ====================
@@ -98,9 +93,7 @@ and execution of suid programs on the remote target would be enabled
 by default. This can be changed, as with nfs and other filesystems, 
 by simply specifying "nosuid" among the mount options. For user mounts 
 though to be able to pass the suid flag to mount requires rebuilding 
-mount.cifs with the following flag: 
- 
-        gcc samba/source/client/mount.cifs.c -DCIFS_ALLOW_USR_SUID -o mount.cifs
+mount.cifs with the following flag: CIFS_ALLOW_USR_SUID
 
 There is a corresponding manual page for cifs mounting in the Samba 3.0 and
 later source tree in docs/manpages/mount.cifs.8 
@@ -126,10 +119,13 @@ this can become unwieldy when potential mount targets include many
 or  unpredictable UNC names.
 
 Samba Considerations 
-==================== 
-To get the maximum benefit from the CIFS VFS, we recommend using a server that 
-supports the SNIA CIFS Unix Extensions standard (e.g.  Samba 2.2.5 or later or 
-Samba 3.0) but the CIFS vfs works fine with a wide variety of CIFS servers.  
+====================
+Most current servers support SMB2.1 and SMB3 which are more secure,
+but there are useful protocol extensions for the older less secure CIFS
+dialect, so to get the maximum benefit if mounting using the older dialect
+(CIFS/SMB1), we recommend using a server that supports the SNIA CIFS
+Unix Extensions standard (e.g. almost any  version of Samba ie version
+2.2.5 or later) but the CIFS vfs works fine with a wide variety of CIFS servers.
 Note that uid, gid and file permissions will display default values if you do 
 not have a server that supports the Unix extensions for CIFS (such as Samba 
 2.2.5 or later).  To enable the Unix CIFS Extensions in the Samba server, add 
@@ -189,18 +185,18 @@ applications running on the same server as Samba.
 Use instructions:
 ================
 Once the CIFS VFS support is built into the kernel or installed as a module 
-(cifs.o), you can use mount syntax like the following to access Samba or Windows 
-servers: 
+(cifs.ko), you can use mount syntax like the following to access Samba or
+Mac or Windows servers:
 
-  mount -t cifs //9.53.216.11/e$ /mnt -o user=myname,pass=mypassword
+  mount -t cifs //9.53.216.11/e$ /mnt -o username=myname,password=mypassword
 
 Before -o the option -v may be specified to make the mount.cifs
 mount helper display the mount steps more verbosely.  
 After -o the following commonly used cifs vfs specific options
 are supported:
 
-  user=<username>
-  pass=<password>
+  username=<username>
+  password=<password>
   domain=<domain name>
   
 Other cifs mount options are described below.  Use of TCP names (in addition to
@@ -246,13 +242,16 @@ the Server's registry.  Samba starting with version 3.10 will allow such
 filenames (ie those which contain valid Linux characters, which normally
 would be forbidden for Windows/CIFS semantics) as long as the server is
 configured for Unix Extensions (and the client has not disabled
-/proc/fs/cifs/LinuxExtensionsEnabled).
-  
+/proc/fs/cifs/LinuxExtensionsEnabled). In addition the mount option
+"mapposix" can be used on CIFS (vers=1.0) to force the mapping of
+illegal Windows/NTFS/SMB characters to a remap range (this mount parm
+is the default for SMB3). This remap ("mapposix") range is also
+compatible with Mac (and "Services for Mac" on some older Windows).
 
 CIFS VFS Mount Options
 ======================
 A partial list of the supported mount options follows:
-  user		The user name to use when trying to establish
+  username	The user name to use when trying to establish
 		the CIFS session.
   password	The user password.  If the mount helper is
 		installed, the user will be prompted for password
@@ -272,7 +271,7 @@ A partial list of the supported mount options follows:
 		same domain (e.g. running winbind or nss_ldap) and
 		the server supports the Unix Extensions then the uid
 		and gid can be retrieved from the server (and uid
-		and gid would not have to be specifed on the mount. 
+		and gid would not have to be specified on the mount.
 		For servers which do not support the CIFS Unix
 		extensions, the default uid (and gid) returned on lookup
 		of existing files will be the uid (gid) of the person
@@ -604,15 +603,9 @@ DebugData		Displays information about active CIFS sessions and
 			shares, features enabled as well as the cifs.ko
 			version.
 Stats			Lists summary resource usage information as well as per
-			share statistics, if CONFIG_CIFS_STATS in enabled
-			in the kernel configuration.
+			share statistics.
 
 Configuration pseudo-files:
-PacketSigningEnabled	If set to one, cifs packet signing is enabled
-			and will be used if the server requires 
-			it.  If set to two, cifs packet signing is
-			required even if the server considers packet
-			signing optional. (default 1)
 SecurityFlags		Flags which control security negotiation and
 			also packet signing. Authentication (may/must)
 			flags (e.g. for NTLM and/or NTLMv2) may be combined with
@@ -671,8 +664,6 @@ traceSMB		If set to one, debug information is logged to the
 LookupCacheEnable	If set to one, inode information is kept cached
 			for one second improving performance of lookups
 			(default 1)
-OplockEnabled		If set to one, safe distributed caching enabled.
-			(default 1)
 LinuxExtensionsEnabled	If set to one then the client will attempt to
 			use the CIFS "UNIX" extensions which are optional
 			protocol enhancements that allow CIFS servers
@@ -695,23 +686,22 @@ cifsFYI functions as a bit mask. Setting it to 1 enables additional kernel
 logging of various informational messages.  2 enables logging of non-zero
 SMB return codes while 4 enables logging of requests that take longer
 than one second to complete (except for byte range lock requests). 
-Setting it to 4 requires defining CONFIG_CIFS_STATS2 manually in the
-source code (typically by setting it in the beginning of cifsglob.h),
-and setting it to seven enables all three.  Finally, tracing
+Setting it to 4 requires CONFIG_CIFS_STATS2 to be set in kernel configuration
+(.config). Setting it to seven enables all three.  Finally, tracing
 the start of smb requests and responses can be enabled via:
 
 	echo 1 > /proc/fs/cifs/traceSMB
 
-Per share (per client mount) statistics are available in /proc/fs/cifs/Stats
-if the kernel was configured with cifs statistics enabled.  The statistics
-represent the number of successful (ie non-zero return code from the server) 
-SMB responses to some of the more common commands (open, delete, mkdir etc.).
+Per share (per client mount) statistics are available in /proc/fs/cifs/Stats.
+Additional information is available if CONFIG_CIFS_STATS2 is enabled in the
+kernel configuration (.config).  The statistics returned include counters which
+represent the number of attempted and failed (ie non-zero return code from the
+server) SMB3 (or cifs) requests grouped by request type (read, write, close etc.).
 Also recorded is the total bytes read and bytes written to the server for
 that share.  Note that due to client caching effects this can be less than the
 number of bytes read and written by the application running on the client.
-The statistics for the number of total SMBs and oplock breaks are different in
-that they represent all for that share, not just those for which the server
-returned success.
+Statistics can be reset to zero by "echo 0 > /proc/fs/cifs/Stats" which may be
+useful if comparing performance of two different scenarios.
 	
 Also note that "cat /proc/fs/cifs/DebugData" will display information about
 the active sessions and the shares that are mounted.

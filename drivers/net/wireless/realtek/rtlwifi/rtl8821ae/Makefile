@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 rtl8821ae-objs :=		\
 		dm.o		\
 		fw.o		\
@@ -12,5 +13,3 @@ rtl8821ae-objs :=		\
 
 
 obj-$(CONFIG_RTL8821AE) += rtl8821ae.o
-
-ccflags-y += -D__CHECK_ENDIAN__

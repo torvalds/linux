@@ -29,14 +29,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/platform.h>
 
-#undef DEBUG
-
-#ifdef DEBUG
-#define DBG(x...) printk(x)
-#else
-#define DBG(x...)
-#endif
-
 /* PCI Controller */
 
 
@@ -47,11 +39,10 @@
  * pcibios_align_resource
  * pcibios_fixup_bus
  * pci_bus_add_device
- * pci_mmap_page_range
  */
 
-struct pci_controller* pci_ctrl_head;
-struct pci_controller** pci_ctrl_tail = &pci_ctrl_head;
+static struct pci_controller *pci_ctrl_head;
+static struct pci_controller **pci_ctrl_tail = &pci_ctrl_head;
 
 static int pci_bus_count;
 
@@ -89,50 +80,6 @@ pcibios_align_resource(void *data, const struct resource *res,
 	return start;
 }
 
-int
-pcibios_enable_resources(struct pci_dev *dev, int mask)
-{
-	u16 cmd, old_cmd;
-	int idx;
-	struct resource *r;
-
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	old_cmd = cmd;
-	for(idx=0; idx<6; idx++) {
-		r = &dev->resource[idx];
-		if (!r->start && r->end) {
-			printk (KERN_ERR "PCI: Device %s not available because "
-				"of resource collisions\n", pci_name(dev));
-			return -EINVAL;
-		}
-		if (r->flags & IORESOURCE_IO)
-			cmd |= PCI_COMMAND_IO;
-		if (r->flags & IORESOURCE_MEM)
-			cmd |= PCI_COMMAND_MEMORY;
-	}
-	if (dev->resource[PCI_ROM_RESOURCE].start)
-		cmd |= PCI_COMMAND_MEMORY;
-	if (cmd != old_cmd) {
-		printk("PCI: Enabling device %s (%04x -> %04x)\n",
-			pci_name(dev), old_cmd, cmd);
-		pci_write_config_word(dev, PCI_COMMAND, cmd);
-	}
-	return 0;
-}
-
-struct pci_controller * __init pcibios_alloc_controller(void)
-{
-	struct pci_controller *pci_ctrl;
-
-	pci_ctrl = (struct pci_controller *)alloc_bootmem(sizeof(*pci_ctrl));
-	memset(pci_ctrl, 0, sizeof(struct pci_controller));
-
-	*pci_ctrl_tail = pci_ctrl;
-	pci_ctrl_tail = &pci_ctrl->next;
-
-	return pci_ctrl;
-}
-
 static void __init pci_controller_apertures(struct pci_controller *pci_ctrl,
 					    struct list_head *resources)
 {
@@ -144,8 +91,8 @@ static void __init pci_controller_apertures(struct pci_controller *pci_ctrl,
 	res = &pci_ctrl->io_resource;
 	if (!res->flags) {
 		if (io_offset)
-			printk (KERN_ERR "I/O resource not set for host"
-				" bridge %d\n", pci_ctrl->index);
+			pr_err("I/O resource not set for host bridge %d\n",
+			       pci_ctrl->index);
 		res->start = 0;
 		res->end = IO_SPACE_LIMIT;
 		res->flags = IORESOURCE_IO;
@@ -159,8 +106,8 @@ static void __init pci_controller_apertures(struct pci_controller *pci_ctrl,
 		if (!res->flags) {
 			if (i > 0)
 				continue;
-			printk(KERN_ERR "Memory resource not set for "
-			       "host bridge %d\n", pci_ctrl->index);
+			pr_err("Memory resource not set for host bridge %d\n",
+			       pci_ctrl->index);
 			res->start = 0;
 			res->end = ~0U;
 			res->flags = IORESOURCE_MEM;
@@ -176,7 +123,7 @@ static int __init pcibios_init(void)
 	struct pci_bus *bus;
 	int next_busno = 0, ret;
 
-	printk("PCI: Probing PCI hardware\n");
+	pr_info("PCI: Probing PCI hardware\n");
 
 	/* Scan all of the recorded PCI controllers.  */
 	for (pci_ctrl = pci_ctrl_head; pci_ctrl; pci_ctrl = pci_ctrl->next) {
@@ -232,8 +179,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	for (idx=0; idx<6; idx++) {
 		r = &dev->resource[idx];
 		if (!r->start && r->end) {
-			printk(KERN_ERR "PCI: Device %s not available because "
-			       "of resource collisions\n", pci_name(dev));
+			pci_err(dev, "can't enable device: resource collisions\n");
 			return -EINVAL;
 		}
 		if (r->flags & IORESOURCE_IO)
@@ -242,140 +188,29 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 			cmd |= PCI_COMMAND_MEMORY;
 	}
 	if (cmd != old_cmd) {
-		printk("PCI: Enabling device %s (%04x -> %04x)\n",
-		       pci_name(dev), old_cmd, cmd);
+		pci_info(dev, "enabling device (%04x -> %04x)\n", old_cmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
-
 /*
- * Return the index of the PCI controller for device pdev.
- */
-
-int
-pci_controller_num(struct pci_dev *dev)
-{
-	struct pci_controller *pci_ctrl = (struct pci_controller*) dev->sysdata;
-	return pci_ctrl->index;
-}
-
-#endif /* CONFIG_PROC_FS */
-
-/*
- * Platform support for /proc/bus/pci/X/Y mmap()s,
- * modelled on the sparc64 implementation by Dave Miller.
+ * Platform support for /proc/bus/pci/X/Y mmap()s.
  *  -- paulus.
  */
 
-/*
- * Adjust vm_pgoff of VMA such that it is the physical page offset
- * corresponding to the 32-bit pci bus offset for DEV requested by the user.
- *
- * Basically, the user finds the base address for his device which he wishes
- * to mmap.  They read the 32-bit value from the config space base register,
- * add whatever PAGE_SIZE multiple offset they wish, and feed this into the
- * offset parameter of mmap on /proc/bus/pci/XXX for that device.
- *
- * Returns negative error code on failure, zero on success.
- */
-static __inline__ int
-__pci_mmap_make_offset(struct pci_dev *dev, struct vm_area_struct *vma,
-		       enum pci_mmap_state mmap_state)
+int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma)
 {
-	struct pci_controller *pci_ctrl = (struct pci_controller*) dev->sysdata;
-	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
-	unsigned long io_offset = 0;
-	int i, res_bit;
+	struct pci_controller *pci_ctrl = (struct pci_controller*) pdev->sysdata;
+	resource_size_t ioaddr = pci_resource_start(pdev, bar);
 
 	if (pci_ctrl == 0)
 		return -EINVAL;		/* should never happen */
 
-	/* If memory, add on the PCI bridge address offset */
-	if (mmap_state == pci_mmap_mem) {
-		res_bit = IORESOURCE_MEM;
-	} else {
-		io_offset = (unsigned long)pci_ctrl->io_space.base;
-		offset += io_offset;
-		res_bit = IORESOURCE_IO;
-	}
+	/* Convert to an offset within this PCI controller */
+	ioaddr -= (unsigned long)pci_ctrl->io_space.base;
 
-	/*
-	 * Check that the offset requested corresponds to one of the
-	 * resources of the device.
-	 */
-	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-		struct resource *rp = &dev->resource[i];
-		int flags = rp->flags;
-
-		/* treat ROM as memory (should be already) */
-		if (i == PCI_ROM_RESOURCE)
-			flags |= IORESOURCE_MEM;
-
-		/* Active and same type? */
-		if ((flags & res_bit) == 0)
-			continue;
-
-		/* In the range of this resource? */
-		if (offset < (rp->start & PAGE_MASK) || offset > rp->end)
-			continue;
-
-		/* found it! construct the final physical address */
-		if (mmap_state == pci_mmap_io)
-			offset += pci_ctrl->io_space.start - io_offset;
-		vma->vm_pgoff = offset >> PAGE_SHIFT;
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-/*
- * Set vm_page_prot of VMA, as appropriate for this architecture, for a pci
- * device mapping.
- */
-static __inline__ void
-__pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
-		      enum pci_mmap_state mmap_state, int write_combine)
-{
-	int prot = pgprot_val(vma->vm_page_prot);
-
-	/* Set to write-through */
-	prot = (prot & _PAGE_CA_MASK) | _PAGE_CA_WT;
-#if 0
-	if (!write_combine)
-		prot |= _PAGE_WRITETHRU;
-#endif
-	vma->vm_page_prot = __pgprot(prot);
-}
-
-/*
- * Perform the actual remap of the pages for a PCI device mapping, as
- * appropriate for this architecture.  The region in the process to map
- * is described by vm_start and vm_end members of VMA, the base physical
- * address is found in vm_pgoff.
- * The pci device structure is provided so that architectures may make mapping
- * decisions on a per-device or per-bus basis.
- *
- * Returns a negative error code on failure, zero on success.
- */
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state,
-			int write_combine)
-{
-	int ret;
-
-	ret = __pci_mmap_make_offset(dev, vma, mmap_state);
-	if (ret < 0)
-		return ret;
-
-	__pci_mmap_set_pgprot(dev, vma, mmap_state, write_combine);
-
-	ret = io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-			         vma->vm_end - vma->vm_start,vma->vm_page_prot);
-
-	return ret;
+	vma->vm_pgoff += (ioaddr + pci_ctrl->io_space.start) >> PAGE_SHIFT;
+	return 0;
 }

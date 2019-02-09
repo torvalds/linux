@@ -166,10 +166,12 @@ MSR_KVM_SYSTEM_TIME: 0x12
 MSR_KVM_ASYNC_PF_EN: 0x4b564d02
 	data: Bits 63-6 hold 64-byte aligned physical address of a
 	64 byte memory area which must be in guest RAM and must be
-	zeroed. Bits 5-2 are reserved and should be zero. Bit 0 is 1
+	zeroed. Bits 5-3 are reserved and should be zero. Bit 0 is 1
 	when asynchronous page faults are enabled on the vcpu 0 when
 	disabled. Bit 1 is 1 if asynchronous page faults can be injected
-	when vcpu is in cpl == 0.
+	when vcpu is in cpl == 0. Bit 2 is 1 if asynchronous page faults
+	are delivered to L1 as #PF vmexits.  Bit 2 can be set only if
+	KVM_FEATURE_ASYNC_PF_VMEXIT is present in CPUID.
 
 	First 4 byte of 64 byte memory location will be written to by
 	the hypervisor at the time of asynchronous page fault (APF)
@@ -208,7 +210,9 @@ MSR_KVM_STEAL_TIME: 0x4b564d03
 		__u64 steal;
 		__u32 version;
 		__u32 flags;
-		__u32 pad[12];
+		__u8  preempted;
+		__u8  u8_pad[3];
+		__u32 pad[11];
 	}
 
 	whose data will be filled in by the hypervisor periodically. Only one
@@ -231,6 +235,11 @@ MSR_KVM_STEAL_TIME: 0x4b564d03
 		steal: the amount of time in which this vCPU did not run, in
 		nanoseconds. Time during which the vcpu is idle, will not be
 		reported as steal time.
+
+		preempted: indicate the vCPU who owns this struct is running or
+		not. Non-zero values mean the vCPU has been preempted. Zero
+		means the vCPU is not preempted. NOTE, it is always zero if the
+		the hypervisor doesn't support this field.
 
 MSR_KVM_EOI_EN: 0x4b564d04
 	data: Bit 0 is 1 when PV end of interrupt is enabled on the vcpu; 0

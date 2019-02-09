@@ -5,7 +5,7 @@
  * Author: Santiago Nunez-Corrales <santiago.nunez@ridgerun.com>
  *
  * This code is partially based upon the TVP5150 driver
- * written by Mauro Carvalho Chehab (mchehab@infradead.org),
+ * written by Mauro Carvalho Chehab <mchehab@kernel.org>,
  * the TVP514x driver written by Vaibhav Hiremath <hvaibhav@ti.com>
  * and the TVP7002 driver in the TI LSP 2.10.00.14. Revisions by
  * Muralidharan Karicheri and Snehaprabha Narnakaje (TI).
@@ -19,10 +19,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -32,12 +28,12 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/v4l2-dv-timings.h>
-#include <media/tvp7002.h>
+#include <media/i2c/tvp7002.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 
 #include "tvp7002_reg.h"
 
@@ -893,8 +889,8 @@ static const struct v4l2_subdev_ops tvp7002_ops = {
 static struct tvp7002_config *
 tvp7002_get_pdata(struct i2c_client *client)
 {
-	struct v4l2_of_endpoint bus_cfg;
-	struct tvp7002_config *pdata;
+	struct v4l2_fwnode_endpoint bus_cfg;
+	struct tvp7002_config *pdata = NULL;
 	struct device_node *endpoint;
 	unsigned int flags;
 
@@ -905,11 +901,13 @@ tvp7002_get_pdata(struct i2c_client *client)
 	if (!endpoint)
 		return NULL;
 
+	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), &bus_cfg))
+		goto done;
+
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		goto done;
 
-	v4l2_of_parse_endpoint(endpoint, &bus_cfg);
 	flags = bus_cfg.bus.parallel.flags;
 
 	if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
@@ -1012,9 +1010,9 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	device->pad.flags = MEDIA_PAD_FL_SOURCE;
 	device->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	device->sd.entity.flags |= MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
+	device->sd.entity.function = MEDIA_ENT_F_ATV_DECODER;
 
-	error = media_entity_init(&device->sd.entity, 1, &device->pad, 0);
+	error = media_entity_pads_init(&device->sd.entity, 1, &device->pad);
 	if (error < 0)
 		return error;
 #endif
@@ -1084,7 +1082,6 @@ MODULE_DEVICE_TABLE(of, tvp7002_of_match);
 static struct i2c_driver tvp7002_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(tvp7002_of_match),
-		.owner = THIS_MODULE,
 		.name = TVP7002_MODULE_NAME,
 	},
 	.probe = tvp7002_probe,

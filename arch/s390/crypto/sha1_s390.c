@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Cryptographic API.
  *
@@ -16,20 +17,14 @@
  *   Copyright (c) Alan Smithee.
  *   Copyright (c) Andrew McDonald <andrew@mcdonald.org.uk>
  *   Copyright (c) Jean-Francois Dive <jef@linuxbe.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #include <crypto/internal/hash.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 #include <crypto/sha.h>
+#include <asm/cpacf.h>
 
-#include "crypt_s390.h"
 #include "sha.h"
 
 static int sha1_init(struct shash_desc *desc)
@@ -42,7 +37,7 @@ static int sha1_init(struct shash_desc *desc)
 	sctx->state[3] = SHA1_H3;
 	sctx->state[4] = SHA1_H4;
 	sctx->count = 0;
-	sctx->func = KIMD_SHA_1;
+	sctx->func = CPACF_KIMD_SHA_1;
 
 	return 0;
 }
@@ -66,7 +61,7 @@ static int sha1_import(struct shash_desc *desc, const void *in)
 	sctx->count = ictx->count;
 	memcpy(sctx->state, ictx->state, sizeof(ictx->state));
 	memcpy(sctx->buf, ictx->buffer, sizeof(ictx->buffer));
-	sctx->func = KIMD_SHA_1;
+	sctx->func = CPACF_KIMD_SHA_1;
 	return 0;
 }
 
@@ -82,8 +77,7 @@ static struct shash_alg alg = {
 	.base		=	{
 		.cra_name	=	"sha1",
 		.cra_driver_name=	"sha1-s390",
-		.cra_priority	=	CRYPT_S390_PRIORITY,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_priority	=	300,
 		.cra_blocksize	=	SHA1_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -91,7 +85,7 @@ static struct shash_alg alg = {
 
 static int __init sha1_s390_init(void)
 {
-	if (!crypt_s390_func_available(KIMD_SHA_1, CRYPT_S390_MSA))
+	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_SHA_1))
 		return -EOPNOTSUPP;
 	return crypto_register_shash(&alg);
 }

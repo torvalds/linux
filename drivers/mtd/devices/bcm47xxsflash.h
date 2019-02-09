@@ -1,7 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __BCM47XXSFLASH_H
 #define __BCM47XXSFLASH_H
 
 #include <linux/mtd/mtd.h>
+
+#define BCM47XXSFLASH_WINDOW_SZ			SZ_16M
 
 /* Used for ST flashes only. */
 #define OPCODE_ST_WREN		0x0006		/* Write Enable */
@@ -16,6 +19,7 @@
 #define OPCODE_ST_RES		0x03ab		/* Read Electronic Signature */
 #define OPCODE_ST_CSA		0x1000		/* Keep chip select asserted */
 #define OPCODE_ST_SSE		0x0220		/* Sub-sector Erase */
+#define OPCODE_ST_READ4B	0x6313		/* Read Data Bytes in 4Byte addressing mode */
 
 /* Used for Atmel flashes only. */
 #define OPCODE_AT_READ				0x07e8
@@ -65,7 +69,8 @@ struct bcm47xxsflash {
 
 	enum bcm47xxsflash_type type;
 
-	u32 window;
+	void __iomem *window;
+
 	u32 blocksize;
 	u16 numblocks;
 	u32 size;

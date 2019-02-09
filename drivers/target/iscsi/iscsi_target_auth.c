@@ -16,50 +16,32 @@
  * GNU General Public License for more details.
  ******************************************************************************/
 
+#include <crypto/hash.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/crypto.h>
 #include <linux/err.h>
+#include <linux/random.h>
 #include <linux/scatterlist.h>
-
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_nego.h"
 #include "iscsi_target_auth.h"
 
-static int chap_string_to_hex(unsigned char *dst, unsigned char *src, int len)
-{
-	int j = DIV_ROUND_UP(len, 2), rc;
-
-	rc = hex2bin(dst, src, j);
-	if (rc < 0)
-		pr_debug("CHAP string contains non hex digit symbols\n");
-
-	dst[j] = '\0';
-	return j;
-}
-
-static void chap_binaryhex_to_asciihex(char *dst, char *src, int src_len)
-{
-	int i;
-
-	for (i = 0; i < src_len; i++) {
-		sprintf(&dst[i*2], "%02x", (int) src[i] & 0xff);
-	}
-}
-
-static void chap_gen_challenge(
+static int chap_gen_challenge(
 	struct iscsi_conn *conn,
 	int caller,
 	char *c_str,
 	unsigned int *c_len)
 {
+	int ret;
 	unsigned char challenge_asciihex[CHAP_CHALLENGE_LENGTH * 2 + 1];
 	struct iscsi_chap *chap = conn->auth_protocol;
 
 	memset(challenge_asciihex, 0, CHAP_CHALLENGE_LENGTH * 2 + 1);
 
-	get_random_bytes(chap->challenge, CHAP_CHALLENGE_LENGTH);
-	chap_binaryhex_to_asciihex(challenge_asciihex, chap->challenge,
+	ret = get_random_bytes_wait(chap->challenge, CHAP_CHALLENGE_LENGTH);
+	if (unlikely(ret))
+		return ret;
+	bin2hex(challenge_asciihex, chap->challenge,
 				CHAP_CHALLENGE_LENGTH);
 	/*
 	 * Set CHAP_C, and copy the generated challenge into c_str.
@@ -69,6 +51,7 @@ static void chap_gen_challenge(
 
 	pr_debug("[%s] Sending CHAP_C=0x%s\n\n", (caller) ? "server" : "client",
 			challenge_asciihex);
+	return 0;
 }
 
 static int chap_check_algorithm(const char *a_str)
@@ -143,6 +126,7 @@ static struct iscsi_chap *chap_server_open(
 	case CHAP_DIGEST_UNKNOWN:
 	default:
 		pr_err("Unsupported CHAP_A value\n");
+		kfree(conn->auth_protocol);
 		return NULL;
 	}
 
@@ -156,7 +140,10 @@ static struct iscsi_chap *chap_server_open(
 	/*
 	 * Generate Challenge.
 	 */
-	chap_gen_challenge(conn, 1, aic_str, aic_len);
+	if (chap_gen_challenge(conn, 1, aic_str, aic_len) < 0) {
+		kfree(conn->auth_protocol);
+		return NULL;
+	}
 
 	return chap;
 }
@@ -185,9 +172,8 @@ static int chap_server_compute_md5(
 	unsigned char chap_n[MAX_CHAP_N_SIZE], chap_r[MAX_RESPONSE_LENGTH];
 	size_t compare_len;
 	struct iscsi_chap *chap = conn->auth_protocol;
-	struct crypto_hash *tfm;
-	struct hash_desc desc;
-	struct scatterlist sg;
+	struct crypto_shash *tfm = NULL;
+	struct shash_desc *desc = NULL;
 	int auth_ret = -1, ret, challenge_len;
 
 	memset(identifier, 0, 10);
@@ -241,74 +227,75 @@ static int chap_server_compute_md5(
 		pr_err("Could not find CHAP_R.\n");
 		goto out;
 	}
+	if (strlen(chap_r) != MD5_SIGNATURE_SIZE * 2) {
+		pr_err("Malformed CHAP_R\n");
+		goto out;
+	}
+	if (hex2bin(client_digest, chap_r, MD5_SIGNATURE_SIZE) < 0) {
+		pr_err("Malformed CHAP_R\n");
+		goto out;
+	}
 
 	pr_debug("[server] Got CHAP_R=%s\n", chap_r);
-	chap_string_to_hex(client_digest, chap_r, strlen(chap_r));
 
-	tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_shash("md5", 0, 0);
 	if (IS_ERR(tfm)) {
-		pr_err("Unable to allocate struct crypto_hash\n");
+		tfm = NULL;
+		pr_err("Unable to allocate struct crypto_shash\n");
 		goto out;
 	}
-	desc.tfm = tfm;
-	desc.flags = 0;
 
-	ret = crypto_hash_init(&desc);
+	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
+	if (!desc) {
+		pr_err("Unable to allocate struct shash_desc\n");
+		goto out;
+	}
+
+	desc->tfm = tfm;
+	desc->flags = 0;
+
+	ret = crypto_shash_init(desc);
 	if (ret < 0) {
-		pr_err("crypto_hash_init() failed\n");
-		crypto_free_hash(tfm);
+		pr_err("crypto_shash_init() failed\n");
 		goto out;
 	}
 
-	sg_init_one(&sg, &chap->id, 1);
-	ret = crypto_hash_update(&desc, &sg, 1);
+	ret = crypto_shash_update(desc, &chap->id, 1);
 	if (ret < 0) {
-		pr_err("crypto_hash_update() failed for id\n");
-		crypto_free_hash(tfm);
+		pr_err("crypto_shash_update() failed for id\n");
 		goto out;
 	}
 
-	sg_init_one(&sg, &auth->password, strlen(auth->password));
-	ret = crypto_hash_update(&desc, &sg, strlen(auth->password));
+	ret = crypto_shash_update(desc, (char *)&auth->password,
+				  strlen(auth->password));
 	if (ret < 0) {
-		pr_err("crypto_hash_update() failed for password\n");
-		crypto_free_hash(tfm);
+		pr_err("crypto_shash_update() failed for password\n");
 		goto out;
 	}
 
-	sg_init_one(&sg, chap->challenge, CHAP_CHALLENGE_LENGTH);
-	ret = crypto_hash_update(&desc, &sg, CHAP_CHALLENGE_LENGTH);
+	ret = crypto_shash_finup(desc, chap->challenge,
+				 CHAP_CHALLENGE_LENGTH, server_digest);
 	if (ret < 0) {
-		pr_err("crypto_hash_update() failed for challenge\n");
-		crypto_free_hash(tfm);
+		pr_err("crypto_shash_finup() failed for challenge\n");
 		goto out;
 	}
 
-	ret = crypto_hash_final(&desc, server_digest);
-	if (ret < 0) {
-		pr_err("crypto_hash_final() failed for server digest\n");
-		crypto_free_hash(tfm);
-		goto out;
-	}
-	crypto_free_hash(tfm);
-
-	chap_binaryhex_to_asciihex(response, server_digest, MD5_SIGNATURE_SIZE);
+	bin2hex(response, server_digest, MD5_SIGNATURE_SIZE);
 	pr_debug("[server] MD5 Server Digest: %s\n", response);
 
 	if (memcmp(server_digest, client_digest, MD5_SIGNATURE_SIZE) != 0) {
 		pr_debug("[server] MD5 Digests do not match!\n\n");
 		goto out;
 	} else
-		pr_debug("[server] MD5 Digests match, CHAP connetication"
+		pr_debug("[server] MD5 Digests match, CHAP connection"
 				" successful.\n\n");
 	/*
 	 * One way authentication has succeeded, return now if mutual
 	 * authentication is not enabled.
 	 */
 	if (!auth->authenticate_target) {
-		kfree(challenge);
-		kfree(challenge_binhex);
-		return 0;
+		auth_ret = 0;
+		goto out;
 	}
 	/*
 	 * Get CHAP_I.
@@ -348,9 +335,7 @@ static int chap_server_compute_md5(
 		pr_err("Could not find CHAP_C.\n");
 		goto out;
 	}
-	pr_debug("[server] Got CHAP_C=%s\n", challenge);
-	challenge_len = chap_string_to_hex(challenge_binhex, challenge,
-				strlen(challenge));
+	challenge_len = DIV_ROUND_UP(strlen(challenge), 2);
 	if (!challenge_len) {
 		pr_err("Unable to convert incoming challenge\n");
 		goto out;
@@ -359,6 +344,11 @@ static int chap_server_compute_md5(
 		pr_err("CHAP_C exceeds maximum binary size of 1024 bytes\n");
 		goto out;
 	}
+	if (hex2bin(challenge_binhex, challenge, challenge_len) < 0) {
+		pr_err("Malformed CHAP_C\n");
+		goto out;
+	}
+	pr_debug("[server] Got CHAP_C=%s\n", challenge);
 	/*
 	 * During mutual authentication, the CHAP_C generated by the
 	 * initiator must not match the original CHAP_C generated by
@@ -372,58 +362,37 @@ static int chap_server_compute_md5(
 	/*
 	 * Generate CHAP_N and CHAP_R for mutual authentication.
 	 */
-	tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm)) {
-		pr_err("Unable to allocate struct crypto_hash\n");
-		goto out;
-	}
-	desc.tfm = tfm;
-	desc.flags = 0;
-
-	ret = crypto_hash_init(&desc);
+	ret = crypto_shash_init(desc);
 	if (ret < 0) {
-		pr_err("crypto_hash_init() failed\n");
-		crypto_free_hash(tfm);
+		pr_err("crypto_shash_init() failed\n");
 		goto out;
 	}
 
 	/* To handle both endiannesses */
 	id_as_uchar = id;
-	sg_init_one(&sg, &id_as_uchar, 1);
-	ret = crypto_hash_update(&desc, &sg, 1);
+	ret = crypto_shash_update(desc, &id_as_uchar, 1);
 	if (ret < 0) {
-		pr_err("crypto_hash_update() failed for id\n");
-		crypto_free_hash(tfm);
+		pr_err("crypto_shash_update() failed for id\n");
 		goto out;
 	}
 
-	sg_init_one(&sg, auth->password_mutual,
-				strlen(auth->password_mutual));
-	ret = crypto_hash_update(&desc, &sg, strlen(auth->password_mutual));
+	ret = crypto_shash_update(desc, auth->password_mutual,
+				  strlen(auth->password_mutual));
 	if (ret < 0) {
-		pr_err("crypto_hash_update() failed for"
+		pr_err("crypto_shash_update() failed for"
 				" password_mutual\n");
-		crypto_free_hash(tfm);
 		goto out;
 	}
 	/*
 	 * Convert received challenge to binary hex.
 	 */
-	sg_init_one(&sg, challenge_binhex, challenge_len);
-	ret = crypto_hash_update(&desc, &sg, challenge_len);
+	ret = crypto_shash_finup(desc, challenge_binhex, challenge_len,
+				 digest);
 	if (ret < 0) {
-		pr_err("crypto_hash_update() failed for ma challenge\n");
-		crypto_free_hash(tfm);
+		pr_err("crypto_shash_finup() failed for ma challenge\n");
 		goto out;
 	}
 
-	ret = crypto_hash_final(&desc, digest);
-	if (ret < 0) {
-		pr_err("crypto_hash_final() failed for ma digest\n");
-		crypto_free_hash(tfm);
-		goto out;
-	}
-	crypto_free_hash(tfm);
 	/*
 	 * Generate CHAP_N and CHAP_R.
 	 */
@@ -433,13 +402,16 @@ static int chap_server_compute_md5(
 	/*
 	 * Convert response from binary hex to ascii hext.
 	 */
-	chap_binaryhex_to_asciihex(response, digest, MD5_SIGNATURE_SIZE);
+	bin2hex(response, digest, MD5_SIGNATURE_SIZE);
 	*nr_out_len += sprintf(nr_out_ptr + *nr_out_len, "CHAP_R=0x%s",
 			response);
 	*nr_out_len += 1;
 	pr_debug("[server] Sending CHAP_R=0x%s\n", response);
 	auth_ret = 0;
 out:
+	kzfree(desc);
+	if (tfm)
+		crypto_free_shash(tfm);
 	kfree(challenge);
 	kfree(challenge_binhex);
 	return auth_ret;

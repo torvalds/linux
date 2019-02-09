@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/gpio/consumer.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
@@ -67,6 +66,9 @@
 /* Default BW: 125Hz */
 #define BMC150_ACCEL_REG_PMU_BW		0x10
 #define BMC150_ACCEL_DEF_BW			125
+
+#define BMC150_ACCEL_REG_RESET			0x14
+#define BMC150_ACCEL_RESET_VAL			0xB6
 
 #define BMC150_ACCEL_REG_INT_MAP_0		0x19
 #define BMC150_ACCEL_INT_MAP_0_BIT_SLOPE	BIT(2)
@@ -138,6 +140,7 @@ enum bmc150_accel_axis {
 	AXIS_X,
 	AXIS_Y,
 	AXIS_Z,
+	AXIS_MAX,
 };
 
 enum bmc150_power_modes {
@@ -188,10 +191,8 @@ enum bmc150_accel_trigger_id {
 
 struct bmc150_accel_data {
 	struct regmap *regmap;
-	struct device *dev;
 	int irq;
 	struct bmc150_accel_interrupt interrupts[BMC150_ACCEL_INTERRUPTS];
-	atomic_t active_intr;
 	struct bmc150_accel_trigger triggers[BMC150_ACCEL_TRIGGERS];
 	struct mutex mutex;
 	u8 fifo_mode, watermark;
@@ -246,16 +247,18 @@ static const struct {
 				       {500000, BMC150_ACCEL_SLEEP_500_MS},
 				       {1000000, BMC150_ACCEL_SLEEP_1_SEC} };
 
-static const struct regmap_config bmc150_i2c_regmap_conf = {
+const struct regmap_config bmc150_regmap_conf = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x3f,
 };
+EXPORT_SYMBOL_GPL(bmc150_regmap_conf);
 
 static int bmc150_accel_set_mode(struct bmc150_accel_data *data,
 				 enum bmc150_power_modes mode,
 				 int dur_us)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int i;
 	int ret;
 	u8 lpw_bits;
@@ -279,11 +282,11 @@ static int bmc150_accel_set_mode(struct bmc150_accel_data *data,
 	lpw_bits = mode << BMC150_ACCEL_PMU_MODE_SHIFT;
 	lpw_bits |= (dur_val << BMC150_ACCEL_PMU_BIT_SLEEP_DUR_SHIFT);
 
-	dev_dbg(data->dev, "Set Mode bits %x\n", lpw_bits);
+	dev_dbg(dev, "Set Mode bits %x\n", lpw_bits);
 
 	ret = regmap_write(data->regmap, BMC150_ACCEL_REG_PMU_LPW, lpw_bits);
 	if (ret < 0) {
-		dev_err(data->dev, "Error writing reg_pmu_lpw\n");
+		dev_err(dev, "Error writing reg_pmu_lpw\n");
 		return ret;
 	}
 
@@ -316,24 +319,24 @@ static int bmc150_accel_set_bw(struct bmc150_accel_data *data, int val,
 
 static int bmc150_accel_update_slope(struct bmc150_accel_data *data)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
 	ret = regmap_write(data->regmap, BMC150_ACCEL_REG_INT_6,
 					data->slope_thres);
 	if (ret < 0) {
-		dev_err(data->dev, "Error writing reg_int_6\n");
+		dev_err(dev, "Error writing reg_int_6\n");
 		return ret;
 	}
 
 	ret = regmap_update_bits(data->regmap, BMC150_ACCEL_REG_INT_5,
 				 BMC150_ACCEL_SLOPE_DUR_MASK, data->slope_dur);
 	if (ret < 0) {
-		dev_err(data->dev, "Error updating reg_int_5\n");
+		dev_err(dev, "Error updating reg_int_5\n");
 		return ret;
 	}
 
-	dev_dbg(data->dev, "%s: %x %x\n", __func__, data->slope_thres,
-		data->slope_dur);
+	dev_dbg(dev, "%x %x\n", data->slope_thres, data->slope_dur);
 
 	return ret;
 }
@@ -378,20 +381,21 @@ static int bmc150_accel_get_startup_times(struct bmc150_accel_data *data)
 
 static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
 	if (on) {
-		ret = pm_runtime_get_sync(data->dev);
+		ret = pm_runtime_get_sync(dev);
 	} else {
-		pm_runtime_mark_last_busy(data->dev);
-		ret = pm_runtime_put_autosuspend(data->dev);
+		pm_runtime_mark_last_busy(dev);
+		ret = pm_runtime_put_autosuspend(dev);
 	}
 
 	if (ret < 0) {
-		dev_err(data->dev,
+		dev_err(dev,
 			"Failed: bmc150_accel_set_power_state for %d\n", on);
 		if (on)
-			pm_runtime_put_noidle(data->dev);
+			pm_runtime_put_noidle(dev);
 
 		return ret;
 	}
@@ -445,6 +449,7 @@ static void bmc150_accel_interrupts_setup(struct iio_dev *indio_dev,
 static int bmc150_accel_set_interrupt(struct bmc150_accel_data *data, int i,
 				      bool state)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	struct bmc150_accel_interrupt *intr = &data->interrupts[i];
 	const struct bmc150_accel_interrupt_info *info = intr->info;
 	int ret;
@@ -474,7 +479,7 @@ static int bmc150_accel_set_interrupt(struct bmc150_accel_data *data, int i,
 	ret = regmap_update_bits(data->regmap, info->map_reg, info->map_bitmask,
 				 (state ? info->map_bitmask : 0));
 	if (ret < 0) {
-		dev_err(data->dev, "Error updating reg_int_map\n");
+		dev_err(dev, "Error updating reg_int_map\n");
 		goto out_fix_power_state;
 	}
 
@@ -482,14 +487,9 @@ static int bmc150_accel_set_interrupt(struct bmc150_accel_data *data, int i,
 	ret = regmap_update_bits(data->regmap, info->en_reg, info->en_bitmask,
 				 (state ? info->en_bitmask : 0));
 	if (ret < 0) {
-		dev_err(data->dev, "Error updating reg_int_en\n");
+		dev_err(dev, "Error updating reg_int_en\n");
 		goto out_fix_power_state;
 	}
-
-	if (state)
-		atomic_inc(&data->active_intr);
-	else
-		atomic_dec(&data->active_intr);
 
 	return 0;
 
@@ -500,6 +500,7 @@ out_fix_power_state:
 
 static int bmc150_accel_set_scale(struct bmc150_accel_data *data, int val)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret, i;
 
 	for (i = 0; i < ARRAY_SIZE(data->chip_info->scale_table); ++i) {
@@ -508,8 +509,7 @@ static int bmc150_accel_set_scale(struct bmc150_accel_data *data, int val)
 				     BMC150_ACCEL_REG_PMU_RANGE,
 				     data->chip_info->scale_table[i].reg_range);
 			if (ret < 0) {
-				dev_err(data->dev,
-					"Error writing pmu_range\n");
+				dev_err(dev, "Error writing pmu_range\n");
 				return ret;
 			}
 
@@ -523,6 +523,7 @@ static int bmc150_accel_set_scale(struct bmc150_accel_data *data, int val)
 
 static int bmc150_accel_get_temp(struct bmc150_accel_data *data, int *val)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	unsigned int value;
 
@@ -530,7 +531,7 @@ static int bmc150_accel_get_temp(struct bmc150_accel_data *data, int *val)
 
 	ret = regmap_read(data->regmap, BMC150_ACCEL_REG_TEMP, &value);
 	if (ret < 0) {
-		dev_err(data->dev, "Error reading reg_temp\n");
+		dev_err(dev, "Error reading reg_temp\n");
 		mutex_unlock(&data->mutex);
 		return ret;
 	}
@@ -545,9 +546,10 @@ static int bmc150_accel_get_axis(struct bmc150_accel_data *data,
 				 struct iio_chan_spec const *chan,
 				 int *val)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	int axis = chan->scan_index;
-	unsigned int raw_val;
+	__le16 raw_val;
 
 	mutex_lock(&data->mutex);
 	ret = bmc150_accel_set_power_state(data, true);
@@ -557,14 +559,14 @@ static int bmc150_accel_get_axis(struct bmc150_accel_data *data,
 	}
 
 	ret = regmap_bulk_read(data->regmap, BMC150_ACCEL_AXIS_TO_REG(axis),
-			       &raw_val, 2);
+			       &raw_val, sizeof(raw_val));
 	if (ret < 0) {
-		dev_err(data->dev, "Error reading axis %d\n", axis);
+		dev_err(dev, "Error reading axis %d\n", axis);
 		bmc150_accel_set_power_state(data, false);
 		mutex_unlock(&data->mutex);
 		return ret;
 	}
-	*val = sign_extend32(raw_val >> chan->scan_type.shift,
+	*val = sign_extend32(le16_to_cpu(raw_val) >> chan->scan_type.shift,
 			     chan->scan_type.realbits - 1);
 	ret = bmc150_accel_set_power_state(data, false);
 	mutex_unlock(&data->mutex);
@@ -831,31 +833,16 @@ static int bmc150_accel_set_watermark(struct iio_dev *indio_dev, unsigned val)
 static int bmc150_accel_fifo_transfer(struct bmc150_accel_data *data,
 				      char *buffer, int samples)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int sample_length = 3 * 2;
 	int ret;
 	int total_length = samples * sample_length;
-	int i;
-	size_t step = regmap_get_raw_read_max(data->regmap);
 
-	if (!step || step > total_length)
-		step = total_length;
-	else if (step < total_length)
-		step = sample_length;
-
-	/*
-	 * Seems we have a bus with size limitation so we have to execute
-	 * multiple reads
-	 */
-	for (i = 0; i < total_length; i += step) {
-		ret = regmap_raw_read(data->regmap, BMC150_ACCEL_REG_FIFO_DATA,
-				      &buffer[i], step);
-		if (ret)
-			break;
-	}
-
+	ret = regmap_raw_read(data->regmap, BMC150_ACCEL_REG_FIFO_DATA,
+			      buffer, total_length);
 	if (ret)
-		dev_err(data->dev, "Error transferring data from fifo in single steps of %zu\n",
-			step);
+		dev_err(dev,
+			"Error transferring data from fifo: %d\n", ret);
 
 	return ret;
 }
@@ -864,6 +851,7 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 				     unsigned samples, bool irq)
 {
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret, i;
 	u8 count;
 	u16 buffer[BMC150_ACCEL_FIFO_LENGTH * 3];
@@ -873,7 +861,7 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 
 	ret = regmap_read(data->regmap, BMC150_ACCEL_REG_FIFO_STATUS, &val);
 	if (ret < 0) {
-		dev_err(data->dev, "Error reading reg_fifo_status\n");
+		dev_err(dev, "Error reading reg_fifo_status\n");
 		return ret;
 	}
 
@@ -892,7 +880,7 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 	 */
 	if (!irq) {
 		data->old_timestamp = data->timestamp;
-		data->timestamp = iio_get_time_ns();
+		data->timestamp = iio_get_time_ns(indio_dev);
 	}
 
 	/*
@@ -988,6 +976,7 @@ static const struct iio_event_spec bmc150_accel_event = {
 		.realbits = (bits),					\
 		.storagebits = 16,					\
 		.shift = 16 - (bits),					\
+		.endianness = IIO_LE,					\
 	},								\
 	.event_spec = &bmc150_accel_event,				\
 	.num_event_specs = 1						\
@@ -1087,7 +1076,6 @@ static const struct iio_info bmc150_accel_info = {
 	.write_event_value	= bmc150_accel_write_event,
 	.write_event_config	= bmc150_accel_write_event_config,
 	.read_event_config	= bmc150_accel_read_event_config,
-	.driver_module		= THIS_MODULE,
 };
 
 static const struct iio_info bmc150_accel_info_fifo = {
@@ -1101,30 +1089,25 @@ static const struct iio_info bmc150_accel_info_fifo = {
 	.validate_trigger	= bmc150_accel_validate_trigger,
 	.hwfifo_set_watermark	= bmc150_accel_set_watermark,
 	.hwfifo_flush_to_buffer	= bmc150_accel_fifo_flush,
-	.driver_module		= THIS_MODULE,
 };
+
+static const unsigned long bmc150_accel_scan_masks[] = {
+					BIT(AXIS_X) | BIT(AXIS_Y) | BIT(AXIS_Z),
+					0};
 
 static irqreturn_t bmc150_accel_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
-	int bit, ret, i = 0;
-	unsigned int raw_val;
+	int ret;
 
 	mutex_lock(&data->mutex);
-	for_each_set_bit(bit, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
-		ret = regmap_bulk_read(data->regmap,
-				       BMC150_ACCEL_AXIS_TO_REG(bit), &raw_val,
-				       2);
-		if (ret < 0) {
-			mutex_unlock(&data->mutex);
-			goto err_read;
-		}
-		data->buffer[i++] = raw_val;
-	}
+	ret = regmap_bulk_read(data->regmap, BMC150_ACCEL_REG_XOUT_L,
+			       data->buffer, AXIS_MAX * 2);
 	mutex_unlock(&data->mutex);
+	if (ret < 0)
+		goto err_read;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   pf->timestamp);
@@ -1138,6 +1121,7 @@ static int bmc150_accel_trig_try_reen(struct iio_trigger *trig)
 {
 	struct bmc150_accel_trigger *t = iio_trigger_get_drvdata(trig);
 	struct bmc150_accel_data *data = t->data;
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
 	/* new data interrupts don't need ack */
@@ -1151,8 +1135,7 @@ static int bmc150_accel_trig_try_reen(struct iio_trigger *trig)
 			   BMC150_ACCEL_INT_MODE_LATCH_RESET);
 	mutex_unlock(&data->mutex);
 	if (ret < 0) {
-		dev_err(data->dev,
-			"Error writing reg_int_rst_latch\n");
+		dev_err(dev, "Error writing reg_int_rst_latch\n");
 		return ret;
 	}
 
@@ -1197,19 +1180,19 @@ static int bmc150_accel_trigger_set_state(struct iio_trigger *trig,
 static const struct iio_trigger_ops bmc150_accel_trigger_ops = {
 	.set_trigger_state = bmc150_accel_trigger_set_state,
 	.try_reenable = bmc150_accel_trig_try_reen,
-	.owner = THIS_MODULE,
 };
 
 static int bmc150_accel_handle_roc_event(struct iio_dev *indio_dev)
 {
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	struct device *dev = regmap_get_device(data->regmap);
 	int dir;
 	int ret;
 	unsigned int val;
 
 	ret = regmap_read(data->regmap, BMC150_ACCEL_REG_INT_STATUS_2, &val);
 	if (ret < 0) {
-		dev_err(data->dev, "Error reading reg_int_status_2\n");
+		dev_err(dev, "Error reading reg_int_status_2\n");
 		return ret;
 	}
 
@@ -1252,6 +1235,7 @@ static irqreturn_t bmc150_accel_irq_thread_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	struct device *dev = regmap_get_device(data->regmap);
 	bool ack = false;
 	int ret;
 
@@ -1275,7 +1259,7 @@ static irqreturn_t bmc150_accel_irq_thread_handler(int irq, void *private)
 				   BMC150_ACCEL_INT_MODE_LATCH_INT |
 				   BMC150_ACCEL_INT_MODE_LATCH_RESET);
 		if (ret)
-			dev_err(data->dev, "Error writing reg_int_rst_latch\n");
+			dev_err(dev, "Error writing reg_int_rst_latch\n");
 
 		ret = IRQ_HANDLED;
 	} else {
@@ -1295,7 +1279,7 @@ static irqreturn_t bmc150_accel_irq_handler(int irq, void *private)
 	int i;
 
 	data->old_timestamp = data->timestamp;
-	data->timestamp = iio_get_time_ns();
+	data->timestamp = iio_get_time_ns(indio_dev);
 
 	for (i = 0; i < BMC150_ACCEL_TRIGGERS; i++) {
 		if (data->triggers[i].enabled) {
@@ -1346,13 +1330,14 @@ static void bmc150_accel_unregister_triggers(struct bmc150_accel_data *data,
 static int bmc150_accel_triggers_setup(struct iio_dev *indio_dev,
 				       struct bmc150_accel_data *data)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int i, ret;
 
 	for (i = 0; i < BMC150_ACCEL_TRIGGERS; i++) {
 		struct bmc150_accel_trigger *t = &data->triggers[i];
 
-		t->indio_trig = devm_iio_trigger_alloc(data->dev,
-					       bmc150_accel_triggers[i].name,
+		t->indio_trig = devm_iio_trigger_alloc(dev,
+					bmc150_accel_triggers[i].name,
 						       indio_dev->name,
 						       indio_dev->id);
 		if (!t->indio_trig) {
@@ -1360,7 +1345,7 @@ static int bmc150_accel_triggers_setup(struct iio_dev *indio_dev,
 			break;
 		}
 
-		t->indio_trig->dev.parent = data->dev;
+		t->indio_trig->dev.parent = dev;
 		t->indio_trig->ops = &bmc150_accel_trigger_ops;
 		t->intr = bmc150_accel_triggers[i].intr;
 		t->data = data;
@@ -1384,12 +1369,13 @@ static int bmc150_accel_triggers_setup(struct iio_dev *indio_dev,
 
 static int bmc150_accel_fifo_set_mode(struct bmc150_accel_data *data)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	u8 reg = BMC150_ACCEL_REG_FIFO_CONFIG1;
 	int ret;
 
 	ret = regmap_write(data->regmap, reg, data->fifo_mode);
 	if (ret < 0) {
-		dev_err(data->dev, "Error writing reg_fifo_config1\n");
+		dev_err(dev, "Error writing reg_fifo_config1\n");
 		return ret;
 	}
 
@@ -1399,7 +1385,7 @@ static int bmc150_accel_fifo_set_mode(struct bmc150_accel_data *data)
 	ret = regmap_write(data->regmap, BMC150_ACCEL_REG_FIFO_CONFIG0,
 			   data->watermark);
 	if (ret < 0)
-		dev_err(data->dev, "Error writing reg_fifo_config0\n");
+		dev_err(dev, "Error writing reg_fifo_config0\n");
 
 	return ret;
 }
@@ -1483,17 +1469,25 @@ static const struct iio_buffer_setup_ops bmc150_accel_buffer_ops = {
 
 static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret, i;
 	unsigned int val;
 
+	/*
+	 * Reset chip to get it in a known good state. A delay of 1.8ms after
+	 * reset is required according to the data sheets of supported chips.
+	 */
+	regmap_write(data->regmap, BMC150_ACCEL_REG_RESET,
+		     BMC150_ACCEL_RESET_VAL);
+	usleep_range(1800, 2500);
+
 	ret = regmap_read(data->regmap, BMC150_ACCEL_REG_CHIP_ID, &val);
 	if (ret < 0) {
-		dev_err(data->dev,
-			"Error: Reading chip id\n");
+		dev_err(dev, "Error: Reading chip id\n");
 		return ret;
 	}
 
-	dev_dbg(data->dev, "Chip Id %x\n", val);
+	dev_dbg(dev, "Chip Id %x\n", val);
 	for (i = 0; i < ARRAY_SIZE(bmc150_accel_chip_info_tbl); i++) {
 		if (bmc150_accel_chip_info_tbl[i].chip_id == val) {
 			data->chip_info = &bmc150_accel_chip_info_tbl[i];
@@ -1502,7 +1496,7 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 	}
 
 	if (!data->chip_info) {
-		dev_err(data->dev, "Invalid chip %x\n", val);
+		dev_err(dev, "Invalid chip %x\n", val);
 		return -ENODEV;
 	}
 
@@ -1519,8 +1513,7 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 	ret = regmap_write(data->regmap, BMC150_ACCEL_REG_PMU_RANGE,
 			   BMC150_ACCEL_DEF_RANGE_4G);
 	if (ret < 0) {
-		dev_err(data->dev,
-					"Error writing reg_pmu_range\n");
+		dev_err(dev, "Error writing reg_pmu_range\n");
 		return ret;
 	}
 
@@ -1538,8 +1531,7 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 			   BMC150_ACCEL_INT_MODE_LATCH_INT |
 			   BMC150_ACCEL_INT_MODE_LATCH_RESET);
 	if (ret < 0) {
-		dev_err(data->dev,
-			"Error writing reg_int_rst_latch\n");
+		dev_err(dev, "Error writing reg_int_rst_latch\n");
 		return ret;
 	}
 
@@ -1559,7 +1551,6 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
-	data->dev = dev;
 	data->irq = irq;
 
 	data->regmap = regmap;
@@ -1574,6 +1565,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	indio_dev->channels = data->chip_info->channels;
 	indio_dev->num_channels = data->chip_info->num_channels;
 	indio_dev->name = name ? name : data->chip_info->name;
+	indio_dev->available_scan_masks = bmc150_accel_scan_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmc150_accel_info;
 
@@ -1582,13 +1574,13 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 					 bmc150_accel_trigger_handler,
 					 &bmc150_accel_buffer_ops);
 	if (ret < 0) {
-		dev_err(data->dev, "Failed: iio triggered buffer setup\n");
+		dev_err(dev, "Failed: iio triggered buffer setup\n");
 		return ret;
 	}
 
 	if (data->irq > 0) {
 		ret = devm_request_threaded_irq(
-						data->dev, data->irq,
+						dev, data->irq,
 						bmc150_accel_irq_handler,
 						bmc150_accel_irq_thread_handler,
 						IRQF_TRIGGER_RISING,
@@ -1606,7 +1598,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		ret = regmap_write(data->regmap, BMC150_ACCEL_REG_INT_RST_LATCH,
 				   BMC150_ACCEL_INT_MODE_LATCH_RESET);
 		if (ret < 0) {
-			dev_err(data->dev, "Error writing reg_int_rst_latch\n");
+			dev_err(dev, "Error writing reg_int_rst_latch\n");
 			goto err_buffer_cleanup;
 		}
 
@@ -1619,9 +1611,18 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		if (block_supported) {
 			indio_dev->modes |= INDIO_BUFFER_SOFTWARE;
 			indio_dev->info = &bmc150_accel_info_fifo;
-			indio_dev->buffer->attrs = bmc150_accel_fifo_attributes;
+			iio_buffer_set_attrs(indio_dev->buffer,
+					     bmc150_accel_fifo_attributes);
 		}
 	}
+
+	ret = pm_runtime_set_active(dev);
+	if (ret)
+		goto err_trigger_unregister;
+
+	pm_runtime_enable(dev);
+	pm_runtime_set_autosuspend_delay(dev, BMC150_AUTO_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(dev);
 
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
@@ -1629,18 +1630,8 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		goto err_trigger_unregister;
 	}
 
-	ret = pm_runtime_set_active(dev);
-	if (ret)
-		goto err_iio_unregister;
-
-	pm_runtime_enable(dev);
-	pm_runtime_set_autosuspend_delay(dev, BMC150_AUTO_SUSPEND_DELAY_MS);
-	pm_runtime_use_autosuspend(dev);
-
 	return 0;
 
-err_iio_unregister:
-	iio_device_unregister(indio_dev);
 err_trigger_unregister:
 	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 err_buffer_cleanup:
@@ -1655,11 +1646,11 @@ int bmc150_accel_core_remove(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 
-	pm_runtime_disable(data->dev);
-	pm_runtime_set_suspended(data->dev);
-	pm_runtime_put_noidle(data->dev);
-
 	iio_device_unregister(indio_dev);
+
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_put_noidle(dev);
 
 	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 
@@ -1692,8 +1683,7 @@ static int bmc150_accel_resume(struct device *dev)
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 
 	mutex_lock(&data->mutex);
-	if (atomic_read(&data->active_intr))
-		bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
+	bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
 	bmc150_accel_fifo_set_mode(data);
 	mutex_unlock(&data->mutex);
 
@@ -1708,7 +1698,6 @@ static int bmc150_accel_runtime_suspend(struct device *dev)
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 	int ret;
 
-	dev_dbg(data->dev,  __func__);
 	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_SUSPEND, 0);
 	if (ret < 0)
 		return -EAGAIN;
@@ -1722,8 +1711,6 @@ static int bmc150_accel_runtime_resume(struct device *dev)
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 	int ret;
 	int sleep_val;
-
-	dev_dbg(data->dev,  __func__);
 
 	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
 	if (ret < 0)

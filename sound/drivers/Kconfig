@@ -6,11 +6,24 @@ config SND_OPL3_LIB
 	tristate
 	select SND_TIMER
 	select SND_HWDEP
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 
 config SND_OPL4_LIB
 	tristate
 	select SND_TIMER
 	select SND_HWDEP
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
+
+# select SEQ stuff to min(SND_SEQUENCER,SND_XXX)
+config SND_OPL3_LIB_SEQ
+	def_tristate SND_SEQUENCER && SND_OPL3_LIB
+	select SND_SEQ_MIDI_EMUL
+	select SND_SEQ_MIDI_EVENT
+
+config SND_OPL4_LIB_SEQ
+	def_tristate SND_SEQUENCER && SND_OPL4_LIB
+	select SND_SEQ_MIDI_EMUL
+	select SND_SEQ_MIDI_EVENT
 
 config SND_VX_LIB
 	tristate
@@ -99,6 +112,8 @@ config SND_VIRMIDI
 	depends on SND_SEQUENCER
 	select SND_TIMER
 	select SND_RAWMIDI
+	select SND_SEQ_VIRMIDI
+	select SND_SEQ_MIDI_EVENT
 	help
 	  Say Y here to include the virtual MIDI driver.  This driver
 	  allows to connect applications using raw MIDI devices to
@@ -138,7 +153,7 @@ config SND_SERIAL_U16550
 	select SND_RAWMIDI
 	help
 	  To include support for MIDI serial port interfaces, say Y here
-	  and read <file:Documentation/sound/alsa/serial-u16550.txt>.
+	  and read <file:Documentation/sound/cards/serial-u16550.rst>.
 	  This driver works with serial UARTs 16550 and better.
 
 	  This driver accesses the serial port hardware directly, so
@@ -208,7 +223,7 @@ config SND_AC97_POWER_SAVE
 	  the device frequently.  A value of 10 seconds would be a
 	  good choice for normal operations.
 
-	  See Documentation/sound/alsa/powersave.txt for more details.
+	  See Documentation/sound/designs/powersave.rst for more details.
 
 config SND_AC97_POWER_SAVE_DEFAULT
 	int "Default time-out for AC97 power-save mode"

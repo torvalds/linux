@@ -1,23 +1,27 @@
 /*
- * Copyright (c) 2011 Zhang, Keguang <keguang.zhang@gmail.com>
+ * Copyright (c) 2011-2016 Zhang, Keguang <keguang.zhang@gmail.com>
  *
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
  * option) any later version.
  */
 
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
+#include <linux/mtd/partitions.h>
+#include <linux/sizes.h>
 #include <linux/phy.h>
 #include <linux/serial_8250.h>
 #include <linux/stmmac.h>
 #include <linux/usb/ehci_pdriver.h>
-#include <asm-generic/sizes.h>
 
-#include <cpufreq.h>
+#include <platform.h>
 #include <loongson1.h>
+#include <cpufreq.h>
+#include <dma.h>
+#include <nand.h>
 
 /* 8250/16550 compatible UART */
 #define LS1X_UART(_id)						\
@@ -45,7 +49,7 @@ struct platform_device ls1x_uart_pdev = {
 	},
 };
 
-void __init ls1x_serial_setup(struct platform_device *pdev)
+void __init ls1x_serial_set_uartclk(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct plat_serial8250_port *p;
@@ -65,7 +69,7 @@ void __init ls1x_serial_setup(struct platform_device *pdev)
 /* CPUFreq */
 static struct plat_ls1x_cpufreq ls1x_cpufreq_pdata = {
 	.clk_name	= "cpu_clk",
-	.osc_clk_name	= "osc_33m_clk",
+	.osc_clk_name	= "osc_clk",
 	.max_freq	= 266 * 1000,
 	.min_freq	= 33 * 1000,
 };
@@ -76,6 +80,42 @@ struct platform_device ls1x_cpufreq_pdev = {
 		.platform_data = &ls1x_cpufreq_pdata,
 	},
 };
+
+/* DMA */
+static struct resource ls1x_dma_resources[] = {
+	[0] = {
+		.start = LS1X_DMAC_BASE,
+		.end = LS1X_DMAC_BASE + SZ_4 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = LS1X_DMA0_IRQ,
+		.end = LS1X_DMA0_IRQ,
+		.flags = IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start = LS1X_DMA1_IRQ,
+		.end = LS1X_DMA1_IRQ,
+		.flags = IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start = LS1X_DMA2_IRQ,
+		.end = LS1X_DMA2_IRQ,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device ls1x_dma_pdev = {
+	.name		= "ls1x-dma",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ls1x_dma_resources),
+	.resource	= ls1x_dma_resources,
+};
+
+void __init ls1x_dma_set_platdata(struct plat_ls1x_dma *pdata)
+{
+	ls1x_dma_pdev.dev.platform_data = pdata;
+}
 
 /* Synopsys Ethernet GMAC */
 static struct stmmac_mdio_bus_data ls1x_mdio_bus_data = {
@@ -93,6 +133,7 @@ int ls1x_eth_mux_init(struct platform_device *pdev, void *priv)
 
 	val = __raw_readl(LS1X_MUX_CTRL1);
 
+#if defined(CONFIG_LOONGSON1_LS1B)
 	plat_dat = dev_get_platdata(&pdev->dev);
 	if (plat_dat->bus_id) {
 		__raw_writel(__raw_readl(LS1X_MUX_CTRL0) | GMAC1_USE_UART1 |
@@ -126,19 +167,36 @@ int ls1x_eth_mux_init(struct platform_device *pdev, void *priv)
 		val &= ~GMAC0_SHUT;
 	}
 	__raw_writel(val, LS1X_MUX_CTRL1);
+#elif defined(CONFIG_LOONGSON1_LS1C)
+	plat_dat = dev_get_platdata(&pdev->dev);
+
+	val &= ~PHY_INTF_SELI;
+	if (plat_dat->interface == PHY_INTERFACE_MODE_RMII)
+		val |= 0x4 << PHY_INTF_SELI_SHIFT;
+	__raw_writel(val, LS1X_MUX_CTRL1);
+
+	val = __raw_readl(LS1X_MUX_CTRL0);
+	__raw_writel(val & (~GMAC_SHUT), LS1X_MUX_CTRL0);
+#endif
 
 	return 0;
 }
 
 static struct plat_stmmacenet_data ls1x_eth0_pdata = {
-	.bus_id		= 0,
-	.phy_addr	= -1,
-	.interface	= PHY_INTERFACE_MODE_MII,
-	.mdio_bus_data	= &ls1x_mdio_bus_data,
-	.dma_cfg	= &ls1x_eth_dma_cfg,
-	.has_gmac	= 1,
-	.tx_coe		= 1,
-	.init		= ls1x_eth_mux_init,
+	.bus_id			= 0,
+	.phy_addr		= -1,
+#if defined(CONFIG_LOONGSON1_LS1B)
+	.interface		= PHY_INTERFACE_MODE_MII,
+#elif defined(CONFIG_LOONGSON1_LS1C)
+	.interface		= PHY_INTERFACE_MODE_RMII,
+#endif
+	.mdio_bus_data		= &ls1x_mdio_bus_data,
+	.dma_cfg		= &ls1x_eth_dma_cfg,
+	.has_gmac		= 1,
+	.tx_coe			= 1,
+	.rx_queues_to_use	= 1,
+	.tx_queues_to_use	= 1,
+	.init			= ls1x_eth_mux_init,
 };
 
 static struct resource ls1x_eth0_resources[] = {
@@ -164,15 +222,18 @@ struct platform_device ls1x_eth0_pdev = {
 	},
 };
 
+#ifdef CONFIG_LOONGSON1_LS1B
 static struct plat_stmmacenet_data ls1x_eth1_pdata = {
-	.bus_id		= 1,
-	.phy_addr	= -1,
-	.interface	= PHY_INTERFACE_MODE_MII,
-	.mdio_bus_data	= &ls1x_mdio_bus_data,
-	.dma_cfg	= &ls1x_eth_dma_cfg,
-	.has_gmac	= 1,
-	.tx_coe		= 1,
-	.init		= ls1x_eth_mux_init,
+	.bus_id			= 1,
+	.phy_addr		= -1,
+	.interface		= PHY_INTERFACE_MODE_MII,
+	.mdio_bus_data		= &ls1x_mdio_bus_data,
+	.dma_cfg		= &ls1x_eth_dma_cfg,
+	.has_gmac		= 1,
+	.tx_coe			= 1,
+	.rx_queues_to_use	= 1,
+	.tx_queues_to_use	= 1,
+	.init			= ls1x_eth_mux_init,
 };
 
 static struct resource ls1x_eth1_resources[] = {
@@ -197,6 +258,65 @@ struct platform_device ls1x_eth1_pdev = {
 		.platform_data = &ls1x_eth1_pdata,
 	},
 };
+#endif	/* CONFIG_LOONGSON1_LS1B */
+
+/* GPIO */
+static struct resource ls1x_gpio0_resources[] = {
+	[0] = {
+		.start	= LS1X_GPIO0_BASE,
+		.end	= LS1X_GPIO0_BASE + SZ_4 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device ls1x_gpio0_pdev = {
+	.name		= "ls1x-gpio",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(ls1x_gpio0_resources),
+	.resource	= ls1x_gpio0_resources,
+};
+
+static struct resource ls1x_gpio1_resources[] = {
+	[0] = {
+		.start	= LS1X_GPIO1_BASE,
+		.end	= LS1X_GPIO1_BASE + SZ_4 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device ls1x_gpio1_pdev = {
+	.name		= "ls1x-gpio",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(ls1x_gpio1_resources),
+	.resource	= ls1x_gpio1_resources,
+};
+
+/* NAND Flash */
+static struct resource ls1x_nand_resources[] = {
+	[0] = {
+		.start	= LS1X_NAND_BASE,
+		.end	= LS1X_NAND_BASE + SZ_32 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* DMA channel 0 is dedicated to NAND */
+		.start	= LS1X_DMA_CHANNEL0,
+		.end	= LS1X_DMA_CHANNEL0,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+struct platform_device ls1x_nand_pdev = {
+	.name		= "ls1x-nand",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ls1x_nand_resources),
+	.resource	= ls1x_nand_resources,
+};
+
+void __init ls1x_nand_set_platdata(struct plat_ls1x_nand *pdata)
+{
+	ls1x_nand_pdev.dev.platform_data = pdata;
+}
 
 /* USB EHCI */
 static u64 ls1x_ehci_dmamask = DMA_BIT_MASK(32);
@@ -228,7 +348,31 @@ struct platform_device ls1x_ehci_pdev = {
 };
 
 /* Real Time Clock */
+void __init ls1x_rtc_set_extclk(struct platform_device *pdev)
+{
+	u32 val = __raw_readl(LS1X_RTC_CTRL);
+
+	if (!(val & RTC_EXTCLK_OK))
+		__raw_writel(val | RTC_EXTCLK_EN, LS1X_RTC_CTRL);
+}
+
 struct platform_device ls1x_rtc_pdev = {
 	.name		= "ls1x-rtc",
 	.id		= -1,
+};
+
+/* Watchdog */
+static struct resource ls1x_wdt_resources[] = {
+	{
+		.start	= LS1X_WDT_BASE,
+		.end	= LS1X_WDT_BASE + SZ_16 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device ls1x_wdt_pdev = {
+	.name		= "ls1x-wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ls1x_wdt_resources),
+	.resource	= ls1x_wdt_resources,
 };

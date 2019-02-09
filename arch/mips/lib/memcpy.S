@@ -28,9 +28,13 @@
 #ifdef CONFIG_MIPS_MALTA
 #undef CONFIG_CPU_HAS_PREFETCH
 #endif
+#ifdef CONFIG_CPU_MIPSR6
+#undef CONFIG_CPU_HAS_PREFETCH
+#endif
 
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/export.h>
 #include <asm/regdef.h>
 
 #define dst a0
@@ -256,7 +260,7 @@
 
 	/*
 	 * Macro to build the __copy_user common code
-	 * Arguements:
+	 * Arguments:
 	 * mode : LEGACY_MODE or EVA_MODE
 	 * from : Source operand. USEROP or KERNELOP
 	 * to   : Destination operand. USEROP or KERNELOP
@@ -561,38 +565,8 @@
 	LOADK	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
 	 nop
 	SUB	len, AT, t0		# len number of uncopied bytes
-	bnez	t6, .Ldone\@	/* Skip the zeroing part if inatomic */
-	/*
-	 * Here's where we rely on src and dst being incremented in tandem,
-	 *   See (3) above.
-	 * dst += (fault addr - src) to put dst at first byte to clear
-	 */
-	ADD	dst, t0			# compute start address in a1
-	SUB	dst, src
-	/*
-	 * Clear len bytes starting at dst.  Can't call __bzero because it
-	 * might modify len.  An inefficient loop for these rare times...
-	 */
-	.set	reorder				/* DADDI_WAR */
-	SUB	src, len, 1
-	beqz	len, .Ldone\@
-	.set	noreorder
-1:	sb	zero, 0(dst)
-	ADD	dst, dst, 1
-#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
-	bnez	src, 1b
-	 SUB	src, src, 1
-#else
-	.set	push
-	.set	noat
-	li	v1, 1
-	bnez	src, 1b
-	 SUB	src, src, v1
-	.set	pop
-#endif
 	jr	ra
 	 nop
-
 
 #define SEXC(n)							\
 	.set	reorder;			/* DADDI_WAR */ \
@@ -622,6 +596,7 @@ SEXC(1)
 
 	.align	5
 LEAF(memmove)
+EXPORT_SYMBOL(memmove)
 	ADD	t0, a0, a2
 	ADD	t1, a1, a2
 	sltu	t0, a1, t0			# dst + len <= src -> memcpy
@@ -671,14 +646,6 @@ LEAF(__rmemcpy)					/* a0=dst a1=src a2=len */
 	END(__rmemcpy)
 
 /*
- * t6 is used as a flag to note inatomic mode.
- */
-LEAF(__copy_user_inatomic)
-	b	__copy_user_common
-	li	t6, 1
-	END(__copy_user_inatomic)
-
-/*
  * A combined memcpy/__copy_user
  * __copy_user sets len to 0 for success; else to an upper bound of
  * the number of uncopied bytes.
@@ -686,11 +653,11 @@ LEAF(__copy_user_inatomic)
  */
 	.align	5
 LEAF(memcpy)					/* a0=dst a1=src a2=len */
+EXPORT_SYMBOL(memcpy)
 	move	v0, dst				/* return value */
 .L__memcpy:
 FEXPORT(__copy_user)
-	li	t6, 0	/* not inatomic */
-__copy_user_common:
+EXPORT_SYMBOL(__copy_user)
 	/* Legacy Mode, user <-> user */
 	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP
 
@@ -703,18 +670,12 @@ __copy_user_common:
  * space
  */
 
-LEAF(__copy_user_inatomic_eva)
-	b       __copy_from_user_common
-	li	t6, 1
-	END(__copy_user_inatomic_eva)
-
 /*
  * __copy_from_user (EVA)
  */
 
 LEAF(__copy_from_user_eva)
-	li	t6, 0	/* not inatomic */
-__copy_from_user_common:
+EXPORT_SYMBOL(__copy_from_user_eva)
 	__BUILD_COPY_USER EVA_MODE USEROP KERNELOP
 END(__copy_from_user_eva)
 
@@ -725,6 +686,7 @@ END(__copy_from_user_eva)
  */
 
 LEAF(__copy_to_user_eva)
+EXPORT_SYMBOL(__copy_to_user_eva)
 __BUILD_COPY_USER EVA_MODE KERNELOP USEROP
 END(__copy_to_user_eva)
 
@@ -733,6 +695,7 @@ END(__copy_to_user_eva)
  */
 
 LEAF(__copy_in_user_eva)
+EXPORT_SYMBOL(__copy_in_user_eva)
 __BUILD_COPY_USER EVA_MODE USEROP USEROP
 END(__copy_in_user_eva)
 

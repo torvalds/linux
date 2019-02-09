@@ -25,8 +25,12 @@ static int speyside_set_bias_level(struct snd_soc_card *card,
 				   struct snd_soc_dapm_context *dapm,
 				   enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[1].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	codec_dai = rtd->codec_dai;
 
 	if (dapm->dev != codec_dai->dev)
 		return 0;
@@ -57,8 +61,12 @@ static int speyside_set_bias_level_post(struct snd_soc_card *card,
 					struct snd_soc_dapm_context *dapm,
 					enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[1].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	codec_dai = rtd->codec_dai;
 
 	if (dapm->dev != codec_dai->dev)
 		return 0;
@@ -116,14 +124,14 @@ static int speyside_get_micbias(struct snd_soc_dapm_widget *source,
 	return 0;
 }
 
-static void speyside_set_polarity(struct snd_soc_codec *codec,
+static void speyside_set_polarity(struct snd_soc_component *component,
 				  int polarity)
 {
 	speyside_jack_polarity = !polarity;
 	gpio_direction_output(WM8996_HPSEL_GPIO, speyside_jack_polarity);
 
 	/* Re-run DAPM to make sure we're using the correct mic bias */
-	snd_soc_dapm_sync(snd_soc_codec_get_dapm(codec));
+	snd_soc_dapm_sync(snd_soc_component_get_dapm(component));
 }
 
 static int speyside_wm0010_init(struct snd_soc_pcm_runtime *rtd)
@@ -141,7 +149,7 @@ static int speyside_wm0010_init(struct snd_soc_pcm_runtime *rtd)
 static int speyside_wm8996_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = dai->component;
 	int ret;
 
 	ret = snd_soc_dai_set_sysclk(dai, WM8996_SYSCLK_MCLK2, 32768, 0);
@@ -160,7 +168,7 @@ static int speyside_wm8996_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	wm8996_detect(codec, &speyside_headset, speyside_set_polarity);
+	wm8996_detect(component, &speyside_headset, speyside_set_polarity);
 
 	return 0;
 }
@@ -224,10 +232,8 @@ static struct snd_soc_dai_link speyside_dai[] = {
 
 static int speyside_wm9081_init(struct snd_soc_component *component)
 {
-	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
-
 	/* At any time the WM9081 is active it will have this clock */
-	return snd_soc_codec_set_sysclk(codec, WM9081_SYSCLK_MCLK, 0,
+	return snd_soc_component_set_sysclk(component, WM9081_SYSCLK_MCLK, 0,
 					MCLK_AUDIO_RATE, 0);
 }
 

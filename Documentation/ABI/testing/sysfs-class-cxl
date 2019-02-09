@@ -69,7 +69,9 @@ Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
                 Set the mode for prefaulting in segments into the segment table
-                when performing the START_WORK ioctl. Possible values:
+                when performing the START_WORK ioctl. Only applicable when
+                running under hashed page table mmu.
+                Possible values:
                         none: No prefaulting (default)
                         work_element_descriptor: Treat the work element
                                  descriptor as an effective address and
@@ -159,7 +161,7 @@ Description:    read only
                 Decimal value of the Per Process MMIO space length.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<afu>m/pp_mmio_off
+What:           /sys/class/cxl/<afu>m/pp_mmio_off (not in a guest)
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
@@ -183,7 +185,7 @@ Description:    read only
                 Identifies the revision level of the PSL.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<card>/base_image
+What:           /sys/class/cxl/<card>/base_image (not in a guest)
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
@@ -193,7 +195,7 @@ Description:    read only
                 during the initial program load.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<card>/image_loaded
+What:           /sys/class/cxl/<card>/image_loaded (not in a guest)
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
@@ -201,7 +203,7 @@ Description:    read only
                 onto the card.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<card>/load_image_on_perst
+What:           /sys/class/cxl/<card>/load_image_on_perst (not in a guest)
 Date:           December 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
@@ -220,11 +222,14 @@ What:           /sys/class/cxl/<card>/reset
 Date:           October 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    write only
-                Writing 1 will issue a PERST to card which may cause the card
-                to reload the FPGA depending on load_image_on_perst.
+                Writing 1 will issue a PERST to card provided there are no
+                contexts active on any one of the card AFUs. This may cause
+                the card to reload the FPGA depending on load_image_on_perst.
+                Writing -1 will do a force PERST irrespective of any active
+                contexts on the card AFUs.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:		/sys/class/cxl/<card>/perst_reloads_same_image
+What:		/sys/class/cxl/<card>/perst_reloads_same_image (not in a guest)
 Date:		July 2015
 Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read/write
@@ -233,3 +238,19 @@ Description:	read/write
 		0 = don't trust, the image may be different (default)
 		1 = trust that the image will not change.
 Users:		https://github.com/ibm-capi/libcxl
+
+What:           /sys/class/cxl/<card>/psl_timebase_synced
+Date:           March 2016
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Returns 1 if the psl timebase register is synchronized
+                with the core timebase register, 0 otherwise.
+Users:          https://github.com/ibm-capi/libcxl
+
+What:           /sys/class/cxl/<card>/tunneled_ops_supported
+Date:           May 2018
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Returns 1 if tunneled operations are supported in capi mode,
+                0 otherwise.
+Users:          https://github.com/ibm-capi/libcxl

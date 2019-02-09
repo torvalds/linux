@@ -26,11 +26,11 @@
 #include <asm/irq.h>
 #include <linux/interrupt.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 
 #include "mantis_common.h"
 #include "hopper_vp3028.h"
@@ -72,7 +72,7 @@ static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 	struct mantis_ca *ca;
 
 	mantis = (struct mantis_pci *) dev_id;
-	if (unlikely(mantis == NULL)) {
+	if (unlikely(!mantis)) {
 		dprintk(MANTIS_ERROR, 1, "Mantis == NULL");
 		return IRQ_NONE;
 	}
@@ -161,11 +161,10 @@ static int hopper_pci_probe(struct pci_dev *pdev,
 	struct mantis_pci_drvdata *drvdata;
 	struct mantis_pci *mantis;
 	struct mantis_hwconfig *config;
-	int err = 0;
+	int err;
 
-	mantis = kzalloc(sizeof(struct mantis_pci), GFP_KERNEL);
-	if (mantis == NULL) {
-		printk(KERN_ERR "%s ERROR: Out of memory\n", __func__);
+	mantis = kzalloc(sizeof(*mantis), GFP_KERNEL);
+	if (!mantis) {
 		err = -ENOMEM;
 		goto fail0;
 	}
@@ -255,7 +254,7 @@ static void hopper_pci_remove(struct pci_dev *pdev)
 
 }
 
-static struct pci_device_id hopper_pci_table[] = {
+static const struct pci_device_id hopper_pci_table[] = {
 	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3028_DVB_T, &vp3028_config,
 		   NULL),
 	{ }

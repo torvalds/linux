@@ -16,10 +16,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef DVB_BT8XX_H
@@ -27,8 +23,8 @@
 
 #include <linux/i2c.h>
 #include <linux/mutex.h>
-#include "dvbdev.h"
-#include "dvb_net.h"
+#include <media/dvbdev.h>
+#include <media/dvb_net.h>
 #include "bttv.h"
 #include "mt352.h"
 #include "sp887x.h"

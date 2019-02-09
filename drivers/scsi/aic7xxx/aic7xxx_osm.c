@@ -1141,7 +1141,7 @@ ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *templa
  * or forcing transfer negotiations on the next command to any
  * target.
  */
-void
+static void
 ahc_linux_initialize_scsi_bus(struct ahc_softc *ahc)
 {
 	int i;
@@ -1336,6 +1336,7 @@ ahc_platform_set_tags(struct ahc_softc *ahc, struct scsi_device *sdev,
 	case AHC_DEV_Q_TAGGED:
 		scsi_change_queue_depth(sdev,
 				dev->openings + dev->active);
+		break;
 	default:
 		/*
 		 * We allow the OS to queue 2 untagged transactions to
@@ -2326,11 +2327,6 @@ done:
 	} else
 		ahc_unlock(ahc, &flags);
 	return (retval);
-}
-
-void
-ahc_platform_dump_card_state(struct ahc_softc *ahc)
-{
 }
 
 static void ahc_linux_set_width(struct scsi_target *starget, int width)

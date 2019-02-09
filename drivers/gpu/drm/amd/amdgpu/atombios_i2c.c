@@ -27,6 +27,7 @@
 #include "amdgpu.h"
 #include "atom.h"
 #include "amdgpu_atombios.h"
+#include "atombios_i2c.h"
 
 #define TARGET_HW_I2C_CLOCK 50
 
@@ -64,8 +65,15 @@ static int amdgpu_atombios_i2c_process_i2c_ch(struct amdgpu_i2c_chan *chan,
 			args.ucRegIndex = buf[0];
 		if (num)
 			num--;
-		if (num)
-			memcpy(&out, &buf[1], num);
+		if (num) {
+			if (buf) {
+				memcpy(&out, &buf[1], num);
+			} else {
+				DRM_ERROR("hw i2c: missing buf with num > 1\n");
+				r = -EINVAL;
+				goto done;
+			}
+		}
 		args.lpI2CDataOut = cpu_to_le16(out);
 	} else {
 		if (num > ATOM_MAX_HW_I2C_READ) {
@@ -156,3 +164,18 @@ u32 amdgpu_atombios_i2c_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
+void amdgpu_atombios_i2c_channel_trans(struct amdgpu_device* adev, u8 slave_addr, u8 line_number, u8 offset, u8 data)
+{
+	PROCESS_I2C_CHANNEL_TRANSACTION_PS_ALLOCATION args;
+	int index = GetIndexIntoMasterTable(COMMAND, ProcessI2cChannelTransaction);
+
+	args.ucRegIndex = offset;
+	args.lpI2CDataOut = data;
+	args.ucFlag = 1;
+	args.ucI2CSpeed = TARGET_HW_I2C_CLOCK;
+	args.ucTransBytes = 1;
+	args.ucSlaveAddr = slave_addr;
+	args.ucLineNumber = line_number;
+
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+}

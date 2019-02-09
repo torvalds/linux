@@ -29,4 +29,3 @@ usbhsehci: ehci@4a064c00 {
 &usbhsehci {
 	phys = <&hsusb1_phy 0 &hsusb3_phy>;
 };
-

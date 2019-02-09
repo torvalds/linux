@@ -22,6 +22,7 @@
 #include <linux/mfd/atmel-hlcdc.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -50,8 +51,9 @@ static int regmap_atmel_hlcdc_reg_write(void *context, unsigned int reg,
 	if (reg <= ATMEL_HLCDC_DIS) {
 		u32 status;
 
-		readl_poll_timeout(hregmap->regs + ATMEL_HLCDC_SR, status,
-				   !(status & ATMEL_HLCDC_SIP), 1, 100);
+		readl_poll_timeout_atomic(hregmap->regs + ATMEL_HLCDC_SR,
+					  status, !(status & ATMEL_HLCDC_SIP),
+					  1, 100);
 	}
 
 	writel(val, hregmap->regs + reg);
@@ -128,16 +130,9 @@ static int atmel_hlcdc_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, hlcdc);
 
-	return mfd_add_devices(dev, -1, atmel_hlcdc_cells,
-			       ARRAY_SIZE(atmel_hlcdc_cells),
-			       NULL, 0, NULL);
-}
-
-static int atmel_hlcdc_remove(struct platform_device *pdev)
-{
-	mfd_remove_devices(&pdev->dev);
-
-	return 0;
+	return devm_mfd_add_devices(dev, -1, atmel_hlcdc_cells,
+				    ARRAY_SIZE(atmel_hlcdc_cells),
+				    NULL, 0, NULL);
 }
 
 static const struct of_device_id atmel_hlcdc_match[] = {
@@ -152,7 +147,6 @@ MODULE_DEVICE_TABLE(of, atmel_hlcdc_match);
 
 static struct platform_driver atmel_hlcdc_driver = {
 	.probe = atmel_hlcdc_probe,
-	.remove = atmel_hlcdc_remove,
 	.driver = {
 		.name = "atmel-hlcdc",
 		.of_match_table = atmel_hlcdc_match,

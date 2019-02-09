@@ -31,7 +31,7 @@
 #include <linux/types.h>
 
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "m88rs2000.h"
 
 struct m88rs2000_state {
@@ -75,8 +75,8 @@ static int m88rs2000_writereg(struct m88rs2000_state *state,
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		deb_info("%s: writereg error (reg == 0x%02x, val == 0x%02x, "
-			"ret == %i)\n", __func__, reg, data, ret);
+		deb_info("%s: writereg error (reg == 0x%02x, val == 0x%02x, ret == %i)\n",
+			 __func__, reg, data, ret);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
@@ -609,7 +609,7 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 {
 	struct m88rs2000_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	enum fe_status status;
+	enum fe_status status = 0;
 	int i, ret = 0;
 	u32 tuner_freq;
 	s16 offset = 0;
@@ -618,10 +618,9 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	state->no_lock_count = 0;
 
 	if (c->delivery_system != SYS_DVBS) {
-			deb_info("%s: unsupported delivery "
-				"system selected (%d)\n",
-				__func__, c->delivery_system);
-			return -EOPNOTSUPP;
+		deb_info("%s: unsupported delivery system selected (%d)\n",
+			 __func__, c->delivery_system);
+		return -EOPNOTSUPP;
 	}
 
 	/* Set Tuner */
@@ -631,13 +630,16 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	if (ret < 0)
 		return -ENODEV;
 
-	if (fe->ops.tuner_ops.get_frequency)
+	if (fe->ops.tuner_ops.get_frequency) {
 		ret = fe->ops.tuner_ops.get_frequency(fe, &tuner_freq);
 
-	if (ret < 0)
-		return -ENODEV;
+		if (ret < 0)
+			return -ENODEV;
 
-	offset = (s16)((s32)tuner_freq - c->frequency);
+		offset = (s16)((s32)tuner_freq - c->frequency);
+	} else {
+		offset = 0;
+	}
 
 	/* default mclk value 96.4285 * 2 * 1000 = 192857 */
 	if (((c->frequency % 192857) >= (192857 - 3000)) ||
@@ -708,10 +710,11 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int m88rs2000_get_frontend(struct dvb_frontend *fe)
+static int m88rs2000_get_frontend(struct dvb_frontend *fe,
+				  struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct m88rs2000_state *state = fe->demodulator_priv;
+
 	c->fec_inner = state->fec_inner;
 	c->frequency = state->tuner_frequency;
 	c->symbol_rate = state->symbol_rate;
@@ -752,14 +755,14 @@ static void m88rs2000_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops m88rs2000_ops = {
+static const struct dvb_frontend_ops m88rs2000_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "M88RS2000 DVB-S",
-		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
-		.frequency_stepsize	= 1000,	 /* kHz for QPSK frontends */
-		.frequency_tolerance	= 5000,
+		.frequency_min_hz	=  950 * MHz,
+		.frequency_max_hz	= 2150 * MHz,
+		.frequency_stepsize_hz	= 1 * MHz,
+		.frequency_tolerance_hz	= 5 * MHz,
 		.symbol_rate_min	= 1000000,
 		.symbol_rate_max	= 45000000,
 		.symbol_rate_tolerance	= 500,	/* ppm */

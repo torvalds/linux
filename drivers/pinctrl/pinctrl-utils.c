@@ -83,10 +83,8 @@ int pinctrl_utils_add_map_configs(struct pinctrl_dev *pctldev,
 
 	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
 			      GFP_KERNEL);
-	if (!dup_configs) {
-		dev_err(pctldev->dev, "kmemdup(configs) failed\n");
+	if (!dup_configs)
 		return -ENOMEM;
-	}
 
 	(*map)[*num_maps].type = type;
 	(*map)[*num_maps].data.configs.group_or_pin = group;
@@ -122,7 +120,7 @@ int pinctrl_utils_add_config(struct pinctrl_dev *pctldev,
 }
 EXPORT_SYMBOL_GPL(pinctrl_utils_add_config);
 
-void pinctrl_utils_dt_free_map(struct pinctrl_dev *pctldev,
+void pinctrl_utils_free_map(struct pinctrl_dev *pctldev,
 	      struct pinctrl_map *map, unsigned num_maps)
 {
 	int i;
@@ -139,4 +137,4 @@ void pinctrl_utils_dt_free_map(struct pinctrl_dev *pctldev,
 	}
 	kfree(map);
 }
-EXPORT_SYMBOL_GPL(pinctrl_utils_dt_free_map);
+EXPORT_SYMBOL_GPL(pinctrl_utils_free_map);

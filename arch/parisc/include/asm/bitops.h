@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PARISC_BITOPS_H
 #define _PARISC_BITOPS_H
 
@@ -6,7 +7,7 @@
 #endif
 
 #include <linux/compiler.h>
-#include <asm/types.h>		/* for BITS_PER_LONG/SHIFT_PER_LONG */
+#include <asm/types.h>
 #include <asm/byteorder.h>
 #include <asm/barrier.h>
 #include <linux/atomic.h>
@@ -16,6 +17,12 @@
  * for a detailed description of the functions please refer
  * to include/asm-i386/bitops.h or kerneldoc
  */
+
+#if __BITS_PER_LONG == 64
+#define SHIFT_PER_LONG 6
+#else
+#define SHIFT_PER_LONG 5
+#endif
 
 #define CHOP_SHIFTCOUNT(x) (((unsigned long) (x)) & (BITS_PER_LONG - 1))
 

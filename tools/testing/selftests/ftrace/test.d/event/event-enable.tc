@@ -1,5 +1,7 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: event tracing - enable/disable with event level files
+# flags: instance
 
 do_reset() {
     echo > set_event
@@ -9,7 +11,7 @@ do_reset() {
 fail() { #msg
     do_reset
     echo $1
-    exit $FAIL
+    exit_fail
 }
 
 yield() {

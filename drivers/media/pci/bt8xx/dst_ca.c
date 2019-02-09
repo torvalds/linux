@@ -25,8 +25,8 @@
 #include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/dvb/ca.h>
-#include "dvbdev.h"
-#include "dvb_frontend.h"
+#include <media/dvbdev.h>
+#include <media/dvb_frontend.h>
 #include "dst_ca.h"
 #include "dst_common.h"
 
@@ -56,20 +56,6 @@ static DEFINE_MUTEX(dst_ca_mutex);
 static unsigned int verbose = 5;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (yes)");
-
-/*	Need some more work	*/
-static int ca_set_slot_descr(void)
-{
-	/*	We could make this more graceful ?	*/
-	return -EOPNOTSUPP;
-}
-
-/*	Need some more work	*/
-static int ca_set_pid(void)
-{
-	/*	We could make this more graceful ?	*/
-	return -EOPNOTSUPP;
-}
 
 static void put_command_and_length(u8 *data, int command, int length)
 {
@@ -144,7 +130,7 @@ static int dst_put_ci(struct dst_state *state, u8 *data, int len, u8 *ca_string,
 	}
 
 	if(dst_ca_comm_err == RETRIES)
-		return -1;
+		return -EIO;
 
 	return 0;
 }
@@ -159,7 +145,7 @@ static int ca_get_app_info(struct dst_state *state)
 	put_checksum(&command[0], command[0]);
 	if ((dst_put_ci(state, command, sizeof(command), state->messages, GET_REPLY)) < 0) {
 		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-		return -1;
+		return -EIO;
 	}
 	dprintk(verbose, DST_CA_INFO, 1, " -->dst_put_ci SUCCESS !");
 	dprintk(verbose, DST_CA_INFO, 1, " ================================ CI Module Application Info ======================================");
@@ -198,7 +184,7 @@ static int ca_get_ca_info(struct dst_state *state)
 	put_checksum(&slot_command[0], slot_command[0]);
 	if ((dst_put_ci(state, slot_command, sizeof (slot_command), state->messages, GET_REPLY)) < 0) {
 		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-		return -1;
+		return -EIO;
 	}
 	dprintk(verbose, DST_CA_INFO, 1, " -->dst_put_ci SUCCESS !");
 
@@ -242,7 +228,7 @@ static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, 
 	put_checksum(&slot_command[0], slot_command[0]);
 	if ((dst_put_ci(state, slot_command, sizeof (slot_command), slot_cap, GET_REPLY)) < 0) {
 		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-		return -1;
+		return -EIO;
 	}
 	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
 
@@ -282,7 +268,7 @@ static int ca_get_slot_info(struct dst_state *state, struct ca_slot_info *p_ca_s
 	put_checksum(&slot_command[0], 7);
 	if ((dst_put_ci(state, slot_command, sizeof (slot_command), slot_info, GET_REPLY)) < 0) {
 		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-		return -1;
+		return -EIO;
 	}
 	dprintk(verbose, DST_CA_INFO, 1, " -->dst_put_ci SUCCESS !");
 
@@ -354,7 +340,7 @@ static int handle_dst_tag(struct dst_state *state, struct ca_msg *p_ca_message, 
 	} else {
 		if (length > 247) {
 			dprintk(verbose, DST_CA_ERROR, 1, " Message too long ! *** Bailing Out *** !");
-			return -1;
+			return -EIO;
 		}
 		hw_buffer->msg[0] = (length & 0xff) + 7;
 		hw_buffer->msg[1] = 0x40;
@@ -380,7 +366,7 @@ static int write_to_8820(struct dst_state *state, struct ca_msg *hw_buffer, u8 l
 		dprintk(verbose, DST_CA_ERROR, 1, " DST-CI Command failed.");
 		dprintk(verbose, DST_CA_NOTICE, 1, " Resetting DST.");
 		rdc_reset_state(state);
-		return -1;
+		return -EIO;
 	}
 	dprintk(verbose, DST_CA_NOTICE, 1, " DST-CI Command success.");
 
@@ -453,7 +439,7 @@ static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message
 	if (ca_pmt_reply_test) {
 		if ((ca_set_pmt(state, p_ca_message, hw_buffer, 1, GET_REPLY)) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " ca_set_pmt.. failed !");
-			return -1;
+			return -EIO;
 		}
 
 	/*	Process CA PMT Reply		*/
@@ -464,7 +450,7 @@ static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message
 	if (!ca_pmt_reply_test) {
 		if ((ca_set_pmt(state, p_ca_message, hw_buffer, 0, NO_REPLY)) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " ca_set_pmt.. failed !");
-			return -1;
+			return -EIO;
 		}
 		dprintk(verbose, DST_CA_NOTICE, 1, " ca_set_pmt.. success !");
 	/*	put a dummy message		*/
@@ -475,16 +461,14 @@ static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message
 
 static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
-	int i = 0;
-
-	u32 command = 0;
+	int i;
+	u32 command;
 	struct ca_msg *hw_buffer;
 	int result = 0;
 
-	if ((hw_buffer = kmalloc(sizeof (struct ca_msg), GFP_KERNEL)) == NULL) {
-		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
+	hw_buffer = kmalloc(sizeof(*hw_buffer), GFP_KERNEL);
+	if (!hw_buffer)
 		return -ENOMEM;
-	}
 	dprintk(verbose, DST_CA_DEBUG, 1, " ");
 
 	if (copy_from_user(p_ca_message, arg, sizeof (struct ca_msg))) {
@@ -567,7 +551,6 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 	p_ca_slot_info = kmalloc(sizeof (struct ca_slot_info), GFP_KERNEL);
 	p_ca_caps = kmalloc(sizeof (struct ca_caps), GFP_KERNEL);
 	if (!p_ca_message || !p_ca_slot_info || !p_ca_caps) {
-		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
 		result = -ENOMEM;
 		goto free_mem_and_exit;
 	}
@@ -576,17 +559,18 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 	switch (cmd) {
 	case CA_SEND_MSG:
 		dprintk(verbose, DST_CA_INFO, 1, " Sending message");
-		if ((ca_send_message(state, p_ca_message, arg)) < 0) {
+		result = ca_send_message(state, p_ca_message, arg);
+
+		if (result < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_SEND_MSG Failed !");
-			result = -1;
 			goto free_mem_and_exit;
 		}
 		break;
 	case CA_GET_MSG:
 		dprintk(verbose, DST_CA_INFO, 1, " Getting message");
-		if ((ca_get_message(state, p_ca_message, arg)) < 0) {
+		result = ca_get_message(state, p_ca_message, arg);
+		if (result < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_GET_MSG Failed !");
-			result = -1;
 			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_GET_MSG Success !");
@@ -598,7 +582,8 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 		break;
 	case CA_GET_SLOT_INFO:
 		dprintk(verbose, DST_CA_INFO, 1, " Getting Slot info");
-		if ((ca_get_slot_info(state, p_ca_slot_info, arg)) < 0) {
+		result = ca_get_slot_info(state, p_ca_slot_info, arg);
+		if (result < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_GET_SLOT_INFO Failed !");
 			result = -1;
 			goto free_mem_and_exit;
@@ -607,39 +592,22 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 		break;
 	case CA_GET_CAP:
 		dprintk(verbose, DST_CA_INFO, 1, " Getting Slot capabilities");
-		if ((ca_get_slot_caps(state, p_ca_caps, arg)) < 0) {
+		result = ca_get_slot_caps(state, p_ca_caps, arg);
+		if (result < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_GET_CAP Failed !");
-			result = -1;
 			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_GET_CAP Success !");
 		break;
 	case CA_GET_DESCR_INFO:
 		dprintk(verbose, DST_CA_INFO, 1, " Getting descrambler description");
-		if ((ca_get_slot_descr(state, p_ca_message, arg)) < 0) {
+		result = ca_get_slot_descr(state, p_ca_message, arg);
+		if (result < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_GET_DESCR_INFO Failed !");
-			result = -1;
 			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_GET_DESCR_INFO Success !");
 		break;
-	case CA_SET_DESCR:
-		dprintk(verbose, DST_CA_INFO, 1, " Setting descrambler");
-		if ((ca_set_slot_descr()) < 0) {
-			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_SET_DESCR Failed !");
-			result = -1;
-			goto free_mem_and_exit;
-		}
-		dprintk(verbose, DST_CA_INFO, 1, " -->CA_SET_DESCR Success !");
-		break;
-	case CA_SET_PID:
-		dprintk(verbose, DST_CA_INFO, 1, " Setting PID");
-		if ((ca_set_pid()) < 0) {
-			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_SET_PID Failed !");
-			result = -1;
-			goto free_mem_and_exit;
-		}
-		dprintk(verbose, DST_CA_INFO, 1, " -->CA_SET_PID Success !");
 	default:
 		result = -EOPNOTSUPP;
 	}
@@ -655,7 +623,6 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 static int dst_ca_open(struct inode *inode, struct file *file)
 {
 	dprintk(verbose, DST_CA_DEBUG, 1, " Device opened [%p] ", file);
-	try_module_get(THIS_MODULE);
 
 	return 0;
 }
@@ -663,7 +630,6 @@ static int dst_ca_open(struct inode *inode, struct file *file)
 static int dst_ca_release(struct inode *inode, struct file *file)
 {
 	dprintk(verbose, DST_CA_DEBUG, 1, " Device closed.");
-	module_put(THIS_MODULE);
 
 	return 0;
 }
@@ -705,7 +671,8 @@ struct dvb_device *dst_ca_attach(struct dst_state *dst, struct dvb_adapter *dvb_
 	struct dvb_device *dvbdev;
 
 	dprintk(verbose, DST_CA_ERROR, 1, "registering DST-CA device");
-	if (dvb_register_device(dvb_adapter, &dvbdev, &dvbdev_ca, dst, DVB_DEVICE_CA) == 0) {
+	if (dvb_register_device(dvb_adapter, &dvbdev, &dvbdev_ca, dst,
+				DVB_DEVICE_CA, 0) == 0) {
 		dst->dst_ca = dvbdev;
 		return dst->dst_ca;
 	}

@@ -13,6 +13,7 @@
 
 Example :
 
+for Hi6220:
 	tsensor: tsensor@0,f7030700 {
 		compatible = "hisilicon,tsensor";
 		reg = <0x0 0xf7030700 0x0 0x1000>;
@@ -21,3 +22,11 @@ Example :
 		clock-names = "thermal_clk";
 		#thermal-sensor-cells = <1>;
 	}
+
+for Hi3660:
+	tsensor: tsensor@fff30000 {
+		compatible = "hisilicon,hi3660-tsensor";
+		reg = <0x0 0xfff30000 0x0 0x1000>;
+		interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
+		#thermal-sensor-cells = <1>;
+	};

@@ -360,11 +360,11 @@ static int diolan_usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 			if (ret < 0)
 				goto abort;
 		}
+		ret = diolan_i2c_put_byte_ack(dev,
+					      i2c_8bit_addr_from_msg(pmsg));
+		if (ret < 0)
+			goto abort;
 		if (pmsg->flags & I2C_M_RD) {
-			ret =
-			    diolan_i2c_put_byte_ack(dev, (pmsg->addr << 1) | 1);
-			if (ret < 0)
-				goto abort;
 			for (j = 0; j < pmsg->len; j++) {
 				u8 byte;
 				bool ack = j < pmsg->len - 1;
@@ -393,9 +393,6 @@ static int diolan_usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 				pmsg->buf[j] = byte;
 			}
 		} else {
-			ret = diolan_i2c_put_byte_ack(dev, pmsg->addr << 1);
-			if (ret < 0)
-				goto abort;
 			for (j = 0; j < pmsg->len; j++) {
 				ret = diolan_i2c_put_byte_ack(dev,
 							      pmsg->buf[j]);
@@ -487,10 +484,8 @@ static int diolan_u2c_probe(struct usb_interface *interface,
 
 	/* and finally attach to i2c layer */
 	ret = i2c_add_adapter(&dev->adapter);
-	if (ret < 0) {
-		dev_err(&interface->dev, "failed to add I2C adapter\n");
+	if (ret < 0)
 		goto error_free;
-	}
 
 	dev_dbg(&interface->dev, "connected " DRIVER_NAME "\n");
 

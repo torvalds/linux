@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * st-asc.c: ST Asynchronous serial controller (ASC) driver
  *
  * Copyright (C) 2003-2013 STMicroelectronics (R&D) Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #if defined(CONFIG_SERIAL_ST_ASC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
@@ -18,6 +13,7 @@
 #include <linux/serial.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -30,15 +26,23 @@
 #include <linux/of_platform.h>
 #include <linux/serial_core.h>
 #include <linux/clk.h>
+#include <linux/gpio/consumer.h>
 
 #define DRIVER_NAME "st-asc"
 #define ASC_SERIAL_NAME "ttyAS"
 #define ASC_FIFO_SIZE 16
 #define ASC_MAX_PORTS 8
 
+/* Pinctrl states */
+#define DEFAULT		0
+#define NO_HW_FLOWCTRL	1
+
 struct asc_port {
 	struct uart_port port;
+	struct gpio_desc *rts;
 	struct clk *clk;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *states[2];
 	unsigned int hw_flow_control:1;
 	unsigned int force_m1:1;
 };
@@ -287,11 +291,21 @@ static void asc_transmit_chars(struct uart_port *port)
 static void asc_receive_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
-	unsigned long status;
+	unsigned long status, mode;
 	unsigned long c = 0;
 	char flag;
+	bool ignore_pe = false;
 
-	if (port->irq_wake)
+	/*
+	 * Datasheet states: If the MODE field selects an 8-bit frame then
+	 * this [parity error] bit is undefined. Software should ignore this
+	 * bit when reading 8-bit frames.
+	 */
+	mode = asc_in(port, ASC_CTL) & ASC_CTL_MODE_MSK;
+	if (mode == ASC_CTL_MODE_8BIT || mode == ASC_CTL_MODE_8BIT_PAR)
+		ignore_pe = true;
+
+	if (irqd_is_wakeup_set(irq_get_irq_data(port->irq)))
 		pm_wakeup_event(tport->tty->dev, 0);
 
 	while ((status = asc_in(port, ASC_STA)) & ASC_STA_RBF) {
@@ -299,8 +313,8 @@ static void asc_receive_chars(struct uart_port *port)
 		flag = TTY_NORMAL;
 		port->icount.rx++;
 
-		if ((c & (ASC_RXBUF_FE | ASC_RXBUF_PE)) ||
-			status & ASC_STA_OE) {
+		if (status & ASC_STA_OE || c & ASC_RXBUF_FE ||
+		    (c & ASC_RXBUF_PE && !ignore_pe)) {
 
 			if (c & ASC_RXBUF_FE) {
 				if (c == (ASC_RXBUF_FE | ASC_RXBUF_DUMMY_RX)) {
@@ -381,12 +395,27 @@ static unsigned int asc_tx_empty(struct uart_port *port)
 
 static void asc_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+	struct asc_port *ascport = to_asc_port(port);
+
 	/*
-	 * This routine is used for seting signals of: DTR, DCD, CTS/RTS
-	 * We use ASC's hardware for CTS/RTS, so don't need any for that.
-	 * Some boards have DTR and DCD implemented using PIO pins,
-	 * code to do this should be hooked in here.
+	 * This routine is used for seting signals of: DTR, DCD, CTS and RTS.
+	 * We use ASC's hardware for CTS/RTS when hardware flow-control is
+	 * enabled, however if the RTS line is required for another purpose,
+	 * commonly controlled using HUP from userspace, then we need to toggle
+	 * it manually, using GPIO.
+	 *
+	 * Some boards also have DTR and DCD implemented using PIO pins, code to
+	 * do this should be hooked in here.
 	 */
+
+	if (!ascport->rts)
+		return;
+
+	/* If HW flow-control is enabled, we can't fiddle with the RTS line */
+	if (asc_in(port, ASC_CTL) & ASC_CTL_CTSENABLE)
+		return;
+
+	gpiod_set_value(ascport->rts, mctrl & TIOCM_RTS);
 }
 
 static unsigned int asc_get_mctrl(struct uart_port *port)
@@ -479,6 +508,8 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 			    struct ktermios *old)
 {
 	struct asc_port *ascport = to_asc_port(port);
+	struct device_node *np = port->dev->of_node;
+	struct gpio_desc *gpiod;
 	unsigned int baud;
 	u32 ctrl_val;
 	tcflag_t cflag;
@@ -522,8 +553,32 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 		ctrl_val |= ASC_CTL_PARITYODD;
 
 	/* hardware flow control */
-	if ((cflag & CRTSCTS))
+	if ((cflag & CRTSCTS)) {
 		ctrl_val |= ASC_CTL_CTSENABLE;
+
+		/* If flow-control selected, stop handling RTS manually */
+		if (ascport->rts) {
+			devm_gpiod_put(port->dev, ascport->rts);
+			ascport->rts = NULL;
+
+			pinctrl_select_state(ascport->pinctrl,
+					     ascport->states[DEFAULT]);
+		}
+	} else {
+		/* If flow-control disabled, it's safe to handle RTS manually */
+		if (!ascport->rts && ascport->states[NO_HW_FLOWCTRL]) {
+			pinctrl_select_state(ascport->pinctrl,
+					     ascport->states[NO_HW_FLOWCTRL]);
+
+			gpiod = devm_fwnode_get_gpiod_from_child(port->dev,
+								 "rts",
+								 &np->fwnode,
+								 GPIOD_OUT_LOW,
+								 np->name);
+			if (!IS_ERR(gpiod))
+				ascport->rts = gpiod;
+		}
+	}
 
 	if ((baud < 19200) && !ascport->force_m1) {
 		asc_out(port, ASC_BAUDRATE, (port->uartclk / (16 * baud)));
@@ -639,7 +694,7 @@ static void asc_put_poll_char(struct uart_port *port, unsigned char c)
 
 /*---------------------------------------------------------------------*/
 
-static struct uart_ops asc_uart_ops = {
+static const struct uart_ops asc_uart_ops = {
 	.tx_empty	= asc_tx_empty,
 	.set_mctrl	= asc_set_mctrl,
 	.get_mctrl	= asc_get_mctrl,
@@ -667,6 +722,7 @@ static int asc_init_port(struct asc_port *ascport,
 {
 	struct uart_port *port = &ascport->port;
 	struct resource *res;
+	int ret;
 
 	port->iotype	= UPIO_MEM;
 	port->flags	= UPF_BOOT_AUTOCONF;
@@ -693,6 +749,28 @@ static int asc_init_port(struct asc_port *ascport,
 	WARN_ON(ascport->port.uartclk == 0);
 	clk_disable_unprepare(ascport->clk);
 
+	ascport->pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(ascport->pinctrl)) {
+		ret = PTR_ERR(ascport->pinctrl);
+		dev_err(&pdev->dev, "Failed to get Pinctrl: %d\n", ret);
+		return ret;
+	}
+
+	ascport->states[DEFAULT] =
+		pinctrl_lookup_state(ascport->pinctrl, "default");
+	if (IS_ERR(ascport->states[DEFAULT])) {
+		ret = PTR_ERR(ascport->states[DEFAULT]);
+		dev_err(&pdev->dev,
+			"Failed to look up Pinctrl state 'default': %d\n", ret);
+		return ret;
+	}
+
+	/* "no-hw-flowctrl" state is optional */
+	ascport->states[NO_HW_FLOWCTRL] =
+		pinctrl_lookup_state(ascport->pinctrl, "no-hw-flowctrl");
+	if (IS_ERR(ascport->states[NO_HW_FLOWCTRL]))
+		ascport->states[NO_HW_FLOWCTRL] = NULL;
+
 	return 0;
 }
 
@@ -704,7 +782,9 @@ static struct asc_port *asc_of_get_asc_port(struct platform_device *pdev)
 	if (!np)
 		return NULL;
 
-	id = of_alias_get_id(np, ASC_SERIAL_NAME);
+	id = of_alias_get_id(np, "serial");
+	if (id < 0)
+		id = of_alias_get_id(np, ASC_SERIAL_NAME);
 
 	if (id < 0)
 		id = 0;
@@ -713,9 +793,11 @@ static struct asc_port *asc_of_get_asc_port(struct platform_device *pdev)
 		return NULL;
 
 	asc_ports[id].hw_flow_control = of_property_read_bool(np,
-							"st,hw-flow-control");
+							"uart-has-rtscts");
 	asc_ports[id].force_m1 =  of_property_read_bool(np, "st,force_m1");
 	asc_ports[id].port.line = id;
+	asc_ports[id].rts = NULL;
+
 	return &asc_ports[id];
 }
 
@@ -760,16 +842,14 @@ static int asc_serial_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int asc_serial_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct uart_port *port = platform_get_drvdata(pdev);
+	struct uart_port *port = dev_get_drvdata(dev);
 
 	return uart_suspend_port(&asc_uart_driver, port);
 }
 
 static int asc_serial_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct uart_port *port = platform_get_drvdata(pdev);
+	struct uart_port *port = dev_get_drvdata(dev);
 
 	return uart_resume_port(&asc_uart_driver, port);
 }
@@ -803,13 +883,12 @@ static void asc_console_write(struct console *co, const char *s, unsigned count)
 	int locked = 1;
 	u32 intenable;
 
-	local_irq_save(flags);
 	if (port->sysrq)
 		locked = 0; /* asc_interrupt has already claimed the lock */
 	else if (oops_in_progress)
-		locked = spin_trylock(&port->lock);
+		locked = spin_trylock_irqsave(&port->lock, flags);
 	else
-		spin_lock(&port->lock);
+		spin_lock_irqsave(&port->lock, flags);
 
 	/*
 	 * Disable interrupts so we don't get the IRQ line bouncing
@@ -827,14 +906,13 @@ static void asc_console_write(struct console *co, const char *s, unsigned count)
 	asc_out(port, ASC_INTEN, intenable);
 
 	if (locked)
-		spin_unlock(&port->lock);
-	local_irq_restore(flags);
+		spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static int asc_console_setup(struct console *co, char *options)
 {
 	struct asc_port *ascport;
-	int baud = 9600;
+	int baud = 115200;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
@@ -902,7 +980,7 @@ static struct platform_driver asc_serial_driver = {
 static int __init asc_init(void)
 {
 	int ret;
-	static char banner[] __initdata =
+	static const char banner[] __initconst =
 		KERN_INFO "STMicroelectronics ASC driver initialized\n";
 
 	printk(banner);

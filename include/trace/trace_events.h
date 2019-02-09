@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Stage 1 of the trace events.
  *
@@ -35,15 +36,28 @@ TRACE_MAKE_SYSTEM_STR();
 
 #undef TRACE_DEFINE_ENUM
 #define TRACE_DEFINE_ENUM(a)				\
-	static struct trace_enum_map __used __initdata	\
+	static struct trace_eval_map __used __initdata	\
 	__##TRACE_SYSTEM##_##a =			\
 	{						\
 		.system = TRACE_SYSTEM_STRING,		\
-		.enum_string = #a,			\
-		.enum_value = a				\
+		.eval_string = #a,			\
+		.eval_value = a				\
 	};						\
-	static struct trace_enum_map __used		\
-	__attribute__((section("_ftrace_enum_map")))	\
+	static struct trace_eval_map __used		\
+	__attribute__((section("_ftrace_eval_map")))	\
+	*TRACE_SYSTEM##_##a = &__##TRACE_SYSTEM##_##a
+
+#undef TRACE_DEFINE_SIZEOF
+#define TRACE_DEFINE_SIZEOF(a)				\
+	static struct trace_eval_map __used __initdata	\
+	__##TRACE_SYSTEM##_##a =			\
+	{						\
+		.system = TRACE_SYSTEM_STRING,		\
+		.eval_string = "sizeof(" #a ")",	\
+		.eval_value = sizeof(a)			\
+	};						\
+	static struct trace_eval_map __used		\
+	__attribute__((section("_ftrace_eval_map")))	\
 	*TRACE_SYSTEM##_##a = &__##TRACE_SYSTEM##_##a
 
 /*
@@ -123,6 +137,12 @@ TRACE_MAKE_SYSTEM_STR();
 	TRACE_EVENT(name, PARAMS(proto), PARAMS(args),			\
 		PARAMS(tstruct), PARAMS(assign), PARAMS(print))		\
 
+#undef TRACE_EVENT_FN_COND
+#define TRACE_EVENT_FN_COND(name, proto, args, cond, tstruct,	\
+		assign, print, reg, unreg)				\
+	TRACE_EVENT_CONDITION(name, PARAMS(proto), PARAMS(args), PARAMS(cond),		\
+		PARAMS(tstruct), PARAMS(assign), PARAMS(print))		\
+
 #undef TRACE_EVENT_FLAGS
 #define TRACE_EVENT_FLAGS(name, value)					\
 	__TRACE_EVENT_FLAGS(name, value)
@@ -151,6 +171,9 @@ TRACE_MAKE_SYSTEM_STR();
 
 #undef TRACE_DEFINE_ENUM
 #define TRACE_DEFINE_ENUM(a)
+
+#undef TRACE_DEFINE_SIZEOF
+#define TRACE_DEFINE_SIZEOF(a)
 
 #undef __field
 #define __field(type, item)
@@ -250,7 +273,7 @@ TRACE_MAKE_SYSTEM_STR();
 		((__entry->__data_loc_##field >> 16) & 0xffff)
 
 #undef __get_str
-#define __get_str(field) (char *)__get_dynamic_array(field)
+#define __get_str(field) ((char *)__get_dynamic_array(field))
 
 #undef __get_bitmask
 #define __get_bitmask(field)						\
@@ -277,8 +300,16 @@ TRACE_MAKE_SYSTEM_STR();
 		trace_print_symbols_seq(p, value, symbols);		\
 	})
 
+#undef __print_flags_u64
 #undef __print_symbolic_u64
 #if BITS_PER_LONG == 32
+#define __print_flags_u64(flag, delim, flag_array...)			\
+	({								\
+		static const struct trace_print_flags_u64 __flags[] =	\
+			{ flag_array, { -1, NULL } };			\
+		trace_print_flags_seq_u64(p, delim, flag, __flags);	\
+	})
+
 #define __print_symbolic_u64(value, symbol_array...)			\
 	({								\
 		static const struct trace_print_flags_u64 symbols[] =	\
@@ -286,12 +317,20 @@ TRACE_MAKE_SYSTEM_STR();
 		trace_print_symbols_seq_u64(p, value, symbols);	\
 	})
 #else
+#define __print_flags_u64(flag, delim, flag_array...)			\
+			__print_flags(flag, delim, flag_array)
+
 #define __print_symbolic_u64(value, symbol_array...)			\
 			__print_symbolic(value, symbol_array)
 #endif
 
 #undef __print_hex
-#define __print_hex(buf, buf_len) trace_print_hex_seq(p, buf, buf_len)
+#define __print_hex(buf, buf_len)					\
+	trace_print_hex_seq(p, buf, buf_len, false)
+
+#undef __print_hex_str
+#define __print_hex_str(buf, buf_len)					\
+	trace_print_hex_seq(p, buf, buf_len, true)
 
 #undef __print_array
 #define __print_array(array, count, el_size)				\
@@ -383,6 +422,7 @@ static struct trace_event_functions trace_event_type_funcs_##call = {	\
 	do {								\
 		char *type_str = #type"["__stringify(len)"]";		\
 		BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);			\
+		BUILD_BUG_ON(len <= 0);					\
 		ret = trace_define_field(event_call, type_str, #item,	\
 				 offsetof(typeof(field), item),		\
 				 sizeof(field.item),			\
@@ -646,9 +686,6 @@ static inline notrace int trace_event_get_offsets_##call(		\
 #undef TP_fast_assign
 #define TP_fast_assign(args...) args
 
-#undef __perf_addr
-#define __perf_addr(a)	(a)
-
 #undef __perf_count
 #define __perf_count(c)	(c)
 
@@ -708,6 +745,7 @@ static inline void ftrace_test_probe_##call(void)			\
 #undef __print_flags
 #undef __print_symbolic
 #undef __print_hex
+#undef __print_hex_str
 #undef __get_dynamic_array
 #undef __get_dynamic_array_len
 #undef __get_str

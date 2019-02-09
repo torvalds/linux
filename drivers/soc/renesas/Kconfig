@@ -1,0 +1,95 @@
+config SOC_RENESAS
+	bool "Renesas SoC driver support" if COMPILE_TEST && !ARCH_RENESAS
+	default y if ARCH_RENESAS
+	select SOC_BUS
+	select RST_RCAR if ARCH_RCAR_GEN1 || ARCH_RCAR_GEN2 || \
+			   ARCH_R8A7795 || ARCH_R8A7796 || ARCH_R8A77965 || \
+			   ARCH_R8A77970 || ARCH_R8A77980 || ARCH_R8A77990 || \
+			   ARCH_R8A77995
+	select SYSC_R8A7743 if ARCH_R8A7743
+	select SYSC_R8A7745 if ARCH_R8A7745
+	select SYSC_R8A77470 if ARCH_R8A77470
+	select SYSC_R8A7779 if ARCH_R8A7779
+	select SYSC_R8A7790 if ARCH_R8A7790
+	select SYSC_R8A7791 if ARCH_R8A7791 || ARCH_R8A7793
+	select SYSC_R8A7792 if ARCH_R8A7792
+	select SYSC_R8A7794 if ARCH_R8A7794
+	select SYSC_R8A7795 if ARCH_R8A7795
+	select SYSC_R8A7796 if ARCH_R8A7796
+	select SYSC_R8A77965 if ARCH_R8A77965
+	select SYSC_R8A77970 if ARCH_R8A77970
+	select SYSC_R8A77980 if ARCH_R8A77980
+	select SYSC_R8A77990 if ARCH_R8A77990
+	select SYSC_R8A77995 if ARCH_R8A77995
+
+if SOC_RENESAS
+
+# SoC
+config SYSC_R8A7743
+	bool "RZ/G1M System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A7745
+	bool "RZ/G1E System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A77470
+	bool "RZ/G1C System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A7779
+	bool "R-Car H1 System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A7790
+	bool "R-Car H2 System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A7791
+	bool "R-Car M2-W/N System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A7792
+	bool "R-Car V2H System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A7794
+	bool "R-Car E2 System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A7795
+	bool "R-Car H3 System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A7796
+	bool "R-Car M3-W System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A77965
+	bool "R-Car M3-N System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A77970
+	bool "R-Car V3M System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A77980
+	bool "R-Car V3H System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A77990
+	bool "R-Car E3 System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A77995
+	bool "R-Car D3 System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+# Family
+config RST_RCAR
+	bool "R-Car Reset Controller support" if COMPILE_TEST
+
+config SYSC_RCAR
+	bool "R-Car System Controller support" if COMPILE_TEST
+
+endif # SOC_RENESAS

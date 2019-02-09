@@ -107,7 +107,7 @@ static int get_msg(struct mixart_mgr *mgr, struct mixart_msg *resp,
 #ifndef __BIG_ENDIAN
 	size /= 4; /* u32 size */
 	for(i=0; i < size; i++) {
-		((u32*)resp->data)[i] = be32_to_cpu(((u32*)resp->data)[i]);
+		((u32*)resp->data)[i] = be32_to_cpu(((__be32*)resp->data)[i]);
 	}
 #endif
 
@@ -239,7 +239,7 @@ int snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int 
 	struct mixart_msg resp;
 	u32 msg_frame = 0; /* set to 0, so it's no notification to wait for, but the answer */
 	int err;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	long timeout;
 
 	init_waitqueue_entry(&wait, current);
@@ -284,7 +284,7 @@ int snd_mixart_send_msg_wait_notif(struct mixart_mgr *mgr,
 				   struct mixart_msg *request, u32 notif_event)
 {
 	int err;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	long timeout;
 
 	if (snd_BUG_ON(!notif_event))
@@ -519,7 +519,7 @@ irqreturn_t snd_mixart_threaded_irq(int irq, void *dev_id)
 					/* Traces are text: the swapped msg_data has to be swapped back ! */
 					int i;
 					for(i=0; i<(resp.size/4); i++) {
-						(mixart_msg_data)[i] = cpu_to_be32((mixart_msg_data)[i]);
+						((__be32*)mixart_msg_data)[i] = cpu_to_be32((mixart_msg_data)[i]);
 					}
 #endif
 					((char*)mixart_msg_data)[resp.size - 1] = 0;
@@ -540,7 +540,7 @@ irqreturn_t snd_mixart_threaded_irq(int irq, void *dev_id)
 				dev_err(&mgr->pci->dev,
 					"canceled notification %x !\n", msg);
 			}
-			/* no break, continue ! */
+			/* fall through */
 		case MSG_TYPE_ANSWER:
 			/* answer or notification to a message we are waiting for*/
 			mutex_lock(&mgr->msg_lock);

@@ -99,7 +99,7 @@ module_param(mpt_channel_mapping, int, 0);
 MODULE_PARM_DESC(mpt_channel_mapping, " Mapping id's to channels (default=0)");
 
 static int mpt_debug_level;
-static int mpt_set_debug_level(const char *val, struct kernel_param *kp);
+static int mpt_set_debug_level(const char *val, const struct kernel_param *kp);
 module_param_call(mpt_debug_level, mpt_set_debug_level, param_get_int,
 		  &mpt_debug_level, 0600);
 MODULE_PARM_DESC(mpt_debug_level,
@@ -197,9 +197,9 @@ static int	mpt_host_page_access_control(MPT_ADAPTER *ioc, u8 access_control_valu
 static int	mpt_host_page_alloc(MPT_ADAPTER *ioc, pIOCInit_t ioc_init);
 
 #ifdef CONFIG_PROC_FS
-static const struct file_operations mpt_summary_proc_fops;
-static const struct file_operations mpt_version_proc_fops;
-static const struct file_operations mpt_iocinfo_proc_fops;
+static int mpt_summary_proc_show(struct seq_file *m, void *v);
+static int mpt_version_proc_show(struct seq_file *m, void *v);
+static int mpt_iocinfo_proc_show(struct seq_file *m, void *v);
 #endif
 static void	mpt_get_fw_exp_ver(char *buf, MPT_ADAPTER *ioc);
 
@@ -242,7 +242,7 @@ pci_enable_io_access(struct pci_dev *pdev)
 	pci_write_config_word(pdev, PCI_COMMAND, command_reg);
 }
 
-static int mpt_set_debug_level(const char *val, struct kernel_param *kp)
+static int mpt_set_debug_level(const char *val, const struct kernel_param *kp)
 {
 	int ret = param_set_int(val, kp);
 	MPT_ADAPTER *ioc;
@@ -642,6 +642,7 @@ mptbase_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 			freereq = 0;
 		if (event != MPI_EVENT_EVENT_CHANGE)
 			break;
+		/* else: fall through */
 	case MPI_FUNCTION_CONFIG:
 	case MPI_FUNCTION_SAS_IO_UNIT_CONTROL:
 		ioc->mptbase_cmds.status |= MPT_MGMT_STATUS_COMMAND_GOOD;
@@ -958,7 +959,7 @@ mpt_put_msg_frame(u8 cb_idx, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 {
 	u32 mf_dma_addr;
 	int req_offset;
-	u16	 req_idx;	/* Request index */
+	u16 req_idx;	/* Request index */
 
 	/* ensure values are reset properly! */
 	mf->u.frame.hwhdr.msgctxu.fld.cb_idx = cb_idx;		/* byte */
@@ -994,7 +995,7 @@ mpt_put_msg_frame_hi_pri(u8 cb_idx, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 {
 	u32 mf_dma_addr;
 	int req_offset;
-	u16	 req_idx;	/* Request index */
+	u16 req_idx;	/* Request index */
 
 	/* ensure values are reset properly! */
 	mf->u.frame.hwhdr.msgctxu.fld.cb_idx = cb_idx;
@@ -1128,11 +1129,12 @@ mpt_add_sge_64bit_1078(void *pAddr, u32 flagslength, dma_addr_t dma_addr)
 static void
 mpt_add_chain(void *pAddr, u8 next, u16 length, dma_addr_t dma_addr)
 {
-		SGEChain32_t *pChain = (SGEChain32_t *) pAddr;
-		pChain->Length = cpu_to_le16(length);
-		pChain->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT;
-		pChain->NextChainOffset = next;
-		pChain->Address = cpu_to_le32(dma_addr);
+	SGEChain32_t *pChain = (SGEChain32_t *) pAddr;
+
+	pChain->Length = cpu_to_le16(length);
+	pChain->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT;
+	pChain->NextChainOffset = next;
+	pChain->Address = cpu_to_le32(dma_addr);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -1147,18 +1149,18 @@ mpt_add_chain(void *pAddr, u8 next, u16 length, dma_addr_t dma_addr)
 static void
 mpt_add_chain_64bit(void *pAddr, u8 next, u16 length, dma_addr_t dma_addr)
 {
-		SGEChain64_t *pChain = (SGEChain64_t *) pAddr;
-		u32 tmp = dma_addr & 0xFFFFFFFF;
+	SGEChain64_t *pChain = (SGEChain64_t *) pAddr;
+	u32 tmp = dma_addr & 0xFFFFFFFF;
 
-		pChain->Length = cpu_to_le16(length);
-		pChain->Flags = (MPI_SGE_FLAGS_CHAIN_ELEMENT |
-				 MPI_SGE_FLAGS_64_BIT_ADDRESSING);
+	pChain->Length = cpu_to_le16(length);
+	pChain->Flags = (MPI_SGE_FLAGS_CHAIN_ELEMENT |
+			 MPI_SGE_FLAGS_64_BIT_ADDRESSING);
 
-		pChain->NextChainOffset = next;
+	pChain->NextChainOffset = next;
 
-		pChain->Address.Low = cpu_to_le32(tmp);
-		tmp = (u32)(upper_32_bits(dma_addr));
-		pChain->Address.High = cpu_to_le32(tmp);
+	pChain->Address.Low = cpu_to_le32(tmp);
+	tmp = (u32)(upper_32_bits(dma_addr));
+	pChain->Address.High = cpu_to_le32(tmp);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -1360,7 +1362,7 @@ mpt_host_page_alloc(MPT_ADAPTER *ioc, pIOCInit_t ioc_init)
 	ioc->add_sge(psge, flags_length, ioc->HostPageBuffer_dma);
 	ioc->facts.HostPageBufferSGE = ioc_init->HostPageBufferSGE;
 
-return 0;
+	return 0;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -1778,7 +1780,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct proc_dir_entry *dent;
 #endif
 
-	ioc = kzalloc(sizeof(MPT_ADAPTER), GFP_ATOMIC);
+	ioc = kzalloc(sizeof(MPT_ADAPTER), GFP_KERNEL);
 	if (ioc == NULL) {
 		printk(KERN_ERR MYNAM ": ERROR - Insufficient memory to add adapter!\n");
 		return -ENOMEM;
@@ -1801,8 +1803,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ioc->pcidev = pdev;
 	if (mpt_mapresources(ioc)) {
-		kfree(ioc);
-		return r;
+		goto out_free_ioc;
 	}
 
 	/*
@@ -1866,14 +1867,13 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	snprintf(ioc->reset_work_q_name, MPT_KOBJ_NAME_LEN,
 		 "mpt_poll_%d", ioc->id);
-	ioc->reset_work_q =
-		create_singlethread_workqueue(ioc->reset_work_q_name);
+	ioc->reset_work_q = alloc_workqueue(ioc->reset_work_q_name,
+					    WQ_MEM_RECLAIM, 0);
 	if (!ioc->reset_work_q) {
 		printk(MYIOC_s_ERR_FMT "Insufficient memory to add adapter!\n",
 		    ioc->name);
-		pci_release_selected_regions(pdev, ioc->bars);
-		kfree(ioc);
-		return -ENOMEM;
+		r = -ENOMEM;
+		goto out_unmap_resources;
 	}
 
 	dinitprintk(ioc, printk(MYIOC_s_INFO_FMT "facts @ %p, pfacts[0] @ %p\n",
@@ -1887,6 +1887,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	case MPI_MANUFACTPAGE_DEVICEID_FC939X:
 	case MPI_MANUFACTPAGE_DEVICEID_FC949X:
 		ioc->errata_flag_1064 = 1;
+		/* fall through */
 	case MPI_MANUFACTPAGE_DEVICEID_FC909:
 	case MPI_MANUFACTPAGE_DEVICEID_FC929:
 	case MPI_MANUFACTPAGE_DEVICEID_FC919:
@@ -1931,6 +1932,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 			pcixcmd &= 0x8F;
 			pci_write_config_byte(pdev, 0x6a, pcixcmd);
 		}
+		/* fall through */
 
 	case MPI_MANUFACTPAGE_DEVID_1030_53C1035:
 		ioc->bus_type = SPI;
@@ -1994,17 +1996,29 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&ioc->fw_event_list);
 	spin_lock_init(&ioc->fw_event_lock);
 	snprintf(ioc->fw_event_q_name, MPT_KOBJ_NAME_LEN, "mpt/%d", ioc->id);
-	ioc->fw_event_q = create_singlethread_workqueue(ioc->fw_event_q_name);
+	ioc->fw_event_q = alloc_workqueue(ioc->fw_event_q_name,
+					  WQ_MEM_RECLAIM, 0);
+	if (!ioc->fw_event_q) {
+		printk(MYIOC_s_ERR_FMT "Insufficient memory to add adapter!\n",
+		    ioc->name);
+		r = -ENOMEM;
+		goto out_remove_ioc;
+	}
 
 	if ((r = mpt_do_ioc_recovery(ioc, MPT_HOSTEVENT_IOC_BRINGUP,
 	    CAN_SLEEP)) != 0){
 		printk(MYIOC_s_ERR_FMT "didn't initialize properly! (%d)\n",
 		    ioc->name, r);
 
+		destroy_workqueue(ioc->fw_event_q);
+		ioc->fw_event_q = NULL;
+
 		list_del(&ioc->list);
 		if (ioc->alt_ioc)
 			ioc->alt_ioc->alt_ioc = NULL;
 		iounmap(ioc->memmap);
+		if (pci_is_enabled(pdev))
+			pci_disable_device(pdev);
 		if (r != -5)
 			pci_release_selected_regions(pdev, ioc->bars);
 
@@ -2012,7 +2026,6 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->reset_work_q = NULL;
 
 		kfree(ioc);
-		pci_set_drvdata(pdev, NULL);
 		return r;
 	}
 
@@ -2030,8 +2043,10 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	dent = proc_mkdir(ioc->name, mpt_proc_root_dir);
 	if (dent) {
-		proc_create_data("info", S_IRUGO, dent, &mpt_iocinfo_proc_fops, ioc);
-		proc_create_data("summary", S_IRUGO, dent, &mpt_summary_proc_fops, ioc);
+		proc_create_single_data("info", S_IRUGO, dent,
+				mpt_iocinfo_proc_show, ioc);
+		proc_create_single_data("summary", S_IRUGO, dent,
+				mpt_summary_proc_show, ioc);
 	}
 #endif
 
@@ -2040,6 +2055,24 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 			msecs_to_jiffies(MPT_POLLING_INTERVAL));
 
 	return 0;
+
+out_remove_ioc:
+	list_del(&ioc->list);
+	if (ioc->alt_ioc)
+		ioc->alt_ioc->alt_ioc = NULL;
+
+	destroy_workqueue(ioc->reset_work_q);
+	ioc->reset_work_q = NULL;
+
+out_unmap_resources:
+	iounmap(ioc->memmap);
+	pci_disable_device(pdev);
+	pci_release_selected_regions(pdev, ioc->bars);
+
+out_free_ioc:
+	kfree(ioc);
+
+	return r;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -2052,7 +2085,7 @@ void
 mpt_detach(struct pci_dev *pdev)
 {
 	MPT_ADAPTER 	*ioc = pci_get_drvdata(pdev);
-	char pname[32];
+	char pname[64];
 	u8 cb_idx;
 	unsigned long flags;
 	struct workqueue_struct *wq;
@@ -2073,11 +2106,11 @@ mpt_detach(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 	destroy_workqueue(wq);
 
-	sprintf(pname, MPT_PROCFS_MPTBASEDIR "/%s/summary", ioc->name);
+	snprintf(pname, sizeof(pname), MPT_PROCFS_MPTBASEDIR "/%s/summary", ioc->name);
 	remove_proc_entry(pname, NULL);
-	sprintf(pname, MPT_PROCFS_MPTBASEDIR "/%s/info", ioc->name);
+	snprintf(pname, sizeof(pname), MPT_PROCFS_MPTBASEDIR "/%s/info", ioc->name);
 	remove_proc_entry(pname, NULL);
-	sprintf(pname, MPT_PROCFS_MPTBASEDIR "/%s", ioc->name);
+	snprintf(pname, sizeof(pname), MPT_PROCFS_MPTBASEDIR "/%s", ioc->name);
 	remove_proc_entry(pname, NULL);
 
 	/* call per device driver remove entry point */
@@ -2125,7 +2158,7 @@ mpt_suspend(struct pci_dev *pdev, pm_message_t state)
 	    device_state);
 
 	/* put ioc into READY_STATE */
-	if(SendIocReset(ioc, MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET, CAN_SLEEP)) {
+	if (SendIocReset(ioc, MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET, CAN_SLEEP)) {
 		printk(MYIOC_s_ERR_FMT
 		"pci-suspend:  IOC msg unit reset failed!\n", ioc->name);
 	}
@@ -2558,10 +2591,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 				(void) GetLanConfigPages(ioc);
 				a = (u8*)&ioc->lan_cnfg_page1.HardwareAddressLow;
 				dprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-					"LanAddr = %02X:%02X:%02X"
-					":%02X:%02X:%02X\n",
-					ioc->name, a[5], a[4],
-					a[3], a[2], a[1], a[0]));
+					"LanAddr = %pMR\n", ioc->name, a));
 			}
 			break;
 
@@ -2841,21 +2871,21 @@ MptDisplayIocCapabilities(MPT_ADAPTER *ioc)
 
 	printk(KERN_INFO "%s: ", ioc->name);
 	if (ioc->prod_name)
-		printk("%s: ", ioc->prod_name);
-	printk("Capabilities={");
+		pr_cont("%s: ", ioc->prod_name);
+	pr_cont("Capabilities={");
 
 	if (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
-		printk("Initiator");
+		pr_cont("Initiator");
 		i++;
 	}
 
 	if (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_TARGET) {
-		printk("%sTarget", i ? "," : "");
+		pr_cont("%sTarget", i ? "," : "");
 		i++;
 	}
 
 	if (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_LAN) {
-		printk("%sLAN", i ? "," : "");
+		pr_cont("%sLAN", i ? "," : "");
 		i++;
 	}
 
@@ -2864,12 +2894,12 @@ MptDisplayIocCapabilities(MPT_ADAPTER *ioc)
 	 *  This would probably evoke more questions than it's worth
 	 */
 	if (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_TARGET) {
-		printk("%sLogBusAddr", i ? "," : "");
+		pr_cont("%sLogBusAddr", i ? "," : "");
 		i++;
 	}
 #endif
 
-	printk("}\n");
+	pr_cont("}\n");
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -6229,7 +6259,7 @@ mpt_get_manufacturing_pg_0(MPT_ADAPTER *ioc)
 	memcpy(ioc->board_assembly, pbuf->BoardAssembly, sizeof(ioc->board_assembly));
 	memcpy(ioc->board_tracer, pbuf->BoardTracerNumber, sizeof(ioc->board_tracer));
 
-	out:
+out:
 
 	if (pbuf)
 		pci_free_consistent(ioc->pcidev, hdr.PageLength * 4, pbuf, buf_dma);
@@ -6324,7 +6354,7 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	u8		 page_type = 0, extend_page;
 	unsigned long 	 timeleft;
 	unsigned long	 flags;
-    int		 in_isr;
+	int		 in_isr;
 	u8		 issue_hard_reset = 0;
 	u8		 retry_count = 0;
 
@@ -6581,8 +6611,10 @@ procmpt_create(void)
 	if (mpt_proc_root_dir == NULL)
 		return -ENOTDIR;
 
-	proc_create("summary", S_IRUGO, mpt_proc_root_dir, &mpt_summary_proc_fops);
-	proc_create("version", S_IRUGO, mpt_proc_root_dir, &mpt_version_proc_fops);
+	proc_create_single("summary", S_IRUGO, mpt_proc_root_dir,
+			mpt_summary_proc_show);
+	proc_create_single("version", S_IRUGO, mpt_proc_root_dir,
+			mpt_version_proc_show);
 	return 0;
 }
 
@@ -6620,19 +6652,6 @@ static int mpt_summary_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int mpt_summary_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mpt_summary_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations mpt_summary_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= mpt_summary_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int mpt_version_proc_show(struct seq_file *m, void *v)
 {
@@ -6675,19 +6694,6 @@ static int mpt_version_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int mpt_version_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mpt_version_proc_show, NULL);
-}
-
-static const struct file_operations mpt_version_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= mpt_version_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int mpt_iocinfo_proc_show(struct seq_file *m, void *v)
 {
@@ -6756,8 +6762,7 @@ static int mpt_iocinfo_proc_show(struct seq_file *m, void *v)
 		if (ioc->bus_type == FC) {
 			if (ioc->pfacts[p].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_LAN) {
 				u8 *a = (u8*)&ioc->lan_cnfg_page1.HardwareAddressLow;
-				seq_printf(m, "    LanAddr = %02X:%02X:%02X:%02X:%02X:%02X\n",
-						a[5], a[4], a[3], a[2], a[1], a[0]);
+				seq_printf(m, "    LanAddr = %pMR\n", a);
 			}
 			seq_printf(m, "    WWN = %08X%08X:%08X%08X\n",
 					ioc->fc_port_page0[p].WWNN.High,
@@ -6769,19 +6774,6 @@ static int mpt_iocinfo_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int mpt_iocinfo_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mpt_iocinfo_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations mpt_iocinfo_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= mpt_iocinfo_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif		/* CONFIG_PROC_FS } */
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -6834,8 +6826,7 @@ mpt_print_ioc_summary(MPT_ADAPTER *ioc, char *buffer, int *size, int len, int sh
 
 	if (showlan && (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_LAN)) {
 		u8 *a = (u8*)&ioc->lan_cnfg_page1.HardwareAddressLow;
-		y += sprintf(buffer+len+y, ", LanAddr=%02X:%02X:%02X:%02X:%02X:%02X",
-			a[5], a[4], a[3], a[2], a[1], a[0]);
+		y += sprintf(buffer+len+y, ", LanAddr=%pMR", a);
 	}
 
 	y += sprintf(buffer+len+y, ", IRQ=%d", ioc->pci_irq);
@@ -6848,6 +6839,7 @@ mpt_print_ioc_summary(MPT_ADAPTER *ioc, char *buffer, int *size, int len, int sh
 	*size = y;
 }
 
+#ifdef CONFIG_PROC_FS
 static void seq_mpt_print_ioc_summary(MPT_ADAPTER *ioc, struct seq_file *m, int showlan)
 {
 	char expVer[32];
@@ -6868,8 +6860,7 @@ static void seq_mpt_print_ioc_summary(MPT_ADAPTER *ioc, struct seq_file *m, int 
 
 	if (showlan && (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_LAN)) {
 		u8 *a = (u8*)&ioc->lan_cnfg_page1.HardwareAddressLow;
-		seq_printf(m, ", LanAddr=%02X:%02X:%02X:%02X:%02X:%02X",
-			a[5], a[4], a[3], a[2], a[1], a[0]);
+		seq_printf(m, ", LanAddr=%pMR", a);
 	}
 
 	seq_printf(m, ", IRQ=%d", ioc->pci_irq);
@@ -6879,6 +6870,7 @@ static void seq_mpt_print_ioc_summary(MPT_ADAPTER *ioc, struct seq_file *m, int 
 
 	seq_putc(m, '\n');
 }
+#endif
 
 /**
  *	mpt_set_taskmgmt_in_progress_flag - set flags associated with task management
@@ -7373,7 +7365,7 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED:
 			snprintf(evStr, EVENT_DESCR_STR_SZ,
-			    "SAS Device Status Change: No Persistancy: "
+			    "SAS Device Status Change: No Persistency: "
 			    "id=%d channel=%d", id, channel);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED:
@@ -7611,7 +7603,7 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 
 		snprintf(evStr, EVENT_DESCR_STR_SZ,
 		    "SAS Initiator Device Table Overflow: max initiators=%02d "
-		    "current initators=%02d",
+		    "current initiators=%02d",
 		    max_init, current_init);
 		break;
 	}
@@ -7674,7 +7666,7 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 		break;
 	}
 	if (ds)
-		strncpy(evStr, ds, EVENT_DESCR_STR_SZ);
+		strlcpy(evStr, ds, EVENT_DESCR_STR_SZ);
 
 
 	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
@@ -8069,15 +8061,15 @@ mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
 static void
 mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info, u8 cb_idx)
 {
-union loginfo_type {
-	u32	loginfo;
-	struct {
-		u32	subcode:16;
-		u32	code:8;
-		u32	originator:4;
-		u32	bus_type:4;
-	}dw;
-};
+	union loginfo_type {
+		u32	loginfo;
+		struct {
+			u32	subcode:16;
+			u32	code:8;
+			u32	originator:4;
+			u32	bus_type:4;
+		} dw;
+	};
 	union loginfo_type sas_loginfo;
 	char *originator_desc = NULL;
 	char *code_desc = NULL;

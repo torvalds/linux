@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	linux/arch/alpha/kernel/core_marvel.c
  *
@@ -24,7 +25,6 @@
 #include <asm/gct.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
-#include <asm/rtc.h>
 #include <asm/vga.h>
 
 #include "proto.h"
@@ -119,7 +119,7 @@ alloc_io7(unsigned int pe)
 
 	io7 = alloc_bootmem(sizeof(*io7));
 	io7->pe = pe;
-	spin_lock_init(&io7->irq_lock);
+	raw_spin_lock_init(&io7->irq_lock);
 
 	for (h = 0; h < 4; h++) {
 		io7->ports[h].io7 = io7;
@@ -352,7 +352,7 @@ marvel_init_io7(struct io7 *io7)
 	}
 }
 
-void
+void __init
 marvel_io7_present(gct6_node *node)
 {
 	int pe;
@@ -370,6 +370,7 @@ marvel_io7_present(gct6_node *node)
 static void __init
 marvel_find_console_vga_hose(void)
 {
+#ifdef CONFIG_VGA_HOSE
 	u64 *pu64 = (u64 *)((u64)hwrpb + hwrpb->ctbt_offset);
 
 	if (pu64[7] == 3) {	/* TERM_TYPE == graphics */
@@ -403,9 +404,10 @@ marvel_find_console_vga_hose(void)
 			pci_vga_hose = hose;
 		}
 	}
+#endif
 }
 
-gct6_search_struct gct_wanted_node_list[] = {
+gct6_search_struct gct_wanted_node_list[] __initdata = {
 	{ GCT_TYPE_HOSE, GCT_SUBTYPE_IO_PORT_MODULE, marvel_io7_present },
 	{ 0, 0, NULL }
 };

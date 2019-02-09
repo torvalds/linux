@@ -1,5 +1,4 @@
-#include <asm/hardware/icst.h>
-
+/* SPDX-License-Identifier: GPL-2.0 */
 /**
  * struct clk_icst_desc - descriptor for the ICST VCO
  * @params: ICST parameters

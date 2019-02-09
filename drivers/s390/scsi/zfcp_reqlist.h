@@ -1,10 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * zfcp device driver
  *
  * Data structure and helper functions for tracking pending FSF
  * requests.
  *
- * Copyright IBM Corp. 2009
+ * Copyright IBM Corp. 2009, 2016
  */
 
 #ifndef ZFCP_REQLIST_H
@@ -177,6 +178,34 @@ static inline void zfcp_reqlist_move(struct zfcp_reqlist *rl,
 	spin_lock_irqsave(&rl->lock, flags);
 	for (i = 0; i < ZFCP_REQ_LIST_BUCKETS; i++)
 		list_splice_init(&rl->buckets[i], list);
+	spin_unlock_irqrestore(&rl->lock, flags);
+}
+
+/**
+ * zfcp_reqlist_apply_for_all() - apply a function to every request.
+ * @rl: the requestlist that contains the target requests.
+ * @f: the function to apply to each request; the first parameter of the
+ *     function will be the target-request; the second parameter is the same
+ *     pointer as given with the argument @data.
+ * @data: freely chosen argument; passed through to @f as second parameter.
+ *
+ * Uses :c:macro:`list_for_each_entry` to iterate over the lists in the hash-
+ * table (not a 'safe' variant, so don't modify the list).
+ *
+ * Holds @rl->lock over the entire request-iteration.
+ */
+static inline void
+zfcp_reqlist_apply_for_all(struct zfcp_reqlist *rl,
+			   void (*f)(struct zfcp_fsf_req *, void *), void *data)
+{
+	struct zfcp_fsf_req *req;
+	unsigned long flags;
+	unsigned int i;
+
+	spin_lock_irqsave(&rl->lock, flags);
+	for (i = 0; i < ZFCP_REQ_LIST_BUCKETS; i++)
+		list_for_each_entry(req, &rl->buckets[i], list)
+			f(req, data);
 	spin_unlock_irqrestore(&rl->lock, flags);
 }
 

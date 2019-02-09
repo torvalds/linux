@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # ==========================================================================
 # Building
 # ==========================================================================
@@ -52,25 +53,9 @@ endif
 
 include scripts/Makefile.lib
 
-ifdef host-progs
-ifneq ($(hostprogs-y),$(host-progs))
-$(warning kbuild: $(obj)/Makefile - Usage of host-progs is deprecated. Please replace with hostprogs-y!)
-hostprogs-y += $(host-progs)
-endif
-endif
-
 # Do not include host rules unless needed
-ifneq ($(hostprogs-y)$(hostprogs-m),)
+ifneq ($(hostprogs-y)$(hostprogs-m)$(hostlibs-y)$(hostlibs-m)$(hostcxxlibs-y)$(hostcxxlibs-m),)
 include scripts/Makefile.host
-endif
-
-ifneq ($(KBUILD_SRC),)
-# Create output directory if not already present
-_dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
-
-# Create directories for object files if directory does not exist
-# Needed when obj-y := dir/file.o syntax is used
-_dummy := $(foreach d,$(obj-dirs), $(shell [ -d $(d) ] || mkdir -p $(d)))
 endif
 
 ifndef obj
@@ -81,10 +66,11 @@ endif
 
 ifneq ($(strip $(lib-y) $(lib-m) $(lib-)),)
 lib-target := $(obj)/lib.a
+real-obj-y += $(obj)/lib-ksyms.o
 endif
 
-ifneq ($(strip $(obj-y) $(obj-m) $(obj-) $(subdir-m) $(lib-target)),)
-builtin-target := $(obj)/built-in.o
+ifneq ($(strip $(real-obj-y) $(need-builtin)),)
+builtin-target := $(obj)/built-in.a
 endif
 
 modorder-target := $(obj)/modules.order
@@ -107,7 +93,11 @@ ifneq ($(KBUILD_CHECKSRC),0)
   endif
 endif
 
-# Do section mismatch analysis for each module/built-in.o
+ifneq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),)
+  cmd_checkdoc = $(srctree)/scripts/kernel-doc -none $< ;
+endif
+
+# Do section mismatch analysis for each module/built-in.a
 ifdef CONFIG_DEBUG_SECTION_MISMATCH
   cmd_secanalysis = ; scripts/mod/modpost $@
 endif
@@ -122,29 +112,17 @@ modkern_cflags =                                          \
 		$(KBUILD_CFLAGS_KERNEL) $(CFLAGS_KERNEL))
 quiet_modtag := $(empty)   $(empty)
 
-$(real-objs-m)        : part-of-module := y
-$(real-objs-m:.o=.i)  : part-of-module := y
-$(real-objs-m:.o=.s)  : part-of-module := y
-$(real-objs-m:.o=.lst): part-of-module := y
+$(real-obj-m)        : part-of-module := y
+$(real-obj-m:.o=.i)  : part-of-module := y
+$(real-obj-m:.o=.s)  : part-of-module := y
+$(real-obj-m:.o=.lst): part-of-module := y
 
-$(real-objs-m)        : quiet_modtag := [M]
-$(real-objs-m:.o=.i)  : quiet_modtag := [M]
-$(real-objs-m:.o=.s)  : quiet_modtag := [M]
-$(real-objs-m:.o=.lst): quiet_modtag := [M]
+$(real-obj-m)        : quiet_modtag := [M]
+$(real-obj-m:.o=.i)  : quiet_modtag := [M]
+$(real-obj-m:.o=.s)  : quiet_modtag := [M]
+$(real-obj-m:.o=.lst): quiet_modtag := [M]
 
-$(obj-m)              : quiet_modtag := [M]
-
-# Default for not multi-part modules
-modname = $(basetarget)
-
-$(multi-objs-m)         : modname = $(modname-multi)
-$(multi-objs-m:.o=.i)   : modname = $(modname-multi)
-$(multi-objs-m:.o=.s)   : modname = $(modname-multi)
-$(multi-objs-m:.o=.lst) : modname = $(modname-multi)
-$(multi-objs-y)         : modname = $(modname-multi)
-$(multi-objs-y:.o=.i)   : modname = $(modname-multi)
-$(multi-objs-y:.o=.s)   : modname = $(modname-multi)
-$(multi-objs-y:.o=.lst) : modname = $(modname-multi)
+$(obj-m)             : quiet_modtag := [M]
 
 quiet_cmd_cc_s_c = CC $(quiet_modtag)  $@
 cmd_cc_s_c       = $(CC) $(c_flags) $(DISABLE_LTO) -fverbose-asm -S -o $@ $<
@@ -152,27 +130,36 @@ cmd_cc_s_c       = $(CC) $(c_flags) $(DISABLE_LTO) -fverbose-asm -S -o $@ $<
 $(obj)/%.s: $(src)/%.c FORCE
 	$(call if_changed_dep,cc_s_c)
 
-quiet_cmd_cc_i_c = CPP $(quiet_modtag) $@
-cmd_cc_i_c       = $(CPP) $(c_flags)   -o $@ $<
+quiet_cmd_cpp_i_c = CPP $(quiet_modtag) $@
+cmd_cpp_i_c       = $(CPP) $(c_flags) -o $@ $<
 
 $(obj)/%.i: $(src)/%.c FORCE
-	$(call if_changed_dep,cc_i_c)
+	$(call if_changed_dep,cpp_i_c)
 
-cmd_gensymtypes =                                                           \
+# These mirror gensymtypes_S and co below, keep them in synch.
+cmd_gensymtypes_c =                                                         \
     $(CPP) -D__GENKSYMS__ $(c_flags) $< |                                   \
     $(GENKSYMS) $(if $(1), -T $(2))                                         \
-     $(patsubst y,-s _,$(CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX))             \
+     $(patsubst y,-R,$(CONFIG_MODULE_REL_CRCS))                             \
      $(if $(KBUILD_PRESERVE),-p)                                            \
      -r $(firstword $(wildcard $(2:.symtypes=.symref) /dev/null))
 
 quiet_cmd_cc_symtypes_c = SYM $(quiet_modtag) $@
 cmd_cc_symtypes_c =                                                         \
     set -e;                                                                 \
-    $(call cmd_gensymtypes,true,$@) >/dev/null;                             \
+    $(call cmd_gensymtypes_c,true,$@) >/dev/null;                           \
     test -s $@ || rm -f $@
 
 $(obj)/%.symtypes : $(src)/%.c FORCE
 	$(call cmd,cc_symtypes_c)
+
+# LLVM assembly
+# Generate .ll files from .c
+quiet_cmd_cc_ll_c = CC $(quiet_modtag)  $@
+      cmd_cc_ll_c = $(CC) $(c_flags) -emit-llvm -S -o $@ $<
+
+$(obj)/%.ll: $(src)/%.c FORCE
+	$(call if_changed_dep,cc_ll_c)
 
 # C (.c) files
 # The C file is compiled and updated dependency information is generated.
@@ -197,12 +184,13 @@ else
 #   the actual value of the checksum generated by genksyms
 
 cmd_cc_o_c = $(CC) $(c_flags) -c -o $(@D)/.tmp_$(@F) $<
-cmd_modversions =								\
+
+cmd_modversions_c =								\
 	if $(OBJDUMP) -h $(@D)/.tmp_$(@F) | grep -q __ksymtab; then		\
-		$(call cmd_gensymtypes,$(KBUILD_SYMTYPES),$(@:.o=.symtypes))	\
+		$(call cmd_gensymtypes_c,$(KBUILD_SYMTYPES),$(@:.o=.symtypes))	\
 		    > $(@D)/.tmp_$(@F:.o=.ver);					\
 										\
-		$(LD) $(LDFLAGS) -r -o $@ $(@D)/.tmp_$(@F) 			\
+		$(LD) $(KBUILD_LDFLAGS) -r -o $@ $(@D)/.tmp_$(@F) 		\
 			-T $(@D)/.tmp_$(@F:.o=.ver);				\
 		rm -f $(@D)/.tmp_$(@F) $(@D)/.tmp_$(@F:.o=.ver);		\
 	else									\
@@ -211,14 +199,16 @@ cmd_modversions =								\
 endif
 
 ifdef CONFIG_FTRACE_MCOUNT_RECORD
+ifndef CC_USING_RECORD_MCOUNT
+# compiler will not generate __mcount_loc use recordmcount or recordmcount.pl
 ifdef BUILD_C_RECORDMCOUNT
 ifeq ("$(origin RECORDMCOUNT_WARN)", "command line")
   RECORDMCOUNT_FLAGS = -w
 endif
 # Due to recursion, we must skip empty.o.
 # The empty.o file is created in the make process in order to determine
-#  the target endianness and word size. It is made before all other C
-#  files, including recordmcount.
+# the target endianness and word size. It is made before all other C
+# files, including recordmcount.
 sub_cmd_record_mcount =					\
 	if [ $(@) != "scripts/mod/empty.o" ]; then	\
 		$(objtree)/scripts/recordmcount $(RECORDMCOUNT_FLAGS) "$(@)";	\
@@ -229,41 +219,97 @@ else
 sub_cmd_record_mcount = set -e ; perl $(srctree)/scripts/recordmcount.pl "$(ARCH)" \
 	"$(if $(CONFIG_CPU_BIG_ENDIAN),big,little)" \
 	"$(if $(CONFIG_64BIT),64,32)" \
-	"$(OBJDUMP)" "$(OBJCOPY)" "$(CC) $(KBUILD_CFLAGS)" \
-	"$(LD)" "$(NM)" "$(RM)" "$(MV)" \
+	"$(OBJDUMP)" "$(OBJCOPY)" "$(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS)" \
+	"$(LD) $(KBUILD_LDFLAGS)" "$(NM)" "$(RM)" "$(MV)" \
 	"$(if $(part-of-module),1,0)" "$(@)";
 recordmcount_source := $(srctree)/scripts/recordmcount.pl
-endif
+endif # BUILD_C_RECORDMCOUNT
 cmd_record_mcount =						\
 	if [ "$(findstring $(CC_FLAGS_FTRACE),$(_c_flags))" =	\
 	     "$(CC_FLAGS_FTRACE)" ]; then			\
 		$(sub_cmd_record_mcount)			\
 	fi;
+endif # CC_USING_RECORD_MCOUNT
+endif # CONFIG_FTRACE_MCOUNT_RECORD
+
+ifdef CONFIG_STACK_VALIDATION
+ifneq ($(SKIP_STACK_VALIDATION),1)
+
+__objtool_obj := $(objtree)/tools/objtool/objtool
+
+objtool_args = $(if $(CONFIG_UNWINDER_ORC),orc generate,check)
+
+objtool_args += $(if $(part-of-module), --module,)
+
+ifndef CONFIG_FRAME_POINTER
+objtool_args += --no-fp
 endif
+ifdef CONFIG_GCOV_KERNEL
+objtool_args += --no-unreachable
+endif
+ifdef CONFIG_RETPOLINE
+  objtool_args += --retpoline
+endif
+
+
+ifdef CONFIG_MODVERSIONS
+objtool_o = $(@D)/.tmp_$(@F)
+else
+objtool_o = $(@)
+endif
+
+# 'OBJECT_FILES_NON_STANDARD := y': skip objtool checking for a directory
+# 'OBJECT_FILES_NON_STANDARD_foo.o := 'y': skip objtool checking for a file
+# 'OBJECT_FILES_NON_STANDARD_foo.o := 'n': override directory skip for a file
+cmd_objtool = $(if $(patsubst y%,, \
+	$(OBJECT_FILES_NON_STANDARD_$(basetarget).o)$(OBJECT_FILES_NON_STANDARD)n), \
+	$(__objtool_obj) $(objtool_args) "$(objtool_o)";)
+objtool_obj = $(if $(patsubst y%,, \
+	$(OBJECT_FILES_NON_STANDARD_$(basetarget).o)$(OBJECT_FILES_NON_STANDARD)n), \
+	$(__objtool_obj))
+
+endif # SKIP_STACK_VALIDATION
+endif # CONFIG_STACK_VALIDATION
+
+# Rebuild all objects when objtool changes, or is enabled/disabled.
+objtool_dep = $(objtool_obj)					\
+	      $(wildcard include/config/orc/unwinder.h		\
+			 include/config/stack/validation.h)
 
 define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
-	$(call echo-cmd,cc_o_c) $(cmd_cc_o_c);				  \
-	$(cmd_modversions)						  \
-	$(call echo-cmd,record_mcount)					  \
-	$(cmd_record_mcount)						  \
-	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,cc_o_c)' >    \
-	                                              $(dot-target).tmp;  \
-	rm -f $(depfile);						  \
-	mv -f $(dot-target).tmp $(dot-target).cmd
+	$(call cmd_and_fixdep,cc_o_c)					  \
+	$(cmd_checkdoc)							  \
+	$(call echo-cmd,objtool) $(cmd_objtool)				  \
+	$(cmd_modversions_c)						  \
+	$(call echo-cmd,record_mcount) $(cmd_record_mcount)
 endef
 
+define rule_as_o_S
+	$(call cmd_and_fixdep,as_o_S)					  \
+	$(call echo-cmd,objtool) $(cmd_objtool)				  \
+	$(cmd_modversions_S)
+endef
+
+# List module undefined symbols (or empty line if not enabled)
+ifdef CONFIG_TRIM_UNUSED_KSYMS
+cmd_undef_syms = $(NM) $@ | sed -n 's/^  *U //p' | xargs echo
+else
+cmd_undef_syms = echo
+endif
+
 # Built-in and composite module parts
-$(obj)/%.o: $(src)/%.c $(recordmcount_source) FORCE
+$(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_dep) FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 
 # Single-part modules are special since we need to mark them in $(MODVERDIR)
 
-$(single-used-m): $(obj)/%.o: $(src)/%.c $(recordmcount_source) FORCE
+$(single-used-m): $(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_dep) FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
-	@{ echo $(@:.o=.ko); echo $@; } > $(MODVERDIR)/$(@F:.o=.mod)
+	@{ echo $(@:.o=.ko); echo $@; \
+	   $(cmd_undef_syms); } > $(MODVERDIR)/$(@F:.o=.mod)
 
 quiet_cmd_cc_lst_c = MKLST   $@
       cmd_cc_lst_c = $(CC) $(c_flags) -g -c -o $*.o $< && \
@@ -278,28 +324,91 @@ $(obj)/%.lst: $(src)/%.c FORCE
 
 modkern_aflags := $(KBUILD_AFLAGS_KERNEL) $(AFLAGS_KERNEL)
 
-$(real-objs-m)      : modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
-$(real-objs-m:.o=.s): modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
+$(real-obj-m)      : modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
+$(real-obj-m:.o=.s): modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
 
-quiet_cmd_as_s_S = CPP $(quiet_modtag) $@
-cmd_as_s_S       = $(CPP) $(a_flags)   -o $@ $<
+# .S file exports must have their C prototypes defined in asm/asm-prototypes.h
+# or a file that it includes, in order to get versioned symbols. We build a
+# dummy C file that includes asm-prototypes and the EXPORT_SYMBOL lines from
+# the .S file (with trailing ';'), and run genksyms on that, to extract vers.
+#
+# This is convoluted. The .S file must first be preprocessed to run guards and
+# expand names, then the resulting exports must be constructed into plain
+# EXPORT_SYMBOL(symbol); to build our dummy C file, and that gets preprocessed
+# to make the genksyms input.
+#
+# These mirror gensymtypes_c and co above, keep them in synch.
+cmd_gensymtypes_S =                                                         \
+    (echo "\#include <linux/kernel.h>" ;                                    \
+     echo "\#include <asm/asm-prototypes.h>" ;                              \
+    $(CPP) $(a_flags) $< |                                                  \
+     grep "\<___EXPORT_SYMBOL\>" |                                          \
+     sed 's/.*___EXPORT_SYMBOL[[:space:]]*\([a-zA-Z0-9_]*\)[[:space:]]*,.*/EXPORT_SYMBOL(\1);/' ) | \
+    $(CPP) -D__GENKSYMS__ $(c_flags) -xc - |                                \
+    $(GENKSYMS) $(if $(1), -T $(2))                                         \
+     $(patsubst y,-R,$(CONFIG_MODULE_REL_CRCS))                             \
+     $(if $(KBUILD_PRESERVE),-p)                                            \
+     -r $(firstword $(wildcard $(2:.symtypes=.symref) /dev/null))
+
+quiet_cmd_cc_symtypes_S = SYM $(quiet_modtag) $@
+cmd_cc_symtypes_S =                                                         \
+    set -e;                                                                 \
+    $(call cmd_gensymtypes_S,true,$@) >/dev/null;                           \
+    test -s $@ || rm -f $@
+
+$(obj)/%.symtypes : $(src)/%.S FORCE
+	$(call cmd,cc_symtypes_S)
+
+
+quiet_cmd_cpp_s_S = CPP $(quiet_modtag) $@
+cmd_cpp_s_S       = $(CPP) $(a_flags) -o $@ $<
 
 $(obj)/%.s: $(src)/%.S FORCE
-	$(call if_changed_dep,as_s_S)
+	$(call if_changed_dep,cpp_s_S)
 
 quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
-cmd_as_o_S       = $(CC) $(a_flags) -c -o $@ $<
 
-$(obj)/%.o: $(src)/%.S FORCE
-	$(call if_changed_dep,as_o_S)
+ifndef CONFIG_MODVERSIONS
+cmd_as_o_S = $(CC) $(a_flags) -c -o $@ $<
 
-targets += $(real-objs-y) $(real-objs-m) $(lib-y)
+else
+
+ASM_PROTOTYPES := $(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/asm-prototypes.h)
+
+ifeq ($(ASM_PROTOTYPES),)
+cmd_as_o_S = $(CC) $(a_flags) -c -o $@ $<
+
+else
+
+# versioning matches the C process described above, with difference that
+# we parse asm-prototypes.h C header to get function definitions.
+
+cmd_as_o_S = $(CC) $(a_flags) -c -o $(@D)/.tmp_$(@F) $<
+
+cmd_modversions_S =								\
+	if $(OBJDUMP) -h $(@D)/.tmp_$(@F) | grep -q __ksymtab; then		\
+		$(call cmd_gensymtypes_S,$(KBUILD_SYMTYPES),$(@:.o=.symtypes))	\
+		    > $(@D)/.tmp_$(@F:.o=.ver);					\
+										\
+		$(LD) $(KBUILD_LDFLAGS) -r -o $@ $(@D)/.tmp_$(@F) 		\
+			-T $(@D)/.tmp_$(@F:.o=.ver);				\
+		rm -f $(@D)/.tmp_$(@F) $(@D)/.tmp_$(@F:.o=.ver);		\
+	else									\
+		mv -f $(@D)/.tmp_$(@F) $@;					\
+	fi;
+endif
+endif
+
+$(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
+	$(call if_changed_rule,as_o_S)
+
+targets += $(filter-out $(subdir-obj-y), $(real-obj-y)) $(real-obj-m) $(lib-y)
 targets += $(extra-y) $(MAKECMDGOALS) $(always)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------
 quiet_cmd_cpp_lds_S = LDS     $@
-      cmd_cpp_lds_S = $(CPP) $(cpp_flags) -P -C -U$(ARCH) \
+      cmd_cpp_lds_S = $(CPP) $(cpp_flags) -P -U$(ARCH) \
 	                     -D__ASSEMBLY__ -DLINKER_SCRIPT -o $@ $<
 
 $(obj)/%.lds: $(src)/%.lds.S FORCE
@@ -311,9 +420,7 @@ quiet_cmd_asn1_compiler = ASN.1   $@
       cmd_asn1_compiler = $(objtree)/scripts/asn1_compiler $< \
 				$(subst .h,.c,$@) $(subst .c,.h,$@)
 
-.PRECIOUS: $(objtree)/$(obj)/%-asn1.c $(objtree)/$(obj)/%-asn1.h
-
-$(obj)/%-asn1.c $(obj)/%-asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
+$(obj)/%.asn1.c $(obj)/%.asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
 	$(call cmd,asn1_compiler)
 
 # Build the compiled-in targets
@@ -326,15 +433,17 @@ $(sort $(subdir-obj-y)): $(subdir-ym) ;
 # Rule to compile a set of .o files into one .o file
 #
 ifdef builtin-target
-quiet_cmd_link_o_target = LD      $@
-# If the list of objects to link is empty, just create an empty built-in.o
-cmd_link_o_target = $(if $(strip $(obj-y)),\
-		      $(LD) $(ld_flags) -r -o $@ $(filter $(obj-y), $^) \
-		      $(cmd_secanalysis),\
-		      rm -f $@; $(AR) rcs$(KBUILD_ARFLAGS) $@)
 
-$(builtin-target): $(obj-y) FORCE
-	$(call if_changed,link_o_target)
+# built-in.a archives are made with no symbol table or index which
+# makes them small and fast, but unable to be used by the linker.
+# scripts/link-vmlinux.sh builds an aggregate built-in.a with a symbol
+# table and index.
+quiet_cmd_ar_builtin = AR      $@
+      cmd_ar_builtin = rm -f $@; \
+                     $(AR) rcSTP$(KBUILD_ARFLAGS) $@ $(filter $(real-obj-y), $^)
+
+$(builtin-target): $(real-obj-y) FORCE
+	$(call if_changed,ar_builtin)
 
 targets += $(builtin-target)
 endif # builtin-target
@@ -357,12 +466,31 @@ $(modorder-target): $(subdir-ym) FORCE
 #
 ifdef lib-target
 quiet_cmd_link_l_target = AR      $@
-cmd_link_l_target = rm -f $@; $(AR) rcs$(KBUILD_ARFLAGS) $@ $(lib-y)
+
+# lib target archives do get a symbol table and index
+cmd_link_l_target = rm -f $@; $(AR) rcsTP$(KBUILD_ARFLAGS) $@ $(lib-y)
 
 $(lib-target): $(lib-y) FORCE
 	$(call if_changed,link_l_target)
 
 targets += $(lib-target)
+
+dummy-object = $(obj)/.lib_exports.o
+ksyms-lds = $(dot-target).lds
+
+quiet_cmd_export_list = EXPORTS $@
+cmd_export_list = $(OBJDUMP) -h $< | \
+	sed -ne '/___ksymtab/s/.*+\([^ ]*\).*/EXTERN(\1)/p' >$(ksyms-lds);\
+	rm -f $(dummy-object);\
+	echo | $(CC) $(a_flags) -c -o $(dummy-object) -x assembler -;\
+	$(LD) $(ld_flags) -r -o $@ -T $(ksyms-lds) $(dummy-object);\
+	rm $(dummy-object) $(ksyms-lds)
+
+$(obj)/lib-ksyms.o: $(lib-target) FORCE
+	$(call if_changed,export_list)
+
+targets += $(obj)/lib-ksyms.o
+
 endif
 
 #
@@ -372,35 +500,48 @@ endif
 #    <composite-object>-objs := <list of .o files>
 #  or
 #    <composite-object>-y    := <list of .o files>
+#  or
+#    <composite-object>-m    := <list of .o files>
+#  The -m syntax only works if <composite object> is a module
 link_multi_deps =                     \
 $(filter $(addprefix $(obj)/,         \
 $($(subst $(obj)/,,$(@:.o=-objs)))    \
-$($(subst $(obj)/,,$(@:.o=-y)))), $^)
-
-quiet_cmd_link_multi-y = LD      $@
-cmd_link_multi-y = $(LD) $(ld_flags) -r -o $@ $(link_multi_deps) $(cmd_secanalysis)
+$($(subst $(obj)/,,$(@:.o=-y)))       \
+$($(subst $(obj)/,,$(@:.o=-m)))), $^)
 
 quiet_cmd_link_multi-m = LD [M]  $@
-cmd_link_multi-m = $(cmd_link_multi-y)
-
-$(multi-used-y): FORCE
-	$(call if_changed,link_multi-y)
-$(call multi_depend, $(multi-used-y), .o, -objs -y)
+cmd_link_multi-m = $(LD) $(ld_flags) -r -o $@ $(link_multi_deps) $(cmd_secanalysis)
 
 $(multi-used-m): FORCE
 	$(call if_changed,link_multi-m)
-	@{ echo $(@:.o=.ko); echo $(link_multi_deps); } > $(MODVERDIR)/$(@F:.o=.mod)
-$(call multi_depend, $(multi-used-m), .o, -objs -y)
+	@{ echo $(@:.o=.ko); echo $(link_multi_deps); \
+	   $(cmd_undef_syms); } > $(MODVERDIR)/$(@F:.o=.mod)
+$(call multi_depend, $(multi-used-m), .o, -objs -y -m)
 
-targets += $(multi-used-y) $(multi-used-m)
+targets += $(multi-used-m)
+targets := $(filter-out $(PHONY), $(targets))
 
+# Add intermediate targets:
+# When building objects with specific suffix patterns, add intermediate
+# targets that the final targets are derived from.
+intermediate_targets = $(foreach sfx, $(2), \
+				$(patsubst %$(strip $(1)),%$(sfx), \
+					$(filter %$(strip $(1)), $(targets))))
+# %.asn1.o <- %.asn1.[ch] <- %.asn1
+# %.dtb.o <- %.dtb.S <- %.dtb <- %.dts
+# %.lex.o <- %.lex.c <- %.l
+# %.tab.o <- %.tab.[ch] <- %.y
+targets += $(call intermediate_targets, .asn1.o, .asn1.c .asn1.h) \
+	   $(call intermediate_targets, .dtb.o, .dtb.S .dtb) \
+	   $(call intermediate_targets, .lex.o, .lex.c) \
+	   $(call intermediate_targets, .tab.o, .tab.c .tab.h)
 
 # Descending
 # ---------------------------------------------------------------------------
 
 PHONY += $(subdir-ym)
 $(subdir-ym):
-	$(Q)$(MAKE) $(build)=$@
+	$(Q)$(MAKE) $(build)=$@ need-builtin=$(if $(findstring $@,$(subdir-obj-y)),1)
 
 # Add FORCE to the prequisites of a target to force it to be always rebuilt.
 # ---------------------------------------------------------------------------
@@ -414,14 +555,25 @@ FORCE:
 # optimization, we don't need to read them if the target does not
 # exist, we will rebuild anyway in that case.
 
-targets := $(wildcard $(sort $(targets)))
-cmd_files := $(wildcard $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
+cmd_files := $(wildcard $(foreach f,$(sort $(targets)),$(dir $(f)).$(notdir $(f)).cmd))
 
 ifneq ($(cmd_files),)
   include $(cmd_files)
 endif
 
-# Declare the contents of the .PHONY variable as phony.  We keep that
-# information in a variable se we can use it in if_changed and friends.
+ifneq ($(KBUILD_SRC),)
+# Create directories for object files if they do not exist
+obj-dirs := $(sort $(obj) $(patsubst %/,%, $(dir $(targets))))
+# If cmd_files exist, their directories apparently exist.  Skip mkdir.
+exist-dirs := $(sort $(patsubst %/,%, $(dir $(cmd_files))))
+obj-dirs := $(strip $(filter-out $(exist-dirs), $(obj-dirs)))
+ifneq ($(obj-dirs),)
+$(shell mkdir -p $(obj-dirs))
+endif
+endif
+
+# Some files contained in $(targets) are intermediate artifacts.
+# We never want them to be removed automatically.
+.SECONDARY: $(targets)
 
 .PHONY: $(PHONY)

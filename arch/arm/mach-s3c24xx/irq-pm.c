@@ -1,15 +1,10 @@
-/* linux/arch/arm/plat-s3c24xx/irq-om.c
- *
- * Copyright (c) 2003-2004 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *	http://armlinux.simtec.co.uk/
- *
- * S3C24XX - IRQ PM code
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2003-2004 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
+//	http://armlinux.simtec.co.uk/
+//
+// S3C24XX - IRQ PM code
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -25,18 +20,9 @@
 
 #include <mach/regs-irq.h>
 #include <mach/regs-gpio.h>
+#include <mach/pm-core.h>
 
 #include <asm/irq.h>
-
-/* state for IRQs over sleep */
-
-/* default is to allow for EINT0..EINT15, and IRQ_RTC as wakeup sources
- *
- * set bit to 1 in allow bitfield to enable the wakeup settings on it
-*/
-
-unsigned long s3c_irqwake_intallow	= 1L << 30 | 0xfL;
-unsigned long s3c_irqwake_eintallow	= 0x0000fff0L;
 
 int s3c_irq_wake(struct irq_data *data, unsigned int state)
 {

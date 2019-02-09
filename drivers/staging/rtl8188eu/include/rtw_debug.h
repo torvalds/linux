@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *
  ******************************************************************************/
 #ifndef __RTW_DEBUG_H__
@@ -75,7 +62,7 @@ extern u32 GlobalDebugLevel;
 #define DBG_88E_LEVEL(_level, fmt, arg...)				\
 	do {								\
 		if (_level <= GlobalDebugLevel)				\
-			pr_info(DRIVER_PREFIX"ERROR " fmt, ##arg);	\
+			pr_info(DRIVER_PREFIX fmt, ##arg);	\
 	} while (0)
 
 #define DBG_88E(...)							\
@@ -111,9 +98,9 @@ extern u32 GlobalDebugLevel;
 					 (((__i + 1) % 4) == 0) ?	\
 					 "  " : " ");	\
 				if (((__i + 1) % 16) == 0)		\
-					printk("\n");			\
+					pr_cont("\n");			\
 			}						\
-			printk("\n");					\
+			pr_cont("\n");					\
 		}							\
 	} while (0)
 
@@ -134,133 +121,12 @@ int proc_get_read_reg(char *page, char **start,
 int proc_set_read_reg(struct file *file, const char __user *buffer,
 		      unsigned long count, void *data);
 
-int proc_get_fwstate(char *page, char **start,
-		     off_t offset, int count,
-		     int *eof, void *data);
-int proc_get_sec_info(char *page, char **start,
-		      off_t offset, int count,
-		      int *eof, void *data);
-int proc_get_mlmext_state(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-int proc_get_qos_option(char *page, char **start,
-			off_t offset, int count,
-			int *eof, void *data);
-int proc_get_ht_option(char *page, char **start,
-		       off_t offset, int count,
-		       int *eof, void *data);
-int proc_get_rf_info(char *page, char **start,
-		     off_t offset, int count,
-		     int *eof, void *data);
-int proc_get_ap_info(char *page, char **start,
-		     off_t offset, int count,
-		     int *eof, void *data);
-
 int proc_get_adapter_state(char *page, char **start,
 			   off_t offset, int count,
 			   int *eof, void *data);
 
-int proc_get_trx_info(char *page, char **start,
-		      off_t offset, int count,
-		      int *eof, void *data);
-
-int proc_get_mac_reg_dump1(char *page, char **start,
-			   off_t offset, int count,
-			   int *eof, void *data);
-
-int proc_get_mac_reg_dump2(char *page, char **start,
-			   off_t offset, int count,
-			   int *eof, void *data);
-
-int proc_get_mac_reg_dump3(char *page, char **start,
-			   off_t offset, int count,
-			   int *eof, void *data);
-
-int proc_get_bb_reg_dump1(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-int proc_get_bb_reg_dump2(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-int proc_get_bb_reg_dump3(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-int proc_get_rf_reg_dump1(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-int proc_get_rf_reg_dump2(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-int proc_get_rf_reg_dump3(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-int proc_get_rf_reg_dump4(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-#ifdef CONFIG_88EU_AP_MODE
-
-int proc_get_all_sta_info(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-#endif
-
 int proc_get_best_channel(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
-
-int proc_get_rx_signal(char *page, char **start,
-		       off_t offset, int count,
-		       int *eof, void *data);
-
-int proc_set_rx_signal(struct file *file, const char __user *buffer,
-		       unsigned long count, void *data);
-
-int proc_get_ht_enable(char *page, char **start,
-		       off_t offset, int count,
-		       int *eof, void *data);
-
-int proc_set_ht_enable(struct file *file, const char __user *buffer,
-		       unsigned long count, void *data);
-
-int proc_get_cbw40_enable(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-int proc_set_cbw40_enable(struct file *file, const char __user *buffer,
-			  unsigned long count, void *data);
-
-int proc_get_ampdu_enable(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data);
-
-int proc_set_ampdu_enable(struct file *file, const char __user *buffer,
-			  unsigned long count, void *data);
-
-int proc_get_rx_stbc(char *page, char **start,
-		     off_t offset, int count,
-		     int *eof, void *data);
-
-int proc_set_rx_stbc(struct file *file, const char __user *buffer,
-		     unsigned long count, void *data);
-
-int proc_get_two_path_rssi(char *page, char **start,
-			   off_t offset, int count,
-			   int *eof, void *data);
-
-int proc_get_rssi_disp(char *page, char **start,
-		       off_t offset, int count,
-		       int *eof, void *data);
-
-int proc_set_rssi_disp(struct file *file, const char __user *buffer,
-		       unsigned long count, void *data);
 
 #endif	/* __RTW_DEBUG_H__ */

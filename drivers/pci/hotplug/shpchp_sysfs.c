@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Compaq Hot Plug Controller Driver
  *
@@ -6,21 +7,6 @@
  * Copyright (c) 2001 IBM Corp.
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <greg@kroah.com>
  *
@@ -35,7 +21,7 @@
 
 /* A few routines that create sysfs entries for the hot plug controller */
 
-static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_ctrl(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev;
 	char *out = buf;
@@ -43,7 +29,7 @@ static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, cha
 	struct resource *res;
 	struct pci_bus *bus;
 
-	pdev = container_of (dev, struct pci_dev, dev);
+	pdev = to_pci_dev(dev);
 	bus = pdev->subordinate;
 
 	out += sprintf(buf, "Free resources: memory\n");
@@ -83,11 +69,11 @@ static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, cha
 
 	return out - buf;
 }
-static DEVICE_ATTR (ctrl, S_IRUGO, show_ctrl, NULL);
+static DEVICE_ATTR(ctrl, S_IRUGO, show_ctrl, NULL);
 
-int shpchp_create_ctrl_files (struct controller *ctrl)
+int shpchp_create_ctrl_files(struct controller *ctrl)
 {
-	return device_create_file (&ctrl->pci_dev->dev, &dev_attr_ctrl);
+	return device_create_file(&ctrl->pci_dev->dev, &dev_attr_ctrl);
 }
 
 void shpchp_remove_ctrl_files(struct controller *ctrl)

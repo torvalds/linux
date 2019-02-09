@@ -143,7 +143,7 @@ hash_netnet4_kadt(struct ip_set *set, const struct sk_buff *skb,
 		  const struct xt_action_param *par,
 		  enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
-	const struct hash_netnet *h = set->data;
+	const struct hash_netnet4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netnet4_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
@@ -165,12 +165,12 @@ static int
 hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		  enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
-	const struct hash_netnet *h = set->data;
+	const struct hash_netnet4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netnet4_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
-	u32 ip = 0, ip_to = 0, last;
-	u32 ip2 = 0, ip2_from = 0, ip2_to = 0, last2;
+	u32 ip = 0, ip_to = 0;
+	u32 ip2 = 0, ip2_from = 0, ip2_to = 0;
 	int ret;
 
 	if (tb[IPSET_ATTR_LINENO])
@@ -247,27 +247,27 @@ hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		ip_set_mask_from_to(ip2_from, ip2_to, e.cidr[1]);
 	}
 
-	if (retried)
+	if (retried) {
 		ip = ntohl(h->next.ip[0]);
+		ip2 = ntohl(h->next.ip[1]);
+	} else {
+		ip2 = ip2_from;
+	}
 
-	while (!after(ip, ip_to)) {
+	do {
 		e.ip[0] = htonl(ip);
-		last = ip_set_range_to_cidr(ip, ip_to, &e.cidr[0]);
-		ip2 = (retried &&
-		       ip == ntohl(h->next.ip[0])) ? ntohl(h->next.ip[1])
-						   : ip2_from;
-		while (!after(ip2, ip2_to)) {
+		ip = ip_set_range_to_cidr(ip, ip_to, &e.cidr[0]);
+		do {
 			e.ip[1] = htonl(ip2);
-			last2 = ip_set_range_to_cidr(ip2, ip2_to, &e.cidr[1]);
+			ip2 = ip_set_range_to_cidr(ip2, ip2_to, &e.cidr[1]);
 			ret = adtfn(set, &e, &ext, &ext, flags);
 			if (ret && !ip_set_eexist(ret, flags))
 				return ret;
 
 			ret = 0;
-			ip2 = last2 + 1;
-		}
-		ip = last + 1;
-	}
+		} while (ip2++ < ip2_to);
+		ip2 = ip2_from;
+	} while (ip++ < ip_to);
 	return ret;
 }
 
@@ -352,7 +352,7 @@ nla_put_failure:
 }
 
 static inline void
-hash_netnet6_data_next(struct hash_netnet4_elem *next,
+hash_netnet6_data_next(struct hash_netnet6_elem *next,
 		       const struct hash_netnet6_elem *d)
 {
 }
@@ -377,7 +377,7 @@ hash_netnet6_kadt(struct ip_set *set, const struct sk_buff *skb,
 		  const struct xt_action_param *par,
 		  enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
-	const struct hash_netnet *h = set->data;
+	const struct hash_netnet6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netnet6_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);

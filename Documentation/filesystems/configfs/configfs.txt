@@ -51,15 +51,27 @@ configfs tree is always there, whether mounted on /config or not.
 An item is created via mkdir(2).  The item's attributes will also
 appear at this time.  readdir(3) can determine what the attributes are,
 read(2) can query their default values, and write(2) can store new
-values.  Like sysfs, attributes should be ASCII text files, preferably
-with only one value per file.  The same efficiency caveats from sysfs
-apply.  Don't mix more than one attribute in one attribute file.
+values.  Don't mix more than one attribute in one attribute file.
 
-Like sysfs, configfs expects write(2) to store the entire buffer at
-once.  When writing to configfs attributes, userspace processes should
-first read the entire file, modify the portions they wish to change, and
-then write the entire buffer back.  Attribute files have a maximum size
-of one page (PAGE_SIZE, 4096 on i386).
+There are two types of configfs attributes:
+
+* Normal attributes, which similar to sysfs attributes, are small ASCII text
+files, with a maximum size of one page (PAGE_SIZE, 4096 on i386).  Preferably
+only one value per file should be used, and the same caveats from sysfs apply.
+Configfs expects write(2) to store the entire buffer at once.  When writing to
+normal configfs attributes, userspace processes should first read the entire
+file, modify the portions they wish to change, and then write the entire
+buffer back.
+
+* Binary attributes, which are somewhat similar to sysfs binary attributes,
+but with a few slight changes to semantics.  The PAGE_SIZE limitation does not
+apply, but the whole binary item must fit in single kernel vmalloc'ed buffer.
+The write(2) calls from user space are buffered, and the attributes'
+write_bin_attribute method will be invoked on the final close, therefore it is
+imperative for user-space to check the return code of close(2) in order to
+verify that the operation finished successfully.
+To avoid a malicious user OOMing the kernel, there's a per-binary attribute
+maximum buffer value.
 
 When an item needs to be destroyed, remove it with rmdir(2).  An
 item cannot be destroyed if any other item has a link to it (via
@@ -162,7 +174,7 @@ among other things.  For that, it needs a type.
 		void (*release)(struct config_item *);
 		int (*allow_link)(struct config_item *src,
 				  struct config_item *target);
-		int (*drop_link)(struct config_item *src,
+		void (*drop_link)(struct config_item *src,
 				 struct config_item *target);
 	};
 
@@ -171,6 +183,7 @@ among other things.  For that, it needs a type.
 		struct configfs_item_operations         *ct_item_ops;
 		struct configfs_group_operations        *ct_group_ops;
 		struct configfs_attribute               **ct_attrs;
+		struct configfs_bin_attribute		**ct_bin_attrs;
 	};
 
 The most basic function of a config_item_type is to define what
@@ -201,6 +214,32 @@ be called whenever userspace asks for a read(2) on the attribute.  If an
 attribute is writable and provides a ->store  method, that method will be
 be called whenever userspace asks for a write(2) on the attribute.
 
+[struct configfs_bin_attribute]
+
+	struct configfs_attribute {
+		struct configfs_attribute	cb_attr;
+		void				*cb_private;
+		size_t				cb_max_size;
+	};
+
+The binary attribute is used when the one needs to use binary blob to
+appear as the contents of a file in the item's configfs directory.
+To do so add the binary attribute to the NULL-terminated array
+config_item_type->ct_bin_attrs, and the item appears in configfs, the
+attribute file will appear with the configfs_bin_attribute->cb_attr.ca_name
+filename.  configfs_bin_attribute->cb_attr.ca_mode specifies the file
+permissions.
+The cb_private member is provided for use by the driver, while the
+cb_max_size member specifies the maximum amount of vmalloc buffer
+to be used.
+
+If binary attribute is readable and the config_item provides a
+ct_item_ops->read_bin_attribute() method, that method will be called
+whenever userspace asks for a read(2) on the attribute.  The converse
+will happen for write(2). The reads/writes are bufferred so only a
+single read/write will occur; the attributes' need not concern itself
+with it.
+
 [struct config_group]
 
 A config_item cannot live in a vacuum.  The only way one can be created
@@ -211,7 +250,8 @@ child item.
 		struct config_item		cg_item;
 		struct list_head		cg_children;
 		struct configfs_subsystem 	*cg_subsys;
-		struct config_group		**default_groups;
+		struct list_head		default_groups;
+		struct list_head		group_entry;
 	};
 
 	void config_group_init(struct config_group *group);
@@ -381,15 +421,15 @@ These automatic subgroups, or default groups, do not preclude other
 children of the parent group.  If ct_group_ops->make_group() exists,
 other child groups can be created on the parent group directly.
 
-A configfs subsystem specifies default groups by filling in the
-NULL-terminated array default_groups on the config_group structure.
-Each group in that array is populated in the configfs tree at the same
+A configfs subsystem specifies default groups by adding them using the
+configfs_add_default_group() function to the parent config_group
+structure.  Each added group is populated in the configfs tree at the same
 time as the parent group.  Similarly, they are removed at the same time
 as the parent.  No extra notification is provided.  When a ->drop_item()
 method call notifies the subsystem the parent group is going away, it
 also means every default group child associated with that parent group.
 
-As a consequence of this, default_groups cannot be removed directly via
+As a consequence of this, default groups cannot be removed directly via
 rmdir(2).  They also are not considered when rmdir(2) on the parent
 group is checking for children.
 

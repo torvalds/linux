@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* atmioc.h - ranges for ATM-related ioctl numbers */
  
 /* Written 1995-1999 by Werner Almesberger, EPFL LRC/ICA */

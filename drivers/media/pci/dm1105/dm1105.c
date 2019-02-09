@@ -13,10 +13,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/i2c.h>
@@ -31,12 +27,12 @@
 #include <linux/slab.h>
 #include <media/rc-core.h>
 
-#include "demux.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
-#include "dvbdev.h"
+#include <media/demux.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
+#include <media/dvbdev.h>
 #include "dvb-pll.h"
 
 #include "stv0299.h"
@@ -315,8 +311,7 @@ static void dm1105_card_list(struct pci_dev *pci)
 			"dm1105: Updating to the latest version might help\n"
 			"dm1105: as well.\n");
 	}
-	printk(KERN_ERR "Here is a list of valid choices for the card=<n> "
-		   "insmod option:\n");
+	printk(KERN_ERR "Here is a list of valid choices for the card=<n> insmod option:\n");
 	for (i = 0; i < ARRAY_SIZE(dm1105_boards); i++)
 		printk(KERN_ERR "dm1105:    card=%d -> %s\n",
 				i, dm1105_boards[i].name);
@@ -576,7 +571,7 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm dm1105_algo = {
+static const struct i2c_algorithm dm1105_algo = {
 	.master_xfer   = dm1105_i2c_xfer,
 	.functionality = functionality,
 };
@@ -680,7 +675,7 @@ static void dm1105_emit_key(struct work_struct *work)
 	data = (ircom >> 8) & 0x7f;
 
 	/* FIXME: UNKNOWN because we don't generate a full NEC scancode (yet?) */
-	rc_keydown(ir->dev, RC_TYPE_UNKNOWN, data, 0);
+	rc_keydown(ir->dev, RC_PROTO_UNKNOWN, data, 0);
 }
 
 /* work handler */
@@ -744,7 +739,7 @@ static int dm1105_ir_init(struct dm1105_dev *dm1105)
 	struct rc_dev *dev;
 	int err = -ENOMEM;
 
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev)
 		return -ENOMEM;
 
@@ -753,8 +748,7 @@ static int dm1105_ir_init(struct dm1105_dev *dm1105)
 
 	dev->driver_name = MODULE_NAME;
 	dev->map_name = RC_MAP_DM1105_NEC;
-	dev->driver_type = RC_DRIVER_SCANCODE;
-	dev->input_name = "DVB on-card IR receiver";
+	dev->device_name = "DVB on-card IR receiver";
 	dev->input_phys = dm1105->ir.input_phys;
 	dev->input_id.bustype = BUS_PCI;
 	dev->input_id.version = 1;
@@ -821,7 +815,7 @@ static void dm1105_hw_exit(struct dm1105_dev *dev)
 	dm1105_dma_unmap(dev);
 }
 
-static struct stv0299_config sharp_z0194a_config = {
+static const struct stv0299_config sharp_z0194a_config = {
 	.demod_address = 0x68,
 	.inittab = sharp_z0194a_inittab,
 	.mclk = 88000000UL,
@@ -991,6 +985,9 @@ static int dm1105_probe(struct pci_dev *pdev,
 	struct dmx_demux *dmx;
 	int ret = -ENOMEM;
 	int i;
+
+	if (dm1105_devcount >= ARRAY_SIZE(card))
+		return -ENODEV;
 
 	dev = kzalloc(sizeof(struct dm1105_dev), GFP_KERNEL);
 	if (!dev)
@@ -1206,7 +1203,6 @@ static void dm1105_remove(struct pci_dev *pdev)
 	i2c_del_adapter(&dev->i2c_adap);
 
 	dm1105_hw_exit(dev);
-	synchronize_irq(pdev->irq);
 	free_irq(pdev->irq, dev);
 	pci_iounmap(pdev, dev->io_mem);
 	pci_release_regions(pdev);
@@ -1215,7 +1211,7 @@ static void dm1105_remove(struct pci_dev *pdev)
 	kfree(dev);
 }
 
-static struct pci_device_id dm1105_id_table[] = {
+static const struct pci_device_id dm1105_id_table[] = {
 	{
 		.vendor = PCI_VENDOR_ID_TRIGEM,
 		.device = PCI_DEVICE_ID_DM1105,

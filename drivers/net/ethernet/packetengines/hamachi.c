@@ -160,7 +160,7 @@ static int tx_params[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <linux/delay.h>
 #include <linux/bitops.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <asm/unaligned.h>
@@ -413,13 +413,13 @@ that case.
 
 /* The rest of these values should never change. */
 
-static void hamachi_timer(unsigned long data);
+static void hamachi_timer(struct timer_list *t);
 
 enum capability_flags {CanHaveMII=1, };
 static const struct chip_info {
 	u16	vendor_id, device_id, device_id_mask, pad;
 	const char *name;
-	void (*media_timer)(unsigned long data);
+	void (*media_timer)(struct timer_list *t);
 	int flags;
 } chip_tbl[] = {
 	{0x1318, 0x0911, 0xffff, 0, "Hamachi GNIC-II", hamachi_timer, 0},
@@ -547,7 +547,7 @@ static int mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *dev, int phy_id, int location, int value);
 static int hamachi_open(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static void hamachi_timer(unsigned long data);
+static void hamachi_timer(struct timer_list *t);
 static void hamachi_tx_timeout(struct net_device *dev);
 static void hamachi_init_ring(struct net_device *dev);
 static netdev_tx_t hamachi_start_xmit(struct sk_buff *skb,
@@ -568,7 +568,6 @@ static const struct net_device_ops hamachi_netdev_ops = {
 	.ndo_start_xmit		= hamachi_start_xmit,
 	.ndo_get_stats		= hamachi_get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_tx_timeout		= hamachi_tx_timeout,
@@ -980,10 +979,8 @@ static int hamachi_open(struct net_device *dev)
 			   dev->name, readw(ioaddr + RxStatus), readw(ioaddr + TxStatus));
 	}
 	/* Set the timer to check for link beat. */
-	init_timer(&hmp->timer);
+	timer_setup(&hmp->timer, hamachi_timer, 0);
 	hmp->timer.expires = RUN_AT((24*HZ)/10);			/* 2.4 sec. */
-	hmp->timer.data = (unsigned long)dev;
-	hmp->timer.function = hamachi_timer;				/* timer handler */
 	add_timer(&hmp->timer);
 
 	return 0;
@@ -1020,10 +1017,10 @@ static inline int hamachi_tx(struct net_device *dev)
 	return 0;
 }
 
-static void hamachi_timer(unsigned long data)
+static void hamachi_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct hamachi_private *hmp = netdev_priv(dev);
+	struct hamachi_private *hmp = from_timer(hmp, t, timer);
+	struct net_device *dev = hmp->mii_if.dev;
 	void __iomem *ioaddr = hmp->base;
 	int next_tick = 10*HZ;
 
@@ -1144,7 +1141,7 @@ static void hamachi_tx_timeout(struct net_device *dev)
 	hmp->rx_ring[RX_RING_SIZE-1].status_n_length |= cpu_to_le32(DescEndRing);
 
 	/* Trigger an immediate transmit demand. */
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
 
 	/* Restart the chip's Tx/Rx processes . */
@@ -1496,8 +1493,8 @@ static int hamachi_rx(struct net_device *dev)
 					hmp->rx_skbuff[entry]->data, pkt_len);
 				skb_put(skb, pkt_len);
 #else
-				memcpy(skb_put(skb, pkt_len), hmp->rx_ring_dma
-					+ entry*sizeof(*desc), pkt_len);
+				skb_put_data(skb, hmp->rx_ring_dma
+					     + entry*sizeof(*desc), pkt_len);
 #endif
 				pci_dma_sync_single_for_device(hmp->pci_dev,
 							       leXX_to_cpu(hmp->rx_ring[entry].addr),
@@ -1812,21 +1809,23 @@ static void hamachi_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *
 	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
-static int hamachi_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int hamachi_get_link_ksettings(struct net_device *dev,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct hamachi_private *np = netdev_priv(dev);
 	spin_lock_irq(&np->lock);
-	mii_ethtool_gset(&np->mii_if, ecmd);
+	mii_ethtool_get_link_ksettings(&np->mii_if, cmd);
 	spin_unlock_irq(&np->lock);
 	return 0;
 }
 
-static int hamachi_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int hamachi_set_link_ksettings(struct net_device *dev,
+				      const struct ethtool_link_ksettings *cmd)
 {
 	struct hamachi_private *np = netdev_priv(dev);
 	int res;
 	spin_lock_irq(&np->lock);
-	res = mii_ethtool_sset(&np->mii_if, ecmd);
+	res = mii_ethtool_set_link_ksettings(&np->mii_if, cmd);
 	spin_unlock_irq(&np->lock);
 	return res;
 }
@@ -1846,10 +1845,10 @@ static u32 hamachi_get_link(struct net_device *dev)
 static const struct ethtool_ops ethtool_ops = {
 	.begin = check_if_running,
 	.get_drvinfo = hamachi_get_drvinfo,
-	.get_settings = hamachi_get_settings,
-	.set_settings = hamachi_set_settings,
 	.nway_reset = hamachi_nway_reset,
 	.get_link = hamachi_get_link,
+	.get_link_ksettings = hamachi_get_link_ksettings,
+	.set_link_ksettings = hamachi_set_link_ksettings,
 };
 
 static const struct ethtool_ops ethtool_ops_no_mii = {

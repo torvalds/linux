@@ -15,37 +15,72 @@
 #ifndef __AA_FILE_H
 #define __AA_FILE_H
 
+#include <linux/spinlock.h>
+
 #include "domain.h"
 #include "match.h"
+#include "perms.h"
 
 struct aa_profile;
 struct path;
 
-/*
- * We use MAY_EXEC, MAY_WRITE, MAY_READ, MAY_APPEND and the following flags
- * for profile permissions
- */
-#define AA_MAY_CREATE                  0x0010
-#define AA_MAY_DELETE                  0x0020
-#define AA_MAY_META_WRITE              0x0040
-#define AA_MAY_META_READ               0x0080
-
-#define AA_MAY_CHMOD                   0x0100
-#define AA_MAY_CHOWN                   0x0200
-#define AA_MAY_LOCK                    0x0400
-#define AA_EXEC_MMAP                   0x0800
-
-#define AA_MAY_LINK			0x1000
-#define AA_LINK_SUBSET			AA_MAY_LOCK	/* overlaid */
-#define AA_MAY_ONEXEC			0x40000000	/* exec allows onexec */
-#define AA_MAY_CHANGE_PROFILE		0x80000000
-#define AA_MAY_CHANGEHAT		0x80000000	/* ctrl auditing only */
+#define mask_mode_t(X) (X & (MAY_EXEC | MAY_WRITE | MAY_READ | MAY_APPEND))
 
 #define AA_AUDIT_FILE_MASK	(MAY_READ | MAY_WRITE | MAY_EXEC | MAY_APPEND |\
 				 AA_MAY_CREATE | AA_MAY_DELETE |	\
-				 AA_MAY_META_READ | AA_MAY_META_WRITE | \
+				 AA_MAY_GETATTR | AA_MAY_SETATTR | \
 				 AA_MAY_CHMOD | AA_MAY_CHOWN | AA_MAY_LOCK | \
 				 AA_EXEC_MMAP | AA_MAY_LINK)
+
+#define file_ctx(X) ((struct aa_file_ctx *)(X)->f_security)
+
+/* struct aa_file_ctx - the AppArmor context the file was opened in
+ * @lock: lock to update the ctx
+ * @label: label currently cached on the ctx
+ * @perms: the permission the file was opened with
+ */
+struct aa_file_ctx {
+	spinlock_t lock;
+	struct aa_label __rcu *label;
+	u32 allow;
+};
+
+/**
+ * aa_alloc_file_ctx - allocate file_ctx
+ * @label: initial label of task creating the file
+ * @gfp: gfp flags for allocation
+ *
+ * Returns: file_ctx or NULL on failure
+ */
+static inline struct aa_file_ctx *aa_alloc_file_ctx(struct aa_label *label,
+						    gfp_t gfp)
+{
+	struct aa_file_ctx *ctx;
+
+	ctx = kzalloc(sizeof(struct aa_file_ctx), gfp);
+	if (ctx) {
+		spin_lock_init(&ctx->lock);
+		rcu_assign_pointer(ctx->label, aa_get_label(label));
+	}
+	return ctx;
+}
+
+/**
+ * aa_free_file_ctx - free a file_ctx
+ * @ctx: file_ctx to free  (MAYBE_NULL)
+ */
+static inline void aa_free_file_ctx(struct aa_file_ctx *ctx)
+{
+	if (ctx) {
+		aa_put_label(rcu_access_pointer(ctx->label));
+		kzfree(ctx);
+	}
+}
+
+static inline struct aa_label *aa_get_file_label(struct aa_file_ctx *ctx)
+{
+	return aa_get_label_rcu(&ctx->label);
+}
 
 /*
  * The xindex is broken into 3 parts
@@ -66,33 +101,11 @@ struct path;
 #define AA_X_INHERIT		0x4000
 #define AA_X_UNCONFINED		0x8000
 
-/* AA_SECURE_X_NEEDED - is passed in the bprm->unsafe field */
-#define AA_SECURE_X_NEEDED	0x8000
-
 /* need to make conditional which ones are being set */
 struct path_cond {
 	kuid_t uid;
 	umode_t mode;
 };
-
-/* struct file_perms - file permission
- * @allow: mask of permissions that are allowed
- * @audit: mask of permissions to force an audit message for
- * @quiet: mask of permissions to quiet audit messages for
- * @kill: mask of permissions that when matched will kill the task
- * @xindex: exec transition index if @allow contains MAY_EXEC
- *
- * The @audit and @queit mask should be mutually exclusive.
- */
-struct file_perms {
-	u32 allow;
-	u32 audit;
-	u32 quiet;
-	u32 kill;
-	u16 xindex;
-};
-
-extern struct file_perms nullperms;
 
 #define COMBINED_PERM_MASK(X) ((X).allow | (X).audit | (X).quiet | (X).kill)
 
@@ -144,9 +157,10 @@ static inline u16 dfa_map_xindex(u16 mask)
 #define dfa_other_xindex(dfa, state) \
 	dfa_map_xindex((ACCEPT_TABLE(dfa)[state] >> 14) & 0x3fff)
 
-int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
-		  gfp_t gfp, int op, u32 request, const char *name,
-		  const char *target, kuid_t ouid, const char *info, int error);
+int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
+		  const char *op, u32 request, const char *name,
+		  const char *target, struct aa_label *tlabel, kuid_t ouid,
+		  const char *info, int error);
 
 /**
  * struct aa_file_rules - components used for file rule permissions
@@ -167,18 +181,26 @@ struct aa_file_rules {
 	/* TODO: add delegate table */
 };
 
+struct aa_perms aa_compute_fperms(struct aa_dfa *dfa, unsigned int state,
+				    struct path_cond *cond);
 unsigned int aa_str_perms(struct aa_dfa *dfa, unsigned int start,
 			  const char *name, struct path_cond *cond,
-			  struct file_perms *perms);
+			  struct aa_perms *perms);
 
-int aa_path_perm(int op, struct aa_profile *profile, struct path *path,
-		 int flags, u32 request, struct path_cond *cond);
+int __aa_path_perm(const char *op, struct aa_profile *profile,
+		   const char *name, u32 request, struct path_cond *cond,
+		   int flags, struct aa_perms *perms);
+int aa_path_perm(const char *op, struct aa_label *label,
+		 const struct path *path, int flags, u32 request,
+		 struct path_cond *cond);
 
-int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
-		 struct path *new_dir, struct dentry *new_dentry);
+int aa_path_link(struct aa_label *label, struct dentry *old_dentry,
+		 const struct path *new_dir, struct dentry *new_dentry);
 
-int aa_file_perm(int op, struct aa_profile *profile, struct file *file,
+int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 		 u32 request);
+
+void aa_inherit_files(const struct cred *cred, struct files_struct *files);
 
 static inline void aa_free_file_rules(struct aa_file_rules *rules)
 {

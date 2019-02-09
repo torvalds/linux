@@ -1,0 +1,63 @@
+Pincontrol driver for RK805 Power management IC.
+
+RK805 has 2 pins which can be configured as GPIO output only.
+
+Please refer file <devicetree/bindings/pinctrl/pinctrl-bindings.txt>
+for details of the common pinctrl bindings used by client devices,
+including the meaning of the phrase "pin configuration node".
+
+Optional Pinmux properties:
+--------------------------
+Following properties are required if default setting of pins are required
+at boot.
+- pinctrl-names: A pinctrl state named per <pinctrl-bindings.txt>.
+- pinctrl[0...n]: Properties to contain the phandle for pinctrl states per
+		<pinctrl-bindings.txt>.
+
+The pin configurations are defined as child of the pinctrl states node. Each
+sub-node have following properties:
+
+Required properties:
+------------------
+- #gpio-cells: Should be two. The first cell is the pin number and the
+  second is the GPIO flags.
+
+- gpio-controller: Marks the device node as a GPIO controller.
+
+- pins: List of pins. Valid values of pins properties are: gpio0, gpio1.
+
+First 2 properties must be added in the RK805 PMIC node, documented in
+Documentation/devicetree/bindings/mfd/rk808.txt
+
+Optional properties:
+-------------------
+Following are optional properties defined as pinmux DT binding document
+<pinctrl-bindings.txt>. Absence of properties will leave the configuration
+on default.
+	function,
+	output-low,
+	output-high.
+
+Valid values for function properties are: gpio.
+
+Theres is also not customised properties for any GPIO.
+
+Example:
+--------
+rk805: rk805@18 {
+	compatible = "rockchip,rk805";
+	...
+	gpio-controller;
+	#gpio-cells = <2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmic_int_l>, <&rk805_default>;
+
+	rk805_default: pinmux {
+		gpio01 {
+			pins = "gpio0", "gpio1";
+			function = "gpio";
+			output-high;
+		};
+	};
+};

@@ -333,34 +333,34 @@ static ssize_t integrity_device_show(struct blk_integrity *bi, char *page)
 }
 
 static struct integrity_sysfs_entry integrity_format_entry = {
-	.attr = { .name = "format", .mode = S_IRUGO },
+	.attr = { .name = "format", .mode = 0444 },
 	.show = integrity_format_show,
 };
 
 static struct integrity_sysfs_entry integrity_tag_size_entry = {
-	.attr = { .name = "tag_size", .mode = S_IRUGO },
+	.attr = { .name = "tag_size", .mode = 0444 },
 	.show = integrity_tag_size_show,
 };
 
 static struct integrity_sysfs_entry integrity_interval_entry = {
-	.attr = { .name = "protection_interval_bytes", .mode = S_IRUGO },
+	.attr = { .name = "protection_interval_bytes", .mode = 0444 },
 	.show = integrity_interval_show,
 };
 
 static struct integrity_sysfs_entry integrity_verify_entry = {
-	.attr = { .name = "read_verify", .mode = S_IRUGO | S_IWUSR },
+	.attr = { .name = "read_verify", .mode = 0644 },
 	.show = integrity_verify_show,
 	.store = integrity_verify_store,
 };
 
 static struct integrity_sysfs_entry integrity_generate_entry = {
-	.attr = { .name = "write_generate", .mode = S_IRUGO | S_IWUSR },
+	.attr = { .name = "write_generate", .mode = 0644 },
 	.show = integrity_generate_show,
 	.store = integrity_generate_store,
 };
 
 static struct integrity_sysfs_entry integrity_device_entry = {
-	.attr = { .name = "device_is_integrity_capable", .mode = S_IRUGO },
+	.attr = { .name = "device_is_integrity_capable", .mode = 0444 },
 	.show = integrity_device_show,
 };
 
@@ -384,12 +384,12 @@ static struct kobj_type integrity_ktype = {
 	.sysfs_ops	= &integrity_ops,
 };
 
-static int blk_integrity_nop_fn(struct blk_integrity_iter *iter)
+static blk_status_t blk_integrity_nop_fn(struct blk_integrity_iter *iter)
 {
-	return 0;
+	return BLK_STS_OK;
 }
 
-static struct blk_integrity_profile nop_profile = {
+static const struct blk_integrity_profile nop_profile = {
 	.name = "nop",
 	.generate_fn = blk_integrity_nop_fn,
 	.verify_fn = blk_integrity_nop_fn,
@@ -412,12 +412,13 @@ void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template
 
 	bi->flags = BLK_INTEGRITY_VERIFY | BLK_INTEGRITY_GENERATE |
 		template->flags;
-	bi->interval_exp = ilog2(queue_logical_block_size(disk->queue));
+	bi->interval_exp = template->interval_exp ? :
+		ilog2(queue_logical_block_size(disk->queue));
 	bi->profile = template->profile ? template->profile : &nop_profile;
 	bi->tuple_size = template->tuple_size;
 	bi->tag_size = template->tag_size;
 
-	blk_integrity_revalidate(disk);
+	disk->queue->backing_dev_info->capabilities |= BDI_CAP_STABLE_WRITES;
 }
 EXPORT_SYMBOL(blk_integrity_register);
 
@@ -430,25 +431,10 @@ EXPORT_SYMBOL(blk_integrity_register);
  */
 void blk_integrity_unregister(struct gendisk *disk)
 {
-	blk_integrity_revalidate(disk);
+	disk->queue->backing_dev_info->capabilities &= ~BDI_CAP_STABLE_WRITES;
 	memset(&disk->queue->integrity, 0, sizeof(struct blk_integrity));
 }
 EXPORT_SYMBOL(blk_integrity_unregister);
-
-void blk_integrity_revalidate(struct gendisk *disk)
-{
-	struct blk_integrity *bi = &disk->queue->integrity;
-
-	if (!(disk->flags & GENHD_FL_UP))
-		return;
-
-	if (bi->profile)
-		disk->queue->backing_dev_info.capabilities |=
-			BDI_CAP_STABLE_WRITES;
-	else
-		disk->queue->backing_dev_info.capabilities &=
-			~BDI_CAP_STABLE_WRITES;
-}
 
 void blk_integrity_add(struct gendisk *disk)
 {

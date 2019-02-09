@@ -16,6 +16,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 #include <asm/mmu.h>
+#include <asm/feature-fixups.h>
 
 _GLOBAL(__setup_cpu_603)
 	mflr	r5
@@ -156,7 +157,7 @@ setup_7410_workarounds:
 	blr
 
 /* 740/750/7400/7410
- * Enable Store Gathering (SGE), Address Brodcast (ABE),
+ * Enable Store Gathering (SGE), Address Broadcast (ABE),
  * Branch History Table (BHTE), Branch Target ICache (BTIC)
  * Dynamic Power Management (DPM), Speculative (SPD)
  * Clear Instruction cache throttling (ICTC)
@@ -226,7 +227,7 @@ BEGIN_FTR_SECTION
 	beq	1f
 END_FTR_SECTION_IFSET(CPU_FTR_L3CR)
 	lwz	r6,CPU_SPEC_FEATURES(r4)
-	andi.	r0,r6,CPU_FTR_L3_DISABLE_NAP
+	andis.	r0,r6,CPU_FTR_L3_DISABLE_NAP@h
 	beq	1f
 	li	r7,CPU_FTR_CAN_NAP
 	andc	r6,r6,r7

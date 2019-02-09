@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Universal Host Controller Interface driver for USB.
  *
@@ -42,7 +43,7 @@
 #include <linux/bitops.h>
 #include <linux/dmi.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -265,9 +266,13 @@ static void configure_hc(struct uhci_hcd *uhci)
 
 static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 {
-	/* If we have to ignore overcurrent events then almost by definition
-	 * we can't depend on resume-detect interrupts. */
-	if (ignore_oc)
+	/*
+	 * If we have to ignore overcurrent events then almost by definition
+	 * we can't depend on resume-detect interrupts.
+	 *
+	 * Those interrupts also don't seem to work on ASpeed SoCs.
+	 */
+	if (ignore_oc || uhci_is_aspeed(uhci))
 		return 1;
 
 	return uhci->resume_detect_interrupts_are_broken ?
@@ -383,6 +388,13 @@ __acquires(uhci->lock)
 static void start_rh(struct uhci_hcd *uhci)
 {
 	uhci->is_stopped = 0;
+
+	/*
+	 * Clear stale status bits on Aspeed as we get a stale HCH
+	 * which causes problems later on
+	 */
+	if (uhci_is_aspeed(uhci))
+		uhci_writew(uhci, uhci_readw(uhci, USBSTS), USBSTS);
 
 	/* Mark it configured and running with a 64-byte max packet.
 	 * All interrupts are enabled, even though RESUME won't do anything.
@@ -573,23 +585,18 @@ static int uhci_start(struct usb_hcd *hcd)
 		hcd->self.sg_tablesize = ~0;
 
 	spin_lock_init(&uhci->lock);
-	setup_timer(&uhci->fsbr_timer, uhci_fsbr_timeout,
-			(unsigned long) uhci);
+	timer_setup(&uhci->fsbr_timer, uhci_fsbr_timeout, 0);
 	INIT_LIST_HEAD(&uhci->idle_qh_list);
 	init_waitqueue_head(&uhci->waitqh);
 
 #ifdef UHCI_DEBUG_OPS
-	dentry = debugfs_create_file(hcd->self.bus_name,
-			S_IFREG|S_IRUGO|S_IWUSR, uhci_debugfs_root,
-			uhci, &uhci_debug_operations);
-	if (!dentry) {
-		dev_err(uhci_dev(uhci), "couldn't create uhci debugfs entry\n");
-		return -ENOMEM;
-	}
-	uhci->dentry = dentry;
+	uhci->dentry = debugfs_create_file(hcd->self.bus_name,
+					   S_IFREG|S_IRUGO|S_IWUSR,
+					   uhci_debugfs_root, uhci,
+					   &uhci_debug_operations);
 #endif
 
-	uhci->frame = dma_alloc_coherent(uhci_dev(uhci),
+	uhci->frame = dma_zalloc_coherent(uhci_dev(uhci),
 			UHCI_NUMFRAMES * sizeof(*uhci->frame),
 			&uhci->frame_dma_handle, GFP_KERNEL);
 	if (!uhci->frame) {
@@ -597,15 +604,11 @@ static int uhci_start(struct usb_hcd *hcd)
 			"unable to allocate consistent memory for frame list\n");
 		goto err_alloc_frame;
 	}
-	memset(uhci->frame, 0, UHCI_NUMFRAMES * sizeof(*uhci->frame));
 
 	uhci->frame_cpu = kcalloc(UHCI_NUMFRAMES, sizeof(*uhci->frame_cpu),
 			GFP_KERNEL);
-	if (!uhci->frame_cpu) {
-		dev_err(uhci_dev(uhci),
-			"unable to allocate memory for frame pointers\n");
+	if (!uhci->frame_cpu)
 		goto err_alloc_frame_cpu;
-	}
 
 	uhci->td_pool = dma_pool_create("uhci_td", uhci_dev(uhci),
 			sizeof(struct uhci_td), 16, 0);
@@ -840,7 +843,7 @@ static int uhci_count_ports(struct usb_hcd *hcd)
 
 static const char hcd_name[] = "uhci_hcd";
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 #include "uhci-pci.c"
 #define	PCI_DRIVER		uhci_pci_driver
 #endif
@@ -875,8 +878,6 @@ static int __init uhci_hcd_init(void)
 	if (!errbuf)
 		goto errbuf_failed;
 	uhci_debugfs_root = debugfs_create_dir("uhci", usb_debug_root);
-	if (!uhci_debugfs_root)
-		goto debug_failed;
 #endif
 
 	uhci_up_cachep = kmem_cache_create("uhci_urb_priv",
@@ -911,7 +912,6 @@ up_failed:
 #if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	debugfs_remove(uhci_debugfs_root);
 
-debug_failed:
 	kfree(errbuf);
 
 errbuf_failed:

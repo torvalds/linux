@@ -172,14 +172,13 @@
 #define PCLK_HDCP		232
 #define PCLK_DCF		233
 #define PCLK_SARADC		234
-#define PCLK_ACODEC		235
 
 /* hclk gates */
 #define HCLK_PERI		308
 #define HCLK_TSP		309
 #define HCLK_GMAC		310
 #define HCLK_I2S0_8CH		311
-#define HCLK_I2S1_8CH		312
+#define HCLK_I2S1_8CH		313
 #define HCLK_I2S2_2CH		313
 #define HCLK_SPDIF_8CH		314
 #define HCLK_VOP		315
@@ -194,7 +193,6 @@
 #define HCLK_VPU_PRE		324
 #define HCLK_VIO_PRE		325
 #define HCLK_VPU		326
-#define HCLK_VIO		327
 #define HCLK_BUS_PRE		328
 #define HCLK_PERI_PRE		329
 #define HCLK_H264		330

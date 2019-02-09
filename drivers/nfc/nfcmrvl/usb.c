@@ -83,8 +83,8 @@ static void nfcmrvl_bulk_complete(struct urb *urb)
 		if (!skb) {
 			nfc_err(&drv_data->udev->dev, "failed to alloc mem\n");
 		} else {
-			memcpy(skb_put(skb, urb->actual_length),
-			       urb->transfer_buffer, urb->actual_length);
+			skb_put_data(skb, urb->transfer_buffer,
+				     urb->actual_length);
 			if (nfcmrvl_nci_recv_frame(drv_data->priv, skb) < 0)
 				nfc_err(&drv_data->udev->dev,
 					"corrupted Rx packet\n");
@@ -160,13 +160,14 @@ static void nfcmrvl_tx_complete(struct urb *urb)
 	struct nci_dev *ndev = (struct nci_dev *)skb->dev;
 	struct nfcmrvl_private *priv = nci_get_drvdata(ndev);
 	struct nfcmrvl_usb_drv_data *drv_data = priv->drv_data;
+	unsigned long flags;
 
 	nfc_info(priv->dev, "urb %p status %d count %d\n",
 		 urb, urb->status, urb->actual_length);
 
-	spin_lock(&drv_data->txlock);
+	spin_lock_irqsave(&drv_data->txlock, flags);
 	drv_data->tx_in_flight--;
-	spin_unlock(&drv_data->txlock);
+	spin_unlock_irqrestore(&drv_data->txlock, flags);
 
 	kfree(urb->setup_packet);
 	kfree_skb(skb);
@@ -341,14 +342,12 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 	init_usb_anchor(&drv_data->deferred);
 
 	priv = nfcmrvl_nci_register_dev(NFCMRVL_PHY_USB, drv_data, &usb_ops,
-					&drv_data->udev->dev, &config);
+					&intf->dev, &config);
 	if (IS_ERR(priv))
 		return PTR_ERR(priv);
 
 	drv_data->priv = priv;
 	drv_data->priv->support_fw_dnld = false;
-
-	priv->dev = &drv_data->udev->dev;
 
 	usb_set_intfdata(intf, drv_data);
 

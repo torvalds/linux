@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * File: wcmd.c
  *
@@ -48,7 +35,6 @@ static void vnt_cmd_timer_wait(struct vnt_private *priv, unsigned long msecs)
 
 static int vnt_cmd_complete(struct vnt_private *priv)
 {
-
 	priv->command_state = WLAN_CMD_IDLE;
 	if (priv->free_cmd_queue == CMD_Q_SIZE) {
 		/* Command Queue Empty */
@@ -100,7 +86,7 @@ void vnt_run_command(struct work_struct *work)
 	if (test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags))
 		return;
 
-	if (priv->cmd_running != true)
+	if (!priv->cmd_running)
 		return;
 
 	switch (priv->command_state) {
@@ -142,17 +128,17 @@ void vnt_run_command(struct work_struct *work)
 
 	case WLAN_CMD_CHANGE_ANTENNA_START:
 		dev_dbg(&priv->usb->dev, "Change from Antenna%d to",
-							priv->rx_antenna_sel);
+			priv->rx_antenna_sel);
 
 		if (priv->rx_antenna_sel == 0) {
 			priv->rx_antenna_sel = 1;
-			if (priv->tx_rx_ant_inv == true)
+			if (priv->tx_rx_ant_inv)
 				vnt_set_antenna_mode(priv, ANT_RXA);
 			else
 				vnt_set_antenna_mode(priv, ANT_RXB);
 		} else {
 			priv->rx_antenna_sel = 0;
-			if (priv->tx_rx_ant_inv == true)
+			if (priv->tx_rx_ant_inv)
 				vnt_set_antenna_mode(priv, ANT_RXB);
 			else
 				vnt_set_antenna_mode(priv, ANT_RXA);
@@ -168,7 +154,6 @@ void vnt_run_command(struct work_struct *work)
 
 int vnt_schedule_command(struct vnt_private *priv, enum vnt_cmd command)
 {
-
 	if (priv->free_cmd_queue == 0)
 		return false;
 
@@ -177,11 +162,10 @@ int vnt_schedule_command(struct vnt_private *priv, enum vnt_cmd command)
 	ADD_ONE_WITH_WRAP_AROUND(priv->cmd_enqueue_idx, CMD_Q_SIZE);
 	priv->free_cmd_queue--;
 
-	if (priv->cmd_running == false)
+	if (!priv->cmd_running)
 		vnt_cmd_complete(priv);
 
 	return true;
-
 }
 
 void vnt_reset_command_timer(struct vnt_private *priv)

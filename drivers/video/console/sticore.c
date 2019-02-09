@@ -281,7 +281,7 @@ static void sti_rom_copy(unsigned long base, unsigned long count, void *dest)
 static char default_sti_path[21] __read_mostly;
 
 #ifndef MODULE
-static int sti_setup(char *str)
+static int __init sti_setup(char *str)
 {
 	if (str)
 		strlcpy (default_sti_path, str, sizeof (default_sti_path));
@@ -649,7 +649,7 @@ static void *sti_bmode_font_raw(struct sti_cooked_font *f)
 	unsigned char *n, *p, *q;
 	int size = f->raw->bytes_per_char*256+sizeof(struct sti_rom_font);
 	
-	n = kzalloc(4*size, STI_LOWMEM);
+	n = kcalloc(4, size, STI_LOWMEM);
 	if (!n)
 		return NULL;
 	p = n + 3;
@@ -827,10 +827,8 @@ static struct sti_struct *sti_try_rom_generic(unsigned long address,
 	}
 	
 	sti = kzalloc(sizeof(*sti), GFP_KERNEL);
-	if (!sti) {
-		printk(KERN_ERR "Not enough memory !\n");
+	if (!sti)
 		return NULL;
-	}
 
 	spin_lock_init(&sti->lock);
 
@@ -941,7 +939,7 @@ static void sticore_check_for_default_sti(struct sti_struct *sti, char *path)
  * in the additional address field addr[1] while on
  * older Systems the PDC stores it in page0->proc_sti 
  */
-static int sticore_pa_init(struct parisc_device *dev)
+static int __init sticore_pa_init(struct parisc_device *dev)
 {
 	char pa_path[21];
 	struct sti_struct *sti = NULL;
@@ -1009,7 +1007,7 @@ static int sticore_pci_init(struct pci_dev *pd, const struct pci_device_id *ent)
 }
 
 
-static void sticore_pci_remove(struct pci_dev *pd)
+static void __exit sticore_pci_remove(struct pci_dev *pd)
 {
 	BUG();
 }
@@ -1029,7 +1027,7 @@ static struct pci_driver pci_sti_driver = {
 	.name		= "sti",
 	.id_table	= sti_pci_tbl,
 	.probe		= sticore_pci_init,
-	.remove		= sticore_pci_remove,
+	.remove		= __exit_p(sticore_pci_remove),
 };
 
 static struct parisc_device_id sti_pa_tbl[] = {
@@ -1037,8 +1035,9 @@ static struct parisc_device_id sti_pa_tbl[] = {
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00085 },
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(parisc, sti_pa_tbl);
 
-static struct parisc_driver pa_sti_driver = {
+static struct parisc_driver pa_sti_driver __refdata = {
 	.name		= "sti",
 	.id_table	= sti_pa_tbl,
 	.probe		= sticore_pa_init,

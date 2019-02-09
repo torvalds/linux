@@ -24,26 +24,25 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/stringify.h>
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
+#include <linux/ratelimit.h>
 
 #include <asm/stacktrace.h>
 #include <asm/ptrace.h>
 #include <asm/timex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/traps.h>
-
-#ifdef CONFIG_KGDB
-extern int gdb_enter;
-extern int return_from_debug_flag;
-#endif
+#include <asm/hw_breakpoint.h>
 
 /*
  * Machine specific interrupt handlers
@@ -160,7 +159,8 @@ COPROCESSOR(7),
  * 2. it is a temporary memory buffer for the exception handlers.
  */
 
-DEFINE_PER_CPU(unsigned long, exc_table[EXC_TABLE_SIZE/4]);
+DEFINE_PER_CPU(struct exc_table, exc_table);
+DEFINE_PER_CPU(struct debug_table, debug_table);
 
 void die(const char*, struct pt_regs*, long);
 
@@ -178,13 +178,14 @@ __die_if_kernel(const char *str, struct pt_regs *regs, long err)
 void do_unhandled(struct pt_regs *regs, unsigned long exccause)
 {
 	__die_if_kernel("Caught unhandled exception - should not happen",
-	    		regs, SIGKILL);
+			regs, SIGKILL);
 
 	/* If in user mode, send SIGILL signal to current process */
-	printk("Caught unhandled exception in '%s' "
-	       "(pid = %d, pc = %#010lx) - should not happen\n"
-	       "\tEXCCAUSE is %ld\n",
-	       current->comm, task_pid_nr(current), regs->pc, exccause);
+	pr_info_ratelimited("Caught unhandled exception in '%s' "
+			    "(pid = %d, pc = %#010lx) - should not happen\n"
+			    "\tEXCCAUSE is %ld\n",
+			    current->comm, task_pid_nr(current), regs->pc,
+			    exccause);
 	force_sig(SIGILL, current);
 }
 
@@ -205,6 +206,32 @@ extern void do_IRQ(int, struct pt_regs *);
 
 #if XTENSA_FAKE_NMI
 
+#define IS_POW2(v) (((v) & ((v) - 1)) == 0)
+
+#if !(PROFILING_INTLEVEL == XCHAL_EXCM_LEVEL && \
+      IS_POW2(XTENSA_INTLEVEL_MASK(PROFILING_INTLEVEL)))
+#warning "Fake NMI is requested for PMM, but there are other IRQs at or above its level."
+#warning "Fake NMI will be used, but there will be a bugcheck if one of those IRQs fire."
+
+static inline void check_valid_nmi(void)
+{
+	unsigned intread = get_sr(interrupt);
+	unsigned intenable = get_sr(intenable);
+
+	BUG_ON(intread & intenable &
+	       ~(XTENSA_INTLEVEL_ANDBELOW_MASK(PROFILING_INTLEVEL) ^
+		 XTENSA_INTLEVEL_MASK(PROFILING_INTLEVEL) ^
+		 BIT(XCHAL_PROFILING_INTERRUPT)));
+}
+
+#else
+
+static inline void check_valid_nmi(void)
+{
+}
+
+#endif
+
 irqreturn_t xtensa_pmu_irq_handler(int irq, void *dev_id);
 
 DEFINE_PER_CPU(unsigned long, nmi_count);
@@ -219,6 +246,7 @@ void do_nmi(struct pt_regs *regs)
 	old_regs = set_irq_regs(regs);
 	nmi_enter();
 	++*this_cpu_ptr(&nmi_count);
+	check_valid_nmi();
 	xtensa_pmu_irq_handler(0, NULL);
 	nmi_exit();
 	set_irq_regs(old_regs);
@@ -278,8 +306,8 @@ do_illegal_instruction(struct pt_regs *regs)
 
 	/* If in user mode, send SIGILL signal to current process. */
 
-	printk("Illegal Instruction in '%s' (pid = %d, pc = %#010lx)\n",
-	    current->comm, task_pid_nr(current), regs->pc);
+	pr_info_ratelimited("Illegal Instruction in '%s' (pid = %d, pc = %#010lx)\n",
+			    current->comm, task_pid_nr(current), regs->pc);
 	force_sig(SIGILL, current);
 }
 
@@ -295,42 +323,35 @@ do_illegal_instruction(struct pt_regs *regs)
 void
 do_unaligned_user (struct pt_regs *regs)
 {
-	siginfo_t info;
-
 	__die_if_kernel("Unhandled unaligned exception in kernel",
-	    		regs, SIGKILL);
+			regs, SIGKILL);
 
 	current->thread.bad_vaddr = regs->excvaddr;
 	current->thread.error_code = -3;
-	printk("Unaligned memory access to %08lx in '%s' "
-	       "(pid = %d, pc = %#010lx)\n",
-	       regs->excvaddr, current->comm, task_pid_nr(current), regs->pc);
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_ADRALN;
-	info.si_addr = (void *) regs->excvaddr;
-	force_sig_info(SIGSEGV, &info, current);
-
+	pr_info_ratelimited("Unaligned memory access to %08lx in '%s' "
+			    "(pid = %d, pc = %#010lx)\n",
+			    regs->excvaddr, current->comm,
+			    task_pid_nr(current), regs->pc);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void *) regs->excvaddr, current);
 }
 #endif
 
+/* Handle debug events.
+ * When CONFIG_HAVE_HW_BREAKPOINT is on this handler is called with
+ * preemption disabled to avoid rescheduling and keep mapping of hardware
+ * breakpoint structures to debug registers intact, so that
+ * DEBUGCAUSE.DBNUM could be used in case of data breakpoint hit.
+ */
 void
 do_debug(struct pt_regs *regs)
 {
-#ifdef CONFIG_KGDB
-	/* If remote debugging is configured AND enabled, we give control to
-	 * kgdb.  Otherwise, we fall through, perhaps giving control to the
-	 * native debugger.
-	 */
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	int ret = check_hw_breakpoint(regs);
 
-	if (gdb_enter) {
-		extern void gdb_handle_exception(struct pt_regs *);
-		gdb_handle_exception(regs);
-		return_from_debug_flag = 1;
+	preempt_enable();
+	if (ret == 0)
 		return;
-	}
 #endif
-
 	__die_if_kernel("Breakpoint in kernel", regs, SIGKILL);
 
 	/* If in user mode, send SIGTRAP signal to current process */
@@ -339,29 +360,38 @@ do_debug(struct pt_regs *regs)
 }
 
 
-static void set_handler(int idx, void *handler)
-{
-	unsigned int cpu;
-
-	for_each_possible_cpu(cpu)
-		per_cpu(exc_table, cpu)[idx] = (unsigned long)handler;
-}
+#define set_handler(type, cause, handler)				\
+	do {								\
+		unsigned int cpu;					\
+									\
+		for_each_possible_cpu(cpu)				\
+			per_cpu(exc_table, cpu).type[cause] = (handler);\
+	} while (0)
 
 /* Set exception C handler - for temporary use when probing exceptions */
 
 void * __init trap_set_handler(int cause, void *handler)
 {
-	void *previous = (void *)per_cpu(exc_table, 0)[
-		EXC_TABLE_DEFAULT / 4 + cause];
-	set_handler(EXC_TABLE_DEFAULT / 4 + cause, handler);
+	void *previous = per_cpu(exc_table, 0).default_handler[cause];
+
+	set_handler(default_handler, cause, handler);
 	return previous;
 }
 
 
 static void trap_init_excsave(void)
 {
-	unsigned long excsave1 = (unsigned long)this_cpu_ptr(exc_table);
+	unsigned long excsave1 = (unsigned long)this_cpu_ptr(&exc_table);
 	__asm__ __volatile__("wsr  %0, excsave1\n" : : "a" (excsave1));
+}
+
+static void trap_init_debug(void)
+{
+	unsigned long debugsave = (unsigned long)this_cpu_ptr(&debug_table);
+
+	this_cpu_ptr(&debug_table)->debug_exception = debug_exception;
+	__asm__ __volatile__("wsr %0, excsave" __stringify(XCHAL_DEBUGLEVEL)
+			     :: "a"(debugsave));
 }
 
 /*
@@ -383,10 +413,10 @@ void __init trap_init(void)
 
 	/* Setup default vectors. */
 
-	for(i = 0; i < 64; i++) {
-		set_handler(EXC_TABLE_FAST_USER/4   + i, user_exception);
-		set_handler(EXC_TABLE_FAST_KERNEL/4 + i, kernel_exception);
-		set_handler(EXC_TABLE_DEFAULT/4 + i, do_unhandled);
+	for (i = 0; i < EXCCAUSE_N; i++) {
+		set_handler(fast_user_handler, i, user_exception);
+		set_handler(fast_kernel_handler, i, kernel_exception);
+		set_handler(default_handler, i, do_unhandled);
 	}
 
 	/* Setup specific handlers. */
@@ -398,21 +428,23 @@ void __init trap_init(void)
 		void *handler = dispatch_init_table[i].handler;
 
 		if (fast == 0)
-			set_handler (EXC_TABLE_DEFAULT/4 + cause, handler);
+			set_handler(default_handler, cause, handler);
 		if (fast && fast & USER)
-			set_handler (EXC_TABLE_FAST_USER/4 + cause, handler);
+			set_handler(fast_user_handler, cause, handler);
 		if (fast && fast & KRNL)
-			set_handler (EXC_TABLE_FAST_KERNEL/4 + cause, handler);
+			set_handler(fast_kernel_handler, cause, handler);
 	}
 
 	/* Initialize EXCSAVE_1 to hold the address of the exception table. */
 	trap_init_excsave();
+	trap_init_debug();
 }
 
 #ifdef CONFIG_SMP
 void secondary_trap_init(void)
 {
 	trap_init_excsave();
+	trap_init_debug();
 }
 #endif
 
@@ -430,27 +462,24 @@ void show_regs(struct pt_regs * regs)
 
 	for (i = 0; i < 16; i++) {
 		if ((i % 8) == 0)
-			printk(KERN_INFO "a%02d:", i);
-		printk(KERN_CONT " %08lx", regs->areg[i]);
+			pr_info("a%02d:", i);
+		pr_cont(" %08lx", regs->areg[i]);
 	}
-	printk(KERN_CONT "\n");
-
-	printk("pc: %08lx, ps: %08lx, depc: %08lx, excvaddr: %08lx\n",
-	       regs->pc, regs->ps, regs->depc, regs->excvaddr);
-	printk("lbeg: %08lx, lend: %08lx lcount: %08lx, sar: %08lx\n",
-	       regs->lbeg, regs->lend, regs->lcount, regs->sar);
+	pr_cont("\n");
+	pr_info("pc: %08lx, ps: %08lx, depc: %08lx, excvaddr: %08lx\n",
+		regs->pc, regs->ps, regs->depc, regs->excvaddr);
+	pr_info("lbeg: %08lx, lend: %08lx lcount: %08lx, sar: %08lx\n",
+		regs->lbeg, regs->lend, regs->lcount, regs->sar);
 	if (user_mode(regs))
-		printk("wb: %08lx, ws: %08lx, wmask: %08lx, syscall: %ld\n",
-		       regs->windowbase, regs->windowstart, regs->wmask,
-		       regs->syscall);
+		pr_cont("wb: %08lx, ws: %08lx, wmask: %08lx, syscall: %ld\n",
+			regs->windowbase, regs->windowstart, regs->wmask,
+			regs->syscall);
 }
 
 static int show_trace_cb(struct stackframe *frame, void *data)
 {
-	if (kernel_text_address(frame->pc)) {
-		printk(" [<%08lx>] ", frame->pc);
-		print_symbol("%s\n", frame->pc);
-	}
+	if (kernel_text_address(frame->pc))
+		pr_cont(" [<%08lx>] %pB\n", frame->pc, (void *)frame->pc);
 	return 0;
 }
 
@@ -459,18 +488,12 @@ void show_trace(struct task_struct *task, unsigned long *sp)
 	if (!sp)
 		sp = stack_pointer(task);
 
-	printk("Call Trace:");
-#ifdef CONFIG_KALLSYMS
-	printk("\n");
-#endif
+	pr_info("Call Trace:\n");
 	walk_stackframe(sp, show_trace_cb, NULL);
-	printk("\n");
+#ifndef CONFIG_KALLSYMS
+	pr_cont("\n");
+#endif
 }
-
-/*
- * This routine abuses get_user()/put_user() to reference pointers
- * with at least a bit of error checking ...
- */
 
 static int kstack_depth_to_print = 24;
 
@@ -483,33 +506,16 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		sp = stack_pointer(task);
 	stack = sp;
 
-	printk("\nStack: ");
+	pr_info("Stack:\n");
 
 	for (i = 0; i < kstack_depth_to_print; i++) {
 		if (kstack_end(sp))
 			break;
-		if (i && ((i % 8) == 0))
-			printk("\n       ");
-		printk("%08lx ", *sp++);
+		pr_cont(" %08lx", *sp++);
+		if (i % 8 == 7)
+			pr_cont("\n");
 	}
-	printk("\n");
 	show_trace(task, stack);
-}
-
-void show_code(unsigned int *pc)
-{
-	long i;
-
-	printk("\nCode:");
-
-	for(i = -3 ; i < 6 ; i++) {
-		unsigned long insn;
-		if (__get_user(insn, pc + i)) {
-			printk(" (Bad address in pc)\n");
-			break;
-		}
-		printk("%c%08lx%c",(i?' ':'<'),insn,(i?' ':'>'));
-	}
 }
 
 DEFINE_SPINLOCK(die_lock);
@@ -517,18 +523,12 @@ DEFINE_SPINLOCK(die_lock);
 void die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
-	int nl = 0;
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
 
-	printk("%s: sig: %ld [#%d]\n", str, err, ++die_counter);
-#ifdef CONFIG_PREEMPT
-	printk("PREEMPT ");
-	nl = 1;
-#endif
-	if (nl)
-		printk("\n");
+	pr_info("%s: sig: %ld [#%d]%s\n", str, err, ++die_counter,
+		IS_ENABLED(CONFIG_PREEMPT) ? " PREEMPT" : "");
 	show_regs(regs);
 	if (!user_mode(regs))
 		show_stack(NULL, (unsigned long*)regs->areg[1]);

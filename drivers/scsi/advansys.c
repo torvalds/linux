@@ -2416,8 +2416,8 @@ static void asc_prt_scsi_host(struct Scsi_Host *s)
 	struct asc_board *boardp = shost_priv(s);
 
 	printk("Scsi_Host at addr 0x%p, device %s\n", s, dev_name(boardp->dev));
-	printk(" host_busy %u, host_no %d,\n",
-	       atomic_read(&s->host_busy), s->host_no);
+	printk(" host_busy %d, host_no %d,\n",
+	       scsi_host_busy(s), s->host_no);
 
 	printk(" base 0x%lx, io_port 0x%lx, irq %d,\n",
 	       (ulong)s->base, (ulong)s->io_port, boardp->irq);
@@ -3182,8 +3182,8 @@ static void asc_prt_driver_conf(struct seq_file *m, struct Scsi_Host *shost)
 		shost->host_no);
 
 	seq_printf(m,
-		   " host_busy %u, max_id %u, max_lun %llu, max_channel %u\n",
-		   atomic_read(&shost->host_busy), shost->max_id,
+		   " host_busy %d, max_id %u, max_lun %llu, max_channel %u\n",
+		   scsi_host_busy(shost), shost->max_id,
 		   shost->max_lun, shost->max_channel);
 
 	seq_printf(m,
@@ -6291,18 +6291,17 @@ static uchar AscGetSynPeriodIndex(ASC_DVC_VAR *asc_dvc, uchar syn_time)
 static uchar
 AscMsgOutSDTR(ASC_DVC_VAR *asc_dvc, uchar sdtr_period, uchar sdtr_offset)
 {
-	EXT_MSG sdtr_buf;
-	uchar sdtr_period_index;
-	PortAddr iop_base;
-
-	iop_base = asc_dvc->iop_base;
-	sdtr_buf.msg_type = EXTENDED_MESSAGE;
-	sdtr_buf.msg_len = MS_SDTR_LEN;
-	sdtr_buf.msg_req = EXTENDED_SDTR;
-	sdtr_buf.xfer_period = sdtr_period;
+	PortAddr iop_base = asc_dvc->iop_base;
+	uchar sdtr_period_index = AscGetSynPeriodIndex(asc_dvc, sdtr_period);
+	EXT_MSG sdtr_buf = {
+		.msg_type = EXTENDED_MESSAGE,
+		.msg_len = MS_SDTR_LEN,
+		.msg_req = EXTENDED_SDTR,
+		.xfer_period = sdtr_period,
+		.req_ack_offset = sdtr_offset,
+	};
 	sdtr_offset &= ASC_SYN_MAX_OFFSET;
-	sdtr_buf.req_ack_offset = sdtr_offset;
-	sdtr_period_index = AscGetSynPeriodIndex(asc_dvc, sdtr_period);
+
 	if (sdtr_period_index <= asc_dvc->max_sdtr_index) {
 		AscMemWordCopyPtrToLram(iop_base, ASCV_MSGOUT_BEG,
 					(uchar *)&sdtr_buf,
@@ -8467,7 +8466,7 @@ static int AdvExeScsiQueue(ADV_DVC_VAR *asc_dvc, adv_req_t *reqp)
 }
 
 /*
- * Execute a single 'Scsi_Cmnd'.
+ * Execute a single 'struct scsi_cmnd'.
  */
 static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
 {
@@ -11030,6 +11029,9 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
 		ASC_DBG(2, "AdvInitGetConfig()\n");
 
 		ret = AdvInitGetConfig(pdev, shost) ? -ENODEV : 0;
+#else
+		share_irq = 0;
+		ret = -ENODEV;
 #endif /* CONFIG_PCI */
 	}
 

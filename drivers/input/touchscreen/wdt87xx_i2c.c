@@ -23,7 +23,6 @@
 #include <asm/unaligned.h>
 
 #define WDT87XX_NAME		"wdt87xx_i2c"
-#define WDT87XX_DRV_VER		"0.9.7"
 #define WDT87XX_FW_NAME		"wdt87xx_fw.bin"
 #define WDT87XX_CFG_NAME	"wdt87xx_cfg.bin"
 
@@ -157,6 +156,7 @@
 /* Controller requires minimum 300us between commands */
 #define WDT_COMMAND_DELAY_MS		2
 #define WDT_FLASH_WRITE_DELAY_MS	4
+#define WDT_FLASH_ERASE_DELAY_MS	200
 #define WDT_FW_RESET_TIME		2500
 
 struct wdt87xx_sys_param {
@@ -726,7 +726,7 @@ static int wdt87xx_write_firmware(struct i2c_client *client, const void *chunk)
 				break;
 			}
 
-			msleep(50);
+			msleep(WDT_FLASH_ERASE_DELAY_MS);
 
 			error = wdt87xx_write_data(client, data, start_addr,
 						   page_size);
@@ -848,7 +848,7 @@ static int wdt87xx_do_update_firmware(struct i2c_client *client,
 	error = wdt87xx_get_sysparam(client, &wdt->param);
 	if (error)
 		dev_err(&client->dev,
-			"failed to refresh system paramaters: %d\n", error);
+			"failed to refresh system parameters: %d\n", error);
 out:
 	enable_irq(client->irq);
 	mutex_unlock(&wdt->fw_mutex);
@@ -1105,18 +1105,11 @@ static int wdt87xx_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = sysfs_create_group(&client->dev.kobj, &wdt87xx_attr_group);
+	error = devm_device_add_group(&client->dev, &wdt87xx_attr_group);
 	if (error) {
 		dev_err(&client->dev, "create sysfs failed: %d\n", error);
 		return error;
 	}
-
-	return 0;
-}
-
-static int wdt87xx_ts_remove(struct i2c_client *client)
-{
-	sysfs_remove_group(&client->dev.kobj, &wdt87xx_attr_group);
 
 	return 0;
 }
@@ -1149,7 +1142,7 @@ static int __maybe_unused wdt87xx_resume(struct device *dev)
 	 * The chip may have been reset while system is resuming,
 	 * give it some time to settle.
 	 */
-	mdelay(100);
+	msleep(100);
 
 	error = wdt87xx_send_command(client, VND_CMD_START, 0);
 	if (error)
@@ -1178,7 +1171,6 @@ MODULE_DEVICE_TABLE(acpi, wdt87xx_acpi_id);
 
 static struct i2c_driver wdt87xx_driver = {
 	.probe		= wdt87xx_ts_probe,
-	.remove		= wdt87xx_ts_remove,
 	.id_table	= wdt87xx_dev_id,
 	.driver	= {
 		.name	= WDT87XX_NAME,
@@ -1190,5 +1182,4 @@ module_i2c_driver(wdt87xx_driver);
 
 MODULE_AUTHOR("HN Chen <hn.chen@weidahitech.com>");
 MODULE_DESCRIPTION("WeidaHiTech WDT87XX Touchscreen driver");
-MODULE_VERSION(WDT87XX_DRV_VER);
 MODULE_LICENSE("GPL");

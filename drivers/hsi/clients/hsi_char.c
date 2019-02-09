@@ -697,10 +697,9 @@ static int hsc_probe(struct device *dev)
 	int i;
 
 	cl_data = kzalloc(sizeof(*cl_data), GFP_KERNEL);
-	if (!cl_data) {
-		dev_err(dev, "Could not allocate hsc_client_data\n");
+	if (!cl_data)
 		return -ENOMEM;
-	}
+
 	hsc_baseminor = HSC_BASEMINOR(hsi_id(cl), hsi_port_id(cl));
 	if (!hsc_major) {
 		ret = alloc_chrdev_region(&hsc_dev, hsc_baseminor,
@@ -773,13 +772,13 @@ static int __init hsc_init(void)
 
 	if ((max_data_size < 4) || (max_data_size > 0x10000) ||
 		(max_data_size & (max_data_size - 1))) {
-		pr_err("Invalid max read/write data size");
+		pr_err("Invalid max read/write data size\n");
 		return -EINVAL;
 	}
 
 	ret = hsi_register_client_driver(&hsc_driver);
 	if (ret) {
-		pr_err("Error while registering HSI/SSI driver %d", ret);
+		pr_err("Error while registering HSI/SSI driver %d\n", ret);
 		return ret;
 	}
 

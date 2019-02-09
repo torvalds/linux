@@ -21,6 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -30,7 +31,6 @@
 #include "clock.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
-#include "omap-pm.h"
 
 #include "soc.h"
 #include "cm2xxx_3xxx.h"
@@ -46,11 +46,6 @@ u32 enable_off_mode;
 static int pm_dbg_init_done;
 
 static int pm_dbg_init(void);
-
-enum {
-	DEBUG_FILE_COUNTERS = 0,
-	DEBUG_FILE_TIMERS,
-};
 
 static const char pwrdm_state_names[][PWRDM_MAX_PWRSTS] = {
 	"OFF",
@@ -114,8 +109,7 @@ static int pwrdm_dbg_show_counter(struct powerdomain *pwrdm, void *user)
 		seq_printf(s, ",RET-MEMBANK%d-OFF:%d", i + 1,
 				pwrdm->ret_mem_off_counter[i]);
 
-	seq_printf(s, "\n");
-
+	seq_putc(s, '\n');
 	return 0;
 }
 
@@ -138,43 +132,25 @@ static int pwrdm_dbg_show_timer(struct powerdomain *pwrdm, void *user)
 		seq_printf(s, ",%s:%lld", pwrdm_state_names[i],
 			pwrdm->state_timer[i]);
 
-	seq_printf(s, "\n");
+	seq_putc(s, '\n');
 	return 0;
 }
 
-static int pm_dbg_show_counters(struct seq_file *s, void *unused)
+static int pm_dbg_counters_show(struct seq_file *s, void *unused)
 {
 	pwrdm_for_each(pwrdm_dbg_show_counter, s);
 	clkdm_for_each(clkdm_dbg_show_counter, s);
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(pm_dbg_counters);
 
-static int pm_dbg_show_timers(struct seq_file *s, void *unused)
+static int pm_dbg_timers_show(struct seq_file *s, void *unused)
 {
 	pwrdm_for_each(pwrdm_dbg_show_timer, s);
 	return 0;
 }
-
-static int pm_dbg_open(struct inode *inode, struct file *file)
-{
-	switch ((int)inode->i_private) {
-	case DEBUG_FILE_COUNTERS:
-		return single_open(file, pm_dbg_show_counters,
-			&inode->i_private);
-	case DEBUG_FILE_TIMERS:
-	default:
-		return single_open(file, pm_dbg_show_timers,
-			&inode->i_private);
-	}
-}
-
-static const struct file_operations debug_fops = {
-	.open           = pm_dbg_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pm_dbg_timers);
 
 static int pwrdm_suspend_get(void *data, u64 *val)
 {
@@ -240,10 +216,6 @@ static int option_set(void *data, u64 val)
 	*option = val;
 
 	if (option == &enable_off_mode) {
-		if (val)
-			omap_pm_enable_off_mode();
-		else
-			omap_pm_disable_off_mode();
 		if (cpu_is_omap34xx())
 			omap3_pm_off_mode_enable(val);
 	}
@@ -264,10 +236,8 @@ static int __init pm_dbg_init(void)
 	if (!d)
 		return -EINVAL;
 
-	(void) debugfs_create_file("count", S_IRUGO,
-		d, (void *)DEBUG_FILE_COUNTERS, &debug_fops);
-	(void) debugfs_create_file("time", S_IRUGO,
-		d, (void *)DEBUG_FILE_TIMERS, &debug_fops);
+	(void) debugfs_create_file("count", 0444, d, NULL, &pm_dbg_counters_fops);
+	(void) debugfs_create_file("time", 0444, d, NULL, &pm_dbg_timers_fops);
 
 	pwrdm_for_each(pwrdms_setup, (void *)d);
 

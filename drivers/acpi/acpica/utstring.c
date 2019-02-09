@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: utstring - Common functions for strings and characters
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -130,83 +94,17 @@ void acpi_ut_print_string(char *string, u16 max_length)
 			} else {
 				/* All others will be Hex escapes */
 
-				acpi_os_printf("\\x%2.2X", (s32) string[i]);
+				acpi_os_printf("\\x%2.2X", (s32)string[i]);
 			}
 			break;
 		}
 	}
+
 	acpi_os_printf("\"");
 
 	if (i == max_length && string[i]) {
 		acpi_os_printf("...");
 	}
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_valid_acpi_char
- *
- * PARAMETERS:  char            - The character to be examined
- *              position        - Byte position (0-3)
- *
- * RETURN:      TRUE if the character is valid, FALSE otherwise
- *
- * DESCRIPTION: Check for a valid ACPI character. Must be one of:
- *              1) Upper case alpha
- *              2) numeric
- *              3) underscore
- *
- *              We allow a '!' as the last character because of the ASF! table
- *
- ******************************************************************************/
-
-u8 acpi_ut_valid_acpi_char(char character, u32 position)
-{
-
-	if (!((character >= 'A' && character <= 'Z') ||
-	      (character >= '0' && character <= '9') || (character == '_'))) {
-
-		/* Allow a '!' in the last position */
-
-		if (character == '!' && position == 3) {
-			return (TRUE);
-		}
-
-		return (FALSE);
-	}
-
-	return (TRUE);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_valid_acpi_name
- *
- * PARAMETERS:  name            - The name to be examined. Does not have to
- *                                be NULL terminated string.
- *
- * RETURN:      TRUE if the name is valid, FALSE otherwise
- *
- * DESCRIPTION: Check for a valid ACPI name. Each character must be one of:
- *              1) Upper case alpha
- *              2) numeric
- *              3) underscore
- *
- ******************************************************************************/
-
-u8 acpi_ut_valid_acpi_name(char *name)
-{
-	u32 i;
-
-	ACPI_FUNCTION_ENTRY();
-
-	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		if (!acpi_ut_valid_acpi_char(name[i], i)) {
-			return (FALSE);
-		}
-	}
-
-	return (TRUE);
 }
 
 /*******************************************************************************
@@ -239,12 +137,20 @@ void acpi_ut_repair_name(char *name)
 
 	ACPI_FUNCTION_NAME(ut_repair_name);
 
+	/*
+	 * Special case for the root node. This can happen if we get an
+	 * error during the execution of module-level code.
+	 */
+	if (ACPI_COMPARE_NAME(name, ACPI_ROOT_PATHNAME)) {
+		return;
+	}
+
 	ACPI_MOVE_NAME(&original_name, name);
 
 	/* Check each character in the name */
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		if (acpi_ut_valid_acpi_char(name[i], i)) {
+		if (acpi_ut_valid_name_char(name[i], i)) {
 			continue;
 		}
 

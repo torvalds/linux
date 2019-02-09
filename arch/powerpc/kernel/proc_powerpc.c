@@ -24,7 +24,7 @@
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
 #include <asm/rtas.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/prom.h>
 
 #ifdef CONFIG_PPC64
@@ -63,7 +63,7 @@ static int __init proc_ppc64_init(void)
 {
 	struct proc_dir_entry *pde;
 
-	pde = proc_create_data("powerpc/systemcfg", S_IFREG|S_IRUGO, NULL,
+	pde = proc_create_data("powerpc/systemcfg", S_IFREG | 0444, NULL,
 			       &page_map_fops, vdso_data);
 	if (!pde)
 		return 1;

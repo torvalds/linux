@@ -16,23 +16,19 @@
 #include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
-
-static void __init sunxi_dt_cpufreq_init(void)
-{
-	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
-}
+#include <asm/secure_cntvoff.h>
 
 static const char * const sunxi_board_dt_compat[] = {
 	"allwinner,sun4i-a10",
 	"allwinner,sun5i-a10s",
 	"allwinner,sun5i-a13",
 	"allwinner,sun5i-r8",
+	"nextthing,gr8",
 	NULL,
 };
 
 DT_MACHINE_START(SUNXI_DT, "Allwinner sun4i/sun5i Families")
 	.dt_compat	= sunxi_board_dt_compat,
-	.init_late	= sunxi_dt_cpufreq_init,
 MACHINE_END
 
 static const char * const sun6i_board_dt_compat[] = {
@@ -47,13 +43,12 @@ static void __init sun6i_timer_init(void)
 	of_clk_init(NULL);
 	if (IS_ENABLED(CONFIG_RESET_CONTROLLER))
 		sun6i_reset_init();
-	clocksource_probe();
+	timer_probe();
 }
 
 DT_MACHINE_START(SUN6I_DT, "Allwinner sun6i (A31) Family")
 	.init_time	= sun6i_timer_init,
 	.dt_compat	= sun6i_board_dt_compat,
-	.init_late	= sunxi_dt_cpufreq_init,
 MACHINE_END
 
 static const char * const sun7i_board_dt_compat[] = {
@@ -63,20 +58,39 @@ static const char * const sun7i_board_dt_compat[] = {
 
 DT_MACHINE_START(SUN7I_DT, "Allwinner sun7i (A20) Family")
 	.dt_compat	= sun7i_board_dt_compat,
-	.init_late	= sunxi_dt_cpufreq_init,
 MACHINE_END
 
 static const char * const sun8i_board_dt_compat[] = {
 	"allwinner,sun8i-a23",
 	"allwinner,sun8i-a33",
+	"allwinner,sun8i-h2-plus",
 	"allwinner,sun8i-h3",
+	"allwinner,sun8i-r40",
+	"allwinner,sun8i-v3s",
 	NULL,
 };
 
 DT_MACHINE_START(SUN8I_DT, "Allwinner sun8i Family")
 	.init_time	= sun6i_timer_init,
 	.dt_compat	= sun8i_board_dt_compat,
-	.init_late	= sunxi_dt_cpufreq_init,
+MACHINE_END
+
+static void __init sun8i_a83t_cntvoff_init(void)
+{
+#ifdef CONFIG_SMP
+	secure_cntvoff_init();
+#endif
+}
+
+static const char * const sun8i_a83t_cntvoff_board_dt_compat[] = {
+	"allwinner,sun8i-a83t",
+	NULL,
+};
+
+DT_MACHINE_START(SUN8I_A83T_CNTVOFF_DT, "Allwinner A83t board")
+	.init_early	= sun8i_a83t_cntvoff_init,
+	.init_time	= sun6i_timer_init,
+	.dt_compat	= sun8i_a83t_cntvoff_board_dt_compat,
 MACHINE_END
 
 static const char * const sun9i_board_dt_compat[] = {

@@ -96,7 +96,7 @@ static int ivtv_s_audio_mode(struct cx2341x_handler *cxhdl, u32 val)
 	return 0;
 }
 
-struct cx2341x_handler_ops ivtv_cxhdl_ops = {
+const struct cx2341x_handler_ops ivtv_cxhdl_ops = {
 	.s_audio_mode = ivtv_s_audio_mode,
 	.s_audio_sampling_freq = ivtv_s_audio_sampling_freq,
 	.s_video_encoding = ivtv_s_video_encoding,

@@ -1,28 +1,5 @@
-/*******************************************************************************
-
-  Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 - 2012 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009 - 2018 Intel Corporation. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -43,10 +20,11 @@
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
 #include <linux/prefetch.h>
+#include <linux/sctp.h>
 
 #include "igbvf.h"
 
-#define DRV_VERSION "2.0.2-k"
+#define DRV_VERSION "2.4.0-k"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
 static const char igbvf_driver_string[] =
@@ -399,8 +377,8 @@ next_desc:
 
 	adapter->total_rx_packets += total_packets;
 	adapter->total_rx_bytes += total_bytes;
-	adapter->net_stats.rx_bytes += total_bytes;
-	adapter->net_stats.rx_packets += total_packets;
+	netdev->stats.rx_bytes += total_bytes;
+	netdev->stats.rx_packets += total_packets;
 	return cleaned;
 }
 
@@ -809,7 +787,7 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
-		read_barrier_depends();
+		smp_rmb();
 
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)))
@@ -863,8 +841,8 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 		}
 	}
 
-	adapter->net_stats.tx_bytes += total_bytes;
-	adapter->net_stats.tx_packets += total_packets;
+	netdev->stats.tx_bytes += total_bytes;
+	netdev->stats.tx_packets += total_packets;
 	return count < tx_ring->count;
 }
 
@@ -876,7 +854,6 @@ static irqreturn_t igbvf_msix_other(int irq, void *data)
 
 	adapter->int_counter1++;
 
-	netif_carrier_off(netdev);
 	hw->mac.get_link_status = 1;
 	if (!test_bit(__IGBVF_DOWN, &adapter->state))
 		mod_timer(&adapter->watchdog_timer, jiffies + 1);
@@ -964,7 +941,7 @@ static void igbvf_assign_vector(struct igbvf_adapter *adapter, int rx_queue,
 			ivar = ivar & 0xFFFFFF00;
 			ivar |= msix_vector | E1000_IVAR_VALID;
 		}
-		adapter->rx_ring[rx_queue].eims_value = 1 << msix_vector;
+		adapter->rx_ring[rx_queue].eims_value = BIT(msix_vector);
 		array_ew32(IVAR0, index, ivar);
 	}
 	if (tx_queue > IGBVF_NO_QUEUE) {
@@ -979,7 +956,7 @@ static void igbvf_assign_vector(struct igbvf_adapter *adapter, int rx_queue,
 			ivar = ivar & 0xFFFF00FF;
 			ivar |= (msix_vector | E1000_IVAR_VALID) << 8;
 		}
-		adapter->tx_ring[tx_queue].eims_value = 1 << msix_vector;
+		adapter->tx_ring[tx_queue].eims_value = BIT(msix_vector);
 		array_ew32(IVAR0, index, ivar);
 	}
 }
@@ -1014,8 +991,8 @@ static void igbvf_configure_msix(struct igbvf_adapter *adapter)
 
 	ew32(IVAR_MISC, tmp);
 
-	adapter->eims_enable_mask = (1 << (vector)) - 1;
-	adapter->eims_other = 1 << (vector - 1);
+	adapter->eims_enable_mask = GENMASK(vector - 1, 0);
+	adapter->eims_other = BIT(vector - 1);
 	e1e_flush();
 }
 
@@ -1235,7 +1212,12 @@ static void igbvf_set_rlpml(struct igbvf_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	max_frame_size = adapter->max_frame_size + VLAN_TAG_SIZE;
+
+	spin_lock_bh(&hw->mbx_lock);
+
 	e1000_rlpml_set_vf(hw, max_frame_size);
+
+	spin_unlock_bh(&hw->mbx_lock);
 }
 
 static int igbvf_vlan_rx_add_vid(struct net_device *netdev,
@@ -1244,10 +1226,16 @@ static int igbvf_vlan_rx_add_vid(struct net_device *netdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	if (hw->mac.ops.set_vfta(hw, vid, true)) {
 		dev_err(&adapter->pdev->dev, "Failed to add vlan id %d\n", vid);
+		spin_unlock_bh(&hw->mbx_lock);
 		return -EINVAL;
 	}
+
+	spin_unlock_bh(&hw->mbx_lock);
+
 	set_bit(vid, adapter->active_vlans);
 	return 0;
 }
@@ -1258,11 +1246,17 @@ static int igbvf_vlan_rx_kill_vid(struct net_device *netdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	if (hw->mac.ops.set_vfta(hw, vid, false)) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to remove vlan id %d\n", vid);
+		spin_unlock_bh(&hw->mbx_lock);
 		return -EINVAL;
 	}
+
+	spin_unlock_bh(&hw->mbx_lock);
+
 	clear_bit(vid, adapter->active_vlans);
 	return 0;
 }
@@ -1367,15 +1361,13 @@ static void igbvf_configure_rx(struct igbvf_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct igbvf_ring *rx_ring = adapter->rx_ring;
 	u64 rdba;
-	u32 rdlen, rxdctl;
+	u32 rxdctl;
 
 	/* disable receives */
 	rxdctl = er32(RXDCTL(0));
 	ew32(RXDCTL(0), rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
 	e1e_flush();
 	msleep(10);
-
-	rdlen = rx_ring->count * sizeof(union e1000_adv_rx_desc);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
@@ -1430,8 +1422,60 @@ static void igbvf_set_multi(struct net_device *netdev)
 	netdev_for_each_mc_addr(ha, netdev)
 		memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	hw->mac.ops.update_mc_addr_list(hw, mta_list, i, 0, 0);
+
+	spin_unlock_bh(&hw->mbx_lock);
 	kfree(mta_list);
+}
+
+/**
+ * igbvf_set_uni - Configure unicast MAC filters
+ * @netdev: network interface device structure
+ *
+ * This routine is responsible for configuring the hardware for proper
+ * unicast filters.
+ **/
+static int igbvf_set_uni(struct net_device *netdev)
+{
+	struct igbvf_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (netdev_uc_count(netdev) > IGBVF_MAX_MAC_FILTERS) {
+		pr_err("Too many unicast filters - No Space\n");
+		return -ENOSPC;
+	}
+
+	spin_lock_bh(&hw->mbx_lock);
+
+	/* Clear all unicast MAC filters */
+	hw->mac.ops.set_uc_addr(hw, E1000_VF_MAC_FILTER_CLR, NULL);
+
+	spin_unlock_bh(&hw->mbx_lock);
+
+	if (!netdev_uc_empty(netdev)) {
+		struct netdev_hw_addr *ha;
+
+		/* Add MAC filters one by one */
+		netdev_for_each_uc_addr(ha, netdev) {
+			spin_lock_bh(&hw->mbx_lock);
+
+			hw->mac.ops.set_uc_addr(hw, E1000_VF_MAC_FILTER_ADD,
+						ha->addr);
+
+			spin_unlock_bh(&hw->mbx_lock);
+			udelay(200);
+		}
+	}
+
+	return 0;
+}
+
+static void igbvf_set_rx_mode(struct net_device *netdev)
+{
+	igbvf_set_multi(netdev);
+	igbvf_set_uni(netdev);
 }
 
 /**
@@ -1440,7 +1484,7 @@ static void igbvf_set_multi(struct net_device *netdev)
  **/
 static void igbvf_configure(struct igbvf_adapter *adapter)
 {
-	igbvf_set_multi(adapter->netdev);
+	igbvf_set_rx_mode(adapter->netdev);
 
 	igbvf_restore_vlan(adapter);
 
@@ -1465,11 +1509,15 @@ static void igbvf_reset(struct igbvf_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	/* Allow time for pending master requests to run */
 	if (mac->ops.reset_hw(hw))
 		dev_err(&adapter->pdev->dev, "PF still resetting\n");
 
 	mac->ops.init_hw(hw);
+
+	spin_unlock_bh(&hw->mbx_lock);
 
 	if (is_valid_ether_addr(adapter->hw.mac.addr)) {
 		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
@@ -1605,6 +1653,7 @@ static int igbvf_sw_init(struct igbvf_adapter *adapter)
 	igbvf_irq_disable(adapter);
 
 	spin_lock_init(&adapter->stats_lock);
+	spin_lock_init(&adapter->hw.mbx_lock);
 
 	set_bit(__IGBVF_DOWN, &adapter->state);
 	return 0;
@@ -1748,7 +1797,11 @@ static int igbvf_set_mac(struct net_device *netdev, void *p)
 
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
+
+	spin_unlock_bh(&hw->mbx_lock);
 
 	if (!ether_addr_equal(addr->sa_data, hw->mac.addr))
 		return -EADDRNOTAVAIL;
@@ -1800,7 +1853,7 @@ void igbvf_update_stats(struct igbvf_adapter *adapter)
 	UPDATE_VF_COUNTER(VFGPRLBC, gprlbc);
 
 	/* Fill out the OS statistics structure */
-	adapter->net_stats.multicast = adapter->stats.mprc;
+	adapter->netdev->stats.multicast = adapter->stats.mprc;
 }
 
 static void igbvf_print_link_info(struct igbvf_adapter *adapter)
@@ -1820,7 +1873,12 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
 	if (test_bit(__IGBVF_DOWN, &adapter->state))
 		return false;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	ret_val = hw->mac.ops.check_for_link(hw);
+
+	spin_unlock_bh(&hw->mbx_lock);
+
 	link_active = !hw->mac.get_link_status;
 
 	/* if check for link returns error we will need to reset */
@@ -1834,9 +1892,9 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
  * igbvf_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
-static void igbvf_watchdog(unsigned long data)
+static void igbvf_watchdog(struct timer_list *t)
 {
-	struct igbvf_adapter *adapter = (struct igbvf_adapter *)data;
+	struct igbvf_adapter *adapter = from_timer(adapter, t, watchdog_timer);
 
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);
@@ -1908,144 +1966,156 @@ static void igbvf_watchdog_task(struct work_struct *work)
 #define IGBVF_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IGBVF_TX_FLAGS_VLAN_SHIFT	16
 
-static int igbvf_tso(struct igbvf_adapter *adapter,
-		     struct igbvf_ring *tx_ring,
-		     struct sk_buff *skb, u32 tx_flags, u8 *hdr_len,
-		     __be16 protocol)
+static void igbvf_tx_ctxtdesc(struct igbvf_ring *tx_ring, u32 vlan_macip_lens,
+			      u32 type_tucmd, u32 mss_l4len_idx)
 {
 	struct e1000_adv_tx_context_desc *context_desc;
 	struct igbvf_buffer *buffer_info;
-	u32 info = 0, tu_cmd = 0;
-	u32 mss_l4len_idx, l4len;
-	unsigned int i;
-	int err;
+	u16 i = tx_ring->next_to_use;
 
-	*hdr_len = 0;
-
-	err = skb_cow_head(skb, 0);
-	if (err < 0) {
-		dev_err(&adapter->pdev->dev, "igbvf_tso returning an error\n");
-		return err;
-	}
-
-	l4len = tcp_hdrlen(skb);
-	*hdr_len += l4len;
-
-	if (protocol == htons(ETH_P_IP)) {
-		struct iphdr *iph = ip_hdr(skb);
-
-		iph->tot_len = 0;
-		iph->check = 0;
-		tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
-							 iph->daddr, 0,
-							 IPPROTO_TCP,
-							 0);
-	} else if (skb_is_gso_v6(skb)) {
-		ipv6_hdr(skb)->payload_len = 0;
-		tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-						       &ipv6_hdr(skb)->daddr,
-						       0, IPPROTO_TCP, 0);
-	}
-
-	i = tx_ring->next_to_use;
-
-	buffer_info = &tx_ring->buffer_info[i];
 	context_desc = IGBVF_TX_CTXTDESC_ADV(*tx_ring, i);
-	/* VLAN MACLEN IPLEN */
-	if (tx_flags & IGBVF_TX_FLAGS_VLAN)
-		info |= (tx_flags & IGBVF_TX_FLAGS_VLAN_MASK);
-	info |= (skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT);
-	*hdr_len += skb_network_offset(skb);
-	info |= (skb_transport_header(skb) - skb_network_header(skb));
-	*hdr_len += (skb_transport_header(skb) - skb_network_header(skb));
-	context_desc->vlan_macip_lens = cpu_to_le32(info);
+	buffer_info = &tx_ring->buffer_info[i];
 
-	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
-	tu_cmd |= (E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT);
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
-	if (protocol == htons(ETH_P_IP))
-		tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
-	tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
+	/* set bits to identify this as an advanced context descriptor */
+	type_tucmd |= E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT;
 
-	context_desc->type_tucmd_mlhl = cpu_to_le32(tu_cmd);
-
-	/* MSS L4LEN IDX */
-	mss_l4len_idx = (skb_shinfo(skb)->gso_size << E1000_ADVTXD_MSS_SHIFT);
-	mss_l4len_idx |= (l4len << E1000_ADVTXD_L4LEN_SHIFT);
-
-	context_desc->mss_l4len_idx = cpu_to_le32(mss_l4len_idx);
-	context_desc->seqnum_seed = 0;
+	context_desc->vlan_macip_lens	= cpu_to_le32(vlan_macip_lens);
+	context_desc->seqnum_seed	= 0;
+	context_desc->type_tucmd_mlhl	= cpu_to_le32(type_tucmd);
+	context_desc->mss_l4len_idx	= cpu_to_le32(mss_l4len_idx);
 
 	buffer_info->time_stamp = jiffies;
 	buffer_info->dma = 0;
-	i++;
-	if (i == tx_ring->count)
-		i = 0;
-
-	tx_ring->next_to_use = i;
-
-	return true;
 }
 
-static inline bool igbvf_tx_csum(struct igbvf_adapter *adapter,
-				 struct igbvf_ring *tx_ring,
-				 struct sk_buff *skb, u32 tx_flags,
-				 __be16 protocol)
+static int igbvf_tso(struct igbvf_ring *tx_ring,
+		     struct sk_buff *skb, u32 tx_flags, u8 *hdr_len)
 {
-	struct e1000_adv_tx_context_desc *context_desc;
-	unsigned int i;
-	struct igbvf_buffer *buffer_info;
-	u32 info = 0, tu_cmd = 0;
+	u32 vlan_macip_lens, type_tucmd, mss_l4len_idx;
+	union {
+		struct iphdr *v4;
+		struct ipv6hdr *v6;
+		unsigned char *hdr;
+	} ip;
+	union {
+		struct tcphdr *tcp;
+		unsigned char *hdr;
+	} l4;
+	u32 paylen, l4_offset;
+	int err;
 
-	if ((skb->ip_summed == CHECKSUM_PARTIAL) ||
-	    (tx_flags & IGBVF_TX_FLAGS_VLAN)) {
-		i = tx_ring->next_to_use;
-		buffer_info = &tx_ring->buffer_info[i];
-		context_desc = IGBVF_TX_CTXTDESC_ADV(*tx_ring, i);
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
 
-		if (tx_flags & IGBVF_TX_FLAGS_VLAN)
-			info |= (tx_flags & IGBVF_TX_FLAGS_VLAN_MASK);
+	if (!skb_is_gso(skb))
+		return 0;
 
-		info |= (skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT);
-		if (skb->ip_summed == CHECKSUM_PARTIAL)
-			info |= (skb_transport_header(skb) -
-				 skb_network_header(skb));
+	err = skb_cow_head(skb, 0);
+	if (err < 0)
+		return err;
 
-		context_desc->vlan_macip_lens = cpu_to_le32(info);
+	ip.hdr = skb_network_header(skb);
+	l4.hdr = skb_checksum_start(skb);
 
-		tu_cmd |= (E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT);
+	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
+	type_tucmd = E1000_ADVTXD_TUCMD_L4T_TCP;
 
-		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			switch (protocol) {
-			case htons(ETH_P_IP):
-				tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
-				if (ip_hdr(skb)->protocol == IPPROTO_TCP)
-					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
-				break;
-			case htons(ETH_P_IPV6):
-				if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
-					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
-				break;
-			default:
-				break;
-			}
-		}
+	/* initialize outer IP header fields */
+	if (ip.v4->version == 4) {
+		unsigned char *csum_start = skb_checksum_start(skb);
+		unsigned char *trans_start = ip.hdr + (ip.v4->ihl * 4);
 
-		context_desc->type_tucmd_mlhl = cpu_to_le32(tu_cmd);
-		context_desc->seqnum_seed = 0;
-		context_desc->mss_l4len_idx = 0;
+		/* IP header will have to cancel out any data that
+		 * is not a part of the outer IP header
+		 */
+		ip.v4->check = csum_fold(csum_partial(trans_start,
+						      csum_start - trans_start,
+						      0));
+		type_tucmd |= E1000_ADVTXD_TUCMD_IPV4;
 
-		buffer_info->time_stamp = jiffies;
-		buffer_info->dma = 0;
-		i++;
-		if (i == tx_ring->count)
-			i = 0;
-		tx_ring->next_to_use = i;
-
-		return true;
+		ip.v4->tot_len = 0;
+	} else {
+		ip.v6->payload_len = 0;
 	}
 
-	return false;
+	/* determine offset of inner transport header */
+	l4_offset = l4.hdr - skb->data;
+
+	/* compute length of segmentation header */
+	*hdr_len = (l4.tcp->doff * 4) + l4_offset;
+
+	/* remove payload length from inner checksum */
+	paylen = skb->len - l4_offset;
+	csum_replace_by_diff(&l4.tcp->check, htonl(paylen));
+
+	/* MSS L4LEN IDX */
+	mss_l4len_idx = (*hdr_len - l4_offset) << E1000_ADVTXD_L4LEN_SHIFT;
+	mss_l4len_idx |= skb_shinfo(skb)->gso_size << E1000_ADVTXD_MSS_SHIFT;
+
+	/* VLAN MACLEN IPLEN */
+	vlan_macip_lens = l4.hdr - ip.hdr;
+	vlan_macip_lens |= (ip.hdr - skb->data) << E1000_ADVTXD_MACLEN_SHIFT;
+	vlan_macip_lens |= tx_flags & IGBVF_TX_FLAGS_VLAN_MASK;
+
+	igbvf_tx_ctxtdesc(tx_ring, vlan_macip_lens, type_tucmd, mss_l4len_idx);
+
+	return 1;
+}
+
+static inline bool igbvf_ipv6_csum_is_sctp(struct sk_buff *skb)
+{
+	unsigned int offset = 0;
+
+	ipv6_find_hdr(skb, &offset, IPPROTO_SCTP, NULL, NULL);
+
+	return offset == skb_checksum_start_offset(skb);
+}
+
+static bool igbvf_tx_csum(struct igbvf_ring *tx_ring, struct sk_buff *skb,
+			  u32 tx_flags, __be16 protocol)
+{
+	u32 vlan_macip_lens = 0;
+	u32 type_tucmd = 0;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+csum_failed:
+		if (!(tx_flags & IGBVF_TX_FLAGS_VLAN))
+			return false;
+		goto no_csum;
+	}
+
+	switch (skb->csum_offset) {
+	case offsetof(struct tcphdr, check):
+		type_tucmd = E1000_ADVTXD_TUCMD_L4T_TCP;
+		/* fall through */
+	case offsetof(struct udphdr, check):
+		break;
+	case offsetof(struct sctphdr, checksum):
+		/* validate that this is actually an SCTP request */
+		if (((protocol == htons(ETH_P_IP)) &&
+		     (ip_hdr(skb)->protocol == IPPROTO_SCTP)) ||
+		    ((protocol == htons(ETH_P_IPV6)) &&
+		     igbvf_ipv6_csum_is_sctp(skb))) {
+			type_tucmd = E1000_ADVTXD_TUCMD_L4T_SCTP;
+			break;
+		}
+		/* fall through */
+	default:
+		skb_checksum_help(skb);
+		goto csum_failed;
+	}
+
+	vlan_macip_lens = skb_checksum_start_offset(skb) -
+			  skb_network_offset(skb);
+no_csum:
+	vlan_macip_lens |= skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT;
+	vlan_macip_lens |= tx_flags & IGBVF_TX_FLAGS_VLAN_MASK;
+
+	igbvf_tx_ctxtdesc(tx_ring, vlan_macip_lens, type_tucmd, 0);
+	return true;
 }
 
 static int igbvf_maybe_stop_tx(struct net_device *netdev, int size)
@@ -2075,7 +2145,7 @@ static int igbvf_maybe_stop_tx(struct net_device *netdev, int size)
 }
 
 #define IGBVF_MAX_TXD_PWR	16
-#define IGBVF_MAX_DATA_PER_TXD	(1 << IGBVF_MAX_TXD_PWR)
+#define IGBVF_MAX_DATA_PER_TXD	(1u << IGBVF_MAX_TXD_PWR)
 
 static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 				   struct igbvf_ring *tx_ring,
@@ -2255,8 +2325,7 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	first = tx_ring->next_to_use;
 
-	tso = skb_is_gso(skb) ?
-		igbvf_tso(adapter, tx_ring, skb, tx_flags, &hdr_len, protocol) : 0;
+	tso = igbvf_tso(tx_ring, skb, tx_flags, &hdr_len);
 	if (unlikely(tso < 0)) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -2264,7 +2333,7 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	if (tso)
 		tx_flags |= IGBVF_TX_FLAGS_TSO;
-	else if (igbvf_tx_csum(adapter, tx_ring, skb, tx_flags, protocol) &&
+	else if (igbvf_tx_csum(tx_ring, skb, tx_flags, protocol) &&
 		 (skb->ip_summed == CHECKSUM_PARTIAL))
 		tx_flags |= IGBVF_TX_FLAGS_CSUM;
 
@@ -2326,21 +2395,6 @@ static void igbvf_reset_task(struct work_struct *work)
 }
 
 /**
- * igbvf_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- *
- * Returns the address of the device statistics structure.
- * The statistics are actually updated from the timer callback.
- **/
-static struct net_device_stats *igbvf_get_stats(struct net_device *netdev)
-{
-	struct igbvf_adapter *adapter = netdev_priv(netdev);
-
-	/* only return the current stats */
-	return &adapter->net_stats;
-}
-
-/**
  * igbvf_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -2351,16 +2405,6 @@ static int igbvf_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
-
-	if (new_mtu < 68 || new_mtu > INT_MAX - ETH_HLEN - ETH_FCS_LEN ||
-	    max_frame > MAX_JUMBO_FRAME_SIZE)
-		return -EINVAL;
-
-#define MAX_STD_JUMBO_FRAME_SIZE 9234
-	if (max_frame > MAX_STD_JUMBO_FRAME_SIZE) {
-		dev_err(&adapter->pdev->dev, "MTU > 9216 not supported.\n");
-		return -EINVAL;
-	}
 
 	while (test_and_set_bit(__IGBVF_RESETTING, &adapter->state))
 		usleep_range(1000, 2000);
@@ -2599,12 +2643,45 @@ static int igbvf_set_features(struct net_device *netdev,
 	return 0;
 }
 
+#define IGBVF_MAX_MAC_HDR_LEN		127
+#define IGBVF_MAX_NETWORK_HDR_LEN	511
+
+static netdev_features_t
+igbvf_features_check(struct sk_buff *skb, struct net_device *dev,
+		     netdev_features_t features)
+{
+	unsigned int network_hdr_len, mac_hdr_len;
+
+	/* Make certain the headers can be described by a context descriptor */
+	mac_hdr_len = skb_network_header(skb) - skb->data;
+	if (unlikely(mac_hdr_len > IGBVF_MAX_MAC_HDR_LEN))
+		return features & ~(NETIF_F_HW_CSUM |
+				    NETIF_F_SCTP_CRC |
+				    NETIF_F_HW_VLAN_CTAG_TX |
+				    NETIF_F_TSO |
+				    NETIF_F_TSO6);
+
+	network_hdr_len = skb_checksum_start(skb) - skb_network_header(skb);
+	if (unlikely(network_hdr_len >  IGBVF_MAX_NETWORK_HDR_LEN))
+		return features & ~(NETIF_F_HW_CSUM |
+				    NETIF_F_SCTP_CRC |
+				    NETIF_F_TSO |
+				    NETIF_F_TSO6);
+
+	/* We can only support IPV4 TSO in tunnels if we can mangle the
+	 * inner IP ID field, so strip TSO if MANGLEID is not supported.
+	 */
+	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID))
+		features &= ~NETIF_F_TSO;
+
+	return features;
+}
+
 static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_open		= igbvf_open,
 	.ndo_stop		= igbvf_close,
 	.ndo_start_xmit		= igbvf_xmit_frame,
-	.ndo_get_stats		= igbvf_get_stats,
-	.ndo_set_rx_mode	= igbvf_set_multi,
+	.ndo_set_rx_mode	= igbvf_set_rx_mode,
 	.ndo_set_mac_address	= igbvf_set_mac,
 	.ndo_change_mtu		= igbvf_change_mtu,
 	.ndo_do_ioctl		= igbvf_ioctl,
@@ -2615,7 +2692,7 @@ static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_poll_controller	= igbvf_netpoll,
 #endif
 	.ndo_set_features	= igbvf_set_features,
-	.ndo_features_check	= passthru_features_check,
+	.ndo_features_check	= igbvf_features_check,
 };
 
 /**
@@ -2717,25 +2794,42 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->bd_number = cards_found++;
 
 	netdev->hw_features = NETIF_F_SG |
-			   NETIF_F_IP_CSUM |
-			   NETIF_F_IPV6_CSUM |
-			   NETIF_F_TSO |
-			   NETIF_F_TSO6 |
-			   NETIF_F_RXCSUM;
+			      NETIF_F_TSO |
+			      NETIF_F_TSO6 |
+			      NETIF_F_RXCSUM |
+			      NETIF_F_HW_CSUM |
+			      NETIF_F_SCTP_CRC;
 
-	netdev->features = netdev->hw_features |
-			   NETIF_F_HW_VLAN_CTAG_TX |
-			   NETIF_F_HW_VLAN_CTAG_RX |
-			   NETIF_F_HW_VLAN_CTAG_FILTER;
+#define IGBVF_GSO_PARTIAL_FEATURES (NETIF_F_GSO_GRE | \
+				    NETIF_F_GSO_GRE_CSUM | \
+				    NETIF_F_GSO_IPXIP4 | \
+				    NETIF_F_GSO_IPXIP6 | \
+				    NETIF_F_GSO_UDP_TUNNEL | \
+				    NETIF_F_GSO_UDP_TUNNEL_CSUM)
+
+	netdev->gso_partial_features = IGBVF_GSO_PARTIAL_FEATURES;
+	netdev->hw_features |= NETIF_F_GSO_PARTIAL |
+			       IGBVF_GSO_PARTIAL_FEATURES;
+
+	netdev->features = netdev->hw_features;
 
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-	netdev->vlan_features |= NETIF_F_TSO;
-	netdev->vlan_features |= NETIF_F_TSO6;
-	netdev->vlan_features |= NETIF_F_IP_CSUM;
-	netdev->vlan_features |= NETIF_F_IPV6_CSUM;
-	netdev->vlan_features |= NETIF_F_SG;
+	netdev->vlan_features |= netdev->features | NETIF_F_TSO_MANGLEID;
+	netdev->mpls_features |= NETIF_F_HW_CSUM;
+	netdev->hw_enc_features |= netdev->vlan_features;
+
+	/* set this bit last since it cannot be part of vlan_features */
+	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
+			    NETIF_F_HW_VLAN_CTAG_RX |
+			    NETIF_F_HW_VLAN_CTAG_TX;
+
+	/* MTU range: 68 - 9216 */
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = MAX_STD_JUMBO_FRAME_SIZE;
+
+	spin_lock_bh(&hw->mbx_lock);
 
 	/*reset the controller to put the device in a known good state */
 	err = hw->mac.ops.reset_hw(hw);
@@ -2753,6 +2847,8 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       netdev->addr_len);
 	}
 
+	spin_unlock_bh(&hw->mbx_lock);
+
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		dev_info(&pdev->dev, "Assigning random MAC address.\n");
 		eth_hw_addr_random(netdev);
@@ -2760,8 +2856,7 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       netdev->addr_len);
 	}
 
-	setup_timer(&adapter->watchdog_timer, &igbvf_watchdog,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->watchdog_timer, igbvf_watchdog, 0);
 
 	INIT_WORK(&adapter->reset_task, igbvf_reset_task);
 	INIT_WORK(&adapter->watchdog_task, igbvf_watchdog_task);

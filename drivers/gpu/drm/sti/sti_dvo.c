@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Author: Vincent Abriou <vincent.abriou@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -16,6 +17,7 @@
 #include <drm/drm_panel.h>
 
 #include "sti_awg_utils.h"
+#include "sti_drv.h"
 #include "sti_mixer.h"
 
 /* DVO registers */
@@ -105,7 +107,7 @@ struct sti_dvo_connector {
 	container_of(x, struct sti_dvo_connector, drm_connector)
 
 #define BLANKING_LEVEL 16
-int dvo_awg_generate_code(struct sti_dvo *dvo, u8 *ram_size, u32 *ram_code)
+static int dvo_awg_generate_code(struct sti_dvo *dvo, u8 *ram_size, u32 *ram_code)
 {
 	struct drm_display_mode *mode = &dvo->mode;
 	struct dvo_config *config = dvo->config;
@@ -154,6 +156,54 @@ static void dvo_awg_configure(struct sti_dvo *dvo, u32 *awg_ram_code, int nb)
 		writel(0, dvo->regs + DVO_DIGSYNC_INSTR_I + i * 4);
 
 	writel(DVO_AWG_CTRL_EN, dvo->regs + DVO_AWG_DIGSYNC_CTRL);
+}
+
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   readl(dvo->regs + reg))
+
+static void dvo_dbg_awg_microcode(struct seq_file *s, void __iomem *reg)
+{
+	unsigned int i;
+
+	seq_puts(s, "\n\n");
+	seq_puts(s, "  DVO AWG microcode:");
+	for (i = 0; i < AWG_MAX_INST; i++) {
+		if (i % 8 == 0)
+			seq_printf(s, "\n  %04X:", i);
+		seq_printf(s, " %04X", readl(reg + i * 4));
+	}
+}
+
+static int dvo_dbg_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_dvo *dvo = (struct sti_dvo *)node->info_ent->data;
+
+	seq_printf(s, "DVO: (vaddr = 0x%p)", dvo->regs);
+	DBGFS_DUMP(DVO_AWG_DIGSYNC_CTRL);
+	DBGFS_DUMP(DVO_DOF_CFG);
+	DBGFS_DUMP(DVO_LUT_PROG_LOW);
+	DBGFS_DUMP(DVO_LUT_PROG_MID);
+	DBGFS_DUMP(DVO_LUT_PROG_HIGH);
+	dvo_dbg_awg_microcode(s, dvo->regs + DVO_DIGSYNC_INSTR_I);
+	seq_putc(s, '\n');
+	return 0;
+}
+
+static struct drm_info_list dvo_debugfs_files[] = {
+	{ "dvo", dvo_dbg_show, 0, NULL },
+};
+
+static int dvo_debugfs_init(struct sti_dvo *dvo, struct drm_minor *minor)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(dvo_debugfs_files); i++)
+		dvo_debugfs_files[i].data = dvo;
+
+	return drm_debugfs_create_files(dvo_debugfs_files,
+					ARRAY_SIZE(dvo_debugfs_files),
+					minor->debugfs_root, minor);
 }
 
 static void sti_dvo_disable(struct drm_bridge *bridge)
@@ -320,20 +370,10 @@ static int sti_dvo_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_encoder *sti_dvo_best_encoder(struct drm_connector *connector)
-{
-	struct sti_dvo_connector *dvo_connector
-		= to_sti_dvo_connector(connector);
-
-	/* Best encoder is the one associated during connector creation */
-	return dvo_connector->encoder;
-}
-
 static const
 struct drm_connector_helper_funcs sti_dvo_connector_helper_funcs = {
 	.get_modes = sti_dvo_connector_get_modes,
 	.mode_valid = sti_dvo_connector_mode_valid,
-	.best_encoder = sti_dvo_best_encoder,
 };
 
 static enum drm_connector_status
@@ -345,34 +385,42 @@ sti_dvo_connector_detect(struct drm_connector *connector, bool force)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	if (!dvo->panel)
+	if (!dvo->panel) {
 		dvo->panel = of_drm_find_panel(dvo->panel_node);
+		if (IS_ERR(dvo->panel))
+			dvo->panel = NULL;
+		else
+			drm_panel_attach(dvo->panel, connector);
+	}
 
 	if (dvo->panel)
-		if (!drm_panel_attach(dvo->panel, connector))
-			return connector_status_connected;
+		return connector_status_connected;
 
 	return connector_status_disconnected;
 }
 
-static void sti_dvo_connector_destroy(struct drm_connector *connector)
+static int sti_dvo_late_register(struct drm_connector *connector)
 {
 	struct sti_dvo_connector *dvo_connector
 		= to_sti_dvo_connector(connector);
+	struct sti_dvo *dvo = dvo_connector->dvo;
 
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-	kfree(dvo_connector);
+	if (dvo_debugfs_init(dvo, dvo->drm_dev->primary)) {
+		DRM_ERROR("DVO debugfs setup failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static const struct drm_connector_funcs sti_dvo_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_dvo_connector_detect,
-	.destroy = sti_dvo_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.late_register = sti_dvo_late_register,
 };
 
 static struct drm_encoder *sti_dvo_find_encoder(struct drm_device *dev)
@@ -417,20 +465,15 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 	bridge->driver_private = dvo;
 	bridge->funcs = &sti_dvo_bridge_funcs;
 	bridge->of_node = dvo->dev.of_node;
-	err = drm_bridge_add(bridge);
-	if (err) {
-		DRM_ERROR("Failed to add bridge\n");
-		return err;
-	}
+	drm_bridge_add(bridge);
 
-	err = drm_bridge_attach(drm_dev, bridge);
+	err = drm_bridge_attach(encoder, bridge, NULL);
 	if (err) {
 		DRM_ERROR("Failed to attach bridge\n");
 		return err;
 	}
 
 	dvo->bridge = bridge;
-	encoder->bridge = bridge;
 	connector->encoder = encoder;
 	dvo->encoder = encoder;
 
@@ -443,11 +486,7 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 	drm_connector_helper_add(drm_connector,
 				 &sti_dvo_connector_helper_funcs);
 
-	err = drm_connector_register(drm_connector);
-	if (err)
-		goto err_connector;
-
-	err = drm_mode_connector_attach_encoder(drm_connector, encoder);
+	err = drm_connector_attach_encoder(drm_connector, encoder);
 	if (err) {
 		DRM_ERROR("Failed to attach a connector to a encoder\n");
 		goto err_sysfs;
@@ -456,10 +495,7 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 	return 0;
 
 err_sysfs:
-	drm_connector_unregister(drm_connector);
-err_connector:
 	drm_bridge_remove(bridge);
-	drm_connector_cleanup(drm_connector);
 	return -EINVAL;
 }
 
@@ -530,6 +566,7 @@ static int sti_dvo_probe(struct platform_device *pdev)
 	dvo->panel_node = of_parse_phandle(np, "sti,panel", 0);
 	if (!dvo->panel_node)
 		DRM_ERROR("No panel associated to the dvo output\n");
+	of_node_put(dvo->panel_node);
 
 	platform_set_drvdata(pdev, dvo);
 
@@ -542,7 +579,7 @@ static int sti_dvo_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id dvo_of_match[] = {
+static const struct of_device_id dvo_of_match[] = {
 	{ .compatible = "st,stih407-dvo", },
 	{ /* end node */ }
 };

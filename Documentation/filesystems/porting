@@ -228,7 +228,7 @@ anything from oops to silent memory corruption.
 ---
 [mandatory]
 
-	FS_NOMOUNT is gone.  If you use it - just set MS_NOUSER in flags
+	FS_NOMOUNT is gone.  If you use it - just set SB_NOUSER in flags
 (see rootfs for one kind of solution and bdev/socket/pipe for another).
 
 ---
@@ -287,8 +287,8 @@ implementing on-disk size changes.  Start with a copy of the old inode_setattr
 and vmtruncate, and the reorder the vmtruncate + foofs_vmtruncate sequence to
 be in order of zeroing blocks using block_truncate_page or similar helpers,
 size update and on finally on-disk truncation which should not fail.
-inode_change_ok now includes the size checks for ATTR_SIZE and must be called
-in the beginning of ->setattr unconditionally.
+setattr_prepare (which used to be inode_change_ok) now includes the size checks
+for ATTR_SIZE and must be called in the beginning of ->setattr unconditionally.
 
 [mandatory]
 
@@ -502,5 +502,123 @@ in your dentry operations instead.
 	store it as cookie.
 --
 [mandatory]
-	__fd_install() & fd_install() can now sleep. Callers should not
-	hold a spinlock	or other resources that do not allow a schedule.
+	any symlink that might use page_follow_link_light/page_put_link() must
+	have inode_nohighmem(inode) called before anything might start playing with
+	its pagecache.  No highmem pages should end up in the pagecache of such
+	symlinks.  That includes any preseeding that might be done during symlink
+	creation.  __page_symlink() will honour the mapping gfp flags, so once
+	you've done inode_nohighmem() it's safe to use, but if you allocate and
+	insert the page manually, make sure to use the right gfp flags.
+--
+[mandatory]
+	->follow_link() is replaced with ->get_link(); same API, except that
+		* ->get_link() gets inode as a separate argument
+		* ->get_link() may be called in RCU mode - in that case NULL
+		  dentry is passed
+--
+[mandatory]
+	->get_link() gets struct delayed_call *done now, and should do
+	set_delayed_call() where it used to set *cookie.
+	->put_link() is gone - just give the destructor to set_delayed_call()
+	in ->get_link().
+--
+[mandatory]
+	->getxattr() and xattr_handler.get() get dentry and inode passed separately.
+	dentry might be yet to be attached to inode, so do _not_ use its ->d_inode
+	in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
+	called before we attach dentry to inode.
+--
+[mandatory]
+	symlinks are no longer the only inodes that do *not* have i_bdev/i_cdev/
+	i_pipe/i_link union zeroed out at inode eviction.  As the result, you can't
+	assume that non-NULL value in ->i_nlink at ->destroy_inode() implies that
+	it's a symlink.  Checking ->i_mode is really needed now.  In-tree we had
+	to fix shmem_destroy_callback() that used to take that kind of shortcut;
+	watch out, since that shortcut is no longer valid.
+--
+[mandatory]
+	->i_mutex is replaced with ->i_rwsem now.  inode_lock() et.al. work as
+	they used to - they just take it exclusive.  However, ->lookup() may be
+	called with parent locked shared.  Its instances must not
+		* use d_instantiate) and d_rehash() separately - use d_add() or
+		  d_splice_alias() instead.
+		* use d_rehash() alone - call d_add(new_dentry, NULL) instead.
+		* in the unlikely case when (read-only) access to filesystem
+		  data structures needs exclusion for some reason, arrange it
+		  yourself.  None of the in-tree filesystems needed that.
+		* rely on ->d_parent and ->d_name not changing after dentry has
+		  been fed to d_add() or d_splice_alias().  Again, none of the
+		  in-tree instances relied upon that.
+	We are guaranteed that lookups of the same name in the same directory
+	will not happen in parallel ("same" in the sense of your ->d_compare()).
+	Lookups on different names in the same directory can and do happen in
+	parallel now.
+--
+[recommended]
+	->iterate_shared() is added; it's a parallel variant of ->iterate().
+	Exclusion on struct file level is still provided (as well as that
+	between it and lseek on the same struct file), but if your directory
+	has been opened several times, you can get these called in parallel.
+	Exclusion between that method and all directory-modifying ones is
+	still provided, of course.
+
+	Often enough ->iterate() can serve as ->iterate_shared() without any
+	changes - it is a read-only operation, after all.  If you have any
+	per-inode or per-dentry in-core data structures modified by ->iterate(),
+	you might need something to serialize the access to them.  If you
+	do dcache pre-seeding, you'll need to switch to d_alloc_parallel() for
+	that; look for in-tree examples.
+
+	Old method is only used if the new one is absent; eventually it will
+	be removed.  Switch while you still can; the old one won't stay.
+--
+[mandatory]
+	->atomic_open() calls without O_CREAT may happen in parallel.
+--
+[mandatory]
+	->setxattr() and xattr_handler.set() get dentry and inode passed separately.
+	dentry might be yet to be attached to inode, so do _not_ use its ->d_inode
+	in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
+	called before we attach dentry to inode and !@#!@##!@$!$#!@#$!@$!@$ smack
+	->d_instantiate() uses not just ->getxattr() but ->setxattr() as well.
+--
+[mandatory]
+	->d_compare() doesn't get parent as a separate argument anymore.  If you
+	used it for finding the struct super_block involved, dentry->d_sb will
+	work just as well; if it's something more complicated, use dentry->d_parent.
+	Just be careful not to assume that fetching it more than once will yield
+	the same value - in RCU mode it could change under you.
+--
+[mandatory]
+	->rename() has an added flags argument.  Any flags not handled by the
+        filesystem should result in EINVAL being returned.
+--
+[recommended]
+	->readlink is optional for symlinks.  Don't set, unless filesystem needs
+	to fake something for readlink(2).
+--
+[mandatory]
+	->getattr() is now passed a struct path rather than a vfsmount and
+	dentry separately, and it now has request_mask and query_flags arguments
+	to specify the fields and sync type requested by statx.  Filesystems not
+	supporting any statx-specific features may ignore the new arguments.
+--
+[mandatory]
+	->atomic_open() calling conventions have changed.  Gone is int *opened,
+	along with FILE_OPENED/FILE_CREATED.  In place of those we have
+	FMODE_OPENED/FMODE_CREATED, set in file->f_mode.  Additionally, return
+	value for 'called finish_no_open(), open it yourself' case has become
+	0, not 1.  Since finish_no_open() itself is returning 0 now, that part
+	does not need any changes in ->atomic_open() instances.
+--
+[mandatory]
+	alloc_file() has become static now; two wrappers are to be used instead.
+	alloc_file_pseudo(inode, vfsmount, name, flags, ops) is for the cases
+	when dentry needs to be created; that's the majority of old alloc_file()
+	users.  Calling conventions: on success a reference to new struct file
+	is returned and callers reference to inode is subsumed by that.  On
+	failure, ERR_PTR() is returned and no caller's references are affected,
+	so the caller needs to drop the inode reference it held.
+	alloc_file_clone(file, flags, ops) does not affect any caller's references.
+	On success you get a new struct file sharing the mount/dentry with the
+	original, on failure - ERR_PTR().

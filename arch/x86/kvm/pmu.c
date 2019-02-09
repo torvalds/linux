@@ -113,12 +113,19 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 		.config = config,
 	};
 
+	attr.sample_period = (-pmc->counter) & pmc_bitmask(pmc);
+
 	if (in_tx)
 		attr.config |= HSW_IN_TX;
-	if (in_tx_cp)
+	if (in_tx_cp) {
+		/*
+		 * HSW_IN_TX_CHECKPOINTED is not supported with nonzero
+		 * period. Just clear the sample period so at least
+		 * allocating the counter doesn't fail.
+		 */
+		attr.sample_period = 0;
 		attr.config |= HSW_IN_TX_CHECKPOINTED;
-
-	attr.sample_period = (-pmc->counter) & pmc_bitmask(pmc);
+	}
 
 	event = perf_event_create_kernel_counter(&attr, -1, current,
 						 intr ? kvm_perf_overflow_intr :
@@ -237,11 +244,48 @@ int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
 	return kvm_x86_ops->pmu_ops->is_valid_msr_idx(vcpu, idx);
 }
 
+bool is_vmware_backdoor_pmc(u32 pmc_idx)
+{
+	switch (pmc_idx) {
+	case VMWARE_BACKDOOR_PMC_HOST_TSC:
+	case VMWARE_BACKDOOR_PMC_REAL_TIME:
+	case VMWARE_BACKDOOR_PMC_APPARENT_TIME:
+		return true;
+	}
+	return false;
+}
+
+static int kvm_pmu_rdpmc_vmware(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
+{
+	u64 ctr_val;
+
+	switch (idx) {
+	case VMWARE_BACKDOOR_PMC_HOST_TSC:
+		ctr_val = rdtsc();
+		break;
+	case VMWARE_BACKDOOR_PMC_REAL_TIME:
+		ctr_val = ktime_get_boot_ns();
+		break;
+	case VMWARE_BACKDOOR_PMC_APPARENT_TIME:
+		ctr_val = ktime_get_boot_ns() +
+			vcpu->kvm->arch.kvmclock_offset;
+		break;
+	default:
+		return 1;
+	}
+
+	*data = ctr_val;
+	return 0;
+}
+
 int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 {
 	bool fast_mode = idx & (1u << 31);
 	struct kvm_pmc *pmc;
 	u64 ctr_val;
+
+	if (is_vmware_backdoor_pmc(idx))
+		return kvm_pmu_rdpmc_vmware(vcpu, idx, data);
 
 	pmc = kvm_x86_ops->pmu_ops->msr_idx_to_pmc(vcpu, idx);
 	if (!pmc)
@@ -257,7 +301,7 @@ int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 
 void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.apic)
+	if (lapic_in_kernel(vcpu))
 		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
 }
 

@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /************************************************************************
  * Copyright 2003 Digi International (www.digi.com)
  *
  * Copyright (C) 2004 IBM Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- * PURPOSE.  See the GNU General Public License for more details.
  *
  * Contact Information:
  * Scott H Kilau <Scott_Kilau@digi.com>
@@ -290,9 +281,6 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 	int total = 0;
 	u16 head;
 	u16 tail;
-
-	if (!ch)
-		return;
 
 	/* cache head and tail of queue */
 	head = ch->ch_r_head & RQUEUEMASK;
@@ -714,7 +702,7 @@ static void neo_clear_break(struct jsm_channel *ch)
 /*
  * Parse the ISR register.
  */
-static inline void neo_parse_isr(struct jsm_board *brd, u32 port)
+static void neo_parse_isr(struct jsm_board *brd, u32 port)
 {
 	struct jsm_channel *ch;
 	u8 isr;
@@ -1184,6 +1172,9 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 				continue;
 
 			ch = brd->channels[port];
+			if (!ch)
+				continue;
+
 			neo_copy_data_from_uart_to_queue(ch);
 
 			/* Call our tty layer to enforce queue flow control if needed. */

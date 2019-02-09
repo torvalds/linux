@@ -239,7 +239,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 		}
 
 		len -= sizeof(*cl);
-		cl = (void *) skb_pull(skb, sizeof(*cl));
+		cl = skb_pull(skb, sizeof(*cl));
 	}
 
 	/* Fall back to L2CAP init sequence */
@@ -279,7 +279,7 @@ static int a2mp_change_notify(struct amp_mgr *mgr, struct sk_buff *skb,
 	while (skb->len >= sizeof(*cl)) {
 		BT_DBG("Controller id %d type %d status %d", cl->id, cl->type,
 		       cl->status);
-		cl = (struct a2mp_cl *) skb_pull(skb, sizeof(*cl));
+		cl = skb_pull(skb, sizeof(*cl));
 	}
 
 	/* TODO send A2MP_CHANGE_RSP */
@@ -573,7 +573,7 @@ static int a2mp_discphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK,
 				       &mgr->l2cap_conn->hcon->dst);
 	if (!hcon) {
-		BT_ERR("No phys link exist");
+		bt_dev_err(hdev, "no phys link exist");
 		rsp.status = A2MP_STATUS_NO_PHYSICAL_LINK_EXISTS;
 		goto clean;
 	}
@@ -810,7 +810,7 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)
 /* AMP Manager functions */
 struct amp_mgr *amp_mgr_get(struct amp_mgr *mgr)
 {
-	BT_DBG("mgr %p orig refcnt %d", mgr, atomic_read(&mgr->kref.refcount));
+	BT_DBG("mgr %p orig refcnt %d", mgr, kref_read(&mgr->kref));
 
 	kref_get(&mgr->kref);
 
@@ -833,7 +833,7 @@ static void amp_mgr_destroy(struct kref *kref)
 
 int amp_mgr_put(struct amp_mgr *mgr)
 {
-	BT_DBG("mgr %p orig refcnt %d", mgr, atomic_read(&mgr->kref.refcount));
+	BT_DBG("mgr %p orig refcnt %d", mgr, kref_read(&mgr->kref));
 
 	return kref_put(&mgr->kref, &amp_mgr_destroy);
 }

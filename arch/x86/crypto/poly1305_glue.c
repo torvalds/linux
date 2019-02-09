@@ -83,35 +83,37 @@ static unsigned int poly1305_simd_blocks(struct poly1305_desc_ctx *dctx,
 	if (poly1305_use_avx2 && srclen >= POLY1305_BLOCK_SIZE * 4) {
 		if (unlikely(!sctx->wset)) {
 			if (!sctx->uset) {
-				memcpy(sctx->u, dctx->r, sizeof(sctx->u));
-				poly1305_simd_mult(sctx->u, dctx->r);
+				memcpy(sctx->u, dctx->r.r, sizeof(sctx->u));
+				poly1305_simd_mult(sctx->u, dctx->r.r);
 				sctx->uset = true;
 			}
 			memcpy(sctx->u + 5, sctx->u, sizeof(sctx->u));
-			poly1305_simd_mult(sctx->u + 5, dctx->r);
+			poly1305_simd_mult(sctx->u + 5, dctx->r.r);
 			memcpy(sctx->u + 10, sctx->u + 5, sizeof(sctx->u));
-			poly1305_simd_mult(sctx->u + 10, dctx->r);
+			poly1305_simd_mult(sctx->u + 10, dctx->r.r);
 			sctx->wset = true;
 		}
 		blocks = srclen / (POLY1305_BLOCK_SIZE * 4);
-		poly1305_4block_avx2(dctx->h, src, dctx->r, blocks, sctx->u);
+		poly1305_4block_avx2(dctx->h.h, src, dctx->r.r, blocks,
+				     sctx->u);
 		src += POLY1305_BLOCK_SIZE * 4 * blocks;
 		srclen -= POLY1305_BLOCK_SIZE * 4 * blocks;
 	}
 #endif
 	if (likely(srclen >= POLY1305_BLOCK_SIZE * 2)) {
 		if (unlikely(!sctx->uset)) {
-			memcpy(sctx->u, dctx->r, sizeof(sctx->u));
-			poly1305_simd_mult(sctx->u, dctx->r);
+			memcpy(sctx->u, dctx->r.r, sizeof(sctx->u));
+			poly1305_simd_mult(sctx->u, dctx->r.r);
 			sctx->uset = true;
 		}
 		blocks = srclen / (POLY1305_BLOCK_SIZE * 2);
-		poly1305_2block_sse2(dctx->h, src, dctx->r, blocks, sctx->u);
+		poly1305_2block_sse2(dctx->h.h, src, dctx->r.r, blocks,
+				     sctx->u);
 		src += POLY1305_BLOCK_SIZE * 2 * blocks;
 		srclen -= POLY1305_BLOCK_SIZE * 2 * blocks;
 	}
 	if (srclen >= POLY1305_BLOCK_SIZE) {
-		poly1305_block_sse2(dctx->h, src, dctx->r, 1);
+		poly1305_block_sse2(dctx->h.h, src, dctx->r.r, 1);
 		srclen -= POLY1305_BLOCK_SIZE;
 	}
 	return srclen;
@@ -164,14 +166,11 @@ static struct shash_alg alg = {
 	.init		= poly1305_simd_init,
 	.update		= poly1305_simd_update,
 	.final		= crypto_poly1305_final,
-	.setkey		= crypto_poly1305_setkey,
 	.descsize	= sizeof(struct poly1305_simd_desc_ctx),
 	.base		= {
 		.cra_name		= "poly1305",
 		.cra_driver_name	= "poly1305-simd",
 		.cra_priority		= 300,
-		.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
-		.cra_alignmask		= sizeof(u32) - 1,
 		.cra_blocksize		= POLY1305_BLOCK_SIZE,
 		.cra_module		= THIS_MODULE,
 	},
@@ -179,11 +178,12 @@ static struct shash_alg alg = {
 
 static int __init poly1305_simd_mod_init(void)
 {
-	if (!cpu_has_xmm2)
+	if (!boot_cpu_has(X86_FEATURE_XMM2))
 		return -ENODEV;
 
 #ifdef CONFIG_AS_AVX2
-	poly1305_use_avx2 = cpu_has_avx && cpu_has_avx2 &&
+	poly1305_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) &&
+			    boot_cpu_has(X86_FEATURE_AVX2) &&
 			    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 	alg.descsize = sizeof(struct poly1305_simd_desc_ctx);
 	if (poly1305_use_avx2)

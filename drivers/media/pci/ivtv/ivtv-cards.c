@@ -22,12 +22,12 @@
 #include "ivtv-cards.h"
 #include "ivtv-i2c.h"
 
-#include <media/msp3400.h>
-#include <media/m52790.h>
-#include <media/wm8775.h>
-#include <media/cs53l32a.h>
-#include <media/cx25840.h>
-#include <media/upd64031a.h>
+#include <media/drv-intf/msp3400.h>
+#include <media/i2c/m52790.h>
+#include <media/i2c/wm8775.h>
+#include <media/i2c/cs53l32a.h>
+#include <media/drv-intf/cx25840.h>
+#include <media/i2c/upd64031a.h>
 
 #define MSP_TUNER  MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER1, \
 				MSP_DSP_IN_TUNER, MSP_DSP_IN_TUNER)
@@ -65,7 +65,7 @@ static struct ivtv_card_tuner_i2c ivtv_i2c_tda8290 = {
 
 /********************** card configuration *******************************/
 
-/* Please add new PCI IDs to: http://pci-ids.ucw.cz/ 
+/* Please add new PCI IDs to: http://pci-ids.ucw.cz/
    This keeps the PCI ID database up to date. Note that the entries
    must be added under vendor 0x4444 (Conexant) as subsystem IDs.
    New vendor IDs should still be added to the vendor ID list. */

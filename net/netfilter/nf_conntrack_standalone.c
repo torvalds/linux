@@ -1,12 +1,4 @@
-/* (C) 1999-2001 Paul `Rusty' Russell
- * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- * (C) 2005-2012 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
-
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/netfilter.h>
 #include <linux/slab.h>
@@ -24,7 +16,6 @@
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
-#include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
@@ -33,35 +24,90 @@
 #include <net/netfilter/nf_conntrack_timestamp.h>
 #include <linux/rculist_nulls.h>
 
-MODULE_LICENSE("GPL");
+unsigned int nf_conntrack_net_id __read_mostly;
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 void
 print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
-            const struct nf_conntrack_l3proto *l3proto,
             const struct nf_conntrack_l4proto *l4proto)
 {
-	l3proto->print_tuple(s, tuple);
-	l4proto->print_tuple(s, tuple);
+	switch (tuple->src.l3num) {
+	case NFPROTO_IPV4:
+		seq_printf(s, "src=%pI4 dst=%pI4 ",
+			   &tuple->src.u3.ip, &tuple->dst.u3.ip);
+		break;
+	case NFPROTO_IPV6:
+		seq_printf(s, "src=%pI6 dst=%pI6 ",
+			   tuple->src.u3.ip6, tuple->dst.u3.ip6);
+		break;
+	default:
+		break;
+	}
+
+	switch (l4proto->l4proto) {
+	case IPPROTO_ICMP:
+		seq_printf(s, "type=%u code=%u id=%u ",
+			   tuple->dst.u.icmp.type,
+			   tuple->dst.u.icmp.code,
+			   ntohs(tuple->src.u.icmp.id));
+		break;
+	case IPPROTO_TCP:
+		seq_printf(s, "sport=%hu dport=%hu ",
+			   ntohs(tuple->src.u.tcp.port),
+			   ntohs(tuple->dst.u.tcp.port));
+		break;
+	case IPPROTO_UDPLITE: /* fallthrough */
+	case IPPROTO_UDP:
+		seq_printf(s, "sport=%hu dport=%hu ",
+			   ntohs(tuple->src.u.udp.port),
+			   ntohs(tuple->dst.u.udp.port));
+
+		break;
+	case IPPROTO_DCCP:
+		seq_printf(s, "sport=%hu dport=%hu ",
+			   ntohs(tuple->src.u.dccp.port),
+			   ntohs(tuple->dst.u.dccp.port));
+		break;
+	case IPPROTO_SCTP:
+		seq_printf(s, "sport=%hu dport=%hu ",
+			   ntohs(tuple->src.u.sctp.port),
+			   ntohs(tuple->dst.u.sctp.port));
+		break;
+	case IPPROTO_ICMPV6:
+		seq_printf(s, "type=%u code=%u id=%u ",
+			   tuple->dst.u.icmp.type,
+			   tuple->dst.u.icmp.code,
+			   ntohs(tuple->src.u.icmp.id));
+		break;
+	case IPPROTO_GRE:
+		seq_printf(s, "srckey=0x%x dstkey=0x%x ",
+			   ntohs(tuple->src.u.gre.key),
+			   ntohs(tuple->dst.u.gre.key));
+		break;
+	default:
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(print_tuple);
 
 struct ct_iter_state {
 	struct seq_net_private p;
+	struct hlist_nulls_head *hash;
+	unsigned int htable_size;
 	unsigned int bucket;
 	u_int64_t time_now;
 };
 
 static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 {
-	struct net *net = seq_file_net(seq);
 	struct ct_iter_state *st = seq->private;
 	struct hlist_nulls_node *n;
 
 	for (st->bucket = 0;
-	     st->bucket < net->ct.htable_size;
+	     st->bucket < st->htable_size;
 	     st->bucket++) {
-		n = rcu_dereference(hlist_nulls_first_rcu(&net->ct.hash[st->bucket]));
+		n = rcu_dereference(
+			hlist_nulls_first_rcu(&st->hash[st->bucket]));
 		if (!is_a_nulls(n))
 			return n;
 	}
@@ -71,18 +117,16 @@ static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
 				      struct hlist_nulls_node *head)
 {
-	struct net *net = seq_file_net(seq);
 	struct ct_iter_state *st = seq->private;
 
 	head = rcu_dereference(hlist_nulls_next_rcu(head));
 	while (is_a_nulls(head)) {
 		if (likely(get_nulls_value(head) == st->bucket)) {
-			if (++st->bucket >= net->ct.htable_size)
+			if (++st->bucket >= st->htable_size)
 				return NULL;
 		}
 		head = rcu_dereference(
-				hlist_nulls_first_rcu(
-					&net->ct.hash[st->bucket]));
+			hlist_nulls_first_rcu(&st->hash[st->bucket]));
 	}
 	return head;
 }
@@ -104,6 +148,8 @@ static void *ct_seq_start(struct seq_file *seq, loff_t *pos)
 
 	st->time_now = ktime_get_real_ns();
 	rcu_read_lock();
+
+	nf_conntrack_get_ht(&st->hash, &st->htable_size);
 	return ct_get_idx(seq, *pos);
 }
 
@@ -196,40 +242,72 @@ ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 }
 #endif
 
+static const char* l3proto_name(u16 proto)
+{
+	switch (proto) {
+	case AF_INET: return "ipv4";
+	case AF_INET6: return "ipv6";
+	}
+
+	return "unknown";
+}
+
+static const char* l4proto_name(u16 proto)
+{
+	switch (proto) {
+	case IPPROTO_ICMP: return "icmp";
+	case IPPROTO_TCP: return "tcp";
+	case IPPROTO_UDP: return "udp";
+	case IPPROTO_DCCP: return "dccp";
+	case IPPROTO_GRE: return "gre";
+	case IPPROTO_SCTP: return "sctp";
+	case IPPROTO_UDPLITE: return "udplite";
+	}
+
+	return "unknown";
+}
+
 /* return 0 on success, 1 in case of error */
 static int ct_seq_show(struct seq_file *s, void *v)
 {
 	struct nf_conntrack_tuple_hash *hash = v;
 	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(hash);
-	const struct nf_conntrack_l3proto *l3proto;
 	const struct nf_conntrack_l4proto *l4proto;
+	struct net *net = seq_file_net(s);
 	int ret = 0;
 
-	NF_CT_ASSERT(ct);
+	WARN_ON(!ct);
 	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
 		return 0;
+
+	if (nf_ct_should_gc(ct)) {
+		nf_ct_kill(ct);
+		goto release;
+	}
 
 	/* we only want to print DIR_ORIGINAL */
 	if (NF_CT_DIRECTION(hash))
 		goto release;
 
-	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
-	NF_CT_ASSERT(l3proto);
+	if (!net_eq(nf_ct_net(ct), net))
+		goto release;
+
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
-	NF_CT_ASSERT(l4proto);
+	WARN_ON(!l4proto);
 
 	ret = -ENOSPC;
-	seq_printf(s, "%-8s %u %-8s %u %ld ",
-		   l3proto->name, nf_ct_l3num(ct),
-		   l4proto->name, nf_ct_protonum(ct),
-		   timer_pending(&ct->timeout)
-		   ? (long)(ct->timeout.expires - jiffies)/HZ : 0);
+	seq_printf(s, "%-8s %u %-8s %u ",
+		   l3proto_name(nf_ct_l3num(ct)), nf_ct_l3num(ct),
+		   l4proto_name(l4proto->l4proto), nf_ct_protonum(ct));
+
+	if (!test_bit(IPS_OFFLOAD_BIT, &ct->status))
+		seq_printf(s, "%ld ", nf_ct_expires(ct)  / HZ);
 
 	if (l4proto->print_conntrack)
 		l4proto->print_conntrack(s, ct);
 
 	print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
-		    l3proto, l4proto);
+		    l4proto);
 
 	ct_show_zone(s, ct, NF_CT_ZONE_DIR_ORIG);
 
@@ -240,18 +318,19 @@ static int ct_seq_show(struct seq_file *s, void *v)
 		goto release;
 
 	if (!(test_bit(IPS_SEEN_REPLY_BIT, &ct->status)))
-		seq_printf(s, "[UNREPLIED] ");
+		seq_puts(s, "[UNREPLIED] ");
 
-	print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
-		    l3proto, l4proto);
+	print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple, l4proto);
 
 	ct_show_zone(s, ct, NF_CT_ZONE_DIR_REPL);
 
 	if (seq_print_acct(s, ct, IP_CT_DIR_REPLY))
 		goto release;
 
-	if (test_bit(IPS_ASSURED_BIT, &ct->status))
-		seq_printf(s, "[ASSURED] ");
+	if (test_bit(IPS_OFFLOAD_BIT, &ct->status))
+		seq_puts(s, "[OFFLOAD] ");
+	else if (test_bit(IPS_ASSURED_BIT, &ct->status))
+		seq_puts(s, "[ASSURED] ");
 
 	if (seq_has_overflowed(s))
 		goto release;
@@ -280,20 +359,6 @@ static const struct seq_operations ct_seq_ops = {
 	.next  = ct_seq_next,
 	.stop  = ct_seq_stop,
 	.show  = ct_seq_show
-};
-
-static int ct_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ct_seq_ops,
-			sizeof(struct ct_iter_state));
-}
-
-static const struct file_operations ct_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = ct_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
 };
 
 static void *ct_cpu_seq_start(struct seq_file *seq, loff_t *pos)
@@ -340,20 +405,20 @@ static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 	const struct ip_conntrack_stat *st = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries  searched found new invalid ignore delete delete_list insert insert_failed drop early_drop icmp_error  expect_new expect_create expect_delete search_restart\n");
+		seq_puts(seq, "entries  searched found new invalid ignore delete delete_list insert insert_failed drop early_drop icmp_error  expect_new expect_create expect_delete search_restart\n");
 		return 0;
 	}
 
 	seq_printf(seq, "%08x  %08x %08x %08x %08x %08x %08x %08x "
 			"%08x %08x %08x %08x %08x  %08x %08x %08x %08x\n",
 		   nr_conntracks,
-		   st->searched,
+		   0,
 		   st->found,
-		   st->new,
+		   0,
 		   st->invalid,
 		   st->ignore,
-		   st->delete,
-		   st->delete_list,
+		   0,
+		   0,
 		   st->insert,
 		   st->insert_failed,
 		   st->drop,
@@ -375,30 +440,24 @@ static const struct seq_operations ct_cpu_seq_ops = {
 	.show	= ct_cpu_seq_show,
 };
 
-static int ct_cpu_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ct_cpu_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations ct_cpu_seq_fops = {
-	.owner	 = THIS_MODULE,
-	.open	 = ct_cpu_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 static int nf_conntrack_standalone_init_proc(struct net *net)
 {
 	struct proc_dir_entry *pde;
+	kuid_t root_uid;
+	kgid_t root_gid;
 
-	pde = proc_create("nf_conntrack", 0440, net->proc_net, &ct_file_ops);
+	pde = proc_create_net("nf_conntrack", 0440, net->proc_net, &ct_seq_ops,
+			sizeof(struct ct_iter_state));
 	if (!pde)
 		goto out_nf_conntrack;
 
-	pde = proc_create("nf_conntrack", S_IRUGO, net->proc_net_stat,
-			  &ct_cpu_seq_fops);
+	root_uid = make_kuid(net->user_ns, 0);
+	root_gid = make_kgid(net->user_ns, 0);
+	if (uid_valid(root_uid) && gid_valid(root_gid))
+		proc_set_user(pde, root_uid, root_gid);
+
+	pde = proc_create_net("nf_conntrack", 0444, net->proc_net_stat,
+			&ct_cpu_seq_ops, sizeof(struct seq_net_private));
 	if (!pde)
 		goto out_stat_nf_conntrack;
 	return 0;
@@ -429,8 +488,29 @@ static void nf_conntrack_standalone_fini_proc(struct net *net)
 
 #ifdef CONFIG_SYSCTL
 /* Log invalid packets of a given protocol */
-static int log_invalid_proto_min = 0;
-static int log_invalid_proto_max = 255;
+static int log_invalid_proto_min __read_mostly;
+static int log_invalid_proto_max __read_mostly = 255;
+
+/* size the user *wants to set */
+static unsigned int nf_conntrack_htable_size_user __read_mostly;
+
+static int
+nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (ret < 0 || !write)
+		return ret;
+
+	/* update ret, we might not be able to satisfy request */
+	ret = nf_conntrack_hash_resize(nf_conntrack_htable_size_user);
+
+	/* update it to the actual value used by conntrack */
+	nf_conntrack_htable_size_user = nf_conntrack_htable_size;
+	return ret;
+}
 
 static struct ctl_table_header *nf_ct_netfilter_header;
 
@@ -451,10 +531,10 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 	},
 	{
 		.procname       = "nf_conntrack_buckets",
-		.data           = &init_net.ct.htable_size,
+		.data           = &nf_conntrack_htable_size_user,
 		.maxlen         = sizeof(unsigned int),
-		.mode           = 0444,
-		.proc_handler   = proc_dointvec,
+		.mode           = 0644,
+		.proc_handler   = nf_conntrack_hash_sysctl,
 	},
 	{
 		.procname	= "nf_conntrack_checksum",
@@ -482,8 +562,6 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 	{ }
 };
 
-#define NET_NF_CONNTRACK_MAX 2089
-
 static struct ctl_table nf_ct_netfilter_table[] = {
 	{
 		.procname	= "nf_conntrack_max",
@@ -505,13 +583,15 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 		goto out_kmemdup;
 
 	table[1].data = &net->ct.count;
-	table[2].data = &net->ct.htable_size;
 	table[3].data = &net->ct.sysctl_checksum;
 	table[4].data = &net->ct.sysctl_log_invalid;
 
 	/* Don't export sysctls to unprivileged users */
 	if (net->user_ns != &init_user_ns)
 		table[0].procname = NULL;
+
+	if (!net_eq(&init_net, net))
+		table[2].mode = 0444;
 
 	net->ct.sysctl_header = register_net_sysctl(net, "net/netfilter", table);
 	if (!net->ct.sysctl_header)
@@ -586,6 +666,8 @@ static void nf_conntrack_pernet_exit(struct list_head *net_exit_list)
 static struct pernet_operations nf_conntrack_net_ops = {
 	.init		= nf_conntrack_pernet_init,
 	.exit_batch	= nf_conntrack_pernet_exit,
+	.id		= &nf_conntrack_net_id,
+	.size = sizeof(struct nf_conntrack_net),
 };
 
 static int __init nf_conntrack_standalone_init(void)
@@ -593,6 +675,9 @@ static int __init nf_conntrack_standalone_init(void)
 	int ret = nf_conntrack_init_start();
 	if (ret < 0)
 		goto out_start;
+
+	BUILD_BUG_ON(SKB_NFCT_PTRMASK != NFCT_PTRMASK);
+	BUILD_BUG_ON(NFCT_INFOMASK <= IP_CT_NUMBER);
 
 #ifdef CONFIG_SYSCTL
 	nf_ct_netfilter_header =
@@ -602,6 +687,8 @@ static int __init nf_conntrack_standalone_init(void)
 		ret = -ENOMEM;
 		goto out_sysctl;
 	}
+
+	nf_conntrack_htable_size_user = nf_conntrack_htable_size;
 #endif
 
 	ret = register_pernet_subsys(&nf_conntrack_net_ops);

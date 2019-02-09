@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 comment "Processor Type"
 
 choice
@@ -22,11 +23,11 @@ config M68KCLASSIC
 
 config COLDFIRE
 	bool "Coldfire CPU family support"
-	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAVE_CUSTOM_GPIO_H
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_MULDIV64
 	select GENERIC_CSUM
+	select GPIOLIB
 	select HAVE_CLK
 
 endchoice
@@ -40,6 +41,8 @@ config M68000
 	select CPU_HAS_NO_MULDIV64
 	select CPU_HAS_NO_UNALIGNED
 	select GENERIC_CSUM
+	select CPU_NO_EFFICIENT_FFS
+	select HAVE_ARCH_HASH
 	help
 	  The Freescale (was Motorola) 68000 CPU is the first generation of
 	  the well known M68K family of processors. The CPU core as well as
@@ -51,6 +54,7 @@ config MCPU32
 	bool
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_UNALIGNED
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  The Freescale (was then Motorola) CPU32 is a CPU core that is
 	  based on the 68020 processor. For the most part it is used in
@@ -59,6 +63,7 @@ config MCPU32
 config M68020
 	bool "68020 support"
 	depends on MMU
+	select FPU
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68020
@@ -69,6 +74,7 @@ config M68020
 config M68030
 	bool "68030 support"
 	depends on MMU && !MMU_SUN3
+	select FPU
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68030
@@ -78,6 +84,7 @@ config M68030
 config M68040
 	bool "68040 support"
 	depends on MMU && !MMU_SUN3
+	select FPU
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68LC040
@@ -88,6 +95,7 @@ config M68040
 config M68060
 	bool "68060 support"
 	depends on MMU && !MMU_SUN3
+	select FPU
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68060
@@ -114,13 +122,6 @@ config M68VZ328
 	help
 	  Motorola 68VZ328 processor support.
 
-config M68360
-	bool "MC68360"
-	depends on !MMU
-	select MCPU32
-	help
-	  Motorola 68360 processor support.
-
 endif # M68KCLASSIC
 
 if COLDFIRE
@@ -137,6 +138,7 @@ config M5206
 	depends on !MMU
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  Motorola ColdFire 5206 processor support.
 
@@ -145,6 +147,7 @@ config M5206e
 	depends on !MMU
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  Motorola ColdFire 5206e processor support.
 
@@ -170,6 +173,7 @@ config M5249
 	depends on !MMU
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  Motorola ColdFire 5249 processor support.
 
@@ -178,6 +182,7 @@ config M525x
 	depends on !MMU
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  Freescale (Motorola) Coldfire 5251/5253 processor support.
 
@@ -196,6 +201,7 @@ config M5272
 	depends on !MMU
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  Motorola ColdFire 5272 processor support.
 
@@ -224,6 +230,7 @@ config M5307
 	select COLDFIRE_SW_A7
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  Motorola ColdFire 5307 processor support.
 
@@ -249,6 +256,7 @@ config M5407
 	select COLDFIRE_SW_A7
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  Motorola ColdFire 5407 processor support.
 
@@ -256,23 +264,27 @@ config M547x
 	bool "MCF547x"
 	select M54xx
 	select MMU_COLDFIRE if MMU
+	select FPU if MMU
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  Freescale ColdFire 5470/5471/5472/5473/5474/5475 processor support.
 
 config M548x
 	bool "MCF548x"
 	select MMU_COLDFIRE if MMU
+	select FPU if MMU
 	select M54xx
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  Freescale ColdFire 5480/5481/5482/5483/5484/5485 processor support.
 
 config M5441x
 	bool "MCF5441x"
-	depends on !MMU
+	select MMU_COLDFIRE if MMU
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_CB
 	help

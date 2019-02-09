@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * security/tomoyo/common.h
  *
@@ -788,7 +789,7 @@ struct tomoyo_acl_param {
 struct tomoyo_io_buffer {
 	void (*read) (struct tomoyo_io_buffer *);
 	int (*write) (struct tomoyo_io_buffer *);
-	unsigned int (*poll) (struct file *file, poll_table *wait);
+	__poll_t (*poll) (struct file *file, poll_table *wait);
 	/* Exclusive lock for this structure.   */
 	struct mutex io_sem;
 	char __user *read_user_buf;
@@ -957,7 +958,7 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name);
 const struct tomoyo_path_info *tomoyo_path_matches_group
 (const struct tomoyo_path_info *pathname, const struct tomoyo_group *group);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
-				 struct path *path, const int flag);
+				 const struct path *path, const int flag);
 void tomoyo_close_control(struct tomoyo_io_buffer *head);
 int tomoyo_env_perm(struct tomoyo_request_info *r, const char *env);
 int tomoyo_execute_permission(struct tomoyo_request_info *r,
@@ -968,20 +969,20 @@ int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
 int tomoyo_init_request_info(struct tomoyo_request_info *r,
 			     struct tomoyo_domain_info *domain,
 			     const u8 index);
-int tomoyo_mkdev_perm(const u8 operation, struct path *path,
+int tomoyo_mkdev_perm(const u8 operation, const struct path *path,
 		      const unsigned int mode, unsigned int dev);
-int tomoyo_mount_permission(const char *dev_name, struct path *path,
+int tomoyo_mount_permission(const char *dev_name, const struct path *path,
 			    const char *type, unsigned long flags,
 			    void *data_page);
 int tomoyo_open_control(const u8 type, struct file *file);
-int tomoyo_path2_perm(const u8 operation, struct path *path1,
-		      struct path *path2);
-int tomoyo_path_number_perm(const u8 operation, struct path *path,
+int tomoyo_path2_perm(const u8 operation, const struct path *path1,
+		      const struct path *path2);
+int tomoyo_path_number_perm(const u8 operation, const struct path *path,
 			    unsigned long number);
 int tomoyo_path_perm(const u8 operation, const struct path *path,
 		     const char *target);
-unsigned int tomoyo_poll_control(struct file *file, poll_table *wait);
-unsigned int tomoyo_poll_log(struct file *file, poll_table *wait);
+__poll_t tomoyo_poll_control(struct file *file, poll_table *wait);
+__poll_t tomoyo_poll_log(struct file *file, poll_table *wait);
 int tomoyo_socket_bind_permission(struct socket *sock, struct sockaddr *addr,
 				  int addr_len);
 int tomoyo_socket_connect_permission(struct socket *sock,
@@ -1036,7 +1037,7 @@ void tomoyo_check_acl(struct tomoyo_request_info *r,
 		      bool (*check_entry) (struct tomoyo_request_info *,
 					   const struct tomoyo_acl_info *));
 void tomoyo_check_profile(void);
-void tomoyo_convert_time(time_t time, struct tomoyo_time *stamp);
+void tomoyo_convert_time(time64_t time, struct tomoyo_time *stamp);
 void tomoyo_del_condition(struct list_head *element);
 void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
 void tomoyo_get_attributes(struct tomoyo_obj_info *obj);

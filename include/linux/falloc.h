@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FALLOC_H_
 #define _FALLOC_H_
 
@@ -25,6 +26,7 @@ struct space_resv {
 					 FALLOC_FL_PUNCH_HOLE |		\
 					 FALLOC_FL_COLLAPSE_RANGE |	\
 					 FALLOC_FL_ZERO_RANGE |		\
-					 FALLOC_FL_INSERT_RANGE)
+					 FALLOC_FL_INSERT_RANGE |	\
+					 FALLOC_FL_UNSHARE_RANGE)
 
 #endif /* _FALLOC_H_ */

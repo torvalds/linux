@@ -1,4 +1,4 @@
-#include <linux/module.h>
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/fs.h>
@@ -31,7 +31,7 @@ static int xensyms_next_sym(struct xensyms *xs)
 
 	symnum = symdata->symnum;
 
-	ret = HYPERVISOR_dom0_op(&xs->op);
+	ret = HYPERVISOR_platform_op(&xs->op);
 	if (ret < 0)
 		return ret;
 
@@ -50,7 +50,7 @@ static int xensyms_next_sym(struct xensyms *xs)
 		set_xen_guest_handle(symdata->name, xs->name);
 		symdata->symnum--; /* Rewind */
 
-		ret = HYPERVISOR_dom0_op(&xs->op);
+		ret = HYPERVISOR_platform_op(&xs->op);
 		if (ret < 0)
 			return ret;
 	}

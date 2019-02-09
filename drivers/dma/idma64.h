@@ -16,7 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #include "virt-dma.h"
 
@@ -54,7 +54,8 @@
 #define IDMA64C_CTLL_LLP_S_EN		(1 << 28)	/* src block chain */
 
 /* Bitfields in CTL_HI */
-#define IDMA64C_CTLH_BLOCK_TS(x)	((x) & ((1 << 17) - 1))
+#define IDMA64C_CTLH_BLOCK_TS_MASK	((1 << 17) - 1)
+#define IDMA64C_CTLH_BLOCK_TS(x)	((x) & IDMA64C_CTLH_BLOCK_TS_MASK)
 #define IDMA64C_CTLH_DONE		(1 << 17)
 
 /* Bitfields in CFG_LO */
@@ -70,7 +71,7 @@
 #define IDMA64C_CFGH_SRC_PER(x)		((x) << 0)	/* src peripheral */
 #define IDMA64C_CFGH_DST_PER(x)		((x) << 4)	/* dst peripheral */
 #define IDMA64C_CFGH_RD_ISSUE_THD(x)	((x) << 8)
-#define IDMA64C_CFGH_RW_ISSUE_THD(x)	((x) << 18)
+#define IDMA64C_CFGH_WR_ISSUE_THD(x)	((x) << 18)
 
 /* Interrupt registers */
 

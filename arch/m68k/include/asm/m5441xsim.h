@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	m5441xsim.h -- Coldfire 5441x register definitions
  *
@@ -10,6 +11,10 @@
 #define CPU_NAME		"COLDFIRE(m5441x)"
 #define CPU_INSTR_PER_JIFFY	2
 #define MCF_BUSCLK		(MCF_CLK / 2)
+#define MACHINE			MACH_M5441X
+#define FPUTYPE			0
+#define IOMEMBASE		0xe0000000
+#define IOMEMSIZE		0x20000000
 
 #include <asm/m54xxacr.h>
 
@@ -272,5 +277,11 @@
 #define MCFGPIO_IRQ_MAX		24
 #define MCFGPIO_IRQ_VECBASE	(MCFINT_VECBASE - MCFGPIO_IRQ_MIN)
 #define MCFGPIO_PIN_MAX		87
+
+/*
+ *  DSPI module.
+ */
+#define MCFDSPI_BASE0		0xfc05c000
+#define MCF_IRQ_DSPI0		(MCFINT0_VECBASE + MCFINT0_DSPI0)
 
 #endif /* m5441xsim_h */

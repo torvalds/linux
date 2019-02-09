@@ -28,7 +28,6 @@
 static int pseries_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 {
 	u64 buffer[PLPAR_HCALL_BUFSIZE];
-	size_t size = max < 8 ? max : 8;
 	int rc;
 
 	rc = plpar_hcall(H_RANDOM, (unsigned long *)buffer);
@@ -36,10 +35,10 @@ static int pseries_rng_read(struct hwrng *rng, void *data, size_t max, bool wait
 		pr_err_ratelimited("H_RANDOM call failed %d\n", rc);
 		return -EIO;
 	}
-	memcpy(data, buffer, size);
+	memcpy(data, buffer, 8);
 
 	/* The hypervisor interface returns 64 bits */
-	return size;
+	return 8;
 }
 
 /**
@@ -73,7 +72,7 @@ static int pseries_rng_remove(struct vio_dev *dev)
 	return 0;
 }
 
-static struct vio_device_id pseries_rng_driver_ids[] = {
+static const struct vio_device_id pseries_rng_driver_ids[] = {
 	{ "ibm,random-v1", "ibm,random"},
 	{ "", "" }
 };

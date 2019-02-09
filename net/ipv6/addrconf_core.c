@@ -88,6 +88,7 @@ int __ipv6_addr_type(const struct in6_addr *addr)
 EXPORT_SYMBOL(__ipv6_addr_type);
 
 static ATOMIC_NOTIFIER_HEAD(inet6addr_chain);
+static BLOCKING_NOTIFIER_HEAD(inet6addr_validator_chain);
 
 int register_inet6addr_notifier(struct notifier_block *nb)
 {
@@ -107,6 +108,25 @@ int inet6addr_notifier_call_chain(unsigned long val, void *v)
 }
 EXPORT_SYMBOL(inet6addr_notifier_call_chain);
 
+int register_inet6addr_validator_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&inet6addr_validator_chain, nb);
+}
+EXPORT_SYMBOL(register_inet6addr_validator_notifier);
+
+int unregister_inet6addr_validator_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&inet6addr_validator_chain,
+						  nb);
+}
+EXPORT_SYMBOL(unregister_inet6addr_validator_notifier);
+
+int inet6addr_validator_notifier_call_chain(unsigned long val, void *v)
+{
+	return blocking_notifier_call_chain(&inet6addr_validator_chain, val, v);
+}
+EXPORT_SYMBOL(inet6addr_validator_notifier_call_chain);
+
 static int eafnosupport_ipv6_dst_lookup(struct net *net, struct sock *u1,
 					struct dst_entry **u2,
 					struct flowi6 *u3)
@@ -114,8 +134,47 @@ static int eafnosupport_ipv6_dst_lookup(struct net *net, struct sock *u1,
 	return -EAFNOSUPPORT;
 }
 
+static struct fib6_table *eafnosupport_fib6_get_table(struct net *net, u32 id)
+{
+	return NULL;
+}
+
+static struct fib6_info *
+eafnosupport_fib6_table_lookup(struct net *net, struct fib6_table *table,
+			       int oif, struct flowi6 *fl6, int flags)
+{
+	return NULL;
+}
+
+static struct fib6_info *
+eafnosupport_fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
+			 int flags)
+{
+	return NULL;
+}
+
+static struct fib6_info *
+eafnosupport_fib6_multipath_select(const struct net *net, struct fib6_info *f6i,
+				   struct flowi6 *fl6, int oif,
+				   const struct sk_buff *skb, int strict)
+{
+	return f6i;
+}
+
+static u32
+eafnosupport_ip6_mtu_from_fib6(struct fib6_info *f6i, struct in6_addr *daddr,
+			       struct in6_addr *saddr)
+{
+	return 0;
+}
+
 const struct ipv6_stub *ipv6_stub __read_mostly = &(struct ipv6_stub) {
-	.ipv6_dst_lookup = eafnosupport_ipv6_dst_lookup,
+	.ipv6_dst_lookup   = eafnosupport_ipv6_dst_lookup,
+	.fib6_get_table    = eafnosupport_fib6_get_table,
+	.fib6_table_lookup = eafnosupport_fib6_table_lookup,
+	.fib6_lookup       = eafnosupport_fib6_lookup,
+	.fib6_multipath_select = eafnosupport_fib6_multipath_select,
+	.ip6_mtu_from_fib6 = eafnosupport_ip6_mtu_from_fib6,
 };
 EXPORT_SYMBOL_GPL(ipv6_stub);
 

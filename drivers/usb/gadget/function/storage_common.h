@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef USB_STORAGE_COMMON_H
 #define USB_STORAGE_COMMON_H
 
@@ -88,6 +89,12 @@ do {									\
 #define ASC(x)		((u8) ((x) >> 8))
 #define ASCQ(x)		((u8) (x))
 
+/*
+ * Vendor (8 chars), product (16 chars), release (4 hexadecimal digits) and NUL
+ * byte
+ */
+#define INQUIRY_STRING_LEN ((size_t) (8 + 16 + 4 + 1))
+
 struct fsg_lun {
 	struct file	*filp;
 	loff_t		file_length;
@@ -112,6 +119,7 @@ struct fsg_lun {
 	struct device	dev;
 	const char	*name;		/* "lun.name" */
 	const char	**name_pfx;	/* "function.name" */
+	char		inquiry_string[INQUIRY_STRING_LEN];
 };
 
 static inline bool fsg_lun_is_open(struct fsg_lun *curlun)
@@ -126,9 +134,10 @@ static inline bool fsg_lun_is_open(struct fsg_lun *curlun)
 #define FSG_MAX_LUNS	16
 
 enum fsg_buffer_state {
+	BUF_STATE_SENDING = -2,
+	BUF_STATE_RECEIVING,
 	BUF_STATE_EMPTY = 0,
-	BUF_STATE_FULL,
-	BUF_STATE_BUSY
+	BUF_STATE_FULL
 };
 
 struct fsg_buffhd {
@@ -144,23 +153,14 @@ struct fsg_buffhd {
 	unsigned int			bulk_out_intended_length;
 
 	struct usb_request		*inreq;
-	int				inreq_busy;
 	struct usb_request		*outreq;
-	int				outreq_busy;
 };
 
 enum fsg_state {
-	/* This one isn't used anywhere */
-	FSG_STATE_COMMAND_PHASE = -10,
-	FSG_STATE_DATA_PHASE,
-	FSG_STATE_STATUS_PHASE,
-
-	FSG_STATE_IDLE = 0,
+	FSG_STATE_NORMAL,
 	FSG_STATE_ABORT_BULK_OUT,
-	FSG_STATE_RESET,
-	FSG_STATE_INTERFACE_CHANGE,
+	FSG_STATE_PROTOCOL_RESET,
 	FSG_STATE_CONFIG_CHANGE,
-	FSG_STATE_DISCONNECT,
 	FSG_STATE_EXIT,
 	FSG_STATE_TERMINATED
 };
@@ -210,6 +210,7 @@ ssize_t fsg_show_ro(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_nofua(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		      char *buf);
+ssize_t fsg_show_inquiry_string(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_cdrom(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_removable(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_store_ro(struct fsg_lun *curlun, struct rw_semaphore *filesem,
@@ -221,5 +222,7 @@ ssize_t fsg_store_cdrom(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 			const char *buf, size_t count);
 ssize_t fsg_store_removable(struct fsg_lun *curlun, const char *buf,
 			    size_t count);
+ssize_t fsg_store_inquiry_string(struct fsg_lun *curlun, const char *buf,
+				 size_t count);
 
 #endif /* USB_STORAGE_COMMON_H */

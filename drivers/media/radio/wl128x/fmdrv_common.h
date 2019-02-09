@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #ifndef _FMDRV_COMMON_H
@@ -315,11 +311,11 @@ struct fm_event_msg_hdr {
 #define FM_RDS_GROUP_TYPE_MASK_15B	    ((unsigned long)1<<31)
 
 /* RX Alternate Frequency info */
-#define FM_RDS_MIN_AF		          1
-#define FM_RDS_MAX_AF		        204
-#define FM_RDS_MAX_AF_JAPAN	        140
-#define FM_RDS_1_AF_FOLLOWS	        225
-#define FM_RDS_25_AF_FOLLOWS	        249
+#define FM_RDS_MIN_AF			  1
+#define FM_RDS_MAX_AF			204
+#define FM_RDS_MAX_AF_JAPAN		140
+#define FM_RDS_1_AF_FOLLOWS		225
+#define FM_RDS_25_AF_FOLLOWS		249
 
 /* RDS system type (RDS/RBDS) */
 #define FM_RDS_SYSTEM_RDS		0

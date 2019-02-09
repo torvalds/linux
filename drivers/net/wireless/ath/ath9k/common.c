@@ -173,7 +173,7 @@ int ath9k_cmn_process_rate(struct ath_common *common,
 			   struct ieee80211_rx_status *rxs)
 {
 	struct ieee80211_supported_band *sband;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	unsigned int i = 0;
 	struct ath_hw *ah = common->ah;
 
@@ -181,14 +181,15 @@ int ath9k_cmn_process_rate(struct ath_common *common,
 	sband = hw->wiphy->bands[band];
 
 	if (IS_CHAN_QUARTER_RATE(ah->curchan))
-		rxs->flag |= RX_FLAG_5MHZ;
+		rxs->bw = RATE_INFO_BW_5;
 	else if (IS_CHAN_HALF_RATE(ah->curchan))
-		rxs->flag |= RX_FLAG_10MHZ;
+		rxs->bw = RATE_INFO_BW_10;
 
 	if (rx_stats->rs_rate & 0x80) {
 		/* HT rate */
-		rxs->flag |= RX_FLAG_HT;
-		rxs->flag |= rx_stats->flag;
+		rxs->encoding = RX_ENC_HT;
+		rxs->enc_flags |= rx_stats->enc_flags;
+		rxs->bw = rx_stats->bw;
 		rxs->rate_idx = rx_stats->rs_rate & 0x7f;
 		return 0;
 	}
@@ -199,7 +200,7 @@ int ath9k_cmn_process_rate(struct ath_common *common,
 			return 0;
 		}
 		if (sband->bitrates[i].hw_value_short == rx_stats->rs_rate) {
-			rxs->flag |= RX_FLAG_SHORTPRE;
+			rxs->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 			rxs->rate_idx = i;
 			return 0;
 		}
@@ -305,7 +306,7 @@ static void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
 	ichan->channel = chan->center_freq;
 	ichan->chan = chan;
 
-	if (chan->band == IEEE80211_BAND_5GHZ)
+	if (chan->band == NL80211_BAND_5GHZ)
 		flags |= CHANNEL_5GHZ;
 
 	switch (chandef->width) {
@@ -368,7 +369,7 @@ void ath9k_cmn_update_txpow(struct ath_hw *ah, u16 cur_txpow,
 {
 	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
 
-	if (reg->power_limit != new_txpow)
+	if (ah->curchan && reg->power_limit != new_txpow)
 		ath9k_hw_set_txpowerlimit(ah, new_txpow, false);
 
 	/* read back in case value is clamped */

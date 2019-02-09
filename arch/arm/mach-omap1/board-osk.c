@@ -38,7 +38,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/omap1_bl.h>
 
@@ -46,7 +46,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/flash.h>
+#include "flash.h"
 #include <mach/mux.h>
 #include <mach/tc.h>
 
@@ -167,12 +167,12 @@ static struct platform_device *osk5912_devices[] __initdata = {
 	&osk5912_cf_device,
 };
 
-static struct gpio_led tps_leds[] = {
+static const struct gpio_led tps_leds[] = {
 	/* NOTE:  D9 and D2 have hardware blink support.
 	 * Also, D9 requires non-battery power.
 	 */
 	{ .gpio = OSK_TPS_GPIO_LED_D9, .name = "d9",
-			.default_trigger = "ide-disk", },
+			.default_trigger = "disk-activity", },
 	{ .gpio = OSK_TPS_GPIO_LED_D2, .name = "d2", },
 	{ .gpio = OSK_TPS_GPIO_LED_D3, .name = "d3", .active_low = 1,
 			.default_trigger = "heartbeat", },
@@ -295,7 +295,7 @@ static struct omap_usb_config osk_usb_config __initdata = {
 };
 
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
-static struct omap_lcd_config osk_lcd_config __initdata = {
+static const struct omap_lcd_config osk_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 #endif
@@ -303,22 +303,22 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 
 #include <linux/input.h>
-#include <linux/platform_data/at24.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
 #include <linux/platform_data/keypad-omap.h>
 
-static struct at24_platform_data at24c04 = {
-	.byte_len	= SZ_4K / 8,
-	.page_size	= 16,
+static const struct property_entry mistral_at24_properties[] = {
+	PROPERTY_ENTRY_U32("pagesize", 16),
+	{ }
 };
 
 static struct i2c_board_info __initdata mistral_i2c_board_info[] = {
 	{
 		/* NOTE:  powered from LCD supply */
 		I2C_BOARD_INFO("24c04", 0x50),
-		.platform_data	= &at24c04,
+		.properties = mistral_at24_properties,
 	},
 	/* TODO when driver support is ready:
 	 *  - optionally ov9640 camera sensor at 0x30
@@ -385,7 +385,7 @@ static struct platform_device osk5912_lcd_device = {
 	.id		= -1,
 };
 
-static struct gpio_led mistral_gpio_led_pins[] = {
+static const struct gpio_led mistral_gpio_led_pins[] = {
 	{
 		.name		= "mistral:red",
 		.default_trigger = "heartbeat",
@@ -441,13 +441,11 @@ static struct spi_board_info __initdata mistral_boardinfo[] = { {
 	.chip_select		= 0,
 } };
 
-#ifdef	CONFIG_PM
 static irqreturn_t
 osk_mistral_wake_interrupt(int irq, void *ignored)
 {
 	return IRQ_HANDLED;
 }
-#endif
 
 static void __init osk_mistral_init(void)
 {
@@ -515,7 +513,6 @@ static void __init osk_mistral_init(void)
 
 		gpio_direction_input(OMAP_MPUIO(2));
 		irq_set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
-#ifdef	CONFIG_PM
 		/* share the IRQ in case someone wants to use the
 		 * button for more than wakeup from system sleep.
 		 */
@@ -529,7 +526,6 @@ static void __init osk_mistral_init(void)
 				ret);
 		} else
 			enable_irq_wake(irq);
-#endif
 	} else
 		printk(KERN_ERR "OSK+Mistral: wakeup button is awol\n");
 

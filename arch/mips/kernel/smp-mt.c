@@ -21,8 +21,8 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
-#include <linux/irqchip/mips-gic.h>
 #include <linux/compiler.h>
+#include <linux/sched/task_stack.h>
 #include <linux/smp.h>
 
 #include <linux/atomic.h>
@@ -35,6 +35,7 @@
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/mips_mt.h>
+#include <asm/mips-cps.h>
 
 static void __init smvp_copy_vpe_config(void)
 {
@@ -82,6 +83,8 @@ static unsigned int __init smvp_vpe_init(unsigned int tc, unsigned int mvpconf0,
 	if (tc != 0)
 		smvp_copy_vpe_config();
 
+	cpu_set_vpe_id(&cpu_data[ncpu], tc);
+
 	return ncpu;
 }
 
@@ -113,59 +116,14 @@ static void __init smvp_tc_init(unsigned int tc, unsigned int mvpconf0)
 	write_tc_c0_tchalt(TCHALT_H);
 }
 
-static void vsmp_send_ipi_single(int cpu, unsigned int action)
-{
-	int i;
-	unsigned long flags;
-	int vpflags;
-
-#ifdef CONFIG_MIPS_GIC
-	if (gic_present) {
-		gic_send_ipi_single(cpu, action);
-		return;
-	}
-#endif
-	local_irq_save(flags);
-
-	vpflags = dvpe();	/* can't access the other CPU's registers whilst MVPE enabled */
-
-	switch (action) {
-	case SMP_CALL_FUNCTION:
-		i = C_SW1;
-		break;
-
-	case SMP_RESCHEDULE_YOURSELF:
-	default:
-		i = C_SW0;
-		break;
-	}
-
-	/* 1:1 mapping of vpe and tc... */
-	settc(cpu);
-	write_vpe_c0_cause(read_vpe_c0_cause() | i);
-	evpe(vpflags);
-
-	local_irq_restore(flags);
-}
-
-static void vsmp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
-{
-	unsigned int i;
-
-	for_each_cpu(i, mask)
-		vsmp_send_ipi_single(i, action);
-}
-
 static void vsmp_init_secondary(void)
 {
-#ifdef CONFIG_MIPS_GIC
 	/* This is Malta specific: IPI,performance and timer interrupts */
-	if (gic_present)
+	if (mips_gic_present())
 		change_c0_status(ST0_IM, STATUSF_IP2 | STATUSF_IP3 |
 					 STATUSF_IP4 | STATUSF_IP5 |
 					 STATUSF_IP6 | STATUSF_IP7);
 	else
-#endif
 		change_c0_status(ST0_IM, STATUSF_IP0 | STATUSF_IP1 |
 					 STATUSF_IP6 | STATUSF_IP7);
 }
@@ -192,7 +150,7 @@ static void vsmp_smp_finish(void)
  * (unsigned long)idle->thread_info the gp
  * assumes a 1:1 mapping of TC => VPE
  */
-static void vsmp_boot_secondary(int cpu, struct task_struct *idle)
+static int vsmp_boot_secondary(int cpu, struct task_struct *idle)
 {
 	struct thread_info *gp = task_thread_info(idle);
 	dvpe();
@@ -224,6 +182,8 @@ static void vsmp_boot_secondary(int cpu, struct task_struct *idle)
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
 
 	evpe(EVPE_ENABLE);
+
+	return 0;
 }
 
 /*
@@ -279,9 +239,9 @@ static void __init vsmp_prepare_cpus(unsigned int max_cpus)
 	mips_mt_set_cpuoptions();
 }
 
-struct plat_smp_ops vsmp_smp_ops = {
-	.send_ipi_single	= vsmp_send_ipi_single,
-	.send_ipi_mask		= vsmp_send_ipi_mask,
+const struct plat_smp_ops vsmp_smp_ops = {
+	.send_ipi_single	= mips_smp_send_ipi_single,
+	.send_ipi_mask		= mips_smp_send_ipi_mask,
 	.init_secondary		= vsmp_init_secondary,
 	.smp_finish		= vsmp_smp_finish,
 	.boot_secondary		= vsmp_boot_secondary,
@@ -289,26 +249,3 @@ struct plat_smp_ops vsmp_smp_ops = {
 	.prepare_cpus		= vsmp_prepare_cpus,
 };
 
-#ifdef CONFIG_PROC_FS
-static int proc_cpuinfo_chain_call(struct notifier_block *nfb,
-	unsigned long action_unused, void *data)
-{
-	struct proc_cpuinfo_notifier_args *pcn = data;
-	struct seq_file *m = pcn->m;
-	unsigned long n = pcn->n;
-
-	if (!cpu_has_mipsmt)
-		return NOTIFY_OK;
-
-	seq_printf(m, "VPE\t\t\t: %d\n", cpu_data[n].vpe_id);
-
-	return NOTIFY_OK;
-}
-
-static int __init proc_cpuinfo_notifier_init(void)
-{
-	return proc_cpuinfo_notifier(proc_cpuinfo_chain_call, 0);
-}
-
-subsys_initcall(proc_cpuinfo_notifier_init);
-#endif

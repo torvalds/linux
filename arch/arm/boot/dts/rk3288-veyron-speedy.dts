@@ -1,45 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Google Veyron Speedy Rev 1+ board device tree source
  *
  * Copyright 2015 Google, Inc
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This file is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *  Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 /dts-v1/;
@@ -57,17 +20,18 @@
 	panel_regulator: panel-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio7 14 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio7 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_enable_h>;
 		regulator-name = "panel_regulator";
+		startup-delay-us = <100000>;
 		vin-supply = <&vcc33_sys>;
 	};
 
 	vcc18_lcd: vcc18-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&avdd_1v8_disp_en>;
 		regulator-name = "vcc18_lcd";
@@ -79,13 +43,36 @@
 	backlight_regulator: backlight-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bl_pwr_en>;
 		regulator-name = "backlight_regulator";
 		vin-supply = <&vcc33_sys>;
 		startup-delay-us = <15000>;
 	};
+};
+
+&backlight {
+	power-supply = <&backlight_regulator>;
+};
+
+&cpu_alert0 {
+	temperature = <65000>;
+};
+
+&cpu_alert1 {
+	temperature = <70000>;
+};
+
+&edp {
+	/delete-property/pinctrl-names;
+	/delete-property/pinctrl-0;
+
+	force-hpd;
+};
+
+&panel {
+	power-supply= <&panel_regulator>;
 };
 
 &rk808 {
@@ -102,14 +89,14 @@
 
 &vcc_5v {
 	enable-active-high;
-	gpio = <&gpio7 21 GPIO_ACTIVE_HIGH>;
+	gpio = <&gpio7 RK_PC5 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&drv_5v>;
 };
 
 &vcc50_hdmi {
 	enable-active-high;
-	gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
+	gpio = <&gpio5 RK_PC3 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&vcc50_hdmi_en>;
 };

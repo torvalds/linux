@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -380,16 +381,26 @@
 #define __NR_userfaultfd		(__NR_Linux + 357)
 #define __NR_membarrier			(__NR_Linux + 358)
 #define __NR_mlock2			(__NR_Linux + 359)
+#define __NR_copy_file_range		(__NR_Linux + 360)
+#define __NR_preadv2			(__NR_Linux + 361)
+#define __NR_pwritev2			(__NR_Linux + 362)
+#define __NR_pkey_mprotect		(__NR_Linux + 363)
+#define __NR_pkey_alloc			(__NR_Linux + 364)
+#define __NR_pkey_free			(__NR_Linux + 365)
+#define __NR_statx			(__NR_Linux + 366)
+#define __NR_rseq			(__NR_Linux + 367)
+#define __NR_io_pgetevents		(__NR_Linux + 368)
+
 
 /*
  * Offset of the last Linux o32 flavoured syscall
  */
-#define __NR_Linux_syscalls		359
+#define __NR_Linux_syscalls		368
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #define __NR_O32_Linux			4000
-#define __NR_O32_Linux_syscalls		359
+#define __NR_O32_Linux_syscalls		368
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
@@ -717,16 +728,25 @@
 #define __NR_userfaultfd		(__NR_Linux + 317)
 #define __NR_membarrier			(__NR_Linux + 318)
 #define __NR_mlock2			(__NR_Linux + 319)
+#define __NR_copy_file_range		(__NR_Linux + 320)
+#define __NR_preadv2			(__NR_Linux + 321)
+#define __NR_pwritev2			(__NR_Linux + 322)
+#define __NR_pkey_mprotect		(__NR_Linux + 323)
+#define __NR_pkey_alloc			(__NR_Linux + 324)
+#define __NR_pkey_free			(__NR_Linux + 325)
+#define __NR_statx			(__NR_Linux + 326)
+#define __NR_rseq			(__NR_Linux + 327)
+#define __NR_io_pgetevents		(__NR_Linux + 328)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		319
+#define __NR_Linux_syscalls		328
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #define __NR_64_Linux			5000
-#define __NR_64_Linux_syscalls		319
+#define __NR_64_Linux_syscalls		328
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
@@ -1058,15 +1078,24 @@
 #define __NR_userfaultfd		(__NR_Linux + 321)
 #define __NR_membarrier			(__NR_Linux + 322)
 #define __NR_mlock2			(__NR_Linux + 323)
+#define __NR_copy_file_range		(__NR_Linux + 324)
+#define __NR_preadv2			(__NR_Linux + 325)
+#define __NR_pwritev2			(__NR_Linux + 326)
+#define __NR_pkey_mprotect		(__NR_Linux + 327)
+#define __NR_pkey_alloc			(__NR_Linux + 328)
+#define __NR_pkey_free			(__NR_Linux + 329)
+#define __NR_statx			(__NR_Linux + 330)
+#define __NR_rseq			(__NR_Linux + 331)
+#define __NR_io_pgetevents		(__NR_Linux + 332)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		323
+#define __NR_Linux_syscalls		332
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 
 #define __NR_N32_Linux			6000
-#define __NR_N32_Linux_syscalls		323
+#define __NR_N32_Linux_syscalls		332
 
 #endif /* _UAPI_ASM_UNISTD_H */

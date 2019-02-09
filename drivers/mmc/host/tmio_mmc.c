@@ -1,16 +1,16 @@
 /*
- * linux/drivers/mmc/host/tmio_mmc.c
+ * Driver for the MMC / SD / SDIO cell found in:
  *
+ * TC6393XB TC6391XB TC6387XB T7L66XB ASIC3
+ *
+ * Copyright (C) 2017 Renesas Electronics Corporation
+ * Copyright (C) 2017 Horms Solutions, Simon Horman
  * Copyright (C) 2007 Ian Molton
  * Copyright (C) 2004 Ian Molton
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Driver for the MMC / SD / SDIO cell found in:
- *
- * TC6393XB TC6391XB TC6387XB T7L66XB ASIC3
  */
 
 #include <linux/device.h>
@@ -92,20 +92,25 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 
 	pdata->flags |= TMIO_MMC_HAVE_HIGH_REG;
 
-	host = tmio_mmc_host_alloc(pdev);
-	if (!host)
+	host = tmio_mmc_host_alloc(pdev, pdata);
+	if (IS_ERR(host)) {
+		ret = PTR_ERR(host);
 		goto cell_disable;
+	}
 
 	/* SD control register space size is 0x200, 0x400 for bus_shift=1 */
 	host->bus_shift = resource_size(res) >> 10;
 
-	ret = tmio_mmc_host_probe(host, pdata);
+	host->mmc->f_max = pdata->hclk;
+	host->mmc->f_min = pdata->hclk / 512;
+
+	ret = tmio_mmc_host_probe(host);
 	if (ret)
 		goto host_free;
 
 	ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_irq,
-				IRQF_TRIGGER_FALLING,
-				dev_name(&pdev->dev), host);
+			       IRQF_TRIGGER_FALLING,
+			       dev_name(&pdev->dev), host);
 	if (ret)
 		goto host_remove;
 
@@ -128,14 +133,11 @@ out:
 static int tmio_mmc_remove(struct platform_device *pdev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
-	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct tmio_mmc_host *host = platform_get_drvdata(pdev);
 
-	if (mmc) {
-		struct tmio_mmc_host *host = mmc_priv(mmc);
-		tmio_mmc_host_remove(host);
-		if (cell->disable)
-			cell->disable(pdev);
-	}
+	tmio_mmc_host_remove(host);
+	if (cell->disable)
+		cell->disable(pdev);
 
 	return 0;
 }
@@ -145,8 +147,7 @@ static int tmio_mmc_remove(struct platform_device *pdev)
 static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tmio_mmc_suspend, tmio_mmc_resume)
 	SET_RUNTIME_PM_OPS(tmio_mmc_host_runtime_suspend,
-			tmio_mmc_host_runtime_resume,
-			NULL)
+			   tmio_mmc_host_runtime_resume, NULL)
 };
 
 static struct platform_driver tmio_mmc_driver = {

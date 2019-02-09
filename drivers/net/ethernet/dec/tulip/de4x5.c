@@ -472,7 +472,7 @@
 #include <asm/dma.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #endif /* CONFIG_PPC_PMAC */
@@ -912,7 +912,7 @@ static int     de4x5_init(struct net_device *dev);
 static int     de4x5_sw_reset(struct net_device *dev);
 static int     de4x5_rx(struct net_device *dev);
 static int     de4x5_tx(struct net_device *dev);
-static void    de4x5_ast(struct net_device *dev);
+static void    de4x5_ast(struct timer_list *t);
 static int     de4x5_txur(struct net_device *dev);
 static int     de4x5_rx_ovfc(struct net_device *dev);
 
@@ -1015,7 +1015,7 @@ static int     compact_infoblock(struct net_device *dev, u_char count, u_char *p
 
 static int io=0x0;/* EDIT THIS LINE FOR YOUR CONFIGURATION IF NEEDED        */
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 module_param(de4x5_debug, int, 0);
 module_param(dec_only, int, 0);
 module_param(args, charp, 0);
@@ -1085,7 +1085,6 @@ static const struct net_device_ops de4x5_netdev_ops = {
     .ndo_get_stats	= de4x5_get_stats,
     .ndo_set_rx_mode	= set_multicast_list,
     .ndo_do_ioctl	= de4x5_ioctl,
-    .ndo_change_mtu	= eth_change_mtu,
     .ndo_set_mac_address= eth_mac_addr,
     .ndo_validate_addr	= eth_validate_addr,
 };
@@ -1148,9 +1147,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
 	lp->timeout = -1;
 	lp->gendev = gendev;
 	spin_lock_init(&lp->lock);
-	init_timer(&lp->timer);
-	lp->timer.function = (void (*)(unsigned long))de4x5_ast;
-	lp->timer.data = (unsigned long)dev;
+	timer_setup(&lp->timer, de4x5_ast, 0);
 	de4x5_parse_params(dev);
 
 	/*
@@ -1319,7 +1316,7 @@ de4x5_open(struct net_device *dev)
 
     if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 		                                     lp->adapter_name, dev)) {
-	printk("de4x5_open(): Requested IRQ%d is busy - attemping FAST/SHARE...", dev->irq);
+	printk("de4x5_open(): Requested IRQ%d is busy - attempting FAST/SHARE...", dev->irq);
 	if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 			                             lp->adapter_name, dev)) {
 	    printk("\n              Cannot get IRQ- reconfigure your hardware.\n");
@@ -1336,7 +1333,7 @@ de4x5_open(struct net_device *dev)
     }
 
     lp->interrupt = UNMASK_INTERRUPTS;
-    dev->trans_start = jiffies; /* prevent tx timeout */
+    netif_trans_update(dev); /* prevent tx timeout */
 
     START_DE4X5;
 
@@ -1465,7 +1462,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 
     netif_stop_queue(dev);
     if (!lp->tx_enable)                   /* Cannot send for now */
-	return NETDEV_TX_LOCKED;
+		goto tx_err;
 
     /*
     ** Clean out the TX ring asynchronously to interrupts - sometimes the
@@ -1478,7 +1475,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 
     /* Test if cache is already locked - requeue skb if so */
     if (test_and_set_bit(0, (void *)&lp->cache.lock) && !lp->interrupt)
-	return NETDEV_TX_LOCKED;
+		goto tx_err;
 
     /* Transmit descriptor ring full or stale skb */
     if (netif_queue_stopped(dev) || (u_long) lp->tx_skb[lp->tx_new] > 1) {
@@ -1519,6 +1516,9 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
     lp->cache.lock = 0;
 
     return NETDEV_TX_OK;
+tx_err:
+	dev_kfree_skb_any(skb);
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -1740,9 +1740,10 @@ de4x5_tx(struct net_device *dev)
 }
 
 static void
-de4x5_ast(struct net_device *dev)
+de4x5_ast(struct timer_list *t)
 {
-	struct de4x5_private *lp = netdev_priv(dev);
+	struct de4x5_private *lp = from_timer(lp, t, timer);
+	struct net_device *dev = dev_get_drvdata(lp->gendev);
 	int next_tick = DE4X5_AUTOSENSE_MS;
 	int dt;
 
@@ -1932,7 +1933,7 @@ set_multicast_list(struct net_device *dev)
 
 	    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 	    outl(POLL_DEMAND, DE4X5_TPD);       /* Start the TX */
-	    dev->trans_start = jiffies; /* prevent tx timeout */
+	    netif_trans_update(dev); /* prevent tx timeout */
 	}
     }
 }
@@ -1963,7 +1964,7 @@ SetMulticastFilter(struct net_device *dev)
     } else if (lp->setup_f == HASH_PERF) {   /* Hash Filtering */
 	netdev_for_each_mc_addr(ha, dev) {
 		crc = ether_crc_le(ETH_ALEN, ha->addr);
-		hashcode = crc & HASH_BITS;  /* hashcode is 9 LSb of CRC */
+		hashcode = crc & DE4X5_HASH_BITS;  /* hashcode is 9 LSb of CRC */
 
 		byte = hashcode >> 3;        /* bit[3-8] -> byte in filter */
 		bit = 1 << (hashcode & 0x07);/* bit[0-2] -> bit in byte */
@@ -1990,7 +1991,7 @@ SetMulticastFilter(struct net_device *dev)
 
 static u_char de4x5_irq[] = EISA_ALLOWED_IRQ_LIST;
 
-static int __init de4x5_eisa_probe (struct device *gendev)
+static int de4x5_eisa_probe(struct device *gendev)
 {
 	struct eisa_device *edev;
 	u_long iobase;
@@ -2092,7 +2093,7 @@ static int de4x5_eisa_remove(struct device *device)
 	return 0;
 }
 
-static struct eisa_device_id de4x5_eisa_ids[] = {
+static const struct eisa_device_id de4x5_eisa_ids[] = {
         { "DEC4250", 0 },	/* 0 is the board name index... */
         { "" }
 };
@@ -2368,7 +2369,7 @@ autoconf_media(struct net_device *dev)
 	lp->media = INIT;
 	lp->tcount = 0;
 
-	de4x5_ast(dev);
+	de4x5_ast(&lp->timer);
 
 	return lp->media;
 }
@@ -3203,6 +3204,8 @@ srom_map_media(struct net_device *dev)
       case SROM_10BASETF:
 	if (!lp->params.fdx) return -1;
 	lp->fdx = true;
+	/* fall through */
+
       case SROM_10BASET:
 	if (lp->params.fdx && !lp->fdx) return -1;
 	if ((lp->chipset == DC21140) || ((lp->chipset & ~0x00ff) == DC2114x)) {
@@ -3223,6 +3226,8 @@ srom_map_media(struct net_device *dev)
       case SROM_100BASETF:
         if (!lp->params.fdx) return -1;
 	lp->fdx = true;
+	/* fall through */
+
       case SROM_100BASET:
 	if (lp->params.fdx && !lp->fdx) return -1;
 	lp->media = _100Mb;
@@ -3235,6 +3240,8 @@ srom_map_media(struct net_device *dev)
       case SROM_100BASEFF:
 	if (!lp->params.fdx) return -1;
 	lp->fdx = true;
+	/* fall through */
+
       case SROM_100BASEF:
 	if (lp->params.fdx && !lp->fdx) return -1;
 	lp->media = _100Mb;
@@ -3622,10 +3629,10 @@ de4x5_alloc_rx_buff(struct net_device *dev, int index, int len)
     skb_reserve(p, 2);	                               /* Align */
     if (index < lp->rx_old) {                          /* Wrapped buffer */
 	short tlen = (lp->rxRingSize - lp->rx_old) * RX_BUFF_SZ;
-	memcpy(skb_put(p,tlen),lp->rx_bufs + lp->rx_old * RX_BUFF_SZ,tlen);
-	memcpy(skb_put(p,len-tlen),lp->rx_bufs,len-tlen);
+	skb_put_data(p, lp->rx_bufs + lp->rx_old * RX_BUFF_SZ, tlen);
+	skb_put_data(p, lp->rx_bufs, len - tlen);
     } else {                                           /* Linear buffer */
-	memcpy(skb_put(p,len),lp->rx_bufs + lp->rx_old * RX_BUFF_SZ,len);
+	skb_put_data(p, lp->rx_bufs + lp->rx_old * RX_BUFF_SZ, len);
     }
 
     return p;
@@ -5040,7 +5047,7 @@ build_setup_frame(struct net_device *dev, int mode)
 	    *(pa + i) = dev->dev_addr[i];                 /* Host address */
 	    if (i & 0x01) pa += 2;
 	}
-	*(lp->setup_frame + (HASH_TABLE_LEN >> 3) - 3) = 0x80;
+	*(lp->setup_frame + (DE4X5_HASH_TABLE_LEN >> 3) - 3) = 0x80;
     } else {
 	for (i=0; i<ETH_ALEN; i++) { /* Host address */
 	    *(pa + (i&1)) = dev->dev_addr[i];

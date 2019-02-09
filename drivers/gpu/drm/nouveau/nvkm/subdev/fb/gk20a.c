@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2014-2016, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,21 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+#include "gf100.h"
 
-static void
-gk20a_fb_init(struct nvkm_fb *fb)
-{
-	struct nvkm_device *device = fb->subdev.device;
-	nvkm_mask(device, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
-}
-
+/* GK20A's FB is similar to GF100's, but without the ability to allocate VRAM */
 static const struct nvkm_fb_func
 gk20a_fb = {
-	.init = gk20a_fb_init,
-	.memtype_valid = gf100_fb_memtype_valid,
+	.dtor = gf100_fb_dtor,
+	.oneinit = gf100_fb_oneinit,
+	.init = gf100_fb_init,
+	.init_page = gf100_fb_init_page,
+	.intr = gf100_fb_intr,
+	.default_bigpage = 17,
 };
 
 int
 gk20a_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
 {
-	return nvkm_fb_new_(&gk20a_fb, device, index, pfb);
+	return gf100_fb_new_(&gk20a_fb, device, index, pfb);
 }

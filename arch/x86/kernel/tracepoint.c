@@ -1,59 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Code for supporting irq vector tracepoints.
  *
  * Copyright (C) 2013 Seiji Aguchi <seiji.aguchi@hds.com>
  *
  */
-#include <asm/hw_irq.h>
-#include <asm/desc.h>
+#include <linux/jump_label.h>
 #include <linux/atomic.h>
 
-atomic_t trace_idt_ctr = ATOMIC_INIT(0);
-struct desc_ptr trace_idt_descr = { NR_VECTORS * 16 - 1,
-				(unsigned long) trace_idt_table };
+#include <asm/hw_irq.h>
+#include <asm/desc.h>
 
-/* No need to be aligned, but done to keep all IDTs defined the same way. */
-gate_desc trace_idt_table[NR_VECTORS] __page_aligned_bss;
+DEFINE_STATIC_KEY_FALSE(trace_pagefault_key);
 
-static int trace_irq_vector_refcount;
-static DEFINE_MUTEX(irq_vector_mutex);
-
-static void set_trace_idt_ctr(int val)
+int trace_pagefault_reg(void)
 {
-	atomic_set(&trace_idt_ctr, val);
-	/* Ensure the trace_idt_ctr is set before sending IPI */
-	wmb();
+	static_branch_inc(&trace_pagefault_key);
+	return 0;
 }
 
-static void switch_idt(void *arg)
+void trace_pagefault_unreg(void)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
-	load_current_idt();
-	local_irq_restore(flags);
+	static_branch_dec(&trace_pagefault_key);
 }
 
-void trace_irq_vector_regfunc(void)
+#ifdef CONFIG_SMP
+
+DEFINE_STATIC_KEY_FALSE(trace_resched_ipi_key);
+
+int trace_resched_ipi_reg(void)
 {
-	mutex_lock(&irq_vector_mutex);
-	if (!trace_irq_vector_refcount) {
-		set_trace_idt_ctr(1);
-		smp_call_function(switch_idt, NULL, 0);
-		switch_idt(NULL);
-	}
-	trace_irq_vector_refcount++;
-	mutex_unlock(&irq_vector_mutex);
+	static_branch_inc(&trace_resched_ipi_key);
+	return 0;
 }
 
-void trace_irq_vector_unregfunc(void)
+void trace_resched_ipi_unreg(void)
 {
-	mutex_lock(&irq_vector_mutex);
-	trace_irq_vector_refcount--;
-	if (!trace_irq_vector_refcount) {
-		set_trace_idt_ctr(0);
-		smp_call_function(switch_idt, NULL, 0);
-		switch_idt(NULL);
-	}
-	mutex_unlock(&irq_vector_mutex);
+	static_branch_dec(&trace_resched_ipi_key);
 }
+
+#endif

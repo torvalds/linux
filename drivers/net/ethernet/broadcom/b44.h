@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _B44_H
 #define _B44_H
 
@@ -404,7 +405,6 @@ struct b44 {
 	u32			tx_pending;
 	u8			phy_addr;
 	u8			force_copybreak;
-	struct phy_device	*phydev;
 	struct mii_bus		*mii_bus;
 	int			old_link;
 	struct mii_if_info	mii_if;

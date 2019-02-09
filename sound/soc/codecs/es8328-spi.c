@@ -28,19 +28,12 @@ static int es8328_spi_probe(struct spi_device *spi)
 			devm_regmap_init_spi(spi, &es8328_regmap_config));
 }
 
-static int es8328_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
-}
-
 static struct spi_driver es8328_spi_driver = {
 	.driver = {
 		.name		= "es8328",
 		.of_match_table	= es8328_of_match,
 	},
 	.probe	= es8328_spi_probe,
-	.remove	= es8328_spi_remove,
 };
 
 module_spi_driver(es8328_spi_driver);

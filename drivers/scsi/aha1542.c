@@ -31,7 +31,7 @@ module_param(isapnp, bool, 0);
 MODULE_PARM_DESC(isapnp, "enable PnP support (default=1)");
 
 static int io[MAXBOARDS] = { 0x330, 0x334, 0, 0 };
-module_param_array(io, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
 MODULE_PARM_DESC(io, "base IO address of controller (0x130,0x134,0x230,0x234,0x330,0x334, default=0x330,0x334)");
 
 /* time AHA spends on the AT-bus during data transfer */
@@ -400,9 +400,13 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 #endif
 	if (bufflen) {	/* allocate memory before taking host_lock */
 		sg_count = scsi_sg_count(cmd);
-		cptr = kmalloc(sizeof(*cptr) * sg_count, GFP_KERNEL | GFP_DMA);
+		cptr = kmalloc_array(sg_count, sizeof(*cptr),
+				     GFP_KERNEL | GFP_DMA);
 		if (!cptr)
 			return SCSI_MLQUEUE_HOST_BUSY;
+	} else {
+		sg_count = 0;
+		cptr = NULL;
 	}
 
 	/* Use the outgoing mailboxes in a round-robin fashion, because this
@@ -983,7 +987,7 @@ static struct isa_driver aha1542_isa_driver = {
 static int isa_registered;
 
 #ifdef CONFIG_PNP
-static struct pnp_device_id aha1542_pnp_ids[] = {
+static const struct pnp_device_id aha1542_pnp_ids[] = {
 	{ .id = "ADP1542" },
 	{ .id = "" }
 };

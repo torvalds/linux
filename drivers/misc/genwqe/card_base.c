@@ -153,11 +153,11 @@ static struct genwqe_dev *genwqe_dev_alloc(void)
 	cd->card_state = GENWQE_CARD_UNUSED;
 	spin_lock_init(&cd->print_lock);
 
-	cd->ddcb_software_timeout = genwqe_ddcb_software_timeout;
-	cd->kill_timeout = genwqe_kill_timeout;
+	cd->ddcb_software_timeout = GENWQE_DDCB_SOFTWARE_TIMEOUT;
+	cd->kill_timeout = GENWQE_KILL_TIMEOUT;
 
 	for (j = 0; j < GENWQE_MAX_VFS; j++)
-		cd->vf_jobtimeout_msec[j] = genwqe_vf_jobtimeout_msec;
+		cd->vf_jobtimeout_msec[j] = GENWQE_VF_JOBTIMEOUT_MSEC;
 
 	genwqe_devices[i] = cd;
 	return cd;
@@ -182,7 +182,7 @@ static void genwqe_dev_free(struct genwqe_dev *cd)
  */
 static int genwqe_bus_reset(struct genwqe_dev *cd)
 {
-	int bars, rc = 0;
+	int rc = 0;
 	struct pci_dev *pci_dev = cd->pci_dev;
 	void __iomem *mmio;
 
@@ -193,8 +193,7 @@ static int genwqe_bus_reset(struct genwqe_dev *cd)
 	cd->mmio = NULL;
 	pci_iounmap(pci_dev, mmio);
 
-	bars = pci_select_bars(pci_dev, IORESOURCE_MEM);
-	pci_release_selected_regions(pci_dev, bars);
+	pci_release_mem_regions(pci_dev);
 
 	/*
 	 * Firmware/BIOS might change memory mapping during bus reset.
@@ -218,7 +217,7 @@ static int genwqe_bus_reset(struct genwqe_dev *cd)
 			    GENWQE_INJECT_GFIR_FATAL |
 			    GENWQE_INJECT_GFIR_INFO);
 
-	rc = pci_request_selected_regions(pci_dev, bars, genwqe_driver_name);
+	rc = pci_request_mem_regions(pci_dev, genwqe_driver_name);
 	if (rc) {
 		dev_err(&pci_dev->dev,
 			"[%s] err: request bars failed (%d)\n", __func__, rc);
@@ -325,11 +324,11 @@ static bool genwqe_setup_pf_jtimer(struct genwqe_dev *cd)
 	u32 T = genwqe_T_psec(cd);
 	u64 x;
 
-	if (genwqe_pf_jobtimeout_msec == 0)
+	if (GENWQE_PF_JOBTIMEOUT_MSEC == 0)
 		return false;
 
 	/* PF: large value needed, flash update 2sec per block */
-	x = ilog2(genwqe_pf_jobtimeout_msec *
+	x = ilog2(GENWQE_PF_JOBTIMEOUT_MSEC *
 		  16000000000uL/(T * 15)) - 10;
 
 	genwqe_write_vreg(cd, IO_SLC_VF_APPJOB_TIMEOUT,
@@ -905,7 +904,7 @@ static int genwqe_reload_bistream(struct genwqe_dev *cd)
  *   b) a critical GFIR occured
  *
  * Informational GFIRs are checked and potentially printed in
- * health_check_interval seconds.
+ * GENWQE_HEALTH_CHECK_INTERVAL seconds.
  */
 static int genwqe_health_thread(void *data)
 {
@@ -919,7 +918,7 @@ static int genwqe_health_thread(void *data)
 		rc = wait_event_interruptible_timeout(cd->health_waitq,
 			 (genwqe_health_check_cond(cd, &gfir) ||
 			  (should_stop = kthread_should_stop())),
-				genwqe_health_check_interval * HZ);
+				GENWQE_HEALTH_CHECK_INTERVAL * HZ);
 
 		if (should_stop)
 			break;
@@ -1029,7 +1028,7 @@ static int genwqe_health_check_start(struct genwqe_dev *cd)
 {
 	int rc;
 
-	if (genwqe_health_check_interval <= 0)
+	if (GENWQE_HEALTH_CHECK_INTERVAL <= 0)
 		return 0;	/* valid for disabling the service */
 
 	/* moved before request_irq() */
@@ -1068,10 +1067,9 @@ static int genwqe_health_check_stop(struct genwqe_dev *cd)
  */
 static int genwqe_pci_setup(struct genwqe_dev *cd)
 {
-	int err, bars;
+	int err;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
-	bars = pci_select_bars(pci_dev, IORESOURCE_MEM);
 	err = pci_enable_device_mem(pci_dev);
 	if (err) {
 		dev_err(&pci_dev->dev,
@@ -1080,7 +1078,7 @@ static int genwqe_pci_setup(struct genwqe_dev *cd)
 	}
 
 	/* Reserve PCI I/O and memory resources */
-	err = pci_request_selected_regions(pci_dev, bars, genwqe_driver_name);
+	err = pci_request_mem_regions(pci_dev, genwqe_driver_name);
 	if (err) {
 		dev_err(&pci_dev->dev,
 			"[%s] err: request bars failed (%d)\n", __func__, err);
@@ -1142,7 +1140,7 @@ static int genwqe_pci_setup(struct genwqe_dev *cd)
  out_iounmap:
 	pci_iounmap(pci_dev, cd->mmio);
  out_release_resources:
-	pci_release_selected_regions(pci_dev, bars);
+	pci_release_mem_regions(pci_dev);
  err_disable_device:
 	pci_disable_device(pci_dev);
  err_out:
@@ -1154,14 +1152,12 @@ static int genwqe_pci_setup(struct genwqe_dev *cd)
  */
 static void genwqe_pci_remove(struct genwqe_dev *cd)
 {
-	int bars;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	if (cd->mmio)
 		pci_iounmap(pci_dev, cd->mmio);
 
-	bars = pci_select_bars(pci_dev, IORESOURCE_MEM);
-	pci_release_selected_regions(pci_dev, bars);
+	pci_release_mem_regions(pci_dev);
 	pci_disable_device(pci_dev);
 }
 
@@ -1340,7 +1336,6 @@ static int genwqe_sriov_configure(struct pci_dev *dev, int numvfs)
 static struct pci_error_handlers genwqe_err_handler = {
 	.error_detected = genwqe_err_error_detected,
 	.mmio_enabled	= genwqe_err_result_none,
-	.link_reset	= genwqe_err_result_none,
 	.slot_reset	= genwqe_err_slot_reset,
 	.resume		= genwqe_err_resume,
 };
@@ -1355,6 +1350,19 @@ static struct pci_driver genwqe_driver = {
 };
 
 /**
+ * genwqe_devnode() - Set default access mode for genwqe devices.
+ *
+ * Default mode should be rw for everybody. Do not change default
+ * device name.
+ */
+static char *genwqe_devnode(struct device *dev, umode_t *mode)
+{
+	if (mode)
+		*mode = 0666;
+	return NULL;
+}
+
+/**
  * genwqe_init_module() - Driver registration and initialization
  */
 static int __init genwqe_init_module(void)
@@ -1366,6 +1374,8 @@ static int __init genwqe_init_module(void)
 		pr_err("[%s] create class failed\n", __func__);
 		return -ENOMEM;
 	}
+
+	class_genwqe->devnode = genwqe_devnode;
 
 	debugfs_genwqe = debugfs_create_dir(GENWQE_DEVNAME, NULL);
 	if (!debugfs_genwqe) {

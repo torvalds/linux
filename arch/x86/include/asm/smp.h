@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_SMP_H
 #define _ASM_X86_SMP_H
 #ifndef __ASSEMBLY__
@@ -16,19 +17,9 @@
 #endif
 #include <asm/thread_info.h>
 #include <asm/cpumask.h>
-#include <asm/cpufeature.h>
 
 extern int smp_num_siblings;
 extern unsigned int num_processors;
-
-static inline bool cpu_has_ht_siblings(void)
-{
-	bool has_siblings = false;
-#ifdef CONFIG_SMP
-	has_siblings = cpu_has_ht && smp_num_siblings > 1;
-#endif
-	return has_siblings;
-}
 
 DECLARE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_sibling_map);
 DECLARE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_core_map);
@@ -43,13 +34,11 @@ static inline struct cpumask *cpu_llc_shared_mask(int cpu)
 }
 
 DECLARE_EARLY_PER_CPU_READ_MOSTLY(u16, x86_cpu_to_apicid);
+DECLARE_EARLY_PER_CPU_READ_MOSTLY(u32, x86_cpu_to_acpiid);
 DECLARE_EARLY_PER_CPU_READ_MOSTLY(u16, x86_bios_cpu_apicid);
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_32)
 DECLARE_EARLY_PER_CPU_READ_MOSTLY(int, x86_cpu_to_logical_apicid);
 #endif
-
-/* Static state in head.S used to set up a CPU */
-extern unsigned long stack_start; /* Initial stack pointer address */
 
 struct task_struct;
 
@@ -59,6 +48,7 @@ struct smp_ops {
 	void (*smp_cpus_done)(unsigned max_cpus);
 
 	void (*stop_other_cpus)(int wait);
+	void (*crash_stop_other_cpus)(void);
 	void (*smp_send_reschedule)(int cpu);
 
 	int (*cpu_up)(unsigned cpu, struct task_struct *tidle);
@@ -74,9 +64,6 @@ struct smp_ops {
 extern void set_cpu_sibling_map(int cpu);
 
 #ifdef CONFIG_SMP
-#ifndef CONFIG_PARAVIRT
-#define startup_ipi_hook(phys_apicid, start_eip, start_esp) do { } while (0)
-#endif
 extern struct smp_ops smp_ops;
 
 static inline void smp_send_stop(void)
@@ -142,12 +129,14 @@ static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 void cpu_disable_common(void);
 void native_smp_prepare_boot_cpu(void);
 void native_smp_prepare_cpus(unsigned int max_cpus);
+void calculate_max_logical_packages(void);
 void native_smp_cpus_done(unsigned int max_cpus);
 void common_cpu_up(unsigned int cpunum, struct task_struct *tidle);
 int native_cpu_up(unsigned int cpunum, struct task_struct *tidle);
 int native_cpu_disable(void);
 int common_cpu_die(unsigned int cpu);
 void native_cpu_die(unsigned int cpu);
+void hlt_play_dead(void);
 void native_play_dead(void);
 void play_dead_common(void);
 void wbinvd_on_cpu(int cpu);
@@ -160,6 +149,20 @@ void x86_idle_thread_init(unsigned int cpu, struct task_struct *idle);
 void smp_store_boot_cpu_info(void);
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
+#define cpu_acpi_id(cpu)	per_cpu(x86_cpu_to_acpiid, cpu)
+
+/*
+ * This function is needed by all SMP systems. It must _always_ be valid
+ * from the initial startup. We map APIC_BASE very early in page_setup(),
+ * so this is correct in the x86 case.
+ */
+#define raw_smp_processor_id() (this_cpu_read(cpu_number))
+
+#ifdef CONFIG_X86_32
+extern int safe_smp_processor_id(void);
+#else
+# define safe_smp_processor_id()	smp_processor_id()
+#endif
 
 #else /* !CONFIG_SMP */
 #define wbinvd_on_cpu(cpu)     wbinvd()
@@ -172,47 +175,11 @@ static inline int wbinvd_on_all_cpus(void)
 
 extern unsigned disabled_cpus;
 
-#ifdef CONFIG_X86_32_SMP
-/*
- * This function is needed by all SMP systems. It must _always_ be valid
- * from the initial startup. We map APIC_BASE very early in page_setup(),
- * so this is correct in the x86 case.
- */
-#define raw_smp_processor_id() (this_cpu_read(cpu_number))
-extern int safe_smp_processor_id(void);
-
-#elif defined(CONFIG_X86_64_SMP)
-#define raw_smp_processor_id() (this_cpu_read(cpu_number))
-
-#define stack_smp_processor_id()					\
-({								\
-	struct thread_info *ti;						\
-	__asm__("andq %%rsp,%0; ":"=r" (ti) : "0" (CURRENT_MASK));	\
-	ti->cpu;							\
-})
-#define safe_smp_processor_id()		smp_processor_id()
-
-#endif
-
 #ifdef CONFIG_X86_LOCAL_APIC
-
-#ifndef CONFIG_X86_64
-static inline int logical_smp_processor_id(void)
-{
-	/* we don't want to mark this access volatile - bad code generation */
-	return GET_APIC_LOGICAL_ID(apic_read(APIC_LDR));
-}
-
-#endif
-
 extern int hard_smp_processor_id(void);
 
 #else /* CONFIG_X86_LOCAL_APIC */
-
-# ifndef CONFIG_SMP
-#  define hard_smp_processor_id()	0
-# endif
-
+#define hard_smp_processor_id()	0
 #endif /* CONFIG_X86_LOCAL_APIC */
 
 #ifdef CONFIG_DEBUG_NMI_SELFTEST

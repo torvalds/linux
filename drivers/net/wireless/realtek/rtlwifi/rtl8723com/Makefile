@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 rtl8723-common-objs :=		\
 		main.o		\
 		dm_common.o	\
@@ -5,5 +6,3 @@ rtl8723-common-objs :=		\
 		phy_common.o
 
 obj-$(CONFIG_RTL8723_COMMON) += rtl8723-common.o
-
-ccflags-y += -D__CHECK_ENDIAN__

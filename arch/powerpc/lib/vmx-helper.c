@@ -21,6 +21,7 @@
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
 #include <asm/switch_to.h>
+#include <asm/asm-prototypes.h>
 
 int enter_vmx_usercopy(void)
 {
@@ -46,12 +47,13 @@ int enter_vmx_usercopy(void)
  */
 int exit_vmx_usercopy(void)
 {
+	disable_kernel_altivec();
 	pagefault_enable();
 	preempt_enable();
 	return 0;
 }
 
-int enter_vmx_copy(void)
+int enter_vmx_ops(void)
 {
 	if (in_interrupt())
 		return 0;
@@ -68,8 +70,9 @@ int enter_vmx_copy(void)
  * passed a pointer to the destination which we return as required by a
  * memcpy implementation.
  */
-void *exit_vmx_copy(void *dest)
+void *exit_vmx_ops(void *dest)
 {
+	disable_kernel_altivec();
 	preempt_enable();
 	return dest;
 }

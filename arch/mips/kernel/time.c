@@ -34,21 +34,6 @@
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
-int __weak rtc_mips_set_time(unsigned long sec)
-{
-	return 0;
-}
-
-int __weak rtc_mips_set_mmss(unsigned long nowtime)
-{
-	return rtc_mips_set_time(nowtime);
-}
-
-int update_persistent_clock(struct timespec now)
-{
-	return rtc_mips_set_mmss(now.tv_sec);
-}
-
 static int null_perf_irq(void)
 {
 	return 0;
@@ -70,20 +55,7 @@ EXPORT_SYMBOL(perf_irq);
  */
 
 unsigned int mips_hpt_frequency;
-
-/*
- * This function exists in order to cause an error due to a duplicate
- * definition if platform code should have its own implementation.  The hook
- * to use instead is plat_time_init.  plat_time_init does not receive the
- * irqaction pointer argument anymore.	This is because any function which
- * initializes an interrupt timer now takes care of its own request_irq rsp.
- * setup_irq calls and each clock_event_device should use its own
- * struct irqrequest.
- */
-void __init plat_timer_setup(void)
-{
-	BUG();
-}
+EXPORT_SYMBOL_GPL(mips_hpt_frequency);
 
 static __init int cpu_has_mfc0_count_bug(void)
 {

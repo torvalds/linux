@@ -4,6 +4,15 @@
 
 comment "MMC/SD/SDIO Host Controller Drivers"
 
+config MMC_DEBUG
+	bool "MMC host drivers debugging"
+	depends on MMC != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here. This enables MMC host driver debugging. And further
+	  added host drivers please don't invent their private macro for
+	  debugging.
+
 config MMC_ARMMMCI
 	tristate "ARM AMBA Multimedia Card Interface support"
 	depends on ARM_AMBA
@@ -15,7 +24,7 @@ config MMC_ARMMMCI
 	  If unsure, say N.
 
 config MMC_QCOM_DML
-	tristate "Qualcomm Data Mover for SD Card Controller"
+	bool "Qualcomm Data Mover for SD Card Controller"
 	depends on MMC_ARMMMCI && QCOM_BAM_DMA
 	default y
 	help
@@ -72,6 +81,7 @@ config MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 config MMC_SDHCI_PCI
 	tristate "SDHCI support on PCI bus"
 	depends on MMC_SDHCI && PCI
+	select MMC_CQHCI
 	help
 	  This selects the PCI Secure Digital Host Controller Interface.
 	  Most controllers found today are PCI devices.
@@ -97,6 +107,7 @@ config MMC_RICOH_MMC
 config MMC_SDHCI_ACPI
 	tristate "SDHCI support for ACPI enumerated SDHCI controllers"
 	depends on MMC_SDHCI && ACPI
+	select IOSF_MBI if X86
 	help
 	  This selects support for ACPI enumerated SDHCI controllers,
 	  identified by ACPI Compatibility ID PNP0D40 or specific
@@ -121,6 +132,8 @@ config MMC_SDHCI_OF_ARASAN
 	tristate "SDHCI OF support for the Arasan SDHCI controllers"
 	depends on MMC_SDHCI_PLTFM
 	depends on OF
+	depends on COMMON_CLK
+	select MMC_CQHCI
 	help
 	  This selects the Arasan Secure Digital Host Controller Interface
 	  (SDHCI). This hardware is found e.g. in Xilinx' Zynq SoC.
@@ -133,7 +146,6 @@ config MMC_SDHCI_OF_AT91
 	tristate "SDHCI OF support for the Atmel SDMMC controller"
 	depends on MMC_SDHCI_PLTFM
 	depends on OF
-	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Atmel SDMMC driver
 
@@ -142,6 +154,7 @@ config MMC_SDHCI_OF_ESDHC
 	depends on MMC_SDHCI_PLTFM
 	depends on PPC || ARCH_MXC || ARCH_LAYERSCAPE
 	select MMC_SDHCI_IO_ACCESSORS
+	select FSL_GUTS
 	help
 	  This selects the Freescale eSDHC controller support.
 
@@ -158,6 +171,28 @@ config MMC_SDHCI_OF_HLWD
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  found in the "Hollywood" chipset of the Nintendo Wii video game
 	  console.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_OF_DWCMSHC
+	tristate "SDHCI OF support for the Synopsys DWC MSHC"
+	depends on MMC_SDHCI_PLTFM
+	depends on OF
+	depends on COMMON_CLK
+	help
+	  This selects Synopsys DesignWare Cores Mobile Storage Controller
+	  support.
+	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
+
+config MMC_SDHCI_CADENCE
+	tristate "SDHCI support for the Cadence SD/SDIO/eMMC controller"
+	depends on MMC_SDHCI_PLTFM
+	depends on OF
+	help
+	  This selects the Cadence SD/SDIO/eMMC driver.
 
 	  If you have a controller with this interface, say Y or M here.
 
@@ -295,21 +330,10 @@ config MMC_SDHCI_BCM_KONA
 
 	  If you have a controller with this interface, say Y or M here.
 
-config MMC_SDHCI_BCM2835
-	tristate "SDHCI platform support for the BCM2835 SD/MMC Controller"
-	depends on ARCH_BCM2835
-	depends on MMC_SDHCI_PLTFM
-	select MMC_SDHCI_IO_ACCESSORS
-	help
-	  This selects the BCM2835 SD/MMC controller. If you have a BCM2835
-	  platform with SD or MMC devices, say Y or M here.
-
-	  If unsure, say N.
-
 config MMC_SDHCI_F_SDH30
 	tristate "SDHCI support for Fujitsu Semiconductor F_SDH30"
 	depends on MMC_SDHCI_PLTFM
-	depends on OF
+	depends on OF || ACPI
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  Needed by some Fujitsu SoC for MMC / SD / SDIO support.
@@ -318,17 +342,39 @@ config MMC_SDHCI_F_SDH30
 	  If unsure, say N.
 
 config MMC_SDHCI_IPROC
-	tristate "SDHCI platform support for the iProc SD/MMC Controller"
-	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	tristate "SDHCI support for the BCM2835 & iProc SD/MMC Controller"
+	depends on ARCH_BCM2835 || ARCH_BCM_IPROC || COMPILE_TEST
 	depends on MMC_SDHCI_PLTFM
 	default ARCH_BCM_IPROC
 	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the iProc SD/MMC controller.
 
-	  If you have an IPROC platform with SD or MMC devices,
+	  If you have a BCM2835 or IPROC platform with SD or MMC devices,
 	  say Y or M here.
 
+	  If unsure, say N.
+
+config MMC_MESON_GX
+	tristate "Amlogic S905/GX*/AXG SD/MMC Host Controller support"
+	depends on ARCH_MESON && MMC
+	help
+	  This selects support for the Amlogic SD/MMC Host Controller
+	  found on the S905/GX*/AXG family of SoCs.  This controller is
+	  MMC 5.1 compliant and supports SD, eMMC and SDIO interfaces.
+
+	  If you have a controller with this interface, say Y here.
+
+config MMC_MESON_MX_SDIO
+	tristate "Amlogic Meson6/Meson8/Meson8b SD/MMC Host Controller support"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on COMMON_CLK
+	depends on OF
+	help
+	  This selects support for the SD/MMC Host Controller on
+	  Amlogic Meson6, Meson8 and Meson8b SoCs.
+
+	  If you have a controller with this interface, say Y or M here.
 	  If unsure, say N.
 
 config MMC_MOXART
@@ -342,7 +388,7 @@ config MMC_MOXART
 
 config MMC_SDHCI_ST
 	tristate "SDHCI support on STMicroelectronics SoC"
-	depends on ARCH_STI
+	depends on ARCH_STI || FSP2
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
 	help
@@ -365,7 +411,6 @@ config MMC_OMAP
 
 config MMC_OMAP_HS
 	tristate "TI OMAP High Speed Multimedia Card Interface support"
-	depends on HAS_DMA
 	depends on ARCH_OMAP2PLUS || ARCH_KEYSTONE || COMPILE_TEST
 	help
 	  This selects the TI OMAP High Speed Multimedia card Interface.
@@ -396,11 +441,11 @@ config MMC_AU1X
 
 config MMC_ATMELMCI
 	tristate "Atmel SD/MMC Driver (Multimedia Card Interface)"
-	depends on AVR32 || ARCH_AT91
+	depends on ARCH_AT91
 	help
-	  This selects the Atmel Multimedia Card Interface driver. If
-	  you have an AT32 (AVR32) or AT91 platform with a Multimedia
-	  Card slot, say Y or M here.
+	  This selects the Atmel Multimedia Card Interface driver.
+	  If you have an AT91 platform with a Multimedia Card slot,
+	  say Y or M here.
 
 	  If unsure, say N.
 
@@ -408,6 +453,7 @@ config MMC_SDHCI_MSM
 	tristate "Qualcomm SDHCI Controller Support"
 	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
 	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in Qualcomm SOCs. The controller supports
@@ -455,6 +501,7 @@ config MMC_TIFM_SD
 config MMC_MVSDIO
 	tristate "Marvell MMC/SD/SDIO host driver"
 	depends on PLAT_ORION
+	depends on OF
 	---help---
 	  This selects the Marvell SDIO host driver.
 	  SDIO may currently be found on the Kirkwood 88F6281 and 88F6192
@@ -473,7 +520,6 @@ config MMC_DAVINCI
 
 config MMC_GOLDFISH
 	tristate "goldfish qemu Multimedia Card Interface support"
-	depends on HAS_DMA
 	depends on GOLDFISH || COMPILE_TEST
 	help
 	  This selects the Goldfish Multimedia card Interface emulation
@@ -481,7 +527,7 @@ config MMC_GOLDFISH
 
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
-	depends on SPI_MASTER && !HIGHMEM && HAS_DMA
+	depends on SPI_MASTER && HAS_DMA
 	select CRC7
 	select CRC_ITU_T
 	help
@@ -558,13 +604,31 @@ config MMC_TMIO
 	  T7L66XB and also HTC ASIC3
 
 config MMC_SDHI
-	tristate "SH-Mobile SDHI SD/SDIO controller support"
-	depends on SUPERH || ARM
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	tristate "Renesas SDHI SD/SDIO controller support"
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	select MMC_TMIO_CORE
 	help
 	  This provides support for the SDHI SD/SDIO controller found in
-	  SuperH and ARM SH-Mobile SoCs
+	  Renesas SuperH, ARM and ARM64 based SoCs
+
+config MMC_SDHI_SYS_DMAC
+	tristate "DMA for SDHI SD/SDIO controllers using SYS-DMAC"
+	depends on MMC_SDHI
+	default MMC_SDHI if (SUPERH || ARM)
+	help
+	  This provides DMA support for SDHI SD/SDIO controllers
+	  using SYS-DMAC via DMA Engine. This supports the controllers
+	  found in SuperH and Renesas ARM based SoCs.
+
+config MMC_SDHI_INTERNAL_DMAC
+	tristate "DMA for SDHI SD/SDIO controllers using on-chip bus mastering"
+	depends on ARM64 || COMPILE_TEST
+	depends on MMC_SDHI
+	default MMC_SDHI if ARM64
+	help
+	  This provides DMA support for SDHI SD/SDIO controllers
+	  using on-chip bus mastering. This supports the controllers
+	  found in arm64 based SoCs.
 
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
@@ -590,28 +654,29 @@ config MMC_VIA_SDMMC
 
 	  If unsure, say N.
 
-config SDH_BFIN
-	tristate "Blackfin Secure Digital Host support"
-	depends on (BF54x && !BF544) || (BF51x && !BF512)
+config MMC_CAVIUM_OCTEON
+	tristate "Cavium OCTEON SD/MMC Card Interface support"
+	depends on CAVIUM_OCTEON_SOC
 	help
-	  If you say yes here you will get support for the Blackfin on-chip
-	  Secure Digital Host interface.  This includes support for MMC and
-	  SD cards.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_sdh.
+	  This selects Cavium OCTEON SD/MMC card Interface.
+	  If you have an OCTEON board with a Multimedia Card slot,
+	  say Y or M here.
 
 	  If unsure, say N.
 
-config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
-	bool "Blackfin EZkit Missing SDH_CMD Pull Up Resistor Workaround"
-	depends on SDH_BFIN
+config MMC_CAVIUM_THUNDERX
+	tristate "Cavium ThunderX SD/MMC Card Interface support"
+	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
+	depends on GPIO_THUNDERX
+	depends on OF_ADDRESS
 	help
-	  If you say yes here SD-Cards may work on the EZkit.
+	  This selects Cavium ThunderX SD/MMC Card Interface.
+	  If you have an Cavium ARM64 board with a Multimedia Card slot
+	  or builtin eMMC chip say Y or M here. If built as a module
+	  the module will be called thunderx_mmc.ko.
 
 config MMC_DW
 	tristate "Synopsys DesignWare Memory Card Interface"
-	depends on HAS_DMA
 	depends on ARC || ARM || ARM64 || MIPS || COMPILE_TEST
 	help
 	  This selects support for the Synopsys DesignWare Mobile Storage IP
@@ -632,6 +697,15 @@ config MMC_DW_PLTFM
 
 	  If unsure, say Y.
 
+config MMC_DW_BLUEFIELD
+	tristate "BlueField specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW
+	select MMC_DW_PLTFM
+	help
+	  This selects support for Mellanox BlueField SoC specific extensions to
+	  the Synopsys DesignWare Memory Card Interface driver. Select this
+	  option for platforms based on Mellanox BlueField SoC's.
+
 config MMC_DW_EXYNOS
 	tristate "Exynos specific extensions for Synopsys DW Memory Card Interface"
 	depends on MMC_DW
@@ -640,6 +714,15 @@ config MMC_DW_EXYNOS
 	  This selects support for Samsung Exynos SoC specific extensions to the
 	  Synopsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on Exynos4 and Exynos5 SoC's.
+
+config MMC_DW_HI3798CV200
+	tristate "Hi3798CV200 specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW
+	select MMC_DW_PLTFM
+	help
+	  This selects support for HiSilicon Hi3798CV200 SoC specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on HiSilicon Hi3798CV200 SoC.
 
 config MMC_DW_K3
 	tristate "K3 specific extensions for Synopsys DW Memory Card Interface"
@@ -670,21 +753,30 @@ config MMC_DW_ROCKCHIP
 	  Synopsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on RK3066, RK3188 and RK3288 SoC's.
 
+config MMC_DW_ZX
+	tristate "ZTE specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW && ARCH_ZX
+	select MMC_DW_PLTFM
+	help
+	  This selects support for ZTE SoC specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on ZX296718 SoC's.
+
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"
-	depends on MMC_BLOCK && HAS_DMA
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	help
-	  This selects the MMC Host Interface controller (MMCIF).
+	  This selects the MMC Host Interface controller (MMCIF) found in various
+	  Renesas SoCs for SH and ARM architectures.
 
-	  This driver supports MMCIF in sh7724/sh7757/sh7372.
 
 config MMC_JZ4740
-	tristate "JZ4740 SD/Multimedia Card Interface support"
-	depends on MACH_JZ4740
+	tristate "Ingenic JZ47xx SD/Multimedia Card Interface support"
+	depends on MACH_JZ4740 || MACH_JZ4780
 	help
-	  This selects support for the SD/MMC controller on Ingenic JZ4740
-	  SoCs.
+	  This selects support for the SD/MMC controller on Ingenic
+	  JZ4740, JZ4750, JZ4770 and JZ4780 SoCs.
+
 	  If you have a board based on such a SoC and with a SD/MMC slot,
 	  say Y or M here.
 
@@ -753,14 +845,14 @@ config MMC_USDHI6ROL0
 
 config MMC_REALTEK_PCI
 	tristate "Realtek PCI-E SD/MMC Card Interface Driver"
-	depends on MFD_RTSX_PCI
+	depends on MISC_RTSX_PCI
 	help
 	  Say Y here to include driver code to support SD/MMC card interface
 	  of Realtek PCI-E card reader
 
 config MMC_REALTEK_USB
 	tristate "Realtek USB SD/MMC Card Interface Driver"
-	depends on MFD_RTSX_USB
+	depends on MISC_RTSX_USB
 	help
 	  Say Y here to include driver code to support SD/MMC card interface
 	  of Realtek RTS5129/39 series card reader
@@ -772,10 +864,35 @@ config MMC_SUNXI
 	  This selects support for the SD/MMC Host Controller on
 	  Allwinner sunxi SoCs.
 
+config MMC_CQHCI
+	tristate "Command Queue Host Controller Interface support"
+	depends on HAS_DMA
+	help
+	  This selects the Command Queue Host Controller Interface (CQHCI)
+	  support present in host controllers of Qualcomm Technologies, Inc
+	  amongst others.
+	  This controller supports eMMC devices with command queue support.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_TOSHIBA_PCI
 	tristate "Toshiba Type A SD/MMC Card Interface Driver"
 	depends on PCI
+
+config MMC_BCM2835
+	tristate "Broadcom BCM2835 SDHOST MMC Controller support"
+	depends on ARCH_BCM2835 || COMPILE_TEST
 	help
+	  This selects the BCM2835 SDHOST MMC controller. If you have
+	  a BCM2835 platform with SD or MMC devices, say Y or M here.
+
+	  Note that the BCM2835 has two SD controllers: The Arasan
+	  sdhci controller (supported by MMC_SDHCI_IPROC) and a custom
+	  sdhost controller (supported by this driver).
+
+	  If unsure, say N.
 
 config MMC_MTK
 	tristate "MediaTek SD/MMC Card Interface support"
@@ -784,4 +901,45 @@ config MMC_MTK
 	  This selects the MediaTek(R) Secure digital and Multimedia card Interface.
 	  If you have a machine with a integrated SD/MMC card reader, say Y or M here.
 	  This is needed if support for any SD/SDIO/MMC devices is required.
+	  If unsure, say N.
+
+config MMC_SDHCI_MICROCHIP_PIC32
+        tristate "Microchip PIC32MZDA SDHCI support"
+        depends on MMC_SDHCI && PIC32MZDA && MMC_SDHCI_PLTFM
+        help
+          This selects the Secure Digital Host Controller Interface (SDHCI)
+          for PIC32MZDA platform.
+
+          If you have a controller with this interface, say Y or M here.
+
+          If unsure, say N.
+config MMC_SDHCI_BRCMSTB
+	tristate "Broadcom SDIO/SD/MMC support"
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC
+	depends on MMC_SDHCI_PLTFM
+	default y
+	help
+	  This selects support for the SDIO/SD/MMC Host Controller on
+	  Broadcom STB SoCs.
+
+	  If unsure, say Y.
+
+config MMC_SDHCI_XENON
+	tristate "Marvell Xenon eMMC/SD/SDIO SDHCI driver"
+	depends on MMC_SDHCI_PLTFM
+	help
+	  This selects Marvell Xenon eMMC/SD/SDIO SDHCI.
+	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
+
+config MMC_SDHCI_OMAP
+	tristate "TI SDHCI Controller Support"
+	depends on MMC_SDHCI_PLTFM && OF
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  support present in TI's DRA7 SOCs. The controller supports
+	  SD/MMC/SDIO devices.
+
+	  If you have a controller with this interface, say Y or M here.
+
 	  If unsure, say N.

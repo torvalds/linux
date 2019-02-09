@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/platform_data/dma-s3c24xx.h>
 
@@ -289,15 +290,10 @@ static
 struct s3c24xx_dma_phy *s3c24xx_dma_get_phy(struct s3c24xx_dma_chan *s3cchan)
 {
 	struct s3c24xx_dma_engine *s3cdma = s3cchan->host;
-	const struct s3c24xx_dma_platdata *pdata = s3cdma->pdata;
-	struct s3c24xx_dma_channel *cdata;
 	struct s3c24xx_dma_phy *phy = NULL;
 	unsigned long flags;
 	int i;
 	int ret;
-
-	if (s3cchan->slave)
-		cdata = &pdata->channels[s3cchan->id];
 
 	for (i = 0; i < s3cdma->pdata->num_phy_channels; i++) {
 		phy = &s3cdma->phy_chans[i];
@@ -737,7 +733,7 @@ static int s3c24xx_dma_terminate_all(struct dma_chan *chan)
 
 	/* Dequeue current job */
 	if (s3cchan->at) {
-		s3c24xx_dma_desc_free(&s3cchan->at->vd);
+		vchan_terminate_vdesc(&s3cchan->at->vd);
 		s3cchan->at = NULL;
 	}
 
@@ -747,6 +743,13 @@ unlock:
 	spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
 
 	return ret;
+}
+
+static void s3c24xx_dma_synchronize(struct dma_chan *chan)
+{
+	struct s3c24xx_dma_chan *s3cchan = to_s3c24xx_dma_chan(chan);
+
+	vchan_synchronize(&s3cchan->vc);
 }
 
 static void s3c24xx_dma_free_chan_resources(struct dma_chan *chan)
@@ -768,16 +771,12 @@ static enum dma_status s3c24xx_dma_tx_status(struct dma_chan *chan,
 
 	spin_lock_irqsave(&s3cchan->vc.lock, flags);
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_COMPLETE) {
-		spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
-		return ret;
-	}
 
 	/*
 	 * There's no point calculating the residue if there's
 	 * no txstate to store the value.
 	 */
-	if (!txstate) {
+	if (ret == DMA_COMPLETE || !txstate) {
 		spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
 		return ret;
 	}
@@ -827,11 +826,11 @@ static struct dma_async_tx_descriptor *s3c24xx_dma_prep_memcpy(
 	struct s3c24xx_sg *dsg;
 	int src_mod, dest_mod;
 
-	dev_dbg(&s3cdma->pdev->dev, "prepare memcpy of %d bytes from %s\n",
+	dev_dbg(&s3cdma->pdev->dev, "prepare memcpy of %zu bytes from %s\n",
 			len, s3cchan->name);
 
 	if ((len & S3C24XX_DCON_TC_MASK) != len) {
-		dev_err(&s3cdma->pdev->dev, "memcpy size %d to large\n", len);
+		dev_err(&s3cdma->pdev->dev, "memcpy size %zu to large\n", len);
 		return NULL;
 	}
 
@@ -1105,11 +1104,8 @@ static int s3c24xx_dma_init_virtual_channels(struct s3c24xx_dma_engine *s3cdma,
 	 */
 	for (i = 0; i < channels; i++) {
 		chan = devm_kzalloc(dmadev->dev, sizeof(*chan), GFP_KERNEL);
-		if (!chan) {
-			dev_err(dmadev->dev,
-				"%s no memory for channel\n", __func__);
+		if (!chan)
 			return -ENOMEM;
-		}
 
 		chan->id = i;
 		chan->host = s3cdma;
@@ -1143,8 +1139,10 @@ static void s3c24xx_dma_free_virtual_channels(struct dma_device *dmadev)
 	struct s3c24xx_dma_chan *next;
 
 	list_for_each_entry_safe(chan,
-				 next, &dmadev->channels, vc.chan.device_node)
+				 next, &dmadev->channels, vc.chan.device_node) {
 		list_del(&chan->vc.chan.device_node);
+		tasklet_kill(&chan->vc.task);
+	}
 }
 
 /* s3c2410, s3c2440 and s3c2442 have a 0x40 stride without separate clocks */
@@ -1226,9 +1224,9 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	if (IS_ERR(s3cdma->base))
 		return PTR_ERR(s3cdma->base);
 
-	s3cdma->phy_chans = devm_kzalloc(&pdev->dev,
-					      sizeof(struct s3c24xx_dma_phy) *
-							pdata->num_phy_channels,
+	s3cdma->phy_chans = devm_kcalloc(&pdev->dev,
+					      pdata->num_phy_channels,
+					      sizeof(struct s3c24xx_dma_phy),
 					      GFP_KERNEL);
 	if (!s3cdma->phy_chans)
 		return -ENOMEM;
@@ -1292,6 +1290,7 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	s3cdma->memcpy.device_issue_pending = s3c24xx_dma_issue_pending;
 	s3cdma->memcpy.device_config = s3c24xx_dma_set_runtime_config;
 	s3cdma->memcpy.device_terminate_all = s3c24xx_dma_terminate_all;
+	s3cdma->memcpy.device_synchronize = s3c24xx_dma_synchronize;
 
 	/* Initialize slave engine for SoC internal dedicated peripherals */
 	dma_cap_set(DMA_SLAVE, s3cdma->slave.cap_mask);
@@ -1306,6 +1305,10 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	s3cdma->slave.device_prep_dma_cyclic = s3c24xx_dma_prep_dma_cyclic;
 	s3cdma->slave.device_config = s3c24xx_dma_set_runtime_config;
 	s3cdma->slave.device_terminate_all = s3c24xx_dma_terminate_all;
+	s3cdma->slave.device_synchronize = s3c24xx_dma_synchronize;
+	s3cdma->slave.filter.map = pdata->slave_map;
+	s3cdma->slave.filter.mapcnt = pdata->slavecnt;
+	s3cdma->slave.filter.fn = s3c24xx_dma_filter;
 
 	/* Register as many memcpy channels as there are physical channels */
 	ret = s3c24xx_dma_init_virtual_channels(s3cdma, &s3cdma->memcpy,
@@ -1366,6 +1369,18 @@ err_memcpy:
 	return ret;
 }
 
+static void s3c24xx_dma_free_irq(struct platform_device *pdev,
+				struct s3c24xx_dma_engine *s3cdma)
+{
+	int i;
+
+	for (i = 0; i < s3cdma->pdata->num_phy_channels; i++) {
+		struct s3c24xx_dma_phy *phy = &s3cdma->phy_chans[i];
+
+		devm_free_irq(&pdev->dev, phy->irq, phy);
+	}
+}
+
 static int s3c24xx_dma_remove(struct platform_device *pdev)
 {
 	const struct s3c24xx_dma_platdata *pdata = dev_get_platdata(&pdev->dev);
@@ -1375,6 +1390,8 @@ static int s3c24xx_dma_remove(struct platform_device *pdev)
 
 	dma_async_device_unregister(&s3cdma->slave);
 	dma_async_device_unregister(&s3cdma->memcpy);
+
+	s3c24xx_dma_free_irq(pdev, s3cdma);
 
 	s3c24xx_dma_free_virtual_channels(&s3cdma->slave);
 	s3c24xx_dma_free_virtual_channels(&s3cdma->memcpy);
@@ -1409,7 +1426,7 @@ bool s3c24xx_dma_filter(struct dma_chan *chan, void *param)
 
 	s3cchan = to_s3c24xx_dma_chan(chan);
 
-	return s3cchan->id == (int)param;
+	return s3cchan->id == (uintptr_t)param;
 }
 EXPORT_SYMBOL(s3c24xx_dma_filter);
 

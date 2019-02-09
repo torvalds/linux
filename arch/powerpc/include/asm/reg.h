@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Contains the definition of registers common to all PowerPC variants.
  * If a register definition has been changed in a different PowerPC
@@ -12,6 +13,8 @@
 
 #include <linux/stringify.h>
 #include <asm/cputable.h>
+#include <asm/asm-const.h>
+#include <asm/feature-fixups.h>
 
 /* Pickup Book E specific registers. */
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
@@ -22,9 +25,9 @@
 #include <asm/reg_fsl_emb.h>
 #endif
 
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 #include <asm/reg_8xx.h>
-#endif /* CONFIG_8xx */
+#endif /* CONFIG_PPC_8xx */
 
 #define MSR_SF_LG	63              /* Enable 64 bit mode */
 #define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */
@@ -73,6 +76,14 @@
 #define MSR_SF		0
 #define MSR_ISF		0
 #define MSR_HV		0
+#endif
+
+/*
+ * To be used in shared book E/book S, this avoids needing to worry about
+ * book S/book E in shared code
+ */
+#ifndef MSR_SPE
+#define MSR_SPE 	0
 #endif
 
 #define MSR_VEC		__MASK(MSR_VEC_LG)	/* Enable AltiVec */
@@ -127,7 +138,7 @@
 #define MSR_KERNEL	(MSR_ | MSR_64BIT)
 #define MSR_USER32	(MSR_ | MSR_PR | MSR_EE)
 #define MSR_USER64	(MSR_USER32 | MSR_64BIT)
-#elif defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_8xx)
+#elif defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_PPC_8xx)
 /* Default MSR for kernel mode. */
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR)
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
@@ -136,6 +147,25 @@
 #ifndef MSR_64BIT
 #define MSR_64BIT	0
 #endif
+
+/* Condition Register related */
+#define CR0_SHIFT	28
+#define CR0_MASK	0xF
+#define CR0_TBEGIN_FAILURE	(0x2 << 28) /* 0b0010 */
+
+
+/* Power Management - Processor Stop Status and Control Register Fields */
+#define PSSCR_RL_MASK		0x0000000F /* Requested Level */
+#define PSSCR_MTL_MASK		0x000000F0 /* Maximum Transition Level */
+#define PSSCR_TR_MASK		0x00000300 /* Transition State */
+#define PSSCR_PSLL_MASK		0x000F0000 /* Power-Saving Level Limit */
+#define PSSCR_EC		0x00100000 /* Exit Criterion */
+#define PSSCR_ESL		0x00200000 /* Enable State Loss */
+#define PSSCR_SD		0x00400000 /* Status Disable */
+#define PSSCR_PLS	0xf000000000000000 /* Power-saving Level Status */
+#define PSSCR_GUEST_VIS	0xf0000000000003ffUL /* Guest-visible PSSCR fields */
+#define PSSCR_FAKE_SUSPEND	0x00000400 /* Fake-suspend bit (P9 DD2.2) */
+#define PSSCR_FAKE_SUSPEND_LG	10	   /* Fake-suspend bit position */
 
 /* Floating Point Status and Control Register (FPSCR) Fields */
 #define FPSCR_FX	0x80000000	/* FPU exception summary */
@@ -217,8 +247,28 @@
 #define SPRN_TFIAR	0x81	/* Transaction Failure Inst Addr   */
 #define SPRN_TEXASR	0x82	/* Transaction EXception & Summary */
 #define SPRN_TEXASRU	0x83	/* ''	   ''	   ''	 Upper 32  */
-#define   TEXASR_FS	__MASK(63-36) /* TEXASR Failure Summary */
+
+#define TEXASR_FC_LG	(63 - 7)	/* Failure Code */
+#define TEXASR_AB_LG	(63 - 31)	/* Abort */
+#define TEXASR_SU_LG	(63 - 32)	/* Suspend */
+#define TEXASR_HV_LG	(63 - 34)	/* Hypervisor state*/
+#define TEXASR_PR_LG	(63 - 35)	/* Privilege level */
+#define TEXASR_FS_LG	(63 - 36)	/* failure summary */
+#define TEXASR_EX_LG	(63 - 37)	/* TFIAR exact bit */
+#define TEXASR_ROT_LG	(63 - 38)	/* ROT bit */
+
+#define   TEXASR_ABORT	__MASK(TEXASR_AB_LG) /* terminated by tabort or treclaim */
+#define   TEXASR_SUSP	__MASK(TEXASR_SU_LG) /* tx failed in suspended state */
+#define   TEXASR_HV	__MASK(TEXASR_HV_LG) /* MSR[HV] when failure occurred */
+#define   TEXASR_PR	__MASK(TEXASR_PR_LG) /* MSR[PR] when failure occurred */
+#define   TEXASR_FS	__MASK(TEXASR_FS_LG) /* TEXASR Failure Summary */
+#define   TEXASR_EXACT	__MASK(TEXASR_EX_LG) /* TFIAR value is exact */
+#define   TEXASR_ROT	__MASK(TEXASR_ROT_LG)
+#define   TEXASR_FC	(ASM_CONST(0xFF) << TEXASR_FC_LG)
+
 #define SPRN_TFHAR	0x80	/* Transaction Failure Handler Addr */
+
+#define SPRN_TIDR	144	/* Thread ID register */
 #define SPRN_CTRLF	0x088
 #define SPRN_CTRLT	0x098
 #define   CTRL_CT	0xc0000000	/* current thread */
@@ -252,14 +302,67 @@
 #define SPRN_DAR	0x013	/* Data Address Register */
 #define SPRN_DBCR	0x136	/* e300 Data Breakpoint Control Reg */
 #define SPRN_DSISR	0x012	/* Data Storage Interrupt Status Register */
-#define   DSISR_NOHPTE		0x40000000	/* no translation found */
-#define   DSISR_PROTFAULT	0x08000000	/* protection fault */
-#define   DSISR_ISSTORE		0x02000000	/* access was a store */
-#define   DSISR_DABRMATCH	0x00400000	/* hit data breakpoint */
-#define   DSISR_NOSEGMENT	0x00200000	/* SLB miss */
-#define   DSISR_KEYFAULT	0x00200000	/* Key fault */
+#define   DSISR_BAD_DIRECT_ST	0x80000000 /* Obsolete: Direct store error */
+#define   DSISR_NOHPTE		0x40000000 /* no translation found */
+#define   DSISR_ATTR_CONFLICT	0x20000000 /* P9: Process vs. Partition attr */
+#define   DSISR_NOEXEC_OR_G	0x10000000 /* Alias of SRR1 bit, see below */
+#define   DSISR_PROTFAULT	0x08000000 /* protection fault */
+#define   DSISR_BADACCESS	0x04000000 /* bad access to CI or G */
+#define   DSISR_ISSTORE		0x02000000 /* access was a store */
+#define   DSISR_DABRMATCH	0x00400000 /* hit data breakpoint */
+#define   DSISR_NOSEGMENT	0x00200000 /* STAB miss (unsupported) */
+#define   DSISR_KEYFAULT	0x00200000 /* Storage Key fault */
+#define   DSISR_BAD_EXT_CTRL	0x00100000 /* Obsolete: External ctrl error */
+#define   DSISR_UNSUPP_MMU	0x00080000 /* P9: Unsupported MMU config */
+#define   DSISR_SET_RC		0x00040000 /* P9: Failed setting of R/C bits */
+#define   DSISR_PRTABLE_FAULT   0x00020000 /* P9: Fault on process table */
+#define   DSISR_ICSWX_NO_CT     0x00004000 /* P7: icswx unavailable cp type */
+#define   DSISR_BAD_COPYPASTE   0x00000008 /* P9: Copy/Paste on wrong memtype */
+#define   DSISR_BAD_AMO		0x00000004 /* P9: Incorrect AMO opcode */
+#define   DSISR_BAD_CI_LDST	0x00000002 /* P8: Bad HV CI load/store */
+
+/*
+ * DSISR_NOEXEC_OR_G doesn't actually exist. This bit is always
+ * 0 on DSIs. However, on ISIs, the corresponding bit in SRR1
+ * indicates an attempt at executing from a no-execute PTE
+ * or segment or from a guarded page.
+ *
+ * We add a definition here for completeness as we alias
+ * DSISR and SRR1 in do_page_fault.
+ */
+
+/*
+ * DSISR bits that are treated as a fault. Any bit set
+ * here will skip hash_page, and cause do_page_fault to
+ * trigger a SIGBUS or SIGSEGV:
+ */
+#define   DSISR_BAD_FAULT_32S	(DSISR_BAD_DIRECT_ST	| \
+				 DSISR_BADACCESS	| \
+				 DSISR_BAD_EXT_CTRL)
+#define	  DSISR_BAD_FAULT_64S	(DSISR_BAD_FAULT_32S	| \
+				 DSISR_ATTR_CONFLICT	| \
+				 DSISR_UNSUPP_MMU	| \
+				 DSISR_PRTABLE_FAULT	| \
+				 DSISR_ICSWX_NO_CT	| \
+				 DSISR_BAD_COPYPASTE	| \
+				 DSISR_BAD_AMO		| \
+				 DSISR_BAD_CI_LDST)
+/*
+ * These bits are equivalent in SRR1 and DSISR for 0x400
+ * instruction access interrupts on Book3S
+ */
+#define   DSISR_SRR1_MATCH_32S	(DSISR_NOHPTE		| \
+				 DSISR_NOEXEC_OR_G	| \
+				 DSISR_PROTFAULT)
+#define   DSISR_SRR1_MATCH_64S	(DSISR_SRR1_MATCH_32S	| \
+				 DSISR_KEYFAULT		| \
+				 DSISR_UNSUPP_MMU	| \
+				 DSISR_SET_RC		| \
+				 DSISR_PRTABLE_FAULT)
+
 #define SPRN_TBRL	0x10C	/* Time Base Read Lower Register (user, R/O) */
 #define SPRN_TBRU	0x10D	/* Time Base Read Upper Register (user, R/O) */
+#define SPRN_CIR	0x11B	/* Chip Information Register (hyper, R/0) */
 #define SPRN_TBWL	0x11C	/* Time Base Lower Register (super, R/W) */
 #define SPRN_TBWU	0x11D	/* Time Base Upper Register (super, R/W) */
 #define SPRN_TBU40	0x11E	/* Timebase upper 40 bits (hyper, R/W) */
@@ -274,15 +377,21 @@
 #define SPRN_HRMOR	0x139	/* Real mode offset register */
 #define SPRN_HSRR0	0x13A	/* Hypervisor Save/Restore 0 */
 #define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
+#define SPRN_ASDR	0x330	/* Access segment descriptor register */
 #define SPRN_IC		0x350	/* Virtual Instruction Count */
 #define SPRN_VTB	0x351	/* Virtual Time Base */
 #define SPRN_LDBAR	0x352	/* LD Base Address Register */
 #define SPRN_PMICR	0x354   /* Power Management Idle Control Reg */
 #define SPRN_PMSR	0x355   /* Power Management Status Reg */
 #define SPRN_PMMAR	0x356	/* Power Management Memory Activity Register */
+#define SPRN_PSSCR	0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
+#define SPRN_PSSCR_PR	0x337	/* PSSCR ISA 3.0, privileged mode access */
 #define SPRN_PMCR	0x374	/* Power Management Control Register */
+#define SPRN_RWMR	0x375	/* Region-Weighting Mode Register */
 
 /* HFSCR and FSCR bit numbers are the same */
+#define FSCR_SCV_LG	12	/* Enable System Call Vectored */
+#define FSCR_MSGP_LG	10	/* Enable MSGP */
 #define FSCR_TAR_LG	8	/* Enable Target Address Register */
 #define FSCR_EBB_LG	7	/* Enable Event Based Branching */
 #define FSCR_TM_LG	5	/* Enable Transactional Memory */
@@ -292,10 +401,12 @@
 #define FSCR_VECVSX_LG	1	/* Enable VMX/VSX  */
 #define FSCR_FP_LG	0	/* Enable Floating Point */
 #define SPRN_FSCR	0x099	/* Facility Status & Control Register */
+#define   FSCR_SCV	__MASK(FSCR_SCV_LG)
 #define   FSCR_TAR	__MASK(FSCR_TAR_LG)
 #define   FSCR_EBB	__MASK(FSCR_EBB_LG)
 #define   FSCR_DSCR	__MASK(FSCR_DSCR_LG)
 #define SPRN_HFSCR	0xbe	/* HV=1 Facility Status & Control Register */
+#define   HFSCR_MSGP	__MASK(FSCR_MSGP_LG)
 #define   HFSCR_TAR	__MASK(FSCR_TAR_LG)
 #define   HFSCR_EBB	__MASK(FSCR_EBB_LG)
 #define   HFSCR_TM	__MASK(FSCR_TM_LG)
@@ -306,49 +417,63 @@
 #define   HFSCR_FP	__MASK(FSCR_FP_LG)
 #define SPRN_TAR	0x32f	/* Target Address Register */
 #define SPRN_LPCR	0x13E	/* LPAR Control Register */
-#define   LPCR_VPM0	(1ul << (63-0))
-#define   LPCR_VPM1	(1ul << (63-1))
-#define   LPCR_ISL	(1ul << (63-2))
-#define   LPCR_VC_SH	(63-2)
-#define   LPCR_DPFD_SH	(63-11)
-#define   LPCR_DPFD	(7ul << LPCR_DPFD_SH)
-#define   LPCR_VRMASD	(0x1ful << (63-16))
-#define   LPCR_VRMA_L	(1ul << (63-12))
-#define   LPCR_VRMA_LP0	(1ul << (63-15))
-#define   LPCR_VRMA_LP1	(1ul << (63-16))
-#define   LPCR_VRMASD_SH (63-16)
-#define   LPCR_RMLS    0x1C000000      /* impl dependent rmo limit sel */
-#define	  LPCR_RMLS_SH	(63-37)
-#define   LPCR_ILE     0x02000000      /* !HV irqs set MSR:LE */
-#define   LPCR_AIL	0x01800000	/* Alternate interrupt location */
-#define   LPCR_AIL_0	0x00000000	/* MMU off exception offset 0x0 */
-#define   LPCR_AIL_3	0x01800000	/* MMU on exception offset 0xc00...4xxx */
-#define   LPCR_ONL	0x00040000	/* online - PURR/SPURR count */
-#define   LPCR_PECE	0x0001f000	/* powersave exit cause enable */
-#define     LPCR_PECEDP	0x00010000	/* directed priv dbells cause exit */
-#define     LPCR_PECEDH	0x00008000	/* directed hyp dbells cause exit */
-#define     LPCR_PECE0	0x00004000	/* ext. exceptions can cause exit */
-#define     LPCR_PECE1	0x00002000	/* decrementer can cause exit */
-#define     LPCR_PECE2	0x00001000	/* machine check etc can cause exit */
-#define   LPCR_MER	0x00000800	/* Mediated External Exception */
-#define   LPCR_MER_SH	11
-#define   LPCR_TC      0x00000200	/* Translation control */
-#define   LPCR_LPES    0x0000000c
-#define   LPCR_LPES0   0x00000008      /* LPAR Env selector 0 */
-#define   LPCR_LPES1   0x00000004      /* LPAR Env selector 1 */
-#define   LPCR_LPES_SH	2
-#define   LPCR_RMI     0x00000002      /* real mode is cache inhibit */
-#define   LPCR_HDICE   0x00000001      /* Hyp Decr enable (HV,PR,EE) */
+#define   LPCR_VPM0		ASM_CONST(0x8000000000000000)
+#define   LPCR_VPM1		ASM_CONST(0x4000000000000000)
+#define   LPCR_ISL		ASM_CONST(0x2000000000000000)
+#define   LPCR_VC_SH		61
+#define   LPCR_DPFD_SH		52
+#define   LPCR_DPFD		(ASM_CONST(7) << LPCR_DPFD_SH)
+#define   LPCR_VRMASD_SH	47
+#define   LPCR_VRMASD		(ASM_CONST(0x1f) << LPCR_VRMASD_SH)
+#define   LPCR_VRMA_L		ASM_CONST(0x0008000000000000)
+#define   LPCR_VRMA_LP0		ASM_CONST(0x0001000000000000)
+#define   LPCR_VRMA_LP1		ASM_CONST(0x0000800000000000)
+#define   LPCR_RMLS		0x1C000000	/* Implementation dependent RMO limit sel */
+#define   LPCR_RMLS_SH		26
+#define   LPCR_ILE		ASM_CONST(0x0000000002000000)   /* !HV irqs set MSR:LE */
+#define   LPCR_AIL		ASM_CONST(0x0000000001800000)	/* Alternate interrupt location */
+#define   LPCR_AIL_0		ASM_CONST(0x0000000000000000)	/* MMU off exception offset 0x0 */
+#define   LPCR_AIL_3		ASM_CONST(0x0000000001800000)   /* MMU on exception offset 0xc00...4xxx */
+#define   LPCR_ONL		ASM_CONST(0x0000000000040000)	/* online - PURR/SPURR count */
+#define   LPCR_LD		ASM_CONST(0x0000000000020000)	/* large decremeter */
+#define   LPCR_PECE		ASM_CONST(0x000000000001f000)	/* powersave exit cause enable */
+#define     LPCR_PECEDP	ASM_CONST(0x0000000000010000)	/* directed priv dbells cause exit */
+#define     LPCR_PECEDH	ASM_CONST(0x0000000000008000)	/* directed hyp dbells cause exit */
+#define     LPCR_PECE0		ASM_CONST(0x0000000000004000)	/* ext. exceptions can cause exit */
+#define     LPCR_PECE1		ASM_CONST(0x0000000000002000)	/* decrementer can cause exit */
+#define     LPCR_PECE2		ASM_CONST(0x0000000000001000)	/* machine check etc can cause exit */
+#define     LPCR_PECE_HVEE	ASM_CONST(0x0000400000000000)	/* P9 Wakeup on HV interrupts */
+#define   LPCR_MER		ASM_CONST(0x0000000000000800)	/* Mediated External Exception */
+#define   LPCR_MER_SH		11
+#define	  LPCR_GTSE		ASM_CONST(0x0000000000000400)  	/* Guest Translation Shootdown Enable */
+#define   LPCR_TC		ASM_CONST(0x0000000000000200)	/* Translation control */
+#define   LPCR_HEIC		ASM_CONST(0x0000000000000010)   /* Hypervisor External Interrupt Control */
+#define   LPCR_LPES		0x0000000c
+#define   LPCR_LPES0		ASM_CONST(0x0000000000000008)      /* LPAR Env selector 0 */
+#define   LPCR_LPES1		ASM_CONST(0x0000000000000004)      /* LPAR Env selector 1 */
+#define   LPCR_LPES_SH		2
+#define   LPCR_RMI		ASM_CONST(0x0000000000000002)      /* real mode is cache inhibit */
+#define   LPCR_HVICE		ASM_CONST(0x0000000000000002)      /* P9: HV interrupt enable */
+#define   LPCR_HDICE		ASM_CONST(0x0000000000000001)      /* Hyp Decr enable (HV,PR,EE) */
+#define   LPCR_UPRT		ASM_CONST(0x0000000000400000)      /* Use Process Table (ISA 3) */
+#define   LPCR_HR		ASM_CONST(0x0000000000100000)
 #ifndef SPRN_LPID
 #define SPRN_LPID	0x13F	/* Logical Partition Identifier */
 #endif
 #define   LPID_RSVD	0x3ff		/* Reserved LPID for partn switching */
-#define	SPRN_HMER	0x150	/* Hardware m? error recovery */
-#define	SPRN_HMEER	0x151	/* Hardware m? enable error recovery */
+#define	SPRN_HMER	0x150	/* Hypervisor maintenance exception reg */
+#define   HMER_DEBUG_TRIG	(1ul << (63 - 17)) /* Debug trigger */
+#define	SPRN_HMEER	0x151	/* Hyp maintenance exception enable reg */
 #define SPRN_PCR	0x152	/* Processor compatibility register */
 #define   PCR_VEC_DIS	(1ul << (63-0))	/* Vec. disable (bit NA since POWER8) */
 #define   PCR_VSX_DIS	(1ul << (63-1))	/* VSX disable (bit NA since POWER8) */
 #define   PCR_TM_DIS	(1ul << (63-2))	/* Trans. memory disable (POWER8) */
+/*
+ * These bits are used in the function kvmppc_set_arch_compat() to specify and
+ * determine both the compatibility level which we want to emulate and the
+ * compatibility level which the host is capable of emulating.
+ */
+#define   PCR_ARCH_207	0x8		/* Architecture 2.07 */
 #define   PCR_ARCH_206	0x4		/* Architecture 2.06 */
 #define   PCR_ARCH_205	0x2		/* Architecture 2.05 */
 #define	SPRN_HEIR	0x153	/* Hypervisor Emulated Instruction Register */
@@ -376,7 +501,7 @@
 #define SPRN_TSCR	0x399	/* Thread Switch Control Register */
 
 #define SPRN_DEC	0x016		/* Decrement Register */
-#define SPRN_DER	0x095		/* Debug Enable Regsiter */
+#define SPRN_DER	0x095		/* Debug Enable Register */
 #define DER_RSTE	0x40000000	/* Reset Interrupt */
 #define DER_CHSTPE	0x20000000	/* Check Stop */
 #define DER_MCIE	0x10000000	/* Machine Check Interrupt */
@@ -401,7 +526,7 @@
 #define SPRN_DPDES	0x0B0		/* Directed Priv. Doorbell Exc. State */
 #define SPRN_EAR	0x11A		/* External Address Register */
 #define SPRN_HASH1	0x3D2		/* Primary Hash Address Register */
-#define SPRN_HASH2	0x3D3		/* Secondary Hash Address Resgister */
+#define SPRN_HASH2	0x3D3		/* Secondary Hash Address Register */
 #define SPRN_HID0	0x3F0		/* Hardware Implementation Register 0 */
 #define HID0_HDICE_SH	(63 - 23)	/* 970 HDEC interrupt enable */
 #define HID0_EMCP	(1<<31)		/* Enable Machine Check pin */
@@ -446,6 +571,9 @@
 #define HID0_POWER8_1TO2LPAR	__MASK(52)
 #define HID0_POWER8_1TO4LPAR	__MASK(51)
 #define HID0_POWER8_DYNLPARDIS	__MASK(48)
+
+/* POWER9 HID0 bits */
+#define HID0_POWER9_RADIX	__MASK(63 - 8)
 
 #define SPRN_HID1	0x3F1		/* Hardware Implementation Register 1 */
 #ifdef CONFIG_6xx
@@ -508,13 +636,15 @@
 #define SPRN_IBAT7U	0x236		/* Instruction BAT 7 Upper Register */
 #define SPRN_ICMP	0x3D5		/* Instruction TLB Compare Register */
 #define SPRN_ICTC	0x3FB	/* Instruction Cache Throttling Control Reg */
+#ifndef SPRN_ICTRL
 #define SPRN_ICTRL	0x3F3	/* 1011 7450 icache and interrupt ctrl */
+#endif
 #define ICTRL_EICE	0x08000000	/* enable icache parity errs */
 #define ICTRL_EDC	0x04000000	/* enable dcache parity errs */
 #define ICTRL_EICP	0x00000100	/* enable icache par. check */
 #define SPRN_IMISS	0x3D4		/* Instruction TLB Miss Register */
 #define SPRN_IMMR	0x27E		/* Internal Memory Map Register */
-#define SPRN_L2CR	0x3F9		/* Level 2 Cache Control Regsiter */
+#define SPRN_L2CR	0x3F9		/* Level 2 Cache Control Register */
 #define SPRN_L2CR2	0x3f8
 #define L2CR_L2E		0x80000000	/* L2 enable */
 #define L2CR_L2PE		0x40000000	/* L2 parity enable */
@@ -549,7 +679,7 @@
 #define L2CR_L2DO_745x		0x00010000	/* L2 data only (745x) */
 #define L2CR_L2REP_745x		0x00001000	/* L2 repl. algorithm (745x) */
 #define L2CR_L2HWF_745x		0x00000800	/* L2 hardware flush (745x) */
-#define SPRN_L3CR		0x3FA	/* Level 3 Cache Control Regsiter */
+#define SPRN_L3CR		0x3FA	/* Level 3 Cache Control Register */
 #define L3CR_L3E		0x80000000	/* L3 enable */
 #define L3CR_L3PE		0x40000000	/* L3 data parity enable */
 #define L3CR_L3APE		0x20000000	/* L3 addr parity enable */
@@ -579,6 +709,7 @@
 #define SPRN_PIR	0x3FF	/* Processor Identification Register */
 #endif
 #define SPRN_TIR	0x1BE	/* Thread Identification Register */
+#define SPRN_PTCR	0x1D0	/* Partition table control Register */
 #define SPRN_PSPB	0x09F	/* Problem State Priority Boost reg */
 #define SPRN_PTEHI	0x3D5	/* 981 7450 PTE HI word (S/W TLB load) */
 #define SPRN_PTELO	0x3D6	/* 982 7450 PTE LO word (S/W TLB load) */
@@ -608,9 +739,11 @@
 #define   SRR1_ISI_N_OR_G	0x10000000 /* ISI: Access is no-exec or G */
 #define   SRR1_ISI_PROT		0x08000000 /* ISI: Other protection fault */
 #define   SRR1_WAKEMASK		0x00380000 /* reason for wakeup */
-#define   SRR1_WAKEMASK_P8	0x003c0000 /* reason for wakeup on POWER8 */
+#define   SRR1_WAKEMASK_P8	0x003c0000 /* reason for wakeup on POWER8 and 9 */
+#define   SRR1_WAKEMCE_RESVD	0x003c0000 /* Unused/reserved value used by MCE wakeup to indicate cause to idle wakeup handler */
 #define   SRR1_WAKESYSERR	0x00300000 /* System error */
 #define   SRR1_WAKEEE		0x00200000 /* External interrupt */
+#define   SRR1_WAKEHVI		0x00240000 /* Hypervisor Virtualization Interrupt (P9) */
 #define   SRR1_WAKEMT		0x00280000 /* mtctrl */
 #define	  SRR1_WAKEHMI		0x00280000 /* Hypervisor maintenance */
 #define   SRR1_WAKEDEC		0x00180000 /* Decrementer interrupt */
@@ -623,6 +756,7 @@
 					  * may not be recoverable */
 #define	  SRR1_WS_DEEPER	0x00020000 /* Some resources not maintained */
 #define	  SRR1_WS_DEEP		0x00010000 /* All resources maintained */
+#define   SRR1_PROGTM		0x00200000 /* TM Bad Thing */
 #define   SRR1_PROGFPE		0x00100000 /* Floating Point Enabled */
 #define   SRR1_PROGILL		0x00080000 /* Illegal instruction */
 #define   SRR1_PROGPRIV		0x00040000 /* Privileged instruction */
@@ -707,7 +841,8 @@
 #define   MMCR0_FCWAIT	0x00000002UL /* freeze counter in WAIT state */
 #define   MMCR0_FCHV	0x00000001UL /* freeze conditions in hypervisor mode */
 #define SPRN_MMCR1	798
-#define SPRN_MMCR2	769
+#define SPRN_MMCR2	785
+#define SPRN_UMMCR2	769
 #define SPRN_MMCRA	0x312
 #define   MMCRA_SDSYNC	0x80000000UL /* SDAR synced with SIAR */
 #define   MMCRA_SDAR_DCACHE_MISS 0x40000000UL
@@ -744,13 +879,13 @@
 #define SPRN_PMC6	792
 #define SPRN_PMC7	793
 #define SPRN_PMC8	794
-#define SPRN_SIAR	780
-#define SPRN_SDAR	781
 #define SPRN_SIER	784
 #define   SIER_SIPR		0x2000000	/* Sampled MSR_PR */
 #define   SIER_SIHV		0x1000000	/* Sampled MSR_HV */
 #define   SIER_SIAR_VALID	0x0400000	/* SIAR contents valid */
 #define   SIER_SDAR_VALID	0x0200000	/* SDAR contents valid */
+#define SPRN_SIAR	796
+#define SPRN_SDAR	797
 #define SPRN_TACR	888
 #define SPRN_TCSCR	889
 #define SPRN_CSIGR	890
@@ -1061,7 +1196,7 @@
 #endif
 #endif
 
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
 #define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
 #define SPRN_SPRG_SCRATCH2	SPRN_SPRG2
@@ -1144,10 +1279,8 @@
  * differentiated by the version number in the Communication Processor
  * Module (CPM).
  */
-#define PVR_821		0x00500000
-#define PVR_823		PVR_821
-#define PVR_850		PVR_821
-#define PVR_860		PVR_821
+#define PVR_8xx		0x00500000
+
 #define PVR_8240	0x00810100
 #define PVR_8245	0x80811014
 #define PVR_8260	PVR_8240
@@ -1174,7 +1307,9 @@
 #define PVR_970GX	0x0045
 #define PVR_POWER7p	0x004A
 #define PVR_POWER8E	0x004B
+#define PVR_POWER8NVL	0x004C
 #define PVR_POWER8	0x004D
+#define PVR_POWER9	0x004E
 #define PVR_BE		0x0070
 #define PVR_PA6T	0x0090
 
@@ -1184,6 +1319,7 @@
 #define PVR_ARCH_206	0x0f000003
 #define PVR_ARCH_206p	0x0f100003
 #define PVR_ARCH_207	0x0f000004
+#define PVR_ARCH_300	0x0f000005
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__
@@ -1194,26 +1330,38 @@
 #define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
 				     : : "r" (v) : "memory")
 #define mtmsr(v)	__mtmsrd((v), 0)
+#define __MTMSR		"mtmsrd"
 #else
 #define mtmsr(v)	asm volatile("mtmsr %0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
+#define __MTMSR		"mtmsr"
 #endif
+
+static inline void mtmsr_isync(unsigned long val)
+{
+	asm volatile(__MTMSR " %0; " ASM_FTR_IFCLR("isync", "nop", %1) : :
+			"r" (val), "i" (CPU_FTR_ARCH_206) : "memory");
+}
 
 #define mfspr(rn)	({unsigned long rval; \
 			asm volatile("mfspr %0," __stringify(rn) \
 				: "=r" (rval)); rval;})
+#ifndef mtspr
 #define mtspr(rn, v)	asm volatile("mtspr " __stringify(rn) ",%0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
-
-static inline unsigned long mfvtb (void)
-{
-#ifdef CONFIG_PPC_BOOK3S_64
-	if (cpu_has_feature(CPU_FTR_ARCH_207S))
-		return mfspr(SPRN_VTB);
 #endif
-	return 0;
+#define wrtspr(rn)	asm volatile("mtspr " __stringify(rn) ",0" : \
+				     : : "memory")
+
+extern unsigned long msr_check_and_set(unsigned long bits);
+extern bool strict_msr_control;
+extern void __msr_check_and_clear(unsigned long bits);
+static inline void msr_check_and_clear(unsigned long bits)
+{
+	if (strict_msr_control)
+		__msr_check_and_clear(bits);
 }
 
 #ifdef __powerpc64__
@@ -1227,15 +1375,15 @@ static inline unsigned long mfvtb (void)
 				".section __ftr_fixup,\"a\"\n"		\
 				".align 3\n"				\
 				"98:\n"					\
-				"	.llong %1\n"			\
-				"	.llong %1\n"			\
-				"	.llong 97b-98b\n"		\
-				"	.llong 99b-98b\n"		\
-				"	.llong 0\n"			\
-				"	.llong 0\n"			\
+				"	.8byte %1\n"			\
+				"	.8byte %1\n"			\
+				"	.8byte 97b-98b\n"		\
+				"	.8byte 99b-98b\n"		\
+				"	.8byte 0\n"			\
+				"	.8byte 0\n"			\
 				".previous"				\
 			: "=r" (rval) \
-			: "i" (CPU_FTR_CELL_TB_BUG), "i" (SPRN_TBRL)); \
+			: "i" (CPU_FTR_CELL_TB_BUG), "i" (SPRN_TBRL) : "cr0"); \
 			rval;})
 #else
 #define mftb()		({unsigned long rval;	\
@@ -1245,7 +1393,7 @@ static inline unsigned long mfvtb (void)
 
 #else /* __powerpc64__ */
 
-#if defined(CONFIG_8xx)
+#if defined(CONFIG_PPC_8xx)
 #define mftbl()		({unsigned long rval;	\
 			asm volatile("mftbl %0" : "=r" (rval)); rval;})
 #define mftbu()		({unsigned long rval;	\
@@ -1258,6 +1406,7 @@ static inline unsigned long mfvtb (void)
 			asm volatile("mfspr %0, %1" : "=r" (rval) : \
 				"i" (SPRN_TBRU)); rval;})
 #endif
+#define mftb()		mftbl()
 #endif /* !__powerpc64__ */
 
 #define mttbl(v)	asm volatile("mttbl %0":: "r"(v))

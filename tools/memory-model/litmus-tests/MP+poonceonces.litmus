@@ -1,0 +1,27 @@
+C MP+poonceonces
+
+(*
+ * Result: Maybe
+ *
+ * Can the counter-intuitive message-passing outcome be prevented with
+ * no ordering at all?
+ *)
+
+{}
+
+P0(int *x, int *y)
+{
+	WRITE_ONCE(*x, 1);
+	WRITE_ONCE(*y, 1);
+}
+
+P1(int *x, int *y)
+{
+	int r0;
+	int r1;
+
+	r0 = READ_ONCE(*y);
+	r1 = READ_ONCE(*x);
+}
+
+exists (1:r0=1 /\ 1:r1=0)

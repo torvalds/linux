@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC_PSERIES
 	depends on PPC64 && PPC_BOOK3S
 	bool "IBM pSeries & new (POWER5-based) iSeries"
@@ -7,6 +8,7 @@ config PPC_PSERIES
 	select PCI
 	select PCI_MSI
 	select PPC_XICS
+	select PPC_XIVE_SPAPR
 	select PPC_ICP_NATIVE
 	select PPC_ICP_HV
 	select PPC_ICS_RTAS
@@ -17,10 +19,10 @@ config PPC_PSERIES
 	select PPC_UDBG_16550
 	select PPC_NATIVE
 	select PPC_DOORBELL
-	select HAVE_CONTEXT_TRACKING
-	select HOTPLUG_CPU if SMP
+	select HOTPLUG_CPU
 	select ARCH_RANDOM
 	select PPC_DOORBELL
+	select FORCE_SMP
 	default y
 
 config PPC_SPLPAR
@@ -124,6 +126,17 @@ config HV_PERF_CTRS
 	  Enable access to hypervisor supplied counters in perf. Currently,
 	  this enables code that uses the hcall GetPerfCounterInfo and 24x7
 	  interfaces to retrieve counters. GPCI exists on Power 6 and later
-	  systems. 24x7 is available on Power 8 systems.
+	  systems. 24x7 is available on Power 8 and later systems.
 
           If unsure, select Y.
+
+config IBMVIO
+	depends on PPC_PSERIES
+	bool
+	default y
+
+config IBMEBUS
+	depends on PPC_PSERIES && !CPU_LITTLE_ENDIAN
+	bool "Support for GX bus based adapters"
+	help
+	  Bus device driver for GX bus based adapters.

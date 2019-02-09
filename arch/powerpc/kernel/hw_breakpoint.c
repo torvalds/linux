@@ -33,7 +33,8 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/processor.h>
 #include <asm/sstep.h>
-#include <asm/uaccess.h>
+#include <asm/debug.h>
+#include <linux/uaccess.h>
 
 /*
  * Stores the breakpoints currently in use on each breakpoint address
@@ -109,19 +110,18 @@ void arch_unregister_hw_breakpoint(struct perf_event *bp)
 	 * If the breakpoint is unregistered between a hw_breakpoint_handler()
 	 * and the single_step_dabr_instruction(), then cleanup the breakpoint
 	 * restoration variables to prevent dangling pointers.
+	 * FIXME, this should not be using bp->ctx at all! Sayeth peterz.
 	 */
-	if (bp->ctx && bp->ctx->task)
+	if (bp->ctx && bp->ctx->task && bp->ctx->task != ((void *)-1L))
 		bp->ctx->task->thread.last_hit_ubp = NULL;
 }
 
 /*
  * Check for virtual address in kernel space.
  */
-int arch_check_bp_in_kernelspace(struct perf_event *bp)
+int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw)
 {
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-
-	return is_kernel_addr(info->address);
+	return is_kernel_addr(hw->address);
 }
 
 int arch_bp_generic_fields(int type, int *gen_bp_type)
@@ -139,30 +139,31 @@ int arch_bp_generic_fields(int type, int *gen_bp_type)
 /*
  * Validate the arch-specific HW Breakpoint register settings
  */
-int arch_validate_hwbkpt_settings(struct perf_event *bp)
+int hw_breakpoint_arch_parse(struct perf_event *bp,
+			     const struct perf_event_attr *attr,
+			     struct arch_hw_breakpoint *hw)
 {
 	int ret = -EINVAL, length_max;
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 
 	if (!bp)
 		return ret;
 
-	info->type = HW_BRK_TYPE_TRANSLATE;
-	if (bp->attr.bp_type & HW_BREAKPOINT_R)
-		info->type |= HW_BRK_TYPE_READ;
-	if (bp->attr.bp_type & HW_BREAKPOINT_W)
-		info->type |= HW_BRK_TYPE_WRITE;
-	if (info->type == HW_BRK_TYPE_TRANSLATE)
+	hw->type = HW_BRK_TYPE_TRANSLATE;
+	if (attr->bp_type & HW_BREAKPOINT_R)
+		hw->type |= HW_BRK_TYPE_READ;
+	if (attr->bp_type & HW_BREAKPOINT_W)
+		hw->type |= HW_BRK_TYPE_WRITE;
+	if (hw->type == HW_BRK_TYPE_TRANSLATE)
 		/* must set alteast read or write */
 		return ret;
-	if (!(bp->attr.exclude_user))
-		info->type |= HW_BRK_TYPE_USER;
-	if (!(bp->attr.exclude_kernel))
-		info->type |= HW_BRK_TYPE_KERNEL;
-	if (!(bp->attr.exclude_hv))
-		info->type |= HW_BRK_TYPE_HYP;
-	info->address = bp->attr.bp_addr;
-	info->len = bp->attr.bp_len;
+	if (!attr->exclude_user)
+		hw->type |= HW_BRK_TYPE_USER;
+	if (!attr->exclude_kernel)
+		hw->type |= HW_BRK_TYPE_KERNEL;
+	if (!attr->exclude_hv)
+		hw->type |= HW_BRK_TYPE_HYP;
+	hw->address = attr->bp_addr;
+	hw->len = attr->bp_len;
 
 	/*
 	 * Since breakpoint length can be a maximum of HW_BREAKPOINT_LEN(8)
@@ -170,16 +171,18 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	 * HW_BREAKPOINT_ALIGN by rounding off to the lower address, the
 	 * 'symbolsize' should satisfy the check below.
 	 */
+	if (!ppc_breakpoint_available())
+		return -ENODEV;
 	length_max = 8; /* DABR */
 	if (cpu_has_feature(CPU_FTR_DAWR)) {
 		length_max = 512 ; /* 64 doublewords */
 		/* DAWR region can't cross 512 boundary */
-		if ((bp->attr.bp_addr >> 10) != 
-		    ((bp->attr.bp_addr + bp->attr.bp_len - 1) >> 10))
+		if ((attr->bp_addr >> 9) !=
+		    ((attr->bp_addr + attr->bp_len - 1) >> 9))
 			return -EINVAL;
 	}
-	if (info->len >
-	    (length_max - (info->address & HW_BREAKPOINT_ALIGN)))
+	if (hw->len >
+	    (length_max - (hw->address & HW_BREAKPOINT_ALIGN)))
 		return -EINVAL;
 	return 0;
 }
@@ -205,14 +208,16 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 /*
  * Handle debug exception notifications.
  */
-int __kprobes hw_breakpoint_handler(struct die_args *args)
+int hw_breakpoint_handler(struct die_args *args)
 {
 	int rc = NOTIFY_STOP;
 	struct perf_event *bp;
 	struct pt_regs *regs = args->regs;
+#ifndef CONFIG_PPC_8xx
 	int stepped = 1;
-	struct arch_hw_breakpoint *info;
 	unsigned int instr;
+#endif
+	struct arch_hw_breakpoint *info;
 	unsigned long dar = regs->dar;
 
 	/* Disable breakpoints during exception handling */
@@ -227,8 +232,10 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	rcu_read_lock();
 
 	bp = __this_cpu_read(bp_per_reg);
-	if (!bp)
+	if (!bp) {
+		rc = NOTIFY_DONE;
 		goto out;
+	}
 	info = counter_arch_bp(bp);
 
 	/*
@@ -254,6 +261,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	      (dar - bp->attr.bp_addr < bp->attr.bp_len)))
 		info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
 
+#ifndef CONFIG_PPC_8xx
 	/* Do not emulate user-space instructions, instead single-step them */
 	if (user_mode(regs)) {
 		current->thread.last_hit_ubp = bp;
@@ -274,9 +282,10 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	if (!stepped) {
 		WARN(1, "Unable to handle hardware breakpoint. Breakpoint at "
 			"0x%lx will be disabled.", info->address);
-		perf_event_disable(bp);
+		perf_event_disable_inatomic(bp);
 		goto out;
 	}
+#endif
 	/*
 	 * As a policy, the callback is invoked in a 'trigger-after-execute'
 	 * fashion
@@ -289,11 +298,12 @@ out:
 	rcu_read_unlock();
 	return rc;
 }
+NOKPROBE_SYMBOL(hw_breakpoint_handler);
 
 /*
  * Handle single-step exceptions following a DABR hit.
  */
-static int __kprobes single_step_dabr_instruction(struct die_args *args)
+static int single_step_dabr_instruction(struct die_args *args)
 {
 	struct pt_regs *regs = args->regs;
 	struct perf_event *bp = NULL;
@@ -328,11 +338,12 @@ static int __kprobes single_step_dabr_instruction(struct die_args *args)
 
 	return NOTIFY_STOP;
 }
+NOKPROBE_SYMBOL(single_step_dabr_instruction);
 
 /*
  * Handle debug exception notifications.
  */
-int __kprobes hw_breakpoint_exceptions_notify(
+int hw_breakpoint_exceptions_notify(
 		struct notifier_block *unused, unsigned long val, void *data)
 {
 	int ret = NOTIFY_DONE;
@@ -348,6 +359,7 @@ int __kprobes hw_breakpoint_exceptions_notify(
 
 	return ret;
 }
+NOKPROBE_SYMBOL(hw_breakpoint_exceptions_notify);
 
 /*
  * Release the user breakpoints used by ptrace

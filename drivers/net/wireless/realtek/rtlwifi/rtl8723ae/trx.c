@@ -317,10 +317,10 @@ bool rtl8723e_rx_query_desc(struct ieee80211_hw *hw,
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
 	if (status->rx_is40Mhzpacket)
-		rx_status->flag |= RX_FLAG_40MHZ;
+		rx_status->bw = RATE_INFO_BW_40;
 
 	if (status->is_ht)
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 
@@ -389,7 +389,7 @@ void rtl8723e_tx_fill_desc(struct ieee80211_hw *hw,
 
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error");
+			 "DMA mapping error\n");
 		return;
 	}
 	if (mac->opmode == NL80211_IFTYPE_STATION) {
@@ -557,7 +557,7 @@ void rtl8723e_tx_fill_cmddesc(struct ieee80211_hw *hw,
 
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error");
+			 "DMA mapping error\n");
 		return;
 	}
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE);
@@ -617,7 +617,7 @@ void rtl8723e_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 			SET_TX_DESC_NEXT_DESC_ADDRESS(pdesc, *(u32 *) val);
 			break;
 		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8723ae: ERR txdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
@@ -636,14 +636,15 @@ void rtl8723e_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 			SET_RX_DESC_EOR(pdesc, 1);
 			break;
 		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8723ae: ERR rxdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
 	}
 }
 
-u32 rtl8723e_get_desc(u8 *pdesc, bool istx, u8 desc_name)
+u64 rtl8723e_get_desc(struct ieee80211_hw *hw,
+		      u8 *pdesc, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
 
@@ -656,7 +657,7 @@ u32 rtl8723e_get_desc(u8 *pdesc, bool istx, u8 desc_name)
 			ret = GET_TX_DESC_TX_BUFFER_ADDRESS(pdesc);
 			break;
 		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8723ae: ERR txdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
@@ -672,7 +673,7 @@ u32 rtl8723e_get_desc(u8 *pdesc, bool istx, u8 desc_name)
 			ret = GET_RX_DESC_BUFF_ADDR(pdesc);
 			break;
 		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8723ae: ERR rxdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
@@ -686,7 +687,7 @@ bool rtl8723e_is_tx_desc_closed(struct ieee80211_hw *hw,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
 	u8 *entry = (u8 *)(&ring->desc[ring->idx]);
-	u8 own = (u8)rtl8723e_get_desc(entry, true, HW_DESC_OWN);
+	u8 own = (u8)rtl8723e_get_desc(hw, entry, true, HW_DESC_OWN);
 
 	/**
 	 *beacon packet will only use the first
@@ -707,11 +708,4 @@ void rtl8723e_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
 		rtl_write_word(rtlpriv, REG_PCIE_CTRL_REG,
 			       BIT(0) << (hw_queue));
 	}
-}
-
-u32 rtl8723e_rx_command_packet(struct ieee80211_hw *hw,
-			       struct rtl_stats status,
-			       struct sk_buff *skb)
-{
-	return 0;
 }

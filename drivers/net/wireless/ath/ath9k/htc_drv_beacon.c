@@ -45,7 +45,7 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 		 * Long slot time  : 2x cwmin
 		 * Short slot time : 4x cwmin
 		 */
-		if (ah->slottime == ATH9K_SLOT_TIME_20)
+		if (ah->slottime == 20)
 			qi.tqi_cwmin = 2*qi_be.tqi_cwmin;
 		else
 			qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
@@ -384,7 +384,7 @@ void ath9k_htc_set_tsfadjust(struct ath9k_htc_priv *priv,
 
 static void ath9k_htc_beacon_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 {
-	bool *beacon_configured = (bool *)data;
+	bool *beacon_configured = data;
 	struct ath9k_htc_vif *avp = (struct ath9k_htc_vif *) vif->drv_priv;
 
 	if (vif->type == NL80211_IFTYPE_STATION &&

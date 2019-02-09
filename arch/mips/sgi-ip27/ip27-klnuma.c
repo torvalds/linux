@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Ported from IRIX to Linux by Kanoj Sarcar, 06/08/00.
  * Copyright 2000 - 2001 Silicon Graphics, Inc.
@@ -82,7 +83,7 @@ static __init void copy_kernel(nasid_t dest_nasid)
 	memcpy((void *)dest_kern_start, (void *)source_start, kern_size);
 }
 
-void __init replicate_kernel_text()
+void __init replicate_kernel_text(void)
 {
 	cnodeid_t cnode;
 	nasid_t client_nasid;

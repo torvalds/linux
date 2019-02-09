@@ -50,6 +50,8 @@
 			};
 
 			usart0: serial@f801c000 {
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
 				status = "okay";
 			};
 
@@ -60,45 +62,12 @@
 				status = "okay";
 			};
 
-			isi: isi@f8048000 {
-				status = "disabled";
-				port {
-					isi_0: endpoint@0 {
-						remote-endpoint = <&ov2640_0>;
-						bus-width = <8>;
-						vsync-active = <1>;
-						hsync-active = <1>;
-					};
-				};
-			};
-
 			i2c0: i2c@f8010000 {
 				status = "okay";
 
 				wm8731: wm8731@1a {
 					compatible = "wm8731";
 					reg = <0x1a>;
-				};
-
-				ov2640: camera@0x30 {
-					compatible = "ovti,ov2640";
-					reg = <0x30>;
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_pck0_as_isi_mck &pinctrl_sensor_power &pinctrl_sensor_reset>;
-					resetb-gpios = <&pioA 7 GPIO_ACTIVE_LOW>;
-					pwdn-gpios = <&pioA 13 GPIO_ACTIVE_HIGH>;
-					clocks = <&pck0>;
-					clock-names = "xvclk";
-					assigned-clocks = <&pck0>;
-					assigned-clock-rates = <25000000>;
-					status = "disabled";
-
-					port {
-						ov2640_0: endpoint {
-							remote-endpoint = <&isi_0>;
-							bus-width = <8>;
-						};
-					};
 				};
 			};
 
@@ -149,7 +118,7 @@
 			};
 
 			spi0: spi@f0000000 {
-				status = "okay";
+				status = "disabled"; /* conflicts with mmc1 */
 				cs-gpios = <&pioA 14 0>, <0>, <0>, <0>;
 				m25p80@0 {
 					compatible = "atmel,at25df321a";
@@ -167,7 +136,7 @@
 			};
 		};
 
-		usb0: ohci@00600000 {
+		usb0: ohci@600000 {
 			status = "okay";
 			num-ports = <3>;
 			atmel,vbus-gpio = <0 /* &pioD 18 GPIO_ACTIVE_LOW *//* Activate to have access to port A */
@@ -176,7 +145,7 @@
 					  >;
 		};
 
-		usb1: ehci@00700000 {
+		usb1: ehci@700000 {
 			status = "okay";
 		};
 	};

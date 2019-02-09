@@ -1,37 +1,23 @@
-CC = $(CROSS_COMPILE)gcc
-BUILD_FLAGS = -DKTEST
-CFLAGS += -O3 -Wl,-no-as-needed -Wall $(BUILD_FLAGS)
-LDFLAGS += -lrt -lpthread
+# SPDX-License-Identifier: GPL-2.0
+CFLAGS += -O3 -Wl,-no-as-needed -Wall
+LDFLAGS += -lrt -lpthread -lm
 
 # these are all "safe" tests that don't modify
-# system time or require escalated privledges
-TEST_PROGS = posix_timers nanosleep nsleep-lat set-timer-lat mqueue-lat \
-	     inconsistency-check raw_skew threadtest rtctest
+# system time or require escalated privileges
+TEST_GEN_PROGS = posix_timers nanosleep nsleep-lat set-timer-lat mqueue-lat \
+	     inconsistency-check raw_skew threadtest rtcpie
 
-TEST_PROGS_EXTENDED = alarmtimer-suspend valid-adjtimex adjtick change_skew \
-		      skew_consistency clocksource-switch leap-a-day \
-		      leapcrash set-tai set-2038
+DESTRUCTIVE_TESTS = alarmtimer-suspend valid-adjtimex adjtick change_skew \
+		      skew_consistency clocksource-switch freq-step leap-a-day \
+		      leapcrash set-tai set-2038 set-tz
 
-bins = $(TEST_PROGS) $(TEST_PROGS_EXTENDED)
+TEST_GEN_PROGS_EXTENDED = $(DESTRUCTIVE_TESTS)
 
-all: ${bins}
 
 include ../lib.mk
 
-# these tests require escalated privledges
+# these tests require escalated privileges
 # and may modify the system time or trigger
 # other behavior like suspend
 run_destructive_tests: run_tests
-	./alarmtimer-suspend
-	./valid-adjtimex
-	./adjtick
-	./change_skew
-	./skew_consistency
-	./clocksource-switch
-	./leap-a-day -s -i 10
-	./leapcrash
-	./set-tai
-	./set-2038
-
-clean:
-	rm -f ${bins}
+	$(call RUN_TESTS, $(DESTRUCTIVE_TESTS))

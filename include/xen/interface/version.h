@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  * version.h
  *
@@ -62,5 +63,20 @@ struct xen_feature_info {
 
 /* arg == xen_domain_handle_t. */
 #define XENVER_guest_handle 8
+
+#define XENVER_commandline 9
+struct xen_commandline {
+	char buf[1024];
+};
+
+/*
+ * Return value is the number of bytes written, or XEN_Exx on error.
+ * Calling with empty parameter returns the size of build_id.
+ */
+#define XENVER_build_id 10
+struct xen_build_id {
+	uint32_t	len; /* IN: size of buf[]. */
+	unsigned char	buf[];
+};
 
 #endif /* __XEN_PUBLIC_VERSION_H__ */

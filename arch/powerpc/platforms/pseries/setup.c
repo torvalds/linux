@@ -41,7 +41,7 @@
 #include <linux/root_dev.h>
 #include <linux/of.h>
 #include <linux/of_pci.h>
-#include <linux/kexec.h>
+#include <linux/memblock.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -57,8 +57,8 @@
 #include <asm/time.h>
 #include <asm/nvram.h>
 #include <asm/pmc.h>
-#include <asm/mpic.h>
 #include <asm/xics.h>
+#include <asm/xive.h>
 #include <asm/ppc-pci.h>
 #include <asm/i8259.h>
 #include <asm/udbg.h>
@@ -67,8 +67,13 @@
 #include <asm/eeh.h>
 #include <asm/reg.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/kexec.h>
+#include <asm/isa-bridge.h>
+#include <asm/security_features.h>
+#include <asm/asm-const.h>
 
 #include "pseries.h"
+#include "../../../../drivers/pci/pci.h"
 
 int CMO_PrPSP = -1;
 int CMO_SecPSP = -1;
@@ -76,8 +81,6 @@ unsigned long CMO_PageSize = (ASM_CONST(1) << IOMMU_PAGE_SHIFT_4K);
 EXPORT_SYMBOL(CMO_PageSize);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
-
-static struct device_node *pSeries_mpic_node;
 
 static void pSeries_show_cpuinfo(struct seq_file *m)
 {
@@ -89,6 +92,10 @@ static void pSeries_show_cpuinfo(struct seq_file *m)
 		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
 	of_node_put(root);
+	if (radix_enabled())
+		seq_printf(m, "MMU\t\t: Radix\n");
+	else
+		seq_printf(m, "MMU\t\t: Hash\n");
 }
 
 /* Initialize firmware assisted non-maskable interrupts if
@@ -97,6 +104,9 @@ static void pSeries_show_cpuinfo(struct seq_file *m)
 static void __init fwnmi_init(void)
 {
 	unsigned long system_reset_addr, machine_check_addr;
+	u8 *mce_data_buf;
+	unsigned int i;
+	int nr_cpus = num_possible_cpus();
 
 	int ibm_nmi_register = rtas_token("ibm,nmi-register");
 	if (ibm_nmi_register == RTAS_UNKNOWN_SERVICE)
@@ -110,6 +120,18 @@ static void __init fwnmi_init(void)
 	if (0 == rtas_call(ibm_nmi_register, 2, 1, NULL, system_reset_addr,
 				machine_check_addr))
 		fwnmi_active = 1;
+
+	/*
+	 * Allocate a chunk for per cpu buffer to hold rtas errorlog.
+	 * It will be used in real mode mce handler, hence it needs to be
+	 * below RMA.
+	 */
+	mce_data_buf = __va(memblock_alloc_base(RTAS_ERROR_LOG_MAX * nr_cpus,
+					RTAS_ERROR_LOG_MAX, ppc64_rma_size));
+	for_each_possible_cpu(i) {
+		paca_ptrs[i]->mce_data_buf = mce_data_buf +
+						(RTAS_ERROR_LOG_MAX * i);
+	}
 }
 
 static void pseries_8259_cascade(struct irq_desc *desc)
@@ -117,7 +139,7 @@ static void pseries_8259_cascade(struct irq_desc *desc)
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
 
-	if (cascade_irq != NO_IRQ)
+	if (cascade_irq)
 		generic_handle_irq(cascade_irq);
 
 	chip->irq_eoi(&desc->irq_data);
@@ -144,7 +166,7 @@ static void __init pseries_setup_i8259_cascade(void)
 	}
 
 	cascade = irq_of_parse_and_map(found, 0);
-	if (cascade == NO_IRQ) {
+	if (!cascade) {
 		printk(KERN_ERR "pic: failed to map cascade interrupt");
 		return;
 	}
@@ -172,51 +194,13 @@ static void __init pseries_setup_i8259_cascade(void)
 	irq_set_chained_handler(cascade, pseries_8259_cascade);
 }
 
-static void __init pseries_mpic_init_IRQ(void)
+static void __init pseries_init_irq(void)
 {
-	struct device_node *np;
-	const unsigned int *opprop;
-	unsigned long openpic_addr = 0;
-	int naddr, n, i, opplen;
-	struct mpic *mpic;
-
-	np = of_find_node_by_path("/");
-	naddr = of_n_addr_cells(np);
-	opprop = of_get_property(np, "platform-open-pic", &opplen);
-	if (opprop != NULL) {
-		openpic_addr = of_read_number(opprop, naddr);
-		printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
+	/* Try using a XIVE if available, otherwise use a XICS */
+	if (!xive_spapr_init()) {
+		xics_init();
+		pseries_setup_i8259_cascade();
 	}
-	of_node_put(np);
-
-	BUG_ON(openpic_addr == 0);
-
-	/* Setup the openpic driver */
-	mpic = mpic_alloc(pSeries_mpic_node, openpic_addr,
-			MPIC_NO_RESET, 16, 0, " MPIC     ");
-	BUG_ON(mpic == NULL);
-
-	/* Add ISUs */
-	opplen /= sizeof(u32);
-	for (n = 0, i = naddr; i < opplen; i += naddr, n++) {
-		unsigned long isuaddr = of_read_number(opprop + i, naddr);
-		mpic_assign_isu(mpic, n, isuaddr);
-	}
-
-	/* Setup top-level get_irq */
-	ppc_md.get_irq = mpic_get_irq;
-
-	/* All ISUs are setup, complete initialization */
-	mpic_init(mpic);
-
-	/* Look for cascade */
-	pseries_setup_i8259_cascade();
-}
-
-static void __init pseries_xics_init_IRQ(void)
-{
-	xics_init();
-	pseries_setup_i8259_cascade();
 }
 
 static void pseries_lpar_enable_pmcs(void)
@@ -226,30 +210,6 @@ static void pseries_lpar_enable_pmcs(void)
 	set = 1UL << 63;
 	reset = 0;
 	plpar_hcall_norets(H_PERFMON, set, reset);
-}
-
-static void __init pseries_discover_pic(void)
-{
-	struct device_node *np;
-	const char *typep;
-
-	for_each_node_by_name(np, "interrupt-controller") {
-		typep = of_get_property(np, "compatible", NULL);
-		if (strstr(typep, "open-pic")) {
-			pSeries_mpic_node = of_node_get(np);
-			ppc_md.init_IRQ       = pseries_mpic_init_IRQ;
-			setup_kexec_cpu_down_mpic();
-			smp_init_pseries_mpic();
-			return;
-		} else if (strstr(typep, "ppc-xicp")) {
-			ppc_md.init_IRQ       = pseries_xics_init_IRQ;
-			setup_kexec_cpu_down_xics();
-			smp_init_pseries_xics();
-			return;
-		}
-	}
-	printk(KERN_ERR "pSeries_discover_pic: failed to recognize"
-	       " interrupt-controller\n");
 }
 
 static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *data)
@@ -263,11 +223,8 @@ static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long act
 	case OF_RECONFIG_ATTACH_NODE:
 		parent = of_get_parent(np);
 		pdn = parent ? PCI_DN(parent) : NULL;
-		if (pdn) {
-			/* Create pdn and EEH device */
-			update_dn_pci_info(np, pdn->phb);
-			eeh_dev_init(PCI_DN(np), pdn->phb);
-		}
+		if (pdn)
+			pci_add_device_node_info(pdn->phb, np);
 
 		of_node_put(parent);
 		break;
@@ -308,7 +265,7 @@ static int alloc_dispatch_logs(void)
 		return 0;
 
 	for_each_possible_cpu(cpu) {
-		pp = &paca[cpu];
+		pp = paca_ptrs[cpu];
 		dtl = kmem_cache_alloc(dtl_cache, GFP_KERNEL);
 		if (!dtl) {
 			pr_warn("Failed to allocate dispatch trace log for cpu %d\n",
@@ -365,7 +322,7 @@ static void pseries_lpar_idle(void)
 {
 	/*
 	 * Default handler to go into low thread priority and possibly
-	 * low power mode by cedeing processor to hypervisor
+	 * low power mode by ceding processor to hypervisor
 	 */
 
 	/* Indicate to hypervisor that we are idle. */
@@ -390,15 +347,23 @@ static void pseries_lpar_idle(void)
  * to ever be a problem in practice we can move this into a kernel thread to
  * finish off the process later in boot.
  */
-long pSeries_enable_reloc_on_exc(void)
+void pseries_enable_reloc_on_exc(void)
 {
 	long rc;
 	unsigned int delay, total_delay = 0;
 
 	while (1) {
 		rc = enable_reloc_on_exceptions();
-		if (!H_IS_LONG_BUSY(rc))
-			return rc;
+		if (!H_IS_LONG_BUSY(rc)) {
+			if (rc == H_P2) {
+				pr_info("Relocation on exceptions not"
+					" supported\n");
+			} else if (rc != H_SUCCESS) {
+				pr_warn("Unable to enable relocation"
+					" on exceptions: %ld\n", rc);
+			}
+			break;
+		}
 
 		delay = get_longbusy_msecs(rc);
 		total_delay += delay;
@@ -406,65 +371,80 @@ long pSeries_enable_reloc_on_exc(void)
 			pr_warn("Warning: Giving up waiting to enable "
 				"relocation on exceptions (%u msec)!\n",
 				total_delay);
-			return rc;
+			return;
 		}
 
 		mdelay(delay);
 	}
 }
-EXPORT_SYMBOL(pSeries_enable_reloc_on_exc);
+EXPORT_SYMBOL(pseries_enable_reloc_on_exc);
 
-long pSeries_disable_reloc_on_exc(void)
+void pseries_disable_reloc_on_exc(void)
 {
 	long rc;
 
 	while (1) {
 		rc = disable_reloc_on_exceptions();
 		if (!H_IS_LONG_BUSY(rc))
-			return rc;
+			break;
 		mdelay(get_longbusy_msecs(rc));
 	}
+	if (rc != H_SUCCESS)
+		pr_warn("Warning: Failed to disable relocation on exceptions: %ld\n",
+			rc);
 }
-EXPORT_SYMBOL(pSeries_disable_reloc_on_exc);
+EXPORT_SYMBOL(pseries_disable_reloc_on_exc);
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 static void pSeries_machine_kexec(struct kimage *image)
 {
-	long rc;
-
-	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
-		rc = pSeries_disable_reloc_on_exc();
-		if (rc != H_SUCCESS)
-			pr_warning("Warning: Failed to disable relocation on "
-				   "exceptions: %ld\n", rc);
-	}
+	if (firmware_has_feature(FW_FEATURE_SET_MODE))
+		pseries_disable_reloc_on_exc();
 
 	default_machine_kexec(image);
 }
 #endif
 
 #ifdef __LITTLE_ENDIAN__
-long pseries_big_endian_exceptions(void)
+void pseries_big_endian_exceptions(void)
 {
 	long rc;
 
 	while (1) {
 		rc = enable_big_endian_exceptions();
 		if (!H_IS_LONG_BUSY(rc))
-			return rc;
+			break;
 		mdelay(get_longbusy_msecs(rc));
 	}
+
+	/*
+	 * At this point it is unlikely panic() will get anything
+	 * out to the user, since this is called very late in kexec
+	 * but at least this will stop us from continuing on further
+	 * and creating an even more difficult to debug situation.
+	 *
+	 * There is a known problem when kdump'ing, if cpus are offline
+	 * the above call will fail. Rather than panicking again, keep
+	 * going and hope the kdump kernel is also little endian, which
+	 * it usually is.
+	 */
+	if (rc && !kdump_in_progress())
+		panic("Could not enable big endian exceptions");
 }
 
-static long pseries_little_endian_exceptions(void)
+void pseries_little_endian_exceptions(void)
 {
 	long rc;
 
 	while (1) {
 		rc = enable_little_endian_exceptions();
 		if (!H_IS_LONG_BUSY(rc))
-			return rc;
+			break;
 		mdelay(get_longbusy_msecs(rc));
+	}
+	if (rc) {
+		ppc_md.progress("H_SET_MODE LE exception fail", 0);
+		panic("Could not enable little endian exceptions");
 	}
 }
 #endif
@@ -490,7 +470,6 @@ static void __init find_and_init_phbs(void)
 	}
 
 	of_node_put(root);
-	pci_devs_phb_init();
 
 	/*
 	 * PCI_PROBE_ONLY and PCI_REASSIGN_ALL_BUS can be set via properties
@@ -499,12 +478,261 @@ static void __init find_and_init_phbs(void)
 	of_pci_check_probe_only();
 }
 
+static void init_cpu_char_feature_flags(struct h_cpu_char_result *result)
+{
+	/*
+	 * The features below are disabled by default, so we instead look to see
+	 * if firmware has *enabled* them, and set them if so.
+	 */
+	if (result->character & H_CPU_CHAR_SPEC_BAR_ORI31)
+		security_ftr_set(SEC_FTR_SPEC_BAR_ORI31);
+
+	if (result->character & H_CPU_CHAR_BCCTRL_SERIALISED)
+		security_ftr_set(SEC_FTR_BCCTRL_SERIALISED);
+
+	if (result->character & H_CPU_CHAR_L1D_FLUSH_ORI30)
+		security_ftr_set(SEC_FTR_L1D_FLUSH_ORI30);
+
+	if (result->character & H_CPU_CHAR_L1D_FLUSH_TRIG2)
+		security_ftr_set(SEC_FTR_L1D_FLUSH_TRIG2);
+
+	if (result->character & H_CPU_CHAR_L1D_THREAD_PRIV)
+		security_ftr_set(SEC_FTR_L1D_THREAD_PRIV);
+
+	if (result->character & H_CPU_CHAR_COUNT_CACHE_DISABLED)
+		security_ftr_set(SEC_FTR_COUNT_CACHE_DISABLED);
+
+	if (result->character & H_CPU_CHAR_BCCTR_FLUSH_ASSIST)
+		security_ftr_set(SEC_FTR_BCCTR_FLUSH_ASSIST);
+
+	if (result->behaviour & H_CPU_BEHAV_FLUSH_COUNT_CACHE)
+		security_ftr_set(SEC_FTR_FLUSH_COUNT_CACHE);
+
+	/*
+	 * The features below are enabled by default, so we instead look to see
+	 * if firmware has *disabled* them, and clear them if so.
+	 */
+	if (!(result->behaviour & H_CPU_BEHAV_FAVOUR_SECURITY))
+		security_ftr_clear(SEC_FTR_FAVOUR_SECURITY);
+
+	if (!(result->behaviour & H_CPU_BEHAV_L1D_FLUSH_PR))
+		security_ftr_clear(SEC_FTR_L1D_FLUSH_PR);
+
+	if (!(result->behaviour & H_CPU_BEHAV_BNDS_CHK_SPEC_BAR))
+		security_ftr_clear(SEC_FTR_BNDS_CHK_SPEC_BAR);
+}
+
+void pseries_setup_rfi_flush(void)
+{
+	struct h_cpu_char_result result;
+	enum l1d_flush_type types;
+	bool enable;
+	long rc;
+
+	/*
+	 * Set features to the defaults assumed by init_cpu_char_feature_flags()
+	 * so it can set/clear again any features that might have changed after
+	 * migration, and in case the hypercall fails and it is not even called.
+	 */
+	powerpc_security_features = SEC_FTR_DEFAULT;
+
+	rc = plpar_get_cpu_characteristics(&result);
+	if (rc == H_SUCCESS)
+		init_cpu_char_feature_flags(&result);
+
+	/*
+	 * We're the guest so this doesn't apply to us, clear it to simplify
+	 * handling of it elsewhere.
+	 */
+	security_ftr_clear(SEC_FTR_L1D_FLUSH_HV);
+
+	types = L1D_FLUSH_FALLBACK;
+
+	if (security_ftr_enabled(SEC_FTR_L1D_FLUSH_TRIG2))
+		types |= L1D_FLUSH_MTTRIG;
+
+	if (security_ftr_enabled(SEC_FTR_L1D_FLUSH_ORI30))
+		types |= L1D_FLUSH_ORI;
+
+	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) && \
+		 security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR);
+
+	setup_rfi_flush(types, enable);
+	setup_count_cache_flush();
+}
+
+#ifdef CONFIG_PCI_IOV
+enum rtas_iov_fw_value_map {
+	NUM_RES_PROPERTY  = 0, /* Number of Resources */
+	LOW_INT           = 1, /* Lowest 32 bits of Address */
+	START_OF_ENTRIES  = 2, /* Always start of entry */
+	APERTURE_PROPERTY = 2, /* Start of entry+ to  Aperture Size */
+	WDW_SIZE_PROPERTY = 4, /* Start of entry+ to Window Size */
+	NEXT_ENTRY        = 7  /* Go to next entry on array */
+};
+
+enum get_iov_fw_value_index {
+	BAR_ADDRS     = 1,    /*  Get Bar Address */
+	APERTURE_SIZE = 2,    /*  Get Aperture Size */
+	WDW_SIZE      = 3     /*  Get Window Size */
+};
+
+resource_size_t pseries_get_iov_fw_value(struct pci_dev *dev, int resno,
+					 enum get_iov_fw_value_index value)
+{
+	const int *indexes;
+	struct device_node *dn = pci_device_to_OF_node(dev);
+	int i, num_res, ret = 0;
+
+	indexes = of_get_property(dn, "ibm,open-sriov-vf-bar-info", NULL);
+	if (!indexes)
+		return  0;
+
+	/*
+	 * First element in the array is the number of Bars
+	 * returned.  Search through the list to find the matching
+	 * bar
+	 */
+	num_res = of_read_number(&indexes[NUM_RES_PROPERTY], 1);
+	if (resno >= num_res)
+		return 0; /* or an errror */
+
+	i = START_OF_ENTRIES + NEXT_ENTRY * resno;
+	switch (value) {
+	case BAR_ADDRS:
+		ret = of_read_number(&indexes[i], 2);
+		break;
+	case APERTURE_SIZE:
+		ret = of_read_number(&indexes[i + APERTURE_PROPERTY], 2);
+		break;
+	case WDW_SIZE:
+		ret = of_read_number(&indexes[i + WDW_SIZE_PROPERTY], 2);
+		break;
+	}
+
+	return ret;
+}
+
+void of_pci_set_vf_bar_size(struct pci_dev *dev, const int *indexes)
+{
+	struct resource *res;
+	resource_size_t base, size;
+	int i, r, num_res;
+
+	num_res = of_read_number(&indexes[NUM_RES_PROPERTY], 1);
+	num_res = min_t(int, num_res, PCI_SRIOV_NUM_BARS);
+	for (i = START_OF_ENTRIES, r = 0; r < num_res && r < PCI_SRIOV_NUM_BARS;
+	     i += NEXT_ENTRY, r++) {
+		res = &dev->resource[r + PCI_IOV_RESOURCES];
+		base = of_read_number(&indexes[i], 2);
+		size = of_read_number(&indexes[i + APERTURE_PROPERTY], 2);
+		res->flags = pci_parse_of_flags(of_read_number
+						(&indexes[i + LOW_INT], 1), 0);
+		res->flags |= (IORESOURCE_MEM_64 | IORESOURCE_PCI_FIXED);
+		res->name = pci_name(dev);
+		res->start = base;
+		res->end = base + size - 1;
+	}
+}
+
+void of_pci_parse_iov_addrs(struct pci_dev *dev, const int *indexes)
+{
+	struct resource *res, *root, *conflict;
+	resource_size_t base, size;
+	int i, r, num_res;
+
+	/*
+	 * First element in the array is the number of Bars
+	 * returned.  Search through the list to find the matching
+	 * bars assign them from firmware into resources structure.
+	 */
+	num_res = of_read_number(&indexes[NUM_RES_PROPERTY], 1);
+	for (i = START_OF_ENTRIES, r = 0; r < num_res && r < PCI_SRIOV_NUM_BARS;
+	     i += NEXT_ENTRY, r++) {
+		res = &dev->resource[r + PCI_IOV_RESOURCES];
+		base = of_read_number(&indexes[i], 2);
+		size = of_read_number(&indexes[i + WDW_SIZE_PROPERTY], 2);
+		res->name = pci_name(dev);
+		res->start = base;
+		res->end = base + size - 1;
+		root = &iomem_resource;
+		dev_dbg(&dev->dev,
+			"pSeries IOV BAR %d: trying firmware assignment %pR\n",
+			 r + PCI_IOV_RESOURCES, res);
+		conflict = request_resource_conflict(root, res);
+		if (conflict) {
+			dev_info(&dev->dev,
+				 "BAR %d: %pR conflicts with %s %pR\n",
+				 r + PCI_IOV_RESOURCES, res,
+				 conflict->name, conflict);
+			res->flags |= IORESOURCE_UNSET;
+		}
+	}
+}
+
+static void pseries_disable_sriov_resources(struct pci_dev *pdev)
+{
+	int i;
+
+	pci_warn(pdev, "No hypervisor support for SR-IOV on this device, IOV BARs disabled.\n");
+	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++)
+		pdev->resource[i + PCI_IOV_RESOURCES].flags = 0;
+}
+
+static void pseries_pci_fixup_resources(struct pci_dev *pdev)
+{
+	const int *indexes;
+	struct device_node *dn = pci_device_to_OF_node(pdev);
+
+	/*Firmware must support open sriov otherwise dont configure*/
+	indexes = of_get_property(dn, "ibm,open-sriov-vf-bar-info", NULL);
+	if (indexes)
+		of_pci_set_vf_bar_size(pdev, indexes);
+	else
+		pseries_disable_sriov_resources(pdev);
+}
+
+static void pseries_pci_fixup_iov_resources(struct pci_dev *pdev)
+{
+	const int *indexes;
+	struct device_node *dn = pci_device_to_OF_node(pdev);
+
+	if (!pdev->is_physfn || pci_dev_is_added(pdev))
+		return;
+	/*Firmware must support open sriov otherwise dont configure*/
+	indexes = of_get_property(dn, "ibm,open-sriov-vf-bar-info", NULL);
+	if (indexes)
+		of_pci_parse_iov_addrs(pdev, indexes);
+	else
+		pseries_disable_sriov_resources(pdev);
+}
+
+static resource_size_t pseries_pci_iov_resource_alignment(struct pci_dev *pdev,
+							  int resno)
+{
+	const __be32 *reg;
+	struct device_node *dn = pci_device_to_OF_node(pdev);
+
+	/*Firmware must support open sriov otherwise report regular alignment*/
+	reg = of_get_property(dn, "ibm,is-open-sriov-pf", NULL);
+	if (!reg)
+		return pci_iov_resource_size(pdev, resno);
+
+	if (!pdev->is_physfn)
+		return 0;
+	return pseries_get_iov_fw_value(pdev,
+					resno - PCI_IOV_RESOURCES,
+					APERTURE_SIZE);
+}
+#endif
+
 static void __init pSeries_setup_arch(void)
 {
 	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
 
 	/* Discover PIC type and setup ppc_md accordingly */
-	pseries_discover_pic();
+	smp_init_pseries();
+
 
 	/* openpic global configuration register (64-bit format). */
 	/* openpic Interrupt Source Unit pointer (64-bit format). */
@@ -515,7 +743,10 @@ static void __init pSeries_setup_arch(void)
 
 	fwnmi_init();
 
-	/* By default, only probe PCI (can be overriden by rtas_pci) */
+	pseries_setup_rfi_flush();
+	setup_stf_barrier();
+
+	/* By default, only probe PCI (can be overridden by rtas_pci) */
 	pci_add_flags(PCI_PROBE_ONLY);
 
 	/* Find and initialize PCI host bridges */
@@ -529,24 +760,26 @@ static void __init pSeries_setup_arch(void)
 		vpa_init(boot_cpuid);
 		ppc_md.power_save = pseries_lpar_idle;
 		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
+#ifdef CONFIG_PCI_IOV
+		ppc_md.pcibios_fixup_resources =
+			pseries_pci_fixup_resources;
+		ppc_md.pcibios_fixup_sriov =
+			pseries_pci_fixup_iov_resources;
+		ppc_md.pcibios_iov_resource_alignment =
+			pseries_pci_iov_resource_alignment;
+#endif
 	} else {
 		/* No special idle routine */
 		ppc_md.enable_pmcs = power4_enable_pmcs;
 	}
 
 	ppc_md.pcibios_root_bridge_prepare = pseries_root_bridge_prepare;
+}
 
-	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
-		long rc;
-
-		rc = pSeries_enable_reloc_on_exc();
-		if (rc == H_P2) {
-			pr_info("Relocation on exceptions not supported\n");
-		} else if (rc != H_SUCCESS) {
-			pr_warn("Unable to enable relocation on exceptions: "
-				"%ld\n", rc);
-		}
-	}
+static void pseries_panic(char *str)
+{
+	panic_flush_kmsg_end();
+	rtas_os_term(str);
 }
 
 static int __init pSeries_init_panel(void)
@@ -584,7 +817,7 @@ static int pseries_set_dawr(unsigned long dawr, unsigned long dawrx)
 	/* PAPR says we can't set HYP */
 	dawrx &= ~DAWRX_HYP;
 
-	return  plapr_set_watchpoint0(dawr, dawrx);
+	return  plpar_set_watchpoint0(dawr, dawrx);
 }
 
 #define CMO_CHARACTERISTICS_TOKEN 44
@@ -680,9 +913,9 @@ static void pSeries_cmo_feature_init(void)
 /*
  * Early initialization.  Relocation is on but do not reference unbolted pages
  */
-static void __init pSeries_init_early(void)
+static void __init pseries_init(void)
 {
-	pr_debug(" -> pSeries_init_early()\n");
+	pr_debug(" -> pseries_init()\n");
 
 #ifdef CONFIG_HVC_CONSOLE
 	if (firmware_has_feature(FW_FEATURE_LPAR))
@@ -699,7 +932,7 @@ static void __init pSeries_init_early(void)
 	pSeries_cmo_feature_init();
 	iommu_init_early_pSeries();
 
-	pr_debug(" <- pSeries_init_early()\n");
+	pr_debug(" <- pseries_init()\n");
 }
 
 /**
@@ -730,49 +963,9 @@ static void pseries_power_off(void)
 	for (;;);
 }
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-
-static int __init pseries_probe_fw_features(unsigned long node,
-					    const char *uname, int depth,
-					    void *data)
-{
-	const char *prop;
-	int len;
-	static int hypertas_found;
-	static int vec5_found;
-
-	if (depth != 1)
-		return 0;
-
-	if (!strcmp(uname, "rtas") || !strcmp(uname, "rtas@0")) {
-		prop = of_get_flat_dt_prop(node, "ibm,hypertas-functions",
-					   &len);
-		if (prop) {
-			powerpc_firmware_features |= FW_FEATURE_LPAR;
-			fw_hypertas_feature_init(prop, len);
-		}
-
-		hypertas_found = 1;
-	}
-
-	if (!strcmp(uname, "chosen")) {
-		prop = of_get_flat_dt_prop(node, "ibm,architecture-vec-5",
-					   &len);
-		if (prop)
-			fw_vec5_feature_init(prop, len);
-
-		vec5_found = 1;
-	}
-
-	return hypertas_found && vec5_found;
-}
-
 static int __init pSeries_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-	const char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
+	const char *dtype = of_get_property(of_root, "device_type", NULL);
 
  	if (dtype == NULL)
  		return 0;
@@ -782,40 +975,16 @@ static int __init pSeries_probe(void)
 	/* Cell blades firmware claims to be chrp while it's not. Until this
 	 * is fixed, we need to avoid those here.
 	 */
-	if (of_flat_dt_is_compatible(root, "IBM,CPBW-1.0") ||
-	    of_flat_dt_is_compatible(root, "IBM,CBEA"))
+	if (of_machine_is_compatible("IBM,CPBW-1.0") ||
+	    of_machine_is_compatible("IBM,CBEA"))
 		return 0;
-
-	pr_debug("pSeries detected, looking for LPAR capability...\n");
-
-	/* Now try to figure out if we are running on LPAR */
-	of_scan_flat_dt(pseries_probe_fw_features, NULL);
-
-#ifdef __LITTLE_ENDIAN__
-	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
-		long rc;
-		/*
-		 * Tell the hypervisor that we want our exceptions to
-		 * be taken in little endian mode. If this fails we don't
-		 * want to use BUG() because it will trigger an exception.
-		 */
-		rc = pseries_little_endian_exceptions();
-		if (rc) {
-			ppc_md.progress("H_SET_MODE LE exception fail", 0);
-			panic("Could not enable little endian exceptions");
-		}
-	}
-#endif
-
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		hpte_init_lpar();
-	else
-		hpte_init_native();
 
 	pm_power_off = pseries_power_off;
 
 	pr_debug("Machine is%s LPAR !\n",
 	         (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
+
+	pseries_init();
 
 	return 1;
 }
@@ -835,13 +1004,13 @@ define_machine(pseries) {
 	.name			= "pSeries",
 	.probe			= pSeries_probe,
 	.setup_arch		= pSeries_setup_arch,
-	.init_early		= pSeries_init_early,
+	.init_IRQ		= pseries_init_irq,
 	.show_cpuinfo		= pSeries_show_cpuinfo,
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
 	.restart		= rtas_restart,
 	.halt			= rtas_halt,
-	.panic			= rtas_os_term,
+	.panic			= pseries_panic,
 	.get_boot_time		= rtas_get_boot_time,
 	.get_rtc_time		= rtas_get_rtc_time,
 	.set_rtc_time		= rtas_set_rtc_time,
@@ -849,8 +1018,9 @@ define_machine(pseries) {
 	.progress		= rtas_progress,
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_exception = pSeries_machine_check_exception,
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	.machine_kexec          = pSeries_machine_kexec,
+	.kexec_cpu_down         = pseries_kexec_cpu_down,
 #endif
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 	.memory_block_size	= pseries_memory_block_size,

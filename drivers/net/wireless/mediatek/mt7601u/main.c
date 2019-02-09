@@ -15,7 +15,6 @@
 #include "mt7601u.h"
 #include "mac.h"
 #include <linux/etherdevice.h>
-#include <linux/version.h>
 
 static int mt7601u_start(struct ieee80211_hw *hw)
 {
@@ -64,6 +63,9 @@ static int mt7601u_add_interface(struct ieee80211_hw *hw,
 	 *	- shift vif idx
 	 */
 	mvif->idx = idx;
+
+	if (!ether_addr_equal(dev->macaddr, vif->addr))
+		mt7601u_set_macaddr(dev, vif->addr);
 
 	if (dev->wcid_mask[wcid / BITS_PER_LONG] & BIT(wcid % BITS_PER_LONG))
 		return -ENOSPC;
@@ -286,6 +288,12 @@ mt7601u_sw_scan_complete(struct ieee80211_hw *hw,
 
 	mt7601u_agc_restore(dev);
 	clear_bit(MT7601U_STATE_SCANNING, &dev->state);
+
+	ieee80211_queue_delayed_work(dev->hw, &dev->cal_work,
+				     MT_CALIBRATE_INTERVAL);
+	if (dev->freq_cal.enabled)
+		ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work,
+					     MT_FREQ_CAL_INIT_DELAY);
 }
 
 static int
@@ -299,6 +307,17 @@ mt7601u_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct mt76_wcid *wcid = msta ? &msta->wcid : &mvif->group_wcid;
 	int idx = key->keyidx;
 	int ret;
+
+	/* fall back to sw encryption for unsupported ciphers */
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	if (cmd == SET_KEY) {
 		key->hw_key_idx = wcid->idx;
@@ -334,11 +353,13 @@ static int mt7601u_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 static int
 mt76_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		  enum ieee80211_ampdu_mlme_action action,
-		  struct ieee80211_sta *sta, u16 tid, u16 *ssn, u8 buf_size,
-		  bool amsdu)
+		  struct ieee80211_ampdu_params *params)
 {
 	struct mt7601u_dev *dev = hw->priv;
+	struct ieee80211_sta *sta = params->sta;
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	u16 tid = params->tid;
+	u16 *ssn = &params->ssn;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 
 	WARN_ON(msta->wcid.idx > GROUP_WCID(0));

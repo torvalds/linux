@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Simulated Serial Driver (fake serial)
  *
@@ -14,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/major.h>
@@ -300,7 +302,7 @@ static int rs_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
 	    (cmd != TIOCSERCONFIG) && (cmd != TIOCSERGSTRUCT) &&
 	    (cmd != TIOCMIWAIT)) {
-		if (tty->flags & (1 << TTY_IO_ERROR))
+		if (tty_io_error(tty))
 		    return -EIO;
 	}
 
@@ -386,19 +388,6 @@ static int activate(struct tty_port *port, struct tty_struct *tty)
 	}
 
 	state->xmit.head = state->xmit.tail = 0;
-
-	/*
-	 * Set up the tty->alt_speed kludge
-	 */
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-		tty->alt_speed = 57600;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-		tty->alt_speed = 115200;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-		tty->alt_speed = 230400;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-		tty->alt_speed = 460800;
-
 errout:
 	local_irq_restore(flags);
 	return retval;
@@ -446,19 +435,6 @@ static int rs_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int rs_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rs_proc_show, NULL);
-}
-
-static const struct file_operations rs_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= rs_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static const struct tty_operations hp_ops = {
 	.open = rs_open,
 	.close = rs_close,
@@ -473,7 +449,7 @@ static const struct tty_operations hp_ops = {
 	.unthrottle = rs_unthrottle,
 	.send_xchar = rs_send_xchar,
 	.hangup = rs_hangup,
-	.proc_fops = &rs_proc_fops,
+	.proc_show = rs_proc_show,
 };
 
 static const struct tty_port_operations hp_port_ops = {

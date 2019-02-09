@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	/* SunOS's execv() call only specifies the argv argument, the
 	 * environment settings are the same as the calling processes.
 	 */
@@ -26,15 +27,6 @@ sys32_execveat:
 #endif
 
 	.align	32
-sys_sparc_pipe:
-	ba,pt	%xcc, sys_sparc_pipe_real
-	 add	%sp, PTREGS_OFF, %o0
-sys_nis_syscall:
-	ba,pt	%xcc, c_sys_nis_syscall
-	 add	%sp, PTREGS_OFF, %o0
-sys_memory_ordering:
-	ba,pt	%xcc, sparc_memory_ordering
-	 add	%sp, PTREGS_OFF, %o1
 #ifdef CONFIG_COMPAT
 sys32_sigstack:
 	ba,pt	%xcc, do_sys32_sigstack
@@ -158,7 +150,25 @@ linux_syscall_trace32:
 	 add	%sp, PTREGS_OFF, %o0
 	brnz,pn	%o0, 3f
 	 mov	-ENOSYS, %o0
+
+	/* Syscall tracing can modify the registers.  */
+	ldx	[%sp + PTREGS_OFF + PT_V9_G1], %g1
+	sethi	%hi(sys_call_table32), %l7
+	ldx	[%sp + PTREGS_OFF + PT_V9_I0], %i0
+	or	%l7, %lo(sys_call_table32), %l7
+	ldx	[%sp + PTREGS_OFF + PT_V9_I1], %i1
+	ldx	[%sp + PTREGS_OFF + PT_V9_I2], %i2
+	ldx	[%sp + PTREGS_OFF + PT_V9_I3], %i3
+	ldx	[%sp + PTREGS_OFF + PT_V9_I4], %i4
+	ldx	[%sp + PTREGS_OFF + PT_V9_I5], %i5
+
+	cmp	%g1, NR_syscalls
+	bgeu,pn	%xcc, 3f
+	 mov	-ENOSYS, %o0
+
+	sll	%g1, 2, %l4
 	srl	%i0, 0, %o0
+	lduw	[%l7 + %l4], %l7
 	srl	%i4, 0, %o4
 	srl	%i1, 0, %o1
 	srl	%i2, 0, %o2
@@ -170,7 +180,25 @@ linux_syscall_trace:
 	 add	%sp, PTREGS_OFF, %o0
 	brnz,pn	%o0, 3f
 	 mov	-ENOSYS, %o0
+
+	/* Syscall tracing can modify the registers.  */
+	ldx	[%sp + PTREGS_OFF + PT_V9_G1], %g1
+	sethi	%hi(sys_call_table64), %l7
+	ldx	[%sp + PTREGS_OFF + PT_V9_I0], %i0
+	or	%l7, %lo(sys_call_table64), %l7
+	ldx	[%sp + PTREGS_OFF + PT_V9_I1], %i1
+	ldx	[%sp + PTREGS_OFF + PT_V9_I2], %i2
+	ldx	[%sp + PTREGS_OFF + PT_V9_I3], %i3
+	ldx	[%sp + PTREGS_OFF + PT_V9_I4], %i4
+	ldx	[%sp + PTREGS_OFF + PT_V9_I5], %i5
+
+	cmp	%g1, NR_syscalls
+	bgeu,pn	%xcc, 3f
+	 mov	-ENOSYS, %o0
+
+	sll	%g1, 2, %l4
 	mov	%i0, %o0
+	lduw	[%l7 + %l4], %l7
 	mov	%i1, %o1
 	mov	%i2, %o2
 	mov	%i3, %o3

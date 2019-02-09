@@ -20,6 +20,14 @@
 #ifndef __ASM_KVM_BOOK3S_64_H__
 #define __ASM_KVM_BOOK3S_64_H__
 
+#include <linux/string.h>
+#include <asm/bitops.h>
+#include <asm/book3s/64/mmu-hash.h>
+
+/* Power architecture requires HPT is at least 256kiB, at most 64TiB */
+#define PPC_MIN_HPT_ORDER	18
+#define PPC_MAX_HPT_ORDER	46
+
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 static inline struct kvmppc_book3s_shadow_vcpu *svcpu_get(struct kvm_vcpu *vcpu)
 {
@@ -33,13 +41,15 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
 }
 #endif
 
-#define SPAPR_TCE_SHIFT		12
-
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+
+static inline bool kvm_is_radix(struct kvm *kvm)
+{
+	return kvm->arch.radix;
+}
+
 #define KVM_DEFAULT_HPT_ORDER	24	/* 16MB HPT by default */
 #endif
-
-#define VRMA_VSID	0x1ffffffUL	/* 1TB VSID reserved for VRMA */
 
 /*
  * We use a lock bit in HPTE dword 0 to synchronize updates and
@@ -99,32 +109,86 @@ static inline void __unlock_hpte(__be64 *hpte, unsigned long hpte_v)
 	hpte[0] = cpu_to_be64(hpte_v);
 }
 
-static inline int __hpte_actual_psize(unsigned int lp, int psize)
+/*
+ * These functions encode knowledge of the POWER7/8/9 hardware
+ * interpretations of the HPTE LP (large page size) field.
+ */
+static inline int kvmppc_hpte_page_shifts(unsigned long h, unsigned long l)
 {
-	int i, shift;
-	unsigned int mask;
+	unsigned int lphi;
 
-	/* start from 1 ignoring MMU_PAGE_4K */
-	for (i = 1; i < MMU_PAGE_COUNT; i++) {
+	if (!(h & HPTE_V_LARGE))
+		return 12;	/* 4kB */
+	lphi = (l >> 16) & 0xf;
+	switch ((l >> 12) & 0xf) {
+	case 0:
+		return !lphi ? 24 : 0;		/* 16MB */
+		break;
+	case 1:
+		return 16;			/* 64kB */
+		break;
+	case 3:
+		return !lphi ? 34 : 0;		/* 16GB */
+		break;
+	case 7:
+		return (16 << 8) + 12;		/* 64kB in 4kB */
+		break;
+	case 8:
+		if (!lphi)
+			return (24 << 8) + 16;	/* 16MB in 64kkB */
+		if (lphi == 3)
+			return (24 << 8) + 12;	/* 16MB in 4kB */
+		break;
+	}
+	return 0;
+}
 
-		/* invalid penc */
-		if (mmu_psize_defs[psize].penc[i] == -1)
-			continue;
-		/*
-		 * encoding bits per actual page size
-		 *        PTE LP     actual page size
-		 *    rrrr rrrz		>=8KB
-		 *    rrrr rrzz		>=16KB
-		 *    rrrr rzzz		>=32KB
-		 *    rrrr zzzz		>=64KB
-		 * .......
-		 */
-		shift = mmu_psize_defs[i].shift - LP_SHIFT;
-		if (shift > LP_BITS)
-			shift = LP_BITS;
-		mask = (1 << shift) - 1;
-		if ((lp & mask) == mmu_psize_defs[psize].penc[i])
-			return i;
+static inline int kvmppc_hpte_base_page_shift(unsigned long h, unsigned long l)
+{
+	return kvmppc_hpte_page_shifts(h, l) & 0xff;
+}
+
+static inline int kvmppc_hpte_actual_page_shift(unsigned long h, unsigned long l)
+{
+	int tmp = kvmppc_hpte_page_shifts(h, l);
+
+	if (tmp >= 0x100)
+		tmp >>= 8;
+	return tmp;
+}
+
+static inline unsigned long kvmppc_actual_pgsz(unsigned long v, unsigned long r)
+{
+	int shift = kvmppc_hpte_actual_page_shift(v, r);
+
+	if (shift)
+		return 1ul << shift;
+	return 0;
+}
+
+static inline int kvmppc_pgsize_lp_encoding(int base_shift, int actual_shift)
+{
+	switch (base_shift) {
+	case 12:
+		switch (actual_shift) {
+		case 12:
+			return 0;
+		case 16:
+			return 7;
+		case 24:
+			return 0x38;
+		}
+		break;
+	case 16:
+		switch (actual_shift) {
+		case 16:
+			return 1;
+		case 24:
+			return 8;
+		}
+		break;
+	case 24:
+		return 0;
 	}
 	return -1;
 }
@@ -132,23 +196,15 @@ static inline int __hpte_actual_psize(unsigned int lp, int psize)
 static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 					     unsigned long pte_index)
 {
-	int b_psize = MMU_PAGE_4K, a_psize = MMU_PAGE_4K;
-	unsigned int penc;
+	int a_pgshift, b_pgshift;
 	unsigned long rb = 0, va_low, sllp;
-	unsigned int lp = (r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
 
-	if (v & HPTE_V_LARGE) {
-		for (b_psize = 0; b_psize < MMU_PAGE_COUNT; b_psize++) {
-
-			/* valid entries have a shift value */
-			if (!mmu_psize_defs[b_psize].shift)
-				continue;
-
-			a_psize = __hpte_actual_psize(lp, b_psize);
-			if (a_psize != -1)
-				break;
-		}
+	b_pgshift = a_pgshift = kvmppc_hpte_page_shifts(v, r);
+	if (a_pgshift >= 0x100) {
+		b_pgshift &= 0xff;
+		a_pgshift >>= 8;
 	}
+
 	/*
 	 * Ignore the top 14 bits of va
 	 * v have top two bits covering segment size, hence move
@@ -161,7 +217,6 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	/* This covers 14..54 bits of va*/
 	rb = (v & ~0x7fUL) << 16;		/* AVA field */
 
-	rb |= (v >> HPTE_V_SSIZE_SHIFT) << 8;	/*  B field */
 	/*
 	 * AVA in v had cleared lower 23 bits. We need to derive
 	 * that from pteg index
@@ -181,80 +236,36 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 		va_low ^= v >> (SID_SHIFT_1T - 16);
 	va_low &= 0x7ff;
 
-	switch (b_psize) {
-	case MMU_PAGE_4K:
-		sllp = ((mmu_psize_defs[a_psize].sllp & SLB_VSID_L) >> 6) |
-			((mmu_psize_defs[a_psize].sllp & SLB_VSID_LP) >> 4);
-		rb |= sllp << 5;	/*  AP field */
+	if (b_pgshift <= 12) {
+		if (a_pgshift > 12) {
+			sllp = (a_pgshift == 16) ? 5 : 4;
+			rb |= sllp << 5;	/*  AP field */
+		}
 		rb |= (va_low & 0x7ff) << 12;	/* remaining 11 bits of AVA */
-		break;
-	default:
-	{
+	} else {
 		int aval_shift;
 		/*
 		 * remaining bits of AVA/LP fields
 		 * Also contain the rr bits of LP
 		 */
-		rb |= (va_low << mmu_psize_defs[b_psize].shift) & 0x7ff000;
+		rb |= (va_low << b_pgshift) & 0x7ff000;
 		/*
 		 * Now clear not needed LP bits based on actual psize
 		 */
-		rb &= ~((1ul << mmu_psize_defs[a_psize].shift) - 1);
+		rb &= ~((1ul << a_pgshift) - 1);
 		/*
 		 * AVAL field 58..77 - base_page_shift bits of va
 		 * we have space for 58..64 bits, Missing bits should
 		 * be zero filled. +1 is to take care of L bit shift
 		 */
-		aval_shift = 64 - (77 - mmu_psize_defs[b_psize].shift) + 1;
+		aval_shift = 64 - (77 - b_pgshift) + 1;
 		rb |= ((va_low << aval_shift) & 0xfe);
 
 		rb |= 1;		/* L field */
-		penc = mmu_psize_defs[b_psize].penc[a_psize];
-		rb |= penc << 12;	/* LP field */
-		break;
+		rb |= r & 0xff000 & ((1ul << a_pgshift) - 1); /* LP field */
 	}
-	}
-	rb |= (v >> 54) & 0x300;		/* B field */
+	rb |= (v >> HPTE_V_SSIZE_SHIFT) << 8;	/* B field */
 	return rb;
-}
-
-static inline unsigned long __hpte_page_size(unsigned long h, unsigned long l,
-					     bool is_base_size)
-{
-
-	int size, a_psize;
-	/* Look at the 8 bit LP value */
-	unsigned int lp = (l >> LP_SHIFT) & ((1 << LP_BITS) - 1);
-
-	/* only handle 4k, 64k and 16M pages for now */
-	if (!(h & HPTE_V_LARGE))
-		return 1ul << 12;
-	else {
-		for (size = 0; size < MMU_PAGE_COUNT; size++) {
-			/* valid entries have a shift value */
-			if (!mmu_psize_defs[size].shift)
-				continue;
-
-			a_psize = __hpte_actual_psize(lp, size);
-			if (a_psize != -1) {
-				if (is_base_size)
-					return 1ul << mmu_psize_defs[size].shift;
-				return 1ul << mmu_psize_defs[a_psize].shift;
-			}
-		}
-
-	}
-	return 0;
-}
-
-static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
-{
-	return __hpte_page_size(h, l, 0);
-}
-
-static inline unsigned long hpte_base_page_size(unsigned long h, unsigned long l)
-{
-	return __hpte_page_size(h, l, 1);
 }
 
 static inline unsigned long hpte_rpn(unsigned long ptel, unsigned long psize)
@@ -278,19 +289,24 @@ static inline unsigned long hpte_make_readonly(unsigned long ptel)
 	return ptel;
 }
 
-static inline int hpte_cache_flags_ok(unsigned long ptel, unsigned long io_type)
+static inline bool hpte_cache_flags_ok(unsigned long hptel, bool is_ci)
 {
-	unsigned int wimg = ptel & HPTE_R_WIMG;
+	unsigned int wimg = hptel & HPTE_R_WIMG;
 
 	/* Handle SAO */
 	if (wimg == (HPTE_R_W | HPTE_R_I | HPTE_R_M) &&
 	    cpu_has_feature(CPU_FTR_ARCH_206))
 		wimg = HPTE_R_M;
 
-	if (!io_type)
+	if (!is_ci)
 		return wimg == HPTE_R_M;
-
-	return (wimg & (HPTE_R_W | HPTE_R_I)) == io_type;
+	/*
+	 * if host is mapped cache inhibited, make sure hptel also have
+	 * cache inhibited.
+	 */
+	if (wimg & HPTE_R_W) /* FIXME!! is this ok for all guest. ? */
+		return false;
+	return !!(wimg & HPTE_R_I);
 }
 
 /*
@@ -307,9 +323,9 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 		 */
 		old_pte = READ_ONCE(*ptep);
 		/*
-		 * wait until _PAGE_BUSY is clear then set it atomically
+		 * wait until H_PAGE_BUSY is clear then set it atomically
 		 */
-		if (unlikely(pte_val(old_pte) & _PAGE_BUSY)) {
+		if (unlikely(pte_val(old_pte) & H_PAGE_BUSY)) {
 			cpu_relax();
 			continue;
 		}
@@ -321,25 +337,10 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 		if (writing && pte_write(old_pte))
 			new_pte = pte_mkdirty(new_pte);
 
-		if (pte_val(old_pte) == __cmpxchg_u64((unsigned long *)ptep,
-						      pte_val(old_pte),
-						      pte_val(new_pte))) {
+		if (pte_xchg(ptep, old_pte, new_pte))
 			break;
-		}
 	}
 	return new_pte;
-}
-
-
-/* Return HPTE cache control bits corresponding to Linux pte bits */
-static inline unsigned long hpte_cache_bits(unsigned long pte_val)
-{
-#if _PAGE_NO_CACHE == HPTE_R_I && _PAGE_WRITETHRU == HPTE_R_W
-	return pte_val & (HPTE_R_W | HPTE_R_I);
-#else
-	return ((pte_val & _PAGE_NO_CACHE) ? HPTE_R_I : 0) +
-		((pte_val & _PAGE_WRITETHRU) ? HPTE_R_W : 0);
-#endif
 }
 
 static inline bool hpte_read_permission(unsigned long pp, unsigned long key)
@@ -436,6 +437,83 @@ static inline struct kvm_memslots *kvm_memslots_raw(struct kvm *kvm)
 extern void kvmppc_mmu_debugfs_init(struct kvm *kvm);
 
 extern void kvmhv_rm_send_ipi(int cpu);
+
+static inline unsigned long kvmppc_hpt_npte(struct kvm_hpt_info *hpt)
+{
+	/* HPTEs are 2**4 bytes long */
+	return 1UL << (hpt->order - 4);
+}
+
+static inline unsigned long kvmppc_hpt_mask(struct kvm_hpt_info *hpt)
+{
+	/* 128 (2**7) bytes in each HPTEG */
+	return (1UL << (hpt->order - 7)) - 1;
+}
+
+/* Set bits in a dirty bitmap, which is in LE format */
+static inline void set_dirty_bits(unsigned long *map, unsigned long i,
+				  unsigned long npages)
+{
+
+	if (npages >= 8)
+		memset((char *)map + i / 8, 0xff, npages / 8);
+	else
+		for (; npages; ++i, --npages)
+			__set_bit_le(i, map);
+}
+
+static inline void set_dirty_bits_atomic(unsigned long *map, unsigned long i,
+					 unsigned long npages)
+{
+	if (npages >= 8)
+		memset((char *)map + i / 8, 0xff, npages / 8);
+	else
+		for (; npages; ++i, --npages)
+			set_bit_le(i, map);
+}
+
+static inline u64 sanitize_msr(u64 msr)
+{
+	msr &= ~MSR_HV;
+	msr |= MSR_ME;
+	return msr;
+}
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+static inline void copy_from_checkpoint(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.cr  = vcpu->arch.cr_tm;
+	vcpu->arch.regs.xer = vcpu->arch.xer_tm;
+	vcpu->arch.regs.link  = vcpu->arch.lr_tm;
+	vcpu->arch.regs.ctr = vcpu->arch.ctr_tm;
+	vcpu->arch.amr = vcpu->arch.amr_tm;
+	vcpu->arch.ppr = vcpu->arch.ppr_tm;
+	vcpu->arch.dscr = vcpu->arch.dscr_tm;
+	vcpu->arch.tar = vcpu->arch.tar_tm;
+	memcpy(vcpu->arch.regs.gpr, vcpu->arch.gpr_tm,
+	       sizeof(vcpu->arch.regs.gpr));
+	vcpu->arch.fp  = vcpu->arch.fp_tm;
+	vcpu->arch.vr  = vcpu->arch.vr_tm;
+	vcpu->arch.vrsave = vcpu->arch.vrsave_tm;
+}
+
+static inline void copy_to_checkpoint(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.cr_tm  = vcpu->arch.cr;
+	vcpu->arch.xer_tm = vcpu->arch.regs.xer;
+	vcpu->arch.lr_tm  = vcpu->arch.regs.link;
+	vcpu->arch.ctr_tm = vcpu->arch.regs.ctr;
+	vcpu->arch.amr_tm = vcpu->arch.amr;
+	vcpu->arch.ppr_tm = vcpu->arch.ppr;
+	vcpu->arch.dscr_tm = vcpu->arch.dscr;
+	vcpu->arch.tar_tm = vcpu->arch.tar;
+	memcpy(vcpu->arch.gpr_tm, vcpu->arch.regs.gpr,
+	       sizeof(vcpu->arch.regs.gpr));
+	vcpu->arch.fp_tm  = vcpu->arch.fp;
+	vcpu->arch.vr_tm  = vcpu->arch.vr;
+	vcpu->arch.vrsave_tm = vcpu->arch.vrsave;
+}
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 

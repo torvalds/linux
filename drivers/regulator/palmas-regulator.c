@@ -264,6 +264,13 @@ static struct palmas_regs_info tps65917_regs_info[] = {
 		.sleep_id	= TPS65917_EXTERNAL_REQSTR_ID_SMPS5,
 	},
 	{
+		.name		= "SMPS12",
+		.sname		= "smps1-in",
+		.vsel_addr	= TPS65917_SMPS1_VOLTAGE,
+		.ctrl_addr	= TPS65917_SMPS1_CTRL,
+		.sleep_id	= TPS65917_EXTERNAL_REQSTR_ID_SMPS12,
+	},
+	{
 		.name		= "LDO1",
 		.sname		= "ldo1-in",
 		.vsel_addr	= TPS65917_LDO1_VOLTAGE,
@@ -367,6 +374,7 @@ static struct palmas_sleep_requestor_info tps65917_sleep_req_info[] = {
 	EXTERNAL_REQUESTOR_TPS65917(SMPS3, 1, 2),
 	EXTERNAL_REQUESTOR_TPS65917(SMPS4, 1, 3),
 	EXTERNAL_REQUESTOR_TPS65917(SMPS5, 1, 4),
+	EXTERNAL_REQUESTOR_TPS65917(SMPS12, 1, 5),
 	EXTERNAL_REQUESTOR_TPS65917(LDO1, 2, 0),
 	EXTERNAL_REQUESTOR_TPS65917(LDO2, 2, 1),
 	EXTERNAL_REQUESTOR_TPS65917(LDO3, 2, 2),
@@ -528,7 +536,7 @@ static int palmas_smps_set_ramp_delay(struct regulator_dev *rdev,
 	return ret;
 }
 
-static struct regulator_ops palmas_ops_smps = {
+static const struct regulator_ops palmas_ops_smps = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -542,7 +550,7 @@ static struct regulator_ops palmas_ops_smps = {
 	.set_ramp_delay		= palmas_smps_set_ramp_delay,
 };
 
-static struct regulator_ops palmas_ops_ext_control_smps = {
+static const struct regulator_ops palmas_ops_ext_control_smps = {
 	.set_mode		= palmas_set_mode_smps,
 	.get_mode		= palmas_get_mode_smps,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -553,7 +561,7 @@ static struct regulator_ops palmas_ops_ext_control_smps = {
 	.set_ramp_delay		= palmas_smps_set_ramp_delay,
 };
 
-static struct regulator_ops palmas_ops_smps10 = {
+static const struct regulator_ops palmas_ops_smps10 = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -565,7 +573,7 @@ static struct regulator_ops palmas_ops_smps10 = {
 	.get_bypass		= regulator_get_bypass_regmap,
 };
 
-static struct regulator_ops tps65917_ops_smps = {
+static const struct regulator_ops tps65917_ops_smps = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -578,7 +586,7 @@ static struct regulator_ops tps65917_ops_smps = {
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops tps65917_ops_ext_control_smps = {
+static const struct regulator_ops tps65917_ops_ext_control_smps = {
 	.set_mode		= palmas_set_mode_smps,
 	.get_mode		= palmas_get_mode_smps,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -602,7 +610,7 @@ static int palmas_is_enabled_ldo(struct regulator_dev *dev)
 	return !!(reg);
 }
 
-static struct regulator_ops palmas_ops_ldo = {
+static const struct regulator_ops palmas_ops_ldo = {
 	.is_enabled		= palmas_is_enabled_ldo,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -612,23 +620,35 @@ static struct regulator_ops palmas_ops_ldo = {
 	.map_voltage		= regulator_map_voltage_linear,
 };
 
-static struct regulator_ops palmas_ops_ext_control_ldo = {
+static const struct regulator_ops palmas_ops_ldo9 = {
+	.is_enabled		= palmas_is_enabled_ldo,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
+	.set_bypass		= regulator_set_bypass_regmap,
+	.get_bypass		= regulator_get_bypass_regmap,
+};
+
+static const struct regulator_ops palmas_ops_ext_control_ldo = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 };
 
-static struct regulator_ops palmas_ops_extreg = {
+static const struct regulator_ops palmas_ops_extreg = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 };
 
-static struct regulator_ops palmas_ops_ext_control_extreg = {
+static const struct regulator_ops palmas_ops_ext_control_extreg = {
 };
 
-static struct regulator_ops tps65917_ops_ldo = {
+static const struct regulator_ops tps65917_ops_ldo = {
 	.is_enabled		= palmas_is_enabled_ldo,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -637,6 +657,19 @@ static struct regulator_ops tps65917_ops_ldo = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+};
+
+static const struct regulator_ops tps65917_ops_ldo_1_2 = {
+	.is_enabled		= palmas_is_enabled_ldo,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.set_bypass		= regulator_set_bypass_regmap,
+	.get_bypass		= regulator_get_bypass_regmap,
 };
 
 static int palmas_regulator_config_external(struct palmas *palmas, int id,
@@ -915,6 +948,15 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 			if (pdata && pdata->ldo6_vibrator &&
 			    (id == PALMAS_REG_LDO6))
 				desc->enable_time = 2000;
+
+			if (id == PALMAS_REG_LDO9) {
+				desc->ops = &palmas_ops_ldo9;
+				desc->bypass_reg = desc->enable_reg;
+				desc->bypass_val_on =
+						PALMAS_LDO9_CTRL_LDO_BYPASS_EN;
+				desc->bypass_mask =
+						PALMAS_LDO9_CTRL_LDO_BYPASS_EN;
+			}
 		} else {
 			if (!ddata->has_regen3 && id == PALMAS_REG_REGEN3)
 				continue;
@@ -1019,6 +1061,15 @@ static int tps65917_ldo_registration(struct palmas_pmic *pmic,
 			 * It is of the order of ~60mV/uS.
 			 */
 			desc->ramp_delay = 2500;
+			if (id == TPS65917_REG_LDO1 ||
+			    id == TPS65917_REG_LDO2) {
+				desc->ops = &tps65917_ops_ldo_1_2;
+				desc->bypass_reg = desc->enable_reg;
+				desc->bypass_val_on =
+						TPS65917_LDO1_CTRL_BYPASS_EN;
+				desc->bypass_mask =
+						TPS65917_LDO1_CTRL_BYPASS_EN;
+			}
 		} else {
 			desc->n_voltages = 1;
 			if (reg_init && reg_init->roof_floor)
@@ -1167,6 +1218,7 @@ static int palmas_smps_registration(struct palmas_pmic *pmic,
 				desc->enable_mask = SMPS10_BOOST_EN;
 			desc->bypass_reg = PALMAS_BASE_TO_REG(PALMAS_SMPS_BASE,
 							    PALMAS_SMPS10_CTRL);
+			desc->bypass_val_on = SMPS10_BYPASS_EN;
 			desc->bypass_mask = SMPS10_BYPASS_EN;
 			desc->min_uV = 3750000;
 			desc->uV_step = 1250000;
@@ -1261,7 +1313,8 @@ static int tps65917_smps_registration(struct palmas_pmic *pmic,
 		 */
 		desc = &pmic->desc[id];
 		desc->n_linear_ranges = 3;
-		if ((id == TPS65917_REG_SMPS2) && pmic->smps12)
+		if ((id == TPS65917_REG_SMPS2 || id == TPS65917_REG_SMPS1) &&
+		    pmic->smps12)
 			continue;
 
 		/* Initialise sleep/init values from platform data */
@@ -1383,6 +1436,7 @@ static struct of_regulator_match tps65917_matches[] = {
 	{ .name = "smps3", },
 	{ .name = "smps4", },
 	{ .name = "smps5", },
+	{ .name = "smps12",},
 	{ .name = "ldo1", },
 	{ .name = "ldo2", },
 	{ .name = "ldo3", },
@@ -1411,7 +1465,7 @@ static struct palmas_pmic_driver_data palmas_ddata = {
 
 static struct palmas_pmic_driver_data tps65917_ddata = {
 	.smps_start = TPS65917_REG_SMPS1,
-	.smps_end = TPS65917_REG_SMPS5,
+	.smps_end = TPS65917_REG_SMPS12,
 	.ldo_begin = TPS65917_REG_LDO1,
 	.ldo_end = TPS65917_REG_LDO5,
 	.max_reg = TPS65917_NUM_REGS,
@@ -1423,10 +1477,10 @@ static struct palmas_pmic_driver_data tps65917_ddata = {
 	.ldo_register = tps65917_ldo_registration,
 };
 
-static void palmas_dt_to_pdata(struct device *dev,
-			       struct device_node *node,
-			       struct palmas_pmic_platform_data *pdata,
-			       struct palmas_pmic_driver_data *ddata)
+static int palmas_dt_to_pdata(struct device *dev,
+			      struct device_node *node,
+			      struct palmas_pmic_platform_data *pdata,
+			      struct palmas_pmic_driver_data *ddata)
 {
 	struct device_node *regulators;
 	u32 prop;
@@ -1435,7 +1489,7 @@ static void palmas_dt_to_pdata(struct device *dev,
 	regulators = of_get_child_by_name(node, "regulators");
 	if (!regulators) {
 		dev_info(dev, "regulator node not found\n");
-		return;
+		return 0;
 	}
 
 	ret = of_regulator_match(dev, regulators, ddata->palmas_matches,
@@ -1443,25 +1497,29 @@ static void palmas_dt_to_pdata(struct device *dev,
 	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(dev, "Error parsing regulator init data: %d\n", ret);
-		return;
+		return 0;
 	}
 
 	for (idx = 0; idx < ddata->max_reg; idx++) {
-		if (!ddata->palmas_matches[idx].init_data ||
-		    !ddata->palmas_matches[idx].of_node)
+		struct of_regulator_match *match;
+		struct palmas_reg_init *rinit;
+		struct device_node *np;
+
+		match = &ddata->palmas_matches[idx];
+		np = match->of_node;
+
+		if (!match->init_data || !np)
 			continue;
 
-		pdata->reg_data[idx] = ddata->palmas_matches[idx].init_data;
+		rinit = devm_kzalloc(dev, sizeof(*rinit), GFP_KERNEL);
+		if (!rinit)
+			return -ENOMEM;
 
-		pdata->reg_init[idx] = devm_kzalloc(dev,
-				sizeof(struct palmas_reg_init), GFP_KERNEL);
+		pdata->reg_data[idx] = match->init_data;
+		pdata->reg_init[idx] = rinit;
 
-		pdata->reg_init[idx]->warm_reset =
-			of_property_read_bool(ddata->palmas_matches[idx].of_node,
-					      "ti,warm-reset");
-
-		ret = of_property_read_u32(ddata->palmas_matches[idx].of_node,
-					   "ti,roof-floor", &prop);
+		rinit->warm_reset = of_property_read_bool(np, "ti,warm-reset");
+		ret = of_property_read_u32(np, "ti,roof-floor", &prop);
 		/* EINVAL: Property not found */
 		if (ret != -EINVAL) {
 			int econtrol;
@@ -1483,31 +1541,29 @@ static void palmas_dt_to_pdata(struct device *dev,
 					WARN_ON(1);
 					dev_warn(dev,
 						 "%s: Invalid roof-floor option: %u\n",
-					     palmas_matches[idx].name, prop);
+						 match->name, prop);
 					break;
 				}
 			}
-			pdata->reg_init[idx]->roof_floor = econtrol;
+			rinit->roof_floor = econtrol;
 		}
 
-		ret = of_property_read_u32(ddata->palmas_matches[idx].of_node,
-					   "ti,mode-sleep", &prop);
+		ret = of_property_read_u32(np, "ti,mode-sleep", &prop);
 		if (!ret)
-			pdata->reg_init[idx]->mode_sleep = prop;
+			rinit->mode_sleep = prop;
 
-		ret = of_property_read_bool(ddata->palmas_matches[idx].of_node,
-					    "ti,smps-range");
+		ret = of_property_read_bool(np, "ti,smps-range");
 		if (ret)
-			pdata->reg_init[idx]->vsel =
-				PALMAS_SMPS12_VOLTAGE_RANGE;
+			rinit->vsel = PALMAS_SMPS12_VOLTAGE_RANGE;
 
 		if (idx == PALMAS_REG_LDO8)
 			pdata->enable_ldo8_tracking = of_property_read_bool(
-						ddata->palmas_matches[idx].of_node,
-						"ti,enable-ldo8-tracking");
+						np, "ti,enable-ldo8-tracking");
 	}
 
 	pdata->ldo6_vibrator = of_property_read_bool(node, "ti,ldo6-vibrator");
+
+	return 0;
 }
 
 static const struct of_device_id of_palmas_match_tbl[] = {
@@ -1589,14 +1645,18 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pmic);
 	pmic->palmas->pmic_ddata = driver_data;
 
-	palmas_dt_to_pdata(&pdev->dev, node, pdata, driver_data);
+	ret = palmas_dt_to_pdata(&pdev->dev, node, pdata, driver_data);
+	if (ret)
+		return ret;
 
 	ret = palmas_smps_read(palmas, PALMAS_SMPS_CTRL, &reg);
 	if (ret)
 		return ret;
 
-	if (reg & PALMAS_SMPS_CTRL_SMPS12_SMPS123_EN)
+	if (reg & PALMAS_SMPS_CTRL_SMPS12_SMPS123_EN) {
 		pmic->smps123 = 1;
+		pmic->smps12 = 1;
+	}
 
 	if (reg & PALMAS_SMPS_CTRL_SMPS45_SMPS457_EN)
 		pmic->smps457 = 1;

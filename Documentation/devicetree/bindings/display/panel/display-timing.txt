@@ -32,6 +32,14 @@ optional properties:
 			- active low  = drive pixel data on falling edge/
 					sample data on rising edge
 			- ignored     = ignored
+ - syncclk-active: with
+			- active high = drive sync on rising edge/
+					sample sync on falling edge of pixel
+					clock
+			- active low  = drive sync on falling edge/
+					sample sync on rising edge of pixel
+					clock
+			- omitted     = same configuration as pixelclk-active
  - interlaced (bool): boolean to enable interlaced mode
  - doublescan (bool): boolean to enable doublescan mode
  - doubleclk (bool): boolean to enable doubleclock mode
@@ -49,11 +57,11 @@ can be specified.
 The parameters are defined as:
 
   +----------+-------------------------------------+----------+-------+
-  |          |        ↑                            |          |       |
+  |          |        ^                            |          |       |
   |          |        |vback_porch                 |          |       |
-  |          |        ↓                            |          |       |
+  |          |        v                            |          |       |
   +----------#######################################----------+-------+
-  |          #        ↑                            #          |       |
+  |          #        ^                            #          |       |
   |          #        |                            #          |       |
   |  hback   #        |                            #  hfront  | hsync |
   |   porch  #        |       hactive              #  porch   |  len  |
@@ -61,16 +69,21 @@ The parameters are defined as:
   |          #        |                            #          |       |
   |          #        |vactive                     #          |       |
   |          #        |                            #          |       |
-  |          #        ↓                            #          |       |
+  |          #        v                            #          |       |
   +----------#######################################----------+-------+
-  |          |        ↑                            |          |       |
+  |          |        ^                            |          |       |
   |          |        |vfront_porch                |          |       |
-  |          |        ↓                            |          |       |
+  |          |        v                            |          |       |
   +----------+-------------------------------------+----------+-------+
-  |          |        ↑                            |          |       |
+  |          |        ^                            |          |       |
   |          |        |vsync_len                   |          |       |
-  |          |        ↓                            |          |       |
+  |          |        v                            |          |       |
   +----------+-------------------------------------+----------+-------+
+
+Note: In addition to being used as subnode(s) of display-timings, the timing
+      subnode may also be used on its own. This is appropriate if only one mode
+      need be conveyed. In this case, the node should be named 'panel-timing'.
+
 
 Example:
 

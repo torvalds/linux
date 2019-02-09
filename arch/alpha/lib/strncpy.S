@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/alpha/lib/strncpy.S
  * Contributed by Richard Henderson (rth@tamu.edu)
@@ -10,7 +11,7 @@
  * version has cropped that bit o' nastiness as well as assuming that
  * __stxncpy is in range of a branch.
  */
-
+#include <asm/export.h>
 	.set noat
 	.set noreorder
 
@@ -79,3 +80,4 @@ $zerolen:
 	ret
 
 	.end	strncpy
+	EXPORT_SYMBOL(strncpy)

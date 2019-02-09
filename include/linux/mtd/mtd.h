@@ -24,18 +24,15 @@
 #include <linux/uio.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
+#include <linux/of.h>
 
 #include <mtd/mtd-abi.h>
 
 #include <asm/div64.h>
 
-#define MTD_ERASE_PENDING	0x01
-#define MTD_ERASING		0x02
-#define MTD_ERASE_SUSPEND	0x04
-#define MTD_ERASE_DONE		0x08
-#define MTD_ERASE_FAILED	0x10
-
 #define MTD_FAIL_ADDR_UNKNOWN -1LL
+
+struct mtd_info;
 
 /*
  * If the erase fails, fail_addr might indicate exactly which block failed. If
@@ -43,18 +40,9 @@
  * or was not specific to any particular block.
  */
 struct erase_info {
-	struct mtd_info *mtd;
 	uint64_t addr;
 	uint64_t len;
 	uint64_t fail_addr;
-	u_long time;
-	u_long retries;
-	unsigned dev;
-	unsigned cell;
-	void (*callback) (struct erase_info *self);
-	u_long priv;
-	u_char state;
-	struct erase_info *next;
 };
 
 struct mtd_erase_region_info {
@@ -79,9 +67,11 @@ struct mtd_erase_region_info {
  * @datbuf:	data buffer - if NULL only oob data are read/written
  * @oobbuf:	oob data buffer
  *
- * Note, it is allowed to read more than one OOB area at one go, but not write.
- * The interface assumes that the OOB write requests program only one page's
- * OOB area.
+ * Note, some MTD drivers do not allow you to write more than one OOB area at
+ * one go. If you try to do that on such an MTD device, -EINVAL will be
+ * returned. If you want to make your implementation portable on all kind of MTD
+ * devices you should split the write request into several sub-requests when the
+ * request crosses a page boundary.
  */
 struct mtd_oob_ops {
 	unsigned int	mode;
@@ -96,20 +86,123 @@ struct mtd_oob_ops {
 
 #define MTD_MAX_OOBFREE_ENTRIES_LARGE	32
 #define MTD_MAX_ECCPOS_ENTRIES_LARGE	640
-/*
- * Internal ECC layout control structure. For historical reasons, there is a
- * similar, smaller struct nand_ecclayout_user (in mtd-abi.h) that is retained
- * for export to user-space via the ECCGETLAYOUT ioctl.
- * nand_ecclayout should be expandable in the future simply by the above macros.
+/**
+ * struct mtd_oob_region - oob region definition
+ * @offset: region offset
+ * @length: region length
+ *
+ * This structure describes a region of the OOB area, and is used
+ * to retrieve ECC or free bytes sections.
+ * Each section is defined by an offset within the OOB area and a
+ * length.
  */
-struct nand_ecclayout {
-	__u32 eccbytes;
-	__u32 eccpos[MTD_MAX_ECCPOS_ENTRIES_LARGE];
-	__u32 oobavail;
-	struct nand_oobfree oobfree[MTD_MAX_OOBFREE_ENTRIES_LARGE];
+struct mtd_oob_region {
+	u32 offset;
+	u32 length;
+};
+
+/*
+ * struct mtd_ooblayout_ops - NAND OOB layout operations
+ * @ecc: function returning an ECC region in the OOB area.
+ *	 Should return -ERANGE if %section exceeds the total number of
+ *	 ECC sections.
+ * @free: function returning a free region in the OOB area.
+ *	  Should return -ERANGE if %section exceeds the total number of
+ *	  free sections.
+ */
+struct mtd_ooblayout_ops {
+	int (*ecc)(struct mtd_info *mtd, int section,
+		   struct mtd_oob_region *oobecc);
+	int (*free)(struct mtd_info *mtd, int section,
+		    struct mtd_oob_region *oobfree);
+};
+
+/**
+ * struct mtd_pairing_info - page pairing information
+ *
+ * @pair: pair id
+ * @group: group id
+ *
+ * The term "pair" is used here, even though TLC NANDs might group pages by 3
+ * (3 bits in a single cell). A pair should regroup all pages that are sharing
+ * the same cell. Pairs are then indexed in ascending order.
+ *
+ * @group is defining the position of a page in a given pair. It can also be
+ * seen as the bit position in the cell: page attached to bit 0 belongs to
+ * group 0, page attached to bit 1 belongs to group 1, etc.
+ *
+ * Example:
+ * The H27UCG8T2BTR-BC datasheet describes the following pairing scheme:
+ *
+ *		group-0		group-1
+ *
+ *  pair-0	page-0		page-4
+ *  pair-1	page-1		page-5
+ *  pair-2	page-2		page-8
+ *  ...
+ *  pair-127	page-251	page-255
+ *
+ *
+ * Note that the "group" and "pair" terms were extracted from Samsung and
+ * Hynix datasheets, and might be referenced under other names in other
+ * datasheets (Micron is describing this concept as "shared pages").
+ */
+struct mtd_pairing_info {
+	int pair;
+	int group;
+};
+
+/**
+ * struct mtd_pairing_scheme - page pairing scheme description
+ *
+ * @ngroups: number of groups. Should be related to the number of bits
+ *	     per cell.
+ * @get_info: converts a write-unit (page number within an erase block) into
+ *	      mtd_pairing information (pair + group). This function should
+ *	      fill the info parameter based on the wunit index or return
+ *	      -EINVAL if the wunit parameter is invalid.
+ * @get_wunit: converts pairing information into a write-unit (page) number.
+ *	       This function should return the wunit index pointed by the
+ *	       pairing information described in the info argument. It should
+ *	       return -EINVAL, if there's no wunit corresponding to the
+ *	       passed pairing information.
+ *
+ * See mtd_pairing_info documentation for a detailed explanation of the
+ * pair and group concepts.
+ *
+ * The mtd_pairing_scheme structure provides a generic solution to represent
+ * NAND page pairing scheme. Instead of exposing two big tables to do the
+ * write-unit <-> (pair + group) conversions, we ask the MTD drivers to
+ * implement the ->get_info() and ->get_wunit() functions.
+ *
+ * MTD users will then be able to query these information by using the
+ * mtd_pairing_info_to_wunit() and mtd_wunit_to_pairing_info() helpers.
+ *
+ * @ngroups is here to help MTD users iterating over all the pages in a
+ * given pair. This value can be retrieved by MTD users using the
+ * mtd_pairing_groups() helper.
+ *
+ * Examples are given in the mtd_pairing_info_to_wunit() and
+ * mtd_wunit_to_pairing_info() documentation.
+ */
+struct mtd_pairing_scheme {
+	int ngroups;
+	int (*get_info)(struct mtd_info *mtd, int wunit,
+			struct mtd_pairing_info *info);
+	int (*get_wunit)(struct mtd_info *mtd,
+			 const struct mtd_pairing_info *info);
 };
 
 struct module;	/* only needed for owner field in mtd_info */
+
+/**
+ * struct mtd_debug_info - debugging information for an MTD device.
+ *
+ * @dfs_dir: direntry object of the MTD device debugfs directory
+ */
+struct mtd_debug_info {
+	struct dentry *dfs_dir;
+};
 
 struct mtd_info {
 	u_char type;
@@ -163,12 +256,15 @@ struct mtd_info {
 	 */
 	unsigned int bitflip_threshold;
 
-	// Kernel-only stuff starts here.
+	/* Kernel-only stuff starts here. */
 	const char *name;
 	int index;
 
-	/* ECC layout structure pointer - read only! */
-	struct nand_ecclayout *ecclayout;
+	/* OOB layout description */
+	const struct mtd_ooblayout_ops *ooblayout;
+
+	/* NAND pairing scheme, only provided for MLC/TLC NANDs */
+	const struct mtd_pairing_scheme *pairing;
 
 	/* the ecc step size. */
 	unsigned int ecc_step_size;
@@ -190,10 +286,6 @@ struct mtd_info {
 	int (*_point) (struct mtd_info *mtd, loff_t from, size_t len,
 		       size_t *retlen, void **virt, resource_size_t *phys);
 	int (*_unpoint) (struct mtd_info *mtd, loff_t from, size_t len);
-	unsigned long (*_get_unmapped_area) (struct mtd_info *mtd,
-					     unsigned long len,
-					     unsigned long offset,
-					     unsigned long flags);
 	int (*_read) (struct mtd_info *mtd, loff_t from, size_t len,
 		      size_t *retlen, u_char *buf);
 	int (*_write) (struct mtd_info *mtd, loff_t to, size_t len,
@@ -225,6 +317,7 @@ struct mtd_info {
 	int (*_block_isreserved) (struct mtd_info *mtd, loff_t ofs);
 	int (*_block_isbad) (struct mtd_info *mtd, loff_t ofs);
 	int (*_block_markbad) (struct mtd_info *mtd, loff_t ofs);
+	int (*_max_bad_blocks) (struct mtd_info *mtd, loff_t ofs, size_t len);
 	int (*_suspend) (struct mtd_info *mtd);
 	void (*_resume) (struct mtd_info *mtd);
 	void (*_reboot) (struct mtd_info *mtd);
@@ -234,11 +327,6 @@ struct mtd_info {
 	 */
 	int (*_get_device) (struct mtd_info *mtd);
 	void (*_put_device) (struct mtd_info *mtd);
-
-	/* Backing device capabilities for this device
-	 * - provides mmap capabilities
-	 */
-	struct backing_dev_info *backing_dev_info;
 
 	struct notifier_block reboot_notifier;  /* default mode before reboot */
 
@@ -252,8 +340,74 @@ struct mtd_info {
 	struct module *owner;
 	struct device dev;
 	int usecount;
+	struct mtd_debug_info dbg;
 };
 
+int mtd_ooblayout_ecc(struct mtd_info *mtd, int section,
+		      struct mtd_oob_region *oobecc);
+int mtd_ooblayout_find_eccregion(struct mtd_info *mtd, int eccbyte,
+				 int *section,
+				 struct mtd_oob_region *oobregion);
+int mtd_ooblayout_get_eccbytes(struct mtd_info *mtd, u8 *eccbuf,
+			       const u8 *oobbuf, int start, int nbytes);
+int mtd_ooblayout_set_eccbytes(struct mtd_info *mtd, const u8 *eccbuf,
+			       u8 *oobbuf, int start, int nbytes);
+int mtd_ooblayout_free(struct mtd_info *mtd, int section,
+		       struct mtd_oob_region *oobfree);
+int mtd_ooblayout_get_databytes(struct mtd_info *mtd, u8 *databuf,
+				const u8 *oobbuf, int start, int nbytes);
+int mtd_ooblayout_set_databytes(struct mtd_info *mtd, const u8 *databuf,
+				u8 *oobbuf, int start, int nbytes);
+int mtd_ooblayout_count_freebytes(struct mtd_info *mtd);
+int mtd_ooblayout_count_eccbytes(struct mtd_info *mtd);
+
+static inline void mtd_set_ooblayout(struct mtd_info *mtd,
+				     const struct mtd_ooblayout_ops *ooblayout)
+{
+	mtd->ooblayout = ooblayout;
+}
+
+static inline void mtd_set_pairing_scheme(struct mtd_info *mtd,
+				const struct mtd_pairing_scheme *pairing)
+{
+	mtd->pairing = pairing;
+}
+
+static inline void mtd_set_of_node(struct mtd_info *mtd,
+				   struct device_node *np)
+{
+	mtd->dev.of_node = np;
+	if (!mtd->name)
+		of_property_read_string(np, "label", &mtd->name);
+}
+
+static inline struct device_node *mtd_get_of_node(struct mtd_info *mtd)
+{
+	return dev_of_node(&mtd->dev);
+}
+
+static inline int mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
+{
+	return ops->mode == MTD_OPS_AUTO_OOB ? mtd->oobavail : mtd->oobsize;
+}
+
+static inline int mtd_max_bad_blocks(struct mtd_info *mtd,
+				     loff_t ofs, size_t len)
+{
+	if (!mtd->_max_bad_blocks)
+		return -ENOTSUPP;
+
+	if (mtd->size < (len + ofs) || ofs < 0)
+		return -EINVAL;
+
+	return mtd->_max_bad_blocks(mtd, ofs, len);
+}
+
+int mtd_wunit_to_pairing_info(struct mtd_info *mtd, int wunit,
+			      struct mtd_pairing_info *info);
+int mtd_pairing_info_to_wunit(struct mtd_info *mtd,
+			      const struct mtd_pairing_info *info);
+int mtd_pairing_groups(struct mtd_info *mtd);
 int mtd_erase(struct mtd_info *mtd, struct erase_info *instr);
 int mtd_point(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	      void **virt, resource_size_t *phys);
@@ -268,17 +422,7 @@ int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 		    const u_char *buf);
 
 int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops);
-
-static inline int mtd_write_oob(struct mtd_info *mtd, loff_t to,
-				struct mtd_oob_ops *ops)
-{
-	ops->retlen = ops->oobretlen = 0;
-	if (!mtd->_write_oob)
-		return -EOPNOTSUPP;
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-	return mtd->_write_oob(mtd, to, ops);
-}
+int mtd_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops);
 
 int mtd_get_fact_prot_info(struct mtd_info *mtd, size_t len, size_t *retlen,
 			   struct otp_info *buf);
@@ -334,6 +478,34 @@ static inline uint32_t mtd_mod_by_eb(uint64_t sz, struct mtd_info *mtd)
 	return do_div(sz, mtd->erasesize);
 }
 
+/**
+ * mtd_align_erase_req - Adjust an erase request to align things on eraseblock
+ *			 boundaries.
+ * @mtd: the MTD device this erase request applies on
+ * @req: the erase request to adjust
+ *
+ * This function will adjust @req->addr and @req->len to align them on
+ * @mtd->erasesize. Of course we expect @mtd->erasesize to be != 0.
+ */
+static inline void mtd_align_erase_req(struct mtd_info *mtd,
+				       struct erase_info *req)
+{
+	u32 mod;
+
+	if (WARN_ON(!mtd->erasesize))
+		return;
+
+	mod = mtd_mod_by_eb(req->addr, mtd);
+	if (mod) {
+		req->addr -= mod;
+		req->len += mod;
+	}
+
+	mod = mtd_mod_by_eb(req->addr + req->len, mtd);
+	if (mod)
+		req->len += mtd->erasesize - mod;
+}
+
 static inline uint32_t mtd_div_by_ws(uint64_t sz, struct mtd_info *mtd)
 {
 	if (mtd->writesize_shift)
@@ -348,6 +520,23 @@ static inline uint32_t mtd_mod_by_ws(uint64_t sz, struct mtd_info *mtd)
 		return sz & mtd->writesize_mask;
 	return do_div(sz, mtd->writesize);
 }
+
+static inline int mtd_wunit_per_eb(struct mtd_info *mtd)
+{
+	return mtd->erasesize / mtd->writesize;
+}
+
+static inline int mtd_offset_to_wunit(struct mtd_info *mtd, loff_t offs)
+{
+	return mtd_div_by_ws(mtd_mod_by_eb(offs, mtd), mtd);
+}
+
+static inline loff_t mtd_wunit_to_offset(struct mtd_info *mtd, loff_t base,
+					 int wunit)
+{
+	return base + (wunit * mtd->writesize);
+}
+
 
 static inline int mtd_has_oob(const struct mtd_info *mtd)
 {
@@ -394,8 +583,6 @@ struct mtd_notifier {
 extern void register_mtd_user (struct mtd_notifier *new);
 extern int unregister_mtd_user (struct mtd_notifier *old);
 void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size);
-
-void mtd_erase_callback(struct erase_info *instr);
 
 static inline int mtd_is_bitflip(int err) {
 	return err == -EUCLEAN;

@@ -63,17 +63,15 @@ struct distr_item {
 	__be32 type;
 	__be32 lower;
 	__be32 upper;
-	__be32 ref;
+	__be32 port;
 	__be32 key;
 };
 
 struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ);
 struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ);
-void named_cluster_distribute(struct net *net, struct sk_buff *buf);
 void tipc_named_node_up(struct net *net, u32 dnode);
 void tipc_named_rcv(struct net *net, struct sk_buff_head *msg_queue);
 void tipc_named_reinit(struct net *net);
-void tipc_named_process_backlog(struct net *net);
 void tipc_publ_notify(struct net *net, struct list_head *nsub_list, u32 addr);
 
 #endif

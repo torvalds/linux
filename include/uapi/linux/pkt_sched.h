@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_PKT_SCHED_H
 #define __LINUX_PKT_SCHED_H
 
@@ -72,6 +73,11 @@ struct tc_estimator {
 #define TC_H_UNSPEC	(0U)
 #define TC_H_ROOT	(0xFFFFFFFFU)
 #define TC_H_INGRESS    (0xFFFFFFF1U)
+#define TC_H_CLSACT	TC_H_INGRESS
+
+#define TC_H_MIN_PRIORITY	0xFFE0U
+#define TC_H_MIN_INGRESS	0xFFF2U
+#define TC_H_MIN_EGRESS		0xFFF3U
 
 /* Need to corrospond to iproute2 tc/tc_core.h "enum link_layer" */
 enum tc_link_layer {
@@ -116,6 +122,21 @@ enum {
 
 struct tc_fifo_qopt {
 	__u32	limit;	/* Queue length: bytes for bfifo, packets for pfifo */
+};
+
+/* SKBPRIO section */
+
+/*
+ * Priorities go from zero to (SKBPRIO_MAX_PRIORITY - 1).
+ * SKBPRIO_MAX_PRIORITY should be at least 64 in order for skbprio to be able
+ * to map one to one the DS field of IPV4 and IPV6 headers.
+ * Memory allocation grows linearly with SKBPRIO_MAX_PRIORITY.
+ */
+
+#define SKBPRIO_MAX_PRIORITY 64
+
+struct tc_skbprio_qopt {
+	__u32	limit;		/* Queue length in packets. */
 };
 
 /* PRIO section */
@@ -175,6 +196,7 @@ enum {
 	TCA_TBF_PRATE64,
 	TCA_TBF_BURST,
 	TCA_TBF_PBURST,
+	TCA_TBF_PAD,
 	__TCA_TBF_MAX,
 };
 
@@ -364,6 +386,7 @@ enum {
 	TCA_HTB_DIRECT_QLEN,
 	TCA_HTB_RATE64,
 	TCA_HTB_CEIL64,
+	TCA_HTB_PAD,
 	__TCA_HTB_MAX,
 };
 
@@ -527,6 +550,11 @@ enum {
 	TCA_NETEM_RATE,
 	TCA_NETEM_ECN,
 	TCA_NETEM_RATE64,
+	TCA_NETEM_PAD,
+	TCA_NETEM_LATENCY64,
+	TCA_NETEM_JITTER64,
+	TCA_NETEM_SLOT,
+	TCA_NETEM_SLOT_DIST,
 	__TCA_NETEM_MAX,
 };
 
@@ -562,6 +590,15 @@ struct tc_netem_rate {
 	__s32	packet_overhead;
 	__u32	cell_size;
 	__s32	cell_overhead;
+};
+
+struct tc_netem_slot {
+	__s64   min_delay; /* nsec */
+	__s64   max_delay;
+	__s32   max_packets;
+	__s32   max_bytes;
+	__s64	dist_delay; /* nsec */
+	__s64	dist_jitter; /* nsec */
 };
 
 enum {
@@ -610,6 +647,30 @@ struct tc_drr_stats {
 #define TC_QOPT_BITMASK 15
 #define TC_QOPT_MAX_QUEUE 16
 
+enum {
+	TC_MQPRIO_HW_OFFLOAD_NONE,	/* no offload requested */
+	TC_MQPRIO_HW_OFFLOAD_TCS,	/* offload TCs, no queue counts */
+	__TC_MQPRIO_HW_OFFLOAD_MAX
+};
+
+#define TC_MQPRIO_HW_OFFLOAD_MAX (__TC_MQPRIO_HW_OFFLOAD_MAX - 1)
+
+enum {
+	TC_MQPRIO_MODE_DCB,
+	TC_MQPRIO_MODE_CHANNEL,
+	__TC_MQPRIO_MODE_MAX
+};
+
+#define __TC_MQPRIO_MODE_MAX (__TC_MQPRIO_MODE_MAX - 1)
+
+enum {
+	TC_MQPRIO_SHAPER_DCB,
+	TC_MQPRIO_SHAPER_BW_RATE,	/* Add new shapers below */
+	__TC_MQPRIO_SHAPER_MAX
+};
+
+#define __TC_MQPRIO_SHAPER_MAX (__TC_MQPRIO_SHAPER_MAX - 1)
+
 struct tc_mqprio_qopt {
 	__u8	num_tc;
 	__u8	prio_tc_map[TC_QOPT_BITMASK + 1];
@@ -617,6 +678,22 @@ struct tc_mqprio_qopt {
 	__u16	count[TC_QOPT_MAX_QUEUE];
 	__u16	offset[TC_QOPT_MAX_QUEUE];
 };
+
+#define TC_MQPRIO_F_MODE		0x1
+#define TC_MQPRIO_F_SHAPER		0x2
+#define TC_MQPRIO_F_MIN_RATE		0x4
+#define TC_MQPRIO_F_MAX_RATE		0x8
+
+enum {
+	TCA_MQPRIO_UNSPEC,
+	TCA_MQPRIO_MODE,
+	TCA_MQPRIO_SHAPER,
+	TCA_MQPRIO_MIN_RATE64,
+	TCA_MQPRIO_MAX_RATE64,
+	__TCA_MQPRIO_MAX,
+};
+
+#define TCA_MQPRIO_MAX (__TCA_MQPRIO_MAX - 1)
 
 /* SFB */
 
@@ -711,6 +788,8 @@ enum {
 	TCA_FQ_CODEL_FLOWS,
 	TCA_FQ_CODEL_QUANTUM,
 	TCA_FQ_CODEL_CE_THRESHOLD,
+	TCA_FQ_CODEL_DROP_BATCH_SIZE,
+	TCA_FQ_CODEL_MEMORY_LIMIT,
 	__TCA_FQ_CODEL_MAX
 };
 
@@ -735,6 +814,8 @@ struct tc_fq_codel_qd_stats {
 	__u32	new_flows_len;	/* count of flows in new list */
 	__u32	old_flows_len;	/* count of flows in old list */
 	__u32	ce_mark;	/* packets above ce_threshold */
+	__u32	memory_usage;	/* in bytes */
+	__u32	drop_overmemory;
 };
 
 struct tc_fq_codel_cl_stats {
@@ -781,6 +862,8 @@ enum {
 
 	TCA_FQ_ORPHAN_MASK,	/* mask applied to orphaned skb hashes */
 
+	TCA_FQ_LOW_RATE_THRESHOLD, /* per packet delay under this rate */
+
 	__TCA_FQ_MAX
 };
 
@@ -798,7 +881,7 @@ struct tc_fq_qd_stats {
 	__u32	flows;
 	__u32	inactive_flows;
 	__u32	throttled_flows;
-	__u32	pad;
+	__u32	unthrottle_latency_ns;
 };
 
 /* Heavy-Hitter Filter */
@@ -850,4 +933,155 @@ struct tc_pie_xstats {
 	__u32 maxq;             /* maximum queue size */
 	__u32 ecn_mark;         /* packets marked with ecn*/
 };
+
+/* CBS */
+struct tc_cbs_qopt {
+	__u8 offload;
+	__u8 _pad[3];
+	__s32 hicredit;
+	__s32 locredit;
+	__s32 idleslope;
+	__s32 sendslope;
+};
+
+enum {
+	TCA_CBS_UNSPEC,
+	TCA_CBS_PARMS,
+	__TCA_CBS_MAX,
+};
+
+#define TCA_CBS_MAX (__TCA_CBS_MAX - 1)
+
+
+/* ETF */
+struct tc_etf_qopt {
+	__s32 delta;
+	__s32 clockid;
+	__u32 flags;
+#define TC_ETF_DEADLINE_MODE_ON	BIT(0)
+#define TC_ETF_OFFLOAD_ON	BIT(1)
+};
+
+enum {
+	TCA_ETF_UNSPEC,
+	TCA_ETF_PARMS,
+	__TCA_ETF_MAX,
+};
+
+#define TCA_ETF_MAX (__TCA_ETF_MAX - 1)
+
+
+/* CAKE */
+enum {
+	TCA_CAKE_UNSPEC,
+	TCA_CAKE_PAD,
+	TCA_CAKE_BASE_RATE64,
+	TCA_CAKE_DIFFSERV_MODE,
+	TCA_CAKE_ATM,
+	TCA_CAKE_FLOW_MODE,
+	TCA_CAKE_OVERHEAD,
+	TCA_CAKE_RTT,
+	TCA_CAKE_TARGET,
+	TCA_CAKE_AUTORATE,
+	TCA_CAKE_MEMORY,
+	TCA_CAKE_NAT,
+	TCA_CAKE_RAW,
+	TCA_CAKE_WASH,
+	TCA_CAKE_MPU,
+	TCA_CAKE_INGRESS,
+	TCA_CAKE_ACK_FILTER,
+	TCA_CAKE_SPLIT_GSO,
+	__TCA_CAKE_MAX
+};
+#define TCA_CAKE_MAX	(__TCA_CAKE_MAX - 1)
+
+enum {
+	__TCA_CAKE_STATS_INVALID,
+	TCA_CAKE_STATS_PAD,
+	TCA_CAKE_STATS_CAPACITY_ESTIMATE64,
+	TCA_CAKE_STATS_MEMORY_LIMIT,
+	TCA_CAKE_STATS_MEMORY_USED,
+	TCA_CAKE_STATS_AVG_NETOFF,
+	TCA_CAKE_STATS_MIN_NETLEN,
+	TCA_CAKE_STATS_MAX_NETLEN,
+	TCA_CAKE_STATS_MIN_ADJLEN,
+	TCA_CAKE_STATS_MAX_ADJLEN,
+	TCA_CAKE_STATS_TIN_STATS,
+	TCA_CAKE_STATS_DEFICIT,
+	TCA_CAKE_STATS_COBALT_COUNT,
+	TCA_CAKE_STATS_DROPPING,
+	TCA_CAKE_STATS_DROP_NEXT_US,
+	TCA_CAKE_STATS_P_DROP,
+	TCA_CAKE_STATS_BLUE_TIMER_US,
+	__TCA_CAKE_STATS_MAX
+};
+#define TCA_CAKE_STATS_MAX (__TCA_CAKE_STATS_MAX - 1)
+
+enum {
+	__TCA_CAKE_TIN_STATS_INVALID,
+	TCA_CAKE_TIN_STATS_PAD,
+	TCA_CAKE_TIN_STATS_SENT_PACKETS,
+	TCA_CAKE_TIN_STATS_SENT_BYTES64,
+	TCA_CAKE_TIN_STATS_DROPPED_PACKETS,
+	TCA_CAKE_TIN_STATS_DROPPED_BYTES64,
+	TCA_CAKE_TIN_STATS_ACKS_DROPPED_PACKETS,
+	TCA_CAKE_TIN_STATS_ACKS_DROPPED_BYTES64,
+	TCA_CAKE_TIN_STATS_ECN_MARKED_PACKETS,
+	TCA_CAKE_TIN_STATS_ECN_MARKED_BYTES64,
+	TCA_CAKE_TIN_STATS_BACKLOG_PACKETS,
+	TCA_CAKE_TIN_STATS_BACKLOG_BYTES,
+	TCA_CAKE_TIN_STATS_THRESHOLD_RATE64,
+	TCA_CAKE_TIN_STATS_TARGET_US,
+	TCA_CAKE_TIN_STATS_INTERVAL_US,
+	TCA_CAKE_TIN_STATS_WAY_INDIRECT_HITS,
+	TCA_CAKE_TIN_STATS_WAY_MISSES,
+	TCA_CAKE_TIN_STATS_WAY_COLLISIONS,
+	TCA_CAKE_TIN_STATS_PEAK_DELAY_US,
+	TCA_CAKE_TIN_STATS_AVG_DELAY_US,
+	TCA_CAKE_TIN_STATS_BASE_DELAY_US,
+	TCA_CAKE_TIN_STATS_SPARSE_FLOWS,
+	TCA_CAKE_TIN_STATS_BULK_FLOWS,
+	TCA_CAKE_TIN_STATS_UNRESPONSIVE_FLOWS,
+	TCA_CAKE_TIN_STATS_MAX_SKBLEN,
+	TCA_CAKE_TIN_STATS_FLOW_QUANTUM,
+	__TCA_CAKE_TIN_STATS_MAX
+};
+#define TCA_CAKE_TIN_STATS_MAX (__TCA_CAKE_TIN_STATS_MAX - 1)
+#define TC_CAKE_MAX_TINS (8)
+
+enum {
+	CAKE_FLOW_NONE = 0,
+	CAKE_FLOW_SRC_IP,
+	CAKE_FLOW_DST_IP,
+	CAKE_FLOW_HOSTS,    /* = CAKE_FLOW_SRC_IP | CAKE_FLOW_DST_IP */
+	CAKE_FLOW_FLOWS,
+	CAKE_FLOW_DUAL_SRC, /* = CAKE_FLOW_SRC_IP | CAKE_FLOW_FLOWS */
+	CAKE_FLOW_DUAL_DST, /* = CAKE_FLOW_DST_IP | CAKE_FLOW_FLOWS */
+	CAKE_FLOW_TRIPLE,   /* = CAKE_FLOW_HOSTS  | CAKE_FLOW_FLOWS */
+	CAKE_FLOW_MAX,
+};
+
+enum {
+	CAKE_DIFFSERV_DIFFSERV3 = 0,
+	CAKE_DIFFSERV_DIFFSERV4,
+	CAKE_DIFFSERV_DIFFSERV8,
+	CAKE_DIFFSERV_BESTEFFORT,
+	CAKE_DIFFSERV_PRECEDENCE,
+	CAKE_DIFFSERV_MAX
+};
+
+enum {
+	CAKE_ACK_NONE = 0,
+	CAKE_ACK_FILTER,
+	CAKE_ACK_AGGRESSIVE,
+	CAKE_ACK_MAX
+};
+
+enum {
+	CAKE_ATM_NONE = 0,
+	CAKE_ATM_ATM,
+	CAKE_ATM_PTM,
+	CAKE_ATM_MAX
+};
+
 #endif

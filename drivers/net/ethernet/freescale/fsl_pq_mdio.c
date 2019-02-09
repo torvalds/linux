@@ -29,7 +29,7 @@
 
 #include <asm/io.h>
 #if IS_ENABLED(CONFIG_UCC_GETH)
-#include <asm/ucc.h>	/* for ucc_set_qe_mux_mii_mng() */
+#include <soc/fsl/qe/ucc.h>
 #endif
 
 #include "gianfar.h"
@@ -69,7 +69,6 @@ struct fsl_pq_mdio {
 struct fsl_pq_mdio_priv {
 	void __iomem *map;
 	struct fsl_pq_mii __iomem *regs;
-	int irqs[PHY_MAX_ADDR];
 };
 
 /*
@@ -196,7 +195,7 @@ static int fsl_pq_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
-#if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
+#if IS_ENABLED(CONFIG_GIANFAR)
 /*
  * Return the TBIPA address, starting from the address
  * of the mapped GFAR MDIO registers (struct gfar)
@@ -229,7 +228,7 @@ static uint32_t __iomem *get_etsec_tbipa(void __iomem *p)
 }
 #endif
 
-#if defined(CONFIG_UCC_GETH) || defined(CONFIG_UCC_GETH_MODULE)
+#if IS_ENABLED(CONFIG_UCC_GETH)
 /*
  * Return the TBIPAR address for a QE MDIO node, starting from the address
  * of the mapped MII registers (struct fsl_pq_mii)
@@ -268,8 +267,8 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 
 		ret = of_address_to_resource(np, 0, &res);
 		if (ret < 0) {
-			pr_debug("fsl-pq-mdio: no address range in node %s\n",
-				 np->full_name);
+			pr_debug("fsl-pq-mdio: no address range in node %pOF\n",
+				 np);
 			continue;
 		}
 
@@ -281,8 +280,8 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 		if (!iprop) {
 			iprop = of_get_property(np, "device-id", NULL);
 			if (!iprop) {
-				pr_debug("fsl-pq-mdio: no UCC ID in node %s\n",
-					 np->full_name);
+				pr_debug("fsl-pq-mdio: no UCC ID in node %pOF\n",
+					 np);
 				continue;
 			}
 		}
@@ -294,8 +293,8 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 		 * numbered from 1, not 0.
 		 */
 		if (ucc_set_qe_mux_mii_mng(id - 1) < 0) {
-			pr_debug("fsl-pq-mdio: invalid UCC ID in node %s\n",
-				 np->full_name);
+			pr_debug("fsl-pq-mdio: invalid UCC ID in node %pOF\n",
+				 np);
 			continue;
 		}
 
@@ -307,7 +306,7 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 #endif
 
 static const struct of_device_id fsl_pq_mdio_match[] = {
-#if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
+#if IS_ENABLED(CONFIG_GIANFAR)
 	{
 		.compatible = "fsl,gianfar-tbi",
 		.data = &(struct fsl_pq_mdio_data) {
@@ -345,7 +344,7 @@ static const struct of_device_id fsl_pq_mdio_match[] = {
 		},
 	},
 #endif
-#if defined(CONFIG_UCC_GETH) || defined(CONFIG_UCC_GETH_MODULE)
+#if IS_ENABLED(CONFIG_UCC_GETH)
 	{
 		.compatible = "fsl,ucc-mdio",
 		.data = &(struct fsl_pq_mdio_data) {
@@ -378,17 +377,56 @@ static const struct of_device_id fsl_pq_mdio_match[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_pq_mdio_match);
 
+static void set_tbipa(const u32 tbipa_val, struct platform_device *pdev,
+		      uint32_t __iomem * (*get_tbipa)(void __iomem *),
+		      void __iomem *reg_map, struct resource *reg_res)
+{
+	struct device_node *np = pdev->dev.of_node;
+	uint32_t __iomem *tbipa;
+	bool tbipa_mapped;
+
+	tbipa = of_iomap(np, 1);
+	if (tbipa) {
+		tbipa_mapped = true;
+	} else {
+		tbipa_mapped = false;
+		tbipa = (*get_tbipa)(reg_map);
+
+		/*
+		 * Add consistency check to make sure TBI is contained within
+		 * the mapped range (not because we would get a segfault,
+		 * rather to catch bugs in computing TBI address). Print error
+		 * message but continue anyway.
+		 */
+		if ((void *)tbipa > reg_map + resource_size(reg_res) - 4)
+			dev_err(&pdev->dev, "invalid register map (should be at least 0x%04zx to contain TBI address)\n",
+				((void *)tbipa - reg_map) + 4);
+	}
+
+	iowrite32be(be32_to_cpu(tbipa_val), tbipa);
+
+	if (tbipa_mapped)
+		iounmap(tbipa);
+}
+
 static int fsl_pq_mdio_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id =
 		of_match_device(fsl_pq_mdio_match, &pdev->dev);
-	const struct fsl_pq_mdio_data *data = id->data;
+	const struct fsl_pq_mdio_data *data;
 	struct device_node *np = pdev->dev.of_node;
 	struct resource res;
 	struct device_node *tbi;
 	struct fsl_pq_mdio_priv *priv;
 	struct mii_bus *new_bus;
 	int err;
+
+	if (!id) {
+		dev_err(&pdev->dev, "Failed to match device\n");
+		return -ENODEV;
+	}
+
+	data = id->data;
 
 	dev_dbg(&pdev->dev, "found %s compatible node\n", id->compatible);
 
@@ -401,7 +439,6 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 	new_bus->read = &fsl_pq_mdio_read;
 	new_bus->write = &fsl_pq_mdio_write;
 	new_bus->reset = &fsl_pq_mdio_reset;
-	new_bus->irq = priv->irqs;
 
 	err = of_address_to_resource(np, 0, &res);
 	if (err < 0) {
@@ -437,37 +474,23 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 	if (data->get_tbipa) {
 		for_each_child_of_node(np, tbi) {
 			if (strcmp(tbi->type, "tbi-phy") == 0) {
-				dev_dbg(&pdev->dev, "found TBI PHY node %s\n",
-					strrchr(tbi->full_name, '/') + 1);
+				dev_dbg(&pdev->dev, "found TBI PHY node %pOFP\n",
+					tbi);
 				break;
 			}
 		}
 
 		if (tbi) {
 			const u32 *prop = of_get_property(tbi, "reg", NULL);
-			uint32_t __iomem *tbipa;
-
 			if (!prop) {
 				dev_err(&pdev->dev,
-					"missing 'reg' property in node %s\n",
-					tbi->full_name);
+					"missing 'reg' property in node %pOF\n",
+					tbi);
 				err = -EBUSY;
 				goto error;
 			}
-
-			tbipa = data->get_tbipa(priv->map);
-
-			/*
-			 * Add consistency check to make sure TBI is contained
-			 * within the mapped range (not because we would get a
-			 * segfault, rather to catch bugs in computing TBI
-			 * address). Print error message but continue anyway.
-			 */
-			if ((void *)tbipa > priv->map + resource_size(&res) - 4)
-				dev_err(&pdev->dev, "invalid register map (should be at least 0x%04zx to contain TBI address)\n",
-					((void *)tbipa - priv->map) + 4);
-
-			iowrite32be(be32_to_cpup(prop), tbipa);
+			set_tbipa(*prop, pdev,
+				  data->get_tbipa, priv->map, &res);
 		}
 	}
 

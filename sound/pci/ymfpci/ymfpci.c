@@ -55,12 +55,12 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for the Yamaha DS-1 PCI soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Yamaha DS-1 soundcard.");
-module_param_array(mpu_port, long, NULL, 0444);
+module_param_hw_array(mpu_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 Port.");
-module_param_array(fm_port, long, NULL, 0444);
+module_param_hw_array(fm_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(fm_port, "FM OPL-3 Port.");
 #ifdef SUPPORT_JOYSTICK
-module_param_array(joystick_port, long, NULL, 0444);
+module_param_hw_array(joystick_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(joystick_port, "Joystick port address");
 #endif
 module_param_array(rear_switch, bool, NULL, 0444);
@@ -268,10 +268,9 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 	if ((err = snd_ymfpci_create(card, pci,
 				     old_legacy_ctrl,
 			 	     &chip)) < 0) {
-		snd_card_free(card);
 		release_and_free_resource(mpu_res);
 		release_and_free_resource(fm_res);
-		return err;
+		goto free_card;
 	}
 	chip->fm_res = fm_res;
 	chip->mpu_res = mpu_res;
@@ -283,35 +282,31 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 		card->shortname,
 		chip->reg_area_phys,
 		chip->irq);
-	if ((err = snd_ymfpci_pcm(chip, 0)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_ymfpci_pcm_spdif(chip, 1)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_ymfpci_pcm(chip, 0);
+	if (err < 0)
+		goto free_card;
+
+	err = snd_ymfpci_pcm_spdif(chip, 1);
+	if (err < 0)
+		goto free_card;
+
 	err = snd_ymfpci_mixer(chip, rear_switch[dev]);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto free_card;
+
 	if (chip->ac97->ext_id & AC97_EI_SDAC) {
 		err = snd_ymfpci_pcm_4ch(chip, 2);
-		if (err < 0) {
-			snd_card_free(card);
-			return err;
-		}
+		if (err < 0)
+			goto free_card;
+
 		err = snd_ymfpci_pcm2(chip, 3);
-		if (err < 0) {
-			snd_card_free(card);
-			return err;
-		}
+		if (err < 0)
+			goto free_card;
 	}
-	if ((err = snd_ymfpci_timer(chip, 0)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_ymfpci_timer(chip, 0);
+	if (err < 0)
+		goto free_card;
+
 	if (chip->mpu_res) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_YMFPCI,
 					       mpu_port[dev],
@@ -336,21 +331,24 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 			legacy_ctrl &= ~YMFPCI_LEGACY_FMEN;
 			pci_write_config_word(pci, PCIR_DSXG_LEGACY, legacy_ctrl);
 		} else if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-			snd_card_free(card);
 			dev_err(card->dev, "cannot create opl3 hwdep\n");
-			return err;
+			goto free_card;
 		}
 	}
 
 	snd_ymfpci_create_gameport(chip, dev, legacy_ctrl, legacy_ctrl2);
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_card_register(card);
+	if (err < 0)
+		goto free_card;
+
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
+
+free_card:
+	snd_card_free(card);
+	return err;
 }
 
 static void snd_card_ymfpci_remove(struct pci_dev *pci)

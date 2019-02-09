@@ -9,6 +9,7 @@
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
 #include <linux/module.h>
+#include <asm/cacheflush.h>
 #include <asm/cpuidle.h>
 #include <asm/suspend.h>
 
@@ -17,6 +18,15 @@
 
 static int imx6sx_idle_finish(unsigned long val)
 {
+	/*
+	 * for Cortex-A7 which has an internal L2
+	 * cache, need to flush it before powering
+	 * down ARM platform, since flushing L1 cache
+	 * here again has very small overhead, compared
+	 * to adding conditional code for L2 cache type,
+	 * just call flush_cache_all() is fine.
+	 */
+	flush_cache_all();
 	cpu_do_idle();
 
 	return 0;
@@ -79,6 +89,7 @@ static struct cpuidle_driver imx6sx_cpuidle_driver = {
 			 */
 			.exit_latency = 300,
 			.target_residency = 500,
+			.flags = CPUIDLE_FLAG_TIMER_STOP,
 			.enter = imx6sx_enter_wait,
 			.name = "LOW-POWER-IDLE",
 			.desc = "ARM power off",
@@ -90,14 +101,16 @@ static struct cpuidle_driver imx6sx_cpuidle_driver = {
 
 int __init imx6sx_cpuidle_init(void)
 {
+	imx6_set_int_mem_clk_lpm(true);
 	imx6_enable_rbc(false);
+	imx_gpc_set_l2_mem_power_in_lpm(false);
 	/*
 	 * set ARM power up/down timing to the fastest,
 	 * sw2iso and sw can be set to one 32K cycle = 31us
 	 * except for power up sw2iso which need to be
 	 * larger than LDO ramp up time.
 	 */
-	imx_gpc_set_arm_power_up_timing(2, 1);
+	imx_gpc_set_arm_power_up_timing(0xf, 1);
 	imx_gpc_set_arm_power_down_timing(1, 1);
 
 	return cpuidle_register(&imx6sx_cpuidle_driver, NULL);

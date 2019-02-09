@@ -26,19 +26,19 @@
 
 /* clocks in AO (always on) controller */
 static struct hisi_fixed_rate_clock hi6220_fixed_rate_clks[] __initdata = {
-	{ HI6220_REF32K,	"ref32k",	NULL, CLK_IS_ROOT, 32764,     },
-	{ HI6220_CLK_TCXO,	"clk_tcxo",	NULL, CLK_IS_ROOT, 19200000,  },
-	{ HI6220_MMC1_PAD,	"mmc1_pad",	NULL, CLK_IS_ROOT, 100000000, },
-	{ HI6220_MMC2_PAD,	"mmc2_pad",	NULL, CLK_IS_ROOT, 100000000, },
-	{ HI6220_MMC0_PAD,	"mmc0_pad",	NULL, CLK_IS_ROOT, 200000000, },
-	{ HI6220_PLL_BBP,	"bbppll0",	NULL, CLK_IS_ROOT, 245760000, },
-	{ HI6220_PLL_GPU,	"gpupll",	NULL, CLK_IS_ROOT, 1000000000,},
-	{ HI6220_PLL1_DDR,	"ddrpll1",	NULL, CLK_IS_ROOT, 1066000000,},
-	{ HI6220_PLL_SYS,	"syspll",	NULL, CLK_IS_ROOT, 1200000000,},
-	{ HI6220_PLL_SYS_MEDIA,	"media_syspll",	NULL, CLK_IS_ROOT, 1200000000,},
-	{ HI6220_DDR_SRC,	"ddr_sel_src",  NULL, CLK_IS_ROOT, 1200000000,},
-	{ HI6220_PLL_MEDIA,	"media_pll",    NULL, CLK_IS_ROOT, 1440000000,},
-	{ HI6220_PLL_DDR,	"ddrpll0",      NULL, CLK_IS_ROOT, 1600000000,},
+	{ HI6220_REF32K,	"ref32k",	NULL, 0, 32764,     },
+	{ HI6220_CLK_TCXO,	"clk_tcxo",	NULL, 0, 19200000,  },
+	{ HI6220_MMC1_PAD,	"mmc1_pad",	NULL, 0, 100000000, },
+	{ HI6220_MMC2_PAD,	"mmc2_pad",	NULL, 0, 100000000, },
+	{ HI6220_MMC0_PAD,	"mmc0_pad",	NULL, 0, 200000000, },
+	{ HI6220_PLL_BBP,	"bbppll0",	NULL, 0, 245760000, },
+	{ HI6220_PLL_GPU,	"gpupll",	NULL, 0, 1000000000,},
+	{ HI6220_PLL1_DDR,	"ddrpll1",	NULL, 0, 1066000000,},
+	{ HI6220_PLL_SYS,	"syspll",	NULL, 0, 1190400000,},
+	{ HI6220_PLL_SYS_MEDIA,	"media_syspll",	NULL, 0, 1190400000,},
+	{ HI6220_DDR_SRC,	"ddr_sel_src",  NULL, 0, 1200000000,},
+	{ HI6220_PLL_MEDIA,	"media_pll",    NULL, 0, 1440000000,},
+	{ HI6220_PLL_DDR,	"ddrpll0",      NULL, 0, 1600000000,},
 };
 
 static struct hisi_fixed_factor_clock hi6220_fixed_factor_clks[] __initdata = {
@@ -55,9 +55,9 @@ static struct hisi_fixed_factor_clock hi6220_fixed_factor_clks[] __initdata = {
 };
 
 static struct hisi_gate_clock hi6220_separated_gate_clks_ao[] __initdata = {
-	{ HI6220_WDT0_PCLK,   "wdt0_pclk",   "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 12, 0, },
-	{ HI6220_WDT1_PCLK,   "wdt1_pclk",   "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 13, 0, },
-	{ HI6220_WDT2_PCLK,   "wdt2_pclk",   "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 14, 0, },
+	{ HI6220_WDT0_PCLK,   "wdt0_pclk",   "ref32k",   CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 12, 0, },
+	{ HI6220_WDT1_PCLK,   "wdt1_pclk",   "ref32k",   CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 13, 0, },
+	{ HI6220_WDT2_PCLK,   "wdt2_pclk",   "ref32k",   CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 14, 0, },
 	{ HI6220_TIMER0_PCLK, "timer0_pclk", "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 15, 0, },
 	{ HI6220_TIMER1_PCLK, "timer1_pclk", "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 16, 0, },
 	{ HI6220_TIMER2_PCLK, "timer2_pclk", "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 17, 0, },
@@ -68,6 +68,8 @@ static struct hisi_gate_clock hi6220_separated_gate_clks_ao[] __initdata = {
 	{ HI6220_TIMER7_PCLK, "timer7_pclk", "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 22, 0, },
 	{ HI6220_TIMER8_PCLK, "timer8_pclk", "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 23, 0, },
 	{ HI6220_UART0_PCLK,  "uart0_pclk",  "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 24, 0, },
+	{ HI6220_RTC0_PCLK,   "rtc0_pclk",   "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 25, 0, },
+	{ HI6220_RTC1_PCLK,   "rtc1_pclk",   "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 26, 0, },
 };
 
 static void __init hi6220_clk_ao_init(struct device_node *np)
@@ -132,6 +134,7 @@ static struct hisi_gate_clock hi6220_separated_gate_clks_sys[] __initdata = {
 	{ HI6220_UART4_PCLK,    "uart4_pclk",    "uart4_src",      CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x230, 8,  0, },
 	{ HI6220_SPI_CLK,       "spi_clk",       "clk_150m",       CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x230, 9,  0, },
 	{ HI6220_TSENSOR_CLK,   "tsensor_clk",   "clk_bus",        CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x230, 12, 0, },
+	{ HI6220_DAPB_CLK,      "dapb_clk",      "cs_dapb",        CLK_SET_RATE_PARENT|CLK_IS_CRITICAL,   0x230, 18, 0, },
 	{ HI6220_MMU_CLK,       "mmu_clk",       "ddrc_axi1",      CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x240, 11, 0, },
 	{ HI6220_HIFI_SEL,      "hifi_sel",      "hifi_src",       CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x270, 0,  0, },
 	{ HI6220_MMC0_SYSPLL,   "mmc0_syspll",   "syspll",         CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x270, 1,  0, },
@@ -142,7 +145,7 @@ static struct hisi_gate_clock hi6220_separated_gate_clks_sys[] __initdata = {
 	{ HI6220_BBPPLL_SEL,    "bbppll_sel",    "pll0_bbp_gate",  CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x270, 9,  0, },
 	{ HI6220_MEDIA_PLL_SRC, "media_pll_src", "pll_media_gate", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x270, 10, 0, },
 	{ HI6220_MMC2_SEL,      "mmc2_sel",      "mmc2_mux1",      CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x270, 11, 0, },
-	{ HI6220_CS_ATB_SYSPLL, "cs_atb_syspll", "syspll",         CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x270, 12, 0, },
+	{ HI6220_CS_ATB_SYSPLL, "cs_atb_syspll", "syspll",         CLK_SET_RATE_PARENT|CLK_IS_CRITICAL,   0x270, 12, 0, },
 };
 
 static struct hisi_mux_clock hi6220_mux_clks_sys[] __initdata = {
@@ -193,7 +196,7 @@ static void __init hi6220_clk_sys_init(struct device_node *np)
 	hi6220_clk_register_divider(hi6220_div_clks_sys,
 			ARRAY_SIZE(hi6220_div_clks_sys), clk_data);
 }
-CLK_OF_DECLARE(hi6220_clk_sys, "hisilicon,hi6220-sysctrl", hi6220_clk_sys_init);
+CLK_OF_DECLARE_DRIVER(hi6220_clk_sys, "hisilicon,hi6220-sysctrl", hi6220_clk_sys_init);
 
 
 /* clocks in media controller */
@@ -250,7 +253,7 @@ static void __init hi6220_clk_media_init(struct device_node *np)
 	hi6220_clk_register_divider(hi6220_div_clks_media,
 				ARRAY_SIZE(hi6220_div_clks_media), clk_data);
 }
-CLK_OF_DECLARE(hi6220_clk_media, "hisilicon,hi6220-mediactrl", hi6220_clk_media_init);
+CLK_OF_DECLARE_DRIVER(hi6220_clk_media, "hisilicon,hi6220-mediactrl", hi6220_clk_media_init);
 
 
 /* clocks in pmctrl */
@@ -282,3 +285,25 @@ static void __init hi6220_clk_power_init(struct device_node *np)
 				ARRAY_SIZE(hi6220_div_clks_power), clk_data);
 }
 CLK_OF_DECLARE(hi6220_clk_power, "hisilicon,hi6220-pmctrl", hi6220_clk_power_init);
+
+/* clocks in acpu */
+static const struct hisi_gate_clock hi6220_acpu_sc_gate_sep_clks[] = {
+	{ HI6220_ACPU_SFT_AT_S, "sft_at_s", "cs_atb",
+	  CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0xc, 11, 0, },
+};
+
+static void __init hi6220_clk_acpu_init(struct device_node *np)
+{
+	struct hisi_clock_data *clk_data;
+	int nr = ARRAY_SIZE(hi6220_acpu_sc_gate_sep_clks);
+
+	clk_data = hisi_clk_init(np, nr);
+	if (!clk_data)
+		return;
+
+	hisi_clk_register_gate_sep(hi6220_acpu_sc_gate_sep_clks,
+				   ARRAY_SIZE(hi6220_acpu_sc_gate_sep_clks),
+				   clk_data);
+}
+
+CLK_OF_DECLARE(hi6220_clk_acpu, "hisilicon,hi6220-acpu-sctrl", hi6220_clk_acpu_init);

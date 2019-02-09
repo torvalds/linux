@@ -1,5 +1,9 @@
+===================
 this_cpu operations
--------------------
+===================
+
+:Author: Christoph Lameter, August 4th, 2014
+:Author: Pranith Kumar, Aug 2nd, 2014
 
 this_cpu operations are a way of optimizing access to per cpu
 variables associated with the *currently* executing processor. This is
@@ -39,7 +43,7 @@ operations.
 
 The following this_cpu() operations with implied preemption protection
 are defined. These operations can be used without worrying about
-preemption and interrupts.
+preemption and interrupts::
 
 	this_cpu_read(pcp)
 	this_cpu_write(pcp, val)
@@ -67,14 +71,14 @@ to relocate a per cpu relative address to the proper per cpu area for
 the processor. So the relocation to the per cpu base is encoded in the
 instruction via a segment register prefix.
 
-For example:
+For example::
 
 	DEFINE_PER_CPU(int, x);
 	int z;
 
 	z = this_cpu_read(x);
 
-results in a single instruction
+results in a single instruction::
 
 	mov ax, gs:[x]
 
@@ -84,16 +88,16 @@ this_cpu_ops such sequence also required preempt disable/enable to
 prevent the kernel from moving the thread to a different processor
 while the calculation is performed.
 
-Consider the following this_cpu operation:
+Consider the following this_cpu operation::
 
 	this_cpu_inc(x)
 
-The above results in the following single instruction (no lock prefix!)
+The above results in the following single instruction (no lock prefix!)::
 
 	inc gs:[x]
 
 instead of the following operations required if there is no segment
-register:
+register::
 
 	int *y;
 	int cpu;
@@ -121,8 +125,10 @@ has to be paid for this optimization is the need to add up the per cpu
 counters when the value of a counter is needed.
 
 
-Special operations:
--------------------
+Special operations
+------------------
+
+::
 
 	y = this_cpu_ptr(&x)
 
@@ -153,10 +159,14 @@ Therefore the use of x or &x outside of the context of per cpu
 operations is invalid and will generally be treated like a NULL
 pointer dereference.
 
+::
+
 	DEFINE_PER_CPU(int, x);
 
 In the context of per cpu operations the above implies that x is a per
 cpu variable. Most this_cpu operations take a cpu variable.
+
+::
 
 	int __percpu *p = &x;
 
@@ -168,7 +178,7 @@ strange.
 Operations on a field of a per cpu structure
 --------------------------------------------
 
-Let's say we have a percpu structure
+Let's say we have a percpu structure::
 
 	struct s {
 		int n,m;
@@ -177,14 +187,14 @@ Let's say we have a percpu structure
 	DEFINE_PER_CPU(struct s, p);
 
 
-Operations on these fields are straightforward
+Operations on these fields are straightforward::
 
 	this_cpu_inc(p.m)
 
 	z = this_cpu_cmpxchg(p.m, 0, 1);
 
 
-If we have an offset to struct s:
+If we have an offset to struct s::
 
 	struct s __percpu *ps = &p;
 
@@ -194,7 +204,7 @@ If we have an offset to struct s:
 
 
 The calculation of the pointer may require the use of this_cpu_ptr()
-if we do not make use of this_cpu ops later to manipulate fields:
+if we do not make use of this_cpu ops later to manipulate fields::
 
 	struct s *pp;
 
@@ -206,7 +216,7 @@ if we do not make use of this_cpu ops later to manipulate fields:
 
 
 Variants of this_cpu ops
--------------------------
+------------------------
 
 this_cpu ops are interrupt safe. Some architectures do not support
 these per cpu local operations. In that case the operation must be
@@ -222,7 +232,7 @@ preemption. If a per cpu variable is not used in an interrupt context
 and the scheduler cannot preempt, then they are safe. If any interrupts
 still occur while an operation is in progress and if the interrupt too
 modifies the variable, then RMW actions can not be guaranteed to be
-safe.
+safe::
 
 	__this_cpu_read(pcp)
 	__this_cpu_write(pcp, val)
@@ -279,7 +289,7 @@ unless absolutely necessary. Please consider using an IPI to wake up
 the remote CPU and perform the update to its per cpu area.
 
 To access per-cpu data structure remotely, typically the per_cpu_ptr()
-function is used:
+function is used::
 
 
 	DEFINE_PER_CPU(struct data, datap);
@@ -289,7 +299,7 @@ function is used:
 This makes it explicit that we are getting ready to access a percpu
 area remotely.
 
-You can also do the following to convert the datap offset to an address
+You can also do the following to convert the datap offset to an address::
 
 	struct data *p = this_cpu_ptr(&datap);
 
@@ -305,7 +315,7 @@ the following scenario that occurs because two per cpu variables
 share a cache-line but the relaxed synchronization is applied to
 only one process updating the cache-line.
 
-Consider the following example
+Consider the following example::
 
 
 	struct test {
@@ -327,6 +337,3 @@ mind that a remote write will evict the cache line from the processor
 that most likely will access it. If the processor wakes up and finds a
 missing local cache line of a per cpu area, its performance and hence
 the wake up times will be affected.
-
-Christoph Lameter, August 4th, 2014
-Pranith Kumar, Aug 2nd, 2014

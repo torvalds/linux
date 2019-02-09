@@ -133,7 +133,8 @@ static void *jffs2_acl_to_medium(const struct posix_acl *acl, size_t *size)
 	size_t i;
 
 	*size = jffs2_acl_size(acl->a_count);
-	header = kmalloc(sizeof(*header) + acl->a_count * sizeof(*entry), GFP_KERNEL);
+	header = kmalloc(struct_size(header, a_entries, acl->a_count),
+			GFP_KERNEL);
 	if (!header)
 		return ERR_PTR(-ENOMEM);
 	header->a_version = cpu_to_je32(JFFS2_ACL_VERSION);
@@ -203,8 +204,6 @@ struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 		acl = ERR_PTR(rc);
 	}
 	kfree(value);
-	if (!IS_ERR(acl))
-		set_cached_acl(inode, type, acl);
 	return acl;
 }
 
@@ -235,22 +234,21 @@ int jffs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	case ACL_TYPE_ACCESS:
 		xprefix = JFFS2_XPREFIX_ACL_ACCESS;
 		if (acl) {
-			umode_t mode = inode->i_mode;
-			rc = posix_acl_equiv_mode(acl, &mode);
-			if (rc < 0)
+			umode_t mode;
+
+			rc = posix_acl_update_mode(inode, &mode, &acl);
+			if (rc)
 				return rc;
 			if (inode->i_mode != mode) {
 				struct iattr attr;
 
 				attr.ia_valid = ATTR_MODE | ATTR_CTIME;
 				attr.ia_mode = mode;
-				attr.ia_ctime = CURRENT_TIME_SEC;
+				attr.ia_ctime = current_time(inode);
 				rc = jffs2_do_setattr(inode, &attr);
 				if (rc < 0)
 					return rc;
 			}
-			if (rc == 0)
-				acl = NULL;
 		}
 		break;
 	case ACL_TYPE_DEFAULT:

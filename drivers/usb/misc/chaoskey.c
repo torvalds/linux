@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * chaoskey - driver for ChaosKey device from Altus Metrum.
  *
@@ -11,15 +12,6 @@
  * bit stream.
  *
  * Copyright © 2015 Keith Packard <keithp@keithp.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the GNU
- * General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -42,12 +34,10 @@ static int chaoskey_rng_read(struct hwrng *rng, void *data,
 	dev_err(&(usb_if)->dev, format, ## arg)
 
 /* Version Information */
-#define DRIVER_VERSION	"v0.1"
 #define DRIVER_AUTHOR	"Keith Packard, keithp@keithp.com"
 #define DRIVER_DESC	"Altus Metrum ChaosKey driver"
 #define DRIVER_SHORT	"chaoskey"
 
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
@@ -55,9 +45,13 @@ MODULE_LICENSE("GPL");
 #define CHAOSKEY_VENDOR_ID	0x1d50	/* OpenMoko */
 #define CHAOSKEY_PRODUCT_ID	0x60c6	/* ChaosKey */
 
+#define ALEA_VENDOR_ID		0x12d8	/* Araneus */
+#define ALEA_PRODUCT_ID		0x0001	/* Alea I */
+
 #define CHAOSKEY_BUF_LEN	64	/* max size of USB full speed packet */
 
-#define NAK_TIMEOUT (HZ)		/* stall/wait timeout for device */
+#define NAK_TIMEOUT (HZ)		/* normal stall/wait timeout */
+#define ALEA_FIRST_TIMEOUT (HZ*3)	/* first stall/wait timeout for Alea */
 
 #ifdef CONFIG_USB_DYNAMIC_MINORS
 #define USB_CHAOSKEY_MINOR_BASE 0
@@ -69,9 +63,12 @@ MODULE_LICENSE("GPL");
 
 static const struct usb_device_id chaoskey_table[] = {
 	{ USB_DEVICE(CHAOSKEY_VENDOR_ID, CHAOSKEY_PRODUCT_ID) },
+	{ USB_DEVICE(ALEA_VENDOR_ID, ALEA_PRODUCT_ID) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, chaoskey_table);
+
+static void chaos_read_callback(struct urb *urb);
 
 /* Driver-local specific stuff */
 struct chaoskey {
@@ -80,7 +77,9 @@ struct chaoskey {
 	struct mutex lock;
 	struct mutex rng_lock;
 	int open;			/* open count */
-	int present;			/* device not disconnected */
+	bool present;			/* device not disconnected */
+	bool reading;			/* ongoing IO */
+	bool reads_started;		/* track first read for Alea */
 	int size;			/* size of buf */
 	int valid;			/* bytes of buf read */
 	int used;			/* bytes of buf consumed */
@@ -88,15 +87,19 @@ struct chaoskey {
 	struct hwrng hwrng;		/* Embedded struct for hwrng */
 	int hwrng_registered;		/* registered with hwrng API */
 	wait_queue_head_t wait_q;	/* for timeouts */
+	struct urb *urb;		/* for performing IO */
 	char *buf;
 };
 
 static void chaoskey_free(struct chaoskey *dev)
 {
-	usb_dbg(dev->interface, "free");
-	kfree(dev->name);
-	kfree(dev->buf);
-	kfree(dev);
+	if (dev) {
+		usb_dbg(dev->interface, "free");
+		usb_free_urb(dev->urb);
+		kfree(dev->name);
+		kfree(dev->buf);
+		kfree(dev);
+	}
 }
 
 static int chaoskey_probe(struct usb_interface *interface,
@@ -104,28 +107,26 @@ static int chaoskey_probe(struct usb_interface *interface,
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct usb_host_interface *altsetting = interface->cur_altsetting;
-	int i;
-	int in_ep = -1;
+	struct usb_endpoint_descriptor *epd;
+	int in_ep;
 	struct chaoskey *dev;
-	int result;
+	int result = -ENOMEM;
 	int size;
+	int res;
 
 	usb_dbg(interface, "probe %s-%s", udev->product, udev->serial);
 
 	/* Find the first bulk IN endpoint and its packet size */
-	for (i = 0; i < altsetting->desc.bNumEndpoints; i++) {
-		if (usb_endpoint_is_bulk_in(&altsetting->endpoint[i].desc)) {
-			in_ep = usb_endpoint_num(&altsetting->endpoint[i].desc);
-			size = usb_endpoint_maxp(&altsetting->endpoint[i].desc);
-			break;
-		}
+	res = usb_find_bulk_in_endpoint(altsetting, &epd);
+	if (res) {
+		usb_dbg(interface, "no IN endpoint found");
+		return res;
 	}
 
+	in_ep = usb_endpoint_num(epd);
+	size = usb_endpoint_maxp(epd);
+
 	/* Validate endpoint and size */
-	if (in_ep == -1) {
-		usb_dbg(interface, "no IN endpoint found");
-		return -ENODEV;
-	}
 	if (size <= 0) {
 		usb_dbg(interface, "invalid size (%d)", size);
 		return -ENODEV;
@@ -142,39 +143,46 @@ static int chaoskey_probe(struct usb_interface *interface,
 	dev = kzalloc(sizeof(struct chaoskey), GFP_KERNEL);
 
 	if (dev == NULL)
-		return -ENOMEM;
+		goto out;
 
 	dev->buf = kmalloc(size, GFP_KERNEL);
 
-	if (dev->buf == NULL) {
-		kfree(dev);
-		return -ENOMEM;
-	}
+	if (dev->buf == NULL)
+		goto out;
+
+	dev->urb = usb_alloc_urb(0, GFP_KERNEL);
+
+	if (!dev->urb)
+		goto out;
+
+	usb_fill_bulk_urb(dev->urb,
+		udev,
+		usb_rcvbulkpipe(udev, in_ep),
+		dev->buf,
+		size,
+		chaos_read_callback,
+		dev);
 
 	/* Construct a name using the product and serial values. Each
 	 * device needs a unique name for the hwrng code
 	 */
 
 	if (udev->product && udev->serial) {
-		dev->name = kmalloc(strlen(udev->product) + 1 +
-				    strlen(udev->serial) + 1, GFP_KERNEL);
-		if (dev->name == NULL) {
-			kfree(dev->buf);
-			kfree(dev);
-			return -ENOMEM;
-		}
-
-		strcpy(dev->name, udev->product);
-		strcat(dev->name, "-");
-		strcat(dev->name, udev->serial);
+		dev->name = kasprintf(GFP_KERNEL, "%s-%s", udev->product,
+				      udev->serial);
+		if (dev->name == NULL)
+			goto out;
 	}
 
 	dev->interface = interface;
 
 	dev->in_ep = in_ep;
 
+	if (le16_to_cpu(udev->descriptor.idVendor) != ALEA_VENDOR_ID)
+		dev->reads_started = true;
+
 	dev->size = size;
-	dev->present = 1;
+	dev->present = true;
 
 	init_waitqueue_head(&dev->wait_q);
 
@@ -186,26 +194,12 @@ static int chaoskey_probe(struct usb_interface *interface,
 	result = usb_register_dev(interface, &chaoskey_class);
 	if (result) {
 		usb_err(interface, "Unable to allocate minor number.");
-		usb_set_intfdata(interface, NULL);
-		chaoskey_free(dev);
-		return result;
+		goto out;
 	}
 
 	dev->hwrng.name = dev->name ? dev->name : chaoskey_driver.name;
 	dev->hwrng.read = chaoskey_rng_read;
-
-	/* Set the 'quality' metric.  Quality is measured in units of
-	 * 1/1024's of a bit ("mills"). This should be set to 1024,
-	 * but there is a bug in the hwrng core which masks it with
-	 * 1023.
-	 *
-	 * The patch that has been merged to the crypto development
-	 * tree for that bug limits the value to 1024 at most, so by
-	 * setting this to 1024 + 1023, we get 1023 before the fix is
-	 * merged and 1024 afterwards. We'll patch this driver once
-	 * both bits of code are in the same tree.
-	 */
-	dev->hwrng.quality = 1024 + 1023;
+	dev->hwrng.quality = 1024;
 
 	dev->hwrng_registered = (hwrng_register(&dev->hwrng) == 0);
 	if (!dev->hwrng_registered)
@@ -215,6 +209,11 @@ static int chaoskey_probe(struct usb_interface *interface,
 
 	usb_dbg(interface, "chaoskey probe success, size %d", dev->size);
 	return 0;
+
+out:
+	usb_set_intfdata(interface, NULL);
+	chaoskey_free(dev);
+	return result;
 }
 
 static void chaoskey_disconnect(struct usb_interface *interface)
@@ -236,7 +235,8 @@ static void chaoskey_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 	mutex_lock(&dev->lock);
 
-	dev->present = 0;
+	dev->present = false;
+	usb_poison_urb(dev->urb);
 
 	if (!dev->open) {
 		mutex_unlock(&dev->lock);
@@ -311,14 +311,34 @@ static int chaoskey_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static void chaos_read_callback(struct urb *urb)
+{
+	struct chaoskey *dev = urb->context;
+	int status = urb->status;
+
+	usb_dbg(dev->interface, "callback status (%d)", status);
+
+	if (status == 0)
+		dev->valid = urb->actual_length;
+	else
+		dev->valid = 0;
+
+	dev->used = 0;
+
+	/* must be seen first before validity is announced */
+	smp_wmb();
+
+	dev->reading = false;
+	wake_up(&dev->wait_q);
+}
+
 /* Fill the buffer. Called with dev->lock held
  */
 static int _chaoskey_fill(struct chaoskey *dev)
 {
 	DEFINE_WAIT(wait);
 	int result;
-	int this_read;
-	struct usb_device *udev = interface_to_usbdev(dev->interface);
+	bool started;
 
 	usb_dbg(dev->interface, "fill");
 
@@ -343,21 +363,38 @@ static int _chaoskey_fill(struct chaoskey *dev)
 		return result;
 	}
 
-	result = usb_bulk_msg(udev,
-			      usb_rcvbulkpipe(udev, dev->in_ep),
-			      dev->buf, dev->size, &this_read,
-			      NAK_TIMEOUT);
+	dev->reading = true;
+	result = usb_submit_urb(dev->urb, GFP_KERNEL);
+	if (result < 0) {
+		result = usb_translate_errors(result);
+		dev->reading = false;
+		goto out;
+	}
 
+	/* The first read on the Alea takes a little under 2 seconds.
+	 * Reads after the first read take only a few microseconds
+	 * though.  Presumably the entropy-generating circuit needs
+	 * time to ramp up.  So, we wait longer on the first read.
+	 */
+	started = dev->reads_started;
+	dev->reads_started = true;
+	result = wait_event_interruptible_timeout(
+		dev->wait_q,
+		!dev->reading,
+		(started ? NAK_TIMEOUT : ALEA_FIRST_TIMEOUT) );
+
+	if (result < 0)
+		goto out;
+
+	if (result == 0)
+		result = -ETIMEDOUT;
+	else
+		result = dev->valid;
+out:
 	/* Let the device go back to sleep eventually */
 	usb_autopm_put_interface(dev->interface);
 
-	if (result == 0) {
-		dev->valid = this_read;
-		dev->used = 0;
-	}
-
-	usb_dbg(dev->interface, "bulk_msg result %d this_read %d",
-		result, this_read);
+	usb_dbg(dev->interface, "read %d bytes", dev->valid);
 
 	return result;
 }
@@ -395,13 +432,7 @@ static ssize_t chaoskey_read(struct file *file,
 			goto bail;
 		if (dev->valid == dev->used) {
 			result = _chaoskey_fill(dev);
-			if (result) {
-				mutex_unlock(&dev->lock);
-				goto bail;
-			}
-
-			/* Read returned zero bytes */
-			if (dev->used == dev->valid) {
+			if (result < 0) {
 				mutex_unlock(&dev->lock);
 				goto bail;
 			}
@@ -435,6 +466,8 @@ bail:
 		return read_count;
 	}
 	usb_dbg(dev->interface, "empty read, result %d", result);
+	if (result == -ETIMEDOUT)
+		result = -EAGAIN;
 	return result;
 }
 

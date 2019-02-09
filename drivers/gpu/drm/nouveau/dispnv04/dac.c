@@ -27,7 +27,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 #include "nouveau_crtc.h"
@@ -66,7 +66,7 @@ int nv04_dac_output_offset(struct drm_encoder *encoder)
 static int sample_load_twice(struct drm_device *dev, bool sense[2])
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_object *device = &drm->device.object;
+	struct nvif_object *device = &drm->client.device.object;
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -80,19 +80,19 @@ static int sample_load_twice(struct drm_device *dev, bool sense[2])
 		 * use a 10ms timeout (guards against crtc being inactive, in
 		 * which case blank state would never change)
 		 */
-		if (nvif_msec(&drm->device, 10,
+		if (nvif_msec(&drm->client.device, 10,
 			if (!(nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 1))
 				break;
 		) < 0)
 			return -EBUSY;
 
-		if (nvif_msec(&drm->device, 10,
+		if (nvif_msec(&drm->client.device, 10,
 			if ( (nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 1))
 				break;
 		) < 0)
 			return -EBUSY;
 
-		if (nvif_msec(&drm->device, 10,
+		if (nvif_msec(&drm->client.device, 10,
 			if (!(nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 1))
 				break;
 		) < 0)
@@ -133,7 +133,7 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 						 struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nvif_object *device = &nouveau_drm(dev)->device.object;
+	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint8_t saved_seq1, saved_pi, saved_rpc1, saved_cr_mode;
 	uint8_t saved_palette0[3], saved_palette_mask;
@@ -236,8 +236,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_object *device = &nouveau_drm(dev)->device.object;
-	struct nvkm_gpio *gpio = nvxx_gpio(&drm->device);
+	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvkm_gpio *gpio = nvxx_gpio(&drm->client.device);
 	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,
@@ -288,7 +288,7 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	/* nv driver and nv31 use 0xfffffeee, nv34 and 6600 use 0xfffffece */
 	routput = (saved_routput & 0xfffffece) | head << 8;
 
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_CURIE) {
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CURIE) {
 		if (dcb->type == DCB_OUTPUT_TV)
 			routput |= 0x1a << 16;
 		else
@@ -403,7 +403,7 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 	}
 
 	/* This could use refinement for flatpanels, but it should work this way */
-	if (drm->device.info.chipset < 0x44)
+	if (drm->client.device.info.chipset < 0x44)
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0xf0000000);
 	else
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0x00100000);
@@ -504,8 +504,6 @@ static void nv04_dac_destroy(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs nv04_dac_helper_funcs = {
 	.dpms = nv04_dac_dpms,
-	.save = nv04_dac_save,
-	.restore = nv04_dac_restore,
 	.mode_fixup = nv04_dac_mode_fixup,
 	.prepare = nv04_dac_prepare,
 	.commit = nv04_dac_commit,
@@ -515,8 +513,6 @@ static const struct drm_encoder_helper_funcs nv04_dac_helper_funcs = {
 
 static const struct drm_encoder_helper_funcs nv17_dac_helper_funcs = {
 	.dpms = nv04_dac_dpms,
-	.save = nv04_dac_save,
-	.restore = nv04_dac_restore,
 	.mode_fixup = nv04_dac_mode_fixup,
 	.prepare = nv04_dac_prepare,
 	.commit = nv04_dac_commit,
@@ -545,17 +541,21 @@ nv04_dac_create(struct drm_connector *connector, struct dcb_output *entry)
 	nv_encoder->dcb = entry;
 	nv_encoder->or = ffs(entry->or) - 1;
 
+	nv_encoder->enc_save = nv04_dac_save;
+	nv_encoder->enc_restore = nv04_dac_restore;
+
 	if (nv_gf4_disp_arch(dev))
 		helper = &nv17_dac_helper_funcs;
 	else
 		helper = &nv04_dac_helper_funcs;
 
-	drm_encoder_init(dev, encoder, &nv04_dac_funcs, DRM_MODE_ENCODER_DAC);
+	drm_encoder_init(dev, encoder, &nv04_dac_funcs, DRM_MODE_ENCODER_DAC,
+			 NULL);
 	drm_encoder_helper_add(encoder, helper);
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }

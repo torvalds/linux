@@ -33,6 +33,8 @@
 #include <linux/bsg.h>
 
 #include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_request.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
@@ -167,55 +169,27 @@ static struct sas_end_device *sas_sdev_to_rdev(struct scsi_device *sdev)
 	return rdev;
 }
 
-static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
-			    struct sas_rphy *rphy)
+static int sas_smp_dispatch(struct bsg_job *job)
 {
-	struct request *req;
-	int ret;
-	int (*handler)(struct Scsi_Host *, struct sas_rphy *, struct request *);
+	struct Scsi_Host *shost = dev_to_shost(job->dev);
+	struct sas_rphy *rphy = NULL;
 
-	while ((req = blk_fetch_request(q)) != NULL) {
-		spin_unlock_irq(q->queue_lock);
+	if (!scsi_is_host_device(job->dev))
+		rphy = dev_to_rphy(job->dev);
 
-		handler = to_sas_internal(shost->transportt)->f->smp_handler;
-		ret = handler(shost, rphy, req);
-		req->errors = ret;
-
-		blk_end_request_all(req, ret);
-
-		spin_lock_irq(q->queue_lock);
+	if (!job->reply_payload.payload_len) {
+		dev_warn(job->dev, "space for a smp response is missing\n");
+		bsg_job_done(job, -EINVAL, 0);
+		return 0;
 	}
-}
 
-static void sas_host_smp_request(struct request_queue *q)
-{
-	sas_smp_request(q, (struct Scsi_Host *)q->queuedata, NULL);
-}
-
-static void sas_non_host_smp_request(struct request_queue *q)
-{
-	struct sas_rphy *rphy = q->queuedata;
-	sas_smp_request(q, rphy_to_shost(rphy), rphy);
-}
-
-static void sas_host_release(struct device *dev)
-{
-	struct Scsi_Host *shost = dev_to_shost(dev);
-	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
-	struct request_queue *q = sas_host->q;
-
-	if (q)
-		blk_cleanup_queue(q);
+	to_sas_internal(shost->transportt)->f->smp_handler(job, shost, rphy);
+	return 0;
 }
 
 static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 {
 	struct request_queue *q;
-	int error;
-	struct device *dev;
-	char namebuf[20];
-	const char *name;
-	void (*release)(struct device *);
 
 	if (!to_sas_internal(shost->transportt)->f->smp_handler) {
 		printk("%s can't handle SMP requests\n", shost->hostt->name);
@@ -223,54 +197,24 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 	}
 
 	if (rphy) {
-		q = blk_init_queue(sas_non_host_smp_request, NULL);
-		dev = &rphy->dev;
-		name = dev_name(dev);
-		release = NULL;
-	} else {
-		q = blk_init_queue(sas_host_smp_request, NULL);
-		dev = &shost->shost_gendev;
-		snprintf(namebuf, sizeof(namebuf),
-			 "sas_host%d", shost->host_no);
-		name = namebuf;
-		release = sas_host_release;
-	}
-	if (!q)
-		return -ENOMEM;
-
-	error = bsg_register_queue(q, dev, name, release);
-	if (error) {
-		blk_cleanup_queue(q);
-		return -ENOMEM;
-	}
-
-	if (rphy)
+		q = bsg_setup_queue(&rphy->dev, dev_name(&rphy->dev),
+				sas_smp_dispatch, 0);
+		if (IS_ERR(q))
+			return PTR_ERR(q);
 		rphy->q = q;
-	else
+	} else {
+		char name[20];
+
+		snprintf(name, sizeof(name), "sas_host%d", shost->host_no);
+		q = bsg_setup_queue(&shost->shost_gendev, name,
+				sas_smp_dispatch, 0);
+		if (IS_ERR(q))
+			return PTR_ERR(q);
 		to_sas_host_attrs(shost)->q = q;
+	}
 
-	if (rphy)
-		q->queuedata = rphy;
-	else
-		q->queuedata = shost;
-
-	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, q);
+	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
 	return 0;
-}
-
-static void sas_bsg_remove(struct Scsi_Host *shost, struct sas_rphy *rphy)
-{
-	struct request_queue *q;
-
-	if (rphy)
-		q = rphy->q;
-	else
-		q = to_sas_host_attrs(shost)->q;
-
-	if (!q)
-		return;
-
-	bsg_unregister_queue(q);
 }
 
 /*
@@ -300,8 +244,12 @@ static int sas_host_remove(struct transport_container *tc, struct device *dev,
 			   struct device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
+	struct request_queue *q = to_sas_host_attrs(shost)->q;
 
-	sas_bsg_remove(shost, NULL);
+	if (q) {
+		bsg_unregister_queue(q);
+		blk_cleanup_queue(q);
+	}
 
 	return 0;
 }
@@ -357,14 +305,32 @@ EXPORT_SYMBOL(sas_remove_children);
  * sas_remove_host  -  tear down a Scsi_Host's SAS data structures
  * @shost:	Scsi Host that is torn down
  *
- * Removes all SAS PHYs and remote PHYs for a given Scsi_Host.
- * Must be called just before scsi_remove_host for SAS HBAs.
+ * Removes all SAS PHYs and remote PHYs for a given Scsi_Host and remove the
+ * Scsi_Host as well.
+ *
+ * Note: Do not call scsi_remove_host() on the Scsi_Host any more, as it is
+ * already removed.
  */
 void sas_remove_host(struct Scsi_Host *shost)
 {
 	sas_remove_children(&shost->shost_gendev);
+	scsi_remove_host(shost);
 }
 EXPORT_SYMBOL(sas_remove_host);
+
+/**
+ * sas_get_address - return the SAS address of the device
+ * @sdev: scsi device
+ *
+ * Returns the SAS address of the scsi device
+ */
+u64 sas_get_address(struct scsi_device *sdev)
+{
+	struct sas_end_device *rdev = sas_sdev_to_rdev(sdev);
+
+	return rdev->rphy.identify.sas_address;
+}
+EXPORT_SYMBOL(sas_get_address);
 
 /**
  * sas_tlr_supported - checking TLR bit in vpd 0x90
@@ -381,6 +347,9 @@ sas_tlr_supported(struct scsi_device *sdev)
 	struct sas_end_device *rdev = sas_sdev_to_rdev(sdev);
 	char *buffer = kzalloc(vpd_len, GFP_KERNEL);
 	int ret = 0;
+
+	if (!buffer)
+		goto out;
 
 	if (scsi_get_vpd_page(sdev, 0x90, buffer, vpd_len))
 		goto out;
@@ -1256,6 +1225,7 @@ sas_rphy_protocol_attr(identify.target_port_protocols, target_port_protocols);
 sas_rphy_simple_attr(identify.sas_address, sas_address, "0x%016llx\n",
 		unsigned long long);
 sas_rphy_simple_attr(identify.phy_identifier, phy_identifier, "%d\n", u8);
+sas_rphy_simple_attr(scsi_target_id, scsi_target_id, "%d\n", u32);
 
 /* only need 8 bytes of data plus header (4 or 8) */
 #define BUF_SIZE 64
@@ -1447,7 +1417,7 @@ static void sas_end_device_release(struct device *dev)
 }
 
 /**
- * sas_rphy_initialize - common rphy intialization
+ * sas_rphy_initialize - common rphy initialization
  * @rphy:	rphy to initialise
  *
  * Used by both sas_end_device_alloc() and sas_expander_alloc() to
@@ -1583,7 +1553,8 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		else
 			lun = 0;
 
-		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun, 0);
+		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
+				 SCSI_SCAN_INITIAL);
 	}
 
 	return 0;
@@ -1669,7 +1640,8 @@ sas_rphy_remove(struct sas_rphy *rphy)
 	}
 
 	sas_rphy_unlink(rphy);
-	sas_bsg_remove(NULL, rphy);
+	if (rphy->q)
+		bsg_unregister_queue(rphy->q);
 	transport_remove_device(dev);
 	device_del(dev);
 }
@@ -1708,8 +1680,8 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 
 		if ((channel == SCAN_WILD_CARD || channel == 0) &&
 		    (id == SCAN_WILD_CARD || id == rphy->scsi_target_id)) {
-			scsi_scan_target(&rphy->dev, 0,
-					 rphy->scsi_target_id, lun, 1);
+			scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id,
+					 lun, SCSI_SCAN_MANUAL);
 		}
 	}
 	mutex_unlock(&sas_host->lock);
@@ -1856,6 +1828,7 @@ sas_attach_transport(struct sas_function_template *ft)
 	SETUP_RPORT_ATTRIBUTE(rphy_device_type);
 	SETUP_RPORT_ATTRIBUTE(rphy_sas_address);
 	SETUP_RPORT_ATTRIBUTE(rphy_phy_identifier);
+	SETUP_RPORT_ATTRIBUTE(rphy_scsi_target_id);
 	SETUP_OPTIONAL_RPORT_ATTRIBUTE(rphy_enclosure_identifier,
 				       get_enclosure_identifier);
 	SETUP_OPTIONAL_RPORT_ATTRIBUTE(rphy_bay_identifier,

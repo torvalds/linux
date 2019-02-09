@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* $Date: 2005/10/24 23:18:13 $ $RCSfile: mv88e1xxx.c,v $ $Revision: 1.49 $ */
 #include "common.h"
 #include "mv88e1xxx.h"
@@ -337,7 +338,7 @@ static void mv88e1xxx_destroy(struct cphy *cphy)
 	kfree(cphy);
 }
 
-static struct cphy_ops mv88e1xxx_ops = {
+static const struct cphy_ops mv88e1xxx_ops = {
 	.destroy              = mv88e1xxx_destroy,
 	.reset                = mv88e1xxx_reset,
 	.interrupt_enable     = mv88e1xxx_interrupt_enable,

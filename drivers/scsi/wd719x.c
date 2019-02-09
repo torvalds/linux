@@ -803,7 +803,9 @@ static enum wd719x_card_type wd719x_detect_type(struct wd719x *wd)
 static int wd719x_board_found(struct Scsi_Host *sh)
 {
 	struct wd719x *wd = shost_priv(sh);
-	char *card_types[] = { "Unknown card", "WD7193", "WD7197", "WD7296" };
+	static const char * const card_types[] = {
+		"Unknown card", "WD7193", "WD7197", "WD7296"
+	};
 	int ret;
 
 	INIT_LIST_HEAD(&wd->active_scbs);
@@ -962,7 +964,7 @@ static void wd719x_pci_remove(struct pci_dev *pdev)
 	scsi_host_put(sh);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(wd719x_pci_table) = {
+static const struct pci_device_id wd719x_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_WD, 0x3296) },
 	{}
 };
@@ -976,18 +978,7 @@ static struct pci_driver wd719x_pci_driver = {
 	.remove =	wd719x_pci_remove,
 };
 
-static int __init wd719x_init(void)
-{
-	return pci_register_driver(&wd719x_pci_driver);
-}
-
-static void __exit wd719x_exit(void)
-{
-	pci_unregister_driver(&wd719x_pci_driver);
-}
-
-module_init(wd719x_init);
-module_exit(wd719x_exit);
+module_pci_driver(wd719x_pci_driver);
 
 MODULE_DESCRIPTION("Western Digital WD7193/7197/7296 SCSI driver");
 MODULE_AUTHOR("Ondrej Zary, Aaron Dewell, Juergen Gaertner");

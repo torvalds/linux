@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "bcm47xx_private.h"
 
 #include <linux/input.h>
@@ -15,6 +16,12 @@
 		.code		= _code,				\
 		.gpio		= _gpio,				\
 		.active_low	= 1,					\
+	}
+
+#define BCM47XX_GPIO_KEY_H(_gpio, _code)				\
+	{								\
+		.code		= _code,				\
+		.gpio		= _gpio,				\
 	}
 
 /* Asus */
@@ -79,8 +86,8 @@ bcm47xx_buttons_asus_wl500gpv2[] __initconst = {
 
 static const struct gpio_keys_button
 bcm47xx_buttons_asus_wl500w[] __initconst = {
-	BCM47XX_GPIO_KEY(6, KEY_RESTART),
-	BCM47XX_GPIO_KEY(7, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY_H(6, KEY_RESTART),
+	BCM47XX_GPIO_KEY_H(7, KEY_WPS_BUTTON),
 };
 
 static const struct gpio_keys_button
@@ -302,8 +309,53 @@ bcm47xx_buttons_linksys_wrtsl54gs[] __initconst = {
 /* Luxul */
 
 static const struct gpio_keys_button
+bcm47xx_buttons_luxul_abr_4400_v1[] = {
+	BCM47XX_GPIO_KEY(14, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_luxul_xap_310_v1[] = {
+	BCM47XX_GPIO_KEY(20, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_luxul_xap_1210_v1[] = {
+	BCM47XX_GPIO_KEY(8, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_luxul_xap_1230_v1[] = {
+	BCM47XX_GPIO_KEY(8, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_luxul_xap_1240_v1[] = {
+	BCM47XX_GPIO_KEY(8, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_luxul_xap_1500_v1[] = {
+	BCM47XX_GPIO_KEY(14, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_luxul_xbr_4400_v1[] = {
+	BCM47XX_GPIO_KEY(14, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_luxul_xvw_p30_v1[] = {
+	BCM47XX_GPIO_KEY(20, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_luxul_xwr_600_v1[] = {
+	BCM47XX_GPIO_KEY(8, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_luxul_xwr_1750_v1[] = {
-	BCM47XX_GPIO_KEY(14, BTN_TASK),
+	BCM47XX_GPIO_KEY(14, KEY_RESTART),
 };
 
 /* Microsoft */
@@ -357,6 +409,12 @@ bcm47xx_buttons_netgear_wndr4500v1[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(5, KEY_RFKILL),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_netgear_wnr1000_v3[] __initconst = {
+	BCM47XX_GPIO_KEY(2, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(3, KEY_RESTART),
 };
 
 static const struct gpio_keys_button
@@ -561,6 +619,33 @@ int __init bcm47xx_buttons_register(void)
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrtsl54gs);
 		break;
 
+	case BCM47XX_BOARD_LUXUL_ABR_4400_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_luxul_abr_4400_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XAP_310_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_luxul_xap_310_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XAP_1210_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_luxul_xap_1210_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XAP_1230_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_luxul_xap_1230_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XAP_1240_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_luxul_xap_1240_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XAP_1500_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_luxul_xap_1500_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XBR_4400_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_luxul_xbr_4400_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XVW_P30_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_luxul_xvw_p30_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XWR_600_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_luxul_xwr_600_v1);
+		break;
 	case BCM47XX_BOARD_LUXUL_XWR_1750_V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_luxul_xwr_1750_v1);
 		break;
@@ -590,6 +675,9 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNDR4500V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wndr4500v1);
+		break;
+	case BCM47XX_BOARD_NETGEAR_WNR1000_V3:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wnr1000_v3);
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNR3500L:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wnr3500lv1);

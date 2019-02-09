@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -31,16 +19,6 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 
-STATIC int
-xfs_internal_inum(
-	xfs_mount_t	*mp,
-	xfs_ino_t	ino)
-{
-	return (ino == mp->m_sb.sb_rbmino || ino == mp->m_sb.sb_rsumino ||
-		(xfs_sb_version_hasquota(&mp->m_sb) &&
-		 xfs_is_quota_inode(&mp->m_sb, ino)));
-}
-
 /*
  * Return stat information for one inode.
  * Return 0 if ok, else errno.
@@ -57,6 +35,7 @@ xfs_bulkstat_one_int(
 {
 	struct xfs_icdinode	*dic;		/* dinode core info pointer */
 	struct xfs_inode	*ip;		/* incore inode pointer */
+	struct inode		*inode;
 	struct xfs_bstat	*buf;		/* return buffer */
 	int			error = 0;	/* error value */
 
@@ -65,7 +44,7 @@ xfs_bulkstat_one_int(
 	if (!buffer || xfs_internal_inum(mp, ino))
 		return -EINVAL;
 
-	buf = kmem_alloc(sizeof(*buf), KM_SLEEP | KM_MAYFAIL);
+	buf = kmem_zalloc(sizeof(*buf), KM_SLEEP | KM_MAYFAIL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -77,44 +56,52 @@ xfs_bulkstat_one_int(
 
 	ASSERT(ip != NULL);
 	ASSERT(ip->i_imap.im_blkno != 0);
+	inode = VFS_I(ip);
 
 	dic = &ip->i_d;
 
 	/* xfs_iget returns the following without needing
 	 * further change.
 	 */
-	buf->bs_nlink = dic->di_nlink;
 	buf->bs_projid_lo = dic->di_projid_lo;
 	buf->bs_projid_hi = dic->di_projid_hi;
 	buf->bs_ino = ino;
-	buf->bs_mode = dic->di_mode;
 	buf->bs_uid = dic->di_uid;
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
-	buf->bs_atime.tv_sec = dic->di_atime.t_sec;
-	buf->bs_atime.tv_nsec = dic->di_atime.t_nsec;
-	buf->bs_mtime.tv_sec = dic->di_mtime.t_sec;
-	buf->bs_mtime.tv_nsec = dic->di_mtime.t_nsec;
-	buf->bs_ctime.tv_sec = dic->di_ctime.t_sec;
-	buf->bs_ctime.tv_nsec = dic->di_ctime.t_nsec;
+
+	buf->bs_nlink = inode->i_nlink;
+	buf->bs_atime.tv_sec = inode->i_atime.tv_sec;
+	buf->bs_atime.tv_nsec = inode->i_atime.tv_nsec;
+	buf->bs_mtime.tv_sec = inode->i_mtime.tv_sec;
+	buf->bs_mtime.tv_nsec = inode->i_mtime.tv_nsec;
+	buf->bs_ctime.tv_sec = inode->i_ctime.tv_sec;
+	buf->bs_ctime.tv_nsec = inode->i_ctime.tv_nsec;
+	buf->bs_gen = inode->i_generation;
+	buf->bs_mode = inode->i_mode;
+
 	buf->bs_xflags = xfs_ip2xflags(ip);
 	buf->bs_extsize = dic->di_extsize << mp->m_sb.sb_blocklog;
 	buf->bs_extents = dic->di_nextents;
-	buf->bs_gen = dic->di_gen;
 	memset(buf->bs_pad, 0, sizeof(buf->bs_pad));
 	buf->bs_dmevmask = dic->di_dmevmask;
 	buf->bs_dmstate = dic->di_dmstate;
 	buf->bs_aextents = dic->di_anextents;
 	buf->bs_forkoff = XFS_IFORK_BOFF(ip);
 
+	if (dic->di_version == 3) {
+		if (dic->di_flags2 & XFS_DIFLAG2_COWEXTSIZE)
+			buf->bs_cowextsize = dic->di_cowextsize <<
+					mp->m_sb.sb_blocklog;
+	}
+
 	switch (dic->di_format) {
 	case XFS_DINODE_FMT_DEV:
-		buf->bs_rdev = ip->i_df.if_u2.if_rdev;
+		buf->bs_rdev = sysv_encode_dev(inode->i_rdev);
 		buf->bs_blksize = BLKDEV_IOSIZE;
 		buf->bs_blocks = 0;
 		break;
 	case XFS_DINODE_FMT_LOCAL:
-	case XFS_DINODE_FMT_UUID:
 		buf->bs_rdev = 0;
 		buf->bs_blksize = mp->m_sb.sb_blocksize;
 		buf->bs_blocks = 0;
@@ -127,7 +114,7 @@ xfs_bulkstat_one_int(
 		break;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	IRELE(ip);
+	xfs_irele(ip);
 
 	error = formatter(buffer, ubsize, ubused, buf);
 	if (!error)
@@ -351,7 +338,6 @@ xfs_bulkstat(
 	xfs_agino_t		agino;	/* inode # in allocation group */
 	xfs_agnumber_t		agno;	/* allocation group number */
 	xfs_btree_cur_t		*cur;	/* btree cursor for ialloc btree */
-	size_t			irbsize; /* size of irec buffer in bytes */
 	xfs_inobt_rec_incore_t	*irbuf;	/* start of irec buffer */
 	int			nirbuf;	/* size of irbuf */
 	int			ubcount; /* size of user's buffer */
@@ -378,11 +364,10 @@ xfs_bulkstat(
 	*ubcountp = 0;
 	*done = 0;
 
-	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4);
+	irbuf = kmem_zalloc_large(PAGE_SIZE * 4, KM_SLEEP);
 	if (!irbuf)
 		return -ENOMEM;
-
-	nirbuf = irbsize / sizeof(*irbuf);
+	nirbuf = (PAGE_SIZE * 4) / sizeof(*irbuf);
 
 	/*
 	 * Loop over the allocation groups, starting from the last
@@ -473,8 +458,7 @@ xfs_bulkstat(
 		 * pending error, then we are done.
 		 */
 del_cursor:
-		xfs_btree_del_cursor(cur, error ?
-					  XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+		xfs_btree_del_cursor(cur, error);
 		xfs_buf_relse(agbp);
 		if (error)
 			break;
@@ -574,8 +558,8 @@ xfs_inumbers(
 	    *lastino != XFS_AGINO_TO_INO(mp, agno, agino))
 		return error;
 
-	bcount = MIN(left, (int)(PAGE_SIZE / sizeof(*buffer)));
-	buffer = kmem_alloc(bcount * sizeof(*buffer), KM_SLEEP);
+	bcount = min(left, (int)(PAGE_SIZE / sizeof(*buffer)));
+	buffer = kmem_zalloc(bcount * sizeof(*buffer), KM_SLEEP);
 	do {
 		struct xfs_inobt_rec_incore	r;
 		int				stat;
@@ -647,8 +631,7 @@ next_ag:
 
 	kmem_free(buffer);
 	if (cur)
-		xfs_btree_del_cursor(cur, (error ? XFS_BTREE_ERROR :
-					   XFS_BTREE_NOERROR));
+		xfs_btree_del_cursor(cur, error);
 	if (agbp)
 		xfs_buf_relse(agbp);
 

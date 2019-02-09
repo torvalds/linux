@@ -209,8 +209,6 @@ struct srcpos srcpos_empty = {
 	.file = NULL,
 };
 
-#define TAB_SIZE      8
-
 void srcpos_update(struct srcpos *pos, const char *text, int len)
 {
 	int i;
@@ -224,9 +222,6 @@ void srcpos_update(struct srcpos *pos, const char *text, int len)
 		if (text[i] == '\n') {
 			current_srcfile->lineno++;
 			current_srcfile->colno = 1;
-		} else if (text[i] == '\t') {
-			current_srcfile->colno =
-				ALIGN(current_srcfile->colno, TAB_SIZE);
 		} else {
 			current_srcfile->colno++;
 		}
@@ -246,46 +241,27 @@ srcpos_copy(struct srcpos *pos)
 	return pos_new;
 }
 
-
-
-void
-srcpos_dump(struct srcpos *pos)
-{
-	printf("file        : \"%s\"\n",
-	       pos->file ? (char *) pos->file : "<no file>");
-	printf("first_line  : %d\n", pos->first_line);
-	printf("first_column: %d\n", pos->first_column);
-	printf("last_line   : %d\n", pos->last_line);
-	printf("last_column : %d\n", pos->last_column);
-	printf("file        : %s\n", pos->file->name);
-}
-
-
 char *
 srcpos_string(struct srcpos *pos)
 {
 	const char *fname = "<no-file>";
 	char *pos_str;
-	int rc;
 
-	if (pos)
+	if (pos->file && pos->file->name)
 		fname = pos->file->name;
 
 
 	if (pos->first_line != pos->last_line)
-		rc = asprintf(&pos_str, "%s:%d.%d-%d.%d", fname,
-			      pos->first_line, pos->first_column,
-			      pos->last_line, pos->last_column);
+		xasprintf(&pos_str, "%s:%d.%d-%d.%d", fname,
+			  pos->first_line, pos->first_column,
+			  pos->last_line, pos->last_column);
 	else if (pos->first_column != pos->last_column)
-		rc = asprintf(&pos_str, "%s:%d.%d-%d", fname,
-			      pos->first_line, pos->first_column,
-			      pos->last_column);
+		xasprintf(&pos_str, "%s:%d.%d-%d", fname,
+			  pos->first_line, pos->first_column,
+			  pos->last_column);
 	else
-		rc = asprintf(&pos_str, "%s:%d.%d", fname,
-			      pos->first_line, pos->first_column);
-
-	if (rc == -1)
-		die("Couldn't allocate in srcpos string");
+		xasprintf(&pos_str, "%s:%d.%d", fname,
+			  pos->first_line, pos->first_column);
 
 	return pos_str;
 }

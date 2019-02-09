@@ -23,6 +23,7 @@
 #include <asm/cputype.h>
 #include <asm/setup.h>
 #include <asm/page.h>
+#include <asm/prom.h>
 #include <asm/smp_plat.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -87,29 +88,36 @@ void __init arm_dt_init_cpu_maps(void)
 		return;
 
 	for_each_child_of_node(cpus, cpu) {
+		const __be32 *cell;
+		int prop_bytes;
 		u32 hwid;
 
 		if (of_node_cmp(cpu->type, "cpu"))
 			continue;
 
-		pr_debug(" * %s...\n", cpu->full_name);
+		pr_debug(" * %pOF...\n", cpu);
 		/*
 		 * A device tree containing CPU nodes with missing "reg"
 		 * properties is considered invalid to build the
 		 * cpu_logical_map.
 		 */
-		if (of_property_read_u32(cpu, "reg", &hwid)) {
-			pr_debug(" * %s missing reg property\n",
-				     cpu->full_name);
+		cell = of_get_property(cpu, "reg", &prop_bytes);
+		if (!cell || prop_bytes < sizeof(*cell)) {
+			pr_debug(" * %pOF missing reg property\n", cpu);
 			of_node_put(cpu);
 			return;
 		}
 
 		/*
-		 * 8 MSBs must be set to 0 in the DT since the reg property
+		 * Bits n:24 must be set to 0 in the DT since the reg property
 		 * defines the MPIDR[23:0].
 		 */
-		if (hwid & ~MPIDR_HWID_BITMASK) {
+		do {
+			hwid = be32_to_cpu(*cell++);
+			prop_bytes -= sizeof(*cell);
+		} while (!hwid && prop_bytes > 0);
+
+		if (prop_bytes || (hwid & ~MPIDR_HWID_BITMASK)) {
 			of_node_put(cpu);
 			return;
 		}
@@ -211,8 +219,10 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 {
 	const struct machine_desc *mdesc, *mdesc_best = NULL;
 
-#ifdef CONFIG_ARCH_MULTIPLATFORM
+#if defined(CONFIG_ARCH_MULTIPLATFORM) || defined(CONFIG_ARM_SINGLE_ARMV7M)
 	DT_MACHINE_START(GENERIC_DT, "Generic DT based system")
+		.l2c_aux_val = 0x0,
+		.l2c_aux_mask = ~0x0,
 	MACHINE_END
 
 	mdesc_best = &__mach_desc_GENERIC_DT;

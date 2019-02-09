@@ -46,6 +46,16 @@ static inline void kernel_fpu_end(void)
 #define X86_FEATURE_SSSE3	(4*32+ 9) /* Supplemental SSE-3 */
 #define X86_FEATURE_AVX	(4*32+28) /* Advanced Vector Extensions */
 #define X86_FEATURE_AVX2        (9*32+ 5) /* AVX2 instructions */
+#define X86_FEATURE_AVX512F     (9*32+16) /* AVX-512 Foundation */
+#define X86_FEATURE_AVX512DQ    (9*32+17) /* AVX-512 DQ (Double/Quad granular)
+					   * Instructions
+					   */
+#define X86_FEATURE_AVX512BW    (9*32+30) /* AVX-512 BW (Byte/Word granular)
+					   * Instructions
+					   */
+#define X86_FEATURE_AVX512VL    (9*32+31) /* AVX-512 VL (128/256 Vector Length)
+					   * Extensions
+					   */
 #define X86_FEATURE_MMXEXT	(1*32+22) /* AMD MMX extensions */
 
 /* Should work well enough on modern CPUs for testing */

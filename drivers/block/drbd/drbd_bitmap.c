@@ -24,7 +24,7 @@
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
 #include <linux/drbd.h>
@@ -95,6 +95,13 @@
 struct drbd_bitmap {
 	struct page **bm_pages;
 	spinlock_t bm_lock;
+
+	/* exclusively to be used by __al_write_transaction(),
+	 * drbd_bm_mark_for_writeout() and
+	 * and drbd_bm_write_hinted() -> bm_rw() called from there.
+	 */
+	unsigned int n_bitmap_hints;
+	unsigned int al_bitmap_hints[AL_UPDATES_PER_TRANSACTION];
 
 	/* see LIMITATIONS: above */
 
@@ -242,6 +249,11 @@ static void bm_set_page_need_writeout(struct page *page)
 	set_bit(BM_PAGE_NEED_WRITEOUT, &page_private(page));
 }
 
+void drbd_bm_reset_al_hints(struct drbd_device *device)
+{
+	device->bitmap->n_bitmap_hints = 0;
+}
+
 /**
  * drbd_bm_mark_for_writeout() - mark a page with a "hint" to be considered for writeout
  * @device:	DRBD device.
@@ -253,6 +265,7 @@ static void bm_set_page_need_writeout(struct page *page)
  */
 void drbd_bm_mark_for_writeout(struct drbd_device *device, int page_nr)
 {
+	struct drbd_bitmap *b = device->bitmap;
 	struct page *page;
 	if (page_nr >= device->bitmap->bm_number_of_pages) {
 		drbd_warn(device, "BAD: page_nr: %u, number_of_pages: %u\n",
@@ -260,7 +273,9 @@ void drbd_bm_mark_for_writeout(struct drbd_device *device, int page_nr)
 		return;
 	}
 	page = device->bitmap->bm_pages[page_nr];
-	set_bit(BM_PAGE_HINT_WRITEOUT, &page_private(page));
+	BUG_ON(b->n_bitmap_hints >= ARRAY_SIZE(b->al_bitmap_hints));
+	if (!test_and_set_bit(BM_PAGE_HINT_WRITEOUT, &page_private(page)))
+		b->al_bitmap_hints[b->n_bitmap_hints++] = page_nr;
 }
 
 static int bm_test_page_unchanged(struct page *page)
@@ -364,12 +379,9 @@ static void bm_free_pages(struct page **pages, unsigned long number)
 	}
 }
 
-static void bm_vk_free(void *ptr, int v)
+static inline void bm_vk_free(void *ptr)
 {
-	if (v)
-		vfree(ptr);
-	else
-		kfree(ptr);
+	kvfree(ptr);
 }
 
 /*
@@ -379,7 +391,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 {
 	struct page **old_pages = b->bm_pages;
 	struct page **new_pages, *page;
-	unsigned int i, bytes, vmalloced = 0;
+	unsigned int i, bytes;
 	unsigned long have = b->bm_number_of_pages;
 
 	BUG_ON(have == 0 && old_pages != NULL);
@@ -397,11 +409,10 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 	new_pages = kzalloc(bytes, GFP_NOIO | __GFP_NOWARN);
 	if (!new_pages) {
 		new_pages = __vmalloc(bytes,
-				GFP_NOIO | __GFP_HIGHMEM | __GFP_ZERO,
+				GFP_NOIO | __GFP_ZERO,
 				PAGE_KERNEL);
 		if (!new_pages)
 			return NULL;
-		vmalloced = 1;
 	}
 
 	if (want >= have) {
@@ -411,7 +422,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 			page = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
 			if (!page) {
 				bm_free_pages(new_pages + have, i - have);
-				bm_vk_free(new_pages, vmalloced);
+				bm_vk_free(new_pages);
 				return NULL;
 			}
 			/* we want to know which page it is
@@ -427,17 +438,11 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 		*/
 	}
 
-	if (vmalloced)
-		b->bm_flags |= BM_P_VMALLOCED;
-	else
-		b->bm_flags &= ~BM_P_VMALLOCED;
-
 	return new_pages;
 }
 
 /*
- * called on driver init only. TODO call when a device is created.
- * allocates the drbd_bitmap, and stores it in device->bitmap.
+ * allocates the drbd_bitmap and stores it in device->bitmap.
  */
 int drbd_bm_init(struct drbd_device *device)
 {
@@ -469,7 +474,7 @@ void drbd_bm_cleanup(struct drbd_device *device)
 	if (!expect(device->bitmap))
 		return;
 	bm_free_pages(device->bitmap->bm_pages, device->bitmap->bm_number_of_pages);
-	bm_vk_free(device->bitmap->bm_pages, (BM_P_VMALLOCED & device->bitmap->bm_flags));
+	bm_vk_free(device->bitmap->bm_pages);
 	kfree(device->bitmap);
 	device->bitmap = NULL;
 }
@@ -479,8 +484,14 @@ void drbd_bm_cleanup(struct drbd_device *device)
  * this masks out the remaining bits.
  * Returns the number of bits cleared.
  */
+#ifndef BITS_PER_PAGE
 #define BITS_PER_PAGE		(1UL << (PAGE_SHIFT + 3))
 #define BITS_PER_PAGE_MASK	(BITS_PER_PAGE - 1)
+#else
+# if BITS_PER_PAGE != (1UL << (PAGE_SHIFT + 3))
+#  error "ambiguous BITS_PER_PAGE"
+# endif
+#endif
 #define BITS_PER_LONG_MASK	(BITS_PER_LONG - 1)
 static int bm_clear_surplus(struct drbd_bitmap *b)
 {
@@ -559,21 +570,19 @@ static unsigned long bm_count_bits(struct drbd_bitmap *b)
 	unsigned long *p_addr;
 	unsigned long bits = 0;
 	unsigned long mask = (1UL << (b->bm_bits & BITS_PER_LONG_MASK)) -1;
-	int idx, i, last_word;
+	int idx, last_word;
 
 	/* all but last page */
 	for (idx = 0; idx < b->bm_number_of_pages - 1; idx++) {
 		p_addr = __bm_map_pidx(b, idx);
-		for (i = 0; i < LWPP; i++)
-			bits += hweight_long(p_addr[i]);
+		bits += bitmap_weight(p_addr, BITS_PER_PAGE);
 		__bm_unmap(p_addr);
 		cond_resched();
 	}
 	/* last (or only) page */
 	last_word = ((b->bm_bits - 1) & BITS_PER_PAGE_MASK) >> LN2_BPL;
 	p_addr = __bm_map_pidx(b, idx);
-	for (i = 0; i < last_word; i++)
-		bits += hweight_long(p_addr[i]);
+	bits += bitmap_weight(p_addr, last_word * BITS_PER_LONG);
 	p_addr[last_word] &= cpu_to_lel(mask);
 	bits += hweight_long(p_addr[last_word]);
 	/* 32bit arch, may have an unused padding long */
@@ -638,8 +647,8 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 	unsigned long bits, words, owords, obits;
 	unsigned long want, have, onpages; /* number of pages */
 	struct page **npages, **opages = NULL;
-	int err = 0, growing;
-	int opages_vmalloced;
+	int err = 0;
+	bool growing;
 
 	if (!expect(b))
 		return -ENOMEM;
@@ -651,8 +660,6 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 
 	if (capacity == b->bm_dev_capacity)
 		goto out;
-
-	opages_vmalloced = (BM_P_VMALLOCED & b->bm_flags);
 
 	if (capacity == 0) {
 		spin_lock_irq(&b->bm_lock);
@@ -667,7 +674,7 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 		b->bm_dev_capacity = 0;
 		spin_unlock_irq(&b->bm_lock);
 		bm_free_pages(opages, onpages);
-		bm_vk_free(opages, opages_vmalloced);
+		bm_vk_free(opages);
 		goto out;
 	}
 	bits  = BM_SECT_TO_BIT(ALIGN(capacity, BM_SECT_PER_BIT));
@@ -740,7 +747,7 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 
 	spin_unlock_irq(&b->bm_lock);
 	if (opages != npages)
-		bm_vk_free(opages, opages_vmalloced);
+		bm_vk_free(opages);
 	if (!growing)
 		b->bm_set = bm_count_bits(b);
 	drbd_info(device, "resync bitmap: bits=%lu words=%lu pages=%lu\n", bits, words, want);
@@ -946,22 +953,22 @@ static void drbd_bm_endio(struct bio *bio)
 	struct drbd_bm_aio_ctx *ctx = bio->bi_private;
 	struct drbd_device *device = ctx->device;
 	struct drbd_bitmap *b = device->bitmap;
-	unsigned int idx = bm_page_to_idx(bio->bi_io_vec[0].bv_page);
+	unsigned int idx = bm_page_to_idx(bio_first_page_all(bio));
 
 	if ((ctx->flags & BM_AIO_COPY_PAGES) == 0 &&
 	    !bm_test_page_unchanged(b->bm_pages[idx]))
 		drbd_warn(device, "bitmap page idx %u changed during IO!\n", idx);
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		/* ctx error will hold the completed-last non-zero error code,
 		 * in case error codes differ. */
-		ctx->error = bio->bi_error;
+		ctx->error = blk_status_to_errno(bio->bi_status);
 		bm_set_page_io_err(b->bm_pages[idx]);
 		/* Not identical to on disk version of it.
 		 * Is BM_PAGE_IO_ERROR enough? */
 		if (__ratelimit(&drbd_ratelimit_state))
 			drbd_err(device, "IO ERROR %d on bitmap page idx %u\n",
-					bio->bi_error, idx);
+					bio->bi_status, idx);
 	} else {
 		bm_clear_page_io_err(b->bm_pages[idx]);
 		dynamic_drbd_dbg(device, "bitmap page idx %u completed\n", idx);
@@ -970,7 +977,7 @@ static void drbd_bm_endio(struct bio *bio)
 	bm_page_unlock_io(device, idx);
 
 	if (ctx->flags & BM_AIO_COPY_PAGES)
-		mempool_free(bio->bi_io_vec[0].bv_page, drbd_md_io_page_pool);
+		mempool_free(bio->bi_io_vec[0].bv_page, &drbd_md_io_page_pool);
 
 	bio_put(bio);
 
@@ -988,7 +995,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
 	struct drbd_bitmap *b = device->bitmap;
 	struct page *page;
 	unsigned int len;
-	unsigned int rw = (ctx->flags & BM_AIO_READ) ? READ : WRITE;
+	unsigned int op = (ctx->flags & BM_AIO_READ) ? REQ_OP_READ : REQ_OP_WRITE;
 
 	sector_t on_disk_sector =
 		device->ldev->md.md_offset + device->ldev->md.bm_offset;
@@ -1007,24 +1014,25 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
 	bm_set_page_unchanged(b->bm_pages[page_nr]);
 
 	if (ctx->flags & BM_AIO_COPY_PAGES) {
-		page = mempool_alloc(drbd_md_io_page_pool, __GFP_HIGHMEM|__GFP_RECLAIM);
+		page = mempool_alloc(&drbd_md_io_page_pool,
+				GFP_NOIO | __GFP_HIGHMEM);
 		copy_highpage(page, b->bm_pages[page_nr]);
 		bm_store_page_idx(page, page_nr);
 	} else
 		page = b->bm_pages[page_nr];
-	bio->bi_bdev = device->ldev->md_bdev;
+	bio_set_dev(bio, device->ldev->md_bdev);
 	bio->bi_iter.bi_sector = on_disk_sector;
 	/* bio_add_page of a single page to an empty bio will always succeed,
 	 * according to api.  Do we want to assert that? */
 	bio_add_page(bio, page, len, 0);
 	bio->bi_private = ctx;
 	bio->bi_end_io = drbd_bm_endio;
+	bio_set_op_attrs(bio, op, 0);
 
-	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
-		bio->bi_rw |= rw;
+	if (drbd_insert_fault(device, (op == REQ_OP_WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
 		bio_io_error(bio);
 	} else {
-		submit_bio(rw, bio);
+		submit_bio(bio);
 		/* this should not count as user activity and cause the
 		 * resync to throttle -- see drbd_rs_should_slow_down(). */
 		atomic_add(len >> 9, &device->rs_sect_ev);
@@ -1038,7 +1046,7 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 {
 	struct drbd_bm_aio_ctx *ctx;
 	struct drbd_bitmap *b = device->bitmap;
-	int num_pages, i, count = 0;
+	unsigned int num_pages, i, count = 0;
 	unsigned long now;
 	char ppb[10];
 	int err = 0;
@@ -1063,7 +1071,7 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 		.done = 0,
 		.flags = flags,
 		.error = 0,
-		.kref = { ATOMIC_INIT(2) },
+		.kref = KREF_INIT(2),
 	};
 
 	if (!get_ldev_if_state(device, D_ATTACHING)) {  /* put is in drbd_bm_aio_ctx_destroy() */
@@ -1086,16 +1094,37 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 	now = jiffies;
 
 	/* let the layers below us try to merge these bios... */
-	for (i = 0; i < num_pages; i++) {
-		/* ignore completely unchanged pages */
-		if (lazy_writeout_upper_idx && i == lazy_writeout_upper_idx)
-			break;
-		if (!(flags & BM_AIO_READ)) {
-			if ((flags & BM_AIO_WRITE_HINTED) &&
-			    !test_and_clear_bit(BM_PAGE_HINT_WRITEOUT,
-				    &page_private(b->bm_pages[i])))
-				continue;
 
+	if (flags & BM_AIO_READ) {
+		for (i = 0; i < num_pages; i++) {
+			atomic_inc(&ctx->in_flight);
+			bm_page_io_async(ctx, i);
+			++count;
+			cond_resched();
+		}
+	} else if (flags & BM_AIO_WRITE_HINTED) {
+		/* ASSERT: BM_AIO_WRITE_ALL_PAGES is not set. */
+		unsigned int hint;
+		for (hint = 0; hint < b->n_bitmap_hints; hint++) {
+			i = b->al_bitmap_hints[hint];
+			if (i >= num_pages) /* == -1U: no hint here. */
+				continue;
+			/* Several AL-extents may point to the same page. */
+			if (!test_and_clear_bit(BM_PAGE_HINT_WRITEOUT,
+			    &page_private(b->bm_pages[i])))
+				continue;
+			/* Has it even changed? */
+			if (bm_test_page_unchanged(b->bm_pages[i]))
+				continue;
+			atomic_inc(&ctx->in_flight);
+			bm_page_io_async(ctx, i);
+			++count;
+		}
+	} else {
+		for (i = 0; i < num_pages; i++) {
+			/* ignore completely unchanged pages */
+			if (lazy_writeout_upper_idx && i == lazy_writeout_upper_idx)
+				break;
 			if (!(flags & BM_AIO_WRITE_ALL_PAGES) &&
 			    bm_test_page_unchanged(b->bm_pages[i])) {
 				dynamic_drbd_dbg(device, "skipped bm write for idx %u\n", i);
@@ -1108,11 +1137,11 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 				dynamic_drbd_dbg(device, "skipped bm lazy write for idx %u\n", i);
 				continue;
 			}
+			atomic_inc(&ctx->in_flight);
+			bm_page_io_async(ctx, i);
+			++count;
+			cond_resched();
 		}
-		atomic_inc(&ctx->in_flight);
-		bm_page_io_async(ctx, i);
-		++count;
-		cond_resched();
 	}
 
 	/*
@@ -1129,10 +1158,14 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 		kref_put(&ctx->kref, &drbd_bm_aio_ctx_destroy);
 
 	/* summary for global bitmap IO */
-	if (flags == 0)
-		drbd_info(device, "bitmap %s of %u pages took %lu jiffies\n",
-			 (flags & BM_AIO_READ) ? "READ" : "WRITE",
-			 count, jiffies - now);
+	if (flags == 0) {
+		unsigned int ms = jiffies_to_msecs(jiffies - now);
+		if (ms > 5) {
+			drbd_info(device, "bitmap %s of %u pages took %u ms\n",
+				 (flags & BM_AIO_READ) ? "READ" : "WRITE",
+				 count, ms);
+		}
+	}
 
 	if (ctx->error) {
 		drbd_alert(device, "we had at least one MD IO ERROR during bitmap IO\n");
@@ -1419,6 +1452,9 @@ static inline void bm_set_full_words_within_one_page(struct drbd_bitmap *b,
 	int bits;
 	int changed = 0;
 	unsigned long *paddr = kmap_atomic(b->bm_pages[page_nr]);
+
+	/* I think it is more cache line friendly to hweight_long then set to ~0UL,
+	 * than to first bitmap_weight() all words, then bitmap_fill() all words */
 	for (i = first_word; i < last_word; i++) {
 		bits = hweight_long(paddr[i]);
 		paddr[i] = ~0UL;
@@ -1628,8 +1664,7 @@ int drbd_bm_e_weight(struct drbd_device *device, unsigned long enr)
 		int n = e-s;
 		p_addr = bm_map_pidx(b, bm_word_to_page_idx(b, s));
 		bm = p_addr + MLPP(s);
-		while (n--)
-			count += hweight_long(*bm++);
+		count += bitmap_weight(bm, n * BITS_PER_LONG);
 		bm_unmap(p_addr);
 	} else {
 		drbd_err(device, "start offset (%d) too large in drbd_bm_e_weight\n", s);

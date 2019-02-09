@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * altera_jtaguart.c -- Altera JTAG UART driver
  *
@@ -6,11 +7,6 @@
  * (C) Copyright 2003-2007, Greg Ungerer <gerg@snapgear.com>
  * (C) Copyright 2008, Thomas Chou <thomas@wytron.com.tw>
  * (C) Copyright 2010, Tobias Klauser <tklauser@distanz.ch>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -280,7 +276,7 @@ static int altera_jtaguart_verify_port(struct uart_port *port,
 /*
  *	Define the basic serial functions we support.
  */
-static struct uart_ops altera_jtaguart_ops = {
+static const struct uart_ops altera_jtaguart_ops = {
 	.tx_empty	= altera_jtaguart_tx_empty,
 	.get_mctrl	= altera_jtaguart_get_mctrl,
 	.set_mctrl	= altera_jtaguart_set_mctrl,
@@ -383,6 +379,26 @@ console_initcall(altera_jtaguart_console_init);
 
 #define	ALTERA_JTAGUART_CONSOLE	(&altera_jtaguart_console)
 
+static void altera_jtaguart_earlycon_write(struct console *co, const char *s,
+					   unsigned int count)
+{
+	struct earlycon_device *dev = co->data;
+
+	uart_console_write(&dev->port, s, count, altera_jtaguart_console_putc);
+}
+
+static int __init altera_jtaguart_earlycon_setup(struct earlycon_device *dev,
+						 const char *options)
+{
+	if (!dev->port.membase)
+		return -ENODEV;
+
+	dev->con->write = altera_jtaguart_earlycon_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(juart, "altr,juart-1.0", altera_jtaguart_earlycon_setup);
+
 #else
 
 #define	ALTERA_JTAGUART_CONSOLE	NULL
@@ -458,6 +474,7 @@ static int altera_jtaguart_remove(struct platform_device *pdev)
 
 	port = &altera_jtaguart_ports[i].port;
 	uart_remove_one_port(&altera_jtaguart_driver, port);
+	iounmap(port->membase);
 
 	return 0;
 }

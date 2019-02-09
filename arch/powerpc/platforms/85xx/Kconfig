@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig FSL_SOC_BOOKE
 	bool "Freescale Book-E Machine Type"
 	depends on PPC_85xx || PPC_BOOK3E
@@ -8,6 +9,7 @@ menuconfig FSL_SOC_BOOKE
 	select FSL_PCI if PCI
 	select SERIAL_8250_EXTENDED if SERIAL_8250
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
+	select FSL_CORENET_RCPM if PPC_E500MC
 	default y
 
 if FSL_SOC_BOOKE
@@ -71,7 +73,7 @@ config MPC85xx_CDS
 config MPC85xx_MDS
 	bool "Freescale MPC85xx MDS"
 	select DEFAULT_UIMAGE
-	select PHYLIB
+	select PHYLIB if NETDEVICES
 	select HAS_RAPIDIO
 	select SWIOTLB
 	help
@@ -224,7 +226,7 @@ config GE_IMP3A
 	select DEFAULT_UIMAGE
 	select SWIOTLB
 	select MMIO_NVRAM
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select GE_FPGA
 	help
 	  This option enables support for the GE Intelligent Platforms IMP3A
@@ -252,6 +254,8 @@ endif # PPC32
 config PPC_QEMU_E500
 	bool "QEMU generic e500 platform"
 	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC if PPC64
 	help
 	  This option enables support for running as a QEMU guest using
 	  QEMU's generic e500 machine.  This is not required if you're
@@ -271,7 +275,7 @@ config CORENET_GENERIC
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC

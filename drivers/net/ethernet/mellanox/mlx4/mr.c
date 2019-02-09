@@ -106,21 +106,18 @@ static int mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
 	buddy->max_order = max_order;
 	spin_lock_init(&buddy->lock);
 
-	buddy->bits = kcalloc(buddy->max_order + 1, sizeof (long *),
+	buddy->bits = kcalloc(buddy->max_order + 1, sizeof(long *),
 			      GFP_KERNEL);
-	buddy->num_free = kcalloc((buddy->max_order + 1), sizeof *buddy->num_free,
+	buddy->num_free = kcalloc(buddy->max_order + 1, sizeof(*buddy->num_free),
 				  GFP_KERNEL);
 	if (!buddy->bits || !buddy->num_free)
 		goto err_out;
 
 	for (i = 0; i <= buddy->max_order; ++i) {
 		s = BITS_TO_LONGS(1 << (buddy->max_order - i));
-		buddy->bits[i] = kcalloc(s, sizeof (long), GFP_KERNEL | __GFP_NOWARN);
-		if (!buddy->bits[i]) {
-			buddy->bits[i] = vzalloc(s * sizeof(long));
-			if (!buddy->bits[i])
-				goto err_out_free;
-		}
+		buddy->bits[i] = kvmalloc_array(s, sizeof(long), GFP_KERNEL | __GFP_ZERO);
+		if (!buddy->bits[i])
+			goto err_out_free;
 	}
 
 	set_bit(0, buddy->bits[buddy->max_order]);
@@ -248,7 +245,7 @@ static void mlx4_free_mtt_range(struct mlx4_dev *dev, u32 offset, int order)
 				  offset, order);
 		return;
 	}
-	 __mlx4_free_mtt_range(dev, offset, order);
+	__mlx4_free_mtt_range(dev, offset, order);
 }
 
 void mlx4_mtt_cleanup(struct mlx4_dev *dev, struct mlx4_mtt *mtt)
@@ -366,6 +363,7 @@ int mlx4_mr_hw_write_mpt(struct mlx4_dev *dev, struct mlx4_mr *mmr,
 			container_of((void *)mpt_entry, struct mlx4_cmd_mailbox,
 				     buf);
 
+		(*mpt_entry)->lkey = 0;
 		err = mlx4_SW2HW_MPT(dev, mailbox, key);
 	}
 
@@ -482,14 +480,14 @@ static void mlx4_mpt_release(struct mlx4_dev *dev, u32 index)
 	__mlx4_mpt_release(dev, index);
 }
 
-int __mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index, gfp_t gfp)
+int __mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index)
 {
 	struct mlx4_mr_table *mr_table = &mlx4_priv(dev)->mr_table;
 
-	return mlx4_table_get(dev, &mr_table->dmpt_table, index, gfp);
+	return mlx4_table_get(dev, &mr_table->dmpt_table, index);
 }
 
-static int mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index, gfp_t gfp)
+static int mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index)
 {
 	u64 param = 0;
 
@@ -500,7 +498,7 @@ static int mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index, gfp_t gfp)
 							MLX4_CMD_TIME_CLASS_A,
 							MLX4_CMD_WRAPPED);
 	}
-	return __mlx4_mpt_alloc_icm(dev, index, gfp);
+	return __mlx4_mpt_alloc_icm(dev, index);
 }
 
 void __mlx4_mpt_free_icm(struct mlx4_dev *dev, u32 index)
@@ -632,7 +630,7 @@ int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 	struct mlx4_mpt_entry *mpt_entry;
 	int err;
 
-	err = mlx4_mpt_alloc_icm(dev, key_to_hw_index(mr->key), GFP_KERNEL);
+	err = mlx4_mpt_alloc_icm(dev, key_to_hw_index(mr->key));
 	if (err)
 		return err;
 
@@ -706,13 +704,13 @@ static int mlx4_write_mtt_chunk(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		return -ENOMEM;
 
 	dma_sync_single_for_cpu(&dev->persist->pdev->dev, dma_handle,
-				npages * sizeof (u64), DMA_TO_DEVICE);
+				npages * sizeof(u64), DMA_TO_DEVICE);
 
 	for (i = 0; i < npages; ++i)
 		mtts[i] = cpu_to_be64(page_list[i] | MLX4_MTT_FLAG_PRESENT);
 
 	dma_sync_single_for_device(&dev->persist->pdev->dev, dma_handle,
-				   npages * sizeof (u64), DMA_TO_DEVICE);
+				   npages * sizeof(u64), DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -790,14 +788,13 @@ int mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 EXPORT_SYMBOL_GPL(mlx4_write_mtt);
 
 int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
-		       struct mlx4_buf *buf, gfp_t gfp)
+		       struct mlx4_buf *buf)
 {
 	u64 *page_list;
 	int err;
 	int i;
 
-	page_list = kmalloc(buf->npages * sizeof *page_list,
-			    gfp);
+	page_list = kcalloc(buf->npages, sizeof(*page_list), GFP_KERNEL);
 	if (!page_list)
 		return -ENOMEM;
 
@@ -823,7 +820,7 @@ int mlx4_mw_alloc(struct mlx4_dev *dev, u32 pd, enum mlx4_mw_type type,
 	     !(dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW)) ||
 	     (type == MLX4_MW_TYPE_2 &&
 	     !(dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN)))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	index = mlx4_mpt_reserve(dev);
 	if (index == -1)
@@ -844,7 +841,7 @@ int mlx4_mw_enable(struct mlx4_dev *dev, struct mlx4_mw *mw)
 	struct mlx4_mpt_entry *mpt_entry;
 	int err;
 
-	err = mlx4_mpt_alloc_icm(dev, key_to_hw_index(mw->key), GFP_KERNEL);
+	err = mlx4_mpt_alloc_icm(dev, key_to_hw_index(mw->key));
 	if (err)
 		return err;
 
@@ -1056,7 +1053,7 @@ int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
 		return -EINVAL;
 
 	/* All MTTs must fit in the same page */
-	if (max_pages * sizeof *fmr->mtts > PAGE_SIZE)
+	if (max_pages * sizeof(*fmr->mtts) > PAGE_SIZE)
 		return -EINVAL;
 
 	fmr->page_shift = page_shift;
@@ -1107,30 +1104,16 @@ EXPORT_SYMBOL_GPL(mlx4_fmr_enable);
 void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 		    u32 *lkey, u32 *rkey)
 {
-	struct mlx4_cmd_mailbox *mailbox;
-	int err;
-
 	if (!fmr->maps)
 		return;
 
+	/* To unmap: it is sufficient to take back ownership from HW */
+	*(u8 *)fmr->mpt = MLX4_MPT_STATUS_SW;
+
+	/* Make sure MPT status is visible */
+	wmb();
+
 	fmr->maps = 0;
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox)) {
-		err = PTR_ERR(mailbox);
-		pr_warn("mlx4_ib: mlx4_alloc_cmd_mailbox failed (%d)\n", err);
-		return;
-	}
-
-	err = mlx4_HW2SW_MPT(dev, NULL,
-			     key_to_hw_index(fmr->mr.key) &
-			     (dev->caps.num_mpts - 1));
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	if (err) {
-		pr_warn("mlx4_ib: mlx4_HW2SW_MPT failed (%d)\n", err);
-		return;
-	}
-	fmr->mr.enabled = MLX4_MPT_EN_SW;
 }
 EXPORT_SYMBOL_GPL(mlx4_fmr_unmap);
 
@@ -1140,6 +1123,22 @@ int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr)
 
 	if (fmr->maps)
 		return -EBUSY;
+	if (fmr->mr.enabled == MLX4_MPT_EN_HW) {
+		/* In case of FMR was enabled and unmapped
+		 * make sure to give ownership of MPT back to HW
+		 * so HW2SW_MPT command will success.
+		 */
+		*(u8 *)fmr->mpt = MLX4_MPT_STATUS_SW;
+		/* Make sure MPT status is visible before changing MPT fields */
+		wmb();
+		fmr->mpt->length = 0;
+		fmr->mpt->start  = 0;
+		/* Make sure MPT data is visible after changing MPT status */
+		wmb();
+		*(u8 *)fmr->mpt = MLX4_MPT_STATUS_HW;
+		/* make sure MPT status is visible */
+		wmb();
+	}
 
 	ret = mlx4_mr_free(dev, &fmr->mr);
 	if (ret)

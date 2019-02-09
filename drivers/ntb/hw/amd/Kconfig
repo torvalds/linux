@@ -1,0 +1,7 @@
+config NTB_AMD
+	tristate "AMD Non-Transparent Bridge support"
+	depends on X86_64
+	help
+	 This driver supports AMD NTB on capable Zeppelin hardware.
+
+	 If unsure, say N.

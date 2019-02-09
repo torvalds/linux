@@ -21,31 +21,30 @@
  *
  * Authors: Ben Skeggs
  */
-#include "dmacnv50.h"
-#include "rootnv50.h"
+#include "channv50.h"
 
 #include <core/client.h>
 #include <subdev/timer.h>
 
-#include <nvif/class.h>
+#include <nvif/cl507d.h>
 #include <nvif/unpack.h>
 
 int
-nv50_disp_core_new(const struct nv50_disp_dmac_func *func,
-		   const struct nv50_disp_chan_mthd *mthd,
-		   struct nv50_disp_root *root, int chid,
-		   const struct nvkm_oclass *oclass, void *data, u32 size,
-		   struct nvkm_object **pobject)
+nv50_disp_core_new_(const struct nv50_disp_chan_func *func,
+		    const struct nv50_disp_chan_mthd *mthd,
+		    struct nv50_disp *disp, int chid,
+		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nvkm_object **pobject)
 {
 	union {
 		struct nv50_disp_core_channel_dma_v0 v0;
-	} *args = data;
+	} *args = argv;
 	struct nvkm_object *parent = oclass->parent;
 	u64 push;
-	int ret;
+	int ret = -ENOSYS;
 
-	nvif_ioctl(parent, "create disp core channel dma size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	nvif_ioctl(parent, "create disp core channel dma size %d\n", argc);
+	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create disp core channel dma vers %d "
 				   "pushbuf %016llx\n",
 			   args->v0.version, args->v0.pushbuf);
@@ -53,7 +52,7 @@ nv50_disp_core_new(const struct nv50_disp_dmac_func *func,
 	} else
 		return ret;
 
-	return nv50_disp_dmac_new_(func, mthd, root, chid, 0,
+	return nv50_disp_dmac_new_(func, mthd, disp, chid, 0,
 				   push, oclass, pobject);
 }
 
@@ -150,7 +149,7 @@ nv50_disp_core_mthd_head = {
 };
 
 static const struct nv50_disp_chan_mthd
-nv50_disp_core_chan_mthd = {
+nv50_disp_core_mthd = {
 	.name = "Core",
 	.addr = 0x000000,
 	.prev = 0x000004,
@@ -165,10 +164,9 @@ nv50_disp_core_chan_mthd = {
 };
 
 static void
-nv50_disp_core_fini(struct nv50_disp_dmac *chan)
+nv50_disp_core_fini(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
 	/* deactivate channel */
@@ -181,20 +179,13 @@ nv50_disp_core_fini(struct nv50_disp_dmac *chan)
 		nvkm_error(subdev, "core fini: %08x\n",
 			   nvkm_rd32(device, 0x610200));
 	}
-
-	/* disable error reporting and completion notifications */
-	nvkm_mask(device, 0x610028, 0x00010001, 0x00000000);
 }
 
 static int
-nv50_disp_core_init(struct nv50_disp_dmac *chan)
+nv50_disp_core_init(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-
-	/* enable error reporting */
-	nvkm_mask(device, 0x610028, 0x00010000, 0x00010000);
 
 	/* attempt to unstick channel from some unknown state */
 	if ((nvkm_rd32(device, 0x610200) & 0x009f0000) == 0x00020000)
@@ -223,20 +214,19 @@ nv50_disp_core_init(struct nv50_disp_dmac *chan)
 	return 0;
 }
 
-const struct nv50_disp_dmac_func
+const struct nv50_disp_chan_func
 nv50_disp_core_func = {
 	.init = nv50_disp_core_init,
 	.fini = nv50_disp_core_fini,
+	.intr = nv50_disp_chan_intr,
+	.user = nv50_disp_chan_user,
 	.bind = nv50_disp_dmac_bind,
 };
 
-const struct nv50_disp_dmac_oclass
-nv50_disp_core_oclass = {
-	.base.oclass = NV50_DISP_CORE_CHANNEL_DMA,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_core_new,
-	.func = &nv50_disp_core_func,
-	.mthd = &nv50_disp_core_chan_mthd,
-	.chid = 0,
-};
+int
+nv50_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		   struct nv50_disp *disp, struct nvkm_object **pobject)
+{
+	return nv50_disp_core_new_(&nv50_disp_core_func, &nv50_disp_core_mthd,
+				   disp, 0, oclass, argv, argc, pobject);
+}

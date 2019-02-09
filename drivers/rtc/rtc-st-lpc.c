@@ -99,7 +99,7 @@ static int st_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	lpt = ((unsigned long long)lpt_msb << 32) | lpt_lsb;
 	do_div(lpt, rtc->clkrate);
-	rtc_time_to_tm(lpt, tm);
+	rtc_time64_to_tm(lpt, tm);
 
 	return 0;
 }
@@ -107,13 +107,10 @@ static int st_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int st_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct st_rtc *rtc = dev_get_drvdata(dev);
-	unsigned long long lpt;
-	unsigned long secs, flags;
-	int ret;
+	unsigned long long lpt, secs;
+	unsigned long flags;
 
-	ret = rtc_tm_to_time(tm, &secs);
-	if (ret)
-		return ret;
+	secs = rtc_tm_to_time64(tm);
 
 	lpt = (unsigned long long)secs * rtc->clkrate;
 
@@ -161,13 +158,13 @@ static int st_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct st_rtc *rtc = dev_get_drvdata(dev);
 	struct rtc_time now;
-	unsigned long now_secs;
-	unsigned long alarm_secs;
+	unsigned long long now_secs;
+	unsigned long long alarm_secs;
 	unsigned long long lpa;
 
 	st_rtc_read_time(dev, &now);
-	rtc_tm_to_time(&now, &now_secs);
-	rtc_tm_to_time(&t->time, &alarm_secs);
+	now_secs = rtc_tm_to_time64(&now);
+	alarm_secs = rtc_tm_to_time64(&t->time);
 
 	/* Invalid alarm time */
 	if (now_secs > alarm_secs)
@@ -198,7 +195,6 @@ static int st_rtc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct st_rtc *rtc;
 	struct resource *res;
-	struct rtc_time tm_check;
 	uint32_t mode;
 	int ret = 0;
 
@@ -215,6 +211,10 @@ static int st_rtc_probe(struct platform_device *pdev)
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct st_rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
+
+	rtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc->rtc_dev))
+		return PTR_ERR(rtc->rtc_dev);
 
 	spin_lock_init(&rtc->lock);
 
@@ -257,37 +257,15 @@ static int st_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	/*
-	 * The RTC-LPC is able to manage date.year > 2038
-	 * but currently the kernel can not manage this date!
-	 * If the RTC-LPC has a date.year > 2038 then
-	 * it's set to the epoch "Jan 1st 2000"
-	 */
-	st_rtc_read_time(&pdev->dev, &tm_check);
+	rtc->rtc_dev->ops = &st_rtc_ops;
+	rtc->rtc_dev->range_max = U64_MAX;
+	do_div(rtc->rtc_dev->range_max, rtc->clkrate);
 
-	if (tm_check.tm_year >=  (2038 - 1900)) {
-		memset(&tm_check, 0, sizeof(tm_check));
-		tm_check.tm_year = 100;
-		tm_check.tm_mday = 1;
-		st_rtc_set_time(&pdev->dev, &tm_check);
-	}
-
-	rtc->rtc_dev = rtc_device_register("st-lpc-rtc", &pdev->dev,
-					   &st_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtc_dev)) {
+	ret = rtc_register_device(rtc->rtc_dev);
+	if (ret) {
 		clk_disable_unprepare(rtc->clk);
-		return PTR_ERR(rtc->rtc_dev);
+		return ret;
 	}
-
-	return 0;
-}
-
-static int st_rtc_remove(struct platform_device *pdev)
-{
-	struct st_rtc *rtc = platform_get_drvdata(pdev);
-
-	if (likely(rtc->rtc_dev))
-		rtc_device_unregister(rtc->rtc_dev);
 
 	return 0;
 }
@@ -344,7 +322,6 @@ static struct platform_driver st_rtc_platform_driver = {
 		.of_match_table = st_rtc_match,
 	},
 	.probe = st_rtc_probe,
-	.remove = st_rtc_remove,
 };
 
 module_platform_driver(st_rtc_platform_driver);

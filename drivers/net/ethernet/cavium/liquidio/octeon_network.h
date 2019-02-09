@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,9 +15,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
 
 /*!  \file  octeon_network.h
@@ -26,9 +23,75 @@
 
 #ifndef __OCTEON_NETWORK_H__
 #define __OCTEON_NETWORK_H__
-#include <linux/version.h>
-#include <linux/dma-mapping.h>
 #include <linux/ptp_clock_kernel.h>
+
+#define LIO_MAX_MTU_SIZE (OCTNET_MAX_FRM_SIZE - OCTNET_FRM_HEADER_SIZE)
+#define LIO_MIN_MTU_SIZE ETH_MIN_MTU
+
+/* Bit mask values for lio->ifstate */
+#define   LIO_IFSTATE_DROQ_OPS             0x01
+#define   LIO_IFSTATE_REGISTERED           0x02
+#define   LIO_IFSTATE_RUNNING              0x04
+#define   LIO_IFSTATE_RX_TIMESTAMP_ENABLED 0x08
+#define   LIO_IFSTATE_RESETTING		   0x10
+
+struct liquidio_if_cfg_context {
+	u32 octeon_id;
+	wait_queue_head_t wc;
+	int cond;
+};
+
+struct liquidio_if_cfg_resp {
+	u64 rh;
+	struct liquidio_if_cfg_info cfg_info;
+	u64 status;
+};
+
+#define LIO_IFCFG_WAIT_TIME    3000 /* In milli seconds */
+
+/* Structure of a node in list of gather components maintained by
+ * NIC driver for each network device.
+ */
+struct octnic_gather {
+	/* List manipulation. Next and prev pointers. */
+	struct list_head list;
+
+	/* Size of the gather component at sg in bytes. */
+	int sg_size;
+
+	/* Number of bytes that sg was adjusted to make it 8B-aligned. */
+	int adjust;
+
+	/* Gather component that can accommodate max sized fragment list
+	 * received from the IP layer.
+	 */
+	struct octeon_sg_entry *sg;
+
+	dma_addr_t sg_dma_ptr;
+};
+
+struct oct_nic_stats_resp {
+	u64     rh;
+	struct oct_link_stats stats;
+	u64     status;
+};
+
+struct oct_nic_stats_ctrl {
+	struct completion complete;
+	struct net_device *netdev;
+};
+
+struct oct_nic_seapi_resp {
+	u64 rh;
+	u32 speed;
+	u64 status;
+};
+
+struct liquidio_nic_seapi_ctl_context {
+	int octeon_id;
+	u32 status;
+	struct completion complete;
+};
 
 /** LiquidIO per-interface network private data */
 struct lio {
@@ -48,11 +111,14 @@ struct lio {
 	 */
 	int rxq;
 
-	/** Guards the glist */
-	spinlock_t lock;
+	/** Guards each glist */
+	spinlock_t *glist_lock;
 
-	/** Linked list of gather components */
-	struct list_head glist;
+	/** Array of gather component linked lists */
+	struct list_head *glist;
+	void **glists_virt_base;
+	dma_addr_t *glists_dma_base;
+	u32 glist_entry_size;
 
 	/** Pointer to the NIC properties for the Octeon device this network
 	 *  interface is associated with.
@@ -66,6 +132,9 @@ struct lio {
 
 	/** Link information sent by the core application for this interface. */
 	struct oct_link_info linfo;
+
+	/** counter of link changes */
+	u64 link_changes;
 
 	/** Size of Tx queue for this octeon device. */
 	u32 tx_qsize;
@@ -81,6 +150,12 @@ struct lio {
 
 	/** Copy of Interface capabilities: TSO, TSO6, LRO, Chescksums . */
 	u64 dev_capability;
+
+	/* Copy of transmit encapsulation capabilities:
+	 * TSO, TSO6, Checksums for this device for Kernel
+	 * 3.10.0 onwards
+	 */
+	u64 enc_dev_capability;
 
 	/** Copy of beacaon reg in phy */
 	u32 phy_beacon_val;
@@ -102,17 +177,34 @@ struct lio {
 	/* work queue for  txq status */
 	struct cavium_wq	txq_status_wq;
 
+	/* work queue for  rxq oom status */
+	struct cavium_wq	rxq_status_wq;
+
+	/* work queue for  link status */
+	struct cavium_wq	link_status_wq;
+
+	/* work queue to regularly send local time to octeon firmware */
+	struct cavium_wq	sync_octeon_time_wq;
+
+	int netdev_uc_count;
 };
 
 #define LIO_SIZE         (sizeof(struct lio))
 #define GET_LIO(netdev)  ((struct lio *)netdev_priv(netdev))
 
+#define LIO_MAX_CORES                16
+
 /**
  * \brief Enable or disable feature
  * @param netdev    pointer to network device
  * @param cmd       Command that just requires acknowledgment
+ * @param param1    Parameter to command
  */
-int liquidio_set_feature(struct net_device *netdev, int cmd);
+int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1);
+
+int setup_rx_oom_poll_fn(struct net_device *netdev);
+
+void cleanup_rx_oom_poll_fn(struct net_device *netdev);
 
 /**
  * \brief Link control command completion callback
@@ -125,20 +217,66 @@ int liquidio_set_feature(struct net_device *netdev, int cmd);
  */
 void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr);
 
+int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx,
+			     u32 num_iqs, u32 num_oqs);
+
+irqreturn_t liquidio_msix_intr_handler(int irq __attribute__((unused)),
+				       void *dev);
+
+int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs);
+
+int octnet_get_link_stats(struct net_device *netdev);
+
+int lio_wait_for_clean_oq(struct octeon_device *oct);
 /**
  * \brief Register ethtool operations
  * @param netdev    pointer to network device
  */
 void liquidio_set_ethtool_ops(struct net_device *netdev);
 
-static inline void
-*recv_buffer_alloc(struct octeon_device *oct __attribute__((unused)),
-		   u32 q_no __attribute__((unused)), u32 size)
-{
+void lio_if_cfg_callback(struct octeon_device *oct,
+			 u32 status __attribute__((unused)),
+			 void *buf);
+
+void lio_delete_glists(struct lio *lio);
+
+int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_qs);
+
+int liquidio_get_speed(struct lio *lio);
+int liquidio_set_speed(struct lio *lio, int speed);
+
+/**
+ * \brief Net device change_mtu
+ * @param netdev network device
+ */
+int liquidio_change_mtu(struct net_device *netdev, int new_mtu);
+#define LIO_CHANGE_MTU_SUCCESS 1
+#define LIO_CHANGE_MTU_FAIL    2
+
 #define SKB_ADJ_MASK  0x3F
 #define SKB_ADJ       (SKB_ADJ_MASK + 1)
 
-	struct sk_buff *skb = dev_alloc_skb(size + SKB_ADJ);
+#define MIN_SKB_SIZE       256 /* 8 bytes and more - 8 bytes for PTP */
+#define LIO_RXBUFFER_SZ    2048
+
+static inline void
+*recv_buffer_alloc(struct octeon_device *oct,
+		   struct octeon_skb_page_info *pg_info)
+{
+	struct page *page;
+	struct sk_buff *skb;
+	struct octeon_skb_page_info *skb_pg_info;
+
+	page = alloc_page(GFP_ATOMIC);
+	if (unlikely(!page))
+		return NULL;
+
+	skb = dev_alloc_skb(MIN_SKB_SIZE + SKB_ADJ);
+	if (unlikely(!skb)) {
+		__free_page(page);
+		pg_info->page = NULL;
+		return NULL;
+	}
 
 	if ((unsigned long)skb->data & SKB_ADJ_MASK) {
 		u32 r = SKB_ADJ - ((unsigned long)skb->data & SKB_ADJ_MASK);
@@ -146,70 +284,210 @@ static inline void
 		skb_reserve(skb, r);
 	}
 
+	skb_pg_info = ((struct octeon_skb_page_info *)(skb->cb));
+	/* Get DMA info */
+	pg_info->dma = dma_map_page(&oct->pci_dev->dev, page, 0,
+				    PAGE_SIZE, DMA_FROM_DEVICE);
+
+	/* Mapping failed!! */
+	if (dma_mapping_error(&oct->pci_dev->dev, pg_info->dma)) {
+		__free_page(page);
+		dev_kfree_skb_any((struct sk_buff *)skb);
+		pg_info->page = NULL;
+		return NULL;
+	}
+
+	pg_info->page = page;
+	pg_info->page_offset = 0;
+	skb_pg_info->page = page;
+	skb_pg_info->page_offset = 0;
+	skb_pg_info->dma = pg_info->dma;
+
 	return (void *)skb;
 }
 
+static inline void
+*recv_buffer_fast_alloc(u32 size)
+{
+	struct sk_buff *skb;
+	struct octeon_skb_page_info *skb_pg_info;
+
+	skb = dev_alloc_skb(size + SKB_ADJ);
+	if (unlikely(!skb))
+		return NULL;
+
+	if ((unsigned long)skb->data & SKB_ADJ_MASK) {
+		u32 r = SKB_ADJ - ((unsigned long)skb->data & SKB_ADJ_MASK);
+
+		skb_reserve(skb, r);
+	}
+
+	skb_pg_info = ((struct octeon_skb_page_info *)(skb->cb));
+	skb_pg_info->page = NULL;
+	skb_pg_info->page_offset = 0;
+	skb_pg_info->dma = 0;
+
+	return skb;
+}
+
+static inline int
+recv_buffer_recycle(struct octeon_device *oct, void *buf)
+{
+	struct octeon_skb_page_info *pg_info = buf;
+
+	if (!pg_info->page) {
+		dev_err(&oct->pci_dev->dev, "%s: pg_info->page NULL\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	if (unlikely(page_count(pg_info->page) != 1) ||
+	    unlikely(page_to_nid(pg_info->page)	!= numa_node_id())) {
+		dma_unmap_page(&oct->pci_dev->dev,
+			       pg_info->dma, (PAGE_SIZE << 0),
+			       DMA_FROM_DEVICE);
+		pg_info->dma = 0;
+		pg_info->page = NULL;
+		pg_info->page_offset = 0;
+		return -ENOMEM;
+	}
+
+	/* Flip to other half of the buffer */
+	if (pg_info->page_offset == 0)
+		pg_info->page_offset = LIO_RXBUFFER_SZ;
+	else
+		pg_info->page_offset = 0;
+	page_ref_inc(pg_info->page);
+
+	return 0;
+}
+
+static inline void
+*recv_buffer_reuse(struct octeon_device *oct, void *buf)
+{
+	struct octeon_skb_page_info *pg_info = buf, *skb_pg_info;
+	struct sk_buff *skb;
+
+	skb = dev_alloc_skb(MIN_SKB_SIZE + SKB_ADJ);
+	if (unlikely(!skb)) {
+		dma_unmap_page(&oct->pci_dev->dev,
+			       pg_info->dma, (PAGE_SIZE << 0),
+			       DMA_FROM_DEVICE);
+		return NULL;
+	}
+
+	if ((unsigned long)skb->data & SKB_ADJ_MASK) {
+		u32 r = SKB_ADJ - ((unsigned long)skb->data & SKB_ADJ_MASK);
+
+		skb_reserve(skb, r);
+	}
+
+	skb_pg_info = ((struct octeon_skb_page_info *)(skb->cb));
+	skb_pg_info->page = pg_info->page;
+	skb_pg_info->page_offset = pg_info->page_offset;
+	skb_pg_info->dma = pg_info->dma;
+
+	return skb;
+}
+
+static inline void
+recv_buffer_destroy(void *buffer, struct octeon_skb_page_info *pg_info)
+{
+	struct sk_buff *skb = (struct sk_buff *)buffer;
+
+	put_page(pg_info->page);
+	pg_info->dma = 0;
+	pg_info->page = NULL;
+	pg_info->page_offset = 0;
+
+	if (skb)
+		dev_kfree_skb_any(skb);
+}
+
 static inline void recv_buffer_free(void *buffer)
+{
+	struct sk_buff *skb = (struct sk_buff *)buffer;
+	struct octeon_skb_page_info *pg_info;
+
+	pg_info = ((struct octeon_skb_page_info *)(skb->cb));
+
+	if (pg_info->page) {
+		put_page(pg_info->page);
+		pg_info->dma = 0;
+		pg_info->page = NULL;
+		pg_info->page_offset = 0;
+	}
+
+	dev_kfree_skb_any((struct sk_buff *)buffer);
+}
+
+static inline void
+recv_buffer_fast_free(void *buffer)
+{
+	dev_kfree_skb_any((struct sk_buff *)buffer);
+}
+
+static inline void tx_buffer_free(void *buffer)
 {
 	dev_kfree_skb_any((struct sk_buff *)buffer);
 }
 
 #define lio_dma_alloc(oct, size, dma_addr) \
-	dma_alloc_coherent(&oct->pci_dev->dev, size, dma_addr, GFP_KERNEL)
+	dma_alloc_coherent(&(oct)->pci_dev->dev, size, dma_addr, GFP_KERNEL)
 #define lio_dma_free(oct, size, virt_addr, dma_addr) \
-	dma_free_coherent(&oct->pci_dev->dev, size, virt_addr, dma_addr)
+	dma_free_coherent(&(oct)->pci_dev->dev, size, virt_addr, dma_addr)
 
-#define   get_rbd(ptr)      (((struct sk_buff *)(ptr))->data)
-
-static inline u64
-lio_map_ring_info(struct octeon_droq *droq, u32 i)
+static inline
+void *get_rbd(struct sk_buff *skb)
 {
-	dma_addr_t dma_addr;
-	struct octeon_device *oct = droq->oct_dev;
+	struct octeon_skb_page_info *pg_info;
+	unsigned char *va;
 
-	dma_addr = dma_map_single(&oct->pci_dev->dev, &droq->info_list[i],
-				  OCT_DROQ_INFO_SIZE, DMA_FROM_DEVICE);
+	pg_info = ((struct octeon_skb_page_info *)(skb->cb));
+	va = page_address(pg_info->page) + pg_info->page_offset;
 
-	BUG_ON(dma_mapping_error(&oct->pci_dev->dev, dma_addr));
-
-	return (u64)dma_addr;
-}
-
-static inline void
-lio_unmap_ring_info(struct pci_dev *pci_dev,
-		    u64 info_ptr, u32 size)
-{
-	dma_unmap_single(&pci_dev->dev, info_ptr, size, DMA_FROM_DEVICE);
+	return va;
 }
 
 static inline u64
-lio_map_ring(struct pci_dev *pci_dev,
-	     void *buf, u32 size)
+lio_map_ring(void *buf)
 {
 	dma_addr_t dma_addr;
 
-	dma_addr = dma_map_single(&pci_dev->dev, get_rbd(buf), size,
-				  DMA_FROM_DEVICE);
+	struct sk_buff *skb = (struct sk_buff *)buf;
+	struct octeon_skb_page_info *pg_info;
 
-	BUG_ON(dma_mapping_error(&pci_dev->dev, dma_addr));
+	pg_info = ((struct octeon_skb_page_info *)(skb->cb));
+	if (!pg_info->page) {
+		pr_err("%s: pg_info->page NULL\n", __func__);
+		WARN_ON(1);
+	}
+
+	/* Get DMA info */
+	dma_addr = pg_info->dma;
+	if (!pg_info->dma) {
+		pr_err("%s: ERROR it should be already available\n",
+		       __func__);
+		WARN_ON(1);
+	}
+	dma_addr += pg_info->page_offset;
 
 	return (u64)dma_addr;
 }
 
 static inline void
 lio_unmap_ring(struct pci_dev *pci_dev,
-	       u64 buf_ptr, u32 size)
+	       u64 buf_ptr)
+
 {
-	dma_unmap_single(&pci_dev->dev,
-			 buf_ptr, size,
-			 DMA_FROM_DEVICE);
+	dma_unmap_page(&pci_dev->dev,
+		       buf_ptr, (PAGE_SIZE << 0),
+		       DMA_FROM_DEVICE);
 }
 
-static inline void *octeon_fast_packet_alloc(struct octeon_device *oct,
-					     struct octeon_droq *droq,
-					     u32 q_no, u32 size)
+static inline void *octeon_fast_packet_alloc(u32 size)
 {
-	return recv_buffer_alloc(oct, q_no, size);
+	return recv_buffer_fast_alloc(size);
 }
 
 static inline void octeon_fast_packet_next(struct octeon_droq *droq,
@@ -217,8 +495,135 @@ static inline void octeon_fast_packet_next(struct octeon_droq *droq,
 					   int copy_len,
 					   int idx)
 {
-	memcpy(skb_put(nicbuf, copy_len),
-	       get_rbd(droq->recv_buf_list[idx].buffer), copy_len);
+	skb_put_data(nicbuf, get_rbd(droq->recv_buf_list[idx].buffer),
+		     copy_len);
+}
+
+/**
+ * \brief check interface state
+ * @param lio per-network private data
+ * @param state_flag flag state to check
+ */
+static inline int ifstate_check(struct lio *lio, int state_flag)
+{
+	return atomic_read(&lio->ifstate) & state_flag;
+}
+
+/**
+ * \brief set interface state
+ * @param lio per-network private data
+ * @param state_flag flag state to set
+ */
+static inline void ifstate_set(struct lio *lio, int state_flag)
+{
+	atomic_set(&lio->ifstate, (atomic_read(&lio->ifstate) | state_flag));
+}
+
+/**
+ * \brief clear interface state
+ * @param lio per-network private data
+ * @param state_flag flag state to clear
+ */
+static inline void ifstate_reset(struct lio *lio, int state_flag)
+{
+	atomic_set(&lio->ifstate, (atomic_read(&lio->ifstate) & ~(state_flag)));
+}
+
+/**
+ * \brief wait for all pending requests to complete
+ * @param oct Pointer to Octeon device
+ *
+ * Called during shutdown sequence
+ */
+static inline int wait_for_pending_requests(struct octeon_device *oct)
+{
+	int i, pcount = 0;
+
+	for (i = 0; i < MAX_IO_PENDING_PKT_COUNT; i++) {
+		pcount = atomic_read(
+		    &oct->response_list[OCTEON_ORDERED_SC_LIST]
+			 .pending_req_count);
+		if (pcount)
+			schedule_timeout_uninterruptible(HZ / 10);
+		else
+			break;
+	}
+
+	if (pcount)
+		return 1;
+
+	return 0;
+}
+
+/**
+ * \brief Stop Tx queues
+ * @param netdev network device
+ */
+static inline void stop_txqs(struct net_device *netdev)
+{
+	int i;
+
+	for (i = 0; i < netdev->real_num_tx_queues; i++)
+		netif_stop_subqueue(netdev, i);
+}
+
+/**
+ * \brief Wake Tx queues
+ * @param netdev network device
+ */
+static inline void wake_txqs(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	int i, qno;
+
+	for (i = 0; i < netdev->real_num_tx_queues; i++) {
+		qno = lio->linfo.txpciq[i % lio->oct_dev->num_iqs].s.q_no;
+
+		if (__netif_subqueue_stopped(netdev, i)) {
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
+						  tx_restart, 1);
+			netif_wake_subqueue(netdev, i);
+		}
+	}
+}
+
+/**
+ * \brief Start Tx queues
+ * @param netdev network device
+ */
+static inline void start_txqs(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	int i;
+
+	if (lio->linfo.link.s.link_up) {
+		for (i = 0; i < netdev->real_num_tx_queues; i++)
+			netif_start_subqueue(netdev, i);
+	}
+}
+
+static inline int skb_iq(struct octeon_device *oct, struct sk_buff *skb)
+{
+	return skb->queue_mapping % oct->num_iqs;
+}
+
+/**
+ * Remove the node at the head of the list. The list would be empty at
+ * the end of this call if there are no more nodes in the list.
+ */
+static inline struct list_head *lio_list_delete_head(struct list_head *root)
+{
+	struct list_head *node;
+
+	if (root->prev == root && root->next == root)
+		node = NULL;
+	else
+		node = root->next;
+
+	if (node)
+		list_del(node);
+
+	return node;
 }
 
 #endif

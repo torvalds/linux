@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file is based on code from OCTEON SDK by Cavium Networks.
  *
  * Copyright (c) 2003-2010 Cavium Networks
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, Version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -34,7 +31,7 @@ static int cvm_oct_fill_hw_skbuff(int pool, int size, int elements)
 	while (freed) {
 		struct sk_buff *skb = dev_alloc_skb(size + 256);
 
-		if (unlikely(skb == NULL))
+		if (unlikely(!skb))
 			break;
 		skb_reserve(skb, 256 - (((unsigned long)skb->data) & 0x7f));
 		*(struct sk_buff **)(skb->data - sizeof(void *)) = skb;
@@ -98,7 +95,7 @@ static int cvm_oct_fill_hw_memory(int pool, int size, int elements)
 		 * just before the block.
 		 */
 		memory = kmalloc(size + 256, GFP_ATOMIC);
-		if (unlikely(memory == NULL)) {
+		if (unlikely(!memory)) {
 			pr_warn("Unable to allocate %u bytes for FPA pool %d\n",
 				elements * size, pool);
 			break;

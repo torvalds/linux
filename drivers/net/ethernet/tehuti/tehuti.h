@@ -74,6 +74,9 @@
  * ifcontig eth1 txqueuelen 3000 - to change it at runtime */
 #define BDX_NDEV_TXQ_LEN 3000
 
+/* Max MTU for Jumbo Frame mode, per tehutinetworks.net Features FAQ is 16k */
+#define BDX_MAX_MTU	(16 * 1024)
+
 #define FIFO_SIZE  4096
 #define FIFO_EXTRA_SPACE            1024
 

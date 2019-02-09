@@ -1,12 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/err.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "perf.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
 #include "tests.h"
 #include "debug.h"
+#include <errno.h>
 
-int test__syscall_openat_tp_fields(void)
+#ifndef O_DIRECTORY
+#define O_DIRECTORY    00200000
+#endif
+#ifndef AT_FDCWD
+#define AT_FDCWD       -100
+#endif
+
+int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.target = {
@@ -44,21 +56,21 @@ int test__syscall_openat_tp_fields(void)
 		goto out_delete_evlist;
 	}
 
-	perf_evsel__config(evsel, &opts);
+	perf_evsel__config(evsel, &opts, NULL);
 
 	thread_map__set_pid(evlist->threads, 0, getpid());
 
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
-	err = perf_evlist__mmap(evlist, UINT_MAX, false);
+	err = perf_evlist__mmap(evlist, UINT_MAX);
 	if (err < 0) {
 		pr_debug("perf_evlist__mmap: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -74,8 +86,13 @@ int test__syscall_openat_tp_fields(void)
 
 		for (i = 0; i < evlist->nr_mmaps; i++) {
 			union perf_event *event;
+			struct perf_mmap *md;
 
-			while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
+			md = &evlist->mmap[i];
+			if (perf_mmap__read_init(md) < 0)
+				continue;
+
+			while ((event = perf_mmap__read_event(md)) != NULL) {
 				const u32 type = event->header.type;
 				int tp_flags;
 				struct perf_sample sample;
@@ -83,7 +100,7 @@ int test__syscall_openat_tp_fields(void)
 				++nr_events;
 
 				if (type != PERF_RECORD_SAMPLE) {
-					perf_evlist__mmap_consume(evlist, i);
+					perf_mmap__consume(md);
 					continue;
 				}
 
@@ -103,6 +120,7 @@ int test__syscall_openat_tp_fields(void)
 
 				goto out_ok;
 			}
+			perf_mmap__read_done(md);
 		}
 
 		if (nr_events == before)

@@ -20,6 +20,10 @@ Required Properties:
     clocks must be specified.  For clocks with multiple parents, invalid
     settings must be specified as "<0>".
   - #clock-cells: Must be 0
+
+
+Optional Properties:
+
   - clock-output-names: The name of the clock as a free-form string
 
 

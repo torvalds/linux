@@ -154,7 +154,7 @@ out:
 }
 
 /**
- * _of_clk_init - PLL initialisation via DT
+ * _of_pll_clk_init - PLL initialisation via DT
  * @node: device tree node for this clock
  * @pllctrl: If true, lower 6 bits of multiplier is in pllm register of
  *		pll controller, else it is in the control register0(bit 11-6)
@@ -235,7 +235,7 @@ CLK_OF_DECLARE(keystone_pll_clock, "ti,keystone,pll-clock",
 					of_keystone_pll_clk_init);
 
 /**
- * of_keystone_pll_main_clk_init - Main PLL initialisation DT wrapper
+ * of_keystone_main_pll_clk_init - Main PLL initialisation DT wrapper
  * @node: device tree node for this clock
  */
 static void __init of_keystone_main_pll_clk_init(struct device_node *node)
@@ -267,25 +267,30 @@ static void __init of_pll_div_clk_init(struct device_node *node)
 	parent_name = of_clk_get_parent_name(node, 0);
 	if (!parent_name) {
 		pr_err("%s: missing parent clock\n", __func__);
+		iounmap(reg);
 		return;
 	}
 
 	if (of_property_read_u32(node, "bit-shift", &shift)) {
 		pr_err("%s: missing 'shift' property\n", __func__);
+		iounmap(reg);
 		return;
 	}
 
 	if (of_property_read_u32(node, "bit-mask", &mask)) {
 		pr_err("%s: missing 'bit-mask' property\n", __func__);
+		iounmap(reg);
 		return;
 	}
 
 	clk = clk_register_divider(NULL, clk_name, parent_name, 0, reg, shift,
 				 mask, 0, NULL);
-	if (clk)
+	if (clk) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	else
+	} else {
 		pr_err("%s: error registering divider %s\n", __func__, clk_name);
+		iounmap(reg);
+	}
 }
 CLK_OF_DECLARE(pll_divider_clock, "ti,keystone,pll-divider-clock", of_pll_div_clk_init);
 

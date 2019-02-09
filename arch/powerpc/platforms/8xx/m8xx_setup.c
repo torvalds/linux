@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1995  Linus Torvalds
  *  Adapted from 'alpha' version by Gary Thomas
@@ -23,7 +24,7 @@
 #include <asm/fs_pd.h>
 #include <mm/mmu_decl.h>
 
-#include <sysdev/mpc8xx_pic.h>
+#include "pic.h"
 
 #include "mpc8xx.h"
 
@@ -168,15 +169,14 @@ int mpc8xx_set_rtc_time(struct rtc_time *tm)
 {
 	sitk8xx_t __iomem *sys_tmr1;
 	sit8xx_t __iomem *sys_tmr2;
-	int time;
+	time64_t time;
 
 	sys_tmr1 = immr_map(im_sitk);
 	sys_tmr2 = immr_map(im_sit);
-	time = mktime(tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
-	              tm->tm_hour, tm->tm_min, tm->tm_sec);
+	time = rtc_tm_to_time64(tm);
 
 	out_be32(&sys_tmr1->sitk_rtck, KAPWR_KEY);
-	out_be32(&sys_tmr2->sit_rtc, time);
+	out_be32(&sys_tmr2->sit_rtc, (u32)time);
 	out_be32(&sys_tmr1->sitk_rtck, ~KAPWR_KEY);
 
 	immr_unmap(sys_tmr2);
@@ -191,14 +191,12 @@ void mpc8xx_get_rtc_time(struct rtc_time *tm)
 
 	/* Get time from the RTC. */
 	data = in_be32(&sys_tmr->sit_rtc);
-	to_tm(data, tm);
-	tm->tm_year -= 1900;
-	tm->tm_mon -= 1;
+	rtc_time64_to_tm(data, tm);
 	immr_unmap(sys_tmr);
 	return;
 }
 
-void mpc8xx_restart(char *cmd)
+void __noreturn mpc8xx_restart(char *cmd)
 {
 	car8xx_t __iomem *clk_r = immr_map(im_clkrst);
 
@@ -216,13 +214,7 @@ void mpc8xx_restart(char *cmd)
 
 static void cpm_cascade(struct irq_desc *desc)
 {
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	int cascade_irq = cpm_get_irq();
-
-	if (cascade_irq >= 0)
-		generic_handle_irq(cascade_irq);
-
-	chip->irq_eoi(&desc->irq_data);
+	generic_handle_irq(cpm_get_irq());
 }
 
 /* Initialize the internal interrupt controllers.  The number of
@@ -241,6 +233,6 @@ void __init mpc8xx_pics_init(void)
 	}
 
 	irq = cpm_pic_init();
-	if (irq != NO_IRQ)
+	if (irq)
 		irq_set_chained_handler(irq, cpm_cascade);
 }

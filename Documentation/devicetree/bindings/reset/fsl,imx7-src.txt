@@ -1,0 +1,47 @@
+Freescale i.MX7 System Reset Controller
+======================================
+
+Please also refer to reset.txt in this directory for common reset
+controller binding usage.
+
+Required properties:
+- compatible: Should be "fsl,imx7-src", "syscon"
+- reg: should be register base and length as documented in the
+  datasheet
+- interrupts: Should contain SRC interrupt
+- #reset-cells: 1, see below
+
+example:
+
+src: reset-controller@30390000 {
+     compatible = "fsl,imx7d-src", "syscon";
+     reg = <0x30390000 0x2000>;
+     interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+     #reset-cells = <1>;
+};
+
+
+Specifying reset lines connected to IP modules
+==============================================
+
+The system reset controller can be used to reset various set of
+peripherals. Device nodes that need access to reset lines should
+specify them as a reset phandle in their corresponding node as
+specified in reset.txt.
+
+Example:
+
+	pcie: pcie@33800000 {
+
+		...
+
+		resets = <&src IMX7_RESET_PCIEPHY>,
+			 <&src IMX7_RESET_PCIE_CTRL_APPS_EN>;
+		reset-names = "pciephy", "apps";
+
+		...
+        };
+
+
+For list of all valid reset indicies see
+<dt-bindings/reset/imx7-reset.h>

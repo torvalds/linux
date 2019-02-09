@@ -61,6 +61,8 @@ struct gart_device {
 	struct list_head	client;
 	spinlock_t		client_lock;	/* for client list */
 	struct device		*dev;
+
+	struct iommu_device	iommu;		/* IOMMU Core handle */
 };
 
 struct gart_domain {
@@ -69,6 +71,8 @@ struct gart_domain {
 };
 
 static struct gart_device *gart_handle; /* unique for a system */
+
+static bool gart_debug;
 
 #define GART_PTE(_pfn)						\
 	(GART_ENTRY_PHYS_ADDR_VALID | ((_pfn) << PAGE_SHIFT))
@@ -269,6 +273,7 @@ static int gart_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	struct gart_device *gart = gart_domain->gart;
 	unsigned long flags;
 	unsigned long pfn;
+	unsigned long pte;
 
 	if (!gart_iova_range_valid(gart, iova, bytes))
 		return -EINVAL;
@@ -279,6 +284,14 @@ static int gart_iommu_map(struct iommu_domain *domain, unsigned long iova,
 		dev_err(gart->dev, "Invalid page: %pa\n", &pa);
 		spin_unlock_irqrestore(&gart->pte_lock, flags);
 		return -EINVAL;
+	}
+	if (gart_debug) {
+		pte = gart_read_pte(gart, iova);
+		if (pte & GART_ENTRY_PHYS_ADDR_VALID) {
+			spin_unlock_irqrestore(&gart->pte_lock, flags);
+			dev_err(gart->dev, "Page entry is in-use\n");
+			return -EBUSY;
+		}
 	}
 	gart_set_pte(gart, iova, GART_PTE(pfn));
 	FLUSH_GART_REGS(gart);
@@ -300,7 +313,7 @@ static size_t gart_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 	gart_set_pte(gart, iova, 0);
 	FLUSH_GART_REGS(gart);
 	spin_unlock_irqrestore(&gart->pte_lock, flags);
-	return 0;
+	return bytes;
 }
 
 static phys_addr_t gart_iommu_iova_to_phys(struct iommu_domain *domain,
@@ -334,14 +347,36 @@ static bool gart_iommu_capable(enum iommu_cap cap)
 	return false;
 }
 
+static int gart_iommu_add_device(struct device *dev)
+{
+	struct iommu_group *group = iommu_group_get_for_dev(dev);
+
+	if (IS_ERR(group))
+		return PTR_ERR(group);
+
+	iommu_group_put(group);
+
+	iommu_device_link(&gart_handle->iommu, dev);
+
+	return 0;
+}
+
+static void gart_iommu_remove_device(struct device *dev)
+{
+	iommu_group_remove_device(dev);
+	iommu_device_unlink(&gart_handle->iommu, dev);
+}
+
 static const struct iommu_ops gart_iommu_ops = {
 	.capable	= gart_iommu_capable,
 	.domain_alloc	= gart_iommu_domain_alloc,
 	.domain_free	= gart_iommu_domain_free,
 	.attach_dev	= gart_iommu_attach_dev,
 	.detach_dev	= gart_iommu_detach_dev,
+	.add_device	= gart_iommu_add_device,
+	.remove_device	= gart_iommu_remove_device,
+	.device_group	= generic_device_group,
 	.map		= gart_iommu_map,
-	.map_sg		= default_iommu_map_sg,
 	.unmap		= gart_iommu_unmap,
 	.iova_to_phys	= gart_iommu_iova_to_phys,
 	.pgsize_bitmap	= GART_IOMMU_PGSIZES,
@@ -378,6 +413,7 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	struct resource *res, *res_remap;
 	void __iomem *gart_regs;
 	struct device *dev = &pdev->dev;
+	int ret;
 
 	if (gart_handle)
 		return -EIO;
@@ -404,6 +440,22 @@ static int tegra_gart_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	ret = iommu_device_sysfs_add(&gart->iommu, &pdev->dev, NULL,
+				     dev_name(&pdev->dev));
+	if (ret) {
+		dev_err(dev, "Failed to register IOMMU in sysfs\n");
+		return ret;
+	}
+
+	iommu_device_set_ops(&gart->iommu, &gart_iommu_ops);
+
+	ret = iommu_device_register(&gart->iommu);
+	if (ret) {
+		dev_err(dev, "Failed to register IOMMU\n");
+		iommu_device_sysfs_remove(&gart->iommu);
+		return ret;
+	}
+
 	gart->dev = &pdev->dev;
 	spin_lock_init(&gart->pte_lock);
 	spin_lock_init(&gart->client_lock);
@@ -412,7 +464,7 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	gart->iovmm_base = (dma_addr_t)res_remap->start;
 	gart->page_count = (resource_size(res_remap) >> GART_PAGE_SHIFT);
 
-	gart->savedata = vmalloc(sizeof(u32) * gart->page_count);
+	gart->savedata = vmalloc(array_size(sizeof(u32), gart->page_count));
 	if (!gart->savedata) {
 		dev_err(dev, "failed to allocate context save area\n");
 		return -ENOMEM;
@@ -429,6 +481,9 @@ static int tegra_gart_probe(struct platform_device *pdev)
 static int tegra_gart_remove(struct platform_device *pdev)
 {
 	struct gart_device *gart = platform_get_drvdata(pdev);
+
+	iommu_device_unregister(&gart->iommu);
+	iommu_device_sysfs_remove(&gart->iommu);
 
 	writel(0, gart->regs + GART_CONFIG);
 	if (gart->savedata)
@@ -470,7 +525,9 @@ static void __exit tegra_gart_exit(void)
 
 subsys_initcall(tegra_gart_init);
 module_exit(tegra_gart_exit);
+module_param(gart_debug, bool, 0644);
 
+MODULE_PARM_DESC(gart_debug, "Enable GART debugging");
 MODULE_DESCRIPTION("IOMMU API for GART in Tegra20");
 MODULE_AUTHOR("Hiroshi DOYU <hdoyu@nvidia.com>");
 MODULE_ALIAS("platform:tegra-gart");

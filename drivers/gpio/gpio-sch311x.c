@@ -12,20 +12,20 @@
  * (at your option) any later version.
  */
 
+#include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
 
 #define DRV_NAME			"gpio-sch311x"
 
-#define SCH311X_GPIO_CONF_OUT		0x00
-#define SCH311X_GPIO_CONF_IN		0x01
-#define SCH311X_GPIO_CONF_INVERT	0x02
-#define SCH311X_GPIO_CONF_OPEN_DRAIN	0x80
+#define SCH311X_GPIO_CONF_DIR		BIT(0)
+#define SCH311X_GPIO_CONF_INVERT	BIT(1)
+#define SCH311X_GPIO_CONF_OPEN_DRAIN	BIT(7)
 
 #define SIO_CONFIG_KEY_ENTER		0x55
 #define SIO_CONFIG_KEY_EXIT		0xaa
@@ -93,13 +93,6 @@ static struct sch311x_gpio_block_def sch311x_gpio_blocks[] = {
 	},
 };
 
-static inline struct sch311x_gpio_block *
-to_sch311x_gpio_block(struct gpio_chip *chip)
-{
-	return container_of(chip, struct sch311x_gpio_block, chip);
-}
-
-
 /*
  *	Super-IO functions
  */
@@ -142,14 +135,14 @@ static inline void sch311x_sio_outb(int sio_config_port, int reg, int val)
 
 static int sch311x_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
 	if (block->config_regs[offset] == 0) /* GPIO is not available */
 		return -ENODEV;
 
 	if (!request_region(block->runtime_reg + block->config_regs[offset],
 			    1, DRV_NAME)) {
-		dev_err(chip->dev, "Failed to request region 0x%04x.\n",
+		dev_err(chip->parent, "Failed to request region 0x%04x.\n",
 			block->runtime_reg + block->config_regs[offset]);
 		return -EBUSY;
 	}
@@ -158,7 +151,7 @@ static int sch311x_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void sch311x_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
 	if (block->config_regs[offset] == 0) /* GPIO is not available */
 		return;
@@ -168,8 +161,8 @@ static void sch311x_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 static int sch311x_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
-	unsigned char data;
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
+	u8 data;
 
 	spin_lock(&block->lock);
 	data = inb(block->runtime_reg + block->data_reg);
@@ -181,7 +174,7 @@ static int sch311x_gpio_get(struct gpio_chip *chip, unsigned offset)
 static void __sch311x_gpio_set(struct sch311x_gpio_block *block,
 			       unsigned offset, int value)
 {
-	unsigned char data = inb(block->runtime_reg + block->data_reg);
+	u8 data = inb(block->runtime_reg + block->data_reg);
 	if (value)
 		data |= BIT(offset);
 	else
@@ -192,7 +185,7 @@ static void __sch311x_gpio_set(struct sch311x_gpio_block *block,
 static void sch311x_gpio_set(struct gpio_chip *chip, unsigned offset,
 			     int value)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
 	spin_lock(&block->lock);
 	 __sch311x_gpio_set(block, offset, value);
@@ -201,11 +194,13 @@ static void sch311x_gpio_set(struct gpio_chip *chip, unsigned offset,
 
 static int sch311x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
+	u8 data;
 
 	spin_lock(&block->lock);
-	outb(SCH311X_GPIO_CONF_IN, block->runtime_reg +
-	     block->config_regs[offset]);
+	data = inb(block->runtime_reg + block->config_regs[offset]);
+	data |= SCH311X_GPIO_CONF_DIR;
+	outb(data, block->runtime_reg + block->config_regs[offset]);
 	spin_unlock(&block->lock);
 
 	return 0;
@@ -214,28 +209,70 @@ static int sch311x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 static int sch311x_gpio_direction_out(struct gpio_chip *chip, unsigned offset,
 				      int value)
 {
-	struct sch311x_gpio_block *block = to_sch311x_gpio_block(chip);
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
+	u8 data;
 
 	spin_lock(&block->lock);
 
-	outb(SCH311X_GPIO_CONF_OUT, block->runtime_reg +
-	     block->config_regs[offset]);
-
+	data = inb(block->runtime_reg + block->config_regs[offset]);
+	data &= ~SCH311X_GPIO_CONF_DIR;
+	outb(data, block->runtime_reg + block->config_regs[offset]);
 	__sch311x_gpio_set(block, offset, value);
 
 	spin_unlock(&block->lock);
 	return 0;
 }
 
+static int sch311x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
+	u8 data;
+
+	spin_lock(&block->lock);
+	data = inb(block->runtime_reg + block->config_regs[offset]);
+	spin_unlock(&block->lock);
+
+	return !!(data & SCH311X_GPIO_CONF_DIR);
+}
+
+static int sch311x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
+				   unsigned long config)
+{
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
+	enum pin_config_param param = pinconf_to_config_param(config);
+	u8 data;
+
+	switch (param) {
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
+		spin_lock(&block->lock);
+		data = inb(block->runtime_reg + block->config_regs[offset]);
+		data |= SCH311X_GPIO_CONF_OPEN_DRAIN;
+		outb(data, block->runtime_reg + block->config_regs[offset]);
+		spin_unlock(&block->lock);
+		return 0;
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		spin_lock(&block->lock);
+		data = inb(block->runtime_reg + block->config_regs[offset]);
+		data &= ~SCH311X_GPIO_CONF_OPEN_DRAIN;
+		outb(data, block->runtime_reg + block->config_regs[offset]);
+		spin_unlock(&block->lock);
+		return 0;
+	default:
+		break;
+	}
+	return -ENOTSUPP;
+}
+
 static int sch311x_gpio_probe(struct platform_device *pdev)
 {
-	struct sch311x_pdev_data *pdata = pdev->dev.platform_data;
+	struct sch311x_pdev_data *pdata = dev_get_platdata(&pdev->dev);
 	struct sch311x_gpio_priv *priv;
 	struct sch311x_gpio_block *block;
 	int err, i;
 
 	/* we can register all GPIO data registers at once */
-	if (!request_region(pdata->runtime_reg + GP1, 6, DRV_NAME)) {
+	if (!devm_request_region(&pdev->dev, pdata->runtime_reg + GP1, 6,
+		DRV_NAME)) {
 		dev_err(&pdev->dev, "Failed to request region 0x%04x-0x%04x.\n",
 			pdata->runtime_reg + GP1, pdata->runtime_reg + GP1 + 5);
 		return -EBUSY;
@@ -258,16 +295,18 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 		block->chip.free = sch311x_gpio_free;
 		block->chip.direction_input = sch311x_gpio_direction_in;
 		block->chip.direction_output = sch311x_gpio_direction_out;
+		block->chip.get_direction = sch311x_gpio_get_direction;
+		block->chip.set_config = sch311x_gpio_set_config;
 		block->chip.get = sch311x_gpio_get;
 		block->chip.set = sch311x_gpio_set;
 		block->chip.ngpio = 8;
-		block->chip.dev = &pdev->dev;
+		block->chip.parent = &pdev->dev;
 		block->chip.base = sch311x_gpio_blocks[i].base;
 		block->config_regs = sch311x_gpio_blocks[i].config_regs;
 		block->data_reg = sch311x_gpio_blocks[i].data_reg;
 		block->runtime_reg = pdata->runtime_reg;
 
-		err = gpiochip_add(&block->chip);
+		err = gpiochip_add_data(&block->chip, block);
 		if (err < 0) {
 			dev_err(&pdev->dev,
 				"Could not register gpiochip, %d\n", err);
@@ -280,7 +319,6 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 exit_err:
-	release_region(pdata->runtime_reg + GP1, 6);
 	/* release already registered chips */
 	for (--i; i >= 0; i--)
 		gpiochip_remove(&priv->blocks[i].chip);
@@ -289,11 +327,8 @@ exit_err:
 
 static int sch311x_gpio_remove(struct platform_device *pdev)
 {
-	struct sch311x_pdev_data *pdata = pdev->dev.platform_data;
 	struct sch311x_gpio_priv *priv = platform_get_drvdata(pdev);
 	int i;
-
-	release_region(pdata->runtime_reg + GP1, 6);
 
 	for (i = 0; i < ARRAY_SIZE(priv->blocks); i++) {
 		gpiochip_remove(&priv->blocks[i].chip);
@@ -305,7 +340,6 @@ static int sch311x_gpio_remove(struct platform_device *pdev)
 
 static struct platform_driver sch311x_gpio_driver = {
 	.driver.name	= DRV_NAME,
-	.driver.owner	= THIS_MODULE,
 	.probe		= sch311x_gpio_probe,
 	.remove		= sch311x_gpio_remove,
 };
@@ -319,7 +353,7 @@ static int __init sch311x_detect(int sio_config_port, unsigned short *addr)
 {
 	int err = 0, reg;
 	unsigned short base_addr;
-	unsigned char dev_id;
+	u8 dev_id;
 
 	err = sch311x_sio_enter(sio_config_port);
 	if (err)

@@ -14,6 +14,9 @@
 #ifndef __DA7219_H
 #define __DA7219_H
 
+#include <linux/clk.h>
+#include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <sound/da7219.h>
@@ -85,7 +88,6 @@
 #define DA7219_CHIP_ID1			0x81
 #define DA7219_CHIP_ID2			0x82
 #define DA7219_CHIP_REVISION		0x83
-#define DA7219_LDO_CTRL			0x90
 #define DA7219_IO_CTRL			0x91
 #define DA7219_GAIN_RAMP_CTRL		0x92
 #define DA7219_PC_COUNT			0x94
@@ -195,11 +197,11 @@
 /* DA7219_PLL_CTRL = 0x20 */
 #define DA7219_PLL_INDIV_SHIFT		2
 #define DA7219_PLL_INDIV_MASK		(0x7 << 2)
-#define DA7219_PLL_INDIV_2_5_MHZ	(0x0 << 2)
-#define DA7219_PLL_INDIV_5_10_MHZ	(0x1 << 2)
-#define DA7219_PLL_INDIV_10_20_MHZ	(0x2 << 2)
-#define DA7219_PLL_INDIV_20_40_MHZ	(0x3 << 2)
-#define DA7219_PLL_INDIV_40_54_MHZ	(0x4 << 2)
+#define DA7219_PLL_INDIV_2_TO_4_5_MHZ	(0x0 << 2)
+#define DA7219_PLL_INDIV_4_5_TO_9_MHZ	(0x1 << 2)
+#define DA7219_PLL_INDIV_9_TO_18_MHZ	(0x2 << 2)
+#define DA7219_PLL_INDIV_18_TO_36_MHZ	(0x3 << 2)
+#define DA7219_PLL_INDIV_36_TO_54_MHZ	(0x4 << 2)
 #define DA7219_PLL_MCLK_SQR_EN_SHIFT	5
 #define DA7219_PLL_MCLK_SQR_EN_MASK	(0x1 << 5)
 #define DA7219_PLL_MODE_SHIFT		6
@@ -207,7 +209,6 @@
 #define DA7219_PLL_MODE_BYPASS		(0x0 << 6)
 #define DA7219_PLL_MODE_NORMAL		(0x1 << 6)
 #define DA7219_PLL_MODE_SRM		(0x2 << 6)
-#define DA7219_PLL_MODE_32KHZ		(0x3 << 6)
 
 /* DA7219_PLL_FRAC_TOP = 0x22 */
 #define DA7219_PLL_FBDIV_FRAC_TOP_SHIFT	0
@@ -226,6 +227,7 @@
 #define DA7219_PLL_SRM_STATE_MASK	(0xF << 0)
 #define DA7219_PLL_SRM_STATUS_SHIFT	4
 #define DA7219_PLL_SRM_STATUS_MASK	(0xF << 4)
+#define DA7219_PLL_SRM_STS_MCLK		(0x1 << 4)
 #define DA7219_PLL_SRM_STS_SRM_LOCK	(0x1 << 7)
 
 /* DA7219_DIG_ROUTING_DAI = 0x2A */
@@ -569,12 +571,6 @@
 #define DA7219_CHIP_MAJOR_SHIFT	4
 #define DA7219_CHIP_MAJOR_MASK	(0xF << 4)
 
-/* DA7219_LDO_CTRL = 0x90 */
-#define DA7219_LDO_LEVEL_SELECT_SHIFT	4
-#define DA7219_LDO_LEVEL_SELECT_MASK	(0x3 << 4)
-#define DA7219_LDO_EN_SHIFT		7
-#define DA7219_LDO_EN_MASK		(0x1 << 7)
-
 /* DA7219_IO_CTRL = 0x91 */
 #define DA7219_IO_VOLTAGE_LEVEL_SHIFT		0
 #define DA7219_IO_VOLTAGE_LEVEL_MASK		(0x1 << 0)
@@ -584,6 +580,8 @@
 /* DA7219_GAIN_RAMP_CTRL = 0x92 */
 #define DA7219_GAIN_RAMP_RATE_SHIFT	0
 #define DA7219_GAIN_RAMP_RATE_MASK	(0x3 << 0)
+#define DA7219_GAIN_RAMP_RATE_X8	(0x0 << 0)
+#define DA7219_GAIN_RAMP_RATE_NOMINAL	(0x1 << 0)
 #define DA7219_GAIN_RAMP_RATE_MAX	4
 
 /* DA7219_PC_COUNT = 0x94 */
@@ -769,14 +767,24 @@
 #define DA7219_PLL_FREQ_OUT_98304	98304000
 
 /* PLL Frequency Dividers */
-#define DA7219_PLL_INDIV_2_5_MHZ_VAL	1
-#define DA7219_PLL_INDIV_5_10_MHZ_VAL	2
-#define DA7219_PLL_INDIV_10_20_MHZ_VAL	4
-#define DA7219_PLL_INDIV_20_40_MHZ_VAL	8
-#define DA7219_PLL_INDIV_40_54_MHZ_VAL	16
+#define DA7219_PLL_INDIV_2_TO_4_5_MHZ_VAL	1
+#define DA7219_PLL_INDIV_4_5_TO_9_MHZ_VAL	2
+#define DA7219_PLL_INDIV_9_TO_18_MHZ_VAL	4
+#define DA7219_PLL_INDIV_18_TO_36_MHZ_VAL	8
+#define DA7219_PLL_INDIV_36_TO_54_MHZ_VAL	16
 
 /* SRM */
 #define DA7219_SRM_CHECK_RETRIES	8
+
+/* System Controller */
+#define DA7219_SYS_STAT_CHECK_RETRIES	6
+#define DA7219_SYS_STAT_CHECK_DELAY	50
+
+/* Power up/down Delays */
+#define DA7219_SETTLING_DELAY		40
+#define DA7219_MIN_GAIN_DELAY		30
+#define DA7219_MIC_PGA_BASE_DELAY	100
+#define DA7219_MIC_PGA_OFFSET_DELAY	40
 
 enum da7219_clk_src {
 	DA7219_CLKSRC_MCLK = 0,
@@ -787,7 +795,6 @@ enum da7219_sys_clk {
 	DA7219_SYSCLK_MCLK = 0,
 	DA7219_SYSCLK_PLL,
 	DA7219_SYSCLK_PLL_SRM,
-	DA7219_SYSCLK_PLL_32KHZ
 };
 
 /* Regulators */
@@ -805,9 +812,17 @@ struct da7219_priv {
 	struct da7219_aad_priv *aad;
 	struct da7219_pdata *pdata;
 
+	bool wakeup_source;
 	struct regulator_bulk_data supplies[DA7219_NUM_SUPPLIES];
 	struct regmap *regmap;
-	struct mutex lock;
+	struct mutex ctrl_lock;
+	struct mutex pll_lock;
+
+#ifdef CONFIG_COMMON_CLK
+	struct clk_hw dai_clks_hw;
+#endif
+	struct clk_lookup *dai_clks_lookup;
+	struct clk *dai_clks;
 
 	struct clk *mclk;
 	unsigned int mclk_rate;
@@ -815,6 +830,11 @@ struct da7219_priv {
 
 	bool master;
 	bool alc_en;
+	bool micbias_on_event;
+	unsigned int mic_pga_delay;
+	u8 gain_ramp_ctrl;
 };
+
+int da7219_set_pll(struct snd_soc_component *component, int source, unsigned int fout);
 
 #endif /* __DA7219_H */

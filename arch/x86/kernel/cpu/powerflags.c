@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Strings for the various x86 power flags
  *
@@ -18,4 +19,6 @@ const char *const x86_power_flags[32] = {
 	"",	/* tsc invariant mapped to constant_tsc */
 	"cpb",  /* core performance boost */
 	"eff_freq_ro", /* Readonly aperf/mperf */
+	"proc_feedback", /* processor feedback interface */
+	"acc_power", /* accumulated power mechanism */
 };

@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef STV0900_PRIV_H
@@ -28,7 +24,6 @@
 
 #include <linux/i2c.h>
 
-#define ABS(X) ((X) < 0 ? (-1 * (X)) : (X))
 #define INRANGE(X, Y, Z) ((((X) <= (Y)) && ((Y) <= (Z))) \
 		|| (((Z) <= (Y)) && ((Y) <= (X))) ? 1 : 0)
 
@@ -247,7 +242,7 @@ struct stv0900_init_params{
 
 	u8	tun1_maddress;
 	int	tuner1_adc;
-	int 	tuner1_type;
+	int	tuner1_type;
 
 	/* IQ from the tuner1 to the demod */
 	enum stv0900_iq_inversion	tun1_iq_inv;

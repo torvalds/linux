@@ -17,12 +17,13 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
@@ -30,8 +31,8 @@
 #include <mach/hardware.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
-#include <mach/pxa27x.h>
-#include <mach/pxa27x-udc.h>
+#include "pxa27x.h"
+#include "pxa27x-udc.h"
 #include <linux/platform_data/video-pxafb.h>
 
 #include "devices.h"

@@ -1,14 +1,10 @@
-/* arch/arm/mach-s3c2410/include/mach/regs-gpio.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Copyright (c) 2003-2004 Simtec Electronics <linux@simtec.co.uk>
  *	http://www.simtec.co.uk/products/SWLINUX/
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * S3C2410 GPIO register definitions
-*/
+ */
 
 
 #ifndef __ASM_ARCH_REGS_GPIO_H
@@ -520,7 +516,7 @@
 #define S3C24XX_EXTINT1	   S3C24XX_GPIOREG2(0x8C)
 #define S3C24XX_EXTINT2	   S3C24XX_GPIOREG2(0x90)
 
-/* interrupt filtering conrrol for EINT16..EINT23 */
+/* interrupt filtering control for EINT16..EINT23 */
 #define S3C2410_EINFLT0	   S3C2410_GPIOREG(0x94)
 #define S3C2410_EINFLT1	   S3C2410_GPIOREG(0x98)
 #define S3C2410_EINFLT2	   S3C2410_GPIOREG(0x9C)

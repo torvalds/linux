@@ -10,6 +10,7 @@
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/kmemleak.h>
 #include <linux/bitmap.h>
 #include <linux/bootmem.h>
 #include <asm/msi_bitmap.h>
@@ -86,13 +87,13 @@ int msi_bitmap_reserve_dt_hwirqs(struct msi_bitmap *bmp)
 	p = of_get_property(bmp->of_node, "msi-available-ranges", &len);
 	if (!p) {
 		pr_debug("msi_bitmap: no msi-available-ranges property " \
-			 "found on %s\n", bmp->of_node->full_name);
+			 "found on %pOF\n", bmp->of_node);
 		return 1;
 	}
 
 	if (len % (2 * sizeof(u32)) != 0) {
 		printk(KERN_WARNING "msi_bitmap: Malformed msi-available-ranges"
-		       " property on %s\n", bmp->of_node->full_name);
+		       " property on %pOF\n", bmp->of_node);
 		return -EINVAL;
 	}
 
@@ -112,7 +113,7 @@ int msi_bitmap_reserve_dt_hwirqs(struct msi_bitmap *bmp)
 	return 0;
 }
 
-int __init_refok msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
+int __ref msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
 		     struct device_node *of_node)
 {
 	int size;
@@ -224,22 +225,23 @@ static void __init test_of_node(void)
 	struct device_node of_node;
 	struct property prop;
 	struct msi_bitmap bmp;
-	int size = 256;
-	DECLARE_BITMAP(expected, size);
+#define SIZE_EXPECTED 256
+	DECLARE_BITMAP(expected, SIZE_EXPECTED);
 
 	/* There should really be a struct device_node allocator */
 	memset(&of_node, 0, sizeof(of_node));
 	of_node_init(&of_node);
 	of_node.full_name = node_name;
 
-	WARN_ON(msi_bitmap_alloc(&bmp, size, &of_node));
+	WARN_ON(msi_bitmap_alloc(&bmp, SIZE_EXPECTED, &of_node));
 
 	/* No msi-available-ranges, so expect > 0 */
 	WARN_ON(msi_bitmap_reserve_dt_hwirqs(&bmp) <= 0);
 
 	/* Should all still be free */
-	WARN_ON(bitmap_find_free_region(bmp.bitmap, size, get_count_order(size)));
-	bitmap_release_region(bmp.bitmap, 0, get_count_order(size));
+	WARN_ON(bitmap_find_free_region(bmp.bitmap, SIZE_EXPECTED,
+					get_count_order(SIZE_EXPECTED)));
+	bitmap_release_region(bmp.bitmap, 0, get_count_order(SIZE_EXPECTED));
 
 	/* Now create a fake msi-available-ranges property */
 
@@ -255,8 +257,8 @@ static void __init test_of_node(void)
 	WARN_ON(msi_bitmap_reserve_dt_hwirqs(&bmp));
 
 	/* Check we got the expected result */
-	WARN_ON(bitmap_parselist(expected_str, expected, size));
-	WARN_ON(!bitmap_equal(expected, bmp.bitmap, size));
+	WARN_ON(bitmap_parselist(expected_str, expected, SIZE_EXPECTED));
+	WARN_ON(!bitmap_equal(expected, bmp.bitmap, SIZE_EXPECTED));
 
 	msi_bitmap_free(&bmp);
 	kfree(bmp.bitmap);

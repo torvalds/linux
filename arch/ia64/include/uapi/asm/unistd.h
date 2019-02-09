@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * IA-64 Linux syscall numbers and inline-functions.
  *
@@ -336,5 +337,8 @@
 #define __NR_membarrier			1344
 #define __NR_kcmp			1345
 #define __NR_mlock2			1346
+#define __NR_copy_file_range		1347
+#define __NR_preadv2			1348
+#define __NR_pwritev2			1349
 
 #endif /* _UAPI_ASM_IA64_UNISTD_H */

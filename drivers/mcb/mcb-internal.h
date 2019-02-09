@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __MCB_INTERNAL
 #define __MCB_INTERNAL
 
@@ -5,7 +6,6 @@
 
 #define PCI_VENDOR_ID_MEN		0x1a88
 #define PCI_DEVICE_ID_MEN_CHAMELEON	0x4d45
-#define CHAMELEON_FILENAME_LEN		12
 #define CHAMELEONV2_MAGIC		0xabce
 #define CHAM_HEADER_SIZE		0x200
 
@@ -112,6 +112,15 @@ struct chameleon_bdd {
 	u32 offset;
 	u32 size;
 } __packed;
+
+struct chameleon_bar {
+	u32 addr;
+	u32 size;
+};
+
+#define BAR_CNT(x) ((x) & 0x07)
+#define CHAMELEON_BAR_MAX	6
+#define BAR_DESC_SIZE(x)	((x) * sizeof(struct chameleon_bar) + sizeof(__le32))
 
 int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 			  void __iomem *base);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _H8300_BITOPS_H
 #define _H8300_BITOPS_H
 
@@ -28,11 +29,11 @@ static inline unsigned long ffz(unsigned long word)
 
 	result = -1;
 	__asm__("1:\n\t"
-		"shlr.l %2\n\t"
+		"shlr.l %1\n\t"
 		"adds #1,%0\n\t"
 		"bcs 1b"
-		: "=r"(result)
-		: "0"(result), "r"(word));
+		: "=r"(result),"=r"(word)
+		: "0"(result), "1"(word));
 	return result;
 }
 
@@ -65,7 +66,7 @@ H8300_GEN_BITOP(change_bit, "bnot")
 
 #undef H8300_GEN_BITOP
 
-static inline int test_bit(int nr, const unsigned long *addr)
+static inline int test_bit(int nr, const volatile unsigned long *addr)
 {
 	int ret = 0;
 	unsigned char *b_addr;
@@ -161,11 +162,11 @@ static inline unsigned long __ffs(unsigned long word)
 
 	result = -1;
 	__asm__("1:\n\t"
-		"shlr.l %2\n\t"
+		"shlr.l %1\n\t"
 		"adds #1,%0\n\t"
 		"bcc 1b"
-		: "=r" (result)
-		: "0"(result), "r"(word));
+		: "=r" (result),"=r"(word)
+		: "0"(result), "1"(word));
 	return result;
 }
 

@@ -1,16 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- *
  *  Cloned from linux/arch/arm/mach-realview/headsmp.S
  *
  *  Copyright (c) 2003 ARM Limited
  *  All Rights Reserved
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+
+#include <asm/assembler.h>
 
 /*
  * exynos4 specific entry point for secondary CPUs.  This provides
@@ -18,6 +16,7 @@
  * ready for them to initialise.
  */
 ENTRY(exynos4_secondary_startup)
+ARM_BE8(setend	be)
 	mrc	p15, 0, r0, c0, c0, 5
 	and	r0, r0, #15
 	adr	r4, 1f

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * CAAM/SEC 4.x functions for handling key-generation jobs
  *
@@ -41,14 +42,28 @@ Split key generation-----------------------------------------------
 [06] 0x64260028    fifostr: class2 mdsplit-jdk len=40
 			@0xffe04000
 */
-int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
-		  int split_key_pad_len, const u8 *key_in, u32 keylen,
-		  u32 alg_op)
+int gen_split_key(struct device *jrdev, u8 *key_out,
+		  struct alginfo * const adata, const u8 *key_in, u32 keylen,
+		  int max_keylen)
 {
 	u32 *desc;
 	struct split_key_result result;
 	dma_addr_t dma_addr_in, dma_addr_out;
 	int ret = -ENOMEM;
+
+	adata->keylen = split_key_len(adata->algtype & OP_ALG_ALGSEL_MASK);
+	adata->keylen_pad = split_key_pad_len(adata->algtype &
+					      OP_ALG_ALGSEL_MASK);
+
+#ifdef DEBUG
+	dev_err(jrdev, "split keylen %d split keylen padded %d\n",
+		adata->keylen, adata->keylen_pad);
+	print_hex_dump(KERN_ERR, "ctx.key@" __stringify(__LINE__)": ",
+		       DUMP_PREFIX_ADDRESS, 16, 4, key_in, keylen, 1);
+#endif
+
+	if (adata->keylen_pad > max_keylen)
+		return -EINVAL;
 
 	desc = kmalloc(CAAM_CMD_SZ * 6 + CAAM_PTR_SZ * 2, GFP_KERNEL | GFP_DMA);
 	if (!desc) {
@@ -63,7 +78,7 @@ int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 		goto out_free;
 	}
 
-	dma_addr_out = dma_map_single(jrdev, key_out, split_key_pad_len,
+	dma_addr_out = dma_map_single(jrdev, key_out, adata->keylen_pad,
 				      DMA_FROM_DEVICE);
 	if (dma_mapping_error(jrdev, dma_addr_out)) {
 		dev_err(jrdev, "unable to map key output memory\n");
@@ -74,7 +89,9 @@ int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 	append_key(desc, dma_addr_in, keylen, CLASS_2 | KEY_DEST_CLASS_REG);
 
 	/* Sets MDHA up into an HMAC-INIT */
-	append_operation(desc, alg_op | OP_ALG_DECRYPT | OP_ALG_AS_INIT);
+	append_operation(desc, (adata->algtype & OP_ALG_ALGSEL_MASK) |
+			 OP_ALG_AAI_HMAC | OP_TYPE_CLASS2_ALG | OP_ALG_DECRYPT |
+			 OP_ALG_AS_INIT);
 
 	/*
 	 * do a FIFO_LOAD of zero, this will trigger the internal key expansion
@@ -87,7 +104,7 @@ int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 	 * FIFO_STORE with the explicit split-key content store
 	 * (0x26 output type)
 	 */
-	append_fifo_store(desc, dma_addr_out, split_key_len,
+	append_fifo_store(desc, dma_addr_out, adata->keylen,
 			  LDST_CLASS_2_CCB | FIFOST_TYPE_SPLIT_KEK);
 
 #ifdef DEBUG
@@ -103,16 +120,16 @@ int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 	ret = caam_jr_enqueue(jrdev, desc, split_key_done, &result);
 	if (!ret) {
 		/* in progress */
-		wait_for_completion_interruptible(&result.completion);
+		wait_for_completion(&result.completion);
 		ret = result.err;
 #ifdef DEBUG
 		print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
 			       DUMP_PREFIX_ADDRESS, 16, 4, key_out,
-			       split_key_pad_len, 1);
+			       adata->keylen_pad, 1);
 #endif
 	}
 
-	dma_unmap_single(jrdev, dma_addr_out, split_key_pad_len,
+	dma_unmap_single(jrdev, dma_addr_out, adata->keylen_pad,
 			 DMA_FROM_DEVICE);
 out_unmap_in:
 	dma_unmap_single(jrdev, dma_addr_in, keylen, DMA_TO_DEVICE);

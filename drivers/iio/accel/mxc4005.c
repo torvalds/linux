@@ -17,7 +17,6 @@
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/acpi.h>
-#include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
@@ -265,7 +264,6 @@ static int mxc4005_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info mxc4005_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= mxc4005_read_raw,
 	.write_raw	= mxc4005_write_raw,
 	.attrs		= &mxc4005_attrs_group,
@@ -377,33 +375,7 @@ static int mxc4005_trigger_try_reen(struct iio_trigger *trig)
 static const struct iio_trigger_ops mxc4005_trigger_ops = {
 	.set_trigger_state = mxc4005_set_trigger_state,
 	.try_reenable = mxc4005_trigger_try_reen,
-	.owner = THIS_MODULE,
 };
-
-static int mxc4005_gpio_probe(struct i2c_client *client,
-			      struct mxc4005_data *data)
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-	int ret;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	gpio = devm_gpiod_get_index(dev, "mxc4005_int", 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "failed to get acpi gpio index\n");
-		return PTR_ERR(gpio);
-	}
-
-	ret = gpiod_to_irq(gpio);
-
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
-
-	return ret;
-}
 
 static int mxc4005_chip_init(struct mxc4005_data *data)
 {
@@ -469,9 +441,6 @@ static int mxc4005_probe(struct i2c_client *client,
 			"failed to setup iio triggered buffer\n");
 		return ret;
 	}
-
-	if (client->irq < 0)
-		client->irq = mxc4005_gpio_probe(client, data);
 
 	if (client->irq > 0) {
 		data->dready_trig = devm_iio_trigger_alloc(&client->dev,

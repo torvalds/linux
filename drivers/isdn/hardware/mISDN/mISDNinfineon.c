@@ -244,7 +244,7 @@ _set_debug(struct inf_hw *card)
 }
 
 static int
-set_debug(const char *val, struct kernel_param *kp)
+set_debug(const char *val, const struct kernel_param *kp)
 {
 	int ret;
 	struct inf_hw *card;
@@ -887,6 +887,7 @@ release_card(struct inf_hw *card) {
 				release_card(card->sc[i]);
 			card->sc[i] = NULL;
 		}
+		/* fall through */
 	default:
 		pci_disable_device(card->pdev);
 		pci_set_drvdata(card->pdev, NULL);

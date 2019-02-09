@@ -39,7 +39,6 @@ struct intel_dsi_host;
 struct intel_dsi {
 	struct intel_encoder base;
 
-	struct drm_panel *panel;
 	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
 
 	/* GPIO Desc for CRC based Panel control */
@@ -62,8 +61,12 @@ struct intel_dsi {
 	/* number of DSI lanes */
 	unsigned int lane_count;
 
-	/* video mode pixel format for MIPI_DSI_FUNC_PRG register */
-	u32 pixel_format;
+	/*
+	 * video mode pixel format
+	 *
+	 * XXX: consolidate on .format in struct mipi_dsi_device.
+	 */
+	enum mipi_dsi_pixel_format pixel_format;
 
 	/* video mode format for MIPI_VIDEO_MODE_FORMAT register */
 	u32 video_mode_format;
@@ -74,6 +77,10 @@ struct intel_dsi {
 
 	u8 escape_clk_div;
 	u8 dual_link;
+
+	u16 dcs_backlight_ports;
+	u16 dcs_cabc_ports;
+
 	u8 pixel_overlap;
 	u32 port_bits;
 	u32 bw_timer;
@@ -115,22 +122,41 @@ static inline struct intel_dsi_host *to_intel_dsi_host(struct mipi_dsi_host *h)
 	return container_of(h, struct intel_dsi_host, base);
 }
 
-#define for_each_dsi_port(__port, __ports_mask) \
-	for ((__port) = PORT_A; (__port) < I915_MAX_PORTS; (__port)++)	\
-		if ((__ports_mask) & (1 << (__port)))
+#define for_each_dsi_port(__port, __ports_mask) for_each_port_masked(__port, __ports_mask)
 
 static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct intel_dsi, base.base);
 }
 
-extern void intel_enable_dsi_pll(struct intel_encoder *encoder);
-extern void intel_disable_dsi_pll(struct intel_encoder *encoder);
-extern u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp);
-extern u32 bxt_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp);
-extern void intel_dsi_reset_clocks(struct intel_encoder *encoder,
-							enum port port);
+/* vlv_dsi.c */
+void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port);
+enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt);
 
-struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id);
+/* vlv_dsi_pll.c */
+int vlv_dsi_pll_compute(struct intel_encoder *encoder,
+			struct intel_crtc_state *config);
+void vlv_dsi_pll_enable(struct intel_encoder *encoder,
+			const struct intel_crtc_state *config);
+void vlv_dsi_pll_disable(struct intel_encoder *encoder);
+u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+		     struct intel_crtc_state *config);
+void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
+
+bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv);
+int bxt_dsi_pll_compute(struct intel_encoder *encoder,
+			struct intel_crtc_state *config);
+void bxt_dsi_pll_enable(struct intel_encoder *encoder,
+			const struct intel_crtc_state *config);
+void bxt_dsi_pll_disable(struct intel_encoder *encoder);
+u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+		     struct intel_crtc_state *config);
+void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
+
+/* intel_dsi_vbt.c */
+bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id);
+int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi);
+void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
+				 enum mipi_seq seq_id);
 
 #endif /* _INTEL_DSI_H */

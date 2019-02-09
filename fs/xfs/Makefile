@@ -1,19 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (c) 2000-2005 Silicon Graphics, Inc.
 # All Rights Reserved.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation.
-#
-# This program is distributed in the hope that it would be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write the Free Software Foundation,
-# Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 
 ccflags-y += -I$(src)			# needed for trace events
@@ -28,6 +16,7 @@ xfs-y				+= xfs_trace.o
 
 # build the libxfs code first
 xfs-y				+= $(addprefix libxfs/, \
+				   xfs_ag.o \
 				   xfs_alloc.o \
 				   xfs_alloc_btree.o \
 				   xfs_attr.o \
@@ -39,6 +28,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_btree.o \
 				   xfs_da_btree.o \
 				   xfs_da_format.o \
+				   xfs_defer.o \
 				   xfs_dir2.o \
 				   xfs_dir2_block.o \
 				   xfs_dir2_data.o \
@@ -48,12 +38,19 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_dquot_buf.o \
 				   xfs_ialloc.o \
 				   xfs_ialloc_btree.o \
+				   xfs_iext_tree.o \
 				   xfs_inode_fork.o \
 				   xfs_inode_buf.o \
 				   xfs_log_rlimit.o \
+				   xfs_ag_resv.o \
+				   xfs_rmap.o \
+				   xfs_rmap_btree.o \
+				   xfs_refcount.o \
+				   xfs_refcount_btree.o \
 				   xfs_sb.o \
 				   xfs_symlink_remote.o \
 				   xfs_trans_resv.o \
+				   xfs_types.o \
 				   )
 # xfs_rtbitmap is shared with libxfs
 xfs-$(CONFIG_XFS_RT)		+= $(addprefix libxfs/, \
@@ -73,6 +70,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_extent_busy.o \
 				   xfs_file.o \
 				   xfs_filestream.o \
+				   xfs_fsmap.o \
 				   xfs_fsops.o \
 				   xfs_globals.o \
 				   xfs_icache.o \
@@ -84,27 +82,33 @@ xfs-y				+= xfs_aops.o \
 				   xfs_message.o \
 				   xfs_mount.o \
 				   xfs_mru_cache.o \
+				   xfs_reflink.o \
 				   xfs_stats.o \
 				   xfs_super.o \
 				   xfs_symlink.o \
 				   xfs_sysfs.o \
 				   xfs_trans.o \
 				   xfs_xattr.o \
-				   kmem.o \
-				   uuid.o
+				   kmem.o
 
 # low-level transaction/log code
 xfs-y				+= xfs_log.o \
 				   xfs_log_cil.o \
+				   xfs_bmap_item.o \
 				   xfs_buf_item.o \
 				   xfs_extfree_item.o \
 				   xfs_icreate_item.o \
 				   xfs_inode_item.o \
+				   xfs_refcount_item.o \
+				   xfs_rmap_item.o \
 				   xfs_log_recover.o \
 				   xfs_trans_ail.o \
+				   xfs_trans_bmap.o \
 				   xfs_trans_buf.o \
 				   xfs_trans_extfree.o \
 				   xfs_trans_inode.o \
+				   xfs_trans_refcount.o \
+				   xfs_trans_rmap.o \
 
 # optional features
 xfs-$(CONFIG_XFS_QUOTA)		+= xfs_dquot.o \
@@ -121,4 +125,41 @@ xfs-$(CONFIG_XFS_RT)		+= xfs_rtalloc.o
 xfs-$(CONFIG_XFS_POSIX_ACL)	+= xfs_acl.o
 xfs-$(CONFIG_SYSCTL)		+= xfs_sysctl.o
 xfs-$(CONFIG_COMPAT)		+= xfs_ioctl32.o
-xfs-$(CONFIG_NFSD_PNFS)		+= xfs_pnfs.o
+xfs-$(CONFIG_EXPORTFS_BLOCK_OPS)	+= xfs_pnfs.o
+
+# online scrub/repair
+ifeq ($(CONFIG_XFS_ONLINE_SCRUB),y)
+
+# Tracepoints like to blow up, so build that before everything else
+
+xfs-y				+= $(addprefix scrub/, \
+				   trace.o \
+				   agheader.o \
+				   alloc.o \
+				   attr.o \
+				   bmap.o \
+				   btree.o \
+				   common.o \
+				   dabtree.o \
+				   dir.o \
+				   ialloc.o \
+				   inode.o \
+				   parent.o \
+				   refcount.o \
+				   rmap.o \
+				   scrub.o \
+				   symlink.o \
+				   )
+
+xfs-$(CONFIG_XFS_RT)		+= scrub/rtbitmap.o
+xfs-$(CONFIG_XFS_QUOTA)		+= scrub/quota.o
+
+# online repair
+ifeq ($(CONFIG_XFS_ONLINE_REPAIR),y)
+xfs-y				+= $(addprefix scrub/, \
+				   agheader_repair.o \
+				   bitmap.o \
+				   repair.o \
+				   )
+endif
+endif

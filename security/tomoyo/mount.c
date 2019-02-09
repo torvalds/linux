@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * security/tomoyo/mount.c
  *
@@ -73,7 +74,7 @@ static bool tomoyo_check_mount_acl(struct tomoyo_request_info *r,
  */
 static int tomoyo_mount_acl(struct tomoyo_request_info *r,
 			    const char *dev_name,
-			    struct path *dir, const char *type,
+			    const struct path *dir, const char *type,
 			    unsigned long flags)
 {
 	struct tomoyo_obj_info obj = { };
@@ -184,7 +185,7 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r,
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_mount_permission(const char *dev_name, struct path *path,
+int tomoyo_mount_permission(const char *dev_name, const struct path *path,
 			    const char *type, unsigned long flags,
 			    void *data_page)
 {

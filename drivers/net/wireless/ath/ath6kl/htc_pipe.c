@@ -228,8 +228,7 @@ static int htc_issue_packets(struct htc_target *target,
 		payload_len = packet->act_len;
 
 		/* setup HTC frame header */
-		htc_hdr = (struct htc_frame_hdr *) skb_push(skb,
-							    sizeof(*htc_hdr));
+		htc_hdr = skb_push(skb, sizeof(*htc_hdr));
 		if (!htc_hdr) {
 			WARN_ON_ONCE(1);
 			status = -EINVAL;
@@ -383,7 +382,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 			list_for_each_entry_safe(packet, tmp_pkt,
 						 txq, list) {
 				ath6kl_dbg(ATH6KL_DBG_HTC,
-					   "%s: Indicat overflowed TX pkts: %p\n",
+					   "%s: Indicate overflowed TX pkts: %p\n",
 					   __func__, packet);
 				action = ep->ep_cb.tx_full(ep->target, packet);
 				if (action == HTC_SEND_FULL_DROP) {
@@ -747,10 +746,8 @@ static int ath6kl_htc_pipe_tx_complete(struct ath6kl *ar, struct sk_buff *skb)
 	struct htc_endpoint *ep;
 	struct htc_packet *packet;
 	u8 ep_id, *netdata;
-	u32 netlen;
 
 	netdata = skb->data;
-	netlen = skb->len;
 
 	htc_hdr = (struct htc_frame_hdr *) netdata;
 
@@ -856,12 +853,8 @@ static int htc_process_trailer(struct htc_target *target, u8 *buffer,
 {
 	struct htc_credit_report *report;
 	struct htc_record_hdr *record;
-	u8 *record_buf, *orig_buf;
-	int orig_len, status;
-
-	orig_buf = buffer;
-	orig_len = len;
-	status = 0;
+	u8 *record_buf;
+	int status = 0;
 
 	while (len > 0) {
 		if (len < sizeof(struct htc_record_hdr)) {
@@ -995,7 +988,7 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 
 	if (netlen < (payload_len + HTC_HDR_LENGTH)) {
 		ath6kl_dbg(ATH6KL_DBG_HTC,
-			   "HTC Rx: insufficient length, got:%d expected =%u\n",
+			   "HTC Rx: insufficient length, got:%d expected =%zu\n",
 			   netlen, payload_len + HTC_HDR_LENGTH);
 		status = -EINVAL;
 		goto free_skb;
@@ -1274,8 +1267,7 @@ static int ath6kl_htc_pipe_conn_service(struct htc_target *target,
 		length = sizeof(struct htc_conn_service_msg);
 
 		/* assemble connect service message */
-		conn_msg = (struct htc_conn_service_msg *) skb_put(skb,
-								   length);
+		conn_msg = skb_put(skb, length);
 		if (conn_msg == NULL) {
 			WARN_ON_ONCE(1);
 			status = -EINVAL;
@@ -1504,8 +1496,7 @@ static int ath6kl_htc_pipe_start(struct htc_target *target)
 	skb = packet->skb;
 
 	/* assemble setup complete message */
-	setup = (struct htc_setup_comp_ext_msg *) skb_put(skb,
-							  sizeof(*setup));
+	setup = skb_put(skb, sizeof(*setup));
 	memset(setup, 0, sizeof(struct htc_setup_comp_ext_msg));
 	setup->msg_id = cpu_to_le16(HTC_MSG_SETUP_COMPLETE_EX_ID);
 

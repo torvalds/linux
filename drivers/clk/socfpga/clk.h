@@ -32,6 +32,9 @@
 #define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel) \
 	((((smplsel) & 0x7) << 3) | (((drvsel) & 0x7) << 0))
 
+#define SYSMGR_SDMMC_CTRL_SET_AS10(smplsel, drvsel) \
+	((((smplsel) & 0x7) << 4) | (((drvsel) & 0x7) << 0))
+
 extern void __iomem *clk_mgr_base_addr;
 extern void __iomem *clk_mgr_a10_base_addr;
 
@@ -51,9 +54,11 @@ struct socfpga_gate_clk {
 	char *parent_name;
 	u32 fixed_div;
 	void __iomem *div_reg;
+	void __iomem *bypass_reg;
 	struct regmap *sys_mgr_base_addr;
 	u32 width;	/* only valid if div_reg != 0 */
 	u32 shift;	/* only valid if div_reg != 0 */
+	u32 bypass_shift;      /* only valid if bypass_reg != 0 */
 	u32 clk_phase[2];
 };
 
@@ -62,8 +67,10 @@ struct socfpga_periph_clk {
 	char *parent_name;
 	u32 fixed_div;
 	void __iomem *div_reg;
+	void __iomem *bypass_reg;
 	u32 width;      /* only valid if div_reg != 0 */
 	u32 shift;      /* only valid if div_reg != 0 */
+	u32 bypass_shift;      /* only valid if bypass_reg != 0 */
 };
 
 #endif /* SOCFPGA_CLK_H */

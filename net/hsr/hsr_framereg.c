@@ -158,9 +158,10 @@ struct hsr_node *hsr_add_node(struct list_head *node_db, unsigned char addr[],
 
 /* Get the hsr_node from which 'skb' was sent.
  */
-struct hsr_node *hsr_get_node(struct list_head *node_db, struct sk_buff *skb,
+struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 			      bool is_sup)
 {
+	struct list_head *node_db = &port->hsr->node_db;
 	struct hsr_node *node;
 	struct ethhdr *ethhdr;
 	u16 seq_out;
@@ -177,17 +178,21 @@ struct hsr_node *hsr_get_node(struct list_head *node_db, struct sk_buff *skb,
 			return node;
 	}
 
-	if (!is_sup)
-		return NULL; /* Only supervision frame may create node entry */
+	/* Everyone may create a node entry, connected node to a HSR device. */
 
-	if (ethhdr->h_proto == htons(ETH_P_PRP)) {
+	if (ethhdr->h_proto == htons(ETH_P_PRP)
+			|| ethhdr->h_proto == htons(ETH_P_HSR)) {
 		/* Use the existing sequence_nr from the tag as starting point
 		 * for filtering duplicate frames.
 		 */
 		seq_out = hsr_get_skb_sequence_nr(skb) - 1;
 	} else {
-		WARN_ONCE(1, "%s: Non-HSR frame\n", __func__);
-		seq_out = 0;
+		/* this is called also for frames from master port and
+		 * so warn only for non master ports
+		 */
+		if (port->type != HSR_PT_MASTER)
+			WARN_ONCE(1, "%s: Non-HSR frame\n", __func__);
+		seq_out = HSR_SEQNR_START;
 	}
 
 	return hsr_add_node(node_db, ethhdr->h_source, seq_out);
@@ -200,17 +205,25 @@ struct hsr_node *hsr_get_node(struct list_head *node_db, struct sk_buff *skb,
 void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 			  struct hsr_port *port_rcv)
 {
+	struct ethhdr *ethhdr;
 	struct hsr_node *node_real;
 	struct hsr_sup_payload *hsr_sp;
 	struct list_head *node_db;
 	int i;
 
-	skb_pull(skb, sizeof(struct hsr_ethhdr_sp));
-	hsr_sp = (struct hsr_sup_payload *) skb->data;
+	ethhdr = (struct ethhdr *) skb_mac_header(skb);
 
-	if (ether_addr_equal(eth_hdr(skb)->h_source, hsr_sp->MacAddressA))
-		/* Not sent from MacAddressB of a PICS_SUBS capable node */
-		goto done;
+	/* Leave the ethernet header. */
+	skb_pull(skb, sizeof(struct ethhdr));
+
+	/* And leave the HSR tag. */
+	if (ethhdr->h_proto == htons(ETH_P_HSR))
+		skb_pull(skb, sizeof(struct hsr_tag));
+
+	/* And leave the HSR sup tag. */
+	skb_pull(skb, sizeof(struct hsr_sup_tag));
+
+	hsr_sp = (struct hsr_sup_payload *) skb->data;
 
 	/* Merge node_curr (registered on MacAddressB) into node_real */
 	node_db = &port_rcv->hsr->node_db;
@@ -225,7 +238,7 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 		/* Node has already been merged */
 		goto done;
 
-	ether_addr_copy(node_real->MacAddressB, eth_hdr(skb)->h_source);
+	ether_addr_copy(node_real->MacAddressB, ethhdr->h_source);
 	for (i = 0; i < HSR_PT_PORTS; i++) {
 		if (!node_curr->time_in_stale[i] &&
 		    time_after(node_curr->time_in[i], node_real->time_in[i])) {
@@ -241,7 +254,7 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 	kfree_rcu(node_curr, rcu_head);
 
 done:
-	skb_push(skb, sizeof(struct hsr_ethhdr_sp));
+	skb_push(skb, sizeof(struct hsrv1_ethhdr_sp));
 }
 
 
@@ -352,15 +365,13 @@ static struct hsr_port *get_late_port(struct hsr_priv *hsr,
 /* Remove stale sequence_nr records. Called by timer every
  * HSR_LIFE_CHECK_INTERVAL (two seconds or so).
  */
-void hsr_prune_nodes(unsigned long data)
+void hsr_prune_nodes(struct timer_list *t)
 {
-	struct hsr_priv *hsr;
+	struct hsr_priv *hsr = from_timer(hsr, t, prune_timer);
 	struct hsr_node *node;
 	struct hsr_port *port;
 	unsigned long timestamp;
 	unsigned long time_a, time_b;
-
-	hsr = (struct hsr_priv *) data;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(node, &hsr->node_db, mac_list) {

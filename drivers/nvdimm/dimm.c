@@ -26,6 +26,17 @@ static int nvdimm_probe(struct device *dev)
 	struct nvdimm_drvdata *ndd;
 	int rc;
 
+	rc = nvdimm_check_config_data(dev);
+	if (rc) {
+		/* not required for non-aliased nvdimm, ex. NVDIMM-N */
+		if (rc == -ENOTTY)
+			rc = 0;
+		return rc;
+	}
+
+	/* reset locked, to be validated below... */
+	nvdimm_clear_locked(dev);
+
 	ndd = kzalloc(sizeof(*ndd), GFP_KERNEL);
 	if (!ndd)
 		return -ENOMEM;
@@ -40,11 +51,33 @@ static int nvdimm_probe(struct device *dev)
 	get_device(dev);
 	kref_init(&ndd->kref);
 
+	/*
+	 * EACCES failures reading the namespace label-area-properties
+	 * are interpreted as the DIMM capacity being locked but the
+	 * namespace labels themselves being accessible.
+	 */
 	rc = nvdimm_init_nsarea(ndd);
+	if (rc == -EACCES) {
+		/*
+		 * See nvdimm_namespace_common_probe() where we fail to
+		 * allow namespaces to probe while the DIMM is locked,
+		 * but we do allow for namespace enumeration.
+		 */
+		nvdimm_set_locked(dev);
+		rc = 0;
+	}
 	if (rc)
 		goto err;
 
+	/*
+	 * EACCES failures reading the namespace label-data are
+	 * interpreted as the label area being locked in addition to the
+	 * DIMM capacity. We fail the dimm probe to prevent regions from
+	 * attempting to parse the label area.
+	 */
 	rc = nvdimm_init_config_data(ndd);
+	if (rc == -EACCES)
+		nvdimm_set_locked(dev);
 	if (rc)
 		goto err;
 
@@ -55,7 +88,11 @@ static int nvdimm_probe(struct device *dev)
 	ndd->ns_next = nd_label_next_nsindex(ndd->ns_current);
 	nd_label_copy(ndd, to_next_namespace_index(ndd),
 			to_current_namespace_index(ndd));
-	rc = nd_label_reserve_dpa(ndd);
+	if (ndd->ns_current >= 0) {
+		rc = nd_label_reserve_dpa(ndd);
+		if (rc == 0)
+			nvdimm_set_aliasing(dev);
+	}
 	nvdimm_bus_unlock(dev);
 
 	if (rc)
@@ -71,6 +108,9 @@ static int nvdimm_probe(struct device *dev)
 static int nvdimm_remove(struct device *dev)
 {
 	struct nvdimm_drvdata *ndd = dev_get_drvdata(dev);
+
+	if (!ndd)
+		return 0;
 
 	nvdimm_bus_lock(dev);
 	dev_set_drvdata(dev, NULL);

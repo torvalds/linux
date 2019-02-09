@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef S390_IO_SCH_H
 #define S390_IO_SCH_H
 
@@ -120,7 +121,6 @@ struct ccw_device_private {
 	int state;		/* device state */
 	atomic_t onoff;
 	struct ccw_dev_id dev_id;	/* device id */
-	struct subchannel_id schid;	/* subchannel number */
 	struct ccw_request req;		/* internal I/O request */
 	int iretry;
 	u8 pgid_valid_mask;	/* mask of valid PGIDs */
@@ -132,6 +132,8 @@ struct ccw_device_private {
 				   not operable */
 	u8 path_gone_mask;	/* mask of paths, that became unavailable */
 	u8 path_new_mask;	/* mask of paths, that became available */
+	u8 path_broken_mask;	/* mask of paths, which were found to be
+				   unusable */
 	struct {
 		unsigned int fast:1;	/* post with "channel end" */
 		unsigned int repall:1;	/* report every interrupt status */
@@ -155,6 +157,7 @@ struct ccw_device_private {
 	unsigned long intparm;	/* user interruption parameter */
 	struct qdio_irq *qdio_data;
 	struct irb irb;		/* device status */
+	int async_kill_io_rc;
 	struct senseid senseid;	/* SenseID info */
 	struct pgid pgid[8];	/* path group IDs per chpid*/
 	struct ccw1 iccws[2];	/* ccws for SNID/SID/SPGID commands */
@@ -168,50 +171,5 @@ struct ccw_device_private {
 	void *cmb_wait;			/* deferred cmb enable/disable */
 	enum interruption_class int_class;
 };
-
-static inline int rsch(struct subchannel_id schid)
-{
-	register struct subchannel_id reg1 asm("1") = schid;
-	int ccode;
-
-	asm volatile(
-		"	rsch\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode)
-		: "d" (reg1)
-		: "cc", "memory");
-	return ccode;
-}
-
-static inline int hsch(struct subchannel_id schid)
-{
-	register struct subchannel_id reg1 asm("1") = schid;
-	int ccode;
-
-	asm volatile(
-		"	hsch\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode)
-		: "d" (reg1)
-		: "cc");
-	return ccode;
-}
-
-static inline int xsch(struct subchannel_id schid)
-{
-	register struct subchannel_id reg1 asm("1") = schid;
-	int ccode;
-
-	asm volatile(
-		"	.insn	rre,0xb2760000,%1,0\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode)
-		: "d" (reg1)
-		: "cc");
-	return ccode;
-}
 
 #endif

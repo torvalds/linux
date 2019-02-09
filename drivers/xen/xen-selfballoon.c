@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  * Xen selfballoon driver (and optional frontswap self-shrinking driver)
  *
@@ -71,7 +72,6 @@
 #include <linux/swap.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
 #include <xen/balloon.h>
@@ -152,8 +152,8 @@ static unsigned long frontswap_inertia_counter;
 static void frontswap_selfshrink(void)
 {
 	static unsigned long cur_frontswap_pages;
-	static unsigned long last_frontswap_pages;
-	static unsigned long tgt_frontswap_pages;
+	unsigned long last_frontswap_pages;
+	unsigned long tgt_frontswap_pages;
 
 	last_frontswap_pages = cur_frontswap_pages;
 	cur_frontswap_pages = frontswap_curr_pages();
@@ -196,7 +196,7 @@ static void selfballoon_process(struct work_struct *work)
 				MB2PAGES(selfballoon_reserved_mb);
 #ifdef CONFIG_FRONTSWAP
 		/* allow space for frontswap pages to be repatriated */
-		if (frontswap_selfshrinking && frontswap_enabled)
+		if (frontswap_selfshrinking)
 			goal_pages += frontswap_curr_pages();
 #endif
 		if (cur_pages > goal_pages)
@@ -231,7 +231,7 @@ static void selfballoon_process(struct work_struct *work)
 		reset_timer = true;
 	}
 #ifdef CONFIG_FRONTSWAP
-	if (frontswap_selfshrinking && frontswap_enabled) {
+	if (frontswap_selfshrinking) {
 		frontswap_selfshrink();
 		reset_timer = true;
 	}

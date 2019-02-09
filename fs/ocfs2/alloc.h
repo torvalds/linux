@@ -54,13 +54,14 @@
  */
 struct ocfs2_extent_tree_operations;
 struct ocfs2_extent_tree {
-	struct ocfs2_extent_tree_operations	*et_ops;
+	const struct ocfs2_extent_tree_operations *et_ops;
 	struct buffer_head			*et_root_bh;
 	struct ocfs2_extent_list		*et_root_el;
 	struct ocfs2_caching_info		*et_ci;
 	ocfs2_journal_access_func		et_root_journal_access;
 	void					*et_object;
 	unsigned int				et_max_leaf_clusters;
+	struct ocfs2_cached_dealloc_ctxt	*et_dealloc;
 };
 
 /*
@@ -144,8 +145,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 			     struct ocfs2_cached_dealloc_ctxt *dealloc,
 			     u64 refcount_loc, bool refcount_tree_locked);
 
-int ocfs2_num_free_extents(struct ocfs2_super *osb,
-			   struct ocfs2_extent_tree *et);
+int ocfs2_num_free_extents(struct ocfs2_extent_tree *et);
 
 /*
  * how many new metadata chunks would an allocation need at maximum?
@@ -188,6 +188,8 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 			      u64 start_blk,
 			      unsigned int num_clusters);
 int __ocfs2_flush_truncate_log(struct ocfs2_super *osb);
+int ocfs2_try_to_free_truncate_log(struct ocfs2_super *osb,
+				   unsigned int needed);
 
 /*
  * Process local structure which describes the block unlinks done

@@ -23,14 +23,12 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/platform_data/gpio-omap.h>
 
 #include "prm.h"
 #include "common.h"
 #include "control.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
-#include "mux.h"
 #include "mmc.h"
 
 /*

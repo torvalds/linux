@@ -25,18 +25,25 @@ Required properties:
 	"mem"		  Peripheral access clock to access registers.
 	"ipg"		  Peripheral clock to driver module.
 	"asrck_<0-f>"	  Clock sources for input and output clock.
-
-   - big-endian		: If this property is absent, the little endian mode
-			  will be in use as default. Otherwise, the big endian
-			  mode will be in use for all the device registers.
+	"spba"		  The spba clock is required when ASRC is placed as a
+			  bus slave of the Shared Peripheral Bus and when two
+			  or more bus masters (CPU, DMA or DSP) try to access
+			  it. This property is optional depending on the SoC
+			  design.
 
    - fsl,asrc-rate	: Defines a mutual sample rate used by DPCM Back Ends.
 
    - fsl,asrc-width	: Defines a mutual sample width used by DPCM Back Ends.
 
+Optional properties:
+
+   - big-endian		: If this property is absent, the little endian mode
+			  will be in use as default. Otherwise, the big endian
+			  mode will be in use for all the device registers.
+
 Example:
 
-asrc: asrc@02034000 {
+asrc: asrc@2034000 {
 	compatible = "fsl,imx53-asrc";
 	reg = <0x02034000 0x4000>;
 	interrupts = <0 50 IRQ_TYPE_LEVEL_HIGH>;
@@ -56,5 +63,4 @@ asrc: asrc@02034000 {
 		"txa", "txb", "txc";
 	fsl,asrc-rate  = <48000>;
 	fsl,asrc-width = <16>;
-	status = "okay";
 };

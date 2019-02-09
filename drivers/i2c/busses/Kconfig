@@ -79,18 +79,19 @@ config I2C_AMD8111
 
 config I2C_HIX5HD2
 	tristate "Hix5hd2 high-speed I2C driver"
-	depends on ARCH_HIX5HD2 || COMPILE_TEST
+	depends on ARCH_HISI || ARCH_HIX5HD2 || COMPILE_TEST
 	help
-	  Say Y here to include support for high-speed I2C controller in the
-	  Hisilicon based hix5hd2 SoCs.
+	  Say Y here to include support for the high-speed I2C controller
+	  used in HiSilicon hix5hd2 SoCs.
 
-	  This driver can also be built as a module.  If so, the module
+	  This driver can also be built as a module. If so, the module
 	  will be called i2c-hix5hd2.
 
 config I2C_I801
 	tristate "Intel 82801 (ICH/PCH)"
 	depends on PCI
 	select CHECK_SIGNATURE if X86 && DMI
+	select I2C_SMBUS
 	help
 	  If you say yes to this option, support will be included for the Intel
 	  801 family of mainboard I2C interfaces.  Specifically, the following
@@ -115,18 +116,21 @@ config I2C_I801
 	    DH89xxCC (PCH)
 	    Panther Point (PCH)
 	    Lynx Point (PCH)
-	    Lynx Point-LP (PCH)
 	    Avoton (SOC)
 	    Wellsburg (PCH)
 	    Coleto Creek (PCH)
 	    Wildcat Point (PCH)
-	    Wildcat Point-LP (PCH)
 	    BayTrail (SOC)
-	    Sunrise Point-H (PCH)
-	    Sunrise Point-LP (PCH)
+	    Braswell (SOC)
+	    Sunrise Point (PCH)
+	    Kaby Lake (PCH)
 	    DNV (SOC)
 	    Broxton (SOC)
 	    Lewisburg (PCH)
+	    Gemini Lake (SOC)
+	    Cannon Lake (PCH)
+	    Cedar Fork (PCH)
+	    Ice Lake (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -184,6 +188,18 @@ config I2C_PIIX4
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-piix4.
+
+config I2C_CHT_WC
+	tristate "Intel Cherry Trail Whiskey Cove PMIC smbus controller"
+	depends on INTEL_SOC_PMIC_CHTWC
+	help
+	  If you say yes to this option, support will be included for the
+	  SMBus controller found in the Intel Cherry Trail Whiskey Cove PMIC
+	  found on some Intel Cherry Trail systems.
+
+	  Note this controller is hooked up to a TI bq24292i charger-IC,
+	  combined with a FUSB302 Type-C port-controller as such it is advised
+	  to also select CONFIG_TYPEC_FUSB302=m.
 
 config I2C_NFORCE2
 	tristate "Nvidia nForce2, nForce3 and nForce4"
@@ -324,6 +340,26 @@ config I2C_POWERMAC
 
 comment "I2C system bus drivers (mostly embedded / system-on-chip)"
 
+config I2C_ALTERA
+	tristate "Altera Soft IP I2C"
+	depends on (ARCH_SOCFPGA || NIOS2) && OF
+	help
+	  If you say yes to this option, support will be included for the
+	  Altera Soft IP I2C interfaces on SoCFPGA and Nios2 architectures.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-altera.
+
+config I2C_ASPEED
+	tristate "Aspeed I2C Controller"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  Aspeed I2C controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-aspeed.
+
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
 	depends on ARCH_AT91
@@ -397,7 +433,7 @@ config I2C_BCM_KONA
 
 config I2C_BRCMSTB
 	tristate "BRCM Settop I2C controller"
-	depends on ARCH_BRCMSTB || COMPILE_TEST
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
 	default y
 	help
 	  If you say yes to this option, support will be included for the
@@ -405,27 +441,9 @@ config I2C_BRCMSTB
 
 	  If you do not need I2C interface, say N.
 
-config I2C_BLACKFIN_TWI
-	tristate "Blackfin TWI I2C support"
-	depends on BLACKFIN
-	depends on !BF561 && !BF531 && !BF532 && !BF533
-	help
-	  This is the I2C bus driver for Blackfin on-chip TWI interface.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-bfin-twi.
-
-config I2C_BLACKFIN_TWI_CLK_KHZ
-	int "Blackfin TWI I2C clock (kHz)"
-	depends on I2C_BLACKFIN_TWI
-	range 21 400
-	default 50
-	help
-	  The unit of the TWI clock is kHz.
-
 config I2C_CADENCE
 	tristate "Cadence I2C Controller"
-	depends on ARCH_ZYNQ || ARM64
+	depends on ARCH_ZYNQ || ARM64 || XTENSA
 	help
 	  Say yes here to select Cadence I2C Host Controller. This controller is
 	  e.g. used by Xilinx Zynq.
@@ -472,10 +490,21 @@ config I2C_DESIGNWARE_PLATFORM
 	depends on (ACPI && COMMON_CLK) || !ACPI
 	help
 	  If you say yes to this option, support will be included for the
-	  Synopsys DesignWare I2C adapter. Only master mode is supported.
+	  Synopsys DesignWare I2C adapter.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-platform.
+
+config I2C_DESIGNWARE_SLAVE
+	bool "Synopsys DesignWare Slave"
+	select I2C_SLAVE
+	depends on I2C_DESIGNWARE_PLATFORM
+	help
+	  If you say yes to this option, support will be included for the
+	  Synopsys DesignWare I2C slave adapter.
+
+	  This is not a standalone module, this module compiles together with
+	  i2c-designware-core.
 
 config I2C_DESIGNWARE_PCI
 	tristate "Synopsys DesignWare PCI"
@@ -490,7 +519,9 @@ config I2C_DESIGNWARE_PCI
 
 config I2C_DESIGNWARE_BAYTRAIL
 	bool "Intel Baytrail I2C semaphore support"
-	depends on I2C_DESIGNWARE_PLATFORM && IOSF_MBI=y && ACPI
+	depends on ACPI
+	depends on (I2C_DESIGNWARE_PLATFORM=m && IOSF_MBI) || \
+		   (I2C_DESIGNWARE_PLATFORM=y && IOSF_MBI=y)
 	help
 	  This driver enables managed host access to the PMIC I2C bus on select
 	  Intel BayTrail platforms using the X-Powers AXP288 PMIC. It allows
@@ -516,7 +547,7 @@ config I2C_EFM32
 
 config I2C_EG20T
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) I2C"
-	depends on PCI && (X86_32 || COMPILE_TEST)
+	depends on PCI && (X86_32 || MIPS || COMPILE_TEST)
 	help
 	  This driver is for PCH(Platform controller Hub) I2C of EG20T which
 	  is an IOH(Input/Output Hub) for x86 embedded processor.
@@ -532,6 +563,7 @@ config I2C_EG20T
 config I2C_EMEV2
 	tristate "EMMA Mobile series I2C adapter"
 	depends on HAVE_CLK
+	select I2C_SLAVE
 	help
 	  If you say yes to this option, support will be included for the
 	  I2C interface on the Renesas Electronics EM/EV family of processors.
@@ -550,6 +582,14 @@ config I2C_GPIO
 	help
 	  This is a very simple bitbanging I2C driver utilizing the
 	  arch-neutral GPIO API to control the SCL and SDA lines.
+
+config I2C_GPIO_FAULT_INJECTOR
+	bool "GPIO-based fault injector"
+	depends on I2C_GPIO
+	help
+	  This adds some functionality to the i2c-gpio driver which can inject
+	  faults to an I2C bus, so another bus master can be stress-tested.
+	  This is for debugging. If unsure, say 'no'.
 
 config I2C_HIGHLANDER
 	tristate "Highlander FPGA SMBus interface"
@@ -575,7 +615,7 @@ config I2C_IBM_IIC
 
 config I2C_IMG
 	tristate "Imagination Technologies I2C SCB Controller"
-	depends on MIPS || METAG || COMPILE_TEST
+	depends on MIPS || COMPILE_TEST
 	help
 	  Say Y here if you want to use the IMG I2C SCB controller,
 	  available on the TZ1090 and other IMG SoCs.
@@ -585,13 +625,23 @@ config I2C_IMG
 
 config I2C_IMX
 	tristate "IMX I2C interface"
-	depends on ARCH_MXC || ARCH_LAYERSCAPE
+	depends on ARCH_MXC || ARCH_LAYERSCAPE || COLDFIRE
 	help
 	  Say Y here if you want to use the IIC bus controller on
-	  the Freescale i.MX/MXC or Layerscape processors.
+	  the Freescale i.MX/MXC, Layerscape or ColdFire processors.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-imx.
+
+config I2C_IMX_LPI2C
+	tristate "IMX Low Power I2C interface"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+          Say Y here if you want to use the Low Power IIC bus controller
+          on the Freescale i.MX processors.
+
+          This driver can also be built as a module. If so, the module
+          will be called i2c-imx-lpi2c.
 
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
@@ -634,7 +684,7 @@ config I2C_LPC2K
 
 config I2C_MESON
 	tristate "Amlogic Meson I2C controller"
-	depends on ARCH_MESON
+	depends on ARCH_MESON || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  I2C interface on the Amlogic Meson family of SoCs.
@@ -653,7 +703,6 @@ config I2C_MPC
 config I2C_MT65XX
 	tristate "MediaTek I2C adapter"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
-	depends on HAS_DMA
 	help
 	  This selects the MediaTek(R) Integrated Inter Circuit bus driver
 	  for MT65xx and MT81xx.
@@ -662,7 +711,7 @@ config I2C_MT65XX
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
-	depends on MV64X60 || PLAT_ORION || ARCH_SUNXI
+	depends on MV64X60 || PLAT_ORION || ARCH_SUNXI || ARCH_MVEBU
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Marvell 64xxx line of host bridges.
@@ -702,13 +751,20 @@ config I2C_OCORES
 
 config I2C_OMAP
 	tristate "OMAP I2C adapter"
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP || ARCH_K3
 	default y if MACH_OMAP_H3 || MACH_OMAP_OSK
 	help
 	  If you say yes to this option, support will be included for the
 	  I2C interface on the Texas Instruments OMAP1/2 family of processors.
 	  Like OMAP1510/1610/1710/5912 and OMAP242x.
 	  For details see http://www.ti.com/omap.
+
+config I2C_OWL
+	tristate "Actions Semiconductor Owl I2C Controller"
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	help
+	  Say Y here if you want to use the I2C bus controller on
+	  the Actions Semiconductor Owl SoC's.
 
 config I2C_PASEMI
 	tristate "PA Semi SMBus interface"
@@ -759,7 +815,7 @@ config I2C_PUV3
 
 config I2C_PXA
 	tristate "Intel PXA2XX I2C adapter"
-	depends on ARCH_PXA || ARCH_MMP || (X86_32 && PCI && OF)
+	depends on ARCH_PXA || ARCH_MMP || ARCH_MVEBU || (X86_32 && PCI && OF)
 	help
 	  If you have devices in the PXA I2C bus, say yes to this option.
 	  This driver can also be built as a module.  If so, the module
@@ -776,6 +832,19 @@ config I2C_PXA_SLAVE
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
 
+config I2C_QCOM_GENI
+	tristate "Qualcomm Technologies Inc.'s GENI based I2C controller"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on QCOM_GENI_SE
+	help
+	  This driver supports GENI serial engine based I2C controller in
+	  master mode on the Qualcomm Technologies Inc.'s SoCs. If you say
+	  yes to this option, support will be included for the built-in I2C
+	  interface on the Qualcomm Technologies Inc.'s SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-qcom-geni.
+
 config I2C_QUP
 	tristate "Qualcomm QUP based I2C controller"
 	depends on ARCH_QCOM
@@ -788,7 +857,7 @@ config I2C_QUP
 
 config I2C_RIIC
 	tristate "Renesas RIIC adapter"
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  Renesas RIIC I2C interface.
@@ -831,8 +900,7 @@ config I2C_SH7760
 
 config I2C_SH_MOBILE
 	tristate "SuperH Mobile I2C Controller"
-	depends on HAS_DMA
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_SHMOBILE || ARCH_RENESAS || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Renesas SH-Mobile processor.
@@ -862,6 +930,13 @@ config I2C_SIRF
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sirf.
 
+config I2C_SPRD
+	bool "Spreadtrum I2C interface"
+	depends on I2C=y && ARCH_SPRD
+	help
+	  If you say yes to this option, support will be included for the
+	  Spreadtrum I2C interface.
+
 config I2C_ST
 	tristate "STMicroelectronics SSC I2C support"
 	depends on ARCH_STI
@@ -871,6 +946,27 @@ config I2C_ST
 
 	  This driver can also be built as module. If so, the module
 	  will be called i2c-st.
+
+config I2C_STM32F4
+	tristate "STMicroelectronics STM32F4 I2C support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  Enable this option to add support for STM32 I2C controller embedded
+	  in STM32F4 SoCs.
+
+	  This driver can also be built as module. If so, the module
+	  will be called i2c-stm32f4.
+
+config I2C_STM32F7
+	tristate "STMicroelectronics STM32F7 I2C support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	select I2C_SLAVE
+	help
+	  Enable this option to add support for STM32 I2C controller embedded
+	  in STM32F7 SoCs.
+
+	  This driver can also be built as module. If so, the module
+	  will be called i2c-stm32f7.
 
 config I2C_STU300
 	tristate "ST Microelectronics DDC I2C interface"
@@ -898,6 +994,16 @@ config I2C_SUN6I_P2WI
 	  This interface is used to connect to specific PMIC devices (like the
 	  AXP221).
 
+config I2C_SYNQUACER
+	tristate "Socionext SynQuacer I2C controller"
+	depends on ARCH_SYNQUACER || COMPILE_TEST
+	help
+	  Say Y here to include support for the I2C controller used in some
+	  Fujitsu and Socionext SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-synquacer.
+
 config I2C_TEGRA
 	tristate "NVIDIA Tegra internal I2C controller"
 	depends on ARCH_TEGRA
@@ -905,9 +1011,21 @@ config I2C_TEGRA
 	  If you say yes to this option, support will be included for the
 	  I2C controller embedded in NVIDIA Tegra SOCs
 
+config I2C_TEGRA_BPMP
+	tristate "NVIDIA Tegra BPMP I2C controller"
+	depends on TEGRA_BPMP
+	default y
+	help
+	  If you say yes to this option, support will be included for the I2C
+	  controller embedded in NVIDIA Tegra SoCs accessed via the BPMP.
+
+	  This I2C driver is a 'virtual' I2C driver. The real driver is part
+	  of the BPMP firmware, and this driver merely communicates with that
+	  real driver.
+
 config I2C_UNIPHIER
 	tristate "UniPhier FIFO-less I2C controller"
-	depends on ARCH_UNIPHIER
+	depends on ARCH_UNIPHIER || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for
 	  the UniPhier FIFO-less I2C interface embedded in PH1-LD4, PH1-sLD8,
@@ -915,7 +1033,7 @@ config I2C_UNIPHIER
 
 config I2C_UNIPHIER_F
 	tristate "UniPhier FIFO-builtin I2C controller"
-	depends on ARCH_UNIPHIER
+	depends on ARCH_UNIPHIER || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for
 	  the UniPhier FIFO-builtin I2C interface embedded in PH1-Pro4,
@@ -923,7 +1041,7 @@ config I2C_UNIPHIER_F
 
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"
-	depends on ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS
+	depends on ARCH_MPS2 || ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS || COMPILE_TEST
 	select I2C_ALGOBIT
 	help
 	  Say yes if you want to support the I2C serial bus on ARMs Versatile
@@ -952,6 +1070,17 @@ config I2C_OCTEON
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-octeon.
 
+config I2C_THUNDERX
+	tristate "Cavium ThunderX I2C bus support"
+	depends on 64BIT && PCI && (ARM64 || COMPILE_TEST)
+	select I2C_SMBUS
+	help
+	  Say yes if you want to support the I2C serial bus on Cavium
+	  ThunderX SOC.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-thunderx.
+
 config I2C_XILINX
 	tristate "Xilinx I2C Controller"
 	depends on HAS_IOMEM
@@ -963,28 +1092,28 @@ config I2C_XILINX
 	  will be called xilinx_i2c.
 
 config I2C_XLR
-	tristate "XLR I2C support"
-	depends on CPU_XLR
+	tristate "Netlogic XLR and Sigma Designs I2C support"
+	depends on CPU_XLR || ARCH_TANGO
 	help
 	  This driver enables support for the on-chip I2C interface of
-	  the Netlogic XLR/XLS MIPS processors.
+	  the Netlogic XLR/XLS MIPS processors and Sigma Designs SOCs.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-xlr.
 
 config I2C_XLP9XX
 	tristate "XLP9XX I2C support"
-	depends on CPU_XLP || COMPILE_TEST
+	depends on CPU_XLP || ARCH_THUNDER2 || COMPILE_TEST
 	help
 	  This driver enables support for the on-chip I2C interface of
-	  the Broadcom XLP9xx/XLP5xx MIPS processors.
+	  the Broadcom XLP9xx/XLP5xx MIPS and Vulcan ARM64 processors.
 
 	  This driver can also be built as a module.  If so, the module will
 	  be called i2c-xlp9xx.
 
 config I2C_RCAR
 	tristate "Renesas R-Car I2C Controller"
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	select I2C_SLAVE
 	help
 	  If you say yes to this option, support will be included for the
@@ -1134,6 +1263,17 @@ config I2C_ELEKTOR
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-elektor.
 
+config I2C_MLXCPLD
+	tristate "Mellanox I2C driver"
+	depends on X86_64
+	help
+	  This exposes the Mellanox platform I2C busses to the linux I2C layer
+	  for X86 based systems.
+	  Controller is implemented as CPLD logic.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called as i2c-mlxcpld.
+
 config I2C_PCA_ISA
 	tristate "PCA9564/PCA9665 on an ISA bus"
 	depends on ISA
@@ -1197,5 +1337,25 @@ config I2C_OPAL
 
 	  This driver can also be built as a module. If so, the module will be
 	  called as i2c-opal.
+
+config I2C_ZX2967
+	tristate "ZTE ZX2967 I2C support"
+	depends on ARCH_ZX
+	default y
+	help
+	  Selecting this option will add ZX2967 I2C driver.
+	  This driver can also be built as a module. If so, the module will be
+	  called i2c-zx2967.
+
+config I2C_FSI
+	tristate "FSI I2C driver"
+	depends on FSI
+	help
+	  Driver for FSI bus attached I2C masters. These are I2C masters that
+	  are connected to the system over an FSI bus, instead of the more
+	  common PCI or MMIO interface.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called as i2c-fsi.
 
 endmenu

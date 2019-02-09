@@ -1,35 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  flexible mmap layout support
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- *
  * Started by Ingo Molnar <mingo@elte.hu>
  */
 
+#include <linux/elf-randomize.h>
 #include <linux/personality.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/module.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 #include <linux/random.h>
 #include <linux/compat.h>
 #include <linux/security.h>
 #include <asm/pgalloc.h>
+#include <asm/elf.h>
 
 static unsigned long stack_maxrandom_size(void)
 {
@@ -48,11 +37,11 @@ static unsigned long stack_maxrandom_size(void)
 #define MIN_GAP (32*1024*1024)
 #define MAX_GAP (STACK_TOP/6*5)
 
-static inline int mmap_is_legacy(void)
+static inline int mmap_is_legacy(struct rlimit *rlim_stack)
 {
 	if (current->personality & ADDR_COMPAT_LAYOUT)
 		return 1;
-	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
+	if (rlim_stack->rlim_cur == RLIM_INFINITY)
 		return 1;
 	return sysctl_legacy_va_layout;
 }
@@ -67,9 +56,10 @@ static unsigned long mmap_base_legacy(unsigned long rnd)
 	return TASK_UNMAPPED_BASE + rnd;
 }
 
-static inline unsigned long mmap_base(unsigned long rnd)
+static inline unsigned long mmap_base(unsigned long rnd,
+				      struct rlimit *rlim_stack)
 {
-	unsigned long gap = rlimit(RLIMIT_STACK);
+	unsigned long gap = rlim_stack->rlim_cur;
 
 	if (gap < MIN_GAP)
 		gap = MIN_GAP;
@@ -86,19 +76,20 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	struct vm_unmapped_area_info info;
+	int rc;
 
 	if (len > TASK_SIZE - mmap_min_addr)
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED)
-		return addr;
+		goto check_asce_limit;
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
-		    (!vma || addr + len <= vma->vm_start))
-			return addr;
+		    (!vma || addr + len <= vm_start_gap(vma)))
+			goto check_asce_limit;
 	}
 
 	info.flags = 0;
@@ -110,7 +101,19 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	else
 		info.align_mask = 0;
 	info.align_offset = pgoff << PAGE_SHIFT;
-	return vm_unmapped_area(&info);
+	addr = vm_unmapped_area(&info);
+	if (addr & ~PAGE_MASK)
+		return addr;
+
+check_asce_limit:
+	if (addr + len > current->mm->context.asce_limit &&
+	    addr + len <= TASK_SIZE) {
+		rc = crst_table_upgrade(mm, addr + len);
+		if (rc)
+			return (unsigned long) rc;
+	}
+
+	return addr;
 }
 
 unsigned long
@@ -122,21 +125,22 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	struct mm_struct *mm = current->mm;
 	unsigned long addr = addr0;
 	struct vm_unmapped_area_info info;
+	int rc;
 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE - mmap_min_addr)
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED)
-		return addr;
+		goto check_asce_limit;
 
 	/* requesting a specific address */
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
-				(!vma || addr + len <= vma->vm_start))
-			return addr;
+				(!vma || addr + len <= vm_start_gap(vma)))
+			goto check_asce_limit;
 	}
 
 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
@@ -162,70 +166,26 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = TASK_SIZE;
 		addr = vm_unmapped_area(&info);
+		if (addr & ~PAGE_MASK)
+			return addr;
+	}
+
+check_asce_limit:
+	if (addr + len > current->mm->context.asce_limit &&
+	    addr + len <= TASK_SIZE) {
+		rc = crst_table_upgrade(mm, addr + len);
+		if (rc)
+			return (unsigned long) rc;
 	}
 
 	return addr;
 }
 
-int s390_mmap_check(unsigned long addr, unsigned long len, unsigned long flags)
-{
-	if (is_compat_task() || (TASK_SIZE >= (1UL << 53)))
-		return 0;
-	if (!(flags & MAP_FIXED))
-		addr = 0;
-	if ((addr + len) >= TASK_SIZE)
-		return crst_table_upgrade(current->mm, 1UL << 53);
-	return 0;
-}
-
-static unsigned long
-s390_get_unmapped_area(struct file *filp, unsigned long addr,
-		unsigned long len, unsigned long pgoff, unsigned long flags)
-{
-	struct mm_struct *mm = current->mm;
-	unsigned long area;
-	int rc;
-
-	area = arch_get_unmapped_area(filp, addr, len, pgoff, flags);
-	if (!(area & ~PAGE_MASK))
-		return area;
-	if (area == -ENOMEM && !is_compat_task() && TASK_SIZE < (1UL << 53)) {
-		/* Upgrade the page table to 4 levels and retry. */
-		rc = crst_table_upgrade(mm, 1UL << 53);
-		if (rc)
-			return (unsigned long) rc;
-		area = arch_get_unmapped_area(filp, addr, len, pgoff, flags);
-	}
-	return area;
-}
-
-static unsigned long
-s390_get_unmapped_area_topdown(struct file *filp, const unsigned long addr,
-			  const unsigned long len, const unsigned long pgoff,
-			  const unsigned long flags)
-{
-	struct mm_struct *mm = current->mm;
-	unsigned long area;
-	int rc;
-
-	area = arch_get_unmapped_area_topdown(filp, addr, len, pgoff, flags);
-	if (!(area & ~PAGE_MASK))
-		return area;
-	if (area == -ENOMEM && !is_compat_task() && TASK_SIZE < (1UL << 53)) {
-		/* Upgrade the page table to 4 levels and retry. */
-		rc = crst_table_upgrade(mm, 1UL << 53);
-		if (rc)
-			return (unsigned long) rc;
-		area = arch_get_unmapped_area_topdown(filp, addr, len,
-						      pgoff, flags);
-	}
-	return area;
-}
 /*
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:
  */
-void arch_pick_mmap_layout(struct mm_struct *mm)
+void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 {
 	unsigned long random_factor = 0UL;
 
@@ -236,11 +196,11 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	 * Fall back to the standard layout if the personality
 	 * bit is set, or if the expected stack growth is unlimited:
 	 */
-	if (mmap_is_legacy()) {
+	if (mmap_is_legacy(rlim_stack)) {
 		mm->mmap_base = mmap_base_legacy(random_factor);
-		mm->get_unmapped_area = s390_get_unmapped_area;
+		mm->get_unmapped_area = arch_get_unmapped_area;
 	} else {
-		mm->mmap_base = mmap_base(random_factor);
-		mm->get_unmapped_area = s390_get_unmapped_area_topdown;
+		mm->mmap_base = mmap_base(random_factor, rlim_stack);
+		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 	}
 }

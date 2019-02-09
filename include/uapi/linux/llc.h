@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /*
  * IEEE 802.2 User Interface SAPs for Linux, data structures and indicators.
  *
@@ -14,6 +15,7 @@
 #define _UAPI__LINUX_LLC_H
 
 #include <linux/socket.h>
+#include <linux/if.h> 		/* For IFHWADDRLEN. */
 
 #define __LLC_SOCK_SIZE__ 16	/* sizeof(sockaddr_llc), word align. */
 struct sockaddr_llc {

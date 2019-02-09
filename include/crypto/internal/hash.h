@@ -57,9 +57,6 @@ int crypto_hash_walk_first(struct ahash_request *req,
 			   struct crypto_hash_walk *walk);
 int crypto_ahash_walk_first(struct ahash_request *req,
 			   struct crypto_hash_walk *walk);
-int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
-				  struct crypto_hash_walk *walk,
-				  struct scatterlist *sg, unsigned int len);
 
 static inline int crypto_ahash_walk_done(struct crypto_hash_walk *walk,
 					 int err)
@@ -79,9 +76,21 @@ static inline int crypto_ahash_walk_last(struct crypto_hash_walk *walk)
 
 int crypto_register_ahash(struct ahash_alg *alg);
 int crypto_unregister_ahash(struct ahash_alg *alg);
+int crypto_register_ahashes(struct ahash_alg *algs, int count);
+void crypto_unregister_ahashes(struct ahash_alg *algs, int count);
 int ahash_register_instance(struct crypto_template *tmpl,
 			    struct ahash_instance *inst);
 void ahash_free_instance(struct crypto_instance *inst);
+
+int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
+		    unsigned int keylen);
+
+static inline bool crypto_shash_alg_has_setkey(struct shash_alg *alg)
+{
+	return alg->setkey != shash_no_setkey;
+}
+
+bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg);
 
 int crypto_init_ahash_spawn(struct crypto_ahash_spawn *spawn,
 			    struct hash_alg_common *alg,
@@ -116,15 +125,6 @@ struct shash_alg *shash_attr_alg(struct rtattr *rta, u32 type, u32 mask);
 int shash_ahash_update(struct ahash_request *req, struct shash_desc *desc);
 int shash_ahash_finup(struct ahash_request *req, struct shash_desc *desc);
 int shash_ahash_digest(struct ahash_request *req, struct shash_desc *desc);
-
-int shash_ahash_mcryptd_update(struct ahash_request *req,
-			       struct shash_desc *desc);
-int shash_ahash_mcryptd_final(struct ahash_request *req,
-			      struct shash_desc *desc);
-int shash_ahash_mcryptd_finup(struct ahash_request *req,
-			      struct shash_desc *desc);
-int shash_ahash_mcryptd_digest(struct ahash_request *req,
-			       struct shash_desc *desc);
 
 int crypto_init_shash_ops_async(struct crypto_tfm *tfm);
 
@@ -171,6 +171,16 @@ static inline struct ahash_instance *ahash_alloc_instance(
 	const char *name, struct crypto_alg *alg)
 {
 	return crypto_alloc_instance2(name, alg, ahash_instance_headroom());
+}
+
+static inline void ahash_request_complete(struct ahash_request *req, int err)
+{
+	req->base.complete(&req->base, err);
+}
+
+static inline u32 ahash_request_flags(struct ahash_request *req)
+{
+	return req->base.flags;
 }
 
 static inline struct crypto_ahash *crypto_spawn_ahash(

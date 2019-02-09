@@ -190,9 +190,7 @@ static void i2c_sirfsoc_set_address(struct sirfsoc_i2c *siic,
 
 	writel(regval, siic->base + SIRFSOC_I2C_CMD(siic->cmd_ptr++));
 
-	addr = msg->addr << 1;	/* Generate address */
-	if (msg->flags & I2C_M_RD)
-		addr |= 1;
+	addr = i2c_8bit_addr_from_msg(msg);
 
 	/* Reverse direction bit */
 	if (msg->flags & I2C_M_REV_DIR_ADDR)
@@ -343,7 +341,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, adap);
 	init_completion(&siic->done);
 
-	/* Controller Initalisation */
+	/* Controller initialisation */
 
 	writel(SIRFSOC_I2C_RESET, siic->base + SIRFSOC_I2C_CTRL);
 	while (readl(siic->base + SIRFSOC_I2C_CTRL) & SIRFSOC_I2C_RESET)
@@ -371,7 +369,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	 * but they start to affect the speed when clock is set to faster
 	 * frequencies.
 	 * Through the actual tests, use the different user_div value(which
-	 * in the divider formular 'Fio / (Fi2c * user_div)') to adapt
+	 * in the divider formula 'Fio / (Fi2c * user_div)') to adapt
 	 * the different ranges of i2c bus clock frequency, to make the SCL
 	 * more accurate.
 	 */
@@ -389,10 +387,8 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 		writel(regval, siic->base + SIRFSOC_I2C_SDA_DELAY);
 
 	err = i2c_add_numbered_adapter(adap);
-	if (err < 0) {
-		dev_err(&pdev->dev, "Can't add new i2c adapter\n");
+	if (err < 0)
 		goto out;
-	}
 
 	clk_disable(clk);
 
@@ -425,8 +421,7 @@ static int i2c_sirfsoc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int i2c_sirfsoc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct i2c_adapter *adapter = platform_get_drvdata(pdev);
+	struct i2c_adapter *adapter = dev_get_drvdata(dev);
 	struct sirfsoc_i2c *siic = adapter->algo_data;
 
 	clk_enable(siic->clk);
@@ -438,8 +433,7 @@ static int i2c_sirfsoc_suspend(struct device *dev)
 
 static int i2c_sirfsoc_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct i2c_adapter *adapter = platform_get_drvdata(pdev);
+	struct i2c_adapter *adapter = dev_get_drvdata(dev);
 	struct sirfsoc_i2c *siic = adapter->algo_data;
 
 	clk_enable(siic->clk);

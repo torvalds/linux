@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
-#include <linux/stringify.h>
 #include <linux/smp.h>
 
 /* waiting for a spinlock... */
@@ -68,19 +67,3 @@ void __rw_yield(arch_rwlock_t *rw)
 		get_hard_smp_processor_id(holder_cpu), yield_count);
 }
 #endif
-
-void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	smp_mb();
-
-	while (lock->slock) {
-		HMT_low();
-		if (SHARED_PROCESSOR)
-			__spin_yield(lock);
-	}
-	HMT_medium();
-
-	smp_mb();
-}
-
-EXPORT_SYMBOL(arch_spin_unlock_wait);

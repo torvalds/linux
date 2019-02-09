@@ -13,7 +13,7 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-This driver supports hardware montoring for Maxim MAX16064 Quad Power-Supply
+This driver supports hardware monitoring for Maxim MAX16064 Quad Power-Supply
 Controller with Active-Voltage Output Control and PMBus Interface.
 
 The driver is a client driver to the core PMBus driver.

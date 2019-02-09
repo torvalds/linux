@@ -21,10 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "dmacnv50.h"
-#include "rootnv50.h"
-
-#include <nvif/class.h>
+#include "channv50.h"
 
 static const struct nv50_disp_mthd_list
 gk104_disp_ovly_mthd_base = {
@@ -80,8 +77,8 @@ gk104_disp_ovly_mthd_base = {
 	}
 };
 
-static const struct nv50_disp_chan_mthd
-gk104_disp_ovly_chan_mthd = {
+const struct nv50_disp_chan_mthd
+gk104_disp_ovly_mthd = {
 	.name = "Overlay",
 	.addr = 0x001000,
 	.prev = -0x020000,
@@ -91,13 +88,10 @@ gk104_disp_ovly_chan_mthd = {
 	}
 };
 
-const struct nv50_disp_dmac_oclass
-gk104_disp_ovly_oclass = {
-	.base.oclass = GK104_DISP_OVERLAY_CONTROL_DMA,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_ovly_new,
-	.func = &gf119_disp_dmac_func,
-	.mthd = &gk104_disp_ovly_chan_mthd,
-	.chid = 5,
-};
+int
+gk104_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nv50_disp *disp, struct nvkm_object **pobject)
+{
+	return nv50_disp_ovly_new_(&gf119_disp_dmac_func, &gk104_disp_ovly_mthd,
+				   disp, 5, oclass, argv, argc, pobject);
+}

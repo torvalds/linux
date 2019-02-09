@@ -1,27 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014 Filipe David Borba Manana <fdmanana@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/hashtable.h>
 #include "props.h"
 #include "btrfs_inode.h"
-#include "hash.h"
 #include "transaction.h"
+#include "ctree.h"
 #include "xattr.h"
+#include "compression.h"
 
 #define BTRFS_PROP_HANDLERS_HT_BITS 8
 static DEFINE_HASHTABLE(prop_handlers_ht, BTRFS_PROP_HANDLERS_HT_BITS);
@@ -115,7 +103,7 @@ static int __btrfs_set_prop(struct btrfs_trans_handle *trans,
 		return -EINVAL;
 
 	if (value_len == 0) {
-		ret = __btrfs_setxattr(trans, inode, handler->xattr_name,
+		ret = btrfs_setxattr(trans, inode, handler->xattr_name,
 				       NULL, 0, flags);
 		if (ret)
 			return ret;
@@ -129,13 +117,13 @@ static int __btrfs_set_prop(struct btrfs_trans_handle *trans,
 	ret = handler->validate(value, value_len);
 	if (ret)
 		return ret;
-	ret = __btrfs_setxattr(trans, inode, handler->xattr_name,
+	ret = btrfs_setxattr(trans, inode, handler->xattr_name,
 			       value, value_len, flags);
 	if (ret)
 		return ret;
 	ret = handler->apply(inode, value, value_len);
 	if (ret) {
-		__btrfs_setxattr(trans, inode, handler->xattr_name,
+		btrfs_setxattr(trans, inode, handler->xattr_name,
 				 NULL, 0, flags);
 		return ret;
 	}
@@ -278,7 +266,7 @@ static void inode_prop_iterator(void *ctx,
 	if (unlikely(ret))
 		btrfs_warn(root->fs_info,
 			   "error applying prop %s to ino %llu (root %llu): %d",
-			   handler->xattr_name, btrfs_ino(inode),
+			   handler->xattr_name, btrfs_ino(BTRFS_I(inode)),
 			   root->root_key.objectid, ret);
 	else
 		set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
@@ -287,7 +275,7 @@ static void inode_prop_iterator(void *ctx,
 int btrfs_load_inode_props(struct inode *inode, struct btrfs_path *path)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 ino = btrfs_ino(inode);
+	u64 ino = btrfs_ino(BTRFS_I(inode));
 	int ret;
 
 	ret = iterate_object_props(root, path, ino, inode_prop_iterator, inode);
@@ -300,6 +288,7 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 			 struct inode *parent)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 	int i;
 
@@ -319,14 +308,14 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 		if (!value)
 			continue;
 
-		num_bytes = btrfs_calc_trans_metadata_size(root, 1);
+		num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 		ret = btrfs_block_rsv_add(root, trans->block_rsv,
 					  num_bytes, BTRFS_RESERVE_NO_FLUSH);
 		if (ret)
 			goto out;
 		ret = __btrfs_set_prop(trans, inode, h->xattr_name,
 				       value, strlen(value), 0);
-		btrfs_block_rsv_release(root, trans->block_rsv, num_bytes);
+		btrfs_block_rsv_release(fs_info, trans->block_rsv, num_bytes);
 		if (ret)
 			goto out;
 	}
@@ -349,6 +338,7 @@ int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
 			       struct btrfs_root *parent_root)
 {
+	struct super_block *sb = root->fs_info->sb;
 	struct btrfs_key key;
 	struct inode *parent_inode, *child_inode;
 	int ret;
@@ -357,12 +347,11 @@ int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 
-	parent_inode = btrfs_iget(parent_root->fs_info->sb, &key,
-				  parent_root, NULL);
+	parent_inode = btrfs_iget(sb, &key, parent_root, NULL);
 	if (IS_ERR(parent_inode))
 		return PTR_ERR(parent_inode);
 
-	child_inode = btrfs_iget(root->fs_info->sb, &key, root, NULL);
+	child_inode = btrfs_iget(sb, &key, root, NULL);
 	if (IS_ERR(child_inode)) {
 		iput(parent_inode);
 		return PTR_ERR(child_inode);
@@ -381,6 +370,8 @@ static int prop_compression_validate(const char *value, size_t len)
 		return 0;
 	else if (!strncmp("zlib", value, len))
 		return 0;
+	else if (!strncmp("zstd", value, len))
+		return 0;
 
 	return -EINVAL;
 }
@@ -389,37 +380,45 @@ static int prop_compression_apply(struct inode *inode,
 				  const char *value,
 				  size_t len)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	int type;
 
 	if (len == 0) {
 		BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
 		BTRFS_I(inode)->flags &= ~BTRFS_INODE_COMPRESS;
-		BTRFS_I(inode)->force_compress = BTRFS_COMPRESS_NONE;
+		BTRFS_I(inode)->prop_compress = BTRFS_COMPRESS_NONE;
 
 		return 0;
 	}
 
-	if (!strncmp("lzo", value, len))
+	if (!strncmp("lzo", value, 3)) {
 		type = BTRFS_COMPRESS_LZO;
-	else if (!strncmp("zlib", value, len))
+		btrfs_set_fs_incompat(fs_info, COMPRESS_LZO);
+	} else if (!strncmp("zlib", value, 4)) {
 		type = BTRFS_COMPRESS_ZLIB;
-	else
+	} else if (!strncmp("zstd", value, len)) {
+		type = BTRFS_COMPRESS_ZSTD;
+		btrfs_set_fs_incompat(fs_info, COMPRESS_ZSTD);
+	} else {
 		return -EINVAL;
+	}
 
 	BTRFS_I(inode)->flags &= ~BTRFS_INODE_NOCOMPRESS;
 	BTRFS_I(inode)->flags |= BTRFS_INODE_COMPRESS;
-	BTRFS_I(inode)->force_compress = type;
+	BTRFS_I(inode)->prop_compress = type;
 
 	return 0;
 }
 
 static const char *prop_compression_extract(struct inode *inode)
 {
-	switch (BTRFS_I(inode)->force_compress) {
+	switch (BTRFS_I(inode)->prop_compress) {
 	case BTRFS_COMPRESS_ZLIB:
-		return "zlib";
 	case BTRFS_COMPRESS_LZO:
-		return "lzo";
+	case BTRFS_COMPRESS_ZSTD:
+		return btrfs_compress_type2str(BTRFS_I(inode)->prop_compress);
+	default:
+		break;
 	}
 
 	return NULL;

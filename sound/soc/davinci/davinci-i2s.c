@@ -4,9 +4,15 @@
  * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  *
+ * DT support	(c) 2016 Petr Kulhavy, Barix AG <petr@barix.com>
+ *		based on davinci-mcasp.c DT support
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * TODO:
+ * on DA850 implement HW FIFOs instead of DMA into DXR and DRR registers
  */
 
 #include <linux/init.h>
@@ -28,6 +34,7 @@
 #include "edma-pcm.h"
 #include "davinci-i2s.h"
 
+#define DRV_NAME "davinci-i2s"
 
 /*
  * NOTE:  terminology here is confusing.
@@ -184,7 +191,7 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 		struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 	u32 spcr;
 	u32 mask = playback ? DAVINCI_MCBSP_SPCR_XRST : DAVINCI_MCBSP_SPCR_RRST;
@@ -205,8 +212,8 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 	if (playback) {
 		/* Stop the DMA to avoid data loss */
 		/* while the transmitter is out of reset to handle XSYNCERR */
-		if (platform->driver->ops->trigger) {
-			int ret = platform->driver->ops->trigger(substream,
+		if (component->driver->ops->trigger) {
+			int ret = component->driver->ops->trigger(substream,
 				SNDRV_PCM_TRIGGER_STOP);
 			if (ret < 0)
 				printk(KERN_DEBUG "Playback DMA stop failed\n");
@@ -227,8 +234,8 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 		toggle_clock(dev, playback);
 
 		/* Restart the DMA */
-		if (platform->driver->ops->trigger) {
-			int ret = platform->driver->ops->trigger(substream,
+		if (component->driver->ops->trigger) {
+			int ret = component->driver->ops->trigger(substream,
 				SNDRV_PCM_TRIGGER_START);
 			if (ret < 0)
 				printk(KERN_DEBUG "Playback DMA start failed\n");
@@ -333,6 +340,7 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		 * rate is lowered.
 		 */
 		inv_fs = true;
+		/* fall through */
 	case SND_SOC_DAIFMT_DSP_A:
 		dev->mode = MOD_DSP_A;
 		break;
@@ -645,18 +653,29 @@ static struct snd_soc_dai_driver davinci_i2s_dai = {
 };
 
 static const struct snd_soc_component_driver davinci_i2s_component = {
-	.name		= "davinci-i2s",
+	.name		= DRV_NAME,
 };
 
 static int davinci_i2s_probe(struct platform_device *pdev)
 {
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	struct davinci_mcbsp_dev *dev;
 	struct resource *mem, *res;
 	void __iomem *io_base;
 	int *dma;
 	int ret;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
+	if (!mem) {
+		dev_warn(&pdev->dev,
+			 "\"mpu\" mem resource not found, using index 0\n");
+		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!mem) {
+			dev_err(&pdev->dev, "no mem resource?\n");
+			return -ENODEV;
+		}
+	}
+
 	io_base = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
@@ -666,39 +685,43 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	dev->base = io_base;
+
+	/* setup DMA, first TX, then RX */
+	dma_data = &dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
+	dma_data->addr = (dma_addr_t)(mem->start + DAVINCI_MCBSP_DXR_REG);
+
+	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (res) {
+		dma = &dev->dma_request[SNDRV_PCM_STREAM_PLAYBACK];
+		*dma = res->start;
+		dma_data->filter_data = dma;
+	} else if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+		dma_data->filter_data = "tx";
+	} else {
+		dev_err(&pdev->dev, "Missing DMA tx resource\n");
+		return -ENODEV;
+	}
+
+	dma_data = &dev->dma_data[SNDRV_PCM_STREAM_CAPTURE];
+	dma_data->addr = (dma_addr_t)(mem->start + DAVINCI_MCBSP_DRR_REG);
+
+	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (res) {
+		dma = &dev->dma_request[SNDRV_PCM_STREAM_CAPTURE];
+		*dma = res->start;
+		dma_data->filter_data = dma;
+	} else if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+		dma_data->filter_data = "rx";
+	} else {
+		dev_err(&pdev->dev, "Missing DMA rx resource\n");
+		return -ENODEV;
+	}
+
 	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk))
 		return -ENODEV;
 	clk_enable(dev->clk);
-
-	dev->base = io_base;
-
-	dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK].addr =
-	    (dma_addr_t)(mem->start + DAVINCI_MCBSP_DXR_REG);
-
-	dev->dma_data[SNDRV_PCM_STREAM_CAPTURE].addr =
-	    (dma_addr_t)(mem->start + DAVINCI_MCBSP_DRR_REG);
-
-	/* first TX, then RX */
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no DMA resource\n");
-		ret = -ENXIO;
-		goto err_release_clk;
-	}
-	dma = &dev->dma_request[SNDRV_PCM_STREAM_PLAYBACK];
-	*dma = res->start;
-	dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK].filter_data = dma;
-
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!res) {
-		dev_err(&pdev->dev, "no DMA resource\n");
-		ret = -ENXIO;
-		goto err_release_clk;
-	}
-	dma = &dev->dma_request[SNDRV_PCM_STREAM_CAPTURE];
-	*dma = res->start;
-	dev->dma_data[SNDRV_PCM_STREAM_CAPTURE].filter_data = dma;
 
 	dev->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, dev);
@@ -737,11 +760,18 @@ static int davinci_i2s_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id davinci_i2s_match[] = {
+	{ .compatible = "ti,da850-mcbsp" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, davinci_i2s_match);
+
 static struct platform_driver davinci_mcbsp_driver = {
 	.probe		= davinci_i2s_probe,
 	.remove		= davinci_i2s_remove,
 	.driver		= {
 		.name	= "davinci-mcbsp",
+		.of_match_table = of_match_ptr(davinci_i2s_match),
 	},
 };
 

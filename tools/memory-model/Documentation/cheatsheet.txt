@@ -1,0 +1,30 @@
+                                  Prior Operation     Subsequent Operation
+                                  ---------------  ---------------------------
+                               C  Self  R  W  RMW  Self  R  W  DR  DW  RMW  SV
+                              --  ----  -  -  ---  ----  -  -  --  --  ---  --
+
+Store, e.g., WRITE_ONCE()            Y                                       Y
+Load, e.g., READ_ONCE()              Y                          Y   Y        Y
+Unsuccessful RMW operation           Y                          Y   Y        Y
+rcu_dereference()                    Y                          Y   Y        Y
+Successful *_acquire()               R                   Y  Y   Y   Y    Y   Y
+Successful *_release()         C        Y  Y    Y     W                      Y
+smp_rmb()                               Y       R        Y      Y        R
+smp_wmb()                                  Y    W           Y       Y    W
+smp_mb() & synchronize_rcu()  CP        Y  Y    Y        Y  Y   Y   Y    Y
+Successful full non-void RMW  CP     Y  Y  Y    Y     Y  Y  Y   Y   Y    Y   Y
+smp_mb__before_atomic()       CP        Y  Y    Y        a  a   a   a    Y
+smp_mb__after_atomic()        CP        a  a    Y        Y  Y   Y   Y    Y
+
+
+Key:	C:	Ordering is cumulative
+	P:	Ordering propagates
+	R:	Read, for example, READ_ONCE(), or read portion of RMW
+	W:	Write, for example, WRITE_ONCE(), or write portion of RMW
+	Y:	Provides ordering
+	a:	Provides ordering given intervening RMW atomic operation
+	DR:	Dependent read (address dependency)
+	DW:	Dependent write (address, data, or control dependency)
+	RMW:	Atomic read-modify-write operation
+	SELF:	Orders self, as opposed to accesses before and/or after
+	SV:	Orders later accesses to the same variable

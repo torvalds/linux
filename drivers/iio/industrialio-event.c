@@ -44,6 +44,11 @@ struct iio_event_interface {
 	struct mutex		read_lock;
 };
 
+bool iio_event_enabled(const struct iio_event_interface *ev_int)
+{
+	return !!test_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
+}
+
 /**
  * iio_push_event() - try to add event to the list for userspace reading
  * @indio_dev:		IIO device structure
@@ -52,6 +57,11 @@ struct iio_event_interface {
  *
  * Note: The caller must make sure that this function is not running
  * concurrently for the same indio_dev more than once.
+ *
+ * This function may be safely used as soon as a valid reference to iio_dev has
+ * been obtained via iio_device_alloc(), but any events that are submitted
+ * before iio_device_register() has successfully completed will be silently
+ * discarded.
  **/
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 {
@@ -59,15 +69,18 @@ int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 	struct iio_event_data ev;
 	int copied;
 
+	if (!ev_int)
+		return 0;
+
 	/* Does anyone care? */
-	if (test_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
+	if (iio_event_enabled(ev_int)) {
 
 		ev.id = ev_code;
 		ev.timestamp = timestamp;
 
 		copied = kfifo_put(&ev_int->det_events, ev);
 		if (copied != 0)
-			wake_up_poll(&ev_int->wait, POLLIN);
+			wake_up_poll(&ev_int->wait, EPOLLIN);
 	}
 
 	return 0;
@@ -79,15 +92,15 @@ EXPORT_SYMBOL(iio_push_event);
  * @filep:	File structure pointer to identify the device
  * @wait:	Poll table pointer to add the wait queue on
  *
- * Return: (POLLIN | POLLRDNORM) if data is available for reading
+ * Return: (EPOLLIN | EPOLLRDNORM) if data is available for reading
  *	   or a negative error code on failure
  */
-static unsigned int iio_event_poll(struct file *filep,
+static __poll_t iio_event_poll(struct file *filep,
 			     struct poll_table_struct *wait)
 {
 	struct iio_dev *indio_dev = filep->private_data;
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
-	unsigned int events = 0;
+	__poll_t events = 0;
 
 	if (!indio_dev->info)
 		return events;
@@ -95,7 +108,7 @@ static unsigned int iio_event_poll(struct file *filep,
 	poll_wait(filep, &ev_int->wait, wait);
 
 	if (!kfifo_is_empty(&ev_int->det_events))
-		events = POLLIN | POLLRDNORM;
+		events = EPOLLIN | EPOLLRDNORM;
 
 	return events;
 }
@@ -180,8 +193,14 @@ int iio_event_getfd(struct iio_dev *indio_dev)
 	if (ev_int == NULL)
 		return -ENODEV;
 
-	if (test_and_set_bit(IIO_BUSY_BIT_POS, &ev_int->flags))
-		return -EBUSY;
+	fd = mutex_lock_interruptible(&indio_dev->mlock);
+	if (fd)
+		return fd;
+
+	if (test_and_set_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
+		fd = -EBUSY;
+		goto unlock;
+	}
 
 	iio_device_get(indio_dev);
 
@@ -194,6 +213,8 @@ int iio_event_getfd(struct iio_dev *indio_dev)
 		kfifo_reset_out(&ev_int->det_events);
 	}
 
+unlock:
+	mutex_unlock(&indio_dev->mlock);
 	return fd;
 }
 

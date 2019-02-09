@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  *  bus driver for ccw devices
  *
@@ -10,7 +11,7 @@
 #define KMSG_COMPONENT "cio"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
@@ -22,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/kernel_stat.h>
+#include <linux/sched/signal.h>
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
@@ -139,13 +141,12 @@ static void io_subchannel_shutdown(struct subchannel *);
 static int io_subchannel_sch_event(struct subchannel *, int);
 static int io_subchannel_chp_event(struct subchannel *, struct chp_link *,
 				   int);
-static void recovery_func(unsigned long data);
+static void recovery_func(struct timer_list *unused);
 
 static struct css_device_id io_subchannel_ids[] = {
 	{ .match_flags = 0x1, .type = SUBCHANNEL_TYPE_IO, },
 	{ /* end of list */ },
 };
-MODULE_DEVICE_TABLE(css, io_subchannel_ids);
 
 static int io_subchannel_prepare(struct subchannel *sch)
 {
@@ -192,7 +193,7 @@ int __init io_subchannel_init(void)
 {
 	int ret;
 
-	setup_timer(&recovery_timer, recovery_func, 0);
+	timer_setup(&recovery_timer, recovery_func, 0);
 	ret = bus_register(&ccw_bus_type);
 	if (ret)
 		return ret;
@@ -205,44 +206,6 @@ int __init io_subchannel_init(void)
 
 
 /************************ device handling **************************/
-
-/*
- * A ccw_device has some interfaces in sysfs in addition to the
- * standard ones.
- * The following entries are designed to export the information which
- * resided in 2.4 in /proc/subchannels. Subchannel and device number
- * are obvious, so they don't have an entry :)
- * TODO: Split chpids and pimpampom up? Where is "in use" in the tree?
- */
-static ssize_t
-chpids_show (struct device * dev, struct device_attribute *attr, char * buf)
-{
-	struct subchannel *sch = to_subchannel(dev);
-	struct chsc_ssd_info *ssd = &sch->ssd_info;
-	ssize_t ret = 0;
-	int chp;
-	int mask;
-
-	for (chp = 0; chp < 8; chp++) {
-		mask = 0x80 >> chp;
-		if (ssd->path_mask & mask)
-			ret += sprintf(buf + ret, "%02x ", ssd->chpid[chp].id);
-		else
-			ret += sprintf(buf + ret, "00 ");
-	}
-	ret += sprintf (buf+ret, "\n");
-	return min((ssize_t)PAGE_SIZE, ret);
-}
-
-static ssize_t
-pimpampom_show (struct device * dev, struct device_attribute *attr, char * buf)
-{
-	struct subchannel *sch = to_subchannel(dev);
-	struct pmcw *pmcw = &sch->schib.pmcw;
-
-	return sprintf (buf, "%02x %02x %02x\n",
-			pmcw->pim, pmcw->pam, pmcw->pom);
-}
 
 static ssize_t
 devtype_show (struct device *dev, struct device_attribute *attr, char *buf)
@@ -364,11 +327,11 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 		   cdev->private->state == DEV_STATE_DISCONNECTED));
 	/* Inform the user if set offline failed. */
 	if (cdev->private->state == DEV_STATE_BOXED) {
-		pr_warning("%s: The device entered boxed state while "
-			   "being set offline\n", dev_name(&cdev->dev));
+		pr_warn("%s: The device entered boxed state while being set offline\n",
+			dev_name(&cdev->dev));
 	} else if (cdev->private->state == DEV_STATE_NOT_OPER) {
-		pr_warning("%s: The device stopped operating while "
-			   "being set offline\n", dev_name(&cdev->dev));
+		pr_warn("%s: The device stopped operating while being set offline\n",
+			dev_name(&cdev->dev));
 	}
 	/* Give up reference from ccw_device_set_online(). */
 	put_device(&cdev->dev);
@@ -429,13 +392,11 @@ int ccw_device_set_online(struct ccw_device *cdev)
 		spin_unlock_irq(cdev->ccwlock);
 		/* Inform the user that set online failed. */
 		if (cdev->private->state == DEV_STATE_BOXED) {
-			pr_warning("%s: Setting the device online failed "
-				   "because it is boxed\n",
-				   dev_name(&cdev->dev));
+			pr_warn("%s: Setting the device online failed because it is boxed\n",
+				dev_name(&cdev->dev));
 		} else if (cdev->private->state == DEV_STATE_NOT_OPER) {
-			pr_warning("%s: Setting the device online failed "
-				   "because it is not operational\n",
-				   dev_name(&cdev->dev));
+			pr_warn("%s: Setting the device online failed because it is not operational\n",
+				dev_name(&cdev->dev));
 		}
 		/* Give up online reference since onlining failed. */
 		put_device(&cdev->dev);
@@ -619,9 +580,8 @@ initiate_logging(struct device *dev, struct device_attribute *attr,
 
 	rc = chsc_siosl(sch->schid);
 	if (rc < 0) {
-		pr_warning("Logging for subchannel 0.%x.%04x failed with "
-			   "errno=%d\n",
-			   sch->schid.ssid, sch->schid.sch_no, rc);
+		pr_warn("Logging for subchannel 0.%x.%04x failed with errno=%d\n",
+			sch->schid.ssid, sch->schid.sch_no, rc);
 		return rc;
 	}
 	pr_notice("Logging for subchannel 0.%x.%04x was triggered\n",
@@ -637,25 +597,21 @@ static ssize_t vpm_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%02x\n", sch->vpm);
 }
 
-static DEVICE_ATTR(chpids, 0444, chpids_show, NULL);
-static DEVICE_ATTR(pimpampom, 0444, pimpampom_show, NULL);
-static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
-static DEVICE_ATTR(cutype, 0444, cutype_show, NULL);
-static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
-static DEVICE_ATTR(online, 0644, online_show, online_store);
+static DEVICE_ATTR_RO(devtype);
+static DEVICE_ATTR_RO(cutype);
+static DEVICE_ATTR_RO(modalias);
+static DEVICE_ATTR_RW(online);
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
 static DEVICE_ATTR(logging, 0200, NULL, initiate_logging);
-static DEVICE_ATTR(vpm, 0444, vpm_show, NULL);
+static DEVICE_ATTR_RO(vpm);
 
 static struct attribute *io_subchannel_attrs[] = {
-	&dev_attr_chpids.attr,
-	&dev_attr_pimpampom.attr,
 	&dev_attr_logging.attr,
 	&dev_attr_vpm.attr,
 	NULL,
 };
 
-static struct attribute_group io_subchannel_attr_group = {
+static const struct attribute_group io_subchannel_attr_group = {
 	.attrs = io_subchannel_attrs,
 };
 
@@ -669,7 +625,7 @@ static struct attribute * ccwdev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ccwdev_attr_group = {
+static const struct attribute_group ccwdev_attr_group = {
 	.attrs = ccwdev_attrs,
 };
 
@@ -765,12 +721,11 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	priv->state = DEV_STATE_NOT_OPER;
 	priv->dev_id.devno = sch->schib.pmcw.dev;
 	priv->dev_id.ssid = sch->schid.ssid;
-	priv->schid = sch->schid;
 
 	INIT_WORK(&priv->todo_work, ccw_device_todo);
 	INIT_LIST_HEAD(&priv->cmb_list);
 	init_waitqueue_head(&priv->wait_q);
-	init_timer(&priv->timer);
+	timer_setup(&priv->timer, ccw_device_timeout, 0);
 
 	atomic_set(&priv->onoff, 0);
 	cdev->ccwlock = sch->lock;
@@ -1003,7 +958,6 @@ static int ccw_device_move_to_sch(struct ccw_device *cdev,
 	put_device(&old_sch->dev);
 	/* Initialize new subchannel. */
 	spin_lock_irq(sch->lock);
-	cdev->private->schid = sch->schid;
 	cdev->ccwlock = sch->lock;
 	if (!sch_is_pseudo_sch(sch))
 		sch_set_cdev(sch, cdev);
@@ -1119,8 +1073,7 @@ out_schedule:
 	return 0;
 }
 
-static int
-io_subchannel_remove (struct subchannel *sch)
+static int io_subchannel_remove(struct subchannel *sch)
 {
 	struct io_subchannel_private *io_priv = to_io_private(sch);
 	struct ccw_device *cdev;
@@ -1128,14 +1081,12 @@ io_subchannel_remove (struct subchannel *sch)
 	cdev = sch_get_cdev(sch);
 	if (!cdev)
 		goto out_free;
-	io_subchannel_quiesce(sch);
-	/* Set ccw device to not operational and drop reference. */
-	spin_lock_irq(cdev->ccwlock);
+
+	ccw_device_unregister(cdev);
+	spin_lock_irq(sch->lock);
 	sch_set_cdev(sch, NULL);
 	set_io_private(sch, NULL);
-	cdev->private->state = DEV_STATE_NOT_OPER;
-	spin_unlock_irq(cdev->ccwlock);
-	ccw_device_unregister(cdev);
+	spin_unlock_irq(sch->lock);
 out_free:
 	kfree(io_priv);
 	sysfs_remove_group(&sch->dev.kobj, &io_subchannel_attr_group);
@@ -1270,10 +1221,16 @@ static int device_is_disconnected(struct ccw_device *cdev)
 static int recovery_check(struct device *dev, void *data)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
+	struct subchannel *sch;
 	int *redo = data;
 
 	spin_lock_irq(cdev->ccwlock);
 	switch (cdev->private->state) {
+	case DEV_STATE_ONLINE:
+		sch = to_subchannel(cdev->dev.parent);
+		if ((sch->schib.pmcw.pam & sch->opm) == sch->vpm)
+			break;
+		/* fall through */
 	case DEV_STATE_DISCONNECTED:
 		CIO_MSG_EVENT(3, "recovery: trigger 0.%x.%04x\n",
 			      cdev->private->dev_id.ssid,
@@ -1305,12 +1262,12 @@ static void recovery_work_func(struct work_struct *unused)
 		}
 		spin_unlock_irq(&recovery_lock);
 	} else
-		CIO_MSG_EVENT(4, "recovery: end\n");
+		CIO_MSG_EVENT(3, "recovery: end\n");
 }
 
 static DECLARE_WORK(recovery_work, recovery_work_func);
 
-static void recovery_func(unsigned long data)
+static void recovery_func(struct timer_list *unused)
 {
 	/*
 	 * We can't do our recovery in softirq context and it's not
@@ -1319,11 +1276,11 @@ static void recovery_func(unsigned long data)
 	schedule_work(&recovery_work);
 }
 
-static void ccw_device_schedule_recovery(void)
+void ccw_device_schedule_recovery(void)
 {
 	unsigned long flags;
 
-	CIO_MSG_EVENT(4, "recovery: schedule\n");
+	CIO_MSG_EVENT(3, "recovery: schedule\n");
 	spin_lock_irqsave(&recovery_lock, flags);
 	if (!timer_pending(&recovery_timer) || (recovery_phase != 0)) {
 		recovery_phase = 0;
@@ -1761,6 +1718,7 @@ static int ccw_device_remove(struct device *dev)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct ccw_driver *cdrv = cdev->drv;
+	struct subchannel *sch;
 	int ret;
 
 	if (cdrv->remove)
@@ -1786,7 +1744,9 @@ static int ccw_device_remove(struct device *dev)
 	ccw_device_set_timeout(cdev, 0);
 	cdev->drv = NULL;
 	cdev->private->int_class = IRQIO_CIO;
+	sch = to_subchannel(cdev->dev.parent);
 	spin_unlock_irq(cdev->ccwlock);
+	io_subchannel_quiesce(sch);
 	__disable_cmf(cdev);
 
 	return 0;
@@ -2155,7 +2115,6 @@ int ccw_device_siosl(struct ccw_device *cdev)
 }
 EXPORT_SYMBOL_GPL(ccw_device_siosl);
 
-MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(ccw_device_set_online);
 EXPORT_SYMBOL(ccw_device_set_offline);
 EXPORT_SYMBOL(ccw_driver_register);

@@ -1,9 +1,10 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) SHA crypto API support
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ * Author: Gary R Hook <gary.hook@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,6 +18,7 @@
 #include <linux/crypto.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
+#include <crypto/hmac.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
 #include <crypto/scatterwalk.h>
@@ -45,7 +47,7 @@ static int ccp_sha_complete(struct crypto_async_request *async_req, int ret)
 	}
 
 	/* Update result area if supplied */
-	if (req->result)
+	if (req->result && rctx->final)
 		memcpy(req->result, rctx->ctx, digest_size);
 
 e_free:
@@ -134,7 +136,28 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 	rctx->cmd.engine = CCP_ENGINE_SHA;
 	rctx->cmd.u.sha.type = rctx->type;
 	rctx->cmd.u.sha.ctx = &rctx->ctx_sg;
-	rctx->cmd.u.sha.ctx_len = sizeof(rctx->ctx);
+
+	switch (rctx->type) {
+	case CCP_SHA_TYPE_1:
+		rctx->cmd.u.sha.ctx_len = SHA1_DIGEST_SIZE;
+		break;
+	case CCP_SHA_TYPE_224:
+		rctx->cmd.u.sha.ctx_len = SHA224_DIGEST_SIZE;
+		break;
+	case CCP_SHA_TYPE_256:
+		rctx->cmd.u.sha.ctx_len = SHA256_DIGEST_SIZE;
+		break;
+	case CCP_SHA_TYPE_384:
+		rctx->cmd.u.sha.ctx_len = SHA384_DIGEST_SIZE;
+		break;
+	case CCP_SHA_TYPE_512:
+		rctx->cmd.u.sha.ctx_len = SHA512_DIGEST_SIZE;
+		break;
+	default:
+		/* Should never get here */
+		break;
+	}
+
 	rctx->cmd.u.sha.src = sg;
 	rctx->cmd.u.sha.src_len = rctx->hash_cnt;
 	rctx->cmd.u.sha.opad = ctx->u.sha.key_len ?
@@ -207,6 +230,46 @@ static int ccp_sha_digest(struct ahash_request *req)
 	return ccp_sha_finup(req);
 }
 
+static int ccp_sha_export(struct ahash_request *req, void *out)
+{
+	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_sha_exp_ctx state;
+
+	/* Don't let anything leak to 'out' */
+	memset(&state, 0, sizeof(state));
+
+	state.type = rctx->type;
+	state.msg_bits = rctx->msg_bits;
+	state.first = rctx->first;
+	memcpy(state.ctx, rctx->ctx, sizeof(state.ctx));
+	state.buf_count = rctx->buf_count;
+	memcpy(state.buf, rctx->buf, sizeof(state.buf));
+
+	/* 'out' may not be aligned so memcpy from local variable */
+	memcpy(out, &state, sizeof(state));
+
+	return 0;
+}
+
+static int ccp_sha_import(struct ahash_request *req, const void *in)
+{
+	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_sha_exp_ctx state;
+
+	/* 'in' may not be aligned so memcpy to local variable */
+	memcpy(&state, in, sizeof(state));
+
+	memset(rctx, 0, sizeof(*rctx));
+	rctx->type = state.type;
+	rctx->msg_bits = state.msg_bits;
+	rctx->first = state.first;
+	memcpy(rctx->ctx, state.ctx, sizeof(rctx->ctx));
+	rctx->buf_count = state.buf_count;
+	memcpy(rctx->buf, state.buf, sizeof(rctx->buf));
+
+	return 0;
+}
+
 static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 			  unsigned int key_len)
 {
@@ -246,8 +309,8 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 	}
 
 	for (i = 0; i < block_size; i++) {
-		ctx->u.sha.ipad[i] = ctx->u.sha.key[i] ^ 0x36;
-		ctx->u.sha.opad[i] = ctx->u.sha.key[i] ^ 0x5c;
+		ctx->u.sha.ipad[i] = ctx->u.sha.key[i] ^ HMAC_IPAD_VALUE;
+		ctx->u.sha.opad[i] = ctx->u.sha.key[i] ^ HMAC_OPAD_VALUE;
 	}
 
 	sg_init_one(&ctx->u.sha.opad_sg, ctx->u.sha.opad, block_size);
@@ -304,6 +367,7 @@ static void ccp_hmac_sha_cra_exit(struct crypto_tfm *tfm)
 }
 
 struct ccp_sha_def {
+	unsigned int version;
 	const char *name;
 	const char *drv_name;
 	enum ccp_sha_type type;
@@ -313,6 +377,7 @@ struct ccp_sha_def {
 
 static struct ccp_sha_def sha_algs[] = {
 	{
+		.version	= CCP_VERSION(3, 0),
 		.name		= "sha1",
 		.drv_name	= "sha1-ccp",
 		.type		= CCP_SHA_TYPE_1,
@@ -320,6 +385,7 @@ static struct ccp_sha_def sha_algs[] = {
 		.block_size	= SHA1_BLOCK_SIZE,
 	},
 	{
+		.version	= CCP_VERSION(3, 0),
 		.name		= "sha224",
 		.drv_name	= "sha224-ccp",
 		.type		= CCP_SHA_TYPE_224,
@@ -327,11 +393,28 @@ static struct ccp_sha_def sha_algs[] = {
 		.block_size	= SHA224_BLOCK_SIZE,
 	},
 	{
+		.version	= CCP_VERSION(3, 0),
 		.name		= "sha256",
 		.drv_name	= "sha256-ccp",
 		.type		= CCP_SHA_TYPE_256,
 		.digest_size	= SHA256_DIGEST_SIZE,
 		.block_size	= SHA256_BLOCK_SIZE,
+	},
+	{
+		.version	= CCP_VERSION(5, 0),
+		.name		= "sha384",
+		.drv_name	= "sha384-ccp",
+		.type		= CCP_SHA_TYPE_384,
+		.digest_size	= SHA384_DIGEST_SIZE,
+		.block_size	= SHA384_BLOCK_SIZE,
+	},
+	{
+		.version	= CCP_VERSION(5, 0),
+		.name		= "sha512",
+		.drv_name	= "sha512-ccp",
+		.type		= CCP_SHA_TYPE_512,
+		.digest_size	= SHA512_DIGEST_SIZE,
+		.block_size	= SHA512_BLOCK_SIZE,
 	},
 };
 
@@ -403,21 +486,23 @@ static int ccp_register_sha_alg(struct list_head *head,
 	alg->final = ccp_sha_final;
 	alg->finup = ccp_sha_finup;
 	alg->digest = ccp_sha_digest;
+	alg->export = ccp_sha_export;
+	alg->import = ccp_sha_import;
 
 	halg = &alg->halg;
 	halg->digestsize = def->digest_size;
+	halg->statesize = sizeof(struct ccp_sha_exp_ctx);
 
 	base = &halg->base;
 	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "%s", def->name);
 	snprintf(base->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
 		 def->drv_name);
-	base->cra_flags = CRYPTO_ALG_TYPE_AHASH | CRYPTO_ALG_ASYNC |
+	base->cra_flags = CRYPTO_ALG_ASYNC |
 			  CRYPTO_ALG_KERN_DRIVER_ONLY |
 			  CRYPTO_ALG_NEED_FALLBACK;
 	base->cra_blocksize = def->block_size;
 	base->cra_ctxsize = sizeof(struct ccp_ctx);
 	base->cra_priority = CCP_CRA_PRIORITY;
-	base->cra_type = &crypto_ahash_type;
 	base->cra_init = ccp_sha_cra_init;
 	base->cra_exit = ccp_sha_cra_exit;
 	base->cra_module = THIS_MODULE;
@@ -440,8 +525,11 @@ static int ccp_register_sha_alg(struct list_head *head,
 int ccp_register_sha_algs(struct list_head *head)
 {
 	int i, ret;
+	unsigned int ccpversion = ccp_version();
 
 	for (i = 0; i < ARRAY_SIZE(sha_algs); i++) {
+		if (sha_algs[i].version > ccpversion)
+			continue;
 		ret = ccp_register_sha_alg(head, &sha_algs[i]);
 		if (ret)
 			return ret;

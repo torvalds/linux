@@ -290,7 +290,10 @@ static void llc_sap_rcv(struct llc_sap *sap, struct sk_buff *skb,
 
 	ev->type   = LLC_SAP_EV_TYPE_PDU;
 	ev->reason = 0;
+	skb_orphan(skb);
+	sock_hold(sk);
 	skb->sk = sk;
+	skb->destructor = sock_efree;
 	llc_sap_state_process(sap, skb);
 }
 
@@ -325,8 +328,8 @@ static struct sock *llc_lookup_dgram(struct llc_sap *sap,
 again:
 	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
 		if (llc_dgram_match(sap, laddr, rc)) {
-			/* Extra checks required by SLAB_DESTROY_BY_RCU */
-			if (unlikely(!atomic_inc_not_zero(&rc->sk_refcnt)))
+			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
+			if (unlikely(!refcount_inc_not_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||
 				     !llc_dgram_match(sap, laddr, rc))) {
@@ -391,8 +394,9 @@ static void llc_sap_mcast(struct llc_sap *sap,
 			  const struct llc_addr *laddr,
 			  struct sk_buff *skb)
 {
-	int i = 0, count = 256 / sizeof(struct sock *);
-	struct sock *sk, *stack[count];
+	int i = 0;
+	struct sock *sk;
+	struct sock *stack[256 / sizeof(struct sock *)];
 	struct llc_sock *llc;
 	struct hlist_head *dev_hb = llc_sk_dev_hash(sap, skb->dev->ifindex);
 
@@ -405,7 +409,7 @@ static void llc_sap_mcast(struct llc_sap *sap,
 			continue;
 
 		sock_hold(sk);
-		if (i < count)
+		if (i < ARRAY_SIZE(stack))
 			stack[i++] = sk;
 		else {
 			llc_do_mcast(sap, skb, stack, i);

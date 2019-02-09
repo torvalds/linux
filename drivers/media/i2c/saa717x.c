@@ -24,10 +24,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -86,13 +82,13 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 /* ----------------------------------------------------------------------- */
 
 /* for audio mode */
-#define TUNER_AUDIO_MONO   	0  /* LL */
-#define TUNER_AUDIO_STEREO 	1  /* LR */
-#define TUNER_AUDIO_LANG1  	2  /* LL */
-#define TUNER_AUDIO_LANG2  	3  /* RR */
+#define TUNER_AUDIO_MONO	0  /* LL */
+#define TUNER_AUDIO_STEREO	1  /* LR */
+#define TUNER_AUDIO_LANG1	2  /* LL */
+#define TUNER_AUDIO_LANG2	3  /* RR */
 
-#define SAA717X_NTSC_WIDTH   	(704)
-#define SAA717X_NTSC_HEIGHT  	(480)
+#define SAA717X_NTSC_WIDTH	(704)
+#define SAA717X_NTSC_HEIGHT	(480)
 
 /* ----------------------------------------------------------------------- */
 
@@ -1073,7 +1069,7 @@ static int saa717x_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	struct saa717x_state *decoder = to_state(sd);
 
 	v4l2_dbg(1, debug, sd, "decoder set norm ");
-	v4l2_dbg(1, debug, sd, "(not yet implementd)\n");
+	v4l2_dbg(1, debug, sd, "(not yet implemented)\n");
 
 	decoder->radio = 0;
 	decoder->std = std;

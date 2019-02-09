@@ -1,18 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__LINUX_MROUTE_H
 #define _UAPI__LINUX_MROUTE_H
 
 #include <linux/sockios.h>
 #include <linux/types.h>
+#include <linux/in.h>		/* For struct in_addr. */
 
-/*
- *	Based on the MROUTING 3.5 defines primarily to keep
- *	source compatibility with BSD.
+/* Based on the MROUTING 3.5 defines primarily to keep
+ * source compatibility with BSD.
  *
- *	See the mrouted code for the original history.
+ * See the mrouted code for the original history.
  *
- *      Protocol Independent Multicast (PIM) data structures included
- *      Carlos Picoto (cap@di.fc.ul.pt)
- *
+ * Protocol Independent Multicast (PIM) data structures included
+ * Carlos Picoto (cap@di.fc.ul.pt)
  */
 
 #define MRT_BASE	200
@@ -34,15 +34,13 @@
 #define SIOCGETSGCNT	(SIOCPROTOPRIVATE+1)
 #define SIOCGETRPF	(SIOCPROTOPRIVATE+2)
 
-#define MAXVIFS		32	
+#define MAXVIFS		32
 typedef unsigned long vifbitmap_t;	/* User mode code depends on this lot */
 typedef unsigned short vifi_t;
 #define ALL_VIFS	((vifi_t)(-1))
 
-/*
- *	Same idea as select
- */
- 
+/* Same idea as select */
+
 #define VIFM_SET(n,m)	((m)|=(1<<(n)))
 #define VIFM_CLR(n,m)	((m)&=~(1<<(n)))
 #define VIFM_ISSET(n,m)	((m)&(1<<(n)))
@@ -50,11 +48,9 @@ typedef unsigned short vifi_t;
 #define VIFM_COPY(mfrom,mto)	((mto)=(mfrom))
 #define VIFM_SAME(m1,m2)	((m1)==(m2))
 
-/*
- *	Passed by mrouted for an MRT_ADD_VIF - again we use the
- *	mrouted 3.6 structures for compatibility
+/* Passed by mrouted for an MRT_ADD_VIF - again we use the
+ * mrouted 3.6 structures for compatibility
  */
- 
 struct vifctl {
 	vifi_t	vifc_vifi;		/* Index of VIF */
 	unsigned char vifc_flags;	/* VIFF_ flags */
@@ -73,10 +69,7 @@ struct vifctl {
 #define VIFF_USE_IFINDEX	0x8	/* use vifc_lcl_ifindex instead of
 					   vifc_lcl_addr to find an interface */
 
-/*
- *	Cache manipulation structures for mrouted and PIMd
- */
- 
+/* Cache manipulation structures for mrouted and PIMd */
 struct mfcctl {
 	struct in_addr mfcc_origin;		/* Origin of mcast	*/
 	struct in_addr mfcc_mcastgrp;		/* Group in question	*/
@@ -88,10 +81,7 @@ struct mfcctl {
 	int	     mfcc_expire;
 };
 
-/* 
- *	Group count retrieval for mrouted
- */
- 
+/*  Group count retrieval for mrouted */
 struct sioc_sg_req {
 	struct in_addr src;
 	struct in_addr grp;
@@ -100,10 +90,7 @@ struct sioc_sg_req {
 	unsigned long wrong_if;
 };
 
-/*
- *	To get vif packet counts
- */
-
+/* To get vif packet counts */
 struct sioc_vif_req {
 	vifi_t	vifi;		/* Which iface */
 	unsigned long icount;	/* In packets */
@@ -112,11 +99,9 @@ struct sioc_vif_req {
 	unsigned long obytes;	/* Out bytes */
 };
 
-/*
- *	This is the format the mroute daemon expects to see IGMP control
- *	data. Magically happens to be like an IP packet as per the original
+/* This is the format the mroute daemon expects to see IGMP control
+ * data. Magically happens to be like an IP packet as per the original
  */
- 
 struct igmpmsg {
 	__u32 unused1,unused2;
 	unsigned char im_msgtype;		/* What is this */
@@ -126,21 +111,69 @@ struct igmpmsg {
 	struct in_addr im_src,im_dst;
 };
 
-/*
- *	That's all usermode folks
+/* ipmr netlink table attributes */
+enum {
+	IPMRA_TABLE_UNSPEC,
+	IPMRA_TABLE_ID,
+	IPMRA_TABLE_CACHE_RES_QUEUE_LEN,
+	IPMRA_TABLE_MROUTE_REG_VIF_NUM,
+	IPMRA_TABLE_MROUTE_DO_ASSERT,
+	IPMRA_TABLE_MROUTE_DO_PIM,
+	IPMRA_TABLE_VIFS,
+	IPMRA_TABLE_MROUTE_DO_WRVIFWHOLE,
+	__IPMRA_TABLE_MAX
+};
+#define IPMRA_TABLE_MAX (__IPMRA_TABLE_MAX - 1)
+
+/* ipmr netlink vif attribute format
+ * [ IPMRA_TABLE_VIFS ] - nested attribute
+ *   [ IPMRA_VIF ] - nested attribute
+ *     [ IPMRA_VIFA_xxx ]
  */
+enum {
+	IPMRA_VIF_UNSPEC,
+	IPMRA_VIF,
+	__IPMRA_VIF_MAX
+};
+#define IPMRA_VIF_MAX (__IPMRA_VIF_MAX - 1)
 
+/* vif-specific attributes */
+enum {
+	IPMRA_VIFA_UNSPEC,
+	IPMRA_VIFA_IFINDEX,
+	IPMRA_VIFA_VIF_ID,
+	IPMRA_VIFA_FLAGS,
+	IPMRA_VIFA_BYTES_IN,
+	IPMRA_VIFA_BYTES_OUT,
+	IPMRA_VIFA_PACKETS_IN,
+	IPMRA_VIFA_PACKETS_OUT,
+	IPMRA_VIFA_LOCAL_ADDR,
+	IPMRA_VIFA_REMOTE_ADDR,
+	IPMRA_VIFA_PAD,
+	__IPMRA_VIFA_MAX
+};
+#define IPMRA_VIFA_MAX (__IPMRA_VIFA_MAX - 1)
 
+/* ipmr netlink cache report attributes */
+enum {
+	IPMRA_CREPORT_UNSPEC,
+	IPMRA_CREPORT_MSGTYPE,
+	IPMRA_CREPORT_VIF_ID,
+	IPMRA_CREPORT_SRC_ADDR,
+	IPMRA_CREPORT_DST_ADDR,
+	IPMRA_CREPORT_PKT,
+	__IPMRA_CREPORT_MAX
+};
+#define IPMRA_CREPORT_MAX (__IPMRA_CREPORT_MAX - 1)
+
+/* That's all usermode folks */
 
 #define MFC_ASSERT_THRESH (3*HZ)		/* Maximal freq. of asserts */
 
-/*
- *	Pseudo messages used by mrouted
- */
-
+/* Pseudo messages used by mrouted */
 #define IGMPMSG_NOCACHE		1		/* Kern cache fill request to mrouted */
 #define IGMPMSG_WRONGVIF	2		/* For PIM assert processing (unused) */
 #define IGMPMSG_WHOLEPKT	3		/* For PIM Register processing */
-
+#define IGMPMSG_WRVIFWHOLE	4		/* For PIM Register and assert processing */
 
 #endif /* _UAPI__LINUX_MROUTE_H */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/alpha/kernel/setup.c
  *
@@ -53,7 +54,7 @@ static struct notifier_block alpha_panic_block = {
         INT_MAX /* try to do it first */
 };
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/hwrpb.h>
 #include <asm/dma.h>
@@ -115,6 +116,7 @@ unsigned long alpha_agpgart_size = DEFAULT_AGP_APER_SIZE;
 
 #ifdef CONFIG_ALPHA_GENERIC
 struct alpha_machine_vector alpha_mv;
+EXPORT_SYMBOL(alpha_mv);
 #endif
 
 #ifndef alpha_using_srm
@@ -1093,8 +1095,9 @@ get_sysnames(unsigned long type, unsigned long variation, unsigned long cpu,
 	default: /* default to variation "0" for now */
 		break;
 	case ST_DEC_EB164:
-		if (member < ARRAY_SIZE(eb164_indices))
-			*variation_name = eb164_names[eb164_indices[member]];
+		if (member >= ARRAY_SIZE(eb164_indices))
+			break;
+		*variation_name = eb164_names[eb164_indices[member]];
 		/* PC164 may show as EB164 variation, but with EV56 CPU,
 		   so, since no true EB164 had anything but EV5... */
 		if (eb164_indices[member] == 0 && cpu == EV56_CPU)

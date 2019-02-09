@@ -1012,8 +1012,6 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_no_mem;
 	}
 
-	pm_suspend_ignore_children(&adev->dev, true);
-
 	dev->clk = devm_clk_get(&adev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		dev_err(&adev->dev, "could not get i2c clock\n");
@@ -1046,10 +1044,8 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 		 adap->name, dev->virtbase);
 
 	ret = i2c_add_adapter(adap);
-	if (ret) {
-		dev_err(&adev->dev, "failed to add adapter\n");
+	if (ret)
 		goto err_no_adap;
-	}
 
 	pm_runtime_put(&adev->dev);
 
@@ -1090,7 +1086,7 @@ static struct i2c_vendor_data vendor_db8500 = {
 	.fifodepth = 32, /* Guessed from TFTR/RFTR = 15 */
 };
 
-static struct amba_id nmk_i2c_ids[] = {
+static const struct amba_id nmk_i2c_ids[] = {
 	{
 		.id	= 0x00180024,
 		.mask	= 0x00ffffff,

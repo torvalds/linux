@@ -11,27 +11,31 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/dmaengine.h>
+#include <linux/dma/pxa-dma.h>
 #include <linux/gpio.h>
 #include <linux/gpio-pxa.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/irqchip.h>
 #include <linux/suspend.h>
 #include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
+#include <linux/platform_data/mmp_dma.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/suspend.h>
 #include <mach/irqs.h>
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/reset.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
-#include <mach/pm.h>
+#include "pm.h"
 #include <mach/dma.h>
 #include <mach/smemc.h>
 
@@ -132,7 +136,8 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 #ifndef CONFIG_IWMMXT
 	u64 acc0;
 
-	asm volatile("mra %Q0, %R0, acc0" : "=r" (acc0));
+	asm volatile(".arch_extension xscale\n\t"
+		     "mra %Q0, %R0, acc0" : "=r" (acc0));
 #endif
 
 	/* ensure voltage-change sequencer not initiated, which hangs */
@@ -151,7 +156,8 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 	case PM_SUSPEND_MEM:
 		cpu_suspend(pwrmode, pxa27x_finish_suspend);
 #ifndef CONFIG_IWMMXT
-		asm volatile("mar acc0, %Q0, %R0" : "=r" (acc0));
+		asm volatile(".arch_extension xscale\n\t"
+			     "mar acc0, %Q0, %R0" : "=r" (acc0));
 #endif
 		break;
 	}
@@ -165,7 +171,7 @@ static int pxa27x_cpu_pm_valid(suspend_state_t state)
 static int pxa27x_cpu_pm_prepare(void)
 {
 	/* set resume return address */
-	PSPR = virt_to_phys(cpu_resume);
+	PSPR = __pa_symbol(cpu_resume);
 	return 0;
 }
 
@@ -231,11 +237,15 @@ void __init pxa27x_init_irq(void)
 	pxa_init_irq(34, pxa27x_set_wake);
 }
 
-void __init pxa27x_dt_init_irq(void)
+static int __init
+pxa27x_dt_init_irq(struct device_node *node, struct device_node *parent)
 {
-	if (IS_ENABLED(CONFIG_OF))
-		pxa_dt_irq_init(pxa27x_set_wake);
+	pxa_dt_irq_init(pxa27x_set_wake);
+	set_handle_irq(ichp_handle_irq);
+
+	return 0;
 }
+IRQCHIP_DECLARE(pxa27x_intc, "marvell,pxa-intc", pxa27x_dt_init_irq);
 
 static struct map_desc pxa27x_io_desc[] __initdata = {
 	{	/* Mem Ctl */
@@ -290,6 +300,40 @@ static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_pwm1,
 };
 
+static const struct dma_slave_map pxa27x_slave_map[] = {
+	/* PXA25x, PXA27x and PXA3xx common entries */
+	{ "pxa2xx-ac97", "pcm_pcm_mic_mono", PDMA_FILTER_PARAM(LOWEST, 8) },
+	{ "pxa2xx-ac97", "pcm_pcm_aux_mono_in", PDMA_FILTER_PARAM(LOWEST, 9) },
+	{ "pxa2xx-ac97", "pcm_pcm_aux_mono_out",
+	  PDMA_FILTER_PARAM(LOWEST, 10) },
+	{ "pxa2xx-ac97", "pcm_pcm_stereo_in", PDMA_FILTER_PARAM(LOWEST, 11) },
+	{ "pxa2xx-ac97", "pcm_pcm_stereo_out", PDMA_FILTER_PARAM(LOWEST, 12) },
+	{ "pxa-ssp-dai.0", "rx", PDMA_FILTER_PARAM(LOWEST, 13) },
+	{ "pxa-ssp-dai.0", "tx", PDMA_FILTER_PARAM(LOWEST, 14) },
+	{ "pxa-ssp-dai.1", "rx", PDMA_FILTER_PARAM(LOWEST, 15) },
+	{ "pxa-ssp-dai.1", "tx", PDMA_FILTER_PARAM(LOWEST, 16) },
+	{ "pxa2xx-ir", "rx", PDMA_FILTER_PARAM(LOWEST, 17) },
+	{ "pxa2xx-ir", "tx", PDMA_FILTER_PARAM(LOWEST, 18) },
+	{ "pxa2xx-mci.0", "rx", PDMA_FILTER_PARAM(LOWEST, 21) },
+	{ "pxa2xx-mci.0", "tx", PDMA_FILTER_PARAM(LOWEST, 22) },
+	{ "pxa-ssp-dai.2", "rx", PDMA_FILTER_PARAM(LOWEST, 66) },
+	{ "pxa-ssp-dai.2", "tx", PDMA_FILTER_PARAM(LOWEST, 67) },
+
+	/* PXA27x specific map */
+	{ "pxa2xx-i2s", "rx", PDMA_FILTER_PARAM(LOWEST, 2) },
+	{ "pxa2xx-i2s", "tx", PDMA_FILTER_PARAM(LOWEST, 3) },
+	{ "pxa27x-camera.0", "CI_Y", PDMA_FILTER_PARAM(HIGHEST, 68) },
+	{ "pxa27x-camera.0", "CI_U", PDMA_FILTER_PARAM(HIGHEST, 69) },
+	{ "pxa27x-camera.0", "CI_V", PDMA_FILTER_PARAM(HIGHEST, 70) },
+};
+
+static struct mmp_dma_platdata pxa27x_dma_pdata = {
+	.dma_channels	= 32,
+	.nb_requestors	= 75,
+	.slave_map	= pxa27x_slave_map,
+	.slave_map_cnt	= ARRAY_SIZE(pxa27x_slave_map),
+};
+
 static int __init pxa27x_init(void)
 {
 	int ret = 0;
@@ -297,9 +341,6 @@ static int __init pxa27x_init(void)
 	if (cpu_is_pxa27x()) {
 
 		reset_status = RCSR;
-
-		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
-			return ret;
 
 		pxa27x_init_pm();
 
@@ -309,7 +350,7 @@ static int __init pxa27x_init(void)
 		if (!of_have_populated_dt()) {
 			pxa_register_device(&pxa27x_device_gpio,
 					    &pxa27x_gpio_info);
-			pxa2xx_set_dmac_info(32);
+			pxa2xx_set_dmac_info(&pxa27x_dma_pdata);
 			ret = platform_add_devices(devices,
 						   ARRAY_SIZE(devices));
 		}

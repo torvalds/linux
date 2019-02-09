@@ -26,7 +26,7 @@
 
 #include <linux/list.h>
 #include <linux/types.h>
-#include "viosrp.h"
+#include <scsi/viosrp.h>
 
 #define IBMVFC_NAME	"ibmvfc"
 #define IBMVFC_DRIVER_VERSION		"1.0.11"
@@ -54,6 +54,7 @@
 #define IBMVFC_DEV_LOSS_TMO		(5 * 60)
 #define IBMVFC_DEFAULT_LOG_LEVEL	2
 #define IBMVFC_MAX_CDB_LEN		16
+#define IBMVFC_CLS3_ERROR		0
 
 /*
  * Ensure we have resources for ERP and initialization:
@@ -366,7 +367,7 @@ enum ibmvfc_fcp_rsp_info_codes {
 };
 
 struct ibmvfc_fcp_rsp_info {
-	__be16 reserved;
+	u8 reserved[3];
 	u8 rsp_code;
 	u8 reserved2[4];
 }__attribute__((packed, aligned (2)));

@@ -1014,7 +1014,7 @@ setstack_hfcd(struct PStack *st, struct IsdnCardState *cs)
 }
 
 static void
-hfc_dbusy_timer(struct IsdnCardState *cs)
+hfc_dbusy_timer(struct timer_list *t)
 {
 }
 
@@ -1024,7 +1024,7 @@ static unsigned int
 	int i;
 	unsigned *send;
 
-	if (!(send = kmalloc(cnt * sizeof(unsigned int), GFP_ATOMIC))) {
+	if (!(send = kmalloc_array(cnt, sizeof(unsigned int), GFP_ATOMIC))) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for hfcd.send\n");
 		return (NULL);
@@ -1073,8 +1073,6 @@ set_cs_func(struct IsdnCardState *cs)
 	cs->writeisacfifo = &dummyf;
 	cs->BC_Read_Reg = &ReadReg;
 	cs->BC_Write_Reg = &WriteReg;
-	cs->dbusytimer.function = (void *) hfc_dbusy_timer;
-	cs->dbusytimer.data = (long) cs;
-	init_timer(&cs->dbusytimer);
+	timer_setup(&cs->dbusytimer, hfc_dbusy_timer, 0);
 	INIT_WORK(&cs->tqueue, hfcd_bh);
 }

@@ -1,30 +1,5 @@
-/*******************************************************************************
-
-  Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2014 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #include "ixgbe.h"
 #include <linux/dcbnl.h>
@@ -62,7 +37,7 @@ static int ixgbe_copy_dcb_cfg(struct ixgbe_adapter *adapter, int tc_max)
 			     };
 	u8 up = dcb_getapp(adapter->netdev, &app);
 
-	if (up && !(up & (1 << adapter->fcoe.up)))
+	if (up && !(up & BIT(adapter->fcoe.up)))
 		changes |= BIT_APP_UPCHG;
 #endif
 
@@ -571,7 +546,7 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 	if (max_tc > adapter->dcb_cfg.num_tcs.pg_tcs)
 		return -EINVAL;
 
-	if (max_tc != netdev_get_num_tc(dev)) {
+	if (max_tc != adapter->hw_tcs) {
 		err = ixgbe_setup_tc(dev, max_tc);
 		if (err)
 			return err;
@@ -657,7 +632,7 @@ static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 	    app->protocol == ETH_P_FCOE) {
 		u8 app_mask = dcb_ieee_getapp_mask(dev, app);
 
-		if (app_mask & (1 << adapter->fcoe.up))
+		if (app_mask & BIT(adapter->fcoe.up))
 			return 0;
 
 		adapter->fcoe.up = app->priority;
@@ -700,7 +675,7 @@ static int ixgbe_dcbnl_ieee_delapp(struct net_device *dev,
 	    app->protocol == ETH_P_FCOE) {
 		u8 app_mask = dcb_ieee_getapp_mask(dev, app);
 
-		if (app_mask & (1 << adapter->fcoe.up))
+		if (app_mask & BIT(adapter->fcoe.up))
 			return 0;
 
 		adapter->fcoe.up = app_mask ?
@@ -777,7 +752,7 @@ static u8 ixgbe_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	return err ? 1 : 0;
 }
 
-const struct dcbnl_rtnl_ops dcbnl_ops = {
+const struct dcbnl_rtnl_ops ixgbe_dcbnl_ops = {
 	.ieee_getets	= ixgbe_dcbnl_ieee_getets,
 	.ieee_setets	= ixgbe_dcbnl_ieee_setets,
 	.ieee_getpfc	= ixgbe_dcbnl_ieee_getpfc,

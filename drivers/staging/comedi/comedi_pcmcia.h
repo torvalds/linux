@@ -1,19 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * comedi_pcmcia.h
  * header file for Comedi PCMCIA drivers
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _COMEDI_PCMCIA_H
@@ -24,22 +15,25 @@
 
 #include "comedidev.h"
 
-struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *);
+struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *dev);
 
-int comedi_pcmcia_enable(struct comedi_device *,
-			 int (*conf_check)(struct pcmcia_device *, void *));
-void comedi_pcmcia_disable(struct comedi_device *);
+int comedi_pcmcia_enable(struct comedi_device *dev,
+			 int (*conf_check)(struct pcmcia_device *p_dev,
+					   void *priv_data));
+void comedi_pcmcia_disable(struct comedi_device *dev);
 
-int comedi_pcmcia_auto_config(struct pcmcia_device *, struct comedi_driver *);
-void comedi_pcmcia_auto_unconfig(struct pcmcia_device *);
+int comedi_pcmcia_auto_config(struct pcmcia_device *link,
+			      struct comedi_driver *driver);
+void comedi_pcmcia_auto_unconfig(struct pcmcia_device *link);
 
-int comedi_pcmcia_driver_register(struct comedi_driver *,
-				  struct pcmcia_driver *);
-void comedi_pcmcia_driver_unregister(struct comedi_driver *,
-				     struct pcmcia_driver *);
+int comedi_pcmcia_driver_register(struct comedi_driver *comedi_driver,
+				  struct pcmcia_driver *pcmcia_driver);
+void comedi_pcmcia_driver_unregister(struct comedi_driver *comedi_driver,
+				     struct pcmcia_driver *pcmcia_driver);
 
 /**
- * module_comedi_pcmcia_driver() - Helper macro for registering a comedi PCMCIA driver
+ * module_comedi_pcmcia_driver() - Helper macro for registering a comedi
+ * PCMCIA driver
  * @__comedi_driver: comedi_driver struct
  * @__pcmcia_driver: pcmcia_driver struct
  *

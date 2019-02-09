@@ -26,14 +26,18 @@
 
 #define FSM_TIMER_DEBUG 0
 
-void
+int
 mISDN_FsmNew(struct Fsm *fsm,
 	     struct FsmNode *fnlist, int fncount)
 {
 	int i;
 
-	fsm->jumpmatrix = kzalloc(sizeof(FSMFNPTR) * fsm->state_count *
-				  fsm->event_count, GFP_KERNEL);
+	fsm->jumpmatrix =
+		kzalloc(array3_size(sizeof(FSMFNPTR), fsm->state_count,
+				    fsm->event_count),
+			GFP_KERNEL);
+	if (fsm->jumpmatrix == NULL)
+		return -ENOMEM;
 
 	for (i = 0; i < fncount; i++)
 		if ((fnlist[i].state >= fsm->state_count) ||
@@ -45,6 +49,7 @@ mISDN_FsmNew(struct Fsm *fsm,
 		} else
 			fsm->jumpmatrix[fsm->state_count * fnlist[i].event +
 					fnlist[i].state] = (FSMFNPTR) fnlist[i].routine;
+	return 0;
 }
 EXPORT_SYMBOL(mISDN_FsmNew);
 
@@ -97,8 +102,9 @@ mISDN_FsmChangeState(struct FsmInst *fi, int newstate)
 EXPORT_SYMBOL(mISDN_FsmChangeState);
 
 static void
-FsmExpireTimer(struct FsmTimer *ft)
+FsmExpireTimer(struct timer_list *t)
 {
+	struct FsmTimer *ft = from_timer(ft, t, tl);
 #if FSM_TIMER_DEBUG
 	if (ft->fi->debug)
 		ft->fi->printdebug(ft->fi, "FsmExpireTimer %lx", (long) ft);
@@ -110,13 +116,11 @@ void
 mISDN_FsmInitTimer(struct FsmInst *fi, struct FsmTimer *ft)
 {
 	ft->fi = fi;
-	ft->tl.function = (void *) FsmExpireTimer;
-	ft->tl.data = (long) ft;
 #if FSM_TIMER_DEBUG
 	if (ft->fi->debug)
 		ft->fi->printdebug(ft->fi, "mISDN_FsmInitTimer %lx", (long) ft);
 #endif
-	init_timer(&ft->tl);
+	timer_setup(&ft->tl, FsmExpireTimer, 0);
 }
 EXPORT_SYMBOL(mISDN_FsmInitTimer);
 
@@ -152,7 +156,6 @@ mISDN_FsmAddTimer(struct FsmTimer *ft,
 		}
 		return -1;
 	}
-	init_timer(&ft->tl);
 	ft->event = event;
 	ft->arg = arg;
 	ft->tl.expires = jiffies + (millisec * HZ) / 1000;
@@ -174,7 +177,6 @@ mISDN_FsmRestartTimer(struct FsmTimer *ft,
 
 	if (timer_pending(&ft->tl))
 		del_timer(&ft->tl);
-	init_timer(&ft->tl);
 	ft->event = event;
 	ft->arg = arg;
 	ft->tl.expires = jiffies + (millisec * HZ) / 1000;

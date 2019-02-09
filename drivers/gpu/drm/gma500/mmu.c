@@ -395,7 +395,7 @@ static void psb_mmu_pt_unmap_unlock(struct psb_mmu_pt *pt)
 			psb_mmu_clflush(pd->driver, (void *)&v[pt->index]);
 			atomic_set(&pd->driver->needs_tlbflush, 1);
 		}
-		kunmap_atomic(pt->v);
+		kunmap_atomic(v);
 		spin_unlock(&pd->driver->lock);
 		psb_mmu_free_pt(pt);
 		return;

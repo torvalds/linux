@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* linux/drivers/usb/gadget/s3c-hsudc.c
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
@@ -8,11 +9,7 @@
  * The S3C24XX USB 2.0 high-speed USB controller supports upto 9 endpoints.
  * Each endpoint can be configured as either in or out endpoint. Endpoints
  * can be configured for Bulk or Interrupt transfer mode.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -569,7 +566,7 @@ static int s3c_hsudc_handle_reqfeat(struct s3c_hsudc *hsudc,
 		hsep = &hsudc->ep[ep_num];
 		switch (le16_to_cpu(ctrl->wValue)) {
 		case USB_ENDPOINT_HALT:
-			if (set || (!set && !hsep->wedge))
+			if (set || !hsep->wedge)
 				s3c_hsudc_set_halt(&hsep->ep, set);
 			return 0;
 		}
@@ -954,7 +951,7 @@ static int s3c_hsudc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	return 0;
 }
 
-static struct usb_ep_ops s3c_hsudc_ep_ops = {
+static const struct usb_ep_ops s3c_hsudc_ep_ops = {
 	.enable = s3c_hsudc_ep_enable,
 	.disable = s3c_hsudc_ep_disable,
 	.alloc_request = s3c_hsudc_alloc_request,

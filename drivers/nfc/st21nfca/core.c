@@ -176,7 +176,7 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 		 */
 		info = (struct st21nfca_pipe_info *) skb_pipe_info->data;
 		if (info->dst_gate_id == ST21NFCA_APDU_READER_GATE &&
-			info->src_host_id != ST21NFCA_ESE_HOST_ID) {
+			info->src_host_id == NFC_HCI_UICC_HOST_ID) {
 			pr_err("Unexpected apdu_reader pipe on host %x\n",
 				info->src_host_id);
 			kfree_skb(skb_pipe_info);
@@ -262,17 +262,10 @@ static int st21nfca_hci_ready(struct nfc_hci_dev *hdev)
 	int wl_size = 0;
 	int r;
 
-	if (info->se_status->is_ese_present &&
-		info->se_status->is_uicc_present) {
+	if (info->se_status->is_uicc_present)
 		white_list[wl_size++] = NFC_HCI_UICC_HOST_ID;
+	if (info->se_status->is_ese_present)
 		white_list[wl_size++] = ST21NFCA_ESE_HOST_ID;
-	} else if (!info->se_status->is_ese_present &&
-			 info->se_status->is_uicc_present) {
-		white_list[wl_size++] = NFC_HCI_UICC_HOST_ID;
-	} else if (info->se_status->is_ese_present &&
-			!info->se_status->is_uicc_present) {
-		white_list[wl_size++] = ST21NFCA_ESE_HOST_ID;
-	}
 
 	if (wl_size) {
 		r = nfc_hci_set_param(hdev, NFC_HCI_ADMIN_GATE,
@@ -789,12 +782,12 @@ static int st21nfca_hci_im_transceive(struct nfc_hci_dev *hdev,
 		if (target->supported_protocols == NFC_PROTO_NFC_DEP_MASK)
 			return st21nfca_im_send_dep_req(hdev, skb);
 
-		*skb_push(skb, 1) = 0x1a;
+		*(u8 *)skb_push(skb, 1) = 0x1a;
 		return nfc_hci_send_cmd_async(hdev, target->hci_reader_gate,
 					      ST21NFCA_WR_XCHG_DATA, skb->data,
 					      skb->len, cb, cb_context);
 	case ST21NFCA_RF_READER_14443_3_A_GATE:
-		*skb_push(skb, 1) = 0x1a;	/* CTR, see spec:10.2.2.1 */
+		*(u8 *)skb_push(skb, 1) = 0x1a;	/* CTR, see spec:10.2.2.1 */
 
 		return nfc_hci_send_cmd_async(hdev, target->hci_reader_gate,
 					      ST21NFCA_WR_XCHG_DATA, skb->data,
@@ -804,7 +797,7 @@ static int st21nfca_hci_im_transceive(struct nfc_hci_dev *hdev,
 		info->async_cb = cb;
 		info->async_cb_context = cb_context;
 
-		*skb_push(skb, 1) = 0x17;
+		*(u8 *)skb_push(skb, 1) = 0x17;
 
 		return nfc_hci_send_cmd_async(hdev, target->hci_reader_gate,
 					      ST21NFCA_WR_XCHG_DATA, skb->data,
@@ -966,10 +959,8 @@ int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
 	unsigned long quirks = 0;
 
 	info = kzalloc(sizeof(struct st21nfca_hci_info), GFP_KERNEL);
-	if (!info) {
-		r = -ENOMEM;
-		goto err_alloc_hdev;
-	}
+	if (!info)
+		return -ENOMEM;
 
 	info->phy_ops = phy_ops;
 	info->phy_id = phy_id;
@@ -985,8 +976,10 @@ int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
 	 * persistent info to discriminate 2 identical chips
 	 */
 	dev_num = find_first_zero_bit(dev_mask, ST21NFCA_NUM_DEVICES);
-	if (dev_num >= ST21NFCA_NUM_DEVICES)
-		return -ENODEV;
+	if (dev_num >= ST21NFCA_NUM_DEVICES) {
+		r = -ENODEV;
+		goto err_alloc_hdev;
+	}
 
 	set_bit(dev_num, dev_mask);
 

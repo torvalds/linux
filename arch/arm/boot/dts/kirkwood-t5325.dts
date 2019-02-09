@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree file for HP t5325 Thin Client"
  *
@@ -6,9 +7,6 @@
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  * Andrew Lunn <andrew@lunn.ch>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
 */
 
 /dts-v1/;
@@ -28,16 +26,6 @@
 	chosen {
 		bootargs = "console=ttyS0,115200n8";
 		stdout-path = &uart0;
-	};
-
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
 	};
 
 	ocp@f1000000 {
@@ -173,7 +161,7 @@
 		pinctrl-0 = <&pmx_button_power>;
 		pinctrl-names = "default";
 
-		button@1 {
+		power {
 			label = "Power Button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
@@ -217,7 +205,7 @@
 &mdio {
 	status = "okay";
 
-	ethphy0: ethernet-phy {
+	ethphy0: ethernet-phy@8 {
 		device_type = "ethernet-phy";
 		reg = <8>;
 	};
@@ -228,4 +216,12 @@
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

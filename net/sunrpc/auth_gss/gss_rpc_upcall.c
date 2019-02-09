@@ -55,15 +55,15 @@ enum {
 #define PROC(proc, name)				\
 [GSSX_##proc] = {					\
 	.p_proc   = GSSX_##proc,			\
-	.p_encode = (kxdreproc_t)gssx_enc_##name,	\
-	.p_decode = (kxdrdproc_t)gssx_dec_##name,	\
+	.p_encode = gssx_enc_##name,	\
+	.p_decode = gssx_dec_##name,	\
 	.p_arglen = GSSX_ARG_##name##_sz,		\
 	.p_replen = GSSX_RES_##name##_sz, 		\
 	.p_statidx = GSSX_##proc,			\
 	.p_name   = #proc,				\
 }
 
-static struct rpc_procinfo gssp_procedures[] = {
+static const struct rpc_procinfo gssp_procedures[] = {
 	PROC(INDICATE_MECHS, indicate_mechs),
         PROC(GET_CALL_CONTEXT, get_call_context),
         PROC(IMPORT_AND_CANON_NAME, import_and_canon_name),
@@ -224,7 +224,7 @@ static void gssp_free_receive_pages(struct gssx_arg_accept_sec_context *arg)
 static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
 {
 	arg->npages = DIV_ROUND_UP(NGROUPS_MAX * 4, PAGE_SIZE);
-	arg->pages = kzalloc(arg->npages * sizeof(struct page *), GFP_KERNEL);
+	arg->pages = kcalloc(arg->npages, sizeof(struct page *), GFP_KERNEL);
 	/*
 	 * XXX: actual pages are allocated by xdr layer in
 	 * xdr_partial_copy_from_skb.
@@ -232,6 +232,35 @@ static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
 	if (!arg->pages)
 		return -ENOMEM;
 	return 0;
+}
+
+static char *gssp_stringify(struct xdr_netobj *netobj)
+{
+	return kstrndup(netobj->data, netobj->len, GFP_KERNEL);
+}
+
+static void gssp_hostbased_service(char **principal)
+{
+	char *c;
+
+	if (!*principal)
+		return;
+
+	/* terminate and remove realm part */
+	c = strchr(*principal, '@');
+	if (c) {
+		*c = '\0';
+
+		/* change service-hostname delimiter */
+		c = strchr(*principal, '/');
+		if (c)
+			*c = '@';
+	}
+	if (!c) {
+		/* not a service principal */
+		kfree(*principal);
+		*principal = NULL;
+	}
 }
 
 /*
@@ -262,6 +291,7 @@ int gssp_accept_sec_context_upcall(struct net *net,
 		 */
 		.exported_context_token.len = GSSX_max_output_handle_sz,
 		.mech.len = GSS_OID_MAX_LEN,
+		.targ_name.display_name.len = GSSX_max_princ_sz,
 		.src_name.display_name.len = GSSX_max_princ_sz
 	};
 	struct gssx_res_accept_sec_context res = {
@@ -275,6 +305,7 @@ int gssp_accept_sec_context_upcall(struct net *net,
 		.rpc_cred = NULL, /* FIXME ? */
 	};
 	struct xdr_netobj client_name = { 0 , NULL };
+	struct xdr_netobj target_name = { 0, NULL };
 	int ret;
 
 	if (data->in_handle.len != 0)
@@ -284,8 +315,6 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	ret = gssp_alloc_receive_pages(&arg);
 	if (ret)
 		return ret;
-
-	/* use nfs/ for targ_name ? */
 
 	ret = gssp_call(net, &msg);
 
@@ -298,10 +327,13 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	if (res.context_handle) {
 		data->out_handle = rctxh.exported_context_token;
 		data->mech_oid.len = rctxh.mech.len;
-		if (rctxh.mech.data)
+		if (rctxh.mech.data) {
 			memcpy(data->mech_oid.data, rctxh.mech.data,
 						data->mech_oid.len);
+			kfree(rctxh.mech.data);
+		}
 		client_name = rctxh.src_name.display_name;
+		target_name = rctxh.targ_name.display_name;
 	}
 
 	if (res.options.count == 1) {
@@ -323,29 +355,22 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	}
 
 	/* convert to GSS_NT_HOSTBASED_SERVICE form and set into creds */
-	if (data->found_creds && client_name.data != NULL) {
-		char *c;
-
-		data->creds.cr_principal = kstrndup(client_name.data,
-						client_name.len, GFP_KERNEL);
-		if (data->creds.cr_principal) {
-			/* terminate and remove realm part */
-			c = strchr(data->creds.cr_principal, '@');
-			if (c) {
-				*c = '\0';
-
-				/* change service-hostname delimiter */
-				c = strchr(data->creds.cr_principal, '/');
-				if (c) *c = '@';
-			}
-			if (!c) {
-				/* not a service principal */
-				kfree(data->creds.cr_principal);
-				data->creds.cr_principal = NULL;
-			}
+	if (data->found_creds) {
+		if (client_name.data) {
+			data->creds.cr_raw_principal =
+					gssp_stringify(&client_name);
+			data->creds.cr_principal =
+					gssp_stringify(&client_name);
+			gssp_hostbased_service(&data->creds.cr_principal);
+		}
+		if (target_name.data) {
+			data->creds.cr_targ_princ =
+					gssp_stringify(&target_name);
+			gssp_hostbased_service(&data->creds.cr_targ_princ);
 		}
 	}
 	kfree(client_name.data);
+	kfree(target_name.data);
 
 	return ret;
 }
@@ -361,11 +386,12 @@ void gssp_free_upcall_data(struct gssp_upcall_data *data)
 /*
  * Initialization stuff
  */
-
+static unsigned int gssp_version1_counts[ARRAY_SIZE(gssp_procedures)];
 static const struct rpc_version gssp_version1 = {
 	.number		= GSSPROXY_VERS_1,
 	.nrprocs	= ARRAY_SIZE(gssp_procedures),
 	.procs		= gssp_procedures,
+	.counts		= gssp_version1_counts,
 };
 
 static const struct rpc_version *gssp_version[] = {

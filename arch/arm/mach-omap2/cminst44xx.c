@@ -55,7 +55,7 @@
 #define CLKCTRL_IDLEST_INTERFACE_IDLE		0x2
 #define CLKCTRL_IDLEST_DISABLED			0x3
 
-static void __iomem *_cm_bases[OMAP4_MAX_PRCM_PARTITIONS];
+static struct omap_domain_base _cm_bases[OMAP4_MAX_PRCM_PARTITIONS];
 
 /**
  * omap_cm_base_init - Populates the cm partitions
@@ -65,10 +65,11 @@ static void __iomem *_cm_bases[OMAP4_MAX_PRCM_PARTITIONS];
  */
 static void omap_cm_base_init(void)
 {
-	_cm_bases[OMAP4430_PRM_PARTITION] = prm_base;
-	_cm_bases[OMAP4430_CM1_PARTITION] = cm_base;
-	_cm_bases[OMAP4430_CM2_PARTITION] = cm2_base;
-	_cm_bases[OMAP4430_PRCM_MPU_PARTITION] = prcm_mpu_base;
+	memcpy(&_cm_bases[OMAP4430_PRM_PARTITION], &prm_base, sizeof(prm_base));
+	memcpy(&_cm_bases[OMAP4430_CM1_PARTITION], &cm_base, sizeof(cm_base));
+	memcpy(&_cm_bases[OMAP4430_CM2_PARTITION], &cm2_base, sizeof(cm2_base));
+	memcpy(&_cm_bases[OMAP4430_PRCM_MPU_PARTITION], &prcm_mpu_base,
+	       sizeof(prcm_mpu_base));
 }
 
 /* Private functions */
@@ -116,8 +117,8 @@ static u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx)
 {
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
-	       !_cm_bases[part]);
-	return readl_relaxed(_cm_bases[part] + inst + idx);
+	       !_cm_bases[part].va);
+	return readl_relaxed(_cm_bases[part].va + inst + idx);
 }
 
 /* Write into a register in a CM instance */
@@ -125,8 +126,8 @@ static void omap4_cminst_write_inst_reg(u32 val, u8 part, u16 inst, u16 idx)
 {
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
-	       !_cm_bases[part]);
-	writel_relaxed(val, _cm_bases[part] + inst + idx);
+	       !_cm_bases[part].va);
+	writel_relaxed(val, _cm_bases[part].va + inst + idx);
 }
 
 /* Read-modify-write a register in CM1. Caller must lock */
@@ -278,9 +279,6 @@ static int omap4_cminst_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
 {
 	int i = 0;
 
-	if (!clkctrl_offs)
-		return 0;
-
 	omap_test_timeout(_is_module_ready(part, inst, clkctrl_offs),
 			  MAX_MODULE_READY_TIME, i);
 
@@ -303,9 +301,6 @@ static int omap4_cminst_wait_module_idle(u8 part, s16 inst, u16 clkctrl_offs,
 					 u8 bit_shift)
 {
 	int i = 0;
-
-	if (!clkctrl_offs)
-		return 0;
 
 	omap_test_timeout((_clkctrl_idlest(part, inst, clkctrl_offs) ==
 			   CLKCTRL_IDLEST_DISABLED),
@@ -481,6 +476,52 @@ static int omap4_clkdm_clk_disable(struct clockdomain *clkdm)
 	return 0;
 }
 
+static u32 omap4_cminst_xlate_clkctrl(u8 part, u16 inst, u16 offset)
+{
+	return _cm_bases[part].pa + inst + offset;
+}
+
+/**
+ * omap4_clkdm_save_context - Save the clockdomain modulemode context
+ * @clkdm: The clockdomain pointer whose context needs to be saved
+ *
+ * Save the clockdomain modulemode context.
+ */
+static int omap4_clkdm_save_context(struct clockdomain *clkdm)
+{
+	clkdm->context = omap4_cminst_read_inst_reg(clkdm->prcm_partition,
+						    clkdm->cm_inst,
+						    clkdm->clkdm_offs +
+						    OMAP4_CM_CLKSTCTRL);
+	clkdm->context &= OMAP4430_MODULEMODE_MASK;
+	return 0;
+}
+
+/**
+ * omap4_clkdm_restore_context - Restore the clockdomain modulemode context
+ * @clkdm: The clockdomain pointer whose context needs to be restored
+ *
+ * Restore the clockdomain modulemode context.
+ */
+static int omap4_clkdm_restore_context(struct clockdomain *clkdm)
+{
+	switch (clkdm->context) {
+	case OMAP34XX_CLKSTCTRL_DISABLE_AUTO:
+		omap4_clkdm_deny_idle(clkdm);
+		break;
+	case OMAP34XX_CLKSTCTRL_FORCE_SLEEP:
+		omap4_clkdm_sleep(clkdm);
+		break;
+	case OMAP34XX_CLKSTCTRL_FORCE_WAKEUP:
+		omap4_clkdm_wakeup(clkdm);
+		break;
+	case OMAP34XX_CLKSTCTRL_ENABLE_AUTO:
+		omap4_clkdm_allow_idle(clkdm);
+		break;
+	}
+	return 0;
+}
+
 struct clkdm_ops omap4_clkdm_operations = {
 	.clkdm_add_wkdep	= omap4_clkdm_add_wkup_sleep_dep,
 	.clkdm_del_wkdep	= omap4_clkdm_del_wkup_sleep_dep,
@@ -496,6 +537,8 @@ struct clkdm_ops omap4_clkdm_operations = {
 	.clkdm_deny_idle	= omap4_clkdm_deny_idle,
 	.clkdm_clk_enable	= omap4_clkdm_clk_enable,
 	.clkdm_clk_disable	= omap4_clkdm_clk_disable,
+	.clkdm_save_context	= omap4_clkdm_save_context,
+	.clkdm_restore_context	= omap4_clkdm_restore_context,
 };
 
 struct clkdm_ops am43xx_clkdm_operations = {
@@ -507,11 +550,12 @@ struct clkdm_ops am43xx_clkdm_operations = {
 	.clkdm_clk_disable	= omap4_clkdm_clk_disable,
 };
 
-static struct cm_ll_data omap4xxx_cm_ll_data = {
+static const struct cm_ll_data omap4xxx_cm_ll_data = {
 	.wait_module_ready	= &omap4_cminst_wait_module_ready,
 	.wait_module_idle	= &omap4_cminst_wait_module_idle,
 	.module_enable		= &omap4_cminst_module_enable,
 	.module_disable		= &omap4_cminst_module_disable,
+	.xlate_clkctrl		= &omap4_cminst_xlate_clkctrl,
 };
 
 int __init omap4_cm_init(const struct omap_prcm_init_data *data)

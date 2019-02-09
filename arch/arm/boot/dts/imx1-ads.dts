@@ -20,25 +20,13 @@
 		stdout-path = &uart1;
 	};
 
-	memory {
+	memory@8000000 {
 		reg = <0x08000000 0x04000000>;
-	};
-
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32 {
-			compatible = "fsl,imx-clk32", "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <32000>;
-		};
 	};
 };
 
 &cspi1 {
 	pinctrl-0 = <&pinctrl_cspi1>;
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
@@ -66,14 +54,14 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 

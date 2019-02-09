@@ -14,6 +14,7 @@
 #include <locale.h>
 
 #include "helpers/bitmask.h"
+#include <cpupower.h>
 
 /* Internationalization ****************************/
 #ifdef NLS
@@ -33,6 +34,7 @@
 /* Internationalization ****************************/
 
 extern int run_as_root;
+extern int base_cpu;
 extern struct bitmask *cpus_chosen;
 
 /* Global verbose (-d) stuff *********************************/
@@ -69,6 +71,8 @@ enum cpupower_cpu_vendor {X86_VENDOR_UNKNOWN = 0, X86_VENDOR_INTEL,
 #define CPUPOWER_CAP_IS_SNB		0x00000020
 #define CPUPOWER_CAP_INTEL_IDA		0x00000040
 
+#define CPUPOWER_AMD_CPBDIS		0x02000000
+
 #define MAX_HW_PSTATES 10
 
 struct cpupower_cpu_info {
@@ -84,38 +88,13 @@ struct cpupower_cpu_info {
  *
  * Extract CPU vendor, family, model, stepping info from /proc/cpuinfo
  *
- * Returns 0 on success or a negativ error code
+ * Returns 0 on success or a negative error code
  * Only used on x86, below global's struct values are zero/unknown on
  * other archs
  */
-extern int get_cpu_info(unsigned int cpu, struct cpupower_cpu_info *cpu_info);
+extern int get_cpu_info(struct cpupower_cpu_info *cpu_info);
 extern struct cpupower_cpu_info cpupower_cpu_info;
 /* cpuid and cpuinfo helpers  **************************/
-
-struct cpuid_core_info {
-	int pkg;
-	int core;
-	int cpu;
-
-	/* flags */
-	unsigned int is_online:1;
-};
-
-/* CPU topology/hierarchy parsing ******************/
-struct cpupower_topology {
-	/* Amount of CPU cores, packages and threads per core in the system */
-	unsigned int cores;
-	unsigned int pkgs;
-	unsigned int threads; /* per core */
-
-	/* Array gets mallocated with cores entries, holding per core info */
-	struct cpuid_core_info *core_info;
-};
-
-extern int get_cpu_topology(struct cpupower_topology *cpu_top);
-extern void cpu_topology_release(struct cpupower_topology cpu_top);
-
-/* CPU topology/hierarchy parsing ******************/
 
 /* X86 ONLY ****************************************/
 #if defined(__i386__) || defined(__x86_64__)

@@ -1,28 +1,5 @@
-/*******************************************************************************
-
-  Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #ifndef _E1000_DEFINES_H_
 #define _E1000_DEFINES_H_
@@ -85,7 +62,8 @@
 #define E1000_TXD_CMD_DEXT	0x20000000 /* Desc extension (0 = legacy) */
 #define E1000_TXD_STAT_DD	0x00000001 /* Desc Done */
 
-#define MAX_JUMBO_FRAME_SIZE	0x3F00
+#define MAX_JUMBO_FRAME_SIZE		0x3F00
+#define MAX_STD_JUMBO_FRAME_SIZE	9216
 
 /* 802.1q VLAN Packet Size */
 #define VLAN_TAG_SIZE		4    /* 802.3ac tag (not DMA'd) */
@@ -113,7 +91,7 @@
 #define E1000_RXDCTL_QUEUE_ENABLE	0x02000000 /* Enable specific Rx Que */
 
 /* Direct Cache Access (DCA) definitions */
-#define E1000_DCA_TXCTRL_TX_WB_RO_EN	(1 << 11) /* Tx Desc writeback RO bit */
+#define E1000_DCA_TXCTRL_TX_WB_RO_EN	BIT(11) /* Tx Desc writeback RO bit */
 
 #define E1000_VF_INIT_TIMEOUT	200 /* Number of retries to clear RSTI */
 

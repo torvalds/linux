@@ -49,17 +49,15 @@
 	compatible = "allwinner,q8-a23", "allwinner,sun8i-a23";
 };
 
-/*
- * FIXME for now we only support host mode and rely on u-boot to have
- * turned on Vbus which is controlled by the axp223 pmic on the board.
- *
- * Once we have axp223 support we should switch to fully supporting otg.
- */
-&usb_otg {
-	dr_mode = "host";
-	status = "okay";
-};
-
-&usbphy {
+&codec {
+	allwinner,pa-gpios = <&pio 7 9 GPIO_ACTIVE_HIGH>; /* PH9 */
+	allwinner,audio-routing =
+		"Headphone", "HP",
+		"Headphone", "HPCOM",
+		"Speaker", "HP",
+		"MIC1", "Mic",
+		"MIC2", "Headset Mic",
+		"Mic",  "MBIAS",
+		"Headset Mic", "HBIAS";
 	status = "okay";
 };

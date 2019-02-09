@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* checksum.S: Sparc V9 optimized checksum code.
  *
  *  Copyright(C) 1995 Linus Torvalds
@@ -13,6 +14,7 @@
  *	BSD4.4 portable checksum routine
  */
 
+#include <asm/export.h>
 	.text
 
 csum_partial_fix_alignment:
@@ -37,6 +39,8 @@ csum_partial_fix_alignment:
 
 	.align		32
 	.globl		csum_partial
+	.type		csum_partial,#function
+	EXPORT_SYMBOL(csum_partial)
 csum_partial:		/* %o0=buff, %o1=len, %o2=sum */
 	prefetch	[%o0 + 0x000], #n_reads
 	clr		%o4

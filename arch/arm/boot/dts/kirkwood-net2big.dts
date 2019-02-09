@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree file for LaCie 2Big Network v2
  *
@@ -8,9 +9,6 @@
  * Based on netxbig_v2-setup.c,
  * Copyright (C) 2010 Simon Guinot <sguinot@lacie.com>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
 */
 
 /dts-v1/;

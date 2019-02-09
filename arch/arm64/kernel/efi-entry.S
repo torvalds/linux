@@ -35,6 +35,7 @@ ENTRY(entry)
 	 * for image_addr variable passed to efi_entry().
 	 */
 	stp	x29, x30, [sp, #-32]!
+	mov	x29, sp
 
 	/*
 	 * Call efi_entry to do the real work.
@@ -45,8 +46,7 @@ ENTRY(entry)
 	 *                         efi_system_table_t *sys_table,
 	 *                         unsigned long *image_addr) ;
 	 */
-	adrp	x8, _text
-	add	x8, x8, #:lo12:_text
+	adr_l	x8, _text
 	add	x2, sp, 16
 	str	x8, [x2]
 	bl	efi_entry
@@ -61,16 +61,14 @@ ENTRY(entry)
 	 */
 	mov	x20, x0		// DTB address
 	ldr	x0, [sp, #16]	// relocated _text address
-	ldr	x21, =stext_offset
+	ldr	w21, =stext_offset
 	add	x21, x0, x21
 
 	/*
 	 * Calculate size of the kernel Image (same for original and copy).
 	 */
-	adrp	x1, _text
-	add	x1, x1, #:lo12:_text
-	adrp	x2, _edata
-	add	x2, x2, #:lo12:_edata
+	adr_l	x1, _text
+	adr_l	x2, _edata
 	sub	x1, x2, x1
 
 	/*
@@ -98,6 +96,7 @@ ENTRY(entry)
 	mrs	x0, sctlr_el2
 	bic	x0, x0, #1 << 0	// clear SCTLR.M
 	bic	x0, x0, #1 << 2	// clear SCTLR.C
+	pre_disable_mmu_workaround
 	msr	sctlr_el2, x0
 	isb
 	b	2f
@@ -105,6 +104,7 @@ ENTRY(entry)
 	mrs	x0, sctlr_el1
 	bic	x0, x0, #1 << 0	// clear SCTLR.M
 	bic	x0, x0, #1 << 2	// clear SCTLR.C
+	pre_disable_mmu_workaround
 	msr	sctlr_el1, x0
 	isb
 2:

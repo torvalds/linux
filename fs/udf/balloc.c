@@ -58,7 +58,7 @@ static int __load_block_bitmap(struct super_block *sb,
 	int nr_groups = bitmap->s_nr_groups;
 
 	if (block_group >= nr_groups) {
-		udf_debug("block_group (%d) > nr_groups (%d)\n",
+		udf_debug("block_group (%u) > nr_groups (%d)\n",
 			  block_group, nr_groups);
 	}
 
@@ -122,7 +122,7 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 	partmap = &sbi->s_partmaps[bloc->partitionReferenceNum];
 	if (bloc->logicalBlockNum + count < count ||
 	    (bloc->logicalBlockNum + count) > partmap->s_partition_len) {
-		udf_debug("%d < %d || %d + %d > %d\n",
+		udf_debug("%u < %d || %u + %u > %u\n",
 			  bloc->logicalBlockNum, 0,
 			  bloc->logicalBlockNum, count,
 			  partmap->s_partition_len);
@@ -151,9 +151,9 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 		bh = bitmap->s_block_bitmap[bitmap_nr];
 		for (i = 0; i < count; i++) {
 			if (udf_set_bit(bit + i, bh->b_data)) {
-				udf_debug("bit %ld already set\n", bit + i);
+				udf_debug("bit %lu already set\n", bit + i);
 				udf_debug("byte=%2x\n",
-					  ((char *)bh->b_data)[(bit + i) >> 3]);
+					  ((__u8 *)bh->b_data)[(bit + i) >> 3]);
 			}
 		}
 		udf_add_free_space(sb, sbi->s_partition, count);
@@ -218,16 +218,18 @@ out:
 	return alloc_count;
 }
 
-static int udf_bitmap_new_block(struct super_block *sb,
+static udf_pblk_t udf_bitmap_new_block(struct super_block *sb,
 				struct udf_bitmap *bitmap, uint16_t partition,
 				uint32_t goal, int *err)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
-	int newbit, bit = 0, block, block_group, group_start;
+	int newbit, bit = 0;
+	udf_pblk_t block;
+	int block_group, group_start;
 	int end_goal, nr_groups, bitmap_nr, i;
 	struct buffer_head *bh = NULL;
 	char *ptr;
-	int newblock = 0;
+	udf_pblk_t newblock = 0;
 
 	*err = -ENOSPC;
 	mutex_lock(&sbi->s_alloc_mutex);
@@ -362,7 +364,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 	partmap = &sbi->s_partmaps[bloc->partitionReferenceNum];
 	if (bloc->logicalBlockNum + count < count ||
 	    (bloc->logicalBlockNum + count) > partmap->s_partition_len) {
-		udf_debug("%d < %d || %d + %d > %d\n",
+		udf_debug("%u < %d || %u + %u > %u\n",
 			  bloc->logicalBlockNum, 0,
 			  bloc->logicalBlockNum, count,
 			  partmap->s_partition_len);
@@ -447,9 +449,6 @@ static void udf_table_free_blocks(struct super_block *sb,
 		 */
 
 		int adsize;
-		struct short_ad *sad = NULL;
-		struct long_ad *lad = NULL;
-		struct allocExtDesc *aed;
 
 		eloc.logicalBlockNum = start;
 		elen = EXT_RECORDED_ALLOCATED |
@@ -466,102 +465,17 @@ static void udf_table_free_blocks(struct super_block *sb,
 		}
 
 		if (epos.offset + (2 * adsize) > sb->s_blocksize) {
-			unsigned char *sptr, *dptr;
-			int loffset;
-
-			brelse(oepos.bh);
-			oepos = epos;
-
 			/* Steal a block from the extent being free'd */
-			epos.block.logicalBlockNum = eloc.logicalBlockNum;
+			udf_setup_indirect_aext(table, eloc.logicalBlockNum,
+						&epos);
+
 			eloc.logicalBlockNum++;
 			elen -= sb->s_blocksize;
-
-			epos.bh = udf_tread(sb,
-					udf_get_lb_pblock(sb, &epos.block, 0));
-			if (!epos.bh) {
-				brelse(oepos.bh);
-				goto error_return;
-			}
-			aed = (struct allocExtDesc *)(epos.bh->b_data);
-			aed->previousAllocExtLocation =
-				cpu_to_le32(oepos.block.logicalBlockNum);
-			if (epos.offset + adsize > sb->s_blocksize) {
-				loffset = epos.offset;
-				aed->lengthAllocDescs = cpu_to_le32(adsize);
-				sptr = iinfo->i_ext.i_data + epos.offset
-								- adsize;
-				dptr = epos.bh->b_data +
-					sizeof(struct allocExtDesc);
-				memcpy(dptr, sptr, adsize);
-				epos.offset = sizeof(struct allocExtDesc) +
-						adsize;
-			} else {
-				loffset = epos.offset + adsize;
-				aed->lengthAllocDescs = cpu_to_le32(0);
-				if (oepos.bh) {
-					sptr = oepos.bh->b_data + epos.offset;
-					aed = (struct allocExtDesc *)
-						oepos.bh->b_data;
-					le32_add_cpu(&aed->lengthAllocDescs,
-							adsize);
-				} else {
-					sptr = iinfo->i_ext.i_data +
-								epos.offset;
-					iinfo->i_lenAlloc += adsize;
-					mark_inode_dirty(table);
-				}
-				epos.offset = sizeof(struct allocExtDesc);
-			}
-			if (sbi->s_udfrev >= 0x0200)
-				udf_new_tag(epos.bh->b_data, TAG_IDENT_AED,
-					    3, 1, epos.block.logicalBlockNum,
-					    sizeof(struct tag));
-			else
-				udf_new_tag(epos.bh->b_data, TAG_IDENT_AED,
-					    2, 1, epos.block.logicalBlockNum,
-					    sizeof(struct tag));
-
-			switch (iinfo->i_alloc_type) {
-			case ICBTAG_FLAG_AD_SHORT:
-				sad = (struct short_ad *)sptr;
-				sad->extLength = cpu_to_le32(
-					EXT_NEXT_EXTENT_ALLOCDECS |
-					sb->s_blocksize);
-				sad->extPosition =
-					cpu_to_le32(epos.block.logicalBlockNum);
-				break;
-			case ICBTAG_FLAG_AD_LONG:
-				lad = (struct long_ad *)sptr;
-				lad->extLength = cpu_to_le32(
-					EXT_NEXT_EXTENT_ALLOCDECS |
-					sb->s_blocksize);
-				lad->extLocation =
-					cpu_to_lelb(epos.block);
-				break;
-			}
-			if (oepos.bh) {
-				udf_update_tag(oepos.bh->b_data, loffset);
-				mark_buffer_dirty(oepos.bh);
-			} else {
-				mark_inode_dirty(table);
-			}
 		}
 
 		/* It's possible that stealing the block emptied the extent */
-		if (elen) {
-			udf_write_aext(table, &epos, &eloc, elen, 1);
-
-			if (!epos.bh) {
-				iinfo->i_lenAlloc += adsize;
-				mark_inode_dirty(table);
-			} else {
-				aed = (struct allocExtDesc *)epos.bh->b_data;
-				le32_add_cpu(&aed->lengthAllocDescs, adsize);
-				udf_update_tag(epos.bh->b_data, epos.offset);
-				mark_buffer_dirty(epos.bh);
-			}
-		}
+		if (elen)
+			__udf_add_aext(table, &epos, &eloc, elen, 1);
 	}
 
 	brelse(epos.bh);
@@ -603,7 +517,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 
 	while (first_block != eloc.logicalBlockNum &&
 	       (etype = udf_next_aext(table, &epos, &eloc, &elen, 1)) != -1) {
-		udf_debug("eloc=%d, elen=%d, first_block=%d\n",
+		udf_debug("eloc=%u, elen=%u, first_block=%u\n",
 			  eloc.logicalBlockNum, elen, first_block);
 		; /* empty loop body */
 	}
@@ -619,8 +533,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 			udf_write_aext(table, &epos, &eloc,
 					(etype << 30) | elen, 1);
 		} else
-			udf_delete_aext(table, epos, eloc,
-					(etype << 30) | elen);
+			udf_delete_aext(table, epos);
 	} else {
 		alloc_count = 0;
 	}
@@ -633,13 +546,14 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 	return alloc_count;
 }
 
-static int udf_table_new_block(struct super_block *sb,
+static udf_pblk_t udf_table_new_block(struct super_block *sb,
 			       struct inode *table, uint16_t partition,
 			       uint32_t goal, int *err)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	uint32_t spread = 0xFFFFFFFF, nspread = 0xFFFFFFFF;
-	uint32_t newblock = 0, adsize;
+	udf_pblk_t newblock = 0;
+	uint32_t adsize;
 	uint32_t elen, goal_elen = 0;
 	struct kernel_lb_addr eloc, uninitialized_var(goal_eloc);
 	struct extent_position epos, goal_epos;
@@ -715,7 +629,7 @@ static int udf_table_new_block(struct super_block *sb,
 	if (goal_elen)
 		udf_write_aext(table, &goal_epos, &goal_eloc, goal_elen, 1);
 	else
-		udf_delete_aext(table, goal_epos, goal_eloc, goal_elen);
+		udf_delete_aext(table, goal_epos);
 	brelse(goal_epos.bh);
 
 	udf_add_free_space(sb, partition, -1);
@@ -788,12 +702,12 @@ inline int udf_prealloc_blocks(struct super_block *sb,
 	return allocated;
 }
 
-inline int udf_new_block(struct super_block *sb,
+inline udf_pblk_t udf_new_block(struct super_block *sb,
 			 struct inode *inode,
 			 uint16_t partition, uint32_t goal, int *err)
 {
 	struct udf_part_map *map = &UDF_SB(sb)->s_partmaps[partition];
-	int block;
+	udf_pblk_t block;
 
 	if (map->s_partition_flags & UDF_PART_FLAG_UNALLOC_BITMAP)
 		block = udf_bitmap_new_block(sb,

@@ -66,8 +66,6 @@ struct dlci_local
 
 struct frad_local
 {
-   struct net_device_stats stats;
-
    /* devices which this FRAD is slaved to */
    struct net_device     *master[CONFIG_DLCI_MAX];
    short             dlci[CONFIG_DLCI_MAX];
@@ -85,6 +83,7 @@ struct frad_local
 
    /* fields that are used by the Sangoma SDLA cards */
    struct timer_list timer;
+   struct net_device *dev;
    int               type;		/* adapter type */
    int               state;		/* state of the S502/8 control latch */
    int               buffer;		/* current buffer for S508 firmware */

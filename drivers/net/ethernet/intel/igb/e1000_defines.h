@@ -1,25 +1,5 @@
-/* Intel(R) Gigabit Ethernet Linux driver
- * Copyright(c) 2007-2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 #ifndef _E1000_DEFINES_H_
 #define _E1000_DEFINES_H_
@@ -38,6 +18,27 @@
 #define E1000_WUFC_EX   0x00000004 /* Directed Exact Wakeup Enable */
 #define E1000_WUFC_MC   0x00000008 /* Directed Multicast Wakeup Enable */
 #define E1000_WUFC_BC   0x00000010 /* Broadcast Wakeup Enable */
+
+/* Wake Up Status */
+#define E1000_WUS_EX	0x00000004 /* Directed Exact */
+#define E1000_WUS_ARPD	0x00000020 /* Directed ARP Request */
+#define E1000_WUS_IPV4	0x00000040 /* Directed IPv4 */
+#define E1000_WUS_IPV6	0x00000080 /* Directed IPv6 */
+#define E1000_WUS_NSD	0x00000400 /* Directed IPv6 Neighbor Solicitation */
+
+/* Packet types that are enabled for wake packet delivery */
+#define WAKE_PKT_WUS ( \
+	E1000_WUS_EX   | \
+	E1000_WUS_ARPD | \
+	E1000_WUS_IPV4 | \
+	E1000_WUS_IPV6 | \
+	E1000_WUS_NSD)
+
+/* Wake Up Packet Length */
+#define E1000_WUPL_MASK	0x00000FFF
+
+/* Wake Up Packet Memory stores the first 128 bytes of the wake up packet */
+#define E1000_WUPM_BYTES	128
 
 /* Extended Device Control */
 #define E1000_CTRL_EXT_SDP2_DATA 0x00000040 /* Value of SW Defineable Pin 2 */
@@ -332,7 +333,18 @@
 #define E1000_RXPBS_CFG_TS_EN           0x80000000
 
 #define I210_RXPBSIZE_DEFAULT		0x000000A2 /* RXPBSIZE default */
+#define I210_RXPBSIZE_MASK		0x0000003F
+#define I210_RXPBSIZE_PB_32KB		0x00000020
 #define I210_TXPBSIZE_DEFAULT		0x04000014 /* TXPBSIZE default */
+#define I210_TXPBSIZE_MASK		0xC0FFFFFF
+#define I210_TXPBSIZE_PB0_8KB		(8 << 0)
+#define I210_TXPBSIZE_PB1_8KB		(8 << 6)
+#define I210_TXPBSIZE_PB2_4KB		(4 << 12)
+#define I210_TXPBSIZE_PB3_4KB		(4 << 18)
+
+#define I210_DTXMXPKTSZ_DEFAULT		0x00000098
+
+#define I210_SR_QUEUES_NUM		2
 
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
@@ -356,7 +368,9 @@
 /* Ethertype field values */
 #define ETHERNET_IEEE_VLAN_TYPE 0x8100  /* 802.3ac packet */
 
-#define MAX_JUMBO_FRAME_SIZE    0x3F00
+/* As per the EAS the maximum supported size is 9.5KB (9728 bytes) */
+#define MAX_JUMBO_FRAME_SIZE		0x2600
+#define MAX_STD_JUMBO_FRAME_SIZE	9216
 
 /* PBA constants */
 #define E1000_PBA_34K 0x0022
@@ -456,6 +470,8 @@
  * manageability enabled, allowing us room for 15 multicast addresses.
  */
 #define E1000_RAH_AV  0x80000000        /* Receive descriptor valid */
+#define E1000_RAH_ASEL_SRC_ADDR 0x00010000
+#define E1000_RAH_QSEL_ENABLE 0x10000000
 #define E1000_RAL_MAC_ADDR_LEN 4
 #define E1000_RAH_MAC_ADDR_LEN 2
 #define E1000_RAH_POOL_MASK 0x03FC0000
@@ -529,65 +545,65 @@
 
 /* Time Sync Interrupt Cause/Mask Register Bits */
 
-#define TSINTR_SYS_WRAP  (1 << 0) /* SYSTIM Wrap around. */
-#define TSINTR_TXTS      (1 << 1) /* Transmit Timestamp. */
-#define TSINTR_RXTS      (1 << 2) /* Receive Timestamp. */
-#define TSINTR_TT0       (1 << 3) /* Target Time 0 Trigger. */
-#define TSINTR_TT1       (1 << 4) /* Target Time 1 Trigger. */
-#define TSINTR_AUTT0     (1 << 5) /* Auxiliary Timestamp 0 Taken. */
-#define TSINTR_AUTT1     (1 << 6) /* Auxiliary Timestamp 1 Taken. */
-#define TSINTR_TADJ      (1 << 7) /* Time Adjust Done. */
+#define TSINTR_SYS_WRAP  BIT(0) /* SYSTIM Wrap around. */
+#define TSINTR_TXTS      BIT(1) /* Transmit Timestamp. */
+#define TSINTR_RXTS      BIT(2) /* Receive Timestamp. */
+#define TSINTR_TT0       BIT(3) /* Target Time 0 Trigger. */
+#define TSINTR_TT1       BIT(4) /* Target Time 1 Trigger. */
+#define TSINTR_AUTT0     BIT(5) /* Auxiliary Timestamp 0 Taken. */
+#define TSINTR_AUTT1     BIT(6) /* Auxiliary Timestamp 1 Taken. */
+#define TSINTR_TADJ      BIT(7) /* Time Adjust Done. */
 
 #define TSYNC_INTERRUPTS TSINTR_TXTS
 #define E1000_TSICR_TXTS TSINTR_TXTS
 
 /* TSAUXC Configuration Bits */
-#define TSAUXC_EN_TT0    (1 << 0)  /* Enable target time 0. */
-#define TSAUXC_EN_TT1    (1 << 1)  /* Enable target time 1. */
-#define TSAUXC_EN_CLK0   (1 << 2)  /* Enable Configurable Frequency Clock 0. */
-#define TSAUXC_SAMP_AUT0 (1 << 3)  /* Latch SYSTIML/H into AUXSTMPL/0. */
-#define TSAUXC_ST0       (1 << 4)  /* Start Clock 0 Toggle on Target Time 0. */
-#define TSAUXC_EN_CLK1   (1 << 5)  /* Enable Configurable Frequency Clock 1. */
-#define TSAUXC_SAMP_AUT1 (1 << 6)  /* Latch SYSTIML/H into AUXSTMPL/1. */
-#define TSAUXC_ST1       (1 << 7)  /* Start Clock 1 Toggle on Target Time 1. */
-#define TSAUXC_EN_TS0    (1 << 8)  /* Enable hardware timestamp 0. */
-#define TSAUXC_AUTT0     (1 << 9)  /* Auxiliary Timestamp Taken. */
-#define TSAUXC_EN_TS1    (1 << 10) /* Enable hardware timestamp 0. */
-#define TSAUXC_AUTT1     (1 << 11) /* Auxiliary Timestamp Taken. */
-#define TSAUXC_PLSG      (1 << 17) /* Generate a pulse. */
-#define TSAUXC_DISABLE   (1 << 31) /* Disable SYSTIM Count Operation. */
+#define TSAUXC_EN_TT0    BIT(0)  /* Enable target time 0. */
+#define TSAUXC_EN_TT1    BIT(1)  /* Enable target time 1. */
+#define TSAUXC_EN_CLK0   BIT(2)  /* Enable Configurable Frequency Clock 0. */
+#define TSAUXC_SAMP_AUT0 BIT(3)  /* Latch SYSTIML/H into AUXSTMPL/0. */
+#define TSAUXC_ST0       BIT(4)  /* Start Clock 0 Toggle on Target Time 0. */
+#define TSAUXC_EN_CLK1   BIT(5)  /* Enable Configurable Frequency Clock 1. */
+#define TSAUXC_SAMP_AUT1 BIT(6)  /* Latch SYSTIML/H into AUXSTMPL/1. */
+#define TSAUXC_ST1       BIT(7)  /* Start Clock 1 Toggle on Target Time 1. */
+#define TSAUXC_EN_TS0    BIT(8)  /* Enable hardware timestamp 0. */
+#define TSAUXC_AUTT0     BIT(9)  /* Auxiliary Timestamp Taken. */
+#define TSAUXC_EN_TS1    BIT(10) /* Enable hardware timestamp 0. */
+#define TSAUXC_AUTT1     BIT(11) /* Auxiliary Timestamp Taken. */
+#define TSAUXC_PLSG      BIT(17) /* Generate a pulse. */
+#define TSAUXC_DISABLE   BIT(31) /* Disable SYSTIM Count Operation. */
 
 /* SDP Configuration Bits */
-#define AUX0_SEL_SDP0    (0 << 0)  /* Assign SDP0 to auxiliary time stamp 0. */
-#define AUX0_SEL_SDP1    (1 << 0)  /* Assign SDP1 to auxiliary time stamp 0. */
-#define AUX0_SEL_SDP2    (2 << 0)  /* Assign SDP2 to auxiliary time stamp 0. */
-#define AUX0_SEL_SDP3    (3 << 0)  /* Assign SDP3 to auxiliary time stamp 0. */
-#define AUX0_TS_SDP_EN   (1 << 2)  /* Enable auxiliary time stamp trigger 0. */
-#define AUX1_SEL_SDP0    (0 << 3)  /* Assign SDP0 to auxiliary time stamp 1. */
-#define AUX1_SEL_SDP1    (1 << 3)  /* Assign SDP1 to auxiliary time stamp 1. */
-#define AUX1_SEL_SDP2    (2 << 3)  /* Assign SDP2 to auxiliary time stamp 1. */
-#define AUX1_SEL_SDP3    (3 << 3)  /* Assign SDP3 to auxiliary time stamp 1. */
-#define AUX1_TS_SDP_EN   (1 << 5)  /* Enable auxiliary time stamp trigger 1. */
-#define TS_SDP0_SEL_TT0  (0 << 6)  /* Target time 0 is output on SDP0. */
-#define TS_SDP0_SEL_TT1  (1 << 6)  /* Target time 1 is output on SDP0. */
-#define TS_SDP0_SEL_FC0  (2 << 6)  /* Freq clock  0 is output on SDP0. */
-#define TS_SDP0_SEL_FC1  (3 << 6)  /* Freq clock  1 is output on SDP0. */
-#define TS_SDP0_EN       (1 << 8)  /* SDP0 is assigned to Tsync. */
-#define TS_SDP1_SEL_TT0  (0 << 9)  /* Target time 0 is output on SDP1. */
-#define TS_SDP1_SEL_TT1  (1 << 9)  /* Target time 1 is output on SDP1. */
-#define TS_SDP1_SEL_FC0  (2 << 9)  /* Freq clock  0 is output on SDP1. */
-#define TS_SDP1_SEL_FC1  (3 << 9)  /* Freq clock  1 is output on SDP1. */
-#define TS_SDP1_EN       (1 << 11) /* SDP1 is assigned to Tsync. */
-#define TS_SDP2_SEL_TT0  (0 << 12) /* Target time 0 is output on SDP2. */
-#define TS_SDP2_SEL_TT1  (1 << 12) /* Target time 1 is output on SDP2. */
-#define TS_SDP2_SEL_FC0  (2 << 12) /* Freq clock  0 is output on SDP2. */
-#define TS_SDP2_SEL_FC1  (3 << 12) /* Freq clock  1 is output on SDP2. */
-#define TS_SDP2_EN       (1 << 14) /* SDP2 is assigned to Tsync. */
-#define TS_SDP3_SEL_TT0  (0 << 15) /* Target time 0 is output on SDP3. */
-#define TS_SDP3_SEL_TT1  (1 << 15) /* Target time 1 is output on SDP3. */
-#define TS_SDP3_SEL_FC0  (2 << 15) /* Freq clock  0 is output on SDP3. */
-#define TS_SDP3_SEL_FC1  (3 << 15) /* Freq clock  1 is output on SDP3. */
-#define TS_SDP3_EN       (1 << 17) /* SDP3 is assigned to Tsync. */
+#define AUX0_SEL_SDP0    (0u << 0)  /* Assign SDP0 to auxiliary time stamp 0. */
+#define AUX0_SEL_SDP1    (1u << 0)  /* Assign SDP1 to auxiliary time stamp 0. */
+#define AUX0_SEL_SDP2    (2u << 0)  /* Assign SDP2 to auxiliary time stamp 0. */
+#define AUX0_SEL_SDP3    (3u << 0)  /* Assign SDP3 to auxiliary time stamp 0. */
+#define AUX0_TS_SDP_EN   (1u << 2)  /* Enable auxiliary time stamp trigger 0. */
+#define AUX1_SEL_SDP0    (0u << 3)  /* Assign SDP0 to auxiliary time stamp 1. */
+#define AUX1_SEL_SDP1    (1u << 3)  /* Assign SDP1 to auxiliary time stamp 1. */
+#define AUX1_SEL_SDP2    (2u << 3)  /* Assign SDP2 to auxiliary time stamp 1. */
+#define AUX1_SEL_SDP3    (3u << 3)  /* Assign SDP3 to auxiliary time stamp 1. */
+#define AUX1_TS_SDP_EN   (1u << 5)  /* Enable auxiliary time stamp trigger 1. */
+#define TS_SDP0_SEL_TT0  (0u << 6)  /* Target time 0 is output on SDP0. */
+#define TS_SDP0_SEL_TT1  (1u << 6)  /* Target time 1 is output on SDP0. */
+#define TS_SDP0_SEL_FC0  (2u << 6)  /* Freq clock  0 is output on SDP0. */
+#define TS_SDP0_SEL_FC1  (3u << 6)  /* Freq clock  1 is output on SDP0. */
+#define TS_SDP0_EN       (1u << 8)  /* SDP0 is assigned to Tsync. */
+#define TS_SDP1_SEL_TT0  (0u << 9)  /* Target time 0 is output on SDP1. */
+#define TS_SDP1_SEL_TT1  (1u << 9)  /* Target time 1 is output on SDP1. */
+#define TS_SDP1_SEL_FC0  (2u << 9)  /* Freq clock  0 is output on SDP1. */
+#define TS_SDP1_SEL_FC1  (3u << 9)  /* Freq clock  1 is output on SDP1. */
+#define TS_SDP1_EN       (1u << 11) /* SDP1 is assigned to Tsync. */
+#define TS_SDP2_SEL_TT0  (0u << 12) /* Target time 0 is output on SDP2. */
+#define TS_SDP2_SEL_TT1  (1u << 12) /* Target time 1 is output on SDP2. */
+#define TS_SDP2_SEL_FC0  (2u << 12) /* Freq clock  0 is output on SDP2. */
+#define TS_SDP2_SEL_FC1  (3u << 12) /* Freq clock  1 is output on SDP2. */
+#define TS_SDP2_EN       (1u << 14) /* SDP2 is assigned to Tsync. */
+#define TS_SDP3_SEL_TT0  (0u << 15) /* Target time 0 is output on SDP3. */
+#define TS_SDP3_SEL_TT1  (1u << 15) /* Target time 1 is output on SDP3. */
+#define TS_SDP3_SEL_FC0  (2u << 15) /* Freq clock  0 is output on SDP3. */
+#define TS_SDP3_SEL_FC1  (3u << 15) /* Freq clock  1 is output on SDP3. */
+#define TS_SDP3_EN       (1u << 17) /* SDP3 is assigned to Tsync. */
 
 #define E1000_MDICNFG_EXT_MDIO    0x80000000      /* MDI ext/int destination */
 #define E1000_MDICNFG_COM_MDIO    0x40000000      /* MDI shared w/ lan 0 */
@@ -866,6 +882,7 @@
 #define I210_I_PHY_ID        0x01410C00
 #define M88E1543_E_PHY_ID    0x01410EA0
 #define M88E1512_E_PHY_ID    0x01410DD0
+#define BCM54616_E_PHY_ID    0x03625D10
 
 /* M88E1000 Specific Registers */
 #define M88E1000_PHY_SPEC_CTRL     0x10  /* PHY Specific Control Register */
@@ -927,7 +944,10 @@
 
 /* Intel i347-AT4 Registers */
 
-#define I347AT4_PCDL                   0x10 /* PHY Cable Diagnostics Length */
+#define I347AT4_PCDL0                  0x10 /* Pair 0 PHY Cable Diagnostics Length */
+#define I347AT4_PCDL1                  0x11 /* Pair 1 PHY Cable Diagnostics Length */
+#define I347AT4_PCDL2                  0x12 /* Pair 2 PHY Cable Diagnostics Length */
+#define I347AT4_PCDL3                  0x13 /* Pair 3 PHY Cable Diagnostics Length */
 #define I347AT4_PCDC                   0x15 /* PHY Cable Diagnostics Control */
 #define I347AT4_PAGE_SELECT            0x16
 
@@ -990,10 +1010,11 @@
 #define E1000_M88E1543_PAGE_ADDR	0x16       /* Page Offset Register */
 #define E1000_M88E1543_EEE_CTRL_1	0x0
 #define E1000_M88E1543_EEE_CTRL_1_MS	0x0001     /* EEE Master/Slave */
+#define E1000_M88E1543_FIBER_CTRL	0x0
 #define E1000_EEE_ADV_DEV_I354		7
 #define E1000_EEE_ADV_ADDR_I354		60
-#define E1000_EEE_ADV_100_SUPPORTED	(1 << 1)   /* 100BaseTx EEE Supported */
-#define E1000_EEE_ADV_1000_SUPPORTED	(1 << 2)   /* 1000BaseT EEE Supported */
+#define E1000_EEE_ADV_100_SUPPORTED	BIT(1)   /* 100BaseTx EEE Supported */
+#define E1000_EEE_ADV_1000_SUPPORTED	BIT(2)   /* 1000BaseT EEE Supported */
 #define E1000_PCS_STATUS_DEV_I354	3
 #define E1000_PCS_STATUS_ADDR_I354	1
 #define E1000_PCS_STATUS_TX_LPI_IND	0x0200     /* Tx in LPI state */
@@ -1018,5 +1039,37 @@
 #define E1000_RTTBCNRC_RF_INT_SHIFT	14
 #define E1000_RTTBCNRC_RF_INT_MASK	\
 	(E1000_RTTBCNRC_RF_DEC_MASK << E1000_RTTBCNRC_RF_INT_SHIFT)
+
+#define E1000_VLAPQF_QUEUE_SEL(_n, q_idx) (q_idx << ((_n) * 4))
+#define E1000_VLAPQF_P_VALID(_n)	(0x1 << (3 + (_n) * 4))
+#define E1000_VLAPQF_QUEUE_MASK	0x03
+
+/* TX Qav Control fields */
+#define E1000_TQAVCTRL_XMIT_MODE	BIT(0)
+#define E1000_TQAVCTRL_DATAFETCHARB	BIT(4)
+#define E1000_TQAVCTRL_DATATRANARB	BIT(8)
+#define E1000_TQAVCTRL_DATATRANTIM	BIT(9)
+#define E1000_TQAVCTRL_SP_WAIT_SR	BIT(10)
+/* Fetch Time Delta - bits 31:16
+ *
+ * This field holds the value to be reduced from the launch time for
+ * fetch time decision. The FetchTimeDelta value is defined in 32 ns
+ * granularity.
+ *
+ * This field is 16 bits wide, and so the maximum value is:
+ *
+ * 65535 * 32 = 2097120 ~= 2.1 msec
+ *
+ * XXX: We are configuring the max value here since we couldn't come up
+ * with a reason for not doing so.
+ */
+#define E1000_TQAVCTRL_FETCHTIME_DELTA	(0xFFFF << 16)
+
+/* TX Qav Credit Control fields */
+#define E1000_TQAVCC_IDLESLOPE_MASK	0xFFFF
+#define E1000_TQAVCC_QUEUEMODE		BIT(31)
+
+/* Transmit Descriptor Control fields */
+#define E1000_TXDCTL_PRIORITY		BIT(27)
 
 #endif

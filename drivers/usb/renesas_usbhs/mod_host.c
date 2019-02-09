@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 #include <linux/io.h>
 #include <linux/list.h>
@@ -166,14 +157,10 @@ static struct usbhsh_request *usbhsh_ureq_alloc(struct usbhsh_hpriv *hpriv,
 					       gfp_t mem_flags)
 {
 	struct usbhsh_request *ureq;
-	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
-	struct device *dev = usbhs_priv_to_dev(priv);
 
 	ureq = kzalloc(sizeof(struct usbhsh_request), mem_flags);
-	if (!ureq) {
-		dev_err(dev, "ureq alloc fail\n");
+	if (!ureq)
 		return NULL;
-	}
 
 	usbhs_pkt_init(&ureq->pkt);
 	ureq->urb = urb;
@@ -388,10 +375,8 @@ static int usbhsh_endpoint_attach(struct usbhsh_hpriv *hpriv,
 	unsigned long flags;
 
 	uep = kzalloc(sizeof(struct usbhsh_ep), mem_flags);
-	if (!uep) {
-		dev_err(dev, "usbhsh_ep alloc fail\n");
+	if (!uep)
 		return -ENOMEM;
-	}
 
 	/********************  spin lock ********************/
 	usbhs_lock(priv, flags);
@@ -583,7 +568,7 @@ static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 		upphub	= usbhsh_device_number(hpriv, parent);
 		hubport	= usbhsh_device_hubport(udev);
 
-		dev_dbg(dev, "%s connecte to Hub [%d:%d](%p)\n", __func__,
+		dev_dbg(dev, "%s connected to Hub [%d:%d](%p)\n", __func__,
 			upphub, hubport, parent);
 	}
 
@@ -929,7 +914,8 @@ static int usbhsh_dcp_queue_push(struct usb_hcd *hcd,
 /*
  *		dma map functions
  */
-static int usbhsh_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
+static int usbhsh_dma_map_ctrl(struct device *dma_dev, struct usbhs_pkt *pkt,
+			       int map)
 {
 	if (map) {
 		struct usbhsh_request *ureq = usbhsh_pkt_to_ureq(pkt);
@@ -1290,7 +1276,7 @@ static int usbhsh_bus_nop(struct usb_hcd *hcd)
 	return 0;
 }
 
-static struct hc_driver usbhsh_driver = {
+static const struct hc_driver usbhsh_driver = {
 	.description =		usbhsh_hcd_name,
 	.hcd_priv_size =	sizeof(struct usbhsh_hpriv),
 
@@ -1414,7 +1400,8 @@ static void usbhsh_pipe_init_for_host(struct usbhs_priv *priv)
 {
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
 	struct usbhs_pipe *pipe;
-	u32 *pipe_type = usbhs_get_dparam(priv, pipe_type);
+	struct renesas_usbhs_driver_pipe_config *pipe_configs =
+					usbhs_get_dparam(priv, pipe_configs);
 	int pipe_size = usbhs_get_dparam(priv, pipe_size);
 	int old_type, dir_in, i;
 
@@ -1442,15 +1429,15 @@ static void usbhsh_pipe_init_for_host(struct usbhs_priv *priv)
 		 * USB_ENDPOINT_XFER_BULK -> dir in
 		 * ...
 		 */
-		dir_in = (pipe_type[i] == old_type);
-		old_type = pipe_type[i];
+		dir_in = (pipe_configs[i].type == old_type);
+		old_type = pipe_configs[i].type;
 
-		if (USB_ENDPOINT_XFER_CONTROL == pipe_type[i]) {
+		if (USB_ENDPOINT_XFER_CONTROL == pipe_configs[i].type) {
 			pipe = usbhs_dcp_malloc(priv);
 			usbhsh_hpriv_to_dcp(hpriv) = pipe;
 		} else {
 			pipe = usbhs_pipe_malloc(priv,
-						 pipe_type[i],
+						 pipe_configs[i].type,
 						 dir_in);
 		}
 

@@ -338,7 +338,7 @@ unlock:
 }
 
 /* operators for both playback and capture */
-static struct snd_pcm_ops snd_usb_caiaq_ops = {
+static const struct snd_pcm_ops snd_usb_caiaq_ops = {
 	.open =		snd_usb_caiaq_substream_open,
 	.close =	snd_usb_caiaq_substream_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -348,7 +348,6 @@ static struct snd_pcm_ops snd_usb_caiaq_ops = {
 	.trigger =	snd_usb_caiaq_pcm_trigger,
 	.pointer =	snd_usb_caiaq_pcm_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 static void check_for_elapsed_periods(struct snd_usb_caiaqdev *cdev,
@@ -636,6 +635,7 @@ static void read_completed(struct urb *urb)
 	struct device *dev;
 	struct urb *out = NULL;
 	int i, frame, len, send_it = 0, outframe = 0;
+	unsigned long flags;
 	size_t offset = 0;
 
 	if (urb->status || !info)
@@ -672,10 +672,10 @@ static void read_completed(struct urb *urb)
 		offset += len;
 
 		if (len > 0) {
-			spin_lock(&cdev->spinlock);
+			spin_lock_irqsave(&cdev->spinlock, flags);
 			fill_out_urb(cdev, out, &out->iso_frame_desc[outframe]);
 			read_in_urb(cdev, urb, &urb->iso_frame_desc[frame]);
-			spin_unlock(&cdev->spinlock);
+			spin_unlock_irqrestore(&cdev->spinlock, flags);
 			check_for_elapsed_periods(cdev, cdev->sub_playback);
 			check_for_elapsed_periods(cdev, cdev->sub_capture);
 			send_it = 1;
@@ -722,16 +722,14 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 	int i, frame;
 	struct urb **urbs;
 	struct usb_device *usb_dev = cdev->chip.dev;
-	struct device *dev = caiaqdev_to_dev(cdev);
 	unsigned int pipe;
 
 	pipe = (dir == SNDRV_PCM_STREAM_PLAYBACK) ?
 		usb_sndisocpipe(usb_dev, ENDPOINT_PLAYBACK) :
 		usb_rcvisocpipe(usb_dev, ENDPOINT_CAPTURE);
 
-	urbs = kmalloc(N_URBS * sizeof(*urbs), GFP_KERNEL);
+	urbs = kmalloc_array(N_URBS, sizeof(*urbs), GFP_KERNEL);
 	if (!urbs) {
-		dev_err(dev, "unable to kmalloc() urbs, OOM!?\n");
 		*ret = -ENOMEM;
 		return NULL;
 	}
@@ -739,15 +737,14 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 	for (i = 0; i < N_URBS; i++) {
 		urbs[i] = usb_alloc_urb(FRAMES_PER_URB, GFP_KERNEL);
 		if (!urbs[i]) {
-			dev_err(dev, "unable to usb_alloc_urb(), OOM!?\n");
 			*ret = -ENOMEM;
 			return urbs;
 		}
 
 		urbs[i]->transfer_buffer =
-			kmalloc(FRAMES_PER_URB * BYTES_PER_FRAME, GFP_KERNEL);
+			kmalloc_array(BYTES_PER_FRAME, FRAMES_PER_URB,
+				      GFP_KERNEL);
 		if (!urbs[i]->transfer_buffer) {
-			dev_err(dev, "unable to kmalloc() transfer buffer, OOM!?\n");
 			*ret = -ENOMEM;
 			return urbs;
 		}
@@ -861,7 +858,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 				&snd_usb_caiaq_ops);
 
 	cdev->data_cb_info =
-		kmalloc(sizeof(struct snd_usb_caiaq_cb_info) * N_URBS,
+		kmalloc_array(N_URBS, sizeof(struct snd_usb_caiaq_cb_info),
 					GFP_KERNEL);
 
 	if (!cdev->data_cb_info)

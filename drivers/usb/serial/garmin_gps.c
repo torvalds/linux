@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Garmin GPS driver
  *
@@ -7,20 +8,6 @@
  * http://sourceforge.net/projects/garmin-gps/
  *
  * This driver has been derived from v2.1 of the visor driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111 USA
  */
 
 #include <linux/kernel.h>
@@ -138,6 +125,7 @@ struct garmin_data {
 	__u8   privpkt[4*6];
 	spinlock_t lock;
 	struct list_head pktlist;
+	struct usb_anchor write_urbs;
 };
 
 
@@ -237,10 +225,10 @@ static inline int getDataLength(const __u8 *usbPacket)
  */
 static inline int isAbortTrfCmnd(const unsigned char *buf)
 {
-	if (0 == memcmp(buf, GARMIN_STOP_TRANSFER_REQ,
-					sizeof(GARMIN_STOP_TRANSFER_REQ)) ||
-	    0 == memcmp(buf, GARMIN_STOP_TRANSFER_REQ_V2,
-					sizeof(GARMIN_STOP_TRANSFER_REQ_V2)))
+	if (memcmp(buf, GARMIN_STOP_TRANSFER_REQ,
+			sizeof(GARMIN_STOP_TRANSFER_REQ)) == 0 ||
+	    memcmp(buf, GARMIN_STOP_TRANSFER_REQ_V2,
+			sizeof(GARMIN_STOP_TRANSFER_REQ_V2)) == 0)
 		return 1;
 	else
 		return 0;
@@ -350,7 +338,7 @@ static int gsp_send_ack(struct garmin_data *garmin_data_p, __u8 pkt_id)
 	unsigned  l = 0;
 
 	dev_dbg(&garmin_data_p->port->dev, "%s - pkt-id: 0x%X.\n", __func__,
-		0xFF & pkt_id);
+			pkt_id);
 
 	*ptr++ = DLE;
 	*ptr++ = ACK;
@@ -366,7 +354,7 @@ static int gsp_send_ack(struct garmin_data *garmin_data_p, __u8 pkt_id)
 		*ptr++ = DLE;
 
 	*ptr++ = 0;
-	*ptr++ = 0xFF & (-cksum);
+	*ptr++ = (-cksum) & 0xFF;
 	*ptr++ = DLE;
 	*ptr++ = ETX;
 
@@ -423,9 +411,9 @@ static int gsp_rec_packet(struct garmin_data *garmin_data_p, int count)
 		n++;
 	}
 
-	if ((0xff & (cksum + *recpkt)) != 0) {
+	if (((cksum + *recpkt) & 0xff) != 0) {
 		dev_dbg(dev, "%s - invalid checksum, expected %02x, got %02x\n",
-			__func__, 0xff & -cksum, 0xff & *recpkt);
+			__func__, -cksum & 0xff, *recpkt);
 		return -EINVPKT;
 	}
 
@@ -528,7 +516,7 @@ static int gsp_receive(struct garmin_data *garmin_data_p,
 					dev_dbg(dev, "NAK packet complete.\n");
 				} else {
 					dev_dbg(dev, "packet complete - id=0x%X.\n",
-						0xFF & data);
+							data);
 					gsp_rec_packet(garmin_data_p, size);
 				}
 
@@ -636,7 +624,7 @@ static int gsp_send(struct garmin_data *garmin_data_p,
 
 	garmin_data_p->outsize = 0;
 
-	if (GARMIN_LAYERID_APPL != getLayerId(garmin_data_p->outbuffer)) {
+	if (getLayerId(garmin_data_p->outbuffer) != GARMIN_LAYERID_APPL) {
 		dev_dbg(dev, "not an application packet (%d)\n",
 				getLayerId(garmin_data_p->outbuffer));
 		return -1;
@@ -688,7 +676,7 @@ static int gsp_send(struct garmin_data *garmin_data_p,
 			*dst++ = DLE;
 	}
 
-	cksum = 0xFF & -cksum;
+	cksum = -cksum & 0xFF;
 	*dst++ = cksum;
 	if (cksum == DLE)
 		*dst++ = DLE;
@@ -860,7 +848,6 @@ static int process_resetdev_request(struct usb_serial_port *port)
 static int garmin_clear(struct garmin_data *garmin_data_p)
 {
 	unsigned long flags;
-	int status = 0;
 
 	/* flush all queued data */
 	pkt_clear(garmin_data_p);
@@ -870,48 +857,44 @@ static int garmin_clear(struct garmin_data *garmin_data_p)
 	garmin_data_p->outsize = 0;
 	spin_unlock_irqrestore(&garmin_data_p->lock, flags);
 
-	return status;
+	return 0;
 }
 
 
 static int garmin_init_session(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
-	int status = 0;
-	int i = 0;
+	int status;
+	int i;
 
-	if (status == 0) {
-		usb_kill_urb(port->interrupt_in_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 
-		dev_dbg(&serial->dev->dev, "%s - adding interrupt input\n", __func__);
-		status = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
-		if (status)
-			dev_err(&serial->dev->dev,
-			  "%s - failed submitting interrupt urb, error %d\n",
-							__func__, status);
+	status = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
+	if (status) {
+		dev_err(&port->dev, "failed to submit interrupt urb: %d\n",
+				status);
+		return status;
 	}
 
 	/*
 	 * using the initialization method from gpsbabel. See comments in
 	 * gpsbabel/jeeps/gpslibusb.c gusb_reset_toggles()
 	 */
-	if (status == 0) {
-		dev_dbg(&serial->dev->dev, "%s - starting session ...\n", __func__);
-		garmin_data_p->state = STATE_ACTIVE;
+	dev_dbg(&port->dev, "%s - starting session ...\n", __func__);
+	garmin_data_p->state = STATE_ACTIVE;
 
-		for (i = 0; i < 3; i++) {
-			status = garmin_write_bulk(port,
-					GARMIN_START_SESSION_REQ,
-					sizeof(GARMIN_START_SESSION_REQ), 0);
-
-			if (status < 0)
-				break;
-		}
-
-		if (status > 0)
-			status = 0;
+	for (i = 0; i < 3; i++) {
+		status = garmin_write_bulk(port, GARMIN_START_SESSION_REQ,
+				sizeof(GARMIN_START_SESSION_REQ), 0);
+		if (status < 0)
+			goto err_kill_urbs;
 	}
+
+	return 0;
+
+err_kill_urbs:
+	usb_kill_anchored_urbs(&garmin_data_p->write_urbs);
+	usb_kill_urb(port->interrupt_in_urb);
 
 	return status;
 }
@@ -931,7 +914,6 @@ static int garmin_open(struct tty_struct *tty, struct usb_serial_port *port)
 	spin_unlock_irqrestore(&garmin_data_p->lock, flags);
 
 	/* shutdown any bulk reads that might be going on */
-	usb_kill_urb(port->write_urb);
 	usb_kill_urb(port->read_urb);
 
 	if (garmin_data_p->state == STATE_RESET)
@@ -954,7 +936,7 @@ static void garmin_close(struct usb_serial_port *port)
 
 	/* shutdown our urbs */
 	usb_kill_urb(port->read_urb);
-	usb_kill_urb(port->write_urb);
+	usb_kill_anchored_urbs(&garmin_data_p->write_urbs);
 
 	/* keep reset state so we know that we must start a new session */
 	if (garmin_data_p->state != STATE_RESET)
@@ -970,7 +952,7 @@ static void garmin_write_bulk_callback(struct urb *urb)
 		struct garmin_data *garmin_data_p =
 					usb_get_serial_port_data(port);
 
-		if (GARMIN_LAYERID_APPL == getLayerId(urb->transfer_buffer)) {
+		if (getLayerId(urb->transfer_buffer) == GARMIN_LAYERID_APPL) {
 
 			if (garmin_data_p->mode == MODE_GARMIN_SERIAL) {
 				gsp_send_ack(garmin_data_p,
@@ -1025,7 +1007,7 @@ static int garmin_write_bulk(struct usb_serial_port *port,
 				dismiss_ack ? NULL : port);
 	urb->transfer_flags |= URB_ZERO_PACKET;
 
-	if (GARMIN_LAYERID_APPL == getLayerId(buffer)) {
+	if (getLayerId(buffer) == GARMIN_LAYERID_APPL) {
 
 		spin_lock_irqsave(&garmin_data_p->lock, flags);
 		garmin_data_p->flags |= APP_REQ_SEEN;
@@ -1038,12 +1020,15 @@ static int garmin_write_bulk(struct usb_serial_port *port,
 	}
 
 	/* send it down the pipe */
+	usb_anchor_urb(urb, &garmin_data_p->write_urbs);
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
 		dev_err(&port->dev,
 		   "%s - usb_submit_urb(write bulk) failed with status = %d\n",
 				__func__, status);
 		count = status;
+		usb_unanchor_urb(urb);
+		kfree(buffer);
 	}
 
 	/* we are done with this urb, so let the host driver
@@ -1077,9 +1062,9 @@ static int garmin_write(struct tty_struct *tty, struct usb_serial_port *port,
 		pktsiz = getDataLength(garmin_data_p->privpkt);
 		pktid  = getPacketId(garmin_data_p->privpkt);
 
-		if (count == (GARMIN_PKTHDR_LENGTH+pktsiz)
-		    && GARMIN_LAYERID_PRIVATE ==
-				getLayerId(garmin_data_p->privpkt)) {
+		if (count == (GARMIN_PKTHDR_LENGTH + pktsiz) &&
+				getLayerId(garmin_data_p->privpkt) ==
+						GARMIN_LAYERID_PRIVATE) {
 
 			dev_dbg(dev, "%s - processing private request %d\n",
 				__func__, pktid);
@@ -1192,7 +1177,7 @@ static void garmin_read_bulk_callback(struct urb *urb)
 	garmin_read_process(garmin_data_p, data, urb->actual_length, 1);
 
 	if (urb->actual_length == 0 &&
-			0 != (garmin_data_p->flags & FLAGS_BULK_IN_RESTART)) {
+			(garmin_data_p->flags & FLAGS_BULK_IN_RESTART) != 0) {
 		spin_lock_irqsave(&garmin_data_p->lock, flags);
 		garmin_data_p->flags &= ~FLAGS_BULK_IN_RESTART;
 		spin_unlock_irqrestore(&garmin_data_p->lock, flags);
@@ -1203,7 +1188,7 @@ static void garmin_read_bulk_callback(struct urb *urb)
 				__func__, retval);
 	} else if (urb->actual_length > 0) {
 		/* Continue trying to read until nothing more is received  */
-		if (0 == (garmin_data_p->flags & FLAGS_THROTTLED)) {
+		if ((garmin_data_p->flags & FLAGS_THROTTLED) == 0) {
 			retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 			if (retval)
 				dev_err(&port->dev,
@@ -1249,12 +1234,12 @@ static void garmin_read_int_callback(struct urb *urb)
 			      urb->transfer_buffer);
 
 	if (urb->actual_length == sizeof(GARMIN_BULK_IN_AVAIL_REPLY) &&
-	    0 == memcmp(data, GARMIN_BULK_IN_AVAIL_REPLY,
-				sizeof(GARMIN_BULK_IN_AVAIL_REPLY))) {
+		memcmp(data, GARMIN_BULK_IN_AVAIL_REPLY,
+				sizeof(GARMIN_BULK_IN_AVAIL_REPLY)) == 0) {
 
 		dev_dbg(&port->dev, "%s - bulk data available.\n", __func__);
 
-		if (0 == (garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE)) {
+		if ((garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE) == 0) {
 
 			/* bulk data available */
 			retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
@@ -1276,8 +1261,8 @@ static void garmin_read_int_callback(struct urb *urb)
 		}
 
 	} else if (urb->actual_length == (4+sizeof(GARMIN_START_SESSION_REPLY))
-			 && 0 == memcmp(data, GARMIN_START_SESSION_REPLY,
-					sizeof(GARMIN_START_SESSION_REPLY))) {
+			 && memcmp(data, GARMIN_START_SESSION_REPLY,
+				 sizeof(GARMIN_START_SESSION_REPLY)) == 0) {
 
 		spin_lock_irqsave(&garmin_data_p->lock, flags);
 		garmin_data_p->flags |= FLAGS_SESSION_REPLY1_SEEN;
@@ -1356,7 +1341,7 @@ static void garmin_unthrottle(struct tty_struct *tty)
 	if (garmin_data_p->mode == MODE_NATIVE)
 		garmin_flush_queue(garmin_data_p);
 
-	if (0 != (garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE)) {
+	if ((garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE) != 0) {
 		status = usb_submit_urb(port->read_urb, GFP_KERNEL);
 		if (status)
 			dev_err(&port->dev,
@@ -1370,9 +1355,9 @@ static void garmin_unthrottle(struct tty_struct *tty)
  * the tty in cases where the protocol provides no own handshaking
  * to initiate the transfer.
  */
-static void timeout_handler(unsigned long data)
+static void timeout_handler(struct timer_list *t)
 {
-	struct garmin_data *garmin_data_p = (struct garmin_data *) data;
+	struct garmin_data *garmin_data_p = from_timer(garmin_data_p, t, timer);
 
 	/* send the next queued packet to the tty port */
 	if (garmin_data_p->mode == MODE_NATIVE)
@@ -1391,19 +1376,23 @@ static int garmin_port_probe(struct usb_serial_port *port)
 	if (!garmin_data_p)
 		return -ENOMEM;
 
-	init_timer(&garmin_data_p->timer);
+	timer_setup(&garmin_data_p->timer, timeout_handler, 0);
 	spin_lock_init(&garmin_data_p->lock);
 	INIT_LIST_HEAD(&garmin_data_p->pktlist);
-	/* garmin_data_p->timer.expires = jiffies + session_timeout; */
-	garmin_data_p->timer.data = (unsigned long)garmin_data_p;
-	garmin_data_p->timer.function = timeout_handler;
 	garmin_data_p->port = port;
 	garmin_data_p->state = 0;
 	garmin_data_p->flags = 0;
 	garmin_data_p->count = 0;
+	init_usb_anchor(&garmin_data_p->write_urbs);
 	usb_set_serial_port_data(port, garmin_data_p);
 
 	status = garmin_init_session(port);
+	if (status)
+		goto err_free;
+
+	return 0;
+err_free:
+	kfree(garmin_data_p);
 
 	return status;
 }
@@ -1413,6 +1402,7 @@ static int garmin_port_remove(struct usb_serial_port *port)
 {
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 
+	usb_kill_anchored_urbs(&garmin_data_p->write_urbs);
 	usb_kill_urb(port->interrupt_in_urb);
 	del_timer_sync(&garmin_data_p->timer);
 	kfree(garmin_data_p);

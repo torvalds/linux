@@ -20,7 +20,7 @@
  *
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kvm_host.h>
 
 #include "irq.h"
@@ -33,7 +33,10 @@
  */
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	return apic_has_pending_timer(vcpu);
+	if (lapic_in_kernel(vcpu))
+		return apic_has_pending_timer(vcpu);
+
+	return 0;
 }
 EXPORT_SYMBOL(kvm_cpu_has_pending_timer);
 
@@ -57,7 +60,7 @@ static int kvm_cpu_has_extint(struct kvm_vcpu *v)
 		if (irqchip_split(v->kvm))
 			return pending_userspace_extint(v);
 		else
-			return pic_irqchip(v->kvm)->output;
+			return v->kvm->arch.vpic->output;
 	} else
 		return 0;
 }
@@ -70,13 +73,24 @@ static int kvm_cpu_has_extint(struct kvm_vcpu *v)
  */
 int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
 {
+	/*
+	 * FIXME: interrupt.injected represents an interrupt that it's
+	 * side-effects have already been applied (e.g. bit from IRR
+	 * already moved to ISR). Therefore, it is incorrect to rely
+	 * on interrupt.injected to know if there is a pending
+	 * interrupt in the user-mode LAPIC.
+	 * This leads to nVMX/nSVM not be able to distinguish
+	 * if it should exit from L2 to L1 on EXTERNAL_INTERRUPT on
+	 * pending interrupt or should re-inject an injected
+	 * interrupt.
+	 */
 	if (!lapic_in_kernel(v))
-		return v->arch.interrupt.pending;
+		return v->arch.interrupt.injected;
 
 	if (kvm_cpu_has_extint(v))
 		return 1;
 
-	if (kvm_vcpu_apic_vid_enabled(v))
+	if (!is_guest_mode(v) && kvm_vcpu_apicv_active(v))
 		return 0;
 
 	return kvm_apic_has_interrupt(v) != -1; /* LAPIC */
@@ -88,8 +102,19 @@ int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
  */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 {
+	/*
+	 * FIXME: interrupt.injected represents an interrupt that it's
+	 * side-effects have already been applied (e.g. bit from IRR
+	 * already moved to ISR). Therefore, it is incorrect to rely
+	 * on interrupt.injected to know if there is a pending
+	 * interrupt in the user-mode LAPIC.
+	 * This leads to nVMX/nSVM not be able to distinguish
+	 * if it should exit from L2 to L1 on EXTERNAL_INTERRUPT on
+	 * pending interrupt or should re-inject an injected
+	 * interrupt.
+	 */
 	if (!lapic_in_kernel(v))
-		return v->arch.interrupt.pending;
+		return v->arch.interrupt.injected;
 
 	if (kvm_cpu_has_extint(v))
 		return 1;
@@ -137,8 +162,8 @@ EXPORT_SYMBOL_GPL(kvm_cpu_get_interrupt);
 
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu)
 {
-	kvm_inject_apic_timer_irqs(vcpu);
-	/* TODO: PIT, RTC etc. */
+	if (lapic_in_kernel(vcpu))
+		kvm_inject_apic_timer_irqs(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_inject_pending_timer_irqs);
 

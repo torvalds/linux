@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/include/linux/sunrpc/gss_api.h
  *
@@ -73,6 +74,7 @@ u32 gss_delete_sec_context(
 rpc_authflavor_t gss_svc_to_pseudoflavor(struct gss_api_mech *, u32 qop,
 					u32 service);
 u32 gss_pseudoflavor_to_service(struct gss_api_mech *, u32 pseudoflavor);
+bool gss_pseudoflavor_to_datatouch(struct gss_api_mech *, u32 pseudoflavor);
 char *gss_service_to_auth_domain_name(struct gss_api_mech *, u32 service);
 
 struct pf_desc {
@@ -81,6 +83,7 @@ struct pf_desc {
 	u32	service;
 	char	*name;
 	char	*auth_domain_name;
+	bool	datatouch;
 };
 
 /* Different mechanisms (e.g., krb5 or spkm3) may implement gss-api, and

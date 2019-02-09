@@ -223,7 +223,7 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 	 * 'pages' is an array of struct page pointers that's initialized by
 	 * get_user_pages().
 	 */
-	pages = kzalloc(num_pages * sizeof(struct page *), GFP_KERNEL);
+	pages = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
 		pr_debug("fsl-hv: could not allocate page list\n");
 		return -ENOMEM;
@@ -243,12 +243,8 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 	sg_list = PTR_ALIGN(sg_list_unaligned, sizeof(struct fh_sg_list));
 
 	/* Get the physical addresses of the source buffer */
-	down_read(&current->mm->mmap_sem);
-	num_pinned = get_user_pages(current, current->mm,
-		param.local_vaddr - lb_offset, num_pages,
-		(param.source == -1) ? READ : WRITE,
-		0, pages, NULL);
-	up_read(&current->mm->mmap_sem);
+	num_pinned = get_user_pages_fast(param.local_vaddr - lb_offset,
+		num_pages, param.source != -1, pages);
 
 	if (num_pinned != num_pages) {
 		/* get_user_pages() failed */
@@ -569,16 +565,16 @@ static irqreturn_t fsl_hv_state_change_isr(int irq, void *data)
 /*
  * Returns a bitmask indicating whether a read will block
  */
-static unsigned int fsl_hv_poll(struct file *filp, struct poll_table_struct *p)
+static __poll_t fsl_hv_poll(struct file *filp, struct poll_table_struct *p)
 {
 	struct doorbell_queue *dbq = filp->private_data;
 	unsigned long flags;
-	unsigned int mask;
+	__poll_t mask;
 
 	spin_lock_irqsave(&dbq->lock, flags);
 
 	poll_wait(filp, &dbq->wait, p);
-	mask = (dbq->head == dbq->tail) ? 0 : (POLLIN | POLLRDNORM);
+	mask = (dbq->head == dbq->tail) ? 0 : (EPOLLIN | EPOLLRDNORM);
 
 	spin_unlock_irqrestore(&dbq->lock, flags);
 
@@ -845,8 +841,8 @@ static int __init fsl_hypervisor_init(void)
 		handle = of_get_property(np, "interrupts", NULL);
 		irq = irq_of_parse_and_map(np, 0);
 		if (!handle || (irq == NO_IRQ)) {
-			pr_err("fsl-hv: no 'interrupts' property in %s node\n",
-				np->full_name);
+			pr_err("fsl-hv: no 'interrupts' property in %pOF node\n",
+				np);
 			continue;
 		}
 
@@ -873,8 +869,8 @@ static int __init fsl_hypervisor_init(void)
 			 */
 			dbisr->partition = ret = get_parent_handle(np);
 			if (ret < 0) {
-				pr_err("fsl-hv: node %s has missing or "
-				       "malformed parent\n", np->full_name);
+				pr_err("fsl-hv: node %pOF has missing or "
+				       "malformed parent\n", np);
 				kfree(dbisr);
 				continue;
 			}
@@ -885,8 +881,8 @@ static int __init fsl_hypervisor_init(void)
 			ret = request_irq(irq, fsl_hv_isr, 0, np->name, dbisr);
 
 		if (ret < 0) {
-			pr_err("fsl-hv: could not request irq %u for node %s\n",
-			       irq, np->full_name);
+			pr_err("fsl-hv: could not request irq %u for node %pOF\n",
+			       irq, np);
 			kfree(dbisr);
 			continue;
 		}

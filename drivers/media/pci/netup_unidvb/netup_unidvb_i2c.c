@@ -214,11 +214,6 @@ static int netup_i2c_xfer(struct i2c_adapter *adap,
 	struct netup_i2c *i2c = i2c_get_adapdata(adap);
 	u16 reg;
 
-	if (num <= 0) {
-		dev_dbg(i2c->adap.dev.parent,
-			"%s(): num == %d\n", __func__, num);
-		return -EINVAL;
-	}
 	spin_lock_irqsave(&i2c->lock, flags);
 	if (i2c->state != STATE_DONE) {
 		dev_dbg(i2c->adap.dev.parent,
@@ -300,7 +295,7 @@ static const struct i2c_algorithm netup_i2c_algorithm = {
 	.functionality	= netup_i2c_func,
 };
 
-static struct i2c_adapter netup_i2c_adapter = {
+static const struct i2c_adapter netup_i2c_adapter = {
 	.owner		= THIS_MODULE,
 	.name		= NETUP_UNIDVB_NAME,
 	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
@@ -327,11 +322,8 @@ static int netup_i2c_init(struct netup_unidvb_dev *ndev, int bus_num)
 	i2c->adap.dev.parent = &ndev->pci_dev->dev;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	ret = i2c_add_adapter(&i2c->adap);
-	if (ret) {
-		dev_err(&ndev->pci_dev->dev,
-			"%s(): failed to add I2C adapter\n", __func__);
+	if (ret)
 		return ret;
-	}
 	dev_info(&ndev->pci_dev->dev,
 		"%s(): registered I2C bus %d at 0x%x\n",
 		__func__,

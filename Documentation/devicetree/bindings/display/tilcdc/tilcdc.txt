@@ -1,13 +1,13 @@
 Device-Tree bindings for tilcdc DRM driver
 
 Required properties:
- - compatible: value should be "ti,am33xx-tilcdc".
+ - compatible: value should be one of the following:
+    - "ti,am33xx-tilcdc" for AM335x based boards
+    - "ti,da850-tilcdc" for DA850/AM18x/OMAP-L138 based boards
  - interrupts: the interrupt number
  - reg: base address and size of the LCDC device
 
 Recommended properties:
- - interrupt-parent: the phandle for the interrupt controller that
-   services interrupts for this device.
  - ti,hwmods: Name of the hwmod associated to the LCDC
 
 Optional properties:
@@ -17,21 +17,47 @@ Optional properties:
    the lcd controller.
  - max-pixelclock: The maximum pixel clock that can be supported
    by the lcd controller in KHz.
+ - blue-and-red-wiring: Recognized values "straight" or "crossed".
+   This property deals with the LCDC revision 2 (found on AM335x)
+   color errata [1].
+    - "straight" indicates normal wiring that supports RGB565,
+      BGR888, and XBGR8888 color formats.
+    - "crossed" indicates wiring that has blue and red wires
+      crossed. This setup supports BGR565, RGB888 and XRGB8888
+      formats.
+    - If the property is not present or its value is not recognized
+      the legacy mode is assumed. This configuration supports RGB565,
+      RGB888 and XRGB8888 formats. However, depending on wiring, the red
+      and blue colors are swapped in either 16 or 24-bit color modes.
 
 Optional nodes:
 
  - port/ports: to describe a connection to an external encoder. The
    binding follows Documentation/devicetree/bindings/graph.txt and
-   suppors a single port with a single endpoint.
+   supports a single port with a single endpoint.
+
+ - See also Documentation/devicetree/bindings/display/tilcdc/panel.txt and
+   Documentation/devicetree/bindings/display/tilcdc/tfp410.txt for connecting
+   tfp410 DVI encoder or lcd panel to lcdc
+
+[1] There is an errata about AM335x color wiring. For 16-bit color mode
+    the wires work as they should (LCD_DATA[0:4] is for Blue[3:7]),
+    but for 24 bit color modes the wiring of blue and red components is
+    crossed and LCD_DATA[0:4] is for Red[3:7] and LCD_DATA[11:15] is
+    for Blue[3-7]. For more details see section 3.1.1 in AM335x
+    Silicon Errata:
+    http://www.ti.com/general/docs/lit/getliterature.tsp?baseLiteratureNumber=sprz360
 
 Example:
 
 	fb: fb@4830e000 {
-		compatible = "ti,am33xx-tilcdc";
+		compatible = "ti,am33xx-tilcdc", "ti,da850-tilcdc";
 		reg = <0x4830e000 0x1000>;
 		interrupt-parent = <&intc>;
 		interrupts = <36>;
 		ti,hwmods = "lcdc";
+
+		blue-and-red-wiring = "crossed";
 
 		port {
 			lcdc_0: endpoint@0 {

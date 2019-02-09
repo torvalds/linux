@@ -30,7 +30,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda8083.h"
 
 
@@ -342,9 +342,9 @@ static int tda8083_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda8083_get_frontend(struct dvb_frontend *fe)
+static int tda8083_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct tda8083_state* state = fe->demodulator_priv;
 
 	/*  FIXME: get symbolrate & frequency offset...*/
@@ -421,7 +421,7 @@ static void tda8083_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops tda8083_ops;
+static const struct dvb_frontend_ops tda8083_ops;
 
 struct dvb_frontend* tda8083_attach(const struct tda8083_config* config,
 				    struct i2c_adapter* i2c)
@@ -449,14 +449,13 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops tda8083_ops = {
+static const struct dvb_frontend_ops tda8083_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Philips TDA8083 DVB-S",
-		.frequency_min		= 920000,     /* TDA8060 */
-		.frequency_max		= 2200000,    /* TDA8060 */
-		.frequency_stepsize	= 125,   /* kHz for QPSK frontends */
-	/*      .frequency_tolerance	= ???,*/
+		.frequency_min_hz	=  920 * MHz,     /* TDA8060 */
+		.frequency_max_hz	= 2200 * MHz,    /* TDA8060 */
+		.frequency_stepsize_hz	=  125 * kHz,
 		.symbol_rate_min	= 12000000,
 		.symbol_rate_max	= 30000000,
 	/*      .symbol_rate_tolerance	= ???,*/

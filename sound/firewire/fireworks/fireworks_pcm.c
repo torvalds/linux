@@ -129,19 +129,6 @@ limit_channels(struct snd_pcm_hardware *hw, unsigned int *pcm_channels)
 	}
 }
 
-static void
-limit_period_and_buffer(struct snd_pcm_hardware *hw)
-{
-	hw->periods_min = 2;		/* SNDRV_PCM_INFO_BATCH */
-	hw->periods_max = UINT_MAX;
-
-	hw->period_bytes_min = 4 * hw->channels_max;	/* bytes for a frame */
-
-	/* Just to prevent from allocating much pages. */
-	hw->period_bytes_max = hw->period_bytes_min * 2048;
-	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
-}
-
 static int
 pcm_init_hw_params(struct snd_efw *efw,
 		   struct snd_pcm_substream *substream)
@@ -150,13 +137,6 @@ pcm_init_hw_params(struct snd_efw *efw,
 	struct amdtp_stream *s;
 	unsigned int *pcm_channels;
 	int err;
-
-	runtime->hw.info = SNDRV_PCM_INFO_BATCH |
-			   SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			   SNDRV_PCM_INFO_INTERLEAVED |
-			   SNDRV_PCM_INFO_JOINT_DUPLEX |
-			   SNDRV_PCM_INFO_MMAP |
-			   SNDRV_PCM_INFO_MMAP_VALID;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		runtime->hw.formats = AM824_IN_PCM_FORMAT_BITS;
@@ -173,7 +153,6 @@ pcm_init_hw_params(struct snd_efw *efw,
 	snd_pcm_limit_hw_rates(runtime);
 
 	limit_channels(&runtime->hw, pcm_channels);
-	limit_period_and_buffer(&runtime->hw);
 
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 				  hw_rule_channels, pcm_channels,
@@ -251,10 +230,11 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		atomic_inc(&efw->capture_substreams);
-
-	amdtp_am824_set_pcm_format(&efw->tx_stream, params_format(hw_params));
+	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&efw->mutex);
+		efw->capture_substreams++;
+		mutex_unlock(&efw->mutex);
+	}
 
 	return 0;
 }
@@ -269,10 +249,11 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		atomic_inc(&efw->playback_substreams);
-
-	amdtp_am824_set_pcm_format(&efw->rx_stream, params_format(hw_params));
+	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&efw->mutex);
+		efw->playback_substreams++;
+		mutex_unlock(&efw->mutex);
+	}
 
 	return 0;
 }
@@ -281,8 +262,11 @@ static int pcm_capture_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		atomic_dec(&efw->capture_substreams);
+	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&efw->mutex);
+		efw->capture_substreams--;
+		mutex_unlock(&efw->mutex);
+	}
 
 	snd_efw_stream_stop_duplex(efw);
 
@@ -292,8 +276,11 @@ static int pcm_playback_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		atomic_dec(&efw->playback_substreams);
+	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&efw->mutex);
+		efw->playback_substreams--;
+		mutex_unlock(&efw->mutex);
+	}
 
 	snd_efw_stream_stop_duplex(efw);
 
@@ -371,33 +358,46 @@ static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 	return amdtp_stream_pcm_pointer(&efw->rx_stream);
 }
 
-static const struct snd_pcm_ops pcm_capture_ops = {
-	.open		= pcm_open,
-	.close		= pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= pcm_capture_hw_params,
-	.hw_free	= pcm_capture_hw_free,
-	.prepare	= pcm_capture_prepare,
-	.trigger	= pcm_capture_trigger,
-	.pointer	= pcm_capture_pointer,
-	.page		= snd_pcm_lib_get_vmalloc_page,
-};
+static int pcm_capture_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_efw *efw = substream->private_data;
 
-static const struct snd_pcm_ops pcm_playback_ops = {
-	.open		= pcm_open,
-	.close		= pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= pcm_playback_hw_params,
-	.hw_free	= pcm_playback_hw_free,
-	.prepare	= pcm_playback_prepare,
-	.trigger	= pcm_playback_trigger,
-	.pointer	= pcm_playback_pointer,
-	.page		= snd_pcm_lib_get_vmalloc_page,
-	.mmap		= snd_pcm_lib_mmap_vmalloc,
-};
+	return amdtp_stream_pcm_ack(&efw->tx_stream);
+}
+
+static int pcm_playback_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_efw *efw = substream->private_data;
+
+	return amdtp_stream_pcm_ack(&efw->rx_stream);
+}
 
 int snd_efw_create_pcm_devices(struct snd_efw *efw)
 {
+	static const struct snd_pcm_ops capture_ops = {
+		.open		= pcm_open,
+		.close		= pcm_close,
+		.ioctl		= snd_pcm_lib_ioctl,
+		.hw_params	= pcm_capture_hw_params,
+		.hw_free	= pcm_capture_hw_free,
+		.prepare	= pcm_capture_prepare,
+		.trigger	= pcm_capture_trigger,
+		.pointer	= pcm_capture_pointer,
+		.ack		= pcm_capture_ack,
+		.page		= snd_pcm_lib_get_vmalloc_page,
+	};
+	static const struct snd_pcm_ops playback_ops = {
+		.open		= pcm_open,
+		.close		= pcm_close,
+		.ioctl		= snd_pcm_lib_ioctl,
+		.hw_params	= pcm_playback_hw_params,
+		.hw_free	= pcm_playback_hw_free,
+		.prepare	= pcm_playback_prepare,
+		.trigger	= pcm_playback_trigger,
+		.pointer	= pcm_playback_pointer,
+		.ack		= pcm_playback_ack,
+		.page		= snd_pcm_lib_get_vmalloc_page,
+	};
 	struct snd_pcm *pcm;
 	int err;
 
@@ -407,8 +407,8 @@ int snd_efw_create_pcm_devices(struct snd_efw *efw)
 
 	pcm->private_data = efw;
 	snprintf(pcm->name, sizeof(pcm->name), "%s PCM", efw->card->shortname);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &pcm_playback_ops);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pcm_capture_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &playback_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &capture_ops);
 end:
 	return err;
 }

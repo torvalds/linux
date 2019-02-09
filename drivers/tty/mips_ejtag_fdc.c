@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * TTY driver for MIPS EJTAG Fast Debug Channels.
  *
  * Copyright (C) 2007-2015 Imagination Technologies Ltd
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License. See the file COPYING in the main directory of this archive for more
- * details.
  */
 
 #include <linux/atomic.h>
@@ -683,13 +680,13 @@ static irqreturn_t mips_ejtag_fdc_isr(int irq, void *dev_id)
  * It simply triggers the common FDC handler code and arranges for further
  * polling.
  */
-static void mips_ejtag_fdc_tty_timer(unsigned long opaque)
+static void mips_ejtag_fdc_tty_timer(struct timer_list *t)
 {
-	struct mips_ejtag_fdc_tty *priv = (void *)opaque;
+	struct mips_ejtag_fdc_tty *priv = from_timer(priv, t, poll_timer);
 
 	mips_ejtag_fdc_handle(priv);
 	if (!priv->removing)
-		mod_timer_pinned(&priv->poll_timer, jiffies + FDC_TTY_POLL);
+		mod_timer(&priv->poll_timer, jiffies + FDC_TTY_POLL);
 }
 
 /* TTY Port operations */
@@ -1002,8 +999,8 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		raw_spin_unlock_irq(&priv->lock);
 	} else {
 		/* If we didn't get an usable IRQ, poll instead */
-		setup_timer(&priv->poll_timer, mips_ejtag_fdc_tty_timer,
-			    (unsigned long)priv);
+		timer_setup(&priv->poll_timer, mips_ejtag_fdc_tty_timer,
+			    TIMER_PINNED);
 		priv->poll_timer.expires = jiffies + FDC_TTY_POLL;
 		/*
 		 * Always attach the timer to the right CPU. The channels are
@@ -1110,7 +1107,7 @@ out:
 	return ret;
 }
 
-static struct mips_cdmm_device_id mips_ejtag_fdc_tty_ids[] = {
+static const struct mips_cdmm_device_id mips_ejtag_fdc_tty_ids[] = {
 	{ .type = 0xfd },
 	{ }
 };

@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -245,9 +209,9 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			 * we will use the return value
 			 */
 			if ((walk_state->control_state->common.state ==
-			     ACPI_CONTROL_PREDICATE_EXECUTING)
-			    && (walk_state->control_state->control.
-				predicate_op == op)) {
+			     ACPI_CONTROL_PREDICATE_EXECUTING) &&
+			    (walk_state->control_state->control.predicate_op ==
+			     op)) {
 				goto result_used;
 			}
 			break;
@@ -275,9 +239,9 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 		if ((op->common.parent->common.aml_opcode == AML_REGION_OP) ||
 		    (op->common.parent->common.aml_opcode == AML_DATA_REGION_OP)
 		    || (op->common.parent->common.aml_opcode == AML_PACKAGE_OP)
-		    || (op->common.parent->common.aml_opcode ==
-			AML_VAR_PACKAGE_OP)
 		    || (op->common.parent->common.aml_opcode == AML_BUFFER_OP)
+		    || (op->common.parent->common.aml_opcode ==
+			AML_VARIABLE_PACKAGE_OP)
 		    || (op->common.parent->common.aml_opcode ==
 			AML_INT_EVAL_SUBTREE_OP)
 		    || (op->common.parent->common.aml_opcode ==
@@ -481,10 +445,9 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 
 		/* Get the entire name string from the AML stream */
 
-		status =
-		    acpi_ex_get_name_string(ACPI_TYPE_ANY,
-					    arg->common.value.buffer,
-					    &name_string, &name_length);
+		status = acpi_ex_get_name_string(ACPI_TYPE_ANY,
+						 arg->common.value.buffer,
+						 &name_string, &name_length);
 
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
@@ -503,9 +466,8 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 		 */
 		if ((walk_state->deferred_node) &&
 		    (walk_state->deferred_node->type == ACPI_TYPE_BUFFER_FIELD)
-		    && (arg_index ==
-			(u32) ((walk_state->opcode ==
-				AML_CREATE_FIELD_OP) ? 3 : 2))) {
+		    && (arg_index == (u32)
+			((walk_state->opcode == AML_CREATE_FIELD_OP) ? 3 : 2))) {
 			obj_desc =
 			    ACPI_CAST_PTR(union acpi_operand_object,
 					  walk_state->deferred_node);
@@ -522,9 +484,10 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			op_info =
 			    acpi_ps_get_opcode_info(parent_op->common.
 						    aml_opcode);
-			if ((op_info->flags & AML_NSNODE)
-			    && (parent_op->common.aml_opcode !=
-				AML_INT_METHODCALL_OP)
+
+			if ((op_info->flags & AML_NSNODE) &&
+			    (parent_op->common.aml_opcode !=
+			     AML_INT_METHODCALL_OP)
 			    && (parent_op->common.aml_opcode != AML_REGION_OP)
 			    && (parent_op->common.aml_opcode !=
 				AML_INT_NAMEPATH_OP)) {
@@ -552,7 +515,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			 */
 			if (status == AE_NOT_FOUND) {
 				if (parent_op->common.aml_opcode ==
-				    AML_COND_REF_OF_OP) {
+				    AML_CONDITIONAL_REF_OF_OP) {
 					/*
 					 * For the Conditional Reference op, it's OK if
 					 * the name is not found;  We just need a way to
@@ -566,15 +529,14 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 					status = AE_OK;
 				} else if (parent_op->common.aml_opcode ==
 					   AML_EXTERNAL_OP) {
-
-					/* TBD: May only be temporary */
-
-					obj_desc =
-					    acpi_ut_create_string_object((acpi_size) name_length);
-
-					strncpy(obj_desc->string.pointer,
-						name_string, name_length);
-					status = AE_OK;
+					/*
+					 * This opcode should never appear here. It is used only
+					 * by AML disassemblers and is surrounded by an If(0)
+					 * by the ASL compiler.
+					 *
+					 * Therefore, if we see it here, it is a serious error.
+					 */
+					status = AE_AML_BAD_OPCODE;
 				} else {
 					/*
 					 * We just plain didn't find it -- which is a
@@ -585,7 +547,8 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			}
 
 			if (ACPI_FAILURE(status)) {
-				ACPI_ERROR_NAMESPACE(name_string, status);
+				ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+						     name_string, status);
 			}
 		}
 
@@ -605,8 +568,8 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
-		ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
-				   (obj_desc, walk_state));
+
+		acpi_db_display_argument_object(obj_desc, walk_state);
 	} else {
 		/* Check for null name case */
 
@@ -633,16 +596,8 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 		}
 
-		if ((op_info->flags & AML_HAS_RETVAL)
-		    || (arg->common.flags & ACPI_PARSEOP_IN_STACK)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-					  "Argument previously created, already stacked\n"));
-
-			ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
-					   (walk_state->
-					    operands[walk_state->num_operands -
-						     1], walk_state));
-
+		if ((op_info->flags & AML_HAS_RETVAL) ||
+		    (arg->common.flags & ACPI_PARSEOP_IN_STACK)) {
 			/*
 			 * Use value that was already previously returned
 			 * by the evaluation of this argument
@@ -685,8 +640,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			return_ACPI_STATUS(status);
 		}
 
-		ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
-				   (obj_desc, walk_state));
+		acpi_db_display_argument_object(obj_desc, walk_state);
 	}
 
 	return_ACPI_STATUS(AE_OK);
@@ -808,7 +762,7 @@ acpi_status acpi_ds_evaluate_name_path(struct acpi_walk_state *walk_state)
 	}
 
 	if ((op->common.parent->common.aml_opcode == AML_PACKAGE_OP) ||
-	    (op->common.parent->common.aml_opcode == AML_VAR_PACKAGE_OP) ||
+	    (op->common.parent->common.aml_opcode == AML_VARIABLE_PACKAGE_OP) ||
 	    (op->common.parent->common.aml_opcode == AML_REF_OF_OP)) {
 
 		/* TBD: Should we specify this feature as a bit of op_info->Flags of these opcodes? */

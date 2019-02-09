@@ -1,60 +1,81 @@
-What:           /sys/class/pktcdvd/
-Date:           Oct. 2006
-KernelVersion:  2.6.20
-Contact:        Thomas Maier <balagi@justmail.de>
-Description:
-
 sysfs interface
 ---------------
+The pktcdvd module (packet writing driver) creates the following files in the
+sysfs: (<devid> is in the format major:minor)
 
-The pktcdvd module (packet writing driver) creates
-these files in the sysfs:
-(<devid> is in format  major:minor )
+What:		/sys/class/pktcdvd/add
+What:		/sys/class/pktcdvd/remove
+What:		/sys/class/pktcdvd/device_map
+Date:		Oct. 2006
+KernelVersion:	2.6.20
+Contact:	Thomas Maier <balagi@justmail.de>
+Description:
 
-/sys/class/pktcdvd/
-    add            (0200)  Write a block device id (major:minor)
-                           to create a new pktcdvd device and map
-                           it to the block device.
+		add:		(WO) Write a block device id (major:minor) to
+				create a new pktcdvd device and map it to the
+				block device.
 
-    remove         (0200)  Write the pktcdvd device id (major:minor)
-                           to it to remove the pktcdvd device.
+		remove:		(WO) Write the pktcdvd device id (major:minor)
+				to remove the pktcdvd device.
 
-    device_map     (0444)  Shows the device mapping in format:
-                             pktcdvd[0-7] <pktdevid> <blkdevid>
+		device_map:	(RO) Shows the device mapping in format:
+				pktcdvd[0-7] <pktdevid> <blkdevid>
 
-/sys/class/pktcdvd/pktcdvd[0-7]/
-    dev                   (0444) Device id
-    uevent                (0200) To send an uevent.
 
-/sys/class/pktcdvd/pktcdvd[0-7]/stat/
-    packets_started       (0444) Number of started packets.
-    packets_finished      (0444) Number of finished packets.
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/dev
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/uevent
+Date:		Oct. 2006
+KernelVersion:	2.6.20
+Contact:	Thomas Maier <balagi@justmail.de>
+Description:
+		dev:	(RO) Device id
 
-    kb_written            (0444) kBytes written.
-    kb_read               (0444) kBytes read.
-    kb_read_gather        (0444) kBytes read to fill write packets.
+		uevent:	(WO) To send a uevent
 
-    reset                 (0200) Write any value to it to reset
-                                 pktcdvd device statistic values, like
-                                 bytes read/written.
 
-/sys/class/pktcdvd/pktcdvd[0-7]/write_queue/
-    size                  (0444) Contains the size of the bio write
-                                 queue.
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/stat/packets_started
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/stat/packets_finished
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/stat/kb_written
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/stat/kb_read
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/stat/kb_read_gather
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/stat/reset
+Date:		Oct. 2006
+KernelVersion:	2.6.20
+Contact:	Thomas Maier <balagi@justmail.de>
+Description:
+		packets_started:	(RO) Number of started packets.
 
-    congestion_off        (0644) If bio write queue size is below
-                                 this mark, accept new bio requests
-                                 from the block layer.
+		packets_finished:	(RO) Number of finished packets.
 
-    congestion_on         (0644) If bio write queue size is higher
-                                 as this mark, do no longer accept
-                                 bio write requests from the block
-                                 layer and wait till the pktcdvd
-                                 device has processed enough bio's
-                                 so that bio write queue size is
-                                 below congestion off mark.
-                                 A value of <= 0 disables congestion
-                                 control.
+		kb_written:		(RO) kBytes written.
+
+		kb_read:		(RO) kBytes read.
+
+		kb_read_gather:		(RO) kBytes read to fill write packets.
+
+		reset:			(WO) Write any value to it to reset
+					pktcdvd device statistic values, like
+					bytes read/written.
+
+
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/write_queue/size
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/write_queue/congestion_off
+What:		/sys/class/pktcdvd/pktcdvd[0-7]/write_queue/congestion_on
+Date:		Oct. 2006
+KernelVersion:	2.6.20
+Contact:	Thomas Maier <balagi@justmail.de>
+Description:
+		size:		(RO) Contains the size of the bio write queue.
+
+		congestion_off:	(RW) If bio write queue size is below this mark,
+				accept new bio requests from the block layer.
+
+		congestion_on:	(RW) If bio write queue size is higher as this
+				mark, do no longer accept bio write requests
+				from the block layer and wait till the pktcdvd
+				device has processed enough bio's so that bio
+				write queue size is below congestion off mark.
+				A value of <= 0 disables congestion control.
 
 
 Example:

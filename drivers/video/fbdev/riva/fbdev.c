@@ -101,7 +101,7 @@ static int rivafb_blank(int blank, struct fb_info *info);
  *
  * ------------------------------------------------------------------------- */
 
-static struct pci_device_id rivafb_pci_tbl[] = {
+static const struct pci_device_id rivafb_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NVIDIA_SGS, PCI_DEVICE_ID_NVIDIA_SGS_RIVA128,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_TNT,
@@ -780,7 +780,7 @@ static int riva_load_video_mode(struct fb_info *info)
 	else
 		newmode.misc_output |= 0x80;	
 
-	rc = CalcStateExt(&par->riva, &newmode.ext, bpp, width,
+	rc = CalcStateExt(&par->riva, &newmode.ext, par->pdev, bpp, width,
 			  hDisplaySize, height, dotClock);
 	if (rc)
 		goto out;
@@ -1615,7 +1615,7 @@ static int rivafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		u8 *msk = (u8 *) cursor->mask;
 		u8 *src;
 		
-		src = kmalloc(s_pitch * cursor->image.height, GFP_ATOMIC);
+		src = kmalloc_array(s_pitch, cursor->image.height, GFP_ATOMIC);
 
 		if (src) {
 			switch (cursor->rop) {
@@ -1765,6 +1765,7 @@ static int riva_get_EDID_i2c(struct fb_info *info)
 	int i;
 
 	NVTRACE_ENTER();
+	par->riva.LockUnlock(&par->riva, 0);
 	riva_create_i2c_busses(par);
 	for (i = 0; i < 3; i++) {
 		if (!par->chan[i].par)

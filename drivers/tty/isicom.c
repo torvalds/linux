@@ -1,9 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  *	Original driver code supplied by Multi-Tech
  *
  *	Changes
@@ -150,7 +146,7 @@
 static int isicom_probe(struct pci_dev *, const struct pci_device_id *);
 static void isicom_remove(struct pci_dev *);
 
-static struct pci_device_id isicom_pci_tbl[] = {
+static const struct pci_device_id isicom_pci_tbl[] = {
 	{ PCI_DEVICE(VENDOR_ID, 0x2028) },
 	{ PCI_DEVICE(VENDOR_ID, 0x2051) },
 	{ PCI_DEVICE(VENDOR_ID, 0x2052) },
@@ -174,10 +170,10 @@ static struct pci_driver isicom_driver = {
 static int prev_card = 3;	/*	start servicing isi_card[0]	*/
 static struct tty_driver *isicom_normal;
 
-static void isicom_tx(unsigned long _data);
+static void isicom_tx(struct timer_list *unused);
 static void isicom_start(struct tty_struct *tty);
 
-static DEFINE_TIMER(tx, isicom_tx, 0, 0);
+static DEFINE_TIMER(tx, isicom_tx);
 
 /*   baud index mappings from linux defns to isi */
 
@@ -220,16 +216,12 @@ static struct isi_port  isi_ports[PORT_COUNT];
  *	it wants to talk.
  */
 
-static inline int WaitTillCardIsFree(unsigned long base)
+static int WaitTillCardIsFree(unsigned long base)
 {
 	unsigned int count = 0;
-	unsigned int a = in_atomic(); /* do we run under spinlock? */
 
 	while (!(inw(base + 0xe) & 0x1) && count++ < 100)
-		if (a)
-			mdelay(1);
-		else
-			msleep(1);
+		mdelay(1);
 
 	return !(inw(base + 0xe) & 0x1);
 }
@@ -280,7 +272,7 @@ static void raise_dtr(struct isi_port *port)
 }
 
 /* card->lock HAS to be held */
-static inline void drop_dtr(struct isi_port *port)
+static void drop_dtr(struct isi_port *port)
 {
 	struct isi_board *card = port->card;
 	unsigned long base = card->base;
@@ -398,7 +390,7 @@ static inline int __isicom_paranoia_check(struct isi_port const *port,
  *	will do the rest of the work for us.
  */
 
-static void isicom_tx(unsigned long _data)
+static void isicom_tx(struct timer_list *unused)
 {
 	unsigned long flags, base;
 	unsigned int retries;
@@ -438,8 +430,8 @@ static void isicom_tx(unsigned long _data)
 
 	for (; count > 0; count--, port++) {
 		/* port not active or tx disabled to force flow control */
-		if (!(port->port.flags & ASYNC_INITIALIZED) ||
-				!(port->status & ISI_TXOK))
+		if (!tty_port_initialized(&port->port) ||
+			!(port->status & ISI_TXOK))
 			continue;
 
 		txcount = min_t(short, TX_SIZE, port->xmit_cnt);
@@ -553,7 +545,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 	port = card->ports + channel;
-	if (!(port->port.flags & ASYNC_INITIALIZED)) {
+	if (!tty_port_initialized(&port->port)) {
 		outw(0x0000, base+0x04); /* enable interrupts */
 		spin_unlock(&card->card_lock);
 		return IRQ_HANDLED;
@@ -577,7 +569,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		header = inw(base);
 		switch (header & 0xff) {
 		case 0:	/* Change in EIA signals */
-			if (port->port.flags & ASYNC_CHECK_CD) {
+			if (tty_port_check_carrier(&port->port)) {
 				if (port->status & ISI_DCD) {
 					if (!(header & ISI_DCD)) {
 					/* Carrier has been lost  */
@@ -758,18 +750,13 @@ static void isicom_config_port(struct tty_struct *tty)
 		outw(channel_setup, base);
 		InterruptTheCard(base);
 	}
-	if (C_CLOCAL(tty))
-		port->port.flags &= ~ASYNC_CHECK_CD;
-	else
-		port->port.flags |= ASYNC_CHECK_CD;
+	tty_port_set_check_carrier(&port->port, !C_CLOCAL(tty));
 
 	/* flow control settings ...*/
 	flow_ctrl = 0;
-	port->port.flags &= ~ASYNC_CTS_FLOW;
-	if (C_CRTSCTS(tty)) {
-		port->port.flags |= ASYNC_CTS_FLOW;
+	tty_port_set_cts_flow(&port->port, C_CRTSCTS(tty));
+	if (C_CRTSCTS(tty))
 		flow_ctrl |= ISICOM_CTSRTS;
-	}
 	if (I_IXON(tty))
 		flow_ctrl |= ISICOM_RESPOND_XONXOFF;
 	if (I_IXOFF(tty))
@@ -1204,8 +1191,7 @@ static void isicom_set_termios(struct tty_struct *tty,
 	isicom_config_port(tty);
 	spin_unlock_irqrestore(&port->card->card_lock, flags);
 
-	if ((old_termios->c_cflag & CRTSCTS) &&
-			!(tty->termios.c_cflag & CRTSCTS)) {
+	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty)) {
 		tty->hw_stopped = 0;
 		isicom_start(tty);
 	}
@@ -1491,7 +1477,7 @@ static int load_firmware(struct pci_dev *pdev,
 			goto errrelfw;
 		}
 
-		data = kmalloc(word_count * 2, GFP_KERNEL);
+		data = kmalloc_array(word_count, 2, GFP_KERNEL);
 		if (data == NULL) {
 			dev_err(&pdev->dev, "Card%d, firmware upload "
 				"failed, not enough memory\n", index + 1);

@@ -179,7 +179,6 @@ static const struct iio_info tmp006_info = {
 	.read_raw = tmp006_read_raw,
 	.write_raw = tmp006_write_raw,
 	.attrs = &tmp006_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static bool tmp006_check_identification(struct i2c_client *client)
@@ -205,7 +204,7 @@ static int tmp006_probe(struct i2c_client *client,
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	if (!tmp006_check_identification(client)) {
 		dev_err(&client->dev, "no TMP006 sensor\n");

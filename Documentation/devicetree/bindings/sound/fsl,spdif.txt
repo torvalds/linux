@@ -27,6 +27,13 @@ Required properties:
 			  Transceiver Clock Diagram" of SoC reference manual.
 			  It can also be referred to TxClk_Source bit of
 			  register SPDIF_STC.
+	"spba"		  The spba clock is required when SPDIF is placed as a
+			  bus slave of the Shared Peripheral Bus and when two
+			  or more bus masters (CPU, DMA or DSP) try to access
+			  it. This property is optional depending on the SoC
+			  design.
+
+Optional properties:
 
    - big-endian		: If this property is absent, the native endian mode
 			  will be in use as default, or the big endian mode
@@ -34,7 +41,7 @@ Required properties:
 
 Example:
 
-spdif: spdif@02004000 {
+spdif: spdif@2004000 {
 	compatible = "fsl,imx35-spdif";
 	reg = <0x02004000 0x4000>;
 	interrupts = <0 52 0x04>;
@@ -54,5 +61,4 @@ spdif: spdif@02004000 {
 		"rxtx7";
 
 	big-endian;
-	status = "okay";
 };

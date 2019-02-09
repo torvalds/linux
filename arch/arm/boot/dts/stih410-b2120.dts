@@ -14,34 +14,34 @@
 	compatible = "st,stih410-b2120", "st,stih410";
 
 	chosen {
-		bootargs = "console=ttyAS0,115200 clk_ignore_unused";
-		linux,stdout-path = &sbc_serial0;
+		bootargs = "clk_ignore_unused";
+		stdout-path = &sbc_serial0;
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x80000000>;
 	};
 
 	aliases {
-		ttyAS0 = &sbc_serial0;
+		serial0 = &sbc_serial0;
 		ethernet0 = &ethernet0;
 	};
 
 	soc {
 
-		mmc0: sdhci@09060000 {
+		mmc0: sdhci@9060000 {
 			max-frequency = <200000000>;
 			sd-uhs-sdr50;
 			sd-uhs-sdr104;
 			sd-uhs-ddr50;
 		};
 
-		usb2_picophy1: phy2 {
+		usb2_picophy1: phy2@0 {
 			status = "okay";
 		};
 
-		usb2_picophy2: phy3 {
+		usb2_picophy2: phy3@0 {
 			status = "okay";
 		};
 
@@ -59,6 +59,12 @@
 
 		ehci1: usb@9a83e00 {
 			status = "okay";
+		};
+
+		sti-display-subsystem@0 {
+			sti-hda@8d02000 {
+				status = "okay";
+			};
 		};
 	};
 };

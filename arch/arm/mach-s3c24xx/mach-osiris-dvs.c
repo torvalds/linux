@@ -1,15 +1,10 @@
-/* linux/arch/arm/mach-s3c2440/mach-osiris-dvs.c
- *
- * Copyright (c) 2009 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * Simtec Osiris Dynamic Voltage Scaling support.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2009 Simtec Electronics
+//	http://armlinux.simtec.co.uk/
+//	Ben Dooks <ben@simtec.co.uk>
+//
+// Simtec Osiris Dynamic Voltage Scaling support.
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -17,7 +12,7 @@
 #include <linux/cpufreq.h>
 #include <linux/gpio.h>
 
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 
 #include <plat/cpu-freq.h>
 #include <mach/gpio-samsung.h>
@@ -143,7 +138,7 @@ static int osiris_dvs_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/* the CONFIG_PM block is so small, it isn't worth actaully compiling it
+/* the CONFIG_PM block is so small, it isn't worth actually compiling it
  * out if the configuration isn't set. */
 
 static int osiris_dvs_suspend(struct device *dev)

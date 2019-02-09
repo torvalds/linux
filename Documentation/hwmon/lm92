@@ -11,10 +11,8 @@ Supported chips:
     Addresses scanned: none, force parameter needed
     Datasheet: http://www.national.com/pf/LM/LM76.html
   * Maxim MAX6633/MAX6634/MAX6635
-    Prefix: 'lm92'
-    Addresses scanned: I2C 0x48 - 0x4b
-    MAX6633 with address in 0x40 - 0x47, 0x4c - 0x4f needs force parameter
-    and MAX6634 with address in 0x4c - 0x4f needs force parameter
+    Prefix: 'max6635'
+    Addresses scanned: none, force parameter needed
     Datasheet: http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3074
 
 Authors:

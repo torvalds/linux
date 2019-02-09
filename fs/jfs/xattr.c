@@ -86,6 +86,14 @@ struct ea_buffer {
 #define EA_MALLOC	0x0008
 
 
+/*
+ * Mapping of on-disk attribute names: for on-disk attribute names with an
+ * unknown prefix (not "system.", "user.", "security.", or "trusted."), the
+ * prefix "os2." is prepended.  On the way back to disk, "os2." prefixes are
+ * stripped and we make sure that the remaining name does not start with one
+ * of the know prefixes.
+ */
+
 static int is_known_namespace(const char *name)
 {
 	if (strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) &&
@@ -97,29 +105,19 @@ static int is_known_namespace(const char *name)
 	return true;
 }
 
-/*
- * These three routines are used to recognize on-disk extended attributes
- * that are in a recognized namespace.  If the attribute is not recognized,
- * "os2." is prepended to the name
- */
-static int is_os2_xattr(struct jfs_ea *ea)
-{
-	return !is_known_namespace(ea->name);
-}
-
 static inline int name_size(struct jfs_ea *ea)
 {
-	if (is_os2_xattr(ea))
-		return ea->namelen + XATTR_OS2_PREFIX_LEN;
-	else
+	if (is_known_namespace(ea->name))
 		return ea->namelen;
+	else
+		return ea->namelen + XATTR_OS2_PREFIX_LEN;
 }
 
 static inline int copy_name(char *buffer, struct jfs_ea *ea)
 {
 	int len = ea->namelen;
 
-	if (is_os2_xattr(ea)) {
+	if (!is_known_namespace(ea->name)) {
 		memcpy(buffer, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN);
 		buffer += XATTR_OS2_PREFIX_LEN;
 		len += XATTR_OS2_PREFIX_LEN;
@@ -493,15 +491,17 @@ static int ea_get(struct inode *inode, struct ea_buffer *ea_buf, int min_size)
 	if (size > PSIZE) {
 		/*
 		 * To keep the rest of the code simple.  Allocate a
-		 * contiguous buffer to work with
+		 * contiguous buffer to work with. Make the buffer large
+		 * enough to make use of the whole extent.
 		 */
-		ea_buf->xattr = kmalloc(size, GFP_KERNEL);
+		ea_buf->max_size = (size + sb->s_blocksize - 1) &
+		    ~(sb->s_blocksize - 1);
+
+		ea_buf->xattr = kmalloc(ea_buf->max_size, GFP_KERNEL);
 		if (ea_buf->xattr == NULL)
 			return -ENOMEM;
 
 		ea_buf->flag = EA_MALLOC;
-		ea_buf->max_size = (size + sb->s_blocksize - 1) &
-		    ~(sb->s_blocksize - 1);
 
 		if (ea_size == 0)
 			return 0;
@@ -660,36 +660,7 @@ static int ea_put(tid_t tid, struct inode *inode, struct ea_buffer *ea_buf,
 	if (old_blocks)
 		dquot_free_block(inode, old_blocks);
 
-	inode->i_ctime = CURRENT_TIME;
-
-	return 0;
-}
-
-/*
- * Most of the permission checking is done by xattr_permission in the vfs.
- * We also need to verify that this is a namespace that we recognize.
- */
-static int can_set_xattr(struct inode *inode, const char *name,
-			 const void *value, size_t value_len)
-{
-	if (!strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN)) {
-		/*
-		 * This makes sure that we aren't trying to set an
-		 * attribute in a different namespace by prefixing it
-		 * with "os2."
-		 */
-		if (is_known_namespace(name + XATTR_OS2_PREFIX_LEN))
-			return -EOPNOTSUPP;
-		return 0;
-	}
-
-	/*
-	 * Don't allow setting an attribute in an unknown namespace.
-	 */
-	if (strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) &&
-	    strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) &&
-	    strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN))
-		return -EOPNOTSUPP;
+	inode->i_ctime = current_time(inode);
 
 	return 0;
 }
@@ -704,20 +675,9 @@ int __jfs_setxattr(tid_t tid, struct inode *inode, const char *name,
 	int xattr_size;
 	int new_size;
 	int namelen = strlen(name);
-	char *os2name = NULL;
 	int found = 0;
 	int rc;
 	int length;
-
-	if (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) == 0) {
-		os2name = kmalloc(namelen - XATTR_OS2_PREFIX_LEN + 1,
-				  GFP_KERNEL);
-		if (!os2name)
-			return -ENOMEM;
-		strcpy(os2name, name + XATTR_OS2_PREFIX_LEN);
-		name = os2name;
-		namelen -= XATTR_OS2_PREFIX_LEN;
-	}
 
 	down_write(&JFS_IP(inode)->xattr_sem);
 
@@ -841,44 +801,6 @@ int __jfs_setxattr(tid_t tid, struct inode *inode, const char *name,
       out:
 	up_write(&JFS_IP(inode)->xattr_sem);
 
-	kfree(os2name);
-
-	return rc;
-}
-
-int jfs_setxattr(struct dentry *dentry, const char *name, const void *value,
-		 size_t value_len, int flags)
-{
-	struct inode *inode = d_inode(dentry);
-	struct jfs_inode_info *ji = JFS_IP(inode);
-	int rc;
-	tid_t tid;
-
-	/*
-	 * If this is a request for a synthetic attribute in the system.*
-	 * namespace use the generic infrastructure to resolve a handler
-	 * for it via sb->s_xattr.
-	 */
-	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
-		return generic_setxattr(dentry, name, value, value_len, flags);
-
-	if ((rc = can_set_xattr(inode, name, value, value_len)))
-		return rc;
-
-	if (value == NULL) {	/* empty EA, do not remove */
-		value = "";
-		value_len = 0;
-	}
-
-	tid = txBegin(inode->i_sb, 0);
-	mutex_lock(&ji->commit_mutex);
-	rc = __jfs_setxattr(tid, d_inode(dentry), name, value, value_len,
-			    flags);
-	if (!rc)
-		rc = txCommit(tid, 1, &inode, 0);
-	txEnd(tid);
-	mutex_unlock(&ji->commit_mutex);
-
 	return rc;
 }
 
@@ -931,37 +853,6 @@ ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
 	up_read(&JFS_IP(inode)->xattr_sem);
 
 	return size;
-}
-
-ssize_t jfs_getxattr(struct dentry *dentry, const char *name, void *data,
-		     size_t buf_size)
-{
-	int err;
-
-	/*
-	 * If this is a request for a synthetic attribute in the system.*
-	 * namespace use the generic infrastructure to resolve a handler
-	 * for it via sb->s_xattr.
-	 */
-	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
-		return generic_getxattr(dentry, name, data, buf_size);
-
-	if (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) == 0) {
-		/*
-		 * skip past "os2." prefix
-		 */
-		name += XATTR_OS2_PREFIX_LEN;
-		/*
-		 * Don't allow retrieving properly prefixed attributes
-		 * by prepending them with "os2."
-		 */
-		if (is_known_namespace(name))
-			return -EOPNOTSUPP;
-	}
-
-	err = __jfs_getxattr(d_inode(dentry), name, data, buf_size);
-
-	return err;
 }
 
 /*
@@ -1027,27 +918,16 @@ ssize_t jfs_listxattr(struct dentry * dentry, char *data, size_t buf_size)
 	return size;
 }
 
-int jfs_removexattr(struct dentry *dentry, const char *name)
+static int __jfs_xattr_set(struct inode *inode, const char *name,
+			   const void *value, size_t size, int flags)
 {
-	struct inode *inode = d_inode(dentry);
 	struct jfs_inode_info *ji = JFS_IP(inode);
-	int rc;
 	tid_t tid;
-
-	/*
-	 * If this is a request for a synthetic attribute in the system.*
-	 * namespace use the generic infrastructure to resolve a handler
-	 * for it via sb->s_xattr.
-	 */
-	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
-		return generic_removexattr(dentry, name);
-
-	if ((rc = can_set_xattr(inode, name, NULL, 0)))
-		return rc;
+	int rc;
 
 	tid = txBegin(inode->i_sb, 0);
 	mutex_lock(&ji->commit_mutex);
-	rc = __jfs_setxattr(tid, d_inode(dentry), name, NULL, 0, XATTR_REPLACE);
+	rc = __jfs_setxattr(tid, inode, name, value, size, flags);
 	if (!rc)
 		rc = txCommit(tid, 1, &inode, 0);
 	txEnd(tid);
@@ -1056,15 +936,75 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
 	return rc;
 }
 
-/*
- * List of handlers for synthetic system.* attributes.  All real ondisk
- * attributes are handled directly.
- */
+static int jfs_xattr_get(const struct xattr_handler *handler,
+			 struct dentry *unused, struct inode *inode,
+			 const char *name, void *value, size_t size)
+{
+	name = xattr_full_name(handler, name);
+	return __jfs_getxattr(inode, name, value, size);
+}
+
+static int jfs_xattr_set(const struct xattr_handler *handler,
+			 struct dentry *unused, struct inode *inode,
+			 const char *name, const void *value,
+			 size_t size, int flags)
+{
+	name = xattr_full_name(handler, name);
+	return __jfs_xattr_set(inode, name, value, size, flags);
+}
+
+static int jfs_xattr_get_os2(const struct xattr_handler *handler,
+			     struct dentry *unused, struct inode *inode,
+			     const char *name, void *value, size_t size)
+{
+	if (is_known_namespace(name))
+		return -EOPNOTSUPP;
+	return __jfs_getxattr(inode, name, value, size);
+}
+
+static int jfs_xattr_set_os2(const struct xattr_handler *handler,
+			     struct dentry *unused, struct inode *inode,
+			     const char *name, const void *value,
+			     size_t size, int flags)
+{
+	if (is_known_namespace(name))
+		return -EOPNOTSUPP;
+	return __jfs_xattr_set(inode, name, value, size, flags);
+}
+
+static const struct xattr_handler jfs_user_xattr_handler = {
+	.prefix = XATTR_USER_PREFIX,
+	.get = jfs_xattr_get,
+	.set = jfs_xattr_set,
+};
+
+static const struct xattr_handler jfs_os2_xattr_handler = {
+	.prefix = XATTR_OS2_PREFIX,
+	.get = jfs_xattr_get_os2,
+	.set = jfs_xattr_set_os2,
+};
+
+static const struct xattr_handler jfs_security_xattr_handler = {
+	.prefix = XATTR_SECURITY_PREFIX,
+	.get = jfs_xattr_get,
+	.set = jfs_xattr_set,
+};
+
+static const struct xattr_handler jfs_trusted_xattr_handler = {
+	.prefix = XATTR_TRUSTED_PREFIX,
+	.get = jfs_xattr_get,
+	.set = jfs_xattr_set,
+};
+
 const struct xattr_handler *jfs_xattr_handlers[] = {
 #ifdef CONFIG_JFS_POSIX_ACL
 	&posix_acl_access_xattr_handler,
 	&posix_acl_default_xattr_handler,
 #endif
+	&jfs_os2_xattr_handler,
+	&jfs_user_xattr_handler,
+	&jfs_security_xattr_handler,
+	&jfs_trusted_xattr_handler,
 	NULL,
 };
 

@@ -1,0 +1,19 @@
+Device tree bindings for Domintech DMARD05, DMARD06, DMARD07 accelerometers
+
+Required properties:
+ - compatible		: Should be "domintech,dmard05"
+				 or "domintech,dmard06"
+				 or "domintech,dmard07"
+ - reg			: I2C address of the chip. Should be 0x1c
+
+Example:
+	&i2c1 {
+		/* ... */
+
+		accelerometer@1c {
+			compatible = "domintech,dmard06";
+			reg = <0x1c>;
+		};
+
+		/* ... */
+	};

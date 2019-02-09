@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Crypto user configuration API.
  *
@@ -18,6 +19,8 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <linux/types.h>
+
 /* Netlink configuration messages.  */
 enum {
 	CRYPTO_MSG_BASE = 0x10,
@@ -31,7 +34,7 @@ enum {
 #define CRYPTO_MSG_MAX (__CRYPTO_MSG_MAX - 1)
 #define CRYPTO_NR_MSGTYPES (CRYPTO_MSG_MAX + 1 - CRYPTO_MSG_BASE)
 
-#define CRYPTO_MAX_NAME CRYPTO_MAX_ALG_NAME
+#define CRYPTO_MAX_NAME 64
 
 /* Netlink message attributes.  */
 enum crypto_attr_type_t {
@@ -45,15 +48,17 @@ enum crypto_attr_type_t {
 	CRYPTOCFGA_REPORT_RNG,		/* struct crypto_report_rng */
 	CRYPTOCFGA_REPORT_CIPHER,	/* struct crypto_report_cipher */
 	CRYPTOCFGA_REPORT_AKCIPHER,	/* struct crypto_report_akcipher */
+	CRYPTOCFGA_REPORT_KPP,		/* struct crypto_report_kpp */
+	CRYPTOCFGA_REPORT_ACOMP,	/* struct crypto_report_acomp */
 	__CRYPTOCFGA_MAX
 
 #define CRYPTOCFGA_MAX (__CRYPTOCFGA_MAX - 1)
 };
 
 struct crypto_user_alg {
-	char cru_name[CRYPTO_MAX_ALG_NAME];
-	char cru_driver_name[CRYPTO_MAX_ALG_NAME];
-	char cru_module_name[CRYPTO_MAX_ALG_NAME];
+	char cru_name[CRYPTO_MAX_NAME];
+	char cru_driver_name[CRYPTO_MAX_NAME];
+	char cru_module_name[CRYPTO_MAX_NAME];
 	__u32 cru_type;
 	__u32 cru_mask;
 	__u32 cru_refcnt;
@@ -71,7 +76,7 @@ struct crypto_report_hash {
 };
 
 struct crypto_report_cipher {
-	char type[CRYPTO_MAX_ALG_NAME];
+	char type[CRYPTO_MAX_NAME];
 	unsigned int blocksize;
 	unsigned int min_keysize;
 	unsigned int max_keysize;
@@ -104,6 +109,14 @@ struct crypto_report_rng {
 };
 
 struct crypto_report_akcipher {
+	char type[CRYPTO_MAX_NAME];
+};
+
+struct crypto_report_kpp {
+	char type[CRYPTO_MAX_NAME];
+};
+
+struct crypto_report_acomp {
 	char type[CRYPTO_MAX_NAME];
 };
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if BLOCK
 
 menu "IO Schedulers"
@@ -40,6 +41,7 @@ config CFQ_GROUP_IOSCHED
 	  Enable group IO scheduling in CFQ.
 
 choice
+
 	prompt "Default I/O scheduler"
 	default DEFAULT_CFQ
 	help
@@ -62,6 +64,41 @@ config DEFAULT_IOSCHED
 	default "deadline" if DEFAULT_DEADLINE
 	default "cfq" if DEFAULT_CFQ
 	default "noop" if DEFAULT_NOOP
+
+config MQ_IOSCHED_DEADLINE
+	tristate "MQ deadline I/O scheduler"
+	default y
+	---help---
+	  MQ version of the deadline IO scheduler.
+
+config MQ_IOSCHED_KYBER
+	tristate "Kyber I/O scheduler"
+	default y
+	---help---
+	  The Kyber I/O scheduler is a low-overhead scheduler suitable for
+	  multiqueue and other fast devices. Given target latencies for reads and
+	  synchronous writes, it will self-tune queue depths to achieve that
+	  goal.
+
+config IOSCHED_BFQ
+	tristate "BFQ I/O scheduler"
+	default n
+	---help---
+	BFQ I/O scheduler for BLK-MQ. BFQ distributes the bandwidth of
+	of the device among all processes according to their weights,
+	regardless of the device parameters and with any workload. It
+	also guarantees a low latency to interactive and soft
+	real-time applications.  Details in
+	Documentation/block/bfq-iosched.txt
+
+config BFQ_GROUP_IOSCHED
+       bool "BFQ hierarchical scheduling support"
+       depends on IOSCHED_BFQ && BLK_CGROUP
+       default n
+       ---help---
+
+       Enable hierarchical scheduling in BFQ, using the blkio
+       (cgroups-v1) or io (cgroups-v2) controller.
 
 endmenu
 

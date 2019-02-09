@@ -72,7 +72,7 @@ LEDs
     echo 1 >  /sys/class/leds/asus::mail/brightness
   will switch the mail LED on.
   You can also know if they are on/off by reading their content and use
-  kernel triggers like ide-disk or heartbeat.
+  kernel triggers like disk-activity or heartbeat.
 
 Backlight
 ---------

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -11,9 +12,13 @@
 
 #define PIF_SYSCALL		0	/* inside a system call */
 #define PIF_PER_TRAP		1	/* deliver sigtrap on return to user */
+#define PIF_SYSCALL_RESTART	2	/* restart the current system call */
+#define PIF_GUEST_FAULT		3	/* indicates program check in sie64a */
 
 #define _PIF_SYSCALL		_BITUL(PIF_SYSCALL)
 #define _PIF_PER_TRAP		_BITUL(PIF_PER_TRAP)
+#define _PIF_SYSCALL_RESTART	_BITUL(PIF_SYSCALL_RESTART)
+#define _PIF_GUEST_FAULT	_BITUL(PIF_GUEST_FAULT)
 
 #ifndef __ASSEMBLY__
 
@@ -24,38 +29,38 @@
 			 PSW_MASK_PSTATE | PSW_ASC_PRIMARY)
 
 struct psw_bits {
-	unsigned long long	: 1;
-	unsigned long long r	: 1; /* PER-Mask */
-	unsigned long long	: 3;
-	unsigned long long t	: 1; /* DAT Mode */
-	unsigned long long i	: 1; /* Input/Output Mask */
-	unsigned long long e	: 1; /* External Mask */
-	unsigned long long key	: 4; /* PSW Key */
-	unsigned long long	: 1;
-	unsigned long long m	: 1; /* Machine-Check Mask */
-	unsigned long long w	: 1; /* Wait State */
-	unsigned long long p	: 1; /* Problem State */
-	unsigned long long as	: 2; /* Address Space Control */
-	unsigned long long cc	: 2; /* Condition Code */
-	unsigned long long pm	: 4; /* Program Mask */
-	unsigned long long ri	: 1; /* Runtime Instrumentation */
-	unsigned long long	: 6;
-	unsigned long long eaba : 2; /* Addressing Mode */
-	unsigned long long	: 31;
-	unsigned long long ia	: 64;/* Instruction Address */
+	unsigned long	     :	1;
+	unsigned long per    :	1; /* PER-Mask */
+	unsigned long	     :	3;
+	unsigned long dat    :	1; /* DAT Mode */
+	unsigned long io     :	1; /* Input/Output Mask */
+	unsigned long ext    :	1; /* External Mask */
+	unsigned long key    :	4; /* PSW Key */
+	unsigned long	     :	1;
+	unsigned long mcheck :	1; /* Machine-Check Mask */
+	unsigned long wait   :	1; /* Wait State */
+	unsigned long pstate :	1; /* Problem State */
+	unsigned long as     :	2; /* Address Space Control */
+	unsigned long cc     :	2; /* Condition Code */
+	unsigned long pm     :	4; /* Program Mask */
+	unsigned long ri     :	1; /* Runtime Instrumentation */
+	unsigned long	     :	6;
+	unsigned long eaba   :	2; /* Addressing Mode */
+	unsigned long	     : 31;
+	unsigned long ia     : 64; /* Instruction Address */
 };
 
 enum {
-	PSW_AMODE_24BIT = 0,
-	PSW_AMODE_31BIT = 1,
-	PSW_AMODE_64BIT = 3
+	PSW_BITS_AMODE_24BIT = 0,
+	PSW_BITS_AMODE_31BIT = 1,
+	PSW_BITS_AMODE_64BIT = 3
 };
 
 enum {
-	PSW_AS_PRIMARY	 = 0,
-	PSW_AS_ACCREG	 = 1,
-	PSW_AS_SECONDARY = 2,
-	PSW_AS_HOME	 = 3
+	PSW_BITS_AS_PRIMARY	= 0,
+	PSW_BITS_AS_ACCREG	= 1,
+	PSW_BITS_AS_SECONDARY	= 2,
+	PSW_BITS_AS_HOME	= 3
 };
 
 #define psw_bits(__psw) (*({			\
@@ -69,9 +74,14 @@ enum {
  */
 struct pt_regs 
 {
-	unsigned long args[1];
-	psw_t psw;
-	unsigned long gprs[NUM_GPRS];
+	union {
+		user_pt_regs user_regs;
+		struct {
+			unsigned long args[1];
+			psw_t psw;
+			unsigned long gprs[NUM_GPRS];
+		};
+	};
 	unsigned long orig_gpr2;
 	unsigned int int_code;
 	unsigned int int_parm;
@@ -149,7 +159,7 @@ static inline int test_pt_regs_flag(struct pt_regs *regs, int flag)
 #define arch_has_block_step()	(1)
 
 #define user_mode(regs) (((regs)->psw.mask & PSW_MASK_PSTATE) != 0)
-#define instruction_pointer(regs) ((regs)->psw.addr & PSW_ADDR_INSN)
+#define instruction_pointer(regs) ((regs)->psw.addr)
 #define user_stack_pointer(regs)((regs)->gprs[15])
 #define profile_pc(regs) instruction_pointer(regs)
 
@@ -161,7 +171,7 @@ static inline long regs_return_value(struct pt_regs *regs)
 static inline void instruction_pointer_set(struct pt_regs *regs,
 					   unsigned long val)
 {
-	regs->psw.addr = val | PSW_ADDR_AMODE;
+	regs->psw.addr = val;
 }
 
 int regs_query_register_offset(const char *name);
@@ -171,7 +181,7 @@ unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n);
 
 static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 {
-	return regs->gprs[15] & PSW_ADDR_INSN;
+	return regs->gprs[15];
 }
 
 #endif /* __ASSEMBLY__ */

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file is based on code from OCTEON SDK by Cavium Networks.
  *
  * Copyright (c) 2003-2007 Cavium Networks
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, Version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <asm/octeon/cvmx-fau.h>
@@ -30,7 +27,7 @@ static inline void cvm_oct_rx_refill_pool(int fill_threshold)
 						 number_to_free);
 		if (num_freed != number_to_free) {
 			cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE,
-					number_to_free - num_freed);
+					      number_to_free - num_freed);
 		}
 	}
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "tegra30.dtsi"
 
 /*
@@ -9,7 +10,11 @@
 	model = "Toradex Apalis T30";
 	compatible = "toradex,apalis_t30", "nvidia,tegra30";
 
-	pcie-controller@00003000 {
+	memory@80000000 {
+		reg = <0x80000000 0x40000000>;
+	};
+
+	pcie@3000 {
 		avdd-pexa-supply = <&vdd2_reg>;
 		vdd-pexa-supply = <&vdd2_reg>;
 		avdd-pexb-supply = <&vdd2_reg>;
@@ -48,6 +53,24 @@
 		pinctrl-0 = <&state_default>;
 
 		state_default: pinmux {
+			/* Analogue Audio (On-module) */
+			clk1_out_pw4 {
+				nvidia,pins = "clk1_out_pw4";
+				nvidia,function = "extperiph1";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+			};
+			dap3_fs_pp0 {
+				nvidia,pins =	"dap3_fs_pp0",
+						"dap3_sclk_pp3",
+						"dap3_din_pp1",
+						"dap3_dout_pp2";
+				nvidia,function = "i2s2";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
 			/* Apalis BKL1_ON */
 			pv2 {
 				nvidia,pins = "pv2";
@@ -99,6 +122,7 @@
 				nvidia,function = "spi4";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			/* CAN_INT2 */
 			spi2_cs2_n_pw3 {
@@ -418,7 +442,7 @@
 	};
 
 	hdmiddc: i2c@7000c700 {
-		clock-frequency = <100000>;
+		clock-frequency = <10000>;
 	};
 
 	/*
@@ -428,6 +452,15 @@
 	i2c@7000d000 {
 		status = "okay";
 		clock-frequency = <100000>;
+
+		/* SGTL5000 audio codec */
+		sgtl5000: codec@a {
+			compatible = "fsl,sgtl5000";
+			reg = <0x0a>;
+			VDDA-supply = <&sys_3v3_reg>;
+			VDDIO-supply = <&sys_3v3_reg>;
+			clocks = <&tegra_car TEGRA30_CLK_EXTERN1>;
+		};
 
 		pmic: tps65911@2d {
 			compatible = "ti,tps65911";
@@ -557,8 +590,6 @@
 		/* STMPE811 touch screen controller */
 		stmpe811@41 {
 			compatible = "st,stmpe811";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0x41>;
 			interrupts = <TEGRA_GPIO(V, 0) IRQ_TYPE_LEVEL_LOW>;
 			interrupt-parent = <&gpio>;
@@ -569,7 +600,6 @@
 
 			stmpe_touchscreen {
 				compatible = "st,stmpe-ts";
-				reg = <0>;
 				/* 3.25 MHz ADC clock speed */
 				st,adc-freq = <1>;
 				/* 8 sample average control */
@@ -629,7 +659,7 @@
 			reg = <1>;
 			clocks = <&clk16m>;
 			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(W, 3) GPIO_ACTIVE_LOW>;
+			interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_EDGE_RISING>;
 			spi-max-frequency = <10000000>;
 		};
 	};
@@ -644,7 +674,7 @@
 			reg = <0>;
 			clocks = <&clk16m>;
 			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(W, 2) GPIO_ACTIVE_LOW>;
+			interrupts = <TEGRA_GPIO(W, 2) IRQ_TYPE_EDGE_RISING>;
 			spi-max-frequency = <10000000>;
 		};
 	};
@@ -658,6 +688,12 @@
 		nvidia,core-pwr-off-time = <0>;
 		nvidia,core-power-req-active-high;
 		nvidia,sys-clock-req-active-high;
+	};
+
+	ahub@70080000 {
+		i2s@70080500 {
+			status = "okay";
+		};
 	};
 
 	/* eMMC */
@@ -674,13 +710,14 @@
 
 		clk32k_in: clk@0 {
 			compatible = "fixed-clock";
-			reg=<0>;
+			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
+
 		clk16m: clk@1 {
 			compatible = "fixed-clock";
-			reg=<1>;
+			reg = <1>;
 			#clock-cells = <0>;
 			clock-frequency = <16000000>;
 			clock-output-names = "clk16m";
@@ -731,5 +768,21 @@
 			regulator-max-microvolt = <5000000>;
 			regulator-always-on;
 		};
+	};
+
+	sound {
+		compatible = "toradex,tegra-audio-sgtl5000-apalis_t30",
+			     "nvidia,tegra-audio-sgtl5000";
+		nvidia,model = "Toradex Apalis T30";
+		nvidia,audio-routing =
+			"Headphone Jack", "HP_OUT",
+			"LINE_IN", "Line In Jack",
+			"MIC_IN", "Mic Jack";
+		nvidia,i2s-controller = <&tegra_i2s2>;
+		nvidia,audio-codec = <&sgtl5000>;
+		clocks = <&tegra_car TEGRA30_CLK_PLL_A>,
+			 <&tegra_car TEGRA30_CLK_PLL_A_OUT0>,
+			 <&tegra_car TEGRA30_CLK_EXTERN1>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };

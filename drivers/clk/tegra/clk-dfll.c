@@ -55,6 +55,7 @@
 #include <linux/seq_file.h>
 
 #include "clk-dfll.h"
+#include "cvb.h"
 
 /*
  * DFLL control registers - access via dfll_{readl,writel}
@@ -442,8 +443,8 @@ static void dfll_tune_low(struct tegra_dfll *td)
 {
 	td->tune_range = DFLL_TUNE_LOW;
 
-	dfll_writel(td, td->soc->tune0_low, DFLL_TUNE0);
-	dfll_writel(td, td->soc->tune1, DFLL_TUNE1);
+	dfll_writel(td, td->soc->cvb->cpu_dfll_data.tune0_low, DFLL_TUNE0);
+	dfll_writel(td, td->soc->cvb->cpu_dfll_data.tune1, DFLL_TUNE1);
 	dfll_wmb(td);
 
 	if (td->soc->set_clock_trimmers_low)
@@ -632,16 +633,12 @@ static int find_lut_index_for_rate(struct tegra_dfll *td, unsigned long rate)
 	struct dev_pm_opp *opp;
 	int i, uv;
 
-	rcu_read_lock();
-
 	opp = dev_pm_opp_find_freq_ceil(td->soc->dev, &rate);
-	if (IS_ERR(opp)) {
-		rcu_read_unlock();
+	if (IS_ERR(opp))
 		return PTR_ERR(opp);
-	}
-	uv = dev_pm_opp_get_voltage(opp);
 
-	rcu_read_unlock();
+	uv = dev_pm_opp_get_voltage(opp);
+	dev_pm_opp_put(opp);
 
 	for (i = 0; i < td->i2c_lut_size; i++) {
 		if (regulator_list_voltage(td->vdd_reg, td->i2c_lut[i]) == uv)
@@ -995,7 +992,6 @@ static const struct clk_ops dfll_clk_ops = {
 };
 
 static struct clk_init_data dfll_clk_init_data = {
-	.flags		= CLK_IS_ROOT,
 	.ops		= &dfll_clk_ops,
 	.num_parents	= 0,
 };
@@ -1200,42 +1196,24 @@ static const struct file_operations attr_registers_fops = {
 	.release	= single_release,
 };
 
-static int dfll_debug_init(struct tegra_dfll *td)
+static void dfll_debug_init(struct tegra_dfll *td)
 {
-	int ret;
+	struct dentry *root;
 
 	if (!td || (td->mode == DFLL_UNINITIALIZED))
-		return 0;
+		return;
 
-	td->debugfs_dir = debugfs_create_dir("tegra_dfll_fcpu", NULL);
-	if (!td->debugfs_dir)
-		return -ENOMEM;
+	root = debugfs_create_dir("tegra_dfll_fcpu", NULL);
+	td->debugfs_dir = root;
 
-	ret = -ENOMEM;
-
-	if (!debugfs_create_file("enable", S_IRUGO | S_IWUSR,
-				 td->debugfs_dir, td, &enable_fops))
-		goto err_out;
-
-	if (!debugfs_create_file("lock", S_IRUGO,
-				 td->debugfs_dir, td, &lock_fops))
-		goto err_out;
-
-	if (!debugfs_create_file("rate", S_IRUGO,
-				 td->debugfs_dir, td, &rate_fops))
-		goto err_out;
-
-	if (!debugfs_create_file("registers", S_IRUGO,
-				 td->debugfs_dir, td, &attr_registers_fops))
-		goto err_out;
-
-	return 0;
-
-err_out:
-	debugfs_remove_recursive(td->debugfs_dir);
-	return ret;
+	debugfs_create_file("enable", S_IRUGO | S_IWUSR, root, td, &enable_fops);
+	debugfs_create_file("lock", S_IRUGO, root, td, &lock_fops);
+	debugfs_create_file("rate", S_IRUGO, root, td, &rate_fops);
+	debugfs_create_file("registers", S_IRUGO, root, td, &attr_registers_fops);
 }
 
+#else
+static void inline dfll_debug_init(struct tegra_dfll *td) { }
 #endif /* CONFIG_DEBUG_FS */
 
 /*
@@ -1440,8 +1418,6 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 	struct dev_pm_opp *opp;
 	int lut;
 
-	rcu_read_lock();
-
 	rate = ULONG_MAX;
 	opp = dev_pm_opp_find_freq_floor(td->soc->dev, &rate);
 	if (IS_ERR(opp)) {
@@ -1449,8 +1425,9 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 		goto out;
 	}
 	v_max = dev_pm_opp_get_voltage(opp);
+	dev_pm_opp_put(opp);
 
-	v = td->soc->min_millivolts * 1000;
+	v = td->soc->cvb->min_millivolts * 1000;
 	lut = find_vdd_map_entry_exact(td, v);
 	if (lut < 0)
 		goto out;
@@ -1462,8 +1439,10 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 			break;
 		v_opp = dev_pm_opp_get_voltage(opp);
 
-		if (v_opp <= td->soc->min_millivolts * 1000)
+		if (v_opp <= td->soc->cvb->min_millivolts * 1000)
 			td->dvco_rate_min = dev_pm_opp_get_freq(opp);
+
+		dev_pm_opp_put(opp);
 
 		for (;;) {
 			v += max(1, (v_max - v) / (MAX_DFLL_VOLTAGES - j));
@@ -1491,13 +1470,11 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 
 	if (!td->dvco_rate_min)
 		dev_err(td->dev, "no opp above DFLL minimum voltage %d mV\n",
-			td->soc->min_millivolts);
+			td->soc->cvb->min_millivolts);
 	else
 		ret = 0;
 
 out:
-	rcu_read_unlock();
-
 	return ret;
 }
 
@@ -1720,9 +1697,7 @@ int tegra_dfll_register(struct platform_device *pdev,
 		return ret;
 	}
 
-#ifdef CONFIG_DEBUG_FS
 	dfll_debug_init(td);
-#endif
 
 	return 0;
 }
@@ -1733,10 +1708,10 @@ EXPORT_SYMBOL(tegra_dfll_register);
  * @pdev: DFLL platform_device *
  *
  * Unbind this driver from the DFLL hardware device represented by
- * @pdev. The DFLL must be disabled for this to succeed. Returns 0
- * upon success or -EBUSY if the DFLL is still active.
+ * @pdev. The DFLL must be disabled for this to succeed. Returns a
+ * soc pointer upon success or -EBUSY if the DFLL is still active.
  */
-int tegra_dfll_unregister(struct platform_device *pdev)
+struct tegra_dfll_soc_data *tegra_dfll_unregister(struct platform_device *pdev)
 {
 	struct tegra_dfll *td = platform_get_drvdata(pdev);
 
@@ -1744,7 +1719,7 @@ int tegra_dfll_unregister(struct platform_device *pdev)
 	if (td->mode != DFLL_DISABLED) {
 		dev_err(&pdev->dev,
 			"must disable DFLL before removing driver\n");
-		return -EBUSY;
+		return ERR_PTR(-EBUSY);
 	}
 
 	debugfs_remove_recursive(td->debugfs_dir);
@@ -1758,6 +1733,6 @@ int tegra_dfll_unregister(struct platform_device *pdev)
 
 	reset_control_assert(td->dvco_rst);
 
-	return 0;
+	return td->soc;
 }
 EXPORT_SYMBOL(tegra_dfll_unregister);

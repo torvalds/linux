@@ -30,7 +30,7 @@
 static int numlbs = 2;
 
 static LIST_HEAD(fakelb_phys);
-static DEFINE_SPINLOCK(fakelb_phys_lock);
+static DEFINE_MUTEX(fakelb_phys_lock);
 
 static LIST_HEAD(fakelb_ifup_phys);
 static DEFINE_RWLOCK(fakelb_ifup_phys_lock);
@@ -49,7 +49,7 @@ struct fakelb_phy {
 
 static int fakelb_hw_ed(struct ieee802154_hw *hw, u8 *level)
 {
-	BUG_ON(!level);
+	WARN_ON(!level);
 	*level = 0xbe;
 
 	return 0;
@@ -112,6 +112,12 @@ static void fakelb_hw_stop(struct ieee802154_hw *hw)
 	write_unlock_bh(&fakelb_ifup_phys_lock);
 }
 
+static int
+fakelb_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
+{
+	return 0;
+}
+
 static const struct ieee802154_ops fakelb_ops = {
 	.owner = THIS_MODULE,
 	.xmit_async = fakelb_hw_xmit,
@@ -119,6 +125,7 @@ static const struct ieee802154_ops fakelb_ops = {
 	.set_channel = fakelb_hw_channel,
 	.start = fakelb_hw_start,
 	.stop = fakelb_hw_stop,
+	.set_promiscuous_mode = fakelb_set_promiscuous_mode,
 };
 
 /* Number of dummy devices to be set up by this module. */
@@ -174,15 +181,16 @@ static int fakelb_add_one(struct device *dev)
 	hw->phy->current_channel = 13;
 	phy->channel = hw->phy->current_channel;
 
+	hw->flags = IEEE802154_HW_PROMISCUOUS;
 	hw->parent = dev;
 
 	err = ieee802154_register_hw(hw);
 	if (err)
 		goto err_reg;
 
-	spin_lock(&fakelb_phys_lock);
+	mutex_lock(&fakelb_phys_lock);
 	list_add_tail(&phy->list, &fakelb_phys);
-	spin_unlock(&fakelb_phys_lock);
+	mutex_unlock(&fakelb_phys_lock);
 
 	return 0;
 
@@ -210,14 +218,14 @@ static int fakelb_probe(struct platform_device *pdev)
 			goto err_slave;
 	}
 
-	dev_info(&pdev->dev, "added ieee802154 hardware\n");
+	dev_info(&pdev->dev, "added %i fake ieee802154 hardware devices\n", numlbs);
 	return 0;
 
 err_slave:
-	spin_lock(&fakelb_phys_lock);
+	mutex_lock(&fakelb_phys_lock);
 	list_for_each_entry_safe(phy, tmp, &fakelb_phys, list)
 		fakelb_del(phy);
-	spin_unlock(&fakelb_phys_lock);
+	mutex_unlock(&fakelb_phys_lock);
 	return err;
 }
 
@@ -225,10 +233,10 @@ static int fakelb_remove(struct platform_device *pdev)
 {
 	struct fakelb_phy *phy, *tmp;
 
-	spin_lock(&fakelb_phys_lock);
+	mutex_lock(&fakelb_phys_lock);
 	list_for_each_entry_safe(phy, tmp, &fakelb_phys, list)
 		fakelb_del(phy);
-	spin_unlock(&fakelb_phys_lock);
+	mutex_unlock(&fakelb_phys_lock);
 	return 0;
 }
 
@@ -246,6 +254,9 @@ static __init int fakelb_init_module(void)
 {
 	ieee802154fake_dev = platform_device_register_simple(
 			     "ieee802154fakelb", -1, NULL, 0);
+
+	pr_warn("fakelb driver is marked as deprecated, please use mac802154_hwsim!\n");
+
 	return platform_driver_register(&ieee802154fake_driver);
 }
 

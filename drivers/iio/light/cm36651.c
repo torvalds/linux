@@ -268,7 +268,7 @@ static irqreturn_t cm36651_irq_handler(int irq, void *data)
 				CM36651_CMD_READ_RAW_PROXIMITY,
 				IIO_EV_TYPE_THRESH, ev_dir);
 
-	iio_push_event(indio_dev, ev_code, iio_get_time_ns());
+	iio_push_event(indio_dev, ev_code, iio_get_time_ns(indio_dev));
 
 	return IRQ_HANDLED;
 }
@@ -612,7 +612,6 @@ static const struct attribute_group cm36651_attribute_group = {
 };
 
 static const struct iio_info cm36651_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= &cm36651_read_raw,
 	.write_raw		= &cm36651_write_raw,
 	.read_event_value	= &cm36651_read_prox_thresh,

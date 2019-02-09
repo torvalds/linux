@@ -18,7 +18,7 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 
-#include <linux/i2c/adp8870.h>
+#include <linux/platform_data/adp8870.h>
 #define ADP8870_EXT_FEATURES
 #define ADP8870_USE_LEDS
 
@@ -246,7 +246,7 @@ static int adp8870_led_probe(struct i2c_client *client)
 	struct led_info *cur_led;
 	int ret, i;
 
-	led = devm_kzalloc(&client->dev, pdata->num_leds * sizeof(*led),
+	led = devm_kcalloc(&client->dev, pdata->num_leds, sizeof(*led),
 				GFP_KERNEL);
 	if (led == NULL)
 		return -ENOMEM;
@@ -807,10 +807,12 @@ static ssize_t adp8870_bl_ambient_light_zone_store(struct device *dev,
 
 		/* Set user supplied ambient light zone */
 		mutex_lock(&data->lock);
-		adp8870_read(data->client, ADP8870_CFGR, &reg_val);
-		reg_val &= ~(CFGR_BLV_MASK << CFGR_BLV_SHIFT);
-		reg_val |= (val - 1) << CFGR_BLV_SHIFT;
-		adp8870_write(data->client, ADP8870_CFGR, reg_val);
+		ret = adp8870_read(data->client, ADP8870_CFGR, &reg_val);
+		if (!ret) {
+			reg_val &= ~(CFGR_BLV_MASK << CFGR_BLV_SHIFT);
+			reg_val |= (val - 1) << CFGR_BLV_SHIFT;
+			adp8870_write(data->client, ADP8870_CFGR, reg_val);
+		}
 		mutex_unlock(&data->lock);
 	}
 

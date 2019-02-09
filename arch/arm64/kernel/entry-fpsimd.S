@@ -42,26 +42,19 @@ ENTRY(fpsimd_load_state)
 	ret
 ENDPROC(fpsimd_load_state)
 
-#ifdef CONFIG_KERNEL_MODE_NEON
-
-/*
- * Save the bottom n FP registers.
- *
- * x0 - pointer to struct fpsimd_partial_state
- */
-ENTRY(fpsimd_save_partial_state)
-	fpsimd_save_partial x0, 1, 8, 9
+#ifdef CONFIG_ARM64_SVE
+ENTRY(sve_save_state)
+	sve_save 0, x1, 2
 	ret
-ENDPROC(fpsimd_save_partial_state)
+ENDPROC(sve_save_state)
 
-/*
- * Load the bottom n FP registers.
- *
- * x0 - pointer to struct fpsimd_partial_state
- */
-ENTRY(fpsimd_load_partial_state)
-	fpsimd_restore_partial x0, 8, 9
+ENTRY(sve_load_state)
+	sve_load 0, x1, x2, 3, x4
 	ret
-ENDPROC(fpsimd_load_partial_state)
+ENDPROC(sve_load_state)
 
-#endif
+ENTRY(sve_get_vl)
+	_sve_rdvl	0, 1
+	ret
+ENDPROC(sve_get_vl)
+#endif /* CONFIG_ARM64_SVE */

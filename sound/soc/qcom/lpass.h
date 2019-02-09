@@ -50,7 +50,7 @@ struct lpass_data {
 	struct lpass_variant *variant;
 
 	/* bit map to keep track of static channel allocations */
-	unsigned long rdma_ch_bit_map;
+	unsigned long dma_ch_bit_map;
 
 	/* used it for handling interrupt per dma channel */
 	struct snd_pcm_substream *substream[LPASS_MAX_DMA_CHANNELS];
@@ -58,6 +58,7 @@ struct lpass_data {
 	/* 8016 specific */
 	struct clk *pcnoc_mport_clk;
 	struct clk *pcnoc_sway_clk;
+
 };
 
 /* Vairant data per each SOC */
@@ -71,21 +72,27 @@ struct lpass_variant {
 	u32	rdma_reg_base;
 	u32	rdma_reg_stride;
 	u32	rdma_channels;
+	u32	wrdma_reg_base;
+	u32	wrdma_reg_stride;
+	u32	wrdma_channels;
 
 	/**
 	 * on SOCs like APQ8016 the channel control bits start
 	 * at different offset to ipq806x
 	 **/
-	u32	rdmactl_audif_start;
-	/* SOC specific intialization like clocks */
+	u32	dmactl_audif_start;
+	u32	wrdma_channel_start;
+	/* SOC specific initialization like clocks */
 	int (*init)(struct platform_device *pdev);
 	int (*exit)(struct platform_device *pdev);
-	int (*alloc_dma_channel)(struct lpass_data *data);
+	int (*alloc_dma_channel)(struct lpass_data *data, int direction);
 	int (*free_dma_channel)(struct lpass_data *data, int ch);
 
 	/* SOC specific dais */
 	struct snd_soc_dai_driver *dai_driver;
 	int num_dai;
+	const char * const *dai_osr_clk_names;
+	const char * const *dai_bit_clk_names;
 };
 
 /* register the platform driver from the CPU DAI driver */

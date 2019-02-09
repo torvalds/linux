@@ -1,14 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2013 Broadcom Corporation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/debugfs.h>
@@ -266,7 +259,7 @@ static int bcm_kona_wdt_stop(struct watchdog_device *wdog)
 					    SECWDOG_SRSTEN_MASK, 0);
 }
 
-static struct watchdog_ops bcm_kona_wdt_ops = {
+static const struct watchdog_ops bcm_kona_wdt_ops = {
 	.owner =	THIS_MODULE,
 	.start =	bcm_kona_wdt_start,
 	.stop =		bcm_kona_wdt_stop,
@@ -274,7 +267,7 @@ static struct watchdog_ops bcm_kona_wdt_ops = {
 	.get_timeleft =	bcm_kona_wdt_get_timeleft,
 };
 
-static struct watchdog_info bcm_kona_wdt_info = {
+static const struct watchdog_info bcm_kona_wdt_info = {
 	.options =	WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE |
 			WDIOF_KEEPALIVEPING,
 	.identity =	"Broadcom Kona Watchdog Timer",
@@ -304,6 +297,8 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 	if (!wdt)
 		return -ENOMEM;
 
+	spin_lock_init(&wdt->lock);
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(wdt->base))
@@ -316,7 +311,6 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	spin_lock_init(&wdt->lock);
 	platform_set_drvdata(pdev, wdt);
 	watchdog_set_drvdata(&bcm_kona_wdt_wdd, wdt);
 	bcm_kona_wdt_wdd.parent = &pdev->dev;

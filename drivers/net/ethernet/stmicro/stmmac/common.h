@@ -12,10 +12,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -27,19 +23,33 @@
 
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
+#include <linux/stmmac.h>
 #include <linux/phy.h>
 #include <linux/module.h>
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 #define STMMAC_VLAN_TAG_USED
 #include <linux/if_vlan.h>
 #endif
 
 #include "descs.h"
+#include "hwif.h"
 #include "mmc.h"
 
 /* Synopsys Core versions */
-#define	DWMAC_CORE_3_40	0x34
-#define	DWMAC_CORE_3_50	0x35
+#define	DWMAC_CORE_3_40		0x34
+#define	DWMAC_CORE_3_50		0x35
+#define	DWMAC_CORE_4_00		0x40
+#define DWMAC_CORE_4_10		0x41
+#define DWMAC_CORE_5_00		0x50
+#define DWMAC_CORE_5_10		0x51
+#define DWXGMAC_CORE_2_10	0x21
+
+#define STMMAC_CHAN0	0	/* Always supported and default for all chips */
+
+/* These need to be power of two, and >= 4 */
+#define DMA_TX_SIZE 512
+#define DMA_RX_SIZE 512
+#define STMMAC_GET_ENTRY(x, size)	((x + 1) & (size - 1))
 
 #undef FRAME_FILTER_DEBUG
 /* #define FRAME_FILTER_DEBUG */
@@ -63,7 +73,7 @@ struct stmmac_extra_stats {
 	unsigned long overflow_error;
 	unsigned long ipc_csum_error;
 	unsigned long rx_collision;
-	unsigned long rx_crc;
+	unsigned long rx_crc_errors;
 	unsigned long dribbling_bit;
 	unsigned long rx_length;
 	unsigned long rx_mii;
@@ -95,7 +105,7 @@ struct stmmac_extra_stats {
 	unsigned long napi_poll;
 	unsigned long tx_normal_irq_n;
 	unsigned long tx_clean;
-	unsigned long tx_reset_ic_bit;
+	unsigned long tx_set_ic_bit;
 	unsigned long irq_receive_pmt_irq_n;
 	/* MMC info */
 	unsigned long mmc_tx_irq_n;
@@ -113,14 +123,17 @@ struct stmmac_extra_stats {
 	unsigned long ip_csum_bypassed;
 	unsigned long ipv4_pkt_rcvd;
 	unsigned long ipv6_pkt_rcvd;
-	unsigned long rx_msg_type_ext_no_ptp;
-	unsigned long rx_msg_type_sync;
-	unsigned long rx_msg_type_follow_up;
-	unsigned long rx_msg_type_delay_req;
-	unsigned long rx_msg_type_delay_resp;
-	unsigned long rx_msg_type_pdelay_req;
-	unsigned long rx_msg_type_pdelay_resp;
-	unsigned long rx_msg_type_pdelay_follow_up;
+	unsigned long no_ptp_rx_msg_type_ext;
+	unsigned long ptp_rx_msg_type_sync;
+	unsigned long ptp_rx_msg_type_follow_up;
+	unsigned long ptp_rx_msg_type_delay_req;
+	unsigned long ptp_rx_msg_type_delay_resp;
+	unsigned long ptp_rx_msg_type_pdelay_req;
+	unsigned long ptp_rx_msg_type_pdelay_resp;
+	unsigned long ptp_rx_msg_type_pdelay_follow_up;
+	unsigned long ptp_rx_msg_type_announce;
+	unsigned long ptp_rx_msg_type_management;
+	unsigned long ptp_rx_msg_pkt_reserved_type;
 	unsigned long ptp_frame_type;
 	unsigned long ptp_ver;
 	unsigned long timestamp_dropped;
@@ -137,7 +150,46 @@ struct stmmac_extra_stats {
 	unsigned long pcs_link;
 	unsigned long pcs_duplex;
 	unsigned long pcs_speed;
+	/* debug register */
+	unsigned long mtl_tx_status_fifo_full;
+	unsigned long mtl_tx_fifo_not_empty;
+	unsigned long mmtl_fifo_ctrl;
+	unsigned long mtl_tx_fifo_read_ctrl_write;
+	unsigned long mtl_tx_fifo_read_ctrl_wait;
+	unsigned long mtl_tx_fifo_read_ctrl_read;
+	unsigned long mtl_tx_fifo_read_ctrl_idle;
+	unsigned long mac_tx_in_pause;
+	unsigned long mac_tx_frame_ctrl_xfer;
+	unsigned long mac_tx_frame_ctrl_idle;
+	unsigned long mac_tx_frame_ctrl_wait;
+	unsigned long mac_tx_frame_ctrl_pause;
+	unsigned long mac_gmii_tx_proto_engine;
+	unsigned long mtl_rx_fifo_fill_level_full;
+	unsigned long mtl_rx_fifo_fill_above_thresh;
+	unsigned long mtl_rx_fifo_fill_below_thresh;
+	unsigned long mtl_rx_fifo_fill_level_empty;
+	unsigned long mtl_rx_fifo_read_ctrl_flush;
+	unsigned long mtl_rx_fifo_read_ctrl_read_data;
+	unsigned long mtl_rx_fifo_read_ctrl_status;
+	unsigned long mtl_rx_fifo_read_ctrl_idle;
+	unsigned long mtl_rx_fifo_ctrl_active;
+	unsigned long mac_rx_frame_ctrl_fifo;
+	unsigned long mac_gmii_rx_proto_engine;
+	/* TSO */
+	unsigned long tx_tso_frames;
+	unsigned long tx_tso_nfrags;
 };
+
+/* Safety Feature statistics exposed by ethtool */
+struct stmmac_safety_stats {
+	unsigned long mac_errors[32];
+	unsigned long mtl_errors[32];
+	unsigned long dma_errors[32];
+};
+
+/* Number of fields in Safety Stats */
+#define STMMAC_SAFETY_FEAT_SIZE	\
+	(sizeof(struct stmmac_safety_stats) / sizeof(unsigned long))
 
 /* CSR Frequency Access Defines*/
 #define CSR_F_35M	35000000
@@ -197,21 +249,45 @@ struct stmmac_extra_stats {
 #define DMA_HW_FEAT_ACTPHYIF	0x70000000	/* Active/selected PHY iface */
 #define DEFAULT_DMA_PBL		8
 
+/* PCS status and mask defines */
+#define	PCS_ANE_IRQ		BIT(2)	/* PCS Auto-Negotiation */
+#define	PCS_LINK_IRQ		BIT(1)	/* PCS Link */
+#define	PCS_RGSMIIIS_IRQ	BIT(0)	/* RGMII or SMII Interrupt */
+
 /* Max/Min RI Watchdog Timer count value */
 #define MAX_DMA_RIWT		0xff
 #define MIN_DMA_RIWT		0x20
 /* Tx coalesce parameters */
-#define STMMAC_COAL_TX_TIMER	40000
+#define STMMAC_COAL_TX_TIMER	1000
 #define STMMAC_MAX_COAL_TX_TICK	100000
 #define STMMAC_TX_MAX_FRAMES	256
-#define STMMAC_TX_FRAMES	64
+#define STMMAC_TX_FRAMES	25
+
+/* Packets types */
+enum packets_types {
+	PACKET_AVCPQ = 0x1, /* AV Untagged Control packets */
+	PACKET_PTPQ = 0x2, /* PTP Packets */
+	PACKET_DCBCPQ = 0x3, /* DCB Control Packets */
+	PACKET_UPQ = 0x4, /* Untagged Packets */
+	PACKET_MCBCQ = 0x5, /* Multicast & Broadcast Packets */
+};
 
 /* Rx IPC status */
 enum rx_frame_status {
-	good_frame = 0,
-	discard_frame = 1,
-	csum_none = 2,
-	llc_snap = 4,
+	good_frame = 0x0,
+	discard_frame = 0x1,
+	csum_none = 0x2,
+	llc_snap = 0x4,
+	dma_own = 0x8,
+	rx_not_ls = 0x10,
+};
+
+/* Tx status */
+enum tx_frame_status {
+	tx_done = 0x0,
+	tx_not_ls = 0x1,
+	tx_err = 0x2,
+	tx_dma_own = 0x4,
 };
 
 enum dma_irq_status {
@@ -227,9 +303,7 @@ enum dma_irq_status {
 #define	CORE_IRQ_RX_PATH_IN_LPI_MODE	(1 << 2)
 #define	CORE_IRQ_RX_PATH_EXIT_LPI_MODE	(1 << 3)
 
-#define	CORE_PCS_ANE_COMPLETE		(1 << 5)
-#define	CORE_PCS_LINK_STATUS		(1 << 6)
-#define	CORE_RGMII_IRQ			(1 << 7)
+#define CORE_IRQ_MTL_RX_OVERFLOW	BIT(8)
 
 /* Physical Coding Sublayer */
 struct rgmii_adv {
@@ -261,21 +335,38 @@ struct dma_features {
 	/* 802.3az - Energy-Efficient Ethernet (EEE) */
 	unsigned int eee;
 	unsigned int av;
+	unsigned int tsoen;
 	/* TX and RX csum */
 	unsigned int tx_coe;
+	unsigned int rx_coe;
 	unsigned int rx_coe_type1;
 	unsigned int rx_coe_type2;
 	unsigned int rxfifo_over_2048;
 	/* TX and RX number of channels */
 	unsigned int number_rx_channel;
 	unsigned int number_tx_channel;
+	/* TX and RX number of queues */
+	unsigned int number_rx_queues;
+	unsigned int number_tx_queues;
+	/* PPS output */
+	unsigned int pps_out_num;
 	/* Alternate (enhanced) DESC mode */
 	unsigned int enh_desc;
+	/* TX and RX FIFO sizes */
+	unsigned int tx_fifo_size;
+	unsigned int rx_fifo_size;
+	/* Automotive Safety Package */
+	unsigned int asp;
+	/* RX Parser */
+	unsigned int frpsel;
+	unsigned int frpbs;
+	unsigned int frpes;
 };
 
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */
 #define BUF_SIZE_16KiB 16384
-#define BUF_SIZE_8KiB 8192
+/* RX Buffer size must be < 8191 and multiple of 4/8/16 bytes */
+#define BUF_SIZE_8KiB 8188
 #define BUF_SIZE_4KiB 4096
 #define BUF_SIZE_2KiB 2048
 
@@ -286,7 +377,7 @@ struct dma_features {
 /* Common MAC defines */
 #define MAC_CTRL_REG		0x00000000	/* MAC Control */
 #define MAC_ENABLE_TX		0x00000008	/* Transmitter Enable */
-#define MAC_RNABLE_RX		0x00000004	/* Receiver Enable */
+#define MAC_ENABLE_RX		0x00000004	/* Receiver Enable */
 
 /* Default LPI timers */
 #define STMMAC_DEFAULT_LIT_LS	0x3E8
@@ -297,153 +388,33 @@ struct dma_features {
 
 #define JUMBO_LEN		9000
 
-/* Descriptors helpers */
-struct stmmac_desc_ops {
-	/* DMA RX descriptor ring initialization */
-	void (*init_rx_desc) (struct dma_desc *p, int disable_rx_ic, int mode,
-			      int end);
-	/* DMA TX descriptor ring initialization */
-	void (*init_tx_desc) (struct dma_desc *p, int mode, int end);
-
-	/* Invoked by the xmit function to prepare the tx descriptor */
-	void (*prepare_tx_desc) (struct dma_desc *p, int is_fs, int len,
-				 int csum_flag, int mode);
-	/* Set/get the owner of the descriptor */
-	void (*set_tx_owner) (struct dma_desc *p);
-	int (*get_tx_owner) (struct dma_desc *p);
-	/* Invoked by the xmit function to close the tx descriptor */
-	void (*close_tx_desc) (struct dma_desc *p);
-	/* Clean the tx descriptor as soon as the tx irq is received */
-	void (*release_tx_desc) (struct dma_desc *p, int mode);
-	/* Clear interrupt on tx frame completion. When this bit is
-	 * set an interrupt happens as soon as the frame is transmitted */
-	void (*clear_tx_ic) (struct dma_desc *p);
-	/* Last tx segment reports the transmit status */
-	int (*get_tx_ls) (struct dma_desc *p);
-	/* Return the transmit status looking at the TDES1 */
-	int (*tx_status) (void *data, struct stmmac_extra_stats *x,
-			  struct dma_desc *p, void __iomem *ioaddr);
-	/* Get the buffer size from the descriptor */
-	int (*get_tx_len) (struct dma_desc *p);
-	/* Handle extra events on specific interrupts hw dependent */
-	int (*get_rx_owner) (struct dma_desc *p);
-	void (*set_rx_owner) (struct dma_desc *p);
-	/* Get the receive frame size */
-	int (*get_rx_frame_len) (struct dma_desc *p, int rx_coe_type);
-	/* Return the reception status looking at the RDES1 */
-	int (*rx_status) (void *data, struct stmmac_extra_stats *x,
-			  struct dma_desc *p);
-	void (*rx_extended_status) (void *data, struct stmmac_extra_stats *x,
-				    struct dma_extended_desc *p);
-	/* Set tx timestamp enable bit */
-	void (*enable_tx_timestamp) (struct dma_desc *p);
-	/* get tx timestamp status */
-	int (*get_tx_timestamp_status) (struct dma_desc *p);
-	/* get timestamp value */
-	 u64(*get_timestamp) (void *desc, u32 ats);
-	/* get rx timestamp status */
-	int (*get_rx_timestamp_status) (void *desc, u32 ats);
-};
-
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;
 
-/* Specific DMA helpers */
-struct stmmac_dma_ops {
-	/* DMA core initialization */
-	int (*init) (void __iomem *ioaddr, int pbl, int fb, int mb,
-		     int burst_len, u32 dma_tx, u32 dma_rx, int atds);
-	/* Dump DMA registers */
-	void (*dump_regs) (void __iomem *ioaddr);
-	/* Set tx/rx threshold in the csr6 register
-	 * An invalid value enables the store-and-forward mode */
-	void (*dma_mode)(void __iomem *ioaddr, int txmode, int rxmode,
-			 int rxfifosz);
-	/* To track extra statistic (if supported) */
-	void (*dma_diagnostic_fr) (void *data, struct stmmac_extra_stats *x,
-				   void __iomem *ioaddr);
-	void (*enable_dma_transmission) (void __iomem *ioaddr);
-	void (*enable_dma_irq) (void __iomem *ioaddr);
-	void (*disable_dma_irq) (void __iomem *ioaddr);
-	void (*start_tx) (void __iomem *ioaddr);
-	void (*stop_tx) (void __iomem *ioaddr);
-	void (*start_rx) (void __iomem *ioaddr);
-	void (*stop_rx) (void __iomem *ioaddr);
-	int (*dma_interrupt) (void __iomem *ioaddr,
-			      struct stmmac_extra_stats *x);
-	/* If supported then get the optional core features */
-	unsigned int (*get_hw_feature) (void __iomem *ioaddr);
-	/* Program the HW RX Watchdog */
-	void (*rx_watchdog) (void __iomem *ioaddr, u32 riwt);
-};
-
 struct mac_device_info;
 
-/* Helpers to program the MAC core */
-struct stmmac_ops {
-	/* MAC core initialization */
-	void (*core_init)(struct mac_device_info *hw, int mtu);
-	/* Enable and verify that the IPC module is supported */
-	int (*rx_ipc)(struct mac_device_info *hw);
-	/* Dump MAC registers */
-	void (*dump_regs)(struct mac_device_info *hw);
-	/* Handle extra events on specific interrupts hw dependent */
-	int (*host_irq_status)(struct mac_device_info *hw,
-			       struct stmmac_extra_stats *x);
-	/* Multicast filter setting */
-	void (*set_filter)(struct mac_device_info *hw, struct net_device *dev);
-	/* Flow control setting */
-	void (*flow_ctrl)(struct mac_device_info *hw, unsigned int duplex,
-			  unsigned int fc, unsigned int pause_time);
-	/* Set power management mode (e.g. magic frame) */
-	void (*pmt)(struct mac_device_info *hw, unsigned long mode);
-	/* Set/Get Unicast MAC addresses */
-	void (*set_umac_addr)(struct mac_device_info *hw, unsigned char *addr,
-			      unsigned int reg_n);
-	void (*get_umac_addr)(struct mac_device_info *hw, unsigned char *addr,
-			      unsigned int reg_n);
-	void (*set_eee_mode)(struct mac_device_info *hw);
-	void (*reset_eee_mode)(struct mac_device_info *hw);
-	void (*set_eee_timer)(struct mac_device_info *hw, int ls, int tw);
-	void (*set_eee_pls)(struct mac_device_info *hw, int link);
-	void (*ctrl_ane)(struct mac_device_info *hw, bool restart);
-	void (*get_adv)(struct mac_device_info *hw, struct rgmii_adv *adv);
-};
-
-/* PTP and HW Timer helpers */
-struct stmmac_hwtimestamp {
-	void (*config_hw_tstamping) (void __iomem *ioaddr, u32 data);
-	void (*config_sub_second_increment) (void __iomem *ioaddr);
-	int (*init_systime) (void __iomem *ioaddr, u32 sec, u32 nsec);
-	int (*config_addend) (void __iomem *ioaddr, u32 addend);
-	int (*adjust_systime) (void __iomem *ioaddr, u32 sec, u32 nsec,
-			       int add_sub);
-	 u64(*get_systime) (void __iomem *ioaddr);
-};
-
 extern const struct stmmac_hwtimestamp stmmac_ptp;
+extern const struct stmmac_mode_ops dwmac4_ring_mode_ops;
 
 struct mac_link {
-	int port;
-	int duplex;
-	int speed;
+	u32 speed_mask;
+	u32 speed10;
+	u32 speed100;
+	u32 speed1000;
+	u32 speed2500;
+	u32 speed10000;
+	u32 duplex;
 };
 
 struct mii_regs {
 	unsigned int addr;	/* MII Address */
 	unsigned int data;	/* MII Data */
-};
-
-/* Helpers to manage the descriptors for chain and ring modes */
-struct stmmac_mode_ops {
-	void (*init) (void *des, dma_addr_t phy_addr, unsigned int size,
-		      unsigned int extend_desc);
-	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
-	int (*jumbo_frm)(void *priv, struct sk_buff *skb, int csum);
-	int (*set_16kib_bfsize)(int mtu);
-	void (*init_desc3)(struct dma_desc *p);
-	void (*refill_desc3) (void *priv, struct dma_desc *p);
-	void (*clean_desc3) (void *priv, struct dma_desc *p);
+	unsigned int addr_shift;	/* MII address shift */
+	unsigned int reg_shift;		/* MII reg shift */
+	unsigned int addr_mask;		/* MII address mask */
+	unsigned int reg_mask;		/* MII reg mask */
+	unsigned int clk_csr_shift;
+	unsigned int clk_csr_mask;
 };
 
 struct mac_device_info {
@@ -452,29 +423,45 @@ struct mac_device_info {
 	const struct stmmac_dma_ops *dma;
 	const struct stmmac_mode_ops *mode;
 	const struct stmmac_hwtimestamp *ptp;
+	const struct stmmac_tc_ops *tc;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
-	unsigned int synopsys_uid;
 	void __iomem *pcsr;     /* vpointer to device CSRs */
 	int multicast_filter_bins;
 	int unicast_filter_entries;
 	int mcast_bits_log2;
 	unsigned int rx_csum;
+	unsigned int pcs;
+	unsigned int pmt;
+	unsigned int ps;
 };
 
-struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
-					int perfect_uc_entries);
-struct mac_device_info *dwmac100_setup(void __iomem *ioaddr);
+struct stmmac_rx_routing {
+	u32 reg_mask;
+	u32 reg_shift;
+};
+
+int dwmac100_setup(struct stmmac_priv *priv);
+int dwmac1000_setup(struct stmmac_priv *priv);
+int dwmac4_setup(struct stmmac_priv *priv);
+int dwxgmac2_setup(struct stmmac_priv *priv);
 
 void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 			 unsigned int high, unsigned int low);
 void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 			 unsigned int high, unsigned int low);
-
 void stmmac_set_mac(void __iomem *ioaddr, bool enable);
 
+void stmmac_dwmac4_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
+				unsigned int high, unsigned int low);
+void stmmac_dwmac4_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
+				unsigned int high, unsigned int low);
+void stmmac_dwmac4_set_mac(void __iomem *ioaddr, bool enable);
+
 void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
+
 extern const struct stmmac_mode_ops ring_mode_ops;
 extern const struct stmmac_mode_ops chain_mode_ops;
+extern const struct stmmac_desc_ops dwmac4_desc_ops;
 
 #endif /* __COMMON_H__ */

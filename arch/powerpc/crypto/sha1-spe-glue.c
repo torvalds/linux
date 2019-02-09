@@ -46,6 +46,7 @@ static void spe_begin(void)
 
 static void spe_end(void)
 {
+	disable_kernel_spe();
 	/* reenable preemption */
 	preempt_enable();
 }
@@ -184,7 +185,6 @@ static struct shash_alg alg = {
 		.cra_name	=	"sha1",
 		.cra_driver_name=	"sha1-ppc-spe",
 		.cra_priority	=	300,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA1_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}

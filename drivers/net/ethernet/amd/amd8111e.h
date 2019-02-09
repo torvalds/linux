@@ -48,7 +48,7 @@ eg., if the value 10011010b is written into the least significant byte of a comm
 /* 32 bit registers */
 
 #define  ASF_STAT		0x00	/* ASF status register */
-#define CHIPID			0x04	/* Chip ID regsiter */
+#define CHIPID			0x04	/* Chip ID register */
 #define	MIB_DATA		0x10	/* MIB data register */
 #define MIB_ADDR		0x14	/* MIB address register */
 #define STAT0			0x30	/* Status0 register */
@@ -648,7 +648,7 @@ typedef enum {
 /* driver ioctl parameters */
 #define AMD8111E_REG_DUMP_LEN	 13*sizeof(u32)
 
-/* amd8111e desriptor format */
+/* amd8111e descriptor format */
 
 struct amd8111e_tx_dr{
 

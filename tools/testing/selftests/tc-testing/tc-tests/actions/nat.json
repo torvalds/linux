@@ -1,0 +1,593 @@
+[
+    {
+        "id": "7565",
+        "name": "Add nat action on ingress with default control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 192.168.1.1 200.200.200.1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action nat",
+        "matchPattern": "action order [0-9]+:  nat ingress 192.168.1.1/32 200.200.200.1 pass",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "fd79",
+        "name": "Add nat action on ingress with pipe control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 1.1.1.1 2.2.2.1 pipe index 77",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 77",
+        "matchPattern": "action order [0-9]+:  nat ingress 1.1.1.1/32 2.2.2.1 pipe.*index 77 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "eab9",
+        "name": "Add nat action on ingress with continue control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 192.168.10.10 192.168.20.20 continue index 1000",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 1000",
+        "matchPattern": "action order [0-9]+:  nat ingress 192.168.10.10/32 192.168.20.20 continue.*index 1000 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "c53a",
+        "name": "Add nat action on ingress with reclassify control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 192.168.10.10 192.168.20.20 reclassify index 1000",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 1000",
+        "matchPattern": "action order [0-9]+:  nat ingress 192.168.10.10/32 192.168.20.20 reclassify.*index 1000 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "76c9",
+        "name": "Add nat action on ingress with jump control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 12.18.10.10 12.18.20.20 jump 10 index 22",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 22",
+        "matchPattern": "action order [0-9]+:  nat ingress 12.18.10.10/32 12.18.20.20 jump 10.*index 22 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "24c6",
+        "name": "Add nat action on ingress with drop control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 1.18.1.1 1.18.2.2 drop index 722",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 722",
+        "matchPattern": "action order [0-9]+:  nat ingress 1.18.1.1/32 1.18.2.2 drop.*index 722 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "2120",
+        "name": "Add nat action on ingress with maximum index value",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 1.18.1.1 1.18.2.2 index 4294967295",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 4294967295",
+        "matchPattern": "action order [0-9]+:  nat ingress 1.18.1.1/32 1.18.2.2 pass.*index 4294967295 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "3e9d",
+        "name": "Add nat action on ingress with invalid index value",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 1.18.1.1 1.18.2.2 index 4294967295555",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action nat index 4294967295555",
+        "matchPattern": "action order [0-9]+:  nat ingress 1.18.1.1/32 1.18.2.2 pass.*index 4294967295555 ref",
+        "matchCount": "0",
+        "teardown": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ]
+    },
+    {
+        "id": "f6c9",
+        "name": "Add nat action on ingress with invalid IP address",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 1.1.1.1 1.1888.2.2 index 7",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action nat index 7",
+        "matchPattern": "action order [0-9]+:  nat ingress 1.1.1.1/32 1.1888.2.2 pass.*index 7 ref",
+        "matchCount": "0",
+        "teardown": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ]
+    },
+    {
+        "id": "be25",
+        "name": "Add nat action on ingress with invalid argument",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 1.1.1.1 1.18.2.2 another_arg index 12",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action nat index 12",
+        "matchPattern": "action order [0-9]+:  nat ingress 1.1.1.1/32 1.18.2.2 pass.*another_arg.*index 12 ref",
+        "matchCount": "0",
+        "teardown": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ]
+    },
+    {
+        "id": "a7bd",
+        "name": "Add nat action on ingress with DEFAULT IP address",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress default 10.10.10.1 index 12",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 12",
+        "matchPattern": "action order [0-9]+:  nat ingress 0.0.0.0/32 10.10.10.1 pass.*index 12 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "ee1e",
+        "name": "Add nat action on ingress with ANY IP address",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress any 10.10.10.1 index 12",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 12",
+        "matchPattern": "action order [0-9]+:  nat ingress 0.0.0.0/32 10.10.10.1 pass.*index 12 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "1de8",
+        "name": "Add nat action on ingress with ALL IP address",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress all 10.10.10.1 index 12",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 12",
+        "matchPattern": "action order [0-9]+:  nat ingress 0.0.0.0/32 10.10.10.1 pass.*index 12 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "8dba",
+        "name": "Add nat action on egress with default control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat egress 10.10.10.1 20.20.20.1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action nat",
+        "matchPattern": "action order [0-9]+:  nat egress 10.10.10.1/32 20.20.20.1 pass",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "19a7",
+        "name": "Add nat action on egress with pipe control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat egress 10.10.10.1 20.20.20.1 pipe",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action nat",
+        "matchPattern": "action order [0-9]+:  nat egress 10.10.10.1/32 20.20.20.1 pipe",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "f1d9",
+        "name": "Add nat action on egress with continue control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat egress 10.10.10.1 20.20.20.1 continue",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action nat",
+        "matchPattern": "action order [0-9]+:  nat egress 10.10.10.1/32 20.20.20.1 continue",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "6d4a",
+        "name": "Add nat action on egress with reclassify control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat egress 10.10.10.1 20.20.20.1 reclassify",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action nat",
+        "matchPattern": "action order [0-9]+:  nat egress 10.10.10.1/32 20.20.20.1 reclassify",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "b313",
+        "name": "Add nat action on egress with jump control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat egress 10.10.10.1 20.20.20.1 jump 777",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action nat",
+        "matchPattern": "action order [0-9]+:  nat egress 10.10.10.1/32 20.20.20.1 jump 777",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "d9fc",
+        "name": "Add nat action on egress with drop control action",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat egress 10.10.10.1 20.20.20.1 drop",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action nat",
+        "matchPattern": "action order [0-9]+:  nat egress 10.10.10.1/32 20.20.20.1 drop",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "a895",
+        "name": "Add nat action on egress with DEFAULT IP address",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat egress default 20.20.20.1 pipe index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 10",
+        "matchPattern": "action order [0-9]+:  nat egress 0.0.0.0/32 20.20.20.1 pipe.*index 10 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "2572",
+        "name": "Add nat action on egress with ANY IP address",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat egress any 20.20.20.1 pipe index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 10",
+        "matchPattern": "action order [0-9]+:  nat egress 0.0.0.0/32 20.20.20.1 pipe.*index 10 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "37f3",
+        "name": "Add nat action on egress with ALL IP address",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat egress all 20.20.20.1 pipe index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 10",
+        "matchPattern": "action order [0-9]+:  nat egress 0.0.0.0/32 20.20.20.1 pipe.*index 10 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "6054",
+        "name": "Add nat action on egress with cookie",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat egress all 20.20.20.1 pipe index 10 cookie aa1bc2d3eeff112233445566778800a1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 10",
+        "matchPattern": "action order [0-9]+:  nat egress 0.0.0.0/32 20.20.20.1 pipe.*index 10 ref.*cookie aa1bc2d3eeff112233445566778800a1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "79d6",
+        "name": "Add nat action on ingress with cookie",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action nat ingress 192.168.1.1 10.10.10.1 reclassify index 1 cookie 112233445566778899aabbccddeeff11",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action nat index 1",
+        "matchPattern": "action order [0-9]+:  nat ingress 192.168.1.1/32 10.10.10.1 reclassify.*index 1 ref.*cookie 112233445566778899aabbccddeeff11",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    }
+]

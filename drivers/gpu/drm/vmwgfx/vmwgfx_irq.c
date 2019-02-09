@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -30,11 +30,56 @@
 
 #define VMW_FENCE_WRAP (1 << 24)
 
-irqreturn_t vmw_irq_handler(int irq, void *arg)
+/**
+ * vmw_thread_fn - Deferred (process context) irq handler
+ *
+ * @irq: irq number
+ * @arg: Closure argument. Pointer to a struct drm_device cast to void *
+ *
+ * This function implements the deferred part of irq processing.
+ * The function is guaranteed to run at least once after the
+ * vmw_irq_handler has returned with IRQ_WAKE_THREAD.
+ *
+ */
+static irqreturn_t vmw_thread_fn(int irq, void *arg)
+{
+	struct drm_device *dev = (struct drm_device *)arg;
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	irqreturn_t ret = IRQ_NONE;
+
+	if (test_and_clear_bit(VMW_IRQTHREAD_FENCE,
+			       dev_priv->irqthread_pending)) {
+		vmw_fences_update(dev_priv->fman);
+		wake_up_all(&dev_priv->fence_queue);
+		ret = IRQ_HANDLED;
+	}
+
+	if (test_and_clear_bit(VMW_IRQTHREAD_CMDBUF,
+			       dev_priv->irqthread_pending)) {
+		vmw_cmdbuf_irqthread(dev_priv->cman);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
+
+/**
+ * vmw_irq_handler irq handler
+ *
+ * @irq: irq number
+ * @arg: Closure argument. Pointer to a struct drm_device cast to void *
+ *
+ * This function implements the quick part of irq processing.
+ * The function performs fast actions like clearing the device interrupt
+ * flags and also reasonably quick actions like waking processes waiting for
+ * FIFO space. Other IRQ actions are deferred to the IRQ thread.
+ */
+static irqreturn_t vmw_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *)arg;
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	uint32_t status, masked_status;
+	irqreturn_t ret = IRQ_HANDLED;
 
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 	masked_status = status & READ_ONCE(dev_priv->irq_mask);
@@ -45,20 +90,21 @@ irqreturn_t vmw_irq_handler(int irq, void *arg)
 	if (!status)
 		return IRQ_NONE;
 
-	if (masked_status & (SVGA_IRQFLAG_ANY_FENCE |
-			     SVGA_IRQFLAG_FENCE_GOAL)) {
-		vmw_fences_update(dev_priv->fman);
-		wake_up_all(&dev_priv->fence_queue);
-	}
-
 	if (masked_status & SVGA_IRQFLAG_FIFO_PROGRESS)
 		wake_up_all(&dev_priv->fifo_queue);
 
-	if (masked_status & (SVGA_IRQFLAG_COMMAND_BUFFER |
-			     SVGA_IRQFLAG_ERROR))
-		vmw_cmdbuf_tasklet_schedule(dev_priv->cman);
+	if ((masked_status & (SVGA_IRQFLAG_ANY_FENCE |
+			      SVGA_IRQFLAG_FENCE_GOAL)) &&
+	    !test_and_set_bit(VMW_IRQTHREAD_FENCE, dev_priv->irqthread_pending))
+		ret = IRQ_WAKE_THREAD;
 
-	return IRQ_HANDLED;
+	if ((masked_status & (SVGA_IRQFLAG_COMMAND_BUFFER |
+			      SVGA_IRQFLAG_ERROR)) &&
+	    !test_and_set_bit(VMW_IRQTHREAD_CMDBUF,
+			      dev_priv->irqthread_pending))
+		ret = IRQ_WAKE_THREAD;
+
+	return ret;
 }
 
 static bool vmw_fifo_idle(struct vmw_private *dev_priv, uint32_t seqno)
@@ -281,21 +327,13 @@ int vmw_wait_seqno(struct vmw_private *dev_priv,
 	return ret;
 }
 
-void vmw_irq_preinstall(struct drm_device *dev)
+static void vmw_irq_preinstall(struct drm_device *dev)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	uint32_t status;
 
-	if (!(dev_priv->capabilities & SVGA_CAP_IRQMASK))
-		return;
-
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 	outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-}
-
-int vmw_irq_postinstall(struct drm_device *dev)
-{
-	return 0;
 }
 
 void vmw_irq_uninstall(struct drm_device *dev)
@@ -306,8 +344,41 @@ void vmw_irq_uninstall(struct drm_device *dev)
 	if (!(dev_priv->capabilities & SVGA_CAP_IRQMASK))
 		return;
 
+	if (!dev->irq_enabled)
+		return;
+
 	vmw_write(dev_priv, SVGA_REG_IRQMASK, 0);
 
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 	outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
+
+	dev->irq_enabled = false;
+	free_irq(dev->irq, dev);
+}
+
+/**
+ * vmw_irq_install - Install the irq handlers
+ *
+ * @dev:  Pointer to the drm device.
+ * @irq:  The irq number.
+ * Return:  Zero if successful. Negative number otherwise.
+ */
+int vmw_irq_install(struct drm_device *dev, int irq)
+{
+	int ret;
+
+	if (dev->irq_enabled)
+		return -EBUSY;
+
+	vmw_irq_preinstall(dev);
+
+	ret = request_threaded_irq(irq, vmw_irq_handler, vmw_thread_fn,
+				   IRQF_SHARED, VMWGFX_DRIVER_NAME, dev);
+	if (ret < 0)
+		return ret;
+
+	dev->irq_enabled = true;
+	dev->irq = irq;
+
+	return ret;
 }

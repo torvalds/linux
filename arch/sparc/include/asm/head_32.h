@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SPARC_HEAD_H
 #define __SPARC_HEAD_H
 
@@ -43,10 +44,10 @@
 	nop;
 
 #ifdef CONFIG_KGDB
-#define KGDB_TRAP(num) \
-	b kgdb_trap_low; \
-	rd %psr,%l0; \
-	nop; \
+#define KGDB_TRAP(num)                  \
+	mov num, %l7;                   \
+	b kgdb_trap_low;                \
+	rd %psr,%l0;                    \
 	nop;
 #else
 #define KGDB_TRAP(num) \

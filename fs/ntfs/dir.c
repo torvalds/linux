@@ -315,11 +315,11 @@ found_it:
 descend_into_child_node:
 	/*
 	 * Convert vcn to index into the index allocation attribute in units
-	 * of PAGE_CACHE_SIZE and map the page cache page, reading it from
+	 * of PAGE_SIZE and map the page cache page, reading it from
 	 * disk if necessary.
 	 */
 	page = ntfs_map_page(ia_mapping, vcn <<
-			dir_ni->itype.index.vcn_size_bits >> PAGE_CACHE_SHIFT);
+			dir_ni->itype.index.vcn_size_bits >> PAGE_SHIFT);
 	if (IS_ERR(page)) {
 		ntfs_error(sb, "Failed to map directory index page, error %ld.",
 				-PTR_ERR(page));
@@ -331,9 +331,9 @@ descend_into_child_node:
 fast_descend_into_child_node:
 	/* Get to the index allocation block. */
 	ia = (INDEX_ALLOCATION*)(kaddr + ((vcn <<
-			dir_ni->itype.index.vcn_size_bits) & ~PAGE_CACHE_MASK));
+			dir_ni->itype.index.vcn_size_bits) & ~PAGE_MASK));
 	/* Bounds checks. */
-	if ((u8*)ia < kaddr || (u8*)ia > kaddr + PAGE_CACHE_SIZE) {
+	if ((u8*)ia < kaddr || (u8*)ia > kaddr + PAGE_SIZE) {
 		ntfs_error(sb, "Out of bounds check failed. Corrupt directory "
 				"inode 0x%lx or driver bug.", dir_ni->mft_no);
 		goto unm_err_out;
@@ -366,7 +366,7 @@ fast_descend_into_child_node:
 		goto unm_err_out;
 	}
 	index_end = (u8*)ia + dir_ni->itype.index.block_size;
-	if (index_end > kaddr + PAGE_CACHE_SIZE) {
+	if (index_end > kaddr + PAGE_SIZE) {
 		ntfs_error(sb, "Index buffer (VCN 0x%llx) of directory inode "
 				"0x%lx crosses page boundary. Impossible! "
 				"Cannot access! This is probably a bug in the "
@@ -559,9 +559,9 @@ found_it2:
 			/* If vcn is in the same page cache page as old_vcn we
 			 * recycle the mapped page. */
 			if (old_vcn << vol->cluster_size_bits >>
-					PAGE_CACHE_SHIFT == vcn <<
+					PAGE_SHIFT == vcn <<
 					vol->cluster_size_bits >>
-					PAGE_CACHE_SHIFT)
+					PAGE_SHIFT)
 				goto fast_descend_into_child_node;
 			unlock_page(page);
 			ntfs_unmap_page(page);
@@ -793,11 +793,11 @@ found_it:
 descend_into_child_node:
 	/*
 	 * Convert vcn to index into the index allocation attribute in units
-	 * of PAGE_CACHE_SIZE and map the page cache page, reading it from
+	 * of PAGE_SIZE and map the page cache page, reading it from
 	 * disk if necessary.
 	 */
 	page = ntfs_map_page(ia_mapping, vcn <<
-			dir_ni->itype.index.vcn_size_bits >> PAGE_CACHE_SHIFT);
+			dir_ni->itype.index.vcn_size_bits >> PAGE_SHIFT);
 	if (IS_ERR(page)) {
 		ntfs_error(sb, "Failed to map directory index page, error %ld.",
 				-PTR_ERR(page));
@@ -809,9 +809,9 @@ descend_into_child_node:
 fast_descend_into_child_node:
 	/* Get to the index allocation block. */
 	ia = (INDEX_ALLOCATION*)(kaddr + ((vcn <<
-			dir_ni->itype.index.vcn_size_bits) & ~PAGE_CACHE_MASK));
+			dir_ni->itype.index.vcn_size_bits) & ~PAGE_MASK));
 	/* Bounds checks. */
-	if ((u8*)ia < kaddr || (u8*)ia > kaddr + PAGE_CACHE_SIZE) {
+	if ((u8*)ia < kaddr || (u8*)ia > kaddr + PAGE_SIZE) {
 		ntfs_error(sb, "Out of bounds check failed. Corrupt directory "
 				"inode 0x%lx or driver bug.", dir_ni->mft_no);
 		goto unm_err_out;
@@ -844,7 +844,7 @@ fast_descend_into_child_node:
 		goto unm_err_out;
 	}
 	index_end = (u8*)ia + dir_ni->itype.index.block_size;
-	if (index_end > kaddr + PAGE_CACHE_SIZE) {
+	if (index_end > kaddr + PAGE_SIZE) {
 		ntfs_error(sb, "Index buffer (VCN 0x%llx) of directory inode "
 				"0x%lx crosses page boundary. Impossible! "
 				"Cannot access! This is probably a bug in the "
@@ -968,9 +968,9 @@ found_it2:
 			/* If vcn is in the same page cache page as old_vcn we
 			 * recycle the mapped page. */
 			if (old_vcn << vol->cluster_size_bits >>
-					PAGE_CACHE_SHIFT == vcn <<
+					PAGE_SHIFT == vcn <<
 					vol->cluster_size_bits >>
-					PAGE_CACHE_SHIFT)
+					PAGE_SHIFT)
 				goto fast_descend_into_child_node;
 			unlock_page(page);
 			ntfs_unmap_page(page);
@@ -1246,15 +1246,15 @@ skip_index_root:
 		goto iput_err_out;
 	}
 	/* Get the starting bit position in the current bitmap page. */
-	cur_bmp_pos = bmp_pos & ((PAGE_CACHE_SIZE * 8) - 1);
-	bmp_pos &= ~(u64)((PAGE_CACHE_SIZE * 8) - 1);
+	cur_bmp_pos = bmp_pos & ((PAGE_SIZE * 8) - 1);
+	bmp_pos &= ~(u64)((PAGE_SIZE * 8) - 1);
 get_next_bmp_page:
 	ntfs_debug("Reading bitmap with page index 0x%llx, bit ofs 0x%llx",
-			(unsigned long long)bmp_pos >> (3 + PAGE_CACHE_SHIFT),
+			(unsigned long long)bmp_pos >> (3 + PAGE_SHIFT),
 			(unsigned long long)bmp_pos &
-			(unsigned long long)((PAGE_CACHE_SIZE * 8) - 1));
+			(unsigned long long)((PAGE_SIZE * 8) - 1));
 	bmp_page = ntfs_map_page(bmp_mapping,
-			bmp_pos >> (3 + PAGE_CACHE_SHIFT));
+			bmp_pos >> (3 + PAGE_SHIFT));
 	if (IS_ERR(bmp_page)) {
 		ntfs_error(sb, "Reading index bitmap failed.");
 		err = PTR_ERR(bmp_page);
@@ -1270,9 +1270,9 @@ find_next_index_buffer:
 		 * If we have reached the end of the bitmap page, get the next
 		 * page, and put away the old one.
 		 */
-		if (unlikely((cur_bmp_pos >> 3) >= PAGE_CACHE_SIZE)) {
+		if (unlikely((cur_bmp_pos >> 3) >= PAGE_SIZE)) {
 			ntfs_unmap_page(bmp_page);
-			bmp_pos += PAGE_CACHE_SIZE * 8;
+			bmp_pos += PAGE_SIZE * 8;
 			cur_bmp_pos = 0;
 			goto get_next_bmp_page;
 		}
@@ -1285,8 +1285,8 @@ find_next_index_buffer:
 	ntfs_debug("Handling index buffer 0x%llx.",
 			(unsigned long long)bmp_pos + cur_bmp_pos);
 	/* If the current index buffer is in the same page we reuse the page. */
-	if ((prev_ia_pos & (s64)PAGE_CACHE_MASK) !=
-			(ia_pos & (s64)PAGE_CACHE_MASK)) {
+	if ((prev_ia_pos & (s64)PAGE_MASK) !=
+			(ia_pos & (s64)PAGE_MASK)) {
 		prev_ia_pos = ia_pos;
 		if (likely(ia_page != NULL)) {
 			unlock_page(ia_page);
@@ -1296,7 +1296,7 @@ find_next_index_buffer:
 		 * Map the page cache page containing the current ia_pos,
 		 * reading it from disk if necessary.
 		 */
-		ia_page = ntfs_map_page(ia_mapping, ia_pos >> PAGE_CACHE_SHIFT);
+		ia_page = ntfs_map_page(ia_mapping, ia_pos >> PAGE_SHIFT);
 		if (IS_ERR(ia_page)) {
 			ntfs_error(sb, "Reading index allocation data failed.");
 			err = PTR_ERR(ia_page);
@@ -1307,10 +1307,10 @@ find_next_index_buffer:
 		kaddr = (u8*)page_address(ia_page);
 	}
 	/* Get the current index buffer. */
-	ia = (INDEX_ALLOCATION*)(kaddr + (ia_pos & ~PAGE_CACHE_MASK &
-			~(s64)(ndir->itype.index.block_size - 1)));
+	ia = (INDEX_ALLOCATION*)(kaddr + (ia_pos & ~PAGE_MASK &
+					  ~(s64)(ndir->itype.index.block_size - 1)));
 	/* Bounds checks. */
-	if (unlikely((u8*)ia < kaddr || (u8*)ia > kaddr + PAGE_CACHE_SIZE)) {
+	if (unlikely((u8*)ia < kaddr || (u8*)ia > kaddr + PAGE_SIZE)) {
 		ntfs_error(sb, "Out of bounds check failed. Corrupt directory "
 				"inode 0x%lx or driver bug.", vdir->i_ino);
 		goto err_out;
@@ -1348,7 +1348,7 @@ find_next_index_buffer:
 		goto err_out;
 	}
 	index_end = (u8*)ia + ndir->itype.index.block_size;
-	if (unlikely(index_end > kaddr + PAGE_CACHE_SIZE)) {
+	if (unlikely(index_end > kaddr + PAGE_SIZE)) {
 		ntfs_error(sb, "Index buffer (VCN 0x%llx) of directory inode "
 				"0x%lx crosses page boundary. Impossible! "
 				"Cannot access! This is probably a bug in the "
@@ -1506,10 +1506,10 @@ static int ntfs_dir_fsync(struct file *filp, loff_t start, loff_t end,
 
 	ntfs_debug("Entering for inode 0x%lx.", vi->i_ino);
 
-	err = filemap_write_and_wait_range(vi->i_mapping, start, end);
+	err = file_write_and_wait_range(filp, start, end);
 	if (err)
 		return err;
-	mutex_lock(&vi->i_mutex);
+	inode_lock(vi);
 
 	BUG_ON(!S_ISDIR(vi->i_mode));
 	/* If the bitmap attribute inode is in memory sync it, too. */
@@ -1532,7 +1532,7 @@ static int ntfs_dir_fsync(struct file *filp, loff_t start, loff_t end,
 	else
 		ntfs_warning(vi->i_sb, "Failed to f%ssync inode 0x%lx.  Error "
 				"%u.", datasync ? "data" : "", vi->i_ino, -ret);
-	mutex_unlock(&vi->i_mutex);
+	inode_unlock(vi);
 	return ret;
 }
 
@@ -1544,8 +1544,6 @@ const struct file_operations ntfs_dir_ops = {
 	.iterate	= ntfs_readdir,		/* Read directory contents. */
 #ifdef NTFS_RW
 	.fsync		= ntfs_dir_fsync,	/* Sync a directory to disk. */
-	/*.aio_fsync	= ,*/			/* Sync all outstanding async
-						   i/o operations on a kiocb. */
 #endif /* NTFS_RW */
 	/*.ioctl	= ,*/			/* Perform function on the
 						   mounted filesystem. */

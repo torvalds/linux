@@ -205,9 +205,6 @@ ENDPROC(_KernelExceptionVector)
  */
 
 	.section .DoubleExceptionVector.text, "ax"
-	.begin literal_prefix .DoubleExceptionVector
-	.globl _DoubleExceptionVector_WindowUnderflow
-	.globl _DoubleExceptionVector_WindowOverflow
 
 ENTRY(_DoubleExceptionVector)
 
@@ -217,8 +214,12 @@ ENTRY(_DoubleExceptionVector)
 	/* Check for kernel double exception (usually fatal). */
 
 	rsr	a2, ps
-	_bbci.l	a2, PS_UM_BIT, .Lksp
+	_bbsi.l	a2, PS_UM_BIT, 1f
+	j	.Lksp
 
+	.align	4
+	.literal_position
+1:
 	/* Check if we are currently handling a window exception. */
 	/* Note: We don't need to indicate that we enter a critical section. */
 
@@ -304,8 +305,7 @@ _DoubleExceptionVector_WindowUnderflow:
 .Lunrecoverable:
 	rsr	a3, excsave1
 	wsr	a0, excsave1
-	movi	a0, unrecoverable_exception
-	callx0	a0
+	call0	unrecoverable_exception
 
 .Lfixup:/* Check for a fixup handler or if we were in a critical section. */
 
@@ -475,10 +475,7 @@ _DoubleExceptionVector_handle_exception:
 	rotw	-3
 	j	1b
 
-
 ENDPROC(_DoubleExceptionVector)
-
-	.end literal_prefix
 
 	.text
 /*
@@ -507,6 +504,8 @@ ENDPROC(_DoubleExceptionVector)
  * a2: trashed, original value in EXC_TABLE_DOUBLE_SAVE
  * a3: exctable, original value in excsave1
  */
+
+	.literal_position
 
 ENTRY(window_overflow_restore_a0_fixup)
 
@@ -601,7 +600,9 @@ ENDPROC(window_overflow_restore_a0_fixup)
 
 ENTRY(_DebugInterruptVector)
 
-	xsr	a0, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
+	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
+	s32i	a0, a3, DT_DEBUG_SAVE
+	l32i	a0, a3, DT_DEBUG_EXCEPTION
 	jx	a0
 
 ENDPROC(_DebugInterruptVector)

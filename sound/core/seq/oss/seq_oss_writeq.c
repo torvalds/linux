@@ -28,6 +28,7 @@
 #include "../seq_clientmgr.h"
 #include <linux/wait.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 
 
 /*

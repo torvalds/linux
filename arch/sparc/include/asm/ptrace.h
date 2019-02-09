@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SPARC_PTRACE_H
 #define __SPARC_PTRACE_H
 
@@ -6,6 +7,7 @@
 #if defined(__sparc__) && defined(__arch64__)
 #ifndef __ASSEMBLY__
 
+#include <linux/compiler.h>
 #include <linux/threads.h>
 #include <asm/switch_to.h>
 
@@ -61,7 +63,10 @@ extern union global_cpu_snapshot global_cpu_snapshot[NR_CPUS];
 #define force_successful_syscall_return() set_thread_noerror(1)
 #define user_mode(regs) (!((regs)->tstate & TSTATE_PRIV))
 #define instruction_pointer(regs) ((regs)->tpc)
-#define instruction_pointer_set(regs, val) ((regs)->tpc = (val))
+#define instruction_pointer_set(regs, val) do { \
+		(regs)->tpc = (val); \
+		(regs)->tnpc = (val)+4; \
+	} while (0)
 #define user_stack_pointer(regs) ((regs)->u_regs[UREG_FP])
 static inline int is_syscall_success(struct pt_regs *regs)
 {
@@ -77,6 +82,37 @@ unsigned long profile_pc(struct pt_regs *);
 #else
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
+
+#define MAX_REG_OFFSET (offsetof(struct pt_regs, magic))
+
+int regs_query_register_offset(const char *name);
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n);
+
+/**
+ * regs_get_register() - get register value from its offset
+ * @regs:	pt_regs from which register value is gotten
+ * @offset:	offset number of the register.
+ *
+ * regs_get_register returns the value of a register whose
+ * offset from @regs. The @offset is the offset of the register
+ * in struct pt_regs. If @offset is bigger than MAX_REG_OFFSET,
+ * this returns 0.
+ */
+static inline unsigned long regs_get_register(struct pt_regs *regs,
+					     unsigned long offset)
+{
+	if (unlikely(offset >= MAX_REG_OFFSET))
+		return 0;
+	if (offset == PT_V9_Y)
+		return *(unsigned int *)((unsigned long)regs + offset);
+	return *(unsigned long *)((unsigned long)regs + offset);
+}
+
+/* Valid only for Kernel mode traps. */
+static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
+{
+	return regs->u_regs[UREG_I6];
+}
 #else /* __ASSEMBLY__ */
 #endif /* __ASSEMBLY__ */
 #else /* (defined(__sparc__) && defined(__arch64__)) */

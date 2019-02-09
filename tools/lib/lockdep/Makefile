@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # file format version
 FILE_VERSION = 1
 
@@ -50,7 +51,7 @@ ifndef VERBOSE
 endif
 
 ifeq ($(srctree),)
-srctree := $(patsubst %/,%,$(dir $(shell pwd)))
+srctree := $(patsubst %/,%,$(dir $(CURDIR)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
 #$(info Determined 'srctree' to be $(srctree))
@@ -79,6 +80,7 @@ INCLUDES = -I. -I./uinclude -I./include -I../../include $(CONFIG_INCLUDES)
 # Set compile option CFLAGS if not set elsewhere
 CFLAGS ?= -g -DCONFIG_LOCKDEP -DCONFIG_STACKTRACE -DCONFIG_PROVE_LOCKING -DBITS_PER_LONG=__WORDSIZE -DLIBLOCKDEP_VERSION='"$(LIBLOCKDEP_VERSION)"' -rdynamic -O0 -g
 CFLAGS += -fPIC
+CFLAGS += -Wall
 
 override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
 
@@ -100,7 +102,7 @@ include $(srctree)/tools/build/Makefile.include
 
 do_compile_shared_library =			\
 	($(print_shared_lib_compile)		\
-	$(CC) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='"$@"';$(shell ln -s $@ liblockdep.so))
+	$(CC) $(LDFLAGS) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='$(@F)';$(shell ln -sf $(@F) $(@D)/liblockdep.so))
 
 do_build_static_lib =				\
 	($(print_static_lib_build)		\
@@ -118,21 +120,21 @@ all_cmd: $(CMD_TARGETS)
 $(LIB_IN): force
 	$(Q)$(MAKE) $(build)=liblockdep
 
-liblockdep.so.$(LIBLOCKDEP_VERSION): $(LIB_IN)
+$(OUTPUT)liblockdep.so.$(LIBLOCKDEP_VERSION): $(LIB_IN)
 	$(Q)$(do_compile_shared_library)
 
-liblockdep.a: $(LIB_IN)
+$(OUTPUT)liblockdep.a: $(LIB_IN)
 	$(Q)$(do_build_static_lib)
 
 tags:	force
 	$(RM) tags
 	find . -name '*.[ch]' | xargs ctags --extra=+f --c-kinds=+px \
-	--regex-c++='/_PE\(([^,)]*).*/PEVENT_ERRNO__\1/'
+	--regex-c++='/_PE\(([^,)]*).*/TEP_ERRNO__\1/'
 
 TAGS:	force
 	$(RM) TAGS
 	find . -name '*.[ch]' | xargs etags \
-	--regex='/_PE(\([^,)]*\).*/PEVENT_ERRNO__\1/'
+	--regex='/_PE(\([^,)]*\).*/TEP_ERRNO__\1/'
 
 define do_install
 	$(print_install)				\
@@ -149,7 +151,7 @@ install_lib: all_cmd
 install: install_lib
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *liblockdep*.so* $(VERSION_FILES) .*.d
+	$(RM) $(OUTPUT)*.o *~ $(TARGETS) $(OUTPUT)*.a $(OUTPUT)*liblockdep*.so* $(VERSION_FILES) $(OUTPUT).*.d $(OUTPUT).*.cmd
 	$(RM) tags TAGS
 
 PHONY += force

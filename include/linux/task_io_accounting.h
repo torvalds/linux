@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * task_io_accounting: a structure which is used for recording a single task's
  * IO statistics.
@@ -18,6 +19,8 @@ struct task_io_accounting {
 	u64 syscr;
 	/* # of write syscalls */
 	u64 syscw;
+	/* # of fsync syscalls */
+	u64 syscfs;
 #endif /* CONFIG_TASK_XACCT */
 
 #ifdef CONFIG_TASK_IO_ACCOUNTING

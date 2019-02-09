@@ -16,20 +16,20 @@
 #include <linux/smc91x.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/interrupt.h>
 #include <linux/platform_data/mv_usb.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/addr-map.h>
-#include <mach/mfp-pxa168.h>
-#include <mach/pxa168.h>
-#include <mach/irqs.h>
 #include <video/pxa168fb.h>
 #include <linux/input.h>
 #include <linux/platform_data/keypad-pxa27x.h>
 
+#include "addr-map.h"
+#include "mfp-pxa168.h"
+#include "pxa168.h"
+#include "irqs.h"
 #include "common.h"
 
 static unsigned long common_pin_config[] __initdata = {
@@ -172,10 +172,8 @@ static struct mtd_partition aspenite_nand_partitions[] = {
 };
 
 static struct pxa3xx_nand_platform_data aspenite_nand_info = {
-	.enable_arbiter	= 1,
-	.num_cs = 1,
-	.parts[0]	= aspenite_nand_partitions,
-	.nr_parts[0]	= ARRAY_SIZE(aspenite_nand_partitions),
+	.parts		= aspenite_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(aspenite_nand_partitions),
 };
 
 static struct i2c_board_info aspenite_i2c_info[] __initdata = {

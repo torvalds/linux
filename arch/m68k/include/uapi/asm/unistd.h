@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_M68K_UNISTD_H_
 #define _UAPI_ASM_M68K_UNISTD_H_
 
@@ -381,5 +382,9 @@
 #define __NR_userfaultfd	373
 #define __NR_membarrier		374
 #define __NR_mlock2		375
+#define __NR_copy_file_range	376
+#define __NR_preadv2		377
+#define __NR_pwritev2		378
+#define __NR_statx		379
 
 #endif /* _UAPI_ASM_M68K_UNISTD_H_ */

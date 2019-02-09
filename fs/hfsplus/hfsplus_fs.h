@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  linux/include/linux/hfsplus_fs.h
  *
@@ -30,7 +31,6 @@
 #define DBG_EXTENT	0x00000020
 #define DBG_BITMAP	0x00000040
 #define DBG_ATTR_MOD	0x00000080
-#define DBG_ACL_MOD	0x00000100
 
 #if 0
 #define DBG_MASK	(DBG_EXTENT|DBG_INODE|DBG_BNODE_MOD)
@@ -244,6 +244,7 @@ struct hfsplus_inode_info {
 	u8 userflags;		/* BSD user file flags */
 	u32 subfolders;		/* Subfolder count (HFSX only) */
 	struct list_head open_dir_list;
+	spinlock_t open_dir_lock;
 	loff_t phys_size;
 
 	struct inode vfs_inode;
@@ -444,17 +445,17 @@ int hfsplus_cat_case_cmp_key(const hfsplus_btree_key *k1,
 int hfsplus_cat_bin_cmp_key(const hfsplus_btree_key *k1,
 			    const hfsplus_btree_key *k2);
 int hfsplus_cat_build_key(struct super_block *sb, hfsplus_btree_key *key,
-			   u32 parent, struct qstr *str);
+			   u32 parent, const struct qstr *str);
 void hfsplus_cat_build_key_with_cnid(struct super_block *sb,
 				     hfsplus_btree_key *key, u32 parent);
 void hfsplus_cat_set_perms(struct inode *inode, struct hfsplus_perm *perms);
 int hfsplus_find_cat(struct super_block *sb, u32 cnid,
 		     struct hfs_find_data *fd);
-int hfsplus_create_cat(u32 cnid, struct inode *dir, struct qstr *str,
+int hfsplus_create_cat(u32 cnid, struct inode *dir, const struct qstr *str,
 		       struct inode *inode);
-int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str);
-int hfsplus_rename_cat(u32 cnid, struct inode *src_dir, struct qstr *src_name,
-		       struct inode *dst_dir, struct qstr *dst_name);
+int hfsplus_delete_cat(u32 cnid, struct inode *dir, const struct qstr *str);
+int hfsplus_rename_cat(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
+		       struct inode *dst_dir, const struct qstr *dst_name);
 
 /* dir.c */
 extern const struct inode_operations hfsplus_dir_inode_operations;
@@ -476,7 +477,8 @@ extern const struct address_space_operations hfsplus_aops;
 extern const struct address_space_operations hfsplus_btree_aops;
 extern const struct dentry_operations hfsplus_dentry_operations;
 
-struct inode *hfsplus_new_inode(struct super_block *sb, umode_t mode);
+struct inode *hfsplus_new_inode(struct super_block *sb, struct inode *dir,
+				umode_t mode);
 void hfsplus_delete_inode(struct inode *inode);
 void hfsplus_inode_read_fork(struct inode *inode,
 			     struct hfsplus_fork_raw *fork);
@@ -519,13 +521,12 @@ int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr,
 int hfsplus_asc2uni(struct super_block *sb, struct hfsplus_unistr *ustr,
 		    int max_unistr_len, const char *astr, int len);
 int hfsplus_hash_dentry(const struct dentry *dentry, struct qstr *str);
-int hfsplus_compare_dentry(const struct dentry *parent,
-			   const struct dentry *dentry, unsigned int len,
+int hfsplus_compare_dentry(const struct dentry *dentry, unsigned int len,
 			   const char *str, const struct qstr *name);
 
 /* wrapper.c */
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector, void *buf,
-		       void **data, int rw);
+		       void **data, int op, int op_flags);
 int hfsplus_read_wrapper(struct super_block *sb);
 
 /* time macros */

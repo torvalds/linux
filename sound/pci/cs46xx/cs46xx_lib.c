@@ -72,18 +72,18 @@
 static void amp_voyetra(struct snd_cs46xx *chip, int change);
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-static struct snd_pcm_ops snd_cs46xx_playback_rear_ops;
-static struct snd_pcm_ops snd_cs46xx_playback_indirect_rear_ops;
-static struct snd_pcm_ops snd_cs46xx_playback_clfe_ops;
-static struct snd_pcm_ops snd_cs46xx_playback_indirect_clfe_ops;
-static struct snd_pcm_ops snd_cs46xx_playback_iec958_ops;
-static struct snd_pcm_ops snd_cs46xx_playback_indirect_iec958_ops;
+static const struct snd_pcm_ops snd_cs46xx_playback_rear_ops;
+static const struct snd_pcm_ops snd_cs46xx_playback_indirect_rear_ops;
+static const struct snd_pcm_ops snd_cs46xx_playback_clfe_ops;
+static const struct snd_pcm_ops snd_cs46xx_playback_indirect_clfe_ops;
+static const struct snd_pcm_ops snd_cs46xx_playback_iec958_ops;
+static const struct snd_pcm_ops snd_cs46xx_playback_indirect_iec958_ops;
 #endif
 
-static struct snd_pcm_ops snd_cs46xx_playback_ops;
-static struct snd_pcm_ops snd_cs46xx_playback_indirect_ops;
-static struct snd_pcm_ops snd_cs46xx_capture_ops;
-static struct snd_pcm_ops snd_cs46xx_capture_indirect_ops;
+static const struct snd_pcm_ops snd_cs46xx_playback_ops;
+static const struct snd_pcm_ops snd_cs46xx_playback_indirect_ops;
+static const struct snd_pcm_ops snd_cs46xx_capture_ops;
+static const struct snd_pcm_ops snd_cs46xx_capture_indirect_ops;
 
 static unsigned short snd_cs46xx_codec_read(struct snd_cs46xx *chip,
 					    unsigned short reg,
@@ -460,7 +460,7 @@ static int load_firmware(struct snd_cs46xx *chip,
 		entry->size = le32_to_cpu(fwdat[fwlen++]);
 		if (fwlen + entry->size > fwsize)
 			goto error_inval;
-		entry->data = kmalloc(entry->size * 4, GFP_KERNEL);
+		entry->data = kmalloc_array(entry->size, 4, GFP_KERNEL);
 		if (!entry->data)
 			goto error;
 		memcpy_le32(entry->data, &fwdat[fwlen], entry->size * 4);
@@ -887,8 +887,8 @@ static int snd_cs46xx_playback_transfer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_cs46xx_pcm * cpcm = runtime->private_data;
-	snd_pcm_indirect_playback_transfer(substream, &cpcm->pcm_rec, snd_cs46xx_pb_trans_copy);
-	return 0;
+	return snd_pcm_indirect_playback_transfer(substream, &cpcm->pcm_rec,
+						  snd_cs46xx_pb_trans_copy);
 }
 
 static void snd_cs46xx_cp_trans_copy(struct snd_pcm_substream *substream,
@@ -903,8 +903,8 @@ static void snd_cs46xx_cp_trans_copy(struct snd_pcm_substream *substream,
 static int snd_cs46xx_capture_transfer(struct snd_pcm_substream *substream)
 {
 	struct snd_cs46xx *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_indirect_capture_transfer(substream, &chip->capt.pcm_rec, snd_cs46xx_cp_trans_copy);
-	return 0;
+	return snd_pcm_indirect_capture_transfer(substream, &chip->capt.pcm_rec,
+						 snd_cs46xx_cp_trans_copy);
 }
 
 static snd_pcm_uframes_t snd_cs46xx_playback_direct_pointer(struct snd_pcm_substream *substream)
@@ -1438,7 +1438,7 @@ static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct snd_pcm_hardware snd_cs46xx_playback =
+static const struct snd_pcm_hardware snd_cs46xx_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED | 
@@ -1460,7 +1460,7 @@ static struct snd_pcm_hardware snd_cs46xx_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_cs46xx_capture =
+static const struct snd_pcm_hardware snd_cs46xx_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
@@ -1482,9 +1482,9 @@ static struct snd_pcm_hardware snd_cs46xx_capture =
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 
-static unsigned int period_sizes[] = { 32, 64, 128, 256, 512, 1024, 2048 };
+static const unsigned int period_sizes[] = { 32, 64, 128, 256, 512, 1024, 2048 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_period_sizes = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_period_sizes = {
 	.count = ARRAY_SIZE(period_sizes),
 	.list = period_sizes,
 	.mask = 0
@@ -1654,7 +1654,7 @@ static int snd_cs46xx_capture_close(struct snd_pcm_substream *substream)
 }
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-static struct snd_pcm_ops snd_cs46xx_playback_rear_ops = {
+static const struct snd_pcm_ops snd_cs46xx_playback_rear_ops = {
 	.open =			snd_cs46xx_playback_open_rear,
 	.close =		snd_cs46xx_playback_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1665,7 +1665,7 @@ static struct snd_pcm_ops snd_cs46xx_playback_rear_ops = {
 	.pointer =		snd_cs46xx_playback_direct_pointer,
 };
 
-static struct snd_pcm_ops snd_cs46xx_playback_indirect_rear_ops = {
+static const struct snd_pcm_ops snd_cs46xx_playback_indirect_rear_ops = {
 	.open =			snd_cs46xx_playback_open_rear,
 	.close =		snd_cs46xx_playback_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1677,7 +1677,7 @@ static struct snd_pcm_ops snd_cs46xx_playback_indirect_rear_ops = {
 	.ack =			snd_cs46xx_playback_transfer,
 };
 
-static struct snd_pcm_ops snd_cs46xx_playback_clfe_ops = {
+static const struct snd_pcm_ops snd_cs46xx_playback_clfe_ops = {
 	.open =			snd_cs46xx_playback_open_clfe,
 	.close =		snd_cs46xx_playback_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1688,7 +1688,7 @@ static struct snd_pcm_ops snd_cs46xx_playback_clfe_ops = {
 	.pointer =		snd_cs46xx_playback_direct_pointer,
 };
 
-static struct snd_pcm_ops snd_cs46xx_playback_indirect_clfe_ops = {
+static const struct snd_pcm_ops snd_cs46xx_playback_indirect_clfe_ops = {
 	.open =			snd_cs46xx_playback_open_clfe,
 	.close =		snd_cs46xx_playback_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1700,7 +1700,7 @@ static struct snd_pcm_ops snd_cs46xx_playback_indirect_clfe_ops = {
 	.ack =			snd_cs46xx_playback_transfer,
 };
 
-static struct snd_pcm_ops snd_cs46xx_playback_iec958_ops = {
+static const struct snd_pcm_ops snd_cs46xx_playback_iec958_ops = {
 	.open =			snd_cs46xx_playback_open_iec958,
 	.close =		snd_cs46xx_playback_close_iec958,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1711,7 +1711,7 @@ static struct snd_pcm_ops snd_cs46xx_playback_iec958_ops = {
 	.pointer =		snd_cs46xx_playback_direct_pointer,
 };
 
-static struct snd_pcm_ops snd_cs46xx_playback_indirect_iec958_ops = {
+static const struct snd_pcm_ops snd_cs46xx_playback_indirect_iec958_ops = {
 	.open =			snd_cs46xx_playback_open_iec958,
 	.close =		snd_cs46xx_playback_close_iec958,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1725,7 +1725,7 @@ static struct snd_pcm_ops snd_cs46xx_playback_indirect_iec958_ops = {
 
 #endif
 
-static struct snd_pcm_ops snd_cs46xx_playback_ops = {
+static const struct snd_pcm_ops snd_cs46xx_playback_ops = {
 	.open =			snd_cs46xx_playback_open,
 	.close =		snd_cs46xx_playback_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1736,7 +1736,7 @@ static struct snd_pcm_ops snd_cs46xx_playback_ops = {
 	.pointer =		snd_cs46xx_playback_direct_pointer,
 };
 
-static struct snd_pcm_ops snd_cs46xx_playback_indirect_ops = {
+static const struct snd_pcm_ops snd_cs46xx_playback_indirect_ops = {
 	.open =			snd_cs46xx_playback_open,
 	.close =		snd_cs46xx_playback_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1748,7 +1748,7 @@ static struct snd_pcm_ops snd_cs46xx_playback_indirect_ops = {
 	.ack =			snd_cs46xx_playback_transfer,
 };
 
-static struct snd_pcm_ops snd_cs46xx_capture_ops = {
+static const struct snd_pcm_ops snd_cs46xx_capture_ops = {
 	.open =			snd_cs46xx_capture_open,
 	.close =		snd_cs46xx_capture_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1759,7 +1759,7 @@ static struct snd_pcm_ops snd_cs46xx_capture_ops = {
 	.pointer =		snd_cs46xx_capture_direct_pointer,
 };
 
-static struct snd_pcm_ops snd_cs46xx_capture_indirect_ops = {
+static const struct snd_pcm_ops snd_cs46xx_capture_indirect_ops = {
 	.open =			snd_cs46xx_capture_open,
 	.close =		snd_cs46xx_capture_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -2371,7 +2371,7 @@ static int snd_cs46xx_front_dup_put(struct snd_kcontrol *kcontrol,
 				    ucontrol->value.integer.value[0] ? 0 : 0x200);
 }
 
-static struct snd_kcontrol_new snd_cs46xx_front_dup_ctl = {
+static const struct snd_kcontrol_new snd_cs46xx_front_dup_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Duplicate Front",
 	.info = snd_mixer_boolean_info,
@@ -2460,7 +2460,7 @@ static int cs46xx_detect_codec(struct snd_cs46xx *chip, int codec)
 		udelay(10);
 		if (snd_cs46xx_codec_read(chip, AC97_RESET, codec) & 0x8000) {
 			dev_dbg(chip->card->dev,
-				"seconadry codec not present\n");
+				"secondary codec not present\n");
 			return -ENXIO;
 		}
 	}
@@ -2503,7 +2503,7 @@ int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 	chip->nr_ac97_codecs = 1;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	dev_dbg(chip->card->dev, "detecting seconadry codec\n");
+	dev_dbg(chip->card->dev, "detecting secondary codec\n");
 	/* try detect a secondary codec */
 	if (! cs46xx_detect_codec(chip, CS46XX_SECONDARY_CODEC_INDEX))
 		chip->nr_ac97_codecs = 2;
@@ -2683,14 +2683,14 @@ static void snd_cs46xx_midi_output_trigger(struct snd_rawmidi_substream *substre
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
-static struct snd_rawmidi_ops snd_cs46xx_midi_output =
+static const struct snd_rawmidi_ops snd_cs46xx_midi_output =
 {
 	.open =		snd_cs46xx_midi_output_open,
 	.close =	snd_cs46xx_midi_output_close,
 	.trigger =	snd_cs46xx_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_cs46xx_midi_input =
+static const struct snd_rawmidi_ops snd_cs46xx_midi_input =
 {
 	.open =		snd_cs46xx_midi_input_open,
 	.close =	snd_cs46xx_midi_input_close,
@@ -2718,7 +2718,7 @@ int snd_cs46xx_midi(struct snd_cs46xx *chip, int device)
  * gameport interface
  */
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 
 static void snd_cs46xx_gameport_trigger(struct gameport *gameport)
 {
@@ -2849,7 +2849,7 @@ static int snd_cs46xx_proc_init(struct snd_card *card, struct snd_cs46xx *chip)
 			entry->private_data = chip;
 			entry->c.ops = &snd_cs46xx_proc_io_ops;
 			entry->size = region->size;
-			entry->mode = S_IFREG | S_IRUSR;
+			entry->mode = S_IFREG | 0400;
 		}
 	}
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
@@ -4036,8 +4036,9 @@ int snd_cs46xx_create(struct snd_card *card,
 	snd_cs46xx_proc_init(card, chip);
 
 #ifdef CONFIG_PM_SLEEP
-	chip->saved_regs = kmalloc(sizeof(*chip->saved_regs) *
-				   ARRAY_SIZE(saved_regs), GFP_KERNEL);
+	chip->saved_regs = kmalloc_array(ARRAY_SIZE(saved_regs),
+					 sizeof(*chip->saved_regs),
+					 GFP_KERNEL);
 	if (!chip->saved_regs) {
 		snd_cs46xx_free(chip);
 		return -ENOMEM;

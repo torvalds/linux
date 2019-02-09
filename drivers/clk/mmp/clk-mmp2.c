@@ -16,8 +16,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-
-#include <mach/addr-map.h>
+#include <linux/clk/mmp.h>
 
 #include "clk.h"
 
@@ -74,7 +73,8 @@ static const char *sdh_parent[] = {"pll1_4", "pll2", "usb_pll", "pll1"};
 static const char *disp_parent[] = {"pll1", "pll1_16", "pll2", "vctcxo"};
 static const char *ccic_parent[] = {"pll1_2", "pll1_16", "vctcxo"};
 
-void __init mmp2_clk_init(void)
+void __init mmp2_clk_init(phys_addr_t mpmu_phys, phys_addr_t apmu_phys,
+			  phys_addr_t apbc_phys)
 {
 	struct clk *clk;
 	struct clk *vctcxo;
@@ -82,41 +82,37 @@ void __init mmp2_clk_init(void)
 	void __iomem *apmu_base;
 	void __iomem *apbc_base;
 
-	mpmu_base = ioremap(APB_PHYS_BASE + 0x50000, SZ_4K);
-	if (mpmu_base == NULL) {
+	mpmu_base = ioremap(mpmu_phys, SZ_4K);
+	if (!mpmu_base) {
 		pr_err("error to ioremap MPMU base\n");
 		return;
 	}
 
-	apmu_base = ioremap(AXI_PHYS_BASE + 0x82800, SZ_4K);
-	if (apmu_base == NULL) {
+	apmu_base = ioremap(apmu_phys, SZ_4K);
+	if (!apmu_base) {
 		pr_err("error to ioremap APMU base\n");
 		return;
 	}
 
-	apbc_base = ioremap(APB_PHYS_BASE + 0x15000, SZ_4K);
-	if (apbc_base == NULL) {
+	apbc_base = ioremap(apbc_phys, SZ_4K);
+	if (!apbc_base) {
 		pr_err("error to ioremap APBC base\n");
 		return;
 	}
 
-	clk = clk_register_fixed_rate(NULL, "clk32", NULL, CLK_IS_ROOT, 3200);
+	clk = clk_register_fixed_rate(NULL, "clk32", NULL, 0, 3200);
 	clk_register_clkdev(clk, "clk32", NULL);
 
-	vctcxo = clk_register_fixed_rate(NULL, "vctcxo", NULL, CLK_IS_ROOT,
-				26000000);
+	vctcxo = clk_register_fixed_rate(NULL, "vctcxo", NULL, 0, 26000000);
 	clk_register_clkdev(vctcxo, "vctcxo", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "pll1", NULL, CLK_IS_ROOT,
-				800000000);
+	clk = clk_register_fixed_rate(NULL, "pll1", NULL, 0, 800000000);
 	clk_register_clkdev(clk, "pll1", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "usb_pll", NULL, CLK_IS_ROOT,
-				480000000);
+	clk = clk_register_fixed_rate(NULL, "usb_pll", NULL, 0, 480000000);
 	clk_register_clkdev(clk, "usb_pll", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "pll2", NULL, CLK_IS_ROOT,
-				960000000);
+	clk = clk_register_fixed_rate(NULL, "pll2", NULL, 0, 960000000);
 	clk_register_clkdev(clk, "pll2", NULL);
 
 	clk = clk_register_fixed_factor(NULL, "pll1_2", "pll1",

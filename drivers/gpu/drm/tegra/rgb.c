@@ -88,7 +88,6 @@ static void tegra_dc_write_regs(struct tegra_dc *dc,
 }
 
 static const struct drm_connector_funcs tegra_rgb_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = tegra_output_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -112,7 +111,6 @@ tegra_rgb_connector_mode_valid(struct drm_connector *connector,
 static const struct drm_connector_helper_funcs tegra_rgb_connector_helper_funcs = {
 	.get_modes = tegra_output_connector_get_modes,
 	.mode_valid = tegra_rgb_connector_mode_valid,
-	.best_encoder = tegra_output_connector_best_encoder,
 };
 
 static const struct drm_encoder_funcs tegra_rgb_encoder_funcs = {
@@ -287,11 +285,11 @@ int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc)
 	output->connector.dpms = DRM_MODE_DPMS_OFF;
 
 	drm_encoder_init(drm, &output->encoder, &tegra_rgb_encoder_funcs,
-			 DRM_MODE_ENCODER_LVDS);
+			 DRM_MODE_ENCODER_LVDS, NULL);
 	drm_encoder_helper_add(&output->encoder,
 			       &tegra_rgb_encoder_helper_funcs);
 
-	drm_mode_connector_attach_encoder(&output->connector,
+	drm_connector_attach_encoder(&output->connector,
 					  &output->encoder);
 	drm_connector_register(&output->connector);
 

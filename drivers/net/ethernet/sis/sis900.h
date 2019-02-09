@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* sis900.h Definitions for SiS ethernet controllers including 7014/7016 and 900
  * Copyright 1999 Silicon Integrated System Corporation
  * References:
@@ -310,7 +311,7 @@ enum sis630_revision_id {
 #define CRC_SIZE                4
 #define MAC_HEADER_SIZE         14
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 #define MAX_FRAME_SIZE  (1518 + 4)
 #else
 #define MAX_FRAME_SIZE  1518

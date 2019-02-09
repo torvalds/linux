@@ -111,6 +111,7 @@ static int exofs_symlink(struct inode *dir, struct dentry *dentry,
 	if (l > sizeof(oi->i_data)) {
 		/* slow symlink */
 		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &exofs_aops;
 		memset(oi->i_data, 0, sizeof(oi->i_data));
 
@@ -141,7 +142,7 @@ static int exofs_link(struct dentry *old_dentry, struct inode *dir,
 {
 	struct inode *inode = d_inode(old_dentry);
 
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = current_time(inode);
 	inode_inc_link_count(inode);
 	ihold(inode);
 
@@ -226,7 +227,8 @@ static int exofs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry)
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags)
 {
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);
@@ -235,6 +237,9 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct page *old_page;
 	struct exofs_dir_entry *old_de;
 	int err = -ENOENT;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	old_de = exofs_find_entry(old_dir, old_dentry, &old_page);
 	if (!old_de)
@@ -260,7 +265,7 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (!new_de)
 			goto out_dir;
 		err = exofs_set_link(new_dir, new_de, new_page, old_inode);
-		new_inode->i_ctime = CURRENT_TIME;
+		new_inode->i_ctime = current_time(new_inode);
 		if (dir_de)
 			drop_nlink(new_inode);
 		inode_dec_link_count(new_inode);
@@ -274,7 +279,7 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			inode_inc_link_count(new_dir);
 	}
 
-	old_inode->i_ctime = CURRENT_TIME;
+	old_inode->i_ctime = current_time(old_inode);
 
 	exofs_delete_entry(old_de, old_page);
 	mark_inode_dirty(old_inode);
@@ -291,11 +296,11 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 out_dir:
 	if (dir_de) {
 		kunmap(dir_page);
-		page_cache_release(dir_page);
+		put_page(dir_page);
 	}
 out_old:
 	kunmap(old_page);
-	page_cache_release(old_page);
+	put_page(old_page);
 out:
 	return err;
 }
@@ -309,7 +314,7 @@ const struct inode_operations exofs_dir_inode_operations = {
 	.mkdir  	= exofs_mkdir,
 	.rmdir  	= exofs_rmdir,
 	.mknod  	= exofs_mknod,
-	.rename 	= exofs_rename,
+	.rename		= exofs_rename,
 	.setattr	= exofs_setattr,
 };
 

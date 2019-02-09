@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/drivers/char/misc.c
  *
@@ -94,22 +95,9 @@ static const struct seq_operations misc_seq_ops = {
 	.stop  = misc_seq_stop,
 	.show  = misc_seq_show,
 };
-
-static int misc_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &misc_seq_ops);
-}
-
-static const struct file_operations misc_proc_fops = {
-	.owner	 = THIS_MODULE,
-	.open    = misc_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
 #endif
 
-static int misc_open(struct inode * inode, struct file * file)
+static int misc_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
 	struct miscdevice *c;
@@ -150,7 +138,7 @@ static int misc_open(struct inode * inode, struct file * file)
 	err = 0;
 	replace_fops(file, new_fops);
 	if (file->f_op->open)
-		err = file->f_op->open(inode,file);
+		err = file->f_op->open(inode, file);
 fail:
 	mutex_unlock(&misc_mtx);
 	return err;
@@ -182,7 +170,7 @@ static const struct file_operations misc_fops = {
  *	failure.
  */
 
-int misc_register(struct miscdevice * misc)
+int misc_register(struct miscdevice *misc)
 {
 	dev_t dev;
 	int err = 0;
@@ -194,6 +182,7 @@ int misc_register(struct miscdevice * misc)
 
 	if (is_dynamic) {
 		int i = find_first_zero_bit(misc_minors, DYNAMIC_MINORS);
+
 		if (i >= DYNAMIC_MINORS) {
 			err = -EBUSY;
 			goto out;
@@ -280,20 +269,20 @@ static int __init misc_init(void)
 	int err;
 	struct proc_dir_entry *ret;
 
-	ret = proc_create("misc", 0, NULL, &misc_proc_fops);
+	ret = proc_create_seq("misc", 0, NULL, &misc_seq_ops);
 	misc_class = class_create(THIS_MODULE, "misc");
 	err = PTR_ERR(misc_class);
 	if (IS_ERR(misc_class))
 		goto fail_remove;
 
 	err = -EIO;
-	if (register_chrdev(MISC_MAJOR,"misc",&misc_fops))
+	if (register_chrdev(MISC_MAJOR, "misc", &misc_fops))
 		goto fail_printk;
 	misc_class->devnode = misc_devnode;
 	return 0;
 
 fail_printk:
-	printk("unable to get major %d for misc devices\n", MISC_MAJOR);
+	pr_err("unable to get major %d for misc devices\n", MISC_MAJOR);
 	class_destroy(misc_class);
 fail_remove:
 	if (ret)

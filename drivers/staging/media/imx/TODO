@@ -1,0 +1,62 @@
+
+- The Frame Interval Monitor could be exported to v4l2-core for
+  general use.
+
+- The CSI subdevice parses its nearest upstream neighbor's device-tree
+  bus config in order to setup the CSI. Laurent Pinchart argues that
+  instead the CSI subdev should call its neighbor's g_mbus_config op
+  (which should be propagated if necessary) to get this info. However
+  Hans Verkuil is planning to remove the g_mbus_config op. For now this
+  driver uses the parsed DT bus config method until this issue is
+  resolved.
+
+- This media driver supports inheriting V4L2 controls to the
+  video capture devices, from the subdevices in the capture device's
+  pipeline. The controls for each capture device are updated in the
+  link_notify callback when the pipeline is modified. It should be
+  decided whether this feature is useful enough to make it generally
+  available by exporting to v4l2-core.
+
+- The OF graph is walked at probe time to form the list of fwnodes to
+  be passed to v4l2_async_notifier_register(), starting from the IPU
+  CSI ports. And after all async subdevices have been bound,
+  v4l2_fwnode_parse_link() is used to form the media links between
+  the entities discovered by walking the OF graph.
+
+  While this approach allows support for arbitrary OF graphs, there
+  are some assumptions for this to work:
+
+  1. All port parent nodes reachable in the graph from the IPU CSI
+     ports bind to V4L2 async subdevice drivers.
+
+     If a device has mixed-use ports such as video plus audio, the
+     endpoints from the audio ports are followed to devices that must
+     bind to V4L2 subdevice drivers, and not for example, to an ALSA
+     driver or a non-V4L2 media driver. If the device were bound to
+     such a driver, imx-media would never get an async completion
+     notification because the device fwnode was added to the async
+     list, but the driver does not interface with the V4L2 async
+     framework.
+
+  2. Every port reachable in the graph is treated as a media pad,
+     owned by the V4L2 subdevice that is bound to the port's parent.
+
+     This presents problems for devices that don't make this port = pad
+     assumption. Examples are SMIAPP compatible cameras which define only
+     a single output port node, but which define multiple pads owned
+     by multiple subdevices (pixel-array, binner, scaler). Or video
+     decoders (entity function MEDIA_ENT_F_ATV_DECODER), which also define
+     only a single output port node, but define multiple pads for video,
+     VBI, and audio out.
+
+     A workaround at present is to set the port reg properties to
+     correspond to the media pad index that the port represents. A
+     possible long-term solution is to implement a subdev API that
+     maps a port id to a media pad index.
+
+  3. Every endpoint of a port reachable in the graph is treated as
+     a media link, between V4L2 subdevices that are bound to the
+     port parents of the local and remote endpoints.
+
+     Which means a port must not contain mixed-use endpoints, they
+     must all refer to media links between V4L2 subdevices.

@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 / {
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
 		stdout-path = &uart0;
-	};
-
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
 	};
 
 	ocp@f1000000 {
@@ -34,7 +25,7 @@
 		};
 	};
 
-	i2c@0 {
+	i2c {
 		compatible = "i2c-gpio";
 		gpios = < &gpio0 8 GPIO_ACTIVE_HIGH		/* sda */
 			  &gpio0 9 GPIO_ACTIVE_HIGH>;		/* scl */
@@ -45,4 +36,12 @@
 &nand {
 	status = "okay";
 	chip-delay = <25>;
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

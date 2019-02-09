@@ -15,6 +15,14 @@
 	chosen {
 		bootargs = "rootfstype=ubifs ubi.mtd=5 root=ubi0:rootfs rw";
 		stdout-path = "serial0:115200n8";
+
+		clocksource {
+			timer = <&timer0>;
+		};
+
+		clockevent {
+			timer = <&timer1>;
+		};
 	};
 
 	memory {
@@ -32,11 +40,11 @@
 	};
 
 	ahb {
-		usb0: ohci@00500000 {
+		usb0: ohci@500000 {
 			status = "okay";
 		};
 
-		fb0: fb@0x00600000 {
+		fb0: fb@600000 {
 			display = <&display0>;
 			atmel,power-control-gpio = <&pioA 12 GPIO_ACTIVE_LOW>;
 			status = "okay";
@@ -68,44 +76,75 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "soft";
-			nand-on-flash-bbt;
+		ebi: ebi@10000000 {
 			status = "okay";
 
-			at91bootstrap@0 {
-				label = "at91bootstrap";
-				reg = <0x0 0x40000>;
-			};
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+				pinctrl-names = "default";
 
-			bootloader@40000 {
-				label = "bootloader";
-				reg = <0x40000 0x80000>;
-			};
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioC 15 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioC 14 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-on-flash-bbt;
+					label = "atmel_nand";
 
-			bootloaderenv@c0000 {
-				label = "bootloader env";
-				reg = <0xc0000 0xc0000>;
-			};
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
 
-			dtb@180000 {
-				label = "device tree";
-				reg = <0x180000 0x80000>;
-			};
+						at91bootstrap@0 {
+							label = "at91bootstrap";
+							reg = <0x0 0x40000>;
+						};
 
-			kernel@200000 {
-				label = "kernel";
-				reg = <0x200000 0x600000>;
-			};
+						bootloader@40000 {
+							label = "bootloader";
+							reg = <0x40000 0x80000>;
+						};
 
-			rootfs@800000 {
-				label = "rootfs";
-				reg = <0x800000 0x0f800000>;
+						bootloaderenv@c0000 {
+							label = "bootloader env";
+							reg = <0xc0000 0xc0000>;
+						};
+
+						dtb@180000 {
+							label = "device tree";
+							reg = <0x180000 0x80000>;
+						};
+
+						kernel@200000 {
+							label = "kernel";
+							reg = <0x200000 0x600000>;
+						};
+
+						rootfs@800000 {
+							label = "rootfs";
+							reg = <0x800000 0x0f800000>;
+						};
+					};
+				};
 			};
 		};
 
 		apb {
+			tcb0: timer@fffa0000 {
+				timer0: timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer1: timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			usb1: gadget@fffa4000 {
 				atmel,vbus-gpio = <&pioB 29 GPIO_ACTIVE_HIGH>;
 				status = "okay";

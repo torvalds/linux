@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Building a vDSO image for AArch64.
 #
@@ -23,7 +24,7 @@ GCOV_PROFILE := n
 ccflags-y += -Wl,-shared
 
 obj-y += vdso.o
-extra-y += vdso.lds vdso-offsets.h
+extra-y += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
 
 # Force dependency (incbin is bad)
@@ -42,11 +43,10 @@ $(obj)/%.so: $(obj)/%.so.dbg FORCE
 gen-vdsosym := $(srctree)/$(src)/gen_vdso_offsets.sh
 quiet_cmd_vdsosym = VDSOSYM $@
 define cmd_vdsosym
-	$(NM) $< | $(gen-vdsosym) | LC_ALL=C sort > $@ && \
-	cp $@ include/generated/
+	$(NM) $< | $(gen-vdsosym) | LC_ALL=C sort > $@
 endef
 
-$(obj)/vdso-offsets.h: $(obj)/vdso.so.dbg FORCE
+include/generated/vdso-offsets.h: $(obj)/vdso.so.dbg FORCE
 	$(call if_changed,vdsosym)
 
 # Assembly rules for the .S files

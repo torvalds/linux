@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef GSPCAV2_H
 #define GSPCAV2_H
 
@@ -8,6 +9,8 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/videobuf2-v4l2.h>
+#include <media/videobuf2-vmalloc.h>
 #include <linux/mutex.h>
 
 
@@ -25,11 +28,12 @@
 extern int gspca_debug;
 
 
-#define PDEBUG(level, fmt, ...) \
-	v4l2_dbg(level, gspca_debug, &gspca_dev->v4l2_dev, fmt, ##__VA_ARGS__)
+#define gspca_dbg(gspca_dev, level, fmt, ...)			\
+	v4l2_dbg(level, gspca_debug, &(gspca_dev)->v4l2_dev,	\
+		 fmt, ##__VA_ARGS__)
 
-#define PERR(fmt, ...) \
-	v4l2_err(&gspca_dev->v4l2_dev, fmt, ##__VA_ARGS__)
+#define gspca_err(gspca_dev, fmt, ...)				\
+	v4l2_err(&(gspca_dev)->v4l2_dev, fmt, ##__VA_ARGS__)
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
 /* image transfers */
@@ -136,19 +140,22 @@ enum gspca_packet_type {
 	LAST_PACKET
 };
 
-struct gspca_frame {
-	__u8 *data;			/* frame buffer */
-	int vma_use_count;
-	struct v4l2_buffer v4l2_buf;
+struct gspca_buffer {
+	struct vb2_v4l2_buffer vb;
+	struct list_head list;
 };
+
+static inline struct gspca_buffer *to_gspca_buffer(struct vb2_buffer *vb2)
+{
+	return container_of(vb2, struct gspca_buffer, vb.vb2_buf);
+}
 
 struct gspca_dev {
 	struct video_device vdev;	/* !! must be the first item */
 	struct module *module;		/* subdriver handling the device */
 	struct v4l2_device v4l2_dev;
 	struct usb_device *dev;
-	struct file *capt_file;		/* file doing video capture */
-					/* protected by queue_lock */
+
 #if IS_ENABLED(CONFIG_INPUT)
 	struct input_dev *input_dev;
 	char phys[64];			/* physical device path */
@@ -174,34 +181,29 @@ struct gspca_dev {
 	struct urb *int_urb;
 #endif
 
-	__u8 *frbuf;				/* buffer for nframes */
-	struct gspca_frame frame[GSPCA_MAX_FRAMES];
-	u8 *image;				/* image beeing filled */
-	__u32 frsz;				/* frame size */
+	u8 *image;				/* image being filled */
 	u32 image_len;				/* current length of image */
-	atomic_t fr_q;				/* next frame to queue */
-	atomic_t fr_i;				/* frame being filled */
-	signed char fr_queue[GSPCA_MAX_FRAMES];	/* frame queue */
-	char nframes;				/* number of frames */
-	u8 fr_o;				/* next frame to dequeue */
 	__u8 last_packet_type;
 	__s8 empty_packet;		/* if (-1) don't check empty packets */
-	__u8 streaming;			/* protected by both mutexes (*) */
+	bool streaming;
 
 	__u8 curr_mode;			/* current camera mode */
 	struct v4l2_pix_format pixfmt;	/* current mode parameters */
 	__u32 sequence;			/* frame sequence number */
 
+	struct vb2_queue queue;
+
+	spinlock_t qlock;
+	struct list_head buf_list;
+
 	wait_queue_head_t wq;		/* wait queue */
 	struct mutex usb_lock;		/* usb exchange protection */
-	struct mutex queue_lock;	/* ISOC queue protection */
 	int usb_err;			/* USB error - protected by usb_lock */
 	u16 pkt_size;			/* ISOC packet size */
 #ifdef CONFIG_PM
 	char frozen;			/* suspend - resume */
 #endif
-	char present;			/* device connected */
-	char nbufread;			/* number of buffers for read() */
+	bool present;
 	char memory;			/* memory type (V4L2_MEMORY_xxx) */
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */

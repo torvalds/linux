@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/eisa_eeprom.h>
 
 #define 	EISA_EEPROM_MINOR 241
@@ -106,7 +106,7 @@ static int __init eisa_eeprom_init(void)
 		return retval;
 	}
 
-	printk(KERN_INFO "EISA EEPROM at 0x%p\n", eisa_eeprom_addr);
+	printk(KERN_INFO "EISA EEPROM at 0x%px\n", eisa_eeprom_addr);
 	return 0;
 }
 

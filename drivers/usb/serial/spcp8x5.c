@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * spcp8x5 USB to serial adaptor driver
  *
@@ -8,11 +9,6 @@
  * Original driver for 2.6.10 pl2303 driver by
  *   Greg Kroah-Hartman (greg@kroah.com)
  * Changes for 2.6.20 by Harald Klein <hari@vt100.at>
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -219,11 +215,17 @@ static int spcp8x5_get_msr(struct usb_serial_port *port, u8 *status)
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 			      GET_UART_STATUS, GET_UART_STATUS_TYPE,
 			      0, GET_UART_STATUS_MSR, buf, 1, 100);
-	if (ret < 0)
+	if (ret < 1) {
 		dev_err(&port->dev, "failed to get modem status: %d\n", ret);
+		if (ret >= 0)
+			ret = -EIO;
+		goto out;
+	}
 
 	dev_dbg(&port->dev, "0xc0:0x22:0:6  %d - 0x02%x\n", ret, *buf);
 	*status = *buf;
+	ret = 0;
+out:
 	kfree(buf);
 
 	return ret;
@@ -469,6 +471,8 @@ static struct usb_serial_driver spcp8x5_device = {
 	},
 	.id_table		= id_table,
 	.num_ports		= 1,
+	.num_bulk_in		= 1,
+	.num_bulk_out		= 1,
 	.open			= spcp8x5_open,
 	.dtr_rts		= spcp8x5_dtr_rts,
 	.carrier_raised		= spcp8x5_carrier_raised,

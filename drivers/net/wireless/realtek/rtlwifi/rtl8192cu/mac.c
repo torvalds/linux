@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -161,9 +157,8 @@ bool rtl92c_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
 			break;
 		if (count > POLLING_LLT_THRESHOLD) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Failed to polling write LLT done at address %d! _LLT_OP_VALUE(%x)\n",
-				 address, _LLT_OP_VALUE(value));
+			pr_err("Failed to polling write LLT done at address %d! _LLT_OP_VALUE(%x)\n",
+			       address, _LLT_OP_VALUE(value));
 			status = false;
 			break;
 		}
@@ -266,8 +261,7 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "illegal switch case\n");
+			pr_err("illegal switch case\n");
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -284,9 +278,7 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id = rtl_cam_get_free_entry(hw,
 								 p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						RT_TRACE(rtlpriv, COMP_SEC,
-							 DBG_EMERG,
-							 "Can not find free hw security cam entry\n");
+						pr_err("Can not find free hw security cam entry\n");
 						return;
 					}
 				} else {
@@ -360,11 +352,10 @@ u32 rtl92c_get_txdma_status(struct ieee80211_hw *hw)
 void rtl92c_enable_interrupt(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 
-	if (IS_HARDWARE_TYPE_8192CE(rtlhal)) {
+	if (IS_HARDWARE_TYPE_8192CE(rtlpriv)) {
 		rtl_write_dword(rtlpriv, REG_HIMR, rtlpci->irq_mask[0] &
 				0xFFFFFFFF);
 		rtl_write_dword(rtlpriv, REG_HIMRE, rtlpci->irq_mask[1] &
@@ -596,7 +587,7 @@ void rtl92c_set_min_space(struct ieee80211_hw *hw, bool is2T)
 
 /*==============================================================*/
 
-static u8 _rtl92c_query_rxpwrpercentage(char antpower)
+static u8 _rtl92c_query_rxpwrpercentage(s8 antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
 		return 0;
@@ -606,9 +597,9 @@ static u8 _rtl92c_query_rxpwrpercentage(char antpower)
 		return 100 + antpower;
 }
 
-static u8 _rtl92c_evm_db_to_percentage(char value)
+static u8 _rtl92c_evm_db_to_percentage(s8 value)
 {
-	char ret_val;
+	s8 ret_val;
 
 	ret_val = value;
 	if (ret_val >= 0)

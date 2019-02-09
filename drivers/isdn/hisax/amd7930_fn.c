@@ -317,7 +317,8 @@ Amd7930_empty_Dfifo(struct IsdnCardState *cs, int flag)
 							debugl1(cs, "%s", cs->dlog);
 						}
 						/* moves received data in sk-buffer */
-						memcpy(skb_put(skb, cs->rcvidx), cs->rcvbuf, cs->rcvidx);
+						skb_put_data(skb, cs->rcvbuf,
+							     cs->rcvidx);
 						skb_queue_tail(&cs->rq, skb);
 					}
 				}
@@ -397,7 +398,6 @@ Amd7930_fill_Dfifo(struct IsdnCardState *cs)
 		debugl1(cs, "Amd7930: fill_Dfifo dbusytimer running");
 		del_timer(&cs->dbusytimer);
 	}
-	init_timer(&cs->dbusytimer);
 	cs->dbusytimer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ) / 1000);
 	add_timer(&cs->dbusytimer);
 
@@ -685,8 +685,9 @@ DC_Close_Amd7930(struct IsdnCardState *cs) {
 
 
 static void
-dbusy_timer_handler(struct IsdnCardState *cs)
+dbusy_timer_handler(struct timer_list *t)
 {
+	struct IsdnCardState *cs = from_timer(cs, t, dbusytimer);
 	u_long flags;
 	struct PStack *stptr;
 	WORD dtcr, der;
@@ -789,7 +790,5 @@ void Amd7930_init(struct IsdnCardState *cs)
 void setup_Amd7930(struct IsdnCardState *cs)
 {
 	INIT_WORK(&cs->tqueue, Amd7930_bh);
-	cs->dbusytimer.function = (void *) dbusy_timer_handler;
-	cs->dbusytimer.data = (long) cs;
-	init_timer(&cs->dbusytimer);
+	timer_setup(&cs->dbusytimer, dbusy_timer_handler, 0);
 }

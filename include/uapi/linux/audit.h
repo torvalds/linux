@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* audit.h -- Auditing support
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
@@ -110,6 +111,9 @@
 #define AUDIT_SECCOMP		1326	/* Secure Computing event */
 #define AUDIT_PROCTITLE		1327	/* Proctitle emit event */
 #define AUDIT_FEATURE_CHANGE	1328	/* audit log listing feature changes */
+#define AUDIT_REPLACE		1329	/* Replace auditd if this packet unanswerd */
+#define AUDIT_KERN_MODULE	1330	/* Kernel Module events */
+#define AUDIT_FANOTIFY		1331	/* Fanotify access decision */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
@@ -129,6 +133,8 @@
 #define AUDIT_MAC_IPSEC_EVENT	1415	/* Audit an IPSec event */
 #define AUDIT_MAC_UNLBL_STCADD	1416	/* NetLabel: add a static label */
 #define AUDIT_MAC_UNLBL_STCDEL	1417	/* NetLabel: del a static label */
+#define AUDIT_MAC_CALIPSO_ADD	1418	/* NetLabel: add CALIPSO DOI entry */
+#define AUDIT_MAC_CALIPSO_DEL	1419	/* NetLabel: del CALIPSO DOI entry */
 
 #define AUDIT_FIRST_KERN_ANOM_MSG   1700
 #define AUDIT_LAST_KERN_ANOM_MSG    1799
@@ -141,6 +147,8 @@
 #define AUDIT_INTEGRITY_HASH	    1803 /* Integrity HASH type */
 #define AUDIT_INTEGRITY_PCR	    1804 /* PCR invalidation msgs */
 #define AUDIT_INTEGRITY_RULE	    1805 /* policy rule */
+#define AUDIT_INTEGRITY_EVM_XATTR   1806 /* New EVM-covered xattr */
+#define AUDIT_INTEGRITY_POLICY_RULE 1807 /* IMA policy rules */
 
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
@@ -150,9 +158,11 @@
 #define AUDIT_FILTER_ENTRY	0x02	/* Apply rule at syscall entry */
 #define AUDIT_FILTER_WATCH	0x03	/* Apply rule to file system watches */
 #define AUDIT_FILTER_EXIT	0x04	/* Apply rule at syscall exit */
-#define AUDIT_FILTER_TYPE	0x05	/* Apply rule at audit_log_start */
+#define AUDIT_FILTER_EXCLUDE	0x05	/* Apply rule before record creation */
+#define AUDIT_FILTER_TYPE	AUDIT_FILTER_EXCLUDE /* obsolete misleading naming */
+#define AUDIT_FILTER_FS		0x06	/* Apply rule at __audit_inode_child */
 
-#define AUDIT_NR_FILTERS	6
+#define AUDIT_NR_FILTERS	7
 
 #define AUDIT_FILTER_PREPEND	0x10	/* Prepend to front of list */
 
@@ -251,6 +261,8 @@
 #define AUDIT_OBJ_LEV_LOW	22
 #define AUDIT_OBJ_LEV_HIGH	23
 #define AUDIT_LOGINUID_SET	24
+#define AUDIT_SESSIONID	25	/* Session ID */
+#define AUDIT_FSTYPE	26	/* FileSystem Type */
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */
@@ -322,13 +334,23 @@ enum {
 #define AUDIT_STATUS_RATE_LIMIT		0x0008
 #define AUDIT_STATUS_BACKLOG_LIMIT	0x0010
 #define AUDIT_STATUS_BACKLOG_WAIT_TIME	0x0020
+#define AUDIT_STATUS_LOST		0x0040
 
 #define AUDIT_FEATURE_BITMAP_BACKLOG_LIMIT	0x00000001
 #define AUDIT_FEATURE_BITMAP_BACKLOG_WAIT_TIME	0x00000002
 #define AUDIT_FEATURE_BITMAP_EXECUTABLE_PATH	0x00000004
+#define AUDIT_FEATURE_BITMAP_EXCLUDE_EXTEND	0x00000008
+#define AUDIT_FEATURE_BITMAP_SESSIONID_FILTER	0x00000010
+#define AUDIT_FEATURE_BITMAP_LOST_RESET		0x00000020
+#define AUDIT_FEATURE_BITMAP_FILTER_FS		0x00000040
+
 #define AUDIT_FEATURE_BITMAP_ALL (AUDIT_FEATURE_BITMAP_BACKLOG_LIMIT | \
 				  AUDIT_FEATURE_BITMAP_BACKLOG_WAIT_TIME | \
-				  AUDIT_FEATURE_BITMAP_EXECUTABLE_PATH)
+				  AUDIT_FEATURE_BITMAP_EXECUTABLE_PATH | \
+				  AUDIT_FEATURE_BITMAP_EXCLUDE_EXTEND | \
+				  AUDIT_FEATURE_BITMAP_SESSIONID_FILTER | \
+				  AUDIT_FEATURE_BITMAP_LOST_RESET | \
+				  AUDIT_FEATURE_BITMAP_FILTER_FS)
 
 /* deprecated: AUDIT_VERSION_* */
 #define AUDIT_VERSION_LATEST 		AUDIT_FEATURE_BITMAP_ALL
@@ -446,6 +468,7 @@ struct audit_tty_status {
 };
 
 #define AUDIT_UID_UNSET (unsigned int)-1
+#define AUDIT_SID_UNSET ((unsigned int)-1)
 
 /* audit_rule_data supports filter rules with both integer and string
  * fields.  It corresponds with AUDIT_ADD_RULE, AUDIT_DEL_RULE and

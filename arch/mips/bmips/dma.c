@@ -17,7 +17,7 @@
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <dma-coherence.h>
+#include <asm/bmips.h>
 
 /*
  * BCM338x has configurable address translation windows which allow the
@@ -40,7 +40,7 @@ static struct bmips_dma_range *bmips_dma_ranges;
 
 #define FLUSH_RAC		0x100
 
-static dma_addr_t bmips_phys_to_dma(struct device *dev, phys_addr_t pa)
+dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t pa)
 {
 	struct bmips_dma_range *r;
 
@@ -52,17 +52,7 @@ static dma_addr_t bmips_phys_to_dma(struct device *dev, phys_addr_t pa)
 	return pa;
 }
 
-dma_addr_t plat_map_dma_mem(struct device *dev, void *addr, size_t size)
-{
-	return bmips_phys_to_dma(dev, virt_to_phys(addr));
-}
-
-dma_addr_t plat_map_dma_mem_page(struct device *dev, struct page *page)
-{
-	return bmips_phys_to_dma(dev, page_to_phys(page));
-}
-
-unsigned long plat_dma_addr_to_phys(struct device *dev, dma_addr_t dma_addr)
+phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t dma_addr)
 {
 	struct bmips_dma_range *r;
 
@@ -72,6 +62,22 @@ unsigned long plat_dma_addr_to_phys(struct device *dev, dma_addr_t dma_addr)
 			return dma_addr - r->parent_addr + r->child_addr;
 	}
 	return dma_addr;
+}
+
+void arch_sync_dma_for_cpu_all(struct device *dev)
+{
+	void __iomem *cbr = BMIPS_GET_CBR();
+	u32 cfg;
+
+	if (boot_cpu_type() != CPU_BMIPS3300 &&
+	    boot_cpu_type() != CPU_BMIPS4350 &&
+	    boot_cpu_type() != CPU_BMIPS4380)
+		return;
+
+	/* Flush stale data out of the readahead cache */
+	cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
+	__raw_writel(cfg | 0x100, cbr + BMIPS_RAC_CONFIG);
+	__raw_readl(cbr + BMIPS_RAC_CONFIG);
 }
 
 static int __init bmips_init_dma_ranges(void)
@@ -94,7 +100,7 @@ static int __init bmips_init_dma_ranges(void)
 		goto out_bad;
 
 	/* add a dummy (zero) entry at the end as a sentinel */
-	bmips_dma_ranges = kzalloc(sizeof(struct bmips_dma_range) * (len + 1),
+	bmips_dma_ranges = kcalloc(len + 1, sizeof(struct bmips_dma_range),
 				   GFP_KERNEL);
 	if (!bmips_dma_ranges)
 		goto out_bad;

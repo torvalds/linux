@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the Linux/Xtensa kernel.
 #
@@ -8,15 +9,13 @@ obj-y := align.o coprocessor.o entry.o irq.o pci-dma.o platform.o process.o \
 	 ptrace.o setup.o signal.o stacktrace.o syscall.o time.o traps.o \
 	 vectors.o
 
-obj-$(CONFIG_KGDB) += xtensa-stub.o
 obj-$(CONFIG_PCI) += pci.o
 obj-$(CONFIG_MODULES) += xtensa_ksyms.o module.o
 obj-$(CONFIG_FUNCTION_TRACER) += mcount.o
 obj-$(CONFIG_SMP) += smp.o mxhead.o
 obj-$(CONFIG_XTENSA_VARIANT_HAVE_PERF_EVENTS) += perf_event.o
-
-AFLAGS_head.o += -mtext-section-literals
-AFLAGS_mxhead.o += -mtext-section-literals
+obj-$(CONFIG_HAVE_HW_BREAKPOINT) += hw_breakpoint.o
+obj-$(CONFIG_S32C1I_SELFTEST) += s32c1i_selftest.o
 
 # In the Xtensa architecture, assembly generates literals which must always
 # precede the L32R instruction with a relative offset less than 256 kB.

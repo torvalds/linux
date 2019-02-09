@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * System Trace Module (STM) infrastructure apis
  * Copyright (C) 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _STM_H_
@@ -50,6 +42,8 @@ struct stm_device;
  * @sw_end:		last STP master available to software
  * @sw_nchannels:	number of STP channels per master
  * @sw_mmiosz:		size of one channel's IO space, for mmap, optional
+ * @hw_override:	masters in the STP stream will not match the ones
+ *			assigned by software, but are up to the STM hardware
  * @packet:		callback that sends an STP packet
  * @mmio_addr:		mmap callback, optional
  * @link:		called when a new stm_source gets linked to us, optional
@@ -67,6 +61,16 @@ struct stm_device;
  * description. That is, the lowest master that can be allocated to software
  * writers is @sw_start and data from this writer will appear is @sw_start
  * master in the STP stream.
+ *
+ * The @packet callback should adhere to the following rules:
+ *   1) it must return the number of bytes it consumed from the payload;
+ *   2) therefore, if it sent a packet that does not have payload (like FLAG),
+ *      it must return zero;
+ *   3) if it does not support the requested packet type/flag combination,
+ *      it must return -ENOTSUPP.
+ *
+ * The @unlink callback is called when there are no more active writers so
+ * that the master/channel can be quiesced.
  */
 struct stm_data {
 	const char		*name;
@@ -75,6 +79,7 @@ struct stm_data {
 	unsigned int		sw_end;
 	unsigned int		sw_nchannels;
 	unsigned int		sw_mmiosz;
+	unsigned int		hw_override;
 	ssize_t			(*packet)(struct stm_data *, unsigned int,
 					  unsigned int, unsigned int,
 					  unsigned int, unsigned int,
@@ -120,7 +125,7 @@ int stm_source_register_device(struct device *parent,
 			       struct stm_source_data *data);
 void stm_source_unregister_device(struct stm_source_data *data);
 
-int stm_source_write(struct stm_source_data *data, unsigned int chan,
-		     const char *buf, size_t count);
+int notrace stm_source_write(struct stm_source_data *data, unsigned int chan,
+			     const char *buf, size_t count);
 
 #endif /* _STM_H_ */

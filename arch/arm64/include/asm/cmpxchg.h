@@ -18,8 +18,8 @@
 #ifndef __ASM_CMPXCHG_H
 #define __ASM_CMPXCHG_H
 
-#include <linux/bug.h>
-#include <linux/mmdebug.h>
+#include <linux/build_bug.h>
+#include <linux/compiler.h>
 
 #include <asm/atomic.h>
 #include <asm/barrier.h>
@@ -44,12 +44,10 @@ static inline unsigned long __xchg_case_##name(unsigned long x,		\
 	"	cbnz	%w1, 1b\n"					\
 	"	" #mb,							\
 	/* LSE atomics */						\
-	"	nop\n"							\
-	"	nop\n"							\
 	"	swp" #acq_lse #rel #sz "\t%" #w "3, %" #w "0, %2\n"	\
-	"	nop\n"							\
+		__nops(3)						\
 	"	" #nop_lse)						\
-	: "=&r" (ret), "=&r" (tmp), "+Q" (*(u8 *)ptr)			\
+	: "=&r" (ret), "=&r" (tmp), "+Q" (*(unsigned long *)ptr)	\
 	: "r" (x)							\
 	: cl);								\
 									\
@@ -199,30 +197,57 @@ __CMPXCHG_GEN(_mb)
 	__ret; \
 })
 
-/* this_cpu_cmpxchg */
-#define _protect_cmpxchg_local(pcp, o, n)			\
-({								\
-	typeof(*raw_cpu_ptr(&(pcp))) __ret;			\
-	preempt_disable();					\
-	__ret = cmpxchg_local(raw_cpu_ptr(&(pcp)), o, n);	\
-	preempt_enable();					\
-	__ret;							\
-})
+#define __CMPWAIT_CASE(w, sz, name)					\
+static inline void __cmpwait_case_##name(volatile void *ptr,		\
+					 unsigned long val)		\
+{									\
+	unsigned long tmp;						\
+									\
+	asm volatile(							\
+	"	sevl\n"							\
+	"	wfe\n"							\
+	"	ldxr" #sz "\t%" #w "[tmp], %[v]\n"			\
+	"	eor	%" #w "[tmp], %" #w "[tmp], %" #w "[val]\n"	\
+	"	cbnz	%" #w "[tmp], 1f\n"				\
+	"	wfe\n"							\
+	"1:"								\
+	: [tmp] "=&r" (tmp), [v] "+Q" (*(unsigned long *)ptr)		\
+	: [val] "r" (val));						\
+}
 
-#define this_cpu_cmpxchg_1(ptr, o, n) _protect_cmpxchg_local(ptr, o, n)
-#define this_cpu_cmpxchg_2(ptr, o, n) _protect_cmpxchg_local(ptr, o, n)
-#define this_cpu_cmpxchg_4(ptr, o, n) _protect_cmpxchg_local(ptr, o, n)
-#define this_cpu_cmpxchg_8(ptr, o, n) _protect_cmpxchg_local(ptr, o, n)
+__CMPWAIT_CASE(w, b, 1);
+__CMPWAIT_CASE(w, h, 2);
+__CMPWAIT_CASE(w,  , 4);
+__CMPWAIT_CASE( ,  , 8);
 
-#define this_cpu_cmpxchg_double_8(ptr1, ptr2, o1, o2, n1, n2)		\
-({									\
-	int __ret;							\
-	preempt_disable();						\
-	__ret = cmpxchg_double_local(	raw_cpu_ptr(&(ptr1)),		\
-					raw_cpu_ptr(&(ptr2)),		\
-					o1, o2, n1, n2);		\
-	preempt_enable();						\
-	__ret;								\
-})
+#undef __CMPWAIT_CASE
+
+#define __CMPWAIT_GEN(sfx)						\
+static inline void __cmpwait##sfx(volatile void *ptr,			\
+				  unsigned long val,			\
+				  int size)				\
+{									\
+	switch (size) {							\
+	case 1:								\
+		return __cmpwait_case##sfx##_1(ptr, (u8)val);		\
+	case 2:								\
+		return __cmpwait_case##sfx##_2(ptr, (u16)val);		\
+	case 4:								\
+		return __cmpwait_case##sfx##_4(ptr, val);		\
+	case 8:								\
+		return __cmpwait_case##sfx##_8(ptr, val);		\
+	default:							\
+		BUILD_BUG();						\
+	}								\
+									\
+	unreachable();							\
+}
+
+__CMPWAIT_GEN()
+
+#undef __CMPWAIT_GEN
+
+#define __cmpwait_relaxed(ptr, val) \
+	__cmpwait((ptr), (unsigned long)(val), sizeof(*(ptr)))
 
 #endif	/* __ASM_CMPXCHG_H */

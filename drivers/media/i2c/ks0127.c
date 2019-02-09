@@ -16,10 +16,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  *****************************************************************************
  *
  * Modified and extended by
@@ -199,7 +195,7 @@ struct adjust {
 struct ks0127 {
 	struct v4l2_subdev sd;
 	v4l2_std_id	norm;
-	u8 		regs[256];
+	u8		regs[256];
 };
 
 static inline struct ks0127 *to_ks0127(struct v4l2_subdev *sd)

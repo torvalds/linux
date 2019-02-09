@@ -2018,6 +2018,9 @@
 
 
 /* Codec Private Register definition */
+/* DAC ADC Digital Volume (0x00) */
+#define RT5645_DA1_ZDET_SFT			6
+
 /* 3D Speaker Control (0x63) */
 #define RT5645_3D_SPK_MASK			(0x1 << 15)
 #define RT5645_3D_SPK_SFT			15
@@ -2114,6 +2117,12 @@ enum {
 #define RT5645_RXDC_SRC_STO			(0x0 << 7)
 #define RT5645_RXDC_SRC_MONO			(0x1 << 7)
 #define RT5645_RXDC_SRC_SFT			(7)
+#define RT5645_MICBIAS1_POW_CTRL_SEL_MASK	(0x1 << 5)
+#define RT5645_MICBIAS1_POW_CTRL_SEL_A		(0x0 << 5)
+#define RT5645_MICBIAS1_POW_CTRL_SEL_M		(0x1 << 5)
+#define RT5645_MICBIAS2_POW_CTRL_SEL_MASK	(0x1 << 4)
+#define RT5645_MICBIAS2_POW_CTRL_SEL_A		(0x0 << 4)
+#define RT5645_MICBIAS2_POW_CTRL_SEL_M		(0x1 << 4)
 #define RT5645_RXDP2_SEL_MASK			(0x1 << 3)
 #define RT5645_RXDP2_SEL_IF2			(0x0 << 3)
 #define RT5645_RXDP2_SEL_ADC			(0x1 << 3)
@@ -2191,10 +2200,10 @@ enum {
 	RT5645_AD_MONO_R_FILTER = (0x1 << 5),
 };
 
-int rt5645_sel_asrc_clk_src(struct snd_soc_codec *codec,
+int rt5645_sel_asrc_clk_src(struct snd_soc_component *component,
 		unsigned int filter_mask, unsigned int clk_src);
 
-int rt5645_set_jack_detect(struct snd_soc_codec *codec,
+int rt5645_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack,
 	struct snd_soc_jack *btn_jack);
 #endif /* __RT5645_H__ */

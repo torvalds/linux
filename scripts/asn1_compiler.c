@@ -650,7 +650,7 @@ int main(int argc, char **argv)
 	}
 
 	hdr = fopen(headername, "w");
-	if (!out) {
+	if (!hdr) {
 		perror(headername);
 		exit(1);
 	}
@@ -1319,7 +1319,7 @@ static void render(FILE *out, FILE *hdr)
 	fprintf(out, " * ASN.1 parser for %s\n", grammar_name);
 	fprintf(out, " */\n");
 	fprintf(out, "#include <linux/asn1_ber_bytecode.h>\n");
-	fprintf(out, "#include \"%s-asn1.h\"\n", grammar_name);
+	fprintf(out, "#include \"%s.asn1.h\"\n", grammar_name);
 	fprintf(out, "\n");
 	if (ferror(out)) {
 		perror(outputname);

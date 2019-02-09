@@ -3,7 +3,7 @@
  *  under the terms of the GNU General Public License version 2 as published
  *  by the Free Software Foundation.
  *
- *  Copyright (C) 2012 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  *
  */
 
@@ -13,9 +13,8 @@
 #include <linux/types.h>
 #include <linux/of_platform.h>
 #include <linux/mutex.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/io.h>
-#include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 
@@ -91,6 +90,20 @@ struct xway_stp {
 };
 
 /**
+ * xway_stp_get() - gpio_chip->get - get gpios.
+ * @gc:     Pointer to gpio_chip device structure.
+ * @gpio:   GPIO signal number.
+ *
+ * Gets the shadow value.
+ */
+static int xway_stp_get(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct xway_stp *chip = gpiochip_get_data(gc);
+
+	return (xway_stp_r32(chip->virt, XWAY_STP_CPU0) & BIT(gpio));
+}
+
+/**
  * xway_stp_set() - gpio_chip->set - set gpios.
  * @gc:     Pointer to gpio_chip device structure.
  * @gpio:   GPIO signal number.
@@ -100,8 +113,7 @@ struct xway_stp {
  */
 static void xway_stp_set(struct gpio_chip *gc, unsigned gpio, int val)
 {
-	struct xway_stp *chip =
-		container_of(gc, struct xway_stp, gc);
+	struct xway_stp *chip = gpiochip_get_data(gc);
 
 	if (val)
 		chip->shadow |= BIT(gpio);
@@ -135,11 +147,10 @@ static int xway_stp_dir_out(struct gpio_chip *gc, unsigned gpio, int val)
  */
 static int xway_stp_request(struct gpio_chip *gc, unsigned gpio)
 {
-	struct xway_stp *chip =
-		container_of(gc, struct xway_stp, gc);
+	struct xway_stp *chip = gpiochip_get_data(gc);
 
 	if ((gpio < 8) && (chip->reserved & BIT(gpio))) {
-		dev_err(gc->dev, "GPIO %d is driven by hardware\n", gpio);
+		dev_err(gc->parent, "GPIO %d is driven by hardware\n", gpio);
 		return -ENODEV;
 	}
 
@@ -214,9 +225,10 @@ static int xway_stp_probe(struct platform_device *pdev)
 	if (IS_ERR(chip->virt))
 		return PTR_ERR(chip->virt);
 
-	chip->gc.dev = &pdev->dev;
+	chip->gc.parent = &pdev->dev;
 	chip->gc.label = "stp-xway";
 	chip->gc.direction_output = xway_stp_dir_out;
+	chip->gc.get = xway_stp_get;
 	chip->gc.set = xway_stp_set;
 	chip->gc.request = xway_stp_request;
 	chip->gc.base = -1;
@@ -260,7 +272,7 @@ static int xway_stp_probe(struct platform_device *pdev)
 
 	ret = xway_stp_hw_init(chip);
 	if (!ret)
-		ret = gpiochip_add(&chip->gc);
+		ret = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
 
 	if (!ret)
 		dev_info(&pdev->dev, "Init done\n");

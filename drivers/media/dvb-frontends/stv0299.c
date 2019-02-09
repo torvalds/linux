@@ -51,7 +51,7 @@
 #include <linux/jiffies.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "stv0299.h"
 
 struct stv0299_state {
@@ -88,8 +88,8 @@ static int stv0299_writeregI (struct stv0299_state* state, u8 reg, u8 data)
 	ret = i2c_transfer (state->i2c, &msg, 1);
 
 	if (ret != 1)
-		dprintk("%s: writereg error (reg == 0x%02x, val == 0x%02x, "
-			"ret == %i)\n", __func__, reg, data, ret);
+		dprintk("%s: writereg error (reg == 0x%02x, val == 0x%02x, ret == %i)\n",
+			__func__, reg, data, ret);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
@@ -368,7 +368,7 @@ static int stv0299_set_voltage(struct dvb_frontend *fe,
 	reg0x08 = stv0299_readreg (state, 0x08);
 	reg0x0c = stv0299_readreg (state, 0x0c);
 
-	/**
+	/*
 	 *  H/V switching over OP0, OP1 and OP2 are LNB power enable bits
 	 */
 	reg0x0c &= 0x0f;
@@ -422,7 +422,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 	if (debug_legacy_dish_switch)
 		printk ("%s switch command: 0x%04lx\n",__func__, cmd);
 
-	nexttime = ktime_get_real();
+	nexttime = ktime_get_boottime();
 	if (debug_legacy_dish_switch)
 		tv[0] = nexttime;
 	stv0299_writeregI (state, 0x0c, reg0x0c | 0x50); /* set LNB to 18V */
@@ -431,7 +431,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 
 	for (i=0; i<9; i++) {
 		if (debug_legacy_dish_switch)
-			tv[i+1] = ktime_get_real();
+			tv[i+1] = ktime_get_boottime();
 		if((cmd & 0x01) != last) {
 			/* set voltage to (last ? 13V : 18V) */
 			stv0299_writeregI (state, 0x0c, reg0x0c | (last ? lv_mask : 0x50));
@@ -602,9 +602,9 @@ static int stv0299_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int stv0299_get_frontend(struct dvb_frontend *fe)
+static int stv0299_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0299_state* state = fe->demodulator_priv;
 	s32 derot_freq;
 	int invval;
@@ -673,7 +673,7 @@ static void stv0299_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops stv0299_ops;
+static const struct dvb_frontend_ops stv0299_ops;
 
 struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
 				    struct i2c_adapter* i2c)
@@ -713,14 +713,13 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops stv0299_ops = {
+static const struct dvb_frontend_ops stv0299_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "ST STV0299 DVB-S",
-		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
-		.frequency_stepsize	= 125,	 /* kHz for QPSK frontends */
-		.frequency_tolerance	= 0,
+		.frequency_min_hz	=  950 * MHz,
+		.frequency_max_hz	= 2150 * MHz,
+		.frequency_stepsize_hz	=  125 * kHz,
 		.symbol_rate_min	= 1000000,
 		.symbol_rate_max	= 45000000,
 		.symbol_rate_tolerance	= 500,	/* ppm */
@@ -761,8 +760,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
 MODULE_DESCRIPTION("ST STV0299 DVB Demodulator driver");
-MODULE_AUTHOR("Ralph Metzler, Holger Waechtler, Peter Schildmann, Felix Domke, "
-	      "Andreas Oberritter, Andrew de Quincey, Kenneth Aafly");
+MODULE_AUTHOR("Ralph Metzler, Holger Waechtler, Peter Schildmann, Felix Domke, Andreas Oberritter, Andrew de Quincey, Kenneth Aafly");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(stv0299_attach);

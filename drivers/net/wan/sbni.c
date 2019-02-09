@@ -63,7 +63,7 @@
 #include <asm/types.h>
 #include <asm/byteorder.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sbni.h"
 
@@ -71,6 +71,7 @@
 
 struct net_local {
 	struct timer_list	watchdog;
+	struct net_device	*watchdog_dev;
 
 	spinlock_t	lock;
 	struct sk_buff  *rx_buf_p;		/* receive buffer ptr */
@@ -128,7 +129,7 @@ static void  send_frame( struct net_device * );
 static int   upload_data( struct net_device *,
 			  unsigned, unsigned, unsigned, u32 );
 static void  download_data( struct net_device *, u32 * );
-static void  sbni_watchdog( unsigned long );
+static void  sbni_watchdog(struct timer_list *);
 static void  interpret_ack( struct net_device *, unsigned );
 static int   append_frame_to_pkt( struct net_device *, unsigned, u32 );
 static void  indicate_pkt( struct net_device * );
@@ -211,7 +212,6 @@ static const struct net_device_ops sbni_netdev_ops = {
 	.ndo_start_xmit		= sbni_start_xmit,
 	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_do_ioctl		= sbni_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -582,8 +582,8 @@ handle_channel( struct net_device  *dev )
 
 
 /*
- * Routine returns 1 if it need to acknoweledge received frame.
- * Empty frame received without errors won't be acknoweledged.
+ * Routine returns 1 if it needs to acknowledge received frame.
+ * Empty frame received without errors won't be acknowledged.
  */
 
 static int
@@ -860,9 +860,9 @@ prepare_to_send( struct sk_buff  *skb,  struct net_device  *dev )
 
 	outb( inb( dev->base_addr + CSR0 ) | TR_REQ,  dev->base_addr + CSR0 );
 #ifdef CONFIG_SBNI_MULTILINE
-	nl->master->trans_start = jiffies;
+	netif_trans_update(nl->master);
 #else
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 #endif
 }
 
@@ -889,10 +889,10 @@ drop_xmit_queue( struct net_device  *dev )
 	nl->state &= ~(FL_WAIT_ACK | FL_NEED_RESEND);
 #ifdef CONFIG_SBNI_MULTILINE
 	netif_start_queue( nl->master );
-	nl->master->trans_start = jiffies;
+	netif_trans_update(nl->master);
 #else
 	netif_start_queue( dev );
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 #endif
 }
 
@@ -1030,11 +1030,10 @@ indicate_pkt( struct net_device  *dev )
  */
 
 static void
-sbni_watchdog( unsigned long  arg )
+sbni_watchdog(struct timer_list *t)
 {
-	struct net_device  *dev = (struct net_device *) arg;
-	struct net_local   *nl  = netdev_priv(dev);
-	struct timer_list  *w   = &nl->watchdog; 
+	struct net_local   *nl  = from_timer(nl, t, watchdog);
+	struct net_device  *dev = nl->watchdog_dev;
 	unsigned long	   flags;
 	unsigned char	   csr0;
 
@@ -1061,11 +1060,7 @@ sbni_watchdog( unsigned long  arg )
 
 	outb( csr0 | RC_CHK, dev->base_addr + CSR0 ); 
 
-	init_timer( w );
-	w->expires	= jiffies + SBNI_TIMEOUT;
-	w->data		= arg;
-	w->function	= sbni_watchdog;
-	add_timer( w );
+	mod_timer(t, jiffies + SBNI_TIMEOUT);
 
 	spin_unlock_irqrestore( &nl->lock, flags );
 }
@@ -1196,10 +1191,9 @@ handler_attached:
 	netif_start_queue( dev );
 
 	/* set timer watchdog */
-	init_timer( w );
+	nl->watchdog_dev = dev;
+	timer_setup(w, sbni_watchdog, 0);
 	w->expires	= jiffies + SBNI_TIMEOUT;
-	w->data		= (unsigned long) dev;
-	w->function	= sbni_watchdog;
 	add_timer( w );
    
 	spin_unlock( &nl->lock );
@@ -1464,8 +1458,8 @@ set_multicast_list( struct net_device  *dev )
 
 
 #ifdef MODULE
-module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 module_param_array(baud, int, NULL, 0);
 module_param_array(rxl, int, NULL, 0);
 module_param_array(mac, int, NULL, 0);

@@ -15,10 +15,6 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <linux/of_irq.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
 #include <linux/err.h>
 #include "xillybus.h"
 
@@ -81,7 +77,6 @@ static int xilly_map_single_of(struct xilly_endpoint *ep,
 {
 	dma_addr_t addr;
 	struct xilly_mapping *this;
-	int rc;
 
 	this = kzalloc(sizeof(*this), GFP_KERNEL);
 	if (!this)
@@ -101,15 +96,7 @@ static int xilly_map_single_of(struct xilly_endpoint *ep,
 
 	*ret_dma_handle = addr;
 
-	rc = devm_add_action(ep->dev, xilly_of_unmap, this);
-
-	if (rc) {
-		dma_unmap_single(ep->dev, addr, size, direction);
-		kfree(this);
-		return rc;
-	}
-
-	return 0;
+	return devm_add_action_or_reset(ep->dev, xilly_of_unmap, this);
 }
 
 static struct xilly_endpoint_hardware of_hw = {
@@ -132,7 +119,7 @@ static int xilly_drv_probe(struct platform_device *op)
 	struct xilly_endpoint *endpoint;
 	int rc;
 	int irq;
-	struct resource res;
+	struct resource *res;
 	struct xilly_endpoint_hardware *ephw = &of_hw;
 
 	if (of_property_read_bool(dev->of_node, "dma-coherent"))
@@ -145,13 +132,13 @@ static int xilly_drv_probe(struct platform_device *op)
 
 	dev_set_drvdata(dev, endpoint);
 
-	rc = of_address_to_resource(dev->of_node, 0, &res);
-	endpoint->registers = devm_ioremap_resource(dev, &res);
+	res = platform_get_resource(op, IORESOURCE_MEM, 0);
+	endpoint->registers = devm_ioremap_resource(dev, res);
 
 	if (IS_ERR(endpoint->registers))
 		return PTR_ERR(endpoint->registers);
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = platform_get_irq(op, 0);
 
 	rc = devm_request_irq(dev, irq, xillybus_isr, 0, xillyname, endpoint);
 

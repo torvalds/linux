@@ -2,6 +2,17 @@
 # Multimedia device configuration
 #
 
+config CEC_CORE
+	tristate
+
+config CEC_NOTIFIER
+	bool
+
+config CEC_PIN
+	bool
+
+source "drivers/media/rc/Kconfig"
+
 menuconfig MEDIA_SUPPORT
 	tristate "Multimedia support"
 	depends on HAS_IOMEM
@@ -9,7 +20,7 @@ menuconfig MEDIA_SUPPORT
 	  If you want to use Webcams, Video grabber devices and/or TV devices
 	  enable this option and other options below.
 	  Additional info and docs are available on the web at
-	  <http://linuxtv.org>
+	  <https://linuxtv.org>
 
 if MEDIA_SUPPORT
 
@@ -51,7 +62,7 @@ config MEDIA_RADIO_SUPPORT
 	  Enable AM/FM radio support.
 
 	  Additional info and docs are available on the web at
-	  <http://linuxtv.org>
+	  <https://linuxtv.org>
 
 	  Say Y when you have a board with radio support.
 
@@ -66,19 +77,16 @@ config MEDIA_SDR_SUPPORT
 
 	  Say Y when you have a software defined radio device.
 
-config MEDIA_RC_SUPPORT
-	bool "Remote Controller support"
-	depends on INPUT
+config MEDIA_CEC_SUPPORT
+	bool "HDMI CEC support"
 	---help---
-	  Enable support for Remote Controllers on Linux. This is
-	  needed in order to support several video capture adapters,
-	  standalone IR receivers/transmitters, and RF receivers.
+	  Enable support for HDMI CEC (Consumer Electronics Control),
+	  which is an optional HDMI feature.
 
-	  Enable this option if you have a video capture board even
-	  if you don't need IR, as otherwise, you may not be able to
-	  compile the driver for your adapter.
+	  Say Y when you have an HDMI receiver, transmitter or a USB CEC
+	  adapter that supports HDMI CEC.
 
-	  Say Y when you have a TV or an IR device.
+source "drivers/media/cec/Kconfig"
 
 #
 # Media controller
@@ -96,8 +104,7 @@ config MEDIA_CONTROLLER
 
 config MEDIA_CONTROLLER_DVB
 	bool "Enable Media controller for DVB (EXPERIMENTAL)"
-	depends on MEDIA_CONTROLLER
-	depends on BROKEN
+	depends on MEDIA_CONTROLLER && DVB_CORE
 	---help---
 	  Enable the media controller API support for DVB.
 
@@ -134,8 +141,23 @@ config DVB_CORE
 	tristate
 	depends on MEDIA_SUPPORT
 	depends on MEDIA_DIGITAL_TV_SUPPORT
+	depends on (I2C || I2C=n)
 	default y
 	select CRC32
+
+config DVB_MMAP
+	bool "Enable DVB memory-mapped API (EXPERIMENTAL)"
+	depends on DVB_CORE
+	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_CORE
+	select VIDEOBUF2_VMALLOC
+	default n
+	help
+	  This option enables DVB experimental memory-mapped API, which
+	  reduces the number of context switches to read DVB buffers, as
+	  the buffers can use mmap() syscalls.
+
+	  Support for it is experimental. Use with care. If unsure,
+	  say N.
 
 config DVB_NET
 	bool "DVB Network Support"
@@ -159,7 +181,6 @@ config TTPCI_EEPROM
 source "drivers/media/dvb-core/Kconfig"
 
 comment "Media drivers"
-source "drivers/media/rc/Kconfig"
 
 #
 # V4L platform/mem2mem drivers
@@ -178,14 +199,14 @@ source "drivers/media/firewire/Kconfig"
 # Common driver options
 source "drivers/media/common/Kconfig"
 
-comment "Media ancillary drivers (tuners, sensors, i2c, frontends)"
+comment "Media ancillary drivers (tuners, sensors, i2c, spi, frontends)"
 
 #
-# Ancillary drivers (tuners, i2c, frontends)
+# Ancillary drivers (tuners, i2c, spi, frontends)
 #
 
 config MEDIA_SUBDRV_AUTOSELECT
-	bool "Autoselect ancillary drivers (tuners, sensors, i2c, frontends)"
+	bool "Autoselect ancillary drivers (tuners, sensors, i2c, spi, frontends)"
 	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_CAMERA_SUPPORT || MEDIA_SDR_SUPPORT
 	depends on HAS_IOMEM
 	select I2C
@@ -214,6 +235,7 @@ config MEDIA_ATTACH
 	default MODULES
 
 source "drivers/media/i2c/Kconfig"
+source "drivers/media/spi/Kconfig"
 source "drivers/media/tuners/Kconfig"
 source "drivers/media/dvb-frontends/Kconfig"
 

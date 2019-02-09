@@ -25,6 +25,7 @@
 #define INT3403_TYPE_CHARGER		0x0B
 #define INT3403_TYPE_BATTERY		0x0C
 #define INT3403_PERF_CHANGED_EVENT	0x80
+#define INT3403_PERF_TRIP_POINT_CHANGED	0x81
 #define INT3403_THERMAL_EVENT		0x90
 
 /* Preserved structure for future expandbility */
@@ -72,7 +73,13 @@ static void int3403_notify(acpi_handle handle,
 	case INT3403_PERF_CHANGED_EVENT:
 		break;
 	case INT3403_THERMAL_EVENT:
-		int340x_thermal_zone_device_update(obj->int340x_zone);
+		int340x_thermal_zone_device_update(obj->int340x_zone,
+						   THERMAL_TRIP_VIOLATED);
+		break;
+	case INT3403_PERF_TRIP_POINT_CHANGED:
+		int340x_thermal_read_trips(obj->int340x_zone);
+		int340x_thermal_zone_device_update(obj->int340x_zone,
+						   THERMAL_TRIP_CHANGED);
 		break;
 	default:
 		dev_err(&priv->pdev->dev, "Unsupported event [0x%x]\n", event);
@@ -187,14 +194,13 @@ static int int3403_cdev_add(struct int3403_priv *priv)
 		return -EFAULT;
 	}
 
+	priv->priv = obj;
 	obj->max_state = p->package.count - 1;
 	obj->cdev =
 		thermal_cooling_device_register(acpi_device_bid(priv->adev),
 				priv, &int3403_cooling_ops);
 	if (IS_ERR(obj->cdev))
 		result = PTR_ERR(obj->cdev);
-
-	priv->priv = obj;
 
 	kfree(buf.pointer);
 	/* TODO: add ACPI notification support */
@@ -231,8 +237,16 @@ static int int3403_add(struct platform_device *pdev)
 	status = acpi_evaluate_integer(priv->adev->handle, "PTYP",
 				       NULL, &priv->type);
 	if (ACPI_FAILURE(status)) {
-		result = -EINVAL;
-		goto err;
+		unsigned long long tmp;
+
+		status = acpi_evaluate_integer(priv->adev->handle, "_TMP",
+					       NULL, &tmp);
+		if (ACPI_FAILURE(status)) {
+			result = -EINVAL;
+			goto err;
+		} else {
+			priv->type = INT3403_TYPE_SENSOR;
+		}
 	}
 
 	platform_set_drvdata(pdev, priv);

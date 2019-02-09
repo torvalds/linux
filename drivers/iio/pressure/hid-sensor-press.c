@@ -77,6 +77,7 @@ static int press_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
+	s32 min;
 
 	*val = 0;
 	*val2 = 0;
@@ -85,8 +86,8 @@ static int press_read_raw(struct iio_dev *indio_dev,
 		switch (chan->scan_index) {
 		case  CHANNEL_SCAN_INDEX_PRESSURE:
 			report_id = press_state->press_attr.report_id;
-			address =
-			HID_USAGE_SENSOR_ATMOSPHERIC_PRESSURE;
+			min = press_state->press_attr.logical_minimum;
+			address = HID_USAGE_SENSOR_ATMOSPHERIC_PRESSURE;
 			break;
 		default:
 			report_id = -1;
@@ -99,7 +100,8 @@ static int press_read_raw(struct iio_dev *indio_dev,
 				press_state->common_attributes.hsdev,
 				HID_USAGE_SENSOR_PRESSURE, address,
 				report_id,
-				SENSOR_HUB_SYNC);
+				SENSOR_HUB_SYNC,
+				min < 0);
 			hid_sensor_power_state(&press_state->common_attributes,
 						false);
 		} else {
@@ -160,7 +162,6 @@ static int press_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info press_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &press_read_raw,
 	.write_raw = &press_write_raw,
 };

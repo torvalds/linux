@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/delay.h>
@@ -614,10 +610,21 @@ static int wl1273_fm_start(struct wl1273_device *radio, int new_mode)
 			}
 		}
 
-		if (radio->rds_on)
+		if (radio->rds_on) {
 			r = core->write(core, WL1273_RDS_DATA_ENB, 1);
-		else
+			if (r) {
+				dev_err(dev, "%s: RDS_DATA_ENB ON fails\n",
+					__func__);
+				goto fail;
+			}
+		} else {
 			r = core->write(core, WL1273_RDS_DATA_ENB, 0);
+			if (r) {
+				dev_err(dev, "%s: RDS_DATA_ENB OFF fails\n",
+					__func__);
+				goto fail;
+			}
+		}
 	} else {
 		dev_warn(dev, "%s: Illegal mode.\n", __func__);
 	}
@@ -664,7 +671,7 @@ fail:
 static int wl1273_fm_suspend(struct wl1273_device *radio)
 {
 	struct wl1273_core *core = radio->core;
-	int r = 0;
+	int r;
 
 	/* Cannot go from OFF to SUSPENDED */
 	if (core->mode == WL1273_MODE_RX)
@@ -1082,14 +1089,14 @@ out:
 	return r;
 }
 
-static unsigned int wl1273_fm_fops_poll(struct file *file,
+static __poll_t wl1273_fm_fops_poll(struct file *file,
 					struct poll_table_struct *pts)
 {
 	struct wl1273_device *radio = video_get_drvdata(video_devdata(file));
 	struct wl1273_core *core = radio->core;
 
 	if (radio->owner && radio->owner != file)
-		return -EBUSY;
+		return EPOLLERR;
 
 	radio->owner = file;
 
@@ -1097,10 +1104,10 @@ static unsigned int wl1273_fm_fops_poll(struct file *file,
 		poll_wait(file, &radio->read_queue, pts);
 
 		if (radio->rd_index != radio->wr_index)
-			return POLLIN | POLLRDNORM;
+			return EPOLLIN | EPOLLRDNORM;
 
 	} else if (core->mode == WL1273_MODE_TX) {
-		return POLLOUT | POLLWRNORM;
+		return EPOLLOUT | EPOLLWRNORM;
 	}
 
 	return 0;
@@ -1323,7 +1330,7 @@ static int wl1273_fm_vidioc_s_input(struct file *file, void *priv,
 
 /**
  * wl1273_fm_set_tx_power() -	Set the transmission power value.
- * @core:			A pointer to the device struct.
+ * @radio:			A pointer to the device struct.
  * @power:			The new power value.
  */
 static int wl1273_fm_set_tx_power(struct wl1273_device *radio, u16 power)
@@ -1975,7 +1982,7 @@ static const struct v4l2_ioctl_ops wl1273_ioctl_ops = {
 	.vidioc_log_status      = wl1273_fm_vidioc_log_status,
 };
 
-static struct video_device wl1273_viddev_template = {
+static const struct video_device wl1273_viddev_template = {
 	.fops			= &wl1273_fops,
 	.ioctl_ops		= &wl1273_ioctl_ops,
 	.name			= WL1273_FM_DRIVER_NAME,
@@ -2068,8 +2075,7 @@ static int wl1273_fm_radio_probe(struct platform_device *pdev)
 			goto err_request_irq;
 		}
 	} else {
-		dev_err(radio->dev, WL1273_FM_DRIVER_NAME ": Core WL1273 IRQ"
-			" not configured");
+		dev_err(radio->dev, WL1273_FM_DRIVER_NAME ": Core WL1273 IRQ not configured");
 		r = -EINVAL;
 		goto pdata_err;
 	}

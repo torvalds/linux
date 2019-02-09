@@ -29,7 +29,13 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 	struct thermal_instance *instance;
 
 	tz->ops->get_trip_temp(tz, trip, &trip_temp);
-	tz->ops->get_trip_hyst(tz, trip, &trip_hyst);
+
+	if (!tz->ops->get_trip_hyst) {
+		pr_warn_once("Undefined get_trip_hyst for thermal zone %s - "
+				"running with default hysteresis zero\n", tz->type);
+		trip_hyst = 0;
+	} else
+		tz->ops->get_trip_hyst(tz, trip, &trip_hyst);
 
 	dev_dbg(&tz->device, "Trip%d[temp=%d]:temp=%d:hyst=%d\n",
 				trip, trip_temp, tz->temperature,
@@ -59,13 +65,15 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 		if (instance->target == 0 && tz->temperature >= trip_temp)
 			instance->target = 1;
 		else if (instance->target == 1 &&
-				tz->temperature < trip_temp - trip_hyst)
+				tz->temperature <= trip_temp - trip_hyst)
 			instance->target = 0;
 
 		dev_dbg(&instance->cdev->device, "target=%d\n",
 					(int)instance->target);
 
+		mutex_lock(&instance->cdev->lock);
 		instance->cdev->updated = false; /* cdev needs update */
+		mutex_unlock(&instance->cdev->lock);
 	}
 
 	mutex_unlock(&tz->lock);

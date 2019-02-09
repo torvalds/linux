@@ -216,14 +216,14 @@ static int cdv_hdmi_get_modes(struct drm_connector *connector)
 
 	edid = drm_get_edid(connector, &gma_encoder->i2c_bus->adapter);
 	if (edid) {
-		drm_mode_connector_update_edid_property(connector, edid);
+		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	}
 	return ret;
 }
 
-static int cdv_hdmi_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status cdv_hdmi_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	if (mode->clock > 165000)
@@ -246,8 +246,7 @@ static void cdv_hdmi_destroy(struct drm_connector *connector)
 {
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
-	if (gma_encoder->i2c_bus)
-		psb_intel_i2c_destroy(gma_encoder->i2c_bus);
+	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
@@ -255,7 +254,6 @@ static void cdv_hdmi_destroy(struct drm_connector *connector)
 
 static const struct drm_encoder_helper_funcs cdv_hdmi_helper_funcs = {
 	.dpms = cdv_hdmi_dpms,
-	.mode_fixup = gma_encoder_mode_fixup,
 	.prepare = gma_encoder_prepare,
 	.mode_set = cdv_hdmi_mode_set,
 	.commit = gma_encoder_commit,
@@ -270,8 +268,6 @@ static const struct drm_connector_helper_funcs
 
 static const struct drm_connector_funcs cdv_hdmi_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = cdv_hdmi_save,
-	.restore = cdv_hdmi_restore,
 	.detect = cdv_hdmi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = cdv_hdmi_set_property,
@@ -306,13 +302,16 @@ void cdv_hdmi_init(struct drm_device *dev,
 
 	connector = &gma_connector->base;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
+	gma_connector->save = cdv_hdmi_save;
+	gma_connector->restore = cdv_hdmi_restore;
+
 	encoder = &gma_encoder->base;
 	drm_connector_init(dev, connector,
 			   &cdv_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DVID);
 
 	drm_encoder_init(dev, encoder, &psb_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 	gma_encoder->type = INTEL_OUTPUT_HDMI;

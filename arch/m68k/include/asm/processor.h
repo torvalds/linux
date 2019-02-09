@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * include/asm-m68k/processor.h
  *
@@ -110,7 +111,6 @@ struct thread_struct {
 #define setframeformat(_regs)	do { } while (0)
 #endif
 
-#ifdef CONFIG_MMU
 /*
  * Do necessary setup to start up a newly executed thread.
  */
@@ -123,28 +123,6 @@ static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 	wrusp(usp);
 }
 
-extern int handle_kernel_fault(struct pt_regs *regs);
-
-#else
-
-#define start_thread(_regs, _pc, _usp)                  \
-do {                                                    \
-	(_regs)->pc = (_pc);                            \
-	setframeformat(_regs);                          \
-	if (current->mm)                                \
-		(_regs)->d5 = current->mm->start_data;  \
-	(_regs)->sr &= ~0x2000;                         \
-	wrusp(_usp);                                    \
-} while(0)
-
-static inline  int handle_kernel_fault(struct pt_regs *regs)
-{
-	/* Any fault in kernel is fatal on non-mmu */
-	return 0;
-}
-
-#endif
-
 /* Forward declaration, a strange C thing */
 struct task_struct;
 
@@ -152,15 +130,6 @@ struct task_struct;
 static inline void release_thread(struct task_struct *dead_task)
 {
 }
-
-/*
- * Free current thread data structures etc..
- */
-static inline void exit_thread(void)
-{
-}
-
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 unsigned long get_wchan(struct task_struct *p);
 
@@ -176,6 +145,5 @@ unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk)	((struct pt_regs *) ((tsk)->thread.esp0))
 
 #define cpu_relax()	barrier()
-#define cpu_relax_lowlatency() cpu_relax()
 
 #endif

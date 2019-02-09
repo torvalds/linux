@@ -75,9 +75,6 @@
 #define PHYCTRL_OTAPDLYENA_SHIFT	0xb
 #define PHYCTRL_OTAPDLYSEL_MASK		0xf
 #define PHYCTRL_OTAPDLYSEL_SHIFT	0x7
-#define PHYCTRL_REN_STRB_ENABLE		0x1
-#define PHYCTRL_REN_STRB_MASK		0x1
-#define PHYCTRL_REN_STRB_SHIFT		0x9
 
 #define PHYCTRL_IS_CALDONE(x) \
 	((((x) >> PHYCTRL_CALDONE_SHIFT) & \
@@ -99,6 +96,7 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 	unsigned int dllrdy;
 	unsigned int freqsel = PHYCTRL_FREQSEL_200M;
 	unsigned long rate;
+	int ret;
 
 	/*
 	 * Keep phyctrl_pdb and phyctrl_endll low to allow
@@ -141,7 +139,7 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 		default:
 			ideal_rate = 200000000;
 			break;
-		};
+		}
 
 		diff = (rate > ideal_rate) ?
 			rate - ideal_rate : ideal_rate - rate;
@@ -175,12 +173,13 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 	 * failure cases are found which indicates we should be more tolerant
 	 * to calpad busy trimming.
 	 */
-	if (regmap_read_poll_timeout(rk_phy->reg_base,
-				     rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
-				     caldone, PHYCTRL_IS_CALDONE(caldone),
-				     5, 500)) {
-		pr_err("rockchip_emmc_phy_power: caldone timeout.\n");
-		return -ETIMEDOUT;
+	ret = regmap_read_poll_timeout(rk_phy->reg_base,
+				       rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
+				       caldone, PHYCTRL_IS_CALDONE(caldone),
+				       0, 50);
+	if (ret) {
+		pr_err("%s: caldone failed, ret=%d\n", __func__, ret);
+		return ret;
 	}
 
 	/* Set the frequency of the DLL operation */
@@ -220,19 +219,15 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 	 * NOTE: There appear to be corner cases where the DLL seems to take
 	 * extra long to lock for reasons that aren't understood.  In some
 	 * extreme cases we've seen it take up to over 10ms (!).  We'll be
-	 * generous and give it 50ms.  We still busy wait here because:
-	 * - In most cases it should be super fast.
-	 * - This is not called lots during normal operation so it shouldn't
-	 *   be a power or performance problem to busy wait.  We expect it
-	 *   only at boot / resume.  In both cases, eMMC is probably on the
-	 *   critical path so busy waiting a little extra time should be OK.
+	 * generous and give it 50ms.
 	 */
-	if (regmap_read_poll_timeout(rk_phy->reg_base,
-				     rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
-				     dllrdy, PHYCTRL_IS_DLLRDY(dllrdy),
-				     1, 50 * USEC_PER_MSEC)) {
-		pr_err("rockchip_emmc_phy_power: dllrdy timeout.\n");
-		return -ETIMEDOUT;
+	ret = regmap_read_poll_timeout(rk_phy->reg_base,
+				       rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
+				       dllrdy, PHYCTRL_IS_DLLRDY(dllrdy),
+				       0, 50 * USEC_PER_MSEC);
+	if (ret) {
+		pr_err("%s: dllrdy failed. ret=%d\n", __func__, ret);
+		return ret;
 	}
 
 	return 0;
@@ -306,13 +301,6 @@ static int rockchip_emmc_phy_power_on(struct phy *phy)
 		     HIWORD_UPDATE(4,
 				   PHYCTRL_OTAPDLYSEL_MASK,
 				   PHYCTRL_OTAPDLYSEL_SHIFT));
-
-	/* Internal pull-down for strobe line: enable */
-	regmap_write(rk_phy->reg_base,
-		     rk_phy->reg_offset + GRF_EMMCPHY_CON2,
-		     HIWORD_UPDATE(PHYCTRL_REN_STRB_ENABLE,
-				   PHYCTRL_REN_STRB_MASK,
-				   PHYCTRL_REN_STRB_SHIFT));
 
 	/* Power up emmc phy analog blocks */
 	return rockchip_emmc_phy_power(phy, PHYCTRL_PDB_PWR_ON);

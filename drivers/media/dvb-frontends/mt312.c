@@ -32,7 +32,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mt312_priv.h"
 #include "mt312.h"
 
@@ -142,7 +142,10 @@ static inline int mt312_readreg(struct mt312_state *state,
 static inline int mt312_writereg(struct mt312_state *state,
 				 const enum mt312_reg_addr reg, const u8 val)
 {
-	return mt312_write(state, reg, &val, 1);
+	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+
+
+	return mt312_write(state, reg, &tmp, 1);
 }
 
 static inline u32 mt312_div(u32 a, u32 b)
@@ -457,8 +460,8 @@ static int mt312_read_status(struct dvb_frontend *fe, enum fe_status *s)
 	if (ret < 0)
 		return ret;
 
-	dprintk("QPSK_STAT_H: 0x%02x, QPSK_STAT_L: 0x%02x,"
-		" FEC_STATUS: 0x%02x\n", status[0], status[1], status[2]);
+	dprintk("QPSK_STAT_H: 0x%02x, QPSK_STAT_L: 0x%02x, FEC_STATUS: 0x%02x\n",
+		status[0], status[1], status[2]);
 
 	if (status[0] & 0xc0)
 		*s |= FE_HAS_SIGNAL;	/* signal noise ratio */
@@ -556,8 +559,8 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 
 	dprintk("%s: Freq %d\n", __func__, p->frequency);
 
-	if ((p->frequency < fe->ops.info.frequency_min)
-	    || (p->frequency > fe->ops.info.frequency_max))
+	if ((p->frequency < fe->ops.info.frequency_min_hz / kHz)
+	    || (p->frequency > fe->ops.info.frequency_max_hz / kHz))
 		return -EINVAL;
 
 	if (((int)p->inversion < INVERSION_OFF)
@@ -647,9 +650,9 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int mt312_get_frontend(struct dvb_frontend *fe)
+static int mt312_get_frontend(struct dvb_frontend *fe,
+			      struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 
@@ -748,14 +751,14 @@ static void mt312_release(struct dvb_frontend *fe)
 }
 
 #define MT312_SYS_CLK		90000000UL	/* 90 MHz */
-static struct dvb_frontend_ops mt312_ops = {
+static const struct dvb_frontend_ops mt312_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Zarlink ???? DVB-S",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
 		/* FIXME: adjust freq to real used xtal */
-		.frequency_stepsize = (MT312_PLL_CLK / 1000) / 128,
+		.frequency_stepsize_hz = MT312_PLL_CLK / 128,
 		.symbol_rate_min = MT312_SYS_CLK / 128, /* FIXME as above */
 		.symbol_rate_max = MT312_SYS_CLK / 2,
 		.caps =
@@ -827,8 +830,7 @@ struct dvb_frontend *mt312_attach(const struct mt312_config *config,
 		state->freq_mult = 9;
 		break;
 	default:
-		printk(KERN_WARNING "Only Zarlink VP310/MT312/ZL10313"
-			" are supported chips.\n");
+		printk(KERN_WARNING "Only Zarlink VP310/MT312/ZL10313 are supported chips.\n");
 		goto error;
 	}
 

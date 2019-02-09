@@ -116,12 +116,13 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 				  unsigned index,
 				  void (*callback)(struct virtqueue *vq),
 				  const char *name,
+				  bool ctx,
 				  u16 msix_vec)
 {
 	struct virtqueue *vq;
-	unsigned long size;
 	u16 num;
 	int err;
+	u64 q_pfn;
 
 	/* Select the queue we're interested in */
 	iowrite16(index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
@@ -131,26 +132,27 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	if (!num || ioread32(vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN))
 		return ERR_PTR(-ENOENT);
 
-	info->num = num;
 	info->msix_vector = msix_vec;
 
-	size = PAGE_ALIGN(vring_size(num, VIRTIO_PCI_VRING_ALIGN));
-	info->queue = alloc_pages_exact(size, GFP_KERNEL|__GFP_ZERO);
-	if (info->queue == NULL)
+	/* create the vring */
+	vq = vring_create_virtqueue(index, num,
+				    VIRTIO_PCI_VRING_ALIGN, &vp_dev->vdev,
+				    true, false, ctx,
+				    vp_notify, callback, name);
+	if (!vq)
 		return ERR_PTR(-ENOMEM);
 
-	/* activate the queue */
-	iowrite32(virt_to_phys(info->queue) >> VIRTIO_PCI_QUEUE_ADDR_SHIFT,
-		  vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN);
-
-	/* create the vring */
-	vq = vring_new_virtqueue(index, info->num,
-				 VIRTIO_PCI_VRING_ALIGN, &vp_dev->vdev,
-				 true, info->queue, vp_notify, callback, name);
-	if (!vq) {
-		err = -ENOMEM;
-		goto out_activate_queue;
+	q_pfn = virtqueue_get_desc_addr(vq) >> VIRTIO_PCI_QUEUE_ADDR_SHIFT;
+	if (q_pfn >> 32) {
+		dev_err(&vp_dev->pci_dev->dev,
+			"platform bug: legacy virtio-mmio must not be used with RAM above 0x%llxGB\n",
+			0x1ULL << (32 + PAGE_SHIFT - 30));
+		err = -E2BIG;
+		goto out_del_vq;
 	}
+
+	/* activate the queue */
+	iowrite32(q_pfn, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN);
 
 	vq->priv = (void __force *)vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NOTIFY;
 
@@ -159,17 +161,16 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 		msix_vec = ioread16(vp_dev->ioaddr + VIRTIO_MSI_QUEUE_VECTOR);
 		if (msix_vec == VIRTIO_MSI_NO_VECTOR) {
 			err = -EBUSY;
-			goto out_assign;
+			goto out_deactivate;
 		}
 	}
 
 	return vq;
 
-out_assign:
-	vring_del_virtqueue(vq);
-out_activate_queue:
+out_deactivate:
 	iowrite32(0, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN);
-	free_pages_exact(info->queue, size);
+out_del_vq:
+	vring_del_virtqueue(vq);
 	return ERR_PTR(err);
 }
 
@@ -177,7 +178,6 @@ static void del_vq(struct virtio_pci_vq_info *info)
 {
 	struct virtqueue *vq = info->vq;
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
-	unsigned long size;
 
 	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
 
@@ -188,13 +188,10 @@ static void del_vq(struct virtio_pci_vq_info *info)
 		ioread8(vp_dev->ioaddr + VIRTIO_PCI_ISR);
 	}
 
-	vring_del_virtqueue(vq);
-
 	/* Select and deactivate the queue */
 	iowrite32(0, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN);
 
-	size = PAGE_ALIGN(vring_size(info->num, VIRTIO_PCI_VRING_ALIGN));
-	free_pages_exact(info->queue, size);
+	vring_del_virtqueue(vq);
 }
 
 static const struct virtio_config_ops virtio_pci_config_ops = {
@@ -209,6 +206,7 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,
 	.set_vq_affinity = vp_set_vq_affinity,
+	.get_vq_affinity = vp_get_vq_affinity,
 };
 
 /* the PCI probing function */
@@ -226,6 +224,21 @@ int virtio_pci_legacy_probe(struct virtio_pci_device *vp_dev)
 		       VIRTIO_PCI_ABI_VERSION, pci_dev->revision);
 		return -ENODEV;
 	}
+
+	rc = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(64));
+	if (rc) {
+		rc = dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(32));
+	} else {
+		/*
+		 * The virtio ring base address is expressed as a 32-bit PFN,
+		 * with a page size of 1 << VIRTIO_PCI_QUEUE_ADDR_SHIFT.
+		 */
+		dma_set_coherent_mask(&pci_dev->dev,
+				DMA_BIT_MASK(32 + VIRTIO_PCI_QUEUE_ADDR_SHIFT));
+	}
+
+	if (rc)
+		dev_warn(&pci_dev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might not work.\n");
 
 	rc = pci_request_region(pci_dev, 0, "virtio-pci-legacy");
 	if (rc)

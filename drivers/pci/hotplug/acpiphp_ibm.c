@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ACPI PCI Hot Plug IBM Extension
  *
@@ -5,21 +6,6 @@
  * Copyright (C) 2004 IBM Corp.
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <vernux@us.ibm.com>
  *
@@ -35,7 +21,7 @@
 #include <linux/kobject.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "acpiphp.h"
 #include "../pci.h"
@@ -107,7 +93,7 @@ static void __exit ibm_acpiphp_exit(void);
 
 static acpi_handle ibm_acpi_handle;
 static struct notification ibm_note;
-static struct bin_attribute ibm_apci_table_attr = {
+static struct bin_attribute ibm_apci_table_attr __ro_after_init = {
 	    .attr = {
 		    .name = "apci_table",
 		    .mode = S_IRUGO,
@@ -138,6 +124,8 @@ static union apci_descriptor *ibm_slot_from_id(int id)
 	char *table;
 
 	size = ibm_get_table_from_acpi(&table);
+	if (size < 0)
+		return NULL;
 	des = (union apci_descriptor *)table;
 	if (memcmp(des->header.sig, "aPCI", 4) != 0)
 		goto ibm_slot_done;
@@ -154,7 +142,8 @@ static union apci_descriptor *ibm_slot_from_id(int id)
 ibm_slot_done:
 	if (ret) {
 		ret = kmalloc(sizeof(union apci_descriptor), GFP_KERNEL);
-		memcpy(ret, des, sizeof(union apci_descriptor));
+		if (ret)
+			memcpy(ret, des, sizeof(union apci_descriptor));
 	}
 	kfree(table);
 	return ret;
@@ -175,8 +164,13 @@ static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status)
 	acpi_status stat;
 	unsigned long long rc;
 	union apci_descriptor *ibm_slot;
+	int id = hpslot_to_sun(slot);
 
-	ibm_slot = ibm_slot_from_id(hpslot_to_sun(slot));
+	ibm_slot = ibm_slot_from_id(id);
+	if (!ibm_slot) {
+		pr_err("APLS null ACPI descriptor for slot %d\n", id);
+		return -ENODEV;
+	}
 
 	pr_debug("%s: set slot %d (%d) attention status to %d\n", __func__,
 			ibm_slot->slot.slot_num, ibm_slot->slot.slot_id,
@@ -215,8 +209,13 @@ static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status)
 static int ibm_get_attention_status(struct hotplug_slot *slot, u8 *status)
 {
 	union apci_descriptor *ibm_slot;
+	int id = hpslot_to_sun(slot);
 
-	ibm_slot = ibm_slot_from_id(hpslot_to_sun(slot));
+	ibm_slot = ibm_slot_from_id(id);
+	if (!ibm_slot) {
+		pr_err("APLS null ACPI descriptor for slot %d\n", id);
+		return -ENODEV;
+	}
 
 	if (ibm_slot->slot.attn & 0xa0 || ibm_slot->slot.status[1] & 0x08)
 		*status = 1;
@@ -325,7 +324,7 @@ static int ibm_get_table_from_acpi(char **bufp)
 	}
 
 	size = 0;
-	for (i=0; i<package->package.count; i++) {
+	for (i = 0; i < package->package.count; i++) {
 		memcpy(&lbuf[size],
 				package->package.elements[i].buffer.pointer,
 				package->package.elements[i].buffer.length);
@@ -386,6 +385,7 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 		u32 lvl, void *context, void **rv)
 {
 	acpi_handle *phandle = (acpi_handle *)context;
+	unsigned long long current_status = 0;
 	acpi_status status;
 	struct acpi_device_info *info;
 	int retval = 0;
@@ -397,7 +397,9 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 		return retval;
 	}
 
-	if (info->current_status && (info->valid & ACPI_VALID_HID) &&
+	acpi_bus_get_status_handle(handle, &current_status);
+
+	if (current_status && (info->valid & ACPI_VALID_HID) &&
 			(!strcmp(info->hardware_id.string, IBM_HARDWARE_ID1) ||
 			 !strcmp(info->hardware_id.string, IBM_HARDWARE_ID2))) {
 		pr_debug("found hardware: %s, handle: %p\n",

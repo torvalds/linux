@@ -22,19 +22,18 @@
 #include "gk104.h"
 #include "changk104.h"
 
-static const struct nvkm_fifo_func
+#include <nvif/class.h>
+
+static const struct gk104_fifo_func
 gm20b_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
-	.init = gk104_fifo_init,
-	.fini = gk104_fifo_fini,
-	.intr = gk104_fifo_intr,
-	.uevent_init = gk104_fifo_uevent_init,
-	.uevent_fini = gk104_fifo_uevent_fini,
-	.chan = {
-		&gm204_fifo_gpfifo_oclass,
-		NULL
-	},
+	.init_pbdma_timeout = gk208_fifo_init_pbdma_timeout,
+	.fault.access = gk104_fifo_fault_access,
+	.fault.engine = gm107_fifo_fault_engine,
+	.fault.reason = gk104_fifo_fault_reason,
+	.fault.hubclient = gk104_fifo_fault_hubclient,
+	.fault.gpcclient = gk104_fifo_fault_gpcclient,
+	.runlist = &gm107_fifo_runlist,
+	.chan = {{0,0,MAXWELL_CHANNEL_GPFIFO_A}, gk104_fifo_gpfifo_new },
 };
 
 int

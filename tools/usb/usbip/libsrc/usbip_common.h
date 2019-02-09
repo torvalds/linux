@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  */
@@ -25,9 +26,12 @@
 #define VHCI_STATE_PATH "/var/run/vhci_hcd"
 #endif
 
+#define VUDC_DEVICE_DESCR_FILE "dev_desc"
+
 /* kernel module names */
 #define USBIP_CORE_MOD_NAME	"usbip-core"
 #define USBIP_HOST_DRV_NAME	"usbip-host"
+#define USBIP_DEVICE_DRV_NAME	"usbip-vudc"
 #define USBIP_VHCI_DRV_NAME	"vhci_hcd"
 
 /* sysfs constants */
@@ -38,6 +42,16 @@
 
 #define SYSFS_PATH_MAX		256
 #define SYSFS_BUS_ID_SIZE	32
+
+/* Defines for op_code status in server/client op_common PDUs */
+#define ST_OK	0x00
+#define ST_NA	0x01
+	/* Device requested for import is not available */
+#define ST_DEV_BUSY	0x02
+	/* Device requested for import is in error state */
+#define ST_DEV_ERR	0x03
+#define ST_NODEV	0x04
+#define ST_ERROR	0x05
 
 extern int usbip_use_syslog;
 extern int usbip_use_stderr;
@@ -126,6 +140,7 @@ int read_usb_interface(struct usbip_usb_device *udev, int i,
 
 const char *usbip_speed_string(int num);
 const char *usbip_status_string(int32_t status);
+const char *usbip_op_common_status_string(int status);
 
 int usbip_names_init(char *);
 void usbip_names_free(void);

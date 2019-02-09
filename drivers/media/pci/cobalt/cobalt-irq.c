@@ -1,24 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  cobalt interrupt handling
  *
  *  Copyright 2012-2015 Cisco Systems, Inc. and/or its affiliates.
  *  All rights reserved.
- *
- *  This program is free software; you may redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- *  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- *  ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- *  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
  */
 
-#include <media/adv7604.h>
+#include <media/i2c/adv7604.h>
 
 #include "cobalt-driver.h"
 #include "cobalt-irq.h"
@@ -134,7 +122,7 @@ done:
 		skip = true;
 		s->skip_first_frames--;
 	}
-	v4l2_get_timestamp(&cb->vb.timestamp);
+	cb->vb.vb2_buf.timestamp = ktime_get_ns();
 	/* TODO: the sequence number should be read from the FPGA so we
 	   also know about dropped frames. */
 	cb->vb.sequence = s->sequence++;

@@ -44,7 +44,7 @@ Optional properties
 Example:
 
 mailbox_test {
-	compatible	= "mailbox_test";
+	compatible	= "mailbox-test";
 	reg		= <0x[shared_memory_address], [shared_memory_size]>;
 	mboxes		= <&mailbox2 0 1>, <&mailbox0 2 1>;
 	mbox-names	= "tx",	"rx";

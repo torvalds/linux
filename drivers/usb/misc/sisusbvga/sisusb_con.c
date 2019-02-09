@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 /*
  * sisusb - usb kernel driver for SiS315(E) based USB2VGA dongles
  *
@@ -370,7 +371,6 @@ static void
 sisusbcon_putc(struct vc_data *c, int ch, int y, int x)
 {
 	struct sisusb_usb_data *sisusb;
-	ssize_t written;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
@@ -384,7 +384,7 @@ sisusbcon_putc(struct vc_data *c, int ch, int y, int x)
 
 
 	sisusb_copy_memory(sisusb, (char *)SISUSB_VADDR(x, y),
-				(long)SISUSB_HADDR(x, y), 2, &written);
+				(long)SISUSB_HADDR(x, y), 2);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -395,7 +395,6 @@ sisusbcon_putcs(struct vc_data *c, const unsigned short *s,
 		         int count, int y, int x)
 {
 	struct sisusb_usb_data *sisusb;
-	ssize_t written;
 	u16 *dest;
 	int i;
 
@@ -420,7 +419,7 @@ sisusbcon_putcs(struct vc_data *c, const unsigned short *s,
 	}
 
 	sisusb_copy_memory(sisusb, (char *)SISUSB_VADDR(x, y),
-				(long)SISUSB_HADDR(x, y), count * 2, &written);
+				(long)SISUSB_HADDR(x, y), count * 2);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -431,7 +430,6 @@ sisusbcon_clear(struct vc_data *c, int y, int x, int height, int width)
 {
 	struct sisusb_usb_data *sisusb;
 	u16 eattr = c->vc_video_erase_char;
-	ssize_t written;
 	int i, length, cols;
 	u16 *dest;
 
@@ -475,41 +473,7 @@ sisusbcon_clear(struct vc_data *c, int y, int x, int height, int width)
 
 
 	sisusb_copy_memory(sisusb, (unsigned char *)SISUSB_VADDR(x, y),
-				(long)SISUSB_HADDR(x, y), length, &written);
-
-	mutex_unlock(&sisusb->lock);
-}
-
-/* Interface routine */
-static void
-sisusbcon_bmove(struct vc_data *c, int sy, int sx,
-			 int dy, int dx, int height, int width)
-{
-	struct sisusb_usb_data *sisusb;
-	ssize_t written;
-	int cols, length;
-
-	if (width <= 0 || height <= 0)
-		return;
-
-	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
-	if (!sisusb)
-		return;
-
-	/* sisusb->lock is down */
-
-	cols = sisusb->sisusb_num_columns;
-
-	if (sisusb_is_inactive(c, sisusb)) {
-		mutex_unlock(&sisusb->lock);
-		return;
-	}
-
-	length = ((height * cols) - dx - (cols - width - dx)) * 2;
-
-
-	sisusb_copy_memory(sisusb, (unsigned char *)SISUSB_VADDR(dx, dy),
-				(long)SISUSB_HADDR(dx, dy), length, &written);
+				(long)SISUSB_HADDR(x, y), length);
 
 	mutex_unlock(&sisusb->lock);
 }
@@ -519,7 +483,6 @@ static int
 sisusbcon_switch(struct vc_data *c)
 {
 	struct sisusb_usb_data *sisusb;
-	ssize_t written;
 	int length;
 
 	/* Returnvalue 0 means we have fully restored screen,
@@ -559,7 +522,7 @@ sisusbcon_switch(struct vc_data *c)
 
 	sisusb_copy_memory(sisusb, (unsigned char *)c->vc_origin,
 				(long)SISUSB_HADDR(0, 0),
-				length, &written);
+				length);
 
 	mutex_unlock(&sisusb->lock);
 
@@ -600,26 +563,26 @@ sisusbcon_save_screen(struct vc_data *c)
 }
 
 /* interface routine */
-static int
-sisusbcon_set_palette(struct vc_data *c, unsigned char *table)
+static void
+sisusbcon_set_palette(struct vc_data *c, const unsigned char *table)
 {
 	struct sisusb_usb_data *sisusb;
 	int i, j;
 
 	/* Return value not used by vt */
 
-	if (!CON_IS_VISIBLE(c))
-		return -EINVAL;
+	if (!con_is_visible(c))
+		return;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
-		return -EINVAL;
+		return;
 
 	/* sisusb->lock is down */
 
 	if (sisusb_is_inactive(c, sisusb)) {
 		mutex_unlock(&sisusb->lock);
-		return -EINVAL;
+		return;
 	}
 
 	for (i = j = 0; i < 16; i++) {
@@ -634,8 +597,6 @@ sisusbcon_set_palette(struct vc_data *c, unsigned char *table)
 	}
 
 	mutex_unlock(&sisusb->lock);
-
-	return 0;
 }
 
 /* interface routine */
@@ -644,7 +605,6 @@ sisusbcon_blank(struct vc_data *c, int blank, int mode_switch)
 {
 	struct sisusb_usb_data *sisusb;
 	u8 sr1, cr17, pmreg, cr63;
-	ssize_t written;
 	int ret = 0;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
@@ -672,7 +632,7 @@ sisusbcon_blank(struct vc_data *c, int blank, int mode_switch)
 				(unsigned char *)c->vc_origin,
 				(u32)(sisusb->vrambase +
 					(c->vc_origin - sisusb->scrbuf)),
-				c->vc_screenbuf_size, &written);
+				c->vc_screenbuf_size);
 		sisusb->con_blanked = 1;
 		ret = 1;
 		break;
@@ -723,65 +683,28 @@ sisusbcon_blank(struct vc_data *c, int blank, int mode_switch)
 }
 
 /* interface routine */
-static int
+static void
 sisusbcon_scrolldelta(struct vc_data *c, int lines)
 {
 	struct sisusb_usb_data *sisusb;
-	int margin = c->vc_size_row * 4;
-	int ul, we, p, st;
-
-	/* The return value does not seem to be used */
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
-		return 0;
+		return;
 
 	/* sisusb->lock is down */
 
 	if (sisusb_is_inactive(c, sisusb)) {
 		mutex_unlock(&sisusb->lock);
-		return 0;
+		return;
 	}
 
-	if (!lines)		/* Turn scrollback off */
-		c->vc_visible_origin = c->vc_origin;
-	else {
-
-		if (sisusb->con_rolled_over >
-				(c->vc_scr_end - sisusb->scrbuf) + margin) {
-
-			ul = c->vc_scr_end - sisusb->scrbuf;
-			we = sisusb->con_rolled_over + c->vc_size_row;
-
-		} else {
-
-			ul = 0;
-			we = sisusb->scrbuf_size;
-
-		}
-
-		p = (c->vc_visible_origin - sisusb->scrbuf - ul + we) % we +
-				lines * c->vc_size_row;
-
-		st = (c->vc_origin - sisusb->scrbuf - ul + we) % we;
-
-		if (st < 2 * margin)
-			margin = 0;
-
-		if (p < margin)
-			p = 0;
-
-		if (p > st - margin)
-			p = st;
-
-		c->vc_visible_origin = sisusb->scrbuf + (p + ul) % we;
-	}
+	vc_scrolldelta_helper(c, lines, sisusb->con_rolled_over,
+			(void *)sisusb->scrbuf, sisusb->scrbuf_size);
 
 	sisusbcon_set_start_address(sisusb, c);
 
 	mutex_unlock(&sisusb->lock);
-
-	return 1;
 }
 
 /* Interface routine */
@@ -853,14 +776,14 @@ sisusbcon_cursor(struct vc_data *c, int mode)
 	mutex_unlock(&sisusb->lock);
 }
 
-static int
+static bool
 sisusbcon_scroll_area(struct vc_data *c, struct sisusb_usb_data *sisusb,
-					int t, int b, int dir, int lines)
+		unsigned int t, unsigned int b, enum con_scroll dir,
+		unsigned int lines)
 {
 	int cols = sisusb->sisusb_num_columns;
 	int length = ((b - t) * cols) * 2;
 	u16 eattr = c->vc_video_erase_char;
-	ssize_t written;
 
 	/* sisusb->lock is down */
 
@@ -890,20 +813,20 @@ sisusbcon_scroll_area(struct vc_data *c, struct sisusb_usb_data *sisusb,
 	}
 
 	sisusb_copy_memory(sisusb, (char *)SISUSB_VADDR(0, t),
-				(long)SISUSB_HADDR(0, t), length, &written);
+				(long)SISUSB_HADDR(0, t), length);
 
 	mutex_unlock(&sisusb->lock);
 
-	return 1;
+	return true;
 }
 
 /* Interface routine */
-static int
-sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
+static bool
+sisusbcon_scroll(struct vc_data *c, unsigned int t, unsigned int b,
+		enum con_scroll dir, unsigned int lines)
 {
 	struct sisusb_usb_data *sisusb;
 	u16 eattr = c->vc_video_erase_char;
-	ssize_t written;
 	int copyall = 0;
 	unsigned long oldorigin;
 	unsigned int delta = lines * c->vc_size_row;
@@ -917,17 +840,17 @@ sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 	 */
 
 	if (!lines)
-		return 1;
+		return true;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
-		return 0;
+		return false;
 
 	/* sisusb->lock is down */
 
 	if (sisusb_is_inactive(c, sisusb)) {
 		mutex_unlock(&sisusb->lock);
-		return 0;
+		return false;
 	}
 
 	/* Special case */
@@ -996,18 +919,18 @@ sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 		sisusb_copy_memory(sisusb,
 			(char *)c->vc_origin,
 			(u32)(sisusb->vrambase + originoffset),
-			c->vc_screenbuf_size, &written);
+			c->vc_screenbuf_size);
 	else if (dir == SM_UP)
 		sisusb_copy_memory(sisusb,
 			(char *)c->vc_origin + c->vc_screenbuf_size - delta,
 			(u32)sisusb->vrambase + originoffset +
 					c->vc_screenbuf_size - delta,
-			delta, &written);
+			delta);
 	else
 		sisusb_copy_memory(sisusb,
 			(char *)c->vc_origin,
 			(u32)(sisusb->vrambase + originoffset),
-			delta, &written);
+			delta);
 
 	c->vc_scr_end = c->vc_origin + c->vc_screenbuf_size;
 	c->vc_visible_origin = c->vc_origin;
@@ -1018,7 +941,7 @@ sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 
 	mutex_unlock(&sisusb->lock);
 
-	return 1;
+	return true;
 }
 
 /* Interface routine */
@@ -1051,7 +974,7 @@ sisusbcon_set_origin(struct vc_data *c)
 
 	mutex_unlock(&sisusb->lock);
 
-	return 1;
+	return true;
 }
 
 /* Interface routine */
@@ -1273,7 +1196,7 @@ sisusbcon_do_font_op(struct sisusb_usb_data *sisusb, int set, int slot,
 			struct vc_data *vc = vc_cons[i].d;
 
 			if (vc && vc->vc_sw == &sisusb_con) {
-				if (CON_IS_VISIBLE(vc)) {
+				if (con_is_visible(vc)) {
 					vc->vc_sw->con_cursor(vc, CM_DRAW);
 				}
 				vc->vc_font.height = fh;
@@ -1294,7 +1217,7 @@ font_op_error:
 /* Interface routine */
 static int
 sisusbcon_font_set(struct vc_data *c, struct console_font *font,
-							unsigned flags)
+		   unsigned int flags)
 {
 	struct sisusb_usb_data *sisusb;
 	unsigned charcount = font->charcount;
@@ -1320,7 +1243,7 @@ sisusbcon_font_set(struct vc_data *c, struct console_font *font,
 	}
 
 	if (!sisusb->font_backup)
-		sisusb->font_backup = vmalloc(charcount * 32);
+		sisusb->font_backup = vmalloc(array_size(charcount, 32));
 
 	if (sisusb->font_backup) {
 		memcpy(sisusb->font_backup, font->data, charcount * 32);
@@ -1385,7 +1308,6 @@ static const struct consw sisusb_con = {
 	.con_putcs =		sisusbcon_putcs,
 	.con_cursor =		sisusbcon_cursor,
 	.con_scroll =		sisusbcon_scroll,
-	.con_bmove =		sisusbcon_bmove,
 	.con_switch =		sisusbcon_switch,
 	.con_blank =		sisusbcon_blank,
 	.con_font_set =		sisusbcon_font_set,
@@ -1416,32 +1338,65 @@ static void sisusbdummycon_init(struct vc_data *vc, int init)
 	vc_resize(vc, 80, 25);
 }
 
-static int sisusbdummycon_dummy(void)
+static void sisusbdummycon_deinit(struct vc_data *vc) { }
+static void sisusbdummycon_clear(struct vc_data *vc, int sy, int sx,
+				 int height, int width) { }
+static void sisusbdummycon_putc(struct vc_data *vc, int c, int ypos,
+				int xpos) { }
+static void sisusbdummycon_putcs(struct vc_data *vc, const unsigned short *s,
+				 int count, int ypos, int xpos) { }
+static void sisusbdummycon_cursor(struct vc_data *vc, int mode) { }
+
+static bool sisusbdummycon_scroll(struct vc_data *vc, unsigned int top,
+				  unsigned int bottom, enum con_scroll dir,
+				  unsigned int lines)
 {
-    return 0;
+	return false;
 }
 
-#define SISUSBCONDUMMY	(void *)sisusbdummycon_dummy
+static int sisusbdummycon_switch(struct vc_data *vc)
+{
+	return 0;
+}
+
+static int sisusbdummycon_blank(struct vc_data *vc, int blank, int mode_switch)
+{
+	return 0;
+}
+
+static int sisusbdummycon_font_set(struct vc_data *vc,
+				   struct console_font *font,
+				   unsigned int flags)
+{
+	return 0;
+}
+
+static int sisusbdummycon_font_default(struct vc_data *vc,
+				       struct console_font *font, char *name)
+{
+	return 0;
+}
+
+static int sisusbdummycon_font_copy(struct vc_data *vc, int con)
+{
+	return 0;
+}
 
 static const struct consw sisusb_dummy_con = {
 	.owner =		THIS_MODULE,
 	.con_startup =		sisusbdummycon_startup,
 	.con_init =		sisusbdummycon_init,
-	.con_deinit =		SISUSBCONDUMMY,
-	.con_clear =		SISUSBCONDUMMY,
-	.con_putc =		SISUSBCONDUMMY,
-	.con_putcs =		SISUSBCONDUMMY,
-	.con_cursor =		SISUSBCONDUMMY,
-	.con_scroll =		SISUSBCONDUMMY,
-	.con_bmove =		SISUSBCONDUMMY,
-	.con_switch =		SISUSBCONDUMMY,
-	.con_blank =		SISUSBCONDUMMY,
-	.con_font_set =		SISUSBCONDUMMY,
-	.con_font_get =		SISUSBCONDUMMY,
-	.con_font_default =	SISUSBCONDUMMY,
-	.con_font_copy =	SISUSBCONDUMMY,
-	.con_set_palette =	SISUSBCONDUMMY,
-	.con_scrolldelta =	SISUSBCONDUMMY,
+	.con_deinit =		sisusbdummycon_deinit,
+	.con_clear =		sisusbdummycon_clear,
+	.con_putc =		sisusbdummycon_putc,
+	.con_putcs =		sisusbdummycon_putcs,
+	.con_cursor =		sisusbdummycon_cursor,
+	.con_scroll =		sisusbdummycon_scroll,
+	.con_switch =		sisusbdummycon_switch,
+	.con_blank =		sisusbdummycon_blank,
+	.con_font_set =		sisusbdummycon_font_set,
+	.con_font_default =	sisusbdummycon_font_default,
+	.con_font_copy =	sisusbdummycon_font_copy,
 };
 
 int

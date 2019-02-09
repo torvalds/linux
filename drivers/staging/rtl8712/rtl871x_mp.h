@@ -108,7 +108,8 @@ struct mp_priv {
 	unsigned char network_macaddr[6];
 	/*Testing Flag*/
 	u32 mode;/*0 for normal type packet,
-		  * 1 for loopback packet (16bytes TXCMD)*/
+		  * 1 for loopback packet (16bytes TXCMD)
+		  */
 	sint prev_fw_state;
 	u8 *pallocated_mp_xmitframe_buf;
 	u8 *pmp_xmtframe_buf;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2015,2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -28,6 +28,7 @@ int ath10k_wow_init(struct ath10k *ar);
 int ath10k_wow_op_suspend(struct ieee80211_hw *hw,
 			  struct cfg80211_wowlan *wowlan);
 int ath10k_wow_op_resume(struct ieee80211_hw *hw);
+void ath10k_wow_op_set_wakeup(struct ieee80211_hw *hw, bool enabled);
 
 #else
 

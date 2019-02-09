@@ -31,8 +31,16 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-static int v4l2_fwnode_endpoint_parse_csi_bus(struct fwnode_handle *fwnode,
-					      struct v4l2_fwnode_endpoint *vep)
+enum v4l2_fwnode_bus_type {
+	V4L2_FWNODE_BUS_TYPE_GUESS = 0,
+	V4L2_FWNODE_BUS_TYPE_CSI2_CPHY,
+	V4L2_FWNODE_BUS_TYPE_CSI1,
+	V4L2_FWNODE_BUS_TYPE_CCP2,
+	NR_OF_V4L2_FWNODE_BUS_TYPE,
+};
+
+static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
+					       struct v4l2_fwnode_endpoint *vep)
 {
 	struct v4l2_fwnode_bus_mipi_csi2 *bus = &vep->bus.mipi_csi2;
 	bool have_clk_lane = false;
@@ -43,10 +51,10 @@ static int v4l2_fwnode_endpoint_parse_csi_bus(struct fwnode_handle *fwnode,
 
 	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
 	if (rval > 0) {
-		u32 array[ARRAY_SIZE(bus->data_lanes)];
+		u32 array[1 + V4L2_FWNODE_CSI2_MAX_DATA_LANES];
 
 		bus->num_data_lanes =
-			min_t(int, ARRAY_SIZE(bus->data_lanes), rval);
+			min_t(int, V4L2_FWNODE_CSI2_MAX_DATA_LANES, rval);
 
 		fwnode_property_read_u32_array(fwnode, "data-lanes", array,
 					       bus->num_data_lanes);
@@ -59,24 +67,25 @@ static int v4l2_fwnode_endpoint_parse_csi_bus(struct fwnode_handle *fwnode,
 
 			bus->data_lanes[i] = array[i];
 		}
-	}
 
-	rval = fwnode_property_read_u32_array(fwnode, "lane-polarities", NULL,
-					      0);
-	if (rval > 0) {
-		u32 array[ARRAY_SIZE(bus->lane_polarities)];
+		rval = fwnode_property_read_u32_array(fwnode,
+						      "lane-polarities", NULL,
+						      0);
+		if (rval > 0) {
+			if (rval != 1 + bus->num_data_lanes /* clock+data */) {
+				pr_warn("invalid number of lane-polarities entries (need %u, got %u)\n",
+					1 + bus->num_data_lanes, rval);
+				return -EINVAL;
+			}
 
-		if (rval < 1 + bus->num_data_lanes /* clock + data */) {
-			pr_warn("too few lane-polarities entries (need %u, got %u)\n",
-				1 + bus->num_data_lanes, rval);
-			return -EINVAL;
+			fwnode_property_read_u32_array(fwnode,
+						       "lane-polarities", array,
+						       1 + bus->num_data_lanes);
+
+			for (i = 0; i < 1 + bus->num_data_lanes; i++)
+				bus->lane_polarities[i] = array[i];
 		}
 
-		fwnode_property_read_u32_array(fwnode, "lane-polarities", array,
-					       1 + bus->num_data_lanes);
-
-		for (i = 0; i < 1 + bus->num_data_lanes; i++)
-			bus->lane_polarities[i] = array[i];
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
@@ -145,13 +154,44 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 		flags |= v ? V4L2_MBUS_VIDEO_SOG_ACTIVE_HIGH :
 			V4L2_MBUS_VIDEO_SOG_ACTIVE_LOW;
 
+	if (!fwnode_property_read_u32(fwnode, "data-enable-active", &v))
+		flags |= v ? V4L2_MBUS_DATA_ENABLE_HIGH :
+			V4L2_MBUS_DATA_ENABLE_LOW;
+
 	bus->flags = flags;
 
+}
+
+static void
+v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
+				    struct v4l2_fwnode_endpoint *vep,
+				    u32 bus_type)
+{
+	struct v4l2_fwnode_bus_mipi_csi1 *bus = &vep->bus.mipi_csi1;
+	u32 v;
+
+	if (!fwnode_property_read_u32(fwnode, "clock-inv", &v))
+		bus->clock_inv = v;
+
+	if (!fwnode_property_read_u32(fwnode, "strobe", &v))
+		bus->strobe = v;
+
+	if (!fwnode_property_read_u32(fwnode, "data-lanes", &v))
+		bus->data_lane = v;
+
+	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v))
+		bus->clock_lane = v;
+
+	if (bus_type == V4L2_FWNODE_BUS_TYPE_CCP2)
+		vep->bus_type = V4L2_MBUS_CCP2;
+	else
+		vep->bus_type = V4L2_MBUS_CSI1;
 }
 
 int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 			       struct v4l2_fwnode_endpoint *vep)
 {
+	u32 bus_type = 0;
 	int rval;
 
 	fwnode_graph_parse_endpoint(fwnode, &vep->base);
@@ -160,17 +200,30 @@ int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 	memset(&vep->bus_type, 0, sizeof(*vep) -
 	       offsetof(typeof(*vep), bus_type));
 
-	rval = v4l2_fwnode_endpoint_parse_csi_bus(fwnode, vep);
-	if (rval)
-		return rval;
-	/*
-	 * Parse the parallel video bus properties only if none
-	 * of the MIPI CSI-2 specific properties were found.
-	 */
-	if (vep->bus.mipi_csi2.flags == 0)
-		v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep);
+	fwnode_property_read_u32(fwnode, "bus-type", &bus_type);
 
-	return 0;
+	switch (bus_type) {
+	case V4L2_FWNODE_BUS_TYPE_GUESS:
+		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep);
+		if (rval)
+			return rval;
+		/*
+		 * Parse the parallel video bus properties only if none
+		 * of the MIPI CSI-2 specific properties were found.
+		 */
+		if (vep->bus.mipi_csi2.flags == 0)
+			v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep);
+
+		return 0;
+	case V4L2_FWNODE_BUS_TYPE_CCP2:
+	case V4L2_FWNODE_BUS_TYPE_CSI1:
+		v4l2_fwnode_endpoint_parse_csi1_bus(fwnode, vep, bus_type);
+
+		return 0;
+	default:
+		pr_warn("unsupported bus type %u\n", bus_type);
+		return -EINVAL;
+	}
 }
 EXPORT_SYMBOL_GPL(v4l2_fwnode_endpoint_parse);
 
@@ -275,7 +328,7 @@ static int v4l2_async_notifier_realloc(struct v4l2_async_notifier *notifier,
 	if (max_subdevs <= notifier->max_subdevs)
 		return 0;
 
-	subdevs = kcalloc(
+	subdevs = kvmalloc_array(
 		max_subdevs, sizeof(*notifier->subdevs),
 		GFP_KERNEL | __GFP_ZERO);
 	if (!subdevs)
@@ -285,7 +338,7 @@ static int v4l2_async_notifier_realloc(struct v4l2_async_notifier *notifier,
 		memcpy(subdevs, notifier->subdevs,
 		       sizeof(*subdevs) * notifier->num_subdevs);
 
-		kfree(notifier->subdevs);
+		kvfree(notifier->subdevs);
 	}
 
 	notifier->subdevs = subdevs;
@@ -310,9 +363,9 @@ static int v4l2_async_notifier_fwnode_parse_endpoint(
 		return -ENOMEM;
 
 	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-	asd->match.fwnode.fwnode =
+	asd->match.fwnode =
 		fwnode_graph_get_remote_port_parent(endpoint);
-	if (!asd->match.fwnode.fwnode) {
+	if (!asd->match.fwnode) {
 		dev_warn(dev, "bad remote port parent\n");
 		ret = -EINVAL;
 		goto out_err;
@@ -344,7 +397,7 @@ static int v4l2_async_notifier_fwnode_parse_endpoint(
 	return 0;
 
 out_err:
-	fwnode_handle_put(asd->match.fwnode.fwnode);
+	fwnode_handle_put(asd->match.fwnode);
 	kfree(asd);
 
 	return ret == -ENOTCONN ? 0 : ret;
@@ -357,7 +410,7 @@ static int __v4l2_async_notifier_parse_fwnode_endpoints(
 			    struct v4l2_fwnode_endpoint *vep,
 			    struct v4l2_async_subdev *asd))
 {
-	struct fwnode_handle *fwnode = NULL;
+	struct fwnode_handle *fwnode;
 	unsigned int max_subdevs = notifier->max_subdevs;
 	int ret;
 
@@ -406,8 +459,7 @@ static int __v4l2_async_notifier_parse_fwnode_endpoints(
 		dev_fwnode = fwnode_graph_get_port_parent(fwnode);
 		is_available = fwnode_device_is_available(dev_fwnode);
 		fwnode_handle_put(dev_fwnode);
-
-		if (!fwnode_device_is_available(dev_fwnode))
+		if (!is_available)
 			continue;
 
 		if (has_port) {
@@ -518,7 +570,7 @@ static int v4l2_fwnode_reference_parse(
 		}
 
 		notifier->subdevs[notifier->num_subdevs] = asd;
-		asd->match.fwnode.fwnode = args.fwnode;
+		asd->match.fwnode = args.fwnode;
 		asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
 		notifier->num_subdevs++;
 	}
@@ -533,68 +585,153 @@ error:
 /*
  * v4l2_fwnode_reference_get_int_prop - parse a reference with integer
  *					arguments
- * @dev: struct device pointer
+ * @fwnode: fwnode to read @prop from
  * @notifier: notifier for @dev
  * @prop: the name of the property
  * @index: the index of the reference to get
  * @props: the array of integer property names
  * @nprops: the number of integer property names in @nprops
  *
- * Find fwnodes referred to by a property @prop, then under that
- * iteratively, @nprops times, follow each child node which has a
- * property in @props array at a given child index the value of which
- * matches the integer argument at an index.
+ * First find an fwnode referred to by the reference at @index in @prop.
  *
- * For example, if this function was called with arguments and values
- * @dev corresponding to device "SEN", @prop == "flash-leds", @index
- * == 1, @props == { "led" }, @nprops == 1, with the ASL snippet below
- * it would return the node marked with THISONE. The @dev argument in
- * the ASL below.
+ * Then under that fwnode, @nprops times, for each property in @props,
+ * iteratively follow child nodes starting from fwnode such that they have the
+ * property in @props array at the index of the child node distance from the
+ * root node and the value of that property matching with the integer argument
+ * of the reference, at the same index.
  *
- *	Device (LED)
+ * The child fwnode reched at the end of the iteration is then returned to the
+ * caller.
+ *
+ * The core reason for this is that you cannot refer to just any node in ACPI.
+ * So to refer to an endpoint (easy in DT) you need to refer to a device, then
+ * provide a list of (property name, property value) tuples where each tuple
+ * uniquely identifies a child node. The first tuple identifies a child directly
+ * underneath the device fwnode, the next tuple identifies a child node
+ * underneath the fwnode identified by the previous tuple, etc. until you
+ * reached the fwnode you need.
+ *
+ * An example with a graph, as defined in Documentation/acpi/dsd/graph.txt:
+ *
+ *	Scope (\_SB.PCI0.I2C2)
  *	{
- *		Name (_DSD, Package () {
- *			ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
- *			Package () {
- *				Package () { "led0", "LED0" },
- *				Package () { "led1", "LED1" },
- *			}
- *		})
- *		Name (LED0, Package () {
- *			ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
- *			Package () {
- *				Package () { "led", 0 },
- *			}
- *		})
- *		Name (LED1, Package () {
- *			// THISONE
- *			ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
- *			Package () {
- *				Package () { "led", 1 },
- *			}
- *		})
- *	}
- *
- *	Device (SEN)
- *	{
- *		Name (_DSD, Package () {
- *			ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
- *			Package () {
+ *		Device (CAM0)
+ *		{
+ *			Name (_DSD, Package () {
+ *				ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
  *				Package () {
- *					"flash-leds",
- *					Package () { ^LED, 0, ^LED, 1 },
+ *					Package () {
+ *						"compatible",
+ *						Package () { "nokia,smia" }
+ *					},
+ *				},
+ *				ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+ *				Package () {
+ *					Package () { "port0", "PRT0" },
  *				}
- *			}
- *		})
+ *			})
+ *			Name (PRT0, Package() {
+ *				ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+ *				Package () {
+ *					Package () { "port", 0 },
+ *				},
+ *				ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+ *				Package () {
+ *					Package () { "endpoint0", "EP00" },
+ *				}
+ *			})
+ *			Name (EP00, Package() {
+ *				ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+ *				Package () {
+ *					Package () { "endpoint", 0 },
+ *					Package () {
+ *						"remote-endpoint",
+ *						Package() {
+ *							\_SB.PCI0.ISP, 4, 0
+ *						}
+ *					},
+ *				}
+ *			})
+ *		}
  *	}
  *
- * where
+ *	Scope (\_SB.PCI0)
+ *	{
+ *		Device (ISP)
+ *		{
+ *			Name (_DSD, Package () {
+ *				ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+ *				Package () {
+ *					Package () { "port4", "PRT4" },
+ *				}
+ *			})
  *
- *	LED	LED driver device
- *	LED0	First LED
- *	LED1	Second LED
- *	SEN	Camera sensor device (or another device the LED is
- *		related to)
+ *			Name (PRT4, Package() {
+ *				ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+ *				Package () {
+ *					Package () { "port", 4 },
+ *				},
+ *				ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+ *				Package () {
+ *					Package () { "endpoint0", "EP40" },
+ *				}
+ *			})
+ *
+ *			Name (EP40, Package() {
+ *				ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+ *				Package () {
+ *					Package () { "endpoint", 0 },
+ *					Package () {
+ *						"remote-endpoint",
+ *						Package () {
+ *							\_SB.PCI0.I2C2.CAM0,
+ *							0, 0
+ *						}
+ *					},
+ *				}
+ *			})
+ *		}
+ *	}
+ *
+ * From the EP40 node under ISP device, you could parse the graph remote
+ * endpoint using v4l2_fwnode_reference_get_int_prop with these arguments:
+ *
+ *  @fwnode: fwnode referring to EP40 under ISP.
+ *  @prop: "remote-endpoint"
+ *  @index: 0
+ *  @props: "port", "endpoint"
+ *  @nprops: 2
+ *
+ * And you'd get back fwnode referring to EP00 under CAM0.
+ *
+ * The same works the other way around: if you use EP00 under CAM0 as the
+ * fwnode, you'll get fwnode referring to EP40 under ISP.
+ *
+ * The same example in DT syntax would look like this:
+ *
+ * cam: cam0 {
+ *	compatible = "nokia,smia";
+ *
+ *	port {
+ *		port = <0>;
+ *		endpoint {
+ *			endpoint = <0>;
+ *			remote-endpoint = <&isp 4 0>;
+ *		};
+ *	};
+ * };
+ *
+ * isp: isp {
+ *	ports {
+ *		port@4 {
+ *			port = <4>;
+ *			endpoint {
+ *				endpoint = <0>;
+ *				remote-endpoint = <&cam 0 0>;
+ *			};
+ *		};
+ *	};
+ * };
  *
  * Return: 0 on success
  *	   -ENOENT if no entries (or the property itself) were found
@@ -603,10 +740,10 @@ error:
  */
 static struct fwnode_handle *v4l2_fwnode_reference_get_int_prop(
 	struct fwnode_handle *fwnode, const char *prop, unsigned int index,
-	const char **props, unsigned int nprops)
+	const char * const *props, unsigned int nprops)
 {
 	struct fwnode_reference_args fwnode_args;
-	unsigned int *args = fwnode_args.args;
+	u64 *args = fwnode_args.args;
 	struct fwnode_handle *child;
 	int ret;
 
@@ -622,8 +759,8 @@ static struct fwnode_handle *v4l2_fwnode_reference_get_int_prop(
 		return ERR_PTR(ret == -ENODATA ? -ENOENT : ret);
 
 	/*
-	 * Find a node in the tree under the referred fwnode corresponding the
-	 * integer arguments.
+	 * Find a node in the tree under the referred fwnode corresponding to
+	 * the integer arguments.
 	 */
 	fwnode = fwnode_args.fwnode;
 	while (nprops--) {
@@ -656,7 +793,8 @@ static struct fwnode_handle *v4l2_fwnode_reference_get_int_prop(
 }
 
 /*
- * v4l2_fwnode_reference_parse_int_props - parse references for async sub-devices
+ * v4l2_fwnode_reference_parse_int_props - parse references for async
+ *					   sub-devices
  * @dev: struct device pointer
  * @notifier: notifier for @dev
  * @prop: the name of the property
@@ -679,23 +817,31 @@ static struct fwnode_handle *v4l2_fwnode_reference_get_int_prop(
  */
 static int v4l2_fwnode_reference_parse_int_props(
 	struct device *dev, struct v4l2_async_notifier *notifier,
-	const char *prop, const char **props, unsigned int nprops)
+	const char *prop, const char * const *props, unsigned int nprops)
 {
 	struct fwnode_handle *fwnode;
 	unsigned int index;
 	int ret;
 
-	for (index = 0; !IS_ERR((fwnode = v4l2_fwnode_reference_get_int_prop(
-					 dev_fwnode(dev), prop, index, props,
-					 nprops))); index++)
+	index = 0;
+	do {
+		fwnode = v4l2_fwnode_reference_get_int_prop(dev_fwnode(dev),
+							    prop, index,
+							    props, nprops);
+		if (IS_ERR(fwnode)) {
+			/*
+			 * Note that right now both -ENODATA and -ENOENT may
+			 * signal out-of-bounds access. Return the error in
+			 * cases other than that.
+			 */
+			if (PTR_ERR(fwnode) != -ENOENT &&
+			    PTR_ERR(fwnode) != -ENODATA)
+				return PTR_ERR(fwnode);
+			break;
+		}
 		fwnode_handle_put(fwnode);
-
-	/*
-	 * Note that right now both -ENODATA and -ENOENT may signal
-	 * out-of-bounds access. Return the error in cases other than that.
-	 */
-	if (PTR_ERR(fwnode) != -ENOENT && PTR_ERR(fwnode) != -ENODATA)
-		return PTR_ERR(fwnode);
+		index++;
+	} while (1);
 
 	ret = v4l2_async_notifier_realloc(notifier,
 					  notifier->num_subdevs + index);
@@ -719,7 +865,7 @@ static int v4l2_fwnode_reference_parse_int_props(
 		}
 
 		notifier->subdevs[notifier->num_subdevs] = asd;
-		asd->match.fwnode.fwnode = fwnode;
+		asd->match.fwnode = fwnode;
 		asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
 		notifier->num_subdevs++;
 	}
@@ -734,10 +880,10 @@ error:
 int v4l2_async_notifier_parse_fwnode_sensor_common(
 	struct device *dev, struct v4l2_async_notifier *notifier)
 {
-	static const char *led_props[] = { "led" };
+	static const char * const led_props[] = { "led" };
 	static const struct {
 		const char *name;
-		const char **props;
+		const char * const *props;
 		unsigned int nprops;
 	} props[] = {
 		{ "flash-leds", led_props, ARRAY_SIZE(led_props) },

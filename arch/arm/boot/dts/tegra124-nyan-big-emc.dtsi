@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 / {
-	clock@0,60006000 {
+	clock@60006000 {
 		emc-timings-1 {
 			nvidia,ram-code = <1>;
 
@@ -67,7 +68,7 @@
 		};
 	};
 
-	emc@0,7001b000 {
+	emc@7001b000 {
 		emc-timings-1 {
 			nvidia,ram-code = <1>;
 
@@ -1754,7 +1755,7 @@
 		};
 	};
 
-	memory-controller@0,70019000 {
+	memory-controller@70019000 {
 		emc-timings-1 {
 			nvidia,ram-code = <1>;
 

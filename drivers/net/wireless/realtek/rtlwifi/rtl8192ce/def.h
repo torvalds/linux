@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -144,31 +140,6 @@ enum interface_select_pci {
 	INTF_SEL0_PCIE = 1,
 	INTF_SEL2_RSV = 2,
 	INTF_SEL3_RSV = 3,
-};
-
-enum hal_fw_c2h_cmd_id {
-	HAL_FW_C2H_CMD_Read_MACREG = 0,
-	HAL_FW_C2H_CMD_Read_BBREG = 1,
-	HAL_FW_C2H_CMD_Read_RFREG = 2,
-	HAL_FW_C2H_CMD_Read_EEPROM = 3,
-	HAL_FW_C2H_CMD_Read_EFUSE = 4,
-	HAL_FW_C2H_CMD_Read_CAM = 5,
-	HAL_FW_C2H_CMD_Get_BasicRate = 6,
-	HAL_FW_C2H_CMD_Get_DataRate = 7,
-	HAL_FW_C2H_CMD_Survey = 8,
-	HAL_FW_C2H_CMD_SurveyDone = 9,
-	HAL_FW_C2H_CMD_JoinBss = 10,
-	HAL_FW_C2H_CMD_AddSTA = 11,
-	HAL_FW_C2H_CMD_DelSTA = 12,
-	HAL_FW_C2H_CMD_AtimDone = 13,
-	HAL_FW_C2H_CMD_TX_Report = 14,
-	HAL_FW_C2H_CMD_CCX_Report = 15,
-	HAL_FW_C2H_CMD_DTM_Report = 16,
-	HAL_FW_C2H_CMD_TX_Rate_Statistics = 17,
-	HAL_FW_C2H_CMD_C2HLBK = 18,
-	HAL_FW_C2H_CMD_C2HDBG = 19,
-	HAL_FW_C2H_CMD_C2HFEEDBACK = 20,
-	HAL_FW_C2H_CMD_MAX
 };
 
 enum rtl_desc_qsel {

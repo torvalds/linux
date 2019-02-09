@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PLATFORM_DATA_SDHCI_S3C_H
 #define __PLATFORM_DATA_SDHCI_S3C_H
 

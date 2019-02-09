@@ -91,6 +91,7 @@ struct insn {
 #define X86_VEX_B(vex)	((vex) & 0x20)	/* VEX3 Byte1 */
 #define X86_VEX_L(vex)	((vex) & 0x04)	/* VEX3 Byte2, VEX2 Byte1 */
 /* VEX bit fields */
+#define X86_EVEX_M(vex)	((vex) & 0x03)		/* EVEX Byte1 */
 #define X86_VEX3_M(vex)	((vex) & 0x1f)		/* VEX3 Byte1 */
 #define X86_VEX2_M	1			/* VEX2.M always 1 */
 #define X86_VEX_V(vex)	(((vex) & 0x78) >> 3)	/* VEX3 Byte2, VEX2 Byte1 */
@@ -133,6 +134,13 @@ static inline int insn_is_avx(struct insn *insn)
 	return (insn->vex_prefix.value != 0);
 }
 
+static inline int insn_is_evex(struct insn *insn)
+{
+	if (!insn->prefixes.got)
+		insn_get_prefixes(insn);
+	return (insn->vex_prefix.nbytes == 4);
+}
+
 /* Ensure this instruction is decoded completely */
 static inline int insn_complete(struct insn *insn)
 {
@@ -144,8 +152,10 @@ static inline insn_byte_t insn_vex_m_bits(struct insn *insn)
 {
 	if (insn->vex_prefix.nbytes == 2)	/* 2 bytes VEX */
 		return X86_VEX2_M;
-	else
+	else if (insn->vex_prefix.nbytes == 3)	/* 3 bytes VEX */
 		return X86_VEX3_M(insn->vex_prefix.bytes[1]);
+	else					/* EVEX */
+		return X86_EVEX_M(insn->vex_prefix.bytes[1]);
 }
 
 static inline insn_byte_t insn_vex_p_bits(struct insn *insn)
@@ -196,6 +206,24 @@ static inline int insn_offset_displacement(struct insn *insn)
 static inline int insn_offset_immediate(struct insn *insn)
 {
 	return insn_offset_displacement(insn) + insn->displacement.nbytes;
+}
+
+#define POP_SS_OPCODE 0x1f
+#define MOV_SREG_OPCODE 0x8e
+
+/*
+ * Intel SDM Vol.3A 6.8.3 states;
+ * "Any single-step trap that would be delivered following the MOV to SS
+ * instruction or POP to SS instruction (because EFLAGS.TF is 1) is
+ * suppressed."
+ * This function returns true if @insn is MOV SS or POP SS. On these
+ * instructions, single stepping is suppressed.
+ */
+static inline int insn_masking_exception(struct insn *insn)
+{
+	return insn->opcode.bytes[0] == POP_SS_OPCODE ||
+		(insn->opcode.bytes[0] == MOV_SREG_OPCODE &&
+		 X86_MODRM_REG(insn->modrm.bytes[0]) == 2);
 }
 
 #endif /* _ASM_X86_INSN_H */

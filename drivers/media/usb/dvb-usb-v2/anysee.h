@@ -13,10 +13,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * TODO:
  * - add smart card reader support for Conditional Access (CA)
  *
@@ -36,7 +32,7 @@
 
 #define DVB_USB_LOG_PREFIX "anysee"
 #include "dvb_usb.h"
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 enum cmd {
 	CMD_I2C_READ            = 0x33,

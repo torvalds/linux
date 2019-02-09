@@ -147,7 +147,6 @@ struct ath_interrupt_stats {
  * @completed: Total MPDUs (non-aggr) completed
  * @a_aggr: Total no. of aggregates queued
  * @a_queued_hw: Total AMPDUs queued to hardware
- * @a_queued_sw: Total AMPDUs queued to software queues
  * @a_completed: Total AMPDUs completed
  * @a_retries: No. of AMPDUs retried (SW)
  * @a_xretries: No. of AMPDUs dropped due to xretries
@@ -174,7 +173,6 @@ struct ath_tx_stats {
 	u32 xretries;
 	u32 a_aggr;
 	u32 a_queued_hw;
-	u32 a_queued_sw;
 	u32 a_completed;
 	u32 a_retries;
 	u32 a_xretries;
@@ -221,6 +219,11 @@ struct ath_rx_rate_stats {
 		u32 cck_lp_cnt;
 		u32 cck_sp_cnt;
 	} cck_stats[4];
+};
+
+struct ath_airtime_stats {
+	u32 rx_airtime;
+	u32 tx_airtime;
 };
 
 #define ANT_MAIN 0
@@ -316,10 +319,18 @@ ath9k_debug_sync_cause(struct ath_softc *sc, u32 sync_cause)
 void ath_debug_rate_stats(struct ath_softc *sc,
 			  struct ath_rx_status *rs,
 			  struct sk_buff *skb);
+void ath_debug_airtime(struct ath_softc *sc,
+		       struct ath_node *an,
+		       u32 rx, u32 tx);
 #else
 static inline void ath_debug_rate_stats(struct ath_softc *sc,
 					struct ath_rx_status *rs,
 					struct sk_buff *skb)
+{
+}
+static inline void ath_debug_airtime(struct ath_softc *sc,
+			      struct ath_node *an,
+			      u32 rx, u32 tx)
 {
 }
 #endif /* CONFIG_ATH9K_STATION_STATISTICS */

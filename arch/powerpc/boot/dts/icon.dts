@@ -256,7 +256,7 @@
 				#size-cells = <0>;
 
                                 rtc@68 {
-                                        compatible = "stm,m41t00";
+                                        compatible = "st,m41t00";
                                         reg = <0x68>;
                                 };
 			};
@@ -442,6 +442,6 @@
 	};
 
 	chosen {
-		linux,stdout-path = "/plb/opb/serial@f0000200";
+		stdout-path = "/plb/opb/serial@f0000200";
 	};
 };

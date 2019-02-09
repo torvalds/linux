@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* sstate.c: System soft state support.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
@@ -43,8 +44,8 @@ static const char poweroff_msg[32] __attribute__((aligned(32))) =
 	"Linux powering off";
 static const char rebooting_msg[32] __attribute__((aligned(32))) =
 	"Linux rebooting";
-static const char panicing_msg[32] __attribute__((aligned(32))) =
-	"Linux panicing";
+static const char panicking_msg[32] __attribute__((aligned(32))) =
+	"Linux panicking";
 
 static int sstate_reboot_call(struct notifier_block *np, unsigned long type, void *_unused)
 {
@@ -76,7 +77,7 @@ static struct notifier_block sstate_reboot_notifier = {
 
 static int sstate_panic_event(struct notifier_block *n, unsigned long event, void *ptr)
 {
-	do_set_sstate(HV_SOFT_STATE_TRANSITION, panicing_msg);
+	do_set_sstate(HV_SOFT_STATE_TRANSITION, panicking_msg);
 
 	return NOTIFY_DONE;
 }

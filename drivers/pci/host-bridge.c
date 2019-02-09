@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * host bridge related code
+ * Host bridge related code
  */
 
 #include <linux/kernel.h>
@@ -44,6 +45,7 @@ void pci_set_host_bridge_release(struct pci_host_bridge *bridge,
 	bridge->release_fn = release_fn;
 	bridge->release_data = release_data;
 }
+EXPORT_SYMBOL_GPL(pci_set_host_bridge_release);
 
 void pcibios_resource_to_bus(struct pci_bus *bus, struct pci_bus_region *region,
 			     struct resource *res)

@@ -1,5 +1,5 @@
 perf-data(1)
-==============
+============
 
 NAME
 ----
@@ -30,9 +30,17 @@ OPTIONS for 'convert'
 -i::
 	Specify input perf data file path.
 
+-f::
+--force::
+	Don't complain, do it.
+
 -v::
 --verbose::
         Be more verbose (show counter open errors, etc).
+
+--all::
+	Convert all events, including non-sample events (comm, fork, ...), to output.
+	Default is off, only convert samples.
 
 SEE ALSO
 --------

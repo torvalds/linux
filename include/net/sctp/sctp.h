@@ -69,7 +69,7 @@
 #include <net/ip6_route.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -82,6 +82,11 @@
 #define SCTP_PROTOSW_FLAG INET_PROTOSW_PERMANENT
 #endif
 
+/* Round an int up to the next multiple of 4.  */
+#define SCTP_PAD4(s) (((s)+3)&~3)
+/* Truncate to the previous multiple of 4.  */
+#define SCTP_TRUNC4(s) ((s)&~3)
+
 /*
  * Function declarations.
  */
@@ -89,8 +94,8 @@
 /*
  * sctp/protocol.c
  */
-int sctp_copy_local_addr_list(struct net *, struct sctp_bind_addr *,
-			      sctp_scope_t, gfp_t gfp, int flags);
+int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *addr,
+			      enum sctp_scope, gfp_t gfp, int flags);
 struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
 int sctp_register_pf(struct sctp_pf *, sa_family_t);
 void sctp_addr_wq_mgmt(struct net *, struct sctp_sockaddr_entry *, int);
@@ -98,11 +103,13 @@ void sctp_addr_wq_mgmt(struct net *, struct sctp_sockaddr_entry *, int);
 /*
  * sctp/socket.c
  */
+int sctp_inet_connect(struct socket *sock, struct sockaddr *uaddr,
+		      int addr_len, int flags);
 int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 int sctp_inet_listen(struct socket *sock, int backlog);
 void sctp_write_space(struct sock *sk);
 void sctp_data_ready(struct sock *sk);
-unsigned int sctp_poll(struct file *file, struct socket *sock,
+__poll_t sctp_poll(struct file *file, struct socket *sock,
 		poll_table *wait);
 void sctp_sock_rfree(struct sk_buff *skb);
 void sctp_copy_sock(struct sock *newsk, struct sock *sk,
@@ -110,6 +117,23 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 extern struct percpu_counter sctp_sockets_allocated;
 int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
 struct sk_buff *sctp_skb_recv_datagram(struct sock *, int, int, int *);
+
+void sctp_transport_walk_start(struct rhashtable_iter *iter);
+void sctp_transport_walk_stop(struct rhashtable_iter *iter);
+struct sctp_transport *sctp_transport_get_next(struct net *net,
+			struct rhashtable_iter *iter);
+struct sctp_transport *sctp_transport_get_idx(struct net *net,
+			struct rhashtable_iter *iter, int pos);
+int sctp_transport_lookup_process(int (*cb)(struct sctp_transport *, void *),
+				  struct net *net,
+				  const union sctp_addr *laddr,
+				  const union sctp_addr *paddr, void *p);
+int sctp_for_each_transport(int (*cb)(struct sctp_transport *, void *),
+			    int (*cb_done)(struct sctp_transport *, void *),
+			    struct net *net, int *pos, void *p);
+int sctp_for_each_endpoint(int (*cb)(struct sctp_endpoint *, void *), void *p);
+int sctp_get_sctp_info(struct sock *sk, struct sctp_association *asoc,
+		       struct sctp_info *info);
 
 /*
  * sctp/primitive.c
@@ -120,20 +144,20 @@ int sctp_primitive_ABORT(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_SEND(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_REQUESTHEARTBEAT(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_ASCONF(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_RECONF(struct net *net, struct sctp_association *asoc,
+			  void *arg);
 
 /*
  * sctp/input.c
  */
 int sctp_rcv(struct sk_buff *skb);
 void sctp_v4_err(struct sk_buff *skb, u32 info);
-void sctp_hash_established(struct sctp_association *);
-void sctp_unhash_established(struct sctp_association *);
 void sctp_hash_endpoint(struct sctp_endpoint *);
 void sctp_unhash_endpoint(struct sctp_endpoint *);
 struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *,
 			     struct sctphdr *, struct sctp_association **,
 			     struct sctp_transport **);
-void sctp_err_finish(struct sock *, struct sctp_association *);
+void sctp_err_finish(struct sock *, struct sctp_transport *);
 void sctp_icmp_frag_needed(struct sock *, struct sctp_association *,
 			   struct sctp_transport *t, __u32 pmtu);
 void sctp_icmp_redirect(struct sock *, struct sctp_transport *,
@@ -143,19 +167,41 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 				 struct sctp_transport *t);
 void sctp_backlog_migrate(struct sctp_association *assoc,
 			  struct sock *oldsk, struct sock *newsk);
+int sctp_transport_hashtable_init(void);
+void sctp_transport_hashtable_destroy(void);
+int sctp_hash_transport(struct sctp_transport *t);
+void sctp_unhash_transport(struct sctp_transport *t);
+struct sctp_transport *sctp_addrs_lookup_transport(
+				struct net *net,
+				const union sctp_addr *laddr,
+				const union sctp_addr *paddr);
+struct sctp_transport *sctp_epaddr_lookup_transport(
+				const struct sctp_endpoint *ep,
+				const union sctp_addr *paddr);
 
 /*
  * sctp/proc.c
  */
-int sctp_snmp_proc_init(struct net *net);
-void sctp_snmp_proc_exit(struct net *net);
-int sctp_eps_proc_init(struct net *net);
-void sctp_eps_proc_exit(struct net *net);
-int sctp_assocs_proc_init(struct net *net);
-void sctp_assocs_proc_exit(struct net *net);
-int sctp_remaddr_proc_init(struct net *net);
-void sctp_remaddr_proc_exit(struct net *net);
+int __net_init sctp_proc_init(struct net *net);
 
+/*
+ * sctp/offload.c
+ */
+int sctp_offload_init(void);
+
+/*
+ * sctp/stream_sched.c
+ */
+void sctp_sched_ops_init(void);
+
+/*
+ * sctp/stream.c
+ */
+int sctp_send_reset_streams(struct sctp_association *asoc,
+			    struct sctp_reset_streams *params);
+int sctp_send_reset_assoc(struct sctp_association *asoc);
+int sctp_send_add_streams(struct sctp_association *asoc,
+			  struct sctp_add_streams *params);
 
 /*
  * Module global variables
@@ -175,10 +221,9 @@ extern int sysctl_sctp_wmem[3];
  */
 
 /* SCTP SNMP MIB stats handlers */
-#define SCTP_INC_STATS(net, field)      SNMP_INC_STATS((net)->sctp.sctp_statistics, field)
-#define SCTP_INC_STATS_BH(net, field)   SNMP_INC_STATS_BH((net)->sctp.sctp_statistics, field)
-#define SCTP_INC_STATS_USER(net, field) SNMP_INC_STATS_USER((net)->sctp.sctp_statistics, field)
-#define SCTP_DEC_STATS(net, field)      SNMP_DEC_STATS((net)->sctp.sctp_statistics, field)
+#define SCTP_INC_STATS(net, field)	SNMP_INC_STATS((net)->sctp.sctp_statistics, field)
+#define __SCTP_INC_STATS(net, field)	__SNMP_INC_STATS((net)->sctp.sctp_statistics, field)
+#define SCTP_DEC_STATS(net, field)	SNMP_DEC_STATS((net)->sctp.sctp_statistics, field)
 
 /* sctp mib definitions */
 enum {
@@ -250,7 +295,6 @@ extern atomic_t sctp_dbg_objcnt_chunk;
 extern atomic_t sctp_dbg_objcnt_bind_addr;
 extern atomic_t sctp_dbg_objcnt_bind_bucket;
 extern atomic_t sctp_dbg_objcnt_addr;
-extern atomic_t sctp_dbg_objcnt_ssnmap;
 extern atomic_t sctp_dbg_objcnt_datamsg;
 extern atomic_t sctp_dbg_objcnt_keys;
 
@@ -269,7 +313,6 @@ atomic_t sctp_dbg_objcnt_## name = ATOMIC_INIT(0)
 {.label= #name, .counter= &sctp_dbg_objcnt_## name}
 
 void sctp_dbg_objcnt_init(struct net *);
-void sctp_dbg_objcnt_exit(struct net *);
 
 #else
 
@@ -277,7 +320,6 @@ void sctp_dbg_objcnt_exit(struct net *);
 #define SCTP_DBG_OBJCNT_DEC(name)
 
 static inline void sctp_dbg_objcnt_init(struct net *net) { return; }
-static inline void sctp_dbg_objcnt_exit(struct net *net) { return; }
 
 #endif /* CONFIG_SCTP_DBG_OBJCOUNT */
 
@@ -345,21 +387,6 @@ int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id, struct socket **sockp);
 #define sctp_skb_for_each(pos, head, tmp) \
 	skb_queue_walk_safe(head, pos, tmp)
 
-/* A helper to append an entire skb list (list) to another (head). */
-static inline void sctp_skb_list_tail(struct sk_buff_head *list,
-				      struct sk_buff_head *head)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&head->lock, flags);
-	spin_lock(&list->lock);
-
-	skb_queue_splice_tail_init(list, head);
-
-	spin_unlock(&list->lock);
-	spin_unlock_irqrestore(&head->lock, flags);
-}
-
 /**
  *	sctp_list_dequeue - remove from the head of the queue
  *	@list: list to dequeue from
@@ -372,11 +399,9 @@ static inline struct list_head *sctp_list_dequeue(struct list_head *list)
 {
 	struct list_head *result = NULL;
 
-	if (list->next != list) {
+	if (!list_empty(list)) {
 		result = list->next;
-		list->next = result->next;
-		list->next->prev = list;
-		INIT_LIST_HEAD(result);
+		list_del_init(result);
 	}
 	return result;
 }
@@ -405,30 +430,6 @@ static inline int sctp_list_single_entry(struct list_head *head)
 	return (head->next != head) && (head->next == head->prev);
 }
 
-/* Break down data chunks at this point.  */
-static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
-{
-	struct sctp_sock *sp = sctp_sk(asoc->base.sk);
-	int frag = pmtu;
-
-	frag -= sp->pf->af->net_header_len;
-	frag -= sizeof(struct sctphdr) + sizeof(struct sctp_data_chunk);
-
-	if (asoc->user_frag)
-		frag = min_t(int, frag, asoc->user_frag);
-
-	frag = min_t(int, frag, SCTP_MAX_CHUNK_LEN);
-
-	return frag;
-}
-
-static inline void sctp_assoc_pending_pmtu(struct sock *sk, struct sctp_association *asoc)
-{
-
-	sctp_assoc_sync_pmtu(sk, asoc);
-	asoc->pmtu_pending = 0;
-}
-
 static inline bool sctp_chunk_pending(const struct sctp_chunk *chunk)
 {
 	return !list_empty(&chunk->list);
@@ -444,19 +445,23 @@ _sctp_walk_params((pos), (chunk), ntohs((chunk)->chunk_hdr.length), member)
 
 #define _sctp_walk_params(pos, chunk, end, member)\
 for (pos.v = chunk->member;\
+     (pos.v + offsetof(struct sctp_paramhdr, length) + sizeof(pos.p->length) <=\
+      (void *)chunk + end) &&\
      pos.v <= (void *)chunk + end - ntohs(pos.p->length) &&\
-     ntohs(pos.p->length) >= sizeof(sctp_paramhdr_t);\
-     pos.v += WORD_ROUND(ntohs(pos.p->length)))
+     ntohs(pos.p->length) >= sizeof(struct sctp_paramhdr);\
+     pos.v += SCTP_PAD4(ntohs(pos.p->length)))
 
 #define sctp_walk_errors(err, chunk_hdr)\
 _sctp_walk_errors((err), (chunk_hdr), ntohs((chunk_hdr)->length))
 
 #define _sctp_walk_errors(err, chunk_hdr, end)\
-for (err = (sctp_errhdr_t *)((void *)chunk_hdr + \
-	    sizeof(sctp_chunkhdr_t));\
+for (err = (struct sctp_errhdr *)((void *)chunk_hdr + \
+	    sizeof(struct sctp_chunkhdr));\
+     ((void *)err + offsetof(struct sctp_errhdr, length) + sizeof(err->length) <=\
+      (void *)chunk_hdr + end) &&\
      (void *)err <= (void *)chunk_hdr + end - ntohs(err->length) &&\
-     ntohs(err->length) >= sizeof(sctp_errhdr_t); \
-     err = (sctp_errhdr_t *)((void *)err + WORD_ROUND(ntohs(err->length))))
+     ntohs(err->length) >= sizeof(struct sctp_errhdr); \
+     err = (struct sctp_errhdr *)((void *)err + SCTP_PAD4(ntohs(err->length))))
 
 #define sctp_walk_fwdtsn(pos, chunk)\
 _sctp_walk_fwdtsn((pos), (chunk), ntohs((chunk)->chunk_hdr->length) - sizeof(struct sctp_fwdtsn_chunk))
@@ -465,9 +470,6 @@ _sctp_walk_fwdtsn((pos), (chunk), ntohs((chunk)->chunk_hdr->length) - sizeof(str
 for (pos = chunk->subh.fwdtsn_hdr->skip;\
      (void *)pos <= (void *)chunk->subh.fwdtsn_hdr->skip + end - sizeof(struct sctp_fwdtsn_skip);\
      pos++)
-
-/* Round an int up to the next multiple of 4.  */
-#define WORD_ROUND(s) (((s)+3)&~3)
 
 /* External references. */
 
@@ -519,31 +521,13 @@ static inline int sctp_ep_hashfn(struct net *net, __u16 lport)
 	return (net_hash_mix(net) + lport) & (sctp_ep_hashsize - 1);
 }
 
-/* This is the hash function for the association hash table. */
-static inline int sctp_assoc_hashfn(struct net *net, __u16 lport, __u16 rport)
-{
-	int h = (lport << 16) + rport + net_hash_mix(net);
-	h ^= h>>8;
-	return h & (sctp_assoc_hashsize - 1);
-}
-
-/* This is the hash function for the association hash table.  This is
- * not used yet, but could be used as a better hash function when
- * we have a vtag.
- */
-static inline int sctp_vtag_hashfn(__u16 lport, __u16 rport, __u32 vtag)
-{
-	int h = (lport << 16) + rport;
-	h ^= vtag;
-	return h & (sctp_assoc_hashsize - 1);
-}
-
 #define sctp_for_each_hentry(epb, head) \
 	hlist_for_each_entry(epb, head, node)
 
 /* Is a socket of this style? */
 #define sctp_style(sk, style) __sctp_style((sk), (SCTP_SOCKET_##style))
-static inline int __sctp_style(const struct sock *sk, sctp_socket_type_t style)
+static inline int __sctp_style(const struct sock *sk,
+			       enum sctp_socket_type style)
 {
 	return sctp_sk(sk)->type == style;
 }
@@ -551,14 +535,15 @@ static inline int __sctp_style(const struct sock *sk, sctp_socket_type_t style)
 /* Is the association in this state? */
 #define sctp_state(asoc, state) __sctp_state((asoc), (SCTP_STATE_##state))
 static inline int __sctp_state(const struct sctp_association *asoc,
-			       sctp_state_t state)
+			       enum sctp_state state)
 {
 	return asoc->state == state;
 }
 
 /* Is the socket in this state? */
 #define sctp_sstate(sk, state) __sctp_sstate((sk), (SCTP_SS_##state))
-static inline int __sctp_sstate(const struct sock *sk, sctp_sock_state_t state)
+static inline int __sctp_sstate(const struct sock *sk,
+				enum sctp_sock_state state)
 {
 	return sk->sk_state == state;
 }
@@ -592,12 +577,47 @@ static inline void sctp_v4_map_v6(union sctp_addr *addr)
  */
 static inline struct dst_entry *sctp_transport_dst_check(struct sctp_transport *t)
 {
-	if (t->dst && !dst_check(t->dst, t->dst_cookie)) {
-		dst_release(t->dst);
-		t->dst = NULL;
-	}
+	if (t->dst && !dst_check(t->dst, t->dst_cookie))
+		sctp_transport_dst_release(t);
 
 	return t->dst;
+}
+
+/* Calculate max payload size given a MTU, or the total overhead if
+ * given MTU is zero
+ */
+static inline __u32 sctp_mtu_payload(const struct sctp_sock *sp,
+				     __u32 mtu, __u32 extra)
+{
+	__u32 overhead = sizeof(struct sctphdr) + extra;
+
+	if (sp)
+		overhead += sp->pf->af->net_header_len;
+	else
+		overhead += sizeof(struct ipv6hdr);
+
+	if (WARN_ON_ONCE(mtu && mtu <= overhead))
+		mtu = overhead;
+
+	return mtu ? mtu - overhead : overhead;
+}
+
+static inline __u32 sctp_dst_mtu(const struct dst_entry *dst)
+{
+	return SCTP_TRUNC4(max_t(__u32, dst_mtu(dst),
+				 SCTP_DEFAULT_MINSEGMENT));
+}
+
+static inline bool sctp_transport_pmtu_check(struct sctp_transport *t)
+{
+	__u32 pmtu = sctp_dst_mtu(t->dst);
+
+	if (t->pathmtu == pmtu)
+		return true;
+
+	t->pathmtu = pmtu;
+
+	return false;
 }
 
 #endif /* __net_sctp_h__ */

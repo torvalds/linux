@@ -276,7 +276,7 @@ static struct attribute *enable_sensor_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group enable_sensor_attr_group = {
+static const struct attribute_group enable_sensor_attr_group = {
 	.attrs = enable_sensor_attrs,
 };
 
@@ -292,11 +292,11 @@ static ssize_t show_value(struct device *dev, struct device_attribute *attr,
 	bool input = false;
 	int value = 0;
 
-	if (sscanf(attr->attr.name, "feature-%d-%x-%s", &index, &usage,
+	if (sscanf(attr->attr.name, "feature-%x-%x-%s", &index, &usage,
 		   name) == 3) {
 		feature = true;
 		field_index = index + sensor_inst->input_field_count;
-	} else if (sscanf(attr->attr.name, "input-%d-%x-%s", &index, &usage,
+	} else if (sscanf(attr->attr.name, "input-%x-%x-%s", &index, &usage,
 		   name) == 3) {
 		input = true;
 		field_index = index;
@@ -358,7 +358,7 @@ static ssize_t show_value(struct device *dev, struct device_attribute *attr,
 						sensor_inst->hsdev,
 						sensor_inst->hsdev->usage,
 						usage, report_id,
-						SENSOR_HUB_SYNC);
+						SENSOR_HUB_SYNC, false);
 	} else if (!strncmp(name, "units", strlen("units")))
 		value = sensor_inst->fields[field_index].attribute.units;
 	else if (!strncmp(name, "unit-expo", strlen("unit-expo")))
@@ -398,7 +398,7 @@ static ssize_t store_value(struct device *dev, struct device_attribute *attr,
 	char name[HID_CUSTOM_NAME_LENGTH];
 	int value;
 
-	if (sscanf(attr->attr.name, "feature-%d-%x-%s", &index, &usage,
+	if (sscanf(attr->attr.name, "feature-%x-%x-%s", &index, &usage,
 		   name) == 3) {
 		field_index = index + sensor_inst->input_field_count;
 	} else
@@ -702,11 +702,11 @@ static int hid_sensor_custom_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static unsigned int hid_sensor_custom_poll(struct file *file,
+static __poll_t hid_sensor_custom_poll(struct file *file,
 					   struct poll_table_struct *wait)
 {
 	struct hid_sensor_custom *sensor_inst;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	sensor_inst = container_of(file->private_data,
 				   struct hid_sensor_custom, custom_dev);
@@ -714,7 +714,7 @@ static unsigned int hid_sensor_custom_poll(struct file *file,
 	poll_wait(file, &sensor_inst->wait, wait);
 
 	if (!kfifo_is_empty(&sensor_inst->data_fifo))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }
@@ -823,7 +823,7 @@ static int hid_sensor_custom_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id hid_sensor_custom_ids[] = {
+static const struct platform_device_id hid_sensor_custom_ids[] = {
 	{
 		.name = "HID-SENSOR-2000e1",
 	},

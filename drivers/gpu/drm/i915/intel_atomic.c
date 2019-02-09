@@ -36,44 +36,126 @@
 #include "intel_drv.h"
 
 /**
- * intel_connector_atomic_get_property - fetch connector property value
- * @connector: connector to fetch property for
- * @state: state containing the property value
- * @property: property to look up
- * @val: pointer to write property value into
+ * intel_digital_connector_atomic_get_property - hook for connector->atomic_get_property.
+ * @connector: Connector to get the property for.
+ * @state: Connector state to retrieve the property from.
+ * @property: Property to retrieve.
+ * @val: Return value for the property.
  *
- * The DRM core does not store shadow copies of properties for
- * atomic-capable drivers.  This entrypoint is used to fetch
- * the current value of a driver-specific connector property.
+ * Returns the atomic property value for a digital connector.
  */
-int
-intel_connector_atomic_get_property(struct drm_connector *connector,
-				    const struct drm_connector_state *state,
-				    struct drm_property *property,
-				    uint64_t *val)
+int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
+						const struct drm_connector_state *state,
+						struct drm_property *property,
+						uint64_t *val)
 {
-	int i;
+	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(state);
 
-	/*
-	 * TODO: We only have atomic modeset for planes at the moment, so the
-	 * crtc/connector code isn't quite ready yet.  Until it's ready,
-	 * continue to look up all property values in the DRM's shadow copy
-	 * in obj->properties->values[].
-	 *
-	 * When the crtc/connector state work matures, this function should
-	 * be updated to read the values out of the state structure instead.
-	 */
-	for (i = 0; i < connector->base.properties->count; i++) {
-		if (connector->base.properties->properties[i] == property) {
-			*val = connector->base.properties->values[i];
-			return 0;
-		}
+	if (property == dev_priv->force_audio_property)
+		*val = intel_conn_state->force_audio;
+	else if (property == dev_priv->broadcast_rgb_property)
+		*val = intel_conn_state->broadcast_rgb;
+	else {
+		DRM_DEBUG_ATOMIC("Unknown property [PROP:%d:%s]\n",
+				 property->base.id, property->name);
+		return -EINVAL;
 	}
 
+	return 0;
+}
+
+/**
+ * intel_digital_connector_atomic_set_property - hook for connector->atomic_set_property.
+ * @connector: Connector to set the property for.
+ * @state: Connector state to set the property on.
+ * @property: Property to set.
+ * @val: New value for the property.
+ *
+ * Sets the atomic property value for a digital connector.
+ */
+int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
+						struct drm_connector_state *state,
+						struct drm_property *property,
+						uint64_t val)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(state);
+
+	if (property == dev_priv->force_audio_property) {
+		intel_conn_state->force_audio = val;
+		return 0;
+	}
+
+	if (property == dev_priv->broadcast_rgb_property) {
+		intel_conn_state->broadcast_rgb = val;
+		return 0;
+	}
+
+	DRM_DEBUG_ATOMIC("Unknown property [PROP:%d:%s]\n",
+			 property->base.id, property->name);
 	return -EINVAL;
 }
 
-/*
+int intel_digital_connector_atomic_check(struct drm_connector *conn,
+					 struct drm_connector_state *new_state)
+{
+	struct intel_digital_connector_state *new_conn_state =
+		to_intel_digital_connector_state(new_state);
+	struct drm_connector_state *old_state =
+		drm_atomic_get_old_connector_state(new_state->state, conn);
+	struct intel_digital_connector_state *old_conn_state =
+		to_intel_digital_connector_state(old_state);
+	struct drm_crtc_state *crtc_state;
+
+	intel_hdcp_atomic_check(conn, old_state, new_state);
+
+	if (!new_state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_new_crtc_state(new_state->state, new_state->crtc);
+
+	/*
+	 * These properties are handled by fastset, and might not end
+	 * up in a modeset.
+	 */
+	if (new_conn_state->force_audio != old_conn_state->force_audio ||
+	    new_conn_state->broadcast_rgb != old_conn_state->broadcast_rgb ||
+	    new_conn_state->base.picture_aspect_ratio != old_conn_state->base.picture_aspect_ratio ||
+	    new_conn_state->base.content_type != old_conn_state->base.content_type ||
+	    new_conn_state->base.scaling_mode != old_conn_state->base.scaling_mode)
+		crtc_state->mode_changed = true;
+
+	return 0;
+}
+
+/**
+ * intel_digital_connector_duplicate_state - duplicate connector state
+ * @connector: digital connector
+ *
+ * Allocates and returns a copy of the connector state (both common and
+ * digital connector specific) for the specified connector.
+ *
+ * Returns: The newly allocated connector state, or NULL on failure.
+ */
+struct drm_connector_state *
+intel_digital_connector_duplicate_state(struct drm_connector *connector)
+{
+	struct intel_digital_connector_state *state;
+
+	state = kmemdup(connector->state, sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_connector_duplicate_state(connector, &state->base);
+	return &state->base;
+}
+
+/**
  * intel_crtc_duplicate_state - duplicate crtc state
  * @crtc: drm crtc
  *
@@ -94,6 +176,14 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->base);
 
 	crtc_state->update_pipe = false;
+	crtc_state->disable_lp_wm = false;
+	crtc_state->disable_cxsr = false;
+	crtc_state->update_wm_pre = false;
+	crtc_state->update_wm_post = false;
+	crtc_state->fb_changed = false;
+	crtc_state->fifo_changed = false;
+	crtc_state->wm.need_postvbl_update = false;
+	crtc_state->fb_bits = 0;
 
 	return &crtc_state->base;
 }
@@ -101,21 +191,22 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 /**
  * intel_crtc_destroy_state - destroy crtc state
  * @crtc: drm crtc
+ * @state: the state to destroy
  *
  * Destroys the crtc state (both common and Intel-specific) for the
  * specified crtc.
  */
 void
 intel_crtc_destroy_state(struct drm_crtc *crtc,
-			  struct drm_crtc_state *state)
+			 struct drm_crtc_state *state)
 {
 	drm_atomic_helper_crtc_destroy_state(crtc, state);
 }
 
 /**
  * intel_atomic_setup_scalers() - setup scalers for crtc per staged requests
- * @dev: DRM device
- * @crtc: intel crtc
+ * @dev_priv: i915 device
+ * @intel_crtc: intel crtc
  * @crtc_state: incoming crtc_state to validate and setup scalers
  *
  * This function sets up scalers based on staged scaling requests for
@@ -129,9 +220,9 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
  *         0 - scalers were setup succesfully
  *         error code - otherwise
  */
-int intel_atomic_setup_scalers(struct drm_device *dev,
-	struct intel_crtc *intel_crtc,
-	struct intel_crtc_state *crtc_state)
+int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
+			       struct intel_crtc *intel_crtc,
+			       struct intel_crtc_state *crtc_state)
 {
 	struct drm_plane *plane = NULL;
 	struct intel_plane *intel_plane;
@@ -139,6 +230,7 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
 	struct drm_atomic_state *drm_state = crtc_state->base.state;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(drm_state);
 	int num_scalers_need;
 	int i, j;
 
@@ -184,7 +276,7 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 
 			/* plane scaler case: assign as a plane scaler */
 			/* find the plane that set the bit as scaler_user */
-			plane = drm_state->planes[i];
+			plane = drm_state->planes[i].ptr;
 
 			/*
 			 * to enable/disable hq mode, add planes that are using scaler
@@ -192,7 +284,7 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 			 */
 			if (!plane) {
 				struct drm_plane_state *state;
-				plane = drm_plane_from_index(dev, i);
+				plane = drm_plane_from_index(&dev_priv->drm, i);
 				state = drm_atomic_get_plane_state(drm_state, plane);
 				if (IS_ERR(state)) {
 					DRM_DEBUG_KMS("Failed to add [PLANE:%d] to drm_state\n",
@@ -205,8 +297,6 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 				 * but since this plane is unchanged just do the
 				 * minimum required validation.
 				 */
-				if (plane->type == DRM_PLANE_TYPE_PRIMARY)
-					intel_crtc->atomic.wait_for_flips = true;
 				crtc_state->base.planes_changed = true;
 			}
 
@@ -218,7 +308,8 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 				continue;
 			}
 
-			plane_state = to_intel_plane_state(drm_state->plane_states[i]);
+			plane_state = intel_atomic_get_new_plane_state(intel_state,
+								       intel_plane);
 			scaler_id = &plane_state->scaler_id;
 		}
 
@@ -241,7 +332,19 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 		}
 
 		/* set scaler mode */
-		if (num_scalers_need == 1 && intel_crtc->pipe != PIPE_C) {
+		if ((INTEL_GEN(dev_priv) >= 9) &&
+		    plane_state && plane_state->base.fb &&
+		    plane_state->base.fb->format->format ==
+		    DRM_FORMAT_NV12) {
+			if (INTEL_GEN(dev_priv) == 9 &&
+			    !IS_GEMINILAKE(dev_priv) &&
+			    !IS_SKYLAKE(dev_priv))
+				scaler_state->scalers[*scaler_id].mode =
+					SKL_PS_SCALER_MODE_NV12;
+			else
+				scaler_state->scalers[*scaler_id].mode =
+					PS_SCALER_MODE_PLANAR;
+		} else if (num_scalers_need == 1 && intel_crtc->pipe != PIPE_C) {
 			/*
 			 * when only 1 scaler is in use on either pipe A or B,
 			 * scaler 0 operates in high quality (HQ) mode.
@@ -257,37 +360,6 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 	}
 
 	return 0;
-}
-
-static void
-intel_atomic_duplicate_dpll_state(struct drm_i915_private *dev_priv,
-				  struct intel_shared_dpll_config *shared_dpll)
-{
-	enum intel_dpll_id i;
-
-	/* Copy shared dpll state */
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
-
-		shared_dpll[i] = pll->config;
-	}
-}
-
-struct intel_shared_dpll_config *
-intel_atomic_get_shared_dpll_state(struct drm_atomic_state *s)
-{
-	struct intel_atomic_state *state = to_intel_atomic_state(s);
-
-	WARN_ON(!drm_modeset_is_locked(&s->dev->mode_config.connection_mutex));
-
-	if (!state->dpll_set) {
-		state->dpll_set = true;
-
-		intel_atomic_duplicate_dpll_state(to_i915(s->dev),
-						  state->shared_dpll);
-	}
-
-	return state->shared_dpll;
 }
 
 struct drm_atomic_state *
@@ -307,5 +379,5 @@ void intel_atomic_state_clear(struct drm_atomic_state *s)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(s);
 	drm_atomic_state_default_clear(&state->base);
-	state->dpll_set = false;
+	state->dpll_set = state->modeset = false;
 }

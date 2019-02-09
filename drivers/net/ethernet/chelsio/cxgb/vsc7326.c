@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* $Date: 2006/04/28 19:20:06 $ $RCSfile: vsc7326.c,v $ $Revision: 1.19 $ */
 
 /* Driver for Vitesse VSC7326 (Schaumburg) MAC */
@@ -10,8 +11,6 @@
 #define STATS_TICK_SECS 15
 /* 30 minutes for full statistics update */
 #define MAJOR_UPDATE_TICKS (1800 / STATS_TICK_SECS)
-
-#define MAX_MTU 9600
 
 /* The egress WM value 0x01a01fff should be used only when the
  * interface is down (MAC port disabled). This is a workaround
@@ -452,9 +451,6 @@ static int mac_set_mtu(struct cmac *mac, int mtu)
 {
 	int port = mac->instance->index;
 
-	if (mtu > MAX_MTU)
-		return -EINVAL;
-
 	/* max_len includes header and FCS */
 	vsc_write(mac->adapter, REG_MAX_LEN(port), mtu + 14 + 4);
 	return 0;
@@ -666,7 +662,7 @@ static void mac_destroy(struct cmac *mac)
 	kfree(mac);
 }
 
-static struct cmac_ops vsc7326_ops = {
+static const struct cmac_ops vsc7326_ops = {
 	.destroy                  = mac_destroy,
 	.reset                    = mac_reset,
 	.interrupt_handler        = mac_intr_handler,

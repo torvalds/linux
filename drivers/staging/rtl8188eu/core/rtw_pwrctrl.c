@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *
  ******************************************************************************/
 #define _RTW_PWRCTRL_C_
@@ -30,7 +17,6 @@ static int rtw_hw_suspend(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct net_device *pnetdev = padapter->pnetdev;
 
-
 	if ((!padapter->bup) || (padapter->bDriverStopped) ||
 	    (padapter->bSurpriseRemoved)) {
 		DBG_88E("padapter->bup=%d bDriverStopped=%d bSurpriseRemoved = %d\n",
@@ -42,8 +28,8 @@ static int rtw_hw_suspend(struct adapter *padapter)
 	/* system suspend */
 	LeaveAllPowerSaveMode(padapter);
 
-	DBG_88E("==> rtw_hw_suspend\n");
-	_enter_pwrlock(&pwrpriv->lock);
+	DBG_88E("==> %s\n", __func__);
+	mutex_lock(&pwrpriv->mutex_lock);
 	pwrpriv->bips_processing = true;
 	/* s1. */
 	if (pnetdev) {
@@ -61,7 +47,7 @@ static int rtw_hw_suspend(struct adapter *padapter)
 		if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 			_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
-			rtw_led_control(padapter, LED_CTL_NO_LINK);
+			LedControl8188eu(padapter, LED_CTL_NO_LINK);
 
 			rtw_os_indicate_disconnect(padapter);
 
@@ -78,7 +64,7 @@ static int rtw_hw_suspend(struct adapter *padapter)
 	pwrpriv->rf_pwrstate = rf_off;
 	pwrpriv->bips_processing = false;
 
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 
 	return 0;
 
@@ -92,15 +78,14 @@ static int rtw_hw_resume(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct net_device *pnetdev = padapter->pnetdev;
 
-
 	/* system resume */
-	DBG_88E("==> rtw_hw_resume\n");
-	_enter_pwrlock(&pwrpriv->lock);
+	DBG_88E("==> %s\n", __func__);
+	mutex_lock(&pwrpriv->mutex_lock);
 	pwrpriv->bips_processing = true;
 	rtw_reset_drv_sw(padapter);
 
-	if (pm_netdev_open(pnetdev, false) != 0) {
-		_exit_pwrlock(&pwrpriv->lock);
+	if (ips_netdrv_open((struct adapter *)rtw_netdev_priv(pnetdev)) != _SUCCESS) {
+		mutex_unlock(&pwrpriv->mutex_lock);
 		goto error_exit;
 	}
 
@@ -118,8 +103,7 @@ static int rtw_hw_resume(struct adapter *padapter)
 	pwrpriv->rf_pwrstate = rf_on;
 	pwrpriv->bips_processing = false;
 
-	_exit_pwrlock(&pwrpriv->lock);
-
+	mutex_unlock(&pwrpriv->mutex_lock);
 
 	return 0;
 error_exit:
@@ -143,7 +127,7 @@ void ips_enter(struct adapter *padapter)
 		return;
 	}
 
-	_enter_pwrlock(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->mutex_lock);
 
 	pwrpriv->bips_processing = true;
 
@@ -151,7 +135,7 @@ void ips_enter(struct adapter *padapter)
 	pwrpriv->ips_mode = pwrpriv->ips_mode_req;
 
 	pwrpriv->ips_enter_cnts++;
-	DBG_88E("==>ips_enter cnts:%d\n", pwrpriv->ips_enter_cnts);
+	DBG_88E("==>%s:%d\n", __func__, pwrpriv->ips_enter_cnts);
 	if (rf_off == pwrpriv->change_rfpwrstate) {
 		pwrpriv->bpower_saving = true;
 		DBG_88E_LEVEL(_drv_info_, "nolinked power save enter\n");
@@ -164,7 +148,7 @@ void ips_enter(struct adapter *padapter)
 	}
 	pwrpriv->bips_processing = false;
 
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 }
 
 int ips_leave(struct adapter *padapter)
@@ -175,19 +159,18 @@ int ips_leave(struct adapter *padapter)
 	int result = _SUCCESS;
 	int keyid;
 
-
-	_enter_pwrlock(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->mutex_lock);
 
 	if ((pwrpriv->rf_pwrstate == rf_off) && (!pwrpriv->bips_processing)) {
 		pwrpriv->bips_processing = true;
 		pwrpriv->change_rfpwrstate = rf_on;
 		pwrpriv->ips_leave_cnts++;
-		DBG_88E("==>ips_leave cnts:%d\n", pwrpriv->ips_leave_cnts);
+		DBG_88E("==>%s:%d\n", __func__, pwrpriv->ips_leave_cnts);
 
 		result = rtw_ips_pwr_up(padapter);
-		if (result == _SUCCESS) {
+		if (result == _SUCCESS)
 			pwrpriv->rf_pwrstate = rf_on;
-		}
+
 		DBG_88E_LEVEL(_drv_info_, "nolinked power save leave\n");
 
 		if ((_WEP40_ == psecuritypriv->dot11PrivacyAlgrthm) || (_WEP104_ == psecuritypriv->dot11PrivacyAlgrthm)) {
@@ -203,14 +186,14 @@ int ips_leave(struct adapter *padapter)
 			}
 		}
 
-		DBG_88E("==> ips_leave.....LED(0x%08x)...\n", usb_read32(padapter, 0x4c));
+		DBG_88E("==> %s.....LED(0x%08x)...\n", __func__, usb_read32(padapter, 0x4c));
 		pwrpriv->bips_processing = false;
 
 		pwrpriv->bkeepfwalive = false;
 		pwrpriv->bpower_saving = false;
 	}
 
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 
 	return result;
 }
@@ -281,9 +264,12 @@ exit:
 	pwrpriv->ps_processing = false;
 }
 
-static void pwr_state_check_handler(unsigned long data)
+static void pwr_state_check_handler(struct timer_list *t)
 {
-	struct adapter *padapter = (struct adapter *)data;
+	struct adapter *padapter =
+		from_timer(padapter, t,
+				pwrctrlpriv.pwr_state_check_timer);
+
 	rtw_ps_cmd(padapter);
 }
 
@@ -336,7 +322,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 
 	rpwm = pslv | pwrpriv->tog;
 	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
-		 ("rtw_set_rpwm: rpwm=0x%02x cpwm=0x%02x\n", rpwm, pwrpriv->cpwm));
+		 ("%s: rpwm=0x%02x cpwm=0x%02x\n", __func__, rpwm, pwrpriv->cpwm));
 
 	pwrpriv->rpwm = pslv;
 
@@ -348,10 +334,9 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 
 static u8 PS_RDY_CHECK(struct adapter *padapter)
 {
-	u32 curr_time, delta_time;
+	unsigned long curr_time, delta_time;
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
-
 
 	curr_time = jiffies;
 	delta_time = curr_time - pwrpriv->DelayLPSLastTimeStamp;
@@ -418,10 +403,9 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
  */
 s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 {
-	u32 start_time;
+	unsigned long start_time;
 	u8 bAwake = false;
 	s32 err = 0;
-
 
 	start_time = jiffies;
 	while (1) {
@@ -435,7 +419,7 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 			break;
 		}
 
-		if (rtw_get_passing_time_ms(start_time) > delay_ms) {
+		if (jiffies_to_msecs(jiffies - start_time) > delay_ms) {
 			err = -1;
 			DBG_88E("%s: Wait for FW LPS leave more than %u ms!!!\n", __func__, delay_ms);
 			break;
@@ -509,7 +493,7 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
-	_init_pwrlock(&pwrctrlpriv->lock);
+	mutex_init(&pwrctrlpriv->mutex_lock);
 	pwrctrlpriv->rf_pwrstate = rf_on;
 	pwrctrlpriv->ips_enter_cnts = 0;
 	pwrctrlpriv->ips_leave_cnts = 0;
@@ -529,7 +513,7 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 		pwrctrlpriv->power_mgnt = PS_MODE_ACTIVE;
 	else
 		pwrctrlpriv->power_mgnt = padapter->registrypriv.power_mgnt;/*  PS_MODE_MIN; */
-	pwrctrlpriv->bLeisurePs = (PS_MODE_ACTIVE != pwrctrlpriv->power_mgnt) ? true : false;
+	pwrctrlpriv->bLeisurePs = (pwrctrlpriv->power_mgnt != PS_MODE_ACTIVE) ? true : false;
 
 	pwrctrlpriv->bFwCurrentInPSMode = false;
 
@@ -544,9 +528,8 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 
 	pwrctrlpriv->btcoex_rfon = false;
 
-	setup_timer(&pwrctrlpriv->pwr_state_check_timer,
-		    pwr_state_check_handler,
-		    (unsigned long)padapter);
+	timer_setup(&pwrctrlpriv->pwr_state_check_timer,
+		    pwr_state_check_handler, 0);
 }
 
 /*
@@ -561,24 +544,24 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	unsigned long expires;
+	unsigned long start;
 	int ret = _SUCCESS;
 
 	expires = jiffies + msecs_to_jiffies(ips_deffer_ms);
 	if (time_before(pwrpriv->ips_deny_time, expires))
 		pwrpriv->ips_deny_time = jiffies + msecs_to_jiffies(ips_deffer_ms);
 
-{
-	u32 start = jiffies;
+	start = jiffies;
 	if (pwrpriv->ps_processing) {
 		DBG_88E("%s wait ps_processing...\n", __func__);
-		while (pwrpriv->ps_processing && rtw_get_passing_time_ms(start) <= 3000)
-			usleep_range(1000, 3000);
+		while (pwrpriv->ps_processing &&
+		       jiffies_to_msecs(jiffies - start) <= 3000)
+			udelay(1500);
 		if (pwrpriv->ps_processing)
 			DBG_88E("%s wait ps_processing timeout\n", __func__);
 		else
 			DBG_88E("%s wait ps_processing done\n", __func__);
 	}
-}
 
 	/* System suspend is not allowed to wakeup */
 	if ((!pwrpriv->bInternalAutoSuspend) && (pwrpriv->bInSuspend)) {
@@ -599,7 +582,7 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	}
 	if (rf_off == pwrpriv->rf_pwrstate) {
 		DBG_88E("%s call ips_leave....\n", __func__);
-		if (_FAIL ==  ips_leave(padapter)) {
+		if (ips_leave(padapter) ==  _FAIL) {
 			DBG_88E("======> ips_leave fail.............\n");
 			ret = _FAIL;
 			goto exit;
@@ -632,12 +615,12 @@ int rtw_pm_set_lps(struct adapter *padapter, u8 mode)
 
 	if (mode < PS_MODE_NUM) {
 		if (pwrctrlpriv->power_mgnt != mode) {
-			if (PS_MODE_ACTIVE == mode)
+			if (mode == PS_MODE_ACTIVE)
 				LeaveAllPowerSaveMode(padapter);
 			else
 				pwrctrlpriv->LpsIdleCount = 2;
 			pwrctrlpriv->power_mgnt = mode;
-			pwrctrlpriv->bLeisurePs = (PS_MODE_ACTIVE != pwrctrlpriv->power_mgnt) ? true : false;
+			pwrctrlpriv->bLeisurePs = (pwrctrlpriv->power_mgnt != PS_MODE_ACTIVE) ? true : false;
 		}
 	} else {
 		ret = -EINVAL;
@@ -657,7 +640,7 @@ int rtw_pm_set_ips(struct adapter *padapter, u8 mode)
 	} else if (mode == IPS_NONE) {
 		rtw_ips_mode_req(pwrctrlpriv, mode);
 		DBG_88E("%s %s\n", __func__, "IPS_NONE");
-		if ((padapter->bSurpriseRemoved == 0) && (_FAIL == rtw_pwr_wakeup(padapter)))
+		if ((padapter->bSurpriseRemoved == 0) && (rtw_pwr_wakeup(padapter) == _FAIL))
 			return -EFAULT;
 	} else {
 		return -EINVAL;

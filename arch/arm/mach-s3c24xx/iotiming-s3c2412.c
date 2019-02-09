@@ -1,14 +1,10 @@
-/*
- * Copyright (c) 2006-2008 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * S3C2412/S3C2443 (PL093 based) IO timing support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2006-2008 Simtec Electronics
+//	http://armlinux.simtec.co.uk/
+//	Ben Dooks <ben@simtec.co.uk>
+//
+// S3C2412/S3C2443 (PL093 based) IO timing support
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -35,7 +31,7 @@
 #define print_ns(x) ((x) / 10), ((x) % 10)
 
 /**
- * s3c2412_print_timing - print timing infromation via printk.
+ * s3c2412_print_timing - print timing information via printk.
  * @pfx: The prefix to print each line with.
  * @iot: The IO timing information
  */
@@ -242,11 +238,9 @@ int s3c2412_iotiming_get(struct s3c_cpufreq_config *cfg,
 		if (!bank_is_io(bank, bankcfg))
 			continue;
 
-		bt = kzalloc(sizeof(struct s3c2412_iobank_timing), GFP_KERNEL);
-		if (!bt) {
-			printk(KERN_ERR "%s: no memory for bank\n", __func__);
+		bt = kzalloc(sizeof(*bt), GFP_KERNEL);
+		if (!bt)
 			return -ENOMEM;
-		}
 
 		timings->bank[bank].io_2412 = bt;
 		s3c2412_iotiming_getbank(cfg, bt, bank);

@@ -1,19 +1,14 @@
-/* rc-dvb0700-big.c - Keytable for devices in dvb0700
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * TODO: This table is a real mess, as it merges RC codes from several
- * devices into a big table. It also has both RC-5 and NEC codes inside.
- * It should be broken into small tables, and the protocols should properly
- * be identificated.
- *
- * The table were imported from dib0700_devices.c.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// rc-dvb0700-big.c - Keytable for devices in dvb0700
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
+//
+// TODO: This table is a real mess, as it merges RC codes from several
+// devices into a big table. It also has both RC-5 and NEC codes inside.
+// It should be broken into small tables, and the protocols should properly
+// be identificated.
+//
+// The table were imported from dib0700_devices.c.
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -212,10 +207,10 @@ static struct rc_map_table dib0700_rc5_table[] = {
 
 static struct rc_map_list dib0700_rc5_map = {
 	.map = {
-		.scan    = dib0700_rc5_table,
-		.size    = ARRAY_SIZE(dib0700_rc5_table),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_DIB0700_RC5_TABLE,
+		.scan     = dib0700_rc5_table,
+		.size     = ARRAY_SIZE(dib0700_rc5_table),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_DIB0700_RC5_TABLE,
 	}
 };
 

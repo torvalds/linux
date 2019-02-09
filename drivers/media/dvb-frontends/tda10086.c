@@ -27,7 +27,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda10086.h"
 
 #define SACLK 96000000
@@ -459,9 +459,9 @@ static int tda10086_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda10086_get_frontend(struct dvb_frontend *fe)
+static int tda10086_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *fe_params)
 {
-	struct dtv_frontend_properties *fe_params = &fe->dtv_property_cache;
 	struct tda10086_state* state = fe->demodulator_priv;
 	u8 val;
 	int tmp;
@@ -706,13 +706,13 @@ static void tda10086_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops tda10086_ops = {
+static const struct dvb_frontend_ops tda10086_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name     = "Philips TDA10086 DVB-S",
-		.frequency_min    = 950000,
-		.frequency_max    = 2150000,
-		.frequency_stepsize = 125,     /* kHz for QPSK frontends */
+		.frequency_min_hz      =  950 * MHz,
+		.frequency_max_hz      = 2150 * MHz,
+		.frequency_stepsize_hz =  125 * kHz,
 		.symbol_rate_min  = 1000000,
 		.symbol_rate_max  = 45000000,
 		.caps = FE_CAN_INVERSION_AUTO |

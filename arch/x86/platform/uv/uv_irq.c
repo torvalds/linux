@@ -8,7 +8,7 @@
  * Copyright (C) 2008 Silicon Graphics, Inc. All rights reserved.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
@@ -47,11 +47,6 @@ static void uv_program_mmr(struct irq_cfg *cfg, struct uv_irq_2_mmr_pnode *info)
 
 static void uv_noop(struct irq_data *data) { }
 
-static void uv_ack_apic(struct irq_data *data)
-{
-	ack_APIC_irq();
-}
-
 static int
 uv_set_irq_affinity(struct irq_data *data, const struct cpumask *mask,
 		    bool force)
@@ -73,7 +68,7 @@ static struct irq_chip uv_irq_chip = {
 	.name			= "UV-CORE",
 	.irq_mask		= uv_noop,
 	.irq_unmask		= uv_noop,
-	.irq_eoi		= uv_ack_apic,
+	.irq_eoi		= apic_ack_irq,
 	.irq_set_affinity	= uv_set_irq_affinity,
 };
 
@@ -127,10 +122,11 @@ static void uv_domain_free(struct irq_domain *domain, unsigned int virq,
  * Re-target the irq to the specified CPU and enable the specified MMR located
  * on the specified blade to allow the sending of MSIs to the specified CPU.
  */
-static void uv_domain_activate(struct irq_domain *domain,
-			       struct irq_data *irq_data)
+static int uv_domain_activate(struct irq_domain *domain,
+			      struct irq_data *irq_data, bool reserve)
 {
 	uv_program_mmr(irqd_cfg(irq_data), irq_data->chip_data);
+	return 0;
 }
 
 /*
@@ -160,13 +156,21 @@ static struct irq_domain *uv_get_irq_domain(void)
 {
 	static struct irq_domain *uv_domain;
 	static DEFINE_MUTEX(uv_lock);
+	struct fwnode_handle *fn;
 
 	mutex_lock(&uv_lock);
-	if (uv_domain == NULL) {
-		uv_domain = irq_domain_add_tree(NULL, &uv_domain_ops, NULL);
-		if (uv_domain)
-			uv_domain->parent = x86_vector_domain;
-	}
+	if (uv_domain)
+		goto out;
+
+	fn = irq_domain_alloc_named_fwnode("UV-CORE");
+	if (!fn)
+		goto out;
+
+	uv_domain = irq_domain_create_tree(fn, &uv_domain_ops, NULL);
+	irq_domain_free_fwnode(fn);
+	if (uv_domain)
+		uv_domain->parent = x86_vector_domain;
+out:
 	mutex_unlock(&uv_lock);
 
 	return uv_domain;

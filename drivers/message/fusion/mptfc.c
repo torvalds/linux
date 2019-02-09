@@ -104,7 +104,6 @@ static void mptfc_remove(struct pci_dev *pdev);
 static int mptfc_abort(struct scsi_cmnd *SCpnt);
 static int mptfc_dev_reset(struct scsi_cmnd *SCpnt);
 static int mptfc_bus_reset(struct scsi_cmnd *SCpnt);
-static int mptfc_host_reset(struct scsi_cmnd *SCpnt);
 
 static struct scsi_host_template mptfc_driver_template = {
 	.module				= THIS_MODULE,
@@ -119,10 +118,11 @@ static struct scsi_host_template mptfc_driver_template = {
 	.target_destroy			= mptfc_target_destroy,
 	.slave_destroy			= mptscsih_slave_destroy,
 	.change_queue_depth 		= mptscsih_change_queue_depth,
+	.eh_timed_out			= fc_eh_timed_out,
 	.eh_abort_handler		= mptfc_abort,
 	.eh_device_reset_handler	= mptfc_dev_reset,
 	.eh_bus_reset_handler		= mptfc_bus_reset,
-	.eh_host_reset_handler		= mptfc_host_reset,
+	.eh_host_reset_handler		= mptscsih_host_reset,
 	.bios_param			= mptscsih_bios_param,
 	.can_queue			= MPT_FC_CAN_QUEUE,
 	.this_id			= -1,
@@ -251,13 +251,6 @@ mptfc_bus_reset(struct scsi_cmnd *SCpnt)
 {
 	return
 	    mptfc_block_error_handler(SCpnt, mptscsih_bus_reset, __func__);
-}
-
-static int
-mptfc_host_reset(struct scsi_cmnd *SCpnt)
-{
-	return
-	    mptfc_block_error_handler(SCpnt, mptscsih_host_reset, __func__);
 }
 
 static void
@@ -700,7 +693,7 @@ mptfc_display_port_link_speed(MPT_ADAPTER *ioc, int portnum, FCPortPage0_t *pp0d
 	state = pp0dest->PortState;
 
 	if (state != MPI_FCPORTPAGE0_PORTSTATE_OFFLINE &&
-	    new_speed != MPI_FCPORTPAGE0_CURRENT_SPEED_UKNOWN) {
+	    new_speed != MPI_FCPORTPAGE0_CURRENT_SPEED_UNKNOWN) {
 
 		old = old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_1GBIT ? "1 Gbps" :
 		       old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_2GBIT ? "2 Gbps" :
@@ -1299,7 +1292,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* SCSI needs scsi_cmnd lookup table!
 	 * (with size equal to req_depth*PtrSz!)
 	 */
-	ioc->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_ATOMIC);
+	ioc->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_KERNEL);
 	if (!ioc->ScsiLookup) {
 		error = -ENOMEM;
 		goto out_mptfc_probe;
@@ -1324,9 +1317,12 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	snprintf(ioc->fc_rescan_work_q_name, sizeof(ioc->fc_rescan_work_q_name),
 		 "mptfc_wq_%d", sh->host_no);
 	ioc->fc_rescan_work_q =
-		create_singlethread_workqueue(ioc->fc_rescan_work_q_name);
-	if (!ioc->fc_rescan_work_q)
-		goto out_mptfc_probe;
+		alloc_ordered_workqueue(ioc->fc_rescan_work_q_name,
+					WQ_MEM_RECLAIM);
+	if (!ioc->fc_rescan_work_q) {
+		error = -ENOMEM;
+		goto out_mptfc_host;
+	}
 
 	/*
 	 *  Pre-fetch FC port WWN and stuff...
@@ -1346,6 +1342,9 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	flush_workqueue(ioc->fc_rescan_work_q);
 
 	return 0;
+
+out_mptfc_host:
+	scsi_remove_host(sh);
 
 out_mptfc_probe:
 
@@ -1525,6 +1524,8 @@ static void mptfc_remove(struct pci_dev *pdev)
 			ioc->fc_data.fc_port_page1[ii].data = NULL;
 		}
 	}
+
+	scsi_remove_host(ioc->sh);
 
 	mptscsih_remove(pdev);
 }

@@ -41,7 +41,7 @@
 #include <linux/unistd.h>
 #include <linux/time.h>
 
-#define SYSCALL_MAP_SIZE      ((__NR_syscalls + 31) / 32)
+#define SYSCALL_MAP_SIZE      ((NR_syscalls + 31) / 32)
 
 /*
  * So here is the ppc64 backward compatible version

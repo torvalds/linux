@@ -11,9 +11,10 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
@@ -89,3 +90,5 @@ void __init chrp_nvram_init(void)
 
 	return;
 }
+
+MODULE_LICENSE("GPL v2");

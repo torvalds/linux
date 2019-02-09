@@ -43,7 +43,7 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals);
 #ifdef CONFIG_IIO_BUFFER
 struct poll_table_struct;
 
-unsigned int iio_buffer_poll(struct file *filp,
+__poll_t iio_buffer_poll(struct file *filp,
 			     struct poll_table_struct *wait);
 ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 				      size_t n, loff_t *f_ps);
@@ -78,5 +78,8 @@ int iio_device_register_eventset(struct iio_dev *indio_dev);
 void iio_device_unregister_eventset(struct iio_dev *indio_dev);
 void iio_device_wakeup_eventset(struct iio_dev *indio_dev);
 int iio_event_getfd(struct iio_dev *indio_dev);
+
+struct iio_event_interface;
+bool iio_event_enabled(const struct iio_event_interface *ev_int);
 
 #endif

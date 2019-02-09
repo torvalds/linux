@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *   Channel report handling code
  *
@@ -14,6 +15,7 @@
 #include <linux/wait.h>
 #include <asm/crw.h>
 #include <asm/ctl_reg.h>
+#include "ioasm.h"
 
 static DEFINE_MUTEX(crw_handler_mutex);
 static crw_handler_t crw_handlers[NR_RSCS];

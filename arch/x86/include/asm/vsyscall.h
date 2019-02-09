@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_VSYSCALL_H
 #define _ASM_X86_VSYSCALL_H
 
@@ -6,6 +7,7 @@
 
 #ifdef CONFIG_X86_VSYSCALL_EMULATION
 extern void map_vsyscall(void);
+extern void set_vsyscall_pgtable_user_bits(pgd_t *root);
 
 /*
  * Called on instruction fetch fault in vsyscall page.

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for loongson based machines.
 #
@@ -5,6 +6,7 @@
 obj-y += setup.o init.o cmdline.o env.o time.o reset.o irq.o \
     bonito-irq.o mem.o machtype.o platform.o serial.o
 obj-$(CONFIG_PCI) += pci.o
+obj-$(CONFIG_CPU_LOONGSON2) += dma.o
 
 #
 # Serial port support
@@ -24,8 +26,3 @@ obj-$(CONFIG_CS5536) += cs5536/
 #
 
 obj-$(CONFIG_SUSPEND) += pm.o
-
-#
-# Big Memory (SWIOTLB) Support
-#
-obj-$(CONFIG_SWIOTLB) += dma-swiotlb.o

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/init.h>
@@ -114,6 +115,16 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VERSION, "6JET85WW (1.43 )"),
 		},
 	},
+	/* https://bugzilla.kernel.org/show_bug.cgi?id=42606 */
+	{
+		.callback = set_nouse_crs,
+		.ident = "Supermicro X8DTH",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Supermicro"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X8DTH-i/6/iF/6F"),
+			DMI_MATCH(DMI_BIOS_VERSION, "2.0a"),
+		},
+	},
 
 	/* https://bugzilla.kernel.org/show_bug.cgi?id=15362 */
 	{
@@ -129,12 +140,10 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 
 void __init pci_acpi_crs_quirks(void)
 {
-	int year;
+	int year = dmi_get_bios_year();
 
-	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year < 2008) {
-		if (iomem_resource.end <= 0xffffffff)
-			pci_use_crs = false;
-	}
+	if (year >= 0 && year < 2008 && iomem_resource.end <= 0xffffffff)
+		pci_use_crs = false;
 
 	dmi_check_system(pci_crs_quirks);
 

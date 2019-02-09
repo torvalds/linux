@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _XT_TPROXY_H
 #define _XT_TPROXY_H
 
 #include <linux/types.h>
+#include <linux/netfilter.h>
 
 /* TPROXY target is capable of marking the packet to perform
  * redirection. We can get rid of that whenever we get support for

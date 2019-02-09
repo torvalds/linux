@@ -35,7 +35,7 @@
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 
@@ -72,7 +72,7 @@ static struct fb_var_screeninfo mc68x328fb_default __initdata = {
       	.vmode =	FB_VMODE_NONINTERLACED,
 };
 
-static struct fb_fix_screeninfo mc68x328fb_fix __initdata = {
+static const struct fb_fix_screeninfo mc68x328fb_fix __initconst = {
 	.id =		"68328fb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.xpanstep =	1,

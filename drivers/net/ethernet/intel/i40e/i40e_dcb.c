@@ -1,28 +1,5 @@
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "i40e_adminq.h"
 #include "i40e_prototype.h"
@@ -380,17 +357,22 @@ static void i40e_parse_cee_app_tlv(struct i40e_cee_feat_tlv *tlv,
 {
 	u16 length, typelength, offset = 0;
 	struct i40e_cee_app_prio *app;
-	u8 i, up, selector;
+	u8 i;
 
 	typelength = ntohs(tlv->hdr.typelen);
 	length = (u16)((typelength & I40E_LLDP_TLV_LEN_MASK) >>
 		       I40E_LLDP_TLV_LEN_SHIFT);
 
 	dcbcfg->numapps = length / sizeof(*app);
+
 	if (!dcbcfg->numapps)
 		return;
+	if (dcbcfg->numapps > I40E_DCBX_MAX_APPS)
+		dcbcfg->numapps = I40E_DCBX_MAX_APPS;
 
 	for (i = 0; i < dcbcfg->numapps; i++) {
+		u8 up, selector;
+
 		app = (struct i40e_cee_app_prio *)(tlv->tlvinfo + offset);
 		for (up = 0; up < I40E_MAX_USER_PRIORITY; up++) {
 			if (app->prio_map & BIT(up))
@@ -400,13 +382,17 @@ static void i40e_parse_cee_app_tlv(struct i40e_cee_feat_tlv *tlv,
 
 		/* Get Selector from lower 2 bits, and convert to IEEE */
 		selector = (app->upper_oui_sel & I40E_CEE_APP_SELECTOR_MASK);
-		if (selector == I40E_CEE_APP_SEL_ETHTYPE)
+		switch (selector) {
+		case I40E_CEE_APP_SEL_ETHTYPE:
 			dcbcfg->app[i].selector = I40E_APP_SEL_ETHTYPE;
-		else if (selector == I40E_CEE_APP_SEL_TCPIP)
+			break;
+		case I40E_CEE_APP_SEL_TCPIP:
 			dcbcfg->app[i].selector = I40E_APP_SEL_TCPIP;
-		else
+			break;
+		default:
 			/* Keep selector as it is for unknown types */
 			dcbcfg->app[i].selector = selector;
+		}
 
 		dcbcfg->app[i].protocolid = ntohs(app->protocol);
 		/* Move to next app */
@@ -611,14 +597,17 @@ static void i40e_cee_to_dcb_v1_config(
 	/* CEE PG data to ETS config */
 	dcbcfg->etscfg.maxtcs = cee_cfg->oper_num_tc;
 
+	/* Note that the FW creates the oper_prio_tc nibbles reversed
+	 * from those in the CEE Priority Group sub-TLV.
+	 */
 	for (i = 0; i < 4; i++) {
-		tc = (u8)((cee_cfg->oper_prio_tc[i] &
-			 I40E_CEE_PGID_PRIO_1_MASK) >>
-			 I40E_CEE_PGID_PRIO_1_SHIFT);
-		dcbcfg->etscfg.prioritytable[i*2] =  tc;
 		tc = (u8)((cee_cfg->oper_prio_tc[i] &
 			 I40E_CEE_PGID_PRIO_0_MASK) >>
 			 I40E_CEE_PGID_PRIO_0_SHIFT);
+		dcbcfg->etscfg.prioritytable[i * 2] =  tc;
+		tc = (u8)((cee_cfg->oper_prio_tc[i] &
+			 I40E_CEE_PGID_PRIO_1_MASK) >>
+			 I40E_CEE_PGID_PRIO_1_SHIFT);
 		dcbcfg->etscfg.prioritytable[i*2 + 1] = tc;
 	}
 
@@ -814,13 +803,15 @@ i40e_status i40e_get_dcb_config(struct i40e_hw *hw)
 	struct i40e_aqc_get_cee_dcb_cfg_resp cee_cfg;
 	struct i40e_aqc_get_cee_dcb_cfg_v1_resp cee_v1_cfg;
 
-	/* If Firmware version < v4.33 IEEE only */
-	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
-	    (hw->aq.fw_maj_ver < 4))
+	/* If Firmware version < v4.33 on X710/XL710, IEEE only */
+	if ((hw->mac.type == I40E_MAC_XL710) &&
+	    (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
+	      (hw->aq.fw_maj_ver < 4)))
 		return i40e_get_ieee_dcb_config(hw);
 
-	/* If Firmware version == v4.33 use old CEE struct */
-	if ((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver == 33)) {
+	/* If Firmware version == v4.33 on X710/XL710, use old CEE struct */
+	if ((hw->mac.type == I40E_MAC_XL710) &&
+	    ((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver == 33))) {
 		ret = i40e_aq_get_cee_dcb_config(hw, &cee_v1_cfg,
 						 sizeof(cee_v1_cfg), NULL);
 		if (!ret) {
@@ -930,6 +921,70 @@ i40e_status i40e_init_dcb(struct i40e_hw *hw)
 }
 
 /**
+ * _i40e_read_lldp_cfg - generic read of LLDP Configuration data from NVM
+ * @hw: pointer to the HW structure
+ * @lldp_cfg: pointer to hold lldp configuration variables
+ * @module: address of the module pointer
+ * @word_offset: offset of LLDP configuration
+ *
+ * Reads the LLDP configuration data from NVM using passed addresses
+ **/
+static i40e_status _i40e_read_lldp_cfg(struct i40e_hw *hw,
+				       struct i40e_lldp_variables *lldp_cfg,
+				       u8 module, u32 word_offset)
+{
+	u32 address, offset = (2 * word_offset);
+	i40e_status ret;
+	__le16 raw_mem;
+	u16 mem;
+
+	ret = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+	if (ret)
+		return ret;
+
+	ret = i40e_aq_read_nvm(hw, 0x0, module * 2, sizeof(raw_mem), &raw_mem,
+			       true, NULL);
+	i40e_release_nvm(hw);
+	if (ret)
+		return ret;
+
+	mem = le16_to_cpu(raw_mem);
+	/* Check if this pointer needs to be read in word size or 4K sector
+	 * units.
+	 */
+	if (mem & I40E_PTR_TYPE)
+		address = (0x7FFF & mem) * 4096;
+	else
+		address = (0x7FFF & mem) * 2;
+
+	ret = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+	if (ret)
+		goto err_lldp_cfg;
+
+	ret = i40e_aq_read_nvm(hw, module, offset, sizeof(raw_mem), &raw_mem,
+			       true, NULL);
+	i40e_release_nvm(hw);
+	if (ret)
+		return ret;
+
+	mem = le16_to_cpu(raw_mem);
+	offset = mem + word_offset;
+	offset *= 2;
+
+	ret = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+	if (ret)
+		goto err_lldp_cfg;
+
+	ret = i40e_aq_read_nvm(hw, 0, address + offset,
+			       sizeof(struct i40e_lldp_variables), lldp_cfg,
+			       true, NULL);
+	i40e_release_nvm(hw);
+
+err_lldp_cfg:
+	return ret;
+}
+
+/**
  * i40e_read_lldp_cfg - read LLDP Configuration data from NVM
  * @hw: pointer to the HW structure
  * @lldp_cfg: pointer to hold lldp configuration variables
@@ -940,21 +995,34 @@ i40e_status i40e_read_lldp_cfg(struct i40e_hw *hw,
 			       struct i40e_lldp_variables *lldp_cfg)
 {
 	i40e_status ret = 0;
-	u32 offset = (2 * I40E_NVM_LLDP_CFG_PTR);
+	u32 mem;
 
 	if (!lldp_cfg)
 		return I40E_ERR_PARAM;
 
 	ret = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
 	if (ret)
-		goto err_lldp_cfg;
+		return ret;
 
-	ret = i40e_aq_read_nvm(hw, I40E_SR_EMP_MODULE_PTR, offset,
-			       sizeof(struct i40e_lldp_variables),
-			       (u8 *)lldp_cfg,
-			       true, NULL);
+	ret = i40e_aq_read_nvm(hw, I40E_SR_NVM_CONTROL_WORD, 0, sizeof(mem),
+			       &mem, true, NULL);
 	i40e_release_nvm(hw);
+	if (ret)
+		return ret;
 
-err_lldp_cfg:
+	/* Read a bit that holds information whether we are running flat or
+	 * structured NVM image. Flat image has LLDP configuration in shadow
+	 * ram, so there is a need to pass different addresses for both cases.
+	 */
+	if (mem & I40E_SR_NVM_MAP_STRUCTURE_TYPE) {
+		/* Flat NVM case */
+		ret = _i40e_read_lldp_cfg(hw, lldp_cfg, I40E_SR_EMP_MODULE_PTR,
+					  I40E_SR_LLDP_CFG_PTR);
+	} else {
+		/* Good old structured NVM image */
+		ret = _i40e_read_lldp_cfg(hw, lldp_cfg, I40E_EMP_MODULE_PTR,
+					  I40E_NVM_LLDP_CFG_PTR);
+	}
+
 	return ret;
 }

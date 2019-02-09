@@ -1,19 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_SYNCH_H 
 #define _ASM_POWERPC_SYNCH_H 
 #ifdef __KERNEL__
 
-#include <linux/stringify.h>
 #include <asm/feature-fixups.h>
-
-#if defined(__powerpc64__) || defined(CONFIG_PPC_E500MC)
-#define __SUBARCH_HAS_LWSYNC
-#endif
+#include <asm/asm-const.h>
 
 #ifndef __ASSEMBLY__
 extern unsigned int __start___lwsync_fixup, __stop___lwsync_fixup;
 extern void do_lwsync_fixups(unsigned long value, void *fixup_start,
 			     void *fixup_end);
-extern void do_final_fixups(void);
 
 static inline void eieio(void)
 {
@@ -44,7 +40,7 @@ static inline void isync(void)
 	MAKE_LWSYNC_SECTION_ENTRY(97, __lwsync_fixup);
 #define PPC_ACQUIRE_BARRIER	 "\n" stringify_in_c(__PPC_ACQUIRE_BARRIER)
 #define PPC_RELEASE_BARRIER	 stringify_in_c(LWSYNC) "\n"
-#define PPC_ATOMIC_ENTRY_BARRIER "\n" stringify_in_c(LWSYNC) "\n"
+#define PPC_ATOMIC_ENTRY_BARRIER "\n" stringify_in_c(sync) "\n"
 #define PPC_ATOMIC_EXIT_BARRIER	 "\n" stringify_in_c(sync) "\n"
 #else
 #define PPC_ACQUIRE_BARRIER

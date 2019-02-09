@@ -37,23 +37,30 @@ config XEN_BALLOON_MEMORY_HOTPLUG
 
 	  Memory could be hotplugged in following steps:
 
-	    1) dom0: xl mem-max <domU> <maxmem>
+	    1) target domain: ensure that memory auto online policy is in
+	       effect by checking /sys/devices/system/memory/auto_online_blocks
+	       file (should be 'online').
+
+	    2) control domain: xl mem-max <target-domain> <maxmem>
 	       where <maxmem> is >= requested memory size,
 
-	    2) dom0: xl mem-set <domU> <memory>
+	    3) control domain: xl mem-set <target-domain> <memory>
 	       where <memory> is requested memory size; alternatively memory
 	       could be added by writing proper value to
 	       /sys/devices/system/xen_memory/xen_memory0/target or
-	       /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
+	       /sys/devices/system/xen_memory/xen_memory0/target_kb on the
+	       target domain.
 
-	    3) domU: for i in /sys/devices/system/memory/memory*/state; do \
-	               [ "`cat "$i"`" = offline ] && echo online > "$i"; done
+	  Alternatively, if memory auto onlining was not requested at step 1
+	  the newly added memory can be manually onlined in the target domain
+	  by doing the following:
 
-	  Memory could be onlined automatically on domU by adding following line to udev rules:
+		for i in /sys/devices/system/memory/memory*/state; do \
+		  [ "`cat "$i"`" = offline ] && echo online > "$i"; done
+
+	  or by adding the following line to udev rules:
 
 	  SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
-
-	  In that case step 3 should be omitted.
 
 config XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
 	int "Hotplugged memory limit (in GiB) for a PV guest"
@@ -72,15 +79,19 @@ config XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
 	  This value is used to allocate enough space in internal
 	  tables needed for physical memory administration.
 
-config XEN_SCRUB_PAGES
-	bool "Scrub pages before returning them to system"
+config XEN_SCRUB_PAGES_DEFAULT
+	bool "Scrub pages before returning them to system by default"
 	depends on XEN_BALLOON
 	default y
 	help
 	  Scrub pages before returning them to the system for reuse by
 	  other domains.  This makes sure that any confidential data
 	  is not accidentally visible to other domains.  Is it more
-	  secure, but slightly less efficient.
+	  secure, but slightly less efficient. This can be controlled with
+	  xen_scrub_pages=0 parameter and
+	  /sys/devices/system/xen_memory/xen_memory0/scrub_pages.
+	  This option only sets the default value.
+
 	  If in doubt, say yes.
 
 config XEN_DEV_EVTCHN
@@ -145,6 +156,16 @@ config XEN_GNTDEV
 	help
 	  Allows userspace processes to use grants.
 
+config XEN_GNTDEV_DMABUF
+	bool "Add support for dma-buf grant access device driver extension"
+	depends on XEN_GNTDEV && XEN_GRANT_DMA_ALLOC && DMA_SHARED_BUFFER
+	help
+	  Allows userspace processes and kernel modules to use Xen backed
+	  dma-buf implementation. With this extension grant references to
+	  the pages of an imported dma-buf can be exported for other domain
+	  use and grant references coming from a foreign domain can be
+	  converted into a local dma-buf for local export.
+
 config XEN_GRANT_DEV_ALLOC
 	tristate "User-space grant reference allocator driver"
 	depends on XEN
@@ -153,6 +174,20 @@ config XEN_GRANT_DEV_ALLOC
 	  Allows userspace processes to create pages with access granted
 	  to other domains. This can be used to implement frontend drivers
 	  or as part of an inter-domain shared memory channel.
+
+config XEN_GRANT_DMA_ALLOC
+	bool "Allow allocating DMA capable buffers with grant reference module"
+	depends on XEN && HAS_DMA
+	help
+	  Extends grant table module API to allow allocating DMA capable
+	  buffers and mapping foreign grant references on top of it.
+	  The resulting buffer is similar to one allocated by the balloon
+	  driver in that proper memory reservation is made by
+	  ({increase|decrease}_reservation and VA mappings are updated if
+	  needed).
+	  This is useful for sharing foreign buffers with HW drivers which
+	  cannot work with scattered buffers provided by the balloon driver,
+	  but require DMAable memory instead.
 
 config SWIOTLB_XEN
 	def_bool y
@@ -188,6 +223,29 @@ config XEN_PCIDEV_BACKEND
 	  xen-pciback.hide=(03:00.0)(04:00.0)
 
 	  If in doubt, say m.
+
+config XEN_PVCALLS_FRONTEND
+	tristate "XEN PV Calls frontend driver"
+	depends on INET && XEN
+	default n
+	select XEN_XENBUS_FRONTEND
+	help
+	  Experimental frontend for the Xen PV Calls protocol
+	  (https://xenbits.xen.org/docs/unstable/misc/pvcalls.html). It
+	  sends a small set of POSIX calls to the backend, which
+	  implements them.
+
+config XEN_PVCALLS_BACKEND
+	bool "XEN PV Calls backend driver"
+	depends on INET && XEN && XEN_BACKEND
+	default n
+	help
+	  Experimental backend for the Xen PV Calls protocol
+	  (https://xenbits.xen.org/docs/unstable/misc/pvcalls.html). It
+	  allows PV Calls frontends to send POSIX calls to the backend,
+	  which implements them.
+
+	  If in doubt, say n.
 
 config XEN_SCSI_BACKEND
 	tristate "XEN SCSI backend driver"
@@ -239,7 +297,7 @@ config XEN_ACPI_HOTPLUG_CPU
 
 config XEN_ACPI_PROCESSOR
 	tristate "Xen ACPI processor"
-	depends on XEN && X86 && ACPI_PROCESSOR && CPU_FREQ
+	depends on XEN && XEN_DOM0 && X86 && ACPI_PROCESSOR && CPU_FREQ
 	default m
 	help
           This ACPI processor uploads Power Management information to the Xen
@@ -268,7 +326,7 @@ config XEN_HAVE_PVMMU
 
 config XEN_EFI
 	def_bool y
-	depends on X86_64 && EFI
+	depends on (ARM || ARM64 || X86_64) && EFI
 
 config XEN_AUTO_XLATE
 	def_bool y

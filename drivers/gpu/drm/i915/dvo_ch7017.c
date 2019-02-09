@@ -159,7 +159,7 @@
 #define CH7017_BANG_LIMIT_CONTROL	0x7f
 
 struct ch7017_priv {
-	uint8_t dummy;
+	u8 dummy;
 };
 
 static void ch7017_dump_regs(struct intel_dvo_device *dvo);
@@ -186,7 +186,7 @@ static bool ch7017_read(struct intel_dvo_device *dvo, u8 addr, u8 *val)
 
 static bool ch7017_write(struct intel_dvo_device *dvo, u8 addr, u8 val)
 {
-	uint8_t buf[2] = { addr, val };
+	u8 buf[2] = { addr, val };
 	struct i2c_msg msg = {
 		.addr = dvo->slave_addr,
 		.flags = 0,
@@ -258,11 +258,11 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 			    const struct drm_display_mode *mode,
 			    const struct drm_display_mode *adjusted_mode)
 {
-	uint8_t lvds_pll_feedback_div, lvds_pll_vco_control;
-	uint8_t outputs_enable, lvds_control_2, lvds_power_down;
-	uint8_t horizontal_active_pixel_input;
-	uint8_t horizontal_active_pixel_output, vertical_active_line_output;
-	uint8_t active_input_line_output;
+	u8 lvds_pll_feedback_div, lvds_pll_vco_control;
+	u8 outputs_enable, lvds_control_2, lvds_power_down;
+	u8 horizontal_active_pixel_input;
+	u8 horizontal_active_pixel_output, vertical_active_line_output;
+	u8 active_input_line_output;
 
 	DRM_DEBUG_KMS("Registers before mode setting\n");
 	ch7017_dump_regs(dvo);
@@ -280,10 +280,10 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 			(0 << CH7017_PHASE_DETECTOR_SHIFT);
 	} else {
 		outputs_enable = CH7017_LVDS_CHANNEL_A | CH7017_CHARGE_PUMP_HIGH;
-		lvds_pll_feedback_div = CH7017_LVDS_PLL_FEEDBACK_DEFAULT_RESERVED |
+		lvds_pll_feedback_div =
+			CH7017_LVDS_PLL_FEEDBACK_DEFAULT_RESERVED |
 			(2 << CH7017_LVDS_PLL_FEED_BACK_DIVIDER_SHIFT) |
 			(3 << CH7017_LVDS_PLL_FEED_FORWARD_DIVIDER_SHIFT);
-		lvds_pll_feedback_div = 35;
 		lvds_control_2 = (3 << CH7017_LOOP_FILTER_SHIFT) |
 			(0 << CH7017_PHASE_DETECTOR_SHIFT);
 		if (1) { /* XXX: dual channel panel detection.  Assume yes for now. */
@@ -333,7 +333,7 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 /* set the CH7017 power state */
 static void ch7017_dpms(struct intel_dvo_device *dvo, bool enable)
 {
-	uint8_t val;
+	u8 val;
 
 	ch7017_read(dvo, CH7017_LVDS_POWER_DOWN, &val);
 
@@ -361,7 +361,7 @@ static void ch7017_dpms(struct intel_dvo_device *dvo, bool enable)
 
 static bool ch7017_get_hw_state(struct intel_dvo_device *dvo)
 {
-	uint8_t val;
+	u8 val;
 
 	ch7017_read(dvo, CH7017_LVDS_POWER_DOWN, &val);
 
@@ -373,7 +373,7 @@ static bool ch7017_get_hw_state(struct intel_dvo_device *dvo)
 
 static void ch7017_dump_regs(struct intel_dvo_device *dvo)
 {
-	uint8_t val;
+	u8 val;
 
 #define DUMP(reg)					\
 do {							\
@@ -402,7 +402,7 @@ static void ch7017_destroy(struct intel_dvo_device *dvo)
 	}
 }
 
-struct intel_dvo_dev_ops ch7017_ops = {
+const struct intel_dvo_dev_ops ch7017_ops = {
 	.init = ch7017_init,
 	.detect = ch7017_detect,
 	.mode_valid = ch7017_mode_valid,

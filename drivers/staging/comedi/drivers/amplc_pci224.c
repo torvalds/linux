@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/amplc_pci224.c
  * Driver for Amplicon PCI224 and PCI234 AO boards.
@@ -6,16 +7,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998,2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -132,48 +123,53 @@
  * DACCON values.
  */
 /* (r/w) Scan trigger. */
-#define PCI224_DACCON_TRIG_MASK		(7 << 0)
-#define PCI224_DACCON_TRIG_NONE		(0 << 0)	/* none */
-#define PCI224_DACCON_TRIG_SW		(1 << 0)	/* software trig */
-#define PCI224_DACCON_TRIG_EXTP		(2 << 0)	/* ext +ve edge */
-#define PCI224_DACCON_TRIG_EXTN		(3 << 0)	/* ext -ve edge */
-#define PCI224_DACCON_TRIG_Z2CT0	(4 << 0)	/* Z2 CT0 out */
-#define PCI224_DACCON_TRIG_Z2CT1	(5 << 0)	/* Z2 CT1 out */
-#define PCI224_DACCON_TRIG_Z2CT2	(6 << 0)	/* Z2 CT2 out */
+#define PCI224_DACCON_TRIG(x)		(((x) & 0x7) << 0)
+#define PCI224_DACCON_TRIG_MASK		PCI224_DACCON_TRIG(7)
+#define PCI224_DACCON_TRIG_NONE		PCI224_DACCON_TRIG(0)	/* none */
+#define PCI224_DACCON_TRIG_SW		PCI224_DACCON_TRIG(1)	/* soft trig */
+#define PCI224_DACCON_TRIG_EXTP		PCI224_DACCON_TRIG(2)	/* ext + edge */
+#define PCI224_DACCON_TRIG_EXTN		PCI224_DACCON_TRIG(3)	/* ext - edge */
+#define PCI224_DACCON_TRIG_Z2CT0	PCI224_DACCON_TRIG(4)	/* Z2 CT0 out */
+#define PCI224_DACCON_TRIG_Z2CT1	PCI224_DACCON_TRIG(5)	/* Z2 CT1 out */
+#define PCI224_DACCON_TRIG_Z2CT2	PCI224_DACCON_TRIG(6)	/* Z2 CT2 out */
 /* (r/w) Polarity (PCI224 only, PCI234 always bipolar!). */
-#define PCI224_DACCON_POLAR_MASK	(1 << 3)
-#define PCI224_DACCON_POLAR_UNI		(0 << 3)	/* range [0,Vref] */
-#define PCI224_DACCON_POLAR_BI		(1 << 3)	/* range [-Vref,Vref] */
+#define PCI224_DACCON_POLAR(x)		(((x) & 0x1) << 3)
+#define PCI224_DACCON_POLAR_MASK	PCI224_DACCON_POLAR(1)
+#define PCI224_DACCON_POLAR_UNI		PCI224_DACCON_POLAR(0)	/* [0,+V] */
+#define PCI224_DACCON_POLAR_BI		PCI224_DACCON_POLAR(1)	/* [-V,+V] */
 /* (r/w) Internal Vref (PCI224 only, when LK1 in position 1-2). */
-#define PCI224_DACCON_VREF_MASK		(3 << 4)
-#define PCI224_DACCON_VREF_1_25		(0 << 4)	/* Vref = 1.25V */
-#define PCI224_DACCON_VREF_2_5		(1 << 4)	/* Vref = 2.5V */
-#define PCI224_DACCON_VREF_5		(2 << 4)	/* Vref = 5V */
-#define PCI224_DACCON_VREF_10		(3 << 4)	/* Vref = 10V */
+#define PCI224_DACCON_VREF(x)		(((x) & 0x3) << 4)
+#define PCI224_DACCON_VREF_MASK		PCI224_DACCON_VREF(3)
+#define PCI224_DACCON_VREF_1_25		PCI224_DACCON_VREF(0)	/* 1.25V */
+#define PCI224_DACCON_VREF_2_5		PCI224_DACCON_VREF(1)	/* 2.5V */
+#define PCI224_DACCON_VREF_5		PCI224_DACCON_VREF(2)	/* 5V */
+#define PCI224_DACCON_VREF_10		PCI224_DACCON_VREF(3)	/* 10V */
 /* (r/w) Wraparound mode enable (to play back stored waveform). */
-#define PCI224_DACCON_FIFOWRAP		(1 << 7)
+#define PCI224_DACCON_FIFOWRAP		BIT(7)
 /* (r/w) FIFO enable.  It MUST be set! */
-#define PCI224_DACCON_FIFOENAB		(1 << 8)
+#define PCI224_DACCON_FIFOENAB		BIT(8)
 /* (r/w) FIFO interrupt trigger level (most values are not very useful). */
-#define PCI224_DACCON_FIFOINTR_MASK	(7 << 9)
-#define PCI224_DACCON_FIFOINTR_EMPTY	(0 << 9)	/* when empty */
-#define PCI224_DACCON_FIFOINTR_NEMPTY	(1 << 9)	/* when not empty */
-#define PCI224_DACCON_FIFOINTR_NHALF	(2 << 9)	/* when not half full */
-#define PCI224_DACCON_FIFOINTR_HALF	(3 << 9)	/* when half full */
-#define PCI224_DACCON_FIFOINTR_NFULL	(4 << 9)	/* when not full */
-#define PCI224_DACCON_FIFOINTR_FULL	(5 << 9)	/* when full */
+#define PCI224_DACCON_FIFOINTR(x)	(((x) & 0x7) << 9)
+#define PCI224_DACCON_FIFOINTR_MASK	PCI224_DACCON_FIFOINTR(7)
+#define PCI224_DACCON_FIFOINTR_EMPTY	PCI224_DACCON_FIFOINTR(0) /* empty */
+#define PCI224_DACCON_FIFOINTR_NEMPTY	PCI224_DACCON_FIFOINTR(1) /* !empty */
+#define PCI224_DACCON_FIFOINTR_NHALF	PCI224_DACCON_FIFOINTR(2) /* !half */
+#define PCI224_DACCON_FIFOINTR_HALF	PCI224_DACCON_FIFOINTR(3) /* half */
+#define PCI224_DACCON_FIFOINTR_NFULL	PCI224_DACCON_FIFOINTR(4) /* !full */
+#define PCI224_DACCON_FIFOINTR_FULL	PCI224_DACCON_FIFOINTR(5) /* full */
 /* (r-o) FIFO fill level. */
-#define PCI224_DACCON_FIFOFL_MASK	(7 << 12)
-#define PCI224_DACCON_FIFOFL_EMPTY	(1 << 12)	/* 0 */
-#define PCI224_DACCON_FIFOFL_ONETOHALF	(0 << 12)	/* [1,2048] */
-#define PCI224_DACCON_FIFOFL_HALFTOFULL	(4 << 12)	/* [2049,4095] */
-#define PCI224_DACCON_FIFOFL_FULL	(6 << 12)	/* 4096 */
+#define PCI224_DACCON_FIFOFL(x)		(((x) & 0x7) << 12)
+#define PCI224_DACCON_FIFOFL_MASK	PCI224_DACCON_FIFOFL(7)
+#define PCI224_DACCON_FIFOFL_EMPTY	PCI224_DACCON_FIFOFL(1)	/* 0 */
+#define PCI224_DACCON_FIFOFL_ONETOHALF	PCI224_DACCON_FIFOFL(0)	/* 1-2048 */
+#define PCI224_DACCON_FIFOFL_HALFTOFULL	PCI224_DACCON_FIFOFL(4)	/* 2049-4095 */
+#define PCI224_DACCON_FIFOFL_FULL	PCI224_DACCON_FIFOFL(6)	/* 4096 */
 /* (r-o) DAC busy flag. */
-#define PCI224_DACCON_BUSY		(1 << 15)
+#define PCI224_DACCON_BUSY		BIT(15)
 /* (w-o) FIFO reset. */
-#define PCI224_DACCON_FIFORESET		(1 << 12)
+#define PCI224_DACCON_FIFORESET		BIT(12)
 /* (w-o) Global reset (not sure what it does). */
-#define PCI224_DACCON_GLOBALRESET	(1 << 13)
+#define PCI224_DACCON_GLOBALRESET	BIT(13)
 
 /*
  * DAC FIFO size.
@@ -201,8 +197,11 @@
 #define CLK_1KHZ	5	/* internal 1 kHz clock */
 #define CLK_OUTNM1	6	/* output of channel-1 modulo total */
 #define CLK_EXT		7	/* external clock */
-/* Macro to construct clock input configuration register value. */
-#define CLK_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
+
+static unsigned int pci224_clk_config(unsigned int chan, unsigned int src)
+{
+	return ((chan & 3) << 3) | (src & 7);
+}
 
 /*
  * Counter/timer gate input configuration sources.
@@ -211,8 +210,11 @@
 #define GAT_GND		1	/* GND (i.e. disabled) */
 #define GAT_EXT		2	/* reserved (external gate input) */
 #define GAT_NOUTNM2	3	/* inverted output of channel-2 modulo total */
-/* Macro to construct gate input configuration register value. */
-#define GAT_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
+
+static unsigned int pci224_gat_config(unsigned int chan, unsigned int src)
+{
+	return ((chan & 3) << 3) | (src & 7);
+}
 
 /*
  * Summary of CLK_OUTNM1 and GAT_NOUTNM2 connections for PCI224 and PCI234:
@@ -812,14 +814,16 @@ static void pci224_ao_start_pacer(struct comedi_device *dev,
 	 * source.
 	 */
 	/* Make sure Z2-0 is gated on.  */
-	outb(GAT_CONFIG(0, GAT_VCC), devpriv->iobase1 + PCI224_ZGAT_SCE);
+	outb(pci224_gat_config(0, GAT_VCC), devpriv->iobase1 + PCI224_ZGAT_SCE);
 	/* Cascading with Z2-2. */
 	/* Make sure Z2-2 is gated on.  */
-	outb(GAT_CONFIG(2, GAT_VCC), devpriv->iobase1 + PCI224_ZGAT_SCE);
+	outb(pci224_gat_config(2, GAT_VCC), devpriv->iobase1 + PCI224_ZGAT_SCE);
 	/* Z2-2 needs 10 MHz clock. */
-	outb(CLK_CONFIG(2, CLK_10MHZ), devpriv->iobase1 + PCI224_ZCLK_SCE);
+	outb(pci224_clk_config(2, CLK_10MHZ),
+	     devpriv->iobase1 + PCI224_ZCLK_SCE);
 	/* Z2-0 is clocked from Z2-2's output. */
-	outb(CLK_CONFIG(0, CLK_OUTNM1), devpriv->iobase1 + PCI224_ZCLK_SCE);
+	outb(pci224_clk_config(0, CLK_OUTNM1),
+	     devpriv->iobase1 + PCI224_ZCLK_SCE);
 
 	comedi_8254_pacer_enable(dev->pacer, 2, 0, false);
 }
@@ -1022,14 +1026,17 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 	irq = pci_dev->irq;
 
 	/* Allocate buffer to hold values for AO channel scan. */
-	devpriv->ao_scan_vals = kmalloc(sizeof(devpriv->ao_scan_vals[0]) *
-					board->ao_chans, GFP_KERNEL);
+	devpriv->ao_scan_vals = kmalloc_array(board->ao_chans,
+					      sizeof(devpriv->ao_scan_vals[0]),
+					      GFP_KERNEL);
 	if (!devpriv->ao_scan_vals)
 		return -ENOMEM;
 
 	/* Allocate buffer to hold AO channel scan order. */
-	devpriv->ao_scan_order = kmalloc(sizeof(devpriv->ao_scan_order[0]) *
-					 board->ao_chans, GFP_KERNEL);
+	devpriv->ao_scan_order =
+				kmalloc_array(board->ao_chans,
+					      sizeof(devpriv->ao_scan_order[0]),
+					      GFP_KERNEL);
 	if (!devpriv->ao_scan_order)
 		return -ENOMEM;
 

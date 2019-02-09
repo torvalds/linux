@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*  SuperH Ethernet device driver
  *
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2012 Renesas Solutions Corp.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
  */
 
 #ifndef __SH_ETH_H__
@@ -118,8 +107,8 @@ enum {
 	TSU_FWSL0,
 	TSU_FWSL1,
 	TSU_FWSLC,
-	TSU_QTAG0,
-	TSU_QTAG1,
+	TSU_QTAG0,			/* Same as TSU_QTAGM0 */
+	TSU_QTAG1,			/* Same as TSU_QTAGM1 */
 	TSU_QTAGM0,
 	TSU_QTAGM1,
 	TSU_FWSR,
@@ -163,7 +152,7 @@ enum {
 };
 
 /* Driver's parameters */
-#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_RENESAS)
 #define SH_ETH_RX_ALIGN		32
 #else
 #define SH_ETH_RX_ALIGN		2
@@ -184,6 +173,7 @@ enum GECMR_BIT {
 
 /* EDMR */
 enum DMAC_M_BIT {
+	EDMR_NBST = 0x80,
 	EDMR_EL = 0x40, /* Litte endian */
 	EDMR_DL1 = 0x20, EDMR_DL0 = 0x10,
 	EDMR_SRST_GETHER = 0x03,
@@ -242,7 +232,7 @@ enum EESR_BIT {
 	EESR_CND	= 0x00000800,
 	EESR_DLC	= 0x00000400,
 	EESR_CD		= 0x00000200,
-	EESR_RTO	= 0x00000100,
+	EESR_TRO	= 0x00000100,
 	EESR_RMAF	= 0x00000080,
 	EESR_CEEF	= 0x00000040,
 	EESR_CELF	= 0x00000020,
@@ -262,25 +252,41 @@ enum EESR_BIT {
 				 EESR_CERF)  /* Recv frame CRC error */
 
 #define DEFAULT_TX_CHECK	(EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | \
-				 EESR_RTO)
+				 EESR_TRO)
 #define DEFAULT_EESR_ERR_CHECK	(EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE | \
 				 EESR_RDE | EESR_RFRMER | EESR_ADE | \
-				 EESR_TFE | EESR_TDE | EESR_ECI)
+				 EESR_TFE | EESR_TDE)
 
 /* EESIPR */
-enum DMAC_IM_BIT {
-	DMAC_M_TWB = 0x40000000, DMAC_M_TABT = 0x04000000,
-	DMAC_M_RABT = 0x02000000,
-	DMAC_M_RFRMER = 0x01000000, DMAC_M_ADF = 0x00800000,
-	DMAC_M_ECI = 0x00400000, DMAC_M_FTC = 0x00200000,
-	DMAC_M_TDE = 0x00100000, DMAC_M_TFE = 0x00080000,
-	DMAC_M_FRC = 0x00040000, DMAC_M_RDE = 0x00020000,
-	DMAC_M_RFE = 0x00010000, DMAC_M_TINT4 = 0x00000800,
-	DMAC_M_TINT3 = 0x00000400, DMAC_M_TINT2 = 0x00000200,
-	DMAC_M_TINT1 = 0x00000100, DMAC_M_RINT8 = 0x00000080,
-	DMAC_M_RINT5 = 0x00000010, DMAC_M_RINT4 = 0x00000008,
-	DMAC_M_RINT3 = 0x00000004, DMAC_M_RINT2 = 0x00000002,
-	DMAC_M_RINT1 = 0x00000001,
+enum EESIPR_BIT {
+	EESIPR_TWB1IP	= 0x80000000,
+	EESIPR_TWBIP	= 0x40000000,	/* same as TWB0IP */
+	EESIPR_TC1IP	= 0x20000000,
+	EESIPR_TUCIP	= 0x10000000,
+	EESIPR_ROCIP	= 0x08000000,
+	EESIPR_TABTIP	= 0x04000000,
+	EESIPR_RABTIP	= 0x02000000,
+	EESIPR_RFCOFIP	= 0x01000000,
+	EESIPR_ADEIP	= 0x00800000,
+	EESIPR_ECIIP	= 0x00400000,
+	EESIPR_FTCIP	= 0x00200000,	/* same as TC0IP */
+	EESIPR_TDEIP	= 0x00100000,
+	EESIPR_TFUFIP	= 0x00080000,
+	EESIPR_FRIP	= 0x00040000,
+	EESIPR_RDEIP	= 0x00020000,
+	EESIPR_RFOFIP	= 0x00010000,
+	EESIPR_CNDIP	= 0x00000800,
+	EESIPR_DLCIP	= 0x00000400,
+	EESIPR_CDIP	= 0x00000200,
+	EESIPR_TROIP	= 0x00000100,
+	EESIPR_RMAFIP	= 0x00000080,
+	EESIPR_CEEFIP	= 0x00000040,
+	EESIPR_CELFIP	= 0x00000020,
+	EESIPR_RRFIP	= 0x00000010,
+	EESIPR_RTLFIP	= 0x00000008,
+	EESIPR_RTSFIP	= 0x00000004,
+	EESIPR_PREIP	= 0x00000002,
+	EESIPR_CERFIP	= 0x00000001,
 };
 
 /* Receive descriptor 0 bits */
@@ -339,7 +345,7 @@ enum FELIC_MODE_BIT {
 	ECMR_DPAD = 0x00200000, ECMR_RZPF = 0x00100000,
 	ECMR_ZPF = 0x00080000, ECMR_PFR = 0x00040000, ECMR_RXF = 0x00020000,
 	ECMR_TXF = 0x00010000, ECMR_MCT = 0x00002000, ECMR_PRCEF = 0x00001000,
-	ECMR_PMDE = 0x00000200, ECMR_RE = 0x00000040, ECMR_TE = 0x00000020,
+	ECMR_MPDE = 0x00000200, ECMR_RE = 0x00000040, ECMR_TE = 0x00000020,
 	ECMR_RTM = 0x00000010, ECMR_ILB = 0x00000008, ECMR_ELB = 0x00000004,
 	ECMR_DM = 0x00000002, ECMR_PRM = 0x00000001,
 };
@@ -366,12 +372,12 @@ enum ECSIPR_STATUS_MASK_BIT {
 
 /* APR */
 enum APR_BIT {
-	APR_AP = 0x00000001,
+	APR_AP = 0x0000ffff,
 };
 
 /* MPR */
 enum MPR_BIT {
-	MPR_MP = 0x00000001,
+	MPR_MP = 0x0000ffff,
 };
 
 /* TRSCER */
@@ -386,15 +392,14 @@ enum DESC_I_BIT {
 
 /* RPADIR */
 enum RPADIR_BIT {
-	RPADIR_PADS1 = 0x20000, RPADIR_PADS0 = 0x10000,
-	RPADIR_PADR = 0x0003f,
+	RPADIR_PADS = 0x1f0000, RPADIR_PADR = 0xffff,
 };
 
 /* FDR */
 #define DEFAULT_FDR_INIT	0x00000707
 
 /* ARSTR */
-enum ARSTR_BIT { ARSTR_ARSTR = 0x00000001, };
+enum ARSTR_BIT { ARSTR_ARST = 0x00000001, };
 
 /* TSU_FWEN0 */
 enum TSU_FWEN0_BIT {
@@ -453,6 +458,9 @@ struct sh_eth_rxdesc {
 
 /* This structure is used by each CPU dependency handling. */
 struct sh_eth_cpu_data {
+	/* mandatory functions */
+	int (*soft_reset)(struct net_device *ndev);
+
 	/* optional functions */
 	void (*chip_reset)(struct net_device *ndev);
 	void (*set_duplex)(struct net_device *ndev);
@@ -460,6 +468,7 @@ struct sh_eth_cpu_data {
 
 	/* mandatory initialize value */
 	int register_type;
+	u32 edtrr_trns;
 	u32 eesipr_value;
 
 	/* optional initialize value */
@@ -467,7 +476,6 @@ struct sh_eth_cpu_data {
 	u32 ecsipr_value;
 	u32 fdr_value;
 	u32 fcftr_value;
-	u32 rpadir_value;
 
 	/* interrupt checking mask */
 	u32 tx_check;
@@ -478,21 +486,27 @@ struct sh_eth_cpu_data {
 
 	/* hardware features */
 	unsigned long irq_flags; /* IRQ configuration flags */
-	unsigned no_psr:1;	/* EtherC DO NOT have PSR */
-	unsigned apr:1;		/* EtherC have APR */
-	unsigned mpr:1;		/* EtherC have MPR */
-	unsigned tpauser:1;	/* EtherC have TPAUSER */
-	unsigned bculr:1;	/* EtherC have BCULR */
-	unsigned tsu:1;		/* EtherC have TSU */
-	unsigned hw_swap:1;	/* E-DMAC have DE bit in EDMR */
-	unsigned rpadir:1;	/* E-DMAC have RPADIR */
-	unsigned no_trimd:1;	/* E-DMAC DO NOT have TRIMD */
-	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
-	unsigned hw_crc:1;	/* E-DMAC have CSMR */
-	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
-	unsigned shift_rd0:1;	/* shift Rx descriptor word 0 right by 16 */
+	unsigned no_psr:1;	/* EtherC DOES NOT have PSR */
+	unsigned apr:1;		/* EtherC has APR */
+	unsigned mpr:1;		/* EtherC has MPR */
+	unsigned tpauser:1;	/* EtherC has TPAUSER */
+	unsigned bculr:1;	/* EtherC has BCULR */
+	unsigned tsu:1;		/* EtherC has TSU */
+	unsigned hw_swap:1;	/* E-DMAC has DE bit in EDMR */
+	unsigned nbst:1;	/* E-DMAC has NBST bit in EDMR */
+	unsigned rpadir:1;	/* E-DMAC has RPADIR */
+	unsigned no_trimd:1;	/* E-DMAC DOES NOT have TRIMD */
+	unsigned no_ade:1;	/* E-DMAC DOES NOT have ADE bit in EESR */
+	unsigned no_xdfar:1;	/* E-DMAC DOES NOT have RDFAR/TDFAR */
+	unsigned xdfar_rw:1;	/* E-DMAC has writeable RDFAR/TDFAR */
+	unsigned hw_checksum:1;	/* E-DMAC has CSMR */
+	unsigned select_mii:1;	/* EtherC has RMII_MII (MII select register) */
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 	unsigned rtrate:1;	/* EtherC has RTRATE register */
+	unsigned magic:1;	/* EtherC has ECMR.MPDE and ECSR.MPD */
+	unsigned no_tx_cntrs:1;	/* EtherC DOES NOT have TX error counters */
+	unsigned cexcr:1;	/* EtherC has CERCR/CEECR */
+	unsigned dual_port:1;	/* Dual EtherC/E-DMAC */
 };
 
 struct sh_eth_private {
@@ -501,6 +515,7 @@ struct sh_eth_private {
 	const u16 *reg_offset;
 	void __iomem *addr;
 	void __iomem *tsu_addr;
+	struct clk *clk;
 	u32 num_rx_ring;
 	u32 num_tx_ring;
 	dma_addr_t rx_desc_dma;
@@ -513,13 +528,11 @@ struct sh_eth_private {
 	u32 cur_rx, dirty_rx;		/* Producer/consumer ring indices */
 	u32 cur_tx, dirty_tx;
 	u32 rx_buf_sz;			/* Based on MTU+slack. */
-	int edmac_endian;
 	struct napi_struct napi;
 	bool irq_enabled;
 	/* MII transceiver section. */
 	u32 phy_id;			/* PHY ID */
 	struct mii_bus *mii_bus;	/* MDIO bus control */
-	struct phy_device *phydev;	/* PHY device control */
 	int link;
 	phy_interface_t phy_interface;
 	int msg_enable;
@@ -531,35 +544,7 @@ struct sh_eth_private {
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;
 	unsigned is_opened:1;
+	unsigned wol_enabled:1;
 };
-
-static inline void sh_eth_soft_swap(char *src, int len)
-{
-#ifdef __LITTLE_ENDIAN__
-	u32 *p = (u32 *)src;
-	u32 *maxp;
-	maxp = p + ((len + sizeof(u32) - 1) / sizeof(u32));
-
-	for (; p < maxp; p++)
-		*p = swab32(*p);
-#endif
-}
-
-static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
-					  int enum_index)
-{
-	return mdp->tsu_addr + mdp->reg_offset[enum_index];
-}
-
-static inline void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
-				    int enum_index)
-{
-	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
-}
-
-static inline u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
-{
-	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
-}
 
 #endif	/* #ifndef __SH_ETH_H__ */

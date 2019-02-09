@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LIBLOCKDEP_COMMON_H
 #define _LIBLOCKDEP_COMMON_H
 
@@ -44,7 +45,6 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 void lock_release(struct lockdep_map *lock, int nested,
 			unsigned long ip);
 extern void debug_check_no_locks_freed(const void *from, unsigned long len);
-extern void lockdep_init(void);
 
 #define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
 	{ .name = (_name), .key = (void *)(_key), }

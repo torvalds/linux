@@ -165,8 +165,13 @@ struct pxafb_info {
 	struct notifier_block	freq_policy;
 #endif
 
+	struct regulator *lcd_supply;
+	bool lcd_supply_enabled;
+
 	void (*lcd_power)(int, struct fb_var_screeninfo *);
 	void (*backlight_power)(int);
+
+	struct pxafb_mach_info	*inf;
 };
 
 #define TO_INF(ptr,member) container_of(ptr,struct pxafb_info,member)

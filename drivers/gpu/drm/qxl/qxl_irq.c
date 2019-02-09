@@ -57,10 +57,9 @@ irqreturn_t qxl_irq_handler(int irq, void *arg)
 		 * to avoid endless loops).
 		 */
 		qdev->irq_received_error++;
-		qxl_io_log(qdev, "%s: driver is in bug mode.\n", __func__);
+		DRM_WARN("driver is in bug mode\n");
 	}
 	if (pending & QXL_INTERRUPT_CLIENT_MONITORS_CONFIG) {
-		qxl_io_log(qdev, "QXL_INTERRUPT_CLIENT_MONITORS_CONFIG\n");
 		schedule_work(&qdev->client_monitors_config_work);
 	}
 	qdev->ram_header->int_mask = QXL_INTERRUPT_MASK;
@@ -90,7 +89,7 @@ int qxl_irq_init(struct qxl_device *qdev)
 	atomic_set(&qdev->irq_received_cursor, 0);
 	atomic_set(&qdev->irq_received_io_cmd, 0);
 	qdev->irq_received_error = 0;
-	ret = drm_irq_install(qdev->ddev, qdev->ddev->pdev->irq);
+	ret = drm_irq_install(&qdev->ddev, qdev->ddev.pdev->irq);
 	qdev->ram_header->int_mask = QXL_INTERRUPT_MASK;
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed installing irq: %d\n", ret);

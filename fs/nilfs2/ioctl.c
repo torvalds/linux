@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ioctl.c - NILFS ioctl operations.
  *
  * Copyright (C) 2007, 2008 Nippon Telegraph and Telephone Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Koji Sato <koji@osrg.net>.
+ * Written by Koji Sato.
  */
 
 #include <linux/fs.h>
@@ -29,7 +16,6 @@
 #include <linux/compat.h>	/* compat_ptr() */
 #include <linux/mount.h>	/* mnt_want_write_file(), mnt_drop_write_file() */
 #include <linux/buffer_head.h>
-#include <linux/nilfs2_fs.h>
 #include "nilfs.h"
 #include "segment.h"
 #include "bmap.h"
@@ -158,7 +144,7 @@ static int nilfs_ioctl_setflags(struct inode *inode, struct file *filp,
 
 	flags = nilfs_mask_flags(inode->i_mode, flags);
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	oldflags = NILFS_I(inode)->i_flags;
 
@@ -179,14 +165,14 @@ static int nilfs_ioctl_setflags(struct inode *inode, struct file *filp,
 		(flags & FS_FL_USER_MODIFIABLE);
 
 	nilfs_set_inode_flags(inode);
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = current_time(inode);
 	if (IS_SYNC(inode))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 
 	nilfs_mark_inode_dirty(inode);
 	ret = nilfs_transaction_commit(inode->i_sb);
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	mnt_drop_write_file(filp);
 	return ret;
 }
@@ -588,27 +574,25 @@ static int nilfs_ioctl_move_inode_block(struct inode *inode,
 
 	if (unlikely(ret < 0)) {
 		if (ret == -ENOENT)
-			printk(KERN_CRIT
-			       "%s: invalid virtual block address (%s): "
-			       "ino=%llu, cno=%llu, offset=%llu, "
-			       "blocknr=%llu, vblocknr=%llu\n",
-			       __func__, vdesc->vd_flags ? "node" : "data",
-			       (unsigned long long)vdesc->vd_ino,
-			       (unsigned long long)vdesc->vd_cno,
-			       (unsigned long long)vdesc->vd_offset,
-			       (unsigned long long)vdesc->vd_blocknr,
-			       (unsigned long long)vdesc->vd_vblocknr);
+			nilfs_msg(inode->i_sb, KERN_CRIT,
+				  "%s: invalid virtual block address (%s): ino=%llu, cno=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu",
+				  __func__, vdesc->vd_flags ? "node" : "data",
+				  (unsigned long long)vdesc->vd_ino,
+				  (unsigned long long)vdesc->vd_cno,
+				  (unsigned long long)vdesc->vd_offset,
+				  (unsigned long long)vdesc->vd_blocknr,
+				  (unsigned long long)vdesc->vd_vblocknr);
 		return ret;
 	}
 	if (unlikely(!list_empty(&bh->b_assoc_buffers))) {
-		printk(KERN_CRIT "%s: conflicting %s buffer: ino=%llu, "
-		       "cno=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu\n",
-		       __func__, vdesc->vd_flags ? "node" : "data",
-		       (unsigned long long)vdesc->vd_ino,
-		       (unsigned long long)vdesc->vd_cno,
-		       (unsigned long long)vdesc->vd_offset,
-		       (unsigned long long)vdesc->vd_blocknr,
-		       (unsigned long long)vdesc->vd_vblocknr);
+		nilfs_msg(inode->i_sb, KERN_CRIT,
+			  "%s: conflicting %s buffer: ino=%llu, cno=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu",
+			  __func__, vdesc->vd_flags ? "node" : "data",
+			  (unsigned long long)vdesc->vd_ino,
+			  (unsigned long long)vdesc->vd_cno,
+			  (unsigned long long)vdesc->vd_offset,
+			  (unsigned long long)vdesc->vd_blocknr,
+			  (unsigned long long)vdesc->vd_vblocknr);
 		brelse(bh);
 		return -EEXIST;
 	}
@@ -783,6 +767,7 @@ static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
 	size_t nmembs = argv->v_nmembs;
 	struct nilfs_bmap *bmap = NILFS_I(nilfs->ns_dat)->i_bmap;
 	struct nilfs_bdesc *bdescs = buf;
+	struct buffer_head *bh;
 	int ret, i;
 
 	for (i = 0; i < nmembs; i++) {
@@ -800,12 +785,16 @@ static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
 			/* skip dead block */
 			continue;
 		if (bdescs[i].bd_level == 0) {
-			ret = nilfs_mdt_mark_block_dirty(nilfs->ns_dat,
-							 bdescs[i].bd_offset);
-			if (ret < 0) {
+			ret = nilfs_mdt_get_block(nilfs->ns_dat,
+						  bdescs[i].bd_offset,
+						  false, NULL, &bh);
+			if (unlikely(ret)) {
 				WARN_ON(ret == -ENOENT);
 				return ret;
 			}
+			mark_buffer_dirty(bh);
+			nilfs_mdt_mark_dirty(nilfs->ns_dat);
+			put_bh(bh);
 		} else {
 			ret = nilfs_bmap_mark(bmap, bdescs[i].bd_offset,
 					      bdescs[i].bd_level);
@@ -853,8 +842,8 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 	return 0;
 
  failed:
-	printk(KERN_ERR "NILFS: GC failed during preparation: %s: err=%d\n",
-	       msg, ret);
+	nilfs_msg(nilfs->ns_sb, KERN_ERR, "error %d preparing GC: %s", ret,
+		  msg);
 	return ret;
 }
 
@@ -962,10 +951,11 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 	}
 
 	ret = nilfs_ioctl_move_blocks(inode->i_sb, &argv[0], kbufs[0]);
-	if (ret < 0)
-		printk(KERN_ERR "NILFS: GC failed during preparation: "
-			"cannot read source blocks: err=%d\n", ret);
-	else {
+	if (ret < 0) {
+		nilfs_msg(inode->i_sb, KERN_ERR,
+			  "error %d preparing GC: cannot read source blocks",
+			  ret);
+	} else {
 		if (nilfs_sb_need_update(nilfs))
 			set_nilfs_discontinued(nilfs);
 		ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);

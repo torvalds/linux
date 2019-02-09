@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/usb/misc/lvstest.c
  *
@@ -5,10 +6,6 @@
  *
  * Copyright (C) 2014 ST Microelectronics
  * Pratyush Anand <pratyush.anand@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/init.h>
@@ -34,8 +31,6 @@ struct lvs_rh {
 	struct usb_hub_descriptor descriptor;
 	/* urb for polling interrupt pipe */
 	struct urb *urb;
-	/* LVS RH work queue */
-	struct workqueue_struct *rh_queue;
 	/* LVH RH work */
 	struct work_struct	rh_work;
 	/* RH port status */
@@ -180,6 +175,25 @@ static ssize_t hot_reset_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(hot_reset);
 
+static ssize_t warm_reset_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usb_device *hdev = interface_to_usbdev(intf);
+	struct lvs_rh *lvs = usb_get_intfdata(intf);
+	int ret;
+
+	ret = lvs_rh_set_port_feature(hdev, lvs->portnum,
+			USB_PORT_FEAT_BH_PORT_RESET);
+	if (ret < 0) {
+		dev_err(dev, "can't issue warm reset %d\n", ret);
+		return ret;
+	}
+
+	return count;
+}
+static DEVICE_ATTR_WO(warm_reset);
+
 static ssize_t u2_timeout_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -195,7 +209,7 @@ static ssize_t u2_timeout_store(struct device *dev,
 		return ret;
 	}
 
-	if (val < 0 || val > 127)
+	if (val > 127)
 		return -EINVAL;
 
 	ret = lvs_rh_set_port_feature(hdev, lvs->portnum | (val << 8),
@@ -224,7 +238,7 @@ static ssize_t u1_timeout_store(struct device *dev,
 		return ret;
 	}
 
-	if (val < 0 || val > 127)
+	if (val > 127)
 		return -EINVAL;
 
 	ret = lvs_rh_set_port_feature(hdev, lvs->portnum | (val << 8),
@@ -247,10 +261,8 @@ static ssize_t get_dev_desc_store(struct device *dev,
 	int ret;
 
 	descriptor = kmalloc(sizeof(*descriptor), GFP_KERNEL);
-	if (!descriptor) {
-		dev_err(dev, "failed to allocate descriptor memory\n");
+	if (!descriptor)
 		return -ENOMEM;
-	}
 
 	udev = create_lvs_device(intf);
 	if (!udev) {
@@ -278,13 +290,35 @@ free_desc:
 }
 static DEVICE_ATTR_WO(get_dev_desc);
 
+static ssize_t enable_compliance_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usb_device *hdev = interface_to_usbdev(intf);
+	struct lvs_rh *lvs = usb_get_intfdata(intf);
+	int ret;
+
+	ret = lvs_rh_set_port_feature(hdev,
+			lvs->portnum | USB_SS_PORT_LS_COMP_MOD << 3,
+			USB_PORT_FEAT_LINK_STATE);
+	if (ret < 0) {
+		dev_err(dev, "can't enable compliance mode %d\n", ret);
+		return ret;
+	}
+
+	return count;
+}
+static DEVICE_ATTR_WO(enable_compliance);
+
 static struct attribute *lvs_attributes[] = {
 	&dev_attr_get_dev_desc.attr,
 	&dev_attr_u1_timeout.attr,
 	&dev_attr_u2_timeout.attr,
 	&dev_attr_hot_reset.attr,
+	&dev_attr_warm_reset.attr,
 	&dev_attr_u3_entry.attr,
 	&dev_attr_u3_exit.attr,
+	&dev_attr_enable_compliance.attr,
 	NULL
 };
 
@@ -355,7 +389,7 @@ static void lvs_rh_irq(struct urb *urb)
 {
 	struct lvs_rh *lvs = urb->context;
 
-	queue_work(lvs->rh_queue, &lvs->rh_work);
+	schedule_work(&lvs->rh_work);
 }
 
 static int lvs_rh_probe(struct usb_interface *intf,
@@ -370,7 +404,10 @@ static int lvs_rh_probe(struct usb_interface *intf,
 
 	hdev = interface_to_usbdev(intf);
 	desc = intf->cur_altsetting;
-	endpoint = &desc->endpoint[0].desc;
+
+	ret = usb_find_int_in_endpoint(desc, &endpoint);
+	if (ret)
+		return ret;
 
 	/* valid only for SS root hub */
 	if (hdev->descriptor.bDeviceProtocol != USB_HUB_PR_SS || hdev->parent) {
@@ -397,24 +434,15 @@ static int lvs_rh_probe(struct usb_interface *intf,
 
 	/* submit urb to poll interrupt endpoint */
 	lvs->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!lvs->urb) {
-		dev_err(&intf->dev, "couldn't allocate lvs urb\n");
+	if (!lvs->urb)
 		return -ENOMEM;
-	}
-
-	lvs->rh_queue = create_singlethread_workqueue("lvs_rh_queue");
-	if (!lvs->rh_queue) {
-		dev_err(&intf->dev, "couldn't create workqueue\n");
-		ret = -ENOMEM;
-		goto free_urb;
-	}
 
 	INIT_WORK(&lvs->rh_work, lvs_rh_work);
 
 	ret = sysfs_create_group(&intf->dev.kobj, &lvs_attr_group);
 	if (ret < 0) {
 		dev_err(&intf->dev, "Failed to create sysfs node %d\n", ret);
-		goto destroy_queue;
+		goto free_urb;
 	}
 
 	pipe = usb_rcvintpipe(hdev, endpoint->bEndpointAddress);
@@ -432,8 +460,6 @@ static int lvs_rh_probe(struct usb_interface *intf,
 
 sysfs_remove:
 	sysfs_remove_group(&intf->dev.kobj, &lvs_attr_group);
-destroy_queue:
-	destroy_workqueue(lvs->rh_queue);
 free_urb:
 	usb_free_urb(lvs->urb);
 	return ret;
@@ -444,7 +470,8 @@ static void lvs_rh_disconnect(struct usb_interface *intf)
 	struct lvs_rh *lvs = usb_get_intfdata(intf);
 
 	sysfs_remove_group(&intf->dev.kobj, &lvs_attr_group);
-	destroy_workqueue(lvs->rh_queue);
+	usb_poison_urb(lvs->urb); /* used in scheduled work */
+	flush_work(&lvs->rh_work);
 	usb_free_urb(lvs->urb);
 }
 

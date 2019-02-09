@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * NetChip 2280 high/full speed USB device controller.
  * Unlike many such controllers, this one talks PCI.
@@ -7,11 +8,6 @@
  * Copyright (C) 2002 NetChip Technology, Inc. (http://www.netchip.com)
  * Copyright (C) 2003 David Brownell
  * Copyright (C) 2014 Ricardo Ribalda - Qtechnology/AS
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/usb/net2280.h>
@@ -47,6 +43,7 @@ set_idx_reg(struct net2280_regs __iomem *regs, u32 index, u32 value)
 #define PLX_LEGACY		BIT(0)
 #define PLX_2280		BIT(1)
 #define PLX_SUPERSPEED		BIT(2)
+#define PLX_PCIE		BIT(3)
 
 #define REG_DIAG		0x0
 #define     RETRY_COUNTER                                       16
@@ -186,7 +183,7 @@ struct net2280 {
 	struct usb338x_ll_chi_regs	__iomem *ll_chicken_reg;
 	struct usb338x_pl_regs		__iomem *plregs;
 
-	struct pci_pool			*requests;
+	struct dma_pool			*requests;
 	/* statistics...*/
 };
 
@@ -369,9 +366,20 @@ static inline void set_max_speed(struct net2280_ep *ep, u32 max)
 	static const u32 ep_enhanced[9] = { 0x10, 0x60, 0x30, 0x80,
 					  0x50, 0x20, 0x70, 0x40, 0x90 };
 
-	if (ep->dev->enhanced_mode)
+	if (ep->dev->enhanced_mode) {
 		reg = ep_enhanced[ep->num];
-	else{
+		switch (ep->dev->gadget.speed) {
+		case USB_SPEED_SUPER:
+			reg += 2;
+			break;
+		case USB_SPEED_FULL:
+			reg += 1;
+			break;
+		case USB_SPEED_HIGH:
+		default:
+			break;
+		}
+	} else {
 		reg = (ep->num + 1) * 0x10;
 		if (ep->dev->gadget.speed != USB_SPEED_HIGH)
 			reg += 1;

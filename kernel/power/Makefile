@@ -1,5 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
 
 ccflags-$(CONFIG_PM_DEBUG)	:= -DDEBUG
+
+KASAN_SANITIZE_snapshot.o	:= n
 
 obj-y				+= qos.o
 obj-$(CONFIG_PM)		+= main.o
@@ -12,3 +15,6 @@ obj-$(CONFIG_PM_AUTOSLEEP)	+= autosleep.o
 obj-$(CONFIG_PM_WAKELOCKS)	+= wakelock.o
 
 obj-$(CONFIG_MAGIC_SYSRQ)	+= poweroff.o
+
+obj-$(CONFIG_ENERGY_MODEL)	+= energy_model.o
+obj-$(CONFIG_SUSPEND)		+= wakeup_reason.o

@@ -201,13 +201,21 @@ static int cyttsp4_si_get_cydata(struct cyttsp4 *cd)
 	void *p;
 	int rc;
 
+	if (si->si_ofs.test_ofs <= si->si_ofs.cydata_ofs) {
+		dev_err(cd->dev,
+			"%s: invalid offset test_ofs: %zu, cydata_ofs: %zu\n",
+			__func__, si->si_ofs.test_ofs, si->si_ofs.cydata_ofs);
+		return -EINVAL;
+	}
+
 	si->si_ofs.cydata_size = si->si_ofs.test_ofs - si->si_ofs.cydata_ofs;
-	dev_dbg(cd->dev, "%s: cydata size: %Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: cydata size: %zd\n", __func__,
 			si->si_ofs.cydata_size);
 
 	p = krealloc(si->si_ptrs.cydata, si->si_ofs.cydata_size, GFP_KERNEL);
 	if (p == NULL) {
-		dev_err(cd->dev, "%s: fail alloc cydata memory\n", __func__);
+		dev_err(cd->dev, "%s: failed to allocate cydata memory\n",
+			__func__);
 		return -ENOMEM;
 	}
 	si->si_ptrs.cydata = p;
@@ -270,11 +278,19 @@ static int cyttsp4_si_get_test_data(struct cyttsp4 *cd)
 	void *p;
 	int rc;
 
+	if (si->si_ofs.pcfg_ofs <= si->si_ofs.test_ofs) {
+		dev_err(cd->dev,
+			"%s: invalid offset pcfg_ofs: %zu, test_ofs: %zu\n",
+			__func__, si->si_ofs.pcfg_ofs, si->si_ofs.test_ofs);
+		return -EINVAL;
+	}
+
 	si->si_ofs.test_size = si->si_ofs.pcfg_ofs - si->si_ofs.test_ofs;
 
 	p = krealloc(si->si_ptrs.test, si->si_ofs.test_size, GFP_KERNEL);
 	if (p == NULL) {
-		dev_err(cd->dev, "%s: fail alloc test memory\n", __func__);
+		dev_err(cd->dev, "%s: failed to allocate test memory\n",
+			__func__);
 		return -ENOMEM;
 	}
 	si->si_ptrs.test = p;
@@ -321,14 +337,20 @@ static int cyttsp4_si_get_pcfg_data(struct cyttsp4 *cd)
 	void *p;
 	int rc;
 
+	if (si->si_ofs.opcfg_ofs <= si->si_ofs.pcfg_ofs) {
+		dev_err(cd->dev,
+			"%s: invalid offset opcfg_ofs: %zu, pcfg_ofs: %zu\n",
+			__func__, si->si_ofs.opcfg_ofs, si->si_ofs.pcfg_ofs);
+		return -EINVAL;
+	}
+
 	si->si_ofs.pcfg_size = si->si_ofs.opcfg_ofs - si->si_ofs.pcfg_ofs;
 
 	p = krealloc(si->si_ptrs.pcfg, si->si_ofs.pcfg_size, GFP_KERNEL);
 	if (p == NULL) {
-		rc = -ENOMEM;
-		dev_err(cd->dev, "%s: fail alloc pcfg memory r=%d\n",
-			__func__, rc);
-		return rc;
+		dev_err(cd->dev, "%s: failed to allocate pcfg memory\n",
+			__func__);
+		return -ENOMEM;
 	}
 	si->si_ptrs.pcfg = p;
 
@@ -367,13 +389,20 @@ static int cyttsp4_si_get_opcfg_data(struct cyttsp4 *cd)
 	void *p;
 	int rc;
 
+	if (si->si_ofs.ddata_ofs <= si->si_ofs.opcfg_ofs) {
+		dev_err(cd->dev,
+			"%s: invalid offset ddata_ofs: %zu, opcfg_ofs: %zu\n",
+			__func__, si->si_ofs.ddata_ofs, si->si_ofs.opcfg_ofs);
+		return -EINVAL;
+	}
+
 	si->si_ofs.opcfg_size = si->si_ofs.ddata_ofs - si->si_ofs.opcfg_ofs;
 
 	p = krealloc(si->si_ptrs.opcfg, si->si_ofs.opcfg_size, GFP_KERNEL);
 	if (p == NULL) {
-		dev_err(cd->dev, "%s: fail alloc opcfg memory\n", __func__);
-		rc = -ENOMEM;
-		goto cyttsp4_si_get_opcfg_data_exit;
+		dev_err(cd->dev, "%s: failed to allocate opcfg memory\n",
+			__func__);
+		return -ENOMEM;
 	}
 	si->si_ptrs.opcfg = p;
 
@@ -382,7 +411,7 @@ static int cyttsp4_si_get_opcfg_data(struct cyttsp4 *cd)
 	if (rc < 0) {
 		dev_err(cd->dev, "%s: fail read opcfg data r=%d\n",
 			__func__, rc);
-		goto cyttsp4_si_get_opcfg_data_exit;
+		return rc;
 	}
 	si->si_ofs.cmd_ofs = si->si_ptrs.opcfg->cmd_ofs;
 	si->si_ofs.rep_ofs = si->si_ptrs.opcfg->rep_ofs;
@@ -430,13 +459,13 @@ static int cyttsp4_si_get_opcfg_data(struct cyttsp4 *cd)
 	for (abs = 0; abs < CY_TCH_NUM_ABS; abs++) {
 		dev_dbg(cd->dev, "%s: tch_rec_%s\n", __func__,
 			cyttsp4_tch_abs_string[abs]);
-		dev_dbg(cd->dev, "%s:     ofs =%2Zd\n", __func__,
+		dev_dbg(cd->dev, "%s:     ofs =%2zd\n", __func__,
 			si->si_ofs.tch_abs[abs].ofs);
-		dev_dbg(cd->dev, "%s:     siz =%2Zd\n", __func__,
+		dev_dbg(cd->dev, "%s:     siz =%2zd\n", __func__,
 			si->si_ofs.tch_abs[abs].size);
-		dev_dbg(cd->dev, "%s:     max =%2Zd\n", __func__,
+		dev_dbg(cd->dev, "%s:     max =%2zd\n", __func__,
 			si->si_ofs.tch_abs[abs].max);
-		dev_dbg(cd->dev, "%s:     bofs=%2Zd\n", __func__,
+		dev_dbg(cd->dev, "%s:     bofs=%2zd\n", __func__,
 			si->si_ofs.tch_abs[abs].bofs);
 	}
 
@@ -447,8 +476,7 @@ static int cyttsp4_si_get_opcfg_data(struct cyttsp4 *cd)
 	cyttsp4_pr_buf(cd->dev, cd->pr_buf, (u8 *)si->si_ptrs.opcfg,
 		si->si_ofs.opcfg_size, "sysinfo_opcfg_data");
 
-cyttsp4_si_get_opcfg_data_exit:
-	return rc;
+	return 0;
 }
 
 static int cyttsp4_si_get_ddata(struct cyttsp4 *cd)
@@ -586,62 +614,62 @@ static int cyttsp4_si_get_op_data_ptrs(struct cyttsp4 *cd)
 static void cyttsp4_si_put_log_data(struct cyttsp4 *cd)
 {
 	struct cyttsp4_sysinfo *si = &cd->sysinfo;
-	dev_dbg(cd->dev, "%s: cydata_ofs =%4Zd siz=%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: cydata_ofs =%4zd siz=%4zd\n", __func__,
 		si->si_ofs.cydata_ofs, si->si_ofs.cydata_size);
-	dev_dbg(cd->dev, "%s: test_ofs   =%4Zd siz=%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: test_ofs   =%4zd siz=%4zd\n", __func__,
 		si->si_ofs.test_ofs, si->si_ofs.test_size);
-	dev_dbg(cd->dev, "%s: pcfg_ofs   =%4Zd siz=%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: pcfg_ofs   =%4zd siz=%4zd\n", __func__,
 		si->si_ofs.pcfg_ofs, si->si_ofs.pcfg_size);
-	dev_dbg(cd->dev, "%s: opcfg_ofs  =%4Zd siz=%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: opcfg_ofs  =%4zd siz=%4zd\n", __func__,
 		si->si_ofs.opcfg_ofs, si->si_ofs.opcfg_size);
-	dev_dbg(cd->dev, "%s: ddata_ofs  =%4Zd siz=%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: ddata_ofs  =%4zd siz=%4zd\n", __func__,
 		si->si_ofs.ddata_ofs, si->si_ofs.ddata_size);
-	dev_dbg(cd->dev, "%s: mdata_ofs  =%4Zd siz=%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: mdata_ofs  =%4zd siz=%4zd\n", __func__,
 		si->si_ofs.mdata_ofs, si->si_ofs.mdata_size);
 
-	dev_dbg(cd->dev, "%s: cmd_ofs       =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: cmd_ofs       =%4zd\n", __func__,
 		si->si_ofs.cmd_ofs);
-	dev_dbg(cd->dev, "%s: rep_ofs       =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: rep_ofs       =%4zd\n", __func__,
 		si->si_ofs.rep_ofs);
-	dev_dbg(cd->dev, "%s: rep_sz        =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: rep_sz        =%4zd\n", __func__,
 		si->si_ofs.rep_sz);
-	dev_dbg(cd->dev, "%s: num_btns      =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: num_btns      =%4zd\n", __func__,
 		si->si_ofs.num_btns);
-	dev_dbg(cd->dev, "%s: num_btn_regs  =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: num_btn_regs  =%4zd\n", __func__,
 		si->si_ofs.num_btn_regs);
-	dev_dbg(cd->dev, "%s: tt_stat_ofs   =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: tt_stat_ofs   =%4zd\n", __func__,
 		si->si_ofs.tt_stat_ofs);
-	dev_dbg(cd->dev, "%s: tch_rec_size  =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: tch_rec_size  =%4zd\n", __func__,
 		si->si_ofs.tch_rec_size);
-	dev_dbg(cd->dev, "%s: max_tchs      =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: max_tchs      =%4zd\n", __func__,
 		si->si_ofs.max_tchs);
-	dev_dbg(cd->dev, "%s: mode_size     =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: mode_size     =%4zd\n", __func__,
 		si->si_ofs.mode_size);
-	dev_dbg(cd->dev, "%s: data_size     =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: data_size     =%4zd\n", __func__,
 		si->si_ofs.data_size);
-	dev_dbg(cd->dev, "%s: map_sz        =%4Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: map_sz        =%4zd\n", __func__,
 		si->si_ofs.map_sz);
 
-	dev_dbg(cd->dev, "%s: btn_rec_size   =%2Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: btn_rec_size   =%2zd\n", __func__,
 		si->si_ofs.btn_rec_size);
-	dev_dbg(cd->dev, "%s: btn_diff_ofs   =%2Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: btn_diff_ofs   =%2zd\n", __func__,
 		si->si_ofs.btn_diff_ofs);
-	dev_dbg(cd->dev, "%s: btn_diff_size  =%2Zd\n", __func__,
+	dev_dbg(cd->dev, "%s: btn_diff_size  =%2zd\n", __func__,
 		si->si_ofs.btn_diff_size);
 
-	dev_dbg(cd->dev, "%s: max_x    = 0x%04ZX (%Zd)\n", __func__,
+	dev_dbg(cd->dev, "%s: max_x    = 0x%04zX (%zd)\n", __func__,
 		si->si_ofs.max_x, si->si_ofs.max_x);
-	dev_dbg(cd->dev, "%s: x_origin = %Zd (%s)\n", __func__,
+	dev_dbg(cd->dev, "%s: x_origin = %zd (%s)\n", __func__,
 		si->si_ofs.x_origin,
 		si->si_ofs.x_origin == CY_NORMAL_ORIGIN ?
 		"left corner" : "right corner");
-	dev_dbg(cd->dev, "%s: max_y    = 0x%04ZX (%Zd)\n", __func__,
+	dev_dbg(cd->dev, "%s: max_y    = 0x%04zX (%zd)\n", __func__,
 		si->si_ofs.max_y, si->si_ofs.max_y);
-	dev_dbg(cd->dev, "%s: y_origin = %Zd (%s)\n", __func__,
+	dev_dbg(cd->dev, "%s: y_origin = %zd (%s)\n", __func__,
 		si->si_ofs.y_origin,
 		si->si_ofs.y_origin == CY_NORMAL_ORIGIN ?
 		"upper corner" : "lower corner");
-	dev_dbg(cd->dev, "%s: max_p    = 0x%04ZX (%Zd)\n", __func__,
+	dev_dbg(cd->dev, "%s: max_p    = 0x%04zX (%zd)\n", __func__,
 		si->si_ofs.max_p, si->si_ofs.max_p);
 
 	dev_dbg(cd->dev, "%s: xy_mode=%p xy_data=%p\n", __func__,
@@ -1000,7 +1028,7 @@ static int cyttsp4_xy_worker(struct cyttsp4 *cd)
 		dev_dbg(dev, "%s: Large area detected\n", __func__);
 
 	if (num_cur_tch > si->si_ofs.max_tchs) {
-		dev_err(dev, "%s: too many tch; set to max tch (n=%d c=%Zd)\n",
+		dev_err(dev, "%s: too many tch; set to max tch (n=%d c=%zd)\n",
 				__func__, num_cur_tch, si->si_ofs.max_tchs);
 		num_cur_tch = si->si_ofs.max_tchs;
 	}
@@ -1237,9 +1265,9 @@ static void cyttsp4_stop_wd_timer(struct cyttsp4 *cd)
 	del_timer_sync(&cd->watchdog_timer);
 }
 
-static void cyttsp4_watchdog_timer(unsigned long handle)
+static void cyttsp4_watchdog_timer(struct timer_list *t)
 {
-	struct cyttsp4 *cd = (struct cyttsp4 *)handle;
+	struct cyttsp4 *cd = from_timer(cd, t, watchdog_timer);
 
 	dev_vdbg(cd->dev, "%s: Watchdog timer triggered\n", __func__);
 
@@ -1499,7 +1527,7 @@ static int cyttsp4_core_sleep_(struct cyttsp4 *cd)
 
 	if (IS_BOOTLOADER(mode[0], mode[1])) {
 		mutex_unlock(&cd->system_lock);
-		dev_err(cd->dev, "%s: Device in BOOTLADER mode.\n", __func__);
+		dev_err(cd->dev, "%s: Device in BOOTLOADER mode.\n", __func__);
 		rc = -EINVAL;
 		goto error;
 	}
@@ -2074,8 +2102,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	}
 
 	/* Setup watchdog timer */
-	setup_timer(&cd->watchdog_timer, cyttsp4_watchdog_timer,
-		(unsigned long)cd);
+	timer_setup(&cd->watchdog_timer, cyttsp4_watchdog_timer, 0);
 
 	/*
 	 * call startup directly to ensure that the device

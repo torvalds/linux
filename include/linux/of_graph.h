@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * OF graph binding parsing helpers
  *
@@ -6,15 +7,12 @@
  *
  * Copyright (C) 2012 Renesas Electronics Corp.
  * Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
  */
 #ifndef __LINUX_OF_GRAPH_H
 #define __LINUX_OF_GRAPH_H
 
 #include <linux/types.h>
+#include <linux/errno.h>
 
 /**
  * struct of_endpoint - the OF graph endpoint data structure
@@ -42,20 +40,31 @@ struct of_endpoint {
 #ifdef CONFIG_OF
 int of_graph_parse_endpoint(const struct device_node *node,
 				struct of_endpoint *endpoint);
+int of_graph_get_endpoint_count(const struct device_node *np);
 struct device_node *of_graph_get_port_by_id(struct device_node *node, u32 id);
 struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 					struct device_node *previous);
 struct device_node *of_graph_get_endpoint_by_regs(
 		const struct device_node *parent, int port_reg, int reg);
+struct device_node *of_graph_get_remote_endpoint(
+					const struct device_node *node);
+struct device_node *of_graph_get_port_parent(struct device_node *node);
 struct device_node *of_graph_get_remote_port_parent(
 					const struct device_node *node);
 struct device_node *of_graph_get_remote_port(const struct device_node *node);
+struct device_node *of_graph_get_remote_node(const struct device_node *node,
+					     u32 port, u32 endpoint);
 #else
 
 static inline int of_graph_parse_endpoint(const struct device_node *node,
 					struct of_endpoint *endpoint)
 {
 	return -ENOSYS;
+}
+
+static inline int of_graph_get_endpoint_count(const struct device_node *np)
+{
+	return 0;
 }
 
 static inline struct device_node *of_graph_get_port_by_id(
@@ -77,6 +86,18 @@ static inline struct device_node *of_graph_get_endpoint_by_regs(
 	return NULL;
 }
 
+static inline struct device_node *of_graph_get_remote_endpoint(
+					const struct device_node *node)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_graph_get_port_parent(
+	struct device_node *node)
+{
+	return NULL;
+}
+
 static inline struct device_node *of_graph_get_remote_port_parent(
 					const struct device_node *node)
 {
@@ -85,6 +106,12 @@ static inline struct device_node *of_graph_get_remote_port_parent(
 
 static inline struct device_node *of_graph_get_remote_port(
 					const struct device_node *node)
+{
+	return NULL;
+}
+static inline struct device_node *of_graph_get_remote_node(
+					const struct device_node *node,
+					u32 port, u32 endpoint)
 {
 	return NULL;
 }

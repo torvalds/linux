@@ -19,14 +19,27 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <asm/div64.h>
+#include <linux/kernel.h>
 #include <linux/dvb/frontend.h>
-#include "dvb_math.h"
+#include <media/dvb_math.h>
 #include "lgdt3306a.h"
+#include <linux/i2c-mux.h>
 
 
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (info=1, reg=2 (or-able))");
+
+/*
+ * Older drivers treated QAM64 and QAM256 the same; that is the HW always
+ * used "Auto" mode during detection.  Setting "forced_manual"=1 allows
+ * the user to treat these modes as separate.  For backwards compatibility,
+ * it's off by default.  QAM_AUTO can now be specified to achive that
+ * effect even if "forced_manual"=1
+ */
+static int forced_manual;
+module_param(forced_manual, int, 0644);
+MODULE_PARM_DESC(forced_manual, "if set, QAM64 and QAM256 will only lock to modulation specified");
 
 #define DBG_INFO 1
 #define DBG_REG  2
@@ -65,6 +78,8 @@ struct lgdt3306a_state {
 	enum fe_modulation current_modulation;
 	u32 current_frequency;
 	u32 snr;
+
+	struct i2c_mux_core *muxc;
 };
 
 /*
@@ -562,7 +577,12 @@ static int lgdt3306a_set_qam(struct lgdt3306a_state *state, int modulation)
 	/* 3. : 64QAM/256QAM detection(manual, auto) */
 	ret = lgdt3306a_read_reg(state, 0x0009, &val);
 	val &= 0xfc;
-	val |= 0x02; /* STDOPDETCMODE[1:0]=1=Manual 2=Auto */
+	/* Check for forced Manual modulation modes; otherwise always "auto" */
+	if(forced_manual && (modulation != QAM_AUTO)){
+		val |= 0x01; /* STDOPDETCMODE[1:0]= 1=Manual */
+	} else {
+		val |= 0x02; /* STDOPDETCMODE[1:0]= 2=Auto */
+	}
 	ret = lgdt3306a_write_reg(state, 0x0009, val);
 	if (lg_chkerr(ret))
 		goto fail;
@@ -594,6 +614,28 @@ static int lgdt3306a_set_qam(struct lgdt3306a_state *state, int modulation)
 	if (lg_chkerr(ret))
 		goto fail;
 
+	/* 5.1 V0.36 SRDCHKALWAYS : For better QAM detection */
+	ret = lgdt3306a_read_reg(state, 0x000a, &val);
+	val &= 0xfd;
+	val |= 0x02;
+	ret = lgdt3306a_write_reg(state, 0x000a, val);
+	if (lg_chkerr(ret))
+		goto fail;
+
+	/* 5.2 V0.36 Control of "no signal" detector function */
+	ret = lgdt3306a_read_reg(state, 0x2849, &val);
+	val &= 0xdf;
+	ret = lgdt3306a_write_reg(state, 0x2849, val);
+	if (lg_chkerr(ret))
+		goto fail;
+
+	/* 5.3 Fix for Blonder Tongue HDE-2H-QAM and AQM modulators */
+	ret = lgdt3306a_read_reg(state, 0x302b, &val);
+	val &= 0x7f;  /* SELFSYNCFINDEN_CQS=0; disable auto reset */
+	ret = lgdt3306a_write_reg(state, 0x302b, val);
+	if (lg_chkerr(ret))
+		goto fail;
+
 	/* 6. Reset */
 	ret = lgdt3306a_soft_reset(state);
 	if (lg_chkerr(ret))
@@ -616,10 +658,9 @@ static int lgdt3306a_set_modulation(struct lgdt3306a_state *state,
 		ret = lgdt3306a_set_vsb(state);
 		break;
 	case QAM_64:
-		ret = lgdt3306a_set_qam(state, QAM_64);
-		break;
 	case QAM_256:
-		ret = lgdt3306a_set_qam(state, QAM_256);
+	case QAM_AUTO:
+		ret = lgdt3306a_set_qam(state, p->modulation);
 		break;
 	default:
 		return -EINVAL;
@@ -646,6 +687,7 @@ static int lgdt3306a_agc_setup(struct lgdt3306a_state *state,
 		break;
 	case QAM_64:
 	case QAM_256:
+	case QAM_AUTO:
 		break;
 	default:
 		return -EINVAL;
@@ -700,6 +742,7 @@ static int lgdt3306a_spectral_inversion(struct lgdt3306a_state *state,
 		break;
 	case QAM_64:
 	case QAM_256:
+	case QAM_AUTO:
 		/* Auto ok for QAM */
 		ret = lgdt3306a_set_inversion_auto(state, 1);
 		break;
@@ -723,6 +766,7 @@ static int lgdt3306a_set_if(struct lgdt3306a_state *state,
 		break;
 	case QAM_64:
 	case QAM_256:
+	case QAM_AUTO:
 		if_freq_khz = state->cfg->qam_if_khz;
 		break;
 	default:
@@ -731,7 +775,7 @@ static int lgdt3306a_set_if(struct lgdt3306a_state *state,
 
 	switch (if_freq_khz) {
 	default:
-		pr_warn("IF=%d KHz is not supportted, 3250 assumed\n",
+		pr_warn("IF=%d KHz is not supported, 3250 assumed\n",
 			if_freq_khz);
 		/* fallthrough */
 	case 3250: /* 3.25Mhz */
@@ -1040,10 +1084,10 @@ fail:
 	return ret;
 }
 
-static int lgdt3306a_get_frontend(struct dvb_frontend *fe)
+static int lgdt3306a_get_frontend(struct dvb_frontend *fe,
+				  struct dtv_frontend_properties *p)
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	dbg_info("(%u, %d)\n",
 		 state->current_frequency, state->current_modulation);
@@ -1581,6 +1625,7 @@ static int lgdt3306a_read_status(struct dvb_frontend *fe,
 		switch (state->current_modulation) {
 		case QAM_256:
 		case QAM_64:
+		case QAM_AUTO:
 			if (lgdt3306a_qam_lock_poll(state) == LG3306_LOCK) {
 				*status |= FE_HAS_VITERBI;
 				*status |= FE_HAS_SYNC;
@@ -1624,6 +1669,7 @@ static int lgdt3306a_read_signal_strength(struct dvb_frontend *fe,
 	 * Calculate some sort of "strength" from SNR
 	 */
 	struct lgdt3306a_state *state = fe->demodulator_priv;
+	u8 val;
 	u16 snr; /* snr_x10 */
 	int ret;
 	u32 ref_snr; /* snr*100 */
@@ -1636,11 +1682,15 @@ static int lgdt3306a_read_signal_strength(struct dvb_frontend *fe,
 		 ref_snr = 1600; /* 16dB */
 		 break;
 	case QAM_64:
-		 ref_snr = 2200; /* 22dB */
-		 break;
 	case QAM_256:
-		 ref_snr = 2800; /* 28dB */
-		 break;
+	case QAM_AUTO:
+		/* need to know actual modulation to set proper SNR baseline */
+		lgdt3306a_read_reg(state, 0x00a6, &val);
+		if(val & 0x04)
+			ref_snr = 2800; /* QAM-256 28dB */
+		else
+			ref_snr = 2200; /* QAM-64  22dB */
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1734,27 +1784,19 @@ static int lgdt3306a_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int lgdt3306a_search(struct dvb_frontend *fe)
+static enum dvbfe_search lgdt3306a_search(struct dvb_frontend *fe)
 {
 	enum fe_status status = 0;
-	int i, ret;
+	int ret;
 
 	/* set frontend */
 	ret = lgdt3306a_set_parameters(fe);
 	if (ret)
 		goto error;
 
-	/* wait frontend lock */
-	for (i = 20; i > 0; i--) {
-		dbg_info(": loop=%d\n", i);
-		msleep(50);
-		ret = lgdt3306a_read_status(fe, &status);
-		if (ret)
-			goto error;
-
-		if (status & FE_HAS_LOCK)
-			break;
-	}
+	ret = lgdt3306a_read_status(fe, &status);
+	if (ret)
+		goto error;
 
 	/* check if we have a valid signal */
 	if (status & FE_HAS_LOCK)
@@ -1775,7 +1817,7 @@ static void lgdt3306a_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops lgdt3306a_ops;
+static const struct dvb_frontend_ops lgdt3306a_ops;
 
 struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
 				      struct i2c_adapter *i2c_adap)
@@ -2077,7 +2119,7 @@ static const short regtab[] = {
 	0x30aa, /* MPEGLOCK */
 };
 
-#define numDumpRegs (sizeof(regtab)/sizeof(regtab[0]))
+#define numDumpRegs (ARRAY_SIZE(regtab))
 static u8 regval1[numDumpRegs] = {0, };
 static u8 regval2[numDumpRegs] = {0, };
 
@@ -2111,14 +2153,14 @@ static void lgdt3306a_DumpRegs(struct lgdt3306a_state *state)
 
 
 
-static struct dvb_frontend_ops lgdt3306a_ops = {
+static const struct dvb_frontend_ops lgdt3306a_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "LG Electronics LGDT3306A VSB/QAM Frontend",
-		.frequency_min      = 54000000,
-		.frequency_max      = 858000000,
-		.frequency_stepsize = 62500,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
+		.frequency_min_hz      =  54 * MHz,
+		.frequency_max_hz      = 858 * MHz,
+		.frequency_stepsize_hz = 62500,
+		.caps = FE_CAN_QAM_AUTO | FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 	.i2c_gate_ctrl        = lgdt3306a_i2c_gate_ctrl,
 	.init                 = lgdt3306a_init,
@@ -2138,6 +2180,114 @@ static struct dvb_frontend_ops lgdt3306a_ops = {
 	.ts_bus_ctrl          = lgdt3306a_ts_bus_ctrl,
 	.search               = lgdt3306a_search,
 };
+
+static int lgdt3306a_select(struct i2c_mux_core *muxc, u32 chan)
+{
+	struct i2c_client *client = i2c_mux_priv(muxc);
+	struct lgdt3306a_state *state = i2c_get_clientdata(client);
+
+	return lgdt3306a_i2c_gate_ctrl(&state->frontend, 1);
+}
+
+static int lgdt3306a_deselect(struct i2c_mux_core *muxc, u32 chan)
+{
+	struct i2c_client *client = i2c_mux_priv(muxc);
+	struct lgdt3306a_state *state = i2c_get_clientdata(client);
+
+	return lgdt3306a_i2c_gate_ctrl(&state->frontend, 0);
+}
+
+static int lgdt3306a_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	struct lgdt3306a_config *config;
+	struct lgdt3306a_state *state;
+	struct dvb_frontend *fe;
+	int ret;
+
+	config = kzalloc(sizeof(struct lgdt3306a_config), GFP_KERNEL);
+	if (config == NULL) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	memcpy(config, client->dev.platform_data,
+			sizeof(struct lgdt3306a_config));
+
+	config->i2c_addr = client->addr;
+	fe = lgdt3306a_attach(config, client->adapter);
+	if (fe == NULL) {
+		ret = -ENODEV;
+		goto err_fe;
+	}
+
+	i2c_set_clientdata(client, fe->demodulator_priv);
+	state = fe->demodulator_priv;
+	state->frontend.ops.release = NULL;
+
+	/* create mux i2c adapter for tuner */
+	state->muxc = i2c_mux_alloc(client->adapter, &client->dev,
+				  1, 0, I2C_MUX_LOCKED,
+				  lgdt3306a_select, lgdt3306a_deselect);
+	if (!state->muxc) {
+		ret = -ENOMEM;
+		goto err_kfree;
+	}
+	state->muxc->priv = client;
+	ret = i2c_mux_add_adapter(state->muxc, 0, 0, 0);
+	if (ret)
+		goto err_kfree;
+
+	/* create dvb_frontend */
+	fe->ops.i2c_gate_ctrl = NULL;
+	*config->i2c_adapter = state->muxc->adapter[0];
+	*config->fe = fe;
+
+	dev_info(&client->dev, "LG Electronics LGDT3306A successfully identified\n");
+
+	return 0;
+
+err_kfree:
+	kfree(state);
+err_fe:
+	kfree(config);
+fail:
+	dev_warn(&client->dev, "probe failed = %d\n", ret);
+	return ret;
+}
+
+static int lgdt3306a_remove(struct i2c_client *client)
+{
+	struct lgdt3306a_state *state = i2c_get_clientdata(client);
+
+	i2c_mux_del_adapters(state->muxc);
+
+	state->frontend.ops.release = NULL;
+	state->frontend.demodulator_priv = NULL;
+
+	kfree(state->cfg);
+	kfree(state);
+
+	return 0;
+}
+
+static const struct i2c_device_id lgdt3306a_id_table[] = {
+	{"lgdt3306a", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, lgdt3306a_id_table);
+
+static struct i2c_driver lgdt3306a_driver = {
+	.driver = {
+		.name                = "lgdt3306a",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= lgdt3306a_probe,
+	.remove		= lgdt3306a_remove,
+	.id_table	= lgdt3306a_id_table,
+};
+
+module_i2c_driver(lgdt3306a_driver);
 
 MODULE_DESCRIPTION("LG Electronics LGDT3306A ATSC/QAM-B Demodulator Driver");
 MODULE_AUTHOR("Fred Richter <frichter@hauppauge.com>");

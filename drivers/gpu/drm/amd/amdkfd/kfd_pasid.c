@@ -20,77 +20,64 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/slab.h>
 #include <linux/types.h>
 #include "kfd_priv.h"
 
-static unsigned long *pasid_bitmap;
-static unsigned int pasid_limit;
-static DEFINE_MUTEX(pasid_mutex);
-
-int kfd_pasid_init(void)
-{
-	pasid_limit = KFD_MAX_NUM_OF_PROCESSES;
-
-	pasid_bitmap = kcalloc(BITS_TO_LONGS(pasid_limit), sizeof(long), GFP_KERNEL);
-	if (!pasid_bitmap)
-		return -ENOMEM;
-
-	set_bit(0, pasid_bitmap); /* PASID 0 is reserved. */
-
-	return 0;
-}
-
-void kfd_pasid_exit(void)
-{
-	kfree(pasid_bitmap);
-}
+static unsigned int pasid_bits = 16;
+static const struct kfd2kgd_calls *kfd2kgd;
 
 bool kfd_set_pasid_limit(unsigned int new_limit)
 {
-	if (new_limit < pasid_limit) {
-		bool ok;
+	if (new_limit < 2)
+		return false;
 
-		mutex_lock(&pasid_mutex);
+	if (new_limit < (1U << pasid_bits)) {
+		if (kfd2kgd)
+			/* We've already allocated user PASIDs, too late to
+			 * change the limit
+			 */
+			return false;
 
-		/* ensure that no pasids >= new_limit are in-use */
-		ok = (find_next_bit(pasid_bitmap, pasid_limit, new_limit) ==
-								pasid_limit);
-		if (ok)
-			pasid_limit = new_limit;
-
-		mutex_unlock(&pasid_mutex);
-
-		return ok;
+		while (new_limit < (1U << pasid_bits))
+			pasid_bits--;
 	}
 
 	return true;
 }
 
-inline unsigned int kfd_get_pasid_limit(void)
+unsigned int kfd_get_pasid_limit(void)
 {
-	return pasid_limit;
+	return 1U << pasid_bits;
 }
 
 unsigned int kfd_pasid_alloc(void)
 {
-	unsigned int found;
+	int r;
 
-	mutex_lock(&pasid_mutex);
+	/* Find the first best KFD device for calling KGD */
+	if (!kfd2kgd) {
+		struct kfd_dev *dev = NULL;
+		unsigned int i = 0;
 
-	found = find_first_zero_bit(pasid_bitmap, pasid_limit);
-	if (found == pasid_limit)
-		found = 0;
-	else
-		set_bit(found, pasid_bitmap);
+		while ((kfd_topology_enum_kfd_devices(i, &dev)) == 0) {
+			if (dev && dev->kfd2kgd) {
+				kfd2kgd = dev->kfd2kgd;
+				break;
+			}
+			i++;
+		}
 
-	mutex_unlock(&pasid_mutex);
+		if (!kfd2kgd)
+			return false;
+	}
 
-	return found;
+	r = kfd2kgd->alloc_pasid(pasid_bits);
+
+	return r > 0 ? r : 0;
 }
 
 void kfd_pasid_free(unsigned int pasid)
 {
-	BUG_ON(pasid == 0 || pasid >= pasid_limit);
-	clear_bit(pasid, pasid_bitmap);
+	if (kfd2kgd)
+		kfd2kgd->free_pasid(pasid);
 }

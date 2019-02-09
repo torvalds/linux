@@ -13,6 +13,7 @@
  */
 #include <linux/clkdev.h>
 #include <linux/gpio.h>
+#include <linux/gpio/gpio-reg.h>
 #include <linux/gpio/machine.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -47,14 +48,14 @@
 
 #include <asm/hardware/sa1111.h>
 
-#include <mach/pxa25x.h>
+#include "pxa25x.h"
 #include <mach/audio.h>
 #include <mach/lubbock.h>
-#include <mach/udc.h>
+#include "udc.h"
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
-#include <mach/pm.h>
+#include "pm.h"
 #include <mach/smemc.h>
 
 #include "generic.h"
@@ -110,20 +111,18 @@ static unsigned long lubbock_pin_config[] __initdata = {
 };
 
 #define LUB_HEXLED		__LUB_REG(LUBBOCK_FPGA_PHYS + 0x010)
-#define LUB_MISC_WR		__LUB_REG(LUBBOCK_FPGA_PHYS + 0x080)
 
 void lubbock_set_hexled(uint32_t value)
 {
 	LUB_HEXLED = value;
 }
 
+static struct gpio_chip *lubbock_misc_wr_gc;
+
 void lubbock_set_misc_wr(unsigned int mask, unsigned int set)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
-	LUB_MISC_WR = (LUB_MISC_WR & ~mask) | (set & mask);
-	local_irq_restore(flags);
+	unsigned long m = mask, v = set;
+	lubbock_misc_wr_gc->set_multiple(lubbock_misc_wr_gc, &m, &v);
 }
 EXPORT_SYMBOL(lubbock_set_misc_wr);
 
@@ -136,6 +135,18 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	.udc_is_connected	= lubbock_udc_is_connected,
 	// no D+ pullup; lubbock can't connect/disconnect in software
 };
+
+static void lubbock_init_pcmcia(void)
+{
+	struct clk *clk;
+
+	/* Add an alias for the SA1111 PCMCIA clock */
+	clk = clk_get_sys("pxa2xx-pcmcia", NULL);
+	if (!IS_ERR(clk)) {
+		clkdev_create(clk, NULL, "1800");
+		clk_put(clk);
+	}
+}
 
 static struct resource sa1111_resources[] = {
 	[0] = {
@@ -369,14 +380,11 @@ static struct pxafb_mach_info sharp_lm8v31 = {
 
 #define	MMC_POLL_RATE		msecs_to_jiffies(1000)
 
-static void lubbock_mmc_poll(unsigned long);
 static irq_handler_t mmc_detect_int;
+static void *mmc_detect_int_data;
+static struct timer_list mmc_timer;
 
-static struct timer_list mmc_timer = {
-	.function	= lubbock_mmc_poll,
-};
-
-static void lubbock_mmc_poll(unsigned long data)
+static void lubbock_mmc_poll(struct timer_list *unused)
 {
 	unsigned long flags;
 
@@ -389,7 +397,7 @@ static void lubbock_mmc_poll(unsigned long data)
 	if (LUB_IRQ_SET_CLR & (1 << 0))
 		mod_timer(&mmc_timer, jiffies + MMC_POLL_RATE);
 	else {
-		(void) mmc_detect_int(LUBBOCK_SD_IRQ, (void *)data);
+		(void) mmc_detect_int(LUBBOCK_SD_IRQ, mmc_detect_int_data);
 		enable_irq(LUBBOCK_SD_IRQ);
 	}
 }
@@ -409,8 +417,8 @@ static int lubbock_mci_init(struct device *dev,
 {
 	/* detect card insert/eject */
 	mmc_detect_int = detect_int;
-	init_timer(&mmc_timer);
-	mmc_timer.data = (unsigned long) data;
+	mmc_detect_int_data = data;
+	timer_setup(&mmc_timer, lubbock_mmc_poll, 0);
 	return request_irq(LUBBOCK_SD_IRQ, lubbock_detect_int,
 			   0, "lubbock-sd-detect", data);
 }
@@ -443,9 +451,9 @@ static void lubbock_irda_transceiver_mode(struct device *dev, int mode)
 
 	local_irq_save(flags);
 	if (mode & IR_SIRMODE) {
-		LUB_MISC_WR &= ~(1 << 4);
+		lubbock_set_misc_wr(BIT(4), 0);
 	} else if (mode & IR_FIRMODE) {
-		LUB_MISC_WR |= 1 << 4;
+		lubbock_set_misc_wr(BIT(4), BIT(4));
 	}
 	pxa2xx_transceiver_mode(dev, mode);
 	local_irq_restore(flags);
@@ -463,9 +471,20 @@ static void __init lubbock_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(lubbock_pin_config));
 
+	lubbock_misc_wr_gc = gpio_reg_init(NULL, (void *)&LUB_MISC_WR,
+					   -1, 16, "lubbock", 0, LUB_MISC_WR,
+					   NULL, NULL, NULL);
+	if (IS_ERR(lubbock_misc_wr_gc)) {
+		pr_err("Lubbock: unable to register lubbock GPIOs: %ld\n",
+		       PTR_ERR(lubbock_misc_wr_gc));
+		lubbock_misc_wr_gc = NULL;
+	}
+
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
+
+	lubbock_init_pcmcia();
 
 	clk_add_alias("SA1111_CLK", NULL, "GPIO11_CLK", NULL);
 	pxa_set_udc_info(&udc_info);

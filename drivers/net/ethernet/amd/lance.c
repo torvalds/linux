@@ -318,9 +318,9 @@ static int io[MAX_CARDS];
 static int dma[MAX_CARDS];
 static int irq[MAX_CARDS];
 
-module_param_array(io, int, NULL, 0);
-module_param_array(dma, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(dma, int, dma, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 module_param(lance_debug, int, 0);
 MODULE_PARM_DESC(io, "LANCE/PCnet I/O base address(es),required");
 MODULE_PARM_DESC(dma, "LANCE/PCnet ISA DMA channel (ignored for some devices)");
@@ -461,7 +461,6 @@ static const struct net_device_ops lance_netdev_ops = {
 	.ndo_get_stats		= lance_get_stats,
 	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_tx_timeout		= lance_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -547,18 +546,18 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	/* Make certain the data structures used by the LANCE are aligned and DMAble. */
 
 	lp = kzalloc(sizeof(*lp), GFP_DMA | GFP_KERNEL);
-	if(lp==NULL)
-		return -ENODEV;
+	if (!lp)
+		return -ENOMEM;
 	if (lance_debug > 6) printk(" (#0x%05lx)", (unsigned long)lp);
 	dev->ml_priv = lp;
 	lp->name = chipname;
-	lp->rx_buffs = (unsigned long)kmalloc(PKT_BUF_SZ*RX_RING_SIZE,
-						  GFP_DMA | GFP_KERNEL);
+	lp->rx_buffs = (unsigned long)kmalloc_array(RX_RING_SIZE, PKT_BUF_SZ,
+						    GFP_DMA | GFP_KERNEL);
 	if (!lp->rx_buffs)
 		goto out_lp;
 	if (lance_need_isa_bounce_buffers) {
-		lp->tx_bounce_buffs = kmalloc(PKT_BUF_SZ*TX_RING_SIZE,
-						  GFP_DMA | GFP_KERNEL);
+		lp->tx_bounce_buffs = kmalloc_array(TX_RING_SIZE, PKT_BUF_SZ,
+						    GFP_DMA | GFP_KERNEL);
 		if (!lp->tx_bounce_buffs)
 			goto out_rx;
 	} else
@@ -943,7 +942,7 @@ static void lance_tx_timeout (struct net_device *dev)
 #endif
 	lance_restart (dev, 0x0043, 1);
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 

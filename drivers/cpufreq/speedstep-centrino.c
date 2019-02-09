@@ -13,6 +13,8 @@
  * Copyright (C) 2003 Jeremy Fitzhardinge <jeremy@goop.org>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -27,7 +29,6 @@
 #include <asm/cpufeature.h>
 #include <asm/cpu_device_id.h>
 
-#define PFX		"speedstep-centrino: "
 #define MAINTAINER	"linux-pm@vger.kernel.org"
 
 #define INTEL_MSR_RANGE	(0xffff)
@@ -36,7 +37,7 @@ struct cpu_id
 {
 	__u8	x86;            /* CPU family */
 	__u8	x86_model;	/* model */
-	__u8	x86_mask;	/* stepping */
+	__u8	x86_stepping;	/* stepping */
 };
 
 enum {
@@ -276,7 +277,7 @@ static int centrino_verify_cpu_id(const struct cpuinfo_x86 *c,
 {
 	if ((c->x86 == x->x86) &&
 	    (c->x86_model == x->x86_model) &&
-	    (c->x86_mask == x->x86_mask))
+	    (c->x86_stepping == x->x86_stepping))
 		return 1;
 	return 0;
 }
@@ -386,17 +387,16 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 		/* check to see if it stuck */
 		rdmsr(MSR_IA32_MISC_ENABLE, l, h);
 		if (!(l & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
-			printk(KERN_INFO PFX
-				"couldn't enable Enhanced SpeedStep\n");
+			pr_info("couldn't enable Enhanced SpeedStep\n");
 			return -ENODEV;
 		}
 	}
 
 	policy->cpuinfo.transition_latency = 10000;
 						/* 10uS transition latency */
+	policy->freq_table = per_cpu(centrino_model, policy->cpu)->op_points;
 
-	return cpufreq_table_validate_and_show(policy,
-		per_cpu(centrino_model, policy->cpu)->op_points);
+	return 0;
 }
 
 static int centrino_cpu_exit(struct cpufreq_policy *policy)

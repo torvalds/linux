@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * usb/gadget/config.c -- simplify building config descriptors
  *
  * Copyright (C) 2003 David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/errno.h>
@@ -93,7 +89,7 @@ int usb_gadget_config_buf(
 	*cp = *config;
 
 	/* then interface/endpoint/class/vendor/... */
-	len = usb_descriptor_fillbuf(USB_DT_CONFIG_SIZE + (u8*)buf,
+	len = usb_descriptor_fillbuf(USB_DT_CONFIG_SIZE + (u8 *)buf,
 			length - USB_DT_CONFIG_SIZE, desc);
 	if (len < 0)
 		return len;
@@ -163,7 +159,8 @@ EXPORT_SYMBOL_GPL(usb_copy_descriptors);
 int usb_assign_descriptors(struct usb_function *f,
 		struct usb_descriptor_header **fs,
 		struct usb_descriptor_header **hs,
-		struct usb_descriptor_header **ss)
+		struct usb_descriptor_header **ss,
+		struct usb_descriptor_header **ssp)
 {
 	struct usb_gadget *g = f->config->cdev->gadget;
 
@@ -182,6 +179,11 @@ int usb_assign_descriptors(struct usb_function *f,
 		if (!f->ss_descriptors)
 			goto err;
 	}
+	if (ssp && gadget_is_superspeed_plus(g)) {
+		f->ssp_descriptors = usb_copy_descriptors(ssp);
+		if (!f->ssp_descriptors)
+			goto err;
+	}
 	return 0;
 err:
 	usb_free_all_descriptors(f);
@@ -194,6 +196,7 @@ void usb_free_all_descriptors(struct usb_function *f)
 	usb_free_descriptors(f->fs_descriptors);
 	usb_free_descriptors(f->hs_descriptors);
 	usb_free_descriptors(f->ss_descriptors);
+	usb_free_descriptors(f->ssp_descriptors);
 }
 EXPORT_SYMBOL_GPL(usb_free_all_descriptors);
 

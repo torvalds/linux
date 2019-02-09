@@ -110,9 +110,9 @@ static int uda134x_regmap_write(void *context, unsigned int reg,
 	return 0;
 }
 
-static inline void uda134x_reset(struct snd_soc_codec *codec)
+static inline void uda134x_reset(struct snd_soc_component *component)
 {
-	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
+	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 	unsigned int mask = 1<<6;
 
 	regmap_update_bits(uda134x->regmap, UDA134X_STATUS0, mask, mask);
@@ -122,7 +122,7 @@ static inline void uda134x_reset(struct snd_soc_codec *codec)
 
 static int uda134x_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(dai->codec);
+	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(dai->component);
 	unsigned int mask = 1<<2;
 	unsigned int val;
 
@@ -139,8 +139,8 @@ static int uda134x_mute(struct snd_soc_dai *dai, int mute)
 static int uda134x_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 	struct snd_pcm_runtime *master_runtime;
 
 	if (uda134x->master_substream) {
@@ -168,8 +168,8 @@ static int uda134x_startup(struct snd_pcm_substream *substream,
 static void uda134x_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 
 	if (uda134x->master_substream == substream)
 		uda134x->master_substream = uda134x->slave_substream;
@@ -181,8 +181,8 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 	unsigned int hw_params = 0;
 
 	if (substream == uda134x->slave_substream) {
@@ -248,8 +248,8 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 static int uda134x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				  int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 
 	pr_debug("%s clk_id: %d, freq: %u, dir: %d\n", __func__,
 		 clk_id, freq, dir);
@@ -270,8 +270,8 @@ static int uda134x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 static int uda134x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			       unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 
 	pr_debug("%s fmt: %08X\n", __func__, fmt);
 
@@ -294,10 +294,10 @@ static int uda134x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int uda134x_set_bias_level(struct snd_soc_codec *codec,
+static int uda134x_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
-	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
+	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 	struct uda134x_platform_data *pd = uda134x->pd;
 	pr_debug("%s bias level %d\n", __func__, level);
 
@@ -446,10 +446,10 @@ static struct snd_soc_dai_driver uda134x_dai = {
 	.ops = &uda134x_dai_ops,
 };
 
-static int uda134x_soc_probe(struct snd_soc_codec *codec)
+static int uda134x_soc_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 	struct uda134x_platform_data *pd = uda134x->pd;
 	const struct snd_soc_dapm_widget *widgets;
 	unsigned num_widgets;
@@ -473,7 +473,7 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 	if (pd->power)
 		pd->power(1);
 
-	uda134x_reset(codec);
+	uda134x_reset(component);
 
 	if (pd->model == UDA134X_UDA1341) {
 		widgets = uda1341_dapm_widgets;
@@ -493,15 +493,15 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 	switch (pd->model) {
 	case UDA134X_UDA1340:
 	case UDA134X_UDA1344:
-		ret = snd_soc_add_codec_controls(codec, uda1340_snd_controls,
+		ret = snd_soc_add_component_controls(component, uda1340_snd_controls,
 					ARRAY_SIZE(uda1340_snd_controls));
 	break;
 	case UDA134X_UDA1341:
-		ret = snd_soc_add_codec_controls(codec, uda1341_snd_controls,
+		ret = snd_soc_add_component_controls(component, uda1341_snd_controls,
 					ARRAY_SIZE(uda1341_snd_controls));
 	break;
 	case UDA134X_UDA1345:
-		ret = snd_soc_add_codec_controls(codec, uda1345_snd_controls,
+		ret = snd_soc_add_component_controls(component, uda1345_snd_controls,
 					ARRAY_SIZE(uda1345_snd_controls));
 	break;
 	default:
@@ -518,15 +518,18 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_uda134x = {
-	.probe =        uda134x_soc_probe,
-	.set_bias_level = uda134x_set_bias_level,
-	.suspend_bias_off = true,
-
-	.dapm_widgets = uda134x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(uda134x_dapm_widgets),
-	.dapm_routes = uda134x_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(uda134x_dapm_routes),
+static const struct snd_soc_component_driver soc_component_dev_uda134x = {
+	.probe			= uda134x_soc_probe,
+	.set_bias_level		= uda134x_set_bias_level,
+	.dapm_widgets		= uda134x_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(uda134x_dapm_widgets),
+	.dapm_routes		= uda134x_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(uda134x_dapm_routes),
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config uda134x_regmap_config = {
@@ -544,6 +547,7 @@ static int uda134x_codec_probe(struct platform_device *pdev)
 {
 	struct uda134x_platform_data *pd = pdev->dev.platform_data;
 	struct uda134x_priv *uda134x;
+	int ret;
 
 	if (!pd) {
 		dev_err(&pdev->dev, "Missing L3 bitbang function\n");
@@ -557,19 +561,19 @@ static int uda134x_codec_probe(struct platform_device *pdev)
 	uda134x->pd = pd;
 	platform_set_drvdata(pdev, uda134x);
 
+	if (pd->l3.use_gpios) {
+		ret = l3_set_gpio_ops(&pdev->dev, &uda134x->pd->l3);
+		if (ret < 0)
+			return ret;
+	}
+
 	uda134x->regmap = devm_regmap_init(&pdev->dev, NULL, pd,
 		&uda134x_regmap_config);
 	if (IS_ERR(uda134x->regmap))
 		return PTR_ERR(uda134x->regmap);
 
-	return snd_soc_register_codec(&pdev->dev,
-			&soc_codec_dev_uda134x, &uda134x_dai, 1);
-}
-
-static int uda134x_codec_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev,
+			&soc_component_dev_uda134x, &uda134x_dai, 1);
 }
 
 static struct platform_driver uda134x_codec_driver = {
@@ -577,7 +581,6 @@ static struct platform_driver uda134x_codec_driver = {
 		.name = "uda134x-codec",
 	},
 	.probe = uda134x_codec_probe,
-	.remove = uda134x_codec_remove,
 };
 
 module_platform_driver(uda134x_codec_driver);

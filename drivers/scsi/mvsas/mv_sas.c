@@ -74,7 +74,7 @@ void mvs_tag_init(struct mvs_info *mvi)
 		mvs_tag_clear(mvi, i);
 }
 
-struct mvs_info *mvs_find_dev_mvi(struct domain_device *dev)
+static struct mvs_info *mvs_find_dev_mvi(struct domain_device *dev)
 {
 	unsigned long i = 0, j = 0, hi = 0;
 	struct sas_ha_struct *sha = dev->port->ha;
@@ -102,7 +102,7 @@ struct mvs_info *mvs_find_dev_mvi(struct domain_device *dev)
 
 }
 
-int mvs_find_dev_phyno(struct domain_device *dev, int *phyno)
+static int mvs_find_dev_phyno(struct domain_device *dev, int *phyno)
 {
 	unsigned long i = 0, j = 0, n = 0, num = 0;
 	struct mvs_device *mvi_dev = (struct mvs_device *)dev->lldd_dev;
@@ -429,7 +429,10 @@ static u32 mvs_get_ncq_tag(struct sas_task *task, u32 *tag)
 
 	if (qc) {
 		if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
-			qc->tf.command == ATA_CMD_FPDMA_READ) {
+		    qc->tf.command == ATA_CMD_FPDMA_READ ||
+		    qc->tf.command == ATA_CMD_FPDMA_RECV ||
+		    qc->tf.command == ATA_CMD_FPDMA_SEND ||
+		    qc->tf.command == ATA_CMD_NCQ_NON_DATA) {
 			*tag = qc->tag;
 			return 1;
 		}
@@ -737,8 +740,8 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 			mv_dprintk("device %016llx not ready.\n",
 				SAS_ADDR(dev->sas_addr));
 
-			rc = SAS_PHY_DOWN;
-			return rc;
+		rc = SAS_PHY_DOWN;
+		return rc;
 	}
 	tei.port = dev->port->lldd_port;
 	if (tei.port && !tei.port->port_attached && !tmf) {
@@ -787,9 +790,11 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 	slot->n_elem = n_elem;
 	slot->slot_tag = tag;
 
-	slot->buf = pci_pool_alloc(mvi->dma_pool, GFP_ATOMIC, &slot->buf_dma);
-	if (!slot->buf)
+	slot->buf = dma_pool_alloc(mvi->dma_pool, GFP_ATOMIC, &slot->buf_dma);
+	if (!slot->buf) {
+		rc = -ENOMEM;
 		goto err_out_tag;
+	}
 	memset(slot->buf, 0, MVS_SLOT_BUF_SZ);
 
 	tei.task = task;
@@ -835,7 +840,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 	return rc;
 
 err_out_slot_buf:
-	pci_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
+	dma_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
 err_out_tag:
 	mvs_tag_free(mvi, tag);
 err_out:
@@ -913,7 +918,7 @@ static void mvs_slot_task_free(struct mvs_info *mvi, struct sas_task *task,
 	}
 
 	if (slot->buf) {
-		pci_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
+		dma_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
 		slot->buf = NULL;
 	}
 	list_del_init(&slot->entry);
@@ -1155,7 +1160,7 @@ void mvs_port_deformed(struct asd_sas_phy *sas_phy)
 	mvs_port_notify_deformed(sas_phy, 1);
 }
 
-struct mvs_device *mvs_alloc_dev(struct mvs_info *mvi)
+static struct mvs_device *mvs_alloc_dev(struct mvs_info *mvi)
 {
 	u32 dev;
 	for (dev = 0; dev < MVS_MAX_DEVICES; dev++) {
@@ -1172,7 +1177,7 @@ struct mvs_device *mvs_alloc_dev(struct mvs_info *mvi)
 	return NULL;
 }
 
-void mvs_free_dev(struct mvs_device *mvi_dev)
+static void mvs_free_dev(struct mvs_device *mvi_dev)
 {
 	u32 id = mvi_dev->device_id;
 	memset(mvi_dev, 0, sizeof(*mvi_dev));
@@ -1182,7 +1187,7 @@ void mvs_free_dev(struct mvs_device *mvi_dev)
 	mvi_dev->taskfileset = MVS_ID_NOT_MAPPED;
 }
 
-int mvs_dev_found_notify(struct domain_device *dev, int lock)
+static int mvs_dev_found_notify(struct domain_device *dev, int lock)
 {
 	unsigned long flags = 0;
 	int res = 0;
@@ -1238,7 +1243,7 @@ int mvs_dev_found(struct domain_device *dev)
 	return mvs_dev_found_notify(dev, 1);
 }
 
-void mvs_dev_gone_notify(struct domain_device *dev)
+static void mvs_dev_gone_notify(struct domain_device *dev)
 {
 	unsigned long flags = 0;
 	struct mvs_device *mvi_dev = dev->lldd_dev;
@@ -1278,9 +1283,10 @@ static void mvs_task_done(struct sas_task *task)
 	complete(&task->slow_task->completion);
 }
 
-static void mvs_tmf_timedout(unsigned long data)
+static void mvs_tmf_timedout(struct timer_list *t)
 {
-	struct sas_task *task = (struct sas_task *)data;
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;
 
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 	complete(&task->slow_task->completion);
@@ -1304,7 +1310,6 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 		memcpy(&task->ssp_task, parameter, para_len);
 		task->task_done = mvs_task_done;
 
-		task->slow_task->timer.data = (unsigned long) task;
 		task->slow_task->timer.function = mvs_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + MVS_TASK_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
@@ -1608,7 +1613,7 @@ static int mvs_sata_done(struct mvs_info *mvi, struct sas_task *task,
 	return stat;
 }
 
-void mvs_set_sense(u8 *buffer, int len, int d_sense,
+static void mvs_set_sense(u8 *buffer, int len, int d_sense,
 		int key, int asc, int ascq)
 {
 	memset(buffer, 0, len);
@@ -1647,7 +1652,7 @@ void mvs_set_sense(u8 *buffer, int len, int d_sense,
 	return;
 }
 
-void mvs_fill_ssp_resp_iu(struct ssp_response_iu *iu,
+static void mvs_fill_ssp_resp_iu(struct ssp_response_iu *iu,
 				u8 key, u8 asc, u8 asc_q)
 {
 	iu->datapres = 2;
@@ -1949,9 +1954,9 @@ static int mvs_handle_event(struct mvs_info *mvi, void *data, int handler)
 	return ret;
 }
 
-static void mvs_sig_time_out(unsigned long tphy)
+static void mvs_sig_time_out(struct timer_list *t)
 {
-	struct mvs_phy *phy = (struct mvs_phy *)tphy;
+	struct mvs_phy *phy = from_timer(phy, t, timer);
 	struct mvs_info *mvi = phy->mvi;
 	u8 phy_no;
 
@@ -2015,7 +2020,6 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 		MVS_CHIP_DISP->write_port_irq_mask(mvi, phy_no,
 					tmp | PHYEV_SIG_FIS);
 		if (phy->timer.function == NULL) {
-			phy->timer.data = (unsigned long)phy;
 			phy->timer.function = mvs_sig_time_out;
 			phy->timer.expires = jiffies + 5*HZ;
 			add_timer(&phy->timer);
@@ -2105,3 +2109,16 @@ int mvs_int_rx(struct mvs_info *mvi, bool self_clear)
 	return 0;
 }
 
+int mvs_gpio_write(struct sas_ha_struct *sha, u8 reg_type, u8 reg_index,
+			u8 reg_count, u8 *write_data)
+{
+	struct mvs_prv_info *mvs_prv = sha->lldd_ha;
+	struct mvs_info *mvi = mvs_prv->mvi[0];
+
+	if (MVS_CHIP_DISP->gpio_write) {
+		return MVS_CHIP_DISP->gpio_write(mvs_prv, reg_type,
+			reg_index, reg_count, write_data);
+	}
+
+	return -ENOSYS;
+}

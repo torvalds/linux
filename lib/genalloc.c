@@ -194,7 +194,7 @@ int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phy
 	chunk->phys_addr = phys;
 	chunk->start_addr = virt;
 	chunk->end_addr = virt + size - 1;
-	atomic_set(&chunk->avail, size);
+	atomic_long_set(&chunk->avail, size);
 
 	spin_lock(&pool->lock);
 	list_add_rcu(&chunk->next_chunk, &pool->chunks);
@@ -270,10 +270,29 @@ EXPORT_SYMBOL(gen_pool_destroy);
  */
 unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
 {
+	return gen_pool_alloc_algo(pool, size, pool->algo, pool->data);
+}
+EXPORT_SYMBOL(gen_pool_alloc);
+
+/**
+ * gen_pool_alloc_algo - allocate special memory from the pool
+ * @pool: pool to allocate from
+ * @size: number of bytes to allocate from the pool
+ * @algo: algorithm passed from caller
+ * @data: data passed to algorithm
+ *
+ * Allocate the requested number of bytes from the specified pool.
+ * Uses the pool allocation function (with first-fit algorithm by default).
+ * Can not be used in NMI handler on architectures without
+ * NMI-safe cmpxchg implementation.
+ */
+unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
+		genpool_algo_t algo, void *data)
+{
 	struct gen_pool_chunk *chunk;
 	unsigned long addr = 0;
 	int order = pool->min_alloc_order;
-	int nbits, start_bit = 0, end_bit, remain;
+	int nbits, start_bit, end_bit, remain;
 
 #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
 	BUG_ON(in_nmi());
@@ -285,13 +304,14 @@ unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
 	nbits = (size + (1UL << order) - 1) >> order;
 	rcu_read_lock();
 	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk) {
-		if (size > atomic_read(&chunk->avail))
+		if (size > atomic_long_read(&chunk->avail))
 			continue;
 
+		start_bit = 0;
 		end_bit = chunk_size(chunk) >> order;
 retry:
-		start_bit = pool->algo(chunk->bits, end_bit, start_bit, nbits,
-				pool->data);
+		start_bit = algo(chunk->bits, end_bit, start_bit,
+				 nbits, data, pool);
 		if (start_bit >= end_bit)
 			continue;
 		remain = bitmap_set_ll(chunk->bits, start_bit, nbits);
@@ -304,13 +324,13 @@ retry:
 
 		addr = chunk->start_addr + ((unsigned long)start_bit << order);
 		size = nbits << order;
-		atomic_sub(size, &chunk->avail);
+		atomic_long_sub(size, &chunk->avail);
 		break;
 	}
 	rcu_read_unlock();
 	return addr;
 }
-EXPORT_SYMBOL(gen_pool_alloc);
+EXPORT_SYMBOL(gen_pool_alloc_algo);
 
 /**
  * gen_pool_dma_alloc - allocate special memory from the pool for DMA usage
@@ -370,7 +390,7 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 			remain = bitmap_clear_ll(chunk->bits, start_bit, nbits);
 			BUG_ON(remain);
 			size = nbits << order;
-			atomic_add(size, &chunk->avail);
+			atomic_long_add(size, &chunk->avail);
 			rcu_read_unlock();
 			return;
 		}
@@ -444,7 +464,7 @@ size_t gen_pool_avail(struct gen_pool *pool)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk)
-		avail += atomic_read(&chunk->avail);
+		avail += atomic_long_read(&chunk->avail);
 	rcu_read_unlock();
 	return avail;
 }
@@ -501,13 +521,72 @@ EXPORT_SYMBOL(gen_pool_set_algo);
  * @start: The bitnumber to start searching at
  * @nr: The number of zeroed bits we're looking for
  * @data: additional data - unused
+ * @pool: pool to find the fit region memory from
  */
 unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
-		unsigned long start, unsigned int nr, void *data)
+		unsigned long start, unsigned int nr, void *data,
+		struct gen_pool *pool)
 {
 	return bitmap_find_next_zero_area(map, size, start, nr, 0);
 }
 EXPORT_SYMBOL(gen_pool_first_fit);
+
+/**
+ * gen_pool_first_fit_align - find the first available region
+ * of memory matching the size requirement (alignment constraint)
+ * @map: The address to base the search on
+ * @size: The bitmap size in bits
+ * @start: The bitnumber to start searching at
+ * @nr: The number of zeroed bits we're looking for
+ * @data: data for alignment
+ * @pool: pool to get order from
+ */
+unsigned long gen_pool_first_fit_align(unsigned long *map, unsigned long size,
+		unsigned long start, unsigned int nr, void *data,
+		struct gen_pool *pool)
+{
+	struct genpool_data_align *alignment;
+	unsigned long align_mask;
+	int order;
+
+	alignment = data;
+	order = pool->min_alloc_order;
+	align_mask = ((alignment->align + (1UL << order) - 1) >> order) - 1;
+	return bitmap_find_next_zero_area(map, size, start, nr, align_mask);
+}
+EXPORT_SYMBOL(gen_pool_first_fit_align);
+
+/**
+ * gen_pool_fixed_alloc - reserve a specific region
+ * @map: The address to base the search on
+ * @size: The bitmap size in bits
+ * @start: The bitnumber to start searching at
+ * @nr: The number of zeroed bits we're looking for
+ * @data: data for alignment
+ * @pool: pool to get order from
+ */
+unsigned long gen_pool_fixed_alloc(unsigned long *map, unsigned long size,
+		unsigned long start, unsigned int nr, void *data,
+		struct gen_pool *pool)
+{
+	struct genpool_data_fixed *fixed_data;
+	int order;
+	unsigned long offset_bit;
+	unsigned long start_bit;
+
+	fixed_data = data;
+	order = pool->min_alloc_order;
+	offset_bit = fixed_data->offset >> order;
+	if (WARN_ON(fixed_data->offset & ((1UL << order) - 1)))
+		return size;
+
+	start_bit = bitmap_find_next_zero_area(map, size,
+			start + offset_bit, nr, 0);
+	if (start_bit != offset_bit)
+		start_bit = size;
+	return start_bit;
+}
+EXPORT_SYMBOL(gen_pool_fixed_alloc);
 
 /**
  * gen_pool_first_fit_order_align - find the first available region
@@ -518,10 +597,11 @@ EXPORT_SYMBOL(gen_pool_first_fit);
  * @start: The bitnumber to start searching at
  * @nr: The number of zeroed bits we're looking for
  * @data: additional data - unused
+ * @pool: pool to find the fit region memory from
  */
 unsigned long gen_pool_first_fit_order_align(unsigned long *map,
 		unsigned long size, unsigned long start,
-		unsigned int nr, void *data)
+		unsigned int nr, void *data, struct gen_pool *pool)
 {
 	unsigned long align_mask = roundup_pow_of_two(nr) - 1;
 
@@ -537,12 +617,14 @@ EXPORT_SYMBOL(gen_pool_first_fit_order_align);
  * @start: The bitnumber to start searching at
  * @nr: The number of zeroed bits we're looking for
  * @data: additional data - unused
+ * @pool: pool to find the fit region memory from
  *
  * Iterate over the bitmap to find the smallest free region
  * which we can allocate the memory.
  */
 unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
-		unsigned long start, unsigned int nr, void *data)
+		unsigned long start, unsigned int nr, void *data,
+		struct gen_pool *pool)
 {
 	unsigned long start_bit = size;
 	unsigned long len = size + 1;

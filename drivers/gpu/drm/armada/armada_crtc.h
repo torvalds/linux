@@ -32,28 +32,7 @@ struct armada_regs {
 	armada_reg_queue_mod(_r, _i, 0, 0, ~0)
 
 struct armada_crtc;
-struct armada_plane;
 struct armada_variant;
-
-struct armada_plane_work {
-	void			(*fn)(struct armada_crtc *,
-				      struct armada_plane *,
-				      struct armada_plane_work *);
-};
-
-struct armada_plane {
-	struct drm_plane	base;
-	wait_queue_head_t	frame_wait;
-	struct armada_plane_work *work;
-};
-#define drm_to_armada_plane(p) container_of(p, struct armada_plane, base)
-
-int armada_drm_plane_init(struct armada_plane *plane);
-int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
-	struct armada_plane *plane, struct armada_plane_work *work);
-int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout);
-struct armada_plane_work *armada_drm_plane_work_cancel(
-	struct armada_crtc *dcrtc, struct armada_plane *plane);
 
 struct armada_crtc {
 	struct drm_crtc		crtc;
@@ -69,10 +48,6 @@ struct armada_crtc {
 	} v[2];
 	bool			interlaced;
 	bool			cursor_update;
-	uint8_t			csc_yuv_mode;
-	uint8_t			csc_rgb_mode;
-
-	struct drm_plane	*plane;
 
 	struct armada_gem_object	*cursor_obj;
 	int			cursor_x;
@@ -82,24 +57,21 @@ struct armada_crtc {
 	uint32_t		cursor_w;
 	uint32_t		cursor_h;
 
-	int			dpms;
 	uint32_t		cfg_dumb_ctrl;
-	uint32_t		dumb_ctrl;
 	uint32_t		spu_iopad_ctrl;
 
 	spinlock_t		irq_lock;
 	uint32_t		irq_ena;
+
+	bool			update_pending;
+	struct drm_pending_vblank_event *event;
+	struct armada_regs	atomic_regs[32];
+	struct armada_regs	*regs;
+	unsigned int		regs_idx;
 };
 #define drm_to_armada_crtc(c) container_of(c, struct armada_crtc, crtc)
 
-void armada_drm_crtc_gamma_set(struct drm_crtc *, u16, u16, u16, int);
-void armada_drm_crtc_gamma_get(struct drm_crtc *, u16 *, u16 *, u16 *, int);
-void armada_drm_crtc_disable_irq(struct armada_crtc *, u32);
-void armada_drm_crtc_enable_irq(struct armada_crtc *, u32);
 void armada_drm_crtc_update_regs(struct armada_crtc *, struct armada_regs *);
-
-void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
-	struct drm_plane *plane);
 
 extern struct platform_driver armada_lcd_platform_driver;
 

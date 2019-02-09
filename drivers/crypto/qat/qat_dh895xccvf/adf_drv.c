@@ -60,11 +60,7 @@
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
 #include <adf_cfg.h>
-#include <adf_transport_access_macros.h>
 #include "adf_dh895xccvf_hw_data.h"
-#include "adf_drv.h"
-
-static const char adf_driver_name[] = ADF_DH895XCCVF_DEVICE_NAME;
 
 #define ADF_SYSTEM_DEVICE(device_id) \
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}
@@ -80,7 +76,7 @@ static void adf_remove(struct pci_dev *dev);
 
 static struct pci_driver adf_driver = {
 	.id_table = adf_pci_tbl,
-	.name = adf_driver_name,
+	.name = ADF_DH895XCCVF_DEVICE_NAME,
 	.probe = adf_probe,
 	.remove = adf_remove,
 };
@@ -121,83 +117,6 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 	adf_devmgr_rm_dev(accel_dev, pf);
 }
 
-static int adf_dev_configure(struct adf_accel_dev *accel_dev)
-{
-	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
-	unsigned long val, bank = 0;
-
-	if (adf_cfg_section_add(accel_dev, ADF_KERNEL_SEC))
-		goto err;
-	if (adf_cfg_section_add(accel_dev, "Accelerator0"))
-		goto err;
-
-	snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_BANK_NUM, 0);
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, key,
-					(void *)&bank, ADF_DEC))
-		goto err;
-
-	val = bank;
-	snprintf(key, sizeof(key), ADF_CY "%d" ADF_ETRMGR_CORE_AFFINITY, 0);
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, key,
-					(void *)&val, ADF_DEC))
-		goto err;
-
-	snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_SIZE, 0);
-
-	val = 128;
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, key,
-					(void *)&val, ADF_DEC))
-		goto err;
-
-	val = 512;
-	snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_SIZE, 0);
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-					key, (void *)&val, ADF_DEC))
-		goto err;
-
-	val = 0;
-	snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_TX, 0);
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-					key, (void *)&val, ADF_DEC))
-		goto err;
-
-	val = 2;
-	snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_TX, 0);
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-					key, (void *)&val, ADF_DEC))
-		goto err;
-
-	val = 8;
-	snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_RX, 0);
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-					key, (void *)&val, ADF_DEC))
-		goto err;
-
-	val = 10;
-	snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_RX, 0);
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-					key, (void *)&val, ADF_DEC))
-			goto err;
-
-	val = ADF_COALESCING_DEF_TIME;
-	snprintf(key, sizeof(key), ADF_ETRMGR_COALESCE_TIMER_FORMAT,
-		 (int)bank);
-	if (adf_cfg_add_key_value_param(accel_dev, "Accelerator0",
-					key, (void *)&val, ADF_DEC))
-		goto err;
-
-	val = 1;
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-					ADF_NUM_CY, (void *)&val, ADF_DEC))
-		goto err;
-
-	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
-	return 0;
-err:
-	dev_err(&GET_DEV(accel_dev), "Failed to configure QAT accel dev\n");
-	return -EINVAL;
-}
-
 static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct adf_accel_dev *accel_dev;
@@ -206,7 +125,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct adf_hw_device_data *hw_data;
 	char name[ADF_DEVICE_NAME_LENGTH];
 	unsigned int i, bar_nr;
-	int ret, bar_mask;
+	unsigned long bar_mask;
+	int ret;
 
 	switch (ent->device) {
 	case ADF_DH895XCCIOV_PCI_DEVICE_ID:
@@ -243,14 +163,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err;
 	}
 	accel_dev->hw_device = hw_data;
-	switch (ent->device) {
-	case ADF_DH895XCCIOV_PCI_DEVICE_ID:
-		adf_init_hw_data_dh895xcciov(accel_dev->hw_device);
-		break;
-	default:
-		ret = -ENODEV;
-		goto out_err;
-	}
+	adf_init_hw_data_dh895xcciov(accel_dev->hw_device);
 
 	/* Get Accelerators and Accelerators Engines masks */
 	hw_data->accel_mask = hw_data->get_accel_mask(hw_data->fuses);
@@ -258,7 +171,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	accel_pci_dev->sku = hw_data->get_sku(hw_data);
 
 	/* Create dev top level debugfs entry */
-	snprintf(name, sizeof(name), "%s%s_%02x:%02d.%02d",
+	snprintf(name, sizeof(name), "%s%s_%02x:%02d.%d",
 		 ADF_DEVICE_NAME_PREFIX, hw_data->dev_class->name,
 		 pdev->bus->number, PCI_SLOT(pdev->devfn),
 		 PCI_FUNC(pdev->devfn));
@@ -295,7 +208,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	}
 
-	if (pci_request_regions(pdev, adf_driver_name)) {
+	if (pci_request_regions(pdev, ADF_DH895XCCVF_DEVICE_NAME)) {
 		ret = -EFAULT;
 		goto out_err_disable;
 	}
@@ -303,8 +216,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Find and map all the device's BARS */
 	i = 0;
 	bar_mask = pci_select_bars(pdev, IORESOURCE_MEM);
-	for_each_set_bit(bar_nr, (const unsigned long *)&bar_mask,
-			 ADF_PCI_MAX_BARS * 2) {
+	for_each_set_bit(bar_nr, &bar_mask, ADF_PCI_MAX_BARS * 2) {
 		struct adf_bar *bar = &accel_pci_dev->pci_bars[i++];
 
 		bar->base_addr = pci_resource_start(pdev, bar_nr);
@@ -322,9 +234,11 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Completion for VF2PF request/response message exchange */
 	init_completion(&accel_dev->vf.iov_msg_completion);
 
-	ret = adf_dev_configure(accel_dev);
+	ret = qat_crypto_dev_config(accel_dev);
 	if (ret)
 		goto out_err_free_reg;
+
+	set_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
 
 	ret = adf_dev_init(accel_dev);
 	if (ret)
@@ -358,9 +272,7 @@ static void adf_remove(struct pci_dev *pdev)
 		pr_err("QAT: Driver removal failed\n");
 		return;
 	}
-	if (adf_dev_stop(accel_dev))
-		dev_err(&GET_DEV(accel_dev), "Failed to stop QAT accel dev\n");
-
+	adf_dev_stop(accel_dev);
 	adf_dev_shutdown(accel_dev);
 	adf_cleanup_accel(accel_dev);
 	adf_cleanup_pci_dev(accel_dev);

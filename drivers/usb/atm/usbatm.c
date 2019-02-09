@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /******************************************************************************
  *  usbatm.c - Generic USB xDSL driver core
  *
  *  Copyright (C) 2001, Alcatel
  *  Copyright (C) 2003, Duncan Sands, SolNegro, Josep Comas
  *  Copyright (C) 2004, David Woodhouse, Roman Kagan
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the Free
- *  Software Foundation; either version 2 of the License, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc., 59
- *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  ******************************************************************************/
 
 /*
@@ -64,7 +50,7 @@
 
 #include "usbatm.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/crc32.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -74,7 +60,7 @@
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
 #include <linux/proc_fs.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
@@ -93,8 +79,7 @@ static int usbatm_print_packet(struct usbatm_data *instance, const unsigned char
 #endif
 
 #define DRIVER_AUTHOR	"Johan Verrept, Duncan Sands <duncan.sands@free.fr>"
-#define DRIVER_VERSION	"1.10"
-#define DRIVER_DESC	"Generic USB ATM/DSL I/O, version " DRIVER_VERSION
+#define DRIVER_DESC	"Generic USB ATM/DSL I/O"
 
 static const char usbatm_driver_name[] = "usbatm";
 
@@ -174,7 +159,7 @@ static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd, void __us
 static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb);
 static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t *pos, char *page);
 
-static struct atmdev_ops usbatm_atm_devops = {
+static const struct atmdev_ops usbatm_atm_devops = {
 	.dev_close	= usbatm_atm_dev_close,
 	.open		= usbatm_atm_open,
 	.close		= usbatm_atm_close,
@@ -819,7 +804,6 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 
 	new = kzalloc(sizeof(struct usbatm_vcc_data), GFP_KERNEL);
 	if (!new) {
-		atm_err(instance, "%s: no memory for vcc_data!\n", __func__);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1005,18 +989,18 @@ static int usbatm_heavy_init(struct usbatm_data *instance)
 	return 0;
 }
 
-static void usbatm_tasklet_schedule(unsigned long data)
+static void usbatm_tasklet_schedule(struct timer_list *t)
 {
-	tasklet_schedule((struct tasklet_struct *) data);
+	struct usbatm_channel *channel = from_timer(channel, t, delay);
+
+	tasklet_schedule(&channel->tasklet);
 }
 
 static void usbatm_init_channel(struct usbatm_channel *channel)
 {
 	spin_lock_init(&channel->lock);
 	INIT_LIST_HEAD(&channel->list);
-	channel->delay.function = usbatm_tasklet_schedule;
-	channel->delay.data = (unsigned long) &channel->tasklet;
-	init_timer(&channel->delay);
+	timer_setup(&channel->delay, usbatm_tasklet_schedule, 0);
 }
 
 int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
@@ -1032,10 +1016,8 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 
 	/* instance init */
 	instance = kzalloc(sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs), GFP_KERNEL);
-	if (!instance) {
-		dev_err(dev, "%s: no memory for instance data!\n", __func__);
+	if (!instance)
 		return -ENOMEM;
-	}
 
 	/* public fields */
 
@@ -1141,7 +1123,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 
 		urb = usb_alloc_urb(iso_packets, GFP_KERNEL);
 		if (!urb) {
-			dev_err(dev, "%s: no memory for urb %d!\n", __func__, i);
 			error = -ENOMEM;
 			goto fail_unbind;
 		}
@@ -1151,7 +1132,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 		/* zero the tx padding to avoid leaking information */
 		buffer = kzalloc(channel->buf_size, GFP_KERNEL);
 		if (!buffer) {
-			dev_err(dev, "%s: no memory for buffer %d!\n", __func__, i);
 			error = -ENOMEM;
 			goto fail_unbind;
 		}
@@ -1182,7 +1162,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	instance->cell_buf = kmalloc(instance->rx_channel.stride, GFP_KERNEL);
 
 	if (!instance->cell_buf) {
-		dev_err(dev, "%s: no memory for cell buffer!\n", __func__);
 		error = -ENOMEM;
 		goto fail_unbind;
 	}
@@ -1321,7 +1300,6 @@ module_exit(usbatm_usb_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRIVER_VERSION);
 
 /************
 **  debug  **

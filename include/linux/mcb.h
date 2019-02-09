@@ -15,33 +15,43 @@
 #include <linux/device.h>
 #include <linux/irqreturn.h>
 
+#define CHAMELEON_FILENAME_LEN 12
+
 struct mcb_driver;
 struct mcb_device;
 
 /**
  * struct mcb_bus - MEN Chameleon Bus
  *
- * @dev: pointer to carrier device
- * @children: the child busses
+ * @dev: bus device
+ * @carrier: pointer to carrier device
  * @bus_nr: mcb bus number
  * @get_irq: callback to get IRQ number
+ * @revision: the FPGA's revision number
+ * @model: the FPGA's model number
+ * @filename: the FPGA's name
  */
 struct mcb_bus {
-	struct list_head children;
 	struct device dev;
 	struct device *carrier;
 	int bus_nr;
+	u8 revision;
+	char model;
+	u8 minor;
+	char name[CHAMELEON_FILENAME_LEN + 1];
 	int (*get_irq)(struct mcb_device *dev);
 };
-#define to_mcb_bus(b) container_of((b), struct mcb_bus, dev)
+
+static inline struct mcb_bus *to_mcb_bus(struct device *dev)
+{
+	return container_of(dev, struct mcb_bus, dev);
+}
 
 /**
  * struct mcb_device - MEN Chameleon Bus device
  *
- * @bus_list: internal list handling for bus code
  * @dev: device in kernel representation
  * @bus: mcb bus the device is plugged to
- * @subordinate: subordinate MCBus in case of bridge
  * @is_added: flag to check if device is added to bus
  * @driver: associated mcb_driver
  * @id: mcb device id
@@ -54,10 +64,8 @@ struct mcb_bus {
  * @memory: memory resource
  */
 struct mcb_device {
-	struct list_head bus_list;
 	struct device dev;
 	struct mcb_bus *bus;
-	struct mcb_bus *subordinate;
 	bool is_added;
 	struct mcb_driver *driver;
 	u16 id;
@@ -68,8 +76,13 @@ struct mcb_device {
 	int rev;
 	struct resource irq;
 	struct resource mem;
+	struct device *dma_dev;
 };
-#define to_mcb_device(x) container_of((x), struct mcb_device, dev)
+
+static inline struct mcb_device *to_mcb_device(struct device *dev)
+{
+	return container_of(dev, struct mcb_device, dev);
+}
 
 /**
  * struct mcb_driver - MEN Chameleon Bus device driver
@@ -87,7 +100,11 @@ struct mcb_driver {
 	void (*remove)(struct mcb_device *mdev);
 	void (*shutdown)(struct mcb_device *mdev);
 };
-#define to_mcb_driver(x) container_of((x), struct mcb_driver, driver)
+
+static inline struct mcb_driver *to_mcb_driver(struct device_driver *drv)
+{
+	return container_of(drv, struct mcb_driver, driver);
+}
 
 static inline void *mcb_get_drvdata(struct mcb_device *dev)
 {
@@ -119,5 +136,7 @@ extern struct resource *mcb_request_mem(struct mcb_device *dev,
 					const char *name);
 extern void mcb_release_mem(struct resource *mem);
 extern int mcb_get_irq(struct mcb_device *dev);
+extern struct resource *mcb_get_resource(struct mcb_device *dev,
+					 unsigned int type);
 
 #endif /* _LINUX_MCB_H */

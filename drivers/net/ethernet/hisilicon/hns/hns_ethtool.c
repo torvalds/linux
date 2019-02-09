@@ -11,7 +11,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-
 #include "hns_enet.h"
 
 #define HNS_PHY_PAGE_MDIX	0
@@ -47,12 +46,11 @@ static u32 hns_nic_get_link(struct net_device *net_dev)
 	u32 link_stat = priv->link;
 	struct hnae_handle *h;
 
-	assert(priv && priv->ae_handle);
 	h = priv->ae_handle;
 
-	if (priv->phy) {
-		if (!genphy_update_link(priv->phy))
-			link_stat = priv->phy->link;
+	if (net_dev->phydev) {
+		if (!genphy_read_status(net_dev->phydev))
+			link_stat = net_dev->phydev->link;
 		else
 			link_stat = 0;
 	}
@@ -66,62 +64,59 @@ static u32 hns_nic_get_link(struct net_device *net_dev)
 }
 
 static void hns_get_mdix_mode(struct net_device *net_dev,
-			      struct ethtool_cmd *cmd)
+			      struct ethtool_link_ksettings *cmd)
 {
 	int mdix_ctrl, mdix, retval, is_resolved;
-	struct hns_nic_priv *priv = netdev_priv(net_dev);
-	struct phy_device *phy_dev = priv->phy;
+	struct phy_device *phy_dev = net_dev->phydev;
 
-	if (!phy_dev || !phy_dev->bus) {
-		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI_INVALID;
-		cmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
+	if (!phy_dev || !phy_dev->mdio.bus) {
+		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_INVALID;
+		cmd->base.eth_tp_mdix = ETH_TP_MDI_INVALID;
 		return;
 	}
 
-	(void)mdiobus_write(phy_dev->bus, phy_dev->addr, HNS_PHY_PAGE_REG,
-			    HNS_PHY_PAGE_MDIX);
+	phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_MDIX);
 
-	retval = mdiobus_read(phy_dev->bus, phy_dev->addr, HNS_PHY_CSC_REG);
+	retval = phy_read(phy_dev, HNS_PHY_CSC_REG);
 	mdix_ctrl = hnae_get_field(retval, PHY_MDIX_CTRL_M, PHY_MDIX_CTRL_S);
 
-	retval = mdiobus_read(phy_dev->bus, phy_dev->addr, HNS_PHY_CSS_REG);
+	retval = phy_read(phy_dev, HNS_PHY_CSS_REG);
 	mdix = hnae_get_bit(retval, PHY_MDIX_STATUS_B);
 	is_resolved = hnae_get_bit(retval, PHY_SPEED_DUP_RESOLVE_B);
 
-	(void)mdiobus_write(phy_dev->bus, phy_dev->addr, HNS_PHY_PAGE_REG,
-			    HNS_PHY_PAGE_COPPER);
+	phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
 
 	switch (mdix_ctrl) {
 	case 0x0:
-		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI;
+		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI;
 		break;
 	case 0x1:
-		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI_X;
+		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_X;
 		break;
 	case 0x3:
-		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI_AUTO;
+		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_AUTO;
 		break;
 	default:
-		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI_INVALID;
+		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_INVALID;
 		break;
 	}
 
 	if (!is_resolved)
-		cmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
+		cmd->base.eth_tp_mdix = ETH_TP_MDI_INVALID;
 	else if (mdix)
-		cmd->eth_tp_mdix = ETH_TP_MDI_X;
+		cmd->base.eth_tp_mdix = ETH_TP_MDI_X;
 	else
-		cmd->eth_tp_mdix = ETH_TP_MDI;
+		cmd->base.eth_tp_mdix = ETH_TP_MDI;
 }
 
 /**
- *hns_nic_get_settings - implement ethtool get settings
+ *hns_nic_get_link_ksettings - implement ethtool get link ksettings
  *@net_dev: net_device
- *@cmd: ethtool_cmd
+ *@cmd: ethtool_link_ksettings
  *retuen 0 - success , negative --fail
  */
-static int hns_nic_get_settings(struct net_device *net_dev,
-				struct ethtool_cmd *cmd)
+static int hns_nic_get_link_ksettings(struct net_device *net_dev,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_handle *h;
@@ -129,6 +124,7 @@ static int hns_nic_get_settings(struct net_device *net_dev,
 	int ret;
 	u8 duplex;
 	u16 speed;
+	u32 supported, advertising;
 
 	if (!priv || !priv->ae_handle)
 		return -ESRCH;
@@ -143,54 +139,71 @@ static int hns_nic_get_settings(struct net_device *net_dev,
 		return -EINVAL;
 	}
 
-	/* When there is no phy, autoneg is off. */
-	cmd->autoneg = false;
-	ethtool_cmd_speed_set(cmd, speed);
-	cmd->duplex = duplex;
+	ethtool_convert_link_mode_to_legacy_u32(&supported,
+						cmd->link_modes.supported);
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
 
-	if (priv->phy)
-		(void)phy_ethtool_gset(priv->phy, cmd);
+	/* When there is no phy, autoneg is off. */
+	cmd->base.autoneg = false;
+	cmd->base.speed = speed;
+	cmd->base.duplex = duplex;
+
+	if (net_dev->phydev)
+		phy_ethtool_ksettings_get(net_dev->phydev, cmd);
 
 	link_stat = hns_nic_get_link(net_dev);
 	if (!link_stat) {
-		ethtool_cmd_speed_set(cmd, (u32)SPEED_UNKNOWN);
-		cmd->duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = (u32)SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 
-	if (cmd->autoneg)
-		cmd->advertising |= ADVERTISED_Autoneg;
+	if (cmd->base.autoneg)
+		advertising |= ADVERTISED_Autoneg;
 
-	cmd->supported |= h->if_support;
+	supported |= h->if_support;
 	if (h->phy_if == PHY_INTERFACE_MODE_SGMII) {
-		cmd->supported |= SUPPORTED_TP;
-		cmd->advertising |= ADVERTISED_1000baseT_Full;
+		supported |= SUPPORTED_TP;
+		advertising |= ADVERTISED_1000baseT_Full;
 	} else if (h->phy_if == PHY_INTERFACE_MODE_XGMII) {
-		cmd->supported |= SUPPORTED_FIBRE;
-		cmd->advertising |= ADVERTISED_10000baseKR_Full;
+		supported |= SUPPORTED_FIBRE;
+		advertising |= ADVERTISED_10000baseKR_Full;
 	}
 
-	if (h->port_type == HNAE_PORT_SERVICE) {
-		cmd->port = PORT_FIBRE;
-		cmd->supported |= SUPPORTED_Pause;
-	} else {
-		cmd->port = PORT_TP;
+	switch (h->media_type) {
+	case HNAE_MEDIA_TYPE_FIBER:
+		cmd->base.port = PORT_FIBRE;
+		break;
+	case HNAE_MEDIA_TYPE_COPPER:
+		cmd->base.port = PORT_TP;
+		break;
+	case HNAE_MEDIA_TYPE_UNKNOWN:
+	default:
+		break;
 	}
 
-	cmd->transceiver = XCVR_EXTERNAL;
-	cmd->mdio_support = (ETH_MDIO_SUPPORTS_C45 | ETH_MDIO_SUPPORTS_C22);
+	if (!(AE_IS_VER1(priv->enet_ver) && h->port_type == HNAE_PORT_DEBUG))
+		supported |= SUPPORTED_Pause;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
+
+	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C45 | ETH_MDIO_SUPPORTS_C22;
 	hns_get_mdix_mode(net_dev, cmd);
 
 	return 0;
 }
 
 /**
- *hns_nic_set_settings - implement ethtool set settings
+ *hns_nic_set_link_settings - implement ethtool set link ksettings
  *@net_dev: net_device
- *@cmd: ethtool_cmd
+ *@cmd: ethtool_link_ksettings
  *retuen 0 - success , negative --fail
  */
-static int hns_nic_set_settings(struct net_device *net_dev,
-				struct ethtool_cmd *cmd)
+static int hns_nic_set_link_ksettings(struct net_device *net_dev,
+				      const struct ethtool_link_ksettings *cmd)
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_handle *h;
@@ -204,24 +217,25 @@ static int hns_nic_set_settings(struct net_device *net_dev,
 		return -ENODEV;
 
 	h = priv->ae_handle;
-	speed = ethtool_cmd_speed(cmd);
+	speed = cmd->base.speed;
 
 	if (h->phy_if == PHY_INTERFACE_MODE_XGMII) {
-		if (cmd->autoneg == AUTONEG_ENABLE || speed != SPEED_10000 ||
-		    cmd->duplex != DUPLEX_FULL)
+		if (cmd->base.autoneg == AUTONEG_ENABLE ||
+		    speed != SPEED_10000 ||
+		    cmd->base.duplex != DUPLEX_FULL)
 			return -EINVAL;
 	} else if (h->phy_if == PHY_INTERFACE_MODE_SGMII) {
-		if (!priv->phy && cmd->autoneg == AUTONEG_ENABLE)
+		if (!net_dev->phydev && cmd->base.autoneg == AUTONEG_ENABLE)
 			return -EINVAL;
 
-		if (speed == SPEED_1000 && cmd->duplex == DUPLEX_HALF)
+		if (speed == SPEED_1000 && cmd->base.duplex == DUPLEX_HALF)
 			return -EINVAL;
-		if (priv->phy)
-			return phy_ethtool_sset(priv->phy, cmd);
+		if (net_dev->phydev)
+			return phy_ethtool_ksettings_set(net_dev->phydev, cmd);
 
 		if ((speed != SPEED_10 && speed != SPEED_100 &&
-		     speed != SPEED_1000) || (cmd->duplex != DUPLEX_HALF &&
-		     cmd->duplex != DUPLEX_FULL))
+		     speed != SPEED_1000) || (cmd->base.duplex != DUPLEX_HALF &&
+		     cmd->base.duplex != DUPLEX_FULL))
 			return -EINVAL;
 	} else {
 		netdev_err(net_dev, "Not supported!");
@@ -229,7 +243,9 @@ static int hns_nic_set_settings(struct net_device *net_dev,
 	}
 
 	if (h->dev->ops->adjust_link) {
-		h->dev->ops->adjust_link(h, (int)speed, cmd->duplex);
+		netif_carrier_off(net_dev);
+		h->dev->ops->adjust_link(h, (int)speed, cmd->base.duplex);
+		netif_carrier_on(net_dev);
 		return 0;
 	}
 
@@ -245,64 +261,27 @@ static const char hns_nic_test_strs[][ETH_GSTRING_LEN] = {
 
 static int hns_nic_config_phy_loopback(struct phy_device *phy_dev, u8 en)
 {
-#define COPPER_CONTROL_REG 0
-#define PHY_LOOP_BACK BIT(14)
-	u16 val = 0;
-
-	if (phy_dev->is_c45) /* c45 branch adding for XGE PHY */
-		return -ENOTSUPP;
+	int err;
 
 	if (en) {
-		/* speed : 1000M */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    HNS_PHY_PAGE_REG, 2);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    21, 0x1046);
-		/* Force Master */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    9, 0x1F00);
-		/* Soft-reset */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    0, 0x9140);
-		/* If autoneg disabled,two soft-reset operations */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    0, 0x9140);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0xFA);
+		/* Doing phy loopback in offline state, phy resuming is
+		 * needed to power up the device.
+		 */
+		err = phy_resume(phy_dev);
+		if (err)
+			goto out;
 
-		/* Default is 0x0400 */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    1, 0x418);
-
-		/* Force 1000M Link, Default is 0x0200 */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    7, 0x20C);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0);
-
-		/* Enable MAC loop-back */
-		val = (u16)mdiobus_read(phy_dev->bus, phy_dev->addr,
-					COPPER_CONTROL_REG);
-		val |= PHY_LOOP_BACK;
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    COPPER_CONTROL_REG, val);
+		err = phy_loopback(phy_dev, true);
 	} else {
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0xFA);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    1, 0x400);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    7, 0x200);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0);
+		err = phy_loopback(phy_dev, false);
+		if (err)
+			goto out;
 
-		val = (u16)mdiobus_read(phy_dev->bus, phy_dev->addr,
-					COPPER_CONTROL_REG);
-		val &= ~PHY_LOOP_BACK;
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    COPPER_CONTROL_REG, val);
+		err = phy_suspend(phy_dev);
 	}
-	return 0;
+
+out:
+	return err;
 }
 
 static int __lb_setup(struct net_device *ndev,
@@ -310,13 +289,14 @@ static int __lb_setup(struct net_device *ndev,
 {
 	int ret = 0;
 	struct hns_nic_priv *priv = netdev_priv(ndev);
-	struct phy_device *phy_dev = priv->phy;
+	struct phy_device *phy_dev = ndev->phydev;
 	struct hnae_handle *h = priv->ae_handle;
 
 	switch (loop) {
 	case MAC_INTERNALLOOP_PHY:
-		if ((phy_dev) && (!phy_dev->is_c45))
-			ret = hns_nic_config_phy_loopback(phy_dev, 0x1);
+		ret = hns_nic_config_phy_loopback(phy_dev, 0x1);
+		if (!ret)
+			ret = h->dev->ops->set_loopback(h, loop, 0x1);
 		break;
 	case MAC_INTERNALLOOP_MAC:
 		if ((h->dev->ops->set_loopback) &&
@@ -327,17 +307,18 @@ static int __lb_setup(struct net_device *ndev,
 		if (h->dev->ops->set_loopback)
 			ret = h->dev->ops->set_loopback(h, loop, 0x1);
 		break;
+	case MAC_LOOP_PHY_NONE:
+		ret = hns_nic_config_phy_loopback(phy_dev, 0x0);
+		/* fall through */
 	case MAC_LOOP_NONE:
-		if ((phy_dev) && (!phy_dev->is_c45))
-			ret |= hns_nic_config_phy_loopback(phy_dev, 0x0);
-
-		if (h->dev->ops->set_loopback) {
+		if (!ret && h->dev->ops->set_loopback) {
 			if (priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII)
-				ret |= h->dev->ops->set_loopback(h,
+				ret = h->dev->ops->set_loopback(h,
 					MAC_INTERNALLOOP_MAC, 0x0);
 
-			ret |= h->dev->ops->set_loopback(h,
-				MAC_INTERNALLOOP_SERDES, 0x0);
+			if (!ret)
+				ret = h->dev->ops->set_loopback(h,
+					MAC_INTERNALLOOP_SERDES, 0x0);
 		}
 		break;
 	default:
@@ -345,6 +326,13 @@ static int __lb_setup(struct net_device *ndev,
 		break;
 	}
 
+	if (!ret) {
+		if (loop == MAC_LOOP_NONE)
+			h->dev->ops->set_promisc_mode(
+				h, ndev->flags & IFF_PROMISC);
+		else
+			h->dev->ops->set_promisc_mode(h, 1);
+	}
 	return ret;
 }
 
@@ -358,27 +346,15 @@ static int __lb_up(struct net_device *ndev,
 
 	hns_nic_net_reset(ndev);
 
-	if (priv->phy) {
-		phy_disconnect(priv->phy);
-		msleep(100);
-
-		ret = hns_nic_init_phy(ndev, h);
-		if (ret)
-			return ret;
-	}
-
 	ret = __lb_setup(ndev, loop_mode);
 	if (ret)
 		return ret;
 
-	msleep(100);
+	msleep(200);
 
 	ret = h->dev->ops->start ? h->dev->ops->start(h) : 0;
 	if (ret)
 		return ret;
-
-	if (priv->phy)
-		phy_start(priv->phy);
 
 	/* link adjust duplex*/
 	if (priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII)
@@ -396,6 +372,7 @@ static void __lb_other_process(struct hns_nic_ring_data *ring_data,
 			       struct sk_buff *skb)
 {
 	struct net_device *ndev;
+	struct hns_nic_priv *priv;
 	struct hnae_ring *ring;
 	struct netdev_queue *dev_queue;
 	struct sk_buff *new_skb;
@@ -405,8 +382,17 @@ static void __lb_other_process(struct hns_nic_ring_data *ring_data,
 	char buff[33]; /* 32B data and the last character '\0' */
 
 	if (!ring_data) { /* Just for doing create frame*/
+		ndev = skb->dev;
+		priv = netdev_priv(ndev);
+
 		frame_size = skb->len;
 		memset(skb->data, 0xFF, frame_size);
+		if ((!AE_IS_VER1(priv->enet_ver)) &&
+		    (priv->ae_handle->port_type == HNAE_PORT_SERVICE)) {
+			memcpy(skb->data, ndev->dev_addr, 6);
+			skb->data[5] += 0x1f;
+		}
+
 		frame_size &= ~1ul;
 		memset(&skb->data[frame_size / 2], 0xAA, frame_size / 2 - 1);
 		memset(&skb->data[frame_size / 2 + 10], 0xBE,
@@ -506,6 +492,7 @@ static int __lb_run_test(struct net_device *ndev,
 
 	/* place data into test skb */
 	(void)skb_put(skb, size);
+	skb->dev = ndev;
 	__lb_other_process(NULL, skb);
 	skb->queue_mapping = NIC_LB_TEST_RING_ID;
 
@@ -557,20 +544,20 @@ static int __lb_run_test(struct net_device *ndev,
 	return ret_val;
 }
 
-static int __lb_down(struct net_device *ndev)
+static int __lb_down(struct net_device *ndev, enum hnae_loop loop)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_handle *h = priv->ae_handle;
 	int ret;
 
-	ret = __lb_setup(ndev, MAC_LOOP_NONE);
+	if (loop == MAC_INTERNALLOOP_PHY)
+		ret = __lb_setup(ndev, MAC_LOOP_PHY_NONE);
+	else
+		ret = __lb_setup(ndev, MAC_LOOP_NONE);
 	if (ret)
 		netdev_err(ndev, "%s: __lb_setup return error(%d)!\n",
 			   __func__,
 			   ret);
-
-	if (priv->phy)
-		phy_stop(priv->phy);
 
 	if (h->dev->ops->stop)
 		h->dev->ops->stop(h);
@@ -604,14 +591,14 @@ static void hns_nic_self_test(struct net_device *ndev,
 	st_param[1][0] = MAC_INTERNALLOOP_SERDES;
 	st_param[1][1] = 1; /*serdes must exist*/
 	st_param[2][0] = MAC_INTERNALLOOP_PHY; /* only supporte phy node*/
-	st_param[2][1] = ((!!(priv->ae_handle->phy_node)) &&
+	st_param[2][1] = ((!!(priv->ae_handle->phy_dev)) &&
 		(priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII));
 
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		set_bit(NIC_STATE_TESTING, &priv->state);
 
 		if (if_running)
-			(void)dev_close(ndev);
+			dev_close(ndev);
 
 		for (i = 0; i < SELF_TEST_TPYE_NUM; i++) {
 			if (!st_param[i][1])
@@ -622,7 +609,8 @@ static void hns_nic_self_test(struct net_device *ndev,
 			if (!data[test_index]) {
 				data[test_index] = __lb_run_test(
 					ndev, (enum hnae_loop)st_param[i][0]);
-				(void)__lb_down(ndev);
+				(void)__lb_down(ndev,
+						(enum hnae_loop)st_param[i][0]);
 			}
 
 			if (data[test_index])
@@ -653,8 +641,6 @@ static void hns_nic_get_drvinfo(struct net_device *net_dev,
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 
-	assert(priv);
-
 	strncpy(drvinfo->version, HNAE_DRIVER_VERSION,
 		sizeof(drvinfo->version));
 	drvinfo->version[sizeof(drvinfo->version) - 1] = '\0';
@@ -667,6 +653,7 @@ static void hns_nic_get_drvinfo(struct net_device *net_dev,
 	drvinfo->bus_info[ETHTOOL_BUSINFO_LEN - 1] = '\0';
 
 	strncpy(drvinfo->fw_version, "N/A", ETHTOOL_FWVERS_LEN);
+	drvinfo->eedump_len = 0;
 }
 
 /**
@@ -674,8 +661,8 @@ static void hns_nic_get_drvinfo(struct net_device *net_dev,
  * @dev: net device
  * @param: ethtool parameter
  */
-void hns_get_ringparam(struct net_device *net_dev,
-		       struct ethtool_ringparam *param)
+static void hns_get_ringparam(struct net_device *net_dev,
+			      struct ethtool_ringparam *param)
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
@@ -726,8 +713,6 @@ static int hns_set_pauseparam(struct net_device *net_dev,
 	struct hnae_handle *h;
 	struct hnae_ae_ops *ops;
 
-	assert(priv || priv->ae_handle);
-
 	h = priv->ae_handle;
 	ops = h->dev->ops;
 
@@ -753,21 +738,31 @@ static int hns_get_coalesce(struct net_device *net_dev,
 
 	ops = priv->ae_handle->dev->ops;
 
-	ec->use_adaptive_rx_coalesce = 1;
-	ec->use_adaptive_tx_coalesce = 1;
+	ec->use_adaptive_rx_coalesce = priv->ae_handle->coal_adapt_en;
+	ec->use_adaptive_tx_coalesce = priv->ae_handle->coal_adapt_en;
 
 	if ((!ops->get_coalesce_usecs) ||
-	    (!ops->get_rx_max_coalesced_frames))
+	    (!ops->get_max_coalesced_frames))
 		return -ESRCH;
 
 	ops->get_coalesce_usecs(priv->ae_handle,
 					&ec->tx_coalesce_usecs,
 					&ec->rx_coalesce_usecs);
 
-	ops->get_rx_max_coalesced_frames(
+	ops->get_max_coalesced_frames(
 		priv->ae_handle,
 		&ec->tx_max_coalesced_frames,
 		&ec->rx_max_coalesced_frames);
+
+	ops->get_coalesce_range(priv->ae_handle,
+				&ec->tx_max_coalesced_frames_low,
+				&ec->rx_max_coalesced_frames_low,
+				&ec->tx_max_coalesced_frames_high,
+				&ec->rx_max_coalesced_frames_high,
+				&ec->tx_coalesce_usecs_low,
+				&ec->rx_coalesce_usecs_low,
+				&ec->tx_coalesce_usecs_high,
+				&ec->rx_coalesce_usecs_high);
 
 	return 0;
 }
@@ -784,30 +779,31 @@ static int hns_set_coalesce(struct net_device *net_dev,
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
-	int ret;
-
-	assert(priv || priv->ae_handle);
+	int rc1, rc2;
 
 	ops = priv->ae_handle->dev->ops;
 
 	if (ec->tx_coalesce_usecs != ec->rx_coalesce_usecs)
 		return -EINVAL;
 
-	if (ec->rx_max_coalesced_frames != ec->tx_max_coalesced_frames)
-		return -EINVAL;
-
 	if ((!ops->set_coalesce_usecs) ||
 	    (!ops->set_coalesce_frames))
 		return -ESRCH;
 
-	ops->set_coalesce_usecs(priv->ae_handle,
-					ec->rx_coalesce_usecs);
+	if (ec->use_adaptive_rx_coalesce != priv->ae_handle->coal_adapt_en)
+		priv->ae_handle->coal_adapt_en = ec->use_adaptive_rx_coalesce;
 
-	ret = ops->set_coalesce_frames(
-		priv->ae_handle,
-		ec->rx_max_coalesced_frames);
+	rc1 = ops->set_coalesce_usecs(priv->ae_handle,
+				      ec->rx_coalesce_usecs);
 
-	return ret;
+	rc2 = ops->set_coalesce_frames(priv->ae_handle,
+				       ec->tx_max_coalesced_frames,
+				       ec->rx_max_coalesced_frames);
+
+	if (rc1 || rc2)
+		return -EINVAL;
+
+	return 0;
 }
 
 /**
@@ -815,7 +811,8 @@ static int hns_set_coalesce(struct net_device *net_dev,
  * @dev: net device
  * @ch: channel info.
  */
-void hns_get_channels(struct net_device *net_dev, struct ethtool_channels *ch)
+static void
+hns_get_channels(struct net_device *net_dev, struct ethtool_channels *ch)
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 
@@ -832,8 +829,8 @@ void hns_get_channels(struct net_device *net_dev, struct ethtool_channels *ch)
  * @stats: statistics info.
  * @data: statistics data.
  */
-void hns_get_ethtool_stats(struct net_device *netdev,
-			   struct ethtool_stats *stats, u64 *data)
+static void hns_get_ethtool_stats(struct net_device *netdev,
+				  struct ethtool_stats *stats, u64 *data)
 {
 	u64 *p = data;
 	struct hns_nic_priv *priv = netdev_priv(netdev);
@@ -890,7 +887,7 @@ void hns_get_ethtool_stats(struct net_device *netdev,
  * @stats: string set ID.
  * @data: objects data.
  */
-void hns_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
+static void hns_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_handle *h = priv->ae_handle;
@@ -910,7 +907,7 @@ void hns_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		memcpy(buff, hns_nic_test_strs[MAC_INTERNALLOOP_SERDES],
 		       ETH_GSTRING_LEN);
 		buff += ETH_GSTRING_LEN;
-		if ((priv->phy) && (!priv->phy->is_c45))
+		if ((netdev->phydev) && (!netdev->phydev->is_c45))
 			memcpy(buff, hns_nic_test_strs[MAC_INTERNALLOOP_PHY],
 			       ETH_GSTRING_LEN);
 
@@ -980,7 +977,7 @@ void hns_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
  *
  * Return string set count.
  */
-int hns_get_sset_count(struct net_device *netdev, int stringset)
+static int hns_get_sset_count(struct net_device *netdev, int stringset)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_handle *h = priv->ae_handle;
@@ -996,12 +993,14 @@ int hns_get_sset_count(struct net_device *netdev, int stringset)
 		if (priv->ae_handle->phy_if == PHY_INTERFACE_MODE_XGMII)
 			cnt--;
 
-		if ((!priv->phy) || (priv->phy->is_c45))
+		if ((!netdev->phydev) || (netdev->phydev->is_c45))
 			cnt--;
 
 		return cnt;
-	} else {
+	} else if (stringset == ETH_SS_STATS) {
 		return (HNS_NET_STATS_CNT + ops->get_sset_count(h, stringset));
+	} else {
+		return -EOPNOTSUPP;
 	}
 }
 
@@ -1012,22 +1011,14 @@ int hns_get_sset_count(struct net_device *netdev, int stringset)
  *
  * Return 0 on success, negative on failure.
  */
-int hns_phy_led_set(struct net_device *netdev, int value)
+static int hns_phy_led_set(struct net_device *netdev, int value)
 {
 	int retval;
-	struct hns_nic_priv *priv = netdev_priv(netdev);
-	struct phy_device *phy_dev = priv->phy;
+	struct phy_device *phy_dev = netdev->phydev;
 
-	if (!phy_dev->bus) {
-		netdev_err(netdev, "phy_dev->bus is null!\n");
-		return -EINVAL;
-	}
-	retval = mdiobus_write(phy_dev->bus, phy_dev->addr,
-			       HNS_PHY_PAGE_REG, HNS_PHY_PAGE_LED);
-	retval = mdiobus_write(phy_dev->bus, phy_dev->addr, HNS_LED_FC_REG,
-			       value);
-	retval = mdiobus_write(phy_dev->bus, phy_dev->addr,
-			       HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
+	retval = phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_LED);
+	retval |= phy_write(phy_dev, HNS_LED_FC_REG, value);
+	retval |= phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
 	if (retval) {
 		netdev_err(netdev, "mdiobus_write fail !\n");
 		return retval;
@@ -1042,29 +1033,26 @@ int hns_phy_led_set(struct net_device *netdev, int value)
  *
  * Return 0 on success, negative on failure.
  */
-int hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
+static int
+hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_handle *h = priv->ae_handle;
-	struct phy_device *phy_dev = priv->phy;
+	struct phy_device *phy_dev = netdev->phydev;
 	int ret;
 
 	if (phy_dev)
 		switch (state) {
 		case ETHTOOL_ID_ACTIVE:
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_LED);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_LED);
 			if (ret)
 				return ret;
 
-			priv->phy_led_val = (u16)mdiobus_read(phy_dev->bus,
-							      phy_dev->addr,
-							      HNS_LED_FC_REG);
+			priv->phy_led_val = phy_read(phy_dev, HNS_LED_FC_REG);
 
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_COPPER);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_COPPER);
 			if (ret)
 				return ret;
 			return 2;
@@ -1079,20 +1067,18 @@ int hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 				return ret;
 			break;
 		case ETHTOOL_ID_INACTIVE:
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_LED);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_LED);
 			if (ret)
 				return ret;
 
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_LED_FC_REG, priv->phy_led_val);
+			ret = phy_write(phy_dev, HNS_LED_FC_REG,
+					priv->phy_led_val);
 			if (ret)
 				return ret;
 
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_COPPER);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_COPPER);
 			if (ret)
 				return ret;
 			break;
@@ -1122,13 +1108,11 @@ int hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
  * @cmd: ethtool cmd
  * @date: register data
  */
-void hns_get_regs(struct net_device *net_dev, struct ethtool_regs *cmd,
-		  void *data)
+static void hns_get_regs(struct net_device *net_dev, struct ethtool_regs *cmd,
+			 void *data)
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
-
-	assert(priv || priv->ae_handle);
 
 	ops = priv->ae_handle->dev->ops;
 
@@ -1152,8 +1136,6 @@ static int hns_get_regs_len(struct net_device *net_dev)
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
 
-	assert(priv || priv->ae_handle);
-
 	ops = priv->ae_handle->dev->ops;
 	if (!ops->get_regs_len) {
 		netdev_err(net_dev, "ops->get_regs_len is null!\n");
@@ -1176,22 +1158,112 @@ static int hns_get_regs_len(struct net_device *net_dev)
 static int hns_nic_nway_reset(struct net_device *netdev)
 {
 	int ret = 0;
-	struct hns_nic_priv *priv = netdev_priv(netdev);
-	struct phy_device *phy = priv->phy;
+	struct phy_device *phy = netdev->phydev;
 
 	if (netif_running(netdev)) {
-		if (phy)
+		/* if autoneg is disabled, don't restart auto-negotiation */
+		if (phy && phy->autoneg == AUTONEG_ENABLE)
 			ret = genphy_restart_aneg(phy);
 	}
 
 	return ret;
 }
 
-static struct ethtool_ops hns_ethtool_ops = {
+static u32
+hns_get_rss_key_size(struct net_device *netdev)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_ae_ops *ops;
+
+	if (AE_IS_VER1(priv->enet_ver)) {
+		netdev_err(netdev,
+			   "RSS feature is not supported on this hardware\n");
+		return 0;
+	}
+
+	ops = priv->ae_handle->dev->ops;
+	return ops->get_rss_key_size(priv->ae_handle);
+}
+
+static u32
+hns_get_rss_indir_size(struct net_device *netdev)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_ae_ops *ops;
+
+	if (AE_IS_VER1(priv->enet_ver)) {
+		netdev_err(netdev,
+			   "RSS feature is not supported on this hardware\n");
+		return 0;
+	}
+
+	ops = priv->ae_handle->dev->ops;
+	return ops->get_rss_indir_size(priv->ae_handle);
+}
+
+static int
+hns_get_rss(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_ae_ops *ops;
+
+	if (AE_IS_VER1(priv->enet_ver)) {
+		netdev_err(netdev,
+			   "RSS feature is not supported on this hardware\n");
+		return -EOPNOTSUPP;
+	}
+
+	ops = priv->ae_handle->dev->ops;
+
+	if (!indir)
+		return 0;
+
+	return ops->get_rss(priv->ae_handle, indir, key, hfunc);
+}
+
+static int
+hns_set_rss(struct net_device *netdev, const u32 *indir, const u8 *key,
+	    const u8 hfunc)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_ae_ops *ops;
+
+	if (AE_IS_VER1(priv->enet_ver)) {
+		netdev_err(netdev,
+			   "RSS feature is not supported on this hardware\n");
+		return -EOPNOTSUPP;
+	}
+
+	ops = priv->ae_handle->dev->ops;
+
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP) {
+		netdev_err(netdev, "Invalid hfunc!\n");
+		return -EOPNOTSUPP;
+	}
+
+	return ops->set_rss(priv->ae_handle, indir, key, hfunc);
+}
+
+static int hns_get_rxnfc(struct net_device *netdev,
+			 struct ethtool_rxnfc *cmd,
+			 u32 *rule_locs)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = priv->ae_handle->q_num;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static const struct ethtool_ops hns_ethtool_ops = {
 	.get_drvinfo = hns_nic_get_drvinfo,
 	.get_link  = hns_nic_get_link,
-	.get_settings  = hns_nic_get_settings,
-	.set_settings  = hns_nic_set_settings,
 	.get_ringparam = hns_get_ringparam,
 	.get_pauseparam = hns_get_pauseparam,
 	.set_pauseparam = hns_set_pauseparam,
@@ -1206,6 +1278,13 @@ static struct ethtool_ops hns_ethtool_ops = {
 	.get_regs_len = hns_get_regs_len,
 	.get_regs = hns_get_regs,
 	.nway_reset = hns_nic_nway_reset,
+	.get_rxfh_key_size = hns_get_rss_key_size,
+	.get_rxfh_indir_size = hns_get_rss_indir_size,
+	.get_rxfh = hns_get_rss,
+	.set_rxfh = hns_set_rss,
+	.get_rxnfc = hns_get_rxnfc,
+	.get_link_ksettings  = hns_nic_get_link_ksettings,
+	.set_link_ksettings  = hns_nic_set_link_ksettings,
 };
 
 void hns_ethtool_set_ops(struct net_device *ndev)

@@ -28,8 +28,6 @@
 
 #include "utils.h"
 
-#define SPRN_DSCR	0x11	/* Privilege state SPR */
-#define SPRN_DSCR_USR	0x03	/* Problem state SPR */
 #define THREADS		100	/* Max threads */
 #define COUNT		100	/* Max iterations */
 #define DSCR_MAX	16	/* Max DSCR value */
@@ -41,21 +39,21 @@
 #define rmb()  asm volatile("lwsync":::"memory")
 #define wmb()  asm volatile("lwsync":::"memory")
 
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+#define READ_ONCE(x) (*(volatile typeof(x) *)&(x))
 
 /* Prilvilege state DSCR access */
 inline unsigned long get_dscr(void)
 {
 	unsigned long ret;
 
-	asm volatile("mfspr %0,%1" : "=r" (ret): "i" (SPRN_DSCR));
+	asm volatile("mfspr %0,%1" : "=r" (ret) : "i" (SPRN_DSCR_PRIV));
 
 	return ret;
 }
 
 inline void set_dscr(unsigned long val)
 {
-	asm volatile("mtspr %1,%0" : : "r" (val), "i" (SPRN_DSCR));
+	asm volatile("mtspr %1,%0" : : "r" (val), "i" (SPRN_DSCR_PRIV));
 }
 
 /* Problem state DSCR access */
@@ -63,14 +61,14 @@ inline unsigned long get_dscr_usr(void)
 {
 	unsigned long ret;
 
-	asm volatile("mfspr %0,%1" : "=r" (ret): "i" (SPRN_DSCR_USR));
+	asm volatile("mfspr %0,%1" : "=r" (ret) : "i" (SPRN_DSCR));
 
 	return ret;
 }
 
 inline void set_dscr_usr(unsigned long val)
 {
-	asm volatile("mtspr %1,%0" : : "r" (val), "i" (SPRN_DSCR_USR));
+	asm volatile("mtspr %1,%0" : : "r" (val), "i" (SPRN_DSCR));
 }
 
 /* Default DSCR access */

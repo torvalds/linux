@@ -1,25 +1,37 @@
-* Samsung's Exynos SoC based boards
+* Samsung's Exynos and S5P SoC based boards
 
 Required root node properties:
     - compatible = should be one or more of the following.
+	- "samsung,aries"	- for S5PV210-based Samsung Aries board.
+	- "samsung,fascinate4g"	- for S5PV210-based Samsung Galaxy S Fascinate 4G (SGH-T959P) board.
+	- "samsung,galaxys"	- for S5PV210-based Samsung Galaxy S (i9000)  board.
+	- "samsung,artik5"	- for Exynos3250-based Samsung ARTIK5 module.
+	- "samsung,artik5-eval" - for Exynos3250-based Samsung ARTIK5 eval board.
 	- "samsung,monk"	- for Exynos3250-based Samsung Simband board.
 	- "samsung,rinato"	- for Exynos3250-based Samsung Gear2 board.
 	- "samsung,smdkv310"	- for Exynos4210-based Samsung SMDKV310 eval board.
 	- "samsung,trats"	- for Exynos4210-based Tizen Reference board.
 	- "samsung,universal_c210" - for Exynos4210-based Samsung board.
+	- "samsung,i9300"          - for Exynos4412-based Samsung GT-I9300 board.
+	- "samsung,i9305"          - for Exynos4412-based Samsung GT-I9305 board.
+	- "samsung,midas"       - for Exynos4412-based Samsung Midas board.
 	- "samsung,smdk4412",	- for Exynos4412-based Samsung SMDK4412 eval board.
+	- "samsung,n710x"          - for Exynos4412-based Samsung GT-N7100/GT-N7105 board.
 	- "samsung,trats2"	- for Exynos4412-based Tizen Reference board.
 	- "samsung,smdk5250"	- for Exynos5250-based Samsung SMDK5250 eval board.
 	- "samsung,xyref5260"	- for Exynos5260-based Samsung board.
 	- "samsung,smdk5410"	- for Exynos5410-based Samsung SMDK5410 eval board.
 	- "samsung,smdk5420"	- for Exynos5420-based Samsung SMDK5420 eval board.
-	- "samsung,sd5v1"	- for Exynos5440-based Samsung board.
-	- "samsung,ssdk5440"	- for Exynos5440-based Samsung board.
+	- "samsung,tm2"		- for Exynos5433-based Samsung TM2 board.
+	- "samsung,tm2e"	- for Exynos5433-based Samsung TM2E board.
 
 * Other companies Exynos SoC based
   * FriendlyARM
 	- "friendlyarm,tiny4412"  - for Exynos4412-based FriendlyARM
 				    TINY4412 board.
+  * TOPEET
+	- "topeet,itop4412-elite" - for Exynos4412-based TOPEET
+                                    Elite base board.
 
   * Google
 	- "google,pi"		- for Exynos5800-based Google Peach Pi
@@ -45,17 +57,19 @@ Required root node properties:
 	- "hardkernel,odroid-u3"  - for Exynos4412-based Hardkernel Odroid U3.
 	- "hardkernel,odroid-x"   - for Exynos4412-based Hardkernel Odroid X.
 	- "hardkernel,odroid-x2"  - for Exynos4412-based Hardkernel Odroid X2.
+	- "hardkernel,odroid-xu"  - for Exynos5410-based Hardkernel Odroid XU.
 	- "hardkernel,odroid-xu3" - for Exynos5422-based Hardkernel Odroid XU3.
 	- "hardkernel,odroid-xu3-lite" - for Exynos5422-based Hardkernel
 					 Odroid XU3 Lite board.
 	- "hardkernel,odroid-xu4" - for Exynos5422-based Hardkernel Odroid XU4.
+	- "hardkernel,odroid-hc1" - for Exynos5422-based Hardkernel Odroid HC1.
 
   * Insignal
 	- "insignal,arndale"      - for Exynos5250-based Insignal Arndale board.
 	- "insignal,arndale-octa" - for Exynos5420-based Insignal Arndale
 				    Octa board.
 	- "insignal,origen"       - for Exynos4210-based Insignal Origen board.
-	- "insignal,origen4412    - for Exynos4412-based Insignal Origen board.
+	- "insignal,origen4412"   - for Exynos4412-based Insignal Origen board.
 
 
 Optional nodes:
@@ -63,7 +77,7 @@ Optional nodes:
         - compatible: only "samsung,secure-firmware" is currently supported
         - reg: address of non-secure SYSRAM used for communication with firmware
 
-	firmware@0203F000 {
+	firmware@203f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0203F000 0x1000>;
 	};

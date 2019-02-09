@@ -971,7 +971,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (dma && dma->buflist) {
-		if (cmdbuf->dma_idx > dma->buf_count) {
+		if (cmdbuf->dma_idx >= dma->buf_count) {
 			DRM_ERROR
 			    ("vertex buffer index %u out of range (0-%u)\n",
 			     cmdbuf->dma_idx, dma->buf_count - 1);
@@ -1001,15 +1001,10 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 		cmdbuf->cmd_addr = kcmd_addr;
 	}
 	if (cmdbuf->vb_size) {
-		kvb_addr = kmalloc(cmdbuf->vb_size, GFP_KERNEL);
-		if (kvb_addr == NULL) {
-			ret = -ENOMEM;
-			goto done;
-		}
-
-		if (copy_from_user(kvb_addr, cmdbuf->vb_addr,
-				       cmdbuf->vb_size)) {
-			ret = -EFAULT;
+		kvb_addr = memdup_user(cmdbuf->vb_addr, cmdbuf->vb_size);
+		if (IS_ERR(kvb_addr)) {
+			ret = PTR_ERR(kvb_addr);
+			kvb_addr = NULL;
 			goto done;
 		}
 		cmdbuf->vb_addr = kvb_addr;

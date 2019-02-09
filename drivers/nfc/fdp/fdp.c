@@ -102,7 +102,8 @@ static int fdp_nci_create_conn(struct nci_dev *ndev)
 	if (r)
 		return r;
 
-	return nci_get_conn_info_by_id(ndev, 0);
+	return nci_get_conn_info_by_dest_type_params(ndev,
+						     FDP_PATCH_CONN_DEST, NULL);
 }
 
 static inline int fdp_nci_get_versions(struct nci_dev *ndev)
@@ -227,8 +228,7 @@ static int fdp_nci_send_patch(struct nci_dev *ndev, u8 conn_id, u8 type)
 
 		skb_reserve(skb, NCI_CTRL_HDR_SIZE);
 
-		memcpy(skb_put(skb, payload_size), fw->data + (fw->size - len),
-		       payload_size);
+		skb_put_data(skb, fw->data + (fw->size - len), payload_size);
 
 		rc = nci_send_data(ndev, conn_id, skb);
 
@@ -344,7 +344,7 @@ static void fdp_nci_release_firmware(struct nci_dev *ndev)
 
 	if (info->ram_patch) {
 		release_firmware(info->ram_patch);
-		info->otp_patch = NULL;
+		info->ram_patch = NULL;
 	}
 }
 
@@ -352,7 +352,7 @@ static int fdp_nci_patch_otp(struct nci_dev *ndev)
 {
 	struct fdp_nci_info *info = nci_get_drvdata(ndev);
 	struct device *dev = &info->phy->i2c_dev->dev;
-	u8 conn_id;
+	int conn_id;
 	int r = 0;
 
 	if (info->otp_version >= info->otp_patch_version)
@@ -423,7 +423,7 @@ static int fdp_nci_patch_ram(struct nci_dev *ndev)
 {
 	struct fdp_nci_info *info = nci_get_drvdata(ndev);
 	struct device *dev = &info->phy->i2c_dev->dev;
-	u8 conn_id;
+	int conn_id;
 	int r = 0;
 
 	if (info->ram_version >= info->ram_patch_version)
@@ -726,7 +726,7 @@ static struct nci_driver_ops fdp_prop_ops[] = {
 	},
 };
 
-struct nci_ops nci_ops = {
+static struct nci_ops nci_ops = {
 	.open = fdp_nci_open,
 	.close = fdp_nci_close,
 	.send = fdp_nci_send,
@@ -749,11 +749,9 @@ int fdp_nci_probe(struct fdp_i2c_phy *phy, struct nfc_phy_ops *phy_ops,
 	u32 protocols;
 	int r;
 
-	info = kzalloc(sizeof(struct fdp_nci_info), GFP_KERNEL);
-	if (!info) {
-		r = -ENOMEM;
-		goto err_info_alloc;
-	}
+	info = devm_kzalloc(dev, sizeof(struct fdp_nci_info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
 
 	info->phy = phy;
 	info->phy_ops = phy_ops;
@@ -775,8 +773,7 @@ int fdp_nci_probe(struct fdp_i2c_phy *phy, struct nfc_phy_ops *phy_ops,
 				   tx_tailroom);
 	if (!ndev) {
 		nfc_err(dev, "Cannot allocate nfc ndev\n");
-		r = -ENOMEM;
-		goto err_alloc_ndev;
+		return -ENOMEM;
 	}
 
 	r = nci_register_device(ndev);
@@ -792,9 +789,6 @@ int fdp_nci_probe(struct fdp_i2c_phy *phy, struct nfc_phy_ops *phy_ops,
 
 err_regdev:
 	nci_free_device(ndev);
-err_alloc_ndev:
-	kfree(info);
-err_info_alloc:
 	return r;
 }
 EXPORT_SYMBOL(fdp_nci_probe);
@@ -808,7 +802,6 @@ void fdp_nci_remove(struct nci_dev *ndev)
 
 	nci_unregister_device(ndev);
 	nci_free_device(ndev);
-	kfree(info);
 }
 EXPORT_SYMBOL(fdp_nci_remove);
 

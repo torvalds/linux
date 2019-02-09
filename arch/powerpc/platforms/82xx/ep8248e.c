@@ -131,23 +131,15 @@ static int ep8248e_mdio_probe(struct platform_device *ofdev)
 	if (!bus)
 		return -ENOMEM;
 
-	bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (bus->irq == NULL) {
-		ret = -ENOMEM;
-		goto err_free_bus;
-	}
-
 	bus->name = "ep8248e-mdio-bitbang";
 	bus->parent = &ofdev->dev;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
 	ret = of_mdiobus_register(bus, ofdev->dev.of_node);
 	if (ret)
-		goto err_free_irq;
+		goto err_free_bus;
 
 	return 0;
-err_free_irq:
-	kfree(bus->irq);
 err_free_bus:
 	free_mdio_bitbang(bus);
 	return ret;
@@ -306,7 +298,9 @@ static const struct of_device_id of_bus_ids[] __initconst = {
 static int __init declare_of_platform_devices(void)
 {
 	of_platform_bus_probe(NULL, of_bus_ids, NULL);
-	platform_driver_register(&ep8248e_mdio_driver);
+
+	if (IS_ENABLED(CONFIG_MDIO_BITBANG))
+		platform_driver_register(&ep8248e_mdio_driver);
 
 	return 0;
 }
@@ -317,8 +311,7 @@ machine_device_initcall(ep8248e, declare_of_platform_devices);
  */
 static int __init ep8248e_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-	return of_flat_dt_is_compatible(root, "fsl,ep8248e");
+	return of_machine_is_compatible("fsl,ep8248e");
 }
 
 define_machine(ep8248e)

@@ -19,7 +19,22 @@
 
 #define DEVFREQ_NAME_LEN 16
 
+/* DEVFREQ governor name */
+#define DEVFREQ_GOV_SIMPLE_ONDEMAND	"simple_ondemand"
+#define DEVFREQ_GOV_PERFORMANCE		"performance"
+#define DEVFREQ_GOV_POWERSAVE		"powersave"
+#define DEVFREQ_GOV_USERSPACE		"userspace"
+#define DEVFREQ_GOV_PASSIVE		"passive"
+
+/* DEVFREQ notifier interface */
+#define DEVFREQ_TRANSITION_NOTIFIER	(0)
+
+/* Transition notifiers of DEVFREQ_TRANSITION_NOTIFIER */
+#define	DEVFREQ_PRECHANGE		(0)
+#define DEVFREQ_POSTCHANGE		(1)
+
 struct devfreq;
+struct devfreq_governor;
 
 /**
  * struct devfreq_dev_status - Data given from devfreq user device to
@@ -76,8 +91,9 @@ struct devfreq_dev_status {
  *			from devfreq_remove_device() call. If the user
  *			has registered devfreq->nb at a notifier-head,
  *			this is the time to unregister it.
- * @freq_table:	Optional list of frequencies to support statistics.
- * @max_state:	The size of freq_table.
+ * @freq_table:		Optional list of frequencies to support statistics
+ *			and freq_table must be generated in ascending order.
+ * @max_state:		The size of freq_table.
  */
 struct devfreq_dev_profile {
 	unsigned long initial_freq;
@@ -89,34 +105,8 @@ struct devfreq_dev_profile {
 	int (*get_cur_freq)(struct device *dev, unsigned long *freq);
 	void (*exit)(struct device *dev);
 
-	unsigned int *freq_table;
+	unsigned long *freq_table;
 	unsigned int max_state;
-};
-
-/**
- * struct devfreq_governor - Devfreq policy governor
- * @node:		list node - contains registered devfreq governors
- * @name:		Governor's name
- * @get_target_freq:	Returns desired operating frequency for the device.
- *			Basically, get_target_freq will run
- *			devfreq_dev_profile.get_dev_status() to get the
- *			status of the device (load = busy_time / total_time).
- *			If no_central_polling is set, this callback is called
- *			only with update_devfreq() notified by OPP.
- * @event_handler:      Callback for devfreq core framework to notify events
- *                      to governors. Events include per device governor
- *                      init and exit, opp changes out of devfreq, suspend
- *                      and resume of per device devfreq during device idle.
- *
- * Note that the callbacks are called with devfreq->lock locked by devfreq.
- */
-struct devfreq_governor {
-	struct list_head node;
-
-	const char name[DEVFREQ_NAME_LEN];
-	int (*get_target_freq)(struct devfreq *this, unsigned long *freq);
-	int (*event_handler)(struct devfreq *devfreq,
-				unsigned int event, void *data);
 };
 
 /**
@@ -138,11 +128,14 @@ struct devfreq_governor {
  *		touch this.
  * @min_freq:	Limit minimum frequency requested by user (0: none)
  * @max_freq:	Limit maximum frequency requested by user (0: none)
+ * @scaling_min_freq:	Limit minimum frequency requested by OPP interface
+ * @scaling_max_freq:	Limit maximum frequency requested by OPP interface
  * @stop_polling:	 devfreq polling status of a device.
  * @total_trans:	Number of devfreq transitions
  * @trans_table:	Statistics of devfreq transitions
  * @time_in_state:	Statistics of devfreq states
  * @last_stat_updated:	The last time stat updated
+ * @transition_notifier_list: list head of DEVFREQ_TRANSITION_NOTIFIER notifier
  *
  * This structure stores the devfreq information for a give device.
  *
@@ -170,6 +163,8 @@ struct devfreq {
 
 	unsigned long min_freq;
 	unsigned long max_freq;
+	unsigned long scaling_min_freq;
+	unsigned long scaling_max_freq;
 	bool stop_polling;
 
 	/* information for device frequency transition */
@@ -177,6 +172,13 @@ struct devfreq {
 	unsigned int *trans_table;
 	unsigned long *time_in_state;
 	unsigned long last_stat_updated;
+
+	struct srcu_notifier_head transition_notifier_list;
+};
+
+struct devfreq_freqs {
+	unsigned long old;
+	unsigned long new;
 };
 
 #if defined(CONFIG_PM_DEVFREQ)
@@ -207,19 +209,22 @@ extern int devm_devfreq_register_opp_notifier(struct device *dev,
 					      struct devfreq *devfreq);
 extern void devm_devfreq_unregister_opp_notifier(struct device *dev,
 						struct devfreq *devfreq);
-
-/**
- * devfreq_update_stats() - update the last_status pointer in struct devfreq
- * @df:		the devfreq instance whose status needs updating
- *
- *  Governors are recommended to use this function along with last_status,
- * which allows other entities to reuse the last_status without affecting
- * the values fetched later by governors.
- */
-static inline int devfreq_update_stats(struct devfreq *df)
-{
-	return df->profile->get_dev_status(df->dev.parent, &df->last_status);
-}
+extern int devfreq_register_notifier(struct devfreq *devfreq,
+					struct notifier_block *nb,
+					unsigned int list);
+extern int devfreq_unregister_notifier(struct devfreq *devfreq,
+					struct notifier_block *nb,
+					unsigned int list);
+extern int devm_devfreq_register_notifier(struct device *dev,
+				struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list);
+extern void devm_devfreq_unregister_notifier(struct device *dev,
+				struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list);
+extern struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
+						int index);
 
 #if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 /**
@@ -238,6 +243,39 @@ static inline int devfreq_update_stats(struct devfreq *df)
 struct devfreq_simple_ondemand_data {
 	unsigned int upthreshold;
 	unsigned int downdifferential;
+};
+#endif
+
+#if IS_ENABLED(CONFIG_DEVFREQ_GOV_PASSIVE)
+/**
+ * struct devfreq_passive_data - void *data fed to struct devfreq
+ *	and devfreq_add_device
+ * @parent:	the devfreq instance of parent device.
+ * @get_target_freq:	Optional callback, Returns desired operating frequency
+ *			for the device using passive governor. That is called
+ *			when passive governor should decide the next frequency
+ *			by using the new frequency of parent devfreq device
+ *			using governors except for passive governor.
+ *			If the devfreq device has the specific method to decide
+ *			the next frequency, should use this callback.
+ * @this:	the devfreq instance of own device.
+ * @nb:		the notifier block for DEVFREQ_TRANSITION_NOTIFIER list
+ *
+ * The devfreq_passive_data have to set the devfreq instance of parent
+ * device with governors except for the passive governor. But, don't need to
+ * initialize the 'this' and 'nb' field because the devfreq core will handle
+ * them.
+ */
+struct devfreq_passive_data {
+	/* Should set the devfreq instance of parent device */
+	struct devfreq *parent;
+
+	/* Optional callback to decide the next frequency of passvice device */
+	int (*get_target_freq)(struct devfreq *this, unsigned long *freq);
+
+	/* For passive governor's internal use. Don't need to set them */
+	struct devfreq *this;
+	struct notifier_block nb;
 };
 #endif
 
@@ -305,6 +343,41 @@ static inline int devm_devfreq_register_opp_notifier(struct device *dev,
 static inline void devm_devfreq_unregister_opp_notifier(struct device *dev,
 							struct devfreq *devfreq)
 {
+}
+
+static inline int devfreq_register_notifier(struct devfreq *devfreq,
+					struct notifier_block *nb,
+					unsigned int list)
+{
+	return 0;
+}
+
+static inline int devfreq_unregister_notifier(struct devfreq *devfreq,
+					struct notifier_block *nb,
+					unsigned int list)
+{
+	return 0;
+}
+
+static inline int devm_devfreq_register_notifier(struct device *dev,
+				struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list)
+{
+	return 0;
+}
+
+static inline void devm_devfreq_unregister_notifier(struct device *dev,
+				struct devfreq *devfreq,
+				struct notifier_block *nb,
+				unsigned int list)
+{
+}
+
+static inline struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
+							int index)
+{
+	return ERR_PTR(-ENODEV);
 }
 
 static inline int devfreq_update_stats(struct devfreq *df)

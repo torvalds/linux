@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <elf.h>
 #include <inttypes.h>
 #include <sys/ttydefaults.h>
@@ -10,6 +11,8 @@
 #include "../helpline.h"
 #include "../keysyms.h"
 #include "map.h"
+
+#include "sane_ctype.h"
 
 struct map_browser {
 	struct ui_browser b;
@@ -52,9 +55,9 @@ static int map_browser__search(struct map_browser *browser)
 
 	if (target[0] == '0' && tolower(target[1]) == 'x') {
 		u64 addr = strtoull(target, NULL, 16);
-		sym = map__find_symbol(browser->map, addr, NULL);
+		sym = map__find_symbol(browser->map, addr);
 	} else
-		sym = map__find_symbol_by_name(browser->map, target, NULL);
+		sym = map__find_symbol_by_name(browser->map, target);
 
 	if (sym != NULL) {
 		u32 *idx = symbol__browser_index(sym);
@@ -73,7 +76,7 @@ static int map_browser__run(struct map_browser *browser)
 
 	if (ui_browser__show(&browser->b, browser->map->dso->long_name,
 			     "Press ESC to exit, %s / to search",
-			     verbose ? "" : "restart with -v to use") < 0)
+			     verbose > 0 ? "" : "restart with -v to use") < 0)
 		return -1;
 
 	while (1) {
@@ -81,7 +84,7 @@ static int map_browser__run(struct map_browser *browser)
 
 		switch (key) {
 		case '/':
-			if (verbose)
+			if (verbose > 0)
 				map_browser__search(browser);
 		default:
 			break;
@@ -101,7 +104,7 @@ int map__browse(struct map *map)
 {
 	struct map_browser mb = {
 		.b = {
-			.entries = &map->dso->symbols[map->type],
+			.entries = &map->dso->symbols,
 			.refresh = ui_browser__rb_tree_refresh,
 			.seek	 = ui_browser__rb_tree_seek,
 			.write	 = map_browser__write,
@@ -117,7 +120,7 @@ int map__browse(struct map *map)
 
 		if (maxaddr < pos->end)
 			maxaddr = pos->end;
-		if (verbose) {
+		if (verbose > 0) {
 			u32 *idx = symbol__browser_index(pos);
 			*idx = mb.b.nr_entries;
 		}

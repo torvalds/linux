@@ -239,8 +239,12 @@ static int tifm_7xx1_resume(struct pci_dev *dev)
 	unsigned long timeout;
 	unsigned int good_sockets = 0, bad_sockets = 0;
 	unsigned long flags;
-	unsigned char new_ids[fm->num_sockets];
+	/* Maximum number of entries is 4 */
+	unsigned char new_ids[4];
 	DECLARE_COMPLETION_ONSTACK(finish_resume);
+
+	if (WARN_ON(fm->num_sockets > ARRAY_SIZE(new_ids)))
+		return -ENXIO;
 
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
@@ -415,7 +419,7 @@ static void tifm_7xx1_remove(struct pci_dev *dev)
 	tifm_free_adapter(fm);
 }
 
-static struct pci_device_id tifm_7xx1_pci_tbl [] = {
+static const struct pci_device_id tifm_7xx1_pci_tbl[] = {
 	{ PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX21_XX11_FM, PCI_ANY_ID,
 	  PCI_ANY_ID, 0, 0, 0 }, /* xx21 - the one I have */
         { PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX12_FM, PCI_ANY_ID,

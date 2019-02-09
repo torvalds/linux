@@ -55,18 +55,7 @@
 	compatible = "linksprite,a10-pcduino2", "allwinner,sun4i-a10";
 };
 
-&pio {
-	usb2_vbus_pin_pcduino2: usb2_vbus_pin@0 {
-		allwinner,pins = "PD2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-};
-
 &reg_usb2_vbus {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb2_vbus_pin_pcduino2>;
 	gpio = <&pio 3 2 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };

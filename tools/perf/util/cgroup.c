@@ -1,9 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "util.h"
 #include "../perf.h"
-#include "parse-options.h"
+#include <subcmd/parse-options.h>
 #include "evsel.h"
 #include "cgroup.h"
 #include "evlist.h"
+#include <linux/stringify.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 int nr_cgroups;
 
@@ -12,8 +17,8 @@ cgroupfs_find_mountpoint(char *buf, size_t maxlen)
 {
 	FILE *fp;
 	char mountpoint[PATH_MAX + 1], tokens[PATH_MAX + 1], type[PATH_MAX + 1];
+	char path_v1[PATH_MAX + 1], path_v2[PATH_MAX + 2], *path;
 	char *token, *saved_ptr = NULL;
-	int found = 0;
 
 	fp = fopen("/proc/mounts", "r");
 	if (!fp)
@@ -24,37 +29,49 @@ cgroupfs_find_mountpoint(char *buf, size_t maxlen)
 	 * and inspect every cgroupfs mount point to find one that has
 	 * perf_event subsystem
 	 */
-	while (fscanf(fp, "%*s %"STR(PATH_MAX)"s %"STR(PATH_MAX)"s %"
-				STR(PATH_MAX)"s %*d %*d\n",
+	path_v1[0] = '\0';
+	path_v2[0] = '\0';
+
+	while (fscanf(fp, "%*s %"__stringify(PATH_MAX)"s %"__stringify(PATH_MAX)"s %"
+				__stringify(PATH_MAX)"s %*d %*d\n",
 				mountpoint, type, tokens) == 3) {
 
-		if (!strcmp(type, "cgroup")) {
+		if (!path_v1[0] && !strcmp(type, "cgroup")) {
 
 			token = strtok_r(tokens, ",", &saved_ptr);
 
 			while (token != NULL) {
 				if (!strcmp(token, "perf_event")) {
-					found = 1;
+					strcpy(path_v1, mountpoint);
 					break;
 				}
 				token = strtok_r(NULL, ",", &saved_ptr);
 			}
 		}
-		if (found)
+
+		if (!path_v2[0] && !strcmp(type, "cgroup2"))
+			strcpy(path_v2, mountpoint);
+
+		if (path_v1[0] && path_v2[0])
 			break;
 	}
 	fclose(fp);
-	if (!found)
+
+	if (path_v1[0])
+		path = path_v1;
+	else if (path_v2[0])
+		path = path_v2;
+	else
 		return -1;
 
-	if (strlen(mountpoint) < maxlen) {
-		strcpy(buf, mountpoint);
+	if (strlen(path) < maxlen) {
+		strcpy(buf, path);
 		return 0;
 	}
 	return -1;
 }
 
-static int open_cgroup(char *name)
+static int open_cgroup(const char *name)
 {
 	char path[PATH_MAX + 1];
 	char mnt[PATH_MAX + 1];
@@ -64,7 +81,7 @@ static int open_cgroup(char *name)
 	if (cgroupfs_find_mountpoint(mnt, PATH_MAX + 1))
 		return -1;
 
-	snprintf(path, PATH_MAX, "%s/%s", mnt, name);
+	scnprintf(path, PATH_MAX, "%s/%s", mnt, name);
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1)
@@ -73,74 +90,123 @@ static int open_cgroup(char *name)
 	return fd;
 }
 
-static int add_cgroup(struct perf_evlist *evlist, char *str)
+static struct cgroup *evlist__find_cgroup(struct perf_evlist *evlist, const char *str)
 {
 	struct perf_evsel *counter;
-	struct cgroup_sel *cgrp = NULL;
-	int n;
 	/*
 	 * check if cgrp is already defined, if so we reuse it
 	 */
-	evlist__for_each(evlist, counter) {
-		cgrp = counter->cgrp;
-		if (!cgrp)
+	evlist__for_each_entry(evlist, counter) {
+		if (!counter->cgrp)
 			continue;
-		if (!strcmp(cgrp->name, str))
-			break;
-
-		cgrp = NULL;
+		if (!strcmp(counter->cgrp->name, str))
+			return cgroup__get(counter->cgrp);
 	}
 
-	if (!cgrp) {
-		cgrp = zalloc(sizeof(*cgrp));
-		if (!cgrp)
-			return -1;
+	return NULL;
+}
 
-		cgrp->name = str;
+static struct cgroup *cgroup__new(const char *name)
+{
+	struct cgroup *cgroup = zalloc(sizeof(*cgroup));
 
-		cgrp->fd = open_cgroup(str);
-		if (cgrp->fd == -1) {
-			free(cgrp);
-			return -1;
-		}
+	if (cgroup != NULL) {
+		refcount_set(&cgroup->refcnt, 1);
+
+		cgroup->name = strdup(name);
+		if (!cgroup->name)
+			goto out_err;
+		cgroup->fd = open_cgroup(name);
+		if (cgroup->fd == -1)
+			goto out_free_name;
 	}
 
+	return cgroup;
+
+out_free_name:
+	free(cgroup->name);
+out_err:
+	free(cgroup);
+	return NULL;
+}
+
+struct cgroup *evlist__findnew_cgroup(struct perf_evlist *evlist, const char *name)
+{
+	struct cgroup *cgroup = evlist__find_cgroup(evlist, name);
+
+	return cgroup ?: cgroup__new(name);
+}
+
+static int add_cgroup(struct perf_evlist *evlist, const char *str)
+{
+	struct perf_evsel *counter;
+	struct cgroup *cgrp = evlist__findnew_cgroup(evlist, str);
+	int n;
+
+	if (!cgrp)
+		return -1;
 	/*
 	 * find corresponding event
 	 * if add cgroup N, then need to find event N
 	 */
 	n = 0;
-	evlist__for_each(evlist, counter) {
+	evlist__for_each_entry(evlist, counter) {
 		if (n == nr_cgroups)
 			goto found;
 		n++;
 	}
-	if (atomic_read(&cgrp->refcnt) == 0)
-		free(cgrp);
 
+	cgroup__put(cgrp);
 	return -1;
 found:
-	atomic_inc(&cgrp->refcnt);
 	counter->cgrp = cgrp;
 	return 0;
 }
 
-void close_cgroup(struct cgroup_sel *cgrp)
+static void cgroup__delete(struct cgroup *cgroup)
 {
-	if (cgrp && atomic_dec_and_test(&cgrp->refcnt)) {
-		close(cgrp->fd);
-		zfree(&cgrp->name);
-		free(cgrp);
+	close(cgroup->fd);
+	zfree(&cgroup->name);
+	free(cgroup);
+}
+
+void cgroup__put(struct cgroup *cgrp)
+{
+	if (cgrp && refcount_dec_and_test(&cgrp->refcnt)) {
+		cgroup__delete(cgrp);
 	}
 }
 
-int parse_cgroups(const struct option *opt __maybe_unused, const char *str,
+struct cgroup *cgroup__get(struct cgroup *cgroup)
+{
+       if (cgroup)
+		refcount_inc(&cgroup->refcnt);
+       return cgroup;
+}
+
+static void evsel__set_default_cgroup(struct perf_evsel *evsel, struct cgroup *cgroup)
+{
+	if (evsel->cgrp == NULL)
+		evsel->cgrp = cgroup__get(cgroup);
+}
+
+void evlist__set_default_cgroup(struct perf_evlist *evlist, struct cgroup *cgroup)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel)
+		evsel__set_default_cgroup(evsel, cgroup);
+}
+
+int parse_cgroups(const struct option *opt, const char *str,
 		  int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
+	struct perf_evsel *counter;
+	struct cgroup *cgrp = NULL;
 	const char *p, *e, *eos = str + strlen(str);
 	char *s;
-	int ret;
+	int ret, i;
 
 	if (list_empty(&evlist->entries)) {
 		fprintf(stderr, "must define events before cgroups\n");
@@ -158,16 +224,28 @@ int parse_cgroups(const struct option *opt __maybe_unused, const char *str,
 			if (!s)
 				return -1;
 			ret = add_cgroup(evlist, s);
-			if (ret) {
-				free(s);
+			free(s);
+			if (ret)
 				return -1;
-			}
 		}
 		/* nr_cgroups is increased een for empty cgroups */
 		nr_cgroups++;
 		if (!p)
 			break;
 		str = p+1;
+	}
+	/* for the case one cgroup combine to multiple events */
+	i = 0;
+	if (nr_cgroups == 1) {
+		evlist__for_each_entry(evlist, counter) {
+			if (i == 0)
+				cgrp = counter->cgrp;
+			else {
+				counter->cgrp = cgrp;
+				refcount_inc(&cgrp->refcnt);
+			}
+			i++;
+		}
 	}
 	return 0;
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ___ASM_SPARC_PCI_H
 #define ___ASM_SPARC_PCI_H
 #if defined(__sparc__) && defined(__arch64__)
@@ -5,7 +6,4 @@
 #else
 #include <asm/pci_32.h>
 #endif
-
-#include <asm-generic/pci-dma-compat.h>
-
 #endif

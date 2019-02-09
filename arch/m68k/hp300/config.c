@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/m68k/hp300/config.c
  *
@@ -12,6 +13,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/console.h>
+#include <linux/rtc.h>
 
 #include <asm/bootinfo.h>
 #include <asm/bootinfo-hp300.h>
@@ -20,7 +22,6 @@
 #include <asm/blinken.h>
 #include <asm/io.h>                               /* readb() and writeb() */
 #include <asm/hp300hw.h>
-#include <asm/rtc.h>
 
 #include "time.h"
 

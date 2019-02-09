@@ -58,9 +58,15 @@ static struct ath_nf_limits *ath9k_hw_get_nf_limits(struct ath_hw *ah,
 }
 
 static s16 ath9k_hw_get_default_nf(struct ath_hw *ah,
-				   struct ath9k_channel *chan)
+				   struct ath9k_channel *chan,
+				   int chain)
 {
-	return ath9k_hw_get_nf_limits(ah, chan)->nominal;
+	s16 calib_nf = ath9k_hw_get_nf_limits(ah, chan)->cal[chain];
+
+	if (calib_nf)
+		return calib_nf;
+	else
+		return ath9k_hw_get_nf_limits(ah, chan)->nominal;
 }
 
 s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan,
@@ -70,7 +76,7 @@ s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	if (nf) {
 		s8 delta = nf - ATH9K_NF_CAL_NOISE_THRESH -
-			   ath9k_hw_get_default_nf(ah, chan);
+			   ath9k_hw_get_default_nf(ah, chan, 0);
 		if (delta > 0)
 			noise += delta;
 	}
@@ -145,14 +151,14 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 }
 
 static bool ath9k_hw_get_nf_thresh(struct ath_hw *ah,
-				   enum ieee80211_band band,
+				   enum nl80211_band band,
 				   int16_t *nft)
 {
 	switch (band) {
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		*nft = (int8_t)ah->eep_ops->get_eeprom(ah, EEP_NFTHRESH_5);
 		break;
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		*nft = (int8_t)ah->eep_ops->get_eeprom(ah, EEP_NFTHRESH_2);
 		break;
 	default:
@@ -240,7 +246,8 @@ int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	unsigned i, j;
 	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	struct ath_common *common = ath9k_hw_common(ah);
-	s16 default_nf = ath9k_hw_get_default_nf(ah, chan);
+	s16 default_nf = ath9k_hw_get_nf_limits(ah, chan)->nominal;
+	u32 bb_agc_ctl = REG_READ(ah, AR_PHY_AGC_CONTROL);
 
 	if (ah->caldata)
 		h = ah->caldata->nfCalHist;
@@ -253,14 +260,31 @@ int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 			if ((i >= AR5416_MAX_CHAINS) && !IS_CHAN_HT40(chan))
 				continue;
 
-			if (h)
+			if (ah->nf_override)
+				nfval = ah->nf_override;
+			else if (h)
 				nfval = h[i].privNF;
-			else
-				nfval = default_nf;
+			else {
+				/* Try to get calibrated noise floor value */
+				nfval =
+				    ath9k_hw_get_nf_limits(ah, chan)->cal[i];
+				if (nfval > -60 || nfval < -127)
+					nfval = default_nf;
+			}
 
 			REG_RMW(ah, ah->nf_regs[i],
 				(((u32) nfval << 1) & 0x1ff), 0x1ff);
 		}
+	}
+
+	/*
+	 * stop NF cal if ongoing to ensure NF load completes immediately
+	 * (or after end rx/tx frame if ongoing)
+	 */
+	if (bb_agc_ctl & AR_PHY_AGC_CONTROL_NF) {
+		REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
+		REG_RMW_BUFFER_FLUSH(ah);
+		ENABLE_REG_RMW_BUFFER(ah);
 	}
 
 	/*
@@ -276,15 +300,30 @@ int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	/*
 	 * Wait for load to complete, should be fast, a few 10s of us.
-	 * The max delay was changed from an original 250us to 10000us
-	 * since 250us often results in NF load timeout and causes deaf
-	 * condition during stress testing 12/12/2009
+	 * The max delay was changed from an original 250us to 22.2 msec.
+	 * This would increase timeout to the longest possible frame
+	 * (11n max length 22.1 msec)
 	 */
-	for (j = 0; j < 10000; j++) {
+	for (j = 0; j < 22200; j++) {
 		if ((REG_READ(ah, AR_PHY_AGC_CONTROL) &
-		     AR_PHY_AGC_CONTROL_NF) == 0)
+			      AR_PHY_AGC_CONTROL_NF) == 0)
 			break;
 		udelay(10);
+	}
+
+	/*
+	 * Restart NF so it can continue.
+	 */
+	if (bb_agc_ctl & AR_PHY_AGC_CONTROL_NF) {
+		ENABLE_REG_RMW_BUFFER(ah);
+		if (bb_agc_ctl & AR_PHY_AGC_CONTROL_ENABLE_NF)
+			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
+				    AR_PHY_AGC_CONTROL_ENABLE_NF);
+		if (bb_agc_ctl & AR_PHY_AGC_CONTROL_NO_UPDATE_NF)
+			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
+				    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
+		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
+		REG_RMW_BUFFER_FLUSH(ah);
 	}
 
 	/*
@@ -296,7 +335,7 @@ int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * here, the baseband nf cal will just be capped by our present
 	 * noisefloor until the next calibration timer.
 	 */
-	if (j == 10000) {
+	if (j == 22200) {
 		ath_dbg(common, ANY,
 			"Timeout while waiting for nf to load: AR_PHY_AGC_CONTROL=0x%x\n",
 			REG_READ(ah, AR_PHY_AGC_CONTROL));
@@ -322,6 +361,7 @@ int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	return 0;
 }
+EXPORT_SYMBOL(ath9k_hw_loadnf);
 
 
 static void ath9k_hw_nf_sanitize(struct ath_hw *ah, s16 *nf)
@@ -400,20 +440,19 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah,
 				  struct ath9k_channel *chan)
 {
 	struct ath9k_nfcal_hist *h;
-	s16 default_nf;
-	int i, j;
+	int i, j, k = 0;
 
 	ah->caldata->channel = chan->channel;
 	ah->caldata->channelFlags = chan->channelFlags;
 	h = ah->caldata->nfCalHist;
-	default_nf = ath9k_hw_get_default_nf(ah, chan);
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		h[i].currIndex = 0;
-		h[i].privNF = default_nf;
+		h[i].privNF = ath9k_hw_get_default_nf(ah, chan, k);
 		h[i].invalidNFcount = AR_PHY_CCA_FILTERWINDOW_LENGTH;
-		for (j = 0; j < ATH9K_NF_CAL_HIST_MAX; j++) {
-			h[i].nfCalBuffer[j] = default_nf;
-		}
+		for (j = 0; j < ATH9K_NF_CAL_HIST_MAX; j++)
+			h[i].nfCalBuffer[j] = h[i].privNF;
+		if (++k >= AR5416_MAX_CHAINS)
+			k = 0;
 	}
 }
 

@@ -31,13 +31,10 @@ static unsigned int nf_route_table_hook(void *priv,
 	__be32 saddr, daddr;
 	u_int8_t tos;
 	const struct iphdr *iph;
+	int err;
 
-	/* root is playing with raw sockets. */
-	if (skb->len < sizeof(struct iphdr) ||
-	    ip_hdrlen(skb) < sizeof(struct iphdr))
-		return NF_ACCEPT;
-
-	nft_set_pktinfo_ipv4(&pkt, skb, state);
+	nft_set_pktinfo(&pkt, skb, state);
+	nft_set_pktinfo_ipv4(&pkt, skb);
 
 	mark = skb->mark;
 	iph = ip_hdr(skb);
@@ -46,20 +43,22 @@ static unsigned int nf_route_table_hook(void *priv,
 	tos = iph->tos;
 
 	ret = nft_do_chain(&pkt, priv);
-	if (ret != NF_DROP && ret != NF_QUEUE) {
+	if (ret != NF_DROP && ret != NF_STOLEN) {
 		iph = ip_hdr(skb);
 
 		if (iph->saddr != saddr ||
 		    iph->daddr != daddr ||
 		    skb->mark != mark ||
-		    iph->tos != tos)
-			if (ip_route_me_harder(state->net, skb, RTN_UNSPEC))
-				ret = NF_DROP;
+		    iph->tos != tos) {
+			err = ip_route_me_harder(state->net, skb, RTN_UNSPEC);
+			if (err < 0)
+				ret = NF_DROP_ERR(err);
+		}
 	}
 	return ret;
 }
 
-static const struct nf_chain_type nft_chain_route_ipv4 = {
+static const struct nft_chain_type nft_chain_route_ipv4 = {
 	.name		= "route",
 	.type		= NFT_CHAIN_T_ROUTE,
 	.family		= NFPROTO_IPV4,
@@ -72,7 +71,9 @@ static const struct nf_chain_type nft_chain_route_ipv4 = {
 
 static int __init nft_chain_route_init(void)
 {
-	return nft_register_chain_type(&nft_chain_route_ipv4);
+	nft_register_chain_type(&nft_chain_route_ipv4);
+
+	return 0;
 }
 
 static void __exit nft_chain_route_exit(void)

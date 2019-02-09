@@ -24,10 +24,15 @@
  * Authors: Serge E. Hallyn <serue@us.ibm.com>
  */
 
+
+/* NOTE: we really do want to use the kernel headers here */
+#define __EXPORTED_HEADERS__
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/socket.h>
 
 static void usage(char *name)
 {
@@ -119,7 +124,6 @@ int main(int argc, char *argv[])
 	fprintf(fout, "fs_use_xattr reiserfs user_u:base_r:base_t;\n");
 	fprintf(fout, "fs_use_xattr jffs2 user_u:base_r:base_t;\n");
 	fprintf(fout, "fs_use_xattr gfs2 user_u:base_r:base_t;\n");
-	fprintf(fout, "fs_use_xattr lustre user_u:base_r:base_t;\n");
 
 	fprintf(fout, "fs_use_task eventpollfs user_u:base_r:base_t;\n");
 	fprintf(fout, "fs_use_task pipefs user_u:base_r:base_t;\n");

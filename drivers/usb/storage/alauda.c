@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Alauda-based card readers
  *
@@ -15,20 +16,6 @@
  * (very old) vendor-supplied GPL sma03 driver.
  *
  * For protocol info, see http://alauda.sourceforge.net
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -829,8 +816,10 @@ static int alauda_write_lba(struct us_data *us, u16 lba,
 
 	pba = MEDIA_INFO(us).lba_to_pba[zone][lba_offset];
 	if (pba == 1) {
-		/* Maybe it is impossible to write to PBA 1.
-		   Fake success, but don't do anything. */
+		/*
+		 * Maybe it is impossible to write to PBA 1.
+		 * Fake success, but don't do anything.
+		 */
 		printk(KERN_WARNING
 		       "alauda_write_lba: avoid writing to pba 1\n");
 		return USB_STOR_TRANSPORT_GOOD;
@@ -937,10 +926,8 @@ static int alauda_read_data(struct us_data *us, unsigned long address,
 
 	len = min(sectors, blocksize) * (pagesize + 64);
 	buffer = kmalloc(len, GFP_NOIO);
-	if (buffer == NULL) {
-		printk(KERN_WARNING "alauda_read_data: Out of memory\n");
+	if (!buffer)
 		return USB_STOR_TRANSPORT_ERROR;
-	}
 
 	/* Figure out the initial LBA and page */
 	lba = address >> blockshift;
@@ -977,10 +964,12 @@ static int alauda_read_data(struct us_data *us, unsigned long address,
 			usb_stor_dbg(us, "Read %d zero pages (LBA %d) page %d\n",
 				     pages, lba, page);
 
-			/* This is not really an error. It just means
-			   that the block has never been written.
-			   Instead of returning USB_STOR_TRANSPORT_ERROR
-			   it is better to return all zero data. */
+			/*
+			 * This is not really an error. It just means
+			 * that the block has never been written.
+			 * Instead of returning USB_STOR_TRANSPORT_ERROR
+			 * it is better to return all zero data.
+			 */
 
 			memset(buffer, 0, len);
 		} else {
@@ -1029,18 +1018,15 @@ static int alauda_write_data(struct us_data *us, unsigned long address,
 
 	len = min(sectors, blocksize) * pagesize;
 	buffer = kmalloc(len, GFP_NOIO);
-	if (buffer == NULL) {
-		printk(KERN_WARNING "alauda_write_data: Out of memory\n");
+	if (!buffer)
 		return USB_STOR_TRANSPORT_ERROR;
-	}
 
 	/*
 	 * We also need a temporary block buffer, where we read in the old data,
 	 * overwrite parts with the new data, and manipulate the redundancy data
 	 */
-	blockbuffer = kmalloc((pagesize + 64) * blocksize, GFP_NOIO);
-	if (blockbuffer == NULL) {
-		printk(KERN_WARNING "alauda_write_data: Out of memory\n");
+	blockbuffer = kmalloc_array(pagesize + 64, blocksize, GFP_NOIO);
+	if (!blockbuffer) {
 		kfree(buffer);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
@@ -1222,8 +1208,10 @@ static int alauda_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	if (srb->cmnd[0] == ALLOW_MEDIUM_REMOVAL) {
-		/* sure.  whatever.  not like we can stop the user from popping
-		   the media out of the device (no locking doors, etc) */
+		/*
+		 * sure.  whatever.  not like we can stop the user from popping
+		 * the media out of the device (no locking doors, etc)
+		 */
 		return USB_STOR_TRANSPORT_GOOD;
 	}
 

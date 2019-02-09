@@ -21,6 +21,8 @@
 #include <sys/types.h>
 #include <sys/poll.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <mntent.h>
@@ -30,9 +32,12 @@
 #include <ctype.h>
 #include <errno.h>
 #include <linux/fs.h>
+#include <linux/major.h>
 #include <linux/hyperv.h>
 #include <syslog.h>
 #include <getopt.h>
+#include <stdbool.h>
+#include <dirent.h>
 
 /* Don't use syslog() in the function since that can cause write to disk */
 static int vss_do_freeze(char *dir, unsigned int cmd)
@@ -65,12 +70,63 @@ static int vss_do_freeze(char *dir, unsigned int cmd)
 	return !!ret;
 }
 
+static bool is_dev_loop(const char *blkname)
+{
+	char *buffer;
+	DIR *dir;
+	struct dirent *entry;
+	bool ret = false;
+
+	buffer = malloc(PATH_MAX);
+	if (!buffer) {
+		syslog(LOG_ERR, "Can't allocate memory!");
+		exit(1);
+	}
+
+	snprintf(buffer, PATH_MAX, "%s/loop", blkname);
+	if (!access(buffer, R_OK | X_OK)) {
+		ret = true;
+		goto free_buffer;
+	} else if (errno != ENOENT) {
+		syslog(LOG_ERR, "Can't access: %s; error:%d %s!",
+		       buffer, errno, strerror(errno));
+	}
+
+	snprintf(buffer, PATH_MAX, "%s/slaves", blkname);
+	dir = opendir(buffer);
+	if (!dir) {
+		if (errno != ENOENT)
+			syslog(LOG_ERR, "Can't opendir: %s; error:%d %s!",
+			       buffer, errno, strerror(errno));
+		goto free_buffer;
+	}
+
+	while ((entry = readdir(dir)) != NULL) {
+		if (strcmp(entry->d_name, ".") == 0 ||
+		    strcmp(entry->d_name, "..") == 0)
+			continue;
+
+		snprintf(buffer, PATH_MAX, "%s/slaves/%s", blkname,
+			 entry->d_name);
+		if (is_dev_loop(buffer)) {
+			ret = true;
+			break;
+		}
+	}
+	closedir(dir);
+free_buffer:
+	free(buffer);
+	return ret;
+}
+
 static int vss_operate(int operation)
 {
 	char match[] = "/dev/";
 	FILE *mounts;
 	struct mntent *ent;
+	struct stat sb;
 	char errdir[1024] = {0};
+	char blkdir[23]; /* /sys/dev/block/XXX:XXX */
 	unsigned int cmd;
 	int error = 0, root_seen = 0, save_errno = 0;
 
@@ -92,6 +148,15 @@ static int vss_operate(int operation)
 	while ((ent = getmntent(mounts))) {
 		if (strncmp(ent->mnt_fsname, match, strlen(match)))
 			continue;
+		if (stat(ent->mnt_fsname, &sb)) {
+			syslog(LOG_ERR, "Can't stat: %s; error:%d %s!",
+			       ent->mnt_fsname, errno, strerror(errno));
+		} else {
+			sprintf(blkdir, "/sys/dev/block/%d:%d",
+				major(sb.st_rdev), minor(sb.st_rdev));
+			if (is_dev_loop(blkdir))
+				continue;
+		}
 		if (hasmntopt(ent, MNTOPT_RO) != NULL)
 			continue;
 		if (strcmp(ent->mnt_type, "vfat") == 0)
@@ -250,15 +315,20 @@ int main(int argc, char *argv[])
 				syslog(LOG_ERR, "/etc/fstab and /proc/mounts");
 			}
 			break;
+		case VSS_OP_HOT_BACKUP:
+			syslog(LOG_INFO, "VSS: op=CHECK HOT BACKUP\n");
+			break;
 		default:
 			syslog(LOG_ERR, "Illegal op:%d\n", op);
 		}
 		vss_msg->error = error;
-		len = write(vss_fd, &error, sizeof(struct hv_vss_msg));
+		len = write(vss_fd, vss_msg, sizeof(struct hv_vss_msg));
 		if (len != sizeof(struct hv_vss_msg)) {
 			syslog(LOG_ERR, "write failed; error: %d %s", errno,
 			       strerror(errno));
-			exit(EXIT_FAILURE);
+
+			if (op == VSS_OP_FREEZE)
+				vss_operate(VSS_OP_THAW);
 		}
 	}
 

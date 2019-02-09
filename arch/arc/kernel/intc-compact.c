@@ -14,6 +14,9 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
+#define NR_CPU_IRQS	32	/* number of irq lines coming in */
+#define TIMER0_IRQ	3	/* Fixed by ISA */
+
 /*
  * Early Hardware specific Interrupt setup
  * -Platform independent, needed for each CPU (not foldable into init_IRQ)
@@ -24,12 +27,10 @@
  */
 void arc_init_IRQ(void)
 {
-	int level_mask = 0;
+	unsigned int level_mask = 0, i;
 
-       /* setup any high priority Interrupts (Level2 in ARCompact jargon) */
-	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ3_LV2) << 3;
-	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ5_LV2) << 5;
-	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ6_LV2) << 6;
+       /* Is timer high priority Interrupt (Level2 in ARCompact jargon) */
+	level_mask |= IS_ENABLED(CONFIG_ARC_COMPACT_IRQ_LEVELS) << TIMER0_IRQ;
 
 	/*
 	 * Write to register, even if no LV2 IRQs configured to reset it
@@ -39,6 +40,18 @@ void arc_init_IRQ(void)
 
 	if (level_mask)
 		pr_info("Level-2 interrupts bitset %x\n", level_mask);
+
+	/*
+	 * Disable all IRQ lines so faulty external hardware won't
+	 * trigger interrupt that kernel is not ready to handle.
+	 */
+	for (i = TIMER0_IRQ; i < NR_CPU_IRQS; i++) {
+		unsigned int ienb;
+
+		ienb = read_aux_reg(AUX_IENABLE);
+		ienb &= ~(1 << i);
+		write_aux_reg(AUX_IENABLE, ienb);
+	}
 }
 
 /*
@@ -57,7 +70,7 @@ static void arc_irq_mask(struct irq_data *data)
 	unsigned int ienb;
 
 	ienb = read_aux_reg(AUX_IENABLE);
-	ienb &= ~(1 << data->irq);
+	ienb &= ~(1 << data->hwirq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 
@@ -66,7 +79,7 @@ static void arc_irq_unmask(struct irq_data *data)
 	unsigned int ienb;
 
 	ienb = read_aux_reg(AUX_IENABLE);
-	ienb |= (1 << data->irq);
+	ienb |= (1 << data->hwirq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 
@@ -79,11 +92,9 @@ static struct irq_chip onchip_intc = {
 static int arc_intc_domain_map(struct irq_domain *d, unsigned int irq,
 			       irq_hw_number_t hw)
 {
-	switch (irq) {
+	switch (hw) {
 	case TIMER0_IRQ:
-#ifdef CONFIG_SMP
-	case IPI_IRQ:
-#endif
+		irq_set_percpu_devid(irq);
 		irq_set_chip_and_handler(irq, &onchip_intc, handle_percpu_irq);
 		break;
 	default:
@@ -97,21 +108,23 @@ static const struct irq_domain_ops arc_intc_domain_ops = {
 	.map = arc_intc_domain_map,
 };
 
-static struct irq_domain *root_domain;
-
 static int __init
 init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 {
+	struct irq_domain *root_domain;
+
 	if (parent)
 		panic("DeviceTree incore intc not a root irq controller\n");
 
-	root_domain = irq_domain_add_legacy(intc, NR_CPU_IRQS, 0, 0,
+	root_domain = irq_domain_add_linear(intc, NR_CPU_IRQS,
 					    &arc_intc_domain_ops, NULL);
-
 	if (!root_domain)
 		panic("root irq domain not avail\n");
 
-	/* with this we don't need to export root_domain */
+	/*
+	 * Needed for primary domain lookup to succeed
+	 * This is a primary irqchip, and can never have a parent
+	 */
 	irq_set_default_host(root_domain);
 
 	return 0;

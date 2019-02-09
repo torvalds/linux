@@ -29,13 +29,13 @@
  * common CM functions
  */
 static struct cm_ll_data null_cm_ll_data;
-static struct cm_ll_data *cm_ll_data = &null_cm_ll_data;
+static const struct cm_ll_data *cm_ll_data = &null_cm_ll_data;
 
 /* cm_base: base virtual address of the CM IP block */
-void __iomem *cm_base;
+struct omap_domain_base cm_base;
 
 /* cm2_base: base virtual address of the CM2 IP block (OMAP44xx only) */
-void __iomem *cm2_base;
+struct omap_domain_base cm2_base;
 
 #define CM_NO_CLOCKS		0x1
 #define CM_SINGLE_INSTANCE	0x2
@@ -49,8 +49,8 @@ void __iomem *cm2_base;
  */
 void __init omap2_set_globals_cm(void __iomem *cm, void __iomem *cm2)
 {
-	cm_base = cm;
-	cm2_base = cm2;
+	cm_base.va = cm;
+	cm2_base.va = cm2;
 }
 
 /**
@@ -65,17 +65,20 @@ void __init omap2_set_globals_cm(void __iomem *cm, void __iomem *cm2)
  * or 0 upon success.  XXX This function is only needed until absolute
  * register addresses are removed from the OMAP struct clk records.
  */
-int cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
+int cm_split_idlest_reg(struct clk_omap_reg *idlest_reg, s16 *prcm_inst,
 			u8 *idlest_reg_id)
 {
+	int ret;
 	if (!cm_ll_data->split_idlest_reg) {
 		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
 
-	return cm_ll_data->split_idlest_reg(idlest_reg, prcm_inst,
+	ret = cm_ll_data->split_idlest_reg(idlest_reg, prcm_inst,
 					   idlest_reg_id);
+	*prcm_inst -= cm_base.offset;
+	return ret;
 }
 
 /**
@@ -175,6 +178,16 @@ int omap_cm_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
 	return 0;
 }
 
+u32 omap_cm_xlate_clkctrl(u8 part, u16 inst, u16 clkctrl_offs)
+{
+	if (!cm_ll_data->xlate_clkctrl) {
+		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+			  __func__);
+		return 0;
+	}
+	return cm_ll_data->xlate_clkctrl(part, inst, clkctrl_offs);
+}
+
 /**
  * cm_register - register per-SoC low-level data with the CM
  * @cld: low-level per-SoC OMAP CM data & function pointers to register
@@ -186,7 +199,7 @@ int omap_cm_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
  * is NULL, or -EEXIST if cm_register() has already been called
  * without an intervening cm_unregister().
  */
-int cm_register(struct cm_ll_data *cld)
+int cm_register(const struct cm_ll_data *cld)
 {
 	if (!cld)
 		return -EINVAL;
@@ -210,7 +223,7 @@ int cm_register(struct cm_ll_data *cld)
  * -EINVAL if @cld is NULL or if @cld does not match the struct
  * cm_ll_data * previously registered by cm_register().
  */
-int cm_unregister(struct cm_ll_data *cld)
+int cm_unregister(const struct cm_ll_data *cld)
 {
 	if (!cld || cm_ll_data != cld)
 		return -EINVAL;
@@ -315,27 +328,35 @@ int __init omap2_cm_base_init(void)
 	struct device_node *np;
 	const struct of_device_id *match;
 	struct omap_prcm_init_data *data;
-	void __iomem *mem;
+	struct resource res;
+	int ret;
+	struct omap_domain_base *mem = NULL;
 
 	for_each_matching_node_and_match(np, omap_cm_dt_match_table, &match) {
 		data = (struct omap_prcm_init_data *)match->data;
 
-		mem = of_iomap(np, 0);
-		if (!mem)
-			return -ENOMEM;
+		ret = of_address_to_resource(np, 0, &res);
+		if (ret)
+			return ret;
 
 		if (data->index == TI_CLKM_CM)
-			cm_base = mem + data->offset;
+			mem = &cm_base;
 
 		if (data->index == TI_CLKM_CM2)
-			cm2_base = mem + data->offset;
+			mem = &cm2_base;
 
-		data->mem = mem;
+		data->mem = ioremap(res.start, resource_size(&res));
+
+		if (mem) {
+			mem->pa = res.start + data->offset;
+			mem->va = data->mem + data->offset;
+			mem->offset = data->offset;
+		}
 
 		data->np = np;
 
 		if (data->init && (data->flags & CM_SINGLE_INSTANCE ||
-				   (cm_base && cm2_base)))
+				   (cm_base.va && cm2_base.va)))
 			data->init(data);
 	}
 

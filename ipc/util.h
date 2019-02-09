@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/ipc/util.h
  * Copyright (C) 1999 Christoph Rohland
@@ -12,7 +13,9 @@
 
 #include <linux/unistd.h>
 #include <linux/err.h>
+#include <linux/ipc_namespace.h>
 
+#define IPCMNI 32768  /* <= MAX_INT limit for ipc arrays (including sysctl changes) */
 #define SEQ_MULTIPLIER	(IPCMNI)
 
 void sem_init(void);
@@ -20,6 +23,7 @@ void msg_init(void);
 void shm_init(void);
 
 struct ipc_namespace;
+struct pid_namespace;
 
 #ifdef CONFIG_POSIX_MQUEUE
 extern void mq_clear_sbinfo(struct ipc_namespace *ns);
@@ -46,13 +50,6 @@ static inline void sem_exit_ns(struct ipc_namespace *ns) { }
 static inline void msg_exit_ns(struct ipc_namespace *ns) { }
 static inline void shm_exit_ns(struct ipc_namespace *ns) { }
 #endif
-
-struct ipc_rcu {
-	struct rcu_head rcu;
-	atomic_t refcount;
-} ____cacheline_aligned_in_smp;
-
-#define ipc_rcu_to_struct(p)  ((void *)(p+1))
 
 /*
  * Structure that holds the parameters needed by the ipc operations
@@ -86,10 +83,11 @@ struct ipc_ops {
 struct seq_file;
 struct ipc_ids;
 
-void ipc_init_ids(struct ipc_ids *);
+void ipc_init_ids(struct ipc_ids *ids);
 #ifdef CONFIG_PROC_FS
 void __init ipc_init_proc_interface(const char *path, const char *header,
 		int ids, int (*show)(struct seq_file *, void *));
+struct pid_namespace *ipc_seq_pid_ns(struct seq_file *);
 #else
 #define ipc_init_proc_interface(path, header, ids, show) do {} while (0)
 #endif
@@ -105,41 +103,62 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 /* must be called with ids->rwsem acquired for writing */
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
 
-/* must be called with ids->rwsem acquired for reading */
-int ipc_get_maxid(struct ipc_ids *);
-
 /* must be called with both locks acquired. */
 void ipc_rmid(struct ipc_ids *, struct kern_ipc_perm *);
+
+/* must be called with both locks acquired. */
+void ipc_set_key_private(struct ipc_ids *, struct kern_ipc_perm *);
 
 /* must be called with ipcp locked */
 int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flg);
 
-/* for rare, potentially huge allocations.
- * both function can sleep
+/**
+ * ipc_get_maxidx - get the highest assigned index
+ * @ids: ipc identifier set
+ *
+ * Called with ipc_ids.rwsem held for reading.
  */
-void *ipc_alloc(int size);
-void ipc_free(void *ptr, int size);
+static inline int ipc_get_maxidx(struct ipc_ids *ids)
+{
+	if (ids->in_use == 0)
+		return -1;
+
+	if (ids->in_use == IPCMNI)
+		return IPCMNI - 1;
+
+	return ids->max_idx;
+}
 
 /*
  * For allocation that need to be freed by RCU.
  * Objects are reference counted, they start with reference count 1.
  * getref increases the refcount, the putref call that reduces the recount
  * to 0 schedules the rcu destruction. Caller must guarantee locking.
+ *
+ * refcount is initialized by ipc_addid(), before that point call_rcu()
+ * must be used.
  */
-void *ipc_rcu_alloc(int size);
-int ipc_rcu_getref(void *ptr);
-void ipc_rcu_putref(void *ptr, void (*func)(struct rcu_head *head));
-void ipc_rcu_free(struct rcu_head *head);
+bool ipc_rcu_getref(struct kern_ipc_perm *ptr);
+void ipc_rcu_putref(struct kern_ipc_perm *ptr,
+			void (*func)(struct rcu_head *head));
 
-struct kern_ipc_perm *ipc_lock(struct ipc_ids *, int);
 struct kern_ipc_perm *ipc_obtain_object_idr(struct ipc_ids *ids, int id);
 
 void kernel_to_ipc64_perm(struct kern_ipc_perm *in, struct ipc64_perm *out);
 void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out);
 int ipc_update_perm(struct ipc64_perm *in, struct kern_ipc_perm *out);
-struct kern_ipc_perm *ipcctl_pre_down_nolock(struct ipc_namespace *ns,
+struct kern_ipc_perm *ipcctl_obtain_check(struct ipc_namespace *ns,
 					     struct ipc_ids *ids, int id, int cmd,
 					     struct ipc64_perm *perm, int extra_perm);
+
+static inline void ipc_update_pid(struct pid **pos, struct pid *pid)
+{
+	struct pid *old = *pos;
+	if (old != pid) {
+		*pos = get_pid(pid);
+		put_pid(old);
+	}
+}
 
 #ifndef CONFIG_ARCH_WANT_IPC_PARSE_VERSION
 /* On IA-64, we always use the "64-bit version" of the IPC structures.  */
@@ -153,16 +172,9 @@ extern struct msg_msg *load_msg(const void __user *src, size_t len);
 extern struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst);
 extern int store_msg(void __user *dest, struct msg_msg *msg, size_t len);
 
-extern void recompute_msgmni(struct ipc_namespace *);
-
-static inline int ipc_buildid(int id, int seq)
+static inline int ipc_checkid(struct kern_ipc_perm *ipcp, int id)
 {
-	return SEQ_MULTIPLIER * seq + id;
-}
-
-static inline int ipc_checkid(struct kern_ipc_perm *ipcp, int uid)
-{
-	return uid / SEQ_MULTIPLIER != ipcp->seq;
+	return ipcid_to_seqx(id) != ipcp->seq;
 }
 
 static inline void ipc_lock_object(struct kern_ipc_perm *perm)
@@ -204,4 +216,65 @@ int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
 			const struct ipc_ops *ops, struct ipc_params *params);
 void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 		void (*free)(struct ipc_namespace *, struct kern_ipc_perm *));
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+struct compat_ipc_perm {
+	key_t key;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
+	__compat_uid_t cuid;
+	__compat_gid_t cgid;
+	compat_mode_t mode;
+	unsigned short seq;
+};
+
+void to_compat_ipc_perm(struct compat_ipc_perm *, struct ipc64_perm *);
+void to_compat_ipc64_perm(struct compat_ipc64_perm *, struct ipc64_perm *);
+int get_compat_ipc_perm(struct ipc64_perm *, struct compat_ipc_perm __user *);
+int get_compat_ipc64_perm(struct ipc64_perm *,
+			  struct compat_ipc64_perm __user *);
+
+static inline int compat_ipc_parse_version(int *cmd)
+{
+#ifdef	CONFIG_ARCH_WANT_COMPAT_IPC_PARSE_VERSION
+	int version = *cmd & IPC_64;
+	*cmd &= ~IPC_64;
+	return version;
+#else
+	return IPC_64;
+#endif
+}
+#endif
+
+/* for __ARCH_WANT_SYS_IPC */
+long ksys_semtimedop(int semid, struct sembuf __user *tsops,
+		     unsigned int nsops,
+		     const struct __kernel_timespec __user *timeout);
+long ksys_semget(key_t key, int nsems, int semflg);
+long ksys_semctl(int semid, int semnum, int cmd, unsigned long arg);
+long ksys_msgget(key_t key, int msgflg);
+long ksys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf);
+long ksys_msgrcv(int msqid, struct msgbuf __user *msgp, size_t msgsz,
+		 long msgtyp, int msgflg);
+long ksys_msgsnd(int msqid, struct msgbuf __user *msgp, size_t msgsz,
+		 int msgflg);
+long ksys_shmget(key_t key, size_t size, int shmflg);
+long ksys_shmdt(char __user *shmaddr);
+long ksys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf);
+
+/* for CONFIG_ARCH_WANT_OLD_COMPAT_IPC */
+long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
+			    unsigned int nsops,
+			    const struct compat_timespec __user *timeout);
+#ifdef CONFIG_COMPAT
+long compat_ksys_semctl(int semid, int semnum, int cmd, int arg);
+long compat_ksys_msgctl(int msqid, int cmd, void __user *uptr);
+long compat_ksys_msgrcv(int msqid, compat_uptr_t msgp, compat_ssize_t msgsz,
+			compat_long_t msgtyp, int msgflg);
+long compat_ksys_msgsnd(int msqid, compat_uptr_t msgp,
+		       compat_ssize_t msgsz, int msgflg);
+long compat_ksys_shmctl(int shmid, int cmd, void __user *uptr);
+#endif /* CONFIG_COMPAT */
+
 #endif

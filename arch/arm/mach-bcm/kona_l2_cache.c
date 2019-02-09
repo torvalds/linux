@@ -17,6 +17,7 @@
 #include <asm/hardware/cache-l2x0.h>
 
 #include "bcm_kona_smc.h"
+#include "kona_l2_cache.h"
 
 void __init kona_l2_cache_init(void)
 {

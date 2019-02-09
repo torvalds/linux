@@ -39,6 +39,18 @@
 				status = "okay";
 			};
 
+			tcb0: timer@fff7c000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			usart1: serial@fff90000 {
 				pinctrl-0 =
 					<&pinctrl_usart1
@@ -166,6 +178,10 @@
 				status = "okay";
 			};
 
+			ac97: sound@fffac000 {
+				status = "okay";
+			};
+
 			adc0: adc@fffb0000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <
@@ -216,7 +232,7 @@
 			};
 		};
 
-		fb0: fb@0x00500000 {
+		fb0: fb@500000 {
 			display = <&display0>;
 			status = "okay";
 
@@ -245,36 +261,55 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "soft";
-			nand-on-flash-bbt;
+		ebi: ebi@10000000 {
 			status = "okay";
 
-			boot@0 {
-				label = "bootstrap/uboot/kernel";
-				reg = <0x0 0x400000>;
-			};
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+				pinctrl-names = "default";
 
-			rootfs@400000 {
-				label = "rootfs";
-				reg = <0x400000 0x3C00000>;
-			};
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioC 8 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioC 14 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-on-flash-bbt;
+					label = "atmel_nand";
 
-			data@4000000 {
-				label = "data";
-				reg = <0x4000000 0xC000000>;
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						boot@0 {
+							label = "bootstrap/uboot/kernel";
+							reg = <0x0 0x400000>;
+						};
+
+						rootfs@400000 {
+							label = "rootfs";
+							reg = <0x400000 0x3C00000>;
+						};
+
+						data@4000000 {
+							label = "data";
+							reg = <0x4000000 0xC000000>;
+						};
+					};
+				};
 			};
 		};
 
-		usb0: ohci@00700000 {
+		usb0: ohci@700000 {
 			status = "okay";
 			num-ports = <2>;
 			atmel,vbus-gpio = <&pioD 1 GPIO_ACTIVE_LOW
 					   &pioD 3 GPIO_ACTIVE_LOW>;
 		};
 
-		usb1: ehci@00800000 {
+		usb1: ehci@800000 {
 			status = "okay";
 		};
 	};

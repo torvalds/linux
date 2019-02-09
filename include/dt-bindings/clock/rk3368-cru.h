@@ -44,13 +44,12 @@
 #define SCLK_I2S_8CH		82
 #define SCLK_SPDIF_8CH		83
 #define SCLK_I2S_2CH		84
-#define SCLK_TIMER0		85
-#define SCLK_TIMER1		86
-#define SCLK_TIMER2		87
-#define SCLK_TIMER3		88
-#define SCLK_TIMER4		89
-#define SCLK_TIMER5		90
-#define SCLK_TIMER6		91
+#define SCLK_TIMER00		85
+#define SCLK_TIMER01		86
+#define SCLK_TIMER02		87
+#define SCLK_TIMER03		88
+#define SCLK_TIMER04		89
+#define SCLK_TIMER05		90
 #define SCLK_OTGPHY0		93
 #define SCLK_OTG_ADP		96
 #define SCLK_HSICPHY480M	97
@@ -82,6 +81,12 @@
 #define SCLK_SFC		126
 #define SCLK_MAC		127
 #define SCLK_MACREF_OUT		128
+#define SCLK_TIMER10		133
+#define SCLK_TIMER11		134
+#define SCLK_TIMER12		135
+#define SCLK_TIMER13		136
+#define SCLK_TIMER14		137
+#define SCLK_TIMER15		138
 
 #define DCLK_VOP		190
 #define MCLK_CRYPTO		191
@@ -151,6 +156,7 @@
 #define PCLK_ISP		366
 #define PCLK_VIP		367
 #define PCLK_WDT		368
+#define PCLK_EFUSE256		369
 
 /* hclk gates */
 #define HCLK_SFC		448

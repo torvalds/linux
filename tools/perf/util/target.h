@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PERF_TARGET_H
 #define _PERF_TARGET_H
 
@@ -63,6 +64,11 @@ static inline bool target__none(struct target *target)
 	return !target__has_task(target) && !target__has_cpu(target);
 }
 
+static inline bool target__has_per_thread(struct target *target)
+{
+	return target->system_wide && target->per_thread;
+}
+
 static inline bool target__uses_dummy_map(struct target *target)
 {
 	bool use_dummy = false;
@@ -71,6 +77,8 @@ static inline bool target__uses_dummy_map(struct target *target)
 		use_dummy = target->per_thread ? true : false;
 	else if (target__has_task(target) ||
 	         (!target__has_cpu(target) && !target->uses_mmap))
+		use_dummy = true;
+	else if (target__has_per_thread(target))
 		use_dummy = true;
 
 	return use_dummy;

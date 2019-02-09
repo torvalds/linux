@@ -1012,7 +1012,7 @@ dummy_pstack(struct PStack *st, int pr, void *arg) {
 
 static int
 init_PStack(struct PStack **stp) {
-	*stp = kmalloc(sizeof(struct PStack), GFP_ATOMIC);
+	*stp = kmalloc(sizeof(struct PStack), GFP_KERNEL);
 	if (!*stp)
 		return -ENOMEM;
 	(*stp)->next = NULL;
@@ -1369,6 +1369,7 @@ leased_l1l2(struct PStack *st, int pr, void *arg)
 	case (PH_ACTIVATE | INDICATION):
 	case (PH_ACTIVATE | CONFIRM):
 		event = EV_LEASED;
+		/* fall through */
 	case (PH_DEACTIVATE | INDICATION):
 	case (PH_DEACTIVATE | CONFIRM):
 		if (test_bit(FLG_TWO_DCHAN, &chanp->cs->HW_Flags))

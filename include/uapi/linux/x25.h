@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * These are the public elements of the Linux kernel X.25 implementation.
  *

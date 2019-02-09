@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -77,7 +65,7 @@ xfs_trans_log_dquot(
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	dqp->q_logitem.qli_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &dqp->q_logitem.qli_item.li_flags);
 }
 
 /*
@@ -572,12 +560,16 @@ xfs_quota_warn(
 	struct xfs_dquot	*dqp,
 	int			type)
 {
-	/* no warnings for project quotas - we just return ENOSPC later */
+	enum quota_type qtype;
+
 	if (dqp->dq_flags & XFS_DQ_PROJ)
-		return;
-	quota_send_warning(make_kqid(&init_user_ns,
-				     (dqp->dq_flags & XFS_DQ_USER) ?
-				     USRQUOTA : GRPQUOTA,
+		qtype = PRJQUOTA;
+	else if (dqp->dq_flags & XFS_DQ_USER)
+		qtype = USRQUOTA;
+	else
+		qtype = GRPQUOTA;
+
+	quota_send_warning(make_kqid(&init_user_ns, qtype,
 				     be32_to_cpu(dqp->q_core.d_id)),
 			   mp->m_super->s_dev, type);
 }
@@ -605,17 +597,20 @@ xfs_trans_dqresv(
 	xfs_qcnt_t	total_count;
 	xfs_qcnt_t	*resbcountp;
 	xfs_quotainfo_t	*q = mp->m_quotainfo;
+	struct xfs_def_quota	*defq;
 
 
 	xfs_dqlock(dqp);
 
+	defq = xfs_get_defquota(dqp, q);
+
 	if (flags & XFS_TRANS_DQ_RES_BLKS) {
 		hardlimit = be64_to_cpu(dqp->q_core.d_blk_hardlimit);
 		if (!hardlimit)
-			hardlimit = q->qi_bhardlimit;
+			hardlimit = defq->bhardlimit;
 		softlimit = be64_to_cpu(dqp->q_core.d_blk_softlimit);
 		if (!softlimit)
-			softlimit = q->qi_bsoftlimit;
+			softlimit = defq->bsoftlimit;
 		timer = be32_to_cpu(dqp->q_core.d_btimer);
 		warns = be16_to_cpu(dqp->q_core.d_bwarns);
 		warnlimit = dqp->q_mount->m_quotainfo->qi_bwarnlimit;
@@ -624,10 +619,10 @@ xfs_trans_dqresv(
 		ASSERT(flags & XFS_TRANS_DQ_RES_RTBLKS);
 		hardlimit = be64_to_cpu(dqp->q_core.d_rtb_hardlimit);
 		if (!hardlimit)
-			hardlimit = q->qi_rtbhardlimit;
+			hardlimit = defq->rtbhardlimit;
 		softlimit = be64_to_cpu(dqp->q_core.d_rtb_softlimit);
 		if (!softlimit)
-			softlimit = q->qi_rtbsoftlimit;
+			softlimit = defq->rtbsoftlimit;
 		timer = be32_to_cpu(dqp->q_core.d_rtbtimer);
 		warns = be16_to_cpu(dqp->q_core.d_rtbwarns);
 		warnlimit = dqp->q_mount->m_quotainfo->qi_rtbwarnlimit;
@@ -668,10 +663,10 @@ xfs_trans_dqresv(
 			warnlimit = dqp->q_mount->m_quotainfo->qi_iwarnlimit;
 			hardlimit = be64_to_cpu(dqp->q_core.d_ino_hardlimit);
 			if (!hardlimit)
-				hardlimit = q->qi_ihardlimit;
+				hardlimit = defq->ihardlimit;
 			softlimit = be64_to_cpu(dqp->q_core.d_ino_softlimit);
 			if (!softlimit)
-				softlimit = q->qi_isoftlimit;
+				softlimit = defq->isoftlimit;
 
 			if (hardlimit && total_count > hardlimit) {
 				xfs_quota_warn(mp, dqp, QUOTA_NL_IHARDWARN);
@@ -872,7 +867,7 @@ xfs_trans_log_quotaoff_item(
 	xfs_qoff_logitem_t	*qlp)
 {
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	qlp->qql_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &qlp->qql_item.li_flags);
 }
 
 STATIC void

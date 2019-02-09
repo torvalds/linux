@@ -181,7 +181,7 @@ struct grant_entry_header {
 };
 
 /*
- * Version 2 of the grant entry structure, here is an union because three
+ * Version 2 of the grant entry structure, here is a union because three
  * different types are suppotted: full_page, sub_page and transitive.
  */
 union grant_entry_v2 {

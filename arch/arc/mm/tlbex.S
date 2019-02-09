@@ -237,15 +237,6 @@ ex_saved_reg1:
 
 2:
 
-#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
-	and.f 0, r0, _PAGE_PRESENT
-	bz   1f
-	ld   r3, [num_pte_not_present]
-	add  r3, r3, 1
-	st   r3, [num_pte_not_present]
-1:
-#endif
-
 .endm
 
 ;-----------------------------------------------------------------
@@ -283,6 +274,13 @@ ex_saved_reg1:
 .macro COMMIT_ENTRY_TO_MMU
 #if (CONFIG_ARC_MMU_VER < 4)
 
+#ifdef CONFIG_EZNPS_MTM_EXT
+	/* verify if entry for this vaddr+ASID already exists */
+	sr    TLBProbe, [ARC_REG_TLBCOMMAND]
+	lr    r0, [ARC_REG_TLBINDEX]
+	bbit0 r0, 31, 88f
+#endif
+
 	/* Get free TLB slot: Set = computed from vaddr, way = random */
 	sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
 
@@ -296,6 +294,8 @@ ex_saved_reg1:
 #else
 	sr TLBInsertEntry, [ARC_REG_TLBCOMMAND]
 #endif
+
+88:
 .endm
 
 
@@ -308,12 +308,6 @@ ARCFP_CODE	;Fast Path Code, candidate for ICCM
 ENTRY(EV_TLBMissI)
 
 	TLBMISS_FREEUP_REGS
-
-#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
-	ld  r0, [@numitlb]
-	add r0, r0, 1
-	st  r0, [@numitlb]
-#endif
 
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed, r2 is setup with EFA
@@ -348,12 +342,6 @@ END(EV_TLBMissI)
 ENTRY(EV_TLBMissD)
 
 	TLBMISS_FREEUP_REGS
-
-#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
-	ld  r0, [@numdtlb]
-	add r0, r0, 1
-	st  r0, [@numdtlb]
-#endif
 
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed

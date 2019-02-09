@@ -271,12 +271,15 @@ static bool is_prefix_bad(struct insn *insn)
 	int i;
 
 	for (i = 0; i < insn->prefixes.nbytes; i++) {
-		switch (insn->prefixes.bytes[i]) {
-		case 0x26:	/* INAT_PFX_ES   */
-		case 0x2E:	/* INAT_PFX_CS   */
-		case 0x36:	/* INAT_PFX_DS   */
-		case 0x3E:	/* INAT_PFX_SS   */
-		case 0xF0:	/* INAT_PFX_LOCK */
+		insn_attr_t attr;
+
+		attr = inat_get_opcode_attribute(insn->prefixes.bytes[i]);
+		switch (attr) {
+		case INAT_MAKE_PREFIX(INAT_PFX_ES):
+		case INAT_MAKE_PREFIX(INAT_PFX_CS):
+		case INAT_MAKE_PREFIX(INAT_PFX_DS):
+		case INAT_MAKE_PREFIX(INAT_PFX_SS):
+		case INAT_MAKE_PREFIX(INAT_PFX_LOCK):
 			return true;
 		}
 	}
@@ -290,10 +293,14 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 	insn_init(insn, auprobe->insn, sizeof(auprobe->insn), x86_64);
 	/* has the side-effect of processing the entire instruction */
 	insn_get_length(insn);
-	if (WARN_ON_ONCE(!insn_complete(insn)))
+	if (!insn_complete(insn))
 		return -ENOEXEC;
 
 	if (is_prefix_bad(insn))
+		return -ENOTSUPP;
+
+	/* We should not singlestep on the exception masking instructions */
+	if (insn_masking_exception(insn))
 		return -ENOTSUPP;
 
 	if (x86_64)
@@ -357,20 +364,22 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 		*cursor &= 0xfe;
 	}
 	/*
-	 * Similar treatment for VEX3 prefix.
-	 * TODO: add XOP/EVEX treatment when insn decoder supports them
+	 * Similar treatment for VEX3/EVEX prefix.
+	 * TODO: add XOP treatment when insn decoder supports them
 	 */
-	if (insn->vex_prefix.nbytes == 3) {
+	if (insn->vex_prefix.nbytes >= 3) {
 		/*
 		 * vex2:     c5    rvvvvLpp   (has no b bit)
 		 * vex3/xop: c4/8f rxbmmmmm wvvvvLpp
 		 * evex:     62    rxbR00mm wvvvv1pp zllBVaaa
-		 *   (evex will need setting of both b and x since
-		 *   in non-sib encoding evex.x is 4th bit of MODRM.rm)
-		 * Setting VEX3.b (setting because it has inverted meaning):
+		 * Setting VEX3.b (setting because it has inverted meaning).
+		 * Setting EVEX.x since (in non-SIB encoding) EVEX.x
+		 * is the 4th bit of MODRM.rm, and needs the same treatment.
+		 * For VEX3-encoded insns, VEX3.x value has no effect in
+		 * non-SIB encoding, the change is superfluous but harmless.
 		 */
 		cursor = auprobe->insn + insn_offset_vex_prefix(insn) + 1;
-		*cursor |= 0x20;
+		*cursor |= 0x60;
 	}
 
 	/*
@@ -415,12 +424,10 @@ static void riprel_analyze(struct arch_uprobe *auprobe, struct insn *insn)
 
 	reg = MODRM_REG(insn);	/* Fetch modrm.reg */
 	reg2 = 0xff;		/* Fetch vex.vvvv */
-	if (insn->vex_prefix.nbytes == 2)
-		reg2 = insn->vex_prefix.bytes[1];
-	else if (insn->vex_prefix.nbytes == 3)
+	if (insn->vex_prefix.nbytes)
 		reg2 = insn->vex_prefix.bytes[2];
 	/*
-	 * TODO: add XOP, EXEV vvvv reading.
+	 * TODO: add XOP vvvv reading.
 	 *
 	 * vex.vvvv field is in bits 6-3, bits are inverted.
 	 * But in 32-bit mode, high-order bit may be ignored.
@@ -516,7 +523,7 @@ struct uprobe_xol_ops {
 
 static inline int sizeof_long(void)
 {
-	return is_ia32_task() ? 4 : 8;
+	return in_ia32_syscall() ? 4 : 8;
 }
 
 static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
@@ -525,11 +532,11 @@ static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	return 0;
 }
 
-static int push_ret_address(struct pt_regs *regs, unsigned long ip)
+static int emulate_push_stack(struct pt_regs *regs, unsigned long val)
 {
 	unsigned long new_sp = regs->sp - sizeof_long();
 
-	if (copy_to_user((void __user *)new_sp, &ip, sizeof_long()))
+	if (copy_to_user((void __user *)new_sp, &val, sizeof_long()))
 		return -EFAULT;
 
 	regs->sp = new_sp;
@@ -563,7 +570,7 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 		regs->ip += correction;
 	} else if (auprobe->defparam.fixups & UPROBE_FIX_CALL) {
 		regs->sp += sizeof_long(); /* Pop incorrect return address */
-		if (push_ret_address(regs, utask->vaddr + auprobe->defparam.ilen))
+		if (emulate_push_stack(regs, utask->vaddr + auprobe->defparam.ilen))
 			return -ERESTART;
 	}
 	/* popf; tell the caller to not touch TF */
@@ -578,7 +585,7 @@ static void default_abort_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	riprel_post_xol(auprobe, regs);
 }
 
-static struct uprobe_xol_ops default_xol_ops = {
+static const struct uprobe_xol_ops default_xol_ops = {
 	.pre_xol  = default_pre_xol_op,
 	.post_xol = default_post_xol_op,
 	.abort	  = default_abort_op,
@@ -652,13 +659,23 @@ static bool branch_emulate_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		 *
 		 * But there is corner case, see the comment in ->post_xol().
 		 */
-		if (push_ret_address(regs, new_ip))
+		if (emulate_push_stack(regs, new_ip))
 			return false;
 	} else if (!check_jmp_cond(auprobe, regs)) {
 		offs = 0;
 	}
 
 	regs->ip = new_ip + offs;
+	return true;
+}
+
+static bool push_emulate_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	unsigned long *src_ptr = (void *)regs + auprobe->push.reg_offset;
+
+	if (emulate_push_stack(regs, *src_ptr))
+		return false;
+	regs->ip += auprobe->push.ilen;
 	return true;
 }
 
@@ -695,9 +712,13 @@ static void branch_clear_offset(struct arch_uprobe *auprobe, struct insn *insn)
 		0, insn->immediate.nbytes);
 }
 
-static struct uprobe_xol_ops branch_xol_ops = {
+static const struct uprobe_xol_ops branch_xol_ops = {
 	.emulate  = branch_emulate_op,
 	.post_xol = branch_post_xol_op,
+};
+
+static const struct uprobe_xol_ops push_xol_ops = {
+	.emulate  = push_emulate_op,
 };
 
 /* Returns -ENOSYS if branch_xol_ops doesn't handle this insn */
@@ -747,6 +768,87 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 	return 0;
 }
 
+/* Returns -ENOSYS if push_xol_ops doesn't handle this insn */
+static int push_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
+{
+	u8 opc1 = OPCODE1(insn), reg_offset = 0;
+
+	if (opc1 < 0x50 || opc1 > 0x57)
+		return -ENOSYS;
+
+	if (insn->length > 2)
+		return -ENOSYS;
+	if (insn->length == 2) {
+		/* only support rex_prefix 0x41 (x64 only) */
+#ifdef CONFIG_X86_64
+		if (insn->rex_prefix.nbytes != 1 ||
+		    insn->rex_prefix.bytes[0] != 0x41)
+			return -ENOSYS;
+
+		switch (opc1) {
+		case 0x50:
+			reg_offset = offsetof(struct pt_regs, r8);
+			break;
+		case 0x51:
+			reg_offset = offsetof(struct pt_regs, r9);
+			break;
+		case 0x52:
+			reg_offset = offsetof(struct pt_regs, r10);
+			break;
+		case 0x53:
+			reg_offset = offsetof(struct pt_regs, r11);
+			break;
+		case 0x54:
+			reg_offset = offsetof(struct pt_regs, r12);
+			break;
+		case 0x55:
+			reg_offset = offsetof(struct pt_regs, r13);
+			break;
+		case 0x56:
+			reg_offset = offsetof(struct pt_regs, r14);
+			break;
+		case 0x57:
+			reg_offset = offsetof(struct pt_regs, r15);
+			break;
+		}
+#else
+		return -ENOSYS;
+#endif
+	} else {
+		switch (opc1) {
+		case 0x50:
+			reg_offset = offsetof(struct pt_regs, ax);
+			break;
+		case 0x51:
+			reg_offset = offsetof(struct pt_regs, cx);
+			break;
+		case 0x52:
+			reg_offset = offsetof(struct pt_regs, dx);
+			break;
+		case 0x53:
+			reg_offset = offsetof(struct pt_regs, bx);
+			break;
+		case 0x54:
+			reg_offset = offsetof(struct pt_regs, sp);
+			break;
+		case 0x55:
+			reg_offset = offsetof(struct pt_regs, bp);
+			break;
+		case 0x56:
+			reg_offset = offsetof(struct pt_regs, si);
+			break;
+		case 0x57:
+			reg_offset = offsetof(struct pt_regs, di);
+			break;
+		}
+	}
+
+	auprobe->push.reg_offset = reg_offset;
+	auprobe->push.ilen = insn->length;
+	auprobe->ops = &push_xol_ops;
+	return 0;
+}
+
 /**
  * arch_uprobe_analyze_insn - instruction analysis including validity and fixups.
  * @mm: the probed address space.
@@ -765,6 +867,10 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 		return ret;
 
 	ret = branch_setup_xol_ops(auprobe, &insn);
+	if (ret != -ENOSYS)
+		return ret;
+
+	ret = push_setup_xol_ops(auprobe, &insn);
 	if (ret != -ENOSYS)
 		return ret;
 
@@ -977,8 +1083,8 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs
 		return orig_ret_vaddr;
 
 	if (nleft != rasize) {
-		pr_err("uprobe: return address clobbered: pid=%d, %%sp=%#lx, "
-			"%%ip=%#lx\n", current->pid, regs->sp, regs->ip);
+		pr_err("return address clobbered: pid=%d, %%sp=%#lx, %%ip=%#lx\n",
+		       current->pid, regs->sp, regs->ip);
 
 		force_sig_info(SIGSEGV, SEND_SIG_FORCED, current);
 	}

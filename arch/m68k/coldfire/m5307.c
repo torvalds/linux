@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /***************************************************************************/
 
 /*
@@ -35,6 +36,7 @@ DEFINE_CLK(mcftmr0, "mcftmr.0", MCF_BUSCLK);
 DEFINE_CLK(mcftmr1, "mcftmr.1", MCF_BUSCLK);
 DEFINE_CLK(mcfuart0, "mcfuart.0", MCF_BUSCLK);
 DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
+DEFINE_CLK(mcfi2c0, "imx1-i2c.0", MCF_BUSCLK);
 
 struct clk *mcf_clks[] = {
 	&clk_pll,
@@ -43,8 +45,20 @@ struct clk *mcf_clks[] = {
 	&clk_mcftmr1,
 	&clk_mcfuart0,
 	&clk_mcfuart1,
+	&clk_mcfi2c0,
 	NULL
 };
+
+/***************************************************************************/
+
+static void __init m5307_i2c_init(void)
+{
+#if IS_ENABLED(CONFIG_I2C_IMX)
+	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL5 | MCFSIM_ICR_PRI0,
+	       MCFSIM_I2CICR);
+	mcf_mapirq2imr(MCF_IRQ_I2C0, MCFINTC_I2C);
+#endif /* IS_ENABLED(CONFIG_I2C_IMX) */
+}
 
 /***************************************************************************/
 
@@ -73,6 +87,7 @@ void __init config_BSP(char *commandp, int size)
 	 */
 	wdebug(MCFDEBUG_CSR, MCFDEBUG_CSR_PSTCLK);
 #endif
+	m5307_i2c_init();
 }
 
 /***************************************************************************/

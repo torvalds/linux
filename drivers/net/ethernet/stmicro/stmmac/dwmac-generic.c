@@ -50,18 +50,36 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 	if (plat_dat->init) {
 		ret = plat_dat->init(pdev, plat_dat->bsp_priv);
 		if (ret)
-			return ret;
+			goto err_remove_config_dt;
 	}
 
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (ret)
+		goto err_exit;
+
+	return 0;
+
+err_exit:
+	if (plat_dat->exit)
+		plat_dat->exit(pdev, plat_dat->bsp_priv);
+err_remove_config_dt:
+	if (pdev->dev.of_node)
+		stmmac_remove_config_dt(pdev, plat_dat);
+
+	return ret;
 }
 
 static const struct of_device_id dwmac_generic_match[] = {
 	{ .compatible = "st,spear600-gmac"},
+	{ .compatible = "snps,dwmac-3.50a"},
 	{ .compatible = "snps,dwmac-3.610"},
 	{ .compatible = "snps,dwmac-3.70a"},
 	{ .compatible = "snps,dwmac-3.710"},
+	{ .compatible = "snps,dwmac-4.00"},
+	{ .compatible = "snps,dwmac-4.10a"},
 	{ .compatible = "snps,dwmac"},
+	{ .compatible = "snps,dwxgmac-2.10"},
+	{ .compatible = "snps,dwxgmac"},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, dwmac_generic_match);

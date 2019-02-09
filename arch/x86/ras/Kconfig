@@ -1,9 +1,13 @@
-config AMD_MCE_INJ
-	tristate "Simple MCE injection interface for AMD processors"
-	depends on RAS && EDAC_DECODE_MCE && DEBUG_FS && AMD_NB
-	default n
-	help
-	  This is a simple debugfs interface to inject MCEs and test different
-	  aspects of the MCE handling code.
+# SPDX-License-Identifier: GPL-2.0
+config RAS_CEC
+	bool "Correctable Errors Collector"
+	depends on X86_MCE && MEMORY_FAILURE && DEBUG_FS
+	---help---
+	  This is a small cache which collects correctable memory errors per 4K
+	  page PFN and counts their repeated occurrence. Once the counter for a
+	  PFN overflows, we try to soft-offline that page as we take it to mean
+	  that it has reached a relatively high error count and would probably
+	  be best if we don't use it anymore.
 
-	  WARNING: Do not even assume this interface is staying stable!
+	  Bear in mind that this is absolutely useless if your platform doesn't
+	  have ECC DIMMs and doesn't have DRAM ECC checking enabled in the BIOS.

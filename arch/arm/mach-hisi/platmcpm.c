@@ -239,7 +239,7 @@ err:
 }
 #endif
 
-static struct smp_operations __initdata hip04_smp_ops = {
+static const struct smp_operations hip04_smp_ops __initconst = {
 	.smp_boot_secondary	= hip04_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= hip04_cpu_die,
@@ -279,6 +279,8 @@ static int __init hip04_smp_init(void)
 					 &hip04_boot_method[0], 4);
 	if (ret)
 		goto err;
+
+	ret = -ENODEV;
 	np_sctl = of_find_compatible_node(NULL, NULL, "hisilicon,sysctrl");
 	if (!np_sctl)
 		goto err;
@@ -327,7 +329,7 @@ static int __init hip04_smp_init(void)
 	 */
 	writel_relaxed(hip04_boot_method[0], relocation);
 	writel_relaxed(0xa5a5a5a5, relocation + 4);	/* magic number */
-	writel_relaxed(virt_to_phys(secondary_startup), relocation + 8);
+	writel_relaxed(__pa_symbol(secondary_startup), relocation + 8);
 	writel_relaxed(0, relocation + 12);
 	iounmap(relocation);
 

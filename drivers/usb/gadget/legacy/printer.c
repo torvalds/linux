@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * printer.c -- Printer gadget driver
  *
  * Copyright (C) 2003-2005 David Brownell
  * Copyright (C) 2006 Craig W. Nadler
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -71,7 +67,7 @@ static struct usb_function *f_printer;
 static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
-	.bcdUSB =		cpu_to_le16(0x0200),
+	/* .bcdUSB = DYNAMIC */
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
 	.bDeviceSubClass =	0,
 	.bDeviceProtocol =	0,
@@ -88,8 +84,8 @@ static const struct usb_descriptor_header *otg_desc[2];
 
 static char				product_desc [40] = DRIVER_DESC;
 static char				serial_num [40] = "1";
-static char				pnp_string[PNP_STRING_LEN] =
-	"XXMFG:linux;MDL:g_printer;CLS:PRINTER;SN:1;";
+static char				*pnp_string =
+	"MFG:linux;MDL:g_printer;CLS:PRINTER;SN:1;";
 
 /* static strings, in UTF-8 */
 static struct usb_string		strings [] = {
@@ -143,23 +139,29 @@ static int printer_do_config(struct usb_configuration *c)
 static int printer_bind(struct usb_composite_dev *cdev)
 {
 	struct f_printer_opts *opts;
-	int ret, len;
+	int ret;
 
 	fi_printer = usb_get_function_instance("printer");
 	if (IS_ERR(fi_printer))
 		return PTR_ERR(fi_printer);
 
-	if (iPNPstring)
-		strlcpy(&pnp_string[2], iPNPstring, PNP_STRING_LEN - 2);
-
-	len = strlen(pnp_string);
-	pnp_string[0] = (len >> 8) & 0xFF;
-	pnp_string[1] = len & 0xFF;
-
 	opts = container_of(fi_printer, struct f_printer_opts, func_inst);
 	opts->minor = 0;
-	memcpy(opts->pnp_string, pnp_string, PNP_STRING_LEN);
 	opts->q_len = QLEN;
+	if (iPNPstring) {
+		opts->pnp_string = kstrdup(iPNPstring, GFP_KERNEL);
+		if (!opts->pnp_string) {
+			ret = -ENOMEM;
+			goto fail_put_func_inst;
+		}
+		opts->pnp_string_allocated = true;
+		/*
+		 * we don't free this memory in case of error
+		 * as printer cleanup func will do this for us
+		 */
+	} else {
+		opts->pnp_string = pnp_string;
+	}
 
 	ret = usb_string_ids_tab(cdev, strings);
 	if (ret < 0)

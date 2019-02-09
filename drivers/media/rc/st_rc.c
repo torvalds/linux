@@ -16,6 +16,7 @@
 #include <linux/reset.h>
 #include <media/rc-core.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pm_wakeirq.h>
 
 struct st_rc_device {
 	struct device			*dev;
@@ -48,7 +49,7 @@ struct st_rc_device {
 #define IRB_RX_NOISE_SUPPR      0x5c	/* noise suppression  */
 #define IRB_RX_POLARITY_INV     0x68	/* polarity inverter  */
 
-/**
+/*
  * IRQ set: Enable full FIFO                 1  -> bit  3;
  *          Enable overrun IRQ               1  -> bit  2;
  *          Enable last symbol IRQ           1  -> bit  1:
@@ -71,7 +72,7 @@ static void st_rc_send_lirc_timeout(struct rc_dev *rdev)
 	ir_raw_event_store(rdev, &ev);
 }
 
-/**
+/*
  * RX graphical example to better understand the difference between ST IR block
  * output and standard definition used by LIRC (and most of the world!)
  *
@@ -95,19 +96,24 @@ static void st_rc_send_lirc_timeout(struct rc_dev *rdev)
 
 static irqreturn_t st_rc_rx_interrupt(int irq, void *data)
 {
+	unsigned long timeout;
 	unsigned int symbol, mark = 0;
 	struct st_rc_device *dev = data;
 	int last_symbol = 0;
-	u32 status;
+	u32 status, int_status;
 	DEFINE_IR_RAW_EVENT(ev);
 
 	if (dev->irq_wake)
 		pm_wakeup_event(dev->dev, 0);
 
-	status  = readl(dev->rx_base + IRB_RX_STATUS);
+	/* FIXME: is 10ms good enough ? */
+	timeout = jiffies +  msecs_to_jiffies(10);
+	do {
+		status  = readl(dev->rx_base + IRB_RX_STATUS);
+		if (!(status & (IRB_FIFO_NOT_EMPTY | IRB_OVERFLOW)))
+			break;
 
-	while (status & (IRB_FIFO_NOT_EMPTY | IRB_OVERFLOW)) {
-		u32 int_status = readl(dev->rx_base + IRB_RX_INT_STATUS);
+		int_status = readl(dev->rx_base + IRB_RX_INT_STATUS);
 		if (unlikely(int_status & IRB_RX_OVERRUN_INT)) {
 			/* discard the entire collection in case of errors!  */
 			ir_raw_event_reset(dev->rdev);
@@ -147,8 +153,7 @@ static irqreturn_t st_rc_rx_interrupt(int irq, void *data)
 
 		}
 		last_symbol = 0;
-		status  = readl(dev->rx_base + IRB_RX_STATUS);
-	}
+	} while (time_is_after_jiffies(timeout));
 
 	writel(IRB_RX_INTS, dev->rx_base + IRB_RX_INT_CLEAR);
 
@@ -164,8 +169,7 @@ static void st_rc_hardware_init(struct st_rc_device *dev)
 	unsigned int rx_sampling_freq_div;
 
 	/* Enable the IP */
-	if (dev->rstc)
-		reset_control_deassert(dev->rstc);
+	reset_control_deassert(dev->rstc);
 
 	clk_prepare_enable(dev->sys_clock);
 	baseclock = clk_get_rate(dev->sys_clock);
@@ -190,6 +194,9 @@ static void st_rc_hardware_init(struct st_rc_device *dev)
 static int st_rc_remove(struct platform_device *pdev)
 {
 	struct st_rc_device *rc_dev = platform_get_drvdata(pdev);
+
+	dev_pm_clear_wake_irq(&pdev->dev);
+	device_init_wakeup(&pdev->dev, false);
 	clk_disable_unprepare(rc_dev->sys_clock);
 	rc_unregister_device(rc_dev->rdev);
 	return 0;
@@ -231,7 +238,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	if (!rc_dev)
 		return -ENOMEM;
 
-	rdev = rc_allocate_device();
+	rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 
 	if (!rdev)
 		return -ENOMEM;
@@ -277,17 +284,17 @@ static int st_rc_probe(struct platform_device *pdev)
 	else
 		rc_dev->rx_base = rc_dev->base;
 
-
-	rc_dev->rstc = reset_control_get_optional(dev, NULL);
-	if (IS_ERR(rc_dev->rstc))
-		rc_dev->rstc = NULL;
+	rc_dev->rstc = reset_control_get_optional_exclusive(dev, NULL);
+	if (IS_ERR(rc_dev->rstc)) {
+		ret = PTR_ERR(rc_dev->rstc);
+		goto err;
+	}
 
 	rc_dev->dev = dev;
 	platform_set_drvdata(pdev, rc_dev);
 	st_rc_hardware_init(rc_dev);
 
-	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protocols = RC_BIT_ALL;
+	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	/* rx sampling rate is 10Mhz */
 	rdev->rx_resolution = 100;
 	rdev->timeout = US_TO_NS(MAX_SYMB_TIME);
@@ -295,12 +302,8 @@ static int st_rc_probe(struct platform_device *pdev)
 	rdev->open = st_rc_open;
 	rdev->close = st_rc_close;
 	rdev->driver_name = IR_ST_NAME;
-	rdev->map_name = RC_MAP_LIRC;
-	rdev->input_name = "ST Remote Control Receiver";
-
-	/* enable wake via this device */
-	device_set_wakeup_capable(dev, true);
-	device_set_wakeup_enable(dev, true);
+	rdev->map_name = RC_MAP_EMPTY;
+	rdev->device_name = "ST Remote Control Receiver";
 
 	ret = rc_register_device(rdev);
 	if (ret < 0)
@@ -308,13 +311,17 @@ static int st_rc_probe(struct platform_device *pdev)
 
 	rc_dev->rdev = rdev;
 	if (devm_request_irq(dev, rc_dev->irq, st_rc_rx_interrupt,
-			IRQF_NO_SUSPEND, IR_ST_NAME, rc_dev) < 0) {
+			     0, IR_ST_NAME, rc_dev) < 0) {
 		dev_err(dev, "IRQ %d register failed\n", rc_dev->irq);
 		ret = -EINVAL;
 		goto rcerr;
 	}
 
-	/**
+	/* enable wake via this device */
+	device_init_wakeup(dev, true);
+	dev_pm_set_wake_irq(dev, rc_dev->irq);
+
+	/*
 	 * for LIRC_MODE_MODE2 or LIRC_MODE_PULSE or LIRC_MODE_RAW
 	 * lircd expects a long space first before a signal train to sync.
 	 */
@@ -349,8 +356,7 @@ static int st_rc_suspend(struct device *dev)
 		writel(0x00, rc_dev->rx_base + IRB_RX_EN);
 		writel(0x00, rc_dev->rx_base + IRB_RX_INT_EN);
 		clk_disable_unprepare(rc_dev->sys_clock);
-		if (rc_dev->rstc)
-			reset_control_assert(rc_dev->rstc);
+		reset_control_assert(rc_dev->rstc);
 	}
 
 	return 0;

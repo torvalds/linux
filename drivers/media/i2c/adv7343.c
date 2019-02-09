@@ -28,7 +28,7 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 
-#include <media/adv7343.h>
+#include <media/i2c/adv7343.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
@@ -100,7 +100,7 @@ static const u8 adv7343_init_reg_val[] = {
 };
 
 /*
- * 			    2^32
+ *			    2^32
  * FSC(reg) =  FSC (HZ) * --------
  *			  27000000
  */

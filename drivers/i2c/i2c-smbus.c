@@ -15,25 +15,25 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/device.h>
-#include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/i2c-smbus.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/of_irq.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 struct i2c_smbus_alert {
-	unsigned int		alert_edge_triggered:1;
-	int			irq;
 	struct work_struct	alert;
 	struct i2c_client	*ara;		/* Alert response address */
 };
 
 struct alert_data {
 	unsigned short		addr;
-	u8			flag:1;
+	enum i2c_alert_protocol	type;
+	unsigned int		data;
 };
 
 /* If this is the alerting device, notify its driver */
@@ -56,7 +56,7 @@ static int smbus_do_alert(struct device *dev, void *addrp)
 	if (client->dev.driver) {
 		driver = to_i2c_driver(client->dev.driver);
 		if (driver->alert)
-			driver->alert(client, data->flag);
+			driver->alert(client, data->type, data->data);
 		else
 			dev_warn(&client->dev, "no driver alert()!\n");
 	} else
@@ -71,13 +71,12 @@ static int smbus_do_alert(struct device *dev, void *addrp)
  * The alert IRQ handler needs to hand work off to a task which can issue
  * SMBus calls, because those sleeping calls can't be made in IRQ context.
  */
-static void smbus_alert(struct work_struct *work)
+static irqreturn_t smbus_alert(int irq, void *d)
 {
-	struct i2c_smbus_alert *alert;
+	struct i2c_smbus_alert *alert = d;
 	struct i2c_client *ara;
 	unsigned short prev_addr = 0;	/* Not a valid address */
 
-	alert = container_of(work, struct i2c_smbus_alert, alert);
 	ara = alert->ara;
 
 	for (;;) {
@@ -96,8 +95,9 @@ static void smbus_alert(struct work_struct *work)
 		if (status < 0)
 			break;
 
-		data.flag = status & 1;
+		data.data = status & 1;
 		data.addr = status >> 1;
+		data.type = I2C_PROTOCOL_SMBUS_ALERT;
 
 		if (data.addr == prev_addr) {
 			dev_warn(&ara->dev, "Duplicate SMBALERT# from dev "
@@ -105,7 +105,7 @@ static void smbus_alert(struct work_struct *work)
 			break;
 		}
 		dev_dbg(&ara->dev, "SMBALERT# from dev 0x%02x, flag %d\n",
-			data.addr, data.flag);
+			data.addr, data.data);
 
 		/* Notify driver for the device which issued the alert */
 		device_for_each_child(&ara->adapter->dev, &data,
@@ -113,21 +113,17 @@ static void smbus_alert(struct work_struct *work)
 		prev_addr = data.addr;
 	}
 
-	/* We handled all alerts; re-enable level-triggered IRQs */
-	if (!alert->alert_edge_triggered)
-		enable_irq(alert->irq);
+	return IRQ_HANDLED;
 }
 
-static irqreturn_t smbalert_irq(int irq, void *d)
+static void smbalert_work(struct work_struct *work)
 {
-	struct i2c_smbus_alert *alert = d;
+	struct i2c_smbus_alert *alert;
 
-	/* Disable level-triggered IRQs until we handle them */
-	if (!alert->alert_edge_triggered)
-		disable_irq_nosync(irq);
+	alert = container_of(work, struct i2c_smbus_alert, alert);
 
-	schedule_work(&alert->alert);
-	return IRQ_HANDLED;
+	smbus_alert(0, alert);
+
 }
 
 /* Setup SMBALERT# infrastructure */
@@ -137,28 +133,35 @@ static int smbalert_probe(struct i2c_client *ara,
 	struct i2c_smbus_alert_setup *setup = dev_get_platdata(&ara->dev);
 	struct i2c_smbus_alert *alert;
 	struct i2c_adapter *adapter = ara->adapter;
-	int res;
+	int res, irq;
 
 	alert = devm_kzalloc(&ara->dev, sizeof(struct i2c_smbus_alert),
 			     GFP_KERNEL);
 	if (!alert)
 		return -ENOMEM;
 
-	alert->alert_edge_triggered = setup->alert_edge_triggered;
-	alert->irq = setup->irq;
-	INIT_WORK(&alert->alert, smbus_alert);
+	if (setup) {
+		irq = setup->irq;
+	} else {
+		irq = of_irq_get_byname(adapter->dev.of_node, "smbus_alert");
+		if (irq <= 0)
+			return irq;
+	}
+
+	INIT_WORK(&alert->alert, smbalert_work);
 	alert->ara = ara;
 
-	if (setup->irq > 0) {
-		res = devm_request_irq(&ara->dev, setup->irq, smbalert_irq,
-				       0, "smbus_alert", alert);
+	if (irq > 0) {
+		res = devm_request_threaded_irq(&ara->dev, irq,
+						NULL, smbus_alert,
+						IRQF_SHARED | IRQF_ONESHOT,
+						"smbus_alert", alert);
 		if (res)
 			return res;
 	}
 
 	i2c_set_clientdata(ara, alert);
-	dev_info(&adapter->dev, "supports SMBALERT#, %s trigger\n",
-		 setup->alert_edge_triggered ? "edge" : "level");
+	dev_info(&adapter->dev, "supports SMBALERT#\n");
 
 	return 0;
 }
@@ -186,38 +189,6 @@ static struct i2c_driver smbalert_driver = {
 	.remove		= smbalert_remove,
 	.id_table	= smbalert_ids,
 };
-
-/**
- * i2c_setup_smbus_alert - Setup SMBus alert support
- * @adapter: the target adapter
- * @setup: setup data for the SMBus alert handler
- * Context: can sleep
- *
- * Setup handling of the SMBus alert protocol on a given I2C bus segment.
- *
- * Handling can be done either through our IRQ handler, or by the
- * adapter (from its handler, periodic polling, or whatever).
- *
- * NOTE that if we manage the IRQ, we *MUST* know if it's level or
- * edge triggered in order to hand it to the workqueue correctly.
- * If triggering the alert seems to wedge the system, you probably
- * should have said it's level triggered.
- *
- * This returns the ara client, which should be saved for later use with
- * i2c_handle_smbus_alert() and ultimately i2c_unregister_device(); or NULL
- * to indicate an error.
- */
-struct i2c_client *i2c_setup_smbus_alert(struct i2c_adapter *adapter,
-					 struct i2c_smbus_alert_setup *setup)
-{
-	struct i2c_board_info ara_board_info = {
-		I2C_BOARD_INFO("smbus_alert", 0x0c),
-		.platform_data = setup,
-	};
-
-	return i2c_new_device(adapter, &ara_board_info);
-}
-EXPORT_SYMBOL_GPL(i2c_setup_smbus_alert);
 
 /**
  * i2c_handle_smbus_alert - Handle an SMBus alert

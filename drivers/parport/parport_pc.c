@@ -44,7 +44,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -902,7 +902,7 @@ static size_t parport_pc_ecp_write_block_pio(struct parport *port,
  *	******************************************
  */
 
-/* GCC is not inlining extern inline function later overwriten to non-inline,
+/* GCC is not inlining extern inline function later overwritten to non-inline,
    so we use outlined_ variants here.  */
 static const struct parport_operations parport_pc_ops = {
 	.write_data	= parport_pc_write_data,
@@ -1083,9 +1083,9 @@ static void show_parconfig_winbond(int io, int key)
 		printk(KERN_INFO "Winbond LPT Config: active=%s, io=0x%02x%02x irq=%d, ",
 		       (cr30 & 0x01) ? "yes" : "no", cr60, cr61, cr70 & 0x0f);
 		if ((cr74 & 0x07) > 3)
-			printk("dma=none\n");
+			pr_cont("dma=none\n");
 		else
-			printk("dma=%d\n", cr74 & 0x07);
+			pr_cont("dma=%d\n", cr74 & 0x07);
 		printk(KERN_INFO
 		    "Winbond LPT Config: irqtype=%s, ECP fifo threshold=%d\n",
 					irqtypes[crf0>>7], (crf0>>3)&0x0f);
@@ -1685,14 +1685,14 @@ static int parport_ECP_supported(struct parport *pb)
 			pb->base, config, configb);
 		printk(KERN_DEBUG "0x%lx: ECP settings irq=", pb->base);
 		if ((configb >> 3) & 0x07)
-			printk("%d", intrline[(configb >> 3) & 0x07]);
+			pr_cont("%d", intrline[(configb >> 3) & 0x07]);
 		else
-			printk("<none or set by other means>");
-		printk(" dma=");
+			pr_cont("<none or set by other means>");
+		pr_cont(" dma=");
 		if ((configb & 0x03) == 0x00)
-			printk("<none or set by other means>\n");
+			pr_cont("<none or set by other means>\n");
 		else
-			printk("%d\n", configb & 0x07);
+			pr_cont("%d\n", configb & 0x07);
 	}
 
 	/* Go back to mode 000 */
@@ -2399,8 +2399,8 @@ static int sio_ite_8872_probe(struct pci_dev *pdev, int autoirq, int autodma,
 			"parport_pc: ITE 8872 parallel port: io=0x%X",
 								ite8872_lpt);
 		if (irq != PARPORT_IRQ_NONE)
-			printk(", irq=%d", irq);
-		printk("\n");
+			pr_cont(", irq=%d", irq);
+		pr_cont("\n");
 		return 1;
 	}
 
@@ -2581,10 +2581,10 @@ static int sio_via_probe(struct pci_dev *pdev, int autoirq, int autodma,
 		printk(KERN_INFO
 			"parport_pc: VIA parallel port: io=0x%X", port1);
 		if (irq != PARPORT_IRQ_NONE)
-			printk(", irq=%d", irq);
+			pr_cont(", irq=%d", irq);
 		if (dma != PARPORT_DMA_NONE)
-			printk(", dma=%d", dma);
-		printk("\n");
+			pr_cont(", dma=%d", dma);
+		pr_cont("\n");
 		return 1;
 	}
 
@@ -2646,6 +2646,7 @@ enum parport_pc_pci_cards {
 	netmos_9901,
 	netmos_9865,
 	quatech_sppxp100,
+	wch_ch382l,
 };
 
 
@@ -2708,6 +2709,7 @@ static struct parport_pc_pci {
 	/* netmos_9901 */               { 1, { { 0, -1 }, } },
 	/* netmos_9865 */               { 1, { { 0, -1 }, } },
 	/* quatech_sppxp100 */		{ 1, { { 0, 1 }, } },
+	/* wch_ch382l */		{ 1, { { 2, -1 }, } },
 };
 
 static const struct pci_device_id parport_pc_pci_tbl[] = {
@@ -2797,6 +2799,8 @@ static const struct pci_device_id parport_pc_pci_tbl[] = {
 	/* Quatech SPPXP-100 Parallel port PCI ExpressCard */
 	{ PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_SPPXP_100,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, quatech_sppxp100 },
+	/* WCH CH382L PCI-E single parallel port card */
+	{ 0x1c00, 0x3050, 0x1c00, 0x3050, 0, 0, wch_ch382l },
 	{ 0, } /* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, parport_pc_pci_tbl);
@@ -3150,13 +3154,13 @@ static char *irq[PARPORT_PC_MAX_PORTS];
 static char *dma[PARPORT_PC_MAX_PORTS];
 
 MODULE_PARM_DESC(io, "Base I/O address (SPP regs)");
-module_param_array(io, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
 MODULE_PARM_DESC(io_hi, "Base I/O address (ECR)");
-module_param_array(io_hi, int, NULL, 0);
+module_param_hw_array(io_hi, int, ioport, NULL, 0);
 MODULE_PARM_DESC(irq, "IRQ line");
-module_param_array(irq, charp, NULL, 0);
+module_param_hw_array(irq, charp, irq, NULL, 0);
 MODULE_PARM_DESC(dma, "DMA channel");
-module_param_array(dma, charp, NULL, 0);
+module_param_hw_array(dma, charp, dma, NULL, 0);
 #if defined(CONFIG_PARPORT_PC_SUPERIO) || \
        (defined(CONFIG_PARPORT_1284) && defined(CONFIG_PARPORT_PC_FIFO))
 MODULE_PARM_DESC(verbose_probing, "Log chit-chat during initialisation");

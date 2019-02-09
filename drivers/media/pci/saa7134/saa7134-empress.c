@@ -11,10 +11,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7134.h"
@@ -85,7 +81,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	dev->empress_started = 0;
 }
 
-static struct vb2_ops saa7134_empress_qops = {
+static const struct vb2_ops saa7134_empress_qops = {
 	.queue_setup	= saa7134_ts_queue_setup,
 	.buf_init	= saa7134_ts_buffer_init,
 	.buf_prepare	= saa7134_ts_buffer_prepare,
@@ -189,6 +185,7 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_querybuf		= vb2_ioctl_querybuf,
 	.vidioc_qbuf			= vb2_ioctl_qbuf,
 	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
+	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
 	.vidioc_g_frequency		= saa7134_g_frequency,
@@ -208,7 +205,7 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 
 /* ----------------------------------------------------------- */
 
-static struct video_device saa7134_empress_template = {
+static const struct video_device saa7134_empress_template = {
 	.name          = "saa7134-empress",
 	.fops          = &ts_fops,
 	.ioctl_ops     = &ts_ioctl_ops,
@@ -286,7 +283,7 @@ static int empress_init(struct saa7134_dev *dev)
 	 * transfers that do not start at the beginning of a page. A USERPTR
 	 * can start anywhere in a page, so USERPTR support is a no-go.
 	 */
-	q->io_modes = VB2_MMAP | VB2_READ;
+	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
 	q->drv_priv = &dev->ts_q;
 	q->ops = &saa7134_empress_qops;
 	q->gfp_flags = GFP_DMA32;
@@ -294,6 +291,7 @@ static int empress_init(struct saa7134_dev *dev)
 	q->buf_struct_size = sizeof(struct saa7134_buf);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &dev->lock;
+	q->dev = &dev->pci->dev;
 	err = vb2_queue_init(q);
 	if (err)
 		return err;

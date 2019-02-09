@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1999, 2000 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
@@ -355,7 +356,7 @@ struct ioc3_etxd {
 #define SSCR_PAUSE_STATE 0x40000000	/* sets when PAUSE takes effect */
 #define SSCR_RESET	0x80000000	/* reset DMA channels */
 
-/* all producer/comsumer pointers are the same bitfield */
+/* all producer/consumer pointers are the same bitfield */
 #define PROD_CONS_PTR_4K 0x00000ff8	/* for 4K buffers */
 #define PROD_CONS_PTR_1K 0x000003f8	/* for 1K buffers */
 #define PROD_CONS_PTR_OFF 3

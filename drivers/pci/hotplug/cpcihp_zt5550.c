@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * cpcihp_zt5550.c
  *
@@ -6,26 +7,6 @@
  * Copyright 2002 SOMA Networks, Inc.
  * Copyright 2001 Intel San Luis Obispo
  * Copyright 2000,2001 MontaVista Software Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
- * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
- * THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <scottm@somanetworks.com>
  */
@@ -49,12 +30,12 @@
 #define dbg(format, arg...)					\
 	do {							\
 		if (debug)					\
-			printk (KERN_DEBUG "%s: " format "\n",	\
-				MY_NAME , ## arg);		\
+			printk(KERN_DEBUG "%s: " format "\n",	\
+				MY_NAME, ## arg);		\
 	} while (0)
-#define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME , ## arg)
+#define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME, ## arg)
+#define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME, ## arg)
+#define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME, ## arg)
 
 /* local variables */
 static bool debug;
@@ -204,7 +185,7 @@ static int zt5550_hc_disable_irq(void)
 	return 0;
 }
 
-static int zt5550_hc_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int zt5550_hc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int status;
 
@@ -214,7 +195,7 @@ static int zt5550_hc_init_one (struct pci_dev *pdev, const struct pci_device_id 
 
 	dbg("returned from zt5550_hc_config");
 
-	memset(&zt5550_hpc, 0, sizeof (struct cpci_hp_controller));
+	memset(&zt5550_hpc, 0, sizeof(struct cpci_hp_controller));
 	zt5550_hpc_ops.query_enum = zt5550_hc_query_enum;
 	zt5550_hpc.ops = &zt5550_hpc_ops;
 	if (!poll) {
@@ -280,7 +261,7 @@ static void zt5550_hc_remove_one(struct pci_dev *pdev)
 }
 
 
-static struct pci_device_id zt5550_hc_pci_tbl[] = {
+static const struct pci_device_id zt5550_hc_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ZIATECH, PCI_DEVICE_ID_ZIATECH_5550_HC, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, }
 };

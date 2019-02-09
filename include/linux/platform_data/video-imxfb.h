@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This structure describes the machine which we are running on.
  */
@@ -47,13 +48,10 @@
 #define LSCR1_GRAY2(x)            (((x) & 0xf) << 4)
 #define LSCR1_GRAY1(x)            (((x) & 0xf))
 
-#define DMACR_BURST	(1 << 31)
-#define DMACR_HM(x)	(((x) & 0xf) << 16)
-#define DMACR_TM(x)	((x) & 0xf)
-
 struct imx_fb_videomode {
 	struct fb_videomode mode;
 	u32 pcr;
+	bool aus_mode;
 	unsigned char	bpp;
 };
 

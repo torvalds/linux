@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -1249,8 +1250,8 @@ fc_rspnid_build(struct fchs_s *fchs, void *pyld, u32 s_id, u16 ox_id,
 	memset(rspnid, 0, sizeof(struct fcgs_rspnid_req_s));
 
 	rspnid->dap = s_id;
-	rspnid->spn_len = (u8) strlen((char *)name);
-	strncpy((char *)rspnid->spn, (char *)name, rspnid->spn_len);
+	strlcpy(rspnid->spn, name, sizeof(rspnid->spn));
+	rspnid->spn_len = (u8) strlen(rspnid->spn);
 
 	return sizeof(struct fcgs_rspnid_req_s) + sizeof(struct ct_hdr_s);
 }
@@ -1270,8 +1271,8 @@ fc_rsnn_nn_build(struct fchs_s *fchs, void *pyld, u32 s_id,
 	memset(rsnn_nn, 0, sizeof(struct fcgs_rsnn_nn_req_s));
 
 	rsnn_nn->node_name = node_name;
-	rsnn_nn->snn_len = (u8) strlen((char *)name);
-	strncpy((char *)rsnn_nn->snn, (char *)name, rsnn_nn->snn_len);
+	strlcpy(rsnn_nn->snn, name, sizeof(rsnn_nn->snn));
+	rsnn_nn->snn_len = (u8) strlen(rsnn_nn->snn);
 
 	return sizeof(struct fcgs_rsnn_nn_req_s) + sizeof(struct ct_hdr_s);
 }

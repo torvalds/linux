@@ -23,14 +23,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/ 
+ * the project's page is at https://linuxtv.org
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -46,7 +43,7 @@
 #include "tda1004x.h"
 #include "tua6100.h"
 #include "dvb-pll.h"
-#include <media/saa7146_vv.h>
+#include <media/drv-intf/saa7146_vv.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -54,7 +51,7 @@
 #include <linux/input.h>
 #include <linux/spinlock.h>
 
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 #define DEBICICAM		0x02420000
 
@@ -580,7 +577,7 @@ static u8 typhoon_cinergy1200s_inittab[] = {
 	0xff, 0xff
 };
 
-static struct stv0299_config typhoon_config = {
+static const struct stv0299_config typhoon_config = {
 	.demod_address = 0x68,
 	.inittab = typhoon_cinergy1200s_inittab,
 	.mclk = 88000000UL,
@@ -593,7 +590,7 @@ static struct stv0299_config typhoon_config = {
 };
 
 
-static struct stv0299_config cinergy_1200s_config = {
+static const struct stv0299_config cinergy_1200s_config = {
 	.demod_address = 0x68,
 	.inittab = typhoon_cinergy1200s_inittab,
 	.mclk = 88000000UL,
@@ -605,7 +602,7 @@ static struct stv0299_config cinergy_1200s_config = {
 	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
 };
 
-static struct stv0299_config cinergy_1200s_1894_0010_config = {
+static const struct stv0299_config cinergy_1200s_1894_0010_config = {
 	.demod_address = 0x68,
 	.inittab = typhoon_cinergy1200s_inittab,
 	.mclk = 88000000UL,
@@ -879,7 +876,7 @@ static int philips_sd1878_ci_set_symbol_rate(struct dvb_frontend *fe,
 	return 0;
 }
 
-static struct stv0299_config philips_sd1878_config = {
+static const struct stv0299_config philips_sd1878_config = {
 	.demod_address = 0x68,
      .inittab = philips_sd1878_inittab,
 	.mclk = 88000000UL,
@@ -1184,14 +1181,14 @@ static u8 read_pwm(struct budget_av *budget_av)
 #define SUBID_DVBS_KNC1_PLUS		0x0011
 #define SUBID_DVBS_TYPHOON		0x4f56
 #define SUBID_DVBS_CINERGY1200		0x1154
-#define SUBID_DVBS_CYNERGY1200N 	0x1155
+#define SUBID_DVBS_CYNERGY1200N		0x1155
 #define SUBID_DVBS_TV_STAR		0x0014
 #define SUBID_DVBS_TV_STAR_PLUS_X4	0x0015
 #define SUBID_DVBS_TV_STAR_CI		0x0016
 #define SUBID_DVBS2_KNC1		0x0018
 #define SUBID_DVBS2_KNC1_OEM		0x0019
-#define SUBID_DVBS_EASYWATCH_1  	0x001a
-#define SUBID_DVBS_EASYWATCH_2  	0x001b
+#define SUBID_DVBS_EASYWATCH_1		0x001a
+#define SUBID_DVBS_EASYWATCH_2		0x001b
 #define SUBID_DVBS2_EASYWATCH		0x001d
 #define SUBID_DVBS_EASYWATCH		0x001e
 
@@ -1570,7 +1567,7 @@ MAKE_BUDGET_INFO(cin1200c, "Terratec Cinergy 1200 DVB-C", BUDGET_CIN1200C);
 MAKE_BUDGET_INFO(cin1200cmk3, "Terratec Cinergy 1200 DVB-C MK3", BUDGET_CIN1200C_MK3);
 MAKE_BUDGET_INFO(cin1200t, "Terratec Cinergy 1200 DVB-T", BUDGET_CIN1200T);
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x4f56),
 	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x0010),
 	MAKE_EXTENSION_PCI(knc1s, 0x1894, 0x0010),
@@ -1636,5 +1633,4 @@ module_exit(budget_av_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, Michael Hunold, others");
-MODULE_DESCRIPTION("driver for the SAA7146 based so-called "
-		   "budget PCI DVB w/ analog input and CI-module (e.g. the KNC cards)");
+MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB w/ analog input and CI-module (e.g. the KNC cards)");

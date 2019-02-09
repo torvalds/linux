@@ -26,19 +26,17 @@
 #include <linux/math64.h>
 #include <linux/bitops.h>
 
-#include "dvb_frontend.h"
-#include "dvb_math.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_math.h>
 #include "rtl2832.h"
 
 struct rtl2832_dev {
 	struct rtl2832_platform_data *pdata;
 	struct i2c_client *client;
-	struct mutex regmap_mutex;
 	struct regmap_config regmap_config;
 	struct regmap *regmap;
-	struct i2c_adapter *i2c_adapter_tuner;
+	struct i2c_mux_core *muxc;
 	struct dvb_frontend fe;
-	struct delayed_work stat_work;
 	enum fe_status fe_status;
 	u64 post_bit_error_prev; /* for old DVBv3 read_ber() calculation */
 	u64 post_bit_error;
@@ -46,6 +44,7 @@ struct rtl2832_dev {
 	bool sleeping;
 	struct delayed_work i2c_gate_work;
 	unsigned long filters; /* PID filter */
+	bool slave_ts;
 };
 
 struct rtl2832_reg_entry {

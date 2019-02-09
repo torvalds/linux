@@ -1,24 +1,10 @@
-/*
- *  tm6000-i2c.c - driver for TM5600/TM6000/TM6010 USB video capture devices
- *
- *  Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
- *
- *  Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
- *	- Fix SMBus Read Byte command
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- */
+// SPDX-License-Identifier: GPL-2.0
+// tm6000-i2c.c - driver for TM5600/TM6000/TM6010 USB video capture devices
+//
+// Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@kernel.org>
+//
+// Copyright (c) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+//	- Fix SMBus Read Byte command
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -159,8 +145,6 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct tm6000_core *dev = i2c_adap->algo_data;
 	int addr, rc, i, byte;
 
-	if (num <= 0)
-		return 0;
 	for (i = 0; i < num; i++) {
 		addr = (msgs[i].addr << 1) & 0xff;
 		i2c_dprintk(2, "%s %s addr=0x%x len=%d:",
@@ -173,8 +157,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			 * immediately after a 1 or 2 byte write to select
 			 * a register.  We cannot fulfil this request.
 			 */
-			i2c_dprintk(2, " read without preceding write not"
-				       " supported");
+			i2c_dprintk(2, " read without preceding write not supported");
 			rc = -EOPNOTSUPP;
 			goto err;
 		} else if (i + 1 < num && msgs[i].len <= 2 &&

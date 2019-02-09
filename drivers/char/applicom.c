@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/mutex.h>
@@ -34,7 +34,7 @@
 #include <linux/fs.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "applicom.h"
 
@@ -67,7 +67,7 @@ static char *applicom_pci_devnames[] = {
 	"PCI2000PFB"
 };
 
-static struct pci_device_id applicom_pci_tbl[] = {
+static const struct pci_device_id applicom_pci_tbl[] = {
 	{ PCI_VDEVICE(APPLICOM, PCI_DEVICE_ID_APPLICOM_PCIGENERIC) },
 	{ PCI_VDEVICE(APPLICOM, PCI_DEVICE_ID_APPLICOM_PCI2000IBS_CAN) },
 	{ PCI_VDEVICE(APPLICOM, PCI_DEVICE_ID_APPLICOM_PCI2000PFB) },
@@ -94,9 +94,9 @@ static struct applicom_board {
 static unsigned int irq = 0;	/* interrupt number IRQ       */
 static unsigned long mem = 0;	/* physical segment of board  */
 
-module_param(irq, uint, 0);
+module_param_hw(irq, uint, irq, 0);
 MODULE_PARM_DESC(irq, "IRQ of the Applicom board");
-module_param(mem, ulong, 0);
+module_param_hw(mem, ulong, iomem, 0);
 MODULE_PARM_DESC(mem, "Shared Memory Address of Applicom board");
 
 static unsigned int numboards;	/* number of installed boards */

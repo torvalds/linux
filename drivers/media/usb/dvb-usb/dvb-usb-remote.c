@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /* dvb-usb-remote.c is part of the DVB USB library.
  *
- * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
  * see dvb-usb-init.c for copyright information.
  *
  * This file contains functions for initializing the input-device and for handling remote-control-queries.
@@ -131,6 +132,11 @@ static void legacy_dvb_usb_read_remote_control(struct work_struct *work)
 		case REMOTE_KEY_PRESSED:
 			deb_rc("key pressed\n");
 			d->last_event = event;
+			input_event(d->input_dev, EV_KEY, event, 1);
+			input_sync(d->input_dev);
+			input_event(d->input_dev, EV_KEY, d->last_event, 0);
+			input_sync(d->input_dev);
+			break;
 		case REMOTE_KEY_REPEAT:
 			deb_rc("key repeated\n");
 			input_event(d->input_dev, EV_KEY, event, 1);
@@ -265,7 +271,7 @@ static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d)
 	int err, rc_interval;
 	struct rc_dev *dev;
 
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(d->props.rc.core.driver_type);
 	if (!dev)
 		return -ENOMEM;
 
@@ -273,12 +279,12 @@ static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d)
 	dev->map_name = d->props.rc.core.rc_codes;
 	dev->change_protocol = d->props.rc.core.change_protocol;
 	dev->allowed_protocols = d->props.rc.core.allowed_protos;
-	dev->driver_type = d->props.rc.core.driver_type;
 	usb_to_input_id(d->udev, &dev->input_id);
-	dev->input_name = "IR-receiver inside an USB DVB receiver";
+	dev->device_name = d->desc->name;
 	dev->input_phys = d->rc_phys;
 	dev->dev.parent = &d->udev->dev;
 	dev->priv = d;
+	dev->scancode_mask = d->props.rc.core.scancode_mask;
 
 	err = rc_register_device(dev);
 	if (err < 0) {

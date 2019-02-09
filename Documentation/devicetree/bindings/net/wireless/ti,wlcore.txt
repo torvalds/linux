@@ -10,6 +10,7 @@ Required properties:
     * "ti,wl1273"
     * "ti,wl1281"
     * "ti,wl1283"
+    * "ti,wl1285"
     * "ti,wl1801"
     * "ti,wl1805"
     * "ti,wl1807"
@@ -19,8 +20,6 @@ Required properties:
  - interrupts : specifies attributes for the out-of-band interrupt.
 
 Optional properties:
- - interrupt-parent : the phandle for the interrupt controller to which the
-	device interrupts are connected.
  - ref-clock-frequency : ref clock frequency in Hz
  - tcxo-clock-frequency : tcxo clock frequency in Hz
 
@@ -30,7 +29,6 @@ clock, new bindings (for parsing the clock nodes) have to be added.
 Example:
 
 &mmc3 {
-	status = "okay";
 	vmmc-supply = <&wlan_en_reg>;
 	bus-width = <4>;
 	cap-power-off-card;

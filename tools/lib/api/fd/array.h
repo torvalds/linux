@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __API_FD_ARRAY__
 #define __API_FD_ARRAY__
 
@@ -22,6 +23,7 @@ struct fdarray {
 	struct pollfd *entries;
 	union {
 		int    idx;
+		void   *ptr;
 	} *priv;
 };
 
@@ -34,7 +36,8 @@ void fdarray__delete(struct fdarray *fda);
 int fdarray__add(struct fdarray *fda, int fd, short revents);
 int fdarray__poll(struct fdarray *fda, int timeout);
 int fdarray__filter(struct fdarray *fda, short revents,
-		    void (*entry_destructor)(struct fdarray *fda, int fd));
+		    void (*entry_destructor)(struct fdarray *fda, int fd, void *arg),
+		    void *arg);
 int fdarray__grow(struct fdarray *fda, int extra);
 int fdarray__fprintf(struct fdarray *fda, FILE *fp);
 

@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>
  *
  * Based on msm_serial.c, which is:
  * Copyright (C) 2007 Google, Inc.
  * Author: Robert Love <rlove@google.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #if defined(CONFIG_SERIAL_VT8500_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
@@ -21,7 +13,6 @@
 
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
-#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
@@ -119,7 +110,7 @@ struct vt8500_port {
  * have been allocated as we can't use pdev->id in
  * devicetree
  */
-static unsigned long vt8500_ports_in_use;
+static DECLARE_BITMAP(vt8500_ports_in_use, VT8500_MAX_PORTS);
 
 static inline void vt8500_write(struct uart_port *port, unsigned int val,
 			     unsigned int off)
@@ -485,7 +476,7 @@ static struct uart_driver vt8500_uart_driver;
 
 #ifdef CONFIG_SERIAL_VT8500_CONSOLE
 
-static inline void wait_for_xmitr(struct uart_port *port)
+static void wait_for_xmitr(struct uart_port *port)
 {
 	unsigned int status, tmout = 10000;
 
@@ -593,7 +584,7 @@ static void vt8500_put_poll_char(struct uart_port *port, unsigned char c)
 }
 #endif
 
-static struct uart_ops vt8500_uart_pops = {
+static const struct uart_ops vt8500_uart_pops = {
 	.tx_empty	= vt8500_tx_empty,
 	.set_mctrl	= vt8500_set_mctrl,
 	.get_mctrl	= vt8500_get_mctrl,
@@ -664,15 +655,15 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 
 	if (port < 0) {
 		/* calculate the port id */
-		port = find_first_zero_bit(&vt8500_ports_in_use,
-					sizeof(vt8500_ports_in_use));
+		port = find_first_zero_bit(vt8500_ports_in_use,
+					   VT8500_MAX_PORTS);
 	}
 
 	if (port >= VT8500_MAX_PORTS)
 		return -ENODEV;
 
 	/* reserve the port id */
-	if (test_and_set_bit(port, &vt8500_ports_in_use)) {
+	if (test_and_set_bit(port, vt8500_ports_in_use)) {
 		/* port already in use - shouldn't really happen */
 		return -EBUSY;
 	}
@@ -730,22 +721,12 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vt8500_serial_remove(struct platform_device *pdev)
-{
-	struct vt8500_port *vt8500_port = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(vt8500_port->clk);
-	uart_remove_one_port(&vt8500_uart_driver, &vt8500_port->uart);
-
-	return 0;
-}
-
 static struct platform_driver vt8500_platform_driver = {
 	.probe  = vt8500_serial_probe,
-	.remove = vt8500_serial_remove,
 	.driver = {
 		.name = "vt8500_serial",
 		.of_match_table = wmt_dt_ids,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -764,19 +745,4 @@ static int __init vt8500_serial_init(void)
 
 	return ret;
 }
-
-static void __exit vt8500_serial_exit(void)
-{
-#ifdef CONFIG_SERIAL_VT8500_CONSOLE
-	unregister_console(&vt8500_console);
-#endif
-	platform_driver_unregister(&vt8500_platform_driver);
-	uart_unregister_driver(&vt8500_uart_driver);
-}
-
-module_init(vt8500_serial_init);
-module_exit(vt8500_serial_exit);
-
-MODULE_AUTHOR("Alexey Charkov <alchark@gmail.com>");
-MODULE_DESCRIPTION("Driver for vt8500 serial device");
-MODULE_LICENSE("GPL v2");
+device_initcall(vt8500_serial_init);

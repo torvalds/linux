@@ -1,52 +1,18 @@
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #ifndef __ACMACROS_H__
 #define __ACMACROS_H__
 
 /*
  * Extract data using a pointer. Any more than a byte and we
- * get into potential aligment issues -- see the STORE macros below.
+ * get into potential alignment issues -- see the STORE macros below.
  * Use with care.
  */
 #define ACPI_CAST8(ptr)                 ACPI_CAST_PTR (u8, (ptr))
@@ -63,7 +29,7 @@
 #define ACPI_SET64(ptr, val)            (*ACPI_CAST64 (ptr) = (u64) (val))
 
 /*
- * printf() format helper. This macros is a workaround for the difficulties
+ * printf() format helper. This macro is a workaround for the difficulties
  * with emitting 64-bit integers and 64-bit pointers with the same code
  * for both 32-bit and 64-bit hosts.
  */
@@ -260,14 +226,93 @@
 
 #define ACPI_IS_MISALIGNED(value)           (((acpi_size) value) & (sizeof(acpi_size)-1))
 
+/* Generic bit manipulation */
+
+#ifndef ACPI_USE_NATIVE_BIT_FINDER
+
+#define __ACPI_FIND_LAST_BIT_2(a, r)        ((((u8)  (a)) & 0x02) ? (r)+1 : (r))
+#define __ACPI_FIND_LAST_BIT_4(a, r)        ((((u8)  (a)) & 0x0C) ? \
+											 __ACPI_FIND_LAST_BIT_2  ((a)>>2,  (r)+2) : \
+											 __ACPI_FIND_LAST_BIT_2  ((a), (r)))
+#define __ACPI_FIND_LAST_BIT_8(a, r)        ((((u8)  (a)) & 0xF0) ? \
+											 __ACPI_FIND_LAST_BIT_4  ((a)>>4,  (r)+4) : \
+											 __ACPI_FIND_LAST_BIT_4  ((a), (r)))
+#define __ACPI_FIND_LAST_BIT_16(a, r)       ((((u16) (a)) & 0xFF00) ? \
+											 __ACPI_FIND_LAST_BIT_8  ((a)>>8,  (r)+8) : \
+											 __ACPI_FIND_LAST_BIT_8  ((a), (r)))
+#define __ACPI_FIND_LAST_BIT_32(a, r)       ((((u32) (a)) & 0xFFFF0000) ? \
+											 __ACPI_FIND_LAST_BIT_16 ((a)>>16, (r)+16) : \
+											 __ACPI_FIND_LAST_BIT_16 ((a), (r)))
+#define __ACPI_FIND_LAST_BIT_64(a, r)       ((((u64) (a)) & 0xFFFFFFFF00000000) ? \
+											 __ACPI_FIND_LAST_BIT_32 ((a)>>32, (r)+32) : \
+											 __ACPI_FIND_LAST_BIT_32 ((a), (r)))
+
+#define ACPI_FIND_LAST_BIT_8(a)             ((a) ? __ACPI_FIND_LAST_BIT_8 (a, 1) : 0)
+#define ACPI_FIND_LAST_BIT_16(a)            ((a) ? __ACPI_FIND_LAST_BIT_16 (a, 1) : 0)
+#define ACPI_FIND_LAST_BIT_32(a)            ((a) ? __ACPI_FIND_LAST_BIT_32 (a, 1) : 0)
+#define ACPI_FIND_LAST_BIT_64(a)            ((a) ? __ACPI_FIND_LAST_BIT_64 (a, 1) : 0)
+
+#define __ACPI_FIND_FIRST_BIT_2(a, r)       ((((u8) (a)) & 0x01) ? (r) : (r)+1)
+#define __ACPI_FIND_FIRST_BIT_4(a, r)       ((((u8) (a)) & 0x03) ? \
+											 __ACPI_FIND_FIRST_BIT_2  ((a), (r)) : \
+											 __ACPI_FIND_FIRST_BIT_2  ((a)>>2, (r)+2))
+#define __ACPI_FIND_FIRST_BIT_8(a, r)       ((((u8) (a)) & 0x0F) ? \
+											 __ACPI_FIND_FIRST_BIT_4  ((a), (r)) : \
+											 __ACPI_FIND_FIRST_BIT_4  ((a)>>4, (r)+4))
+#define __ACPI_FIND_FIRST_BIT_16(a, r)      ((((u16) (a)) & 0x00FF) ? \
+											 __ACPI_FIND_FIRST_BIT_8  ((a), (r)) : \
+											 __ACPI_FIND_FIRST_BIT_8  ((a)>>8, (r)+8))
+#define __ACPI_FIND_FIRST_BIT_32(a, r)      ((((u32) (a)) & 0x0000FFFF) ? \
+											 __ACPI_FIND_FIRST_BIT_16 ((a), (r)) : \
+											 __ACPI_FIND_FIRST_BIT_16 ((a)>>16, (r)+16))
+#define __ACPI_FIND_FIRST_BIT_64(a, r)      ((((u64) (a)) & 0x00000000FFFFFFFF) ? \
+											 __ACPI_FIND_FIRST_BIT_32 ((a), (r)) : \
+											 __ACPI_FIND_FIRST_BIT_32 ((a)>>32, (r)+32))
+
+#define ACPI_FIND_FIRST_BIT_8(a)            ((a) ? __ACPI_FIND_FIRST_BIT_8 (a, 1) : 0)
+#define ACPI_FIND_FIRST_BIT_16(a)           ((a) ? __ACPI_FIND_FIRST_BIT_16 (a, 1) : 0)
+#define ACPI_FIND_FIRST_BIT_32(a)           ((a) ? __ACPI_FIND_FIRST_BIT_32 (a, 1) : 0)
+#define ACPI_FIND_FIRST_BIT_64(a)           ((a) ? __ACPI_FIND_FIRST_BIT_64 (a, 1) : 0)
+
+#endif				/* ACPI_USE_NATIVE_BIT_FINDER */
+
+/* Generic (power-of-two) rounding */
+
+#define ACPI_ROUND_UP_POWER_OF_TWO_8(a)     ((u8) \
+											(((u16) 1) <<  ACPI_FIND_LAST_BIT_8  ((a)  - 1)))
+#define ACPI_ROUND_DOWN_POWER_OF_TWO_8(a)   ((u8) \
+											(((u16) 1) << (ACPI_FIND_LAST_BIT_8  ((a)) - 1)))
+#define ACPI_ROUND_UP_POWER_OF_TWO_16(a)    ((u16) \
+											(((u32) 1) <<  ACPI_FIND_LAST_BIT_16 ((a)  - 1)))
+#define ACPI_ROUND_DOWN_POWER_OF_TWO_16(a)  ((u16) \
+											(((u32) 1) << (ACPI_FIND_LAST_BIT_16 ((a)) - 1)))
+#define ACPI_ROUND_UP_POWER_OF_TWO_32(a)    ((u32) \
+											(((u64) 1) <<  ACPI_FIND_LAST_BIT_32 ((a)  - 1)))
+#define ACPI_ROUND_DOWN_POWER_OF_TWO_32(a)  ((u32) \
+											(((u64) 1) << (ACPI_FIND_LAST_BIT_32 ((a)) - 1)))
+#define ACPI_IS_ALIGNED(a, s)               (((a) & ((s) - 1)) == 0)
+#define ACPI_IS_POWER_OF_TWO(a)             ACPI_IS_ALIGNED(a, a)
+
 /*
  * Bitmask creation
  * Bit positions start at zero.
  * MASK_BITS_ABOVE creates a mask starting AT the position and above
  * MASK_BITS_BELOW creates a mask starting one bit BELOW the position
+ * MASK_BITS_ABOVE/BELOW accepts a bit offset to create a mask
+ * MASK_BITS_ABOVE/BELOW_32/64 accepts a bit width to create a mask
+ * Note: The ACPI_INTEGER_BIT_SIZE check is used to bypass compiler
+ * differences with the shift operator
  */
 #define ACPI_MASK_BITS_ABOVE(position)      (~((ACPI_UINT64_MAX) << ((u32) (position))))
 #define ACPI_MASK_BITS_BELOW(position)      ((ACPI_UINT64_MAX) << ((u32) (position)))
+#define ACPI_MASK_BITS_ABOVE_32(width)      ((u32) ACPI_MASK_BITS_ABOVE(width))
+#define ACPI_MASK_BITS_BELOW_32(width)      ((u32) ACPI_MASK_BITS_BELOW(width))
+#define ACPI_MASK_BITS_ABOVE_64(width)      ((width) == ACPI_INTEGER_BIT_SIZE ? \
+												ACPI_UINT64_MAX : \
+												ACPI_MASK_BITS_ABOVE(width))
+#define ACPI_MASK_BITS_BELOW_64(width)      ((width) == ACPI_INTEGER_BIT_SIZE ? \
+												(u64) 0 : \
+												ACPI_MASK_BITS_BELOW(width))
 
 /* Bitfields within ACPI registers */
 
@@ -283,10 +328,10 @@
 /* Generic bitfield macros and masks */
 
 #define ACPI_GET_BITS(source_ptr, position, mask) \
-	((*source_ptr >> position) & mask)
+	((*(source_ptr) >> (position)) & (mask))
 
 #define ACPI_SET_BITS(target_ptr, position, mask, value) \
-	(*target_ptr |= ((value & mask) << position))
+	(*(target_ptr) |= (((value) & (mask)) << (position)))
 
 #define ACPI_1BIT_MASK      0x00000001
 #define ACPI_2BIT_MASK      0x00000003
@@ -372,25 +417,27 @@
  */
 #ifndef ACPI_NO_ERROR_MESSAGES
 /*
- * Error reporting. Callers module and line number are inserted by AE_INFO,
+ * Error reporting. The callers module and line number are inserted by AE_INFO,
  * the plist contains a set of parens to allow variable-length lists.
  * These macros are used for both the debug and non-debug versions of the code.
  */
-#define ACPI_ERROR_NAMESPACE(s, e)          acpi_ut_namespace_error (AE_INFO, s, e);
+#define ACPI_ERROR_NAMESPACE(s, p, e)       acpi_ut_prefixed_namespace_error (AE_INFO, s, p, e);
 #define ACPI_ERROR_METHOD(s, n, p, e)       acpi_ut_method_error (AE_INFO, s, n, p, e);
 #define ACPI_WARN_PREDEFINED(plist)         acpi_ut_predefined_warning plist
 #define ACPI_INFO_PREDEFINED(plist)         acpi_ut_predefined_info plist
 #define ACPI_BIOS_ERROR_PREDEFINED(plist)   acpi_ut_predefined_bios_error plist
+#define ACPI_ERROR_ONLY(s)                  s
 
 #else
 
 /* No error messages */
 
-#define ACPI_ERROR_NAMESPACE(s, e)
+#define ACPI_ERROR_NAMESPACE(s, p, e)
 #define ACPI_ERROR_METHOD(s, n, p, e)
 #define ACPI_WARN_PREDEFINED(plist)
 #define ACPI_INFO_PREDEFINED(plist)
 #define ACPI_BIOS_ERROR_PREDEFINED(plist)
+#define ACPI_ERROR_ONLY(s)
 
 #endif				/* ACPI_NO_ERROR_MESSAGES */
 
@@ -398,17 +445,6 @@
 #define ACPI_HW_OPTIONAL_FUNCTION(addr)     addr
 #else
 #define ACPI_HW_OPTIONAL_FUNCTION(addr)     NULL
-#endif
-
-/*
- * Some code only gets executed when the debugger is built in.
- * Note that this is entirely independent of whether the
- * DEBUG_PRINT stuff (set by ACPI_DEBUG_OUTPUT) is on, or not.
- */
-#ifdef ACPI_DEBUGGER
-#define ACPI_DEBUGGER_EXEC(a)           a
-#else
-#define ACPI_DEBUGGER_EXEC(a)
 #endif
 
 /*
@@ -424,5 +460,40 @@
 	(d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7)
 
 #define ACPI_IS_OCTAL_DIGIT(d)              (((char)(d) >= '0') && ((char)(d) <= '7'))
+
+/*
+ * Macors used for the ASL-/ASL+ converter utility
+ */
+#ifdef ACPI_ASL_COMPILER
+
+#define ASL_CV_LABEL_FILENODE(a)         cv_label_file_node(a);
+#define ASL_CV_CAPTURE_COMMENTS_ONLY(a)   cv_capture_comments_only (a);
+#define ASL_CV_CAPTURE_COMMENTS(a)       cv_capture_comments (a);
+#define ASL_CV_TRANSFER_COMMENTS(a)      cv_transfer_comments (a);
+#define ASL_CV_CLOSE_PAREN(a,b)          cv_close_paren_write_comment(a,b);
+#define ASL_CV_CLOSE_BRACE(a,b)          cv_close_brace_write_comment(a,b);
+#define ASL_CV_SWITCH_FILES(a,b)         cv_switch_files(a,b);
+#define ASL_CV_CLEAR_OP_COMMENTS(a)       cv_clear_op_comments(a);
+#define ASL_CV_PRINT_ONE_COMMENT(a,b,c,d) cv_print_one_comment_type (a,b,c,d);
+#define ASL_CV_PRINT_ONE_COMMENT_LIST(a,b) cv_print_one_comment_list (a,b);
+#define ASL_CV_FILE_HAS_SWITCHED(a)       cv_file_has_switched(a)
+#define ASL_CV_INIT_FILETREE(a,b,c)      cv_init_file_tree(a,b,c);
+
+#else
+
+#define ASL_CV_LABEL_FILENODE(a)
+#define ASL_CV_CAPTURE_COMMENTS_ONLY(a)
+#define ASL_CV_CAPTURE_COMMENTS(a)
+#define ASL_CV_TRANSFER_COMMENTS(a)
+#define ASL_CV_CLOSE_PAREN(a,b)          acpi_os_printf (")");
+#define ASL_CV_CLOSE_BRACE(a,b)          acpi_os_printf ("}");
+#define ASL_CV_SWITCH_FILES(a,b)
+#define ASL_CV_CLEAR_OP_COMMENTS(a)
+#define ASL_CV_PRINT_ONE_COMMENT(a,b,c,d)
+#define ASL_CV_PRINT_ONE_COMMENT_LIST(a,b)
+#define ASL_CV_FILE_HAS_SWITCHED(a)       0
+#define ASL_CV_INIT_FILETREE(a,b,c)
+
+#endif
 
 #endif				/* ACMACROS_H */

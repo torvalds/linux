@@ -25,7 +25,7 @@
 
 #include <linux/module.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
@@ -33,18 +33,7 @@
 #include <linux/drbd.h>
 #include "drbd_int.h"
 
-static int drbd_proc_open(struct inode *inode, struct file *file);
-static int drbd_proc_release(struct inode *inode, struct file *file);
-
-
 struct proc_dir_entry *drbd_proc;
-const struct file_operations drbd_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= drbd_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= drbd_proc_release,
-};
 
 static void seq_printf_with_thousands_grouping(struct seq_file *seq, long v)
 {
@@ -122,18 +111,18 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 
 	x = res/50;
 	y = 20-x;
-	seq_printf(seq, "\t[");
+	seq_puts(seq, "\t[");
 	for (i = 1; i < x; i++)
-		seq_printf(seq, "=");
-	seq_printf(seq, ">");
+		seq_putc(seq, '=');
+	seq_putc(seq, '>');
 	for (i = 0; i < y; i++)
-		seq_printf(seq, ".");
-	seq_printf(seq, "] ");
+		seq_putc(seq, '.');
+	seq_puts(seq, "] ");
 
 	if (state.conn == C_VERIFY_S || state.conn == C_VERIFY_T)
-		seq_printf(seq, "verified:");
+		seq_puts(seq, "verified:");
 	else
-		seq_printf(seq, "sync'ed:");
+		seq_puts(seq, "sync'ed:");
 	seq_printf(seq, "%3u.%u%% ", res / 10, res % 10);
 
 	/* if more than a few GB, display in MB */
@@ -146,7 +135,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 			    (unsigned long) Bit2KB(rs_left),
 			    (unsigned long) Bit2KB(rs_total));
 
-	seq_printf(seq, "\n\t");
+	seq_puts(seq, "\n\t");
 
 	/* see drivers/md/md.c
 	 * We do not want to overflow, so the order of operands and
@@ -175,11 +164,11 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 		rt / 3600, (rt % 3600) / 60, rt % 60);
 
 	dbdt = Bit2KB(db/dt);
-	seq_printf(seq, " speed: ");
+	seq_puts(seq, " speed: ");
 	seq_printf_with_thousands_grouping(seq, dbdt);
-	seq_printf(seq, " (");
+	seq_puts(seq, " (");
 	/* ------------------------- ~3s average ------------------------ */
-	if (proc_details >= 1) {
+	if (drbd_proc_details >= 1) {
 		/* this is what drbd_rs_should_slow_down() uses */
 		i = (device->rs_last_mark + DRBD_SYNC_MARKS-1) % DRBD_SYNC_MARKS;
 		dt = (jiffies - device->rs_mark_time[i]) / HZ;
@@ -188,7 +177,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 		db = device->rs_mark_left[i] - rs_left;
 		dbdt = Bit2KB(db/dt);
 		seq_printf_with_thousands_grouping(seq, dbdt);
-		seq_printf(seq, " -- ");
+		seq_puts(seq, " -- ");
 	}
 
 	/* --------------------- long term average ---------------------- */
@@ -200,16 +189,16 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 	db = rs_total - rs_left;
 	dbdt = Bit2KB(db/dt);
 	seq_printf_with_thousands_grouping(seq, dbdt);
-	seq_printf(seq, ")");
+	seq_putc(seq, ')');
 
 	if (state.conn == C_SYNC_TARGET ||
 	    state.conn == C_VERIFY_S) {
-		seq_printf(seq, " want: ");
+		seq_puts(seq, " want: ");
 		seq_printf_with_thousands_grouping(seq, device->c_sync_rate);
 	}
 	seq_printf(seq, " K/sec%s\n", stalled ? " (stalled)" : "");
 
-	if (proc_details >= 1) {
+	if (drbd_proc_details >= 1) {
 		/* 64 bit:
 		 * we convert to sectors in the display below. */
 		unsigned long bm_bits = drbd_bm_bits(device);
@@ -231,11 +220,11 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 			(unsigned long long)bm_bits * BM_SECT_PER_BIT);
 		if (stop_sector != 0 && stop_sector != ULLONG_MAX)
 			seq_printf(seq, " stop sector: %llu", stop_sector);
-		seq_printf(seq, "\n");
+		seq_putc(seq, '\n');
 	}
 }
 
-static int drbd_seq_show(struct seq_file *seq, void *v)
+int drbd_seq_show(struct seq_file *seq, void *v)
 {
 	int i, prev_i = -1;
 	const char *sn;
@@ -245,9 +234,9 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	char wp;
 
 	static char write_ordering_chars[] = {
-		[WO_none] = 'n',
-		[WO_drain_io] = 'd',
-		[WO_bdev_flush] = 'f',
+		[WO_NONE] = 'n',
+		[WO_DRAIN_IO] = 'd',
+		[WO_BDEV_FLUSH] = 'f',
 	};
 
 	seq_printf(seq, "version: " REL_VERSION " (api:%d/proto:%d-%d)\n%s\n",
@@ -276,7 +265,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	rcu_read_lock();
 	idr_for_each_entry(&drbd_devices, device, i) {
 		if (prev_i != i - 1)
-			seq_printf(seq, "\n");
+			seq_putc(seq, '\n');
 		prev_i = i;
 
 		state = device->state;
@@ -288,7 +277,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			seq_printf(seq, "%2d: cs:Unconfigured\n", i);
 		} else {
 			/* reset device->congestion_reason */
-			bdi_rw_congested(&device->rq_queue->backing_dev_info);
+			bdi_rw_congested(device->rq_queue->backing_dev_info);
 
 			nc = rcu_dereference(first_peer_device(device)->connection->net_conf);
 			wp = nc ? nc->wire_protocol - DRBD_PROT_A + 'A' : ' ';
@@ -332,37 +321,16 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 		    state.conn == C_VERIFY_T)
 			drbd_syncer_progress(device, seq, state);
 
-		if (proc_details >= 1 && get_ldev_if_state(device, D_FAILED)) {
+		if (drbd_proc_details >= 1 && get_ldev_if_state(device, D_FAILED)) {
 			lc_seq_printf_stats(seq, device->resync);
 			lc_seq_printf_stats(seq, device->act_log);
 			put_ldev(device);
 		}
 
-		if (proc_details >= 2)
+		if (drbd_proc_details >= 2)
 			seq_printf(seq, "\tblocked on activity log: %d\n", atomic_read(&device->ap_actlog_cnt));
 	}
 	rcu_read_unlock();
 
 	return 0;
 }
-
-static int drbd_proc_open(struct inode *inode, struct file *file)
-{
-	int err;
-
-	if (try_module_get(THIS_MODULE)) {
-		err = single_open(file, drbd_seq_show, NULL);
-		if (err)
-			module_put(THIS_MODULE);
-		return err;
-	}
-	return -ENODEV;
-}
-
-static int drbd_proc_release(struct inode *inode, struct file *file)
-{
-	module_put(THIS_MODULE);
-	return single_release(inode, file);
-}
-
-/* PROC FS stuff end */

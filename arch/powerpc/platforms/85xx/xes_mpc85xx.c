@@ -100,8 +100,8 @@ static void xes_mpc85xx_fixups(void)
 		err = of_address_to_resource(np, 0, &r[0]);
 		if (err) {
 			printk(KERN_WARNING "xes_mpc85xx: Could not get "
-			       "resource for device tree node '%s'",
-			       np->full_name);
+			       "resource for device tree node '%pOF'",
+			       np);
 			continue;
 		}
 
@@ -144,23 +144,17 @@ machine_arch_initcall(xes_mpc8540, mpc85xx_common_publish_devices);
  */
 static int __init xes_mpc8572_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "xes,MPC8572");
+	return of_machine_is_compatible("xes,MPC8572");
 }
 
 static int __init xes_mpc8548_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "xes,MPC8548");
+	return of_machine_is_compatible("xes,MPC8548");
 }
 
 static int __init xes_mpc8540_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "xes,MPC8540");
+	return of_machine_is_compatible("xes,MPC8540");
 }
 
 define_machine(xes_mpc8572) {
@@ -173,7 +167,6 @@ define_machine(xes_mpc8572) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };
@@ -188,7 +181,6 @@ define_machine(xes_mpc8548) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };
@@ -203,7 +195,6 @@ define_machine(xes_mpc8540) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

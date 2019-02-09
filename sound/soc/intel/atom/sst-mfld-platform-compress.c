@@ -107,8 +107,8 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 	struct snd_sst_params str_params;
 	struct sst_compress_cb cb;
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
-	struct sst_data *ctx = snd_soc_platform_get_drvdata(platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct sst_data *ctx = snd_soc_component_get_drvdata(component);
 
 	stream = cstream->runtime->private_data;
 	/* construct fw structure for this*/
@@ -182,24 +182,29 @@ static int sst_platform_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 		if (stream->compr_ops->stream_start)
 			return stream->compr_ops->stream_start(sst->dev, stream->id);
+		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		if (stream->compr_ops->stream_drop)
 			return stream->compr_ops->stream_drop(sst->dev, stream->id);
+		break;
 	case SND_COMPR_TRIGGER_DRAIN:
 		if (stream->compr_ops->stream_drain)
 			return stream->compr_ops->stream_drain(sst->dev, stream->id);
+		break;
 	case SND_COMPR_TRIGGER_PARTIAL_DRAIN:
 		if (stream->compr_ops->stream_partial_drain)
 			return stream->compr_ops->stream_partial_drain(sst->dev, stream->id);
+		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (stream->compr_ops->stream_pause)
 			return stream->compr_ops->stream_pause(sst->dev, stream->id);
+		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (stream->compr_ops->stream_pause_release)
 			return stream->compr_ops->stream_pause_release(sst->dev, stream->id);
-	default:
-		return -EINVAL;
+		break;
 	}
+	return -EINVAL;
 }
 
 static int sst_platform_compr_pointer(struct snd_compr_stream *cstream,
@@ -254,7 +259,7 @@ static int sst_platform_compr_set_metadata(struct snd_compr_stream *cstream,
 	return stream->compr_ops->set_metadata(sst->dev, stream->id, metadata);
 }
 
-struct snd_compr_ops sst_platform_compr_ops = {
+const struct snd_compr_ops sst_platform_compr_ops = {
 
 	.open = sst_platform_compr_open,
 	.free = sst_platform_compr_free,

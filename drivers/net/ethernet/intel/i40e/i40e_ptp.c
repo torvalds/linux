@@ -1,28 +1,5 @@
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "i40e.h"
 #include <linux/ptp_classify.h>
@@ -39,9 +16,9 @@
  * At 1Gb link, the period is multiplied by 20. (32ns)
  * 1588 functionality is not supported at 100Mbps.
  */
-#define I40E_PTP_40GB_INCVAL 0x0199999999ULL
-#define I40E_PTP_10GB_INCVAL 0x0333333333ULL
-#define I40E_PTP_1GB_INCVAL  0x2000000000ULL
+#define I40E_PTP_40GB_INCVAL		0x0199999999ULL
+#define I40E_PTP_10GB_INCVAL_MULT	2
+#define I40E_PTP_1GB_INCVAL_MULT	20
 
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V1  BIT(I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V2  (2 << \
@@ -129,17 +106,24 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 		ppb = -ppb;
 	}
 
-	smp_mb(); /* Force any pending update before accessing. */
-	adj = ACCESS_ONCE(pf->ptp_base_adj);
-
-	freq = adj;
+	freq = I40E_PTP_40GB_INCVAL;
 	freq *= ppb;
 	diff = div_u64(freq, 1000000000ULL);
 
 	if (neg_adj)
-		adj -= diff;
+		adj = I40E_PTP_40GB_INCVAL - diff;
 	else
-		adj += diff;
+		adj = I40E_PTP_40GB_INCVAL + diff;
+
+	/* At some link speeds, the base incval is so large that directly
+	 * multiplying by ppb would result in arithmetic overflow even when
+	 * using a u64. Avoid this by instead calculating the new incval
+	 * always in terms of the 40GbE clock rate and then multiplying by the
+	 * link speed factor afterwards. This does result in slightly lower
+	 * precision at lower link speeds, but it is fairly minor.
+	 */
+	smp_mb(); /* Force any pending update before accessing. */
+	adj *= READ_ONCE(pf->ptp_adj_mult);
 
 	wr32(hw, I40E_PRTTSYN_INC_L, adj & 0xFFFFFFFF);
 	wr32(hw, I40E_PRTTSYN_INC_H, adj >> 32);
@@ -158,16 +142,15 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	struct timespec64 now, then = ns_to_timespec64(delta);
-	unsigned long flags;
+	struct timespec64 now;
 
-	spin_lock_irqsave(&pf->tmreg_lock, flags);
+	mutex_lock(&pf->tmreg_lock);
 
 	i40e_ptp_read(pf, &now);
-	now = timespec64_add(now, then);
+	timespec64_add_ns(&now, delta);
 	i40e_ptp_write(pf, (const struct timespec64 *)&now);
 
-	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
+	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
 }
@@ -183,11 +166,10 @@ static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 static int i40e_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	unsigned long flags;
 
-	spin_lock_irqsave(&pf->tmreg_lock, flags);
+	mutex_lock(&pf->tmreg_lock);
 	i40e_ptp_read(pf, ts);
-	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
+	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
 }
@@ -204,11 +186,10 @@ static int i40e_ptp_settime(struct ptp_clock_info *ptp,
 			    const struct timespec64 *ts)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	unsigned long flags;
 
-	spin_lock_irqsave(&pf->tmreg_lock, flags);
+	mutex_lock(&pf->tmreg_lock);
 	i40e_ptp_write(pf, ts);
-	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
+	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
 }
@@ -229,7 +210,49 @@ static int i40e_ptp_feature_enable(struct ptp_clock_info *ptp,
 }
 
 /**
+ * i40e_ptp_update_latch_events - Read I40E_PRTTSYN_STAT_1 and latch events
+ * @pf: the PF data structure
+ *
+ * This function reads I40E_PRTTSYN_STAT_1 and updates the corresponding timers
+ * for noticed latch events. This allows the driver to keep track of the first
+ * time a latch event was noticed which will be used to help clear out Rx
+ * timestamps for packets that got dropped or lost.
+ *
+ * This function will return the current value of I40E_PRTTSYN_STAT_1 and is
+ * expected to be called only while under the ptp_rx_lock.
+ **/
+static u32 i40e_ptp_get_rx_events(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	u32 prttsyn_stat, new_latch_events;
+	int  i;
+
+	prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_1);
+	new_latch_events = prttsyn_stat & ~pf->latch_event_flags;
+
+	/* Update the jiffies time for any newly latched timestamp. This
+	 * ensures that we store the time that we first discovered a timestamp
+	 * was latched by the hardware. The service task will later determine
+	 * if we should free the latch and drop that timestamp should too much
+	 * time pass. This flow ensures that we only update jiffies for new
+	 * events latched since the last time we checked, and not all events
+	 * currently latched, so that the service task accounting remains
+	 * accurate.
+	 */
+	for (i = 0; i < 4; i++) {
+		if (new_latch_events & BIT(i))
+			pf->latch_events[i] = jiffies;
+	}
+
+	/* Finally, we store the current status of the Rx timestamp latches */
+	pf->latch_event_flags = prttsyn_stat;
+
+	return prttsyn_stat;
+}
+
+/**
  * i40e_ptp_rx_hang - Detect error case when Rx timestamp registers are hung
+ * @pf: The PF private data structure
  * @vsi: The VSI with the rings relevant to 1588
  *
  * This watchdog task is scheduled to detect error case where hardware has
@@ -237,14 +260,10 @@ static int i40e_ptp_feature_enable(struct ptp_clock_info *ptp,
  * particular error is rare but leaves the device in a state unable to timestamp
  * any future packets.
  **/
-void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
+void i40e_ptp_rx_hang(struct i40e_pf *pf)
 {
-	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
-	struct i40e_ring *rx_ring;
-	unsigned long rx_event;
-	u32 prttsyn_stat;
-	int n;
+	unsigned int i, cleared = 0;
 
 	/* Since we cannot turn off the Rx timestamp logic if the device is
 	 * configured for Tx timestamping, we check if Rx timestamping is
@@ -254,43 +273,75 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_rx)
 		return;
 
-	prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_1);
+	spin_lock_bh(&pf->ptp_rx_lock);
 
-	/* Unless all four receive timestamp registers are latched, we are not
-	 * concerned about a possible PTP Rx hang, so just update the timeout
-	 * counter and exit.
+	/* Update current latch times for Rx events */
+	i40e_ptp_get_rx_events(pf);
+
+	/* Check all the currently latched Rx events and see whether they have
+	 * been latched for over a second. It is assumed that any timestamp
+	 * should have been cleared within this time, or else it was captured
+	 * for a dropped frame that the driver never received. Thus, we will
+	 * clear any timestamp that has been latched for over 1 second.
 	 */
-	if (!(prttsyn_stat & ((I40E_PRTTSYN_STAT_1_RXT0_MASK <<
-			       I40E_PRTTSYN_STAT_1_RXT0_SHIFT) |
-			      (I40E_PRTTSYN_STAT_1_RXT1_MASK <<
-			       I40E_PRTTSYN_STAT_1_RXT1_SHIFT) |
-			      (I40E_PRTTSYN_STAT_1_RXT2_MASK <<
-			       I40E_PRTTSYN_STAT_1_RXT2_SHIFT) |
-			      (I40E_PRTTSYN_STAT_1_RXT3_MASK <<
-			       I40E_PRTTSYN_STAT_1_RXT3_SHIFT)))) {
-		pf->last_rx_ptp_check = jiffies;
+	for (i = 0; i < 4; i++) {
+		if ((pf->latch_event_flags & BIT(i)) &&
+		    time_is_before_jiffies(pf->latch_events[i] + HZ)) {
+			rd32(hw, I40E_PRTTSYN_RXTIME_H(i));
+			pf->latch_event_flags &= ~BIT(i);
+			cleared++;
+		}
+	}
+
+	spin_unlock_bh(&pf->ptp_rx_lock);
+
+	/* Log a warning if more than 2 timestamps got dropped in the same
+	 * check. We don't want to warn about all drops because it can occur
+	 * in normal scenarios such as PTP frames on multicast addresses we
+	 * aren't listening to. However, administrator should know if this is
+	 * the reason packets aren't receiving timestamps.
+	 */
+	if (cleared > 2)
+		dev_dbg(&pf->pdev->dev,
+			"Dropped %d missed RXTIME timestamp events\n",
+			cleared);
+
+	/* Finally, update the rx_hwtstamp_cleared counter */
+	pf->rx_hwtstamp_cleared += cleared;
+}
+
+/**
+ * i40e_ptp_tx_hang - Detect error case when Tx timestamp register is hung
+ * @pf: The PF private data structure
+ *
+ * This watchdog task is run periodically to make sure that we clear the Tx
+ * timestamp logic if we don't obtain a timestamp in a reasonable amount of
+ * time. It is unexpected in the normal case but if it occurs it results in
+ * permanently preventing timestamps of future packets.
+ **/
+void i40e_ptp_tx_hang(struct i40e_pf *pf)
+{
+	struct sk_buff *skb;
+
+	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_tx)
 		return;
-	}
 
-	/* Determine the most recent watchdog or rx_timestamp event. */
-	rx_event = pf->last_rx_ptp_check;
-	for (n = 0; n < vsi->num_queue_pairs; n++) {
-		rx_ring = vsi->rx_rings[n];
-		if (time_after(rx_ring->last_rx_timestamp, rx_event))
-			rx_event = rx_ring->last_rx_timestamp;
-	}
+	/* Nothing to do if we're not already waiting for a timestamp */
+	if (!test_bit(__I40E_PTP_TX_IN_PROGRESS, pf->state))
+		return;
 
-	/* Only need to read the high RXSTMP register to clear the lock */
-	if (time_is_before_jiffies(rx_event + 5 * HZ)) {
-		rd32(hw, I40E_PRTTSYN_RXTIME_H(0));
-		rd32(hw, I40E_PRTTSYN_RXTIME_H(1));
-		rd32(hw, I40E_PRTTSYN_RXTIME_H(2));
-		rd32(hw, I40E_PRTTSYN_RXTIME_H(3));
-		pf->last_rx_ptp_check = jiffies;
-		pf->rx_hwtstamp_cleared++;
-		dev_warn(&vsi->back->pdev->dev,
-			 "%s: clearing Rx timestamp hang\n",
-			 __func__);
+	/* We already have a handler routine which is run when we are notified
+	 * of a Tx timestamp in the hardware. If we don't get an interrupt
+	 * within a second it is reasonable to assume that we never will.
+	 */
+	if (time_is_before_jiffies(pf->ptp_tx_start + HZ)) {
+		skb = pf->ptp_tx_skb;
+		pf->ptp_tx_skb = NULL;
+		clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, pf->state);
+
+		/* Free the skb after we clear the bitlock */
+		dev_kfree_skb_any(skb);
+		pf->tx_hwtstamp_timeouts++;
 	}
 }
 
@@ -305,6 +356,7 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 void i40e_ptp_tx_hwtstamp(struct i40e_pf *pf)
 {
 	struct skb_shared_hwtstamps shhwtstamps;
+	struct sk_buff *skb = pf->ptp_tx_skb;
 	struct i40e_hw *hw = &pf->hw;
 	u32 hi, lo;
 	u64 ns;
@@ -320,12 +372,19 @@ void i40e_ptp_tx_hwtstamp(struct i40e_pf *pf)
 	hi = rd32(hw, I40E_PRTTSYN_TXTIME_H);
 
 	ns = (((u64)hi) << 32) | lo;
-
 	i40e_ptp_convert_to_hwtstamp(&shhwtstamps, ns);
-	skb_tstamp_tx(pf->ptp_tx_skb, &shhwtstamps);
-	dev_kfree_skb_any(pf->ptp_tx_skb);
+
+	/* Clear the bit lock as soon as possible after reading the register,
+	 * and prior to notifying the stack via skb_tstamp_tx(). Otherwise
+	 * applications might wake up and attempt to request another transmit
+	 * timestamp prior to the bit lock being cleared.
+	 */
 	pf->ptp_tx_skb = NULL;
-	clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, &pf->state);
+	clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, pf->state);
+
+	/* Notify the stack and free the skb after we've unlocked */
+	skb_tstamp_tx(skb, &shhwtstamps);
+	dev_kfree_skb_any(skb);
 }
 
 /**
@@ -354,13 +413,24 @@ void i40e_ptp_rx_hwtstamp(struct i40e_pf *pf, struct sk_buff *skb, u8 index)
 
 	hw = &pf->hw;
 
-	prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_1);
+	spin_lock_bh(&pf->ptp_rx_lock);
 
-	if (!(prttsyn_stat & BIT(index)))
+	/* Get current Rx events and update latch times */
+	prttsyn_stat = i40e_ptp_get_rx_events(pf);
+
+	/* TODO: Should we warn about missing Rx timestamp event? */
+	if (!(prttsyn_stat & BIT(index))) {
+		spin_unlock_bh(&pf->ptp_rx_lock);
 		return;
+	}
+
+	/* Clear the latched event since we're about to read its register */
+	pf->latch_event_flags &= ~BIT(index);
 
 	lo = rd32(hw, I40E_PRTTSYN_RXTIME_L(index));
 	hi = rd32(hw, I40E_PRTTSYN_RXTIME_H(index));
+
+	spin_unlock_bh(&pf->ptp_rx_lock);
 
 	ns = (((u64)hi) << 32) | lo;
 
@@ -380,6 +450,7 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 	struct i40e_link_status *hw_link_info;
 	struct i40e_hw *hw = &pf->hw;
 	u64 incval;
+	u32 mult;
 
 	hw_link_info = &hw->phy.link_info;
 
@@ -387,10 +458,10 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 
 	switch (hw_link_info->link_speed) {
 	case I40E_LINK_SPEED_10GB:
-		incval = I40E_PTP_10GB_INCVAL;
+		mult = I40E_PTP_10GB_INCVAL_MULT;
 		break;
 	case I40E_LINK_SPEED_1GB:
-		incval = I40E_PTP_1GB_INCVAL;
+		mult = I40E_PTP_1GB_INCVAL_MULT;
 		break;
 	case I40E_LINK_SPEED_100MB:
 	{
@@ -401,14 +472,19 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 				 "1588 functionality is not supported at 100 Mbps. Stopping the PHC.\n");
 			warn_once++;
 		}
-		incval = 0;
+		mult = 0;
 		break;
 	}
 	case I40E_LINK_SPEED_40GB:
 	default:
-		incval = I40E_PTP_40GB_INCVAL;
+		mult = 1;
 		break;
 	}
+
+	/* The increment value is calculated by taking the base 40GbE incvalue
+	 * and multiplying it by a factor based on the link speed.
+	 */
+	incval = I40E_PTP_40GB_INCVAL * mult;
 
 	/* Write the new increment value into the increment register. The
 	 * hardware will not update the clock until both registers have been
@@ -418,14 +494,14 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 	wr32(hw, I40E_PRTTSYN_INC_H, incval >> 32);
 
 	/* Update the base adjustement value. */
-	ACCESS_ONCE(pf->ptp_base_adj) = incval;
+	WRITE_ONCE(pf->ptp_adj_mult, mult);
 	smp_mb(); /* Force the above update. */
 }
 
 /**
  * i40e_ptp_get_ts_config - ioctl interface to read the HW timestamping
  * @pf: Board private structure
- * @ifreq: ioctl data
+ * @ifr: ioctl data
  *
  * Obtain the current hardware timestamping settigs as requested. To do this,
  * keep a shadow copy of the timestamp settings rather than attempting to
@@ -488,6 +564,8 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+		if (!(pf->hw_features & I40E_HW_PTP_L4_CAPABLE))
+			return -ERANGE;
 		pf->ptp_rx = true;
 		tsyntype = I40E_PRTTSYN_CTL1_V1MESSTYPE0_MASK |
 			   I40E_PRTTSYN_CTL1_TSYNTYPE_V1 |
@@ -495,32 +573,43 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 		config->rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
-	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
-	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		if (!(pf->hw_features & I40E_HW_PTP_L4_CAPABLE))
+			return -ERANGE;
+		/* fall through */
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 		pf->ptp_rx = true;
 		tsyntype = I40E_PRTTSYN_CTL1_V2MESSTYPE0_MASK |
-			   I40E_PRTTSYN_CTL1_TSYNTYPE_V2 |
-			   I40E_PRTTSYN_CTL1_UDP_ENA_MASK;
-		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+			   I40E_PRTTSYN_CTL1_TSYNTYPE_V2;
+		if (pf->hw_features & I40E_HW_PTP_L4_CAPABLE) {
+			tsyntype |= I40E_PRTTSYN_CTL1_UDP_ENA_MASK;
+			config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		} else {
+			config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		}
 		break;
+	case HWTSTAMP_FILTER_NTP_ALL:
 	case HWTSTAMP_FILTER_ALL:
 	default:
 		return -ERANGE;
 	}
 
 	/* Clear out all 1588-related registers to clear and unlatch them. */
+	spin_lock_bh(&pf->ptp_rx_lock);
 	rd32(hw, I40E_PRTTSYN_STAT_0);
 	rd32(hw, I40E_PRTTSYN_TXTIME_H);
 	rd32(hw, I40E_PRTTSYN_RXTIME_H(0));
 	rd32(hw, I40E_PRTTSYN_RXTIME_H(1));
 	rd32(hw, I40E_PRTTSYN_RXTIME_H(2));
 	rd32(hw, I40E_PRTTSYN_RXTIME_H(3));
+	pf->latch_event_flags = 0;
+	spin_unlock_bh(&pf->ptp_rx_lock);
 
 	/* Enable/disable the Tx timestamp interrupt based on user input. */
 	regval = rd32(hw, I40E_PRTTSYN_CTL0);
@@ -556,7 +645,7 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 /**
  * i40e_ptp_set_ts_config - ioctl interface to control the HW timestamping
  * @pf: Board private structure
- * @ifreq: ioctl data
+ * @ifr: ioctl data
  *
  * Respond to the user filter requests and make the appropriate hardware
  * changes here. The XL710 cannot support splitting of the Tx/Rx timestamping
@@ -659,10 +748,8 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		return;
 	}
 
-	/* we have to initialize the lock first, since we can't control
-	 * when the user will enter the PHC device entry points
-	 */
-	spin_lock_init(&pf->tmreg_lock);
+	mutex_init(&pf->tmreg_lock);
+	spin_lock_init(&pf->ptp_rx_lock);
 
 	/* ensure we have a clock device */
 	err = i40e_ptp_create_clock(pf);
@@ -670,7 +757,7 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		pf->ptp_clock = NULL;
 		dev_err(&pf->pdev->dev, "%s: ptp_clock_register failed\n",
 			__func__);
-	} else {
+	} else if (pf->ptp_clock) {
 		struct timespec64 ts;
 		u32 regval;
 
@@ -712,9 +799,11 @@ void i40e_ptp_stop(struct i40e_pf *pf)
 	pf->ptp_rx = false;
 
 	if (pf->ptp_tx_skb) {
-		dev_kfree_skb_any(pf->ptp_tx_skb);
+		struct sk_buff *skb = pf->ptp_tx_skb;
+
 		pf->ptp_tx_skb = NULL;
-		clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, &pf->state);
+		clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, pf->state);
+		dev_kfree_skb_any(skb);
 	}
 
 	if (pf->ptp_clock) {

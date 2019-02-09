@@ -1,14 +1,8 @@
-/*
- * Samsung's S3C64XX flattened device tree enabled machine
- *
- * Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
-
-#include <linux/of_platform.h>
+// SPDX-License-Identifier: GPL-2.0
+//
+// Samsung's S3C64XX flattened device tree enabled machine
+//
+// Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -48,7 +42,6 @@ static void __init s3c64xx_dt_map_io(void)
 static void __init s3c64xx_dt_init_machine(void)
 {
 	samsung_wdt_reset_of_init();
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static void s3c64xx_dt_restart(enum reboot_mode mode, const char *cmd)

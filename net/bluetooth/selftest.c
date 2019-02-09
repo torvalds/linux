@@ -26,7 +26,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#include "ecc.h"
+#include "ecdh_helper.h"
 #include "smp.h"
 #include "selftest.h"
 
@@ -138,22 +138,47 @@ static const u8 dhkey_3[32] __initconst = {
 	0x7c, 0x1c, 0xf9, 0x49, 0xe6, 0xd7, 0xaa, 0x70,
 };
 
-static int __init test_ecdh_sample(const u8 priv_a[32], const u8 priv_b[32],
-				   const u8 pub_a[64], const u8 pub_b[64],
-				   const u8 dhkey[32])
+static int __init test_ecdh_sample(struct crypto_kpp *tfm, const u8 priv_a[32],
+				   const u8 priv_b[32], const u8 pub_a[64],
+				   const u8 pub_b[64], const u8 dhkey[32])
 {
-	u8 dhkey_a[32], dhkey_b[32];
+	u8 *tmp, *dhkey_a, *dhkey_b;
+	int ret;
 
-	ecdh_shared_secret(pub_b, priv_a, dhkey_a);
-	ecdh_shared_secret(pub_a, priv_b, dhkey_b);
-
-	if (memcmp(dhkey_a, dhkey, 32))
+	tmp = kmalloc(64, GFP_KERNEL);
+	if (!tmp)
 		return -EINVAL;
+
+	dhkey_a = &tmp[0];
+	dhkey_b = &tmp[32];
+
+	ret = set_ecdh_privkey(tfm, priv_a);
+	if (ret)
+		goto out;
+
+	ret = compute_ecdh_secret(tfm, pub_b, dhkey_a);
+	if (ret)
+		goto out;
+
+	if (memcmp(dhkey_a, dhkey, 32)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = set_ecdh_privkey(tfm, priv_b);
+	if (ret)
+		goto out;
+
+	ret = compute_ecdh_secret(tfm, pub_a, dhkey_b);
+	if (ret)
+		goto out;
 
 	if (memcmp(dhkey_b, dhkey, 32))
-		return -EINVAL;
-
-	return 0;
+		ret = -EINVAL;
+	/* fall through*/
+out:
+	kfree(tmp);
+	return ret;
 }
 
 static char test_ecdh_buffer[32];
@@ -173,29 +198,42 @@ static const struct file_operations test_ecdh_fops = {
 
 static int __init test_ecdh(void)
 {
+	struct crypto_kpp *tfm;
 	ktime_t calltime, delta, rettime;
-	unsigned long long duration;
+	unsigned long long duration = 0;
 	int err;
 
 	calltime = ktime_get();
 
-	err = test_ecdh_sample(priv_a_1, priv_b_1, pub_a_1, pub_b_1, dhkey_1);
+	tfm = crypto_alloc_kpp("ecdh", CRYPTO_ALG_INTERNAL, 0);
+	if (IS_ERR(tfm)) {
+		BT_ERR("Unable to create ECDH crypto context");
+		err = PTR_ERR(tfm);
+		goto done;
+	}
+
+	err = test_ecdh_sample(tfm, priv_a_1, priv_b_1, pub_a_1, pub_b_1,
+			       dhkey_1);
 	if (err) {
 		BT_ERR("ECDH sample 1 failed");
 		goto done;
 	}
 
-	err = test_ecdh_sample(priv_a_2, priv_b_2, pub_a_2, pub_b_2, dhkey_2);
+	err = test_ecdh_sample(tfm, priv_a_2, priv_b_2, pub_a_2, pub_b_2,
+			       dhkey_2);
 	if (err) {
 		BT_ERR("ECDH sample 2 failed");
 		goto done;
 	}
 
-	err = test_ecdh_sample(priv_a_3, priv_a_3, pub_a_3, pub_a_3, dhkey_3);
+	err = test_ecdh_sample(tfm, priv_a_3, priv_a_3, pub_a_3, pub_a_3,
+			       dhkey_3);
 	if (err) {
 		BT_ERR("ECDH sample 3 failed");
 		goto done;
 	}
+
+	crypto_free_kpp(tfm);
 
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, calltime);

@@ -13,12 +13,47 @@
 #include <asm/ptrace.h>
 
 /*
+ * Per-CPU exception handling data structure.
+ * EXCSAVE1 points to it.
+ */
+struct exc_table {
+	/* Kernel Stack */
+	void *kstk;
+	/* Double exception save area for a0 */
+	unsigned long double_save;
+	/* Fixup handler */
+	void *fixup;
+	/* For passing a parameter to fixup */
+	void *fixup_param;
+	/* For fast syscall handler */
+	unsigned long syscall_save;
+	/* Fast user exception handlers */
+	void *fast_user_handler[EXCCAUSE_N];
+	/* Fast kernel exception handlers */
+	void *fast_kernel_handler[EXCCAUSE_N];
+	/* Default C-Handlers */
+	void *default_handler[EXCCAUSE_N];
+};
+
+/*
  * handler must be either of the following:
  *  void (*)(struct pt_regs *regs);
  *  void (*)(struct pt_regs *regs, unsigned long exccause);
  */
 extern void * __init trap_set_handler(int cause, void *handler);
 extern void do_unhandled(struct pt_regs *regs, unsigned long exccause);
+void fast_second_level_miss(void);
+
+/* Initialize minimal exc_table structure sufficient for basic paging */
+static inline void __init early_trap_init(void)
+{
+	static struct exc_table exc_table __initdata = {
+		.fast_kernel_handler[EXCCAUSE_DTLB_MISS] =
+			fast_second_level_miss,
+	};
+	__asm__ __volatile__("wsr  %0, excsave1\n" : : "a" (&exc_table));
+}
+
 void secondary_trap_init(void);
 
 static inline void spill_registers(void)
@@ -64,5 +99,22 @@ static inline void spill_registers(void)
 		: : : "memory");
 #endif
 }
+
+struct debug_table {
+	/* Pointer to debug exception handler */
+	void (*debug_exception)(void);
+	/* Temporary register save area */
+	unsigned long debug_save[1];
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	/* Save area for DBREAKC registers */
+	unsigned long dbreakc_save[XCHAL_NUM_DBREAK];
+	/* Saved ICOUNT register */
+	unsigned long icount_save;
+	/* Saved ICOUNTLEVEL register */
+	unsigned long icount_level_save;
+#endif
+};
+
+void debug_exception(void);
 
 #endif /* _XTENSA_TRAPS_H */

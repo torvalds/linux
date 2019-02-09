@@ -30,16 +30,10 @@ static const char *const br_port_state_names[] = {
 	[BR_STATE_BLOCKING] = "blocking",
 };
 
-void br_log_state(const struct net_bridge_port *p)
-{
-	br_info(p->br, "port %u(%s) entered %s state\n",
-		(unsigned int) p->port_no, p->dev->name,
-		br_port_state_names[p->state]);
-}
-
 void br_set_state(struct net_bridge_port *p, unsigned int state)
 {
 	struct switchdev_attr attr = {
+		.orig_dev = p->dev,
 		.id = SWITCHDEV_ATTR_ID_PORT_STP_STATE,
 		.flags = SWITCHDEV_F_DEFER,
 		.u.stp_state = state,
@@ -51,6 +45,10 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
 				(unsigned int) p->port_no, p->dev->name);
+	else
+		br_info(p->br, "port %u(%s) entered %s state\n",
+				(unsigned int) p->port_no, p->dev->name,
+				br_port_state_names[p->state]);
 }
 
 /* called under bridge lock */
@@ -125,8 +123,7 @@ static void br_root_port_block(const struct net_bridge *br,
 		  (unsigned int) p->port_no, p->dev->name);
 
 	br_set_state(p, BR_STATE_LISTENING);
-	br_log_state(p);
-	br_ifinfo_notify(RTM_NEWLINK, p);
+	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
 	if (br->forward_delay > 0)
 		mod_timer(&p->forward_delay_timer, jiffies + br->forward_delay);
@@ -237,7 +234,7 @@ static void br_record_config_timeout_values(struct net_bridge *br,
 	br->max_age = bpdu->max_age;
 	br->hello_time = bpdu->hello_time;
 	br->forward_delay = bpdu->forward_delay;
-	br->topology_change = bpdu->topology_change;
+	__br_set_topology_change(br, bpdu->topology_change);
 }
 
 /* called under bridge lock */
@@ -347,7 +344,7 @@ void br_topology_change_detection(struct net_bridge *br)
 		isroot ? "propagating" : "sending tcn bpdu");
 
 	if (isroot) {
-		br->topology_change = 1;
+		__br_set_topology_change(br, 1);
 		mod_timer(&br->topology_change_timer, jiffies
 			  + br->bridge_forward_delay + br->bridge_max_age);
 	} else if (!br->topology_change_detected) {
@@ -406,8 +403,7 @@ static void br_make_blocking(struct net_bridge_port *p)
 			br_topology_change_detection(p->br);
 
 		br_set_state(p, BR_STATE_BLOCKING);
-		br_log_state(p);
-		br_ifinfo_notify(RTM_NEWLINK, p);
+		br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
 		del_timer(&p->forward_delay_timer);
 	}
@@ -430,8 +426,7 @@ static void br_make_forwarding(struct net_bridge_port *p)
 	else
 		br_set_state(p, BR_STATE_LEARNING);
 
-	br_log_state(p);
-	br_ifinfo_notify(RTM_NEWLINK, p);
+	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
 	if (br->forward_delay != 0)
 		mod_timer(&p->forward_delay_timer, jiffies + br->forward_delay);
@@ -567,27 +562,78 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
 
 }
 
-int br_set_ageing_time(struct net_bridge *br, u32 ageing_time)
+/* called under bridge lock */
+int __set_ageing_time(struct net_device *dev, unsigned long t)
 {
 	struct switchdev_attr attr = {
+		.orig_dev = dev,
 		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
-		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP,
-		.u.ageing_time = ageing_time,
+		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP | SWITCHDEV_F_DEFER,
+		.u.ageing_time = jiffies_to_clock_t(t),
 	};
+	int err;
+
+	err = switchdev_port_attr_set(dev, &attr);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	return 0;
+}
+
+/* Set time interval that dynamic forwarding entries live
+ * For pure software bridge, allow values outside the 802.1
+ * standard specification for special cases:
+ *  0 - entry never ages (all permanant)
+ *  1 - entry disappears (no persistance)
+ *
+ * Offloaded switch entries maybe more restrictive
+ */
+int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time)
+{
 	unsigned long t = clock_t_to_jiffies(ageing_time);
 	int err;
 
-	if (t < BR_MIN_AGEING_TIME || t > BR_MAX_AGEING_TIME)
-		return -ERANGE;
-
-	err = switchdev_port_attr_set(br->dev, &attr);
+	err = __set_ageing_time(br->dev, t);
 	if (err)
 		return err;
 
+	spin_lock_bh(&br->lock);
+	br->bridge_ageing_time = t;
 	br->ageing_time = t;
-	mod_timer(&br->gc_timer, jiffies);
+	spin_unlock_bh(&br->lock);
+
+	mod_delayed_work(system_long_wq, &br->gc_work, 0);
 
 	return 0;
+}
+
+/* called under bridge lock */
+void __br_set_topology_change(struct net_bridge *br, unsigned char val)
+{
+	unsigned long t;
+	int err;
+
+	if (br->stp_enabled == BR_KERNEL_STP && br->topology_change != val) {
+		/* On topology change, set the bridge ageing time to twice the
+		 * forward delay. Otherwise, restore its default ageing time.
+		 */
+
+		if (val) {
+			t = 2 * br->forward_delay;
+			br_debug(br, "decreasing ageing time to %lu\n", t);
+		} else {
+			t = br->bridge_ageing_time;
+			br_debug(br, "restoring ageing time to %lu\n", t);
+		}
+
+		err = __set_ageing_time(br->dev, t);
+		if (err)
+			br_warn(br, "error offloading ageing time\n");
+		else
+			br->ageing_time = t;
+	}
+
+	br->topology_change = val;
 }
 
 void __br_set_forward_delay(struct net_bridge *br, unsigned long t)

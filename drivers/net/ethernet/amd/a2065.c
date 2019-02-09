@@ -123,6 +123,7 @@ struct lance_private {
 	int burst_sizes;	      /* ledma SBus burst sizes */
 #endif
 	struct timer_list         multicast_timer;
+	struct net_device	  *dev;
 };
 
 #define LANCE_ADDR(x) ((int)(x) & ~0xff000000)
@@ -512,7 +513,7 @@ static inline int lance_reset(struct net_device *dev)
 	load_csrs(lp);
 
 	lance_init_ring(dev);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_start_queue(dev);
 
 	status = init_restart_lance(lp);
@@ -547,10 +548,8 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 
 	local_irq_save(flags);
 
-	if (!lance_tx_buffs_avail(lp)) {
-		local_irq_restore(flags);
-		return NETDEV_TX_LOCKED;
-	}
+	if (!lance_tx_buffs_avail(lp))
+		goto out_free;
 
 #ifdef DEBUG
 	/* dump the packet */
@@ -573,6 +572,7 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 
 	/* Kick the lance: transmit now */
 	ll->rdp = LE_C0_INEA | LE_C0_TDMD;
+ out_free:
 	dev_kfree_skb(skb);
 
 	local_irq_restore(flags);
@@ -639,12 +639,19 @@ static void lance_set_multicast(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
+static void lance_set_multicast_retry(struct timer_list *t)
+{
+	struct lance_private *lp = from_timer(lp, t, multicast_timer);
+
+	lance_set_multicast(lp->dev);
+}
+
 static int a2065_init_one(struct zorro_dev *z,
 			  const struct zorro_device_id *ent);
 static void a2065_remove_one(struct zorro_dev *z);
 
 
-static struct zorro_device_id a2065_zorro_tbl[] = {
+static const struct zorro_device_id a2065_zorro_tbl[] = {
 	{ ZORRO_PROD_CBM_A2065_1 },
 	{ ZORRO_PROD_CBM_A2065_2 },
 	{ ZORRO_PROD_AMERISTAR_A2065 },
@@ -666,7 +673,6 @@ static const struct net_device_ops lance_netdev_ops = {
 	.ndo_tx_timeout		= lance_tx_timeout,
 	.ndo_set_rx_mode	= lance_set_multicast,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
@@ -730,15 +736,13 @@ static int a2065_init_one(struct zorro_dev *z,
 	priv->lance_log_tx_bufs = LANCE_LOG_TX_BUFFERS;
 	priv->rx_ring_mod_mask = RX_RING_MOD_MASK;
 	priv->tx_ring_mod_mask = TX_RING_MOD_MASK;
+	priv->dev = dev;
 
 	dev->netdev_ops = &lance_netdev_ops;
 	dev->watchdog_timeo = 5*HZ;
 	dev->dma = 0;
 
-	init_timer(&priv->multicast_timer);
-	priv->multicast_timer.data = (unsigned long) dev;
-	priv->multicast_timer.function =
-		(void (*)(unsigned long))lance_set_multicast;
+	timer_setup(&priv->multicast_timer, lance_set_multicast_retry, 0);
 
 	err = register_netdev(dev);
 	if (err) {

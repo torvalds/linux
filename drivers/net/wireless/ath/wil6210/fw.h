@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014,2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,6 +14,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#ifndef __WIL_FW_H__
+#define __WIL_FW_H__
 
 #define WIL_FW_SIGNATURE (0x36323130) /* '0126' */
 #define WIL_FW_FMT_VERSION (1) /* format version driver supports */
@@ -58,6 +61,62 @@ struct wil_fw_record_comment { /* type == wil_fw_type_comment */
 	u8 data[0]; /* free-form data [data_size], see above */
 } __packed;
 
+/* Comment header - common for all comment record types */
+struct wil_fw_record_comment_hdr {
+	__le32 magic;
+};
+
+/* FW capabilities encoded inside a comment record */
+#define WIL_FW_CAPABILITIES_MAGIC (0xabcddcba)
+struct wil_fw_record_capabilities { /* type == wil_fw_type_comment */
+	/* identifies capabilities record */
+	struct wil_fw_record_comment_hdr hdr;
+	/* capabilities (variable size), see enum wmi_fw_capability */
+	u8 capabilities[0];
+} __packed;
+
+/* FW VIF concurrency encoded inside a comment record
+ * Format is similar to wiphy->iface_combinations
+ */
+#define WIL_FW_CONCURRENCY_MAGIC (0xfedccdef)
+#define WIL_FW_CONCURRENCY_REC_VER	1
+struct wil_fw_concurrency_limit {
+	__le16 max; /* maximum number of interfaces of these types */
+	__le16 types; /* interface types (bit mask of enum nl80211_iftype) */
+} __packed;
+
+struct wil_fw_concurrency_combo {
+	u8 n_limits; /* number of wil_fw_concurrency_limit entries */
+	u8 max_interfaces; /* max number of concurrent interfaces allowed */
+	u8 n_diff_channels; /* total number of different channels allowed */
+	u8 same_bi; /* for APs, 1 if all APs must have same BI */
+	/* keep last - concurrency limits, variable size by n_limits */
+	struct wil_fw_concurrency_limit limits[0];
+} __packed;
+
+struct wil_fw_record_concurrency { /* type == wil_fw_type_comment */
+	/* identifies concurrency record */
+	__le32 magic;
+	/* structure version, currently always 1 */
+	u8 version;
+	/* maximum number of supported MIDs _in addition_ to MID 0 */
+	u8 n_mids;
+	/* number of concurrency combinations that follow */
+	__le16 n_combos;
+	/* keep last - combinations, variable size by n_combos */
+	struct wil_fw_concurrency_combo combos[0];
+} __packed;
+
+/* brd file info encoded inside a comment record */
+#define WIL_BRD_FILE_MAGIC (0xabcddcbb)
+struct wil_fw_record_brd_file { /* type == wil_fw_type_comment */
+	/* identifies brd file record */
+	struct wil_fw_record_comment_hdr hdr;
+	__le32 version;
+	__le32 base_addr;
+	__le32 max_size_bytes;
+} __packed;
+
 /* perform action
  * data_size = @head.size - offsetof(struct wil_fw_record_action, data)
  */
@@ -93,6 +152,9 @@ struct wil_fw_record_verify { /* type == wil_fw_verify */
 /* file header
  * First record of every file
  */
+/* the FW version prefix in the comment */
+#define WIL_FW_VERSION_PREFIX "FW version: "
+#define WIL_FW_VERSION_PREFIX_LEN (sizeof(WIL_FW_VERSION_PREFIX) - 1)
 struct wil_fw_record_file_header {
 	__le32 signature ; /* Wilocity signature */
 	__le32 reserved;
@@ -147,3 +209,5 @@ struct wil_fw_record_gateway_data4 { /* type == wil_fw_type_gateway_data4 */
 	__le32 command;
 	struct wil_fw_data_gw4 data[0]; /* total size [data_size], see above */
 } __packed;
+
+#endif /* __WIL_FW_H__ */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
@@ -20,7 +21,7 @@
 #include <linux/proc_fs.h>
 
 #include <asm/debug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* This is ugly... */
 #define PRINTK_HEADER "dasd_proc:"
@@ -90,7 +91,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 			seq_printf(m, "n/f	 ");
 		else
 			seq_printf(m,
-				   "at blocksize: %d, %lld blocks, %lld MB",
+				   "at blocksize: %u, %lu blocks, %lu MB",
 				   block->bp_block, block->blocks,
 				   ((block->bp_block >> 9) *
 				    block->blocks) >> 11);
@@ -128,19 +129,6 @@ static const struct seq_operations dasd_devices_seq_ops = {
 	.next		= dasd_devices_next,
 	.stop		= dasd_devices_stop,
 	.show		= dasd_devices_show,
-};
-
-static int dasd_devices_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &dasd_devices_seq_ops);
-}
-
-static const struct file_operations dasd_devices_file_ops = {
-	.owner		= THIS_MODULE,
-	.open		= dasd_devices_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
 };
 
 #ifdef CONFIG_DASD_PROFILE
@@ -322,13 +310,12 @@ static ssize_t dasd_stats_proc_write(struct file *file,
 	return user_len;
 out_parse_error:
 	rc = -EINVAL;
-	pr_warning("%s is not a supported value for /proc/dasd/statistics\n",
-		str);
+	pr_warn("%s is not a supported value for /proc/dasd/statistics\n", str);
 out_error:
 	vfree(buffer);
 	return rc;
 #else
-	pr_warning("/proc/dasd/statistics: is not activated in this kernel\n");
+	pr_warn("/proc/dasd/statistics: is not activated in this kernel\n");
 	return user_len;
 #endif				/* CONFIG_DASD_PROFILE */
 }
@@ -352,10 +339,10 @@ dasd_proc_init(void)
 	dasd_proc_root_entry = proc_mkdir("dasd", NULL);
 	if (!dasd_proc_root_entry)
 		goto out_nodasd;
-	dasd_devices_entry = proc_create("devices",
+	dasd_devices_entry = proc_create_seq("devices",
 					 S_IFREG | S_IRUGO | S_IWUSR,
 					 dasd_proc_root_entry,
-					 &dasd_devices_file_ops);
+					 &dasd_devices_seq_ops);
 	if (!dasd_devices_entry)
 		goto out_nodevices;
 	dasd_statistics_entry = proc_create("statistics",

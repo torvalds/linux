@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /****************************************************************************/
 
 /*
@@ -51,7 +52,7 @@
  *	Bit definitions for the Timer Event Registers (TER).
  */
 #define	MCFTIMER_TER_CAP	0x01		/* Capture event */
-#define	MCFTIMER_TER_REF	0x02		/* Refernece event */
+#define	MCFTIMER_TER_REF	0x02		/* Reference event */
 
 /****************************************************************************/
 #endif	/* mcftimer_h */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ARCH_S390_PERCPU__
 #define __ARCH_S390_PERCPU__
 
@@ -178,7 +179,6 @@
 	ret__;								\
 })
 
-#define this_cpu_cmpxchg_double_4 arch_this_cpu_cmpxchg_double
 #define this_cpu_cmpxchg_double_8 arch_this_cpu_cmpxchg_double
 
 #include <asm-generic/percpu.h>

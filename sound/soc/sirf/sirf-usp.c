@@ -71,6 +71,7 @@ static void sirf_usp_rx_disable(struct sirf_usp *usp)
 static int sirf_usp_pcm_dai_probe(struct snd_soc_dai *dai)
 {
 	struct sirf_usp *usp = snd_soc_dai_get_drvdata(dai);
+
 	snd_soc_dai_init_dma_data(dai, &usp->playback_dma_data,
 			&usp->capture_dma_data);
 	return 0;
@@ -294,6 +295,7 @@ static struct snd_soc_dai_driver sirf_usp_pcm_dai = {
 static int sirf_usp_pcm_runtime_suspend(struct device *dev)
 {
 	struct sirf_usp *usp = dev_get_drvdata(dev);
+
 	clk_disable_unprepare(usp->clk);
 	return 0;
 }
@@ -302,6 +304,7 @@ static int sirf_usp_pcm_runtime_resume(struct device *dev)
 {
 	struct sirf_usp *usp = dev_get_drvdata(dev);
 	int ret;
+
 	ret = clk_prepare_enable(usp->clk);
 	if (ret) {
 		dev_err(dev, "clk_enable failed: %d\n", ret);
@@ -367,10 +370,9 @@ static int sirf_usp_pcm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, usp);
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap(&pdev->dev, mem_res->start,
-		resource_size(mem_res));
-	if (base == NULL)
-		return -ENOMEM;
+	base = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 	usp->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 					    &sirf_usp_regmap_config);
 	if (IS_ERR(usp->regmap))

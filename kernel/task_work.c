@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/spinlock.h>
 #include <linux/task_work.h>
 #include <linux/tracehook.h>
@@ -29,7 +30,7 @@ task_work_add(struct task_struct *task, struct callback_head *work, bool notify)
 	struct callback_head *head;
 
 	do {
-		head = ACCESS_ONCE(task->task_works);
+		head = READ_ONCE(task->task_works);
 		if (unlikely(head == &work_exited))
 			return -ESRCH;
 		work->next = head;
@@ -57,6 +58,9 @@ task_work_cancel(struct task_struct *task, task_work_func_t func)
 	struct callback_head **pprev = &task->task_works;
 	struct callback_head *work;
 	unsigned long flags;
+
+	if (likely(!task->task_works))
+		return NULL;
 	/*
 	 * If cmpxchg() fails we continue without updating pprev.
 	 * Either we raced with task_work_add() which added the
@@ -64,8 +68,7 @@ task_work_cancel(struct task_struct *task, task_work_func_t func)
 	 * we raced with task_work_run(), *pprev == NULL/exited.
 	 */
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
-	while ((work = ACCESS_ONCE(*pprev))) {
-		smp_read_barrier_depends();
+	while ((work = READ_ONCE(*pprev))) {
 		if (work->func != func)
 			pprev = &work->next;
 		else if (cmpxchg(pprev, work, work->next) == work)
@@ -94,21 +97,16 @@ void task_work_run(void)
 		 * work->func() can do task_work_add(), do not set
 		 * work_exited unless the list is empty.
 		 */
+		raw_spin_lock_irq(&task->pi_lock);
 		do {
-			work = ACCESS_ONCE(task->task_works);
+			work = READ_ONCE(task->task_works);
 			head = !work && (task->flags & PF_EXITING) ?
 				&work_exited : NULL;
 		} while (cmpxchg(&task->task_works, work, head) != work);
+		raw_spin_unlock_irq(&task->pi_lock);
 
 		if (!work)
 			break;
-		/*
-		 * Synchronize with task_work_cancel(). It can't remove
-		 * the first entry == work, cmpxchg(task_works) should
-		 * fail, but it can play with *work and other entries.
-		 */
-		raw_spin_unlock_wait(&task->pi_lock);
-		smp_mb();
 
 		do {
 			next = work->next;

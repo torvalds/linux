@@ -5,8 +5,9 @@
 
 #include <linux/irqreturn.h>
 #include <linux/kd.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
+
 #include "chan.h"
 #include <irq_kern.h>
 #include <irq_user.h>
@@ -283,7 +284,7 @@ int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 	if (err)
 		return err;
 	if (output)
-		err = um_request_irq(driver->write_irq, fd, IRQ_WRITE,
+		err = um_request_irq(driver->write_irq, fd, IRQ_NONE,
 				     line_write_interrupt, IRQF_SHARED,
 				     driver->write_irq_name, data);
 	return err;

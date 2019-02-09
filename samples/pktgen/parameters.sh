@@ -1,4 +1,5 @@
 #
+# SPDX-License-Identifier: GPL-2.0
 # Common parameter parsing for pktgen scripts
 #
 
@@ -10,16 +11,19 @@ function usage() {
     echo "  -d : (\$DEST_IP)   destination IP"
     echo "  -m : (\$DST_MAC)   destination MAC-addr"
     echo "  -t : (\$THREADS)   threads to start"
+    echo "  -f : (\$F_THREAD)  index of first thread (zero indexed CPU number)"
     echo "  -c : (\$SKB_CLONE) SKB clones send before alloc new SKB"
+    echo "  -n : (\$COUNT)     num messages to send per thread, 0 means indefinitely"
     echo "  -b : (\$BURST)     HW level bursting of SKBs"
     echo "  -v : (\$VERBOSE)   verbose"
     echo "  -x : (\$DEBUG)     debug"
+    echo "  -6 : (\$IP6)       IPv6"
     echo ""
 }
 
 ##  --- Parse command line arguments / parameters ---
 ## echo "Commandline options:"
-while getopts "s:i:d:m:t:c:b:vxh" option; do
+while getopts "s:i:d:m:f:t:c:n:b:vxh6" option; do
     case $option in
         i) # interface
           export DEV=$OPTARG
@@ -37,15 +41,21 @@ while getopts "s:i:d:m:t:c:b:vxh" option; do
           export DST_MAC=$OPTARG
 	  info "Destination MAC set to: DST_MAC=$DST_MAC"
           ;;
+        f)
+	  export F_THREAD=$OPTARG
+	  info "Index of first thread (zero indexed CPU number): $F_THREAD"
+          ;;
         t)
 	  export THREADS=$OPTARG
-          export CPU_THREADS=$OPTARG
-	  let "CPU_THREADS -= 1"
-	  info "Number of threads to start: $THREADS (0 to $CPU_THREADS)"
+	  info "Number of threads to start: $THREADS"
           ;;
         c)
 	  export CLONE_SKB=$OPTARG
 	  info "CLONE_SKB=$CLONE_SKB"
+          ;;
+        n)
+	  export COUNT=$OPTARG
+	  info "COUNT=$COUNT"
           ;;
         b)
 	  export BURST=$OPTARG
@@ -59,6 +69,10 @@ while getopts "s:i:d:m:t:c:b:vxh" option; do
           export DEBUG=yes
           info "Debug mode: DEBUG=$DEBUG"
           ;;
+	6)
+	  export IP6=6
+	  info "IP6: IP6=$IP6"
+	  ;;
         h|?|*)
           usage;
           err 2 "[ERROR] Unknown parameters!!!"
@@ -72,11 +86,16 @@ if [ -z "$PKT_SIZE" ]; then
     info "Default packet size set to: set to: $PKT_SIZE bytes"
 fi
 
+if [ -z "$F_THREAD" ]; then
+    # First thread (F_THREAD) reference the zero indexed CPU number
+    export F_THREAD=0
+fi
+
 if [ -z "$THREADS" ]; then
-    # Zero CPU threads means one thread, because CPU numbers are zero indexed
-    export CPU_THREADS=0
     export THREADS=1
 fi
+
+export L_THREAD=$(( THREADS + F_THREAD - 1 ))
 
 if [ -z "$DEV" ]; then
     usage

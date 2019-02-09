@@ -32,7 +32,11 @@ Currently, these files are in /proc/sys/fs:
 - nr_open
 - overflowuid
 - overflowgid
+- pipe-user-pages-hard
+- pipe-user-pages-soft
+- protected_fifos
 - protected_hardlinks
+- protected_regular
 - protected_symlinks
 - suid_dumpable
 - super-max
@@ -159,6 +163,45 @@ The default is 65534.
 
 ==============================================================
 
+pipe-user-pages-hard:
+
+Maximum total number of pages a non-privileged user may allocate for pipes.
+Once this limit is reached, no new pipes may be allocated until usage goes
+below the limit again. When set to 0, no limit is applied, which is the default
+setting.
+
+==============================================================
+
+pipe-user-pages-soft:
+
+Maximum total number of pages a non-privileged user may allocate for pipes
+before the pipe size gets limited to a single page. Once this limit is reached,
+new pipes will be limited to a single page in size for this user in order to
+limit total memory usage, and trying to increase them using fcntl() will be
+denied until usage goes below the limit again. The default value allows to
+allocate up to 1024 pipes at their default size. When set to 0, no limit is
+applied.
+
+==============================================================
+
+protected_fifos:
+
+The intent of this protection is to avoid unintentional writes to
+an attacker-controlled FIFO, where a program expected to create a regular
+file.
+
+When set to "0", writing to FIFOs is unrestricted.
+
+When set to "1" don't allow O_CREAT open on FIFOs that we don't own
+in world writable sticky directories, unless they are owned by the
+owner of the directory.
+
+When set to "2" it also applies to group writable sticky directories.
+
+This protection is based on the restrictions in Openwall.
+
+==============================================================
+
 protected_hardlinks:
 
 A long-standing class of security issues is the hardlink-based
@@ -176,6 +219,22 @@ When set to "1" hardlinks cannot be created by users if they do not
 already own the source file, or do not have read/write access to it.
 
 This protection is based on the restrictions in Openwall and grsecurity.
+
+==============================================================
+
+protected_regular:
+
+This protection is similar to protected_fifos, but it
+avoids writes to an attacker-controlled regular file, where a program
+expected to create one.
+
+When set to "0", writing to regular files is unrestricted.
+
+When set to "1" don't allow O_CREAT open on regular files that we
+don't own in world writable sticky directories, unless they are
+owned by the owner of the directory.
+
+When set to "2" it also applies to group writable sticky directories.
 
 ==============================================================
 
@@ -242,12 +301,19 @@ aio-nr can grow to.
 
 ==============================================================
 
+mount-max:
+
+This denotes the maximum number of mounts that may exist
+in a mount namespace.
+
+==============================================================
+
 
 2. /proc/sys/fs/binfmt_misc
 ----------------------------------------------------------
 
 Documentation for the files in /proc/sys/fs/binfmt_misc is
-in Documentation/binfmt_misc.txt.
+in Documentation/admin-guide/binfmt-misc.rst.
 
 
 3. /proc/sys/fs/mqueue - POSIX message queues filesystem

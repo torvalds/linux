@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Annotations for marking C functions as exception handlers.
  *
@@ -7,13 +8,12 @@
 #ifndef __ASM_ARM_EXCEPTION_H
 #define __ASM_ARM_EXCEPTION_H
 
-#include <linux/ftrace.h>
+#include <linux/interrupt.h>
 
-#define __exception	__attribute__((section(".exception.text")))
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 #define __exception_irq_entry	__irq_entry
 #else
-#define __exception_irq_entry	__exception
+#define __exception_irq_entry
 #endif
 
 #endif /* __ASM_ARM_EXCEPTION_H */

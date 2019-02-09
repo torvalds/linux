@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config CPM1
 	bool
 	select CPM
@@ -5,7 +6,6 @@ config CPM1
 choice
 	prompt "8xx Machine Type"
 	depends on PPC_8xx
-	depends on 8xx
 	default MPC885ADS
 
 config MPC8XXFADS
@@ -92,7 +92,7 @@ endmenu
 #
 
 menu "MPC8xx CPM Options"
-	depends on 8xx
+	depends on PPC_8xx
 
 # This doesn't really belong here, but it is convenient to ask
 # 8xx specific questions.
@@ -109,27 +109,16 @@ config 8xx_COPYBACK
 
 config 8xx_GPIO
 	bool "GPIO API Support"
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  Saying Y here will cause the ports on an MPC8xx processor to be used
 	  with the GPIO API.  If you say N here, the kernel needs less memory.
 
 	  If in doubt, say Y here.
 
-config 8xx_CPU6
-	bool "CPU6 Silicon Errata (860 Pre Rev. C)"
-	help
-	  MPC860 CPUs, prior to Rev C have some bugs in the silicon, which
-	  require workarounds for Linux (and most other OSes to work).  If you
-	  get a BUG() very early in boot, this might fix the problem.  For
-	  more details read the document entitled "MPC860 Family Device Errata
-	  Reference" on Freescale's website.  This option also incurs a
-	  performance hit.
-
-	  If in doubt, say N here.
-
 config 8xx_CPU15
 	bool "CPU15 Silicon Errata"
+	depends on !HUGETLB_PAGE
 	default y
 	help
 	  This enables a workaround for erratum CPU15 on MPC8xx chips.

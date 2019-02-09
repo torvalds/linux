@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_GENERIC_SIGINFO_H
 #define _UAPI_ASM_GENERIC_SIGINFO_H
 
@@ -22,10 +23,6 @@ typedef union sigval {
 #define SI_PAD_SIZE	((SI_MAX_SIZE - __ARCH_SI_PREAMBLE_SIZE) / sizeof(int))
 #endif
 
-#ifndef __ARCH_SI_UID_T
-#define __ARCH_SI_UID_T	__kernel_uid32_t
-#endif
-
 /*
  * The default "si_band" type is "long", as specified by POSIX.
  * However, some architectures want to override this to "int"
@@ -43,12 +40,15 @@ typedef union sigval {
 #define __ARCH_SI_ATTRIBUTES
 #endif
 
-#ifndef HAVE_ARCH_SIGINFO_T
-
 typedef struct siginfo {
 	int si_signo;
+#ifndef __ARCH_HAS_SWAPPED_SIGINFO
 	int si_errno;
 	int si_code;
+#else
+	int si_code;
+	int si_errno;
+#endif
 
 	union {
 		int _pad[SI_PAD_SIZE];
@@ -56,14 +56,13 @@ typedef struct siginfo {
 		/* kill() */
 		struct {
 			__kernel_pid_t _pid;	/* sender's pid */
-			__ARCH_SI_UID_T _uid;	/* sender's uid */
+			__kernel_uid32_t _uid;	/* sender's uid */
 		} _kill;
 
 		/* POSIX.1b timers */
 		struct {
 			__kernel_timer_t _tid;	/* timer id */
 			int _overrun;		/* overrun count */
-			char _pad[sizeof( __ARCH_SI_UID_T) - sizeof(int)];
 			sigval_t _sigval;	/* same as below */
 			int _sys_private;       /* not to be passed to user */
 		} _timer;
@@ -71,30 +70,51 @@ typedef struct siginfo {
 		/* POSIX.1b signals */
 		struct {
 			__kernel_pid_t _pid;	/* sender's pid */
-			__ARCH_SI_UID_T _uid;	/* sender's uid */
+			__kernel_uid32_t _uid;	/* sender's uid */
 			sigval_t _sigval;
 		} _rt;
 
 		/* SIGCHLD */
 		struct {
 			__kernel_pid_t _pid;	/* which child */
-			__ARCH_SI_UID_T _uid;	/* sender's uid */
+			__kernel_uid32_t _uid;	/* sender's uid */
 			int _status;		/* exit code */
 			__ARCH_SI_CLOCK_T _utime;
 			__ARCH_SI_CLOCK_T _stime;
 		} _sigchld;
 
-		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
+		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGTRAP, SIGEMT */
 		struct {
 			void __user *_addr; /* faulting insn/memory ref. */
 #ifdef __ARCH_SI_TRAPNO
 			int _trapno;	/* TRAP # which caused the signal */
 #endif
-			short _addr_lsb; /* LSB of the reported address */
-			struct {
-				void __user *_lower;
-				void __user *_upper;
-			} _addr_bnd;
+#ifdef __ia64__
+			int _imm;		/* immediate value for "break" */
+			unsigned int _flags;	/* see ia64 si_flags */
+			unsigned long _isr;	/* isr */
+#endif
+
+#define __ADDR_BND_PKEY_PAD  (__alignof__(void *) < sizeof(short) ? \
+			      sizeof(short) : __alignof__(void *))
+			union {
+				/*
+				 * used when si_code=BUS_MCEERR_AR or
+				 * used when si_code=BUS_MCEERR_AO
+				 */
+				short _addr_lsb; /* LSB of the reported address */
+				/* used when si_code=SEGV_BNDERR */
+				struct {
+					char _dummy_bnd[__ADDR_BND_PKEY_PAD];
+					void __user *_lower;
+					void __user *_upper;
+				} _addr_bnd;
+				/* used when si_code=SEGV_PKUERR */
+				struct {
+					char _dummy_pkey[__ADDR_BND_PKEY_PAD];
+					__u32 _pkey;
+				} _addr_pkey;
+			};
 		} _sigfault;
 
 		/* SIGPOLL */
@@ -111,10 +131,6 @@ typedef struct siginfo {
 		} _sigsys;
 	} _sifields;
 } __ARCH_SI_ATTRIBUTES siginfo_t;
-
-/* If the arch shares siginfo, then it has SIGSYS. */
-#define __ARCH_SIGSYS
-#endif
 
 /*
  * How these fields are to be accessed.
@@ -137,25 +153,12 @@ typedef struct siginfo {
 #define si_addr_lsb	_sifields._sigfault._addr_lsb
 #define si_lower	_sifields._sigfault._addr_bnd._lower
 #define si_upper	_sifields._sigfault._addr_bnd._upper
+#define si_pkey		_sifields._sigfault._addr_pkey._pkey
 #define si_band		_sifields._sigpoll._band
 #define si_fd		_sifields._sigpoll._fd
-#ifdef __ARCH_SIGSYS
 #define si_call_addr	_sifields._sigsys._call_addr
 #define si_syscall	_sifields._sigsys._syscall
 #define si_arch		_sifields._sigsys._arch
-#endif
-
-#ifndef __KERNEL__
-#define __SI_KILL	0
-#define __SI_TIMER	0
-#define __SI_POLL	0
-#define __SI_FAULT	0
-#define __SI_CHLD	0
-#define __SI_RT		0
-#define __SI_MESGQ	0
-#define __SI_SYS	0
-#define __SI_CODE(T,N)	(N)
-#endif
 
 /*
  * si_code values
@@ -164,12 +167,13 @@ typedef struct siginfo {
 #define SI_USER		0		/* sent by kill, sigsend, raise */
 #define SI_KERNEL	0x80		/* sent by the kernel from somewhere */
 #define SI_QUEUE	-1		/* sent by sigqueue */
-#define SI_TIMER __SI_CODE(__SI_TIMER,-2) /* sent by timer expiration */
-#define SI_MESGQ __SI_CODE(__SI_MESGQ,-3) /* sent by real time mesq state change */
+#define SI_TIMER	-2		/* sent by timer expiration */
+#define SI_MESGQ	-3		/* sent by real time mesq state change */
 #define SI_ASYNCIO	-4		/* sent by AIO completion */
 #define SI_SIGIO	-5		/* sent by queued SIGIO */
 #define SI_TKILL	-6		/* sent by tkill system call */
 #define SI_DETHREAD	-7		/* sent by execve() killing subsidiary threads */
+#define SI_ASYNCNL	-60		/* sent by glibc async name lookup completion */
 
 #define SI_FROMUSER(siptr)	((siptr)->si_code <= 0)
 #define SI_FROMKERNEL(siptr)	((siptr)->si_code > 0)
@@ -177,85 +181,109 @@ typedef struct siginfo {
 /*
  * SIGILL si_codes
  */
-#define ILL_ILLOPC	(__SI_FAULT|1)	/* illegal opcode */
-#define ILL_ILLOPN	(__SI_FAULT|2)	/* illegal operand */
-#define ILL_ILLADR	(__SI_FAULT|3)	/* illegal addressing mode */
-#define ILL_ILLTRP	(__SI_FAULT|4)	/* illegal trap */
-#define ILL_PRVOPC	(__SI_FAULT|5)	/* privileged opcode */
-#define ILL_PRVREG	(__SI_FAULT|6)	/* privileged register */
-#define ILL_COPROC	(__SI_FAULT|7)	/* coprocessor error */
-#define ILL_BADSTK	(__SI_FAULT|8)	/* internal stack error */
-#define NSIGILL		8
+#define ILL_ILLOPC	1	/* illegal opcode */
+#define ILL_ILLOPN	2	/* illegal operand */
+#define ILL_ILLADR	3	/* illegal addressing mode */
+#define ILL_ILLTRP	4	/* illegal trap */
+#define ILL_PRVOPC	5	/* privileged opcode */
+#define ILL_PRVREG	6	/* privileged register */
+#define ILL_COPROC	7	/* coprocessor error */
+#define ILL_BADSTK	8	/* internal stack error */
+#define ILL_BADIADDR	9	/* unimplemented instruction address */
+#define __ILL_BREAK	10	/* illegal break */
+#define __ILL_BNDMOD	11	/* bundle-update (modification) in progress */
+#define NSIGILL		11
 
 /*
  * SIGFPE si_codes
  */
-#define FPE_INTDIV	(__SI_FAULT|1)	/* integer divide by zero */
-#define FPE_INTOVF	(__SI_FAULT|2)	/* integer overflow */
-#define FPE_FLTDIV	(__SI_FAULT|3)	/* floating point divide by zero */
-#define FPE_FLTOVF	(__SI_FAULT|4)	/* floating point overflow */
-#define FPE_FLTUND	(__SI_FAULT|5)	/* floating point underflow */
-#define FPE_FLTRES	(__SI_FAULT|6)	/* floating point inexact result */
-#define FPE_FLTINV	(__SI_FAULT|7)	/* floating point invalid operation */
-#define FPE_FLTSUB	(__SI_FAULT|8)	/* subscript out of range */
-#define NSIGFPE		8
+#define FPE_INTDIV	1	/* integer divide by zero */
+#define FPE_INTOVF	2	/* integer overflow */
+#define FPE_FLTDIV	3	/* floating point divide by zero */
+#define FPE_FLTOVF	4	/* floating point overflow */
+#define FPE_FLTUND	5	/* floating point underflow */
+#define FPE_FLTRES	6	/* floating point inexact result */
+#define FPE_FLTINV	7	/* floating point invalid operation */
+#define FPE_FLTSUB	8	/* subscript out of range */
+#define __FPE_DECOVF	9	/* decimal overflow */
+#define __FPE_DECDIV	10	/* decimal division by zero */
+#define __FPE_DECERR	11	/* packed decimal error */
+#define __FPE_INVASC	12	/* invalid ASCII digit */
+#define __FPE_INVDEC	13	/* invalid decimal digit */
+#define FPE_FLTUNK	14	/* undiagnosed floating-point exception */
+#define FPE_CONDTRAP	15	/* trap on condition */
+#define NSIGFPE		15
 
 /*
  * SIGSEGV si_codes
  */
-#define SEGV_MAPERR	(__SI_FAULT|1)	/* address not mapped to object */
-#define SEGV_ACCERR	(__SI_FAULT|2)	/* invalid permissions for mapped object */
-#define SEGV_BNDERR	(__SI_FAULT|3)  /* failed address bound checks */
-#define NSIGSEGV	3
+#define SEGV_MAPERR	1	/* address not mapped to object */
+#define SEGV_ACCERR	2	/* invalid permissions for mapped object */
+#define SEGV_BNDERR	3	/* failed address bound checks */
+#ifdef __ia64__
+# define __SEGV_PSTKOVF	4	/* paragraph stack overflow */
+#else
+# define SEGV_PKUERR	4	/* failed protection key checks */
+#endif
+#define SEGV_ACCADI	5	/* ADI not enabled for mapped object */
+#define SEGV_ADIDERR	6	/* Disrupting MCD error */
+#define SEGV_ADIPERR	7	/* Precise MCD exception */
+#define NSIGSEGV	7
 
 /*
  * SIGBUS si_codes
  */
-#define BUS_ADRALN	(__SI_FAULT|1)	/* invalid address alignment */
-#define BUS_ADRERR	(__SI_FAULT|2)	/* non-existent physical address */
-#define BUS_OBJERR	(__SI_FAULT|3)	/* object specific hardware error */
+#define BUS_ADRALN	1	/* invalid address alignment */
+#define BUS_ADRERR	2	/* non-existent physical address */
+#define BUS_OBJERR	3	/* object specific hardware error */
 /* hardware memory error consumed on a machine check: action required */
-#define BUS_MCEERR_AR	(__SI_FAULT|4)
+#define BUS_MCEERR_AR	4
 /* hardware memory error detected in process but not consumed: action optional*/
-#define BUS_MCEERR_AO	(__SI_FAULT|5)
+#define BUS_MCEERR_AO	5
 #define NSIGBUS		5
 
 /*
  * SIGTRAP si_codes
  */
-#define TRAP_BRKPT	(__SI_FAULT|1)	/* process breakpoint */
-#define TRAP_TRACE	(__SI_FAULT|2)	/* process trace trap */
-#define TRAP_BRANCH     (__SI_FAULT|3)  /* process taken branch trap */
-#define TRAP_HWBKPT     (__SI_FAULT|4)  /* hardware breakpoint/watchpoint */
-#define NSIGTRAP	4
+#define TRAP_BRKPT	1	/* process breakpoint */
+#define TRAP_TRACE	2	/* process trace trap */
+#define TRAP_BRANCH     3	/* process taken branch trap */
+#define TRAP_HWBKPT     4	/* hardware breakpoint/watchpoint */
+#define TRAP_UNK	5	/* undiagnosed trap */
+#define NSIGTRAP	5
+
+/*
+ * There is an additional set of SIGTRAP si_codes used by ptrace
+ * that are of the form: ((PTRACE_EVENT_XXX << 8) | SIGTRAP)
+ */
 
 /*
  * SIGCHLD si_codes
  */
-#define CLD_EXITED	(__SI_CHLD|1)	/* child has exited */
-#define CLD_KILLED	(__SI_CHLD|2)	/* child was killed */
-#define CLD_DUMPED	(__SI_CHLD|3)	/* child terminated abnormally */
-#define CLD_TRAPPED	(__SI_CHLD|4)	/* traced child has trapped */
-#define CLD_STOPPED	(__SI_CHLD|5)	/* child has stopped */
-#define CLD_CONTINUED	(__SI_CHLD|6)	/* stopped child has continued */
+#define CLD_EXITED	1	/* child has exited */
+#define CLD_KILLED	2	/* child was killed */
+#define CLD_DUMPED	3	/* child terminated abnormally */
+#define CLD_TRAPPED	4	/* traced child has trapped */
+#define CLD_STOPPED	5	/* child has stopped */
+#define CLD_CONTINUED	6	/* stopped child has continued */
 #define NSIGCHLD	6
 
 /*
- * SIGPOLL si_codes
+ * SIGPOLL (or any other signal without signal specific si_codes) si_codes
  */
-#define POLL_IN		(__SI_POLL|1)	/* data input available */
-#define POLL_OUT	(__SI_POLL|2)	/* output buffers available */
-#define POLL_MSG	(__SI_POLL|3)	/* input message available */
-#define POLL_ERR	(__SI_POLL|4)	/* i/o error */
-#define POLL_PRI	(__SI_POLL|5)	/* high priority input available */
-#define POLL_HUP	(__SI_POLL|6)	/* device disconnected */
+#define POLL_IN		1	/* data input available */
+#define POLL_OUT	2	/* output buffers available */
+#define POLL_MSG	3	/* input message available */
+#define POLL_ERR	4	/* i/o error */
+#define POLL_PRI	5	/* high priority input available */
+#define POLL_HUP	6	/* device disconnected */
 #define NSIGPOLL	6
 
 /*
  * SIGSYS si_codes
  */
-#define SYS_SECCOMP		(__SI_SYS|1)	/* seccomp triggered */
-#define NSIGSYS	1
+#define SYS_SECCOMP	1	/* seccomp triggered */
+#define NSIGSYS		1
 
 /*
  * sigevent definitions

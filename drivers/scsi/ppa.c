@@ -37,6 +37,7 @@ typedef struct {
 	unsigned long recon_tmo;	/* How many usecs to wait for reconnection (6th bit) */
 	unsigned int failed:1;	/* Failure flag                 */
 	unsigned wanted:1;	/* Parport sharing busy flag    */
+	unsigned int dev_no;	/* Device number		*/
 	wait_queue_head_t *waiting;
 	struct Scsi_Host *host;
 	struct list_head list;
@@ -723,6 +724,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 			return 0;
 		}
 		cmd->SCp.phase++;
+		/* fall through */
 
 	case 3:		/* Phase 3 - Ready to accept a command */
 		w_ctr(ppb, 0x0c);
@@ -732,6 +734,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		if (!ppa_send_command(cmd))
 			return 0;
 		cmd->SCp.phase++;
+		/* fall through */
 
 	case 4:		/* Phase 4 - Setup scatter/gather buffers */
 		if (scsi_bufflen(cmd)) {
@@ -745,6 +748,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		}
 		cmd->SCp.buffers_residual = scsi_sg_count(cmd) - 1;
 		cmd->SCp.phase++;
+		/* fall through */
 
 	case 5:		/* Phase 5 - Data transfer stage */
 		w_ctr(ppb, 0x0c);
@@ -757,6 +761,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		if (retv == 0)
 			return 1;
 		cmd->SCp.phase++;
+		/* fall through */
 
 	case 6:		/* Phase 6 - Read status/message */
 		cmd->result = DID_OK << 16;
@@ -969,7 +974,6 @@ static struct scsi_host_template ppa_template = {
 	.name			= "Iomega VPI0 (ppa) interface",
 	.queuecommand		= ppa_queuecommand,
 	.eh_abort_handler	= ppa_abort,
-	.eh_bus_reset_handler	= ppa_reset,
 	.eh_host_reset_handler	= ppa_reset,
 	.bios_param		= ppa_biosparam,
 	.this_id		= -1,
@@ -985,15 +989,40 @@ static struct scsi_host_template ppa_template = {
 
 static LIST_HEAD(ppa_hosts);
 
+/*
+ * Finds the first available device number that can be alloted to the
+ * new ppa device and returns the address of the previous node so that
+ * we can add to the tail and have a list in the ascending order.
+ */
+
+static inline ppa_struct *find_parent(void)
+{
+	ppa_struct *dev, *par = NULL;
+	unsigned int cnt = 0;
+
+	if (list_empty(&ppa_hosts))
+		return NULL;
+
+	list_for_each_entry(dev, &ppa_hosts, list) {
+		if (dev->dev_no != cnt)
+			return par;
+		cnt++;
+		par = dev;
+	}
+
+	return par;
+}
+
 static int __ppa_attach(struct parport *pb)
 {
 	struct Scsi_Host *host;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waiting);
 	DEFINE_WAIT(wait);
-	ppa_struct *dev;
+	ppa_struct *dev, *temp;
 	int ports;
 	int modes, ppb, ppb_hi;
 	int err = -ENOMEM;
+	struct pardev_cb ppa_cb;
 
 	dev = kzalloc(sizeof(ppa_struct), GFP_KERNEL);
 	if (!dev)
@@ -1002,8 +1031,15 @@ static int __ppa_attach(struct parport *pb)
 	dev->mode = PPA_AUTODETECT;
 	dev->recon_tmo = PPA_RECON_TMO;
 	init_waitqueue_head(&waiting);
-	dev->dev = parport_register_device(pb, "ppa", NULL, ppa_wakeup,
-					    NULL, 0, dev);
+	temp = find_parent();
+	if (temp)
+		dev->dev_no = temp->dev_no + 1;
+
+	memset(&ppa_cb, 0, sizeof(ppa_cb));
+	ppa_cb.private = dev;
+	ppa_cb.wakeup = ppa_wakeup;
+
+	dev->dev = parport_register_dev_model(pb, "ppa", &ppa_cb, dev->dev_no);
 
 	if (!dev->dev)
 		goto out;
@@ -1110,9 +1146,10 @@ static void ppa_detach(struct parport *pb)
 }
 
 static struct parport_driver ppa_driver = {
-	.name	= "ppa",
-	.attach	= ppa_attach,
-	.detach	= ppa_detach,
+	.name		= "ppa",
+	.match_port	= ppa_attach,
+	.detach		= ppa_detach,
+	.devmodel	= true,
 };
 
 static int __init ppa_driver_init(void)

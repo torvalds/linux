@@ -7,6 +7,8 @@
  * Copyright (c) 2005, Devicescape Software, Inc.
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,6 +20,7 @@
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
+#include <linux/etherdevice.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
@@ -163,6 +166,17 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 /* 30 byte 4 addr hdr, 2 byte QoS, 2304 byte MSDU, 12 byte crypt, 4 byte FCS */
 #define IEEE80211_MAX_FRAME_LEN		2352
 
+/* Maximal size of an A-MSDU that can be transported in a HT BA session */
+#define IEEE80211_MAX_MPDU_LEN_HT_BA		4095
+
+/* Maximal size of an A-MSDU */
+#define IEEE80211_MAX_MPDU_LEN_HT_3839		3839
+#define IEEE80211_MAX_MPDU_LEN_HT_7935		7935
+
+#define IEEE80211_MAX_MPDU_LEN_VHT_3895		3895
+#define IEEE80211_MAX_MPDU_LEN_VHT_7991		7991
+#define IEEE80211_MAX_MPDU_LEN_VHT_11454	11454
+
 #define IEEE80211_MAX_SSID_LEN		32
 
 #define IEEE80211_MAX_MESH_ID_LEN	32
@@ -172,6 +186,8 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 
 /* number of user priorities 802.11 uses */
 #define IEEE80211_NUM_UPS		8
+/* number of ACs */
+#define IEEE80211_NUM_ACS		4
 
 #define IEEE80211_QOS_CTL_LEN		2
 /* 1d tag mask */
@@ -629,6 +645,16 @@ static inline bool ieee80211_is_first_frag(__le16 seq_ctrl)
 	return (seq_ctrl & cpu_to_le16(IEEE80211_SCTL_FRAG)) == 0;
 }
 
+/**
+ * ieee80211_is_frag - check if a frame is a fragment
+ * @hdr: 802.11 header of the frame
+ */
+static inline bool ieee80211_is_frag(struct ieee80211_hdr *hdr)
+{
+	return ieee80211_has_morefrags(hdr->frame_control) ||
+	       hdr->seq_ctrl & cpu_to_le16(IEEE80211_SCTL_FRAG);
+}
+
 struct ieee80211s_hdr {
 	u8 flags;
 	u8 ttl;
@@ -843,6 +869,8 @@ enum ieee80211_vht_opmode_bits {
 };
 
 #define WLAN_SA_QUERY_TR_ID_LEN 2
+#define WLAN_MEMBERSHIP_LEN 8
+#define WLAN_USER_POSITION_LEN 16
 
 /**
  * struct ieee80211_tpc_report_ie
@@ -991,18 +1019,34 @@ struct ieee80211_mgmt {
 				} __packed vht_opmode_notif;
 				struct {
 					u8 action_code;
+					u8 membership[WLAN_MEMBERSHIP_LEN];
+					u8 position[WLAN_USER_POSITION_LEN];
+				} __packed vht_group_notif;
+				struct {
+					u8 action_code;
 					u8 dialog_token;
 					u8 tpc_elem_id;
 					u8 tpc_elem_length;
 					struct ieee80211_tpc_report_ie tpc;
 				} __packed tpc_report;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					u8 follow_up;
+					u8 tod[6];
+					u8 toa[6];
+					__le16 tod_error;
+					__le16 toa_error;
+					u8 variable[0];
+				} __packed ftm;
 			} u;
 		} __packed action;
 	} u;
 } __packed __aligned(2);
 
-/* Supported Rates value encodings in 802.11n-2009 7.3.2.2 */
+/* Supported rates membership selectors */
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
+#define BSS_MEMBERSHIP_SELECTOR_VHT_PHY	126
 
 /* mgmt header + 1 byte category code */
 #define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
@@ -1368,6 +1412,8 @@ struct ieee80211_ht_operation {
 #define		IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED	3
 #define IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT		0x0004
 #define IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT		0x0010
+#define IEEE80211_HT_OP_MODE_CCFS2_SHIFT		5
+#define IEEE80211_HT_OP_MODE_CCFS2_MASK			0x1fe0
 
 /* for stbc_param */
 #define IEEE80211_HT_STBC_PARAM_DUAL_BEACON		0x0040
@@ -1387,11 +1433,13 @@ struct ieee80211_ht_operation {
 #define IEEE80211_DELBA_PARAM_INITIATOR_MASK 0x0800
 
 /*
- * A-PMDU buffer sizes
- * According to IEEE802.11n spec size varies from 8K to 64K (in powers of 2)
+ * A-MPDU buffer sizes
+ * According to HT size varies from 8 to 64 frames
+ * HE adds the ability to have up to 256 frames.
  */
-#define IEEE80211_MIN_AMPDU_BUF 0x8
-#define IEEE80211_MAX_AMPDU_BUF 0x40
+#define IEEE80211_MIN_AMPDU_BUF		0x8
+#define IEEE80211_MAX_AMPDU_BUF_HT	0x40
+#define IEEE80211_MAX_AMPDU_BUF		0x100
 
 
 /* Spatial Multiplexing Power Save Modes (for capability) */
@@ -1482,22 +1530,123 @@ enum ieee80211_vht_chanwidth {
  * This structure is the "VHT operation element" as
  * described in 802.11ac D3.0 8.4.2.161
  * @chan_width: Operating channel width
+ * @center_freq_seg0_idx: center freq segment 0 index
  * @center_freq_seg1_idx: center freq segment 1 index
- * @center_freq_seg2_idx: center freq segment 2 index
  * @basic_mcs_set: VHT Basic MCS rate set
  */
 struct ieee80211_vht_operation {
 	u8 chan_width;
+	u8 center_freq_seg0_idx;
 	u8 center_freq_seg1_idx;
-	u8 center_freq_seg2_idx;
 	__le16 basic_mcs_set;
 } __packed;
 
+/**
+ * struct ieee80211_he_cap_elem - HE capabilities element
+ *
+ * This structure is the "HE capabilities element" fixed fields as
+ * described in P802.11ax_D2.0 section 9.4.2.237.2 and 9.4.2.237.3
+ */
+struct ieee80211_he_cap_elem {
+	u8 mac_cap_info[5];
+	u8 phy_cap_info[9];
+} __packed;
+
+#define IEEE80211_TX_RX_MCS_NSS_DESC_MAX_LEN	5
+
+/**
+ * enum ieee80211_he_mcs_support - HE MCS support definitions
+ * @IEEE80211_HE_MCS_SUPPORT_0_7: MCSes 0-7 are supported for the
+ *	number of streams
+ * @IEEE80211_HE_MCS_SUPPORT_0_9: MCSes 0-9 are supported
+ * @IEEE80211_HE_MCS_SUPPORT_0_11: MCSes 0-11 are supported
+ * @IEEE80211_HE_MCS_NOT_SUPPORTED: This number of streams isn't supported
+ *
+ * These definitions are used in each 2-bit subfield of the rx_mcs_*
+ * and tx_mcs_* fields of &struct ieee80211_he_mcs_nss_supp, which are
+ * both split into 8 subfields by number of streams. These values indicate
+ * which MCSes are supported for the number of streams the value appears
+ * for.
+ */
+enum ieee80211_he_mcs_support {
+	IEEE80211_HE_MCS_SUPPORT_0_7	= 0,
+	IEEE80211_HE_MCS_SUPPORT_0_9	= 1,
+	IEEE80211_HE_MCS_SUPPORT_0_11	= 2,
+	IEEE80211_HE_MCS_NOT_SUPPORTED	= 3,
+};
+
+/**
+ * struct ieee80211_he_mcs_nss_supp - HE Tx/Rx HE MCS NSS Support Field
+ *
+ * This structure holds the data required for the Tx/Rx HE MCS NSS Support Field
+ * described in P802.11ax_D2.0 section 9.4.2.237.4
+ *
+ * @rx_mcs_80: Rx MCS map 2 bits for each stream, total 8 streams, for channel
+ *     widths less than 80MHz.
+ * @tx_mcs_80: Tx MCS map 2 bits for each stream, total 8 streams, for channel
+ *     widths less than 80MHz.
+ * @rx_mcs_160: Rx MCS map 2 bits for each stream, total 8 streams, for channel
+ *     width 160MHz.
+ * @tx_mcs_160: Tx MCS map 2 bits for each stream, total 8 streams, for channel
+ *     width 160MHz.
+ * @rx_mcs_80p80: Rx MCS map 2 bits for each stream, total 8 streams, for
+ *     channel width 80p80MHz.
+ * @tx_mcs_80p80: Tx MCS map 2 bits for each stream, total 8 streams, for
+ *     channel width 80p80MHz.
+ */
+struct ieee80211_he_mcs_nss_supp {
+	__le16 rx_mcs_80;
+	__le16 tx_mcs_80;
+	__le16 rx_mcs_160;
+	__le16 tx_mcs_160;
+	__le16 rx_mcs_80p80;
+	__le16 tx_mcs_80p80;
+} __packed;
+
+/**
+ * struct ieee80211_he_operation - HE capabilities element
+ *
+ * This structure is the "HE operation element" fields as
+ * described in P802.11ax_D2.0 section 9.4.2.238
+ */
+struct ieee80211_he_operation {
+	__le32 he_oper_params;
+	__le16 he_mcs_nss_set;
+	/* Optional 0,1,3 or 4 bytes: depends on @he_oper_params */
+	u8 optional[0];
+} __packed;
+
+/**
+ * struct ieee80211_he_mu_edca_param_ac_rec - MU AC Parameter Record field
+ *
+ * This structure is the "MU AC Parameter Record" fields as
+ * described in P802.11ax_D2.0 section 9.4.2.240
+ */
+struct ieee80211_he_mu_edca_param_ac_rec {
+	u8 aifsn;
+	u8 ecw_min_max;
+	u8 mu_edca_timer;
+} __packed;
+
+/**
+ * struct ieee80211_mu_edca_param_set - MU EDCA Parameter Set element
+ *
+ * This structure is the "MU EDCA Parameter Set element" fields as
+ * described in P802.11ax_D2.0 section 9.4.2.240
+ */
+struct ieee80211_mu_edca_param_set {
+	u8 mu_qos_info;
+	struct ieee80211_he_mu_edca_param_ac_rec ac_be;
+	struct ieee80211_he_mu_edca_param_ac_rec ac_bk;
+	struct ieee80211_he_mu_edca_param_ac_rec ac_vi;
+	struct ieee80211_he_mu_edca_param_ac_rec ac_vo;
+} __packed;
 
 /* 802.11ac VHT Capabilities */
 #define IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895			0x00000000
 #define IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991			0x00000001
 #define IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454			0x00000002
+#define IEEE80211_VHT_CAP_MAX_MPDU_MASK				0x00000003
 #define IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ		0x00000004
 #define IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ	0x00000008
 #define IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK			0x0000000C
@@ -1530,11 +1679,336 @@ struct ieee80211_vht_operation {
 #define IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN			0x10000000
 #define IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN			0x20000000
 
+/* 802.11ax HE MAC capabilities */
+#define IEEE80211_HE_MAC_CAP0_HTC_HE				0x01
+#define IEEE80211_HE_MAC_CAP0_TWT_REQ				0x02
+#define IEEE80211_HE_MAC_CAP0_TWT_RES				0x04
+#define IEEE80211_HE_MAC_CAP0_DYNAMIC_FRAG_NOT_SUPP		0x00
+#define IEEE80211_HE_MAC_CAP0_DYNAMIC_FRAG_LEVEL_1		0x08
+#define IEEE80211_HE_MAC_CAP0_DYNAMIC_FRAG_LEVEL_2		0x10
+#define IEEE80211_HE_MAC_CAP0_DYNAMIC_FRAG_LEVEL_3		0x18
+#define IEEE80211_HE_MAC_CAP0_DYNAMIC_FRAG_MASK			0x18
+#define IEEE80211_HE_MAC_CAP0_MAX_NUM_FRAG_MSDU_1		0x00
+#define IEEE80211_HE_MAC_CAP0_MAX_NUM_FRAG_MSDU_2		0x20
+#define IEEE80211_HE_MAC_CAP0_MAX_NUM_FRAG_MSDU_4		0x40
+#define IEEE80211_HE_MAC_CAP0_MAX_NUM_FRAG_MSDU_8		0x60
+#define IEEE80211_HE_MAC_CAP0_MAX_NUM_FRAG_MSDU_16		0x80
+#define IEEE80211_HE_MAC_CAP0_MAX_NUM_FRAG_MSDU_32		0xa0
+#define IEEE80211_HE_MAC_CAP0_MAX_NUM_FRAG_MSDU_64		0xc0
+#define IEEE80211_HE_MAC_CAP0_MAX_NUM_FRAG_MSDU_UNLIMITED	0xe0
+#define IEEE80211_HE_MAC_CAP0_MAX_NUM_FRAG_MSDU_MASK		0xe0
+
+#define IEEE80211_HE_MAC_CAP1_MIN_FRAG_SIZE_UNLIMITED		0x00
+#define IEEE80211_HE_MAC_CAP1_MIN_FRAG_SIZE_128			0x01
+#define IEEE80211_HE_MAC_CAP1_MIN_FRAG_SIZE_256			0x02
+#define IEEE80211_HE_MAC_CAP1_MIN_FRAG_SIZE_512			0x03
+#define IEEE80211_HE_MAC_CAP1_MIN_FRAG_SIZE_MASK		0x03
+#define IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_0US		0x00
+#define IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_8US		0x04
+#define IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_16US		0x08
+#define IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_MASK		0x0c
+#define IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_1		0x00
+#define IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_2		0x10
+#define IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_3		0x20
+#define IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_4		0x30
+#define IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_5		0x40
+#define IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_6		0x50
+#define IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_7		0x60
+#define IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_8		0x70
+#define IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_MASK		0x70
+
+/* Link adaptation is split between byte HE_MAC_CAP1 and
+ * HE_MAC_CAP2. It should be set only if IEEE80211_HE_MAC_CAP0_HTC_HE
+ * in which case the following values apply:
+ * 0 = No feedback.
+ * 1 = reserved.
+ * 2 = Unsolicited feedback.
+ * 3 = both
+ */
+#define IEEE80211_HE_MAC_CAP1_LINK_ADAPTATION			0x80
+
+#define IEEE80211_HE_MAC_CAP2_LINK_ADAPTATION			0x01
+#define IEEE80211_HE_MAC_CAP2_ALL_ACK				0x02
+#define IEEE80211_HE_MAC_CAP2_UL_MU_RESP_SCHED			0x04
+#define IEEE80211_HE_MAC_CAP2_BSR				0x08
+#define IEEE80211_HE_MAC_CAP2_BCAST_TWT				0x10
+#define IEEE80211_HE_MAC_CAP2_32BIT_BA_BITMAP			0x20
+#define IEEE80211_HE_MAC_CAP2_MU_CASCADING			0x40
+#define IEEE80211_HE_MAC_CAP2_ACK_EN				0x80
+
+#define IEEE80211_HE_MAC_CAP3_GRP_ADDR_MULTI_STA_BA_DL_MU	0x01
+#define IEEE80211_HE_MAC_CAP3_OMI_CONTROL			0x02
+#define IEEE80211_HE_MAC_CAP3_OFDMA_RA				0x04
+
+/* The maximum length of an A-MDPU is defined by the combination of the Maximum
+ * A-MDPU Length Exponent field in the HT capabilities, VHT capabilities and the
+ * same field in the HE capabilities.
+ */
+#define IEEE80211_HE_MAC_CAP3_MAX_A_AMPDU_LEN_EXP_USE_VHT	0x00
+#define IEEE80211_HE_MAC_CAP3_MAX_A_AMPDU_LEN_EXP_VHT_1		0x08
+#define IEEE80211_HE_MAC_CAP3_MAX_A_AMPDU_LEN_EXP_VHT_2		0x10
+#define IEEE80211_HE_MAC_CAP3_MAX_A_AMPDU_LEN_EXP_RESERVED	0x18
+#define IEEE80211_HE_MAC_CAP3_MAX_A_AMPDU_LEN_EXP_MASK		0x18
+#define IEEE80211_HE_MAC_CAP3_A_AMSDU_FRAG			0x20
+#define IEEE80211_HE_MAC_CAP3_FLEX_TWT_SCHED			0x40
+#define IEEE80211_HE_MAC_CAP3_RX_CTRL_FRAME_TO_MULTIBSS		0x80
+
+#define IEEE80211_HE_MAC_CAP4_BSRP_BQRP_A_MPDU_AGG		0x01
+#define IEEE80211_HE_MAC_CAP4_QTP				0x02
+#define IEEE80211_HE_MAC_CAP4_BQR				0x04
+#define IEEE80211_HE_MAC_CAP4_SR_RESP				0x08
+#define IEEE80211_HE_MAC_CAP4_NDP_FB_REP			0x10
+#define IEEE80211_HE_MAC_CAP4_OPS				0x20
+#define IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU			0x40
+
+/* 802.11ax HE PHY capabilities */
+#define IEEE80211_HE_PHY_CAP0_DUAL_BAND					0x01
+#define IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G		0x02
+#define IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G	0x04
+#define IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G		0x08
+#define IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G	0x10
+#define IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_2G	0x20
+#define IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_5G	0x40
+#define IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_MASK			0xfe
+
+#define IEEE80211_HE_PHY_CAP1_PREAMBLE_PUNC_RX_80MHZ_ONLY_SECOND_20MHZ	0x01
+#define IEEE80211_HE_PHY_CAP1_PREAMBLE_PUNC_RX_80MHZ_ONLY_SECOND_40MHZ	0x02
+#define IEEE80211_HE_PHY_CAP1_PREAMBLE_PUNC_RX_160MHZ_ONLY_SECOND_20MHZ	0x04
+#define IEEE80211_HE_PHY_CAP1_PREAMBLE_PUNC_RX_160MHZ_ONLY_SECOND_40MHZ	0x08
+#define IEEE80211_HE_PHY_CAP1_PREAMBLE_PUNC_RX_MASK			0x0f
+#define IEEE80211_HE_PHY_CAP1_DEVICE_CLASS_A				0x10
+#define IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD			0x20
+#define IEEE80211_HE_PHY_CAP1_HE_LTF_AND_GI_FOR_HE_PPDUS_0_8US		0x40
+/* Midamble RX Max NSTS is split between byte #2 and byte #3 */
+#define IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_MAX_NSTS			0x80
+
+#define IEEE80211_HE_PHY_CAP2_MIDAMBLE_RX_MAX_NSTS			0x01
+#define IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US			0x02
+#define IEEE80211_HE_PHY_CAP2_STBC_TX_UNDER_80MHZ			0x04
+#define IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ			0x08
+#define IEEE80211_HE_PHY_CAP2_DOPPLER_TX				0x10
+#define IEEE80211_HE_PHY_CAP2_DOPPLER_RX				0x20
+
+/* Note that the meaning of UL MU below is different between an AP and a non-AP
+ * sta, where in the AP case it indicates support for Rx and in the non-AP sta
+ * case it indicates support for Tx.
+ */
+#define IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO			0x40
+#define IEEE80211_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO			0x80
+
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_NO_DCM			0x00
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_BPSK			0x01
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_QPSK			0x02
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_16_QAM			0x03
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK			0x03
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_TX_NSS_1				0x00
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_TX_NSS_2				0x04
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_NO_DCM			0x00
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_BPSK			0x08
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_QPSK			0x10
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_16_QAM			0x18
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK			0x18
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_RX_NSS_1				0x00
+#define IEEE80211_HE_PHY_CAP3_DCM_MAX_RX_NSS_2				0x20
+#define IEEE80211_HE_PHY_CAP3_RX_HE_MU_PPDU_FROM_NON_AP_STA		0x40
+#define IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER				0x80
+
+#define IEEE80211_HE_PHY_CAP4_SU_BEAMFORMEE				0x01
+#define IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER				0x02
+
+/* Minimal allowed value of Max STS under 80MHz is 3 */
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_4		0x0c
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_5		0x10
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_6		0x14
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_7		0x18
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_8		0x1c
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_MASK	0x1c
+
+/* Minimal allowed value of Max STS above 80MHz is 3 */
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_4		0x60
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_5		0x80
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_6		0xa0
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_7		0xc0
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_8		0xe0
+#define IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_MASK	0xe0
+
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_1	0x00
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_2	0x01
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_3	0x02
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_4	0x03
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_5	0x04
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_6	0x05
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_7	0x06
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_8	0x07
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_MASK	0x07
+
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_1	0x00
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_2	0x08
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_3	0x10
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_4	0x18
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_5	0x20
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_6	0x28
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_7	0x30
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_8	0x38
+#define IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_MASK	0x38
+
+#define IEEE80211_HE_PHY_CAP5_NG16_SU_FEEDBACK				0x40
+#define IEEE80211_HE_PHY_CAP5_NG16_MU_FEEDBACK				0x80
+
+#define IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_42_SU			0x01
+#define IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_75_MU			0x02
+#define IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMER_FB			0x04
+#define IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMER_FB			0x08
+#define IEEE80211_HE_PHY_CAP6_TRIG_CQI_FB				0x10
+#define IEEE80211_HE_PHY_CAP6_PARTIAL_BW_EXT_RANGE			0x20
+#define IEEE80211_HE_PHY_CAP6_PARTIAL_BANDWIDTH_DL_MUMIMO		0x40
+#define IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT			0x80
+
+#define IEEE80211_HE_PHY_CAP7_SRP_BASED_SR				0x01
+#define IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_AR			0x02
+#define IEEE80211_HE_PHY_CAP7_HE_SU_MU_PPDU_4XLTF_AND_08_US_GI		0x04
+#define IEEE80211_HE_PHY_CAP7_MAX_NC_1					0x08
+#define IEEE80211_HE_PHY_CAP7_MAX_NC_2					0x10
+#define IEEE80211_HE_PHY_CAP7_MAX_NC_3					0x18
+#define IEEE80211_HE_PHY_CAP7_MAX_NC_4					0x20
+#define IEEE80211_HE_PHY_CAP7_MAX_NC_5					0x28
+#define IEEE80211_HE_PHY_CAP7_MAX_NC_6					0x30
+#define IEEE80211_HE_PHY_CAP7_MAX_NC_7					0x38
+#define IEEE80211_HE_PHY_CAP7_MAX_NC_MASK				0x38
+#define IEEE80211_HE_PHY_CAP7_STBC_TX_ABOVE_80MHZ			0x40
+#define IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ			0x80
+
+#define IEEE80211_HE_PHY_CAP8_HE_ER_SU_PPDU_4XLTF_AND_08_US_GI		0x01
+#define IEEE80211_HE_PHY_CAP8_20MHZ_IN_40MHZ_HE_PPDU_IN_2G		0x02
+#define IEEE80211_HE_PHY_CAP8_20MHZ_IN_160MHZ_HE_PPDU			0x04
+#define IEEE80211_HE_PHY_CAP8_80MHZ_IN_160MHZ_HE_PPDU			0x08
+#define IEEE80211_HE_PHY_CAP8_HE_ER_SU_1XLTF_AND_08_US_GI		0x10
+#define IEEE80211_HE_PHY_CAP8_MIDAMBLE_RX_2X_AND_1XLTF			0x20
+
+/* 802.11ax HE TX/RX MCS NSS Support  */
+#define IEEE80211_TX_RX_MCS_NSS_SUPP_HIGHEST_MCS_POS			(3)
+#define IEEE80211_TX_RX_MCS_NSS_SUPP_TX_BITMAP_POS			(6)
+#define IEEE80211_TX_RX_MCS_NSS_SUPP_RX_BITMAP_POS			(11)
+#define IEEE80211_TX_RX_MCS_NSS_SUPP_TX_BITMAP_MASK			0x07c0
+#define IEEE80211_TX_RX_MCS_NSS_SUPP_RX_BITMAP_MASK			0xf800
+
+/* TX/RX HE MCS Support field Highest MCS subfield encoding */
+enum ieee80211_he_highest_mcs_supported_subfield_enc {
+	HIGHEST_MCS_SUPPORTED_MCS7 = 0,
+	HIGHEST_MCS_SUPPORTED_MCS8,
+	HIGHEST_MCS_SUPPORTED_MCS9,
+	HIGHEST_MCS_SUPPORTED_MCS10,
+	HIGHEST_MCS_SUPPORTED_MCS11,
+};
+
+/* Calculate 802.11ax HE capabilities IE Tx/Rx HE MCS NSS Support Field size */
+static inline u8
+ieee80211_he_mcs_nss_size(const struct ieee80211_he_cap_elem *he_cap)
+{
+	u8 count = 4;
+
+	if (he_cap->phy_cap_info[0] &
+	    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G)
+		count += 4;
+
+	if (he_cap->phy_cap_info[0] &
+	    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G)
+		count += 4;
+
+	return count;
+}
+
+/* 802.11ax HE PPE Thresholds */
+#define IEEE80211_PPE_THRES_NSS_SUPPORT_2NSS			(1)
+#define IEEE80211_PPE_THRES_NSS_POS				(0)
+#define IEEE80211_PPE_THRES_NSS_MASK				(7)
+#define IEEE80211_PPE_THRES_RU_INDEX_BITMASK_2x966_AND_966_RU	\
+	(BIT(5) | BIT(6))
+#define IEEE80211_PPE_THRES_RU_INDEX_BITMASK_MASK		0x78
+#define IEEE80211_PPE_THRES_RU_INDEX_BITMASK_POS		(3)
+#define IEEE80211_PPE_THRES_INFO_PPET_SIZE			(3)
+
+/*
+ * Calculate 802.11ax HE capabilities IE PPE field size
+ * Input: Header byte of ppe_thres (first byte), and HE capa IE's PHY cap u8*
+ */
+static inline u8
+ieee80211_he_ppe_size(u8 ppe_thres_hdr, const u8 *phy_cap_info)
+{
+	u8 n;
+
+	if ((phy_cap_info[6] &
+	     IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) == 0)
+		return 0;
+
+	n = hweight8(ppe_thres_hdr &
+		     IEEE80211_PPE_THRES_RU_INDEX_BITMASK_MASK);
+	n *= (1 + ((ppe_thres_hdr & IEEE80211_PPE_THRES_NSS_MASK) >>
+		   IEEE80211_PPE_THRES_NSS_POS));
+
+	/*
+	 * Each pair is 6 bits, and we need to add the 7 "header" bits to the
+	 * total size.
+	 */
+	n = (n * IEEE80211_PPE_THRES_INFO_PPET_SIZE * 2) + 7;
+	n = DIV_ROUND_UP(n, 8);
+
+	return n;
+}
+
+/* HE Operation defines */
+#define IEEE80211_HE_OPERATION_BSS_COLOR_MASK			0x0000003f
+#define IEEE80211_HE_OPERATION_DFLT_PE_DURATION_MASK		0x000001c0
+#define IEEE80211_HE_OPERATION_DFLT_PE_DURATION_OFFSET		6
+#define IEEE80211_HE_OPERATION_TWT_REQUIRED			0x00000200
+#define IEEE80211_HE_OPERATION_RTS_THRESHOLD_MASK		0x000ffc00
+#define IEEE80211_HE_OPERATION_RTS_THRESHOLD_OFFSET		10
+#define IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR		0x000100000
+#define IEEE80211_HE_OPERATION_VHT_OPER_INFO			0x000200000
+#define IEEE80211_HE_OPERATION_MULTI_BSSID_AP			0x10000000
+#define IEEE80211_HE_OPERATION_TX_BSSID_INDICATOR		0x20000000
+#define IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED		0x40000000
+
+/*
+ * ieee80211_he_oper_size - calculate 802.11ax HE Operations IE size
+ * @he_oper_ie: byte data of the He Operations IE, stating from the the byte
+ *	after the ext ID byte. It is assumed that he_oper_ie has at least
+ *	sizeof(struct ieee80211_he_operation) bytes, checked already in
+ *	ieee802_11_parse_elems_crc()
+ * @return the actual size of the IE data (not including header), or 0 on error
+ */
+static inline u8
+ieee80211_he_oper_size(const u8 *he_oper_ie)
+{
+	struct ieee80211_he_operation *he_oper = (void *)he_oper_ie;
+	u8 oper_len = sizeof(struct ieee80211_he_operation);
+	u32 he_oper_params;
+
+	/* Make sure the input is not NULL */
+	if (!he_oper_ie)
+		return 0;
+
+	/* Calc required length */
+	he_oper_params = le32_to_cpu(he_oper->he_oper_params);
+	if (he_oper_params & IEEE80211_HE_OPERATION_VHT_OPER_INFO)
+		oper_len += 3;
+	if (he_oper_params & IEEE80211_HE_OPERATION_MULTI_BSSID_AP)
+		oper_len++;
+
+	/* Add the first byte (extension ID) to the total length */
+	oper_len++;
+
+	return oper_len;
+}
+
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
 #define WLAN_AUTH_SHARED_KEY 1
 #define WLAN_AUTH_FT 2
 #define WLAN_AUTH_SAE 3
+#define WLAN_AUTH_FILS_SK 4
+#define WLAN_AUTH_FILS_SK_PFS 5
+#define WLAN_AUTH_FILS_PK 6
 #define WLAN_AUTH_LEAP 128
 
 #define WLAN_AUTH_CHALLENGE_LEN 128
@@ -1674,6 +2148,9 @@ enum ieee80211_statuscode {
 	WLAN_STATUS_REJECT_DSE_BAND = 96,
 	WLAN_STATUS_DENIED_WITH_SUGGESTED_BAND_AND_CHANNEL = 99,
 	WLAN_STATUS_DENIED_DUE_TO_SPECTRUM_MANAGEMENT = 103,
+	/* 802.11ai */
+	WLAN_STATUS_FILS_AUTHENTICATION_FAILURE = 108,
+	WLAN_STATUS_UNKNOWN_AUTHENTICATION_SERVER = 109,
 };
 
 
@@ -1919,6 +2396,31 @@ enum ieee80211_eid {
 
 	WLAN_EID_VENDOR_SPECIFIC = 221,
 	WLAN_EID_QOS_PARAMETER = 222,
+	WLAN_EID_CAG_NUMBER = 237,
+	WLAN_EID_AP_CSN = 239,
+	WLAN_EID_FILS_INDICATION = 240,
+	WLAN_EID_DILS = 241,
+	WLAN_EID_FRAGMENT = 242,
+	WLAN_EID_EXTENSION = 255
+};
+
+/* Element ID Extensions for Element ID 255 */
+enum ieee80211_eid_ext {
+	WLAN_EID_EXT_ASSOC_DELAY_INFO = 1,
+	WLAN_EID_EXT_FILS_REQ_PARAMS = 2,
+	WLAN_EID_EXT_FILS_KEY_CONFIRM = 3,
+	WLAN_EID_EXT_FILS_SESSION = 4,
+	WLAN_EID_EXT_FILS_HLP_CONTAINER = 5,
+	WLAN_EID_EXT_FILS_IP_ADDR_ASSIGN = 6,
+	WLAN_EID_EXT_KEY_DELIVERY = 7,
+	WLAN_EID_EXT_FILS_WRAPPED_DATA = 8,
+	WLAN_EID_EXT_FILS_PUBLIC_KEY = 12,
+	WLAN_EID_EXT_FILS_NONCE = 13,
+	WLAN_EID_EXT_FUTURE_CHAN_GUIDANCE = 14,
+	WLAN_EID_EXT_HE_CAPABILITY = 35,
+	WLAN_EID_EXT_HE_OPERATION = 36,
+	WLAN_EID_EXT_UORA = 37,
+	WLAN_EID_EXT_HE_MU_EDCA = 38,
 };
 
 /* Action category code */
@@ -2032,10 +2534,52 @@ enum ieee80211_key_len {
 #define IEEE80211_GCMP_MIC_LEN		16
 #define IEEE80211_GCMP_PN_LEN		6
 
-/* Public action codes */
+#define FILS_NONCE_LEN			16
+#define FILS_MAX_KEK_LEN		64
+
+#define FILS_ERP_MAX_USERNAME_LEN	16
+#define FILS_ERP_MAX_REALM_LEN		253
+#define FILS_ERP_MAX_RRK_LEN		64
+
+#define PMK_MAX_LEN			64
+
+/* Public action codes (IEEE Std 802.11-2016, 9.6.8.1, Table 9-307) */
 enum ieee80211_pub_actioncode {
+	WLAN_PUB_ACTION_20_40_BSS_COEX = 0,
+	WLAN_PUB_ACTION_DSE_ENABLEMENT = 1,
+	WLAN_PUB_ACTION_DSE_DEENABLEMENT = 2,
+	WLAN_PUB_ACTION_DSE_REG_LOC_ANN = 3,
 	WLAN_PUB_ACTION_EXT_CHANSW_ANN = 4,
+	WLAN_PUB_ACTION_DSE_MSMT_REQ = 5,
+	WLAN_PUB_ACTION_DSE_MSMT_RESP = 6,
+	WLAN_PUB_ACTION_MSMT_PILOT = 7,
+	WLAN_PUB_ACTION_DSE_PC = 8,
+	WLAN_PUB_ACTION_VENDOR_SPECIFIC = 9,
+	WLAN_PUB_ACTION_GAS_INITIAL_REQ = 10,
+	WLAN_PUB_ACTION_GAS_INITIAL_RESP = 11,
+	WLAN_PUB_ACTION_GAS_COMEBACK_REQ = 12,
+	WLAN_PUB_ACTION_GAS_COMEBACK_RESP = 13,
 	WLAN_PUB_ACTION_TDLS_DISCOVER_RES = 14,
+	WLAN_PUB_ACTION_LOC_TRACK_NOTI = 15,
+	WLAN_PUB_ACTION_QAB_REQUEST_FRAME = 16,
+	WLAN_PUB_ACTION_QAB_RESPONSE_FRAME = 17,
+	WLAN_PUB_ACTION_QMF_POLICY = 18,
+	WLAN_PUB_ACTION_QMF_POLICY_CHANGE = 19,
+	WLAN_PUB_ACTION_QLOAD_REQUEST = 20,
+	WLAN_PUB_ACTION_QLOAD_REPORT = 21,
+	WLAN_PUB_ACTION_HCCA_TXOP_ADVERT = 22,
+	WLAN_PUB_ACTION_HCCA_TXOP_RESPONSE = 23,
+	WLAN_PUB_ACTION_PUBLIC_KEY = 24,
+	WLAN_PUB_ACTION_CHANNEL_AVAIL_QUERY = 25,
+	WLAN_PUB_ACTION_CHANNEL_SCHEDULE_MGMT = 26,
+	WLAN_PUB_ACTION_CONTACT_VERI_SIGNAL = 27,
+	WLAN_PUB_ACTION_GDD_ENABLEMENT_REQ = 28,
+	WLAN_PUB_ACTION_GDD_ENABLEMENT_RESP = 29,
+	WLAN_PUB_ACTION_NETWORK_CHANNEL_CONTROL = 30,
+	WLAN_PUB_ACTION_WHITE_SPACE_MAP_ANN = 31,
+	WLAN_PUB_ACTION_FTM_REQUEST = 32,
+	WLAN_PUB_ACTION_FTM = 33,
+	WLAN_PUB_ACTION_FILS_DISCOVERY = 34,
 };
 
 /* TDLS action codes */
@@ -2079,6 +2623,16 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED	BIT(5)
 #define WLAN_EXT_CAPA8_OPMODE_NOTIF	BIT(6)
 
+/* Defines the maximal number of MSDUs in an A-MSDU. */
+#define WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB	BIT(7)
+#define WLAN_EXT_CAPA9_MAX_MSDU_IN_AMSDU_MSB	BIT(0)
+
+/*
+ * Fine Timing Measurement Initiator - bit 71 of @WLAN_EID_EXT_CAPABILITY
+ * information element
+ */
+#define WLAN_EXT_CAPA9_FTM_INITIATOR	BIT(7)
+
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
 
@@ -2086,37 +2640,37 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_BSS_COEX_INFORMATION_REQUEST	BIT(0)
 
 /**
- * enum - mesh synchronization method identifier
+ * enum ieee80211_mesh_sync_method - mesh synchronization method identifier
  *
  * @IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET: the default synchronization method
  * @IEEE80211_SYNC_METHOD_VENDOR: a vendor specific synchronization method
  *	that will be specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_sync_method {
 	IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET = 1,
 	IEEE80211_SYNC_METHOD_VENDOR = 255,
 };
 
 /**
- * enum - mesh path selection protocol identifier
+ * enum ieee80211_mesh_path_protocol - mesh path selection protocol identifier
  *
  * @IEEE80211_PATH_PROTOCOL_HWMP: the default path selection protocol
  * @IEEE80211_PATH_PROTOCOL_VENDOR: a vendor specific protocol that will
  *	be specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_path_protocol {
 	IEEE80211_PATH_PROTOCOL_HWMP = 1,
 	IEEE80211_PATH_PROTOCOL_VENDOR = 255,
 };
 
 /**
- * enum - mesh path selection metric identifier
+ * enum ieee80211_mesh_path_metric - mesh path selection metric identifier
  *
  * @IEEE80211_PATH_METRIC_AIRTIME: the default path selection metric
  * @IEEE80211_PATH_METRIC_VENDOR: a vendor specific metric that will be
  *	specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_path_metric {
 	IEEE80211_PATH_METRIC_AIRTIME = 1,
 	IEEE80211_PATH_METRIC_VENDOR = 255,
 };
@@ -2225,6 +2779,32 @@ struct ieee80211_timeout_interval_ie {
 	__le32 value;
 } __packed;
 
+/**
+ * enum ieee80211_idle_options - BSS idle options
+ * @WLAN_IDLE_OPTIONS_PROTECTED_KEEP_ALIVE: the station should send an RSN
+ *	protected frame to the AP to reset the idle timer at the AP for
+ *	the station.
+ */
+enum ieee80211_idle_options {
+	WLAN_IDLE_OPTIONS_PROTECTED_KEEP_ALIVE = BIT(0),
+};
+
+/**
+ * struct ieee80211_bss_max_idle_period_ie
+ *
+ * This structure refers to "BSS Max idle period element"
+ *
+ * @max_idle_period: indicates the time period during which a station can
+ *	refrain from transmitting frames to its associated AP without being
+ *	disassociated. In units of 1000 TUs.
+ * @idle_options: indicates the options associated with the BSS idle capability
+ *	as specified in &enum ieee80211_idle_options.
+ */
+struct ieee80211_bss_max_idle_period_ie {
+	__le16 max_idle_period;
+	u8 idle_options;
+} __packed;
+
 /* BACK action code */
 enum ieee80211_back_actioncode {
 	WLAN_ACTION_ADDBA_REQ = 0,
@@ -2245,35 +2825,49 @@ enum ieee80211_sa_query_action {
 };
 
 
-/* cipher suite selectors */
-#define WLAN_CIPHER_SUITE_USE_GROUP	0x000FAC00
-#define WLAN_CIPHER_SUITE_WEP40		0x000FAC01
-#define WLAN_CIPHER_SUITE_TKIP		0x000FAC02
-/* reserved: 				0x000FAC03 */
-#define WLAN_CIPHER_SUITE_CCMP		0x000FAC04
-#define WLAN_CIPHER_SUITE_WEP104	0x000FAC05
-#define WLAN_CIPHER_SUITE_AES_CMAC	0x000FAC06
-#define WLAN_CIPHER_SUITE_GCMP		0x000FAC08
-#define WLAN_CIPHER_SUITE_GCMP_256	0x000FAC09
-#define WLAN_CIPHER_SUITE_CCMP_256	0x000FAC0A
-#define WLAN_CIPHER_SUITE_BIP_GMAC_128	0x000FAC0B
-#define WLAN_CIPHER_SUITE_BIP_GMAC_256	0x000FAC0C
-#define WLAN_CIPHER_SUITE_BIP_CMAC_256	0x000FAC0D
+#define SUITE(oui, id)	(((oui) << 8) | (id))
 
-#define WLAN_CIPHER_SUITE_SMS4		0x00147201
+/* cipher suite selectors */
+#define WLAN_CIPHER_SUITE_USE_GROUP	SUITE(0x000FAC, 0)
+#define WLAN_CIPHER_SUITE_WEP40		SUITE(0x000FAC, 1)
+#define WLAN_CIPHER_SUITE_TKIP		SUITE(0x000FAC, 2)
+/* reserved: 				SUITE(0x000FAC, 3) */
+#define WLAN_CIPHER_SUITE_CCMP		SUITE(0x000FAC, 4)
+#define WLAN_CIPHER_SUITE_WEP104	SUITE(0x000FAC, 5)
+#define WLAN_CIPHER_SUITE_AES_CMAC	SUITE(0x000FAC, 6)
+#define WLAN_CIPHER_SUITE_GCMP		SUITE(0x000FAC, 8)
+#define WLAN_CIPHER_SUITE_GCMP_256	SUITE(0x000FAC, 9)
+#define WLAN_CIPHER_SUITE_CCMP_256	SUITE(0x000FAC, 10)
+#define WLAN_CIPHER_SUITE_BIP_GMAC_128	SUITE(0x000FAC, 11)
+#define WLAN_CIPHER_SUITE_BIP_GMAC_256	SUITE(0x000FAC, 12)
+#define WLAN_CIPHER_SUITE_BIP_CMAC_256	SUITE(0x000FAC, 13)
+
+#define WLAN_CIPHER_SUITE_SMS4		SUITE(0x001472, 1)
 
 /* AKM suite selectors */
-#define WLAN_AKM_SUITE_8021X		0x000FAC01
-#define WLAN_AKM_SUITE_PSK		0x000FAC02
-#define WLAN_AKM_SUITE_8021X_SHA256	0x000FAC05
-#define WLAN_AKM_SUITE_PSK_SHA256	0x000FAC06
-#define WLAN_AKM_SUITE_TDLS		0x000FAC07
-#define WLAN_AKM_SUITE_SAE		0x000FAC08
-#define WLAN_AKM_SUITE_FT_OVER_SAE	0x000FAC09
+#define WLAN_AKM_SUITE_8021X			SUITE(0x000FAC, 1)
+#define WLAN_AKM_SUITE_PSK			SUITE(0x000FAC, 2)
+#define WLAN_AKM_SUITE_FT_8021X			SUITE(0x000FAC, 3)
+#define WLAN_AKM_SUITE_FT_PSK			SUITE(0x000FAC, 4)
+#define WLAN_AKM_SUITE_8021X_SHA256		SUITE(0x000FAC, 5)
+#define WLAN_AKM_SUITE_PSK_SHA256		SUITE(0x000FAC, 6)
+#define WLAN_AKM_SUITE_TDLS			SUITE(0x000FAC, 7)
+#define WLAN_AKM_SUITE_SAE			SUITE(0x000FAC, 8)
+#define WLAN_AKM_SUITE_FT_OVER_SAE		SUITE(0x000FAC, 9)
+#define WLAN_AKM_SUITE_8021X_SUITE_B		SUITE(0x000FAC, 11)
+#define WLAN_AKM_SUITE_8021X_SUITE_B_192	SUITE(0x000FAC, 12)
+#define WLAN_AKM_SUITE_FILS_SHA256		SUITE(0x000FAC, 14)
+#define WLAN_AKM_SUITE_FILS_SHA384		SUITE(0x000FAC, 15)
+#define WLAN_AKM_SUITE_FT_FILS_SHA256		SUITE(0x000FAC, 16)
+#define WLAN_AKM_SUITE_FT_FILS_SHA384		SUITE(0x000FAC, 17)
 
 #define WLAN_MAX_KEY_LEN		32
 
+#define WLAN_PMK_NAME_LEN		16
 #define WLAN_PMKID_LEN			16
+#define WLAN_PMK_LEN_EAP_LEAP		16
+#define WLAN_PMK_LEN			32
+#define WLAN_PMK_LEN_SUITE_B_192	48
 
 #define WLAN_OUI_WFA			0x506f9a
 #define WLAN_OUI_TYPE_WFA_P2P		9
@@ -2281,6 +2875,7 @@ enum ieee80211_sa_query_action {
 #define WLAN_OUI_TYPE_MICROSOFT_WPA	1
 #define WLAN_OUI_TYPE_MICROSOFT_WMM	2
 #define WLAN_OUI_TYPE_MICROSOFT_WPS	4
+#define WLAN_OUI_TYPE_MICROSOFT_TPC	8
 
 /*
  * WMM/802.11e Tspec Element
@@ -2334,6 +2929,17 @@ static inline u8 *ieee80211_get_qos_ctl(struct ieee80211_hdr *hdr)
 		return (u8 *)hdr + 30;
 	else
 		return (u8 *)hdr + 24;
+}
+
+/**
+ * ieee80211_get_tid - get qos TID
+ * @hdr: the frame
+ */
+static inline u8 ieee80211_get_tid(struct ieee80211_hdr *hdr)
+{
+	u8 *qc = ieee80211_get_qos_ctl(hdr);
+
+	return qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 }
 
 /**
@@ -2414,7 +3020,7 @@ static inline bool _ieee80211_is_robust_mgmt_frame(struct ieee80211_hdr *hdr)
  */
 static inline bool ieee80211_is_robust_mgmt_frame(struct sk_buff *skb)
 {
-	if (skb->len < 25)
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE)
 		return false;
 	return _ieee80211_is_robust_mgmt_frame((void *)skb->data);
 }
@@ -2434,6 +3040,35 @@ static inline bool ieee80211_is_public_action(struct ieee80211_hdr *hdr,
 	if (!ieee80211_is_action(hdr->frame_control))
 		return false;
 	return mgmt->u.action.category == WLAN_CATEGORY_PUBLIC;
+}
+
+/**
+ * _ieee80211_is_group_privacy_action - check if frame is a group addressed
+ * privacy action frame
+ * @hdr: the frame
+ */
+static inline bool _ieee80211_is_group_privacy_action(struct ieee80211_hdr *hdr)
+{
+	struct ieee80211_mgmt *mgmt = (void *)hdr;
+
+	if (!ieee80211_is_action(hdr->frame_control) ||
+	    !is_multicast_ether_addr(hdr->addr1))
+		return false;
+
+	return mgmt->u.action.category == WLAN_CATEGORY_MESH_ACTION ||
+	       mgmt->u.action.category == WLAN_CATEGORY_MULTIHOP_ACTION;
+}
+
+/**
+ * ieee80211_is_group_privacy_action - check if frame is a group addressed
+ * privacy action frame
+ * @skb: the skb containing the frame, length will be checked
+ */
+static inline bool ieee80211_is_group_privacy_action(struct sk_buff *skb)
+{
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE)
+		return false;
+	return _ieee80211_is_group_privacy_action((void *)skb->data);
 }
 
 /**

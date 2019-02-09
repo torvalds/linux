@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's S3C64xx SoC series common device tree source
  *
@@ -10,16 +11,14 @@
  * Note: This file does not include device nodes for all the controllers in
  * S3C64xx SoCs. As device tree coverage for S3C64xx increases, additional
  * nodes can be added to this file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/samsung,s3c64xx-clock.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		i2c0 = &i2c0;
 		pinctrl0 = &pinctrl0;
@@ -94,13 +93,12 @@
 		};
 
 		watchdog: watchdog@7e004000 {
-			compatible = "samsung,s3c2410-wdt";
+			compatible = "samsung,s3c6410-wdt";
 			reg = <0x7e004000 0x1000>;
 			interrupt-parent = <&vic0>;
 			interrupts = <26>;
 			clock-names = "watchdog";
 			clocks = <&clocks PCLK_WDT>;
-			status = "disabled";
 		};
 
 		i2c0: i2c@7f004000 {

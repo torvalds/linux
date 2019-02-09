@@ -221,10 +221,7 @@
 #define SPRN_CSRR0	SPRN_SRR2 /* Critical Save and Restore Register 0 */
 #define SPRN_CSRR1	SPRN_SRR3 /* Critical Save and Restore Register 1 */
 #endif
-
-#ifdef CONFIG_PPC_ICSWX
 #define SPRN_HACOP	0x15F	/* Hypervisor Available Coprocessor Register */
-#endif
 
 /* Bit definitions for CCR1. */
 #define	CCR1_DPC	0x00000100 /* Disable L1 I-Cache/D-Cache parity checking */
@@ -681,7 +678,7 @@
 #define SPRN_CDBCR	0x3D7	/* Cache Debug Control Register */
 #define SPRN_TBHI	0x3DC	/* Time Base High */
 #define SPRN_TBLO	0x3DD	/* Time Base Low */
-#define SPRN_DBCR	0x3F2	/* Debug Control Regsiter */
+#define SPRN_DBCR	0x3F2	/* Debug Control Register */
 #define SPRN_PBL1	0x3FC	/* Protection Bound Lower 1 */
 #define SPRN_PBL2	0x3FE	/* Protection Bound Lower 2 */
 #define SPRN_PBU1	0x3FD	/* Protection Bound Upper 1 */

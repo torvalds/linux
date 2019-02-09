@@ -1,19 +1,22 @@
-/*
- * Copyright 2012 Freescale Semiconductor, Inc.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2012 Freescale Semiconductor, Inc.
 
-#include "skeleton.dtsi"
 #include "imx23-pinfunc.h"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	interrupt-parent = <&icoll>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; };
 
 	aliases {
 		gpio0 = &gpio0;
@@ -27,12 +30,13 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm926ej-s";
 			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
@@ -111,6 +115,7 @@
 
 				gpio0: gpio@0 {
 					compatible = "fsl,imx23-gpio", "fsl,mxs-gpio";
+					reg = <0>;
 					interrupts = <16>;
 					gpio-controller;
 					#gpio-cells = <2>;
@@ -120,6 +125,7 @@
 
 				gpio1: gpio@1 {
 					compatible = "fsl,imx23-gpio", "fsl,mxs-gpio";
+					reg = <1>;
 					interrupts = <17>;
 					gpio-controller;
 					#gpio-cells = <2>;
@@ -129,6 +135,7 @@
 
 				gpio2: gpio@2 {
 					compatible = "fsl,imx23-gpio", "fsl,mxs-gpio";
+					reg = <2>;
 					interrupts = <18>;
 					gpio-controller;
 					#gpio-cells = <2>;
@@ -171,6 +178,17 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
+				auart1_2pins_a: auart1-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX23_PAD_GPMI_D14__AUART2_RX
+						MX23_PAD_GPMI_D15__AUART2_TX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
 				gpmi_pins_a: gpmi-nand@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -197,7 +215,8 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				gpmi_pins_fixup: gpmi-pins-fixup {
+				gpmi_pins_fixup: gpmi-pins-fixup@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX23_PAD_GPMI_WPN__GPMI_WPN
 						MX23_PAD_GPMI_WRN__GPMI_WRN
@@ -241,12 +260,47 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
-				mmc0_pins_fixup: mmc0-pins-fixup {
+				mmc0_pins_fixup: mmc0-pins-fixup@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX23_PAD_SSP1_DETECT__SSP1_DETECT
 						MX23_PAD_SSP1_SCK__SSP1_SCK
 					>;
 					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				mmc1_4bit_pins_a: mmc1-4bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX23_PAD_GPMI_D00__SSP2_DATA0
+						MX23_PAD_GPMI_D01__SSP2_DATA1
+						MX23_PAD_GPMI_D02__SSP2_DATA2
+						MX23_PAD_GPMI_D03__SSP2_DATA3
+						MX23_PAD_GPMI_RDY1__SSP2_CMD
+						MX23_PAD_GPMI_WRN__SSP2_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mmc1_8bit_pins_a: mmc1-8bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX23_PAD_GPMI_D00__SSP2_DATA0
+						MX23_PAD_GPMI_D01__SSP2_DATA1
+						MX23_PAD_GPMI_D02__SSP2_DATA2
+						MX23_PAD_GPMI_D03__SSP2_DATA3
+						MX23_PAD_GPMI_D04__SSP2_DATA4
+						MX23_PAD_GPMI_D05__SSP2_DATA5
+						MX23_PAD_GPMI_D06__SSP2_DATA6
+						MX23_PAD_GPMI_D07__SSP2_DATA7
+						MX23_PAD_GPMI_RDY1__SSP2_CMD
+						MX23_PAD_GPMI_WRN__SSP2_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
 				pwm2_pins_a: pwm2@0 {
@@ -416,7 +470,7 @@
 				reg = <0x80038000 0x2000>;
 				status = "disabled";
 			};
-                };
+		};
 
 		apbx@80040000 {
 			compatible = "simple-bus";
@@ -569,7 +623,7 @@
 		};
 	};
 
-	iio_hwmon {
+	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&lradc 8>;
 	};

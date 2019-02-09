@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_MMU_BOOK3E_H_
 #define _ASM_POWERPC_MMU_BOOK3E_H_
 /*
@@ -229,15 +230,6 @@ typedef struct {
 	unsigned int	id;
 	unsigned int	active;
 	unsigned long	vdso_base;
-#ifdef CONFIG_PPC_MM_SLICES
-	u64 low_slices_psize;   /* SLB page size encodings */
-	u64 high_slices_psize;  /* 4 bits per slice for now */
-	u16 user_psize;         /* page size index */
-#endif
-#ifdef CONFIG_PPC_64K_PAGES
-	/* for 4K PTE fragment support */
-	void *pte_frag;
-#endif
 } mm_context_t;
 
 /* Page size definitions, common between 32 and 64-bit
@@ -279,8 +271,6 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
  */
 #if defined(CONFIG_PPC_4K_PAGES)
 #define mmu_virtual_psize	MMU_PAGE_4K
-#elif defined(CONFIG_PPC_64K_PAGES)
-#define mmu_virtual_psize	MMU_PAGE_64K
 #else
 #error Unsupported page size
 #endif
@@ -313,6 +303,9 @@ extern int book3e_htw_mode;
  * return 1, indicating that the tlb requires preloading.
  */
 #define HUGETLB_NEED_PRELOAD
+
+#define mmu_cleanup_all NULL
+
 #endif
 
 #endif /* !__ASSEMBLY__ */

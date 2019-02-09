@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * driver/usb/gadget/fsl_qe_udc.c
  *
@@ -11,11 +12,6 @@
  * Freescle QE/CPM USB Pheripheral Controller Driver
  * The controller can be found on MPC8360, MPC8272, and etc.
  * MPC8360 Rev 1.1 may need QE mircocode update
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation;  either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #undef USB_TRACE
@@ -38,7 +34,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/qe.h>
 #include <asm/cpm.h>
 #include <asm/dma.h>
 #include <asm/reg.h>
@@ -62,7 +58,7 @@ static const char *const ep_name[] = {
 	"ep3",
 };
 
-static struct usb_endpoint_descriptor qe_ep0_desc = {
+static const struct usb_endpoint_descriptor qe_ep0_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -421,10 +417,8 @@ static int qe_ep_rxbd_update(struct qe_ep *ep)
 	bd = ep->rxbase;
 
 	ep->rxframe = kmalloc(sizeof(*ep->rxframe), GFP_ATOMIC);
-	if (ep->rxframe == NULL) {
-		dev_err(ep->udc->dev, "malloc rxframe failed\n");
+	if (!ep->rxframe)
 		return -ENOMEM;
-	}
 
 	qe_frame_init(ep->rxframe);
 
@@ -435,9 +429,7 @@ static int qe_ep_rxbd_update(struct qe_ep *ep)
 
 	size = (ep->ep.maxpacket + USB_CRC_SIZE + 2) * (bdring_len + 1);
 	ep->rxbuffer = kzalloc(size, GFP_ATOMIC);
-	if (ep->rxbuffer == NULL) {
-		dev_err(ep->udc->dev, "malloc rxbuffer failed,size=%d\n",
-				size);
+	if (!ep->rxbuffer) {
 		kfree(ep->rxframe);
 		return -ENOMEM;
 	}
@@ -668,10 +660,8 @@ static int qe_ep_init(struct qe_udc *udc,
 
 	if ((ep->tm == USBP_TM_CTL) || (ep->dir == USB_DIR_IN)) {
 		ep->txframe = kmalloc(sizeof(*ep->txframe), GFP_ATOMIC);
-		if (ep->txframe == NULL) {
-			dev_err(udc->dev, "malloc txframe failed\n");
+		if (!ep->txframe)
 			goto en_done2;
-		}
 		qe_frame_init(ep->txframe);
 	}
 
@@ -1853,7 +1843,7 @@ out:
 	return status;
 }
 
-static struct usb_ep_ops qe_ep_ops = {
+static const struct usb_ep_ops qe_ep_ops = {
 	.enable = qe_ep_enable,
 	.disable = qe_ep_disable,
 
@@ -1878,11 +1868,8 @@ static int qe_get_frame(struct usb_gadget *gadget)
 
 	tmp = in_be16(&udc->usb_param->frame_n);
 	if (tmp & 0x8000)
-		tmp = tmp & 0x07ff;
-	else
-		tmp = -EINVAL;
-
-	return (int)tmp;
+		return tmp & 0x07ff;
+	return -EINVAL;
 }
 
 static int fsl_qe_start(struct usb_gadget *gadget,
@@ -2053,7 +2040,7 @@ static void setup_received_handle(struct qe_udc *udc,
 			struct qe_ep *ep;
 
 			if (wValue != 0 || wLength != 0
-				|| pipe > USB_MAX_ENDPOINTS)
+				|| pipe >= USB_MAX_ENDPOINTS)
 				break;
 			ep = &udc->eps[pipe];
 
@@ -2340,17 +2327,15 @@ static struct qe_udc *qe_udc_config(struct platform_device *ofdev)
 {
 	struct qe_udc *udc;
 	struct device_node *np = ofdev->dev.of_node;
-	unsigned int tmp_addr = 0;
+	unsigned long tmp_addr = 0;
 	struct usb_device_para __iomem *usbpram;
 	unsigned int i;
 	u64 size;
 	u32 offset;
 
 	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
-	if (udc == NULL) {
-		dev_err(&ofdev->dev, "malloc udc failed\n");
+	if (!udc)
 		goto cleanup;
-	}
 
 	udc->dev = &ofdev->dev;
 

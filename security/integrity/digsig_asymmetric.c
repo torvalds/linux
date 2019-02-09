@@ -16,7 +16,9 @@
 #include <linux/ratelimit.h>
 #include <linux/key-type.h>
 #include <crypto/public_key.h>
+#include <crypto/hash_info.h>
 #include <keys/asymmetric-type.h>
+#include <keys/system_keyring.h>
 
 #include "integrity.h"
 
@@ -32,9 +34,22 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 
 	pr_debug("key search: \"%s\"\n", name);
 
+	key = get_ima_blacklist_keyring();
+	if (key) {
+		key_ref_t kref;
+
+		kref = keyring_search(make_key_ref(key, 1),
+				     &key_type_asymmetric, name);
+		if (!IS_ERR(kref)) {
+			pr_err("Key '%s' is in ima_blacklist_keyring\n", name);
+			return ERR_PTR(-EKEYREJECTED);
+		}
+	}
+
 	if (keyring) {
 		/* search in specific keyring */
 		key_ref_t kref;
+
 		kref = keyring_search(make_key_ref(keyring, 1),
 				      &key_type_asymmetric, name);
 		if (IS_ERR(kref))
@@ -77,29 +92,49 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 
 	siglen -= sizeof(*hdr);
 
-	if (siglen != __be16_to_cpu(hdr->sig_size))
+	if (siglen != be16_to_cpu(hdr->sig_size))
 		return -EBADMSG;
 
-	if (hdr->hash_algo >= PKEY_HASH__LAST)
+	if (hdr->hash_algo >= HASH_ALGO__LAST)
 		return -ENOPKG;
 
-	key = request_asymmetric_key(keyring, __be32_to_cpu(hdr->keyid));
+	key = request_asymmetric_key(keyring, be32_to_cpu(hdr->keyid));
 	if (IS_ERR(key))
 		return PTR_ERR(key);
 
 	memset(&pks, 0, sizeof(pks));
 
-	pks.pkey_hash_algo = hdr->hash_algo;
+	pks.pkey_algo = "rsa";
+	pks.hash_algo = hash_algo_name[hdr->hash_algo];
 	pks.digest = (u8 *)data;
 	pks.digest_size = datalen;
-	pks.nr_mpi = 1;
-	pks.rsa.s = mpi_read_raw_data(hdr->sig, siglen);
-
-	if (pks.rsa.s)
-		ret = verify_signature(key, &pks);
-
-	mpi_free(pks.rsa.s);
+	pks.s = hdr->sig;
+	pks.s_size = siglen;
+	ret = verify_signature(key, &pks);
 	key_put(key);
 	pr_debug("%s() = %d\n", __func__, ret);
 	return ret;
+}
+
+/**
+ * integrity_kernel_module_request - prevent crypto-pkcs1pad(rsa,*) requests
+ * @kmod_name: kernel module name
+ *
+ * We have situation, when public_key_verify_signature() in case of RSA
+ * algorithm use alg_name to store internal information in order to
+ * construct an algorithm on the fly, but crypto_larval_lookup() will try
+ * to use alg_name in order to load kernel module with same name.
+ * Since we don't have any real "crypto-pkcs1pad(rsa,*)" kernel modules,
+ * we are safe to fail such module request from crypto_larval_lookup().
+ *
+ * In this way we prevent modprobe execution during digsig verification
+ * and avoid possible deadlock if modprobe and/or it's dependencies
+ * also signed with digsig.
+ */
+int integrity_kernel_module_request(char *kmod_name)
+{
+	if (strncmp(kmod_name, "crypto-pkcs1pad(rsa,", 20) == 0)
+		return -EINVAL;
+
+	return 0;
 }

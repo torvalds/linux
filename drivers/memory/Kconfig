@@ -25,6 +25,18 @@ config ATMEL_SDRAMC
 	  Starting with the at91sam9g45, this controller supports SDR, DDR and
 	  LP-DDR memories.
 
+config ATMEL_EBI
+	bool "Atmel EBI driver"
+	default y
+	depends on ARCH_AT91 && OF
+	select MFD_SYSCON
+	select MFD_ATMEL_SMC
+	help
+	  Driver for Atmel EBI controller.
+	  Used to configure the EBI (external bus interface) when the device-
+	  tree is used. This bus supports NANDs, external ethernet controller,
+	  SRAMs, ATA devices, etc.
+
 config TI_AEMIF
 	tristate "Texas Instruments AEMIF driver"
 	depends on (ARCH_DAVINCI || ARCH_KEYSTONE) && OF
@@ -51,6 +63,7 @@ config TI_EMIF
 
 config OMAP_GPMC
 	bool
+	select GPIOLIB
 	help
 	  This driver is for the General Purpose Memory Controller (GPMC)
 	  present on Texas Instruments SoCs (e.g. OMAP2+). GPMC allows
@@ -71,6 +84,16 @@ config OMAP_GPMC_DEBUG
 	  bootloader or else the GPMC timings won't be identical with the
 	  bootloader timings.
 
+config TI_EMIF_SRAM
+	tristate "Texas Instruments EMIF SRAM driver"
+	depends on (SOC_AM33XX || SOC_AM43XX) && SRAM
+	help
+	  This driver is for the EMIF module available on Texas Instruments
+	  AM33XX and AM43XX SoCs and is required for PM. Certain parts of
+	  the EMIF PM code must run from on-chip SRAM late in the suspend
+	  sequence so this driver provides several relocatable PM functions
+	  for the SoC PM code to use.
+
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"
 	default y
@@ -80,16 +103,6 @@ config MVEBU_DEVBUS
 	  Marvell EBU SoCs such as Discovery (mv78xx0), Orion (88f5xxx) and
 	  Armada 370 and Armada XP. This controller allows to handle flash
 	  devices such as NOR, NAND, SRAM, and FPGA.
-
-config TEGRA20_MC
-	bool "Tegra20 Memory Controller(MC) driver"
-	default y
-	depends on ARCH_TEGRA_2x_SOC
-	help
-	  This driver is for the Memory Controller(MC) module available
-	  in Tegra20 SoCs, mainly for a address translation fault
-	  analysis, especially for IOMMU/GART(Graphics Address
-	  Relocation Table) module.
 
 config FSL_CORENET_CF
 	tristate "Freescale CoreNet Error Reporting"
@@ -103,17 +116,36 @@ config FSL_CORENET_CF
 
 config FSL_IFC
 	bool
-	depends on FSL_SOC
+	depends on FSL_SOC || ARCH_LAYERSCAPE || SOC_LS1021A || COMPILE_TEST
+	depends on HAS_IOMEM
 
 config JZ4780_NEMC
 	bool "Ingenic JZ4780 SoC NEMC driver"
 	default y
-	depends on MACH_JZ4780
+	depends on MACH_JZ4780 || COMPILE_TEST
+	depends on HAS_IOMEM && OF
 	help
 	  This driver is for the NAND/External Memory Controller (NEMC) in
 	  the Ingenic JZ4780. This controller is used to handle external
 	  memory devices such as NAND and SRAM.
 
+config MTK_SMI
+	bool
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  This driver is for the Memory Controller module in MediaTek SoCs,
+	  mainly help enable/disable iommu and control the power domain and
+	  clocks for each local arbiter.
+
+config DA8XX_DDRCTL
+	bool "Texas Instruments da8xx DDR2/mDDR driver"
+	depends on ARCH_DAVINCI_DA8XX
+	help
+	  This driver is for the DDR2/mDDR Memory Controller present on
+	  Texas Instruments da8xx SoCs. It's used to tweak various memory
+	  controller configuration options.
+
+source "drivers/memory/samsung/Kconfig"
 source "drivers/memory/tegra/Kconfig"
 
 endif

@@ -41,11 +41,11 @@
 			label = "user";
 			gpios = <&gpio6 24 GPIO_ACTIVE_HIGH>; /* gpio 184 */
 			linux,code = <BTN_EXTRA>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
-	hdmi0: connector@0 {
+	hdmi0: connector {
 		compatible = "hdmi-connector";
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmi_hpd_pins>;
@@ -122,7 +122,7 @@
 
 	dss_hdmi_pins: pinmux_dss_hdmi_pins {
 		pinctrl-single,pins = <
-			OMAP4_IOPAD(0x09a, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_cec.hdmi_cec */
+			OMAP4_IOPAD(0x09a, PIN_INPUT | MUX_MODE0)		/* hdmi_cec.hdmi_cec */
 			OMAP4_IOPAD(0x09c, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_scl.hdmi_scl */
 			OMAP4_IOPAD(0x09e, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_sda.hdmi_sda */
 		>;

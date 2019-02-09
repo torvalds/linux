@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/posix_acl.h>
@@ -23,7 +24,8 @@ reiserfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	struct reiserfs_transaction_handle th;
 	size_t jcreate_blocks;
 	int size = acl ? posix_acl_xattr_size(acl->a_count) : 0;
-
+	int update_mode = 0;
+	umode_t mode = inode->i_mode;
 
 	/*
 	 * Pessimism: We can't assume that anything from the xattr root up
@@ -37,7 +39,16 @@ reiserfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	error = journal_begin(&th, inode->i_sb, jcreate_blocks);
 	reiserfs_write_unlock(inode->i_sb);
 	if (error == 0) {
+		if (type == ACL_TYPE_ACCESS && acl) {
+			error = posix_acl_update_mode(inode, &mode, &acl);
+			if (error)
+				goto unlock;
+			update_mode = 1;
+		}
 		error = __reiserfs_set_acl(&th, inode, type, acl);
+		if (!error && update_mode)
+			inode->i_mode = mode;
+unlock:
 		reiserfs_write_lock(inode->i_sb);
 		error2 = journal_end(&th);
 		reiserfs_write_unlock(inode->i_sb);
@@ -186,10 +197,10 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name = POSIX_ACL_XATTR_ACCESS;
+		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		name = POSIX_ACL_XATTR_DEFAULT;
+		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
 		BUG();
@@ -197,10 +208,8 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 
 	size = reiserfs_xattr_get(inode, name, NULL, 0);
 	if (size < 0) {
-		if (size == -ENODATA || size == -ENOSYS) {
-			set_cached_acl(inode, type, NULL);
+		if (size == -ENODATA || size == -ENOSYS)
 			return NULL;
-		}
 		return ERR_PTR(size);
 	}
 
@@ -220,8 +229,6 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 	} else {
 		acl = reiserfs_posix_acl_from_disk(value, retval);
 	}
-	if (!IS_ERR(acl))
-		set_cached_acl(inode, type, acl);
 
 	kfree(value);
 	return acl;
@@ -244,19 +251,10 @@ __reiserfs_set_acl(struct reiserfs_transaction_handle *th, struct inode *inode,
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name = POSIX_ACL_XATTR_ACCESS;
-		if (acl) {
-			error = posix_acl_equiv_mode(acl, &inode->i_mode);
-			if (error < 0)
-				return error;
-			else {
-				if (error == 0)
-					acl = NULL;
-			}
-		}
+		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		name = POSIX_ACL_XATTR_DEFAULT;
+		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		if (!S_ISDIR(inode->i_mode))
 			return acl ? -EACCES : 0;
 		break;
@@ -281,7 +279,7 @@ __reiserfs_set_acl(struct reiserfs_transaction_handle *th, struct inode *inode,
 	if (error == -ENODATA) {
 		error = 0;
 		if (type == ACL_TYPE_ACCESS) {
-			inode->i_ctime = CURRENT_TIME_SEC;
+			inode->i_ctime = current_time(inode);
 			mark_inode_dirty(inode);
 		}
 	}
@@ -370,7 +368,7 @@ int reiserfs_cache_default_acl(struct inode *inode)
 	if (IS_PRIVATE(inode))
 		return 0;
 
-	acl = reiserfs_get_acl(inode, ACL_TYPE_DEFAULT);
+	acl = get_acl(inode, ACL_TYPE_DEFAULT);
 
 	if (acl && !IS_ERR(acl)) {
 		int size = reiserfs_acl_size(acl->a_count);

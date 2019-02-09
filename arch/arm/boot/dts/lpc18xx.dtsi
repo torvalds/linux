@@ -20,6 +20,9 @@
 #define LPC_GPIO(port, pin)	(port * 32 + pin)
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -112,7 +115,6 @@
 			compatible = "snps,dw-mshc";
 			reg = <0x40004000 0x1000>;
 			interrupts = <6>;
-			num-slots = <1>;
 			clocks = <&ccu2 CLK_SDIO>, <&ccu1 CLK_CPU_SDIO>;
 			clock-names = "ciu", "biu";
 			resets = <&rgu 20>;
@@ -166,6 +168,17 @@
 			status = "disabled";
 		};
 
+		eeprom: eeprom@4000e000 {
+			compatible = "nxp,lpc1857-eeprom";
+			reg = <0x4000e000 0x1000>, <0x20040000 0x4000>;
+			reg-names = "reg", "mem";
+			clocks = <&ccu1 CLK_CPU_EEPROM>;
+			clock-names = "eeprom";
+			resets = <&rgu 27>;
+			interrupts = <4>;
+			status = "disabled";
+		};
+
 		mac: ethernet@40010000 {
 			compatible = "nxp,lpc1850-dwmac", "snps,dwmac-3.611", "snps,dwmac";
 			reg = <0x40010000 0x2000>;
@@ -175,6 +188,10 @@
 			clock-names = "stmmaceth";
 			resets = <&rgu 22>;
 			reset-names = "stmmaceth";
+			rx-fifo-depth = <256>;
+			tx-fifo-depth = <256>;
+			snps,pbl = <4>; /* 32 (8x mode) */
+			snps,force_thresh_dma_mode;
 			status = "disabled";
 		};
 
@@ -184,13 +201,19 @@
 			clocks = <&ccu1 CLK_CPU_CREG>;
 			resets = <&rgu 5>;
 
-			usb0_otg_phy: phy@004 {
+			creg_clk: clock-controller {
+				compatible = "nxp,lpc1850-creg-clk";
+				clocks = <&xtal32>;
+				#clock-cells = <1>;
+			};
+
+			usb0_otg_phy: phy {
 				compatible = "nxp,lpc1850-usb-otg-phy";
 				clocks = <&ccu1 CLK_USB0>;
 				#phy-cells = <0>;
 			};
 
-			dmamux: dma-mux@11c {
+			dmamux: dma-mux {
 				compatible = "nxp,lpc1850-dmamux";
 				#dma-cells = <3>;
 				dma-requests = <64>;
@@ -198,11 +221,19 @@
 			};
 		};
 
+		rtc: rtc@40046000 {
+			compatible = "nxp,lpc1850-rtc", "nxp,lpc1788-rtc";
+			reg = <0x40046000 0x1000>;
+			interrupts = <47>;
+			clocks = <&creg_clk 0>, <&ccu1 CLK_CPU_BUS>;
+			clock-names = "rtc", "reg";
+		};
+
 		cgu: clock-controller@40050000 {
 			compatible = "nxp,lpc1850-cgu";
 			reg = <0x40050000 0x1000>;
 			#clock-cells = <1>;
-			clocks = <&xtal>, <&xtal32>, <&enet_rx_clk>, <&enet_tx_clk>, <&gp_clkin>;
+			clocks = <&xtal>, <&creg_clk 1>, <&enet_rx_clk>, <&enet_tx_clk>, <&gp_clkin>;
 		};
 
 		ccu1: clock-controller@40051000 {
@@ -419,12 +450,39 @@
 			status = "disabled";
 		};
 
+		dac: dac@400e1000 {
+			compatible = "nxp,lpc1850-dac";
+			reg = <0x400e1000 0x1000>;
+			interrupts = <0>;
+			clocks = <&ccu1 CLK_APB3_DAC>;
+			resets = <&rgu 42>;
+			status = "disabled";
+		};
+
 		can0: can@400e2000 {
 			compatible = "bosch,c_can";
 			reg = <0x400e2000 0x1000>;
 			interrupts = <51>;
 			clocks = <&ccu1 CLK_APB3_CAN0>;
 			resets = <&rgu 55>;
+			status = "disabled";
+		};
+
+		adc0: adc@400e3000 {
+			compatible = "nxp,lpc1850-adc";
+			reg = <0x400e3000 0x1000>;
+			interrupts = <17>;
+			clocks = <&ccu1 CLK_APB3_ADC0>;
+			resets = <&rgu 40>;
+			status = "disabled";
+		};
+
+		adc1: adc@400e4000 {
+			compatible = "nxp,lpc1850-adc";
+			reg = <0x400e4000 0x1000>;
+			interrupts = <21>;
+			clocks = <&ccu1 CLK_APB3_ADC1>;
+			resets = <&rgu 41>;
 			status = "disabled";
 		};
 

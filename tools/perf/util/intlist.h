@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_INTLIST_H
 #define __PERF_INTLIST_H
 
@@ -57,21 +58,21 @@ static inline struct int_node *intlist__next(struct int_node *in)
 }
 
 /**
- * intlist_for_each      - iterate over a intlist
+ * intlist__for_each_entry      - iterate over a intlist
  * @pos:	the &struct int_node to use as a loop cursor.
  * @ilist:	the &struct intlist for loop.
  */
-#define intlist__for_each(pos, ilist)	\
+#define intlist__for_each_entry(pos, ilist)	\
 	for (pos = intlist__first(ilist); pos; pos = intlist__next(pos))
 
 /**
- * intlist_for_each_safe - iterate over a intlist safe against removal of
+ * intlist__for_each_entry_safe - iterate over a intlist safe against removal of
  *                         int_node
  * @pos:	the &struct int_node to use as a loop cursor.
  * @n:		another &struct int_node to use as temporary storage.
  * @ilist:	the &struct intlist for loop.
  */
-#define intlist__for_each_safe(pos, n, ilist)	\
+#define intlist__for_each_entry_safe(pos, n, ilist)	\
 	for (pos = intlist__first(ilist), n = intlist__next(pos); pos;\
 	     pos = n, n = intlist__next(n))
 #endif /* __PERF_INTLIST_H */

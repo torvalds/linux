@@ -61,17 +61,31 @@
 
 #define SPRN_TBRL	268
 #define SPRN_TBRU	269
+#define SPRN_HSRR0	0x13A	/* Hypervisor Save/Restore 0 */
+#define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
+
+#define MSR_LE		0x0000000000000001
 
 #define FIXUP_ENDIAN						   \
-	tdi   0, 0, 0x48; /* Reverse endian of b . + 8		*/ \
-	b     $+36;	  /* Skip trampoline if endian is good	*/ \
-	.long 0x05009f42; /* bcl 20,31,$+4			*/ \
-	.long 0xa602487d; /* mflr r10				*/ \
-	.long 0x1c004a39; /* addi r10,r10,28			*/ \
+	tdi   0,0,0x48;	  /* Reverse endian of b . + 8		*/ \
+	b     $+44;	  /* Skip trampoline if endian is good	*/ \
 	.long 0xa600607d; /* mfmsr r11				*/ \
 	.long 0x01006b69; /* xori r11,r11,1			*/ \
+	.long 0x00004039; /* li r10,0				*/ \
+	.long 0x6401417d; /* mtmsrd r10,1			*/ \
+	.long 0x05009f42; /* bcl 20,31,$+4			*/ \
+	.long 0xa602487d; /* mflr r10				*/ \
+	.long 0x14004a39; /* addi r10,r10,20			*/ \
 	.long 0xa6035a7d; /* mtsrr0 r10				*/ \
 	.long 0xa6037b7d; /* mtsrr1 r11				*/ \
 	.long 0x2400004c  /* rfid				*/
+
+#ifdef CONFIG_PPC_8xx
+#define MFTBL(dest)			mftb dest
+#define MFTBU(dest)			mftbu dest
+#else
+#define MFTBL(dest)			mfspr dest, SPRN_TBRL
+#define MFTBU(dest)			mfspr dest, SPRN_TBRU
+#endif
 
 #endif /* _PPC64_PPC_ASM_H */

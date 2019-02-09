@@ -22,6 +22,7 @@
 #ifndef AF9035_H
 #define AF9035_H
 
+#include <linux/platform_device.h>
 #include "dvb_usb.h"
 #include "af9033.h"
 #include "tua9001.h"
@@ -61,14 +62,19 @@ struct state {
 	u8 prechip_version;
 	u8 chip_version;
 	u16 chip_type;
+	u8 eeprom[256];
+	bool no_eeprom;
+	u8 ir_mode;
+	u8 ir_type;
 	u8 dual_mode:1;
-	u16 eeprom_addr;
+	u8 no_read:1;
 	u8 af9033_i2c_addr[2];
 	struct af9033_config af9033_config[2];
 	struct af9033_ops ops;
 	#define AF9035_I2C_CLIENT_MAX 4
 	struct i2c_client *i2c_client[AF9035_I2C_CLIENT_MAX];
 	struct i2c_adapter *i2c_adapter_demod;
+	struct platform_device *platform_device_tuner[2];
 };
 
 static const u32 clock_lut_af9035[] = {
@@ -112,25 +118,26 @@ static const u32 clock_lut_it9135[] = {
  * 0  TS
  * 1  DCA + PIP
  * 3  PIP
+ * 5  DCA + PIP (AF9035 only)
  * n  DCA
  *
- * Values 0 and 3 are seen to this day. 0 for single TS and 3 for dual TS.
+ * Values 0, 3 and 5 are seen to this day. 0 for single TS and 3/5 for dual TS.
  */
 
-#define EEPROM_BASE_AF9035        0x42fd
-#define EEPROM_BASE_IT9135        0x499c
+#define EEPROM_BASE_AF9035        0x42f5
+#define EEPROM_BASE_IT9135        0x4994
 #define EEPROM_SHIFT                0x10
 
-#define EEPROM_IR_MODE              0x10
-#define EEPROM_TS_MODE              0x29
-#define EEPROM_2ND_DEMOD_ADDR       0x2a
-#define EEPROM_IR_TYPE              0x2c
-#define EEPROM_1_IF_L               0x30
-#define EEPROM_1_IF_H               0x31
-#define EEPROM_1_TUNER_ID           0x34
-#define EEPROM_2_IF_L               0x40
-#define EEPROM_2_IF_H               0x41
-#define EEPROM_2_TUNER_ID           0x44
+#define EEPROM_IR_MODE              0x18
+#define EEPROM_TS_MODE              0x31
+#define EEPROM_2ND_DEMOD_ADDR       0x32
+#define EEPROM_IR_TYPE              0x34
+#define EEPROM_1_IF_L               0x38
+#define EEPROM_1_IF_H               0x39
+#define EEPROM_1_TUNER_ID           0x3c
+#define EEPROM_2_IF_L               0x48
+#define EEPROM_2_IF_H               0x49
+#define EEPROM_2_TUNER_ID           0x4c
 
 /* USB commands */
 #define CMD_MEM_RD                  0x00

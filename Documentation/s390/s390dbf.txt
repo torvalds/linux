@@ -405,7 +405,7 @@ Example:
 
 > ls /sys/kernel/debug/s390dbf/dasd
 flush  hex_ascii  level pages raw
-> cat /sys/kernel/debug/s390dbf/dasd/hex_ascii | sort +1
+> cat /sys/kernel/debug/s390dbf/dasd/hex_ascii | sort -k2,2 -s
 00 00974733272:680099 2 - 02 0006ad7e  07 ea 4a 90 | ....
 00 00974733272:682210 2 - 02 0006ade6  46 52 45 45 | FREE
 00 00974733272:682213 2 - 02 0006adf6  07 ea 4a 90 | ....

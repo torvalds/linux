@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PPC Huge TLB Page Support for Book3E MMU
  *
@@ -7,6 +8,8 @@
  */
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
+
+#include <asm/mmu.h>
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
 #ifdef CONFIG_PPC64
@@ -51,6 +54,59 @@ static inline int mmu_get_tsize(int psize)
 	return mmu_psize_defs[psize].enc;
 }
 
+#if defined(CONFIG_PPC_FSL_BOOK3E) && defined(CONFIG_PPC64)
+#include <asm/paca.h>
+
+static inline void book3e_tlb_lock(void)
+{
+	struct paca_struct *paca = get_paca();
+	unsigned long tmp;
+	int token = smp_processor_id() + 1;
+
+	/*
+	 * Besides being unnecessary in the absence of SMT, this
+	 * check prevents trying to do lbarx/stbcx. on e5500 which
+	 * doesn't implement either feature.
+	 */
+	if (!cpu_has_feature(CPU_FTR_SMT))
+		return;
+
+	asm volatile("1: lbarx %0, 0, %1;"
+		     "cmpwi %0, 0;"
+		     "bne 2f;"
+		     "stbcx. %2, 0, %1;"
+		     "bne 1b;"
+		     "b 3f;"
+		     "2: lbzx %0, 0, %1;"
+		     "cmpwi %0, 0;"
+		     "bne 2b;"
+		     "b 1b;"
+		     "3:"
+		     : "=&r" (tmp)
+		     : "r" (&paca->tcd_ptr->lock), "r" (token)
+		     : "memory");
+}
+
+static inline void book3e_tlb_unlock(void)
+{
+	struct paca_struct *paca = get_paca();
+
+	if (!cpu_has_feature(CPU_FTR_SMT))
+		return;
+
+	isync();
+	paca->tcd_ptr->lock = 0;
+}
+#else
+static inline void book3e_tlb_lock(void)
+{
+}
+
+static inline void book3e_tlb_unlock(void)
+{
+}
+#endif
+
 static inline int book3e_tlb_exists(unsigned long ea, unsigned long pid)
 {
 	int found = 0;
@@ -93,23 +149,19 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 
 	mm = vma->vm_mm;
 
-#ifdef CONFIG_PPC_MM_SLICES
-	psize = get_slice_psize(mm, ea);
-	tsize = mmu_get_tsize(psize);
-	shift = mmu_psize_defs[psize].shift;
-#else
 	psize = vma_mmu_pagesize(vma);
 	shift = __ilog2(psize);
 	tsize = shift - 10;
-#endif
-
 	/*
 	 * We can't be interrupted while we're setting up the MAS
 	 * regusters or after we've confirmed that no tlb exists.
 	 */
 	local_irq_save(flags);
 
+	book3e_tlb_lock();
+
 	if (unlikely(book3e_tlb_exists(ea, mm->context.id))) {
+		book3e_tlb_unlock();
 		local_irq_restore(flags);
 		return;
 	}
@@ -141,6 +193,7 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 
 	asm volatile ("tlbwe");
 
+	book3e_tlb_unlock();
 	local_irq_restore(flags);
 }
 

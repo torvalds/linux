@@ -14,7 +14,7 @@
 #include <linux/genalloc.h>
 
 #include <mach/common.h>
-#include <mach/sram.h>
+#include "sram.h"
 
 static struct gen_pool *sram_pool;
 

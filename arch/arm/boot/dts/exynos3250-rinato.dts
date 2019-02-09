@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos3250 based Rinato board device tree source
  *
@@ -6,14 +7,11 @@
  *
  * Device tree source file for Samsung's Rinato board which is based on
  * Samsung Exynos3250 SoC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;
 #include "exynos3250.dtsi"
+#include "exynos4412-ppmu-common.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/samsung,s2mps11.h>
@@ -26,11 +24,16 @@
 		i2c7 = &i2c_max77836;
 	};
 
-	memory {
+	chosen {
+		stdout-path = &serial_1;
+	};
+
+	memory@40000000 {
+		device_type = "memory";
 		reg =  <0x40000000 0x1ff00000>;
 	};
 
-	firmware@0205F000 {
+	firmware@205f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0205F000 0x1000>;
 	};
@@ -43,7 +46,7 @@
 			linux,code = <KEY_POWER>;
 			label = "power key";
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -56,9 +59,9 @@
 		max77836: subpmic@25 {
 			compatible = "maxim,max77836";
 			interrupt-parent = <&gpx1>;
-			interrupts = <5 0>;
+			interrupts = <5 IRQ_TYPE_NONE>;
 			reg = <0x25>;
-			wakeup;
+			wakeup-source;
 
 			muic: max77836-muic {
 				compatible = "maxim,max77836-muic";
@@ -147,6 +150,53 @@
 	};
 };
 
+&bus_dmc {
+	devfreq-events = <&ppmu_dmc0_3>, <&ppmu_dmc1_3>;
+	vdd-supply = <&buck1_reg>;
+	status = "okay";
+};
+
+&bus_leftbus {
+	devfreq-events = <&ppmu_leftbus_3>, <&ppmu_rightbus_3>;
+	vdd-supply = <&buck3_reg>;
+	status = "okay";
+};
+
+&bus_rightbus {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_lcd0 {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_fsys {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_mcuisp {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_isp {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_peril {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_mfc {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
 &cpu0 {
 	cpu0-supply = <&buck2_reg>;
 };
@@ -166,59 +216,18 @@
 &dsi_0 {
 	vddcore-supply = <&ldo6_reg>;
 	vddio-supply = <&ldo6_reg>;
+	samsung,burst-clock-frequency = <250000000>;
+	samsung,esc-clock-frequency = <20000000>;
 	samsung,pll-clock-frequency = <24000000>;
 	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@1 {
-			reg = <1>;
-
-			dsi_out: endpoint {
-				remote-endpoint = <&dsi_in>;
-				samsung,burst-clock-frequency = <250000000>;
-				samsung,esc-clock-frequency = <20000000>;
-			};
-		};
-	};
 
 	panel@0 {
 		compatible = "samsung,s6e63j0x03";
 		reg = <0>;
 		vdd3-supply = <&ldo16_reg>;
 		vci-supply = <&ldo20_reg>;
-		reset-gpios = <&gpe0 1 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpe0 1 GPIO_ACTIVE_LOW>;
 		te-gpios = <&gpx0 6 GPIO_ACTIVE_HIGH>;
-		power-on-delay= <30>;
-		power-off-delay= <120>;
-		reset-delay = <5>;
-		init-delay = <100>;
-		flip-horizontal;
-		flip-vertical;
-		panel-width-mm = <29>;
-		panel-height-mm = <29>;
-
-		display-timings {
-			timing-0 {
-				clock-frequency = <4600000>;
-				hactive = <320>;
-				vactive = <320>;
-				hfront-porch = <1>;
-				hback-porch = <1>;
-				hsync-len = <1>;
-				vfront-porch = <150>;
-				vback-porch = <1>;
-				vsync-len = <2>;
-			};
-		};
-
-		port {
-			dsi_in: endpoint {
-				remote-endpoint = <&dsi_out>;
-			};
-		};
 	};
 };
 
@@ -244,9 +253,9 @@
 	s2mps14_pmic@66 {
 		compatible = "samsung,s2mps14-pmic";
 		interrupt-parent = <&gpx0>;
-		interrupts = <7 0>;
+		interrupts = <7 IRQ_TYPE_NONE>;
 		reg = <0x66>;
-		wakeup;
+		wakeup-source;
 
 		s2mps14_osc: clocks {
 			compatible = "samsung,s2mps14-clk";
@@ -575,16 +584,12 @@
 	fuelgauge@36 {
 		compatible = "maxim,max77836-battery";
 		interrupt-parent = <&gpx1>;
-		interrupts = <2 8>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x36>;
 	};
 };
 
 &i2s2 {
-	status = "okay";
-};
-
-&mfc {
 	status = "okay";
 };
 
@@ -595,7 +600,6 @@
 &mshc_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	num-slots = <1>;
 	broken-cd;
 	non-removable;
 	cap-mmc-highspeed;
@@ -604,7 +608,7 @@
 	card-detect-delay = <200>;
 	vmmc-supply = <&ldo12_reg>;
 	clock-frequency = <100000000>;
-	clock-freq-min-max = <400000 100000000>;
+	max-frequency = <100000000>;
 	samsung,dw-mshc-ciu-div = <1>;
 	samsung,dw-mshc-sdr-timing = <0 1>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
@@ -635,53 +639,27 @@
 	status = "okay";
 };
 
-&ppmu_dmc0 {
-	status = "okay";
-
-	events {
-		ppmu_dmc0_3: ppmu-event3-dmc0 {
-			event-name = "ppmu-event3-dmc0";
-		};
-	};
-};
-
-&ppmu_dmc1 {
-	status = "okay";
-
-	events {
-		ppmu_dmc1_3: ppmu-event3-dmc1 {
-			event-name = "ppmu-event3-dmc1";
-		};
-	};
-};
-
-&ppmu_leftbus {
-	status = "okay";
-
-	events {
-		ppmu_leftbus_3: ppmu-event3-leftbus {
-			event-name = "ppmu-event3-leftbus";
-		};
-	};
-};
-
-&ppmu_rightbus {
-	status = "okay";
-
-	events {
-		ppmu_rightbus_3: ppmu-event3-rightbus {
-			event-name = "ppmu-event3-rightbus";
-		};
-	};
-};
-
 &xusbxti {
 	clock-frequency = <24000000>;
 };
 
 &pinctrl_0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&sleep0>;
+	pinctrl-0 = <&initial0 &sleep0>;
+
+	initial0: initial-state {
+		PIN_IN(gpa1-4, DOWN, LV1);
+		PIN_IN(gpa1-5, DOWN, LV1);
+
+		PIN_IN(gpc0-0, DOWN, LV1);
+		PIN_IN(gpc0-1, DOWN, LV1);
+		PIN_IN(gpc0-2, DOWN, LV1);
+		PIN_IN(gpc0-3, DOWN, LV1);
+		PIN_IN(gpc0-4, DOWN, LV1);
+
+		PIN_IN(gpd0-0, DOWN, LV1);
+		PIN_IN(gpd0-1, DOWN, LV1);
+	};
 
 	sleep0: sleep-state {
 		PIN_SLP(gpa0-0, INPUT, DOWN);
@@ -735,7 +713,60 @@
 
 &pinctrl_1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&sleep1>;
+	pinctrl-0 = <&initial1 &sleep1>;
+
+	initial1: initial-state {
+		PIN_IN(gpe0-6, DOWN, LV1);
+		PIN_IN(gpe0-7, DOWN, LV1);
+
+		PIN_IN(gpe1-0, DOWN, LV1);
+		PIN_IN(gpe1-3, DOWN, LV1);
+		PIN_IN(gpe1-4, DOWN, LV1);
+		PIN_IN(gpe1-5, DOWN, LV1);
+		PIN_IN(gpe1-6, DOWN, LV1);
+
+		PIN_IN(gpk2-0, DOWN, LV1);
+		PIN_IN(gpk2-1, DOWN, LV1);
+		PIN_IN(gpk2-2, DOWN, LV1);
+		PIN_IN(gpk2-3, DOWN, LV1);
+		PIN_IN(gpk2-4, DOWN, LV1);
+		PIN_IN(gpk2-5, DOWN, LV1);
+		PIN_IN(gpk2-6, DOWN, LV1);
+
+		PIN_IN(gpm0-0, DOWN, LV1);
+		PIN_IN(gpm0-1, DOWN, LV1);
+		PIN_IN(gpm0-2, DOWN, LV1);
+		PIN_IN(gpm0-3, DOWN, LV1);
+		PIN_IN(gpm0-4, DOWN, LV1);
+		PIN_IN(gpm0-5, DOWN, LV1);
+		PIN_IN(gpm0-6, DOWN, LV1);
+		PIN_IN(gpm0-7, DOWN, LV1);
+
+		PIN_IN(gpm1-0, DOWN, LV1);
+		PIN_IN(gpm1-1, DOWN, LV1);
+		PIN_IN(gpm1-2, DOWN, LV1);
+		PIN_IN(gpm1-3, DOWN, LV1);
+		PIN_IN(gpm1-4, DOWN, LV1);
+		PIN_IN(gpm1-5, DOWN, LV1);
+		PIN_IN(gpm1-6, DOWN, LV1);
+
+		PIN_IN(gpm2-0, DOWN, LV1);
+		PIN_IN(gpm2-1, DOWN, LV1);
+
+		PIN_IN(gpm3-0, DOWN, LV1);
+		PIN_IN(gpm3-1, DOWN, LV1);
+		PIN_IN(gpm3-2, DOWN, LV1);
+		PIN_IN(gpm3-3, DOWN, LV1);
+		PIN_IN(gpm3-4, DOWN, LV1);
+
+		PIN_IN(gpm4-1, DOWN, LV1);
+		PIN_IN(gpm4-2, DOWN, LV1);
+		PIN_IN(gpm4-3, DOWN, LV1);
+		PIN_IN(gpm4-4, DOWN, LV1);
+		PIN_IN(gpm4-5, DOWN, LV1);
+		PIN_IN(gpm4-6, DOWN, LV1);
+		PIN_IN(gpm4-7, DOWN, LV1);
+	};
 
 	sleep1: sleep-state {
 		PIN_SLP(gpe0-0, PREV, NONE);

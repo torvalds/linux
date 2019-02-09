@@ -8,13 +8,16 @@ Required properties:
 - compatible : shall be "adi,axi-clkgen-1.00.a" or "adi,axi-clkgen-2.00.a".
 - #clock-cells : from common clock binding; Should always be set to 0.
 - reg : Address and length of the axi-clkgen register set.
-- clocks : Phandle and clock specifier for the parent clock.
+- clocks : Phandle and clock specifier for the parent clock(s). This must
+	either reference one clock if only the first clock input is connected or two
+	if both clock inputs are connected. For the later case the clock connected
+	to the first input must be specified first.
 
 Optional properties:
 - clock-output-names : From common clock binding.
 
 Example:
-	clock@0xff000000 {
+	clock@ff000000 {
 		compatible = "adi,axi-clkgen";
 		#clock-cells = <0>;
 		reg = <0xff000000 0x1000>;

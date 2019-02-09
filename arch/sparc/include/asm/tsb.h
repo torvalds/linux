@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SPARC64_TSB_H
 #define _SPARC64_TSB_H
 
@@ -149,7 +150,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	 * page size in question.  So for PMD mappings (which fall on
 	 * bit 23, for 8MB per PMD) we must propagate bit 22 for a
 	 * 4MB huge page.  For huge PUDs (which fall on bit 33, for
-	 * 8GB per PUD), we have to accomodate 256MB and 2GB huge
+	 * 8GB per PUD), we have to accommodate 256MB and 2GB huge
 	 * pages.  So for those we propagate bits 32 to 28.
 	 */
 #define KERN_PGTABLE_WALK(VADDR, REG1, REG2, FAIL_LABEL)	\
@@ -195,6 +196,41 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	 nop; \
 699:
 
+	/* PUD has been loaded into REG1, interpret the value, seeing
+	 * if it is a HUGE PUD or a normal one.  If it is not valid
+	 * then jump to FAIL_LABEL.  If it is a HUGE PUD, and it
+	 * translates to a valid PTE, branch to PTE_LABEL.
+	 *
+	 * We have to propagate bits [32:22] from the virtual address
+	 * to resolve at 4M granularity.
+	 */
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+#define USER_PGTABLE_CHECK_PUD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, PTE_LABEL) \
+700:	ba 700f;					\
+	 nop;						\
+	.section	.pud_huge_patch, "ax";		\
+	.word		700b;				\
+	nop;						\
+	.previous;					\
+	brz,pn		REG1, FAIL_LABEL;		\
+	 sethi		%uhi(_PAGE_PUD_HUGE), REG2;	\
+	sllx		REG2, 32, REG2;			\
+	andcc		REG1, REG2, %g0;		\
+	be,pt		%xcc, 700f;			\
+	 sethi		%hi(0xffe00000), REG2;		\
+	sllx		REG2, 1, REG2;			\
+	brgez,pn	REG1, FAIL_LABEL;		\
+	 andn		REG1, REG2, REG1;		\
+	and		VADDR, REG2, REG2;		\
+	brlz,pt		REG1, PTE_LABEL;		\
+	 or		REG1, REG2, REG1;		\
+700:
+#else
+#define USER_PGTABLE_CHECK_PUD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, PTE_LABEL) \
+	brz,pn		REG1, FAIL_LABEL; \
+	 nop;
+#endif
+
 	/* PMD has been loaded into REG1, interpret the value, seeing
 	 * if it is a HUGE PMD or a normal one.  If it is not valid
 	 * then jump to FAIL_LABEL.  If it is a HUGE PMD, and it
@@ -203,7 +239,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	 * We have to propagate the 4MB bit of the virtual address
 	 * because we are fabricating 8MB pages using 4MB hw pages.
 	 */
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 #define USER_PGTABLE_CHECK_PMD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, PTE_LABEL) \
 	brz,pn		REG1, FAIL_LABEL;		\
 	 sethi		%uhi(_PAGE_PMD_HUGE), REG2;	\
@@ -242,6 +278,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
 	andn		REG2, 0x7, REG2; \
 	ldxa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
+	USER_PGTABLE_CHECK_PUD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, 800f) \
 	brz,pn		REG1, FAIL_LABEL; \
 	 sllx		VADDR, 64 - (PMD_SHIFT + PMD_BITS), REG2; \
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \

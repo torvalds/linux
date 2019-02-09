@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: dbobject - ACPI object decode and display
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -71,6 +35,15 @@ void
 acpi_db_dump_method_info(acpi_status status, struct acpi_walk_state *walk_state)
 {
 	struct acpi_thread_state *thread;
+	struct acpi_namespace_node *node;
+
+	node = walk_state->method_node;
+
+	/* There are no locals or arguments for the module-level code case */
+
+	if (node == acpi_gbl_root_node) {
+		return;
+	}
 
 	/* Ignore control codes, they are not errors */
 
@@ -142,11 +115,11 @@ void acpi_db_decode_internal_object(union acpi_operand_object *obj_desc)
 
 	case ACPI_TYPE_STRING:
 
-		acpi_os_printf("(%u) \"%.24s",
+		acpi_os_printf("(%u) \"%.60s",
 			       obj_desc->string.length,
 			       obj_desc->string.pointer);
 
-		if (obj_desc->string.length > 24) {
+		if (obj_desc->string.length > 60) {
 			acpi_os_printf("...");
 		} else {
 			acpi_os_printf("\"");
@@ -420,8 +393,14 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 	struct acpi_namespace_node *node;
 	u8 display_locals = FALSE;
 
-	obj_desc = walk_state->method_desc;
 	node = walk_state->method_node;
+	obj_desc = walk_state->method_desc;
+
+	/* There are no locals for the module-level code case */
+
+	if (node == acpi_gbl_root_node) {
+		return;
+	}
 
 	if (!node) {
 		acpi_os_printf
@@ -448,7 +427,7 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 
 	if (display_locals) {
 		acpi_os_printf
-		    ("\nInitialized Local Variables for method [%4.4s]:\n",
+		    ("\nInitialized Local Variables for Method [%4.4s]:\n",
 		     acpi_ut_get_node_name(node));
 
 		for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++) {
@@ -461,7 +440,7 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 		}
 	} else {
 		acpi_os_printf
-		    ("No Local Variables are initialized for method [%4.4s]\n",
+		    ("No Local Variables are initialized for Method [%4.4s]\n",
 		     acpi_ut_get_node_name(node));
 	}
 }
@@ -487,6 +466,12 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 
 	node = walk_state->method_node;
 	obj_desc = walk_state->method_desc;
+
+	/* There are no arguments for the module-level code case */
+
+	if (node == acpi_gbl_root_node) {
+		return;
+	}
 
 	if (!node) {
 		acpi_os_printf
@@ -515,7 +500,7 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 		acpi_os_printf("Initialized Arguments for Method [%4.4s]:  "
 			       "(%X arguments defined for method invocation)\n",
 			       acpi_ut_get_node_name(node),
-			       obj_desc->method.param_count);
+			       node->object->method.param_count);
 
 		for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++) {
 			obj_desc = walk_state->arguments[i].object;

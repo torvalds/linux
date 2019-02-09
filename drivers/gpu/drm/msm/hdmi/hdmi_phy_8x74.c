@@ -17,84 +17,39 @@
 
 #include "hdmi.h"
 
-struct hdmi_phy_8x74 {
-	struct hdmi_phy base;
-	void __iomem *mmio;
-};
-#define to_hdmi_phy_8x74(x) container_of(x, struct hdmi_phy_8x74, base)
-
-
-static void phy_write(struct hdmi_phy_8x74 *phy, u32 reg, u32 data)
-{
-	msm_writel(data, phy->mmio + reg);
-}
-
-//static u32 phy_read(struct hdmi_phy_8x74 *phy, u32 reg)
-//{
-//	return msm_readl(phy->mmio + reg);
-//}
-
-static void hdmi_phy_8x74_destroy(struct hdmi_phy *phy)
-{
-	struct hdmi_phy_8x74 *phy_8x74 = to_hdmi_phy_8x74(phy);
-	kfree(phy_8x74);
-}
-
 static void hdmi_phy_8x74_powerup(struct hdmi_phy *phy,
 		unsigned long int pixclock)
 {
-	struct hdmi_phy_8x74 *phy_8x74 = to_hdmi_phy_8x74(phy);
-
-	phy_write(phy_8x74, REG_HDMI_8x74_ANA_CFG0,   0x1b);
-	phy_write(phy_8x74, REG_HDMI_8x74_ANA_CFG1,   0xf2);
-	phy_write(phy_8x74, REG_HDMI_8x74_BIST_CFG0,  0x0);
-	phy_write(phy_8x74, REG_HDMI_8x74_BIST_PATN0, 0x0);
-	phy_write(phy_8x74, REG_HDMI_8x74_BIST_PATN1, 0x0);
-	phy_write(phy_8x74, REG_HDMI_8x74_BIST_PATN2, 0x0);
-	phy_write(phy_8x74, REG_HDMI_8x74_BIST_PATN3, 0x0);
-	phy_write(phy_8x74, REG_HDMI_8x74_PD_CTRL1,   0x20);
+	hdmi_phy_write(phy, REG_HDMI_8x74_ANA_CFG0,   0x1b);
+	hdmi_phy_write(phy, REG_HDMI_8x74_ANA_CFG1,   0xf2);
+	hdmi_phy_write(phy, REG_HDMI_8x74_BIST_CFG0,  0x0);
+	hdmi_phy_write(phy, REG_HDMI_8x74_BIST_PATN0, 0x0);
+	hdmi_phy_write(phy, REG_HDMI_8x74_BIST_PATN1, 0x0);
+	hdmi_phy_write(phy, REG_HDMI_8x74_BIST_PATN2, 0x0);
+	hdmi_phy_write(phy, REG_HDMI_8x74_BIST_PATN3, 0x0);
+	hdmi_phy_write(phy, REG_HDMI_8x74_PD_CTRL1,   0x20);
 }
 
 static void hdmi_phy_8x74_powerdown(struct hdmi_phy *phy)
 {
-	struct hdmi_phy_8x74 *phy_8x74 = to_hdmi_phy_8x74(phy);
-	phy_write(phy_8x74, REG_HDMI_8x74_PD_CTRL0, 0x7f);
+	hdmi_phy_write(phy, REG_HDMI_8x74_PD_CTRL0, 0x7f);
 }
 
-static const struct hdmi_phy_funcs hdmi_phy_8x74_funcs = {
-		.destroy = hdmi_phy_8x74_destroy,
-		.powerup = hdmi_phy_8x74_powerup,
-		.powerdown = hdmi_phy_8x74_powerdown,
+static const char * const hdmi_phy_8x74_reg_names[] = {
+	"core-vdda",
+	"vddio",
 };
 
-struct hdmi_phy *hdmi_phy_8x74_init(struct hdmi *hdmi)
-{
-	struct hdmi_phy_8x74 *phy_8x74;
-	struct hdmi_phy *phy = NULL;
-	int ret;
+static const char * const hdmi_phy_8x74_clk_names[] = {
+	"iface", "alt_iface"
+};
 
-	phy_8x74 = kzalloc(sizeof(*phy_8x74), GFP_KERNEL);
-	if (!phy_8x74) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	phy = &phy_8x74->base;
-
-	phy->funcs = &hdmi_phy_8x74_funcs;
-
-	/* for 8x74, the phy mmio is mapped separately: */
-	phy_8x74->mmio = msm_ioremap(hdmi->pdev,
-			"phy_physical", "HDMI_8x74");
-	if (IS_ERR(phy_8x74->mmio)) {
-		ret = PTR_ERR(phy_8x74->mmio);
-		goto fail;
-	}
-
-	return phy;
-
-fail:
-	if (phy)
-		hdmi_phy_8x74_destroy(phy);
-	return ERR_PTR(ret);
-}
+const struct hdmi_phy_cfg msm_hdmi_phy_8x74_cfg = {
+	.type = MSM_HDMI_PHY_8x74,
+	.powerup = hdmi_phy_8x74_powerup,
+	.powerdown = hdmi_phy_8x74_powerdown,
+	.reg_names = hdmi_phy_8x74_reg_names,
+	.num_regs = ARRAY_SIZE(hdmi_phy_8x74_reg_names),
+	.clk_names = hdmi_phy_8x74_clk_names,
+	.num_clks = ARRAY_SIZE(hdmi_phy_8x74_clk_names),
+};

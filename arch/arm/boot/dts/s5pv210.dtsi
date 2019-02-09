@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's S5PV210 SoC device tree source
  *
@@ -13,17 +14,15 @@
  * Note: This file does not include device nodes for all the controllers in
  * S5PV210 SoC. As device tree coverage for S5PV210 increases, additional
  * nodes can be added to this file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/s5pv210.h>
 #include <dt-bindings/clock/s5pv210-audss.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		csis0 = &csis0;
 		fimc0 = &fimc0;
@@ -130,7 +129,7 @@
 		amba {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "arm,amba-bus";
+			compatible = "simple-bus";
 			ranges;
 
 			pdma0: dma@e0900000 {
@@ -308,7 +307,7 @@
 		};
 
 		watchdog: watchdog@e2700000 {
-			compatible = "samsung,s3c2410-wdt";
+			compatible = "samsung,s3c6410-wdt";
 			reg = <0xe2700000 0x1000>;
 			interrupt-parent = <&vic0>;
 			interrupts = <26>;
@@ -461,6 +460,7 @@
 			compatible = "samsung,exynos4210-ohci";
 			reg = <0xec300000 0x100>;
 			interrupts = <23>;
+			interrupt-parent = <&vic1>;
 			clocks = <&clocks CLK_USB_HOST>;
 			clock-names = "usbhost";
 			#address-cells = <1>;

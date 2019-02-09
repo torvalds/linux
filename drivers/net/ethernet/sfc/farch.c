@@ -25,7 +25,7 @@
 #include "io.h"
 #include "workarounds.h"
 
-/* Falcon-architecture (SFC4000 and SFC9000-family) support */
+/* Falcon-architecture (SFC9000-family) support */
 
 /**************************************************************************
  *
@@ -104,7 +104,8 @@ int efx_farch_test_registers(struct efx_nic *efx,
 			     const struct efx_farch_register_test *regs,
 			     size_t n_regs)
 {
-	unsigned address = 0, i, j;
+	unsigned address = 0;
+	int i, j;
 	efx_oword_t mask, imask, original, reg, buf;
 
 	for (i = 0; i < n_regs; ++i) {
@@ -176,7 +177,7 @@ efx_init_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 	dma_addr_t dma_addr;
 	int i;
 
-	EFX_BUG_ON_PARANOID(!buffer->buf.addr);
+	EFX_WARN_ON_PARANOID(!buffer->buf.addr);
 
 	/* Write buffer descriptors to NIC */
 	for (i = 0; i < buffer->entries; i++) {
@@ -331,7 +332,7 @@ void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 		txd = efx_tx_desc(tx_queue, write_ptr);
 		++tx_queue->write_count;
 
-		EFX_BUG_ON_PARANOID(buffer->flags & EFX_TX_BUF_OPTION);
+		EFX_WARN_ON_ONCE_PARANOID(buffer->flags & EFX_TX_BUF_OPTION);
 
 		/* Create TX descriptor ring entry */
 		BUILD_BUG_ON(EFX_TX_BUF_CONT != 1);
@@ -355,6 +356,18 @@ void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 	}
 }
 
+unsigned int efx_farch_tx_limit_len(struct efx_tx_queue *tx_queue,
+				    dma_addr_t dma_addr, unsigned int len)
+{
+	/* Don't cross 4K boundaries with descriptors. */
+	unsigned int limit = (~dma_addr & (EFX_PAGE_SIZE - 1)) + 1;
+
+	len = min(limit, len);
+
+	return len;
+}
+
+
 /* Allocate hardware resources for a TX queue */
 int efx_farch_tx_probe(struct efx_tx_queue *tx_queue)
 {
@@ -368,6 +381,7 @@ int efx_farch_tx_probe(struct efx_tx_queue *tx_queue)
 
 void efx_farch_tx_init(struct efx_tx_queue *tx_queue)
 {
+	int csum = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
 	struct efx_nic *efx = tx_queue->efx;
 	efx_oword_t reg;
 
@@ -389,37 +403,18 @@ void efx_farch_tx_init(struct efx_tx_queue *tx_queue)
 			      FRF_AZ_TX_DESCQ_TYPE, 0,
 			      FRF_BZ_TX_NON_IP_DROP_DIS, 1);
 
-	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
-		int csum = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
-		EFX_SET_OWORD_FIELD(reg, FRF_BZ_TX_IP_CHKSM_DIS, !csum);
-		EFX_SET_OWORD_FIELD(reg, FRF_BZ_TX_TCP_CHKSM_DIS,
-				    !csum);
-	}
+	EFX_SET_OWORD_FIELD(reg, FRF_BZ_TX_IP_CHKSM_DIS, !csum);
+	EFX_SET_OWORD_FIELD(reg, FRF_BZ_TX_TCP_CHKSM_DIS, !csum);
 
 	efx_writeo_table(efx, &reg, efx->type->txd_ptr_tbl_base,
 			 tx_queue->queue);
 
-	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0) {
-		/* Only 128 bits in this register */
-		BUILD_BUG_ON(EFX_MAX_TX_QUEUES > 128);
-
-		efx_reado(efx, &reg, FR_AA_TX_CHKSM_CFG);
-		if (tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD)
-			__clear_bit_le(tx_queue->queue, &reg);
-		else
-			__set_bit_le(tx_queue->queue, &reg);
-		efx_writeo(efx, &reg, FR_AA_TX_CHKSM_CFG);
-	}
-
-	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
-		EFX_POPULATE_OWORD_1(reg,
-				     FRF_BZ_TX_PACE,
-				     (tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI) ?
-				     FFE_BZ_TX_PACE_OFF :
-				     FFE_BZ_TX_PACE_RESERVED);
-		efx_writeo_table(efx, &reg, FR_BZ_TX_PACE_TBL,
-				 tx_queue->queue);
-	}
+	EFX_POPULATE_OWORD_1(reg,
+			     FRF_BZ_TX_PACE,
+			     (tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI) ?
+			     FFE_BZ_TX_PACE_OFF :
+			     FFE_BZ_TX_PACE_RESERVED);
+	efx_writeo_table(efx, &reg, FR_BZ_TX_PACE_TBL, tx_queue->queue);
 }
 
 static void efx_farch_flush_tx_queue(struct efx_tx_queue *tx_queue)
@@ -516,16 +511,10 @@ void efx_farch_rx_init(struct efx_rx_queue *rx_queue)
 {
 	efx_oword_t rx_desc_ptr;
 	struct efx_nic *efx = rx_queue->efx;
-	bool is_b0 = efx_nic_rev(efx) >= EFX_REV_FALCON_B0;
-	bool iscsi_digest_en = is_b0;
 	bool jumbo_en;
 
-	/* For kernel-mode queues in Falcon A1, the JUMBO flag enables
-	 * DMA to continue after a PCIe page boundary (and scattering
-	 * is not possible).  In Falcon B0 and Siena, it enables
-	 * scatter.
-	 */
-	jumbo_en = !is_b0 || efx->rx_scatter;
+	/* For kernel-mode queues in Siena, the JUMBO flag enables scatter. */
+	jumbo_en = efx->rx_scatter;
 
 	netif_dbg(efx, hw, efx->net_dev,
 		  "RX queue %d ring in special buffers %d-%d\n",
@@ -539,8 +528,8 @@ void efx_farch_rx_init(struct efx_rx_queue *rx_queue)
 
 	/* Push RX descriptor ring to card */
 	EFX_POPULATE_OWORD_10(rx_desc_ptr,
-			      FRF_AZ_RX_ISCSI_DDIG_EN, iscsi_digest_en,
-			      FRF_AZ_RX_ISCSI_HDIG_EN, iscsi_digest_en,
+			      FRF_AZ_RX_ISCSI_DDIG_EN, true,
+			      FRF_AZ_RX_ISCSI_HDIG_EN, true,
 			      FRF_AZ_RX_DESCQ_BUF_BASE_ID, rx_queue->rxd.index,
 			      FRF_AZ_RX_DESCQ_EVQ_ID,
 			      efx_rx_queue_channel(rx_queue)->channel,
@@ -829,17 +818,16 @@ static void efx_farch_magic_event(struct efx_channel *channel, u32 magic)
  * The NIC batches TX completion events; the message we receive is of
  * the form "complete all TX events up to this index".
  */
-static int
+static void
 efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 {
 	unsigned int tx_ev_desc_ptr;
 	unsigned int tx_ev_q_label;
 	struct efx_tx_queue *tx_queue;
 	struct efx_nic *efx = channel->efx;
-	int tx_packets = 0;
 
-	if (unlikely(ACCESS_ONCE(efx->reset_pending)))
-		return 0;
+	if (unlikely(READ_ONCE(efx->reset_pending)))
+		return;
 
 	if (likely(EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_COMP))) {
 		/* Transmit completion */
@@ -847,8 +835,6 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
 		tx_queue = efx_channel_get_tx_queue(
 			channel, tx_ev_q_label % EFX_TXQ_TYPES);
-		tx_packets = ((tx_ev_desc_ptr - tx_queue->read_count) &
-			      tx_queue->ptr_mask);
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
@@ -867,8 +853,6 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 			  EFX_QWORD_FMT"\n", channel->channel,
 			  EFX_QWORD_VAL(*event));
 	}
-
-	return tx_packets;
 }
 
 /* Detect errors included in the rx_evt_pkt_ok bit. */
@@ -879,7 +863,7 @@ static u16 efx_farch_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	struct efx_nic *efx = rx_queue->efx;
 	bool rx_ev_buf_owner_id_err, rx_ev_ip_hdr_chksum_err;
 	bool rx_ev_tcp_udp_chksum_err, rx_ev_eth_crc_err;
-	bool rx_ev_frm_trunc, rx_ev_drib_nib, rx_ev_tobe_disc;
+	bool rx_ev_frm_trunc, rx_ev_tobe_disc;
 	bool rx_ev_other_err, rx_ev_pause_frm;
 	bool rx_ev_hdr_type, rx_ev_mcast_pkt;
 	unsigned rx_ev_pkt_type;
@@ -896,12 +880,10 @@ static u16 efx_farch_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 						   FSF_AZ_RX_EV_TCP_UDP_CHKSUM_ERR);
 	rx_ev_eth_crc_err = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_ETH_CRC_ERR);
 	rx_ev_frm_trunc = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_FRM_TRUNC);
-	rx_ev_drib_nib = ((efx_nic_rev(efx) >= EFX_REV_FALCON_B0) ?
-			  0 : EFX_QWORD_FIELD(*event, FSF_AA_RX_EV_DRIB_NIB));
 	rx_ev_pause_frm = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_PAUSE_FRM_ERR);
 
 	/* Every error apart from tobe_disc and pause_frm */
-	rx_ev_other_err = (rx_ev_drib_nib | rx_ev_tcp_udp_chksum_err |
+	rx_ev_other_err = (rx_ev_tcp_udp_chksum_err |
 			   rx_ev_buf_owner_id_err | rx_ev_eth_crc_err |
 			   rx_ev_frm_trunc | rx_ev_ip_hdr_chksum_err);
 
@@ -926,7 +908,7 @@ static u16 efx_farch_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	if (rx_ev_other_err && net_ratelimit()) {
 		netif_dbg(efx, rx_err, efx->net_dev,
 			  " RX queue %d unexpected RX event "
-			  EFX_QWORD_FMT "%s%s%s%s%s%s%s%s\n",
+			  EFX_QWORD_FMT "%s%s%s%s%s%s%s\n",
 			  efx_rx_queue_index(rx_queue), EFX_QWORD_VAL(*event),
 			  rx_ev_buf_owner_id_err ? " [OWNER_ID_ERR]" : "",
 			  rx_ev_ip_hdr_chksum_err ?
@@ -935,14 +917,17 @@ static u16 efx_farch_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 			  " [TCP_UDP_CHKSUM_ERR]" : "",
 			  rx_ev_eth_crc_err ? " [ETH_CRC_ERR]" : "",
 			  rx_ev_frm_trunc ? " [FRM_TRUNC]" : "",
-			  rx_ev_drib_nib ? " [DRIB_NIB]" : "",
 			  rx_ev_tobe_disc ? " [TOBE_DISC]" : "",
 			  rx_ev_pause_frm ? " [PAUSE]" : "");
 	}
 #endif
 
+	if (efx->net_dev->features & NETIF_F_RXALL)
+		/* don't discard frame for CRC error */
+		rx_ev_eth_crc_err = false;
+
 	/* The frame must be discarded if any of these are true. */
-	return (rx_ev_eth_crc_err | rx_ev_frm_trunc | rx_ev_drib_nib |
+	return (rx_ev_eth_crc_err | rx_ev_frm_trunc |
 		rx_ev_tobe_disc | rx_ev_pause_frm) ?
 		EFX_RX_PKT_DISCARD : 0;
 }
@@ -971,8 +956,7 @@ efx_farch_handle_rx_bad_index(struct efx_rx_queue *rx_queue, unsigned index)
 		   "dropped %d events (index=%d expected=%d)\n",
 		   dropped, index, expected);
 
-	efx_schedule_reset(efx, EFX_WORKAROUND_5676(efx) ?
-			   RESET_TYPE_RX_RECOVERY : RESET_TYPE_DISABLE);
+	efx_schedule_reset(efx, RESET_TYPE_DISABLE);
 	return false;
 }
 
@@ -994,7 +978,7 @@ efx_farch_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 	struct efx_rx_queue *rx_queue;
 	struct efx_nic *efx = channel->efx;
 
-	if (unlikely(ACCESS_ONCE(efx->reset_pending)))
+	if (unlikely(READ_ONCE(efx->reset_pending)))
 		return;
 
 	rx_ev_cont = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_JUMBO_CONT);
@@ -1101,7 +1085,7 @@ efx_farch_handle_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 	int qid;
 
 	qid = EFX_QWORD_FIELD(*event, FSF_AZ_DRIVER_EV_SUBDATA);
-	if (qid < EFX_TXQ_TYPES * efx->n_tx_channels) {
+	if (qid < EFX_TXQ_TYPES * (efx->n_tx_channels + efx->n_extra_tx_channels)) {
 		tx_queue = efx_get_tx_queue(efx, qid / EFX_TXQ_TYPES,
 					    qid % EFX_TXQ_TYPES);
 		if (atomic_cmpxchg(&tx_queue->flush_outstanding, 1, 0)) {
@@ -1238,10 +1222,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 			  "channel %d seen DRIVER RX_RESET event. "
 			"Resetting.\n", channel->channel);
 		atomic_inc(&efx->rx_reset);
-		efx_schedule_reset(efx,
-				   EFX_WORKAROUND_6555(efx) ?
-				   RESET_TYPE_RX_RECOVERY :
-				   RESET_TYPE_DISABLE);
+		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
 		break;
 	case FSE_BZ_RX_DSC_ERROR_EV:
 		if (ev_sub_data < EFX_VI_BASE) {
@@ -1284,7 +1265,6 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 	unsigned int read_ptr;
 	efx_qword_t event, *p_event;
 	int ev_code;
-	int tx_packets = 0;
 	int spent = 0;
 
 	if (budget <= 0)
@@ -1318,12 +1298,7 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 				goto out;
 			break;
 		case FSE_AZ_EV_CODE_TX_EV:
-			tx_packets += efx_farch_handle_tx_event(channel,
-								&event);
-			if (tx_packets > efx->txq_entries) {
-				spent = budget;
-				goto out;
-			}
+			efx_farch_handle_tx_event(channel, &event);
 			break;
 		case FSE_AZ_EV_CODE_DRV_GEN_EV:
 			efx_farch_handle_generated_event(channel, &event);
@@ -1378,13 +1353,11 @@ int efx_farch_ev_init(struct efx_channel *channel)
 		  channel->channel, channel->eventq.index,
 		  channel->eventq.index + channel->eventq.entries - 1);
 
-	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0) {
-		EFX_POPULATE_OWORD_3(reg,
-				     FRF_CZ_TIMER_Q_EN, 1,
-				     FRF_CZ_HOST_NOTIFY_MODE, 0,
-				     FRF_CZ_TIMER_MODE, FFE_CZ_TIMER_MODE_DIS);
-		efx_writeo_table(efx, &reg, FR_BZ_TIMER_TBL, channel->channel);
-	}
+	EFX_POPULATE_OWORD_3(reg,
+			     FRF_CZ_TIMER_Q_EN, 1,
+			     FRF_CZ_HOST_NOTIFY_MODE, 0,
+			     FRF_CZ_TIMER_MODE, FFE_CZ_TIMER_MODE_DIS);
+	efx_writeo_table(efx, &reg, FR_BZ_TIMER_TBL, channel->channel);
 
 	/* Pin event queue buffer */
 	efx_init_special_buffer(efx, &channel->eventq);
@@ -1412,8 +1385,7 @@ void efx_farch_ev_fini(struct efx_channel *channel)
 	EFX_ZERO_OWORD(reg);
 	efx_writeo_table(efx, &reg, efx->type->evq_ptr_tbl_base,
 			 channel->channel);
-	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0)
-		efx_writeo_table(efx, &reg, FR_BZ_TIMER_TBL, channel->channel);
+	efx_writeo_table(efx, &reg, FR_BZ_TIMER_TBL, channel->channel);
 
 	/* Unpin event queue */
 	efx_fini_special_buffer(efx, &channel->eventq);
@@ -1476,9 +1448,10 @@ void efx_farch_irq_disable_master(struct efx_nic *efx)
  * Interrupt must already have been enabled, otherwise nasty things
  * may happen.
  */
-void efx_farch_irq_test_generate(struct efx_nic *efx)
+int efx_farch_irq_test_generate(struct efx_nic *efx)
 {
 	efx_farch_interrupts(efx, true, true);
+	return 0;
 }
 
 /* Process a fatal interrupt
@@ -1486,7 +1459,6 @@ void efx_farch_irq_test_generate(struct efx_nic *efx)
  */
 irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx)
 {
-	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t *int_ker = efx->irq_status.addr;
 	efx_oword_t fatal_intr;
 	int error, mem_perr;
@@ -1512,8 +1484,6 @@ irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx)
 
 	/* Disable both devices */
 	pci_clear_master(efx->pci_dev);
-	if (efx_nic_is_dual_func(efx))
-		pci_clear_master(nic_data->pci_dev2);
 	efx_farch_irq_disable_master(efx);
 
 	/* Count errors and reset or disable the NIC accordingly */
@@ -1543,7 +1513,7 @@ irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx)
 irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id)
 {
 	struct efx_nic *efx = dev_id;
-	bool soft_enabled = ACCESS_ONCE(efx->irq_soft_enabled);
+	bool soft_enabled = READ_ONCE(efx->irq_soft_enabled);
 	efx_oword_t *int_ker = efx->irq_status.addr;
 	irqreturn_t result = IRQ_NONE;
 	struct efx_channel *channel;
@@ -1635,7 +1605,7 @@ irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id)
 		   "IRQ %d on CPU %d status " EFX_OWORD_FMT "\n",
 		   irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
 
-	if (!likely(ACCESS_ONCE(efx->irq_soft_enabled)))
+	if (!likely(READ_ONCE(efx->irq_soft_enabled)))
 		return IRQ_HANDLED;
 
 	/* Handle non-event-queue sources */
@@ -1660,17 +1630,31 @@ void efx_farch_rx_push_indir_table(struct efx_nic *efx)
 	size_t i = 0;
 	efx_dword_t dword;
 
-	BUG_ON(efx_nic_rev(efx) < EFX_REV_FALCON_B0);
-
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
+	BUILD_BUG_ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
 		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
 
 	for (i = 0; i < FR_BZ_RX_INDIRECTION_TBL_ROWS; i++) {
 		EFX_POPULATE_DWORD_1(dword, FRF_BZ_IT_QUEUE,
-				     efx->rx_indir_table[i]);
+				     efx->rss_context.rx_indir_table[i]);
 		efx_writed(efx, &dword,
 			   FR_BZ_RX_INDIRECTION_TBL +
 			   FR_BZ_RX_INDIRECTION_TBL_STEP * i);
+	}
+}
+
+void efx_farch_rx_pull_indir_table(struct efx_nic *efx)
+{
+	size_t i = 0;
+	efx_dword_t dword;
+
+	BUILD_BUG_ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
+		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
+
+	for (i = 0; i < FR_BZ_RX_INDIRECTION_TBL_ROWS; i++) {
+		efx_readd(efx, &dword,
+			   FR_BZ_RX_INDIRECTION_TBL +
+			   FR_BZ_RX_INDIRECTION_TBL_STEP * i);
+		efx->rss_context.rx_indir_table[i] = EFX_DWORD_FIELD(dword, FRF_BZ_IT_QUEUE);
 	}
 }
 
@@ -1685,20 +1669,21 @@ void efx_farch_rx_push_indir_table(struct efx_nic *efx)
  */
 void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 {
-	unsigned vi_count, buftbl_min;
+	unsigned vi_count, buftbl_min, total_tx_channels;
 
 #ifdef CONFIG_SFC_SRIOV
 	struct siena_nic_data *nic_data = efx->nic_data;
 #endif
 
+	total_tx_channels = efx->n_tx_channels + efx->n_extra_tx_channels;
 	/* Account for the buffer table entries backing the datapath channels
 	 * and the descriptor caches for those channels.
 	 */
 	buftbl_min = ((efx->n_rx_channels * EFX_MAX_DMAQ_SIZE +
-		       efx->n_tx_channels * EFX_TXQ_TYPES * EFX_MAX_DMAQ_SIZE +
+		       total_tx_channels * EFX_TXQ_TYPES * EFX_MAX_DMAQ_SIZE +
 		       efx->n_channels * EFX_MAX_EVQ_SIZE)
 		      * sizeof(efx_qword_t) / EFX_BUF_SIZE);
-	vi_count = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
+	vi_count = max(efx->n_channels, total_tx_channels * EFX_TXQ_TYPES);
 
 #ifdef CONFIG_SFC_SRIOV
 	if (efx->type->sriov_wanted) {
@@ -1789,8 +1774,7 @@ void efx_farch_init_common(struct efx_nic *efx)
 			     FRF_AZ_ILL_ADR_INT_KER_EN, 1,
 			     FRF_AZ_RBUF_OWN_INT_KER_EN, 1,
 			     FRF_AZ_TBUF_OWN_INT_KER_EN, 1);
-	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0)
-		EFX_SET_OWORD_FIELD(temp, FRF_CZ_SRAM_PERR_INT_P_KER_EN, 1);
+	EFX_SET_OWORD_FIELD(temp, FRF_CZ_SRAM_PERR_INT_P_KER_EN, 1);
 	EFX_INVERT_OWORD(temp);
 	efx_writeo(efx, &temp, FR_AZ_FATAL_INTR_KER);
 
@@ -1810,22 +1794,18 @@ void efx_farch_init_common(struct efx_nic *efx)
 	/* Disable hardware watchdog which can misfire */
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_PREF_WD_TMR, 0x3fffff);
 	/* Squash TX of packets of 16 bytes or less */
-	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0)
-		EFX_SET_OWORD_FIELD(temp, FRF_BZ_TX_FLUSH_MIN_LEN_EN, 1);
+	EFX_SET_OWORD_FIELD(temp, FRF_BZ_TX_FLUSH_MIN_LEN_EN, 1);
 	efx_writeo(efx, &temp, FR_AZ_TX_RESERVED);
 
-	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
-		EFX_POPULATE_OWORD_4(temp,
-				     /* Default values */
-				     FRF_BZ_TX_PACE_SB_NOT_AF, 0x15,
-				     FRF_BZ_TX_PACE_SB_AF, 0xb,
-				     FRF_BZ_TX_PACE_FB_BASE, 0,
-				     /* Allow large pace values in the
-				      * fast bin. */
-				     FRF_BZ_TX_PACE_BIN_TH,
-				     FFE_BZ_TX_PACE_RESERVED);
-		efx_writeo(efx, &temp, FR_BZ_TX_PACE);
-	}
+	EFX_POPULATE_OWORD_4(temp,
+			     /* Default values */
+			     FRF_BZ_TX_PACE_SB_NOT_AF, 0x15,
+			     FRF_BZ_TX_PACE_SB_AF, 0xb,
+			     FRF_BZ_TX_PACE_FB_BASE, 0,
+			     /* Allow large pace values in the fast bin. */
+			     FRF_BZ_TX_PACE_BIN_TH,
+			     FFE_BZ_TX_PACE_RESERVED);
+	efx_writeo(efx, &temp, FR_BZ_TX_PACE);
 }
 
 /**************************************************************************
@@ -1898,6 +1878,7 @@ struct efx_farch_filter_table {
 };
 
 struct efx_farch_filter_state {
+	struct rw_semaphore lock; /* Protects table contents */
 	struct efx_farch_filter_table table[EFX_FARCH_FILTER_TABLE_COUNT];
 };
 
@@ -2009,7 +1990,7 @@ static void efx_farch_filter_push_rx_config(struct efx_nic *efx)
 			!!(table->spec[EFX_FARCH_FILTER_INDEX_UC_DEF].flags &
 			   table->spec[EFX_FARCH_FILTER_INDEX_MC_DEF].flags &
 			   EFX_FILTER_FLAG_RX_SCATTER));
-	} else if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
+	} else {
 		/* We don't expose 'default' filters because unmatched
 		 * packets always go to the queue number found in the
 		 * RSS table.  But we still need to set the RX scatter
@@ -2052,8 +2033,7 @@ efx_farch_filter_from_gen_spec(struct efx_farch_filter_spec *spec,
 {
 	bool is_full = false;
 
-	if ((gen_spec->flags & EFX_FILTER_FLAG_RX_RSS) &&
-	    gen_spec->rss_context != EFX_FILTER_RSS_CONTEXT_DEFAULT)
+	if ((gen_spec->flags & EFX_FILTER_FLAG_RX_RSS) && gen_spec->rss_context)
 		return -EINVAL;
 
 	spec->priority = gen_spec->priority;
@@ -2071,7 +2051,7 @@ efx_farch_filter_from_gen_spec(struct efx_farch_filter_spec *spec,
 		__be32 rhost, host1, host2;
 		__be16 rport, port1, port2;
 
-		EFX_BUG_ON_PARANOID(!(gen_spec->flags & EFX_FILTER_FLAG_RX));
+		EFX_WARN_ON_PARANOID(!(gen_spec->flags & EFX_FILTER_FLAG_RX));
 
 		if (gen_spec->ether_type != htons(ETH_P_IP))
 			return -EPROTONOSUPPORT;
@@ -2418,9 +2398,13 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 	if (rc)
 		return rc;
 
+	down_write(&state->lock);
+
 	table = &state->table[efx_farch_filter_spec_table_id(&spec)];
-	if (table->size == 0)
-		return -EINVAL;
+	if (table->size == 0) {
+		rc = -EINVAL;
+		goto out_unlock;
+	}
 
 	netif_vdbg(efx, hw, efx->net_dev,
 		   "%s: type %d search_limit=%d", __func__, spec.type,
@@ -2433,8 +2417,6 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 			     EFX_FARCH_FILTER_MC_DEF - EFX_FARCH_FILTER_UC_DEF);
 		rep_index = spec.type - EFX_FARCH_FILTER_UC_DEF;
 		ins_index = rep_index;
-
-		spin_lock_bh(&efx->filter_lock);
 	} else {
 		/* Search concurrently for
 		 * (1) a filter to be replaced (rep_index): any filter
@@ -2464,8 +2446,6 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 		ins_index = -1;
 		depth = 1;
 
-		spin_lock_bh(&efx->filter_lock);
-
 		for (;;) {
 			if (!test_bit(i, table->used_bitmap)) {
 				if (ins_index < 0)
@@ -2484,7 +2464,7 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 				/* Case (b) */
 				if (ins_index < 0) {
 					rc = -EBUSY;
-					goto out;
+					goto out_unlock;
 				}
 				rep_index = -1;
 				break;
@@ -2504,11 +2484,11 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 
 		if (spec.priority == saved_spec->priority && !replace_equal) {
 			rc = -EEXIST;
-			goto out;
+			goto out_unlock;
 		}
 		if (spec.priority < saved_spec->priority) {
 			rc = -EPERM;
-			goto out;
+			goto out_unlock;
 		}
 		if (saved_spec->priority == EFX_FILTER_PRI_AUTO ||
 		    saved_spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO)
@@ -2549,8 +2529,8 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 		   __func__, spec.type, ins_index, spec.dmaq_id);
 	rc = efx_farch_filter_make_id(&spec, ins_index);
 
-out:
-	spin_unlock_bh(&efx->filter_lock);
+out_unlock:
+	up_write(&state->lock);
 	return rc;
 }
 
@@ -2625,11 +2605,11 @@ int efx_farch_filter_remove_safe(struct efx_nic *efx,
 	filter_idx = efx_farch_filter_id_index(filter_id);
 	if (filter_idx >= table->size)
 		return -ENOENT;
+	down_write(&state->lock);
 	spec = &table->spec[filter_idx];
 
-	spin_lock_bh(&efx->filter_lock);
 	rc = efx_farch_filter_remove(efx, table, filter_idx, priority);
-	spin_unlock_bh(&efx->filter_lock);
+	up_write(&state->lock);
 
 	return rc;
 }
@@ -2643,30 +2623,28 @@ int efx_farch_filter_get_safe(struct efx_nic *efx,
 	struct efx_farch_filter_table *table;
 	struct efx_farch_filter_spec *spec;
 	unsigned int filter_idx;
-	int rc;
+	int rc = -ENOENT;
+
+	down_read(&state->lock);
 
 	table_id = efx_farch_filter_id_table_id(filter_id);
 	if ((unsigned int)table_id >= EFX_FARCH_FILTER_TABLE_COUNT)
-		return -ENOENT;
+		goto out_unlock;
 	table = &state->table[table_id];
 
 	filter_idx = efx_farch_filter_id_index(filter_id);
 	if (filter_idx >= table->size)
-		return -ENOENT;
+		goto out_unlock;
 	spec = &table->spec[filter_idx];
-
-	spin_lock_bh(&efx->filter_lock);
 
 	if (test_bit(filter_idx, table->used_bitmap) &&
 	    spec->priority == priority) {
 		efx_farch_filter_to_gen_spec(spec_buf, spec);
 		rc = 0;
-	} else {
-		rc = -ENOENT;
 	}
 
-	spin_unlock_bh(&efx->filter_lock);
-
+out_unlock:
+	up_read(&state->lock);
 	return rc;
 }
 
@@ -2679,13 +2657,13 @@ efx_farch_filter_table_clear(struct efx_nic *efx,
 	struct efx_farch_filter_table *table = &state->table[table_id];
 	unsigned int filter_idx;
 
-	spin_lock_bh(&efx->filter_lock);
+	down_write(&state->lock);
 	for (filter_idx = 0; filter_idx < table->size; ++filter_idx) {
 		if (table->spec[filter_idx].priority != EFX_FILTER_PRI_AUTO)
 			efx_farch_filter_remove(efx, table,
 						filter_idx, priority);
 	}
-	spin_unlock_bh(&efx->filter_lock);
+	up_write(&state->lock);
 }
 
 int efx_farch_filter_clear_rx(struct efx_nic *efx,
@@ -2709,7 +2687,7 @@ u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
 	unsigned int filter_idx;
 	u32 count = 0;
 
-	spin_lock_bh(&efx->filter_lock);
+	down_read(&state->lock);
 
 	for (table_id = EFX_FARCH_FILTER_TABLE_RX_IP;
 	     table_id <= EFX_FARCH_FILTER_TABLE_RX_DEF;
@@ -2722,7 +2700,7 @@ u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
 		}
 	}
 
-	spin_unlock_bh(&efx->filter_lock);
+	up_read(&state->lock);
 
 	return count;
 }
@@ -2737,7 +2715,7 @@ s32 efx_farch_filter_get_rx_ids(struct efx_nic *efx,
 	unsigned int filter_idx;
 	s32 count = 0;
 
-	spin_lock_bh(&efx->filter_lock);
+	down_read(&state->lock);
 
 	for (table_id = EFX_FARCH_FILTER_TABLE_RX_IP;
 	     table_id <= EFX_FARCH_FILTER_TABLE_RX_DEF;
@@ -2756,7 +2734,7 @@ s32 efx_farch_filter_get_rx_ids(struct efx_nic *efx,
 		}
 	}
 out:
-	spin_unlock_bh(&efx->filter_lock);
+	up_read(&state->lock);
 
 	return count;
 }
@@ -2770,7 +2748,7 @@ void efx_farch_filter_table_restore(struct efx_nic *efx)
 	efx_oword_t filter;
 	unsigned int filter_idx;
 
-	spin_lock_bh(&efx->filter_lock);
+	down_write(&state->lock);
 
 	for (table_id = 0; table_id < EFX_FARCH_FILTER_TABLE_COUNT; table_id++) {
 		table = &state->table[table_id];
@@ -2791,7 +2769,7 @@ void efx_farch_filter_table_restore(struct efx_nic *efx)
 	efx_farch_filter_push_rx_config(efx);
 	efx_farch_filter_push_tx_limits(efx);
 
-	spin_unlock_bh(&efx->filter_lock);
+	up_write(&state->lock);
 }
 
 void efx_farch_filter_table_remove(struct efx_nic *efx)
@@ -2816,32 +2794,29 @@ int efx_farch_filter_table_probe(struct efx_nic *efx)
 	if (!state)
 		return -ENOMEM;
 	efx->filter_state = state;
+	init_rwsem(&state->lock);
 
-	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
-		table = &state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
-		table->id = EFX_FARCH_FILTER_TABLE_RX_IP;
-		table->offset = FR_BZ_RX_FILTER_TBL0;
-		table->size = FR_BZ_RX_FILTER_TBL0_ROWS;
-		table->step = FR_BZ_RX_FILTER_TBL0_STEP;
-	}
+	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
+	table->id = EFX_FARCH_FILTER_TABLE_RX_IP;
+	table->offset = FR_BZ_RX_FILTER_TBL0;
+	table->size = FR_BZ_RX_FILTER_TBL0_ROWS;
+	table->step = FR_BZ_RX_FILTER_TBL0_STEP;
 
-	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0) {
-		table = &state->table[EFX_FARCH_FILTER_TABLE_RX_MAC];
-		table->id = EFX_FARCH_FILTER_TABLE_RX_MAC;
-		table->offset = FR_CZ_RX_MAC_FILTER_TBL0;
-		table->size = FR_CZ_RX_MAC_FILTER_TBL0_ROWS;
-		table->step = FR_CZ_RX_MAC_FILTER_TBL0_STEP;
+	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_MAC];
+	table->id = EFX_FARCH_FILTER_TABLE_RX_MAC;
+	table->offset = FR_CZ_RX_MAC_FILTER_TBL0;
+	table->size = FR_CZ_RX_MAC_FILTER_TBL0_ROWS;
+	table->step = FR_CZ_RX_MAC_FILTER_TBL0_STEP;
 
-		table = &state->table[EFX_FARCH_FILTER_TABLE_RX_DEF];
-		table->id = EFX_FARCH_FILTER_TABLE_RX_DEF;
-		table->size = EFX_FARCH_FILTER_SIZE_RX_DEF;
+	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_DEF];
+	table->id = EFX_FARCH_FILTER_TABLE_RX_DEF;
+	table->size = EFX_FARCH_FILTER_SIZE_RX_DEF;
 
-		table = &state->table[EFX_FARCH_FILTER_TABLE_TX_MAC];
-		table->id = EFX_FARCH_FILTER_TABLE_TX_MAC;
-		table->offset = FR_CZ_TX_MAC_FILTER_TBL0;
-		table->size = FR_CZ_TX_MAC_FILTER_TBL0_ROWS;
-		table->step = FR_CZ_TX_MAC_FILTER_TBL0_STEP;
-	}
+	table = &state->table[EFX_FARCH_FILTER_TABLE_TX_MAC];
+	table->id = EFX_FARCH_FILTER_TABLE_TX_MAC;
+	table->offset = FR_CZ_TX_MAC_FILTER_TBL0;
+	table->size = FR_CZ_TX_MAC_FILTER_TBL0_ROWS;
+	table->step = FR_CZ_TX_MAC_FILTER_TBL0_STEP;
 
 	for (table_id = 0; table_id < EFX_FARCH_FILTER_TABLE_COUNT; table_id++) {
 		table = &state->table[table_id];
@@ -2852,7 +2827,8 @@ int efx_farch_filter_table_probe(struct efx_nic *efx)
 					     GFP_KERNEL);
 		if (!table->used_bitmap)
 			goto fail;
-		table->spec = vzalloc(table->size * sizeof(*table->spec));
+		table->spec = vzalloc(array_size(sizeof(*table->spec),
+						 table->size));
 		if (!table->spec)
 			goto fail;
 	}
@@ -2889,7 +2865,7 @@ void efx_farch_filter_update_rx_scatter(struct efx_nic *efx)
 	efx_oword_t filter;
 	unsigned int filter_idx;
 
-	spin_lock_bh(&efx->filter_lock);
+	down_write(&state->lock);
 
 	for (table_id = EFX_FARCH_FILTER_TABLE_RX_IP;
 	     table_id <= EFX_FARCH_FILTER_TABLE_RX_DEF;
@@ -2921,33 +2897,57 @@ void efx_farch_filter_update_rx_scatter(struct efx_nic *efx)
 
 	efx_farch_filter_push_rx_config(efx);
 
-	spin_unlock_bh(&efx->filter_lock);
+	up_write(&state->lock);
 }
 
 #ifdef CONFIG_RFS_ACCEL
-
-s32 efx_farch_filter_rfs_insert(struct efx_nic *efx,
-				struct efx_filter_spec *gen_spec)
-{
-	return efx_farch_filter_insert(efx, gen_spec, true);
-}
 
 bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 				     unsigned int index)
 {
 	struct efx_farch_filter_state *state = efx->filter_state;
-	struct efx_farch_filter_table *table =
-		&state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
+	struct efx_farch_filter_table *table;
+	bool ret = false, force = false;
+	u16 arfs_id;
 
+	down_write(&state->lock);
+	spin_lock_bh(&efx->rps_hash_lock);
+	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
 	if (test_bit(index, table->used_bitmap) &&
-	    table->spec[index].priority == EFX_FILTER_PRI_HINT &&
-	    rps_may_expire_flow(efx->net_dev, table->spec[index].dmaq_id,
-				flow_id, index)) {
-		efx_farch_filter_table_clear_entry(efx, table, index);
-		return true;
-	}
+	    table->spec[index].priority == EFX_FILTER_PRI_HINT) {
+		struct efx_arfs_rule *rule = NULL;
+		struct efx_filter_spec spec;
 
-	return false;
+		efx_farch_filter_to_gen_spec(&spec, &table->spec[index]);
+		if (!efx->rps_hash_table) {
+			/* In the absence of the table, we always returned 0 to
+			 * ARFS, so use the same to query it.
+			 */
+			arfs_id = 0;
+		} else {
+			rule = efx_rps_hash_find(efx, &spec);
+			if (!rule) {
+				/* ARFS table doesn't know of this filter, remove it */
+				force = true;
+			} else {
+				arfs_id = rule->arfs_id;
+				if (!efx_rps_check_rule(rule, index, &force))
+					goto out_unlock;
+			}
+		}
+		if (force || rps_may_expire_flow(efx->net_dev, spec.dmaq_id,
+						 flow_id, arfs_id)) {
+			if (rule)
+				rule->filter_id = EFX_ARFS_FILTER_ID_REMOVING;
+			efx_rps_hash_del(efx, &spec);
+			efx_farch_filter_table_clear_entry(efx, table, index);
+			ret = true;
+		}
+	}
+out_unlock:
+	spin_unlock_bh(&efx->rps_hash_lock);
+	up_write(&state->lock);
+	return ret;
 }
 
 #endif /* CONFIG_RFS_ACCEL */

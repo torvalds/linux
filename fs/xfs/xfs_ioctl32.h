@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2004-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_IOCTL32_H__
 #define __XFS_IOCTL32_H__
@@ -112,9 +100,9 @@ typedef struct compat_xfs_fsop_handlereq {
 
 /* The bstat field in the swapext struct needs translation */
 typedef struct compat_xfs_swapext {
-	__int64_t		sx_version;	/* version */
-	__int64_t		sx_fdtarget;	/* fd of target file */
-	__int64_t		sx_fdtmp;	/* fd of tmp file */
+	int64_t			sx_version;	/* version */
+	int64_t			sx_fdtarget;	/* fd of target file */
+	int64_t			sx_fdtmp;	/* fd of tmp file */
 	xfs_off_t		sx_offset;	/* offset into file */
 	xfs_off_t		sx_length;	/* leng from offset */
 	char			sx_pad[16];	/* pad space, unused */

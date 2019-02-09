@@ -26,8 +26,9 @@
 #include <linux/uio.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/pagemap.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/intr.h>
@@ -451,31 +452,8 @@ mbcs_sram_write(struct file * fp, const char __user *buf, size_t len, loff_t * o
 
 static loff_t mbcs_sram_llseek(struct file * filp, loff_t off, int whence)
 {
-	loff_t newpos;
-
-	switch (whence) {
-	case SEEK_SET:
-		newpos = off;
-		break;
-
-	case SEEK_CUR:
-		newpos = filp->f_pos + off;
-		break;
-
-	case SEEK_END:
-		newpos = MBCS_SRAM_SIZE + off;
-		break;
-
-	default:		/* can't happen */
-		return -EINVAL;
-	}
-
-	if (newpos < 0)
-		return -EINVAL;
-
-	filp->f_pos = newpos;
-
-	return newpos;
+	return generic_file_llseek_size(filp, off, whence, MAX_LFS_FILESIZE,
+					MBCS_SRAM_SIZE);
 }
 
 static uint64_t mbcs_pioaddr(struct mbcs_soft *soft, uint64_t offset)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_TRACE_KVM_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_KVM_H
 
@@ -41,7 +42,7 @@ TRACE_EVENT(kvm_s390_skey_related_inst,
 	    TP_fast_assign(
 		    VCPU_ASSIGN_COMMON
 		    ),
-	    VCPU_TP_PRINTK("%s", "first instruction related to skeys on vcpu")
+	    VCPU_TP_PRINTK("%s", "storage key related instruction")
 	);
 
 TRACE_EVENT(kvm_s390_major_guest_pfault,
@@ -185,8 +186,10 @@ TRACE_EVENT(kvm_s390_intercept_prog,
 		    __entry->code = code;
 		    ),
 
-	    VCPU_TP_PRINTK("intercepted program interruption %04x",
-			   __entry->code)
+	    VCPU_TP_PRINTK("intercepted program interruption %04x (%s)",
+			   __entry->code,
+			   __print_symbolic(__entry->code,
+					    icpt_prog_codes))
 	);
 
 /*
@@ -410,6 +413,47 @@ TRACE_EVENT(kvm_s390_handle_stsi,
 	    VCPU_TP_PRINTK("STSI %d.%d.%d information stored to %016llx",
 			   __entry->fc, __entry->sel1, __entry->sel2,
 			   __entry->addr)
+	);
+
+TRACE_EVENT(kvm_s390_handle_operexc,
+	    TP_PROTO(VCPU_PROTO_COMMON, __u16 ipa, __u32 ipb),
+	    TP_ARGS(VCPU_ARGS_COMMON, ipa, ipb),
+
+	    TP_STRUCT__entry(
+		    VCPU_FIELD_COMMON
+		    __field(__u64, instruction)
+		    ),
+
+	    TP_fast_assign(
+		    VCPU_ASSIGN_COMMON
+		    __entry->instruction = ((__u64)ipa << 48) |
+		    ((__u64)ipb << 16);
+		    ),
+
+	    VCPU_TP_PRINTK("operation exception on instruction %016llx (%s)",
+			   __entry->instruction,
+			   __print_symbolic(icpt_insn_decoder(__entry->instruction),
+					    icpt_insn_codes))
+	);
+
+TRACE_EVENT(kvm_s390_handle_sthyi,
+	    TP_PROTO(VCPU_PROTO_COMMON, u64 code, u64 addr),
+	    TP_ARGS(VCPU_ARGS_COMMON, code, addr),
+
+	    TP_STRUCT__entry(
+		    VCPU_FIELD_COMMON
+		    __field(u64, code)
+		    __field(u64, addr)
+		    ),
+
+	    TP_fast_assign(
+		    VCPU_ASSIGN_COMMON
+		    __entry->code = code;
+		    __entry->addr = addr;
+		    ),
+
+	    VCPU_TP_PRINTK("STHYI fc: %llu addr: %016llx",
+			   __entry->code, __entry->addr)
 	);
 
 #endif /* _TRACE_KVM_H */

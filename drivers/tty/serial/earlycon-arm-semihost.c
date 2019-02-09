@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012 ARM Ltd.
  * Author: Marc Zyngier <marc.zyngier@arm.com>
@@ -5,18 +6,6 @@
  * Adapted for ARM and earlycon:
  * Copyright (C) 2014 Linaro Ltd.
  * Author: Rob Herring <robh@kernel.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
 #include <linux/console.h>
@@ -53,7 +42,8 @@ static void smh_write(struct console *con, const char *s, unsigned n)
 	uart_console_write(&dev->port, s, n, smh_putc);
 }
 
-int __init early_smh_setup(struct earlycon_device *device, const char *opt)
+static int
+__init early_smh_setup(struct earlycon_device *device, const char *opt)
 {
 	device->con->write = smh_write;
 	return 0;

@@ -23,7 +23,7 @@
 #include <net/netlink.h>
 
 struct tcf_police {
-	struct tcf_common	common;
+	struct tc_action	common;
 	int			tcfp_result;
 	u32			tcfp_ewma_rate;
 	s64			tcfp_burst;
@@ -37,10 +37,8 @@ struct tcf_police {
 	struct psched_ratecfg	peak;
 	bool			peak_present;
 };
-#define to_police(pc)	\
-	container_of(pc, struct tcf_police, common)
 
-#define POL_TAB_MASK     15
+#define to_police(pc) ((struct tcf_police *)pc)
 
 /* old policer structure from before tc actions */
 struct tc_police_compat {
@@ -55,53 +53,17 @@ struct tc_police_compat {
 
 /* Each policer is serialized by its individual spinlock */
 
-static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *cb,
-			      int type, struct tc_action *a)
+static unsigned int police_net_id;
+static struct tc_action_ops act_police_ops;
+
+static int tcf_police_walker(struct net *net, struct sk_buff *skb,
+				 struct netlink_callback *cb, int type,
+				 const struct tc_action_ops *ops,
+				 struct netlink_ext_ack *extack)
 {
-	struct tcf_hashinfo *hinfo = a->ops->hinfo;
-	struct hlist_head *head;
-	struct tcf_common *p;
-	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
-	struct nlattr *nest;
+	struct tc_action_net *tn = net_generic(net, police_net_id);
 
-	spin_lock_bh(&hinfo->lock);
-
-	s_i = cb->args[0];
-
-	for (i = 0; i < (POL_TAB_MASK + 1); i++) {
-		head = &hinfo->htab[tcf_hash(i, POL_TAB_MASK)];
-
-		hlist_for_each_entry_rcu(p, head, tcfc_head) {
-			index++;
-			if (index < s_i)
-				continue;
-			a->priv = p;
-			a->order = index;
-			nest = nla_nest_start(skb, a->order);
-			if (nest == NULL)
-				goto nla_put_failure;
-			if (type == RTM_DELACTION)
-				err = tcf_action_dump_1(skb, a, 0, 1);
-			else
-				err = tcf_action_dump_1(skb, a, 0, 0);
-			if (err < 0) {
-				index--;
-				nla_nest_cancel(skb, nest);
-				goto done;
-			}
-			nla_nest_end(skb, nest);
-			n_i++;
-		}
-	}
-done:
-	spin_unlock_bh(&hinfo->lock);
-	if (n_i)
-		cb->args[0] += n_i;
-	return n_i;
-
-nla_put_failure:
-	nla_nest_cancel(skb, nest);
-	goto done;
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
 static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
@@ -111,23 +73,24 @@ static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 	[TCA_POLICE_RESULT]	= { .type = NLA_U32 },
 };
 
-static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
-				 struct nlattr *est, struct tc_action *a,
-				 int ovr, int bind)
+static int tcf_police_init(struct net *net, struct nlattr *nla,
+			       struct nlattr *est, struct tc_action **a,
+			       int ovr, int bind, bool rtnl_held,
+			       struct netlink_ext_ack *extack)
 {
-	unsigned int h;
 	int ret = 0, err;
 	struct nlattr *tb[TCA_POLICE_MAX + 1];
 	struct tc_police *parm;
 	struct tcf_police *police;
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
-	struct tcf_hashinfo *hinfo = a->ops->hinfo;
+	struct tc_action_net *tn = net_generic(net, police_net_id);
+	bool exists = false;
 	int size;
 
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_POLICE_MAX, nla, police_policy);
+	err = nla_parse_nested(tb, TCA_POLICE_MAX, nla, police_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -136,61 +99,58 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 	size = nla_len(tb[TCA_POLICE_TBF]);
 	if (size != sizeof(*parm) && size != sizeof(struct tc_police_compat))
 		return -EINVAL;
-	parm = nla_data(tb[TCA_POLICE_TBF]);
 
-	if (parm->index) {
-		if (tcf_hash_search(a, parm->index)) {
-			police = to_police(a->priv);
-			if (bind) {
-				police->tcf_bindcnt += 1;
-				police->tcf_refcnt += 1;
-				return 0;
-			}
-			if (ovr)
-				goto override;
-			/* not replacing */
-			return -EEXIST;
+	parm = nla_data(tb[TCA_POLICE_TBF]);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
+	if (exists && bind)
+		return 0;
+
+	if (!exists) {
+		ret = tcf_idr_create(tn, parm->index, NULL, a,
+				     &act_police_ops, bind, false);
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
+			return ret;
 		}
+		ret = ACT_P_CREATED;
+	} else if (!ovr) {
+		tcf_idr_release(*a, bind);
+		return -EEXIST;
 	}
 
-	police = kzalloc(sizeof(*police), GFP_KERNEL);
-	if (police == NULL)
-		return -ENOMEM;
-	ret = ACT_P_CREATED;
-	police->tcf_refcnt = 1;
-	spin_lock_init(&police->tcf_lock);
-	if (bind)
-		police->tcf_bindcnt = 1;
-override:
+	police = to_police(*a);
 	if (parm->rate.rate) {
 		err = -ENOMEM;
-		R_tab = qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE]);
+		R_tab = qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE], NULL);
 		if (R_tab == NULL)
 			goto failure;
 
 		if (parm->peakrate.rate) {
 			P_tab = qdisc_get_rtab(&parm->peakrate,
-					       tb[TCA_POLICE_PEAKRATE]);
+					       tb[TCA_POLICE_PEAKRATE], NULL);
 			if (P_tab == NULL)
 				goto failure;
 		}
 	}
 
-	spin_lock_bh(&police->tcf_lock);
 	if (est) {
 		err = gen_replace_estimator(&police->tcf_bstats, NULL,
 					    &police->tcf_rate_est,
-					    &police->tcf_lock, est);
+					    &police->tcf_lock,
+					    NULL, est);
 		if (err)
-			goto failure_unlock;
+			goto failure;
 	} else if (tb[TCA_POLICE_AVRATE] &&
 		   (ret == ACT_P_CREATED ||
-		    !gen_estimator_active(&police->tcf_bstats,
-					  &police->tcf_rate_est))) {
+		    !gen_estimator_active(&police->tcf_rate_est))) {
 		err = -EINVAL;
-		goto failure_unlock;
+		goto failure;
 	}
 
+	spin_lock_bh(&police->tcf_lock);
 	/* No failure allowed after this point */
 	police->tcfp_mtu = parm->mtu;
 	if (police->tcfp_mtu == 0) {
@@ -232,30 +192,21 @@ override:
 		return ret;
 
 	police->tcfp_t_c = ktime_get_ns();
-	police->tcf_index = parm->index ? parm->index :
-		tcf_hash_new_index(hinfo);
-	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
-	spin_lock_bh(&hinfo->lock);
-	hlist_add_head(&police->tcf_head, &hinfo->htab[h]);
-	spin_unlock_bh(&hinfo->lock);
+	tcf_idr_insert(tn, *a);
 
-	a->priv = police;
 	return ret;
 
-failure_unlock:
-	spin_unlock_bh(&police->tcf_lock);
 failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
-	if (ret == ACT_P_CREATED)
-		kfree(police);
+	tcf_idr_release(*a, bind);
 	return err;
 }
 
-static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
+static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 			  struct tcf_result *res)
 {
-	struct tcf_police *police = a->priv;
+	struct tcf_police *police = to_police(a);
 	s64 now;
 	s64 toks;
 	s64 ptoks = 0;
@@ -263,14 +214,19 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 	spin_lock(&police->tcf_lock);
 
 	bstats_update(&police->tcf_bstats, skb);
+	tcf_lastuse_update(&police->tcf_tm);
 
-	if (police->tcfp_ewma_rate &&
-	    police->tcf_rate_est.bps >= police->tcfp_ewma_rate) {
-		police->tcf_qstats.overlimits++;
-		if (police->tcf_action == TC_ACT_SHOT)
-			police->tcf_qstats.drops++;
-		spin_unlock(&police->tcf_lock);
-		return police->tcf_action;
+	if (police->tcfp_ewma_rate) {
+		struct gnet_stats_rate_est64 sample;
+
+		if (!gen_estimator_read(&police->tcf_rate_est, &sample) ||
+		    sample.bps >= police->tcfp_ewma_rate) {
+			police->tcf_qstats.overlimits++;
+			if (police->tcf_action == TC_ACT_SHOT)
+				police->tcf_qstats.drops++;
+			spin_unlock(&police->tcf_lock);
+			return police->tcf_action;
+		}
 	}
 
 	if (qdisc_pkt_len(skb) <= police->tcfp_mtu) {
@@ -297,6 +253,8 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 			police->tcfp_t_c = now;
 			police->tcfp_toks = toks;
 			police->tcfp_ptoks = ptoks;
+			if (police->tcfp_result == TC_ACT_SHOT)
+				police->tcf_qstats.drops++;
 			spin_unlock(&police->tcf_lock);
 			return police->tcfp_result;
 		}
@@ -309,20 +267,22 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 	return police->tcf_action;
 }
 
-static int
-tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
+static int tcf_police_dump(struct sk_buff *skb, struct tc_action *a,
+			       int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_police *police = a->priv;
+	struct tcf_police *police = to_police(a);
 	struct tc_police opt = {
 		.index = police->tcf_index,
-		.action = police->tcf_action,
-		.mtu = police->tcfp_mtu,
-		.burst = PSCHED_NS2TICKS(police->tcfp_burst),
-		.refcnt = police->tcf_refcnt - ref,
-		.bindcnt = police->tcf_bindcnt - bind,
+		.refcnt = refcount_read(&police->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&police->tcf_bindcnt) - bind,
 	};
+	struct tcf_t t;
 
+	spin_lock_bh(&police->tcf_lock);
+	opt.action = police->tcf_action;
+	opt.mtu = police->tcfp_mtu;
+	opt.burst = PSCHED_NS2TICKS(police->tcfp_burst);
 	if (police->rate_present)
 		psched_ratecfg_getrate(&opt.rate, &police->rate);
 	if (police->peak_present)
@@ -335,11 +295,29 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	if (police->tcfp_ewma_rate &&
 	    nla_put_u32(skb, TCA_POLICE_AVRATE, police->tcfp_ewma_rate))
 		goto nla_put_failure;
+
+	t.install = jiffies_to_clock_t(jiffies - police->tcf_tm.install);
+	t.lastuse = jiffies_to_clock_t(jiffies - police->tcf_tm.lastuse);
+	t.firstuse = jiffies_to_clock_t(jiffies - police->tcf_tm.firstuse);
+	t.expires = jiffies_to_clock_t(police->tcf_tm.expires);
+	if (nla_put_64bit(skb, TCA_POLICE_TM, sizeof(t), &t, TCA_POLICE_PAD))
+		goto nla_put_failure;
+	spin_unlock_bh(&police->tcf_lock);
+
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock_bh(&police->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
+}
+
+static int tcf_police_search(struct net *net, struct tc_action **a, u32 index,
+			     struct netlink_ext_ack *extack)
+{
+	struct tc_action_net *tn = net_generic(net, police_net_id);
+
+	return tcf_idr_search(tn, a, index);
 }
 
 MODULE_AUTHOR("Alexey Kuznetsov");
@@ -350,22 +328,41 @@ static struct tc_action_ops act_police_ops = {
 	.kind		=	"police",
 	.type		=	TCA_ID_POLICE,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_act_police,
-	.dump		=	tcf_act_police_dump,
-	.init		=	tcf_act_police_locate,
-	.walk		=	tcf_act_police_walker
+	.act		=	tcf_police_act,
+	.dump		=	tcf_police_dump,
+	.init		=	tcf_police_init,
+	.walk		=	tcf_police_walker,
+	.lookup		=	tcf_police_search,
+	.size		=	sizeof(struct tcf_police),
 };
 
-static int __init
-police_init_module(void)
+static __net_init int police_init_net(struct net *net)
 {
-	return tcf_register_action(&act_police_ops, POL_TAB_MASK);
+	struct tc_action_net *tn = net_generic(net, police_net_id);
+
+	return tc_action_net_init(tn, &act_police_ops);
 }
 
-static void __exit
-police_cleanup_module(void)
+static void __net_exit police_exit_net(struct list_head *net_list)
 {
-	tcf_unregister_action(&act_police_ops);
+	tc_action_net_exit(net_list, police_net_id);
+}
+
+static struct pernet_operations police_net_ops = {
+	.init = police_init_net,
+	.exit_batch = police_exit_net,
+	.id   = &police_net_id,
+	.size = sizeof(struct tc_action_net),
+};
+
+static int __init police_init_module(void)
+{
+	return tcf_register_action(&act_police_ops, &police_net_ops);
+}
+
+static void __exit police_cleanup_module(void)
+{
+	tcf_unregister_action(&act_police_ops, &police_net_ops);
 }
 
 module_init(police_init_module);

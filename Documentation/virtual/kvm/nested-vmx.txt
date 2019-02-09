@@ -31,17 +31,6 @@ L0, the guest hypervisor, which we call L1, and its nested guest, which we
 call L2.
 
 
-Known limitations
------------------
-
-The current code supports running Linux guests under KVM guests.
-Only 64-bit guest hypervisors are supported.
-
-Additional patches for running Windows under guest KVM, and Linux under
-guest VMware server, and support for nested EPT, are currently running in
-the lab, and will be sent as follow-on patchsets.
-
-
 Running nested VMX
 ------------------
 

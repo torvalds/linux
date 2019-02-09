@@ -30,7 +30,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -140,9 +140,11 @@ static const struct hid_usage_entry hid_usage_table[] = {
     {0, 0x03, "LightPen"},
     {0, 0x04, "TouchScreen"},
     {0, 0x05, "TouchPad"},
+    {0, 0x0e, "DeviceConfiguration"},
     {0, 0x20, "Stylus"},
     {0, 0x21, "Puck"},
     {0, 0x22, "Finger"},
+    {0, 0x23, "DeviceSettings"},
     {0, 0x30, "TipPressure"},
     {0, 0x31, "BarrelPressure"},
     {0, 0x32, "InRange"},
@@ -455,7 +457,7 @@ static char *resolv_usage_page(unsigned page, struct seq_file *f) {
 	char *buf = NULL;
 
 	if (!f) {
-		buf = kzalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
+		buf = kzalloc(HID_DEBUG_BUFSIZE, GFP_ATOMIC);
 		if (!buf)
 			return ERR_PTR(-ENOMEM);
 	}
@@ -659,13 +661,13 @@ EXPORT_SYMBOL_GPL(hid_dump_device);
 /* enqueue string to 'events' ring buffer */
 void hid_debug_event(struct hid_device *hdev, char *buf)
 {
-	int i;
+	unsigned i;
 	struct hid_debug_list *list;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hdev->debug_list_lock, flags);
 	list_for_each_entry(list, &hdev->debug_list, node) {
-		for (i = 0; i < strlen(buf); i++)
+		for (i = 0; buf[i]; i++)
 			list->hid_debug_buf[(list->tail + i) % HID_DEBUG_BUFSIZE] =
 				buf[i];
 		list->tail = (list->tail + i) % HID_DEBUG_BUFSIZE;
@@ -683,7 +685,7 @@ void hid_dump_report(struct hid_device *hid, int type, u8 *data,
 	char *buf;
 	unsigned int i;
 
-	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
+	buf = kmalloc(HID_DEBUG_BUFSIZE, GFP_ATOMIC);
 
 	if (!buf)
 		return;
@@ -1086,7 +1088,7 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	if (!(list->hid_debug_buf = kzalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_KERNEL))) {
+	if (!(list->hid_debug_buf = kzalloc(HID_DEBUG_BUFSIZE, GFP_KERNEL))) {
 		err = -ENOMEM;
 		kfree(list);
 		goto out;
@@ -1152,6 +1154,8 @@ copy_rest:
 			goto out;
 		if (list->tail > list->head) {
 			len = list->tail - list->head;
+			if (len > count)
+				len = count;
 
 			if (copy_to_user(buffer + ret, &list->hid_debug_buf[list->head], len)) {
 				ret = -EFAULT;
@@ -1161,6 +1165,8 @@ copy_rest:
 			list->head += len;
 		} else {
 			len = HID_DEBUG_BUFSIZE - list->head;
+			if (len > count)
+				len = count;
 
 			if (copy_to_user(buffer, &list->hid_debug_buf[list->head], len)) {
 				ret = -EFAULT;
@@ -1168,7 +1174,9 @@ copy_rest:
 			}
 			list->head = 0;
 			ret += len;
-			goto copy_rest;
+			count -= len;
+			if (count > 0)
+				goto copy_rest;
 		}
 
 	}
@@ -1177,15 +1185,15 @@ out:
 	return ret;
 }
 
-static unsigned int hid_debug_events_poll(struct file *file, poll_table *wait)
+static __poll_t hid_debug_events_poll(struct file *file, poll_table *wait)
 {
 	struct hid_debug_list *list = file->private_data;
 
 	poll_wait(file, &list->hdev->debug_wait, wait);
 	if (list->head != list->tail)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	if (!list->hdev->debug)
-		return POLLERR | POLLHUP;
+		return EPOLLERR | EPOLLHUP;
 	return 0;
 }
 

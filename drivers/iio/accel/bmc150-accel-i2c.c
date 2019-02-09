@@ -28,11 +28,6 @@
 
 #include "bmc150-accel.h"
 
-static const struct regmap_config bmc150_i2c_regmap_conf = {
-	.reg_bits = 8,
-	.val_bits = 8,
-};
-
 static int bmc150_accel_probe(struct i2c_client *client,
 			      const struct i2c_device_id *id)
 {
@@ -43,7 +38,7 @@ static int bmc150_accel_probe(struct i2c_client *client,
 		i2c_check_functionality(client->adapter,
 					I2C_FUNC_SMBUS_READ_I2C_BLOCK);
 
-	regmap = devm_regmap_init_i2c(client, &bmc150_i2c_regmap_conf);
+	regmap = devm_regmap_init_i2c(client, &bmc150_regmap_conf);
 	if (IS_ERR(regmap)) {
 		dev_err(&client->dev, "Failed to initialize i2c regmap\n");
 		return PTR_ERR(regmap);
@@ -69,6 +64,7 @@ static const struct acpi_device_id bmc150_accel_acpi_match[] = {
 	{"BMA250E",	bma250e},
 	{"BMA222E",	bma222e},
 	{"BMA0280",	bma280},
+	{"BOSC0200"},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bmc150_accel_acpi_match);
@@ -85,9 +81,21 @@ static const struct i2c_device_id bmc150_accel_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, bmc150_accel_id);
 
+static const struct of_device_id bmc150_accel_of_match[] = {
+	{ .compatible = "bosch,bmc150_accel" },
+	{ .compatible = "bosch,bmi055_accel" },
+	{ .compatible = "bosch,bma255" },
+	{ .compatible = "bosch,bma250e" },
+	{ .compatible = "bosch,bma222e" },
+	{ .compatible = "bosch,bma280" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, bmc150_accel_of_match);
+
 static struct i2c_driver bmc150_accel_driver = {
 	.driver = {
 		.name	= "bmc150_accel_i2c",
+		.of_match_table = bmc150_accel_of_match,
 		.acpi_match_table = ACPI_PTR(bmc150_accel_acpi_match),
 		.pm	= &bmc150_accel_pm_ops,
 	},

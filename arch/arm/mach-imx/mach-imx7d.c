@@ -93,7 +93,6 @@ static void __init imx7d_init_machine(void)
 	if (parent == NULL)
 		pr_warn("failed to initialize soc device\n");
 
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	imx_anatop_init();
 	imx7d_enet_init();
 }
@@ -107,6 +106,7 @@ static void __init imx7d_init_irq(void)
 
 static const char *const imx7d_dt_compat[] __initconst = {
 	"fsl,imx7d",
+	"fsl,imx7s",
 	NULL,
 };
 

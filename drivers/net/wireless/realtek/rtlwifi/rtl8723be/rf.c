@@ -51,8 +51,7 @@ void rtl8723be_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 			      rtlphy->rfreg_chnlval[0]);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "unknown bandwidth: %#X\n", bandwidth);
+		pr_err("unknown bandwidth: %#X\n", bandwidth);
 		break;
 	}
 }
@@ -303,8 +302,8 @@ static void _rtl8723be_get_txpower_writeval_by_regulatory(
 					   [chnlgroup][index + (rf ? 8 : 0)] &
 					      (0x7f << (i * 8))) >> (i * 8));
 
-					if (pwr_diff_limit[i] > pwr_diff)
-						pwr_diff_limit[i] = pwr_diff;
+				if (pwr_diff_limit[i] > pwr_diff)
+					pwr_diff_limit[i] = pwr_diff;
 			}
 
 			customer_limit = (pwr_diff_limit[3] << 24) |
@@ -502,7 +501,7 @@ static bool _rtl8723be_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 
 		if (!rtstatus) {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-				 "Radio[%d] Fail!!", rfpath);
+				 "Radio[%d] Fail!!\n", rfpath);
 			return false;
 		}
 	}

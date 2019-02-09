@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NF_NAT_CORE_H
 #define _NF_NAT_CORE_H
 #include <linux/list.h>
@@ -10,6 +11,10 @@
 unsigned int nf_nat_packet(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 			   unsigned int hooknum, struct sk_buff *skb);
 
+unsigned int
+nf_nat_inet_fn(void *priv, struct sk_buff *skb,
+	       const struct nf_hook_state *state);
+
 int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int family);
 
 static inline int nf_nat_initialized(struct nf_conn *ct,
@@ -20,12 +25,5 @@ static inline int nf_nat_initialized(struct nf_conn *ct,
 	else
 		return ct->status & IPS_DST_NAT_DONE;
 }
-
-struct nlattr;
-
-extern int
-(*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
-				  enum nf_nat_manip_type manip,
-				  const struct nlattr *attr);
 
 #endif /* _NF_NAT_CORE_H */

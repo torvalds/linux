@@ -211,59 +211,15 @@ void __init allocate_pgdat(unsigned int nid)
 
 	NODE_DATA(nid) = __va(phys);
 	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
-
-	NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
 #endif
 
 	NODE_DATA(nid)->node_start_pfn = start_pfn;
 	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
 }
 
-static void __init bootmem_init_one_node(unsigned int nid)
-{
-	unsigned long total_pages, paddr;
-	unsigned long end_pfn;
-	struct pglist_data *p;
-
-	p = NODE_DATA(nid);
-
-	/* Nothing to do.. */
-	if (!p->node_spanned_pages)
-		return;
-
-	end_pfn = pgdat_end_pfn(p);
-
-	total_pages = bootmem_bootmap_pages(p->node_spanned_pages);
-
-	paddr = memblock_alloc(total_pages << PAGE_SHIFT, PAGE_SIZE);
-	if (!paddr)
-		panic("Can't allocate bootmap for nid[%d]\n", nid);
-
-	init_bootmem_node(p, paddr >> PAGE_SHIFT, p->node_start_pfn, end_pfn);
-
-	free_bootmem_with_active_regions(nid, end_pfn);
-
-	/*
-	 * XXX Handle initial reservations for the system memory node
-	 * only for the moment, we'll refactor this later for handling
-	 * reservations in other nodes.
-	 */
-	if (nid == 0) {
-		struct memblock_region *reg;
-
-		/* Reserve the sections we're already using. */
-		for_each_memblock(reserved, reg) {
-			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
-		}
-	}
-
-	sparse_memory_present_with_active_regions(nid);
-}
-
 static void __init do_init_bootmem(void)
 {
 	struct memblock_region *reg;
-	int i;
 
 	/* Add active regions with valid PFNs. */
 	for_each_memblock(memory, reg) {
@@ -279,9 +235,12 @@ static void __init do_init_bootmem(void)
 
 	plat_mem_setup();
 
-	for_each_online_node(i)
-		bootmem_init_one_node(i);
+	for_each_memblock(memory, reg) {
+		int nid = memblock_get_region_node(reg);
 
+		memory_present(nid, memblock_region_memory_base_pfn(reg),
+			memblock_region_memory_end_pfn(reg));
+	}
 	sparse_init();
 }
 
@@ -322,7 +281,6 @@ void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	unsigned long vaddr, end;
-	int nid;
 
 	sh_mv.mv_mem_init();
 
@@ -377,30 +335,8 @@ void __init paging_init(void)
 	kmap_coherent_init();
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-
-	for_each_online_node(nid) {
-		pg_data_t *pgdat = NODE_DATA(nid);
-		unsigned long low, start_pfn;
-
-		start_pfn = pgdat->bdata->node_min_pfn;
-		low = pgdat->bdata->node_low_pfn;
-
-		if (max_zone_pfns[ZONE_NORMAL] < low)
-			max_zone_pfns[ZONE_NORMAL] = low;
-
-		printk("Node %u: start_pfn = 0x%lx, low = 0x%lx\n",
-		       nid, start_pfn, low);
-	}
-
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 	free_area_init_nodes(max_zone_pfns);
-}
-
-/*
- * Early initialization for any I/O MMUs we might have.
- */
-static void __init iommu_init(void)
-{
-	no_iommu_init();
 }
 
 unsigned int mem_init_done = 0;
@@ -408,8 +344,6 @@ unsigned int mem_init_done = 0;
 void __init mem_init(void)
 {
 	pg_data_t *pgdat;
-
-	iommu_init();
 
 	high_memory = NULL;
 	for_each_online_pgdat(pgdat)
@@ -485,26 +419,20 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 #endif
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
+		bool want_memblock)
 {
-	pg_data_t *pgdat;
 	unsigned long start_pfn = PFN_DOWN(start);
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
 
-	pgdat = NODE_DATA(nid);
-
 	/* We only have ZONE_NORMAL, so this is easy.. */
-	ret = __add_pages(nid, pgdat->node_zones +
-			zone_for_memory(nid, start, size, ZONE_NORMAL,
-			for_device),
-			start_pfn, nr_pages);
+	ret = __add_pages(nid, start_pfn, nr_pages, altmap, want_memblock);
 	if (unlikely(ret))
 		printk("%s: Failed, __add_pages() == %d\n", __func__, ret);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(arch_add_memory);
 
 #ifdef CONFIG_NUMA
 int memory_add_physaddr_to_nid(u64 addr)
@@ -516,7 +444,7 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
-int arch_remove_memory(u64 start, u64 size)
+int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
 {
 	unsigned long start_pfn = PFN_DOWN(start);
 	unsigned long nr_pages = size >> PAGE_SHIFT;
@@ -524,7 +452,7 @@ int arch_remove_memory(u64 start, u64 size)
 	int ret;
 
 	zone = page_zone(pfn_to_page(start_pfn));
-	ret = __remove_pages(zone, start_pfn, nr_pages);
+	ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
 	if (unlikely(ret))
 		pr_warn("%s: Failed, __remove_pages() == %d\n", __func__,
 			ret);

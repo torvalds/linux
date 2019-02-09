@@ -108,4 +108,15 @@
 #define GLOBAL_ATU_MAC_23	0x0e
 #define GLOBAL_ATU_MAC_45	0x0f
 
+struct mv88e6060_priv {
+	/* MDIO bus and address on bus to use. When in single chip
+	 * mode, address is 0, and the switch uses multiple addresses
+	 * on the bus.  When in multi-chip mode, the switch uses a
+	 * single address which contains two registers used for
+	 * indirect access to more registers.
+	 */
+	struct mii_bus *bus;
+	int sw_addr;
+};
+
 #endif

@@ -23,11 +23,14 @@
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/inetdevice.h>
+#include <linux/netfilter.h>
 #include <net/ip.h>
 #include <net/ip6_route.h>
+#include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/route.h>
 #include <net/addrconf.h>
+#include <net/l3mdev.h>
 
 #define IPVLAN_DRV	"ipvlan"
 #define IPV_DRV_VER	"0.1"
@@ -71,7 +74,7 @@ struct ipvl_dev {
 	DECLARE_BITMAP(mac_filters, IPVLAN_MAC_FILTER_SIZE);
 	netdev_features_t	sfeatures;
 	u32			msg_enable;
-	u16			mtu_adj;
+	spinlock_t		addrs_lock;
 };
 
 struct ipvl_addr {
@@ -84,20 +87,28 @@ struct ipvl_addr {
 #define ip4addr ipu.ip4
 	struct hlist_node	hlnode;  /* Hash-table linkage */
 	struct list_head	anode;   /* logical-interface linkage */
-	struct rcu_head		rcu;
 	ipvl_hdr_type		atype;
+	struct rcu_head		rcu;
 };
 
 struct ipvl_port {
 	struct net_device	*dev;
+	possible_net_t		pnet;
 	struct hlist_head	hlhead[IPVLAN_HASH_SIZE];
 	struct list_head	ipvlans;
-	struct rcu_head		rcu;
+	u16			mode;
+	u16			flags;
+	u16			dev_id_start;
 	struct work_struct	wq;
 	struct sk_buff_head	backlog;
 	int			count;
-	u16			mode;
+	struct ida		ida;
 };
+
+struct ipvl_skb_cb {
+	bool tx_pkt;
+};
+#define IPVL_SKB_CB(_skb) ((struct ipvl_skb_cb *)&((_skb)->cb[0]))
 
 static inline struct ipvl_port *ipvlan_port_get_rcu(const struct net_device *d)
 {
@@ -114,8 +125,36 @@ static inline struct ipvl_port *ipvlan_port_get_rtnl(const struct net_device *d)
 	return rtnl_dereference(d->rx_handler_data);
 }
 
-void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev);
-void ipvlan_set_port_mode(struct ipvl_port *port, u32 nval);
+static inline bool ipvlan_is_private(const struct ipvl_port *port)
+{
+	return !!(port->flags & IPVLAN_F_PRIVATE);
+}
+
+static inline void ipvlan_mark_private(struct ipvl_port *port)
+{
+	port->flags |= IPVLAN_F_PRIVATE;
+}
+
+static inline void ipvlan_clear_private(struct ipvl_port *port)
+{
+	port->flags &= ~IPVLAN_F_PRIVATE;
+}
+
+static inline bool ipvlan_is_vepa(const struct ipvl_port *port)
+{
+	return !!(port->flags & IPVLAN_F_VEPA);
+}
+
+static inline void ipvlan_mark_vepa(struct ipvl_port *port)
+{
+	port->flags |= IPVLAN_F_VEPA;
+}
+
+static inline void ipvlan_clear_vepa(struct ipvl_port *port)
+{
+	port->flags &= ~IPVLAN_F_VEPA;
+}
+
 void ipvlan_init_secret(void);
 unsigned int ipvlan_mac_hash(const unsigned char *addr);
 rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb);
@@ -125,7 +164,23 @@ void ipvlan_ht_addr_add(struct ipvl_dev *ipvlan, struct ipvl_addr *addr);
 struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
 				   const void *iaddr, bool is_v6);
 bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6);
-struct ipvl_addr *ipvlan_ht_addr_lookup(const struct ipvl_port *port,
-					const void *iaddr, bool is_v6);
 void ipvlan_ht_addr_del(struct ipvl_addr *addr);
+struct sk_buff *ipvlan_l3_rcv(struct net_device *dev, struct sk_buff *skb,
+			      u16 proto);
+unsigned int ipvlan_nf_input(void *priv, struct sk_buff *skb,
+			     const struct nf_hook_state *state);
+void ipvlan_count_rx(const struct ipvl_dev *ipvlan,
+		     unsigned int len, bool success, bool mcast);
+int ipvlan_link_new(struct net *src_net, struct net_device *dev,
+		    struct nlattr *tb[], struct nlattr *data[],
+		    struct netlink_ext_ack *extack);
+void ipvlan_link_delete(struct net_device *dev, struct list_head *head);
+void ipvlan_link_setup(struct net_device *dev);
+int ipvlan_link_register(struct rtnl_link_ops *ops);
+
+static inline bool netif_is_ipvlan_port(const struct net_device *dev)
+{
+	return rcu_access_pointer(dev->rx_handler) == ipvlan_handle_frame;
+}
+
 #endif /* __IPVLAN_H */

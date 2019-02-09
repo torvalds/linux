@@ -12,6 +12,8 @@ Required properties:
 	(b) "samsung,mfc-v6" for MFC v6 present in Exynos5 SoCs
 	(c) "samsung,mfc-v7" for MFC v7 present in Exynos5420 SoC
 	(d) "samsung,mfc-v8" for MFC v8 present in Exynos5800 SoC
+	(e) "samsung,exynos5433-mfc" for MFC v8 present in Exynos5433 SoC
+	(f) "samsung,mfc-v10" for MFC v10 present in Exynos7880 SoC
 
   - reg : Physical base address of the IP registers and length of memory
 	  mapped region.
@@ -21,15 +23,18 @@ Required properties:
   - clock-names : from common clock binding: must contain "mfc",
 		  corresponding to entry in the clocks property.
 
-  - samsung,mfc-r : Base address of the first memory bank used by MFC
-		    for DMA contiguous memory allocation and its size.
-
-  - samsung,mfc-l : Base address of the second memory bank used by MFC
-		    for DMA contiguous memory allocation and its size.
-
 Optional properties:
   - power-domains : power-domain property defined with a phandle
 			   to respective power domain.
+  - memory-region : from reserved memory binding: phandles to two reserved
+	memory regions, first is for "left" mfc memory bus interfaces,
+	second if for the "right" mfc memory bus, used when no SYSMMU
+	support is available; used only by MFC v5 present in Exynos4 SoCs
+
+Obsolete properties:
+  - samsung,mfc-r, samsung,mfc-l : support removed, please use memory-region
+	property instead
+
 
 Example:
 SoC specific DT entry:
@@ -43,9 +48,29 @@ mfc: codec@13400000 {
 	clock-names = "mfc";
 };
 
+Reserved memory specific DT entry for given board (see reserved memory binding
+for more information):
+
+reserved-memory {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	mfc_left: region@51000000 {
+		compatible = "shared-dma-pool";
+		no-map;
+		reg = <0x51000000 0x800000>;
+	};
+
+	mfc_right: region@43000000 {
+		compatible = "shared-dma-pool";
+		no-map;
+		reg = <0x43000000 0x800000>;
+	};
+};
+
 Board specific DT entry:
 
 codec@13400000 {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
+	memory-region = <&mfc_left>, <&mfc_right>;
 };

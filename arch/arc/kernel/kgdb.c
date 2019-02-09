@@ -10,6 +10,7 @@
 
 #include <linux/kgdb.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <asm/disasm.h>
 #include <asm/cacheflush.h>
 

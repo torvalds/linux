@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  include/linux/nfs4.h
  *
@@ -50,12 +51,28 @@ struct nfs4_label {
 
 typedef struct { char data[NFS4_VERIFIER_SIZE]; } nfs4_verifier;
 
-struct nfs_stateid4 {
-	__be32 seqid;
-	char other[NFS4_STATEID_OTHER_SIZE];
-} __attribute__ ((packed));
+struct nfs4_stateid_struct {
+	union {
+		char data[NFS4_STATEID_SIZE];
+		struct {
+			__be32 seqid;
+			char other[NFS4_STATEID_OTHER_SIZE];
+		} __attribute__ ((packed));
+	};
 
-typedef struct nfs_stateid4 nfs4_stateid;
+	enum {
+		NFS4_INVALID_STATEID_TYPE = 0,
+		NFS4_SPECIAL_STATEID_TYPE,
+		NFS4_OPEN_STATEID_TYPE,
+		NFS4_LOCK_STATEID_TYPE,
+		NFS4_DELEGATION_STATEID_TYPE,
+		NFS4_LAYOUT_STATEID_TYPE,
+		NFS4_PNFS_DS_STATEID_TYPE,
+		NFS4_REVOKED_STATEID_TYPE,
+	} type;
+};
+
+typedef struct nfs4_stateid_struct nfs4_stateid;
 
 enum nfs_opnum4 {
 	OP_ACCESS = 3,
@@ -139,10 +156,10 @@ enum nfs_opnum4 {
 Needs to be updated if more operations are defined in future.*/
 
 #define FIRST_NFS4_OP	OP_ACCESS
-#define LAST_NFS4_OP 	OP_WRITE_SAME
 #define LAST_NFS40_OP	OP_RELEASE_LOCKOWNER
 #define LAST_NFS41_OP	OP_RECLAIM_COMPLETE
-#define LAST_NFS42_OP	OP_WRITE_SAME
+#define LAST_NFS42_OP	OP_CLONE
+#define LAST_NFS4_OP	LAST_NFS42_OP
 
 enum nfsstat4 {
 	NFS4_OK = 0,
@@ -266,7 +283,7 @@ enum nfsstat4 {
 
 static inline bool seqid_mutating_err(u32 err)
 {
-	/* rfc 3530 section 8.1.5: */
+	/* See RFC 7530, section 9.1.7 */
 	switch (err) {
 	case NFS4ERR_STALE_CLIENTID:
 	case NFS4ERR_STALE_STATEID:
@@ -275,6 +292,7 @@ static inline bool seqid_mutating_err(u32 err)
 	case NFS4ERR_BADXDR:
 	case NFS4ERR_RESOURCE:
 	case NFS4ERR_NOFILEHANDLE:
+	case NFS4ERR_MOVED:
 		return false;
 	};
 	return true;
@@ -356,6 +374,13 @@ enum lock_type4 {
 	NFS4_WRITEW_LT = 4
 };
 
+enum change_attr_type4 {
+	NFS4_CHANGE_TYPE_IS_MONOTONIC_INCR = 0,
+	NFS4_CHANGE_TYPE_IS_VERSION_COUNTER = 1,
+	NFS4_CHANGE_TYPE_IS_VERSION_COUNTER_NOPNFS = 2,
+	NFS4_CHANGE_TYPE_IS_TIME_METADATA = 3,
+	NFS4_CHANGE_TYPE_IS_UNDEFINED = 4
+};
 
 /* Mandatory Attributes */
 #define FATTR4_WORD0_SUPPORTED_ATTRS    (1UL << 0)
@@ -423,7 +448,9 @@ enum lock_type4 {
 #define FATTR4_WORD2_LAYOUT_BLKSIZE     (1UL << 1)
 #define FATTR4_WORD2_MDSTHRESHOLD       (1UL << 4)
 #define FATTR4_WORD2_CLONE_BLKSIZE	(1UL << 13)
+#define FATTR4_WORD2_CHANGE_ATTR_TYPE	(1UL << 15)
 #define FATTR4_WORD2_SECURITY_LABEL     (1UL << 16)
+#define FATTR4_WORD2_MODE_UMASK		(1UL << 17)
 
 /* MDS threshold bitmap bits */
 #define THRESHOLD_RD                    (1UL << 0)
@@ -438,7 +465,12 @@ enum lock_type4 {
 
 #define NFS4_DEBUG 1
 
-/* Index of predefined Linux client operations */
+/*
+ * Index of predefined Linux client operations
+ *
+ * To ensure that /proc/net/rpc/nfs remains correctly ordered, please
+ * append only to this enum when adding new client operations.
+ */
 
 enum {
 	NFSPROC4_CLNT_NULL = 0,		/* Unused */
@@ -480,7 +512,6 @@ enum {
 	NFSPROC4_CLNT_SECINFO,
 	NFSPROC4_CLNT_FSID_PRESENT,
 
-	/* nfs41 */
 	NFSPROC4_CLNT_EXCHANGE_ID,
 	NFSPROC4_CLNT_CREATE_SESSION,
 	NFSPROC4_CLNT_DESTROY_SESSION,
@@ -498,12 +529,15 @@ enum {
 	NFSPROC4_CLNT_BIND_CONN_TO_SESSION,
 	NFSPROC4_CLNT_DESTROY_CLIENTID,
 
-	/* nfs42 */
 	NFSPROC4_CLNT_SEEK,
 	NFSPROC4_CLNT_ALLOCATE,
 	NFSPROC4_CLNT_DEALLOCATE,
 	NFSPROC4_CLNT_LAYOUTSTATS,
 	NFSPROC4_CLNT_CLONE,
+	NFSPROC4_CLNT_COPY,
+	NFSPROC4_CLNT_OFFLOAD_CANCEL,
+
+	NFSPROC4_CLNT_LOOKUPP,
 };
 
 /* nfs41 types */
@@ -529,6 +563,7 @@ enum pnfs_layouttype {
 	LAYOUT_OSD2_OBJECTS = 2,
 	LAYOUT_BLOCK_VOLUME = 3,
 	LAYOUT_FLEX_FILES = 4,
+	LAYOUT_SCSI = 5,
 	LAYOUT_TYPE_MAX
 };
 
@@ -555,6 +590,7 @@ enum pnfs_block_volume_type {
 	PNFS_BLOCK_VOLUME_SLICE		= 1,
 	PNFS_BLOCK_VOLUME_CONCAT	= 2,
 	PNFS_BLOCK_VOLUME_STRIPE	= 3,
+	PNFS_BLOCK_VOLUME_SCSI		= 4,
 };
 
 enum pnfs_block_extent_state {
@@ -567,6 +603,23 @@ enum pnfs_block_extent_state {
 /* on the wire size of a block layout extent */
 #define PNFS_BLOCK_EXTENT_SIZE \
 	(7 * sizeof(__be32) + NFS4_DEVICEID4_SIZE)
+
+/* on the wire size of a scsi commit range */
+#define PNFS_SCSI_RANGE_SIZE \
+	(4 * sizeof(__be32))
+
+enum scsi_code_set {
+	PS_CODE_SET_BINARY	= 1,
+	PS_CODE_SET_ASCII	= 2,
+	PS_CODE_SET_UTF8	= 3
+};
+
+enum scsi_designator_type {
+	PS_DESIGNATOR_T10	= 1,
+	PS_DESIGNATOR_EUI64	= 2,
+	PS_DESIGNATOR_NAA	= 3,
+	PS_DESIGNATOR_NAME	= 8
+};
 
 #define NFL4_UFLG_MASK			0x0000003F
 #define NFL4_UFLG_DENSE			0x00000001
@@ -590,6 +643,33 @@ struct nfs4_deviceid {
 enum data_content4 {
 	NFS4_CONTENT_DATA		= 0,
 	NFS4_CONTENT_HOLE		= 1,
+};
+
+enum pnfs_update_layout_reason {
+	PNFS_UPDATE_LAYOUT_UNKNOWN = 0,
+	PNFS_UPDATE_LAYOUT_NO_PNFS,
+	PNFS_UPDATE_LAYOUT_RD_ZEROLEN,
+	PNFS_UPDATE_LAYOUT_MDSTHRESH,
+	PNFS_UPDATE_LAYOUT_NOMEM,
+	PNFS_UPDATE_LAYOUT_BULK_RECALL,
+	PNFS_UPDATE_LAYOUT_IO_TEST_FAIL,
+	PNFS_UPDATE_LAYOUT_FOUND_CACHED,
+	PNFS_UPDATE_LAYOUT_RETURN,
+	PNFS_UPDATE_LAYOUT_RETRY,
+	PNFS_UPDATE_LAYOUT_BLOCKED,
+	PNFS_UPDATE_LAYOUT_INVALID_OPEN,
+	PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET,
+};
+
+#define NFS4_OP_MAP_NUM_LONGS					\
+	DIV_ROUND_UP(LAST_NFS4_OP, 8 * sizeof(unsigned long))
+#define NFS4_OP_MAP_NUM_WORDS \
+	(NFS4_OP_MAP_NUM_LONGS * sizeof(unsigned long) / sizeof(u32))
+struct nfs4_op_map {
+	union {
+		unsigned long longs[NFS4_OP_MAP_NUM_LONGS];
+		u32 words[NFS4_OP_MAP_NUM_WORDS];
+	} u;
 };
 
 #endif

@@ -76,85 +76,99 @@ static char *le_type(struct reiserfs_key *key)
 }
 
 /* %k */
-static void sprintf_le_key(char *buf, struct reiserfs_key *key)
+static int scnprintf_le_key(char *buf, size_t size, struct reiserfs_key *key)
 {
 	if (key)
-		sprintf(buf, "[%d %d %s %s]", le32_to_cpu(key->k_dir_id),
-			le32_to_cpu(key->k_objectid), le_offset(key),
-			le_type(key));
+		return scnprintf(buf, size, "[%d %d %s %s]",
+				 le32_to_cpu(key->k_dir_id),
+				 le32_to_cpu(key->k_objectid), le_offset(key),
+				 le_type(key));
 	else
-		sprintf(buf, "[NULL]");
+		return scnprintf(buf, size, "[NULL]");
 }
 
 /* %K */
-static void sprintf_cpu_key(char *buf, struct cpu_key *key)
+static int scnprintf_cpu_key(char *buf, size_t size, struct cpu_key *key)
 {
 	if (key)
-		sprintf(buf, "[%d %d %s %s]", key->on_disk_key.k_dir_id,
-			key->on_disk_key.k_objectid, reiserfs_cpu_offset(key),
-			cpu_type(key));
+		return scnprintf(buf, size, "[%d %d %s %s]",
+				 key->on_disk_key.k_dir_id,
+				 key->on_disk_key.k_objectid,
+				 reiserfs_cpu_offset(key), cpu_type(key));
 	else
-		sprintf(buf, "[NULL]");
+		return scnprintf(buf, size, "[NULL]");
 }
 
-static void sprintf_de_head(char *buf, struct reiserfs_de_head *deh)
+static int scnprintf_de_head(char *buf, size_t size,
+			     struct reiserfs_de_head *deh)
 {
 	if (deh)
-		sprintf(buf,
-			"[offset=%d dir_id=%d objectid=%d location=%d state=%04x]",
-			deh_offset(deh), deh_dir_id(deh), deh_objectid(deh),
-			deh_location(deh), deh_state(deh));
+		return scnprintf(buf, size,
+				 "[offset=%d dir_id=%d objectid=%d location=%d state=%04x]",
+				 deh_offset(deh), deh_dir_id(deh),
+				 deh_objectid(deh), deh_location(deh),
+				 deh_state(deh));
 	else
-		sprintf(buf, "[NULL]");
+		return scnprintf(buf, size, "[NULL]");
 
 }
 
-static void sprintf_item_head(char *buf, struct item_head *ih)
+static int scnprintf_item_head(char *buf, size_t size, struct item_head *ih)
 {
 	if (ih) {
-		strcpy(buf,
-		       (ih_version(ih) == KEY_FORMAT_3_6) ? "*3.6* " : "*3.5*");
-		sprintf_le_key(buf + strlen(buf), &(ih->ih_key));
-		sprintf(buf + strlen(buf), ", item_len %d, item_location %d, "
-			"free_space(entry_count) %d",
-			ih_item_len(ih), ih_location(ih), ih_free_space(ih));
+		char *p = buf;
+		char * const end = buf + size;
+
+		p += scnprintf(p, end - p, "%s",
+			       (ih_version(ih) == KEY_FORMAT_3_6) ?
+			       "*3.6* " : "*3.5*");
+
+		p += scnprintf_le_key(p, end - p, &ih->ih_key);
+
+		p += scnprintf(p, end - p,
+			       ", item_len %d, item_location %d, free_space(entry_count) %d",
+			       ih_item_len(ih), ih_location(ih),
+			       ih_free_space(ih));
+		return p - buf;
 	} else
-		sprintf(buf, "[NULL]");
+		return scnprintf(buf, size, "[NULL]");
 }
 
-static void sprintf_direntry(char *buf, struct reiserfs_dir_entry *de)
+static int scnprintf_direntry(char *buf, size_t size,
+			      struct reiserfs_dir_entry *de)
 {
 	char name[20];
 
 	memcpy(name, de->de_name, de->de_namelen > 19 ? 19 : de->de_namelen);
 	name[de->de_namelen > 19 ? 19 : de->de_namelen] = 0;
-	sprintf(buf, "\"%s\"==>[%d %d]", name, de->de_dir_id, de->de_objectid);
+	return scnprintf(buf, size, "\"%s\"==>[%d %d]",
+			 name, de->de_dir_id, de->de_objectid);
 }
 
-static void sprintf_block_head(char *buf, struct buffer_head *bh)
+static int scnprintf_block_head(char *buf, size_t size, struct buffer_head *bh)
 {
-	sprintf(buf, "level=%d, nr_items=%d, free_space=%d rdkey ",
-		B_LEVEL(bh), B_NR_ITEMS(bh), B_FREE_SPACE(bh));
+	return scnprintf(buf, size,
+			 "level=%d, nr_items=%d, free_space=%d rdkey ",
+			 B_LEVEL(bh), B_NR_ITEMS(bh), B_FREE_SPACE(bh));
 }
 
-static void sprintf_buffer_head(char *buf, struct buffer_head *bh)
+static int scnprintf_buffer_head(char *buf, size_t size, struct buffer_head *bh)
 {
-	char b[BDEVNAME_SIZE];
-
-	sprintf(buf,
-		"dev %s, size %zd, blocknr %llu, count %d, state 0x%lx, page %p, (%s, %s, %s)",
-		bdevname(bh->b_bdev, b), bh->b_size,
-		(unsigned long long)bh->b_blocknr, atomic_read(&(bh->b_count)),
-		bh->b_state, bh->b_page,
-		buffer_uptodate(bh) ? "UPTODATE" : "!UPTODATE",
-		buffer_dirty(bh) ? "DIRTY" : "CLEAN",
-		buffer_locked(bh) ? "LOCKED" : "UNLOCKED");
+	return scnprintf(buf, size,
+			 "dev %pg, size %zd, blocknr %llu, count %d, state 0x%lx, page %p, (%s, %s, %s)",
+			 bh->b_bdev, bh->b_size,
+			 (unsigned long long)bh->b_blocknr,
+			 atomic_read(&(bh->b_count)),
+			 bh->b_state, bh->b_page,
+			 buffer_uptodate(bh) ? "UPTODATE" : "!UPTODATE",
+			 buffer_dirty(bh) ? "DIRTY" : "CLEAN",
+			 buffer_locked(bh) ? "LOCKED" : "UNLOCKED");
 }
 
-static void sprintf_disk_child(char *buf, struct disk_child *dc)
+static int scnprintf_disk_child(char *buf, size_t size, struct disk_child *dc)
 {
-	sprintf(buf, "[dc_number=%d, dc_size=%u]", dc_block_number(dc),
-		dc_size(dc));
+	return scnprintf(buf, size, "[dc_number=%d, dc_size=%u]",
+			 dc_block_number(dc), dc_size(dc));
 }
 
 static char *is_there_reiserfs_struct(char *fmt, int *what)
@@ -191,55 +205,60 @@ static void prepare_error_buf(const char *fmt, va_list args)
 	char *fmt1 = fmt_buf;
 	char *k;
 	char *p = error_buf;
+	char * const end = &error_buf[sizeof(error_buf)];
 	int what;
 
 	spin_lock(&error_lock);
 
-	strcpy(fmt1, fmt);
+	if (WARN_ON(strscpy(fmt_buf, fmt, sizeof(fmt_buf)) < 0)) {
+		strscpy(error_buf, "format string too long", end - error_buf);
+		goto out_unlock;
+	}
 
 	while ((k = is_there_reiserfs_struct(fmt1, &what)) != NULL) {
 		*k = 0;
 
-		p += vsprintf(p, fmt1, args);
+		p += vscnprintf(p, end - p, fmt1, args);
 
 		switch (what) {
 		case 'k':
-			sprintf_le_key(p, va_arg(args, struct reiserfs_key *));
+			p += scnprintf_le_key(p, end - p,
+					      va_arg(args, struct reiserfs_key *));
 			break;
 		case 'K':
-			sprintf_cpu_key(p, va_arg(args, struct cpu_key *));
+			p += scnprintf_cpu_key(p, end - p,
+					       va_arg(args, struct cpu_key *));
 			break;
 		case 'h':
-			sprintf_item_head(p, va_arg(args, struct item_head *));
+			p += scnprintf_item_head(p, end - p,
+						 va_arg(args, struct item_head *));
 			break;
 		case 't':
-			sprintf_direntry(p,
-					 va_arg(args,
-						struct reiserfs_dir_entry *));
+			p += scnprintf_direntry(p, end - p,
+						va_arg(args, struct reiserfs_dir_entry *));
 			break;
 		case 'y':
-			sprintf_disk_child(p,
-					   va_arg(args, struct disk_child *));
+			p += scnprintf_disk_child(p, end - p,
+						  va_arg(args, struct disk_child *));
 			break;
 		case 'z':
-			sprintf_block_head(p,
-					   va_arg(args, struct buffer_head *));
+			p += scnprintf_block_head(p, end - p,
+						  va_arg(args, struct buffer_head *));
 			break;
 		case 'b':
-			sprintf_buffer_head(p,
-					    va_arg(args, struct buffer_head *));
+			p += scnprintf_buffer_head(p, end - p,
+						   va_arg(args, struct buffer_head *));
 			break;
 		case 'a':
-			sprintf_de_head(p,
-					va_arg(args,
-					       struct reiserfs_de_head *));
+			p += scnprintf_de_head(p, end - p,
+					       va_arg(args, struct reiserfs_de_head *));
 			break;
 		}
 
-		p += strlen(p);
 		fmt1 = k + 2;
 	}
-	vsprintf(p, fmt1, args);
+	p += vscnprintf(p, end - p, fmt1, args);
+out_unlock:
 	spin_unlock(&error_lock);
 
 }
@@ -388,11 +407,11 @@ void __reiserfs_error(struct super_block *sb, const char *id,
 		printk(KERN_CRIT "REISERFS error (device %s): %s: %s\n",
 		       sb->s_id, function, error_buf);
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return;
 
 	reiserfs_info(sb, "Remounting filesystem read-only\n");
-	sb->s_flags |= MS_RDONLY;
+	sb->s_flags |= SB_RDONLY;
 	reiserfs_abort_journal(sb, -EIO);
 }
 
@@ -411,7 +430,7 @@ void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...)
 	printk(KERN_CRIT "REISERFS abort (device %s): %s\n", sb->s_id,
 	       error_buf);
 
-	sb->s_flags |= MS_RDONLY;
+	sb->s_flags |= SB_RDONLY;
 	reiserfs_abort_journal(sb, errno);
 }
 
@@ -530,7 +549,6 @@ static int print_super_block(struct buffer_head *bh)
 	    (struct reiserfs_super_block *)(bh->b_data);
 	int skipped, data_blocks;
 	char *version;
-	char b[BDEVNAME_SIZE];
 
 	if (is_reiserfs_3_5(rs)) {
 		version = "3.5";
@@ -543,7 +561,7 @@ static int print_super_block(struct buffer_head *bh)
 		return 1;
 	}
 
-	printk("%s\'s super block is in block %llu\n", bdevname(bh->b_bdev, b),
+	printk("%pg\'s super block is in block %llu\n", bh->b_bdev,
 	       (unsigned long long)bh->b_blocknr);
 	printk("Reiserfs version %s\n", version);
 	printk("Block count %u\n", sb_block_count(rs));

@@ -1,19 +1,6 @@
 /*
- * Fushicai USBTV007 Audio-Video Grabber Driver
- *
- * Product web site:
- * http://www.fushicai.com/products_detail/&productId=d05449ee-b690-42f9-a661-aa7353894bed.html
- *
- * Following LWN articles were very useful in construction of this driver:
- * Video4Linux2 API series: http://lwn.net/Articles/203924/
- * videobuf2 API explanation: http://lwn.net/Articles/447435/
- * Thanks go to Jonathan Corbet for providing this quality documentation.
- * He is awesome.
- *
- * Copyright (c) 2013 Lubomir Rintel
+ * Copyright (c) 2013,2016 Lubomir Rintel
  * All rights reserved.
- * No physical hardware was harmed running Windows during the
- * reverse-engineering activity
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +13,33 @@
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+/*
+ * Fushicai USBTV007 Audio-Video Grabber Driver
+ *
+ * Product web site:
+ * http://www.fushicai.com/products_detail/&productId=d05449ee-b690-42f9-a661-aa7353894bed.html
+ *
+ * Following LWN articles were very useful in construction of this driver:
+ * Video4Linux2 API series: http://lwn.net/Articles/203924/
+ * videobuf2 API explanation: http://lwn.net/Articles/447435/
+ * Thanks go to Jonathan Corbet for providing this quality documentation.
+ * He is awesome.
+ *
+ * No physical hardware was harmed running Windows during the
+ * reverse-engineering activity
  */
 
 #include <media/v4l2-ioctl.h>
@@ -40,7 +54,7 @@ static struct usbtv_norm_params norm_params[] = {
 		.cap_height = 480,
 	},
 	{
-		.norm = V4L2_STD_PAL,
+		.norm = V4L2_STD_625_50,
 		.cap_width = 720,
 		.cap_height = 576,
 	}
@@ -63,7 +77,7 @@ static int usbtv_configure_for_norm(struct usbtv *usbtv, v4l2_std_id norm)
 		usbtv->height = params->cap_height;
 		usbtv->n_chunks = usbtv->width * usbtv->height
 						/ 4 / USBTV_CHUNK;
-		usbtv->norm = params->norm;
+		usbtv->norm = norm;
 	} else
 		ret = -EINVAL;
 
@@ -107,52 +121,144 @@ static int usbtv_select_input(struct usbtv *usbtv, int input)
 	return ret;
 }
 
+static uint16_t usbtv_norm_to_16f_reg(v4l2_std_id norm)
+{
+	/* NTSC M/M-JP/M-KR */
+	if (norm & V4L2_STD_NTSC)
+		return 0x00b8;
+	/* PAL BG/DK/H/I */
+	if (norm & V4L2_STD_PAL)
+		return 0x00ee;
+	/* SECAM B/D/G/H/K/K1/L/Lc */
+	if (norm & V4L2_STD_SECAM)
+		return 0x00ff;
+	if (norm & V4L2_STD_NTSC_443)
+		return 0x00a8;
+	if (norm & (V4L2_STD_PAL_M | V4L2_STD_PAL_60))
+		return 0x00bc;
+	/* Fallback to automatic detection for other standards */
+	return 0x0000;
+}
+
 static int usbtv_select_norm(struct usbtv *usbtv, v4l2_std_id norm)
 {
 	int ret;
+	/* These are the series of register values used to configure the
+	 * decoder for a specific standard.
+	 * The first 21 register writes are copied from the
+	 * Settings\DecoderDefaults registry keys present in the Windows driver
+	 * .INF file, and control various image tuning parameters (color
+	 * correction, sharpness, ...).
+	 */
 	static const u16 pal[][2] = {
+		/* "AVPAL" tuning sequence from .INF file */
+		{ USBTV_BASE + 0x0003, 0x0004 },
 		{ USBTV_BASE + 0x001a, 0x0068 },
+		{ USBTV_BASE + 0x0100, 0x00d3 },
 		{ USBTV_BASE + 0x010e, 0x0072 },
 		{ USBTV_BASE + 0x010f, 0x00a2 },
 		{ USBTV_BASE + 0x0112, 0x00b0 },
+		{ USBTV_BASE + 0x0115, 0x0015 },
 		{ USBTV_BASE + 0x0117, 0x0001 },
 		{ USBTV_BASE + 0x0118, 0x002c },
 		{ USBTV_BASE + 0x012d, 0x0010 },
 		{ USBTV_BASE + 0x012f, 0x0020 },
+		{ USBTV_BASE + 0x0220, 0x002e },
+		{ USBTV_BASE + 0x0225, 0x0008 },
+		{ USBTV_BASE + 0x024e, 0x0002 },
 		{ USBTV_BASE + 0x024f, 0x0002 },
 		{ USBTV_BASE + 0x0254, 0x0059 },
 		{ USBTV_BASE + 0x025a, 0x0016 },
 		{ USBTV_BASE + 0x025b, 0x0035 },
 		{ USBTV_BASE + 0x0263, 0x0017 },
 		{ USBTV_BASE + 0x0266, 0x0016 },
-		{ USBTV_BASE + 0x0267, 0x0036 }
+		{ USBTV_BASE + 0x0267, 0x0036 },
+		/* End image tuning */
+		{ USBTV_BASE + 0x024e, 0x0002 },
+		{ USBTV_BASE + 0x024f, 0x0002 },
 	};
 
 	static const u16 ntsc[][2] = {
+		/* "AVNTSC" tuning sequence from .INF file */
+		{ USBTV_BASE + 0x0003, 0x0004 },
 		{ USBTV_BASE + 0x001a, 0x0079 },
+		{ USBTV_BASE + 0x0100, 0x00d3 },
 		{ USBTV_BASE + 0x010e, 0x0068 },
 		{ USBTV_BASE + 0x010f, 0x009c },
 		{ USBTV_BASE + 0x0112, 0x00f0 },
+		{ USBTV_BASE + 0x0115, 0x0015 },
 		{ USBTV_BASE + 0x0117, 0x0000 },
 		{ USBTV_BASE + 0x0118, 0x00fc },
 		{ USBTV_BASE + 0x012d, 0x0004 },
 		{ USBTV_BASE + 0x012f, 0x0008 },
+		{ USBTV_BASE + 0x0220, 0x002e },
+		{ USBTV_BASE + 0x0225, 0x0008 },
+		{ USBTV_BASE + 0x024e, 0x0002 },
 		{ USBTV_BASE + 0x024f, 0x0001 },
 		{ USBTV_BASE + 0x0254, 0x005f },
 		{ USBTV_BASE + 0x025a, 0x0012 },
 		{ USBTV_BASE + 0x025b, 0x0001 },
 		{ USBTV_BASE + 0x0263, 0x001c },
 		{ USBTV_BASE + 0x0266, 0x0011 },
-		{ USBTV_BASE + 0x0267, 0x0005 }
+		{ USBTV_BASE + 0x0267, 0x0005 },
+		/* End image tuning */
+		{ USBTV_BASE + 0x024e, 0x0002 },
+		{ USBTV_BASE + 0x024f, 0x0002 },
+	};
+
+	static const u16 secam[][2] = {
+		/* "AVSECAM" tuning sequence from .INF file */
+		{ USBTV_BASE + 0x0003, 0x0004 },
+		{ USBTV_BASE + 0x001a, 0x0073 },
+		{ USBTV_BASE + 0x0100, 0x00dc },
+		{ USBTV_BASE + 0x010e, 0x0072 },
+		{ USBTV_BASE + 0x010f, 0x00a2 },
+		{ USBTV_BASE + 0x0112, 0x0090 },
+		{ USBTV_BASE + 0x0115, 0x0035 },
+		{ USBTV_BASE + 0x0117, 0x0001 },
+		{ USBTV_BASE + 0x0118, 0x0030 },
+		{ USBTV_BASE + 0x012d, 0x0004 },
+		{ USBTV_BASE + 0x012f, 0x0008 },
+		{ USBTV_BASE + 0x0220, 0x002d },
+		{ USBTV_BASE + 0x0225, 0x0028 },
+		{ USBTV_BASE + 0x024e, 0x0008 },
+		{ USBTV_BASE + 0x024f, 0x0002 },
+		{ USBTV_BASE + 0x0254, 0x0069 },
+		{ USBTV_BASE + 0x025a, 0x0016 },
+		{ USBTV_BASE + 0x025b, 0x0035 },
+		{ USBTV_BASE + 0x0263, 0x0021 },
+		{ USBTV_BASE + 0x0266, 0x0016 },
+		{ USBTV_BASE + 0x0267, 0x0036 },
+		/* End image tuning */
+		{ USBTV_BASE + 0x024e, 0x0002 },
+		{ USBTV_BASE + 0x024f, 0x0002 },
 	};
 
 	ret = usbtv_configure_for_norm(usbtv, norm);
 
 	if (!ret) {
-		if (norm & V4L2_STD_525_60)
+		/* Masks for norms using a NTSC or PAL color encoding. */
+		static const v4l2_std_id ntsc_mask =
+			V4L2_STD_NTSC | V4L2_STD_NTSC_443;
+		static const v4l2_std_id pal_mask =
+			V4L2_STD_PAL | V4L2_STD_PAL_60 | V4L2_STD_PAL_M;
+
+		if (norm & ntsc_mask)
 			ret = usbtv_set_regs(usbtv, ntsc, ARRAY_SIZE(ntsc));
-		else if (norm & V4L2_STD_PAL)
+		else if (norm & pal_mask)
 			ret = usbtv_set_regs(usbtv, pal, ARRAY_SIZE(pal));
+		else if (norm & V4L2_STD_SECAM)
+			ret = usbtv_set_regs(usbtv, secam, ARRAY_SIZE(secam));
+		else
+			ret = -EINVAL;
+	}
+
+	if (!ret) {
+		/* Configure the decoder for the color standard */
+		const u16 cfg[][2] = {
+			{ USBTV_BASE + 0x016f, usbtv_norm_to_16f_reg(norm) }
+		};
+		ret = usbtv_set_regs(usbtv, cfg, ARRAY_SIZE(cfg));
 	}
 
 	return ret;
@@ -222,15 +328,6 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 		{ USBTV_BASE + 0x0158, 0x001f },
 		{ USBTV_BASE + 0x0159, 0x0006 },
 		{ USBTV_BASE + 0x015d, 0x0000 },
-
-		{ USBTV_BASE + 0x0003, 0x0004 },
-		{ USBTV_BASE + 0x0100, 0x00d3 },
-		{ USBTV_BASE + 0x0115, 0x0015 },
-		{ USBTV_BASE + 0x0220, 0x002e },
-		{ USBTV_BASE + 0x0225, 0x0008 },
-		{ USBTV_BASE + 0x024e, 0x0002 },
-		{ USBTV_BASE + 0x024e, 0x0002 },
-		{ USBTV_BASE + 0x024f, 0x0002 },
 	};
 
 	ret = usbtv_set_regs(usbtv, setup, ARRAY_SIZE(setup));
@@ -245,14 +342,33 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 	if (ret)
 		return ret;
 
+	ret = v4l2_ctrl_handler_setup(&usbtv->ctrl);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 /* Copy data from chunk into a frame buffer, deinterlacing the data
  * into every second line. Unfortunately, they don't align nicely into
  * 720 pixel lines, as the chunk is 240 words long, which is 480 pixels.
- * Therefore, we break down the chunk into two halves before copyting,
- * so that we can interleave a line if needed. */
+ * Therefore, we break down the chunk into two halves before copying,
+ * so that we can interleave a line if needed.
+ *
+ * Each "chunk" is 240 words; a word in this context equals 4 bytes.
+ * Image format is YUYV/YUV 4:2:2, consisting of Y Cr Y Cb, defining two
+ * pixels, the Cr and Cb shared between the two pixels, but each having
+ * separate Y values. Thus, the 240 words equal 480 pixels. It therefore,
+ * takes 1.5 chunks to make a 720 pixel-wide line for the frame.
+ * The image is interlaced, so there is a "scan" of odd lines, followed
+ * by "scan" of even numbered lines.
+ *
+ * Following code is writing the chunks in correct sequence, skipping
+ * the rows based on "odd" value.
+ * line 1: chunk[0][  0..479] chunk[0][480..959] chunk[1][  0..479]
+ * line 3: chunk[1][480..959] chunk[2][  0..479] chunk[2][480..959]
+ * ...etc.
+ */
 static void usbtv_chunk_to_vbuf(u32 *frame, __be32 *src, int chunk_no, int odd)
 {
 	int half;
@@ -312,20 +428,24 @@ static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 	usbtv_chunk_to_vbuf(frame, &chunk[1], chunk_no, odd);
 	usbtv->chunks_done++;
 
-	/* Last chunk in a frame, signalling an end */
-	if (odd && chunk_no == usbtv->n_chunks-1) {
-		int size = vb2_plane_size(&buf->vb.vb2_buf, 0);
-		enum vb2_buffer_state state = usbtv->chunks_done ==
-						usbtv->n_chunks ?
-						VB2_BUF_STATE_DONE :
-						VB2_BUF_STATE_ERROR;
+	/* Last chunk in a field */
+	if (chunk_no == usbtv->n_chunks-1) {
+		/* Last chunk in a frame, signalling an end */
+		if (odd && !usbtv->last_odd) {
+			int size = vb2_plane_size(&buf->vb.vb2_buf, 0);
+			enum vb2_buffer_state state = usbtv->chunks_done ==
+				usbtv->n_chunks ?
+				VB2_BUF_STATE_DONE :
+				VB2_BUF_STATE_ERROR;
 
-		buf->vb.field = V4L2_FIELD_INTERLACED;
-		buf->vb.sequence = usbtv->sequence++;
-		v4l2_get_timestamp(&buf->vb.timestamp);
-		vb2_set_plane_payload(&buf->vb.vb2_buf, 0, size);
-		vb2_buffer_done(&buf->vb.vb2_buf, state);
-		list_del(&buf->list);
+			buf->vb.field = V4L2_FIELD_INTERLACED;
+			buf->vb.sequence = usbtv->sequence++;
+			buf->vb.vb2_buf.timestamp = ktime_get_ns();
+			vb2_set_plane_payload(&buf->vb.vb2_buf, 0, size);
+			vb2_buffer_done(&buf->vb.vb2_buf, state);
+			list_del(&buf->list);
+		}
+		usbtv->last_odd = odd;
 	}
 
 	spin_unlock_irqrestore(&usbtv->buflock, flags);
@@ -387,8 +507,12 @@ static struct urb *usbtv_setup_iso_transfer(struct usbtv *usbtv)
 	ip->pipe = usb_rcvisocpipe(usbtv->udev, USBTV_VIDEO_ENDP);
 	ip->interval = 1;
 	ip->transfer_flags = URB_ISO_ASAP;
-	ip->transfer_buffer = kzalloc(size * USBTV_ISOC_PACKETS,
+	ip->transfer_buffer = kcalloc(USBTV_ISOC_PACKETS, size,
 						GFP_KERNEL);
+	if (!ip->transfer_buffer) {
+		usb_free_urb(ip);
+		return NULL;
+	}
 	ip->complete = usbtv_iso_cb;
 	ip->number_of_packets = USBTV_ISOC_PACKETS;
 	ip->transfer_buffer_length = size * USBTV_ISOC_PACKETS;
@@ -546,7 +670,7 @@ static int usbtv_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	int ret = -EINVAL;
 	struct usbtv *usbtv = video_drvdata(file);
 
-	if ((norm & V4L2_STD_525_60) || (norm & V4L2_STD_PAL))
+	if (norm & USBTV_TV_STD)
 		ret = usbtv_select_norm(usbtv, norm);
 
 	return ret;
@@ -588,7 +712,7 @@ static struct v4l2_ioctl_ops usbtv_ioctl_ops = {
 	.vidioc_streamoff = vb2_ioctl_streamoff,
 };
 
-static struct v4l2_file_operations usbtv_fops = {
+static const struct v4l2_file_operations usbtv_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = video_ioctl2,
 	.mmap = vb2_fop_mmap,
@@ -599,19 +723,18 @@ static struct v4l2_file_operations usbtv_fops = {
 };
 
 static int usbtv_queue_setup(struct vb2_queue *vq,
-	const void *parg, unsigned int *nbuffers,
-	unsigned int *nplanes, unsigned int sizes[], void *alloc_ctxs[])
+	unsigned int *nbuffers,
+	unsigned int *nplanes, unsigned int sizes[], struct device *alloc_devs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct usbtv *usbtv = vb2_get_drv_priv(vq);
 	unsigned size = USBTV_CHUNK * usbtv->n_chunks * 2 * sizeof(u32);
 
 	if (vq->num_buffers + *nbuffers < 2)
 		*nbuffers = 2 - vq->num_buffers;
+	if (*nplanes)
+		return sizes[0] < size ? -EINVAL : 0;
 	*nplanes = 1;
-	if (fmt && fmt->fmt.pix.sizeimage < size)
-		return -EINVAL;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : size;
+	sizes[0] = size;
 
 	return 0;
 }
@@ -640,6 +763,7 @@ static int usbtv_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (usbtv->udev == NULL)
 		return -ENODEV;
 
+	usbtv->last_odd = 1;
 	usbtv->sequence = 0;
 	return usbtv_start(usbtv);
 }
@@ -652,11 +776,98 @@ static void usbtv_stop_streaming(struct vb2_queue *vq)
 		usbtv_stop(usbtv);
 }
 
-static struct vb2_ops usbtv_vb2_ops = {
+static const struct vb2_ops usbtv_vb2_ops = {
 	.queue_setup = usbtv_queue_setup,
 	.buf_queue = usbtv_buf_queue,
 	.start_streaming = usbtv_start_streaming,
 	.stop_streaming = usbtv_stop_streaming,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
+};
+
+static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct usbtv *usbtv = container_of(ctrl->handler, struct usbtv,
+								ctrl);
+	u8 *data;
+	u16 index, size;
+	int ret;
+
+	data = kmalloc(3, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	/*
+	 * Read in the current brightness/contrast registers. We need them
+	 * both, because the values are for some reason interleaved.
+	 */
+	if (ctrl->id == V4L2_CID_BRIGHTNESS || ctrl->id == V4L2_CID_CONTRAST) {
+		ret = usb_control_msg(usbtv->udev,
+			usb_rcvctrlpipe(usbtv->udev, 0), USBTV_CONTROL_REG,
+			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0, USBTV_BASE + 0x0244, (void *)data, 3, 0);
+		if (ret < 0)
+			goto error;
+	}
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		index = USBTV_BASE + 0x0244;
+		size = 3;
+		data[0] &= 0xf0;
+		data[0] |= (ctrl->val >> 8) & 0xf;
+		data[2] = ctrl->val & 0xff;
+		break;
+	case V4L2_CID_CONTRAST:
+		index = USBTV_BASE + 0x0244;
+		size = 3;
+		data[0] &= 0x0f;
+		data[0] |= (ctrl->val >> 4) & 0xf0;
+		data[1] = ctrl->val & 0xff;
+		break;
+	case V4L2_CID_SATURATION:
+		index = USBTV_BASE + 0x0242;
+		data[0] = ctrl->val >> 8;
+		data[1] = ctrl->val & 0xff;
+		size = 2;
+		break;
+	case V4L2_CID_HUE:
+		index = USBTV_BASE + 0x0240;
+		size = 2;
+		if (ctrl->val > 0) {
+			data[0] = 0x92 + (ctrl->val >> 8);
+			data[1] = ctrl->val & 0xff;
+		} else {
+			data[0] = 0x82 + (-ctrl->val >> 8);
+			data[1] = -ctrl->val & 0xff;
+		}
+		break;
+	case V4L2_CID_SHARPNESS:
+		index = USBTV_BASE + 0x0239;
+		data[0] = 0;
+		data[1] = ctrl->val;
+		size = 2;
+		break;
+	default:
+		kfree(data);
+		return -EINVAL;
+	}
+
+	ret = usb_control_msg(usbtv->udev, usb_sndctrlpipe(usbtv->udev, 0),
+			USBTV_CONTROL_REG,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0, index, (void *)data, size, 0);
+
+error:
+	if (ret < 0)
+		dev_warn(usbtv->dev, "Failed to submit a control request.\n");
+
+	kfree(data);
+	return ret;
+}
+
+static const struct v4l2_ctrl_ops usbtv_ctrl_ops = {
+	.s_ctrl = usbtv_s_ctrl,
 };
 
 static void usbtv_release(struct v4l2_device *v4l2_dev)
@@ -664,6 +875,7 @@ static void usbtv_release(struct v4l2_device *v4l2_dev)
 	struct usbtv *usbtv = container_of(v4l2_dev, struct usbtv, v4l2_dev);
 
 	v4l2_device_unregister(&usbtv->v4l2_dev);
+	v4l2_ctrl_handler_free(&usbtv->ctrl);
 	vb2_queue_release(&usbtv->vb2q);
 	kfree(usbtv);
 }
@@ -694,7 +906,26 @@ int usbtv_video_init(struct usbtv *usbtv)
 		return ret;
 	}
 
+	/* controls */
+	v4l2_ctrl_handler_init(&usbtv->ctrl, 4);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 0x3ff, 1, 0x1d0);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 0x3ff, 1, 0x1c0);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 0x3ff, 1, 0x200);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_HUE, -0xdff, 0xdff, 1, 0x000);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_SHARPNESS, 0x0, 0xff, 1, 0x60);
+	ret = usbtv->ctrl.error;
+	if (ret < 0) {
+		dev_warn(usbtv->dev, "Could not initialize controls\n");
+		goto ctrl_fail;
+	}
+
 	/* v4l2 structure */
+	usbtv->v4l2_dev.ctrl_handler = &usbtv->ctrl;
 	usbtv->v4l2_dev.release = usbtv_release;
 	ret = v4l2_device_register(usbtv->dev, &usbtv->v4l2_dev);
 	if (ret < 0) {
@@ -723,6 +954,8 @@ int usbtv_video_init(struct usbtv *usbtv)
 vdev_fail:
 	v4l2_device_unregister(&usbtv->v4l2_dev);
 v4l2_fail:
+ctrl_fail:
+	v4l2_ctrl_handler_free(&usbtv->ctrl);
 	vb2_queue_release(&usbtv->vb2q);
 
 	return ret;

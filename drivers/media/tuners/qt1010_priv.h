@@ -13,10 +13,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef QT1010_PRIV_H
@@ -75,12 +71,14 @@ reg def meaning
 2f  00  ? not used?
 */
 
-#define QT1010_STEP         125000 /*  125 kHz used by Windows drivers,
-				      hw could be more precise but we don't
-				      know how to use */
-#define QT1010_MIN_FREQ   48000000 /*   48 MHz */
-#define QT1010_MAX_FREQ  860000000 /*  860 MHz */
-#define QT1010_OFFSET   1246000000 /* 1246 MHz */
+#define QT1010_STEP         (125 * kHz) /*
+					 * used by Windows drivers,
+				         * hw could be more precise but we don't
+				         * know how to use
+					 */
+#define QT1010_MIN_FREQ   (48 * MHz)
+#define QT1010_MAX_FREQ  (860 * MHz)
+#define QT1010_OFFSET   (1246 * MHz)
 
 #define QT1010_WR 0
 #define QT1010_RD 1

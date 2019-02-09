@@ -10,6 +10,9 @@ config DCACHE_WORD_ACCESS
 
 if BLOCK
 
+config FS_IOMAP
+	bool
+
 source "fs/ext2/Kconfig"
 source "fs/ext4/Kconfig"
 source "fs/jbd2/Kconfig"
@@ -35,6 +38,9 @@ config FS_DAX
 	bool "Direct Access (DAX) support"
 	depends on MMU
 	depends on !(ARM || MIPS || SPARC)
+	select DEV_PAGEMAP_OPS if (ZONE_DEVICE && !FS_DAX_LIMITED)
+	select FS_IOMAP
+	select DAX
 	help
 	  Direct Access (DAX) can be used on memory-backed block devices.
 	  If the block device supports DAX and the filesystem supports DAX,
@@ -50,7 +56,15 @@ config FS_DAX_PMD
 	bool
 	default FS_DAX
 	depends on FS_DAX
-	depends on BROKEN
+	depends on ZONE_DEVICE
+	depends on TRANSPARENT_HUGEPAGE
+
+# Selected by DAX drivers that do not expect filesystem DAX to support
+# get_user_pages() of DAX mappings. I.e. "limited" indicates no support
+# for fork() of processes with MAP_SHARED mappings or support for
+# direct-I/O to a DAX mapping.
+config FS_DAX_LIMITED
+	bool
 
 endif # BLOCK
 
@@ -65,6 +79,12 @@ config FS_POSIX_ACL
 config EXPORTFS
 	tristate
 
+config EXPORTFS_BLOCK_OPS
+	bool "Enable filesystem export operations for block IO"
+	help
+	  This option enables the export operations for a filesystem to support
+	  external block IO.
+
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EXPERT
 	default y
@@ -73,11 +93,23 @@ config FILE_LOCKING
           for filesystems like NFS and for the flock() system
           call. Disabling this option saves about 11k.
 
+config MANDATORY_FILE_LOCKING
+	bool "Enable Mandatory file locking"
+	depends on FILE_LOCKING
+	default y
+	help
+	  This option enables files appropriately marked files on appropriely
+	  mounted filesystems to support mandatory locking.
+
+	  To the best of my knowledge this is dead code that no one cares about.
+
+source "fs/crypto/Kconfig"
+
 source "fs/notify/Kconfig"
 
 source "fs/quota/Kconfig"
 
-source "fs/autofs4/Kconfig"
+source "fs/autofs/Kconfig"
 source "fs/fuse/Kconfig"
 source "fs/overlayfs/Kconfig"
 
@@ -143,17 +175,13 @@ config TMPFS_POSIX_ACL
 	  files for sound to work properly.  In short, if you're not sure,
 	  say Y.
 
-	  To learn more about Access Control Lists, visit the POSIX ACLs for
-	  Linux website <http://acl.bestbits.at/>.
-
 config TMPFS_XATTR
 	bool "Tmpfs extended attributes"
 	depends on TMPFS
 	default n
 	help
 	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
+	  the kernel or by users (see the attr(5) manual page for details).
 
 	  Currently this enables support for the trusted.* and
 	  security.* namespaces.
@@ -169,12 +197,18 @@ config HUGETLBFS
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read
-	  <file:Documentation/vm/hugetlbpage.txt> for details.
+	  <file:Documentation/admin-guide/mm/hugetlbpage.rst> for details.
 
 	  If unsure, say N.
 
 config HUGETLB_PAGE
 	def_bool HUGETLBFS
+
+config MEMFD_CREATE
+	def_bool TMPFS || HUGETLBFS
+
+config ARCH_HAS_GIGANTIC_PAGE
+	bool
 
 source "fs/configfs/Kconfig"
 source "fs/efivarfs/Kconfig"
@@ -196,9 +230,11 @@ menuconfig MISC_FILESYSTEMS
 
 if MISC_FILESYSTEMS
 
+source "fs/orangefs/Kconfig"
 source "fs/adfs/Kconfig"
 source "fs/affs/Kconfig"
 source "fs/ecryptfs/Kconfig"
+source "fs/sdcardfs/Kconfig"
 source "fs/hfs/Kconfig"
 source "fs/hfsplus/Kconfig"
 source "fs/befs/Kconfig"
@@ -207,7 +243,6 @@ source "fs/efs/Kconfig"
 source "fs/jffs2/Kconfig"
 # UBIFS File system configuration
 source "fs/ubifs/Kconfig"
-source "fs/logfs/Kconfig"
 source "fs/cramfs/Kconfig"
 source "fs/squashfs/Kconfig"
 source "fs/freevxfs/Kconfig"
@@ -271,7 +306,6 @@ config NFS_COMMON
 source "net/sunrpc/Kconfig"
 source "fs/ceph/Kconfig"
 source "fs/cifs/Kconfig"
-source "fs/ncpfs/Kconfig"
 source "fs/coda/Kconfig"
 source "fs/afs/Kconfig"
 source "fs/9p/Kconfig"

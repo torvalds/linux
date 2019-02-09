@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree for the ST-Ericsson Nomadik S8815 board
  * Produced by Calao Systems
@@ -163,7 +164,7 @@
 			label = "user_button";
 			gpios = <&gpio0 3 0x1>;
 			linux,code = <1>; /* KEY_ESC */
-			gpio-key,wakeup;
+			wakeup-source;
 			pinctrl-names = "default";
 			pinctrl-0 = <&user_button_default_mode>;
 		};

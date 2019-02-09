@@ -61,7 +61,7 @@ static int rc5t583_regulator_enable_time(struct regulator_dev *rdev)
 	return DIV_ROUND_UP(curr_uV, reg->reg_info->enable_uv_per_us);
 }
 
-static struct regulator_ops rc5t583_ops = {
+static const struct regulator_ops rc5t583_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -132,8 +132,10 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	regs = devm_kzalloc(&pdev->dev, RC5T583_REGULATOR_MAX *
-			sizeof(struct rc5t583_regulator), GFP_KERNEL);
+	regs = devm_kcalloc(&pdev->dev,
+			    RC5T583_REGULATOR_MAX,
+			    sizeof(struct rc5t583_regulator),
+			    GFP_KERNEL);
 	if (!regs)
 		return -ENOMEM;
 

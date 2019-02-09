@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+#include "exynos4412-galaxy-s3.dtsi"
+
+/ {
+	model = "Samsung Galaxy S3 (GT-I9305) based on Exynos4412";
+	compatible = "samsung,i9305", "samsung,midas", "samsung,exynos4412", "samsung,exynos4";
+
+	/* bootargs are passed in by bootloader */
+
+	memory@40000000 {
+		device_type = "memory";
+		reg =  <0x40000000 0x80000000>;
+	};
+};
+
+&i2c0_bus {
+	/* SCL and SDA pins are swapped */
+	samsung,pins = "gpd1-1", "gpd1-0";
+};

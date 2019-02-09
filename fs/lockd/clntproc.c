@@ -48,13 +48,13 @@ void nlmclnt_next_cookie(struct nlm_cookie *c)
 
 static struct nlm_lockowner *nlm_get_lockowner(struct nlm_lockowner *lockowner)
 {
-	atomic_inc(&lockowner->count);
+	refcount_inc(&lockowner->count);
 	return lockowner;
 }
 
 static void nlm_put_lockowner(struct nlm_lockowner *lockowner)
 {
-	if (!atomic_dec_and_lock(&lockowner->count, &lockowner->host->h_lock))
+	if (!refcount_dec_and_lock(&lockowner->count, &lockowner->host->h_lock))
 		return;
 	list_del(&lockowner->list);
 	spin_unlock(&lockowner->host->h_lock);
@@ -105,7 +105,7 @@ static struct nlm_lockowner *nlm_find_lockowner(struct nlm_host *host, fl_owner_
 		res = __nlm_find_lockowner(host, owner);
 		if (res == NULL && new != NULL) {
 			res = new;
-			atomic_set(&new->count, 1);
+			refcount_set(&new->count, 1);
 			new->owner = owner;
 			new->pid = __nlm_alloc_pid(host);
 			new->host = nlm_get_host(host);
@@ -128,7 +128,7 @@ static void nlmclnt_setlockargs(struct nlm_rqst *req, struct file_lock *fl)
 	char *nodename = req->a_host->h_rpcclnt->cl_nodename;
 
 	nlmclnt_next_cookie(&argp->cookie);
-	memcpy(&lock->fh, NFS_FH(file_inode(fl->fl_file)), sizeof(struct nfs_fh));
+	memcpy(&lock->fh, NFS_FH(locks_inode(fl->fl_file)), sizeof(struct nfs_fh));
 	lock->caller  = nodename;
 	lock->oh.data = req->a_owner;
 	lock->oh.len  = snprintf(req->a_owner, sizeof(req->a_owner), "%u@%s",
@@ -150,16 +150,21 @@ static void nlmclnt_release_lockargs(struct nlm_rqst *req)
  * @host: address of a valid nlm_host context representing the NLM server
  * @cmd: fcntl-style file lock operation to perform
  * @fl: address of arguments for the lock operation
+ * @data: address of data to be sent to callback operations
  *
  */
-int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
+int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl, void *data)
 {
 	struct nlm_rqst		*call;
 	int			status;
+	const struct nlmclnt_operations *nlmclnt_ops = host->h_nlmclnt_ops;
 
 	call = nlm_alloc_call(host);
 	if (call == NULL)
 		return -ENOMEM;
+
+	if (nlmclnt_ops && nlmclnt_ops->nlmclnt_alloc_call)
+		nlmclnt_ops->nlmclnt_alloc_call(data);
 
 	nlmclnt_locks_init_private(fl, host);
 	if (!fl->fl_u.nfs_fl.owner) {
@@ -169,6 +174,7 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 	}
 	/* Set up the argument struct */
 	nlmclnt_setlockargs(call, fl);
+	call->a_callback_data = data;
 
 	if (IS_SETLK(cmd) || IS_SETLKW(cmd)) {
 		if (fl->fl_type != F_UNLCK) {
@@ -198,7 +204,7 @@ struct nlm_rqst *nlm_alloc_call(struct nlm_host *host)
 	for(;;) {
 		call = kzalloc(sizeof(*call), GFP_KERNEL);
 		if (call != NULL) {
-			atomic_set(&call->a_count, 1);
+			refcount_set(&call->a_count, 1);
 			locks_init_lock(&call->a_args.lock.fl);
 			locks_init_lock(&call->a_res.lock.fl);
 			call->a_host = nlm_get_host(host);
@@ -214,8 +220,12 @@ struct nlm_rqst *nlm_alloc_call(struct nlm_host *host)
 
 void nlmclnt_release_call(struct nlm_rqst *call)
 {
-	if (!atomic_dec_and_test(&call->a_count))
+	const struct nlmclnt_operations *nlmclnt_ops = call->a_host->h_nlmclnt_ops;
+
+	if (!refcount_dec_and_test(&call->a_count))
 		return;
+	if (nlmclnt_ops && nlmclnt_ops->nlmclnt_release_call)
+		nlmclnt_ops->nlmclnt_release_call(call->a_callback_data);
 	nlmclnt_release_host(call->a_host);
 	nlmclnt_release_lockargs(call);
 	kfree(call);
@@ -432,7 +442,7 @@ nlmclnt_test(struct nlm_rqst *req, struct file_lock *fl)
 			fl->fl_start = req->a_res.lock.fl.fl_start;
 			fl->fl_end = req->a_res.lock.fl.fl_end;
 			fl->fl_type = req->a_res.lock.fl.fl_type;
-			fl->fl_pid = 0;
+			fl->fl_pid = -req->a_res.lock.fl.fl_pid;
 			break;
 		default:
 			status = nlm_stat_to_errno(req->a_res.status);
@@ -668,7 +678,7 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 		goto out;
 	}
 
-	atomic_inc(&req->a_count);
+	refcount_inc(&req->a_count);
 	status = nlmclnt_async_call(nfs_file_cred(fl->fl_file), req,
 			NLMPROC_UNLOCK, &nlmclnt_unlock_ops);
 	if (status < 0)
@@ -685,6 +695,19 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 out:
 	nlmclnt_release_call(req);
 	return status;
+}
+
+static void nlmclnt_unlock_prepare(struct rpc_task *task, void *data)
+{
+	struct nlm_rqst	*req = data;
+	const struct nlmclnt_operations *nlmclnt_ops = req->a_host->h_nlmclnt_ops;
+	bool defer_call = false;
+
+	if (nlmclnt_ops && nlmclnt_ops->nlmclnt_unlock_prepare)
+		defer_call = nlmclnt_ops->nlmclnt_unlock_prepare(task, req->a_callback_data);
+
+	if (!defer_call)
+		rpc_call_start(task);
 }
 
 static void nlmclnt_unlock_callback(struct rpc_task *task, void *data)
@@ -720,6 +743,7 @@ die:
 }
 
 static const struct rpc_call_ops nlmclnt_unlock_ops = {
+	.rpc_call_prepare = nlmclnt_unlock_prepare,
 	.rpc_call_done = nlmclnt_unlock_callback,
 	.rpc_release = nlmclnt_rpc_release,
 };
@@ -745,7 +769,7 @@ static int nlmclnt_cancel(struct nlm_host *host, int block, struct file_lock *fl
 	nlmclnt_setlockargs(req, fl);
 	req->a_args.block = block;
 
-	atomic_inc(&req->a_count);
+	refcount_inc(&req->a_count);
 	status = nlmclnt_async_call(nfs_file_cred(fl->fl_file), req,
 			NLMPROC_CANCEL, &nlmclnt_cancel_ops);
 	if (status == 0 && req->a_res.status == nlm_lck_denied)

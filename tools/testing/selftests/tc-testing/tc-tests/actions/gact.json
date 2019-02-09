@@ -1,0 +1,540 @@
+[
+    {
+        "id": "e89a",
+        "name": "Add valid pass action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pass index 8",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action pass.*index 8 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "a02c",
+        "name": "Add valid pipe action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pipe index 6",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action pipe.*index 6 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "feef",
+        "name": "Add valid reclassify action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action reclassify index 5",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action reclassify.*index 5 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "8a7a",
+        "name": "Add valid drop action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action drop index 30",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action drop.*index 30 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "9a52",
+        "name": "Add valid continue action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action continue index 432",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action continue.*index 432 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "d700",
+        "name": "Add invalid action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pump index 386",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action.*index 386 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "9215",
+        "name": "Add action with duplicate index",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action pipe index 15"
+        ],
+        "cmdUnderTest": "$TC actions add action drop index 15",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action drop.*index 15 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "798e",
+        "name": "Add action with index exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action drop index 4294967296",
+        "expExitCode": "255",
+        "verifyCmd": "actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action drop.*index 4294967296 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "22be",
+        "name": "Add action with index at 32-bit maximum",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action drop index 4294967295",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action drop.*index 4294967295 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "ac2a",
+        "name": "List actions",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action reclassify index 101",
+            "$TC actions add action reclassify index 102",
+            "$TC actions add action reclassify index 103",
+            "$TC actions add action reclassify index 104",
+            "$TC actions add action reclassify index 105"
+        ],
+        "cmdUnderTest": "$TC actions list action gact",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action reclassify",
+        "matchCount": "5",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "3edf",
+        "name": "Flush gact actions",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            "$TC actions add action reclassify index 101",
+            "$TC actions add action reclassify index 102",
+            "$TC actions add action reclassify index 103",
+            "$TC actions add action reclassify index 104",
+            "$TC actions add action reclassify index 105"
+        ],
+        "cmdUnderTest": "$TC actions flush action gact",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action reclassify",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "63ec",
+        "name": "Delete pass action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action pass index 1"
+        ],
+        "cmdUnderTest": "$TC actions del action gact index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action pass.*index 1 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "46be",
+        "name": "Delete pipe action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action pipe index 9"
+        ],
+        "cmdUnderTest": "$TC actions del action gact index 9",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action pipe.*index 9 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "2e08",
+        "name": "Delete reclassify action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action reclassify index 65536"
+        ],
+        "cmdUnderTest": "$TC actions del action gact index 65536",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action reclassify.*index 65536 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "99c4",
+        "name": "Delete drop action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action drop index 16"
+        ],
+        "cmdUnderTest": "$TC actions del action gact index 16",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action drop.*index 16 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "fb6b",
+        "name": "Delete continue action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action continue index 32"
+        ],
+        "cmdUnderTest": "$TC actions del action gact index 32",
+        "expExitCode": "0",
+        "verifyCmd": "actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action continue.*index 32 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "0eb3",
+        "name": "Delete non-existent action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions del action gact index 2",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "f02c",
+        "name": "Replace gact action",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action drop index 10",
+            "$TC actions add action drop index 12"
+        ],
+        "cmdUnderTest": "$TC actions replace action ok index 12",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action gact",
+        "matchPattern": "action order [0-9]*: gact action pass",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "525f",
+        "name": "Get gact action by index",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action drop index 3900800700"
+        ],
+        "cmdUnderTest": "$TC actions get action gact index 3900800700",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action gact index 3900800700",
+        "matchPattern": "index 3900800700",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "1021",
+        "name": "Add batch of 32 gact pass actions",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action pass index \\$i \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\"",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "^[ \t]+index [0-9]+ ref",
+        "matchCount": "32",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "da7a",
+        "name": "Add batch of 32 gact continue actions with cookie",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action continue index \\$i cookie aabbccddeeff112233445566778800a1 \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\"",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "^[ \t]+index [0-9]+ ref",
+        "matchCount": "32",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "8aa3",
+        "name": "Delete batch of 32 gact continue actions",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action continue index \\$i \\\"; args=\\\"\\$args\\$cmd\\\"; done && $TC actions add \\$args\""
+        ],
+        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action gact index \\$i \\\"; args=\"\\$args\\$cmd\"; done && $TC actions del \\$args\"",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "^[ \t]+index [0-9]+ ref",
+        "matchCount": "0",
+        "teardown": []
+    }
+]

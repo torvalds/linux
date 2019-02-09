@@ -1,9 +1,20 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * <linux/gpio.h>
+ *
+ * This is the LEGACY GPIO bulk include file, including legacy APIs. It is
+ * used for GPIO drivers still referencing the global GPIO numberspace,
+ * and should not be included in new code.
+ *
+ * If you're implementing a GPIO driver, only include <linux/gpio/driver.h>
+ * If you're implementing a GPIO consumer, only include <linux/gpio/consumer.h>
+ */
 #ifndef __LINUX_GPIO_H
 #define __LINUX_GPIO_H
 
 #include <linux/errno.h>
 
-/* see Documentation/gpio/gpio-legacy.txt */
+/* see Documentation/driver-api/gpio/legacy.rst */
 
 /* make these flag values available regardless of GPIO kconfig options */
 #define GPIOF_DIR_OUT	(0 << 0)

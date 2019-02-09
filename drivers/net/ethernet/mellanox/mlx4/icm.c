@@ -44,11 +44,12 @@
 
 /*
  * We allocate in as big chunks as we can, up to a maximum of 256 KB
- * per chunk.
+ * per chunk. Note that the chunks are not necessarily in contiguous
+ * physical memory.
  */
 enum {
 	MLX4_ICM_ALLOC_SIZE	= 1 << 18,
-	MLX4_TABLE_CHUNK_SIZE	= 1 << 18
+	MLX4_TABLE_CHUNK_SIZE	= 1 << 18,
 };
 
 static void mlx4_free_icm_pages(struct mlx4_dev *dev, struct mlx4_icm_chunk *chunk)
@@ -118,8 +119,13 @@ static int mlx4_alloc_icm_coherent(struct device *dev, struct scatterlist *mem,
 	if (!buf)
 		return -ENOMEM;
 
+	if (offset_in_page(buf)) {
+		dma_free_coherent(dev, PAGE_SIZE << order,
+				  buf, sg_dma_address(mem));
+		return -ENOMEM;
+	}
+
 	sg_set_buf(mem, buf, PAGE_SIZE << order);
-	BUG_ON(mem->offset);
 	sg_dma_len(mem) = PAGE_SIZE << order;
 	return 0;
 }
@@ -130,6 +136,7 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 	struct mlx4_icm *icm;
 	struct mlx4_icm_chunk *chunk = NULL;
 	int cur_order;
+	gfp_t mask;
 	int ret;
 
 	/* We use sg_set_buf for coherent allocs, which assumes low memory */
@@ -173,13 +180,17 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 		while (1 << cur_order > npages)
 			--cur_order;
 
+		mask = gfp_mask;
+		if (cur_order)
+			mask &= ~__GFP_DIRECT_RECLAIM;
+
 		if (coherent)
 			ret = mlx4_alloc_icm_coherent(&dev->persist->pdev->dev,
 						      &chunk->mem[chunk->npages],
-						      cur_order, gfp_mask);
+						      cur_order, mask);
 		else
 			ret = mlx4_alloc_icm_pages(&chunk->mem[chunk->npages],
-						   cur_order, gfp_mask,
+						   cur_order, mask,
 						   dev->numa_node);
 
 		if (ret) {
@@ -246,8 +257,7 @@ int mlx4_UNMAP_ICM_AUX(struct mlx4_dev *dev)
 			MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 }
 
-int mlx4_table_get(struct mlx4_dev *dev, struct mlx4_icm_table *table, u32 obj,
-		   gfp_t gfp)
+int mlx4_table_get(struct mlx4_dev *dev, struct mlx4_icm_table *table, u32 obj)
 {
 	u32 i = (obj & (table->num_obj - 1)) /
 			(MLX4_TABLE_CHUNK_SIZE / table->obj_size);
@@ -261,7 +271,7 @@ int mlx4_table_get(struct mlx4_dev *dev, struct mlx4_icm_table *table, u32 obj,
 	}
 
 	table->icm[i] = mlx4_alloc_icm(dev, MLX4_TABLE_CHUNK_SIZE >> PAGE_SHIFT,
-				       (table->lowmem ? gfp : GFP_HIGHUSER) |
+				       (table->lowmem ? GFP_KERNEL : GFP_HIGHUSER) |
 				       __GFP_NOWARN, table->coherent);
 	if (!table->icm[i]) {
 		ret = -ENOMEM;
@@ -358,7 +368,7 @@ int mlx4_table_get_range(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 	u32 i;
 
 	for (i = start; i <= end; i += inc) {
-		err = mlx4_table_get(dev, table, i, GFP_KERNEL);
+		err = mlx4_table_get(dev, table, i);
 		if (err)
 			goto fail;
 	}
@@ -394,9 +404,11 @@ int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 	u64 size;
 
 	obj_per_chunk = MLX4_TABLE_CHUNK_SIZE / obj_size;
+	if (WARN_ON(!obj_per_chunk))
+		return -EINVAL;
 	num_icm = (nobj + obj_per_chunk - 1) / obj_per_chunk;
 
-	table->icm      = kcalloc(num_icm, sizeof *table->icm, GFP_KERNEL);
+	table->icm      = kvcalloc(num_icm, sizeof(*table->icm), GFP_KERNEL);
 	if (!table->icm)
 		return -ENOMEM;
 	table->virt     = virt;
@@ -442,7 +454,7 @@ err:
 			mlx4_free_icm(dev, table->icm[i], use_coherent);
 		}
 
-	kfree(table->icm);
+	kvfree(table->icm);
 
 	return -ENOMEM;
 }
@@ -458,5 +470,5 @@ void mlx4_cleanup_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table)
 			mlx4_free_icm(dev, table->icm[i], table->coherent);
 		}
 
-	kfree(table->icm);
+	kvfree(table->icm);
 }

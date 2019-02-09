@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 
@@ -42,7 +38,7 @@
 
 
 /* USB Device ID List */
-static struct usb_device_id si470x_usb_driver_id_table[] = {
+static const struct usb_device_id si470x_usb_driver_id_table[] = {
 	/* Silicon Labs USB FM Radio Reference Design */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c4, 0x818a, USB_CLASS_HID, 0, 0) },
 	/* ADS/Tech FM Radio Receiver (formerly Instant FM Music) */
@@ -254,7 +250,7 @@ static int si470x_set_report(struct si470x_device *radio, void *buf, int size)
 /*
  * si470x_get_register - read register
  */
-int si470x_get_register(struct si470x_device *radio, int regnr)
+static int si470x_get_register(struct si470x_device *radio, int regnr)
 {
 	int retval;
 
@@ -272,7 +268,7 @@ int si470x_get_register(struct si470x_device *radio, int regnr)
 /*
  * si470x_set_register - write register
  */
-int si470x_set_register(struct si470x_device *radio, int regnr)
+static int si470x_set_register(struct si470x_device *radio, int regnr)
 {
 	int retval;
 
@@ -351,8 +347,8 @@ static int si470x_get_scratch_page_versions(struct si470x_device *radio)
 	retval = si470x_get_report(radio, radio->usb_buf, SCRATCH_REPORT_SIZE);
 
 	if (retval < 0)
-		dev_warn(&radio->intf->dev, "si470x_get_scratch: "
-			"si470x_get_report returned %d\n", retval);
+		dev_warn(&radio->intf->dev, "si470x_get_scratch: si470x_get_report returned %d\n",
+			 retval);
 	else {
 		radio->software_version = radio->usb_buf[1];
 		radio->hardware_version = radio->usb_buf[2];
@@ -486,12 +482,12 @@ resubmit:
 }
 
 
-int si470x_fops_open(struct file *file)
+static int si470x_fops_open(struct file *file)
 {
 	return v4l2_fh_open(file);
 }
 
-int si470x_fops_release(struct file *file)
+static int si470x_fops_release(struct file *file)
 {
 	return v4l2_fh_release(file);
 }
@@ -518,8 +514,8 @@ static void si470x_usb_release(struct v4l2_device *v4l2_dev)
 /*
  * si470x_vidioc_querycap - query device capabilities
  */
-int si470x_vidioc_querycap(struct file *file, void *priv,
-		struct v4l2_capability *capability)
+static int si470x_vidioc_querycap(struct file *file, void *priv,
+				  struct v4l2_capability *capability)
 {
 	struct si470x_device *radio = video_drvdata(file);
 
@@ -582,7 +578,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	struct si470x_device *radio;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	int i, int_end_size, retval = 0;
+	int i, int_end_size, retval;
 	unsigned char version_warning = 0;
 
 	/* private data allocation and initialization */
@@ -601,6 +597,12 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	radio->band = 1; /* Default to 76 - 108 MHz */
 	mutex_init(&radio->lock);
 	init_completion(&radio->completion);
+
+	radio->get_register = si470x_get_register;
+	radio->set_register = si470x_set_register;
+	radio->fops_open = si470x_fops_open;
+	radio->fops_release = si470x_fops_release;
+	radio->vidioc_querycap = si470x_vidioc_querycap;
 
 	iface_desc = intf->cur_altsetting;
 
@@ -627,7 +629,6 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 
 	radio->int_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!radio->int_in_urb) {
-		dev_info(&intf->dev, "could not allocate int_in_urb");
 		retval = -ENOMEM;
 		goto err_intbuffer;
 	}
@@ -689,8 +690,8 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			radio->registers[DEVICEID], radio->registers[SI_CHIPID]);
 	if ((radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE) < RADIO_FW_VERSION) {
 		dev_warn(&intf->dev,
-			"This driver is known to work with "
-			"firmware version %hu,\n", RADIO_FW_VERSION);
+			"This driver is known to work with firmware version %hu,\n",
+			RADIO_FW_VERSION);
 		dev_warn(&intf->dev,
 			"but the device has firmware version %hu.\n",
 			radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE);
@@ -706,8 +707,8 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			radio->software_version, radio->hardware_version);
 	if (radio->hardware_version < RADIO_HW_VERSION) {
 		dev_warn(&intf->dev,
-			"This driver is known to work with "
-			"hardware version %hu,\n", RADIO_HW_VERSION);
+			"This driver is known to work with hardware version %hu,\n",
+			RADIO_HW_VERSION);
 		dev_warn(&intf->dev,
 			"but the device has hardware version %hu.\n",
 			radio->hardware_version);
@@ -719,8 +720,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 		dev_warn(&intf->dev,
 			"If you have some trouble using this driver,\n");
 		dev_warn(&intf->dev,
-			"please report to V4L ML at "
-			"linux-media@vger.kernel.org\n");
+			"please report to V4L ML at linux-media@vger.kernel.org\n");
 	}
 
 	/* set led to connect state */

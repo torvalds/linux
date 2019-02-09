@@ -45,7 +45,7 @@ static void set_omap_uart_info(unsigned char port)
 	*uart_info = port;
 }
 
-static void putc(int c)
+static inline void putc(int c)
 {
 	if (!uart_base)
 		return;

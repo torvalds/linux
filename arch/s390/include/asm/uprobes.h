@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    User-space Probes (UProbes) for s390
  *
@@ -29,14 +30,4 @@ struct arch_uprobe {
 struct arch_uprobe_task {
 };
 
-int arch_uprobe_analyze_insn(struct arch_uprobe *aup, struct mm_struct *mm,
-			     unsigned long addr);
-int arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs);
-int arch_uprobe_post_xol(struct arch_uprobe *aup, struct pt_regs *regs);
-bool arch_uprobe_xol_was_trapped(struct task_struct *tsk);
-int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val,
-				 void *data);
-void arch_uprobe_abort_xol(struct arch_uprobe *ap, struct pt_regs *regs);
-unsigned long arch_uretprobe_hijack_return_addr(unsigned long trampoline,
-						struct pt_regs *regs);
 #endif	/* _ASM_UPROBES_H */

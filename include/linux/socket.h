@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SOCKET_H
 #define _LINUX_SOCKET_H
 
@@ -92,9 +93,9 @@ struct cmsghdr {
 
 #define CMSG_ALIGN(len) ( ((len)+sizeof(long)-1) & ~(sizeof(long)-1) )
 
-#define CMSG_DATA(cmsg)	((void *)((char *)(cmsg) + CMSG_ALIGN(sizeof(struct cmsghdr))))
-#define CMSG_SPACE(len) (CMSG_ALIGN(sizeof(struct cmsghdr)) + CMSG_ALIGN(len))
-#define CMSG_LEN(len) (CMSG_ALIGN(sizeof(struct cmsghdr)) + (len))
+#define CMSG_DATA(cmsg)	((void *)((char *)(cmsg) + sizeof(struct cmsghdr)))
+#define CMSG_SPACE(len) (sizeof(struct cmsghdr) + CMSG_ALIGN(len))
+#define CMSG_LEN(len) (sizeof(struct cmsghdr) + (len))
 
 #define __CMSG_FIRSTHDR(ctl,len) ((len) >= sizeof(struct cmsghdr) ? \
 				  (struct cmsghdr *)(ctl) : \
@@ -200,7 +201,15 @@ struct ucred {
 #define AF_ALG		38	/* Algorithm sockets		*/
 #define AF_NFC		39	/* NFC sockets			*/
 #define AF_VSOCK	40	/* vSockets			*/
-#define AF_MAX		41	/* For now.. */
+#define AF_KCM		41	/* Kernel Connection Multiplexor*/
+#define AF_QIPCRTR	42	/* Qualcomm IPC Router          */
+#define AF_SMC		43	/* smc sockets: reserve number for
+				 * PF_SMC protocol family that
+				 * reuses AF_INET address family
+				 */
+#define AF_XDP		44	/* XDP sockets			*/
+
+#define AF_MAX		45	/* For now.. */
 
 /* Protocol families, same as address families. */
 #define PF_UNSPEC	AF_UNSPEC
@@ -246,6 +255,10 @@ struct ucred {
 #define PF_ALG		AF_ALG
 #define PF_NFC		AF_NFC
 #define PF_VSOCK	AF_VSOCK
+#define PF_KCM		AF_KCM
+#define PF_QIPCRTR	AF_QIPCRTR
+#define PF_SMC		AF_SMC
+#define PF_XDP		AF_XDP
 #define PF_MAX		AF_MAX
 
 /* Maximum queue length specifiable by listen.  */
@@ -274,8 +287,11 @@ struct ucred {
 #define MSG_MORE	0x8000	/* Sender will send more */
 #define MSG_WAITFORONE	0x10000	/* recvmmsg(): block until 1+ packets avail */
 #define MSG_SENDPAGE_NOTLAST 0x20000 /* sendpage() internal : not the last page */
+#define MSG_BATCH	0x40000 /* sendmmsg(): more messages coming */
 #define MSG_EOF         MSG_FIN
+#define MSG_NO_SHARED_FRAGS 0x80000 /* sendpage() internal : page frags are not shared */
 
+#define MSG_ZEROCOPY	0x4000000	/* Use user data in kernel path */
 #define MSG_FASTOPEN	0x20000000	/* Send data in TCP SYN */
 #define MSG_CMSG_CLOEXEC 0x40000000	/* Set close_on_exec for file
 					   descriptor received through
@@ -322,6 +338,9 @@ struct ucred {
 #define SOL_CAIF	278
 #define SOL_ALG		279
 #define SOL_NFC		280
+#define SOL_KCM		281
+#define SOL_TLS		282
+#define SOL_XDP		283
 
 /* IPX options */
 #define IPX_TYPE	1
@@ -331,11 +350,40 @@ extern int put_cmsg(struct msghdr*, int level, int type, int len, void *data);
 
 struct timespec;
 
-/* The __sys_...msg variants allow MSG_CMSG_COMPAT */
-extern long __sys_recvmsg(int fd, struct user_msghdr __user *msg, unsigned flags);
-extern long __sys_sendmsg(int fd, struct user_msghdr __user *msg, unsigned flags);
+/* The __sys_...msg variants allow MSG_CMSG_COMPAT iff
+ * forbid_cmsg_compat==false
+ */
+extern long __sys_recvmsg(int fd, struct user_msghdr __user *msg,
+			  unsigned int flags, bool forbid_cmsg_compat);
+extern long __sys_sendmsg(int fd, struct user_msghdr __user *msg,
+			  unsigned int flags, bool forbid_cmsg_compat);
 extern int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 			  unsigned int flags, struct timespec *timeout);
 extern int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg,
-			  unsigned int vlen, unsigned int flags);
+			  unsigned int vlen, unsigned int flags,
+			  bool forbid_cmsg_compat);
+
+/* helpers which do the actual work for syscalls */
+extern int __sys_recvfrom(int fd, void __user *ubuf, size_t size,
+			  unsigned int flags, struct sockaddr __user *addr,
+			  int __user *addr_len);
+extern int __sys_sendto(int fd, void __user *buff, size_t len,
+			unsigned int flags, struct sockaddr __user *addr,
+			int addr_len);
+extern int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
+			 int __user *upeer_addrlen, int flags);
+extern int __sys_socket(int family, int type, int protocol);
+extern int __sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen);
+extern int __sys_connect(int fd, struct sockaddr __user *uservaddr,
+			 int addrlen);
+extern int __sys_listen(int fd, int backlog);
+extern int __sys_getsockname(int fd, struct sockaddr __user *usockaddr,
+			     int __user *usockaddr_len);
+extern int __sys_getpeername(int fd, struct sockaddr __user *usockaddr,
+			     int __user *usockaddr_len);
+extern int __sys_socketpair(int family, int type, int protocol,
+			    int __user *usockvec);
+extern int __sys_shutdown(int fd, int how);
+
+extern struct ns_common *get_net_ns(struct ns_common *ns);
 #endif /* _LINUX_SOCKET_H */

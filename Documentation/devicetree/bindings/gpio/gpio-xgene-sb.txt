@@ -1,10 +1,20 @@
 APM X-Gene Standby GPIO controller bindings
 
-This is a gpio controller in the standby domain.
-
-There are 20 GPIO pins from 0..21. There is no GPIO_DS14 or GPIO_DS15,
-only GPIO_DS8..GPIO_DS13 support interrupts. The IRQ mapping
-is currently 1-to-1 on interrupts 0x28 thru 0x2d.
+This is a gpio controller in the standby domain. It also supports interrupt in
+some particular pins which are sourced to its parent interrupt controller
+as diagram below:
+                            +-----------------+
+                            | X-Gene standby  |
+                            | GPIO controller +------ GPIO_0
++------------+              |                 | ...
+| Parent IRQ | EXT_INT_0    |                 +------ GPIO_8/EXT_INT_0
+| controller | (SPI40)      |                 | ...
+| (GICv2)    +--------------+                 +------ GPIO_[N+8]/EXT_INT_N
+|            |   ...        |                 |
+|            | EXT_INT_N    |                 +------ GPIO_[N+9]
+|            | (SPI[40 + N])|                 | ...
+|            +--------------+                 +------ GPIO_MAX
++------------+              +-----------------+
 
 Required properties:
 - compatible: "apm,xgene-gpio-sb" for the X-Gene Standby GPIO controller
@@ -15,10 +25,17 @@ Required properties:
 		0 = active high
 		1 = active low
 - gpio-controller: Marks the device node as a GPIO controller.
-- interrupts: Shall contain exactly 6 interrupts.
+- interrupts: The EXT_INT_0 parent interrupt resource must be listed first.
+- interrupt-cells: Should be two.
+       - first cell is 0-N coresponding for EXT_INT_0 to EXT_INT_N.
+       - second cell is used to specify flags.
+- interrupt-controller: Marks the device node as an interrupt controller.
+- apm,nr-gpios: Optional, specify number of gpios pin.
+- apm,nr-irqs: Optional, specify number of interrupt pins.
+- apm,irq-start: Optional, specify lowest gpio pin support interrupt.
 
 Example:
-	sbgpio: sbgpio@17001000 {
+	sbgpio: gpio@17001000{
 		compatible = "apm,xgene-gpio-sb";
 		reg = <0x0 0x17001000 0x0 0x400>;
 		#gpio-cells = <2>;
@@ -29,4 +46,19 @@ Example:
 				<0x0 0x2b 0x1>,
 				<0x0 0x2c 0x1>,
 				<0x0 0x2d 0x1>;
+		interrupt-parent = <&gic>;
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		apm,nr-gpios = <22>;
+		apm,nr-irqs = <6>;
+		apm,irq-start = <8>;
+	};
+
+	testuser {
+		compatible = "example,testuser";
+		/* Use the GPIO_13/EXT_INT_5 line as an active high triggered
+		 * level interrupt
+		 */
+		interrupts = <5 4>;
+		interrupt-parent = <&sbgpio>;
 	};

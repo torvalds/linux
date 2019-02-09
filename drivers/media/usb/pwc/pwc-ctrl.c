@@ -39,7 +39,7 @@
 /* Control functions for the cam; brightness, contrast, video mode, etc. */
 
 #ifdef __KERNEL__
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #endif
 #include <asm/errno.h>
 

@@ -21,14 +21,30 @@
 
 #include "irq-gic-common.h"
 
+static DEFINE_RAW_SPINLOCK(irq_controller_lock);
+
+static const struct gic_kvm_info *gic_kvm_info;
+
+const struct gic_kvm_info *gic_get_kvm_info(void)
+{
+	return gic_kvm_info;
+}
+
+void gic_set_kvm_info(const struct gic_kvm_info *info)
+{
+	BUG_ON(gic_kvm_info != NULL);
+	gic_kvm_info = info;
+}
+
 void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 		void *data)
 {
 	for (; quirks->desc; quirks++) {
 		if (quirks->iidr != (quirks->mask & iidr))
 			continue;
-		quirks->init(data);
-		pr_info("GIC: enabling workaround for %s\n", quirks->desc);
+		if (quirks->init(data))
+			pr_info("GIC: enabling workaround for %s\n",
+				quirks->desc);
 	}
 }
 
@@ -39,25 +55,42 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 	u32 confoff = (irq / 16) * 4;
 	u32 val, oldval;
 	int ret = 0;
+	unsigned long flags;
 
 	/*
 	 * Read current configuration register, and insert the config
 	 * for "irq", depending on "type".
 	 */
+	raw_spin_lock_irqsave(&irq_controller_lock, flags);
 	val = oldval = readl_relaxed(base + GIC_DIST_CONFIG + confoff);
 	if (type & IRQ_TYPE_LEVEL_MASK)
 		val &= ~confmask;
 	else if (type & IRQ_TYPE_EDGE_BOTH)
 		val |= confmask;
 
+	/* If the current configuration is the same, then we are done */
+	if (val == oldval) {
+		raw_spin_unlock_irqrestore(&irq_controller_lock, flags);
+		return 0;
+	}
+
 	/*
 	 * Write back the new configuration, and possibly re-enable
-	 * the interrupt. If we tried to write a new configuration and failed,
-	 * return an error.
+	 * the interrupt. If we fail to write a new configuration for
+	 * an SPI then WARN and return an error. If we fail to write the
+	 * configuration for a PPI this is most likely because the GIC
+	 * does not allow us to set the configuration or we are in a
+	 * non-secure mode, and hence it may not be catastrophic.
 	 */
 	writel_relaxed(val, base + GIC_DIST_CONFIG + confoff);
-	if (readl_relaxed(base + GIC_DIST_CONFIG + confoff) != val && val != oldval)
-		ret = -EINVAL;
+	if (readl_relaxed(base + GIC_DIST_CONFIG + confoff) != val) {
+		if (WARN_ON(irq >= 32))
+			ret = -EINVAL;
+		else
+			pr_warn("GIC: PPI%d is secure or misconfigured\n",
+				irq - 16);
+	}
+	raw_spin_unlock_irqrestore(&irq_controller_lock, flags);
 
 	if (sync_access)
 		sync_access();
@@ -65,8 +98,8 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 	return ret;
 }
 
-void __init gic_dist_config(void __iomem *base, int gic_irqs,
-			    void (*sync_access)(void))
+void gic_dist_config(void __iomem *base, int gic_irqs,
+		     void (*sync_access)(void))
 {
 	unsigned int i;
 

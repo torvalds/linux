@@ -62,6 +62,5 @@ extern int gfs2_ea_dealloc(struct gfs2_inode *ip);
 /* Exported to acl.c */
 
 extern int gfs2_xattr_acl_get(struct gfs2_inode *ip, const char *name, char **data);
-extern int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data);
 
 #endif /* __EATTR_DOT_H__ */

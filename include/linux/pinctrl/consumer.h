@@ -25,10 +25,11 @@ struct device;
 #ifdef CONFIG_PINCTRL
 
 /* External interface to pin control */
-extern int pinctrl_request_gpio(unsigned gpio);
-extern void pinctrl_free_gpio(unsigned gpio);
+extern int pinctrl_gpio_request(unsigned gpio);
+extern void pinctrl_gpio_free(unsigned gpio);
 extern int pinctrl_gpio_direction_input(unsigned gpio);
 extern int pinctrl_gpio_direction_output(unsigned gpio);
+extern int pinctrl_gpio_set_config(unsigned gpio, unsigned long config);
 
 extern struct pinctrl * __must_check pinctrl_get(struct device *dev);
 extern void pinctrl_put(struct pinctrl *p);
@@ -61,12 +62,12 @@ static inline int pinctrl_pm_select_idle_state(struct device *dev)
 
 #else /* !CONFIG_PINCTRL */
 
-static inline int pinctrl_request_gpio(unsigned gpio)
+static inline int pinctrl_gpio_request(unsigned gpio)
 {
 	return 0;
 }
 
-static inline void pinctrl_free_gpio(unsigned gpio)
+static inline void pinctrl_gpio_free(unsigned gpio)
 {
 }
 
@@ -76,6 +77,11 @@ static inline int pinctrl_gpio_direction_input(unsigned gpio)
 }
 
 static inline int pinctrl_gpio_direction_output(unsigned gpio)
+{
+	return 0;
+}
+
+static inline int pinctrl_gpio_set_config(unsigned gpio, unsigned long config)
 {
 	return 0;
 }

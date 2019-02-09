@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef KERNEL_H
 #define KERNEL_H
 #include <stdbool.h>
@@ -8,6 +9,7 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/printk.h>
 #include <linux/bug.h>
@@ -19,7 +21,13 @@
 
 #define PAGE_SIZE getpagesize()
 #define PAGE_MASK (~(PAGE_SIZE-1))
+#define PAGE_ALIGN(x) ((x + PAGE_SIZE - 1) & PAGE_MASK)
 
+/* generic data direction definitions */
+#define READ                    0
+#define WRITE                   1
+
+typedef unsigned long long phys_addr_t;
 typedef unsigned long long dma_addr_t;
 typedef size_t __kernel_size_t;
 typedef unsigned int __wsum;
@@ -48,6 +56,11 @@ static inline void *kmalloc(size_t s, gfp_t gfp)
 		return __kmalloc_fake;
 	return malloc(s);
 }
+static inline void *kmalloc_array(unsigned n, size_t s, gfp_t gfp)
+{
+	return kmalloc(n * s, gfp);
+}
+
 static inline void *kzalloc(size_t s, gfp_t gfp)
 {
 	void *p = kmalloc(s, gfp);
@@ -56,11 +69,21 @@ static inline void *kzalloc(size_t s, gfp_t gfp)
 	return p;
 }
 
+static inline void *alloc_pages_exact(size_t s, gfp_t gfp)
+{
+	return kmalloc(s, gfp);
+}
+
 static inline void kfree(void *p)
 {
 	if (p >= __kfree_ignore_start && p < __kfree_ignore_end)
 		return;
 	free(p);
+}
+
+static inline void free_pages_exact(void *p, size_t s)
+{
+	kfree(p);
 }
 
 static inline void *krealloc(void *p, size_t s, gfp_t gfp)
@@ -103,6 +126,8 @@ static inline void free_page(unsigned long addr)
 #endif
 #define dev_err(dev, format, ...) fprintf (stderr, format, ## __VA_ARGS__)
 #define dev_warn(dev, format, ...) fprintf (stderr, format, ## __VA_ARGS__)
+
+#define WARN_ON_ONCE(cond) ((cond) ? fprintf (stderr, "WARNING\n") : 0)
 
 #define min(x, y) ({				\
 	typeof(x) _min1 = (x);			\

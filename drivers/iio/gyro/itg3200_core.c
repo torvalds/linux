@@ -278,7 +278,6 @@ static const struct iio_chan_spec itg3200_channels[] = {
 static const struct iio_info itg3200_info = {
 	.read_raw = &itg3200_read_raw,
 	.write_raw = &itg3200_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const unsigned long itg3200_available_scan_masks[] = { 0xffffffff, 0x0 };
@@ -377,9 +376,16 @@ static const struct i2c_device_id itg3200_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, itg3200_id);
 
+static const struct of_device_id itg3200_of_match[] = {
+	{ .compatible = "invensense,itg3200" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, itg3200_of_match);
+
 static struct i2c_driver itg3200_driver = {
 	.driver = {
 		.name	= "itg3200",
+		.of_match_table = itg3200_of_match,
 		.pm	= &itg3200_pm_ops,
 	},
 	.id_table	= itg3200_id,

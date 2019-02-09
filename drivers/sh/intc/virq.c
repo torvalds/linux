@@ -94,10 +94,8 @@ static int add_virq_to_pirq(unsigned int irq, unsigned int virq)
 	}
 
 	entry = kzalloc(sizeof(struct intc_virq_list), GFP_ATOMIC);
-	if (!entry) {
-		pr_err("can't allocate VIRQ mapping for %d\n", virq);
+	if (!entry)
 		return -ENOMEM;
-	}
 
 	entry->irq = virq;
 
@@ -254,7 +252,7 @@ restart:
 
 		radix_tree_tag_clear(&d->tree, entry->enum_id,
 				     INTC_TAG_VIRQ_NEEDS_ALLOC);
-		radix_tree_replace_slot((void **)entries[i],
+		radix_tree_replace_slot(&d->tree, (void **)entries[i],
 					&intc_irq_xlate[irq]);
 	}
 

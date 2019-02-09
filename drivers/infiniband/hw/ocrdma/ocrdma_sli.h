@@ -140,7 +140,11 @@ enum {
 	OCRDMA_DB_RQ_SHIFT		= 24
 };
 
-#define OCRDMA_ROUDP_FLAGS_SHIFT	0x03
+enum {
+	OCRDMA_L3_TYPE_IB_GRH   = 0x00,
+	OCRDMA_L3_TYPE_IPV4     = 0x01,
+	OCRDMA_L3_TYPE_IPV6     = 0x02
+};
 
 #define OCRDMA_DB_CQ_RING_ID_MASK       0x3FF	/* bits 0 - 9 */
 #define OCRDMA_DB_CQ_RING_ID_EXT_MASK  0x0C00	/* bits 10-11 of qid at 12-11 */
@@ -546,12 +550,13 @@ enum {
 	OCRDMA_MBX_QUERY_CFG_CA_ACK_DELAY_SHIFT		= 8,
 	OCRDMA_MBX_QUERY_CFG_CA_ACK_DELAY_MASK		= 0xFF <<
 				OCRDMA_MBX_QUERY_CFG_CA_ACK_DELAY_SHIFT,
-
+	OCRDMA_MBX_QUERY_CFG_L3_TYPE_SHIFT		= 3,
+	OCRDMA_MBX_QUERY_CFG_L3_TYPE_MASK		= 0x18,
 	OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_SHIFT		= 0,
 	OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_MASK		= 0xFFFF,
-	OCRDMA_MBX_QUERY_CFG_MAX_WRITE_SGE_SHIFT	= 16,
-	OCRDMA_MBX_QUERY_CFG_MAX_WRITE_SGE_MASK		= 0xFFFF <<
-				OCRDMA_MBX_QUERY_CFG_MAX_WRITE_SGE_SHIFT,
+	OCRDMA_MBX_QUERY_CFG_MAX_RECV_SGE_SHIFT	= 16,
+	OCRDMA_MBX_QUERY_CFG_MAX_RECV_SGE_MASK		= 0xFFFF <<
+				OCRDMA_MBX_QUERY_CFG_MAX_RECV_SGE_SHIFT,
 
 	OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_SHIFT	= 0,
 	OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_MASK	= 0xFFFF,
@@ -607,6 +612,8 @@ enum {
 	OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_OFFSET		= 0,
 	OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_MASK		= 0xFFFF <<
 				OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_OFFSET,
+	OCRDMA_MBX_QUERY_CFG_MAX_RD_SGE_SHIFT		= 0,
+	OCRDMA_MBX_QUERY_CFG_MAX_RD_SGE_MASK		= 0xFFFF,
 };
 
 struct ocrdma_mbx_query_config {
@@ -614,7 +621,7 @@ struct ocrdma_mbx_query_config {
 	struct ocrdma_mbx_rsp rsp;
 	u32 qp_srq_cq_ird_ord;
 	u32 max_pd_ca_ack_delay;
-	u32 max_write_send_sge;
+	u32 max_recv_send_sge;
 	u32 max_ird_ord_per_qp;
 	u32 max_shared_ird_ord;
 	u32 max_mr;
@@ -634,6 +641,8 @@ struct ocrdma_mbx_query_config {
 	u32 max_wqes_rqes_per_q;
 	u32 max_cq_cqes_per_cq;
 	u32 max_srq_rqe_sge;
+	u32 max_wr_rd_sge;
+	u32 ird_pgsz_num_pages;
 };
 
 struct ocrdma_fw_ver_rsp {
@@ -1107,6 +1116,8 @@ enum {
 	OCRDMA_QP_PARAMS_STATE_MASK		= BIT(5) | BIT(6) | BIT(7),
 	OCRDMA_QP_PARAMS_FLAGS_SQD_ASYNC	= BIT(8),
 	OCRDMA_QP_PARAMS_FLAGS_INB_ATEN		= BIT(9),
+	OCRDMA_QP_PARAMS_FLAGS_L3_TYPE_SHIFT    = 11,
+	OCRDMA_QP_PARAMS_FLAGS_L3_TYPE_MASK     = BIT(11) | BIT(12) | BIT(13),
 	OCRDMA_QP_PARAMS_MAX_SGE_RECV_SHIFT	= 16,
 	OCRDMA_QP_PARAMS_MAX_SGE_RECV_MASK	= 0xFFFF <<
 					OCRDMA_QP_PARAMS_MAX_SGE_RECV_SHIFT,
@@ -1735,8 +1746,11 @@ enum {
 
 	/* w1 */
 	OCRDMA_CQE_UD_XFER_LEN_SHIFT	= 16,
+	OCRDMA_CQE_UD_XFER_LEN_MASK     = 0x1FFF,
 	OCRDMA_CQE_PKEY_SHIFT		= 0,
 	OCRDMA_CQE_PKEY_MASK		= 0xFFFF,
+	OCRDMA_CQE_UD_L3TYPE_SHIFT      = 29,
+	OCRDMA_CQE_UD_L3TYPE_MASK       = 0x07,
 
 	/* w2 */
 	OCRDMA_CQE_QPN_SHIFT		= 0,
@@ -1861,7 +1875,7 @@ struct ocrdma_ewqe_ud_hdr {
 	u32 rsvd_dest_qpn;
 	u32 qkey;
 	u32 rsvd_ahid;
-	u32 rsvd;
+	u32 hdr_type;
 };
 
 /* extended wqe followed by hdr_wqe for Fast Memory register */
@@ -1887,7 +1901,6 @@ struct ocrdma_eth_vlan {
 	u8 smac[6];
 	__be16 eth_type;
 	__be16 vlan_tag;
-#define OCRDMA_ROCE_ETH_TYPE 0x8915
 	__be16 roce_eth_type;
 } __packed;
 
@@ -2163,10 +2176,6 @@ enum OCRDMA_DCBX_PARAM_TYPE {
 	OCRDMA_PARAMETER_TYPE_ADMIN	= 0x00,
 	OCRDMA_PARAMETER_TYPE_OPER	= 0x01,
 	OCRDMA_PARAMETER_TYPE_PEER	= 0x02
-};
-
-enum OCRDMA_DCBX_APP_PROTO {
-	OCRDMA_APP_PROTO_ROCE	= 0x8915
 };
 
 enum OCRDMA_DCBX_PROTO {

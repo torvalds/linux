@@ -1,14 +1,9 @@
-/* asus-ps3-100.h - Keytable for asus_ps3_100 Remote Controller
- *
- * Copyright (c) 2012 by Mauro Carvalho Chehab
- *
- * Based on a previous patch from Remi Schwartz <remi.schwartz@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// asus-ps3-100.h - Keytable for asus_ps3_100 Remote Controller
+//
+// Copyright (c) 2012 by Mauro Carvalho Chehab
+//
+// Based on a previous patch from Remi Schwartz <remi.schwartz@gmail.com>
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -67,10 +62,10 @@ static struct rc_map_table asus_ps3_100[] = {
 
 static struct rc_map_list asus_ps3_100_map = {
 .map = {
-	.scan    = asus_ps3_100,
-	.size    = ARRAY_SIZE(asus_ps3_100),
-	.rc_type = RC_TYPE_RC5,
-	.name    = RC_MAP_ASUS_PS3_100,
+	.scan     = asus_ps3_100,
+	.size     = ARRAY_SIZE(asus_ps3_100),
+	.rc_proto = RC_PROTO_RC5,
+	.name     = RC_MAP_ASUS_PS3_100,
 }
 };
 

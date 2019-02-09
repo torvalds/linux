@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "kirkwood.dtsi"
 #include "kirkwood-6281.dtsi"
 
@@ -57,7 +58,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		button@1 {
+		power {
 			label = "Power push button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
@@ -83,7 +84,7 @@
 &mdio {
 	status = "okay";
 
-	ethphy0: ethernet-phy {
+	ethphy0: ethernet-phy@X {
                 /* overwrite reg property in board file */
 	};
 };

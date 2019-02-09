@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tc358743 - Toshiba HDMI to CSI-2 bridge
  *
  * Copyright 2015 Cisco Systems, Inc. and/or its affiliates. All rights
  * reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
  */
 
 /*
@@ -33,16 +20,19 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
+#include <linux/timer.h>
+#include <linux/of_graph.h>
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
 #include <linux/v4l2-dv-timings.h>
 #include <linux/hdmi.h>
+#include <media/cec.h>
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-of.h>
-#include <media/tc358743.h>
+#include <media/v4l2-fwnode.h>
+#include <media/i2c/tc358743.h>
 
 #include "tc358743_regs.h"
 
@@ -59,8 +49,10 @@ MODULE_LICENSE("GPL");
 #define EDID_NUM_BLOCKS_MAX 8
 #define EDID_BLOCK_SIZE 128
 
-/* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  (EDID_NUM_BLOCKS_MAX * EDID_BLOCK_SIZE + 2)
+#define I2C_MAX_XFER_SIZE  (EDID_BLOCK_SIZE + 2)
+
+#define POLL_INTERVAL_CEC_MS	10
+#define POLL_INTERVAL_MS	1000
 
 static const struct v4l2_dv_timings_cap tc358743_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
@@ -77,7 +69,7 @@ static const struct v4l2_dv_timings_cap tc358743_timings_cap = {
 
 struct tc358743_state {
 	struct tc358743_platform_data pdata;
-	struct v4l2_of_bus_mipi_csi2 bus;
+	struct v4l2_fwnode_bus_mipi_csi2 bus;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
@@ -90,20 +82,21 @@ struct tc358743_state {
 	struct v4l2_ctrl *audio_sampling_rate_ctrl;
 	struct v4l2_ctrl *audio_present_ctrl;
 
-	/* work queues */
-	struct workqueue_struct *work_queues;
 	struct delayed_work delayed_work_enable_hotplug;
+
+	struct timer_list timer;
+	struct work_struct work_i2c_poll;
 
 	/* edid  */
 	u8 edid_blocks_written;
 
-	/* used by i2c_wr() */
-	u8 wr_data[MAX_XFER_SIZE];
-
 	struct v4l2_dv_timings timings;
 	u32 mbus_fmt_code;
+	u8 csi_lanes_in_use;
 
 	struct gpio_desc *reset_gpio;
+
+	struct cec_adapter *cec_adap;
 };
 
 static void tc358743_enable_interrupts(struct v4l2_subdev *sd,
@@ -149,13 +142,15 @@ static void i2c_wr(struct v4l2_subdev *sd, u16 reg, u8 *values, u32 n)
 {
 	struct tc358743_state *state = to_state(sd);
 	struct i2c_client *client = state->i2c_client;
-	u8 *data = state->wr_data;
 	int err, i;
 	struct i2c_msg msg;
+	u8 data[I2C_MAX_XFER_SIZE];
 
-	if ((2 + n) > sizeof(state->wr_data))
+	if ((2 + n) > I2C_MAX_XFER_SIZE) {
+		n = I2C_MAX_XFER_SIZE - 2;
 		v4l2_warn(sd, "i2c wr reg=%04x: len=%d is too big!\n",
 			  reg, 2 + n);
+	}
 
 	msg.addr = client->addr;
 	msg.buf = data;
@@ -197,57 +192,61 @@ static void i2c_wr(struct v4l2_subdev *sd, u16 reg, u8 *values, u32 n)
 	}
 }
 
+static noinline u32 i2c_rdreg(struct v4l2_subdev *sd, u16 reg, u32 n)
+{
+	__le32 val = 0;
+
+	i2c_rd(sd, reg, (u8 __force *)&val, n);
+
+	return le32_to_cpu(val);
+}
+
+static noinline void i2c_wrreg(struct v4l2_subdev *sd, u16 reg, u32 val, u32 n)
+{
+	__le32 raw = cpu_to_le32(val);
+
+	i2c_wr(sd, reg, (u8 __force *)&raw, n);
+}
+
 static u8 i2c_rd8(struct v4l2_subdev *sd, u16 reg)
 {
-	u8 val;
-
-	i2c_rd(sd, reg, &val, 1);
-
-	return val;
+	return i2c_rdreg(sd, reg, 1);
 }
 
 static void i2c_wr8(struct v4l2_subdev *sd, u16 reg, u8 val)
 {
-	i2c_wr(sd, reg, &val, 1);
+	i2c_wrreg(sd, reg, val, 1);
 }
 
 static void i2c_wr8_and_or(struct v4l2_subdev *sd, u16 reg,
 		u8 mask, u8 val)
 {
-	i2c_wr8(sd, reg, (i2c_rd8(sd, reg) & mask) | val);
+	i2c_wrreg(sd, reg, (i2c_rdreg(sd, reg, 1) & mask) | val, 1);
 }
 
 static u16 i2c_rd16(struct v4l2_subdev *sd, u16 reg)
 {
-	u16 val;
-
-	i2c_rd(sd, reg, (u8 *)&val, 2);
-
-	return val;
+	return i2c_rdreg(sd, reg, 2);
 }
 
 static void i2c_wr16(struct v4l2_subdev *sd, u16 reg, u16 val)
 {
-	i2c_wr(sd, reg, (u8 *)&val, 2);
+	i2c_wrreg(sd, reg, val, 2);
 }
 
 static void i2c_wr16_and_or(struct v4l2_subdev *sd, u16 reg, u16 mask, u16 val)
 {
-	i2c_wr16(sd, reg, (i2c_rd16(sd, reg) & mask) | val);
+	i2c_wrreg(sd, reg, (i2c_rdreg(sd, reg, 2) & mask) | val, 2);
 }
 
 static u32 i2c_rd32(struct v4l2_subdev *sd, u16 reg)
 {
-	u32 val;
-
-	i2c_rd(sd, reg, (u8 *)&val, 4);
-
-	return val;
+	return i2c_rdreg(sd, reg, 4);
 }
 
 static void i2c_wr32(struct v4l2_subdev *sd, u16 reg, u32 val)
 {
-	i2c_wr(sd, reg, (u8 *)&val, 4);
+	i2c_wrreg(sd, reg, val, 4);
 }
 
 /* --------------- STATUS --------------- */
@@ -289,11 +288,6 @@ static int get_audio_sampling_rate(struct v4l2_subdev *sd)
 		return 0;
 
 	return code_to_rate[i2c_rd8(sd, FS_SET) & MASK_FS];
-}
-
-static unsigned tc358743_num_csi_lanes_in_use(struct v4l2_subdev *sd)
-{
-	return ((i2c_rd32(sd, CSI_CONTROL) & MASK_NOL) >> 1) + 1;
 }
 
 /* --------------- TIMINGS --------------- */
@@ -376,29 +370,21 @@ static void tc358743_set_hdmi_hdcp(struct v4l2_subdev *sd, bool enable)
 	v4l2_dbg(2, debug, sd, "%s: %s\n", __func__, enable ?
 				"enable" : "disable");
 
-	i2c_wr8_and_or(sd, HDCP_REG1,
-			~(MASK_AUTH_UNAUTH_SEL | MASK_AUTH_UNAUTH),
-			MASK_AUTH_UNAUTH_SEL_16_FRAMES | MASK_AUTH_UNAUTH_AUTO);
+	if (enable) {
+		i2c_wr8_and_or(sd, HDCP_REG3, ~KEY_RD_CMD, KEY_RD_CMD);
 
-	i2c_wr8_and_or(sd, HDCP_REG2, ~MASK_AUTO_P3_RESET,
-			SET_AUTO_P3_RESET_FRAMES(0x0f));
+		i2c_wr8_and_or(sd, HDCP_MODE, ~MASK_MANUAL_AUTHENTICATION, 0);
 
-	/* HDCP is disabled by configuring the receiver as HDCP repeater. The
-	 * repeater mode require software support to work, so HDCP
-	 * authentication will fail.
-	 */
-	i2c_wr8_and_or(sd, HDCP_REG3, ~KEY_RD_CMD, enable ? KEY_RD_CMD : 0);
-	i2c_wr8_and_or(sd, HDCP_MODE, ~(MASK_AUTO_CLR | MASK_MODE_RST_TN),
-			enable ?  (MASK_AUTO_CLR | MASK_MODE_RST_TN) : 0);
+		i2c_wr8_and_or(sd, HDCP_REG1, 0xff,
+				MASK_AUTH_UNAUTH_SEL_16_FRAMES |
+				MASK_AUTH_UNAUTH_AUTO);
 
-	/* Apple MacBook Pro gen.8 has a bug that makes it freeze every fifth
-	 * second when HDCP is disabled, but the MAX_EXCED bit is handled
-	 * correctly and HDCP is disabled on the HDMI output.
-	 */
-	i2c_wr8_and_or(sd, BSTATUS1, ~MASK_MAX_EXCED,
-			enable ? 0 : MASK_MAX_EXCED);
-	i2c_wr8_and_or(sd, BCAPS, ~(MASK_REPEATER | MASK_READY),
-			enable ? 0 : MASK_REPEATER | MASK_READY);
+		i2c_wr8_and_or(sd, HDCP_REG2, ~MASK_AUTO_P3_RESET,
+				SET_AUTO_P3_RESET_FRAMES(0x0f));
+	} else {
+		i2c_wr8_and_or(sd, HDCP_MODE, ~MASK_MANUAL_AUTHENTICATION,
+				MASK_MANUAL_AUTHENTICATION);
+	}
 }
 
 static void tc358743_disable_edid(struct v4l2_subdev *sd)
@@ -420,6 +406,7 @@ static void tc358743_enable_edid(struct v4l2_subdev *sd)
 
 	if (state->edid_blocks_written == 0) {
 		v4l2_dbg(2, debug, sd, "%s: no EDID -> no hotplug\n", __func__);
+		tc358743_s_ctrl_detect_tx_5v(sd);
 		return;
 	}
 
@@ -427,8 +414,7 @@ static void tc358743_enable_edid(struct v4l2_subdev *sd)
 
 	/* Enable hotplug after 100 ms. DDC access to EDID is also enabled when
 	 * hotplug is enabled. See register DDC_CTL */
-	queue_delayed_work(state->work_queues,
-			   &state->delayed_work_enable_hotplug, HZ / 10);
+	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 10);
 
 	tc358743_enable_interrupts(sd, true);
 	tc358743_s_ctrl_detect_tx_5v(sd);
@@ -600,6 +586,7 @@ static void tc358743_set_ref_clk(struct v4l2_subdev *sd)
 	struct tc358743_platform_data *pdata = &state->pdata;
 	u32 sys_freq;
 	u32 lockdet_ref;
+	u32 cec_freq;
 	u16 fh_min;
 	u16 fh_max;
 
@@ -631,6 +618,15 @@ static void tc358743_set_ref_clk(struct v4l2_subdev *sd)
 	i2c_wr8_and_or(sd, NCO_F0_MOD, ~MASK_NCO_F0_MOD,
 			(pdata->refclk_hz == 27000000) ?
 			MASK_NCO_F0_MOD_27MHZ : 0x0);
+
+	/*
+	 * Trial and error suggests that the default register value
+	 * of 656 is for a 42 MHz reference clock. Use that to derive
+	 * a new value based on the actual reference clock.
+	 */
+	cec_freq = (656 * sys_freq) / 4200;
+	i2c_wr16(sd, CECHCLK, cec_freq);
+	i2c_wr16(sd, CECLCLK, cec_freq);
 }
 
 static void tc358743_set_csi_color_space(struct v4l2_subdev *sd)
@@ -687,6 +683,8 @@ static void tc358743_set_csi(struct v4l2_subdev *sd)
 	unsigned lanes = tc358743_num_csi_lanes_needed(sd);
 
 	v4l2_dbg(3, debug, sd, "%s:\n", __func__);
+
+	state->csi_lanes_in_use = lanes;
 
 	tc358743_reset(sd, MASK_CTXRST);
 
@@ -817,11 +815,17 @@ static void tc358743_initial_setup(struct v4l2_subdev *sd)
 	struct tc358743_state *state = to_state(sd);
 	struct tc358743_platform_data *pdata = &state->pdata;
 
-	/* CEC and IR are not supported by this driver */
-	i2c_wr16_and_or(sd, SYSCTL, ~(MASK_CECRST | MASK_IRRST),
-			(MASK_CECRST | MASK_IRRST));
+	/*
+	 * IR is not supported by this driver.
+	 * CEC is only enabled if needed.
+	 */
+	i2c_wr16_and_or(sd, SYSCTL, ~(MASK_IRRST | MASK_CECRST),
+				     (MASK_IRRST | MASK_CECRST));
 
 	tc358743_reset(sd, MASK_CTXRST | MASK_HDMIRST);
+#ifdef CONFIG_VIDEO_TC358743_CEC
+	tc358743_reset(sd, MASK_CECRST);
+#endif
 	tc358743_sleep_mode(sd, false);
 
 	i2c_wr16(sd, FIFOCTL, pdata->fifo_level);
@@ -845,6 +849,133 @@ static void tc358743_initial_setup(struct v4l2_subdev *sd)
 	i2c_wr8(sd, VOUT_SET3, MASK_VOUT_EXTCNT);
 }
 
+/* --------------- CEC --------------- */
+
+#ifdef CONFIG_VIDEO_TC358743_CEC
+static int tc358743_cec_adap_enable(struct cec_adapter *adap, bool enable)
+{
+	struct tc358743_state *state = adap->priv;
+	struct v4l2_subdev *sd = &state->sd;
+
+	i2c_wr32(sd, CECIMSK, enable ? MASK_CECTIM | MASK_CECRIM : 0);
+	i2c_wr32(sd, CECICLR, MASK_CECTICLR | MASK_CECRICLR);
+	i2c_wr32(sd, CECEN, enable);
+	if (enable)
+		i2c_wr32(sd, CECREN, MASK_CECREN);
+	return 0;
+}
+
+static int tc358743_cec_adap_monitor_all_enable(struct cec_adapter *adap,
+						bool enable)
+{
+	struct tc358743_state *state = adap->priv;
+	struct v4l2_subdev *sd = &state->sd;
+	u32 reg;
+
+	reg = i2c_rd32(sd, CECRCTL1);
+	if (enable)
+		reg |= MASK_CECOTH;
+	else
+		reg &= ~MASK_CECOTH;
+	i2c_wr32(sd, CECRCTL1, reg);
+	return 0;
+}
+
+static int tc358743_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
+{
+	struct tc358743_state *state = adap->priv;
+	struct v4l2_subdev *sd = &state->sd;
+	unsigned int la = 0;
+
+	if (log_addr != CEC_LOG_ADDR_INVALID) {
+		la = i2c_rd32(sd, CECADD);
+		la |= 1 << log_addr;
+	}
+	i2c_wr32(sd, CECADD, la);
+	return 0;
+}
+
+static int tc358743_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
+				   u32 signal_free_time, struct cec_msg *msg)
+{
+	struct tc358743_state *state = adap->priv;
+	struct v4l2_subdev *sd = &state->sd;
+	unsigned int i;
+
+	i2c_wr32(sd, CECTCTL,
+		 (cec_msg_is_broadcast(msg) ? MASK_CECBRD : 0) |
+		 (signal_free_time - 1));
+	for (i = 0; i < msg->len; i++)
+		i2c_wr32(sd, CECTBUF1 + i * 4,
+			msg->msg[i] | ((i == msg->len - 1) ? MASK_CECTEOM : 0));
+	i2c_wr32(sd, CECTEN, MASK_CECTEN);
+	return 0;
+}
+
+static const struct cec_adap_ops tc358743_cec_adap_ops = {
+	.adap_enable = tc358743_cec_adap_enable,
+	.adap_log_addr = tc358743_cec_adap_log_addr,
+	.adap_transmit = tc358743_cec_adap_transmit,
+	.adap_monitor_all_enable = tc358743_cec_adap_monitor_all_enable,
+};
+
+static void tc358743_cec_isr(struct v4l2_subdev *sd, u16 intstatus,
+			     bool *handled)
+{
+	struct tc358743_state *state = to_state(sd);
+	unsigned int cec_rxint, cec_txint;
+	unsigned int clr = 0;
+
+	cec_rxint = i2c_rd32(sd, CECRSTAT);
+	cec_txint = i2c_rd32(sd, CECTSTAT);
+
+	if (intstatus & MASK_CEC_RINT)
+		clr |= MASK_CECRICLR;
+	if (intstatus & MASK_CEC_TINT)
+		clr |= MASK_CECTICLR;
+	i2c_wr32(sd, CECICLR, clr);
+
+	if ((intstatus & MASK_CEC_TINT) && cec_txint) {
+		if (cec_txint & MASK_CECTIEND)
+			cec_transmit_attempt_done(state->cec_adap,
+						  CEC_TX_STATUS_OK);
+		else if (cec_txint & MASK_CECTIAL)
+			cec_transmit_attempt_done(state->cec_adap,
+						  CEC_TX_STATUS_ARB_LOST);
+		else if (cec_txint & MASK_CECTIACK)
+			cec_transmit_attempt_done(state->cec_adap,
+						  CEC_TX_STATUS_NACK);
+		else if (cec_txint & MASK_CECTIUR) {
+			/*
+			 * Not sure when this bit is set. Treat
+			 * it as an error for now.
+			 */
+			cec_transmit_attempt_done(state->cec_adap,
+						  CEC_TX_STATUS_ERROR);
+		}
+		*handled = true;
+	}
+	if ((intstatus & MASK_CEC_RINT) &&
+	    (cec_rxint & MASK_CECRIEND)) {
+		struct cec_msg msg = {};
+		unsigned int i;
+		unsigned int v;
+
+		v = i2c_rd32(sd, CECRCTR);
+		msg.len = v & 0x1f;
+		for (i = 0; i < msg.len; i++) {
+			v = i2c_rd32(sd, CECRBUF1 + i * 4);
+			msg.msg[i] = v & 0xff;
+		}
+		cec_received_msg(state->cec_adap, &msg);
+		*handled = true;
+	}
+	i2c_wr16(sd, INTSTATUS,
+		 intstatus & (MASK_CEC_RINT | MASK_CEC_TINT));
+}
+
+#endif
+
 /* --------------- IRQ --------------- */
 
 static void tc358743_format_change(struct v4l2_subdev *sd)
@@ -859,15 +990,16 @@ static void tc358743_format_change(struct v4l2_subdev *sd)
 	if (tc358743_get_detected_timings(sd, &timings)) {
 		enable_stream(sd, false);
 
-		v4l2_dbg(1, debug, sd, "%s: Format changed. No signal\n",
+		v4l2_dbg(1, debug, sd, "%s: No signal\n",
 				__func__);
 	} else {
-		if (!v4l2_match_dv_timings(&state->timings, &timings, 0))
+		if (!v4l2_match_dv_timings(&state->timings, &timings, 0, false))
 			enable_stream(sd, false);
 
-		v4l2_print_dv_timings(sd->name,
-				"tc358743_format_change: Format changed. New format: ",
-				&timings, false);
+		if (debug)
+			v4l2_print_dv_timings(sd->name,
+					"tc358743_format_change: New format: ",
+					&timings, false);
 	}
 
 	if (sd->devnode)
@@ -1111,9 +1243,9 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 	u8 vi_status3 =  i2c_rd8(sd, VI_STATUS3);
 	const int deep_color_mode[4] = { 8, 10, 12, 16 };
 	static const char * const input_color_space[] = {
-		"RGB", "YCbCr 601", "Adobe RGB", "YCbCr 709", "NA (4)",
+		"RGB", "YCbCr 601", "opRGB", "YCbCr 709", "NA (4)",
 		"xvYCC 601", "NA(6)", "xvYCC 709", "NA(8)", "sYCC601",
-		"NA(10)", "NA(11)", "NA(12)", "Adobe YCC 601"};
+		"NA(10)", "NA(11)", "NA(12)", "opYCC 601"};
 
 	v4l2_info(sd, "-----Chip status-----\n");
 	v4l2_info(sd, "Chip ID: 0x%02x\n",
@@ -1159,7 +1291,7 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Lanes needed: %d\n",
 			tc358743_num_csi_lanes_needed(sd));
 	v4l2_info(sd, "Lanes in use: %d\n",
-			tc358743_num_csi_lanes_in_use(sd));
+			state->csi_lanes_in_use);
 	v4l2_info(sd, "Waiting for particular sync signal: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_WSYNC) ?
 			"yes" : "no");
@@ -1199,21 +1331,21 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static void tc358743_print_register_map(struct v4l2_subdev *sd)
 {
-	v4l2_info(sd, "0x0000–0x00FF: Global Control Register\n");
-	v4l2_info(sd, "0x0100–0x01FF: CSI2-TX PHY Register\n");
-	v4l2_info(sd, "0x0200–0x03FF: CSI2-TX PPI Register\n");
-	v4l2_info(sd, "0x0400–0x05FF: Reserved\n");
-	v4l2_info(sd, "0x0600–0x06FF: CEC Register\n");
-	v4l2_info(sd, "0x0700–0x84FF: Reserved\n");
-	v4l2_info(sd, "0x8500–0x85FF: HDMIRX System Control Register\n");
-	v4l2_info(sd, "0x8600–0x86FF: HDMIRX Audio Control Register\n");
-	v4l2_info(sd, "0x8700–0x87FF: HDMIRX InfoFrame packet data Register\n");
-	v4l2_info(sd, "0x8800–0x88FF: HDMIRX HDCP Port Register\n");
-	v4l2_info(sd, "0x8900–0x89FF: HDMIRX Video Output Port & 3D Register\n");
-	v4l2_info(sd, "0x8A00–0x8BFF: Reserved\n");
-	v4l2_info(sd, "0x8C00–0x8FFF: HDMIRX EDID-RAM (1024bytes)\n");
-	v4l2_info(sd, "0x9000–0x90FF: HDMIRX GBD Extraction Control\n");
-	v4l2_info(sd, "0x9100–0x92FF: HDMIRX GBD RAM read\n");
+	v4l2_info(sd, "0x0000-0x00FF: Global Control Register\n");
+	v4l2_info(sd, "0x0100-0x01FF: CSI2-TX PHY Register\n");
+	v4l2_info(sd, "0x0200-0x03FF: CSI2-TX PPI Register\n");
+	v4l2_info(sd, "0x0400-0x05FF: Reserved\n");
+	v4l2_info(sd, "0x0600-0x06FF: CEC Register\n");
+	v4l2_info(sd, "0x0700-0x84FF: Reserved\n");
+	v4l2_info(sd, "0x8500-0x85FF: HDMIRX System Control Register\n");
+	v4l2_info(sd, "0x8600-0x86FF: HDMIRX Audio Control Register\n");
+	v4l2_info(sd, "0x8700-0x87FF: HDMIRX InfoFrame packet data Register\n");
+	v4l2_info(sd, "0x8800-0x88FF: HDMIRX HDCP Port Register\n");
+	v4l2_info(sd, "0x8900-0x89FF: HDMIRX Video Output Port & 3D Register\n");
+	v4l2_info(sd, "0x8A00-0x8BFF: Reserved\n");
+	v4l2_info(sd, "0x8C00-0x8FFF: HDMIRX EDID-RAM (1024bytes)\n");
+	v4l2_info(sd, "0x9000-0x90FF: HDMIRX GBD Extraction Control\n");
+	v4l2_info(sd, "0x9100-0x92FF: HDMIRX GBD RAM read\n");
 	v4l2_info(sd, "0x9300-      : Reserved\n");
 }
 
@@ -1240,7 +1372,7 @@ static int tc358743_g_register(struct v4l2_subdev *sd,
 
 	reg->size = tc358743_get_reg_size(reg->reg);
 
-	i2c_rd(sd, reg->reg, (u8 *)&reg->val, reg->size);
+	reg->val = i2c_rdreg(sd, reg->reg, reg->size);
 
 	return 0;
 }
@@ -1266,7 +1398,7 @@ static int tc358743_s_register(struct v4l2_subdev *sd,
 	    reg->reg == BCAPS)
 		return 0;
 
-	i2c_wr(sd, (u16)reg->reg, (u8 *)&reg->val,
+	i2c_wrreg(sd, (u16)reg->reg, reg->val,
 			tc358743_get_reg_size(reg->reg));
 
 	return 0;
@@ -1298,6 +1430,15 @@ static int tc358743_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 		intstatus &= ~MASK_HDMI_INT;
 	}
 
+#ifdef CONFIG_VIDEO_TC358743_CEC
+	if (intstatus & (MASK_CEC_RINT | MASK_CEC_TINT)) {
+		tc358743_cec_isr(sd, intstatus, handled);
+		i2c_wr16(sd, INTSTATUS,
+			 intstatus & (MASK_CEC_RINT | MASK_CEC_TINT));
+		intstatus &= ~(MASK_CEC_RINT | MASK_CEC_TINT);
+	}
+#endif
+
 	if (intstatus & MASK_CSI_INT) {
 		u32 csi_int = i2c_rd32(sd, CSI_INT);
 
@@ -1305,7 +1446,6 @@ static int tc358743_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			tc358743_csi_err_int_handler(sd, handled);
 
 		i2c_wr16(sd, INTSTATUS, MASK_CSI_INT);
-		intstatus &= ~MASK_CSI_INT;
 	}
 
 	intstatus = i2c_rd16(sd, INTSTATUS);
@@ -1326,6 +1466,29 @@ static irqreturn_t tc358743_irq_handler(int irq, void *dev_id)
 	tc358743_isr(&state->sd, 0, &handled);
 
 	return handled ? IRQ_HANDLED : IRQ_NONE;
+}
+
+static void tc358743_irq_poll_timer(struct timer_list *t)
+{
+	struct tc358743_state *state = from_timer(state, t, timer);
+	unsigned int msecs;
+
+	schedule_work(&state->work_i2c_poll);
+	/*
+	 * If CEC is present, then we need to poll more frequently,
+	 * otherwise we will miss CEC messages.
+	 */
+	msecs = state->cec_adap ? POLL_INTERVAL_CEC_MS : POLL_INTERVAL_MS;
+	mod_timer(&state->timer, jiffies + msecs_to_jiffies(msecs));
+}
+
+static void tc358743_work_i2c_poll(struct work_struct *work)
+{
+	struct tc358743_state *state = container_of(work,
+			struct tc358743_state, work_i2c_poll);
+	bool handled;
+
+	tc358743_isr(&state->sd, 0, &handled);
 }
 
 static int tc358743_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
@@ -1366,7 +1529,7 @@ static int tc358743_s_dv_timings(struct v4l2_subdev *sd,
 		v4l2_print_dv_timings(sd->name, "tc358743_s_dv_timings: ",
 				timings, false);
 
-	if (v4l2_match_dv_timings(&state->timings, timings, 0)) {
+	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
 		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
 		return 0;
 	}
@@ -1442,12 +1605,14 @@ static int tc358743_dv_timings_cap(struct v4l2_subdev *sd,
 static int tc358743_g_mbus_config(struct v4l2_subdev *sd,
 			     struct v4l2_mbus_config *cfg)
 {
+	struct tc358743_state *state = to_state(sd);
+
 	cfg->type = V4L2_MBUS_CSI2;
 
 	/* Support for non-continuous CSI-2 clock is missing in the driver */
 	cfg->flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
-	switch (tc358743_num_csi_lanes_in_use(sd)) {
+	switch (state->csi_lanes_in_use) {
 	case 1:
 		cfg->flags |= V4L2_MBUS_CSI2_1_LANE;
 		break;
@@ -1470,11 +1635,32 @@ static int tc358743_g_mbus_config(struct v4l2_subdev *sd,
 static int tc358743_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	enable_stream(sd, enable);
+	if (!enable) {
+		/* Put all lanes in LP-11 state (STOPSTATE) */
+		tc358743_set_csi(sd);
+	}
 
 	return 0;
 }
 
 /* --------------- PAD OPS --------------- */
+
+static int tc358743_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
+{
+	switch (code->index) {
+	case 0:
+		code->code = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+	case 1:
+		code->code = MEDIA_BUS_FMT_UYVY8_1X16;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
 
 static int tc358743_get_fmt(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
@@ -1552,6 +1738,8 @@ static int tc358743_g_edid(struct v4l2_subdev *sd,
 {
 	struct tc358743_state *state = to_state(sd);
 
+	memset(edid->reserved, 0, sizeof(edid->reserved));
+
 	if (edid->pad != 0)
 		return -EINVAL;
 
@@ -1581,9 +1769,14 @@ static int tc358743_s_edid(struct v4l2_subdev *sd,
 {
 	struct tc358743_state *state = to_state(sd);
 	u16 edid_len = edid->blocks * EDID_BLOCK_SIZE;
+	u16 pa;
+	int err;
+	int i;
 
 	v4l2_dbg(2, debug, sd, "%s, pad %d, start block %d, blocks %d\n",
 		 __func__, edid->pad, edid->start_block, edid->blocks);
+
+	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	if (edid->pad != 0)
 		return -EINVAL;
@@ -1595,6 +1788,12 @@ static int tc358743_s_edid(struct v4l2_subdev *sd,
 		edid->blocks = EDID_NUM_BLOCKS_MAX;
 		return -E2BIG;
 	}
+	pa = cec_get_edid_phys_addr(edid->edid, edid->blocks * 128, NULL);
+	err = cec_phys_addr_validate(pa, &pa, NULL);
+	if (err)
+		return err;
+
+	cec_phys_addr_invalidate(state->cec_adap);
 
 	tc358743_disable_edid(sd);
 
@@ -1606,9 +1805,12 @@ static int tc358743_s_edid(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	i2c_wr(sd, EDID_RAM, edid->edid, edid_len);
+	for (i = 0; i < edid_len; i += EDID_BLOCK_SIZE)
+		i2c_wr(sd, EDID_RAM + i, edid->edid + i, EDID_BLOCK_SIZE);
 
 	state->edid_blocks_written = edid->blocks;
+
+	cec_s_phys_addr(state->cec_adap, pa, false);
 
 	if (tx_5v_power_present(sd))
 		tc358743_enable_edid(sd);
@@ -1639,6 +1841,7 @@ static const struct v4l2_subdev_video_ops tc358743_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops tc358743_pad_ops = {
+	.enum_mbus_code = tc358743_enum_mbus_code,
 	.set_fmt = tc358743_set_fmt,
 	.get_fmt = tc358743_get_fmt,
 	.get_edid = tc358743_g_edid,
@@ -1692,7 +1895,7 @@ static void tc358743_gpio_reset(struct tc358743_state *state)
 static int tc358743_probe_of(struct tc358743_state *state)
 {
 	struct device *dev = &state->i2c_client->dev;
-	struct v4l2_of_endpoint *endpoint;
+	struct v4l2_fwnode_endpoint *endpoint;
 	struct device_node *ep;
 	struct clk *refclk;
 	u32 bps_pr_lane;
@@ -1712,10 +1915,11 @@ static int tc358743_probe_of(struct tc358743_state *state)
 		return -EINVAL;
 	}
 
-	endpoint = v4l2_of_alloc_parse_endpoint(ep);
+	endpoint = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep));
 	if (IS_ERR(endpoint)) {
 		dev_err(dev, "failed to parse endpoint\n");
-		return PTR_ERR(endpoint);
+		ret = PTR_ERR(endpoint);
+		goto put_node;
 	}
 
 	if (endpoint->bus_type != V4L2_MBUS_CSI2 ||
@@ -1725,9 +1929,18 @@ static int tc358743_probe_of(struct tc358743_state *state)
 		goto free_endpoint;
 	}
 
+	if (endpoint->bus.mipi_csi2.num_data_lanes > 4) {
+		dev_err(dev, "invalid number of lanes\n");
+		goto free_endpoint;
+	}
+
 	state->bus = endpoint->bus.mipi_csi2;
 
-	clk_prepare_enable(refclk);
+	ret = clk_prepare_enable(refclk);
+	if (ret) {
+		dev_err(dev, "Failed! to enable clock\n");
+		goto free_endpoint;
+	}
 
 	state->pdata.refclk_hz = clk_get_rate(refclk);
 	state->pdata.ddc5v_delay = DDC5V_DELAY_100_MS;
@@ -1800,7 +2013,9 @@ static int tc358743_probe_of(struct tc358743_state *state)
 disable_clk:
 	clk_disable_unprepare(refclk);
 free_endpoint:
-	v4l2_of_free_endpoint(endpoint);
+	v4l2_fwnode_endpoint_free(endpoint);
+put_node:
+	of_node_put(ep);
 	return ret;
 }
 #else
@@ -1818,6 +2033,7 @@ static int tc358743_probe(struct i2c_client *client,
 	struct tc358743_state *state;
 	struct tc358743_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_subdev *sd;
+	u16 irq_mask = MASK_HDMI_MSK | MASK_CSI_MSK;
 	int err;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -1858,7 +2074,6 @@ static int tc358743_probe(struct i2c_client *client,
 	/* control handlers */
 	v4l2_ctrl_handler_init(&state->hdl, 3);
 
-	/* private controls */
 	state->detect_tx_5v_ctrl = v4l2_ctrl_new_std(&state->hdl, NULL,
 			V4L2_CID_DV_RX_POWER_PRESENT, 0, 1, 0, 0);
 
@@ -1880,18 +2095,13 @@ static int tc358743_probe(struct i2c_client *client,
 		goto err_hdl;
 	}
 
-	/* work queues */
-	state->work_queues = create_singlethread_workqueue(client->name);
-	if (!state->work_queues) {
-		v4l2_err(sd, "Could not create work queue\n");
-		err = -ENOMEM;
-		goto err_hdl;
-	}
-
 	state->pad.flags = MEDIA_PAD_FL_SOURCE;
-	err = media_entity_init(&sd->entity, 1, &state->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	err = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (err < 0)
 		goto err_hdl;
+
+	state->mbus_fmt_code = MEDIA_BUS_FMT_RGB888_1X24;
 
 	sd->dev = &client->dev;
 	err = v4l2_async_register_subdev(sd);
@@ -1903,11 +2113,21 @@ static int tc358743_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&state->delayed_work_enable_hotplug,
 			tc358743_delayed_work_enable_hotplug);
 
+#ifdef CONFIG_VIDEO_TC358743_CEC
+	state->cec_adap = cec_allocate_adapter(&tc358743_cec_adap_ops,
+		state, dev_name(&client->dev),
+		CEC_CAP_DEFAULTS | CEC_CAP_MONITOR_ALL, CEC_MAX_LOG_ADDRS);
+	if (IS_ERR(state->cec_adap)) {
+		err = PTR_ERR(state->cec_adap);
+		goto err_hdl;
+	}
+	irq_mask |= MASK_CEC_RMSK | MASK_CEC_TMSK;
+#endif
+
 	tc358743_initial_setup(sd);
 
 	tc358743_s_dv_timings(sd, &default_timing);
 
-	state->mbus_fmt_code = MEDIA_BUS_FMT_RGB888_1X24;
 	tc358743_set_csi_color_space(sd);
 
 	tc358743_init_interrupts(sd);
@@ -1920,10 +2140,25 @@ static int tc358743_probe(struct i2c_client *client,
 						"tc358743", state);
 		if (err)
 			goto err_work_queues;
+	} else {
+		INIT_WORK(&state->work_i2c_poll,
+			  tc358743_work_i2c_poll);
+		timer_setup(&state->timer, tc358743_irq_poll_timer, 0);
+		state->timer.expires = jiffies +
+				       msecs_to_jiffies(POLL_INTERVAL_MS);
+		add_timer(&state->timer);
+	}
+
+	err = cec_register_adapter(state->cec_adap, &client->dev);
+	if (err < 0) {
+		pr_err("%s: failed to register the cec device\n", __func__);
+		cec_delete_adapter(state->cec_adap);
+		state->cec_adap = NULL;
+		goto err_work_queues;
 	}
 
 	tc358743_enable_interrupts(sd, tx_5v_power_present(sd));
-	i2c_wr16(sd, INTMASK, ~(MASK_HDMI_MSK | MASK_CSI_MSK) & 0xffff);
+	i2c_wr16(sd, INTMASK, ~irq_mask);
 
 	err = v4l2_ctrl_handler_setup(sd->ctrl_handler);
 	if (err)
@@ -1935,8 +2170,10 @@ static int tc358743_probe(struct i2c_client *client,
 	return 0;
 
 err_work_queues:
+	cec_unregister_adapter(state->cec_adap);
+	if (!state->i2c_client->irq)
+		flush_work(&state->work_i2c_poll);
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 	mutex_destroy(&state->confctl_mutex);
 err_hdl:
 	media_entity_cleanup(&sd->entity);
@@ -1949,8 +2186,12 @@ static int tc358743_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct tc358743_state *state = to_state(sd);
 
+	if (!state->i2c_client->irq) {
+		del_timer_sync(&state->timer);
+		flush_work(&state->work_i2c_poll);
+	}
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
+	cec_unregister_adapter(state->cec_adap);
 	v4l2_async_unregister_subdev(sd);
 	v4l2_device_unregister_subdev(sd);
 	mutex_destroy(&state->confctl_mutex);
@@ -1960,16 +2201,25 @@ static int tc358743_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id tc358743_id[] = {
+static const struct i2c_device_id tc358743_id[] = {
 	{"tc358743", 0},
 	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, tc358743_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id tc358743_of_match[] = {
+	{ .compatible = "toshiba,tc358743" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, tc358743_of_match);
+#endif
+
 static struct i2c_driver tc358743_driver = {
 	.driver = {
 		.name = "tc358743",
+		.of_match_table = of_match_ptr(tc358743_of_match),
 	},
 	.probe = tc358743_probe,
 	.remove = tc358743_remove,

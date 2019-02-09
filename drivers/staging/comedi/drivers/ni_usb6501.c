@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/ni_usb6501.c
  * Comedi driver for National Instruments USB-6501
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2014 Luca Ellero <luca.ellero@brickedbrain.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -45,7 +36,7 @@
  *	byte 3 is the total packet length
  *
  *	byte 4 is always 00
- *	byte 5 is is the total packet length - 4
+ *	byte 5 is the total packet length - 4
  *	byte 6 is always 01
  *	byte 7 is the command
  *
@@ -465,12 +456,12 @@ static int ni6501_alloc_usb_buffers(struct comedi_device *dev)
 	struct ni6501_private *devpriv = dev->private;
 	size_t size;
 
-	size = le16_to_cpu(devpriv->ep_rx->wMaxPacketSize);
+	size = usb_endpoint_maxp(devpriv->ep_rx);
 	devpriv->usb_rx_buf = kzalloc(size, GFP_KERNEL);
 	if (!devpriv->usb_rx_buf)
 		return -ENOMEM;
 
-	size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
+	size = usb_endpoint_maxp(devpriv->ep_tx);
 	devpriv->usb_tx_buf = kzalloc(size, GFP_KERNEL);
 	if (!devpriv->usb_tx_buf) {
 		kfree(devpriv->usb_rx_buf);

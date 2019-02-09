@@ -1,60 +1,38 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: apfiles - File-related functions for acpidump utility
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
-
 #include "acpidump.h"
-#include "acapps.h"
 
 /* Local prototypes */
 
 static int ap_is_existing_file(char *pathname);
 
+/******************************************************************************
+ *
+ * FUNCTION:    ap_is_existing_file
+ *
+ * PARAMETERS:  pathname            - Output filename
+ *
+ * RETURN:      0 on success
+ *
+ * DESCRIPTION: Query for file overwrite if it already exists.
+ *
+ ******************************************************************************/
+
 static int ap_is_existing_file(char *pathname)
 {
-#ifndef _GNU_EFI
+#if !defined(_GNU_EFI) && !defined(_EDK2_EFI)
 	struct stat stat_info;
 
 	if (!stat(pathname, &stat_info)) {
-		acpi_log_error("Target path already exists, overwrite? [y|n] ");
+		fprintf(stderr,
+			"Target path already exists, overwrite? [y|n] ");
 
 		if (getchar() != 'y') {
 			return (-1);
@@ -90,9 +68,9 @@ int ap_open_output_file(char *pathname)
 
 	/* Point stdout to the file */
 
-	file = acpi_os_open_file(pathname, ACPI_FILE_WRITING);
+	file = fopen(pathname, "w");
 	if (!file) {
-		acpi_log_error("Could not open output file: %s\n", pathname);
+		fprintf(stderr, "Could not open output file: %s\n", pathname);
 		return (-1);
 	}
 
@@ -122,7 +100,7 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	char filename[ACPI_NAME_SIZE + 16];
 	char instance_str[16];
 	ACPI_FILE file;
-	size_t actual;
+	acpi_size actual;
 	u32 table_length;
 
 	/* Obtain table length */
@@ -136,6 +114,7 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	} else {
 		ACPI_MOVE_NAME(filename, table->signature);
 	}
+
 	filename[0] = (char)tolower((int)filename[0]);
 	filename[1] = (char)tolower((int)filename[1]);
 	filename[2] = (char)tolower((int)filename[2]);
@@ -145,37 +124,36 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	/* Handle multiple SSDts - create different filenames for each */
 
 	if (instance > 0) {
-		acpi_ut_snprintf(instance_str, sizeof(instance_str), "%u",
-				 instance);
+		snprintf(instance_str, sizeof(instance_str), "%u", instance);
 		strcat(filename, instance_str);
 	}
 
 	strcat(filename, FILE_SUFFIX_BINARY_TABLE);
 
 	if (gbl_verbose_mode) {
-		acpi_log_error
-		    ("Writing [%4.4s] to binary file: %s 0x%X (%u) bytes\n",
-		     table->signature, filename, table->length, table->length);
+		fprintf(stderr,
+			"Writing [%4.4s] to binary file: %s 0x%X (%u) bytes\n",
+			table->signature, filename, table->length,
+			table->length);
 	}
 
 	/* Open the file and dump the entire table in binary mode */
 
-	file = acpi_os_open_file(filename,
-				 ACPI_FILE_WRITING | ACPI_FILE_BINARY);
+	file = fopen(filename, "wb");
 	if (!file) {
-		acpi_log_error("Could not open output file: %s\n", filename);
+		fprintf(stderr, "Could not open output file: %s\n", filename);
 		return (-1);
 	}
 
-	actual = acpi_os_write_file(file, table, 1, table_length);
+	actual = fwrite(table, 1, table_length, file);
 	if (actual != table_length) {
-		acpi_log_error("Error writing binary output file: %s\n",
-			       filename);
-		acpi_os_close_file(file);
+		fprintf(stderr, "Error writing binary output file: %s\n",
+			filename);
+		fclose(file);
 		return (-1);
 	}
 
-	acpi_os_close_file(file);
+	fclose(file);
 	return (0);
 }
 
@@ -198,14 +176,13 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 	struct acpi_table_header *buffer = NULL;
 	ACPI_FILE file;
 	u32 file_size;
-	size_t actual;
+	acpi_size actual;
 
 	/* Must use binary mode */
 
-	file =
-	    acpi_os_open_file(pathname, ACPI_FILE_READING | ACPI_FILE_BINARY);
+	file = fopen(pathname, "rb");
 	if (!file) {
-		acpi_log_error("Could not open input file: %s\n", pathname);
+		fprintf(stderr, "Could not open input file: %s\n", pathname);
 		return (NULL);
 	}
 
@@ -213,7 +190,8 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 
 	file_size = cm_get_file_size(file);
 	if (file_size == ACPI_UINT32_MAX) {
-		acpi_log_error("Could not get input file size: %s\n", pathname);
+		fprintf(stderr,
+			"Could not get input file size: %s\n", pathname);
 		goto cleanup;
 	}
 
@@ -221,16 +199,17 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 
 	buffer = ACPI_ALLOCATE_ZEROED(file_size);
 	if (!buffer) {
-		acpi_log_error("Could not allocate file buffer of size: %u\n",
-			       file_size);
+		fprintf(stderr,
+			"Could not allocate file buffer of size: %u\n",
+			file_size);
 		goto cleanup;
 	}
 
 	/* Read the entire file */
 
-	actual = acpi_os_read_file(file, buffer, 1, file_size);
+	actual = fread(buffer, 1, file_size, file);
 	if (actual != file_size) {
-		acpi_log_error("Could not read input file: %s\n", pathname);
+		fprintf(stderr, "Could not read input file: %s\n", pathname);
 		ACPI_FREE(buffer);
 		buffer = NULL;
 		goto cleanup;
@@ -239,6 +218,6 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 	*out_file_size = file_size;
 
 cleanup:
-	acpi_os_close_file(file);
+	fclose(file);
 	return (buffer);
 }

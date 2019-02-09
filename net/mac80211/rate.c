@@ -2,6 +2,7 @@
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
+ * Copyright 2017	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -59,6 +60,28 @@ void rate_control_rate_init(struct sta_info *sta)
 	spin_unlock_bh(&sta->rate_ctrl_lock);
 	rcu_read_unlock();
 	set_sta_flag(sta, WLAN_STA_RATE_CONTROL);
+}
+
+void rate_control_tx_status(struct ieee80211_local *local,
+			    struct ieee80211_supported_band *sband,
+			    struct ieee80211_tx_status *st)
+{
+	struct rate_control_ref *ref = local->rate_ctrl;
+	struct sta_info *sta = container_of(st->sta, struct sta_info, sta);
+	void *priv_sta = sta->rate_ctrl_priv;
+
+	if (!ref || !test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
+		return;
+
+	spin_lock_bh(&sta->rate_ctrl_lock);
+	if (ref->ops->tx_status_ext)
+		ref->ops->tx_status_ext(ref->priv, sband, priv_sta, st);
+	else if (st->skb)
+		ref->ops->tx_status(ref->priv, sband, st->sta, priv_sta, st->skb);
+	else
+		WARN_ON_ONCE(1);
+
+	spin_unlock_bh(&sta->rate_ctrl_lock);
 }
 
 void rate_control_rate_update(struct ieee80211_local *local,
@@ -173,9 +196,11 @@ ieee80211_rate_control_ops_get(const char *name)
 		/* try default if specific alg requested but not found */
 		ops = ieee80211_try_rate_control_ops_get(ieee80211_default_rc_algo);
 
-	/* try built-in one if specific alg requested but not found */
-	if (!ops && strlen(CONFIG_MAC80211_RC_DEFAULT))
+	/* Note: check for > 0 is intentional to avoid clang warning */
+	if (!ops && (strlen(CONFIG_MAC80211_RC_DEFAULT) > 0))
+		/* try built-in one if specific alg requested but not found */
 		ops = ieee80211_try_rate_control_ops_get(CONFIG_MAC80211_RC_DEFAULT);
+
 	kernel_param_unlock(THIS_MODULE);
 
 	return ops;
@@ -208,7 +233,6 @@ static struct rate_control_ref *rate_control_alloc(const char *name,
 	ref = kmalloc(sizeof(struct rate_control_ref), GFP_KERNEL);
 	if (!ref)
 		return NULL;
-	ref->local = local;
 	ref->ops = ieee80211_rate_control_ops_get(name);
 	if (!ref->ops)
 		goto free;
@@ -229,16 +253,43 @@ free:
 	return NULL;
 }
 
-static void rate_control_free(struct rate_control_ref *ctrl_ref)
+static void rate_control_free(struct ieee80211_local *local,
+			      struct rate_control_ref *ctrl_ref)
 {
 	ctrl_ref->ops->free(ctrl_ref->priv);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	debugfs_remove_recursive(ctrl_ref->local->debugfs.rcdir);
-	ctrl_ref->local->debugfs.rcdir = NULL;
+	debugfs_remove_recursive(local->debugfs.rcdir);
+	local->debugfs.rcdir = NULL;
 #endif
 
 	kfree(ctrl_ref);
+}
+
+void ieee80211_check_rate_mask(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	u32 user_mask, basic_rates = sdata->vif.bss_conf.basic_rates;
+	enum nl80211_band band;
+
+	if (WARN_ON(!sdata->vif.bss_conf.chandef.chan))
+		return;
+
+	if (WARN_ON_ONCE(!basic_rates))
+		return;
+
+	band = sdata->vif.bss_conf.chandef.chan->band;
+	user_mask = sdata->rc_rateidx_mask[band];
+	sband = local->hw.wiphy->bands[band];
+
+	if (user_mask & basic_rates)
+		return;
+
+	sdata_dbg(sdata,
+		  "no overlap between basic rates (0x%x) and user mask (0x%x on band %d) - clearing the latter",
+		  basic_rates, user_mask, band);
+	sdata->rc_rateidx_mask[band] = (1 << sband->n_bitrates) - 1;
 }
 
 static bool rc_no_data_or_no_ack_use_min(struct ieee80211_tx_rate_control *txrc)
@@ -287,7 +338,7 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 	u32 rate_flags =
 		ieee80211_chandef_rate_flags(&hw->conf.chandef);
 
-	if ((sband->band == IEEE80211_BAND_2GHZ) &&
+	if ((sband->band == NL80211_BAND_2GHZ) &&
 	    (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE))
 		rate_flags |= IEEE80211_RATE_ERP_G;
 
@@ -875,7 +926,9 @@ int rate_control_set_rates(struct ieee80211_hw *hw,
 	struct ieee80211_sta_rates *old;
 	struct ieee80211_supported_band *sband;
 
-	sband = hw->wiphy->bands[ieee80211_get_sdata_band(sta->sdata)];
+	sband = ieee80211_get_sband(sta->sdata);
+	if (!sband)
+		return -EINVAL;
 	rate_control_apply_mask_ratetbl(sta, sband, rates);
 	/*
 	 * mac80211 guarantees that this function will not be called
@@ -889,6 +942,8 @@ int rate_control_set_rates(struct ieee80211_hw *hw,
 		kfree_rcu(old, rcu_head);
 
 	drv_sta_rate_tbl_update(hw_to_local(hw), sta->sdata, pubsta);
+
+	ieee80211_sta_set_expected_throughput(pubsta, sta_get_expected_throughput(sta));
 
 	return 0;
 }
@@ -936,6 +991,5 @@ void rate_control_deinitialize(struct ieee80211_local *local)
 		return;
 
 	local->rate_ctrl = NULL;
-	rate_control_free(ref);
+	rate_control_free(local, ref);
 }
-

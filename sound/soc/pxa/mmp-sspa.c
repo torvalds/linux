@@ -119,7 +119,6 @@ static void mmp_sspa_shutdown(struct snd_pcm_substream *substream,
 	clk_disable(priv->sspa->clk);
 	clk_disable(priv->sysclk);
 
-	return;
 }
 
 /*
@@ -378,10 +377,9 @@ static int mmp_sspa_probe(struct snd_soc_dai *dai)
 #define MMP_SSPA_FORMATS (SNDRV_PCM_FMTBIT_S8 | \
 		SNDRV_PCM_FMTBIT_S16_LE | \
 		SNDRV_PCM_FMTBIT_S24_LE | \
-		SNDRV_PCM_FMTBIT_S24_LE | \
 		SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops mmp_sspa_dai_ops = {
+static const struct snd_soc_dai_ops mmp_sspa_dai_ops = {
 	.startup	= mmp_sspa_startup,
 	.shutdown	= mmp_sspa_shutdown,
 	.trigger	= mmp_sspa_trigger,
@@ -427,8 +425,8 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	if (priv->sspa == NULL)
 		return -ENOMEM;
 
-	priv->dma_params = devm_kzalloc(&pdev->dev,
-			2 * sizeof(struct snd_dmaengine_dai_dma_data),
+	priv->dma_params = devm_kcalloc(&pdev->dev,
+			2, sizeof(struct snd_dmaengine_dai_dma_data),
 			GFP_KERNEL);
 	if (priv->dma_params == NULL)
 		return -ENOMEM;
@@ -482,3 +480,4 @@ module_platform_driver(asoc_mmp_sspa_driver);
 MODULE_AUTHOR("Leo Yan <leoy@marvell.com>");
 MODULE_DESCRIPTION("MMP SSPA SoC Interface");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mmp-sspa-dai");

@@ -1,14 +1,9 @@
-/* asus-pc39.h - Keytable for asus_pc39 Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// asus-pc39.h - Keytable for asus_pc39 Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -68,10 +63,10 @@ static struct rc_map_table asus_pc39[] = {
 
 static struct rc_map_list asus_pc39_map = {
 	.map = {
-		.scan    = asus_pc39,
-		.size    = ARRAY_SIZE(asus_pc39),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_ASUS_PC39,
+		.scan     = asus_pc39,
+		.size     = ARRAY_SIZE(asus_pc39),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_ASUS_PC39,
 	}
 };
 

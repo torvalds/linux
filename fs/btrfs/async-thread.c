@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
  * Copyright (C) 2014 Fujitsu.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/kthread.h>
@@ -34,6 +21,10 @@
 
 struct __btrfs_workqueue {
 	struct workqueue_struct *normal_wq;
+
+	/* File system this workqueue services */
+	struct btrfs_fs_info *fs_info;
+
 	/* List head pointing to ordered work list */
 	struct list_head ordered_list;
 
@@ -63,11 +54,37 @@ struct btrfs_workqueue {
 static void normal_work_helper(struct btrfs_work *work);
 
 #define BTRFS_WORK_HELPER(name)					\
-void btrfs_##name(struct work_struct *arg)				\
+noinline_for_stack void btrfs_##name(struct work_struct *arg)		\
 {									\
 	struct btrfs_work *work = container_of(arg, struct btrfs_work,	\
 					       normal_work);		\
 	normal_work_helper(work);					\
+}
+
+struct btrfs_fs_info *
+btrfs_workqueue_owner(const struct __btrfs_workqueue *wq)
+{
+	return wq->fs_info;
+}
+
+struct btrfs_fs_info *
+btrfs_work_owner(const struct btrfs_work *work)
+{
+	return work->wq->fs_info;
+}
+
+bool btrfs_workqueue_normal_congested(const struct btrfs_workqueue *wq)
+{
+	/*
+	 * We could compare wq->normal->pending with num_online_cpus()
+	 * to support "thresh == NO_THRESHOLD" case, but it requires
+	 * moving up atomic_inc/dec in thresh_queue/exec_hook. Let's
+	 * postpone it until someone needs the support of that case.
+	 */
+	if (wq->normal->thresh == NO_THRESHOLD)
+		return false;
+
+	return atomic_read(&wq->normal->pending) > wq->normal->thresh * 2;
 }
 
 BTRFS_WORK_HELPER(worker_helper);
@@ -94,14 +111,15 @@ BTRFS_WORK_HELPER(scrubnc_helper);
 BTRFS_WORK_HELPER(scrubparity_helper);
 
 static struct __btrfs_workqueue *
-__btrfs_alloc_workqueue(const char *name, unsigned int flags, int limit_active,
-			 int thresh)
+__btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info, const char *name,
+			unsigned int flags, int limit_active, int thresh)
 {
-	struct __btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
+	struct __btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_KERNEL);
 
 	if (!ret)
 		return NULL;
 
+	ret->fs_info = fs_info;
 	ret->limit_active = limit_active;
 	atomic_set(&ret->pending, 0);
 	if (thresh == 0)
@@ -143,17 +161,19 @@ __btrfs_alloc_workqueue(const char *name, unsigned int flags, int limit_active,
 static inline void
 __btrfs_destroy_workqueue(struct __btrfs_workqueue *wq);
 
-struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
+struct btrfs_workqueue *btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info,
+					      const char *name,
 					      unsigned int flags,
 					      int limit_active,
 					      int thresh)
 {
-	struct btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
+	struct btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_KERNEL);
 
 	if (!ret)
 		return NULL;
 
-	ret->normal = __btrfs_alloc_workqueue(name, flags & ~WQ_HIGHPRI,
+	ret->normal = __btrfs_alloc_workqueue(fs_info, name,
+					      flags & ~WQ_HIGHPRI,
 					      limit_active, thresh);
 	if (!ret->normal) {
 		kfree(ret);
@@ -161,8 +181,8 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
 	}
 
 	if (flags & WQ_HIGHPRI) {
-		ret->high = __btrfs_alloc_workqueue(name, flags, limit_active,
-						    thresh);
+		ret->high = __btrfs_alloc_workqueue(fs_info, name, flags,
+						    limit_active, thresh);
 		if (!ret->high) {
 			__btrfs_destroy_workqueue(ret->normal);
 			kfree(ret);
@@ -240,6 +260,8 @@ static void run_ordered_work(struct __btrfs_workqueue *wq)
 	unsigned long flags;
 
 	while (1) {
+		void *wtag;
+
 		spin_lock_irqsave(lock, flags);
 		if (list_empty(list))
 			break;
@@ -266,11 +288,13 @@ static void run_ordered_work(struct __btrfs_workqueue *wq)
 		spin_unlock_irqrestore(lock, flags);
 
 		/*
-		 * we don't want to call the ordered free functions
-		 * with the lock held though
+		 * We don't want to call the ordered free functions with the
+		 * lock held though. Save the work as tag for the trace event,
+		 * because the callback could free the structure.
 		 */
+		wtag = work;
 		work->ordered_free(work);
-		trace_btrfs_all_work_done(work);
+		trace_btrfs_all_work_done(wq->fs_info, wtag);
 	}
 	spin_unlock_irqrestore(lock, flags);
 }
@@ -278,6 +302,7 @@ static void run_ordered_work(struct __btrfs_workqueue *wq)
 static void normal_work_helper(struct btrfs_work *work)
 {
 	struct __btrfs_workqueue *wq;
+	void *wtag;
 	int need_order = 0;
 
 	/*
@@ -291,6 +316,8 @@ static void normal_work_helper(struct btrfs_work *work)
 	if (work->ordered_func)
 		need_order = 1;
 	wq = work->wq;
+	/* Safe for tracepoints in case work gets freed by the callback */
+	wtag = work;
 
 	trace_btrfs_work_sched(work);
 	thresh_exec_hook(wq);
@@ -300,7 +327,7 @@ static void normal_work_helper(struct btrfs_work *work)
 		run_ordered_work(wq);
 	}
 	if (!need_order)
-		trace_btrfs_all_work_done(work);
+		trace_btrfs_all_work_done(wq->fs_info, wtag);
 }
 
 void btrfs_init_work(struct btrfs_work *work, btrfs_work_func_t uniq_func,
@@ -328,8 +355,8 @@ static inline void __btrfs_queue_work(struct __btrfs_workqueue *wq,
 		list_add_tail(&work->ordered_list, &wq->ordered_list);
 		spin_unlock_irqrestore(&wq->list_lock, flags);
 	}
-	queue_work(wq->normal_wq, &work->normal_work);
 	trace_btrfs_work_queued(work);
+	queue_work(wq->normal_wq, &work->normal_work);
 }
 
 void btrfs_queue_work(struct btrfs_workqueue *wq,

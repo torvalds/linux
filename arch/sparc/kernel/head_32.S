@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * head.S: The initial boot code for the Sparc port of Linux.
  *
@@ -24,6 +25,7 @@
 #include <asm/thread_info.h>	/* TI_UWINMASK */
 #include <asm/errno.h>
 #include <asm/pgtsrmmu.h>	/* SRMMU_PGDIR_SHIFT */
+#include <asm/export.h>
 
 	.data
 /* The following are used with the prom_vector node-ops to figure out
@@ -60,6 +62,7 @@ sun4e_notsup:
  */
 	.globl empty_zero_page
 empty_zero_page:	.skip PAGE_SIZE
+EXPORT_SYMBOL(empty_zero_page)
 
 	.global root_flags
 	.global ram_flags
@@ -807,9 +810,3 @@ lvl14_save:
 	.word	0
 	.word	0
 	.word	t_irq14
-
-        .section        ".fixup",#alloc,#execinstr
-        .globl  __ret_efault
-__ret_efault:
-        ret
-         restore %g0, -EFAULT, %o0

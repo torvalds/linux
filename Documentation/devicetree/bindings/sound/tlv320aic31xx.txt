@@ -11,6 +11,8 @@ Required properties:
     "ti,tlv320aic3110" - TLV320AIC3110 (stereo speaker amp, no MiniDSP)
     "ti,tlv320aic3120" - TLV320AIC3120 (mono speaker amp, MiniDSP)
     "ti,tlv320aic3111" - TLV320AIC3111 (stereo speaker amp, MiniDSP)
+    "ti,tlv320dac3100" - TLV320DAC3100 (no ADC, mono speaker amp, no MiniDSP)
+    "ti,tlv320dac3101" - TLV320DAC3101 (no ADC, stereo speaker amp, no MiniDSP)
 
 - reg - <int> -  I2C slave address
 - HPVDD-supply, SPRVDD-supply, SPLVDD-supply, AVDD-supply, IOVDD-supply,
@@ -20,13 +22,17 @@ Required properties:
 
 Optional properties:
 
-- gpio-reset - gpio pin number used for codec reset
+- reset-gpios - GPIO specification for the active low RESET input.
 - ai31xx-micbias-vg - MicBias Voltage setting
         1 or MICBIAS_2_0V - MICBIAS output is powered to 2.0V
         2 or MICBIAS_2_5V - MICBIAS output is powered to 2.5V
         3 or MICBIAS_AVDD - MICBIAS output is connected to AVDD
 	If this node is not mentioned or if the value is unknown, then
 	micbias	is set to 2.0V.
+
+Deprecated properties:
+
+- gpio-reset - gpio pin number used for codec reset
 
 CODEC output pins:
   * HPL
@@ -37,13 +43,16 @@ CODEC output pins:
   * MICBIAS
 
 CODEC input pins:
-  * MIC1LP
-  * MIC1RP
-  * MIC1LM
+  * MIC1LP, devices with ADC
+  * MIC1RP, devices with ADC
+  * MIC1LM, devices with ADC
+  * AIN1, devices without ADC
+  * AIN2, devices without ADC
 
 The pins can be used in referring sound node's audio-routing property.
 
 Example:
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/sound/tlv320aic31xx-micbias.h>
 
 tlv320aic31xx: tlv320aic31xx@18 {
@@ -51,6 +60,8 @@ tlv320aic31xx: tlv320aic31xx@18 {
 	reg = <0x18>;
 
 	ai31xx-micbias-vg = <MICBIAS_OFF>;
+
+	reset-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 
 	HPVDD-supply = <&regulator>;
 	SPRVDD-supply = <&regulator>;

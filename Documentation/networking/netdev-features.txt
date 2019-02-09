@@ -113,6 +113,13 @@ whatever headers there might be.
 NETIF_F_TSO_ECN means that hardware can properly split packets with CWR bit
 set, be it TCPv4 (when NETIF_F_TSO is enabled) or TCPv6 (NETIF_F_TSO6).
 
+ * Transmit UDP segmentation offload
+
+NETIF_F_GSO_UDP_GSO_L4 accepts a single UDP header with a payload that exceeds
+gso_size. On segmentation, it segments the payload on gso_size boundaries and
+replicates the network and UDP headers (fixing up the last one if less than
+gso_size).
+
  * Transmit DMA from high memory
 
 On platforms where this is relevant, NETIF_F_HIGHDMA signals that
@@ -131,13 +138,11 @@ stack. Driver should not change behaviour based on them.
 
  * LLTX driver (deprecated for hardware drivers)
 
-NETIF_F_LLTX should be set in drivers that implement their own locking in
-transmit path or don't need locking at all (e.g. software tunnels).
-In ndo_start_xmit, it is recommended to use a try_lock and return
-NETDEV_TX_LOCKED when the spin lock fails.  The locking should also properly
-protect against other callbacks (the rules you need to find out).
+NETIF_F_LLTX is meant to be used by drivers that don't need locking at all,
+e.g. software tunnels.
 
-Don't use it for new drivers.
+This is also used in a few legacy drivers that implement their
+own locking, don't use it for new (hardware) drivers.
 
  * netns-local device
 
@@ -165,3 +170,12 @@ This requests that the NIC receive all possible frames, including errored
 frames (such as bad FCS, etc).  This can be helpful when sniffing a link with
 bad packets on it.  Some NICs may receive more packets if also put into normal
 PROMISC mode.
+
+*  rx-gro-hw
+
+This requests that the NIC enables Hardware GRO (generic receive offload).
+Hardware GRO is basically the exact reverse of TSO, and is generally
+stricter than Hardware LRO.  A packet stream merged by Hardware GRO must
+be re-segmentable by GSO or TSO back to the exact original packet stream.
+Hardware GRO is dependent on RXCSUM since every packet successfully merged
+by hardware must also have the checksum verified by hardware.

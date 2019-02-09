@@ -1,7 +1,9 @@
 config PINCTRL_IMX
 	bool
-	select PINMUX
-	select PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select REGMAP
 
 config PINCTRL_IMX1_CORE
 	bool
@@ -80,6 +82,13 @@ config PINCTRL_IMX6SL
 	help
 	  Say Y here to enable the imx6sl pinctrl driver
 
+config PINCTRL_IMX6SLL
+	bool "IMX6SLL pinctrl driver"
+	depends on SOC_IMX6SLL
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6sll pinctrl driver
+
 config PINCTRL_IMX6SX
 	bool "IMX6SX pinctrl driver"
 	depends on SOC_IMX6SX
@@ -100,6 +109,20 @@ config PINCTRL_IMX7D
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx7d pinctrl driver
+
+config PINCTRL_IMX7ULP
+	bool "IMX7ULP pinctrl driver"
+	depends on SOC_IMX7ULP
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx7ulp pinctrl driver
+
+config PINCTRL_IMX8MQ
+	bool "IMX8MQ pinctrl driver"
+	depends on SOC_IMX8MQ
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx8mq pinctrl driver
 
 config PINCTRL_VF610
 	bool "Freescale Vybrid VF610 pinctrl driver"

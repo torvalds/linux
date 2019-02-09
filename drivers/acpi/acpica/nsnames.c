@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: nsnames - Name manipulation and search
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -48,6 +12,9 @@
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsnames")
+
+/* Local Prototypes */
+static void acpi_ns_normalize_pathname(char *original_path);
 
 /*******************************************************************************
  *
@@ -63,6 +30,7 @@ ACPI_MODULE_NAME("nsnames")
  *              for error and debug statements.
  *
  ******************************************************************************/
+
 char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 {
 	char *name_buffer;
@@ -70,7 +38,6 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 	ACPI_FUNCTION_TRACE_PTR(ns_get_external_pathname, node);
 
 	name_buffer = acpi_ns_get_normalized_pathname(node, FALSE);
-
 	return_PTR(name_buffer);
 }
 
@@ -90,11 +57,62 @@ acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
 {
 	acpi_size size;
 
-	ACPI_FUNCTION_ENTRY();
+	/* Validate the Node */
+
+	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+		ACPI_ERROR((AE_INFO,
+			    "Invalid/cached reference target node: %p, descriptor type %d",
+			    node, ACPI_GET_DESCRIPTOR_TYPE(node)));
+		return (0);
+	}
 
 	size = acpi_ns_build_normalized_path(node, NULL, 0, FALSE);
-
 	return (size);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_handle_to_name
+ *
+ * PARAMETERS:  target_handle           - Handle of named object whose name is
+ *                                        to be found
+ *              buffer                  - Where the name is returned
+ *
+ * RETURN:      Status, Buffer is filled with name if status is AE_OK
+ *
+ * DESCRIPTION: Build and return a full namespace name
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer)
+{
+	acpi_status status;
+	struct acpi_namespace_node *node;
+	const char *node_name;
+
+	ACPI_FUNCTION_TRACE_PTR(ns_handle_to_name, target_handle);
+
+	node = acpi_ns_validate_handle(target_handle);
+	if (!node) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	/* Validate/Allocate/Clear caller buffer */
+
+	status = acpi_ut_initialize_buffer(buffer, ACPI_PATH_SEGMENT_LENGTH);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Just copy the ACPI name from the Node and zero terminate it */
+
+	node_name = acpi_ut_get_node_name(node);
+	ACPI_MOVE_NAME(buffer->pointer, node_name);
+	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%4.4s\n", (char *)buffer->pointer));
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -115,7 +133,7 @@ acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
 
 acpi_status
 acpi_ns_handle_to_pathname(acpi_handle target_handle,
-			   struct acpi_buffer * buffer, u8 no_trailing)
+			   struct acpi_buffer *buffer, u8 no_trailing)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node;
@@ -147,9 +165,6 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 	(void)acpi_ns_build_normalized_path(node, buffer->pointer,
 					    required_size, no_trailing);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%X]\n",
 			  (char *)buffer->pointer, (u32) required_size));
@@ -217,6 +232,7 @@ acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 			ACPI_PATH_PUT8(full_path, path_size,
 				       AML_DUAL_NAME_PREFIX, length);
 		}
+
 		ACPI_MOVE_32_TO_32(name, &next_node->name);
 		do_no_trailing = no_trailing;
 		for (i = 0; i < 4; i++) {
@@ -228,8 +244,10 @@ acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 				ACPI_PATH_PUT8(full_path, path_size, c, length);
 			}
 		}
+
 		next_node = next_node->parent;
 	}
+
 	ACPI_PATH_PUT8(full_path, path_size, AML_ROOT_PREFIX, length);
 
 	/* Reverse the path string */
@@ -237,6 +255,7 @@ acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 	if (length <= path_size) {
 		left = full_path;
 		right = full_path + length - 1;
+
 		while (left < right) {
 			c = *left;
 			*left++ = *right;
@@ -299,5 +318,153 @@ char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 	(void)acpi_ns_build_normalized_path(node, name_buffer, size,
 					    no_trailing);
 
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES, "%s: Path \"%s\"\n",
+			      ACPI_GET_FUNCTION_NAME, name_buffer));
+
 	return_PTR(name_buffer);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_build_prefixed_pathname
+ *
+ * PARAMETERS:  prefix_scope        - Scope/Path that prefixes the internal path
+ *              internal_path       - Name or path of the namespace node
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Construct a fully qualified pathname from a concatenation of:
+ *              1) Path associated with the prefix_scope namespace node
+ *              2) External path representation of the Internal path
+ *
+ ******************************************************************************/
+
+char *acpi_ns_build_prefixed_pathname(union acpi_generic_state *prefix_scope,
+				      const char *internal_path)
+{
+	acpi_status status;
+	char *full_path = NULL;
+	char *external_path = NULL;
+	char *prefix_path = NULL;
+	u32 prefix_path_length = 0;
+
+	/* If there is a prefix, get the pathname to it */
+
+	if (prefix_scope && prefix_scope->scope.node) {
+		prefix_path =
+		    acpi_ns_get_normalized_pathname(prefix_scope->scope.node,
+						    TRUE);
+		if (prefix_path) {
+			prefix_path_length = strlen(prefix_path);
+		}
+	}
+
+	status = acpi_ns_externalize_name(ACPI_UINT32_MAX, internal_path,
+					  NULL, &external_path);
+	if (ACPI_FAILURE(status)) {
+		goto cleanup;
+	}
+
+	/* Merge the prefix path and the path. 2 is for one dot and trailing null */
+
+	full_path =
+	    ACPI_ALLOCATE_ZEROED(prefix_path_length + strlen(external_path) +
+				 2);
+	if (!full_path) {
+		goto cleanup;
+	}
+
+	/* Don't merge if the External path is already fully qualified */
+
+	if (prefix_path && (*external_path != '\\') && (*external_path != '^')) {
+		strcat(full_path, prefix_path);
+		if (prefix_path[1]) {
+			strcat(full_path, ".");
+		}
+	}
+
+	acpi_ns_normalize_pathname(external_path);
+	strcat(full_path, external_path);
+
+cleanup:
+	if (prefix_path) {
+		ACPI_FREE(prefix_path);
+	}
+	if (external_path) {
+		ACPI_FREE(external_path);
+	}
+
+	return (full_path);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_normalize_pathname
+ *
+ * PARAMETERS:  original_path       - Path to be normalized, in External format
+ *
+ * RETURN:      The original path is processed in-place
+ *
+ * DESCRIPTION: Remove trailing underscores from each element of a path.
+ *
+ *              For example:  \A___.B___.C___ becomes \A.B.C
+ *
+ ******************************************************************************/
+
+static void acpi_ns_normalize_pathname(char *original_path)
+{
+	char *input_path = original_path;
+	char *new_path_buffer;
+	char *new_path;
+	u32 i;
+
+	/* Allocate a temp buffer in which to construct the new path */
+
+	new_path_buffer = ACPI_ALLOCATE_ZEROED(strlen(input_path) + 1);
+	new_path = new_path_buffer;
+	if (!new_path_buffer) {
+		return;
+	}
+
+	/* Special characters may appear at the beginning of the path */
+
+	if (*input_path == '\\') {
+		*new_path = *input_path;
+		new_path++;
+		input_path++;
+	}
+
+	while (*input_path == '^') {
+		*new_path = *input_path;
+		new_path++;
+		input_path++;
+	}
+
+	/* Remainder of the path */
+
+	while (*input_path) {
+
+		/* Do one nameseg at a time */
+
+		for (i = 0; (i < ACPI_NAME_SIZE) && *input_path; i++) {
+			if ((i == 0) || (*input_path != '_')) {	/* First char is allowed to be underscore */
+				*new_path = *input_path;
+				new_path++;
+			}
+
+			input_path++;
+		}
+
+		/* Dot means that there are more namesegs to come */
+
+		if (*input_path == '.') {
+			*new_path = *input_path;
+			new_path++;
+			input_path++;
+		}
+	}
+
+	*new_path = 0;
+	strcpy(original_path, new_path_buffer);
+	ACPI_FREE(new_path_buffer);
 }

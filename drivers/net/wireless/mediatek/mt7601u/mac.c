@@ -16,16 +16,32 @@
 #include "trace.h"
 #include <linux/etherdevice.h>
 
+void mt7601u_set_macaddr(struct mt7601u_dev *dev, const u8 *addr)
+{
+	ether_addr_copy(dev->macaddr, addr);
+
+	if (!is_valid_ether_addr(dev->macaddr)) {
+		eth_random_addr(dev->macaddr);
+		dev_info(dev->dev,
+			 "Invalid MAC address, using random address %pM\n",
+			 dev->macaddr);
+	}
+
+	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
+	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
+		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
+}
+
 static void
 mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate)
 {
-	u8 idx = MT76_GET(MT_TXWI_RATE_MCS, rate);
+	u8 idx = FIELD_GET(MT_TXWI_RATE_MCS, rate);
 
 	txrate->idx = 0;
 	txrate->flags = 0;
 	txrate->count = 1;
 
-	switch (MT76_GET(MT_TXWI_RATE_PHY_MODE, rate)) {
+	switch (FIELD_GET(MT_TXWI_RATE_PHY_MODE, rate)) {
 	case MT_PHY_TYPE_OFDM:
 		txrate->idx = idx + 4;
 		return;
@@ -47,7 +63,7 @@ mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate)
 		return;
 	}
 
-	if (MT76_GET(MT_TXWI_RATE_BW, rate) == MT_PHY_BW_40)
+	if (FIELD_GET(MT_TXWI_RATE_BW, rate) == MT_PHY_BW_40)
 		txrate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 
 	if (rate & MT_TXWI_RATE_SGI)
@@ -125,9 +141,9 @@ u16 mt76_mac_tx_rate_val(struct mt7601u_dev *dev,
 		bw = 0;
 	}
 
-	rateval = MT76_SET(MT_RXWI_RATE_MCS, rate_idx);
-	rateval |= MT76_SET(MT_RXWI_RATE_PHY, phy);
-	rateval |= MT76_SET(MT_RXWI_RATE_BW, bw);
+	rateval = FIELD_PREP(MT_RXWI_RATE_MCS, rate_idx);
+	rateval |= FIELD_PREP(MT_RXWI_RATE_PHY, phy);
+	rateval |= FIELD_PREP(MT_RXWI_RATE_BW, bw);
 	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
 		rateval |= MT_RXWI_RATE_SGI;
 
@@ -156,9 +172,9 @@ struct mt76_tx_status mt7601u_mac_fetch_tx_status(struct mt7601u_dev *dev)
 	stat.success = !!(val & MT_TX_STAT_FIFO_SUCCESS);
 	stat.aggr = !!(val & MT_TX_STAT_FIFO_AGGR);
 	stat.ack_req = !!(val & MT_TX_STAT_FIFO_ACKREQ);
-	stat.pktid = MT76_GET(MT_TX_STAT_FIFO_PID_TYPE, val);
-	stat.wcid = MT76_GET(MT_TX_STAT_FIFO_WCID, val);
-	stat.rate = MT76_GET(MT_TX_STAT_FIFO_RATE, val);
+	stat.pktid = FIELD_GET(MT_TX_STAT_FIFO_PID_TYPE, val);
+	stat.wcid = FIELD_GET(MT_TX_STAT_FIFO_WCID, val);
+	stat.rate = FIELD_GET(MT_TX_STAT_FIFO_RATE, val);
 
 	return stat;
 }
@@ -270,7 +286,7 @@ void mt7601u_mac_config_tsf(struct mt7601u_dev *dev, bool enable, int interval)
 	}
 
 	val &= ~MT_BEACON_TIME_CFG_INTVAL;
-	val |= MT76_SET(MT_BEACON_TIME_CFG_INTVAL, interval << 4) |
+	val |= FIELD_PREP(MT_BEACON_TIME_CFG_INTVAL, interval << 4) |
 		MT_BEACON_TIME_CFG_TIMER_EN |
 		MT_BEACON_TIME_CFG_SYNC_MODE |
 		MT_BEACON_TIME_CFG_TBTT_EN;
@@ -349,8 +365,8 @@ mt7601u_mac_wcid_setup(struct mt7601u_dev *dev, u8 idx, u8 vif_idx, u8 *mac)
 	u8 zmac[ETH_ALEN] = {};
 	u32 attr;
 
-	attr = MT76_SET(MT_WCID_ATTR_BSS_IDX, vif_idx & 7) |
-	       MT76_SET(MT_WCID_ATTR_BSS_IDX_EXT, !!(vif_idx & 8));
+	attr = FIELD_PREP(MT_WCID_ATTR_BSS_IDX, vif_idx & 7) |
+	       FIELD_PREP(MT_WCID_ATTR_BSS_IDX_EXT, !!(vif_idx & 8));
 
 	mt76_wr(dev, MT_WCID_ATTR(idx), attr);
 
@@ -382,15 +398,15 @@ void mt7601u_mac_set_ampdu_factor(struct mt7601u_dev *dev)
 	rcu_read_unlock();
 
 	mt7601u_wr(dev, MT_MAX_LEN_CFG, 0xa0fff |
-		   MT76_SET(MT_MAX_LEN_CFG_AMPDU, min_factor));
+		   FIELD_PREP(MT_MAX_LEN_CFG_AMPDU, min_factor));
 }
 
 static void
 mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 {
-	u8 idx = MT76_GET(MT_RXWI_RATE_MCS, rate);
+	u8 idx = FIELD_GET(MT_RXWI_RATE_MCS, rate);
 
-	switch (MT76_GET(MT_RXWI_RATE_PHY, rate)) {
+	switch (FIELD_GET(MT_RXWI_RATE_PHY, rate)) {
 	case MT_PHY_TYPE_OFDM:
 		if (WARN_ON(idx >= 8))
 			idx = 0;
@@ -401,7 +417,7 @@ mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 	case MT_PHY_TYPE_CCK:
 		if (idx >= 8) {
 			idx -= 8;
-			status->flag |= RX_FLAG_SHORTPRE;
+			status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 		}
 
 		if (WARN_ON(idx >= 4))
@@ -410,10 +426,10 @@ mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 		status->rate_idx = idx;
 		return;
 	case MT_PHY_TYPE_HT_GF:
-		status->flag |= RX_FLAG_HT_GF;
+		status->enc_flags |= RX_ENC_FLAG_HT_GF;
 		/* fall through */
 	case MT_PHY_TYPE_HT:
-		status->flag |= RX_FLAG_HT;
+		status->encoding = RX_ENC_HT;
 		status->rate_idx = idx;
 		break;
 	default:
@@ -422,13 +438,13 @@ mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 	}
 
 	if (rate & MT_RXWI_RATE_SGI)
-		status->flag |= RX_FLAG_SHORT_GI;
+		status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 	if (rate & MT_RXWI_RATE_STBC)
-		status->flag |= 1 << RX_FLAG_STBC_SHIFT;
+		status->enc_flags |= 1 << RX_ENC_FLAG_STBC_SHIFT;
 
 	if (rate & MT_RXWI_RATE_BW)
-		status->flag |= RX_FLAG_40MHZ;
+		status->bw = RATE_INFO_BW_40;
 }
 
 static void
@@ -436,8 +452,8 @@ mt7601u_rx_monitor_beacon(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 			  u16 rate, int rssi)
 {
 	dev->bcn_freq_off = rxwi->freq_off;
-	dev->bcn_phy_mode = MT76_GET(MT_RXWI_RATE_PHY, rate);
-	dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
+	dev->bcn_phy_mode = FIELD_GET(MT_RXWI_RATE_PHY, rate);
+	ewma_rssi_add(&dev->avg_rssi, -rssi);
 }
 
 static int
@@ -458,14 +474,22 @@ u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
 	u16 rate = le16_to_cpu(rxwi->rate);
 	int rssi;
 
-	len = MT76_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
+	len = FIELD_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
 	if (len < 10)
 		return 0;
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_DECRYPT)) {
 		status->flag |= RX_FLAG_DECRYPTED;
-		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
+		status->flag |= RX_FLAG_MMIC_STRIPPED;
+		status->flag |= RX_FLAG_MIC_STRIPPED;
+		status->flag |= RX_FLAG_ICV_STRIPPED;
+		status->flag |= RX_FLAG_IV_STRIPPED;
 	}
+	/* let mac80211 take care of PN validation since apparently
+	 * the hardware does not support it
+	 */
+	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_PN_LEN))
+		status->flag &= ~RX_FLAG_IV_STRIPPED;
 
 	status->chains = BIT(0);
 	rssi = mt7601u_phy_get_rssi(dev, rxwi, rate);
@@ -479,7 +503,7 @@ u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
 	if (mt7601u_rx_is_our_beacon(dev, data))
 		mt7601u_rx_monitor_beacon(dev, rxwi, rate, rssi);
 	else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_U2M))
-		dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
+		ewma_rssi_add(&dev->avg_rssi, -rssi);
 	spin_unlock_bh(&dev->con_mon_lock);
 
 	return len;
@@ -542,8 +566,8 @@ int mt76_mac_wcid_set_key(struct mt7601u_dev *dev, u8 idx,
 
 	val = mt7601u_rr(dev, MT_WCID_ATTR(idx));
 	val &= ~MT_WCID_ATTR_PKEY_MODE & ~MT_WCID_ATTR_PKEY_MODE_EXT;
-	val |= MT76_SET(MT_WCID_ATTR_PKEY_MODE, cipher & 7) |
-	       MT76_SET(MT_WCID_ATTR_PKEY_MODE_EXT, cipher >> 3);
+	val |= FIELD_PREP(MT_WCID_ATTR_PKEY_MODE, cipher & 7) |
+	       FIELD_PREP(MT_WCID_ATTR_PKEY_MODE_EXT, cipher >> 3);
 	val &= ~MT_WCID_ATTR_PAIRWISE;
 	val |= MT_WCID_ATTR_PAIRWISE *
 		!!(key && key->flags & IEEE80211_KEY_FLAG_PAIRWISE);

@@ -1,9 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * memscan.S: Optimized memscan for Sparc64.
  *
  * Copyright (C) 1997,1998 Jakub Jelinek (jj@ultra.linux.cz)
  * Copyright (C) 1998 David S. Miller (davem@redhat.com)
  */
+
+	#include <asm/export.h>
 
 #define HI_MAGIC	0x8080808080808080
 #define LO_MAGIC	0x0101010101010101
@@ -12,7 +15,11 @@
 	.text
 	.align	32
 	.globl		__memscan_zero, __memscan_generic
+	.type		__memscan_zero,#function
+	.type		__memscan_generic,#function
 	.globl		memscan
+	EXPORT_SYMBOL(__memscan_zero)
+	EXPORT_SYMBOL(__memscan_generic)
 
 __memscan_zero:
 	/* %o0 = bufp, %o1 = size */

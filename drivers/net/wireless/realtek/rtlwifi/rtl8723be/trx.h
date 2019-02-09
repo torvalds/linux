@@ -107,7 +107,7 @@
 #define SET_TX_DESC_RDG_ENABLE(__pdesc, __val)		\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 13, 1, __val)
 #define SET_TX_DESC_BAR_RTY_TH(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+8, 14, 2, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 8, 14, 2, __val)
 #define SET_TX_DESC_AGG_BREAK(__pdesc, __val)		\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 16, 1, __val)
 #define SET_TX_DESC_MORE_FRAG(__pdesc, __val)		\
@@ -115,7 +115,7 @@
 #define SET_TX_DESC_RAW(__pdesc, __val)			\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 18, 1, __val)
 #define SET_TX_DESC_SPE_RPT(__pdesc, __val)		\
-	SET_BITS_TO_LE_4BYTE(__pdesc+8, 19, 1, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 8, 19, 1, __val)
 #define SET_TX_DESC_AMPDU_DENSITY(__pdesc, __val)	\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 20, 3, __val)
 #define SET_TX_DESC_BT_INT(__pdesc, __val)		\
@@ -187,6 +187,18 @@
 #define SET_TX_DESC_RTS_SC(__pdesc, __val)		\
 	SET_BITS_TO_LE_4BYTE(__pdesc+20, 13, 4, __val)
 
+#define SET_TX_DESC_SW_DEFINE(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 0, 12, __val)
+#define SET_TX_DESC_MBSSID(__pdesc, __val)		\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 12, 4, __val)
+#define SET_TX_DESC_ANTSEL_A(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 16, 3, __val)
+#define SET_TX_DESC_ANTSEL_B(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 19, 3, __val)
+#define SET_TX_DESC_ANTSEL_C(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 22, 3, __val)
+#define SET_TX_DESC_ANTSEL_D(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 25, 3, __val)
 
 #define SET_TX_DESC_TX_BUFFER_SIZE(__pdesc, __val)	\
 	SET_BITS_TO_LE_4BYTE(__pdesc+28, 0, 16, __val)
@@ -385,9 +397,9 @@ struct phy_status_rpt {
 	u8 cck_rpt_b_ofdm_cfosho_b;
 	u8 rsvd_1;/* ch_corr_msb; */
 	u8 noise_power_db_msb;
-	char path_cfotail[2];
+	s8 path_cfotail[2];
 	u8 pcts_mask[2];
-	char stream_rxevm[2];
+	s8 stream_rxevm[2];
 	u8 path_rxsnr[2];
 	u8 noise_power_db_lsb;
 	u8 rsvd_2[3];
@@ -422,8 +434,8 @@ struct rx_fwinfo_8723be {
 	u8 pwdb_all;
 	u8 cfosho[4];
 	u8 cfotail[4];
-	char rxevm[2];
-	char rxsnr[2];
+	s8 rxevm[2];
+	s8 rxsnr[2];
 	u8 pcts_msk_rpt[2];
 	u8 pdsnr[2];
 	u8 csi_current[2];
@@ -612,14 +624,12 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 			     u8 *pdesc, struct sk_buff *skb);
 void rtl8723be_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 			bool istx, u8 desc_name, u8 *val);
-u32 rtl8723be_get_desc(u8 *pdesc, bool istx, u8 desc_name);
+u64 rtl8723be_get_desc(struct ieee80211_hw *hw,
+		       u8 *pdesc, bool istx, u8 desc_name);
 bool rtl8723be_is_tx_desc_closed(struct ieee80211_hw *hw,
 				 u8 hw_queue, u16 index);
 void rtl8723be_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);
 void rtl8723be_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 			       bool firstseg, bool lastseg,
 			       struct sk_buff *skb);
-u32 rtl8723be_rx_command_packet(struct ieee80211_hw *hw,
-				struct rtl_stats status,
-				struct sk_buff *skb);
 #endif

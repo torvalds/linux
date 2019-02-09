@@ -17,6 +17,9 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
 #include <linux/tick.h>
 #include <linux/threads.h>
@@ -24,7 +27,7 @@
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <as-layout.h>
 #include <kern_util.h>
 #include <os.h>
@@ -103,10 +106,6 @@ void interrupt_end(void)
 		tracehook_notify_resume(regs);
 }
 
-void exit_thread(void)
-{
-}
-
 int get_current_pid(void)
 {
 	return task_pid_nr(current);
@@ -132,7 +131,7 @@ void new_thread_handler(void)
 	 * callback returns only if the kernel thread execs a process
 	 */
 	n = fn(arg);
-	userspace(&current->thread.regs.regs);
+	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
 /* Called magically, see new_thread_handler above */
@@ -151,7 +150,7 @@ void fork_handler(void)
 
 	current->thread.prev_sched = NULL;
 
-	userspace(&current->thread.regs.regs);
+	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
@@ -254,11 +253,6 @@ int copy_from_user_proc(void *to, void __user *from, int size)
 int clear_user_proc(void __user *buf, int size)
 {
 	return clear_user(buf, size);
-}
-
-int strlen_user_proc(char __user *str)
-{
-	return strlen_user(str);
 }
 
 int cpu(void)
@@ -402,6 +396,6 @@ int elf_core_copy_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
 {
 	int cpu = current_thread_info()->cpu;
 
-	return save_fp_registers(userspace_pid[cpu], (unsigned long *) fpu);
+	return save_i387_registers(userspace_pid[cpu], (unsigned long *) fpu);
 }
 

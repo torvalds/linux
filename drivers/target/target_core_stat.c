@@ -96,7 +96,7 @@ static struct configfs_attribute *target_stat_scsi_dev_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type target_stat_scsi_dev_cit = {
+static const struct config_item_type target_stat_scsi_dev_cit = {
 	.ct_attrs		= target_stat_scsi_dev_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -158,12 +158,28 @@ static ssize_t target_stat_tgt_resets_show(struct config_item *item,
 			atomic_long_read(&to_stat_tgt_dev(item)->num_resets));
 }
 
+static ssize_t target_stat_tgt_aborts_complete_show(struct config_item *item,
+		char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%lu\n",
+			atomic_long_read(&to_stat_tgt_dev(item)->aborts_complete));
+}
+
+static ssize_t target_stat_tgt_aborts_no_task_show(struct config_item *item,
+		char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%lu\n",
+			atomic_long_read(&to_stat_tgt_dev(item)->aborts_no_task));
+}
+
 CONFIGFS_ATTR_RO(target_stat_tgt_, inst);
 CONFIGFS_ATTR_RO(target_stat_tgt_, indx);
 CONFIGFS_ATTR_RO(target_stat_tgt_, num_lus);
 CONFIGFS_ATTR_RO(target_stat_tgt_, status);
 CONFIGFS_ATTR_RO(target_stat_tgt_, non_access_lus);
 CONFIGFS_ATTR_RO(target_stat_tgt_, resets);
+CONFIGFS_ATTR_RO(target_stat_tgt_, aborts_complete);
+CONFIGFS_ATTR_RO(target_stat_tgt_, aborts_no_task);
 
 static struct configfs_attribute *target_stat_scsi_tgt_dev_attrs[] = {
 	&target_stat_tgt_attr_inst,
@@ -172,10 +188,12 @@ static struct configfs_attribute *target_stat_scsi_tgt_dev_attrs[] = {
 	&target_stat_tgt_attr_status,
 	&target_stat_tgt_attr_non_access_lus,
 	&target_stat_tgt_attr_resets,
+	&target_stat_tgt_attr_aborts_complete,
+	&target_stat_tgt_attr_aborts_no_task,
 	NULL,
 };
 
-static struct config_item_type target_stat_scsi_tgt_dev_cit = {
+static const struct config_item_type target_stat_scsi_tgt_dev_cit = {
 	.ct_attrs		= target_stat_scsi_tgt_dev_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -396,7 +414,7 @@ static struct configfs_attribute *target_stat_scsi_lu_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type target_stat_scsi_lu_cit = {
+static const struct config_item_type target_stat_scsi_lu_cit = {
 	.ct_attrs		= target_stat_scsi_lu_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -407,19 +425,20 @@ static struct config_item_type target_stat_scsi_lu_cit = {
  */
 void target_stat_setup_dev_default_groups(struct se_device *dev)
 {
-	struct config_group *dev_stat_grp = &dev->dev_stat_grps.stat_group;
-
 	config_group_init_type_name(&dev->dev_stat_grps.scsi_dev_group,
 			"scsi_dev", &target_stat_scsi_dev_cit);
+	configfs_add_default_group(&dev->dev_stat_grps.scsi_dev_group,
+			&dev->dev_stat_grps.stat_group);
+
 	config_group_init_type_name(&dev->dev_stat_grps.scsi_tgt_dev_group,
 			"scsi_tgt_dev", &target_stat_scsi_tgt_dev_cit);
+	configfs_add_default_group(&dev->dev_stat_grps.scsi_tgt_dev_group,
+			&dev->dev_stat_grps.stat_group);
+
 	config_group_init_type_name(&dev->dev_stat_grps.scsi_lu_group,
 			"scsi_lu", &target_stat_scsi_lu_cit);
-
-	dev_stat_grp->default_groups[0] = &dev->dev_stat_grps.scsi_dev_group;
-	dev_stat_grp->default_groups[1] = &dev->dev_stat_grps.scsi_tgt_dev_group;
-	dev_stat_grp->default_groups[2] = &dev->dev_stat_grps.scsi_lu_group;
-	dev_stat_grp->default_groups[3] = NULL;
+	configfs_add_default_group(&dev->dev_stat_grps.scsi_lu_group,
+			&dev->dev_stat_grps.stat_group);
 }
 
 /*
@@ -521,7 +540,7 @@ static struct configfs_attribute *target_stat_scsi_port_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type target_stat_scsi_port_cit = {
+static const struct config_item_type target_stat_scsi_port_cit = {
 	.ct_attrs		= target_stat_scsi_port_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -705,7 +724,7 @@ static struct configfs_attribute *target_stat_scsi_tgt_port_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type target_stat_scsi_tgt_port_cit = {
+static const struct config_item_type target_stat_scsi_tgt_port_cit = {
 	.ct_attrs		= target_stat_scsi_tgt_port_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -794,20 +813,38 @@ static ssize_t target_stat_transport_dev_name_show(struct config_item *item,
 	return ret;
 }
 
+static ssize_t target_stat_transport_proto_id_show(struct config_item *item,
+		char *page)
+{
+	struct se_lun *lun = to_transport_stat(item);
+	struct se_device *dev;
+	struct se_portal_group *tpg = lun->lun_tpg;
+	ssize_t ret = -ENODEV;
+
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n", tpg->proto_id);
+	rcu_read_unlock();
+	return ret;
+}
+
 CONFIGFS_ATTR_RO(target_stat_transport_, inst);
 CONFIGFS_ATTR_RO(target_stat_transport_, device);
 CONFIGFS_ATTR_RO(target_stat_transport_, indx);
 CONFIGFS_ATTR_RO(target_stat_transport_, dev_name);
+CONFIGFS_ATTR_RO(target_stat_transport_, proto_id);
 
 static struct configfs_attribute *target_stat_scsi_transport_attrs[] = {
 	&target_stat_transport_attr_inst,
 	&target_stat_transport_attr_device,
 	&target_stat_transport_attr_indx,
 	&target_stat_transport_attr_dev_name,
+	&target_stat_transport_attr_proto_id,
 	NULL,
 };
 
-static struct config_item_type target_stat_scsi_transport_cit = {
+static const struct config_item_type target_stat_scsi_transport_cit = {
 	.ct_attrs		= target_stat_scsi_transport_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -818,19 +855,20 @@ static struct config_item_type target_stat_scsi_transport_cit = {
  */
 void target_stat_setup_port_default_groups(struct se_lun *lun)
 {
-	struct config_group *port_stat_grp = &lun->port_stat_grps.stat_group;
-
 	config_group_init_type_name(&lun->port_stat_grps.scsi_port_group,
 			"scsi_port", &target_stat_scsi_port_cit);
+	configfs_add_default_group(&lun->port_stat_grps.scsi_port_group,
+			&lun->port_stat_grps.stat_group);
+
 	config_group_init_type_name(&lun->port_stat_grps.scsi_tgt_port_group,
 			"scsi_tgt_port", &target_stat_scsi_tgt_port_cit);
+	configfs_add_default_group(&lun->port_stat_grps.scsi_tgt_port_group,
+			&lun->port_stat_grps.stat_group);
+
 	config_group_init_type_name(&lun->port_stat_grps.scsi_transport_group,
 			"scsi_transport", &target_stat_scsi_transport_cit);
-
-	port_stat_grp->default_groups[0] = &lun->port_stat_grps.scsi_port_group;
-	port_stat_grp->default_groups[1] = &lun->port_stat_grps.scsi_tgt_port_group;
-	port_stat_grp->default_groups[2] = &lun->port_stat_grps.scsi_transport_group;
-	port_stat_grp->default_groups[3] = NULL;
+	configfs_add_default_group(&lun->port_stat_grps.scsi_transport_group,
+			&lun->port_stat_grps.stat_group);
 }
 
 /*
@@ -1168,7 +1206,7 @@ static struct configfs_attribute *target_stat_scsi_auth_intr_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type target_stat_scsi_auth_intr_cit = {
+static const struct config_item_type target_stat_scsi_auth_intr_cit = {
 	.ct_attrs		= target_stat_scsi_auth_intr_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -1340,7 +1378,7 @@ static struct configfs_attribute *target_stat_scsi_ath_intr_port_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type target_stat_scsi_att_intr_port_cit = {
+static const struct config_item_type target_stat_scsi_att_intr_port_cit = {
 	.ct_attrs		= target_stat_scsi_ath_intr_port_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -1351,14 +1389,13 @@ static struct config_item_type target_stat_scsi_att_intr_port_cit = {
  */
 void target_stat_setup_mappedlun_default_groups(struct se_lun_acl *lacl)
 {
-	struct config_group *ml_stat_grp = &lacl->ml_stat_grps.stat_group;
-
 	config_group_init_type_name(&lacl->ml_stat_grps.scsi_auth_intr_group,
 			"scsi_auth_intr", &target_stat_scsi_auth_intr_cit);
+	configfs_add_default_group(&lacl->ml_stat_grps.scsi_auth_intr_group,
+			&lacl->ml_stat_grps.stat_group);
+
 	config_group_init_type_name(&lacl->ml_stat_grps.scsi_att_intr_port_group,
 			"scsi_att_intr_port", &target_stat_scsi_att_intr_port_cit);
-
-	ml_stat_grp->default_groups[0] = &lacl->ml_stat_grps.scsi_auth_intr_group;
-	ml_stat_grp->default_groups[1] = &lacl->ml_stat_grps.scsi_att_intr_port_group;
-	ml_stat_grp->default_groups[2] = NULL;
+	configfs_add_default_group(&lacl->ml_stat_grps.scsi_att_intr_port_group,
+			&lacl->ml_stat_grps.stat_group);
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * GCC stack protector support.
  *
@@ -33,7 +34,7 @@
 #ifndef _ASM_STACKPROTECTOR_H
 #define _ASM_STACKPROTECTOR_H 1
 
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 
 #include <asm/tsc.h>
 #include <asm/processor.h>
@@ -74,6 +75,7 @@ static __always_inline void boot_init_stack_canary(void)
 	get_random_bytes(&canary, sizeof(canary));
 	tsc = rdtsc();
 	canary += tsc + (tsc << 32UL);
+	canary &= CANARY_MASK;
 
 	current->stack_canary = canary;
 #ifdef CONFIG_X86_64
@@ -87,7 +89,7 @@ static inline void setup_stack_canary_segment(int cpu)
 {
 #ifdef CONFIG_X86_32
 	unsigned long canary = (unsigned long)&per_cpu(stack_canary, cpu);
-	struct desc_struct *gdt_table = get_cpu_gdt_table(cpu);
+	struct desc_struct *gdt_table = get_cpu_gdt_rw(cpu);
 	struct desc_struct desc;
 
 	desc = gdt_table[GDT_ENTRY_STACK_CANARY];
@@ -103,7 +105,7 @@ static inline void load_stack_canary_segment(void)
 #endif
 }
 
-#else	/* CC_STACKPROTECTOR */
+#else	/* STACKPROTECTOR */
 
 #define GDT_STACK_CANARY_INIT
 
@@ -119,5 +121,5 @@ static inline void load_stack_canary_segment(void)
 #endif
 }
 
-#endif	/* CC_STACKPROTECTOR */
+#endif	/* STACKPROTECTOR */
 #endif	/* _ASM_STACKPROTECTOR_H */

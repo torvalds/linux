@@ -1,61 +1,62 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
 /* p80211hdr.h
-*
-* Macros, types, and functions for handling 802.11 MAC headers
-*
-* Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
-* --------------------------------------------------------------------
-*
-* linux-wlan
-*
-*   The contents of this file are subject to the Mozilla Public
-*   License Version 1.1 (the "License"); you may not use this file
-*   except in compliance with the License. You may obtain a copy of
-*   the License at http://www.mozilla.org/MPL/
-*
-*   Software distributed under the License is distributed on an "AS
-*   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-*   implied. See the License for the specific language governing
-*   rights and limitations under the License.
-*
-*   Alternatively, the contents of this file may be used under the
-*   terms of the GNU Public License version 2 (the "GPL"), in which
-*   case the provisions of the GPL are applicable instead of the
-*   above.  If you wish to allow the use of your version of this file
-*   only under the terms of the GPL and not to allow others to use
-*   your version of this file under the MPL, indicate your decision
-*   by deleting the provisions above and replace them with the notice
-*   and other provisions required by the GPL.  If you do not delete
-*   the provisions above, a recipient may use your version of this
-*   file under either the MPL or the GPL.
-*
-* --------------------------------------------------------------------
-*
-* Inquiries regarding the linux-wlan Open Source project can be
-* made directly to:
-*
-* AbsoluteValue Systems Inc.
-* info@linux-wlan.com
-* http://www.linux-wlan.com
-*
-* --------------------------------------------------------------------
-*
-* Portions of the development of this software were funded by
-* Intersil Corporation as part of PRISM(R) chipset product development.
-*
-* --------------------------------------------------------------------
-*
-* This file declares the constants and types used in the interface
-* between a wlan driver and the user mode utilities.
-*
-* Note:
-*  - Constant values are always in HOST byte order.  To assign
-*    values to multi-byte fields they _must_ be converted to
-*    ieee byte order.  To retrieve multi-byte values from incoming
-*    frames, they must be converted to host order.
-*
-* All functions declared here are implemented in p80211.c
-* --------------------------------------------------------------------
-*/
+ *
+ * Macros, types, and functions for handling 802.11 MAC headers
+ *
+ * Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
+ * --------------------------------------------------------------------
+ *
+ * linux-wlan
+ *
+ *   The contents of this file are subject to the Mozilla Public
+ *   License Version 1.1 (the "License"); you may not use this file
+ *   except in compliance with the License. You may obtain a copy of
+ *   the License at http://www.mozilla.org/MPL/
+ *
+ *   Software distributed under the License is distributed on an "AS
+ *   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *   implied. See the License for the specific language governing
+ *   rights and limitations under the License.
+ *
+ *   Alternatively, the contents of this file may be used under the
+ *   terms of the GNU Public License version 2 (the "GPL"), in which
+ *   case the provisions of the GPL are applicable instead of the
+ *   above.  If you wish to allow the use of your version of this file
+ *   only under the terms of the GPL and not to allow others to use
+ *   your version of this file under the MPL, indicate your decision
+ *   by deleting the provisions above and replace them with the notice
+ *   and other provisions required by the GPL.  If you do not delete
+ *   the provisions above, a recipient may use your version of this
+ *   file under either the MPL or the GPL.
+ *
+ * --------------------------------------------------------------------
+ *
+ * Inquiries regarding the linux-wlan Open Source project can be
+ * made directly to:
+ *
+ * AbsoluteValue Systems Inc.
+ * info@linux-wlan.com
+ * http://www.linux-wlan.com
+ *
+ * --------------------------------------------------------------------
+ *
+ * Portions of the development of this software were funded by
+ * Intersil Corporation as part of PRISM(R) chipset product development.
+ *
+ * --------------------------------------------------------------------
+ *
+ * This file declares the constants and types used in the interface
+ * between a wlan driver and the user mode utilities.
+ *
+ * Note:
+ *  - Constant values are always in HOST byte order.  To assign
+ *    values to multi-byte fields they _must_ be converted to
+ *    ieee byte order.  To retrieve multi-byte values from incoming
+ *    frames, they must be converted to host order.
+ *
+ * All functions declared here are implemented in p80211.c
+ * --------------------------------------------------------------------
+ */
 
 #ifndef _P80211HDR_H
 #define _P80211HDR_H
@@ -131,8 +132,8 @@
 /*                        SET_FC_FSTYPE(WLAN_FSTYPE_RTS) );   */
 /*------------------------------------------------------------*/
 
-#define WLAN_GET_FC_FTYPE(n)	((((u16)(n)) & (BIT(2) | BIT(3))) >> 2)
-#define WLAN_GET_FC_FSTYPE(n)	((((u16)(n)) & (BIT(4)|BIT(5)|BIT(6)|BIT(7))) >> 4)
+#define WLAN_GET_FC_FTYPE(n)	((((u16)(n)) & GENMASK(3, 2)) >> 2)
+#define WLAN_GET_FC_FSTYPE(n)	((((u16)(n)) & GENMASK(7, 4)) >> 4)
 #define WLAN_GET_FC_TODS(n)	((((u16)(n)) & (BIT(8))) >> 8)
 #define WLAN_GET_FC_FROMDS(n)	((((u16)(n)) & (BIT(9))) >> 9)
 #define WLAN_GET_FC_ISWEP(n)	((((u16)(n)) & (BIT(14))) >> 14)
@@ -173,15 +174,25 @@ union p80211_hdr {
 
 /* Frame and header length macros */
 
-#define WLAN_CTL_FRAMELEN(fstype) (\
-	(fstype) == WLAN_FSTYPE_BLOCKACKREQ	? 24 : \
-	(fstype) == WLAN_FSTYPE_BLOCKACK	? 152 : \
-	(fstype) == WLAN_FSTYPE_PSPOLL		? 20 : \
-	(fstype) == WLAN_FSTYPE_RTS		? 20 : \
-	(fstype) == WLAN_FSTYPE_CTS		? 14 : \
-	(fstype) == WLAN_FSTYPE_ACK		? 14 : \
-	(fstype) == WLAN_FSTYPE_CFEND		? 20 : \
-	(fstype) == WLAN_FSTYPE_CFENDCFACK	? 20 : 4)
+static inline u16 wlan_ctl_framelen(u16 fstype)
+{
+	switch (fstype)	{
+	case WLAN_FSTYPE_BLOCKACKREQ:
+		return 24;
+	case WLAN_FSTYPE_BLOCKACK:
+		return 152;
+	case WLAN_FSTYPE_PSPOLL:
+	case WLAN_FSTYPE_RTS:
+	case WLAN_FSTYPE_CFEND:
+	case WLAN_FSTYPE_CFENDCFACK:
+		return 20;
+	case WLAN_FSTYPE_CTS:
+	case WLAN_FSTYPE_ACK:
+		return 14;
+	default:
+		return 4;
+	}
+}
 
 #define WLAN_FCS_LEN			4
 
@@ -200,7 +211,7 @@ static inline u16 p80211_headerlen(u16 fctl)
 			hdrlen += ETH_ALEN;
 		break;
 	case WLAN_FTYPE_CTL:
-		hdrlen = WLAN_CTL_FRAMELEN(WLAN_GET_FC_FSTYPE(fctl)) -
+		hdrlen = wlan_ctl_framelen(WLAN_GET_FC_FSTYPE(fctl)) -
 		    WLAN_FCS_LEN;
 		break;
 	default:

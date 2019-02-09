@@ -140,6 +140,15 @@ int msm_dsi_pll_restore_state(struct msm_dsi_pll *pll)
 	return 0;
 }
 
+int msm_dsi_pll_set_usecase(struct msm_dsi_pll *pll,
+			    enum msm_dsi_phy_usecase uc)
+{
+	if (pll->set_usecase)
+		return pll->set_usecase(pll, uc);
+
+	return 0;
+}
+
 struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 			enum msm_dsi_phy_type type, int id)
 {
@@ -151,6 +160,15 @@ struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 	case MSM_DSI_PHY_28NM_LP:
 		pll = msm_dsi_pll_28nm_init(pdev, type, id);
 		break;
+	case MSM_DSI_PHY_28NM_8960:
+		pll = msm_dsi_pll_28nm_8960_init(pdev, id);
+		break;
+	case MSM_DSI_PHY_14NM:
+		pll = msm_dsi_pll_14nm_init(pdev, id);
+		break;
+	case MSM_DSI_PHY_10NM:
+		pll = msm_dsi_pll_10nm_init(pdev, id);
+		break;
 	default:
 		pll = ERR_PTR(-ENXIO);
 		break;
@@ -158,7 +176,7 @@ struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 
 	if (IS_ERR(pll)) {
 		dev_err(dev, "%s: failed to init DSI PLL\n", __func__);
-		return NULL;
+		return pll;
 	}
 
 	pll->type = type;

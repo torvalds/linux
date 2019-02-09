@@ -42,7 +42,7 @@
 #define USE_OLD_WOWLAN_DEBUG_FW 0
 
 #define H2C_8821AE_RSVDPAGE_LOC_LEN		5
-#define H2C_8821AE_PWEMODE_LENGTH			5
+#define H2C_8821AE_PWEMODE_LENGTH			7
 #define H2C_8821AE_JOINBSSRPT_LENGTH		1
 #define H2C_8821AE_AP_OFFLOAD_LENGTH		3
 #define H2C_8821AE_WOWLAN_LENGTH			3
@@ -137,20 +137,6 @@
 #define	FW_PWR_STATE_ACTIVE	((FW_PS_RF_ON) | (FW_PS_REGISTER_ACTIVE))
 #define	FW_PWR_STATE_RF_OFF	0
 
-enum rtl8812_c2h_evt {
-	C2H_8812_DBG = 0,
-	C2H_8812_LB = 1,
-	C2H_8812_TXBF = 2,
-	C2H_8812_TX_REPORT = 3,
-	C2H_8812_BT_INFO = 9,
-	C2H_8812_BT_MP = 11,
-	C2H_8812_RA_RPT = 12,
-
-	C2H_8812_FW_SWCHNL = 0x10,
-	C2H_8812_IQK_FINISH = 0x11,
-	MAX_8812_C2HEVENT
-};
-
 enum rtl8821a_h2c_cmd {
 	H2C_8821AE_RSVDPAGE = 0,
 	H2C_8821AE_MSRRPT = 1,
@@ -218,6 +204,8 @@ enum rtl8821a_h2c_cmd {
 	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __value)
 #define SET_H2CCMD_PWRMODE_PARM_PWR_STATE(__cmd, __value)	\
 	SET_BITS_TO_LE_1BYTE((__cmd)+4, 0, 8, __value)
+#define SET_H2CCMD_PWRMODE_PARM_BYTE5(__cmd, __value)		\
+	SET_BITS_TO_LE_1BYTE((__cmd) + 5, 0, 8, __value)
 #define GET_8821AE_H2CCMD_PWRMODE_PARM_MODE(__cmd)		\
 	LE_BITS_TO_1BYTE(__cmd, 0, 8)
 
@@ -229,6 +217,8 @@ enum rtl8821a_h2c_cmd {
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
 #define SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(__ph2ccmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+3, 0, 8, __val)
+#define SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(__ph2ccmd, __val)	\
+	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 4, 0, 8, __val)
 
 /* _MEDIA_STATUS_RPT_PARM_CMD1 */
 #define SET_H2CCMD_MSRRPT_PARM_OPMODE(__cmd, __value)	\
@@ -327,6 +317,6 @@ void rtl8821ae_set_fw_keep_alive_cmd(struct ieee80211_hw *hw, bool func_en);
 void rtl8821ae_set_fw_disconnect_decision_ctrl_cmd(struct ieee80211_hw *hw,
 						   bool enabled);
 void rtl8821ae_set_fw_global_info_cmd(struct ieee80211_hw *hw);
-void rtl8821ae_c2h_packet_handler(struct ieee80211_hw *hw,
-				  u8 *buffer, u8 length);
+void rtl8821ae_c2h_ra_report_handler(struct ieee80211_hw *hw,
+				     u8 *cmd_buf, u8 cmd_len);
 #endif

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -147,7 +147,36 @@ static inline void restore_msa(struct task_struct *t)
 		_restore_msa(t);
 }
 
-#ifdef TOOLCHAIN_SUPPORTS_MSA
+static inline void init_msa_upper(void)
+{
+	/*
+	 * Check cpu_has_msa only if it's a constant. This will allow the
+	 * compiler to optimise out code for CPUs without MSA without adding
+	 * an extra redundant check for CPUs with MSA.
+	 */
+	if (__builtin_constant_p(cpu_has_msa) && !cpu_has_msa)
+		return;
+
+	_init_msa_upper();
+}
+
+#ifndef TOOLCHAIN_SUPPORTS_MSA
+/*
+ * Define assembler macros using .word for the c[ft]cmsa instructions in order
+ * to allow compilation with toolchains that do not support MSA. Once all
+ * toolchains in use support MSA these can be removed.
+ */
+_ASM_MACRO_2R(cfcmsa, rd, cs,
+	_ASM_INSN_IF_MIPS(0x787e0019 | __cs << 11 | __rd << 6)
+	_ASM_INSN32_IF_MM(0x587e0016 | __cs << 11 | __rd << 6));
+_ASM_MACRO_2R(ctcmsa, cd, rs,
+	_ASM_INSN_IF_MIPS(0x783e0019 | __rs << 11 | __cd << 6)
+	_ASM_INSN32_IF_MM(0x583e0016 | __rs << 11 | __cd << 6));
+#define _ASM_SET_MSA ""
+#else /* TOOLCHAIN_SUPPORTS_MSA */
+#define _ASM_SET_MSA ".set\tfp=64\n\t"				\
+		     ".set\tmsa\n\t"
+#endif
 
 #define __BUILD_MSA_CTL_REG(name, cs)				\
 static inline unsigned int read_msa_##name(void)		\
@@ -155,7 +184,7 @@ static inline unsigned int read_msa_##name(void)		\
 	unsigned int reg;					\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
-	"	.set	msa\n"					\
+	_ASM_SET_MSA						\
 	"	cfcmsa	%0, $" #cs "\n"				\
 	"	.set	pop\n"					\
 	: "=r"(reg));						\
@@ -166,55 +195,11 @@ static inline void write_msa_##name(unsigned int val)		\
 {								\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
-	"	.set	msa\n"					\
+	_ASM_SET_MSA						\
 	"	ctcmsa	$" #cs ", %0\n"				\
 	"	.set	pop\n"					\
 	: : "r"(val));						\
 }
-
-#else /* !TOOLCHAIN_SUPPORTS_MSA */
-
-/*
- * Define functions using .word for the c[ft]cmsa instructions in order to
- * allow compilation with toolchains that do not support MSA. Once all
- * toolchains in use support MSA these can be removed.
- */
-#ifdef CONFIG_CPU_MICROMIPS
-#define CFC_MSA_INSN	0x587e0056
-#define CTC_MSA_INSN	0x583e0816
-#else
-#define CFC_MSA_INSN	0x787e0059
-#define CTC_MSA_INSN	0x783e0819
-#endif
-
-#define __BUILD_MSA_CTL_REG(name, cs)				\
-static inline unsigned int read_msa_##name(void)		\
-{								\
-	unsigned int reg;					\
-	__asm__ __volatile__(					\
-	"	.set	push\n"					\
-	"	.set	noat\n"					\
-	"	.insn\n"					\
-	"	.word	%1 | (" #cs " << 11)\n"			\
-	"	move	%0, $1\n"				\
-	"	.set	pop\n"					\
-	: "=r"(reg) : "i"(CFC_MSA_INSN));			\
-	return reg;						\
-}								\
-								\
-static inline void write_msa_##name(unsigned int val)		\
-{								\
-	__asm__ __volatile__(					\
-	"	.set	push\n"					\
-	"	.set	noat\n"					\
-	"	move	$1, %0\n"				\
-	"	.insn\n"					\
-	"	.word	%1 | (" #cs " << 6)\n"			\
-	"	.set	pop\n"					\
-	: : "r"(val), "i"(CTC_MSA_INSN));			\
-}
-
-#endif /* !TOOLCHAIN_SUPPORTS_MSA */
 
 __BUILD_MSA_CTL_REG(ir, 0)
 __BUILD_MSA_CTL_REG(csr, 1)

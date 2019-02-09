@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/isofs/dir.c
  *
@@ -58,7 +59,7 @@ int get_acorn_filename(struct iso_directory_record *de,
 	std = sizeof(struct iso_directory_record) + de->name_len[0];
 	if (std & 1)
 		std++;
-	if ((*((unsigned char *) de) - std) != 32)
+	if (de->length[0] - std != 32)
 		return retnamlen;
 	chr = ((unsigned char *) de) + std;
 	if (strncmp(chr, "ARCHIMEDES", 10))
@@ -269,7 +270,7 @@ const struct file_operations isofs_dir_operations =
 {
 	.llseek = generic_file_llseek,
 	.read = generic_read_dir,
-	.iterate = isofs_readdir,
+	.iterate_shared = isofs_readdir,
 };
 
 /*

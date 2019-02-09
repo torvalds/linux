@@ -66,14 +66,14 @@ static void *ieee80211_ccmp_init(int key_idx)
 {
 	struct ieee80211_ccmp_data *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
-	if (priv == NULL)
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		goto fail;
 	priv->key_idx = key_idx;
 
 	priv->tfm = (void *)crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tfm)) {
-		printk(KERN_DEBUG "ieee80211_crypt_ccmp: could not allocate crypto API aes\n");
+		pr_debug("ieee80211_crypt_ccmp: could not allocate crypto API aes\n");
 		priv->tfm = NULL;
 		goto fail;
 	}
@@ -90,7 +90,6 @@ fail:
 	return NULL;
 }
 
-
 static void ieee80211_ccmp_deinit(void *priv)
 {
 	struct ieee80211_ccmp_data *_priv = priv;
@@ -100,7 +99,6 @@ static void ieee80211_ccmp_deinit(void *priv)
 	kfree(priv);
 }
 
-
 static inline void xor_block(u8 *b, u8 *a, size_t len)
 {
 	int i;
@@ -108,8 +106,6 @@ static inline void xor_block(u8 *b, u8 *a, size_t len)
 	for (i = 0; i < len; i++)
 		b[i] ^= a[i];
 }
-
-
 
 static void ccmp_init_blocks(struct crypto_tfm *tfm,
 			     struct rtl_80211_hdr_4addr *hdr,
@@ -135,7 +131,7 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	if (a4_included)
 		aad_len += 6;
 	if (qc_included) {
-		pos = (u8 *) &hdr->addr4;
+		pos = (u8 *)&hdr->addr4;
 		if (a4_included)
 			pos += 6;
 		qc = *pos & 0x0f;
@@ -161,13 +157,13 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	 * A4 (if present)
 	 * QC (if present)
 	 */
-	pos = (u8 *) hdr;
+	pos = (u8 *)hdr;
 	aad[0] = 0; /* aad_len >> 8 */
 	aad[1] = aad_len & 0xff;
 	aad[2] = pos[0] & 0x8f;
 	aad[3] = pos[1] & 0xc7;
 	memcpy(aad + 4, hdr->addr1, 3 * ETH_ALEN);
-	pos = (u8 *) &hdr->seq_ctl;
+	pos = (u8 *)&hdr->seq_ctl;
 	aad[22] = pos[0] & 0x0f;
 	aad[23] = 0; /* all bits masked */
 	memset(aad + 24, 0, 8);
@@ -185,11 +181,10 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	xor_block(auth, &aad[AES_BLOCK_LEN], AES_BLOCK_LEN);
 	ieee80211_ccmp_aes_encrypt(tfm, auth, auth);
 	b0[0] &= 0x07;
-	b0[14] = b0[15] = 0;
+	b0[14] = 0;
+	b0[15] = 0;
 	ieee80211_ccmp_aes_encrypt(tfm, b0, s0);
 }
-
-
 
 static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
@@ -197,7 +192,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int data_len, i;
 	u8 *pos;
 	struct rtl_80211_hdr_4addr *hdr;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 
 	if (skb_headroom(skb) < CCMP_HDR_LEN ||
 	    skb_tailroom(skb) < CCMP_MIC_LEN ||
@@ -227,8 +222,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = key->tx_pn[1];
 	*pos++ = key->tx_pn[0];
 
-
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 	if (!tcb_desc->bHwSec) {
 		int blocks, last, len;
 		u8 *mic;
@@ -242,7 +236,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		ccmp_init_blocks(key->tfm, hdr, key->tx_pn, data_len, b0, b, s0);
 
-		blocks = (data_len + AES_BLOCK_LEN - 1) / AES_BLOCK_LEN;
+		blocks = DIV_ROUND_UP(data_len, AES_BLOCK_LEN);
 		last = data_len % AES_BLOCK_LEN;
 
 		for (i = 1; i <= blocks; i++) {
@@ -264,13 +258,12 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return 0;
 }
 
-
 static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_ccmp_data *key = priv;
 	u8 keyidx, *pos;
 	struct rtl_80211_hdr_4addr *hdr;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 pn[6];
 
 	if (skb->len < hdr_len + CCMP_HDR_LEN + CCMP_MIC_LEN) {
@@ -278,27 +271,27 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 	}
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "CCMP: received packet without ExtIV flag from %pM\n",
-				hdr->addr2);
+			netdev_dbg(skb->dev, "CCMP: received packet without ExtIV flag from %pM\n",
+				   hdr->addr2);
 		}
 		key->dot11RSNAStatsCCMPFormatErrors++;
 		return -2;
 	}
 	keyidx >>= 6;
 	if (key->key_idx != keyidx) {
-		printk(KERN_DEBUG "CCMP: RX tkey->key_idx=%d frame keyidx=%d priv=%p\n",
-			key->key_idx, keyidx, priv);
+		netdev_dbg(skb->dev, "CCMP: RX tkey->key_idx=%d frame keyidx=%d priv=%p\n",
+			   key->key_idx, keyidx, priv);
 		return -6;
 	}
 	if (!key->key_set) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "CCMP: received packet from %pM with keyid=%d that does not have a configured key\n",
-				hdr->addr2, keyidx);
+			netdev_dbg(skb->dev, "CCMP: received packet from %pM with keyid=%d that does not have a configured key\n",
+				   hdr->addr2, keyidx);
 		}
 		return -3;
 	}
@@ -313,8 +306,8 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (memcmp(pn, key->rx_pn, CCMP_PN_LEN) <= 0) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "CCMP: replay detected: STA=%pM previous PN %pm received PN %pm\n",
-			       hdr->addr2, key->rx_pn, pn);
+			netdev_dbg(skb->dev, "CCMP: replay detected: STA=%pM previous PN %pm received PN %pm\n",
+				   hdr->addr2, key->rx_pn, pn);
 		}
 		key->dot11RSNAStatsCCMPReplays++;
 		return -4;
@@ -327,11 +320,10 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		u8 *a = key->rx_a;
 		int i, blocks, last, len;
 
-
 		ccmp_init_blocks(key->tfm, hdr, pn, data_len, b0, a, b);
 		xor_block(mic, b, CCMP_MIC_LEN);
 
-		blocks = (data_len + AES_BLOCK_LEN - 1) / AES_BLOCK_LEN;
+		blocks = DIV_ROUND_UP(data_len, AES_BLOCK_LEN);
 		last = data_len % AES_BLOCK_LEN;
 
 		for (i = 1; i <= blocks; i++) {
@@ -349,8 +341,8 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		if (memcmp(mic, a, CCMP_MIC_LEN) != 0) {
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG "CCMP: decrypt failed: STA=%pM\n",
-					hdr->addr2);
+				netdev_dbg(skb->dev, "CCMP: decrypt failed: STA=%pM\n",
+					   hdr->addr2);
 			}
 			key->dot11RSNAStatsCCMPDecryptErrors++;
 			return -5;
@@ -365,7 +357,6 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	return keyidx;
 }
-
 
 static int ieee80211_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 {
@@ -389,14 +380,14 @@ static int ieee80211_ccmp_set_key(void *key, int len, u8 *seq, void *priv)
 			data->rx_pn[5] = seq[0];
 		}
 		crypto_cipher_setkey((void *)data->tfm, data->key, CCMP_TK_LEN);
-	} else if (len == 0)
+	} else if (len == 0) {
 		data->key_set = 0;
-	else
+	} else {
 		return -1;
+	}
 
 	return 0;
 }
-
 
 static int ieee80211_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 {
@@ -421,7 +412,6 @@ static int ieee80211_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 	return CCMP_TK_LEN;
 }
 
-
 static char *ieee80211_ccmp_print_stats(char *p, void *priv)
 {
 	struct ieee80211_ccmp_data *ccmp = priv;
@@ -434,12 +424,6 @@ static char *ieee80211_ccmp_print_stats(char *p, void *priv)
 		     ccmp->dot11RSNAStatsCCMPDecryptErrors);
 
 	return p;
-}
-
-void ieee80211_ccmp_null(void)
-{
-	/* printk("============>%s()\n", __func__); */
-	return;
 }
 
 static struct ieee80211_crypto_ops ieee80211_crypt_ccmp = {

@@ -25,8 +25,8 @@
 #include <asm/time.h>
 #include <asm/ipic.h>
 #include <asm/udbg.h>
-#include <asm/qe.h>
-#include <asm/qe_ic.h>
+#include <soc/fsl/qe/qe.h>
+#include <soc/fsl/qe/qe_ic.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
@@ -89,7 +89,7 @@ static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
 			goto err;
 
 		ret = of_irq_to_resource(np, 0, &res[1]);
-		if (ret == NO_IRQ)
+		if (ret <= 0)
 			goto err;
 
 		pdev = platform_device_alloc("mpc83xx_spi", i);
@@ -113,7 +113,7 @@ static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
 unreg:
 		platform_device_del(pdev);
 err:
-		pr_err("%s: registration failed\n", np->full_name);
+		pr_err("%pOF: registration failed\n", np);
 next:
 		i++;
 	}
@@ -197,19 +197,14 @@ static void __init mpc832x_rdb_setup_arch(void)
 	struct device_node *np;
 #endif
 
-	if (ppc_md.progress)
-		ppc_md.progress("mpc832x_rdb_setup_arch()", 0);
-
-	mpc83xx_setup_pci();
+	mpc83xx_setup_arch();
 
 #ifdef CONFIG_QUICC_ENGINE
-	qe_reset();
-
 	if ((np = of_find_node_by_name(NULL, "par_io")) != NULL) {
 		par_io_init(np);
 		of_node_put(np);
 
-		for (np = NULL; (np = of_find_node_by_name(np, "ucc")) != NULL;)
+		for_each_node_by_name(np, "ucc")
 			par_io_of_config(np);
 	}
 #endif				/* CONFIG_QUICC_ENGINE */
@@ -222,9 +217,7 @@ machine_device_initcall(mpc832x_rdb, mpc83xx_declare_of_platform_devices);
  */
 static int __init mpc832x_rdb_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "MPC832xRDB");
+	return of_machine_is_compatible("MPC832xRDB");
 }
 
 define_machine(mpc832x_rdb) {

@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -313,31 +313,12 @@ static const struct mtk_pinctrl_devdata mt8135_pinctrl_data = {
 	.port_shf = 4,
 	.port_mask = 0xf,
 	.port_align = 4,
-	.eint_offsets = {
-		.name = "mt8135_eint",
-		.stat      = 0x000,
-		.ack       = 0x040,
-		.mask      = 0x080,
-		.mask_set  = 0x0c0,
-		.mask_clr  = 0x100,
-		.sens      = 0x140,
-		.sens_set  = 0x180,
-		.sens_clr  = 0x1c0,
-		.soft      = 0x200,
-		.soft_set  = 0x240,
-		.soft_clr  = 0x280,
-		.pol       = 0x300,
-		.pol_set   = 0x340,
-		.pol_clr   = 0x380,
-		.dom_en    = 0x400,
-		.dbnc_ctrl = 0x500,
-		.dbnc_set  = 0x600,
-		.dbnc_clr  = 0x700,
+	.eint_hw = {
 		.port_mask = 7,
 		.ports     = 6,
+		.ap_num    = 192,
+		.db_cnt    = 16,
 	},
-	.ap_num = 192,
-	.db_cnt = 16,
 };
 
 static int mt8135_pinctrl_probe(struct platform_device *pdev)
@@ -351,7 +332,6 @@ static const struct of_device_id mt8135_pctrl_match[] = {
 	},
 	{ }
 };
-MODULE_DEVICE_TABLE(of, mt8135_pctrl_match);
 
 static struct platform_driver mtk_pinctrl_driver = {
 	.probe = mt8135_pinctrl_probe,
@@ -365,9 +345,4 @@ static int __init mtk_pinctrl_init(void)
 {
 	return platform_driver_register(&mtk_pinctrl_driver);
 }
-
-module_init(mtk_pinctrl_init);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("MediaTek Pinctrl Driver");
-MODULE_AUTHOR("Hongzhou Yang <hongzhou.yang@mediatek.com>");
+arch_initcall(mtk_pinctrl_init);

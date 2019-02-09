@@ -24,7 +24,7 @@
 #include <linux/init.h>
 #include <linux/gfp.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/netdevice.h>
 #include <linux/isdn/capicmd.h>
 #include <linux/isdn/capiutil.h>
@@ -42,7 +42,7 @@ static char *revision = "$Revision: 1.1.2.2 $";
 
 static bool suppress_pollack;
 
-static struct pci_device_id c4_pci_tbl[] = {
+static const struct pci_device_id c4_pci_tbl[] = {
 	{ PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21285, PCI_VENDOR_ID_AVM, PCI_DEVICE_ID_AVM_C4, 0, 0, (unsigned long)4 },
 	{ PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21285, PCI_VENDOR_ID_AVM, PCI_DEVICE_ID_AVM_C2, 0, 0, (unsigned long)2 },
 	{ }			/* Terminating entry */
@@ -536,8 +536,8 @@ static void c4_handle_rx(avmcard *card)
 			printk(KERN_ERR "%s: incoming packet dropped\n",
 			       card->name);
 		} else {
-			memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
-			memcpy(skb_put(skb, DataB3Len), card->databuf, DataB3Len);
+			skb_put_data(skb, card->msgbuf, MsgLen);
+			skb_put_data(skb, card->databuf, DataB3Len);
 			capi_ctr_handle_message(ctrl, ApplId, skb);
 		}
 		break;
@@ -555,7 +555,7 @@ static void c4_handle_rx(avmcard *card)
 			printk(KERN_ERR "%s: incoming packet dropped\n",
 			       card->name);
 		} else {
-			memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
+			skb_put_data(skb, card->msgbuf, MsgLen);
 			if (CAPIMSG_CMD(skb->data) == CAPI_DATA_B3_CONF)
 				capilib_data_b3_conf(&cinfo->ncci_head, ApplId,
 						     CAPIMSG_NCCI(skb->data),
@@ -1127,19 +1127,6 @@ static int c4_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int c4_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, c4_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations c4_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= c4_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /* ------------------------------------------------------------- */
 
 static int c4_add_card(struct capicardparams *p, struct pci_dev *dev,
@@ -1211,7 +1198,7 @@ static int c4_add_card(struct capicardparams *p, struct pci_dev *dev,
 		cinfo->capi_ctrl.load_firmware = c4_load_firmware;
 		cinfo->capi_ctrl.reset_ctr     = c4_reset_ctr;
 		cinfo->capi_ctrl.procinfo      = c4_procinfo;
-		cinfo->capi_ctrl.proc_fops = &c4_proc_fops;
+		cinfo->capi_ctrl.proc_show     = c4_proc_show;
 		strcpy(cinfo->capi_ctrl.name, card->name);
 
 		retval = attach_capi_ctr(&cinfo->capi_ctrl);

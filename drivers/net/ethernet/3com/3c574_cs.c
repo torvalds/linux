@@ -92,7 +92,7 @@ earlier 3Com products.
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 /*====================================================================*/
@@ -225,7 +225,7 @@ static unsigned short read_eeprom(unsigned int ioaddr, int index);
 static void tc574_wait_for_completion(struct net_device *dev, int cmd);
 
 static void tc574_reset(struct net_device *dev);
-static void media_check(unsigned long arg);
+static void media_check(struct timer_list *t);
 static int el3_open(struct net_device *dev);
 static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
 					struct net_device *dev);
@@ -254,7 +254,6 @@ static const struct net_device_ops el3_netdev_ops = {
 	.ndo_get_stats		= el3_get_stats,
 	.ndo_do_ioctl		= el3_ioctl,
 	.ndo_set_rx_mode	= set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -378,7 +377,7 @@ static int tc574_config(struct pcmcia_device *link)
 		lp->autoselect = config & Autoselect ? 1 : 0;
 	}
 
-	init_timer(&lp->media);
+	timer_setup(&lp->media, media_check, 0);
 
 	{
 		int phy;
@@ -682,8 +681,6 @@ static int el3_open(struct net_device *dev)
 	netif_start_queue(dev);
 	
 	tc574_reset(dev);
-	lp->media.function = media_check;
-	lp->media.data = (unsigned long) dev;
 	lp->media.expires = jiffies + HZ;
 	add_timer(&lp->media);
 	
@@ -700,7 +697,7 @@ static void el3_tx_timeout(struct net_device *dev)
 	netdev_notice(dev, "Transmit timed out!\n");
 	dump_status(dev);
 	dev->stats.tx_errors++;
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	/* Issue TX_RESET and TX_START commands. */
 	tc574_wait_for_completion(dev, TxReset);
 	outw(TxEnable, ioaddr + EL3_CMD);
@@ -860,10 +857,10 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 	(and as a last resort, poll the NIC for events), and to monitor
 	the MII, reporting changes in cable status.
 */
-static void media_check(unsigned long arg)
+static void media_check(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *) arg;
-	struct el3_private *lp = netdev_priv(dev);
+	struct el3_private *lp = from_timer(lp, t, media);
+	struct net_device *dev = lp->p_dev->priv;
 	unsigned int ioaddr = dev->base_addr;
 	unsigned long flags;
 	unsigned short /* cable, */ media, partner;
@@ -1049,6 +1046,7 @@ static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get the address of the PHY in use. */
 		data->phy_id = phy;
+		/* fall through */
 	case SIOCGMIIREG:		/* Read the specified MII register. */
 		{
 			int saved_window;

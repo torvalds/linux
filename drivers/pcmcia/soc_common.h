@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/drivers/pcmcia/soc_common.h
  *
@@ -17,7 +18,14 @@
 
 
 struct device;
+struct gpio_desc;
 struct pcmcia_low_level;
+struct regulator;
+
+struct soc_pcmcia_regulator {
+	struct regulator	*reg;
+	bool			on;
+};
 
 /*
  * This structure encapsulates per-socket state which we might need to
@@ -52,18 +60,30 @@ struct soc_pcmcia_socket {
 
 	struct {
 		int		gpio;
+		struct gpio_desc *desc;
 		unsigned int	irq;
 		const char	*name;
-	} stat[4];
+	} stat[6];
 #define SOC_STAT_CD		0	/* Card detect */
 #define SOC_STAT_BVD1		1	/* BATDEAD / IOSTSCHG */
 #define SOC_STAT_BVD2		2	/* BATWARN / IOSPKR */
 #define SOC_STAT_RDY		3	/* Ready / Interrupt */
+#define SOC_STAT_VS1		4	/* Voltage sense 1 */
+#define SOC_STAT_VS2		5	/* Voltage sense 2 */
+
+	struct gpio_desc	*gpio_reset;
+	struct gpio_desc	*gpio_bus_enable;
+	struct soc_pcmcia_regulator vcc;
+	struct soc_pcmcia_regulator vpp;
 
 	unsigned int		irq_state;
 
+#ifdef CONFIG_CPU_FREQ
+	struct notifier_block	cpufreq_nb;
+#endif
 	struct timer_list	poll_timer;
 	struct list_head	node;
+	void *driver_data;
 };
 
 struct skt_dev_info {
@@ -133,10 +153,16 @@ struct soc_pcmcia_timing {
 extern void soc_common_pcmcia_get_timing(struct soc_pcmcia_socket *, struct soc_pcmcia_timing *);
 
 void soc_pcmcia_init_one(struct soc_pcmcia_socket *skt,
-	struct pcmcia_low_level *ops, struct device *dev);
+	const struct pcmcia_low_level *ops, struct device *dev);
 void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt);
 int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt);
+int soc_pcmcia_request_gpiods(struct soc_pcmcia_socket *skt);
 
+void soc_common_cf_socket_state(struct soc_pcmcia_socket *skt,
+	struct pcmcia_state *state);
+
+int soc_pcmcia_regulator_set(struct soc_pcmcia_socket *skt,
+	struct soc_pcmcia_regulator *r, int v);
 
 #ifdef CONFIG_PCMCIA_DEBUG
 

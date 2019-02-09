@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * /dev/lcd driver for Apple Network Servers.
  */
@@ -11,7 +12,7 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/sections.h>
 #include <asm/prom.h>
 #include <asm/io.h>
@@ -200,3 +201,4 @@ anslcd_exit(void)
 
 module_init(anslcd_init);
 module_exit(anslcd_exit);
+MODULE_LICENSE("GPL v2");

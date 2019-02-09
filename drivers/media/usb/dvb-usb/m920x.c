@@ -6,7 +6,7 @@
  *	under the terms of the GNU General Public License as published by the
  *	Free Software Foundation, version 2.
  *
- * see Documentation/dvb/README.dvb-usb for more information
+ * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 
 #include "m920x.h"
@@ -55,13 +55,9 @@ static inline int m920x_read(struct usb_device *udev, u8 request, u16 value,
 static inline int m920x_write(struct usb_device *udev, u8 request,
 			      u16 value, u16 index)
 {
-	int ret;
-
-	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-			      request, USB_TYPE_VENDOR | USB_DIR_OUT,
-			      value, index, NULL, 0, 2000);
-
-	return ret;
+	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0), request,
+			       USB_TYPE_VENDOR | USB_DIR_OUT, value, index,
+			       NULL, 0, 2000);
 }
 
 static inline int m920x_write_seq(struct usb_device *udev, u8 request,
@@ -245,7 +241,7 @@ static int m920x_rc_core_query(struct dvb_usb_device *d)
 	else if (state == REMOTE_KEY_REPEAT)
 		rc_repeat(d->rc_dev);
 	else
-		rc_keydown(d->rc_dev, RC_TYPE_UNKNOWN, rc_state[1], 0);
+		rc_keydown(d->rc_dev, RC_PROTO_UNKNOWN, rc_state[1], 0);
 
 out:
 	kfree(rc_state);
@@ -258,9 +254,6 @@ static int m920x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int nu
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i, j;
 	int ret = 0;
-
-	if (!num)
-		return -EINVAL;
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
@@ -1212,7 +1205,7 @@ static struct dvb_usb_device_properties vp7049_properties = {
 		.rc_interval    = 150,
 		.rc_codes       = RC_MAP_TWINHAN_VP1027_DVBS,
 		.rc_query       = m920x_rc_core_query,
-		.allowed_protos = RC_BIT_UNKNOWN,
+		.allowed_protos = RC_PROTO_BIT_UNKNOWN,
 	},
 
 	.size_of_priv     = sizeof(struct m920x_state),

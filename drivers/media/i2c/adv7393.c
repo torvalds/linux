@@ -31,7 +31,7 @@
 #include <linux/videodev2.h>
 #include <linux/uaccess.h>
 
-#include <media/adv7393.h>
+#include <media/i2c/adv7393.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 
@@ -103,7 +103,7 @@ static const u8 adv7393_init_reg_val[] = {
 };
 
 /*
- * 			    2^32
+ *			    2^32
  * FSC(reg) =  FSC (HZ) * --------
  *			  27000000
  */
@@ -456,7 +456,6 @@ MODULE_DEVICE_TABLE(i2c, adv7393_id);
 
 static struct i2c_driver adv7393_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "adv7393",
 	},
 	.probe		= adv7393_probe,

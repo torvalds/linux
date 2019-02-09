@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/nfs/callback_proc.c
  *
@@ -19,10 +20,11 @@
 
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
 
-__be32 nfs4_callback_getattr(struct cb_getattrargs *args,
-			     struct cb_getattrres *res,
+__be32 nfs4_callback_getattr(void *argp, void *resp,
 			     struct cb_process_state *cps)
 {
+	struct cb_getattrargs *args = argp;
+	struct cb_getattrres *res = resp;
 	struct nfs_delegation *delegation;
 	struct nfs_inode *nfsi;
 	struct inode *inode;
@@ -38,7 +40,9 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 		rpc_peeraddr2str(cps->clp->cl_rpcclient, RPC_DISPLAY_ADDR));
 
 	inode = nfs_delegation_find_inode(cps->clp, &args->fh);
-	if (inode == NULL) {
+	if (IS_ERR(inode)) {
+		if (inode == ERR_PTR(-EAGAIN))
+			res->status = htonl(NFS4ERR_DELAY);
 		trace_nfs4_cb_getattr(cps->clp, &args->fh, NULL,
 				-ntohl(res->status));
 		goto out;
@@ -50,10 +54,10 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 		goto out_iput;
 	res->size = i_size_read(inode);
 	res->change_attr = delegation->change_attr;
-	if (nfsi->nrequests != 0)
+	if (nfs_have_writebacks(inode))
 		res->change_attr++;
-	res->ctime = inode->i_ctime;
-	res->mtime = inode->i_mtime;
+	res->ctime = timespec64_to_timespec(inode->i_ctime);
+	res->mtime = timespec64_to_timespec(inode->i_mtime);
 	res->bitmap[0] = (FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE) &
 		args->bitmap[0];
 	res->bitmap[1] = (FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY) &
@@ -62,15 +66,16 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 out_iput:
 	rcu_read_unlock();
 	trace_nfs4_cb_getattr(cps->clp, &args->fh, inode, -ntohl(res->status));
-	iput(inode);
+	nfs_iput_and_deactive(inode);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(res->status));
 	return res->status;
 }
 
-__be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
+__be32 nfs4_callback_recall(void *argp, void *resp,
 			    struct cb_process_state *cps)
 {
+	struct cb_recallargs *args = argp;
 	struct inode *inode;
 	__be32 res;
 	
@@ -83,8 +88,13 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
 
 	res = htonl(NFS4ERR_BADHANDLE);
 	inode = nfs_delegation_find_inode(cps->clp, &args->fh);
-	if (inode == NULL)
+	if (IS_ERR(inode)) {
+		if (inode == ERR_PTR(-EAGAIN))
+			res = htonl(NFS4ERR_DELAY);
+		trace_nfs4_cb_recall(cps->clp, &args->fh, NULL,
+				&args->stateid, -ntohl(res));
 		goto out;
+	}
 	/* Set up a helper thread to actually return the delegation */
 	switch (nfs_async_inode_return_delegation(inode, &args->stateid)) {
 	case 0:
@@ -96,8 +106,9 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
 	default:
 		res = htonl(NFS4ERR_RESOURCE);
 	}
-	trace_nfs4_recall_delegation(inode, -ntohl(res));
-	iput(inode);
+	trace_nfs4_cb_recall(cps->clp, &args->fh, inode,
+			&args->stateid, -ntohl(res));
+	nfs_iput_and_deactive(inode);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(res));
 	return res;
@@ -106,58 +117,132 @@ out:
 #if defined(CONFIG_NFS_V4_1)
 
 /*
- * Lookup a layout by filehandle.
+ * Lookup a layout inode by stateid
  *
- * Note: gets a refcount on the layout hdr and on its respective inode.
- * Caller must put the layout hdr and the inode.
- *
- * TODO: keep track of all layouts (and delegations) in a hash table
- * hashed by filehandle.
+ * Note: returns a refcount on the inode and superblock
  */
-static struct pnfs_layout_hdr * get_layout_by_fh_locked(struct nfs_client *clp,
-		struct nfs_fh *fh, nfs4_stateid *stateid)
+static struct inode *nfs_layout_find_inode_by_stateid(struct nfs_client *clp,
+		const nfs4_stateid *stateid)
 {
 	struct nfs_server *server;
-	struct inode *ino;
+	struct inode *inode;
 	struct pnfs_layout_hdr *lo;
 
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		list_for_each_entry(lo, &server->layouts, plh_layouts) {
-			if (!nfs4_stateid_match_other(&lo->plh_stateid, stateid))
+			if (stateid != NULL &&
+			    !nfs4_stateid_match_other(stateid, &lo->plh_stateid))
 				continue;
-			if (nfs_compare_fh(fh, &NFS_I(lo->plh_inode)->fh))
-				continue;
-			ino = igrab(lo->plh_inode);
-			if (!ino)
-				break;
-			spin_lock(&ino->i_lock);
-			/* Is this layout in the process of being freed? */
-			if (NFS_I(ino)->layout != lo) {
-				spin_unlock(&ino->i_lock);
-				iput(ino);
-				break;
+			inode = igrab(lo->plh_inode);
+			if (!inode)
+				return ERR_PTR(-EAGAIN);
+			if (!nfs_sb_active(inode->i_sb)) {
+				rcu_read_unlock();
+				spin_unlock(&clp->cl_lock);
+				iput(inode);
+				spin_lock(&clp->cl_lock);
+				rcu_read_lock();
+				return ERR_PTR(-EAGAIN);
 			}
-			pnfs_get_layout_hdr(lo);
-			spin_unlock(&ino->i_lock);
-			return lo;
+			return inode;
 		}
 	}
 
-	return NULL;
+	return ERR_PTR(-ENOENT);
 }
 
-static struct pnfs_layout_hdr * get_layout_by_fh(struct nfs_client *clp,
-		struct nfs_fh *fh, nfs4_stateid *stateid)
+/*
+ * Lookup a layout inode by filehandle.
+ *
+ * Note: returns a refcount on the inode and superblock
+ *
+ */
+static struct inode *nfs_layout_find_inode_by_fh(struct nfs_client *clp,
+		const struct nfs_fh *fh)
 {
+	struct nfs_server *server;
+	struct nfs_inode *nfsi;
+	struct inode *inode;
 	struct pnfs_layout_hdr *lo;
+
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
+		list_for_each_entry(lo, &server->layouts, plh_layouts) {
+			nfsi = NFS_I(lo->plh_inode);
+			if (nfs_compare_fh(fh, &nfsi->fh))
+				continue;
+			if (nfsi->layout != lo)
+				continue;
+			inode = igrab(lo->plh_inode);
+			if (!inode)
+				return ERR_PTR(-EAGAIN);
+			if (!nfs_sb_active(inode->i_sb)) {
+				rcu_read_unlock();
+				spin_unlock(&clp->cl_lock);
+				iput(inode);
+				spin_lock(&clp->cl_lock);
+				rcu_read_lock();
+				return ERR_PTR(-EAGAIN);
+			}
+			return inode;
+		}
+	}
+
+	return ERR_PTR(-ENOENT);
+}
+
+static struct inode *nfs_layout_find_inode(struct nfs_client *clp,
+		const struct nfs_fh *fh,
+		const nfs4_stateid *stateid)
+{
+	struct inode *inode;
 
 	spin_lock(&clp->cl_lock);
 	rcu_read_lock();
-	lo = get_layout_by_fh_locked(clp, fh, stateid);
+	inode = nfs_layout_find_inode_by_stateid(clp, stateid);
+	if (inode == ERR_PTR(-ENOENT))
+		inode = nfs_layout_find_inode_by_fh(clp, fh);
 	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
 
-	return lo;
+	return inode;
+}
+
+/*
+ * Enforce RFC5661 section 12.5.5.2.1. (Layout Recall and Return Sequencing)
+ */
+static u32 pnfs_check_callback_stateid(struct pnfs_layout_hdr *lo,
+					const nfs4_stateid *new)
+{
+	u32 oldseq, newseq;
+
+	/* Is the stateid not initialised? */
+	if (!pnfs_layout_is_valid(lo))
+		return NFS4ERR_NOMATCHING_LAYOUT;
+
+	/* Mismatched stateid? */
+	if (!nfs4_stateid_match_other(&lo->plh_stateid, new))
+		return NFS4ERR_BAD_STATEID;
+
+	newseq = be32_to_cpu(new->seqid);
+	/* Are we already in a layout recall situation? */
+	if (test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags) &&
+	    lo->plh_return_seq != 0) {
+		if (newseq < lo->plh_return_seq)
+			return NFS4ERR_OLD_STATEID;
+		if (newseq > lo->plh_return_seq)
+			return NFS4ERR_DELAY;
+		goto out;
+	}
+
+	/* Check that the stateid matches what we think it should be. */
+	oldseq = be32_to_cpu(lo->plh_stateid.seqid);
+	if (newseq > oldseq + 1)
+		return NFS4ERR_DELAY;
+	/* Crazy server! */
+	if (newseq <= oldseq)
+		return NFS4ERR_OLD_STATEID;
+out:
+	return NFS_OK;
 }
 
 static u32 initiate_file_draining(struct nfs_client *clp,
@@ -168,37 +253,64 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	u32 rv = NFS4ERR_NOMATCHING_LAYOUT;
 	LIST_HEAD(free_me_list);
 
-	lo = get_layout_by_fh(clp, &args->cbl_fh, &args->cbl_stateid);
-	if (!lo)
-		goto out;
-
-	ino = lo->plh_inode;
-
-	spin_lock(&ino->i_lock);
-	pnfs_set_layout_stateid(lo, &args->cbl_stateid, true);
-	spin_unlock(&ino->i_lock);
+	ino = nfs_layout_find_inode(clp, &args->cbl_fh, &args->cbl_stateid);
+	if (IS_ERR(ino)) {
+		if (ino == ERR_PTR(-EAGAIN))
+			rv = NFS4ERR_DELAY;
+		goto out_noput;
+	}
 
 	pnfs_layoutcommit_inode(ino, false);
 
+
 	spin_lock(&ino->i_lock);
-	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
-	    pnfs_mark_matching_lsegs_invalid(lo, &free_me_list,
-					&args->cbl_range)) {
+	lo = NFS_I(ino)->layout;
+	if (!lo) {
+		spin_unlock(&ino->i_lock);
+		goto out;
+	}
+	pnfs_get_layout_hdr(lo);
+	rv = pnfs_check_callback_stateid(lo, &args->cbl_stateid);
+	if (rv != NFS_OK)
+		goto unlock;
+
+	/*
+	 * Enforce RFC5661 Section 12.5.5.2.1.5 (Bulk Recall and Return)
+	 */
+	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
 		rv = NFS4ERR_DELAY;
 		goto unlock;
 	}
 
-	if (NFS_SERVER(ino)->pnfs_curr_ld->return_range) {
-		NFS_SERVER(ino)->pnfs_curr_ld->return_range(lo,
-			&args->cbl_range);
+	pnfs_set_layout_stateid(lo, &args->cbl_stateid, true);
+	switch (pnfs_mark_matching_lsegs_return(lo, &free_me_list,
+				&args->cbl_range,
+				be32_to_cpu(args->cbl_stateid.seqid))) {
+	case 0:
+	case -EBUSY:
+		/* There are layout segments that need to be returned */
+		rv = NFS4_OK;
+		break;
+	case -ENOENT:
+		/* Embrace your forgetfulness! */
+		rv = NFS4ERR_NOMATCHING_LAYOUT;
+
+		if (NFS_SERVER(ino)->pnfs_curr_ld->return_range) {
+			NFS_SERVER(ino)->pnfs_curr_ld->return_range(lo,
+				&args->cbl_range);
+		}
 	}
 unlock:
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&free_me_list);
+	/* Free all lsegs that are attached to commit buckets */
+	nfs_commit_inode(ino, 0);
 	pnfs_put_layout_hdr(lo);
-	trace_nfs4_cb_layoutrecall_inode(clp, &args->cbl_fh, ino, -rv);
-	iput(ino);
 out:
+	nfs_iput_and_deactive(ino);
+out_noput:
+	trace_nfs4_cb_layoutrecall_file(clp, &args->cbl_fh, ino,
+			&args->cbl_stateid, -rv);
 	return rv;
 }
 
@@ -219,31 +331,19 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 static u32 do_callback_layoutrecall(struct nfs_client *clp,
 				    struct cb_layoutrecallargs *args)
 {
-	u32 res;
-
-	dprintk("%s enter, type=%i\n", __func__, args->cbl_recall_type);
 	if (args->cbl_recall_type == RETURN_FILE)
-		res = initiate_file_draining(clp, args);
-	else
-		res = initiate_bulk_draining(clp, args);
-	dprintk("%s returning %i\n", __func__, res);
-	return res;
-
+		return initiate_file_draining(clp, args);
+	return initiate_bulk_draining(clp, args);
 }
 
-__be32 nfs4_callback_layoutrecall(struct cb_layoutrecallargs *args,
-				  void *dummy, struct cb_process_state *cps)
+__be32 nfs4_callback_layoutrecall(void *argp, void *resp,
+				  struct cb_process_state *cps)
 {
-	u32 res;
-
-	dprintk("%s: -->\n", __func__);
+	struct cb_layoutrecallargs *args = argp;
+	u32 res = NFS4ERR_OP_NOT_IN_SESSION;
 
 	if (cps->clp)
 		res = do_callback_layoutrecall(cps->clp, args);
-	else
-		res = NFS4ERR_OP_NOT_IN_SESSION;
-
-	dprintk("%s: exit with status = %d\n", __func__, res);
 	return cpu_to_be32(res);
 }
 
@@ -258,15 +358,14 @@ static void pnfs_recall_all_layouts(struct nfs_client *clp)
 	do_callback_layoutrecall(clp, &args);
 }
 
-__be32 nfs4_callback_devicenotify(struct cb_devicenotifyargs *args,
-				  void *dummy, struct cb_process_state *cps)
+__be32 nfs4_callback_devicenotify(void *argp, void *resp,
+				  struct cb_process_state *cps)
 {
+	struct cb_devicenotifyargs *args = argp;
 	int i;
 	__be32 res = 0;
 	struct nfs_client *clp = cps->clp;
 	struct nfs_server *server = NULL;
-
-	dprintk("%s: -->\n", __func__);
 
 	if (!clp) {
 		res = cpu_to_be32(NFS4ERR_OP_NOT_IN_SESSION);
@@ -286,8 +385,6 @@ __be32 nfs4_callback_devicenotify(struct cb_devicenotifyargs *args,
 					goto found;
 				}
 			rcu_read_unlock();
-			dprintk("%s: layout type %u not found\n",
-				__func__, dev->cbd_layout_type);
 			continue;
 		}
 
@@ -297,8 +394,6 @@ __be32 nfs4_callback_devicenotify(struct cb_devicenotifyargs *args,
 
 out:
 	kfree(args->devs);
-	dprintk("%s: exit with status = %u\n",
-		__func__, be32_to_cpu(res));
 	return res;
 }
 
@@ -316,47 +411,30 @@ out:
  * a single outstanding callback request at a time.
  */
 static __be32
-validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
+validate_seqid(const struct nfs4_slot_table *tbl, const struct nfs4_slot *slot,
+		const struct cb_sequenceargs * args)
 {
-	struct nfs4_slot *slot;
-
-	dprintk("%s enter. slotid %u seqid %u\n",
-		__func__, args->csa_slotid, args->csa_sequenceid);
-
-	if (args->csa_slotid >= NFS41_BC_MAX_CALLBACKS)
+	if (args->csa_slotid > tbl->server_highest_slotid)
 		return htonl(NFS4ERR_BADSLOT);
-
-	slot = tbl->slots + args->csa_slotid;
-	dprintk("%s slot table seqid: %u\n", __func__, slot->seq_nr);
-
-	/* Normal */
-	if (likely(args->csa_sequenceid == slot->seq_nr + 1))
-		goto out_ok;
 
 	/* Replay */
 	if (args->csa_sequenceid == slot->seq_nr) {
-		dprintk("%s seqid %u is a replay\n",
-			__func__, args->csa_sequenceid);
+		if (nfs4_test_locked_slot(tbl, slot->slot_nr))
+			return htonl(NFS4ERR_DELAY);
 		/* Signal process_op to set this error on next op */
 		if (args->csa_cachethis == 0)
 			return htonl(NFS4ERR_RETRY_UNCACHED_REP);
 
-		/* The ca_maxresponsesize_cached is 0 with no DRC */
-		else if (args->csa_cachethis == 1)
-			return htonl(NFS4ERR_REP_TOO_BIG_TO_CACHE);
+		/* Liar! We never allowed you to set csa_cachethis != 0 */
+		return htonl(NFS4ERR_SEQ_FALSE_RETRY);
 	}
 
-	/* Wraparound */
-	if (args->csa_sequenceid == 1 && (slot->seq_nr + 1) == 0) {
-		slot->seq_nr = 1;
-		goto out_ok;
-	}
+	/* Note: wraparound relies on seq_nr being of type u32 */
+	if (likely(args->csa_sequenceid == slot->seq_nr + 1))
+		return htonl(NFS4_OK);
 
 	/* Misordered request */
 	return htonl(NFS4ERR_SEQ_MISORDERED);
-out_ok:
-	tbl->highest_used_slotid = args->csa_slotid;
-	return htonl(NFS4_OK);
 }
 
 /*
@@ -364,11 +442,14 @@ out_ok:
  * a match.  If the slot is in use and the sequence numbers match, the
  * client is still waiting for a response to the original request.
  */
-static bool referring_call_exists(struct nfs_client *clp,
+static int referring_call_exists(struct nfs_client *clp,
 				  uint32_t nrclists,
-				  struct referring_call_list *rclists)
+				  struct referring_call_list *rclists,
+				  spinlock_t *lock)
+	__releases(lock)
+	__acquires(lock)
 {
-	bool status = 0;
+	int status = 0;
 	int i, j;
 	struct nfs4_session *session;
 	struct nfs4_slot_table *tbl;
@@ -391,20 +472,10 @@ static bool referring_call_exists(struct nfs_client *clp,
 
 		for (j = 0; j < rclist->rcl_nrefcalls; j++) {
 			ref = &rclist->rcl_refcalls[j];
-
-			dprintk("%s: sessionid %x:%x:%x:%x sequenceid %u "
-				"slotid %u\n", __func__,
-				((u32 *)&rclist->rcl_sessionid.data)[0],
-				((u32 *)&rclist->rcl_sessionid.data)[1],
-				((u32 *)&rclist->rcl_sessionid.data)[2],
-				((u32 *)&rclist->rcl_sessionid.data)[3],
-				ref->rc_sequenceid, ref->rc_slotid);
-
-			spin_lock(&tbl->slot_tbl_lock);
-			status = (test_bit(ref->rc_slotid, tbl->used_slots) &&
-				  tbl->slots[ref->rc_slotid].seq_nr ==
-					ref->rc_sequenceid);
-			spin_unlock(&tbl->slot_tbl_lock);
+			spin_unlock(lock);
+			status = nfs4_slot_wait_on_seqid(tbl, ref->rc_slotid,
+					ref->rc_sequenceid, HZ >> 1) < 0;
+			spin_lock(lock);
 			if (status)
 				goto out;
 		}
@@ -414,10 +485,11 @@ out:
 	return status;
 }
 
-__be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
-			      struct cb_sequenceres *res,
+__be32 nfs4_callback_sequence(void *argp, void *resp,
 			      struct cb_process_state *cps)
 {
+	struct cb_sequenceargs *args = argp;
+	struct cb_sequenceres *res = resp;
 	struct nfs4_slot_table *tbl;
 	struct nfs4_slot *slot;
 	struct nfs_client *clp;
@@ -433,7 +505,12 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 		goto out;
 
 	tbl = &clp->cl_session->bc_slot_table;
-	slot = tbl->slots + args->csa_slotid;
+
+	/* Set up res before grabbing the spinlock */
+	memcpy(&res->csr_sessionid, &args->csa_sessionid,
+	       sizeof(res->csr_sessionid));
+	res->csr_sequenceid = args->csa_sequenceid;
+	res->csr_slotid = args->csa_slotid;
 
 	spin_lock(&tbl->slot_tbl_lock);
 	/* state manager is resetting the session */
@@ -447,25 +524,36 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 		goto out_unlock;
 	}
 
-	memcpy(&res->csr_sessionid, &args->csa_sessionid,
-	       sizeof(res->csr_sessionid));
-	res->csr_sequenceid = args->csa_sequenceid;
-	res->csr_slotid = args->csa_slotid;
-	res->csr_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
-	res->csr_target_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
-
-	status = validate_seqid(tbl, args);
-	if (status)
+	status = htonl(NFS4ERR_BADSLOT);
+	slot = nfs4_lookup_slot(tbl, args->csa_slotid);
+	if (IS_ERR(slot))
 		goto out_unlock;
 
-	cps->slotid = args->csa_slotid;
+	res->csr_highestslotid = tbl->server_highest_slotid;
+	res->csr_target_highestslotid = tbl->target_highest_slotid;
+
+	status = validate_seqid(tbl, slot, args);
+	if (status)
+		goto out_unlock;
+	if (!nfs4_try_to_lock_slot(tbl, slot)) {
+		status = htonl(NFS4ERR_DELAY);
+		goto out_unlock;
+	}
+	cps->slot = slot;
+
+	/* The ca_maxresponsesize_cached is 0 with no DRC */
+	if (args->csa_cachethis != 0) {
+		status = htonl(NFS4ERR_REP_TOO_BIG_TO_CACHE);
+		goto out_unlock;
+	}
 
 	/*
 	 * Check for pending referring calls.  If a match is found, a
 	 * related callback was received before the response to the original
 	 * call.
 	 */
-	if (referring_call_exists(clp, args->csa_nrclists, args->csa_rclists)) {
+	if (referring_call_exists(clp, args->csa_nrclists, args->csa_rclists,
+				&tbl->slot_tbl_lock) < 0) {
 		status = htonl(NFS4ERR_DELAY);
 		goto out_unlock;
 	}
@@ -475,7 +563,7 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	 * If CB_SEQUENCE returns an error, then the state of the slot
 	 * (sequence ID, cached reply) MUST NOT change.
 	 */
-	slot->seq_nr++;
+	slot->seq_nr = args->csa_sequenceid;
 out_unlock:
 	spin_unlock(&tbl->slot_tbl_lock);
 
@@ -492,20 +580,19 @@ out:
 		res->csr_status = status;
 
 	trace_nfs4_cb_sequence(args, res, status);
-	dprintk("%s: exit with status = %d res->csr_status %d\n", __func__,
-		ntohl(status), ntohl(res->csr_status));
 	return status;
 }
 
 static bool
-validate_bitmap_values(unsigned long mask)
+validate_bitmap_values(unsigned int mask)
 {
 	return (mask & ~RCA4_TYPE_MASK_ALL) == 0;
 }
 
-__be32 nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy,
+__be32 nfs4_callback_recallany(void *argp, void *resp,
 			       struct cb_process_state *cps)
 {
+	struct cb_recallanyargs *args = argp;
 	__be32 status;
 	fmode_t flags = 0;
 
@@ -521,26 +608,25 @@ __be32 nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy,
 		goto out;
 
 	status = cpu_to_be32(NFS4_OK);
-	if (test_bit(RCA4_TYPE_MASK_RDATA_DLG, (const unsigned long *)
-		     &args->craa_type_mask))
+	if (args->craa_type_mask & BIT(RCA4_TYPE_MASK_RDATA_DLG))
 		flags = FMODE_READ;
-	if (test_bit(RCA4_TYPE_MASK_WDATA_DLG, (const unsigned long *)
-		     &args->craa_type_mask))
+	if (args->craa_type_mask & BIT(RCA4_TYPE_MASK_WDATA_DLG))
 		flags |= FMODE_WRITE;
-	if (test_bit(RCA4_TYPE_MASK_FILE_LAYOUT, (const unsigned long *)
-		     &args->craa_type_mask))
-		pnfs_recall_all_layouts(cps->clp);
 	if (flags)
 		nfs_expire_unused_delegation_types(cps->clp, flags);
+
+	if (args->craa_type_mask & BIT(RCA4_TYPE_MASK_FILE_LAYOUT))
+		pnfs_recall_all_layouts(cps->clp);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
 }
 
 /* Reduce the fore channel's max_slots to the target value */
-__be32 nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy,
+__be32 nfs4_callback_recallslot(void *argp, void *resp,
 				struct cb_process_state *cps)
 {
+	struct cb_recallslotargs *args = argp;
 	struct nfs4_slot_table *fc_tbl;
 	__be32 status;
 
@@ -562,4 +648,76 @@ out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
 }
+
+__be32 nfs4_callback_notify_lock(void *argp, void *resp,
+				 struct cb_process_state *cps)
+{
+	struct cb_notify_lock_args *args = argp;
+
+	if (!cps->clp) /* set in cb_sequence */
+		return htonl(NFS4ERR_OP_NOT_IN_SESSION);
+
+	dprintk_rcu("NFS: CB_NOTIFY_LOCK request from %s\n",
+		rpc_peeraddr2str(cps->clp->cl_rpcclient, RPC_DISPLAY_ADDR));
+
+	/* Don't wake anybody if the string looked bogus */
+	if (args->cbnl_valid)
+		__wake_up(&cps->clp->cl_lock_waitq, TASK_NORMAL, 0, args);
+
+	return htonl(NFS4_OK);
+}
 #endif /* CONFIG_NFS_V4_1 */
+#ifdef CONFIG_NFS_V4_2
+static void nfs4_copy_cb_args(struct nfs4_copy_state *cp_state,
+				struct cb_offloadargs *args)
+{
+	cp_state->count = args->wr_count;
+	cp_state->error = args->error;
+	if (!args->error) {
+		cp_state->verf.committed = args->wr_writeverf.committed;
+		memcpy(&cp_state->verf.verifier.data[0],
+			&args->wr_writeverf.verifier.data[0],
+			NFS4_VERIFIER_SIZE);
+	}
+}
+
+__be32 nfs4_callback_offload(void *data, void *dummy,
+			     struct cb_process_state *cps)
+{
+	struct cb_offloadargs *args = data;
+	struct nfs_server *server;
+	struct nfs4_copy_state *copy, *tmp_copy;
+	bool found = false;
+
+	copy = kzalloc(sizeof(struct nfs4_copy_state), GFP_NOFS);
+	if (!copy)
+		return htonl(NFS4ERR_SERVERFAULT);
+
+	spin_lock(&cps->clp->cl_lock);
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &cps->clp->cl_superblocks,
+				client_link) {
+		list_for_each_entry(tmp_copy, &server->ss_copies, copies) {
+			if (memcmp(args->coa_stateid.other,
+					tmp_copy->stateid.other,
+					sizeof(args->coa_stateid.other)))
+				continue;
+			nfs4_copy_cb_args(tmp_copy, args);
+			complete(&tmp_copy->completion);
+			found = true;
+			goto out;
+		}
+	}
+out:
+	rcu_read_unlock();
+	if (!found) {
+		memcpy(&copy->stateid, &args->coa_stateid, NFS4_STATEID_SIZE);
+		nfs4_copy_cb_args(copy, args);
+		list_add_tail(&copy->copies, &cps->clp->pending_cb_stateids);
+	} else
+		kfree(copy);
+	spin_unlock(&cps->clp->cl_lock);
+
+	return 0;
+}
+#endif /* CONFIG_NFS_V4_2 */

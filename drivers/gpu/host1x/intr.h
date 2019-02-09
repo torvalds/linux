@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 
+struct host1x_syncpt;
 struct host1x;
 
 enum host1x_intr_action {
@@ -75,16 +76,17 @@ struct host1x_waitlist {
  *
  * This is a non-blocking api.
  */
-int host1x_intr_add_action(struct host1x *host, u32 id, u32 thresh,
-	enum host1x_intr_action action, void *data,
-	struct host1x_waitlist *waiter, void **ref);
+int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
+			   u32 thresh, enum host1x_intr_action action,
+			   void *data, struct host1x_waitlist *waiter,
+			   void **ref);
 
 /*
  * Unreference an action submitted to host1x_intr_add_action().
  * You must call this if you passed non-NULL as ref.
  * @ref the ref returned from host1x_intr_add_action()
  */
-void host1x_intr_put_ref(struct host1x *host, u32 id, void *ref);
+void host1x_intr_put_ref(struct host1x *host, unsigned int id, void *ref);
 
 /* Initialize host1x sync point interrupt */
 int host1x_intr_init(struct host1x *host, unsigned int irq_sync);

@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "cx22700.h"
 
 
@@ -345,9 +345,9 @@ static int cx22700_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx22700_get_frontend(struct dvb_frontend *fe)
+static int cx22700_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx22700_state* state = fe->demodulator_priv;
 	u8 reg09 = cx22700_readreg (state, 0x09);
 
@@ -380,7 +380,7 @@ static void cx22700_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops cx22700_ops;
+static const struct dvb_frontend_ops cx22700_ops;
 
 struct dvb_frontend* cx22700_attach(const struct cx22700_config* config,
 				    struct i2c_adapter* i2c)
@@ -408,13 +408,13 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops cx22700_ops = {
+static const struct dvb_frontend_ops cx22700_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Conexant CX22700 DVB-T",
-		.frequency_min		= 470000000,
-		.frequency_max		= 860000000,
-		.frequency_stepsize	= 166667,
+		.frequency_min_hz	= 470 * MHz,
+		.frequency_max_hz	= 860 * MHz,
+		.frequency_stepsize_hz	= 166667,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		      FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 		      FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |

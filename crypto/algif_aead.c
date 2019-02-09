@@ -5,17 +5,33 @@
  *
  * This file provides the user-space API for AEAD ciphers.
  *
- * This file is derived from algif_skcipher.c.
- *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
+ *
+ * The following concept of the memory management is used:
+ *
+ * The kernel maintains two SGLs, the TX SGL and the RX SGL. The TX SGL is
+ * filled by user space with the data submitted via sendpage/sendmsg. Filling
+ * up the TX SGL does not cause a crypto operation -- the data will only be
+ * tracked by the kernel. Upon receipt of one recvmsg call, the caller must
+ * provide a buffer which is tracked with the RX SGL.
+ *
+ * During the processing of the recvmsg operation, the cipher request is
+ * allocated and prepared. As part of the recvmsg operation, the processed
+ * TX buffers are extracted from the TX SGL into a separate SGL.
+ *
+ * After the completion of the crypto operation, the RX SGL and the cipher
+ * request is released. The extracted TX SGL parts are released together with
+ * the RX SGL release.
  */
 
-#include <crypto/aead.h>
+#include <crypto/internal/aead.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/if_alg.h>
+#include <crypto/skcipher.h>
+#include <crypto/null.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
@@ -24,372 +40,86 @@
 #include <linux/net.h>
 #include <net/sock.h>
 
-struct aead_sg_list {
-	unsigned int cur;
-	struct scatterlist sg[ALG_MAX_PAGES];
+struct aead_tfm {
+	struct crypto_aead *aead;
+	struct crypto_skcipher *null_tfm;
 };
 
-struct aead_ctx {
-	struct aead_sg_list tsgl;
+static inline bool aead_sufficient_data(struct sock *sk)
+{
+	struct alg_sock *ask = alg_sk(sk);
+	struct sock *psk = ask->parent;
+	struct alg_sock *pask = alg_sk(psk);
+	struct af_alg_ctx *ctx = ask->private;
+	struct aead_tfm *aeadc = pask->private;
+	struct crypto_aead *tfm = aeadc->aead;
+	unsigned int as = crypto_aead_authsize(tfm);
+
 	/*
-	 * RSGL_MAX_ENTRIES is an artificial limit where user space at maximum
-	 * can cause the kernel to allocate RSGL_MAX_ENTRIES * ALG_MAX_PAGES
-	 * pages
+	 * The minimum amount of memory needed for an AEAD cipher is
+	 * the AAD and in case of decryption the tag.
 	 */
-#define RSGL_MAX_ENTRIES ALG_MAX_PAGES
-	struct af_alg_sgl rsgl[RSGL_MAX_ENTRIES];
-
-	void *iv;
-
-	struct af_alg_completion completion;
-
-	unsigned long used;
-
-	unsigned int len;
-	bool more;
-	bool merge;
-	bool enc;
-
-	size_t aead_assoclen;
-	struct aead_request aead_req;
-};
-
-static inline int aead_sndbuf(struct sock *sk)
-{
-	struct alg_sock *ask = alg_sk(sk);
-	struct aead_ctx *ctx = ask->private;
-
-	return max_t(int, max_t(int, sk->sk_sndbuf & PAGE_MASK, PAGE_SIZE) -
-			  ctx->used, 0);
-}
-
-static inline bool aead_writable(struct sock *sk)
-{
-	return PAGE_SIZE <= aead_sndbuf(sk);
-}
-
-static inline bool aead_sufficient_data(struct aead_ctx *ctx)
-{
-	unsigned as = crypto_aead_authsize(crypto_aead_reqtfm(&ctx->aead_req));
-
-	return ctx->used >= ctx->aead_assoclen + as;
-}
-
-static void aead_put_sgl(struct sock *sk)
-{
-	struct alg_sock *ask = alg_sk(sk);
-	struct aead_ctx *ctx = ask->private;
-	struct aead_sg_list *sgl = &ctx->tsgl;
-	struct scatterlist *sg = sgl->sg;
-	unsigned int i;
-
-	for (i = 0; i < sgl->cur; i++) {
-		if (!sg_page(sg + i))
-			continue;
-
-		put_page(sg_page(sg + i));
-		sg_assign_page(sg + i, NULL);
-	}
-	sg_init_table(sg, ALG_MAX_PAGES);
-	sgl->cur = 0;
-	ctx->used = 0;
-	ctx->more = 0;
-	ctx->merge = 0;
-}
-
-static void aead_wmem_wakeup(struct sock *sk)
-{
-	struct socket_wq *wq;
-
-	if (!aead_writable(sk))
-		return;
-
-	rcu_read_lock();
-	wq = rcu_dereference(sk->sk_wq);
-	if (wq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLIN |
-							   POLLRDNORM |
-							   POLLRDBAND);
-	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
-	rcu_read_unlock();
-}
-
-static int aead_wait_for_data(struct sock *sk, unsigned flags)
-{
-	struct alg_sock *ask = alg_sk(sk);
-	struct aead_ctx *ctx = ask->private;
-	long timeout;
-	DEFINE_WAIT(wait);
-	int err = -ERESTARTSYS;
-
-	if (flags & MSG_DONTWAIT)
-		return -EAGAIN;
-
-	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
-
-	for (;;) {
-		if (signal_pending(current))
-			break;
-		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-		timeout = MAX_SCHEDULE_TIMEOUT;
-		if (sk_wait_event(sk, &timeout, !ctx->more)) {
-			err = 0;
-			break;
-		}
-	}
-	finish_wait(sk_sleep(sk), &wait);
-
-	sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
-
-	return err;
-}
-
-static void aead_data_wakeup(struct sock *sk)
-{
-	struct alg_sock *ask = alg_sk(sk);
-	struct aead_ctx *ctx = ask->private;
-	struct socket_wq *wq;
-
-	if (ctx->more)
-		return;
-	if (!ctx->used)
-		return;
-
-	rcu_read_lock();
-	wq = rcu_dereference(sk->sk_wq);
-	if (wq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLOUT |
-							   POLLRDNORM |
-							   POLLRDBAND);
-	sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
-	rcu_read_unlock();
+	return ctx->used >= ctx->aead_assoclen + (ctx->enc ? 0 : as);
 }
 
 static int aead_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
-	struct aead_ctx *ctx = ask->private;
-	unsigned ivsize =
-		crypto_aead_ivsize(crypto_aead_reqtfm(&ctx->aead_req));
-	struct aead_sg_list *sgl = &ctx->tsgl;
-	struct af_alg_control con = {};
-	long copied = 0;
-	bool enc = 0;
-	bool init = 0;
-	int err = -EINVAL;
+	struct sock *psk = ask->parent;
+	struct alg_sock *pask = alg_sk(psk);
+	struct aead_tfm *aeadc = pask->private;
+	struct crypto_aead *tfm = aeadc->aead;
+	unsigned int ivsize = crypto_aead_ivsize(tfm);
 
-	if (msg->msg_controllen) {
-		err = af_alg_cmsg_send(msg, &con);
+	return af_alg_sendmsg(sock, msg, size, ivsize);
+}
+
+static int crypto_aead_copy_sgl(struct crypto_skcipher *null_tfm,
+				struct scatterlist *src,
+				struct scatterlist *dst, unsigned int len)
+{
+	SKCIPHER_REQUEST_ON_STACK(skreq, null_tfm);
+
+	skcipher_request_set_tfm(skreq, null_tfm);
+	skcipher_request_set_callback(skreq, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				      NULL, NULL);
+	skcipher_request_set_crypt(skreq, src, dst, len, NULL);
+
+	return crypto_skcipher_encrypt(skreq);
+}
+
+static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
+			 size_t ignored, int flags)
+{
+	struct sock *sk = sock->sk;
+	struct alg_sock *ask = alg_sk(sk);
+	struct sock *psk = ask->parent;
+	struct alg_sock *pask = alg_sk(psk);
+	struct af_alg_ctx *ctx = ask->private;
+	struct aead_tfm *aeadc = pask->private;
+	struct crypto_aead *tfm = aeadc->aead;
+	struct crypto_skcipher *null_tfm = aeadc->null_tfm;
+	unsigned int i, as = crypto_aead_authsize(tfm);
+	struct af_alg_async_req *areq;
+	struct af_alg_tsgl *tsgl, *tmp;
+	struct scatterlist *rsgl_src, *tsgl_src = NULL;
+	int err = 0;
+	size_t used = 0;		/* [in]  TX bufs to be en/decrypted */
+	size_t outlen = 0;		/* [out] RX bufs produced by kernel */
+	size_t usedpages = 0;		/* [in]  RX bufs to be used from user */
+	size_t processed = 0;		/* [in]  TX bufs to be consumed */
+
+	if (!ctx->used) {
+		err = af_alg_wait_for_data(sk, flags);
 		if (err)
 			return err;
-
-		init = 1;
-		switch (con.op) {
-		case ALG_OP_ENCRYPT:
-			enc = 1;
-			break;
-		case ALG_OP_DECRYPT:
-			enc = 0;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		if (con.iv && con.iv->ivlen != ivsize)
-			return -EINVAL;
 	}
-
-	lock_sock(sk);
-	if (!ctx->more && ctx->used)
-		goto unlock;
-
-	if (init) {
-		ctx->enc = enc;
-		if (con.iv)
-			memcpy(ctx->iv, con.iv->iv, ivsize);
-
-		ctx->aead_assoclen = con.aead_assoclen;
-	}
-
-	while (size) {
-		unsigned long len = size;
-		struct scatterlist *sg = NULL;
-
-		/* use the existing memory in an allocated page */
-		if (ctx->merge) {
-			sg = sgl->sg + sgl->cur - 1;
-			len = min_t(unsigned long, len,
-				    PAGE_SIZE - sg->offset - sg->length);
-			err = memcpy_from_msg(page_address(sg_page(sg)) +
-					      sg->offset + sg->length,
-					      msg, len);
-			if (err)
-				goto unlock;
-
-			sg->length += len;
-			ctx->merge = (sg->offset + sg->length) &
-				     (PAGE_SIZE - 1);
-
-			ctx->used += len;
-			copied += len;
-			size -= len;
-			continue;
-		}
-
-		if (!aead_writable(sk)) {
-			/* user space sent too much data */
-			aead_put_sgl(sk);
-			err = -EMSGSIZE;
-			goto unlock;
-		}
-
-		/* allocate a new page */
-		len = min_t(unsigned long, size, aead_sndbuf(sk));
-		while (len) {
-			int plen = 0;
-
-			if (sgl->cur >= ALG_MAX_PAGES) {
-				aead_put_sgl(sk);
-				err = -E2BIG;
-				goto unlock;
-			}
-
-			sg = sgl->sg + sgl->cur;
-			plen = min_t(int, len, PAGE_SIZE);
-
-			sg_assign_page(sg, alloc_page(GFP_KERNEL));
-			err = -ENOMEM;
-			if (!sg_page(sg))
-				goto unlock;
-
-			err = memcpy_from_msg(page_address(sg_page(sg)),
-					      msg, plen);
-			if (err) {
-				__free_page(sg_page(sg));
-				sg_assign_page(sg, NULL);
-				goto unlock;
-			}
-
-			sg->offset = 0;
-			sg->length = plen;
-			len -= plen;
-			ctx->used += plen;
-			copied += plen;
-			sgl->cur++;
-			size -= plen;
-			ctx->merge = plen & (PAGE_SIZE - 1);
-		}
-	}
-
-	err = 0;
-
-	ctx->more = msg->msg_flags & MSG_MORE;
-	if (!ctx->more && !aead_sufficient_data(ctx)) {
-		aead_put_sgl(sk);
-		err = -EMSGSIZE;
-	}
-
-unlock:
-	aead_data_wakeup(sk);
-	release_sock(sk);
-
-	return err ?: copied;
-}
-
-static ssize_t aead_sendpage(struct socket *sock, struct page *page,
-			     int offset, size_t size, int flags)
-{
-	struct sock *sk = sock->sk;
-	struct alg_sock *ask = alg_sk(sk);
-	struct aead_ctx *ctx = ask->private;
-	struct aead_sg_list *sgl = &ctx->tsgl;
-	int err = -EINVAL;
-
-	if (flags & MSG_SENDPAGE_NOTLAST)
-		flags |= MSG_MORE;
-
-	if (sgl->cur >= ALG_MAX_PAGES)
-		return -E2BIG;
-
-	lock_sock(sk);
-	if (!ctx->more && ctx->used)
-		goto unlock;
-
-	if (!size)
-		goto done;
-
-	if (!aead_writable(sk)) {
-		/* user space sent too much data */
-		aead_put_sgl(sk);
-		err = -EMSGSIZE;
-		goto unlock;
-	}
-
-	ctx->merge = 0;
-
-	get_page(page);
-	sg_set_page(sgl->sg + sgl->cur, page, size, offset);
-	sgl->cur++;
-	ctx->used += size;
-
-	err = 0;
-
-done:
-	ctx->more = flags & MSG_MORE;
-	if (!ctx->more && !aead_sufficient_data(ctx)) {
-		aead_put_sgl(sk);
-		err = -EMSGSIZE;
-	}
-
-unlock:
-	aead_data_wakeup(sk);
-	release_sock(sk);
-
-	return err ?: size;
-}
-
-static int aead_recvmsg(struct socket *sock, struct msghdr *msg, size_t ignored, int flags)
-{
-	struct sock *sk = sock->sk;
-	struct alg_sock *ask = alg_sk(sk);
-	struct aead_ctx *ctx = ask->private;
-	unsigned as = crypto_aead_authsize(crypto_aead_reqtfm(&ctx->aead_req));
-	struct aead_sg_list *sgl = &ctx->tsgl;
-	unsigned int i = 0;
-	int err = -EINVAL;
-	unsigned long used = 0;
-	size_t outlen = 0;
-	size_t usedpages = 0;
-	unsigned int cnt = 0;
-
-	/* Limit number of IOV blocks to be accessed below */
-	if (msg->msg_iter.nr_segs > RSGL_MAX_ENTRIES)
-		return -ENOMSG;
-
-	lock_sock(sk);
 
 	/*
-	 * AEAD memory structure: For encryption, the tag is appended to the
-	 * ciphertext which implies that the memory allocated for the ciphertext
-	 * must be increased by the tag length. For decryption, the tag
-	 * is expected to be concatenated to the ciphertext. The plaintext
-	 * therefore has a memory size of the ciphertext minus the tag length.
-	 *
-	 * The memory structure for cipher operation has the following
-	 * structure:
-	 *	AEAD encryption input:  assoc data || plaintext
-	 *	AEAD encryption output: cipherntext || auth tag
-	 *	AEAD decryption input:  assoc data || ciphertext || auth tag
-	 *	AEAD decryption output: plaintext
+	 * Data length provided by caller via sendmsg/sendpage that has not
+	 * yet been processed.
 	 */
-
-	if (ctx->more) {
-		err = aead_wait_for_data(sk, flags);
-		if (err)
-			goto unlock;
-	}
-
 	used = ctx->used;
 
 	/*
@@ -401,94 +131,229 @@ static int aead_recvmsg(struct socket *sock, struct msghdr *msg, size_t ignored,
 	 * the error message in sendmsg/sendpage and still call recvmsg. This
 	 * check here protects the kernel integrity.
 	 */
-	if (!aead_sufficient_data(ctx))
-		goto unlock;
+	if (!aead_sufficient_data(sk))
+		return -EINVAL;
 
-	outlen = used;
+	/*
+	 * Calculate the minimum output buffer size holding the result of the
+	 * cipher operation. When encrypting data, the receiving buffer is
+	 * larger by the tag length compared to the input buffer as the
+	 * encryption operation generates the tag. For decryption, the input
+	 * buffer provides the tag which is consumed resulting in only the
+	 * plaintext without a buffer for the tag returned to the caller.
+	 */
+	if (ctx->enc)
+		outlen = used + as;
+	else
+		outlen = used - as;
 
 	/*
 	 * The cipher operation input data is reduced by the associated data
 	 * length as this data is processed separately later on.
 	 */
-	used -= ctx->aead_assoclen + (ctx->enc ? as : 0);
+	used -= ctx->aead_assoclen;
 
-	/* convert iovecs of output buffers into scatterlists */
-	while (iov_iter_count(&msg->msg_iter)) {
-		size_t seglen = min_t(size_t, iov_iter_count(&msg->msg_iter),
-				      (outlen - usedpages));
+	/* Allocate cipher request for current operation. */
+	areq = af_alg_alloc_areq(sk, sizeof(struct af_alg_async_req) +
+				     crypto_aead_reqsize(tfm));
+	if (IS_ERR(areq))
+		return PTR_ERR(areq);
 
-		/* make one iovec available as scatterlist */
-		err = af_alg_make_sg(&ctx->rsgl[cnt], &msg->msg_iter,
-				     seglen);
-		if (err < 0)
-			goto unlock;
-		usedpages += err;
-		/* chain the new scatterlist with previous one */
-		if (cnt)
-			af_alg_link_sg(&ctx->rsgl[cnt-1], &ctx->rsgl[cnt]);
+	/* convert iovecs of output buffers into RX SGL */
+	err = af_alg_get_rsgl(sk, msg, flags, areq, outlen, &usedpages);
+	if (err)
+		goto free;
 
-		/* we do not need more iovecs as we have sufficient memory */
-		if (outlen <= usedpages)
+	/*
+	 * Ensure output buffer is sufficiently large. If the caller provides
+	 * less buffer space, only use the relative required input size. This
+	 * allows AIO operation where the caller sent all data to be processed
+	 * and the AIO operation performs the operation on the different chunks
+	 * of the input data.
+	 */
+	if (usedpages < outlen) {
+		size_t less = outlen - usedpages;
+
+		if (used < less) {
+			err = -EINVAL;
+			goto free;
+		}
+		used -= less;
+		outlen -= less;
+	}
+
+	processed = used + ctx->aead_assoclen;
+	list_for_each_entry_safe(tsgl, tmp, &ctx->tsgl_list, list) {
+		for (i = 0; i < tsgl->cur; i++) {
+			struct scatterlist *process_sg = tsgl->sg + i;
+
+			if (!(process_sg->length) || !sg_page(process_sg))
+				continue;
+			tsgl_src = process_sg;
 			break;
-		iov_iter_advance(&msg->msg_iter, err);
-		cnt++;
+		}
+		if (tsgl_src)
+			break;
+	}
+	if (processed && !tsgl_src) {
+		err = -EFAULT;
+		goto free;
 	}
 
-	err = -EINVAL;
-	/* ensure output buffer is sufficiently large */
-	if (usedpages < outlen)
-		goto unlock;
+	/*
+	 * Copy of AAD from source to destination
+	 *
+	 * The AAD is copied to the destination buffer without change. Even
+	 * when user space uses an in-place cipher operation, the kernel
+	 * will copy the data as it does not see whether such in-place operation
+	 * is initiated.
+	 *
+	 * To ensure efficiency, the following implementation ensure that the
+	 * ciphers are invoked to perform a crypto operation in-place. This
+	 * is achieved by memory management specified as follows.
+	 */
 
-	sg_mark_end(sgl->sg + sgl->cur - 1);
+	/* Use the RX SGL as source (and destination) for crypto op. */
+	rsgl_src = areq->first_rsgl.sgl.sg;
 
-	aead_request_set_crypt(&ctx->aead_req, sgl->sg, ctx->rsgl[0].sg,
-			       used, ctx->iv);
-	aead_request_set_ad(&ctx->aead_req, ctx->aead_assoclen);
+	if (ctx->enc) {
+		/*
+		 * Encryption operation - The in-place cipher operation is
+		 * achieved by the following operation:
+		 *
+		 * TX SGL: AAD || PT
+		 *	    |	   |
+		 *	    | copy |
+		 *	    v	   v
+		 * RX SGL: AAD || PT || Tag
+		 */
+		err = crypto_aead_copy_sgl(null_tfm, tsgl_src,
+					   areq->first_rsgl.sgl.sg, processed);
+		if (err)
+			goto free;
+		af_alg_pull_tsgl(sk, processed, NULL, 0);
+	} else {
+		/*
+		 * Decryption operation - To achieve an in-place cipher
+		 * operation, the following  SGL structure is used:
+		 *
+		 * TX SGL: AAD || CT || Tag
+		 *	    |	   |	 ^
+		 *	    | copy |	 | Create SGL link.
+		 *	    v	   v	 |
+		 * RX SGL: AAD || CT ----+
+		 */
 
-	err = af_alg_wait_for_completion(ctx->enc ?
-					 crypto_aead_encrypt(&ctx->aead_req) :
-					 crypto_aead_decrypt(&ctx->aead_req),
-					 &ctx->completion);
+		 /* Copy AAD || CT to RX SGL buffer for in-place operation. */
+		err = crypto_aead_copy_sgl(null_tfm, tsgl_src,
+					   areq->first_rsgl.sgl.sg, outlen);
+		if (err)
+			goto free;
 
-	if (err) {
-		/* EBADMSG implies a valid cipher operation took place */
-		if (err == -EBADMSG)
-			aead_put_sgl(sk);
-		goto unlock;
+		/* Create TX SGL for tag and chain it to RX SGL. */
+		areq->tsgl_entries = af_alg_count_tsgl(sk, processed,
+						       processed - as);
+		if (!areq->tsgl_entries)
+			areq->tsgl_entries = 1;
+		areq->tsgl = sock_kmalloc(sk, array_size(sizeof(*areq->tsgl),
+							 areq->tsgl_entries),
+					  GFP_KERNEL);
+		if (!areq->tsgl) {
+			err = -ENOMEM;
+			goto free;
+		}
+		sg_init_table(areq->tsgl, areq->tsgl_entries);
+
+		/* Release TX SGL, except for tag data and reassign tag data. */
+		af_alg_pull_tsgl(sk, processed, areq->tsgl, processed - as);
+
+		/* chain the areq TX SGL holding the tag with RX SGL */
+		if (usedpages) {
+			/* RX SGL present */
+			struct af_alg_sgl *sgl_prev = &areq->last_rsgl->sgl;
+
+			sg_unmark_end(sgl_prev->sg + sgl_prev->npages - 1);
+			sg_chain(sgl_prev->sg, sgl_prev->npages + 1,
+				 areq->tsgl);
+		} else
+			/* no RX SGL present (e.g. authentication only) */
+			rsgl_src = areq->tsgl;
 	}
 
-	aead_put_sgl(sk);
+	/* Initialize the crypto operation */
+	aead_request_set_crypt(&areq->cra_u.aead_req, rsgl_src,
+			       areq->first_rsgl.sgl.sg, used, ctx->iv);
+	aead_request_set_ad(&areq->cra_u.aead_req, ctx->aead_assoclen);
+	aead_request_set_tfm(&areq->cra_u.aead_req, tfm);
 
-	err = 0;
+	if (msg->msg_iocb && !is_sync_kiocb(msg->msg_iocb)) {
+		/* AIO operation */
+		sock_hold(sk);
+		areq->iocb = msg->msg_iocb;
 
-unlock:
-	for (i = 0; i < cnt; i++)
-		af_alg_free_sg(&ctx->rsgl[i]);
+		/* Remember output size that will be generated. */
+		areq->outlen = outlen;
 
-	aead_wmem_wakeup(sk);
-	release_sock(sk);
+		aead_request_set_callback(&areq->cra_u.aead_req,
+					  CRYPTO_TFM_REQ_MAY_BACKLOG,
+					  af_alg_async_cb, areq);
+		err = ctx->enc ? crypto_aead_encrypt(&areq->cra_u.aead_req) :
+				 crypto_aead_decrypt(&areq->cra_u.aead_req);
+
+		/* AIO operation in progress */
+		if (err == -EINPROGRESS || err == -EBUSY)
+			return -EIOCBQUEUED;
+
+		sock_put(sk);
+	} else {
+		/* Synchronous operation */
+		aead_request_set_callback(&areq->cra_u.aead_req,
+					  CRYPTO_TFM_REQ_MAY_BACKLOG,
+					  crypto_req_done, &ctx->wait);
+		err = crypto_wait_req(ctx->enc ?
+				crypto_aead_encrypt(&areq->cra_u.aead_req) :
+				crypto_aead_decrypt(&areq->cra_u.aead_req),
+				&ctx->wait);
+	}
+
+
+free:
+	af_alg_free_resources(areq);
 
 	return err ? err : outlen;
 }
 
-static unsigned int aead_poll(struct file *file, struct socket *sock,
-			      poll_table *wait)
+static int aead_recvmsg(struct socket *sock, struct msghdr *msg,
+			size_t ignored, int flags)
 {
 	struct sock *sk = sock->sk;
-	struct alg_sock *ask = alg_sk(sk);
-	struct aead_ctx *ctx = ask->private;
-	unsigned int mask;
+	int ret = 0;
 
-	sock_poll_wait(file, sk_sleep(sk), wait);
-	mask = 0;
+	lock_sock(sk);
+	while (msg_data_left(msg)) {
+		int err = _aead_recvmsg(sock, msg, ignored, flags);
 
-	if (!ctx->more)
-		mask |= POLLIN | POLLRDNORM;
+		/*
+		 * This error covers -EIOCBQUEUED which implies that we can
+		 * only handle one AIO request. If the caller wants to have
+		 * multiple AIO requests in parallel, he must make multiple
+		 * separate AIO calls.
+		 *
+		 * Also return the error if no data has been processed so far.
+		 */
+		if (err <= 0) {
+			if (err == -EIOCBQUEUED || err == -EBADMSG || !ret)
+				ret = err;
+			goto out;
+		}
 
-	if (aead_writable(sk))
-		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+		ret += err;
+	}
 
-	return mask;
+out:
+	af_alg_wmem_wakeup(sk);
+	release_sock(sk);
+	return ret;
 }
 
 static struct proto_ops algif_aead_ops = {
@@ -508,50 +373,183 @@ static struct proto_ops algif_aead_ops = {
 
 	.release	=	af_alg_release,
 	.sendmsg	=	aead_sendmsg,
-	.sendpage	=	aead_sendpage,
+	.sendpage	=	af_alg_sendpage,
 	.recvmsg	=	aead_recvmsg,
-	.poll		=	aead_poll,
+	.poll		=	af_alg_poll,
+};
+
+static int aead_check_key(struct socket *sock)
+{
+	int err = 0;
+	struct sock *psk;
+	struct alg_sock *pask;
+	struct aead_tfm *tfm;
+	struct sock *sk = sock->sk;
+	struct alg_sock *ask = alg_sk(sk);
+
+	lock_sock(sk);
+	if (ask->refcnt)
+		goto unlock_child;
+
+	psk = ask->parent;
+	pask = alg_sk(ask->parent);
+	tfm = pask->private;
+
+	err = -ENOKEY;
+	lock_sock_nested(psk, SINGLE_DEPTH_NESTING);
+	if (crypto_aead_get_flags(tfm->aead) & CRYPTO_TFM_NEED_KEY)
+		goto unlock;
+
+	if (!pask->refcnt++)
+		sock_hold(psk);
+
+	ask->refcnt = 1;
+	sock_put(psk);
+
+	err = 0;
+
+unlock:
+	release_sock(psk);
+unlock_child:
+	release_sock(sk);
+
+	return err;
+}
+
+static int aead_sendmsg_nokey(struct socket *sock, struct msghdr *msg,
+				  size_t size)
+{
+	int err;
+
+	err = aead_check_key(sock);
+	if (err)
+		return err;
+
+	return aead_sendmsg(sock, msg, size);
+}
+
+static ssize_t aead_sendpage_nokey(struct socket *sock, struct page *page,
+				       int offset, size_t size, int flags)
+{
+	int err;
+
+	err = aead_check_key(sock);
+	if (err)
+		return err;
+
+	return af_alg_sendpage(sock, page, offset, size, flags);
+}
+
+static int aead_recvmsg_nokey(struct socket *sock, struct msghdr *msg,
+				  size_t ignored, int flags)
+{
+	int err;
+
+	err = aead_check_key(sock);
+	if (err)
+		return err;
+
+	return aead_recvmsg(sock, msg, ignored, flags);
+}
+
+static struct proto_ops algif_aead_ops_nokey = {
+	.family		=	PF_ALG,
+
+	.connect	=	sock_no_connect,
+	.socketpair	=	sock_no_socketpair,
+	.getname	=	sock_no_getname,
+	.ioctl		=	sock_no_ioctl,
+	.listen		=	sock_no_listen,
+	.shutdown	=	sock_no_shutdown,
+	.getsockopt	=	sock_no_getsockopt,
+	.mmap		=	sock_no_mmap,
+	.bind		=	sock_no_bind,
+	.accept		=	sock_no_accept,
+	.setsockopt	=	sock_no_setsockopt,
+
+	.release	=	af_alg_release,
+	.sendmsg	=	aead_sendmsg_nokey,
+	.sendpage	=	aead_sendpage_nokey,
+	.recvmsg	=	aead_recvmsg_nokey,
+	.poll		=	af_alg_poll,
 };
 
 static void *aead_bind(const char *name, u32 type, u32 mask)
 {
-	return crypto_alloc_aead(name, type, mask);
+	struct aead_tfm *tfm;
+	struct crypto_aead *aead;
+	struct crypto_skcipher *null_tfm;
+
+	tfm = kzalloc(sizeof(*tfm), GFP_KERNEL);
+	if (!tfm)
+		return ERR_PTR(-ENOMEM);
+
+	aead = crypto_alloc_aead(name, type, mask);
+	if (IS_ERR(aead)) {
+		kfree(tfm);
+		return ERR_CAST(aead);
+	}
+
+	null_tfm = crypto_get_default_null_skcipher();
+	if (IS_ERR(null_tfm)) {
+		crypto_free_aead(aead);
+		kfree(tfm);
+		return ERR_CAST(null_tfm);
+	}
+
+	tfm->aead = aead;
+	tfm->null_tfm = null_tfm;
+
+	return tfm;
 }
 
 static void aead_release(void *private)
 {
-	crypto_free_aead(private);
+	struct aead_tfm *tfm = private;
+
+	crypto_free_aead(tfm->aead);
+	crypto_put_default_null_skcipher();
+	kfree(tfm);
 }
 
 static int aead_setauthsize(void *private, unsigned int authsize)
 {
-	return crypto_aead_setauthsize(private, authsize);
+	struct aead_tfm *tfm = private;
+
+	return crypto_aead_setauthsize(tfm->aead, authsize);
 }
 
 static int aead_setkey(void *private, const u8 *key, unsigned int keylen)
 {
-	return crypto_aead_setkey(private, key, keylen);
+	struct aead_tfm *tfm = private;
+
+	return crypto_aead_setkey(tfm->aead, key, keylen);
 }
 
 static void aead_sock_destruct(struct sock *sk)
 {
 	struct alg_sock *ask = alg_sk(sk);
-	struct aead_ctx *ctx = ask->private;
-	unsigned int ivlen = crypto_aead_ivsize(
-				crypto_aead_reqtfm(&ctx->aead_req));
+	struct af_alg_ctx *ctx = ask->private;
+	struct sock *psk = ask->parent;
+	struct alg_sock *pask = alg_sk(psk);
+	struct aead_tfm *aeadc = pask->private;
+	struct crypto_aead *tfm = aeadc->aead;
+	unsigned int ivlen = crypto_aead_ivsize(tfm);
 
-	aead_put_sgl(sk);
+	af_alg_pull_tsgl(sk, ctx->used, NULL, 0);
 	sock_kzfree_s(sk, ctx->iv, ivlen);
 	sock_kfree_s(sk, ctx, ctx->len);
 	af_alg_release_parent(sk);
 }
 
-static int aead_accept_parent(void *private, struct sock *sk)
+static int aead_accept_parent_nokey(void *private, struct sock *sk)
 {
-	struct aead_ctx *ctx;
+	struct af_alg_ctx *ctx;
 	struct alg_sock *ask = alg_sk(sk);
-	unsigned int len = sizeof(*ctx) + crypto_aead_reqsize(private);
-	unsigned int ivlen = crypto_aead_ivsize(private);
+	struct aead_tfm *tfm = private;
+	struct crypto_aead *aead = tfm->aead;
+	unsigned int len = sizeof(*ctx);
+	unsigned int ivlen = crypto_aead_ivsize(aead);
 
 	ctx = sock_kmalloc(sk, len, GFP_KERNEL);
 	if (!ctx)
@@ -565,25 +563,31 @@ static int aead_accept_parent(void *private, struct sock *sk)
 	}
 	memset(ctx->iv, 0, ivlen);
 
+	INIT_LIST_HEAD(&ctx->tsgl_list);
 	ctx->len = len;
 	ctx->used = 0;
+	atomic_set(&ctx->rcvused, 0);
 	ctx->more = 0;
 	ctx->merge = 0;
 	ctx->enc = 0;
-	ctx->tsgl.cur = 0;
 	ctx->aead_assoclen = 0;
-	af_alg_init_completion(&ctx->completion);
-	sg_init_table(ctx->tsgl.sg, ALG_MAX_PAGES);
+	crypto_init_wait(&ctx->wait);
 
 	ask->private = ctx;
-
-	aead_request_set_tfm(&ctx->aead_req, private);
-	aead_request_set_callback(&ctx->aead_req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				  af_alg_complete, &ctx->completion);
 
 	sk->sk_destruct = aead_sock_destruct;
 
 	return 0;
+}
+
+static int aead_accept_parent(void *private, struct sock *sk)
+{
+	struct aead_tfm *tfm = private;
+
+	if (crypto_aead_get_flags(tfm->aead) & CRYPTO_TFM_NEED_KEY)
+		return -ENOKEY;
+
+	return aead_accept_parent_nokey(private, sk);
 }
 
 static const struct af_alg_type algif_type_aead = {
@@ -592,7 +596,9 @@ static const struct af_alg_type algif_type_aead = {
 	.setkey		=	aead_setkey,
 	.setauthsize	=	aead_setauthsize,
 	.accept		=	aead_accept_parent,
+	.accept_nokey	=	aead_accept_parent_nokey,
 	.ops		=	&algif_aead_ops,
+	.ops_nokey	=	&algif_aead_ops_nokey,
 	.name		=	"aead",
 	.owner		=	THIS_MODULE
 };

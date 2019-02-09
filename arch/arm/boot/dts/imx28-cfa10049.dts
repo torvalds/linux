@@ -19,6 +19,71 @@
 	model = "Crystalfontz CFA-10049 Board";
 	compatible = "crystalfontz,cfa10049", "crystalfontz,cfa10036", "fsl,imx28";
 
+	i2cmux {
+		compatible = "i2c-mux-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2cmux_pins_cfa10049>;
+		mux-gpios = <&gpio1 22 0 &gpio1 23 0>;
+		i2c-parent = <&i2c1>;
+
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			adc0: nau7802@2a {
+				compatible = "nuvoton,nau7802";
+				reg = <0x2a>;
+				nuvoton,vldo = <3000>;
+			};
+		};
+
+		i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			adc1: nau7802@2a {
+				compatible = "nuvoton,nau7802";
+				reg = <0x2a>;
+				nuvoton,vldo = <3000>;
+			};
+		};
+
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+				adc2: nau7802@2a {
+				compatible = "nuvoton,nau7802";
+				reg = <0x2a>;
+				nuvoton,vldo = <3000>;
+			};
+		};
+
+		i2c@3 {
+			reg = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pca9555: pca9555@20 {
+				compatible = "nxp,pca9555";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pca_pins_cfa10049>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <19 0x2>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x20>;
+			};
+		};
+	};
+
 	apb@80000000 {
 		apbh@80000000 {
 			pinctrl@80018000 {
@@ -219,71 +284,6 @@
 				status = "okay";
 			};
 
-			i2cmux {
-				compatible = "i2c-mux-gpio";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&i2cmux_pins_cfa10049>;
-				mux-gpios = <&gpio1 22 0 &gpio1 23 0>;
-				i2c-parent = <&i2c1>;
-
-				i2c@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <0>;
-
-					adc0: nau7802@2a {
-						compatible = "nuvoton,nau7802";
-						reg = <0x2a>;
-						nuvoton,vldo = <3000>;
-					};
-				};
-
-				i2c@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <1>;
-
-					adc1: nau7802@2a {
-						compatible = "nuvoton,nau7802";
-						reg = <0x2a>;
-						nuvoton,vldo = <3000>;
-					};
-				};
-
-				i2c@2 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <2>;
-
-					adc2: nau7802@2a {
-						compatible = "nuvoton,nau7802";
-						reg = <0x2a>;
-						nuvoton,vldo = <3000>;
-					};
-				};
-
-				i2c@3 {
-					reg = <3>;
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					pca9555: pca9555@20 {
-						compatible = "nxp,pca9555";
-						pinctrl-names = "default";
-						pinctrl-0 = <&pca_pins_cfa10049>;
-						interrupt-parent = <&gpio2>;
-						interrupts = <19 0x2>;
-						gpio-controller;
-						#gpio-cells = <2>;
-						interrupt-controller;
-						#interrupt-cells = <2>;
-						reg = <0x20>;
-					};
-				};
-			};
-
 			usbphy1: usbphy@8007e000 {
 				status = "okay";
 			};
@@ -327,7 +327,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&mac0_pins_a
 				&mac0_pins_cfa10049>;
-			phy-reset-gpios = <&gpio2 21 0>;
+			phy-reset-gpios = <&gpio2 21 GPIO_ACTIVE_LOW>;
 			phy-reset-duration = <100>;
 			status = "okay";
 		};
@@ -398,8 +398,6 @@
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&rotary_btn_pins_cfa10049>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		rotary_button {
 			label = "rotary_button";
@@ -426,7 +424,7 @@
 
 	};
 
-	onewire@0 {
+	onewire {
 		compatible = "w1-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&w1_gpio_pins>;

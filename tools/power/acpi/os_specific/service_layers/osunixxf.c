@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: osunixxf - UNIX OSL interfaces
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 /*
  * These interfaces are required in order to compile the ASL compiler and the
@@ -63,10 +29,7 @@
 #define _COMPONENT          ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osunixxf")
 
-u8 acpi_gbl_debug_timeout = FALSE;
-
 /* Upcalls to acpi_exec */
-
 void
 ae_table_override(struct acpi_table_header *existing_table,
 		  struct acpi_table_header **new_table);
@@ -246,8 +209,8 @@ acpi_physical_address acpi_os_get_root_pointer(void)
  *****************************************************************************/
 
 acpi_status
-acpi_os_predefined_override(const struct acpi_predefined_names * init_val,
-			    acpi_string * new_val)
+acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
+			    acpi_string *new_val)
 {
 
 	if (!init_val || !new_val) {
@@ -274,8 +237,8 @@ acpi_os_predefined_override(const struct acpi_predefined_names * init_val,
  *****************************************************************************/
 
 acpi_status
-acpi_os_table_override(struct acpi_table_header * existing_table,
-		       struct acpi_table_header ** new_table)
+acpi_os_table_override(struct acpi_table_header *existing_table,
+		       struct acpi_table_header **new_table)
 {
 
 	if (!existing_table || !new_table) {
@@ -311,12 +274,34 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
  *****************************************************************************/
 
 acpi_status
-acpi_os_physical_table_override(struct acpi_table_header * existing_table,
-				acpi_physical_address * new_address,
+acpi_os_physical_table_override(struct acpi_table_header *existing_table,
+				acpi_physical_address *new_address,
 				u32 *new_table_length)
 {
 
 	return (AE_SUPPORT);
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_os_enter_sleep
+ *
+ * PARAMETERS:  sleep_state         - Which sleep state to enter
+ *              rega_value          - Register A value
+ *              regb_value          - Register B value
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: A hook before writing sleep registers to enter the sleep
+ *              state. Return AE_CTRL_TERMINATE to skip further sleep register
+ *              writes.
+ *
+ *****************************************************************************/
+
+acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value)
+{
+
+	return (AE_OK);
 }
 
 /******************************************************************************
@@ -506,7 +491,7 @@ acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read)
 void *acpi_os_map_memory(acpi_physical_address where, acpi_size length)
 {
 
-	return (ACPI_TO_POINTER((acpi_size) where));
+	return (ACPI_TO_POINTER((acpi_size)where));
 }
 
 /******************************************************************************
@@ -603,9 +588,9 @@ void acpi_os_free(void *mem)
 
 acpi_status
 acpi_os_create_semaphore(u32 max_units,
-			 u32 initial_units, acpi_handle * out_handle)
+			 u32 initial_units, acpi_handle *out_handle)
 {
-	*out_handle = (acpi_handle) 1;
+	*out_handle = (acpi_handle)1;
 	return (AE_OK);
 }
 
@@ -640,7 +625,7 @@ acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
 
 acpi_status
 acpi_os_create_semaphore(u32 max_units,
-			 u32 initial_units, acpi_handle * out_handle)
+			 u32 initial_units, acpi_handle *out_handle)
 {
 	sem_t *sem;
 
@@ -649,8 +634,12 @@ acpi_os_create_semaphore(u32 max_units,
 	}
 #ifdef __APPLE__
 	{
-		char *semaphore_name = tmpnam(NULL);
+		static int semaphore_count = 0;
+		char semaphore_name[32];
 
+		snprintf(semaphore_name, sizeof(semaphore_name), "acpi_sem_%d",
+			 semaphore_count++);
+		printf("%s\n", semaphore_name);
 		sem =
 		    sem_open(semaphore_name, O_EXCL | O_CREAT, 0755,
 			     initial_units);
@@ -672,7 +661,7 @@ acpi_os_create_semaphore(u32 max_units,
 	}
 #endif
 
-	*out_handle = (acpi_handle) sem;
+	*out_handle = (acpi_handle)sem;
 	return (AE_OK);
 }
 
@@ -695,10 +684,15 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 	if (!sem) {
 		return (AE_BAD_PARAMETER);
 	}
-
+#ifdef __APPLE__
+	if (sem_close(sem) == -1) {
+		return (AE_BAD_PARAMETER);
+	}
+#else
 	if (sem_destroy(sem) == -1) {
 		return (AE_BAD_PARAMETER);
 	}
+#endif
 
 	return (AE_OK);
 }
@@ -722,9 +716,9 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 {
 	acpi_status status = AE_OK;
 	sem_t *sem = (sem_t *) handle;
+	int ret_val;
 #ifndef ACPI_USE_ALTERNATE_TIMEOUT
 	struct timespec time;
-	int ret_val;
 #endif
 
 	if (!sem) {
@@ -750,7 +744,10 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 
 	case ACPI_WAIT_FOREVER:
 
-		if (sem_wait(sem)) {
+		while (((ret_val = sem_wait(sem)) == -1) && (errno == EINTR)) {
+			continue;	/* Restart if interrupted */
+		}
+		if (ret_val != 0) {
 			status = (AE_TIME);
 		}
 		break;
@@ -803,7 +800,8 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 
 		while (((ret_val = sem_timedwait(sem, &time)) == -1)
 		       && (errno == EINTR)) {
-			continue;
+			continue;	/* Restart if interrupted */
+
 		}
 
 		if (ret_val != 0) {
@@ -1035,7 +1033,7 @@ acpi_os_read_pci_configuration(struct acpi_pci_id *pci_id,
  *****************************************************************************/
 
 acpi_status
-acpi_os_write_pci_configuration(struct acpi_pci_id * pci_id,
+acpi_os_write_pci_configuration(struct acpi_pci_id *pci_id,
 				u32 pci_register, u64 value, u32 width)
 {
 

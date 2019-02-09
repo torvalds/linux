@@ -1,0 +1,450 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <dt-bindings/clock/tegra194-clock.h>
+#include <dt-bindings/gpio/tegra194-gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/mailbox/tegra186-hsp.h>
+#include <dt-bindings/reset/tegra194-reset.h>
+
+/ {
+	compatible = "nvidia,tegra194";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	/* control backbone */
+	cbb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x0 0x40000000>;
+
+		gpio: gpio@2200000 {
+			compatible = "nvidia,tegra194-gpio";
+			reg-names = "security", "gpio";
+			reg = <0x2200000 0x10000>,
+			      <0x2210000 0x10000>;
+			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+
+		ethernet@2490000 {
+			compatible = "nvidia,tegra186-eqos",
+				     "snps,dwc-qos-ethernet-4.10";
+			reg = <0x02490000 0x10000>;
+			interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_AXI_CBB>,
+				 <&bpmp TEGRA194_CLK_EQOS_AXI>,
+				 <&bpmp TEGRA194_CLK_EQOS_RX>,
+				 <&bpmp TEGRA194_CLK_EQOS_TX>,
+				 <&bpmp TEGRA194_CLK_EQOS_PTP_REF>;
+			clock-names = "master_bus", "slave_bus", "rx", "tx", "ptp_ref";
+			resets = <&bpmp TEGRA194_RESET_EQOS>;
+			reset-names = "eqos";
+			status = "disabled";
+
+			snps,write-requests = <1>;
+			snps,read-requests = <3>;
+			snps,burst-map = <0x7>;
+			snps,txpbl = <16>;
+			snps,rxpbl = <8>;
+		};
+
+		uarta: serial@3100000 {
+			compatible = "nvidia,tegra194-uart", "nvidia,tegra20-uart";
+			reg = <0x03100000 0x40>;
+			reg-shift = <2>;
+			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_UARTA>;
+			clock-names = "serial";
+			resets = <&bpmp TEGRA194_RESET_UARTA>;
+			reset-names = "serial";
+			status = "disabled";
+		};
+
+		uartb: serial@3110000 {
+			compatible = "nvidia,tegra194-uart", "nvidia,tegra20-uart";
+			reg = <0x03110000 0x40>;
+			reg-shift = <2>;
+			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_UARTB>;
+			clock-names = "serial";
+			resets = <&bpmp TEGRA194_RESET_UARTB>;
+			reset-names = "serial";
+			status = "disabled";
+		};
+
+		uartd: serial@3130000 {
+			compatible = "nvidia,tegra194-uart", "nvidia,tegra20-uart";
+			reg = <0x03130000 0x40>;
+			reg-shift = <2>;
+			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_UARTD>;
+			clock-names = "serial";
+			resets = <&bpmp TEGRA194_RESET_UARTD>;
+			reset-names = "serial";
+			status = "disabled";
+		};
+
+		uarte: serial@3140000 {
+			compatible = "nvidia,tegra194-uart", "nvidia,tegra20-uart";
+			reg = <0x03140000 0x40>;
+			reg-shift = <2>;
+			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_UARTE>;
+			clock-names = "serial";
+			resets = <&bpmp TEGRA194_RESET_UARTE>;
+			reset-names = "serial";
+			status = "disabled";
+		};
+
+		uartf: serial@3150000 {
+			compatible = "nvidia,tegra194-uart", "nvidia,tegra20-uart";
+			reg = <0x03150000 0x40>;
+			reg-shift = <2>;
+			interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_UARTF>;
+			clock-names = "serial";
+			resets = <&bpmp TEGRA194_RESET_UARTF>;
+			reset-names = "serial";
+			status = "disabled";
+		};
+
+		gen1_i2c: i2c@3160000 {
+			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			reg = <0x03160000 0x10000>;
+			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA194_CLK_I2C1>;
+			clock-names = "div-clk";
+			resets = <&bpmp TEGRA194_RESET_I2C1>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		uarth: serial@3170000 {
+			compatible = "nvidia,tegra194-uart", "nvidia,tegra20-uart";
+			reg = <0x03170000 0x40>;
+			reg-shift = <2>;
+			interrupts = <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_UARTH>;
+			clock-names = "serial";
+			resets = <&bpmp TEGRA194_RESET_UARTH>;
+			reset-names = "serial";
+			status = "disabled";
+		};
+
+		cam_i2c: i2c@3180000 {
+			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			reg = <0x03180000 0x10000>;
+			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA194_CLK_I2C3>;
+			clock-names = "div-clk";
+			resets = <&bpmp TEGRA194_RESET_I2C3>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		/* shares pads with dpaux1 */
+		dp_aux_ch1_i2c: i2c@3190000 {
+			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			reg = <0x03190000 0x10000>;
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA194_CLK_I2C4>;
+			clock-names = "div-clk";
+			resets = <&bpmp TEGRA194_RESET_I2C4>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		/* shares pads with dpaux0 */
+		dp_aux_ch0_i2c: i2c@31b0000 {
+			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			reg = <0x031b0000 0x10000>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA194_CLK_I2C6>;
+			clock-names = "div-clk";
+			resets = <&bpmp TEGRA194_RESET_I2C6>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		gen7_i2c: i2c@31c0000 {
+			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			reg = <0x031c0000 0x10000>;
+			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA194_CLK_I2C7>;
+			clock-names = "div-clk";
+			resets = <&bpmp TEGRA194_RESET_I2C7>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		gen9_i2c: i2c@31e0000 {
+			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			reg = <0x031e0000 0x10000>;
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA194_CLK_I2C9>;
+			clock-names = "div-clk";
+			resets = <&bpmp TEGRA194_RESET_I2C9>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		sdmmc1: sdhci@3400000 {
+			compatible = "nvidia,tegra194-sdhci", "nvidia,tegra186-sdhci";
+			reg = <0x03400000 0x10000>;
+			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_SDMMC1>;
+			clock-names = "sdhci";
+			resets = <&bpmp TEGRA194_RESET_SDMMC1>;
+			reset-names = "sdhci";
+			status = "disabled";
+		};
+
+		sdmmc3: sdhci@3440000 {
+			compatible = "nvidia,tegra194-sdhci", "nvidia,tegra186-sdhci";
+			reg = <0x03440000 0x10000>;
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_SDMMC3>;
+			clock-names = "sdhci";
+			resets = <&bpmp TEGRA194_RESET_SDMMC3>;
+			reset-names = "sdhci";
+			status = "disabled";
+		};
+
+		sdmmc4: sdhci@3460000 {
+			compatible = "nvidia,tegra194-sdhci", "nvidia,tegra186-sdhci";
+			reg = <0x03460000 0x10000>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_SDMMC4>;
+			clock-names = "sdhci";
+			resets = <&bpmp TEGRA194_RESET_SDMMC4>;
+			reset-names = "sdhci";
+			status = "disabled";
+		};
+
+		gic: interrupt-controller@3881000 {
+			compatible = "arm,gic-400";
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			reg = <0x03881000 0x1000>,
+			      <0x03882000 0x2000>,
+			      <0x03884000 0x2000>,
+			      <0x03886000 0x2000>;
+			interrupts = <GIC_PPI 9
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+			interrupt-parent = <&gic>;
+		};
+
+		hsp_top0: hsp@3c00000 {
+			compatible = "nvidia,tegra186-hsp";
+			reg = <0x03c00000 0xa0000>;
+			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "doorbell";
+			#mbox-cells = <2>;
+		};
+
+		gen2_i2c: i2c@c240000 {
+			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			reg = <0x0c240000 0x10000>;
+			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA194_CLK_I2C2>;
+			clock-names = "div-clk";
+			resets = <&bpmp TEGRA194_RESET_I2C2>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		gen8_i2c: i2c@c250000 {
+			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			reg = <0x0c250000 0x10000>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA194_CLK_I2C8>;
+			clock-names = "div-clk";
+			resets = <&bpmp TEGRA194_RESET_I2C8>;
+			reset-names = "i2c";
+			status = "disabled";
+		};
+
+		uartc: serial@c280000 {
+			compatible = "nvidia,tegra194-uart", "nvidia,tegra20-uart";
+			reg = <0x0c280000 0x40>;
+			reg-shift = <2>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_UARTC>;
+			clock-names = "serial";
+			resets = <&bpmp TEGRA194_RESET_UARTC>;
+			reset-names = "serial";
+			status = "disabled";
+		};
+
+		uartg: serial@c290000 {
+			compatible = "nvidia,tegra194-uart", "nvidia,tegra20-uart";
+			reg = <0x0c290000 0x40>;
+			reg-shift = <2>;
+			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_UARTG>;
+			clock-names = "serial";
+			resets = <&bpmp TEGRA194_RESET_UARTG>;
+			reset-names = "serial";
+			status = "disabled";
+		};
+
+		pmc@c360000 {
+			compatible = "nvidia,tegra194-pmc";
+			reg = <0x0c360000 0x10000>,
+			      <0x0c370000 0x10000>,
+			      <0x0c380000 0x10000>,
+			      <0x0c390000 0x10000>,
+			      <0x0c3a0000 0x10000>;
+			reg-names = "pmc", "wake", "aotag", "scratch", "misc";
+		};
+	};
+
+	sysram@40000000 {
+		compatible = "nvidia,tegra194-sysram", "mmio-sram";
+		reg = <0x0 0x40000000 0x0 0x50000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x40000000 0x50000>;
+
+		cpu_bpmp_tx: shmem@4e000 {
+			compatible = "nvidia,tegra194-bpmp-shmem";
+			reg = <0x4e000 0x1000>;
+			label = "cpu-bpmp-tx";
+			pool;
+		};
+
+		cpu_bpmp_rx: shmem@4f000 {
+			compatible = "nvidia,tegra194-bpmp-shmem";
+			reg = <0x4f000 0x1000>;
+			label = "cpu-bpmp-rx";
+			pool;
+		};
+	};
+
+	bpmp: bpmp {
+		compatible = "nvidia,tegra186-bpmp";
+		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
+				    TEGRA_HSP_DB_MASTER_BPMP>;
+		shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		#power-domain-cells = <1>;
+
+		bpmp_i2c: i2c {
+			compatible = "nvidia,tegra186-bpmp-i2c";
+			nvidia,bpmp-bus-id = <5>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		bpmp_thermal: thermal {
+			compatible = "nvidia,tegra186-bpmp-thermal";
+			#thermal-sensor-cells = <1>;
+		};
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10000>;
+			enable-method = "psci";
+		};
+
+		cpu@1 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10001>;
+			enable-method = "psci";
+		};
+
+		cpu@2 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x100>;
+			enable-method = "psci";
+		};
+
+		cpu@3 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x101>;
+			enable-method = "psci";
+		};
+
+		cpu@4 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x200>;
+			enable-method = "psci";
+		};
+
+		cpu@5 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x201>;
+			enable-method = "psci";
+		};
+
+		cpu@6 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10300>;
+			enable-method = "psci";
+		};
+
+		cpu@7 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10301>;
+			enable-method = "psci";
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		status = "okay";
+		method = "smc";
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupt-parent = <&gic>;
+	};
+};

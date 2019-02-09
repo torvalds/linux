@@ -98,8 +98,7 @@ Values are updated in response to changes of the request list.
 The target values of resume latency and active state latency tolerance are
 simply the minimum of the request values held in the parameter list elements.
 The PM QoS flags aggregate value is a gather (bitwise OR) of all list elements'
-values.  Two device PM QoS flags are defined currently: PM_QOS_FLAG_NO_POWER_OFF
-and PM_QOS_FLAG_REMOTE_WAKEUP.
+values.  One device PM QoS flag is defined currently: PM_QOS_FLAG_NO_POWER_OFF.
 
 Note: The aggregated target values are implemented in such a way that reading
 the aggregated value does not require any locking mechanism.
@@ -153,18 +152,17 @@ PM QoS list of resume latency constraints and remove sysfs attribute
 pm_qos_resume_latency_us from the device's power directory.
 
 int dev_pm_qos_expose_flags(device, value)
-Add a request to the device's PM QoS list of flags and create sysfs attributes
-pm_qos_no_power_off and pm_qos_remote_wakeup under the device's power directory
-allowing user space to change these flags' value.
+Add a request to the device's PM QoS list of flags and create sysfs attribute
+pm_qos_no_power_off under the device's power directory allowing user space to
+change the value of the PM_QOS_FLAG_NO_POWER_OFF flag.
 
 void dev_pm_qos_hide_flags(device)
 Drop the request added by dev_pm_qos_expose_flags() from the device's PM QoS list
-of flags and remove sysfs attributes pm_qos_no_power_off and pm_qos_remote_wakeup
-under the device's power directory.
+of flags and remove sysfs attribute pm_qos_no_power_off from the device's power
+directory.
 
 Notification mechanisms:
-The per-device PM QoS framework has 2 different and distinct notification trees:
-a per-device notification tree and a global notification tree.
+The per-device PM QoS framework has a per-device notification tree.
 
 int dev_pm_qos_add_notifier(device, notifier):
 Adds a notification callback function for the device.
@@ -173,16 +171,6 @@ is changed (for resume latency device PM QoS only).
 
 int dev_pm_qos_remove_notifier(device, notifier):
 Removes the notification callback function for the device.
-
-int dev_pm_qos_add_global_notifier(notifier):
-Adds a notification callback function in the global notification tree of the
-framework.
-The callback is called when the aggregated value for any device is changed
-(for resume latency device PM QoS only).
-
-int dev_pm_qos_remove_global_notifier(notifier):
-Removes the notification callback function from the global notification tree
-of the framework.
 
 
 Active state latency tolerance

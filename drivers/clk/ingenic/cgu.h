@@ -2,7 +2,7 @@
  * Ingenic SoC CGU driver
  *
  * Copyright (c) 2013-2015 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -48,6 +48,7 @@
  * @bypass_bit: the index of the bypass bit in the PLL control register
  * @enable_bit: the index of the enable bit in the PLL control register
  * @stable_bit: the index of the stable bit in the PLL control register
+ * @no_bypass_bit: if set, the PLL has no bypass functionality
  */
 struct ingenic_cgu_pll_info {
 	unsigned reg;
@@ -58,6 +59,7 @@ struct ingenic_cgu_pll_info {
 	u8 bypass_bit;
 	u8 enable_bit;
 	u8 stable_bit;
+	bool no_bypass_bit;
 };
 
 /**
@@ -76,8 +78,11 @@ struct ingenic_cgu_mux_info {
 /**
  * struct ingenic_cgu_div_info - information about a divider
  * @reg: offset of the divider control register within the CGU
- * @shift: number of bits to shift the divide value by (ie. the index of
+ * @shift: number of bits to left shift the divide value by (ie. the index of
  *         the lowest bit of the divide value within its control register)
+ * @div: number of bits to divide the divider value by (i.e. if the
+ *	 effective divider value is the value written to the register
+ *	 multiplied by some constant)
  * @bits: the size of the divide value in bits
  * @ce_bit: the index of the change enable bit within reg, or -1 if there
  *          isn't one
@@ -87,6 +92,7 @@ struct ingenic_cgu_mux_info {
 struct ingenic_cgu_div_info {
 	unsigned reg;
 	u8 shift;
+	u8 div;
 	u8 bits;
 	s8 ce_bit;
 	s8 busy_bit;
@@ -105,10 +111,14 @@ struct ingenic_cgu_fixdiv_info {
  * struct ingenic_cgu_gate_info - information about a clock gate
  * @reg: offset of the gate control register within the CGU
  * @bit: offset of the bit in the register that controls the gate
+ * @clear_to_gate: if set, the clock is gated when the bit is cleared
+ * @delay_us: delay in microseconds after which the clock is considered stable
  */
 struct ingenic_cgu_gate_info {
 	unsigned reg;
 	u8 bit;
+	bool clear_to_gate;
+	u16 delay_us;
 };
 
 /**
@@ -116,7 +126,7 @@ struct ingenic_cgu_gate_info {
  * @clk_ops: custom clock operation callbacks
  */
 struct ingenic_cgu_custom_info {
-	struct clk_ops *clk_ops;
+	const struct clk_ops *clk_ops;
 };
 
 /**
@@ -184,7 +194,7 @@ struct ingenic_cgu {
 
 /**
  * struct ingenic_clk - private data for a clock
- * @hw: see Documentation/clk.txt
+ * @hw: see Documentation/driver-api/clk.rst
  * @cgu: a pointer to the CGU data
  * @idx: the index of this clock in cgu->clock_info
  */

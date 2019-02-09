@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * kernel/lockdep_internals.h
  *
@@ -46,6 +47,14 @@ enum {
 		(LOCKF_USED_IN_HARDIRQ_READ | LOCKF_USED_IN_SOFTIRQ_READ)
 
 /*
+ * CONFIG_LOCKDEP_SMALL is defined for sparc. Sparc requires .text,
+ * .data and .bss to fit in required 32MB limit for the kernel. With
+ * CONFIG_LOCKDEP we could go over this limit and cause system boot-up problems.
+ * So, reduce the static allocations for lockdeps related structures so that
+ * everything fits in current required size limit.
+ */
+#ifdef CONFIG_LOCKDEP_SMALL
+/*
  * MAX_LOCKDEP_ENTRIES is the maximum number of lock dependencies
  * we track.
  *
@@ -54,18 +63,24 @@ enum {
  * table (if it's not there yet), and we check it for lock order
  * conflicts and deadlocks.
  */
+#define MAX_LOCKDEP_ENTRIES	16384UL
+#define MAX_LOCKDEP_CHAINS_BITS	15
+#define MAX_STACK_TRACE_ENTRIES	262144UL
+#else
 #define MAX_LOCKDEP_ENTRIES	32768UL
 
 #define MAX_LOCKDEP_CHAINS_BITS	16
-#define MAX_LOCKDEP_CHAINS	(1UL << MAX_LOCKDEP_CHAINS_BITS)
-
-#define MAX_LOCKDEP_CHAIN_HLOCKS (MAX_LOCKDEP_CHAINS*5)
 
 /*
  * Stack-trace: tightly packed array of stack backtrace
  * addresses. Protected by the hash_lock.
  */
 #define MAX_STACK_TRACE_ENTRIES	524288UL
+#endif
+
+#define MAX_LOCKDEP_CHAINS	(1UL << MAX_LOCKDEP_CHAINS_BITS)
+
+#define MAX_LOCKDEP_CHAIN_HLOCKS (MAX_LOCKDEP_CHAINS*5)
 
 extern struct list_head all_lock_classes;
 extern struct lock_chain lock_chains[];
@@ -129,6 +144,8 @@ struct lockdep_stats {
 	int	redundant_softirqs_on;
 	int	redundant_softirqs_off;
 	int	nr_unused_locks;
+	int	nr_redundant_checks;
+	int	nr_redundant;
 	int	nr_cyclic_checks;
 	int	nr_cyclic_check_recursions;
 	int	nr_find_usage_forwards_checks;

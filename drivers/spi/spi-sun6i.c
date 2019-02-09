@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
@@ -24,6 +25,7 @@
 #include <linux/spi/spi.h>
 
 #define SUN6I_FIFO_DEPTH		128
+#define SUN8I_FIFO_DEPTH		64
 
 #define SUN6I_GBL_CTL_REG		0x04
 #define SUN6I_GBL_CTL_BUS_ENABLE		BIT(0)
@@ -44,13 +46,19 @@
 #define SUN6I_TFR_CTL_XCH			BIT(31)
 
 #define SUN6I_INT_CTL_REG		0x10
+#define SUN6I_INT_CTL_RF_RDY			BIT(0)
+#define SUN6I_INT_CTL_TF_ERQ			BIT(4)
 #define SUN6I_INT_CTL_RF_OVF			BIT(8)
 #define SUN6I_INT_CTL_TC			BIT(12)
 
 #define SUN6I_INT_STA_REG		0x14
 
 #define SUN6I_FIFO_CTL_REG		0x18
+#define SUN6I_FIFO_CTL_RF_RDY_TRIG_LEVEL_MASK	0xff
+#define SUN6I_FIFO_CTL_RF_RDY_TRIG_LEVEL_BITS	0
 #define SUN6I_FIFO_CTL_RF_RST			BIT(15)
+#define SUN6I_FIFO_CTL_TF_ERQ_TRIG_LEVEL_MASK	0xff
+#define SUN6I_FIFO_CTL_TF_ERQ_TRIG_LEVEL_BITS	16
 #define SUN6I_FIFO_CTL_TF_RST			BIT(31)
 
 #define SUN6I_FIFO_STA_REG		0x1c
@@ -66,14 +74,16 @@
 #define SUN6I_CLK_CTL_CDR1(div)			(((div) & SUN6I_CLK_CTL_CDR1_MASK) << 8)
 #define SUN6I_CLK_CTL_DRS			BIT(12)
 
+#define SUN6I_MAX_XFER_SIZE		0xffffff
+
 #define SUN6I_BURST_CNT_REG		0x30
-#define SUN6I_BURST_CNT(cnt)			((cnt) & 0xffffff)
+#define SUN6I_BURST_CNT(cnt)			((cnt) & SUN6I_MAX_XFER_SIZE)
 
 #define SUN6I_XMIT_CNT_REG		0x34
-#define SUN6I_XMIT_CNT(cnt)			((cnt) & 0xffffff)
+#define SUN6I_XMIT_CNT(cnt)			((cnt) & SUN6I_MAX_XFER_SIZE)
 
 #define SUN6I_BURST_CTL_CNT_REG		0x38
-#define SUN6I_BURST_CTL_CNT_STC(cnt)		((cnt) & 0xffffff)
+#define SUN6I_BURST_CTL_CNT_STC(cnt)		((cnt) & SUN6I_MAX_XFER_SIZE)
 
 #define SUN6I_TXDATA_REG		0x200
 #define SUN6I_RXDATA_REG		0x300
@@ -90,6 +100,7 @@ struct sun6i_spi {
 	const u8		*tx_buf;
 	u8			*rx_buf;
 	int			len;
+	unsigned long		fifo_depth;
 };
 
 static inline u32 sun6i_spi_read(struct sun6i_spi *sspi, u32 reg)
@@ -100,6 +111,31 @@ static inline u32 sun6i_spi_read(struct sun6i_spi *sspi, u32 reg)
 static inline void sun6i_spi_write(struct sun6i_spi *sspi, u32 reg, u32 value)
 {
 	writel(value, sspi->base_addr + reg);
+}
+
+static inline u32 sun6i_spi_get_tx_fifo_count(struct sun6i_spi *sspi)
+{
+	u32 reg = sun6i_spi_read(sspi, SUN6I_FIFO_STA_REG);
+
+	reg >>= SUN6I_FIFO_STA_TF_CNT_BITS;
+
+	return reg & SUN6I_FIFO_STA_TF_CNT_MASK;
+}
+
+static inline void sun6i_spi_enable_interrupt(struct sun6i_spi *sspi, u32 mask)
+{
+	u32 reg = sun6i_spi_read(sspi, SUN6I_INT_CTL_REG);
+
+	reg |= mask;
+	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, reg);
+}
+
+static inline void sun6i_spi_disable_interrupt(struct sun6i_spi *sspi, u32 mask)
+{
+	u32 reg = sun6i_spi_read(sspi, SUN6I_INT_CTL_REG);
+
+	reg &= ~mask;
+	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, reg);
 }
 
 static inline void sun6i_spi_drain_fifo(struct sun6i_spi *sspi, int len)
@@ -124,10 +160,13 @@ static inline void sun6i_spi_drain_fifo(struct sun6i_spi *sspi, int len)
 
 static inline void sun6i_spi_fill_fifo(struct sun6i_spi *sspi, int len)
 {
+	u32 cnt;
 	u8 byte;
 
-	if (len > sspi->len)
-		len = sspi->len;
+	/* See how much data we can fit */
+	cnt = sspi->fifo_depth - sun6i_spi_get_tx_fifo_count(sspi);
+
+	len = min3(len, (int)cnt, sspi->len);
 
 	while (len--) {
 		byte = sspi->tx_buf ? *sspi->tx_buf++ : 0;
@@ -153,6 +192,10 @@ static void sun6i_spi_set_cs(struct spi_device *spi, bool enable)
 	sun6i_spi_write(sspi, SUN6I_TFR_CTL_REG, reg);
 }
 
+static size_t sun6i_spi_max_transfer_size(struct spi_device *spi)
+{
+	return SUN6I_MAX_XFER_SIZE - 1;
+}
 
 static int sun6i_spi_transfer_one(struct spi_master *master,
 				  struct spi_device *spi,
@@ -160,12 +203,13 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 {
 	struct sun6i_spi *sspi = spi_master_get_devdata(master);
 	unsigned int mclk_rate, div, timeout;
+	unsigned int start, end, tx_time;
+	unsigned int trig_level;
 	unsigned int tx_len = 0;
 	int ret = 0;
 	u32 reg;
 
-	/* We don't support transfer larger than the FIFO */
-	if (tfr->len > SUN6I_FIFO_DEPTH)
+	if (tfr->len > SUN6I_MAX_XFER_SIZE)
 		return -EINVAL;
 
 	reinit_completion(&sspi->done);
@@ -179,6 +223,17 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	/* Reset FIFO */
 	sun6i_spi_write(sspi, SUN6I_FIFO_CTL_REG,
 			SUN6I_FIFO_CTL_RF_RST | SUN6I_FIFO_CTL_TF_RST);
+
+	/*
+	 * Setup FIFO interrupt trigger level
+	 * Here we choose 3/4 of the full fifo depth, as it's the hardcoded
+	 * value used in old generation of Allwinner SPI controller.
+	 * (See spi-sun4i.c)
+	 */
+	trig_level = sspi->fifo_depth / 4 * 3;
+	sun6i_spi_write(sspi, SUN6I_FIFO_CTL_REG,
+			(trig_level << SUN6I_FIFO_CTL_RF_RDY_TRIG_LEVEL_BITS) |
+			(trig_level << SUN6I_FIFO_CTL_TF_ERQ_TRIG_LEVEL_BITS));
 
 	/*
 	 * Setup the transfer control register: Chip Select,
@@ -217,8 +272,8 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 
 	/* Ensure that we have a parent clock fast enough */
 	mclk_rate = clk_get_rate(sspi->mclk);
-	if (mclk_rate < (2 * spi->max_speed_hz)) {
-		clk_set_rate(sspi->mclk, 2 * spi->max_speed_hz);
+	if (mclk_rate < (2 * tfr->speed_hz)) {
+		clk_set_rate(sspi->mclk, 2 * tfr->speed_hz);
 		mclk_rate = clk_get_rate(sspi->mclk);
 	}
 
@@ -236,14 +291,14 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	 * First try CDR2, and if we can't reach the expected
 	 * frequency, fall back to CDR1.
 	 */
-	div = mclk_rate / (2 * spi->max_speed_hz);
+	div = mclk_rate / (2 * tfr->speed_hz);
 	if (div <= (SUN6I_CLK_CTL_CDR2_MASK + 1)) {
 		if (div > 0)
 			div--;
 
 		reg = SUN6I_CLK_CTL_CDR2(div) | SUN6I_CLK_CTL_DRS;
 	} else {
-		div = ilog2(mclk_rate) - ilog2(spi->max_speed_hz);
+		div = ilog2(mclk_rate) - ilog2(tfr->speed_hz);
 		reg = SUN6I_CLK_CTL_CDR1(div);
 	}
 
@@ -260,23 +315,32 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 			SUN6I_BURST_CTL_CNT_STC(tx_len));
 
 	/* Fill the TX FIFO */
-	sun6i_spi_fill_fifo(sspi, SUN6I_FIFO_DEPTH);
+	sun6i_spi_fill_fifo(sspi, sspi->fifo_depth);
 
 	/* Enable the interrupts */
 	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, SUN6I_INT_CTL_TC);
+	sun6i_spi_enable_interrupt(sspi, SUN6I_INT_CTL_TC |
+					 SUN6I_INT_CTL_RF_RDY);
+	if (tx_len > sspi->fifo_depth)
+		sun6i_spi_enable_interrupt(sspi, SUN6I_INT_CTL_TF_ERQ);
 
 	/* Start the transfer */
 	reg = sun6i_spi_read(sspi, SUN6I_TFR_CTL_REG);
 	sun6i_spi_write(sspi, SUN6I_TFR_CTL_REG, reg | SUN6I_TFR_CTL_XCH);
 
+	tx_time = max(tfr->len * 8 * 2 / (tfr->speed_hz / 1000), 100U);
+	start = jiffies;
 	timeout = wait_for_completion_timeout(&sspi->done,
-					      msecs_to_jiffies(1000));
+					      msecs_to_jiffies(tx_time));
+	end = jiffies;
 	if (!timeout) {
+		dev_warn(&master->dev,
+			 "%s: timeout transferring %u bytes@%iHz for %i(%i)ms",
+			 dev_name(&spi->dev), tfr->len, tfr->speed_hz,
+			 jiffies_to_msecs(end - start), tx_time);
 		ret = -ETIMEDOUT;
 		goto out;
 	}
-
-	sun6i_spi_drain_fifo(sspi, SUN6I_FIFO_DEPTH);
 
 out:
 	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, 0);
@@ -292,7 +356,30 @@ static irqreturn_t sun6i_spi_handler(int irq, void *dev_id)
 	/* Transfer complete */
 	if (status & SUN6I_INT_CTL_TC) {
 		sun6i_spi_write(sspi, SUN6I_INT_STA_REG, SUN6I_INT_CTL_TC);
+		sun6i_spi_drain_fifo(sspi, sspi->fifo_depth);
 		complete(&sspi->done);
+		return IRQ_HANDLED;
+	}
+
+	/* Receive FIFO 3/4 full */
+	if (status & SUN6I_INT_CTL_RF_RDY) {
+		sun6i_spi_drain_fifo(sspi, SUN6I_FIFO_DEPTH);
+		/* Only clear the interrupt _after_ draining the FIFO */
+		sun6i_spi_write(sspi, SUN6I_INT_STA_REG, SUN6I_INT_CTL_RF_RDY);
+		return IRQ_HANDLED;
+	}
+
+	/* Transmit FIFO 3/4 empty */
+	if (status & SUN6I_INT_CTL_TF_ERQ) {
+		sun6i_spi_fill_fifo(sspi, SUN6I_FIFO_DEPTH);
+
+		if (!sspi->len)
+			/* nothing left to transmit */
+			sun6i_spi_disable_interrupt(sspi, SUN6I_INT_CTL_TF_ERQ);
+
+		/* Only clear the interrupt _after_ re-seeding the FIFO */
+		sun6i_spi_write(sspi, SUN6I_INT_STA_REG, SUN6I_INT_CTL_TF_ERQ);
+
 		return IRQ_HANDLED;
 	}
 
@@ -386,6 +473,10 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 	}
 
 	sspi->master = master;
+	sspi->fifo_depth = (unsigned long)of_device_get_match_data(&pdev->dev);
+
+	master->max_speed_hz = 100 * 1000 * 1000;
+	master->min_speed_hz = 3 * 1000;
 	master->set_cs = sun6i_spi_set_cs;
 	master->transfer_one = sun6i_spi_transfer_one;
 	master->num_chipselect = 4;
@@ -393,6 +484,7 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->dev.of_node = pdev->dev.of_node;
 	master->auto_runtime_pm = true;
+	master->max_transfer_size = sun6i_spi_max_transfer_size;
 
 	sspi->hclk = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(sspi->hclk)) {
@@ -410,7 +502,7 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 
 	init_completion(&sspi->done);
 
-	sspi->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	sspi->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(sspi->rstc)) {
 		dev_err(&pdev->dev, "Couldn't get reset controller\n");
 		ret = PTR_ERR(sspi->rstc);
@@ -449,13 +541,14 @@ err_free_master:
 
 static int sun6i_spi_remove(struct platform_device *pdev)
 {
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_force_suspend(&pdev->dev);
 
 	return 0;
 }
 
 static const struct of_device_id sun6i_spi_match[] = {
-	{ .compatible = "allwinner,sun6i-a31-spi", },
+	{ .compatible = "allwinner,sun6i-a31-spi", .data = (void *)SUN6I_FIFO_DEPTH },
+	{ .compatible = "allwinner,sun8i-h3-spi",  .data = (void *)SUN8I_FIFO_DEPTH },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sun6i_spi_match);

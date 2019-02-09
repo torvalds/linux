@@ -61,10 +61,12 @@ config BCM63XX_ENET
 
 config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
+	depends on HAS_IOMEM
 	select MII
 	select PHYLIB
 	select FIXED_PHY
 	select BCM7XXX_PHY
+	select MDIO_BCM_UNIMAC
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset.
@@ -109,18 +111,24 @@ config TIGON3
 	tristate "Broadcom Tigon3 support"
 	depends on PCI
 	select PHYLIB
-	select HWMON
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	---help---
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called tg3.  This is recommended.
 
+config TIGON3_HWMON
+	bool "Broadcom Tigon3 HWMON support"
+	default y
+	depends on TIGON3 && HWMON && !(TIGON3=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor on Tigon3 devices.
+
 config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C
@@ -139,29 +147,42 @@ config BNX2X_SRIOV
 	  Virtualization support in the 578xx and 57712 products. This
 	  allows for virtual function acceleration in virtual environments.
 
-config BNX2X_VXLAN
-	bool "Virtual eXtensible Local Area Network support"
-	default n
-	depends on BNX2X && VXLAN && !(BNX2X=y && VXLAN=m)
-	---help---
-	  This enables hardward offload support for VXLAN protocol over the
-	  NetXtremeII series adapters.
-	  Say Y here if you want to enable hardware offload support for
-	  Virtual eXtensible Local Area Network (VXLAN) in the driver.
-
 config BGMAC
-	tristate "BCMA bus GBit core support"
-	depends on BCMA_HOST_SOC && HAS_DMA && (BCM47XX || ARCH_BCM_5301X)
+	tristate
+	help
+	  This enables the integrated ethernet controller support for many
+	  Broadcom (mostly iProc) SoCs. An appropriate bus interface driver
+	  needs to be enabled to select this.
+
+config BGMAC_BCMA
+	tristate "Broadcom iProc GBit BCMA support"
+	depends on BCMA && BCMA_HOST_SOC
+	depends on BCM47XX || ARCH_BCM_5301X || COMPILE_TEST
+	select BGMAC
 	select PHYLIB
+	select FIXED_PHY
 	---help---
 	  This driver supports GBit MAC and BCM4706 GBit MAC cores on BCMA bus.
 	  They can be found on BCM47xx SoCs and provide gigabit ethernet.
 	  In case of using this driver on BCM4706 it's also requires to enable
 	  BCMA_DRIVER_GMAC_CMN to make it work.
 
+config BGMAC_PLATFORM
+	tristate "Broadcom iProc GBit platform support"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on OF
+	select BGMAC
+	select PHYLIB
+	select FIXED_PHY
+	default ARCH_BCM_IPROC
+	---help---
+	  Say Y here if you want to use the Broadcom iProc Gigabit Ethernet
+	  controller through the generic platform interface
+
 config SYSTEMPORT
 	tristate "Broadcom SYSTEMPORT internal MAC support"
-	depends on OF
+	depends on HAS_IOMEM
+	depends on NET_DSA || !NET_DSA
 	select MII
 	select PHYLIB
 	select FIXED_PHY
@@ -173,7 +194,7 @@ config SYSTEMPORT
 config BNXT
 	tristate "Broadcom NetXtreme-C/E support"
 	depends on PCI
-	depends on VXLAN || VXLAN=n
+	depends on MAY_USE_DEVLINK
 	select FW_LOADER
 	select LIBCRC32C
 	---help---
@@ -189,5 +210,32 @@ config BNXT_SRIOV
 	  This configuration parameter enables Single Root Input Output
 	  Virtualization support in the NetXtreme-C/E products. This
 	  allows for virtual function acceleration in virtual environments.
+
+config BNXT_FLOWER_OFFLOAD
+	bool "TC Flower offload support for NetXtreme-C/E"
+	depends on BNXT
+	default y
+	---help---
+	  This configuration parameter enables TC Flower packet classifier
+	  offload for eswitch.  This option enables SR-IOV switchdev eswitch
+	  offload.
+
+config BNXT_DCB
+	bool "Data Center Bridging (DCB) Support"
+	default n
+	depends on BNXT && DCB
+	---help---
+	  Say Y here if you want to use Data Center Bridging (DCB) in the
+	  driver.
+
+	  If unsure, say N.
+
+config BNXT_HWMON
+	bool "Broadcom NetXtreme-C/E HWMON support"
+	default y
+	depends on BNXT && HWMON && !(BNXT=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor data on NetXtreme-C/E
+	  devices, via the hwmon sysfs interface.
 
 endif # NET_VENDOR_BROADCOM

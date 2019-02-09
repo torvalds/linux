@@ -16,21 +16,14 @@
 	model = "Eukrea CPUIMX27";
 	compatible = "eukrea,cpuimx27", "fsl,imx27";
 
-	memory {
+	memory@a0000000 {
 		reg = <0xa0000000 0x04000000>;
 	};
 
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "simple-bus";
-
-		clk14745600: clock@0 {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <14745600>;
-			reg = <0>;
-		};
+	clk14745600: clk-uart {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <14745600>;
 	};
 };
 
@@ -77,7 +70,7 @@
 &uart4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 

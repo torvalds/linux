@@ -153,13 +153,11 @@ static int _kdb_bp_install(struct pt_regs *regs, kdb_bp_t *bp)
 	} else {
 		kdb_printf("%s: failed to set breakpoint at 0x%lx\n",
 			   __func__, bp->bp_addr);
-#ifdef CONFIG_DEBUG_RODATA
 		if (!bp->bp_type) {
 			kdb_printf("Software breakpoints are unavailable.\n"
-				   "  Change the kernel CONFIG_DEBUG_RODATA=n\n"
+				   "  Boot the kernel with rodata=off\n"
 				   "  OR use hw breaks: help bph\n");
 		}
-#endif
 		return 1;
 	}
 	return 0;
@@ -244,11 +242,11 @@ static void kdb_printbp(kdb_bp_t *bp, int i)
 	kdb_symbol_print(bp->bp_addr, NULL, KDB_SP_DEFAULT);
 
 	if (bp->bp_enabled)
-		kdb_printf("\n    is enabled");
+		kdb_printf("\n    is enabled ");
 	else
 		kdb_printf("\n    is disabled");
 
-	kdb_printf("\taddr at %016lx, hardtype=%d installed=%d\n",
+	kdb_printf("  addr at %016lx, hardtype=%d installed=%d\n",
 		   bp->bp_addr, bp->bp_type, bp->bp_installed);
 
 	kdb_printf("\n");

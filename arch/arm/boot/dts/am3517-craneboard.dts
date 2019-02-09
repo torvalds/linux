@@ -15,12 +15,12 @@
 	model = "TI AM3517 CraneBoard (TMDSEVM3517)";
 	compatible = "ti,am3517-craneboard", "ti,am3517", "ti,omap3";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>;	/* 256 MB */
 	};
 
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
@@ -77,7 +77,7 @@
 &omap3_pmx_core {
 	tps_pins: pinmux_tps_pins {
 		pinctrl-single,pins = <
-			0x1b0 (PIN_INPUT_PULLUP | MUX_MODE0) /* sys_nirq.sys_nirq */
+			OMAP3_CORE1_IOPAD(0x21e0, PIN_INPUT_PULLUP | MUX_MODE0) /* sys_nirq.sys_nirq */
 		>;
 	};
 };

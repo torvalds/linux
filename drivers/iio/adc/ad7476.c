@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * AD7466/7/8 AD7476/5/7/8 (A) SPI ADC driver
+ * Analog Devices AD7466/7/8 AD7476/5/7/8 (A) SPI ADC driver
+ * TI ADC081S/ADC101S/ADC121S 8/10/12-bit SPI ADC driver
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -56,6 +56,9 @@ enum ad7476_supported_device_ids {
 	ID_AD7468,
 	ID_AD7495,
 	ID_AD7940,
+	ID_ADC081S,
+	ID_ADC101S,
+	ID_ADC121S,
 };
 
 static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
@@ -70,7 +73,7 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 		goto done;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, st->data,
-		iio_get_time_ns());
+		iio_get_time_ns(indio_dev));
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -106,12 +109,11 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
-		if (iio_buffer_enabled(indio_dev))
-			ret = -EBUSY;
-		else
-			ret = ad7476_scan_direct(st);
-		mutex_unlock(&indio_dev->mlock);
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
+		ret = ad7476_scan_direct(st);
+		iio_device_release_direct_mode(indio_dev);
 
 		if (ret < 0)
 			return ret;
@@ -148,6 +150,8 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 	},							\
 }
 
+#define ADC081S_CHAN(bits) _AD7476_CHAN((bits), 12 - (bits), \
+		BIT(IIO_CHAN_INFO_RAW))
 #define AD7476_CHAN(bits) _AD7476_CHAN((bits), 13 - (bits), \
 		BIT(IIO_CHAN_INFO_RAW))
 #define AD7940_CHAN(bits) _AD7476_CHAN((bits), 15 - (bits), \
@@ -193,10 +197,21 @@ static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 		.channel[0] = AD7940_CHAN(14),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
+	[ID_ADC081S] = {
+		.channel[0] = ADC081S_CHAN(8),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	},
+	[ID_ADC101S] = {
+		.channel[0] = ADC081S_CHAN(10),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	},
+	[ID_ADC121S] = {
+		.channel[0] = ADC081S_CHAN(12),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	},
 };
 
 static const struct iio_info ad7476_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &ad7476_read_raw,
 };
 
@@ -228,6 +243,7 @@ static int ad7476_probe(struct spi_device *spi)
 
 	/* Establish that the iio_dev is a child of the spi device */
 	indio_dev->dev.parent = &spi->dev;
+	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channel;
@@ -295,6 +311,9 @@ static const struct spi_device_id ad7476_id[] = {
 	{"ad7910", ID_AD7467},
 	{"ad7920", ID_AD7466},
 	{"ad7940", ID_AD7940},
+	{"adc081s", ID_ADC081S},
+	{"adc101s", ID_ADC101S},
+	{"adc121s", ID_ADC121S},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad7476_id);

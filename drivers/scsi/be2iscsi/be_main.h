@@ -1,20 +1,15 @@
-/**
- * Copyright (C) 2005 - 2015 Emulex
- * All rights reserved.
+/*
+ * Copyright 2017 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.  The full GNU General
+ * as published by the Free Software Foundation. The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@avagotech.com)
- *
  * Contact Information:
- * linux-drivers@avagotech.com
+ * linux-drivers@broadcom.com
  *
- * Emulex
- * 3333 Susan Street
- * Costa Mesa, CA 92626
  */
 
 #ifndef _BEISCSI_MAIN_
@@ -36,7 +31,7 @@
 #include <scsi/scsi_transport_iscsi.h>
 
 #define DRV_NAME		"be2iscsi"
-#define BUILD_STR		"10.6.0.1"
+#define BUILD_STR		"11.4.0.1"
 #define BE_NAME			"Emulex OneConnect" \
 				"Open-iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
@@ -57,37 +52,32 @@
 
 #define BE2_IO_DEPTH		1024
 #define BE2_MAX_SESSIONS	256
-#define BE2_CMDS_PER_CXN	128
 #define BE2_TMFS		16
 #define BE2_NOPOUT_REQ		16
 #define BE2_SGE			32
 #define BE2_DEFPDU_HDR_SZ	64
 #define BE2_DEFPDU_DATA_SZ	8192
+#define BE2_MAX_NUM_CQ_PROC	512
 
-#define MAX_CPUS		64
+#define MAX_CPUS		64U
 #define BEISCSI_MAX_NUM_CPUS	7
 
 #define BEISCSI_VER_STRLEN 32
 
 #define BEISCSI_SGLIST_ELEMENTS	30
 
-#define BEISCSI_CMD_PER_LUN	128 /* scsi_host->cmd_per_lun */
-#define BEISCSI_MAX_SECTORS	1024 /* scsi_host->max_sectors */
+/**
+ * BE_INVLDT_CMD_TBL_SZ is 128 which is total number commands that can
+ * be invalidated at a time, consider it before changing the value of
+ * BEISCSI_CMD_PER_LUN.
+ */
+#define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
+#define BEISCSI_MAX_SECTORS	1024	/* scsi_host->max_sectors */
 #define BEISCSI_TEMPLATE_HDR_PER_CXN_SIZE 128 /* Template size per cxn */
 
 #define BEISCSI_MAX_CMD_LEN	16	/* scsi_host->max_cmd_len */
 #define BEISCSI_NUM_MAX_LUN	256	/* scsi_host->max_lun */
-#define BEISCSI_NUM_DEVICES_SUPPORTED	0x01
 #define BEISCSI_MAX_FRAGS_INIT	192
-#define BE_NUM_MSIX_ENTRIES	1
-
-#define MPU_EP_CONTROL          0
-#define MPU_EP_SEMAPHORE        0xac
-#define BE2_SOFT_RESET          0x5c
-#define BE2_PCI_ONLINE0         0xb0
-#define BE2_PCI_ONLINE1         0xb4
-#define BE2_SET_RESET           0x80
-#define BE2_MPU_IRAM_ONLINE     0x00000080
 
 #define BE_SENSE_INFO_SIZE		258
 #define BE_ISCSI_PDU_HEADER_SIZE	64
@@ -95,23 +85,6 @@
 #define MAX_CMD_SZ			65536
 #define IIOC_SCSI_DATA                  0x05	/* Write Operation */
 
-#define INVALID_SESS_HANDLE	0xFFFFFFFF
-
-/**
- * Adapter States
- **/
-#define BE_ADAPTER_LINK_UP	0x001
-#define BE_ADAPTER_LINK_DOWN	0x002
-#define BE_ADAPTER_PCI_ERR	0x004
-#define BE_ADAPTER_STATE_SHUTDOWN	0x008
-#define BE_ADAPTER_CHECK_BOOT	0x010
-
-
-#define BEISCSI_CLEAN_UNLOAD	0x01
-#define BEISCSI_EEH_UNLOAD	0x02
-
-#define BE_GET_BOOT_RETRIES	45
-#define BE_GET_BOOT_TO		20
 /**
  * hardware needs the async PDU buffers to be posted in multiples of 8
  * So have atleast 8 of them by default
@@ -180,8 +153,6 @@
 #define PAGES_REQUIRED(x) \
 	((x < PAGE_SIZE) ? 1 :  ((x + PAGE_SIZE - 1) / PAGE_SIZE))
 
-#define BEISCSI_MSI_NAME 20 /* size of msi_name string */
-
 #define MEM_DESCR_OFFSET 8
 #define BEISCSI_DEFQ_HDR 1
 #define BEISCSI_DEFQ_DATA 0
@@ -234,13 +205,8 @@ struct mem_array {
 };
 
 struct be_mem_descriptor {
-	unsigned int index;	/* Index of this memory parameter */
-	unsigned int category;	/* type indicates cached/non-cached */
-	unsigned int num_elements;	/* number of elements in this
-					 * descriptor
-					 */
-	unsigned int alignment_mask;	/* Alignment mask for this block */
 	unsigned int size_in_bytes;	/* Size required by memory block */
+	unsigned int num_elements;
 	struct mem_array *mem_array;
 };
 
@@ -255,7 +221,6 @@ struct sgl_handle {
 struct hba_parameters {
 	unsigned int ios_per_ctrl;
 	unsigned int cxns_per_ctrl;
-	unsigned int asyncpdus_per_ctrl;
 	unsigned int icds_per_ctrl;
 	unsigned int num_sge_per_io;
 	unsigned int defpdu_hdr_sz;
@@ -263,49 +228,13 @@ struct hba_parameters {
 	unsigned int num_cq_entries;
 	unsigned int num_eq_entries;
 	unsigned int wrbs_per_cxn;
-	unsigned int crashmode;
-	unsigned int hba_num;
-
-	unsigned int mgmt_ws_sz;
 	unsigned int hwi_ws_sz;
-
-	unsigned int eto;
-	unsigned int ldto;
-
-	unsigned int dbg_flags;
-	unsigned int num_cxn;
-
-	unsigned int eq_timer;
-	/**
-	 * These are calculated from other params. They're here
-	 * for debug purposes
-	 */
-	unsigned int num_mcc_pages;
-	unsigned int num_mcc_cq_pages;
-	unsigned int num_cq_pages;
-	unsigned int num_eq_pages;
-
-	unsigned int num_async_pdu_buf_pages;
-	unsigned int num_async_pdu_buf_sgl_pages;
-	unsigned int num_async_pdu_buf_cq_pages;
-
-	unsigned int num_async_pdu_hdr_pages;
-	unsigned int num_async_pdu_hdr_sgl_pages;
-	unsigned int num_async_pdu_hdr_cq_pages;
-
-	unsigned int num_sge;
 };
-
-struct invalidate_command_table {
-	unsigned short icd;
-	unsigned short cid;
-} __packed;
 
 #define BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr, cri) \
 	(phwi_ctrlr->wrb_context[cri].ulp_num)
 struct hwi_wrb_context {
-	struct list_head wrb_handle_list;
-	struct list_head wrb_handle_drvr_list;
+	spinlock_t wrb_lock;
 	struct wrb_handle **pwrb_handle_base;
 	struct wrb_handle **pwrb_handle_basestd;
 	struct iscsi_wrb *plast_wrb;
@@ -314,8 +243,6 @@ struct hwi_wrb_context {
 	unsigned short wrb_handles_available;
 	unsigned short cid;
 	uint8_t ulp_num;	/* ULP to which CID binded */
-	uint16_t register_set;
-	uint16_t doorbell_format;
 	uint32_t doorbell_offset;
 };
 
@@ -352,24 +279,17 @@ struct beiscsi_hba {
 	u8 __iomem *csr_va;	/* CSR */
 	u8 __iomem *db_va;	/* Door  Bell  */
 	u8 __iomem *pci_va;	/* PCI Config */
-	struct be_bus_address csr_pa;	/* CSR */
-	struct be_bus_address db_pa;	/* CSR */
-	struct be_bus_address pci_pa;	/* CSR */
 	/* PCI representation of our HBA */
 	struct pci_dev *pcidev;
-	unsigned short asic_revision;
 	unsigned int num_cpus;
 	unsigned int nxt_cqid;
-	struct msix_entry msix_entries[MAX_CPUS];
 	char *msi_name[MAX_CPUS];
-	bool msix_enabled;
 	struct be_mem_descriptor *init_mem;
 
 	unsigned short io_sgl_alloc_index;
 	unsigned short io_sgl_free_index;
 	unsigned short io_sgl_hndl_avbl;
 	struct sgl_handle **io_sgl_hndl_base;
-	struct sgl_handle **sgl_hndl_array;
 
 	unsigned short eh_sgl_alloc_index;
 	unsigned short eh_sgl_free_index;
@@ -377,11 +297,10 @@ struct beiscsi_hba {
 	struct sgl_handle **eh_sgl_hndl_base;
 	spinlock_t io_sgl_lock;
 	spinlock_t mgmt_sgl_lock;
-	spinlock_t isr_lock;
 	spinlock_t async_pdu_lock;
-	unsigned int age;
 	struct list_head hba_queue;
 #define BE_MAX_SESSION 2048
+#define BE_INVALID_CID 0xffff
 #define BE_SET_CID_TO_CRI(cri_index, cid) \
 			  (phba->cid_to_cri_map[cid] = cri_index)
 #define BE_GET_CRI_FROM_CID(cid) (phba->cid_to_cri_map[cid])
@@ -389,7 +308,6 @@ struct beiscsi_hba {
 	struct ulp_cid_info *cid_array_info[BEISCSI_ULP_COUNT];
 	struct iscsi_endpoint **ep_array;
 	struct beiscsi_conn **conn_table;
-	struct iscsi_boot_kset *boot_kset;
 	struct Scsi_Host *shost;
 	struct iscsi_iface *ipv4_iface;
 	struct iscsi_iface *ipv6_iface;
@@ -398,7 +316,9 @@ struct beiscsi_hba {
 		 * group together since they are used most frequently
 		 * for cid to cri conversion
 		 */
+#define BEISCSI_PHYS_PORT_MAX	4
 		unsigned int phys_port;
+		/* valid values of phys_port id are 0, 1, 2, 3 */
 		unsigned int eqid_count;
 		unsigned int cqid_count;
 		unsigned int iscsi_cid_start[BEISCSI_ULP_COUNT];
@@ -415,22 +335,43 @@ struct beiscsi_hba {
 		unsigned long ulp_supported;
 	} fw_config;
 
-	unsigned int state;
-	int get_boot;
-	bool fw_timeout;
-	bool ue_detected;
-	struct delayed_work beiscsi_hw_check_task;
+	unsigned long state;
+#define BEISCSI_HBA_ONLINE	0
+#define BEISCSI_HBA_LINK_UP	1
+#define BEISCSI_HBA_BOOT_FOUND	2
+#define BEISCSI_HBA_BOOT_WORK	3
+#define BEISCSI_HBA_UER_SUPP	4
+#define BEISCSI_HBA_PCI_ERR	5
+#define BEISCSI_HBA_FW_TIMEOUT	6
+#define BEISCSI_HBA_IN_UE	7
+#define BEISCSI_HBA_IN_TPE	8
+
+/* error bits */
+#define BEISCSI_HBA_IN_ERR	((1 << BEISCSI_HBA_PCI_ERR) | \
+				 (1 << BEISCSI_HBA_FW_TIMEOUT) | \
+				 (1 << BEISCSI_HBA_IN_UE) | \
+				 (1 << BEISCSI_HBA_IN_TPE))
+
+	u8 optic_state;
+	struct delayed_work eqd_update;
+	/* update EQ delay timer every 1000ms */
+#define BEISCSI_EQD_UPDATE_INTERVAL	1000
+	struct timer_list hw_check;
+	/* check for UE every 1000ms */
+#define BEISCSI_UE_DETECT_INTERVAL	1000
+	u32 ue2rp;
+	struct delayed_work recover_port;
+	struct work_struct sess_work;
 
 	bool mac_addr_set;
 	u8 mac_address[ETH_ALEN];
+	u8 port_name;
+	u8 port_speed;
 	char fw_ver_str[BEISCSI_VER_STRLEN];
-	char wq_name[20];
 	struct workqueue_struct *wq;	/* The actuak work queue */
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
 	unsigned int interface_handle;
-	struct mgmt_session_info boot_sess;
-	struct invalidate_command_table inv_tbl[128];
 
 	struct be_aic_obj aic_obj[MAX_CPUS];
 	unsigned int attr_log_enable;
@@ -438,10 +379,31 @@ struct beiscsi_hba {
 			struct scatterlist *sg,
 			uint32_t num_sg, uint32_t xferlen,
 			uint32_t writedir);
+	struct boot_struct {
+		int retry;
+		unsigned int tag;
+		unsigned int s_handle;
+		struct be_dma_mem nonemb_cmd;
+		enum {
+			BEISCSI_BOOT_REOPEN_SESS = 1,
+			BEISCSI_BOOT_GET_SHANDLE,
+			BEISCSI_BOOT_GET_SINFO,
+			BEISCSI_BOOT_LOGOUT_SESS,
+			BEISCSI_BOOT_CREATE_KSET,
+		} action;
+		struct mgmt_session_info boot_sess;
+		struct iscsi_boot_kset *boot_kset;
+	} boot_struct;
+	struct work_struct boot_work;
 };
 
+#define beiscsi_hba_in_error(phba) ((phba)->state & BEISCSI_HBA_IN_ERR)
+#define beiscsi_hba_is_online(phba) \
+	(!beiscsi_hba_in_error((phba)) && \
+	 test_bit(BEISCSI_HBA_ONLINE, &phba->state))
+
 struct beiscsi_session {
-	struct pci_pool *bhs_pool;
+	struct dma_pool *bhs_pool;
 };
 
 /**
@@ -502,11 +464,8 @@ struct beiscsi_io_task {
 	struct sgl_handle *psgl_handle;
 	struct beiscsi_conn *conn;
 	struct scsi_cmnd *scsi_cmnd;
+	int num_sg;
 	struct hwi_wrb_context *pwrb_context;
-	unsigned int cmd_sn;
-	unsigned int flags;
-	unsigned short cid;
-	unsigned short header_len;
 	itt_t libiscsi_itt;
 	struct be_cmd_bhs *cmd_bhs;
 	struct be_bus_address bhs_pa;
@@ -586,79 +545,78 @@ struct amap_beiscsi_offload_params {
 	u8 max_recv_data_segment_length[32];
 };
 
-/* void hwi_complete_drvr_msgs(struct beiscsi_conn *beiscsi_conn,
-		struct beiscsi_hba *phba, struct sol_cqe *psol);*/
-
-struct async_pdu_handle {
+struct hd_async_handle {
 	struct list_head link;
 	struct be_bus_address pa;
 	void *pbuffer;
-	unsigned int consumed;
-	unsigned char index;
-	unsigned char is_header;
-	unsigned short cri;
-	unsigned long buffer_len;
+	u32 buffer_len;
+	u16 index;
+	u16 cri;
+	u8 is_header;
+	u8 is_final;
+	u8 in_use;
 };
 
-struct hwi_async_entry {
-	struct {
-		unsigned char hdr_received;
-		unsigned char hdr_len;
-		unsigned short bytes_received;
+#define BEISCSI_ASYNC_HDQ_SIZE(phba, ulp) \
+	(BEISCSI_GET_CID_COUNT((phba), (ulp)) * 2)
+
+/**
+ * This has list of async PDUs that are waiting to be processed.
+ * Buffers live in this list for a brief duration before they get
+ * processed and posted back to hardware.
+ * Note that we don't really need one cri_wait_queue per async_entry.
+ * We need one cri_wait_queue per CRI. Its easier to manage if this
+ * is tagged along with the async_entry.
+ */
+struct hd_async_entry {
+	struct cri_wait_queue {
+		unsigned short hdr_len;
+		unsigned int bytes_received;
 		unsigned int bytes_needed;
 		struct list_head list;
-	} wait_queue;
-
-	struct list_head header_busy_list;
-	struct list_head data_busy_list;
+	} wq;
+	/* handles posted to FW resides here */
+	struct hd_async_handle *header;
+	struct hd_async_handle *data;
 };
 
-struct hwi_async_pdu_context {
-	struct {
-		struct be_bus_address pa_base;
-		void *va_base;
-		void *ring_base;
-		struct async_pdu_handle *handle_base;
+struct hd_async_buf_context {
+	struct be_bus_address pa_base;
+	void *va_base;
+	void *ring_base;
+	struct hd_async_handle *handle_base;
+	u32 buffer_size;
+	u16 pi;
+};
 
-		unsigned int host_write_ptr;
-		unsigned int ep_read_ptr;
-		unsigned int writables;
-
-		unsigned int free_entries;
-		unsigned int busy_entries;
-
-		struct list_head free_list;
-	} async_header;
-
-	struct {
-		struct be_bus_address pa_base;
-		void *va_base;
-		void *ring_base;
-		struct async_pdu_handle *handle_base;
-
-		unsigned int host_write_ptr;
-		unsigned int ep_read_ptr;
-		unsigned int writables;
-
-		unsigned int free_entries;
-		unsigned int busy_entries;
-		struct list_head free_list;
-	} async_data;
-
-	unsigned int buffer_size;
-	unsigned int num_entries;
+/**
+ * hd_async_context is declared for each ULP supporting iSCSI function.
+ */
+struct hd_async_context {
+	struct hd_async_buf_context async_header;
+	struct hd_async_buf_context async_data;
+	u16 num_entries;
+	/**
+	 * When unsol PDU is in, it needs to be chained till all the bytes are
+	 * received and then processing is done. hd_async_entry is created
+	 * based on the cid_count for each ULP. When unsol PDU comes in based
+	 * on the conn_id it needs to be added to the correct async_entry wq.
+	 * Below defined cid_to_async_cri_map is used to reterive the
+	 * async_cri_map for a particular connection.
+	 *
+	 * This array is initialized after beiscsi_create_wrb_rings returns.
+	 *
+	 * - this method takes more memory space, fixed to 2K
+	 * - any support for connections greater than this the array size needs
+	 * to be incremented
+	 */
 #define BE_GET_ASYNC_CRI_FROM_CID(cid) (pasync_ctx->cid_to_async_cri_map[cid])
 	unsigned short cid_to_async_cri_map[BE_MAX_SESSION];
 	/**
-	 * This is a varying size list! Do not add anything
-	 * after this entry!!
+	 * This is a variable size array. Don`t add anything after this field!!
 	 */
-	struct hwi_async_entry *async_entry;
+	struct hd_async_entry *async_entry;
 };
-
-#define PDUCQE_CODE_MASK	0x0000003F
-#define PDUCQE_DPL_MASK		0xFFFF0000
-#define PDUCQE_INDEX_MASK	0x0000FFFF
 
 struct i_t_dpdu_cqe {
 	u32 dw[4];
@@ -819,7 +777,7 @@ struct amap_iscsi_wrb_v2 {
 	u8 diff_enbl;   /* DWORD 11 */
 	u8 u_run;       /* DWORD 11 */
 	u8 o_run;       /* DWORD 11 */
-	u8 invalid;     /* DWORD 11 */
+	u8 invld;     /* DWORD 11 */
 	u8 dsp;         /* DWORD 11 */
 	u8 dmsg;        /* DWORD 11 */
 	u8 rsvd4;       /* DWORD 11 */
@@ -839,20 +797,15 @@ struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid,
 void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 
-void beiscsi_process_all_cqs(struct work_struct *work);
 void beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
 				     struct iscsi_task *task);
 
 void hwi_ring_cq_db(struct beiscsi_hba *phba,
 		     unsigned int id, unsigned int num_processed,
-		     unsigned char rearm, unsigned char event);
+		     unsigned char rearm);
 
-unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq);
-
-static inline bool beiscsi_error(struct beiscsi_hba *phba)
-{
-	return phba->ue_detected || phba->fw_timeout;
-}
+unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget);
+void beiscsi_process_mcc_cq(struct beiscsi_hba *phba);
 
 struct pdu_nop_out {
 	u32 dw[12];
@@ -1021,13 +974,7 @@ struct be_ring {
 };
 
 struct hwi_controller {
-	struct list_head io_sgl_list;
-	struct list_head eh_sgl_list;
-	struct sgl_handle *psgl_handle_base;
-	unsigned int wrb_mem_index;
-
 	struct hwi_wrb_context *wrb_context;
-	struct mcc_wrb *pmcc_wrb_base;
 	struct be_ring default_pdu_hdr[BEISCSI_ULP_COUNT];
 	struct be_ring default_pdu_data[BEISCSI_ULP_COUNT];
 	struct hwi_context_memory *phwi_ctxt;
@@ -1044,26 +991,27 @@ enum hwh_type_enum {
 };
 
 struct wrb_handle {
-	enum hwh_type_enum type;
 	unsigned short wrb_index;
-
 	struct iscsi_task *pio_handle;
 	struct iscsi_wrb *pwrb;
 };
 
 struct hwi_context_memory {
-	/* Adaptive interrupt coalescing (AIC) info */
-	u16 min_eqd;		/* in usecs */
-	u16 max_eqd;		/* in usecs */
-	u16 cur_eqd;		/* in usecs */
 	struct be_eq_obj be_eq[MAX_CPUS];
 	struct be_queue_info be_cq[MAX_CPUS - 1];
 
 	struct be_queue_info *be_wrbq;
+	/**
+	 * Create array of ULP number for below entries as DEFQ
+	 * will be created for both ULP if iSCSI Protocol is
+	 * loaded on both ULP.
+	 */
 	struct be_queue_info be_def_hdrq[BEISCSI_ULP_COUNT];
 	struct be_queue_info be_def_dataq[BEISCSI_ULP_COUNT];
-	struct hwi_async_pdu_context *pasync_ctx[BEISCSI_ULP_COUNT];
+	struct hd_async_context *pasync_ctx[BEISCSI_ULP_COUNT];
 };
+
+void beiscsi_start_boot_work(struct beiscsi_hba *phba, unsigned int s_handle);
 
 /* Logging related definitions */
 #define BEISCSI_LOG_INIT	0x0001	/* Initialization events */
@@ -1074,12 +1022,14 @@ struct hwi_context_memory {
 #define BEISCSI_LOG_CONFIG	0x0020	/* CONFIG Code Path */
 #define BEISCSI_LOG_ISCSI	0x0040	/* SCSI/iSCSI Protocol related Logs */
 
+#define __beiscsi_log(phba, level, fmt, arg...) \
+	shost_printk(level, phba->shost, fmt, __LINE__, ##arg)
+
 #define beiscsi_log(phba, level, mask, fmt, arg...) \
 do { \
 	uint32_t log_value = phba->attr_log_enable; \
 		if (((mask) & log_value) || (level[1] <= '3')) \
-			shost_printk(level, phba->shost, \
-				     fmt, __LINE__, ##arg); \
-} while (0)
+			__beiscsi_log(phba, level, fmt, ##arg); \
+} while (0);
 
 #endif

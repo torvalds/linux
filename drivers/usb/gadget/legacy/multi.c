@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * multi.c -- Multifunction Composite driver
  *
@@ -5,11 +6,6 @@
  * Copyright (C) 2008 Nokia Corporation
  * Copyright (C) 2009 Samsung Electronics
  * Author: Michal Nazarewicz (mina86@mina86.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 
@@ -67,7 +63,7 @@ static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		cpu_to_le16(0x0200),
+	/* .bcdUSB = DYNAMIC */
 
 	.bDeviceClass =		USB_CLASS_MISC /* 0xEF */,
 	.bDeviceSubClass =	2,
@@ -137,7 +133,6 @@ static struct usb_function *f_msg_rndis;
 
 static int rndis_do_config(struct usb_configuration *c)
 {
-	struct fsg_opts *fsg_opts;
 	int ret;
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -168,11 +163,6 @@ static int rndis_do_config(struct usb_configuration *c)
 		ret = PTR_ERR(f_msg_rndis);
 		goto err_fsg;
 	}
-
-	fsg_opts = fsg_opts_from_func_inst(fi_msg);
-	ret = fsg_common_run_thread(fsg_opts->common);
-	if (ret)
-		goto err_run;
 
 	ret = usb_add_function(c, f_msg_rndis);
 	if (ret)
@@ -225,7 +215,6 @@ static struct usb_function *f_msg_multi;
 
 static int cdc_do_config(struct usb_configuration *c)
 {
-	struct fsg_opts *fsg_opts;
 	int ret;
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -257,11 +246,6 @@ static int cdc_do_config(struct usb_configuration *c)
 		ret = PTR_ERR(f_msg_multi);
 		goto err_fsg;
 	}
-
-	fsg_opts = fsg_opts_from_func_inst(fi_msg);
-	ret = fsg_common_run_thread(fsg_opts->common);
-	if (ret)
-		goto err_run;
 
 	ret = usb_add_function(c, f_msg_multi);
 	if (ret)

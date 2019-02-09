@@ -46,19 +46,19 @@ MODULE_LICENSE("GPL");
 #define SB8_DEN(v)	((SB8_CLOCK + (v) / 2) / (v))
 #define SB8_RATE(v)	(SB8_CLOCK / SB8_DEN(v))
 
-static struct snd_ratnum clock = {
+static const struct snd_ratnum clock = {
 	.num = SB8_CLOCK,
 	.den_min = 1,
 	.den_max = 256,
 	.den_step = 1,
 };
 
-static struct snd_pcm_hw_constraint_ratnums hw_constraints_clock = {
+static const struct snd_pcm_hw_constraint_ratnums hw_constraints_clock = {
 	.nrats = 1,
 	.rats = &clock,
 };
 
-static struct snd_ratnum stereo_clocks[] = {
+static const struct snd_ratnum stereo_clocks[] = {
 	{
 		.num = SB8_CLOCK,
 		.den_min = SB8_DEN(22050),
@@ -381,7 +381,6 @@ static int snd_sb8_capture_trigger(struct snd_pcm_substream *substream,
 irqreturn_t snd_sb8dsp_interrupt(struct snd_sb *chip)
 {
 	struct snd_pcm_substream *substream;
-	struct snd_pcm_runtime *runtime;
 
 	snd_sb_ack_8bit(chip);
 	switch (chip->mode) {
@@ -391,7 +390,6 @@ irqreturn_t snd_sb8dsp_interrupt(struct snd_sb *chip)
 		/* fallthru */
 	case SB_MODE_PLAYBACK_8:
 		substream = chip->playback_substream;
-		runtime = substream->runtime;
 		if (chip->playback_format == SB_DSP_OUTPUT)
 		    	snd_sb8_playback_trigger(substream, SNDRV_PCM_TRIGGER_START);
 		snd_pcm_period_elapsed(substream);
@@ -402,7 +400,6 @@ irqreturn_t snd_sb8dsp_interrupt(struct snd_sb *chip)
 		/* fallthru */
 	case SB_MODE_CAPTURE_8:
 		substream = chip->capture_substream;
-		runtime = substream->runtime;
 		if (chip->capture_format == SB_DSP_INPUT)
 		    	snd_sb8_capture_trigger(substream, SNDRV_PCM_TRIGGER_START);
 		snd_pcm_period_elapsed(substream);
@@ -447,7 +444,7 @@ static snd_pcm_uframes_t snd_sb8_capture_pointer(struct snd_pcm_substream *subst
 
  */
 
-static struct snd_pcm_hardware snd_sb8_playback =
+static const struct snd_pcm_hardware snd_sb8_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -466,7 +463,7 @@ static struct snd_pcm_hardware snd_sb8_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_sb8_capture =
+static const struct snd_pcm_hardware snd_sb8_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -572,7 +569,7 @@ static int snd_sb8_close(struct snd_pcm_substream *substream)
  *  Initialization part
  */
  
-static struct snd_pcm_ops snd_sb8_playback_ops = {
+static const struct snd_pcm_ops snd_sb8_playback_ops = {
 	.open =			snd_sb8_open,
 	.close =		snd_sb8_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -583,7 +580,7 @@ static struct snd_pcm_ops snd_sb8_playback_ops = {
 	.pointer =		snd_sb8_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_sb8_capture_ops = {
+static const struct snd_pcm_ops snd_sb8_capture_ops = {
 	.open =			snd_sb8_open,
 	.close =		snd_sb8_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -624,19 +621,3 @@ EXPORT_SYMBOL(snd_sb8dsp_interrupt);
   /* sb8_midi.c */
 EXPORT_SYMBOL(snd_sb8dsp_midi_interrupt);
 EXPORT_SYMBOL(snd_sb8dsp_midi);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_sb8_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_sb8_exit(void)
-{
-}
-
-module_init(alsa_sb8_init)
-module_exit(alsa_sb8_exit)

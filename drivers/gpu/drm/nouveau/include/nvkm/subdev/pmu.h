@@ -1,10 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_PMU_H__
 #define __NVKM_PMU_H__
 #include <core/subdev.h>
+#include <engine/falcon.h>
 
 struct nvkm_pmu {
 	const struct nvkm_pmu_func *func;
 	struct nvkm_subdev subdev;
+	struct nvkm_falcon *falcon;
+	struct nvkm_msgqueue *queue;
 
 	struct {
 		u32 base;
@@ -35,6 +39,9 @@ int gk110_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
 int gk208_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
 int gk20a_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
 int gm107_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
+int gm20b_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
+int gp100_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
+int gp102_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
 
 /* interface to MEMX process running on PMU */
 struct nvkm_memx;

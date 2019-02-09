@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # Test one of the main kernel Makefile targets to generate a perf sources tarball
 # suitable for build outside the full kernel sources.
 #
@@ -15,7 +16,7 @@ TMP_DEST=$(mktemp -d)
 tar xf ${TARBALL} -C $TMP_DEST
 rm -f ${TARBALL}
 cd - > /dev/null
-make -C $TMP_DEST/perf*/tools/perf > /dev/null 2>&1
+make -C $TMP_DEST/perf*/tools/perf > /dev/null
 RC=$?
 rm -rf ${TMP_DEST}
 exit $RC

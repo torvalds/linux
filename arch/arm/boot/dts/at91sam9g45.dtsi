@@ -74,7 +74,7 @@
 		};
 	};
 
-	sram: sram@00300000 {
+	sram: sram@300000 {
 		compatible = "mmio-sram";
 		reg = <0x00300000 0x10000>;
 	};
@@ -111,6 +111,16 @@
 				reg = <0xffffe600 0x200>;
 				clocks = <&ddrck>;
 				clock-names = "ddrck";
+			};
+
+			smc: smc@ffffe800 {
+				compatible = "atmel,at91sam9260-smc", "syscon";
+				reg = <0xffffe800 0x200>;
+			};
+
+			matrix: matrix@ffffea00 {
+				compatible = "atmel,at91sam9g45-matrix", "syscon";
+				reg = <0xffffea00 0x200>;
 			};
 
 			pmc: pmc@fffffc00 {
@@ -405,7 +415,9 @@
 			};
 
 			tcb0: timer@fff7c000 {
-				compatible = "atmel,at91rm9200-tcb";
+				compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xfff7c000 0x100>;
 				interrupts = <18 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&tcb0_clk>, <&tcb0_clk>, <&tcb0_clk>, <&clk32k>;
@@ -413,7 +425,9 @@
 			};
 
 			tcb1: timer@fffd4000 {
-				compatible = "atmel,at91rm9200-tcb";
+				compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xfffd4000 0x100>;
 				interrupts = <18 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&tcb0_clk>, <&tcb0_clk>, <&tcb0_clk>, <&clk32k>;
@@ -445,6 +459,16 @@
 				      >;
 
 				/* shared pinctrl settings */
+				ac97 {
+					pinctrl_ac97: ac97-0 {
+						atmel,pins =
+							<AT91_PIOD 6 AT91_PERIPH_A AT91_PINCTRL_NONE	/* AC97RX */
+							 AT91_PIOD 7 AT91_PERIPH_A AT91_PINCTRL_NONE	/* AC97TX */
+							 AT91_PIOD 8 AT91_PERIPH_A AT91_PINCTRL_NONE	/* AC97FS */
+							 AT91_PIOD 9 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* AC97CK */
+					};
+				};
+
 				adc0 {
 					pinctrl_adc0_adtrg: adc0_adtrg {
 						atmel,pins = <AT91_PIOD 28 AT91_PERIPH_A AT91_PINCTRL_NONE>;
@@ -478,8 +502,8 @@
 				dbgu {
 					pinctrl_dbgu: dbgu-0 {
 						atmel,pins =
-							<AT91_PIOB 12 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PB12 periph A */
-							 AT91_PIOB 13 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PB13 periph A */
+							<AT91_PIOB 12 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
+							 AT91_PIOB 13 AT91_PERIPH_A AT91_PINCTRL_NONE>;
 					};
 				};
 
@@ -531,8 +555,8 @@
 				usart0 {
 					pinctrl_usart0: usart0-0 {
 						atmel,pins =
-							<AT91_PIOB 19 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* PB19 periph A with pullup */
-							 AT91_PIOB 18 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PB18 periph A */
+							<AT91_PIOB 19 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOB 18 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart0_rts: usart0_rts-0 {
@@ -549,8 +573,8 @@
 				uart1 {
 					pinctrl_usart1: usart1-0 {
 						atmel,pins =
-							<AT91_PIOB 4 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* PB4 periph A with pullup */
-							 AT91_PIOB 5 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PB5 periph A */
+							<AT91_PIOB 4 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOB 5 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart1_rts: usart1_rts-0 {
@@ -567,8 +591,8 @@
 				usart2 {
 					pinctrl_usart2: usart2-0 {
 						atmel,pins =
-							<AT91_PIOB 6 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* PB6 periph A with pullup */
-							 AT91_PIOB 7 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PB7 periph A */
+							<AT91_PIOB 6 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOB 7 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart2_rts: usart2_rts-0 {
@@ -585,8 +609,8 @@
 				usart3 {
 					pinctrl_usart3: usart3-0 {
 						atmel,pins =
-							<AT91_PIOB 8 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* PB9 periph A with pullup */
-							 AT91_PIOB 9 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PB8 periph A */
+							<AT91_PIOB 8 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOB 9 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart3_rts: usart3_rts-0 {
@@ -601,10 +625,14 @@
 				};
 
 				nand {
-					pinctrl_nand: nand-0 {
+					pinctrl_nand_rb: nand-rb-0 {
 						atmel,pins =
-							<AT91_PIOC 8 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP	/* PC8 gpio RDY pin pull_up*/
-							 AT91_PIOC 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PC14 gpio enable pin pull_up */
+							<AT91_PIOC 8 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
+					};
+
+					pinctrl_nand_cs: nand-cs-0 {
+						atmel,pins =
+							 <AT91_PIOC 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
 					};
 				};
 
@@ -978,7 +1006,7 @@
 
 			trng@fffcc000 {
 				compatible = "atmel,at91sam9g45-trng";
-				reg = <0xfffcc000 0x4000>;
+				reg = <0xfffcc000 0x100>;
 				interrupts = <6 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&trng_clk>;
 			};
@@ -1029,6 +1057,17 @@
 				status = "disabled";
 			};
 
+			ac97: sound@fffac000 {
+				compatible = "atmel,at91sam9263-ac97c";
+				reg = <0xfffac000 0x4000>;
+				interrupts = <24 IRQ_TYPE_LEVEL_HIGH 4>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_ac97>;
+				clocks = <&ac97_clk>;
+				clock-names = "ac97_clk";
+				status = "disabled";
+			};
+
 			adc0: adc@fffb0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1044,28 +1083,24 @@
 				atmel,adc-res-names = "lowres", "highres";
 				atmel,adc-use-res = "highres";
 
-				trigger@0 {
-					reg = <0>;
+				trigger0 {
 					trigger-name = "external-rising";
 					trigger-value = <0x1>;
 					trigger-external;
 				};
-				trigger@1 {
-					reg = <1>;
+				trigger1 {
 					trigger-name = "external-falling";
 					trigger-value = <0x2>;
 					trigger-external;
 				};
 
-				trigger@2 {
-					reg = <2>;
+				trigger2 {
 					trigger-name = "external-any";
 					trigger-value = <0x3>;
 					trigger-external;
 				};
 
-				trigger@3 {
-					reg = <3>;
+				trigger3 {
 					trigger-name = "continuous";
 					trigger-value = <0x6>;
 				};
@@ -1169,13 +1204,13 @@
 				clock-names = "pclk", "hclk";
 				status = "disabled";
 
-				ep0 {
+				ep@0 {
 					reg = <0>;
 					atmel,fifo-size = <64>;
 					atmel,nb-banks = <1>;
 				};
 
-				ep1 {
+				ep@1 {
 					reg = <1>;
 					atmel,fifo-size = <1024>;
 					atmel,nb-banks = <2>;
@@ -1183,7 +1218,7 @@
 					atmel,can-isoc;
 				};
 
-				ep2 {
+				ep@2 {
 					reg = <2>;
 					atmel,fifo-size = <1024>;
 					atmel,nb-banks = <2>;
@@ -1191,21 +1226,21 @@
 					atmel,can-isoc;
 				};
 
-				ep3 {
+				ep@3 {
 					reg = <3>;
 					atmel,fifo-size = <1024>;
 					atmel,nb-banks = <3>;
 					atmel,can-dma;
 				};
 
-				ep4 {
+				ep@4 {
 					reg = <4>;
 					atmel,fifo-size = <1024>;
 					atmel,nb-banks = <3>;
 					atmel,can-dma;
 				};
 
-				ep5 {
+				ep@5 {
 					reg = <5>;
 					atmel,fifo-size = <1024>;
 					atmel,nb-banks = <3>;
@@ -1213,7 +1248,7 @@
 					atmel,can-isoc;
 				};
 
-				ep6 {
+				ep@6 {
 					reg = <6>;
 					atmel,fifo-size = <1024>;
 					atmel,nb-banks = <3>;
@@ -1271,7 +1306,7 @@
 			};
 		};
 
-		fb0: fb@0x00500000 {
+		fb0: fb@500000 {
 			compatible = "atmel,at91sam9g45-lcdc";
 			reg = <0x00500000 0x1000>;
 			interrupts = <23 IRQ_TYPE_LEVEL_HIGH 3>;
@@ -1282,26 +1317,7 @@
 			status = "disabled";
 		};
 
-		nand0: nand@40000000 {
-			compatible = "atmel,at91rm9200-nand";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			reg = <0x40000000 0x10000000
-			       0xffffe200 0x200
-			      >;
-			atmel,nand-addr-offset = <21>;
-			atmel,nand-cmd-offset = <22>;
-			atmel,nand-has-dma;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_nand>;
-			gpios = <&pioC 8 GPIO_ACTIVE_HIGH
-				 &pioC 14 GPIO_ACTIVE_HIGH
-				 0
-				>;
-			status = "disabled";
-		};
-
-		usb0: ohci@00700000 {
+		usb0: ohci@700000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00700000 0x100000>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 2>;
@@ -1310,7 +1326,7 @@
 			status = "disabled";
 		};
 
-		usb1: ehci@00800000 {
+		usb1: ehci@800000 {
 			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 			reg = <0x00800000 0x100000>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 2>;
@@ -1318,9 +1334,34 @@
 			clock-names = "usb_clk", "ehci_clk";
 			status = "disabled";
 		};
+
+		ebi: ebi@10000000 {
+			compatible = "atmel,at91sam9g45-ebi";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			atmel,smc = <&smc>;
+			atmel,matrix = <&matrix>;
+			reg = <0x10000000 0x80000000>;
+			ranges = <0x0 0x0 0x10000000 0x10000000
+				  0x1 0x0 0x20000000 0x10000000
+				  0x2 0x0 0x30000000 0x10000000
+				  0x3 0x0 0x40000000 0x10000000
+				  0x4 0x0 0x50000000 0x10000000
+				  0x5 0x0 0x60000000 0x10000000>;
+			clocks = <&mck>;
+			status = "disabled";
+
+			nand_controller: nand-controller {
+				compatible = "atmel,at91sam9g45-nand-controller";
+				#address-cells = <2>;
+				#size-cells = <1>;
+				ranges;
+				status = "disabled";
+			};
+		};
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		compatible = "i2c-gpio";
 		gpios = <&pioA 20 GPIO_ACTIVE_HIGH /* sda */
 			 &pioA 21 GPIO_ACTIVE_HIGH /* scl */

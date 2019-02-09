@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	mxuport.c - MOXA UPort series driver
  *
  *	Copyright (c) 2006 Moxa Technologies Co., Ltd.
  *	Copyright (c) 2013 Andrew Lunn <andrew@lunn.ch>
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	Supports the following Moxa USB to serial converters:
  *	 2 ports : UPort 1250, UPort 1250I
@@ -503,7 +499,7 @@ static void mxuport_process_read_urb_demux_data(struct urb *urb)
 			return;
 		}
 
-		if (test_bit(ASYNCB_INITIALIZED, &demux_port->port.flags)) {
+		if (tty_port_initialized(&demux_port->port)) {
 			ch = data + HEADER_SIZE;
 			mxuport_process_read_urb_data(demux_port, ch, rcv_len);
 		} else {
@@ -544,7 +540,7 @@ static void mxuport_process_read_urb_demux_event(struct urb *urb)
 		}
 
 		demux_port = serial->port[rcv_port];
-		if (test_bit(ASYNCB_INITIALIZED, &demux_port->port.flags)) {
+		if (tty_port_initialized(&demux_port->port)) {
 			ch = data + HEADER_SIZE;
 			rcv_event = get_unaligned_be16(data + 2);
 			mxuport_process_read_urb_event(demux_port, ch,
@@ -946,20 +942,39 @@ out:
  * Determine how many ports this device has dynamically.  It will be
  * called after the probe() callback is called, but before attach().
  */
-static int mxuport_calc_num_ports(struct usb_serial *serial)
+static int mxuport_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	unsigned long features = (unsigned long)usb_get_serial_data(serial);
+	int num_ports;
+	int i;
 
-	if (features & MX_UPORT_2_PORT)
-		return 2;
-	if (features & MX_UPORT_4_PORT)
-		return 4;
-	if (features & MX_UPORT_8_PORT)
-		return 8;
-	if (features & MX_UPORT_16_PORT)
-		return 16;
+	if (features & MX_UPORT_2_PORT) {
+		num_ports = 2;
+	} else if (features & MX_UPORT_4_PORT) {
+		num_ports = 4;
+	} else if (features & MX_UPORT_8_PORT) {
+		num_ports = 8;
+	} else if (features & MX_UPORT_16_PORT) {
+		num_ports = 16;
+	} else {
+		dev_warn(&serial->interface->dev,
+				"unknown device, assuming two ports\n");
+		num_ports = 2;
+	}
 
-	return 0;
+	/*
+	 * Setup bulk-out endpoint multiplexing. All ports share the same
+	 * bulk-out endpoint.
+	 */
+	BUILD_BUG_ON(ARRAY_SIZE(epds->bulk_out) < 16);
+
+	for (i = 1; i < num_ports; ++i)
+		epds->bulk_out[i] = epds->bulk_out[0];
+
+	epds->num_bulk_out = num_ports;
+
+	return num_ports;
 }
 
 /* Get the version of the firmware currently running. */
@@ -1142,102 +1157,11 @@ static int mxuport_port_probe(struct usb_serial_port *port)
 				     port->port_number);
 }
 
-static int mxuport_alloc_write_urb(struct usb_serial *serial,
-				   struct usb_serial_port *port,
-				   struct usb_serial_port *port0,
-				   int j)
-{
-	struct usb_device *dev = interface_to_usbdev(serial->interface);
-
-	set_bit(j, &port->write_urbs_free);
-	port->write_urbs[j] = usb_alloc_urb(0, GFP_KERNEL);
-	if (!port->write_urbs[j])
-		return -ENOMEM;
-
-	port->bulk_out_buffers[j] = kmalloc(port0->bulk_out_size, GFP_KERNEL);
-	if (!port->bulk_out_buffers[j])
-		return -ENOMEM;
-
-	usb_fill_bulk_urb(port->write_urbs[j], dev,
-			  usb_sndbulkpipe(dev, port->bulk_out_endpointAddress),
-			  port->bulk_out_buffers[j],
-			  port->bulk_out_size,
-			  serial->type->write_bulk_callback,
-			  port);
-	return 0;
-}
-
-
-static int mxuport_alloc_write_urbs(struct usb_serial *serial,
-				    struct usb_serial_port *port,
-				    struct usb_serial_port *port0)
-{
-	int j;
-	int ret;
-
-	for (j = 0; j < ARRAY_SIZE(port->write_urbs); ++j) {
-		ret = mxuport_alloc_write_urb(serial, port, port0, j);
-		if (ret)
-			return ret;
-	}
-	return 0;
-}
-
-
 static int mxuport_attach(struct usb_serial *serial)
 {
 	struct usb_serial_port *port0 = serial->port[0];
 	struct usb_serial_port *port1 = serial->port[1];
-	struct usb_serial_port *port;
 	int err;
-	int i;
-	int j;
-
-	/*
-	 * Throw away all but the first allocated write URBs so we can
-	 * set them up again to fit the multiplexing scheme.
-	 */
-	for (i = 1; i < serial->num_bulk_out; ++i) {
-		port = serial->port[i];
-		for (j = 0; j < ARRAY_SIZE(port->write_urbs); ++j) {
-			usb_free_urb(port->write_urbs[j]);
-			kfree(port->bulk_out_buffers[j]);
-			port->write_urbs[j] = NULL;
-			port->bulk_out_buffers[j] = NULL;
-		}
-		port->write_urbs_free = 0;
-	}
-
-	/*
-	 * All write data is sent over the first bulk out endpoint,
-	 * with an added header to indicate the port. Allocate URBs
-	 * for each port to the first bulk out endpoint.
-	 */
-	for (i = 1; i < serial->num_ports; ++i) {
-		port = serial->port[i];
-		port->bulk_out_size = port0->bulk_out_size;
-		port->bulk_out_endpointAddress =
-			port0->bulk_out_endpointAddress;
-
-		err = mxuport_alloc_write_urbs(serial, port, port0);
-		if (err)
-			return err;
-
-		port->write_urb = port->write_urbs[0];
-		port->bulk_out_buffer = port->bulk_out_buffers[0];
-
-		/*
-		 * Ensure each port has a fifo. The framework only
-		 * allocates a fifo to ports with a bulk out endpoint,
-		 * where as we need one for every port.
-		 */
-		if (!kfifo_initialized(&port->write_fifo)) {
-			err = kfifo_alloc(&port->write_fifo, PAGE_SIZE,
-					  GFP_KERNEL);
-			if (err)
-				return err;
-		}
-	}
 
 	/*
 	 * All data from the ports is received on the first bulk in
@@ -1257,6 +1181,15 @@ static int mxuport_attach(struct usb_serial *serial)
 	}
 
 	return 0;
+}
+
+static void mxuport_release(struct usb_serial *serial)
+{
+	struct usb_serial_port *port0 = serial->port[0];
+	struct usb_serial_port *port1 = serial->port[1];
+
+	usb_serial_generic_close(port1);
+	usb_serial_generic_close(port0);
 }
 
 static int mxuport_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -1339,7 +1272,7 @@ static int mxuport_resume(struct usb_serial *serial)
 
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
-		if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags))
+		if (!tty_port_initialized(&port->port))
 			continue;
 
 		r = usb_serial_generic_write_start(port, GFP_NOIO);
@@ -1357,10 +1290,12 @@ static struct usb_serial_driver mxuport_device = {
 	},
 	.description		= "MOXA UPort",
 	.id_table		= mxuport_idtable,
-	.num_ports		= 0,
+	.num_bulk_in		= 2,
+	.num_bulk_out		= 1,
 	.probe			= mxuport_probe,
 	.port_probe		= mxuport_port_probe,
 	.attach			= mxuport_attach,
+	.release		= mxuport_release,
 	.calc_num_ports		= mxuport_calc_num_ports,
 	.open			= mxuport_open,
 	.close			= mxuport_close,

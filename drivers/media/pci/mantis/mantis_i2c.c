@@ -23,11 +23,11 @@
 #include <linux/pci.h>
 #include <linux/i2c.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 
 #include "mantis_common.h"
 #include "mantis_reg.h"
@@ -212,7 +212,7 @@ static u32 mantis_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm mantis_algo = {
+static const struct i2c_algorithm mantis_algo = {
 	.master_xfer		= mantis_i2c_xfer,
 	.functionality		= mantis_i2c_func,
 };

@@ -1,0 +1,66 @@
+Binding for the Qualcomm APCS global block
+==========================================
+
+This binding describes the APCS "global" block found in various Qualcomm
+platforms.
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+		    "qcom,msm8916-apcs-kpss-global",
+		    "qcom,msm8996-apcs-hmss-global"
+		    "qcom,msm8998-apcs-hmss-global"
+		    "qcom,sdm845-apss-shared"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: must specify the base address and size of the global block
+- clocks:
+	Usage: required if #clocks-cells property is present
+	Value type: <phandle>
+	Definition: phandle to the input PLL, which feeds the APCS mux/divider
+
+- #mbox-cells:
+	Usage: required
+	Value type: <u32>
+	Definition: as described in mailbox.txt, must be 1
+
+- #clock-cells:
+	Usage: optional
+	Value type: <u32>
+	Definition: as described in clock.txt, must be 0
+
+
+= EXAMPLE
+The following example describes the APCS HMSS found in MSM8996 and part of the
+GLINK RPM referencing the "rpm_hlos" doorbell therein.
+
+	apcs_glb: mailbox@9820000 {
+		compatible = "qcom,msm8996-apcs-hmss-global";
+		reg = <0x9820000 0x1000>;
+
+		#mbox-cells = <1>;
+	};
+
+	rpm-glink {
+		compatible = "qcom,glink-rpm";
+
+		interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
+
+		mboxes = <&apcs_glb 0>;
+		mbox-names = "rpm_hlos";
+	};
+
+Below is another example of the APCS binding on MSM8916 platforms:
+
+	apcs: mailbox@b011000 {
+		compatible = "qcom,msm8916-apcs-kpss-global";
+		reg = <0xb011000 0x1000>;
+		#mbox-cells = <1>;
+		clocks = <&a53pll>;
+		#clock-cells = <0>;
+	};

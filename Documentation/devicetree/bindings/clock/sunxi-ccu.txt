@@ -1,0 +1,61 @@
+Allwinner Clock Control Unit Binding
+------------------------------------
+
+Required properties :
+- compatible: must contain one of the following compatibles:
+		- "allwinner,sun4i-a10-ccu"
+		- "allwinner,sun5i-a10s-ccu"
+		- "allwinner,sun5i-a13-ccu"
+		- "allwinner,sun6i-a31-ccu"
+		- "allwinner,sun7i-a20-ccu"
+		- "allwinner,sun8i-a23-ccu"
+		- "allwinner,sun8i-a33-ccu"
+		- "allwinner,sun8i-a83t-ccu"
+		- "allwinner,sun8i-a83t-r-ccu"
+		- "allwinner,sun8i-h3-ccu"
+		- "allwinner,sun8i-h3-r-ccu"
++		- "allwinner,sun8i-r40-ccu"
+		- "allwinner,sun8i-v3s-ccu"
+		- "allwinner,sun9i-a80-ccu"
+		- "allwinner,sun50i-a64-ccu"
+		- "allwinner,sun50i-a64-r-ccu"
+		- "allwinner,sun50i-h5-ccu"
+		- "allwinner,sun50i-h6-ccu"
+		- "allwinner,sun50i-h6-r-ccu"
+		- "nextthing,gr8-ccu"
+
+- reg: Must contain the registers base address and length
+- clocks: phandle to the oscillators feeding the CCU. Two are needed:
+  - "hosc": the high frequency oscillator (usually at 24MHz)
+  - "losc": the low frequency oscillator (usually at 32kHz)
+	    On the A83T, this is the internal 16MHz oscillator divided by 512
+- clock-names: Must contain the clock names described just above
+- #clock-cells : must contain 1
+- #reset-cells : must contain 1
+
+For the main CCU on H6, one more clock is needed:
+- "iosc": the SoC's internal frequency oscillator
+
+For the PRCM CCUs on A83T/H3/A64/H6, two more clocks are needed:
+- "pll-periph": the SoC's peripheral PLL from the main CCU
+- "iosc": the SoC's internal frequency oscillator
+
+Example for generic CCU:
+ccu: clock@1c20000 {
+	compatible = "allwinner,sun8i-h3-ccu";
+	reg = <0x01c20000 0x400>;
+	clocks = <&osc24M>, <&osc32k>;
+	clock-names = "hosc", "losc";
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+};
+
+Example for PRCM CCU:
+r_ccu: clock@1f01400 {
+	compatible = "allwinner,sun50i-a64-r-ccu";
+	reg = <0x01f01400 0x100>;
+	clocks = <&osc24M>, <&osc32k>, <&iosc>, <&ccu CLK_PLL_PERIPH0>;
+	clock-names = "hosc", "losc", "iosc", "pll-periph";
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+};

@@ -1,0 +1,7 @@
+On Tat Industrial Company 7" DPI TFT panel.
+
+Required properties:
+- compatible: should be "ontat,yx700wv03"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

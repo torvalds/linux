@@ -49,6 +49,10 @@ The difference between persistent and transient is with transient
 snapshots less metadata must be saved on disk - they can be kept in
 memory by the kernel.
 
+When loading or unloading the snapshot target, the corresponding
+snapshot-origin or snapshot-merge target must be suspended. A failure to
+suspend the origin target could result in data corruption.
+
 
 * snapshot-merge <origin> <COW device> <persistent> <chunksize>
 

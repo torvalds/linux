@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the linux kernel.
 #
@@ -19,8 +20,9 @@ obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 # NOTE: keep the order of boards in accordance to their order in Kconfig
 
 # Device Tree support
-obj-$(CONFIG_MACH_PXA3XX_DT)	+= pxa-dt.o
+obj-$(CONFIG_MACH_PXA25X_DT)	+= pxa-dt.o
 obj-$(CONFIG_MACH_PXA27X_DT)	+= pxa-dt.o
+obj-$(CONFIG_MACH_PXA3XX_DT)	+= pxa-dt.o
 
 # Intel/Marvell Dev Platforms
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o

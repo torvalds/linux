@@ -1,7 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MWAIT_H
 #define _ASM_X86_MWAIT_H
 
 #include <linux/sched.h>
+#include <linux/sched/idle.h>
+
+#include <asm/cpufeature.h>
 
 #define MWAIT_SUBSTATE_MASK		0xf
 #define MWAIT_CSTATE_MASK		0xf
@@ -95,7 +99,7 @@ static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
  */
 static inline void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
 {
-	if (!current_set_polling_and_test()) {
+	if (static_cpu_has_bug(X86_BUG_MONITOR) || !current_set_polling_and_test()) {
 		if (static_cpu_has_bug(X86_BUG_CLFLUSH_MONITOR)) {
 			mb();
 			clflush((void *)&current_thread_info()->flags);

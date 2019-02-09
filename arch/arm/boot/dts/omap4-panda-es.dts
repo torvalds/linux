@@ -34,23 +34,29 @@
 /* PandaboardES has external pullups on SCL & SDA */
 &dss_hdmi_pins {
 	pinctrl-single,pins = <
-		0x5a (PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_cec.hdmi_cec */
-		0x5c (PIN_INPUT | MUX_MODE0)		/* hdmi_scl.hdmi_scl */
-		0x5e (PIN_INPUT | MUX_MODE0)		/* hdmi_sda.hdmi_sda */
+		OMAP4_IOPAD(0x09a, PIN_INPUT | MUX_MODE0)		/* hdmi_cec.hdmi_cec */
+		OMAP4_IOPAD(0x09c, PIN_INPUT | MUX_MODE0)		/* hdmi_scl.hdmi_scl */
+		OMAP4_IOPAD(0x09e, PIN_INPUT | MUX_MODE0)		/* hdmi_sda.hdmi_sda */
 		>;
 };
 
 &omap4_pmx_core {
 	led_gpio_pins: gpio_led_pmx {
 		pinctrl-single,pins = <
-			0xb6 (PIN_OUTPUT | MUX_MODE3)	/* gpio_110 */
+			OMAP4_IOPAD(0x0f6, PIN_OUTPUT | MUX_MODE3)	/* gpio_110 */
+		>;
+	};
+
+	button_pins: pinmux_button_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x11b, PIN_INPUT_PULLUP | MUX_MODE3) /* gpio_113 */
 		>;
 	};
 };
 
 &led_wkgpio_pins {
 	pinctrl-single,pins = <
-		0x1c (PIN_OUTPUT | MUX_MODE3)	/* gpio_wk8 */
+		OMAP4_IOPAD(0x05c, PIN_OUTPUT | MUX_MODE3)	/* gpio_wk8 */
 	>;
 };
 
@@ -68,6 +74,12 @@
 	};
 };
 
-&gpio1 {
+&gpio_keys {
+	buttonS2 {
+		gpios = <&gpio4 17 GPIO_ACTIVE_LOW>; /* gpio_113 */
+	};
+};
+
+&gpio1_target {
 	 ti,no-reset-on-init;
 };

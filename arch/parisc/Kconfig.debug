@@ -1,15 +1,4 @@
-menu "Kernel hacking"
+# SPDX-License-Identifier: GPL-2.0
 
-source "lib/Kconfig.debug"
-
-config DEBUG_RODATA
-       bool "Write protect kernel read-only data structures"
-       depends on DEBUG_KERNEL
-       help
-         Mark the kernel read-only data as write-protected in the pagetables,
-         in order to catch accidental (and incorrect) writes to such const
-         data. This option may have a slight performance impact because a
-         portion of the kernel code won't be covered by a TLB anymore.
-         If in doubt, say "N".
-
-endmenu
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y

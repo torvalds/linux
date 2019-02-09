@@ -1,0 +1,12 @@
+
+- general code review and cleanup
+- can this be converted to not require PCI_DRIVERS_LEGACY ??
+    The irq returned by pcibios_map_irq is a "hwirq" (hardware irq number)
+    and pci_assign_irq() assigns this directly to dev->irq, which
+    expects a "virq" (virtual irq number).  These numbers are different
+    on MIPS.  There is a gross hack to make it work on one
+    specific platform, so it can be tested.
+- Should this be merged with arch/mips/pci/pci-mt7620.c ??
+- ensure device-tree requirements are documented
+
+Cc:  NeilBrown <neil@brown.name>

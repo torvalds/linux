@@ -10,8 +10,6 @@ LICENSE.qlge
 	- GPLv2 for QLogic Linux qlge NIC Driver
 LICENSE.qlcnic
 	- GPLv2 for QLogic Linux qlcnic NIC Driver
-Makefile
-	- Makefile for docsrc.
 PLIP.txt
 	- PLIP: The Parallel Line Internet Protocol device driver
 README.ipw2100
@@ -20,8 +18,6 @@ README.ipw2200
 	- README for the Intel PRO/Wireless 2915ABG and 2200BG driver.
 README.sb1000
 	- info on General Instrument/NextLevel SURFboard1000 cable modem.
-alias.txt
-	- info on using alias network devices.
 altera_tse.txt
 	- Altera Triple-Speed Ethernet controller.
 arcnet-hardware.txt
@@ -32,18 +28,16 @@ atm.txt
 	- info on where to get ATM programs and support for Linux.
 ax25.txt
 	- info on using AX.25 and NET/ROM code for Linux
-batman-adv.txt
-	- B.A.T.M.A.N routing protocol on top of layer 2 Ethernet Frames.
 baycom.txt
 	- info on the driver for Baycom style amateur radio modems
 bonding.txt
 	- Linux Ethernet Bonding Driver HOWTO: link aggregation in Linux.
 bridge.txt
 	- where to get user space programs for ethernet bridging with Linux.
-can.txt
-	- documentation on CAN protocol family.
 cdc_mbim.txt
 	- 3G/LTE USB modem (Mobile Broadband Interface Model)
+checksum-offloads.txt
+	- Explanation of checksum offloads; LCO, RCO
 cops.txt
 	- info on the COPS LocalTalk Linux driver
 cs89x0.txt
@@ -72,6 +66,8 @@ dns_resolver.txt
 	- The DNS resolver module allows kernel servies to make DNS queries.
 driver.txt
 	- Softnet driver issues.
+ena.txt
+	- info on Amazon's Elastic Network Adapter (ENA)
 e100.txt
 	- info on Intel's EtherExpress PRO/100 line of 10/100 boards
 e1000.txt
@@ -142,8 +138,6 @@ multiqueue.txt
 	- HOWTO for multiqueue network device support.
 netconsole.txt
 	- The network console module netconsole.ko: configuration and notes.
-netdev-FAQ.txt
-	- FAQ describing how to submit net changes to netdev mailing list.
 netdev-features.txt
 	- Network interface features API description.
 netdevices.txt
@@ -228,6 +222,8 @@ x25.txt
 	- general info on X.25 development.
 x25-iface.txt
 	- description of the X.25 Packet Layer to LAPB device interface.
+xfrm_device.txt
+	- description of XFRM offload API
 xfrm_proc.txt
 	- description of the statistics package for XFRM.
 xfrm_sync.txt

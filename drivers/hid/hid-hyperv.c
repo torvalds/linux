@@ -309,11 +309,11 @@ static void mousevsc_on_receive(struct hv_device *device,
 		hid_input_report(input_dev->hid_device, HID_INPUT_REPORT,
 				 input_dev->input_buf, len, 1);
 
-		pm_wakeup_event(&input_dev->device->device, 0);
+		pm_wakeup_hard_event(&input_dev->device->device);
 
 		break;
 	default:
-		pr_err("unsupported hid msg type - type %d len %d",
+		pr_err("unsupported hid msg type - type %d len %d\n",
 		       hid_msg->header.type, hid_msg->header.size);
 		break;
 	}
@@ -598,6 +598,9 @@ static struct  hv_driver mousevsc_drv = {
 	.id_table = id_table,
 	.probe = mousevsc_probe,
 	.remove = mousevsc_remove,
+	.driver = {
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+	},
 };
 
 static int __init mousevsc_init(void)

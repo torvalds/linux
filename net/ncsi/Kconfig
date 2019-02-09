@@ -1,0 +1,12 @@
+#
+# Configuration for NCSI support
+#
+
+config NET_NCSI
+	bool "NCSI interface support"
+	depends on INET
+	---help---
+	  This module provides NCSI (Network Controller Sideband Interface)
+	  support. Enable this only if your system connects to a network
+	  device via NCSI and the ethernet driver you're using supports
+	  the protocol explicitly.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Driver for CLPS711x serial ports
  *
@@ -5,11 +6,6 @@
  *
  *  Copyright 1999 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #if defined(CONFIG_SERIAL_CLPS711X_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
@@ -450,6 +446,7 @@ static int uart_clps711x_probe(struct platform_device *pdev)
 	struct clps711x_port *s;
 	struct resource *res;
 	struct clk *uart_clk;
+	int irq;
 
 	if (index < 0 || index >= UART_CLPS711X_NR)
 		return -EINVAL;
@@ -467,12 +464,13 @@ static int uart_clps711x_probe(struct platform_device *pdev)
 	if (IS_ERR(s->port.membase))
 		return PTR_ERR(s->port.membase);
 
-	s->port.irq = platform_get_irq(pdev, 0);
-	if (IS_ERR_VALUE(s->port.irq))
-		return s->port.irq;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+	s->port.irq = irq;
 
 	s->rx_irq = platform_get_irq(pdev, 1);
-	if (IS_ERR_VALUE(s->rx_irq))
+	if (s->rx_irq < 0)
 		return s->rx_irq;
 
 	if (!np) {
@@ -537,7 +535,7 @@ static int uart_clps711x_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id __maybe_unused clps711x_uart_dt_ids[] = {
-	{ .compatible = "cirrus,clps711x-uart", },
+	{ .compatible = "cirrus,ep7209-uart", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clps711x_uart_dt_ids);

@@ -28,6 +28,7 @@
 #define _ASUS_WMI_H_
 
 #include <linux/platform_device.h>
+#include <linux/i8042.h>
 
 #define ASUS_WMI_KEY_IGNORE (-1)
 #define ASUS_WMI_BRN_DOWN	0x20
@@ -42,6 +43,8 @@ struct quirk_entry {
 	bool scalar_panel_brightness;
 	bool store_backlight_power;
 	bool wmi_backlight_power;
+	bool wmi_backlight_native;
+	bool wmi_force_als_set;
 	int wapf;
 	/*
 	 * For machines with AMD graphic chips, it will send out WMI event
@@ -50,6 +53,10 @@ struct quirk_entry {
 	 * and let the ACPI interrupt to send out the key event.
 	 */
 	int no_display_toggle;
+	u32 xusb2pr;
+
+	bool (*i8042_filter)(unsigned char data, unsigned char str,
+			     struct serio *serio);
 };
 
 struct asus_wmi_driver {

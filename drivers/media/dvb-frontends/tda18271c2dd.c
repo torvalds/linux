@@ -14,12 +14,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/kernel.h>
@@ -31,7 +27,7 @@
 #include <linux/i2c.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda18271c2dd.h"
 
 /* Max transfer size done by I2C transfer functions */
@@ -678,7 +674,6 @@ static int PowerScan(struct tda_state *state,
 			Count = 200000;
 			wait = true;
 		}
-		status = status;
 		if (status < 0)
 			break;
 		if (CID_Gain >= CID_Target) {
@@ -1126,11 +1121,10 @@ static int init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int release(struct dvb_frontend *fe)
+static void release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 
@@ -1160,6 +1154,7 @@ static int set_params(struct dvb_frontend *fe)
 		default:
 			return -EINVAL;
 		}
+		break;
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		if (bw <= 6000000)
@@ -1217,12 +1212,12 @@ static int get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 }
 
 
-static struct dvb_tuner_ops tuner_ops = {
+static const struct dvb_tuner_ops tuner_ops = {
 	.info = {
 		.name = "NXP TDA18271C2D",
-		.frequency_min  =  47125000,
-		.frequency_max  = 865000000,
-		.frequency_step =     62500
+		.frequency_min_hz  =  47125 * kHz,
+		.frequency_max_hz  =    865 * MHz,
+		.frequency_step_hz =  62500
 	},
 	.init              = init,
 	.sleep             = sleep,

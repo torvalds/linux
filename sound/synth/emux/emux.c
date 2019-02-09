@@ -47,13 +47,13 @@ int snd_emux_new(struct snd_emux **remu)
 	mutex_init(&emu->register_mutex);
 
 	emu->client = -1;
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	emu->oss_synth = NULL;
 #endif
 	emu->max_voices = 0;
 	emu->use_time = 0;
 
-	setup_timer(&emu->tlist, snd_emux_timer_callback, (unsigned long)emu);
+	timer_setup(&emu->tlist, snd_emux_timer_callback, 0);
 	emu->timer_active = 0;
 
 	*remu = emu;
@@ -123,7 +123,7 @@ int snd_emux_register(struct snd_emux *emu, struct snd_card *card, int index, ch
 	snd_emux_init_voices(emu);
 
 	snd_emux_init_seq(emu, card, index);
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	snd_emux_init_seq_oss(emu);
 #endif
 	snd_emux_init_virmidi(emu, card);
@@ -150,7 +150,7 @@ int snd_emux_free(struct snd_emux *emu)
 
 	snd_emux_proc_free(emu);
 	snd_emux_delete_virmidi(emu);
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	snd_emux_detach_seq_oss(emu);
 #endif
 	snd_emux_detach_seq(emu);
@@ -163,20 +163,3 @@ int snd_emux_free(struct snd_emux *emu)
 }
 
 EXPORT_SYMBOL(snd_emux_free);
-
-
-/*
- *  INIT part
- */
-
-static int __init alsa_emux_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_emux_exit(void)
-{
-}
-
-module_init(alsa_emux_init)
-module_exit(alsa_emux_exit)

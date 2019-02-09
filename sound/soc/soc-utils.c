@@ -1,17 +1,11 @@
-/*
- * soc-util.c  --  ALSA SoC Audio Layer utility functions
- *
- * Copyright 2009 Wolfson Microelectronics PLC.
- *
- * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *         Liam Girdwood <lrg@slimlogic.co.uk>
- *         
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// soc-util.c  --  ALSA SoC Audio Layer utility functions
+//
+// Copyright 2009 Wolfson Microelectronics PLC.
+//
+// Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
+//         Liam Girdwood <lrg@slimlogic.co.uk>
 
 #include <linux/platform_device.h>
 #include <linux/export.h>
@@ -58,6 +52,205 @@ int snd_soc_params_to_bclk(struct snd_pcm_hw_params *params)
 }
 EXPORT_SYMBOL_GPL(snd_soc_params_to_bclk);
 
+int snd_soc_component_enable_pin(struct snd_soc_component *component,
+				 const char *pin)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	char *full_name;
+	int ret;
+
+	if (!component->name_prefix)
+		return snd_soc_dapm_enable_pin(dapm, pin);
+
+	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
+	if (!full_name)
+		return -ENOMEM;
+
+	ret = snd_soc_dapm_enable_pin(dapm, full_name);
+	kfree(full_name);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_enable_pin);
+
+int snd_soc_component_enable_pin_unlocked(struct snd_soc_component *component,
+					  const char *pin)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	char *full_name;
+	int ret;
+
+	if (!component->name_prefix)
+		return snd_soc_dapm_enable_pin_unlocked(dapm, pin);
+
+	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
+	if (!full_name)
+		return -ENOMEM;
+
+	ret = snd_soc_dapm_enable_pin_unlocked(dapm, full_name);
+	kfree(full_name);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_enable_pin_unlocked);
+
+int snd_soc_component_disable_pin(struct snd_soc_component *component,
+				  const char *pin)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	char *full_name;
+	int ret;
+
+	if (!component->name_prefix)
+		return snd_soc_dapm_disable_pin(dapm, pin);
+
+	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
+	if (!full_name)
+		return -ENOMEM;
+
+	ret = snd_soc_dapm_disable_pin(dapm, full_name);
+	kfree(full_name);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_disable_pin);
+
+int snd_soc_component_disable_pin_unlocked(struct snd_soc_component *component,
+					   const char *pin)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	char *full_name;
+	int ret;
+
+	if (!component->name_prefix)
+		return snd_soc_dapm_disable_pin_unlocked(dapm, pin);
+
+	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
+	if (!full_name)
+		return -ENOMEM;
+
+	ret = snd_soc_dapm_disable_pin_unlocked(dapm, full_name);
+	kfree(full_name);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_disable_pin_unlocked);
+
+int snd_soc_component_nc_pin(struct snd_soc_component *component,
+			     const char *pin)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	char *full_name;
+	int ret;
+
+	if (!component->name_prefix)
+		return snd_soc_dapm_nc_pin(dapm, pin);
+
+	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
+	if (!full_name)
+		return -ENOMEM;
+
+	ret = snd_soc_dapm_nc_pin(dapm, full_name);
+	kfree(full_name);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_nc_pin);
+
+int snd_soc_component_nc_pin_unlocked(struct snd_soc_component *component,
+				      const char *pin)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	char *full_name;
+	int ret;
+
+	if (!component->name_prefix)
+		return snd_soc_dapm_nc_pin_unlocked(dapm, pin);
+
+	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
+	if (!full_name)
+		return -ENOMEM;
+
+	ret = snd_soc_dapm_nc_pin_unlocked(dapm, full_name);
+	kfree(full_name);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_nc_pin_unlocked);
+
+int snd_soc_component_get_pin_status(struct snd_soc_component *component,
+				     const char *pin)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	char *full_name;
+	int ret;
+
+	if (!component->name_prefix)
+		return snd_soc_dapm_get_pin_status(dapm, pin);
+
+	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
+	if (!full_name)
+		return -ENOMEM;
+
+	ret = snd_soc_dapm_get_pin_status(dapm, full_name);
+	kfree(full_name);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_get_pin_status);
+
+int snd_soc_component_force_enable_pin(struct snd_soc_component *component,
+				       const char *pin)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	char *full_name;
+	int ret;
+
+	if (!component->name_prefix)
+		return snd_soc_dapm_force_enable_pin(dapm, pin);
+
+	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
+	if (!full_name)
+		return -ENOMEM;
+
+	ret = snd_soc_dapm_force_enable_pin(dapm, full_name);
+	kfree(full_name);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_force_enable_pin);
+
+int snd_soc_component_force_enable_pin_unlocked(
+					struct snd_soc_component *component,
+					const char *pin)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	char *full_name;
+	int ret;
+
+	if (!component->name_prefix)
+		return snd_soc_dapm_force_enable_pin_unlocked(dapm, pin);
+
+	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
+	if (!full_name)
+		return -ENOMEM;
+
+	ret = snd_soc_dapm_force_enable_pin_unlocked(dapm, full_name);
+	kfree(full_name);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_force_enable_pin_unlocked);
+
 static const struct snd_pcm_hardware dummy_dma_hardware = {
 	/* Random values to keep userspace happy when checking constraints */
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
@@ -80,16 +273,21 @@ static int dummy_dma_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops dummy_dma_ops = {
+static const struct snd_pcm_ops dummy_dma_ops = {
 	.open		= dummy_dma_open,
 	.ioctl		= snd_pcm_lib_ioctl,
 };
 
-static struct snd_soc_platform_driver dummy_platform = {
+static const struct snd_soc_component_driver dummy_platform = {
 	.ops = &dummy_dma_ops,
 };
 
-static struct snd_soc_codec_driver dummy_codec;
+static const struct snd_soc_component_driver dummy_codec = {
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
+};
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S8 | \
@@ -139,25 +337,15 @@ static int snd_soc_dummy_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = snd_soc_register_codec(&pdev->dev, &dummy_codec, &dummy_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &dummy_codec, &dummy_dai, 1);
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_register_platform(&pdev->dev, &dummy_platform);
-	if (ret < 0) {
-		snd_soc_unregister_codec(&pdev->dev);
-		return ret;
-	}
+	ret = devm_snd_soc_register_component(&pdev->dev, &dummy_platform,
+					      NULL, 0);
 
 	return ret;
-}
-
-static int snd_soc_dummy_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-	snd_soc_unregister_codec(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver soc_dummy_driver = {
@@ -165,7 +353,6 @@ static struct platform_driver soc_dummy_driver = {
 		.name = "snd-soc-dummy",
 	},
 	.probe = snd_soc_dummy_probe,
-	.remove = snd_soc_dummy_remove,
 };
 
 static struct platform_device *soc_dummy_dev;
@@ -188,6 +375,6 @@ int __init snd_soc_util_init(void)
 
 void __exit snd_soc_util_exit(void)
 {
-	platform_device_unregister(soc_dummy_dev);
 	platform_driver_unregister(&soc_dummy_driver);
+	platform_device_unregister(soc_dummy_dev);
 }

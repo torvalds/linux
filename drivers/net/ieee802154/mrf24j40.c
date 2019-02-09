@@ -18,6 +18,7 @@
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/ieee802154.h>
 #include <linux/irq.h>
@@ -61,6 +62,7 @@
 #define REG_TXBCON0	0x1A
 #define REG_TXNCON	0x1B  /* Transmit Normal FIFO Control */
 #define BIT_TXNTRIG	BIT(0)
+#define BIT_TXNSECEN	BIT(1)
 #define BIT_TXNACKREQ	BIT(2)
 
 #define REG_TXG1CON	0x1C
@@ -85,10 +87,13 @@
 #define REG_INTSTAT	0x31  /* Interrupt Status */
 #define BIT_TXNIF	BIT(0)
 #define BIT_RXIF	BIT(3)
+#define BIT_SECIF	BIT(4)
+#define BIT_SECIGNORE	BIT(7)
 
 #define REG_INTCON	0x32  /* Interrupt Control */
 #define BIT_TXNIE	BIT(0)
 #define BIT_RXIE	BIT(3)
+#define BIT_SECIE	BIT(4)
 
 #define REG_GPIO	0x33  /* GPIO */
 #define REG_TRISGPIO	0x34  /* GPIO direction */
@@ -310,6 +315,7 @@ mrf24j40_short_reg_writeable(struct device *dev, unsigned int reg)
 	case REG_TRISGPIO:
 	case REG_GPIO:
 	case REG_RFCTL:
+	case REG_SECCR2:
 	case REG_SLPACK:
 	case REG_BBREG0:
 	case REG_BBREG1:
@@ -547,6 +553,9 @@ static void write_tx_buf_complete(void *context)
 	u8 val = BIT_TXNTRIG;
 	int ret;
 
+	if (ieee802154_is_secen(fc))
+		val |= BIT_TXNSECEN;
+
 	if (ieee802154_is_ackreq(fc))
 		val |= BIT_TXNACKREQ;
 
@@ -615,7 +624,7 @@ static int mrf24j40_start(struct ieee802154_hw *hw)
 
 	/* Clear TXNIE and RXIE. Enable interrupts */
 	return regmap_update_bits(devrec->regmap_short, REG_INTCON,
-				  BIT_TXNIE | BIT_RXIE, 0);
+				  BIT_TXNIE | BIT_RXIE | BIT_SECIE, 0);
 }
 
 static void mrf24j40_stop(struct ieee802154_hw *hw)
@@ -626,7 +635,7 @@ static void mrf24j40_stop(struct ieee802154_hw *hw)
 
 	/* Set TXNIE and RXIE. Disable Interrupts */
 	regmap_update_bits(devrec->regmap_short, REG_INTCON,
-			   BIT_TXNIE | BIT_TXNIE, BIT_TXNIE | BIT_TXNIE);
+			   BIT_TXNIE | BIT_RXIE, BIT_TXNIE | BIT_RXIE);
 }
 
 static int mrf24j40_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
@@ -765,7 +774,7 @@ static void mrf24j40_handle_rx_read_buf_complete(void *context)
 		return;
 	}
 
-	memcpy(skb_put(skb, len), rx_local_buf, len);
+	skb_put_data(skb, rx_local_buf, len);
 	ieee802154_rx_irqsafe(devrec->hw, skb, 0);
 
 #ifdef DEBUG
@@ -1024,6 +1033,11 @@ static void mrf24j40_intstat_complete(void *context)
 
 	enable_irq(devrec->spi->irq);
 
+	/* Ignore Rx security decryption */
+	if (intstat & BIT_SECIF)
+		regmap_write_async(devrec->regmap_short, REG_SECCON0,
+				   BIT_SECIGNORE);
+
 	/* Check for TX complete */
 	if (intstat & BIT_TXNIF)
 		ieee802154_xmit_complete(devrec->hw, devrec->tx_skb, false);
@@ -1041,6 +1055,8 @@ static irqreturn_t mrf24j40_isr(int irq, void *data)
 	disable_irq_nosync(irq);
 
 	devrec->irq_buf[0] = MRF24J40_READSHORT(REG_INTSTAT);
+	devrec->irq_buf[1] = 0;
+
 	/* Read the interrupt status */
 	ret = spi_async(devrec->spi, &devrec->irq_msg);
 	if (ret) {
@@ -1314,7 +1330,8 @@ static int mrf24j40_probe(struct spi_device *spi)
 	if (spi->max_speed_hz > MAX_SPI_SPEED_HZ) {
 		dev_warn(&spi->dev, "spi clock above possible maximum: %d",
 			 MAX_SPI_SPEED_HZ);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_register_device;
 	}
 
 	ret = mrf24j40_hw_init(devrec);

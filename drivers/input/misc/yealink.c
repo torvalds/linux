@@ -56,8 +56,6 @@
 #include "yealink.h"
 
 #define DRIVER_VERSION "yld-20051230"
-#define DRIVER_AUTHOR "Henk Vergonet"
-#define DRIVER_DESC "Yealink phone driver"
 
 #define YEALINK_POLLING_FREQUENCY	10	/* in [Hz] */
 
@@ -798,7 +796,7 @@ static struct attribute *yld_attributes[] = {
 	NULL
 };
 
-static struct attribute_group yld_attr_group = {
+static const struct attribute_group yld_attr_group = {
 	.attrs = yld_attributes
 };
 
@@ -875,6 +873,10 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	int ret, pipe, i;
 
 	interface = intf->cur_altsetting;
+
+	if (interface->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
 	endpoint = &interface->endpoint[0].desc;
 	if (!usb_endpoint_is_int_in(endpoint))
 		return -ENODEV;
@@ -892,12 +894,12 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	/* allocate usb buffers */
 	yld->irq_data = usb_alloc_coherent(udev, USB_PKT_LEN,
-					   GFP_ATOMIC, &yld->irq_dma);
+					   GFP_KERNEL, &yld->irq_dma);
 	if (yld->irq_data == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 
 	yld->ctl_data = usb_alloc_coherent(udev, USB_PKT_LEN,
-					   GFP_ATOMIC, &yld->ctl_dma);
+					   GFP_KERNEL, &yld->ctl_dma);
 	if (!yld->ctl_data)
 		return usb_cleanup(yld, -ENOMEM);
 
@@ -1002,6 +1004,6 @@ module_usb_driver(yealink_driver);
 
 MODULE_DEVICE_TABLE (usb, usb_table);
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Henk Vergonet");
+MODULE_DESCRIPTION("Yealink phone driver");
 MODULE_LICENSE("GPL");

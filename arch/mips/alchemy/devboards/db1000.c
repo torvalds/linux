@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/leds.h>
@@ -447,9 +448,6 @@ static struct ads7846_platform_data db1100_touch_pd = {
 };
 
 static struct spi_gpio_platform_data db1100_spictl_pd = {
-	.sck		= 209,
-	.mosi		= 208,
-	.miso		= 207,
 	.num_chipselect = 1,
 };
 
@@ -462,7 +460,6 @@ static struct spi_board_info db1100_spi_info[] __initdata = {
 		.mode		 = 0,
 		.irq		 = AU1100_GPIO21_INT,
 		.platform_data	 = &db1100_touch_pd,
-		.controller_data = (void *)210, /* for spi_gpio: CS# GPIO210 */
 	},
 };
 
@@ -474,6 +471,24 @@ static struct platform_device db1100_spi_dev = {
 	},
 };
 
+/*
+ * Alchemy GPIO 2 has its base at 200 so the GPIO lines
+ * 207 thru 210 are GPIOs at offset 7 thru 10 at this chip.
+ */
+static struct gpiod_lookup_table db1100_spi_gpiod_table = {
+	.dev_id         = "spi_gpio",
+	.table          = {
+		GPIO_LOOKUP("alchemy-gpio2", 9,
+			    "sck", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("alchemy-gpio2", 8,
+			    "mosi", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("alchemy-gpio2", 7,
+			    "miso", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("alchemy-gpio2", 10,
+			    "cs", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 static struct platform_device *db1x00_devs[] = {
 	&db1x00_codec_dev,
@@ -503,15 +518,15 @@ int __init db1000_dev_setup(void)
 	if (board == BCSR_WHOAMI_DB1500) {
 		c0 = AU1500_GPIO2_INT;
 		c1 = AU1500_GPIO5_INT;
-		d0 = AU1500_GPIO0_INT;
-		d1 = AU1500_GPIO3_INT;
+		d0 = 0;	/* GPIO number, NOT irq! */
+		d1 = 3; /* GPIO number, NOT irq! */
 		s0 = AU1500_GPIO1_INT;
 		s1 = AU1500_GPIO4_INT;
 	} else if (board == BCSR_WHOAMI_DB1100) {
 		c0 = AU1100_GPIO2_INT;
 		c1 = AU1100_GPIO5_INT;
-		d0 = AU1100_GPIO0_INT;
-		d1 = AU1100_GPIO3_INT;
+		d0 = 0; /* GPIO number, NOT irq! */
+		d1 = 3; /* GPIO number, NOT irq! */
 		s0 = AU1100_GPIO1_INT;
 		s1 = AU1100_GPIO4_INT;
 
@@ -541,19 +556,20 @@ int __init db1000_dev_setup(void)
 			clk_put(p);
 
 		platform_add_devices(db1100_devs, ARRAY_SIZE(db1100_devs));
+		gpiod_add_lookup_table(&db1100_spi_gpiod_table);
 		platform_device_register(&db1100_spi_dev);
 	} else if (board == BCSR_WHOAMI_DB1000) {
 		c0 = AU1000_GPIO2_INT;
 		c1 = AU1000_GPIO5_INT;
-		d0 = AU1000_GPIO0_INT;
-		d1 = AU1000_GPIO3_INT;
+		d0 = 0; /* GPIO number, NOT irq! */
+		d1 = 3; /* GPIO number, NOT irq! */
 		s0 = AU1000_GPIO1_INT;
 		s1 = AU1000_GPIO4_INT;
 		platform_add_devices(db1000_devs, ARRAY_SIZE(db1000_devs));
 	} else if ((board == BCSR_WHOAMI_PB1500) ||
 		   (board == BCSR_WHOAMI_PB1500R2)) {
 		c0 = AU1500_GPIO203_INT;
-		d0 = AU1500_GPIO201_INT;
+		d0 = 1; /* GPIO number, NOT irq! */
 		s0 = AU1500_GPIO202_INT;
 		twosocks = 0;
 		flashsize = 64;
@@ -566,7 +582,7 @@ int __init db1000_dev_setup(void)
 		 */
 	} else if (board == BCSR_WHOAMI_PB1100) {
 		c0 = AU1100_GPIO11_INT;
-		d0 = AU1100_GPIO9_INT;
+		d0 = 9; /* GPIO number, NOT irq! */
 		s0 = AU1100_GPIO10_INT;
 		twosocks = 0;
 		flashsize = 64;
@@ -583,7 +599,6 @@ int __init db1000_dev_setup(void)
 	} else
 		return 0; /* unknown board, no further dev setup to do */
 
-	irq_set_irq_type(d0, IRQ_TYPE_EDGE_BOTH);
 	irq_set_irq_type(c0, IRQ_TYPE_LEVEL_LOW);
 	irq_set_irq_type(s0, IRQ_TYPE_LEVEL_LOW);
 
@@ -597,7 +612,6 @@ int __init db1000_dev_setup(void)
 		c0, d0, /*s0*/0, 0, 0);
 
 	if (twosocks) {
-		irq_set_irq_type(d1, IRQ_TYPE_EDGE_BOTH);
 		irq_set_irq_type(c1, IRQ_TYPE_LEVEL_LOW);
 		irq_set_irq_type(s1, IRQ_TYPE_LEVEL_LOW);
 

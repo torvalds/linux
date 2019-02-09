@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -486,7 +487,6 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) vport->drv_port.im_port;
 	struct bfad_s *bfad = im_port->bfad;
-	struct bfad_port_s *port;
 	struct bfa_fcs_vport_s *fcs_vport;
 	struct Scsi_Host *vshost;
 	wwn_t   pwwn;
@@ -500,8 +500,6 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 		kfree(vport);
 		return 0;
 	}
-
-	port = im_port->port;
 
 	vshost = vport->drv_port.im_port->shost;
 	u64_to_wwn(fc_host_port_name(vshost), (u8 *)&pwwn);
@@ -750,65 +748,65 @@ bfad_im_model_desc_show(struct device *dev, struct device_attribute *attr,
 
 	bfa_get_adapter_model(&bfad->bfa, model);
 	nports = bfa_get_nports(&bfad->bfa);
-	if (!strcmp(model, "Brocade-425"))
+	if (!strcmp(model, "QLogic-425"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 4Gbps PCIe dual port FC HBA");
-	else if (!strcmp(model, "Brocade-825"))
+			"QLogic BR-series 4Gbps PCIe dual port FC HBA");
+	else if (!strcmp(model, "QLogic-825"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 8Gbps PCIe dual port FC HBA");
-	else if (!strcmp(model, "Brocade-42B"))
+			"QLogic BR-series 8Gbps PCIe dual port FC HBA");
+	else if (!strcmp(model, "QLogic-42B"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 4Gbps PCIe dual port FC HBA for HP");
-	else if (!strcmp(model, "Brocade-82B"))
+			"QLogic BR-series 4Gbps PCIe dual port FC HBA for HP");
+	else if (!strcmp(model, "QLogic-82B"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 8Gbps PCIe dual port FC HBA for HP");
-	else if (!strcmp(model, "Brocade-1010"))
+			"QLogic BR-series 8Gbps PCIe dual port FC HBA for HP");
+	else if (!strcmp(model, "QLogic-1010"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 10Gbps single port CNA");
-	else if (!strcmp(model, "Brocade-1020"))
+			"QLogic BR-series 10Gbps single port CNA");
+	else if (!strcmp(model, "QLogic-1020"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 10Gbps dual port CNA");
-	else if (!strcmp(model, "Brocade-1007"))
+			"QLogic BR-series 10Gbps dual port CNA");
+	else if (!strcmp(model, "QLogic-1007"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 10Gbps CNA for IBM Blade Center");
-	else if (!strcmp(model, "Brocade-415"))
+			"QLogic BR-series 10Gbps CNA for IBM Blade Center");
+	else if (!strcmp(model, "QLogic-415"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 4Gbps PCIe single port FC HBA");
-	else if (!strcmp(model, "Brocade-815"))
+			"QLogic BR-series 4Gbps PCIe single port FC HBA");
+	else if (!strcmp(model, "QLogic-815"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 8Gbps PCIe single port FC HBA");
-	else if (!strcmp(model, "Brocade-41B"))
+			"QLogic BR-series 8Gbps PCIe single port FC HBA");
+	else if (!strcmp(model, "QLogic-41B"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 4Gbps PCIe single port FC HBA for HP");
-	else if (!strcmp(model, "Brocade-81B"))
+			"QLogic BR-series 4Gbps PCIe single port FC HBA for HP");
+	else if (!strcmp(model, "QLogic-81B"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 8Gbps PCIe single port FC HBA for HP");
-	else if (!strcmp(model, "Brocade-804"))
+			"QLogic BR-series 8Gbps PCIe single port FC HBA for HP");
+	else if (!strcmp(model, "QLogic-804"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 8Gbps FC HBA for HP Bladesystem C-class");
-	else if (!strcmp(model, "Brocade-1741"))
+			"QLogic BR-series 8Gbps FC HBA for HP Bladesystem C-class");
+	else if (!strcmp(model, "QLogic-1741"))
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-			"Brocade 10Gbps CNA for Dell M-Series Blade Servers");
-	else if (strstr(model, "Brocade-1860")) {
+			"QLogic BR-series 10Gbps CNA for Dell M-Series Blade Servers");
+	else if (strstr(model, "QLogic-1860")) {
 		if (nports == 1 && bfa_ioc_is_cna(&bfad->bfa.ioc))
 			snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-				"Brocade 10Gbps single port CNA");
+				"QLogic BR-series 10Gbps single port CNA");
 		else if (nports == 1 && !bfa_ioc_is_cna(&bfad->bfa.ioc))
 			snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-				"Brocade 16Gbps PCIe single port FC HBA");
+				"QLogic BR-series 16Gbps PCIe single port FC HBA");
 		else if (nports == 2 && bfa_ioc_is_cna(&bfad->bfa.ioc))
 			snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-				"Brocade 10Gbps dual port CNA");
+				"QLogic BR-series 10Gbps dual port CNA");
 		else if (nports == 2 && !bfa_ioc_is_cna(&bfad->bfa.ioc))
 			snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-				"Brocade 16Gbps PCIe dual port FC HBA");
-	} else if (!strcmp(model, "Brocade-1867")) {
+				"QLogic BR-series 16Gbps PCIe dual port FC HBA");
+	} else if (!strcmp(model, "QLogic-1867")) {
 		if (nports == 1 && !bfa_ioc_is_cna(&bfad->bfa.ioc))
 			snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-				"Brocade 16Gbps PCIe single port FC HBA for IBM");
+				"QLogic BR-series 16Gbps PCIe single port FC HBA for IBM");
 		else if (nports == 2 && !bfa_ioc_is_cna(&bfad->bfa.ioc))
 			snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
-				"Brocade 16Gbps PCIe dual port FC HBA for IBM");
+				"QLogic BR-series 16Gbps PCIe dual port FC HBA for IBM");
 	} else
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
 			"Invalid Model");
@@ -842,7 +840,7 @@ bfad_im_symbolic_name_show(struct device *dev, struct device_attribute *attr,
 	char symname[BFA_SYMNAME_MAXLEN];
 
 	bfa_fcs_lport_get_attr(&bfad->bfa_fcs.fabric.bport, &port_attr);
-	strncpy(symname, port_attr.port_cfg.sym_name.symname,
+	strlcpy(symname, port_attr.port_cfg.sym_name.symname,
 			BFA_SYMNAME_MAXLEN);
 	return snprintf(buf, PAGE_SIZE, "%s\n", symname);
 }
@@ -929,7 +927,7 @@ bfad_im_num_of_discovered_ports_show(struct device *dev,
 	struct bfa_rport_qualifier_s *rports = NULL;
 	unsigned long   flags;
 
-	rports = kzalloc(sizeof(struct bfa_rport_qualifier_s) * nrports,
+	rports = kcalloc(nrports, sizeof(struct bfa_rport_qualifier_s),
 			 GFP_ATOMIC);
 	if (rports == NULL)
 		return snprintf(buf, PAGE_SIZE, "Failed\n");

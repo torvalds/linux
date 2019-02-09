@@ -51,7 +51,7 @@ do {							\
 	if (i2c_debug >= lvl) {				\
 		printk(KERN_DEBUG "%s at %s: " fmt,	\
 		       dev->name, __func__ , ##args);	\
-      } 						\
+      }							\
 } while (0)
 
 static inline int get_real_i2c_port(struct cx231xx *dev, int bus_nr)
@@ -376,8 +376,6 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct cx231xx *dev = bus->dev;
 	int addr, rc, i, byte;
 
-	if (num <= 0)
-		return 0;
 	mutex_lock(&dev->i2c_lock);
 	for (i = 0; i < num; i++) {
 
@@ -454,12 +452,12 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm cx231xx_algo = {
+static const struct i2c_algorithm cx231xx_algo = {
 	.master_xfer = cx231xx_i2c_xfer,
 	.functionality = functionality,
 };
 
-static struct i2c_adapter cx231xx_adap_template = {
+static const struct i2c_adapter cx231xx_adap_template = {
 	.owner = THIS_MODULE,
 	.name = "cx231xx",
 	.algo = &cx231xx_algo,
@@ -491,20 +489,24 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port)
 {
 	unsigned char buf;
 	int i, rc;
-	struct i2c_client client;
+	struct i2c_adapter *adap;
+	struct i2c_msg msg = {
+		.flags = I2C_M_RD,
+		.len = 1,
+		.buf = &buf,
+	};
 
 	if (!i2c_scan)
 		return;
 
 	/* Don't generate I2C errors during scan */
 	dev->i2c_scan_running = true;
-
-	memset(&client, 0, sizeof(client));
-	client.adapter = cx231xx_get_i2c_adap(dev, i2c_port);
+	adap = cx231xx_get_i2c_adap(dev, i2c_port);
 
 	for (i = 0; i < 128; i++) {
-		client.addr = i;
-		rc = i2c_master_recv(&client, &buf, 0);
+		msg.addr = i;
+		rc = i2c_transfer(adap, &msg, 1);
+
 		if (rc < 0)
 			continue;
 		dev_info(dev->dev,
@@ -534,7 +536,7 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 
 	bus->i2c_adap.algo_data = bus;
 	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
-	i2c_add_adapter(&bus->i2c_adap);
+	bus->i2c_rc = i2c_add_adapter(&bus->i2c_adap);
 
 	if (0 != bus->i2c_rc)
 		dev_warn(dev->dev,
@@ -547,50 +549,44 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
  * cx231xx_i2c_unregister()
  * unregister i2c_bus
  */
-int cx231xx_i2c_unregister(struct cx231xx_i2c *bus)
+void cx231xx_i2c_unregister(struct cx231xx_i2c *bus)
 {
-	i2c_del_adapter(&bus->i2c_adap);
-	return 0;
+	if (!bus->i2c_rc)
+		i2c_del_adapter(&bus->i2c_adap);
 }
 
 /*
  * cx231xx_i2c_mux_select()
  * switch i2c master number 1 between port1 and port3
  */
-static int cx231xx_i2c_mux_select(struct i2c_adapter *adap,
-			void *mux_priv, u32 chan_id)
+static int cx231xx_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan_id)
 {
-	struct cx231xx *dev = mux_priv;
+	struct cx231xx *dev = i2c_mux_priv(muxc);
 
 	return cx231xx_enable_i2c_port_3(dev, chan_id);
 }
 
-int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
+int cx231xx_i2c_mux_create(struct cx231xx *dev)
 {
-	struct i2c_adapter *i2c_parent = &dev->i2c_bus[1].i2c_adap;
-	/* what is the correct mux_dev? */
-	struct device *mux_dev = dev->dev;
-
-	dev->i2c_mux_adap[mux_no] = i2c_add_mux_adapter(i2c_parent,
-				mux_dev,
-				dev /* mux_priv */,
-				0,
-				mux_no /* chan_id */,
-				0 /* class */,
-				&cx231xx_i2c_mux_select,
-				NULL);
-
-	if (!dev->i2c_mux_adap[mux_no])
-		dev_warn(dev->dev,
-			 "i2c mux %d register FAILED\n", mux_no);
-
+	dev->muxc = i2c_mux_alloc(&dev->i2c_bus[1].i2c_adap, dev->dev, 2, 0, 0,
+				  cx231xx_i2c_mux_select, NULL);
+	if (!dev->muxc)
+		return -ENOMEM;
+	dev->muxc->priv = dev;
 	return 0;
 }
 
-void cx231xx_i2c_mux_unregister(struct cx231xx *dev, int mux_no)
+int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
 {
-	i2c_del_mux_adapter(dev->i2c_mux_adap[mux_no]);
-	dev->i2c_mux_adap[mux_no] = NULL;
+	return i2c_mux_add_adapter(dev->muxc,
+				   0,
+				   mux_no /* chan_id */,
+				   0 /* class */);
+}
+
+void cx231xx_i2c_mux_unregister(struct cx231xx *dev)
+{
+	i2c_mux_del_adapters(dev->muxc);
 }
 
 struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port)
@@ -603,11 +599,11 @@ struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port)
 	case I2C_2:
 		return &dev->i2c_bus[2].i2c_adap;
 	case I2C_1_MUX_1:
-		return dev->i2c_mux_adap[0];
+		return dev->muxc->adapter[0];
 	case I2C_1_MUX_3:
-		return dev->i2c_mux_adap[1];
+		return dev->muxc->adapter[1];
 	default:
-		return NULL;
+		BUG();
 	}
 }
 EXPORT_SYMBOL_GPL(cx231xx_get_i2c_adap);

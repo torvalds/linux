@@ -14,3 +14,10 @@ filesystem.
 efivarfs is typically mounted like this,
 
 	mount -t efivarfs none /sys/firmware/efi/efivars
+
+Due to the presence of numerous firmware bugs where removing non-standard
+UEFI variables causes the system firmware to fail to POST, efivarfs
+files that are not well-known standardized variables are created
+as immutable files.  This doesn't prevent removal - "chattr -i" will work -
+but it does prevent this kind of failure from being accomplished
+accidentally.

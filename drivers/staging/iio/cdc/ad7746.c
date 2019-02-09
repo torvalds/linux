@@ -6,15 +6,15 @@
  * Licensed under the GPL-2.
  */
 
-#include <linux/interrupt.h>
-#include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/i2c.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/stat.h>
+#include <linux/sysfs.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -45,10 +45,10 @@
 #define AD7746_STATUS_RDYCAP		BIT(0)
 
 /* Capacitive Channel Setup Register Bit Designations (AD7746_REG_CAP_SETUP) */
-#define AD7746_CAPSETUP_CAPEN		(1 << 7)
-#define AD7746_CAPSETUP_CIN2		(1 << 6) /* AD7746 only */
-#define AD7746_CAPSETUP_CAPDIFF		(1 << 5)
-#define AD7746_CAPSETUP_CACHOP		(1 << 0)
+#define AD7746_CAPSETUP_CAPEN		BIT(7)
+#define AD7746_CAPSETUP_CIN2		BIT(6) /* AD7746 only */
+#define AD7746_CAPSETUP_CAPDIFF		BIT(5)
+#define AD7746_CAPSETUP_CACHOP		BIT(0)
 
 /* Voltage/Temperature Setup Register Bit Designations (AD7746_REG_VT_SETUP) */
 #define AD7746_VTSETUP_VTEN		(1 << 7)
@@ -56,9 +56,9 @@
 #define AD7746_VTSETUP_VTMD_EXT_TEMP	(1 << 5)
 #define AD7746_VTSETUP_VTMD_VDD_MON	(2 << 5)
 #define AD7746_VTSETUP_VTMD_EXT_VIN	(3 << 5)
-#define AD7746_VTSETUP_EXTREF		(1 << 4)
-#define AD7746_VTSETUP_VTSHORT		(1 << 1)
-#define AD7746_VTSETUP_VTCHOP		(1 << 0)
+#define AD7746_VTSETUP_EXTREF		BIT(4)
+#define AD7746_VTSETUP_VTSHORT		BIT(1)
+#define AD7746_VTSETUP_VTCHOP		BIT(0)
 
 /* Excitation Setup Register Bit Designations (AD7746_REG_EXC_SETUP) */
 #define AD7746_EXCSETUP_CLKCTRL		BIT(7)
@@ -70,8 +70,10 @@
 #define AD7746_EXCSETUP_EXCLVL(x)	(((x) & 0x3) << 0)
 
 /* Config Register Bit Designations (AD7746_REG_CFG) */
-#define AD7746_CONF_VTFS(x)		((x) << 6)
-#define AD7746_CONF_CAPFS(x)		((x) << 3)
+#define AD7746_CONF_VTFS_SHIFT		6
+#define AD7746_CONF_CAPFS_SHIFT		3
+#define AD7746_CONF_VTFS_MASK		GENMASK(7, 6)
+#define AD7746_CONF_CAPFS_MASK		GENMASK(5, 3)
 #define AD7746_CONF_MODE_IDLE		(0 << 0)
 #define AD7746_CONF_MODE_CONT_CONV	(1 << 0)
 #define AD7746_CONF_MODE_SINGLE_CONV	(2 << 0)
@@ -80,7 +82,7 @@
 #define AD7746_CONF_MODE_GAIN_CAL	(6 << 0)
 
 /* CAPDAC Register Bit Designations (AD7746_REG_CAPDACx) */
-#define AD7746_CAPDAC_DACEN		(1 << 7)
+#define AD7746_CAPDAC_DACEN		BIT(7)
 #define AD7746_CAPDAC_DACP(x)		((x) & 0x7F)
 
 /*
@@ -89,6 +91,7 @@
 
 struct ad7746_chip_info {
 	struct i2c_client *client;
+	struct mutex lock; /* protect sensor state */
 	/*
 	 * Capacitive channel digital filter setup;
 	 * conversion time/update rate setup per channel
@@ -122,7 +125,8 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.address = AD7746_REG_VT_DATA_HIGH << 8 |
 			AD7746_VTSETUP_VTMD_EXT_VIN,
 	},
@@ -132,7 +136,8 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.channel = 1,
 		.extend_name = "supply",
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.address = AD7746_REG_VT_DATA_HIGH << 8 |
 			AD7746_VTSETUP_VTMD_VDD_MON,
 	},
@@ -159,7 +164,7 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		BIT(IIO_CHAN_INFO_CALIBSCALE) | BIT(IIO_CHAN_INFO_OFFSET),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBBIAS) |
-		BIT(IIO_CHAN_INFO_SCALE),
+		BIT(IIO_CHAN_INFO_SCALE) | BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.address = AD7746_REG_CAP_DATA_HIGH << 8,
 	},
 	[CIN1_DIFF] = {
@@ -171,7 +176,7 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		BIT(IIO_CHAN_INFO_CALIBSCALE) | BIT(IIO_CHAN_INFO_OFFSET),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBBIAS) |
-		BIT(IIO_CHAN_INFO_SCALE),
+		BIT(IIO_CHAN_INFO_SCALE) | BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.address = AD7746_REG_CAP_DATA_HIGH << 8 |
 			AD7746_CAPSETUP_CAPDIFF
 	},
@@ -182,7 +187,7 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		BIT(IIO_CHAN_INFO_CALIBSCALE) | BIT(IIO_CHAN_INFO_OFFSET),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBBIAS) |
-		BIT(IIO_CHAN_INFO_SCALE),
+		BIT(IIO_CHAN_INFO_SCALE) | BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.address = AD7746_REG_CAP_DATA_HIGH << 8 |
 			AD7746_CAPSETUP_CIN2,
 	},
@@ -195,7 +200,7 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		BIT(IIO_CHAN_INFO_CALIBSCALE) | BIT(IIO_CHAN_INFO_OFFSET),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBBIAS) |
-		BIT(IIO_CHAN_INFO_SCALE),
+		BIT(IIO_CHAN_INFO_SCALE) | BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.address = AD7746_REG_CAP_DATA_HIGH << 8 |
 			AD7746_CAPSETUP_CAPDIFF | AD7746_CAPSETUP_CIN2,
 	}
@@ -212,18 +217,19 @@ static const unsigned char ad7746_cap_filter_rate_table[][2] = {
 };
 
 static int ad7746_select_channel(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan)
+				 struct iio_chan_spec const *chan)
 {
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
-	int ret, delay;
 	u8 vt_setup, cap_setup;
+	int ret, delay, idx;
 
 	switch (chan->type) {
 	case IIO_CAPACITANCE:
 		cap_setup = (chan->address & 0xFF) | AD7746_CAPSETUP_CAPEN;
 		vt_setup = chip->vt_setup & ~AD7746_VTSETUP_VTEN;
-		delay = ad7746_cap_filter_rate_table[(chip->config >> 3) &
-			0x7][1];
+		idx = (chip->config & AD7746_CONF_CAPFS_MASK) >>
+			AD7746_CONF_CAPFS_SHIFT;
+		delay = ad7746_cap_filter_rate_table[idx][1];
 
 		if (chip->capdac_set != chan->channel) {
 			ret = i2c_smbus_write_byte_data(chip->client,
@@ -244,8 +250,9 @@ static int ad7746_select_channel(struct iio_dev *indio_dev,
 	case IIO_TEMP:
 		vt_setup = (chan->address & 0xFF) | AD7746_VTSETUP_VTEN;
 		cap_setup = chip->cap_setup & ~AD7746_CAPSETUP_CAPEN;
-		delay = ad7746_cap_filter_rate_table[(chip->config >> 6) &
-			0x3][1];
+		idx = (chip->config & AD7746_CONF_VTFS_MASK) >>
+			AD7746_CONF_VTFS_SHIFT;
+		delay = ad7746_cap_filter_rate_table[idx][1];
 		break;
 	default:
 		return -EINVAL;
@@ -282,8 +289,8 @@ static inline ssize_t ad7746_start_calib(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
-	bool doit;
 	int ret, timeout = 10;
+	bool doit;
 
 	ret = strtobool(buf, &doit);
 	if (ret < 0)
@@ -292,26 +299,27 @@ static inline ssize_t ad7746_start_calib(struct device *dev,
 	if (!doit)
 		return 0;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&chip->lock);
 	regval |= chip->config;
 	ret = i2c_smbus_write_byte_data(chip->client, AD7746_REG_CFG, regval);
-	if (ret < 0) {
-		mutex_unlock(&indio_dev->mlock);
-		return ret;
-	}
+	if (ret < 0)
+		goto unlock;
 
 	do {
 		msleep(20);
 		ret = i2c_smbus_read_byte_data(chip->client, AD7746_REG_CFG);
-		if (ret < 0) {
-			mutex_unlock(&indio_dev->mlock);
-			return ret;
-		}
+		if (ret < 0)
+			goto unlock;
+
 	} while ((ret == regval) && timeout--);
 
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&chip->lock);
 
 	return len;
+
+unlock:
+	mutex_unlock(&chip->lock);
+	return ret;
 }
 
 static ssize_t ad7746_start_offset_calib(struct device *dev,
@@ -345,119 +353,64 @@ static ssize_t ad7746_start_gain_calib(struct device *dev,
 }
 
 static IIO_DEVICE_ATTR(in_capacitance0_calibbias_calibration,
-		       S_IWUSR, NULL, ad7746_start_offset_calib, CIN1);
+		       0200, NULL, ad7746_start_offset_calib, CIN1);
 static IIO_DEVICE_ATTR(in_capacitance1_calibbias_calibration,
-		       S_IWUSR, NULL, ad7746_start_offset_calib, CIN2);
+		       0200, NULL, ad7746_start_offset_calib, CIN2);
 static IIO_DEVICE_ATTR(in_capacitance0_calibscale_calibration,
-		       S_IWUSR, NULL, ad7746_start_gain_calib, CIN1);
+		       0200, NULL, ad7746_start_gain_calib, CIN1);
 static IIO_DEVICE_ATTR(in_capacitance1_calibscale_calibration,
-		       S_IWUSR, NULL, ad7746_start_gain_calib, CIN2);
+		       0200, NULL, ad7746_start_gain_calib, CIN2);
 static IIO_DEVICE_ATTR(in_voltage0_calibscale_calibration,
-		       S_IWUSR, NULL, ad7746_start_gain_calib, VIN);
+		       0200, NULL, ad7746_start_gain_calib, VIN);
 
-static ssize_t ad7746_show_cap_filter_rate_setup(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+static int ad7746_store_cap_filter_rate_setup(struct ad7746_chip_info *chip,
+					      int val)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ad7746_chip_info *chip = iio_priv(indio_dev);
-
-	return sprintf(buf, "%d\n", ad7746_cap_filter_rate_table[
-			(chip->config >> 3) & 0x7][0]);
-}
-
-static ssize_t ad7746_store_cap_filter_rate_setup(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ad7746_chip_info *chip = iio_priv(indio_dev);
-	u8 data;
-	int ret, i;
-
-	ret = kstrtou8(buf, 10, &data);
-	if (ret < 0)
-		return ret;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ad7746_cap_filter_rate_table); i++)
-		if (data >= ad7746_cap_filter_rate_table[i][0])
+		if (val >= ad7746_cap_filter_rate_table[i][0])
 			break;
 
 	if (i >= ARRAY_SIZE(ad7746_cap_filter_rate_table))
 		i = ARRAY_SIZE(ad7746_cap_filter_rate_table) - 1;
 
-	mutex_lock(&indio_dev->mlock);
-	chip->config &= ~AD7746_CONF_CAPFS(0x7);
-	chip->config |= AD7746_CONF_CAPFS(i);
-	mutex_unlock(&indio_dev->mlock);
+	chip->config &= ~AD7746_CONF_CAPFS_MASK;
+	chip->config |= i << AD7746_CONF_CAPFS_SHIFT;
 
-	return len;
+	return 0;
 }
 
-static ssize_t ad7746_show_vt_filter_rate_setup(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+static int ad7746_store_vt_filter_rate_setup(struct ad7746_chip_info *chip,
+					     int val)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ad7746_chip_info *chip = iio_priv(indio_dev);
-
-	return sprintf(buf, "%d\n", ad7746_vt_filter_rate_table[
-			(chip->config >> 6) & 0x3][0]);
-}
-
-static ssize_t ad7746_store_vt_filter_rate_setup(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ad7746_chip_info *chip = iio_priv(indio_dev);
-	u8 data;
-	int ret, i;
-
-	ret = kstrtou8(buf, 10, &data);
-	if (ret < 0)
-		return ret;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ad7746_vt_filter_rate_table); i++)
-		if (data >= ad7746_vt_filter_rate_table[i][0])
+		if (val >= ad7746_vt_filter_rate_table[i][0])
 			break;
 
 	if (i >= ARRAY_SIZE(ad7746_vt_filter_rate_table))
 		i = ARRAY_SIZE(ad7746_vt_filter_rate_table) - 1;
 
-	mutex_lock(&indio_dev->mlock);
-	chip->config &= ~AD7746_CONF_VTFS(0x3);
-	chip->config |= AD7746_CONF_VTFS(i);
-	mutex_unlock(&indio_dev->mlock);
+	chip->config &= ~AD7746_CONF_VTFS_MASK;
+	chip->config |= i << AD7746_CONF_VTFS_SHIFT;
 
-	return len;
+	return 0;
 }
-
-static IIO_DEVICE_ATTR(in_capacitance_sampling_frequency,
-		       S_IRUGO | S_IWUSR, ad7746_show_cap_filter_rate_setup,
-			ad7746_store_cap_filter_rate_setup, 0);
-
-static IIO_DEVICE_ATTR(in_voltage_sampling_frequency,
-		       S_IRUGO | S_IWUSR, ad7746_show_vt_filter_rate_setup,
-		       ad7746_store_vt_filter_rate_setup, 0);
 
 static IIO_CONST_ATTR(in_voltage_sampling_frequency_available, "50 31 16 8");
 static IIO_CONST_ATTR(in_capacitance_sampling_frequency_available,
 		       "91 84 50 26 16 13 11 9");
 
 static struct attribute *ad7746_attributes[] = {
-	&iio_dev_attr_in_capacitance_sampling_frequency.dev_attr.attr,
-	&iio_dev_attr_in_voltage_sampling_frequency.dev_attr.attr,
 	&iio_dev_attr_in_capacitance0_calibbias_calibration.dev_attr.attr,
 	&iio_dev_attr_in_capacitance0_calibscale_calibration.dev_attr.attr,
 	&iio_dev_attr_in_capacitance1_calibscale_calibration.dev_attr.attr,
 	&iio_dev_attr_in_capacitance1_calibbias_calibration.dev_attr.attr,
 	&iio_dev_attr_in_voltage0_calibscale_calibration.dev_attr.attr,
 	&iio_const_attr_in_voltage_sampling_frequency_available.dev_attr.attr,
-	&iio_const_attr_in_capacitance_sampling_frequency_available.
-	dev_attr.attr,
+	&iio_const_attr_in_capacitance_sampling_frequency_available.dev_attr.attr,
 	NULL,
 };
 
@@ -474,7 +427,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
 	int ret, reg;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&chip->lock);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBSCALE:
@@ -497,26 +450,26 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 			goto out;
 		}
 
-		ret = i2c_smbus_write_word_data(chip->client, reg, swab16(val));
+		ret = i2c_smbus_write_word_swapped(chip->client, reg, val);
 		if (ret < 0)
 			goto out;
 
 		ret = 0;
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
-		if ((val < 0) | (val > 0xFFFF)) {
+		if (val < 0 || val > 0xFFFF) {
 			ret = -EINVAL;
 			goto out;
 		}
-		ret = i2c_smbus_write_word_data(chip->client,
-				AD7746_REG_CAP_OFFH, swab16(val));
+		ret = i2c_smbus_write_word_swapped(chip->client,
+						   AD7746_REG_CAP_OFFH, val);
 		if (ret < 0)
 			goto out;
 
 		ret = 0;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		if ((val < 0) | (val > 43008000)) { /* 21pF */
+		if (val < 0 || val > 43008000) { /* 21pF */
 			ret = -EINVAL;
 			goto out;
 		}
@@ -529,17 +482,17 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 
 		val /= 338646;
 
-		chip->capdac[chan->channel][chan->differential] = (val > 0 ?
-			AD7746_CAPDAC_DACP(val) | AD7746_CAPDAC_DACEN : 0);
+		chip->capdac[chan->channel][chan->differential] = val > 0 ?
+			AD7746_CAPDAC_DACP(val) | AD7746_CAPDAC_DACEN : 0;
 
 		ret = i2c_smbus_write_byte_data(chip->client,
-			AD7746_REG_CAPDACA,
-			chip->capdac[chan->channel][0]);
+						AD7746_REG_CAPDACA,
+						chip->capdac[chan->channel][0]);
 		if (ret < 0)
 			goto out;
 		ret = i2c_smbus_write_byte_data(chip->client,
-			AD7746_REG_CAPDACB,
-			chip->capdac[chan->channel][1]);
+						AD7746_REG_CAPDACB,
+						chip->capdac[chan->channel][1]);
 		if (ret < 0)
 			goto out;
 
@@ -547,12 +500,29 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 
 		ret = 0;
 		break;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (val2) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		switch (chan->type) {
+		case IIO_CAPACITANCE:
+			ret = ad7746_store_cap_filter_rate_setup(chip, val);
+			break;
+		case IIO_VOLTAGE:
+			ret = ad7746_store_vt_filter_rate_setup(chip, val);
+			break;
+		default:
+			ret = -EINVAL;
+		}
+		break;
 	default:
 		ret = -EINVAL;
 	}
 
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&chip->lock);
 	return ret;
 }
 
@@ -562,10 +532,10 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 			   long mask)
 {
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
-	int ret, delay;
+	int ret, delay, idx;
 	u8 regval, reg;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&chip->lock);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -577,7 +547,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 		regval = chip->config | AD7746_CONF_MODE_SINGLE_CONV;
 		ret = i2c_smbus_write_byte_data(chip->client, AD7746_REG_CFG,
-				regval);
+						regval);
 		if (ret < 0)
 			goto out;
 
@@ -585,7 +555,8 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		/* Now read the actual register */
 
 		ret = i2c_smbus_read_i2c_block_data(chip->client,
-			chan->address >> 8, 3, &chip->data.d8[1]);
+						    chan->address >> 8, 3,
+						    &chip->data.d8[1]);
 
 		if (ret < 0)
 			goto out;
@@ -623,27 +594,27 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 			goto out;
 		}
 
-		ret = i2c_smbus_read_word_data(chip->client, reg);
+		ret = i2c_smbus_read_word_swapped(chip->client, reg);
 		if (ret < 0)
 			goto out;
 		/* 1 + gain_val / 2^16 */
 		*val = 1;
-		*val2 = (15625 * swab16(ret)) / 1024;
+		*val2 = (15625 * ret) / 1024;
 
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
-		ret = i2c_smbus_read_word_data(chip->client,
-					       AD7746_REG_CAP_OFFH);
+		ret = i2c_smbus_read_word_swapped(chip->client,
+						  AD7746_REG_CAP_OFFH);
 		if (ret < 0)
 			goto out;
-		*val = swab16(ret);
+		*val = ret;
 
 		ret = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = AD7746_CAPDAC_DACP(chip->capdac[chan->channel]
-			[chan->differential]) * 338646;
+					  [chan->differential]) * 338646;
 
 		ret = IIO_VAL_INT;
 		break;
@@ -667,19 +638,36 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		}
 
 		break;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		switch (chan->type) {
+		case IIO_CAPACITANCE:
+			idx = (chip->config & AD7746_CONF_CAPFS_MASK) >>
+				AD7746_CONF_CAPFS_SHIFT;
+			*val = ad7746_cap_filter_rate_table[idx][0];
+			ret = IIO_VAL_INT;
+			break;
+		case IIO_VOLTAGE:
+			idx = (chip->config & AD7746_CONF_VTFS_MASK) >>
+				AD7746_CONF_VTFS_SHIFT;
+			*val = ad7746_vt_filter_rate_table[idx][0];
+			ret = IIO_VAL_INT;
+			break;
+		default:
+			ret = -EINVAL;
+		}
+		break;
 	default:
 		ret = -EINVAL;
 	}
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&chip->lock);
 	return ret;
 }
 
 static const struct iio_info ad7746_info = {
 	.attrs = &ad7746_attribute_group,
-	.read_raw = &ad7746_read_raw,
-	.write_raw = &ad7746_write_raw,
-	.driver_module = THIS_MODULE,
+	.read_raw = ad7746_read_raw,
+	.write_raw = ad7746_write_raw,
 };
 
 /*
@@ -687,18 +675,19 @@ static const struct iio_info ad7746_info = {
  */
 
 static int ad7746_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+			const struct i2c_device_id *id)
 {
 	struct ad7746_platform_data *pdata = client->dev.platform_data;
 	struct ad7746_chip_info *chip;
 	struct iio_dev *indio_dev;
-	int ret = 0;
 	unsigned char regval = 0;
+	int ret = 0;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
 	chip = iio_priv(indio_dev);
+	mutex_init(&chip->lock);
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, indio_dev);
 

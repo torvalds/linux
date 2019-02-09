@@ -16,10 +16,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -34,7 +30,7 @@
 #include <linux/i2c.h>
 
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "s5h1420.h"
 #include "s5h1420_priv.h"
 
@@ -756,9 +752,9 @@ static int s5h1420_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int s5h1420_get_frontend(struct dvb_frontend* fe)
+static int s5h1420_get_frontend(struct dvb_frontend* fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s5h1420_state* state = fe->demodulator_priv;
 
 	p->frequency = state->tunedfreq + s5h1420_getfreqoffset(state);
@@ -868,7 +864,7 @@ static int s5h1420_tuner_i2c_tuner_xfer(struct i2c_adapter *i2c_adap, struct i2c
 	return i2c_transfer(state->i2c, m, 1 + num) == 1 + num ? num : -EIO;
 }
 
-static struct i2c_algorithm s5h1420_tuner_i2c_algo = {
+static const struct i2c_algorithm s5h1420_tuner_i2c_algo = {
 	.master_xfer   = s5h1420_tuner_i2c_tuner_xfer,
 	.functionality = s5h1420_tuner_i2c_func,
 };
@@ -880,7 +876,7 @@ struct i2c_adapter *s5h1420_get_tuner_i2c_adapter(struct dvb_frontend *fe)
 }
 EXPORT_SYMBOL(s5h1420_get_tuner_i2c_adapter);
 
-static struct dvb_frontend_ops s5h1420_ops;
+static const struct dvb_frontend_ops s5h1420_ops;
 
 struct dvb_frontend *s5h1420_attach(const struct s5h1420_config *config,
 				    struct i2c_adapter *i2c)
@@ -934,14 +930,14 @@ error:
 }
 EXPORT_SYMBOL(s5h1420_attach);
 
-static struct dvb_frontend_ops s5h1420_ops = {
+static const struct dvb_frontend_ops s5h1420_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name     = "Samsung S5H1420/PnpNetwork PN1010 DVB-S",
-		.frequency_min    = 950000,
-		.frequency_max    = 2150000,
-		.frequency_stepsize = 125,     /* kHz for QPSK frontends */
-		.frequency_tolerance  = 29500,
+		.frequency_min_hz    =  950 * MHz,
+		.frequency_max_hz    = 2150 * MHz,
+		.frequency_stepsize_hz = 125 * kHz,
+		.frequency_tolerance_hz  = 29500 * kHz,
 		.symbol_rate_min  = 1000000,
 		.symbol_rate_max  = 45000000,
 		/*  .symbol_rate_tolerance  = ???,*/

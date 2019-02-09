@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,12 +30,14 @@ static int get_temp(char *path)
 static int session_write_header(char *path)
 {
 	struct perf_session *session;
-	struct perf_data_file file = {
-		.path = path,
-		.mode = PERF_DATA_MODE_WRITE,
+	struct perf_data data = {
+		.file      = {
+			.path = path,
+		},
+		.mode      = PERF_DATA_MODE_WRITE,
 	};
 
-	session = perf_session__new(&file, false, NULL);
+	session = perf_session__new(&data, false, NULL);
 	TEST_ASSERT_VAL("can't get session", session);
 
 	session->evlist = perf_evlist__new_default();
@@ -42,11 +45,12 @@ static int session_write_header(char *path)
 
 	perf_header__set_feat(&session->header, HEADER_CPU_TOPOLOGY);
 	perf_header__set_feat(&session->header, HEADER_NRCPUS);
+	perf_header__set_feat(&session->header, HEADER_ARCH);
 
 	session->header.data_size += DATA_SIZE;
 
 	TEST_ASSERT_VAL("failed to write header",
-			!perf_session__write_header(session, session->evlist, file.fd, true));
+			!perf_session__write_header(session, session->evlist, data.file.fd, true));
 
 	perf_session__delete(session);
 
@@ -56,16 +60,41 @@ static int session_write_header(char *path)
 static int check_cpu_topology(char *path, struct cpu_map *map)
 {
 	struct perf_session *session;
-	struct perf_data_file file = {
-		.path = path,
-		.mode = PERF_DATA_MODE_READ,
+	struct perf_data data = {
+		.file      = {
+			.path = path,
+		},
+		.mode      = PERF_DATA_MODE_READ,
 	};
 	int i;
 
-	session = perf_session__new(&file, false, NULL);
+	session = perf_session__new(&data, false, NULL);
 	TEST_ASSERT_VAL("can't get session", session);
 
-	for (i = 0; i < session->header.env.nr_cpus_online; i++) {
+	/* On platforms with large numbers of CPUs process_cpu_topology()
+	 * might issue an error while reading the perf.data file section
+	 * HEADER_CPU_TOPOLOGY and the cpu_topology_map pointed to by member
+	 * cpu is a NULL pointer.
+	 * Example: On s390
+	 *   CPU 0 is on core_id 0 and physical_package_id 6
+	 *   CPU 1 is on core_id 1 and physical_package_id 3
+	 *
+	 *   Core_id and physical_package_id are platform and architecture
+	 *   dependend and might have higher numbers than the CPU id.
+	 *   This actually depends on the configuration.
+	 *
+	 *  In this case process_cpu_topology() prints error message:
+	 *  "socket_id number is too big. You may need to upgrade the
+	 *  perf tool."
+	 *
+	 *  This is the reason why this test might be skipped.
+	 */
+	if (!session->header.env.cpu)
+		return TEST_SKIP;
+
+	for (i = 0; i < session->header.env.nr_cpus_avail; i++) {
+		if (!cpu_map__has(map, i))
+			continue;
 		pr_debug("CPU %d, core %d, socket %d\n", i,
 			 session->header.env.cpu[i].core_id,
 			 session->header.env.cpu[i].socket_id);
@@ -84,11 +113,11 @@ static int check_cpu_topology(char *path, struct cpu_map *map)
 	return 0;
 }
 
-int test_session_topology(void)
+int test__session_topology(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	char path[PATH_MAX];
 	struct cpu_map *map;
-	int ret = -1;
+	int ret = TEST_FAIL;
 
 	TEST_ASSERT_VAL("can't get templ file", !get_temp(path));
 
@@ -103,12 +132,9 @@ int test_session_topology(void)
 		goto free_path;
 	}
 
-	if (check_cpu_topology(path, map))
-		goto free_map;
-	ret = 0;
-
-free_map:
+	ret = check_cpu_topology(path, map);
 	cpu_map__put(map);
+
 free_path:
 	unlink(path);
 	return ret;

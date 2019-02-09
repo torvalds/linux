@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -75,20 +71,20 @@ static u32 saa7164_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm saa7164_i2c_algo_template = {
+static const struct i2c_algorithm saa7164_i2c_algo_template = {
 	.master_xfer	= i2c_xfer,
 	.functionality	= saa7164_functionality,
 };
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_adapter saa7164_i2c_adap_template = {
+static const struct i2c_adapter saa7164_i2c_adap_template = {
 	.name              = "saa7164",
 	.owner             = THIS_MODULE,
 	.algo              = &saa7164_i2c_algo_template,
 };
 
-static struct i2c_client saa7164_i2c_client_template = {
+static const struct i2c_client saa7164_i2c_client_template = {
 	.name	= "saa7164 internal",
 };
 

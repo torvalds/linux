@@ -1,45 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Device Tree file for NETGEAR ReadyNAS 102
  *
  * Copyright (C) 2013, Arnaud EBALARD <arno@natisbad.org>
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This file is distributed in the hope that it will be useful
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 /dts-v1/;
@@ -56,7 +19,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x20000000>; /* 512 MB */
 	};
@@ -65,22 +28,6 @@
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
 			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
 			  MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
-
-		pcie-controller {
-			status = "okay";
-
-			/* Connected to Marvell 88SE9170 SATA controller */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* Connected to FL1009 USB 3.0 controller */
-			pcie@2,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
 
 		internal-regs {
 
@@ -99,14 +46,6 @@
 				status = "okay";
 			};
 
-			mdio {
-				pinctrl-0 = <&mdio_pins>;
-				pinctrl-names = "default";
-				phy0: ethernet-phy@0 { /* Marvell 88E1318 */
-					reg = <0>;
-				};
-			};
-
 			ethernet@74000 {
 				pinctrl-0 = <&ge1_rgmii_pins>;
 				pinctrl-names = "default";
@@ -120,14 +59,17 @@
 			};
 
 			i2c@11000 {
-				compatible = "marvell,mv64xxx-i2c";
 				clock-frequency = <100000>;
+
+				pinctrl-0 = <&i2c0_pins>;
+				pinctrl-names = "default";
+
 				status = "okay";
 
-				isl12057: isl12057@68 {
+				isl12057: rtc@68 {
 					compatible = "isil,isl12057";
 					reg = <0x68>;
-					isil,irq2-can-wakeup-machine;
+					wakeup-source;
 				};
 
 				g762: g762@3e {
@@ -137,46 +79,6 @@
 					fan_gear_mode = <0>;
 					fan_startv = <1>;
 					pwm_polarity = <0>;
-				};
-			};
-
-			nand@d0000 {
-				status = "okay";
-				num-cs = <1>;
-				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
-				nand-on-flash-bbt;
-
-				/* Use Hardware BCH ECC */
-				nand-ecc-strength = <4>;
-				nand-ecc-step-size = <512>;
-
-				partition@0 {
-					label = "u-boot";
-					reg = <0x0000000 0x180000>;  /* 1.5MB */
-					read-only;
-				};
-
-				partition@180000 {
-					label = "u-boot-env";
-					reg = <0x180000 0x20000>;    /* 128KB */
-					read-only;
-				};
-
-				partition@200000 {
-					label = "uImage";
-					reg = <0x0200000 0x600000>;    /* 6MB */
-				};
-
-				partition@800000 {
-					label = "minirootfs";
-					reg = <0x0800000 0x400000>;    /* 4MB */
-				};
-
-				/* Last MB is for the BBT, i.e. not writable */
-				partition@c00000 {
-					label = "ubifs";
-					reg = <0x0c00000 0x7400000>; /* 116MB */
 				};
 			};
 		};
@@ -257,6 +159,30 @@
 	};
 };
 
+&pciec {
+	status = "okay";
+
+	/* Connected to Marvell 88SE9170 SATA controller */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* Connected to FL1009 USB 3.0 controller */
+	pcie@2,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
+};
+
+&mdio {
+	pinctrl-0 = <&mdio_pins>;
+	pinctrl-names = "default";
+	phy0: ethernet-phy@0 { /* Marvell 88E1318 */
+		reg = <0>;
+	};
+};
+
 &pinctrl {
 	power_led_pin: power-led-pin {
 		marvell,pins = "mpp57";
@@ -296,5 +222,55 @@
 	poweroff: poweroff {
 		marvell,pins = "mpp8";
 		marvell,function = "gpio";
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+
+		/* Use Hardware BCH ECC */
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x180000>;  /* 1.5MB */
+				read-only;
+			};
+
+			partition@180000 {
+				label = "u-boot-env";
+				reg = <0x180000 0x20000>;    /* 128KB */
+				read-only;
+			};
+
+			partition@200000 {
+				label = "uImage";
+				reg = <0x0200000 0x600000>;    /* 6MB */
+			};
+
+			partition@800000 {
+				label = "minirootfs";
+				reg = <0x0800000 0x400000>;    /* 4MB */
+			};
+
+			/* Last MB is for the BBT, i.e. not writable */
+			partition@c00000 {
+				label = "ubifs";
+				reg = <0x0c00000 0x7400000>; /* 116MB */
+			};
+		};
 	};
 };

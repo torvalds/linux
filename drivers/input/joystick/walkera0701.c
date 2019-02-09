@@ -3,7 +3,7 @@
  *
  *  Copyright (c) 2008 Peter Popovec
  *
- *  More about driver:  <file:Documentation/input/walkera0701.txt>
+ *  More about driver:  <file:Documentation/input/devices/walkera0701.rst>
  */
 
 /*
@@ -165,7 +165,7 @@ static void walkera0701_irq_handler(void *handler_data)
 				RESERVE + BIN1_PULSE - BIN0_PULSE)	/* frame sync .. */
 		w->counter = 0;
 
-	hrtimer_start(&w->timer, ktime_set(0, BIN_SAMPLE), HRTIMER_MODE_REL);
+	hrtimer_start(&w->timer, BIN_SAMPLE, HRTIMER_MODE_REL);
 }
 
 static enum hrtimer_restart timer_handler(struct hrtimer

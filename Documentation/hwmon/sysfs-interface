@@ -86,8 +86,9 @@ given driver if the chip has the feature.
 
 name		The chip name.
 		This should be a short, lowercase string, not containing
-		spaces nor dashes, representing the chip name. This is
-		the only mandatory attribute.
+		whitespace, dashes, or the wildcard character '*'.
+		This attribute represents the chip name. It is the only
+		mandatory attribute.
 		I2C devices get this attribute created automatically.
 		RO
 
@@ -170,6 +171,13 @@ in[0-*]_label	Suggested voltage channel label.
 		user-space.
 		RO
 
+in[0-*]_enable
+		Enable or disable the sensors.
+		When disabled the sensor read will return -ENODATA.
+		1: Enable
+		0: Disable
+		RW
+
 cpu[0-*]_vid	CPU core reference voltage.
 		Unit: millivolt
 		RO
@@ -234,6 +242,13 @@ fan[1-*]_label	Suggested fan channel label.
 		this fan channel is being used for, and user-space doesn't.
 		In all other cases, the label is provided by user-space.
 		RO
+
+fan[1-*]_enable
+		Enable or disable the sensors.
+		When disabled the sensor read will return -ENODATA.
+		1: Enable
+		0: Disable
+		RW
 
 Also see the Alarms section for status flags associated with fans.
 
@@ -408,6 +423,13 @@ temp_reset_history
 		Reset temp_lowest and temp_highest for all sensors
 		WO
 
+temp[1-*]_enable
+		Enable or disable the sensors.
+		When disabled the sensor read will return -ENODATA.
+		1: Enable
+		0: Disable
+		RW
+
 Some chips measure temperature using external thermistors and an ADC, and
 report the temperature measurement as a voltage. Converting this voltage
 back to a temperature (or the other way around for limits) requires
@@ -466,6 +488,13 @@ curr[1-*]_reset_history
 curr_reset_history
 		Reset currX_lowest and currX_highest for all sensors
 		WO
+
+curr[1-*]_enable
+		Enable or disable the sensors.
+		When disabled the sensor read will return -ENODATA.
+		1: Enable
+		0: Disable
+		RW
 
 Also see the Alarms section for status flags associated with currents.
 
@@ -565,6 +594,13 @@ power[1-*]_crit			Critical maximum power.
 				Unit: microWatt
 				RW
 
+power[1-*]_enable		Enable or disable the sensors.
+				When disabled the sensor read will return
+				-ENODATA.
+				1: Enable
+				0: Disable
+				RW
+
 Also see the Alarms section for status flags associated with power readings.
 
 **********
@@ -575,6 +611,12 @@ energy[1-*]_input		Cumulative energy use
 				Unit: microJoule
 				RO
 
+energy[1-*]_enable		Enable or disable the sensors.
+				When disabled the sensor read will return
+				-ENODATA.
+				1: Enable
+				0: Disable
+				RW
 
 ************
 * Humidity *
@@ -584,6 +626,13 @@ humidity[1-*]_input		Humidity
 				Unit: milli-percent (per cent mille, pcm)
 				RO
 
+
+humidity[1-*]_enable		Enable or disable the sensors
+				When disabled the sensor read will return
+				-ENODATA.
+				1: Enable
+				0: Disable
+				RW
 
 **********
 * Alarms *

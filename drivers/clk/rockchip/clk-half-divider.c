@@ -4,9 +4,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/bitops.h>
-#include <linux/regmap.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include "clk.h"
 
@@ -16,9 +13,9 @@ static bool _is_best_half_div(unsigned long rate, unsigned long now,
 			      unsigned long best, unsigned long flags)
 {
 	if (flags & CLK_DIVIDER_ROUND_CLOSEST)
-		return abs(rate - now) <= abs(rate - best);
+		return abs(rate - now) < abs(rate - best);
 
-	return now <= rate && now >= best;
+	return now <= rate && now > best;
 }
 
 static unsigned long clk_half_divider_recalc_rate(struct clk_hw *hw,
@@ -40,7 +37,7 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 {
 	unsigned int i, bestdiv = 0;
 	unsigned long parent_rate, best = 0, now, maxdiv;
-	bool is_bestdiv = false;
+	unsigned long parent_rate_saved = *best_parent_rate;
 
 	if (!rate)
 		rate = 1;
@@ -65,20 +62,28 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	maxdiv = min(ULONG_MAX / rate, maxdiv);
 
 	for (i = 0; i <= maxdiv; i++) {
+		if (((u64)rate * (i * 2 + 3)) == ((u64)parent_rate_saved * 2)) {
+			/*
+			 * It's the most ideal case if the requested rate can be
+			 * divided from parent clock without needing to change
+			 * parent rate, so return the divider immediately.
+			 */
+			*best_parent_rate = parent_rate_saved;
+			return i;
+		}
 		parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw),
 						((u64)rate * (i * 2 + 3)) / 2);
 		now = DIV_ROUND_UP_ULL(((u64)parent_rate * 2),
 				       (i * 2 + 3));
 
 		if (_is_best_half_div(rate, now, best, flags)) {
-			is_bestdiv = true;
 			bestdiv = i;
 			best = now;
 			*best_parent_rate = parent_rate;
 		}
 	}
 
-	if (!is_bestdiv) {
+	if (!bestdiv) {
 		bestdiv = div_mask(width);
 		*best_parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw), 1);
 	}

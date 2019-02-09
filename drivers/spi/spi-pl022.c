@@ -346,13 +346,6 @@ struct vendor_data {
  * @clk: outgoing clock "SPICLK" for the SPI bus
  * @master: SPI framework hookup
  * @master_info: controller-specific data from machine setup
- * @kworker: thread struct for message pump
- * @kworker_task: pointer to task for message pump kworker thread
- * @pump_messages: work struct for scheduling work to the message pump
- * @queue_lock: spinlock to syncronise access to message queue
- * @queue: message queue
- * @busy: message pump is busy
- * @running: message pump is running
  * @pump_transfers: Tasklet used in Interrupt Transfer mode
  * @cur_msg: Pointer to current spi_message being processed
  * @cur_transfer: Pointer to current spi_transfer
@@ -2081,7 +2074,7 @@ pl022_platform_data_dt_get(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	struct pl022_ssp_controller *pd;
-	u32 tmp;
+	u32 tmp = 0;
 
 	if (!np) {
 		dev_err(dev, "no dt node defined\n");
@@ -2142,7 +2135,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->master_info = platform_info;
 	pl022->adev = adev;
 	pl022->vendor = id->data;
-	pl022->chipselects = devm_kzalloc(dev, num_cs * sizeof(int),
+	pl022->chipselects = devm_kcalloc(dev, num_cs, sizeof(int),
 					  GFP_KERNEL);
 	if (!pl022->chipselects) {
 		status = -ENOMEM;
@@ -2436,7 +2429,7 @@ static struct vendor_data vendor_lsi = {
 	.internal_cs_ctrl = true,
 };
 
-static struct amba_id pl022_ids[] = {
+static const struct amba_id pl022_ids[] = {
 	{
 		/*
 		 * ARM PL022 variant, this has a 16bit wide

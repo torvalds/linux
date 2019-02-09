@@ -120,7 +120,6 @@ int snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm)
 			snd_pcm_lib_preallocate_free(substream);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_free_for_all);
 
 #ifdef CONFIG_SND_VERBOSE_PROCFS
@@ -202,7 +201,7 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 	if ((entry = snd_info_create_card_entry(substream->pcm->card, "prealloc", substream->proc_root)) != NULL) {
 		entry->c.text.read = snd_pcm_lib_preallocate_proc_read;
 		entry->c.text.write = snd_pcm_lib_preallocate_proc_write;
-		entry->mode |= S_IWUSR;
+		entry->mode |= 0200;
 		entry->private_data = substream;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);
@@ -263,7 +262,6 @@ int snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
 	substream->dma_buffer.dev.dev = data;
 	return snd_pcm_lib_preallocate_pages1(substream, size, max);
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages);
 
 /**
@@ -292,7 +290,6 @@ int snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 				return err;
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);
 
 #ifdef CONFIG_SND_DMA_SGBUF
@@ -314,7 +311,6 @@ struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigne
 		return NULL;
 	return sgbuf->page_table[idx];
 }
-
 EXPORT_SYMBOL(snd_pcm_sgbuf_ops_page);
 #endif /* CONFIG_SND_DMA_SGBUF */
 
@@ -370,7 +366,6 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 	runtime->dma_bytes = size;
 	return 1;			/* area was changed */
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_malloc_pages);
 
 /**
@@ -398,7 +393,6 @@ int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 	snd_pcm_set_runtime_buffer(substream, NULL);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_free_pages);
 
 int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,

@@ -1,12 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2012 Freescale Semiconductor, Inc.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #ifndef __PINCTRL_MXS_H
@@ -86,6 +80,5 @@ struct mxs_pinctrl_soc_data {
 
 int mxs_pinctrl_probe(struct platform_device *pdev,
 		      struct mxs_pinctrl_soc_data *soc);
-int mxs_pinctrl_remove(struct platform_device *pdev);
 
 #endif /* __PINCTRL_MXS_H */

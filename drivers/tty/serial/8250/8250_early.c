@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Early serial console for 8250/16550 devices
  *
  * (c) Copyright 2004 Hewlett-Packard Development Company, L.P.
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Based on the 8250.c serial driver, Copyright (C) 2001 Russell King,
  * and on early_printk.c by Andi Kleen.
@@ -37,79 +34,79 @@
 #include <asm/io.h>
 #include <asm/serial.h>
 
-static unsigned int __init serial8250_early_in(struct uart_port *port, int offset)
+static unsigned int serial8250_early_in(struct uart_port *port, int offset)
 {
+	int reg_offset = offset;
+	offset <<= port->regshift;
+
 	switch (port->iotype) {
 	case UPIO_MEM:
 		return readb(port->membase + offset);
+	case UPIO_MEM16:
+		return readw(port->membase + offset);
 	case UPIO_MEM32:
-		return readl(port->membase + (offset << 2));
+		return readl(port->membase + offset);
 	case UPIO_MEM32BE:
-		return ioread32be(port->membase + (offset << 2));
+		return ioread32be(port->membase + offset);
 	case UPIO_PORT:
 		return inb(port->iobase + offset);
+	case UPIO_AU:
+		return port->serial_in(port, reg_offset);
 	default:
 		return 0;
 	}
 }
 
-static void __init serial8250_early_out(struct uart_port *port, int offset, int value)
+static void serial8250_early_out(struct uart_port *port, int offset, int value)
 {
+	int reg_offset = offset;
+	offset <<= port->regshift;
+
 	switch (port->iotype) {
 	case UPIO_MEM:
 		writeb(value, port->membase + offset);
 		break;
+	case UPIO_MEM16:
+		writew(value, port->membase + offset);
+		break;
 	case UPIO_MEM32:
-		writel(value, port->membase + (offset << 2));
+		writel(value, port->membase + offset);
 		break;
 	case UPIO_MEM32BE:
-		iowrite32be(value, port->membase + (offset << 2));
+		iowrite32be(value, port->membase + offset);
 		break;
 	case UPIO_PORT:
 		outb(value, port->iobase + offset);
+		break;
+	case UPIO_AU:
+		port->serial_out(port, reg_offset, value);
 		break;
 	}
 }
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
-static void __init wait_for_xmitr(struct uart_port *port)
+static void serial_putc(struct uart_port *port, int c)
 {
 	unsigned int status;
+
+	serial8250_early_out(port, UART_TX, c);
 
 	for (;;) {
 		status = serial8250_early_in(port, UART_LSR);
 		if ((status & BOTH_EMPTY) == BOTH_EMPTY)
-			return;
+			break;
 		cpu_relax();
 	}
 }
 
-static void __init serial_putc(struct uart_port *port, int c)
-{
-	wait_for_xmitr(port);
-	serial8250_early_out(port, UART_TX, c);
-}
-
-static void __init early_serial8250_write(struct console *console,
+static void early_serial8250_write(struct console *console,
 					const char *s, unsigned int count)
 {
 	struct earlycon_device *device = console->data;
 	struct uart_port *port = &device->port;
-	unsigned int ier;
-
-	/* Save the IER and disable interrupts preserving the UUE bit */
-	ier = serial8250_early_in(port, UART_IER);
-	if (ier)
-		serial8250_early_out(port, UART_IER, ier & UART_IER_UUE);
 
 	uart_console_write(port, s, count, serial_putc);
-
-	/* Wait for transmitter to become empty and restore the IER */
-	wait_for_xmitr(port);
-
-	if (ier)
-		serial8250_early_out(port, UART_IER, ier);
 }
 
 static void __init init_port(struct earlycon_device *device)
@@ -125,12 +122,14 @@ static void __init init_port(struct earlycon_device *device)
 	serial8250_early_out(port, UART_FCR, 0);	/* no fifo */
 	serial8250_early_out(port, UART_MCR, 0x3);	/* DTR + RTS */
 
-	divisor = DIV_ROUND_CLOSEST(port->uartclk, 16 * device->baud);
-	c = serial8250_early_in(port, UART_LCR);
-	serial8250_early_out(port, UART_LCR, c | UART_LCR_DLAB);
-	serial8250_early_out(port, UART_DLL, divisor & 0xff);
-	serial8250_early_out(port, UART_DLM, (divisor >> 8) & 0xff);
-	serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
+	if (port->uartclk) {
+		divisor = DIV_ROUND_CLOSEST(port->uartclk, 16 * device->baud);
+		c = serial8250_early_in(port, UART_LCR);
+		serial8250_early_out(port, UART_LCR, c | UART_LCR_DLAB);
+		serial8250_early_out(port, UART_DLL, divisor & 0xff);
+		serial8250_early_out(port, UART_DLM, (divisor >> 8) & 0xff);
+		serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
+	}
 }
 
 int __init early_serial8250_setup(struct earlycon_device *device,
@@ -156,3 +155,43 @@ EARLYCON_DECLARE(uart8250, early_serial8250_setup);
 EARLYCON_DECLARE(uart, early_serial8250_setup);
 OF_EARLYCON_DECLARE(ns16550, "ns16550", early_serial8250_setup);
 OF_EARLYCON_DECLARE(ns16550a, "ns16550a", early_serial8250_setup);
+OF_EARLYCON_DECLARE(uart, "nvidia,tegra20-uart", early_serial8250_setup);
+OF_EARLYCON_DECLARE(uart, "snps,dw-apb-uart", early_serial8250_setup);
+
+#ifdef CONFIG_SERIAL_8250_OMAP
+
+static int __init early_omap8250_setup(struct earlycon_device *device,
+				       const char *options)
+{
+	struct uart_port *port = &device->port;
+
+	if (!(device->port.membase || device->port.iobase))
+		return -ENODEV;
+
+	port->regshift = 2;
+	device->con->write = early_serial8250_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(omap8250, "ti,omap2-uart", early_omap8250_setup);
+OF_EARLYCON_DECLARE(omap8250, "ti,omap3-uart", early_omap8250_setup);
+OF_EARLYCON_DECLARE(omap8250, "ti,omap4-uart", early_omap8250_setup);
+
+#endif
+
+#ifdef CONFIG_SERIAL_8250_RT288X
+
+unsigned int au_serial_in(struct uart_port *p, int offset);
+void au_serial_out(struct uart_port *p, int offset, int value);
+
+static int __init early_au_setup(struct earlycon_device *dev, const char *opt)
+{
+	dev->port.serial_in = au_serial_in;
+	dev->port.serial_out = au_serial_out;
+	dev->port.iotype = UPIO_AU;
+	dev->con->write = early_serial8250_write;
+	return 0;
+}
+OF_EARLYCON_DECLARE(palmchip, "ralink,rt2880-uart", early_au_setup);
+
+#endif

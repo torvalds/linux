@@ -25,14 +25,12 @@ struct g2d_dev {
 	struct mutex		mutex;
 	spinlock_t		ctrl_lock;
 	atomic_t		num_inst;
-	struct vb2_alloc_ctx	*alloc_ctx;
 	void __iomem		*regs;
 	struct clk		*clk;
 	struct clk		*gate;
 	struct g2d_ctx		*curr;
 	struct g2d_variant	*variant;
 	int irq;
-	wait_queue_head_t	irq_queue;
 };
 
 struct g2d_frame {
@@ -89,8 +87,3 @@ void g2d_set_flip(struct g2d_dev *d, u32 r);
 void g2d_set_v41_stretch(struct g2d_dev *d,
 			struct g2d_frame *src, struct g2d_frame *dst);
 void g2d_set_cmd(struct g2d_dev *d, u32 c);
-
-static inline struct g2d_variant *g2d_get_drv_data(struct platform_device *pdev)
-{
-	return (struct g2d_variant *)platform_get_device_id(pdev)->driver_data;
-}

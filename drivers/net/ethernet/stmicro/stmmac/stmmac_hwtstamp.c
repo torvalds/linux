@@ -12,10 +12,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -28,30 +24,44 @@
 #include "common.h"
 #include "stmmac_ptp.h"
 
-static void stmmac_config_hw_tstamping(void __iomem *ioaddr, u32 data)
+static void config_hw_tstamping(void __iomem *ioaddr, u32 data)
 {
 	writel(data, ioaddr + PTP_TCR);
 }
 
-static void stmmac_config_sub_second_increment(void __iomem *ioaddr)
+static void config_sub_second_increment(void __iomem *ioaddr,
+		u32 ptp_clock, int gmac4, u32 *ssinc)
 {
 	u32 value = readl(ioaddr + PTP_TCR);
 	unsigned long data;
+	u32 reg_value;
 
-	/* Convert the ptp_clock to nano second
-	 * formula = (1/ptp_clock) * 1000000000
-	 * where, ptp_clock = 50MHz.
+	/* For GMAC3.x, 4.x versions, convert the ptp_clock to nano second
+	 *	formula = (1/ptp_clock) * 1000000000
+	 * where ptp_clock is 50MHz if fine method is used to update system
 	 */
-	data = (1000000000ULL / 50000000);
+	if (value & PTP_TCR_TSCFUPDT)
+		data = (1000000000ULL / 50000000);
+	else
+		data = (1000000000ULL / ptp_clock);
 
 	/* 0.465ns accuracy */
 	if (!(value & PTP_TCR_TSCTRLSSR))
 		data = (data * 1000) / 465;
 
-	writel(data, ioaddr + PTP_SSIR);
+	data &= PTP_SSIR_SSINC_MASK;
+
+	reg_value = data;
+	if (gmac4)
+		reg_value <<= GMAC4_PTP_SSIR_SSINC_SHIFT;
+
+	writel(reg_value, ioaddr + PTP_SSIR);
+
+	if (ssinc)
+		*ssinc = data;
 }
 
-static int stmmac_init_systime(void __iomem *ioaddr, u32 sec, u32 nsec)
+static int init_systime(void __iomem *ioaddr, u32 sec, u32 nsec)
 {
 	int limit;
 	u32 value;
@@ -76,7 +86,7 @@ static int stmmac_init_systime(void __iomem *ioaddr, u32 sec, u32 nsec)
 	return 0;
 }
 
-static int stmmac_config_addend(void __iomem *ioaddr, u32 addend)
+static int config_addend(void __iomem *ioaddr, u32 addend)
 {
 	u32 value;
 	int limit;
@@ -100,15 +110,31 @@ static int stmmac_config_addend(void __iomem *ioaddr, u32 addend)
 	return 0;
 }
 
-static int stmmac_adjust_systime(void __iomem *ioaddr, u32 sec, u32 nsec,
-				 int add_sub)
+static int adjust_systime(void __iomem *ioaddr, u32 sec, u32 nsec,
+		int add_sub, int gmac4)
 {
 	u32 value;
 	int limit;
 
+	if (add_sub) {
+		/* If the new sec value needs to be subtracted with
+		 * the system time, then MAC_STSUR reg should be
+		 * programmed with (2^32 – <new_sec_value>)
+		 */
+		if (gmac4)
+			sec = (100000000ULL - sec);
+
+		value = readl(ioaddr + PTP_TCR);
+		if (value & PTP_TCR_TSCTRLSSR)
+			nsec = (PTP_DIGITAL_ROLLOVER_MODE - nsec);
+		else
+			nsec = (PTP_BINARY_ROLLOVER_MODE - nsec);
+	}
+
 	writel(sec, ioaddr + PTP_STSUR);
-	writel(((add_sub << PTP_STNSUR_ADDSUB_SHIFT) | nsec),
-		ioaddr + PTP_STNSUR);
+	value = (add_sub << PTP_STNSUR_ADDSUB_SHIFT) | nsec;
+	writel(value, ioaddr + PTP_STNSUR);
+
 	/* issue command to initialize the system time value */
 	value = readl(ioaddr + PTP_TCR);
 	value |= PTP_TCR_TSUPDT;
@@ -127,22 +153,24 @@ static int stmmac_adjust_systime(void __iomem *ioaddr, u32 sec, u32 nsec,
 	return 0;
 }
 
-static u64 stmmac_get_systime(void __iomem *ioaddr)
+static void get_systime(void __iomem *ioaddr, u64 *systime)
 {
 	u64 ns;
 
+	/* Get the TSSS value */
 	ns = readl(ioaddr + PTP_STNSR);
-	/* convert sec time value to nanosecond */
+	/* Get the TSS and convert sec time value to nanosecond */
 	ns += readl(ioaddr + PTP_STSR) * 1000000000ULL;
 
-	return ns;
+	if (systime)
+		*systime = ns;
 }
 
 const struct stmmac_hwtimestamp stmmac_ptp = {
-	.config_hw_tstamping = stmmac_config_hw_tstamping,
-	.init_systime = stmmac_init_systime,
-	.config_sub_second_increment = stmmac_config_sub_second_increment,
-	.config_addend = stmmac_config_addend,
-	.adjust_systime = stmmac_adjust_systime,
-	.get_systime = stmmac_get_systime,
+	.config_hw_tstamping = config_hw_tstamping,
+	.init_systime = init_systime,
+	.config_sub_second_increment = config_sub_second_increment,
+	.config_addend = config_addend,
+	.adjust_systime = adjust_systime,
+	.get_systime = get_systime,
 };

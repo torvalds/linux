@@ -21,7 +21,7 @@
 
 #include <asm/dcr.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 #include "ppc4xx_edac.h"
 
 /*
@@ -1029,8 +1029,6 @@ static int ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	pdata			= mci->pvt_info;
 
 	pdata->dcr_host		= *dcr_host;
-	pdata->irqs.sec		= NO_IRQ;
-	pdata->irqs.ded		= NO_IRQ;
 
 	/* Initialize controller capabilities and configuration */
 
@@ -1065,7 +1063,6 @@ static int ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	/* Initialize strings */
 
 	mci->mod_name		= PPC4XX_EDAC_MODULE_NAME;
-	mci->mod_ver		= PPC4XX_EDAC_MODULE_REVISION;
 	mci->ctl_name		= ppc4xx_edac_match->compatible,
 	mci->dev_name		= np->full_name;
 
@@ -1111,7 +1108,7 @@ static int ppc4xx_edac_register_irq(struct platform_device *op,
 	ded_irq = irq_of_parse_and_map(np, INTMAP_ECCDED_INDEX);
 	sec_irq = irq_of_parse_and_map(np, INTMAP_ECCSEC_INDEX);
 
-	if (ded_irq == NO_IRQ || sec_irq == NO_IRQ) {
+	if (!ded_irq || !sec_irq) {
 		ppc4xx_edac_mc_printk(KERN_ERR, mci,
 				      "Unable to map interrupts.\n");
 		status = -ENODEV;
@@ -1269,8 +1266,8 @@ static int ppc4xx_edac_probe(struct platform_device *op)
 	memcheck = (mcopt1 & SDRAM_MCOPT1_MCHK_MASK);
 
 	if (memcheck == SDRAM_MCOPT1_MCHK_NON) {
-		ppc4xx_edac_printk(KERN_INFO, "%s: No ECC memory detected or "
-				   "ECC is disabled.\n", np->full_name);
+		ppc4xx_edac_printk(KERN_INFO, "%pOF: No ECC memory detected or "
+				   "ECC is disabled.\n", np);
 		status = -ENODEV;
 		goto done;
 	}
@@ -1289,9 +1286,9 @@ static int ppc4xx_edac_probe(struct platform_device *op)
 	mci = edac_mc_alloc(ppc4xx_edac_instance, ARRAY_SIZE(layers), layers,
 			    sizeof(struct ppc4xx_edac_pdata));
 	if (mci == NULL) {
-		ppc4xx_edac_printk(KERN_ERR, "%s: "
+		ppc4xx_edac_printk(KERN_ERR, "%pOF: "
 				   "Failed to allocate EDAC MC instance!\n",
-				   np->full_name);
+				   np);
 		status = -ENOMEM;
 		goto done;
 	}

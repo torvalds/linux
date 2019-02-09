@@ -71,7 +71,7 @@ static int vr_nor_init_partitions(struct vr_nor_mtd *p)
 {
 	/* register the flash bank */
 	/* partition the flash bank */
-	return mtd_device_parse_register(p->info, NULL, NULL, NULL, 0);
+	return mtd_device_register(p->info, NULL, 0);
 }
 
 static void vr_nor_destroy_mtd_setup(struct vr_nor_mtd *p)
@@ -170,7 +170,7 @@ static int vr_nor_init_maps(struct vr_nor_mtd *p)
 	return err;
 }
 
-static struct pci_device_id vr_nor_pci_ids[] = {
+static const struct pci_device_id vr_nor_pci_ids[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x500D)},
 	{0,}
 };

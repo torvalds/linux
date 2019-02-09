@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include <dt-bindings/input/input.h>
@@ -13,7 +14,11 @@
 		serial0 = &uartd;
 	};
 
-	memory {
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
 		reg = <0x00000000 0x40000000>;
 	};
 
@@ -588,7 +593,7 @@
 
 		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
-			reg=<0>;
+			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
@@ -601,7 +606,7 @@
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

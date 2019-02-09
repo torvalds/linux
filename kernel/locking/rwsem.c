@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* kernel/rwsem.c: R/W semaphores, public implementation
  *
  * Written by David Howells (dhowells@redhat.com).
@@ -7,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/export.h>
 #include <linux/rwsem.h>
 #include <linux/atomic.h>
@@ -22,9 +24,26 @@ void __sched down_read(struct rw_semaphore *sem)
 	rwsem_acquire_read(&sem->dep_map, 0, 0, _RET_IP_);
 
 	LOCK_CONTENDED(sem, __down_read_trylock, __down_read);
+	rwsem_set_reader_owned(sem);
 }
 
 EXPORT_SYMBOL(down_read);
+
+int __sched down_read_killable(struct rw_semaphore *sem)
+{
+	might_sleep();
+	rwsem_acquire_read(&sem->dep_map, 0, 0, _RET_IP_);
+
+	if (LOCK_CONTENDED_RETURN(sem, __down_read_trylock, __down_read_killable)) {
+		rwsem_release(&sem->dep_map, 1, _RET_IP_);
+		return -EINTR;
+	}
+
+	rwsem_set_reader_owned(sem);
+	return 0;
+}
+
+EXPORT_SYMBOL(down_read_killable);
 
 /*
  * trylock for reading -- returns 1 if successful, 0 if contention
@@ -33,8 +52,10 @@ int down_read_trylock(struct rw_semaphore *sem)
 {
 	int ret = __down_read_trylock(sem);
 
-	if (ret == 1)
+	if (ret == 1) {
 		rwsem_acquire_read(&sem->dep_map, 0, 1, _RET_IP_);
+		rwsem_set_reader_owned(sem);
+	}
 	return ret;
 }
 
@@ -53,6 +74,25 @@ void __sched down_write(struct rw_semaphore *sem)
 }
 
 EXPORT_SYMBOL(down_write);
+
+/*
+ * lock for writing
+ */
+int __sched down_write_killable(struct rw_semaphore *sem)
+{
+	might_sleep();
+	rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);
+
+	if (LOCK_CONTENDED_RETURN(sem, __down_write_trylock, __down_write_killable)) {
+		rwsem_release(&sem->dep_map, 1, _RET_IP_);
+		return -EINTR;
+	}
+
+	rwsem_set_owner(sem);
+	return 0;
+}
+
+EXPORT_SYMBOL(down_write_killable);
 
 /*
  * trylock for writing -- returns 1 if successful, 0 if contention
@@ -77,6 +117,7 @@ EXPORT_SYMBOL(down_write_trylock);
 void up_read(struct rw_semaphore *sem)
 {
 	rwsem_release(&sem->dep_map, 1, _RET_IP_);
+	DEBUG_RWSEMS_WARN_ON(sem->owner != RWSEM_READER_OWNED);
 
 	__up_read(sem);
 }
@@ -89,6 +130,7 @@ EXPORT_SYMBOL(up_read);
 void up_write(struct rw_semaphore *sem)
 {
 	rwsem_release(&sem->dep_map, 1, _RET_IP_);
+	DEBUG_RWSEMS_WARN_ON(sem->owner != current);
 
 	rwsem_clear_owner(sem);
 	__up_write(sem);
@@ -101,11 +143,10 @@ EXPORT_SYMBOL(up_write);
  */
 void downgrade_write(struct rw_semaphore *sem)
 {
-	/*
-	 * lockdep: a downgraded write will live on as a write
-	 * dependency.
-	 */
-	rwsem_clear_owner(sem);
+	lock_downgrade(&sem->dep_map, _RET_IP_);
+	DEBUG_RWSEMS_WARN_ON(sem->owner != current);
+
+	rwsem_set_reader_owned(sem);
 	__downgrade_write(sem);
 }
 
@@ -119,6 +160,7 @@ void down_read_nested(struct rw_semaphore *sem, int subclass)
 	rwsem_acquire_read(&sem->dep_map, subclass, 0, _RET_IP_);
 
 	LOCK_CONTENDED(sem, __down_read_trylock, __down_read);
+	rwsem_set_reader_owned(sem);
 }
 
 EXPORT_SYMBOL(down_read_nested);
@@ -139,6 +181,7 @@ void down_read_non_owner(struct rw_semaphore *sem)
 	might_sleep();
 
 	__down_read(sem);
+	rwsem_set_reader_owned(sem);
 }
 
 EXPORT_SYMBOL(down_read_non_owner);
@@ -154,13 +197,28 @@ void down_write_nested(struct rw_semaphore *sem, int subclass)
 
 EXPORT_SYMBOL(down_write_nested);
 
+int __sched down_write_killable_nested(struct rw_semaphore *sem, int subclass)
+{
+	might_sleep();
+	rwsem_acquire(&sem->dep_map, subclass, 0, _RET_IP_);
+
+	if (LOCK_CONTENDED_RETURN(sem, __down_write_trylock, __down_write_killable)) {
+		rwsem_release(&sem->dep_map, 1, _RET_IP_);
+		return -EINTR;
+	}
+
+	rwsem_set_owner(sem);
+	return 0;
+}
+
+EXPORT_SYMBOL(down_write_killable_nested);
+
 void up_read_non_owner(struct rw_semaphore *sem)
 {
+	DEBUG_RWSEMS_WARN_ON(sem->owner != RWSEM_READER_OWNED);
 	__up_read(sem);
 }
 
 EXPORT_SYMBOL(up_read_non_owner);
 
 #endif
-
-

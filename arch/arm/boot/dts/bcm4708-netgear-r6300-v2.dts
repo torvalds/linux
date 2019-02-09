@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Broadcom BCM470X / BCM5301X ARM platform code.
  * DTS for Netgear R6300 V2
  *
  * Copyright (C) 2014 Rafał Miłecki <zajec5@gmail.com>
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 /dts-v1/;
@@ -21,7 +20,8 @@
 	};
 
 	memory {
-		reg = <0x00000000 0x08000000>;
+		reg = <0x00000000 0x08000000
+		       0x88000000 0x08000000>;
 	};
 
 	leds {
@@ -36,7 +36,6 @@
 		power0 {
 			label = "bcm53xx:green:power";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		power1 {
@@ -48,13 +47,11 @@
 		usb {
 			label = "bcm53xx:blue:usb";
 			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		wireless {
 			label = "bcm53xx:blue:wireless";
 			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 	};
 
@@ -81,4 +78,12 @@
 			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&spi_nor {
+	status = "okay";
+};
+
+&usb3_phy {
+	status = "okay";
 };

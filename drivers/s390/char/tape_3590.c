@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    tape device discipline for 3590 tapes.
  *
@@ -112,16 +113,16 @@ static int crypt_enabled(struct tape_device *device)
 static void ext_to_int_kekl(struct tape390_kekl *in,
 			    struct tape3592_kekl *out)
 {
-	int i;
+	int len;
 
 	memset(out, 0, sizeof(*out));
 	if (in->type == TAPE390_KEKL_TYPE_HASH)
 		out->flags |= 0x40;
 	if (in->type_on_tape == TAPE390_KEKL_TYPE_HASH)
 		out->flags |= 0x80;
-	strncpy(out->label, in->label, 64);
-	for (i = strlen(in->label); i < sizeof(out->label); i++)
-		out->label[i] = ' ';
+	len = min(sizeof(out->label), strlen(in->label));
+	memcpy(out->label, in->label, len);
+	memset(out->label + len, ' ', sizeof(out->label) - len);
 	ASCEBC(out->label, sizeof(out->label));
 }
 
@@ -312,15 +313,10 @@ static int tape_3592_ioctl_kekl_set(struct tape_device *device,
 		return -ENOSYS;
 	if (!crypt_enabled(device))
 		return -EUNATCH;
-	ext_kekls = kmalloc(sizeof(*ext_kekls), GFP_KERNEL);
-	if (!ext_kekls)
-		return -ENOMEM;
-	if (copy_from_user(ext_kekls, (char __user *)arg, sizeof(*ext_kekls))) {
-		rc = -EFAULT;
-		goto out;
-	}
+	ext_kekls = memdup_user((char __user *)arg, sizeof(*ext_kekls));
+	if (IS_ERR(ext_kekls))
+		return PTR_ERR(ext_kekls);
 	rc = tape_3592_kekl_set(device, ext_kekls);
-out:
 	kfree(ext_kekls);
 	return rc;
 }

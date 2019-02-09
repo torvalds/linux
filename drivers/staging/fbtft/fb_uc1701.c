@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the UC1701 LCD Controller
  *
@@ -5,16 +6,6 @@
  * Any pixel value except 0 turns the pixel on.
  *
  * Copyright (C) 2014 Juergen Holzmann
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -78,11 +69,11 @@ static int init_display(struct fbtft_par *par)
 	mdelay(10);
 
 	/* set startpoint */
-	/* LCD_START_LINE | (pos & 0x3F) */
 	write_reg(par, LCD_START_LINE);
 
 	/* select orientation BOTTOMVIEW */
 	write_reg(par, LCD_BOTTOMVIEW | 1);
+
 	/* output mode select (turns display upside-down) */
 	write_reg(par, LCD_SCAN_DIR | 0x00);
 
@@ -96,20 +87,14 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, LCD_BIAS | 0);
 
 	/* power control mode: all features on */
-	/* LCD_POWER_CONTROL | (val&0x07) */
 	write_reg(par, LCD_POWER_CONTROL | 0x07);
 
 	/* set voltage regulator R/R */
-	/* LCD_VOLTAGE | (val&0x07) */
 	write_reg(par, LCD_VOLTAGE | 0x07);
 
 	/* volume mode set */
-	/* LCD_VOLUME_MODE,val&0x3f,LCD_NO_OP */
 	write_reg(par, LCD_VOLUME_MODE);
-	/* LCD_VOLUME_MODE,val&0x3f,LCD_NO_OP */
 	write_reg(par, 0x09);
-	/* ???? */
-	/* LCD_VOLUME_MODE,val&0x3f,LCD_NO_OP */
 	write_reg(par, LCD_NO_OP);
 
 	/* advanced program control */
@@ -125,24 +110,15 @@ static int init_display(struct fbtft_par *par)
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
 	/* goto address */
-	/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-	 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-	 LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
 	write_reg(par, LCD_PAGE_ADDRESS);
-	/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-	 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-	  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
 	write_reg(par, 0x00);
-	/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-	 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-	  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
 	write_reg(par, LCD_COL_ADDRESS);
 }
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
 	u16 *vmem16 = (u16 *)par->info->screen_buffer;
-	u8 *buf = par->txbuf.buf;
+	u8 *buf;
 	int x, y, i;
 	int ret = 0;
 
@@ -156,17 +132,9 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 					 1 : 0) << i;
 			buf++;
 		}
-		/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-		 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-		  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
+
 		write_reg(par, LCD_PAGE_ADDRESS | (u8)y);
-		/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-		 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-		  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
 		write_reg(par, 0x00);
-		/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-		 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-		  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
 		write_reg(par, LCD_COL_ADDRESS);
 		gpio_set_value(par->gpio.dc, 1);
 		ret = par->fbtftops.write(par, par->txbuf.buf, WIDTH);

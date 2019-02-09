@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree for the ARM Integrator/AP platform
  */
@@ -10,6 +11,41 @@
 	compatible = "arm,integrator-ap";
 	dma-ranges = <0x80000000 0x0 0x80000000>;
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			/*
+			 * Since the board has pluggable CPU modules, we
+			 * cannot define a proper compatible here. Let the
+			 * boot loader fill in the apropriate compatible
+			 * string if necessary.
+			 */
+			/* compatible = "arm,arm926ej-s"; */
+			reg = <0>;
+			/*
+			 * The documentation in ARM DUI 0138E page 3-12 states
+			 * that the maximum frequency for this clock is 200 MHz
+			 * but painful trial-and-error has proved to me that it
+			 * is actually just hanging the system above 71 MHz.
+			 * Sad but true.
+			 */
+					 /* kHz     uV   */
+			operating-points = <71000  0
+					    66000  0
+					    60000  0
+					    48000  0
+					    36000  0
+					    24000  0
+					    12000  0>;
+			clocks = <&cmosc>;
+			clock-names = "cpu";
+			clock-latency = <1000000>; /* 1 ms */
+		};
+	};
+
 	aliases {
 		arm,timer-primary = &timer2;
 		arm,timer-secondary = &timer1;
@@ -19,7 +55,7 @@
 		bootargs = "root=/dev/ram0 console=ttyAM0,38400n8 earlyprintk";
 	};
 
-	/* 24 MHz chrystal on the core module */
+	/* 24 MHz chrystal on the Integrator/AP development board */
 	xtal24mhz: xtal24mhz@24M {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
@@ -39,14 +75,63 @@
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <14745600>;
+		clocks = <&xtal24mhz>;
+	};
+
+	core-module@10000000 {
+		/* 24 MHz chrystal on the core module */
+		cm24mhz: cm24mhz@24M {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+
+		/* Oscillator on the core module, clocks the CPU core */
+		cmosc: cmosc@24M {
+			compatible = "arm,syscon-icst525-integratorap-cm";
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x08>;
+			clocks = <&cm24mhz>;
+		};
+
+		/* Auxilary oscillator on the core module, 32.369MHz at boot */
+		auxosc: auxosc@24M {
+			compatible = "arm,syscon-icst525";
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x1c>;
+			clocks = <&cm24mhz>;
+		};
 	};
 
 	syscon {
-		compatible = "arm,integrator-ap-syscon";
+		compatible = "arm,integrator-ap-syscon", "syscon";
 		reg = <0x11000000 0x100>;
 		interrupt-parent = <&pic>;
 		/* These are the logical module IRQs */
 		interrupts = <9>, <10>, <11>, <12>;
+
+		/*
+		 * SYSCLK clocks PCIv3 bridge, system controller and the
+		 * logic modules.
+		 */
+		sysclk: apsys@24M {
+			compatible = "arm,syscon-icst525-integratorap-sys";
+			#clock-cells = <0>;
+			lock-offset = <0x1c>;
+			vco-offset = <0x04>;
+			clocks = <&xtal24mhz>;
+		};
+
+		/* One-bit control for the PCI bus clock (33 or 25 MHz) */
+		pciclk: pciclk@24M {
+			compatible = "arm,syscon-icst525-integratorap-pci";
+			#clock-cells = <0>;
+			lock-offset = <0x1c>;
+			vco-offset = <0x04>;
+			clocks = <&xtal24mhz>;
+		};
 	};
 
 	timer0: timer@13000000 {
@@ -69,21 +154,26 @@
 	};
 
 	pci: pciv3@62000000 {
-		compatible = "v3,v360epc-pci";
+		compatible = "arm,integrator-ap-pci", "v3,v360epc-pci";
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
-		reg = <0x62000000 0x10000>;
+		/* Bridge registers and config access space */
+		reg = <0x62000000 0x10000>, <0x61000000 0x01000000>;
 		interrupt-parent = <&pic>;
 		interrupts = <17>; /* Bus error IRQ */
-		ranges = <0x00000000 0 0x61000000 /* config space */
-			0x61000000 0 0x00100000 /* 16 MiB @ 61000000 */
-			0x01000000 0 0x0 /* I/O space */
-			0x60000000 0 0x00100000 /* 16 MiB @ 60000000 */
-			0x02000000 0 0x00000000 /* non-prefectable memory */
-			0x40000000 0 0x10000000 /* 256 MiB @ 40000000 */
-			0x42000000 0 0x10000000 /* prefetchable memory */
-			0x50000000 0 0x10000000>; /* 256 MiB @ 50000000 */
+		clocks = <&pciclk>;
+		bus-range = <0x00 0xff>;
+		ranges = <0x01000000 0 0x0000000 /* I/O space @00000000 */
+			0x60000000 0 0x00010000 /* 64 KB @ LB 60000000 */
+			0x02000000 0 0x40000000 /* non-prefectable memory @40000000 */
+			0x40000000 0 0x10000000 /* 256 MiB @ LB 40000000 1:1 */
+			0x42000000 0 0x50000000 /* prefetchable memory @50000000 */
+			0x50000000 0 0x10000000>; /* 256 MiB @ LB 50000000 1:1 */
+		dma-ranges = <0x02000000 0 0x20000000 /* EBI memory space */
+			0x20000000 0 0x20000000 /* 512 MB @ LB 20000000 1:1 */
+			0x02000000 0 0x80000000 /* Core module alias memory */
+			0x80000000 0 0x40000000>; /* 1GB @ LB 80000000 */
 		interrupt-map-mask = <0xf800 0 0 0x7>;
 		interrupt-map = <
 		/* IDSEL 9 */

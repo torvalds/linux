@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 / {
 	compatible = "gnu,gdbsim";
@@ -72,7 +73,7 @@
 	timer16: timer@ffff68 {
 		compatible = "renesas,16bit-timer";
 		reg = <0xffff68 8>, <0xffff60 8>;
-		interrupts = <24 0>;
+		interrupts = <26 0>;
 		renesas,channel = <0>;
 		clocks = <&fclk>;
 		clock-names = "fck";
@@ -83,7 +84,7 @@
 		reg = <0xffffb0 8>;
 		interrupts = <52 0>, <53 0>, <54 0>, <55 0>;
 		clocks = <&fclk>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 	};
 
 	sci1: serial@ffffb8 {
@@ -91,6 +92,6 @@
 		reg = <0xffffb8 8>;
 		interrupts = <56 0>, <57 0>, <58 0>, <59 0>;
 		clocks = <&fclk>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 	};
 };

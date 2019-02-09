@@ -80,6 +80,7 @@ struct regmap;
  * These modes can be OR'ed together to make up a mask of valid register modes.
  */
 
+#define REGULATOR_MODE_INVALID			0x0
 #define REGULATOR_MODE_FAST			0x1
 #define REGULATOR_MODE_NORMAL			0x2
 #define REGULATOR_MODE_IDLE			0x4
@@ -119,6 +120,26 @@ struct regmap;
 #define REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE	0x200
 #define REGULATOR_EVENT_PRE_DISABLE		0x400
 #define REGULATOR_EVENT_ABORT_DISABLE		0x800
+#define REGULATOR_EVENT_ENABLE			0x1000
+
+/*
+ * Regulator errors that can be queried using regulator_get_error_flags
+ *
+ * UNDER_VOLTAGE  Regulator output is under voltage.
+ * OVER_CURRENT   Regulator output current is too high.
+ * REGULATION_OUT Regulator output is out of regulation.
+ * FAIL           Regulator output has failed.
+ * OVER_TEMP      Regulator over temp.
+ *
+ * NOTE: These errors can be OR'ed together.
+ */
+
+#define REGULATOR_ERROR_UNDER_VOLTAGE		BIT(1)
+#define REGULATOR_ERROR_OVER_CURRENT		BIT(2)
+#define REGULATOR_ERROR_REGULATION_OUT		BIT(3)
+#define REGULATOR_ERROR_FAIL			BIT(4)
+#define REGULATOR_ERROR_OVER_TEMP		BIT(5)
+
 
 /**
  * struct pre_voltage_change_data - Data sent with PRE_VOLTAGE_CHANGE event
@@ -221,7 +242,6 @@ int regulator_bulk_force_disable(int num_consumers,
 void regulator_bulk_free(int num_consumers,
 			 struct regulator_bulk_data *consumers);
 
-int regulator_can_change_voltage(struct regulator *regulator);
 int regulator_count_voltages(struct regulator *regulator);
 int regulator_list_voltage(struct regulator *regulator, unsigned selector);
 int regulator_is_supported_voltage(struct regulator *regulator,
@@ -238,6 +258,8 @@ int regulator_get_current_limit(struct regulator *regulator);
 
 int regulator_set_mode(struct regulator *regulator, unsigned int mode);
 unsigned int regulator_get_mode(struct regulator *regulator);
+int regulator_get_error_flags(struct regulator *regulator,
+				unsigned int *flags);
 int regulator_set_load(struct regulator *regulator, int load_uA);
 
 int regulator_allow_bypass(struct regulator *regulator, bool allow);
@@ -433,11 +455,6 @@ static inline void regulator_bulk_free(int num_consumers,
 {
 }
 
-static inline int regulator_can_change_voltage(struct regulator *regulator)
-{
-	return 0;
-}
-
 static inline int regulator_set_voltage(struct regulator *regulator,
 					int min_uV, int max_uV)
 {
@@ -481,6 +498,12 @@ static inline int regulator_set_mode(struct regulator *regulator,
 static inline unsigned int regulator_get_mode(struct regulator *regulator)
 {
 	return REGULATOR_MODE_NORMAL;
+}
+
+static inline int regulator_get_error_flags(struct regulator *regulator,
+					    unsigned int *flags)
+{
+	return -EINVAL;
 }
 
 static inline int regulator_set_load(struct regulator *regulator, int load_uA)

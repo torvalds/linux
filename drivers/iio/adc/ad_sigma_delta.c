@@ -177,10 +177,39 @@ out:
 }
 EXPORT_SYMBOL_GPL(ad_sd_read_reg);
 
+/**
+ * ad_sd_reset() - Reset the serial interface
+ *
+ * @sigma_delta: The sigma delta device
+ * @reset_length: Number of SCLKs with DIN = 1
+ *
+ * Returns 0 on success, an error code otherwise.
+ **/
+int ad_sd_reset(struct ad_sigma_delta *sigma_delta,
+	unsigned int reset_length)
+{
+	uint8_t *buf;
+	unsigned int size;
+	int ret;
+
+	size = DIV_ROUND_UP(reset_length, 8);
+	buf = kcalloc(size, sizeof(*buf), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	memset(buf, 0xff, size);
+	ret = spi_write(sigma_delta->spi, buf, size);
+	kfree(buf);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ad_sd_reset);
+
 static int ad_sd_calibrate(struct ad_sigma_delta *sigma_delta,
 	unsigned int mode, unsigned int channel)
 {
 	int ret;
+	unsigned long timeout;
 
 	ret = ad_sigma_delta_set_channel(sigma_delta, channel);
 	if (ret)
@@ -196,8 +225,8 @@ static int ad_sd_calibrate(struct ad_sigma_delta *sigma_delta,
 
 	sigma_delta->irq_dis = false;
 	enable_irq(sigma_delta->spi->irq);
-	ret = wait_for_completion_timeout(&sigma_delta->completion, 2*HZ);
-	if (ret == 0) {
+	timeout = wait_for_completion_timeout(&sigma_delta->completion, 2 * HZ);
+	if (timeout == 0) {
 		sigma_delta->irq_dis = true;
 		disable_irq_nosync(sigma_delta->spi->irq);
 		ret = -EIO;
@@ -435,7 +464,6 @@ int ad_sd_validate_trigger(struct iio_dev *indio_dev, struct iio_trigger *trig)
 EXPORT_SYMBOL_GPL(ad_sd_validate_trigger);
 
 static const struct iio_trigger_ops ad_sd_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 static int ad_sd_probe_trigger(struct iio_dev *indio_dev)

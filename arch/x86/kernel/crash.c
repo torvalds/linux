@@ -20,7 +20,7 @@
 #include <linux/delay.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
@@ -29,44 +29,14 @@
 #include <asm/nmi.h>
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
+#include <asm/e820/types.h>
 #include <asm/io_apic.h>
 #include <asm/hpet.h>
 #include <linux/kdebug.h>
 #include <asm/cpu.h>
 #include <asm/reboot.h>
 #include <asm/virtext.h>
-
-/* Alignment required for elf header segment */
-#define ELF_CORE_HEADER_ALIGN   4096
-
-/* This primarily represents number of split ranges due to exclusion */
-#define CRASH_MAX_RANGES	16
-
-struct crash_mem_range {
-	u64 start, end;
-};
-
-struct crash_mem {
-	unsigned int nr_ranges;
-	struct crash_mem_range ranges[CRASH_MAX_RANGES];
-};
-
-/* Misc data about ram ranges needed to prepare elf headers */
-struct crash_elf_data {
-	struct kimage *image;
-	/*
-	 * Total number of ram ranges we have after various adjustments for
-	 * GART, crash reserved region etc.
-	 */
-	unsigned int max_nr_ranges;
-	unsigned long gart_start, gart_end;
-
-	/* Pointer to elf header */
-	void *ehdr;
-	/* Pointer to next phdr */
-	void *bufp;
-	struct crash_mem mem;
-};
+#include <asm/intel_pt.h>
 
 /* Used while preparing memory map entries for second kernel */
 struct crash_memmap_data {
@@ -125,18 +95,39 @@ static void kdump_nmi_callback(int cpu, struct pt_regs *regs)
 	cpu_emergency_vmxoff();
 	cpu_emergency_svm_disable();
 
+	/*
+	 * Disable Intel PT to stop its logging
+	 */
+	cpu_emergency_stop_pt();
+
 	disable_local_APIC();
 }
 
-static void kdump_nmi_shootdown_cpus(void)
+void kdump_nmi_shootdown_cpus(void)
 {
 	nmi_shootdown_cpus(kdump_nmi_callback);
 
 	disable_local_APIC();
 }
 
+/* Override the weak function in kernel/panic.c */
+void crash_smp_send_stop(void)
+{
+	static int cpus_stopped;
+
+	if (cpus_stopped)
+		return;
+
+	if (smp_ops.crash_stop_other_cpus)
+		smp_ops.crash_stop_other_cpus();
+	else
+		smp_send_stop();
+
+	cpus_stopped = 1;
+}
+
 #else
-static void kdump_nmi_shootdown_cpus(void)
+void crash_smp_send_stop(void)
 {
 	/* There are no cpus to shootdown */
 }
@@ -155,7 +146,7 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	/* The kernel is broken so disable interrupts */
 	local_irq_disable();
 
-	kdump_nmi_shootdown_cpus();
+	crash_smp_send_stop();
 
 	/*
 	 * VMCLEAR VMCSs loaded on this cpu if needed.
@@ -169,12 +160,18 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	cpu_emergency_vmxoff();
 	cpu_emergency_svm_disable();
 
+	/*
+	 * Disable Intel PT to stop its logging
+	 */
+	cpu_emergency_stop_pt();
+
 #ifdef CONFIG_X86_IO_APIC
 	/* Prevent crash_kexec() from deadlocking on ioapic_lock. */
 	ioapic_zap_locks();
-	disable_IO_APIC();
+	clear_IO_APIC();
 #endif
 	lapic_shutdown();
+	restore_boot_irq_mode();
 #ifdef CONFIG_HPET_TIMER
 	hpet_disable();
 #endif
@@ -182,7 +179,7 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_KEXEC_FILE
-static int get_nr_ram_ranges_callback(u64 start, u64 end, void *arg)
+static int get_nr_ram_ranges_callback(struct resource *res, void *arg)
 {
 	unsigned int *nr_ranges = arg;
 
@@ -190,158 +187,49 @@ static int get_nr_ram_ranges_callback(u64 start, u64 end, void *arg)
 	return 0;
 }
 
-static int get_gart_ranges_callback(u64 start, u64 end, void *arg)
-{
-	struct crash_elf_data *ced = arg;
-
-	ced->gart_start = start;
-	ced->gart_end = end;
-
-	/* Not expecting more than 1 gart aperture */
-	return 1;
-}
-
-
 /* Gather all the required information to prepare elf headers for ram regions */
-static void fill_up_crash_elf_data(struct crash_elf_data *ced,
-				   struct kimage *image)
+static struct crash_mem *fill_up_crash_elf_data(void)
 {
 	unsigned int nr_ranges = 0;
-
-	ced->image = image;
+	struct crash_mem *cmem;
 
 	walk_system_ram_res(0, -1, &nr_ranges,
 				get_nr_ram_ranges_callback);
-
-	ced->max_nr_ranges = nr_ranges;
-
-	/*
-	 * We don't create ELF headers for GART aperture as an attempt
-	 * to dump this memory in second kernel leads to hang/crash.
-	 * If gart aperture is present, one needs to exclude that region
-	 * and that could lead to need of extra phdr.
-	 */
-	walk_iomem_res("GART", IORESOURCE_MEM, 0, -1,
-				ced, get_gart_ranges_callback);
+	if (!nr_ranges)
+		return NULL;
 
 	/*
-	 * If we have gart region, excluding that could potentially split
-	 * a memory range, resulting in extra header. Account for  that.
+	 * Exclusion of crash region and/or crashk_low_res may cause
+	 * another range split. So add extra two slots here.
 	 */
-	if (ced->gart_end)
-		ced->max_nr_ranges++;
+	nr_ranges += 2;
+	cmem = vzalloc(sizeof(struct crash_mem) +
+			sizeof(struct crash_mem_range) * nr_ranges);
+	if (!cmem)
+		return NULL;
 
-	/* Exclusion of crash region could split memory ranges */
-	ced->max_nr_ranges++;
+	cmem->max_nr_ranges = nr_ranges;
+	cmem->nr_ranges = 0;
 
-	/* If crashk_low_res is not 0, another range split possible */
-	if (crashk_low_res.end)
-		ced->max_nr_ranges++;
-}
-
-static int exclude_mem_range(struct crash_mem *mem,
-		unsigned long long mstart, unsigned long long mend)
-{
-	int i, j;
-	unsigned long long start, end;
-	struct crash_mem_range temp_range = {0, 0};
-
-	for (i = 0; i < mem->nr_ranges; i++) {
-		start = mem->ranges[i].start;
-		end = mem->ranges[i].end;
-
-		if (mstart > end || mend < start)
-			continue;
-
-		/* Truncate any area outside of range */
-		if (mstart < start)
-			mstart = start;
-		if (mend > end)
-			mend = end;
-
-		/* Found completely overlapping range */
-		if (mstart == start && mend == end) {
-			mem->ranges[i].start = 0;
-			mem->ranges[i].end = 0;
-			if (i < mem->nr_ranges - 1) {
-				/* Shift rest of the ranges to left */
-				for (j = i; j < mem->nr_ranges - 1; j++) {
-					mem->ranges[j].start =
-						mem->ranges[j+1].start;
-					mem->ranges[j].end =
-							mem->ranges[j+1].end;
-				}
-			}
-			mem->nr_ranges--;
-			return 0;
-		}
-
-		if (mstart > start && mend < end) {
-			/* Split original range */
-			mem->ranges[i].end = mstart - 1;
-			temp_range.start = mend + 1;
-			temp_range.end = end;
-		} else if (mstart != start)
-			mem->ranges[i].end = mstart - 1;
-		else
-			mem->ranges[i].start = mend + 1;
-		break;
-	}
-
-	/* If a split happend, add the split to array */
-	if (!temp_range.end)
-		return 0;
-
-	/* Split happened */
-	if (i == CRASH_MAX_RANGES - 1) {
-		pr_err("Too many crash ranges after split\n");
-		return -ENOMEM;
-	}
-
-	/* Location where new range should go */
-	j = i + 1;
-	if (j < mem->nr_ranges) {
-		/* Move over all ranges one slot towards the end */
-		for (i = mem->nr_ranges - 1; i >= j; i--)
-			mem->ranges[i + 1] = mem->ranges[i];
-	}
-
-	mem->ranges[j].start = temp_range.start;
-	mem->ranges[j].end = temp_range.end;
-	mem->nr_ranges++;
-	return 0;
+	return cmem;
 }
 
 /*
  * Look for any unwanted ranges between mstart, mend and remove them. This
- * might lead to split and split ranges are put in ced->mem.ranges[] array
+ * might lead to split and split ranges are put in cmem->ranges[] array
  */
-static int elf_header_exclude_ranges(struct crash_elf_data *ced,
-		unsigned long long mstart, unsigned long long mend)
+static int elf_header_exclude_ranges(struct crash_mem *cmem)
 {
-	struct crash_mem *cmem = &ced->mem;
 	int ret = 0;
 
-	memset(cmem->ranges, 0, sizeof(cmem->ranges));
-
-	cmem->ranges[0].start = mstart;
-	cmem->ranges[0].end = mend;
-	cmem->nr_ranges = 1;
-
 	/* Exclude crashkernel region */
-	ret = exclude_mem_range(cmem, crashk_res.start, crashk_res.end);
+	ret = crash_exclude_mem_range(cmem, crashk_res.start, crashk_res.end);
 	if (ret)
 		return ret;
 
 	if (crashk_low_res.end) {
-		ret = exclude_mem_range(cmem, crashk_low_res.start, crashk_low_res.end);
-		if (ret)
-			return ret;
-	}
-
-	/* Exclude GART region */
-	if (ced->gart_end) {
-		ret = exclude_mem_range(cmem, ced->gart_start, ced->gart_end);
+		ret = crash_exclude_mem_range(cmem, crashk_low_res.start,
+							crashk_low_res.end);
 		if (ret)
 			return ret;
 	}
@@ -349,146 +237,14 @@ static int elf_header_exclude_ranges(struct crash_elf_data *ced,
 	return ret;
 }
 
-static int prepare_elf64_ram_headers_callback(u64 start, u64 end, void *arg)
+static int prepare_elf64_ram_headers_callback(struct resource *res, void *arg)
 {
-	struct crash_elf_data *ced = arg;
-	Elf64_Ehdr *ehdr;
-	Elf64_Phdr *phdr;
-	unsigned long mstart, mend;
-	struct kimage *image = ced->image;
-	struct crash_mem *cmem;
-	int ret, i;
+	struct crash_mem *cmem = arg;
 
-	ehdr = ced->ehdr;
+	cmem->ranges[cmem->nr_ranges].start = res->start;
+	cmem->ranges[cmem->nr_ranges].end = res->end;
+	cmem->nr_ranges++;
 
-	/* Exclude unwanted mem ranges */
-	ret = elf_header_exclude_ranges(ced, start, end);
-	if (ret)
-		return ret;
-
-	/* Go through all the ranges in ced->mem.ranges[] and prepare phdr */
-	cmem = &ced->mem;
-
-	for (i = 0; i < cmem->nr_ranges; i++) {
-		mstart = cmem->ranges[i].start;
-		mend = cmem->ranges[i].end;
-
-		phdr = ced->bufp;
-		ced->bufp += sizeof(Elf64_Phdr);
-
-		phdr->p_type = PT_LOAD;
-		phdr->p_flags = PF_R|PF_W|PF_X;
-		phdr->p_offset  = mstart;
-
-		/*
-		 * If a range matches backup region, adjust offset to backup
-		 * segment.
-		 */
-		if (mstart == image->arch.backup_src_start &&
-		    (mend - mstart + 1) == image->arch.backup_src_sz)
-			phdr->p_offset = image->arch.backup_load_addr;
-
-		phdr->p_paddr = mstart;
-		phdr->p_vaddr = (unsigned long long) __va(mstart);
-		phdr->p_filesz = phdr->p_memsz = mend - mstart + 1;
-		phdr->p_align = 0;
-		ehdr->e_phnum++;
-		pr_debug("Crash PT_LOAD elf header. phdr=%p vaddr=0x%llx, paddr=0x%llx, sz=0x%llx e_phnum=%d p_offset=0x%llx\n",
-			phdr, phdr->p_vaddr, phdr->p_paddr, phdr->p_filesz,
-			ehdr->e_phnum, phdr->p_offset);
-	}
-
-	return ret;
-}
-
-static int prepare_elf64_headers(struct crash_elf_data *ced,
-		void **addr, unsigned long *sz)
-{
-	Elf64_Ehdr *ehdr;
-	Elf64_Phdr *phdr;
-	unsigned long nr_cpus = num_possible_cpus(), nr_phdr, elf_sz;
-	unsigned char *buf, *bufp;
-	unsigned int cpu;
-	unsigned long long notes_addr;
-	int ret;
-
-	/* extra phdr for vmcoreinfo elf note */
-	nr_phdr = nr_cpus + 1;
-	nr_phdr += ced->max_nr_ranges;
-
-	/*
-	 * kexec-tools creates an extra PT_LOAD phdr for kernel text mapping
-	 * area on x86_64 (ffffffff80000000 - ffffffffa0000000).
-	 * I think this is required by tools like gdb. So same physical
-	 * memory will be mapped in two elf headers. One will contain kernel
-	 * text virtual addresses and other will have __va(physical) addresses.
-	 */
-
-	nr_phdr++;
-	elf_sz = sizeof(Elf64_Ehdr) + nr_phdr * sizeof(Elf64_Phdr);
-	elf_sz = ALIGN(elf_sz, ELF_CORE_HEADER_ALIGN);
-
-	buf = vzalloc(elf_sz);
-	if (!buf)
-		return -ENOMEM;
-
-	bufp = buf;
-	ehdr = (Elf64_Ehdr *)bufp;
-	bufp += sizeof(Elf64_Ehdr);
-	memcpy(ehdr->e_ident, ELFMAG, SELFMAG);
-	ehdr->e_ident[EI_CLASS] = ELFCLASS64;
-	ehdr->e_ident[EI_DATA] = ELFDATA2LSB;
-	ehdr->e_ident[EI_VERSION] = EV_CURRENT;
-	ehdr->e_ident[EI_OSABI] = ELF_OSABI;
-	memset(ehdr->e_ident + EI_PAD, 0, EI_NIDENT - EI_PAD);
-	ehdr->e_type = ET_CORE;
-	ehdr->e_machine = ELF_ARCH;
-	ehdr->e_version = EV_CURRENT;
-	ehdr->e_phoff = sizeof(Elf64_Ehdr);
-	ehdr->e_ehsize = sizeof(Elf64_Ehdr);
-	ehdr->e_phentsize = sizeof(Elf64_Phdr);
-
-	/* Prepare one phdr of type PT_NOTE for each present cpu */
-	for_each_present_cpu(cpu) {
-		phdr = (Elf64_Phdr *)bufp;
-		bufp += sizeof(Elf64_Phdr);
-		phdr->p_type = PT_NOTE;
-		notes_addr = per_cpu_ptr_to_phys(per_cpu_ptr(crash_notes, cpu));
-		phdr->p_offset = phdr->p_paddr = notes_addr;
-		phdr->p_filesz = phdr->p_memsz = sizeof(note_buf_t);
-		(ehdr->e_phnum)++;
-	}
-
-	/* Prepare one PT_NOTE header for vmcoreinfo */
-	phdr = (Elf64_Phdr *)bufp;
-	bufp += sizeof(Elf64_Phdr);
-	phdr->p_type = PT_NOTE;
-	phdr->p_offset = phdr->p_paddr = paddr_vmcoreinfo_note();
-	phdr->p_filesz = phdr->p_memsz = sizeof(vmcoreinfo_note);
-	(ehdr->e_phnum)++;
-
-#ifdef CONFIG_X86_64
-	/* Prepare PT_LOAD type program header for kernel text region */
-	phdr = (Elf64_Phdr *)bufp;
-	bufp += sizeof(Elf64_Phdr);
-	phdr->p_type = PT_LOAD;
-	phdr->p_flags = PF_R|PF_W|PF_X;
-	phdr->p_vaddr = (Elf64_Addr)_text;
-	phdr->p_filesz = phdr->p_memsz = _end - _text;
-	phdr->p_offset = phdr->p_paddr = __pa_symbol(_text);
-	(ehdr->e_phnum)++;
-#endif
-
-	/* Prepare PT_LOAD headers for system ram chunks. */
-	ced->ehdr = ehdr;
-	ced->bufp = bufp;
-	ret = walk_system_ram_res(0, -1, ced,
-			prepare_elf64_ram_headers_callback);
-	if (ret < 0)
-		return ret;
-
-	*addr = buf;
-	*sz = elf_sz;
 	return 0;
 }
 
@@ -496,43 +252,71 @@ static int prepare_elf64_headers(struct crash_elf_data *ced,
 static int prepare_elf_headers(struct kimage *image, void **addr,
 					unsigned long *sz)
 {
-	struct crash_elf_data *ced;
-	int ret;
+	struct crash_mem *cmem;
+	Elf64_Ehdr *ehdr;
+	Elf64_Phdr *phdr;
+	int ret, i;
 
-	ced = kzalloc(sizeof(*ced), GFP_KERNEL);
-	if (!ced)
+	cmem = fill_up_crash_elf_data();
+	if (!cmem)
 		return -ENOMEM;
 
-	fill_up_crash_elf_data(ced, image);
+	ret = walk_system_ram_res(0, -1, cmem,
+				prepare_elf64_ram_headers_callback);
+	if (ret)
+		goto out;
+
+	/* Exclude unwanted mem ranges */
+	ret = elf_header_exclude_ranges(cmem);
+	if (ret)
+		goto out;
 
 	/* By default prepare 64bit headers */
-	ret =  prepare_elf64_headers(ced, addr, sz);
-	kfree(ced);
+	ret =  crash_prepare_elf64_headers(cmem,
+				IS_ENABLED(CONFIG_X86_64), addr, sz);
+	if (ret)
+		goto out;
+
+	/*
+	 * If a range matches backup region, adjust offset to backup
+	 * segment.
+	 */
+	ehdr = (Elf64_Ehdr *)*addr;
+	phdr = (Elf64_Phdr *)(ehdr + 1);
+	for (i = 0; i < ehdr->e_phnum; phdr++, i++)
+		if (phdr->p_type == PT_LOAD &&
+				phdr->p_paddr == image->arch.backup_src_start &&
+				phdr->p_memsz == image->arch.backup_src_sz) {
+			phdr->p_offset = image->arch.backup_load_addr;
+			break;
+		}
+out:
+	vfree(cmem);
 	return ret;
 }
 
-static int add_e820_entry(struct boot_params *params, struct e820entry *entry)
+static int add_e820_entry(struct boot_params *params, struct e820_entry *entry)
 {
 	unsigned int nr_e820_entries;
 
 	nr_e820_entries = params->e820_entries;
-	if (nr_e820_entries >= E820MAX)
+	if (nr_e820_entries >= E820_MAX_ENTRIES_ZEROPAGE)
 		return 1;
 
-	memcpy(&params->e820_map[nr_e820_entries], entry,
-			sizeof(struct e820entry));
+	memcpy(&params->e820_table[nr_e820_entries], entry,
+			sizeof(struct e820_entry));
 	params->e820_entries++;
 	return 0;
 }
 
-static int memmap_entry_callback(u64 start, u64 end, void *arg)
+static int memmap_entry_callback(struct resource *res, void *arg)
 {
 	struct crash_memmap_data *cmd = arg;
 	struct boot_params *params = cmd->params;
-	struct e820entry ei;
+	struct e820_entry ei;
 
-	ei.addr = start;
-	ei.size = end - start + 1;
+	ei.addr = res->start;
+	ei.size = resource_size(res);
 	ei.type = cmd->type;
 	add_e820_entry(params, &ei);
 
@@ -553,14 +337,14 @@ static int memmap_exclude_ranges(struct kimage *image, struct crash_mem *cmem,
 	/* Exclude Backup region */
 	start = image->arch.backup_load_addr;
 	end = start + image->arch.backup_src_sz - 1;
-	ret = exclude_mem_range(cmem, start, end);
+	ret = crash_exclude_mem_range(cmem, start, end);
 	if (ret)
 		return ret;
 
 	/* Exclude elf header region */
 	start = image->arch.elf_load_addr;
 	end = start + image->arch.elf_headers_sz - 1;
-	return exclude_mem_range(cmem, start, end);
+	return crash_exclude_mem_range(cmem, start, end);
 }
 
 /* Prepare memory map for crash dump kernel */
@@ -568,7 +352,7 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 {
 	int i, ret = 0;
 	unsigned long flags;
-	struct e820entry ei;
+	struct e820_entry ei;
 	struct crash_memmap_data cmd;
 	struct crash_mem *cmem;
 
@@ -582,25 +366,25 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 	/* Add first 640K segment */
 	ei.addr = image->arch.backup_src_start;
 	ei.size = image->arch.backup_src_sz;
-	ei.type = E820_RAM;
+	ei.type = E820_TYPE_RAM;
 	add_e820_entry(params, &ei);
 
 	/* Add ACPI tables */
-	cmd.type = E820_ACPI;
+	cmd.type = E820_TYPE_ACPI;
 	flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-	walk_iomem_res("ACPI Tables", flags, 0, -1, &cmd,
+	walk_iomem_res_desc(IORES_DESC_ACPI_TABLES, flags, 0, -1, &cmd,
 		       memmap_entry_callback);
 
 	/* Add ACPI Non-volatile Storage */
-	cmd.type = E820_NVS;
-	walk_iomem_res("ACPI Non-volatile Storage", flags, 0, -1, &cmd,
+	cmd.type = E820_TYPE_NVS;
+	walk_iomem_res_desc(IORES_DESC_ACPI_NV_STORAGE, flags, 0, -1, &cmd,
 			memmap_entry_callback);
 
 	/* Add crashk_low_res region */
 	if (crashk_low_res.end) {
 		ei.addr = crashk_low_res.start;
 		ei.size = crashk_low_res.end - crashk_low_res.start + 1;
-		ei.type = E820_RAM;
+		ei.type = E820_TYPE_RAM;
 		add_e820_entry(params, &ei);
 	}
 
@@ -617,7 +401,7 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 		if (ei.size < PAGE_SIZE)
 			continue;
 		ei.addr = cmem->ranges[i].start;
-		ei.type = E820_RAM;
+		ei.type = E820_TYPE_RAM;
 		add_e820_entry(params, &ei);
 	}
 
@@ -626,12 +410,12 @@ out:
 	return ret;
 }
 
-static int determine_backup_region(u64 start, u64 end, void *arg)
+static int determine_backup_region(struct resource *res, void *arg)
 {
 	struct kimage *image = arg;
 
-	image->arch.backup_src_start = start;
-	image->arch.backup_src_sz = end - start + 1;
+	image->arch.backup_src_start = res->start;
+	image->arch.backup_src_sz = resource_size(res);
 
 	/* Expecting only one range for backup region */
 	return 1;
@@ -639,9 +423,9 @@ static int determine_backup_region(u64 start, u64 end, void *arg)
 
 int crash_load_segments(struct kimage *image)
 {
-	unsigned long src_start, src_sz, elf_sz;
-	void *elf_addr;
 	int ret;
+	struct kexec_buf kbuf = { .image = image, .buf_min = 0,
+				  .buf_max = ULONG_MAX, .top_down = false };
 
 	/*
 	 * Determine and load a segment for backup area. First 640K RAM
@@ -655,43 +439,44 @@ int crash_load_segments(struct kimage *image)
 	if (ret < 0)
 		return ret;
 
-	src_start = image->arch.backup_src_start;
-	src_sz = image->arch.backup_src_sz;
-
 	/* Add backup segment. */
-	if (src_sz) {
+	if (image->arch.backup_src_sz) {
+		kbuf.buffer = &crash_zero_bytes;
+		kbuf.bufsz = sizeof(crash_zero_bytes);
+		kbuf.memsz = image->arch.backup_src_sz;
+		kbuf.buf_align = PAGE_SIZE;
 		/*
 		 * Ideally there is no source for backup segment. This is
 		 * copied in purgatory after crash. Just add a zero filled
 		 * segment for now to make sure checksum logic works fine.
 		 */
-		ret = kexec_add_buffer(image, (char *)&crash_zero_bytes,
-				       sizeof(crash_zero_bytes), src_sz,
-				       PAGE_SIZE, 0, -1, 0,
-				       &image->arch.backup_load_addr);
+		ret = kexec_add_buffer(&kbuf);
 		if (ret)
 			return ret;
+		image->arch.backup_load_addr = kbuf.mem;
 		pr_debug("Loaded backup region at 0x%lx backup_start=0x%lx memsz=0x%lx\n",
-			 image->arch.backup_load_addr, src_start, src_sz);
+			 image->arch.backup_load_addr,
+			 image->arch.backup_src_start, kbuf.memsz);
 	}
 
 	/* Prepare elf headers and add a segment */
-	ret = prepare_elf_headers(image, &elf_addr, &elf_sz);
+	ret = prepare_elf_headers(image, &kbuf.buffer, &kbuf.bufsz);
 	if (ret)
 		return ret;
 
-	image->arch.elf_headers = elf_addr;
-	image->arch.elf_headers_sz = elf_sz;
+	image->arch.elf_headers = kbuf.buffer;
+	image->arch.elf_headers_sz = kbuf.bufsz;
 
-	ret = kexec_add_buffer(image, (char *)elf_addr, elf_sz, elf_sz,
-			ELF_CORE_HEADER_ALIGN, 0, -1, 0,
-			&image->arch.elf_load_addr);
+	kbuf.memsz = kbuf.bufsz;
+	kbuf.buf_align = ELF_CORE_HEADER_ALIGN;
+	ret = kexec_add_buffer(&kbuf);
 	if (ret) {
 		vfree((void *)image->arch.elf_headers);
 		return ret;
 	}
+	image->arch.elf_load_addr = kbuf.mem;
 	pr_debug("Loaded ELF headers at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
-		 image->arch.elf_load_addr, elf_sz, elf_sz);
+		 image->arch.elf_load_addr, kbuf.bufsz, kbuf.bufsz);
 
 	return ret;
 }

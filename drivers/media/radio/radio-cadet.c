@@ -30,7 +30,7 @@
  *		Changed API to V4L2
  */
 
-#include <linux/module.h>	/* Modules 			*/
+#include <linux/module.h>	/* Modules			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
@@ -281,9 +281,9 @@ static bool cadet_has_rds_data(struct cadet *dev)
 }
 
 
-static void cadet_handler(unsigned long data)
+static void cadet_handler(struct timer_list *t)
 {
-	struct cadet *dev = (void *)data;
+	struct cadet *dev = from_timer(dev, t, readtimer);
 
 	/* Service the RDS fifo */
 	if (mutex_trylock(&dev->lock)) {
@@ -309,9 +309,6 @@ static void cadet_handler(unsigned long data)
 	/*
 	 * Clean up and exit
 	 */
-	init_timer(&dev->readtimer);
-	dev->readtimer.function = cadet_handler;
-	dev->readtimer.data = data;
 	dev->readtimer.expires = jiffies + msecs_to_jiffies(50);
 	add_timer(&dev->readtimer);
 }
@@ -320,9 +317,7 @@ static void cadet_start_rds(struct cadet *dev)
 {
 	dev->rdsstat = 1;
 	outb(0x80, dev->io);        /* Select RDS fifo */
-	init_timer(&dev->readtimer);
-	dev->readtimer.function = cadet_handler;
-	dev->readtimer.data = (unsigned long)dev;
+	timer_setup(&dev->readtimer, cadet_handler, 0);
 	dev->readtimer.expires = jiffies + msecs_to_jiffies(50);
 	add_timer(&dev->readtimer);
 }
@@ -486,21 +481,21 @@ static int cadet_release(struct file *file)
 	return 0;
 }
 
-static unsigned int cadet_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t cadet_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct cadet *dev = video_drvdata(file);
-	unsigned long req_events = poll_requested_events(wait);
-	unsigned int res = v4l2_ctrl_poll(file, wait);
+	__poll_t req_events = poll_requested_events(wait);
+	__poll_t res = v4l2_ctrl_poll(file, wait);
 
 	poll_wait(file, &dev->read_queue, wait);
-	if (dev->rdsstat == 0 && (req_events & (POLLIN | POLLRDNORM))) {
+	if (dev->rdsstat == 0 && (req_events & (EPOLLIN | EPOLLRDNORM))) {
 		mutex_lock(&dev->lock);
 		if (dev->rdsstat == 0)
 			cadet_start_rds(dev);
 		mutex_unlock(&dev->lock);
 	}
 	if (cadet_has_rds_data(dev))
-		res |= POLLIN | POLLRDNORM;
+		res |= EPOLLIN | EPOLLRDNORM;
 	return res;
 }
 
@@ -508,7 +503,7 @@ static unsigned int cadet_poll(struct file *file, struct poll_table_struct *wait
 static const struct v4l2_file_operations cadet_fops = {
 	.owner		= THIS_MODULE,
 	.open		= cadet_open,
-	.release       	= cadet_release,
+	.release	= cadet_release,
 	.read		= cadet_read,
 	.unlocked_ioctl	= video_ioctl2,
 	.poll		= cadet_poll,
@@ -532,7 +527,7 @@ static const struct v4l2_ctrl_ops cadet_ctrl_ops = {
 
 #ifdef CONFIG_PNP
 
-static struct pnp_device_id cadet_pnp_devices[] = {
+static const struct pnp_device_id cadet_pnp_devices[] = {
 	/* ADS Cadet AM/FM Radio Card */
 	{.id = "MSM0c24", .driver_data = 0},
 	{.id = ""}

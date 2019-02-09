@@ -33,7 +33,6 @@ static int dev_pm_attach_wake_irq(struct device *dev, int irq,
 				  struct wake_irq *wirq)
 {
 	unsigned long flags;
-	int err;
 
 	if (!dev || !wirq)
 		return -EINVAL;
@@ -45,12 +44,11 @@ static int dev_pm_attach_wake_irq(struct device *dev, int irq,
 		return -EEXIST;
 	}
 
-	err = device_wakeup_attach_irq(dev, wirq);
-	if (!err)
-		dev->power.wakeirq = wirq;
+	dev->power.wakeirq = wirq;
+	device_wakeup_attach_irq(dev, wirq);
 
 	spin_unlock_irqrestore(&dev->power.lock, flags);
-	return err;
+	return 0;
 }
 
 /**
@@ -110,8 +108,11 @@ void dev_pm_clear_wake_irq(struct device *dev)
 	dev->power.wakeirq = NULL;
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 
-	if (wirq->dedicated_irq)
+	if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED) {
 		free_irq(wirq->irq, wirq);
+		wirq->status &= ~WAKE_IRQ_DEDICATED_MASK;
+	}
+	kfree(wirq->name);
 	kfree(wirq);
 }
 EXPORT_SYMBOL_GPL(dev_pm_clear_wake_irq);
@@ -138,6 +139,13 @@ static irqreturn_t handle_threaded_wake_irq(int irq, void *_wirq)
 {
 	struct wake_irq *wirq = _wirq;
 	int res;
+
+	/* Maybe abort suspend? */
+	if (irqd_is_wakeup_set(irq_get_irq_data(irq))) {
+		pm_wakeup_event(wirq->dev, 0);
+
+		return IRQ_HANDLED;
+	}
 
 	/* We don't want RPM_ASYNC or RPM_NOWAIT here */
 	res = pm_runtime_resume(wirq->dev);
@@ -177,28 +185,40 @@ int dev_pm_set_dedicated_wake_irq(struct device *dev, int irq)
 	if (!wirq)
 		return -ENOMEM;
 
+	wirq->name = kasprintf(GFP_KERNEL, "%s:wakeup", dev_name(dev));
+	if (!wirq->name) {
+		err = -ENOMEM;
+		goto err_free;
+	}
+
 	wirq->dev = dev;
 	wirq->irq = irq;
-	wirq->dedicated_irq = true;
 	irq_set_status_flags(irq, IRQ_NOAUTOEN);
+
+	/* Prevent deferred spurious wakeirqs with disable_irq_nosync() */
+	irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
 
 	/*
 	 * Consumer device may need to power up and restore state
 	 * so we use a threaded irq.
 	 */
 	err = request_threaded_irq(irq, NULL, handle_threaded_wake_irq,
-				   IRQF_ONESHOT, dev_name(dev), wirq);
+				   IRQF_ONESHOT, wirq->name, wirq);
 	if (err)
-		goto err_free;
+		goto err_free_name;
 
 	err = dev_pm_attach_wake_irq(dev, irq, wirq);
 	if (err)
 		goto err_free_irq;
 
+	wirq->status = WAKE_IRQ_DEDICATED_ALLOCATED;
+
 	return err;
 
 err_free_irq:
 	free_irq(irq, wirq);
+err_free_name:
+	kfree(wirq->name);
 err_free:
 	kfree(wirq);
 
@@ -210,9 +230,9 @@ EXPORT_SYMBOL_GPL(dev_pm_set_dedicated_wake_irq);
  * dev_pm_enable_wake_irq - Enable device wake-up interrupt
  * @dev: Device
  *
- * Called from the bus code or the device driver for
- * runtime_suspend() to enable the wake-up interrupt while
- * the device is running.
+ * Optionally called from the bus code or the device driver for
+ * runtime_resume() to override the PM runtime core managed wake-up
+ * interrupt handling to enable the wake-up interrupt.
  *
  * Note that for runtime_suspend()) the wake-up interrupts
  * should be unconditionally enabled unlike for suspend()
@@ -222,7 +242,7 @@ void dev_pm_enable_wake_irq(struct device *dev)
 {
 	struct wake_irq *wirq = dev->power.wakeirq;
 
-	if (wirq && wirq->dedicated_irq)
+	if (wirq && (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED))
 		enable_irq(wirq->irq);
 }
 EXPORT_SYMBOL_GPL(dev_pm_enable_wake_irq);
@@ -231,18 +251,71 @@ EXPORT_SYMBOL_GPL(dev_pm_enable_wake_irq);
  * dev_pm_disable_wake_irq - Disable device wake-up interrupt
  * @dev: Device
  *
- * Called from the bus code or the device driver for
- * runtime_resume() to disable the wake-up interrupt while
- * the device is running.
+ * Optionally called from the bus code or the device driver for
+ * runtime_suspend() to override the PM runtime core managed wake-up
+ * interrupt handling to disable the wake-up interrupt.
  */
 void dev_pm_disable_wake_irq(struct device *dev)
 {
 	struct wake_irq *wirq = dev->power.wakeirq;
 
-	if (wirq && wirq->dedicated_irq)
+	if (wirq && (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED))
 		disable_irq_nosync(wirq->irq);
 }
 EXPORT_SYMBOL_GPL(dev_pm_disable_wake_irq);
+
+/**
+ * dev_pm_enable_wake_irq_check - Checks and enables wake-up interrupt
+ * @dev: Device
+ * @can_change_status: Can change wake-up interrupt status
+ *
+ * Enables wakeirq conditionally. We need to enable wake-up interrupt
+ * lazily on the first rpm_suspend(). This is needed as the consumer device
+ * starts in RPM_SUSPENDED state, and the the first pm_runtime_get() would
+ * otherwise try to disable already disabled wakeirq. The wake-up interrupt
+ * starts disabled with IRQ_NOAUTOEN set.
+ *
+ * Should be only called from rpm_suspend() and rpm_resume() path.
+ * Caller must hold &dev->power.lock to change wirq->status
+ */
+void dev_pm_enable_wake_irq_check(struct device *dev,
+				  bool can_change_status)
+{
+	struct wake_irq *wirq = dev->power.wakeirq;
+
+	if (!wirq || !((wirq->status & WAKE_IRQ_DEDICATED_MASK)))
+		return;
+
+	if (likely(wirq->status & WAKE_IRQ_DEDICATED_MANAGED)) {
+		goto enable;
+	} else if (can_change_status) {
+		wirq->status |= WAKE_IRQ_DEDICATED_MANAGED;
+		goto enable;
+	}
+
+	return;
+
+enable:
+	enable_irq(wirq->irq);
+}
+
+/**
+ * dev_pm_disable_wake_irq_check - Checks and disables wake-up interrupt
+ * @dev: Device
+ *
+ * Disables wake-up interrupt conditionally based on status.
+ * Should be only called from rpm_suspend() and rpm_resume() path.
+ */
+void dev_pm_disable_wake_irq_check(struct device *dev)
+{
+	struct wake_irq *wirq = dev->power.wakeirq;
+
+	if (!wirq || !((wirq->status & WAKE_IRQ_DEDICATED_MASK)))
+		return;
+
+	if (wirq->status & WAKE_IRQ_DEDICATED_MANAGED)
+		disable_irq_nosync(wirq->irq);
+}
 
 /**
  * dev_pm_arm_wake_irq - Arm device wake-up
@@ -256,8 +329,13 @@ void dev_pm_arm_wake_irq(struct wake_irq *wirq)
 	if (!wirq)
 		return;
 
-	if (device_may_wakeup(wirq->dev))
+	if (device_may_wakeup(wirq->dev)) {
+		if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED &&
+		    !pm_runtime_status_suspended(wirq->dev))
+			enable_irq(wirq->irq);
+
 		enable_irq_wake(wirq->irq);
+	}
 }
 
 /**
@@ -272,6 +350,11 @@ void dev_pm_disarm_wake_irq(struct wake_irq *wirq)
 	if (!wirq)
 		return;
 
-	if (device_may_wakeup(wirq->dev))
+	if (device_may_wakeup(wirq->dev)) {
 		disable_irq_wake(wirq->irq);
+
+		if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED &&
+		    !pm_runtime_status_suspended(wirq->dev))
+			disable_irq_nosync(wirq->irq);
+	}
 }

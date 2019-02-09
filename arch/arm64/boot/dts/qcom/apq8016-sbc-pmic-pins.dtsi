@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
 &pm8916_gpios {
 
@@ -16,6 +18,7 @@
 			function = PMIC_GPIO_FUNC_NORMAL;
 			power-source = <PM8916_GPIO_VPH>;
 			input-disable;
+			output-high;
 		};
 	};
 
@@ -30,10 +33,22 @@
 
 &pm8916_mpps {
 
+	pinctrl-names = "default";
+	pinctrl-0 = <&ls_exp_gpio_f>;
+
+	ls_exp_gpio_f: pm8916_mpp4 {
+		pinconf {
+			pins = "mpp4";
+			function = "digital";
+			output-low;
+			power-source = <PM8916_MPP_L5>;	// 1.8V
+		};
+	};
+
 	pm8916_mpps_leds: pm8916_mpps_leds {
 		pinconf {
 			pins = "mpp2", "mpp3";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = "digital";
 			output-low;
 		};
 	};

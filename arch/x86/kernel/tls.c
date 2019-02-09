@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -5,7 +6,7 @@
 #include <linux/regset.h>
 #include <linux/syscalls.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/desc.h>
 #include <asm/ldt.h>
 #include <asm/processor.h>
@@ -93,7 +94,7 @@ static void set_tls_desc(struct task_struct *p, int idx,
 
 	while (n-- > 0) {
 		if (LDT_empty(info) || LDT_zero(info))
-			desc->a = desc->b = 0;
+			memset(desc, 0, sizeof(*desc));
 		else
 			fill_ldt(desc, info);
 		++info;
@@ -114,6 +115,7 @@ int do_set_thread_area(struct task_struct *p, int idx,
 		       int can_allocate)
 {
 	struct user_desc info;
+	unsigned short __maybe_unused sel, modified_sel;
 
 	if (copy_from_user(&info, u_info, sizeof(info)))
 		return -EFAULT;
@@ -140,6 +142,47 @@ int do_set_thread_area(struct task_struct *p, int idx,
 		return -EINVAL;
 
 	set_tls_desc(p, idx, &info, 1);
+
+	/*
+	 * If DS, ES, FS, or GS points to the modified segment, forcibly
+	 * refresh it.  Only needed on x86_64 because x86_32 reloads them
+	 * on return to user mode.
+	 */
+	modified_sel = (idx << 3) | 3;
+
+	if (p == current) {
+#ifdef CONFIG_X86_64
+		savesegment(ds, sel);
+		if (sel == modified_sel)
+			loadsegment(ds, sel);
+
+		savesegment(es, sel);
+		if (sel == modified_sel)
+			loadsegment(es, sel);
+
+		savesegment(fs, sel);
+		if (sel == modified_sel)
+			loadsegment(fs, sel);
+
+		savesegment(gs, sel);
+		if (sel == modified_sel)
+			load_gs_index(sel);
+#endif
+
+#ifdef CONFIG_X86_32_LAZY_GS
+		savesegment(gs, sel);
+		if (sel == modified_sel)
+			loadsegment(gs, sel);
+#endif
+	} else {
+#ifdef CONFIG_X86_64
+		if (p->thread.fsindex == modified_sel)
+			p->thread.fsbase = info.base_addr;
+
+		if (p->thread.gsindex == modified_sel)
+			p->thread.gsbase = info.base_addr;
+#endif
+	}
 
 	return 0;
 }

@@ -1,7 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _I810_DRM_H_
 #define _I810_DRM_H_
 
-#include <drm/drm.h>
+#include "drm.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /* WARNING: These defines must be the same as what the Xserver uses.
  * if you change them, you must change the defines in the Xserver.
@@ -279,5 +284,9 @@ typedef struct _drm_i810_mc {
 	int *length;		/* List of lengths for GFXBlocks (FUTURE) */
 	unsigned int last_render;	/* Last Render Request */
 } drm_i810_mc_t;
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif				/* _I810_DRM_H_ */

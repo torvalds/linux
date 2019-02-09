@@ -115,12 +115,12 @@ static void nf_ct_sack_block_adjust(struct sk_buff *skb,
 /* TCP SACK sequence number adjustment */
 static unsigned int nf_ct_sack_adjust(struct sk_buff *skb,
 				      unsigned int protoff,
-				      struct tcphdr *tcph,
 				      struct nf_conn *ct,
 				      enum ip_conntrack_info ctinfo)
 {
-	unsigned int dir, optoff, optend;
+	struct tcphdr *tcph = (void *)skb->data + protoff;
 	struct nf_conn_seqadj *seqadj = nfct_seqadj(ct);
+	unsigned int dir, optoff, optend;
 
 	optoff = protoff + sizeof(struct tcphdr);
 	optend = protoff + tcph->doff * 4;
@@ -128,6 +128,7 @@ static unsigned int nf_ct_sack_adjust(struct sk_buff *skb,
 	if (!skb_make_writable(skb, optend))
 		return 0;
 
+	tcph = (void *)skb->data + protoff;
 	dir = CTINFO2DIR(ctinfo);
 
 	while (optoff < optend) {
@@ -169,7 +170,7 @@ int nf_ct_seq_adjust(struct sk_buff *skb,
 	s32 seqoff, ackoff;
 	struct nf_conn_seqadj *seqadj = nfct_seqadj(ct);
 	struct nf_ct_seqadj *this_way, *other_way;
-	int res;
+	int res = 1;
 
 	this_way  = &seqadj->seq[dir];
 	other_way = &seqadj->seq[!dir];
@@ -184,27 +185,31 @@ int nf_ct_seq_adjust(struct sk_buff *skb,
 	else
 		seqoff = this_way->offset_before;
 
+	newseq = htonl(ntohl(tcph->seq) + seqoff);
+	inet_proto_csum_replace4(&tcph->check, skb, tcph->seq, newseq, false);
+	pr_debug("Adjusting sequence number from %u->%u\n",
+		 ntohl(tcph->seq), ntohl(newseq));
+	tcph->seq = newseq;
+
+	if (!tcph->ack)
+		goto out;
+
 	if (after(ntohl(tcph->ack_seq) - other_way->offset_before,
 		  other_way->correction_pos))
 		ackoff = other_way->offset_after;
 	else
 		ackoff = other_way->offset_before;
 
-	newseq = htonl(ntohl(tcph->seq) + seqoff);
 	newack = htonl(ntohl(tcph->ack_seq) - ackoff);
-
-	inet_proto_csum_replace4(&tcph->check, skb, tcph->seq, newseq, false);
 	inet_proto_csum_replace4(&tcph->check, skb, tcph->ack_seq, newack,
 				 false);
-
-	pr_debug("Adjusting sequence number from %u->%u, ack from %u->%u\n",
+	pr_debug("Adjusting ack number from %u->%u, ack from %u->%u\n",
 		 ntohl(tcph->seq), ntohl(newseq), ntohl(tcph->ack_seq),
 		 ntohl(newack));
-
-	tcph->seq = newseq;
 	tcph->ack_seq = newack;
 
-	res = nf_ct_sack_adjust(skb, protoff, tcph, ct, ctinfo);
+	res = nf_ct_sack_adjust(skb, protoff, ct, ctinfo);
+out:
 	spin_unlock_bh(&ct->lock);
 
 	return res;
@@ -227,7 +232,7 @@ s32 nf_ct_seq_offset(const struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(nf_ct_seq_offset);
 
-static struct nf_ct_ext_type nf_ct_seqadj_extend __read_mostly = {
+static const struct nf_ct_ext_type nf_ct_seqadj_extend = {
 	.len	= sizeof(struct nf_conn_seqadj),
 	.align	= __alignof__(struct nf_conn_seqadj),
 	.id	= NF_CT_EXT_SEQADJ,

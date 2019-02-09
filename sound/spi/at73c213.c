@@ -221,6 +221,8 @@ static int snd_at73c213_pcm_open(struct snd_pcm_substream *substream)
 	runtime->hw = snd_at73c213_playback_hw;
 	chip->substream = substream;
 
+	clk_enable(chip->ssc->clk);
+
 	return 0;
 }
 
@@ -228,6 +230,7 @@ static int snd_at73c213_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct snd_at73c213 *chip = snd_pcm_substream_chip(substream);
 	chip->substream = NULL;
+	clk_disable(chip->ssc->clk);
 	return 0;
 }
 
@@ -319,7 +322,7 @@ snd_at73c213_pcm_pointer(struct snd_pcm_substream *substream)
 	return pos;
 }
 
-static struct snd_pcm_ops at73c213_playback_ops = {
+static const struct snd_pcm_ops at73c213_playback_ops = {
 	.open		= snd_at73c213_pcm_open,
 	.close		= snd_at73c213_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -897,6 +900,8 @@ static int snd_at73c213_dev_init(struct snd_card *card,
 	chip->card = card;
 	chip->irq = -1;
 
+	clk_enable(chip->ssc->clk);
+
 	retval = request_irq(irq, snd_at73c213_interrupt, 0, "at73c213", chip);
 	if (retval) {
 		dev_dbg(&chip->spi->dev, "unable to request irq %d\n", irq);
@@ -935,6 +940,8 @@ out_irq:
 	free_irq(chip->irq, chip);
 	chip->irq = -1;
 out:
+	clk_disable(chip->ssc->clk);
+
 	return retval;
 }
 
@@ -1012,7 +1019,9 @@ static int snd_at73c213_remove(struct spi_device *spi)
 	int retval;
 
 	/* Stop playback. */
+	clk_enable(chip->ssc->clk);
 	ssc_writel(chip->ssc->regs, CR, SSC_BIT(CR_TXDIS));
+	clk_disable(chip->ssc->clk);
 
 	/* Mute sound. */
 	retval = snd_at73c213_write_reg(chip, DAC_LMPG, 0x3f);
@@ -1080,6 +1089,7 @@ static int snd_at73c213_suspend(struct device *dev)
 	struct snd_at73c213 *chip = card->private_data;
 
 	ssc_writel(chip->ssc->regs, CR, SSC_BIT(CR_TXDIS));
+	clk_disable(chip->ssc->clk);
 	clk_disable(chip->board->dac_clk);
 
 	return 0;
@@ -1091,6 +1101,7 @@ static int snd_at73c213_resume(struct device *dev)
 	struct snd_at73c213 *chip = card->private_data;
 
 	clk_enable(chip->board->dac_clk);
+	clk_enable(chip->ssc->clk);
 	ssc_writel(chip->ssc->regs, CR, SSC_BIT(CR_TXEN));
 
 	return 0;

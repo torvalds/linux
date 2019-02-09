@@ -18,10 +18,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -29,43 +25,45 @@
 *******************************************************************************/
 
 #include <linux/crc32.h>
+#include <net/dsa.h>
 #include <asm/io.h>
+#include "stmmac.h"
 #include "dwmac100.h"
 
-static void dwmac100_core_init(struct mac_device_info *hw, int mtu)
+static void dwmac100_core_init(struct mac_device_info *hw,
+			       struct net_device *dev)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + MAC_CONTROL);
 
-	writel((value | MAC_CORE_INIT), ioaddr + MAC_CONTROL);
+	value |= MAC_CORE_INIT;
+
+	/* Clear ASTP bit because Ethernet switch tagging formats such as
+	 * Broadcom tags can look like invalid LLC/SNAP packets and cause the
+	 * hardware to truncate packets on reception.
+	 */
+	if (netdev_uses_dsa(dev))
+		value &= ~MAC_CONTROL_ASTP;
+
+	writel(value, ioaddr + MAC_CONTROL);
 
 #ifdef STMMAC_VLAN_TAG_USED
 	writel(ETH_P_8021Q, ioaddr + MAC_VLAN1);
 #endif
 }
 
-static void dwmac100_dump_mac_regs(struct mac_device_info *hw)
+static void dwmac100_dump_mac_regs(struct mac_device_info *hw, u32 *reg_space)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	pr_info("\t----------------------------------------------\n"
-		"\t  DWMAC 100 CSR (base addr = 0x%p)\n"
-		"\t----------------------------------------------\n", ioaddr);
-	pr_info("\tcontrol reg (offset 0x%x): 0x%08x\n", MAC_CONTROL,
-		readl(ioaddr + MAC_CONTROL));
-	pr_info("\taddr HI (offset 0x%x): 0x%08x\n ", MAC_ADDR_HIGH,
-		readl(ioaddr + MAC_ADDR_HIGH));
-	pr_info("\taddr LO (offset 0x%x): 0x%08x\n", MAC_ADDR_LOW,
-		readl(ioaddr + MAC_ADDR_LOW));
-	pr_info("\tmulticast hash HI (offset 0x%x): 0x%08x\n",
-		MAC_HASH_HIGH, readl(ioaddr + MAC_HASH_HIGH));
-	pr_info("\tmulticast hash LO (offset 0x%x): 0x%08x\n",
-		MAC_HASH_LOW, readl(ioaddr + MAC_HASH_LOW));
-	pr_info("\tflow control (offset 0x%x): 0x%08x\n",
-		MAC_FLOW_CTRL, readl(ioaddr + MAC_FLOW_CTRL));
-	pr_info("\tVLAN1 tag (offset 0x%x): 0x%08x\n", MAC_VLAN1,
-		readl(ioaddr + MAC_VLAN1));
-	pr_info("\tVLAN2 tag (offset 0x%x): 0x%08x\n", MAC_VLAN2,
-		readl(ioaddr + MAC_VLAN2));
+
+	reg_space[MAC_CONTROL / 4] = readl(ioaddr + MAC_CONTROL);
+	reg_space[MAC_ADDR_HIGH / 4] = readl(ioaddr + MAC_ADDR_HIGH);
+	reg_space[MAC_ADDR_LOW / 4] = readl(ioaddr + MAC_ADDR_LOW);
+	reg_space[MAC_HASH_HIGH / 4] = readl(ioaddr + MAC_HASH_HIGH);
+	reg_space[MAC_HASH_LOW / 4] = readl(ioaddr + MAC_HASH_LOW);
+	reg_space[MAC_FLOW_CTRL / 4] = readl(ioaddr + MAC_FLOW_CTRL);
+	reg_space[MAC_VLAN1 / 4] = readl(ioaddr + MAC_VLAN1);
+	reg_space[MAC_VLAN2 / 4] = readl(ioaddr + MAC_VLAN2);
 }
 
 static int dwmac100_rx_ipc_enable(struct mac_device_info *hw)
@@ -145,7 +143,8 @@ static void dwmac100_set_filter(struct mac_device_info *hw,
 }
 
 static void dwmac100_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
-			       unsigned int fc, unsigned int pause_time)
+			       unsigned int fc, unsigned int pause_time,
+			       u32 tx_cnt)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	unsigned int flow = MAC_FLOW_CTRL_ENABLE;
@@ -161,8 +160,9 @@ static void dwmac100_pmt(struct mac_device_info *hw, unsigned long mode)
 	return;
 }
 
-static const struct stmmac_ops dwmac100_ops = {
+const struct stmmac_ops dwmac100_ops = {
 	.core_init = dwmac100_core_init,
+	.set_mac = stmmac_set_mac,
 	.rx_ipc = dwmac100_rx_ipc_enable,
 	.dump_regs = dwmac100_dump_mac_regs,
 	.host_irq_status = dwmac100_irq_status,
@@ -173,26 +173,26 @@ static const struct stmmac_ops dwmac100_ops = {
 	.get_umac_addr = dwmac100_get_umac_addr,
 };
 
-struct mac_device_info *dwmac100_setup(void __iomem *ioaddr)
+int dwmac100_setup(struct stmmac_priv *priv)
 {
-	struct mac_device_info *mac;
+	struct mac_device_info *mac = priv->hw;
 
-	mac = kzalloc(sizeof(const struct mac_device_info), GFP_KERNEL);
-	if (!mac)
-		return NULL;
+	dev_info(priv->device, "\tDWMAC100\n");
 
-	pr_info("\tDWMAC100\n");
-
-	mac->pcsr = ioaddr;
-	mac->mac = &dwmac100_ops;
-	mac->dma = &dwmac100_dma_ops;
-
-	mac->link.port = MAC_CONTROL_PS;
+	mac->pcsr = priv->ioaddr;
 	mac->link.duplex = MAC_CONTROL_F;
-	mac->link.speed = 0;
+	mac->link.speed10 = 0;
+	mac->link.speed100 = 0;
+	mac->link.speed1000 = 0;
+	mac->link.speed_mask = MAC_CONTROL_PS;
 	mac->mii.addr = MAC_MII_ADDR;
 	mac->mii.data = MAC_MII_DATA;
-	mac->synopsys_uid = 0;
+	mac->mii.addr_shift = 11;
+	mac->mii.addr_mask = 0x0000F800;
+	mac->mii.reg_shift = 6;
+	mac->mii.reg_mask = 0x000007C0;
+	mac->mii.clk_csr_shift = 2;
+	mac->mii.clk_csr_mask = GENMASK(5, 2);
 
-	return mac;
+	return 0;
 }

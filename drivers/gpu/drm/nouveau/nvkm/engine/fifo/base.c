@@ -27,9 +27,22 @@
 #include <core/client.h>
 #include <core/gpuobj.h>
 #include <core/notify.h>
+#include <subdev/mc.h>
 
 #include <nvif/event.h>
+#include <nvif/cl0080.h>
 #include <nvif/unpack.h>
+
+void
+nvkm_fifo_recover_chan(struct nvkm_fifo *fifo, int chid)
+{
+	unsigned long flags;
+	if (WARN_ON(!fifo->func->recover_chan))
+		return;
+	spin_lock_irqsave(&fifo->lock, flags);
+	fifo->func->recover_chan(fifo, chid);
+	spin_unlock_irqrestore(&fifo->lock, flags);
+}
 
 void
 nvkm_fifo_pause(struct nvkm_fifo *fifo, unsigned long *flags)
@@ -44,6 +57,12 @@ nvkm_fifo_start(struct nvkm_fifo *fifo, unsigned long *flags)
 }
 
 void
+nvkm_fifo_fault(struct nvkm_fifo *fifo, struct nvkm_fault_data *info)
+{
+	return fifo->func->fault(fifo, info);
+}
+
+void
 nvkm_fifo_chan_put(struct nvkm_fifo *fifo, unsigned long flags,
 		   struct nvkm_fifo_chan **pchan)
 {
@@ -55,18 +74,28 @@ nvkm_fifo_chan_put(struct nvkm_fifo *fifo, unsigned long flags,
 }
 
 struct nvkm_fifo_chan *
+nvkm_fifo_chan_inst_locked(struct nvkm_fifo *fifo, u64 inst)
+{
+	struct nvkm_fifo_chan *chan;
+	list_for_each_entry(chan, &fifo->chan, head) {
+		if (chan->inst->addr == inst) {
+			list_del(&chan->head);
+			list_add(&chan->head, &fifo->chan);
+			return chan;
+		}
+	}
+	return NULL;
+}
+
+struct nvkm_fifo_chan *
 nvkm_fifo_chan_inst(struct nvkm_fifo *fifo, u64 inst, unsigned long *rflags)
 {
 	struct nvkm_fifo_chan *chan;
 	unsigned long flags;
 	spin_lock_irqsave(&fifo->lock, flags);
-	list_for_each_entry(chan, &fifo->chan, head) {
-		if (chan->inst->addr == inst) {
-			list_del(&chan->head);
-			list_add(&chan->head, &fifo->chan);
-			*rflags = flags;
-			return chan;
-		}
+	if ((chan = nvkm_fifo_chan_inst_locked(fifo, inst))) {
+		*rflags = flags;
+		return chan;
 	}
 	spin_unlock_irqrestore(&fifo->lock, flags);
 	return NULL;
@@ -90,9 +119,34 @@ nvkm_fifo_chan_chid(struct nvkm_fifo *fifo, int chid, unsigned long *rflags)
 	return NULL;
 }
 
+void
+nvkm_fifo_kevent(struct nvkm_fifo *fifo, int chid)
+{
+	nvkm_event_send(&fifo->kevent, 1, chid, NULL, 0);
+}
+
 static int
-nvkm_fifo_event_ctor(struct nvkm_object *object, void *data, u32 size,
-		     struct nvkm_notify *notify)
+nvkm_fifo_kevent_ctor(struct nvkm_object *object, void *data, u32 size,
+		      struct nvkm_notify *notify)
+{
+	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
+	if (size == 0) {
+		notify->size  = 0;
+		notify->types = 1;
+		notify->index = chan->chid;
+		return 0;
+	}
+	return -ENOSYS;
+}
+
+static const struct nvkm_event_func
+nvkm_fifo_kevent_func = {
+	.ctor = nvkm_fifo_kevent_ctor,
+};
+
+static int
+nvkm_fifo_cevent_ctor(struct nvkm_object *object, void *data, u32 size,
+		      struct nvkm_notify *notify)
 {
 	if (size == 0) {
 		notify->size  = 0;
@@ -104,9 +158,15 @@ nvkm_fifo_event_ctor(struct nvkm_object *object, void *data, u32 size,
 }
 
 static const struct nvkm_event_func
-nvkm_fifo_event_func = {
-	.ctor = nvkm_fifo_event_ctor,
+nvkm_fifo_cevent_func = {
+	.ctor = nvkm_fifo_cevent_ctor,
 };
+
+void
+nvkm_fifo_cevent(struct nvkm_fifo *fifo)
+{
+	nvkm_event_send(&fifo->cevent, 1, 0, NULL, 0);
+}
 
 static void
 nvkm_fifo_uevent_fini(struct nvkm_event *event, int type, int index)
@@ -129,9 +189,9 @@ nvkm_fifo_uevent_ctor(struct nvkm_object *object, void *data, u32 size,
 	union {
 		struct nvif_notify_uevent_req none;
 	} *req = data;
-	int ret;
+	int ret = -ENOSYS;
 
-	if (nvif_unvers(req->none)) {
+	if (!(ret = nvif_unvers(ret, &data, &size, req->none))) {
 		notify->size  = sizeof(struct nvif_notify_uevent_rep);
 		notify->types = 1;
 		notify->index = 0;
@@ -156,6 +216,20 @@ nvkm_fifo_uevent(struct nvkm_fifo *fifo)
 }
 
 static int
+nvkm_fifo_class_new_(struct nvkm_device *device,
+		     const struct nvkm_oclass *oclass, void *data, u32 size,
+		     struct nvkm_object **pobject)
+{
+	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
+	return fifo->func->class_new(fifo, oclass, data, size, pobject);
+}
+
+static const struct nvkm_device_oclass
+nvkm_fifo_class_ = {
+	.ctor = nvkm_fifo_class_new_,
+};
+
+static int
 nvkm_fifo_class_new(struct nvkm_device *device,
 		    const struct nvkm_oclass *oclass, void *data, u32 size,
 		    struct nvkm_object **pobject)
@@ -177,6 +251,13 @@ nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index,
 	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
 	const struct nvkm_fifo_chan_oclass *sclass;
 	int c = 0;
+
+	if (fifo->func->class_get) {
+		int ret = fifo->func->class_get(fifo, index, oclass);
+		if (ret == 0)
+			*class = &nvkm_fifo_class_;
+		return ret;
+	}
 
 	while ((sclass = fifo->func->chan[c])) {
 		if (c++ == index) {
@@ -207,12 +288,32 @@ nvkm_fifo_fini(struct nvkm_engine *engine, bool suspend)
 }
 
 static int
+nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
+{
+	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+	switch (mthd) {
+	case NV_DEVICE_FIFO_CHANNELS: *data = fifo->nr; return 0;
+	default:
+		if (fifo->func->info)
+			return fifo->func->info(fifo, mthd, data);
+		break;
+	}
+	return -ENOSYS;
+}
+
+static int
 nvkm_fifo_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	if (fifo->func->oneinit)
 		return fifo->func->oneinit(fifo);
 	return 0;
+}
+
+static void
+nvkm_fifo_preinit(struct nvkm_engine *engine)
+{
+	nvkm_mc_reset(engine->subdev.device, NVKM_ENGINE_FIFO);
 }
 
 static int
@@ -230,6 +331,7 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 	void *data = fifo;
 	if (fifo->func->dtor)
 		data = fifo->func->dtor(fifo);
+	nvkm_event_fini(&fifo->kevent);
 	nvkm_event_fini(&fifo->cevent);
 	nvkm_event_fini(&fifo->uevent);
 	return data;
@@ -238,7 +340,9 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 static const struct nvkm_engine_func
 nvkm_fifo = {
 	.dtor = nvkm_fifo_dtor,
+	.preinit = nvkm_fifo_preinit,
 	.oneinit = nvkm_fifo_oneinit,
+	.info = nvkm_fifo_info,
 	.init = nvkm_fifo_init,
 	.fini = nvkm_fifo_fini,
 	.intr = nvkm_fifo_intr,
@@ -261,8 +365,7 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 		fifo->nr = nr;
 	bitmap_clear(fifo->mask, 0, fifo->nr);
 
-	ret = nvkm_engine_ctor(&nvkm_fifo, device, index, 0x00000100,
-			       true, &fifo->engine);
+	ret = nvkm_engine_ctor(&nvkm_fifo, device, index, true, &fifo->engine);
 	if (ret)
 		return ret;
 
@@ -273,5 +376,9 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 			return ret;
 	}
 
-	return nvkm_event_init(&nvkm_fifo_event_func, 1, 1, &fifo->cevent);
+	ret = nvkm_event_init(&nvkm_fifo_cevent_func, 1, 1, &fifo->cevent);
+	if (ret)
+		return ret;
+
+	return nvkm_event_init(&nvkm_fifo_kevent_func, 1, nr, &fifo->kevent);
 }

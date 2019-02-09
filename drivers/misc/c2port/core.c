@@ -15,7 +15,6 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
-#include <linux/kmemcheck.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/idr.h>
@@ -721,9 +720,7 @@ static ssize_t c2port_read_flash_data(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr,
 				char *buffer, loff_t offset, size_t count)
 {
-	struct c2port_device *c2dev =
-			dev_get_drvdata(container_of(kobj,
-						struct device, kobj));
+	struct c2port_device *c2dev = dev_get_drvdata(kobj_to_dev(kobj));
 	ssize_t ret;
 
 	/* Check the device and flash access status */
@@ -838,9 +835,7 @@ static ssize_t c2port_write_flash_data(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr,
 				char *buffer, loff_t offset, size_t count)
 {
-	struct c2port_device *c2dev =
-			dev_get_drvdata(container_of(kobj,
-						struct device, kobj));
+	struct c2port_device *c2dev = dev_get_drvdata(kobj_to_dev(kobj));
 	int ret;
 
 	/* Check the device access status */
@@ -908,7 +903,6 @@ struct c2port_device *c2port_device_register(char *name,
 		return ERR_PTR(-EINVAL);
 
 	c2dev = kmalloc(sizeof(struct c2port_device), GFP_KERNEL);
-	kmemcheck_annotate_bitfield(c2dev, flags);
 	if (unlikely(!c2dev))
 		return ERR_PTR(-ENOMEM);
 

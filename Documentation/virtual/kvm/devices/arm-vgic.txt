@@ -1,18 +1,19 @@
-ARM Virtual Generic Interrupt Controller (VGIC)
-===============================================
+ARM Virtual Generic Interrupt Controller v2 (VGIC)
+==================================================
 
 Device types supported:
   KVM_DEV_TYPE_ARM_VGIC_V2     ARM Generic Interrupt Controller v2.0
-  KVM_DEV_TYPE_ARM_VGIC_V3     ARM Generic Interrupt Controller v3.0
 
 Only one VGIC instance may be instantiated through either this API or the
-legacy KVM_CREATE_IRQCHIP api.  The created VGIC will act as the VM interrupt
+legacy KVM_CREATE_IRQCHIP API.  The created VGIC will act as the VM interrupt
 controller, requiring emulated user-space devices to inject interrupts to the
 VGIC instead of directly to CPUs.
 
-Creating a guest GICv3 device requires a host GICv3 as well.
-GICv3 implementations with hardware compatibility support allow a guest GICv2
-as well.
+GICv3 implementations with hardware compatibility support allow creating a
+guest GICv2 through this interface.  For information on creating a guest GICv3
+device and guest ITS devices, see arm-vgic-v3.txt.  It is not possible to
+create both a GICv3 and GICv2 device on the same VM.
+
 
 Groups:
   KVM_DEV_ARM_VGIC_GRP_ADDR
@@ -26,19 +27,13 @@ Groups:
       Base address in the guest physical address space of the GIC virtual cpu
       interface register mappings. Only valid for KVM_DEV_TYPE_ARM_VGIC_V2.
       This address needs to be 4K aligned and the region covers 4 KByte.
-
-    KVM_VGIC_V3_ADDR_TYPE_DIST (rw, 64-bit)
-      Base address in the guest physical address space of the GICv3 distributor
-      register mappings. Only valid for KVM_DEV_TYPE_ARM_VGIC_V3.
-      This address needs to be 64K aligned and the region covers 64 KByte.
-
-    KVM_VGIC_V3_ADDR_TYPE_REDIST (rw, 64-bit)
-      Base address in the guest physical address space of the GICv3
-      redistributor register mappings. There are two 64K pages for each
-      VCPU and all of the redistributor pages are contiguous.
-      Only valid for KVM_DEV_TYPE_ARM_VGIC_V3.
-      This address needs to be 64K aligned.
-
+  Errors:
+    -E2BIG:  Address outside of addressable IPA range
+    -EINVAL: Incorrectly aligned address
+    -EEXIST: Address already configured
+    -ENXIO:  The group or attribute is unknown/unsupported for this device
+             or hardware support is missing.
+    -EFAULT: Invalid user pointer for attr->addr.
 
   KVM_DEV_ARM_VGIC_GRP_DIST_REGS
   Attributes:
@@ -54,9 +49,15 @@ Groups:
     index is specified with the vcpu_index field.  Note that most distributor
     fields are not banked, but return the same value regardless of the
     vcpu_index used to access the register.
-  Limitations:
-    - Priorities are not implemented, and registers are RAZ/WI
-    - Currently only implemented for KVM_DEV_TYPE_ARM_VGIC_V2.
+
+    GICD_IIDR.Revision is updated when the KVM implementation of an emulated
+    GICv2 is changed in a way directly observable by the guest or userspace.
+    Userspace should read GICD_IIDR from KVM and write back the read value to
+    confirm its expected behavior is aligned with the KVM implementation.
+    Userspace should set GICD_IIDR before setting any other registers (both
+    KVM_DEV_ARM_VGIC_GRP_DIST_REGS and KVM_DEV_ARM_VGIC_GRP_CPU_REGS) to ensure
+    the expected behavior. Unless GICD_IIDR has been set from userspace, writes
+    to the interrupt group registers (GICD_IGROUPR) are ignored.
   Errors:
     -ENXIO: Getting or setting this register is not yet supported
     -EBUSY: One or more VCPUs are running
@@ -88,9 +89,17 @@ Groups:
 
     Bits for undefined preemption levels are RAZ/WI.
 
-  Limitations:
-    - Priorities are not implemented, and registers are RAZ/WI
-    - Currently only implemented for KVM_DEV_TYPE_ARM_VGIC_V2.
+    Note that this differs from a CPU's view of the APRs on hardware in which
+    a GIC without the security extensions expose group 0 and group 1 active
+    priorities in separate register groups, whereas we show a combined view
+    similar to GICv2's GICH_APR.
+
+    For historical reasons and to provide ABI compatibility with userspace we
+    export the GICC_PMR register in the format of the GICH_VMCR.VMPriMask
+    field in the lower 5 bits of a word, meaning that userspace must always
+    use the lower 5 bits to communicate with the KVM device and must shift the
+    value left by 3 places to obtain the actual priority mask level.
+
   Errors:
     -ENXIO: Getting or setting this register is not yet supported
     -EBUSY: One or more VCPUs are running
@@ -109,8 +118,8 @@ Groups:
   KVM_DEV_ARM_VGIC_GRP_CTRL
   Attributes:
     KVM_DEV_ARM_VGIC_CTRL_INIT
-      request the initialization of the VGIC, no additional parameter in
-      kvm_device_attr.addr.
+      request the initialization of the VGIC or ITS, no additional parameter
+      in kvm_device_attr.addr.
   Errors:
     -ENXIO: VGIC not properly configured as required prior to calling
      this attribute

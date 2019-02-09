@@ -1,46 +1,12 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: nsconvert - Object conversions for objects returned by
  *                          predefined methods
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -78,8 +44,8 @@ acpi_ns_convert_to_integer(union acpi_operand_object *original_object,
 
 		/* String-to-Integer conversion */
 
-		status = acpi_ut_strtoul64(original_object->string.pointer,
-					   ACPI_ANY_BASE, &value);
+		status =
+		    acpi_ut_strtoul64(original_object->string.pointer, &value);
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
@@ -96,9 +62,9 @@ acpi_ns_convert_to_integer(union acpi_operand_object *original_object,
 		/* Extract each buffer byte to create the integer */
 
 		for (i = 0; i < original_object->buffer.length; i++) {
-			value |=
-			    ((u64)original_object->buffer.
-			     pointer[i] << (i * 8));
+			value |= ((u64)
+				  original_object->buffer.pointer[i] << (i *
+									 8));
 		}
 		break;
 
@@ -153,10 +119,9 @@ acpi_ns_convert_to_string(union acpi_operand_object *original_object,
 				return (AE_NO_MEMORY);
 			}
 		} else {
-			status =
-			    acpi_ex_convert_to_string(original_object,
-						      &new_object,
-						      ACPI_IMPLICIT_CONVERT_HEX);
+			status = acpi_ex_convert_to_string(original_object,
+							   &new_object,
+							   ACPI_IMPLICIT_CONVERT_HEX);
 			if (ACPI_FAILURE(status)) {
 				return (status);
 			}
@@ -244,9 +209,8 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
 
 		/* String-to-Buffer conversion. Simple data copy */
 
-		new_object =
-		    acpi_ut_create_buffer_object(original_object->string.
-						 length);
+		new_object = acpi_ut_create_buffer_object
+		    (original_object->string.length);
 		if (!new_object) {
 			return (AE_NO_MEMORY);
 		}
@@ -308,7 +272,8 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
  *
  * FUNCTION:    acpi_ns_convert_to_unicode
  *
- * PARAMETERS:  original_object     - ASCII String Object to be converted
+ * PARAMETERS:  scope               - Namespace node for the method/object
+ *              original_object     - ASCII String Object to be converted
  *              return_object       - Where the new converted object is returned
  *
  * RETURN:      Status. AE_OK if conversion was successful.
@@ -318,7 +283,8 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_convert_to_unicode(union acpi_operand_object *original_object,
+acpi_ns_convert_to_unicode(struct acpi_namespace_node *scope,
+			   union acpi_operand_object *original_object,
 			   union acpi_operand_object **return_object)
 {
 	union acpi_operand_object *new_object;
@@ -372,7 +338,8 @@ acpi_ns_convert_to_unicode(union acpi_operand_object *original_object,
  *
  * FUNCTION:    acpi_ns_convert_to_resource
  *
- * PARAMETERS:  original_object     - Object to be converted
+ * PARAMETERS:  scope               - Namespace node for the method/object
+ *              original_object     - Object to be converted
  *              return_object       - Where the new converted object is returned
  *
  * RETURN:      Status. AE_OK if conversion was successful
@@ -383,7 +350,8 @@ acpi_ns_convert_to_unicode(union acpi_operand_object *original_object,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_convert_to_resource(union acpi_operand_object *original_object,
+acpi_ns_convert_to_resource(struct acpi_namespace_node *scope,
+			    union acpi_operand_object *original_object,
 			    union acpi_operand_object **return_object)
 {
 	union acpi_operand_object *new_object;
@@ -441,6 +409,82 @@ acpi_ns_convert_to_resource(union acpi_operand_object *original_object,
 	buffer[0] = (ACPI_RESOURCE_NAME_END_TAG | ASL_RDESC_END_TAG_SIZE);
 	buffer[1] = 0x00;
 
+	*return_object = new_object;
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_convert_to_reference
+ *
+ * PARAMETERS:  scope               - Namespace node for the method/object
+ *              original_object     - Object to be converted
+ *              return_object       - Where the new converted object is returned
+ *
+ * RETURN:      Status. AE_OK if conversion was successful
+ *
+ * DESCRIPTION: Attempt to convert a Integer object to a object_reference.
+ *              Buffer.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
+			     union acpi_operand_object *original_object,
+			     union acpi_operand_object **return_object)
+{
+	union acpi_operand_object *new_object = NULL;
+	acpi_status status;
+	struct acpi_namespace_node *node;
+	union acpi_generic_state scope_info;
+	char *name;
+
+	ACPI_FUNCTION_NAME(ns_convert_to_reference);
+
+	/* Convert path into internal presentation */
+
+	status =
+	    acpi_ns_internalize_name(original_object->string.pointer, &name);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Find the namespace node */
+
+	scope_info.scope.node =
+	    ACPI_CAST_PTR(struct acpi_namespace_node, scope);
+	status =
+	    acpi_ns_lookup(&scope_info, name, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+			   ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
+			   NULL, &node);
+	if (ACPI_FAILURE(status)) {
+
+		/* Check if we are resolving a named reference within a package */
+
+		ACPI_ERROR_NAMESPACE(&scope_info,
+				     original_object->string.pointer, status);
+		goto error_exit;
+	}
+
+	/* Create and init a new internal ACPI object */
+
+	new_object = acpi_ut_create_internal_object(ACPI_TYPE_LOCAL_REFERENCE);
+	if (!new_object) {
+		status = AE_NO_MEMORY;
+		goto error_exit;
+	}
+	new_object->reference.node = node;
+	new_object->reference.object = node->object;
+	new_object->reference.class = ACPI_REFCLASS_NAME;
+
+	/*
+	 * Increase reference of the object if needed (the object is likely a
+	 * null for device nodes).
+	 */
+	acpi_ut_add_reference(node->object);
+
+error_exit:
+	ACPI_FREE(name);
 	*return_object = new_object;
 	return (AE_OK);
 }

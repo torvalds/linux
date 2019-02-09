@@ -60,7 +60,7 @@ int r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter)
 	_init_queue(&precvpriv->free_recv_buf_queue);
 	precvpriv->pallocated_recv_buf =
 		kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4, GFP_ATOMIC);
-	if (precvpriv->pallocated_recv_buf == NULL)
+	if (!precvpriv->pallocated_recv_buf)
 		return _FAIL;
 	precvpriv->precv_buf = precvpriv->pallocated_recv_buf + 4 -
 			      ((addr_t) (precvpriv->pallocated_recv_buf) & 3);
@@ -149,7 +149,7 @@ int r8712_free_recvframe(union recv_frame *precvframe,
 	list_add_tail(&(precvframe->u.hdr.list), &pfree_recv_queue->queue);
 	if (padapter != NULL) {
 		if (pfree_recv_queue == &precvpriv->free_recv_queue)
-				precvpriv->free_recvframe_cnt++;
+			precvpriv->free_recvframe_cnt++;
 	}
 	spin_unlock_irqrestore(&pfree_recv_queue->lock, irqL);
 	return _SUCCESS;
@@ -163,7 +163,8 @@ static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16;
 	drvinfo_sz <<= 3;
 	/*TODO:
-	 * Offset 0 */
+	 * Offset 0
+	 */
 	pattrib->bdecrypted = ((le32_to_cpu(prxstat->rxdw0) & BIT(27)) >> 27)
 				 ? 0 : 1;
 	pattrib->crc_err = (le32_to_cpu(prxstat->rxdw0) & BIT(14)) >> 14;
@@ -204,13 +205,14 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 	pfree_recv_queue = &adapter->recvpriv.free_recv_queue;
 	phead = &defrag_q->queue;
 	plist = phead->next;
-	prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+	prframe = container_of(plist, union recv_frame, u.list);
 	list_del_init(&prframe->u.list);
 	pfhdr = &prframe->u.hdr;
 	curfragnum = 0;
 	if (curfragnum != pfhdr->attrib.frag_num) {
 		/*the first fragment number must be 0
-		 *free the whole queue*/
+		 *free the whole queue
+		 */
 		r8712_free_recvframe(prframe, pfree_recv_queue);
 		r8712_free_recvframe_queue(defrag_q, pfree_recv_queue);
 		return NULL;
@@ -219,23 +221,26 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 	plist = &defrag_q->queue;
 	plist = plist->next;
 	while (!end_of_queue_search(phead, plist)) {
-		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		pnextrframe = container_of(plist, union recv_frame, u.list);
 		pnfhdr = &pnextrframe->u.hdr;
 		/*check the fragment sequence  (2nd ~n fragment frame) */
 		if (curfragnum != pnfhdr->attrib.frag_num) {
 			/* the fragment number must increase  (after decache)
-			 * release the defrag_q & prframe */
+			 * release the defrag_q & prframe
+			 */
 			r8712_free_recvframe(prframe, pfree_recv_queue);
 			r8712_free_recvframe_queue(defrag_q, pfree_recv_queue);
 			return NULL;
 		}
 		curfragnum++;
 		/* copy the 2nd~n fragment frame's payload to the first fragment
-		 * get the 2nd~last fragment frame's payload */
+		 * get the 2nd~last fragment frame's payload
+		 */
 		wlanhdr_offset = pnfhdr->attrib.hdrlen + pnfhdr->attrib.iv_len;
 		recvframe_pull(pnextrframe, wlanhdr_offset);
 		/* append  to first fragment frame's tail (if privacy frame,
-		 * pull the ICV) */
+		 * pull the ICV)
+		 */
 		recvframe_pull_tail(prframe, pfhdr->attrib.icv_len);
 		memcpy(pfhdr->rx_tail, pnfhdr->rx_data, pnfhdr->len);
 		recvframe_put(prframe, pnfhdr->len);
@@ -269,7 +274,7 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 	fragnum = pfhdr->attrib.frag_num;
 	psta_addr = pfhdr->attrib.ta;
 	psta = r8712_get_stainfo(pstapriv, psta_addr);
-	if (psta == NULL)
+	if (!psta)
 		pdefrag_q = NULL;
 	else
 		pdefrag_q = &psta->sta_recvpriv.defrag_q;
@@ -278,7 +283,8 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 		prtnframe = precv_frame;/*isn't a fragment frame*/
 	if (ismfrag == 1) {
 		/* 0~(n-1) fragment frame
-		 * enqueue to defraf_g */
+		 * enqueue to defraf_g
+		 */
 		if (pdefrag_q != NULL) {
 			if (fragnum == 0) {
 				/*the first fragment*/
@@ -294,7 +300,8 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 			prtnframe = NULL;
 		} else {
 			/* can't find this ta's defrag_queue, so free this
-			 * recv_frame */
+			 * recv_frame
+			 */
 			r8712_free_recvframe(precv_frame, pfree_recv_queue);
 			prtnframe = NULL;
 		}
@@ -302,7 +309,8 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 	}
 	if ((ismfrag == 0) && (fragnum != 0)) {
 		/* the last fragment frame
-		 * enqueue the last fragment */
+		 * enqueue the last fragment
+		 */
 		if (pdefrag_q != NULL) {
 			phead = &pdefrag_q->queue;
 			list_add_tail(&pfhdr->list, phead);
@@ -311,7 +319,8 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 			prtnframe = precv_frame;
 		} else {
 			/* can't find this ta's defrag_queue, so free this
-			 *  recv_frame */
+			 *  recv_frame
+			 */
 			r8712_free_recvframe(precv_frame, pfree_recv_queue);
 			prtnframe = NULL;
 		}
@@ -331,7 +340,7 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 	int	a_len, padding_len;
 	u16	eth_type, nSubframe_Length;
 	u8	nr_subframes, i;
-	unsigned char *data_ptr, *pdata;
+	unsigned char *pdata;
 	struct rx_pkt_attrib *pattrib;
 	_pkt *sub_skb, *subframes[MAX_SUBFRAME_COUNT];
 	struct recv_priv *precvpriv = &padapter->recvpriv;
@@ -363,8 +372,7 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 		if (!sub_skb)
 			break;
 		skb_reserve(sub_skb, 12);
-		data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
-		memcpy(data_ptr, pdata, nSubframe_Length);
+		skb_put_data(sub_skb, pdata, nSubframe_Length);
 		subframes[nr_subframes++] = sub_skb;
 		if (nr_subframes >= MAX_SUBFRAME_COUNT) {
 			netdev_warn(padapter->pnetdev, "r8712u: ParseSubframe(): Too many Subframes! Packets dropped!\n");
@@ -391,14 +399,15 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 		   eth_type != ETH_P_AARP && eth_type != ETH_P_IPX) ||
 		   !memcmp(sub_skb->data, bridge_tunnel_header, SNAP_SIZE))) {
 			/* remove RFC1042 or Bridge-Tunnel encapsulation and
-			 * replace EtherType */
+			 * replace EtherType
+			 */
 			skb_pull(sub_skb, SNAP_SIZE);
 			memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->src,
 				ETH_ALEN);
 			memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->dst,
 				ETH_ALEN);
 		} else {
-			u16 len;
+			__be16 len;
 			/* Leave Ethernet header part of hdr and full payload */
 			len = htons(sub_skb->len);
 			memcpy(skb_push(sub_skb, 2), &len, 2);
@@ -429,21 +438,21 @@ exit:
 
 void r8712_rxcmd_event_hdl(struct _adapter *padapter, void *prxcmdbuf)
 {
-	uint voffset;
+	__le32 voffset;
 	u8 *poffset;
 	u16 cmd_len, drvinfo_sz;
 	struct recv_stat *prxstat;
 
-	poffset = (u8 *)prxcmdbuf;
-	voffset = *(uint *)poffset;
-	prxstat = (struct recv_stat *)prxcmdbuf;
+	poffset = prxcmdbuf;
+	voffset = *(__le32 *)poffset;
+	prxstat = prxcmdbuf;
 	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16;
 	drvinfo_sz <<= 3;
 	poffset += RXDESC_SIZE + drvinfo_sz;
 	do {
-		voffset  = *(uint *)poffset;
+		voffset  = *(__le32 *)poffset;
 		cmd_len = (u16)(le32_to_cpu(voffset) & 0xffff);
-		r8712_event_handle(padapter, (uint *)poffset);
+		r8712_event_handle(padapter, (__le32 *)poffset);
 		poffset += (cmd_len + 8);/*8 bytes alignment*/
 	} while (le32_to_cpu(voffset) & BIT(31));
 
@@ -492,7 +501,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 	phead = &ppending_recvframe_queue->queue;
 	plist = phead->next;
 	while (!end_of_queue_search(phead, plist)) {
-		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		pnextrframe = container_of(plist, union recv_frame, u.list);
 		pnextattrib = &pnextrframe->u.hdr.attrib;
 		if (SN_LESS(pnextattrib->seq_num, pattrib->seq_num))
 			plist = plist->next;
@@ -525,14 +534,15 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 		if (list_empty(phead))
 			return true;
 
-		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		prframe = container_of(plist, union recv_frame, u.list);
 		pattrib = &prframe->u.hdr.attrib;
 		preorder_ctrl->indicate_seq = pattrib->seq_num;
 	}
 	/* Prepare indication list and indication.
-	 * Check if there is any packet need indicate. */
+	 * Check if there is any packet need indicate.
+	 */
 	while (!list_empty(phead)) {
-		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		prframe = container_of(plist, union recv_frame, u.list);
 		pattrib = &prframe->u.hdr.attrib;
 		if (!SN_LESS(preorder_ctrl->indicate_seq, pattrib->seq_num)) {
 			plist = plist->next;
@@ -623,8 +633,7 @@ _err_exit:
 void r8712_reordering_ctrl_timeout_handler(void *pcontext)
 {
 	unsigned long irql;
-	struct recv_reorder_ctrl *preorder_ctrl =
-				 (struct recv_reorder_ctrl *)pcontext;
+	struct recv_reorder_ctrl *preorder_ctrl = pcontext;
 	struct _adapter *padapter = preorder_ctrl->padapter;
 	struct  __queue *ppending_recvframe_queue =
 				 &preorder_ctrl->pending_recvframe_queue;
@@ -747,7 +756,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 		/* CCK Driver info Structure is not the same as OFDM packet.*/
 		pcck_buf = (struct phy_cck_rx_status *)pphy_stat;
 		/* (1)Hardware does not provide RSSI for CCK
-		 * (2)PWDB, Average PWDB cacluated by hardware
+		 * (2)PWDB, Average PWDB calculated by hardware
 		 * (for rate adaptive)
 		 */
 		if (!cck_highpwr) {
@@ -757,7 +766,8 @@ static void query_rx_phy_status(struct _adapter *padapter,
 			/* Modify the RF RNA gain value to -40, -20,
 			 * -2, 14 by Jenyu's suggestion
 			 * Note: different RF with the different
-			 * RNA gain. */
+			 * RNA gain.
+			 */
 			case 0x3:
 				rx_pwr_all = -40 - (pcck_buf->cck_agc_rpt &
 					     0x3e);
@@ -841,8 +851,9 @@ static void query_rx_phy_status(struct _adapter *padapter,
 			rssi = query_rx_pwr_percentage(rx_pwr[i]);
 			total_rssi += rssi;
 		}
-		/* (2)PWDB, Average PWDB cacluated by hardware (for
-		 * rate adaptive) */
+		/* (2)PWDB, Average PWDB calculated by hardware (for
+		 * rate adaptive)
+		 */
 		rx_pwr_all = (((pphy_head[PHY_STAT_PWDB_ALL_SHT]) >> 1) & 0x7f)
 			     - 106;
 		pwdb_all = query_rx_pwr_percentage(rx_pwr_all);
@@ -870,11 +881,12 @@ static void query_rx_phy_status(struct _adapter *padapter,
 	}
 	/* UI BSS List signal strength(in percentage), make it good looking,
 	 * from 0~100. It is assigned to the BSS List in
-	 * GetValueFromBeaconOrProbeRsp(). */
-	if (bcck_rate)
+	 * GetValueFromBeaconOrProbeRsp().
+	 */
+	if (bcck_rate) {
 		prframe->u.hdr.attrib.signal_strength =
 			 (u8)r8712_signal_scale_mapping(pwdb_all);
-	else {
+	} else {
 		if (rf_rx_num != 0)
 			prframe->u.hdr.attrib.signal_strength =
 				 (u8)(r8712_signal_scale_mapping(total_rssi /=
@@ -887,6 +899,7 @@ static void process_link_qual(struct _adapter *padapter,
 {
 	u32	last_evm = 0, tmpVal;
 	struct rx_pkt_attrib *pattrib;
+	struct smooth_rssi_data *sqd = &padapter->recvpriv.signal_qual_data;
 
 	if (prframe == NULL || padapter == NULL)
 		return;
@@ -895,27 +908,18 @@ static void process_link_qual(struct _adapter *padapter,
 		/*
 		 * 1. Record the general EVM to the sliding window.
 		 */
-		if (padapter->recvpriv.signal_qual_data.total_num++ >=
-				  PHY_LINKQUALITY_SLID_WIN_MAX) {
-			padapter->recvpriv.signal_qual_data.total_num =
-				  PHY_LINKQUALITY_SLID_WIN_MAX;
-			last_evm = padapter->recvpriv.signal_qual_data.elements
-				  [padapter->recvpriv.signal_qual_data.index];
-			padapter->recvpriv.signal_qual_data.total_val -=
-				  last_evm;
+		if (sqd->total_num++ >= PHY_LINKQUALITY_SLID_WIN_MAX) {
+			sqd->total_num = PHY_LINKQUALITY_SLID_WIN_MAX;
+			last_evm = sqd->elements[sqd->index];
+			sqd->total_val -= last_evm;
 		}
-		padapter->recvpriv.signal_qual_data.total_val +=
-			  pattrib->signal_qual;
-		padapter->recvpriv.signal_qual_data.elements[padapter->
-			  recvpriv.signal_qual_data.index++] =
-			  pattrib->signal_qual;
-		if (padapter->recvpriv.signal_qual_data.index >=
-		    PHY_LINKQUALITY_SLID_WIN_MAX)
-			padapter->recvpriv.signal_qual_data.index = 0;
+		sqd->total_val += pattrib->signal_qual;
+		sqd->elements[sqd->index++] = pattrib->signal_qual;
+		if (sqd->index >= PHY_LINKQUALITY_SLID_WIN_MAX)
+			sqd->index = 0;
 
 		/* <1> Showed on UI for user, in percentage. */
-		tmpVal = padapter->recvpriv.signal_qual_data.total_val /
-			 padapter->recvpriv.signal_qual_data.total_num;
+		tmpVal = sqd->total_val / sqd->total_num;
 		padapter->recvpriv.signal = (u8)tmpVal;
 	}
 }
@@ -924,25 +928,18 @@ static void process_rssi(struct _adapter *padapter, union recv_frame *prframe)
 {
 	u32 last_rssi, tmp_val;
 	struct rx_pkt_attrib *pattrib = &prframe->u.hdr.attrib;
+	struct smooth_rssi_data *ssd = &padapter->recvpriv.signal_strength_data;
 
-	if (padapter->recvpriv.signal_strength_data.total_num++ >=
-	    PHY_RSSI_SLID_WIN_MAX) {
-		padapter->recvpriv.signal_strength_data.total_num =
-			 PHY_RSSI_SLID_WIN_MAX;
-		last_rssi = padapter->recvpriv.signal_strength_data.elements
-			    [padapter->recvpriv.signal_strength_data.index];
-		padapter->recvpriv.signal_strength_data.total_val -= last_rssi;
+	if (ssd->total_num++ >= PHY_RSSI_SLID_WIN_MAX) {
+		ssd->total_num = PHY_RSSI_SLID_WIN_MAX;
+		last_rssi = ssd->elements[ssd->index];
+		ssd->total_val -= last_rssi;
 	}
-	padapter->recvpriv.signal_strength_data.total_val +=
-			pattrib->signal_strength;
-	padapter->recvpriv.signal_strength_data.elements[padapter->recvpriv.
-			signal_strength_data.index++] =
-			pattrib->signal_strength;
-	if (padapter->recvpriv.signal_strength_data.index >=
-	    PHY_RSSI_SLID_WIN_MAX)
-		padapter->recvpriv.signal_strength_data.index = 0;
-	tmp_val = padapter->recvpriv.signal_strength_data.total_val /
-		  padapter->recvpriv.signal_strength_data.total_num;
+	ssd->total_val += pattrib->signal_strength;
+	ssd->elements[ssd->index++] = pattrib->signal_strength;
+	if (ssd->index >= PHY_RSSI_SLID_WIN_MAX)
+		ssd->index = 0;
+	tmp_val = ssd->total_val / ssd->total_num;
 	padapter->recvpriv.rssi = (s8)translate2dbm(padapter, (u8)tmp_val);
 }
 
@@ -962,7 +959,7 @@ int recv_func(struct _adapter *padapter, void *pcontext)
 	struct  __queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
 	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 
-	prframe = (union recv_frame *)pcontext;
+	prframe = pcontext;
 	orig_prframe = prframe;
 	pattrib = &prframe->u.hdr.attrib;
 	if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
@@ -985,15 +982,15 @@ int recv_func(struct _adapter *padapter, void *pcontext)
 	}
 	process_phy_info(padapter, prframe);
 	prframe = r8712_decryptor(padapter, prframe);
-	if (prframe == NULL) {
+	if (!prframe) {
 		retval = _FAIL;
 		goto _exit_recv_func;
 	}
 	prframe = r8712_recvframe_chk_defrag(padapter, prframe);
-	if (prframe == NULL)
+	if (!prframe)
 		goto _exit_recv_func;
 	prframe = r8712_portctrl(padapter, prframe);
-	if (prframe == NULL) {
+	if (!prframe) {
 		retval = _FAIL;
 		goto _exit_recv_func;
 	}
@@ -1027,10 +1024,12 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 	transfer_len = pskb->len;
 	/* Test throughput with Netgear 3700 (No security) with Chariot 3T3R
 	 * pairs. The packet count will be a big number so that the containing
-	 * packet will effect the Rx reordering. */
+	 * packet will effect the Rx reordering.
+	 */
 	if (transfer_len < pkt_len) {
 		/* In this case, it means the MAX_RECVBUF_SZ is too small to
-		 * get the data from 8712u. */
+		 * get the data from 8712u.
+		 */
 		return _FAIL;
 	}
 	do {
@@ -1049,7 +1048,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		if ((le32_to_cpu(prxstat->rxdw0) >> 23) & 0x01)
 			shift_sz = 2;
 		precvframe = r8712_alloc_recvframe(pfree_recv_queue);
-		if (precvframe == NULL)
+		if (!precvframe)
 			goto  _exit_recvbuf2recvframe;
 		INIT_LIST_HEAD(&precvframe->u.hdr.list);
 		precvframe->u.hdr.precvbuf = NULL; /*can't access the precvbuf*/
@@ -1057,14 +1056,16 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		tmp_len = pkt_len + drvinfo_sz + RXDESC_SIZE;
 		pkt_offset = (u16)round_up(tmp_len, 128);
 		/* for first fragment packet, driver need allocate 1536 +
-		 * drvinfo_sz + RXDESC_SIZE to defrag packet. */
+		 * drvinfo_sz + RXDESC_SIZE to defrag packet.
+		 */
 		if ((mf == 1) && (frag == 0))
 			/*1658+6=1664, 1664 is 128 alignment.*/
 			alloc_sz = max_t(u16, tmp_len, 1658);
 		else
 			alloc_sz = tmp_len;
 		/* 2 is for IP header 4 bytes alignment in QoS packet case.
-		 * 4 is for skb->data 4 bytes alignment. */
+		 * 4 is for skb->data 4 bytes alignment.
+		 */
 		alloc_sz += 6;
 		pkt_copy = netdev_alloc_skb(padapter->pnetdev, alloc_sz);
 		if (pkt_copy) {
@@ -1106,7 +1107,7 @@ _exit_recvbuf2recvframe:
 static void recv_tasklet(void *priv)
 {
 	struct sk_buff *pskb;
-	struct _adapter *padapter = (struct _adapter *)priv;
+	struct _adapter *padapter = priv;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
 	while (NULL != (pskb = skb_dequeue(&precvpriv->rx_skb_queue))) {

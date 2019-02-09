@@ -31,11 +31,31 @@ config SENSORS_ADM1275
 	default n
 	help
 	  If you say yes here you get hardware monitoring support for Analog
-	  Devices ADM1075, ADM1275, ADM1276, ADM1293, and ADM1294 Hot-Swap
-	  Controller and Digital Power Monitors.
+	  Devices ADM1075, ADM1272, ADM1275, ADM1276, ADM1278, ADM1293,
+	  and ADM1294 Hot-Swap Controller and Digital Power Monitors.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called adm1275.
+
+config SENSORS_IBM_CFFPS
+	tristate "IBM Common Form Factor Power Supply"
+	depends on LEDS_CLASS
+	help
+	  If you say yes here you get hardware monitoring support for the IBM
+	  Common Form Factor power supply.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ibm-cffps.
+
+config SENSORS_IR35221
+	tristate "Infineon IR35221"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for the
+	  Infineon IR35221 controller.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ir35521.
 
 config SENSORS_LM25066
 	tristate "National Semiconductor LM25066 and compatibles"
@@ -65,6 +85,16 @@ config SENSORS_LTC2978_REGULATOR
 	  If you say yes here you get regulator support for Linear
 	  Technology LTC2974, LTC2977, LTC2978, LTC3880, LTC3883, and LTM4676.
 
+config SENSORS_LTC3815
+	tristate "Linear Technologies LTC3815"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Linear
+	  Technology LTC3815.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc3815.
+
 config SENSORS_MAX16064
 	tristate "Maxim MAX16064"
 	default n
@@ -85,12 +115,22 @@ config SENSORS_MAX20751
 	  This driver can also be built as a module. If so, the module will
 	  be called max20751.
 
+config SENSORS_MAX31785
+	tristate "Maxim MAX31785 and compatibles"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX31785.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max31785.
+
 config SENSORS_MAX34440
 	tristate "Maxim MAX34440 and compatibles"
 	default n
 	help
 	  If you say yes here you get hardware monitoring support for Maxim
-	  MAX34440, MAX34441, MAX34446, MAX34460, and MAX34461.
+	  MAX34440, MAX34441, MAX34446, MAX34451, MAX34460, and MAX34461.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max34440.
@@ -115,13 +155,22 @@ config SENSORS_TPS40422
 	  This driver can also be built as a module. If so, the module will
 	  be called tps40422.
 
+config SENSORS_TPS53679
+	tristate "TI TPS53679"
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  TPS53679.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tps53679.
+
 config SENSORS_UCD9000
-	tristate "TI UCD90120, UCD90124, UCD9090, UCD90910"
+	tristate "TI UCD90120, UCD90124, UCD90160, UCD9090, UCD90910"
 	default n
 	help
 	  If you say yes here you get hardware monitoring support for TI
-	  UCD90120, UCD90124, UCD9090, UCD90910 Sequencer and System Health
-	  Controllers.
+	  UCD90120, UCD90124, UCD90160, UCD9090, UCD90910, Sequencer and System
+	  Health Controllers.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ucd9000.

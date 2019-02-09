@@ -1,16 +1,11 @@
-/* linux/arch/arm/plat-s3c64xx/pm.c
- *
- * Copyright 2008 Openmoko, Inc.
- * Copyright 2008 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *	http://armlinux.simtec.co.uk/
- *
- * S3C64XX CPU PM support.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2008 Openmoko, Inc.
+// Copyright 2008 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
+//	http://armlinux.simtec.co.uk/
+//
+// S3C64XX CPU PM support.
 
 #include <linux/init.h>
 #include <linux/suspend.h>
@@ -22,6 +17,7 @@
 #include <mach/map.h>
 #include <mach/irqs.h>
 
+#include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
 #include <plat/wakeup-mask.h>
@@ -284,7 +280,7 @@ static int s3c64xx_cpu_suspend(unsigned long arg)
 }
 
 /* mapping of interrupts to parts of the wakeup mask */
-static struct samsung_wakeup_mask wake_irqs[] = {
+static const struct samsung_wakeup_mask wake_irqs[] = {
 	{ .irq = IRQ_RTC_ALARM,	.bit = S3C64XX_PWRCFG_RTC_ALARM_DISABLE, },
 	{ .irq = IRQ_RTC_TIC,	.bit = S3C64XX_PWRCFG_RTC_TICK_DISABLE, },
 	{ .irq = IRQ_PENDN,	.bit = S3C64XX_PWRCFG_TS_DISABLE, },
@@ -303,7 +299,7 @@ static void s3c64xx_pm_prepare(void)
 			      wake_irqs, ARRAY_SIZE(wake_irqs));
 
 	/* store address of resume. */
-	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C64XX_INFORM0);
+	__raw_writel(__pa_symbol(s3c_cpu_resume), S3C64XX_INFORM0);
 
 	/* ensure previous wakeup state is cleared before sleeping */
 	__raw_writel(__raw_readl(S3C64XX_WAKEUP_STAT), S3C64XX_WAKEUP_STAT);
@@ -332,6 +328,9 @@ int __init s3c64xx_pm_init(void)
 
 static __init int s3c64xx_pm_initcall(void)
 {
+	if (!soc_is_s3c64xx())
+		return 0;
+
 	pm_cpu_prep = s3c64xx_pm_prepare;
 	pm_cpu_sleep = s3c64xx_cpu_suspend;
 

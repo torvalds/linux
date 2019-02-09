@@ -20,15 +20,44 @@
 	model = "Altera SOCFPGA Arria 10";
 	compatible = "altr,socfpga-arria10", "altr,socfpga";
 
-	chosen {
-		bootargs = "earlyprintk";
-		stdout-path = "serial1:115200n8";
+	aliases {
+		ethernet0 = &gmac0;
+		serial0 = &uart1;
 	};
 
-	memory {
+	chosen {
+		bootargs = "earlyprintk";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
 		name = "memory";
 		device_type = "memory";
 		reg = <0x0 0x40000000>; /* 1GB */
+	};
+
+	a10leds {
+		compatible = "gpio-leds";
+
+		a10sr_led0 {
+			label = "a10sr-led0";
+			gpios = <&a10sr_gpio 0 1>;
+		};
+
+		a10sr_led1 {
+			label = "a10sr-led1";
+			gpios = <&a10sr_gpio 1 1>;
+		};
+
+		a10sr_led2 {
+			label = "a10sr-led2";
+			gpios = <&a10sr_gpio 2 1>;
+		};
+
+		a10sr_led3 {
+			label = "a10sr-led3";
+			gpios = <&a10sr_gpio 3 1>;
+		};
 	};
 
 	soc {
@@ -70,14 +99,44 @@
 	status = "okay";
 };
 
+&gpio1 {
+	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+
+	resource-manager@0 {
+		compatible = "altr,a10sr";
+		reg = <0>;
+		spi-max-frequency = <100000>;
+		/* low-level active IRQ at GPIO1_5 */
+		interrupt-parent = <&portb>;
+		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		a10sr_gpio: gpio-controller {
+			compatible = "altr,a10sr-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		a10sr_rst: reset-controller {
+			compatible = "altr,a10sr-reset";
+			#reset-cells = <1>;
+		};
+	};
+};
+
 &i2c1 {
-	speed-mode = <0>;
 	status = "okay";
 
 	/*
 	 * adjust the falling times to decrease the i2c frequency to 50Khz
 	 * because the LCD module does not work at the standard 100Khz
 	 */
+	clock-frequency = <100000>;
 	i2c-sda-falling-time-ns = <6000>;
 	i2c-scl-falling-time-ns = <6000>;
 
@@ -91,6 +150,11 @@
 		compatible = "dallas,ds1339";
 		reg = <0x68>;
 	};
+
+	ltc@5c {
+		compatible = "ltc2977";
+		reg = <0x5c>;
+	};
 };
 
 &uart1 {
@@ -98,5 +162,10 @@
 };
 
 &usb0 {
+	status = "okay";
+	disable-over-current;
+};
+
+&watchdog1 {
 	status = "okay";
 };

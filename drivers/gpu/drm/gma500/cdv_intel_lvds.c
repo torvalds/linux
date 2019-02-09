@@ -244,7 +244,7 @@ static void cdv_intel_lvds_restore(struct drm_connector *connector)
 {
 }
 
-static int cdv_intel_lvds_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status cdv_intel_lvds_mode_valid(struct drm_connector *connector,
 			      struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
@@ -284,8 +284,7 @@ static bool cdv_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			    head) {
 		if (tmp_encoder != encoder
 		    && tmp_encoder->crtc == encoder->crtc) {
-			printk(KERN_ERR "Can't enable LVDS and another "
-			       "encoder on the same pipe\n");
+			pr_err("Can't enable LVDS and another encoder on the same pipe\n");
 			return false;
 		}
 	}
@@ -387,19 +386,6 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
 }
 
 /**
- * Detect the LVDS connection.
- *
- * This always returns CONNECTOR_STATUS_CONNECTED.
- * This connector should only have
- * been set up if the LVDS was actually connected anyway.
- */
-static enum drm_connector_status cdv_intel_lvds_detect(
-				struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
-/**
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
 static int cdv_intel_lvds_get_modes(struct drm_connector *connector)
@@ -415,14 +401,6 @@ static int cdv_intel_lvds_get_modes(struct drm_connector *connector)
 	if (ret)
 		return ret;
 
-	/* Didn't get an EDID, so
-	 * Set wide sync ranges so we get all modes
-	 * handed to valid_mode for checking
-	 */
-	connector->display_info.min_vfreq = 0;
-	connector->display_info.max_vfreq = 200;
-	connector->display_info.min_hfreq = 0;
-	connector->display_info.max_hfreq = 200;
 	if (mode_dev->panel_fixed_mode != NULL) {
 		struct drm_display_mode *mode =
 		    drm_mode_duplicate(dev, mode_dev->panel_fixed_mode);
@@ -444,8 +422,7 @@ static void cdv_intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
-	if (gma_encoder->i2c_bus)
-		psb_intel_i2c_destroy(gma_encoder->i2c_bus);
+	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
@@ -530,9 +507,6 @@ static const struct drm_connector_helper_funcs
 
 static const struct drm_connector_funcs cdv_intel_lvds_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = cdv_intel_lvds_save,
-	.restore = cdv_intel_lvds_restore,
-	.detect = cdv_intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = cdv_intel_lvds_set_property,
 	.destroy = cdv_intel_lvds_destroy,
@@ -643,6 +617,8 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	gma_encoder->dev_priv = lvds_priv;
 
 	connector = &gma_connector->base;
+	gma_connector->save = cdv_intel_lvds_save;
+	gma_connector->restore = cdv_intel_lvds_restore;
 	encoder = &gma_encoder->base;
 
 
@@ -652,7 +628,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 
 	drm_encoder_init(dev, encoder,
 			 &cdv_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_LVDS);
+			 DRM_MODE_ENCODER_LVDS, NULL);
 
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
@@ -779,15 +755,13 @@ out:
 
 failed_find:
 	mutex_unlock(&dev->mode_config.mutex);
-	printk(KERN_ERR "Failed find\n");
-	if (gma_encoder->ddc_bus)
-		psb_intel_i2c_destroy(gma_encoder->ddc_bus);
+	pr_err("Failed find\n");
+	psb_intel_i2c_destroy(gma_encoder->ddc_bus);
 failed_ddc:
-	printk(KERN_ERR "Failed DDC\n");
-	if (gma_encoder->i2c_bus)
-		psb_intel_i2c_destroy(gma_encoder->i2c_bus);
+	pr_err("Failed DDC\n");
+	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
 failed_blc_i2c:
-	printk(KERN_ERR "Failed BLC\n");
+	pr_err("Failed BLC\n");
 	drm_encoder_cleanup(encoder);
 	drm_connector_cleanup(connector);
 	kfree(lvds_priv);

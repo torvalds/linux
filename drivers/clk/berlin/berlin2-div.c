@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2014 Marvell Technology Group Ltd.
  *
  * Alexandre Belloni <alexandre.belloni@free-electrons.com>
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/bitops.h>
 #include <linux/clk-provider.h>
@@ -234,7 +223,7 @@ static const struct clk_ops berlin2_div_mux_ops = {
 	.get_parent	= berlin2_div_get_parent,
 };
 
-struct clk * __init
+struct clk_hw * __init
 berlin2_div_register(const struct berlin2_div_map *map,
 		     void __iomem *base, const char *name, u8 div_flags,
 		     const char **parent_names, int num_parents,
@@ -259,7 +248,7 @@ berlin2_div_register(const struct berlin2_div_map *map,
 	if ((div_flags & BERLIN2_DIV_HAS_MUX) == 0)
 		mux_ops = NULL;
 
-	return clk_register_composite(NULL, name, parent_names, num_parents,
+	return clk_hw_register_composite(NULL, name, parent_names, num_parents,
 				      &div->hw, mux_ops, &div->hw, rate_ops,
 				      &div->hw, gate_ops, flags);
 }

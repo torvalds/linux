@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SMPBOOT_H
 #define SMPBOOT_H
 
@@ -14,7 +15,9 @@ static inline void idle_threads_init(void) { }
 #endif
 
 int smpboot_create_threads(unsigned int cpu);
-void smpboot_park_threads(unsigned int cpu);
-void smpboot_unpark_threads(unsigned int cpu);
+int smpboot_park_threads(unsigned int cpu);
+int smpboot_unpark_threads(unsigned int cpu);
+
+void __init cpuhp_threads_init(void);
 
 #endif

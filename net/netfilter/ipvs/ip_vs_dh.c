@@ -43,6 +43,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/hash.h>
 
 #include <net/ip_vs.h>
 
@@ -81,7 +82,7 @@ static inline unsigned int ip_vs_dh_hashkey(int af, const union nf_inet_addr *ad
 		addr_fold = addr->ip6[0]^addr->ip6[1]^
 			    addr->ip6[2]^addr->ip6[3];
 #endif
-	return (ntohl(addr_fold)*2654435761UL) & IP_VS_DH_TAB_MASK;
+	return hash_32(ntohl(addr_fold), IP_VS_DH_TAB_BITS);
 }
 
 
@@ -163,7 +164,7 @@ static int ip_vs_dh_init_svc(struct ip_vs_service *svc)
 		return -ENOMEM;
 
 	svc->sched_data = s;
-	IP_VS_DBG(6, "DH hash table (memory=%Zdbytes) allocated for "
+	IP_VS_DBG(6, "DH hash table (memory=%zdbytes) allocated for "
 		  "current service\n",
 		  sizeof(struct ip_vs_dh_bucket)*IP_VS_DH_TAB_SIZE);
 
@@ -183,7 +184,7 @@ static void ip_vs_dh_done_svc(struct ip_vs_service *svc)
 
 	/* release the table itself */
 	kfree_rcu(s, rcu_head);
-	IP_VS_DBG(6, "DH hash table (memory=%Zdbytes) released\n",
+	IP_VS_DBG(6, "DH hash table (memory=%zdbytes) released\n",
 		  sizeof(struct ip_vs_dh_bucket)*IP_VS_DH_TAB_SIZE);
 }
 

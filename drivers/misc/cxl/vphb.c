@@ -49,12 +49,12 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 	phb = pci_bus_to_host(dev->bus);
 	afu = (struct cxl_afu *)phb->private_data;
 
-	if (!cxl_adapter_link_ok(afu->adapter)) {
+	if (!cxl_ops->link_ok(afu->adapter, afu)) {
 		dev_warn(&dev->dev, "%s: Device link is down, refusing to enable AFU\n", __func__);
 		return false;
 	}
 
-	set_dma_ops(&dev->dev, &dma_direct_ops);
+	set_dma_ops(&dev->dev, &dma_nommu_ops);
 	set_dma_offset(&dev->dev, PAGE_OFFSET);
 
 	/*
@@ -62,11 +62,11 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 	 * DMA ops, we'll need a default context to attach them to
 	 */
 	ctx = cxl_dev_context_init(dev);
-	if (!ctx)
+	if (IS_ERR(ctx))
 		return false;
 	dev->dev.archdata.cxl_ctx = ctx;
 
-	return (cxl_afu_check_and_enable(afu) == 0);
+	return (cxl_ops->afu_check_and_enable(afu) == 0);
 }
 
 static void cxl_pci_disable_device(struct pci_dev *dev)
@@ -99,114 +99,108 @@ static int cxl_pcie_cfg_record(u8 bus, u8 devfn)
 	return (bus << 8) + devfn;
 }
 
-static unsigned long cxl_pcie_cfg_addr(struct pci_controller* phb,
-				       u8 bus, u8 devfn, int offset)
+static inline struct cxl_afu *pci_bus_to_afu(struct pci_bus *bus)
 {
-	int record = cxl_pcie_cfg_record(bus, devfn);
+	struct pci_controller *phb = bus ? pci_bus_to_host(bus) : NULL;
 
-	return (unsigned long)phb->cfg_addr + ((unsigned long)phb->cfg_data * record) + offset;
+	return phb ? phb->private_data : NULL;
 }
 
-
-static int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
-				int offset, int len,
-				volatile void __iomem **ioaddr,
-				u32 *mask, int *shift)
+static void cxl_afu_configured_put(struct cxl_afu *afu)
 {
-	struct pci_controller *phb;
-	struct cxl_afu *afu;
-	unsigned long addr;
+	atomic_dec_if_positive(&afu->configured_state);
+}
 
-	phb = pci_bus_to_host(bus);
-	if (phb == NULL)
+static bool cxl_afu_configured_get(struct cxl_afu *afu)
+{
+	return atomic_inc_unless_negative(&afu->configured_state);
+}
+
+static inline int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
+				       struct cxl_afu *afu, int *_record)
+{
+	int record;
+
+	record = cxl_pcie_cfg_record(bus->number, devfn);
+	if (record > afu->crs_num)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	afu = (struct cxl_afu *)phb->private_data;
 
-	if (cxl_pcie_cfg_record(bus->number, devfn) > afu->crs_num)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	if (offset >= (unsigned long)phb->cfg_data)
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-	addr = cxl_pcie_cfg_addr(phb, bus->number, devfn, offset);
-
-	*ioaddr = (void *)(addr & ~0x3ULL);
-	*shift = ((addr & 0x3) * 8);
-	switch (len) {
-	case 1:
-		*mask = 0xff;
-		break;
-	case 2:
-		*mask = 0xffff;
-		break;
-	default:
-		*mask = 0xffffffff;
-		break;
-	}
+	*_record = record;
 	return 0;
-}
-
-
-static inline bool cxl_config_link_ok(struct pci_bus *bus)
-{
-	struct pci_controller *phb;
-	struct cxl_afu *afu;
-
-	/* Config space IO is based on phb->cfg_addr, which is based on
-	 * afu_desc_mmio. This isn't safe to read/write when the link
-	 * goes down, as EEH tears down MMIO space.
-	 *
-	 * Check if the link is OK before proceeding.
-	 */
-
-	phb = pci_bus_to_host(bus);
-	if (phb == NULL)
-		return false;
-	afu = (struct cxl_afu *)phb->private_data;
-	return cxl_adapter_link_ok(afu->adapter);
 }
 
 static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 				int offset, int len, u32 *val)
 {
-	volatile void __iomem *ioaddr;
-	int shift, rc;
-	u32 mask;
+	int rc, record;
+	struct cxl_afu *afu;
+	u8 val8;
+	u16 val16;
+	u32 val32;
 
-	rc = cxl_pcie_config_info(bus, devfn, offset, len, &ioaddr,
-				  &mask, &shift);
-	if (rc)
-		return rc;
-
-	if (!cxl_config_link_ok(bus))
+	afu = pci_bus_to_afu(bus);
+	/* Grab a reader lock on afu. */
+	if (afu == NULL || !cxl_afu_configured_get(afu))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	/* Can only read 32 bits */
-	*val = (in_le32(ioaddr) >> shift) & mask;
-	return PCIBIOS_SUCCESSFUL;
+	rc = cxl_pcie_config_info(bus, devfn, afu, &record);
+	if (rc)
+		goto out;
+
+	switch (len) {
+	case 1:
+		rc = cxl_ops->afu_cr_read8(afu, record, offset,	&val8);
+		*val = val8;
+		break;
+	case 2:
+		rc = cxl_ops->afu_cr_read16(afu, record, offset, &val16);
+		*val = val16;
+		break;
+	case 4:
+		rc = cxl_ops->afu_cr_read32(afu, record, offset, &val32);
+		*val = val32;
+		break;
+	default:
+		WARN_ON(1);
+	}
+
+out:
+	cxl_afu_configured_put(afu);
+	return rc ? PCIBIOS_DEVICE_NOT_FOUND : PCIBIOS_SUCCESSFUL;
 }
 
 static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 				 int offset, int len, u32 val)
 {
-	volatile void __iomem *ioaddr;
-	u32 v, mask;
-	int shift, rc;
+	int rc, record;
+	struct cxl_afu *afu;
 
-	rc = cxl_pcie_config_info(bus, devfn, offset, len, &ioaddr,
-				  &mask, &shift);
-	if (rc)
-		return rc;
-
-	if (!cxl_config_link_ok(bus))
+	afu = pci_bus_to_afu(bus);
+	/* Grab a reader lock on afu. */
+	if (afu == NULL || !cxl_afu_configured_get(afu))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	/* Can only write 32 bits so do read-modify-write */
-	mask <<= shift;
-	val <<= shift;
+	rc = cxl_pcie_config_info(bus, devfn, afu, &record);
+	if (rc)
+		goto out;
 
-	v = (in_le32(ioaddr) & ~mask) || (val & mask);
+	switch (len) {
+	case 1:
+		rc = cxl_ops->afu_cr_write8(afu, record, offset, val & 0xff);
+		break;
+	case 2:
+		rc = cxl_ops->afu_cr_write16(afu, record, offset, val & 0xffff);
+		break;
+	case 4:
+		rc = cxl_ops->afu_cr_write32(afu, record, offset, val);
+		break;
+	default:
+		WARN_ON(1);
+	}
 
-	out_le32(ioaddr, v);
-	return PCIBIOS_SUCCESSFUL;
+out:
+	cxl_afu_configured_put(afu);
+	return rc ? PCIBIOS_SET_FAILED : PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops cxl_pcie_pci_ops =
@@ -231,25 +225,43 @@ static struct pci_controller_ops cxl_pci_controller_ops =
 
 int cxl_pci_vphb_add(struct cxl_afu *afu)
 {
-	struct pci_dev *phys_dev;
-	struct pci_controller *phb, *phys_phb;
+	struct pci_controller *phb;
+	struct device_node *vphb_dn;
+	struct device *parent;
 
-	phys_dev = to_pci_dev(afu->adapter->dev.parent);
-	phys_phb = pci_bus_to_host(phys_dev->bus);
+	/*
+	 * If there are no AFU configuration records we won't have anything to
+	 * expose under the vPHB, so skip creating one, returning success since
+	 * this is still a valid case. This will also opt us out of EEH
+	 * handling since we won't have anything special to do if there are no
+	 * kernel drivers attached to the vPHB, and EEH handling is not yet
+	 * supported in the peer model.
+	 */
+	if (!afu->crs_num)
+		return 0;
+
+	/* The parent device is the adapter. Reuse the device node of
+	 * the adapter.
+	 * We don't seem to care what device node is used for the vPHB,
+	 * but tools such as lsvpd walk up the device parents looking
+	 * for a valid location code, so we might as well show devices
+	 * attached to the adapter as being located on that adapter.
+	 */
+	parent = afu->adapter->dev.parent;
+	vphb_dn = parent->of_node;
 
 	/* Alloc and setup PHB data structure */
-	phb = pcibios_alloc_controller(phys_phb->dn);
-
+	phb = pcibios_alloc_controller(vphb_dn);
 	if (!phb)
 		return -ENODEV;
 
 	/* Setup parent in sysfs */
-	phb->parent = &phys_dev->dev;
+	phb->parent = parent;
 
 	/* Setup the PHB using arch provided callback */
 	phb->ops = &cxl_pcie_pci_ops;
-	phb->cfg_addr = afu->afu_desc_mmio + afu->crs_offset;
-	phb->cfg_data = (void *)(u64)afu->crs_len;
+	phb->cfg_addr = NULL;
+	phb->cfg_data = NULL;
 	phb->private_data = afu;
 	phb->controller_ops = cxl_pci_controller_ops;
 
@@ -257,6 +269,11 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 	pcibios_scan_phb(phb);
 	if (phb->bus == NULL)
 		return -ENXIO;
+
+	/* Set release hook on root bus */
+	pci_set_host_bridge_release(to_pci_host_bridge(phb->bus->bridge),
+				    pcibios_free_controller_deferred,
+				    (void *) phb);
 
 	/* Claim resources. This might need some rework as well depending
 	 * whether we are doing probe-only or not, like assigning unassigned
@@ -272,15 +289,6 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 	return 0;
 }
 
-void cxl_pci_vphb_reconfigure(struct cxl_afu *afu)
-{
-	/* When we are reconfigured, the AFU's MMIO space is unmapped
-	 * and remapped. We need to reflect this in the PHB's view of
-	 * the world.
-	 */
-	afu->phb->cfg_addr = afu->afu_desc_mmio + afu->crs_offset;
-}
-
 void cxl_pci_vphb_remove(struct cxl_afu *afu)
 {
 	struct pci_controller *phb;
@@ -293,7 +301,19 @@ void cxl_pci_vphb_remove(struct cxl_afu *afu)
 	afu->phb = NULL;
 
 	pci_remove_root_bus(phb->bus);
-	pcibios_free_controller(phb);
+	/*
+	 * We don't free phb here - that's handled by
+	 * pcibios_free_controller_deferred()
+	 */
+}
+
+bool cxl_pci_is_vphb_device(struct pci_dev *dev)
+{
+	struct pci_controller *phb;
+
+	phb = pci_bus_to_host(dev->bus);
+
+	return (phb->ops == &cxl_pcie_pci_ops);
 }
 
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev)

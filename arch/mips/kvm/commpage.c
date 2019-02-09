@@ -4,7 +4,7 @@
  * for more details.
  *
  * commpage, currently used for Virtual COP0 registers.
- * Mapped into the guest kernel @ 0x0.
+ * Mapped into the guest kernel @ KVM_GUEST_COMMPAGE_ADDR.
  *
  * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
@@ -12,7 +12,6 @@
 
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/bootmem.h>

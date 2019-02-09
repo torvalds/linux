@@ -12,8 +12,18 @@ Required properties:
 - interrupts: Should contain phy interrupt
 - fsl,anatop: phandle for anatop register, it is only for imx6 SoC series
 
+Optional properties:
+- fsl,tx-cal-45-dn-ohms: Integer [30-55]. Resistance (in ohms) of switchable
+  high-speed trimming resistor connected in parallel with the 45 ohm resistor
+  that terminates the DN output signal. Default: 45
+- fsl,tx-cal-45-dp-ohms: Integer [30-55]. Resistance (in ohms) of switchable
+  high-speed trimming resistor connected in parallel with the 45 ohm resistor
+  that terminates the DP output signal. Default: 45
+- fsl,tx-d-cal: Integer [79-119]. Current trimming value (as a percentage) of
+  the 17.78mA TX reference current. Default: 100
+
 Example:
-usbphy1: usbphy@020c9000 {
+usbphy1: usbphy@20c9000 {
 	compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
 	reg = <0x020c9000 0x1000>;
 	interrupts = <0 44 0x04>;

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Platform support"
 
 source "arch/powerpc/platforms/powernv/Kconfig"
@@ -59,6 +60,17 @@ config PPC_OF_BOOT_TRAMPOLINE
 
 	  In case of doubt, say Y
 
+config PPC_DT_CPU_FTRS
+	bool "Device-tree based CPU feature discovery & setup"
+	depends on PPC_BOOK3S_64
+	default y
+	help
+	  This enables code to use a new device tree binding for describing CPU
+	  compatibility and features. Saying Y here will attempt to use the new
+	  binding if the firmware provides it. Currently only the skiboot
+	  firmware provides this binding.
+	  If you're not sure say Y.
+
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
 	depends on PPC_RTAS
@@ -67,7 +79,7 @@ config UDBG_RTAS_CONSOLE
 config PPC_SMP_MUXED_IPI
 	bool
 	help
-	  Select this opton if your platform supports SMP and your
+	  Select this option if your platform supports SMP and your
 	  interrupt controller provides less than 4 interrupts to each
 	  cpu.	This will enable the generic code to multiplex the 4
 	  messages on to one ipi.
@@ -168,17 +180,6 @@ config MPIC_BROKEN_REGREAD
 	  well, but enabling it uses about 8KB of memory to keep copies
 	  of the register contents in software.
 
-config IBMVIO
-	depends on PPC_PSERIES
-	bool
-	default y
-
-config IBMEBUS
-	depends on PPC_PSERIES
-	bool "Support for GX bus based adapters"
-	help
-	  Bus device driver for GX bus based adapters.
-
 config EEH
 	bool
 	depends on (PPC_POWERNV || PPC_PSERIES) && PCI
@@ -272,21 +273,10 @@ config TAU_AVERAGE
 
 	  If in doubt, say N here.
 
-config QUICC_ENGINE
-	bool "Freescale QUICC Engine (QE) Support"
-	depends on FSL_SOC && PPC32
-	select PPC_LIB_RHEAP
-	select CRC32
-	help
-	  The QUICC Engine (QE) is a new generation of communications
-	  coprocessors on Freescale embedded CPUs (akin to CPM in older chips).
-	  Selecting this option means that you wish to build a kernel
-	  for a machine with a QE coprocessor.
-
 config QE_GPIO
 	bool "QE GPIO support"
 	depends on QUICC_ENGINE
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  Say Y here if you're going to use hardware that connects to the
 	  QE GPIOs.
@@ -295,24 +285,13 @@ config CPM2
 	bool "Enable support for the CPM2 (Communications Processor Module)"
 	depends on (FSL_SOC_BOOKE && PPC32) || 8260
 	select CPM
-	select PPC_LIB_RHEAP
 	select PPC_PCI_CHOICE
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
 	  you wish to build a kernel for a machine with a CPM2 coprocessor
 	  on it (826x, 827x, 8560).
-
-config AXON_RAM
-	tristate "Axon DDR2 memory device driver"
-	depends on PPC_IBM_CELL_BLADE && BLOCK
-	default m
-	help
-	  It registers one block device per Axon's DDR2 memory bank found
-	  on a system. Block devices are called axonram?, their major and
-	  minor numbers are available in /proc/devices, /proc/partitions or
-	  in /sys/block/axonram?/dev.
 
 config FSL_ULI1575
 	bool
@@ -325,6 +304,7 @@ config FSL_ULI1575
 
 config CPM
 	bool
+	select GENERIC_ALLOCATOR
 
 config OF_RTC
 	bool
@@ -332,10 +312,21 @@ config OF_RTC
 	  Uses information from the OF or flattened device tree to instantiate
 	  platform devices for direct mapped RTC chips like the DS1742 or DS1743.
 
+config GEN_RTC
+	bool "Use the platform RTC operations from user space"
+	select RTC_CLASS
+	select RTC_DRV_GENERIC
+	help
+	  This option provides backwards compatibility with the old gen_rtc.ko
+	  module that was traditionally used for old PowerPC machines.
+	  Platforms should migrate to enabling the RTC_DRV_GENERIC by hand
+	  replacing their get_rtc_time/set_rtc_time callbacks with
+	  a proper RTC device driver.
+
 config SIMPLE_GPIO
 	bool "Support for simple, memory-mapped GPIO controllers"
 	depends on PPC
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  Say Y here to support simple, memory-mapped GPIO controllers.
 	  These are usually BCSRs used to control board's switches, LEDs,
@@ -345,7 +336,7 @@ config SIMPLE_GPIO
 config MCU_MPC8349EMITX
 	bool "MPC8349E-mITX MCU driver"
 	depends on I2C=y && PPC_83xx
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  Say Y here to enable soft power-off functionality on the Freescale
 	  boards with the MPC8349E-mITX-compatible MCU chips. This driver will

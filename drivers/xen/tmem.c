@@ -233,16 +233,16 @@ static int tmem_cleancache_init_fs(size_t pagesize)
 	return xen_tmem_new_pool(uuid_private, 0, pagesize);
 }
 
-static int tmem_cleancache_init_shared_fs(char *uuid, size_t pagesize)
+static int tmem_cleancache_init_shared_fs(uuid_t *uuid, size_t pagesize)
 {
 	struct tmem_pool_uuid shared_uuid;
 
-	shared_uuid.uuid_lo = *(u64 *)uuid;
-	shared_uuid.uuid_hi = *(u64 *)(&uuid[8]);
+	shared_uuid.uuid_lo = *(u64 *)&uuid->b[0];
+	shared_uuid.uuid_hi = *(u64 *)&uuid->b[8];
 	return xen_tmem_new_pool(shared_uuid, TMEM_POOL_SHARED, pagesize);
 }
 
-static struct cleancache_ops tmem_cleancache_ops = {
+static const struct cleancache_ops tmem_cleancache_ops = {
 	.put_page = tmem_cleancache_put_page,
 	.get_page = tmem_cleancache_get_page,
 	.invalidate_page = tmem_cleancache_flush_page,
@@ -283,6 +283,10 @@ static int tmem_frontswap_store(unsigned type, pgoff_t offset,
 	u32 ind = (u32)offset;
 	int pool = tmem_frontswap_poolid;
 	int ret;
+
+	/* THP isn't supported */
+	if (PageTransHuge(page))
+		return -1;
 
 	if (pool < 0)
 		return -1;

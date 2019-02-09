@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ARM Ltd. Versatile Express
  *
@@ -8,6 +9,7 @@
  */
 
 /dts-v1/;
+#include "vexpress-v2m-rs1.dtsi"
 
 / {
 	model = "V2P-CA15_CA7";
@@ -39,6 +41,8 @@
 			reg = <0>;
 			cci-control-port = <&cci_control1>;
 			cpu-idle-states = <&CLUSTER_SLEEP_BIG>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <990>;
 		};
 
 		cpu1: cpu@1 {
@@ -47,6 +51,8 @@
 			reg = <1>;
 			cci-control-port = <&cci_control1>;
 			cpu-idle-states = <&CLUSTER_SLEEP_BIG>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <990>;
 		};
 
 		cpu2: cpu@2 {
@@ -55,6 +61,8 @@
 			reg = <0x100>;
 			cci-control-port = <&cci_control2>;
 			cpu-idle-states = <&CLUSTER_SLEEP_LITTLE>;
+			capacity-dmips-mhz = <516>;
+			dynamic-power-coefficient = <133>;
 		};
 
 		cpu3: cpu@3 {
@@ -63,6 +71,8 @@
 			reg = <0x101>;
 			cci-control-port = <&cci_control2>;
 			cpu-idle-states = <&CLUSTER_SLEEP_LITTLE>;
+			capacity-dmips-mhz = <516>;
+			dynamic-power-coefficient = <133>;
 		};
 
 		cpu4: cpu@4 {
@@ -71,6 +81,8 @@
 			reg = <0x102>;
 			cci-control-port = <&cci_control2>;
 			cpu-idle-states = <&CLUSTER_SLEEP_LITTLE>;
+			capacity-dmips-mhz = <516>;
+			dynamic-power-coefficient = <133>;
 		};
 
 		idle-states {
@@ -109,7 +121,7 @@
 		compatible = "arm,hdlcd";
 		reg = <0 0x2b000000 0 0x1000>;
 		interrupts = <0 85 4>;
-		clocks = <&oscclk5>;
+		clocks = <&hdlcd_clk>;
 		clock-names = "pxlclk";
 	};
 
@@ -126,7 +138,7 @@
 		#address-cells = <0>;
 		interrupt-controller;
 		reg = <0 0x2c001000 0 0x1000>,
-		      <0 0x2c002000 0 0x1000>,
+		      <0 0x2c002000 0 0x2000>,
 		      <0 0x2c004000 0 0x2000>,
 		      <0 0x2c006000 0 0x2000>;
 		interrupts = <1 9 0xf04>;
@@ -197,7 +209,7 @@
 			     <1 10 0xf08>;
 	};
 
-	pmu_a15 {
+	pmu-a15 {
 		compatible = "arm,cortex-a15-pmu";
 		interrupts = <0 68 4>,
 			     <0 69 4>;
@@ -205,7 +217,7 @@
 				     <&cpu1>;
 	};
 
-	pmu_a7 {
+	pmu-a7 {
 		compatible = "arm,cortex-a7-pmu";
 		interrupts = <0 128 4>,
 			     <0 129 4>,
@@ -227,7 +239,7 @@
 		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-		osc@0 {
+		oscclk0 {
 			/* A15 PLL 0 reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 0>;
@@ -236,7 +248,7 @@
 			clock-output-names = "oscclk0";
 		};
 
-		osc@1 {
+		oscclk1 {
 			/* A15 PLL 1 reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 1>;
@@ -245,7 +257,7 @@
 			clock-output-names = "oscclk1";
 		};
 
-		osc@2 {
+		oscclk2 {
 			/* A7 PLL 0 reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 2>;
@@ -254,7 +266,7 @@
 			clock-output-names = "oscclk2";
 		};
 
-		osc@3 {
+		oscclk3 {
 			/* A7 PLL 1 reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 3>;
@@ -263,7 +275,7 @@
 			clock-output-names = "oscclk3";
 		};
 
-		osc@4 {
+		oscclk4 {
 			/* External AXI master clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 4>;
@@ -272,7 +284,7 @@
 			clock-output-names = "oscclk4";
 		};
 
-		oscclk5: osc@5 {
+		hdlcd_clk: oscclk5 {
 			/* HDLCD PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 5>;
@@ -281,7 +293,7 @@
 			clock-output-names = "oscclk5";
 		};
 
-		smbclk: osc@6 {
+		smbclk: oscclk6 {
 			/* Static memory controller clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 6>;
@@ -290,7 +302,7 @@
 			clock-output-names = "oscclk6";
 		};
 
-		osc@7 {
+		oscclk7 {
 			/* SYS PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 7>;
@@ -299,7 +311,7 @@
 			clock-output-names = "oscclk7";
 		};
 
-		osc@8 {
+		oscclk8 {
 			/* DDR2 PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 8>;
@@ -308,7 +320,7 @@
 			clock-output-names = "oscclk8";
 		};
 
-		volt@0 {
+		volt-a15 {
 			/* A15 CPU core voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 0>;
@@ -319,7 +331,7 @@
 			label = "A15 Vcore";
 		};
 
-		volt@1 {
+		volt-a7 {
 			/* A7 CPU core voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 1>;
@@ -330,49 +342,49 @@
 			label = "A7 Vcore";
 		};
 
-		amp@0 {
+		amp-a15 {
 			/* Total current for the two A15 cores */
 			compatible = "arm,vexpress-amp";
 			arm,vexpress-sysreg,func = <3 0>;
 			label = "A15 Icore";
 		};
 
-		amp@1 {
+		amp-a7 {
 			/* Total current for the three A7 cores */
 			compatible = "arm,vexpress-amp";
 			arm,vexpress-sysreg,func = <3 1>;
 			label = "A7 Icore";
 		};
 
-		temp@0 {
+		temp-dcc {
 			/* DCC internal temperature */
 			compatible = "arm,vexpress-temp";
 			arm,vexpress-sysreg,func = <4 0>;
 			label = "DCC";
 		};
 
-		power@0 {
+		power-a15 {
 			/* Total power for the two A15 cores */
 			compatible = "arm,vexpress-power";
 			arm,vexpress-sysreg,func = <12 0>;
 			label = "A15 Pcore";
 		};
 
-		power@1 {
+		power-a7 {
 			/* Total power for the three A7 cores */
 			compatible = "arm,vexpress-power";
 			arm,vexpress-sysreg,func = <12 1>;
 			label = "A7 Pcore";
 		};
 
-		energy@0 {
+		energy-a15 {
 			/* Total energy for the two A15 cores */
 			compatible = "arm,vexpress-energy";
 			arm,vexpress-sysreg,func = <13 0>, <13 1>;
 			label = "A15 Jcore";
 		};
 
-		energy@2 {
+		energy-a7 {
 			/* Total energy for the three A7 cores */
 			compatible = "arm,vexpress-energy";
 			arm,vexpress-sysreg,func = <13 2>, <13 3>;
@@ -380,28 +392,28 @@
 		};
 	};
 
-	etb@0,20010000 {
+	etb@20010000 {
 		compatible = "arm,coresight-etb10", "arm,primecell";
 		reg = <0 0x20010000 0 0x1000>;
 
 		clocks = <&oscclk6a>;
 		clock-names = "apb_pclk";
 		port {
-			etb_in_port: endpoint@0 {
+			etb_in_port: endpoint {
 				slave-mode;
 				remote-endpoint = <&replicator_out_port0>;
 			};
 		};
 	};
 
-	tpiu@0,20030000 {
+	tpiu@20030000 {
 		compatible = "arm,coresight-tpiu", "arm,primecell";
 		reg = <0 0x20030000 0 0x1000>;
 
 		clocks = <&oscclk6a>;
 		clock-names = "apb_pclk";
 		port {
-			tpiu_in_port: endpoint@0 {
+			tpiu_in_port: endpoint {
 				slave-mode;
 				remote-endpoint = <&replicator_out_port1>;
 			};
@@ -444,7 +456,7 @@
 		};
 	};
 
-	funnel@0,20040000 {
+	funnel@20040000 {
 		compatible = "arm,coresight-funnel", "arm,primecell";
 		reg = <0 0x20040000 0 0x1000>;
 
@@ -508,7 +520,7 @@
 		};
 	};
 
-	ptm@0,2201c000 {
+	ptm@2201c000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0 0x2201c000 0 0x1000>;
 
@@ -522,7 +534,7 @@
 		};
 	};
 
-	ptm@0,2201d000 {
+	ptm@2201d000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0 0x2201d000 0 0x1000>;
 
@@ -536,7 +548,7 @@
 		};
 	};
 
-	etm@0,2203c000 {
+	etm@2203c000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0 0x2203c000 0 0x1000>;
 
@@ -550,7 +562,7 @@
 		};
 	};
 
-	etm@0,2203d000 {
+	etm@2203d000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0 0x2203d000 0 0x1000>;
 
@@ -564,7 +576,7 @@
 		};
 	};
 
-	etm@0,2203e000 {
+	etm@2203e000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0 0x2203e000 0 0x1000>;
 
@@ -578,7 +590,7 @@
 		};
 	};
 
-	smb {
+	smb: smb@8000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;
@@ -635,7 +647,18 @@
 				<0 0 40 &gic 0 40 4>,
 				<0 0 41 &gic 0 41 4>,
 				<0 0 42 &gic 0 42 4>;
+	};
 
-		/include/ "vexpress-v2m-rs1.dtsi"
+	site2: hsb@40000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0x40000000 0x3fef0000>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 3>;
+		interrupt-map = <0 0 &gic 0 36 4>,
+				<0 1 &gic 0 37 4>,
+				<0 2 &gic 0 38 4>,
+				<0 3 &gic 0 39 4>;
 	};
 };

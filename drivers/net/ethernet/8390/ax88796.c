@@ -77,14 +77,11 @@ static unsigned char version[] = "ax88796.c: Copyright 2005,2007 Simtec Electron
 
 #define AX_GPOC_PPDSET	BIT(6)
 
-static u32 ax_msg_enable;
-
 /* device private data */
 
 struct ax_device {
 	struct mii_bus *mii_bus;
 	struct mdiobb_ctrl bb_ctrl;
-	struct phy_device *phy_dev;
 	void __iomem *addr_memr;
 	u8 reg_memr;
 	int link;
@@ -166,6 +163,21 @@ static void ax_reset_8390(struct net_device *dev)
 	ei_outb(ENISR_RESET, addr + EN0_ISR);	/* Ack intr. */
 }
 
+/* Wrapper for __ei_interrupt for platforms that have a platform-specific
+ * way to find out whether the interrupt request might be caused by
+ * the ax88796 chip.
+ */
+static irqreturn_t ax_ei_interrupt_filtered(int irq, void *dev_id)
+{
+	struct net_device *dev = dev_id;
+	struct ax_device *ax = to_ax_dev(dev);
+	struct platform_device *pdev = to_platform_device(dev->dev.parent);
+
+	if (!ax->plat->check_irq(pdev))
+		return IRQ_NONE;
+
+	return ax_ei_interrupt(irq, dev_id);
+}
 
 static void ax_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 			    int ring_page)
@@ -320,7 +332,7 @@ static void ax_block_output(struct net_device *dev, int count,
 static void ax_handle_link_change(struct net_device *dev)
 {
 	struct ax_device  *ax = to_ax_dev(dev);
-	struct phy_device *phy_dev = ax->phy_dev;
+	struct phy_device *phy_dev = dev->phydev;
 	int status_change = 0;
 
 	if (phy_dev->link && ((ax->speed != phy_dev->speed) ||
@@ -369,10 +381,8 @@ static int ax_mii_probe(struct net_device *dev)
 	phy_dev->supported &= PHY_BASIC_FEATURES;
 	phy_dev->advertising = phy_dev->supported;
 
-	ax->phy_dev = phy_dev;
-
 	netdev_info(dev, "PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		    phy_dev->drv->name, dev_name(&phy_dev->dev), phy_dev->irq);
+		    phy_dev->drv->name, phydev_name(phy_dev), phy_dev->irq);
 
 	return 0;
 }
@@ -391,182 +401,6 @@ static void ax_phy_switch(struct net_device *dev, int on)
 
 	ei_outb(reg_gpoc, ei_local->mem + EI_SHIFT(0x17));
 }
-
-static int ax_open(struct net_device *dev)
-{
-	struct ax_device *ax = to_ax_dev(dev);
-	int ret;
-
-	netdev_dbg(dev, "open\n");
-
-	ret = request_irq(dev->irq, ax_ei_interrupt, ax->irqflags,
-			  dev->name, dev);
-	if (ret)
-		goto failed_request_irq;
-
-	/* turn the phy on (if turned off) */
-	ax_phy_switch(dev, 1);
-
-	ret = ax_mii_probe(dev);
-	if (ret)
-		goto failed_mii_probe;
-	phy_start(ax->phy_dev);
-
-	ret = ax_ei_open(dev);
-	if (ret)
-		goto failed_ax_ei_open;
-
-	ax->running = 1;
-
-	return 0;
-
- failed_ax_ei_open:
-	phy_disconnect(ax->phy_dev);
- failed_mii_probe:
-	ax_phy_switch(dev, 0);
-	free_irq(dev->irq, dev);
- failed_request_irq:
-	return ret;
-}
-
-static int ax_close(struct net_device *dev)
-{
-	struct ax_device *ax = to_ax_dev(dev);
-
-	netdev_dbg(dev, "close\n");
-
-	ax->running = 0;
-	wmb();
-
-	ax_ei_close(dev);
-
-	/* turn the phy off */
-	ax_phy_switch(dev, 0);
-	phy_disconnect(ax->phy_dev);
-
-	free_irq(dev->irq, dev);
-	return 0;
-}
-
-static int ax_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
-{
-	struct ax_device *ax = to_ax_dev(dev);
-	struct phy_device *phy_dev = ax->phy_dev;
-
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	if (!phy_dev)
-		return -ENODEV;
-
-	return phy_mii_ioctl(phy_dev, req, cmd);
-}
-
-/* ethtool ops */
-
-static void ax_get_drvinfo(struct net_device *dev,
-			   struct ethtool_drvinfo *info)
-{
-	struct platform_device *pdev = to_platform_device(dev->dev.parent);
-
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pdev->name, sizeof(info->bus_info));
-}
-
-static int ax_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct ax_device *ax = to_ax_dev(dev);
-	struct phy_device *phy_dev = ax->phy_dev;
-
-	if (!phy_dev)
-		return -ENODEV;
-
-	return phy_ethtool_gset(phy_dev, cmd);
-}
-
-static int ax_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct ax_device *ax = to_ax_dev(dev);
-	struct phy_device *phy_dev = ax->phy_dev;
-
-	if (!phy_dev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(phy_dev, cmd);
-}
-
-static u32 ax_get_msglevel(struct net_device *dev)
-{
-	struct ei_device *ei_local = netdev_priv(dev);
-
-	return ei_local->msg_enable;
-}
-
-static void ax_set_msglevel(struct net_device *dev, u32 v)
-{
-	struct ei_device *ei_local = netdev_priv(dev);
-
-	ei_local->msg_enable = v;
-}
-
-static const struct ethtool_ops ax_ethtool_ops = {
-	.get_drvinfo		= ax_get_drvinfo,
-	.get_settings		= ax_get_settings,
-	.set_settings		= ax_set_settings,
-	.get_link		= ethtool_op_get_link,
-	.get_ts_info		= ethtool_op_get_ts_info,
-	.get_msglevel		= ax_get_msglevel,
-	.set_msglevel		= ax_set_msglevel,
-};
-
-#ifdef CONFIG_AX88796_93CX6
-static void ax_eeprom_register_read(struct eeprom_93cx6 *eeprom)
-{
-	struct ei_device *ei_local = eeprom->data;
-	u8 reg = ei_inb(ei_local->mem + AX_MEMR);
-
-	eeprom->reg_data_in = reg & AX_MEMR_EEI;
-	eeprom->reg_data_out = reg & AX_MEMR_EEO; /* Input pin */
-	eeprom->reg_data_clock = reg & AX_MEMR_EECLK;
-	eeprom->reg_chip_select = reg & AX_MEMR_EECS;
-}
-
-static void ax_eeprom_register_write(struct eeprom_93cx6 *eeprom)
-{
-	struct ei_device *ei_local = eeprom->data;
-	u8 reg = ei_inb(ei_local->mem + AX_MEMR);
-
-	reg &= ~(AX_MEMR_EEI | AX_MEMR_EECLK | AX_MEMR_EECS);
-
-	if (eeprom->reg_data_in)
-		reg |= AX_MEMR_EEI;
-	if (eeprom->reg_data_clock)
-		reg |= AX_MEMR_EECLK;
-	if (eeprom->reg_chip_select)
-		reg |= AX_MEMR_EECS;
-
-	ei_outb(reg, ei_local->mem + AX_MEMR);
-	udelay(10);
-}
-#endif
-
-static const struct net_device_ops ax_netdev_ops = {
-	.ndo_open		= ax_open,
-	.ndo_stop		= ax_close,
-	.ndo_do_ioctl		= ax_ioctl,
-
-	.ndo_start_xmit		= ax_ei_start_xmit,
-	.ndo_tx_timeout		= ax_ei_tx_timeout,
-	.ndo_get_stats		= ax_ei_get_stats,
-	.ndo_set_rx_mode	= ax_ei_set_multicast_list,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= ax_ei_poll,
-#endif
-};
 
 static void ax_bb_mdc(struct mdiobb_ctrl *ctrl, int level)
 {
@@ -612,7 +446,7 @@ static int ax_bb_get_data(struct mdiobb_ctrl *ctrl)
 	return reg_memr & AX_MEMR_MDI ? 1 : 0;
 }
 
-static struct mdiobb_ops bb_ops = {
+static const struct mdiobb_ops bb_ops = {
 	.owner = THIS_MODULE,
 	.set_mdc = ax_bb_mdc,
 	.set_mdio_dir = ax_bb_dir,
@@ -620,14 +454,12 @@ static struct mdiobb_ops bb_ops = {
 	.get_mdio_data = ax_bb_get_data,
 };
 
-/* setup code */
-
 static int ax_mii_init(struct net_device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev->dev.parent);
 	struct ei_device *ei_local = netdev_priv(dev);
 	struct ax_device *ax = to_ax_dev(dev);
-	int err, i;
+	int err;
 
 	ax->bb_ctrl.ops = &bb_ops;
 	ax->addr_memr = ei_local->mem + AX_MEMR;
@@ -640,30 +472,188 @@ static int ax_mii_init(struct net_device *dev)
 	ax->mii_bus->name = "ax88796_mii_bus";
 	ax->mii_bus->parent = dev->dev.parent;
 	snprintf(ax->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
-		pdev->name, pdev->id);
-
-	ax->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!ax->mii_bus->irq) {
-		err = -ENOMEM;
-		goto out_free_mdio_bitbang;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		ax->mii_bus->irq[i] = PHY_POLL;
+		 pdev->name, pdev->id);
 
 	err = mdiobus_register(ax->mii_bus);
 	if (err)
-		goto out_free_irq;
+		goto out_free_mdio_bitbang;
 
 	return 0;
 
- out_free_irq:
-	kfree(ax->mii_bus->irq);
  out_free_mdio_bitbang:
 	free_mdio_bitbang(ax->mii_bus);
  out:
 	return err;
 }
+
+static int ax_open(struct net_device *dev)
+{
+	struct ax_device *ax = to_ax_dev(dev);
+	int ret;
+
+	netdev_dbg(dev, "open\n");
+
+	ret = ax_mii_init(dev);
+	if (ret)
+		goto failed_mii;
+
+	if (ax->plat->check_irq)
+		ret = request_irq(dev->irq, ax_ei_interrupt_filtered,
+				  ax->irqflags, dev->name, dev);
+	else
+		ret = request_irq(dev->irq, ax_ei_interrupt, ax->irqflags,
+				  dev->name, dev);
+	if (ret)
+		goto failed_request_irq;
+
+	/* turn the phy on (if turned off) */
+	ax_phy_switch(dev, 1);
+
+	ret = ax_mii_probe(dev);
+	if (ret)
+		goto failed_mii_probe;
+	phy_start(dev->phydev);
+
+	ret = ax_ei_open(dev);
+	if (ret)
+		goto failed_ax_ei_open;
+
+	ax->running = 1;
+
+	return 0;
+
+ failed_ax_ei_open:
+	phy_disconnect(dev->phydev);
+ failed_mii_probe:
+	ax_phy_switch(dev, 0);
+	free_irq(dev->irq, dev);
+ failed_request_irq:
+	/* unregister mdiobus */
+	mdiobus_unregister(ax->mii_bus);
+	free_mdio_bitbang(ax->mii_bus);
+ failed_mii:
+	return ret;
+}
+
+static int ax_close(struct net_device *dev)
+{
+	struct ax_device *ax = to_ax_dev(dev);
+
+	netdev_dbg(dev, "close\n");
+
+	ax->running = 0;
+	wmb();
+
+	ax_ei_close(dev);
+
+	/* turn the phy off */
+	ax_phy_switch(dev, 0);
+	phy_disconnect(dev->phydev);
+
+	free_irq(dev->irq, dev);
+
+	mdiobus_unregister(ax->mii_bus);
+	free_mdio_bitbang(ax->mii_bus);
+	return 0;
+}
+
+static int ax_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
+{
+	struct phy_device *phy_dev = dev->phydev;
+
+	if (!netif_running(dev))
+		return -EINVAL;
+
+	if (!phy_dev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(phy_dev, req, cmd);
+}
+
+/* ethtool ops */
+
+static void ax_get_drvinfo(struct net_device *dev,
+			   struct ethtool_drvinfo *info)
+{
+	struct platform_device *pdev = to_platform_device(dev->dev.parent);
+
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pdev->name, sizeof(info->bus_info));
+}
+
+static u32 ax_get_msglevel(struct net_device *dev)
+{
+	struct ei_device *ei_local = netdev_priv(dev);
+
+	return ei_local->msg_enable;
+}
+
+static void ax_set_msglevel(struct net_device *dev, u32 v)
+{
+	struct ei_device *ei_local = netdev_priv(dev);
+
+	ei_local->msg_enable = v;
+}
+
+static const struct ethtool_ops ax_ethtool_ops = {
+	.get_drvinfo		= ax_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
+	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_msglevel		= ax_get_msglevel,
+	.set_msglevel		= ax_set_msglevel,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
+};
+
+#ifdef CONFIG_AX88796_93CX6
+static void ax_eeprom_register_read(struct eeprom_93cx6 *eeprom)
+{
+	struct ei_device *ei_local = eeprom->data;
+	u8 reg = ei_inb(ei_local->mem + AX_MEMR);
+
+	eeprom->reg_data_in = reg & AX_MEMR_EEI;
+	eeprom->reg_data_out = reg & AX_MEMR_EEO; /* Input pin */
+	eeprom->reg_data_clock = reg & AX_MEMR_EECLK;
+	eeprom->reg_chip_select = reg & AX_MEMR_EECS;
+}
+
+static void ax_eeprom_register_write(struct eeprom_93cx6 *eeprom)
+{
+	struct ei_device *ei_local = eeprom->data;
+	u8 reg = ei_inb(ei_local->mem + AX_MEMR);
+
+	reg &= ~(AX_MEMR_EEI | AX_MEMR_EECLK | AX_MEMR_EECS);
+
+	if (eeprom->reg_data_in)
+		reg |= AX_MEMR_EEI;
+	if (eeprom->reg_data_clock)
+		reg |= AX_MEMR_EECLK;
+	if (eeprom->reg_chip_select)
+		reg |= AX_MEMR_EECS;
+
+	ei_outb(reg, ei_local->mem + AX_MEMR);
+	udelay(10);
+}
+#endif
+
+static const struct net_device_ops ax_netdev_ops = {
+	.ndo_open		= ax_open,
+	.ndo_stop		= ax_close,
+	.ndo_do_ioctl		= ax_ioctl,
+
+	.ndo_start_xmit		= ax_ei_start_xmit,
+	.ndo_tx_timeout		= ax_ei_tx_timeout,
+	.ndo_get_stats		= ax_ei_get_stats,
+	.ndo_set_rx_mode	= ax_ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ax_ei_poll,
+#endif
+};
+
+/* setup code */
 
 static void ax_initial_setup(struct net_device *dev, struct ei_device *ei_local)
 {
@@ -709,10 +699,16 @@ static int ax_init_dev(struct net_device *dev)
 	if (ax->plat->flags & AXFLG_HAS_EEPROM) {
 		unsigned char SA_prom[32];
 
+		ei_outb(6, ioaddr + EN0_RCNTLO);
+		ei_outb(0, ioaddr + EN0_RCNTHI);
+		ei_outb(0, ioaddr + EN0_RSARLO);
+		ei_outb(0, ioaddr + EN0_RSARHI);
+		ei_outb(E8390_RREAD + E8390_START, ioaddr + NE_CMD);
 		for (i = 0; i < sizeof(SA_prom); i += 2) {
 			SA_prom[i] = ei_inb(ioaddr + NE_DATAPORT);
 			SA_prom[i + 1] = ei_inb(ioaddr + NE_DATAPORT);
 		}
+		ei_outb(ENISR_RDC, ioaddr + EN0_ISR);	/* Ack intr. */
 
 		if (ax->plat->wordlength == 2)
 			for (i = 0; i < 16; i++)
@@ -761,6 +757,12 @@ static int ax_init_dev(struct net_device *dev)
 	    ax->plat->mac_addr)
 		memcpy(dev->dev_addr, ax->plat->mac_addr, ETH_ALEN);
 
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		eth_hw_addr_random(dev);
+		dev_info(&dev->dev, "Using random MAC address: %pM\n",
+			 dev->dev_addr);
+	}
+
 	ax_reset_8390(dev);
 
 	ei_local->name = "AX88796";
@@ -775,24 +777,25 @@ static int ax_init_dev(struct net_device *dev)
 #endif
 
 	ei_local->reset_8390 = &ax_reset_8390;
-	ei_local->block_input = &ax_block_input;
-	ei_local->block_output = &ax_block_output;
+	if (ax->plat->block_input)
+		ei_local->block_input = ax->plat->block_input;
+	else
+		ei_local->block_input = &ax_block_input;
+	if (ax->plat->block_output)
+		ei_local->block_output = ax->plat->block_output;
+	else
+		ei_local->block_output = &ax_block_output;
 	ei_local->get_8390_hdr = &ax_get_8390_hdr;
 	ei_local->priv = 0;
-	ei_local->msg_enable = ax_msg_enable;
 
 	dev->netdev_ops = &ax_netdev_ops;
 	dev->ethtool_ops = &ax_ethtool_ops;
-
-	ret = ax_mii_init(dev);
-	if (ret)
-		goto out_irq;
 
 	ax_NS8390_init(dev, 0);
 
 	ret = register_netdev(dev);
 	if (ret)
-		goto out_irq;
+		goto err_out;
 
 	netdev_info(dev, "%dbit, irq %d, %lx, MAC: %pM\n",
 		    ei_local->word16 ? 16 : 8, dev->irq, dev->base_addr,
@@ -800,9 +803,6 @@ static int ax_init_dev(struct net_device *dev)
 
 	return 0;
 
- out_irq:
-	/* cleanup irq */
-	free_irq(dev->irq, dev);
  err_out:
 	return ret;
 }
@@ -815,7 +815,6 @@ static int ax_remove(struct platform_device *pdev)
 	struct resource *mem;
 
 	unregister_netdev(dev);
-	free_irq(dev->irq, dev);
 
 	iounmap(ei_local->mem);
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -827,6 +826,7 @@ static int ax_remove(struct platform_device *pdev)
 		release_mem_region(mem->start, resource_size(mem));
 	}
 
+	platform_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 
 	return 0;
@@ -872,6 +872,9 @@ static int ax_probe(struct platform_device *pdev)
 
 	dev->irq = irq->start;
 	ax->irqflags = irq->flags & IRQF_TRIGGER_MASK;
+
+	if (irq->flags &  IORESOURCE_IRQ_SHAREABLE)
+		ax->irqflags |= IRQF_SHARED;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
@@ -947,7 +950,8 @@ static int ax_probe(struct platform_device *pdev)
 	iounmap(ax->map2);
 
  exit_mem2:
-	release_mem_region(mem2->start, mem2_size);
+	if (mem2)
+		release_mem_region(mem2->start, mem2_size);
 
  exit_mem1:
 	iounmap(ei_local->mem);
@@ -956,6 +960,7 @@ static int ax_probe(struct platform_device *pdev)
 	release_mem_region(mem->start, mem_size);
 
  exit_mem:
+	platform_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 
 	return ret;

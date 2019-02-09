@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 comment "Machine Types"
 
 if M68KCLASSIC
@@ -187,12 +188,6 @@ config MEMORY_RESERVE
 	help
 	  Reserve certain memory regions on 68x328 based boards.
 
-config UCQUICC
-	bool "Lineo uCquicc board support"
-	depends on M68360
-	help
-	  Support for the Lineo uCquicc board.
-
 config ARN5206
 	bool "Arnewsh 5206 board support"
 	depends on M5206
@@ -264,6 +259,18 @@ config M5407C3
 	depends on M5407
 	help
 	  Support for the Motorola M5407C3 board.
+
+config AMCORE
+	bool "Sysam AMCORE board support"
+	depends on M5307
+	help
+	  Support for the Sysam AMCORE open-hardware generic board.
+
+config STMARK2
+        bool "Sysam stmark2 board support"
+        depends on M5441x
+        help
+          Support for the Sysam stmark2 open-hardware generic board.
 
 config FIREBEE
 	bool "FireBee board support"

@@ -62,7 +62,7 @@ static int __init ps3_register_lpm_devices(void)
 		&dev->lpm.rights);
 
 	if (result) {
-		pr_debug("%s:%d: ps3_repository_read_lpm_privleges failed \n",
+		pr_debug("%s:%d: ps3_repository_read_lpm_privileges failed\n",
 			__func__, __LINE__);
 		goto fail_read_repo;
 	}
@@ -189,7 +189,7 @@ fail_malloc:
 	return result;
 }
 
-static int __init_refok ps3_setup_uhc_device(
+static int __ref ps3_setup_uhc_device(
 	const struct ps3_repository_device *repo, enum ps3_match_id match_id,
 	enum ps3_interrupt_type interrupt_type, enum ps3_reg_type reg_type)
 {
@@ -663,8 +663,8 @@ static void ps3_find_and_add_device(u64 bus_id, u64 dev_id)
 		if (rem)
 			break;
 	}
-	pr_warning("%s:%u: device %llu:%llu not found\n", __func__, __LINE__,
-		   bus_id, dev_id);
+	pr_warn("%s:%u: device %llu:%llu not found\n",
+		__func__, __LINE__, bus_id, dev_id);
 	return;
 
 found:
@@ -859,11 +859,9 @@ static int ps3_probe_thread(void *data)
 
 		if (notify_event->event_type != notify_region_probe ||
 		    notify_event->bus_id != dev.sbd.bus_id) {
-			pr_warning("%s:%u: bad notify_event: event %llu, "
-				   "dev_id %llu, dev_type %llu\n",
-				   __func__, __LINE__, notify_event->event_type,
-				   notify_event->dev_id,
-				   notify_event->dev_type);
+			pr_warn("%s:%u: bad notify_event: event %llu, dev_id %llu, dev_type %llu\n",
+				__func__, __LINE__, notify_event->event_type,
+				notify_event->dev_id, notify_event->dev_type);
 			continue;
 		}
 

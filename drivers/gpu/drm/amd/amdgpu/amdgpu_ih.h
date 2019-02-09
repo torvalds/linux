@@ -24,7 +24,20 @@
 #ifndef __AMDGPU_IH_H__
 #define __AMDGPU_IH_H__
 
+#include <linux/chash.h>
+#include "soc15_ih_clientid.h"
+
 struct amdgpu_device;
+
+#define AMDGPU_IH_CLIENTID_LEGACY 0
+#define AMDGPU_IH_CLIENTID_MAX SOC15_IH_CLIENTID_MAX
+
+#define AMDGPU_PAGEFAULT_HASH_BITS 8
+struct amdgpu_retryfault_hashtable {
+	DECLARE_CHASH_TABLE(hash, AMDGPU_PAGEFAULT_HASH_BITS, 8, 0);
+	spinlock_t	lock;
+	int		count;
+};
 
 /*
  * R6xx+ IH ring
@@ -44,14 +57,22 @@ struct amdgpu_ih_ring {
 	bool			use_doorbell;
 	bool			use_bus_addr;
 	dma_addr_t		rb_dma_addr; /* only used when use_bus_addr = true */
+	struct amdgpu_retryfault_hashtable *faults;
 };
 
+#define AMDGPU_IH_SRC_DATA_MAX_SIZE_DW 4
+
 struct amdgpu_iv_entry {
+	unsigned client_id;
 	unsigned src_id;
-	unsigned src_data;
 	unsigned ring_id;
-	unsigned vm_id;
-	unsigned pas_id;
+	unsigned vmid;
+	unsigned vmid_src;
+	uint64_t timestamp;
+	unsigned timestamp_src;
+	unsigned pasid;
+	unsigned pasid_src;
+	unsigned src_data[AMDGPU_IH_SRC_DATA_MAX_SIZE_DW];
 	const uint32_t *iv_entry;
 };
 
@@ -59,5 +80,7 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, unsigned ring_size,
 			bool use_bus_addr);
 void amdgpu_ih_ring_fini(struct amdgpu_device *adev);
 int amdgpu_ih_process(struct amdgpu_device *adev);
+int amdgpu_ih_add_fault(struct amdgpu_device *adev, u64 key);
+void amdgpu_ih_clear_fault(struct amdgpu_device *adev, u64 key);
 
 #endif

@@ -4,6 +4,7 @@ config XFS_FS
 	depends on (64BIT || LBDAF)
 	select EXPORTFS
 	select LIBCRC32C
+	select FS_IOMAP
 	help
 	  XFS is a high performance journaling filesystem which originated
 	  on the SGI IRIX platform.  It is completely multi-threaded, can
@@ -47,9 +48,6 @@ config XFS_POSIX_ACL
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  To learn more about Access Control Lists, visit the POSIX ACLs for
-	  Linux website <http://acl.bestbits.at/>.
-
 	  If you don't know what Access Control Lists are, say N.
 
 config XFS_RT
@@ -67,6 +65,41 @@ config XFS_RT
 	  to applications via the inherit-realtime directory inode flag.
 
 	  See the xfs man page in section 5 for additional information.
+
+	  If unsure, say N.
+
+config XFS_ONLINE_SCRUB
+	bool "XFS online metadata check support"
+	default n
+	depends on XFS_FS
+	help
+	  If you say Y here you will be able to check metadata on a
+	  mounted XFS filesystem.  This feature is intended to reduce
+	  filesystem downtime by supplementing xfs_repair.  The key
+	  advantage here is to look for problems proactively so that
+	  they can be dealt with in a controlled manner.
+
+	  This feature is considered EXPERIMENTAL.  Use with caution!
+
+	  See the xfs_scrub man page in section 8 for additional information.
+
+	  If unsure, say N.
+
+config XFS_ONLINE_REPAIR
+	bool "XFS online metadata repair support"
+	default n
+	depends on XFS_FS && XFS_ONLINE_SCRUB
+	help
+	  If you say Y here you will be able to repair metadata on a
+	  mounted XFS filesystem.  This feature is intended to reduce
+	  filesystem downtime by fixing minor problems before they cause the
+	  filesystem to go down.  However, it requires that the filesystem be
+	  formatted with secondary metadata, such as reverse mappings and inode
+	  parent pointers.
+
+	  This feature is considered EXPERIMENTAL.  Use with caution!
+
+	  See the xfs_scrub man page in section 8 for additional information.
 
 	  If unsure, say N.
 
@@ -95,3 +128,16 @@ config XFS_DEBUG
 	  not useful unless you are debugging a particular problem.
 
 	  Say N unless you are an XFS developer, or you play one on TV.
+
+config XFS_ASSERT_FATAL
+	bool "XFS fatal asserts"
+	default y
+	depends on XFS_FS && XFS_DEBUG
+	help
+	  Set the default DEBUG mode ASSERT failure behavior.
+
+	  Say Y here to cause DEBUG mode ASSERT failures to result in fatal
+	  errors that BUG() the kernel by default. If you say N, ASSERT failures
+	  result in warnings.
+
+	  This behavior can be modified at runtime via sysfs.

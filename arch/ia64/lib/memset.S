@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Optimized version of the standard memset() function.
 
    Copyright (c) 2002 Hewlett-Packard Co/CERN
@@ -18,6 +19,7 @@
    to get peak speed when value = 0.  */
 
 #include <asm/asmmacro.h>
+#include <asm/export.h>
 #undef ret
 
 #define dest		in0
@@ -360,3 +362,4 @@ GLOBAL_ENTRY(memset)
 	br.ret.sptk.many rp
 }
 END(memset)
+EXPORT_SYMBOL(memset)

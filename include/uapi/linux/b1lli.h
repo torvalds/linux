@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* $Id: b1lli.h,v 1.8.8.3 2001/09/23 22:25:05 kai Exp $
  *
  * ISDN lowlevel-module for AVM B1-card.

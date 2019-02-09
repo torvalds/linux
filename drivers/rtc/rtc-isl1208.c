@@ -14,8 +14,8 @@
 #include <linux/i2c.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
-
-#define DRV_VERSION "0.3"
+#include "rtc-core.h"
+#include <linux/of_irq.h>
 
 /* Register map */
 /* rtc section */
@@ -35,13 +35,16 @@
 #define ISL1208_REG_SR_ARST    (1<<7)	/* auto reset */
 #define ISL1208_REG_SR_XTOSCB  (1<<6)	/* crystal oscillator */
 #define ISL1208_REG_SR_WRTC    (1<<4)	/* write rtc */
+#define ISL1208_REG_SR_EVT     (1<<3)	/* event */
 #define ISL1208_REG_SR_ALM     (1<<2)	/* alarm */
 #define ISL1208_REG_SR_BAT     (1<<1)	/* battery */
 #define ISL1208_REG_SR_RTCF    (1<<0)	/* rtc fail */
 #define ISL1208_REG_INT 0x08
 #define ISL1208_REG_INT_ALME   (1<<6)   /* alarm enable */
 #define ISL1208_REG_INT_IM     (1<<7)   /* interrupt/alarm mode */
-#define ISL1208_REG_09  0x09	/* reserved */
+#define ISL1219_REG_EV  0x09
+#define ISL1219_REG_EV_EVEN    (1<<4)   /* event detection enable */
+#define ISL1219_REG_EV_EVIENB  (1<<7)   /* event in pull-up disable */
 #define ISL1208_REG_ATR 0x0a
 #define ISL1208_REG_DTR 0x0b
 
@@ -59,7 +62,23 @@
 #define ISL1208_REG_USR2 0x13
 #define ISL1208_USR_SECTION_LEN 2
 
+/* event section */
+#define ISL1219_REG_SCT 0x14
+#define ISL1219_REG_MNT 0x15
+#define ISL1219_REG_HRT 0x16
+#define ISL1219_REG_DTT 0x17
+#define ISL1219_REG_MOT 0x18
+#define ISL1219_REG_YRT 0x19
+#define ISL1219_EVT_SECTION_LEN 6
+
 static struct i2c_driver isl1208_driver;
+
+/* ISL1208 various variants */
+enum {
+	TYPE_ISL1208 = 0,
+	TYPE_ISL1218,
+	TYPE_ISL1219,
+};
 
 /* block read */
 static int
@@ -82,8 +101,8 @@ isl1208_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[],
 	};
 	int ret;
 
-	BUG_ON(reg > ISL1208_REG_USR2);
-	BUG_ON(reg + len > ISL1208_REG_USR2 + 1);
+	WARN_ON(reg > ISL1219_REG_YRT);
+	WARN_ON(reg + len > ISL1219_REG_YRT + 1);
 
 	ret = i2c_transfer(client->adapter, msgs, 2);
 	if (ret > 0)
@@ -106,8 +125,8 @@ isl1208_i2c_set_regs(struct i2c_client *client, u8 reg, u8 const buf[],
 	};
 	int ret;
 
-	BUG_ON(reg > ISL1208_REG_USR2);
-	BUG_ON(reg + len > ISL1208_REG_USR2 + 1);
+	WARN_ON(reg > ISL1219_REG_YRT);
+	WARN_ON(reg + len > ISL1219_REG_YRT + 1);
 
 	i2c_buf[0] = reg;
 	memcpy(&i2c_buf[1], &buf[0], len);
@@ -461,6 +480,11 @@ isl1208_i2c_set_time(struct i2c_client *client, struct rtc_time const *tm)
 	}
 
 	/* clear WRTC again */
+	sr = isl1208_i2c_get_sr(client);
+	if (sr < 0) {
+		dev_err(&client->dev, "%s: reading SR failed\n", __func__);
+		return sr;
+	}
 	sr = i2c_smbus_write_byte_data(client, ISL1208_REG_SR,
 				       sr & ~ISL1208_REG_SR_WRTC);
 	if (sr < 0) {
@@ -489,6 +513,73 @@ isl1208_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	return isl1208_i2c_set_alarm(to_i2c_client(dev), alarm);
 }
+
+static ssize_t timestamp0_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct i2c_client *client = dev_get_drvdata(dev);
+	int sr;
+
+	sr = isl1208_i2c_get_sr(client);
+	if (sr < 0) {
+		dev_err(dev, "%s: reading SR failed\n", __func__);
+		return sr;
+	}
+
+	sr &= ~ISL1208_REG_SR_EVT;
+
+	sr = i2c_smbus_write_byte_data(client, ISL1208_REG_SR, sr);
+	if (sr < 0)
+		dev_err(dev, "%s: writing SR failed\n",
+			__func__);
+
+	return count;
+};
+
+static ssize_t timestamp0_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = dev_get_drvdata(dev);
+	u8 regs[ISL1219_EVT_SECTION_LEN] = { 0, };
+	struct rtc_time tm;
+	int sr;
+
+	sr = isl1208_i2c_get_sr(client);
+	if (sr < 0) {
+		dev_err(dev, "%s: reading SR failed\n", __func__);
+		return sr;
+	}
+
+	if (!(sr & ISL1208_REG_SR_EVT))
+		return 0;
+
+	sr = isl1208_i2c_read_regs(client, ISL1219_REG_SCT, regs,
+				   ISL1219_EVT_SECTION_LEN);
+	if (sr < 0) {
+		dev_err(dev, "%s: reading event section failed\n",
+			__func__);
+		return 0;
+	}
+
+	/* MSB of each alarm register is an enable bit */
+	tm.tm_sec = bcd2bin(regs[ISL1219_REG_SCT - ISL1219_REG_SCT] & 0x7f);
+	tm.tm_min = bcd2bin(regs[ISL1219_REG_MNT - ISL1219_REG_SCT] & 0x7f);
+	tm.tm_hour = bcd2bin(regs[ISL1219_REG_HRT - ISL1219_REG_SCT] & 0x3f);
+	tm.tm_mday = bcd2bin(regs[ISL1219_REG_DTT - ISL1219_REG_SCT] & 0x3f);
+	tm.tm_mon =
+		bcd2bin(regs[ISL1219_REG_MOT - ISL1219_REG_SCT] & 0x1f) - 1;
+	tm.tm_year = bcd2bin(regs[ISL1219_REG_YRT - ISL1219_REG_SCT]) + 100;
+
+	sr = rtc_valid_tm(&tm);
+	if (sr)
+		return sr;
+
+	return sprintf(buf, "%llu\n",
+				(unsigned long long)rtc_tm_to_time64(&tm));
+};
+
+static DEVICE_ATTR_RW(timestamp0);
 
 static irqreturn_t
 isl1208_rtc_interrupt(int irq, void *data)
@@ -533,6 +624,13 @@ isl1208_rtc_interrupt(int irq, void *data)
 		err = isl1208_rtc_toggle_alarm(client, 0);
 		if (err)
 			return err;
+	}
+
+	if (sr & ISL1208_REG_SR_EVT) {
+		sysfs_notify(&rtc->dev.kobj, NULL,
+			     dev_attr_timestamp0.attr.name);
+		dev_warn(&client->dev, "event detected");
+		handled = 1;
 	}
 
 	return handled ? IRQ_HANDLED : IRQ_NONE;
@@ -620,11 +718,39 @@ static const struct attribute_group isl1208_rtc_sysfs_files = {
 	.attrs	= isl1208_rtc_attrs,
 };
 
+static struct attribute *isl1219_rtc_attrs[] = {
+	&dev_attr_timestamp0.attr,
+	NULL
+};
+
+static const struct attribute_group isl1219_rtc_sysfs_files = {
+	.attrs	= isl1219_rtc_attrs,
+};
+
+static int isl1208_setup_irq(struct i2c_client *client, int irq)
+{
+	int rc = devm_request_threaded_irq(&client->dev, irq, NULL,
+					isl1208_rtc_interrupt,
+					IRQF_SHARED | IRQF_ONESHOT,
+					isl1208_driver.driver.name,
+					client);
+	if (!rc) {
+		device_init_wakeup(&client->dev, 1);
+		enable_irq_wake(irq);
+	} else {
+		dev_err(&client->dev,
+			"Unable to request irq %d, no alarm support\n",
+			irq);
+	}
+	return rc;
+}
+
 static int
 isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int rc = 0;
 	struct rtc_device *rtc;
+	int evdet_irq = -1;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
@@ -632,33 +758,14 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (isl1208_i2c_validate_client(client) < 0)
 		return -ENODEV;
 
-	dev_info(&client->dev,
-		 "chip found, driver version " DRV_VERSION "\n");
-
-	if (client->irq > 0) {
-		rc = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-					       isl1208_rtc_interrupt,
-					       IRQF_SHARED | IRQF_ONESHOT,
-					       isl1208_driver.driver.name,
-					       client);
-		if (!rc) {
-			device_init_wakeup(&client->dev, 1);
-			enable_irq_wake(client->irq);
-		} else {
-			dev_err(&client->dev,
-				"Unable to request irq %d, no alarm support\n",
-				client->irq);
-			client->irq = 0;
-		}
-	}
-
-	rtc = devm_rtc_device_register(&client->dev, isl1208_driver.driver.name,
-				  &isl1208_rtc_ops,
-				  THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
+	rtc->ops = &isl1208_rtc_ops;
+
 	i2c_set_clientdata(client, rtc);
+	dev_set_drvdata(&rtc->dev, client);
 
 	rc = isl1208_i2c_get_sr(client);
 	if (rc < 0) {
@@ -670,11 +777,48 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		dev_warn(&client->dev, "rtc power failure detected, "
 			 "please set clock.\n");
 
+	if (id->driver_data == TYPE_ISL1219) {
+		struct device_node *np = client->dev.of_node;
+		u32 evienb;
+
+		rc = i2c_smbus_read_byte_data(client, ISL1219_REG_EV);
+		if (rc < 0) {
+			dev_err(&client->dev, "failed to read EV reg\n");
+			return rc;
+		}
+		rc |= ISL1219_REG_EV_EVEN;
+		if (!of_property_read_u32(np, "isil,ev-evienb", &evienb)) {
+			if (evienb)
+				rc |= ISL1219_REG_EV_EVIENB;
+			else
+				rc &= ~ISL1219_REG_EV_EVIENB;
+		}
+		rc = i2c_smbus_write_byte_data(client, ISL1219_REG_EV, rc);
+		if (rc < 0) {
+			dev_err(&client->dev, "could not enable tamper detection\n");
+			return rc;
+		}
+		rc = rtc_add_group(rtc, &isl1219_rtc_sysfs_files);
+		if (rc)
+			return rc;
+		evdet_irq = of_irq_get_byname(np, "evdet");
+	}
+
 	rc = sysfs_create_group(&client->dev.kobj, &isl1208_rtc_sysfs_files);
 	if (rc)
 		return rc;
 
-	return 0;
+	if (client->irq > 0)
+		rc = isl1208_setup_irq(client, client->irq);
+	if (rc)
+		return rc;
+
+	if (evdet_irq > 0 && evdet_irq != client->irq)
+		rc = isl1208_setup_irq(client, evdet_irq);
+	if (rc)
+		return rc;
+
+	return rtc_register_device(rtc);
 }
 
 static int
@@ -686,16 +830,26 @@ isl1208_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id isl1208_id[] = {
-	{ "isl1208", 0 },
-	{ "isl1218", 0 },
+	{ "isl1208", TYPE_ISL1208 },
+	{ "isl1218", TYPE_ISL1218 },
+	{ "isl1219", TYPE_ISL1219 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl1208_id);
 
+static const struct of_device_id isl1208_of_match[] = {
+	{ .compatible = "isil,isl1208" },
+	{ .compatible = "isil,isl1218" },
+	{ .compatible = "isil,isl1219" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, isl1208_of_match);
+
 static struct i2c_driver isl1208_driver = {
 	.driver = {
-		   .name = "rtc-isl1208",
-		   },
+		.name = "rtc-isl1208",
+		.of_match_table = of_match_ptr(isl1208_of_match),
+	},
 	.probe = isl1208_probe,
 	.remove = isl1208_remove,
 	.id_table = isl1208_id,
@@ -706,4 +860,3 @@ module_i2c_driver(isl1208_driver);
 MODULE_AUTHOR("Herbert Valerio Riedel <hvr@gnu.org>");
 MODULE_DESCRIPTION("Intersil ISL1208 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_ELF_H
 #define _ASM_X86_ELF_H
 
@@ -126,15 +127,15 @@ do {						\
 	pr_reg[4] = regs->di;			\
 	pr_reg[5] = regs->bp;			\
 	pr_reg[6] = regs->ax;			\
-	pr_reg[7] = regs->ds & 0xffff;		\
-	pr_reg[8] = regs->es & 0xffff;		\
-	pr_reg[9] = regs->fs & 0xffff;		\
+	pr_reg[7] = regs->ds;			\
+	pr_reg[8] = regs->es;			\
+	pr_reg[9] = regs->fs;			\
 	pr_reg[11] = regs->orig_ax;		\
 	pr_reg[12] = regs->ip;			\
-	pr_reg[13] = regs->cs & 0xffff;		\
+	pr_reg[13] = regs->cs;			\
 	pr_reg[14] = regs->flags;		\
 	pr_reg[15] = regs->sp;			\
-	pr_reg[16] = regs->ss & 0xffff;		\
+	pr_reg[16] = regs->ss;			\
 } while (0);
 
 #define ELF_CORE_COPY_REGS(pr_reg, regs)	\
@@ -176,7 +177,7 @@ static inline void elf_common_init(struct thread_struct *t,
 	regs->si = regs->di = regs->bp = 0;
 	regs->r8 = regs->r9 = regs->r10 = regs->r11 = 0;
 	regs->r12 = regs->r13 = regs->r14 = regs->r15 = 0;
-	t->fs = t->gs = 0;
+	t->fsbase = t->gsbase = 0;
 	t->fsindex = t->gsindex = 0;
 	t->ds = t->es = ds;
 }
@@ -204,6 +205,7 @@ void set_personality_ia32(bool);
 
 #define ELF_CORE_COPY_REGS(pr_reg, regs)			\
 do {								\
+	unsigned long base;					\
 	unsigned v;						\
 	(pr_reg)[0] = (regs)->r15;				\
 	(pr_reg)[1] = (regs)->r14;				\
@@ -226,8 +228,8 @@ do {								\
 	(pr_reg)[18] = (regs)->flags;				\
 	(pr_reg)[19] = (regs)->sp;				\
 	(pr_reg)[20] = (regs)->ss;				\
-	(pr_reg)[21] = current->thread.fs;			\
-	(pr_reg)[22] = current->thread.gs;			\
+	rdmsrl(MSR_FS_BASE, base); (pr_reg)[21] = base;		\
+	rdmsrl(MSR_KERNEL_GS_BASE, base); (pr_reg)[22] = base;	\
 	asm("movl %%ds,%0" : "=r" (v)); (pr_reg)[23] = v;	\
 	asm("movl %%es,%0" : "=r" (v)); (pr_reg)[24] = v;	\
 	asm("movl %%fs,%0" : "=r" (v)); (pr_reg)[25] = v;	\
@@ -245,18 +247,28 @@ extern int force_personality32;
 #define CORE_DUMP_USE_REGSET
 #define ELF_EXEC_PAGESIZE	4096
 
-/* This is the location that an ET_DYN program is loaded if exec'ed.  Typical
-   use of this is to invoke "./ld.so someprog" to test out a new version of
-   the loader.  We need to make sure that it is out of the way of the program
-   that it will "exec", and that there is sufficient room for the brk.  */
-
-#define ELF_ET_DYN_BASE		(TASK_SIZE / 3 * 2)
+/*
+ * This is the base location for PIE (ET_DYN with INTERP) loads. On
+ * 64-bit, this is above 4GB to leave the entire 32-bit address
+ * space open for things that want to use the area for 32-bit pointers.
+ */
+#define ELF_ET_DYN_BASE		(mmap_is_ia32() ? 0x000400000UL : \
+						  (DEFAULT_MAP_WINDOW / 3 * 2))
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This could be done in user space,
    but it's not easy, and we've already done it here.  */
 
-#define ELF_HWCAP		(boot_cpu_data.x86_capability[0])
+#define ELF_HWCAP		(boot_cpu_data.x86_capability[CPUID_1_EDX])
+
+extern u32 elf_hwcap2;
+
+/*
+ * HWCAP2 supplies mask with kernel enabled CPU features, so that
+ * the application can discover that it can safely use them.
+ * The bits are defined in uapi/asm/hwcap2.h.
+ */
+#define ELF_HWCAP2		(elf_hwcap2)
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in
@@ -278,14 +290,30 @@ struct task_struct;
 
 #define	ARCH_DLINFO_IA32						\
 do {									\
-	if (vdso32_enabled) {						\
+	if (VDSO_CURRENT_BASE) {					\
 		NEW_AUX_ENT(AT_SYSINFO,	VDSO_ENTRY);			\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_CURRENT_BASE);	\
 	}								\
 } while (0)
 
+/*
+ * True on X86_32 or when emulating IA32 on X86_64
+ */
+static inline int mmap_is_ia32(void)
+{
+	return IS_ENABLED(CONFIG_X86_32) ||
+	       (IS_ENABLED(CONFIG_COMPAT) &&
+		test_thread_flag(TIF_ADDR32));
+}
+
+extern unsigned long task_size_32bit(void);
+extern unsigned long task_size_64bit(int full_addr_space);
+extern unsigned long get_mmap_base(int is_legacy);
+extern bool mmap_address_hint_valid(unsigned long addr, unsigned long len);
+
 #ifdef CONFIG_X86_32
 
+#define __STACK_RND_MASK(is32bit) (0x7ff)
 #define STACK_RND_MASK (0x7ff)
 
 #define ARCH_DLINFO		ARCH_DLINFO_IA32
@@ -295,7 +323,8 @@ do {									\
 #else /* CONFIG_X86_32 */
 
 /* 1GB for 64bit, 8MB for 32bit */
-#define STACK_RND_MASK (test_thread_flag(TIF_ADDR32) ? 0x7ff : 0x3fffff)
+#define __STACK_RND_MASK(is32bit) ((is32bit) ? 0x7ff : 0x3fffff)
+#define STACK_RND_MASK __STACK_RND_MASK(mmap_is_ia32())
 
 #define ARCH_DLINFO							\
 do {									\
@@ -338,16 +367,6 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 					      int uses_interp);
 #define compat_arch_setup_additional_pages compat_arch_setup_additional_pages
-
-/*
- * True on X86_32 or when emulating IA32 on X86_64
- */
-static inline int mmap_is_ia32(void)
-{
-	return config_enabled(CONFIG_X86_32) ||
-	       (config_enabled(CONFIG_COMPAT) &&
-		test_thread_flag(TIF_ADDR32));
-}
 
 /* Do not change the values. See get_align_mask() */
 enum align_flags {

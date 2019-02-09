@@ -251,20 +251,21 @@ static unsigned int pmac_pic_get_irq(void)
 	}
 	raw_spin_unlock_irqrestore(&pmac_pic_lock, flags);
 	if (unlikely(irq < 0))
-		return NO_IRQ;
+		return 0;
 	return irq_linear_revmap(pmac_pic_host, irq);
 }
 
 #ifdef CONFIG_XMON
 static struct irqaction xmon_action = {
 	.handler	= xmon_irq,
-	.flags		= 0,
+	.flags		= IRQF_NO_THREAD,
 	.name		= "NMI - XMON"
 };
 #endif
 
 static struct irqaction gatwick_cascade_action = {
 	.handler	= gatwick_action,
+	.flags		= IRQF_NO_THREAD,
 	.name		= "cascade",
 };
 
@@ -363,8 +364,8 @@ static void __init pmac_pic_probe_oldstyle(void)
 			(addr + 0x10);
 	of_node_put(master);
 
-	printk(KERN_INFO "irq: Found primary Apple PIC %s for %d irqs\n",
-	       master->full_name, max_real_irqs);
+	printk(KERN_INFO "irq: Found primary Apple PIC %pOF for %d irqs\n",
+	       master, max_real_irqs);
 
 	/* Map interrupts of cascaded controller */
 	if (slave && !of_address_to_resource(slave, 0, &r)) {
@@ -377,8 +378,8 @@ static void __init pmac_pic_probe_oldstyle(void)
 				(addr + 0x10);
 		pmac_irq_cascade = irq_of_parse_and_map(slave, 0);
 
-		printk(KERN_INFO "irq: Found slave Apple PIC %s for %d irqs"
-		       " cascade: %d\n", slave->full_name,
+		printk(KERN_INFO "irq: Found slave Apple PIC %pOF for %d irqs"
+		       " cascade: %d\n", slave,
 		       max_irqs - max_real_irqs, pmac_irq_cascade);
 	}
 	of_node_put(slave);
@@ -388,7 +389,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 		out_le32(&pmac_irq_hw[i]->enable, 0);
 
 	/* Hookup cascade irq */
-	if (slave && pmac_irq_cascade != NO_IRQ)
+	if (slave && pmac_irq_cascade)
 		setup_irq(pmac_irq_cascade, &gatwick_cascade_action);
 
 	printk(KERN_INFO "irq: System has %d possible interrupts\n", max_irqs);
@@ -443,7 +444,7 @@ static void __init pmac_pic_setup_mpic_nmi(struct mpic *mpic)
 	pswitch = of_find_node_by_name(NULL, "programmer-switch");
 	if (pswitch) {
 		nmi_irq = irq_of_parse_and_map(pswitch, 0);
-		if (nmi_irq != NO_IRQ) {
+		if (nmi_irq) {
 			mpic_irq_set_priority(nmi_irq, 9);
 			setup_irq(nmi_irq, &xmon_action);
 		}
@@ -485,15 +486,16 @@ static int __init pmac_pic_probe_mpic(void)
 	struct device_node *np, *master = NULL, *slave = NULL;
 
 	/* We can have up to 2 MPICs cascaded */
-	for (np = NULL; (np = of_find_node_by_type(np, "open-pic"))
-		     != NULL;) {
+	for_each_node_by_type(np, "open-pic") {
 		if (master == NULL &&
 		    of_get_property(np, "interrupts", NULL) == NULL)
 			master = of_node_get(np);
 		else if (slave == NULL)
 			slave = of_node_get(np);
-		if (master && slave)
+		if (master && slave) {
+			of_node_put(np);
 			break;
+		}
 	}
 
 	/* Check for bogus setups */
@@ -603,6 +605,7 @@ static int pmacpic_find_viaint(void)
 	if (np == NULL)
 		goto not_found;
 	viaint = irq_of_parse_and_map(np, 0);
+	of_node_put(np);
 
 not_found:
 #endif /* CONFIG_ADB_PMU */

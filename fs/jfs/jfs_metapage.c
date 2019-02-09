@@ -80,7 +80,7 @@ static inline void lock_metapage(struct metapage *mp)
 static struct kmem_cache *metapage_cache;
 static mempool_t *metapage_mempool;
 
-#define MPS_PER_PAGE (PAGE_CACHE_SIZE >> L2PSIZE)
+#define MPS_PER_PAGE (PAGE_SIZE >> L2PSIZE)
 
 #if MPS_PER_PAGE > 1
 
@@ -280,7 +280,7 @@ static void metapage_read_end_io(struct bio *bio)
 {
 	struct page *page = bio->bi_private;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		printk(KERN_ERR "metapage_read_end_io: I/O error\n");
 		SetPageError(page);
 	}
@@ -316,7 +316,7 @@ static void last_write_complete(struct page *page)
 	struct metapage *mp;
 	unsigned int offset;
 
-	for (offset = 0; offset < PAGE_CACHE_SIZE; offset += PSIZE) {
+	for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
 		mp = page_to_mp(page, offset);
 		if (mp && test_bit(META_io, &mp->flag)) {
 			if (mp->lsn)
@@ -337,7 +337,7 @@ static void metapage_write_end_io(struct bio *bio)
 
 	BUG_ON(!PagePrivate(page));
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		printk(KERN_ERR "metapage_write_end_io: I/O error\n");
 		SetPageError(page);
 	}
@@ -366,12 +366,12 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 	int bad_blocks = 0;
 
 	page_start = (sector_t)page->index <<
-		     (PAGE_CACHE_SHIFT - inode->i_blkbits);
+		     (PAGE_SHIFT - inode->i_blkbits);
 	BUG_ON(!PageLocked(page));
 	BUG_ON(PageWriteback(page));
 	set_page_writeback(page);
 
-	for (offset = 0; offset < PAGE_CACHE_SIZE; offset += PSIZE) {
+	for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
 		mp = page_to_mp(page, offset);
 
 		if (!mp || !test_bit(META_dirty, &mp->flag))
@@ -411,12 +411,12 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 			inc_io(page);
 			if (!bio->bi_iter.bi_size)
 				goto dump_bio;
-			submit_bio(WRITE, bio);
+			submit_bio(bio);
 			nr_underway++;
 			bio = NULL;
 		} else
 			inc_io(page);
-		xlen = (PAGE_CACHE_SIZE - offset) >> inode->i_blkbits;
+		xlen = (PAGE_SIZE - offset) >> inode->i_blkbits;
 		pblock = metapage_get_blocks(inode, lblock, &xlen);
 		if (!pblock) {
 			printk(KERN_ERR "JFS: metapage_get_blocks failed\n");
@@ -430,10 +430,11 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 		len = min(xlen, (int)JFS_SBI(inode->i_sb)->nbperpage);
 
 		bio = bio_alloc(GFP_NOFS, 1);
-		bio->bi_bdev = inode->i_sb->s_bdev;
+		bio_set_dev(bio, inode->i_sb->s_bdev);
 		bio->bi_iter.bi_sector = pblock << (inode->i_blkbits - 9);
 		bio->bi_end_io = metapage_write_end_io;
 		bio->bi_private = page;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 		/* Don't call bio_add_page yet, we may add to this vec */
 		bio_offset = offset;
@@ -448,7 +449,7 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 		if (!bio->bi_iter.bi_size)
 			goto dump_bio;
 
-		submit_bio(WRITE, bio);
+		submit_bio(bio);
 		nr_underway++;
 	}
 	if (redirty)
@@ -485,7 +486,7 @@ static int metapage_readpage(struct file *fp, struct page *page)
 	struct inode *inode = page->mapping->host;
 	struct bio *bio = NULL;
 	int block_offset;
-	int blocks_per_page = PAGE_CACHE_SIZE >> inode->i_blkbits;
+	int blocks_per_page = PAGE_SIZE >> inode->i_blkbits;
 	sector_t page_start;	/* address of page in fs blocks */
 	sector_t pblock;
 	int xlen;
@@ -494,7 +495,7 @@ static int metapage_readpage(struct file *fp, struct page *page)
 
 	BUG_ON(!PageLocked(page));
 	page_start = (sector_t)page->index <<
-		     (PAGE_CACHE_SHIFT - inode->i_blkbits);
+		     (PAGE_SHIFT - inode->i_blkbits);
 
 	block_offset = 0;
 	while (block_offset < blocks_per_page) {
@@ -506,14 +507,15 @@ static int metapage_readpage(struct file *fp, struct page *page)
 				insert_metapage(page, NULL);
 			inc_io(page);
 			if (bio)
-				submit_bio(READ, bio);
+				submit_bio(bio);
 
 			bio = bio_alloc(GFP_NOFS, 1);
-			bio->bi_bdev = inode->i_sb->s_bdev;
+			bio_set_dev(bio, inode->i_sb->s_bdev);
 			bio->bi_iter.bi_sector =
 				pblock << (inode->i_blkbits - 9);
 			bio->bi_end_io = metapage_read_end_io;
 			bio->bi_private = page;
+			bio_set_op_attrs(bio, REQ_OP_READ, 0);
 			len = xlen << inode->i_blkbits;
 			offset = block_offset << inode->i_blkbits;
 			if (bio_add_page(bio, page, len, offset) < len)
@@ -523,7 +525,7 @@ static int metapage_readpage(struct file *fp, struct page *page)
 			block_offset++;
 	}
 	if (bio)
-		submit_bio(READ, bio);
+		submit_bio(bio);
 	else
 		unlock_page(page);
 
@@ -542,7 +544,7 @@ static int metapage_releasepage(struct page *page, gfp_t gfp_mask)
 	int ret = 1;
 	int offset;
 
-	for (offset = 0; offset < PAGE_CACHE_SIZE; offset += PSIZE) {
+	for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
 		mp = page_to_mp(page, offset);
 
 		if (!mp)
@@ -568,7 +570,7 @@ static int metapage_releasepage(struct page *page, gfp_t gfp_mask)
 static void metapage_invalidatepage(struct page *page, unsigned int offset,
 				    unsigned int length)
 {
-	BUG_ON(offset || length < PAGE_CACHE_SIZE);
+	BUG_ON(offset || length < PAGE_SIZE);
 
 	BUG_ON(PageWriteback(page));
 
@@ -599,10 +601,10 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 		 inode->i_ino, lblock, absolute);
 
 	l2bsize = inode->i_blkbits;
-	l2BlocksPerPage = PAGE_CACHE_SHIFT - l2bsize;
+	l2BlocksPerPage = PAGE_SHIFT - l2bsize;
 	page_index = lblock >> l2BlocksPerPage;
 	page_offset = (lblock - (page_index << l2BlocksPerPage)) << l2bsize;
-	if ((page_offset + size) > PAGE_CACHE_SIZE) {
+	if ((page_offset + size) > PAGE_SIZE) {
 		jfs_err("MetaData crosses page boundary!!");
 		jfs_err("lblock = %lx, size  = %d", lblock, size);
 		dump_stack();
@@ -621,7 +623,7 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 		mapping = inode->i_mapping;
 	}
 
-	if (new && (PSIZE == PAGE_CACHE_SIZE)) {
+	if (new && (PSIZE == PAGE_SIZE)) {
 		page = grab_cache_page(mapping, page_index);
 		if (!page) {
 			jfs_err("grab_cache_page failed!");
@@ -661,7 +663,10 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 	} else {
 		INCREMENT(mpStat.pagealloc);
 		mp = alloc_metapage(GFP_NOFS);
+		if (!mp)
+			goto unlock;
 		mp->page = page;
+		mp->sb = inode->i_sb;
 		mp->flag = 0;
 		mp->xflag = COMMIT_PAGE;
 		mp->count = 1;
@@ -693,7 +698,7 @@ unlock:
 void grab_metapage(struct metapage * mp)
 {
 	jfs_info("grab_metapage: mp = 0x%p", mp);
-	page_cache_get(mp->page);
+	get_page(mp->page);
 	lock_page(mp->page);
 	mp->count++;
 	lock_metapage(mp);
@@ -706,12 +711,13 @@ void force_metapage(struct metapage *mp)
 	jfs_info("force_metapage: mp = 0x%p", mp);
 	set_bit(META_forcewrite, &mp->flag);
 	clear_bit(META_sync, &mp->flag);
-	page_cache_get(page);
+	get_page(page);
 	lock_page(page);
 	set_page_dirty(page);
-	write_one_page(page, 1);
+	if (write_one_page(page))
+		jfs_error(mp->sb, "write_one_page() failed\n");
 	clear_bit(META_forcewrite, &mp->flag);
-	page_cache_release(page);
+	put_page(page);
 }
 
 void hold_metapage(struct metapage *mp)
@@ -726,7 +732,7 @@ void put_metapage(struct metapage *mp)
 		unlock_page(mp->page);
 		return;
 	}
-	page_cache_get(mp->page);
+	get_page(mp->page);
 	mp->count++;
 	lock_metapage(mp);
 	unlock_page(mp->page);
@@ -746,7 +752,7 @@ void release_metapage(struct metapage * mp)
 	assert(mp->count);
 	if (--mp->count || mp->nohomeok) {
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 		return;
 	}
 
@@ -754,7 +760,8 @@ void release_metapage(struct metapage * mp)
 		set_page_dirty(page);
 		if (test_bit(META_sync, &mp->flag)) {
 			clear_bit(META_sync, &mp->flag);
-			write_one_page(page, 1);
+			if (write_one_page(page))
+				jfs_error(mp->sb, "write_one_page() failed\n");
 			lock_page(page); /* write_one_page unlocks the page */
 		}
 	} else if (mp->lsn)	/* discard_metapage doesn't remove it */
@@ -764,13 +771,13 @@ void release_metapage(struct metapage * mp)
 	drop_metapage(page, mp);
 
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 void __invalidate_metapages(struct inode *ip, s64 addr, int len)
 {
 	sector_t lblock;
-	int l2BlocksPerPage = PAGE_CACHE_SHIFT - ip->i_blkbits;
+	int l2BlocksPerPage = PAGE_SHIFT - ip->i_blkbits;
 	int BlocksPerPage = 1 << l2BlocksPerPage;
 	/* All callers are interested in block device's mapping */
 	struct address_space *mapping =
@@ -788,7 +795,7 @@ void __invalidate_metapages(struct inode *ip, s64 addr, int len)
 		page = find_lock_page(mapping, lblock >> l2BlocksPerPage);
 		if (!page)
 			continue;
-		for (offset = 0; offset < PAGE_CACHE_SIZE; offset += PSIZE) {
+		for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
 			mp = page_to_mp(page, offset);
 			if (!mp)
 				continue;
@@ -803,12 +810,12 @@ void __invalidate_metapages(struct inode *ip, s64 addr, int len)
 				remove_from_logsync(mp);
 		}
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 }
 
 #ifdef CONFIG_JFS_STATISTICS
-static int jfs_mpstat_proc_show(struct seq_file *m, void *v)
+int jfs_mpstat_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m,
 		       "JFS Metapage statistics\n"
@@ -821,17 +828,4 @@ static int jfs_mpstat_proc_show(struct seq_file *m, void *v)
 		       mpStat.lockwait);
 	return 0;
 }
-
-static int jfs_mpstat_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, jfs_mpstat_proc_show, NULL);
-}
-
-const struct file_operations jfs_mpstat_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= jfs_mpstat_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif

@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Ingenic JZ4740 "glue layer"
  *
  * Copyright (C) 2013, Apelete Seketeli <apelete@seketeli.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/clk.h>
@@ -63,7 +55,7 @@ static struct musb_fifo_cfg jz4740_musb_fifo_cfg[] = {
 { .hw_ep_num = 2, .style = FIFO_TX, .maxpacket = 64, },
 };
 
-static struct musb_hdrc_config jz4740_musb_config = {
+static const struct musb_hdrc_config jz4740_musb_config = {
 	/* Silicon does not implement USB OTG. */
 	.multipoint = 0,
 	/* Max EPs scanned, driver will decide which EP can be used. */
@@ -83,9 +75,9 @@ static int jz4740_musb_init(struct musb *musb)
 {
 	usb_phy_generic_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (!musb->xceiv) {
+	if (IS_ERR(musb->xceiv)) {
 		pr_err("HS UDC: no transceiver configured\n");
-		return -ENODEV;
+		return PTR_ERR(musb->xceiv);
 	}
 
 	/* Silicon does not implement ConfigData register.

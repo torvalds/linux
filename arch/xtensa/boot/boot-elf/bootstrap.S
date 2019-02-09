@@ -15,10 +15,6 @@
  */
 
 #include <asm/bootparam.h>
-#include <asm/processor.h>
-#include <asm/pgtable.h>
-#include <asm/page.h>
-#include <asm/cacheasm.h>
 #include <asm/initialize_mmu.h>
 #include <asm/vectors.h>
 #include <linux/linkage.h>
@@ -33,11 +29,18 @@ _ResetVector:
 	.begin  no-absolute-literals
 	.literal_position
 
+#if defined(CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX) && \
+	XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+	.literal RomInitAddr, CONFIG_KERNEL_LOAD_ADDRESS
+#else
+	.literal RomInitAddr, KERNELOFFSET
+#endif
+#ifndef CONFIG_PARSE_BOOTPARAM
+	.literal RomBootParam, 0
+#else
+	.literal RomBootParam, _bootparam
+
 	.align 4
-RomInitAddr:
-	.word	LOAD_MEMORY_ADDRESS
-RomBootParam:
-	.word _bootparam
 _bootparam:
 	.short	BP_TAG_FIRST
 	.short	4
@@ -45,6 +48,7 @@ _bootparam:
 	.short	BP_TAG_LAST
 	.short	0
 	.long	0
+#endif
 
 	.align  4
 _SetupMMU:

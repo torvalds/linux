@@ -1,9 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_MODULE_H
 #define _ASM_MODULE_H
 
 #include <linux/list.h>
 #include <linux/elf.h>
-#include <asm/uaccess.h>
+#include <asm/extable.h>
 
 struct mod_arch_specific {
 	/* Data Bus Error exception tables */
@@ -47,8 +48,8 @@ typedef struct {
 #define Elf_Mips_Rel	Elf32_Rel
 #define Elf_Mips_Rela	Elf32_Rela
 
-#define ELF_MIPS_R_SYM(rel) ELF32_R_SYM(rel.r_info)
-#define ELF_MIPS_R_TYPE(rel) ELF32_R_TYPE(rel.r_info)
+#define ELF_MIPS_R_SYM(rel) ELF32_R_SYM((rel).r_info)
+#define ELF_MIPS_R_TYPE(rel) ELF32_R_TYPE((rel).r_info)
 
 #endif
 
@@ -65,8 +66,8 @@ typedef struct {
 #define Elf_Mips_Rel	Elf64_Mips_Rel
 #define Elf_Mips_Rela	Elf64_Mips_Rela
 
-#define ELF_MIPS_R_SYM(rel) (rel.r_sym)
-#define ELF_MIPS_R_TYPE(rel) (rel.r_type)
+#define ELF_MIPS_R_SYM(rel) ((rel).r_sym)
+#define ELF_MIPS_R_TYPE(rel) ((rel).r_type)
 
 #endif
 
@@ -114,8 +115,6 @@ search_module_dbetables(unsigned long addr)
 #define MODULE_PROC_FAMILY "R5432 "
 #elif defined CONFIG_CPU_R5500
 #define MODULE_PROC_FAMILY "R5500 "
-#elif defined CONFIG_CPU_R6000
-#define MODULE_PROC_FAMILY "R6000 "
 #elif defined CONFIG_CPU_NEVADA
 #define MODULE_PROC_FAMILY "NEVADA "
 #elif defined CONFIG_CPU_R8000

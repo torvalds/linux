@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 /include/ "bcm7435.dtsi"
+/include/ "bcm97xxx-nand-cs1-bch24.dtsi"
 
 / {
 	compatible = "brcm,bcm97435svmb", "brcm,bcm7435";
@@ -14,12 +16,52 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200 maxcpus=1";
+		bootargs = "console=ttyS0,115200";
 		stdout-path = &uart0;
 	};
 };
 
 &uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&bsca {
+	status = "okay";
+};
+
+&bscb {
+	status = "okay";
+};
+
+&bscc {
+	status = "okay";
+};
+
+&bscd {
+	status = "okay";
+};
+
+&bsce {
+	status = "okay";
+};
+
+&pwma {
+	status = "okay";
+};
+
+&pwmb {
+	status = "okay";
+};
+
+&watchdog {
 	status = "okay";
 };
 
@@ -56,5 +98,33 @@
 };
 
 &ohci3 {
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
+&sata_phy {
+	status = "okay";
+};
+
+&sdhci0 {
+	status = "okay";
+};
+
+&sdhci1 {
+	status = "okay";
+};
+
+&mspi {
+	status = "okay";
+};
+
+&waketimer {
 	status = "okay";
 };

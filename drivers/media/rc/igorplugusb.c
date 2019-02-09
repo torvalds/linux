@@ -137,9 +137,9 @@ static void igorplugusb_cmd(struct igorplugusb *ir, int cmd)
 		dev_err(ir->dev, "submit urb failed: %d", ret);
 }
 
-static void igorplugusb_timer(unsigned long data)
+static void igorplugusb_timer(struct timer_list *t)
 {
-	struct igorplugusb *ir = (struct igorplugusb *)data;
+	struct igorplugusb *ir = from_timer(ir, t, timer);
 
 	igorplugusb_cmd(ir, GET_INFRACODE);
 }
@@ -152,7 +152,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *ep;
 	struct igorplugusb *ir;
 	struct rc_dev *rc;
-	int ret;
+	int ret = -ENOMEM;
 
 	udev = interface_to_usbdev(intf);
 	idesc = intf->cur_altsetting;
@@ -174,7 +174,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	ir->dev = &intf->dev;
 
-	setup_timer(&ir->timer, igorplugusb_timer, (unsigned long)ir);
+	timer_setup(&ir->timer, igorplugusb_timer, 0);
 
 	ir->request.bRequest = GET_INFRACODE;
 	ir->request.bRequestType = USB_TYPE_VENDOR | USB_DIR_IN;
@@ -182,7 +182,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	ir->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ir->urb)
-		return -ENOMEM;
+		goto fail;
 
 	usb_fill_control_urb(ir->urb, udev,
 		usb_rcvctrlpipe(udev, 0), (uint8_t *)&ir->request,
@@ -190,19 +190,23 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	usb_make_path(udev, ir->phys, sizeof(ir->phys));
 
-	rc = rc_allocate_device();
-	rc->input_name = DRIVER_DESC;
+	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
+	if (!rc)
+		goto fail;
+
+	rc->device_name = DRIVER_DESC;
 	rc->input_phys = ir->phys;
 	usb_to_input_id(udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
-	rc->driver_type = RC_DRIVER_IR_RAW;
 	/*
 	 * This device can only store 36 pulses + spaces, which is not enough
 	 * for the NEC protocol and many others.
 	 */
-	rc->allowed_protocols = RC_BIT_ALL & ~(RC_BIT_NEC | RC_BIT_RC6_6A_20 |
-			RC_BIT_RC6_6A_24 | RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE |
-			RC_BIT_SONY20 | RC_BIT_MCE_KBD | RC_BIT_SANYO);
+	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER &
+		~(RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32 |
+		  RC_PROTO_BIT_RC6_6A_20 | RC_PROTO_BIT_RC6_6A_24 |
+		  RC_PROTO_BIT_RC6_6A_32 | RC_PROTO_BIT_RC6_MCE |
+		  RC_PROTO_BIT_SONY20 | RC_PROTO_BIT_SANYO);
 
 	rc->priv = ir;
 	rc->driver_name = DRIVER_NAME;
@@ -214,9 +218,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	ret = rc_register_device(rc);
 	if (ret) {
 		dev_err(&intf->dev, "failed to register rc device: %d", ret);
-		rc_free_device(rc);
-		usb_free_urb(ir->urb);
-		return ret;
+		goto fail;
 	}
 
 	usb_set_intfdata(intf, ir);
@@ -224,6 +226,12 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	igorplugusb_cmd(ir, SET_INFRABUFFER_EMPTY);
 
 	return 0;
+fail:
+	rc_free_device(ir->rc);
+	usb_free_urb(ir->urb);
+	del_timer(&ir->timer);
+
+	return ret;
 }
 
 static void igorplugusb_disconnect(struct usb_interface *intf)
@@ -237,7 +245,7 @@ static void igorplugusb_disconnect(struct usb_interface *intf)
 	usb_free_urb(ir->urb);
 }
 
-static struct usb_device_id igorplugusb_table[] = {
+static const struct usb_device_id igorplugusb_table[] = {
 	/* Igor Plug USB (Atmel's Manufact. ID) */
 	{ USB_DEVICE(0x03eb, 0x0002) },
 	/* Fit PC2 Infrared Adapter */

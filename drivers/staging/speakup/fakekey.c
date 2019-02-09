@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* fakekey.c
  * Functions for simulating keypresses.
  *
  * Copyright (C) 2010 the Speakup Team
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -28,7 +15,7 @@
 #define PRESSED 1
 #define RELEASED 0
 
-static DEFINE_PER_CPU(bool, reporting_keystroke);
+static DEFINE_PER_CPU(int, reporting_keystroke);
 
 static struct input_dev *virt_keyboard;
 
@@ -60,15 +47,15 @@ int speakup_add_virtual_keyboard(void)
 
 void speakup_remove_virtual_keyboard(void)
 {
-	if (virt_keyboard != NULL) {
+	if (virt_keyboard) {
 		input_unregister_device(virt_keyboard);
 		virt_keyboard = NULL;
 	}
 }
 
 /*
-	 * Send a simulated down-arrow to the application.
-	 */
+ * Send a simulated down-arrow to the application.
+ */
 void speakup_fake_down_arrow(void)
 {
 	unsigned long flags;
@@ -91,9 +78,9 @@ void speakup_fake_down_arrow(void)
 }
 
 /*
-	 * Are we handling a simulated keypress on the current CPU?
-	 * Returns a boolean.
-	 */
+ * Are we handling a simulated keypress on the current CPU?
+ * Returns a boolean.
+ */
 bool speakup_fake_key_pressed(void)
 {
 	return this_cpu_read(reporting_keystroke);

@@ -430,7 +430,6 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 
 const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.dpms = gma_crtc_dpms,
-	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = psb_intel_crtc_mode_set,
 	.mode_set_base = gma_pipe_set_base,
 	.prepare = gma_crtc_prepare,
@@ -439,8 +438,6 @@ const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 };
 
 const struct drm_crtc_funcs psb_intel_crtc_funcs = {
-	.save = gma_crtc_save,
-	.restore = gma_crtc_restore,
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,
@@ -494,7 +491,6 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gma_crtc *gma_crtc;
 	int i;
-	uint16_t *r_base, *g_base, *b_base;
 
 	/* We allocate a extra array of drm_connector pointers
 	 * for fbdev after the crtc */
@@ -522,19 +518,8 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	gma_crtc->pipe = pipe;
 	gma_crtc->plane = pipe;
 
-	r_base = gma_crtc->base.gamma_store;
-	g_base = r_base + 256;
-	b_base = g_base + 256;
-	for (i = 0; i < 256; i++) {
-		gma_crtc->lut_r[i] = i;
-		gma_crtc->lut_g[i] = i;
-		gma_crtc->lut_b[i] = i;
-		r_base[i] = i << 8;
-		g_base[i] = i << 8;
-		b_base[i] = i << 8;
-
+	for (i = 0; i < 256; i++)
 		gma_crtc->lut_adj[i] = 0;
-	}
 
 	gma_crtc->mode_dev = mode_dev;
 	gma_crtc->cursor_addr = 0;

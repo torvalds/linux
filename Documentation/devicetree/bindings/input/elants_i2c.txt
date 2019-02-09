@@ -3,8 +3,6 @@ Elantech I2C Touchscreen
 Required properties:
 - compatible: must be "elan,ekth3500".
 - reg: I2C address of the chip.
-- interrupt-parent: a phandle for the interrupt controller (see interrupt
-  binding[0]).
 - interrupts: interrupt to which the chip is connected (see interrupt
   binding[0]).
 

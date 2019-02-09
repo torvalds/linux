@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ARM_KEXEC_H
 #define _ARM_KEXEC_H
 
@@ -18,6 +19,11 @@
 #define KEXEC_ARM_ZIMAGE_OFFSET 0x8000
 
 #ifndef __ASSEMBLY__
+
+#define ARCH_HAS_KIMAGE_ARCH
+struct kimage_arch {
+	u32 kernel_r2;
+};
 
 /**
  * crash_setup_regs() - save registers for the panic kernel
@@ -52,6 +58,30 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 
 /* Function pointer to optional machine-specific reinitialization */
 extern void (*kexec_reinit)(void);
+
+static inline unsigned long phys_to_boot_phys(phys_addr_t phys)
+{
+	return phys_to_idmap(phys);
+}
+#define phys_to_boot_phys phys_to_boot_phys
+
+static inline phys_addr_t boot_phys_to_phys(unsigned long entry)
+{
+	return idmap_to_phys(entry);
+}
+#define boot_phys_to_phys boot_phys_to_phys
+
+static inline unsigned long page_to_boot_pfn(struct page *page)
+{
+	return page_to_pfn(page) + (arch_phys_to_idmap_offset >> PAGE_SHIFT);
+}
+#define page_to_boot_pfn page_to_boot_pfn
+
+static inline struct page *boot_pfn_to_page(unsigned long boot_pfn)
+{
+	return pfn_to_page(boot_pfn - (arch_phys_to_idmap_offset >> PAGE_SHIFT));
+}
+#define boot_pfn_to_page boot_pfn_to_page
 
 #endif /* __ASSEMBLY__ */
 

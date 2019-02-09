@@ -8,12 +8,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
 
 #include <linux/fs.h>
-#include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/if_ether.h>
-#include <linux/moduleparam.h>
 #include <linux/ip.h>
 #include <linux/sched.h>
 #include <linux/sockios.h>
@@ -45,7 +43,6 @@ enum caif_states {
 
 struct chnl_net {
 	struct cflayer chnl;
-	struct net_device_stats stats;
 	struct caif_connect_request conn_req;
 	struct list_head list_field;
 	struct net_device *netdev;
@@ -177,7 +174,7 @@ static void chnl_flowctrl_cb(struct cflayer *layr, enum caif_ctrlcmd flow,
 		flow == CAIF_CTRLCMD_DEINIT_RSP ? "CLOSE/DEINIT" :
 		flow == CAIF_CTRLCMD_INIT_FAIL_RSP ? "OPEN_FAIL" :
 		flow == CAIF_CTRLCMD_REMOTE_SHUTDOWN_IND ?
-		 "REMOTE_SHUTDOWN" : "UKNOWN CTRL COMMAND");
+		 "REMOTE_SHUTDOWN" : "UNKNOWN CTRL COMMAND");
 
 
 
@@ -394,14 +391,14 @@ static void chnl_net_destructor(struct net_device *dev)
 {
 	struct chnl_net *priv = netdev_priv(dev);
 	caif_free_client(&priv->chnl);
-	free_netdev(dev);
 }
 
 static void ipcaif_net_setup(struct net_device *dev)
 {
 	struct chnl_net *priv;
 	dev->netdev_ops = &netdev_ops;
-	dev->destructor = chnl_net_destructor;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = chnl_net_destructor;
 	dev->flags |= IFF_NOARP;
 	dev->flags |= IFF_POINTOPOINT;
 	dev->mtu = GPRS_PDP_MTU;
@@ -463,7 +460,8 @@ static void caif_netlink_parms(struct nlattr *data[],
 }
 
 static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	int ret;
 	struct chnl_net *caifdev;
@@ -486,7 +484,8 @@ static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
 }
 
 static int ipcaif_changelink(struct net_device *dev, struct nlattr *tb[],
-			     struct nlattr *data[])
+			     struct nlattr *data[],
+			     struct netlink_ext_ack *extack)
 {
 	struct chnl_net *caifdev;
 	ASSERT_RTNL();

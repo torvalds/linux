@@ -25,6 +25,8 @@
 #include <linux/regulator/driver.h>
 #include <linux/regmap.h>
 #include <linux/list.h>
+#include <linux/mfd/syscon.h>
+#include <linux/io.h>
 
 /* Pin control enable input pins. */
 #define SPMI_REGULATOR_PIN_CTRL_ENABLE_NONE		0x00
@@ -181,6 +183,23 @@ enum spmi_boost_byp_registers {
 	SPMI_BOOST_BYP_REG_CURRENT_LIMIT	= 0x4b,
 };
 
+enum spmi_saw3_registers {
+	SAW3_SECURE				= 0x00,
+	SAW3_ID					= 0x04,
+	SAW3_SPM_STS				= 0x0C,
+	SAW3_AVS_STS				= 0x10,
+	SAW3_PMIC_STS				= 0x14,
+	SAW3_RST				= 0x18,
+	SAW3_VCTL				= 0x1C,
+	SAW3_AVS_CTL				= 0x20,
+	SAW3_AVS_LIMIT				= 0x24,
+	SAW3_AVS_DLY				= 0x28,
+	SAW3_AVS_HYSTERESIS			= 0x2C,
+	SAW3_SPM_STS2				= 0x38,
+	SAW3_SPM_PMIC_DATA_3			= 0x4C,
+	SAW3_VERSION				= 0xFD0,
+};
+
 /* Used for indexing into ctrl_reg.  These are offets from 0x40 */
 enum spmi_common_control_register_index {
 	SPMI_COMMON_IDX_VOLTAGE_RANGE		= 0,
@@ -246,6 +265,7 @@ enum spmi_common_control_register_index {
 
 /* Minimum voltage stepper delay for each step. */
 #define SPMI_FTSMPS_STEP_DELAY		8
+#define SPMI_DEFAULT_STEP_DELAY		20
 
 /*
  * The ratio SPMI_FTSMPS_STEP_MARGIN_NUM/SPMI_FTSMPS_STEP_MARGIN_DEN is used to
@@ -253,13 +273,6 @@ enum spmi_common_control_register_index {
  */
 #define SPMI_FTSMPS_STEP_MARGIN_NUM	4
 #define SPMI_FTSMPS_STEP_MARGIN_DEN	5
-
-/*
- * This voltage in uV is returned by get_voltage functions when there is no way
- * to determine the current voltage level.  It is needed because the regulator
- * framework treats a 0 uV voltage as an error.
- */
-#define VOLTAGE_UNKNOWN 1
 
 /* VSET value to decide the range of ULT SMPS */
 #define ULT_SMPS_RANGE_SPLIT 0x60
@@ -492,24 +505,6 @@ static int spmi_vreg_update_bits(struct spmi_regulator *vreg, u16 addr, u8 val,
 	return regmap_update_bits(vreg->regmap, vreg->base + addr, mask, val);
 }
 
-static int spmi_regulator_common_is_enabled(struct regulator_dev *rdev)
-{
-	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-	u8 reg;
-
-	spmi_vreg_read(vreg, SPMI_COMMON_REG_ENABLE, &reg, 1);
-
-	return (reg & SPMI_COMMON_ENABLE_MASK) == SPMI_COMMON_ENABLE;
-}
-
-static int spmi_regulator_common_enable(struct regulator_dev *rdev)
-{
-	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-
-	return spmi_vreg_update_bits(vreg, SPMI_COMMON_REG_ENABLE,
-		SPMI_COMMON_ENABLE, SPMI_COMMON_ENABLE_MASK);
-}
-
 static int spmi_regulator_vs_enable(struct regulator_dev *rdev)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
@@ -519,7 +514,7 @@ static int spmi_regulator_vs_enable(struct regulator_dev *rdev)
 		vreg->vs_enable_time = ktime_get();
 	}
 
-	return spmi_regulator_common_enable(rdev);
+	return regulator_enable_regmap(rdev);
 }
 
 static int spmi_regulator_vs_ocp(struct regulator_dev *rdev)
@@ -530,21 +525,13 @@ static int spmi_regulator_vs_ocp(struct regulator_dev *rdev)
 	return spmi_vreg_write(vreg, SPMI_VS_REG_OCP, &reg, 1);
 }
 
-static int spmi_regulator_common_disable(struct regulator_dev *rdev)
-{
-	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-
-	return spmi_vreg_update_bits(vreg, SPMI_COMMON_REG_ENABLE,
-		SPMI_COMMON_DISABLE, SPMI_COMMON_ENABLE_MASK);
-}
-
 static int spmi_regulator_select_voltage(struct spmi_regulator *vreg,
-		int min_uV, int max_uV, u8 *range_sel, u8 *voltage_sel,
-		unsigned *selector)
+					 int min_uV, int max_uV)
 {
 	const struct spmi_voltage_range *range;
 	int uV = min_uV;
 	int lim_min_uV, lim_max_uV, i, range_id, range_max_uV;
+	int selector, voltage_sel;
 
 	/* Check if request voltage is outside of physically settable range. */
 	lim_min_uV = vreg->set_points->range[0].set_point_min_uV;
@@ -570,14 +557,13 @@ static int spmi_regulator_select_voltage(struct spmi_regulator *vreg,
 
 	range_id = i;
 	range = &vreg->set_points->range[range_id];
-	*range_sel = range->range_sel;
 
 	/*
 	 * Force uV to be an allowed set point by applying a ceiling function to
 	 * the uV value.
 	 */
-	*voltage_sel = DIV_ROUND_UP(uV - range->min_uV, range->step_uV);
-	uV = *voltage_sel * range->step_uV + range->min_uV;
+	voltage_sel = DIV_ROUND_UP(uV - range->min_uV, range->step_uV);
+	uV = voltage_sel * range->step_uV + range->min_uV;
 
 	if (uV > max_uV) {
 		dev_err(vreg->dev,
@@ -587,12 +573,75 @@ static int spmi_regulator_select_voltage(struct spmi_regulator *vreg,
 		return -EINVAL;
 	}
 
-	*selector = 0;
+	selector = 0;
 	for (i = 0; i < range_id; i++)
-		*selector += vreg->set_points->range[i].n_voltages;
-	*selector += (uV - range->set_point_min_uV) / range->step_uV;
+		selector += vreg->set_points->range[i].n_voltages;
+	selector += (uV - range->set_point_min_uV) / range->step_uV;
 
-	return 0;
+	return selector;
+}
+
+static int spmi_sw_selector_to_hw(struct spmi_regulator *vreg,
+				  unsigned selector, u8 *range_sel,
+				  u8 *voltage_sel)
+{
+	const struct spmi_voltage_range *range, *end;
+	unsigned offset;
+
+	range = vreg->set_points->range;
+	end = range + vreg->set_points->count;
+
+	for (; range < end; range++) {
+		if (selector < range->n_voltages) {
+			/*
+			 * hardware selectors between set point min and real
+			 * min are invalid so we ignore them
+			 */
+			offset = range->set_point_min_uV - range->min_uV;
+			offset /= range->step_uV;
+			*voltage_sel = selector + offset;
+			*range_sel = range->range_sel;
+			return 0;
+		}
+
+		selector -= range->n_voltages;
+	}
+
+	return -EINVAL;
+}
+
+static int spmi_hw_selector_to_sw(struct spmi_regulator *vreg, u8 hw_sel,
+				  const struct spmi_voltage_range *range)
+{
+	unsigned sw_sel = 0;
+	unsigned offset, max_hw_sel;
+	const struct spmi_voltage_range *r = vreg->set_points->range;
+	const struct spmi_voltage_range *end = r + vreg->set_points->count;
+
+	for (; r < end; r++) {
+		if (r == range && range->n_voltages) {
+			/*
+			 * hardware selectors between set point min and real
+			 * min and between set point max and real max are
+			 * invalid so we return an error if they're
+			 * programmed into the hardware
+			 */
+			offset = range->set_point_min_uV - range->min_uV;
+			offset /= range->step_uV;
+			if (hw_sel < offset)
+				return -EINVAL;
+
+			max_hw_sel = range->set_point_max_uV - range->min_uV;
+			max_hw_sel /= range->step_uV;
+			if (hw_sel > max_hw_sel)
+				return -EINVAL;
+
+			return sw_sel + hw_sel - offset;
+		}
+		sw_sel += r->n_voltages;
+	}
+
+	return -EINVAL;
 }
 
 static const struct spmi_voltage_range *
@@ -614,12 +663,11 @@ spmi_regulator_find_range(struct spmi_regulator *vreg)
 }
 
 static int spmi_regulator_select_voltage_same_range(struct spmi_regulator *vreg,
-		int min_uV, int max_uV, u8 *range_sel, u8 *voltage_sel,
-		unsigned *selector)
+		int min_uV, int max_uV)
 {
 	const struct spmi_voltage_range *range;
 	int uV = min_uV;
-	int i;
+	int i, selector;
 
 	range = spmi_regulator_find_range(vreg);
 	if (!range)
@@ -637,8 +685,8 @@ static int spmi_regulator_select_voltage_same_range(struct spmi_regulator *vreg,
 	 * Force uV to be an allowed set point by applying a ceiling function to
 	 * the uV value.
 	 */
-	*voltage_sel = DIV_ROUND_UP(uV - range->min_uV, range->step_uV);
-	uV = *voltage_sel * range->step_uV + range->min_uV;
+	uV = DIV_ROUND_UP(uV - range->min_uV, range->step_uV);
+	uV = uV * range->step_uV + range->min_uV;
 
 	if (uV > max_uV) {
 		/*
@@ -648,43 +696,49 @@ static int spmi_regulator_select_voltage_same_range(struct spmi_regulator *vreg,
 		goto different_range;
 	}
 
-	*selector = 0;
+	selector = 0;
 	for (i = 0; i < vreg->set_points->count; i++) {
 		if (uV >= vreg->set_points->range[i].set_point_min_uV
 		    && uV <= vreg->set_points->range[i].set_point_max_uV) {
-			*selector +=
+			selector +=
 			    (uV - vreg->set_points->range[i].set_point_min_uV)
 				/ vreg->set_points->range[i].step_uV;
 			break;
 		}
 
-		*selector += vreg->set_points->range[i].n_voltages;
+		selector += vreg->set_points->range[i].n_voltages;
 	}
 
-	if (*selector >= vreg->set_points->n_voltages)
+	if (selector >= vreg->set_points->n_voltages)
 		goto different_range;
 
-	return 0;
+	return selector;
 
 different_range:
-	return spmi_regulator_select_voltage(vreg, min_uV, max_uV,
-			range_sel, voltage_sel, selector);
+	return spmi_regulator_select_voltage(vreg, min_uV, max_uV);
 }
 
-static int spmi_regulator_common_set_voltage(struct regulator_dev *rdev,
-		int min_uV, int max_uV, unsigned *selector)
+static int spmi_regulator_common_map_voltage(struct regulator_dev *rdev,
+					     int min_uV, int max_uV)
+{
+	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
+
+	/*
+	 * Favor staying in the current voltage range if possible.  This avoids
+	 * voltage spikes that occur when changing the voltage range.
+	 */
+	return spmi_regulator_select_voltage_same_range(vreg, min_uV, max_uV);
+}
+
+static int
+spmi_regulator_common_set_voltage(struct regulator_dev *rdev, unsigned selector)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
 	int ret;
 	u8 buf[2];
 	u8 range_sel, voltage_sel;
 
-	/*
-	 * Favor staying in the current voltage range if possible.  This avoids
-	 * voltage spikes that occur when changing the voltage range.
-	 */
-	ret = spmi_regulator_select_voltage_same_range(vreg, min_uV, max_uV,
-		&range_sel, &voltage_sel, selector);
+	ret = spmi_sw_selector_to_hw(vreg, selector, &range_sel, &voltage_sel);
 	if (ret)
 		return ret;
 
@@ -719,24 +773,24 @@ static int spmi_regulator_common_get_voltage(struct regulator_dev *rdev)
 
 	range = spmi_regulator_find_range(vreg);
 	if (!range)
-		return VOLTAGE_UNKNOWN;
+		return -EINVAL;
 
-	return range->step_uV * voltage_sel + range->min_uV;
+	return spmi_hw_selector_to_sw(vreg, voltage_sel, range);
+}
+
+static int spmi_regulator_single_map_voltage(struct regulator_dev *rdev,
+		int min_uV, int max_uV)
+{
+	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
+
+	return spmi_regulator_select_voltage(vreg, min_uV, max_uV);
 }
 
 static int spmi_regulator_single_range_set_voltage(struct regulator_dev *rdev,
-		int min_uV, int max_uV, unsigned *selector)
+						   unsigned selector)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-	int ret;
-	u8 range_sel, sel;
-
-	ret = spmi_regulator_select_voltage(vreg, min_uV, max_uV, &range_sel,
-		&sel, selector);
-	if (ret) {
-		dev_err(vreg->dev, "could not set voltage, ret=%d\n", ret);
-		return ret;
-	}
+	u8 sel = selector;
 
 	/*
 	 * Certain types of regulators do not have a range select register so
@@ -748,27 +802,24 @@ static int spmi_regulator_single_range_set_voltage(struct regulator_dev *rdev,
 static int spmi_regulator_single_range_get_voltage(struct regulator_dev *rdev)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-	const struct spmi_voltage_range *range = vreg->set_points->range;
-	u8 voltage_sel;
+	u8 selector;
+	int ret;
 
-	spmi_vreg_read(vreg, SPMI_COMMON_REG_VOLTAGE_SET, &voltage_sel, 1);
+	ret = spmi_vreg_read(vreg, SPMI_COMMON_REG_VOLTAGE_SET, &selector, 1);
+	if (ret)
+		return ret;
 
-	return range->step_uV * voltage_sel + range->min_uV;
+	return selector;
 }
 
 static int spmi_regulator_ult_lo_smps_set_voltage(struct regulator_dev *rdev,
-		int min_uV, int max_uV, unsigned *selector)
+						  unsigned selector)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
 	int ret;
 	u8 range_sel, voltage_sel;
 
-	/*
-	 * Favor staying in the current voltage range if possible. This avoids
-	 * voltage spikes that occur when changing the voltage range.
-	 */
-	ret = spmi_regulator_select_voltage_same_range(vreg, min_uV, max_uV,
-		&range_sel, &voltage_sel, selector);
+	ret = spmi_sw_selector_to_hw(vreg, selector, &range_sel, &voltage_sel);
 	if (ret)
 		return ret;
 
@@ -783,7 +834,7 @@ static int spmi_regulator_ult_lo_smps_set_voltage(struct regulator_dev *rdev,
 		voltage_sel |= ULT_SMPS_RANGE_SPLIT;
 
 	return spmi_vreg_update_bits(vreg, SPMI_COMMON_REG_VOLTAGE_SET,
-	       voltage_sel, 0xff);
+				     voltage_sel, 0xff);
 }
 
 static int spmi_regulator_ult_lo_smps_get_voltage(struct regulator_dev *rdev)
@@ -796,12 +847,12 @@ static int spmi_regulator_ult_lo_smps_get_voltage(struct regulator_dev *rdev)
 
 	range = spmi_regulator_find_range(vreg);
 	if (!range)
-		return VOLTAGE_UNKNOWN;
+		return -EINVAL;
 
 	if (range->range_sel == 1)
 		voltage_sel &= ~ULT_SMPS_RANGE_SPLIT;
 
-	return range->step_uV * voltage_sel + range->min_uV;
+	return spmi_hw_selector_to_sw(vreg, voltage_sel, range);
 }
 
 static int spmi_regulator_common_list_voltage(struct regulator_dev *rdev,
@@ -1003,12 +1054,97 @@ static irqreturn_t spmi_regulator_vs_ocp_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#define SAW3_VCTL_DATA_MASK	0xFF
+#define SAW3_VCTL_CLEAR_MASK	0x700FF
+#define SAW3_AVS_CTL_EN_MASK	0x1
+#define SAW3_AVS_CTL_TGGL_MASK	0x8000000
+#define SAW3_AVS_CTL_CLEAR_MASK	0x7efc00
+
+static struct regmap *saw_regmap;
+
+static void spmi_saw_set_vdd(void *data)
+{
+	u32 vctl, data3, avs_ctl, pmic_sts;
+	bool avs_enabled = false;
+	unsigned long timeout;
+	u8 voltage_sel = *(u8 *)data;
+
+	regmap_read(saw_regmap, SAW3_AVS_CTL, &avs_ctl);
+	regmap_read(saw_regmap, SAW3_VCTL, &vctl);
+	regmap_read(saw_regmap, SAW3_SPM_PMIC_DATA_3, &data3);
+
+	/* select the band */
+	vctl &= ~SAW3_VCTL_CLEAR_MASK;
+	vctl |= (u32)voltage_sel;
+
+	data3 &= ~SAW3_VCTL_CLEAR_MASK;
+	data3 |= (u32)voltage_sel;
+
+	/* If AVS is enabled, switch it off during the voltage change */
+	avs_enabled = SAW3_AVS_CTL_EN_MASK & avs_ctl;
+	if (avs_enabled) {
+		avs_ctl &= ~SAW3_AVS_CTL_TGGL_MASK;
+		regmap_write(saw_regmap, SAW3_AVS_CTL, avs_ctl);
+	}
+
+	regmap_write(saw_regmap, SAW3_RST, 1);
+	regmap_write(saw_regmap, SAW3_VCTL, vctl);
+	regmap_write(saw_regmap, SAW3_SPM_PMIC_DATA_3, data3);
+
+	timeout = jiffies + usecs_to_jiffies(100);
+	do {
+		regmap_read(saw_regmap, SAW3_PMIC_STS, &pmic_sts);
+		pmic_sts &= SAW3_VCTL_DATA_MASK;
+		if (pmic_sts == (u32)voltage_sel)
+			break;
+
+		cpu_relax();
+
+	} while (time_before(jiffies, timeout));
+
+	/* After successful voltage change, switch the AVS back on */
+	if (avs_enabled) {
+		pmic_sts &= 0x3f;
+		avs_ctl &= ~SAW3_AVS_CTL_CLEAR_MASK;
+		avs_ctl |= ((pmic_sts - 4) << 10);
+		avs_ctl |= (pmic_sts << 17);
+		avs_ctl |= SAW3_AVS_CTL_TGGL_MASK;
+		regmap_write(saw_regmap, SAW3_AVS_CTL, avs_ctl);
+	}
+}
+
+static int
+spmi_regulator_saw_set_voltage(struct regulator_dev *rdev, unsigned selector)
+{
+	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
+	int ret;
+	u8 range_sel, voltage_sel;
+
+	ret = spmi_sw_selector_to_hw(vreg, selector, &range_sel, &voltage_sel);
+	if (ret)
+		return ret;
+
+	if (0 != range_sel) {
+		dev_dbg(&rdev->dev, "range_sel = %02X voltage_sel = %02X", \
+			range_sel, voltage_sel);
+		return -EINVAL;
+	}
+
+	/* Always do the SAW register writes on the first CPU */
+	return smp_call_function_single(0, spmi_saw_set_vdd, \
+					&voltage_sel, true);
+}
+
+static struct regulator_ops spmi_saw_ops = {};
+
 static struct regulator_ops spmi_smps_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_common_set_voltage,
-	.get_voltage		= spmi_regulator_common_get_voltage,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_voltage_sel	= spmi_regulator_common_set_voltage,
+	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
+	.get_voltage_sel	= spmi_regulator_common_get_voltage,
+	.map_voltage		= spmi_regulator_common_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1017,11 +1153,12 @@ static struct regulator_ops spmi_smps_ops = {
 };
 
 static struct regulator_ops spmi_ldo_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_common_set_voltage,
-	.get_voltage		= spmi_regulator_common_get_voltage,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_voltage_sel	= spmi_regulator_common_set_voltage,
+	.get_voltage_sel	= spmi_regulator_common_get_voltage,
+	.map_voltage		= spmi_regulator_common_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1033,11 +1170,12 @@ static struct regulator_ops spmi_ldo_ops = {
 };
 
 static struct regulator_ops spmi_ln_ldo_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_common_set_voltage,
-	.get_voltage		= spmi_regulator_common_get_voltage,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_voltage_sel	= spmi_regulator_common_set_voltage,
+	.get_voltage_sel	= spmi_regulator_common_get_voltage,
+	.map_voltage		= spmi_regulator_common_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_bypass		= spmi_regulator_common_set_bypass,
 	.get_bypass		= spmi_regulator_common_get_bypass,
@@ -1045,30 +1183,34 @@ static struct regulator_ops spmi_ln_ldo_ops = {
 
 static struct regulator_ops spmi_vs_ops = {
 	.enable			= spmi_regulator_vs_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.set_pull_down		= spmi_regulator_common_set_pull_down,
 	.set_soft_start		= spmi_regulator_common_set_soft_start,
 	.set_over_current_protection = spmi_regulator_vs_ocp,
+	.set_mode		= spmi_regulator_common_set_mode,
+	.get_mode		= spmi_regulator_common_get_mode,
 };
 
 static struct regulator_ops spmi_boost_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_single_range_set_voltage,
-	.get_voltage		= spmi_regulator_single_range_get_voltage,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_voltage_sel	= spmi_regulator_single_range_set_voltage,
+	.get_voltage_sel	= spmi_regulator_single_range_get_voltage,
+	.map_voltage		= spmi_regulator_single_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_input_current_limit = spmi_regulator_set_ilim,
 };
 
 static struct regulator_ops spmi_ftsmps_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_common_set_voltage,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_voltage_sel	= spmi_regulator_common_set_voltage,
 	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
-	.get_voltage		= spmi_regulator_common_get_voltage,
+	.get_voltage_sel	= spmi_regulator_common_get_voltage,
+	.map_voltage		= spmi_regulator_common_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1077,11 +1219,12 @@ static struct regulator_ops spmi_ftsmps_ops = {
 };
 
 static struct regulator_ops spmi_ult_lo_smps_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_ult_lo_smps_set_voltage,
-	.get_voltage		= spmi_regulator_ult_lo_smps_get_voltage,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_voltage_sel	= spmi_regulator_ult_lo_smps_set_voltage,
+	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
+	.get_voltage_sel	= spmi_regulator_ult_lo_smps_get_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1090,11 +1233,13 @@ static struct regulator_ops spmi_ult_lo_smps_ops = {
 };
 
 static struct regulator_ops spmi_ult_ho_smps_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_single_range_set_voltage,
-	.get_voltage		= spmi_regulator_single_range_get_voltage,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_voltage_sel	= spmi_regulator_single_range_set_voltage,
+	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
+	.get_voltage_sel	= spmi_regulator_single_range_get_voltage,
+	.map_voltage		= spmi_regulator_single_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1103,11 +1248,12 @@ static struct regulator_ops spmi_ult_ho_smps_ops = {
 };
 
 static struct regulator_ops spmi_ult_ldo_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_single_range_set_voltage,
-	.get_voltage		= spmi_regulator_single_range_get_voltage,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_voltage_sel	= spmi_regulator_single_range_set_voltage,
+	.get_voltage_sel	= spmi_regulator_single_range_get_voltage,
+	.map_voltage		= spmi_regulator_single_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1201,11 +1347,12 @@ static int spmi_regulator_match(struct spmi_regulator *vreg, u16 force_type)
 	ret = spmi_vreg_read(vreg, SPMI_COMMON_REG_DIG_MAJOR_REV, version,
 		ARRAY_SIZE(version));
 	if (ret) {
-		dev_err(vreg->dev, "could not read version registers\n");
+		dev_dbg(vreg->dev, "could not read version registers\n");
 		return ret;
 	}
 	dig_major_rev	= version[SPMI_COMMON_REG_DIG_MAJOR_REV
 					- SPMI_COMMON_REG_DIG_MAJOR_REV];
+
 	if (!force_type) {
 		type		= version[SPMI_COMMON_REG_TYPE -
 					  SPMI_COMMON_REG_DIG_MAJOR_REV];
@@ -1245,11 +1392,11 @@ found:
 	return 0;
 }
 
-static int spmi_regulator_ftsmps_init_slew_rate(struct spmi_regulator *vreg)
+static int spmi_regulator_init_slew_rate(struct spmi_regulator *vreg)
 {
 	int ret;
 	u8 reg = 0;
-	int step, delay, slew_rate;
+	int step, delay, slew_rate, step_delay;
 	const struct spmi_voltage_range *range;
 
 	ret = spmi_vreg_read(vreg, SPMI_COMMON_REG_STEP_CTRL, &reg, 1);
@@ -1262,6 +1409,15 @@ static int spmi_regulator_ftsmps_init_slew_rate(struct spmi_regulator *vreg)
 	if (!range)
 		return -EINVAL;
 
+	switch (vreg->logical_type) {
+	case SPMI_REGULATOR_LOGICAL_TYPE_FTSMPS:
+		step_delay = SPMI_FTSMPS_STEP_DELAY;
+		break;
+	default:
+		step_delay = SPMI_DEFAULT_STEP_DELAY;
+		break;
+	}
+
 	step = reg & SPMI_FTSMPS_STEP_CTRL_STEP_MASK;
 	step >>= SPMI_FTSMPS_STEP_CTRL_STEP_SHIFT;
 
@@ -1270,7 +1426,7 @@ static int spmi_regulator_ftsmps_init_slew_rate(struct spmi_regulator *vreg)
 
 	/* slew_rate has units of uV/us */
 	slew_rate = SPMI_FTSMPS_CLOCK_RATE * range->step_uV * (1 << step);
-	slew_rate /= 1000 * (SPMI_FTSMPS_STEP_DELAY << delay);
+	slew_rate /= 1000 * (step_delay << delay);
 	slew_rate *= SPMI_FTSMPS_STEP_MARGIN_NUM;
 	slew_rate /= SPMI_FTSMPS_STEP_MARGIN_DEN;
 
@@ -1411,10 +1567,16 @@ static int spmi_regulator_of_parse(struct device_node *node,
 		return ret;
 	}
 
-	if (vreg->logical_type == SPMI_REGULATOR_LOGICAL_TYPE_FTSMPS) {
-		ret = spmi_regulator_ftsmps_init_slew_rate(vreg);
+	switch (vreg->logical_type) {
+	case SPMI_REGULATOR_LOGICAL_TYPE_FTSMPS:
+	case SPMI_REGULATOR_LOGICAL_TYPE_ULT_LO_SMPS:
+	case SPMI_REGULATOR_LOGICAL_TYPE_ULT_HO_SMPS:
+	case SPMI_REGULATOR_LOGICAL_TYPE_SMPS:
+		ret = spmi_regulator_init_slew_rate(vreg);
 		if (ret)
 			return ret;
+	default:
+		break;
 	}
 
 	if (vreg->logical_type != SPMI_REGULATOR_LOGICAL_TYPE_VS)
@@ -1440,6 +1602,7 @@ static const struct spmi_regulator_data pm8941_regulators[] = {
 	{ "s1", 0x1400, "vdd_s1", },
 	{ "s2", 0x1700, "vdd_s2", },
 	{ "s3", 0x1a00, "vdd_s3", },
+	{ "s4", 0xa000, },
 	{ "l1", 0x4000, "vdd_l1_l3", },
 	{ "l2", 0x4100, "vdd_l2_lvs_1_2_3", },
 	{ "l3", 0x4200, "vdd_l1_l3", },
@@ -1467,8 +1630,8 @@ static const struct spmi_regulator_data pm8941_regulators[] = {
 	{ "lvs1", 0x8000, "vdd_l2_lvs_1_2_3", },
 	{ "lvs2", 0x8100, "vdd_l2_lvs_1_2_3", },
 	{ "lvs3", 0x8200, "vdd_l2_lvs_1_2_3", },
-	{ "mvs1", 0x8300, "vin_5vs", },
-	{ "mvs2", 0x8400, "vin_5vs", },
+	{ "5vs1", 0x8300, "vin_5vs", "ocp-5vs1", },
+	{ "5vs2", 0x8400, "vin_5vs", "ocp-5vs2", },
 	{ }
 };
 
@@ -1510,10 +1673,70 @@ static const struct spmi_regulator_data pm8916_regulators[] = {
 	{ }
 };
 
+static const struct spmi_regulator_data pm8994_regulators[] = {
+	{ "s1", 0x1400, "vdd_s1", },
+	{ "s2", 0x1700, "vdd_s2", },
+	{ "s3", 0x1a00, "vdd_s3", },
+	{ "s4", 0x1d00, "vdd_s4", },
+	{ "s5", 0x2000, "vdd_s5", },
+	{ "s6", 0x2300, "vdd_s6", },
+	{ "s7", 0x2600, "vdd_s7", },
+	{ "s8", 0x2900, "vdd_s8", },
+	{ "s9", 0x2c00, "vdd_s9", },
+	{ "s10", 0x2f00, "vdd_s10", },
+	{ "s11", 0x3200, "vdd_s11", },
+	{ "s12", 0x3500, "vdd_s12", },
+	{ "l1", 0x4000, "vdd_l1", },
+	{ "l2", 0x4100, "vdd_l2_l26_l28", },
+	{ "l3", 0x4200, "vdd_l3_l11", },
+	{ "l4", 0x4300, "vdd_l4_l27_l31", },
+	{ "l5", 0x4400, "vdd_l5_l7", },
+	{ "l6", 0x4500, "vdd_l6_l12_l32", },
+	{ "l7", 0x4600, "vdd_l5_l7", },
+	{ "l8", 0x4700, "vdd_l8_l16_l30", },
+	{ "l9", 0x4800, "vdd_l9_l10_l18_l22", },
+	{ "l10", 0x4900, "vdd_l9_l10_l18_l22", },
+	{ "l11", 0x4a00, "vdd_l3_l11", },
+	{ "l12", 0x4b00, "vdd_l6_l12_l32", },
+	{ "l13", 0x4c00, "vdd_l13_l19_l23_l24", },
+	{ "l14", 0x4d00, "vdd_l14_l15", },
+	{ "l15", 0x4e00, "vdd_l14_l15", },
+	{ "l16", 0x4f00, "vdd_l8_l16_l30", },
+	{ "l17", 0x5000, "vdd_l17_l29", },
+	{ "l18", 0x5100, "vdd_l9_l10_l18_l22", },
+	{ "l19", 0x5200, "vdd_l13_l19_l23_l24", },
+	{ "l20", 0x5300, "vdd_l20_l21", },
+	{ "l21", 0x5400, "vdd_l20_l21", },
+	{ "l22", 0x5500, "vdd_l9_l10_l18_l22", },
+	{ "l23", 0x5600, "vdd_l13_l19_l23_l24", },
+	{ "l24", 0x5700, "vdd_l13_l19_l23_l24", },
+	{ "l25", 0x5800, "vdd_l25", },
+	{ "l26", 0x5900, "vdd_l2_l26_l28", },
+	{ "l27", 0x5a00, "vdd_l4_l27_l31", },
+	{ "l28", 0x5b00, "vdd_l2_l26_l28", },
+	{ "l29", 0x5c00, "vdd_l17_l29", },
+	{ "l30", 0x5d00, "vdd_l8_l16_l30", },
+	{ "l31", 0x5e00, "vdd_l4_l27_l31", },
+	{ "l32", 0x5f00, "vdd_l6_l12_l32", },
+	{ "lvs1", 0x8000, "vdd_lvs_1_2", },
+	{ "lvs2", 0x8100, "vdd_lvs_1_2", },
+	{ }
+};
+
+static const struct spmi_regulator_data pmi8994_regulators[] = {
+	{ "s1", 0x1400, "vdd_s1", },
+	{ "s2", 0x1700, "vdd_s2", },
+	{ "s3", 0x1a00, "vdd_s3", },
+	{ "l1", 0x4000, "vdd_l1", },
+	{ }
+};
+
 static const struct of_device_id qcom_spmi_regulator_match[] = {
 	{ .compatible = "qcom,pm8841-regulators", .data = &pm8841_regulators },
 	{ .compatible = "qcom,pm8916-regulators", .data = &pm8916_regulators },
 	{ .compatible = "qcom,pm8941-regulators", .data = &pm8941_regulators },
+	{ .compatible = "qcom,pm8994-regulators", .data = &pm8994_regulators },
+	{ .compatible = "qcom,pmi8994-regulators", .data = &pmi8994_regulators },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_spmi_regulator_match);
@@ -1528,7 +1751,10 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	const char *name;
 	struct device *dev = &pdev->dev;
-	int ret;
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *syscon, *reg_node;
+	struct property *reg_prop;
+	int ret, lenp;
 	struct list_head *vreg_list;
 
 	vreg_list = devm_kzalloc(dev, sizeof(*vreg_list), GFP_KERNEL);
@@ -1545,7 +1771,25 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
+	if (of_find_property(node, "qcom,saw-reg", &lenp)) {
+		syscon = of_parse_phandle(node, "qcom,saw-reg", 0);
+		saw_regmap = syscon_node_to_regmap(syscon);
+		of_node_put(syscon);
+		if (IS_ERR(saw_regmap))
+			dev_err(dev, "ERROR reading SAW regmap\n");
+	}
+
 	for (reg = match->data; reg->name; reg++) {
+
+		if (saw_regmap) {
+			reg_node = of_get_child_by_name(node, reg->name);
+			reg_prop = of_find_property(reg_node, "qcom,saw-slave",
+						    &lenp);
+			of_node_put(reg_node);
+			if (reg_prop)
+				continue;
+		}
+
 		vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg)
 			return -ENOMEM;
@@ -1553,7 +1797,6 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 		vreg->dev = dev;
 		vreg->base = reg->base;
 		vreg->regmap = regmap;
-
 		if (reg->ocp) {
 			vreg->ocp_irq = platform_get_irq_byname(pdev, reg->ocp);
 			if (vreg->ocp_irq < 0) {
@@ -1561,10 +1804,12 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 				goto err;
 			}
 		}
-
 		vreg->desc.id = -1;
 		vreg->desc.owner = THIS_MODULE;
 		vreg->desc.type = REGULATOR_VOLTAGE;
+		vreg->desc.enable_reg = reg->base + SPMI_COMMON_REG_ENABLE;
+		vreg->desc.enable_mask = SPMI_COMMON_ENABLE_MASK;
+		vreg->desc.enable_val = SPMI_COMMON_ENABLE;
 		vreg->desc.name = name = reg->name;
 		vreg->desc.supply_name = reg->supply;
 		vreg->desc.of_match = reg->name;
@@ -1573,10 +1818,24 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 
 		ret = spmi_regulator_match(vreg, reg->force_type);
 		if (ret)
-			goto err;
+			continue;
+
+		if (saw_regmap) {
+			reg_node = of_get_child_by_name(node, reg->name);
+			reg_prop = of_find_property(reg_node, "qcom,saw-leader",
+						    &lenp);
+			of_node_put(reg_node);
+			if (reg_prop) {
+				spmi_saw_ops = *(vreg->desc.ops);
+				spmi_saw_ops.set_voltage_sel =
+					spmi_regulator_saw_set_voltage;
+				vreg->desc.ops = &spmi_saw_ops;
+			}
+		}
 
 		config.dev = dev;
 		config.driver_data = vreg;
+		config.regmap = regmap;
 		rdev = devm_regulator_register(dev, &vreg->desc, &config);
 		if (IS_ERR(rdev)) {
 			dev_err(dev, "failed to register %s\n", name);

@@ -314,7 +314,7 @@ static int ssbi_probe(struct platform_device *pdev)
 
 	spin_lock_init(&ssbi->lock);
 
-	return of_platform_populate(np, NULL, NULL, &pdev->dev);
+	return devm_of_platform_populate(&pdev->dev);
 }
 
 static const struct of_device_id ssbi_match_table[] = {

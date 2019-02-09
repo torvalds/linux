@@ -30,38 +30,62 @@
  *
  * As KMS moves toward more fine grained locking, and atomic ioctl where
  * userspace can indirectly control locking order, it becomes necessary
- * to use ww_mutex and acquire-contexts to avoid deadlocks.  But because
+ * to use &ww_mutex and acquire-contexts to avoid deadlocks.  But because
  * the locking is more distributed around the driver code, we want a bit
  * of extra utility/tracking out of our acquire-ctx.  This is provided
- * by drm_modeset_lock / drm_modeset_acquire_ctx.
+ * by &struct drm_modeset_lock and &struct drm_modeset_acquire_ctx.
  *
- * For basic principles of ww_mutex, see: Documentation/locking/ww-mutex-design.txt
+ * For basic principles of &ww_mutex, see: Documentation/locking/ww-mutex-design.txt
  *
- * The basic usage pattern is to:
+ * The basic usage pattern is to::
  *
- *     drm_modeset_acquire_init(&ctx)
- *   retry:
+ *     drm_modeset_acquire_init(ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE)
+ *     retry:
  *     foreach (lock in random_ordered_set_of_locks) {
- *       ret = drm_modeset_lock(lock, &ctx)
- *       if (ret == -EDEADLK) {
- *          drm_modeset_backoff(&ctx);
- *          goto retry;
- *       }
+ *         ret = drm_modeset_lock(lock, ctx)
+ *         if (ret == -EDEADLK) {
+ *             ret = drm_modeset_backoff(ctx);
+ *             if (!ret)
+ *                 goto retry;
+ *         }
+ *         if (ret)
+ *             goto out;
  *     }
- *
  *     ... do stuff ...
+ *     out:
+ *     drm_modeset_drop_locks(ctx);
+ *     drm_modeset_acquire_fini(ctx);
  *
- *     drm_modeset_drop_locks(&ctx);
- *     drm_modeset_acquire_fini(&ctx);
+ * If all that is needed is a single modeset lock, then the &struct
+ * drm_modeset_acquire_ctx is not needed and the locking can be simplified
+ * by passing a NULL instead of ctx in the drm_modeset_lock() call or
+ * calling  drm_modeset_lock_single_interruptible(). To unlock afterwards
+ * call drm_modeset_unlock().
+ *
+ * On top of these per-object locks using &ww_mutex there's also an overall
+ * &drm_mode_config.mutex, for protecting everything else. Mostly this means
+ * probe state of connectors, and preventing hotplug add/removal of connectors.
+ *
+ * Finally there's a bunch of dedicated locks to protect drm core internal
+ * lists and lookup data structures.
  */
+
+static DEFINE_WW_CLASS(crtc_ww_class);
 
 /**
  * drm_modeset_lock_all - take all modeset locks
- * @dev: drm device
+ * @dev: DRM device
  *
  * This function takes all modeset locks, suitable where a more fine-grained
- * scheme isn't (yet) implemented. Locks must be dropped with
- * drm_modeset_unlock_all.
+ * scheme isn't (yet) implemented. Locks must be dropped by calling the
+ * drm_modeset_unlock_all() function.
+ *
+ * This function is deprecated. It allocates a lock acquisition context and
+ * stores it in &drm_device.mode_config. This facilitate conversion of
+ * existing code because it removes the need to manually deal with the
+ * acquisition context, but it is also brittle because the context is global
+ * and care must be taken not to nest calls. New code should use the
+ * drm_modeset_lock_all_ctx() function and pass in the context explicitly.
  */
 void drm_modeset_lock_all(struct drm_device *dev)
 {
@@ -69,7 +93,7 @@ void drm_modeset_lock_all(struct drm_device *dev)
 	struct drm_modeset_acquire_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL | __GFP_NOFAIL);
 	if (WARN_ON(!ctx))
 		return;
 
@@ -78,39 +102,44 @@ void drm_modeset_lock_all(struct drm_device *dev)
 	drm_modeset_acquire_init(ctx, 0);
 
 retry:
-	ret = drm_modeset_lock(&config->connection_mutex, ctx);
-	if (ret)
-		goto fail;
-	ret = drm_modeset_lock_all_crtcs(dev, ctx);
-	if (ret)
-		goto fail;
+	ret = drm_modeset_lock_all_ctx(dev, ctx);
+	if (ret < 0) {
+		if (ret == -EDEADLK) {
+			drm_modeset_backoff(ctx);
+			goto retry;
+		}
+
+		drm_modeset_acquire_fini(ctx);
+		kfree(ctx);
+		return;
+	}
+	ww_acquire_done(&ctx->ww_ctx);
 
 	WARN_ON(config->acquire_ctx);
 
-	/* now we hold the locks, so now that it is safe, stash the
-	 * ctx for drm_modeset_unlock_all():
+	/*
+	 * We hold the locks now, so it is safe to stash the acquisition
+	 * context for drm_modeset_unlock_all().
 	 */
 	config->acquire_ctx = ctx;
 
 	drm_warn_on_modeset_not_all_locked(dev);
-
-	return;
-
-fail:
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(ctx);
-		goto retry;
-	}
-
-	kfree(ctx);
 }
 EXPORT_SYMBOL(drm_modeset_lock_all);
 
 /**
  * drm_modeset_unlock_all - drop all modeset locks
- * @dev: device
+ * @dev: DRM device
  *
- * This function drop all modeset locks taken by drm_modeset_lock_all.
+ * This function drops all modeset locks taken by a previous call to the
+ * drm_modeset_lock_all() function.
+ *
+ * This function is deprecated. It uses the lock acquisition context stored
+ * in &drm_device.mode_config. This facilitates conversion of existing
+ * code because it removes the need to manually deal with the acquisition
+ * context, but it is also brittle because the context is global and care must
+ * be taken not to nest calls. New code should pass the acquisition context
+ * directly to the drm_modeset_drop_locks() function.
  */
 void drm_modeset_unlock_all(struct drm_device *dev)
 {
@@ -129,108 +158,6 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 	mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_modeset_unlock_all);
-
-/**
- * drm_modeset_lock_crtc - lock crtc with hidden acquire ctx for a plane update
- * @crtc: DRM CRTC
- * @plane: DRM plane to be updated on @crtc
- *
- * This function locks the given crtc and plane (which should be either the
- * primary or cursor plane) using a hidden acquire context. This is necessary so
- * that drivers internally using the atomic interfaces can grab further locks
- * with the lock acquire context.
- *
- * Note that @plane can be NULL, e.g. when the cursor support hasn't yet been
- * converted to universal planes yet.
- */
-void drm_modeset_lock_crtc(struct drm_crtc *crtc,
-			   struct drm_plane *plane)
-{
-	struct drm_modeset_acquire_ctx *ctx;
-	int ret;
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (WARN_ON(!ctx))
-		return;
-
-	drm_modeset_acquire_init(ctx, 0);
-
-retry:
-	ret = drm_modeset_lock(&crtc->mutex, ctx);
-	if (ret)
-		goto fail;
-
-	if (plane) {
-		ret = drm_modeset_lock(&plane->mutex, ctx);
-		if (ret)
-			goto fail;
-
-		if (plane->crtc) {
-			ret = drm_modeset_lock(&plane->crtc->mutex, ctx);
-			if (ret)
-				goto fail;
-		}
-	}
-
-	WARN_ON(crtc->acquire_ctx);
-
-	/* now we hold the locks, so now that it is safe, stash the
-	 * ctx for drm_modeset_unlock_crtc():
-	 */
-	crtc->acquire_ctx = ctx;
-
-	return;
-
-fail:
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(ctx);
-		goto retry;
-	}
-}
-EXPORT_SYMBOL(drm_modeset_lock_crtc);
-
-/**
- * drm_modeset_legacy_acquire_ctx - find acquire ctx for legacy ioctls
- * @crtc: drm crtc
- *
- * Legacy ioctl operations like cursor updates or page flips only have per-crtc
- * locking, and store the acquire ctx in the corresponding crtc. All other
- * legacy operations take all locks and use a global acquire context. This
- * function grabs the right one.
- */
-struct drm_modeset_acquire_ctx *
-drm_modeset_legacy_acquire_ctx(struct drm_crtc *crtc)
-{
-	if (crtc->acquire_ctx)
-		return crtc->acquire_ctx;
-
-	WARN_ON(!crtc->dev->mode_config.acquire_ctx);
-
-	return crtc->dev->mode_config.acquire_ctx;
-}
-EXPORT_SYMBOL(drm_modeset_legacy_acquire_ctx);
-
-/**
- * drm_modeset_unlock_crtc - drop crtc lock
- * @crtc: drm crtc
- *
- * This drops the crtc lock acquire with drm_modeset_lock_crtc() and all other
- * locks acquired through the hidden context.
- */
-void drm_modeset_unlock_crtc(struct drm_crtc *crtc)
-{
-	struct drm_modeset_acquire_ctx *ctx = crtc->acquire_ctx;
-
-	if (WARN_ON(!ctx))
-		return;
-
-	crtc->acquire_ctx = NULL;
-	drm_modeset_drop_locks(ctx);
-	drm_modeset_acquire_fini(ctx);
-
-	kfree(ctx);
-}
-EXPORT_SYMBOL(drm_modeset_unlock_crtc);
 
 /**
  * drm_warn_on_modeset_not_all_locked - check that all modeset locks are locked
@@ -257,7 +184,11 @@ EXPORT_SYMBOL(drm_warn_on_modeset_not_all_locked);
 /**
  * drm_modeset_acquire_init - initialize acquire context
  * @ctx: the acquire context
- * @flags: for future
+ * @flags: 0 or %DRM_MODESET_ACQUIRE_INTERRUPTIBLE
+ *
+ * When passing %DRM_MODESET_ACQUIRE_INTERRUPTIBLE to @flags,
+ * all calls to drm_modeset_lock() will perform an interruptible
+ * wait.
  */
 void drm_modeset_acquire_init(struct drm_modeset_acquire_ctx *ctx,
 		uint32_t flags)
@@ -265,6 +196,9 @@ void drm_modeset_acquire_init(struct drm_modeset_acquire_ctx *ctx,
 	memset(ctx, 0, sizeof(*ctx));
 	ww_acquire_init(&ctx->ww_ctx, &crtc_ww_class);
 	INIT_LIST_HEAD(&ctx->locked);
+
+	if (flags & DRM_MODESET_ACQUIRE_INTERRUPTIBLE)
+		ctx->interruptible = true;
 }
 EXPORT_SYMBOL(drm_modeset_acquire_init);
 
@@ -340,8 +274,19 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 	return ret;
 }
 
-static int modeset_backoff(struct drm_modeset_acquire_ctx *ctx,
-		bool interruptible)
+/**
+ * drm_modeset_backoff - deadlock avoidance backoff
+ * @ctx: the acquire context
+ *
+ * If deadlock is detected (ie. drm_modeset_lock() returns -EDEADLK),
+ * you must call this function to drop all currently held locks and
+ * block until the contended lock becomes available.
+ *
+ * This function returns 0 on success, or -ERESTARTSYS if this context
+ * is initialized with %DRM_MODESET_ACQUIRE_INTERRUPTIBLE and the
+ * wait has been interrupted.
+ */
+int drm_modeset_backoff(struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_modeset_lock *contended = ctx->contended;
 
@@ -352,51 +297,44 @@ static int modeset_backoff(struct drm_modeset_acquire_ctx *ctx,
 
 	drm_modeset_drop_locks(ctx);
 
-	return modeset_lock(contended, ctx, interruptible, true);
-}
-
-/**
- * drm_modeset_backoff - deadlock avoidance backoff
- * @ctx: the acquire context
- *
- * If deadlock is detected (ie. drm_modeset_lock() returns -EDEADLK),
- * you must call this function to drop all currently held locks and
- * block until the contended lock becomes available.
- */
-void drm_modeset_backoff(struct drm_modeset_acquire_ctx *ctx)
-{
-	modeset_backoff(ctx, false);
+	return modeset_lock(contended, ctx, ctx->interruptible, true);
 }
 EXPORT_SYMBOL(drm_modeset_backoff);
 
 /**
- * drm_modeset_backoff_interruptible - deadlock avoidance backoff
- * @ctx: the acquire context
- *
- * Interruptible version of drm_modeset_backoff()
+ * drm_modeset_lock_init - initialize lock
+ * @lock: lock to init
  */
-int drm_modeset_backoff_interruptible(struct drm_modeset_acquire_ctx *ctx)
+void drm_modeset_lock_init(struct drm_modeset_lock *lock)
 {
-	return modeset_backoff(ctx, true);
+	ww_mutex_init(&lock->mutex, &crtc_ww_class);
+	INIT_LIST_HEAD(&lock->head);
 }
-EXPORT_SYMBOL(drm_modeset_backoff_interruptible);
+EXPORT_SYMBOL(drm_modeset_lock_init);
 
 /**
  * drm_modeset_lock - take modeset lock
  * @lock: lock to take
  * @ctx: acquire ctx
  *
- * If ctx is not NULL, then its ww acquire context is used and the
+ * If @ctx is not NULL, then its ww acquire context is used and the
  * lock will be tracked by the context and can be released by calling
  * drm_modeset_drop_locks().  If -EDEADLK is returned, this means a
  * deadlock scenario has been detected and it is an error to attempt
  * to take any more locks without first calling drm_modeset_backoff().
+ *
+ * If the @ctx is not NULL and initialized with
+ * %DRM_MODESET_ACQUIRE_INTERRUPTIBLE, this function will fail with
+ * -ERESTARTSYS when interrupted.
+ *
+ * If @ctx is NULL then the function call behaves like a normal,
+ * uninterruptible non-nesting mutex_lock() call.
  */
 int drm_modeset_lock(struct drm_modeset_lock *lock,
 		struct drm_modeset_acquire_ctx *ctx)
 {
 	if (ctx)
-		return modeset_lock(lock, ctx, false, false);
+		return modeset_lock(lock, ctx, ctx->interruptible, false);
 
 	ww_mutex_lock(&lock->mutex, NULL);
 	return 0;
@@ -404,21 +342,19 @@ int drm_modeset_lock(struct drm_modeset_lock *lock,
 EXPORT_SYMBOL(drm_modeset_lock);
 
 /**
- * drm_modeset_lock_interruptible - take modeset lock
+ * drm_modeset_lock_single_interruptible - take a single modeset lock
  * @lock: lock to take
- * @ctx: acquire ctx
  *
- * Interruptible version of drm_modeset_lock()
+ * This function behaves as drm_modeset_lock() with a NULL context,
+ * but performs interruptible waits.
+ *
+ * This function returns 0 on success, or -ERESTARTSYS when interrupted.
  */
-int drm_modeset_lock_interruptible(struct drm_modeset_lock *lock,
-		struct drm_modeset_acquire_ctx *ctx)
+int drm_modeset_lock_single_interruptible(struct drm_modeset_lock *lock)
 {
-	if (ctx)
-		return modeset_lock(lock, ctx, true, false);
-
 	return ww_mutex_lock_interruptible(&lock->mutex, NULL);
 }
-EXPORT_SYMBOL(drm_modeset_lock_interruptible);
+EXPORT_SYMBOL(drm_modeset_lock_single_interruptible);
 
 /**
  * drm_modeset_unlock - drop modeset lock
@@ -431,14 +367,34 @@ void drm_modeset_unlock(struct drm_modeset_lock *lock)
 }
 EXPORT_SYMBOL(drm_modeset_unlock);
 
-/* In some legacy codepaths it's convenient to just grab all the crtc and plane
- * related locks. */
-int drm_modeset_lock_all_crtcs(struct drm_device *dev,
-		struct drm_modeset_acquire_ctx *ctx)
+/**
+ * drm_modeset_lock_all_ctx - take all modeset locks
+ * @dev: DRM device
+ * @ctx: lock acquisition context
+ *
+ * This function takes all modeset locks, suitable where a more fine-grained
+ * scheme isn't (yet) implemented.
+ *
+ * Unlike drm_modeset_lock_all(), it doesn't take the &drm_mode_config.mutex
+ * since that lock isn't required for modeset state changes. Callers which
+ * need to grab that lock too need to do so outside of the acquire context
+ * @ctx.
+ *
+ * Locks acquired with this function should be released by calling the
+ * drm_modeset_drop_locks() function on @ctx.
+ *
+ * Returns: 0 on success or a negative error-code on failure.
+ */
+int drm_modeset_lock_all_ctx(struct drm_device *dev,
+			     struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
-	int ret = 0;
+	int ret;
+
+	ret = drm_modeset_lock(&dev->mode_config.connection_mutex, ctx);
+	if (ret)
+		return ret;
 
 	drm_for_each_crtc(crtc, dev) {
 		ret = drm_modeset_lock(&crtc->mutex, ctx);
@@ -454,4 +410,4 @@ int drm_modeset_lock_all_crtcs(struct drm_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_modeset_lock_all_crtcs);
+EXPORT_SYMBOL(drm_modeset_lock_all_ctx);

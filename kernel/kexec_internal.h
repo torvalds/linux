@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_KEXEC_INTERNAL_H
 #define LINUX_KEXEC_INTERNAL_H
 
@@ -15,7 +16,10 @@ int kimage_is_destination_range(struct kimage *image,
 extern struct mutex kexec_mutex;
 
 #ifdef CONFIG_KEXEC_FILE
+#include <linux/purgatory.h>
 void kimage_file_post_load_cleanup(struct kimage *image);
+extern char kexec_purgatory[];
+extern size_t kexec_purgatory_size;
 #else /* CONFIG_KEXEC_FILE */
 static inline void kimage_file_post_load_cleanup(struct kimage *image) { }
 #endif /* CONFIG_KEXEC_FILE */

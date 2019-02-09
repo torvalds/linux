@@ -74,10 +74,10 @@
 static bool debug;
 static bool interface;
 
-module_param(interface, bool, S_IRUGO);
+module_param(interface, bool, 0444);
 module_param(debug, bool, 0644);
 
-/**
+/*
  * VPFE capture can be used for capturing video such as from TVP5146 or TVP7002
  * and for capture raw bayer data from camera sensors such as mt9p031. At this
  * point there is problem in co-existence of mt9p031 and tvp5146 due to i2c
@@ -227,8 +227,8 @@ static int vpfe_enable_clock(struct vpfe_device *vpfe_dev)
 		return 0;
 
 	vpfe_dev->clks = kcalloc(vpfe_cfg->num_clocks,
-				 sizeof(struct clock *), GFP_KERNEL);
-	if (vpfe_dev->clks == NULL)
+				 sizeof(*vpfe_dev->clks), GFP_KERNEL);
+	if (!vpfe_dev->clks)
 		return -ENOMEM;
 
 	for (i = 0; i < vpfe_cfg->num_clocks; i++) {
@@ -348,7 +348,7 @@ static int register_i2c_devices(struct vpfe_device *vpfe_dev)
 	vpfe_dev->sd =
 		  kcalloc(num_subdevs, sizeof(struct v4l2_subdev *),
 			  GFP_KERNEL);
-	if (vpfe_dev->sd == NULL)
+	if (!vpfe_dev->sd)
 		return -ENOMEM;
 
 	for (i = 0, k = 0; i < num_subdevs; i++) {
@@ -442,35 +442,37 @@ static int vpfe_register_entities(struct vpfe_device *vpfe_dev)
 
 	/* create links now, starting with external(i2c) entities */
 	for (i = 0; i < vpfe_dev->num_ext_subdevs; i++)
-		/* if entity has no pads (ex: amplifier),
-		   cant establish link */
+		/*
+		 * if entity has no pads (ex: amplifier),
+		 * can't establish link
+		 */
 		if (vpfe_dev->sd[i]->entity.num_pads) {
-			ret = media_entity_create_link(&vpfe_dev->sd[i]->entity,
+			ret = media_create_pad_link(&vpfe_dev->sd[i]->entity,
 				0, &vpfe_dev->vpfe_isif.subdev.entity,
 				0, flags);
 			if (ret < 0)
 				goto out_resizer_register;
 		}
 
-	ret = media_entity_create_link(&vpfe_dev->vpfe_isif.subdev.entity, 1,
+	ret = media_create_pad_link(&vpfe_dev->vpfe_isif.subdev.entity, 1,
 				       &vpfe_dev->vpfe_ipipeif.subdev.entity,
 				       0, flags);
 	if (ret < 0)
 		goto out_resizer_register;
 
-	ret = media_entity_create_link(&vpfe_dev->vpfe_ipipeif.subdev.entity, 1,
+	ret = media_create_pad_link(&vpfe_dev->vpfe_ipipeif.subdev.entity, 1,
 				       &vpfe_dev->vpfe_ipipe.subdev.entity,
 				       0, flags);
 	if (ret < 0)
 		goto out_resizer_register;
 
-	ret = media_entity_create_link(&vpfe_dev->vpfe_ipipe.subdev.entity,
+	ret = media_create_pad_link(&vpfe_dev->vpfe_ipipe.subdev.entity,
 			1, &vpfe_dev->vpfe_resizer.crop_resizer.subdev.entity,
 			0, flags);
 	if (ret < 0)
 		goto out_resizer_register;
 
-	ret = media_entity_create_link(&vpfe_dev->vpfe_ipipeif.subdev.entity, 1,
+	ret = media_create_pad_link(&vpfe_dev->vpfe_ipipeif.subdev.entity, 1,
 			&vpfe_dev->vpfe_resizer.crop_resizer.subdev.entity,
 			0, flags);
 	if (ret < 0)

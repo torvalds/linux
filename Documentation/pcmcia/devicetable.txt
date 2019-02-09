@@ -27,7 +27,7 @@ pcmcia:m0149cC1ABf06pfn00fn00pa725B842DpbF1EFEE84pc0877B627pd00000000
 The hex value after "pa" is the hash of product ID string 1, after "pb" for
 string 2 and so on.
 
-Alternatively, you can use crc32hash (see Documentation/pcmcia/crc32hash.c)
+Alternatively, you can use crc32hash (see tools/pcmcia/crc32hash.c)
 to determine the crc32 hash.  Simply pass the string you want to evaluate
 as argument to this program, e.g.:
-$ ./crc32hash "Dual Speed"
+$ tools/pcmcia/crc32hash "Dual Speed"

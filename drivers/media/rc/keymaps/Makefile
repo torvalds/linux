@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-alink-dtu-m.o \
 			rc-anysee.o \
 			rc-apac-viewcomp.o \
+			rc-astrometa-t2hybrid.o \
 			rc-asus-pc39.o \
 			rc-asus-ps3-100.o \
 			rc-ati-tv-wonder-hd-600.o \
@@ -18,8 +20,10 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-behold.o \
 			rc-behold-columbus.o \
 			rc-budget-ci-old.o \
+			rc-cec.o \
 			rc-cinergy-1400.o \
 			rc-cinergy.o \
+			rc-d680-dmb.o \
 			rc-delock-61959.o \
 			rc-dib0700-nec.o \
 			rc-dib0700-rc5.o \
@@ -28,7 +32,10 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-dm1105-nec.o \
 			rc-dntv-live-dvb-t.o \
 			rc-dntv-live-dvbt-pro.o \
+			rc-dtt200u.o \
 			rc-dvbsky.o \
+			rc-dvico-mce.o \
+			rc-dvico-portable.o \
 			rc-em-terratec.o \
 			rc-encore-enltv2.o \
 			rc-encore-enltv.o \
@@ -39,10 +46,14 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-flyvideo.o \
 			rc-fusionhdtv-mce.o \
 			rc-gadmei-rm008z.o \
+			rc-geekbox.o \
 			rc-genius-tvgo-a11mce.o \
 			rc-gotview7135.o \
+			rc-hisi-poplar.o \
+			rc-hisi-tv-demo.o \
 			rc-imon-mce.o \
 			rc-imon-pad.o \
+			rc-imon-rsc.o \
 			rc-iodata-bctv7e.o \
 			rc-it913x-v1.o \
 			rc-it913x-v2.o \
@@ -51,7 +62,6 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-kworld-pc150u.o \
 			rc-kworld-plus-tv-analog.o \
 			rc-leadtek-y04g0051.o \
-			rc-lirc.o \
 			rc-lme2510.o \
 			rc-manli.o \
 			rc-medion-x10.o \
@@ -83,6 +93,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-reddo.o \
 			rc-snapstream-firefly.o \
 			rc-streamzap.o \
+			rc-tango.o \
 			rc-tbs-nec.o \
 			rc-technisat-ts35.o \
 			rc-technisat-usb2.o \
@@ -104,4 +115,5 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-videomate-tv-pvr.o \
 			rc-winfast.o \
 			rc-winfast-usbii-deluxe.o \
-			rc-su3000.o
+			rc-su3000.o \
+			rc-zx-irdec.o

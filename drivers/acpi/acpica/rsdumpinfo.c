@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: rsdumpinfo - Tables used to display resource descriptors.
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -314,6 +278,120 @@ struct acpi_rsdump_info acpi_rs_dump_gpio[16] = {
 	 NULL},
 };
 
+struct acpi_rsdump_info acpi_rs_dump_pin_function[10] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_function),
+	 "PinFunction", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_function.revision_id),
+	 "RevisionId", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_function.pin_config), "PinConfig",
+	 acpi_gbl_ppc_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_function.sharable), "Sharing",
+	 acpi_gbl_shr_decode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_function.function_number),
+	 "FunctionNumber", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(pin_function.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_function.pin_table_length),
+	 "PinTableLength", NULL},
+	{ACPI_RSD_WORDLIST, ACPI_RSD_OFFSET(pin_function.pin_table), "PinTable",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_function.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_function.vendor_data),
+	 "VendorData", NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_pin_config[11] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_config),
+	 "PinConfig", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_config.revision_id), "RevisionId",
+	 NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_config.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_config.sharable), "Sharing",
+	 acpi_gbl_shr_decode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_config.pin_config_type),
+	 "PinConfigType", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(pin_config.pin_config_value),
+	 "PinConfigValue", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(pin_config.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_config.pin_table_length),
+	 "PinTableLength", NULL},
+	{ACPI_RSD_WORDLIST, ACPI_RSD_OFFSET(pin_config.pin_table), "PinTable",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_config.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_config.vendor_data),
+	 "VendorData", NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_pin_group[8] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_group),
+	 "PinGroup", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_group.revision_id), "RevisionId",
+	 NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_group.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group.pin_table_length),
+	 "PinTableLength", NULL},
+	{ACPI_RSD_WORDLIST, ACPI_RSD_OFFSET(pin_group.pin_table), "PinTable",
+	 NULL},
+	{ACPI_RSD_LABEL, ACPI_RSD_OFFSET(pin_group.resource_label),
+	 "ResourceLabel", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_group.vendor_data),
+	 "VendorData", NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_pin_group_function[9] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_group_function),
+	 "PinGroupFunction", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_group_function.revision_id),
+	 "RevisionId", NULL},
+	{ACPI_RSD_1BITFLAG,
+	 ACPI_RSD_OFFSET(pin_group_function.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_group_function.sharable),
+	 "Sharing", acpi_gbl_shr_decode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group_function.function_number),
+	 "FunctionNumber", NULL},
+	{ACPI_RSD_SOURCE_LABEL,
+	 ACPI_RSD_OFFSET(pin_group_function.resource_source_label),
+	 "ResourceSourceLabel", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(pin_group_function.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group_function.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_group_function.vendor_data),
+	 "VendorData", NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_pin_group_config[10] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_group_config),
+	 "PinGroupConfig", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_group_config.revision_id),
+	 "RevisionId", NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_group_config.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_group_config.sharable),
+	 "Sharing", acpi_gbl_shr_decode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_group_config.pin_config_type),
+	 "PinConfigType", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(pin_group_config.pin_config_value),
+	 "PinConfigValue", NULL},
+	{ACPI_RSD_SOURCE_LABEL,
+	 ACPI_RSD_OFFSET(pin_group_config.resource_source_label),
+	 "ResourceSourceLabel", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(pin_group_config.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group_config.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_group_config.vendor_data),
+	 "VendorData", NULL},
+};
+
 struct acpi_rsdump_info acpi_rs_dump_fixed_dma[4] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_fixed_dma),
 	 "FixedDma", NULL},
@@ -330,19 +408,20 @@ struct acpi_rsdump_info acpi_rs_dump_fixed_dma[4] = {
 	{ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (common_serial_bus.type),           "Type",                     acpi_gbl_sbt_decode}, \
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (common_serial_bus.producer_consumer), "ProducerConsumer",      acpi_gbl_consume_decode}, \
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (common_serial_bus.slave_mode),     "SlaveMode",                acpi_gbl_sm_decode}, \
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (common_serial_bus.connection_sharing),"ConnectionSharing",     acpi_gbl_shr_decode}, \
 	{ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (common_serial_bus.type_revision_id), "TypeRevisionId",         NULL}, \
 	{ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (common_serial_bus.type_data_length), "TypeDataLength",         NULL}, \
 	{ACPI_RSD_SOURCE,   ACPI_RSD_OFFSET (common_serial_bus.resource_source), "ResourceSource",          NULL}, \
 	{ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (common_serial_bus.vendor_length),  "VendorLength",             NULL}, \
 	{ACPI_RSD_SHORTLISTX,ACPI_RSD_OFFSET (common_serial_bus.vendor_data),   "VendorData",               NULL},
 
-struct acpi_rsdump_info acpi_rs_dump_common_serial_bus[10] = {
+struct acpi_rsdump_info acpi_rs_dump_common_serial_bus[11] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_common_serial_bus),
 	 "Common Serial Bus", NULL},
 	ACPI_RS_DUMP_COMMON_SERIAL_BUS
 };
 
-struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[13] = {
+struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[14] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_i2c_serial_bus),
 	 "I2C Serial Bus", NULL},
 	ACPI_RS_DUMP_COMMON_SERIAL_BUS {ACPI_RSD_1BITFLAG,
@@ -355,7 +434,7 @@ struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[13] = {
 	 "SlaveAddress", NULL},
 };
 
-struct acpi_rsdump_info acpi_rs_dump_spi_serial_bus[17] = {
+struct acpi_rsdump_info acpi_rs_dump_spi_serial_bus[18] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_spi_serial_bus),
 	 "Spi Serial Bus", NULL},
 	ACPI_RS_DUMP_COMMON_SERIAL_BUS {ACPI_RSD_1BITFLAG,
@@ -376,7 +455,7 @@ struct acpi_rsdump_info acpi_rs_dump_spi_serial_bus[17] = {
 	 "ConnectionSpeed", NULL},
 };
 
-struct acpi_rsdump_info acpi_rs_dump_uart_serial_bus[19] = {
+struct acpi_rsdump_info acpi_rs_dump_uart_serial_bus[20] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_uart_serial_bus),
 	 "Uart Serial Bus", NULL},
 	ACPI_RS_DUMP_COMMON_SERIAL_BUS {ACPI_RSD_2BITFLAG,

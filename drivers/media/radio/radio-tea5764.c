@@ -19,10 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  * History:
  * 2008-12-06   Fabio Belavenuto <belavenuto@gmail.com>
  *              initial code
@@ -418,10 +414,10 @@ static const struct v4l2_ioctl_ops tea5764_ioctl_ops = {
 };
 
 /* V4L2 interface */
-static struct video_device tea5764_radio_template = {
+static const struct video_device tea5764_radio_template = {
 	.name		= "TEA5764 FM-Radio",
 	.fops           = &tea5764_fops,
-	.ioctl_ops 	= &tea5764_ioctl_ops,
+	.ioctl_ops	= &tea5764_ioctl_ops,
 	.release	= video_device_release_empty,
 };
 

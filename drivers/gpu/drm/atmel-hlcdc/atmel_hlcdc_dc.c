@@ -36,12 +36,13 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9n12_layers[] = {
 		.regs_offset = 0x40,
 		.id = 0,
 		.type = ATMEL_HLCDC_BASE_LAYER,
-		.nconfigs = 5,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.xstride = { 2 },
 			.default_color = 3,
 			.general_config = 4,
 		},
+		.clut_offset = 0x400,
 	},
 };
 
@@ -50,6 +51,10 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_at91sam9n12 = {
 	.min_height = 0,
 	.max_width = 1280,
 	.max_height = 860,
+	.max_spw = 0x3f,
+	.max_vpw = 0x3f,
+	.max_hpw = 0xff,
+	.conflicting_output_formats = true,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_at91sam9n12_layers),
 	.layers = atmel_hlcdc_at91sam9n12_layers,
 };
@@ -61,7 +66,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 		.regs_offset = 0x40,
 		.id = 0,
 		.type = ATMEL_HLCDC_BASE_LAYER,
-		.nconfigs = 5,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.xstride = { 2 },
 			.default_color = 3,
@@ -69,6 +74,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.disc_pos = 5,
 			.disc_size = 6,
 		},
+		.clut_offset = 0x400,
 	},
 	{
 		.name = "overlay1",
@@ -76,7 +82,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 		.regs_offset = 0x100,
 		.id = 1,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 10,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -87,6 +93,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0x800,
 	},
 	{
 		.name = "high-end-overlay",
@@ -94,7 +101,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 		.regs_offset = 0x280,
 		.id = 2,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 17,
+		.cfgs_offset = 0x4c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -105,8 +112,10 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.chroma_key = 10,
 			.chroma_key_mask = 11,
 			.general_config = 12,
+			.scaler_config = 13,
 			.csc = 14,
 		},
+		.clut_offset = 0x1000,
 	},
 	{
 		.name = "cursor",
@@ -114,9 +123,9 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 		.regs_offset = 0x340,
 		.id = 3,
 		.type = ATMEL_HLCDC_CURSOR_LAYER,
-		.nconfigs = 10,
 		.max_width = 128,
 		.max_height = 128,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -126,6 +135,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0x1400,
 	},
 };
 
@@ -134,6 +144,10 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_at91sam9x5 = {
 	.min_height = 0,
 	.max_width = 800,
 	.max_height = 600,
+	.max_spw = 0x3f,
+	.max_vpw = 0x3f,
+	.max_hpw = 0xff,
+	.conflicting_output_formats = true,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_at91sam9x5_layers),
 	.layers = atmel_hlcdc_at91sam9x5_layers,
 };
@@ -145,7 +159,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 		.regs_offset = 0x40,
 		.id = 0,
 		.type = ATMEL_HLCDC_BASE_LAYER,
-		.nconfigs = 7,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.xstride = { 2 },
 			.default_color = 3,
@@ -153,6 +167,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.disc_pos = 5,
 			.disc_size = 6,
 		},
+		.clut_offset = 0x600,
 	},
 	{
 		.name = "overlay1",
@@ -160,7 +175,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 		.regs_offset = 0x140,
 		.id = 1,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 10,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -171,6 +186,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xa00,
 	},
 	{
 		.name = "overlay2",
@@ -178,7 +194,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 		.regs_offset = 0x240,
 		.id = 2,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 10,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -189,6 +205,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xe00,
 	},
 	{
 		.name = "high-end-overlay",
@@ -196,7 +213,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 		.regs_offset = 0x340,
 		.id = 3,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 42,
+		.cfgs_offset = 0x4c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -207,8 +224,14 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.chroma_key = 10,
 			.chroma_key_mask = 11,
 			.general_config = 12,
+			.scaler_config = 13,
+			.phicoeffs = {
+				.x = 17,
+				.y = 33,
+			},
 			.csc = 14,
 		},
+		.clut_offset = 0x1200,
 	},
 	{
 		.name = "cursor",
@@ -216,9 +239,9 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 		.regs_offset = 0x440,
 		.id = 4,
 		.type = ATMEL_HLCDC_CURSOR_LAYER,
-		.nconfigs = 10,
 		.max_width = 128,
 		.max_height = 128,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -228,7 +251,9 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.chroma_key = 7,
 			.chroma_key_mask = 8,
 			.general_config = 9,
+			.scaler_config = 13,
 		},
+		.clut_offset = 0x1600,
 	},
 };
 
@@ -237,6 +262,10 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_sama5d3 = {
 	.min_height = 0,
 	.max_width = 2048,
 	.max_height = 2048,
+	.max_spw = 0x3f,
+	.max_vpw = 0x3f,
+	.max_hpw = 0x1ff,
+	.conflicting_output_formats = true,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_sama5d3_layers),
 	.layers = atmel_hlcdc_sama5d3_layers,
 };
@@ -248,7 +277,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 		.regs_offset = 0x40,
 		.id = 0,
 		.type = ATMEL_HLCDC_BASE_LAYER,
-		.nconfigs = 7,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.xstride = { 2 },
 			.default_color = 3,
@@ -256,6 +285,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.disc_pos = 5,
 			.disc_size = 6,
 		},
+		.clut_offset = 0x600,
 	},
 	{
 		.name = "overlay1",
@@ -263,7 +293,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 		.regs_offset = 0x140,
 		.id = 1,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 10,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -274,6 +304,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xa00,
 	},
 	{
 		.name = "overlay2",
@@ -281,7 +312,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 		.regs_offset = 0x240,
 		.id = 2,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 10,
+		.cfgs_offset = 0x2c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -292,6 +323,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xe00,
 	},
 	{
 		.name = "high-end-overlay",
@@ -299,7 +331,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 		.regs_offset = 0x340,
 		.id = 3,
 		.type = ATMEL_HLCDC_OVERLAY_LAYER,
-		.nconfigs = 42,
+		.cfgs_offset = 0x4c,
 		.layout = {
 			.pos = 2,
 			.size = 3,
@@ -310,8 +342,14 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.chroma_key = 10,
 			.chroma_key_mask = 11,
 			.general_config = 12,
+			.scaler_config = 13,
+			.phicoeffs = {
+				.x = 17,
+				.y = 33,
+			},
 			.csc = 14,
 		},
+		.clut_offset = 0x1200,
 	},
 };
 
@@ -320,6 +358,9 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_sama5d4 = {
 	.min_height = 0,
 	.max_width = 2048,
 	.max_height = 2048,
+	.max_spw = 0xff,
+	.max_vpw = 0xff,
+	.max_hpw = 0x3ff,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_sama5d4_layers),
 	.layers = atmel_hlcdc_sama5d4_layers,
 };
@@ -333,6 +374,10 @@ static const struct of_device_id atmel_hlcdc_of_match[] = {
 		.data = &atmel_hlcdc_dc_at91sam9x5,
 	},
 	{
+		.compatible = "atmel,sama5d2-hlcdc",
+		.data = &atmel_hlcdc_dc_sama5d4,
+	},
+	{
 		.compatible = "atmel,sama5d3-hlcdc",
 		.data = &atmel_hlcdc_dc_sama5d3,
 	},
@@ -342,9 +387,11 @@ static const struct of_device_id atmel_hlcdc_of_match[] = {
 	},
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, atmel_hlcdc_of_match);
 
-int atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
-			      struct drm_display_mode *mode)
+enum drm_mode_status
+atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
+			  const struct drm_display_mode *mode)
 {
 	int vfront_porch = mode->vsync_start - mode->vdisplay;
 	int vback_porch = mode->vtotal - mode->vsync_end;
@@ -353,23 +400,34 @@ int atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
 	int hback_porch = mode->htotal - mode->hsync_end;
 	int hsync_len = mode->hsync_end - mode->hsync_start;
 
-	if (hsync_len > 0x40 || hsync_len < 1)
+	if (hsync_len > dc->desc->max_spw + 1 || hsync_len < 1)
 		return MODE_HSYNC;
 
-	if (vsync_len > 0x40 || vsync_len < 1)
+	if (vsync_len > dc->desc->max_spw + 1 || vsync_len < 1)
 		return MODE_VSYNC;
 
-	if (hfront_porch > 0x200 || hfront_porch < 1 ||
-	    hback_porch > 0x200 || hback_porch < 1 ||
+	if (hfront_porch > dc->desc->max_hpw + 1 || hfront_porch < 1 ||
+	    hback_porch > dc->desc->max_hpw + 1 || hback_porch < 1 ||
 	    mode->hdisplay < 1)
 		return MODE_H_ILLEGAL;
 
-	if (vfront_porch > 0x40 || vfront_porch < 1 ||
-	    vback_porch > 0x40 || vback_porch < 0 ||
+	if (vfront_porch > dc->desc->max_vpw + 1 || vfront_porch < 1 ||
+	    vback_porch > dc->desc->max_vpw || vback_porch < 0 ||
 	    mode->vdisplay < 1)
 		return MODE_V_ILLEGAL;
 
 	return MODE_OK;
+}
+
+static void atmel_hlcdc_layer_irq(struct atmel_hlcdc_layer *layer)
+{
+	if (!layer)
+		return;
+
+	if (layer->desc->type == ATMEL_HLCDC_BASE_LAYER ||
+	    layer->desc->type == ATMEL_HLCDC_OVERLAY_LAYER ||
+	    layer->desc->type == ATMEL_HLCDC_CURSOR_LAYER)
+		atmel_hlcdc_plane_irq(atmel_hlcdc_layer_to_plane(layer));
 }
 
 static irqreturn_t atmel_hlcdc_dc_irq_handler(int irq, void *data)
@@ -390,78 +448,137 @@ static irqreturn_t atmel_hlcdc_dc_irq_handler(int irq, void *data)
 		atmel_hlcdc_crtc_irq(dc->crtc);
 
 	for (i = 0; i < ATMEL_HLCDC_MAX_LAYERS; i++) {
-		struct atmel_hlcdc_layer *layer = dc->layers[i];
-
-		if (!(ATMEL_HLCDC_LAYER_STATUS(i) & status) || !layer)
-			continue;
-
-		atmel_hlcdc_layer_irq(layer);
+		if (ATMEL_HLCDC_LAYER_STATUS(i) & status)
+			atmel_hlcdc_layer_irq(dc->layers[i]);
 	}
 
 	return IRQ_HANDLED;
 }
 
 static struct drm_framebuffer *atmel_hlcdc_fb_create(struct drm_device *dev,
-		struct drm_file *file_priv, struct drm_mode_fb_cmd2 *mode_cmd)
+		struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	return drm_fb_cma_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, mode_cmd);
 }
 
-static void atmel_hlcdc_fb_output_poll_changed(struct drm_device *dev)
+struct atmel_hlcdc_dc_commit {
+	struct work_struct work;
+	struct drm_device *dev;
+	struct drm_atomic_state *state;
+};
+
+static void
+atmel_hlcdc_dc_atomic_complete(struct atmel_hlcdc_dc_commit *commit)
+{
+	struct drm_device *dev = commit->dev;
+	struct atmel_hlcdc_dc *dc = dev->dev_private;
+	struct drm_atomic_state *old_state = commit->state;
+
+	/* Apply the atomic update. */
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+
+	drm_atomic_helper_cleanup_planes(dev, old_state);
+
+	drm_atomic_state_put(old_state);
+
+	/* Complete the commit, wake up any waiter. */
+	spin_lock(&dc->commit.wait.lock);
+	dc->commit.pending = false;
+	wake_up_all_locked(&dc->commit.wait);
+	spin_unlock(&dc->commit.wait.lock);
+
+	kfree(commit);
+}
+
+static void atmel_hlcdc_dc_atomic_work(struct work_struct *work)
+{
+	struct atmel_hlcdc_dc_commit *commit =
+		container_of(work, struct atmel_hlcdc_dc_commit, work);
+
+	atmel_hlcdc_dc_atomic_complete(commit);
+}
+
+static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
+					struct drm_atomic_state *state,
+					bool async)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
+	struct atmel_hlcdc_dc_commit *commit;
+	int ret;
 
-	if (dc->fbdev) {
-		drm_fbdev_cma_hotplug_event(dc->fbdev);
-	} else {
-		dc->fbdev = drm_fbdev_cma_init(dev, 24,
-				dev->mode_config.num_crtc,
-				dev->mode_config.num_connector);
-		if (IS_ERR(dc->fbdev))
-			dc->fbdev = NULL;
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret)
+		return ret;
+
+	/* Allocate the commit object. */
+	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
+	if (!commit) {
+		ret = -ENOMEM;
+		goto error;
 	}
+
+	INIT_WORK(&commit->work, atmel_hlcdc_dc_atomic_work);
+	commit->dev = dev;
+	commit->state = state;
+
+	spin_lock(&dc->commit.wait.lock);
+	ret = wait_event_interruptible_locked(dc->commit.wait,
+					      !dc->commit.pending);
+	if (ret == 0)
+		dc->commit.pending = true;
+	spin_unlock(&dc->commit.wait.lock);
+
+	if (ret)
+		goto err_free;
+
+	/* We have our own synchronization through the commit lock. */
+	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
+
+	/* Swap state succeeded, this is the point of no return. */
+	drm_atomic_state_get(state);
+	if (async)
+		queue_work(dc->wq, &commit->work);
+	else
+		atmel_hlcdc_dc_atomic_complete(commit);
+
+	return 0;
+
+err_free:
+	kfree(commit);
+error:
+	drm_atomic_helper_cleanup_planes(dev, state);
+	return ret;
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = atmel_hlcdc_fb_create,
-	.output_poll_changed = atmel_hlcdc_fb_output_poll_changed,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_commit = atmel_hlcdc_dc_atomic_commit,
 };
 
 static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	struct atmel_hlcdc_planes *planes;
 	int ret;
-	int i;
 
 	drm_mode_config_init(dev);
 
 	ret = atmel_hlcdc_create_outputs(dev);
 	if (ret) {
-		dev_err(dev->dev, "failed to create panel: %d\n", ret);
+		dev_err(dev->dev, "failed to create HLCDC outputs: %d\n", ret);
 		return ret;
 	}
 
-	planes = atmel_hlcdc_create_planes(dev);
-	if (IS_ERR(planes)) {
-		dev_err(dev->dev, "failed to create planes\n");
-		return PTR_ERR(planes);
+	ret = atmel_hlcdc_create_planes(dev);
+	if (ret) {
+		dev_err(dev->dev, "failed to create planes: %d\n", ret);
+		return ret;
 	}
-
-	dc->planes = planes;
-
-	dc->layers[planes->primary->layer.desc->id] =
-						&planes->primary->layer;
-
-	if (planes->cursor)
-		dc->layers[planes->cursor->layer.desc->id] =
-							&planes->cursor->layer;
-
-	for (i = 0; i < planes->noverlays; i++)
-		dc->layers[planes->overlays[i]->layer.desc->id] =
-						&planes->overlays[i]->layer;
 
 	ret = atmel_hlcdc_crtc_create(dev);
 	if (ret) {
@@ -504,6 +621,7 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	if (!dc->wq)
 		return -ENOMEM;
 
+	init_waitqueue_head(&dc->commit.wait);
 	dc->desc = match->data;
 	dc->hlcdc = dev_get_drvdata(dev->dev->parent);
 	dev->dev_private = dc;
@@ -540,10 +658,9 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 
 	platform_set_drvdata(pdev, dev);
 
-	drm_kms_helper_poll_init(dev);
+	drm_fb_cma_fbdev_init(dev, 24, 0);
 
-	/* force connectors detection */
-	drm_helper_hpd_irq_event(dev);
+	drm_kms_helper_poll_init(dev);
 
 	return 0;
 
@@ -561,12 +678,11 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
 
-	if (dc->fbdev)
-		drm_fbdev_cma_fini(dc->fbdev);
+	drm_fb_cma_fbdev_fini(dev);
 	flush_workqueue(dc->wq);
 	drm_kms_helper_poll_fini(dev);
+	drm_atomic_helper_shutdown(dev);
 	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
 
 	pm_runtime_get_sync(dev->dev);
 	drm_irq_uninstall(dev);
@@ -577,57 +693,6 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 	pm_runtime_disable(dev->dev);
 	clk_disable_unprepare(dc->hlcdc->periph_clk);
 	destroy_workqueue(dc->wq);
-}
-
-static int atmel_hlcdc_dc_connector_plug_all(struct drm_device *dev)
-{
-	struct drm_connector *connector, *failed;
-	int ret;
-
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		ret = drm_connector_register(connector);
-		if (ret) {
-			failed = connector;
-			goto err;
-		}
-	}
-	mutex_unlock(&dev->mode_config.mutex);
-	return 0;
-
-err:
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (failed == connector)
-			break;
-
-		drm_connector_unregister(connector);
-	}
-	mutex_unlock(&dev->mode_config.mutex);
-
-	return ret;
-}
-
-static void atmel_hlcdc_dc_connector_unplug_all(struct drm_device *dev)
-{
-	mutex_lock(&dev->mode_config.mutex);
-	drm_connector_unplug_all(dev);
-	mutex_unlock(&dev->mode_config.mutex);
-}
-
-static void atmel_hlcdc_dc_preclose(struct drm_device *dev,
-				    struct drm_file *file)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		atmel_hlcdc_crtc_cancel_page_flip(crtc, file);
-}
-
-static void atmel_hlcdc_dc_lastclose(struct drm_device *dev)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-
-	drm_fbdev_cma_restore_mode(dc->fbdev);
 }
 
 static int atmel_hlcdc_dc_irq_postinstall(struct drm_device *dev)
@@ -656,53 +721,18 @@ static void atmel_hlcdc_dc_irq_uninstall(struct drm_device *dev)
 	regmap_read(dc->hlcdc->regmap, ATMEL_HLCDC_ISR, &isr);
 }
 
-static int atmel_hlcdc_dc_enable_vblank(struct drm_device *dev,
-					unsigned int pipe)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-
-	/* Enable SOF (Start Of Frame) interrupt for vblank counting */
-	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, ATMEL_HLCDC_SOF);
-
-	return 0;
-}
-
-static void atmel_hlcdc_dc_disable_vblank(struct drm_device *dev,
-					  unsigned int pipe)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-
-	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IDR, ATMEL_HLCDC_SOF);
-}
-
-static const struct file_operations fops = {
-	.owner              = THIS_MODULE,
-	.open               = drm_open,
-	.release            = drm_release,
-	.unlocked_ioctl     = drm_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl       = drm_compat_ioctl,
-#endif
-	.poll               = drm_poll,
-	.read               = drm_read,
-	.llseek             = no_llseek,
-	.mmap               = drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver atmel_hlcdc_dc_driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
 			   DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.preclose = atmel_hlcdc_dc_preclose,
-	.lastclose = atmel_hlcdc_dc_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 	.irq_handler = atmel_hlcdc_dc_irq_handler,
 	.irq_preinstall = atmel_hlcdc_dc_irq_uninstall,
 	.irq_postinstall = atmel_hlcdc_dc_irq_postinstall,
 	.irq_uninstall = atmel_hlcdc_dc_irq_uninstall,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
-	.enable_vblank = atmel_hlcdc_dc_enable_vblank,
-	.disable_vblank = atmel_hlcdc_dc_disable_vblank,
-	.gem_free_object = drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
@@ -714,8 +744,6 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &fops,
 	.name = "atmel-hlcdc",
 	.desc = "Atmel HLCD Controller DRM",
@@ -730,12 +758,8 @@ static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 	int ret;
 
 	ddev = drm_dev_alloc(&atmel_hlcdc_dc_driver, &pdev->dev);
-	if (!ddev)
-		return -ENOMEM;
-
-	ret = drm_dev_set_unique(ddev, dev_name(ddev->dev));
-	if (ret)
-		goto err_unref;
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
 
 	ret = atmel_hlcdc_dc_load(ddev);
 	if (ret)
@@ -745,14 +769,7 @@ static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unload;
 
-	ret = atmel_hlcdc_dc_connector_plug_all(ddev);
-	if (ret)
-		goto err_unregister;
-
 	return 0;
-
-err_unregister:
-	drm_dev_unregister(ddev);
 
 err_unload:
 	atmel_hlcdc_dc_unload(ddev);
@@ -767,7 +784,6 @@ static int atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
 {
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 
-	atmel_hlcdc_dc_connector_unplug_all(ddev);
 	drm_dev_unregister(ddev);
 	atmel_hlcdc_dc_unload(ddev);
 	drm_dev_unref(ddev);
@@ -779,31 +795,32 @@ static int atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
 static int atmel_hlcdc_dc_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct drm_crtc *crtc;
+	struct atmel_hlcdc_dc *dc = drm_dev->dev_private;
+	struct regmap *regmap = dc->hlcdc->regmap;
+	struct drm_atomic_state *state;
 
-	if (pm_runtime_suspended(dev))
-		return 0;
+	state = drm_atomic_helper_suspend(drm_dev);
+	if (IS_ERR(state))
+		return PTR_ERR(state);
 
-	drm_modeset_lock_all(drm_dev);
-	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head)
-		atmel_hlcdc_crtc_suspend(crtc);
-	drm_modeset_unlock_all(drm_dev);
+	dc->suspend.state = state;
+
+	regmap_read(regmap, ATMEL_HLCDC_IMR, &dc->suspend.imr);
+	regmap_write(regmap, ATMEL_HLCDC_IDR, dc->suspend.imr);
+	clk_disable_unprepare(dc->hlcdc->periph_clk);
+
 	return 0;
 }
 
 static int atmel_hlcdc_dc_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct drm_crtc *crtc;
+	struct atmel_hlcdc_dc *dc = drm_dev->dev_private;
 
-	if (pm_runtime_suspended(dev))
-		return 0;
+	clk_prepare_enable(dc->hlcdc->periph_clk);
+	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, dc->suspend.imr);
 
-	drm_modeset_lock_all(drm_dev);
-	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head)
-		atmel_hlcdc_crtc_resume(crtc);
-	drm_modeset_unlock_all(drm_dev);
-	return 0;
+	return drm_atomic_helper_resume(drm_dev, dc->suspend.state);
 }
 #endif
 

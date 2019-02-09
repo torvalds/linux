@@ -115,7 +115,7 @@ i. Per-queue limits/values exported to the generic layer by the driver
 
 Various parameters that the generic i/o scheduler logic uses are set at
 a per-queue level (e.g maximum request size, maximum number of segments in
-a scatter-gather list, hardsect size)
+a scatter-gather list, logical block size)
 
 Some parameters that were earlier available as global arrays indexed by
 major/minor are now directly associated with the queue. Some of these may
@@ -156,7 +156,7 @@ Some new queue property settings:
 	blk_queue_max_segment_size(q, max_seg_size)
 		Maximum size of a clustered segment, 64kB default.
 
-	blk_queue_hardsect_size(q, hardsect_size)
+	blk_queue_logical_block_size(q, logical_block_size)
 		Lowest possible sector size that the hardware can operate
 		on, 512 bytes default.
 
@@ -216,10 +216,9 @@ may need to abort DMA operations and revert to PIO for the transfer, in
 which case a virtual mapping of the page is required. For SCSI it is also
 done in some scenarios where the low level driver cannot be trusted to
 handle a single sg entry correctly. The driver is expected to perform the
-kmaps as needed on such occasions using the __bio_kmap_atomic and bio_kmap_irq
-routines as appropriate. A driver could also use the blk_queue_bounce()
-routine on its own to bounce highmem i/o to low memory for specific requests
-if so desired.
+kmaps as needed on such occasions as appropriate. A driver could also use
+the blk_queue_bounce() routine on its own to bounce highmem i/o to low
+memory for specific requests if so desired.
 
 iii. The i/o scheduler algorithm itself can be replaced/set as appropriate
 
@@ -269,7 +268,7 @@ Arjan's proposed request priority scheme allows higher levels some broad
   requests which haven't aged too much on the queue. Potentially this priority
   could even be exposed to applications in some manner, providing higher level
   tunability. Time based aging avoids starvation of lower priority
-  requests. Some bits in the bi_rw flags field in the bio structure are
+  requests. Some bits in the bi_opf flags field in the bio structure are
   intended to be used for this priority information.
 
 
@@ -348,7 +347,7 @@ Drivers can now specify a request prepare function (q->prep_rq_fn) that the
 block layer would invoke to pre-build device commands for a given request,
 or perform other preparatory processing for the request. This is routine is
 called by elv_next_request(), i.e. typically just before servicing a request.
-(The prepare function would not be called for requests that have REQ_DONTPREP
+(The prepare function would not be called for requests that have RQF_DONTPREP
 enabled)
 
 Aside:
@@ -432,7 +431,7 @@ struct bio {
        struct bio          *bi_next;    /* request queue link */
        struct block_device *bi_bdev;	/* target device */
        unsigned long       bi_flags;    /* status, command, etc */
-       unsigned long       bi_rw;       /* low bits: r/w, high: priority */
+       unsigned long       bi_opf;       /* low bits: r/w, high: priority */
 
        unsigned int	bi_vcnt;     /* how may bio_vec's */
        struct bvec_iter	bi_iter;	/* current index into bio_vec array */
@@ -553,8 +552,8 @@ struct request {
 	struct request_list *rl;
 }
 	
-See the rq_flag_bits definitions for an explanation of the various flags
-available. Some bits are used by the block layer or i/o scheduler.
+See the req_ops and req_flag_bits definitions for an explanation of the various
+flags available. Some bits are used by the block layer or i/o scheduler.
 	
 The behaviour of the various sector counts are almost the same as before,
 except that since we have multi-segment bios, current_nr_sectors refers
@@ -632,7 +631,7 @@ to i/o submission, if the bio fields are likely to be accessed after the
 i/o is issued (since the bio may otherwise get freed in case i/o completion
 happens in the meantime).
 
-The bio_clone() routine may be used to duplicate a bio, where the clone
+The bio_clone_fast() routine may be used to duplicate a bio, where the clone
 shares the bio_vec_list with the original bio (i.e. both point to the
 same bio_vec_list). This would typically be used for splitting i/o requests
 in lvm or md.
@@ -753,18 +752,6 @@ completion of the request to the block layer. This means ending tag
 operations before calling end_that_request_last()! For an example of a user
 of these helpers, see the IDE tagged command queueing support.
 
-Certain hardware conditions may dictate a need to invalidate the block tag
-queue. For instance, on IDE any tagged request error needs to clear both
-the hardware and software block queue and enable the driver to sanely restart
-all the outstanding requests. There's a third helper to do that:
-
-	blk_queue_invalidate_tags(struct request_queue *q)
-
-	Clear the internal block tag queue and re-add all the pending requests
-	to the request queue. The driver will receive them again on the
-	next request_fn run, just like it did the first time it encountered
-	them.
-
 3.2.5.2 Tag info
 
 Some block functions exist to query current tag status or to go from a
@@ -806,8 +793,7 @@ Internally, block manages tags in the blk_queue_tag structure:
 Most of the above is simple and straight forward, however busy_list may need
 a bit of explaining. Normally we don't care too much about request ordering,
 but in the event of any barrier requests in the tag queue we need to ensure
-that requests are restarted in the order they were queue. This may happen
-if the driver needs to use blk_queue_invalidate_tags().
+that requests are restarted in the order they were queue.
 
 3.3 I/O Submission
 
@@ -1024,8 +1010,7 @@ could be on demand. For example wait_on_buffer sets the unplugging going
 through sync_buffer() running blk_run_address_space(mapping). Or the caller
 can do it explicity through blk_unplug(bdev). So in the read case,
 the queue gets explicitly unplugged as part of waiting for completion on that
-buffer. For page driven IO, the address space ->sync_page() takes care of
-doing the blk_run_address_space().
+buffer.
 
 Aside:
   This is kind of controversial territory, as it's not clear if plugging is
@@ -1138,8 +1123,8 @@ use dma_map_sg for scatter gather) to be able to ship it to the driver. For
 PIO drivers (or drivers that need to revert to PIO transfer once in a
 while (IDE for example)), where the CPU is doing the actual data
 transfer a virtual mapping is needed. If the driver supports highmem I/O,
-(Sec 1.1, (ii) ) it needs to use __bio_kmap_atomic and bio_kmap_irq to
-temporarily map a bio into the virtual address space.
+(Sec 1.1, (ii) ) it needs to use kmap_atomic or similar to temporarily map
+a bio into the virtual address space.
 
 
 8. Prior/Related/Impacted patches

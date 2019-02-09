@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SPARC64_ELF_H
 #define __ASM_SPARC64_ELF_H
 
@@ -7,8 +8,9 @@
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <asm/extable_64.h>
 #include <asm/spitfire.h>
+#include <asm/adi.h>
 
 /*
  * Sparc section types
@@ -210,4 +212,22 @@ do {	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)	\
 			(current->personality & (~PER_MASK)));	\
 } while (0)
 
+extern unsigned int vdso_enabled;
+
+#define	ARCH_DLINFO							\
+do {									\
+	extern struct adi_config adi_state;				\
+	if (vdso_enabled)						\
+		NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
+			    (unsigned long)current->mm->context.vdso);	\
+	NEW_AUX_ENT(AT_ADI_BLKSZ, adi_state.caps.blksz);		\
+	NEW_AUX_ENT(AT_ADI_NBITS, adi_state.caps.nbits);		\
+	NEW_AUX_ENT(AT_ADI_UEONADI, adi_state.caps.ue_on_adi);		\
+} while (0)
+
+struct linux_binprm;
+
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES	1
+extern int arch_setup_additional_pages(struct linux_binprm *bprm,
+					int uses_interp);
 #endif /* !(__ASM_SPARC64_ELF_H) */

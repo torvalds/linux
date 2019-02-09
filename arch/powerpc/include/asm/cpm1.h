@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * MPC8xx Communication Processor Module.
  * Copyright (c) 1997 Dan Malek (dmalek@jlc.net)
@@ -560,6 +561,8 @@ typedef struct risc_timer_pram {
 #define CPM_PIN_SECONDARY 2
 #define CPM_PIN_GPIO      4
 #define CPM_PIN_OPENDRAIN 8
+#define CPM_PIN_FALLEDGE  16
+#define CPM_PIN_ANYEDGE   0
 
 enum cpm_port {
 	CPM_PORTA,
@@ -602,5 +605,7 @@ enum cpm_clk {
 };
 
 int cpm1_clk_setup(enum cpm_clk_target target, int clock, int mode);
+int cpm1_gpiochip_add16(struct device *dev);
+int cpm1_gpiochip_add32(struct device *dev);
 
 #endif /* __CPM1__ */

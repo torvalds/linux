@@ -3,8 +3,7 @@ Device Tree Overlay Notes
 
 This document describes the implementation of the in-kernel
 device tree overlay functionality residing in drivers/of/overlay.c and is a
-companion document to Documentation/devicetree/dt-object-internal.txt[1] &
-Documentation/devicetree/dynamic-resolution-notes.txt[2]
+companion document to Documentation/devicetree/dynamic-resolution-notes.txt[1]
 
 How overlays work
 -----------------
@@ -16,8 +15,7 @@ Since the kernel mainly deals with devices, any new device node that result
 in an active device should have it created while if the device node is either
 disabled or removed all together, the affected device should be deregistered.
 
-Lets take an example where we have a foo board with the following base tree
-which is taken from [1].
+Lets take an example where we have a foo board with the following base tree:
 
 ---- foo.dts -----------------------------------------------------------------
 	/* FOO platform */
@@ -36,7 +34,7 @@ which is taken from [1].
 	};
 ---- foo.dts -----------------------------------------------------------------
 
-The overlay bar.dts, when loaded (and resolved as described in [2]) should
+The overlay bar.dts, when loaded (and resolved as described in [1]) should
 
 ---- bar.dts -----------------------------------------------------------------
 /plugin/;	/* allow undefined label references and record them */
@@ -89,16 +87,24 @@ Overlay in-kernel API
 
 The API is quite easy to use.
 
-1. Call of_overlay_create() to create and apply an overlay. The return value
-is a cookie identifying this overlay.
+1. Call of_overlay_fdt_apply() to create and apply an overlay changeset. The
+return value is an error or a cookie identifying this overlay.
 
-2. Call of_overlay_destroy() to remove and cleanup the overlay previously
-created via the call to of_overlay_create(). Removal of an overlay that
-is stacked by another will not be permitted.
+2. Call of_overlay_remove() to remove and cleanup the overlay changeset
+previously created via the call to of_overlay_fdt_apply(). Removal of an
+overlay changeset that is stacked by another will not be permitted.
 
 Finally, if you need to remove all overlays in one-go, just call
-of_overlay_destroy_all() which will remove every single one in the correct
+of_overlay_remove_all() which will remove every single one in the correct
 order.
+
+In addition, there is the option to register notifiers that get called on
+overlay operations. See of_overlay_notifier_register/unregister and
+enum of_overlay_notify_action for details.
+
+Note that a notifier callback is not supposed to store pointers to a device
+tree node or its content beyond OF_OVERLAY_POST_REMOVE corresponding to the
+respective node it received.
 
 Overlay DTS Format
 ------------------

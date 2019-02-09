@@ -1,0 +1,25 @@
+What:		/sys/class/devfreq-event/event(x)/
+Date:		January 2017
+Contact:	Chanwoo Choi <cw00.choi@samsung.com>
+Description:
+		Provide a place in sysfs for the devfreq-event objects.
+		This allows accessing various devfreq-event specific variables.
+		The name of devfreq-event object denoted as 'event(x)' which
+		includes the unique number of 'x' for each devfreq-event object.
+
+What:		/sys/class/devfreq-event/event(x)/name
+Date:		January 2017
+Contact:	Chanwoo Choi <cw00.choi@samsung.com>
+Description:
+		The /sys/class/devfreq-event/event(x)/name attribute contains
+		the name of the devfreq-event object. This attribute is
+		read-only.
+
+What:		/sys/class/devfreq-event/event(x)/enable_count
+Date:		January 2017
+Contact:	Chanwoo Choi <cw00.choi@samsung.com>
+Description:
+		The /sys/class/devfreq-event/event(x)/enable_count attribute
+		contains the reference count to enable the devfreq-event
+		object. If the device is enabled, the value of attribute is
+		greater than zero.

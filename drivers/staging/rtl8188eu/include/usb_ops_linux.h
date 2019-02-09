@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *
  ******************************************************************************/
 #ifndef __USB_OPS_LINUX_H__
@@ -52,35 +39,20 @@
 #define usb_read_interrupt_complete(purb, regs)		\
 	usb_read_interrupt_complete(purb)
 
-static inline u8 rtw_usb_bulk_size_boundary(struct adapter *padapter,
-					    int buf_len)
-{
-	u8 rst = true;
-	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
-
-	if (pdvobjpriv->ishighspeed)
-		rst = (0 == (buf_len) % USB_HIGH_SPEED_BULK_SIZE) ?
-		      true : false;
-	else
-		rst = (0 == (buf_len) % USB_FULL_SPEED_BULK_SIZE) ?
-		      true : false;
-	return rst;
-}
-
 unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr);
 
 u8 usb_read8(struct adapter *adapter, u32 addr);
 u16 usb_read16(struct adapter *adapter, u32 addr);
 u32 usb_read32(struct adapter *adapter, u32 addr);
 
-u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+u32 usb_read_port(struct adapter *adapter, u32 addr, struct recv_buf *precvbuf);
 void usb_read_port_cancel(struct adapter *adapter);
 
 int usb_write8(struct adapter *adapter, u32 addr, u8 val);
 int usb_write16(struct adapter *adapter, u32 addr, u16 val);
 int usb_write32(struct adapter *adapter, u32 addr, u32 val);
 
-u32 usb_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+u32 usb_write_port(struct adapter *adapter, u32 addr, u32 cnt, struct xmit_buf *pmem);
 void usb_write_port_cancel(struct adapter *adapter);
 
 #endif

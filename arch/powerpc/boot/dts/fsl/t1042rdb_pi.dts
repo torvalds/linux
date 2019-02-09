@@ -1,7 +1,7 @@
 /*
  * T1042RDB_PI Device Tree Source
  *
- * Copyright 2014 Freescale Semiconductor Inc.
+ * Copyright 2014 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,11 +38,13 @@
 / {
 	model = "fsl,T1042RDB_PI";
 	compatible = "fsl,T1042RDB_PI";
+
 	ifc: localbus@ffe124000 {
 		cpld@3,0 {
 			compatible = "fsl,t1042rdb_pi-cpld";
 		};
 	};
+
 	soc: soc@ffe000000 {
 		i2c@118000 {
 			rtc@68 {
@@ -51,7 +53,21 @@
 				interrupts = <0x2 0x1 0 0>;
 			};
 		};
+
+		fman@400000 {
+			ethernet@e0000 {
+				status = "disabled";
+			};
+
+			ethernet@e2000 {
+				status = "disabled";
+			};
+
+			ethernet@e4000 {
+				status = "disabled";
+			};
+		};
 	};
 };
 
-/include/ "t1042si-post.dtsi"
+#include "t1042si-post.dtsi"

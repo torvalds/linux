@@ -22,8 +22,8 @@ Required properties:
 - i2c-parent: The phandle of the I2C bus that this multiplexer's master-side
   port is connected to.
 - mux-gpios: list of gpios used to control the muxer
-* Standard I2C mux properties. See mux.txt in this directory.
-* I2C child bus nodes. See mux.txt in this directory.
+* Standard I2C mux properties. See i2c-mux.txt in this directory.
+* I2C child bus nodes. See i2c-mux.txt in this directory.
 
 Optional properties:
 - idle-state: value to set the muxer to when idle. When no value is
@@ -33,7 +33,7 @@ For each i2c child node, an I2C child bus will be created. They will
 be numbered based on their order in the device tree.
 
 Whenever an access is made to a device on a child bus, the value set
-in the revelant node's reg property will be output using the list of
+in the relevant node's reg property will be output using the list of
 GPIOs, the first in the list holding the least-significant value.
 
 If an idle state is defined, using the idle-state (optional) property,

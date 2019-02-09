@@ -279,7 +279,6 @@ struct nes_cm_tcp_context {
 	u8  rcv_wscale;
 
 	struct nes_cm_tsa_context tsa_cntxt;
-	struct timeval            sent_ts;
 };
 
 
@@ -293,8 +292,8 @@ struct nes_cm_listener {
 	struct list_head           list;
 	struct nes_cm_core         *cm_core;
 	u8                         loc_mac[ETH_ALEN];
-	nes_addr_t                 loc_addr, mapped_loc_addr;
-	u16                        loc_port, mapped_loc_port;
+	nes_addr_t                 loc_addr;
+	u16                        loc_port;
 	struct iw_cm_id            *cm_id;
 	enum nes_cm_conn_type      conn_type;
 	atomic_t                   ref_count;
@@ -309,9 +308,7 @@ struct nes_cm_listener {
 /* per connection node and node state information */
 struct nes_cm_node {
 	nes_addr_t                loc_addr, rem_addr;
-	nes_addr_t                mapped_loc_addr, mapped_rem_addr;
 	u16                       loc_port, rem_port;
-	u16                       mapped_loc_port, mapped_rem_port;
 
 	u8                        loc_mac[ETH_ALEN];
 	u8                        rem_mac[ETH_ALEN];
@@ -343,7 +340,7 @@ struct nes_cm_node {
 	u16                       mpa_frame_size;
 	struct iw_cm_id           *cm_id;
 	struct list_head          list;
-	int                       accelerated;
+	bool                      accelerated;
 	struct nes_cm_listener    *listener;
 	enum nes_cm_conn_type     conn_type;
 	struct nes_vnic           *nesvnic;
@@ -368,11 +365,6 @@ struct nes_cm_info {
 	u16 rem_port;
 	nes_addr_t loc_addr;
 	nes_addr_t rem_addr;
-	u16 mapped_loc_port;
-	u16 mapped_rem_port;
-	nes_addr_t mapped_loc_addr;
-	nes_addr_t mapped_rem_addr;
-
 	enum nes_cm_conn_type  conn_type;
 	int backlog;
 };
@@ -423,7 +415,7 @@ struct nes_cm_core {
 
 	struct timer_list       tcp_timer;
 
-	struct nes_cm_ops       *api;
+	const struct nes_cm_ops *api;
 
 	int (*post_event)(struct nes_cm_event *event);
 	atomic_t                events_posted;

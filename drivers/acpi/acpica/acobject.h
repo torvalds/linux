@@ -1,45 +1,11 @@
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
  * Name: acobject.h - Definition of union acpi_operand_object  (Internal object only)
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #ifndef _ACOBJECT_H
 #define _ACOBJECT_H
@@ -93,9 +59,10 @@
 #define AOPOBJ_AML_CONSTANT         0x01	/* Integer is an AML constant */
 #define AOPOBJ_STATIC_POINTER       0x02	/* Data is part of an ACPI table, don't delete */
 #define AOPOBJ_DATA_VALID           0x04	/* Object is initialized and data is valid */
-#define AOPOBJ_OBJECT_INITIALIZED   0x08	/* Region is initialized, _REG was run */
-#define AOPOBJ_SETUP_COMPLETE       0x10	/* Region setup is complete */
-#define AOPOBJ_INVALID              0x20	/* Host OS won't allow a Region address */
+#define AOPOBJ_OBJECT_INITIALIZED   0x08	/* Region is initialized */
+#define AOPOBJ_REG_CONNECTED        0x10	/* _REG was run */
+#define AOPOBJ_SETUP_COMPLETE       0x20	/* Region setup is complete */
+#define AOPOBJ_INVALID              0x40	/* Host OS won't allow a Region address */
 
 /******************************************************************************
  *
@@ -121,7 +88,9 @@ struct acpi_object_integer {
 	_type                           *pointer; \
 	u32                             length;
 
-struct acpi_object_string {	/* Null terminated, ASCII characters only */
+/* Null terminated, ASCII characters only */
+
+struct acpi_object_string {
 	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_BUFFER_INFO(char)	/* String in AML stream or allocated string */
 };
 
@@ -210,7 +179,9 @@ struct acpi_object_method {
 	union acpi_operand_object       *notify_list[2];    /* Handlers for system/device notifies */\
 	union acpi_operand_object       *handler;	/* Handler for Address space */
 
-struct acpi_object_notify_common {	/* COMMON NOTIFY for POWER, PROCESSOR, DEVICE, and THERMAL */
+/* COMMON NOTIFY for POWER, PROCESSOR, DEVICE, and THERMAL */
+
+struct acpi_object_notify_common {
 ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_NOTIFY_INFO};
 
 struct acpi_object_device {
@@ -257,7 +228,9 @@ ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_NOTIFY_INFO};
 	u8                              access_length;	/* For serial regions/fields */
 
 
-struct acpi_object_field_common {	/* COMMON FIELD (for BUFFER, REGION, BANK, and INDEX fields) */
+/* COMMON FIELD (for BUFFER, REGION, BANK, and INDEX fields) */
+
+struct acpi_object_field_common {
 	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_FIELD_INFO union acpi_operand_object *region_obj;	/* Parent Operation Region object (REGION/BANK fields only) */
 };
 
@@ -332,11 +305,12 @@ struct acpi_object_addr_handler {
 struct acpi_object_reference {
 	ACPI_OBJECT_COMMON_HEADER u8 class;	/* Reference Class */
 	u8 target_type;		/* Used for Index Op */
-	u8 reserved;
+	u8 resolved;		/* Reference has been resolved to a value */
 	void *object;		/* name_op=>HANDLE to obj, index_op=>union acpi_operand_object */
 	struct acpi_namespace_node *node;	/* ref_of or Namepath */
 	union acpi_operand_object **where;	/* Target of Index */
 	u8 *index_pointer;	/* Used for Buffers and Strings */
+	u8 *aml;		/* Used for deferred resolution of the ref */
 	u32 value;		/* Used for Local/Arg/Index/ddb_handle */
 };
 

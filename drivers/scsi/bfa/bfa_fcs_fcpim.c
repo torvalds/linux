@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -587,12 +588,13 @@ bfa_fcs_itnim_create(struct bfa_fcs_rport_s *rport)
 	struct bfa_fcs_lport_s *port = rport->port;
 	struct bfa_fcs_itnim_s *itnim;
 	struct bfad_itnim_s   *itnim_drv;
+	int ret;
 
 	/*
 	 * call bfad to allocate the itnim
 	 */
-	bfa_fcb_itnim_alloc(port->fcs->bfad, &itnim, &itnim_drv);
-	if (itnim == NULL) {
+	ret = bfa_fcb_itnim_alloc(port->fcs->bfad, &itnim, &itnim_drv);
+	if (ret) {
 		bfa_trc(port->fcs, rport->pwwn);
 		return NULL;
 	}

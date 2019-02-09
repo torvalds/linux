@@ -52,7 +52,7 @@
 #define ADDRESS_U1_PAD_BTN		0x00800052
 #define ADDRESS_U1_SP_BTN		0x0080009F
 
-#define T4_INPUT_REPORT_LEN			sizeof(T4_INPUT_REPORT)
+#define T4_INPUT_REPORT_LEN			sizeof(struct t4_input_report)
 #define T4_FEATURE_REPORT_LEN		T4_INPUT_REPORT_LEN
 #define T4_FEATURE_REPORT_ID		7
 #define T4_CMD_REGISTER_READ			0x08
@@ -64,17 +64,18 @@
 #define T4_PRM_FEED_CONFIG_4		(T4_ADDRESS_BASE + 0x001A)
 #define T4_PRM_ID_CONFIG_3			(T4_ADDRESS_BASE + 0x00B0)
 
+
 #define T4_FEEDCFG4_ADVANCED_ABS_ENABLE			0x01
 #define T4_I2C_ABS	0x78
 
 #define T4_COUNT_PER_ELECTRODE		256
 #define MAX_TOUCHES	5
 
-typedef enum {
+enum dev_num {
 	U1,
 	T4,
 	UNKNOWN,
-} DEV_TYPE;
+};
 /**
  * struct u1_data
  *
@@ -100,7 +101,7 @@ struct alps_dev {
 	struct input_dev *input2;
 	struct hid_device *hdev;
 
-	DEV_TYPE dev_type;
+	enum dev_num dev_type;
 	u8  max_fingers;
 	u8  has_sp;
 	u8	sp_btn_info;
@@ -114,27 +115,28 @@ struct alps_dev {
 	u32	sp_btn_cnt;
 };
 
-typedef struct _T4_CONTACT_DATA {
-	u8  Palm;
+struct t4_contact_data {
+	u8  palm;
 	u8	x_lo;
 	u8	x_hi;
 	u8	y_lo;
 	u8	y_hi;
-} T4_CONTACT_DATA, *PT4_CONTACT_DATA;
+};
 
-typedef struct _T4_INPUT_REPORT {
-	u8  ReportID;
-	u8  NumContacts;
-	T4_CONTACT_DATA Contact[5];
-	u8  Button;
-	u8  Track[5];
-	u8  ZX[5], ZY[5];
-	u8  PalmTime[5];
-	u8  Kilroy;
-	u16 TimeStamp;
-} T4_INPUT_REPORT, *PT4_INPUT_REPORT;
+struct t4_input_report {
+	u8  reportID;
+	u8  numContacts;
+	struct t4_contact_data contact[5];
+	u8  button;
+	u8  track[5];
+	u8  zx[5], zy[5];
+	u8  palmTime[5];
+	u8  kilroy;
+	u16 timeStamp;
+};
 
-static u16 t4_calc_check_sum(u8 *buffer, unsigned long offset, unsigned long length)
+static u16 t4_calc_check_sum(u8 *buffer,
+		unsigned long offset, unsigned long length)
 {
 	u16 sum1 = 0xFF, sum2 = 0xFF;
 	unsigned long i = 0;
@@ -163,13 +165,13 @@ static u16 t4_calc_check_sum(u8 *buffer, unsigned long offset, unsigned long len
 	return(sum2 << 8 | sum1);
 }
 
-static int T4_read_write_register(struct hid_device *hdev, u32 address,
+static int t4_read_write_register(struct hid_device *hdev, u32 address,
 	u8 *read_val, u8 write_val, bool read_flag)
 {
 	int ret;
 	u16 check_sum;
 	u8 *input;
-	u8 *readbuf;
+	u8 *readbuf = NULL;
 
 	input = kzalloc(T4_FEATURE_REPORT_LEN, GFP_KERNEL);
 	if (!input)
@@ -187,7 +189,7 @@ static int T4_read_write_register(struct hid_device *hdev, u32 address,
 	input[6] = 1;
 	input[7] = 0;
 
-	/*Calculate amd append the checksum*/
+	/* Calculate the checksum */
 	check_sum = t4_calc_check_sum(input, 1, 8);
 	input[9] = (u8)check_sum;
 	input[10] = (u8)(check_sum >> 8);
@@ -205,8 +207,8 @@ static int T4_read_write_register(struct hid_device *hdev, u32 address,
 	if (read_flag) {
 		readbuf = kzalloc(T4_FEATURE_REPORT_LEN, GFP_KERNEL);
 		if (!readbuf) {
-			kfree(input);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto exit;
 		}
 
 		ret = hid_hw_raw_request(hdev, T4_FEATURE_REPORT_ID, readbuf,
@@ -214,22 +216,37 @@ static int T4_read_write_register(struct hid_device *hdev, u32 address,
 				HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 		if (ret < 0) {
 			dev_err(&hdev->dev, "failed read register (%d)\n", ret);
-			goto exit;
+			goto exit_readbuf;
 		}
-		if (*(u32 *)&readbuf[6] != address)
-			hid_alert(hdev, "T4_read_write_register address error %x %x\n", *(u32 *)&readbuf[6], address);
-		if (*(u16 *)&readbuf[10] != 1)
-			hid_alert(hdev, "T4_read_write_register size error %x\n", *(u16 *)&readbuf[10]);
-		check_sum = t4_calc_check_sum(readbuf, 6, 7);
-		if (*(u16 *)&readbuf[13] != check_sum)
-			hid_alert(hdev, "T4_read_write_register checksum error %x %x\n", *(u16 *)&readbuf[13], check_sum);
-		*read_val = readbuf[12];
 
-		kfree(readbuf);
+		ret = -EINVAL;
+
+		if (*(u32 *)&readbuf[6] != address) {
+			dev_err(&hdev->dev, "read register address error (%x,%x)\n",
+				*(u32 *)&readbuf[6], address);
+			goto exit_readbuf;
+		}
+
+		if (*(u16 *)&readbuf[10] != 1) {
+			dev_err(&hdev->dev, "read register size error (%x)\n",
+				*(u16 *)&readbuf[10]);
+			goto exit_readbuf;
+		}
+
+		check_sum = t4_calc_check_sum(readbuf, 6, 7);
+		if (*(u16 *)&readbuf[13] != check_sum) {
+			dev_err(&hdev->dev, "read register checksum error (%x,%x)\n",
+				*(u16 *)&readbuf[13], check_sum);
+			goto exit_readbuf;
+		}
+
+		*read_val = readbuf[12];
 	}
 
 	ret = 0;
 
+exit_readbuf:
+	kfree(readbuf);
 exit:
 	kfree(input);
 	return ret;
@@ -276,8 +293,8 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 	if (read_flag) {
 		readbuf = kzalloc(U1_FEATURE_REPORT_LEN, GFP_KERNEL);
 		if (!readbuf) {
-			kfree(input);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto exit;
 		}
 
 		ret = hid_hw_raw_request(hdev, U1_FEATURE_REPORT_ID, readbuf,
@@ -286,6 +303,7 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 
 		if (ret < 0) {
 			dev_err(&hdev->dev, "failed read register (%d)\n", ret);
+			kfree(readbuf);
 			goto exit;
 		}
 
@@ -301,30 +319,32 @@ exit:
 	return ret;
 }
 
-static int T4_raw_event(struct alps_dev *hdata, u8 *data, int size)
+static int t4_raw_event(struct alps_dev *hdata, u8 *data, int size)
 {
 	unsigned int x, y, z;
 	int i;
-	PT4_INPUT_REPORT p_report = (PT4_INPUT_REPORT)data;
+	struct t4_input_report *p_report = (struct t4_input_report *)data;
 
 	if (!data)
 		return 0;
 	for (i = 0; i < hdata->max_fingers; i++) {
-		x = p_report->Contact[i].x_hi << 8 | p_report->Contact[i].x_lo;
-		y = p_report->Contact[i].y_hi << 8 | p_report->Contact[i].y_lo;
+		x = p_report->contact[i].x_hi << 8 | p_report->contact[i].x_lo;
+		y = p_report->contact[i].y_hi << 8 | p_report->contact[i].y_lo;
 		y = hdata->y_max - y + hdata->y_min;
-		z = (p_report->Contact[i].Palm < 0x80 && p_report->Contact[i].Palm > 0) * 62;
-		if (x == 0xffff)
-			x = 0, y = 0, z = 0;
+		z = (p_report->contact[i].palm < 0x80 &&
+			p_report->contact[i].palm > 0) * 62;
+		if (x == 0xffff) {
+			x = 0;
+			y = 0;
+			z = 0;
+		}
 		input_mt_slot(hdata->input, i);
 
-		if (z != 0) {
-			input_mt_report_slot_state(hdata->input, MT_TOOL_FINGER, 1);
-		} else {
-			input_mt_report_slot_state(hdata->input, MT_TOOL_FINGER, 0);
-			input_report_abs(hdata->input, ABS_MT_PRESSURE, 0);
+		input_mt_report_slot_state(hdata->input,
+			MT_TOOL_FINGER, z != 0);
+
+		if (!z)
 			continue;
-		}
 
 		input_report_abs(hdata->input, ABS_MT_POSITION_X, x);
 		input_report_abs(hdata->input, ABS_MT_POSITION_Y, y);
@@ -332,17 +352,17 @@ static int T4_raw_event(struct alps_dev *hdata, u8 *data, int size)
 	}
 	input_mt_sync_frame(hdata->input);
 
-	input_report_key(hdata->input, BTN_LEFT,	p_report->Button);
+	input_report_key(hdata->input, BTN_LEFT, p_report->button);
 
 	input_sync(hdata->input);
 	return 1;
 }
 
-static int U1_raw_event(struct alps_dev *hdata, u8 *data, int size)
+static int u1_raw_event(struct alps_dev *hdata, u8 *data, int size)
 {
 	unsigned int x, y, z;
-	short sp_x, sp_y;
 	int i;
+	short sp_x, sp_y;
 
 	if (!data)
 		return 0;
@@ -364,10 +384,12 @@ static int U1_raw_event(struct alps_dev *hdata, u8 *data, int size)
 			if (z != 0) {
 				input_mt_report_slot_state(hdata->input,
 					MT_TOOL_FINGER, 1);
-
-				input_report_abs(hdata->input, ABS_MT_POSITION_X, x);
-				input_report_abs(hdata->input, ABS_MT_POSITION_Y, y);
-				input_report_abs(hdata->input, ABS_MT_PRESSURE, z);
+				input_report_abs(hdata->input,
+					ABS_MT_POSITION_X, x);
+				input_report_abs(hdata->input,
+					ABS_MT_POSITION_Y, y);
+				input_report_abs(hdata->input,
+					ABS_MT_PRESSURE, z);
 			} else {
 				input_mt_report_slot_state(hdata->input,
 					MT_TOOL_FINGER, 0);
@@ -379,17 +401,17 @@ static int U1_raw_event(struct alps_dev *hdata, u8 *data, int size)
 		input_report_key(hdata->input, BTN_LEFT,
 			data[1] & 0x1);
 		input_report_key(hdata->input, BTN_RIGHT,
-			(data[1] & 0x2) >> 1);
+			(data[1] & 0x2));
 		input_report_key(hdata->input, BTN_MIDDLE,
-			(data[1] & 0x4) >> 2);
+			(data[1] & 0x4));
 
 		input_sync(hdata->input);
 
 		return 1;
 
 	case U1_SP_ABSOLUTE_REPORT_ID:
-		sp_x = get_unaligned_le16(data + 2);
-		sp_y = get_unaligned_le16(data + 4);
+		sp_x = get_unaligned_le16(data+2);
+		sp_y = get_unaligned_le16(data+4);
 
 		sp_x = sp_x / 8;
 		sp_y = sp_y / 8;
@@ -400,14 +422,15 @@ static int U1_raw_event(struct alps_dev *hdata, u8 *data, int size)
 		input_report_key(hdata->input2, BTN_LEFT,
 			data[1] & 0x1);
 		input_report_key(hdata->input2, BTN_RIGHT,
-			(data[1] & 0x2) >> 1);
+			(data[1] & 0x2));
 		input_report_key(hdata->input2, BTN_MIDDLE,
-			(data[1] & 0x4) >> 2);
+			(data[1] & 0x4));
 
 		input_sync(hdata->input2);
 
 		return 1;
 	}
+
 	return 0;
 }
 
@@ -417,46 +440,69 @@ static int alps_raw_event(struct hid_device *hdev,
 	int ret = 0;
 	struct alps_dev *hdata = hid_get_drvdata(hdev);
 
-	if (hdev->product == HID_PRODUCT_ID_T4_BTNLESS)
-		ret = T4_raw_event(hdata, data, size);
-	else
-		ret = U1_raw_event(hdata, data, size);
+	switch (hdev->product) {
+	case HID_PRODUCT_ID_T4_BTNLESS:
+		ret = t4_raw_event(hdata, data, size);
+		break;
+	default:
+		ret = u1_raw_event(hdata, data, size);
+		break;
+	}
 	return ret;
 }
 
-#ifdef CONFIG_PM
-static int alps_post_reset(struct hid_device *hdev)
+static int __maybe_unused alps_post_reset(struct hid_device *hdev)
 {
 	int ret = -1;
 	struct alps_dev *data = hid_get_drvdata(hdev);
 
 	switch (data->dev_type) {
 	case T4:
-		ret = T4_read_write_register(hdev, T4_PRM_FEED_CONFIG_1,
+		ret = t4_read_write_register(hdev, T4_PRM_FEED_CONFIG_1,
 			NULL, T4_I2C_ABS, false);
-		ret = T4_read_write_register(hdev, T4_PRM_FEED_CONFIG_4,
+		if (ret < 0) {
+			dev_err(&hdev->dev, "failed T4_PRM_FEED_CONFIG_1 (%d)\n",
+				ret);
+			goto exit;
+		}
+
+		ret = t4_read_write_register(hdev, T4_PRM_FEED_CONFIG_4,
 			NULL, T4_FEEDCFG4_ADVANCED_ABS_ENABLE, false);
+		if (ret < 0) {
+			dev_err(&hdev->dev, "failed T4_PRM_FEED_CONFIG_4 (%d)\n",
+				ret);
+			goto exit;
+		}
 		break;
 	case U1:
-		ret = u1_read_write_register(hdev, ADDRESS_U1_DEV_CTRL_1,
-			NULL, U1_TP_ABS_MODE | U1_SP_ABS_MODE, false);
+		ret = u1_read_write_register(hdev,
+			ADDRESS_U1_DEV_CTRL_1, NULL,
+			U1_TP_ABS_MODE | U1_SP_ABS_MODE, false);
+		if (ret < 0) {
+			dev_err(&hdev->dev, "failed to change TP mode (%d)\n",
+				ret);
+			goto exit;
+		}
 		break;
 	default:
 		break;
 	}
+
+exit:
 	return ret;
 }
 
-static int alps_post_resume(struct hid_device *hdev)
+static int __maybe_unused alps_post_resume(struct hid_device *hdev)
 {
 	return alps_post_reset(hdev);
 }
-#endif /* CONFIG_PM */
 
 static int u1_init(struct hid_device *hdev, struct alps_dev *pri_data)
 {
 	int ret;
-	u8 tmp, dev_ctrl, sen_line_num_x, sen_line_num_y, pitch_x, pitch_y, resolution;
+	u8 tmp, dev_ctrl, sen_line_num_x, sen_line_num_y;
+	u8 pitch_x, pitch_y, resolution;
+
 	/* Device initialization */
 	ret = u1_read_write_register(hdev, ADDRESS_U1_DEV_CTRL_1,
 			&dev_ctrl, 0, true);
@@ -568,7 +614,7 @@ static int T4_init(struct hid_device *hdev, struct alps_dev *pri_data)
 	int ret;
 	u8 tmp, sen_line_num_x, sen_line_num_y;
 
-	ret = T4_read_write_register(hdev, T4_PRM_ID_CONFIG_3, &tmp, 0, true);
+	ret = t4_read_write_register(hdev, T4_PRM_ID_CONFIG_3, &tmp, 0, true);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed T4_PRM_ID_CONFIG_3 (%d)\n", ret);
 		goto exit;
@@ -580,29 +626,30 @@ static int T4_init(struct hid_device *hdev, struct alps_dev *pri_data)
 	pri_data->x_min = T4_COUNT_PER_ELECTRODE;
 	pri_data->y_max = sen_line_num_y * T4_COUNT_PER_ELECTRODE;
 	pri_data->y_min = T4_COUNT_PER_ELECTRODE;
-	pri_data->x_active_len_mm = 0;
-	pri_data->y_active_len_mm = 0;
+	pri_data->x_active_len_mm = pri_data->y_active_len_mm = 0;
 	pri_data->btn_cnt = 1;
 
-	ret = T4_read_write_register(hdev, PRM_SYS_CONFIG_1, &tmp, 0, true);
+	ret = t4_read_write_register(hdev, PRM_SYS_CONFIG_1, &tmp, 0, true);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed PRM_SYS_CONFIG_1 (%d)\n", ret);
 		goto exit;
 	}
 	tmp |= 0x02;
-	ret = T4_read_write_register(hdev, PRM_SYS_CONFIG_1, NULL, tmp, false);
+	ret = t4_read_write_register(hdev, PRM_SYS_CONFIG_1, NULL, tmp, false);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed PRM_SYS_CONFIG_1 (%d)\n", ret);
 		goto exit;
 	}
 
-	ret = T4_read_write_register(hdev, T4_PRM_FEED_CONFIG_1, NULL, T4_I2C_ABS, false);
+	ret = t4_read_write_register(hdev, T4_PRM_FEED_CONFIG_1,
+					NULL, T4_I2C_ABS, false);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed T4_PRM_FEED_CONFIG_1 (%d)\n", ret);
 		goto exit;
 	}
 
-	ret = T4_read_write_register (hdev, T4_PRM_FEED_CONFIG_4, NULL, T4_FEEDCFG4_ADVANCED_ABS_ENABLE, false);
+	ret = t4_read_write_register(hdev, T4_PRM_FEED_CONFIG_4, NULL,
+				T4_FEEDCFG4_ADVANCED_ABS_ENABLE, false);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed T4_PRM_FEED_CONFIG_4 (%d)\n", ret);
 		goto exit;
@@ -611,6 +658,20 @@ static int T4_init(struct hid_device *hdev, struct alps_dev *pri_data)
 	pri_data->has_sp = 0;
 exit:
 	return ret;
+}
+
+static int alps_sp_open(struct input_dev *dev)
+{
+	struct hid_device *hid = input_get_drvdata(dev);
+
+	return hid_hw_open(hid);
+}
+
+static void alps_sp_close(struct input_dev *dev)
+{
+	struct hid_device *hid = input_get_drvdata(dev);
+
+	hid_hw_close(hid);
 }
 
 static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
@@ -629,16 +690,25 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 
 	/* Allow incoming hid reports */
 	hid_device_io_start(hdev);
-	if (data->dev_type == T4)
+	switch (data->dev_type) {
+	case T4:
 		ret = T4_init(hdev, data);
-	else
+		break;
+	case U1:
 		ret = u1_init(hdev, data);
+		break;
+	default:
+		break;
+	}
+
 	if (ret)
 		goto exit;
 
 	__set_bit(EV_ABS, input->evbit);
-	input_set_abs_params(input, ABS_MT_POSITION_X, data->x_min, data->x_max, 0, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_Y, data->y_min, data->y_max, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_X,
+						data->x_min, data->x_max, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_Y,
+						data->y_min, data->y_max, 0, 0);
 
 	if (data->x_active_len_mm && data->y_active_len_mm) {
 		res_x = (data->x_max - 1) / data->x_active_len_mm;
@@ -677,6 +747,10 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 		input2->id.version = input->id.version;
 		input2->dev.parent = input->dev.parent;
 
+		input_set_drvdata(input2, hdev);
+		input2->open = alps_sp_open;
+		input2->close = alps_sp_close;
+
 		__set_bit(EV_KEY, input2->evbit);
 		data->sp_btn_cnt = (data->sp_btn_info & 0x0F);
 		for (i = 0; i < data->sp_btn_cnt; i++)
@@ -711,7 +785,6 @@ static int alps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct alps_dev *data = NULL;
 	int ret;
-
 	data = devm_kzalloc(&hdev->dev, sizeof(struct alps_dev), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -726,6 +799,7 @@ static int alps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		hid_err(hdev, "parse failed\n");
 		return ret;
 	}
+
 	switch (hdev->product) {
 	case HID_DEVICE_ID_ALPS_T4_BTNLESS:
 		data->dev_type = T4;
@@ -736,8 +810,8 @@ static int alps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		break;
 	default:
 		data->dev_type = UNKNOWN;
-		break;
 	}
+
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");

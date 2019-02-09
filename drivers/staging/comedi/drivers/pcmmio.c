@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * pcmmio.c
  * Driver for Winsystems PC-104 based multifunction IO board.
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2007 Calin A. Culianu <calin@ajvar.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -84,25 +75,25 @@
 #define PCMMIO_AI_LSB_REG			0x00
 #define PCMMIO_AI_MSB_REG			0x01
 #define PCMMIO_AI_CMD_REG			0x02
-#define PCMMIO_AI_CMD_SE			(1 << 7)
-#define PCMMIO_AI_CMD_ODD_CHAN			(1 << 6)
+#define PCMMIO_AI_CMD_SE			BIT(7)
+#define PCMMIO_AI_CMD_ODD_CHAN			BIT(6)
 #define PCMMIO_AI_CMD_CHAN_SEL(x)		(((x) & 0x3) << 4)
 #define PCMMIO_AI_CMD_RANGE(x)			(((x) & 0x3) << 2)
 #define PCMMIO_RESOURCE_REG			0x02
 #define PCMMIO_RESOURCE_IRQ(x)			(((x) & 0xf) << 0)
 #define PCMMIO_AI_STATUS_REG			0x03
-#define PCMMIO_AI_STATUS_DATA_READY		(1 << 7)
-#define PCMMIO_AI_STATUS_DATA_DMA_PEND		(1 << 6)
-#define PCMMIO_AI_STATUS_CMD_DMA_PEND		(1 << 5)
-#define PCMMIO_AI_STATUS_IRQ_PEND		(1 << 4)
-#define PCMMIO_AI_STATUS_DATA_DRQ_ENA		(1 << 2)
-#define PCMMIO_AI_STATUS_REG_SEL		(1 << 3)
-#define PCMMIO_AI_STATUS_CMD_DRQ_ENA		(1 << 1)
-#define PCMMIO_AI_STATUS_IRQ_ENA		(1 << 0)
+#define PCMMIO_AI_STATUS_DATA_READY		BIT(7)
+#define PCMMIO_AI_STATUS_DATA_DMA_PEND		BIT(6)
+#define PCMMIO_AI_STATUS_CMD_DMA_PEND		BIT(5)
+#define PCMMIO_AI_STATUS_IRQ_PEND		BIT(4)
+#define PCMMIO_AI_STATUS_DATA_DRQ_ENA		BIT(2)
+#define PCMMIO_AI_STATUS_REG_SEL		BIT(3)
+#define PCMMIO_AI_STATUS_CMD_DRQ_ENA		BIT(1)
+#define PCMMIO_AI_STATUS_IRQ_ENA		BIT(0)
 #define PCMMIO_AI_RES_ENA_REG			0x03
 #define PCMMIO_AI_RES_ENA_CMD_REG_ACCESS	(0 << 3)
-#define PCMMIO_AI_RES_ENA_AI_RES_ACCESS		(1 << 3)
-#define PCMMIO_AI_RES_ENA_DIO_RES_ACCESS	(1 << 4)
+#define PCMMIO_AI_RES_ENA_AI_RES_ACCESS		BIT(3)
+#define PCMMIO_AI_RES_ENA_DIO_RES_ACCESS	BIT(4)
 #define PCMMIO_AI_2ND_ADC_OFFSET		0x04
 
 #define PCMMIO_AO_LSB_REG			0x08
@@ -125,14 +116,14 @@
 #define PCMMIO_AO_CMD_CHAN_SEL(x)		(((x) & 0x03) << 1)
 #define PCMMIO_AO_CMD_CHAN_SEL_ALL		(0x0f << 0)
 #define PCMMIO_AO_STATUS_REG			0x0b
-#define PCMMIO_AO_STATUS_DATA_READY		(1 << 7)
-#define PCMMIO_AO_STATUS_DATA_DMA_PEND		(1 << 6)
-#define PCMMIO_AO_STATUS_CMD_DMA_PEND		(1 << 5)
-#define PCMMIO_AO_STATUS_IRQ_PEND		(1 << 4)
-#define PCMMIO_AO_STATUS_DATA_DRQ_ENA		(1 << 2)
-#define PCMMIO_AO_STATUS_REG_SEL		(1 << 3)
-#define PCMMIO_AO_STATUS_CMD_DRQ_ENA		(1 << 1)
-#define PCMMIO_AO_STATUS_IRQ_ENA		(1 << 0)
+#define PCMMIO_AO_STATUS_DATA_READY		BIT(7)
+#define PCMMIO_AO_STATUS_DATA_DMA_PEND		BIT(6)
+#define PCMMIO_AO_STATUS_CMD_DMA_PEND		BIT(5)
+#define PCMMIO_AO_STATUS_IRQ_PEND		BIT(4)
+#define PCMMIO_AO_STATUS_DATA_DRQ_ENA		BIT(2)
+#define PCMMIO_AO_STATUS_REG_SEL		BIT(3)
+#define PCMMIO_AO_STATUS_CMD_DRQ_ENA		BIT(1)
+#define PCMMIO_AO_STATUS_IRQ_ENA		BIT(0)
 #define PCMMIO_AO_RESOURCE_ENA_REG		0x0b
 #define PCMMIO_AO_2ND_DAC_OFFSET		0x04
 

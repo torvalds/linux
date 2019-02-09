@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _INET_ECN_H_
 #define _INET_ECN_H_
 
@@ -111,17 +112,26 @@ static inline void ipv4_copy_dscp(unsigned int dscp, struct iphdr *inner)
 
 struct ipv6hdr;
 
-static inline int IP6_ECN_set_ce(struct ipv6hdr *iph)
+/* Note:
+ * IP_ECN_set_ce() has to tweak IPV4 checksum when setting CE,
+ * meaning both changes have no effect on skb->csum if/when CHECKSUM_COMPLETE
+ * In IPv6 case, no checksum compensates the change in IPv6 header,
+ * so we have to update skb->csum.
+ */
+static inline int IP6_ECN_set_ce(struct sk_buff *skb, struct ipv6hdr *iph)
 {
+	__be32 from, to;
+
 	if (INET_ECN_is_not_ect(ipv6_get_dsfield(iph)))
 		return 0;
-	*(__be32*)iph |= htonl(INET_ECN_CE << 20);
-	return 1;
-}
 
-static inline void IP6_ECN_clear(struct ipv6hdr *iph)
-{
-	*(__be32*)iph &= ~htonl(INET_ECN_MASK << 20);
+	from = *(__be32 *)iph;
+	to = from | htonl(INET_ECN_CE << 20);
+	*(__be32 *)iph = to;
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->csum = csum_add(csum_sub(skb->csum, (__force __wsum)from),
+				     (__force __wsum)to);
+	return 1;
 }
 
 static inline void ipv6_copy_dscp(unsigned int dscp, struct ipv6hdr *inner)
@@ -142,7 +152,7 @@ static inline int INET_ECN_set_ce(struct sk_buff *skb)
 	case cpu_to_be16(ETH_P_IPV6):
 		if (skb_network_header(skb) + sizeof(struct ipv6hdr) <=
 		    skb_tail_pointer(skb))
-			return IP6_ECN_set_ce(ipv6_hdr(skb));
+			return IP6_ECN_set_ce(skb, ipv6_hdr(skb));
 		break;
 	}
 

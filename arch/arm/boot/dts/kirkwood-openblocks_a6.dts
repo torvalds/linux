@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "kirkwood.dtsi"
@@ -41,7 +42,7 @@
 		};
 
 		pinctrl: pin-controller@10000 {
-			pinctrl-0 = <&pmx_dip_switches &pmx_gpio_header>;
+			pinctrl-0 = <&pmx_dip_switches>;
 			pinctrl-names = "default";
 
 			pmx_uart0: pmx-uart0 {
@@ -117,7 +118,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		button@1 {
+		power {
 			label = "Init Button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
@@ -141,7 +142,7 @@
 
 	partition@d4000 {
 		label = "test";
-		reg = <0xd4000 0x24000>;
+		reg = <0xd4000 0x20000>;
 	};
 
 	partition@f4000 {
@@ -173,4 +174,11 @@
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
 	};
+};
+
+&gpio0 {
+	status = "okay";
+
+	pinctrl-0 = <&pmx_gpio_header>;
+	pinctrl-names = "default";
 };

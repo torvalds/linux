@@ -1,13 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* NGcopy_to_user.S: Niagara optimized copy to userspace.
  *
  * Copyright (C) 2006, 2007 David S. Miller (davem@davemloft.net)
  */
 
-#define EX_ST(x)		\
+#define EX_ST(x,y)		\
 98:	x;			\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, __ret_one_asi;\
+	.word 98b, y;		\
 	.text;			\
 	.align 4;
 
@@ -28,7 +29,7 @@
 #define PREAMBLE					\
 	rd		%asi, %g1;			\
 	cmp		%g1, ASI_AIUS;			\
-	bne,pn		%icc, ___copy_in_user;		\
+	bne,pn		%icc, raw_copy_in_user;		\
 	 nop
 #endif
 

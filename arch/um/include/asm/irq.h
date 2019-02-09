@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __UM_IRQ_H
 #define __UM_IRQ_H
 
@@ -17,7 +18,19 @@
 #define XTERM_IRQ 		13
 #define RANDOM_IRQ 		14
 
+#ifdef CONFIG_UML_NET_VECTOR
+
+#define VECTOR_BASE_IRQ		15
+#define VECTOR_IRQ_SPACE	8
+
+#define LAST_IRQ (VECTOR_IRQ_SPACE + VECTOR_BASE_IRQ)
+
+#else
+
 #define LAST_IRQ RANDOM_IRQ
+
+#endif
+
 #define NR_IRQS (LAST_IRQ + 1)
 
 #endif

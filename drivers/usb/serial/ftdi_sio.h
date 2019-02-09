@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Driver definitions for the FTDI USB Single Port Serial Converter -
  * known as FTDI_SIO (Serial Input/Output application of the chipset)
@@ -239,11 +240,11 @@ enum ftdi_sio_baudrate {
  */
 
 #define FTDI_SIO_SET_DTR_MASK 0x1
-#define FTDI_SIO_SET_DTR_HIGH (1 | (FTDI_SIO_SET_DTR_MASK  << 8))
-#define FTDI_SIO_SET_DTR_LOW  (0 | (FTDI_SIO_SET_DTR_MASK  << 8))
+#define FTDI_SIO_SET_DTR_HIGH ((FTDI_SIO_SET_DTR_MASK  << 8) | 1)
+#define FTDI_SIO_SET_DTR_LOW  ((FTDI_SIO_SET_DTR_MASK  << 8) | 0)
 #define FTDI_SIO_SET_RTS_MASK 0x2
-#define FTDI_SIO_SET_RTS_HIGH (2 | (FTDI_SIO_SET_RTS_MASK << 8))
-#define FTDI_SIO_SET_RTS_LOW (0 | (FTDI_SIO_SET_RTS_MASK << 8))
+#define FTDI_SIO_SET_RTS_HIGH ((FTDI_SIO_SET_RTS_MASK << 8) | 2)
+#define FTDI_SIO_SET_RTS_LOW  ((FTDI_SIO_SET_RTS_MASK << 8) | 0)
 
 /*
  * ControlValue

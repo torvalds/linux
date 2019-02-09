@@ -2,11 +2,165 @@
 
 Required properties:
 
-- compatible: "brcm,bcm3384", "brcm,bcm33843"
+- compatible: "brcm,bcm3368", "brcm,bcm3384", "brcm,bcm33843"
               "brcm,bcm3384-viper", "brcm,bcm33843-viper"
-              "brcm,bcm6328", "brcm,bcm6368",
+              "brcm,bcm6328", "brcm,bcm6358", "brcm,bcm6362", "brcm,bcm6368",
+              "brcm,bcm63168", "brcm,bcm63268",
               "brcm,bcm7125", "brcm,bcm7346", "brcm,bcm7358", "brcm,bcm7360",
               "brcm,bcm7362", "brcm,bcm7420", "brcm,bcm7425"
 
 The experimental -viper variants are for running Linux on the 3384's
 BMIPS4355 cable modem CPU instead of the BMIPS5000 application processor.
+
+Power management
+----------------
+
+For power management (particularly, S2/S3/S5 system suspend), the following SoC
+components are needed:
+
+= Always-On control block (AON CTRL)
+
+This hardware provides control registers for the "always-on" (even in low-power
+modes) hardware, such as the Power Management State Machine (PMSM).
+
+Required properties:
+- compatible     : should be one of
+		   "brcm,bcm7425-aon-ctrl"
+		   "brcm,bcm7429-aon-ctrl"
+		   "brcm,bcm7435-aon-ctrl" and
+		   "brcm,brcmstb-aon-ctrl"
+- reg            : the register start and length for the AON CTRL block
+
+Example:
+
+syscon@410000 {
+	compatible = "brcm,bcm7425-aon-ctrl", "brcm,brcmstb-aon-ctrl";
+	reg = <0x410000 0x400>;
+};
+
+= Memory controllers
+
+A Broadcom STB SoC typically has a number of independent memory controllers,
+each of which may have several associated hardware blocks, which are versioned
+independently (control registers, DDR PHYs, etc.). One might consider
+describing these controllers as a parent "memory controllers" block, which
+contains N sub-nodes (one for each controller in the system), each of which is
+associated with a number of hardware register resources (e.g., its PHY.
+
+== MEMC (MEMory Controller)
+
+Represents a single memory controller instance.
+
+Required properties:
+- compatible     : should contain "brcm,brcmstb-memc" and "simple-bus"
+- ranges	 : should contain the child address in the parent address
+		   space, must be 0 here, and the register start and length of
+		   the entire memory controller (including all sub nodes: DDR PHY,
+		   arbiter, etc.)
+- #address-cells : must be 1
+- #size-cells	 : must be 1
+
+Example:
+
+	memory-controller@0 {
+		compatible = "brcm,brcmstb-memc", "simple-bus";
+		ranges = <0x0 0x0 0xa000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		memc-arb@1000 {
+			...
+		};
+
+		memc-ddr@2000 {
+			...
+		};
+
+		ddr-phy@6000 {
+			...
+		};
+	};
+
+Should contain subnodes for any of the following relevant hardware resources:
+
+== DDR PHY control
+
+Control registers for this memory controller's DDR PHY.
+
+Required properties:
+- compatible     : should contain one of these
+		   "brcm,brcmstb-ddr-phy-v64.5"
+		   "brcm,brcmstb-ddr-phy"
+
+- reg            : the DDR PHY register range and length
+
+Example:
+
+	ddr-phy@6000 {
+		compatible = "brcm,brcmstb-ddr-phy-v64.5";
+		reg = <0x6000 0xc8>;
+	};
+
+== DDR memory controller sequencer
+
+Control registers for this memory controller's DDR memory sequencer
+
+Required properties:
+- compatible     : should contain one of these
+		   "brcm,bcm7425-memc-ddr"
+		   "brcm,bcm7429-memc-ddr"
+		   "brcm,bcm7435-memc-ddr" and
+		   "brcm,brcmstb-memc-ddr"
+
+- reg            : the DDR sequencer register range and length
+
+Example:
+
+	memc-ddr@2000 {
+		compatible = "brcm,bcm7425-memc-ddr", "brcm,brcmstb-memc-ddr";
+		reg = <0x2000 0x300>;
+	};
+
+== MEMC Arbiter
+
+The memory controller arbiter is responsible for memory clients allocation
+(bandwidth, priorities etc.) and needs to have its contents restored during
+deep sleep states (S3).
+
+Required properties:
+
+- compatible	: should contain one of these
+		  "brcm,brcmstb-memc-arb-v10.0.0.0"
+		  "brcm,brcmstb-memc-arb"
+
+- reg		: the DDR Arbiter register range and length
+
+Example:
+
+	memc-arb@1000 {
+		compatible = "brcm,brcmstb-memc-arb-v10.0.0.0";
+		reg = <0x1000 0x248>;
+	};
+
+== Timers
+
+The Broadcom STB chips contain a timer block with several general purpose
+timers that can be used.
+
+Required properties:
+
+- compatible	: should contain one of:
+		  "brcm,bcm7425-timers"
+		  "brcm,bcm7429-timers"
+		  "brcm,bcm7435-timers" and
+		  "brcm,brcmstb-timers"
+- reg		: the timers register range
+- interrupts	: the interrupt line for this timer block
+
+Example:
+
+	timers: timer@4067c0 {
+		compatible = "brcm,bcm7425-timers", "brcm,brcmstb-timers";
+		reg = <0x4067c0 0x40>;
+		interrupts = <&periph_intc 19>;
+	};

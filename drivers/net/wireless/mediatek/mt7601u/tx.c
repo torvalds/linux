@@ -148,7 +148,7 @@ mt7601u_push_txwi(struct mt7601u_dev *dev, struct sk_buff *skb,
 	u16 rate_ctl;
 	u8 nss;
 
-	txwi = (struct mt76_txwi *)skb_push(skb, sizeof(struct mt76_txwi));
+	txwi = skb_push(skb, sizeof(struct mt76_txwi));
 	memset(txwi, 0, sizeof(*txwi));
 
 	if (!wcid->tx_rate_set)
@@ -175,11 +175,12 @@ mt7601u_push_txwi(struct mt7601u_dev *dev, struct sk_buff *skb,
 		ba_size = min_t(int, 63, ba_size);
 		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
 			ba_size = 0;
-		txwi->ack_ctl |= MT76_SET(MT_TXWI_ACK_CTL_BA_WINDOW, ba_size);
+		txwi->ack_ctl |= FIELD_PREP(MT_TXWI_ACK_CTL_BA_WINDOW, ba_size);
 
-		txwi->flags = cpu_to_le16(MT_TXWI_FLAGS_AMPDU |
-					  MT76_SET(MT_TXWI_FLAGS_MPDU_DENSITY,
-						   sta->ht_cap.ampdu_density));
+		txwi->flags =
+			cpu_to_le16(MT_TXWI_FLAGS_AMPDU |
+				    FIELD_PREP(MT_TXWI_FLAGS_MPDU_DENSITY,
+					       sta->ht_cap.ampdu_density));
 		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
 			txwi->flags = 0;
 	}
@@ -188,7 +189,7 @@ mt7601u_push_txwi(struct mt7601u_dev *dev, struct sk_buff *skb,
 
 	is_probe = !!(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
 	pkt_id = mt7601u_tx_pktid_enc(dev, rate_ctl & 0x7, is_probe);
-	pkt_len |= MT76_SET(MT_TXWI_LEN_PKTID, pkt_id);
+	pkt_len |= FIELD_PREP(MT_TXWI_LEN_PKTID, pkt_id);
 	txwi->len_ctl = cpu_to_le16(pkt_len);
 
 	return txwi;
@@ -285,9 +286,9 @@ int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	WARN_ON(cw_min > 0xf);
 	WARN_ON(cw_max > 0xf);
 
-	val = MT76_SET(MT_EDCA_CFG_AIFSN, params->aifs) |
-	      MT76_SET(MT_EDCA_CFG_CWMIN, cw_min) |
-	      MT76_SET(MT_EDCA_CFG_CWMAX, cw_max);
+	val = FIELD_PREP(MT_EDCA_CFG_AIFSN, params->aifs) |
+	      FIELD_PREP(MT_EDCA_CFG_CWMIN, cw_min) |
+	      FIELD_PREP(MT_EDCA_CFG_CWMAX, cw_max);
 	/* TODO: based on user-controlled EnableTxBurst var vendor drv sets
 	 *	 a really long txop on AC0 (see connect.c:2009) but only on
 	 *	 connect? When not connected should be 0.
@@ -295,7 +296,7 @@ int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (!hw_q)
 		val |= 0x60;
 	else
-		val |= MT76_SET(MT_EDCA_CFG_TXOP, params->txop);
+		val |= FIELD_PREP(MT_EDCA_CFG_TXOP, params->txop);
 	mt76_wr(dev, MT_EDCA_CFG_AC(hw_q), val);
 
 	val = mt76_rr(dev, MT_WMM_TXOP(hw_q));

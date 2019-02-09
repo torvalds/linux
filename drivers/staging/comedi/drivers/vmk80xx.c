@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * vmk80xx.c
  * Velleman USB Board Low-Level Driver
@@ -6,16 +7,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -177,7 +168,7 @@ static void vmk80xx_do_bulk_msg(struct comedi_device *dev)
 	 * The max packet size attributes of the K8061
 	 * input/output endpoints are identical
 	 */
-	size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
+	size = usb_endpoint_maxp(devpriv->ep_tx);
 
 	usb_bulk_msg(usb, tx_pipe, devpriv->usb_tx_buf,
 		     size, NULL, devpriv->ep_tx->bInterval);
@@ -199,7 +190,7 @@ static int vmk80xx_read_packet(struct comedi_device *dev)
 	ep = devpriv->ep_rx;
 	pipe = usb_rcvintpipe(usb, ep->bEndpointAddress);
 	return usb_interrupt_msg(usb, pipe, devpriv->usb_rx_buf,
-				 le16_to_cpu(ep->wMaxPacketSize), NULL,
+				 usb_endpoint_maxp(ep), NULL,
 				 HZ * 10);
 }
 
@@ -220,7 +211,7 @@ static int vmk80xx_write_packet(struct comedi_device *dev, int cmd)
 	ep = devpriv->ep_tx;
 	pipe = usb_sndintpipe(usb, ep->bEndpointAddress);
 	return usb_interrupt_msg(usb, pipe, devpriv->usb_tx_buf,
-				 le16_to_cpu(ep->wMaxPacketSize), NULL,
+				 usb_endpoint_maxp(ep), NULL,
 				 HZ * 10);
 }
 
@@ -230,7 +221,7 @@ static int vmk80xx_reset_device(struct comedi_device *dev)
 	size_t size;
 	int retval;
 
-	size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
+	size = usb_endpoint_maxp(devpriv->ep_tx);
 	memset(devpriv->usb_tx_buf, 0, size);
 	retval = vmk80xx_write_packet(dev, VMK8055_CMD_RST);
 	if (retval)
@@ -684,12 +675,12 @@ static int vmk80xx_alloc_usb_buffers(struct comedi_device *dev)
 	struct vmk80xx_private *devpriv = dev->private;
 	size_t size;
 
-	size = le16_to_cpu(devpriv->ep_rx->wMaxPacketSize);
+	size = usb_endpoint_maxp(devpriv->ep_rx);
 	devpriv->usb_rx_buf = kzalloc(size, GFP_KERNEL);
 	if (!devpriv->usb_rx_buf)
 		return -ENOMEM;
 
-	size = le16_to_cpu(devpriv->ep_tx->wMaxPacketSize);
+	size = usb_endpoint_maxp(devpriv->ep_tx);
 	devpriv->usb_tx_buf = kzalloc(size, GFP_KERNEL);
 	if (!devpriv->usb_tx_buf) {
 		kfree(devpriv->usb_rx_buf);

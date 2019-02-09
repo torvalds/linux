@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,9 +21,7 @@
 
 #include "hif.h"
 
-/* Maximum number of Copy Engine's supported */
-#define CE_COUNT_MAX 12
-#define CE_HTT_H2T_MSG_SRC_NENTRIES 4096
+#define CE_HTT_H2T_MSG_SRC_NENTRIES 8192
 
 /* Descriptor rings must be aligned to this boundary */
 #define CE_DESC_RING_ALIGN	8
@@ -38,6 +37,10 @@ struct ath10k_ce_pipe;
 
 #define CE_DESC_FLAGS_GATHER         (1 << 0)
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
+#define CE_WCN3990_DESC_FLAGS_GATHER BIT(31)
+
+#define CE_DESC_FLAGS_GET_MASK		GENMASK(4, 0)
+#define CE_DESC_37BIT_ADDR_MASK		GENMASK_ULL(37, 0)
 
 /* Following desc flags are used in QCA99X0 */
 #define CE_DESC_FLAGS_HOST_INT_DIS	(1 << 2)
@@ -46,11 +49,24 @@ struct ath10k_ce_pipe;
 #define CE_DESC_FLAGS_META_DATA_MASK ar->hw_values->ce_desc_meta_data_mask
 #define CE_DESC_FLAGS_META_DATA_LSB  ar->hw_values->ce_desc_meta_data_lsb
 
+#define CE_DDR_RRI_MASK			GENMASK(15, 0)
+#define CE_DDR_DRRI_SHIFT		16
+
 struct ce_desc {
 	__le32 addr;
 	__le16 nbytes;
 	__le16 flags; /* %CE_DESC_FLAGS_ */
 };
+
+struct ce_desc_64 {
+	__le64 addr;
+	__le16 nbytes; /* length in register map */
+	__le16 flags; /* fw_metadata_high */
+	__le32 toeplitz_hash_result;
+};
+
+#define CE_DESC_SIZE sizeof(struct ce_desc)
+#define CE_DESC_SIZE_64 sizeof(struct ce_desc_64)
 
 struct ath10k_ce_ring {
 	/* Number of entries in this ring; must be power of 2 */
@@ -101,6 +117,9 @@ struct ath10k_ce_ring {
 	/* CE address space */
 	u32 base_addr_ce_space;
 
+	char *shadow_base_unaligned;
+	struct ce_desc *shadow_base;
+
 	/* keep last */
 	void *per_transfer_context[0];
 };
@@ -119,10 +138,31 @@ struct ath10k_ce_pipe {
 	unsigned int src_sz_max;
 	struct ath10k_ce_ring *src_ring;
 	struct ath10k_ce_ring *dest_ring;
+	const struct ath10k_ce_ops *ops;
 };
 
 /* Copy Engine settable attributes */
 struct ce_attr;
+
+struct ath10k_bus_ops {
+	u32 (*read32)(struct ath10k *ar, u32 offset);
+	void (*write32)(struct ath10k *ar, u32 offset, u32 value);
+	int (*get_num_banks)(struct ath10k *ar);
+};
+
+static inline struct ath10k_ce *ath10k_ce_priv(struct ath10k *ar)
+{
+	return (struct ath10k_ce *)ar->ce_priv;
+}
+
+struct ath10k_ce {
+	/* protects CE info */
+	spinlock_t ce_lock;
+	const struct ath10k_bus_ops *bus_ops;
+	struct ath10k_ce_pipe ce_states[CE_COUNT_MAX];
+	u32 *vaddr_rri;
+	dma_addr_t paddr_rri;
+};
 
 /*==================Send====================*/
 
@@ -144,7 +184,7 @@ struct ce_attr;
  */
 int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_send_context,
-		   u32 buffer,
+		   dma_addr_t buffer,
 		   unsigned int nbytes,
 		   /* 14 bits */
 		   unsigned int transfer_id,
@@ -152,7 +192,7 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 
 int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 			  void *per_transfer_context,
-			  u32 buffer,
+			  dma_addr_t buffer,
 			  unsigned int nbytes,
 			  unsigned int transfer_id,
 			  unsigned int flags);
@@ -164,8 +204,9 @@ int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe);
 /*==================Recv=======================*/
 
 int __ath10k_ce_rx_num_free_bufs(struct ath10k_ce_pipe *pipe);
-int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
-int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
+int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx,
+			  dma_addr_t paddr);
+void ath10k_ce_rx_update_write_idx(struct ath10k_ce_pipe *pipe, u32 nentries);
 
 /* recv flags */
 /* Data is byte-swapped */
@@ -177,10 +218,7 @@ int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
  */
 int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
-				  u32 *bufferp,
-				  unsigned int *nbytesp,
-				  unsigned int *transfer_idp,
-				  unsigned int *flagsp);
+				  unsigned int *nbytesp);
 /*
  * Supply data for the next completed unprocessed send descriptor.
  * Pops 1 completed send buffer from Source ring.
@@ -208,14 +246,11 @@ void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id);
  */
 int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
-			       u32 *bufferp);
+			       dma_addr_t *bufferp);
 
 int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp,
-					 u32 *bufferp,
-					 unsigned int *nbytesp,
-					 unsigned int *transfer_idp,
-					 unsigned int *flagsp);
+					 unsigned int *nbytesp);
 
 /*
  * Support clean shutdown by allowing the caller to cancel
@@ -224,7 +259,7 @@ int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
  */
 int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
-			       u32 *bufferp,
+			       dma_addr_t *bufferp,
 			       unsigned int *nbytesp,
 			       unsigned int *transfer_idp);
 
@@ -233,6 +268,10 @@ void ath10k_ce_per_engine_service_any(struct ath10k *ar);
 void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id);
 int ath10k_ce_disable_interrupts(struct ath10k *ar);
 void ath10k_ce_enable_interrupts(struct ath10k *ar);
+void ath10k_ce_dump_registers(struct ath10k *ar,
+			      struct ath10k_fw_crash_data *crash_data);
+void ath10k_ce_alloc_rri(struct ath10k *ar);
+void ath10k_ce_free_rri(struct ath10k *ar);
 
 /* ce_attr.flags values */
 /* Use NonSnooping PCIe accesses? */
@@ -268,142 +307,39 @@ struct ce_attr {
 	void (*recv_cb)(struct ath10k_ce_pipe *);
 };
 
-#define SR_BA_ADDRESS		0x0000
-#define SR_SIZE_ADDRESS		0x0004
-#define DR_BA_ADDRESS		0x0008
-#define DR_SIZE_ADDRESS		0x000c
-#define CE_CMD_ADDRESS		0x0018
-
-#define CE_CTRL1_DST_RING_BYTE_SWAP_EN_MSB	17
-#define CE_CTRL1_DST_RING_BYTE_SWAP_EN_LSB	17
-#define CE_CTRL1_DST_RING_BYTE_SWAP_EN_MASK	0x00020000
-#define CE_CTRL1_DST_RING_BYTE_SWAP_EN_SET(x) \
-	(((0 | (x)) << CE_CTRL1_DST_RING_BYTE_SWAP_EN_LSB) & \
-	CE_CTRL1_DST_RING_BYTE_SWAP_EN_MASK)
-
-#define CE_CTRL1_SRC_RING_BYTE_SWAP_EN_MSB	16
-#define CE_CTRL1_SRC_RING_BYTE_SWAP_EN_LSB	16
-#define CE_CTRL1_SRC_RING_BYTE_SWAP_EN_MASK	0x00010000
-#define CE_CTRL1_SRC_RING_BYTE_SWAP_EN_GET(x) \
-	(((x) & CE_CTRL1_SRC_RING_BYTE_SWAP_EN_MASK) >> \
-	 CE_CTRL1_SRC_RING_BYTE_SWAP_EN_LSB)
-#define CE_CTRL1_SRC_RING_BYTE_SWAP_EN_SET(x) \
-	(((0 | (x)) << CE_CTRL1_SRC_RING_BYTE_SWAP_EN_LSB) & \
-	 CE_CTRL1_SRC_RING_BYTE_SWAP_EN_MASK)
-
-#define CE_CTRL1_DMAX_LENGTH_MSB		15
-#define CE_CTRL1_DMAX_LENGTH_LSB		0
-#define CE_CTRL1_DMAX_LENGTH_MASK		0x0000ffff
-#define CE_CTRL1_DMAX_LENGTH_GET(x) \
-	(((x) & CE_CTRL1_DMAX_LENGTH_MASK) >> CE_CTRL1_DMAX_LENGTH_LSB)
-#define CE_CTRL1_DMAX_LENGTH_SET(x) \
-	(((0 | (x)) << CE_CTRL1_DMAX_LENGTH_LSB) & CE_CTRL1_DMAX_LENGTH_MASK)
-
-#define CE_CTRL1_ADDRESS			0x0010
-#define CE_CTRL1_HW_MASK			0x0007ffff
-#define CE_CTRL1_SW_MASK			0x0007ffff
-#define CE_CTRL1_HW_WRITE_MASK			0x00000000
-#define CE_CTRL1_SW_WRITE_MASK			0x0007ffff
-#define CE_CTRL1_RSTMASK			0xffffffff
-#define CE_CTRL1_RESET				0x00000080
-
-#define CE_CMD_HALT_STATUS_MSB			3
-#define CE_CMD_HALT_STATUS_LSB			3
-#define CE_CMD_HALT_STATUS_MASK			0x00000008
-#define CE_CMD_HALT_STATUS_GET(x) \
-	(((x) & CE_CMD_HALT_STATUS_MASK) >> CE_CMD_HALT_STATUS_LSB)
-#define CE_CMD_HALT_STATUS_SET(x) \
-	(((0 | (x)) << CE_CMD_HALT_STATUS_LSB) & CE_CMD_HALT_STATUS_MASK)
-#define CE_CMD_HALT_STATUS_RESET		0
-#define CE_CMD_HALT_MSB				0
-#define CE_CMD_HALT_MASK			0x00000001
-
-#define HOST_IE_COPY_COMPLETE_MSB		0
-#define HOST_IE_COPY_COMPLETE_LSB		0
-#define HOST_IE_COPY_COMPLETE_MASK		0x00000001
-#define HOST_IE_COPY_COMPLETE_GET(x) \
-	(((x) & HOST_IE_COPY_COMPLETE_MASK) >> HOST_IE_COPY_COMPLETE_LSB)
-#define HOST_IE_COPY_COMPLETE_SET(x) \
-	(((0 | (x)) << HOST_IE_COPY_COMPLETE_LSB) & HOST_IE_COPY_COMPLETE_MASK)
-#define HOST_IE_COPY_COMPLETE_RESET		0
-#define HOST_IE_ADDRESS				0x002c
-
-#define HOST_IS_DST_RING_LOW_WATERMARK_MASK	0x00000010
-#define HOST_IS_DST_RING_HIGH_WATERMARK_MASK	0x00000008
-#define HOST_IS_SRC_RING_LOW_WATERMARK_MASK	0x00000004
-#define HOST_IS_SRC_RING_HIGH_WATERMARK_MASK	0x00000002
-#define HOST_IS_COPY_COMPLETE_MASK		0x00000001
-#define HOST_IS_ADDRESS				0x0030
-
-#define MISC_IE_ADDRESS				0x0034
-
-#define MISC_IS_AXI_ERR_MASK			0x00000400
-
-#define MISC_IS_DST_ADDR_ERR_MASK		0x00000200
-#define MISC_IS_SRC_LEN_ERR_MASK		0x00000100
-#define MISC_IS_DST_MAX_LEN_VIO_MASK		0x00000080
-#define MISC_IS_DST_RING_OVERFLOW_MASK		0x00000040
-#define MISC_IS_SRC_RING_OVERFLOW_MASK		0x00000020
-
-#define MISC_IS_ADDRESS				0x0038
-
-#define SR_WR_INDEX_ADDRESS			0x003c
-
-#define DST_WR_INDEX_ADDRESS			0x0040
-
-#define CURRENT_SRRI_ADDRESS			0x0044
-
-#define CURRENT_DRRI_ADDRESS			0x0048
-
-#define SRC_WATERMARK_LOW_MSB			31
-#define SRC_WATERMARK_LOW_LSB			16
-#define SRC_WATERMARK_LOW_MASK			0xffff0000
-#define SRC_WATERMARK_LOW_GET(x) \
-	(((x) & SRC_WATERMARK_LOW_MASK) >> SRC_WATERMARK_LOW_LSB)
-#define SRC_WATERMARK_LOW_SET(x) \
-	(((0 | (x)) << SRC_WATERMARK_LOW_LSB) & SRC_WATERMARK_LOW_MASK)
-#define SRC_WATERMARK_LOW_RESET			0
-#define SRC_WATERMARK_HIGH_MSB			15
-#define SRC_WATERMARK_HIGH_LSB			0
-#define SRC_WATERMARK_HIGH_MASK			0x0000ffff
-#define SRC_WATERMARK_HIGH_GET(x) \
-	(((x) & SRC_WATERMARK_HIGH_MASK) >> SRC_WATERMARK_HIGH_LSB)
-#define SRC_WATERMARK_HIGH_SET(x) \
-	(((0 | (x)) << SRC_WATERMARK_HIGH_LSB) & SRC_WATERMARK_HIGH_MASK)
-#define SRC_WATERMARK_HIGH_RESET		0
-#define SRC_WATERMARK_ADDRESS			0x004c
-
-#define DST_WATERMARK_LOW_LSB			16
-#define DST_WATERMARK_LOW_MASK			0xffff0000
-#define DST_WATERMARK_LOW_SET(x) \
-	(((0 | (x)) << DST_WATERMARK_LOW_LSB) & DST_WATERMARK_LOW_MASK)
-#define DST_WATERMARK_LOW_RESET			0
-#define DST_WATERMARK_HIGH_MSB			15
-#define DST_WATERMARK_HIGH_LSB			0
-#define DST_WATERMARK_HIGH_MASK			0x0000ffff
-#define DST_WATERMARK_HIGH_GET(x) \
-	(((x) & DST_WATERMARK_HIGH_MASK) >> DST_WATERMARK_HIGH_LSB)
-#define DST_WATERMARK_HIGH_SET(x) \
-	(((0 | (x)) << DST_WATERMARK_HIGH_LSB) & DST_WATERMARK_HIGH_MASK)
-#define DST_WATERMARK_HIGH_RESET		0
-#define DST_WATERMARK_ADDRESS			0x0050
+struct ath10k_ce_ops {
+	struct ath10k_ce_ring *(*ce_alloc_src_ring)(struct ath10k *ar,
+						    u32 ce_id,
+						    const struct ce_attr *attr);
+	struct ath10k_ce_ring *(*ce_alloc_dst_ring)(struct ath10k *ar,
+						    u32 ce_id,
+						    const struct ce_attr *attr);
+	int (*ce_rx_post_buf)(struct ath10k_ce_pipe *pipe, void *ctx,
+			      dma_addr_t paddr);
+	int (*ce_completed_recv_next_nolock)(struct ath10k_ce_pipe *ce_state,
+					     void **per_transfer_contextp,
+					     u32 *nbytesp);
+	int (*ce_revoke_recv_next)(struct ath10k_ce_pipe *ce_state,
+				   void **per_transfer_contextp,
+				   dma_addr_t *nbytesp);
+	void (*ce_extract_desc_data)(struct ath10k *ar,
+				     struct ath10k_ce_ring *src_ring,
+				     u32 sw_index, dma_addr_t *bufferp,
+				     u32 *nbytesp, u32 *transfer_idp);
+	void (*ce_free_pipe)(struct ath10k *ar, int ce_id);
+	int (*ce_send_nolock)(struct ath10k_ce_pipe *pipe,
+			      void *per_transfer_context,
+			      dma_addr_t buffer, u32 nbytes,
+			      u32 transfer_id, u32 flags);
+};
 
 static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 {
 	return CE0_BASE_ADDRESS + (CE1_BASE_ADDRESS - CE0_BASE_ADDRESS) * ce_id;
 }
 
-#define CE_WATERMARK_MASK (HOST_IS_SRC_RING_LOW_WATERMARK_MASK  | \
-			   HOST_IS_SRC_RING_HIGH_WATERMARK_MASK | \
-			   HOST_IS_DST_RING_LOW_WATERMARK_MASK  | \
-			   HOST_IS_DST_RING_HIGH_WATERMARK_MASK)
-
-#define CE_ERROR_MASK	(MISC_IS_AXI_ERR_MASK           | \
-			 MISC_IS_DST_ADDR_ERR_MASK      | \
-			 MISC_IS_SRC_LEN_ERR_MASK       | \
-			 MISC_IS_DST_MAX_LEN_VIO_MASK   | \
-			 MISC_IS_DST_RING_OVERFLOW_MASK | \
-			 MISC_IS_SRC_RING_OVERFLOW_MASK)
+#define COPY_ENGINE_ID(COPY_ENGINE_BASE_ADDRESS) (((COPY_ENGINE_BASE_ADDRESS) \
+		- CE0_BASE_ADDRESS) / (CE1_BASE_ADDRESS - CE0_BASE_ADDRESS))
 
 #define CE_SRC_RING_TO_DESC(baddr, idx) \
 	(&(((struct ce_desc *)baddr)[idx]))
@@ -411,11 +347,19 @@ static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 #define CE_DEST_RING_TO_DESC(baddr, idx) \
 	(&(((struct ce_desc *)baddr)[idx]))
 
+#define CE_SRC_RING_TO_DESC_64(baddr, idx) \
+	(&(((struct ce_desc_64 *)baddr)[idx]))
+
+#define CE_DEST_RING_TO_DESC_64(baddr, idx) \
+	(&(((struct ce_desc_64 *)baddr)[idx]))
+
 /* Ring arithmetic (modulus number of entries in ring, which is a pwr of 2). */
 #define CE_RING_DELTA(nentries_mask, fromidx, toidx) \
-	(((int)(toidx)-(int)(fromidx)) & (nentries_mask))
+	(((int)(toidx) - (int)(fromidx)) & (nentries_mask))
 
 #define CE_RING_IDX_INCR(nentries_mask, idx) (((idx) + 1) & (nentries_mask))
+#define CE_RING_IDX_ADD(nentries_mask, idx, num) \
+		(((idx) + (num)) & (nentries_mask))
 
 #define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB \
 				ar->regs->ce_wrap_intr_sum_host_msi_lsb
@@ -425,10 +369,60 @@ static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 	(((x) & CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK) >> \
 		CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB)
 #define CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS			0x0000
+#define CE_INTERRUPT_SUMMARY		(GENMASK(CE_COUNT_MAX - 1, 0))
 
-#define CE_INTERRUPT_SUMMARY(ar) \
-	CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET( \
-		ath10k_pci_read32((ar), CE_WRAPPER_BASE_ADDRESS + \
-		CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS))
+static inline u32 ath10k_ce_interrupt_summary(struct ath10k *ar)
+{
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+
+	if (!ar->hw_params.per_ce_irq)
+		return CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET(
+			ce->bus_ops->read32((ar), CE_WRAPPER_BASE_ADDRESS +
+			CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS));
+	else
+		return CE_INTERRUPT_SUMMARY;
+}
+
+/* Host software's Copy Engine configuration. */
+#define CE_ATTR_FLAGS 0
+
+/*
+ * Configuration information for a Copy Engine pipe.
+ * Passed from Host to Target during startup (one per CE).
+ *
+ * NOTE: Structure is shared between Host software and Target firmware!
+ */
+struct ce_pipe_config {
+	__le32 pipenum;
+	__le32 pipedir;
+	__le32 nentries;
+	__le32 nbytes_max;
+	__le32 flags;
+	__le32 reserved;
+};
+
+/*
+ * Directions for interconnect pipe configuration.
+ * These definitions may be used during configuration and are shared
+ * between Host and Target.
+ *
+ * Pipe Directions are relative to the Host, so PIPEDIR_IN means
+ * "coming IN over air through Target to Host" as with a WiFi Rx operation.
+ * Conversely, PIPEDIR_OUT means "going OUT from Host through Target over air"
+ * as with a WiFi Tx operation. This is somewhat awkward for the "middle-man"
+ * Target since things that are "PIPEDIR_OUT" are coming IN to the Target
+ * over the interconnect.
+ */
+#define PIPEDIR_NONE    0
+#define PIPEDIR_IN      1  /* Target-->Host, WiFi Rx direction */
+#define PIPEDIR_OUT     2  /* Host->Target, WiFi Tx direction */
+#define PIPEDIR_INOUT   3  /* bidirectional */
+
+/* Establish a mapping between a service/direction and a pipe. */
+struct service_to_pipe {
+	__le32 service_id;
+	__le32 pipedir;
+	__le32 pipenum;
+};
 
 #endif /* _CE_H_ */

@@ -51,8 +51,8 @@ static unsigned int ip_list_gid __read_mostly;
 module_param(ip_list_tot, uint, 0400);
 module_param(ip_list_hash_size, uint, 0400);
 module_param(ip_list_perms, uint, 0400);
-module_param(ip_list_uid, uint, S_IRUGO | S_IWUSR);
-module_param(ip_list_gid, uint, S_IRUGO | S_IWUSR);
+module_param(ip_list_uid, uint, 0644);
+module_param(ip_list_gid, uint, 0644);
 MODULE_PARM_DESC(ip_list_tot, "number of IPs to remember per list");
 MODULE_PARM_DESC(ip_list_hash_size, "size of hash table used to look up IPs");
 MODULE_PARM_DESC(ip_list_perms, "permissions on /proc/net/xt_recent/* files");
@@ -95,7 +95,7 @@ struct recent_net {
 #endif
 };
 
-static int recent_net_id __read_mostly;
+static unsigned int recent_net_id __read_mostly;
 
 static inline struct recent_net *recent_pernet(struct net *net)
 {
@@ -106,11 +106,10 @@ static DEFINE_SPINLOCK(recent_lock);
 static DEFINE_MUTEX(recent_mutex);
 
 #ifdef CONFIG_PROC_FS
-static const struct file_operations recent_old_fops, recent_mt_fops;
+static const struct file_operations recent_mt_fops;
 #endif
 
 static u_int32_t hash_rnd __read_mostly;
-static bool hash_rnd_inited __read_mostly;
 
 static inline unsigned int recent_entry_hash4(const union nf_inet_addr *addr)
 {
@@ -185,8 +184,7 @@ recent_entry_init(struct recent_table *t, const union nf_inet_addr *addr,
 	}
 
 	nstamps_max += 1;
-	e = kmalloc(sizeof(*e) + sizeof(e->stamps[0]) * nstamps_max,
-		    GFP_ATOMIC);
+	e = kmalloc(struct_size(e, stamps, nstamps_max), GFP_ATOMIC);
 	if (e == NULL)
 		return NULL;
 	memcpy(&e->addr, addr, sizeof(e->addr));
@@ -237,7 +235,7 @@ static void recent_table_flush(struct recent_table *t)
 static bool
 recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
-	struct net *net = par->net;
+	struct net *net = xt_net(par);
 	struct recent_net *recent_net = recent_pernet(net);
 	const struct xt_recent_mtinfo_v1 *info = par->matchinfo;
 	struct recent_table *t;
@@ -246,7 +244,7 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	u_int8_t ttl;
 	bool ret = info->invert;
 
-	if (par->family == NFPROTO_IPV4) {
+	if (xt_family(par) == NFPROTO_IPV4) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (info->side == XT_RECENT_DEST)
@@ -267,7 +265,8 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	}
 
 	/* use TTL as seen before forwarding */
-	if (par->out != NULL && skb->sk == NULL)
+	if (xt_out(par) != NULL &&
+	    (!skb->sk || !net_eq(net, sock_net(skb->sk))))
 		ttl++;
 
 	spin_lock_bh(&recent_lock);
@@ -275,12 +274,12 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	nf_inet_addr_mask(&addr, &addr_mask, &t->mask);
 
-	e = recent_entry_lookup(t, &addr_mask, par->family,
+	e = recent_entry_lookup(t, &addr_mask, xt_family(par),
 				(info->check_set & XT_RECENT_TTL) ? ttl : 0);
 	if (e == NULL) {
 		if (!(info->check_set & XT_RECENT_SET))
 			goto out;
-		e = recent_entry_init(t, &addr_mask, par->family, ttl);
+		e = recent_entry_init(t, &addr_mask, xt_family(par), ttl);
 		if (e == NULL)
 			par->hotdrop = true;
 		ret = !ret;
@@ -340,13 +339,11 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 	int ret = -EINVAL;
 	size_t sz;
 
-	if (unlikely(!hash_rnd_inited)) {
-		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
-		hash_rnd_inited = true;
-	}
+	net_get_random_once(&hash_rnd, sizeof(hash_rnd));
+
 	if (info->check_set & ~XT_RECENT_VALID_FLAGS) {
-		pr_info("Unsupported user space flags (%08x)\n",
-			info->check_set);
+		pr_info_ratelimited("Unsupported userspace flags (%08x)\n",
+				    info->check_set);
 		return -EINVAL;
 	}
 	if (hweight8(info->check_set &
@@ -360,13 +357,13 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 	if ((info->check_set & XT_RECENT_REAP) && !info->seconds)
 		return -EINVAL;
 	if (info->hit_count >= XT_RECENT_MAX_NSTAMPS) {
-		pr_info("hitcount (%u) is larger than allowed maximum (%u)\n",
-			info->hit_count, XT_RECENT_MAX_NSTAMPS - 1);
+		pr_info_ratelimited("hitcount (%u) is larger than allowed maximum (%u)\n",
+				    info->hit_count, XT_RECENT_MAX_NSTAMPS - 1);
 		return -EINVAL;
 	}
-	if (info->name[0] == '\0' ||
-	    strnlen(info->name, XT_RECENT_NAME_LEN) == XT_RECENT_NAME_LEN)
-		return -EINVAL;
+	ret = xt_check_proc_name(info->name, sizeof(info->name));
+	if (ret)
+		return ret;
 
 	if (ip_pkt_list_tot && info->hit_count < ip_pkt_list_tot)
 		nstamp_mask = roundup_pow_of_two(ip_pkt_list_tot) - 1;
@@ -391,10 +388,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 	}
 
 	sz = sizeof(*t) + sizeof(t->iphash[0]) * ip_list_hash_size;
-	if (sz <= PAGE_SIZE)
-		t = kzalloc(sz, GFP_KERNEL);
-	else
-		t = vzalloc(sz);
+	t = kvzalloc(sz, GFP_KERNEL);
 	if (t == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -535,7 +529,7 @@ static int recent_seq_show(struct seq_file *seq, void *v)
 			   &e->addr.in6, e->ttl, e->stamps[i], e->index);
 	for (i = 0; i < e->nstamps; i++)
 		seq_printf(seq, "%s %lu", i ? "," : "", e->stamps[i]);
-	seq_printf(seq, "\n");
+	seq_putc(seq, '\n');
 	return 0;
 }
 
@@ -593,7 +587,7 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 		add = true;
 		break;
 	default:
-		pr_info("Need \"+ip\", \"-ip\" or \"/\"\n");
+		pr_info_ratelimited("Need \"+ip\", \"-ip\" or \"/\"\n");
 		return -EINVAL;
 	}
 
@@ -607,10 +601,8 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 		succ   = in4_pton(c, size, (void *)&addr, '\n', NULL);
 	}
 
-	if (!succ) {
-		pr_info("illegal address written to procfs\n");
+	if (!succ)
 		return -EINVAL;
-	}
 
 	spin_lock_bh(&recent_lock);
 	e = recent_entry_lookup(t, &addr, family, 0);

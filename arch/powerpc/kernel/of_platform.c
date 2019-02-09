@@ -45,7 +45,7 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	if (ppc_md.pci_setup_phb == NULL)
 		return -ENODEV;
 
-	pr_info("Setting up PCI bus %s\n", dev->dev.of_node->full_name);
+	pr_info("Setting up PCI bus %pOF\n", dev->dev.of_node);
 
 	/* Alloc and setup PHB data structure */
 	phb = pcibios_alloc_controller(dev->dev.of_node);
@@ -114,11 +114,6 @@ static struct platform_driver of_pci_phb_driver = {
 	},
 };
 
-static __init int of_pci_phb_init(void)
-{
-	return platform_driver_register(&of_pci_phb_driver);
-}
-
-device_initcall(of_pci_phb_init);
+builtin_platform_driver(of_pci_phb_driver);
 
 #endif /* CONFIG_PPC_OF_PLATFORM_PCI */

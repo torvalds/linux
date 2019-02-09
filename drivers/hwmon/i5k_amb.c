@@ -114,14 +114,14 @@ struct i5k_amb_data {
 	unsigned int num_attrs;
 };
 
-static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
+static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	return sprintf(buf, "%s\n", DRVNAME);
 }
 
 
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 static struct platform_device *amb_pdev;
 
@@ -274,8 +274,9 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 		num_ambs += hweight16(data->amb_present[i] & 0x7fff);
 
 	/* Set up sysfs stuff */
-	data->attrs = kzalloc(sizeof(*data->attrs) * num_ambs * KNOBS_PER_AMB,
-				GFP_KERNEL);
+	data->attrs = kzalloc(array3_size(num_ambs, KNOBS_PER_AMB,
+					  sizeof(*data->attrs)),
+			      GFP_KERNEL);
 	if (!data->attrs)
 		return -ENOMEM;
 	data->num_attrs = 0;
@@ -495,7 +496,7 @@ static struct {
 };
 
 #ifdef MODULE
-static struct pci_device_id i5k_amb_ids[] = {
+static const struct pci_device_id i5k_amb_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5000_ERR) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5400_ERR) },
 	{ 0, }

@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Author: Fabien Dessenne <fabien.dessenne@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef _STI_VID_H_
@@ -23,7 +23,9 @@ struct sti_vid {
 void sti_vid_commit(struct sti_vid *vid,
 		    struct drm_plane_state *state);
 void sti_vid_disable(struct sti_vid *vid);
-struct sti_vid *sti_vid_create(struct device *dev, int id,
-			       void __iomem *baseaddr);
+struct sti_vid *sti_vid_create(struct device *dev, struct drm_device *drm_dev,
+			       int id, void __iomem *baseaddr);
+
+int vid_debugfs_init(struct sti_vid *vid, struct drm_minor *minor);
 
 #endif

@@ -108,24 +108,6 @@ void fnic_debugfs_terminate(void)
 }
 
 /*
- * fnic_trace_ctrl_open - Open the trace_enable file for fnic_trace
- *               Or Open fc_trace_enable file for fc_trace
- * @inode: The inode pointer.
- * @file: The file pointer to attach the trace enable/disable flag.
- *
- * Description:
- * This routine opens a debugsfs file trace_enable or fc_trace_enable.
- *
- * Returns:
- * This function returns zero if successful.
- */
-static int fnic_trace_ctrl_open(struct inode *inode, struct file *filp)
-{
-	filp->private_data = inode->i_private;
-	return 0;
-}
-
-/*
  * fnic_trace_ctrl_read -
  *          Read  trace_enable ,fc_trace_enable
  *              or fc_trace_clear debugfs file
@@ -220,7 +202,7 @@ static ssize_t fnic_trace_ctrl_write(struct file *filp,
 
 static const struct file_operations fnic_trace_ctrl_fops = {
 	.owner = THIS_MODULE,
-	.open = fnic_trace_ctrl_open,
+	.open = simple_open,
 	.read = fnic_trace_ctrl_read,
 	.write = fnic_trace_ctrl_write,
 };
@@ -251,8 +233,8 @@ static int fnic_trace_debugfs_open(struct inode *inode,
 		return -ENOMEM;
 
 	if (*rdata_ptr == fc_trc_flag->fnic_trace) {
-		fnic_dbg_prt->buffer = vmalloc(3 *
-					(trace_max_pages * PAGE_SIZE));
+		fnic_dbg_prt->buffer = vmalloc(array3_size(3, trace_max_pages,
+							   PAGE_SIZE));
 		if (!fnic_dbg_prt->buffer) {
 			kfree(fnic_dbg_prt);
 			return -ENOMEM;
@@ -262,7 +244,8 @@ static int fnic_trace_debugfs_open(struct inode *inode,
 		fnic_dbg_prt->buffer_len = fnic_get_trace_data(fnic_dbg_prt);
 	} else {
 		fnic_dbg_prt->buffer =
-			vmalloc(3 * (fnic_fc_trace_max_pages * PAGE_SIZE));
+			vmalloc(array3_size(3, fnic_fc_trace_max_pages,
+					    PAGE_SIZE));
 		if (!fnic_dbg_prt->buffer) {
 			kfree(fnic_dbg_prt);
 			return -ENOMEM;
@@ -632,6 +615,7 @@ static ssize_t fnic_reset_stats_write(struct file *file,
 			sizeof(struct io_path_stats) - sizeof(u64));
 		memset(fw_stats_p+1, 0,
 			sizeof(struct fw_stats) - sizeof(u64));
+		ktime_get_real_ts64(&stats->stats_timestamps.last_reset_time);
 	}
 
 	(*ppos)++;

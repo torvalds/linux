@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * The struct perf_event_attr test support.
  *
@@ -18,20 +19,25 @@
  * permissions. All the event text files are stored there.
  */
 
+#include <debug.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "../perf.h"
-#include "util.h"
-#include "exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "tests.h"
 
 #define ENV "PERF_TEST_ATTR"
 
-extern int verbose;
-
 static char *dir;
+static bool ready;
 
 void test_attr__init(void)
 {
@@ -62,6 +68,9 @@ static int store_event(struct perf_event_attr *attr, pid_t pid, int cpu,
 {
 	FILE *file;
 	char path[PATH_MAX];
+
+	if (!ready)
+		return 0;
 
 	snprintf(path, PATH_MAX, "%s/event-%d-%llu-%d", dir,
 		 attr->type, attr->config, fd);
@@ -115,6 +124,12 @@ static int store_event(struct perf_event_attr *attr, pid_t pid, int cpu,
 	WRITE_ASS(exclude_guest,  "d");
 	WRITE_ASS(exclude_callchain_kernel, "d");
 	WRITE_ASS(exclude_callchain_user, "d");
+	WRITE_ASS(mmap2,	  "d");
+	WRITE_ASS(comm_exec,	  "d");
+	WRITE_ASS(context_switch, "d");
+	WRITE_ASS(write_backward, "d");
+	WRITE_ASS(namespaces,	  "d");
+	WRITE_ASS(use_clockid,    "d");
 	WRITE_ASS(wakeup_events, PRIu32);
 	WRITE_ASS(bp_type, PRIu32);
 	WRITE_ASS(config1, "llu");
@@ -132,10 +147,18 @@ void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
 {
 	int errno_saved = errno;
 
-	if (store_event(attr, pid, cpu, fd, group_fd, flags))
-		die("test attr FAILED");
+	if ((fd != -1) && store_event(attr, pid, cpu, fd, group_fd, flags)) {
+		pr_err("test attr FAILED");
+		exit(128);
+	}
 
 	errno = errno_saved;
+}
+
+void test_attr__ready(void)
+{
+	if (unlikely(test_attr__enabled) && !ready)
+		ready = true;
 }
 
 static int run_dir(const char *d, const char *perf)
@@ -144,16 +167,16 @@ static int run_dir(const char *d, const char *perf)
 	int vcnt = min(verbose, (int) sizeof(v) - 1);
 	char cmd[3*PATH_MAX];
 
-	if (verbose)
+	if (verbose > 0)
 		vcnt++;
 
-	snprintf(cmd, 3*PATH_MAX, PYTHON " %s/attr.py -d %s/attr/ -p %s %.*s",
-		 d, d, perf, vcnt, v);
+	scnprintf(cmd, 3*PATH_MAX, PYTHON " %s/attr.py -d %s/attr/ -p %s %.*s",
+		  d, d, perf, vcnt, v);
 
-	return system(cmd);
+	return system(cmd) ? TEST_FAIL : TEST_OK;
 }
 
-int test__attr(void)
+int test__attr(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct stat st;
 	char path_perf[PATH_MAX];
@@ -164,7 +187,7 @@ int test__attr(void)
 		return run_dir("./tests", "./perf");
 
 	/* Then installed path. */
-	snprintf(path_dir,  PATH_MAX, "%s/tests", perf_exec_path());
+	snprintf(path_dir,  PATH_MAX, "%s/tests", get_argv_exec_path());
 	snprintf(path_perf, PATH_MAX, "%s/perf", BINDIR);
 
 	if (!lstat(path_dir, &st) &&

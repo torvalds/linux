@@ -2,8 +2,6 @@
 	- this file (info on some of the filesystems supported by linux).
 Locking
 	- info on locking rules as they pertain to Linux VFS.
-Makefile
-	- Makefile for building the filsystems-part of DocBook.
 9p.txt
 	- 9p (v9fs) is an implementation of the Plan 9 remote fs protocol.
 adfs.txt
@@ -12,8 +10,8 @@ afs.txt
 	- info and examples for the distributed AFS (Andrew File System) fs.
 affs.txt
 	- info and mount options for the Amiga Fast File System.
-autofs4-mount-control.txt
-	- info on device control operations for autofs4 module.
+autofs-mount-control.txt
+	- info on device control operations for autofs module.
 automount-support.txt
 	- information about filesystem automount support.
 befs.txt
@@ -89,12 +87,8 @@ jfs.txt
 	- info and mount options for the JFS filesystem.
 locks.txt
 	- info on file locking implementations, flock() vs. fcntl(), etc.
-logfs.txt
-	- info on the LogFS flash filesystem.
 mandatory-locking.txt
 	- info on the Linux implementation of Sys V mandatory file locking.
-ncpfs.txt
-	- info on Novell Netware(tm) filesystem using NCP protocol.
 nfs/
 	- nfs-related documentation.
 nilfs2.txt

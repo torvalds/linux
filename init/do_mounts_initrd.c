@@ -1,13 +1,4 @@
-/*
- * Many of the syscalls used in this file expect some of the arguments
- * to be __user pointers not __kernel pointers.  To limit the sparse
- * noise, turn off sparse checking for this file.
- */
-#ifdef __CHECKER__
-#undef __CHECKER__
-#warning "Sparse checking disabled for this file"
-#endif
-
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/unistd.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -35,16 +26,16 @@ __setup("noinitrd", no_initrd);
 
 static int init_linuxrc(struct subprocess_info *info, struct cred *new)
 {
-	sys_unshare(CLONE_FS | CLONE_FILES);
+	ksys_unshare(CLONE_FS | CLONE_FILES);
 	/* stdin/stdout/stderr for /linuxrc */
-	sys_open("/dev/console", O_RDWR, 0);
-	sys_dup(0);
-	sys_dup(0);
+	ksys_open("/dev/console", O_RDWR, 0);
+	ksys_dup(0);
+	ksys_dup(0);
 	/* move initrd over / and chdir/chroot in initrd root */
-	sys_chdir("/root");
-	sys_mount(".", "/", NULL, MS_MOVE, NULL);
-	sys_chroot(".");
-	sys_setsid();
+	ksys_chdir("/root");
+	ksys_mount(".", "/", NULL, MS_MOVE, NULL);
+	ksys_chroot(".");
+	ksys_setsid();
 	return 0;
 }
 
@@ -59,8 +50,8 @@ static void __init handle_initrd(void)
 	create_dev("/dev/root.old", Root_RAM0);
 	/* mount initrd on rootfs' /root */
 	mount_block_root("/dev/root.old", root_mountflags & ~MS_RDONLY);
-	sys_mkdir("/old", 0700);
-	sys_chdir("/old");
+	ksys_mkdir("/old", 0700);
+	ksys_chdir("/old");
 
 	/* try loading default modules from initrd */
 	load_default_modules();
@@ -80,43 +71,43 @@ static void __init handle_initrd(void)
 	current->flags &= ~PF_FREEZER_SKIP;
 
 	/* move initrd to rootfs' /old */
-	sys_mount("..", ".", NULL, MS_MOVE, NULL);
+	ksys_mount("..", ".", NULL, MS_MOVE, NULL);
 	/* switch root and cwd back to / of rootfs */
-	sys_chroot("..");
+	ksys_chroot("..");
 
 	if (new_decode_dev(real_root_dev) == Root_RAM0) {
-		sys_chdir("/old");
+		ksys_chdir("/old");
 		return;
 	}
 
-	sys_chdir("/");
+	ksys_chdir("/");
 	ROOT_DEV = new_decode_dev(real_root_dev);
 	mount_root();
 
 	printk(KERN_NOTICE "Trying to move old root to /initrd ... ");
-	error = sys_mount("/old", "/root/initrd", NULL, MS_MOVE, NULL);
+	error = ksys_mount("/old", "/root/initrd", NULL, MS_MOVE, NULL);
 	if (!error)
 		printk("okay\n");
 	else {
-		int fd = sys_open("/dev/root.old", O_RDWR, 0);
+		int fd = ksys_open("/dev/root.old", O_RDWR, 0);
 		if (error == -ENOENT)
 			printk("/initrd does not exist. Ignored.\n");
 		else
 			printk("failed\n");
 		printk(KERN_NOTICE "Unmounting old root\n");
-		sys_umount("/old", MNT_DETACH);
+		ksys_umount("/old", MNT_DETACH);
 		printk(KERN_NOTICE "Trying to free ramdisk memory ... ");
 		if (fd < 0) {
 			error = fd;
 		} else {
-			error = sys_ioctl(fd, BLKFLSBUF, 0);
-			sys_close(fd);
+			error = ksys_ioctl(fd, BLKFLSBUF, 0);
+			ksys_close(fd);
 		}
 		printk(!error ? "okay\n" : "failed\n");
 	}
 }
 
-int __init initrd_load(void)
+bool __init initrd_load(void)
 {
 	if (mount_initrd) {
 		create_dev("/dev/ram", Root_RAM0);
@@ -127,11 +118,11 @@ int __init initrd_load(void)
 		 * mounted in the normal path.
 		 */
 		if (rd_load_image("/initrd.image") && ROOT_DEV != Root_RAM0) {
-			sys_unlink("/initrd.image");
+			ksys_unlink("/initrd.image");
 			handle_initrd();
-			return 1;
+			return true;
 		}
 	}
-	sys_unlink("/initrd.image");
-	return 0;
+	ksys_unlink("/initrd.image");
+	return false;
 }

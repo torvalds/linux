@@ -15,10 +15,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * P/N 861037:      Sensor HDCS1000        ASIC STV0600
  * P/N 861050-0010: Sensor HDCS1000        ASIC STV0600
  * P/N 861050-0020: Sensor Photobit PB100  ASIC STV0600-1 - QuickCam Express
@@ -255,8 +251,8 @@ static int hdcs_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 		if (err < 0)
 			return err;
 	}
-	PDEBUG(D_CONF, "Writing exposure %d, rowexp %d, srowexp %d",
-	       val, rowexp, srowexp);
+	gspca_dbg(gspca_dev, D_CONF, "Writing exposure %d, rowexp %d, srowexp %d\n",
+		  val, rowexp, srowexp);
 	return err;
 }
 
@@ -280,7 +276,7 @@ static int hdcs_set_gains(struct sd *sd, u8 g)
 
 static int hdcs_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
-	PDEBUG(D_CONF, "Writing gain %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Writing gain %d\n", val);
 	return hdcs_set_gains((struct sd *) gspca_dev,
 			       val & 0xff);
 }
@@ -469,7 +465,7 @@ static int hdcs_start(struct sd *sd)
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 
-	PDEBUG(D_STREAM, "Starting stream");
+	gspca_dbg(gspca_dev, D_STREAM, "Starting stream\n");
 
 	return hdcs_set_state(sd, HDCS_STATE_RUN);
 }
@@ -478,7 +474,7 @@ static int hdcs_stop(struct sd *sd)
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 
-	PDEBUG(D_STREAM, "Halting stream");
+	gspca_dbg(gspca_dev, D_STREAM, "Halting stream\n");
 
 	return hdcs_set_state(sd, HDCS_STATE_SLEEP);
 }

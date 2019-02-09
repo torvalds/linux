@@ -253,7 +253,6 @@ static int sx8654_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	i2c_set_clientdata(client, sx8654);
 	return 0;
 }
 

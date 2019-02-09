@@ -20,10 +20,10 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
-#include <linux/mfd/htc-egpio.h>
 #include <linux/mfd/htc-pasic3.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
+#include <linux/platform_data/gpio-htc-egpio.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/driver.h>
@@ -31,14 +31,14 @@
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/usb/gpio_vbus.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/system_info.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/magician.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
@@ -48,11 +48,15 @@
 #include <linux/regulator/max1586.h>
 
 #include <linux/platform_data/pxa2xx_udc.h>
-#include <mach/udc.h>
-#include <mach/pxa27x-udc.h>
 
+#include "udc.h"
+#include "pxa27x-udc.h"
 #include "devices.h"
 #include "generic.h"
+
+#include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
+#include <linux/spi/ads7846.h>
 
 static unsigned long magician_pin_config[] __initdata = {
 
@@ -85,7 +89,7 @@ static unsigned long magician_pin_config[] __initdata = {
 
 	/* SSP 2 TSC2046 touchscreen */
 	GPIO19_SSP2_SCLK,
-	GPIO14_SSP2_SFRM,
+	MFP_CFG_OUT(GPIO14, AF0, DRIVE_HIGH),	/* frame as GPIO */
 	GPIO89_SSP2_TXD,
 	GPIO88_SSP2_RXD,
 
@@ -121,10 +125,6 @@ static unsigned long magician_pin_config[] __initdata = {
 	GPIO107_GPIO,	/* DS1WM_IRQ */
 	GPIO108_GPIO,	/* GSM_READY */
 	GPIO115_GPIO,	/* nPEN_IRQ */
-
-	/* I2C */
-	GPIO117_I2C_SCL,
-	GPIO118_I2C_SDA,
 };
 
 /*
@@ -679,6 +679,37 @@ static struct platform_device bq24022 = {
 };
 
 /*
+ * fixed regulator for ads7846
+ */
+
+static struct regulator_consumer_supply ads7846_supply =
+	REGULATOR_SUPPLY("vcc", "spi2.0");
+
+static struct regulator_init_data vads7846_regulator = {
+	.constraints	= {
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &ads7846_supply,
+};
+
+static struct fixed_voltage_config vads7846 = {
+	.supply_name	= "vads7846",
+	.microvolts	= 3300000, /* probably */
+	.gpio		= -EINVAL,
+	.startup_delay	= 0,
+	.init_data	= &vads7846_regulator,
+};
+
+static struct platform_device vads7846_device = {
+	.name	= "reg-fixed-voltage",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &vads7846,
+	},
+};
+
+/*
  * Vcore regulator MAX1587A
  */
 
@@ -856,6 +887,49 @@ static struct i2c_pxa_platform_data magician_i2c_power_info = {
 };
 
 /*
+ * Touchscreen
+ */
+
+static struct ads7846_platform_data ads7846_pdata = {
+	.model		= 7846,
+	.x_plate_ohms	= 317,
+	.y_plate_ohms	= 500,
+	.pressure_max	= 1023,	/* with x plate ohms it will overflow 255 */
+	.debounce_max	= 3,	/* first readout is always bad */
+	.debounce_tol	= 30,
+	.debounce_rep	= 0,
+	.gpio_pendown	= GPIO115_MAGICIAN_nPEN_IRQ,
+	.keep_vref_on	= 1,
+	.wakeup		= true,
+	.vref_delay_usecs		= 100,
+	.penirq_recheck_delay_usecs	= 100,
+};
+
+struct pxa2xx_spi_chip tsc2046_chip_info = {
+	.tx_threshold	= 1,
+	.rx_threshold	= 2,
+	.timeout	= 64,
+	/* NOTICE must be GPIO, incompatibility with hw PXA SPI framing */
+	.gpio_cs	= GPIO14_MAGICIAN_TSC2046_CS,
+};
+
+static struct pxa2xx_spi_master magician_spi_info = {
+	.num_chipselect	= 1,
+	.enable_dma	= 1,
+};
+
+static struct spi_board_info ads7846_spi_board_info[] __initdata = {
+	{
+		.modalias		= "ads7846",
+		.bus_num		= 2,
+		.max_speed_hz		= 2500000,
+		.platform_data		= &ads7846_pdata,
+		.controller_data	= &tsc2046_chip_info,
+		.irq = PXA_GPIO_TO_IRQ(GPIO115_MAGICIAN_nPEN_IRQ),
+	},
+};
+
+/*
  * Platform devices
  */
 
@@ -869,6 +943,7 @@ static struct platform_device *devices[] __initdata = {
 	&power_supply,
 	&strataflash,
 	&leds_gpio,
+	&vads7846_device,
 };
 
 static struct gpio magician_global_gpios[] = {
@@ -925,6 +1000,9 @@ static void __init magician_init(void)
 			lcd_select ? &samsung_info : &toppoly_info);
 	} else
 		pr_err("LCD detection: CPLD mapping failed\n");
+
+	pxa2xx_set_spi_info(2, &magician_spi_info);
+	spi_register_board_info(ARRAY_AND_SIZE(ads7846_spi_board_info));
 
 	regulator_register_always_on(0, "power", pwm_backlight_supply,
 		ARRAY_SIZE(pwm_backlight_supply), 5000000);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "tegra124-nyan.dtsi"
@@ -6,7 +7,13 @@
 
 / {
 	model = "HP Chromebook 14";
-	compatible = "google,nyan-blaze", "google,nyan", "nvidia,tegra124";
+	compatible = "google,nyan-blaze-rev10", "google,nyan-blaze-rev9",
+		     "google,nyan-blaze-rev8", "google,nyan-blaze-rev7",
+		     "google,nyan-blaze-rev6", "google,nyan-blaze-rev5",
+		     "google,nyan-blaze-rev4", "google,nyan-blaze-rev3",
+		     "google,nyan-blaze-rev2", "google,nyan-blaze-rev1",
+		     "google,nyan-blaze-rev0", "google,nyan-blaze",
+		     "google,nyan", "nvidia,tegra124";
 
 	panel: panel {
 		compatible = "samsung,ltn140at29-301";
@@ -22,7 +29,7 @@
 		nvidia,model = "GoogleNyanBlaze";
 	};
 
-	pinmux@0,70000868 {
+	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinmux_default>;
 
@@ -1094,19 +1101,19 @@
 			};
 			cam_i2c_scl_pbb1 {
 				nvidia,pins = "cam_i2c_scl_pbb1";
-				nvidia,function = "rsvd3";
-				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
+				nvidia,function = "i2c3";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_ENABLE>;
 			};
 			cam_i2c_sda_pbb2 {
 				nvidia,pins = "cam_i2c_sda_pbb2";
-				nvidia,function = "rsvd3";
-				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
+				nvidia,function = "i2c3";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_ENABLE>;
 			};
 			pbb3 {
 				nvidia,pins = "pbb3";

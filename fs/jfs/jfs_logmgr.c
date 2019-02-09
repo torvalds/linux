@@ -1094,7 +1094,7 @@ int lmLogOpen(struct super_block *sb)
 		if (log->bdev->bd_dev == sbi->logdev) {
 			if (memcmp(log->uuid, sbi->loguuid,
 				   sizeof(log->uuid))) {
-				jfs_warn("wrong uuid on JFS journal\n");
+				jfs_warn("wrong uuid on JFS journal");
 				mutex_unlock(&jfs_log_mutex);
 				return -EINVAL;
 			}
@@ -1333,9 +1333,8 @@ int lmLogInit(struct jfs_log * log)
 				rc = -EINVAL;
 				goto errout20;
 			}
-			jfs_info("lmLogInit: inline log:0x%p base:0x%Lx "
-				 "size:0x%x", log,
-				 (unsigned long long) log->base, log->size);
+			jfs_info("lmLogInit: inline log:0x%p base:0x%Lx size:0x%x",
+				 log, (unsigned long long)log->base, log->size);
 		} else {
 			if (memcmp(logsuper->uuid, log->uuid, 16)) {
 				jfs_warn("wrong uuid on JFS log device");
@@ -1343,9 +1342,8 @@ int lmLogInit(struct jfs_log * log)
 			}
 			log->size = le32_to_cpu(logsuper->size);
 			log->l2bsize = le32_to_cpu(logsuper->l2bsize);
-			jfs_info("lmLogInit: external log:0x%p base:0x%Lx "
-				 "size:0x%x", log,
-				 (unsigned long long) log->base, log->size);
+			jfs_info("lmLogInit: external log:0x%p base:0x%Lx size:0x%x",
+				 log, (unsigned long long)log->base, log->size);
 		}
 
 		log->page = le32_to_cpu(logsuper->end) / LOGPSIZE;
@@ -1835,17 +1833,16 @@ static int lbmLogInit(struct jfs_log * log)
 	for (i = 0; i < LOGPAGES;) {
 		char *buffer;
 		uint offset;
-		struct page *page;
+		struct page *page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 
-		buffer = (char *) get_zeroed_page(GFP_KERNEL);
-		if (buffer == NULL)
+		if (!page)
 			goto error;
-		page = virt_to_page(buffer);
+		buffer = page_address(page);
 		for (offset = 0; offset < PAGE_SIZE; offset += LOGPSIZE) {
 			lbuf = kmalloc(sizeof(struct lbuf), GFP_KERNEL);
 			if (lbuf == NULL) {
 				if (offset == 0)
-					free_page((unsigned long) buffer);
+					__free_page(page);
 				goto error;
 			}
 			if (offset) /* we already have one reference */
@@ -1998,19 +1995,20 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
 	bio = bio_alloc(GFP_NOFS, 1);
 
 	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
-	bio->bi_bdev = log->bdev;
+	bio_set_dev(bio, log->bdev);
 
 	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
 	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;
+	bio->bi_opf = REQ_OP_READ;
 	/*check if journaling to disk has been disabled*/
 	if (log->no_integrity) {
 		bio->bi_iter.bi_size = 0;
 		lbmIODone(bio);
 	} else {
-		submit_bio(READ_SYNC, bio);
+		submit_bio(bio);
 	}
 
 	wait_event(bp->l_ioevent, (bp->l_flag != lbmREAD));
@@ -2137,24 +2135,25 @@ static void lbmStartIO(struct lbuf * bp)
 	struct bio *bio;
 	struct jfs_log *log = bp->l_log;
 
-	jfs_info("lbmStartIO\n");
+	jfs_info("lbmStartIO");
 
 	bio = bio_alloc(GFP_NOFS, 1);
 	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
-	bio->bi_bdev = log->bdev;
+	bio_set_dev(bio, log->bdev);
 
 	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
 	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;
+	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC;
 
 	/* check if journaling to disk has been disabled */
 	if (log->no_integrity) {
 		bio->bi_iter.bi_size = 0;
 		lbmIODone(bio);
 	} else {
-		submit_bio(WRITE_SYNC, bio);
+		submit_bio(bio);
 		INCREMENT(lmStat.submitted);
 	}
 }
@@ -2206,7 +2205,7 @@ static void lbmIODone(struct bio *bio)
 
 	bp->l_flag |= lbmDONE;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		bp->l_flag |= lbmERROR;
 
 		jfs_err("lbmIODone: I/O error in JFS log");
@@ -2494,7 +2493,7 @@ exit:
 }
 
 #ifdef CONFIG_JFS_STATISTICS
-static int jfs_lmstats_proc_show(struct seq_file *m, void *v)
+int jfs_lmstats_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m,
 		       "JFS Logmgr stats\n"
@@ -2511,17 +2510,4 @@ static int jfs_lmstats_proc_show(struct seq_file *m, void *v)
 		       lmStat.partial_page);
 	return 0;
 }
-
-static int jfs_lmstats_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, jfs_lmstats_proc_show, NULL);
-}
-
-const struct file_operations jfs_lmstats_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= jfs_lmstats_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif /* CONFIG_JFS_STATISTICS */

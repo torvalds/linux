@@ -142,8 +142,6 @@ static void __init jmr3927_board_init(void)
 
 	/* PIO[15:12] connected to LEDs */
 	__raw_writel(0x0000f000, &tx3927_pioptr->dir);
-	gpio_request(11, "dipsw1");
-	gpio_request(10, "dipsw2");
 
 	jmr3927_pci_setup();
 
@@ -152,12 +150,11 @@ static void __init jmr3927_board_init(void)
 
 	jmr3927_led_set(0);
 
-	printk(KERN_INFO
-	       "JMR-TX3927 (Rev %d) --- IOC(Rev %d) DIPSW:%d,%d,%d,%d\n",
-	       jmr3927_ioc_reg_in(JMR3927_IOC_BREV_ADDR) & JMR3927_REV_MASK,
-	       jmr3927_ioc_reg_in(JMR3927_IOC_REV_ADDR) & JMR3927_REV_MASK,
-	       jmr3927_dipsw1(), jmr3927_dipsw2(),
-	       jmr3927_dipsw3(), jmr3927_dipsw4());
+	pr_info("JMR-TX3927 (Rev %d) --- IOC(Rev %d) DIPSW:%d,%d,%d,%d\n",
+		jmr3927_ioc_reg_in(JMR3927_IOC_BREV_ADDR) & JMR3927_REV_MASK,
+		jmr3927_ioc_reg_in(JMR3927_IOC_REV_ADDR) & JMR3927_REV_MASK,
+		jmr3927_dipsw1(), jmr3927_dipsw2(),
+		jmr3927_dipsw3(), jmr3927_dipsw4());
 }
 
 /* This trick makes rtc-ds1742 driver usable as is. */
@@ -204,6 +201,14 @@ static void __init jmr3927_device_init(void)
 	txx9_iocled_init(iocled_base, -1, 8, 1, "green", NULL);
 }
 
+static void __init jmr3927_arch_init(void)
+{
+	txx9_gpio_init(TX3927_PIO_REG, 0, 16);
+
+	gpio_request(11, "dipsw1");
+	gpio_request(10, "dipsw2");
+}
+
 struct txx9_board_vec jmr3927_vec __initdata = {
 	.system = "Toshiba JMR_TX3927",
 	.prom_init = jmr3927_prom_init,
@@ -211,6 +216,7 @@ struct txx9_board_vec jmr3927_vec __initdata = {
 	.irq_setup = jmr3927_irq_setup,
 	.time_init = jmr3927_time_init,
 	.device_init = jmr3927_device_init,
+	.arch_init = jmr3927_arch_init,
 #ifdef CONFIG_PCI
 	.pci_map_irq = jmr3927_pci_map_irq,
 #endif

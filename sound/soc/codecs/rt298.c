@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/dmi.h>
 #include <linux/acpi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -38,7 +39,7 @@ struct rt298_priv {
 	struct reg_default *index_cache;
 	int index_cache_size;
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct rt298_platform_data pdata;
 	struct i2c_client *i2c;
 	struct snd_soc_jack *jack;
@@ -193,13 +194,13 @@ static bool rt298_readable_register(struct device *dev, unsigned int reg)
 }
 
 #ifdef CONFIG_PM
-static void rt298_index_sync(struct snd_soc_codec *codec)
+static void rt298_index_sync(struct snd_soc_component *component)
 {
-	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
+	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
 	int i;
 
 	for (i = 0; i < INDEX_CACHE_SIZE; i++) {
-		snd_soc_write(codec, rt298->index_cache[i].reg,
+		snd_soc_component_write(component, rt298->index_cache[i].reg,
 				  rt298->index_cache[i].def);
 	}
 }
@@ -226,10 +227,10 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 	*hp = false;
 	*mic = false;
 
-	if (!rt298->codec)
+	if (!rt298->component)
 		return -EINVAL;
 
-	dapm = snd_soc_codec_get_dapm(rt298->codec);
+	dapm = snd_soc_component_get_dapm(rt298->component);
 
 	if (rt298->pdata.cbj_en) {
 		regmap_read(rt298->regmap, RT298_GET_HP_SENSE, &buf);
@@ -247,6 +248,11 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 			/* power LDO1 */
 			snd_soc_dapm_force_enable_pin(dapm, "LDO1");
 			snd_soc_dapm_sync(dapm);
+
+			regmap_update_bits(rt298->regmap,
+				RT298_POWER_CTRL1, 0x1001, 0);
+			regmap_update_bits(rt298->regmap,
+				RT298_POWER_CTRL2, 0x4, 0x4);
 
 			regmap_write(rt298->regmap, RT298_SET_MIC1, 0x24);
 			msleep(50);
@@ -275,6 +281,8 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 		} else {
 			*mic = false;
 			regmap_write(rt298->regmap, RT298_SET_MIC1, 0x20);
+			regmap_update_bits(rt298->regmap,
+				RT298_CBJ_CTRL1, 0x0400, 0x0000);
 		}
 	} else {
 		regmap_read(rt298->regmap, RT298_GET_HP_SENSE, &buf);
@@ -282,9 +290,10 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 		regmap_read(rt298->regmap, RT298_GET_MIC1_SENSE, &buf);
 		*mic = buf & 0x80000000;
 	}
-
-	snd_soc_dapm_disable_pin(dapm, "HV");
-	snd_soc_dapm_disable_pin(dapm, "VREF");
+	if (!*mic) {
+		snd_soc_dapm_disable_pin(dapm, "HV");
+		snd_soc_dapm_disable_pin(dapm, "VREF");
+	}
 	if (!*hp)
 		snd_soc_dapm_disable_pin(dapm, "LDO1");
 	snd_soc_dapm_sync(dapm);
@@ -315,14 +324,34 @@ static void rt298_jack_detect_work(struct work_struct *work)
 		SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
 }
 
-int rt298_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
+int rt298_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack)
 {
-	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
+	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm;
+	bool hp = false;
+	bool mic = false;
+	int status = 0;
+
+	/* If jack in NULL, disable HS jack */
+	if (!jack) {
+		regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x0);
+		dapm = snd_soc_component_get_dapm(component);
+		snd_soc_dapm_disable_pin(dapm, "LDO1");
+		snd_soc_dapm_sync(dapm);
+		return 0;
+	}
 
 	rt298->jack = jack;
+	regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x2);
 
-	/* Send an initial empty report */
-	snd_soc_jack_report(rt298->jack, 0,
+	rt298_jack_detect(rt298, &hp, &mic);
+	if (hp == true)
+		status |= SND_JACK_HEADPHONE;
+
+	if (mic == true)
+		status |= SND_JACK_MICROPHONE;
+
+	snd_soc_jack_report(rt298->jack, status,
 		SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
 
 	return 0;
@@ -332,8 +361,8 @@ EXPORT_SYMBOL_GPL(rt298_mic_detect);
 static int is_mclk_mode(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
-	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
+	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
 
 	if (rt298->clk_id == RT298_SCLK_S_MCLK)
 		return 1;
@@ -430,15 +459,15 @@ SOC_DAPM_ENUM("SPO source", rt298_spo_enum);
 static int rt298_spk_event(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_write(codec,
+		snd_soc_component_write(component,
 			RT298_SPK_EAPD, RT298_SET_EAPD_HIGH);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_write(codec,
+		snd_soc_component_write(component,
 			RT298_SPK_EAPD, RT298_SET_EAPD_LOW);
 		break;
 
@@ -452,14 +481,14 @@ static int rt298_spk_event(struct snd_soc_dapm_widget *w,
 static int rt298_set_dmic1_event(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_write(codec, RT298_SET_PIN_DMIC1, 0x20);
+		snd_soc_component_write(component, RT298_SET_PIN_DMIC1, 0x20);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_write(codec, RT298_SET_PIN_DMIC1, 0);
+		snd_soc_component_write(component, RT298_SET_PIN_DMIC1, 0);
 		break;
 	default:
 		return 0;
@@ -471,19 +500,39 @@ static int rt298_set_dmic1_event(struct snd_soc_dapm_widget *w,
 static int rt298_adc_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	unsigned int nid;
 
 	nid = (w->reg >> 20) & 0xff;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			VERB_CMD(AC_VERB_SET_AMP_GAIN_MUTE, nid, 0),
 			0x7080, 0x7000);
+		 /* If MCLK doesn't exist, reset AD filter */
+		if (!(snd_soc_component_read32(component, RT298_VAD_CTRL) & 0x200)) {
+			pr_info("NO MCLK\n");
+			switch (nid) {
+			case RT298_ADC_IN1:
+				snd_soc_component_update_bits(component,
+					RT298_D_FILTER_CTRL, 0x2, 0x2);
+				mdelay(10);
+				snd_soc_component_update_bits(component,
+					RT298_D_FILTER_CTRL, 0x2, 0x0);
+				break;
+			case RT298_ADC_IN2:
+				snd_soc_component_update_bits(component,
+					RT298_D_FILTER_CTRL, 0x4, 0x4);
+				mdelay(10);
+				snd_soc_component_update_bits(component,
+					RT298_D_FILTER_CTRL, 0x4, 0x0);
+				break;
+			}
+		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			VERB_CMD(AC_VERB_SET_AMP_GAIN_MUTE, nid, 0),
 			0x7080, 0x7080);
 		break;
@@ -497,38 +546,20 @@ static int rt298_adc_event(struct snd_soc_dapm_widget *w,
 static int rt298_mic1_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_A_BIAS_CTRL3, 0xc000, 0x8000);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_A_BIAS_CTRL2, 0xc000, 0x8000);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_A_BIAS_CTRL3, 0xc000, 0x0000);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_A_BIAS_CTRL2, 0xc000, 0x0000);
-		break;
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
-static int rt298_vref_event(struct snd_soc_dapm_widget *w,
-			     struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_update_bits(codec,
-			RT298_CBJ_CTRL1, 0x0400, 0x0000);
-		mdelay(50);
 		break;
 	default:
 		return 0;
@@ -542,7 +573,7 @@ static const struct snd_soc_dapm_widget rt298_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("HV", 1, RT298_POWER_CTRL1,
 		12, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("VREF", RT298_POWER_CTRL1,
-		0, 1, rt298_vref_event, SND_SOC_DAPM_PRE_PMU),
+		0, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("BG_MBIAS", 1, RT298_POWER_CTRL2,
 		1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("LDO1", 1, RT298_POWER_CTRL2,
@@ -715,8 +746,8 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
 	unsigned int val = 0;
 	int d_len_code;
 
@@ -726,7 +757,7 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 	case 48000:
 		break;
 	default:
-		dev_err(codec->dev, "Unsupported sample rate %d\n",
+		dev_err(component->dev, "Unsupported sample rate %d\n",
 					params_rate(params));
 		return -EINVAL;
 	}
@@ -734,7 +765,7 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 	case 12288000:
 	case 24576000:
 		if (params_rate(params) != 48000) {
-			dev_err(codec->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
 					params_rate(params), rt298->sys_clk);
 			return -EINVAL;
 		}
@@ -742,7 +773,7 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 	case 11289600:
 	case 22579200:
 		if (params_rate(params) != 44100) {
-			dev_err(codec->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
 					params_rate(params), rt298->sys_clk);
 			return -EINVAL;
 		}
@@ -753,7 +784,7 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 		/* bit 3:0 Number of Channel */
 		val |= (params_channels(params) - 1);
 	} else {
-		dev_err(codec->dev, "Unsupported channels %d\n",
+		dev_err(component->dev, "Unsupported channels %d\n",
 					params_channels(params));
 		return -EINVAL;
 	}
@@ -784,27 +815,27 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec,
+	snd_soc_component_update_bits(component,
 		RT298_I2S_CTRL1, 0x0018, d_len_code << 3);
-	dev_dbg(codec->dev, "format val = 0x%x\n", val);
+	dev_dbg(component->dev, "format val = 0x%x\n", val);
 
-	snd_soc_update_bits(codec, RT298_DAC_FORMAT, 0x407f, val);
-	snd_soc_update_bits(codec, RT298_ADC_FORMAT, 0x407f, val);
+	snd_soc_component_update_bits(component, RT298_DAC_FORMAT, 0x407f, val);
+	snd_soc_component_update_bits(component, RT298_ADC_FORMAT, 0x407f, val);
 
 	return 0;
 }
 
 static int rt298_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL1, 0x800, 0x800);
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL1, 0x800, 0x0);
 		break;
 	default:
@@ -813,27 +844,27 @@ static int rt298_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL1, 0x300, 0x0);
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL1, 0x300, 0x1 << 8);
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL1, 0x300, 0x2 << 8);
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL1, 0x300, 0x3 << 8);
 		break;
 	default:
 		return -EINVAL;
 	}
 	/* bit 15 Stream Type 0:PCM 1:Non-PCM */
-	snd_soc_update_bits(codec, RT298_DAC_FORMAT, 0x8000, 0);
-	snd_soc_update_bits(codec, RT298_ADC_FORMAT, 0x8000, 0);
+	snd_soc_component_update_bits(component, RT298_DAC_FORMAT, 0x8000, 0);
+	snd_soc_component_update_bits(component, RT298_ADC_FORMAT, 0x8000, 0);
 
 	return 0;
 }
@@ -841,58 +872,56 @@ static int rt298_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int rt298_set_dai_sysclk(struct snd_soc_dai *dai,
 				int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "%s freq=%d\n", __func__, freq);
+	dev_dbg(component->dev, "%s freq=%d\n", __func__, freq);
 
 	if (RT298_SCLK_S_MCLK == clk_id) {
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL2, 0x0100, 0x0);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_PLL_CTRL1, 0x20, 0x20);
 	} else {
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL2, 0x0100, 0x0100);
-		snd_soc_update_bits(codec,
-			RT298_PLL_CTRL, 0x4, 0x4);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_PLL_CTRL1, 0x20, 0x0);
 	}
 
 	switch (freq) {
 	case 19200000:
 		if (RT298_SCLK_S_MCLK == clk_id) {
-			dev_err(codec->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should not use MCLK\n");
 			return -EINVAL;
 		}
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL2, 0x40, 0x40);
 		break;
 	case 24000000:
 		if (RT298_SCLK_S_MCLK == clk_id) {
-			dev_err(codec->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should not use MCLK\n");
 			return -EINVAL;
 		}
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL2, 0x40, 0x0);
 		break;
 	case 12288000:
 	case 11289600:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL2, 0x8, 0x0);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_CLK_DIV, 0xfc1e, 0x0004);
 		break;
 	case 24576000:
 	case 22579200:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL2, 0x8, 0x8);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_CLK_DIV, 0xfc1e, 0x5406);
 		break;
 	default:
-		dev_err(codec->dev, "Unsupported system clock\n");
+		dev_err(component->dev, "Unsupported system clock\n");
 		return -EINVAL;
 	}
 
@@ -904,49 +933,40 @@ static int rt298_set_dai_sysclk(struct snd_soc_dai *dai,
 
 static int rt298_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
-	dev_dbg(codec->dev, "%s ratio=%d\n", __func__, ratio);
+	dev_dbg(component->dev, "%s ratio=%d\n", __func__, ratio);
 	if (50 == ratio)
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL1, 0x1000, 0x1000);
 	else
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT298_I2S_CTRL1, 0x1000, 0x0);
 
 
 	return 0;
 }
 
-static int rt298_set_bias_level(struct snd_soc_codec *codec,
+static int rt298_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (SND_SOC_BIAS_STANDBY ==
-			snd_soc_codec_get_bias_level(codec)) {
-			snd_soc_write(codec,
+			snd_soc_component_get_bias_level(component)) {
+			snd_soc_component_write(component,
 				RT298_SET_AUDIO_POWER, AC_PWRST_D0);
-			snd_soc_update_bits(codec, 0x0d, 0x200, 0x200);
-			snd_soc_update_bits(codec, 0x52, 0x80, 0x0);
+			snd_soc_component_update_bits(component, 0x0d, 0x200, 0x200);
+			snd_soc_component_update_bits(component, 0x52, 0x80, 0x0);
 			mdelay(20);
-			snd_soc_update_bits(codec, 0x0d, 0x200, 0x0);
-			snd_soc_update_bits(codec, 0x52, 0x80, 0x80);
+			snd_soc_component_update_bits(component, 0x0d, 0x200, 0x0);
+			snd_soc_component_update_bits(component, 0x52, 0x80, 0x80);
 		}
 		break;
 
-	case SND_SOC_BIAS_ON:
-		mdelay(30);
-		snd_soc_update_bits(codec,
-			RT298_CBJ_CTRL1, 0x0400, 0x0400);
-
-		break;
-
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_write(codec,
+		snd_soc_component_write(component,
 			RT298_SET_AUDIO_POWER, AC_PWRST_D3);
-		snd_soc_update_bits(codec,
-			RT298_CBJ_CTRL1, 0x0400, 0x0000);
 		break;
 
 	default:
@@ -984,11 +1004,11 @@ static irqreturn_t rt298_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int rt298_probe(struct snd_soc_codec *codec)
+static int rt298_probe(struct snd_soc_component *component)
 {
-	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
+	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
 
-	rt298->codec = codec;
+	rt298->component = component;
 
 	if (rt298->i2c->irq) {
 		regmap_update_bits(rt298->regmap,
@@ -1003,19 +1023,17 @@ static int rt298_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rt298_remove(struct snd_soc_codec *codec)
+static void rt298_remove(struct snd_soc_component *component)
 {
-	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
+	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
 
 	cancel_delayed_work_sync(&rt298->jack_detect_work);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
-static int rt298_suspend(struct snd_soc_codec *codec)
+static int rt298_suspend(struct snd_soc_component *component)
 {
-	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
+	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
 
 	rt298->is_hp_in = -1;
 	regcache_cache_only(rt298->regmap, true);
@@ -1024,12 +1042,12 @@ static int rt298_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rt298_resume(struct snd_soc_codec *codec)
+static int rt298_resume(struct snd_soc_component *component)
 {
-	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
+	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(rt298->regmap, false);
-	rt298_index_sync(codec);
+	rt298_index_sync(component);
 	regcache_sync(rt298->regmap);
 
 	return 0;
@@ -1094,19 +1112,21 @@ static struct snd_soc_dai_driver rt298_dai[] = {
 
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt298 = {
-	.probe = rt298_probe,
-	.remove = rt298_remove,
-	.suspend = rt298_suspend,
-	.resume = rt298_resume,
-	.set_bias_level = rt298_set_bias_level,
-	.idle_bias_off = true,
-	.controls = rt298_snd_controls,
-	.num_controls = ARRAY_SIZE(rt298_snd_controls),
-	.dapm_widgets = rt298_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt298_dapm_widgets),
-	.dapm_routes = rt298_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt298_dapm_routes),
+static const struct snd_soc_component_driver soc_component_dev_rt298 = {
+	.probe			= rt298_probe,
+	.remove			= rt298_remove,
+	.suspend		= rt298_suspend,
+	.resume			= rt298_resume,
+	.set_bias_level		= rt298_set_bias_level,
+	.controls		= rt298_snd_controls,
+	.num_controls		= ARRAY_SIZE(rt298_snd_controls),
+	.dapm_widgets		= rt298_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(rt298_dapm_widgets),
+	.dapm_routes		= rt298_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(rt298_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt298_regmap = {
@@ -1133,6 +1153,24 @@ static const struct acpi_device_id rt298_acpi_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt298_acpi_match);
+
+static const struct dmi_system_id force_combo_jack_table[] = {
+	{
+		.ident = "Intel Broxton P",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Broxton P")
+		}
+	},
+	{
+		.ident = "Intel Gemini Lake",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Geminilake")
+		}
+	},
+	{ }
+};
 
 static int rt298_i2c_probe(struct i2c_client *i2c,
 			   const struct i2c_device_id *id)
@@ -1186,9 +1224,14 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 
 	/* enable jack combo mode on supported devices */
 	acpiid = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (acpiid) {
+	if (acpiid && acpiid->driver_data) {
 		rt298->pdata = *(struct rt298_platform_data *)
 				acpiid->driver_data;
+	}
+
+	if (dmi_check_system(force_combo_jack_table)) {
+		rt298->pdata.cbj_en = true;
+		rt298->pdata.gpio2_en = false;
 	}
 
 	/* VREF Charging */
@@ -1226,7 +1269,12 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 	regmap_write(rt298->regmap, RT298_MISC_CTRL1, 0x0000);
 	regmap_update_bits(rt298->regmap,
 				RT298_WIND_FILTER_CTRL, 0x0082, 0x0082);
-	regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x2);
+
+	regmap_write(rt298->regmap, RT298_UNSOLICITED_INLINE_CMD, 0x81);
+	regmap_write(rt298->regmap, RT298_UNSOLICITED_HP_OUT, 0x82);
+	regmap_write(rt298->regmap, RT298_UNSOLICITED_MIC1, 0x84);
+	regmap_update_bits(rt298->regmap, RT298_IRQ_FLAG_CTRL, 0x2, 0x2);
+
 	rt298->is_hp_in = -1;
 
 	if (rt298->i2c->irq) {
@@ -1239,7 +1287,8 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt298,
+	ret = devm_snd_soc_register_component(&i2c->dev,
+				     &soc_component_dev_rt298,
 				     rt298_dai, ARRAY_SIZE(rt298_dai));
 
 	return ret;
@@ -1251,7 +1300,6 @@ static int rt298_i2c_remove(struct i2c_client *i2c)
 
 	if (i2c->irq)
 		free_irq(i2c->irq, rt298);
-	snd_soc_unregister_codec(&i2c->dev);
 
 	return 0;
 }

@@ -313,11 +313,8 @@ static __le16 *dn_mk_ack_header(struct sock *sk, struct sk_buff *skb, unsigned c
 	ackcrs |= 0x8000;
 
 	/* If this is an "other data/ack" message, swap acknum and ackcrs */
-	if (other) {
-		unsigned short tmp = acknum;
-		acknum = ackcrs;
-		ackcrs = tmp;
-	}
+	if (other)
+		swap(acknum, ackcrs);
 
 	/* Set "cross subchannel" bit in ackcrs */
 	ackcrs |= 0x2000;
@@ -484,22 +481,11 @@ void dn_send_conn_ack (struct sock *sk)
 	if ((skb = dn_alloc_skb(sk, 3, sk->sk_allocation)) == NULL)
 		return;
 
-	msg = (struct nsp_conn_ack_msg *)skb_put(skb, 3);
+	msg = skb_put(skb, 3);
 	msg->msgflg = 0x24;
 	msg->dstaddr = scp->addrrem;
 
 	dn_nsp_send(skb);
-}
-
-void dn_nsp_delayed_ack(struct sock *sk)
-{
-	struct dn_scp *scp = DN_SK(sk);
-
-	if (scp->ackxmt_oth != scp->numoth_rcv)
-		dn_nsp_send_oth_ack(sk);
-
-	if (scp->ackxmt_dat != scp->numdat_rcv)
-		dn_nsp_send_data_ack(sk);
 }
 
 static int dn_nsp_retrans_conn_conf(struct sock *sk)
@@ -522,7 +508,7 @@ void dn_send_conn_conf(struct sock *sk, gfp_t gfp)
 	if ((skb = dn_alloc_skb(sk, 50 + len, gfp)) == NULL)
 		return;
 
-	msg = (struct nsp_conn_init_msg *)skb_put(skb, sizeof(*msg));
+	msg = skb_put(skb, sizeof(*msg));
 	msg->msgflg = 0x28;
 	msg->dstaddr = scp->addrrem;
 	msg->srcaddr = scp->addrloc;
@@ -530,10 +516,10 @@ void dn_send_conn_conf(struct sock *sk, gfp_t gfp)
 	msg->info = scp->info_loc;
 	msg->segsize = cpu_to_le16(scp->segsize_loc);
 
-	*skb_put(skb,1) = len;
+	skb_put_u8(skb, len);
 
 	if (len > 0)
-		memcpy(skb_put(skb, len), scp->conndata_out.opt_data, len);
+		skb_put_data(skb, scp->conndata_out.opt_data, len);
 
 
 	dn_nsp_send(skb);
@@ -662,7 +648,7 @@ void dn_nsp_send_conninit(struct sock *sk, unsigned char msgflg)
 		return;
 
 	cb  = DN_SKB_CB(skb);
-	msg = (struct nsp_conn_init_msg *)skb_put(skb,sizeof(*msg));
+	msg = skb_put(skb, sizeof(*msg));
 
 	msg->msgflg	= msgflg;
 	msg->dstaddr	= 0x0000;		/* Remote Node will assign it*/
@@ -686,27 +672,27 @@ void dn_nsp_send_conninit(struct sock *sk, unsigned char msgflg)
 	if (scp->peer.sdn_flags & SDF_UICPROXY)
 		menuver |= DN_MENUVER_UIC;
 
-	*skb_put(skb, 1) = menuver;	/* Menu Version		*/
+	skb_put_u8(skb, menuver);	/* Menu Version		*/
 
 	aux = scp->accessdata.acc_userl;
-	*skb_put(skb, 1) = aux;
+	skb_put_u8(skb, aux);
 	if (aux > 0)
-		memcpy(skb_put(skb, aux), scp->accessdata.acc_user, aux);
+		skb_put_data(skb, scp->accessdata.acc_user, aux);
 
 	aux = scp->accessdata.acc_passl;
-	*skb_put(skb, 1) = aux;
+	skb_put_u8(skb, aux);
 	if (aux > 0)
-		memcpy(skb_put(skb, aux), scp->accessdata.acc_pass, aux);
+		skb_put_data(skb, scp->accessdata.acc_pass, aux);
 
 	aux = scp->accessdata.acc_accl;
-	*skb_put(skb, 1) = aux;
+	skb_put_u8(skb, aux);
 	if (aux > 0)
-		memcpy(skb_put(skb, aux), scp->accessdata.acc_acc, aux);
+		skb_put_data(skb, scp->accessdata.acc_acc, aux);
 
 	aux = (__u8)le16_to_cpu(scp->conndata_out.opt_optl);
-	*skb_put(skb, 1) = aux;
+	skb_put_u8(skb, aux);
 	if (aux > 0)
-		memcpy(skb_put(skb, aux), scp->conndata_out.opt_data, aux);
+		skb_put_data(skb, scp->conndata_out.opt_data, aux);
 
 	scp->persist = dn_nsp_persist(sk);
 	scp->persist_fxn = dn_nsp_retrans_conninit;
@@ -715,4 +701,3 @@ void dn_nsp_send_conninit(struct sock *sk, unsigned char msgflg)
 
 	dn_nsp_send(skb);
 }
-

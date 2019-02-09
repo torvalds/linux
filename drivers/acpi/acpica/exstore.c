@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -416,7 +382,7 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 
 	/* Only limited target types possible for everything except copy_object */
 
-	if (walk_state->opcode != AML_COPY_OP) {
+	if (walk_state->opcode != AML_COPY_OBJECT_OP) {
 		/*
 		 * Only copy_object allows all object types to be overwritten. For
 		 * target_ref(s), there are restrictions on the object types that
@@ -467,7 +433,8 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 		case ACPI_TYPE_THERMAL:
 
 			ACPI_ERROR((AE_INFO,
-				    "Target must be [Buffer/Integer/String/Reference], found [%s] (%4.4s)",
+				    "Target must be [Buffer/Integer/String/Reference]"
+				    ", found [%s] (%4.4s)",
 				    acpi_ut_get_type_name(node->type),
 				    node->name.ascii));
 
@@ -498,14 +465,16 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 	case ACPI_TYPE_STRING:
 	case ACPI_TYPE_BUFFER:
 
-		if ((walk_state->opcode == AML_COPY_OP) || !implicit_conversion) {
+		if ((walk_state->opcode == AML_COPY_OBJECT_OP) ||
+		    !implicit_conversion) {
 			/*
 			 * However, copy_object and Stores to arg_x do not perform
 			 * an implicit conversion, as per the ACPI specification.
 			 * A direct store is performed instead.
 			 */
-			status = acpi_ex_store_direct_to_node(source_desc, node,
-							      walk_state);
+			status =
+			    acpi_ex_store_direct_to_node(source_desc, node,
+							 walk_state);
 			break;
 		}
 
@@ -528,8 +497,9 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 			 * store has been performed such that the node/object type
 			 * has been changed.
 			 */
-			status = acpi_ns_attach_object(node, new_desc,
-						       new_desc->common.type);
+			status =
+			    acpi_ns_attach_object(node, new_desc,
+						  new_desc->common.type);
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 					  "Store type [%s] into [%s] via Convert/Attach\n",
@@ -563,8 +533,8 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 		 * operator. (Note, for this default case, all normal
 		 * Store/Target operations exited above with an error).
 		 */
-		status = acpi_ex_store_direct_to_node(source_desc, node,
-						      walk_state);
+		status =
+		    acpi_ex_store_direct_to_node(source_desc, node, walk_state);
 		break;
 	}
 

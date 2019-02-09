@@ -1,0 +1,24 @@
+Common IEEE 802.11 properties
+
+This provides documentation of common properties that are valid for all wireless
+devices.
+
+Optional properties:
+ - ieee80211-freq-limit : list of supported frequency ranges in KHz. This can be
+	used for devices that in a given config support less channels than
+	normally. It may happen chipset supports a wide wireless band but it is
+	limited to some part of it due to used antennas or power amplifier.
+	An example case for this can be tri-band wireless router with two
+	identical chipsets used for two different 5 GHz subbands. Using them
+	incorrectly could not work or decrease performance noticeably.
+
+Example:
+
+pcie@0,0 {
+	reg = <0x0000 0 0 0 0>;
+	wifi@0,0 {
+		reg = <0x0000 0 0 0 0>;
+		ieee80211-freq-limit = <2402000 2482000>,
+				       <5170000 5250000>;
+	};
+};

@@ -16,6 +16,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
@@ -218,7 +219,8 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 		goto done_proc;
 	}
 
-	remaining_bytes = do_div(buffer_size, sizeof(__s32));
+	remaining_bytes = buffer_size % sizeof(__s32);
+	buffer_size = buffer_size / sizeof(__s32);
 	if (buffer_size) {
 		for (i = 0; i < buffer_size; ++i) {
 			hid_set_field(report->field[field_index], i,
@@ -249,6 +251,11 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	struct sensor_hub_data *data = hid_get_drvdata(hsdev->hdev);
 	int report_size;
 	int ret = 0;
+	u8 *val_ptr;
+	int buffer_index = 0;
+	int i;
+
+	memset(buffer, 0, buffer_size);
 
 	mutex_lock(&data->mutex);
 	report = sensor_hub_report(report_id, hsdev->hdev, HID_FEATURE_REPORT);
@@ -269,7 +276,17 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 		goto done_proc;
 	}
 	ret = min(report_size, buffer_size);
-	memcpy(buffer, report->field[field_index]->value, ret);
+
+	val_ptr = (u8 *)report->field[field_index]->value;
+	for (i = 0; i < report->field[field_index]->report_count; ++i) {
+		if (buffer_index >= ret)
+			break;
+
+		memcpy(&((u8 *)buffer)[buffer_index], val_ptr,
+		       report->field[field_index]->report_size / 8);
+		val_ptr += sizeof(__s32);
+		buffer_index += (report->field[field_index]->report_size / 8);
+	}
 
 done_proc:
 	mutex_unlock(&data->mutex);
@@ -282,7 +299,8 @@ EXPORT_SYMBOL_GPL(sensor_hub_get_feature);
 int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
 					u32 attr_usage_id, u32 report_id,
-					enum sensor_hub_read_flags flag)
+					enum sensor_hub_read_flags flag,
+					bool is_signed)
 {
 	struct sensor_hub_data *data = hid_get_drvdata(hsdev->hdev);
 	unsigned long flags;
@@ -314,10 +332,16 @@ int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 						&hsdev->pending.ready, HZ*5);
 		switch (hsdev->pending.raw_size) {
 		case 1:
-			ret_val = *(u8 *)hsdev->pending.raw_data;
+			if (is_signed)
+				ret_val = *(s8 *)hsdev->pending.raw_data;
+			else
+				ret_val = *(u8 *)hsdev->pending.raw_data;
 			break;
 		case 2:
-			ret_val = *(u16 *)hsdev->pending.raw_data;
+			if (is_signed)
+				ret_val = *(s16 *)hsdev->pending.raw_data;
+			else
+				ret_val = *(u16 *)hsdev->pending.raw_data;
 			break;
 		case 4:
 			ret_val = *(u32 *)hsdev->pending.raw_data;
@@ -565,36 +589,10 @@ EXPORT_SYMBOL_GPL(sensor_hub_device_close);
 static __u8 *sensor_hub_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
-	int index;
-	struct sensor_hub_data *sd =  hid_get_drvdata(hdev);
-	unsigned char report_block[] = {
-				0x0a,  0x16, 0x03, 0x15, 0x00, 0x25, 0x05};
-	unsigned char power_block[] = {
-				0x0a,  0x19, 0x03, 0x15, 0x00, 0x25, 0x05};
-
-	if (!(sd->quirks & HID_SENSOR_HUB_ENUM_QUIRK)) {
-		hid_dbg(hdev, "No Enum quirks\n");
-		return rdesc;
-	}
-
-	/* Looks for power and report state usage id and force to 1 */
-	for (index = 0; index < *rsize; ++index) {
-		if (((*rsize - index) > sizeof(report_block)) &&
-			!memcmp(&rdesc[index], report_block,
-						sizeof(report_block))) {
-			rdesc[index + 4] = 0x01;
-			index += sizeof(report_block);
-		}
-		if (((*rsize - index) > sizeof(power_block)) &&
-			!memcmp(&rdesc[index], power_block,
-						sizeof(power_block))) {
-			rdesc[index + 4] = 0x01;
-			index += sizeof(power_block);
-		}
-	}
-
-	/* Checks if the report descriptor of Thinkpad Helix 2 has a logical
-	 * minimum for magnetic flux axis greater than the maximum */
+	/*
+	 * Checks if the report descriptor of Thinkpad Helix 2 has a logical
+	 * minimum for magnetic flux axis greater than the maximum.
+	 */
 	if (hdev->product == USB_DEVICE_ID_TEXAS_INSTRUMENTS_LENOVO_YOGA &&
 		*rsize == 2558 && rdesc[913] == 0x17 && rdesc[914] == 0x40 &&
 		rdesc[915] == 0x81 && rdesc[916] == 0x08 &&
@@ -655,7 +653,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 		ret = -EINVAL;
 		goto err_stop_hw;
 	}
-	sd->hid_sensor_hub_client_devs = devm_kzalloc(&hdev->dev, dev_cnt *
+	sd->hid_sensor_hub_client_devs = devm_kcalloc(&hdev->dev,
+						      dev_cnt,
 						      sizeof(struct mfd_cell),
 						      GFP_KERNEL);
 	if (sd->hid_sensor_hub_client_devs == NULL) {
@@ -761,39 +760,6 @@ static void sensor_hub_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id sensor_hub_devices[] = {
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_INTEL_0,
-			USB_DEVICE_ID_INTEL_HID_SENSOR_0),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_INTEL_1,
-			USB_DEVICE_ID_INTEL_HID_SENSOR_0),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_INTEL_1,
-			USB_DEVICE_ID_INTEL_HID_SENSOR_1),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
-			USB_DEVICE_ID_MS_SURFACE_PRO_2),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
-			USB_DEVICE_ID_MS_TOUCH_COVER_2),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
-			USB_DEVICE_ID_MS_TYPE_COVER_2),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_STM_0,
-			USB_DEVICE_ID_STM_HID_SENSOR),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_STM_0,
-			USB_DEVICE_ID_STM_HID_SENSOR_1),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_TEXAS_INSTRUMENTS,
-			USB_DEVICE_ID_TEXAS_INSTRUMENTS_LENOVO_YOGA),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_ITE,
-			USB_DEVICE_ID_ITE_LENOVO_YOGA),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
-	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_ITE,
-			USB_DEVICE_ID_ITE_LENOVO_YOGA2),
-			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, HID_ANY_ID,
 		     HID_ANY_ID) },
 	{ }

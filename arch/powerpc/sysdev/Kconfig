@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.txt.
 #
@@ -28,6 +29,7 @@ config PPC_MSI_BITMAP
 	default y if PPC_POWERNV
 
 source "arch/powerpc/sysdev/xics/Kconfig"
+source "arch/powerpc/sysdev/xive/Kconfig"
 
 config PPC_SCOM
 	bool
@@ -40,3 +42,8 @@ config SCOM_DEBUGFS
 config GE_FPGA
 	bool
 	default n
+
+config FSL_CORENET_RCPM
+	bool
+	help
+	  This option enables support for RCPM (Run Control/Power Management).

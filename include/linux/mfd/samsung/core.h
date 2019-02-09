@@ -30,11 +30,16 @@
 #define MIN_600_MV		600000
 #define MIN_500_MV		500000
 
+/* Ramp delay in uV/us */
+#define RAMP_DELAY_12_MVUS	12000
+
 /* Macros to represent steps for LDO/BUCK */
 #define STEP_50_MV		50000
 #define STEP_25_MV		25000
 #define STEP_12_5_MV		12500
 #define STEP_6_25_MV		6250
+
+struct gpio_desc;
 
 enum sec_device_type {
 	S5M8751X,
@@ -44,6 +49,7 @@ enum sec_device_type {
 	S2MPS11X,
 	S2MPS13X,
 	S2MPS14X,
+	S2MPS15X,
 	S2MPU02,
 };
 
@@ -147,7 +153,7 @@ struct sec_regulator_data {
 	int				id;
 	struct regulator_init_data	*initdata;
 	struct device_node		*reg_node;
-	int				ext_control_gpio;
+	struct gpio_desc		*ext_control_gpiod;
 };
 
 /*

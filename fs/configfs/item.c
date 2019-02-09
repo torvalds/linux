@@ -64,7 +64,6 @@ static void config_item_init(struct config_item *item)
  */
 int config_item_set_name(struct config_item *item, const char *fmt, ...)
 {
-	int error = 0;
 	int limit = CONFIGFS_ITEM_NAME_LEN;
 	int need;
 	va_list args;
@@ -79,25 +78,11 @@ int config_item_set_name(struct config_item *item, const char *fmt, ...)
 	if (need < limit)
 		name = item->ci_namebuf;
 	else {
-		/*
-		 * Need more space? Allocate it and try again
-		 */
-		limit = need + 1;
-		name = kmalloc(limit, GFP_KERNEL);
-		if (!name) {
-			error = -ENOMEM;
-			goto Done;
-		}
 		va_start(args, fmt);
-		need = vsnprintf(name, limit, fmt, args);
+		name = kvasprintf(GFP_KERNEL, fmt, args);
 		va_end(args);
-
-		/* Still? Give up. */
-		if (need >= limit) {
-			kfree(name);
-			error = -EFAULT;
-			goto Done;
-		}
+		if (!name)
+			return -EFAULT;
 	}
 
 	/* Free the old name, if necessary. */
@@ -106,14 +91,13 @@ int config_item_set_name(struct config_item *item, const char *fmt, ...)
 
 	/* Now, set the new name */
 	item->ci_name = name;
- Done:
-	return error;
+	return 0;
 }
 EXPORT_SYMBOL(config_item_set_name);
 
 void config_item_init_type_name(struct config_item *item,
 				const char *name,
-				struct config_item_type *type)
+				const struct config_item_type *type)
 {
 	config_item_set_name(item, "%s", name);
 	item->ci_type = type;
@@ -122,7 +106,7 @@ void config_item_init_type_name(struct config_item *item,
 EXPORT_SYMBOL(config_item_init_type_name);
 
 void config_group_init_type_name(struct config_group *group, const char *name,
-			 struct config_item_type *type)
+			 const struct config_item_type *type)
 {
 	config_item_set_name(&group->cg_item, "%s", name);
 	group->cg_item.ci_type = type;
@@ -138,9 +122,17 @@ struct config_item *config_item_get(struct config_item *item)
 }
 EXPORT_SYMBOL(config_item_get);
 
+struct config_item *config_item_get_unless_zero(struct config_item *item)
+{
+	if (item && kref_get_unless_zero(&item->ci_kref))
+		return item;
+	return NULL;
+}
+EXPORT_SYMBOL(config_item_get_unless_zero);
+
 static void config_item_cleanup(struct config_item *item)
 {
-	struct config_item_type *t = item->ci_type;
+	const struct config_item_type *t = item->ci_type;
 	struct config_group *s = item->ci_group;
 	struct config_item *parent = item->ci_parent;
 
@@ -182,6 +174,7 @@ void config_group_init(struct config_group *group)
 {
 	config_item_init(&group->cg_item);
 	INIT_LIST_HEAD(&group->cg_children);
+	INIT_LIST_HEAD(&group->default_groups);
 }
 EXPORT_SYMBOL(config_group_init);
 

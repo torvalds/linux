@@ -1,14 +1,9 @@
-/*
- * Copyright (c) 2003-2005 Simtec Electronics
- *   Ben Dooks <ben@simtec.co.uk>
- *
- * http://www.handhelds.org/projects/h1940.html
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2003-2005 Simtec Electronics
+//   Ben Dooks <ben@simtec.co.uk>
+//
+// http://www.handhelds.org/projects/h1940.html
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -664,7 +659,7 @@ static void __init h1940_map_io(void)
 
 	/* Add latch gpio chip, set latch initial value */
 	h1940_latch_control(0, 0);
-	WARN_ON(gpiochip_add(&h1940_latch_gpiochip));
+	WARN_ON(gpiochip_add_data(&h1940_latch_gpiochip, NULL));
 }
 
 static void __init h1940_init_time(void)

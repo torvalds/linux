@@ -153,43 +153,6 @@ static const struct rtl2832_reg_entry registers[] = {
 	[DVBT_REG_4MSEL]	= {0x013,  0, 0},
 };
 
-/* Our regmap is bypassing I2C adapter lock, thus we do it! */
-static int rtl2832_bulk_write(struct i2c_client *client, unsigned int reg,
-			      const void *val, size_t val_count)
-{
-	struct rtl2832_dev *dev = i2c_get_clientdata(client);
-	int ret;
-
-	i2c_lock_adapter(client->adapter);
-	ret = regmap_bulk_write(dev->regmap, reg, val, val_count);
-	i2c_unlock_adapter(client->adapter);
-	return ret;
-}
-
-static int rtl2832_update_bits(struct i2c_client *client, unsigned int reg,
-			       unsigned int mask, unsigned int val)
-{
-	struct rtl2832_dev *dev = i2c_get_clientdata(client);
-	int ret;
-
-	i2c_lock_adapter(client->adapter);
-	ret = regmap_update_bits(dev->regmap, reg, mask, val);
-	i2c_unlock_adapter(client->adapter);
-	return ret;
-}
-
-static int rtl2832_bulk_read(struct i2c_client *client, unsigned int reg,
-			     void *val, size_t val_count)
-{
-	struct rtl2832_dev *dev = i2c_get_clientdata(client);
-	int ret;
-
-	i2c_lock_adapter(client->adapter);
-	ret = regmap_bulk_read(dev->regmap, reg, val, val_count);
-	i2c_unlock_adapter(client->adapter);
-	return ret;
-}
-
 static int rtl2832_rd_demod_reg(struct rtl2832_dev *dev, int reg, u32 *val)
 {
 	struct i2c_client *client = dev->client;
@@ -204,7 +167,7 @@ static int rtl2832_rd_demod_reg(struct rtl2832_dev *dev, int reg, u32 *val)
 	len = (msb >> 3) + 1;
 	mask = REG_MASK(msb - lsb);
 
-	ret = rtl2832_bulk_read(client, reg_start_addr, reading, len);
+	ret = regmap_bulk_read(dev->regmap, reg_start_addr, reading, len);
 	if (ret)
 		goto err;
 
@@ -234,7 +197,7 @@ static int rtl2832_wr_demod_reg(struct rtl2832_dev *dev, int reg, u32 val)
 	len = (msb >> 3) + 1;
 	mask = REG_MASK(msb - lsb);
 
-	ret = rtl2832_bulk_read(client, reg_start_addr, reading, len);
+	ret = regmap_bulk_read(dev->regmap, reg_start_addr, reading, len);
 	if (ret)
 		goto err;
 
@@ -248,7 +211,7 @@ static int rtl2832_wr_demod_reg(struct rtl2832_dev *dev, int reg, u32 val)
 	for (i = 0; i < len; i++)
 		writing[i] = (writing_tmp >> ((len - 1 - i) * 8)) & 0xff;
 
-	ret = rtl2832_bulk_write(client, reg_start_addr, writing, len);
+	ret = regmap_bulk_write(dev->regmap, reg_start_addr, writing, len);
 	if (ret)
 		goto err;
 
@@ -347,6 +310,10 @@ static int rtl2832_init(struct dvb_frontend *fe)
 
 	dev_dbg(&client->dev, "\n");
 
+	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x0);
+	if (ret)
+		goto err;
+
 	for (i = 0; i < ARRAY_SIZE(rtl2832_initial_regs); i++) {
 		ret = rtl2832_wr_demod_reg(dev, rtl2832_initial_regs[i].reg,
 			rtl2832_initial_regs[i].value);
@@ -404,8 +371,6 @@ static int rtl2832_init(struct dvb_frontend *fe)
 	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	c->post_bit_count.len = 1;
 	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	/* start statistics polling */
-	schedule_delayed_work(&dev->stat_work, msecs_to_jiffies(2000));
 	dev->sleeping = false;
 
 	return 0;
@@ -423,8 +388,6 @@ static int rtl2832_sleep(struct dvb_frontend *fe)
 	dev_dbg(&client->dev, "\n");
 
 	dev->sleeping = true;
-	/* stop statistics polling */
-	cancel_delayed_work_sync(&dev->stat_work);
 	dev->fe_status = 0;
 
 	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x1);
@@ -445,8 +408,8 @@ static int rtl2832_get_tune_settings(struct dvb_frontend *fe,
 
 	dev_dbg(&client->dev, "\n");
 	s->min_delay_ms = 1000;
-	s->step_size = fe->ops.info.frequency_stepsize * 2;
-	s->max_drift = (fe->ops.info.frequency_stepsize * 2) + 1;
+	s->step_size = fe->ops.info.frequency_stepsize_hz * 2;
+	s->max_drift = (fe->ops.info.frequency_stepsize_hz * 2) + 1;
 	return 0;
 }
 
@@ -491,11 +454,6 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe);
 
-	/* PIP mode related */
-	ret = rtl2832_bulk_write(client, 0x192, "\x00\x0f\xff", 3);
-	if (ret)
-		goto err;
-
 	/* If the frontend has get_if_frequency(), use it */
 	if (fe->ops.tuner_ops.get_if_frequency) {
 		u32 if_freq;
@@ -530,7 +488,8 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	}
 
 	for (j = 0; j < sizeof(bw_params[0]); j++) {
-		ret = rtl2832_bulk_write(client, 0x11c + j, &bw_params[i][j], 1);
+		ret = regmap_bulk_write(dev->regmap,
+					0x11c + j, &bw_params[i][j], 1);
 		if (ret)
 			goto err;
 	}
@@ -539,7 +498,7 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	* RSAMP_RATIO = floor(CrystalFreqHz * 7 * pow(2, 22)
 	*	/ ConstWithBandwidthMode)
 	*/
-	num = dev->pdata->clk * 7;
+	num = dev->pdata->clk * 7ULL;
 	num *= 0x400000;
 	num = div_u64(num, bw_mode);
 	resamp_ratio =  num & 0x3ffffff;
@@ -552,7 +511,7 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	*	/ (CrystalFreqHz * 7))
 	*/
 	num = bw_mode << 20;
-	num2 = dev->pdata->clk * 7;
+	num2 = dev->pdata->clk * 7ULL;
 	num = div_u64(num, num2);
 	num = -num;
 	cfreq_off_ratio = num & 0xfffff;
@@ -575,22 +534,22 @@ err:
 	return ret;
 }
 
-static int rtl2832_get_frontend(struct dvb_frontend *fe)
+static int rtl2832_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *c)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[3];
 
 	if (dev->sleeping)
 		return 0;
 
-	ret = rtl2832_bulk_read(client, 0x33c, buf, 2);
+	ret = regmap_bulk_read(dev->regmap, 0x33c, buf, 2);
 	if (ret)
 		goto err;
 
-	ret = rtl2832_bulk_read(client, 0x351, &buf[2], 1);
+	ret = regmap_bulk_read(dev->regmap, 0x351, &buf[2], 1);
 	if (ret)
 		goto err;
 
@@ -692,8 +651,11 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u32 uninitialized_var(tmp);
+	u8 u8tmp, buf[2];
+	u16 u16tmp;
 
 	dev_dbg(&client->dev, "\n");
 
@@ -714,6 +676,88 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	}
 
 	dev->fe_status = *status;
+
+	/* signal strength */
+	if (dev->fe_status & FE_HAS_SIGNAL) {
+		/* read digital AGC */
+		ret = regmap_bulk_read(dev->regmap, 0x305, &u8tmp, 1);
+		if (ret)
+			goto err;
+
+		dev_dbg(&client->dev, "digital agc=%02x", u8tmp);
+
+		u8tmp = ~u8tmp;
+		u16tmp = u8tmp << 8 | u8tmp << 0;
+
+		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		c->strength.stat[0].uvalue = u16tmp;
+	} else {
+		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* CNR */
+	if (dev->fe_status & FE_HAS_VITERBI) {
+		unsigned hierarchy, constellation;
+		#define CONSTELLATION_NUM 3
+		#define HIERARCHY_NUM 4
+		static const u32 constant[CONSTELLATION_NUM][HIERARCHY_NUM] = {
+			{85387325, 85387325, 85387325, 85387325},
+			{86676178, 86676178, 87167949, 87795660},
+			{87659938, 87659938, 87885178, 88241743},
+		};
+
+		ret = regmap_bulk_read(dev->regmap, 0x33c, &u8tmp, 1);
+		if (ret)
+			goto err;
+
+		constellation = (u8tmp >> 2) & 0x03; /* [3:2] */
+		if (constellation > CONSTELLATION_NUM - 1)
+			goto err;
+
+		hierarchy = (u8tmp >> 4) & 0x07; /* [6:4] */
+		if (hierarchy > HIERARCHY_NUM - 1)
+			goto err;
+
+		ret = regmap_bulk_read(dev->regmap, 0x40c, buf, 2);
+		if (ret)
+			goto err;
+
+		u16tmp = buf[0] << 8 | buf[1] << 0;
+		if (u16tmp)
+			tmp = (constant[constellation][hierarchy] -
+			       intlog10(u16tmp)) / ((1 << 24) / 10000);
+		else
+			tmp = 0;
+
+		dev_dbg(&client->dev, "cnr raw=%u\n", u16tmp);
+
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		c->cnr.stat[0].svalue = tmp;
+	} else {
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* BER */
+	if (dev->fe_status & FE_HAS_LOCK) {
+		ret = regmap_bulk_read(dev->regmap, 0x34e, buf, 2);
+		if (ret)
+			goto err;
+
+		u16tmp = buf[0] << 8 | buf[1] << 0;
+		dev->post_bit_error += u16tmp;
+		dev->post_bit_count += 1000000;
+
+		dev_dbg(&client->dev, "ber errors=%u total=1000000\n", u16tmp);
+
+		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_error.stat[0].uvalue = dev->post_bit_error;
+		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_count.stat[0].uvalue = dev->post_bit_count;
+	} else {
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
 	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
@@ -743,109 +787,8 @@ static int rtl2832_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static void rtl2832_stat_work(struct work_struct *work)
-{
-	struct rtl2832_dev *dev = container_of(work, struct rtl2832_dev, stat_work.work);
-	struct i2c_client *client = dev->client;
-	struct dtv_frontend_properties *c = &dev->fe.dtv_property_cache;
-	int ret, tmp;
-	u8 u8tmp, buf[2];
-	u16 u16tmp;
-
-	dev_dbg(&client->dev, "\n");
-
-	/* signal strength */
-	if (dev->fe_status & FE_HAS_SIGNAL) {
-		/* read digital AGC */
-		ret = rtl2832_bulk_read(client, 0x305, &u8tmp, 1);
-		if (ret)
-			goto err;
-
-		dev_dbg(&client->dev, "digital agc=%02x", u8tmp);
-
-		u8tmp = ~u8tmp;
-		u16tmp = u8tmp << 8 | u8tmp << 0;
-
-		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
-		c->strength.stat[0].uvalue = u16tmp;
-	} else {
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	}
-
-	/* CNR */
-	if (dev->fe_status & FE_HAS_VITERBI) {
-		unsigned hierarchy, constellation;
-		#define CONSTELLATION_NUM 3
-		#define HIERARCHY_NUM 4
-		static const u32 constant[CONSTELLATION_NUM][HIERARCHY_NUM] = {
-			{85387325, 85387325, 85387325, 85387325},
-			{86676178, 86676178, 87167949, 87795660},
-			{87659938, 87659938, 87885178, 88241743},
-		};
-
-		ret = rtl2832_bulk_read(client, 0x33c, &u8tmp, 1);
-		if (ret)
-			goto err;
-
-		constellation = (u8tmp >> 2) & 0x03; /* [3:2] */
-		if (constellation > CONSTELLATION_NUM - 1)
-			goto err_schedule_delayed_work;
-
-		hierarchy = (u8tmp >> 4) & 0x07; /* [6:4] */
-		if (hierarchy > HIERARCHY_NUM - 1)
-			goto err_schedule_delayed_work;
-
-		ret = rtl2832_bulk_read(client, 0x40c, buf, 2);
-		if (ret)
-			goto err;
-
-		u16tmp = buf[0] << 8 | buf[1] << 0;
-		if (u16tmp)
-			tmp = (constant[constellation][hierarchy] -
-			       intlog10(u16tmp)) / ((1 << 24) / 10000);
-		else
-			tmp = 0;
-
-		dev_dbg(&client->dev, "cnr raw=%u\n", u16tmp);
-
-		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
-		c->cnr.stat[0].svalue = tmp;
-	} else {
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	}
-
-	/* BER */
-	if (dev->fe_status & FE_HAS_LOCK) {
-		ret = rtl2832_bulk_read(client, 0x34e, buf, 2);
-		if (ret)
-			goto err;
-
-		u16tmp = buf[0] << 8 | buf[1] << 0;
-		dev->post_bit_error += u16tmp;
-		dev->post_bit_count += 1000000;
-
-		dev_dbg(&client->dev, "ber errors=%u total=1000000\n", u16tmp);
-
-		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
-		c->post_bit_error.stat[0].uvalue = dev->post_bit_error;
-		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
-		c->post_bit_count.stat[0].uvalue = dev->post_bit_count;
-	} else {
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	}
-
-err_schedule_delayed_work:
-	schedule_delayed_work(&dev->stat_work, msecs_to_jiffies(2000));
-	return;
-err:
-	dev_dbg(&client->dev, "failed=%d\n", ret);
-}
-
 /*
  * I2C gate/mux/repeater logic
- * We must use unlocked __i2c_transfer() here (through regmap) because of I2C
- * adapter lock is already taken by tuner driver.
  * There is delay mechanism to avoid unneeded I2C gate open / close. Gate close
  * is delayed here a little bit in order to see if there is sequence of I2C
  * messages sent to same I2C bus.
@@ -857,7 +800,7 @@ static void rtl2832_i2c_gate_work(struct work_struct *work)
 	int ret;
 
 	/* close gate */
-	ret = rtl2832_update_bits(dev->client, 0x101, 0x08, 0x00);
+	ret = regmap_update_bits(dev->regmap, 0x101, 0x08, 0x00);
 	if (ret)
 		goto err;
 
@@ -866,19 +809,16 @@ err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 }
 
-static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
+static int rtl2832_select(struct i2c_mux_core *muxc, u32 chan_id)
 {
-	struct rtl2832_dev *dev = mux_priv;
+	struct rtl2832_dev *dev = i2c_mux_priv(muxc);
 	struct i2c_client *client = dev->client;
 	int ret;
 
 	/* terminate possible gate closing */
 	cancel_delayed_work(&dev->i2c_gate_work);
 
-	/*
-	 * I2C adapter lock is already taken and due to that we will use
-	 * regmap_update_bits() which does not lock again I2C adapter.
-	 */
+	/* open gate */
 	ret = regmap_update_bits(dev->regmap, 0x101, 0x08, 0x08);
 	if (ret)
 		goto err;
@@ -889,22 +829,21 @@ err:
 	return ret;
 }
 
-static int rtl2832_deselect(struct i2c_adapter *adap, void *mux_priv,
-			    u32 chan_id)
+static int rtl2832_deselect(struct i2c_mux_core *muxc, u32 chan_id)
 {
-	struct rtl2832_dev *dev = mux_priv;
+	struct rtl2832_dev *dev = i2c_mux_priv(muxc);
 
 	schedule_delayed_work(&dev->i2c_gate_work, usecs_to_jiffies(100));
 	return 0;
 }
 
-static struct dvb_frontend_ops rtl2832_ops = {
+static const struct dvb_frontend_ops rtl2832_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Realtek RTL2832 (DVB-T)",
-		.frequency_min	  = 174000000,
-		.frequency_max	  = 862000000,
-		.frequency_stepsize = 166667,
+		.frequency_min_hz	= 174 * MHz,
+		.frequency_max_hz	= 862 * MHz,
+		.frequency_stepsize_hz	= 166667,
 		.caps = FE_CAN_FEC_1_2 |
 			FE_CAN_FEC_2_3 |
 			FE_CAN_FEC_3_4 |
@@ -951,117 +890,6 @@ static bool rtl2832_volatile_reg(struct device *dev, unsigned int reg)
 	return false;
 }
 
-/*
- * We implement own I2C access routines for regmap in order to get manual access
- * to I2C adapter lock, which is needed for I2C mux adapter.
- */
-static int rtl2832_regmap_read(void *context, const void *reg_buf,
-			       size_t reg_size, void *val_buf, size_t val_size)
-{
-	struct i2c_client *client = context;
-	int ret;
-	struct i2c_msg msg[2] = {
-		{
-			.addr = client->addr,
-			.flags = 0,
-			.len = reg_size,
-			.buf = (u8 *)reg_buf,
-		}, {
-			.addr = client->addr,
-			.flags = I2C_M_RD,
-			.len = val_size,
-			.buf = val_buf,
-		}
-	};
-
-	ret = __i2c_transfer(client->adapter, msg, 2);
-	if (ret != 2) {
-		dev_warn(&client->dev, "i2c reg read failed %d\n", ret);
-		if (ret >= 0)
-			ret = -EREMOTEIO;
-		return ret;
-	}
-	return 0;
-}
-
-static int rtl2832_regmap_write(void *context, const void *data, size_t count)
-{
-	struct i2c_client *client = context;
-	int ret;
-	struct i2c_msg msg[1] = {
-		{
-			.addr = client->addr,
-			.flags = 0,
-			.len = count,
-			.buf = (u8 *)data,
-		}
-	};
-
-	ret = __i2c_transfer(client->adapter, msg, 1);
-	if (ret != 1) {
-		dev_warn(&client->dev, "i2c reg write failed %d\n", ret);
-		if (ret >= 0)
-			ret = -EREMOTEIO;
-		return ret;
-	}
-	return 0;
-}
-
-static int rtl2832_regmap_gather_write(void *context, const void *reg,
-				       size_t reg_len, const void *val,
-				       size_t val_len)
-{
-	struct i2c_client *client = context;
-	int ret;
-	u8 buf[256];
-	struct i2c_msg msg[1] = {
-		{
-			.addr = client->addr,
-			.flags = 0,
-			.len = 1 + val_len,
-			.buf = buf,
-		}
-	};
-
-	buf[0] = *(u8 const *)reg;
-	memcpy(&buf[1], val, val_len);
-
-	ret = __i2c_transfer(client->adapter, msg, 1);
-	if (ret != 1) {
-		dev_warn(&client->dev, "i2c reg write failed %d\n", ret);
-		if (ret >= 0)
-			ret = -EREMOTEIO;
-		return ret;
-	}
-	return 0;
-}
-
-/*
- * FIXME: Hack. Implement own regmap locking in order to silence lockdep
- * recursive lock warning. That happens when regmap I2C client calls I2C mux
- * adapter, which leads demod I2C repeater enable via demod regmap. Operation
- * takes two regmap locks recursively - but those are different regmap instances
- * in a two different I2C drivers, so it is not deadlock. Proper fix is to make
- * regmap aware of lockdep.
- */
-static void rtl2832_regmap_lock(void *__dev)
-{
-	struct rtl2832_dev *dev = __dev;
-	struct i2c_client *client = dev->client;
-
-	dev_dbg(&client->dev, "\n");
-	mutex_lock(&dev->regmap_mutex);
-}
-
-static void rtl2832_regmap_unlock(void *__dev)
-{
-	struct rtl2832_dev *dev = __dev;
-	struct i2c_client *client = dev->client;
-
-	dev_dbg(&client->dev, "\n");
-	mutex_unlock(&dev->regmap_mutex);
-}
-
 static struct dvb_frontend *rtl2832_get_dvb_frontend(struct i2c_client *client)
 {
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
@@ -1075,52 +903,51 @@ static struct i2c_adapter *rtl2832_get_i2c_adapter(struct i2c_client *client)
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev, "\n");
-	return dev->i2c_adapter_tuner;
+	return dev->muxc->adapter[0];
 }
 
-static int rtl2832_enable_slave_ts(struct i2c_client *client)
+static int rtl2832_slave_ts_ctrl(struct i2c_client *client, bool enable)
 {
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
 	int ret;
 
-	dev_dbg(&client->dev, "\n");
+	dev_dbg(&client->dev, "enable=%d\n", enable);
 
-	ret = rtl2832_bulk_write(client, 0x10c, "\x5f\xff", 2);
-	if (ret)
-		goto err;
+	if (enable) {
+		ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x0);
+		if (ret)
+			goto err;
+		ret = regmap_bulk_write(dev->regmap, 0x10c, "\x5f\xff", 2);
+		if (ret)
+			goto err;
+		ret = rtl2832_wr_demod_reg(dev, DVBT_PIP_ON, 0x1);
+		if (ret)
+			goto err;
+		ret = regmap_bulk_write(dev->regmap, 0x0bc, "\x18", 1);
+		if (ret)
+			goto err;
+		ret = regmap_bulk_write(dev->regmap, 0x192, "\x7f\xf7\xff", 3);
+		if (ret)
+			goto err;
+	} else {
+		ret = regmap_bulk_write(dev->regmap, 0x192, "\x00\x0f\xff", 3);
+		if (ret)
+			goto err;
+		ret = regmap_bulk_write(dev->regmap, 0x0bc, "\x08", 1);
+		if (ret)
+			goto err;
+		ret = rtl2832_wr_demod_reg(dev, DVBT_PIP_ON, 0x0);
+		if (ret)
+			goto err;
+		ret = regmap_bulk_write(dev->regmap, 0x10c, "\x00\x00", 2);
+		if (ret)
+			goto err;
+		ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x1);
+		if (ret)
+			goto err;
+	}
 
-	ret = rtl2832_wr_demod_reg(dev, DVBT_PIP_ON, 0x1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_bulk_write(client, 0x0bc, "\x18", 1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_bulk_write(client, 0x022, "\x01", 1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_bulk_write(client, 0x026, "\x1f", 1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_bulk_write(client, 0x027, "\xff", 1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_bulk_write(client, 0x192, "\x7f\xf7\xff", 3);
-	if (ret)
-		goto err;
-
-	/* soft reset */
-	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x0);
-	if (ret)
-		goto err;
+	dev->slave_ts = enable;
 
 	return 0;
 err:
@@ -1135,7 +962,7 @@ static int rtl2832_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
 	int ret;
 	u8 u8tmp;
 
-	dev_dbg(&client->dev, "onoff=%d\n", onoff);
+	dev_dbg(&client->dev, "onoff=%d, slave_ts=%d\n", onoff, dev->slave_ts);
 
 	/* enable / disable PID filter */
 	if (onoff)
@@ -1143,7 +970,10 @@ static int rtl2832_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
 	else
 		u8tmp = 0x00;
 
-	ret = rtl2832_update_bits(client, 0x061, 0xc0, u8tmp);
+	if (dev->slave_ts)
+		ret = regmap_update_bits(dev->regmap, 0x021, 0xc0, u8tmp);
+	else
+		ret = regmap_update_bits(dev->regmap, 0x061, 0xc0, u8tmp);
 	if (ret)
 		goto err;
 
@@ -1161,8 +991,8 @@ static int rtl2832_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid,
 	int ret;
 	u8 buf[4];
 
-	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d\n",
-		index, pid, onoff);
+	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d slave_ts=%d\n",
+		index, pid, onoff, dev->slave_ts);
 
 	/* skip invalid PIDs (0x2000) */
 	if (pid > 0x1fff || index > 32)
@@ -1178,14 +1008,22 @@ static int rtl2832_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid,
 	buf[1] = (dev->filters >>  8) & 0xff;
 	buf[2] = (dev->filters >> 16) & 0xff;
 	buf[3] = (dev->filters >> 24) & 0xff;
-	ret = rtl2832_bulk_write(client, 0x062, buf, 4);
+
+	if (dev->slave_ts)
+		ret = regmap_bulk_write(dev->regmap, 0x022, buf, 4);
+	else
+		ret = regmap_bulk_write(dev->regmap, 0x062, buf, 4);
 	if (ret)
 		goto err;
 
 	/* add PID */
 	buf[0] = (pid >> 8) & 0xff;
 	buf[1] = (pid >> 0) & 0xff;
-	ret = rtl2832_bulk_write(client, 0x066 + 2 * index, buf, 2);
+
+	if (dev->slave_ts)
+		ret = regmap_bulk_write(dev->regmap, 0x026 + 2 * index, buf, 2);
+	else
+		ret = regmap_bulk_write(dev->regmap, 0x066 + 2 * index, buf, 2);
 	if (ret)
 		goto err;
 
@@ -1203,12 +1041,6 @@ static int rtl2832_probe(struct i2c_client *client,
 	struct rtl2832_dev *dev;
 	int ret;
 	u8 tmp;
-	static const struct regmap_bus regmap_bus = {
-		.read = rtl2832_regmap_read,
-		.write = rtl2832_regmap_write,
-		.gather_write = rtl2832_regmap_gather_write,
-		.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
-	};
 	static const struct regmap_range_cfg regmap_range_cfg[] = {
 		{
 			.selector_reg     = 0x00,
@@ -1236,38 +1068,36 @@ static int rtl2832_probe(struct i2c_client *client,
 	dev->pdata = client->dev.platform_data;
 	dev->sleeping = true;
 	INIT_DELAYED_WORK(&dev->i2c_gate_work, rtl2832_i2c_gate_work);
-	INIT_DELAYED_WORK(&dev->stat_work, rtl2832_stat_work);
 	/* create regmap */
-	mutex_init(&dev->regmap_mutex);
 	dev->regmap_config.reg_bits =  8,
 	dev->regmap_config.val_bits =  8,
-	dev->regmap_config.lock = rtl2832_regmap_lock,
-	dev->regmap_config.unlock = rtl2832_regmap_unlock,
-	dev->regmap_config.lock_arg = dev,
 	dev->regmap_config.volatile_reg = rtl2832_volatile_reg,
 	dev->regmap_config.max_register = 5 * 0x100,
 	dev->regmap_config.ranges = regmap_range_cfg,
 	dev->regmap_config.num_ranges = ARRAY_SIZE(regmap_range_cfg),
 	dev->regmap_config.cache_type = REGCACHE_NONE,
-	dev->regmap = regmap_init(&client->dev, &regmap_bus, client,
-				  &dev->regmap_config);
+	dev->regmap = regmap_init_i2c(client, &dev->regmap_config);
 	if (IS_ERR(dev->regmap)) {
 		ret = PTR_ERR(dev->regmap);
 		goto err_kfree;
 	}
 
 	/* check if the demod is there */
-	ret = rtl2832_bulk_read(client, 0x000, &tmp, 1);
+	ret = regmap_bulk_read(dev->regmap, 0x000, &tmp, 1);
 	if (ret)
 		goto err_regmap_exit;
 
 	/* create muxed i2c adapter for demod tuner bus */
-	dev->i2c_adapter_tuner = i2c_add_mux_adapter(i2c, &i2c->dev, dev,
-			0, 0, 0, rtl2832_select, rtl2832_deselect);
-	if (dev->i2c_adapter_tuner == NULL) {
-		ret = -ENODEV;
+	dev->muxc = i2c_mux_alloc(i2c, &i2c->dev, 1, 0, I2C_MUX_LOCKED,
+				  rtl2832_select, rtl2832_deselect);
+	if (!dev->muxc) {
+		ret = -ENOMEM;
 		goto err_regmap_exit;
 	}
+	dev->muxc->priv = dev;
+	ret = i2c_mux_add_adapter(dev->muxc, 0, 0, 0);
+	if (ret)
+		goto err_regmap_exit;
 
 	/* create dvb_frontend */
 	memcpy(&dev->fe.ops, &rtl2832_ops, sizeof(struct dvb_frontend_ops));
@@ -1276,12 +1106,10 @@ static int rtl2832_probe(struct i2c_client *client,
 	/* setup callbacks */
 	pdata->get_dvb_frontend = rtl2832_get_dvb_frontend;
 	pdata->get_i2c_adapter = rtl2832_get_i2c_adapter;
-	pdata->enable_slave_ts = rtl2832_enable_slave_ts;
+	pdata->slave_ts_ctrl = rtl2832_slave_ts_ctrl;
 	pdata->pid_filter = rtl2832_pid_filter;
 	pdata->pid_filter_ctrl = rtl2832_pid_filter_ctrl;
-	pdata->bulk_read = rtl2832_bulk_read;
-	pdata->bulk_write = rtl2832_bulk_write;
-	pdata->update_bits = rtl2832_update_bits;
+	pdata->regmap = dev->regmap;
 
 	dev_info(&client->dev, "Realtek RTL2832 successfully attached\n");
 	return 0;
@@ -1302,7 +1130,7 @@ static int rtl2832_remove(struct i2c_client *client)
 
 	cancel_delayed_work_sync(&dev->i2c_gate_work);
 
-	i2c_del_mux_adapter(dev->i2c_adapter_tuner);
+	i2c_mux_del_adapters(dev->muxc);
 
 	regmap_exit(dev->regmap);
 
@@ -1320,6 +1148,7 @@ MODULE_DEVICE_TABLE(i2c, rtl2832_id_table);
 static struct i2c_driver rtl2832_driver = {
 	.driver = {
 		.name	= "rtl2832",
+		.suppress_bind_attrs	= true,
 	},
 	.probe		= rtl2832_probe,
 	.remove		= rtl2832_remove,

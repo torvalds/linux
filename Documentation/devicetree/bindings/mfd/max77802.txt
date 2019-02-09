@@ -14,11 +14,10 @@ Required properties:
 - compatible		: Must be "maxim,max77802"
 - reg			: Specifies the I2C slave address of PMIC block.
 - interrupts		: I2C device IRQ line connected to the main SoC.
-- interrupt-parent	: The parent interrupt controller.
 
 Example:
 
-	max77802: pmic@09 {
+	max77802: pmic@9 {
 		compatible = "maxim,max77802";
 		interrupt-parent = <&intc>;
 		interrupts = <26 IRQ_TYPE_NONE>;

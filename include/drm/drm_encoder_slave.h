@@ -29,6 +29,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_encoder.h>
 
 /**
  * struct drm_encoder_slave_funcs - Entry points exposed by a slave encoder driver
@@ -95,7 +96,7 @@ struct drm_encoder_slave_funcs {
 struct drm_encoder_slave {
 	struct drm_encoder base;
 
-	struct drm_encoder_slave_funcs *slave_funcs;
+	const struct drm_encoder_slave_funcs *slave_funcs;
 	void *slave_priv;
 	void *bus_priv;
 };

@@ -42,6 +42,18 @@
 				status = "okay";
 			};
 
+			tcb0: timer@f8008000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
 			i2c0: i2c@f8010000 {
 				status = "okay";
 
@@ -147,17 +159,29 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "hw";
-			atmel,has-pmecc;
-			atmel,pmecc-cap = <2>;
-			atmel,pmecc-sector-size = <512>;
-			nand-on-flash-bbt;
+		ebi: ebi@10000000 {
 			status = "okay";
+
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+				pinctrl-names = "default";
+
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioD 5 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioD 4 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-ecc-strength = <2>;
+					nand-ecc-step-size = <512>;
+					nand-on-flash-bbt;
+					label = "atmel_nand";
+				};
+			};
 		};
 
-		usb0: ohci@00500000 {
+		usb0: ohci@500000 {
 			num-ports = <1>;
 			atmel,vbus-gpio = <&pioB 7 GPIO_ACTIVE_LOW>;
 			status = "okay";
@@ -215,7 +239,7 @@
 	};
 
 	panel: panel {
-		compatible = "qd,qd43003c0-40", "simple-panel";
+		compatible = "qiaodian,qd43003c0-40", "simple-panel";
 		backlight = <&backlight>;
 		power-supply = <&panel_reg>;
 		#address-cells = <1>;

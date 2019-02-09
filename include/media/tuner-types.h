@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * descriptions for simple tuners.
  */
@@ -35,8 +36,12 @@ enum param_type {
  * those ranges, as they're defined inside the driver. This is used by
  * analog tuners that are compatible with the "Philips way" to setup the
  * tuners. On those devices, the tuner set is done via 4 bytes:
- *	divider byte1 (DB1), divider byte 2 (DB2), Control byte (CB) and
- *	band switch byte (BB).
+ *
+ *	#) divider byte1 (DB1)
+ *	#) divider byte 2 (DB2)
+ *	#) Control byte (CB)
+ *	#) band switch byte (BB)
+ *
  * Some tuners also have an additional optional Auxiliary byte (AB).
  */
 struct tuner_range {
@@ -166,6 +171,21 @@ struct tuner_params {
 	struct tuner_range *ranges;
 };
 
+/**
+ * struct tunertype - describes the known tuners.
+ *
+ * @name:	string with the tuner's name.
+ * @count:	size of &struct tuner_params array.
+ * @params:	pointer to &struct tuner_params array.
+ *
+ * @min:	minimal tuner frequency, in 62.5 kHz step.
+ *		should be multiplied to 16 to convert to MHz.
+ * @max:	minimal tuner frequency, in 62.5 kHz step.
+ *		Should be multiplied to 16 to convert to MHz.
+ * @stepsize:	frequency step, in Hz.
+ * @initdata:	optional byte sequence to initialize the tuner.
+ * @sleepdata:	optional byte sequence to power down the tuner.
+ */
 struct tunertype {
 	char *name;
 	unsigned int count;

@@ -18,6 +18,7 @@
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/property.h>
 
 #include <linux/mfd/da9052/da9052.h>
 #include <linux/mfd/da9052/pdata.h>
@@ -167,6 +168,7 @@ static bool da9052_reg_writeable(struct device *dev, unsigned int reg)
 	case DA9052_EVENT_B_REG:
 	case DA9052_EVENT_C_REG:
 	case DA9052_EVENT_D_REG:
+	case DA9052_FAULTLOG_REG:
 	case DA9052_IRQ_MASK_A_REG:
 	case DA9052_IRQ_MASK_B_REG:
 	case DA9052_IRQ_MASK_C_REG:
@@ -385,6 +387,8 @@ int da9052_adc_manual_read(struct da9052 *da9052, unsigned char channel)
 
 	mutex_lock(&da9052->auxadc_lock);
 
+	reinit_completion(&da9052->done);
+
 	/* Channel gets activated on enabling the Conversion bit */
 	mux_sel = chan_mux[channel] | DA9052_ADC_MAN_MAN_CONV;
 
@@ -518,14 +522,15 @@ static const struct mfd_cell da9052_subdev_info[] = {
 		.name = "da9052-wled3",
 	},
 	{
-		.name = "da9052-tsi",
-	},
-	{
 		.name = "da9052-bat",
 	},
 	{
 		.name = "da9052-watchdog",
 	},
+};
+
+static const struct mfd_cell da9052_tsi_subdev_info[] = {
+	{ .name = "da9052-tsi" },
 };
 
 const struct regmap_config da9052_regmap_config = {
@@ -541,6 +546,52 @@ const struct regmap_config da9052_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(da9052_regmap_config);
 
+static int da9052_clear_fault_log(struct da9052 *da9052)
+{
+	int ret = 0;
+	int fault_log = 0;
+
+	fault_log = da9052_reg_read(da9052, DA9052_FAULTLOG_REG);
+	if (fault_log < 0) {
+		dev_err(da9052->dev,
+			"Cannot read FAULT_LOG %d\n", fault_log);
+		return fault_log;
+	}
+
+	if (fault_log) {
+		if (fault_log & DA9052_FAULTLOG_TWDERROR)
+			dev_dbg(da9052->dev,
+				"Fault log entry detected: TWD_ERROR\n");
+		if (fault_log & DA9052_FAULTLOG_VDDFAULT)
+			dev_dbg(da9052->dev,
+				"Fault log entry detected: VDD_FAULT\n");
+		if (fault_log & DA9052_FAULTLOG_VDDSTART)
+			dev_dbg(da9052->dev,
+				"Fault log entry detected: VDD_START\n");
+		if (fault_log & DA9052_FAULTLOG_TEMPOVER)
+			dev_dbg(da9052->dev,
+				"Fault log entry detected: TEMP_OVER\n");
+		if (fault_log & DA9052_FAULTLOG_KEYSHUT)
+			dev_dbg(da9052->dev,
+				"Fault log entry detected: KEY_SHUT\n");
+		if (fault_log & DA9052_FAULTLOG_NSDSET)
+			dev_dbg(da9052->dev,
+				"Fault log entry detected: nSD_SHUT\n");
+		if (fault_log & DA9052_FAULTLOG_WAITSET)
+			dev_dbg(da9052->dev,
+				"Fault log entry detected: WAIT_SHUT\n");
+
+		ret = da9052_reg_write(da9052,
+					DA9052_FAULTLOG_REG,
+					0xFF);
+		if (ret < 0)
+			dev_err(da9052->dev,
+				"Cannot reset FAULT_LOG values %d\n", ret);
+	}
+
+	return ret;
+}
+
 int da9052_device_init(struct da9052 *da9052, u8 chip_id)
 {
 	struct da9052_pdata *pdata = dev_get_platdata(da9052->dev);
@@ -548,6 +599,10 @@ int da9052_device_init(struct da9052 *da9052, u8 chip_id)
 
 	mutex_init(&da9052->auxadc_lock);
 	init_completion(&da9052->done);
+
+	ret = da9052_clear_fault_log(da9052);
+	if (ret < 0)
+		dev_warn(da9052->dev, "Cannot clear FAULT_LOG\n");
 
 	if (pdata && pdata->init != NULL)
 		pdata->init(da9052);
@@ -568,9 +623,27 @@ int da9052_device_init(struct da9052 *da9052, u8 chip_id)
 		goto err;
 	}
 
+	/*
+	 * Check if touchscreen pins are used are analogue input instead
+	 * of having a touchscreen connected to them. The analogue input
+	 * functionality will be provided by hwmon driver (if enabled).
+	 */
+	if (!device_property_read_bool(da9052->dev, "dlg,tsi-as-adc")) {
+		ret = mfd_add_devices(da9052->dev, PLATFORM_DEVID_AUTO,
+				      da9052_tsi_subdev_info,
+				      ARRAY_SIZE(da9052_tsi_subdev_info),
+				      NULL, 0, NULL);
+		if (ret) {
+			dev_err(da9052->dev, "failed to add TSI subdev: %d\n",
+				ret);
+			goto err;
+		}
+	}
+
 	return 0;
 
 err:
+	mfd_remove_devices(da9052->dev);
 	da9052_irq_exit(da9052);
 
 	return ret;

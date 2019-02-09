@@ -59,16 +59,26 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox_client.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
+#include <acpi/pcc.h>
 
 #include "mailbox.h"
 
-#define MAX_PCC_SUBSPACES	256
+#define MBOX_IRQ_NAME		"pcc-mbox"
 
 static struct mbox_chan *pcc_mbox_channels;
+
+/* Array of cached virtual address for doorbell registers */
+static void __iomem **pcc_doorbell_vaddr;
+/* Array of cached virtual address for doorbell ack registers */
+static void __iomem **pcc_doorbell_ack_vaddr;
+/* Array of doorbell interrupts */
+static int *pcc_doorbell_irq;
 
 static struct mbox_controller pcc_mbox_ctrl = {};
 /**
@@ -81,16 +91,136 @@ static struct mbox_controller pcc_mbox_ctrl = {};
  */
 static struct mbox_chan *get_pcc_channel(int id)
 {
-	struct mbox_chan *pcc_chan;
-
-	if (id < 0 || id > pcc_mbox_ctrl.num_chans)
+	if (id < 0 || id >= pcc_mbox_ctrl.num_chans)
 		return ERR_PTR(-ENOENT);
 
-	pcc_chan = (struct mbox_chan *)
-		(unsigned long) pcc_mbox_channels +
-		(id * sizeof(*pcc_chan));
+	return &pcc_mbox_channels[id];
+}
 
-	return pcc_chan;
+/*
+ * PCC can be used with perf critical drivers such as CPPC
+ * So it makes sense to locally cache the virtual address and
+ * use it to read/write to PCC registers such as doorbell register
+ *
+ * The below read_register and write_registers are used to read and
+ * write from perf critical registers such as PCC doorbell register
+ */
+static int read_register(void __iomem *vaddr, u64 *val, unsigned int bit_width)
+{
+	int ret_val = 0;
+
+	switch (bit_width) {
+	case 8:
+		*val = readb(vaddr);
+		break;
+	case 16:
+		*val = readw(vaddr);
+		break;
+	case 32:
+		*val = readl(vaddr);
+		break;
+	case 64:
+		*val = readq(vaddr);
+		break;
+	default:
+		pr_debug("Error: Cannot read register of %u bit width",
+			bit_width);
+		ret_val = -EFAULT;
+		break;
+	}
+	return ret_val;
+}
+
+static int write_register(void __iomem *vaddr, u64 val, unsigned int bit_width)
+{
+	int ret_val = 0;
+
+	switch (bit_width) {
+	case 8:
+		writeb(val, vaddr);
+		break;
+	case 16:
+		writew(val, vaddr);
+		break;
+	case 32:
+		writel(val, vaddr);
+		break;
+	case 64:
+		writeq(val, vaddr);
+		break;
+	default:
+		pr_debug("Error: Cannot write register of %u bit width",
+			bit_width);
+		ret_val = -EFAULT;
+		break;
+	}
+	return ret_val;
+}
+
+/**
+ * pcc_map_interrupt - Map a PCC subspace GSI to a linux IRQ number
+ * @interrupt: GSI number.
+ * @flags: interrupt flags
+ *
+ * Returns: a valid linux IRQ number on success
+ *		0 or -EINVAL on failure
+ */
+static int pcc_map_interrupt(u32 interrupt, u32 flags)
+{
+	int trigger, polarity;
+
+	if (!interrupt)
+		return 0;
+
+	trigger = (flags & ACPI_PCCT_INTERRUPT_MODE) ? ACPI_EDGE_SENSITIVE
+			: ACPI_LEVEL_SENSITIVE;
+
+	polarity = (flags & ACPI_PCCT_INTERRUPT_POLARITY) ? ACPI_ACTIVE_LOW
+			: ACPI_ACTIVE_HIGH;
+
+	return acpi_register_gsi(NULL, interrupt, trigger, polarity);
+}
+
+/**
+ * pcc_mbox_irq - PCC mailbox interrupt handler
+ */
+static irqreturn_t pcc_mbox_irq(int irq, void *p)
+{
+	struct acpi_generic_address *doorbell_ack;
+	struct acpi_pcct_hw_reduced *pcct_ss;
+	struct mbox_chan *chan = p;
+	u64 doorbell_ack_preserve;
+	u64 doorbell_ack_write;
+	u64 doorbell_ack_val;
+	int ret;
+
+	pcct_ss = chan->con_priv;
+
+	mbox_chan_received_data(chan, NULL);
+
+	if (pcct_ss->header.type == ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2) {
+		struct acpi_pcct_hw_reduced_type2 *pcct2_ss = chan->con_priv;
+		u32 id = chan - pcc_mbox_channels;
+
+		doorbell_ack = &pcct2_ss->platform_ack_register;
+		doorbell_ack_preserve = pcct2_ss->ack_preserve_mask;
+		doorbell_ack_write = pcct2_ss->ack_write_mask;
+
+		ret = read_register(pcc_doorbell_ack_vaddr[id],
+				    &doorbell_ack_val,
+				    doorbell_ack->bit_width);
+		if (ret)
+			return IRQ_NONE;
+
+		ret = write_register(pcc_doorbell_ack_vaddr[id],
+				     (doorbell_ack_val & doorbell_ack_preserve)
+					| doorbell_ack_write,
+				     doorbell_ack->bit_width);
+		if (ret)
+			return IRQ_NONE;
+	}
+
+	return IRQ_HANDLED;
 }
 
 /**
@@ -135,9 +265,22 @@ struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 	init_completion(&chan->tx_complete);
 
 	if (chan->txdone_method == TXDONE_BY_POLL && cl->knows_txdone)
-		chan->txdone_method |= TXDONE_BY_ACK;
+		chan->txdone_method = TXDONE_BY_ACK;
 
 	spin_unlock_irqrestore(&chan->lock, flags);
+
+	if (pcc_doorbell_irq[subspace_id] > 0) {
+		int rc;
+
+		rc = devm_request_irq(dev, pcc_doorbell_irq[subspace_id],
+				      pcc_mbox_irq, 0, MBOX_IRQ_NAME, chan);
+		if (unlikely(rc)) {
+			dev_err(dev, "failed to register PCC interrupt %d\n",
+				pcc_doorbell_irq[subspace_id]);
+			pcc_mbox_free_channel(chan);
+			chan = ERR_PTR(rc);
+		}
+	}
 
 	return chan;
 }
@@ -151,15 +294,24 @@ EXPORT_SYMBOL_GPL(pcc_mbox_request_channel);
  */
 void pcc_mbox_free_channel(struct mbox_chan *chan)
 {
+	u32 id = chan - pcc_mbox_channels;
 	unsigned long flags;
 
 	if (!chan || !chan->cl)
 		return;
 
+	if (id >= pcc_mbox_ctrl.num_chans) {
+		pr_debug("pcc_mbox_free_channel: Invalid mbox_chan passed\n");
+		return;
+	}
+
+	if (pcc_doorbell_irq[id] > 0)
+		devm_free_irq(chan->mbox->dev, pcc_doorbell_irq[id], chan);
+
 	spin_lock_irqsave(&chan->lock, flags);
 	chan->cl = NULL;
 	chan->active_req = NULL;
-	if (chan->txdone_method == (TXDONE_BY_POLL | TXDONE_BY_ACK))
+	if (chan->txdone_method == TXDONE_BY_ACK)
 		chan->txdone_method = TXDONE_BY_POLL;
 
 	spin_unlock_irqrestore(&chan->lock, flags);
@@ -181,21 +333,39 @@ EXPORT_SYMBOL_GPL(pcc_mbox_free_channel);
 static int pcc_send_data(struct mbox_chan *chan, void *data)
 {
 	struct acpi_pcct_hw_reduced *pcct_ss = chan->con_priv;
-	struct acpi_generic_address doorbell;
+	struct acpi_generic_address *doorbell;
 	u64 doorbell_preserve;
 	u64 doorbell_val;
 	u64 doorbell_write;
+	u32 id = chan - pcc_mbox_channels;
+	int ret = 0;
 
-	doorbell = pcct_ss->doorbell_register;
+	if (id >= pcc_mbox_ctrl.num_chans) {
+		pr_debug("pcc_send_data: Invalid mbox_chan passed\n");
+		return -ENOENT;
+	}
+
+	doorbell = &pcct_ss->doorbell_register;
 	doorbell_preserve = pcct_ss->preserve_mask;
 	doorbell_write = pcct_ss->write_mask;
 
 	/* Sync notification from OS to Platform. */
-	acpi_read(&doorbell_val, &doorbell);
-	acpi_write((doorbell_val & doorbell_preserve) | doorbell_write,
-			&doorbell);
-
-	return 0;
+	if (pcc_doorbell_vaddr[id]) {
+		ret = read_register(pcc_doorbell_vaddr[id], &doorbell_val,
+			doorbell->bit_width);
+		if (ret)
+			return ret;
+		ret = write_register(pcc_doorbell_vaddr[id],
+			(doorbell_val & doorbell_preserve) | doorbell_write,
+			doorbell->bit_width);
+	} else {
+		ret = acpi_read(&doorbell_val, doorbell);
+		if (ret)
+			return ret;
+		ret = acpi_write((doorbell_val & doorbell_preserve) | doorbell_write,
+			doorbell);
+	}
+	return ret;
 }
 
 static const struct mbox_chan_ops pcc_chan_ops = {
@@ -203,27 +373,57 @@ static const struct mbox_chan_ops pcc_chan_ops = {
 };
 
 /**
- * parse_pcc_subspace - Parse the PCC table and verify PCC subspace
- *		entries. There should be one entry per PCC client.
+ * parse_pcc_subspaces -- Count PCC subspaces defined
  * @header: Pointer to the ACPI subtable header under the PCCT.
  * @end: End of subtable entry.
  *
- * Return: 0 for Success, else errno.
+ * Return: If we find a PCC subspace entry of a valid type, return 0.
+ *	Otherwise, return -EINVAL.
  *
  * This gets called for each entry in the PCC table.
  */
 static int parse_pcc_subspace(struct acpi_subtable_header *header,
 		const unsigned long end)
 {
-	struct acpi_pcct_hw_reduced *pcct_ss;
+	struct acpi_pcct_subspace *ss = (struct acpi_pcct_subspace *) header;
 
-	if (pcc_mbox_ctrl.num_chans <= MAX_PCC_SUBSPACES) {
-		pcct_ss = (struct acpi_pcct_hw_reduced *) header;
+	if (ss->header.type < ACPI_PCCT_TYPE_RESERVED)
+		return 0;
 
-		if (pcct_ss->header.type !=
-				ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE) {
-			pr_err("Incorrect PCC Subspace type detected\n");
-			return -EINVAL;
+	return -EINVAL;
+}
+
+/**
+ * pcc_parse_subspace_irq - Parse the PCC IRQ and PCC ACK register
+ *		There should be one entry per PCC client.
+ * @id: PCC subspace index.
+ * @pcct_ss: Pointer to the ACPI subtable header under the PCCT.
+ *
+ * Return: 0 for Success, else errno.
+ *
+ * This gets called for each entry in the PCC table.
+ */
+static int pcc_parse_subspace_irq(int id,
+				  struct acpi_pcct_hw_reduced *pcct_ss)
+{
+	pcc_doorbell_irq[id] = pcc_map_interrupt(pcct_ss->platform_interrupt,
+						 (u32)pcct_ss->flags);
+	if (pcc_doorbell_irq[id] <= 0) {
+		pr_err("PCC GSI %d not registered\n",
+		       pcct_ss->platform_interrupt);
+		return -EINVAL;
+	}
+
+	if (pcct_ss->header.type
+		== ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2) {
+		struct acpi_pcct_hw_reduced_type2 *pcct2_ss = (void *)pcct_ss;
+
+		pcc_doorbell_ack_vaddr[id] = acpi_os_ioremap(
+				pcct2_ss->platform_ack_register.address,
+				pcct2_ss->platform_ack_register.bit_width / 8);
+		if (!pcc_doorbell_ack_vaddr[id]) {
+			pr_err("Failed to ioremap PCC ACK register\n");
+			return -ENOMEM;
 		}
 	}
 
@@ -237,46 +437,95 @@ static int parse_pcc_subspace(struct acpi_subtable_header *header,
  */
 static int __init acpi_pcc_probe(void)
 {
-	acpi_size pcct_tbl_header_size;
 	struct acpi_table_header *pcct_tbl;
 	struct acpi_subtable_header *pcct_entry;
-	int count, i;
+	struct acpi_table_pcct *acpi_pcct_tbl;
+	struct acpi_subtable_proc proc[ACPI_PCCT_TYPE_RESERVED];
+	int count, i, rc;
 	acpi_status status = AE_OK;
 
 	/* Search for PCCT */
-	status = acpi_get_table_with_size(ACPI_SIG_PCCT, 0,
-			&pcct_tbl,
-			&pcct_tbl_header_size);
+	status = acpi_get_table(ACPI_SIG_PCCT, 0, &pcct_tbl);
 
-	if (ACPI_FAILURE(status) || !pcct_tbl) {
-		pr_warn("PCCT header not found.\n");
+	if (ACPI_FAILURE(status) || !pcct_tbl)
 		return -ENODEV;
+
+	/* Set up the subtable handlers */
+	for (i = ACPI_PCCT_TYPE_GENERIC_SUBSPACE;
+	     i < ACPI_PCCT_TYPE_RESERVED; i++) {
+		proc[i].id = i;
+		proc[i].count = 0;
+		proc[i].handler = parse_pcc_subspace;
 	}
 
-	count = acpi_table_parse_entries(ACPI_SIG_PCCT,
-			sizeof(struct acpi_table_pcct),
-			ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE,
-			parse_pcc_subspace, MAX_PCC_SUBSPACES);
-
-	if (count <= 0) {
-		pr_err("Error parsing PCC subspaces from PCCT\n");
+	count = acpi_table_parse_entries_array(ACPI_SIG_PCCT,
+			sizeof(struct acpi_table_pcct), proc,
+			ACPI_PCCT_TYPE_RESERVED, MAX_PCC_SUBSPACES);
+	if (count <= 0 || count > MAX_PCC_SUBSPACES) {
+		if (count < 0)
+			pr_warn("Error parsing PCC subspaces from PCCT\n");
+		else
+			pr_warn("Invalid PCCT: %d PCC subspaces\n", count);
 		return -EINVAL;
 	}
 
-	pcc_mbox_channels = kzalloc(sizeof(struct mbox_chan) *
-			count, GFP_KERNEL);
-
+	pcc_mbox_channels = kcalloc(count, sizeof(struct mbox_chan),
+				    GFP_KERNEL);
 	if (!pcc_mbox_channels) {
 		pr_err("Could not allocate space for PCC mbox channels\n");
 		return -ENOMEM;
+	}
+
+	pcc_doorbell_vaddr = kcalloc(count, sizeof(void *), GFP_KERNEL);
+	if (!pcc_doorbell_vaddr) {
+		rc = -ENOMEM;
+		goto err_free_mbox;
+	}
+
+	pcc_doorbell_ack_vaddr = kcalloc(count, sizeof(void *), GFP_KERNEL);
+	if (!pcc_doorbell_ack_vaddr) {
+		rc = -ENOMEM;
+		goto err_free_db_vaddr;
+	}
+
+	pcc_doorbell_irq = kcalloc(count, sizeof(int), GFP_KERNEL);
+	if (!pcc_doorbell_irq) {
+		rc = -ENOMEM;
+		goto err_free_db_ack_vaddr;
 	}
 
 	/* Point to the first PCC subspace entry */
 	pcct_entry = (struct acpi_subtable_header *) (
 		(unsigned long) pcct_tbl + sizeof(struct acpi_table_pcct));
 
+	acpi_pcct_tbl = (struct acpi_table_pcct *) pcct_tbl;
+	if (acpi_pcct_tbl->flags & ACPI_PCCT_DOORBELL)
+		pcc_mbox_ctrl.txdone_irq = true;
+
 	for (i = 0; i < count; i++) {
+		struct acpi_generic_address *db_reg;
+		struct acpi_pcct_subspace *pcct_ss;
 		pcc_mbox_channels[i].con_priv = pcct_entry;
+
+		if (pcct_entry->type == ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE ||
+		    pcct_entry->type == ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2) {
+			struct acpi_pcct_hw_reduced *pcct_hrss;
+
+			pcct_hrss = (struct acpi_pcct_hw_reduced *) pcct_entry;
+
+			if (pcc_mbox_ctrl.txdone_irq) {
+				rc = pcc_parse_subspace_irq(i, pcct_hrss);
+				if (rc < 0)
+					goto err;
+			}
+		}
+		pcct_ss = (struct acpi_pcct_subspace *) pcct_entry;
+
+		/* If doorbell is in system memory cache the virt address */
+		db_reg = &pcct_ss->doorbell_register;
+		if (db_reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+			pcc_doorbell_vaddr[i] = acpi_os_ioremap(db_reg->address,
+							db_reg->bit_width/8);
 		pcct_entry = (struct acpi_subtable_header *)
 			((unsigned long) pcct_entry + pcct_entry->length);
 	}
@@ -286,6 +535,16 @@ static int __init acpi_pcc_probe(void)
 	pr_info("Detected %d PCC Subspaces\n", pcc_mbox_ctrl.num_chans);
 
 	return 0;
+
+err:
+	kfree(pcc_doorbell_irq);
+err_free_db_ack_vaddr:
+	kfree(pcc_doorbell_ack_vaddr);
+err_free_db_vaddr:
+	kfree(pcc_doorbell_vaddr);
+err_free_mbox:
+	kfree(pcc_mbox_channels);
+	return rc;
 }
 
 /**

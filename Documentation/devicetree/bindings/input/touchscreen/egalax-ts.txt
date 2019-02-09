@@ -3,14 +3,13 @@
 Required properties:
 - compatible: must be "eeti,egalax_ts"
 - reg: i2c slave address
-- interrupt-parent: the phandle for the interrupt controller
 - interrupts: touch controller interrupt
 - wakeup-gpios: the gpio pin to be used for waking up the controller
   and also used as irq pin
 
 Example:
 
-	egalax_ts@04 {
+	touchscreen@4 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		interrupt-parent = <&gpio1>;

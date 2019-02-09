@@ -114,7 +114,7 @@
 #define SET_TX_DESC_RAW(__pdesc, __val)				\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 18, 1, __val)
 #define SET_TX_DESC_SPE_RPT(__pdesc, __val)			\
-	SET_BITS_TO_LE_4BYTE(__pdesc+8, 19, 1, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 8, 19, 1, __val)
 #define SET_TX_DESC_AMPDU_DENSITY(__pdesc, __val)	\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 20, 3, __val)
 #define SET_TX_DESC_BT_INT(__pdesc, __val)	\
@@ -185,8 +185,21 @@
 #define SET_TX_DESC_RTS_SC(__pdesc, __val)	\
 	SET_BITS_TO_LE_4BYTE(__pdesc+20, 13, 4, __val)
 
+#define SET_TX_DESC_SW_DEFINE(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 0, 12, __val)
+#define SET_TX_DESC_ANTSEL_A(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 16, 3, __val)
+#define SET_TX_DESC_ANTSEL_B(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 19, 3, __val)
+#define SET_TX_DESC_ANTSEL_C(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 22, 3, __val)
+#define SET_TX_DESC_ANTSEL_D(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 25, 3, __val)
+#define SET_TX_DESC_MBSSID(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE(i(__pdesc) + 24, 12, 4, __val)
+
 #define SET_TX_DESC_TX_BUFFER_SIZE(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+28, 0, 16, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 28, 0, 16, __val)
 
 #define GET_TX_DESC_TX_BUFFER_SIZE(__pdesc)		\
 	LE_BITS_TO_4BYTE(__pdesc+28, 0, 16)
@@ -390,11 +403,11 @@ struct phy_status_rpt {
 	u8 cfosho[4];	/* DW 1 byte 1 DW 2 byte 0 */
 
 	/* DWORD 2 */
-	char cfotail[4];	/* DW 2 byte 1 DW 3 byte 0 */
+	s8 cfotail[4];	/* DW 2 byte 1 DW 3 byte 0 */
 
 	/* DWORD 3 */
-	char rxevm[2];	/* DW 3 byte 1 DW 3 byte 2 */
-	char rxsnr[2];	/* DW 3 byte 3 DW 4 byte 0 */
+	s8 rxevm[2];	/* DW 3 byte 1 DW 3 byte 2 */
+	s8 rxsnr[2];	/* DW 3 byte 3 DW 4 byte 0 */
 
 	/* DWORD 4 */
 	u8 pcts_msk_rpt[2];
@@ -418,8 +431,8 @@ struct rx_fwinfo_8821ae {
 	u8 pwdb_all;
 	u8 cfosho[4];
 	u8 cfotail[4];
-	char rxevm[2];
-	char rxsnr[4];
+	s8 rxevm[2];
+	s8 rxsnr[4];
 	u8 pdsnr[2];
 	u8 csi_current[2];
 	u8 csi_target[2];
@@ -607,14 +620,12 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 			     u8 *pdesc, struct sk_buff *skb);
 void rtl8821ae_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 			bool istx, u8 desc_name, u8 *val);
-u32 rtl8821ae_get_desc(u8 *pdesc, bool istx, u8 desc_name);
+u64 rtl8821ae_get_desc(struct ieee80211_hw *hw,
+		       u8 *pdesc, bool istx, u8 desc_name);
 bool rtl8821ae_is_tx_desc_closed(struct ieee80211_hw *hw,
 				 u8 hw_queue, u16 index);
 void rtl8821ae_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);
 void rtl8821ae_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 			       bool firstseg, bool lastseg,
 			       struct sk_buff *skb);
-u32 rtl8821ae_rx_command_packet(struct ieee80211_hw *hw,
-				struct rtl_stats status,
-				struct sk_buff *skb);
 #endif

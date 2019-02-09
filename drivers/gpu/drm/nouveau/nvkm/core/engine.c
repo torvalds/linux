@@ -27,6 +27,14 @@
 
 #include <subdev/fb.h>
 
+bool
+nvkm_engine_chsw_load(struct nvkm_engine *engine)
+{
+	if (engine->func->chsw_load)
+		return engine->func->chsw_load(engine);
+	return false;
+}
+
 void
 nvkm_engine_unref(struct nvkm_engine **pengine)
 {
@@ -75,6 +83,21 @@ nvkm_engine_intr(struct nvkm_subdev *subdev)
 }
 
 static int
+nvkm_engine_info(struct nvkm_subdev *subdev, u64 mthd, u64 *data)
+{
+	struct nvkm_engine *engine = nvkm_engine(subdev);
+	if (engine->func->info) {
+		if (!IS_ERR((engine = nvkm_engine_ref(engine)))) {
+			int ret = engine->func->info(engine, mthd, data);
+			nvkm_engine_unref(&engine);
+			return ret;
+		}
+		return PTR_ERR(engine);
+	}
+	return -ENOSYS;
+}
+
+static int
 nvkm_engine_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_engine *engine = nvkm_engine(subdev);
@@ -118,6 +141,15 @@ nvkm_engine_init(struct nvkm_subdev *subdev)
 	return ret;
 }
 
+static int
+nvkm_engine_preinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_engine *engine = nvkm_engine(subdev);
+	if (engine->func->preinit)
+		engine->func->preinit(engine);
+	return 0;
+}
+
 static void *
 nvkm_engine_dtor(struct nvkm_subdev *subdev)
 {
@@ -130,18 +162,19 @@ nvkm_engine_dtor(struct nvkm_subdev *subdev)
 static const struct nvkm_subdev_func
 nvkm_engine_func = {
 	.dtor = nvkm_engine_dtor,
+	.preinit = nvkm_engine_preinit,
 	.init = nvkm_engine_init,
 	.fini = nvkm_engine_fini,
+	.info = nvkm_engine_info,
 	.intr = nvkm_engine_intr,
 };
 
 int
 nvkm_engine_ctor(const struct nvkm_engine_func *func,
-		 struct nvkm_device *device, int index, u32 pmc_enable,
-		 bool enable, struct nvkm_engine *engine)
+		 struct nvkm_device *device, int index, bool enable,
+		 struct nvkm_engine *engine)
 {
-	nvkm_subdev_ctor(&nvkm_engine_func, device, index,
-			 pmc_enable, &engine->subdev);
+	nvkm_subdev_ctor(&nvkm_engine_func, device, index, &engine->subdev);
 	engine->func = func;
 
 	if (!nvkm_boolopt(device->cfgopt, nvkm_subdev_name[index], enable)) {
@@ -155,11 +188,10 @@ nvkm_engine_ctor(const struct nvkm_engine_func *func,
 
 int
 nvkm_engine_new_(const struct nvkm_engine_func *func,
-		 struct nvkm_device *device, int index, u32 pmc_enable,
-		 bool enable, struct nvkm_engine **pengine)
+		 struct nvkm_device *device, int index, bool enable,
+		 struct nvkm_engine **pengine)
 {
 	if (!(*pengine = kzalloc(sizeof(**pengine), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_engine_ctor(func, device, index, pmc_enable,
-				enable, *pengine);
+	return nvkm_engine_ctor(func, device, index, enable, *pengine);
 }

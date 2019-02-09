@@ -43,7 +43,7 @@ static struct map_info ts5500_map = {
 	.phys = WINDOW_ADDR
 };
 
-static struct mtd_partition ts5500_partitions[] = {
+static const struct mtd_partition ts5500_partitions[] = {
 	{
 		.name = "Drive A",
 		.offset = 0,

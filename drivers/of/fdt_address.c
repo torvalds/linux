@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FDT Address translation based on u-boot fdt_support.c which in turn was
  * based on the kernel unflattened DT address translation code.
@@ -6,12 +7,10 @@
  * Gerald Van Baren, Custom IDEAS, vanbaren@cideas.com
  *
  * Copyright 2010-2011 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
  */
+
+#define pr_fmt(fmt)	"OF: fdt: " fmt
+
 #include <linux/kernel.h>
 #include <linux/libfdt.h>
 #include <linux/of.h>
@@ -30,7 +29,7 @@ static void __init of_dump_addr(const char *s, const __be32 *addr, int na)
 	pr_debug("%s", s);
 	while(na--)
 		pr_cont(" %08x", *(addr++));
-	pr_debug("\n");
+	pr_cont("\n");
 }
 #else
 static void __init of_dump_addr(const char *s, const __be32 *addr, int na) { }
@@ -77,7 +76,7 @@ static u64 __init fdt_bus_default_map(__be32 *addr, const __be32 *range,
 	s  = of_read_number(range + na + pna, ns);
 	da = of_read_number(addr, na);
 
-	pr_debug("FDT: default map, cp=%llx, s=%llx, da=%llx\n",
+	pr_debug("default map, cp=%llx, s=%llx, da=%llx\n",
 	    cp, s, da);
 
 	if (da < cp || da >= (cp + s))
@@ -123,11 +122,11 @@ static int __init fdt_translate_one(const void *blob, int parent,
 	if (rlen == 0) {
 		offset = of_read_number(addr, na);
 		memset(addr, 0, pna * 4);
-		pr_debug("FDT: empty ranges, 1:1 translation\n");
+		pr_debug("empty ranges, 1:1 translation\n");
 		goto finish;
 	}
 
-	pr_debug("FDT: walking ranges...\n");
+	pr_debug("walking ranges...\n");
 
 	/* Now walk through the ranges */
 	rlen /= 4;
@@ -138,14 +137,14 @@ static int __init fdt_translate_one(const void *blob, int parent,
 			break;
 	}
 	if (offset == OF_BAD_ADDR) {
-		pr_debug("FDT: not found !\n");
+		pr_debug("not found !\n");
 		return 1;
 	}
 	memcpy(addr, ranges + na, 4 * pna);
 
  finish:
-	of_dump_addr("FDT: parent translation for:", addr, pna);
-	pr_debug("FDT: with offset: %llx\n", offset);
+	of_dump_addr("parent translation for:", addr, pna);
+	pr_debug("with offset: %llx\n", offset);
 
 	/* Translate it into parent bus space */
 	return pbus->translate(addr, offset, pna);
@@ -161,7 +160,7 @@ static int __init fdt_translate_one(const void *blob, int parent,
  * that can be mapped to a cpu physical address). This is not really specified
  * that way, but this is traditionally the way IBM at least do things
  */
-u64 __init fdt_translate_address(const void *blob, int node_offset)
+static u64 __init fdt_translate_address(const void *blob, int node_offset)
 {
 	int parent, len;
 	const struct of_bus *bus, *pbus;
@@ -170,12 +169,12 @@ u64 __init fdt_translate_address(const void *blob, int node_offset)
 	int na, ns, pna, pns;
 	u64 result = OF_BAD_ADDR;
 
-	pr_debug("FDT: ** translation for device %s **\n",
+	pr_debug("** translation for device %s **\n",
 		 fdt_get_name(blob, node_offset, NULL));
 
 	reg = fdt_getprop(blob, node_offset, "reg", &len);
 	if (!reg) {
-		pr_err("FDT: warning: device tree node '%s' has no address.\n",
+		pr_err("warning: device tree node '%s' has no address.\n",
 			fdt_get_name(blob, node_offset, NULL));
 		goto bail;
 	}
@@ -189,15 +188,15 @@ u64 __init fdt_translate_address(const void *blob, int node_offset)
 	/* Cound address cells & copy address locally */
 	bus->count_cells(blob, parent, &na, &ns);
 	if (!OF_CHECK_COUNTS(na, ns)) {
-		pr_err("FDT: Bad cell count for %s\n",
+		pr_err("Bad cell count for %s\n",
 		       fdt_get_name(blob, node_offset, NULL));
 		goto bail;
 	}
 	memcpy(addr, reg, na * 4);
 
-	pr_debug("FDT: bus (na=%d, ns=%d) on %s\n",
+	pr_debug("bus (na=%d, ns=%d) on %s\n",
 		 na, ns, fdt_get_name(blob, parent, NULL));
-	of_dump_addr("OF: translating address:", addr, na);
+	of_dump_addr("translating address:", addr, na);
 
 	/* Translate */
 	for (;;) {
@@ -207,7 +206,7 @@ u64 __init fdt_translate_address(const void *blob, int node_offset)
 
 		/* If root, we have finished */
 		if (parent < 0) {
-			pr_debug("FDT: reached root node\n");
+			pr_debug("reached root node\n");
 			result = of_read_number(addr, na);
 			break;
 		}
@@ -216,12 +215,12 @@ u64 __init fdt_translate_address(const void *blob, int node_offset)
 		pbus = &of_busses[0];
 		pbus->count_cells(blob, parent, &pna, &pns);
 		if (!OF_CHECK_COUNTS(pna, pns)) {
-			pr_err("FDT: Bad cell count for %s\n",
+			pr_err("Bad cell count for %s\n",
 				fdt_get_name(blob, node_offset, NULL));
 			break;
 		}
 
-		pr_debug("FDT: parent bus (na=%d, ns=%d) on %s\n",
+		pr_debug("parent bus (na=%d, ns=%d) on %s\n",
 			 pna, pns, fdt_get_name(blob, parent, NULL));
 
 		/* Apply bus translation */
@@ -234,8 +233,17 @@ u64 __init fdt_translate_address(const void *blob, int node_offset)
 		ns = pns;
 		bus = pbus;
 
-		of_dump_addr("FDT: one level translation:", addr, na);
+		of_dump_addr("one level translation:", addr, na);
 	}
  bail:
 	return result;
+}
+
+/**
+ * of_flat_dt_translate_address - translate DT addr into CPU phys addr
+ * @node: node in the flat blob
+ */
+u64 __init of_flat_dt_translate_address(unsigned long node)
+{
+	return fdt_translate_address(initial_boot_params, node);
 }

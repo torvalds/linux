@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_OLPC_EC_H
 #define _LINUX_OLPC_EC_H
 

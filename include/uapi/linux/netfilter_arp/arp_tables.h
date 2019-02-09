@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * 	Format of an ARP firewall descriptor
  *
@@ -11,6 +12,7 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
+#include <linux/if.h>
 #include <linux/netfilter_arp.h>
 
 #include <linux/netfilter/x_tables.h>

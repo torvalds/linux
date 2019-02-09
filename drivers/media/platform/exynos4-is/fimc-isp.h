@@ -24,7 +24,7 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
-#include <media/exynos-fimc.h>
+#include <media/drv-intf/exynos-fimc.h>
 
 extern int fimc_isp_debug;
 
@@ -148,7 +148,6 @@ struct fimc_is_video {
 /**
  * struct fimc_isp - FIMC-IS ISP data structure
  * @pdev: pointer to FIMC-IS platform device
- * @alloc_ctx: videobuf2 memory allocator context
  * @subdev: ISP v4l2_subdev
  * @subdev_pads: the ISP subdev media pads
  * @test_pattern: test pattern controls
@@ -161,7 +160,6 @@ struct fimc_is_video {
  */
 struct fimc_isp {
 	struct platform_device		*pdev;
-	struct vb2_alloc_ctx		*alloc_ctx;
 	struct v4l2_subdev		subdev;
 	struct media_pad		subdev_pads[FIMC_ISP_SD_PADS_NUM];
 	struct v4l2_mbus_framefmt	src_fmt;

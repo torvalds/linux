@@ -279,17 +279,15 @@ int sst_prepare_and_post_msg(struct intel_sst_drv *sst,
 
 	if (response) {
 		ret = sst_wait_timeout(sst, block);
-		if (ret < 0) {
+		if (ret < 0)
 			goto out;
-		} else if(block->data) {
-			if (!data)
-				goto out;
-			*data = kzalloc(block->size, GFP_KERNEL);
-			if (!(*data)) {
+
+		if (data && block->data) {
+			*data = kmemdup(block->data, block->size, GFP_KERNEL);
+			if (!*data) {
 				ret = -ENOMEM;
 				goto out;
-			} else
-				memcpy(data, (void *) block->data, block->size);
+			}
 		}
 	}
 out:
@@ -360,14 +358,6 @@ int sst_assign_pvt_id(struct intel_sst_drv *drv)
 	change_bit(local, &drv->pvt_id);
 	spin_unlock(&drv->block_lock);
 	return local;
-}
-
-void sst_init_stream(struct stream_info *stream,
-		int codec, int sst_id, int ops, u8 slot)
-{
-	stream->status = STREAM_INIT;
-	stream->prev = STREAM_UN_INIT;
-	stream->ops = ops;
 }
 
 int sst_validate_strid(

@@ -17,6 +17,7 @@
 
 /* Additional registers for v8 */
 #define S5P_FIMV_D_MVC_NUM_VIEWS_V8		0xf104
+#define S5P_FIMV_D_MIN_SCRATCH_BUFFER_SIZE_V8	0xf108
 #define S5P_FIMV_D_FIRST_PLANE_DPB_SIZE_V8	0xf144
 #define S5P_FIMV_D_SECOND_PLANE_DPB_SIZE_V8	0xf148
 #define S5P_FIMV_D_MV_BUFFER_SIZE_V8		0xf150
@@ -84,13 +85,14 @@
 
 #define S5P_FIMV_E_VBV_BUFFER_SIZE_V8		0xf78c
 #define S5P_FIMV_E_VBV_INIT_DELAY_V8		0xf790
+#define S5P_FIMV_E_MIN_SCRATCH_BUFFER_SIZE_V8   0xf894
 
 #define S5P_FIMV_E_ASPECT_RATIO_V8		0xfb4c
 #define S5P_FIMV_E_EXTENDED_SAR_V8		0xfb50
 #define S5P_FIMV_E_H264_OPTIONS_V8		0xfb54
 
 /* MFCv8 Context buffer sizes */
-#define MFC_CTX_BUF_SIZE_V8		(30 * SZ_1K)	/*  30KB */
+#define MFC_CTX_BUF_SIZE_V8		(36 * SZ_1K)	/*  36KB */
 #define MFC_H264_DEC_CTX_BUF_SIZE_V8	(2 * SZ_1M)	/*  2MB */
 #define MFC_OTHER_DEC_CTX_BUF_SIZE_V8	(20 * SZ_1K)	/*  20KB */
 #define MFC_H264_ENC_CTX_BUF_SIZE_V8	(100 * SZ_1K)	/* 100KB */
@@ -116,7 +118,7 @@
 #define S5P_FIMV_D_ALIGN_PLANE_SIZE_V8	64
 
 /* MFCv8 variant defines */
-#define MAX_FW_SIZE_V8			(SZ_1M)		/* 1MB */
+#define MAX_FW_SIZE_V8			(SZ_512K)	/* 512KB */
 #define MAX_CPB_SIZE_V8			(3 * SZ_1M)	/* 3MB */
 #define MFC_VERSION_V8			0x80
 #define MFC_NUM_PORTS_V8		1

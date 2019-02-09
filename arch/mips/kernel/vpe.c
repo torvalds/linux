@@ -205,11 +205,11 @@ static void layout_sections(struct module *mod, const Elf_Ehdr *hdr,
 			    || s->sh_entsize != ~0UL)
 				continue;
 			s->sh_entsize =
-				get_offset((unsigned long *)&mod->core_size, s);
+				get_offset((unsigned long *)&mod->core_layout.size, s);
 		}
 
 		if (m == 0)
-			mod->core_text_size = mod->core_size;
+			mod->core_layout.text_size = mod->core_layout.size;
 
 	}
 }
@@ -641,7 +641,7 @@ static int vpe_elfload(struct vpe *v)
 		layout_sections(&mod, hdr, sechdrs, secstrings);
 	}
 
-	v->load_addr = alloc_progmem(mod.core_size);
+	v->load_addr = alloc_progmem(mod.core_layout.size);
 	if (!v->load_addr)
 		return -ENOMEM;
 
@@ -872,7 +872,7 @@ static ssize_t vpe_write(struct file *file, const char __user *buffer,
 		return -ENODEV;
 
 	if ((count + v->len) > v->plen) {
-		pr_warn("VPE loader: elf size too big. Perhaps strip uneeded symbols\n");
+		pr_warn("VPE loader: elf size too big. Perhaps strip unneeded symbols\n");
 		return -ENOMEM;
 	}
 

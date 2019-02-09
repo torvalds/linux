@@ -17,15 +17,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <media/rc-core.h>
 
 #define DRIVER_NAME	"rc-loopback"
@@ -176,26 +173,62 @@ static int loop_set_carrier_report(struct rc_dev *dev, int enable)
 	return 0;
 }
 
+static int loop_set_wakeup_filter(struct rc_dev *dev,
+				  struct rc_scancode_filter *sc)
+{
+	static const unsigned int max = 512;
+	struct ir_raw_event *raw;
+	int ret;
+	int i;
+
+	/* fine to disable filter */
+	if (!sc->mask)
+		return 0;
+
+	/* encode the specified filter and loop it back */
+	raw = kmalloc_array(max, sizeof(*raw), GFP_KERNEL);
+	if (!raw)
+		return -ENOMEM;
+
+	ret = ir_raw_encode_scancode(dev->wakeup_protocol, sc->data, raw, max);
+	/* still loop back the partial raw IR even if it's incomplete */
+	if (ret == -ENOBUFS)
+		ret = max;
+	if (ret >= 0) {
+		/* do the loopback */
+		for (i = 0; i < ret; ++i)
+			ir_raw_event_store(dev, &raw[i]);
+		ir_raw_event_handle(dev);
+
+		ret = 0;
+	}
+
+	kfree(raw);
+
+	return ret;
+}
+
 static int __init loop_init(void)
 {
 	struct rc_dev *rc;
 	int ret;
 
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rc) {
 		printk(KERN_ERR DRIVER_NAME ": rc_dev allocation failed\n");
 		return -ENOMEM;
 	}
 
-	rc->input_name		= "rc-core loopback device";
+	rc->device_name		= "rc-core loopback device";
 	rc->input_phys		= "rc-core/virtual";
 	rc->input_id.bustype	= BUS_VIRTUAL;
 	rc->input_id.version	= 1;
 	rc->driver_name		= DRIVER_NAME;
 	rc->map_name		= RC_MAP_EMPTY;
 	rc->priv		= &loopdev;
-	rc->driver_type		= RC_DRIVER_IR_RAW;
-	rc->allowed_protocols	= RC_BIT_ALL;
+	rc->allowed_protocols	= RC_PROTO_BIT_ALL_IR_DECODER;
+	rc->allowed_wakeup_protocols = RC_PROTO_BIT_ALL_IR_ENCODER;
+	rc->encode_wakeup	= true;
 	rc->timeout		= 100 * 1000 * 1000; /* 100 ms */
 	rc->min_timeout		= 1;
 	rc->max_timeout		= UINT_MAX;
@@ -209,6 +242,7 @@ static int __init loop_init(void)
 	rc->s_idle		= loop_set_idle;
 	rc->s_learning_mode	= loop_set_learning_mode;
 	rc->s_carrier_report	= loop_set_carrier_report;
+	rc->s_wakeup_filter	= loop_set_wakeup_filter;
 
 	loopdev.txmask		= RXMASK_REGULAR;
 	loopdev.txcarrier	= 36000;

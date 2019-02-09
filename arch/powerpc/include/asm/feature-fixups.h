@@ -1,6 +1,8 @@
 #ifndef __ASM_POWERPC_FEATURE_FIXUPS_H
 #define __ASM_POWERPC_FEATURE_FIXUPS_H
 
+#include <asm/asm-const.h>
+
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,11 +21,11 @@
  */
 #if defined(CONFIG_PPC64) && !defined(__powerpc64__)
 /* 64 bits kernel, 32 bits code (ie. vdso32) */
-#define FTR_ENTRY_LONG		.llong
+#define FTR_ENTRY_LONG		.8byte
 #define FTR_ENTRY_OFFSET	.long 0xffffffff; .long
 #elif defined(CONFIG_PPC64)
-#define FTR_ENTRY_LONG		.llong
-#define FTR_ENTRY_OFFSET	.llong
+#define FTR_ENTRY_LONG		.8byte
+#define FTR_ENTRY_OFFSET	.8byte
 #else
 #define FTR_ENTRY_LONG		.long
 #define FTR_ENTRY_OFFSET	.long
@@ -65,6 +67,9 @@ label##5:							\
 
 #define END_FTR_SECTION(msk, val)		\
 	END_FTR_SECTION_NESTED(msk, val, 97)
+
+#define END_FTR_SECTION_NESTED_IFSET(msk, label)	\
+	END_FTR_SECTION_NESTED((msk), (msk), label)
 
 #define END_FTR_SECTION_IFSET(msk)	END_FTR_SECTION((msk), (msk))
 #define END_FTR_SECTION_IFCLR(msk)	END_FTR_SECTION((msk), 0)
@@ -183,5 +188,51 @@ label##2:						\
 label##3:					       	\
 	FTR_ENTRY_OFFSET label##1b-label##3b;		\
 	.popsection;
+
+#define STF_ENTRY_BARRIER_FIXUP_SECTION			\
+953:							\
+	.pushsection __stf_entry_barrier_fixup,"a";	\
+	.align 2;					\
+954:							\
+	FTR_ENTRY_OFFSET 953b-954b;			\
+	.popsection;
+
+#define STF_EXIT_BARRIER_FIXUP_SECTION			\
+955:							\
+	.pushsection __stf_exit_barrier_fixup,"a";	\
+	.align 2;					\
+956:							\
+	FTR_ENTRY_OFFSET 955b-956b;			\
+	.popsection;
+
+#define RFI_FLUSH_FIXUP_SECTION				\
+951:							\
+	.pushsection __rfi_flush_fixup,"a";		\
+	.align 2;					\
+952:							\
+	FTR_ENTRY_OFFSET 951b-952b;			\
+	.popsection;
+
+#define NOSPEC_BARRIER_FIXUP_SECTION			\
+953:							\
+	.pushsection __barrier_nospec_fixup,"a";	\
+	.align 2;					\
+954:							\
+	FTR_ENTRY_OFFSET 953b-954b;			\
+	.popsection;
+
+
+#ifndef __ASSEMBLY__
+#include <linux/types.h>
+
+extern long stf_barrier_fallback;
+extern long __start___stf_entry_barrier_fixup, __stop___stf_entry_barrier_fixup;
+extern long __start___stf_exit_barrier_fixup, __stop___stf_exit_barrier_fixup;
+extern long __start___rfi_flush_fixup, __stop___rfi_flush_fixup;
+extern long __start___barrier_nospec_fixup, __stop___barrier_nospec_fixup;
+
+void apply_feature_fixups(void);
+void setup_feature_keys(void);
+#endif
 
 #endif /* __ASM_POWERPC_FEATURE_FIXUPS_H */

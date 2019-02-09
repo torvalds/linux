@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "tegra20-tamonten.dtsi"
@@ -8,6 +9,10 @@
 
 	aliases {
 		serial0 = &uartd;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
 
 	pwm@7000a000 {

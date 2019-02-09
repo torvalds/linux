@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * This is <linux/capability.h>
  *
@@ -14,8 +15,6 @@
 #define _UAPI_LINUX_CAPABILITY_H
 
 #include <linux/types.h>
-
-struct task_struct;
 
 /* User-level do most of the mapping between kernel and user
    capabilities based on the version tag given by the kernel. The
@@ -62,9 +61,13 @@ typedef struct __user_cap_data_struct {
 #define VFS_CAP_U32_2           2
 #define XATTR_CAPS_SZ_2         (sizeof(__le32)*(1 + 2*VFS_CAP_U32_2))
 
-#define XATTR_CAPS_SZ           XATTR_CAPS_SZ_2
-#define VFS_CAP_U32             VFS_CAP_U32_2
-#define VFS_CAP_REVISION	VFS_CAP_REVISION_2
+#define VFS_CAP_REVISION_3	0x03000000
+#define VFS_CAP_U32_3           2
+#define XATTR_CAPS_SZ_3         (sizeof(__le32)*(2 + 2*VFS_CAP_U32_3))
+
+#define XATTR_CAPS_SZ           XATTR_CAPS_SZ_3
+#define VFS_CAP_U32             VFS_CAP_U32_3
+#define VFS_CAP_REVISION	VFS_CAP_REVISION_3
 
 struct vfs_cap_data {
 	__le32 magic_etc;            /* Little endian */
@@ -72,6 +75,18 @@ struct vfs_cap_data {
 		__le32 permitted;    /* Little endian */
 		__le32 inheritable;  /* Little endian */
 	} data[VFS_CAP_U32];
+};
+
+/*
+ * same as vfs_cap_data but with a rootid at the end
+ */
+struct vfs_ns_cap_data {
+	__le32 magic_etc;
+	struct {
+		__le32 permitted;    /* Little endian */
+		__le32 inheritable;  /* Little endian */
+	} data[VFS_CAP_U32];
+	__le32 rootid;
 };
 
 #ifndef __KERNEL__
@@ -207,7 +222,7 @@ struct vfs_cap_data {
 #define CAP_SYS_MODULE       16
 
 /* Allow ioperm/iopl access */
-/* Allow sending USB messages to any device via /proc/bus/usb */
+/* Allow sending USB messages to any device via /dev/bus/usb */
 
 #define CAP_SYS_RAWIO        17
 

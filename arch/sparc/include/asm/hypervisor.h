@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SPARC64_HYPERVISOR_H
 #define _SPARC64_HYPERVISOR_H
 
@@ -75,6 +76,10 @@
 #define HV_ETOOMANY			15 /* Too many items specified     */
 #define HV_ECHANNEL			16 /* Invalid LDC channel          */
 #define HV_EBUSY			17 /* Resource busy                */
+#define HV_EUNAVAILABLE			23 /* Resource or operation not
+					    * currently available, but may
+					    * become available in the future
+					    */
 
 /* mach_exit()
  * TRAP:	HV_FAST_TRAP
@@ -296,6 +301,24 @@ unsigned long sun4v_cpu_stop(unsigned long cpuid);
 
 #ifndef __ASSEMBLY__
 unsigned long sun4v_cpu_yield(void);
+#endif
+
+/* cpu_poke()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_CPU_POKE
+ * RET0:	status
+ * ERRORS:	ENOCPU		cpuid refers to a CPU that does not exist
+ *		EINVAL		cpuid is current CPU
+ *
+ * Poke CPU cpuid. If the target CPU is currently suspended having
+ * invoked the cpu-yield service, that vCPU will be resumed.
+ * Poke interrupts may only be sent to valid, non-local CPUs.
+ * It is not legal to poke the current vCPU.
+ */
+#define HV_FAST_CPU_POKE                0x13
+
+#ifndef __ASSEMBLY__
+unsigned long sun4v_cpu_poke(unsigned long cpuid);
 #endif
 
 /* cpu_qconf()
@@ -547,6 +570,8 @@ struct hv_fault_status {
 #define HV_FAULT_TYPE_RESV1	13
 #define HV_FAULT_TYPE_UNALIGNED	14
 #define HV_FAULT_TYPE_INV_PGSZ	15
+#define HV_FAULT_TYPE_MCD	17
+#define HV_FAULT_TYPE_MCD_DIS	18
 /* Values 16 --> -2 are reserved.  */
 #define HV_FAULT_TYPE_MULTIPLE	-1
 
@@ -921,6 +946,139 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * an 8K boundary.
  */
 #define HV_FAST_MEM_SYNC		0x32
+
+/* Coprocessor services
+ *
+ * M7 and later processors provide an on-chip coprocessor which
+ * accelerates database operations, and is known internally as
+ * DAX.
+ */
+
+/* ccb_submit()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_CCB_SUBMIT
+ * ARG0:	address of CCB array
+ * ARG1:	size (in bytes) of CCB array being submitted
+ * ARG2:	flags
+ * ARG3:	reserved
+ * RET0:	status (success or error code)
+ * RET1:	size (in bytes) of CCB array that was accepted (might be less
+ *		than arg1)
+ * RET2:	status data
+ *		if status == ENOMAP or ENOACCESS, identifies the VA in question
+ *		if status == EUNAVAILBLE, unavailable code
+ * RET3:	reserved
+ *
+ * ERRORS:	EOK		successful submission (check size)
+ *		EWOULDBLOCK	could not finish submissions, try again
+ *		EBADALIGN	array not 64B aligned or size not 64B multiple
+ *		ENORADDR	invalid RA for array or in CCB
+ *		ENOMAP		could not translate address (see status data)
+ *		EINVAL		invalid ccb or arguments
+ *		ETOOMANY	too many ccbs with all-or-nothing flag
+ *		ENOACCESS	guest has no access to submit ccbs or address
+ *				in CCB does not have correct permissions (check
+ *				status data)
+ *		EUNAVAILABLE	ccb operation could not be performed at this
+ *				time (check status data)
+ *				Status data codes:
+ *					0 - exact CCB could not be executed
+ *					1 - CCB opcode cannot be executed
+ *					2 - CCB version cannot be executed
+ *					3 - vcpu cannot execute CCBs
+ *					4 - no CCBs can be executed
+ */
+
+#define HV_CCB_SUBMIT               0x34
+#ifndef __ASSEMBLY__
+unsigned long sun4v_ccb_submit(unsigned long ccb_buf,
+			       unsigned long len,
+			       unsigned long flags,
+			       unsigned long reserved,
+			       void *submitted_len,
+			       void *status_data);
+#endif
+
+/* flags (ARG2) */
+#define HV_CCB_QUERY_CMD		BIT(1)
+#define HV_CCB_ARG0_TYPE_REAL		0UL
+#define HV_CCB_ARG0_TYPE_PRIMARY	BIT(4)
+#define HV_CCB_ARG0_TYPE_SECONDARY	BIT(5)
+#define HV_CCB_ARG0_TYPE_NUCLEUS	GENMASK(5, 4)
+#define HV_CCB_ARG0_PRIVILEGED		BIT(6)
+#define HV_CCB_ALL_OR_NOTHING		BIT(7)
+#define HV_CCB_QUEUE_INFO		BIT(8)
+#define HV_CCB_VA_REJECT		0UL
+#define HV_CCB_VA_SECONDARY		BIT(13)
+#define HV_CCB_VA_NUCLEUS		GENMASK(13, 12)
+#define HV_CCB_VA_PRIVILEGED		BIT(14)
+#define HV_CCB_VA_READ_ADI_DISABLE	BIT(15)	/* DAX2 only */
+
+/* ccb_info()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_CCB_INFO
+ * ARG0:	real address of CCB completion area
+ * RET0:	status (success or error code)
+ * RET1:	info array
+ *			- RET1[0]: CCB state
+ *			- RET1[1]: dax unit
+ *			- RET1[2]: queue number
+ *			- RET1[3]: queue position
+ *
+ * ERRORS:	EOK		operation successful
+ *		EBADALIGN	address not 64B aligned
+ *		ENORADDR	RA in address not valid
+ *		EINVAL		CA not valid
+ *		EWOULDBLOCK	info not available for this CCB currently, try
+ *				again
+ *		ENOACCESS	guest cannot use dax
+ */
+
+#define HV_CCB_INFO                 0x35
+#ifndef __ASSEMBLY__
+unsigned long sun4v_ccb_info(unsigned long ca,
+			     void *info_arr);
+#endif
+
+/* info array byte offsets (RET1) */
+#define CCB_INFO_OFFSET_CCB_STATE	0
+#define CCB_INFO_OFFSET_DAX_UNIT	2
+#define CCB_INFO_OFFSET_QUEUE_NUM	4
+#define CCB_INFO_OFFSET_QUEUE_POS	6
+
+/* CCB state (RET1[0]) */
+#define HV_CCB_STATE_COMPLETED      0
+#define HV_CCB_STATE_ENQUEUED       1
+#define HV_CCB_STATE_INPROGRESS     2
+#define HV_CCB_STATE_NOTFOUND       3
+
+/* ccb_kill()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_CCB_KILL
+ * ARG0:	real address of CCB completion area
+ * RET0:	status (success or error code)
+ * RET1:	CCB kill status
+ *
+ * ERRORS:	EOK		operation successful
+ *		EBADALIGN	address not 64B aligned
+ *		ENORADDR	RA in address not valid
+ *		EINVAL		CA not valid
+ *		EWOULDBLOCK	kill not available for this CCB currently, try
+ *				again
+ *		ENOACCESS	guest cannot use dax
+ */
+
+#define HV_CCB_KILL                 0x36
+#ifndef __ASSEMBLY__
+unsigned long sun4v_ccb_kill(unsigned long ca,
+			     void *kill_status);
+#endif
+
+/* CCB kill status (RET1) */
+#define HV_CCB_KILL_COMPLETED       0
+#define HV_CCB_KILL_DEQUEUED        1
+#define HV_CCB_KILL_KILLED          2
+#define HV_CCB_KILL_NOTFOUND        3
 
 /* Time of day services.
  *
@@ -1744,6 +1902,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
 
 #define HV_PCI_MAP_ATTR_READ		0x01
 #define HV_PCI_MAP_ATTR_WRITE		0x02
+#define HV_PCI_MAP_ATTR_RELAXED_ORDER	0x04
 
 #define HV_PCI_DEVICE_BUILD(b,d,f)	\
 	((((b) & 0xff) << 16) | \
@@ -2333,6 +2492,348 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * devhandle and msgtype.
  */
 #define HV_FAST_PCI_MSG_SETVALID	0xd3
+
+/* PCI IOMMU v2 definitions and services
+ *
+ * While the PCI IO definitions above is valid IOMMU v2 adds new PCI IO
+ * definitions and services.
+ *
+ *	CTE		Clump Table Entry. First level table entry in the ATU.
+ *
+ *	pci_device_list
+ *			A 32-bit aligned list of pci_devices.
+ *
+ *	pci_device_listp
+ *			real address of a pci_device_list. 32-bit aligned.
+ *
+ *	iotte		IOMMU translation table entry.
+ *
+ *	iotte_attributes
+ *			IO Attributes for IOMMU v2 mappings. In addition to
+ *			read, write IOMMU v2 supports relax ordering
+ *
+ *	io_page_list	A 64-bit aligned list of real addresses. Each real
+ *			address in an io_page_list must be properly aligned
+ *			to the pagesize of the given IOTSB.
+ *
+ *	io_page_list_p	Real address of an io_page_list, 64-bit aligned.
+ *
+ *	IOTSB		IO Translation Storage Buffer. An aligned table of
+ *			IOTTEs. Each IOTSB has a pagesize, table size, and
+ *			virtual address associated with it that must match
+ *			a pagesize and table size supported by the un-derlying
+ *			hardware implementation. The alignment requirements
+ *			for an IOTSB depend on the pagesize used for that IOTSB.
+ *			Each IOTTE in an IOTSB maps one pagesize-sized page.
+ *			The size of the IOTSB dictates how large of a virtual
+ *			address space the IOTSB is capable of mapping.
+ *
+ *	iotsb_handle	An opaque identifier for an IOTSB. A devhandle plus
+ *			iotsb_handle represents a binding of an IOTSB to a
+ *			PCI root complex.
+ *
+ *	iotsb_index	Zero-based IOTTE number within an IOTSB.
+ */
+
+/* The index_count argument consists of two fields:
+ * bits 63:48 #iottes and bits 47:0 iotsb_index
+ */
+#define HV_PCI_IOTSB_INDEX_COUNT(__iottes, __iotsb_index) \
+	(((u64)(__iottes) << 48UL) | ((u64)(__iotsb_index)))
+
+/* pci_iotsb_conf()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_CONF
+ * ARG0:	devhandle
+ * ARG1:	r_addr
+ * ARG2:	size
+ * ARG3:	pagesize
+ * ARG4:	iova
+ * RET0:	status
+ * RET1:	iotsb_handle
+ * ERRORS:	EINVAL		Invalid devhandle, size, iova, or pagesize
+ *		EBADALIGN	r_addr is not properly aligned
+ *		ENORADDR	r_addr is not a valid real address
+ *		ETOOMANY	No further IOTSBs may be configured
+ *		EBUSY		Duplicate devhandle, raddir, iova combination
+ *
+ * Create an IOTSB suitable for the PCI root complex identified by devhandle,
+ * for the DMA virtual address defined by the argument iova.
+ *
+ * r_addr is the properly aligned base address of the IOTSB and size is the
+ * IOTSB (table) size in bytes.The IOTSB is required to be zeroed prior to
+ * being configured. If it contains any values other than zeros then the
+ * behavior is undefined.
+ *
+ * pagesize is the size of each page in the IOTSB. Note that the combination of
+ * size (table size) and pagesize must be valid.
+ *
+ * virt is the DMA virtual address this IOTSB will map.
+ *
+ * If successful, the opaque 64-bit handle iotsb_handle is returned in ret1.
+ * Once configured, privileged access to the IOTSB memory is prohibited and
+ * creates undefined behavior. The only permitted access is indirect via these
+ * services.
+ */
+#define HV_FAST_PCI_IOTSB_CONF		0x190
+
+/* pci_iotsb_info()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_INFO
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * RET0:	status
+ * RET1:	r_addr
+ * RET2:	size
+ * RET3:	pagesize
+ * RET4:	iova
+ * RET5:	#bound
+ * ERRORS:	EINVAL	Invalid devhandle or iotsb_handle
+ *
+ * This service returns configuration information about an IOTSB previously
+ * created with pci_iotsb_conf.
+ *
+ * iotsb_handle value 0 may be used with this service to inquire about the
+ * legacy IOTSB that may or may not exist. If the service succeeds, the return
+ * values describe the legacy IOTSB and I/O virtual addresses mapped by that
+ * table. However, the table base address r_addr may contain the value -1 which
+ * indicates a memory range that cannot be accessed or be reclaimed.
+ *
+ * The return value #bound contains the number of PCI devices that iotsb_handle
+ * is currently bound to.
+ */
+#define HV_FAST_PCI_IOTSB_INFO		0x191
+
+/* pci_iotsb_unconf()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_UNCONF
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * RET0:	status
+ * ERRORS:	EINVAL	Invalid devhandle or iotsb_handle
+ *		EBUSY	The IOTSB is bound and may not be unconfigured
+ *
+ * This service unconfigures the IOTSB identified by the devhandle and
+ * iotsb_handle arguments, previously created with pci_iotsb_conf.
+ * The IOTSB must not be currently bound to any device or the service will fail
+ *
+ * If the call succeeds, iotsb_handle is no longer valid.
+ */
+#define HV_FAST_PCI_IOTSB_UNCONF	0x192
+
+/* pci_iotsb_bind()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_BIND
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	pci_device
+ * RET0:	status
+ * ERRORS:	EINVAL	Invalid devhandle, iotsb_handle, or pci_device
+ *		EBUSY	A PCI function is already bound to an IOTSB at the same
+ *			address range as specified by devhandle, iotsb_handle.
+ *
+ * This service binds the PCI function specified by the argument pci_device to
+ * the IOTSB specified by the arguments devhandle and iotsb_handle.
+ *
+ * The PCI device function is bound to the specified IOTSB with the IOVA range
+ * specified when the IOTSB was configured via pci_iotsb_conf. If the function
+ * is already bound then it is unbound first.
+ */
+#define HV_FAST_PCI_IOTSB_BIND		0x193
+
+/* pci_iotsb_unbind()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_UNBIND
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	pci_device
+ * RET0:	status
+ * ERRORS:	EINVAL	Invalid devhandle, iotsb_handle, or pci_device
+ *		ENOMAP	The PCI function was not bound to the specified IOTSB
+ *
+ * This service unbinds the PCI device specified by the argument pci_device
+ * from the IOTSB identified  * by the arguments devhandle and iotsb_handle.
+ *
+ * If the PCI device is not bound to the specified IOTSB then this service will
+ * fail with status ENOMAP
+ */
+#define HV_FAST_PCI_IOTSB_UNBIND	0x194
+
+/* pci_iotsb_get_binding()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_GET_BINDING
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	iova
+ * RET0:	status
+ * RET1:	iotsb_handle
+ * ERRORS:	EINVAL	Invalid devhandle, pci_device, or iova
+ *		ENOMAP	The PCI function is not bound to an IOTSB at iova
+ *
+ * This service returns the IOTSB binding, iotsb_handle, for a given pci_device
+ * and DMA virtual address, iova.
+ *
+ * iova must be the base address of a DMA virtual address range as defined by
+ * the iommu-address-ranges property in the root complex device node defined
+ * by the argument devhandle.
+ */
+#define HV_FAST_PCI_IOTSB_GET_BINDING	0x195
+
+/* pci_iotsb_map()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_MAP
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	index_count
+ * ARG3:	iotte_attributes
+ * ARG4:	io_page_list_p
+ * RET0:	status
+ * RET1:	#mapped
+ * ERRORS:	EINVAL		Invalid devhandle, iotsb_handle, #iottes,
+ *				iotsb_index or iotte_attributes
+ *		EBADALIGN	Improperly aligned io_page_list_p or I/O page
+ *				address in the I/O page list.
+ *		ENORADDR	Invalid io_page_list_p or I/O page address in
+ *				the I/O page list.
+ *
+ * This service creates and flushes mappings in the IOTSB defined by the
+ * arguments devhandle, iotsb.
+ *
+ * The index_count argument consists of two fields. Bits 63:48 contain #iotte
+ * and bits 47:0 contain iotsb_index
+ *
+ * The first mapping is created in the IOTSB index specified by iotsb_index.
+ * Subsequent mappings are  created at iotsb_index+1 and so on.
+ *
+ * The attributes of each mapping are defined by the argument iotte_attributes.
+ *
+ * The io_page_list_p specifies the real address of the 64-bit-aligned list of
+ * #iottes I/O page addresses. Each page address must be a properly aligned
+ * real address of a page to be mapped in the IOTSB. The first entry in the I/O
+ * page list contains the real address of the first page, the 2nd entry for the
+ * 2nd page, and so on.
+ *
+ * #iottes must be greater than zero.
+ *
+ * The return value #mapped is the actual number of mappings created, which may
+ * be less than or equal to the argument #iottes. If the function returns
+ * successfully with a #mapped value less than the requested #iottes then the
+ * caller should continue to invoke the service with updated iotsb_index,
+ * #iottes, and io_page_list_p arguments until all pages are mapped.
+ *
+ * This service must not be used to demap a mapping. In other words, all
+ * mappings must be valid and have  one or both of the RW attribute bits set.
+ *
+ * Note:
+ * It is implementation-defined whether I/O page real address validity checking
+ * is done at time mappings are established or deferred until they are
+ * accessed.
+ */
+#define HV_FAST_PCI_IOTSB_MAP		0x196
+
+/* pci_iotsb_map_one()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_MAP_ONE
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	iotsb_index
+ * ARG3:	iotte_attributes
+ * ARG4:	r_addr
+ * RET0:	status
+ * ERRORS:	EINVAL		Invalid devhandle,iotsb_handle, iotsb_index
+ *				or iotte_attributes
+ *		EBADALIGN	Improperly aligned r_addr
+ *		ENORADDR	Invalid r_addr
+ *
+ * This service creates and flushes a single mapping in the IOTSB defined by the
+ * arguments devhandle, iotsb.
+ *
+ * The mapping for the page at r_addr is created at the IOTSB index specified by
+ * iotsb_index with  the attributes iotte_attributes.
+ *
+ * This service must not be used to demap a mapping. In other words, the mapping
+ * must be valid and have one or both of the RW attribute bits set.
+ *
+ * Note:
+ * It is implementation-defined whether I/O page real address validity checking
+ * is done at time mappings are established or deferred until they are
+ * accessed.
+ */
+#define HV_FAST_PCI_IOTSB_MAP_ONE	0x197
+
+/* pci_iotsb_demap()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_DEMAP
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	iotsb_index
+ * ARG3:	#iottes
+ * RET0:	status
+ * RET1:	#unmapped
+ * ERRORS:	EINVAL	Invalid devhandle, iotsb_handle, iotsb_index or #iottes
+ *
+ * This service unmaps and flushes up to #iottes mappings starting at index
+ * iotsb_index from the IOTSB defined by the arguments devhandle, iotsb.
+ *
+ * #iottes must be greater than zero.
+ *
+ * The actual number of IOTTEs unmapped is returned in #unmapped and may be less
+ * than or equal to the requested number of IOTTEs, #iottes.
+ *
+ * If #unmapped is less than #iottes, the caller should continue to invoke this
+ * service with updated iotsb_index and #iottes arguments until all pages are
+ * demapped.
+ */
+#define HV_FAST_PCI_IOTSB_DEMAP		0x198
+
+/* pci_iotsb_getmap()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_GETMAP
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	iotsb_index
+ * RET0:	status
+ * RET1:	r_addr
+ * RET2:	iotte_attributes
+ * ERRORS:	EINVAL	Invalid devhandle, iotsb_handle, or iotsb_index
+ *		ENOMAP	No mapping was found
+ *
+ * This service returns the mapping specified by index iotsb_index from the
+ * IOTSB defined by the arguments devhandle, iotsb.
+ *
+ * Upon success, the real address of the mapping shall be returned in
+ * r_addr and thethe IOTTE mapping attributes shall be returned in
+ * iotte_attributes.
+ *
+ * The return value iotte_attributes may not include optional features used in
+ * the call to create the  mapping.
+ */
+#define HV_FAST_PCI_IOTSB_GETMAP	0x199
+
+/* pci_iotsb_sync_mappings()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_PCI_IOTSB_SYNC_MAPPINGS
+ * ARG0:	devhandle
+ * ARG1:	iotsb_handle
+ * ARG2:	iotsb_index
+ * ARG3:	#iottes
+ * RET0:	status
+ * RET1:	#synced
+ * ERROS:	EINVAL	Invalid devhandle, iotsb_handle, iotsb_index, or #iottes
+ *
+ * This service synchronizes #iottes mappings starting at index iotsb_index in
+ * the IOTSB defined by the arguments devhandle, iotsb.
+ *
+ * #iottes must be greater than zero.
+ *
+ * The actual number of IOTTEs synchronized is returned in #synced, which may
+ * be less than or equal to the requested number, #iottes.
+ *
+ * Upon a successful return, #synced is less than #iottes, the caller should
+ * continue to invoke this service with updated iotsb_index and #iottes
+ * arguments until all pages are synchronized.
+ */
+#define HV_FAST_PCI_IOTSB_SYNC_MAPPINGS	0x19a
 
 /* Logical Domain Channel services.  */
 
@@ -2992,6 +3493,8 @@ unsigned long sun4v_m7_set_perfreg(unsigned long reg_num,
 #define HV_GRP_SDIO			0x0108
 #define HV_GRP_SDIO_ERR			0x0109
 #define HV_GRP_REBOOT_DATA		0x0110
+#define HV_GRP_ATU			0x0111
+#define HV_GRP_DAX			0x0113
 #define HV_GRP_M7_PERF			0x0114
 #define HV_GRP_NIAG_PERF		0x0200
 #define HV_GRP_FIRE_PERF		0x0201

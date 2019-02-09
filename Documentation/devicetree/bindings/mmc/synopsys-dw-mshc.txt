@@ -12,12 +12,12 @@ Required Properties:
 * #address-cells: should be 1.
 * #size-cells: should be 0.
 
-# Slots: The slot specific information are contained within child-nodes with
-  each child-node representing a supported slot. There should be atleast one
-  child node representing a card slot. The name of the child node representing
-  the slot is recommended to be slot@n where n is the unique number of the slot
-  connnected to the controller. The following are optional properties which
-  can be included in the slot child node.
+# Slots (DEPRECATED): The slot specific information are contained within
+  child-nodes with each child-node representing a supported slot. There should
+  be atleast one child node representing a card slot. The name of the child node
+  representing the slot is recommended to be slot@n where n is the unique number
+  of the slot connected to the controller. The following are optional properties
+  which can be included in the slot child node.
 
 	* reg: specifies the physical slot number. The valid values of this
 	  property is 0 to (num-slots -1), where num-slots is the value
@@ -39,6 +39,13 @@ Required Properties:
 
 Optional properties:
 
+* resets: phandle + reset specifier pair, intended to represent hardware
+  reset signal present internally in some host controller IC designs.
+  See Documentation/devicetree/bindings/reset/reset.txt for details.
+
+* reset-names: request name for using "resets" property. Must be "reset".
+	(It will be used together with "resets" property.)
+
 * clocks: from common clock binding: handle to biu and ciu clocks for the
   bus interface unit clock and the card interface unit clock.
 
@@ -52,14 +59,6 @@ Optional properties:
   is specified and the ciu clock is specified then we'll try to set the ciu
   clock to this at probe time.
 
-* clock-freq-min-max: Minimum and Maximum clock frequency for card output
-  clock(cclk_out). If it's not specified, max is 200MHZ and min is 400KHz by default.
-
-* num-slots: specifies the number of slots supported by the controller.
-  The number of physical slots actually used could be equal or less than the
-  value specified by num-slots. If this property is not specified, the value
-  of num-slot property is assumed to be 1.
-
 * fifo-depth: The maximum size of the tx/rx fifo's. If this property is not
   specified, the default value of the fifo size is determined from the
   controller registers.
@@ -67,10 +66,16 @@ Optional properties:
 * card-detect-delay: Delay in milli-seconds before detecting card after card
   insert event. The default value is 0.
 
-* supports-highspeed (DEPRECATED): Enables support for high speed cards (up to 50MHz)
-			   (use "cap-mmc-highspeed" or "cap-sd-highspeed" instead)
+* data-addr: Override fifo address with value provided by DT. The default FIFO reg
+  offset is assumed as 0x100 (version < 0x240A) and 0x200(version >= 0x240A) by
+  driver. If the controller does not follow this rule, please use this property
+  to set fifo address in device tree.
 
-* broken-cd: as documented in mmc core bindings.
+* fifo-watermark-aligned: Data done irq is expected if data length is less than
+  watermark in PIO mode. But fifo watermark is requested to be aligned with data
+  length in some SoC so that TX/RX irq can be generated with data done irq. Add this
+  watermark quirk to mark this requirement and force fifo watermark setting
+  accordingly.
 
 * vmmc-supply: The phandle to the regulator to use for vmmc.  If this is
   specified we'll defer probe until we can find this regulator.
@@ -99,6 +104,10 @@ board specific portions as listed below.
 		interrupts = <0 75 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		data-addr = <0x200>;
+		fifo-watermark-aligned;
+		resets = <&rst 20>;
+		reset-names = "reset";
 	};
 
 [board specific internal DMA resources]
@@ -106,7 +115,6 @@ board specific portions as listed below.
 	dwmmc0@12200000 {
 		clock-frequency = <400000000>;
 		clock-freq-min-max = <400000 200000000>;
-		num-slots = <1>;
 		broken-cd;
 		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
@@ -121,7 +129,6 @@ board specific portions as listed below.
 	dwmmc0@12200000 {
 		clock-frequency = <400000000>;
 		clock-freq-min-max = <400000 200000000>;
-		num-slots = <1>;
 		broken-cd;
 		fifo-depth = <0x80>;
 		card-detect-delay = <200>;

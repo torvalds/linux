@@ -66,10 +66,6 @@ void __init cpm2_reset(void)
 	cpm2_immr = ioremap(get_immrbase(), CPM_MAP_SIZE);
 #endif
 
-	/* Reclaim the DP memory for our use.
-	 */
-	cpm_muram_init();
-
 	/* Tell everyone where the comm processor resides.
 	 */
 	cpmp = &cpm2_immr->im_cpm;
@@ -358,14 +354,3 @@ void cpm2_set_pin(int port, int pin, int flags)
 	else
 		clrbits32(&iop[port].odr, pin);
 }
-
-static int cpm_init_par_io(void)
-{
-	struct device_node *np;
-
-	for_each_compatible_node(np, NULL, "fsl,cpm2-pario-bank")
-		cpm2_gpiochip_add32(np);
-	return 0;
-}
-arch_initcall(cpm_init_par_io);
-

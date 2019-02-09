@@ -19,9 +19,20 @@ The pins are grouped into up to 5 individual pin banks which need to be
 defined as gpio sub-nodes of the pinmux controller.
 
 Required properties for iomux controller:
-  - compatible: one of "rockchip,rk2928-pinctrl", "rockchip,rk3066a-pinctrl"
-		       "rockchip,rk3066b-pinctrl", "rockchip,rk3188-pinctrl"
-		       "rockchip,rk3288-pinctrl", "rockchip,rk3368-pinctrl"
+  - compatible: should be
+		"rockchip,px30-pinctrl":    for Rockchip PX30
+		"rockchip,rv1108-pinctrl":  for Rockchip RV1108
+		"rockchip,rk2928-pinctrl":  for Rockchip RK2928
+		"rockchip,rk3066a-pinctrl": for Rockchip RK3066a
+		"rockchip,rk3066b-pinctrl": for Rockchip RK3066b
+		"rockchip,rk3128-pinctrl":  for Rockchip RK3128
+		"rockchip,rk3188-pinctrl":  for Rockchip RK3188
+		"rockchip,rk3228-pinctrl":  for Rockchip RK3228
+		"rockchip,rk3288-pinctrl":  for Rockchip RK3288
+		"rockchip,rk3328-pinctrl":  for Rockchip RK3328
+		"rockchip,rk3368-pinctrl":  for Rockchip RK3368
+		"rockchip,rk3399-pinctrl":  for Rockchip RK3399
+
   - rockchip,grf: phandle referencing a syscon providing the
 	 "general register files"
 
@@ -111,7 +122,6 @@ uart2: serial@20064000 {
 	reg-shift = <2>;
 	reg-io-width = <1>;
 	clocks = <&mux_uart2>;
-	status = "okay";
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_xfer>;
@@ -127,7 +137,7 @@ Example for rk3188:
 		#size-cells = <1>;
 		ranges;
 
-		gpio0: gpio0@0x2000a000 {
+		gpio0: gpio0@2000a000 {
 			compatible = "rockchip,rk3188-gpio-bank0";
 			reg = <0x2000a000 0x100>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
@@ -140,7 +150,7 @@ Example for rk3188:
 			#interrupt-cells = <2>;
 		};
 
-		gpio1: gpio1@0x2003c000 {
+		gpio1: gpio1@2003c000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2003c000 0x100>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;

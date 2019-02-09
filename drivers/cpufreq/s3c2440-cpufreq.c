@@ -11,6 +11,8 @@
  * published by the Free Software Foundation.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -66,7 +68,7 @@ static int s3c2440_cpufreq_calcdivs(struct s3c_cpufreq_config *cfg)
 		     __func__, fclk, armclk, hclk_max);
 
 	if (armclk > fclk) {
-		printk(KERN_WARNING "%s: armclk > fclk\n", __func__);
+		pr_warn("%s: armclk > fclk\n", __func__);
 		armclk = fclk;
 	}
 
@@ -141,7 +143,7 @@ static void s3c2440_cpufreq_setdivs(struct s3c_cpufreq_config *cfg)
 {
 	unsigned long clkdiv, camdiv;
 
-	s3c_freq_dbg("%s: divsiors: h=%d, p=%d\n", __func__,
+	s3c_freq_dbg("%s: divisors: h=%d, p=%d\n", __func__,
 		     cfg->divs.h_divisor, cfg->divs.p_divisor);
 
 	clkdiv = __raw_readl(S3C2410_CLKDIVN);
@@ -273,7 +275,7 @@ static int s3c2440_cpufreq_add(struct device *dev,
 	armclk = s3c_cpufreq_clk_get(NULL, "armclk");
 
 	if (IS_ERR(xtal) || IS_ERR(hclk) || IS_ERR(fclk) || IS_ERR(armclk)) {
-		printk(KERN_ERR "%s: failed to get clocks\n", __func__);
+		pr_err("%s: failed to get clocks\n", __func__);
 		return -ENOENT;
 	}
 

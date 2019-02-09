@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "kirkwood-nsa3x0-common.dtsi"
@@ -13,16 +14,6 @@
 	chosen {
 		bootargs = "console=ttyS0,115200";
 		stdout-path = &uart0;
-	};
-
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
 	};
 
 	ocp@f1000000 {
@@ -137,4 +128,12 @@
 			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		};
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

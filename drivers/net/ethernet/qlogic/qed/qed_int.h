@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_INT_H
@@ -20,6 +44,12 @@
 #define IGU_PF_CONF_ATTN_BIT_EN   (0x1 << 3)    /* attention enable       */
 #define IGU_PF_CONF_SINGLE_ISR_EN (0x1 << 4)    /* single ISR mode enable */
 #define IGU_PF_CONF_SIMD_MODE     (0x1 << 5)    /* simd all ones mode     */
+/* Fields of IGU VF CONFIGRATION REGISTER */
+#define IGU_VF_CONF_FUNC_EN        (0x1 << 0)	/* function enable        */
+#define IGU_VF_CONF_MSI_MSIX_EN    (0x1 << 1)	/* MSI/MSIX enable        */
+#define IGU_VF_CONF_SINGLE_ISR_EN  (0x1 << 4)	/* single ISR mode enable */
+#define IGU_VF_CONF_PARENT_MASK    (0xF)	/* Parent PF              */
+#define IGU_VF_CONF_PARENT_SHIFT   5		/* Parent PF              */
 
 /* Igu control commands
  */
@@ -47,24 +77,6 @@ enum qed_coalescing_fsm {
 	QED_COAL_RX_STATE_MACHINE,
 	QED_COAL_TX_STATE_MACHINE
 };
-
-/**
- * @brief qed_int_cau_conf_pi - configure cau for a given
- *        status block
- *
- * @param p_hwfn
- * @param p_ptt
- * @param igu_sb_id
- * @param pi_index
- * @param state
- * @param timeset
- */
-void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
-			 struct qed_ptt *p_ptt,
-			 u16 igu_sb_id,
-			 u32 pi_index,
-			 enum qed_coalescing_fsm coalescing_fsm,
-			 u8 timeset);
 
 /**
  * @brief qed_int_igu_enable_int - enable device interrupts
@@ -161,12 +173,12 @@ void qed_int_sp_dpc(unsigned long hwfn_cookie);
  *        blocks configured for this funciton in the igu.
  *
  * @param p_hwfn
- * @param p_iov_blks - configured free blks for vfs
+ * @param p_sb_cnt_info
  *
  * @return int - number of status blocks configured
  */
-int qed_int_get_num_sbs(struct qed_hwfn *p_hwfn,
-			int *p_iov_blks);
+void qed_int_get_num_sbs(struct qed_hwfn	*p_hwfn,
+			 struct qed_sb_cnt_info *p_sb_cnt_info);
 
 /**
  * @brief qed_int_disable_post_isr_release - performs the cleanup post ISR
@@ -185,34 +197,65 @@ void qed_int_disable_post_isr_release(struct qed_dev *cdev);
 #define QED_SB_EVENT_MASK       0x0003
 
 #define SB_ALIGNED_SIZE(p_hwfn)	\
-	ALIGNED_TYPE_SIZE(struct status_block, p_hwfn)
+	ALIGNED_TYPE_SIZE(struct status_block_e4, p_hwfn)
+
+#define QED_SB_INVALID_IDX      0xffff
 
 struct qed_igu_block {
-	u8	status;
+	u8 status;
 #define QED_IGU_STATUS_FREE     0x01
 #define QED_IGU_STATUS_VALID    0x02
 #define QED_IGU_STATUS_PF       0x04
+#define QED_IGU_STATUS_DSB      0x08
 
-	u8	vector_number;
-	u8	function_id;
-	u8	is_pf;
-};
+	u8 vector_number;
+	u8 function_id;
+	u8 is_pf;
 
-struct qed_igu_map {
-	struct qed_igu_block igu_blocks[MAX_TOT_SB_PER_PATH];
+	/* Index inside IGU [meant for back reference] */
+	u16 igu_sb_id;
+
+	struct qed_sb_info *sb_info;
 };
 
 struct qed_igu_info {
-	struct qed_igu_map	igu_map;
-	u16			igu_dsb_id;
-	u16			igu_base_sb;
-	u16			igu_base_sb_iov;
-	u16			igu_sb_cnt;
-	u16			igu_sb_cnt_iov;
-	u16			free_blks;
+	struct qed_igu_block entry[MAX_TOT_SB_PER_PATH];
+	u16 igu_dsb_id;
+
+	struct qed_sb_cnt_info usage;
+
+	bool b_allow_pf_vf_change;
 };
 
-/* TODO Names of function may change... */
+/**
+ * @brief - Make sure the IGU CAM reflects the resources provided by MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+int qed_int_igu_reset_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief Translate the weakly-defined client sb-id into an IGU sb-id
+ *
+ * @param p_hwfn
+ * @param sb_id - user provided sb_id
+ *
+ * @return an index inside IGU CAM where the SB resides
+ */
+u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
+
+/**
+ * @brief return a pointer to an unused valid SB
+ *
+ * @param p_hwfn
+ * @param b_is_pf - true iff we want a SB belonging to a PF
+ *
+ * @return point to an igu_block, NULL if none is available
+ */
+struct qed_igu_block *qed_get_igu_free_sb(struct qed_hwfn *p_hwfn,
+					  bool b_is_pf);
+
 void qed_int_igu_init_pure_rt(struct qed_hwfn *p_hwfn,
 			      struct qed_ptt *p_ptt,
 			      bool b_set,
@@ -291,31 +334,13 @@ u16 qed_int_get_sp_sb_id(struct qed_hwfn *p_hwfn);
  *
  * @param p_hwfn
  * @param p_ptt
- * @param sb_id		- igu status block id
- * @param cleanup_set	- set(1) / clear(0)
- * @param opaque_fid    - the function for which to perform
- *			cleanup, for example a PF on behalf of
- *			its VFs.
- */
-void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
-			    struct qed_ptt *p_ptt,
-			    u32 sb_id,
-			    bool cleanup_set,
-			    u16 opaque_fid);
-
-/**
- * @brief Status block cleanup. Should be called for each status
- *        block that will be used -> both PF / VF
- *
- * @param p_hwfn
- * @param p_ptt
- * @param sb_id		- igu status block id
+ * @param igu_sb_id	- igu status block id
  * @param opaque	- opaque fid of the sb owner.
- * @param cleanup_set	- set(1) / clear(0)
+ * @param b_set		- set(1) / clear(0)
  */
 void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
-				     u32 sb_id,
+				     u16 igu_sb_id,
 				     u16 opaque,
 				     bool b_set);
 
@@ -390,6 +415,9 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 			   u8 pf_id,
 			   u16 vf_number,
 			   u8 vf_valid);
+
+int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			  u8 timer_res, u16 sb_id, bool tx);
 
 #define QED_MAPPING_MEMORY_SIZE(dev)	(NUM_OF_SBS(dev))
 

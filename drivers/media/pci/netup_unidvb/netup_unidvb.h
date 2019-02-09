@@ -24,7 +24,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf2-dvb.h>
-#include <dvb_ca_en50221.h>
+#include <media/dvb_ca_en50221.h>
 
 #define NETUP_UNIDVB_NAME	"netup_unidvb"
 #define NETUP_UNIDVB_VERSION	"0.0.1"
@@ -49,6 +49,15 @@
 #define NETUP_UNIDVB_IRQ_CI	(1 << 10)
 #define NETUP_UNIDVB_IRQ_CAM0	(1 << 11)
 #define NETUP_UNIDVB_IRQ_CAM1	(1 << 12)
+
+/* NetUP Universal DVB card hardware revisions and it's PCI device id's:
+ * 1.3 - CXD2841ER demod, ASCOT2E and HORUS3A tuners
+ * 1.4 - CXD2854ER demod, HELENE tuner
+*/
+enum netup_hw_rev {
+	NETUP_HW_REV_1_3 = 0x18F6,
+	NETUP_HW_REV_1_4 = 0x18F7
+};
 
 struct netup_dma {
 	u8			num;
@@ -119,6 +128,7 @@ struct netup_unidvb_dev {
 	struct netup_dma		dma[2];
 	struct netup_ci_state		ci[2];
 	struct netup_spi		*spi;
+	enum netup_hw_rev		rev;
 };
 
 int netup_i2c_register(struct netup_unidvb_dev *ndev);

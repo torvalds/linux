@@ -16,21 +16,12 @@
  * General Public License for more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
-#include <linux/bitops.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/soc/ti/knav_qmss.h>
-#include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
-#include <linux/firmware.h>
+#include <linux/soc/ti/knav_qmss.h>
 
 #include "knav_qmss.h"
 
@@ -122,8 +113,8 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 	channel = acc->channel;
 	list_dma = acc->list_dma[acc->list_index];
 	list_cpu = acc->list_cpu[acc->list_index];
-	dev_dbg(kdev->dev, "acc-irq: channel %d, list %d, virt %p, phys %x\n",
-		channel, acc->list_index, list_cpu, list_dma);
+	dev_dbg(kdev->dev, "acc-irq: channel %d, list %d, virt %p, dma %pad\n",
+		channel, acc->list_index, list_cpu, &list_dma);
 	if (atomic_read(&acc->retrigger_count)) {
 		atomic_dec(&acc->retrigger_count);
 		__knav_acc_notify(range, acc);
@@ -214,18 +205,18 @@ static int knav_range_setup_acc_irq(struct knav_range_info *range,
 {
 	struct knav_device *kdev = range->kdev;
 	struct knav_acc_channel *acc;
-	unsigned long cpu_map;
+	struct cpumask *cpu_mask;
 	int ret = 0, irq;
 	u32 old, new;
 
 	if (range->flags & RANGE_MULTI_QUEUE) {
 		acc = range->acc;
 		irq = range->irqs[0].irq;
-		cpu_map = range->irqs[0].cpu_map;
+		cpu_mask = range->irqs[0].cpu_mask;
 	} else {
 		acc = range->acc + queue;
 		irq = range->irqs[queue].irq;
-		cpu_map = range->irqs[queue].cpu_map;
+		cpu_mask = range->irqs[queue].cpu_mask;
 	}
 
 	old = acc->open_mask;
@@ -248,8 +239,8 @@ static int knav_range_setup_acc_irq(struct knav_range_info *range,
 			acc->name, acc->name);
 		ret = request_irq(irq, knav_acc_int_handler, 0, acc->name,
 				  range);
-		if (!ret && cpu_map) {
-			ret = irq_set_affinity_hint(irq, to_cpumask(&cpu_map));
+		if (!ret && cpu_mask) {
+			ret = irq_set_affinity_hint(irq, cpu_mask);
 			if (ret) {
 				dev_warn(range->kdev->dev,
 					 "Failed to set IRQ affinity\n");
@@ -297,12 +288,12 @@ knav_acc_write(struct knav_device *kdev, struct knav_pdsp_info *pdsp,
 	u32 result;
 
 	dev_dbg(kdev->dev, "acc command %08x %08x %08x %08x %08x\n",
-		cmd->command, cmd->queue_mask, cmd->list_phys,
+		cmd->command, cmd->queue_mask, cmd->list_dma,
 		cmd->queue_num, cmd->timer_config);
 
 	writel_relaxed(cmd->timer_config, &pdsp->acc_command->timer_config);
 	writel_relaxed(cmd->queue_num, &pdsp->acc_command->queue_num);
-	writel_relaxed(cmd->list_phys, &pdsp->acc_command->list_phys);
+	writel_relaxed(cmd->list_dma, &pdsp->acc_command->list_dma);
 	writel_relaxed(cmd->queue_mask, &pdsp->acc_command->queue_mask);
 	writel_relaxed(cmd->command, &pdsp->acc_command->command);
 
@@ -337,7 +328,7 @@ static void knav_acc_setup_cmd(struct knav_device *kdev,
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->command    = acc->channel;
 	cmd->queue_mask = queue_mask;
-	cmd->list_phys  = acc->list_dma[0];
+	cmd->list_dma   = (u32)acc->list_dma[0];
 	cmd->queue_num  = info->list_entries << 16;
 	cmd->queue_num |= queue_base;
 
@@ -414,8 +405,8 @@ static int knav_acc_init_queue(struct knav_range_info *range,
 {
 	unsigned id = kq->id - range->queue_base;
 
-	kq->descs = devm_kzalloc(range->kdev->dev,
-				 ACC_DESCS_MAX * sizeof(u32), GFP_KERNEL);
+	kq->descs = devm_kcalloc(range->kdev->dev,
+				 ACC_DESCS_MAX, sizeof(u32), GFP_KERNEL);
 	if (!kq->descs)
 		return -ENOMEM;
 
@@ -561,7 +552,7 @@ int knav_init_acc_range(struct knav_device *kdev,
 	info->list_size = list_size;
 	mem_size   = PAGE_ALIGN(list_size * 2);
 	info->mem_size  = mem_size;
-	range->acc = devm_kzalloc(kdev->dev, channels * sizeof(*range->acc),
+	range->acc = devm_kcalloc(kdev->dev, channels, sizeof(*range->acc),
 				  GFP_KERNEL);
 	if (!range->acc)
 		return -ENOMEM;
@@ -591,8 +582,8 @@ int knav_init_acc_range(struct knav_device *kdev,
 		acc->list_cpu[1] = list_mem + list_size;
 		acc->list_dma[0] = list_dma;
 		acc->list_dma[1] = list_dma + list_size;
-		dev_dbg(kdev->dev, "%s: channel %d, phys %08x, virt %8p\n",
-			acc->name, acc->channel, list_dma, list_mem);
+		dev_dbg(kdev->dev, "%s: channel %d, dma %pad, virt %8p\n",
+			acc->name, acc->channel, &list_dma, list_mem);
 	}
 
 	range->ops = &knav_acc_range_ops;

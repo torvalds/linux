@@ -312,7 +312,8 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	struct bnad_debug_info *regrd_debug = file->private_data;
 	struct bnad *bnad = (struct bnad *)regrd_debug->i_private;
 	struct bfa_ioc *ioc = &bnad->bna.ioceth.ioc;
-	int addr, len, rc, i;
+	int rc, i;
+	u32 addr, len;
 	u32 *regbuf;
 	void __iomem *rb, *reg_addr;
 	unsigned long flags;
@@ -324,7 +325,7 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 		return PTR_ERR(kern_buf);
 
 	rc = sscanf(kern_buf, "%x:%x", &addr, &len);
-	if (rc < 2) {
+	if (rc < 2 || len > UINT_MAX >> 2) {
 		netdev_warn(bnad->netdev, "failed to read user buffer\n");
 		kfree(kern_buf);
 		return -EINVAL;
@@ -372,7 +373,8 @@ bnad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	struct bnad_debug_info *debug = file->private_data;
 	struct bnad *bnad = (struct bnad *)debug->i_private;
 	struct bfa_ioc *ioc = &bnad->bna.ioceth.ioc;
-	int addr, val, rc;
+	int rc;
+	u32 addr, val;
 	void __iomem *reg_addr;
 	unsigned long flags;
 	void *kern_buf;
@@ -484,11 +486,11 @@ struct bnad_debugfs_entry {
 };
 
 static const struct bnad_debugfs_entry bnad_debugfs_files[] = {
-	{ "fwtrc",  S_IFREG|S_IRUGO, &bnad_debugfs_op_fwtrc, },
-	{ "fwsave", S_IFREG|S_IRUGO, &bnad_debugfs_op_fwsave, },
-	{ "regrd",  S_IFREG|S_IRUGO|S_IWUSR, &bnad_debugfs_op_regrd, },
-	{ "regwr",  S_IFREG|S_IWUSR, &bnad_debugfs_op_regwr, },
-	{ "drvinfo", S_IFREG|S_IRUGO, &bnad_debugfs_op_drvinfo, },
+	{ "fwtrc",  S_IFREG | 0444, &bnad_debugfs_op_fwtrc, },
+	{ "fwsave", S_IFREG | 0444, &bnad_debugfs_op_fwsave, },
+	{ "regrd",  S_IFREG | 0644, &bnad_debugfs_op_regrd, },
+	{ "regwr",  S_IFREG | 0200, &bnad_debugfs_op_regwr, },
+	{ "drvinfo", S_IFREG | 0444, &bnad_debugfs_op_drvinfo, },
 };
 
 static struct dentry *bna_debugfs_root;

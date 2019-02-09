@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
@@ -215,7 +214,7 @@ static int __init bcm7120_l2_intc_iomap_3380(struct device_node *dn,
 	return 0;
 }
 
-int __init bcm7120_l2_intc_probe(struct device_node *dn,
+static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 				 struct device_node *parent,
 				 int (*iomap_regs_fn)(struct device_node *,
 					struct bcm7120_l2_intc_data *),
@@ -250,12 +249,6 @@ int __init bcm7120_l2_intc_probe(struct device_node *dn,
 	ret = iomap_regs_fn(dn, data);
 	if (ret < 0)
 		goto out_free_l1_data;
-
-	for (idx = 0; idx < data->n_words; idx++) {
-		__raw_writel(data->irq_fwd_mask[idx],
-			     data->pair_base[idx] +
-			     data->en_offset[idx]);
-	}
 
 	for (irq = 0; irq < data->num_parent_irqs; irq++) {
 		ret = bcm7120_l2_intc_init_one(dn, data, irq, valid_mask);
@@ -298,6 +291,10 @@ int __init bcm7120_l2_intc_probe(struct device_node *dn,
 		gc->reg_base = data->pair_base[idx];
 		ct->regs.mask = data->en_offset[idx];
 
+		/* gc->reg_base is defined and so is gc->writel */
+		irq_reg_writel(gc, data->irq_fwd_mask[idx],
+			       data->en_offset[idx]);
+
 		ct->chip.irq_mask = irq_gc_mask_clr_bit;
 		ct->chip.irq_unmask = irq_gc_mask_set_bit;
 		ct->chip.irq_ack = irq_gc_noop;
@@ -321,9 +318,6 @@ int __init bcm7120_l2_intc_probe(struct device_node *dn,
 		}
 	}
 
-	pr_info("registered %s intc (mem: 0x%p, parent IRQ(s): %d)\n",
-			intc_name, data->map_base[0], data->num_parent_irqs);
-
 	return 0;
 
 out_free_domain:
@@ -339,15 +333,15 @@ out_unmap:
 	return ret;
 }
 
-int __init bcm7120_l2_intc_probe_7120(struct device_node *dn,
-				      struct device_node *parent)
+static int __init bcm7120_l2_intc_probe_7120(struct device_node *dn,
+					     struct device_node *parent)
 {
 	return bcm7120_l2_intc_probe(dn, parent, bcm7120_l2_intc_iomap_7120,
 				     "BCM7120 L2");
 }
 
-int __init bcm7120_l2_intc_probe_3380(struct device_node *dn,
-				      struct device_node *parent)
+static int __init bcm7120_l2_intc_probe_3380(struct device_node *dn,
+					     struct device_node *parent)
 {
 	return bcm7120_l2_intc_probe(dn, parent, bcm7120_l2_intc_iomap_3380,
 				     "BCM3380 L2");

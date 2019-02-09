@@ -1,39 +1,177 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_DAX_H
 #define _LINUX_DAX_H
 
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/radix-tree.h>
 #include <asm/pgtable.h>
 
-ssize_t dax_do_io(struct kiocb *, struct inode *, struct iov_iter *, loff_t,
-		  get_block_t, dio_iodone_t, int flags);
-int dax_clear_blocks(struct inode *, sector_t block, long size);
-int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
-int dax_truncate_page(struct inode *, loff_t from, get_block_t);
-int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t,
-		dax_iodone_t);
-int __dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t,
-		dax_iodone_t);
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-int dax_pmd_fault(struct vm_area_struct *, unsigned long addr, pmd_t *,
-				unsigned int flags, get_block_t, dax_iodone_t);
-int __dax_pmd_fault(struct vm_area_struct *, unsigned long addr, pmd_t *,
-				unsigned int flags, get_block_t, dax_iodone_t);
-#else
-static inline int dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
-				pmd_t *pmd, unsigned int flags, get_block_t gb,
-				dax_iodone_t di)
-{
-	return VM_FAULT_FALLBACK;
-}
-#define __dax_pmd_fault dax_pmd_fault
-#endif
-int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
-#define dax_mkwrite(vma, vmf, gb, iod)		dax_fault(vma, vmf, gb, iod)
-#define __dax_mkwrite(vma, vmf, gb, iod)	__dax_fault(vma, vmf, gb, iod)
+struct iomap_ops;
+struct dax_device;
+struct dax_operations {
+	/*
+	 * direct_access: translate a device-relative
+	 * logical-page-offset into an absolute physical pfn. Return the
+	 * number of pages available for DAX at that pfn.
+	 */
+	long (*direct_access)(struct dax_device *, pgoff_t, long,
+			void **, pfn_t *);
+	/* copy_from_iter: required operation for fs-dax direct-i/o */
+	size_t (*copy_from_iter)(struct dax_device *, pgoff_t, void *, size_t,
+			struct iov_iter *);
+	/* copy_to_iter: required operation for fs-dax direct-i/o */
+	size_t (*copy_to_iter)(struct dax_device *, pgoff_t, void *, size_t,
+			struct iov_iter *);
+};
 
-static inline bool vma_is_dax(struct vm_area_struct *vma)
+extern struct attribute_group dax_attribute_group;
+
+#if IS_ENABLED(CONFIG_DAX)
+struct dax_device *dax_get_by_host(const char *host);
+struct dax_device *alloc_dax(void *private, const char *host,
+		const struct dax_operations *ops);
+void put_dax(struct dax_device *dax_dev);
+void kill_dax(struct dax_device *dax_dev);
+void dax_write_cache(struct dax_device *dax_dev, bool wc);
+bool dax_write_cache_enabled(struct dax_device *dax_dev);
+#else
+static inline struct dax_device *dax_get_by_host(const char *host)
 {
-	return vma->vm_file && IS_DAX(vma->vm_file->f_mapping->host);
+	return NULL;
 }
+static inline struct dax_device *alloc_dax(void *private, const char *host,
+		const struct dax_operations *ops)
+{
+	/*
+	 * Callers should check IS_ENABLED(CONFIG_DAX) to know if this
+	 * NULL is an error or expected.
+	 */
+	return NULL;
+}
+static inline void put_dax(struct dax_device *dax_dev)
+{
+}
+static inline void kill_dax(struct dax_device *dax_dev)
+{
+}
+static inline void dax_write_cache(struct dax_device *dax_dev, bool wc)
+{
+}
+static inline bool dax_write_cache_enabled(struct dax_device *dax_dev)
+{
+	return false;
+}
+#endif
+
+struct writeback_control;
+int bdev_dax_pgoff(struct block_device *, sector_t, size_t, pgoff_t *pgoff);
+#if IS_ENABLED(CONFIG_FS_DAX)
+bool __bdev_dax_supported(struct block_device *bdev, int blocksize);
+static inline bool bdev_dax_supported(struct block_device *bdev, int blocksize)
+{
+	return __bdev_dax_supported(bdev, blocksize);
+}
+
+static inline struct dax_device *fs_dax_get_by_host(const char *host)
+{
+	return dax_get_by_host(host);
+}
+
+static inline void fs_put_dax(struct dax_device *dax_dev)
+{
+	put_dax(dax_dev);
+}
+
+struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev);
+int dax_writeback_mapping_range(struct address_space *mapping,
+		struct block_device *bdev, struct writeback_control *wbc);
+
+struct page *dax_layout_busy_page(struct address_space *mapping);
+bool dax_lock_mapping_entry(struct page *page);
+void dax_unlock_mapping_entry(struct page *page);
+#else
+static inline bool bdev_dax_supported(struct block_device *bdev,
+		int blocksize)
+{
+	return false;
+}
+
+static inline struct dax_device *fs_dax_get_by_host(const char *host)
+{
+	return NULL;
+}
+
+static inline void fs_put_dax(struct dax_device *dax_dev)
+{
+}
+
+static inline struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
+{
+	return NULL;
+}
+
+static inline struct page *dax_layout_busy_page(struct address_space *mapping)
+{
+	return NULL;
+}
+
+static inline int dax_writeback_mapping_range(struct address_space *mapping,
+		struct block_device *bdev, struct writeback_control *wbc)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline bool dax_lock_mapping_entry(struct page *page)
+{
+	if (IS_DAX(page->mapping->host))
+		return true;
+	return false;
+}
+
+static inline void dax_unlock_mapping_entry(struct page *page)
+{
+}
+#endif
+
+int dax_read_lock(void);
+void dax_read_unlock(int id);
+bool dax_alive(struct dax_device *dax_dev);
+void *dax_get_private(struct dax_device *dax_dev);
+long dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,
+		void **kaddr, pfn_t *pfn);
+size_t dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
+		size_t bytes, struct iov_iter *i);
+size_t dax_copy_to_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
+		size_t bytes, struct iov_iter *i);
+void dax_flush(struct dax_device *dax_dev, void *addr, size_t size);
+
+ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
+		const struct iomap_ops *ops);
+vm_fault_t dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+		    pfn_t *pfnp, int *errp, const struct iomap_ops *ops);
+vm_fault_t dax_finish_sync_fault(struct vm_fault *vmf,
+		enum page_entry_size pe_size, pfn_t pfn);
+int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index);
+int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
+				      pgoff_t index);
+
+#ifdef CONFIG_FS_DAX
+int __dax_zero_page_range(struct block_device *bdev,
+		struct dax_device *dax_dev, sector_t sector,
+		unsigned int offset, unsigned int length);
+#else
+static inline int __dax_zero_page_range(struct block_device *bdev,
+		struct dax_device *dax_dev, sector_t sector,
+		unsigned int offset, unsigned int length)
+{
+	return -ENXIO;
+}
+#endif
+
+static inline bool dax_mapping(struct address_space *mapping)
+{
+	return mapping->host && IS_DAX(mapping->host);
+}
+
 #endif

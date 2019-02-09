@@ -8,6 +8,7 @@
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/bus/ti-sysc.h>
 #include <dt-bindings/media/omap3-isp.h>
 
 #include "omap3.dtsi"
@@ -19,7 +20,7 @@
 
 	cpus {
 		/* OMAP3630/OMAP37xx 'standard device' variants OPP50 to OPP130 */
-		cpu@0 {
+		cpu: cpu@0 {
 			operating-points = <
 				/* kHz    uV */
 				300000  1012500
@@ -30,7 +31,7 @@
 		};
 	};
 
-	ocp {
+	ocp@68000000 {
 		uart4: serial@49042000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x49042000 0x400>;
@@ -44,7 +45,7 @@
 		abb_mpu_iva: regulator-abb-mpu {
 			compatible = "ti,abb-v1";
 			regulator-name = "abb_mpu_iva";
-			#address-cell = <0>;
+			#address-cells = <0>;
 			#size-cells = <0>;
 			reg = <0x483072f0 0x8>, <0x48306818 0x4>;
 			reg-names = "base-address", "int-address";
@@ -66,6 +67,7 @@
 			reg = <0x480025a0 0x5c>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#pinctrl-cells = <1>;
 			#interrupt-cells = <1>;
 			interrupt-controller;
 			pinctrl-single,register-width = <16>;
@@ -86,6 +88,61 @@
 				#size-cells = <0>;
 			};
 		};
+
+		bandgap: bandgap@48002524 {
+			reg = <0x48002524 0x4>;
+			compatible = "ti,omap36xx-bandgap";
+			#thermal-sensor-cells = <0>;
+		};
+
+		target-module@480cb000 {
+			compatible = "ti,sysc-omap3630-sr", "ti,sysc";
+			ti,hwmods = "smartreflex_core";
+			reg = <0x480cb038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&sr2_fck>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480cb000 0x001000>;
+
+			smartreflex_core: smartreflex@0 {
+				compatible = "ti,omap3-smartreflex-core";
+				reg = <0 0x400>;
+				interrupts = <19>;
+			};
+		};
+
+		target-module@480c9000 {
+			compatible = "ti,sysc-omap3630-sr", "ti,sysc";
+			ti,hwmods = "smartreflex_mpu_iva";
+			reg = <0x480c9038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&sr1_fck>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480c9000 0x001000>;
+
+
+			smartreflex_mpu_iva: smartreflex@480c9000 {
+				compatible = "ti,omap3-smartreflex-mpu-iva";
+				reg = <0 0x400>;
+				interrupts = <18>;
+			};
+		};
+	};
+
+	thermal_zones: thermal-zones {
+		#include "omap3-cpu-thermal.dtsi"
 	};
 };
 

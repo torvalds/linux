@@ -1,0 +1,21 @@
+Xilinx SPI controller Device Tree Bindings
+-------------------------------------------------
+
+Required properties:
+- compatible		: Should be "xlnx,xps-spi-2.00.a", "xlnx,xps-spi-2.00.b" or "xlnx,axi-quad-spi-1.00.a"
+- reg			: Physical base address and size of SPI registers map.
+- interrupts		: Property with a value describing the interrupt
+			  number.
+
+Optional properties:
+- xlnx,num-ss-bits	: Number of chip selects used.
+
+Example:
+	axi_quad_spi@41e00000 {
+			compatible = "xlnx,xps-spi-2.00.a";
+			interrupt-parent = <&intc>;
+			interrupts = <0 31 1>;
+			reg = <0x41e00000 0x10000>;
+			xlnx,num-ss-bits = <0x1>;
+	};
+

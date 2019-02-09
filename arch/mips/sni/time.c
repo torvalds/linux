@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/i8253.h>
 #include <linux/interrupt.h>
@@ -8,7 +9,6 @@
 
 #include <asm/sni.h>
 #include <asm/time.h>
-#include <asm-generic/rtc.h>
 
 #define SNI_CLOCK_TICK_RATE	3686400
 #define SNI_COUNTER2_DIV	64
@@ -170,10 +170,4 @@ void __init plat_time_init(void)
 		break;
 	}
 	setup_pit_timer();
-}
-
-void read_persistent_clock(struct timespec *ts)
-{
-	ts->tv_sec = -1;
-	ts->tv_nsec = 0;
 }

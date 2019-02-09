@@ -102,7 +102,6 @@ struct ltq_etop_priv {
 	struct resource *res;
 
 	struct mii_bus *mii_bus;
-	struct phy_device *phydev;
 
 	struct ltq_etop_chan ch[MAX_DMA_CHAN];
 	int tx_free[MAX_DMA_CHAN >> 1];
@@ -157,24 +156,21 @@ ltq_etop_poll_rx(struct napi_struct *napi, int budget)
 {
 	struct ltq_etop_chan *ch = container_of(napi,
 				struct ltq_etop_chan, napi);
-	int rx = 0;
-	int complete = 0;
+	int work_done = 0;
 
-	while ((rx < budget) && !complete) {
+	while (work_done < budget) {
 		struct ltq_dma_desc *desc = &ch->dma.desc_base[ch->dma.desc];
 
-		if ((desc->ctl & (LTQ_DMA_OWN | LTQ_DMA_C)) == LTQ_DMA_C) {
-			ltq_etop_hw_receive(ch);
-			rx++;
-		} else {
-			complete = 1;
-		}
+		if ((desc->ctl & (LTQ_DMA_OWN | LTQ_DMA_C)) != LTQ_DMA_C)
+			break;
+		ltq_etop_hw_receive(ch);
+		work_done++;
 	}
-	if (complete || !rx) {
-		napi_complete(&ch->napi);
+	if (work_done < budget) {
+		napi_complete_done(&ch->napi, work_done);
 		ltq_dma_ack_irq(&ch->dma);
 	}
-	return rx;
+	return work_done;
 }
 
 static int
@@ -278,6 +274,7 @@ ltq_etop_hw_init(struct net_device *dev)
 		struct ltq_etop_chan *ch = &priv->ch[i];
 
 		ch->idx = ch->dma.nr = i;
+		ch->dma.dev = &priv->pdev->dev;
 
 		if (IS_TX(i)) {
 			ltq_dma_alloc_tx(&ch->dma);
@@ -304,35 +301,11 @@ ltq_etop_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
-static int
-ltq_etop_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct ltq_etop_priv *priv = netdev_priv(dev);
-
-	return phy_ethtool_gset(priv->phydev, cmd);
-}
-
-static int
-ltq_etop_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct ltq_etop_priv *priv = netdev_priv(dev);
-
-	return phy_ethtool_sset(priv->phydev, cmd);
-}
-
-static int
-ltq_etop_nway_reset(struct net_device *dev)
-{
-	struct ltq_etop_priv *priv = netdev_priv(dev);
-
-	return phy_start_aneg(priv->phydev);
-}
-
 static const struct ethtool_ops ltq_etop_ethtool_ops = {
 	.get_drvinfo = ltq_etop_get_drvinfo,
-	.get_settings = ltq_etop_get_settings,
-	.set_settings = ltq_etop_set_settings,
-	.nway_reset = ltq_etop_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static int
@@ -375,22 +348,16 @@ static int
 ltq_etop_mdio_probe(struct net_device *dev)
 {
 	struct ltq_etop_priv *priv = netdev_priv(dev);
-	struct phy_device *phydev = NULL;
-	int phy_addr;
+	struct phy_device *phydev;
 
-	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (priv->mii_bus->phy_map[phy_addr]) {
-			phydev = priv->mii_bus->phy_map[phy_addr];
-			break;
-		}
-	}
+	phydev = phy_find_first(priv->mii_bus);
 
 	if (!phydev) {
 		netdev_err(dev, "no PHY found\n");
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev),
+	phydev = phy_connect(dev, phydev_name(phydev),
 			     &ltq_etop_mdio_link, priv->pldata->mii_mode);
 
 	if (IS_ERR(phydev)) {
@@ -407,10 +374,7 @@ ltq_etop_mdio_probe(struct net_device *dev)
 			      | SUPPORTED_TP);
 
 	phydev->advertising = phydev->supported;
-	priv->phydev = phydev;
-	pr_info("%s: attached PHY [%s] (phy_addr=%s, irq=%d)\n",
-	       dev->name, phydev->drv->name,
-	       dev_name(&phydev->dev), phydev->irq);
+	phy_attached_info(phydev);
 
 	return 0;
 }
@@ -419,7 +383,6 @@ static int
 ltq_etop_mdio_init(struct net_device *dev)
 {
 	struct ltq_etop_priv *priv = netdev_priv(dev);
-	int i;
 	int err;
 
 	priv->mii_bus = mdiobus_alloc();
@@ -435,18 +398,9 @@ ltq_etop_mdio_init(struct net_device *dev)
 	priv->mii_bus->name = "ltq_mii";
 	snprintf(priv->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		priv->pdev->name, priv->pdev->id);
-	priv->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!priv->mii_bus->irq) {
-		err = -ENOMEM;
-		goto err_out_free_mdiobus;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		priv->mii_bus->irq[i] = PHY_POLL;
-
 	if (mdiobus_register(priv->mii_bus)) {
 		err = -ENXIO;
-		goto err_out_free_mdio_irq;
+		goto err_out_free_mdiobus;
 	}
 
 	if (ltq_etop_mdio_probe(dev)) {
@@ -457,8 +411,6 @@ ltq_etop_mdio_init(struct net_device *dev)
 
 err_out_unregister_bus:
 	mdiobus_unregister(priv->mii_bus);
-err_out_free_mdio_irq:
-	kfree(priv->mii_bus->irq);
 err_out_free_mdiobus:
 	mdiobus_free(priv->mii_bus);
 err_out:
@@ -470,9 +422,8 @@ ltq_etop_mdio_cleanup(struct net_device *dev)
 {
 	struct ltq_etop_priv *priv = netdev_priv(dev);
 
-	phy_disconnect(priv->phydev);
+	phy_disconnect(dev->phydev);
 	mdiobus_unregister(priv->mii_bus);
-	kfree(priv->mii_bus->irq);
 	mdiobus_free(priv->mii_bus);
 }
 
@@ -490,7 +441,7 @@ ltq_etop_open(struct net_device *dev)
 		ltq_dma_open(&ch->dma);
 		napi_enable(&ch->napi);
 	}
-	phy_start(priv->phydev);
+	phy_start(dev->phydev);
 	netif_tx_start_all_queues(dev);
 	return 0;
 }
@@ -502,7 +453,7 @@ ltq_etop_stop(struct net_device *dev)
 	int i;
 
 	netif_tx_stop_all_queues(dev);
-	phy_stop(priv->phydev);
+	phy_stop(dev->phydev);
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
 		struct ltq_etop_chan *ch = &priv->ch[i];
 
@@ -539,7 +490,7 @@ ltq_etop_tx(struct sk_buff *skb, struct net_device *dev)
 	byte_offset = CPHYSADDR(skb->data) % 16;
 	ch->skb[ch->dma.desc] = skb;
 
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	desc->addr = ((unsigned int) dma_map_single(NULL, skb->data, len,
@@ -560,27 +511,23 @@ ltq_etop_tx(struct sk_buff *skb, struct net_device *dev)
 static int
 ltq_etop_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int ret = eth_change_mtu(dev, new_mtu);
+	struct ltq_etop_priv *priv = netdev_priv(dev);
+	unsigned long flags;
 
-	if (!ret) {
-		struct ltq_etop_priv *priv = netdev_priv(dev);
-		unsigned long flags;
+	dev->mtu = new_mtu;
 
-		spin_lock_irqsave(&priv->lock, flags);
-		ltq_etop_w32((ETOP_PLEN_UNDER << 16) | new_mtu,
-			LTQ_ETOP_IGPLEN);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
-	return ret;
+	spin_lock_irqsave(&priv->lock, flags);
+	ltq_etop_w32((ETOP_PLEN_UNDER << 16) | new_mtu, LTQ_ETOP_IGPLEN);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
 }
 
 static int
 ltq_etop_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct ltq_etop_priv *priv = netdev_priv(dev);
-
 	/* TODO: mii-toll reports "No MII transceiver present!." ?!*/
-	return phy_mii_ioctl(priv->phydev, rq, cmd);
+	return phy_mii_ioctl(dev->phydev, rq, cmd);
 }
 
 static int
@@ -615,14 +562,6 @@ ltq_etop_set_multicast_list(struct net_device *dev)
 	else
 		ltq_etop_w32_mask(0, ETOP_FTCU, LTQ_ETOP_ENETS0);
 	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-static u16
-ltq_etop_select_queue(struct net_device *dev, struct sk_buff *skb,
-		      void *accel_priv, select_queue_fallback_t fallback)
-{
-	/* we are currently only using the first queue */
-	return 0;
 }
 
 static int
@@ -677,7 +616,7 @@ ltq_etop_tx_timeout(struct net_device *dev)
 	err = ltq_etop_hw_init(dev);
 	if (err)
 		goto err_hw;
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	netif_wake_queue(dev);
 	return;
 
@@ -695,7 +634,7 @@ static const struct net_device_ops ltq_eth_netdev_ops = {
 	.ndo_set_mac_address = ltq_etop_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_rx_mode = ltq_etop_set_multicast_list,
-	.ndo_select_queue = ltq_etop_select_queue,
+	.ndo_select_queue = dev_pick_tx_zero,
 	.ndo_init = ltq_etop_init,
 	.ndo_tx_timeout = ltq_etop_tx_timeout,
 };
@@ -747,6 +686,7 @@ ltq_etop_probe(struct platform_device *pdev)
 	priv->pldata = dev_get_platdata(&pdev->dev);
 	priv->netdev = dev;
 	spin_lock_init(&priv->lock);
+	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
 		if (IS_TX(i))

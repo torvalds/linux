@@ -33,9 +33,9 @@ static u32 emulate_ioc3_cfg(int where, int size)
  * The Bridge ASIC supports both type 0 and type 1 access.  Type 1 is
  * not really documented, so right now I can't write code which uses it.
  * Therefore we use type 0 accesses for now even though they won't work
- * correcly for PCI-to-PCI bridges.
+ * correctly for PCI-to-PCI bridges.
  *
- * The function is complicated by the ultimate brokeness of the IOC3 chip
+ * The function is complicated by the ultimate brokenness of the IOC3 chip
  * which is used in SGI systems.  The IOC3 can only handle 32-bit PCI
  * accesses and does only decode parts of it's address space.
  */
@@ -167,7 +167,7 @@ oh_my_gawd:
 static int pci_read_config(struct pci_bus *bus, unsigned int devfn,
 			   int where, int size, u32 * value)
 {
-	if (bus->number > 0)
+	if (!pci_is_root_bus(bus))
 		return pci_conf1_read_config(bus, devfn, where, size, value);
 
 	return pci_conf0_read_config(bus, devfn, where, size, value);
@@ -310,7 +310,7 @@ oh_my_gawd:
 static int pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	int where, int size, u32 value)
 {
-	if (bus->number > 0)
+	if (!pci_is_root_bus(bus))
 		return pci_conf1_write_config(bus, devfn, where, size, value);
 
 	return pci_conf0_write_config(bus, devfn, where, size, value);

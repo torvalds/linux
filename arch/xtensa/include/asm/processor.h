@@ -11,7 +11,6 @@
 #define _XTENSA_PROCESSOR_H
 
 #include <variant/core.h>
-#include <platform/hardware.h>
 
 #include <linux/compiler.h>
 #include <asm/ptrace.h>
@@ -24,7 +23,11 @@
 # error Linux requires the Xtensa Windowed Registers Option.
 #endif
 
-#define ARCH_SLAB_MINALIGN	XCHAL_DATA_WIDTH
+/* Xtensa ABI requires stack alignment to be at least 16 */
+
+#define STACK_ALIGN (XCHAL_DATA_WIDTH > 16 ? XCHAL_DATA_WIDTH : 16)
+
+#define ARCH_SLAB_MINALIGN STACK_ALIGN
 
 /*
  * User space process size: 1 GB.
@@ -37,7 +40,7 @@
 #ifdef CONFIG_MMU
 #define TASK_SIZE	__XTENSA_UL_CONST(0x40000000)
 #else
-#define TASK_SIZE	(PLATFORM_DEFAULT_MEM_START + PLATFORM_DEFAULT_MEM_SIZE)
+#define TASK_SIZE	__XTENSA_UL_CONST(0xffffffff)
 #endif
 
 #define STACK_TOP	TASK_SIZE
@@ -78,22 +81,20 @@
 #define XTENSA_INTLEVEL_MASK(level) _XTENSA_INTLEVEL_MASK(level)
 #define _XTENSA_INTLEVEL_MASK(level) (XCHAL_INTLEVEL##level##_MASK)
 
-#define IS_POW2(v) (((v) & ((v) - 1)) == 0)
+#define XTENSA_INTLEVEL_ANDBELOW_MASK(l) _XTENSA_INTLEVEL_ANDBELOW_MASK(l)
+#define _XTENSA_INTLEVEL_ANDBELOW_MASK(l) (XCHAL_INTLEVEL##l##_ANDBELOW_MASK)
 
 #define PROFILING_INTLEVEL XTENSA_INT_LEVEL(XCHAL_PROFILING_INTERRUPT)
 
 /* LOCKLEVEL defines the interrupt level that masks all
  * general-purpose interrupts.
  */
-#if defined(CONFIG_XTENSA_VARIANT_HAVE_PERF_EVENTS) && \
-	defined(XCHAL_PROFILING_INTERRUPT) && \
-	PROFILING_INTLEVEL == XCHAL_EXCM_LEVEL && \
-	XCHAL_EXCM_LEVEL > 1 && \
-	IS_POW2(XTENSA_INTLEVEL_MASK(PROFILING_INTLEVEL))
-#define LOCKLEVEL (XCHAL_EXCM_LEVEL - 1)
+#if defined(CONFIG_XTENSA_FAKE_NMI) && defined(XCHAL_PROFILING_INTERRUPT)
+#define LOCKLEVEL (PROFILING_INTLEVEL - 1)
 #else
 #define LOCKLEVEL XCHAL_EXCM_LEVEL
 #endif
+
 #define TOPLEVEL XCHAL_EXCM_LEVEL
 #define XTENSA_FAKE_NMI (LOCKLEVEL < TOPLEVEL)
 
@@ -115,6 +116,21 @@
  */
 #define MAKE_PC_FROM_RA(ra,sp)    (((ra) & 0x3fffffff) | ((sp) & 0xc0000000))
 
+/* Spill slot location for the register reg in the spill area under the stack
+ * pointer sp. reg must be in the range [0..4).
+ */
+#define SPILL_SLOT(sp, reg) (*(((unsigned long *)(sp)) - 4 + (reg)))
+
+/* Spill slot location for the register reg in the spill area under the stack
+ * pointer sp for the call8. reg must be in the range [4..8).
+ */
+#define SPILL_SLOT_CALL8(sp, reg) (*(((unsigned long *)(sp)) - 12 + (reg)))
+
+/* Spill slot location for the register reg in the spill area under the stack
+ * pointer sp for the call12. reg must be in the range [4..12).
+ */
+#define SPILL_SLOT_CALL12(sp, reg) (*(((unsigned long *)(sp)) - 16 + (reg)))
+
 typedef struct {
 	unsigned long seg;
 } mm_segment_t;
@@ -132,11 +148,10 @@ struct thread_struct {
 	unsigned long bad_vaddr; /* last user fault */
 	unsigned long bad_uaddr; /* last kernel fault accessing user space */
 	unsigned long error_code;
-
-	unsigned long ibreak[XCHAL_NUM_IBREAK];
-	unsigned long dbreaka[XCHAL_NUM_DBREAK];
-	unsigned long dbreakc[XCHAL_NUM_DBREAK];
-
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	struct perf_event *ptrace_bp[XCHAL_NUM_IBREAK];
+	struct perf_event *ptrace_wp[XCHAL_NUM_DBREAK];
+#endif
 	/* Make structure 16 bytes aligned. */
 	int align[0] __attribute__ ((aligned(16)));
 };
@@ -196,20 +211,12 @@ struct mm_struct;
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while(0)
 
-/* Copy and release all segment info associated with a VM */
-#define copy_segments(p, mm)	do { } while(0)
-#define release_segments(mm)	do { } while(0)
-#define forget_segments()	do { } while (0)
-
-#define thread_saved_pc(tsk)	(task_pt_regs(tsk)->pc)
-
 extern unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)		(task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->areg[1])
 
 #define cpu_relax()  barrier()
-#define cpu_relax_lowlatency() cpu_relax()
 
 /* Special register access. */
 

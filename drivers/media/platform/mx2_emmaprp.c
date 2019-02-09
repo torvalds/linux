@@ -211,7 +211,6 @@ struct emmaprp_dev {
 	struct clk		*clk_emma_ahb, *clk_emma_ipg;
 
 	struct v4l2_m2m_dev	*m2m_dev;
-	struct vb2_alloc_ctx	*alloc_ctx;
 };
 
 struct emmaprp_ctx {
@@ -249,20 +248,6 @@ static void emmaprp_job_abort(void *priv)
 	dprintk(pcdev, "Aborting task\n");
 
 	v4l2_m2m_job_finish(pcdev->m2m_dev, ctx->m2m_ctx);
-}
-
-static void emmaprp_lock(void *priv)
-{
-	struct emmaprp_ctx *ctx = priv;
-	struct emmaprp_dev *pcdev = ctx->dev;
-	mutex_lock(&pcdev->dev_mutex);
-}
-
-static void emmaprp_unlock(void *priv)
-{
-	struct emmaprp_ctx *ctx = priv;
-	struct emmaprp_dev *pcdev = ctx->dev;
-	mutex_unlock(&pcdev->dev_mutex);
 }
 
 static inline void emmaprp_dump_regs(struct emmaprp_dev *pcdev)
@@ -375,7 +360,7 @@ static irqreturn_t emmaprp_irq(int irq_emma, void *data)
 			src_vb = v4l2_m2m_src_buf_remove(curr_ctx->m2m_ctx);
 			dst_vb = v4l2_m2m_dst_buf_remove(curr_ctx->m2m_ctx);
 
-			dst_vb->timestamp = src_vb->timestamp;
+			dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
 			dst_vb->flags &=
 				~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 			dst_vb->flags |=
@@ -689,9 +674,8 @@ static const struct v4l2_ioctl_ops emmaprp_ioctl_ops = {
  * Queue operations
  */
 static int emmaprp_queue_setup(struct vb2_queue *vq,
-				const void *parg,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct emmaprp_ctx *ctx = vb2_get_drv_priv(vq);
 	struct emmaprp_q_data *q_data;
@@ -711,8 +695,6 @@ static int emmaprp_queue_setup(struct vb2_queue *vq,
 	*nbuffers = count;
 	sizes[0] = size;
 
-	alloc_ctxs[0] = ctx->dev->alloc_ctx;
-
 	dprintk(ctx->dev, "get %d buffer(s) of size %d each.\n", count, size);
 
 	return 0;
@@ -728,10 +710,10 @@ static int emmaprp_buf_prepare(struct vb2_buffer *vb)
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
-		dprintk(ctx->dev, "%s data will not fit into plane"
-				  "(%lu < %lu)\n", __func__,
-				  vb2_plane_size(vb, 0),
-				  (long)q_data->sizeimage);
+		dprintk(ctx->dev,
+			"%s data will not fit into plane(%lu < %lu)\n",
+			__func__, vb2_plane_size(vb, 0),
+			(long)q_data->sizeimage);
 		return -EINVAL;
 	}
 
@@ -747,10 +729,12 @@ static void emmaprp_buf_queue(struct vb2_buffer *vb)
 	v4l2_m2m_buf_queue(ctx->m2m_ctx, vbuf);
 }
 
-static struct vb2_ops emmaprp_qops = {
+static const struct vb2_ops emmaprp_qops = {
 	.queue_setup	 = emmaprp_queue_setup,
 	.buf_prepare	 = emmaprp_buf_prepare,
 	.buf_queue	 = emmaprp_buf_queue,
+	.wait_prepare	 = vb2_ops_wait_prepare,
+	.wait_finish	 = vb2_ops_wait_finish,
 };
 
 static int queue_init(void *priv, struct vb2_queue *src_vq,
@@ -766,6 +750,8 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &emmaprp_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->dev = ctx->dev->v4l2_dev.dev;
+	src_vq->lock = &ctx->dev->dev_mutex;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -778,6 +764,8 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &emmaprp_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->dev = ctx->dev->v4l2_dev.dev;
+	dst_vq->lock = &ctx->dev->dev_mutex;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -840,12 +828,12 @@ static int emmaprp_release(struct file *file)
 	return 0;
 }
 
-static unsigned int emmaprp_poll(struct file *file,
+static __poll_t emmaprp_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
 	struct emmaprp_dev *pcdev = video_drvdata(file);
 	struct emmaprp_ctx *ctx = file->private_data;
-	unsigned int res;
+	__poll_t res;
 
 	mutex_lock(&pcdev->dev_mutex);
 	res = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
@@ -875,7 +863,7 @@ static const struct v4l2_file_operations emmaprp_fops = {
 	.mmap		= emmaprp_mmap,
 };
 
-static struct video_device emmaprp_videodev = {
+static const struct video_device emmaprp_videodev = {
 	.name		= MEM2MEM_NAME,
 	.fops		= &emmaprp_fops,
 	.ioctl_ops	= &emmaprp_ioctl_ops,
@@ -884,11 +872,9 @@ static struct video_device emmaprp_videodev = {
 	.vfl_dir	= VFL_DIR_M2M,
 };
 
-static struct v4l2_m2m_ops m2m_ops = {
+static const struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= emmaprp_device_run,
 	.job_abort	= emmaprp_job_abort,
-	.lock		= emmaprp_lock,
-	.unlock		= emmaprp_unlock,
 };
 
 static int emmaprp_probe(struct platform_device *pdev)
@@ -936,31 +922,25 @@ static int emmaprp_probe(struct platform_device *pdev)
 	vfd->v4l2_dev = &pcdev->v4l2_dev;
 
 	video_set_drvdata(vfd, pcdev);
-	snprintf(vfd->name, sizeof(vfd->name), "%s", emmaprp_videodev.name);
 	pcdev->vfd = vfd;
 	v4l2_info(&pcdev->v4l2_dev, EMMAPRP_MODULE_NAME
-			" Device registered as /dev/video%d\n", vfd->num);
+		  " Device registered as /dev/video%d\n", vfd->num);
 
 	platform_set_drvdata(pdev, pcdev);
 
 	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 	ret = devm_request_irq(&pdev->dev, irq, emmaprp_irq, 0,
 			       dev_name(&pdev->dev), pcdev);
 	if (ret)
 		goto rel_vdev;
 
-	pcdev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(pcdev->alloc_ctx)) {
-		v4l2_err(&pcdev->v4l2_dev, "Failed to alloc vb2 context\n");
-		ret = PTR_ERR(pcdev->alloc_ctx);
-		goto rel_vdev;
-	}
-
 	pcdev->m2m_dev = v4l2_m2m_init(&m2m_ops);
 	if (IS_ERR(pcdev->m2m_dev)) {
 		v4l2_err(&pcdev->v4l2_dev, "Failed to init mem2mem device\n");
 		ret = PTR_ERR(pcdev->m2m_dev);
-		goto rel_ctx;
+		goto rel_vdev;
 	}
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
@@ -974,8 +954,6 @@ static int emmaprp_probe(struct platform_device *pdev)
 
 rel_m2m:
 	v4l2_m2m_release(pcdev->m2m_dev);
-rel_ctx:
-	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 rel_vdev:
 	video_device_release(vfd);
 unreg_dev:
@@ -994,7 +972,6 @@ static int emmaprp_remove(struct platform_device *pdev)
 
 	video_unregister_device(pcdev->vfd);
 	v4l2_m2m_release(pcdev->m2m_dev);
-	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 	mutex_destroy(&pcdev->dev_mutex);
 

@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
@@ -32,7 +33,7 @@
 #define BMA180_DRV_NAME "bma180"
 #define BMA180_IRQ_NAME "bma180_event"
 
-enum {
+enum chip_ids {
 	BMA180,
 	BMA250,
 };
@@ -41,11 +42,11 @@ struct bma180_data;
 
 struct bma180_part_info {
 	const struct iio_chan_spec *channels;
-	unsigned num_channels;
+	unsigned int num_channels;
 	const int *scale_table;
-	unsigned num_scales;
+	unsigned int num_scales;
 	const int *bw_table;
-	unsigned num_bw;
+	unsigned int num_bw;
 
 	u8 int_reset_reg, int_reset_mask;
 	u8 sleep_reg, sleep_mask;
@@ -408,7 +409,7 @@ err:
 	dev_err(&data->client->dev, "failed to disable the chip\n");
 }
 
-static ssize_t bma180_show_avail(char *buf, const int *vals, unsigned n,
+static ssize_t bma180_show_avail(char *buf, const int *vals, unsigned int n,
 				 bool micros)
 {
 	size_t len = 0;
@@ -469,13 +470,14 @@ static int bma180_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
+
 		mutex_lock(&data->mutex);
-		if (iio_buffer_enabled(indio_dev)) {
-			mutex_unlock(&data->mutex);
-			return -EBUSY;
-		}
 		ret = bma180_get_data_reg(data, chan->scan_index);
 		mutex_unlock(&data->mutex);
+		iio_device_release_direct_mode(indio_dev);
 		if (ret < 0)
 			return ret;
 		*val = sign_extend32(ret >> chan->scan_type.shift,
@@ -534,7 +536,6 @@ static const struct iio_info bma180_info = {
 	.attrs			= &bma180_attrs_group,
 	.read_raw		= bma180_read_raw,
 	.write_raw		= bma180_write_raw,
-	.driver_module		= THIS_MODULE,
 };
 
 static const char * const bma180_power_modes[] = { "low_noise", "low_power" };
@@ -654,7 +655,7 @@ static irqreturn_t bma180_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bma180_data *data = iio_priv(indio_dev);
-	int64_t time_ns = iio_get_time_ns();
+	s64 time_ns = iio_get_time_ns(indio_dev);
 	int bit, ret, i = 0;
 
 	mutex_lock(&data->mutex);
@@ -698,7 +699,6 @@ static int bma180_trig_try_reen(struct iio_trigger *trig)
 static const struct iio_trigger_ops bma180_trigger_ops = {
 	.set_trigger_state = bma180_data_rdy_trigger_set_state,
 	.try_reenable = bma180_trig_try_reen,
-	.owner = THIS_MODULE,
 };
 
 static int bma180_probe(struct i2c_client *client,
@@ -706,6 +706,7 @@ static int bma180_probe(struct i2c_client *client,
 {
 	struct bma180_data *data;
 	struct iio_dev *indio_dev;
+	enum chip_ids chip;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
@@ -715,7 +716,11 @@ static int bma180_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
-	data->part_info = &bma180_part_info[id->driver_data];
+	if (client->dev.of_node)
+		chip = (enum chip_ids)of_device_get_match_data(&client->dev);
+	else
+		chip = id->driver_data;
+	data->part_info = &bma180_part_info[chip];
 
 	ret = data->part_info->chip_config(data);
 	if (ret < 0)
@@ -835,7 +840,7 @@ static SIMPLE_DEV_PM_OPS(bma180_pm_ops, bma180_suspend, bma180_resume);
 #define BMA180_PM_OPS NULL
 #endif
 
-static struct i2c_device_id bma180_ids[] = {
+static const struct i2c_device_id bma180_ids[] = {
 	{ "bma180", BMA180 },
 	{ "bma250", BMA250 },
 	{ }
@@ -843,10 +848,24 @@ static struct i2c_device_id bma180_ids[] = {
 
 MODULE_DEVICE_TABLE(i2c, bma180_ids);
 
+static const struct of_device_id bma180_of_match[] = {
+	{
+		.compatible = "bosch,bma180",
+		.data = (void *)BMA180
+	},
+	{
+		.compatible = "bosch,bma250",
+		.data = (void *)BMA250
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, bma180_of_match);
+
 static struct i2c_driver bma180_driver = {
 	.driver = {
 		.name	= "bma180",
 		.pm	= BMA180_PM_OPS,
+		.of_match_table = bma180_of_match,
 	},
 	.probe		= bma180_probe,
 	.remove		= bma180_remove,

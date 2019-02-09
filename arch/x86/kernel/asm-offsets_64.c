@@ -1,31 +1,36 @@
+// SPDX-License-Identifier: GPL-2.0
 #ifndef __LINUX_KBUILD_H
 # error "Please do not build this file directly, build asm-offsets.c instead"
 #endif
 
 #include <asm/ia32.h>
 
-#define __SYSCALL_64(nr, sym, compat) [nr] = 1,
-#define __SYSCALL_COMMON(nr, sym, compat) [nr] = 1,
-#ifdef CONFIG_X86_X32_ABI
-# define __SYSCALL_X32(nr, sym, compat) [nr] = 1,
-#else
-# define __SYSCALL_X32(nr, sym, compat) /* nothing */
-#endif
+#define __SYSCALL_64(nr, sym, qual) [nr] = 1,
 static char syscalls_64[] = {
 #include <asm/syscalls_64.h>
 };
-#define __SYSCALL_I386(nr, sym, compat) [nr] = 1,
+#define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
 static char syscalls_ia32[] = {
 #include <asm/syscalls_32.h>
 };
 
+#if defined(CONFIG_KVM_GUEST) && defined(CONFIG_PARAVIRT_SPINLOCKS)
+#include <asm/kvm_para.h>
+#endif
+
 int main(void)
 {
 #ifdef CONFIG_PARAVIRT
-	OFFSET(PV_IRQ_adjust_exception_frame, pv_irq_ops, adjust_exception_frame);
-	OFFSET(PV_CPU_usergs_sysret32, pv_cpu_ops, usergs_sysret32);
 	OFFSET(PV_CPU_usergs_sysret64, pv_cpu_ops, usergs_sysret64);
 	OFFSET(PV_CPU_swapgs, pv_cpu_ops, swapgs);
+#ifdef CONFIG_DEBUG_ENTRY
+	OFFSET(PV_IRQ_save_fl, pv_irq_ops, save_fl);
+#endif
+	BLANK();
+#endif
+
+#if defined(CONFIG_KVM_GUEST) && defined(CONFIG_PARAVIRT_SPINLOCKS)
+	OFFSET(KVM_STEAL_TIME_preempted, kvm_steal_time, preempted);
 	BLANK();
 #endif
 
@@ -60,8 +65,12 @@ int main(void)
 #undef ENTRY
 
 	OFFSET(TSS_ist, tss_struct, x86_tss.ist);
-	OFFSET(TSS_sp0, tss_struct, x86_tss.sp0);
 	BLANK();
+
+#ifdef CONFIG_STACKPROTECTOR
+	DEFINE(stack_canary_offset, offsetof(union irq_stack_union, stack_canary));
+	BLANK();
+#endif
 
 	DEFINE(__NR_syscall_max, sizeof(syscalls_64) - 1);
 	DEFINE(NR_syscalls, sizeof(syscalls_64));

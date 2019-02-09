@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -13,10 +13,12 @@
 
 /*
  * The CM & CPC can only handle coherence & power control on a per-core basis,
- * thus in an MT system the VPEs within each core are coupled and can only
+ * thus in an MT system the VP(E)s within each core are coupled and can only
  * enter or exit states requiring CM or CPC assistance in unison.
  */
-#ifdef CONFIG_MIPS_MT
+#if defined(CONFIG_CPU_MIPSR6)
+# define coupled_coherence cpu_has_vp
+#elif defined(CONFIG_MIPS_MT)
 # define coupled_coherence cpu_has_mipsmt
 #else
 # define coupled_coherence 0

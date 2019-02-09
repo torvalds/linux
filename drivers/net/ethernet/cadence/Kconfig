@@ -2,7 +2,7 @@
 # Atmel device configuration
 #
 
-config NET_CADENCE
+config NET_VENDOR_CADENCE
 	bool "Cadence devices"
 	depends on HAS_IOMEM
 	default y
@@ -16,7 +16,7 @@ config NET_CADENCE
 	  the remaining Atmel network card questions. If you say Y, you will be
 	  asked for your specific card in the following questions.
 
-if NET_CADENCE
+if NET_VENDOR_CADENCE
 
 config MACB
 	tristate "Cadence MACB/GEM support"
@@ -29,6 +29,23 @@ config MACB
 	  support for the MACB/GEM chip.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called macb.
+	  will be macb.
 
-endif # NET_CADENCE
+config MACB_USE_HWSTAMP
+	bool "Use IEEE 1588 hwstamp"
+	depends on MACB
+	default y
+	imply PTP_1588_CLOCK
+	---help---
+	  Enable IEEE 1588 Precision Time Protocol (PTP) support for MACB.
+
+config MACB_PCI
+	tristate "Cadence PCI MACB/GEM support"
+	depends on MACB && PCI && COMMON_CLK
+	---help---
+	  This is PCI wrapper for MACB driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called macb_pci.
+
+endif # NET_VENDOR_CADENCE

@@ -202,9 +202,9 @@ void gameport_stop_polling(struct gameport *gameport)
 }
 EXPORT_SYMBOL(gameport_stop_polling);
 
-static void gameport_run_poll_handler(unsigned long d)
+static void gameport_run_poll_handler(struct timer_list *t)
 {
-	struct gameport *gameport = (struct gameport *)d;
+	struct gameport *gameport = from_timer(gameport, t, poll_timer);
 
 	gameport->poll_handler(gameport);
 	if (gameport->poll_cnt)
@@ -385,8 +385,8 @@ static int gameport_queue_event(void *object, struct module *owner,
 	}
 
 	if (!try_module_get(owner)) {
-		pr_warning("Can't get module reference, dropping event %d\n",
-			   event_type);
+		pr_warn("Can't get module reference, dropping event %d\n",
+			event_type);
 		kfree(event);
 		retval = -EINVAL;
 		goto out;
@@ -542,9 +542,7 @@ static void gameport_init_port(struct gameport *gameport)
 
 	INIT_LIST_HEAD(&gameport->node);
 	spin_lock_init(&gameport->timer_lock);
-	init_timer(&gameport->poll_timer);
-	gameport->poll_timer.function = gameport_run_poll_handler;
-	gameport->poll_timer.data = (unsigned long)gameport;
+	timer_setup(&gameport->poll_timer, gameport_run_poll_handler, 0);
 }
 
 /*

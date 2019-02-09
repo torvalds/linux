@@ -10,8 +10,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <limits.h>
+#include <cpuidle.h>
 
-#include "helpers/sysfs.h"
 #include "helpers/helpers.h"
 #include "idle_monitor/cpupower-monitor.h"
 
@@ -51,7 +51,7 @@ static int cpuidle_start(void)
 		for (state = 0; state < cpuidle_sysfs_monitor.hw_states_num;
 		     state++) {
 			previous_count[cpu][state] =
-				sysfs_get_idlestate_time(cpu, state);
+				cpuidle_state_time(cpu, state);
 			dprint("CPU %d - State: %d - Val: %llu\n",
 			       cpu, state, previous_count[cpu][state]);
 		}
@@ -70,7 +70,7 @@ static int cpuidle_stop(void)
 		for (state = 0; state < cpuidle_sysfs_monitor.hw_states_num;
 		     state++) {
 			current_count[cpu][state] =
-				sysfs_get_idlestate_time(cpu, state);
+				cpuidle_state_time(cpu, state);
 			dprint("CPU %d - State: %d - Val: %llu\n",
 			       cpu, state, previous_count[cpu][state]);
 		}
@@ -126,27 +126,45 @@ void fix_up_intel_idle_driver_name(char *tmp, int num)
 	}
 }
 
+#ifdef __powerpc__
+void map_power_idle_state_name(char *tmp)
+{
+	if (!strncmp(tmp, "stop0_lite", CSTATE_NAME_LEN))
+		strcpy(tmp, "stop0L");
+	else if (!strncmp(tmp, "stop1_lite", CSTATE_NAME_LEN))
+		strcpy(tmp, "stop1L");
+	else if (!strncmp(tmp, "stop2_lite", CSTATE_NAME_LEN))
+		strcpy(tmp, "stop2L");
+}
+#else
+void map_power_idle_state_name(char *tmp) { }
+#endif
+
 static struct cpuidle_monitor *cpuidle_register(void)
 {
 	int num;
 	char *tmp;
+	int this_cpu;
+
+	this_cpu = sched_getcpu();
 
 	/* Assume idle state count is the same for all CPUs */
-	cpuidle_sysfs_monitor.hw_states_num = sysfs_get_idlestate_count(0);
+	cpuidle_sysfs_monitor.hw_states_num = cpuidle_state_count(this_cpu);
 
 	if (cpuidle_sysfs_monitor.hw_states_num <= 0)
 		return NULL;
 
 	for (num = 0; num < cpuidle_sysfs_monitor.hw_states_num; num++) {
-		tmp = sysfs_get_idlestate_name(0, num);
+		tmp = cpuidle_state_name(this_cpu, num);
 		if (tmp == NULL)
 			continue;
 
+		map_power_idle_state_name(tmp);
 		fix_up_intel_idle_driver_name(tmp, num);
 		strncpy(cpuidle_cstates[num].name, tmp, CSTATE_NAME_LEN - 1);
 		free(tmp);
 
-		tmp = sysfs_get_idlestate_desc(0, num);
+		tmp = cpuidle_state_desc(this_cpu, num);
 		if (tmp == NULL)
 			continue;
 		strncpy(cpuidle_cstates[num].desc, tmp,	CSTATE_DESC_LEN - 1);

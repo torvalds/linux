@@ -1,0 +1,142 @@
+/dts-v1/;
+
+#include "mt7621.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	compatible = "gnubee,gb-pc1", "mediatek,mt7621-soc";
+	model = "GB-PC1";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x1c000000>, <0x20000000 0x4000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	palmbus: palmbus@1E000000 {
+		i2c@900 {
+			status = "okay";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_RESTART>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		system {
+			label = "gb-pc1:green:system";
+			gpios = <&gpio 6 GPIO_ACTIVE_LOW>;
+		};
+
+		status {
+			label = "gb-pc1:green:status";
+			gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
+		};
+
+		lan1 {
+			label = "gb-pc1:green:lan1";
+			gpios = <&gpio 24 GPIO_ACTIVE_LOW>;
+		};
+
+		lan2 {
+			label = "gb-pc1:green:lan2";
+			gpios = <&gpio 25 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&sdhci {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x1FB0000>;
+		};
+
+	};
+};
+
+&sysclock {
+			compatible = "fixed-clock";
+			/* This is normally 1/4 of cpuclock */
+			clock-frequency = <225000000>;
+};
+
+&cpuclock {
+			compatible = "fixed-clock";
+			clock-frequency = <900000000>;
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_pins>;
+	status = "okay";
+};
+
+&ethernet {
+	//mtd-mac-address = <&factory 0xe000>;
+	gmac1: mac@0 {
+		compatible = "mediatek,eth-mac";
+		reg = <0>;
+		phy-handle = <&phy1>;
+	};
+
+	mdio-bus {
+		phy1: ethernet-phy@1 {
+			reg = <1>;
+			phy-mode = "rgmii";
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "wdt", "rgmii2", "uart3";
+			ralink,function = "gpio";
+		};
+	};
+};

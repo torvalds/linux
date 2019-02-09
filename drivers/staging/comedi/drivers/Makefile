@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for individual comedi drivers
 #
 ccflags-$(CONFIG_COMEDI_DEBUG)		:= -DDEBUG
@@ -10,7 +11,6 @@ obj-$(CONFIG_COMEDI_ISADMA)		+= comedi_isadma.o
 obj-$(CONFIG_COMEDI_BOND)		+= comedi_bond.o
 obj-$(CONFIG_COMEDI_TEST)		+= comedi_test.o
 obj-$(CONFIG_COMEDI_PARPORT)		+= comedi_parport.o
-obj-$(CONFIG_COMEDI_SERIAL2002)		+= serial2002.o
 
 # Comedi ISA drivers
 obj-$(CONFIG_COMEDI_AMPLC_DIO200_ISA)	+= amplc_dio200.o
@@ -78,8 +78,10 @@ obj-$(CONFIG_COMEDI_ADL_PCI8164)	+= adl_pci8164.o
 obj-$(CONFIG_COMEDI_ADL_PCI9111)	+= adl_pci9111.o
 obj-$(CONFIG_COMEDI_ADL_PCI9118)	+= adl_pci9118.o
 obj-$(CONFIG_COMEDI_ADV_PCI1710)	+= adv_pci1710.o
+obj-$(CONFIG_COMEDI_ADV_PCI1720)	+= adv_pci1720.o
 obj-$(CONFIG_COMEDI_ADV_PCI1723)	+= adv_pci1723.o
 obj-$(CONFIG_COMEDI_ADV_PCI1724)	+= adv_pci1724.o
+obj-$(CONFIG_COMEDI_ADV_PCI1760)	+= adv_pci1760.o
 obj-$(CONFIG_COMEDI_ADV_PCI_DIO)	+= adv_pci_dio.o
 obj-$(CONFIG_COMEDI_AMPLC_DIO200_PCI)	+= amplc_dio200_pci.o
 obj-$(CONFIG_COMEDI_AMPLC_PC236_PCI)	+= amplc_pci236.o

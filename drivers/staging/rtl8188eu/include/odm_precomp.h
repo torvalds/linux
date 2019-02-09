@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *
  ******************************************************************************/
 
@@ -37,14 +24,14 @@
 #include "odm.h"
 #include "odm_HWConfig.h"
 #include "odm_debug.h"
-#include "odm_RegDefine11N.h"
+#include "../../rtlwifi/phydm/phydm_regdefine11n.h"
 
-#include "Hal8188ERateAdaptive.h"/* for  RA,Power training */
+#include "hal8188e_rate_adaptive.h" /* for RA,Power training */
 #include "rtl8188e_hal.h"
 
 #include "odm_reg.h"
 
-#include "odm_RTL8188E.h"
+#include "odm_rtl8188e.h"
 
 void odm_CmnInfoHook_Debug(struct odm_dm_struct *pDM_Odm);
 void odm_CmnInfoInit_Debug(struct odm_dm_struct *pDM_Odm);

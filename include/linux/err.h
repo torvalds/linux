@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_ERR_H
 #define _LINUX_ERR_H
 
@@ -18,7 +19,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define IS_ERR_VALUE(x) unlikely((x) >= (unsigned long)-MAX_ERRNO)
+#define IS_ERR_VALUE(x) unlikely((unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRNO)
 
 static inline void * __must_check ERR_PTR(long error)
 {
@@ -37,7 +38,7 @@ static inline bool __must_check IS_ERR(__force const void *ptr)
 
 static inline bool __must_check IS_ERR_OR_NULL(__force const void *ptr)
 {
-	return !ptr || IS_ERR_VALUE((unsigned long)ptr);
+	return unlikely(!ptr) || IS_ERR_VALUE((unsigned long)ptr);
 }
 
 /**

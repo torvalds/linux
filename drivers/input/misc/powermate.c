@@ -277,7 +277,7 @@ static int powermate_input_event(struct input_dev *dev, unsigned int type, unsig
 static int powermate_alloc_buffers(struct usb_device *udev, struct powermate_device *pm)
 {
 	pm->data = usb_alloc_coherent(udev, POWERMATE_PAYLOAD_SIZE_MAX,
-				      GFP_ATOMIC, &pm->data_dma);
+				      GFP_KERNEL, &pm->data_dma);
 	if (!pm->data)
 		return -1;
 
@@ -307,6 +307,9 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	int error = -ENOMEM;
 
 	interface = intf->cur_altsetting;
+	if (interface->desc.bNumEndpoints < 1)
+		return -EINVAL;
+
 	endpoint = &interface->endpoint[0].desc;
 	if (!usb_endpoint_is_int_in(endpoint))
 		return -EIO;
@@ -429,7 +432,7 @@ static void powermate_disconnect(struct usb_interface *intf)
 	}
 }
 
-static struct usb_device_id powermate_devices [] = {
+static const struct usb_device_id powermate_devices[] = {
 	{ USB_DEVICE(POWERMATE_VENDOR, POWERMATE_PRODUCT_NEW) },
 	{ USB_DEVICE(POWERMATE_VENDOR, POWERMATE_PRODUCT_OLD) },
 	{ USB_DEVICE(CONTOUR_VENDOR, CONTOUR_JOG) },

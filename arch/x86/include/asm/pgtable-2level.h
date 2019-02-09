@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PGTABLE_2LEVEL_H
 #define _ASM_X86_PGTABLE_2LEVEL_H
 
@@ -21,6 +22,10 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 	*pmdp = pmd;
 }
 
+static inline void native_set_pud(pud_t *pudp, pud_t pud)
+{
+}
+
 static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
 	native_set_pte(ptep, pte);
@@ -29,6 +34,10 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 static inline void native_pmd_clear(pmd_t *pmdp)
 {
 	native_set_pmd(pmdp, __pmd(0));
+}
+
+static inline void native_pud_clear(pud_t *pudp)
+{
 }
 
 static inline void native_pte_clear(struct mm_struct *mm,
@@ -55,6 +64,15 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
 #endif
 
+#ifdef CONFIG_SMP
+static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+{
+	return __pud(xchg((pudval_t *)xp, 0));
+}
+#else
+#define native_pudp_get_and_clear(xp) native_local_pudp_get_and_clear(xp)
+#endif
+
 /* Bit manipulation helper on pte/pgoff entry */
 static inline unsigned long pte_bitop(unsigned long value, unsigned int rightshift,
 				      unsigned long mask, unsigned int leftshift)
@@ -76,5 +94,22 @@ static inline unsigned long pte_bitop(unsigned long value, unsigned int rightshi
 					 | ((offset) << SWP_OFFSET_SHIFT) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte_low })
 #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
+
+/* No inverted PFNs on 2 level page tables */
+
+static inline u64 protnone_mask(u64 val)
+{
+	return 0;
+}
+
+static inline u64 flip_protnone_guard(u64 oldval, u64 val, u64 mask)
+{
+	return val;
+}
+
+static inline bool __pte_needs_invert(u64 val)
+{
+	return false;
+}
 
 #endif /* _ASM_X86_PGTABLE_2LEVEL_H */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/reiserfs/xattr.c
  *
@@ -64,14 +65,14 @@
 #ifdef CONFIG_REISERFS_FS_XATTR
 static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 {
-	BUG_ON(!mutex_is_locked(&dir->i_mutex));
+	BUG_ON(!inode_is_locked(dir));
 	return dir->i_op->create(dir, dentry, mode, true);
 }
 #endif
 
 static int xattr_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
-	BUG_ON(!mutex_is_locked(&dir->i_mutex));
+	BUG_ON(!inode_is_locked(dir));
 	return dir->i_op->mkdir(dir, dentry, mode);
 }
 
@@ -85,11 +86,11 @@ static int xattr_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int error;
 
-	BUG_ON(!mutex_is_locked(&dir->i_mutex));
+	BUG_ON(!inode_is_locked(dir));
 
-	mutex_lock_nested(&d_inode(dentry)->i_mutex, I_MUTEX_CHILD);
+	inode_lock_nested(d_inode(dentry), I_MUTEX_CHILD);
 	error = dir->i_op->unlink(dir, dentry);
-	mutex_unlock(&d_inode(dentry)->i_mutex);
+	inode_unlock(d_inode(dentry));
 
 	if (!error)
 		d_delete(dentry);
@@ -100,13 +101,13 @@ static int xattr_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int error;
 
-	BUG_ON(!mutex_is_locked(&dir->i_mutex));
+	BUG_ON(!inode_is_locked(dir));
 
-	mutex_lock_nested(&d_inode(dentry)->i_mutex, I_MUTEX_CHILD);
+	inode_lock_nested(d_inode(dentry), I_MUTEX_CHILD);
 	error = dir->i_op->rmdir(dir, dentry);
 	if (!error)
 		d_inode(dentry)->i_flags |= S_DEAD;
-	mutex_unlock(&d_inode(dentry)->i_mutex);
+	inode_unlock(d_inode(dentry));
 	if (!error)
 		d_delete(dentry);
 
@@ -123,7 +124,7 @@ static struct dentry *open_xa_root(struct super_block *sb, int flags)
 	if (d_really_is_negative(privroot))
 		return ERR_PTR(-ENODATA);
 
-	mutex_lock_nested(&d_inode(privroot)->i_mutex, I_MUTEX_XATTR);
+	inode_lock_nested(d_inode(privroot), I_MUTEX_XATTR);
 
 	xaroot = dget(REISERFS_SB(sb)->xattr_root);
 	if (!xaroot)
@@ -139,7 +140,7 @@ static struct dentry *open_xa_root(struct super_block *sb, int flags)
 		}
 	}
 
-	mutex_unlock(&d_inode(privroot)->i_mutex);
+	inode_unlock(d_inode(privroot));
 	return xaroot;
 }
 
@@ -156,7 +157,7 @@ static struct dentry *open_xa_dir(const struct inode *inode, int flags)
 		 le32_to_cpu(INODE_PKEY(inode)->k_objectid),
 		 inode->i_generation);
 
-	mutex_lock_nested(&d_inode(xaroot)->i_mutex, I_MUTEX_XATTR);
+	inode_lock_nested(d_inode(xaroot), I_MUTEX_XATTR);
 
 	xadir = lookup_one_len(namebuf, xaroot, strlen(namebuf));
 	if (!IS_ERR(xadir) && d_really_is_negative(xadir)) {
@@ -170,7 +171,7 @@ static struct dentry *open_xa_dir(const struct inode *inode, int flags)
 		}
 	}
 
-	mutex_unlock(&d_inode(xaroot)->i_mutex);
+	inode_unlock(d_inode(xaroot));
 	dput(xaroot);
 	return xadir;
 }
@@ -184,6 +185,7 @@ struct reiserfs_dentry_buf {
 	struct dir_context ctx;
 	struct dentry *xadir;
 	int count;
+	int err;
 	struct dentry *dentries[8];
 };
 
@@ -195,7 +197,7 @@ fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 		container_of(ctx, struct reiserfs_dentry_buf, ctx);
 	struct dentry *dentry;
 
-	WARN_ON_ONCE(!mutex_is_locked(&d_inode(dbuf->xadir)->i_mutex));
+	WARN_ON_ONCE(!inode_is_locked(d_inode(dbuf->xadir)));
 
 	if (dbuf->count == ARRAY_SIZE(dbuf->dentries))
 		return -ENOSPC;
@@ -206,6 +208,7 @@ fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 
 	dentry = lookup_one_len(name, dbuf->xadir, namelen);
 	if (IS_ERR(dentry)) {
+		dbuf->err = PTR_ERR(dentry);
 		return PTR_ERR(dentry);
 	} else if (d_really_is_negative(dentry)) {
 		/* A directory entry exists, but no file? */
@@ -214,6 +217,7 @@ fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 			       "not found for file %pd.\n",
 			       dentry, dbuf->xadir);
 		dput(dentry);
+		dbuf->err = -EIO;
 		return -EIO;
 	}
 
@@ -254,13 +258,17 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 		goto out_dir;
 	}
 
-	mutex_lock_nested(&d_inode(dir)->i_mutex, I_MUTEX_XATTR);
+	inode_lock_nested(d_inode(dir), I_MUTEX_XATTR);
 
 	buf.xadir = dir;
 	while (1) {
 		err = reiserfs_readdir_inode(d_inode(dir), &buf.ctx);
 		if (err)
 			break;
+		if (buf.err) {
+			err = buf.err;
+			break;
+		}
 		if (!buf.count)
 			break;
 		for (i = 0; !err && i < buf.count && buf.dentries[i]; i++) {
@@ -276,7 +284,7 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 			break;
 		buf.count = 0;
 	}
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 
 	cleanup_dentry_buf(&buf);
 
@@ -298,13 +306,13 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 		if (!err) {
 			int jerror;
 
-			mutex_lock_nested(&d_inode(dir->d_parent)->i_mutex,
+			inode_lock_nested(d_inode(dir->d_parent),
 					  I_MUTEX_XATTR);
 			err = action(dir, data);
 			reiserfs_write_lock(inode->i_sb);
 			jerror = journal_end(&th);
 			reiserfs_write_unlock(inode->i_sb);
-			mutex_unlock(&d_inode(dir->d_parent)->i_mutex);
+			inode_unlock(d_inode(dir->d_parent));
 			err = jerror ?: err;
 		}
 	}
@@ -384,7 +392,7 @@ static struct dentry *xattr_lookup(struct inode *inode, const char *name,
 	if (IS_ERR(xadir))
 		return ERR_CAST(xadir);
 
-	mutex_lock_nested(&d_inode(xadir)->i_mutex, I_MUTEX_XATTR);
+	inode_lock_nested(d_inode(xadir), I_MUTEX_XATTR);
 	xafile = lookup_one_len(name, xadir, strlen(name));
 	if (IS_ERR(xafile)) {
 		err = PTR_ERR(xafile);
@@ -404,7 +412,7 @@ static struct dentry *xattr_lookup(struct inode *inode, const char *name,
 	if (err)
 		dput(xafile);
 out:
-	mutex_unlock(&d_inode(xadir)->i_mutex);
+	inode_unlock(d_inode(xadir));
 	dput(xadir);
 	if (err)
 		return ERR_PTR(err);
@@ -415,7 +423,7 @@ out:
 static inline void reiserfs_put_page(struct page *page)
 {
 	kunmap(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 static struct page *reiserfs_get_page(struct inode *dir, size_t n)
@@ -427,7 +435,7 @@ static struct page *reiserfs_get_page(struct inode *dir, size_t n)
 	 * and an unlink/rmdir has just occurred - GFP_NOFS avoids this
 	 */
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
-	page = read_mapping_page(mapping, n >> PAGE_CACHE_SHIFT, NULL);
+	page = read_mapping_page(mapping, n >> PAGE_SHIFT, NULL);
 	if (!IS_ERR(page)) {
 		kmap(page);
 		if (PageError(page))
@@ -450,13 +458,13 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 
 static void update_ctime(struct inode *inode)
 {
-	struct timespec now = current_fs_time(inode->i_sb);
+	struct timespec64 now = current_time(inode);
 
 	if (inode_unhashed(inode) || !inode->i_nlink ||
-	    timespec_equal(&inode->i_ctime, &now))
+	    timespec64_equal(&inode->i_ctime, &now))
 		return;
 
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 }
 
@@ -469,7 +477,7 @@ static int lookup_and_delete_xattr(struct inode *inode, const char *name)
 	if (IS_ERR(xadir))
 		return PTR_ERR(xadir);
 
-	mutex_lock_nested(&d_inode(xadir)->i_mutex, I_MUTEX_XATTR);
+	inode_lock_nested(d_inode(xadir), I_MUTEX_XATTR);
 	dentry = lookup_one_len(name, xadir, strlen(name));
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
@@ -483,7 +491,7 @@ static int lookup_and_delete_xattr(struct inode *inode, const char *name)
 
 	dput(dentry);
 out_dput:
-	mutex_unlock(&d_inode(xadir)->i_mutex);
+	inode_unlock(d_inode(xadir));
 	dput(xadir);
 	return err;
 }
@@ -526,10 +534,10 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 	while (buffer_pos < buffer_size || buffer_pos == 0) {
 		size_t chunk;
 		size_t skip = 0;
-		size_t page_offset = (file_pos & (PAGE_CACHE_SIZE - 1));
+		size_t page_offset = (file_pos & (PAGE_SIZE - 1));
 
-		if (buffer_size - buffer_pos > PAGE_CACHE_SIZE)
-			chunk = PAGE_CACHE_SIZE;
+		if (buffer_size - buffer_pos > PAGE_SIZE)
+			chunk = PAGE_SIZE;
 		else
 			chunk = buffer_size - buffer_pos;
 
@@ -546,8 +554,8 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 			struct reiserfs_xattr_header *rxh;
 
 			skip = file_pos = sizeof(struct reiserfs_xattr_header);
-			if (chunk + skip > PAGE_CACHE_SIZE)
-				chunk = PAGE_CACHE_SIZE - skip;
+			if (chunk + skip > PAGE_SIZE)
+				chunk = PAGE_SIZE - skip;
 			rxh = (struct reiserfs_xattr_header *)data;
 			rxh->h_magic = cpu_to_le32(REISERFS_XATTR_MAGIC);
 			rxh->h_hash = cpu_to_le32(xahash);
@@ -575,16 +583,16 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 	new_size = buffer_size + sizeof(struct reiserfs_xattr_header);
 	if (!err && new_size < i_size_read(d_inode(dentry))) {
 		struct iattr newattrs = {
-			.ia_ctime = current_fs_time(inode->i_sb),
+			.ia_ctime = current_time(inode),
 			.ia_size = new_size,
 			.ia_valid = ATTR_SIZE | ATTR_CTIME,
 		};
 
-		mutex_lock_nested(&d_inode(dentry)->i_mutex, I_MUTEX_XATTR);
+		inode_lock_nested(d_inode(dentry), I_MUTEX_XATTR);
 		inode_dio_wait(d_inode(dentry));
 
 		err = reiserfs_setattr(dentry, &newattrs);
-		mutex_unlock(&d_inode(dentry)->i_mutex);
+		inode_unlock(d_inode(dentry));
 	} else
 		update_ctime(inode);
 out_unlock:
@@ -675,8 +683,8 @@ reiserfs_xattr_get(struct inode *inode, const char *name, void *buffer,
 		char *data;
 		size_t skip = 0;
 
-		if (isize - file_pos > PAGE_CACHE_SIZE)
-			chunk = PAGE_CACHE_SIZE;
+		if (isize - file_pos > PAGE_SIZE)
+			chunk = PAGE_SIZE;
 		else
 			chunk = isize - file_pos;
 
@@ -756,65 +764,12 @@ find_xattr_handler_prefix(const struct xattr_handler **handlers,
 		return NULL;
 
 	for_each_xattr_handler(handlers, xah) {
-		if (strncmp(xah->prefix, name, strlen(xah->prefix)) == 0)
+		const char *prefix = xattr_prefix(xah);
+		if (strncmp(prefix, name, strlen(prefix)) == 0)
 			break;
 	}
 
 	return xah;
-}
-
-
-/*
- * Inode operation getxattr()
- */
-ssize_t
-reiserfs_getxattr(struct dentry * dentry, const char *name, void *buffer,
-		  size_t size)
-{
-	const struct xattr_handler *handler;
-
-	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
-
-	if (!handler || get_inode_sd_version(d_inode(dentry)) == STAT_DATA_V1)
-		return -EOPNOTSUPP;
-
-	return handler->get(handler, dentry, name, buffer, size);
-}
-
-/*
- * Inode operation setxattr()
- *
- * d_inode(dentry)->i_mutex down
- */
-int
-reiserfs_setxattr(struct dentry *dentry, const char *name, const void *value,
-		  size_t size, int flags)
-{
-	const struct xattr_handler *handler;
-
-	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
-
-	if (!handler || get_inode_sd_version(d_inode(dentry)) == STAT_DATA_V1)
-		return -EOPNOTSUPP;
-
-	return handler->set(handler, dentry, name, value, size, flags);
-}
-
-/*
- * Inode operation removexattr()
- *
- * d_inode(dentry)->i_mutex down
- */
-int reiserfs_removexattr(struct dentry *dentry, const char *name)
-{
-	const struct xattr_handler *handler;
-
-	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
-
-	if (!handler || get_inode_sd_version(d_inode(dentry)) == STAT_DATA_V1)
-		return -EOPNOTSUPP;
-
-	return handler->set(handler, dentry, name, NULL, 0, XATTR_REPLACE);
 }
 
 struct listxattr_buf {
@@ -839,19 +794,18 @@ static int listxattr_filler(struct dir_context *ctx, const char *name,
 
 		handler = find_xattr_handler_prefix(b->dentry->d_sb->s_xattr,
 						    name);
-		if (!handler)	/* Unsupported xattr name */
+		if (!handler /* Unsupported xattr name */ ||
+		    (handler->list && !handler->list(b->dentry)))
 			return 0;
+		size = namelen + 1;
 		if (b->buf) {
-			size = handler->list(handler, b->dentry,
-					     b->buf + b->pos, b->size, name,
-					     namelen);
-			if (size > b->size)
+			if (b->pos + size > b->size) {
+				b->pos = -ERANGE;
 				return -ERANGE;
-		} else {
-			size = handler->list(handler, b->dentry,
-					     NULL, 0, name, namelen);
+			}
+			memcpy(b->buf + b->pos, name, namelen);
+			b->buf[b->pos + namelen] = 0;
 		}
-
 		b->pos += size;
 	}
 	return 0;
@@ -890,9 +844,9 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 		goto out;
 	}
 
-	mutex_lock_nested(&d_inode(dir)->i_mutex, I_MUTEX_XATTR);
+	inode_lock_nested(d_inode(dir), I_MUTEX_XATTR);
 	err = reiserfs_readdir_inode(d_inode(dir), &buf.ctx);
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 
 	if (!err)
 		err = buf.pos;
@@ -907,7 +861,7 @@ static int create_privroot(struct dentry *dentry)
 	int err;
 	struct inode *inode = d_inode(dentry->d_parent);
 
-	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex));
+	WARN_ON_ONCE(!inode_is_locked(inode));
 
 	err = xattr_mkdir(inode, dentry, 0700);
 	if (err || d_really_is_negative(dentry)) {
@@ -997,7 +951,7 @@ int reiserfs_lookup_privroot(struct super_block *s)
 	int err = 0;
 
 	/* If we don't have the privroot located yet - go find it */
-	mutex_lock(&d_inode(s->s_root)->i_mutex);
+	inode_lock(d_inode(s->s_root));
 	dentry = lookup_one_len(PRIVROOT_NAME, s->s_root,
 				strlen(PRIVROOT_NAME));
 	if (!IS_ERR(dentry)) {
@@ -1007,14 +961,14 @@ int reiserfs_lookup_privroot(struct super_block *s)
 			d_inode(dentry)->i_flags |= S_PRIVATE;
 	} else
 		err = PTR_ERR(dentry);
-	mutex_unlock(&d_inode(s->s_root)->i_mutex);
+	inode_unlock(d_inode(s->s_root));
 
 	return err;
 }
 
 /*
  * We need to take a copy of the mount flags since things like
- * MS_RDONLY don't get set until *after* we're called.
+ * SB_RDONLY don't get set until *after* we're called.
  * mount_flags != mount_options
  */
 int reiserfs_xattr_init(struct super_block *s, int mount_flags)
@@ -1026,15 +980,15 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 	if (err)
 		goto error;
 
-	if (d_really_is_negative(privroot) && !(mount_flags & MS_RDONLY)) {
-		mutex_lock(&d_inode(s->s_root)->i_mutex);
+	if (d_really_is_negative(privroot) && !(mount_flags & SB_RDONLY)) {
+		inode_lock(d_inode(s->s_root));
 		err = create_privroot(REISERFS_SB(s)->priv_root);
-		mutex_unlock(&d_inode(s->s_root)->i_mutex);
+		inode_unlock(d_inode(s->s_root));
 	}
 
 	if (d_really_is_positive(privroot)) {
 		s->s_xattr = reiserfs_xattr_handlers;
-		mutex_lock(&d_inode(privroot)->i_mutex);
+		inode_lock(d_inode(privroot));
 		if (!REISERFS_SB(s)->xattr_root) {
 			struct dentry *dentry;
 
@@ -1045,7 +999,7 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 			else
 				err = PTR_ERR(dentry);
 		}
-		mutex_unlock(&d_inode(privroot)->i_mutex);
+		inode_unlock(d_inode(privroot));
 	}
 
 error:
@@ -1054,11 +1008,11 @@ error:
 		clear_bit(REISERFS_POSIXACL, &REISERFS_SB(s)->s_mount_opt);
 	}
 
-	/* The super_block MS_POSIXACL must mirror the (no)acl mount option. */
+	/* The super_block SB_POSIXACL must mirror the (no)acl mount option. */
 	if (reiserfs_posixacl(s))
-		s->s_flags |= MS_POSIXACL;
+		s->s_flags |= SB_POSIXACL;
 	else
-		s->s_flags &= ~MS_POSIXACL;
+		s->s_flags &= ~SB_POSIXACL;
 
 	return err;
 }

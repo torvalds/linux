@@ -1,21 +1,22 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* NG4copy_from_user.S: Niagara-4 optimized copy from userspace.
  *
  * Copyright (C) 2012 David S. Miller (davem@davemloft.net)
  */
 
-#define EX_LD(x)		\
+#define EX_LD(x, y)		\
 98:	x;			\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, __retl_one_asi;\
+	.word 98b, y;		\
 	.text;			\
 	.align 4;
 
-#define EX_LD_FP(x)		\
+#define EX_LD_FP(x,y)		\
 98:	x;			\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, __retl_one_asi_fp;\
+	.word 98b, y##_fp;	\
 	.text;			\
 	.align 4;
 
@@ -31,7 +32,7 @@
 #define PREAMBLE					\
 	rd		%asi, %g1;			\
 	cmp		%g1, ASI_AIUS;			\
-	bne,pn		%icc, ___copy_in_user;		\
+	bne,pn		%icc, raw_copy_in_user;		\
 	 nop
 #endif
 

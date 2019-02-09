@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_NF_CONNTRACK_TCP_H
 #define _UAPI_NF_CONNTRACK_TCP_H
 /* TCP tracking. */
@@ -44,6 +45,9 @@ enum tcp_conntrack {
 
 /* Marks possibility for expected RFC5961 challenge ACK */
 #define IP_CT_EXP_CHALLENGE_ACK 		0x40
+
+/* Simultaneous open initialized */
+#define IP_CT_TCP_SIMULTANEOUS_OPEN		0x80
 
 struct nf_ct_tcp_flags {
 	__u8 flags;

@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * System Trace Module (STM) infrastructure
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * STM class implements generic infrastructure for  System Trace Module devices
  * as defined in MIPI STPv2 specification.
@@ -45,6 +37,7 @@ struct stm_device {
 	int			major;
 	unsigned int		sw_nmasters;
 	struct stm_data		*data;
+	struct mutex		link_mutex;
 	spinlock_t		link_lock;
 	struct list_head	link_list;
 	/* master allocation */
@@ -56,6 +49,7 @@ struct stm_device {
 	container_of((_d), struct stm_device, dev)
 
 struct stm_output {
+	spinlock_t		lock;
 	unsigned int		master;
 	unsigned int		channel;
 	unsigned int		nr_chans;

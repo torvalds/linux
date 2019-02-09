@@ -1,33 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 2005 Russell King.
  *  Data taken from include/asm-i386/serial.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/serial_8250.h>
 
-#define PORT(_base,_irq)						\
-	{								\
-		.iobase		= _base,				\
-		.irq		= _irq,					\
-		.uartclk	= 1843200,				\
-		.iotype		= UPIO_PORT,				\
-		.flags		= UPF_BOOT_AUTOCONF | UPF_FOURPORT,	\
-	}
+#include "8250.h"
+
+#define SERIAL8250_FOURPORT(_base, _irq) \
+	SERIAL8250_PORT_FLAGS(_base, _irq, UPF_FOURPORT)
 
 static struct plat_serial8250_port fourport_data[] = {
-	PORT(0x1a0, 9),
-	PORT(0x1a8, 9),
-	PORT(0x1b0, 9),
-	PORT(0x1b8, 9),
-	PORT(0x2a0, 5),
-	PORT(0x2a8, 5),
-	PORT(0x2b0, 5),
-	PORT(0x2b8, 5),
+	SERIAL8250_FOURPORT(0x1a0, 9),
+	SERIAL8250_FOURPORT(0x1a8, 9),
+	SERIAL8250_FOURPORT(0x1b0, 9),
+	SERIAL8250_FOURPORT(0x1b8, 9),
+	SERIAL8250_FOURPORT(0x2a0, 5),
+	SERIAL8250_FOURPORT(0x2a8, 5),
+	SERIAL8250_FOURPORT(0x2b0, 5),
+	SERIAL8250_FOURPORT(0x2b8, 5),
 	{ },
 };
 

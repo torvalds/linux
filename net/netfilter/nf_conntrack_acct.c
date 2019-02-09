@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/netfilter.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -55,7 +57,7 @@ seq_print_acct(struct seq_file *s, const struct nf_conn *ct, int dir)
 };
 EXPORT_SYMBOL_GPL(seq_print_acct);
 
-static struct nf_ct_ext_type acct_extend __read_mostly = {
+static const struct nf_ct_ext_type acct_extend = {
 	.len	= sizeof(struct nf_conn_acct),
 	.align	= __alignof__(struct nf_conn_acct),
 	.id	= NF_CT_EXT_ACCT,
@@ -80,7 +82,7 @@ static int nf_conntrack_acct_init_sysctl(struct net *net)
 	net->ct.acct_sysctl_header = register_net_sysctl(net, "net/netfilter",
 							 table);
 	if (!net->ct.acct_sysctl_header) {
-		printk(KERN_ERR "nf_conntrack_acct: can't register to sysctl.\n");
+		pr_err("can't register to sysctl\n");
 		goto out_register;
 	}
 	return 0;
@@ -125,7 +127,7 @@ int nf_conntrack_acct_init(void)
 {
 	int ret = nf_ct_extend_register(&acct_extend);
 	if (ret < 0)
-		pr_err("nf_conntrack_acct: Unable to register extension\n");
+		pr_err("Unable to register extension\n");
 	return ret;
 }
 

@@ -29,4 +29,4 @@ struct pps_gpio_platform_data {
 	const char *gpio_label;
 };
 
-#endif
+#endif /* _PPS_GPIO_H */

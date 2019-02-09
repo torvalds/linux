@@ -88,6 +88,7 @@ l3_1tr6_setup_req(struct l3_process *pc, u_char pr, void *arg)
 			break;
 		case 'C':
 			channel = 0x08;
+			/* fall through */
 		case 'P':
 			channel |= 0x80;
 			teln++;
@@ -149,7 +150,7 @@ l3_1tr6_setup_req(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	L3DelTimer(&pc->timer);
 	L3AddTimer(&pc->timer, T303, CC_T303);
 	newl3state(pc, 1);
@@ -497,7 +498,7 @@ l3_1tr6_setup_rsp(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 	L3DelTimer(&pc->timer);
 	L3AddTimer(&pc->timer, T313, CC_T313);
@@ -543,7 +544,7 @@ l3_1tr6_disconnect_req(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 	L3AddTimer(&pc->timer, T305, CC_T305);
 }
@@ -602,7 +603,7 @@ l3_1tr6_t305(struct l3_process *pc, u_char pr, void *arg)
 	l = p - tmp;
 	if (!(skb = l3_alloc_skb(l)))
 		return;
-	memcpy(skb_put(skb, l), tmp, l);
+	skb_put_data(skb, tmp, l);
 	l3_msg(pc->st, DL_DATA | REQUEST, skb);
 	L3AddTimer(&pc->timer, T308, CC_T308_1);
 }

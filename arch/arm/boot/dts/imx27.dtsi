@@ -1,15 +1,7 @@
-/*
- * Copyright 2012 Sascha Hauer, Pengutronix
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2012 Sascha Hauer, Pengutronix
 
-#include "skeleton.dtsi"
 #include "imx27-pinfunc.h"
 
 #include <dt-bindings/clock/imx27-clock.h>
@@ -18,6 +10,17 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; };
+
 	aliases {
 		ethernet0 = &fec;
 		gpio0 = &gpio1;
@@ -47,10 +50,7 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		osc26m {
+		clk_osc26m: osc26m {
 			compatible = "fsl,imx-osc26m", "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <26000000>;
@@ -63,6 +63,7 @@
 
 		cpu: cpu@0 {
 			device_type = "cpu";
+			reg = <0>;
 			compatible = "arm,arm926ej-s";
 			operating-points = <
 				/* kHz uV */

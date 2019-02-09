@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM thermal
 
@@ -7,6 +8,18 @@
 #include <linux/devfreq.h>
 #include <linux/thermal.h>
 #include <linux/tracepoint.h>
+
+TRACE_DEFINE_ENUM(THERMAL_TRIP_CRITICAL);
+TRACE_DEFINE_ENUM(THERMAL_TRIP_HOT);
+TRACE_DEFINE_ENUM(THERMAL_TRIP_PASSIVE);
+TRACE_DEFINE_ENUM(THERMAL_TRIP_ACTIVE);
+
+#define show_tzt_type(type)					\
+	__print_symbolic(type,					\
+			 { THERMAL_TRIP_CRITICAL, "CRITICAL"},	\
+			 { THERMAL_TRIP_HOT,      "HOT"},	\
+			 { THERMAL_TRIP_PASSIVE,  "PASSIVE"},	\
+			 { THERMAL_TRIP_ACTIVE,   "ACTIVE"})
 
 TRACE_EVENT(thermal_temperature,
 
@@ -73,16 +86,17 @@ TRACE_EVENT(thermal_zone_trip,
 		__entry->trip_type = trip_type;
 	),
 
-	TP_printk("thermal_zone=%s id=%d trip=%d trip_type=%d",
+	TP_printk("thermal_zone=%s id=%d trip=%d trip_type=%s",
 		__get_str(thermal_zone), __entry->id, __entry->trip,
-		__entry->trip_type)
+		show_tzt_type(__entry->trip_type))
 );
 
+#ifdef CONFIG_CPU_THERMAL
 TRACE_EVENT(thermal_power_cpu_get_power,
 	TP_PROTO(const struct cpumask *cpus, unsigned long freq, u32 *load,
-		size_t load_len, u32 dynamic_power, u32 static_power),
+		size_t load_len, u32 dynamic_power),
 
-	TP_ARGS(cpus, freq, load, load_len, dynamic_power, static_power),
+	TP_ARGS(cpus, freq, load, load_len, dynamic_power),
 
 	TP_STRUCT__entry(
 		__bitmask(cpumask, num_possible_cpus())
@@ -90,7 +104,6 @@ TRACE_EVENT(thermal_power_cpu_get_power,
 		__dynamic_array(u32,   load, load_len)
 		__field(size_t,        load_len      )
 		__field(u32,           dynamic_power )
-		__field(u32,           static_power  )
 	),
 
 	TP_fast_assign(
@@ -101,13 +114,12 @@ TRACE_EVENT(thermal_power_cpu_get_power,
 			load_len * sizeof(*load));
 		__entry->load_len = load_len;
 		__entry->dynamic_power = dynamic_power;
-		__entry->static_power = static_power;
 	),
 
-	TP_printk("cpus=%s freq=%lu load={%s} dynamic_power=%d static_power=%d",
+	TP_printk("cpus=%s freq=%lu load={%s} dynamic_power=%d",
 		__get_bitmask(cpumask), __entry->freq,
 		__print_array(__get_dynamic_array(load), __entry->load_len, 4),
-		__entry->dynamic_power, __entry->static_power)
+		__entry->dynamic_power)
 );
 
 TRACE_EVENT(thermal_power_cpu_limit,
@@ -135,13 +147,15 @@ TRACE_EVENT(thermal_power_cpu_limit,
 		__get_bitmask(cpumask), __entry->freq, __entry->cdev_state,
 		__entry->power)
 );
+#endif /* CONFIG_CPU_THERMAL */
 
+#ifdef CONFIG_DEVFREQ_THERMAL
 TRACE_EVENT(thermal_power_devfreq_get_power,
 	TP_PROTO(struct thermal_cooling_device *cdev,
 		 struct devfreq_dev_status *status, unsigned long freq,
-		u32 dynamic_power, u32 static_power),
+		u32 dynamic_power, u32 static_power, u32 power),
 
-	TP_ARGS(cdev, status,  freq, dynamic_power, static_power),
+	TP_ARGS(cdev, status,  freq, dynamic_power, static_power, power),
 
 	TP_STRUCT__entry(
 		__string(type,         cdev->type    )
@@ -149,6 +163,7 @@ TRACE_EVENT(thermal_power_devfreq_get_power,
 		__field(u32,           load          )
 		__field(u32,           dynamic_power )
 		__field(u32,           static_power  )
+		__field(u32,           power)
 	),
 
 	TP_fast_assign(
@@ -157,11 +172,13 @@ TRACE_EVENT(thermal_power_devfreq_get_power,
 		__entry->load = (100 * status->busy_time) / status->total_time;
 		__entry->dynamic_power = dynamic_power;
 		__entry->static_power = static_power;
+		__entry->power = power;
 	),
 
-	TP_printk("type=%s freq=%lu load=%u dynamic_power=%u static_power=%u",
+	TP_printk("type=%s freq=%lu load=%u dynamic_power=%u static_power=%u power=%u",
 		__get_str(type), __entry->freq,
-		__entry->load, __entry->dynamic_power, __entry->static_power)
+		__entry->load, __entry->dynamic_power, __entry->static_power,
+		__entry->power)
 );
 
 TRACE_EVENT(thermal_power_devfreq_limit,
@@ -188,6 +205,7 @@ TRACE_EVENT(thermal_power_devfreq_limit,
 		__get_str(type), __entry->freq, __entry->cdev_state,
 		__entry->power)
 );
+#endif /* CONFIG_DEVFREQ_THERMAL */
 #endif /* _TRACE_THERMAL_H */
 
 /* This part must be outside protection */

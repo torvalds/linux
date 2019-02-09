@@ -1,12 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_PTRACE_H
 #define _LINUX_PTRACE_H
 
 #include <linux/compiler.h>		/* For unlikely.  */
 #include <linux/sched.h>		/* For struct task_struct.  */
+#include <linux/sched/signal.h>		/* For send_sig(), same_thread_group(), etc. */
 #include <linux/err.h>			/* for IS_ERR_VALUE */
 #include <linux/bug.h>			/* For BUG_ON.  */
 #include <linux/pid_namespace.h>	/* For task_active_pid_ns.  */
 #include <uapi/linux/ptrace.h>
+
+extern int ptrace_access_vm(struct task_struct *tsk, unsigned long addr,
+			    void *buf, int len, unsigned int gup_flags);
 
 /*
  * Ptrace flags
@@ -19,7 +24,6 @@
 #define PT_SEIZED	0x00010000	/* SEIZE used, enable new behavior */
 #define PT_PTRACED	0x00000001
 #define PT_DTRACE	0x00000002	/* delayed trace (used on m68k, i386) */
-#define PT_PTRACE_CAP	0x00000004	/* ptracer can follow suid-exec */
 
 #define PT_OPT_FLAG_SHIFT	3
 /* PT_TRACE_* event enable flags */
@@ -51,13 +55,36 @@ extern int ptrace_request(struct task_struct *child, long request,
 			  unsigned long addr, unsigned long data);
 extern void ptrace_notify(int exit_code);
 extern void __ptrace_link(struct task_struct *child,
-			  struct task_struct *new_parent);
+			  struct task_struct *new_parent,
+			  const struct cred *ptracer_cred);
 extern void __ptrace_unlink(struct task_struct *child);
 extern void exit_ptrace(struct task_struct *tracer, struct list_head *dead);
 #define PTRACE_MODE_READ	0x01
 #define PTRACE_MODE_ATTACH	0x02
 #define PTRACE_MODE_NOAUDIT	0x04
-/* Returns true on success, false on denial. */
+#define PTRACE_MODE_FSCREDS	0x08
+#define PTRACE_MODE_REALCREDS	0x10
+
+/* shorthands for READ/ATTACH and FSCREDS/REALCREDS combinations */
+#define PTRACE_MODE_READ_FSCREDS (PTRACE_MODE_READ | PTRACE_MODE_FSCREDS)
+#define PTRACE_MODE_READ_REALCREDS (PTRACE_MODE_READ | PTRACE_MODE_REALCREDS)
+#define PTRACE_MODE_ATTACH_FSCREDS (PTRACE_MODE_ATTACH | PTRACE_MODE_FSCREDS)
+#define PTRACE_MODE_ATTACH_REALCREDS (PTRACE_MODE_ATTACH | PTRACE_MODE_REALCREDS)
+
+/**
+ * ptrace_may_access - check whether the caller is permitted to access
+ * a target task.
+ * @task: target task
+ * @mode: selects type of access and caller credentials
+ *
+ * Returns true on success, false on denial.
+ *
+ * One of the flags PTRACE_MODE_FSCREDS and PTRACE_MODE_REALCREDS must
+ * be set in @mode to specify whether the access was requested through
+ * a filesystem syscall (should use effective capabilities and fsuid
+ * of the caller) or through an explicit syscall such as
+ * process_vm_writev or ptrace (and should use the real credentials).
+ */
 extern bool ptrace_may_access(struct task_struct *task, unsigned int mode);
 
 static inline int ptrace_reparented(struct task_struct *child)
@@ -181,15 +208,15 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 
 	if (unlikely(ptrace) && current->ptrace) {
 		child->ptrace = current->ptrace;
-		__ptrace_link(child, current->parent);
+		__ptrace_link(child, current->parent, current->ptracer_cred);
 
 		if (child->ptrace & PT_SEIZED)
 			task_set_jobctl_pending(child, JOBCTL_TRAP_STOP);
 		else
 			sigaddset(&child->pending.signal, SIGSTOP);
-
-		set_tsk_thread_flag(child, TIF_SIGPENDING);
 	}
+	else
+		child->ptracer_cred = NULL;
 }
 
 /**
@@ -316,7 +343,6 @@ extern void user_single_step_siginfo(struct task_struct *tsk,
 static inline void user_single_step_siginfo(struct task_struct *tsk,
 				struct pt_regs *regs, siginfo_t *info)
 {
-	memset(info, 0, sizeof(*info));
 	info->si_signo = SIGTRAP;
 }
 #endif
@@ -361,10 +387,6 @@ static inline void user_single_step_siginfo(struct task_struct *tsk,
 
 #ifndef current_pt_regs
 #define current_pt_regs() task_pt_regs(current)
-#endif
-
-#ifndef ptrace_signal_deliver
-#define ptrace_signal_deliver() ((void)0)
 #endif
 
 /*

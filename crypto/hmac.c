@@ -16,6 +16,7 @@
  *
  */
 
+#include <crypto/hmac.h>
 #include <crypto/internal/hash.h>
 #include <crypto/scatterwalk.h>
 #include <linux/err.h>
@@ -74,8 +75,8 @@ static int hmac_setkey(struct crypto_shash *parent,
 	memcpy(opad, ipad, bs);
 
 	for (i = 0; i < bs; i++) {
-		ipad[i] ^= 0x36;
-		opad[i] ^= 0x5c;
+		ipad[i] ^= HMAC_IPAD_VALUE;
+		opad[i] ^= HMAC_OPAD_VALUE;
 	}
 
 	return crypto_shash_init(shash) ?:
@@ -194,11 +195,15 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	salg = shash_attr_alg(tb[1], 0, 0);
 	if (IS_ERR(salg))
 		return PTR_ERR(salg);
+	alg = &salg->base;
 
+	/* The underlying hash algorithm must be unkeyed */
 	err = -EINVAL;
+	if (crypto_shash_alg_has_setkey(salg))
+		goto out_put_alg;
+
 	ds = salg->digestsize;
 	ss = salg->statesize;
-	alg = &salg->base;
 	if (ds > alg->cra_blocksize ||
 	    ss < alg->cra_blocksize)
 		goto out_put_alg;

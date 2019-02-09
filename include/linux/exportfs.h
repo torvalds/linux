@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_EXPORTFS_H
 #define LINUX_EXPORTFS_H 1
 
@@ -6,6 +7,7 @@
 struct dentry;
 struct iattr;
 struct inode;
+struct iomap;
 struct super_block;
 struct vfsmount;
 
@@ -97,6 +99,12 @@ enum fid_type {
 	FILEID_FAT_WITH_PARENT = 0x72,
 
 	/*
+	 * 128 bit child FID (struct lu_fid)
+	 * 128 bit parent FID (struct lu_fid)
+	 */
+	FILEID_LUSTRE = 0x97,
+
+	/*
 	 * Filesystems must not use 0xff file ID.
 	 */
 	FILEID_INVALID = 0xff,
@@ -150,12 +158,13 @@ struct fid {
  *    @fh_to_dentry is given a &struct super_block (@sb) and a file handle
  *    fragment (@fh, @fh_len). It should return a &struct dentry which refers
  *    to the same file that the file handle fragment refers to.  If it cannot,
- *    it should return a %NULL pointer if the file was found but no acceptable
- *    &dentries were available, or an %ERR_PTR error code indicating why it
- *    couldn't be found (e.g. %ENOENT or %ENOMEM).  Any suitable dentry can be
- *    returned including, if necessary, a new dentry created with d_alloc_root.
- *    The caller can then find any other extant dentries by following the
- *    d_alias links.
+ *    it should return a %NULL pointer if the file cannot be found, or an
+ *    %ERR_PTR error code of %ENOMEM if a memory allocation failure occurred.
+ *    Any other error code is treated like %NULL, and will cause an %ESTALE error
+ *    for callers of exportfs_decode_fh().
+ *    Any suitable dentry can be returned including, if necessary, a new dentry
+ *    created with d_alloc_root.  The caller can then find any other extant
+ *    dentries by following the d_alias links.
  *
  * fh_to_parent:
  *    Same as @fh_to_dentry, except that it returns a pointer to the parent
@@ -180,21 +189,6 @@ struct fid {
  *    get_parent is called with child->d_inode->i_mutex down
  *    get_name is not (which is possibly inconsistent)
  */
-
-/* types of block ranges for multipage write mappings. */
-#define IOMAP_HOLE	0x01	/* no blocks allocated, need allocation */
-#define IOMAP_DELALLOC	0x02	/* delayed allocation blocks */
-#define IOMAP_MAPPED	0x03	/* blocks allocated @blkno */
-#define IOMAP_UNWRITTEN	0x04	/* blocks allocated @blkno in unwritten state */
-
-#define IOMAP_NULL_BLOCK -1LL	/* blkno is not valid */
-
-struct iomap {
-	sector_t	blkno;	/* first sector of mapping */
-	loff_t		offset;	/* file offset of mapping, bytes */
-	u64		length;	/* length of mapping, bytes */
-	int		type;	/* type of mapping */
-};
 
 struct export_operations {
 	int (*encode_fh)(struct inode *inode, __u32 *fh, int *max_len,

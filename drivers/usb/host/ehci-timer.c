@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012 by Alan Stern
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 /* This file is part of ehci-hcd.c */
@@ -72,6 +63,7 @@ static unsigned event_delays_ns[] = {
 	1 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_POLL_DEAD */
 	1125 * NSEC_PER_USEC,	/* EHCI_HRTIMER_UNLINK_INTR */
 	2 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_FREE_ITDS */
+	2 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_ACTIVE_UNLINK */
 	5 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_START_UNLINK_INTR */
 	6 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_ASYNC_UNLINKS */
 	10 * NSEC_PER_MSEC,	/* EHCI_HRTIMER_IAA_WATCHDOG */
@@ -87,8 +79,7 @@ static void ehci_enable_event(struct ehci_hcd *ehci, unsigned event,
 	ktime_t		*timeout = &ehci->hr_timeouts[event];
 
 	if (resched)
-		*timeout = ktime_add(ktime_get(),
-				ktime_set(0, event_delays_ns[event]));
+		*timeout = ktime_add(ktime_get(), event_delays_ns[event]);
 	ehci->enabled_hrtimer_events |= (1 << event);
 
 	/* Track only the lowest-numbered pending event */
@@ -237,6 +228,7 @@ static void ehci_handle_start_intr_unlinks(struct ehci_hcd *ehci)
 				ehci->intr_unlink_wait_cycle))
 			break;
 		list_del_init(&qh->unlink_node);
+		qh->unlink_reason |= QH_UNLINK_QUEUE_EMPTY;
 		start_unlink_intr(ehci, qh);
 	}
 
@@ -360,7 +352,7 @@ static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 	}
 
 	ehci_dbg(ehci, "IAA watchdog: status %x cmd %x\n", status, cmd);
-	end_unlink_async(ehci);
+	end_iaa_cycle(ehci);
 }
 
 
@@ -394,6 +386,7 @@ static void (*event_handlers[])(struct ehci_hcd *) = {
 	ehci_handle_controller_death,	/* EHCI_HRTIMER_POLL_DEAD */
 	ehci_handle_intr_unlinks,	/* EHCI_HRTIMER_UNLINK_INTR */
 	end_free_itds,			/* EHCI_HRTIMER_FREE_ITDS */
+	end_unlink_async,		/* EHCI_HRTIMER_ACTIVE_UNLINK */
 	ehci_handle_start_intr_unlinks,	/* EHCI_HRTIMER_START_UNLINK_INTR */
 	unlink_empty_async,		/* EHCI_HRTIMER_ASYNC_UNLINKS */
 	ehci_iaa_watchdog,		/* EHCI_HRTIMER_IAA_WATCHDOG */
@@ -422,7 +415,7 @@ static enum hrtimer_restart ehci_hrtimer_func(struct hrtimer *t)
 	 */
 	now = ktime_get();
 	for_each_set_bit(e, &events, EHCI_HRTIMER_NUM_EVENTS) {
-		if (now.tv64 >= ehci->hr_timeouts[e].tv64)
+		if (ktime_compare(now, ehci->hr_timeouts[e]) >= 0)
 			event_handlers[e](ehci);
 		else
 			ehci_enable_event(ehci, e, false);

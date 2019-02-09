@@ -30,7 +30,7 @@
  * access the metadata and fragment caches.
  *
  * To avoid out of memory and fragmentation issues with vmalloc the cache
- * uses sequences of kmalloced PAGE_CACHE_SIZE buffers.
+ * uses sequences of kmalloced PAGE_SIZE buffers.
  *
  * It should be noted that the cache is not used for file datablocks, these
  * are decompressed and cached in the page-cache in the normal way.  The
@@ -231,7 +231,7 @@ void squashfs_cache_delete(struct squashfs_cache *cache)
 /*
  * Initialise cache allocating the specified number of entries, each of
  * size block_size.  To avoid vmalloc fragmentation issues each entry
- * is allocated as a sequence of kmalloced PAGE_CACHE_SIZE buffers.
+ * is allocated as a sequence of kmalloced PAGE_SIZE buffers.
  */
 struct squashfs_cache *squashfs_cache_init(char *name, int entries,
 	int block_size)
@@ -255,7 +255,7 @@ struct squashfs_cache *squashfs_cache_init(char *name, int entries,
 	cache->unused = entries;
 	cache->entries = entries;
 	cache->block_size = block_size;
-	cache->pages = block_size >> PAGE_CACHE_SHIFT;
+	cache->pages = block_size >> PAGE_SHIFT;
 	cache->pages = cache->pages ? cache->pages : 1;
 	cache->name = name;
 	cache->num_waiters = 0;
@@ -275,7 +275,7 @@ struct squashfs_cache *squashfs_cache_init(char *name, int entries,
 		}
 
 		for (j = 0; j < cache->pages; j++) {
-			entry->data[j] = kmalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
+			entry->data[j] = kmalloc(PAGE_SIZE, GFP_KERNEL);
 			if (entry->data[j] == NULL) {
 				ERROR("Failed to allocate %s buffer\n", name);
 				goto cleanup;
@@ -314,10 +314,10 @@ int squashfs_copy_data(void *buffer, struct squashfs_cache_entry *entry,
 		return min(length, entry->length - offset);
 
 	while (offset < entry->length) {
-		void *buff = entry->data[offset / PAGE_CACHE_SIZE]
-				+ (offset % PAGE_CACHE_SIZE);
+		void *buff = entry->data[offset / PAGE_SIZE]
+				+ (offset % PAGE_SIZE);
 		int bytes = min_t(int, entry->length - offset,
-				PAGE_CACHE_SIZE - (offset % PAGE_CACHE_SIZE));
+				PAGE_SIZE - (offset % PAGE_SIZE));
 
 		if (bytes >= remaining) {
 			memcpy(buffer, buff, remaining);
@@ -349,6 +349,9 @@ int squashfs_read_metadata(struct super_block *sb, void *buffer,
 	struct squashfs_cache_entry *entry;
 
 	TRACE("Entered squashfs_read_metadata [%llx:%x]\n", *block, *offset);
+
+	if (unlikely(length < 0))
+		return -EIO;
 
 	while (length) {
 		entry = squashfs_cache_get(sb, msblk->block_cache, *block, 0);
@@ -415,7 +418,7 @@ struct squashfs_cache_entry *squashfs_get_datablock(struct super_block *sb,
  */
 void *squashfs_read_table(struct super_block *sb, u64 block, int length)
 {
-	int pages = (length + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	int pages = (length + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	int i, res;
 	void *table, *buffer, **data;
 	struct squashfs_page_actor *actor;
@@ -436,7 +439,7 @@ void *squashfs_read_table(struct super_block *sb, u64 block, int length)
 		goto failed2;
 	}
 
-	for (i = 0; i < pages; i++, buffer += PAGE_CACHE_SIZE)
+	for (i = 0; i < pages; i++, buffer += PAGE_SIZE)
 		data[i] = buffer;
 
 	res = squashfs_read_data(sb, block, length |

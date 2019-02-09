@@ -12,6 +12,8 @@
 #ifndef __FSL_DCU_DRM_DRV_H__
 #define __FSL_DCU_DRM_DRV_H__
 
+#include <drm/drm_encoder.h>
+
 #include "fsl_dcu_drm_crtc.h"
 #include "fsl_dcu_drm_output.h"
 #include "fsl_dcu_drm_plane.h"
@@ -47,8 +49,8 @@
 #define DCU_VSYN_PARA_FP(x)		(x)
 
 #define DCU_SYN_POL			0x0024
-#define DCU_SYN_POL_INV_PXCK_FALL	(0 << 6)
-#define DCU_SYN_POL_NEG_REMAIN		(0 << 5)
+#define DCU_SYN_POL_INV_PXCK		BIT(6)
+#define DCU_SYN_POL_NEG			BIT(5)
 #define DCU_SYN_POL_INV_VS_LOW		BIT(1)
 #define DCU_SYN_POL_INV_HS_LOW		BIT(0)
 
@@ -133,7 +135,9 @@
 #define DCU_LAYER_RLE_EN		BIT(15)
 #define DCU_LAYER_LUOFFS(x)		((x) << 4)
 #define DCU_LAYER_BB_ON			BIT(2)
-#define DCU_LAYER_AB(x)			(x)
+#define DCU_LAYER_AB_NONE		0
+#define DCU_LAYER_AB_CHROMA_KEYING	1
+#define DCU_LAYER_AB_WHOLE_FRAME	2
 
 #define DCU_LAYER_CKMAX_R(x)		((x) << 16)
 #define DCU_LAYER_CKMAX_G(x)		((x) << 8)
@@ -173,6 +177,7 @@ struct fsl_dcu_soc_data {
 	unsigned int total_layer;
 	/*max layer number DCU supported*/
 	unsigned int max_layer;
+	unsigned int layer_regs;
 };
 
 struct fsl_dcu_drm_device {
@@ -181,6 +186,8 @@ struct fsl_dcu_drm_device {
 	struct regmap *regmap;
 	int irq;
 	struct clk *clk;
+	struct clk *pix_clk;
+	struct fsl_tcon *tcon;
 	/*protects hardware register*/
 	spinlock_t irq_lock;
 	struct drm_device *drm;
@@ -191,7 +198,6 @@ struct fsl_dcu_drm_device {
 	const struct fsl_dcu_soc_data *soc;
 };
 
-void fsl_dcu_fbdev_init(struct drm_device *dev);
 int fsl_dcu_drm_modeset_init(struct fsl_dcu_drm_device *fsl_dev);
 
 #endif /* __FSL_DCU_DRM_DRV_H__ */

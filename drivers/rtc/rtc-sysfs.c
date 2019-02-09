@@ -27,7 +27,8 @@
 static ssize_t
 name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n", to_rtc_device(dev)->name);
+	return sprintf(buf, "%s %s\n", dev_driver_string(dev->parent),
+		       dev_name(dev->parent));
 }
 static DEVICE_ATTR_RO(name);
 
@@ -71,9 +72,10 @@ since_epoch_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	retval = rtc_read_time(to_rtc_device(dev), &tm);
 	if (retval == 0) {
-		unsigned long time;
-		rtc_tm_to_time(&tm, &time);
-		retval = sprintf(buf, "%lu\n", time);
+		time64_t time;
+
+		time = rtc_tm_to_time64(&tm);
+		retval = sprintf(buf, "%lld\n", time);
 	}
 
 	return retval;
@@ -91,7 +93,12 @@ max_user_freq_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct rtc_device *rtc = to_rtc_device(dev);
-	unsigned long val = simple_strtoul(buf, NULL, 0);
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 0, &val);
+	if (err)
+		return err;
 
 	if (val >= 4096 || val == 0)
 		return -EINVAL;
@@ -126,7 +133,7 @@ static ssize_t
 wakealarm_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	ssize_t retval;
-	unsigned long alarm;
+	time64_t alarm;
 	struct rtc_wkalrm alm;
 
 	/* Don't show disabled alarms.  For uniformity, RTC alarms are
@@ -139,8 +146,8 @@ wakealarm_show(struct device *dev, struct device_attribute *attr, char *buf)
 	 */
 	retval = rtc_read_alarm(to_rtc_device(dev), &alm);
 	if (retval == 0 && alm.enabled) {
-		rtc_tm_to_time(&alm.time, &alarm);
-		retval = sprintf(buf, "%lu\n", alarm);
+		alarm = rtc_tm_to_time64(&alm.time);
+		retval = sprintf(buf, "%lld\n", alarm);
 	}
 
 	return retval;
@@ -151,11 +158,11 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	ssize_t retval;
-	unsigned long now, alarm;
-	unsigned long push = 0;
+	time64_t now, alarm;
+	time64_t push = 0;
 	struct rtc_wkalrm alm;
 	struct rtc_device *rtc = to_rtc_device(dev);
-	char *buf_ptr;
+	const char *buf_ptr;
 	int adjust = 0;
 
 	/* Only request alarms that trigger in the future.  Disable them
@@ -164,9 +171,9 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 	retval = rtc_read_time(rtc, &alm.time);
 	if (retval < 0)
 		return retval;
-	rtc_tm_to_time(&alm.time, &now);
+	now = rtc_tm_to_time64(&alm.time);
 
-	buf_ptr = (char *)buf;
+	buf_ptr = buf;
 	if (*buf_ptr == '+') {
 		buf_ptr++;
 		if (*buf_ptr == '=') {
@@ -175,7 +182,9 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 		} else
 			adjust = 1;
 	}
-	alarm = simple_strtoul(buf_ptr, NULL, 0);
+	retval = kstrtos64(buf_ptr, 0, &alarm);
+	if (retval)
+		return retval;
 	if (adjust) {
 		alarm += now;
 	}
@@ -189,7 +198,7 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 			return retval;
 		if (alm.enabled) {
 			if (push) {
-				rtc_tm_to_time(&alm.time, &push);
+				push = rtc_tm_to_time64(&alm.time);
 				alarm += push;
 			} else
 				return -EBUSY;
@@ -204,12 +213,48 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 		 */
 		alarm = now + 300;
 	}
-	rtc_time_to_tm(alarm, &alm.time);
+	rtc_time64_to_tm(alarm, &alm.time);
 
 	retval = rtc_set_alarm(rtc, &alm);
 	return (retval < 0) ? retval : n;
 }
 static DEVICE_ATTR_RW(wakealarm);
+
+static ssize_t
+offset_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ssize_t retval;
+	long offset;
+
+	retval = rtc_read_offset(to_rtc_device(dev), &offset);
+	if (retval == 0)
+		retval = sprintf(buf, "%ld\n", offset);
+
+	return retval;
+}
+
+static ssize_t
+offset_store(struct device *dev, struct device_attribute *attr,
+	     const char *buf, size_t n)
+{
+	ssize_t retval;
+	long offset;
+
+	retval = kstrtol(buf, 10, &offset);
+	if (retval == 0)
+		retval = rtc_set_offset(to_rtc_device(dev), offset);
+
+	return (retval < 0) ? retval : n;
+}
+static DEVICE_ATTR_RW(offset);
+
+static ssize_t
+range_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "[%lld,%llu]\n", to_rtc_device(dev)->range_min,
+		       to_rtc_device(dev)->range_max);
+}
+static DEVICE_ATTR_RO(range);
 
 static struct attribute *rtc_attrs[] = {
 	&dev_attr_name.attr,
@@ -219,6 +264,8 @@ static struct attribute *rtc_attrs[] = {
 	&dev_attr_max_user_freq.attr,
 	&dev_attr_hctosys.attr,
 	&dev_attr_wakealarm.attr,
+	&dev_attr_offset.attr,
+	&dev_attr_range.attr,
 	NULL,
 };
 
@@ -242,9 +289,16 @@ static umode_t rtc_attr_is_visible(struct kobject *kobj,
 	struct rtc_device *rtc = to_rtc_device(dev);
 	umode_t mode = attr->mode;
 
-	if (attr == &dev_attr_wakealarm.attr)
+	if (attr == &dev_attr_wakealarm.attr) {
 		if (!rtc_does_wakealarm(rtc))
 			mode = 0;
+	} else if (attr == &dev_attr_offset.attr) {
+		if (!rtc->ops->set_offset)
+			mode = 0;
+	} else if (attr == &dev_attr_range.attr) {
+		if (!(rtc->range_max - rtc->range_min))
+			mode = 0;
+	}
 
 	return mode;
 }
@@ -263,3 +317,46 @@ const struct attribute_group **rtc_get_dev_attribute_groups(void)
 {
 	return rtc_attr_groups;
 }
+
+int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps)
+{
+	size_t old_cnt = 0, add_cnt = 0, new_cnt;
+	const struct attribute_group **groups, **old;
+
+	if (rtc->registered)
+		return -EINVAL;
+	if (!grps)
+		return -EINVAL;
+
+	groups = rtc->dev.groups;
+	if (groups)
+		for (; *groups; groups++)
+			old_cnt++;
+
+	for (groups = grps; *groups; groups++)
+		add_cnt++;
+
+	new_cnt = old_cnt + add_cnt + 1;
+	groups = devm_kcalloc(&rtc->dev, new_cnt, sizeof(*groups), GFP_KERNEL);
+	if (IS_ERR_OR_NULL(groups))
+		return PTR_ERR(groups);
+	memcpy(groups, rtc->dev.groups, old_cnt * sizeof(*groups));
+	memcpy(groups + old_cnt, grps, add_cnt * sizeof(*groups));
+	groups[old_cnt + add_cnt] = NULL;
+
+	old = rtc->dev.groups;
+	rtc->dev.groups = groups;
+	if (old && old != rtc_attr_groups)
+		devm_kfree(&rtc->dev, old);
+
+	return 0;
+}
+EXPORT_SYMBOL(rtc_add_groups);
+
+int rtc_add_group(struct rtc_device *rtc, const struct attribute_group *grp)
+{
+	const struct attribute_group *groups[] = { grp, NULL };
+
+	return rtc_add_groups(rtc, groups);
+}
+EXPORT_SYMBOL(rtc_add_group);

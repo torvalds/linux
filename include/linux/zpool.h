@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * zpool memory storage api
  *
@@ -106,5 +107,7 @@ struct zpool_driver {
 void zpool_register_driver(struct zpool_driver *driver);
 
 int zpool_unregister_driver(struct zpool_driver *driver);
+
+bool zpool_evictable(struct zpool *pool);
 
 #endif

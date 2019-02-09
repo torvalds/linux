@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_IO_H
 #define _ASM_X86_IO_H
 
@@ -69,6 +70,9 @@ build_mmio_write(__writeb, "b", unsigned char, "q", )
 build_mmio_write(__writew, "w", unsigned short, "r", )
 build_mmio_write(__writel, "l", unsigned int, "r", )
 
+#define readb readb
+#define readw readw
+#define readl readl
 #define readb_relaxed(a) __readb(a)
 #define readw_relaxed(a) __readw(a)
 #define readl_relaxed(a) __readl(a)
@@ -76,6 +80,9 @@ build_mmio_write(__writel, "l", unsigned int, "r", )
 #define __raw_readw __readw
 #define __raw_readl __readl
 
+#define writeb writeb
+#define writew writew
+#define writel writel
 #define writeb_relaxed(v, a) __writeb(v, a)
 #define writew_relaxed(v, a) __writew(v, a)
 #define writel_relaxed(v, a) __writel(v, a)
@@ -87,20 +94,26 @@ build_mmio_write(__writel, "l", unsigned int, "r", )
 
 #ifdef CONFIG_X86_64
 
-build_mmio_read(readq, "q", unsigned long, "=r", :"memory")
-build_mmio_write(writeq, "q", unsigned long, "r", :"memory")
+build_mmio_read(readq, "q", u64, "=r", :"memory")
+build_mmio_read(__readq, "q", u64, "=r", )
+build_mmio_write(writeq, "q", u64, "r", :"memory")
+build_mmio_write(__writeq, "q", u64, "r", )
 
-#define readq_relaxed(a)	readq(a)
-#define writeq_relaxed(v, a)	writeq(v, a)
+#define readq_relaxed(a)	__readq(a)
+#define writeq_relaxed(v, a)	__writeq(v, a)
 
-#define __raw_readq(a)		readq(a)
-#define __raw_writeq(val, addr)	writeq(val, addr)
+#define __raw_readq		__readq
+#define __raw_writeq		__writeq
 
 /* Let people know that we have them */
 #define readq			readq
 #define writeq			writeq
 
 #endif
+
+#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
+extern int valid_phys_addr_range(phys_addr_t addr, size_t size);
+extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
 
 /**
  *	virt_to_phys	-	map virtual addresses to physical
@@ -119,6 +132,7 @@ static inline phys_addr_t virt_to_phys(volatile void *address)
 {
 	return __pa(address);
 }
+#define virt_to_phys virt_to_phys
 
 /**
  *	phys_to_virt	-	map physical address to virtual
@@ -137,6 +151,7 @@ static inline void *phys_to_virt(phys_addr_t address)
 {
 	return __va(address);
 }
+#define phys_to_virt phys_to_virt
 
 /*
  * Change "struct page" to physical address.
@@ -164,6 +179,20 @@ static inline unsigned int isa_virt_to_bus(volatile void *address)
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
 
+/*
+ * The default ioremap() behavior is non-cached; if you need something
+ * else, you probably want one of the following.
+ */
+extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
+#define ioremap_nocache ioremap_nocache
+extern void __iomem *ioremap_uc(resource_size_t offset, unsigned long size);
+#define ioremap_uc ioremap_uc
+
+extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
+#define ioremap_cache ioremap_cache
+extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size, unsigned long prot_val);
+#define ioremap_prot ioremap_prot
+
 /**
  * ioremap     -   map bus memory into CPU space
  * @offset:    bus address of the memory
@@ -178,52 +207,20 @@ static inline unsigned int isa_virt_to_bus(volatile void *address)
  * If the area you are trying to map is a PCI BAR you should have a
  * look at pci_iomap().
  */
-extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
-extern void __iomem *ioremap_uc(resource_size_t offset, unsigned long size);
-#define ioremap_uc ioremap_uc
-
-extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
-extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size,
-				unsigned long prot_val);
-
-/*
- * The default ioremap() behavior is non-cached:
- */
 static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
 {
 	return ioremap_nocache(offset, size);
 }
+#define ioremap ioremap
 
 extern void iounmap(volatile void __iomem *addr);
+#define iounmap iounmap
 
 extern void set_iounmap_nonlazy(void);
 
 #ifdef __KERNEL__
 
 #include <asm-generic/iomap.h>
-
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#define xlate_dev_kmem_ptr(p)	p
-
-static inline void
-memset_io(volatile void __iomem *addr, unsigned char val, size_t count)
-{
-	memset((void __force *)addr, val, count);
-}
-
-static inline void
-memcpy_fromio(void *dst, const volatile void __iomem *src, size_t count)
-{
-	memcpy(dst, (const void __force *)src, count);
-}
-
-static inline void
-memcpy_toio(volatile void __iomem *dst, const void *src, size_t count)
-{
-	memcpy((void __force *)dst, src, count);
-}
 
 /*
  * ISA space is 'always mapped' on a typical x86 system, no need to
@@ -234,21 +231,6 @@ memcpy_toio(volatile void __iomem *dst, const void *src, size_t count)
  * analogy with PCI is quite large):
  */
 #define __ISA_IO_base ((char __iomem *)(PAGE_OFFSET))
-
-/*
- *	Cache management
- *
- *	This needed for two cases
- *	1. Out of order aware processors
- *	2. Accidentally out of order processors (PPro errata #51)
- */
-
-static inline void flush_write_buffers(void)
-{
-#if defined(CONFIG_X86_PPRO_FENCE)
-	asm volatile("lock; addl $0,0(%%esp)": : :"memory");
-#endif
-}
 
 #endif /* __KERNEL__ */
 
@@ -272,6 +254,21 @@ static inline void slow_down_io(void)
 }
 
 #endif
+
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+#include <linux/jump_label.h>
+
+extern struct static_key_false sev_enable_key;
+static inline bool sev_key_active(void)
+{
+	return static_branch_unlikely(&sev_enable_key);
+}
+
+#else /* !CONFIG_AMD_MEM_ENCRYPT */
+
+static inline bool sev_key_active(void) { return false; }
+
+#endif /* CONFIG_AMD_MEM_ENCRYPT */
 
 #define BUILDIO(bwl, bw, type)						\
 static inline void out##bwl(unsigned type value, int port)		\
@@ -303,27 +300,72 @@ static inline unsigned type in##bwl##_p(int port)			\
 									\
 static inline void outs##bwl(int port, const void *addr, unsigned long count) \
 {									\
-	asm volatile("rep; outs" #bwl					\
-		     : "+S"(addr), "+c"(count) : "d"(port));		\
+	if (sev_key_active()) {						\
+		unsigned type *value = (unsigned type *)addr;		\
+		while (count) {						\
+			out##bwl(*value, port);				\
+			value++;					\
+			count--;					\
+		}							\
+	} else {							\
+		asm volatile("rep; outs" #bwl				\
+			     : "+S"(addr), "+c"(count)			\
+			     : "d"(port) : "memory");			\
+	}								\
 }									\
 									\
 static inline void ins##bwl(int port, void *addr, unsigned long count)	\
 {									\
-	asm volatile("rep; ins" #bwl					\
-		     : "+D"(addr), "+c"(count) : "d"(port));		\
+	if (sev_key_active()) {						\
+		unsigned type *value = (unsigned type *)addr;		\
+		while (count) {						\
+			*value = in##bwl(port);				\
+			value++;					\
+			count--;					\
+		}							\
+	} else {							\
+		asm volatile("rep; ins" #bwl				\
+			     : "+D"(addr), "+c"(count)			\
+			     : "d"(port) : "memory");			\
+	}								\
 }
 
 BUILDIO(b, b, char)
 BUILDIO(w, w, short)
 BUILDIO(l, , int)
 
+#define inb inb
+#define inw inw
+#define inl inl
+#define inb_p inb_p
+#define inw_p inw_p
+#define inl_p inl_p
+#define insb insb
+#define insw insw
+#define insl insl
+
+#define outb outb
+#define outw outw
+#define outl outl
+#define outb_p outb_p
+#define outw_p outw_p
+#define outl_p outl_p
+#define outsb outsb
+#define outsw outsw
+#define outsl outsl
+
 extern void *xlate_dev_mem_ptr(phys_addr_t phys);
 extern void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
+
+#define xlate_dev_mem_ptr xlate_dev_mem_ptr
+#define unxlate_dev_mem_ptr unxlate_dev_mem_ptr
 
 extern int ioremap_change_attr(unsigned long vaddr, unsigned long size,
 				enum page_cache_mode pcm);
 extern void __iomem *ioremap_wc(resource_size_t offset, unsigned long size);
+#define ioremap_wc ioremap_wc
 extern void __iomem *ioremap_wt(resource_size_t offset, unsigned long size);
+#define ioremap_wt ioremap_wt
 
 extern bool is_early_ioremap_ptep(pte_t *ptep);
 
@@ -341,6 +383,9 @@ extern bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
 
 #define IO_SPACE_LIMIT 0xffff
 
+#include <asm-generic/io.h>
+#undef PCI_IOBASE
+
 #ifdef CONFIG_MTRR
 extern int __must_check arch_phys_wc_index(int handle);
 #define arch_phys_wc_index arch_phys_wc_index
@@ -350,5 +395,19 @@ extern int __must_check arch_phys_wc_add(unsigned long base,
 extern void arch_phys_wc_del(int handle);
 #define arch_phys_wc_add arch_phys_wc_add
 #endif
+
+#ifdef CONFIG_X86_PAT
+extern int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size);
+extern void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size);
+#define arch_io_reserve_memtype_wc arch_io_reserve_memtype_wc
+#endif
+
+extern bool arch_memremap_can_ram_remap(resource_size_t offset,
+					unsigned long size,
+					unsigned long flags);
+#define arch_memremap_can_ram_remap arch_memremap_can_ram_remap
+
+extern bool phys_mem_access_encrypted(unsigned long phys_addr,
+				      unsigned long size);
 
 #endif /* _ASM_X86_IO_H */

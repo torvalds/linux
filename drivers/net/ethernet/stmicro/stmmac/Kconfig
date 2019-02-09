@@ -1,15 +1,14 @@
 config STMMAC_ETH
-	tristate "STMicroelectronics 10/100/1000 Ethernet driver"
+	tristate "STMicroelectronics 10/100/1000/EQOS Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA
 	select MII
 	select PHYLIB
 	select CRC32
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	select RESET_CONTROLLER
 	---help---
-	  This is the driver for the Ethernet IPs are built around a
-	  Synopsys IP Core and only tested on the STMicroelectronics
-	  platforms.
+	  This is the driver for the Ethernet IPs built around a
+	  Synopsys IP Core.
 
 if STMMAC_ETH
 
@@ -29,6 +28,15 @@ config STMMAC_PLATFORM
 
 if STMMAC_PLATFORM
 
+config DWMAC_DWC_QOS_ETH
+	tristate "Support for snps,dwc-qos-ethernet.txt DT binding."
+	select PHYLIB
+	select CRC32
+	select MII
+	depends on OF && HAS_DMA
+	help
+	  Support for chips using the snps,dwc-qos-ethernet.txt DT binding.
+
 config DWMAC_GENERIC
 	tristate "Generic driver for DWMAC"
 	default STMMAC_PLATFORM
@@ -37,10 +45,19 @@ config DWMAC_GENERIC
 	  platform specific code to function or is using platform
 	  data for setup.
 
+config DWMAC_ANARION
+	tristate "Adaptrum Anarion GMAC support"
+	default ARC
+	depends on OF && (ARC || COMPILE_TEST)
+	help
+	  Support for Adaptrum Anarion GMAC Ethernet controller.
+
+	  This selects the Anarion SoC glue layer support for the stmmac driver.
+
 config DWMAC_IPQ806X
 	tristate "QCA IPQ806x DWMAC support"
 	default ARCH_QCOM
-	depends on OF
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	select MFD_SYSCON
 	help
 	  Support for QCA IPQ806X DWMAC Ethernet.
@@ -53,7 +70,7 @@ config DWMAC_IPQ806X
 config DWMAC_LPC18XX
 	tristate "NXP LPC18xx/43xx DWMAC support"
 	default ARCH_LPC18XX
-	depends on OF
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
 	select MFD_SYSCON
 	---help---
 	  Support for NXP LPC18xx/43xx DWMAC Ethernet.
@@ -61,18 +78,29 @@ config DWMAC_LPC18XX
 config DWMAC_MESON
 	tristate "Amlogic Meson dwmac support"
 	default ARCH_MESON
-	depends on OF
+	depends on OF && COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
 	help
 	  Support for Ethernet controller on Amlogic Meson SoCs.
 
 	  This selects the Amlogic Meson SoC glue layer support for
-	  the stmmac device driver. This driver is used for Meson6 and
-	  Meson8 SoCs.
+	  the stmmac device driver. This driver is used for Meson6,
+	  Meson8, Meson8b and GXBB SoCs.
+
+config DWMAC_OXNAS
+	tristate "Oxford Semiconductor OXNAS dwmac support"
+	default ARCH_OXNAS
+	depends on OF && COMMON_CLK && (ARCH_OXNAS || COMPILE_TEST)
+	select MFD_SYSCON
+	help
+	  Support for Ethernet controller on Oxford Semiconductor OXNAS SoCs.
+
+	  This selects the Oxford Semiconductor OXNASSoC glue layer support for
+	  the stmmac device driver. This driver is used for OX820.
 
 config DWMAC_ROCKCHIP
 	tristate "Rockchip dwmac support"
 	default ARCH_ROCKCHIP
-	depends on OF
+	depends on OF && (ARCH_ROCKCHIP || COMPILE_TEST)
 	select MFD_SYSCON
 	help
 	  Support for Ethernet controller on Rockchip RK3288 SoC.
@@ -82,8 +110,8 @@ config DWMAC_ROCKCHIP
 
 config DWMAC_SOCFPGA
 	tristate "SOCFPGA dwmac support"
-	default ARCH_SOCFPGA
-	depends on OF
+	default (ARCH_SOCFPGA || ARCH_STRATIX10)
+	depends on OF && (ARCH_SOCFPGA || ARCH_STRATIX10 || COMPILE_TEST)
 	select MFD_SYSCON
 	help
 	  Support for ethernet controller on Altera SOCFPGA
@@ -95,7 +123,7 @@ config DWMAC_SOCFPGA
 config DWMAC_STI
 	tristate "STi GMAC support"
 	default ARCH_STI
-	depends on OF
+	depends on OF && (ARCH_STI || COMPILE_TEST)
 	select MFD_SYSCON
 	---help---
 	  Support for ethernet controller on STi SOCs.
@@ -104,27 +132,51 @@ config DWMAC_STI
 	  device driver. This driver is used on for the STi series
 	  SOCs GMAC ethernet controller.
 
+config DWMAC_STM32
+	tristate "STM32 DWMAC support"
+	default ARCH_STM32
+	depends on OF && HAS_IOMEM && (ARCH_STM32 || COMPILE_TEST)
+	select MFD_SYSCON
+	---help---
+	  Support for ethernet controller on STM32 SOCs.
+
+	  This selects STM32 SoC glue layer support for the stmmac
+	  device driver. This driver is used on for the STM32 series
+	  SOCs GMAC ethernet controller.
+
 config DWMAC_SUNXI
 	tristate "Allwinner GMAC support"
 	default ARCH_SUNXI
-	depends on OF
+	depends on OF && (ARCH_SUNXI || COMPILE_TEST)
 	---help---
 	  Support for Allwinner A20/A31 GMAC ethernet controllers.
 
 	  This selects Allwinner SoC glue layer support for the
 	  stmmac device driver. This driver is used for A20/A31
 	  GMAC ethernet controller.
+
+config DWMAC_SUN8I
+	tristate "Allwinner sun8i GMAC support"
+	default ARCH_SUNXI
+	depends on OF && (ARCH_SUNXI || COMPILE_TEST)
+	select MDIO_BUS_MUX
+	---help---
+	  Support for Allwinner H3 A83T A64 EMAC ethernet controllers.
+
+	  This selects Allwinner SoC glue layer support for the
+	  stmmac device driver. This driver is used for H3/A83T/A64
+	  EMAC ethernet controller.
 endif
 
 config STMMAC_PCI
 	tristate "STMMAC PCI bus support"
 	depends on STMMAC_ETH && PCI
 	---help---
-	  This is to select the Synopsys DWMAC available on PCI devices,
-	  if you have a controller with this interface, say Y or M here.
+	  This selects the platform specific bus support for the stmmac driver.
+	  This driver was tested on XLINX XC2V3000 FF1152AMT0221
+	  D1215994A VIRTEX FPGA board and SNPS QoS IPK Prototyping Kit.
 
-	  This PCI support is tested on XLINX XC2V3000 FF1152AMT0221
-	  D1215994A VIRTEX FPGA board.
+	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
 endif

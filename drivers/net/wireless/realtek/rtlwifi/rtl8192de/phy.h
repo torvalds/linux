@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -160,7 +156,7 @@ void rtl92d_phy_config_maccoexist_rfpage(struct ieee80211_hw *hw);
 bool rtl92d_phy_check_poweroff(struct ieee80211_hw *hw);
 void rtl92d_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl92d_update_bbrf_configuration(struct ieee80211_hw *hw);
-void rtl92d_phy_ap_calibrate(struct ieee80211_hw *hw, char delta);
+void rtl92d_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta);
 void rtl92d_phy_iq_calibrate(struct ieee80211_hw *hw);
 void rtl92d_phy_reset_iqk_result(struct ieee80211_hw *hw);
 void rtl92d_release_cckandrw_pagea_ctl(struct ieee80211_hw *hw,

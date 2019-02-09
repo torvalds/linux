@@ -18,11 +18,11 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/prom.h>
-#include <asm/pci-bridge.h>
 #include <asm/macio.h>
 
 #include <scsi/scsi.h>
@@ -448,15 +448,14 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
 		ioremap(macio_resource_start(mdev, 1), 0x1000);
 	state->dmaintr = macio_irq(mdev, 1);
 	if (state->regs == NULL || state->dma == NULL) {
-		printk(KERN_ERR "mac53c94: ioremap failed for %s\n",
-		       node->full_name);
+		printk(KERN_ERR "mac53c94: ioremap failed for %pOF\n", node);
 		goto out_free;
 	}
 
 	clkprop = of_get_property(node, "clock-frequency", &proplen);
        	if (clkprop == NULL || proplen != sizeof(int)) {
-       		printk(KERN_ERR "%s: can't get clock frequency, "
-       		       "assuming 25MHz\n", node->full_name);
+       		printk(KERN_ERR "%pOF: can't get clock frequency, "
+       		       "assuming 25MHz\n", node);
        		state->clk_freq = 25000000;
        	} else
        		state->clk_freq = *(int *)clkprop;
@@ -465,11 +464,12 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
        	 * +1 to allow for aligning.
 	 * XXX FIXME: Use DMA consistent routines
 	 */
-       	dma_cmd_space = kmalloc((host->sg_tablesize + 2) *
-       				sizeof(struct dbdma_cmd), GFP_KERNEL);
+       	dma_cmd_space = kmalloc_array(host->sg_tablesize + 2,
+					     sizeof(struct dbdma_cmd),
+					     GFP_KERNEL);
        	if (dma_cmd_space == 0) {
        		printk(KERN_ERR "mac53c94: couldn't allocate dma "
-       		       "command space for %s\n", node->full_name);
+       		       "command space for %pOF\n", node);
 		rc = -ENOMEM;
        		goto out_free;
        	}
@@ -481,8 +481,8 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
 	mac53c94_init(state);
 
 	if (request_irq(state->intr, do_mac53c94_interrupt, 0, "53C94",state)) {
-		printk(KERN_ERR "mac53C94: can't get irq %d for %s\n",
-		       state->intr, node->full_name);
+		printk(KERN_ERR "mac53C94: can't get irq %d for %pOF\n",
+		       state->intr, node);
 		goto out_free_dma;
 	}
 

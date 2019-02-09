@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/arm/mach-footbridge/dc21285-timer.c
  *
@@ -19,7 +20,7 @@
 
 #include "common.h"
 
-static cycle_t cksrc_dc21285_read(struct clocksource *cs)
+static u64 cksrc_dc21285_read(struct clocksource *cs)
 {
 	return cs->mask - *CSR_TIMER2_VALUE;
 }

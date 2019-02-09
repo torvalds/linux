@@ -58,6 +58,17 @@ static unsigned int irq_banks = DEFAULT_NR_REG_BANKS;
 static unsigned int max_irqs = DEFAULT_IRQS;
 static unsigned int omap_secure_apis;
 
+#ifdef CONFIG_CPU_PM
+static unsigned int wakeupgen_context[MAX_NR_REG_BANKS];
+#endif
+
+struct omap_wakeupgen_ops {
+	void (*save_context)(void);
+	void (*restore_context)(void);
+};
+
+static struct omap_wakeupgen_ops *wakeupgen_ops;
+
 /*
  * Static helper functions.
  */
@@ -264,6 +275,16 @@ static inline void omap5_irq_save_context(void)
 
 }
 
+static inline void am43xx_irq_save_context(void)
+{
+	u32 i;
+
+	for (i = 0; i < irq_banks; i++) {
+		wakeupgen_context[i] = wakeupgen_readl(i, 0);
+		wakeupgen_writel(0, i, CPU0_ID);
+	}
+}
+
 /*
  * Save WakeupGen interrupt context in SAR BANK3. Restore is done by
  * ROM code. WakeupGen IP is integrated along with GIC to manage the
@@ -274,13 +295,12 @@ static inline void omap5_irq_save_context(void)
  */
 static void irq_save_context(void)
 {
-	if (!sar_base)
-		sar_base = omap4_get_sar_ram_base();
+	/* DRA7 has no SAR to save */
+	if (soc_is_dra7xx())
+		return;
 
-	if (soc_is_omap54xx())
-		omap5_irq_save_context();
-	else
-		omap4_irq_save_context();
+	if (wakeupgen_ops && wakeupgen_ops->save_context)
+		wakeupgen_ops->save_context();
 }
 
 /*
@@ -290,6 +310,9 @@ static void irq_sar_clear(void)
 {
 	u32 val;
 	u32 offset = SAR_BACKUP_STATUS_OFFSET;
+	/* DRA7 has no SAR to save */
+	if (soc_is_dra7xx())
+		return;
 
 	if (soc_is_omap54xx())
 		offset = OMAP5_SAR_BACKUP_STATUS_OFFSET;
@@ -297,6 +320,20 @@ static void irq_sar_clear(void)
 	val = readl_relaxed(sar_base + offset);
 	val &= ~SAR_BACKUP_STATUS_WAKEUPGEN;
 	writel_relaxed(val, sar_base + offset);
+}
+
+static void am43xx_irq_restore_context(void)
+{
+	u32 i;
+
+	for (i = 0; i < irq_banks; i++)
+		wakeupgen_writel(wakeupgen_context[i], i, CPU0_ID);
+}
+
+static void irq_restore_context(void)
+{
+	if (wakeupgen_ops && wakeupgen_ops->restore_context)
+		wakeupgen_ops->restore_context();
 }
 
 /*
@@ -312,32 +349,48 @@ static void irq_save_secure_context(void)
 	if (ret != API_HAL_RET_VALUE_OK)
 		pr_err("GIC and Wakeupgen context save failed\n");
 }
+
+/* Define ops for context save and restore for each SoC */
+static struct omap_wakeupgen_ops omap4_wakeupgen_ops = {
+	.save_context = omap4_irq_save_context,
+	.restore_context = irq_sar_clear,
+};
+
+static struct omap_wakeupgen_ops omap5_wakeupgen_ops = {
+	.save_context = omap5_irq_save_context,
+	.restore_context = irq_sar_clear,
+};
+
+static struct omap_wakeupgen_ops am43xx_wakeupgen_ops = {
+	.save_context = am43xx_irq_save_context,
+	.restore_context = am43xx_irq_restore_context,
+};
+#else
+static struct omap_wakeupgen_ops omap4_wakeupgen_ops = {};
+static struct omap_wakeupgen_ops omap5_wakeupgen_ops = {};
+static struct omap_wakeupgen_ops am43xx_wakeupgen_ops = {};
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int irq_cpu_hotplug_notify(struct notifier_block *self,
-				  unsigned long action, void *hcpu)
+static int omap_wakeupgen_cpu_online(unsigned int cpu)
 {
-	unsigned int cpu = (unsigned int)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-		wakeupgen_irqmask_all(cpu, 0);
-		break;
-	case CPU_DEAD:
-		wakeupgen_irqmask_all(cpu, 1);
-		break;
-	}
-	return NOTIFY_OK;
+	wakeupgen_irqmask_all(cpu, 0);
+	return 0;
 }
 
-static struct notifier_block irq_hotplug_notifier = {
-	.notifier_call = irq_cpu_hotplug_notify,
-};
+static int omap_wakeupgen_cpu_dead(unsigned int cpu)
+{
+	wakeupgen_irqmask_all(cpu, 1);
+	return 0;
+}
 
 static void __init irq_hotplug_init(void)
 {
-	register_hotcpu_notifier(&irq_hotplug_notifier);
+	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "arm/omap-wake:online",
+				  omap_wakeupgen_cpu_online, NULL);
+	cpuhp_setup_state_nocalls(CPUHP_ARM_OMAP_WAKE_DEAD,
+				  "arm/omap-wake:dead", NULL,
+				  omap_wakeupgen_cpu_dead);
 }
 #else
 static void __init irq_hotplug_init(void)
@@ -356,7 +409,7 @@ static int irq_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
 		break;
 	case CPU_CLUSTER_PM_EXIT:
 		if (omap_type() == OMAP2_DEVICE_TYPE_GP)
-			irq_sar_clear();
+			irq_restore_context();
 		break;
 	}
 	return NOTIFY_OK;
@@ -467,13 +520,13 @@ static int __init wakeupgen_init(struct device_node *node,
 	u32 val;
 
 	if (!parent) {
-		pr_err("%s: no parent, giving up\n", node->full_name);
+		pr_err("%pOF: no parent, giving up\n", node);
 		return -ENODEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%s: unable to obtain parent domain\n", node->full_name);
+		pr_err("%pOF: unable to obtain parent domain\n", node);
 		return -ENXIO;
 	}
 	/* Not supported on OMAP4 ES1.0 silicon */
@@ -491,9 +544,13 @@ static int __init wakeupgen_init(struct device_node *node,
 		irq_banks = OMAP4_NR_BANKS;
 		max_irqs = OMAP4_NR_IRQS;
 		omap_secure_apis = 1;
+		wakeupgen_ops = &omap4_wakeupgen_ops;
+	} else if (soc_is_omap54xx()) {
+		wakeupgen_ops = &omap5_wakeupgen_ops;
 	} else if (soc_is_am43xx()) {
 		irq_banks = AM43XX_NR_REG_BANKS;
 		max_irqs = AM43XX_IRQS;
+		wakeupgen_ops = &am43xx_wakeupgen_ops;
 	}
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, max_irqs,
@@ -538,6 +595,8 @@ static int __init wakeupgen_init(struct device_node *node,
 
 	irq_hotplug_init();
 	irq_pm_init();
+
+	sar_base = omap4_get_sar_ram_base();
 
 	return 0;
 }

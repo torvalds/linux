@@ -99,8 +99,8 @@ static const struct snd_kcontrol_new max98925_dai_sel_mux =
 static int max98925_dac_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct max98925_priv *max98925 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct max98925_priv *max98925 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -256,7 +256,7 @@ static const struct {
 	},
 };
 
-static inline int max98925_rate_value(struct snd_soc_codec *codec,
+static inline int max98925_rate_value(struct snd_soc_component *component,
 		int rate, int clock, int *value, int *n, int *m)
 {
 	int ret = -EINVAL;
@@ -297,11 +297,11 @@ static void max98925_set_sense_data(struct max98925_priv *max98925)
 static int max98925_dai_set_fmt(struct snd_soc_dai *codec_dai,
 				 unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct max98925_priv *max98925 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct max98925_priv *max98925 = snd_soc_component_get_drvdata(component);
 	unsigned int invert = 0;
 
-	dev_dbg(codec->dev, "%s: fmt 0x%08X\n", __func__, fmt);
+	dev_dbg(component->dev, "%s: fmt 0x%08X\n", __func__, fmt);
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 		/* set DAI to slave mode */
@@ -322,7 +322,7 @@ static int max98925_dai_set_fmt(struct snd_soc_dai *codec_dai,
 	case SND_SOC_DAIFMT_CBS_CFM:
 	case SND_SOC_DAIFMT_CBM_CFS:
 	default:
-		dev_err(codec->dev, "DAI clock mode unsupported");
+		dev_err(component->dev, "DAI clock mode unsupported");
 		return -EINVAL;
 	}
 
@@ -339,7 +339,7 @@ static int max98925_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		invert = M98925_DAI_BCI_MASK | M98925_DAI_WCI_MASK;
 		break;
 	default:
-		dev_err(codec->dev, "DAI invert mode unsupported");
+		dev_err(component->dev, "DAI invert mode unsupported");
 		return -EINVAL;
 	}
 
@@ -352,7 +352,7 @@ static int max98925_set_clock(struct max98925_priv *max98925,
 		struct snd_pcm_hw_params *params)
 {
 	unsigned int dai_sr = 0, clock, mdll, n, m;
-	struct snd_soc_codec *codec = max98925->codec;
+	struct snd_soc_component *component = max98925->component;
 	int rate = params_rate(params);
 	/* BCLK/LRCLK ratio calculation */
 	int blr_clk_ratio = params_channels(params) * max98925->ch_size;
@@ -395,12 +395,12 @@ static int max98925_set_clock(struct max98925_priv *max98925,
 		mdll  = M98925_MDLL_MULT_MCLKx8;
 		break;
 	default:
-		dev_info(max98925->codec->dev, "unsupported sysclk %d\n",
+		dev_info(max98925->component->dev, "unsupported sysclk %d\n",
 					max98925->sysclk);
 		return -EINVAL;
 	}
 
-	if (max98925_rate_value(codec, rate, clock, &dai_sr, &n, &m))
+	if (max98925_rate_value(component, rate, clock, &dai_sr, &n, &m))
 		return -EINVAL;
 
 	/* set DAI_SR to correct LRCLK frequency */
@@ -427,8 +427,8 @@ static int max98925_dai_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params,
 				   struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct max98925_priv *max98925 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct max98925_priv *max98925 = snd_soc_component_get_drvdata(component);
 
 	switch (params_width(params)) {
 	case 16:
@@ -454,7 +454,7 @@ static int max98925_dai_hw_params(struct snd_pcm_substream *substream,
 				__func__, params_format(params));
 		return -EINVAL;
 	}
-	dev_dbg(codec->dev, "%s: format supported %d",
+	dev_dbg(component->dev, "%s: format supported %d",
 				__func__, params_format(params));
 	return max98925_set_clock(max98925, params);
 }
@@ -462,8 +462,8 @@ static int max98925_dai_hw_params(struct snd_pcm_substream *substream,
 static int max98925_dai_set_sysclk(struct snd_soc_dai *dai,
 				   int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct max98925_priv *max98925 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct max98925_priv *max98925 = snd_soc_component_get_drvdata(component);
 
 	switch (clk_id) {
 	case 0:
@@ -516,11 +516,11 @@ static struct snd_soc_dai_driver max98925_dai[] = {
 	}
 };
 
-static int max98925_probe(struct snd_soc_codec *codec)
+static int max98925_probe(struct snd_soc_component *component)
 {
-	struct max98925_priv *max98925 = snd_soc_codec_get_drvdata(codec);
+	struct max98925_priv *max98925 = snd_soc_component_get_drvdata(component);
 
-	max98925->codec = codec;
+	max98925->component = component;
 	regmap_write(max98925->regmap, MAX98925_GLOBAL_ENABLE, 0x00);
 	/* It's not the default but we need to set DAI_DLY */
 	regmap_write(max98925->regmap,
@@ -538,14 +538,18 @@ static int max98925_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_max98925 = {
-	.probe            = max98925_probe,
-	.controls = max98925_snd_controls,
-	.num_controls = ARRAY_SIZE(max98925_snd_controls),
-	.dapm_routes = max98925_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(max98925_audio_map),
-	.dapm_widgets = max98925_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(max98925_dapm_widgets),
+static const struct snd_soc_component_driver soc_component_dev_max98925 = {
+	.probe			= max98925_probe,
+	.controls		= max98925_snd_controls,
+	.num_controls		= ARRAY_SIZE(max98925_snd_controls),
+	.dapm_routes		= max98925_audio_map,
+	.num_dapm_routes	= ARRAY_SIZE(max98925_audio_map),
+	.dapm_widgets		= max98925_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(max98925_dapm_widgets),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98925_regmap = {
@@ -577,7 +581,7 @@ static int max98925_i2c_probe(struct i2c_client *i2c,
 		ret = PTR_ERR(max98925->regmap);
 		dev_err(&i2c->dev,
 				"Failed to allocate regmap: %d\n", ret);
-		goto err_out;
+		return ret;
 	}
 
 	if (!of_property_read_u32(i2c->dev.of_node, "vmon-slot-no", &value)) {
@@ -594,31 +598,29 @@ static int max98925_i2c_probe(struct i2c_client *i2c,
 		}
 		max98925->i_slot = value;
 	}
-	ret = regmap_read(max98925->regmap,
-			MAX98925_REV_VERSION, &reg);
-	if ((ret < 0) ||
-		((reg != MAX98925_VERSION) &&
-		(reg != MAX98925_VERSION1))) {
-		dev_err(&i2c->dev,
-			"device initialization error (%d 0x%02X)\n",
-			ret, reg);
-		goto err_out;
+
+	ret = regmap_read(max98925->regmap, MAX98925_REV_VERSION, &reg);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Read revision failed\n");
+		return ret;
 	}
+
+	if ((reg != MAX98925_VERSION) && (reg != MAX98925_VERSION1)) {
+		ret = -ENODEV;
+		dev_err(&i2c->dev, "Invalid revision (%d 0x%02X)\n",
+			ret, reg);
+		return ret;
+	}
+
 	dev_info(&i2c->dev, "device version 0x%02X\n", reg);
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_max98925,
+	ret = devm_snd_soc_register_component(&i2c->dev,
+			&soc_component_dev_max98925,
 			max98925_dai, ARRAY_SIZE(max98925_dai));
 	if (ret < 0)
 		dev_err(&i2c->dev,
-				"Failed to register codec: %d\n", ret);
-err_out:
+				"Failed to register component: %d\n", ret);
 	return ret;
-}
-
-static int max98925_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
 }
 
 static const struct i2c_device_id max98925_i2c_id[] = {
@@ -640,7 +642,6 @@ static struct i2c_driver max98925_i2c_driver = {
 		.pm = NULL,
 	},
 	.probe  = max98925_i2c_probe,
-	.remove = max98925_i2c_remove,
 	.id_table = max98925_i2c_id,
 };
 

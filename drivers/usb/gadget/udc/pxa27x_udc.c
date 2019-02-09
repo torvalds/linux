@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Handles the Intel 27x USB Device Controller (UDC)
  *
  * Inspired by original driver by Frank Becker, David Brownell, and others.
  * Copyright (C) 2008 Robert Jarzmik
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -33,6 +29,7 @@
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/phy.h>
 
 #include "pxa27x_udc.h"
 
@@ -134,6 +131,7 @@ static int state_dbg_show(struct seq_file *s, void *p)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(state_dbg);
 
 static int queues_dbg_show(struct seq_file *s, void *p)
 {
@@ -166,6 +164,7 @@ static int queues_dbg_show(struct seq_file *s, void *p)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(queues_dbg);
 
 static int eps_dbg_show(struct seq_file *s, void *p)
 {
@@ -202,92 +201,23 @@ static int eps_dbg_show(struct seq_file *s, void *p)
 
 	return 0;
 }
-
-static int eps_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, eps_dbg_show, inode->i_private);
-}
-
-static int queues_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, queues_dbg_show, inode->i_private);
-}
-
-static int state_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, state_dbg_show, inode->i_private);
-}
-
-static const struct file_operations state_dbg_fops = {
-	.owner		= THIS_MODULE,
-	.open		= state_dbg_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
-
-static const struct file_operations queues_dbg_fops = {
-	.owner		= THIS_MODULE,
-	.open		= queues_dbg_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
-
-static const struct file_operations eps_dbg_fops = {
-	.owner		= THIS_MODULE,
-	.open		= eps_dbg_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(eps_dbg);
 
 static void pxa_init_debugfs(struct pxa_udc *udc)
 {
-	struct dentry *root, *state, *queues, *eps;
+	struct dentry *root;
 
 	root = debugfs_create_dir(udc->gadget.name, NULL);
-	if (IS_ERR(root) || !root)
-		goto err_root;
-
-	state = debugfs_create_file("udcstate", 0400, root, udc,
-			&state_dbg_fops);
-	if (!state)
-		goto err_state;
-	queues = debugfs_create_file("queues", 0400, root, udc,
-			&queues_dbg_fops);
-	if (!queues)
-		goto err_queues;
-	eps = debugfs_create_file("epstate", 0400, root, udc,
-			&eps_dbg_fops);
-	if (!eps)
-		goto err_eps;
-
 	udc->debugfs_root = root;
-	udc->debugfs_state = state;
-	udc->debugfs_queues = queues;
-	udc->debugfs_eps = eps;
-	return;
-err_eps:
-	debugfs_remove(eps);
-err_queues:
-	debugfs_remove(queues);
-err_state:
-	debugfs_remove(root);
-err_root:
-	dev_err(udc->dev, "debugfs is not available\n");
+
+	debugfs_create_file("udcstate", 0400, root, udc, &state_dbg_fops);
+	debugfs_create_file("queues", 0400, root, udc, &queues_dbg_fops);
+	debugfs_create_file("epstate", 0400, root, udc, &eps_dbg_fops);
 }
 
 static void pxa_cleanup_debugfs(struct pxa_udc *udc)
 {
-	debugfs_remove(udc->debugfs_eps);
-	debugfs_remove(udc->debugfs_queues);
-	debugfs_remove(udc->debugfs_state);
-	debugfs_remove(udc->debugfs_root);
-	udc->debugfs_eps = NULL;
-	udc->debugfs_queues = NULL;
-	udc->debugfs_state = NULL;
-	udc->debugfs_root = NULL;
+	debugfs_remove_recursive(udc->debugfs_root);
 }
 
 #else
@@ -982,8 +912,6 @@ static int write_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
 
 	max = ep->fifo_size;
 	do {
-		is_short = 0;
-
 		udccsr = udc_ep_readl(ep, UDCCSR);
 		if (udccsr & UDCCSR_PC) {
 			ep_vdbg(ep, "Clearing Transmit Complete, udccsr=%x\n",
@@ -1137,7 +1065,6 @@ static int pxa_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	if (unlikely(!_ep))
 		return -EINVAL;
 
-	dev = udc_usb_ep->dev;
 	ep = udc_usb_ep->pxa_ep;
 	if (unlikely(!ep))
 		return -EINVAL;
@@ -1472,7 +1399,7 @@ static int pxa_ep_disable(struct usb_ep *_ep)
 	return 0;
 }
 
-static struct usb_ep_ops pxa_ep_ops = {
+static const struct usb_ep_ops pxa_ep_ops = {
 	.enable		= pxa_ep_enable,
 	.disable	= pxa_ep_disable,
 
@@ -1607,9 +1534,6 @@ static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
-static void udc_enable(struct pxa_udc *udc);
-static void udc_disable(struct pxa_udc *udc);
-
 /**
  * pxa_udc_vbus_session - Called by external transceiver to enable/disable udc
  * @_gadget: usb gadget
@@ -1654,6 +1578,37 @@ static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 		return usb_phy_set_power(udc->transceiver, mA);
 	return -EOPNOTSUPP;
 }
+
+/**
+ * pxa_udc_phy_event - Called by phy upon VBus event
+ * @nb: notifier block
+ * @action: phy action, is vbus connect or disconnect
+ * @data: the usb_gadget structure in pxa_udc
+ *
+ * Called by the USB Phy when a cable connect or disconnect is sensed.
+ *
+ * Returns 0
+ */
+static int pxa_udc_phy_event(struct notifier_block *nb, unsigned long action,
+			     void *data)
+{
+	struct usb_gadget *gadget = data;
+
+	switch (action) {
+	case USB_EVENT_VBUS:
+		usb_gadget_vbus_connect(gadget);
+		return NOTIFY_OK;
+	case USB_EVENT_NONE:
+		usb_gadget_vbus_disconnect(gadget);
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static struct notifier_block pxa27x_udc_phy = {
+	.notifier_call = pxa_udc_phy_event,
+};
 
 static int pxa27x_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
@@ -1825,13 +1780,10 @@ fail:
  * Disables all udc endpoints (even control endpoint), report disconnect to
  * the gadget user.
  */
-static void stop_activity(struct pxa_udc *udc, struct usb_gadget_driver *driver)
+static void stop_activity(struct pxa_udc *udc)
 {
 	int i;
 
-	/* don't disconnect drivers more than once */
-	if (udc->gadget.speed == USB_SPEED_UNKNOWN)
-		driver = NULL;
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 
 	for (i = 0; i < NR_USB_ENDPOINTS; i++)
@@ -1848,7 +1800,7 @@ static int pxa27x_udc_stop(struct usb_gadget *g)
 {
 	struct pxa_udc *udc = to_pxa(g);
 
-	stop_activity(udc, NULL);
+	stop_activity(udc);
 	udc_disable(udc);
 
 	udc->driver = NULL;
@@ -2296,7 +2248,7 @@ static void irq_udc_reset(struct pxa_udc *udc)
 
 	if ((udccr & UDCCR_UDA) == 0) {
 		dev_dbg(udc->dev, "USB reset start\n");
-		stop_activity(udc, udc->driver);
+		stop_activity(udc);
 	}
 	udc->gadget.speed = USB_SPEED_FULL;
 	memset(&udc->stats, 0, sizeof udc->stats);
@@ -2435,7 +2387,14 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		return udc->irq;
 
 	udc->dev = &pdev->dev;
-	udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+	if (of_have_populated_dt()) {
+		udc->transceiver =
+			devm_usb_get_phy_by_phandle(udc->dev, "phys", 0);
+		if (IS_ERR(udc->transceiver))
+			return PTR_ERR(udc->transceiver);
+	} else {
+		udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+	}
 
 	if (IS_ERR(udc->gpiod)) {
 		dev_err(&pdev->dev, "Couldn't find or request D+ gpio : %ld\n",
@@ -2468,14 +2427,20 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	if (!IS_ERR_OR_NULL(udc->transceiver))
+		usb_register_notifier(udc->transceiver, &pxa27x_udc_phy);
 	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (retval)
-		goto err;
+		goto err_add_gadget;
 
 	pxa_init_debugfs(udc);
 	if (should_enable_udc(udc))
 		udc_enable(udc);
 	return 0;
+
+err_add_gadget:
+	if (!IS_ERR_OR_NULL(udc->transceiver))
+		usb_unregister_notifier(udc->transceiver, &pxa27x_udc_phy);
 err:
 	clk_unprepare(udc->clk);
 	return retval;
@@ -2492,7 +2457,10 @@ static int pxa_udc_remove(struct platform_device *_dev)
 	usb_del_gadget_udc(&udc->gadget);
 	pxa_cleanup_debugfs(udc);
 
-	usb_put_phy(udc->transceiver);
+	if (!IS_ERR_OR_NULL(udc->transceiver)) {
+		usb_unregister_notifier(udc->transceiver, &pxa27x_udc_phy);
+		usb_put_phy(udc->transceiver);
+	}
 
 	udc->transceiver = NULL;
 	the_controller = NULL;

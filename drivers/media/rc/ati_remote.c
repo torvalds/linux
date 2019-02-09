@@ -36,10 +36,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
  * Hardware & software notes
@@ -202,7 +198,7 @@ static const struct ati_receiver_type type_firefly	= {
 	.default_keymap = RC_MAP_SNAPSTREAM_FIREFLY
 };
 
-static struct usb_device_id ati_remote_table[] = {
+static const struct usb_device_id ati_remote_table[] = {
 	{
 		USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA_REMOTE_PRODUCT_ID),
 		.driver_info = (unsigned long)&type_ati
@@ -443,6 +439,21 @@ static int ati_remote_sendpacket(struct ati_remote *ati_remote, u16 cmd,
 	return retval;
 }
 
+struct accel_times {
+	const char	value;
+	unsigned int	msecs;
+};
+
+static const struct accel_times accel[] = {
+	{  1,  125 },
+	{  2,  250 },
+	{  4,  500 },
+	{  6, 1000 },
+	{  9, 1500 },
+	{ 13, 2000 },
+	{ 20,    0 },
+};
+
 /*
  * ati_remote_compute_accel
  *
@@ -454,30 +465,22 @@ static int ati_remote_sendpacket(struct ati_remote *ati_remote, u16 cmd,
  */
 static int ati_remote_compute_accel(struct ati_remote *ati_remote)
 {
-	static const char accel[] = { 1, 2, 4, 6, 9, 13, 20 };
-	unsigned long now = jiffies;
-	int acc;
+	unsigned long now = jiffies, reset_time;
+	int i;
 
-	if (time_after(now, ati_remote->old_jiffies + msecs_to_jiffies(250))) {
-		acc = 1;
+	reset_time = msecs_to_jiffies(250);
+
+	if (time_after(now, ati_remote->old_jiffies + reset_time)) {
 		ati_remote->acc_jiffies = now;
+		return 1;
 	}
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(125)))
-		acc = accel[0];
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(250)))
-		acc = accel[1];
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(500)))
-		acc = accel[2];
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(1000)))
-		acc = accel[3];
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(1500)))
-		acc = accel[4];
-	else if (time_before(now, ati_remote->acc_jiffies + msecs_to_jiffies(2000)))
-		acc = accel[5];
-	else
-		acc = accel[6];
+	for (i = 0; i < ARRAY_SIZE(accel) - 1; i++) {
+		unsigned long timeout = msecs_to_jiffies(accel[i].msecs);
 
-	return acc;
+		if (time_before(now, ati_remote->acc_jiffies + timeout))
+			return accel[i].value;
+	}
+	return accel[i].value;
 }
 
 /*
@@ -520,8 +523,7 @@ static void ati_remote_input_report(struct urb *urb)
 	remote_num = (data[3] >> 4) & 0x0f;
 	if (channel_mask & (1 << (remote_num + 1))) {
 		dbginfo(&ati_remote->interface->dev,
-			"Masked input from channel 0x%02x: data %02x, "
-			"mask= 0x%02lx\n",
+			"Masked input from channel 0x%02x: data %02x, mask= 0x%02lx\n",
 			remote_num, data[2], channel_mask);
 		return;
 	}
@@ -620,7 +622,8 @@ static void ati_remote_input_report(struct urb *urb)
 				* it would cause ghost repeats which would be a
 				* regression for this driver.
 				*/
-				rc_keydown_notimeout(ati_remote->rdev, RC_TYPE_OTHER,
+				rc_keydown_notimeout(ati_remote->rdev,
+						     RC_PROTO_OTHER,
 						     scancode, data[2]);
 				rc_keyup(ati_remote->rdev);
 			}
@@ -758,14 +761,13 @@ static void ati_remote_rc_init(struct ati_remote *ati_remote)
 	struct rc_dev *rdev = ati_remote->rdev;
 
 	rdev->priv = ati_remote;
-	rdev->driver_type = RC_DRIVER_SCANCODE;
-	rdev->allowed_protocols = RC_BIT_OTHER;
+	rdev->allowed_protocols = RC_PROTO_BIT_OTHER;
 	rdev->driver_name = "ati_remote";
 
 	rdev->open = ati_remote_rc_open;
 	rdev->close = ati_remote_rc_close;
 
-	rdev->input_name = ati_remote->rc_name;
+	rdev->device_name = ati_remote->rc_name;
 	rdev->input_phys = ati_remote->rc_phys;
 
 	usb_to_input_id(ati_remote->udev, &rdev->input_id);
@@ -845,7 +847,7 @@ static int ati_remote_probe(struct usb_interface *interface,
 	}
 
 	ati_remote = kzalloc(sizeof (struct ati_remote), GFP_KERNEL);
-	rc_dev = rc_allocate_device();
+	rc_dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!ati_remote || !rc_dev)
 		goto exit_free_dev_rdev;
 
@@ -866,13 +868,10 @@ static int ati_remote_probe(struct usb_interface *interface,
 	strlcat(ati_remote->rc_phys, "/input0", sizeof(ati_remote->rc_phys));
 	strlcat(ati_remote->mouse_phys, "/input1", sizeof(ati_remote->mouse_phys));
 
-	if (udev->manufacturer)
-		strlcpy(ati_remote->rc_name, udev->manufacturer,
-			sizeof(ati_remote->rc_name));
-
-	if (udev->product)
-		snprintf(ati_remote->rc_name, sizeof(ati_remote->rc_name),
-			 "%s %s", ati_remote->rc_name, udev->product);
+	snprintf(ati_remote->rc_name, sizeof(ati_remote->rc_name), "%s%s%s",
+		udev->manufacturer ?: "",
+		udev->manufacturer && udev->product ? " " : "",
+		udev->product ?: "");
 
 	if (!strlen(ati_remote->rc_name))
 		snprintf(ati_remote->rc_name, sizeof(ati_remote->rc_name),
@@ -905,9 +904,6 @@ static int ati_remote_probe(struct usb_interface *interface,
 	err = rc_register_device(ati_remote->rdev);
 	if (err)
 		goto exit_kill_urbs;
-
-	/* use our delay for rc_dev */
-	ati_remote->rdev->input_dev->rep[REP_DELAY] = repeat_delay;
 
 	/* Set up and register mouse input device */
 	if (mouse) {

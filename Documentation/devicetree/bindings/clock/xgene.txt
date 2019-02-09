@@ -8,7 +8,10 @@ Required properties:
 - compatible : shall be one of the following:
 	"apm,xgene-socpll-clock" - for a X-Gene SoC PLL clock
 	"apm,xgene-pcppll-clock" - for a X-Gene PCP PLL clock
+	"apm,xgene-pmd-clock" - for a X-Gene PMD clock
 	"apm,xgene-device-clock" - for a X-Gene device clock
+	"apm,xgene-socpll-v2-clock" - for a X-Gene SoC PLL v2 clock
+	"apm,xgene-pcppll-v2-clock" - for a X-Gene PCP PLL v2 clock
 
 Required properties for SoC or PCP PLL clocks:
 - reg : shall be the physical PLL register address for the pll clock.
@@ -19,6 +22,15 @@ Required properties for SoC or PCP PLL clocks:
   clock.
 Optional properties for PLL clocks:
 - clock-names : shall be the name of the PLL. If missing, use the device name.
+
+Required properties for PMD clocks:
+- reg : shall be the physical register address for the pmd clock.
+- clocks : shall be the input parent clock phandle for the clock.
+- #clock-cells : shall be set to 1.
+- clock-output-names : shall be the name of the clock referenced by derive
+  clock.
+Optional properties for PLL clocks:
+- clock-names : shall be the name of the clock. If missing, use the device name.
 
 Required properties for device clocks:
 - reg : shall be a list of address and length pairs describing the CSR
@@ -55,6 +67,14 @@ For example:
 		reg = <0x0 0x17000100 0x0 0x1000>;
 		clock-output-names = "pcppll";
 		type = <0>;
+	};
+
+	pmd0clk: pmd0clk@7e200200 {
+		compatible = "apm,xgene-pmd-clock";
+		#clock-cells = <1>;
+		clocks = <&pmdpll 0>;
+		reg = <0x0 0x7e200200 0x0 0x10>;
+		clock-output-names = "pmd0clk";
 	};
 
 	socpll: socpll@17000120 {

@@ -23,8 +23,8 @@
  */
 #include "mxms.h"
 
-#define ROM16(x) le16_to_cpu(*(u16 *)&(x))
-#define ROM32(x) le32_to_cpu(*(u32 *)&(x))
+#define ROM16(x) get_unaligned_le16(&(x))
+#define ROM32(x) get_unaligned_le32(&(x))
 
 static u8 *
 mxms_data(struct nvkm_mxm *mxm)

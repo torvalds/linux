@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -55,6 +55,9 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case DRM_VMW_PARAM_HW_CAPS:
 		param->value = dev_priv->capabilities;
+		break;
+	case DRM_VMW_PARAM_HW_CAPS2:
+		param->value = dev_priv->capabilities2;
 		break;
 	case DRM_VMW_PARAM_FIFO_CAPS:
 		param->value = dev_priv->fifo.capabilities;
@@ -113,9 +116,10 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	case DRM_VMW_PARAM_DX:
 		param->value = dev_priv->has_dx;
 		break;
+	case DRM_VMW_PARAM_SM4_1:
+		param->value = dev_priv->has_sm4_1;
+		break;
 	default:
-		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
-			  param->param);
 		return -EINVAL;
 	}
 
@@ -124,15 +128,12 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 
 static u32 vmw_mask_multisample(unsigned int cap, u32 fmt_value)
 {
-	/* If the header is updated, update the format test as well! */
-	BUILD_BUG_ON(SVGA3D_DEVCAP_DXFMT_BC5_UNORM + 1 != SVGA3D_DEVCAP_MAX);
-
-	if (cap >= SVGA3D_DEVCAP_DXFMT_X8R8G8B8 &&
-	    cap <= SVGA3D_DEVCAP_DXFMT_BC5_UNORM)
-		fmt_value &= ~(SVGADX_DXFMT_MULTISAMPLE_2 |
-			       SVGADX_DXFMT_MULTISAMPLE_4 |
-			       SVGADX_DXFMT_MULTISAMPLE_8);
-	else if (cap == SVGA3D_DEVCAP_MULTISAMPLE_MASKABLESAMPLES)
+	/*
+	 * A version of user-space exists which use MULTISAMPLE_MASKABLESAMPLES
+	 * to check the sample count supported by virtual device. Since there
+	 * never was support for multisample count for backing MOB return 0.
+	 */
+	if (cap == SVGA3D_DEVCAP_MULTISAMPLE_MASKABLESAMPLES)
 		return 0;
 
 	return fmt_value;
@@ -186,7 +187,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 	bool gb_objects = !!(dev_priv->capabilities & SVGA_CAP_GBOBJECTS);
 	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
 
-	if (unlikely(arg->pad64 != 0)) {
+	if (unlikely(arg->pad64 != 0 || arg->max_size == 0)) {
 		DRM_ERROR("Illegal GET_3D_CAP argument.\n");
 		return -EINVAL;
 	}
@@ -288,7 +289,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
-	fb = drm_framebuffer_lookup(dev, arg->fb_id);
+	fb = drm_framebuffer_lookup(dev, file_priv, arg->fb_id);
 	if (!fb) {
 		DRM_ERROR("Invalid framebuffer id.\n");
 		ret = -ENOENT;
@@ -318,7 +319,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 out_no_surface:
 	ttm_read_unlock(&dev_priv->reservation_sem);
 out_no_ttm_lock:
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 out_no_fb:
 	drm_modeset_unlock_all(dev);
 out_no_copy:
@@ -371,7 +372,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
-	fb = drm_framebuffer_lookup(dev, arg->fb_id);
+	fb = drm_framebuffer_lookup(dev, file_priv, arg->fb_id);
 	if (!fb) {
 		DRM_ERROR("Invalid framebuffer id.\n");
 		ret = -ENOENT;
@@ -379,8 +380,8 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	}
 
 	vfb = vmw_framebuffer_to_vfb(fb);
-	if (!vfb->dmabuf) {
-		DRM_ERROR("Framebuffer not dmabuf backed.\n");
+	if (!vfb->bo) {
+		DRM_ERROR("Framebuffer not buffer backed.\n");
 		ret = -EINVAL;
 		goto out_no_ttm_lock;
 	}
@@ -395,7 +396,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 
 	ttm_read_unlock(&dev_priv->reservation_sem);
 out_no_ttm_lock:
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 out_no_fb:
 	drm_modeset_unlock_all(dev);
 out_no_copy:
@@ -414,7 +415,7 @@ out_clips:
  * Wrapper around the drm_poll function that makes sure the device is
  * processing the fifo if drm_poll decides to wait.
  */
-unsigned int vmw_fops_poll(struct file *filp, struct poll_table_struct *wait)
+__poll_t vmw_fops_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct vmw_private *dev_priv =

@@ -153,7 +153,7 @@ static int ds1390_read_time(struct device *dev, struct rtc_time *dt)
 	/* adjust for century bit */
 	dt->tm_year = bcd2bin(chip->txrx_buf[6]) + ((chip->txrx_buf[5] & 0x80) ? 100 : 0);
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int ds1390_set_time(struct device *dev, struct rtc_time *dt)
@@ -216,9 +216,16 @@ static int ds1390_probe(struct spi_device *spi)
 	return res;
 }
 
+static const struct of_device_id ds1390_of_match[] = {
+	{ .compatible = "dallas,ds1390" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ds1390_of_match);
+
 static struct spi_driver ds1390_driver = {
 	.driver = {
 		.name	= "rtc-ds1390",
+		.of_match_table = of_match_ptr(ds1390_of_match),
 	},
 	.probe	= ds1390_probe,
 };

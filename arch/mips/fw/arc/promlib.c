@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <asm/sgialib.h>
 #include <asm/bcache.h>
+#include <asm/setup.h>
 
 /*
  * IP22 boardcache is not compatible with board caches.	 Thus we disable it

@@ -238,7 +238,9 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 
 	/* Configure conversion register with the requested chan */
 	st->reg = MAX1027_CONV_REG | MAX1027_CHAN(chan->channel) |
-		  MAX1027_NOSCAN | !!(chan->type == IIO_TEMP);
+		  MAX1027_NOSCAN;
+	if (chan->type == IIO_TEMP)
+		st->reg |= MAX1027_TEMP;
 	ret = spi_write(st->spi, &st->reg, 1);
 	if (ret < 0) {
 		dev_err(&indio_dev->dev,
@@ -360,20 +362,9 @@ static int max1027_set_trigger_state(struct iio_trigger *trig, bool state)
 	return 0;
 }
 
-static int max1027_validate_device(struct iio_trigger *trig,
-				   struct iio_dev *indio_dev)
-{
-	struct iio_dev *indio = iio_trigger_get_drvdata(trig);
-
-	if (indio != indio_dev)
-		return -EINVAL;
-
-	return 0;
-}
-
 static irqreturn_t max1027_trigger_handler(int irq, void *private)
 {
-	struct iio_poll_func *pf = (struct iio_poll_func *)private;
+	struct iio_poll_func *pf = private;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct max1027_state *st = iio_priv(indio_dev);
 
@@ -390,13 +381,11 @@ static irqreturn_t max1027_trigger_handler(int irq, void *private)
 }
 
 static const struct iio_trigger_ops max1027_trigger_ops = {
-	.owner = THIS_MODULE,
-	.validate_device = &max1027_validate_device,
+	.validate_device = &iio_trigger_validate_own_device,
 	.set_trigger_state = &max1027_set_trigger_state,
 };
 
 static const struct iio_info max1027_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &max1027_read_raw,
 	.validate_trigger = &max1027_validate_trigger,
 	.debugfs_reg_access = &max1027_debugfs_reg_access,
@@ -426,14 +415,15 @@ static int max1027_probe(struct spi_device *spi)
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
+	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->info = &max1027_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->info->channels;
 	indio_dev->num_channels = st->info->num_channels;
 	indio_dev->available_scan_masks = st->info->available_scan_masks;
 
-	st->buffer = devm_kmalloc(&indio_dev->dev,
-				  indio_dev->num_channels * 2,
+	st->buffer = devm_kmalloc_array(&indio_dev->dev,
+				  indio_dev->num_channels, 2,
 				  GFP_KERNEL);
 	if (st->buffer == NULL) {
 		dev_err(&indio_dev->dev, "Can't allocate buffer\n");

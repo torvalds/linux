@@ -24,6 +24,7 @@
 #include <linux/time.h>
 #include <linux/string.h>
 #include <linux/module.h>
+#include <linux/compat.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/control.h>
@@ -394,10 +395,16 @@ int snd_mixer_oss_ioctl_card(struct snd_card *card, unsigned int cmd, unsigned l
 	fmixer.mixer = card->mixer_oss;
 	return snd_mixer_oss_ioctl1(&fmixer, cmd, arg);
 }
+EXPORT_SYMBOL(snd_mixer_oss_ioctl_card);
 
 #ifdef CONFIG_COMPAT
 /* all compatible */
-#define snd_mixer_oss_ioctl_compat	snd_mixer_oss_ioctl
+static long snd_mixer_oss_ioctl_compat(struct file *file, unsigned int cmd,
+				       unsigned long arg)
+{
+	return snd_mixer_oss_ioctl1(file->private_data, cmd,
+				    (unsigned long)compat_ptr(arg));
+}
 #else
 #define snd_mixer_oss_ioctl_compat	NULL
 #endif
@@ -1240,7 +1247,7 @@ static void snd_mixer_oss_proc_init(struct snd_mixer_oss *mixer)
 	if (! entry)
 		return;
 	entry->content = SNDRV_INFO_CONTENT_TEXT;
-	entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
+	entry->mode = S_IFREG | 0644;
 	entry->c.text.read = snd_mixer_oss_proc_read;
 	entry->c.text.write = snd_mixer_oss_proc_write;
 	entry->private_data = mixer;
@@ -1419,5 +1426,3 @@ static void __exit alsa_mixer_oss_exit(void)
 
 module_init(alsa_mixer_oss_init)
 module_exit(alsa_mixer_oss_exit)
-
-EXPORT_SYMBOL(snd_mixer_oss_ioctl_card);

@@ -69,6 +69,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev,
  */
 struct dn_route {
 	struct dst_entry dst;
+	struct dn_route __rcu *dn_next;
 
 	struct neighbour *n;
 

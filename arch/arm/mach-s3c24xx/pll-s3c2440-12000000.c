@@ -1,15 +1,11 @@
-/*
- * Copyright (c) 2006-2007 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>
- *	Vincent Sanders <vince@arm.linux.org.uk>
- *
- * S3C2440/S3C2442 CPU PLL tables (12MHz Crystal)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2006-2007 Simtec Electronics
+//	http://armlinux.simtec.co.uk/
+//	Ben Dooks <ben@simtec.co.uk>
+//	Vincent Sanders <vince@arm.linux.org.uk>
+//
+// S3C2440/S3C2442 CPU PLL tables (12MHz Crystal)
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -20,6 +16,7 @@
 #include <plat/cpu.h>
 #include <plat/cpu-freq-core.h>
 
+/* This array should be sorted in ascending order of the frequencies */
 static struct cpufreq_frequency_table s3c2440_plls_12[] = {
 	{ .frequency = 75000000,	.driver_data = PLLVAL(0x75, 3, 3),  }, 	/* FVco 600.000000 */
 	{ .frequency = 80000000,	.driver_data = PLLVAL(0x98, 4, 3),  }, 	/* FVco 640.000000 */

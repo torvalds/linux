@@ -120,7 +120,6 @@ static const struct iio_info tsys02d_info = {
 	.read_raw = tsys02d_read_raw,
 	.write_raw = tsys02d_write_raw,
 	.attrs = &tsys02d_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int tsys02d_probe(struct i2c_client *client,
@@ -137,7 +136,7 @@ static int tsys02d_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
 		dev_err(&client->dev,
 			"Adapter does not support some i2c transaction\n");
-		return -ENODEV;
+		return -EOPNOTSUPP;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*dev_data));
@@ -174,6 +173,7 @@ static const struct i2c_device_id tsys02d_id[] = {
 	{"tsys02d", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, tsys02d_id);
 
 static struct i2c_driver tsys02d_driver = {
 	.probe = tsys02d_probe,

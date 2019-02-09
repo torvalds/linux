@@ -1,0 +1,30 @@
+Ralink Fast Ethernet Embedded Switch
+====================================
+
+The ralink fast ethernet embedded switch can be found on Ralink and Mediatek
+SoCs (RT3x5x, RT5350, MT76x8).
+
+Required properties:
+- compatible: Should be "ralink,rt3050-esw"
+- reg: Address and length of the register set for the device
+- interrupts: Should contain the embedded switches interrupt
+- resets: Should contain the embedded switches resets
+- reset-names: Should contain the reset names "esw"
+
+Optional properties:
+- ralink,portmap: can be used to choose if the default switch setup is
+  llllw or wllll
+- ralink,led_polarity: override the active high/low settings of the leds
+
+Example:
+
+esw@10110000 {
+	compatible = "ralink,rt3050-esw";
+	reg = <0x10110000 8000>;
+
+	resets = <&rstctrl 23>;
+	reset-names = "esw";
+
+	interrupt-parent = <&intc>;
+	interrupts = <17>;
+};

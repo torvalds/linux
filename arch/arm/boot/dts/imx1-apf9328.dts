@@ -20,7 +20,7 @@
 		stdout-path = &uart1;
 	};
 
-	memory {
+	memory@8000000 {
 		reg = <0x08000000 0x00800000>;
 	};
 };
@@ -34,14 +34,14 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 

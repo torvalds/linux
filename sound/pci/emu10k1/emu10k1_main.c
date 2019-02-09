@@ -32,11 +32,11 @@
  */
 
 #include <linux/sched.h>
-#include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/iommu.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -662,7 +662,7 @@ static int snd_emu10k1_cardbus_init(struct snd_emu10k1 *emu)
 	return 0;
 }
 
-static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu,
+static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 				     const struct firmware *fw_entry)
 {
 	int n, i;
@@ -708,98 +708,104 @@ static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu,
 	return 0;
 }
 
-static int emu1010_firmware_thread(void *data)
+/* firmware file names, per model, init-fw and dock-fw (optional) */
+static const char * const firmware_names[5][2] = {
+	[EMU_MODEL_EMU1010] = {
+		HANA_FILENAME, DOCK_FILENAME
+	},
+	[EMU_MODEL_EMU1010B] = {
+		EMU1010B_FILENAME, MICRO_DOCK_FILENAME
+	},
+	[EMU_MODEL_EMU1616] = {
+		EMU1010_NOTEBOOK_FILENAME, MICRO_DOCK_FILENAME
+	},
+	[EMU_MODEL_EMU0404] = {
+		EMU0404_FILENAME, NULL
+	},
+};
+
+static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu, int dock,
+				     const struct firmware **fw)
 {
-	struct snd_emu10k1 *emu = data;
-	u32 tmp, tmp2, reg;
-	u32 last_reg = 0;
+	const char *filename;
 	int err;
 
-	for (;;) {
-		/* Delay to allow Audio Dock to settle */
-		msleep_interruptible(1000);
-		if (kthread_should_stop())
-			break;
-#ifdef CONFIG_PM_SLEEP
-		if (emu->suspend)
-			continue;
-#endif
-		snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp); /* IRQ Status */
-		snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg); /* OPTIONS: Which cards are attached to the EMU */
-		if (reg & EMU_HANA_OPTION_DOCK_OFFLINE) {
-			/* Audio Dock attached */
-			/* Return to Audio Dock programming mode */
-			dev_info(emu->card->dev,
-				 "emu1010: Loading Audio Dock Firmware\n");
-			snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, EMU_HANA_FPGA_CONFIG_AUDIODOCK);
-
-			if (!emu->dock_fw) {
-				const char *filename = NULL;
-				switch (emu->card_capabilities->emu_model) {
-				case EMU_MODEL_EMU1010:
-					filename = DOCK_FILENAME;
-					break;
-				case EMU_MODEL_EMU1010B:
-					filename = MICRO_DOCK_FILENAME;
-					break;
-				case EMU_MODEL_EMU1616:
-					filename = MICRO_DOCK_FILENAME;
-					break;
-				}
-				if (filename) {
-					err = request_firmware(&emu->dock_fw,
-							       filename,
-							       &emu->pci->dev);
-					if (err)
-						continue;
-				}
-			}
-
-			if (emu->dock_fw) {
-				err = snd_emu1010_load_firmware(emu, emu->dock_fw);
-				if (err)
-					continue;
-			}
-
-			snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0);
-			snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &reg);
-			dev_info(emu->card->dev,
-				 "emu1010: EMU_HANA+DOCK_IRQ_STATUS = 0x%x\n",
-				 reg);
-			/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
-			snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg);
-			dev_info(emu->card->dev,
-				 "emu1010: EMU_HANA+DOCK_ID = 0x%x\n", reg);
-			if ((reg & 0x1f) != 0x15) {
-				/* FPGA failed to be programmed */
-				dev_info(emu->card->dev,
-					 "emu1010: Loading Audio Dock Firmware file failed, reg = 0x%x\n",
-					 reg);
-				continue;
-			}
-			dev_info(emu->card->dev,
-				 "emu1010: Audio Dock Firmware loaded\n");
-			snd_emu1010_fpga_read(emu, EMU_DOCK_MAJOR_REV, &tmp);
-			snd_emu1010_fpga_read(emu, EMU_DOCK_MINOR_REV, &tmp2);
-			dev_info(emu->card->dev, "Audio Dock ver: %u.%u\n",
-				   tmp, tmp2);
-			/* Sync clocking between 1010 and Dock */
-			/* Allow DLL to settle */
-			msleep(10);
-			/* Unmute all. Default is muted after a firmware load */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
-		} else if (!reg && last_reg) {
-			/* Audio Dock removed */
-			dev_info(emu->card->dev,
-				 "emu1010: Audio Dock detached\n");
-			/* Unmute all */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
-		}
-
-		last_reg = reg;
+	if (!*fw) {
+		filename = firmware_names[emu->card_capabilities->emu_model][dock];
+		if (!filename)
+			return 0;
+		err = request_firmware(fw, filename, &emu->pci->dev);
+		if (err)
+			return err;
 	}
-	dev_info(emu->card->dev, "emu1010: firmware thread stopping\n");
-	return 0;
+
+	return snd_emu1010_load_firmware_entry(emu, *fw);
+}
+
+static void emu1010_firmware_work(struct work_struct *work)
+{
+	struct snd_emu10k1 *emu;
+	u32 tmp, tmp2, reg;
+	int err;
+
+	emu = container_of(work, struct snd_emu10k1,
+			   emu1010.firmware_work.work);
+	if (emu->card->shutdown)
+		return;
+#ifdef CONFIG_PM_SLEEP
+	if (emu->suspend)
+		return;
+#endif
+	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp); /* IRQ Status */
+	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg); /* OPTIONS: Which cards are attached to the EMU */
+	if (reg & EMU_HANA_OPTION_DOCK_OFFLINE) {
+		/* Audio Dock attached */
+		/* Return to Audio Dock programming mode */
+		dev_info(emu->card->dev,
+			 "emu1010: Loading Audio Dock Firmware\n");
+		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG,
+				       EMU_HANA_FPGA_CONFIG_AUDIODOCK);
+		err = snd_emu1010_load_firmware(emu, 1, &emu->dock_fw);
+		if (err < 0)
+			goto next;
+
+		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0);
+		snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp);
+		dev_info(emu->card->dev,
+			 "emu1010: EMU_HANA+DOCK_IRQ_STATUS = 0x%x\n", tmp);
+		/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
+		snd_emu1010_fpga_read(emu, EMU_HANA_ID, &tmp);
+		dev_info(emu->card->dev,
+			 "emu1010: EMU_HANA+DOCK_ID = 0x%x\n", tmp);
+		if ((tmp & 0x1f) != 0x15) {
+			/* FPGA failed to be programmed */
+			dev_info(emu->card->dev,
+				 "emu1010: Loading Audio Dock Firmware file failed, reg = 0x%x\n",
+				 tmp);
+			goto next;
+		}
+		dev_info(emu->card->dev,
+			 "emu1010: Audio Dock Firmware loaded\n");
+		snd_emu1010_fpga_read(emu, EMU_DOCK_MAJOR_REV, &tmp);
+		snd_emu1010_fpga_read(emu, EMU_DOCK_MINOR_REV, &tmp2);
+		dev_info(emu->card->dev, "Audio Dock ver: %u.%u\n", tmp, tmp2);
+		/* Sync clocking between 1010 and Dock */
+		/* Allow DLL to settle */
+		msleep(10);
+		/* Unmute all. Default is muted after a firmware load */
+		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
+	} else if (!reg && emu->emu1010.last_reg) {
+		/* Audio Dock removed */
+		dev_info(emu->card->dev, "emu1010: Audio Dock detached\n");
+		/* Unmute all */
+		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
+	}
+
+ next:
+	emu->emu1010.last_reg = reg;
+	if (!emu->card->shutdown)
+		schedule_delayed_work(&emu->emu1010.firmware_work,
+				      msecs_to_jiffies(1000));
 }
 
 /*
@@ -881,39 +887,8 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	}
 	dev_info(emu->card->dev, "emu1010: EMU_HANA_ID = 0x%x\n", reg);
 
-	if (!emu->firmware) {
-		const char *filename;
-		switch (emu->card_capabilities->emu_model) {
-		case EMU_MODEL_EMU1010:
-			filename = HANA_FILENAME;
-			break;
-		case EMU_MODEL_EMU1010B:
-			filename = EMU1010B_FILENAME;
-			break;
-		case EMU_MODEL_EMU1616:
-			filename = EMU1010_NOTEBOOK_FILENAME;
-			break;
-		case EMU_MODEL_EMU0404:
-			filename = EMU0404_FILENAME;
-			break;
-		default:
-			return -ENODEV;
-		}
-
-		err = request_firmware(&emu->firmware, filename, &emu->pci->dev);
-		if (err != 0) {
-			dev_info(emu->card->dev,
-				 "emu1010: firmware: %s not found. Err = %d\n",
-				 filename, err);
-			return err;
-		}
-		dev_info(emu->card->dev,
-			 "emu1010: firmware file = %s, size = 0x%zx\n",
-			   filename, emu->firmware->size);
-	}
-
-	err = snd_emu1010_load_firmware(emu, emu->firmware);
-	if (err != 0) {
+	err = snd_emu1010_load_firmware(emu, 0, &emu->firmware);
+	if (err < 0) {
 		dev_info(emu->card->dev, "emu1010: Loading Firmware failed\n");
 		return err;
 	}
@@ -1136,14 +1111,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	snd_emu1010_fpga_read(emu, EMU_HANA_SPDIF_MODE, &tmp);
 	snd_emu1010_fpga_write(emu, EMU_HANA_SPDIF_MODE, 0x10); /* SPDIF Format spdif  (or 0x11 for aes/ebu) */
 
-	/* Start Micro/Audio Dock firmware loader thread */
-	if (!emu->emu1010.firmware_thread) {
-		emu->emu1010.firmware_thread =
-			kthread_create(emu1010_firmware_thread, emu,
-				       "emu1010_firmware");
-		wake_up_process(emu->emu1010.firmware_thread);
-	}
-
 #if 0
 	snd_emu1010_fpga_link_dst_src_write(emu,
 		EMU_DST_HAMOA_DAC_LEFT1, EMU_SRC_ALICE_EMU32B + 2); /* ALICE2 bus 0xa2 */
@@ -1301,18 +1268,11 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 		/* Disable 48Volt power to Audio Dock */
 		snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_PWR, 0);
 	}
-	if (emu->emu1010.firmware_thread)
-		kthread_stop(emu->emu1010.firmware_thread);
+	cancel_delayed_work_sync(&emu->emu1010.firmware_work);
 	release_firmware(emu->firmware);
 	release_firmware(emu->dock_fw);
 	if (emu->irq >= 0)
 		free_irq(emu->irq, emu);
-	/* remove reserved page */
-	if (emu->reserved_page) {
-		snd_emu10k1_synth_free(emu,
-			(struct snd_util_memblk *)emu->reserved_page);
-		emu->reserved_page = NULL;
-	}
 	snd_util_memhdr_free(emu->memhdr);
 	if (emu->silent_page.area)
 		snd_dma_free_pages(&emu->silent_page);
@@ -1799,6 +1759,38 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	{ } /* terminator */
 };
 
+/*
+ * The chip (at least the Audigy 2 CA0102 chip, but most likely others, too)
+ * has a problem that from time to time it likes to do few DMA reads a bit
+ * beyond its normal allocation and gets very confused if these reads get
+ * blocked by a IOMMU.
+ *
+ * This behaviour has been observed for the first (reserved) page
+ * (for which it happens multiple times at every playback), often for various
+ * synth pages and sometimes for PCM playback buffers and the page table
+ * memory itself.
+ *
+ * As a workaround let's widen these DMA allocations by an extra page if we
+ * detect that the device is behind a non-passthrough IOMMU.
+ */
+static void snd_emu10k1_detect_iommu(struct snd_emu10k1 *emu)
+{
+	struct iommu_domain *domain;
+
+	emu->iommu_workaround = false;
+
+	if (!iommu_present(emu->card->dev->bus))
+		return;
+
+	domain = iommu_get_domain_for_dev(emu->card->dev);
+	if (domain && domain->type == IOMMU_DOMAIN_IDENTITY)
+		return;
+
+	dev_notice(emu->card->dev,
+		   "non-passthrough IOMMU detected, widening DMA allocations");
+	emu->iommu_workaround = true;
+}
+
 int snd_emu10k1_create(struct snd_card *card,
 		       struct pci_dev *pci,
 		       unsigned short extin_mask,
@@ -1811,6 +1803,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	struct snd_emu10k1 *emu;
 	int idx, err;
 	int is_audigy;
+	size_t page_table_size;
 	unsigned int silent_page;
 	const struct snd_emu_chip_details *c;
 	static struct snd_device_ops ops = {
@@ -1844,6 +1837,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	emu->irq = -1;
 	emu->synth = NULL;
 	emu->get_synth_voice = NULL;
+	INIT_DELAYED_WORK(&emu->emu1010.firmware_work, emu1010_firmware_work);
 	/* read revision & serial */
 	emu->revision = pci->revision;
 	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &emu->serial);
@@ -1907,12 +1901,13 @@ int snd_emu10k1_create(struct snd_card *card,
 
 	is_audigy = emu->audigy = c->emu10k2_chip;
 
+	snd_emu10k1_detect_iommu(emu);
+
 	/* set addressing mode */
 	emu->address_mode = is_audigy ? 0 : 1;
 	/* set the DMA transfer mask */
 	emu->dma_mask = emu->address_mode ? EMU10K1_DMA_MASK : AUDIGY_DMA_MASK;
-	if (dma_set_mask(&pci->dev, emu->dma_mask) < 0 ||
-	    dma_set_coherent_mask(&pci->dev, emu->dma_mask) < 0) {
+	if (dma_set_mask_and_coherent(&pci->dev, emu->dma_mask) < 0) {
 		dev_err(card->dev,
 			"architecture does not support PCI busmaster DMA with mask 0x%lx\n",
 			emu->dma_mask);
@@ -1934,25 +1929,37 @@ int snd_emu10k1_create(struct snd_card *card,
 	emu->port = pci_resource_start(pci, 0);
 
 	emu->max_cache_pages = max_cache_bytes >> PAGE_SHIFT;
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-				(emu->address_mode ? 32 : 16) * 1024, &emu->ptb_pages) < 0) {
+
+	page_table_size = sizeof(u32) * (emu->address_mode ? MAXPAGES1 :
+					 MAXPAGES0);
+	if (snd_emu10k1_alloc_pages_maybe_wider(emu, page_table_size,
+						&emu->ptb_pages) < 0) {
 		err = -ENOMEM;
 		goto error;
 	}
+	dev_dbg(card->dev, "page table address range is %.8lx:%.8lx\n",
+		(unsigned long)emu->ptb_pages.addr,
+		(unsigned long)(emu->ptb_pages.addr + emu->ptb_pages.bytes));
 
-	emu->page_ptr_table = vmalloc(emu->max_cache_pages * sizeof(void *));
-	emu->page_addr_table = vmalloc(emu->max_cache_pages *
-				       sizeof(unsigned long));
+	emu->page_ptr_table = vmalloc(array_size(sizeof(void *),
+						 emu->max_cache_pages));
+	emu->page_addr_table = vmalloc(array_size(sizeof(unsigned long),
+						  emu->max_cache_pages));
 	if (emu->page_ptr_table == NULL || emu->page_addr_table == NULL) {
 		err = -ENOMEM;
 		goto error;
 	}
 
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-				EMUPAGESIZE, &emu->silent_page) < 0) {
+	if (snd_emu10k1_alloc_pages_maybe_wider(emu, EMUPAGESIZE,
+						&emu->silent_page) < 0) {
 		err = -ENOMEM;
 		goto error;
 	}
+	dev_dbg(card->dev, "silent page range is %.8lx:%.8lx\n",
+		(unsigned long)emu->silent_page.addr,
+		(unsigned long)(emu->silent_page.addr +
+				emu->silent_page.bytes));
+
 	emu->memhdr = snd_util_memhdr_new(emu->max_cache_pages * PAGE_SIZE);
 	if (emu->memhdr == NULL) {
 		err = -ENOMEM;
@@ -2027,13 +2034,8 @@ int snd_emu10k1_create(struct snd_card *card,
 		SPCS_GENERATIONSTATUS | 0x00001200 |
 		0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT;
 
-	emu->reserved_page = (struct snd_emu10k1_memblk *)
-		snd_emu10k1_synth_alloc(emu, 4096);
-	if (emu->reserved_page)
-		emu->reserved_page->map_locked = 1;
-
 	/* Clear silent pages and set up pointers */
-	memset(emu->silent_page.area, 0, PAGE_SIZE);
+	memset(emu->silent_page.area, 0, emu->silent_page.bytes);
 	silent_page = emu->silent_page.addr << emu->address_mode;
 	for (idx = 0; idx < (emu->address_mode ? MAXPAGES1 : MAXPAGES0); idx++)
 		((u32 *)emu->ptb_pages.area)[idx] = cpu_to_le32(silent_page | idx);
@@ -2098,7 +2100,7 @@ static int alloc_pm_buffer(struct snd_emu10k1 *emu)
 	size = ARRAY_SIZE(saved_regs);
 	if (emu->audigy)
 		size += ARRAY_SIZE(saved_regs_audigy);
-	emu->saved_ptr = vmalloc(4 * NUM_G * size);
+	emu->saved_ptr = vmalloc(array3_size(4, NUM_G, size));
 	if (!emu->saved_ptr)
 		return -ENOMEM;
 	if (snd_emu10k1_efx_alloc_pm_buffer(emu) < 0)

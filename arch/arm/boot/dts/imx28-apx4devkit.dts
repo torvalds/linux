@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 #include "imx28.dtsi"
 
@@ -5,7 +6,7 @@
 	model = "Bluegiga APX4 Development Kit";
 	compatible = "bluegiga,apx4devkit", "fsl,imx28";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x04000000>;
 	};
 
@@ -81,7 +82,8 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
-				mmc2_sck_cfg_apx4: mmc2-sck-cfg-apx4 {
+				mmc2_sck_cfg_apx4: mmc2-sck-cfg-apx4@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_SSP0_DATA7__SSP2_SCK
 					>;
@@ -142,9 +144,10 @@
 				pinctrl-0 = <&i2c0_pins_a>;
 				status = "okay";
 
-				sgtl5000: codec@0a {
+				sgtl5000: codec@a {
 					compatible = "fsl,sgtl5000";
 					reg = <0x0a>;
+					#sound-dai-cells = <0>;
 					VDDA-supply = <&reg_3p3v>;
 					VDDIO-supply = <&reg_3p3v>;
 					clocks = <&saif0>;

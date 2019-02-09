@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2003-2008 Takahiro Hirofuchi
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
+ * Copyright (C) 2015 Nobuo Iwata
  */
 
 #ifndef __USBIP_VHCI_H
@@ -71,14 +67,43 @@ struct vhci_unlink {
 	unsigned long unlink_seqnum;
 };
 
-/* Number of supported ports. Value has an upperbound of USB_MAXCHILDREN */
-#define VHCI_NPORTS 8
+enum hub_speed {
+	HUB_SPEED_HIGH = 0,
+	HUB_SPEED_SUPER,
+};
 
-/* for usb_bus.hcpriv */
-struct vhci_hcd {
+/* Number of supported ports. Value has an upperbound of USB_MAXCHILDREN */
+#ifdef CONFIG_USBIP_VHCI_HC_PORTS
+#define VHCI_HC_PORTS CONFIG_USBIP_VHCI_HC_PORTS
+#else
+#define VHCI_HC_PORTS 8
+#endif
+
+/* Each VHCI has 2 hubs (USB2 and USB3), each has VHCI_HC_PORTS ports */
+#define VHCI_PORTS	(VHCI_HC_PORTS*2)
+
+#ifdef CONFIG_USBIP_VHCI_NR_HCS
+#define VHCI_NR_HCS CONFIG_USBIP_VHCI_NR_HCS
+#else
+#define VHCI_NR_HCS 1
+#endif
+
+#define MAX_STATUS_NAME 16
+
+struct vhci {
 	spinlock_t lock;
 
-	u32 port_status[VHCI_NPORTS];
+	struct platform_device *pdev;
+
+	struct vhci_hcd *vhci_hcd_hs;
+	struct vhci_hcd *vhci_hcd_ss;
+};
+
+/* for usb_hcd.hcd_priv[0] */
+struct vhci_hcd {
+	struct vhci *vhci;
+
+	u32 port_status[VHCI_HC_PORTS];
 
 	unsigned resuming:1;
 	unsigned long re_timeout;
@@ -90,14 +115,19 @@ struct vhci_hcd {
 	 * wIndex shows the port number and begins from 1.
 	 * But, the index of this array begins from 0.
 	 */
-	struct vhci_device vdev[VHCI_NPORTS];
+	struct vhci_device vdev[VHCI_HC_PORTS];
 };
 
-extern struct vhci_hcd *the_controller;
-extern const struct attribute_group dev_attr_group;
+extern int vhci_num_controllers;
+extern struct vhci *vhcis;
+extern struct attribute_group vhci_attr_group;
 
 /* vhci_hcd.c */
-void rh_port_connect(int rhport, enum usb_device_speed speed);
+void rh_port_connect(struct vhci_device *vdev, enum usb_device_speed speed);
+
+/* vhci_sysfs.c */
+int vhci_init_attr_group(void);
+void vhci_finish_attr_group(void);
 
 /* vhci_rx.c */
 struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev, __u32 seqnum);
@@ -106,24 +136,39 @@ int vhci_rx_loop(void *data);
 /* vhci_tx.c */
 int vhci_tx_loop(void *data);
 
-static inline struct vhci_device *port_to_vdev(__u32 port)
+static inline __u32 port_to_rhport(__u32 port)
 {
-	return &the_controller->vdev[port];
+	return port % VHCI_HC_PORTS;
 }
 
-static inline struct vhci_hcd *hcd_to_vhci(struct usb_hcd *hcd)
+static inline int port_to_pdev_nr(__u32 port)
+{
+	return port / VHCI_PORTS;
+}
+
+static inline struct vhci_hcd *hcd_to_vhci_hcd(struct usb_hcd *hcd)
 {
 	return (struct vhci_hcd *) (hcd->hcd_priv);
 }
 
-static inline struct usb_hcd *vhci_to_hcd(struct vhci_hcd *vhci)
+static inline struct device *hcd_dev(struct usb_hcd *hcd)
 {
-	return container_of((void *) vhci, struct usb_hcd, hcd_priv);
+	return (hcd)->self.controller;
 }
 
-static inline struct device *vhci_dev(struct vhci_hcd *vhci)
+static inline const char *hcd_name(struct usb_hcd *hcd)
 {
-	return vhci_to_hcd(vhci)->self.controller;
+	return (hcd)->self.bus_name;
+}
+
+static inline struct usb_hcd *vhci_hcd_to_hcd(struct vhci_hcd *vhci_hcd)
+{
+	return container_of((void *) vhci_hcd, struct usb_hcd, hcd_priv);
+}
+
+static inline struct vhci_hcd *vdev_to_vhci_hcd(struct vhci_device *vdev)
+{
+	return container_of((void *)(vdev - vdev->rhport), struct vhci_hcd, vdev);
 }
 
 #endif /* __USBIP_VHCI_H */

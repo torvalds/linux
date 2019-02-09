@@ -86,7 +86,7 @@ nvkm_xtensa_fini(struct nvkm_engine *engine, bool suspend)
 	nvkm_wr32(device, base + 0xd94, 0); /* FIFO_CTRL */
 
 	if (!suspend)
-		nvkm_memory_del(&xtensa->gpu_fw);
+		nvkm_memory_unref(&xtensa->gpu_fw);
 	return 0;
 }
 
@@ -187,6 +187,6 @@ nvkm_xtensa_new_(const struct nvkm_xtensa_func *func,
 	xtensa->addr = addr;
 	*pengine = &xtensa->engine;
 
-	return nvkm_engine_ctor(&nvkm_xtensa, device, index, func->pmc_enable,
+	return nvkm_engine_ctor(&nvkm_xtensa, device, index,
 				enable, &xtensa->engine);
 }

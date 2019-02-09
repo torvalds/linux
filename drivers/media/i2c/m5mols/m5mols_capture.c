@@ -25,14 +25,18 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/m5mols.h>
-#include <media/exynos-fimc.h>
+#include <media/i2c/m5mols.h>
+#include <media/drv-intf/exynos-fimc.h>
 
 #include "m5mols.h"
 #include "m5mols_reg.h"
 
 /**
  * m5mols_read_rational - I2C read of a rational number
+ * @sd: sub-device, as pointed by struct v4l2_subdev
+ * @addr_num: numerator register
+ * @addr_den: denominator register
+ * @val: place to store the division result
  *
  * Read numerator and denominator from registers @addr_num and @addr_den
  * respectively and return the division result in @val.
@@ -53,6 +57,7 @@ static int m5mols_read_rational(struct v4l2_subdev *sd, u32 addr_num,
 
 /**
  * m5mols_capture_info - Gather captured image information
+ * @info: M-5MOLS driver data structure
  *
  * For now it gathers only EXIF information and file size.
  */

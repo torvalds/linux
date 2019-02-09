@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_M68K_SETUP_H
 #define _ASM_M68K_SETUP_H
 
@@ -105,21 +106,21 @@ struct fp_data {
 #ifdef FPU_EMU_DEBUG
 extern unsigned int fp_debugprint;
 
-#define dprint(bit, fmt, args...) ({			\
+#define dprint(bit, fmt, ...) ({			\
 	if (fp_debugprint & (1 << (bit)))		\
-		printk(fmt, ## args);			\
+		pr_info(fmt, ##__VA_ARGS__);		\
 })
 #else
-#define dprint(bit, fmt, args...)
+#define dprint(bit, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define uprint(str) ({					\
 	static int __count = 3;				\
 							\
 	if (__count > 0) {				\
-		printk("You just hit an unimplemented "	\
+		pr_err("You just hit an unimplemented "	\
 		       "fpu instruction (%s)\n", str);	\
-		printk("Please report this to ....\n");	\
+		pr_err("Please report this to ....\n");	\
 		__count--;				\
 	}						\
 })

@@ -29,7 +29,6 @@
 #include <linux/mmzone.h>
 #include <linux/debugfs.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 /* register addresses */
@@ -575,9 +574,7 @@ static void i5100_check_error(struct mem_ctl_info *mci)
 
 static void i5100_refresh_scrubbing(struct work_struct *work)
 {
-	struct delayed_work *i5100_scrubbing = container_of(work,
-							    struct delayed_work,
-							    work);
+	struct delayed_work *i5100_scrubbing = to_delayed_work(work);
 	struct i5100_priv *priv = container_of(i5100_scrubbing,
 					       struct i5100_priv,
 					       i5100_scrubbing);
@@ -1111,7 +1108,6 @@ static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	mci->edac_ctl_cap = EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = "i5100_edac.c";
-	mci->mod_ver = "not versioned";
 	mci->ctl_name = "i5100";
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;

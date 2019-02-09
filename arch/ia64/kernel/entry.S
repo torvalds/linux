@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/ia64/kernel/entry.S
  *
@@ -48,6 +49,7 @@
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 #include <asm/ftrace.h>
+#include <asm/export.h>
 
 #include "minstate.h"
 
@@ -453,29 +455,6 @@ GLOBAL_ENTRY(load_switch_stack)
 	mov ar.rsc=3				// put RSE back into eager mode, pl 0
 	br.cond.sptk.many b7
 END(load_switch_stack)
-
-GLOBAL_ENTRY(prefetch_stack)
-	add r14 = -IA64_SWITCH_STACK_SIZE, sp
-	add r15 = IA64_TASK_THREAD_KSP_OFFSET, in0
-	;;
-	ld8 r16 = [r15]				// load next's stack pointer
-	lfetch.fault.excl [r14], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault [r16], 128
-	br.ret.sptk.many rp
-END(prefetch_stack)
 
 	/*
 	 * Invoke a system call, but do some tracing before and after the call.
@@ -1345,12 +1324,14 @@ GLOBAL_ENTRY(unw_init_running)
 	mov rp=loc0
 	br.ret.sptk.many rp
 END(unw_init_running)
+EXPORT_SYMBOL(unw_init_running)
 
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 GLOBAL_ENTRY(_mcount)
 	br ftrace_stub
 END(_mcount)
+EXPORT_SYMBOL(_mcount)
 
 .here:
 	br.ret.sptk.many b0
@@ -1772,5 +1753,8 @@ sys_call_table:
 	data8 sys_membarrier
 	data8 sys_kcmp				// 1345
 	data8 sys_mlock2
+	data8 sys_copy_file_range
+	data8 sys_preadv2
+	data8 sys_pwritev2
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls

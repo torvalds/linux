@@ -16,13 +16,13 @@
 
 #include <linux/linkage.h>
 
+#include <soc/tegra/flowctrl.h>
 #include <soc/tegra/fuse.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/assembler.h>
 #include <asm/cache.h>
 
-#include "flowctrl.h"
 #include "irammap.h"
 #include "sleep.h"
 
@@ -242,8 +242,11 @@ ENDPROC(tegra30_cpu_shutdown)
  * tegra30_tear_down_core in IRAM
  */
 ENTRY(tegra30_sleep_core_finish)
+	mov	r4, r0
 	/* Flush, disable the L1 data cache and exit SMP */
+	mov	r0, #TEGRA_FLUSH_CACHE_ALL
 	bl	tegra_disable_clean_inv_dcache
+	mov	r0, r4
 
 	/*
 	 * Preload all the address literals that are needed for the

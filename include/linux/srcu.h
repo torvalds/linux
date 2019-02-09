@@ -22,7 +22,7 @@
  *	   Lai Jiangshan <laijs@cn.fujitsu.com>
  *
  * For detailed explanation of Read-Copy Update mechanism see -
- * 		Documentation/RCU/ *.txt
+ *		Documentation/RCU/ *.txt
  *
  */
 
@@ -32,35 +32,9 @@
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
+#include <linux/rcu_segcblist.h>
 
-struct srcu_struct_array {
-	unsigned long c[2];
-	unsigned long seq[2];
-};
-
-struct rcu_batch {
-	struct rcu_head *head, **tail;
-};
-
-#define RCU_BATCH_INIT(name) { NULL, &(name.head) }
-
-struct srcu_struct {
-	unsigned long completed;
-	struct srcu_struct_array __percpu *per_cpu_ref;
-	spinlock_t queue_lock; /* protect ->batch_queue, ->running */
-	bool running;
-	/* callbacks just queued */
-	struct rcu_batch batch_queue;
-	/* callbacks try to do the first check_zero */
-	struct rcu_batch batch_check0;
-	/* callbacks done with the first check_zero and the flip */
-	struct rcu_batch batch_check1;
-	struct rcu_batch batch_done;
-	struct delayed_work work;
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct lockdep_map dep_map;
-#endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
-};
+struct srcu_struct;
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
@@ -82,64 +56,63 @@ int init_srcu_struct(struct srcu_struct *sp);
 #define __SRCU_DEP_MAP_INIT(srcu_name)
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
-void process_srcu(struct work_struct *work);
+#ifdef CONFIG_TINY_SRCU
+#include <linux/srcutiny.h>
+#elif defined(CONFIG_TREE_SRCU)
+#include <linux/srcutree.h>
+#elif defined(CONFIG_SRCU)
+#error "Unknown SRCU implementation specified to kernel configuration"
+#else
+/* Dummy definition for things like notifiers.  Actual use gets link error. */
+struct srcu_struct { };
+#endif
 
-#define __SRCU_STRUCT_INIT(name)					\
-	{								\
-		.completed = -300,					\
-		.per_cpu_ref = &name##_srcu_array,			\
-		.queue_lock = __SPIN_LOCK_UNLOCKED(name.queue_lock),	\
-		.running = false,					\
-		.batch_queue = RCU_BATCH_INIT(name.batch_queue),	\
-		.batch_check0 = RCU_BATCH_INIT(name.batch_check0),	\
-		.batch_check1 = RCU_BATCH_INIT(name.batch_check1),	\
-		.batch_done = RCU_BATCH_INIT(name.batch_done),		\
-		.work = __DELAYED_WORK_INITIALIZER(name.work, process_srcu, 0),\
-		__SRCU_DEP_MAP_INIT(name)				\
-	}
-
-/*
- * define and init a srcu struct at build time.
- * dont't call init_srcu_struct() nor cleanup_srcu_struct() on it.
- */
-#define __DEFINE_SRCU(name, is_static)					\
-	static DEFINE_PER_CPU(struct srcu_struct_array, name##_srcu_array);\
-	is_static struct srcu_struct name = __SRCU_STRUCT_INIT(name)
-#define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
-#define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, static)
-
-/**
- * call_srcu() - Queue a callback for invocation after an SRCU grace period
- * @sp: srcu_struct in queue the callback
- * @head: structure to be used for queueing the SRCU callback.
- * @func: function to be invoked after the SRCU grace period
- *
- * The callback function will be invoked some time after a full SRCU
- * grace period elapses, in other words after all pre-existing SRCU
- * read-side critical sections have completed.  However, the callback
- * function might well execute concurrently with other SRCU read-side
- * critical sections that started after call_srcu() was invoked.  SRCU
- * read-side critical sections are delimited by srcu_read_lock() and
- * srcu_read_unlock(), and may be nested.
- *
- * The callback will be invoked from process context, but must nevertheless
- * be fast and must not block.
- */
 void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
 		void (*func)(struct rcu_head *head));
-
-void cleanup_srcu_struct(struct srcu_struct *sp);
+void _cleanup_srcu_struct(struct srcu_struct *sp, bool quiesced);
 int __srcu_read_lock(struct srcu_struct *sp) __acquires(sp);
 void __srcu_read_unlock(struct srcu_struct *sp, int idx) __releases(sp);
 void synchronize_srcu(struct srcu_struct *sp);
-void synchronize_srcu_expedited(struct srcu_struct *sp);
-unsigned long srcu_batches_completed(struct srcu_struct *sp);
-void srcu_barrier(struct srcu_struct *sp);
+
+/**
+ * cleanup_srcu_struct - deconstruct a sleep-RCU structure
+ * @sp: structure to clean up.
+ *
+ * Must invoke this after you are finished using a given srcu_struct that
+ * was initialized via init_srcu_struct(), else you leak memory.
+ */
+static inline void cleanup_srcu_struct(struct srcu_struct *sp)
+{
+	_cleanup_srcu_struct(sp, false);
+}
+
+/**
+ * cleanup_srcu_struct_quiesced - deconstruct a quiesced sleep-RCU structure
+ * @sp: structure to clean up.
+ *
+ * Must invoke this after you are finished using a given srcu_struct that
+ * was initialized via init_srcu_struct(), else you leak memory.  Also,
+ * all grace-period processing must have completed.
+ *
+ * "Completed" means that the last synchronize_srcu() and
+ * synchronize_srcu_expedited() calls must have returned before the call
+ * to cleanup_srcu_struct_quiesced().  It also means that the callback
+ * from the last call_srcu() must have been invoked before the call to
+ * cleanup_srcu_struct_quiesced(), but you can use srcu_barrier() to help
+ * with this last.  Violating these rules will get you a WARN_ON() splat
+ * (with high probability, anyway), and will also cause the srcu_struct
+ * to be leaked.
+ */
+static inline void cleanup_srcu_struct_quiesced(struct srcu_struct *sp)
+{
+	_cleanup_srcu_struct(sp, true);
+}
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
 /**
  * srcu_read_lock_held - might we be in SRCU read-side critical section?
+ * @sp: The srcu_struct structure to check
  *
  * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an SRCU
  * read-side critical section.  In absence of CONFIG_DEBUG_LOCK_ALLOC,
@@ -153,7 +126,7 @@ void srcu_barrier(struct srcu_struct *sp);
  * relies on normal RCU, it can be called from the CPU which
  * is in the idle loop from an RCU point of view or offline.
  */
-static inline int srcu_read_lock_held(struct srcu_struct *sp)
+static inline int srcu_read_lock_held(const struct srcu_struct *sp)
 {
 	if (!debug_lockdep_rcu_enabled())
 		return 1;
@@ -162,7 +135,7 @@ static inline int srcu_read_lock_held(struct srcu_struct *sp)
 
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
-static inline int srcu_read_lock_held(struct srcu_struct *sp)
+static inline int srcu_read_lock_held(const struct srcu_struct *sp)
 {
 	return 1;
 }
@@ -197,6 +170,11 @@ static inline int srcu_read_lock_held(struct srcu_struct *sp)
 #define srcu_dereference(p, sp) srcu_dereference_check((p), (sp), 0)
 
 /**
+ * srcu_dereference_notrace - no tracing and no lockdep calls from here
+ */
+#define srcu_dereference_notrace(p, sp) srcu_dereference_check((p), (sp), 1)
+
+/**
  * srcu_read_lock - register a new reader for an SRCU-protected structure.
  * @sp: srcu_struct in which to register the new reader.
  *
@@ -217,10 +195,18 @@ static inline int srcu_read_lock(struct srcu_struct *sp) __acquires(sp)
 {
 	int retval;
 
-	preempt_disable();
 	retval = __srcu_read_lock(sp);
-	preempt_enable();
 	rcu_lock_acquire(&(sp)->dep_map);
+	return retval;
+}
+
+/* Used by tracing, cannot be traced and cannot invoke lockdep. */
+static inline notrace int
+srcu_read_lock_notrace(struct srcu_struct *sp) __acquires(sp)
+{
+	int retval;
+
+	retval = __srcu_read_lock(sp);
 	return retval;
 }
 
@@ -235,6 +221,13 @@ static inline void srcu_read_unlock(struct srcu_struct *sp, int idx)
 	__releases(sp)
 {
 	rcu_lock_release(&(sp)->dep_map);
+	__srcu_read_unlock(sp, idx);
+}
+
+/* Used by tracing, cannot be traced and cannot call lockdep. */
+static inline notrace void
+srcu_read_unlock_notrace(struct srcu_struct *sp, int idx) __releases(sp)
+{
 	__srcu_read_unlock(sp, idx);
 }
 

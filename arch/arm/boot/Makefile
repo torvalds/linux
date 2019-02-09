@@ -11,6 +11,8 @@
 # Copyright (C) 1995-2002 Russell King
 #
 
+OBJCOPYFLAGS	:=-O binary -R .comment -S
+
 ifneq ($(MACHINE),)
 include $(MACHINE)/Makefile.boot
 endif
@@ -29,9 +31,20 @@ targets := Image zImage xipImage bootpImage uImage
 
 ifeq ($(CONFIG_XIP_KERNEL),y)
 
+cmd_deflate_xip_data = $(CONFIG_SHELL) -c \
+	'$(srctree)/$(src)/deflate_xip_data.sh $< $@ || { rm -f $@; false; }'
+
+ifeq ($(CONFIG_XIP_DEFLATED_DATA),y)
+quiet_cmd_mkxip = XIPZ    $@
+cmd_mkxip = $(cmd_objcopy) && $(cmd_deflate_xip_data)
+else
+quiet_cmd_mkxip = $(quiet_cmd_objcopy)
+cmd_mkxip = $(cmd_objcopy)
+endif
+
 $(obj)/xipImage: vmlinux FORCE
-	$(call if_changed,objcopy)
-	@$(kecho) '  Kernel: $@ is ready (physical address: $(CONFIG_XIP_PHYS_ADDR))'
+	$(call if_changed,mkxip)
+	@$(kecho) '  Physical Address of xipImage: $(CONFIG_XIP_PHYS_ADDR)'
 
 $(obj)/Image $(obj)/zImage: FORCE
 	@echo 'Kernel configured for XIP (CONFIG_XIP_KERNEL=y)'
@@ -46,14 +59,12 @@ $(obj)/xipImage: FORCE
 
 $(obj)/Image: vmlinux FORCE
 	$(call if_changed,objcopy)
-	@$(kecho) '  Kernel: $@ is ready'
 
 $(obj)/compressed/vmlinux: $(obj)/Image FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
 $(obj)/zImage:	$(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
-	@$(kecho) '  Kernel: $@ is ready'
 
 endif
 
@@ -78,17 +89,14 @@ fi
 $(obj)/uImage:	$(obj)/zImage FORCE
 	@$(check_for_multiple_loadaddr)
 	$(call if_changed,uimage)
-	@$(kecho) '  Image $@ is ready'
 
 $(obj)/bootp/bootp: $(obj)/zImage initrd FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/bootp $@
-	@:
 
 $(obj)/bootpImage: $(obj)/bootp/bootp FORCE
 	$(call if_changed,objcopy)
-	@$(kecho) '  Kernel: $@ is ready'
 
-PHONY += initrd FORCE
+PHONY += initrd install zinstall uinstall
 initrd:
 	@test "$(INITRD_PHYS)" != "" || \
 	(echo This machine does not support INITRD; exit -1)
@@ -106,13 +114,5 @@ zinstall:
 uinstall:
 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" \
 	$(obj)/uImage System.map "$(INSTALL_PATH)"
-
-zi:
-	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" \
-	$(obj)/zImage System.map "$(INSTALL_PATH)"
-
-i:
-	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" \
-	$(obj)/Image System.map "$(INSTALL_PATH)"
 
 subdir-	    := bootp compressed dts

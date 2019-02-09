@@ -134,37 +134,59 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	if (mutex_lock_interruptible(&c->alloc_sem))
 		return -EINTR;
 
+
 	for (;;) {
+		/* We can't start doing GC until we've finished checking
+		   the node CRCs etc. */
+		int bucket, want_ino;
+
 		spin_lock(&c->erase_completion_lock);
 		if (!c->unchecked_size)
 			break;
-
-		/* We can't start doing GC yet. We haven't finished checking
-		   the node CRCs etc. Do it now. */
-
-		/* checked_ino is protected by the alloc_sem */
-		if (c->checked_ino > c->highest_ino && xattr) {
-			pr_crit("Checked all inodes but still 0x%x bytes of unchecked space?\n",
-				c->unchecked_size);
-			jffs2_dbg_dump_block_lists_nolock(c);
-			spin_unlock(&c->erase_completion_lock);
-			mutex_unlock(&c->alloc_sem);
-			return -ENOSPC;
-		}
-
 		spin_unlock(&c->erase_completion_lock);
 
 		if (!xattr)
 			xattr = jffs2_verify_xattr(c);
 
 		spin_lock(&c->inocache_lock);
+		/* Instead of doing the inodes in numeric order, doing a lookup
+		 * in the hash for each possible number, just walk the hash
+		 * buckets of *existing* inodes. This means that we process
+		 * them out-of-order, but it can be a lot faster if there's
+		 * a sparse inode# space. Which there often is. */
+		want_ino = c->check_ino;
+		for (bucket = c->check_ino % c->inocache_hashsize ; bucket < c->inocache_hashsize; bucket++) {
+			for (ic = c->inocache_list[bucket]; ic; ic = ic->next) {
+				if (ic->ino < want_ino)
+					continue;
 
-		ic = jffs2_get_ino_cache(c, c->checked_ino++);
+				if (ic->state != INO_STATE_CHECKEDABSENT &&
+				    ic->state != INO_STATE_PRESENT)
+					goto got_next; /* with inocache_lock held */
 
-		if (!ic) {
-			spin_unlock(&c->inocache_lock);
-			continue;
+				jffs2_dbg(1, "Skipping ino #%u already checked\n",
+					  ic->ino);
+			}
+			want_ino = 0;
 		}
+
+		/* Point c->check_ino past the end of the last bucket. */
+		c->check_ino = ((c->highest_ino + c->inocache_hashsize + 1) &
+				~c->inocache_hashsize) - 1;
+
+		spin_unlock(&c->inocache_lock);
+
+		pr_crit("Checked all inodes but still 0x%x bytes of unchecked space?\n",
+			c->unchecked_size);
+		jffs2_dbg_dump_block_lists_nolock(c);
+		mutex_unlock(&c->alloc_sem);
+		return -ENOSPC;
+
+	got_next:
+		/* For next time round the loop, we want c->checked_ino to indicate
+		 * the *next* one we want to check. And since we're walking the
+		 * buckets rather than doing it sequentially, it's: */
+		c->check_ino = ic->ino + c->inocache_hashsize;
 
 		if (!ic->pino_nlink) {
 			jffs2_dbg(1, "Skipping check of ino #%d with nlink/pino zero\n",
@@ -176,8 +198,6 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		switch(ic->state) {
 		case INO_STATE_CHECKEDABSENT:
 		case INO_STATE_PRESENT:
-			jffs2_dbg(1, "Skipping ino #%u already checked\n",
-				  ic->ino);
 			spin_unlock(&c->inocache_lock);
 			continue;
 
@@ -196,7 +216,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 				  ic->ino);
 			/* We need to come back again for the _same_ inode. We've
 			 made no progress in this case, but that should be OK */
-			c->checked_ino--;
+			c->check_ino = ic->ino;
 
 			mutex_unlock(&c->alloc_sem);
 			sleep_on_spinunlock(&c->inocache_wq, &c->inocache_lock);
@@ -532,7 +552,7 @@ static int jffs2_garbage_collect_live(struct jffs2_sb_info *c,  struct jffs2_era
 				goto upnout;
 		}
 		/* We found a datanode. Do the GC */
-		if((start >> PAGE_CACHE_SHIFT) < ((end-1) >> PAGE_CACHE_SHIFT)) {
+		if((start >> PAGE_SHIFT) < ((end-1) >> PAGE_SHIFT)) {
 			/* It crosses a page boundary. Therefore, it must be a hole. */
 			ret = jffs2_garbage_collect_hole(c, jeb, f, fn, start, end);
 		} else {
@@ -1172,8 +1192,8 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		struct jffs2_node_frag *frag;
 		uint32_t min, max;
 
-		min = start & ~(PAGE_CACHE_SIZE-1);
-		max = min + PAGE_CACHE_SIZE;
+		min = start & ~(PAGE_SIZE-1);
+		max = min + PAGE_SIZE;
 
 		frag = jffs2_lookup_node_frag(&f->fragtree, start);
 
@@ -1296,14 +1316,17 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		BUG_ON(start > orig_start);
 	}
 
-	/* First, use readpage() to read the appropriate page into the page cache */
-	/* Q: What happens if we actually try to GC the _same_ page for which commit_write()
-	 *    triggered garbage collection in the first place?
-	 * A: I _think_ it's OK. read_cache_page shouldn't deadlock, we'll write out the
-	 *    page OK. We'll actually write it out again in commit_write, which is a little
-	 *    suboptimal, but at least we're correct.
-	 */
+	/* The rules state that we must obtain the page lock *before* f->sem, so
+	 * drop f->sem temporarily. Since we also hold c->alloc_sem, nothing's
+	 * actually going to *change* so we're safe; we only allow reading.
+	 *
+	 * It is important to note that jffs2_write_begin() will ensure that its
+	 * page is marked Uptodate before allocating space. That means that if we
+	 * end up here trying to GC the *same* page that jffs2_write_begin() is
+	 * trying to write out, read_cache_page() will not deadlock. */
+	mutex_unlock(&f->sem);
 	pg_ptr = jffs2_gc_fetch_page(c, f, start, &pg);
+	mutex_lock(&f->sem);
 
 	if (IS_ERR(pg_ptr)) {
 		pr_warn("read_cache_page() returned error: %ld\n",
@@ -1328,7 +1351,7 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		cdatalen = min_t(uint32_t, alloclen - sizeof(ri), end - offset);
 		datalen = end - offset;
 
-		writebuf = pg_ptr + (offset & (PAGE_CACHE_SIZE -1));
+		writebuf = pg_ptr + (offset & (PAGE_SIZE -1));
 
 		comprtype = jffs2_compress(c, f, writebuf, &comprbuf, &datalen, &cdatalen);
 

@@ -74,8 +74,8 @@ static bool cs4349_writeable_register(struct device *dev, unsigned int reg)
 static int cs4349_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			      unsigned int format)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct cs4349_private *cs4349 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct cs4349_private *cs4349 = snd_soc_component_get_drvdata(component);
 	unsigned int fmt;
 
 	fmt = format & SND_SOC_DAIFMT_FORMAT_MASK;
@@ -97,8 +97,8 @@ static int cs4349_pcm_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct cs4349_private *cs4349 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct cs4349_private *cs4349 = snd_soc_component_get_drvdata(component);
 	int fmt, ret;
 
 	cs4349->rate = params_rate(params);
@@ -126,7 +126,7 @@ static int cs4349_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	ret = snd_soc_update_bits(codec, CS4349_MODE, DIF_MASK,
+	ret = snd_soc_component_update_bits(component, CS4349_MODE, DIF_MASK,
 				  MODE_FORMAT(fmt));
 	if (ret < 0)
 		return ret;
@@ -136,14 +136,14 @@ static int cs4349_pcm_hw_params(struct snd_pcm_substream *substream,
 
 static int cs4349_digital_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	int reg;
 
 	reg = 0;
 	if (mute)
 		reg = MUTE_AB_MASK;
 
-	return snd_soc_update_bits(codec, CS4349_MUTE, MUTE_AB_MASK, reg);
+	return snd_soc_component_update_bits(component, CS4349_MUTE, MUTE_AB_MASK, reg);
 }
 
 static DECLARE_TLV_DB_SCALE(dig_tlv, -12750, 50, 0);
@@ -255,14 +255,17 @@ static struct snd_soc_dai_driver cs4349_dai = {
 	.symmetric_rates = 1,
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_cs4349 = {
+static const struct snd_soc_component_driver soc_component_dev_cs4349 = {
 	.controls		= cs4349_snd_controls,
 	.num_controls		= ARRAY_SIZE(cs4349_snd_controls),
-
 	.dapm_widgets		= cs4349_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(cs4349_dapm_widgets),
 	.dapm_routes		= cs4349_routes,
 	.num_dapm_routes	= ARRAY_SIZE(cs4349_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs4349_regmap = {
@@ -304,15 +307,14 @@ static int cs4349_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, cs4349);
 
-	return snd_soc_register_codec(&client->dev, &soc_codec_dev_cs4349,
+	return devm_snd_soc_register_component(&client->dev,
+		&soc_component_dev_cs4349,
 		&cs4349_dai, 1);
 }
 
 static int cs4349_i2c_remove(struct i2c_client *client)
 {
 	struct cs4349_private *cs4349 = i2c_get_clientdata(client);
-
-	snd_soc_unregister_codec(&client->dev);
 
 	/* Hold down reset */
 	gpiod_set_value_cansleep(cs4349->reset_gpio, 0);

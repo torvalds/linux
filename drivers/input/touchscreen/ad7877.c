@@ -385,9 +385,9 @@ static inline void ad7877_ts_event_release(struct ad7877 *ts)
 	input_sync(input_dev);
 }
 
-static void ad7877_timer(unsigned long handle)
+static void ad7877_timer(struct timer_list *t)
 {
-	struct ad7877 *ts = (void *)handle;
+	struct ad7877 *ts = from_timer(ts, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ts->lock, flags);
@@ -417,8 +417,10 @@ out:
 	return IRQ_HANDLED;
 }
 
-static void ad7877_disable(struct ad7877 *ts)
+static void ad7877_disable(void *data)
 {
+	struct ad7877 *ts = data;
+
 	mutex_lock(&ts->mutex);
 
 	if (!ts->disabled) {
@@ -707,18 +709,23 @@ static int ad7877_probe(struct spi_device *spi)
 		return err;
 	}
 
-	ts = kzalloc(sizeof(struct ad7877), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ts || !input_dev) {
-		err = -ENOMEM;
-		goto err_free_mem;
-	}
+	ts = devm_kzalloc(&spi->dev, sizeof(struct ad7877), GFP_KERNEL);
+	if (!ts)
+		return -ENOMEM;
+
+	input_dev = devm_input_allocate_device(&spi->dev);
+	if (!input_dev)
+		return -ENOMEM;
+
+	err = devm_add_action_or_reset(&spi->dev, ad7877_disable, ts);
+	if (err)
+		return err;
 
 	spi_set_drvdata(spi, ts);
 	ts->spi = spi;
 	ts->input = input_dev;
 
-	setup_timer(&ts->timer, ad7877_timer, (unsigned long) ts);
+	timer_setup(&ts->timer, ad7877_timer, 0);
 	mutex_init(&ts->mutex);
 	spin_lock_init(&ts->lock);
 
@@ -761,11 +768,10 @@ static int ad7877_probe(struct spi_device *spi)
 
 	verify = ad7877_read(spi, AD7877_REG_SEQ1);
 
-	if (verify != AD7877_MM_SEQUENCE){
+	if (verify != AD7877_MM_SEQUENCE) {
 		dev_err(&spi->dev, "%s: Failed to probe %s\n",
 			dev_name(&spi->dev), input_dev->name);
-		err = -ENODEV;
-		goto err_free_mem;
+		return -ENODEV;
 	}
 
 	if (gpio3)
@@ -775,47 +781,21 @@ static int ad7877_probe(struct spi_device *spi)
 
 	/* Request AD7877 /DAV GPIO interrupt */
 
-	err = request_threaded_irq(spi->irq, NULL, ad7877_irq,
-				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				   spi->dev.driver->name, ts);
+	err = devm_request_threaded_irq(&spi->dev, spi->irq, NULL, ad7877_irq,
+					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					spi->dev.driver->name, ts);
 	if (err) {
 		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
-		goto err_free_mem;
+		return err;
 	}
 
-	err = sysfs_create_group(&spi->dev.kobj, &ad7877_attr_group);
+	err = devm_device_add_group(&spi->dev, &ad7877_attr_group);
 	if (err)
-		goto err_free_irq;
+		return err;
 
 	err = input_register_device(input_dev);
 	if (err)
-		goto err_remove_attr_group;
-
-	return 0;
-
-err_remove_attr_group:
-	sysfs_remove_group(&spi->dev.kobj, &ad7877_attr_group);
-err_free_irq:
-	free_irq(spi->irq, ts);
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(ts);
-	return err;
-}
-
-static int ad7877_remove(struct spi_device *spi)
-{
-	struct ad7877 *ts = spi_get_drvdata(spi);
-
-	sysfs_remove_group(&spi->dev.kobj, &ad7877_attr_group);
-
-	ad7877_disable(ts);
-	free_irq(ts->spi->irq, ts);
-
-	input_unregister_device(ts->input);
-	kfree(ts);
-
-	dev_dbg(&spi->dev, "unregistered touchscreen\n");
+		return err;
 
 	return 0;
 }
@@ -846,7 +826,6 @@ static struct spi_driver ad7877_driver = {
 		.pm	= &ad7877_pm,
 	},
 	.probe		= ad7877_probe,
-	.remove		= ad7877_remove,
 };
 
 module_spi_driver(ad7877_driver);

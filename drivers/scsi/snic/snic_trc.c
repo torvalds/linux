@@ -65,12 +65,12 @@ static int
 snic_fmt_trc_data(struct snic_trc_data *td, char *buf, int buf_sz)
 {
 	int len = 0;
-	struct timespec tmspec;
+	struct timespec64 tmspec;
 
-	jiffies_to_timespec(td->ts, &tmspec);
+	jiffies_to_timespec64(td->ts, &tmspec);
 
 	len += snprintf(buf, buf_sz,
-			"%lu.%10lu %-25s %3d %4x %16llx %16llx %16llx %16llx %16llx\n",
+			"%llu.%09lu %-25s %3d %4x %16llx %16llx %16llx %16llx %16llx\n",
 			tmspec.tv_sec,
 			tmspec.tv_nsec,
 			td->fn,

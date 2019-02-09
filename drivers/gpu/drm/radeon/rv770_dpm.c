@@ -22,7 +22,7 @@
  * Authors: Alex Deucher
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "rv770d.h"
@@ -345,27 +345,27 @@ static int rv770_encode_yclk_post_div(u32 postdiv, u32 *encoded_postdiv)
 	int ret = 0;
 
 	switch (postdiv) {
-        case 1:
+	case 1:
 		*encoded_postdiv = 0;
 		break;
-        case 2:
+	case 2:
 		*encoded_postdiv = 1;
 		break;
-        case 4:
+	case 4:
 		*encoded_postdiv = 2;
 		break;
-        case 8:
+	case 8:
 		*encoded_postdiv = 3;
 		break;
-        case 16:
+	case 16:
 		*encoded_postdiv = 4;
 		break;
-        default:
+	default:
 		ret = -EINVAL;
 		break;
 	}
 
-    return ret;
+	return ret;
 }
 
 u32 rv770_map_clkf_to_ibias(struct radeon_device *rdev, u32 clkf)
@@ -1175,15 +1175,15 @@ static int rv770_init_smc_table(struct radeon_device *rdev,
 	rv770_populate_smc_mvdd_table(rdev, table);
 
 	switch (rdev->pm.int_thermal_type) {
-        case THERMAL_TYPE_RV770:
-        case THERMAL_TYPE_ADT7473_WITH_INTERNAL:
+	case THERMAL_TYPE_RV770:
+	case THERMAL_TYPE_ADT7473_WITH_INTERNAL:
 		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_INTERNAL;
 		break;
-        case THERMAL_TYPE_NONE:
+	case THERMAL_TYPE_NONE:
 		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_NONE;
 		break;
-        case THERMAL_TYPE_EXTERNAL_GPIO:
-        default:
+	case THERMAL_TYPE_EXTERNAL_GPIO:
+	default:
 		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_EXTERNAL;
 		break;
 	}
@@ -1567,18 +1567,18 @@ void rv770_reset_smio_status(struct radeon_device *rdev)
 	sw_smio_index =
 		(RREG32(GENERAL_PWRMGT) & SW_SMIO_INDEX_MASK) >> SW_SMIO_INDEX_SHIFT;
 	switch (sw_smio_index) {
-        case 3:
+	case 3:
 		vid_smio_cntl = RREG32(S3_VID_LOWER_SMIO_CNTL);
 		break;
-        case 2:
+	case 2:
 		vid_smio_cntl = RREG32(S2_VID_LOWER_SMIO_CNTL);
 		break;
-        case 1:
+	case 1:
 		vid_smio_cntl = RREG32(S1_VID_LOWER_SMIO_CNTL);
 		break;
-        case 0:
+	case 0:
 		return;
-        default:
+	default:
 		vid_smio_cntl = pi->s0_vid_lower_smio_cntl;
 		break;
 	}
@@ -1817,21 +1817,21 @@ static void rv770_set_dpm_event_sources(struct radeon_device *rdev, u32 sources)
 	enum radeon_dpm_event_src dpm_event_src;
 
 	switch (sources) {
-        case 0:
-        default:
+	case 0:
+	default:
 		want_thermal_protection = false;
 		break;
-        case (1 << RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL):
+	case (1 << RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL):
 		want_thermal_protection = true;
 		dpm_event_src = RADEON_DPM_EVENT_SRC_DIGITAL;
 		break;
 
-        case (1 << RADEON_DPM_AUTO_THROTTLE_SRC_EXTERNAL):
+	case (1 << RADEON_DPM_AUTO_THROTTLE_SRC_EXTERNAL):
 		want_thermal_protection = true;
 		dpm_event_src = RADEON_DPM_EVENT_SRC_EXTERNAL;
 		break;
 
-        case ((1 << RADEON_DPM_AUTO_THROTTLE_SRC_EXTERNAL) |
+	case ((1 << RADEON_DPM_AUTO_THROTTLE_SRC_EXTERNAL) |
 	      (1 << RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL)):
 		want_thermal_protection = true;
 		dpm_event_src = RADEON_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL;
@@ -2273,7 +2273,7 @@ int rv7xx_parse_power_table(struct radeon_device *rdev)
 	union pplib_clock_info *clock_info;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
-        u16 data_offset;
+	u16 data_offset;
 	u8 frev, crev;
 	struct rv7xx_ps *ps;
 
@@ -2282,8 +2282,9 @@ int rv7xx_parse_power_table(struct radeon_device *rdev)
 		return -EINVAL;
 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
 
-	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
-				  power_info->pplib.ucNumStates, GFP_KERNEL);
+	rdev->pm.dpm.ps = kcalloc(power_info->pplib.ucNumStates,
+				  sizeof(struct radeon_ps),
+				  GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 

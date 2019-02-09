@@ -674,7 +674,7 @@ static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 		}
 	}
 
-	fd->nhash = full_name_hash(fd->name, rd->nsize);
+	fd->nhash = full_name_hash(NULL, fd->name, rd->nsize);
 	fd->next = NULL;
 	fd->name[rd->nsize] = '\0';
 
@@ -1366,7 +1366,7 @@ int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 		jffs2_add_ino_cache(c, f->inocache);
 	}
 	if (!f->inocache) {
-		JFFS2_ERROR("requestied to read an nonexistent ino %u\n", ino);
+		JFFS2_ERROR("requested to read a nonexistent ino %u\n", ino);
 		return -ENOENT;
 	}
 

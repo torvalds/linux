@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*---------------------------------------------------------------------------+
  |  errors.c                                                                 |
  |                                                                           |
@@ -19,7 +20,7 @@
 
 #include <linux/signal.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "fpu_emu.h"
 #include "fpu_system.h"

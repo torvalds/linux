@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the PCD8544 LCD Controller
  *
@@ -5,16 +6,6 @@
  * Any pixel value except 0 turns the pixel on.
  *
  * Copyright (C) 2013 Noralf Tronnes
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -32,12 +23,12 @@
 #define TXBUFLEN       (84 * 6)
 #define DEFAULT_GAMMA  "40" /* gamma controls the contrast in this driver */
 
-static unsigned tc;
-module_param(tc, uint, 0);
+static unsigned int tc;
+module_param(tc, uint, 0000);
 MODULE_PARM_DESC(tc, "TC[1:0] Temperature coefficient: 0-3 (default: 0)");
 
-static unsigned bs = 4;
-module_param(bs, uint, 0);
+static unsigned int bs = 4;
+module_param(bs, uint, 0000);
 MODULE_PARM_DESC(bs, "BS[2:0] Bias voltage level: 0-7 (default: 4)");
 
 static int init_display(struct fbtft_par *par)
@@ -137,7 +128,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	return ret;
 }
 
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	/* apply mask */
 	curves[0] &= 0x7F;

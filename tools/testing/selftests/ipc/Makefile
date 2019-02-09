@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 uname_M := $(shell uname -m 2>/dev/null || echo not)
 ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/)
 ifeq ($(ARCH),i386)
@@ -11,12 +12,7 @@ endif
 
 CFLAGS += -I../../../../usr/include/
 
-all:
-	$(CC) $(CFLAGS) msgque.c -o msgque_test
-
-TEST_PROGS := msgque_test
+TEST_GEN_PROGS := msgque
 
 include ../lib.mk
 
-clean:
-	rm -fr ./msgque_test

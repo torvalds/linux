@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Intel(R) Trace Hub Global Trace Hub (GTH) data structures
  *
  * Copyright (C) 2014-2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __INTEL_TH_GTH_H__
@@ -55,12 +47,14 @@ enum {
 	REG_GTH_SCRPD1		= 0xe4, /* ScratchPad[1] */
 	REG_GTH_SCRPD2		= 0xe8, /* ScratchPad[2] */
 	REG_GTH_SCRPD3		= 0xec, /* ScratchPad[3] */
+	REG_TSCU_TSUCTRL	= 0x2000, /* TSCU control register */
+	REG_TSCU_TSCUSTAT	= 0x2004, /* TSCU status register */
 };
-
-/* Externall debugger is using Intel TH */
-#define SCRPD_DEBUGGER_IN_USE	BIT(24)
 
 /* waiting for Pipeline Empty bit(s) to assert for GTH */
 #define GTH_PLE_WAITLOOP_DEPTH	10000
+
+#define TSUCTRL_CTCRESYNC	BIT(0)
+#define TSCUSTAT_CTCSYNCING	BIT(1)
 
 #endif /* __INTEL_TH_GTH_H__ */

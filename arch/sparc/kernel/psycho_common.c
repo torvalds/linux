@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* psycho_common.c: Code common to PSYCHO and derivative PCI controllers.
  *
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>

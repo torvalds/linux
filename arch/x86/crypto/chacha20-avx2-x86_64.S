@@ -11,13 +11,18 @@
 
 #include <linux/linkage.h>
 
-.data
+.section	.rodata.cst32.ROT8, "aM", @progbits, 32
 .align 32
-
 ROT8:	.octa 0x0e0d0c0f0a09080b0605040702010003
 	.octa 0x0e0d0c0f0a09080b0605040702010003
+
+.section	.rodata.cst32.ROT16, "aM", @progbits, 32
+.align 32
 ROT16:	.octa 0x0d0c0f0e09080b0a0504070601000302
 	.octa 0x0d0c0f0e09080b0a0504070601000302
+
+.section	.rodata.cst32.CTRINC, "aM", @progbits, 32
+.align 32
 CTRINC:	.octa 0x00000003000000020000000100000000
 	.octa 0x00000007000000060000000500000004
 
@@ -40,7 +45,7 @@ ENTRY(chacha20_8block_xor_avx2)
 
 	vzeroupper
 	# 4 * 32 byte stack, 32-byte aligned
-	mov		%rsp, %r8
+	lea		8(%rsp),%r10
 	and		$~31, %rsp
 	sub		$0x80, %rsp
 
@@ -438,6 +443,6 @@ ENTRY(chacha20_8block_xor_avx2)
 	vmovdqu		%ymm15,0x01e0(%rsi)
 
 	vzeroupper
-	mov		%r8,%rsp
+	lea		-8(%r10),%rsp
 	ret
 ENDPROC(chacha20_8block_xor_avx2)

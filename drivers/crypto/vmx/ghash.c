@@ -26,15 +26,12 @@
 #include <linux/hardirq.h>
 #include <asm/switch_to.h>
 #include <crypto/aes.h>
+#include <crypto/ghash.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/hash.h>
 #include <crypto/b128ops.h>
 
 #define IN_INTERRUPT in_interrupt()
-
-#define GHASH_BLOCK_SIZE (16)
-#define GHASH_DIGEST_SIZE (16)
-#define GHASH_KEY_LEN (16)
 
 void gcm_init_p8(u128 htable[16], const u64 Xi[2]);
 void gcm_gmult_p8(u64 Xi[2], const u128 htable[16]);
@@ -55,15 +52,10 @@ struct p8_ghash_desc_ctx {
 
 static int p8_ghash_init_tfm(struct crypto_tfm *tfm)
 {
-	const char *alg;
+	const char *alg = "ghash-generic";
 	struct crypto_shash *fallback;
 	struct crypto_shash *shash_tfm = __crypto_shash_cast(tfm);
 	struct p8_ghash_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	if (!(alg = crypto_tfm_alg_name(tfm))) {
-		printk(KERN_ERR "Failed to get algorithm name.\n");
-		return -ENOENT;
-	}
 
 	fallback = crypto_alloc_shash(alg, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(fallback)) {
@@ -72,16 +64,22 @@ static int p8_ghash_init_tfm(struct crypto_tfm *tfm)
 		       alg, PTR_ERR(fallback));
 		return PTR_ERR(fallback);
 	}
-	printk(KERN_INFO "Using '%s' as fallback implementation.\n",
-	       crypto_tfm_alg_driver_name(crypto_shash_tfm(fallback)));
 
 	crypto_shash_set_flags(fallback,
 			       crypto_shash_get_flags((struct crypto_shash
 						       *) tfm));
-	ctx->fallback = fallback;
 
-	shash_tfm->descsize = sizeof(struct p8_ghash_desc_ctx)
-	    + crypto_shash_descsize(fallback);
+	/* Check if the descsize defined in the algorithm is still enough. */
+	if (shash_tfm->descsize < sizeof(struct p8_ghash_desc_ctx)
+	    + crypto_shash_descsize(fallback)) {
+		printk(KERN_ERR
+		       "Desc size of the fallback implementation (%s) does not match the expected value: %lu vs %u\n",
+		       alg,
+		       shash_tfm->descsize - sizeof(struct p8_ghash_desc_ctx),
+		       crypto_shash_descsize(fallback));
+		return -EINVAL;
+	}
+	ctx->fallback = fallback;
 
 	return 0;
 }
@@ -113,15 +111,14 @@ static int p8_ghash_setkey(struct crypto_shash *tfm, const u8 *key,
 {
 	struct p8_ghash_ctx *ctx = crypto_tfm_ctx(crypto_shash_tfm(tfm));
 
-	if (keylen != GHASH_KEY_LEN)
+	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
 
 	preempt_disable();
 	pagefault_disable();
-	enable_kernel_altivec();
 	enable_kernel_vsx();
-	enable_kernel_fp();
 	gcm_init_p8(ctx->htable, (const u64 *) key);
+	disable_kernel_vsx();
 	pagefault_enable();
 	preempt_enable();
 	return crypto_shash_setkey(ctx->fallback, key, keylen);
@@ -149,11 +146,10 @@ static int p8_ghash_update(struct shash_desc *desc,
 			       GHASH_DIGEST_SIZE - dctx->bytes);
 			preempt_disable();
 			pagefault_disable();
-			enable_kernel_altivec();
 			enable_kernel_vsx();
-			enable_kernel_fp();
 			gcm_ghash_p8(dctx->shash, ctx->htable,
 				     dctx->buffer, GHASH_DIGEST_SIZE);
+			disable_kernel_vsx();
 			pagefault_enable();
 			preempt_enable();
 			src += GHASH_DIGEST_SIZE - dctx->bytes;
@@ -164,10 +160,9 @@ static int p8_ghash_update(struct shash_desc *desc,
 		if (len) {
 			preempt_disable();
 			pagefault_disable();
-			enable_kernel_altivec();
 			enable_kernel_vsx();
-			enable_kernel_fp();
 			gcm_ghash_p8(dctx->shash, ctx->htable, src, len);
+			disable_kernel_vsx();
 			pagefault_enable();
 			preempt_enable();
 			src += len;
@@ -195,11 +190,10 @@ static int p8_ghash_final(struct shash_desc *desc, u8 *out)
 				dctx->buffer[i] = 0;
 			preempt_disable();
 			pagefault_disable();
-			enable_kernel_altivec();
 			enable_kernel_vsx();
-			enable_kernel_fp();
 			gcm_ghash_p8(dctx->shash, ctx->htable,
 				     dctx->buffer, GHASH_DIGEST_SIZE);
+			disable_kernel_vsx();
 			pagefault_enable();
 			preempt_enable();
 			dctx->bytes = 0;
@@ -215,12 +209,13 @@ struct shash_alg p8_ghash_alg = {
 	.update = p8_ghash_update,
 	.final = p8_ghash_final,
 	.setkey = p8_ghash_setkey,
-	.descsize = sizeof(struct p8_ghash_desc_ctx),
+	.descsize = sizeof(struct p8_ghash_desc_ctx)
+		+ sizeof(struct ghash_desc_ctx),
 	.base = {
 		 .cra_name = "ghash",
 		 .cra_driver_name = "p8_ghash",
 		 .cra_priority = 1000,
-		 .cra_flags = CRYPTO_ALG_TYPE_SHASH | CRYPTO_ALG_NEED_FALLBACK,
+		 .cra_flags = CRYPTO_ALG_NEED_FALLBACK,
 		 .cra_blocksize = GHASH_BLOCK_SIZE,
 		 .cra_ctxsize = sizeof(struct p8_ghash_ctx),
 		 .cra_module = THIS_MODULE,

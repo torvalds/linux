@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/nfs/cache_lib.c
  *
@@ -66,7 +67,7 @@ out:
  */
 void nfs_cache_defer_req_put(struct nfs_cache_defer_req *dreq)
 {
-	if (atomic_dec_and_test(&dreq->count))
+	if (refcount_dec_and_test(&dreq->count))
 		kfree(dreq);
 }
 
@@ -76,7 +77,7 @@ static void nfs_dns_cache_revisit(struct cache_deferred_req *d, int toomany)
 
 	dreq = container_of(d, struct nfs_cache_defer_req, deferred_req);
 
-	complete_all(&dreq->completion);
+	complete(&dreq->completion);
 	nfs_cache_defer_req_put(dreq);
 }
 
@@ -86,7 +87,7 @@ static struct cache_deferred_req *nfs_dns_cache_defer(struct cache_req *req)
 
 	dreq = container_of(req, struct nfs_cache_defer_req, req);
 	dreq->deferred_req.revisit = nfs_dns_cache_revisit;
-	atomic_inc(&dreq->count);
+	refcount_inc(&dreq->count);
 
 	return &dreq->deferred_req;
 }
@@ -98,7 +99,7 @@ struct nfs_cache_defer_req *nfs_cache_defer_req_alloc(void)
 	dreq = kzalloc(sizeof(*dreq), GFP_KERNEL);
 	if (dreq) {
 		init_completion(&dreq->completion);
-		atomic_set(&dreq->count, 1);
+		refcount_set(&dreq->count, 1);
 		dreq->req.defer = nfs_dns_cache_defer;
 	}
 	return dreq;
@@ -141,8 +142,7 @@ int nfs_cache_register_net(struct net *net, struct cache_detail *cd)
 
 void nfs_cache_unregister_sb(struct super_block *sb, struct cache_detail *cd)
 {
-	if (cd->u.pipefs.dir)
-		sunrpc_cache_unregister_pipefs(cd);
+	sunrpc_cache_unregister_pipefs(cd);
 }
 
 void nfs_cache_unregister_net(struct net *net, struct cache_detail *cd)

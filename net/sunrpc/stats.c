@@ -24,6 +24,8 @@
 #include <linux/sunrpc/metrics.h>
 #include <linux/rcupdate.h>
 
+#include <trace/events/sunrpc.h>
+
 #include "netns.h"
 
 #define RPCDBG_FACILITY	RPCDBG_MISC
@@ -55,8 +57,7 @@ static int rpc_proc_show(struct seq_file *seq, void *v) {
 		seq_printf(seq, "proc%u %u",
 					vers->number, vers->nrprocs);
 		for (j = 0; j < vers->nrprocs; j++)
-			seq_printf(seq, " %u",
-					vers->procs[j].p_count);
+			seq_printf(seq, " %u", vers->counts[j]);
 		seq_putc(seq, '\n');
 	}
 	return 0;
@@ -78,9 +79,9 @@ static const struct file_operations rpc_proc_fops = {
 /*
  * Get RPC server stats
  */
-void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
+void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp)
+{
 	const struct svc_program *prog = statp->program;
-	const struct svc_procedure *proc;
 	const struct svc_version *vers;
 	unsigned int i, j;
 
@@ -99,11 +100,12 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
 			statp->rpcbadclnt);
 
 	for (i = 0; i < prog->pg_nvers; i++) {
-		if (!(vers = prog->pg_vers[i]) || !(proc = vers->vs_proc))
+		vers = prog->pg_vers[i];
+		if (!vers)
 			continue;
 		seq_printf(seq, "proc%d %u", i, vers->vs_nproc);
-		for (j = 0; j < vers->vs_nproc; j++, proc++)
-			seq_printf(seq, " %u", proc->pc_count);
+		for (j = 0; j < vers->vs_nproc; j++)
+			seq_printf(seq, " %u", vers->vs_count[j]);
 		seq_putc(seq, '\n');
 	}
 }
@@ -148,7 +150,7 @@ void rpc_count_iostats_metrics(const struct rpc_task *task,
 			       struct rpc_iostats *op_metrics)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	ktime_t delta, now;
+	ktime_t backlog, execute, now;
 
 	if (!op_metrics || !req)
 		return;
@@ -157,21 +159,27 @@ void rpc_count_iostats_metrics(const struct rpc_task *task,
 	spin_lock(&op_metrics->om_lock);
 
 	op_metrics->om_ops++;
-	op_metrics->om_ntrans += req->rq_ntrans;
+	/* kernel API: om_ops must never become larger than om_ntrans */
+	op_metrics->om_ntrans += max(req->rq_ntrans, 1);
 	op_metrics->om_timeouts += task->tk_timeouts;
 
 	op_metrics->om_bytes_sent += req->rq_xmit_bytes_sent;
 	op_metrics->om_bytes_recv += req->rq_reply_bytes_recvd;
 
-	delta = ktime_sub(req->rq_xtime, task->tk_start);
-	op_metrics->om_queue = ktime_add(op_metrics->om_queue, delta);
+	backlog = 0;
+	if (ktime_to_ns(req->rq_xtime)) {
+		backlog = ktime_sub(req->rq_xtime, task->tk_start);
+		op_metrics->om_queue = ktime_add(op_metrics->om_queue, backlog);
+	}
 
 	op_metrics->om_rtt = ktime_add(op_metrics->om_rtt, req->rq_rtt);
 
-	delta = ktime_sub(now, task->tk_start);
-	op_metrics->om_execute = ktime_add(op_metrics->om_execute, delta);
+	execute = ktime_sub(now, task->tk_start);
+	op_metrics->om_execute = ktime_add(op_metrics->om_execute, execute);
 
 	spin_unlock(&op_metrics->om_lock);
+
+	trace_rpc_stats_latency(req->rq_task, backlog, req->rq_rtt, execute);
 }
 EXPORT_SYMBOL_GPL(rpc_count_iostats_metrics);
 
@@ -190,7 +198,7 @@ void rpc_count_iostats(const struct rpc_task *task, struct rpc_iostats *stats)
 EXPORT_SYMBOL_GPL(rpc_count_iostats);
 
 static void _print_name(struct seq_file *seq, unsigned int op,
-			struct rpc_procinfo *procs)
+			const struct rpc_procinfo *procs)
 {
 	if (procs[op].p_name)
 		seq_printf(seq, "\t%12s: ", procs[op].p_name);
@@ -200,13 +208,39 @@ static void _print_name(struct seq_file *seq, unsigned int op,
 		seq_printf(seq, "\t%12u: ", op);
 }
 
-void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt)
+static void _add_rpc_iostats(struct rpc_iostats *a, struct rpc_iostats *b)
 {
-	struct rpc_iostats *stats = clnt->cl_metrics;
+	a->om_ops += b->om_ops;
+	a->om_ntrans += b->om_ntrans;
+	a->om_timeouts += b->om_timeouts;
+	a->om_bytes_sent += b->om_bytes_sent;
+	a->om_bytes_recv += b->om_bytes_recv;
+	a->om_queue = ktime_add(a->om_queue, b->om_queue);
+	a->om_rtt = ktime_add(a->om_rtt, b->om_rtt);
+	a->om_execute = ktime_add(a->om_execute, b->om_execute);
+}
+
+static void _print_rpc_iostats(struct seq_file *seq, struct rpc_iostats *stats,
+			       int op, const struct rpc_procinfo *procs)
+{
+	_print_name(seq, op, procs);
+	seq_printf(seq, "%lu %lu %lu %Lu %Lu %Lu %Lu %Lu\n",
+		   stats->om_ops,
+		   stats->om_ntrans,
+		   stats->om_timeouts,
+		   stats->om_bytes_sent,
+		   stats->om_bytes_recv,
+		   ktime_to_ms(stats->om_queue),
+		   ktime_to_ms(stats->om_rtt),
+		   ktime_to_ms(stats->om_execute));
+}
+
+void rpc_clnt_show_stats(struct seq_file *seq, struct rpc_clnt *clnt)
+{
 	struct rpc_xprt *xprt;
 	unsigned int op, maxproc = clnt->cl_maxproc;
 
-	if (!stats)
+	if (!clnt->cl_metrics)
 		return;
 
 	seq_printf(seq, "\tRPC iostats version: %s  ", RPC_IOSTATS_VERS);
@@ -221,20 +255,18 @@ void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt)
 
 	seq_printf(seq, "\tper-op statistics\n");
 	for (op = 0; op < maxproc; op++) {
-		struct rpc_iostats *metrics = &stats[op];
-		_print_name(seq, op, clnt->cl_procinfo);
-		seq_printf(seq, "%lu %lu %lu %Lu %Lu %Lu %Lu %Lu\n",
-				metrics->om_ops,
-				metrics->om_ntrans,
-				metrics->om_timeouts,
-				metrics->om_bytes_sent,
-				metrics->om_bytes_recv,
-				ktime_to_ms(metrics->om_queue),
-				ktime_to_ms(metrics->om_rtt),
-				ktime_to_ms(metrics->om_execute));
+		struct rpc_iostats stats = {};
+		struct rpc_clnt *next = clnt;
+		do {
+			_add_rpc_iostats(&stats, &next->cl_metrics[op]);
+			if (next == next->cl_parent)
+				break;
+			next = next->cl_parent;
+		} while (next);
+		_print_rpc_iostats(seq, &stats, op, clnt->cl_procinfo);
 	}
 }
-EXPORT_SYMBOL_GPL(rpc_print_iostats);
+EXPORT_SYMBOL_GPL(rpc_clnt_show_stats);
 
 /*
  * Register/unregister RPC proc files
@@ -302,4 +334,3 @@ void rpc_proc_exit(struct net *net)
 	dprintk("RPC:       unregistering /proc/net/rpc\n");
 	remove_proc_entry("rpc", net->proc_net);
 }
-

@@ -1,0 +1,8 @@
+What:		/sys/bus/pci/drivers/altera-cvp/chkcfg
+Date:		May 2017
+Kernel Version:	4.13
+Contact:	Anatolij Gustschin <agust@denx.de>
+Description:
+		Contains either 1 or 0 and controls if configuration
+		error checking in altera-cvp driver is turned on or
+		off.

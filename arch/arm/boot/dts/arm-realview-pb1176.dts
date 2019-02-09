@@ -53,6 +53,14 @@
 		regulator-boot-on;
         };
 
+	veth: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "veth";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+	};
+
 	xtal24mhz: xtal24mhz@24M {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
@@ -104,6 +112,90 @@
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <0>;
+	};
+
+	flash@30000000 {
+		compatible = "arm,versatile-flash", "cfi-flash";
+		reg = <0x30000000 0x4000000>;
+		bank-width = <4>;
+	};
+
+	fpga_flash@38000000 {
+		compatible = "arm,versatile-flash", "cfi-flash";
+		reg = <0x38000000 0x800000>;
+		bank-width = <4>;
+	};
+
+	/*
+	 * The "secure flash" contains things like the boot
+	 * monitor so we don't want people to accidentally
+	 * screw this up. Mark the device tree node disabled
+	 * by default.
+	 */
+	secflash@3c000000 {
+		compatible = "arm,versatile-flash", "cfi-flash";
+		reg = <0x3c000000 0x4000000>;
+		bank-width = <4>;
+		status = "disabled";
+	};
+
+	/* SMSC 9118 ethernet with PHY and EEPROM */
+	ethernet@3a000000 {
+		compatible = "smsc,lan9118", "smsc,lan9115";
+		reg = <0x3a000000 0x10000>;
+		interrupt-parent = <&intc_fpga1176>;
+		interrupts = <0 10 IRQ_TYPE_LEVEL_HIGH>;
+		phy-mode = "mii";
+		reg-io-width = <4>;
+		smsc,irq-active-high;
+		smsc,irq-push-pull;
+		vdd33a-supply = <&veth>;
+		vddvario-supply = <&veth>;
+	};
+
+	usb@3b000000 {
+		compatible = "nxp,usb-isp1761";
+		reg = <0x3b000000 0x20000>;
+		interrupt-parent = <&intc_fpga1176>;
+		interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
+		port1-otg;
+	};
+
+	bridge {
+		compatible = "ti,ths8134a", "ti,ths8134";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				vga_bridge_in: endpoint {
+					remote-endpoint = <&clcd_pads>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				vga_bridge_out: endpoint {
+					remote-endpoint = <&vga_con_in>;
+				};
+			};
+		};
+	};
+
+	vga {
+		compatible = "vga-connector";
+
+		port {
+			vga_con_in: endpoint {
+				remote-endpoint = <&vga_bridge_out>;
+			};
+		};
 	};
 
 	soc {
@@ -175,6 +267,41 @@
 				mask = <0x80>;
 				label = "versatile:7";
 				default-state = "off";
+			};
+			oscclk0: osc0@0c {
+				compatible = "arm,syscon-icst307";
+				#clock-cells = <0>;
+				lock-offset = <0x20>;
+				vco-offset = <0x0C>;
+				clocks = <&xtal24mhz>;
+			};
+			oscclk1: osc1@10 {
+				compatible = "arm,syscon-icst307";
+				#clock-cells = <0>;
+				lock-offset = <0x20>;
+				vco-offset = <0x10>;
+				clocks = <&xtal24mhz>;
+			};
+			oscclk2: osc2@14 {
+				compatible = "arm,syscon-icst307";
+				#clock-cells = <0>;
+				lock-offset = <0x20>;
+				vco-offset = <0x14>;
+				clocks = <&xtal24mhz>;
+			};
+			oscclk3: osc3@18 {
+				compatible = "arm,syscon-icst307";
+				#clock-cells = <0>;
+				lock-offset = <0x20>;
+				vco-offset = <0x18>;
+				clocks = <&xtal24mhz>;
+			};
+			oscclk4: osc4@1c {
+				compatible = "arm,syscon-icst307";
+				#clock-cells = <0>;
+				lock-offset = <0x20>;
+				vco-offset = <0x1c>;
+				clocks = <&xtal24mhz>;
 			};
 		};
 
@@ -297,6 +424,32 @@
 			clocks = <&uartclk>, <&pclk>;
 			clock-names = "uartclk", "apb_pclk";
 		};
+
+		/* Direct-mapped development chip ROM */
+		pb1176_rom@10200000 {
+			compatible = "direct-mapped";
+			reg = <0x10200000 0x4000>;
+			bank-width = <1>;
+		};
+
+		clcd@10112000 {
+			compatible = "arm,pl111", "arm,primecell";
+			reg = <0x10112000 0x1000>;
+			interrupt-parent = <&intc_dc1176>;
+			interrupt-names = "combined";
+			interrupts = <0 47 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&oscclk0>, <&pclk>;
+			clock-names = "clcdclk", "apb_pclk";
+			/* 1024x768 16bpp @65MHz works fine */
+			max-memory-bandwidth = <95000000>;
+
+			port {
+				clcd_pads: endpoint {
+					remote-endpoint = <&vga_bridge_in>;
+					arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+				};
+			};
+		};
 	};
 
 	/* These peripherals are inside the FPGA rather than the DevChip */
@@ -305,6 +458,27 @@
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		ranges;
+
+		i2c0: i2c@10002000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "arm,versatile-i2c";
+			reg = <0x10002000 0x1000>;
+
+			rtc@68 {
+				compatible = "dallas,ds1338";
+				reg = <0x68>;
+			};
+		};
+
+		fpga_aaci: aaci@10004000 {
+			compatible = "arm,pl041", "arm,primecell";
+			reg = <0x10004000 0x1000>;
+			interrupt-parent = <&intc_fpga1176>;
+			interrupts = <0 19 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
 
 		fpga_mci: mmcsd@10005000 {
 			compatible = "arm,pl18x", "arm,primecell";
@@ -406,7 +580,5 @@
 			clocks = <&pclk>;
 			clock-names = "apb_pclk";
 		};
-
-
 	};
 };

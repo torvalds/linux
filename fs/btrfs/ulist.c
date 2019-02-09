@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011 STRATO AG
  * written by Arne Jansen <sensille@gmx.net>
- * Distributed under the GNU GPL license version 2.
  */
 
 #include <linux/slab.h>
@@ -28,7 +28,7 @@
  * }
  * ulist_free(ulist);
  *
- * This assumes the graph nodes are adressable by u64. This stems from the
+ * This assumes the graph nodes are addressable by u64. This stems from the
  * usage for tree enumeration in btrfs, where the logical addresses are
  * 64 bit.
  *
@@ -52,13 +52,13 @@ void ulist_init(struct ulist *ulist)
 }
 
 /**
- * ulist_fini - free up additionally allocated memory for the ulist
+ * ulist_release - free up additionally allocated memory for the ulist
  * @ulist:	the ulist from which to free the additional memory
  *
  * This is useful in cases where the base 'struct ulist' has been statically
  * allocated.
  */
-static void ulist_fini(struct ulist *ulist)
+void ulist_release(struct ulist *ulist)
 {
 	struct ulist_node *node;
 	struct ulist_node *next;
@@ -79,7 +79,7 @@ static void ulist_fini(struct ulist *ulist)
  */
 void ulist_reinit(struct ulist *ulist)
 {
-	ulist_fini(ulist);
+	ulist_release(ulist);
 	ulist_init(ulist);
 }
 
@@ -105,13 +105,13 @@ struct ulist *ulist_alloc(gfp_t gfp_mask)
  * ulist_free - free dynamically allocated ulist
  * @ulist:	ulist to free
  *
- * It is not necessary to call ulist_fini before.
+ * It is not necessary to call ulist_release before.
  */
 void ulist_free(struct ulist *ulist)
 {
 	if (!ulist)
 		return;
-	ulist_fini(ulist);
+	ulist_release(ulist);
 	kfree(ulist);
 }
 

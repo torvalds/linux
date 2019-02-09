@@ -10,33 +10,25 @@
  */
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "cirrus_drv.h"
 
-
-static void cirrus_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct cirrus_framebuffer *cirrus_fb = to_cirrus_framebuffer(fb);
-	if (cirrus_fb->obj)
-		drm_gem_object_unreference_unlocked(cirrus_fb->obj);
-	drm_framebuffer_cleanup(fb);
-	kfree(fb);
-}
-
 static const struct drm_framebuffer_funcs cirrus_fb_funcs = {
-	.destroy = cirrus_user_framebuffer_destroy,
+	.create_handle = drm_gem_fb_create_handle,
+	.destroy = drm_gem_fb_destroy,
 };
 
 int cirrus_framebuffer_init(struct drm_device *dev,
-			    struct cirrus_framebuffer *gfb,
-			    struct drm_mode_fb_cmd2 *mode_cmd,
+			    struct drm_framebuffer *gfb,
+			    const struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct drm_gem_object *obj)
 {
 	int ret;
 
-	drm_helper_mode_fill_fb_struct(&gfb->base, mode_cmd);
-	gfb->obj = obj;
-	ret = drm_framebuffer_init(dev, &gfb->base, &cirrus_fb_funcs);
+	drm_helper_mode_fill_fb_struct(dev, gfb, mode_cmd);
+	gfb->obj[0] = obj;
+	ret = drm_framebuffer_init(dev, gfb, &cirrus_fb_funcs);
 	if (ret) {
 		DRM_ERROR("drm_framebuffer_init failed: %d\n", ret);
 		return ret;
@@ -47,37 +39,37 @@ int cirrus_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 cirrus_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_file *filp,
-			       struct drm_mode_fb_cmd2 *mode_cmd)
+			       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct cirrus_device *cdev = dev->dev_private;
 	struct drm_gem_object *obj;
-	struct cirrus_framebuffer *cirrus_fb;
+	struct drm_framebuffer *fb;
+	u32 bpp;
 	int ret;
-	u32 bpp, depth;
 
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	bpp = drm_format_plane_cpp(mode_cmd->pixel_format, 0) * 8;
 
 	if (!cirrus_check_framebuffer(cdev, mode_cmd->width, mode_cmd->height,
 				      bpp, mode_cmd->pitches[0]))
 		return ERR_PTR(-EINVAL);
 
-	obj = drm_gem_object_lookup(dev, filp, mode_cmd->handles[0]);
+	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
 
-	cirrus_fb = kzalloc(sizeof(*cirrus_fb), GFP_KERNEL);
-	if (!cirrus_fb) {
-		drm_gem_object_unreference_unlocked(obj);
+	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	if (!fb) {
+		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret = cirrus_framebuffer_init(dev, cirrus_fb, mode_cmd, obj);
+	ret = cirrus_framebuffer_init(dev, fb, mode_cmd, obj);
 	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
-		kfree(cirrus_fb);
+		drm_gem_object_put_unlocked(obj);
+		kfree(fb);
 		return ERR_PTR(ret);
 	}
-	return &cirrus_fb->base;
+	return fb;
 }
 
 static const struct drm_mode_config_funcs cirrus_mode_funcs = {
@@ -185,13 +177,22 @@ int cirrus_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out;
 	}
 
+	/*
+	 * cirrus_modeset_init() is initializing/registering the emulated fbdev
+	 * and DRM internals can access/test some of the fields in
+	 * mode_config->funcs as part of the fbdev registration process.
+	 * Make sure dev->mode_config.funcs is properly set to avoid
+	 * dereferencing a NULL pointer.
+	 * FIXME: mode_config.funcs assignment should probably be done in
+	 * cirrus_modeset_init() (that's a common pattern seen in other DRM
+	 * drivers).
+	 */
+	dev->mode_config.funcs = &cirrus_mode_funcs;
 	r = cirrus_modeset_init(cdev);
 	if (r) {
 		dev_err(&dev->pdev->dev, "Fatal error during modeset init: %d\n", r);
 		goto out;
 	}
-
-	dev->mode_config.funcs = (void *)&cirrus_mode_funcs;
 
 	return 0;
 out:
@@ -199,18 +200,17 @@ out:
 	return r;
 }
 
-int cirrus_driver_unload(struct drm_device *dev)
+void cirrus_driver_unload(struct drm_device *dev)
 {
 	struct cirrus_device *cdev = dev->dev_private;
 
 	if (cdev == NULL)
-		return 0;
+		return;
 	cirrus_modeset_fini(cdev);
 	cirrus_mm_fini(cdev);
 	cirrus_device_fini(cdev);
 	kfree(cdev);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 int cirrus_gem_create(struct drm_device *dev,
@@ -253,7 +253,7 @@ int cirrus_dumb_create(struct drm_file *file,
 		return ret;
 
 	ret = drm_gem_handle_create(file, gobj, &handle);
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 	if (ret)
 		return ret;
 
@@ -295,14 +295,14 @@ cirrus_dumb_mmap_offset(struct drm_file *file,
 	struct drm_gem_object *obj;
 	struct cirrus_bo *bo;
 
-	obj = drm_gem_object_lookup(dev, file, handle);
+	obj = drm_gem_object_lookup(file, handle);
 	if (obj == NULL)
 		return -ENOENT;
 
 	bo = gem_to_cirrus_bo(obj);
 	*offset = cirrus_bo_mmap_offset(bo);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return 0;
 }

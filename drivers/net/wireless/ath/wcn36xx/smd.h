@@ -24,7 +24,7 @@
 
 #define WCN36XX_HAL_BUF_SIZE				4096
 
-#define HAL_MSG_TIMEOUT 500
+#define HAL_MSG_TIMEOUT 10000
 #define WCN36XX_SMSM_WLAN_TX_ENABLE			0x00000400
 #define WCN36XX_SMSM_WLAN_TX_RINGS_EMPTY		0x00000200
 /* The PNO version info be contained in the rsp msg */
@@ -46,11 +46,12 @@ struct wcn36xx_fw_msg_status_rsp {
 
 struct wcn36xx_hal_ind_msg {
 	struct list_head list;
-	u8 *msg;
 	size_t msg_len;
+	u8 msg[];
 };
 
 struct wcn36xx;
+struct rpmsg_device;
 
 int wcn36xx_smd_open(struct wcn36xx *wcn);
 void wcn36xx_smd_close(struct wcn36xx *wcn);
@@ -59,11 +60,14 @@ int wcn36xx_smd_load_nv(struct wcn36xx *wcn);
 int wcn36xx_smd_start(struct wcn36xx *wcn);
 int wcn36xx_smd_stop(struct wcn36xx *wcn);
 int wcn36xx_smd_init_scan(struct wcn36xx *wcn, enum wcn36xx_hal_sys_mode mode);
-int wcn36xx_smd_start_scan(struct wcn36xx *wcn);
-int wcn36xx_smd_end_scan(struct wcn36xx *wcn);
+int wcn36xx_smd_start_scan(struct wcn36xx *wcn, u8 scan_channel);
+int wcn36xx_smd_end_scan(struct wcn36xx *wcn, u8 scan_channel);
 int wcn36xx_smd_finish_scan(struct wcn36xx *wcn,
 			    enum wcn36xx_hal_sys_mode mode);
-int wcn36xx_smd_update_scan_params(struct wcn36xx *wcn);
+int wcn36xx_smd_update_scan_params(struct wcn36xx *wcn, u8 *channels, size_t channel_count);
+int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
+			      struct cfg80211_scan_request *req);
+int wcn36xx_smd_stop_hw_scan(struct wcn36xx *wcn);
 int wcn36xx_smd_add_sta_self(struct wcn36xx *wcn, struct ieee80211_vif *vif);
 int wcn36xx_smd_delete_sta_self(struct wcn36xx *wcn, u8 *addr);
 int wcn36xx_smd_delete_sta(struct wcn36xx *wcn, u8 sta_index);
@@ -82,6 +86,10 @@ int wcn36xx_smd_send_beacon(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 			    u16 p2p_off);
 int wcn36xx_smd_switch_channel(struct wcn36xx *wcn,
 			       struct ieee80211_vif *vif, int ch);
+int wcn36xx_smd_process_ptt_msg(struct wcn36xx *wcn,
+				struct ieee80211_vif *vif,
+				void *ptt_msg, size_t len,
+				void **ptt_rsp_msg);
 int wcn36xx_smd_update_proberesp_tmpl(struct wcn36xx *wcn,
 				      struct ieee80211_vif *vif,
 				      struct sk_buff *skb);
@@ -93,6 +101,7 @@ int wcn36xx_smd_set_stakey(struct wcn36xx *wcn,
 			   u8 sta_index);
 int wcn36xx_smd_set_bsskey(struct wcn36xx *wcn,
 			   enum ani_ed_type enc_type,
+			   u8 bssidx,
 			   u8 keyidx,
 			   u8 keylen,
 			   u8 *key);
@@ -102,6 +111,7 @@ int wcn36xx_smd_remove_stakey(struct wcn36xx *wcn,
 			      u8 sta_index);
 int wcn36xx_smd_remove_bsskey(struct wcn36xx *wcn,
 			      enum ani_ed_type enc_type,
+			      u8 bssidx,
 			      u8 keyidx);
 int wcn36xx_smd_enter_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif);
 int wcn36xx_smd_exit_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif);
@@ -127,4 +137,11 @@ int wcn36xx_smd_del_ba(struct wcn36xx *wcn, u16 tid, u8 sta_index);
 int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index);
 
 int wcn36xx_smd_update_cfg(struct wcn36xx *wcn, u32 cfg_id, u32 value);
+
+int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
+			    void *buf, int len, void *priv, u32 addr);
+
+int wcn36xx_smd_set_mc_list(struct wcn36xx *wcn,
+			    struct ieee80211_vif *vif,
+			    struct wcn36xx_hal_rcv_flt_mc_addr_list_type *fp);
 #endif	/* _SMD_H_ */

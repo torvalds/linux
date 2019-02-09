@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *  arch/arm/include/asm/ptrace.h
  *
@@ -31,6 +32,10 @@
 #define PTRACE_SETVFPREGS	28
 #define PTRACE_GETHBPREGS	29
 #define PTRACE_SETHBPREGS	30
+#define PTRACE_GETFDPIC		31
+
+#define PTRACE_GETFDPIC_EXEC	0
+#define PTRACE_GETFDPIC_INTERP	1
 
 /*
  * PSR bits
@@ -53,6 +58,7 @@
 #endif
 #define FIQ_MODE	0x00000011
 #define IRQ_MODE	0x00000012
+#define MON_MODE	0x00000016
 #define ABT_MODE	0x00000017
 #define HYP_MODE	0x0000001a
 #define UND_MODE	0x0000001b

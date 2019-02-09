@@ -44,7 +44,7 @@ static struct fb_fix_screeninfo kyro_fix = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo kyro_var = {
+static const struct fb_var_screeninfo kyro_var = {
 	/* 640x480, 16bpp @ 60 Hz */
 	.xres		= 640,
 	.yres		= 480,
@@ -633,7 +633,7 @@ static int kyrofb_ioctl(struct fb_info *info,
 	return 0;
 }
 
-static struct pci_device_id kyrofb_pci_tbl[] = {
+static const struct pci_device_id kyrofb_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ST, PCI_DEVICE_ID_STG4000,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0, }

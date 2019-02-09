@@ -285,6 +285,14 @@ enum host_event_code {
 	EC_HOST_EVENT_HANG_DETECT = 20,
 	/* Hang detect logic detected a hang and warm rebooted the AP */
 	EC_HOST_EVENT_HANG_REBOOT = 21,
+	/* PD MCU triggering host event */
+	EC_HOST_EVENT_PD_MCU = 22,
+
+	/* EC desires to change state of host-controlled USB mux */
+	EC_HOST_EVENT_USB_MUX = 28,
+
+	/* EC RTC event occurred */
+	EC_HOST_EVENT_RTC = 26,
 
 	/*
 	 * The high bit of the event mask is not used as a host event code.  If
@@ -625,6 +633,10 @@ struct ec_params_get_cmd_versions {
 	uint8_t cmd;      /* Command to check */
 } __packed;
 
+struct ec_params_get_cmd_versions_v1 {
+	uint16_t cmd;     /* Command to check */
+} __packed;
+
 struct ec_response_get_cmd_versions {
 	/*
 	 * Mask of supported versions; use EC_VER_MASK() to compare with a
@@ -713,6 +725,94 @@ struct ec_response_get_set_value {
 /* More than one command can use these structs to get/set paramters. */
 #define EC_CMD_GSV_PAUSE_IN_S5	0x0c
 
+/*****************************************************************************/
+/* List the features supported by the firmware */
+#define EC_CMD_GET_FEATURES  0x0d
+
+/* Supported features */
+enum ec_feature_code {
+	/*
+	 * This image contains a limited set of features. Another image
+	 * in RW partition may support more features.
+	 */
+	EC_FEATURE_LIMITED = 0,
+	/*
+	 * Commands for probing/reading/writing/erasing the flash in the
+	 * EC are present.
+	 */
+	EC_FEATURE_FLASH = 1,
+	/*
+	 * Can control the fan speed directly.
+	 */
+	EC_FEATURE_PWM_FAN = 2,
+	/*
+	 * Can control the intensity of the keyboard backlight.
+	 */
+	EC_FEATURE_PWM_KEYB = 3,
+	/*
+	 * Support Google lightbar, introduced on Pixel.
+	 */
+	EC_FEATURE_LIGHTBAR = 4,
+	/* Control of LEDs  */
+	EC_FEATURE_LED = 5,
+	/* Exposes an interface to control gyro and sensors.
+	 * The host goes through the EC to access these sensors.
+	 * In addition, the EC may provide composite sensors, like lid angle.
+	 */
+	EC_FEATURE_MOTION_SENSE = 6,
+	/* The keyboard is controlled by the EC */
+	EC_FEATURE_KEYB = 7,
+	/* The AP can use part of the EC flash as persistent storage. */
+	EC_FEATURE_PSTORE = 8,
+	/* The EC monitors BIOS port 80h, and can return POST codes. */
+	EC_FEATURE_PORT80 = 9,
+	/*
+	 * Thermal management: include TMP specific commands.
+	 * Higher level than direct fan control.
+	 */
+	EC_FEATURE_THERMAL = 10,
+	/* Can switch the screen backlight on/off */
+	EC_FEATURE_BKLIGHT_SWITCH = 11,
+	/* Can switch the wifi module on/off */
+	EC_FEATURE_WIFI_SWITCH = 12,
+	/* Monitor host events, through for example SMI or SCI */
+	EC_FEATURE_HOST_EVENTS = 13,
+	/* The EC exposes GPIO commands to control/monitor connected devices. */
+	EC_FEATURE_GPIO = 14,
+	/* The EC can send i2c messages to downstream devices. */
+	EC_FEATURE_I2C = 15,
+	/* Command to control charger are included */
+	EC_FEATURE_CHARGER = 16,
+	/* Simple battery support. */
+	EC_FEATURE_BATTERY = 17,
+	/*
+	 * Support Smart battery protocol
+	 * (Common Smart Battery System Interface Specification)
+	 */
+	EC_FEATURE_SMART_BATTERY = 18,
+	/* EC can dectect when the host hangs. */
+	EC_FEATURE_HANG_DETECT = 19,
+	/* Report power information, for pit only */
+	EC_FEATURE_PMU = 20,
+	/* Another Cros EC device is present downstream of this one */
+	EC_FEATURE_SUB_MCU = 21,
+	/* Support USB Power delivery (PD) commands */
+	EC_FEATURE_USB_PD = 22,
+	/* Control USB multiplexer, for audio through USB port for instance. */
+	EC_FEATURE_USB_MUX = 23,
+	/* Motion Sensor code has an internal software FIFO */
+	EC_FEATURE_MOTION_SENSE_FIFO = 24,
+	/* EC has RTC feature that can be controlled by host commands */
+	EC_FEATURE_RTC = 27,
+	/* EC supports CEC commands */
+	EC_FEATURE_CEC = 35,
+};
+
+#define EC_FEATURE_MASK_0(event_code) (1UL << (event_code % 32))
+#define EC_FEATURE_MASK_1(event_code) (1UL << (event_code - 32))
+struct ec_response_get_features {
+	uint32_t flags[2];
+} __packed;
 
 /*****************************************************************************/
 /* Flash commands */
@@ -949,6 +1049,37 @@ struct ec_params_pwm_set_fan_duty {
 	uint32_t percent;
 } __packed;
 
+#define EC_CMD_PWM_SET_DUTY 0x25
+/* 16 bit duty cycle, 0xffff = 100% */
+#define EC_PWM_MAX_DUTY 0xffff
+
+enum ec_pwm_type {
+	/* All types, indexed by board-specific enum pwm_channel */
+	EC_PWM_TYPE_GENERIC = 0,
+	/* Keyboard backlight */
+	EC_PWM_TYPE_KB_LIGHT,
+	/* Display backlight */
+	EC_PWM_TYPE_DISPLAY_LIGHT,
+	EC_PWM_TYPE_COUNT,
+};
+
+struct ec_params_pwm_set_duty {
+	uint16_t duty;     /* Duty cycle, EC_PWM_MAX_DUTY = 100% */
+	uint8_t pwm_type;  /* ec_pwm_type */
+	uint8_t index;     /* Type-specific index, or 0 if unique */
+} __packed;
+
+#define EC_CMD_PWM_GET_DUTY 0x26
+
+struct ec_params_pwm_get_duty {
+	uint8_t pwm_type;  /* ec_pwm_type */
+	uint8_t index;     /* Type-specific index, or 0 if unique */
+} __packed;
+
+struct ec_response_pwm_get_duty {
+	uint16_t duty;     /* Duty cycle, EC_PWM_MAX_DUTY = 100% */
+} __packed;
+
 /*****************************************************************************/
 /*
  * Lightbar commands. This looks worse than it is. Since we only use one HOST
@@ -1043,13 +1174,20 @@ struct lightbar_params_v1 {
 	struct rgb_s color[8];			/* 0-3 are Google colors */
 } __packed;
 
+/* Lightbar program */
+#define EC_LB_PROG_LEN 192
+struct lightbar_program {
+	uint8_t size;
+	uint8_t data[EC_LB_PROG_LEN];
+};
+
 struct ec_params_lightbar {
 	uint8_t cmd;		      /* Command (see enum lightbar_command) */
 	union {
 		struct {
 			/* no args */
 		} dump, off, on, init, get_seq, get_params_v0, get_params_v1,
-			version, get_brightness, get_demo;
+			version, get_brightness, get_demo, suspend, resume;
 
 		struct {
 			uint8_t num;
@@ -1067,8 +1205,13 @@ struct ec_params_lightbar {
 			uint8_t led;
 		} get_rgb;
 
+		struct {
+			uint8_t enable;
+		} manual_suspend_ctrl;
+
 		struct lightbar_params_v0 set_params_v0;
 		struct lightbar_params_v1 set_params_v1;
+		struct lightbar_program set_program;
 	};
 } __packed;
 
@@ -1101,7 +1244,8 @@ struct ec_response_lightbar {
 		struct {
 			/* no return params */
 		} off, on, init, set_brightness, seq, reg, set_rgb,
-			demo, set_params_v0, set_params_v1;
+			demo, set_params_v0, set_params_v1,
+			set_program, manual_suspend_ctrl, suspend, resume;
 	};
 } __packed;
 
@@ -1125,6 +1269,10 @@ enum lightbar_command {
 	LIGHTBAR_CMD_GET_DEMO = 15,
 	LIGHTBAR_CMD_GET_PARAMS_V1 = 16,
 	LIGHTBAR_CMD_SET_PARAMS_V1 = 17,
+	LIGHTBAR_CMD_SET_PROGRAM = 18,
+	LIGHTBAR_CMD_MANUAL_SUSPEND_CTRL = 19,
+	LIGHTBAR_CMD_SUSPEND = 20,
+	LIGHTBAR_CMD_RESUME = 21,
 	LIGHTBAR_NUM_CMDS
 };
 
@@ -1284,6 +1432,24 @@ enum motionsense_command {
 	 */
 	MOTIONSENSE_CMD_KB_WAKE_ANGLE = 5,
 
+	/*
+	 * Returns a single sensor data.
+	 */
+	MOTIONSENSE_CMD_DATA = 6,
+
+	/*
+	 * Perform low level calibration.. On sensors that support it, ask to
+	 * do offset calibration.
+	 */
+	MOTIONSENSE_CMD_PERFORM_CALIB = 10,
+
+	/*
+	 * Sensor Offset command is a setter/getter command for the offset used
+	 * for calibration. The offsets can be calculated by the host, or via
+	 * PERFORM_CALIB command.
+	 */
+	MOTIONSENSE_CMD_SENSOR_OFFSET = 11,
+
 	/* Number of motionsense sub-commands. */
 	MOTIONSENSE_NUM_CMDS
 };
@@ -1304,12 +1470,19 @@ enum motionsensor_id {
 enum motionsensor_type {
 	MOTIONSENSE_TYPE_ACCEL = 0,
 	MOTIONSENSE_TYPE_GYRO = 1,
+	MOTIONSENSE_TYPE_MAG = 2,
+	MOTIONSENSE_TYPE_PROX = 3,
+	MOTIONSENSE_TYPE_LIGHT = 4,
+	MOTIONSENSE_TYPE_ACTIVITY = 5,
+	MOTIONSENSE_TYPE_BARO = 6,
+	MOTIONSENSE_TYPE_MAX,
 };
 
 /* List of motion sensor locations. */
 enum motionsensor_location {
 	MOTIONSENSE_LOC_BASE = 0,
 	MOTIONSENSE_LOC_LID = 1,
+	MOTIONSENSE_LOC_MAX,
 };
 
 /* List of motion sensor chips. */
@@ -1330,6 +1503,31 @@ enum motionsensor_chip {
  */
 #define EC_MOTION_SENSE_NO_VALUE -1
 
+#define EC_MOTION_SENSE_INVALID_CALIB_TEMP 0x8000
+
+/* Set Calibration information */
+#define MOTION_SENSE_SET_OFFSET	1
+
+struct ec_response_motion_sensor_data {
+	/* Flags for each sensor. */
+	uint8_t flags;
+	/* Sensor number the data comes from */
+	uint8_t sensor_num;
+	/* Each sensor is up to 3-axis. */
+	union {
+		int16_t             data[3];
+		struct {
+			uint16_t    rsvd;
+			uint32_t    timestamp;
+		} __packed;
+		struct {
+			uint8_t     activity; /* motionsensor_activity */
+			uint8_t     state;
+			int16_t     add_info[2];
+		};
+	};
+} __packed;
+
 struct ec_params_motion_sense {
 	uint8_t cmd;
 	union {
@@ -1347,9 +1545,37 @@ struct ec_params_motion_sense {
 			int16_t data;
 		} ec_rate, kb_wake_angle;
 
+		/* Used for MOTIONSENSE_CMD_SENSOR_OFFSET */
+		struct {
+			uint8_t sensor_num;
+
+			/*
+			 * bit 0: If set (MOTION_SENSE_SET_OFFSET), set
+			 * the calibration information in the EC.
+			 * If unset, just retrieve calibration information.
+			 */
+			uint16_t flags;
+
+			/*
+			 * Temperature at calibration, in units of 0.01 C
+			 * 0x8000: invalid / unknown.
+			 * 0x0: 0C
+			 * 0x7fff: +327.67C
+			 */
+			int16_t temp;
+
+			/*
+			 * Offset for calibration.
+			 * Unit:
+			 * Accelerometer: 1/1024 g
+			 * Gyro:          1/1024 deg/s
+			 * Compass:       1/16 uT
+			 */
+			int16_t offset[3];
+		} __packed sensor_offset;
+
 		/* Used for MOTIONSENSE_CMD_INFO. */
 		struct {
-			/* Should be element of enum motionsensor_id. */
 			uint8_t sensor_num;
 		} info;
 
@@ -1379,11 +1605,14 @@ struct ec_response_motion_sense {
 			/* Flags representing the motion sensor module. */
 			uint8_t module_flags;
 
-			/* Flags for each sensor in enum motionsensor_id. */
-			uint8_t sensor_flags[EC_MOTION_SENSOR_COUNT];
+			/* Number of sensors managed directly by the EC. */
+			uint8_t sensor_count;
 
-			/* Array of all sensor data. Each sensor is 3-axis. */
-			int16_t data[3*EC_MOTION_SENSOR_COUNT];
+			/*
+			 * Sensor data is truncated if response_max is too small
+			 * for holding all the data.
+			 */
+			struct ec_response_motion_sensor_data sensor[0];
 		} dump;
 
 		/* Used for MOTIONSENSE_CMD_INFO. */
@@ -1398,6 +1627,9 @@ struct ec_response_motion_sense {
 			uint8_t chip;
 		} info;
 
+		/* Used for MOTIONSENSE_CMD_DATA */
+		struct ec_response_motion_sensor_data data;
+
 		/*
 		 * Used for MOTIONSENSE_CMD_EC_RATE, MOTIONSENSE_CMD_SENSOR_ODR,
 		 * MOTIONSENSE_CMD_SENSOR_RANGE, and
@@ -1407,6 +1639,12 @@ struct ec_response_motion_sense {
 			/* Current value of the parameter queried. */
 			int32_t ret;
 		} ec_rate, sensor_odr, sensor_range, kb_wake_angle;
+
+		/* Used for MOTIONSENSE_CMD_SENSOR_OFFSET */
+		struct {
+			int16_t temp;
+			int16_t offset[3];
+		} sensor_offset, perform_calib;
 	};
 } __packed;
 
@@ -1477,6 +1715,9 @@ struct ec_response_rtc {
 /* These all use ec_params_rtc */
 #define EC_CMD_RTC_SET_VALUE 0x46
 #define EC_CMD_RTC_SET_ALARM 0x47
+
+/* Pass as param to SET_ALARM to clear the current alarm */
+#define EC_RTC_ALARM_CLEAR 0
 
 /*****************************************************************************/
 /* Port80 log access */
@@ -1635,17 +1876,68 @@ struct ec_response_tmp006_get_raw {
  *
  * Returns raw data for keyboard cols; see ec_response_mkbp_info.cols for
  * expected response size.
+ *
+ * NOTE: This has been superseded by EC_CMD_MKBP_GET_NEXT_EVENT.  If you wish
+ * to obtain the instantaneous state, use EC_CMD_MKBP_INFO with the type
+ * EC_MKBP_INFO_CURRENT and event EC_MKBP_EVENT_KEY_MATRIX.
  */
 #define EC_CMD_MKBP_STATE 0x60
 
-/* Provide information about the matrix : number of rows and columns */
+/*
+ * Provide information about various MKBP things.  See enum ec_mkbp_info_type.
+ */
 #define EC_CMD_MKBP_INFO 0x61
 
 struct ec_response_mkbp_info {
 	uint32_t rows;
 	uint32_t cols;
-	uint8_t switches;
+	/* Formerly "switches", which was 0. */
+	uint8_t reserved;
 } __packed;
+
+struct ec_params_mkbp_info {
+	uint8_t info_type;
+	uint8_t event_type;
+} __packed;
+
+enum ec_mkbp_info_type {
+	/*
+	 * Info about the keyboard matrix: number of rows and columns.
+	 *
+	 * Returns struct ec_response_mkbp_info.
+	 */
+	EC_MKBP_INFO_KBD = 0,
+
+	/*
+	 * For buttons and switches, info about which specifically are
+	 * supported.  event_type must be set to one of the values in enum
+	 * ec_mkbp_event.
+	 *
+	 * For EC_MKBP_EVENT_BUTTON and EC_MKBP_EVENT_SWITCH, returns a 4 byte
+	 * bitmask indicating which buttons or switches are present.  See the
+	 * bit inidices below.
+	 */
+	EC_MKBP_INFO_SUPPORTED = 1,
+
+	/*
+	 * Instantaneous state of buttons and switches.
+	 *
+	 * event_type must be set to one of the values in enum ec_mkbp_event.
+	 *
+	 * For EC_MKBP_EVENT_KEY_MATRIX, returns uint8_t key_matrix[13]
+	 * indicating the current state of the keyboard matrix.
+	 *
+	 * For EC_MKBP_EVENT_HOST_EVENT, return uint32_t host_event, the raw
+	 * event state.
+	 *
+	 * For EC_MKBP_EVENT_BUTTON, returns uint32_t buttons, indicating the
+	 * state of supported buttons.
+	 *
+	 * For EC_MKBP_EVENT_SWITCH, returns uint32_t switches, indicating the
+	 * state of supported switches.
+	 */
+	EC_MKBP_INFO_CURRENT = 2,
+};
 
 /* Simulate key press */
 #define EC_CMD_MKBP_SIMULATE_KEY 0x62
@@ -1761,6 +2053,85 @@ struct ec_result_keyscan_seq_ctrl {
 		} collect;
 	};
 } __packed;
+
+/*
+ * Command for retrieving the next pending MKBP event from the EC device
+ *
+ * The device replies with UNAVAILABLE if there aren't any pending events.
+ */
+#define EC_CMD_GET_NEXT_EVENT 0x67
+
+enum ec_mkbp_event {
+	/* Keyboard matrix changed. The event data is the new matrix state. */
+	EC_MKBP_EVENT_KEY_MATRIX = 0,
+
+	/* New host event. The event data is 4 bytes of host event flags. */
+	EC_MKBP_EVENT_HOST_EVENT = 1,
+
+	/* New Sensor FIFO data. The event data is fifo_info structure. */
+	EC_MKBP_EVENT_SENSOR_FIFO = 2,
+
+	/* The state of the non-matrixed buttons have changed. */
+	EC_MKBP_EVENT_BUTTON = 3,
+
+	/* The state of the switches have changed. */
+	EC_MKBP_EVENT_SWITCH = 4,
+
+	/* EC sent a sysrq command */
+	EC_MKBP_EVENT_SYSRQ = 6,
+
+	/* Notify the AP that something happened on CEC */
+	EC_MKBP_EVENT_CEC_EVENT = 8,
+
+	/* Send an incoming CEC message to the AP */
+	EC_MKBP_EVENT_CEC_MESSAGE = 9,
+
+	/* Number of MKBP events */
+	EC_MKBP_EVENT_COUNT,
+};
+
+union ec_response_get_next_data {
+	uint8_t   key_matrix[13];
+
+	/* Unaligned */
+	uint32_t  host_event;
+
+	uint32_t   buttons;
+	uint32_t   switches;
+	uint32_t   sysrq;
+} __packed;
+
+union ec_response_get_next_data_v1 {
+	uint8_t key_matrix[16];
+	uint32_t host_event;
+	uint32_t buttons;
+	uint32_t switches;
+	uint32_t sysrq;
+	uint32_t cec_events;
+	uint8_t cec_message[16];
+} __packed;
+
+struct ec_response_get_next_event {
+	uint8_t event_type;
+	/* Followed by event data if any */
+	union ec_response_get_next_data data;
+} __packed;
+
+struct ec_response_get_next_event_v1 {
+	uint8_t event_type;
+	/* Followed by event data if any */
+	union ec_response_get_next_data_v1 data;
+} __packed;
+
+/* Bit indices for buttons and switches.*/
+/* Buttons */
+#define EC_MKBP_POWER_BUTTON	0
+#define EC_MKBP_VOL_UP		1
+#define EC_MKBP_VOL_DOWN	2
+
+/* Switches */
+#define EC_MKBP_LID_OPEN	0
+#define EC_MKBP_TABLET_MODE	1
 
 /*****************************************************************************/
 /* Temperature sensor commands */
@@ -1972,12 +2343,27 @@ struct ec_params_charge_control {
 #define EC_CMD_CONSOLE_SNAPSHOT 0x97
 
 /*
- * Read next chunk of data from saved snapshot.
+ * Read data from the saved snapshot. If the subcmd parameter is
+ * CONSOLE_READ_NEXT, this will return data starting from the beginning of
+ * the latest snapshot. If it is CONSOLE_READ_RECENT, it will start from the
+ * end of the previous snapshot.
+ *
+ * The params are only looked at in version >= 1 of this command. Prior
+ * versions will just default to CONSOLE_READ_NEXT behavior.
  *
  * Response is null-terminated string.  Empty string, if there is no more
  * remaining output.
  */
 #define EC_CMD_CONSOLE_READ 0x98
+
+enum ec_console_read_subcmd {
+	CONSOLE_READ_NEXT = 0,
+	CONSOLE_READ_RECENT
+};
+
+struct ec_params_console_read_v1 {
+	uint8_t subcmd; /* enum ec_console_read_subcmd */
+} __packed;
 
 /*****************************************************************************/
 
@@ -2231,12 +2617,30 @@ struct ec_params_current_limit {
 } __packed;
 
 /*
- * Set maximum external power current.
+ * Set maximum external voltage / current.
  */
-#define EC_CMD_EXT_POWER_CURRENT_LIMIT 0xa2
+#define EC_CMD_EXTERNAL_POWER_LIMIT 0x00A2
 
-struct ec_params_ext_power_current_limit {
-	uint32_t limit; /* in mA */
+/* Command v0 is used only on Spring and is obsolete + unsupported */
+struct ec_params_external_power_limit_v1 {
+	uint16_t current_lim; /* in mA, or EC_POWER_LIMIT_NONE to clear limit */
+	uint16_t voltage_lim; /* in mV, or EC_POWER_LIMIT_NONE to clear limit */
+} __packed;
+
+#define EC_POWER_LIMIT_NONE 0xffff
+
+/* Inform the EC when entering a sleep state */
+#define EC_CMD_HOST_SLEEP_EVENT 0xa9
+
+enum host_sleep_event {
+	HOST_SLEEP_EVENT_S3_SUSPEND   = 1,
+	HOST_SLEEP_EVENT_S3_RESUME    = 2,
+	HOST_SLEEP_EVENT_S0IX_SUSPEND = 3,
+	HOST_SLEEP_EVENT_S0IX_RESUME  = 4
+};
+
+struct ec_params_host_sleep_event {
+	uint8_t sleep_event;
 } __packed;
 
 /*****************************************************************************/
@@ -2455,6 +2859,79 @@ struct ec_params_reboot_ec {
 
 /*****************************************************************************/
 /*
+ * HDMI CEC commands
+ *
+ * These commands are for sending and receiving message via HDMI CEC
+ */
+#define EC_MAX_CEC_MSG_LEN 16
+
+/* CEC message from the AP to be written on the CEC bus */
+#define EC_CMD_CEC_WRITE_MSG 0x00B8
+
+/**
+ * struct ec_params_cec_write - Message to write to the CEC bus
+ * @msg: message content to write to the CEC bus
+ */
+struct ec_params_cec_write {
+	uint8_t msg[EC_MAX_CEC_MSG_LEN];
+} __packed;
+
+/* Set various CEC parameters */
+#define EC_CMD_CEC_SET 0x00BA
+
+/**
+ * struct ec_params_cec_set - CEC parameters set
+ * @cmd: parameter type, can be CEC_CMD_ENABLE or CEC_CMD_LOGICAL_ADDRESS
+ * @val: in case cmd is CEC_CMD_ENABLE, this field can be 0 to disable CEC
+ *	or 1 to enable CEC functionality, in case cmd is CEC_CMD_LOGICAL_ADDRESS,
+ *	this field encodes the requested logical address between 0 and 15
+ *	or 0xff to unregister
+ */
+struct ec_params_cec_set {
+	uint8_t cmd; /* enum cec_command */
+	uint8_t val;
+} __packed;
+
+/* Read various CEC parameters */
+#define EC_CMD_CEC_GET 0x00BB
+
+/**
+ * struct ec_params_cec_get - CEC parameters get
+ * @cmd: parameter type, can be CEC_CMD_ENABLE or CEC_CMD_LOGICAL_ADDRESS
+ */
+struct ec_params_cec_get {
+	uint8_t cmd; /* enum cec_command */
+} __packed;
+
+/**
+ * struct ec_response_cec_get - CEC parameters get response
+ * @val: in case cmd was CEC_CMD_ENABLE, this field will 0 if CEC is
+ *	disabled or 1 if CEC functionality is enabled,
+ *	in case cmd was CEC_CMD_LOGICAL_ADDRESS, this will encode the
+ *	configured logical address between 0 and 15 or 0xff if unregistered
+ */
+struct ec_response_cec_get {
+	uint8_t val;
+} __packed;
+
+/* CEC parameters command */
+enum ec_cec_command {
+	/* CEC reading, writing and events enable */
+	CEC_CMD_ENABLE,
+	/* CEC logical address  */
+	CEC_CMD_LOGICAL_ADDRESS,
+};
+
+/* Events from CEC to AP */
+enum mkbp_cec_event {
+	/* Outgoing message was acknowledged by a follower */
+	EC_MKBP_CEC_SEND_OK			= BIT(0),
+	/* Outgoing message was not acknowledged */
+	EC_MKBP_CEC_SEND_FAILED			= BIT(1),
+};
+
+/*****************************************************************************/
+/*
  * Special commands
  *
  * These do not follow the normal rules for commands.  See each command for
@@ -2536,10 +3013,220 @@ enum usb_pd_control_mux {
 	USB_PD_CTRL_MUX_AUTO = 5,
 };
 
+enum usb_pd_control_swap {
+	USB_PD_CTRL_SWAP_NONE = 0,
+	USB_PD_CTRL_SWAP_DATA = 1,
+	USB_PD_CTRL_SWAP_POWER = 2,
+	USB_PD_CTRL_SWAP_VCONN = 3,
+	USB_PD_CTRL_SWAP_COUNT
+};
+
 struct ec_params_usb_pd_control {
 	uint8_t port;
 	uint8_t role;
 	uint8_t mux;
+	uint8_t swap;
+} __packed;
+
+#define PD_CTRL_RESP_ENABLED_COMMS      (1 << 0) /* Communication enabled */
+#define PD_CTRL_RESP_ENABLED_CONNECTED  (1 << 1) /* Device connected */
+#define PD_CTRL_RESP_ENABLED_PD_CAPABLE (1 << 2) /* Partner is PD capable */
+
+#define PD_CTRL_RESP_ROLE_POWER         BIT(0) /* 0=SNK/1=SRC */
+#define PD_CTRL_RESP_ROLE_DATA          BIT(1) /* 0=UFP/1=DFP */
+#define PD_CTRL_RESP_ROLE_VCONN         BIT(2) /* Vconn status */
+#define PD_CTRL_RESP_ROLE_DR_POWER      BIT(3) /* Partner is dualrole power */
+#define PD_CTRL_RESP_ROLE_DR_DATA       BIT(4) /* Partner is dualrole data */
+#define PD_CTRL_RESP_ROLE_USB_COMM      BIT(5) /* Partner USB comm capable */
+#define PD_CTRL_RESP_ROLE_EXT_POWERED   BIT(6) /* Partner externally powerd */
+
+struct ec_response_usb_pd_control_v1 {
+	uint8_t enabled;
+	uint8_t role;
+	uint8_t polarity;
+	char state[32];
+} __packed;
+
+#define EC_CMD_USB_PD_PORTS 0x102
+
+/* Maximum number of PD ports on a device, num_ports will be <= this */
+#define EC_USB_PD_MAX_PORTS 8
+
+struct ec_response_usb_pd_ports {
+	uint8_t num_ports;
+} __packed;
+
+#define EC_CMD_USB_PD_POWER_INFO 0x103
+
+#define PD_POWER_CHARGING_PORT 0xff
+struct ec_params_usb_pd_power_info {
+	uint8_t port;
+} __packed;
+
+enum usb_chg_type {
+	USB_CHG_TYPE_NONE,
+	USB_CHG_TYPE_PD,
+	USB_CHG_TYPE_C,
+	USB_CHG_TYPE_PROPRIETARY,
+	USB_CHG_TYPE_BC12_DCP,
+	USB_CHG_TYPE_BC12_CDP,
+	USB_CHG_TYPE_BC12_SDP,
+	USB_CHG_TYPE_OTHER,
+	USB_CHG_TYPE_VBUS,
+	USB_CHG_TYPE_UNKNOWN,
+};
+enum usb_power_roles {
+	USB_PD_PORT_POWER_DISCONNECTED,
+	USB_PD_PORT_POWER_SOURCE,
+	USB_PD_PORT_POWER_SINK,
+	USB_PD_PORT_POWER_SINK_NOT_CHARGING,
+};
+
+struct usb_chg_measures {
+	uint16_t voltage_max;
+	uint16_t voltage_now;
+	uint16_t current_max;
+	uint16_t current_lim;
+} __packed;
+
+struct ec_response_usb_pd_power_info {
+	uint8_t role;
+	uint8_t type;
+	uint8_t dualrole;
+	uint8_t reserved1;
+	struct usb_chg_measures meas;
+	uint32_t max_power;
+} __packed;
+
+struct ec_params_usb_pd_info_request {
+	uint8_t port;
+} __packed;
+
+/* Read USB-PD Device discovery info */
+#define EC_CMD_USB_PD_DISCOVERY 0x0113
+struct ec_params_usb_pd_discovery_entry {
+	uint16_t vid;  /* USB-IF VID */
+	uint16_t pid;  /* USB-IF PID */
+	uint8_t ptype; /* product type (hub,periph,cable,ama) */
+} __packed;
+
+/* Override default charge behavior */
+#define EC_CMD_PD_CHARGE_PORT_OVERRIDE 0x0114
+
+/* Negative port parameters have special meaning */
+enum usb_pd_override_ports {
+	OVERRIDE_DONT_CHARGE = -2,
+	OVERRIDE_OFF = -1,
+	/* [0, CONFIG_USB_PD_PORT_COUNT): Port# */
+};
+
+struct ec_params_charge_port_override {
+	int16_t override_port; /* Override port# */
+} __packed;
+
+/* Read (and delete) one entry of PD event log */
+#define EC_CMD_PD_GET_LOG_ENTRY 0x0115
+
+struct ec_response_pd_log {
+	uint32_t timestamp; /* relative timestamp in milliseconds */
+	uint8_t type;       /* event type : see PD_EVENT_xx below */
+	uint8_t size_port;  /* [7:5] port number [4:0] payload size in bytes */
+	uint16_t data;      /* type-defined data payload */
+	uint8_t payload[0]; /* optional additional data payload: 0..16 bytes */
+} __packed;
+
+/* The timestamp is the microsecond counter shifted to get about a ms. */
+#define PD_LOG_TIMESTAMP_SHIFT 10 /* 1 LSB = 1024us */
+
+#define PD_LOG_SIZE_MASK  0x1f
+#define PD_LOG_PORT_MASK  0xe0
+#define PD_LOG_PORT_SHIFT    5
+#define PD_LOG_PORT_SIZE(port, size) (((port) << PD_LOG_PORT_SHIFT) | \
+				      ((size) & PD_LOG_SIZE_MASK))
+#define PD_LOG_PORT(size_port) ((size_port) >> PD_LOG_PORT_SHIFT)
+#define PD_LOG_SIZE(size_port) ((size_port) & PD_LOG_SIZE_MASK)
+
+/* PD event log : entry types */
+/* PD MCU events */
+#define PD_EVENT_MCU_BASE       0x00
+#define PD_EVENT_MCU_CHARGE             (PD_EVENT_MCU_BASE+0)
+#define PD_EVENT_MCU_CONNECT            (PD_EVENT_MCU_BASE+1)
+/* Reserved for custom board event */
+#define PD_EVENT_MCU_BOARD_CUSTOM       (PD_EVENT_MCU_BASE+2)
+/* PD generic accessory events */
+#define PD_EVENT_ACC_BASE       0x20
+#define PD_EVENT_ACC_RW_FAIL   (PD_EVENT_ACC_BASE+0)
+#define PD_EVENT_ACC_RW_ERASE  (PD_EVENT_ACC_BASE+1)
+/* PD power supply events */
+#define PD_EVENT_PS_BASE        0x40
+#define PD_EVENT_PS_FAULT      (PD_EVENT_PS_BASE+0)
+/* PD video dongles events */
+#define PD_EVENT_VIDEO_BASE     0x60
+#define PD_EVENT_VIDEO_DP_MODE (PD_EVENT_VIDEO_BASE+0)
+#define PD_EVENT_VIDEO_CODEC   (PD_EVENT_VIDEO_BASE+1)
+/* Returned in the "type" field, when there is no entry available */
+#define PD_EVENT_NO_ENTRY       0xff
+
+/*
+ * PD_EVENT_MCU_CHARGE event definition :
+ * the payload is "struct usb_chg_measures"
+ * the data field contains the port state flags as defined below :
+ */
+/* Port partner is a dual role device */
+#define CHARGE_FLAGS_DUAL_ROLE         BIT(15)
+/* Port is the pending override port */
+#define CHARGE_FLAGS_DELAYED_OVERRIDE  BIT(14)
+/* Port is the override port */
+#define CHARGE_FLAGS_OVERRIDE          BIT(13)
+/* Charger type */
+#define CHARGE_FLAGS_TYPE_SHIFT               3
+#define CHARGE_FLAGS_TYPE_MASK       (0xf << CHARGE_FLAGS_TYPE_SHIFT)
+/* Power delivery role */
+#define CHARGE_FLAGS_ROLE_MASK         (7 <<  0)
+
+/*
+ * PD_EVENT_PS_FAULT data field flags definition :
+ */
+#define PS_FAULT_OCP                          1
+#define PS_FAULT_FAST_OCP                     2
+#define PS_FAULT_OVP                          3
+#define PS_FAULT_DISCH                        4
+
+/*
+ * PD_EVENT_VIDEO_CODEC payload is "struct mcdp_info".
+ */
+struct mcdp_version {
+	uint8_t major;
+	uint8_t minor;
+	uint16_t build;
+} __packed;
+
+struct mcdp_info {
+	uint8_t family[2];
+	uint8_t chipid[2];
+	struct mcdp_version irom;
+	struct mcdp_version fw;
+} __packed;
+
+/* struct mcdp_info field decoding */
+#define MCDP_CHIPID(chipid) ((chipid[0] << 8) | chipid[1])
+#define MCDP_FAMILY(family) ((family[0] << 8) | family[1])
+
+/* Get info about USB-C SS muxes */
+#define EC_CMD_USB_PD_MUX_INFO 0x11a
+
+struct ec_params_usb_pd_mux_info {
+	uint8_t port; /* USB-C port number */
+} __packed;
+
+/* Flags representing mux state */
+#define USB_PD_MUX_USB_ENABLED       (1 << 0)
+#define USB_PD_MUX_DP_ENABLED        (1 << 1)
+#define USB_PD_MUX_POLARITY_INVERTED (1 << 2)
+#define USB_PD_MUX_HPD_IRQ           (1 << 3)
+
+struct ec_response_usb_pd_mux_info {
+	uint8_t flags; /* USB_PD_MUX_*-encoded USB mux state */
 } __packed;
 
 /*****************************************************************************/

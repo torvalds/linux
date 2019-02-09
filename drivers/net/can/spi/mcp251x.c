@@ -220,7 +220,7 @@
 #define DEVICE_NAME "mcp251x"
 
 static int mcp251x_enable_dma; /* Enable SPI DMA. Default: 0 (Off) */
-module_param(mcp251x_enable_dma, int, S_IRUGO);
+module_param(mcp251x_enable_dma, int, 0444);
 MODULE_PARM_DESC(mcp251x_enable_dma, "Enable SPI DMA. Default: 0 (Off)");
 
 static const struct can_bittiming_const mcp251x_bittiming_const = {
@@ -612,8 +612,7 @@ static int mcp251x_do_set_bittiming(struct net_device *net)
 	return 0;
 }
 
-static int mcp251x_setup(struct net_device *net, struct mcp251x_priv *priv,
-			 struct spi_device *spi)
+static int mcp251x_setup(struct net_device *net, struct spi_device *spi)
 {
 	mcp251x_do_set_bittiming(net);
 
@@ -775,7 +774,7 @@ static void mcp251x_restart_work_handler(struct work_struct *ws)
 	mutex_lock(&priv->mcp_lock);
 	if (priv->after_suspend) {
 		mcp251x_hw_reset(spi);
-		mcp251x_setup(net, priv, spi);
+		mcp251x_setup(net, spi);
 		if (priv->after_suspend & AFTER_SUSPEND_RESTART) {
 			mcp251x_set_normal_mode(spi);
 		} else if (priv->after_suspend & AFTER_SUSPEND_UP) {
@@ -843,7 +842,7 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 		if (clear_intf)
 			mcp251x_write_bits(spi, CANINTF, clear_intf, 0x00);
 
-		if (eflag)
+		if (eflag & (EFLG_RX0OVR | EFLG_RX1OVR))
 			mcp251x_write_bits(spi, EFLG, eflag, 0x00);
 
 		/* Update can state */
@@ -961,7 +960,8 @@ static int mcp251x_open(struct net_device *net)
 		goto open_unlock;
 	}
 
-	priv->wq = create_freezable_workqueue("mcp251x_wq");
+	priv->wq = alloc_workqueue("mcp251x_wq", WQ_FREEZABLE | WQ_MEM_RECLAIM,
+				   0);
 	INIT_WORK(&priv->tx_work, mcp251x_tx_work_handler);
 	INIT_WORK(&priv->restart_work, mcp251x_restart_work_handler);
 
@@ -970,7 +970,7 @@ static int mcp251x_open(struct net_device *net)
 		mcp251x_open_clean(net);
 		goto open_unlock;
 	}
-	ret = mcp251x_setup(net, priv, spi);
+	ret = mcp251x_setup(net, spi);
 	if (ret) {
 		mcp251x_open_clean(net);
 		goto open_unlock;
@@ -1144,8 +1144,11 @@ static int mcp251x_can_probe(struct spi_device *spi)
 
 	/* Here is OK to not lock the MCP, no one knows about it yet */
 	ret = mcp251x_hw_probe(spi);
-	if (ret)
+	if (ret) {
+		if (ret == -ENODEV)
+			dev_err(&spi->dev, "Cannot initialize MCP%x. Wrong wiring?\n", priv->model);
 		goto error_probe;
+	}
 
 	mcp251x_hw_sleep(spi);
 
@@ -1155,6 +1158,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 
 	devm_can_led_init(net);
 
+	netdev_info(net, "MCP%x successfully initialized.\n", priv->model);
 	return 0;
 
 error_probe:
@@ -1167,6 +1171,7 @@ out_clk:
 out_free:
 	free_candev(net);
 
+	dev_err(&spi->dev, "Probe failed, err=%d\n", -ret);
 	return ret;
 }
 

@@ -37,7 +37,7 @@ struct iproc_asiu {
 	void __iomem *div_base;
 	void __iomem *gate_base;
 
-	struct clk_onecell_data clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	struct iproc_asiu_clk *clks;
 };
 
@@ -197,11 +197,11 @@ void __init iproc_asiu_setup(struct device_node *node,
 	if (WARN_ON(!asiu))
 		return;
 
-	asiu->clk_data.clk_num = num_clks;
-	asiu->clk_data.clks = kcalloc(num_clks, sizeof(*asiu->clk_data.clks),
-				      GFP_KERNEL);
-	if (WARN_ON(!asiu->clk_data.clks))
+	asiu->clk_data = kzalloc(struct_size(asiu->clk_data, hws, num_clks),
+				 GFP_KERNEL);
+	if (WARN_ON(!asiu->clk_data))
 		goto err_clks;
+	asiu->clk_data->num = num_clks;
 
 	asiu->clks = kcalloc(num_clks, sizeof(*asiu->clks), GFP_KERNEL);
 	if (WARN_ON(!asiu->clks))
@@ -217,7 +217,6 @@ void __init iproc_asiu_setup(struct device_node *node,
 
 	for (i = 0; i < num_clks; i++) {
 		struct clk_init_data init;
-		struct clk *clk;
 		const char *parent_name;
 		struct iproc_asiu_clk *asiu_clk;
 		const char *clk_name;
@@ -240,22 +239,22 @@ void __init iproc_asiu_setup(struct device_node *node,
 		init.num_parents = (parent_name ? 1 : 0);
 		asiu_clk->hw.init = &init;
 
-		clk = clk_register(NULL, &asiu_clk->hw);
-		if (WARN_ON(IS_ERR(clk)))
+		ret = clk_hw_register(NULL, &asiu_clk->hw);
+		if (WARN_ON(ret))
 			goto err_clk_register;
-		asiu->clk_data.clks[i] = clk;
+		asiu->clk_data->hws[i] = &asiu_clk->hw;
 	}
 
-	ret = of_clk_add_provider(node, of_clk_src_onecell_get,
-				  &asiu->clk_data);
+	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+				     asiu->clk_data);
 	if (WARN_ON(ret))
 		goto err_clk_register;
 
 	return;
 
 err_clk_register:
-	for (i = 0; i < num_clks; i++)
-		clk_unregister(asiu->clk_data.clks[i]);
+	while (--i >= 0)
+		clk_hw_unregister(asiu->clk_data->hws[i]);
 	iounmap(asiu->gate_base);
 
 err_iomap_gate:
@@ -265,7 +264,7 @@ err_iomap_div:
 	kfree(asiu->clks);
 
 err_asiu_clks:
-	kfree(asiu->clk_data.clks);
+	kfree(asiu->clk_data);
 
 err_clks:
 	kfree(asiu);

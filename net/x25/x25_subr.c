@@ -188,17 +188,14 @@ void x25_write_internal(struct sock *sk, int frametype)
 			*dptr++ = X25_CALL_REQUEST;
 			len     = x25_addr_aton(addresses, &x25->dest_addr,
 						&x25->source_addr);
-			dptr    = skb_put(skb, len);
-			memcpy(dptr, addresses, len);
+			skb_put_data(skb, addresses, len);
 			len     = x25_create_facilities(facilities,
 					&x25->facilities,
 					&x25->dte_facilities,
 					x25->neighbour->global_facil_mask);
-			dptr    = skb_put(skb, len);
-			memcpy(dptr, facilities, len);
-			dptr = skb_put(skb, x25->calluserdata.cudlength);
-			memcpy(dptr, x25->calluserdata.cuddata,
-			       x25->calluserdata.cudlength);
+			skb_put_data(skb, facilities, len);
+			skb_put_data(skb, x25->calluserdata.cuddata,
+				     x25->calluserdata.cudlength);
 			x25->calluserdata.cudlength = 0;
 			break;
 
@@ -210,17 +207,15 @@ void x25_write_internal(struct sock *sk, int frametype)
 							&x25->facilities,
 							&x25->dte_facilities,
 							x25->vc_facil_mask);
-			dptr    = skb_put(skb, len);
-			memcpy(dptr, facilities, len);
+			skb_put_data(skb, facilities, len);
 
 			/* fast select with no restriction on response
 				allows call user data. Userland must
 				ensure it is ours and not theirs */
 			if(x25->facilities.reverse & 0x80) {
-				dptr = skb_put(skb,
-					x25->calluserdata.cudlength);
-				memcpy(dptr, x25->calluserdata.cuddata,
-				       x25->calluserdata.cudlength);
+				skb_put_data(skb,
+					     x25->calluserdata.cuddata,
+					     x25->calluserdata.cudlength);
 			}
 			x25->calluserdata.cudlength = 0;
 			break;
@@ -340,8 +335,7 @@ int x25_decode(struct sock *sk, struct sk_buff *skb, int *ns, int *nr, int *q,
 		}
 	}
 
-	pr_debug("invalid PLP frame %02X %02X %02X\n",
-	       frame[0], frame[1], frame[2]);
+	pr_debug("invalid PLP frame %3ph\n", frame);
 
 	return X25_ILLEGAL;
 }
@@ -387,4 +381,3 @@ void x25_check_rbuf(struct sock *sk)
 		x25_stop_timer(sk);
 	}
 }
-

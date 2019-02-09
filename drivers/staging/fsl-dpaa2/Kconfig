@@ -1,0 +1,34 @@
+#
+# Freescale DataPath Acceleration Architecture Gen2 (DPAA2) drivers
+#
+
+config FSL_DPAA2
+	bool "Freescale DPAA2 devices"
+	depends on FSL_MC_BUS
+	---help---
+	  Build drivers for Freescale DataPath Acceleration
+	  Architecture (DPAA2) family of SoCs.
+
+config FSL_DPAA2_ETH
+	tristate "Freescale DPAA2 Ethernet"
+	depends on FSL_DPAA2 && FSL_MC_DPIO
+	depends on NETDEVICES && ETHERNET
+	---help---
+	  Ethernet driver for Freescale DPAA2 SoCs, using the
+	  Freescale MC bus driver
+
+config FSL_DPAA2_ETHSW
+	tristate "Freescale DPAA2 Ethernet Switch"
+	depends on FSL_DPAA2
+	depends on NET_SWITCHDEV
+	---help---
+	Driver for Freescale DPAA2 Ethernet Switch. Select
+	BRIDGE to have support for bridge tools.
+
+config FSL_DPAA2_PTP_CLOCK
+	tristate "Freescale DPAA2 PTP Clock"
+	depends on FSL_DPAA2_ETH && POSIX_TIMERS
+	select PTP_1588_CLOCK
+	help
+	  This driver adds support for using the DPAA2 1588 timer module
+	  as a PTP clock.

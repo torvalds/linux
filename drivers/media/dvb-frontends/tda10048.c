@@ -27,8 +27,8 @@
 #include <linux/delay.h>
 #include <linux/math64.h>
 #include <asm/div64.h>
-#include "dvb_frontend.h"
-#include "dvb_math.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_math.h>
 #include "tda10048.h"
 
 #define TDA10048_DEFAULT_FIRMWARE "dvb-fe-tda10048-1.0.fw"
@@ -499,7 +499,7 @@ static int tda10048_firmware_upload(struct dvb_frontend *fe)
 			__func__);
 		return -EIO;
 	} else {
-		printk(KERN_INFO "%s: firmware read %Zu bytes.\n",
+		printk(KERN_INFO "%s: firmware read %zu bytes.\n",
 			__func__,
 			fw->size);
 		ret = 0;
@@ -1028,9 +1028,9 @@ static int tda10048_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-static int tda10048_get_frontend(struct dvb_frontend *fe)
+static int tda10048_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct tda10048_state *state = fe->demodulator_priv;
 
 	dprintk(1, "%s()\n", __func__);
@@ -1063,38 +1063,34 @@ static void tda10048_establish_defaults(struct dvb_frontend *fe)
 	/* Validate/default the config */
 	if (config->dtv6_if_freq_khz == 0) {
 		config->dtv6_if_freq_khz = TDA10048_IF_4300;
-		printk(KERN_WARNING "%s() tda10048_config.dtv6_if_freq_khz "
-			"is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.dtv6_if_freq_khz is not set (defaulting to %d)\n",
 			__func__,
 			config->dtv6_if_freq_khz);
 	}
 
 	if (config->dtv7_if_freq_khz == 0) {
 		config->dtv7_if_freq_khz = TDA10048_IF_4300;
-		printk(KERN_WARNING "%s() tda10048_config.dtv7_if_freq_khz "
-			"is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.dtv7_if_freq_khz is not set (defaulting to %d)\n",
 			__func__,
 			config->dtv7_if_freq_khz);
 	}
 
 	if (config->dtv8_if_freq_khz == 0) {
 		config->dtv8_if_freq_khz = TDA10048_IF_4300;
-		printk(KERN_WARNING "%s() tda10048_config.dtv8_if_freq_khz "
-			"is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.dtv8_if_freq_khz is not set (defaulting to %d)\n",
 			__func__,
 			config->dtv8_if_freq_khz);
 	}
 
 	if (config->clk_freq_khz == 0) {
 		config->clk_freq_khz = TDA10048_CLK_16000;
-		printk(KERN_WARNING "%s() tda10048_config.clk_freq_khz "
-			"is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.clk_freq_khz is not set (defaulting to %d)\n",
 			__func__,
 			config->clk_freq_khz);
 	}
 }
 
-static struct dvb_frontend_ops tda10048_ops;
+static const struct dvb_frontend_ops tda10048_ops;
 
 struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 	struct i2c_adapter *i2c)
@@ -1156,13 +1152,13 @@ error:
 }
 EXPORT_SYMBOL(tda10048_attach);
 
-static struct dvb_frontend_ops tda10048_ops = {
+static const struct dvb_frontend_ops tda10048_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "NXP TDA10048HN DVB-T",
-		.frequency_min		= 177000000,
-		.frequency_max		= 858000000,
-		.frequency_stepsize	= 166666,
+		.frequency_min_hz	= 177 * MHz,
+		.frequency_max_hz	= 858 * MHz,
+		.frequency_stepsize_hz	= 166666,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 		FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 | FE_CAN_QAM_AUTO |

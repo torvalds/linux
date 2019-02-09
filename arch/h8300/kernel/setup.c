@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/h8300/kernel/setup.c
  *
@@ -20,11 +21,8 @@
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/clk-provider.h>
 #include <linux/memblock.h>
@@ -72,10 +70,6 @@ void __init h8300_fdt_init(void *fdt, char *bootargs)
 
 static void __init bootmem_init(void)
 {
-	int bootmap_size;
-	unsigned long ram_start_pfn;
-	unsigned long free_ram_start_pfn;
-	unsigned long ram_end_pfn;
 	struct memblock_region *region;
 
 	memory_end = memory_start = 0;
@@ -89,33 +83,17 @@ static void __init bootmem_init(void)
 	if (!memory_end)
 		panic("No memory!");
 
-	ram_start_pfn = PFN_UP(memory_start);
-	/* free_ram_start_pfn is first page after kernel */
-	free_ram_start_pfn = PFN_UP(__pa(_end));
-	ram_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
+	/* setup bootmem globals (we use no_bootmem, but mm still depends on this) */
+	min_low_pfn = PFN_UP(memory_start);
+	max_low_pfn = PFN_DOWN(memblock_end_of_DRAM());
+	max_pfn = max_low_pfn;
 
-	max_pfn = ram_end_pfn;
+	memblock_reserve(__pa(_stext), _end - _stext);
 
-	/*
-	 * give all the memory to the bootmap allocator,  tell it to put the
-	 * boot mem_map at the start of memory
-	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0),
-					 free_ram_start_pfn,
-					 0,
-					 ram_end_pfn);
-	/*
-	 * free the usable memory,  we have to make sure we do not free
-	 * the bootmem bitmap so we then reserve it after freeing it :-)
-	 */
-	free_bootmem(PFN_PHYS(free_ram_start_pfn),
-		     (ram_end_pfn - free_ram_start_pfn) << PAGE_SHIFT);
-	reserve_bootmem(PFN_PHYS(free_ram_start_pfn), bootmap_size,
-			BOOTMEM_DEFAULT);
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
 
-	for_each_memblock(reserved, region) {
-		reserve_bootmem(region->base, region->size, BOOTMEM_DEFAULT);
-	}
+	memblock_dump_all();
 }
 
 void __init setup_arch(char **cmdline_p)
@@ -137,11 +115,6 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	bootmem_init();
-#if defined(CONFIG_H8300H_SIM) || defined(CONFIG_H8S_SIM)
-	sim_console_register();
-#endif
-
-	early_platform_driver_probe("earlyprintk", 1, 0);
 	/*
 	 * get kmalloc into gear
 	 */
@@ -194,27 +167,18 @@ const struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 
-static int __init device_probe(void)
-{
-	of_platform_populate(NULL, NULL, NULL, NULL);
-
-	return 0;
-}
-
-device_initcall(device_probe);
-
 #if defined(CONFIG_CPU_H8300H)
 #define get_wait(base, addr) ({		\
 	int baddr;			\
 	baddr = ((addr) / 0x200000 * 2);			     \
-	w *= (ctrl_inw((unsigned long)(base) + 2) & (3 << baddr)) + 1;	\
+	w *= (readw((base) + 2) & (3 << baddr)) + 1;		     \
 	})
 #endif
 #if defined(CONFIG_CPU_H8S)
 #define get_wait(base, addr) ({		\
 	int baddr;			\
 	baddr = ((addr) / 0x200000 * 16);			     \
-	w *= (ctrl_inl((unsigned long)(base) + 2) & (7 << baddr)) + 1;	\
+	w *= (readl((base) + 2) & (7 << baddr)) + 1;	\
 	})
 #endif
 
@@ -228,8 +192,8 @@ static __init int access_timing(void)
 
 	bsc = of_find_compatible_node(NULL, NULL, "renesas,h8300-bsc");
 	base = of_iomap(bsc, 0);
-	w = (ctrl_inb((unsigned long)base + 0) & bit)?2:1;
-	if (ctrl_inb((unsigned long)base + 1) & bit)
+	w = (readb(base + 0) & bit)?2:1;
+	if (readb(base + 1) & bit)
 		w *= get_wait(base, addr);
 	else
 		w *= 2;
@@ -253,5 +217,5 @@ void __init calibrate_delay(void)
 void __init time_init(void)
 {
 	of_clk_init(NULL);
-	clocksource_probe();
+	timer_probe();
 }

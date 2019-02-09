@@ -1,21 +1,15 @@
-/*
- * imx53 pinctrl driver based on imx pinmux core
- *
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
- * Copyright (C) 2012 Linaro, Inc.
- *
- * Author: Dong Aisheng <dong.aisheng@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// imx53 pinctrl driver based on imx pinmux core
+//
+// Copyright (C) 2012 Freescale Semiconductor, Inc.
+// Copyright (C) 2012 Linaro, Inc.
+//
+// Author: Dong Aisheng <dong.aisheng@linaro.org>
 
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -449,9 +443,10 @@ static const struct pinctrl_pin_desc imx53_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX53_PAD_GPIO_18),
 };
 
-static struct imx_pinctrl_soc_info imx53_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx53_pinctrl_info = {
 	.pins = imx53_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx53_pinctrl_pads),
+	.gpr_compatible = "fsl,imx53-iomuxc-gpr",
 };
 
 static const struct of_device_id imx53_pinctrl_of_match[] = {
@@ -470,7 +465,6 @@ static struct platform_driver imx53_pinctrl_driver = {
 		.of_match_table = imx53_pinctrl_of_match,
 	},
 	.probe = imx53_pinctrl_probe,
-	.remove = imx_pinctrl_remove,
 };
 
 static int __init imx53_pinctrl_init(void)
@@ -478,12 +472,3 @@ static int __init imx53_pinctrl_init(void)
 	return platform_driver_register(&imx53_pinctrl_driver);
 }
 arch_initcall(imx53_pinctrl_init);
-
-static void __exit imx53_pinctrl_exit(void)
-{
-	platform_driver_unregister(&imx53_pinctrl_driver);
-}
-module_exit(imx53_pinctrl_exit);
-MODULE_AUTHOR("Dong Aisheng <dong.aisheng@linaro.org>");
-MODULE_DESCRIPTION("Freescale IMX53 pinctrl driver");
-MODULE_LICENSE("GPL v2");

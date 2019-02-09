@@ -1,5 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_PERF_REGS_H
 #define _LINUX_PERF_REGS_H
+
+#include <linux/sched/task_stack.h>
 
 struct perf_regs {
 	__u64		abi;

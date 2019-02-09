@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASMARM_BUG_H
 #define _ASMARM_BUG_H
 
 #include <linux/linkage.h>
 #include <linux/types.h>
 #include <asm/opcodes.h>
-
-#ifdef CONFIG_BUG
 
 /*
  * Use a suitable undefined instruction to use for ARM/Thumb2 bug handling.
@@ -39,7 +38,7 @@ do {								\
 		".pushsection .rodata.str, \"aMS\", %progbits, 1\n" \
 		"2:\t.asciz " #__file "\n" 			\
 		".popsection\n" 				\
-		".pushsection __bug_table,\"a\"\n"		\
+		".pushsection __bug_table,\"aw\"\n"		\
 		".align 2\n"					\
 		"3:\t.word 1b, 2b\n"				\
 		"\t.hword " #__line ", 0\n"			\
@@ -47,7 +46,7 @@ do {								\
 	unreachable();						\
 } while (0)
 
-#else  /* not CONFIG_DEBUG_BUGVERBOSE */
+#else
 
 #define __BUG(__file, __line, __value)				\
 do {								\
@@ -57,7 +56,6 @@ do {								\
 #endif  /* CONFIG_DEBUG_BUGVERBOSE */
 
 #define HAVE_ARCH_BUG
-#endif  /* CONFIG_BUG */
 
 #include <asm-generic/bug.h>
 

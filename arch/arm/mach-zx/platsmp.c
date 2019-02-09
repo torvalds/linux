@@ -76,7 +76,7 @@ void __init zx_smp_prepare_cpus(unsigned int max_cpus)
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
 	 */
-	__raw_writel(virt_to_phys(zx_secondary_startup),
+	__raw_writel(__pa_symbol(zx_secondary_startup),
 		     aonsysctrl_base + AON_SYS_CTRL_RESERVED1);
 
 	iounmap(aonsysctrl_base);
@@ -94,7 +94,7 @@ void __init zx_smp_prepare_cpus(unsigned int max_cpus)
 
 	/* Map the first 4 KB IRAM for suspend usage */
 	sys_iram = __arm_ioremap_exec(ZX_IRAM_BASE, PAGE_SIZE, false);
-	zx_secondary_startup_pa = virt_to_phys(zx_secondary_startup);
+	zx_secondary_startup_pa = __pa_symbol(zx_secondary_startup);
 	fncpy(sys_iram, &zx_resume_jump, zx_suspend_iram_sz);
 }
 
@@ -176,7 +176,7 @@ static void zx_secondary_init(unsigned int cpu)
 	scu_power_mode(scu_base, SCU_PM_NORMAL);
 }
 
-struct smp_operations zx_smp_ops __initdata = {
+static const struct smp_operations zx_smp_ops __initconst = {
 	.smp_prepare_cpus	= zx_smp_prepare_cpus,
 	.smp_secondary_init	= zx_secondary_init,
 	.smp_boot_secondary	= zx_boot_secondary,

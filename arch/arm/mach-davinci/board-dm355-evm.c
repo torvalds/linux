@@ -14,12 +14,14 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/clk.h>
+#include <linux/dm9000.h>
 #include <linux/videodev2.h>
-#include <media/tvp514x.h>
+#include <media/i2c/tvp514x.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
 #include <linux/platform_data/gpio-davinci.h>
@@ -76,6 +78,7 @@ static struct mtd_partition davinci_nand_partitions[] = {
 };
 
 static struct davinci_nand_pdata davinci_nand_data = {
+	.core_chipsel		= 0,
 	.mask_chipsel		= BIT(14),
 	.parts			= davinci_nand_partitions,
 	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
@@ -108,14 +111,24 @@ static struct platform_device davinci_nand_device = {
 	},
 };
 
+#define DM355_I2C_SDA_PIN	GPIO_TO_PIN(0, 15)
+#define DM355_I2C_SCL_PIN	GPIO_TO_PIN(0, 14)
+
+static struct gpiod_lookup_table i2c_recovery_gpiod_table = {
+	.dev_id = "i2c_davinci.1",
+	.table = {
+		GPIO_LOOKUP("davinci_gpio.0", DM355_I2C_SDA_PIN, "sda",
+			    GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP("davinci_gpio.0", DM355_I2C_SCL_PIN, "scl",
+			    GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
+};
+
 static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_freq	= 400	/* kHz */,
 	.bus_delay	= 0	/* usec */,
-	.sda_pin        = 15,
-	.scl_pin        = 14,
+	.gpio_recovery	= true,
 };
-
-static struct snd_platform_data dm355_evm_snd_data;
 
 static int dm355evm_mmc_gpios = -EINVAL;
 
@@ -143,6 +156,7 @@ static struct i2c_board_info dm355evm_i2c_info[] = {
 
 static void __init evm_init_i2c(void)
 {
+	gpiod_add_lookup_table(&i2c_recovery_gpiod_table);
 	davinci_init_i2c(&i2c_pdata);
 
 	gpio_request(5, "dm355evm_msp");
@@ -170,11 +184,16 @@ static struct resource dm355evm_dm9000_rsrc[] = {
 	},
 };
 
+static struct dm9000_plat_data dm335evm_dm9000_platdata;
+
 static struct platform_device dm355evm_dm9000 = {
 	.name		= "dm9000",
 	.id		= -1,
 	.resource	= dm355evm_dm9000_rsrc,
 	.num_resources	= ARRAY_SIZE(dm355evm_dm9000_rsrc),
+	.dev		= {
+		.platform_data = &dm335evm_dm9000_platdata,
+	},
 };
 
 static struct tvp514x_platform_data tvp5146_pdata = {
@@ -359,7 +378,7 @@ static struct spi_eeprom at25640a = {
 	.flags		= EE_ADDR2,
 };
 
-static struct spi_board_info dm355_evm_spi_info[] __initconst = {
+static const struct spi_board_info dm355_evm_spi_info[] __initconst = {
 	{
 		.modalias	= "at25",
 		.platform_data	= &at25640a,
@@ -375,6 +394,8 @@ static __init void dm355_evm_init(void)
 	struct clk *aemif;
 	int ret;
 
+	dm355_register_clocks();
+
 	ret = dm355_gpio_register();
 	if (ret)
 		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
@@ -384,9 +405,7 @@ static __init void dm355_evm_init(void)
 	dm355evm_dm9000_rsrc[2].start = gpio_to_irq(1);
 
 	aemif = clk_get(&dm355evm_dm9000.dev, "aemif");
-	if (IS_ERR(aemif))
-		WARN("%s: unable to get AEMIF clock\n", __func__);
-	else
+	if (!WARN(IS_ERR(aemif), "unable to get AEMIF clock\n"))
 		clk_prepare_enable(aemif);
 
 	platform_add_devices(davinci_evm_devices,
@@ -413,16 +432,15 @@ static __init void dm355_evm_init(void)
 			ARRAY_SIZE(dm355_evm_spi_info));
 
 	/* DM335 EVM uses ASP1; line-out is a stereo mini-jack */
-	dm355_init_asp1(ASP1_TX_EVT_EN | ASP1_RX_EVT_EN, &dm355_evm_snd_data);
+	dm355_init_asp1(ASP1_TX_EVT_EN | ASP1_RX_EVT_EN);
 }
 
 MACHINE_START(DAVINCI_DM355_EVM, "DaVinci DM355 EVM")
 	.atag_offset  = 0x100,
 	.map_io	      = dm355_evm_map_io,
 	.init_irq     = davinci_irq_init,
-	.init_time	= davinci_timer_init,
+	.init_time	= dm355_init_time,
 	.init_machine = dm355_evm_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
-	.restart	= davinci_restart,
 MACHINE_END

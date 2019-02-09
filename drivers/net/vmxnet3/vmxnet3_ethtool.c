@@ -1,7 +1,7 @@
 /*
  * Linux driver for VMware's vmxnet3 ethernet NIC.
  *
- * Copyright (C) 2008-2009, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2016, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,7 +20,7 @@
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
  *
- * Maintained by: Shreyas Bhatewara <pv-drivers@vmware.com>
+ * Maintained by: pv-drivers@vmware.com
  *
  */
 
@@ -113,7 +113,7 @@ vmxnet3_global_stats[] = {
 };
 
 
-struct rtnl_link_stats64 *
+void
 vmxnet3_get_stats64(struct net_device *netdev,
 		   struct rtnl_link_stats64 *stats)
 {
@@ -160,8 +160,6 @@ vmxnet3_get_stats64(struct net_device *netdev,
 		stats->rx_dropped += drvRxStats->drop_total;
 		stats->multicast +=  devRxStats->mcastPktsRxOK;
 	}
-
-	return stats;
 }
 
 static int
@@ -396,8 +394,7 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 		buf[j++] = VMXNET3_GET_ADDR_LO(tq->data_ring.basePA);
 		buf[j++] = VMXNET3_GET_ADDR_HI(tq->data_ring.basePA);
 		buf[j++] = tq->data_ring.size;
-		/* transmit data ring buffer size */
-		buf[j++] = VMXNET3_HDR_COPY_SIZE;
+		buf[j++] = tq->txdata_desc_size;
 
 		buf[j++] = VMXNET3_GET_ADDR_LO(tq->comp_ring.basePA);
 		buf[j++] = VMXNET3_GET_ADDR_HI(tq->comp_ring.basePA);
@@ -431,11 +428,10 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 		buf[j++] = rq->rx_ring[1].next2comp;
 		buf[j++] = rq->rx_ring[1].gen;
 
-		/* receive data ring */
-		buf[j++] = 0;
-		buf[j++] = 0;
-		buf[j++] = 0;
-		buf[j++] = 0;
+		buf[j++] = VMXNET3_GET_ADDR_LO(rq->data_ring.basePA);
+		buf[j++] = VMXNET3_GET_ADDR_HI(rq->data_ring.basePA);
+		buf[j++] = rq->rx_ring[0].size;
+		buf[j++] = rq->data_ring.desc_size;
 
 		buf[j++] = VMXNET3_GET_ADDR_LO(rq->comp_ring.basePA);
 		buf[j++] = VMXNET3_GET_ADDR_HI(rq->comp_ring.basePA);
@@ -475,22 +471,25 @@ vmxnet3_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 
 static int
-vmxnet3_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
+vmxnet3_get_link_ksettings(struct net_device *netdev,
+			   struct ethtool_link_ksettings *ecmd)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
-	ecmd->supported = SUPPORTED_10000baseT_Full | SUPPORTED_1000baseT_Full |
-			  SUPPORTED_TP;
-	ecmd->advertising = ADVERTISED_TP;
-	ecmd->port = PORT_TP;
-	ecmd->transceiver = XCVR_INTERNAL;
+	ethtool_link_ksettings_zero_link_mode(ecmd, supported);
+	ethtool_link_ksettings_add_link_mode(ecmd, supported, 10000baseT_Full);
+	ethtool_link_ksettings_add_link_mode(ecmd, supported, 1000baseT_Full);
+	ethtool_link_ksettings_add_link_mode(ecmd, supported, TP);
+	ethtool_link_ksettings_zero_link_mode(ecmd, advertising);
+	ethtool_link_ksettings_add_link_mode(ecmd, advertising, TP);
+	ecmd->base.port = PORT_TP;
 
 	if (adapter->link_speed) {
-		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
-		ecmd->duplex = DUPLEX_FULL;
+		ecmd->base.speed = adapter->link_speed;
+		ecmd->base.duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
-		ecmd->duplex = DUPLEX_UNKNOWN;
+		ecmd->base.speed = SPEED_UNKNOWN;
+		ecmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 	return 0;
 }
@@ -504,12 +503,14 @@ vmxnet3_get_ringparam(struct net_device *netdev,
 
 	param->rx_max_pending = VMXNET3_RX_RING_MAX_SIZE;
 	param->tx_max_pending = VMXNET3_TX_RING_MAX_SIZE;
-	param->rx_mini_max_pending = 0;
+	param->rx_mini_max_pending = VMXNET3_VERSION_GE_3(adapter) ?
+		VMXNET3_RXDATA_DESC_MAX_SIZE : 0;
 	param->rx_jumbo_max_pending = VMXNET3_RX_RING2_MAX_SIZE;
 
 	param->rx_pending = adapter->rx_ring_size;
 	param->tx_pending = adapter->tx_ring_size;
-	param->rx_mini_pending = 0;
+	param->rx_mini_pending = VMXNET3_VERSION_GE_3(adapter) ?
+		adapter->rxdata_desc_size : 0;
 	param->rx_jumbo_pending = adapter->rx_ring2_size;
 }
 
@@ -520,6 +521,7 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u32 new_tx_ring_size, new_rx_ring_size, new_rx_ring2_size;
+	u16 new_rxdata_desc_size;
 	u32 sz;
 	int err = 0;
 
@@ -540,6 +542,15 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 		netdev_err(netdev, "adapter not completely initialized, "
 			   "ring size cannot be changed yet\n");
 		return -EOPNOTSUPP;
+	}
+
+	if (VMXNET3_VERSION_GE_3(adapter)) {
+		if (param->rx_mini_pending < 0 ||
+		    param->rx_mini_pending > VMXNET3_RXDATA_DESC_MAX_SIZE) {
+			return -EINVAL;
+		}
+	} else if (param->rx_mini_pending != 0) {
+		return -EINVAL;
 	}
 
 	/* round it up to a multiple of VMXNET3_RING_SIZE_ALIGN */
@@ -568,9 +579,19 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	new_rx_ring2_size = min_t(u32, new_rx_ring2_size,
 				  VMXNET3_RX_RING2_MAX_SIZE);
 
+	/* rx data ring buffer size has to be a multiple of
+	 * VMXNET3_RXDATA_DESC_SIZE_ALIGN
+	 */
+	new_rxdata_desc_size =
+		(param->rx_mini_pending + VMXNET3_RXDATA_DESC_SIZE_MASK) &
+		~VMXNET3_RXDATA_DESC_SIZE_MASK;
+	new_rxdata_desc_size = min_t(u16, new_rxdata_desc_size,
+				     VMXNET3_RXDATA_DESC_MAX_SIZE);
+
 	if (new_tx_ring_size == adapter->tx_ring_size &&
 	    new_rx_ring_size == adapter->rx_ring_size &&
-	    new_rx_ring2_size == adapter->rx_ring2_size) {
+	    new_rx_ring2_size == adapter->rx_ring2_size &&
+	    new_rxdata_desc_size == adapter->rxdata_desc_size) {
 		return 0;
 	}
 
@@ -579,7 +600,7 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	 * completion.
 	 */
 	while (test_and_set_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (netif_running(netdev)) {
 		vmxnet3_quiesce_dev(adapter);
@@ -591,8 +612,9 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 		vmxnet3_rq_destroy_all(adapter);
 
 		err = vmxnet3_create_queues(adapter, new_tx_ring_size,
-			new_rx_ring_size, new_rx_ring2_size);
-
+					    new_rx_ring_size, new_rx_ring2_size,
+					    adapter->txdata_desc_size,
+					    new_rxdata_desc_size);
 		if (err) {
 			/* failed, most likely because of OOM, try default
 			 * size */
@@ -601,10 +623,15 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 			new_rx_ring_size = VMXNET3_DEF_RX_RING_SIZE;
 			new_rx_ring2_size = VMXNET3_DEF_RX_RING2_SIZE;
 			new_tx_ring_size = VMXNET3_DEF_TX_RING_SIZE;
+			new_rxdata_desc_size = VMXNET3_VERSION_GE_3(adapter) ?
+				VMXNET3_DEF_RXDATA_DESC_SIZE : 0;
+
 			err = vmxnet3_create_queues(adapter,
 						    new_tx_ring_size,
 						    new_rx_ring_size,
-						    new_rx_ring2_size);
+						    new_rx_ring2_size,
+						    adapter->txdata_desc_size,
+						    new_rxdata_desc_size);
 			if (err) {
 				netdev_err(netdev, "failed to create queues "
 					   "with default sizes. Closing it\n");
@@ -620,6 +647,7 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	adapter->tx_ring_size = new_tx_ring_size;
 	adapter->rx_ring_size = new_rx_ring_size;
 	adapter->rx_ring2_size = new_rx_ring2_size;
+	adapter->rxdata_desc_size = new_rxdata_desc_size;
 
 out:
 	clear_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state);
@@ -698,14 +726,171 @@ vmxnet3_set_rss(struct net_device *netdev, const u32 *p, const u8 *key,
 }
 #endif
 
+static int
+vmxnet3_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+
+	if (!VMXNET3_VERSION_GE_3(adapter))
+		return -EOPNOTSUPP;
+
+	switch (adapter->coal_conf->coalMode) {
+	case VMXNET3_COALESCE_DISABLED:
+		/* struct ethtool_coalesce is already initialized to 0 */
+		break;
+	case VMXNET3_COALESCE_ADAPT:
+		ec->use_adaptive_rx_coalesce = true;
+		break;
+	case VMXNET3_COALESCE_STATIC:
+		ec->tx_max_coalesced_frames =
+			adapter->coal_conf->coalPara.coalStatic.tx_comp_depth;
+		ec->rx_max_coalesced_frames =
+			adapter->coal_conf->coalPara.coalStatic.rx_depth;
+		break;
+	case VMXNET3_COALESCE_RBC: {
+		u32 rbc_rate;
+
+		rbc_rate = adapter->coal_conf->coalPara.coalRbc.rbc_rate;
+		ec->rx_coalesce_usecs = VMXNET3_COAL_RBC_USECS(rbc_rate);
+	}
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
+vmxnet3_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	struct Vmxnet3_DriverShared *shared = adapter->shared;
+	union Vmxnet3_CmdInfo *cmdInfo = &shared->cu.cmdInfo;
+	unsigned long flags;
+
+	if (!VMXNET3_VERSION_GE_3(adapter))
+		return -EOPNOTSUPP;
+
+	if (ec->rx_coalesce_usecs_irq ||
+	    ec->rx_max_coalesced_frames_irq ||
+	    ec->tx_coalesce_usecs ||
+	    ec->tx_coalesce_usecs_irq ||
+	    ec->tx_max_coalesced_frames_irq ||
+	    ec->stats_block_coalesce_usecs ||
+	    ec->use_adaptive_tx_coalesce ||
+	    ec->pkt_rate_low ||
+	    ec->rx_coalesce_usecs_low ||
+	    ec->rx_max_coalesced_frames_low ||
+	    ec->tx_coalesce_usecs_low ||
+	    ec->tx_max_coalesced_frames_low ||
+	    ec->pkt_rate_high ||
+	    ec->rx_coalesce_usecs_high ||
+	    ec->rx_max_coalesced_frames_high ||
+	    ec->tx_coalesce_usecs_high ||
+	    ec->tx_max_coalesced_frames_high ||
+	    ec->rate_sample_interval) {
+		return -EINVAL;
+	}
+
+	if ((ec->rx_coalesce_usecs == 0) &&
+	    (ec->use_adaptive_rx_coalesce == 0) &&
+	    (ec->tx_max_coalesced_frames == 0) &&
+	    (ec->rx_max_coalesced_frames == 0)) {
+		memset(adapter->coal_conf, 0, sizeof(*adapter->coal_conf));
+		adapter->coal_conf->coalMode = VMXNET3_COALESCE_DISABLED;
+		goto done;
+	}
+
+	if (ec->rx_coalesce_usecs != 0) {
+		u32 rbc_rate;
+
+		if ((ec->use_adaptive_rx_coalesce != 0) ||
+		    (ec->tx_max_coalesced_frames != 0) ||
+		    (ec->rx_max_coalesced_frames != 0)) {
+			return -EINVAL;
+		}
+
+		rbc_rate = VMXNET3_COAL_RBC_RATE(ec->rx_coalesce_usecs);
+		if (rbc_rate < VMXNET3_COAL_RBC_MIN_RATE ||
+		    rbc_rate > VMXNET3_COAL_RBC_MAX_RATE) {
+			return -EINVAL;
+		}
+
+		memset(adapter->coal_conf, 0, sizeof(*adapter->coal_conf));
+		adapter->coal_conf->coalMode = VMXNET3_COALESCE_RBC;
+		adapter->coal_conf->coalPara.coalRbc.rbc_rate = rbc_rate;
+		goto done;
+	}
+
+	if (ec->use_adaptive_rx_coalesce != 0) {
+		if ((ec->rx_coalesce_usecs != 0) ||
+		    (ec->tx_max_coalesced_frames != 0) ||
+		    (ec->rx_max_coalesced_frames != 0)) {
+			return -EINVAL;
+		}
+		memset(adapter->coal_conf, 0, sizeof(*adapter->coal_conf));
+		adapter->coal_conf->coalMode = VMXNET3_COALESCE_ADAPT;
+		goto done;
+	}
+
+	if ((ec->tx_max_coalesced_frames != 0) ||
+	    (ec->rx_max_coalesced_frames != 0)) {
+		if ((ec->rx_coalesce_usecs != 0) ||
+		    (ec->use_adaptive_rx_coalesce != 0)) {
+			return -EINVAL;
+		}
+
+		if ((ec->tx_max_coalesced_frames >
+		    VMXNET3_COAL_STATIC_MAX_DEPTH) ||
+		    (ec->rx_max_coalesced_frames >
+		     VMXNET3_COAL_STATIC_MAX_DEPTH)) {
+			return -EINVAL;
+		}
+
+		memset(adapter->coal_conf, 0, sizeof(*adapter->coal_conf));
+		adapter->coal_conf->coalMode = VMXNET3_COALESCE_STATIC;
+
+		adapter->coal_conf->coalPara.coalStatic.tx_comp_depth =
+			(ec->tx_max_coalesced_frames ?
+			 ec->tx_max_coalesced_frames :
+			 VMXNET3_COAL_STATIC_DEFAULT_DEPTH);
+
+		adapter->coal_conf->coalPara.coalStatic.rx_depth =
+			(ec->rx_max_coalesced_frames ?
+			 ec->rx_max_coalesced_frames :
+			 VMXNET3_COAL_STATIC_DEFAULT_DEPTH);
+
+		adapter->coal_conf->coalPara.coalStatic.tx_depth =
+			 VMXNET3_COAL_STATIC_DEFAULT_DEPTH;
+		goto done;
+	}
+
+done:
+	adapter->default_coal_mode = false;
+	if (netif_running(netdev)) {
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
+		cmdInfo->varConf.confVer = 1;
+		cmdInfo->varConf.confLen =
+			cpu_to_le32(sizeof(*adapter->coal_conf));
+		cmdInfo->varConf.confPA  = cpu_to_le64(adapter->coal_conf_pa);
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+				       VMXNET3_CMD_SET_COALESCE);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops vmxnet3_ethtool_ops = {
-	.get_settings      = vmxnet3_get_settings,
 	.get_drvinfo       = vmxnet3_get_drvinfo,
 	.get_regs_len      = vmxnet3_get_regs_len,
 	.get_regs          = vmxnet3_get_regs,
 	.get_wol           = vmxnet3_get_wol,
 	.set_wol           = vmxnet3_set_wol,
 	.get_link          = ethtool_op_get_link,
+	.get_coalesce      = vmxnet3_get_coalesce,
+	.set_coalesce      = vmxnet3_set_coalesce,
 	.get_strings       = vmxnet3_get_strings,
 	.get_sset_count	   = vmxnet3_get_sset_count,
 	.get_ethtool_stats = vmxnet3_get_ethtool_stats,
@@ -717,6 +902,7 @@ static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_rxfh          = vmxnet3_get_rss,
 	.set_rxfh          = vmxnet3_set_rss,
 #endif
+	.get_link_ksettings = vmxnet3_get_link_ksettings,
 };
 
 void vmxnet3_set_ethtool_ops(struct net_device *netdev)

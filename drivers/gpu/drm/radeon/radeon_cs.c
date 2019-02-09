@@ -74,7 +74,6 @@ static void radeon_cs_buckets_get_list(struct radeon_cs_buckets *b,
 
 static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 {
-	struct drm_device *ddev = p->rdev->ddev;
 	struct radeon_cs_chunk *chunk;
 	struct radeon_cs_buckets buckets;
 	unsigned i;
@@ -88,7 +87,8 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	p->dma_reloc_idx = 0;
 	/* FIXME: we assume that each relocs use 4 dwords */
 	p->nrelocs = chunk->length_dw / 4;
-	p->relocs = drm_calloc_large(p->nrelocs, sizeof(struct radeon_bo_list));
+	p->relocs = kvmalloc_array(p->nrelocs, sizeof(struct radeon_bo_list),
+			GFP_KERNEL | __GFP_ZERO);
 	if (p->relocs == NULL) {
 		return -ENOMEM;
 	}
@@ -101,7 +101,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		unsigned priority;
 
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
-		gobj = drm_gem_object_lookup(ddev, p->filp, r->handle);
+		gobj = drm_gem_object_lookup(p->filp, r->handle);
 		if (gobj == NULL) {
 			DRM_ERROR("gem object lookup failed 0x%x\n",
 				  r->handle);
@@ -118,16 +118,19 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		priority = (r->flags & RADEON_RELOC_PRIO_MASK) * 2
 			   + !!r->write_domain;
 
-		/* the first reloc of an UVD job is the msg and that must be in
-		   VRAM, also but everything into VRAM on AGP cards and older
-		   IGP chips to avoid image corruptions */
+		/* The first reloc of an UVD job is the msg and that must be in
+		 * VRAM, the second reloc is the DPB and for WMV that must be in
+		 * VRAM as well. Also put everything into VRAM on AGP cards and older
+		 * IGP chips to avoid image corruptions
+		 */
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
-		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev) ||
+		    (i <= 0 || pci_find_capability(p->rdev->ddev->pdev,
+						   PCI_CAP_ID_AGP) ||
 		     p->rdev->family == CHIP_RS780 ||
 		     p->rdev->family == CHIP_RS880)) {
 
 			/* TODO: is this still needed for NI+ ? */
-			p->relocs[i].prefered_domains =
+			p->relocs[i].preferred_domains =
 				RADEON_GEM_DOMAIN_VRAM;
 
 			p->relocs[i].allowed_domains =
@@ -145,14 +148,14 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 				return -EINVAL;
 			}
 
-			p->relocs[i].prefered_domains = domain;
+			p->relocs[i].preferred_domains = domain;
 			if (domain == RADEON_GEM_DOMAIN_VRAM)
 				domain |= RADEON_GEM_DOMAIN_GTT;
 			p->relocs[i].allowed_domains = domain;
 		}
 
 		if (radeon_ttm_tt_has_userptr(p->relocs[i].robj->tbo.ttm)) {
-			uint32_t domain = p->relocs[i].prefered_domains;
+			uint32_t domain = p->relocs[i].preferred_domains;
 			if (!(domain & RADEON_GEM_DOMAIN_GTT)) {
 				DRM_ERROR("Only RADEON_GEM_DOMAIN_GTT is "
 					  "allowed for userptr BOs\n");
@@ -160,8 +163,18 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			}
 			need_mmap_lock = true;
 			domain = RADEON_GEM_DOMAIN_GTT;
-			p->relocs[i].prefered_domains = domain;
+			p->relocs[i].preferred_domains = domain;
 			p->relocs[i].allowed_domains = domain;
+		}
+
+		/* Objects shared as dma-bufs cannot be moved to VRAM */
+		if (p->relocs[i].robj->prime_shared_count) {
+			p->relocs[i].allowed_domains &= ~RADEON_GEM_DOMAIN_VRAM;
+			if (!p->relocs[i].allowed_domains) {
+				DRM_ERROR("BO associated with dma-buf cannot "
+					  "be moved to VRAM\n");
+				return -EINVAL;
+			}
 		}
 
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
@@ -329,7 +342,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 				continue;
 		}
 
-		p->chunks[i].kdata = drm_malloc_ab(size, sizeof(uint32_t));
+		p->chunks[i].kdata = kvmalloc_array(size, sizeof(uint32_t), GFP_KERNEL);
 		size *= sizeof(uint32_t);
 		if (p->chunks[i].kdata == NULL) {
 			return -ENOMEM;
@@ -424,14 +437,14 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 			if (bo == NULL)
 				continue;
 
-			drm_gem_object_unreference_unlocked(&bo->gem_base);
+			drm_gem_object_put_unlocked(&bo->gem_base);
 		}
 	}
 	kfree(parser->track);
-	drm_free_large(parser->relocs);
-	drm_free_large(parser->vm_bos);
+	kvfree(parser->relocs);
+	kvfree(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
-		drm_free_large(parser->chunks[i].kdata);
+		kvfree(parser->chunks[i].kdata);
 	kfree(parser->chunks);
 	kfree(parser->chunks_array);
 	radeon_ib_free(parser->rdev, &parser->ib);

@@ -181,7 +181,9 @@ int intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 		return 1;
 
 	/* Find the bridge device.  It is always 0:0.0 */
-	if (!(bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0)))) {
+	bridge_dev = pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus), 0,
+						 PCI_DEVFN(0, 0));
+	if (!bridge_dev) {
 		ERR_MSG("cannot find bridge device\n");
 		return 1;
 	}
@@ -937,14 +939,10 @@ static int calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2,
 {
 	u32 m1, m2, n, p1, p2, n1, testm;
 	u32 f_vco, p, p_best = 0, m, f_out = 0;
-	u32 err_max, err_target, err_best = 10000000;
-	u32 n_best = 0, m_best = 0, f_best, f_err;
+	u32 err_best = 10000000;
+	u32 n_best = 0, m_best = 0, f_err;
 	u32 p_min, p_max, p_inc, div_max;
 	struct pll_min_max *pll = &plls[index];
-
-	/* Accept 0.5% difference, but aim for 0.1% */
-	err_max = 5 * clock / 1000;
-	err_target = clock / 1000;
 
 	DBG_MSG("Clock is %d\n", clock);
 
@@ -992,7 +990,6 @@ static int calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2,
 					m_best = testm;
 					n_best = n;
 					p_best = p;
-					f_best = f_out;
 					err_best = f_err;
 				}
 			}

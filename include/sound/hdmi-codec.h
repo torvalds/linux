@@ -18,9 +18,11 @@
 #ifndef __HDMI_CODEC_H__
 #define __HDMI_CODEC_H__
 
+#include <linux/of_graph.h>
 #include <linux/hdmi.h>
 #include <drm/drm_edid.h>
 #include <sound/asoundef.h>
+#include <sound/soc.h>
 #include <uapi/sound/asound.h>
 
 /*
@@ -36,10 +38,10 @@ struct hdmi_codec_daifmt {
 		HDMI_AC97,
 		HDMI_SPDIF,
 	} fmt;
-	int bit_clk_inv:1;
-	int frame_clk_inv:1;
-	int bit_clk_master:1;
-	int frame_clk_master:1;
+	unsigned int bit_clk_inv:1;
+	unsigned int frame_clk_inv:1;
+	unsigned int bit_clk_master:1;
+	unsigned int frame_clk_master:1;
 };
 
 /*
@@ -51,13 +53,6 @@ struct hdmi_codec_params {
 	int sample_rate;
 	int sample_width;
 	int channels;
-	int mode;
-};
-
-enum {
-	LPCM = 0,
-	NLPCM,
-	HBR,
 };
 
 struct hdmi_codec_pdata;
@@ -94,6 +89,13 @@ struct hdmi_codec_ops {
 	 */
 	int (*get_eld)(struct device *dev, void *data,
 		       uint8_t *buf, size_t len);
+
+	/*
+	 * Getting DAI ID
+	 * Optional
+	 */
+	int (*get_dai_id)(struct snd_soc_component *comment,
+			  struct device_node *endpoint);
 };
 
 /* HDMI codec initalization data */
@@ -104,12 +106,6 @@ struct hdmi_codec_pdata {
 	int max_i2s_channels;
 	void *data;
 };
-
-struct snd_soc_codec;
-struct snd_soc_jack;
-
-int hdmi_codec_set_jack_detect(struct snd_soc_codec *codec,
-			       struct snd_soc_jack *jack);
 
 #define HDMI_CODEC_DRV_NAME "hdmi-audio-codec"
 

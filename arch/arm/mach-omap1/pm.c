@@ -55,7 +55,7 @@
 #include <mach/tc.h>
 #include <mach/mux.h>
 #include <linux/omap-dma.h>
-#include <plat/dmtimer.h>
+#include <clocksource/timer-ti-dm.h>
 
 #include <mach/irqs.h>
 
@@ -581,7 +581,6 @@ static int omap_pm_enter(suspend_state_t state)
 {
 	switch (state)
 	{
-	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
 		omap1_pm_suspend();
 		break;

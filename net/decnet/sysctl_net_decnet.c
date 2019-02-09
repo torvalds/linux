@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -22,7 +23,7 @@
 #include <net/dst.h>
 #include <net/flow.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/dn.h>
 #include <net/dn_dev.h>

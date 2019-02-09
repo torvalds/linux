@@ -188,7 +188,7 @@ via_free_sg_info(struct pci_dev *pdev, drm_via_sg_info_t *vsg)
 			if (NULL != (page = vsg->pages[i])) {
 				if (!PageReserved(page) && (DMA_FROM_DEVICE == vsg->direction))
 					SetPageDirty(page);
-				page_cache_release(page);
+				put_page(page);
 			}
 		}
 	case dr_via_pages_alloc:
@@ -235,17 +235,12 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 	vsg->num_pages = VIA_PFN(xfer->mem_addr + (xfer->num_lines * xfer->mem_stride - 1)) -
 		first_pfn + 1;
 
-	vsg->pages = vzalloc(sizeof(struct page *) * vsg->num_pages);
+	vsg->pages = vzalloc(array_size(sizeof(struct page *), vsg->num_pages));
 	if (NULL == vsg->pages)
 		return -ENOMEM;
-	down_read(&current->mm->mmap_sem);
-	ret = get_user_pages(current, current->mm,
-			     (unsigned long)xfer->mem_addr,
-			     vsg->num_pages,
-			     (vsg->direction == DMA_FROM_DEVICE),
-			     0, vsg->pages, NULL);
-
-	up_read(&current->mm->mmap_sem);
+	ret = get_user_pages_fast((unsigned long)xfer->mem_addr,
+			vsg->num_pages, vsg->direction == DMA_FROM_DEVICE,
+			vsg->pages);
 	if (ret != vsg->num_pages) {
 		if (ret < 0)
 			return ret;
@@ -457,9 +452,9 @@ via_dmablit_sync(struct drm_device *dev, uint32_t handle, int engine)
 
 
 static void
-via_dmablit_timer(unsigned long data)
+via_dmablit_timer(struct timer_list *t)
 {
-	drm_via_blitq_t *blitq = (drm_via_blitq_t *) data;
+	drm_via_blitq_t *blitq = from_timer(blitq, t, poll_timer);
 	struct drm_device *dev = blitq->dev;
 	int engine = (int)
 		(blitq - ((drm_via_private_t *)dev->dev_private)->blit_queues);
@@ -564,8 +559,7 @@ via_init_dmablit(struct drm_device *dev)
 			init_waitqueue_head(blitq->blit_queue + j);
 		init_waitqueue_head(&blitq->busy_queue);
 		INIT_WORK(&blitq->wq, via_dmablit_workqueue);
-		setup_timer(&blitq->poll_timer, via_dmablit_timer,
-				(unsigned long)blitq);
+		timer_setup(&blitq->poll_timer, via_dmablit_timer, 0);
 	}
 }
 

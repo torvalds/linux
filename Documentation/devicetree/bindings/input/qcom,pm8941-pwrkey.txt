@@ -7,6 +7,7 @@ PROPERTIES
 	Value type: <string>
 	Definition: must be one of:
 		    "qcom,pm8941-pwrkey"
+		    "qcom,pm8941-resin"
 
 - reg:
 	Usage: required
@@ -32,6 +33,14 @@ PROPERTIES
 	Definition: presence of this property indicates that the KPDPWR_N pin
 		    should be configured for pull up.
 
+- linux,code:
+	Usage: optional
+	Value type: <u32>
+	Definition: The input key-code associated with the power key.
+		    Use the linux event codes defined in
+		    include/dt-bindings/input/linux-event-codes.h
+		    When property is omitted KEY_POWER is assumed.
+
 EXAMPLE
 
 	pwrkey@800 {
@@ -40,4 +49,5 @@ EXAMPLE
 		interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
 		debounce = <15625>;
 		bias-pull-up;
+		linux,code = <KEY_POWER>;
 	};

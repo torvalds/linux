@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _M68K_DMA_H
 #define _M68K_DMA_H 1
 
@@ -18,7 +19,7 @@
  * AUG/22/2000 : added support for 32-bit Dual-Address-Mode (K) 2000
  *               Oliver Kamphenkel (O.Kamphenkel@tu-bs.de)
  *
- * AUG/25/2000 : addad support for 8, 16 and 32-bit Single-Address-Mode (K)2000
+ * AUG/25/2000 : added support for 8, 16 and 32-bit Single-Address-Mode (K)2000
  *               Oliver Kamphenkel (O.Kamphenkel@tu-bs.de)
  *
  * APR/18/2002 : added proper support for MCF5272 DMA controller.
@@ -389,7 +390,7 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
 
 #ifdef DEBUG_DMA
   printk("%s(%d): dmanr=%d DMR[%x]=%x DIR[%x]=%x\n", __FILE__, __LINE__,
-         dmanr, (int) &dmalp[MCFDMA_DMR], dmabp[MCFDMA_DMR],
+	 dmanr, (int) &dmalp[MCFDMA_DMR], dmalp[MCFDMA_DMR],
 	 (int) &dmawp[MCFDMA_DIR], dmawp[MCFDMA_DIR]);
 #endif
 }
@@ -420,7 +421,7 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
 
 #ifdef DEBUG_DMA
   printk("%s(%d): dmanr=%d DMR[%x]=%x SAR[%x]=%08x DAR[%x]=%08x\n",
-	__FILE__, __LINE__, dmanr, (int) &dmawp[MCFDMA_DMR], dmawp[MCFDMA_DMR],
+	__FILE__, __LINE__, dmanr, (int) &dmalp[MCFDMA_DMR], dmalp[MCFDMA_DMR],
 	(int) &dmalp[MCFDMA_DSAR], dmalp[MCFDMA_DSAR],
 	(int) &dmalp[MCFDMA_DDAR], dmalp[MCFDMA_DDAR]);
 #endif

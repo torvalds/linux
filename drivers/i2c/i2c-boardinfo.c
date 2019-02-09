@@ -12,11 +12,12 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/i2c.h>
-#include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/i2c.h>
+#include <linux/kernel.h>
+#include <linux/property.h>
 #include <linux/rwsem.h>
+#include <linux/slab.h>
 
 #include "i2c-core.h"
 
@@ -55,10 +56,9 @@ EXPORT_SYMBOL_GPL(__i2c_first_dynamic_bus_num);
  *
  * The board info passed can safely be __initdata, but be careful of embedded
  * pointers (for platform_data, functions, etc) since that won't be copied.
+ * Device properties are deep-copied though.
  */
-int __init
-i2c_register_board_info(int busnum,
-	struct i2c_board_info const *info, unsigned len)
+int i2c_register_board_info(int busnum, struct i2c_board_info const *info, unsigned len)
 {
 	int status;
 
@@ -80,6 +80,30 @@ i2c_register_board_info(int busnum,
 
 		devinfo->busnum = busnum;
 		devinfo->board_info = *info;
+
+		if (info->properties) {
+			devinfo->board_info.properties =
+					property_entries_dup(info->properties);
+			if (IS_ERR(devinfo->board_info.properties)) {
+				status = PTR_ERR(devinfo->board_info.properties);
+				kfree(devinfo);
+				break;
+			}
+		}
+
+		if (info->resources) {
+			devinfo->board_info.resources =
+				kmemdup(info->resources,
+					info->num_resources *
+						sizeof(*info->resources),
+					GFP_KERNEL);
+			if (!devinfo->board_info.resources) {
+				status = -ENOMEM;
+				kfree(devinfo);
+				break;
+			}
+		}
+
 		list_add_tail(&devinfo->list, &__i2c_board_list);
 	}
 

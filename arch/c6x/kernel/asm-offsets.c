@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generate definitions needed by assembly language modules.
  * This code generates raw asm output which is post-processed
@@ -106,7 +107,6 @@ void foo(void)
 	/* These would be unneccessary if we ran asm files
 	 * through the preprocessor.
 	 */
-	DEFINE(KTHREAD_SIZE, THREAD_SIZE);
 	DEFINE(KTHREAD_SHIFT, THREAD_SHIFT);
 	DEFINE(KTHREAD_START_SP, THREAD_START_SP);
 	DEFINE(ENOSYS_, ENOSYS);

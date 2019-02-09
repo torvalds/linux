@@ -28,6 +28,7 @@
 
 #include "bcm47xx_private.h"
 
+#include <linux/bcm47xx_sprom.h>
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/ethtool.h>
@@ -101,50 +102,13 @@ static void bcm47xx_machine_halt(void)
 }
 
 #ifdef CONFIG_BCM47XX_SSB
-static int bcm47xx_get_invariants(struct ssb_bus *bus,
-				  struct ssb_init_invariants *iv)
-{
-	char buf[20];
-	int len, err;
-
-	/* Fill boardinfo structure */
-	memset(&iv->boardinfo, 0 , sizeof(struct ssb_boardinfo));
-
-	len = bcm47xx_nvram_getenv("boardvendor", buf, sizeof(buf));
-	if (len > 0) {
-		err = kstrtou16(strim(buf), 0, &iv->boardinfo.vendor);
-		if (err)
-			pr_warn("Couldn't parse nvram board vendor entry with value \"%s\"\n",
-				buf);
-	}
-	if (!iv->boardinfo.vendor)
-		iv->boardinfo.vendor = SSB_BOARDVENDOR_BCM;
-
-	len = bcm47xx_nvram_getenv("boardtype", buf, sizeof(buf));
-	if (len > 0) {
-		err = kstrtou16(strim(buf), 0, &iv->boardinfo.type);
-		if (err)
-			pr_warn("Couldn't parse nvram board type entry with value \"%s\"\n",
-				buf);
-	}
-
-	memset(&iv->sprom, 0, sizeof(struct ssb_sprom));
-	bcm47xx_fill_sprom(&iv->sprom, NULL, false);
-
-	if (bcm47xx_nvram_getenv("cardbus", buf, sizeof(buf)) >= 0)
-		iv->has_cardbus_slot = !!simple_strtoul(buf, NULL, 10);
-
-	return 0;
-}
-
 static void __init bcm47xx_register_ssb(void)
 {
 	int err;
 	char buf[100];
 	struct ssb_mipscore *mcore;
 
-	err = ssb_bus_ssbbus_register(&bcm47xx_bus.ssb, SSB_ENUM_BASE,
-				      bcm47xx_get_invariants);
+	err = ssb_bus_host_soc_register(&bcm47xx_bus.ssb, SSB_ENUM_BASE);
 	if (err)
 		panic("Failed to initialize SSB bus (err %d)", err);
 
@@ -188,7 +152,6 @@ void __init plat_mem_setup(void)
 		pr_info("Using bcma bus\n");
 #ifdef CONFIG_BCM47XX_BCMA
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
-		bcm47xx_sprom_register_fallbacks();
 		bcm47xx_register_bcma();
 		bcm47xx_set_system_type(bcm47xx_bus.bcma.bus.chipinfo.id);
 #ifdef CONFIG_HIGHMEM
@@ -210,6 +173,31 @@ void __init plat_mem_setup(void)
 	pm_power_off = bcm47xx_machine_halt;
 }
 
+#ifdef CONFIG_BCM47XX_BCMA
+static struct device * __init bcm47xx_setup_device(void)
+{
+	struct device *dev;
+	int err;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return NULL;
+
+	err = dev_set_name(dev, "bcm47xx_soc");
+	if (err) {
+		pr_err("Failed to set SoC device name: %d\n", err);
+		kfree(dev);
+		return NULL;
+	}
+
+	err = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	if (err)
+		pr_err("Failed to set SoC DMA mask: %d\n", err);
+
+	return dev;
+}
+#endif
+
 /*
  * This finishes bus initialization doing things that were not possible without
  * kmalloc. Make sure to call it late enough (after mm_init).
@@ -219,6 +207,10 @@ void __init bcm47xx_bus_setup(void)
 #ifdef CONFIG_BCM47XX_BCMA
 	if (bcm47xx_bus_type == BCM47XX_BUS_TYPE_BCMA) {
 		int err;
+
+		bcm47xx_bus.bcma.dev = bcm47xx_setup_device();
+		if (!bcm47xx_bus.bcma.dev)
+			panic("Failed to setup SoC device\n");
 
 		err = bcma_host_soc_init(&bcm47xx_bus.bcma);
 		if (err)
@@ -272,6 +264,8 @@ static int __init bcm47xx_register_bus_complete(void)
 #endif
 #ifdef CONFIG_BCM47XX_BCMA
 	case BCM47XX_BUS_TYPE_BCMA:
+		if (device_register(bcm47xx_bus.bcma.dev))
+			pr_err("Failed to register SoC device\n");
 		bcma_bus_register(&bcm47xx_bus.bcma.bus);
 		break;
 #endif

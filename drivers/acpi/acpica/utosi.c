@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: utosi - Support for the _OSI predefined control method
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -101,6 +67,9 @@ static struct acpi_interface_info acpi_default_supported_interfaces[] = {
 	{"Windows 2012", NULL, 0, ACPI_OSI_WIN_8},	/* Windows 8 and Server 2012 - Added 08/2012 */
 	{"Windows 2013", NULL, 0, ACPI_OSI_WIN_8},	/* Windows 8.1 and Server 2012 R2 - Added 01/2014 */
 	{"Windows 2015", NULL, 0, ACPI_OSI_WIN_10},	/* Windows 10 - Added 03/2015 */
+	{"Windows 2016", NULL, 0, ACPI_OSI_WIN_10_RS1},	/* Windows 10 version 1607 - Added 12/2017 */
+	{"Windows 2017", NULL, 0, ACPI_OSI_WIN_10_RS2},	/* Windows 10 version 1703 - Added 12/2017 */
+	{"Windows 2017.2", NULL, 0, ACPI_OSI_WIN_10_RS3},	/* Windows 10 version 1709 - Added 02/2018 */
 
 	/* Feature Group Strings */
 
@@ -150,7 +119,7 @@ acpi_status acpi_ut_initialize_interfaces(void)
 	     i < (ACPI_ARRAY_LENGTH(acpi_default_supported_interfaces) - 1);
 	     i++) {
 		acpi_default_supported_interfaces[i].next =
-		    &acpi_default_supported_interfaces[(acpi_size) i + 1];
+		    &acpi_default_supported_interfaces[(acpi_size)i + 1];
 	}
 
 	acpi_os_release_mutex(acpi_gbl_osi_mutex);
@@ -269,9 +238,10 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 	previous_interface = next_interface = acpi_gbl_supported_interfaces;
 	while (next_interface) {
 		if (!strcmp(interface_name, next_interface->name)) {
-
-			/* Found: name is in either the static list or was added at runtime */
-
+			/*
+			 * Found: name is in either the static list
+			 * or was added at runtime
+			 */
 			if (next_interface->flags & ACPI_OSI_DYNAMIC) {
 
 				/* Interface was added dynamically, remove and free it */
@@ -288,8 +258,8 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 				ACPI_FREE(next_interface);
 			} else {
 				/*
-				 * Interface is in static list. If marked invalid, then it
-				 * does not actually exist. Else, mark it invalid.
+				 * Interface is in static list. If marked invalid, then
+				 * it does not actually exist. Else, mark it invalid.
 				 */
 				if (next_interface->flags & ACPI_OSI_INVALID) {
 					return (AE_NOT_EXIST);
@@ -389,21 +359,32 @@ struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name)
  * PARAMETERS:  walk_state          - Current walk state
  *
  * RETURN:      Status
+ *              Integer: TRUE (0) if input string is matched
+ *                       FALSE (-1) if string is not matched
  *
  * DESCRIPTION: Implementation of the _OSI predefined control method. When
  *              an invocation of _OSI is encountered in the system AML,
  *              control is transferred to this function.
  *
+ * (August 2016)
+ * Note:  _OSI is now defined to return "Ones" to indicate a match, for
+ * compatibility with other ACPI implementations. On a 32-bit DSDT, Ones
+ * is 0xFFFFFFFF. On a 64-bit DSDT, Ones is 0xFFFFFFFFFFFFFFFF
+ * (ACPI_UINT64_MAX).
+ *
+ * This function always returns ACPI_UINT64_MAX for TRUE, and later code
+ * will truncate this to 32 bits if necessary.
+ *
  ******************************************************************************/
 
-acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
+acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object *string_desc;
 	union acpi_operand_object *return_desc;
 	struct acpi_interface_info *interface_info;
 	acpi_interface_handler interface_handler;
 	acpi_status status;
-	u32 return_value;
+	u64 return_value;
 
 	ACPI_FUNCTION_TRACE(ut_osi_implementation);
 
@@ -443,7 +424,7 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
 			acpi_gbl_osi_data = interface_info->value;
 		}
 
-		return_value = ACPI_UINT32_MAX;
+		return_value = ACPI_UINT64_MAX;
 	}
 
 	acpi_os_release_mutex(acpi_gbl_osi_mutex);
@@ -455,9 +436,10 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
 	 */
 	interface_handler = acpi_gbl_interface_handler;
 	if (interface_handler) {
-		return_value =
-		    interface_handler(string_desc->string.pointer,
-				      return_value);
+		if (interface_handler
+		    (string_desc->string.pointer, (u32)return_value)) {
+			return_value = ACPI_UINT64_MAX;
+		}
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,

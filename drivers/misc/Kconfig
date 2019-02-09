@@ -53,7 +53,7 @@ config AD525X_DPOT_SPI
 
 config ATMEL_TCLIB
 	bool "Atmel AT32/AT91 Timer/Counter Library"
-	depends on (AVR32 || ARCH_AT91)
+	depends on ARCH_AT91
 	help
 	  Select this if you want a library to allocate the Timer/Counter
 	  blocks found on many Atmel processors.  This facilitates using
@@ -75,7 +75,6 @@ config ATMEL_TCB_CLKSRC
 config ATMEL_TCB_CLKSRC_BLOCK
 	int
 	depends on ATMEL_TCB_CLKSRC
-	prompt "TC Block" if CPU_AT32AP700X
 	default 0
 	range 0 1
 	help
@@ -95,6 +94,7 @@ config DUMMY_IRQ
 config IBM_ASM
 	tristate "Device driver for IBM RSA service processor"
 	depends on X86 && PCI && INPUT
+	depends on SERIAL_8250 || SERIAL_8250=n
 	---help---
 	  This option enables device driver support for in-band access to the
 	  IBM RSA (Condor) service processor in eServer xSeries systems.
@@ -112,6 +112,20 @@ config IBM_ASM
 	  website <http://www-03.ibm.com/systems/info/x86servers/serverproven/compat/us/>
 	  for information on the specific driver level and support statement
 	  for your IBM server.
+
+config IBMVMC
+	tristate "IBM Virtual Management Channel support"
+	depends on PPC_PSERIES
+	help
+	  This is the IBM POWER Virtual Management Channel
+
+	  This driver is to be used for the POWER Virtual
+	  Management Channel virtual adapter on the PowerVM
+	  platform. It provides both request/response and
+	  async message support through the /dev/ibmvmc node.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ibmvmc.
 
 config PHANTOM
 	tristate "Sensable PHANToM (PCI)"
@@ -191,7 +205,7 @@ config ICS932S401
 
 config ATMEL_SSC
 	tristate "Device driver for Atmel SSC peripheral"
-	depends on HAS_IOMEM && (AVR32 || ARCH_AT91 || COMPILE_TEST)
+	depends on HAS_IOMEM && (ARCH_AT91 || COMPILE_TEST)
 	---help---
 	  This option enables device driver support for Atmel Synchronized
 	  Serial Communication peripheral (SSC).
@@ -344,16 +358,6 @@ config SENSORS_TSL2550
 	  This driver can also be built as a module.  If so, the module
 	  will be called tsl2550.
 
-config SENSORS_BH1780
-	tristate "ROHM BH1780GLI ambient light sensor"
-	depends on I2C && SYSFS
-	help
-	  If you say yes here you get support for the ROHM BH1780GLI
-	  ambient light sensor.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called bh1780gli.
-
 config SENSORS_BH1770
          tristate "BH1770GLC / SFH7770 combined ALS - Proximity sensor"
          depends on I2C
@@ -402,16 +406,6 @@ config SPEAR13XX_PCIE_GADGET
 	 entry will be created for that controller. User can use these
 	 sysfs node to configure PCIe EP as per his requirements.
 
-config TI_DAC7512
-	tristate "Texas Instruments DAC7512"
-	depends on SPI && SYSFS
-	help
-	  If you say yes here you get support for the Texas Instruments
-	  DAC7512 16-bit digital-to-analog converter.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called ti_dac7512.
-
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
 	depends on VMWARE_VMCI && X86 && HYPERVISOR_GUEST
@@ -428,48 +422,10 @@ config VMWARE_BALLOON
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmw_balloon.
 
-config ARM_CHARLCD
-	bool "ARM Ltd. Character LCD Driver"
-	depends on PLAT_VERSATILE
-	help
-	  This is a driver for the character LCD found on the ARM Ltd.
-	  Versatile and RealView Platform Baseboards. It doesn't do
-	  very much more than display the text "ARM Linux" on the first
-	  line and the Linux version on the second line, but that's
-	  still useful.
-
-config BMP085
-	bool
-	depends on SYSFS
-
-config BMP085_I2C
-	tristate "BMP085 digital pressure sensor on I2C"
-	select BMP085
-	select REGMAP_I2C
-	depends on I2C && SYSFS
-	help
-	  Say Y here if you want to support Bosch Sensortec's digital pressure
-	  sensor hooked to an I2C bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bmp085-i2c.
-
-config BMP085_SPI
-	tristate "BMP085 digital pressure sensor on SPI"
-	select BMP085
-	select REGMAP_SPI
-	depends on SPI_MASTER && SYSFS
-	help
-	  Say Y here if you want to support Bosch Sensortec's digital pressure
-	  sensor hooked to an SPI bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bmp085-spi.
-
 config PCH_PHUB
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
 	select GENERIC_NET_UTILS
-	depends on PCI && (X86_32 || COMPILE_TEST)
+	depends on PCI && (X86_32 || MIPS || COMPILE_TEST)
 	help
 	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
 	  Intel Topcliff which is an IOH(Input/Output Hub) for x86 embedded
@@ -511,10 +467,14 @@ config SRAM
 	bool "Generic on-chip SRAM driver"
 	depends on HAS_IOMEM
 	select GENERIC_ALLOCATOR
+	select SRAM_EXEC if ARM
 	help
 	  This driver allows you to declare a memory region to be managed by
 	  the genalloc API. It is supposed to be used for small on-chip SRAM
 	  areas found on many SoCs.
+
+config SRAM_EXEC
+	bool
 
 config VEXPRESS_SYSCFG
 	bool "Versatile Express System Configuration driver"
@@ -524,6 +484,49 @@ config VEXPRESS_SYSCFG
 	  ARM Ltd. Versatile Express uses specialised platform configuration
 	  bus. System Configuration interface is one of the possible means
 	  of generating transactions on this bus.
+
+config ASPEED_LPC_CTRL
+	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
+	tristate "Aspeed ast2400/2500 HOST LPC to BMC bridge control"
+	---help---
+	  Control Aspeed ast2400/2500 HOST LPC to BMC mappings through
+	  ioctl()s, the driver also provides a read/write interface to a BMC ram
+	  region where the host LPC read/write region can be buffered.
+
+config ASPEED_LPC_SNOOP
+	tristate "Aspeed ast2500 HOST LPC snoop support"
+	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
+	help
+	  Provides a driver to control the LPC snoop interface which
+	  allows the BMC to listen on and save the data written by
+	  the host to an arbitrary LPC I/O port.
+
+config PCI_ENDPOINT_TEST
+	depends on PCI
+	select CRC32
+	tristate "PCI Endpoint Test driver"
+	---help---
+           Enable this configuration option to enable the host side test driver
+           for PCI Endpoint.
+
+config MISC_RTSX
+	tristate
+	default MISC_RTSX_PCI || MISC_RTSX_USB
+
+config UID_SYS_STATS
+	bool "Per-UID statistics"
+	depends on PROFILING && TASK_XACCT && TASK_IO_ACCOUNTING
+	help
+	  Per UID based cpu time statistics exported to /proc/uid_cputime
+	  Per UID based io statistics exported to /proc/uid_io
+	  Per UID based procstat control in /proc/uid_procstat
+
+config UID_SYS_STATS_DEBUG
+	bool "Per-TASK statistics"
+	depends on UID_SYS_STATS
+	default n
+	help
+	  Per TASK based io statistics exported to /proc/uid_io
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
@@ -537,4 +540,6 @@ source "drivers/misc/mic/Kconfig"
 source "drivers/misc/genwqe/Kconfig"
 source "drivers/misc/echo/Kconfig"
 source "drivers/misc/cxl/Kconfig"
+source "drivers/misc/ocxl/Kconfig"
+source "drivers/misc/cardreader/Kconfig"
 endmenu

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Device tree file for the Zyxel NSA 320 NAS box.
  *
  * Copyright (c) 2014, Adam Baker <linux@baker-net.org.uk>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Based upon the board setup file created by Peter Schildmann */
 
@@ -25,16 +22,6 @@
 	chosen {
 		bootargs = "console=ttyS0,115200";
 		stdout-path = &uart0;
-	};
-
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
 	};
 
 	ocp@f1000000 {
@@ -193,10 +180,19 @@
 		};
 	};
 
+	hwmon {
+		compatible = "zyxel,nsa320-mcu";
+		pinctrl-0 = <&pmx_mcu_data &pmx_mcu_clk &pmx_mcu_act>;
+		pinctrl-names = "default";
+
+		data-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		clk-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		act-gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+	};
+
 	/* The following pins are currently not assigned to a driver,
 	   some of them should be configured as inputs.
-	pinctrl-0 = <&pmx_mcu_data &pmx_mcu_clk &pmx_mcu_act
-		     &pmx_htp &pmx_vid_b1
+	pinctrl-0 = <&pmx_htp &pmx_vid_b1
 		     &pmx_power_resume_data &pmx_power_resume_clk>; */
 };
 
@@ -212,4 +208,12 @@
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

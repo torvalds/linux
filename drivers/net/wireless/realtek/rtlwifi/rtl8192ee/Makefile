@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 rtl8192ee-objs :=		\
 		dm.o		\
 		fw.o		\
@@ -12,5 +13,3 @@ rtl8192ee-objs :=		\
 
 
 obj-$(CONFIG_RTL8192EE) += rtl8192ee.o
-
-ccflags-y += -D__CHECK_ENDIAN__

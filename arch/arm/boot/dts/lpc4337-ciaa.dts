@@ -30,7 +30,7 @@
 		stdout-path = &uart2;
 	};
 
-	memory {
+	memory@28000000 {
 		device_type = "memory";
 		reg = <0x28000000 0x0800000>; /* 8 MB */
 	};
@@ -99,6 +99,14 @@
 		};
 	};
 
+	i2c0_pins: i2c0-pins {
+		i2c0_pins_cfg {
+			pins = "i2c0_scl", "i2c0_sda";
+			function = "i2c0";
+			input-enable;
+		};
+	};
+
 	ssp_pins: ssp-pins {
 		ssp1_cs {
 			pins = "p6_7";
@@ -159,11 +167,37 @@
 	clock-frequency = <50000000>;
 };
 
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	clock-frequency = <400000>;
+
+	eeprom@50 {
+		compatible = "microchip,24c512", "atmel,24c512";
+		reg = <0x50>;
+	};
+
+	eeprom@51 {
+		compatible = "microchip,24c02", "atmel,24c02";
+		reg = <0x51>;
+	};
+
+	eeprom@54 {
+		compatible = "microchip,24c512", "atmel,24c512";
+		reg = <0x54>;
+	};
+};
+
 &mac {
 	status = "okay";
 	phy-mode = "rmii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&enet_rmii_pins>;
+};
+
+&sct_pwm {
+	status = "okay";
 };
 
 &ssp1 {

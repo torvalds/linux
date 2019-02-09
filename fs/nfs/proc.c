@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/nfs/proc.c
  *
@@ -98,7 +99,8 @@ nfs_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
  */
 static int
 nfs_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
-		struct nfs_fattr *fattr, struct nfs4_label *label)
+		struct nfs_fattr *fattr, struct nfs4_label *label,
+		struct inode *inode)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs_procedures[NFSPROC_GETATTR],
@@ -145,7 +147,7 @@ nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 }
 
 static int
-nfs_proc_lookup(struct inode *dir, struct qstr *name,
+nfs_proc_lookup(struct inode *dir, const struct qstr *name,
 		struct nfs_fh *fhandle, struct nfs_fattr *fattr,
 		struct nfs4_label *label)
 {
@@ -299,11 +301,11 @@ out:
 }
   
 static int
-nfs_proc_remove(struct inode *dir, struct qstr *name)
+nfs_proc_remove(struct inode *dir, struct dentry *dentry)
 {
 	struct nfs_removeargs arg = {
 		.fh = NFS_FH(dir),
-		.name = *name,
+		.name = dentry->d_name,
 	};
 	struct rpc_message msg = { 
 		.rpc_proc = &nfs_procedures[NFSPROC_REMOVE],
@@ -311,7 +313,7 @@ nfs_proc_remove(struct inode *dir, struct qstr *name)
 	};
 	int			status;
 
-	dprintk("NFS call  remove %s\n", name->name);
+	dprintk("NFS call  remove %pd2\n",dentry);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_mark_for_revalidate(dir);
 
@@ -320,7 +322,9 @@ nfs_proc_remove(struct inode *dir, struct qstr *name)
 }
 
 static void
-nfs_proc_unlink_setup(struct rpc_message *msg, struct inode *dir)
+nfs_proc_unlink_setup(struct rpc_message *msg,
+		struct dentry *dentry,
+		struct inode *inode)
 {
 	msg->rpc_proc = &nfs_procedures[NFSPROC_REMOVE];
 }
@@ -337,7 +341,9 @@ static int nfs_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 }
 
 static void
-nfs_proc_rename_setup(struct rpc_message *msg, struct inode *dir)
+nfs_proc_rename_setup(struct rpc_message *msg,
+		struct dentry *old_dentry,
+		struct dentry *new_dentry)
 {
 	msg->rpc_proc = &nfs_procedures[NFSPROC_RENAME];
 }
@@ -357,7 +363,7 @@ nfs_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
 }
 
 static int
-nfs_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
+nfs_proc_link(struct inode *inode, struct inode *dir, const struct qstr *name)
 {
 	struct nfs_linkargs	arg = {
 		.fromfh		= NFS_FH(inode),
@@ -456,7 +462,7 @@ out:
 }
 
 static int
-nfs_proc_rmdir(struct inode *dir, struct qstr *name)
+nfs_proc_rmdir(struct inode *dir, const struct qstr *name)
 {
 	struct nfs_diropargs	arg = {
 		.fh		= NFS_FH(dir),
@@ -485,7 +491,7 @@ nfs_proc_rmdir(struct inode *dir, struct qstr *name)
  */
 static int
 nfs_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
-		 u64 cookie, struct page **pages, unsigned int count, int plus)
+		 u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
 	struct inode		*dir = d_inode(dentry);
 	struct nfs_readdirargs	arg = {
@@ -615,7 +621,8 @@ static int nfs_write_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 }
 
 static void nfs_proc_write_setup(struct nfs_pgio_header *hdr,
-				 struct rpc_message *msg)
+				 struct rpc_message *msg,
+				 struct rpc_clnt **clnt)
 {
 	/* Note: NFSv2 ignores @stable and always uses NFS_FILE_SYNC */
 	hdr->args.stable = NFS_FILE_SYNC;
@@ -628,7 +635,8 @@ static void nfs_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit
 }
 
 static void
-nfs_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg)
+nfs_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg,
+			struct rpc_clnt **clnt)
 {
 	BUG();
 }
@@ -638,7 +646,7 @@ nfs_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct inode *inode = file_inode(filp);
 
-	return nlmclnt_proc(NFS_SERVER(inode)->nlm_host, cmd, fl);
+	return nlmclnt_proc(NFS_SERVER(inode)->nlm_host, cmd, fl, NULL);
 }
 
 /* Helper functions for NFS lock bounds checking */
@@ -667,12 +675,6 @@ out_einval:
 
 static int nfs_have_delegation(struct inode *inode, fmode_t flags)
 {
-	return 0;
-}
-
-static int nfs_return_delegation(struct inode *inode)
-{
-	nfs_wb_all(inode);
 	return 0;
 }
 
@@ -740,7 +742,6 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.lock_check_bounds = nfs_lock_check_bounds,
 	.close_context	= nfs_close_context,
 	.have_delegation = nfs_have_delegation,
-	.return_delegation = nfs_return_delegation,
 	.alloc_client	= nfs_alloc_client,
 	.init_client	= nfs_init_client,
 	.free_client	= nfs_free_client,

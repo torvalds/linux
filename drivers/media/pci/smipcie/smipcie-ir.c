@@ -144,7 +144,7 @@ static void smi_ir_decode(struct work_struct *work)
 			rc5_system = (dwIRCode & 0x7C0) >> 6;
 			toggle = (dwIRCode & 0x800) ? 1 : 0;
 			scancode = rc5_system << 8 | rc5_command;
-			rc_keydown(rc_dev, RC_TYPE_RC5, scancode, toggle);
+			rc_keydown(rc_dev, RC_PROTO_RC5, scancode, toggle);
 		}
 	}
 end_ir_decode:
@@ -183,27 +183,26 @@ int smi_ir_init(struct smi_dev *dev)
 	struct rc_dev *rc_dev;
 	struct smi_rc *ir = &dev->ir;
 
-	rc_dev = rc_allocate_device();
+	rc_dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!rc_dev)
 		return -ENOMEM;
 
 	/* init input device */
-	snprintf(ir->input_name, sizeof(ir->input_name), "IR (%s)",
+	snprintf(ir->device_name, sizeof(ir->device_name), "IR (%s)",
 		 dev->info->name);
 	snprintf(ir->input_phys, sizeof(ir->input_phys), "pci-%s/ir0",
 		 pci_name(dev->pci_dev));
 
 	rc_dev->driver_name = "SMI_PCIe";
 	rc_dev->input_phys = ir->input_phys;
-	rc_dev->input_name = ir->input_name;
+	rc_dev->device_name = ir->device_name;
 	rc_dev->input_id.bustype = BUS_PCI;
 	rc_dev->input_id.version = 1;
 	rc_dev->input_id.vendor = dev->pci_dev->subsystem_vendor;
 	rc_dev->input_id.product = dev->pci_dev->subsystem_device;
 	rc_dev->dev.parent = &dev->pci_dev->dev;
 
-	rc_dev->driver_type = RC_DRIVER_SCANCODE;
-	rc_dev->map_name = RC_MAP_DVBSKY;
+	rc_dev->map_name = dev->info->rc_map;
 
 	ir->rc_dev = rc_dev;
 	ir->dev = dev;

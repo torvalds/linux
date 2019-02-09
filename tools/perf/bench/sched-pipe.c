@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
  * sched-pipe.c
@@ -10,7 +11,7 @@
  */
 #include "../perf.h"
 #include "../util/util.h"
-#include "../util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "../builtin.h"
 #include "bench.h"
 
@@ -25,6 +26,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
+#include <linux/time64.h>
 
 #include <pthread.h>
 
@@ -75,7 +77,7 @@ static void *worker_thread(void *__tdata)
 	return NULL;
 }
 
-int bench_sched_pipe(int argc, const char **argv, const char *prefix __maybe_unused)
+int bench_sched_pipe(int argc, const char **argv)
 {
 	struct thread_data threads[2], *td;
 	int pipe_1[2], pipe_2[2];
@@ -153,24 +155,24 @@ int bench_sched_pipe(int argc, const char **argv, const char *prefix __maybe_unu
 		printf("# Executed %d pipe operations between two %s\n\n",
 			loops, threaded ? "threads" : "processes");
 
-		result_usec = diff.tv_sec * 1000000;
+		result_usec = diff.tv_sec * USEC_PER_SEC;
 		result_usec += diff.tv_usec;
 
 		printf(" %14s: %lu.%03lu [sec]\n\n", "Total time",
 		       diff.tv_sec,
-		       (unsigned long) (diff.tv_usec/1000));
+		       (unsigned long) (diff.tv_usec / USEC_PER_MSEC));
 
 		printf(" %14lf usecs/op\n",
 		       (double)result_usec / (double)loops);
 		printf(" %14d ops/sec\n",
 		       (int)((double)loops /
-			     ((double)result_usec / (double)1000000)));
+			     ((double)result_usec / (double)USEC_PER_SEC)));
 		break;
 
 	case BENCH_FORMAT_SIMPLE:
 		printf("%lu.%03lu\n",
 		       diff.tv_sec,
-		       (unsigned long) (diff.tv_usec / 1000));
+		       (unsigned long) (diff.tv_usec / USEC_PER_MSEC));
 		break;
 
 	default:

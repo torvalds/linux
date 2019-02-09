@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
  *
@@ -8,9 +9,9 @@
  * io_apic.c.)
  */
 
-#include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kernel_stat.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
@@ -20,6 +21,7 @@
 #include <linux/mm.h>
 
 #include <asm/apic.h>
+#include <asm/nospec-branch.h>
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 
@@ -55,17 +57,17 @@ DEFINE_PER_CPU(struct irq_stack *, softirq_stack);
 static void call_on_stack(void *func, void *stack)
 {
 	asm volatile("xchgl	%%ebx,%%esp	\n"
-		     "call	*%%edi		\n"
+		     CALL_NOSPEC
 		     "movl	%%ebx,%%esp	\n"
 		     : "=b" (stack)
 		     : "0" (stack),
-		       "D"(func)
+		       [thunk_target] "D"(func)
 		     : "memory", "cc", "edx", "ecx", "eax");
 }
 
 static inline void *current_stack(void)
 {
-	return (void *)(current_stack_pointer() & ~(THREAD_SIZE - 1));
+	return (void *)(current_stack_pointer & ~(THREAD_SIZE - 1));
 }
 
 static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
@@ -89,17 +91,17 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
 
 	/* Save the next esp at the bottom of the stack */
 	prev_esp = (u32 *)irqstk;
-	*prev_esp = current_stack_pointer();
+	*prev_esp = current_stack_pointer;
 
 	if (unlikely(overflow))
 		call_on_stack(print_stack_overflow, isp);
 
 	asm volatile("xchgl	%%ebx,%%esp	\n"
-		     "call	*%%edi		\n"
+		     CALL_NOSPEC
 		     "movl	%%ebx,%%esp	\n"
 		     : "=a" (arg1), "=b" (isp)
 		     :  "0" (desc),   "1" (isp),
-			"D" (desc->handle_irq)
+			[thunk_target] "D" (desc->handle_irq)
 		     : "memory", "cc", "ecx");
 	return 1;
 }
@@ -130,11 +132,9 @@ void irq_ctx_init(int cpu)
 
 void do_softirq_own_stack(void)
 {
-	struct thread_info *curstk;
 	struct irq_stack *irqstk;
 	u32 *isp, *prev_esp;
 
-	curstk = current_stack();
 	irqstk = __this_cpu_read(softirq_stack);
 
 	/* build the stack frame on the softirq stack */
@@ -142,7 +142,7 @@ void do_softirq_own_stack(void)
 
 	/* Push the previous esp onto the stack */
 	prev_esp = (u32 *)irqstk;
-	*prev_esp = current_stack_pointer();
+	*prev_esp = current_stack_pointer;
 
 	call_on_stack(__do_softirq, isp);
 }

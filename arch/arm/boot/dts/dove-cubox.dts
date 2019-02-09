@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "dove.dtsi"
@@ -62,6 +63,10 @@
 		pinctrl-0 = <&pmx_gpio_19>;
 		pinctrl-names = "default";
 	};
+
+	gpu-subsystem {
+		status = "okay";
+	};
 };
 
 &uart0 { status = "okay"; };
@@ -72,6 +77,10 @@
 &ethphy {
 	compatible = "marvell,88e1310";
 	reg = <1>;
+};
+
+&gpu {
+	status = "okay";
 };
 
 &i2c0 {

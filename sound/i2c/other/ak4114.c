@@ -121,7 +121,7 @@ int snd_ak4114_create(struct snd_card *card,
 
       __fail:
 	snd_ak4114_free(chip);
-	return err < 0 ? err : -EIO;
+	return err;
 }
 EXPORT_SYMBOL(snd_ak4114_create);
 
@@ -194,12 +194,11 @@ static int snd_ak4114_in_error_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
-	long *ptr;
 
 	spin_lock_irq(&chip->lock);
-	ptr = (long *)(((char *)chip) + kcontrol->private_value);
-	ucontrol->value.integer.value[0] = *ptr;
-	*ptr = 0;
+	ucontrol->value.integer.value[0] =
+		chip->errors[kcontrol->private_value];
+	chip->errors[kcontrol->private_value] = 0;
 	spin_unlock_irq(&chip->lock);
 	return 0;
 }
@@ -341,7 +340,7 @@ static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(struct ak4114, parity_errors),
+	.private_value = AK4114_PARITY_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -349,7 +348,7 @@ static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(struct ak4114, v_bit_errors),
+	.private_value = AK4114_V_BIT_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -357,7 +356,7 @@ static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(struct ak4114, ccrc_errors),
+	.private_value = AK4114_CCRC_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -365,7 +364,7 @@ static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(struct ak4114, qcrc_errors),
+	.private_value = AK4114_QCRC_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -581,13 +580,13 @@ int snd_ak4114_check_rate_and_errors(struct ak4114 *ak4114, unsigned int flags)
 	rcs0 = reg_read(ak4114, AK4114_REG_RCS0);
 	spin_lock_irqsave(&ak4114->lock, _flags);
 	if (rcs0 & AK4114_PAR)
-		ak4114->parity_errors++;
+		ak4114->errors[AK4114_PARITY_ERRORS]++;
 	if (rcs1 & AK4114_V)
-		ak4114->v_bit_errors++;
+		ak4114->errors[AK4114_V_BIT_ERRORS]++;
 	if (rcs1 & AK4114_CCRC)
-		ak4114->ccrc_errors++;
+		ak4114->errors[AK4114_CCRC_ERRORS]++;
 	if (rcs1 & AK4114_QCRC)
-		ak4114->qcrc_errors++;
+		ak4114->errors[AK4114_QCRC_ERRORS]++;
 	c0 = (ak4114->rcs0 & (AK4114_QINT | AK4114_CINT | AK4114_PEM | AK4114_AUDION | AK4114_AUTO | AK4114_UNLCK)) ^
                      (rcs0 & (AK4114_QINT | AK4114_CINT | AK4114_PEM | AK4114_AUDION | AK4114_AUTO | AK4114_UNLCK));
 	c1 = (ak4114->rcs1 & 0xf0) ^ (rcs1 & 0xf0);

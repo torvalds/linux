@@ -56,15 +56,16 @@ static void tcp_yeah_init(struct sock *sk)
 	tp->snd_cwnd_clamp = min_t(u32, tp->snd_cwnd_clamp, 0xffffffff/128);
 }
 
-static void tcp_yeah_pkts_acked(struct sock *sk, u32 pkts_acked, s32 rtt_us)
+static void tcp_yeah_pkts_acked(struct sock *sk,
+				const struct ack_sample *sample)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct yeah *yeah = inet_csk_ca(sk);
 
 	if (icsk->icsk_ca_state == TCP_CA_Open)
-		yeah->pkts_acked = pkts_acked;
+		yeah->pkts_acked = sample->pkts_acked;
 
-	tcp_vegas_pkts_acked(sk, pkts_acked, rtt_us);
+	tcp_vegas_pkts_acked(sk, sample);
 }
 
 static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
@@ -75,7 +76,7 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (!tcp_is_cwnd_limited(sk))
 		return;
 
-	if (tp->snd_cwnd <= tp->snd_ssthresh)
+	if (tcp_in_slow_start(tp))
 		tcp_slow_start(tp, acked);
 
 	else if (!yeah->doing_reno_now) {
@@ -219,12 +220,13 @@ static u32 tcp_yeah_ssthresh(struct sock *sk)
 	yeah->fast_count = 0;
 	yeah->reno_count = max(yeah->reno_count>>1, 2U);
 
-	return tp->snd_cwnd - reduction;
+	return max_t(int, tp->snd_cwnd - reduction, 2);
 }
 
 static struct tcp_congestion_ops tcp_yeah __read_mostly = {
 	.init		= tcp_yeah_init,
 	.ssthresh	= tcp_yeah_ssthresh,
+	.undo_cwnd      = tcp_reno_undo_cwnd,
 	.cong_avoid	= tcp_yeah_cong_avoid,
 	.set_state	= tcp_vegas_state,
 	.cwnd_event	= tcp_vegas_cwnd_event,

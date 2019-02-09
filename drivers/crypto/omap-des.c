@@ -29,7 +29,6 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/omap-dma.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -39,6 +38,10 @@
 #include <linux/interrupt.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/des.h>
+#include <crypto/algapi.h>
+#include <crypto/engine.h>
+
+#include "omap-crypto.h"
 
 #define DST_MAXBURST			2
 
@@ -77,7 +80,13 @@
 #define FLAGS_INIT		BIT(4)
 #define FLAGS_BUSY		BIT(6)
 
+#define DEFAULT_AUTOSUSPEND_DELAY	1000
+
+#define FLAGS_IN_DATA_ST_SHIFT	8
+#define FLAGS_OUT_DATA_ST_SHIFT	10
+
 struct omap_des_ctx {
+	struct crypto_engine_ctx enginectx;
 	struct omap_des_dev *dd;
 
 	int		keylen;
@@ -132,14 +141,10 @@ struct omap_des_dev {
 	unsigned long		flags;
 	int			err;
 
-	/* spinlock used for queues */
-	spinlock_t		lock;
-	struct crypto_queue	queue;
-
 	struct tasklet_struct	done_task;
-	struct tasklet_struct	queue_task;
 
 	struct ablkcipher_request	*req;
+	struct crypto_engine		*engine;
 	/*
 	 * total is used by PIO mode for book keeping so introduce
 	 * variable total_save as need it to calc page_order
@@ -154,13 +159,10 @@ struct omap_des_dev {
 	struct scatterlist		in_sgl;
 	struct scatterlist		out_sgl;
 	struct scatterlist		*orig_out;
-	int				sgs_copied;
 
 	struct scatter_walk		in_walk;
 	struct scatter_walk		out_walk;
-	int			dma_in;
 	struct dma_chan		*dma_lch_in;
-	int			dma_out;
 	struct dma_chan		*dma_lch_out;
 	int			in_sg_len;
 	int			out_sg_len;
@@ -340,30 +342,21 @@ static void omap_des_dma_out_callback(void *data)
 
 static int omap_des_dma_init(struct omap_des_dev *dd)
 {
-	int err = -ENOMEM;
-	dma_cap_mask_t mask;
+	int err;
 
 	dd->dma_lch_out = NULL;
 	dd->dma_lch_in = NULL;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-
-	dd->dma_lch_in = dma_request_slave_channel_compat(mask,
-							  omap_dma_filter_fn,
-							  &dd->dma_in,
-							  dd->dev, "rx");
-	if (!dd->dma_lch_in) {
+	dd->dma_lch_in = dma_request_chan(dd->dev, "rx");
+	if (IS_ERR(dd->dma_lch_in)) {
 		dev_err(dd->dev, "Unable to request in DMA channel\n");
-		goto err_dma_in;
+		return PTR_ERR(dd->dma_lch_in);
 	}
 
-	dd->dma_lch_out = dma_request_slave_channel_compat(mask,
-							   omap_dma_filter_fn,
-							   &dd->dma_out,
-							   dd->dev, "tx");
-	if (!dd->dma_lch_out) {
+	dd->dma_lch_out = dma_request_chan(dd->dev, "tx");
+	if (IS_ERR(dd->dma_lch_out)) {
 		dev_err(dd->dev, "Unable to request out DMA channel\n");
+		err = PTR_ERR(dd->dma_lch_out);
 		goto err_dma_out;
 	}
 
@@ -371,30 +364,17 @@ static int omap_des_dma_init(struct omap_des_dev *dd)
 
 err_dma_out:
 	dma_release_channel(dd->dma_lch_in);
-err_dma_in:
-	if (err)
-		pr_err("error: %d\n", err);
+
 	return err;
 }
 
 static void omap_des_dma_cleanup(struct omap_des_dev *dd)
 {
-	dma_release_channel(dd->dma_lch_out);
-	dma_release_channel(dd->dma_lch_in);
-}
-
-static void sg_copy_buf(void *buf, struct scatterlist *sg,
-			      unsigned int start, unsigned int nbytes, int out)
-{
-	struct scatter_walk walk;
-
-	if (!nbytes)
+	if (dd->pio_only)
 		return;
 
-	scatterwalk_start(&walk, sg);
-	scatterwalk_advance(&walk, start);
-	scatterwalk_copychunks(buf, &walk, nbytes, out);
-	scatterwalk_done(&walk, out, 0);
+	dma_release_channel(dd->dma_lch_out);
+	dma_release_channel(dd->dma_lch_in);
 }
 
 static int omap_des_crypt_dma(struct crypto_tfm *tfm,
@@ -519,16 +499,14 @@ static void omap_des_finish_req(struct omap_des_dev *dd, int err)
 
 	pr_debug("err: %d\n", err);
 
-	pm_runtime_put(dd->dev);
-	dd->flags &= ~FLAGS_BUSY;
+	crypto_finalize_ablkcipher_request(dd->engine, req, err);
 
-	req->base.complete(&req->base, err);
+	pm_runtime_mark_last_busy(dd->dev);
+	pm_runtime_put_autosuspend(dd->dev);
 }
 
 static int omap_des_crypt_dma_stop(struct omap_des_dev *dd)
 {
-	int err = 0;
-
 	pr_debug("total: %d\n", dd->total);
 
 	omap_des_dma_stop(dd);
@@ -536,85 +514,31 @@ static int omap_des_crypt_dma_stop(struct omap_des_dev *dd)
 	dmaengine_terminate_all(dd->dma_lch_in);
 	dmaengine_terminate_all(dd->dma_lch_out);
 
-	return err;
-}
-
-static int omap_des_copy_needed(struct scatterlist *sg)
-{
-	while (sg) {
-		if (!IS_ALIGNED(sg->offset, 4))
-			return -1;
-		if (!IS_ALIGNED(sg->length, DES_BLOCK_SIZE))
-			return -1;
-		sg = sg_next(sg);
-	}
-	return 0;
-}
-
-static int omap_des_copy_sgs(struct omap_des_dev *dd)
-{
-	void *buf_in, *buf_out;
-	int pages;
-
-	pages = dd->total >> PAGE_SHIFT;
-
-	if (dd->total & (PAGE_SIZE-1))
-		pages++;
-
-	BUG_ON(!pages);
-
-	buf_in = (void *)__get_free_pages(GFP_ATOMIC, pages);
-	buf_out = (void *)__get_free_pages(GFP_ATOMIC, pages);
-
-	if (!buf_in || !buf_out) {
-		pr_err("Couldn't allocated pages for unaligned cases.\n");
-		return -1;
-	}
-
-	dd->orig_out = dd->out_sg;
-
-	sg_copy_buf(buf_in, dd->in_sg, 0, dd->total, 0);
-
-	sg_init_table(&dd->in_sgl, 1);
-	sg_set_buf(&dd->in_sgl, buf_in, dd->total);
-	dd->in_sg = &dd->in_sgl;
-
-	sg_init_table(&dd->out_sgl, 1);
-	sg_set_buf(&dd->out_sgl, buf_out, dd->total);
-	dd->out_sg = &dd->out_sgl;
-
 	return 0;
 }
 
 static int omap_des_handle_queue(struct omap_des_dev *dd,
-			       struct ablkcipher_request *req)
+				 struct ablkcipher_request *req)
 {
-	struct crypto_async_request *async_req, *backlog;
-	struct omap_des_ctx *ctx;
-	struct omap_des_reqctx *rctx;
-	unsigned long flags;
-	int err, ret = 0;
-
-	spin_lock_irqsave(&dd->lock, flags);
 	if (req)
-		ret = ablkcipher_enqueue_request(&dd->queue, req);
-	if (dd->flags & FLAGS_BUSY) {
-		spin_unlock_irqrestore(&dd->lock, flags);
-		return ret;
-	}
-	backlog = crypto_get_backlog(&dd->queue);
-	async_req = crypto_dequeue_request(&dd->queue);
-	if (async_req)
-		dd->flags |= FLAGS_BUSY;
-	spin_unlock_irqrestore(&dd->lock, flags);
+		return crypto_transfer_ablkcipher_request_to_engine(dd->engine, req);
 
-	if (!async_req)
-		return ret;
+	return 0;
+}
 
-	if (backlog)
-		backlog->complete(backlog, -EINPROGRESS);
+static int omap_des_prepare_req(struct crypto_engine *engine,
+				void *areq)
+{
+	struct ablkcipher_request *req = container_of(areq, struct ablkcipher_request, base);
+	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(
+			crypto_ablkcipher_reqtfm(req));
+	struct omap_des_dev *dd = omap_des_find_dev(ctx);
+	struct omap_des_reqctx *rctx;
+	int ret;
+	u16 flags;
 
-	req = ablkcipher_request_cast(async_req);
+	if (!dd)
+		return -ENODEV;
 
 	/* assign new request to device */
 	dd->req = req;
@@ -622,19 +546,31 @@ static int omap_des_handle_queue(struct omap_des_dev *dd,
 	dd->total_save = req->nbytes;
 	dd->in_sg = req->src;
 	dd->out_sg = req->dst;
+	dd->orig_out = req->dst;
 
-	if (omap_des_copy_needed(dd->in_sg) ||
-	    omap_des_copy_needed(dd->out_sg)) {
-		if (omap_des_copy_sgs(dd))
-			pr_err("Failed to copy SGs for unaligned cases\n");
-		dd->sgs_copied = 1;
-	} else {
-		dd->sgs_copied = 0;
-	}
+	flags = OMAP_CRYPTO_COPY_DATA;
+	if (req->src == req->dst)
+		flags |= OMAP_CRYPTO_FORCE_COPY;
 
-	dd->in_sg_len = scatterwalk_bytes_sglen(dd->in_sg, dd->total);
-	dd->out_sg_len = scatterwalk_bytes_sglen(dd->out_sg, dd->total);
-	BUG_ON(dd->in_sg_len < 0 || dd->out_sg_len < 0);
+	ret = omap_crypto_align_sg(&dd->in_sg, dd->total, DES_BLOCK_SIZE,
+				   &dd->in_sgl, flags,
+				   FLAGS_IN_DATA_ST_SHIFT, &dd->flags);
+	if (ret)
+		return ret;
+
+	ret = omap_crypto_align_sg(&dd->out_sg, dd->total, DES_BLOCK_SIZE,
+				   &dd->out_sgl, 0,
+				   FLAGS_OUT_DATA_ST_SHIFT, &dd->flags);
+	if (ret)
+		return ret;
+
+	dd->in_sg_len = sg_nents_for_len(dd->in_sg, dd->total);
+	if (dd->in_sg_len < 0)
+		return dd->in_sg_len;
+
+	dd->out_sg_len = sg_nents_for_len(dd->out_sg, dd->total);
+	if (dd->out_sg_len < 0)
+		return dd->out_sg_len;
 
 	rctx = ablkcipher_request_ctx(req);
 	ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
@@ -644,23 +580,26 @@ static int omap_des_handle_queue(struct omap_des_dev *dd,
 	dd->ctx = ctx;
 	ctx->dd = dd;
 
-	err = omap_des_write_ctrl(dd);
-	if (!err)
-		err = omap_des_crypt_dma_start(dd);
-	if (err) {
-		/* des_task will not finish it, so do it here */
-		omap_des_finish_req(dd, err);
-		tasklet_schedule(&dd->queue_task);
-	}
+	return omap_des_write_ctrl(dd);
+}
 
-	return ret; /* return ret, which is enqueue return value */
+static int omap_des_crypt_req(struct crypto_engine *engine,
+			      void *areq)
+{
+	struct ablkcipher_request *req = container_of(areq, struct ablkcipher_request, base);
+	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(
+			crypto_ablkcipher_reqtfm(req));
+	struct omap_des_dev *dd = omap_des_find_dev(ctx);
+
+	if (!dd)
+		return -ENODEV;
+
+	return omap_des_crypt_dma_start(dd);
 }
 
 static void omap_des_done_task(unsigned long data)
 {
 	struct omap_des_dev *dd = (struct omap_des_dev *)data;
-	void *buf_in, *buf_out;
-	int pages;
 
 	pr_debug("enter done_task\n");
 
@@ -673,28 +612,15 @@ static void omap_des_done_task(unsigned long data)
 		omap_des_crypt_dma_stop(dd);
 	}
 
-	if (dd->sgs_copied) {
-		buf_in = sg_virt(&dd->in_sgl);
-		buf_out = sg_virt(&dd->out_sgl);
+	omap_crypto_cleanup(&dd->in_sgl, NULL, 0, dd->total_save,
+			    FLAGS_IN_DATA_ST_SHIFT, dd->flags);
 
-		sg_copy_buf(buf_out, dd->orig_out, 0, dd->total_save, 1);
-
-		pages = get_order(dd->total_save);
-		free_pages((unsigned long)buf_in, pages);
-		free_pages((unsigned long)buf_out, pages);
-	}
+	omap_crypto_cleanup(&dd->out_sgl, dd->orig_out, 0, dd->total_save,
+			    FLAGS_OUT_DATA_ST_SHIFT, dd->flags);
 
 	omap_des_finish_req(dd, 0);
-	omap_des_handle_queue(dd, NULL);
 
 	pr_debug("exit\n");
-}
-
-static void omap_des_queue_task(unsigned long data)
-{
-	struct omap_des_dev *dd = (struct omap_des_dev *)data;
-
-	omap_des_handle_queue(dd, NULL);
 }
 
 static int omap_des_crypt(struct ablkcipher_request *req, unsigned long mode)
@@ -724,15 +650,27 @@ static int omap_des_crypt(struct ablkcipher_request *req, unsigned long mode)
 
 /* ********************** ALG API ************************************ */
 
-static int omap_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+static int omap_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			   unsigned int keylen)
 {
-	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(cipher);
+	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
 
 	if (keylen != DES_KEY_SIZE && keylen != (3*DES_KEY_SIZE))
 		return -EINVAL;
 
 	pr_debug("enter, keylen: %d\n", keylen);
+
+	/* Do we need to test against weak key? */
+	if (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY) {
+		u32 tmp[DES_EXPKEY_WORDS];
+		int ret = des_ekey(tmp, key);
+
+		if (!ret) {
+			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
+			return -EINVAL;
+		}
+	}
 
 	memcpy(ctx->key, key, keylen);
 	ctx->keylen = keylen;
@@ -760,11 +698,22 @@ static int omap_des_cbc_decrypt(struct ablkcipher_request *req)
 	return omap_des_crypt(req, FLAGS_CBC);
 }
 
+static int omap_des_prepare_req(struct crypto_engine *engine,
+				void *areq);
+static int omap_des_crypt_req(struct crypto_engine *engine,
+			      void *areq);
+
 static int omap_des_cra_init(struct crypto_tfm *tfm)
 {
+	struct omap_des_ctx *ctx = crypto_tfm_ctx(tfm);
+
 	pr_debug("enter\n");
 
 	tfm->crt_ablkcipher.reqsize = sizeof(struct omap_des_reqctx);
+
+	ctx->enginectx.op.prepare_request = omap_des_prepare_req;
+	ctx->enginectx.op.unprepare_request = NULL;
+	ctx->enginectx.op.do_one_request = omap_des_crypt_req;
 
 	return 0;
 }
@@ -993,17 +942,12 @@ MODULE_DEVICE_TABLE(of, omap_des_of_match);
 static int omap_des_get_of(struct omap_des_dev *dd,
 		struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 
-	match = of_match_device(of_match_ptr(omap_des_of_match), &pdev->dev);
-	if (!match) {
+	dd->pdata = of_device_get_match_data(&pdev->dev);
+	if (!dd->pdata) {
 		dev_err(&pdev->dev, "no compatible OF match\n");
 		return -EINVAL;
 	}
-
-	dd->dma_out = -1; /* Dummy value that's unused */
-	dd->dma_in = -1; /* Dummy value that's unused */
-	dd->pdata = match->data;
 
 	return 0;
 }
@@ -1018,33 +962,10 @@ static int omap_des_get_of(struct omap_des_dev *dd,
 static int omap_des_get_pdev(struct omap_des_dev *dd,
 		struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct resource *r;
-	int err = 0;
-
-	/* Get the DMA out channel */
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!r) {
-		dev_err(dev, "no DMA out resource info\n");
-		err = -ENODEV;
-		goto err;
-	}
-	dd->dma_out = r->start;
-
-	/* Get the DMA in channel */
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!r) {
-		dev_err(dev, "no DMA in resource info\n");
-		err = -ENODEV;
-		goto err;
-	}
-	dd->dma_in = r->start;
-
 	/* non-DT devices get pdata from pdev */
 	dd->pdata = pdev->dev.platform_data;
 
-err:
-	return err;
+	return 0;
 }
 
 static int omap_des_probe(struct platform_device *pdev)
@@ -1064,9 +985,6 @@ static int omap_des_probe(struct platform_device *pdev)
 	dd->dev = dev;
 	platform_set_drvdata(pdev, dd);
 
-	spin_lock_init(&dd->lock);
-	crypto_init_queue(&dd->queue, OMAP_DES_QUEUE_LENGTH);
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "no MEM resource info\n");
@@ -1084,6 +1002,9 @@ static int omap_des_probe(struct platform_device *pdev)
 		goto err_res;
 	}
 	dd->phys_base = res->start;
+
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
 
 	pm_runtime_enable(dev);
 	err = pm_runtime_get_sync(dev);
@@ -1104,15 +1025,17 @@ static int omap_des_probe(struct platform_device *pdev)
 		 (reg & dd->pdata->minor_mask) >> dd->pdata->minor_shift);
 
 	tasklet_init(&dd->done_task, omap_des_done_task, (unsigned long)dd);
-	tasklet_init(&dd->queue_task, omap_des_queue_task, (unsigned long)dd);
 
 	err = omap_des_dma_init(dd);
-	if (err && DES_REG_IRQ_STATUS(dd) && DES_REG_IRQ_ENABLE(dd)) {
+	if (err == -EPROBE_DEFER) {
+		goto err_irq;
+	} else if (err && DES_REG_IRQ_STATUS(dd) && DES_REG_IRQ_ENABLE(dd)) {
 		dd->pio_only = 1;
 
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0) {
-			dev_err(dev, "can't get IRQ resource\n");
+			dev_err(dev, "can't get IRQ resource: %d\n", irq);
+			err = irq;
 			goto err_irq;
 		}
 
@@ -1130,6 +1053,17 @@ static int omap_des_probe(struct platform_device *pdev)
 	list_add_tail(&dd->list, &dev_list);
 	spin_unlock(&list_lock);
 
+	/* Initialize des crypto engine */
+	dd->engine = crypto_engine_alloc_init(dev, 1);
+	if (!dd->engine) {
+		err = -ENOMEM;
+		goto err_engine;
+	}
+
+	err = crypto_engine_start(dd->engine);
+	if (err)
+		goto err_engine;
+
 	for (i = 0; i < dd->pdata->algs_info_size; i++) {
 		for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
 			algp = &dd->pdata->algs_info[i].algs_list[j];
@@ -1146,16 +1080,20 @@ static int omap_des_probe(struct platform_device *pdev)
 	}
 
 	return 0;
+
 err_algs:
 	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
 			crypto_unregister_alg(
 					&dd->pdata->algs_info[i].algs_list[j]);
-	if (!dd->pio_only)
-		omap_des_dma_cleanup(dd);
+
+err_engine:
+	if (dd->engine)
+		crypto_engine_exit(dd->engine);
+
+	omap_des_dma_cleanup(dd);
 err_irq:
 	tasklet_kill(&dd->done_task);
-	tasklet_kill(&dd->queue_task);
 err_get:
 	pm_runtime_disable(dev);
 err_res:
@@ -1183,7 +1121,6 @@ static int omap_des_remove(struct platform_device *pdev)
 					&dd->pdata->algs_info[i].algs_list[j]);
 
 	tasklet_kill(&dd->done_task);
-	tasklet_kill(&dd->queue_task);
 	omap_des_dma_cleanup(dd);
 	pm_runtime_disable(dd->dev);
 	dd = NULL;

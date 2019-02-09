@@ -19,7 +19,7 @@
  *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  */
 
@@ -46,7 +46,8 @@
 #ifdef CONFIG_ATA_NONSTANDARD
 #include <asm/libata-portmap.h>
 #else
-#include <asm-generic/libata-portmap.h>
+#define ATA_PRIMARY_IRQ(dev)	14
+#define ATA_SECONDARY_IRQ(dev)	15
 #endif
 
 /*
@@ -124,9 +125,8 @@ enum {
 	LIBATA_MAX_PRD		= ATA_MAX_PRD / 2,
 	LIBATA_DUMB_MAX_PRD	= ATA_MAX_PRD / 4,	/* Worst case */
 	ATA_DEF_QUEUE		= 1,
-	/* tag ATA_MAX_QUEUE - 1 is reserved for internal commands */
 	ATA_MAX_QUEUE		= 32,
-	ATA_TAG_INTERNAL	= ATA_MAX_QUEUE - 1,
+	ATA_TAG_INTERNAL	= ATA_MAX_QUEUE,
 	ATA_SHORT_PAUSE		= 16,
 
 	ATAPI_MAX_DRAIN		= 16 << 10,
@@ -146,13 +146,6 @@ enum {
 	ATA_TFLAG_FUA		= (1 << 5), /* enable FUA */
 	ATA_TFLAG_POLLING	= (1 << 6), /* set nIEN to 1 and use polling */
 
-	/* protocol flags */
-	ATA_PROT_FLAG_PIO	= (1 << 0), /* is PIO */
-	ATA_PROT_FLAG_DMA	= (1 << 1), /* is DMA */
-	ATA_PROT_FLAG_DATA	= ATA_PROT_FLAG_PIO | ATA_PROT_FLAG_DMA,
-	ATA_PROT_FLAG_NCQ	= (1 << 2), /* is NCQ */
-	ATA_PROT_FLAG_ATAPI	= (1 << 3), /* is ATAPI */
-
 	/* struct ata_device stuff */
 	ATA_DFLAG_LBA		= (1 << 0), /* device supports LBA */
 	ATA_DFLAG_LBA48		= (1 << 1), /* device supports LBA48 */
@@ -162,6 +155,7 @@ enum {
 	ATA_DFLAG_ACPI_PENDING	= (1 << 5), /* ACPI resume action pending */
 	ATA_DFLAG_ACPI_FAILED	= (1 << 6), /* ACPI on devcfg has failed */
 	ATA_DFLAG_AN		= (1 << 7), /* AN configured */
+	ATA_DFLAG_TRUSTED	= (1 << 8), /* device supports trusted send/recv */
 	ATA_DFLAG_DMADIR	= (1 << 10), /* device requires DMADIR */
 	ATA_DFLAG_CFG_MASK	= (1 << 12) - 1,
 
@@ -172,6 +166,8 @@ enum {
 	ATA_DFLAG_NO_UNLOAD	= (1 << 17), /* device doesn't support unload */
 	ATA_DFLAG_UNLOCK_HPA	= (1 << 18), /* unlock HPA */
 	ATA_DFLAG_NCQ_SEND_RECV = (1 << 19), /* device supports NCQ SEND and RECV */
+	ATA_DFLAG_NCQ_PRIO	= (1 << 20), /* device supports NCQ priority */
+	ATA_DFLAG_NCQ_PRIO_ENABLE = (1 << 21), /* Priority cmds sent to dev */
 	ATA_DFLAG_INIT_MASK	= (1 << 24) - 1,
 
 	ATA_DFLAG_DETACH	= (1 << 24),
@@ -180,6 +176,8 @@ enum {
 	ATA_DFLAG_DA		= (1 << 26), /* device supports Device Attention */
 	ATA_DFLAG_DEVSLP	= (1 << 27), /* device supports Device Sleep */
 	ATA_DFLAG_ACPI_DISABLED = (1 << 28), /* ACPI for the device is disabled */
+	ATA_DFLAG_D_SENSE	= (1 << 29), /* Descriptor sense requested */
+	ATA_DFLAG_ZAC		= (1 << 30), /* ZAC device */
 
 	ATA_DEV_UNKNOWN		= 0,	/* unknown device */
 	ATA_DEV_ATA		= 1,	/* ATA device */
@@ -191,7 +189,8 @@ enum {
 	ATA_DEV_SEMB		= 7,	/* SEMB */
 	ATA_DEV_SEMB_UNSUP	= 8,	/* SEMB (unsupported) */
 	ATA_DEV_ZAC		= 9,	/* ZAC device */
-	ATA_DEV_NONE		= 10,	/* no device */
+	ATA_DEV_ZAC_UNSUP	= 10,	/* ZAC device (unsupported) */
+	ATA_DEV_NONE		= 11,	/* no device */
 
 	/* struct ata_link flags */
 	ATA_LFLAG_NO_HRST	= (1 << 1), /* avoid hardreset */
@@ -205,11 +204,13 @@ enum {
 	ATA_LFLAG_NO_LPM	= (1 << 8), /* disable LPM on this link */
 	ATA_LFLAG_RST_ONCE	= (1 << 9), /* limit recovery to one reset */
 	ATA_LFLAG_CHANGED	= (1 << 10), /* LPM state changed on this link */
+	ATA_LFLAG_NO_DB_DELAY	= (1 << 11), /* no debounce delay on link resume */
 
 	/* struct ata_port flags */
 	ATA_FLAG_SLAVE_POSS	= (1 << 0), /* host supports slave dev */
 					    /* (doesn't imply presence) */
 	ATA_FLAG_SATA		= (1 << 1),
+	ATA_FLAG_NO_LPM		= (1 << 2), /* host not happy with LPM */
 	ATA_FLAG_NO_LOG_PAGE	= (1 << 5), /* do not issue log page read */
 	ATA_FLAG_NO_ATAPI	= (1 << 6), /* No ATAPI support */
 	ATA_FLAG_PIO_DMA	= (1 << 7), /* PIO cmds via DMA */
@@ -344,7 +345,9 @@ enum {
 	ATA_SHIFT_PIO		= 0,
 	ATA_SHIFT_MWDMA		= ATA_SHIFT_PIO + ATA_NR_PIO_MODES,
 	ATA_SHIFT_UDMA		= ATA_SHIFT_MWDMA + ATA_NR_MWDMA_MODES,
+	ATA_SHIFT_PRIO		= 6,
 
+	ATA_PRIO_HIGH		= 2,
 	/* size of buffer to pad xfers ending on unaligned boundaries */
 	ATA_DMA_PAD_SZ		= 4,
 
@@ -432,7 +435,7 @@ enum {
 	ATA_HORKAGE_NOLPM	= (1 << 20),	/* don't use LPM */
 	ATA_HORKAGE_WD_BROKEN_LPM = (1 << 21),	/* some WDs have broken LPM */
 	ATA_HORKAGE_ZERO_AFTER_TRIM = (1 << 22),/* guarantees zero after trim */
-	ATA_HORKAGE_NO_NCQ_LOG	= (1 << 23),	/* don't use NCQ for log read */
+	ATA_HORKAGE_NO_DMA_LOG	= (1 << 23),	/* don't use DMA for log read */
 	ATA_HORKAGE_NOTRIM	= (1 << 24),	/* don't use TRIM */
 	ATA_HORKAGE_MAX_SEC_1024 = (1 << 25),	/* Limit max sects to 1024 */
 
@@ -519,12 +522,15 @@ enum ata_lpm_policy {
 	ATA_LPM_UNKNOWN,
 	ATA_LPM_MAX_POWER,
 	ATA_LPM_MED_POWER,
-	ATA_LPM_MIN_POWER,
+	ATA_LPM_MED_POWER_WITH_DIPM, /* Med power + DIPM as win IRST does */
+	ATA_LPM_MIN_POWER_WITH_PARTIAL, /* Min Power + partial and slumber */
+	ATA_LPM_MIN_POWER, /* Min power + no partial (slumber only) */
 };
 
 enum ata_lpm_hints {
 	ATA_LPM_EMPTY		= (1 << 0), /* port empty/probing */
 	ATA_LPM_HIPM		= (1 << 1), /* may use HIPM */
+	ATA_LPM_WAKE_ONLY	= (1 << 2), /* only wake up link */
 };
 
 /* forward declarations */
@@ -543,6 +549,7 @@ typedef void (*ata_postreset_fn_t)(struct ata_link *link, unsigned int *classes)
 
 extern struct device_attribute dev_attr_link_power_management_policy;
 extern struct device_attribute dev_attr_unload_heads;
+extern struct device_attribute dev_attr_ncq_prio_enable;
 extern struct device_attribute dev_attr_em_message_type;
 extern struct device_attribute dev_attr_em_message;
 extern struct device_attribute dev_attr_sw_activity;
@@ -611,6 +618,7 @@ struct ata_host {
 	void			*private_data;
 	struct ata_port_operations *ops;
 	unsigned long		flags;
+	struct kref		kref;
 
 	struct mutex		eh_mutex;
 	struct task_struct	*eh_owner;
@@ -630,7 +638,8 @@ struct ata_queued_cmd {
 	u8			cdb[ATAPI_CDB_LEN];
 
 	unsigned long		flags;		/* ATA_QCFLAG_xxx */
-	unsigned int		tag;
+	unsigned int		tag;		/* libata core tag */
+	unsigned int		hw_tag;		/* driver tag */
 	unsigned int		n_elem;
 	unsigned int		orig_n_elem;
 
@@ -718,13 +727,20 @@ struct ata_device {
 	union {
 		u16		id[ATA_ID_WORDS]; /* IDENTIFY xxx DEVICE data */
 		u32		gscr[SATA_PMP_GSCR_DWORDS]; /* PMP GSCR block */
-	};
+	} ____cacheline_aligned;
 
 	/* DEVSLP Timing Variables from Identify Device Data Log */
 	u8			devslp_timing[ATA_LOG_DEVSLP_SIZE];
 
 	/* NCQ send and receive log subcommand support */
 	u8			ncq_send_recv_cmds[ATA_LOG_NCQ_SEND_RECV_SIZE];
+	u8			ncq_non_data_cmds[ATA_LOG_NCQ_NON_DATA_SIZE];
+
+	/* ZAC zone configuration */
+	u32			zac_zoned_cap;
+	u32			zac_zones_optimal_open;
+	u32			zac_zones_optimal_nonseq;
+	u32			zac_zones_max_open;
 
 	/* error history */
 	int			spdn_cnt;
@@ -835,9 +851,9 @@ struct ata_port {
 	unsigned int		udma_mask;
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
 
-	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE];
+	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE + 1];
 	unsigned long		sas_tag_allocated; /* for sas tag allocation only */
-	unsigned int		qc_active;
+	u64			qc_active;
 	int			nr_active_links; /* #links with active qcs */
 	unsigned int		sas_last_tag;	/* track next tag hw expects */
 
@@ -957,7 +973,7 @@ struct ata_port_operations {
 	void (*sff_tf_read)(struct ata_port *ap, struct ata_taskfile *tf);
 	void (*sff_exec_command)(struct ata_port *ap,
 				 const struct ata_taskfile *tf);
-	unsigned int (*sff_data_xfer)(struct ata_device *dev,
+	unsigned int (*sff_data_xfer)(struct ata_queued_cmd *qc,
 			unsigned char *buf, unsigned int buflen, int rw);
 	void (*sff_irq_on)(struct ata_port *);
 	bool (*sff_irq_check)(struct ata_port *);
@@ -1027,58 +1043,29 @@ extern const unsigned long sata_deb_timing_long[];
 extern struct ata_port_operations ata_dummy_port_ops;
 extern const struct ata_port_info ata_dummy_port_info;
 
-/*
- * protocol tests
- */
-static inline unsigned int ata_prot_flags(u8 prot)
+static inline bool ata_is_atapi(u8 prot)
 {
-	switch (prot) {
-	case ATA_PROT_NODATA:
-		return 0;
-	case ATA_PROT_PIO:
-		return ATA_PROT_FLAG_PIO;
-	case ATA_PROT_DMA:
-		return ATA_PROT_FLAG_DMA;
-	case ATA_PROT_NCQ:
-		return ATA_PROT_FLAG_DMA | ATA_PROT_FLAG_NCQ;
-	case ATAPI_PROT_NODATA:
-		return ATA_PROT_FLAG_ATAPI;
-	case ATAPI_PROT_PIO:
-		return ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_PIO;
-	case ATAPI_PROT_DMA:
-		return ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_DMA;
-	}
-	return 0;
+	return prot & ATA_PROT_FLAG_ATAPI;
 }
 
-static inline int ata_is_atapi(u8 prot)
+static inline bool ata_is_pio(u8 prot)
 {
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_ATAPI;
+	return prot & ATA_PROT_FLAG_PIO;
 }
 
-static inline int ata_is_nodata(u8 prot)
+static inline bool ata_is_dma(u8 prot)
 {
-	return !(ata_prot_flags(prot) & ATA_PROT_FLAG_DATA);
+	return prot & ATA_PROT_FLAG_DMA;
 }
 
-static inline int ata_is_pio(u8 prot)
+static inline bool ata_is_ncq(u8 prot)
 {
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_PIO;
+	return prot & ATA_PROT_FLAG_NCQ;
 }
 
-static inline int ata_is_dma(u8 prot)
+static inline bool ata_is_data(u8 prot)
 {
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_DMA;
-}
-
-static inline int ata_is_ncq(u8 prot)
-{
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_NCQ;
-}
-
-static inline int ata_is_data(u8 prot)
-{
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_DATA;
+	return prot & (ATA_PROT_FLAG_PIO | ATA_PROT_FLAG_DMA);
 }
 
 static inline int is_multi_taskfile(struct ata_taskfile *tf)
@@ -1125,6 +1112,8 @@ extern struct ata_host *ata_host_alloc(struct device *dev, int max_ports);
 extern struct ata_host *ata_host_alloc_pinfo(struct device *dev,
 			const struct ata_port_info * const * ppi, int n_ports);
 extern int ata_slave_link_init(struct ata_port *ap);
+extern void ata_host_get(struct ata_host *host);
+extern void ata_host_put(struct ata_host *host);
 extern int ata_host_start(struct ata_host *host);
 extern int ata_host_register(struct ata_host *host,
 			     struct scsi_host_template *sht);
@@ -1145,6 +1134,8 @@ extern void ata_sas_async_probe(struct ata_port *ap);
 extern int ata_sas_sync_probe(struct ata_port *ap);
 extern int ata_sas_port_init(struct ata_port *);
 extern int ata_sas_port_start(struct ata_port *ap);
+extern int ata_sas_tport_add(struct device *parent, struct ata_port *ap);
+extern void ata_sas_tport_delete(struct ata_port *ap);
 extern void ata_sas_port_stop(struct ata_port *ap);
 extern int ata_sas_slave_configure(struct scsi_device *, struct ata_port *);
 extern int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap);
@@ -1198,7 +1189,7 @@ extern void ata_id_c_string(const u16 *id, unsigned char *s,
 extern unsigned int ata_do_dev_read_id(struct ata_device *dev,
 					struct ata_taskfile *tf, u16 *id);
 extern void ata_qc_complete(struct ata_queued_cmd *qc);
-extern int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active);
+extern int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active);
 extern void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd);
 extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
@@ -1395,7 +1386,7 @@ static inline bool sata_pmp_attached(struct ata_port *ap)
 	return ap->nr_pmp_links != 0;
 }
 
-static inline int ata_is_host_link(const struct ata_link *link)
+static inline bool ata_is_host_link(const struct ata_link *link)
 {
 	return link == &link->ap->link || link == link->ap->slave_link;
 }
@@ -1410,7 +1401,7 @@ static inline bool sata_pmp_attached(struct ata_port *ap)
 	return false;
 }
 
-static inline int ata_is_host_link(const struct ata_link *link)
+static inline bool ata_is_host_link(const struct ata_link *link)
 {
 	return 1;
 }
@@ -1498,15 +1489,38 @@ extern void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
 			       const char *name);
 #endif
 
-static inline unsigned int ata_tag_valid(unsigned int tag)
-{
-	return (tag < ATA_MAX_QUEUE) ? 1 : 0;
-}
-
-static inline unsigned int ata_tag_internal(unsigned int tag)
+static inline bool ata_tag_internal(unsigned int tag)
 {
 	return tag == ATA_TAG_INTERNAL;
 }
+
+static inline bool ata_tag_valid(unsigned int tag)
+{
+	return tag < ATA_MAX_QUEUE || ata_tag_internal(tag);
+}
+
+#define __ata_qc_for_each(ap, qc, tag, max_tag, fn)		\
+	for ((tag) = 0; (tag) < (max_tag) &&			\
+	     ({ qc = fn((ap), (tag)); 1; }); (tag)++)		\
+
+/*
+ * Internal use only, iterate commands ignoring error handling and
+ * status of 'qc'.
+ */
+#define ata_qc_for_each_raw(ap, qc, tag)					\
+	__ata_qc_for_each(ap, qc, tag, ATA_MAX_QUEUE, __ata_qc_from_tag)
+
+/*
+ * Iterate all potential commands that can be queued
+ */
+#define ata_qc_for_each(ap, qc, tag)					\
+	__ata_qc_for_each(ap, qc, tag, ATA_MAX_QUEUE, ata_qc_from_tag)
+
+/*
+ * Like ata_qc_for_each, but with the internal tag included
+ */
+#define ata_qc_for_each_with_internal(ap, qc, tag)			\
+	__ata_qc_for_each(ap, qc, tag, ATA_MAX_QUEUE + 1, ata_qc_from_tag)
 
 /*
  * device helpers
@@ -1521,7 +1535,8 @@ static inline unsigned int ata_class_enabled(unsigned int class)
 static inline unsigned int ata_class_disabled(unsigned int class)
 {
 	return class == ATA_DEV_ATA_UNSUP || class == ATA_DEV_ATAPI_UNSUP ||
-		class == ATA_DEV_PMP_UNSUP || class == ATA_DEV_SEMB_UNSUP;
+		class == ATA_DEV_PMP_UNSUP || class == ATA_DEV_SEMB_UNSUP ||
+		class == ATA_DEV_ZAC_UNSUP;
 }
 
 static inline unsigned int ata_class_absent(unsigned int class)
@@ -1639,6 +1654,26 @@ static inline bool ata_fpdma_dsm_supported(struct ata_device *dev)
 		 ATA_LOG_NCQ_SEND_RECV_DSM_TRIM);
 }
 
+static inline bool ata_fpdma_read_log_supported(struct ata_device *dev)
+{
+	return (dev->flags & ATA_DFLAG_NCQ_SEND_RECV) &&
+		(dev->ncq_send_recv_cmds[ATA_LOG_NCQ_SEND_RECV_RD_LOG_OFFSET] &
+		 ATA_LOG_NCQ_SEND_RECV_RD_LOG_SUPPORTED);
+}
+
+static inline bool ata_fpdma_zac_mgmt_in_supported(struct ata_device *dev)
+{
+	return (dev->flags & ATA_DFLAG_NCQ_SEND_RECV) &&
+		(dev->ncq_send_recv_cmds[ATA_LOG_NCQ_SEND_RECV_ZAC_MGMT_OFFSET] &
+		ATA_LOG_NCQ_SEND_RECV_ZAC_MGMT_IN_SUPPORTED);
+}
+
+static inline bool ata_fpdma_zac_mgmt_out_supported(struct ata_device *dev)
+{
+	return (dev->ncq_non_data_cmds[ATA_LOG_NCQ_NON_DATA_ZAC_MGMT_OFFSET] &
+		ATA_LOG_NCQ_NON_DATA_ZAC_MGMT_OUT);
+}
+
 static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 {
 	qc->tf.ctl |= ATA_NIEN;
@@ -1647,7 +1682,7 @@ static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 static inline struct ata_queued_cmd *__ata_qc_from_tag(struct ata_port *ap,
 						       unsigned int tag)
 {
-	if (likely(ata_tag_valid(tag)))
+	if (ata_tag_valid(tag))
 		return &ap->qcmd[tag];
 	return NULL;
 }
@@ -1820,11 +1855,9 @@ extern void ata_sff_tf_load(struct ata_port *ap, const struct ata_taskfile *tf);
 extern void ata_sff_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 extern void ata_sff_exec_command(struct ata_port *ap,
 				 const struct ata_taskfile *tf);
-extern unsigned int ata_sff_data_xfer(struct ata_device *dev,
+extern unsigned int ata_sff_data_xfer(struct ata_queued_cmd *qc,
 			unsigned char *buf, unsigned int buflen, int rw);
-extern unsigned int ata_sff_data_xfer32(struct ata_device *dev,
-			unsigned char *buf, unsigned int buflen, int rw);
-extern unsigned int ata_sff_data_xfer_noirq(struct ata_device *dev,
+extern unsigned int ata_sff_data_xfer32(struct ata_queued_cmd *qc,
 			unsigned char *buf, unsigned int buflen, int rw);
 extern void ata_sff_irq_on(struct ata_port *ap);
 extern void ata_sff_irq_clear(struct ata_port *ap);

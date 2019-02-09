@@ -13,9 +13,13 @@
 #include "omap36xx.dtsi"
 
 / {
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
+	};
+
+	chosen {
+		stdout-path = &uart3;
 	};
 
 	sound {
@@ -33,6 +37,13 @@
 };
 
 &omap3_pmx_core {
+	gpmc_pins: pinmux_gpmc_pins {
+		pinctrl-single,pins = <
+			/* OneNAND seems to require PIN_INPUT on clock. */
+                        OMAP3_CORE1_IOPAD(0x20be, PIN_INPUT | MUX_MODE0)        /* gpmc_clk.gpmc_clk */
+		>;
+	};
+
 	uart1_pins: pinmux_uart1_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT | MUX_MODE0)	/* uart1_rx.uart1_rx */
@@ -94,9 +105,16 @@
 };
 
 &gpmc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpmc_pins>;
+
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
+		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		linux,mtd-name= "micron,mt29c4g96maz";
-		reg = <0 0 4>;	/* CS0, offset 0, IO size 4 */
 		nand-bus-width = <16>;
 		gpmc,device-width = <2>;
 		ti,nand-ecc-opt = "bch8";
@@ -119,26 +137,47 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		partition@0 {
-			label = "SPL";
-			reg = <0 0x100000>;
-		};
-		partition@80000 {
-			label = "U-Boot";
-			reg = <0x100000 0x180000>;
-		};
-		partition@1c0000 {
-			label = "Environment";
-			reg = <0x280000 0x100000>;
-		};
-		partition@280000 {
-			label = "Kernel";
-			reg = <0x380000 0x300000>;
-		};
-		partition@780000 {
-			label = "Filesystem";
-			reg = <0x680000 0x1f980000>;
-		};
+		status = "okay";
+	};
+
+	onenand@0,0 {
+		compatible = "ti,omap2-onenand";
+		reg = <0 0 0x20000>;	/* CS0, offset 0, IO size 128K */
+
+		gpmc,sync-read;
+		gpmc,sync-write;
+		gpmc,burst-length = <16>;
+		gpmc,burst-wrap;
+		gpmc,burst-read;
+		gpmc,burst-write;
+		gpmc,device-width = <2>; /* GPMC_DEVWIDTH_16BIT */
+		gpmc,mux-add-data = <2>; /* GPMC_MUX_AD */
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <96>;
+		gpmc,cs-wr-off-ns = <96>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <12>;
+		gpmc,adv-wr-off-ns = <12>;
+		gpmc,oe-on-ns = <18>;
+		gpmc,oe-off-ns = <96>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <96>;
+		gpmc,rd-cycle-ns = <114>;
+		gpmc,wr-cycle-ns = <114>;
+		gpmc,access-ns = <90>;
+		gpmc,page-burst-access-ns = <12>;
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,clk-activation-ns = <6>;
+		gpmc,wr-data-mux-bus-ns = <30>;
+		gpmc,wr-access-ns = <90>;
+		gpmc,sync-clk-ps = <12000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		status = "disabled";
 	};
 };
 
@@ -180,6 +219,7 @@
 	vmmc-supply = <&vmmc1>;
 	vmmc_aux-supply = <&vsim>;
 	bus-width = <4>;
+	cd-gpios = <&twl_gpio 0 GPIO_ACTIVE_LOW>;
 };
 
 &mmc3 {

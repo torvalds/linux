@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -42,7 +43,7 @@ cpuid_func(edx);
  *
  * TBD: Should there be a cpuid alternative for this if /proc is not mounted?
  */
-int get_cpu_info(unsigned int cpu, struct cpupower_cpu_info *cpu_info)
+int get_cpu_info(struct cpupower_cpu_info *cpu_info)
 {
 	FILE *fp;
 	char value[64];
@@ -70,7 +71,7 @@ int get_cpu_info(unsigned int cpu, struct cpupower_cpu_info *cpu_info)
 		if (!strncmp(value, "processor\t: ", 12))
 			sscanf(value, "processor\t: %u", &proc);
 
-		if (proc != cpu)
+		if (proc != (unsigned int)base_cpu)
 			continue;
 
 		/* Get CPU vendor */
@@ -156,6 +157,7 @@ out:
 					 */
 			case 0x2C:	/* Westmere EP - Gulftown */
 				cpu_info->caps |= CPUPOWER_CAP_HAS_TURBO_RATIO;
+				break;
 			case 0x2A:	/* SNB */
 			case 0x2D:	/* SNB Xeon */
 			case 0x3A:	/* IVB */

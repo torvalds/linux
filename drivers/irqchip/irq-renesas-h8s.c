@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * H8S interrupt contoller driver
  *
@@ -11,7 +12,7 @@
 #include <asm/io.h>
 
 static void *intc_baseaddr;
-#define IPRA ((unsigned long)intc_baseaddr)
+#define IPRA (intc_baseaddr)
 
 static const unsigned char ipr_table[] = {
 	0x03, 0x02, 0x01, 0x00, 0x13, 0x12, 0x11, 0x10, /* 16 - 23 */
@@ -33,30 +34,30 @@ static const unsigned char ipr_table[] = {
 static void h8s_disable_irq(struct irq_data *data)
 {
 	int pos;
-	unsigned int addr;
+	void __iomem *addr;
 	unsigned short pri;
 	int irq = data->irq;
 
 	addr = IPRA + ((ipr_table[irq - 16] & 0xf0) >> 3);
 	pos = (ipr_table[irq - 16] & 0x0f) * 4;
 	pri = ~(0x000f << pos);
-	pri &= ctrl_inw(addr);
-	ctrl_outw(pri, addr);
+	pri &= readw(addr);
+	writew(pri, addr);
 }
 
 static void h8s_enable_irq(struct irq_data *data)
 {
 	int pos;
-	unsigned int addr;
+	void __iomem *addr;
 	unsigned short pri;
 	int irq = data->irq;
 
 	addr = IPRA + ((ipr_table[irq - 16] & 0xf0) >> 3);
 	pos = (ipr_table[irq - 16] & 0x0f) * 4;
 	pri = ~(0x000f << pos);
-	pri &= ctrl_inw(addr);
+	pri &= readw(addr);
 	pri |= 1 << pos;
-	ctrl_outw(pri, addr);
+	writew(pri, addr);
 }
 
 struct irq_chip h8s_irq_chip = {
@@ -73,7 +74,7 @@ static __init int irq_map(struct irq_domain *h, unsigned int virq,
        return 0;
 }
 
-static struct irq_domain_ops irq_ops = {
+static const struct irq_domain_ops irq_ops = {
        .map    = irq_map,
        .xlate  = irq_domain_xlate_onecell,
 };
@@ -90,7 +91,7 @@ static int __init h8s_intc_of_init(struct device_node *intc,
 	/* All interrupt priority is 0 (disable) */
 	/* IPRA to IPRK */
 	for (n = 0; n <= 'k' - 'a'; n++)
-		ctrl_outw(0x0000, IPRA + (n * 2));
+		writew(0x0000, IPRA + (n * 2));
 
 	domain = irq_domain_add_linear(intc, NR_IRQS, &irq_ops, NULL);
 	BUG_ON(!domain);

@@ -333,62 +333,28 @@ exit:
 	return r;
 }
 
-void st_nci_hci_loopback_event_received(struct nci_dev *ndev, u8 event,
-					struct sk_buff *skb)
-{
-	struct st_nci_info *info = nci_get_drvdata(ndev);
-
-	switch (event) {
-	case ST_NCI_EVT_POST_DATA:
-		info->vendor_info.rx_skb = skb;
-	break;
-	default:
-		nfc_err(&ndev->nfc_dev->dev, "Unexpected event on loopback gate\n");
-	}
-	complete(&info->vendor_info.req_completion);
-}
-EXPORT_SYMBOL(st_nci_hci_loopback_event_received);
-
-static int st_nci_hci_loopback(struct nfc_dev *dev, void *data,
-			       size_t data_len)
+static int st_nci_loopback(struct nfc_dev *dev, void *data,
+			   size_t data_len)
 {
 	int r;
-	struct sk_buff *msg;
+	struct sk_buff *msg, *skb;
 	struct nci_dev *ndev = nfc_get_drvdata(dev);
-	struct st_nci_info *info = nci_get_drvdata(ndev);
 
 	if (data_len <= 0)
 		return -EPROTO;
 
-	reinit_completion(&info->vendor_info.req_completion);
-	info->vendor_info.rx_skb = NULL;
+	r = nci_nfcc_loopback(ndev, data, data_len, &skb);
+	if (r < 0)
+		return r;
 
-	r = nci_hci_send_event(ndev, NCI_HCI_LOOPBACK_GATE,
-			       ST_NCI_EVT_POST_DATA, data, data_len);
-	if (r != data_len) {
-		r = -EPROTO;
-		goto exit;
-	}
-
-	wait_for_completion_interruptible(&info->vendor_info.req_completion);
-
-	if (!info->vendor_info.rx_skb ||
-	    info->vendor_info.rx_skb->len != data_len) {
-		r = -EPROTO;
-		goto exit;
-	}
-
-	msg = nfc_vendor_cmd_alloc_reply_skb(ndev->nfc_dev,
-					ST_NCI_VENDOR_OUI,
-					HCI_LOOPBACK,
-					info->vendor_info.rx_skb->len);
+	msg = nfc_vendor_cmd_alloc_reply_skb(dev, ST_NCI_VENDOR_OUI,
+					     LOOPBACK, skb->len);
 	if (!msg) {
 		r = -ENOMEM;
 		goto free_skb;
 	}
 
-	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, info->vendor_info.rx_skb->len,
-		    info->vendor_info.rx_skb->data)) {
+	if (nla_put(msg, NFC_ATTR_VENDOR_DATA, skb->len, skb->data)) {
 		kfree_skb(msg);
 		r = -ENOBUFS;
 		goto free_skb;
@@ -396,8 +362,7 @@ static int st_nci_hci_loopback(struct nfc_dev *dev, void *data,
 
 	r = nfc_vendor_cmd_reply(msg);
 free_skb:
-	kfree_skb(info->vendor_info.rx_skb);
-exit:
+	kfree_skb(skb);
 	return r;
 }
 
@@ -485,8 +450,8 @@ static struct nfc_vendor_cmd st_nci_vendor_cmds[] = {
 	},
 	{
 		.vendor_id = ST_NCI_VENDOR_OUI,
-		.subcmd = HCI_LOOPBACK,
-		.doit = st_nci_hci_loopback,
+		.subcmd = LOOPBACK,
+		.doit = st_nci_loopback,
 	},
 	{
 		.vendor_id = ST_NCI_VENDOR_OUI,
@@ -507,9 +472,6 @@ static struct nfc_vendor_cmd st_nci_vendor_cmds[] = {
 
 int st_nci_vendor_cmds_init(struct nci_dev *ndev)
 {
-	struct st_nci_info *info = nci_get_drvdata(ndev);
-
-	init_completion(&info->vendor_info.req_completion);
 	return nfc_set_vendor_cmds(ndev->nfc_dev, st_nci_vendor_cmds,
 				   sizeof(st_nci_vendor_cmds));
 }

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # PCI Hotplug support
 #
@@ -103,13 +104,23 @@ config HOTPLUG_PCI_CPCI_GENERIC
 	  When in doubt, say N.
 
 config HOTPLUG_PCI_SHPC
-	tristate "SHPC PCI Hotplug driver"
+	bool "SHPC PCI Hotplug driver"
 	help
 	  Say Y here if you have a motherboard with a SHPC PCI Hotplug
 	  controller.
 
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_POWERNV
+	tristate "PowerPC PowerNV PCI Hotplug driver"
+	depends on PPC_POWERNV && EEH
+	select OF_DYNAMIC
+	help
+	  Say Y here if you run PowerPC PowerNV platform that supports
+	  PCI Hotplug
+
 	  To compile this driver as a module, choose M here: the
-	  module will be called shpchp.
+	  module will be called pnv-php.
 
 	  When in doubt, say N.
 

@@ -6,23 +6,30 @@
 /dts-v1/;
 
 #include "dm816x.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "DM8168 EVM";
-	compatible = "ti,dm8168-evm", "ti,dm8168";
+	compatible = "ti,dm8168-evm", "ti,dm8168", "ti,dm816";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000	/* 1 GB */
 		       0xc0000000 0x40000000>;	/* 1 GB */
 	};
 
 	/* FDC6331L controlled by SD_POW pin */
-	vmmcsd_fixed: fixedregulator@0 {
+	vmmcsd_fixed: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	sata_refclk: fixedclock0 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
 	};
 };
 
@@ -61,6 +68,34 @@
 			DM816X_IOPAD(0x0d08, MUX_MODE0)			/* USB1_DRVVBUS */
 		>;
 	};
+
+	nandflash_pins: nandflash_pins {
+		pinctrl-single,pins = <
+			DM816X_IOPAD(0x0b38, PULL_UP | MUX_MODE0)		/* PINCTRL207 GPMC_CS0*/
+			DM816X_IOPAD(0x0b60, PULL_ENA | MUX_MODE0)		/* PINCTRL217 GPMC_ADV_ALE */
+			DM816X_IOPAD(0x0b54, PULL_UP | PULL_ENA | MUX_MODE0)	/* PINCTRL214 GPMC_OE_RE */
+			DM816X_IOPAD(0x0b58, PULL_ENA | MUX_MODE0)		/* PINCTRL215 GPMC_BE0_CLE */
+			DM816X_IOPAD(0x0b50, PULL_UP | MUX_MODE0)		/* PINCTRL213 GPMC_WE */
+			DM816X_IOPAD(0x0b6c, MUX_MODE0)				/* PINCTRL220 GPMC_WAIT */
+			DM816X_IOPAD(0x0be4, PULL_ENA | MUX_MODE0)		/* PINCTRL250 GPMC_CLK */
+			DM816X_IOPAD(0x0ba4, MUX_MODE0)				/* PINCTRL234 GPMC_D0 */
+			DM816X_IOPAD(0x0ba8, MUX_MODE0)				/* PINCTRL234 GPMC_D1 */
+			DM816X_IOPAD(0x0bac, MUX_MODE0)				/* PINCTRL234 GPMC_D2 */
+			DM816X_IOPAD(0x0bb0, MUX_MODE0)				/* PINCTRL234 GPMC_D3 */
+			DM816X_IOPAD(0x0bb4, MUX_MODE0)				/* PINCTRL234 GPMC_D4 */
+			DM816X_IOPAD(0x0bb8, MUX_MODE0)				/* PINCTRL234 GPMC_D5 */
+			DM816X_IOPAD(0x0bbc, MUX_MODE0)				/* PINCTRL234 GPMC_D6 */
+			DM816X_IOPAD(0x0bc0, MUX_MODE0)				/* PINCTRL234 GPMC_D7 */
+			DM816X_IOPAD(0x0bc4, MUX_MODE0)				/* PINCTRL234 GPMC_D8 */
+			DM816X_IOPAD(0x0bc8, MUX_MODE0)				/* PINCTRL234 GPMC_D9 */
+			DM816X_IOPAD(0x0bcc, MUX_MODE0)				/* PINCTRL234 GPMC_D10 */
+			DM816X_IOPAD(0x0bd0, MUX_MODE0)				/* PINCTRL234 GPMC_D11 */
+			DM816X_IOPAD(0x0bd4, MUX_MODE0)				/* PINCTRL234 GPMC_D12 */
+			DM816X_IOPAD(0x0bd8, MUX_MODE0)				/* PINCTRL234 GPMC_D13 */
+			DM816X_IOPAD(0x0bdc, MUX_MODE0)				/* PINCTRL234 GPMC_D14 */
+			DM816X_IOPAD(0x0be0, MUX_MODE0)				/* PINCTRL234 GPMC_D15 */
+		>;
+	};
 };
 
 &i2c1 {
@@ -83,13 +118,21 @@
 
 &gpmc {
 	ranges = <0 0 0x04000000 0x01000000>;	/* CS0: 16MB for NAND */
+	pinctrl-names = "default";
+	pinctrl-0 = <&nandflash_pins>;
 
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		linux,mtd-name= "micron,mt29f2g16aadwp";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>; /* termcount */
+		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ti,nand-ecc-opt = "bch8";
+		ti,elm-id = <&elm>;
 		nand-bus-width = <16>;
 		gpmc,device-width = <2>;
 		gpmc,sync-clk-ps = <0>;
@@ -106,12 +149,9 @@
 		gpmc,access-ns = <64>;
 		gpmc,rd-cycle-ns = <82>;
 		gpmc,wr-cycle-ns = <82>;
-		gpmc,wait-on-read = "true";
-		gpmc,wait-on-write = "true";
 		gpmc,bus-turnaround-ns = <0>;
 		gpmc,cycle2cycle-delay-ns = <0>;
 		gpmc,clk-activation-ns = <0>;
-		gpmc,wait-monitoring-ns = <0>;
 		gpmc,wr-access-ns = <40>;
 		gpmc,wr-data-mux-bus-ns = <0>;
 		partition@0 {
@@ -156,7 +196,7 @@
 	vmmc-supply = <&vmmcsd_fixed>;
 	bus-width = <4>;
 	cd-gpios = <&gpio2 7 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio2 8 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
 };
 
 /* At least dm8168-evm rev c won't support multipoint, later may */
@@ -170,4 +210,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb1_pins>;
 	mentor,multipoint = <0>;
+};
+
+&sata {
+	clocks = <&sysclk5_ck>, <&sata_refclk>;
 };

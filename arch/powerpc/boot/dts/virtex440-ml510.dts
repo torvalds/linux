@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Xilinx ML510 Reference Design support
  *
@@ -25,7 +26,7 @@
 	} ;
 	chosen {
 		bootargs = "console=ttyS0 root=/dev/ram";
-		linux,stdout-path = "/plb@0/serial@83e00000";
+		stdout-path = "/plb@0/serial@83e00000";
 	} ;
 	cpus {
 		#address-cells = <1>;

@@ -10,7 +10,8 @@
  * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/elf.h>
 #include <linux/smp.h>
@@ -204,6 +205,7 @@ void ptrace_break(struct task_struct *tsk, struct pt_regs *regs)
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code  = TRAP_BRKPT;
@@ -389,7 +391,6 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 	struct arch_hw_breakpoint *bkpt = counter_arch_bp(bp);
 	long num;
 	int i;
-	siginfo_t info;
 
 	for (i = 0; i < ARM_MAX_HBP_SLOTS; ++i)
 		if (current->thread.debug.hbp[i] == bp)
@@ -397,12 +398,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 
 	num = (i == ARM_MAX_HBP_SLOTS) ? 0 : ptrace_hbp_idx_to_num(i);
 
-	info.si_signo	= SIGTRAP;
-	info.si_errno	= (int)num;
-	info.si_code	= TRAP_HWBKPT;
-	info.si_addr	= (void __user *)(bkpt->trigger);
-
-	force_sig_info(SIGTRAP, &info, current);
+	force_sig_ptrace_errno_trap((int)num, (void __user *)(bkpt->trigger));
 }
 
 /*
@@ -600,7 +596,7 @@ static int gpr_set(struct task_struct *target,
 		   const void *kbuf, const void __user *ubuf)
 {
 	int ret;
-	struct pt_regs newregs;
+	struct pt_regs newregs = *task_pt_regs(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 &newregs,
@@ -733,8 +729,8 @@ static int vfp_set(struct task_struct *target,
 	if (ret)
 		return ret;
 
-	vfp_flush_hwstate(thread);
 	thread->vfpstate.hard = new_vfp;
+	vfp_flush_hwstate(thread);
 
 	return 0;
 }
@@ -932,18 +928,19 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 {
 	current_thread_info()->syscall = scno;
 
-	/* Do the secure computing check first; failures should be fast. */
-#ifdef CONFIG_HAVE_ARCH_SECCOMP_FILTER
-	if (secure_computing() == -1)
-		return -1;
-#else
-	/* XXX: remove this once OABI gets fixed */
-	secure_computing_strict(scno);
-#endif
-
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
 
+	/* Do seccomp after ptrace; syscall may have changed. */
+#ifdef CONFIG_HAVE_ARCH_SECCOMP_FILTER
+	if (secure_computing(NULL) == -1)
+		return -1;
+#else
+	/* XXX: remove this once OABI gets fixed */
+	secure_computing_strict(current_thread_info()->syscall);
+#endif
+
+	/* Tracer or seccomp may have changed syscall. */
 	scno = current_thread_info()->syscall;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))

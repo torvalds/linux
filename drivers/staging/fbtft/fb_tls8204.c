@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the TLS8204 LCD Controller
  *
@@ -6,16 +7,6 @@
  *
  * Copyright (C) 2013 Noralf Tronnes
  * Copyright (C) 2014 Michael Hope (adapted for the TLS8204)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -35,8 +26,8 @@
 /* gamma is used to control contrast in this driver */
 #define DEFAULT_GAMMA	"40"
 
-static unsigned bs = 4;
-module_param(bs, uint, 0);
+static unsigned int bs = 4;
+module_param(bs, uint, 0000);
 MODULE_PARM_DESC(bs, "BS[2:0] Bias voltage level: 0-7 (default: 4)");
 
 static int init_display(struct fbtft_par *par)
@@ -44,21 +35,21 @@ static int init_display(struct fbtft_par *par)
 	par->fbtftops.reset(par);
 
 	/* Enter extended command mode */
-	write_reg(par, 0x21); /* 5:1  1
-				 2:0  PD - Powerdown control: chip is active
-				 1:0  V  - Entry mode: horizontal addressing
-				 0:1  H  - Extended instruction set control:
-						extended
-			      */
+	write_reg(par, 0x21);	/* 5:1  1
+				 * 2:0  PD - Powerdown control: chip is active
+				 * 1:0  V  - Entry mode: horizontal addressing
+				 * 0:1  H  - Extended instruction set control:
+				 *	     extended
+				 */
 
 	/* H=1 Bias system */
-	write_reg(par, 0x10 | (bs & 0x7)); /*
-				 4:1  1
-				 3:0  0
-				 2:x  BS2 - Bias System
-				 1:x  BS1
-				 0:x  BS0
-			      */
+	write_reg(par, 0x10 | (bs & 0x7));
+				/* 4:1  1
+				 * 3:0  0
+				 * 2:x  BS2 - Bias System
+				 * 1:x  BS1
+				 * 0:x  BS0
+				 */
 
 	/* Set the address of the first display line. */
 	write_reg(par, 0x04 | (64 >> 6));
@@ -68,12 +59,12 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x20);
 
 	/* H=0 Display control */
-	write_reg(par, 0x08 | 4); /*
-				 3:1  1
-				 2:1  D  - DE: 10=normal mode
-				 1:0  0
-				 0:0  E
-			      */
+	write_reg(par, 0x08 | 4);
+				/* 3:1  1
+				 * 2:1  D - DE: 10=normal mode
+				 * 1:0  0
+				 * 0:0  E
+				 */
 
 	return 0;
 }
@@ -81,15 +72,15 @@ static int init_display(struct fbtft_par *par)
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
 	/* H=0 Set X address of RAM */
-	write_reg(par, 0x80); /* 7:1  1
-				 6-0: X[6:0] - 0x00
-			      */
+	write_reg(par, 0x80);	/* 7:1  1
+				 * 6-0: X[6:0] - 0x00
+				 */
 
 	/* H=0 Set Y address of RAM */
-	write_reg(par, 0x40); /* 7:0  0
-				 6:1  1
-				 2-0: Y[2:0] - 0x0
-			      */
+	write_reg(par, 0x40);	/* 7:0  0
+				 * 6:1  1
+				 * 2-0: Y[2:0] - 0x0
+				 */
 }
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
@@ -100,8 +91,9 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 	for (y = 0; y < HEIGHT / 8; y++) {
 		u8 *buf = par->txbuf.buf;
-		/* The display is 102x68 but the LCD is 84x48.  Set
-		   the write pointer at the start of each row. */
+		/* The display is 102x68 but the LCD is 84x48.
+		 * Set the write pointer at the start of each row.
+		 */
 		gpio_set_value(par->gpio.dc, 0);
 		write_reg(par, 0x80 | 0);
 		write_reg(par, 0x40 | y);
@@ -129,7 +121,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	return ret;
 }
 
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	/* apply mask */
 	curves[0] &= 0x7F;

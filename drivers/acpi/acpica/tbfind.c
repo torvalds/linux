@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: tbfind   - find table
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -68,7 +34,7 @@ acpi_status
 acpi_tb_find_table(char *signature,
 		   char *oem_id, char *oem_table_id, u32 *table_index)
 {
-	acpi_status status;
+	acpi_status status = AE_OK;
 	struct acpi_table_header header;
 	u32 i;
 
@@ -76,7 +42,7 @@ acpi_tb_find_table(char *signature,
 
 	/* Validate the input table signature */
 
-	if (!acpi_is_valid_signature(signature)) {
+	if (!acpi_ut_valid_nameseg(signature)) {
 		return_ACPI_STATUS(AE_BAD_SIGNATURE);
 	}
 
@@ -96,6 +62,7 @@ acpi_tb_find_table(char *signature,
 
 	/* Search for the table */
 
+	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
 		if (memcmp(&(acpi_gbl_root_table_list.tables[i].signature),
 			   header.signature, ACPI_NAME_SIZE)) {
@@ -115,7 +82,7 @@ acpi_tb_find_table(char *signature,
 			    acpi_tb_validate_table(&acpi_gbl_root_table_list.
 						   tables[i]);
 			if (ACPI_FAILURE(status)) {
-				return_ACPI_STATUS(status);
+				goto unlock_and_exit;
 			}
 
 			if (!acpi_gbl_root_table_list.tables[i].pointer) {
@@ -144,9 +111,12 @@ acpi_tb_find_table(char *signature,
 			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
 					  "Found table [%4.4s]\n",
 					  header.signature));
-			return_ACPI_STATUS(AE_OK);
+			goto unlock_and_exit;
 		}
 	}
+	status = AE_NOT_FOUND;
 
-	return_ACPI_STATUS(AE_NOT_FOUND);
+unlock_and_exit:
+	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+	return_ACPI_STATUS(status);
 }

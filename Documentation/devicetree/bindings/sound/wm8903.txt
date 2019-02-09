@@ -28,6 +28,14 @@ Optional properties:
     performed. If any entry has the value 0xffffffff, that GPIO's
     configuration will not be modified.
 
+  - AVDD-supply : Analog power supply regulator on the AVDD pin.
+
+  - CPVDD-supply : Charge pump supply regulator on the CPVDD pin.
+
+  - DBVDD-supply : Digital buffer supply regulator for the DBVDD pin.
+
+  - DCVDD-supply : Digital core supply regulator for the DCVDD pin.
+
 Pins on the device (for linking into audio routes):
 
   * IN1L
@@ -49,10 +57,15 @@ Pins on the device (for linking into audio routes):
 
 Example:
 
-codec: wm8903@1a {
+wm8903: codec@1a {
 	compatible = "wlf,wm8903";
 	reg = <0x1a>;
 	interrupts = < 347 >;
+
+	AVDD-supply = <&fooreg_a>;
+	CPVDD-supply = <&fooreg_b>;
+	DBVDD-supply = <&fooreg_c>;
+	DCVDC-supply = <&fooreg_d>;
 
 	gpio-controller;
 	#gpio-cells = <2>;

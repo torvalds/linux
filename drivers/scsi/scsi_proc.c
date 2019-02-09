@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/drivers/scsi/scsi_proc.c
  *
@@ -26,7 +27,7 @@
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -251,7 +252,8 @@ static int scsi_add_single_device(uint host, uint channel, uint id, uint lun)
 	if (shost->transportt->user_scan)
 		error = shost->transportt->user_scan(shost, channel, id, lun);
 	else
-		error = scsi_scan_host_selected(shost, channel, id, lun, 1);
+		error = scsi_scan_host_selected(shost, channel, id, lun,
+						SCSI_SCAN_MANUAL);
 	scsi_host_put(shost);
 	return error;
 }

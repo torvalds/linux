@@ -72,18 +72,15 @@ static int xen_suspend(void *data)
 	}
 
 	gnttab_suspend();
+	xen_manage_runstate_time(-1);
 	xen_arch_pre_suspend();
 
-	/*
-	 * This hypercall returns 1 if suspend was cancelled
-	 * or the domain was merely checkpointed, and 0 if it
-	 * is resuming in a new domain.
-	 */
 	si->cancelled = HYPERVISOR_suspend(xen_pv_domain()
                                            ? virt_to_gfn(xen_start_info)
                                            : 0);
 
 	xen_arch_post_suspend(si->cancelled);
+	xen_manage_runstate_time(si->cancelled ? 1 : 0);
 	gnttab_resume();
 
 	if (!si->cancelled) {
@@ -168,7 +165,9 @@ out:
 #endif	/* CONFIG_HIBERNATE_CALLBACKS */
 
 struct shutdown_handler {
-	const char *command;
+#define SHUTDOWN_CMD_SIZE 11
+	const char command[SHUTDOWN_CMD_SIZE];
+	bool flag;
 	void (*cb)(void);
 };
 
@@ -188,6 +187,7 @@ static void do_poweroff(void)
 {
 	switch (system_state) {
 	case SYSTEM_BOOTING:
+	case SYSTEM_SCHEDULING:
 		orderly_poweroff(true);
 		break;
 	case SYSTEM_RUNNING:
@@ -206,22 +206,22 @@ static void do_reboot(void)
 	ctrl_alt_del();
 }
 
+static struct shutdown_handler shutdown_handlers[] = {
+	{ "poweroff",	true,	do_poweroff },
+	{ "halt",	false,	do_poweroff },
+	{ "reboot",	true,	do_reboot   },
+#ifdef CONFIG_HIBERNATE_CALLBACKS
+	{ "suspend",	true,	do_suspend  },
+#endif
+};
+
 static void shutdown_handler(struct xenbus_watch *watch,
-			     const char **vec, unsigned int len)
+			     const char *path, const char *token)
 {
 	char *str;
 	struct xenbus_transaction xbt;
 	int err;
-	static struct shutdown_handler handlers[] = {
-		{ "poweroff",	do_poweroff },
-		{ "halt",	do_poweroff },
-		{ "reboot",	do_reboot   },
-#ifdef CONFIG_HIBERNATE_CALLBACKS
-		{ "suspend",	do_suspend  },
-#endif
-		{NULL, NULL},
-	};
-	static struct shutdown_handler *handler;
+	int idx;
 
 	if (shutting_down != SHUTDOWN_INVALID)
 		return;
@@ -238,13 +238,13 @@ static void shutdown_handler(struct xenbus_watch *watch,
 		return;
 	}
 
-	for (handler = &handlers[0]; handler->command; handler++) {
-		if (strcmp(str, handler->command) == 0)
+	for (idx = 0; idx < ARRAY_SIZE(shutdown_handlers); idx++) {
+		if (strcmp(str, shutdown_handlers[idx].command) == 0)
 			break;
 	}
 
 	/* Only acknowledge commands which we are prepared to handle. */
-	if (handler->cb)
+	if (idx < ARRAY_SIZE(shutdown_handlers))
 		xenbus_write(xbt, "control", "shutdown", "");
 
 	err = xenbus_transaction_end(xbt, 0);
@@ -253,8 +253,8 @@ static void shutdown_handler(struct xenbus_watch *watch,
 		goto again;
 	}
 
-	if (handler->cb) {
-		handler->cb();
+	if (idx < ARRAY_SIZE(shutdown_handlers)) {
+		shutdown_handlers[idx].cb();
 	} else {
 		pr_info("Ignoring shutdown request: %s\n", str);
 		shutting_down = SHUTDOWN_INVALID;
@@ -264,8 +264,8 @@ static void shutdown_handler(struct xenbus_watch *watch,
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ
-static void sysrq_handler(struct xenbus_watch *watch, const char **vec,
-			  unsigned int len)
+static void sysrq_handler(struct xenbus_watch *watch, const char *path,
+			  const char *token)
 {
 	char sysrq_key = '\0';
 	struct xenbus_transaction xbt;
@@ -275,14 +275,31 @@ static void sysrq_handler(struct xenbus_watch *watch, const char **vec,
 	err = xenbus_transaction_start(&xbt);
 	if (err)
 		return;
-	if (!xenbus_scanf(xbt, "control", "sysrq", "%c", &sysrq_key)) {
-		pr_err("Unable to read sysrq code in control/sysrq\n");
+	err = xenbus_scanf(xbt, "control", "sysrq", "%c", &sysrq_key);
+	if (err < 0) {
+		/*
+		 * The Xenstore watch fires directly after registering it and
+		 * after a suspend/resume cycle. So ENOENT is no error but
+		 * might happen in those cases. ERANGE is observed when we get
+		 * an empty value (''), this happens when we acknowledge the
+		 * request by writing '\0' below.
+		 */
+		if (err != -ENOENT && err != -ERANGE)
+			pr_err("Error %d reading sysrq code in control/sysrq\n",
+			       err);
 		xenbus_transaction_end(xbt, 1);
 		return;
 	}
 
-	if (sysrq_key != '\0')
-		xenbus_printf(xbt, "control", "sysrq", "%c", '\0');
+	if (sysrq_key != '\0') {
+		err = xenbus_printf(xbt, "control", "sysrq", "%c", '\0');
+		if (err) {
+			pr_err("%s: Error %d writing sysrq in control/sysrq\n",
+			       __func__, err);
+			xenbus_transaction_end(xbt, 1);
+			return;
+		}
+	}
 
 	err = xenbus_transaction_end(xbt, 0);
 	if (err == -EAGAIN)
@@ -310,6 +327,9 @@ static struct notifier_block xen_reboot_nb = {
 static int setup_shutdown_watcher(void)
 {
 	int err;
+	int idx;
+#define FEATURE_PATH_SIZE (SHUTDOWN_CMD_SIZE + sizeof("feature-"))
+	char node[FEATURE_PATH_SIZE];
 
 	err = register_xenbus_watch(&shutdown_watch);
 	if (err) {
@@ -325,6 +345,19 @@ static int setup_shutdown_watcher(void)
 		return err;
 	}
 #endif
+
+	for (idx = 0; idx < ARRAY_SIZE(shutdown_handlers); idx++) {
+		if (!shutdown_handlers[idx].flag)
+			continue;
+		snprintf(node, FEATURE_PATH_SIZE, "feature-%s",
+			 shutdown_handlers[idx].command);
+		err = xenbus_printf(XBT_NIL, "control", node, "%u", 1);
+		if (err) {
+			pr_err("%s: Error %d writing %s\n", __func__,
+				err, node);
+			return err;
+		}
+	}
 
 	return 0;
 }

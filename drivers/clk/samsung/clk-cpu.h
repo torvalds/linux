@@ -57,10 +57,12 @@ struct exynos_cpuclk {
 	struct notifier_block			clk_nb;
 	unsigned long				flags;
 
-/* The CPU clock registers has DIV1 configuration register */
+/* The CPU clock registers have DIV1 configuration register */
 #define CLK_CPU_HAS_DIV1		(1 << 0)
 /* When ALT parent is active, debug clocks need safe divider values */
 #define CLK_CPU_NEEDS_DEBUG_ALT_DIV	(1 << 1)
+/* The CPU clock registers have Exynos5433-compatible layout */
+#define CLK_CPU_HAS_E5433_REGS_LAYOUT	(1 << 2)
 };
 
 extern int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,

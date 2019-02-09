@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /* uio_pci_generic - generic UIO driver for PCI 2.3 devices
  *
  * Copyright (C) 2009 Red Hat, Inc.
  * Author: Michael S. Tsirkin <mst@redhat.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Since the driver does not declare any device ids, you must allocate
  * id and bind the device to the driver yourself.  For example:
@@ -66,14 +65,7 @@ static int probe(struct pci_dev *pdev,
 		return err;
 	}
 
-	if (!pdev->irq) {
-		dev_warn(&pdev->dev, "No IRQ assigned to device: "
-			 "no support for interrupts?\n");
-		pci_disable_device(pdev);
-		return -ENODEV;
-	}
-
-	if (!pci_intx_mask_supported(pdev)) {
+	if (pdev->irq && !pci_intx_mask_supported(pdev)) {
 		err = -ENODEV;
 		goto err_verify;
 	}
@@ -86,10 +78,15 @@ static int probe(struct pci_dev *pdev,
 
 	gdev->info.name = "uio_pci_generic";
 	gdev->info.version = DRIVER_VERSION;
-	gdev->info.irq = pdev->irq;
-	gdev->info.irq_flags = IRQF_SHARED;
-	gdev->info.handler = irqhandler;
 	gdev->pdev = pdev;
+	if (pdev->irq) {
+		gdev->info.irq = pdev->irq;
+		gdev->info.irq_flags = IRQF_SHARED;
+		gdev->info.handler = irqhandler;
+	} else {
+		dev_warn(&pdev->dev, "No IRQ assigned to device: "
+			 "no support for interrupts?\n");
+	}
 
 	err = uio_register_device(&pdev->dev, &gdev->info);
 	if (err)

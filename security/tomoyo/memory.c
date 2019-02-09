@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * security/tomoyo/memory.c
  *
@@ -154,7 +155,7 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 	if (!name)
 		return NULL;
 	len = strlen(name) + 1;
-	hash = full_name_hash((const unsigned char *) name, len - 1);
+	hash = full_name_hash(NULL, (const unsigned char *) name, len - 1);
 	head = &tomoyo_name_list[hash_long(hash, TOMOYO_HASH_BITS)];
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return NULL;

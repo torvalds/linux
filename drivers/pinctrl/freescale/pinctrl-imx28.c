@@ -1,16 +1,11 @@
-/*
- * Copyright 2012 Freescale Semiconductor, Inc.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Freescale i.MX28 pinctrl driver
+//
+// Author: Shawn Guo <shawn.guo@linaro.org>
+// Copyright 2012 Freescale Semiconductor, Inc.
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
 #include "pinctrl-mxs.h"
@@ -371,7 +366,7 @@ static const struct pinctrl_pin_desc imx28_pins[] = {
 	MXS_PINCTRL_PIN(EMI_CKE),
 };
 
-static struct mxs_regs imx28_regs = {
+static const struct mxs_regs imx28_regs = {
 	.muxsel = 0x100,
 	.drive = 0x300,
 	.pull = 0x600,
@@ -392,15 +387,14 @@ static const struct of_device_id imx28_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx28-pinctrl", },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, imx28_pinctrl_of_match);
 
 static struct platform_driver imx28_pinctrl_driver = {
 	.driver = {
 		.name = "imx28-pinctrl",
+		.suppress_bind_attrs = true,
 		.of_match_table = imx28_pinctrl_of_match,
 	},
 	.probe = imx28_pinctrl_probe,
-	.remove = mxs_pinctrl_remove,
 };
 
 static int __init imx28_pinctrl_init(void)
@@ -408,13 +402,3 @@ static int __init imx28_pinctrl_init(void)
 	return platform_driver_register(&imx28_pinctrl_driver);
 }
 postcore_initcall(imx28_pinctrl_init);
-
-static void __exit imx28_pinctrl_exit(void)
-{
-	platform_driver_unregister(&imx28_pinctrl_driver);
-}
-module_exit(imx28_pinctrl_exit);
-
-MODULE_AUTHOR("Shawn Guo <shawn.guo@linaro.org>");
-MODULE_DESCRIPTION("Freescale i.MX28 pinctrl driver");
-MODULE_LICENSE("GPL v2");

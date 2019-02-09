@@ -121,11 +121,7 @@ config PNFS_FILE_LAYOUT
 config PNFS_BLOCK
 	tristate
 	depends on NFS_V4_1 && BLK_DEV_DM
-	default NFS_V4
-
-config PNFS_OBJLAYOUT
-	tristate
-	depends on NFS_V4_1 && SCSI_OSD_ULD
+	depends on 64BIT || LBDAF
 	default NFS_V4
 
 config PNFS_FLEXFILE_LAYOUT

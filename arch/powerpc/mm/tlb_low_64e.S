@@ -22,6 +22,7 @@
 #include <asm/ppc-opcode.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_booke_hv_asm.h>
+#include <asm/feature-fixups.h>
 
 #ifdef CONFIG_PPC_64K_PAGES
 #define VPTE_PMD_SHIFT	(PTE_INDEX_SIZE+1)
@@ -895,7 +896,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 BEGIN_MMU_FTR_SECTION
 virt_page_table_tlb_miss_done:
 
-	/* We have overriden MAS2:EPN but currently our primary TLB miss
+	/* We have overridden MAS2:EPN but currently our primary TLB miss
 	 * handler will always restore it so that should not be an issue,
 	 * if we ever optimize the primary handler to not write MAS2 on
 	 * some cases, we'll have to restore MAS2:EPN here based on the

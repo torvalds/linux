@@ -55,6 +55,7 @@ enum sst_audio_device_id_mrfld {
 	PIPE_MEDIA0_IN = 0x8F,
 	PIPE_MEDIA1_IN = 0x90,
 	PIPE_MEDIA2_IN = 0x91,
+	PIPE_MEDIA3_IN = 0x9C,
 	PIPE_RSVD = 0xFF,
 };
 
@@ -134,6 +135,7 @@ struct sst_platform_info {
 	const struct sst_res_info *res_info;
 	const struct sst_lib_dnld_info *lib_info;
 	const char *platform;
+	bool streams_lost_on_suspend;
 };
 int add_sst_platform_device(void);
 #endif

@@ -54,7 +54,7 @@ static int grow(rh_info_t * info, int max_blocks)
 
 	new_blocks = max_blocks - info->max_blocks;
 
-	block = kmalloc(sizeof(rh_block_t) * max_blocks, GFP_ATOMIC);
+	block = kmalloc_array(max_blocks, sizeof(rh_block_t), GFP_ATOMIC);
 	if (block == NULL)
 		return -ENOMEM;
 
@@ -325,7 +325,7 @@ void rh_init(rh_info_t * info, unsigned int alignment, int max_blocks,
 }
 EXPORT_SYMBOL_GPL(rh_init);
 
-/* Attach a free memory region, coalesces regions if adjuscent */
+/* Attach a free memory region, coalesces regions if adjacent */
 int rh_attach_region(rh_info_t * info, unsigned long start, int size)
 {
 	rh_block_t *blk;

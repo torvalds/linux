@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PGTABLE_32_H
 #define _ASM_X86_PGTABLE_32_H
 
@@ -14,7 +15,6 @@
  */
 #ifndef __ASSEMBLY__
 #include <asm/processor.h>
-#include <asm/fixmap.h>
 #include <linux/threads.h>
 #include <asm/paravirt.h>
 
@@ -27,10 +27,12 @@ struct vm_area_struct;
 
 extern pgd_t swapper_pg_dir[1024];
 extern pgd_t initial_page_table[1024];
+extern pmd_t initial_pg_pmd[];
 
 static inline void pgtable_cache_init(void) { }
 static inline void check_pgt_cache(void) { }
 void paging_init(void);
+void sync_initial_page_table(void);
 
 /*
  * Define this if things work differently on an i386 and an i486:
@@ -60,7 +62,7 @@ void paging_init(void);
 #define kpte_clear_flush(ptep, vaddr)		\
 do {						\
 	pte_clear(&init_mm, (vaddr), (ptep));	\
-	__flush_tlb_one((vaddr));		\
+	__flush_tlb_one_kernel((vaddr));		\
 } while (0)
 
 #endif /* !__ASSEMBLY__ */
@@ -74,5 +76,36 @@ do {						\
 #else
 #define kern_addr_valid(kaddr)	(0)
 #endif
+
+/*
+ * This is how much memory in addition to the memory covered up to
+ * and including _end we need mapped initially.
+ * We need:
+ *     (KERNEL_IMAGE_SIZE/4096) / 1024 pages (worst case, non PAE)
+ *     (KERNEL_IMAGE_SIZE/4096) / 512 + 4 pages (worst case for PAE)
+ *
+ * Modulo rounding, each megabyte assigned here requires a kilobyte of
+ * memory, which is currently unreclaimed.
+ *
+ * This should be a multiple of a page.
+ *
+ * KERNEL_IMAGE_SIZE should be greater than pa(_end)
+ * and small than max_low_pfn, otherwise will waste some page table entries
+ */
+#if PTRS_PER_PMD > 1
+#define PAGE_TABLE_SIZE(pages) (((pages) / PTRS_PER_PMD) + PTRS_PER_PGD)
+#else
+#define PAGE_TABLE_SIZE(pages) ((pages) / PTRS_PER_PGD)
+#endif
+
+/*
+ * Number of possible pages in the lowmem region.
+ *
+ * We shift 2 by 31 instead of 1 by 32 to the left in order to avoid a
+ * gas warning about overflowing shift count when gas has been compiled
+ * with only a host target support using a 32-bit type for internal
+ * representation.
+ */
+#define LOWMEM_PAGES ((((2<<31) - __PAGE_OFFSET) >> PAGE_SHIFT))
 
 #endif /* _ASM_X86_PGTABLE_32_H */

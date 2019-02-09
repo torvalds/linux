@@ -136,7 +136,6 @@ static const struct i2c_device_id adxl34x_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, adxl34x_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id adxl34x_of_id[] = {
 	/*
 	 * The ADXL346 is backward-compatible with the ADXL345. Differences are
@@ -153,13 +152,12 @@ static const struct of_device_id adxl34x_of_id[] = {
 };
 
 MODULE_DEVICE_TABLE(of, adxl34x_of_id);
-#endif
 
 static struct i2c_driver adxl34x_driver = {
 	.driver = {
 		.name = "adxl34x",
 		.pm = &adxl34x_i2c_pm,
-		.of_match_table = of_match_ptr(adxl34x_of_id),
+		.of_match_table = adxl34x_of_id,
 	},
 	.probe    = adxl34x_i2c_probe,
 	.remove   = adxl34x_i2c_remove,

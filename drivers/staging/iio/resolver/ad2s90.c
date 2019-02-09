@@ -47,8 +47,7 @@ error_ret:
 }
 
 static const struct iio_info ad2s90_info = {
-	.read_raw = &ad2s90_read_raw,
-	.driver_module = THIS_MODULE,
+	.read_raw = ad2s90_read_raw,
 };
 
 static const struct iio_chan_spec ad2s90_chan = {

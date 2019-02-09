@@ -138,6 +138,7 @@ static int snd_sb8dsp_midi_output_close(struct snd_rawmidi_substream *substream)
 	struct snd_sb *chip;
 
 	chip = substream->rmidi->private_data;
+	del_timer_sync(&chip->midi_timer);
 	spin_lock_irqsave(&chip->open_lock, flags);
 	chip->open &= ~(SB_OPEN_MIDI_OUTPUT | SB_OPEN_MIDI_OUTPUT_TRIGGER);
 	chip->midi_substream_output = NULL;
@@ -209,10 +210,10 @@ static void snd_sb8dsp_midi_output_write(struct snd_rawmidi_substream *substream
 	}
 }
 
-static void snd_sb8dsp_midi_output_timer(unsigned long data)
+static void snd_sb8dsp_midi_output_timer(struct timer_list *t)
 {
-	struct snd_rawmidi_substream *substream = (struct snd_rawmidi_substream *) data;
-	struct snd_sb * chip = substream->rmidi->private_data;
+	struct snd_sb *chip = from_timer(chip, t, midi_timer);
+	struct snd_rawmidi_substream *substream = chip->midi_substream_output;
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->open_lock, flags);
@@ -230,9 +231,6 @@ static void snd_sb8dsp_midi_output_trigger(struct snd_rawmidi_substream *substre
 	spin_lock_irqsave(&chip->open_lock, flags);
 	if (up) {
 		if (!(chip->open & SB_OPEN_MIDI_OUTPUT_TRIGGER)) {
-			setup_timer(&chip->midi_timer,
-				    snd_sb8dsp_midi_output_timer,
-				    (unsigned long) substream);
 			mod_timer(&chip->midi_timer, 1 + jiffies);
 			chip->open |= SB_OPEN_MIDI_OUTPUT_TRIGGER;
 		}
@@ -247,14 +245,14 @@ static void snd_sb8dsp_midi_output_trigger(struct snd_rawmidi_substream *substre
 		snd_sb8dsp_midi_output_write(substream);
 }
 
-static struct snd_rawmidi_ops snd_sb8dsp_midi_output =
+static const struct snd_rawmidi_ops snd_sb8dsp_midi_output =
 {
 	.open =		snd_sb8dsp_midi_output_open,
 	.close =	snd_sb8dsp_midi_output_close,
 	.trigger =	snd_sb8dsp_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_sb8dsp_midi_input =
+static const struct snd_rawmidi_ops snd_sb8dsp_midi_input =
 {
 	.open =		snd_sb8dsp_midi_input_open,
 	.close =	snd_sb8dsp_midi_input_close,
@@ -275,6 +273,7 @@ int snd_sb8dsp_midi(struct snd_sb *chip, int device)
 	if (chip->hardware >= SB_HW_20)
 		rmidi->info_flags |= SNDRV_RAWMIDI_INFO_DUPLEX;
 	rmidi->private_data = chip;
+	timer_setup(&chip->midi_timer, snd_sb8dsp_midi_output_timer, 0);
 	chip->rmidi = rmidi;
 	return 0;
 }

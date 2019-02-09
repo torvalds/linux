@@ -8,12 +8,23 @@
 #ifndef LINUX_MMC_CORE_H
 #define LINUX_MMC_CORE_H
 
-#include <linux/interrupt.h>
 #include <linux/completion.h>
+#include <linux/types.h>
 
-struct request;
 struct mmc_data;
 struct mmc_request;
+
+enum mmc_blk_status {
+	MMC_BLK_SUCCESS = 0,
+	MMC_BLK_PARTIAL,
+	MMC_BLK_CMD_ERR,
+	MMC_BLK_RETRY,
+	MMC_BLK_ABORT,
+	MMC_BLK_DATA_ERR,
+	MMC_BLK_ECC_ERR,
+	MMC_BLK_NOMEDIUM,
+	MMC_BLK_NEW_REQUEST,
+};
 
 struct mmc_command {
 	u32			opcode;
@@ -54,6 +65,9 @@ struct mmc_command {
 #define MMC_RSP_R5	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
 #define MMC_RSP_R6	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
 #define MMC_RSP_R7	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
+
+/* Can be used by core to poll after switch to MMC HS mode */
+#define MMC_RSP_R1_NO_CRC	(MMC_RSP_PRESENT|MMC_RSP_OPCODE)
 
 #define mmc_resp_type(cmd)	((cmd)->flags & (MMC_RSP_PRESENT|MMC_RSP_136|MMC_RSP_CRC|MMC_RSP_BUSY|MMC_RSP_OPCODE))
 
@@ -108,12 +122,18 @@ struct mmc_data {
 	unsigned int		timeout_clks;	/* data timeout (in clocks) */
 	unsigned int		blksz;		/* data block size */
 	unsigned int		blocks;		/* number of blocks */
+	unsigned int		blk_addr;	/* block address */
 	int			error;		/* data error */
 	unsigned int		flags;
 
-#define MMC_DATA_WRITE	(1 << 8)
-#define MMC_DATA_READ	(1 << 9)
-#define MMC_DATA_STREAM	(1 << 10)
+#define MMC_DATA_WRITE		BIT(8)
+#define MMC_DATA_READ		BIT(9)
+/* Extra flags used by CQE */
+#define MMC_DATA_QBR		BIT(10)		/* CQE queue barrier*/
+#define MMC_DATA_PRIO		BIT(11)		/* CQE high priority */
+#define MMC_DATA_REL_WR		BIT(12)		/* Reliable write */
+#define MMC_DATA_DAT_TAG	BIT(13)		/* Tag request */
+#define MMC_DATA_FORCED_PRG	BIT(14)		/* Forced programming */
 
 	unsigned int		bytes_xfered;
 
@@ -134,81 +154,30 @@ struct mmc_request {
 	struct mmc_command	*stop;
 
 	struct completion	completion;
+	struct completion	cmd_completion;
 	void			(*done)(struct mmc_request *);/* completion function */
+	/*
+	 * Notify uppers layers (e.g. mmc block driver) that recovery is needed
+	 * due to an error associated with the mmc_request. Currently used only
+	 * by CQE.
+	 */
+	void			(*recovery_notifier)(struct mmc_request *);
 	struct mmc_host		*host;
+
+	/* Allow other commands during this ongoing data transfer or busy wait */
+	bool			cap_cmd_during_tfr;
+
+	int			tag;
 };
 
 struct mmc_card;
-struct mmc_async_req;
 
-extern int mmc_stop_bkops(struct mmc_card *);
-extern int mmc_read_bkops_status(struct mmc_card *);
-extern struct mmc_async_req *mmc_start_req(struct mmc_host *,
-					   struct mmc_async_req *, int *);
-extern int mmc_interrupt_hpi(struct mmc_card *);
-extern void mmc_wait_for_req(struct mmc_host *, struct mmc_request *);
-extern int mmc_wait_for_cmd(struct mmc_host *, struct mmc_command *, int);
-extern int mmc_app_cmd(struct mmc_host *, struct mmc_card *);
-extern int mmc_wait_for_app_cmd(struct mmc_host *, struct mmc_card *,
-	struct mmc_command *, int);
-extern void mmc_start_bkops(struct mmc_card *card, bool from_exception);
-extern int mmc_switch(struct mmc_card *, u8, u8, u8, unsigned int);
-extern int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);
-extern int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd);
+void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq);
+int mmc_wait_for_cmd(struct mmc_host *host, struct mmc_command *cmd,
+		int retries);
 
-#define MMC_ERASE_ARG		0x00000000
-#define MMC_SECURE_ERASE_ARG	0x80000000
-#define MMC_TRIM_ARG		0x00000001
-#define MMC_DISCARD_ARG		0x00000003
-#define MMC_SECURE_TRIM1_ARG	0x80000001
-#define MMC_SECURE_TRIM2_ARG	0x80008000
-
-#define MMC_SECURE_ARGS		0x80000000
-#define MMC_TRIM_ARGS		0x00008001
-
-extern int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
-		     unsigned int arg);
-extern int mmc_can_erase(struct mmc_card *card);
-extern int mmc_can_trim(struct mmc_card *card);
-extern int mmc_can_discard(struct mmc_card *card);
-extern int mmc_can_sanitize(struct mmc_card *card);
-extern int mmc_can_secure_erase_trim(struct mmc_card *card);
-extern int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
-				   unsigned int nr);
-extern unsigned int mmc_calc_max_discard(struct mmc_card *card);
-
-extern int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen);
-extern int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
-			      bool is_rel_write);
-extern int mmc_hw_reset(struct mmc_host *host);
-extern int mmc_can_reset(struct mmc_card *card);
-
-extern void mmc_set_data_timeout(struct mmc_data *, const struct mmc_card *);
-extern unsigned int mmc_align_data_size(struct mmc_card *, unsigned int);
-
-extern int __mmc_claim_host(struct mmc_host *host, atomic_t *abort);
-extern void mmc_release_host(struct mmc_host *host);
-
-extern void mmc_get_card(struct mmc_card *card);
-extern void mmc_put_card(struct mmc_card *card);
-
-extern int mmc_flush_cache(struct mmc_card *);
-
-extern int mmc_detect_card_removed(struct mmc_host *host);
-
-/**
- *	mmc_claim_host - exclusively claim a host
- *	@host: mmc host to claim
- *
- *	Claim a host for a set of operations.
- */
-static inline void mmc_claim_host(struct mmc_host *host)
-{
-	__mmc_claim_host(host, NULL);
-}
-
-struct device_node;
-extern u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max);
-extern int mmc_of_parse_voltage(struct device_node *np, u32 *mask);
+int mmc_hw_reset(struct mmc_host *host);
+int mmc_sw_reset(struct mmc_host *host);
+void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card);
 
 #endif /* LINUX_MMC_CORE_H */

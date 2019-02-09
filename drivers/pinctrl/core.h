@@ -24,6 +24,10 @@ struct pinctrl_gpio_range;
  *	controller
  * @pin_desc_tree: each pin descriptor for this pin controller is stored in
  *	this radix tree
+ * @pin_group_tree: optionally each pin group can be stored in this radix tree
+ * @num_groups: optionally number of groups can be kept here
+ * @pin_function_tree: optionally each function can be stored in this radix tree
+ * @num_functions: optionally number of functions can be kept here
  * @gpio_ranges: a list of GPIO ranges that is handled by this pin controller,
  *	ranges are added to this list at runtime
  * @dev: the device entry for this pin controller
@@ -40,6 +44,14 @@ struct pinctrl_dev {
 	struct list_head node;
 	struct pinctrl_desc *desc;
 	struct radix_tree_root pin_desc_tree;
+#ifdef CONFIG_GENERIC_PINCTRL_GROUPS
+	struct radix_tree_root pin_group_tree;
+	unsigned int num_groups;
+#endif
+#ifdef CONFIG_GENERIC_PINMUX_FUNCTIONS
+	struct radix_tree_root pin_function_tree;
+	unsigned int num_functions;
+#endif
 	struct list_head gpio_ranges;
 	struct device *dev;
 	struct module *owner;
@@ -134,6 +146,7 @@ struct pinctrl_setting {
  * @name: a name for the pin, e.g. the name of the pin/pad/finger on a
  *	datasheet or such
  * @dynamic_name: if the name of this pin was dynamically allocated
+ * @drv_data: driver-defined per-pin data. pinctrl core does not touch this
  * @mux_usecount: If zero, the pin is not claimed, and @owner should be NULL.
  *	If non-zero, this pin is claimed by @owner. This field is an integer
  *	rather than a boolean, since pinctrl_get() might process multiple
@@ -141,13 +154,14 @@ struct pinctrl_setting {
  *	or pin, and each of these will increment the @usecount.
  * @mux_owner: The name of device that called pinctrl_get().
  * @mux_setting: The most recent selected mux setting for this pin, if any.
- * @gpio_owner: If pinctrl_request_gpio() was called for this pin, this is
+ * @gpio_owner: If pinctrl_gpio_request() was called for this pin, this is
  *	the name of the GPIO that "owns" this pin.
  */
 struct pin_desc {
 	struct pinctrl_dev *pctldev;
 	const char *name;
 	bool dynamic_name;
+	void *drv_data;
 	/* These fields only added when supporting pinmux drivers */
 #ifdef CONFIG_PINMUX
 	unsigned mux_usecount;
@@ -165,9 +179,46 @@ struct pin_desc {
  */
 struct pinctrl_maps {
 	struct list_head node;
-	struct pinctrl_map const *maps;
+	const struct pinctrl_map *maps;
 	unsigned num_maps;
 };
+
+#ifdef CONFIG_GENERIC_PINCTRL_GROUPS
+
+/**
+ * struct group_desc - generic pin group descriptor
+ * @name: name of the pin group
+ * @pins: array of pins that belong to the group
+ * @num_pins: number of pins in the group
+ * @data: pin controller driver specific data
+ */
+struct group_desc {
+	const char *name;
+	int *pins;
+	int num_pins;
+	void *data;
+};
+
+int pinctrl_generic_get_group_count(struct pinctrl_dev *pctldev);
+
+const char *pinctrl_generic_get_group_name(struct pinctrl_dev *pctldev,
+					   unsigned int group_selector);
+
+int pinctrl_generic_get_group_pins(struct pinctrl_dev *pctldev,
+				   unsigned int group_selector,
+				   const unsigned int **pins,
+				   unsigned int *npins);
+
+struct group_desc *pinctrl_generic_get_group(struct pinctrl_dev *pctldev,
+					     unsigned int group_selector);
+
+int pinctrl_generic_add_group(struct pinctrl_dev *pctldev, const char *name,
+			      int *gpins, int ngpins, void *data);
+
+int pinctrl_generic_remove_group(struct pinctrl_dev *pctldev,
+				 unsigned int group_selector);
+
+#endif	/* CONFIG_GENERIC_PINCTRL_GROUPS */
 
 struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *dev_name);
 struct pinctrl_dev *get_pinctrl_dev_from_of_node(struct device_node *np);
@@ -182,9 +233,13 @@ static inline struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev,
 	return radix_tree_lookup(&pctldev->pin_desc_tree, pin);
 }
 
-int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
+extern struct pinctrl_gpio_range *
+pinctrl_find_gpio_range_from_pin_nolock(struct pinctrl_dev *pctldev,
+					unsigned int pin);
+
+int pinctrl_register_map(const struct pinctrl_map *maps, unsigned num_maps,
 			 bool dup);
-void pinctrl_unregister_map(struct pinctrl_map const *map);
+void pinctrl_unregister_map(const struct pinctrl_map *map);
 
 extern int pinctrl_force_sleep(struct pinctrl_dev *pctldev);
 extern int pinctrl_force_default(struct pinctrl_dev *pctldev);

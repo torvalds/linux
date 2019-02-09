@@ -1,5 +1,5 @@
 /*
- * platform_tca6416.c: tca6416 platform data initilization file
+ * platform_tca6416.c: tca6416 platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>

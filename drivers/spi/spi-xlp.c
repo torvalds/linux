@@ -11,6 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -392,8 +393,8 @@ static int xlp_spi_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no IRQ resource found\n");
-		return -EINVAL;
+		dev_err(&pdev->dev, "no IRQ resource found: %d\n", irq);
+		return irq;
 	}
 	err = devm_request_irq(&pdev->dev, irq, xlp_spi_interrupt, 0,
 			pdev->name, xspi);
@@ -405,8 +406,9 @@ static int xlp_spi_probe(struct platform_device *pdev)
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "could not get spi clock\n");
-		return -ENODEV;
+		return PTR_ERR(clk);
 	}
+
 	xspi->spi_clk = clk_get_rate(clk);
 
 	master = spi_alloc_master(&pdev->dev, 0);
@@ -437,16 +439,27 @@ static int xlp_spi_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xlp_spi_acpi_match[] = {
+	{ "BRCM900D", 0 },
+	{ "CAV900D",  0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, xlp_spi_acpi_match);
+#endif
+
 static const struct of_device_id xlp_spi_dt_id[] = {
 	{ .compatible = "netlogic,xlp832-spi" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, xlp_spi_dt_id);
 
 static struct platform_driver xlp_spi_driver = {
 	.probe	= xlp_spi_probe,
 	.driver = {
 		.name	= "xlp-spi",
 		.of_match_table = xlp_spi_dt_id,
+		.acpi_match_table = ACPI_PTR(xlp_spi_acpi_match),
 	},
 };
 module_platform_driver(xlp_spi_driver);

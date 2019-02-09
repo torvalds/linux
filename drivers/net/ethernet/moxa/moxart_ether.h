@@ -55,16 +55,17 @@
 #define RX_DESC2_ADDRESS_VIRT	4
 
 #define TX_DESC_NUM		64
-#define TX_DESC_NUM_MASK	(TX_DESC_NUM-1)
+#define TX_DESC_NUM_MASK	(TX_DESC_NUM - 1)
 #define TX_NEXT(N)		(((N) + 1) & (TX_DESC_NUM_MASK))
 #define TX_BUF_SIZE		1600
-#define TX_BUF_SIZE_MAX		(TX_DESC1_BUF_SIZE_MASK+1)
+#define TX_BUF_SIZE_MAX		(TX_DESC1_BUF_SIZE_MASK + 1)
+#define TX_WAKE_THRESHOLD	16
 
 #define RX_DESC_NUM		64
-#define RX_DESC_NUM_MASK	(RX_DESC_NUM-1)
+#define RX_DESC_NUM_MASK	(RX_DESC_NUM - 1)
 #define RX_NEXT(N)		(((N) + 1) & (RX_DESC_NUM_MASK))
 #define RX_BUF_SIZE		1600
-#define RX_BUF_SIZE_MAX		(RX_DESC1_BUF_SIZE_MASK+1)
+#define RX_BUF_SIZE_MAX		(RX_DESC1_BUF_SIZE_MASK + 1)
 
 #define REG_INTERRUPT_STATUS	0
 #define REG_INTERRUPT_MASK	4
@@ -292,7 +293,6 @@
 
 struct moxart_mac_priv_t {
 	void __iomem *base;
-	struct net_device_stats stats;
 	unsigned int reg_maccr;
 	unsigned int reg_imr;
 	struct napi_struct napi;
@@ -300,7 +300,7 @@ struct moxart_mac_priv_t {
 
 	dma_addr_t rx_base;
 	dma_addr_t rx_mapping[RX_DESC_NUM];
-	void __iomem *rx_desc_base;
+	void *rx_desc_base;
 	unsigned char *rx_buf_base;
 	unsigned char *rx_buf[RX_DESC_NUM];
 	unsigned int rx_head;
@@ -308,7 +308,7 @@ struct moxart_mac_priv_t {
 
 	dma_addr_t tx_base;
 	dma_addr_t tx_mapping[TX_DESC_NUM];
-	void __iomem *tx_desc_base;
+	void *tx_desc_base;
 	unsigned char *tx_buf_base;
 	unsigned char *tx_buf[RX_DESC_NUM];
 	unsigned int tx_head;

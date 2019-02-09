@@ -75,15 +75,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb/input.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
-
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v2.3 (May 2, 2007)"
-#define DRIVER_AUTHOR  "Bryan W. Headley/Chris Atenasio/Cedric Brun/Rene van Paassen"
-#define DRIVER_DESC    "Aiptek HyperPen USB Tablet Driver (Linux 2.6.x)"
 
 /*
  * Aiptek status packet:
@@ -307,7 +300,6 @@ struct aiptek_settings {
 
 struct aiptek {
 	struct input_dev *inputdev;		/* input device struct           */
-	struct usb_device *usbdev;		/* usb device struct             */
 	struct usb_interface *intf;		/* usb interface struct          */
 	struct urb *urb;			/* urb for incoming reports      */
 	dma_addr_t data_dma;			/* our dma stuffage              */
@@ -847,7 +839,7 @@ static int aiptek_open(struct input_dev *inputdev)
 {
 	struct aiptek *aiptek = input_get_drvdata(inputdev);
 
-	aiptek->urb->dev = aiptek->usbdev;
+	aiptek->urb->dev = interface_to_usbdev(aiptek->intf);
 	if (usb_submit_urb(aiptek->urb, GFP_KERNEL) != 0)
 		return -EIO;
 
@@ -873,8 +865,10 @@ aiptek_set_report(struct aiptek *aiptek,
 		  unsigned char report_type,
 		  unsigned char report_id, void *buffer, int size)
 {
-	return usb_control_msg(aiptek->usbdev,
-			       usb_sndctrlpipe(aiptek->usbdev, 0),
+	struct usb_device *udev = interface_to_usbdev(aiptek->intf);
+
+	return usb_control_msg(udev,
+			       usb_sndctrlpipe(udev, 0),
 			       USB_REQ_SET_REPORT,
 			       USB_TYPE_CLASS | USB_RECIP_INTERFACE |
 			       USB_DIR_OUT, (report_type << 8) + report_id,
@@ -886,8 +880,10 @@ aiptek_get_report(struct aiptek *aiptek,
 		  unsigned char report_type,
 		  unsigned char report_id, void *buffer, int size)
 {
-	return usb_control_msg(aiptek->usbdev,
-			       usb_rcvctrlpipe(aiptek->usbdev, 0),
+	struct usb_device *udev = interface_to_usbdev(aiptek->intf);
+
+	return usb_control_msg(udev,
+			       usb_rcvctrlpipe(udev, 0),
 			       USB_REQ_GET_REPORT,
 			       USB_TYPE_CLASS | USB_RECIP_INTERFACE |
 			       USB_DIR_IN, (report_type << 8) + report_id,
@@ -1673,7 +1669,7 @@ static struct attribute *aiptek_attributes[] = {
 	NULL
 };
 
-static struct attribute_group aiptek_attribute_group = {
+static const struct attribute_group aiptek_attribute_group = {
 	.attrs	= aiptek_attributes,
 };
 
@@ -1716,7 +1712,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
         }
 
 	aiptek->data = usb_alloc_coherent(usbdev, AIPTEK_PACKET_LENGTH,
-					  GFP_ATOMIC, &aiptek->data_dma);
+					  GFP_KERNEL, &aiptek->data_dma);
         if (!aiptek->data) {
 		dev_warn(&intf->dev, "cannot allocate usb buffer\n");
 		goto fail1;
@@ -1729,7 +1725,6 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	aiptek->inputdev = inputdev;
-	aiptek->usbdev = usbdev;
 	aiptek->intf = intf;
 	aiptek->ifnum = intf->altsetting[0].desc.bInterfaceNumber;
 	aiptek->inDelay = 0;
@@ -1833,8 +1828,8 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * input.
 	 */
 	usb_fill_int_urb(aiptek->urb,
-			 aiptek->usbdev,
-			 usb_rcvintpipe(aiptek->usbdev,
+			 usbdev,
+			 usb_rcvintpipe(usbdev,
 					endpoint->bEndpointAddress),
 			 aiptek->data, 8, aiptek_irq, aiptek,
 			 endpoint->bInterval);
@@ -1939,8 +1934,8 @@ static struct usb_driver aiptek_driver = {
 
 module_usb_driver(aiptek_driver);
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Bryan W. Headley/Chris Atenasio/Cedric Brun/Rene van Paassen");
+MODULE_DESCRIPTION("Aiptek HyperPen USB Tablet Driver");
 MODULE_LICENSE("GPL");
 
 module_param(programmableDelay, int, 0);

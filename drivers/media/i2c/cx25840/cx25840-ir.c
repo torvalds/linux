@@ -14,17 +14,12 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301, USA.
  */
 
 #include <linux/slab.h>
 #include <linux/kfifo.h>
 #include <linux/module.h>
-#include <media/cx25840.h>
+#include <media/drv-intf/cx25840.h>
 #include <media/rc-core.h>
 
 #include "cx25840-core.h"
@@ -33,7 +28,7 @@ static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable integrated IR debug messages");
 
-#define CX25840_IR_REG_BASE 	0x200
+#define CX25840_IR_REG_BASE	0x200
 
 #define CX25840_IR_CNTRL_REG	0x200
 #define CNTRL_WIN_3_3	0x00000000
@@ -136,7 +131,7 @@ static inline struct cx25840_ir_state *to_ir_state(struct v4l2_subdev *sd)
  * Rx and Tx Clock Divider register computations
  *
  * Note the largest clock divider value of 0xffff corresponds to:
- * 	(0xffff + 1) * 1000 / 108/2 MHz = 1,213,629.629... ns
+ *	(0xffff + 1) * 1000 / 108/2 MHz = 1,213,629.629... ns
  * which fits in 21 bits, so we'll use unsigned int for time arguments.
  */
 static inline u16 count_to_clock_divider(unsigned int d)
@@ -192,7 +187,7 @@ static inline unsigned int clock_divider_to_freq(unsigned int divider,
  * Low Pass Filter register calculations
  *
  * Note the largest count value of 0xffff corresponds to:
- * 	0xffff * 1000 / 108/2 MHz = 1,213,611.11... ns
+ *	0xffff * 1000 / 108/2 MHz = 1,213,611.11... ns
  * which fits in 21 bits, so we'll use unsigned int for time arguments.
  */
 static inline u16 count_to_lpf_count(unsigned int d)
@@ -1113,8 +1108,8 @@ int cx25840_ir_log_status(struct v4l2_subdev *sd)
 			j = 0;
 			break;
 		}
-		v4l2_info(sd, "\tNext carrier edge window:          16 clocks "
-			  "-%1d/+%1d, %u to %u Hz\n", i, j,
+		v4l2_info(sd, "\tNext carrier edge window:	    16 clocks -%1d/+%1d, %u to %u Hz\n",
+			  i, j,
 			  clock_divider_to_freq(rxclk, 16 + j),
 			  clock_divider_to_freq(rxclk, 16 - i));
 	}
@@ -1124,8 +1119,7 @@ int cx25840_ir_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "\tLow pass filter:                   %s\n",
 		  filtr ? "enabled" : "disabled");
 	if (filtr)
-		v4l2_info(sd, "\tMin acceptable pulse width (LPF):  %u us, "
-			  "%u ns\n",
+		v4l2_info(sd, "\tMin acceptable pulse width (LPF):  %u us, %u ns\n",
 			  lpf_count_to_us(filtr),
 			  lpf_count_to_ns(filtr));
 	v4l2_info(sd, "\tPulse width timer timed-out:       %s\n",

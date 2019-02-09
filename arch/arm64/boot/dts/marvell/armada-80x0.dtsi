@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2017 Marvell Technology Group Ltd.
+ *
+ * Device Tree file for the Armada 80x0 SoC family
+ */
+
+/ {
+	aliases {
+		gpio1 = &cp1_gpio1;
+		gpio2 = &cp0_gpio2;
+		spi1 = &cp0_spi0;
+		spi2 = &cp0_spi1;
+		spi3 = &cp1_spi0;
+		spi4 = &cp1_spi1;
+	};
+};
+
+/*
+ * Instantiate the master CP110
+ */
+#define CP110_NAME		cp0
+#define CP110_BASE		f2000000
+#define CP110_PCIE_IO_BASE	0xf9000000
+#define CP110_PCIE_MEM_BASE	0xf6000000
+#define CP110_PCIE0_BASE	f2600000
+#define CP110_PCIE1_BASE	f2620000
+#define CP110_PCIE2_BASE	f2640000
+
+#include "armada-cp110.dtsi"
+
+#undef CP110_NAME
+#undef CP110_BASE
+#undef CP110_PCIE_IO_BASE
+#undef CP110_PCIE_MEM_BASE
+#undef CP110_PCIE0_BASE
+#undef CP110_PCIE1_BASE
+#undef CP110_PCIE2_BASE
+
+/*
+ * Instantiate the slave CP110
+ */
+#define CP110_NAME		cp1
+#define CP110_BASE		f4000000
+#define CP110_PCIE_IO_BASE	0xfd000000
+#define CP110_PCIE_MEM_BASE	0xfa000000
+#define CP110_PCIE0_BASE	f4600000
+#define CP110_PCIE1_BASE	f4620000
+#define CP110_PCIE2_BASE	f4640000
+
+#include "armada-cp110.dtsi"
+
+#undef CP110_NAME
+#undef CP110_BASE
+#undef CP110_PCIE_IO_BASE
+#undef CP110_PCIE_MEM_BASE
+#undef CP110_PCIE0_BASE
+#undef CP110_PCIE1_BASE
+#undef CP110_PCIE2_BASE
+
+/* The 80x0 has two CP blocks, but uses only one block from each. */
+&cp1_gpio1 {
+	status = "okay";
+};
+
+&cp0_gpio2 {
+	status = "okay";
+};
+
+&cp0_syscon0 {
+	cp0_pinctrl: pinctrl {
+		compatible = "marvell,armada-8k-cpm-pinctrl";
+	};
+};
+
+&cp1_syscon0 {
+	cp1_pinctrl: pinctrl {
+		compatible = "marvell,armada-8k-cps-pinctrl";
+
+		nand_pins: nand-pins {
+			marvell,pins =
+			"mpp0", "mpp1", "mpp2", "mpp3",
+			"mpp4", "mpp5", "mpp6", "mpp7",
+			"mpp8", "mpp9", "mpp10", "mpp11",
+			"mpp15", "mpp16", "mpp17", "mpp18",
+			"mpp19", "mpp20", "mpp21", "mpp22",
+			"mpp23", "mpp24", "mpp25", "mpp26",
+			"mpp27";
+			marvell,function = "dev";
+		};
+
+		nand_rb: nand-rb {
+			marvell,pins = "mpp13", "mpp12";
+			marvell,function = "nf";
+		};
+	};
+};
+
+&cp1_crypto {
+	/*
+	 * The cryptographic engine found on the cp110
+	 * master is enabled by default at the SoC
+	 * level. Because it is not possible as of now
+	 * to enable two cryptographic engines in
+	 * parallel, disable this one by default.
+	 */
+	status = "disabled";
+};

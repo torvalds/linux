@@ -24,13 +24,11 @@
  *   Processor: 0x80000000 - 0x807fffff -> PCI I/O: 0x00000000 - 0x007fffff
  *   Processor: 0xc0000000 - 0xdfffffff -> PCI MEM: 0x00000000 - 0x1fffffff
  *   PCI MEM:   0x80000000 -> Processor System Memory: 0x00000000
- *   EUMB mapped to: ioremap_base - 0x00100000 (ioremap_base - 1 MB)
  *
  * MAP B (CHRP Map)
  *   Processor: 0xfe000000 - 0xfebfffff -> PCI I/O: 0x00000000 - 0x00bfffff
  *   Processor: 0x80000000 - 0xbfffffff -> PCI MEM: 0x80000000 - 0xbfffffff
  *   PCI MEM:   0x00000000 -> Processor System Memory: 0x00000000
- *   EUMB mapped to: ioremap_base - 0x00100000 (ioremap_base - 1 MB)
  */
 
 /*
@@ -137,14 +135,6 @@
 #define MPC10X_EUMB_PM_SIZE		0x00001000 /* Performance Monitor reg size (8245) */
 #define MPC10X_EUMB_WP_OFFSET		0x000ff000 /* Data path diagnostic, watchpoint reg offset */
 #define MPC10X_EUMB_WP_SIZE		0x00001000 /* Data path diagnostic, watchpoint reg size */
-
-/*
- * Define some recommended places to put the EUMB regs.
- * For both maps, recommend putting the EUMB from 0xeff00000 to 0xefffffff.
- */
-extern unsigned long			ioremap_base;
-#define	MPC10X_MAPA_EUMB_BASE		(ioremap_base - MPC10X_EUMB_SIZE)
-#define	MPC10X_MAPB_EUMB_BASE		MPC10X_MAPA_EUMB_BASE
 
 enum ppc_sys_devices {
 	MPC10X_IIC1,

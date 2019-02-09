@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # Disassemble the Code: line in Linux oopses
 # usage: decodecode < oops.file
 #
@@ -20,12 +21,24 @@ trap cleanup EXIT
 
 T=`mktemp` || die "cannot create temp file"
 code=
+cont=
 
 while read i ; do
 
 case "$i" in
 *Code:*)
 	code=$i
+	cont=yes
+	;;
+*)
+	[ -n "$cont" ] && {
+		xdump="$(echo $i | grep '^[[:xdigit:]<>[:space:]]\+$')"
+		if [ -n "$xdump" ]; then
+			code="$code $xdump"
+		else
+			cont=
+		fi
+	}
 	;;
 esac
 
@@ -53,6 +66,14 @@ disas() {
 	if [ "$ARCH" = "arm" ]; then
 		if [ $width -eq 2 ]; then
 			OBJDUMPFLAGS="-M force-thumb"
+		fi
+
+		${CROSS_COMPILE}strip $1.o
+	fi
+
+	if [ "$ARCH" = "arm64" ]; then
+		if [ $width -eq 4 ]; then
+			type=inst
 		fi
 
 		${CROSS_COMPILE}strip $1.o

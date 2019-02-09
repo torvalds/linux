@@ -1,22 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
 
+generic-y += errno.h
+generic-y += ioctl.h
+generic-y += ioctls.h
+generic-y += ipcbuf.h
 generic-y += kvm_para.h
-
-header-y += auxvec.h
-header-y += bitsperlong.h
-header-y += byteorder.h
-header-y += fcntl.h
-header-y += hwcap.h
-header-y += kvm_para.h
-header-y += perf_regs.h
-header-y += param.h
-header-y += ptrace.h
-header-y += setup.h
-header-y += sigcontext.h
-header-y += siginfo.h
-header-y += signal.h
-header-y += stat.h
-header-y += statfs.h
-header-y += ucontext.h
-header-y += unistd.h
+generic-y += mman.h
+generic-y += msgbuf.h
+generic-y += poll.h
+generic-y += resource.h
+generic-y += sembuf.h
+generic-y += shmbuf.h
+generic-y += socket.h
+generic-y += sockios.h
+generic-y += swab.h
+generic-y += termbits.h
+generic-y += termios.h
+generic-y += types.h

@@ -1,31 +1,31 @@
 /******************************************************************************
-
-  Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-
-  Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-******************************************************************************
-
-  Few modifications for Realtek's Wi-Fi drivers by
-  Andrea Merello <andrea.merello@gmail.com>
-
-  A special thanks goes to Realtek for their support !
-
-******************************************************************************/
+ *
+ * Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ *
+ *****************************************************************************
+ *
+ * Few modifications for Realtek's Wi-Fi drivers by
+ * Andrea Merello <andrea.merello@gmail.com>
+ *
+ * A special thanks goes to Realtek for their support !
+ *
+ *****************************************************************************/
 
 #include <linux/compiler.h>
 #include <linux/errno.h>
@@ -578,7 +578,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		.seq_ctl = 0,
 		.qos_ctl = 0
 	};
-	int qos_actived = ieee->current_network.qos_data.active;
+	int qos_activated = ieee->current_network.qos_data.active;
 	u8 dest[ETH_ALEN];
 	u8 src[ETH_ALEN];
 	struct lib80211_crypt_data *crypt = NULL;
@@ -624,8 +624,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
 			txb->encrypted = 0;
 			txb->payload_size = cpu_to_le16(skb->len);
-			memcpy(skb_put(txb->fragments[0], skb->len), skb->data,
-			       skb->len);
+			skb_put_data(txb->fragments[0], skb->data, skb->len);
 
 			goto success;
 		}
@@ -685,7 +684,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		else
 			fc = RTLLIB_FTYPE_DATA;
 
-		if (qos_actived)
+		if (qos_activated)
 			fc |= RTLLIB_STYPE_QOS_DATA;
 		else
 			fc |= RTLLIB_STYPE_DATA;
@@ -728,20 +727,22 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			qos_ctl = 0;
 		}
 
-		if (qos_actived) {
+		if (qos_activated) {
 			hdr_len = RTLLIB_3ADDR_LEN + 2;
 
-		/* in case we are a client verify acm is not set for this ac */
-		while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
-			netdev_info(ieee->dev, "skb->priority = %x\n",
-				    skb->priority);
-			if (wme_downgrade_ac(skb))
-				break;
-			netdev_info(ieee->dev, "converted skb->priority = %x\n",
-			       skb->priority);
-		 }
+			/* in case we are a client verify acm is not set for this ac */
+			while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
+				netdev_info(ieee->dev, "skb->priority = %x\n",
+						skb->priority);
+				if (wme_downgrade_ac(skb))
+					break;
+				netdev_info(ieee->dev, "converted skb->priority = %x\n",
+					   skb->priority);
+			}
+
 			qos_ctl |= skb->priority;
 			header.qos_ctl = cpu_to_le16(qos_ctl & RTLLIB_QOS_TID);
+
 		} else {
 			hdr_len = RTLLIB_3ADDR_LEN;
 		}
@@ -787,7 +788,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		txb->encrypted = encrypt;
 		txb->payload_size = cpu_to_le16(bytes);
 
-		if (qos_actived)
+		if (qos_activated)
 			txb->queue_index = UP2AC(skb->priority);
 		else
 			txb->queue_index = WME_AC_BE;
@@ -796,7 +797,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			skb_frag = txb->fragments[i];
 			tcb_desc = (struct cb_desc *)(skb_frag->cb +
 				    MAX_DEV_ADDR_SIZE);
-			if (qos_actived) {
+			if (qos_activated) {
 				skb_frag->priority = skb->priority;
 				tcb_desc->queue_index =  UP2AC(skb->priority);
 			} else {
@@ -816,9 +817,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			} else {
 				tcb_desc->bHwSec = 0;
 			}
-			frag_hdr = (struct rtllib_hdr_3addrqos *)
-				   skb_put(skb_frag, hdr_len);
-			memcpy(frag_hdr, &header, hdr_len);
+			frag_hdr = skb_put_data(skb_frag, &header, hdr_len);
 
 			/* If this is not the last fragment, then add the
 			 * MOREFRAGS bit to the frame control
@@ -832,7 +831,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				/* The last fragment has the remaining length */
 				bytes = bytes_last_frag;
 			}
-			if ((qos_actived) && (!bIsMulticast)) {
+			if ((qos_activated) && (!bIsMulticast)) {
 				frag_hdr->seq_ctl =
 					 cpu_to_le16(rtllib_query_seqnum(ieee, skb_frag,
 							     header.addr1));
@@ -850,7 +849,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				bytes -= SNAP_SIZE + sizeof(u16);
 			}
 
-			memcpy(skb_put(skb_frag, bytes), skb->data, bytes);
+			skb_put_data(skb_frag, skb->data, bytes);
 
 			/* Advance the SKB... */
 			skb_pull(skb, bytes);
@@ -867,7 +866,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				skb_put(skb_frag, 4);
 		}
 
-		if ((qos_actived) && (!bIsMulticast)) {
+		if ((qos_activated) && (!bIsMulticast)) {
 			if (ieee->seq_ctrl[UP2AC(skb->priority) + 1] == 0xFFF)
 				ieee->seq_ctrl[UP2AC(skb->priority) + 1] = 0;
 			else
@@ -893,8 +892,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
 		txb->encrypted = 0;
 		txb->payload_size = cpu_to_le16(skb->len);
-		memcpy(skb_put(txb->fragments[0], skb->len), skb->data,
-		       skb->len);
+		skb_put_data(txb->fragments[0], skb->data, skb->len);
 	}
 
  success:
@@ -981,6 +979,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	return 1;
 
 }
+
 int rtllib_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	memset(skb->cb, 0, sizeof(skb->cb));

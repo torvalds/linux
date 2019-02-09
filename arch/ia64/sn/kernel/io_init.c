@@ -150,7 +150,8 @@ void
 sn_io_slot_fixup(struct pci_dev *dev)
 {
 	int idx;
-	unsigned long addr, end, size, start;
+	struct resource *res;
+	unsigned long size;
 	struct pcidev_info *pcidev_info;
 	struct sn_irq_info *sn_irq_info;
 	int status;
@@ -175,55 +176,41 @@ sn_io_slot_fixup(struct pci_dev *dev)
 
 	/* Copy over PIO Mapped Addresses */
 	for (idx = 0; idx <= PCI_ROM_RESOURCE; idx++) {
-
-		if (!pcidev_info->pdi_pio_mapped_addr[idx]) {
+		if (!pcidev_info->pdi_pio_mapped_addr[idx])
 			continue;
-		}
 
-		start = dev->resource[idx].start;
-		end = dev->resource[idx].end;
-		size = end - start;
-		if (size == 0) {
+		res = &dev->resource[idx];
+
+		size = res->end - res->start;
+		if (size == 0)
 			continue;
-		}
-		addr = pcidev_info->pdi_pio_mapped_addr[idx];
-		addr = ((addr << 4) >> 4) | __IA64_UNCACHED_OFFSET;
-		dev->resource[idx].start = addr;
-		dev->resource[idx].end = addr + size;
+
+		res->start = pcidev_info->pdi_pio_mapped_addr[idx];
+		res->end = res->start + size;
 
 		/*
 		 * if it's already in the device structure, remove it before
 		 * inserting
 		 */
-		if (dev->resource[idx].parent && dev->resource[idx].parent->child)
-			release_resource(&dev->resource[idx]);
+		if (res->parent && res->parent->child)
+			release_resource(res);
 
-		if (dev->resource[idx].flags & IORESOURCE_IO)
-			insert_resource(&ioport_resource, &dev->resource[idx]);
+		if (res->flags & IORESOURCE_IO)
+			insert_resource(&ioport_resource, res);
 		else
-			insert_resource(&iomem_resource, &dev->resource[idx]);
+			insert_resource(&iomem_resource, res);
 		/*
-		 * If ROM, set the actual ROM image size, and mark as
-		 * shadowed in PROM.
+		 * If ROM, mark as shadowed in PROM.
 		 */
 		if (idx == PCI_ROM_RESOURCE) {
-			size_t image_size;
-			void __iomem *rom;
-
-			rom = ioremap(pci_resource_start(dev, PCI_ROM_RESOURCE),
-				      size + 1);
-			image_size = pci_get_rom_size(dev, rom, size + 1);
-			dev->resource[PCI_ROM_RESOURCE].end =
-				dev->resource[PCI_ROM_RESOURCE].start +
-				image_size - 1;
-			dev->resource[PCI_ROM_RESOURCE].flags |=
-						 IORESOURCE_ROM_BIOS_COPY;
+			pci_disable_rom(dev);
+			res->flags = IORESOURCE_MEM | IORESOURCE_ROM_SHADOW |
+				     IORESOURCE_PCI_FIXED;
 		}
 	}
 
 	sn_pci_fixup_slot(dev, pcidev_info, sn_irq_info);
 }
-
 EXPORT_SYMBOL(sn_io_slot_fixup);
 
 /*

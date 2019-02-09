@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * OMAP OTG controller driver
  *
@@ -6,15 +7,6 @@
  * Copyright (C) 2005-2006 Nokia Corporation
  * Copyright (C) 2004 Texas Instruments
  * Copyright (C) 2004 David Brownell
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License. See the file "COPYING" in the main directory of this
- * archive for more details.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/io.h>
@@ -118,19 +110,19 @@ static int omap_otg_probe(struct platform_device *pdev)
 	otg_dev->id_nb.notifier_call = omap_otg_id_notifier;
 	otg_dev->vbus_nb.notifier_call = omap_otg_vbus_notifier;
 
-	ret = extcon_register_notifier(extcon, EXTCON_USB_HOST, &otg_dev->id_nb);
+	ret = devm_extcon_register_notifier(&pdev->dev, extcon,
+					EXTCON_USB_HOST, &otg_dev->id_nb);
 	if (ret)
 		return ret;
 
-	ret = extcon_register_notifier(extcon, EXTCON_USB, &otg_dev->vbus_nb);
+	ret = devm_extcon_register_notifier(&pdev->dev, extcon,
+					EXTCON_USB, &otg_dev->vbus_nb);
 	if (ret) {
-		extcon_unregister_notifier(extcon, EXTCON_USB_HOST,
-					&otg_dev->id_nb);
 		return ret;
 	}
 
-	otg_dev->id = extcon_get_cable_state_(extcon, EXTCON_USB_HOST);
-	otg_dev->vbus = extcon_get_cable_state_(extcon, EXTCON_USB);
+	otg_dev->id = extcon_get_state(extcon, EXTCON_USB_HOST);
+	otg_dev->vbus = extcon_get_state(extcon, EXTCON_USB);
 	omap_otg_set_mode(otg_dev);
 
 	rev = readl(otg_dev->base);
@@ -140,23 +132,13 @@ static int omap_otg_probe(struct platform_device *pdev)
 		 (rev >> 4) & 0xf, rev & 0xf, config->extcon, otg_dev->id,
 		 otg_dev->vbus);
 
-	return 0;
-}
-
-static int omap_otg_remove(struct platform_device *pdev)
-{
-	struct otg_device *otg_dev = platform_get_drvdata(pdev);
-	struct extcon_dev *edev = otg_dev->extcon;
-
-	extcon_unregister_notifier(edev, EXTCON_USB_HOST,&otg_dev->id_nb);
-	extcon_unregister_notifier(edev, EXTCON_USB, &otg_dev->vbus_nb);
+	platform_set_drvdata(pdev, otg_dev);
 
 	return 0;
 }
 
 static struct platform_driver omap_otg_driver = {
 	.probe		= omap_otg_probe,
-	.remove		= omap_otg_remove,
 	.driver		= {
 		.name	= "omap_otg",
 	},

@@ -1,36 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright IBM Corp. 2001, 2009
  *  Author(s): Ulrich Weigand <Ulrich.Weigand@de.ibm.com>,
  *	       Martin Schwidefsky <schwidefsky@de.ibm.com>,
  */
 
+#include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <asm/ebcdic.h>
+#include <asm/debug.h>
 #include <asm/sysinfo.h>
 #include <asm/cpcmd.h>
 #include <asm/topology.h>
-
-/* Sigh, math-emu. Don't ask. */
-#include <asm/sfp-util.h>
-#include <math-emu/soft-fp.h>
-#include <math-emu/single.h>
+#include <asm/fpu/api.h>
 
 int topology_max_mnest;
 
-/*
- * stsi - store system information
- *
- * Returns the current configuration level if function code 0 was specified.
- * Otherwise returns 0 on success or a negative value on error.
- */
-int stsi(void *sysinfo, int fc, int sel1, int sel2)
+static inline int __stsi(void *sysinfo, int fc, int sel1, int sel2, int *lvl)
 {
 	register int r0 asm("0") = (fc << 28) | sel1;
 	register int r1 asm("1") = sel2;
@@ -45,11 +38,42 @@ int stsi(void *sysinfo, int fc, int sel1, int sel2)
 		: "+d" (r0), "+d" (rc)
 		: "d" (r1), "a" (sysinfo), "K" (-EOPNOTSUPP)
 		: "cc", "memory");
+	*lvl = ((unsigned int) r0) >> 28;
+	return rc;
+}
+
+/*
+ * stsi - store system information
+ *
+ * Returns the current configuration level if function code 0 was specified.
+ * Otherwise returns 0 on success or a negative value on error.
+ */
+int stsi(void *sysinfo, int fc, int sel1, int sel2)
+{
+	int lvl, rc;
+
+	rc = __stsi(sysinfo, fc, sel1, sel2, &lvl);
 	if (rc)
 		return rc;
-	return fc ? 0 : ((unsigned int) r0) >> 28;
+	return fc ? 0 : lvl;
 }
 EXPORT_SYMBOL(stsi);
+
+#ifdef CONFIG_PROC_FS
+
+static bool convert_ext_name(unsigned char encoding, char *name, size_t len)
+{
+	switch (encoding) {
+	case 1: /* EBCDIC */
+		EBCASC(name, len);
+		break;
+	case 2:	/* UTF-8 */
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
 
 static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 {
@@ -67,6 +91,8 @@ static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 	EBCASC(info->model_temp_cap, sizeof(info->model_temp_cap));
 	seq_printf(m, "Manufacturer:         %-16.16s\n", info->manufacturer);
 	seq_printf(m, "Type:                 %-4.4s\n", info->type);
+	if (info->lic)
+		seq_printf(m, "LIC Identifier:       %016lx\n", info->lic);
 	/*
 	 * Sigh: the model field has been renamed with System z9
 	 * to model_capacity and a new model field has been added
@@ -111,8 +137,7 @@ static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 
 static void stsi_15_1_x(struct seq_file *m, struct sysinfo_15_1_x *info)
 {
-	static int max_mnest;
-	int i, rc;
+	int i;
 
 	seq_putc(m, '\n');
 	if (!MACHINE_HAS_TOPOLOGY)
@@ -123,7 +148,7 @@ static void stsi_15_1_x(struct seq_file *m, struct sysinfo_15_1_x *info)
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
 		seq_printf(m, " %d", info->mag[i]);
 	seq_putc(m, '\n');
-#ifdef CONFIG_SCHED_MC
+#ifdef CONFIG_SCHED_TOPOLOGY
 	store_topology(info);
 	seq_printf(m, "CPU Topology SW:     ");
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
@@ -145,6 +170,10 @@ static void stsi_1_2_2(struct seq_file *m, struct sysinfo_1_2_2 *info)
 	seq_printf(m, "CPUs Configured:      %d\n", info->cpus_configured);
 	seq_printf(m, "CPUs Standby:         %d\n", info->cpus_standby);
 	seq_printf(m, "CPUs Reserved:        %d\n", info->cpus_reserved);
+	if (info->mt_installed) {
+		seq_printf(m, "CPUs G-MTID:          %d\n", info->mt_gtid);
+		seq_printf(m, "CPUs S-MTID:          %d\n", info->mt_stid);
+	}
 	/*
 	 * Sigh 2. According to the specification the alternate
 	 * capability field is a 32 bit floating point number
@@ -194,39 +223,31 @@ static void stsi_2_2_2(struct seq_file *m, struct sysinfo_2_2_2 *info)
 	seq_printf(m, "LPAR CPUs Reserved:   %d\n", info->cpus_reserved);
 	seq_printf(m, "LPAR CPUs Dedicated:  %d\n", info->cpus_dedicated);
 	seq_printf(m, "LPAR CPUs Shared:     %d\n", info->cpus_shared);
-	if (info->mt_installed & 0x80) {
-		seq_printf(m, "LPAR CPUs G-MTID:     %d\n",
-			   info->mt_general & 0x1f);
-		seq_printf(m, "LPAR CPUs S-MTID:     %d\n",
-			   info->mt_installed & 0x1f);
-		seq_printf(m, "LPAR CPUs PS-MTID:    %d\n",
-			   info->mt_psmtid & 0x1f);
+	if (info->mt_installed) {
+		seq_printf(m, "LPAR CPUs G-MTID:     %d\n", info->mt_gtid);
+		seq_printf(m, "LPAR CPUs S-MTID:     %d\n", info->mt_stid);
+		seq_printf(m, "LPAR CPUs PS-MTID:    %d\n", info->mt_psmtid);
+	}
+	if (convert_ext_name(info->vsne, info->ext_name, sizeof(info->ext_name))) {
+		seq_printf(m, "LPAR Extended Name:   %-.256s\n", info->ext_name);
+		seq_printf(m, "LPAR UUID:            %pUb\n", &info->uuid);
 	}
 }
 
 static void print_ext_name(struct seq_file *m, int lvl,
 			   struct sysinfo_3_2_2 *info)
 {
-	if (info->vm[lvl].ext_name_encoding == 0)
+	size_t len = sizeof(info->ext_names[lvl]);
+
+	if (!convert_ext_name(info->vm[lvl].evmne, info->ext_names[lvl], len))
 		return;
-	if (info->ext_names[lvl][0] == 0)
-		return;
-	switch (info->vm[lvl].ext_name_encoding) {
-	case 1: /* EBCDIC */
-		EBCASC(info->ext_names[lvl], sizeof(info->ext_names[lvl]));
-		break;
-	case 2:	/* UTF-8 */
-		break;
-	default:
-		return;
-	}
 	seq_printf(m, "VM%02d Extended Name:   %-.256s\n", lvl,
 		   info->ext_names[lvl]);
 }
 
 static void print_uuid(struct seq_file *m, int i, struct sysinfo_3_2_2 *info)
 {
-	if (!memcmp(&info->vm[i].uuid, &NULL_UUID_BE, sizeof(uuid_be)))
+	if (uuid_is_null(&info->vm[i].uuid))
 		return;
 	seq_printf(m, "VM%02d UUID:            %pUb\n", i, &info->vm[i].uuid);
 }
@@ -275,24 +296,14 @@ static int sysinfo_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int sysinfo_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sysinfo_show, NULL);
-}
-
-static const struct file_operations sysinfo_fops = {
-	.open		= sysinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init sysinfo_create_proc(void)
 {
-	proc_create("sysinfo", 0444, NULL, &sysinfo_fops);
+	proc_create_single("sysinfo", 0444, NULL, sysinfo_show);
 	return 0;
 }
 device_initcall(sysinfo_create_proc);
+
+#endif /* CONFIG_PROC_FS */
 
 /*
  * Service levels interface.
@@ -367,18 +378,6 @@ static const struct seq_operations service_level_seq_ops = {
 	.show		= service_level_show
 };
 
-static int service_level_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &service_level_seq_ops);
-}
-
-static const struct file_operations service_level_ops = {
-	.open		= service_level_open,
-	.read		= seq_read,
-	.llseek 	= seq_lseek,
-	.release	= seq_release
-};
-
 static void service_level_vm_print(struct seq_file *m,
 				   struct service_level *slr)
 {
@@ -401,7 +400,7 @@ static struct service_level service_level_vm = {
 
 static __init int create_proc_service_level(void)
 {
-	proc_create("service_levels", 0, NULL, &service_level_ops);
+	proc_create_seq("service_levels", 0, NULL, &service_level_seq_ops);
 	if (MACHINE_IS_VM)
 		register_service_level(&service_level_vm);
 	return 0;
@@ -414,10 +413,8 @@ subsys_initcall(create_proc_service_level);
 void s390_adjust_jiffies(void)
 {
 	struct sysinfo_1_2_2 *info;
-	const unsigned int fmil = 0x4b189680;	/* 1e7 as 32-bit float. */
-	FP_DECL_S(SA); FP_DECL_S(SB); FP_DECL_S(SR);
-	FP_DECL_EX;
-	unsigned int capability;
+	unsigned long capability;
+	struct kernel_fpu fpu;
 
 	info = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!info)
@@ -433,15 +430,25 @@ void s390_adjust_jiffies(void)
 		 * higher cpu capacity. Bogomips are the other way round.
 		 * To get to a halfway suitable number we divide 1e7
 		 * by the cpu capability number. Yes, that means a floating
-		 * point division .. math-emu here we come :-)
+		 * point division ..
 		 */
-		FP_UNPACK_SP(SA, &fmil);
-		if ((info->capability >> 23) == 0)
-			FP_FROM_INT_S(SB, (long) info->capability, 64, long);
-		else
-			FP_UNPACK_SP(SB, &info->capability);
-		FP_DIV_S(SR, SA, SB);
-		FP_TO_INT_S(capability, SR, 32, 0);
+		kernel_fpu_begin(&fpu, KERNEL_FPR);
+		asm volatile(
+			"	sfpc	%3\n"
+			"	l	%0,%1\n"
+			"	tmlh	%0,0xff80\n"
+			"	jnz	0f\n"
+			"	cefbr	%%f2,%0\n"
+			"	j	1f\n"
+			"0:	le	%%f2,%1\n"
+			"1:	cefbr	%%f0,%2\n"
+			"	debr	%%f0,%%f2\n"
+			"	cgebr	%0,5,%%f0\n"
+			: "=&d" (capability)
+			: "Q" (info->capability), "d" (10000000), "d" (0)
+			: "cc"
+			);
+		kernel_fpu_end(&fpu, KERNEL_FPR);
 	} else
 		/*
 		 * Really old machine without stsi block for basic
@@ -463,3 +470,99 @@ void calibrate_delay(void)
 	       "%lu.%02lu BogoMIPS preset\n", loops_per_jiffy/(500000/HZ),
 	       (loops_per_jiffy/(5000/HZ)) % 100);
 }
+
+#ifdef CONFIG_DEBUG_FS
+
+#define STSI_FILE(fc, s1, s2)						       \
+static int stsi_open_##fc##_##s1##_##s2(struct inode *inode, struct file *file)\
+{									       \
+	file->private_data = (void *) get_zeroed_page(GFP_KERNEL);	       \
+	if (!file->private_data)					       \
+		return -ENOMEM;						       \
+	if (stsi(file->private_data, fc, s1, s2)) {			       \
+		free_page((unsigned long)file->private_data);		       \
+		file->private_data = NULL;				       \
+		return -EACCES;						       \
+	}								       \
+	return nonseekable_open(inode, file);				       \
+}									       \
+									       \
+static const struct file_operations stsi_##fc##_##s1##_##s2##_fs_ops = {       \
+	.open		= stsi_open_##fc##_##s1##_##s2,			       \
+	.release	= stsi_release,					       \
+	.read		= stsi_read,					       \
+	.llseek		= no_llseek,					       \
+};
+
+static int stsi_release(struct inode *inode, struct file *file)
+{
+	free_page((unsigned long)file->private_data);
+	return 0;
+}
+
+static ssize_t stsi_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
+{
+	return simple_read_from_buffer(buf, size, ppos, file->private_data, PAGE_SIZE);
+}
+
+STSI_FILE( 1, 1, 1);
+STSI_FILE( 1, 2, 1);
+STSI_FILE( 1, 2, 2);
+STSI_FILE( 2, 2, 1);
+STSI_FILE( 2, 2, 2);
+STSI_FILE( 3, 2, 2);
+STSI_FILE(15, 1, 2);
+STSI_FILE(15, 1, 3);
+STSI_FILE(15, 1, 4);
+STSI_FILE(15, 1, 5);
+STSI_FILE(15, 1, 6);
+
+struct stsi_file {
+	const struct file_operations *fops;
+	char *name;
+};
+
+static struct stsi_file stsi_file[] __initdata = {
+	{.fops = &stsi_1_1_1_fs_ops,  .name =  "1_1_1"},
+	{.fops = &stsi_1_2_1_fs_ops,  .name =  "1_2_1"},
+	{.fops = &stsi_1_2_2_fs_ops,  .name =  "1_2_2"},
+	{.fops = &stsi_2_2_1_fs_ops,  .name =  "2_2_1"},
+	{.fops = &stsi_2_2_2_fs_ops,  .name =  "2_2_2"},
+	{.fops = &stsi_3_2_2_fs_ops,  .name =  "3_2_2"},
+	{.fops = &stsi_15_1_2_fs_ops, .name = "15_1_2"},
+	{.fops = &stsi_15_1_3_fs_ops, .name = "15_1_3"},
+	{.fops = &stsi_15_1_4_fs_ops, .name = "15_1_4"},
+	{.fops = &stsi_15_1_5_fs_ops, .name = "15_1_5"},
+	{.fops = &stsi_15_1_6_fs_ops, .name = "15_1_6"},
+};
+
+static u8 stsi_0_0_0;
+
+static __init int stsi_init_debugfs(void)
+{
+	struct dentry *stsi_root;
+	struct stsi_file *sf;
+	int lvl, i;
+
+	stsi_root = debugfs_create_dir("stsi", arch_debugfs_dir);
+	if (IS_ERR_OR_NULL(stsi_root))
+		return 0;
+	lvl = stsi(NULL, 0, 0, 0);
+	if (lvl > 0)
+		stsi_0_0_0 = lvl;
+	debugfs_create_u8("0_0_0", 0400, stsi_root, &stsi_0_0_0);
+	for (i = 0; i < ARRAY_SIZE(stsi_file); i++) {
+		sf = &stsi_file[i];
+		debugfs_create_file(sf->name, 0400, stsi_root, NULL, sf->fops);
+	}
+	if (IS_ENABLED(CONFIG_SCHED_TOPOLOGY) && MACHINE_HAS_TOPOLOGY) {
+		char link_to[10];
+
+		sprintf(link_to, "15_1_%d", topology_mnest_limit());
+		debugfs_create_symlink("topology", stsi_root, link_to);
+	}
+	return 0;
+}
+device_initcall(stsi_init_debugfs);
+
+#endif /* CONFIG_DEBUG_FS */

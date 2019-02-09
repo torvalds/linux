@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVIF_IOCTL_H__
 #define __NVIF_IOCTL_H__
 
-#define NVIF_VERSION_LATEST                               0x0000000000000000ULL
+#define NVIF_VERSION_LATEST                               0x0000000000000100ULL
 
 struct nvif_ioctl_v0 {
 	__u8  version;
@@ -55,14 +56,6 @@ struct nvif_ioctl_new_v0 {
 	__u64 token;
 	__u64 object;
 	__u32 handle;
-/* these class numbers are made up by us, and not nvidia-assigned */
-#define NVIF_IOCTL_NEW_V0_CONTROL                                            -1
-#define NVIF_IOCTL_NEW_V0_PERFMON                                            -2
-#define NVIF_IOCTL_NEW_V0_PERFDOM                                            -3
-#define NVIF_IOCTL_NEW_V0_SW_NV04                                            -4
-#define NVIF_IOCTL_NEW_V0_SW_NV10                                            -5
-#define NVIF_IOCTL_NEW_V0_SW_NV50                                            -6
-#define NVIF_IOCTL_NEW_V0_SW_GF100                                           -7
 	__s32 oclass;
 	__u8  data[];		/* class data (class.h) */
 };
@@ -91,9 +84,13 @@ struct nvif_ioctl_wr_v0 {
 struct nvif_ioctl_map_v0 {
 	/* nvif_ioctl ... */
 	__u8  version;
-	__u8  pad01[3];
-	__u32 length;
+#define NVIF_IOCTL_MAP_V0_IO                                               0x00
+#define NVIF_IOCTL_MAP_V0_VA                                               0x01
+	__u8  type;
+	__u8  pad02[6];
 	__u64 handle;
+	__u64 length;
+	__u8  data[];
 };
 
 struct nvif_ioctl_unmap {

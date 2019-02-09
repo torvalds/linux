@@ -443,7 +443,6 @@ static bool sh_dmae_reset(struct sh_dmae_device *shdev)
 	return ret;
 }
 
-#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 static irqreturn_t sh_dmae_err(int irq, void *data)
 {
 	struct sh_dmae_device *shdev = data;
@@ -454,7 +453,6 @@ static irqreturn_t sh_dmae_err(int irq, void *data)
 	sh_dmae_reset(shdev);
 	return IRQ_HANDLED;
 }
-#endif
 
 static bool sh_dmae_desc_completed(struct shdma_chan *schan,
 				   struct shdma_desc *sdesc)
@@ -532,11 +530,8 @@ static int sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 
 	sh_chan = devm_kzalloc(sdev->dma_dev.dev, sizeof(struct sh_dmae_chan),
 			       GFP_KERNEL);
-	if (!sh_chan) {
-		dev_err(sdev->dma_dev.dev,
-			"No free memory for allocating dma channels!\n");
+	if (!sh_chan)
 		return -ENOMEM;
-	}
 
 	schan = &sh_chan->shdma_chan;
 	schan->max_xfer_len = SH_DMA_TCR_MAX + 1;
@@ -689,17 +684,14 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	const struct sh_dmae_pdata *pdata;
 	unsigned long chan_flag[SH_DMAE_MAX_CHANNELS] = {};
 	int chan_irq[SH_DMAE_MAX_CHANNELS];
-#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 	unsigned long irqflags = 0;
-	int errirq;
-#endif
-	int err, i, irq_cnt = 0, irqres = 0, irq_cap = 0;
+	int err, errirq, i, irq_cnt = 0, irqres = 0, irq_cap = 0;
 	struct sh_dmae_device *shdev;
 	struct dma_device *dma_dev;
 	struct resource *chan, *dmars, *errirq_res, *chanirq_res;
 
 	if (pdev->dev.of_node)
-		pdata = of_match_device(sh_dmae_of_match, &pdev->dev)->data;
+		pdata = of_device_get_match_data(&pdev->dev);
 	else
 		pdata = dev_get_platdata(&pdev->dev);
 
@@ -732,10 +724,8 @@ static int sh_dmae_probe(struct platform_device *pdev)
 
 	shdev = devm_kzalloc(&pdev->dev, sizeof(struct sh_dmae_device),
 			     GFP_KERNEL);
-	if (!shdev) {
-		dev_err(&pdev->dev, "Not enough memory\n");
+	if (!shdev)
 		return -ENOMEM;
-	}
 
 	dma_dev = &shdev->shdma_dev.dma_dev;
 
@@ -797,32 +787,31 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	if (err)
 		goto rst_err;
 
-#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
-	chanirq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
+	if (IS_ENABLED(CONFIG_CPU_SH4) || IS_ENABLED(CONFIG_ARCH_RENESAS)) {
+		chanirq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
 
-	if (!chanirq_res)
+		if (!chanirq_res)
+			chanirq_res = errirq_res;
+		else
+			irqres++;
+
+		if (chanirq_res == errirq_res ||
+		    (errirq_res->flags & IORESOURCE_BITS) == IORESOURCE_IRQ_SHAREABLE)
+			irqflags = IRQF_SHARED;
+
+		errirq = errirq_res->start;
+
+		err = devm_request_irq(&pdev->dev, errirq, sh_dmae_err,
+				       irqflags, "DMAC Address Error", shdev);
+		if (err) {
+			dev_err(&pdev->dev,
+				"DMA failed requesting irq #%d, error %d\n",
+				errirq, err);
+			goto eirq_err;
+		}
+	} else {
 		chanirq_res = errirq_res;
-	else
-		irqres++;
-
-	if (chanirq_res == errirq_res ||
-	    (errirq_res->flags & IORESOURCE_BITS) == IORESOURCE_IRQ_SHAREABLE)
-		irqflags = IRQF_SHARED;
-
-	errirq = errirq_res->start;
-
-	err = devm_request_irq(&pdev->dev, errirq, sh_dmae_err, irqflags,
-			       "DMAC Address Error", shdev);
-	if (err) {
-		dev_err(&pdev->dev,
-			"DMA failed requesting irq #%d, error %d\n",
-			errirq, err);
-		goto eirq_err;
 	}
-
-#else
-	chanirq_res = errirq_res;
-#endif /* CONFIG_CPU_SH4 || CONFIG_ARCH_SHMOBILE */
 
 	if (chanirq_res->start == chanirq_res->end &&
 	    !platform_get_resource(pdev, IORESOURCE_IRQ, 1)) {
@@ -889,9 +878,7 @@ edmadevreg:
 chan_probe_err:
 	sh_dmae_chan_remove(shdev);
 
-#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 eirq_err:
-#endif
 rst_err:
 	spin_lock_irq(&sh_dmae_lock);
 	list_del_rcu(&shdev->node);

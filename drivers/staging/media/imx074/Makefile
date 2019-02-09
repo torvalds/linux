@@ -1,0 +1,1 @@
+obj-$(CONFIG_SOC_CAMERA_IMX074)		+= imx074.o

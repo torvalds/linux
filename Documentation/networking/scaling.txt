@@ -122,7 +122,7 @@ associated flow of the packet. The hash is either provided by hardware
 or will be computed in the stack. Capable hardware can pass the hash in
 the receive descriptor for the packet; this would usually be the same
 hash used for RSS (e.g. computed Toeplitz hash). The hash is saved in
-skb->rx_hash and can be used elsewhere in the stack as a hash of the
+skb->hash and can be used elsewhere in the stack as a hash of the
 packet’s flow.
 
 Each receive hardware queue has an associated list of CPUs to which
@@ -366,8 +366,13 @@ XPS: Transmit Packet Steering
 
 Transmit Packet Steering is a mechanism for intelligently selecting
 which transmit queue to use when transmitting a packet on a multi-queue
-device. To accomplish this, a mapping from CPU to hardware queue(s) is
-recorded. The goal of this mapping is usually to assign queues
+device. This can be accomplished by recording two kinds of maps, either
+a mapping of CPU to hardware queue(s) or a mapping of receive queue(s)
+to hardware transmit queue(s).
+
+1. XPS using CPUs map
+
+The goal of this mapping is usually to assign queues
 exclusively to a subset of CPUs, where the transmit completions for
 these queues are processed on a CPU within this set. This choice
 provides two benefits. First, contention on the device queue lock is
@@ -377,15 +382,40 @@ transmit queue). Secondly, cache miss rate on transmit completion is
 reduced, in particular for data cache lines that hold the sk_buff
 structures.
 
-XPS is configured per transmit queue by setting a bitmap of CPUs that
-may use that queue to transmit. The reverse mapping, from CPUs to
-transmit queues, is computed and maintained for each network device.
-When transmitting the first packet in a flow, the function
-get_xps_queue() is called to select a queue. This function uses the ID
-of the running CPU as a key into the CPU-to-queue lookup table. If the
+2. XPS using receive queues map
+
+This mapping is used to pick transmit queue based on the receive
+queue(s) map configuration set by the administrator. A set of receive
+queues can be mapped to a set of transmit queues (many:many), although
+the common use case is a 1:1 mapping. This will enable sending packets
+on the same queue associations for transmit and receive. This is useful for
+busy polling multi-threaded workloads where there are challenges in
+associating a given CPU to a given application thread. The application
+threads are not pinned to CPUs and each thread handles packets
+received on a single queue. The receive queue number is cached in the
+socket for the connection. In this model, sending the packets on the same
+transmit queue corresponding to the associated receive queue has benefits
+in keeping the CPU overhead low. Transmit completion work is locked into
+the same queue-association that a given application is polling on. This
+avoids the overhead of triggering an interrupt on another CPU. When the
+application cleans up the packets during the busy poll, transmit completion
+may be processed along with it in the same thread context and so result in
+reduced latency.
+
+XPS is configured per transmit queue by setting a bitmap of
+CPUs/receive-queues that may use that queue to transmit. The reverse
+mapping, from CPUs to transmit queues or from receive-queues to transmit
+queues, is computed and maintained for each network device. When
+transmitting the first packet in a flow, the function get_xps_queue() is
+called to select a queue. This function uses the ID of the receive queue
+for the socket connection for a match in the receive queue-to-transmit queue
+lookup table. Alternatively, this function can also use the ID of the
+running CPU as a key into the CPU-to-queue lookup table. If the
 ID matches a single queue, that is used for transmission. If multiple
 queues match, one is selected by using the flow hash to compute an index
-into the set.
+into the set. When selecting the transmit queue based on receive queue(s)
+map, the transmit device is not validated against the receive device as it
+requires expensive lookup operation in the datapath.
 
 The queue chosen for transmitting a particular flow is saved in the
 corresponding socket structure for the flow (e.g. a TCP connection).
@@ -404,10 +434,14 @@ acknowledged.
 
 XPS is only available if the kconfig symbol CONFIG_XPS is enabled (on by
 default for SMP). The functionality remains disabled until explicitly
-configured. To enable XPS, the bitmap of CPUs that may use a transmit
-queue is configured using the sysfs file entry:
+configured. To enable XPS, the bitmap of CPUs/receive-queues that may
+use a transmit queue is configured using the sysfs file entry:
 
+For selection based on CPUs map:
 /sys/class/net/<dev>/queues/tx-<n>/xps_cpus
+
+For selection based on receive-queues map:
+/sys/class/net/<dev>/queues/tx-<n>/xps_rxqs
 
 == Suggested Configuration
 
@@ -420,6 +454,11 @@ experience no contention. If there are fewer queues than CPUs, then the
 best CPUs to share a given queue are probably those that share the cache
 with the CPU that processes transmit completions for that queue
 (transmit interrupts).
+
+For transmit queue selection based on receive queue(s), XPS has to be
+explicitly configured mapping receive-queue(s) to transmit queue(s). If the
+user configuration for receive-queue map does not apply, then the transmit
+queue is selected based on the CPUs map.
 
 Per TX Queue rate limitation:
 =============================

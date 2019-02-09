@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,8 +18,12 @@
 #include <asm/mipsmtregs.h>
 #include <asm/pm.h>
 
+#define GCR_CPC_BASE_OFS	0x0088
 #define GCR_CL_COHERENCE_OFS	0x2008
 #define GCR_CL_ID_OFS		0x2028
+
+#define CPC_CL_VC_STOP_OFS	0x2020
+#define CPC_CL_VC_RUN_OFS	0x2028
 
 .extern mips_cm_base
 
@@ -60,6 +64,37 @@
 	 nop
 	.endm
 
+	/*
+	 * Set dest to non-zero if the core supports MIPSr6 multithreading
+	 * (ie. VPs), else zero. If MIPSr6 multithreading is not supported then
+	 * branch to nomt.
+	 */
+	.macro	has_vp	dest, nomt
+	mfc0	\dest, CP0_CONFIG, 1
+	bgez	\dest, \nomt
+	 mfc0	\dest, CP0_CONFIG, 2
+	bgez	\dest, \nomt
+	 mfc0	\dest, CP0_CONFIG, 3
+	bgez	\dest, \nomt
+	 mfc0	\dest, CP0_CONFIG, 4
+	bgez	\dest, \nomt
+	 mfc0	\dest, CP0_CONFIG, 5
+	andi	\dest, \dest, MIPS_CONF5_VP
+	beqz	\dest, \nomt
+	 nop
+	.endm
+
+	/* Calculate an uncached address for the CM GCRs */
+	.macro	cmgcrb	dest
+	.set	push
+	.set	noat
+	MFC0	$1, CP0_CMGCRBASE
+	PTR_SLL	$1, $1, 4
+	PTR_LI	\dest, UNCAC_BASE
+	PTR_ADDU \dest, \dest, $1
+	.set	pop
+	.endm
+
 .section .text.cps-vec
 .balign 0x1000
 
@@ -90,6 +125,407 @@ not_nmi:
 	li	t0, ST0_CU1 | ST0_CU0 | ST0_BEV | STATUS_BITDEPS
 	mtc0	t0, CP0_STATUS
 
+	/* Skip cache & coherence setup if we're already coherent */
+	cmgcrb	v1
+	lw	s7, GCR_CL_COHERENCE_OFS(v1)
+	bnez	s7, 1f
+	 nop
+
+	/* Initialize the L1 caches */
+	jal	mips_cps_cache_init
+	 nop
+
+	/* Enter the coherent domain */
+	li	t0, 0xff
+	sw	t0, GCR_CL_COHERENCE_OFS(v1)
+	ehb
+
+	/* Set Kseg0 CCA to that in s0 */
+1:	mfc0	t0, CP0_CONFIG
+	ori	t0, 0x7
+	xori	t0, 0x7
+	or	t0, t0, s0
+	mtc0	t0, CP0_CONFIG
+	ehb
+
+	/* Jump to kseg0 */
+	PTR_LA	t0, 1f
+	jr	t0
+	 nop
+
+	/*
+	 * We're up, cached & coherent. Perform any EVA initialization necessary
+	 * before we access memory.
+	 */
+1:	eva_init
+
+	/* Retrieve boot configuration pointers */
+	jal	mips_cps_get_bootcfg
+	 nop
+
+	/* Skip core-level init if we started up coherent */
+	bnez	s7, 1f
+	 nop
+
+	/* Perform any further required core-level initialisation */
+	jal	mips_cps_core_init
+	 nop
+
+	/*
+	 * Boot any other VPEs within this core that should be online, and
+	 * deactivate this VPE if it should be offline.
+	 */
+	move	a1, t9
+	jal	mips_cps_boot_vpes
+	 move	a0, v0
+
+	/* Off we go! */
+1:	PTR_L	t1, VPEBOOTCFG_PC(v1)
+	PTR_L	gp, VPEBOOTCFG_GP(v1)
+	PTR_L	sp, VPEBOOTCFG_SP(v1)
+	jr	t1
+	 nop
+	END(mips_cps_core_entry)
+
+.org 0x200
+LEAF(excep_tlbfill)
+	DUMP_EXCEP("TLB Fill")
+	b	.
+	 nop
+	END(excep_tlbfill)
+
+.org 0x280
+LEAF(excep_xtlbfill)
+	DUMP_EXCEP("XTLB Fill")
+	b	.
+	 nop
+	END(excep_xtlbfill)
+
+.org 0x300
+LEAF(excep_cache)
+	DUMP_EXCEP("Cache")
+	b	.
+	 nop
+	END(excep_cache)
+
+.org 0x380
+LEAF(excep_genex)
+	DUMP_EXCEP("General")
+	b	.
+	 nop
+	END(excep_genex)
+
+.org 0x400
+LEAF(excep_intex)
+	DUMP_EXCEP("Interrupt")
+	b	.
+	 nop
+	END(excep_intex)
+
+.org 0x480
+LEAF(excep_ejtag)
+	PTR_LA	k0, ejtag_debug_handler
+	jr	k0
+	 nop
+	END(excep_ejtag)
+
+LEAF(mips_cps_core_init)
+#ifdef CONFIG_MIPS_MT_SMP
+	/* Check that the core implements the MT ASE */
+	has_mt	t0, 3f
+
+	.set	push
+	.set	MIPS_ISA_LEVEL_RAW
+	.set	mt
+
+	/* Only allow 1 TC per VPE to execute... */
+	dmt
+
+	/* ...and for the moment only 1 VPE */
+	dvpe
+	PTR_LA	t1, 1f
+	jr.hb	t1
+	 nop
+
+	/* Enter VPE configuration state */
+1:	mfc0	t0, CP0_MVPCONTROL
+	ori	t0, t0, MVPCONTROL_VPC
+	mtc0	t0, CP0_MVPCONTROL
+
+	/* Retrieve the number of VPEs within the core */
+	mfc0	t0, CP0_MVPCONF0
+	srl	t0, t0, MVPCONF0_PVPE_SHIFT
+	andi	t0, t0, (MVPCONF0_PVPE >> MVPCONF0_PVPE_SHIFT)
+	addiu	ta3, t0, 1
+
+	/* If there's only 1, we're done */
+	beqz	t0, 2f
+	 nop
+
+	/* Loop through each VPE within this core */
+	li	ta1, 1
+
+1:	/* Operate on the appropriate TC */
+	mtc0	ta1, CP0_VPECONTROL
+	ehb
+
+	/* Bind TC to VPE (1:1 TC:VPE mapping) */
+	mttc0	ta1, CP0_TCBIND
+
+	/* Set exclusive TC, non-active, master */
+	li	t0, VPECONF0_MVP
+	sll	t1, ta1, VPECONF0_XTC_SHIFT
+	or	t0, t0, t1
+	mttc0	t0, CP0_VPECONF0
+
+	/* Set TC non-active, non-allocatable */
+	mttc0	zero, CP0_TCSTATUS
+
+	/* Set TC halted */
+	li	t0, TCHALT_H
+	mttc0	t0, CP0_TCHALT
+
+	/* Next VPE */
+	addiu	ta1, ta1, 1
+	slt	t0, ta1, ta3
+	bnez	t0, 1b
+	 nop
+
+	/* Leave VPE configuration state */
+2:	mfc0	t0, CP0_MVPCONTROL
+	xori	t0, t0, MVPCONTROL_VPC
+	mtc0	t0, CP0_MVPCONTROL
+
+3:	.set	pop
+#endif
+	jr	ra
+	 nop
+	END(mips_cps_core_init)
+
+/**
+ * mips_cps_get_bootcfg() - retrieve boot configuration pointers
+ *
+ * Returns: pointer to struct core_boot_config in v0, pointer to
+ *          struct vpe_boot_config in v1, VPE ID in t9
+ */
+LEAF(mips_cps_get_bootcfg)
+	/* Calculate a pointer to this cores struct core_boot_config */
+	cmgcrb	t0
+	lw	t0, GCR_CL_ID_OFS(t0)
+	li	t1, COREBOOTCFG_SIZE
+	mul	t0, t0, t1
+	PTR_LA	t1, mips_cps_core_bootcfg
+	PTR_L	t1, 0(t1)
+	PTR_ADDU v0, t0, t1
+
+	/* Calculate this VPEs ID. If the core doesn't support MT use 0 */
+	li	t9, 0
+#if defined(CONFIG_CPU_MIPSR6)
+	has_vp	ta2, 1f
+
+	/*
+	 * Assume non-contiguous numbering. Perhaps some day we'll need
+	 * to handle contiguous VP numbering, but no such systems yet
+	 * exist.
+	 */
+	mfc0	t9, CP0_GLOBALNUMBER
+	andi	t9, t9, MIPS_GLOBALNUMBER_VP
+#elif defined(CONFIG_MIPS_MT_SMP)
+	has_mt	ta2, 1f
+
+	/* Find the number of VPEs present in the core */
+	mfc0	t1, CP0_MVPCONF0
+	srl	t1, t1, MVPCONF0_PVPE_SHIFT
+	andi	t1, t1, MVPCONF0_PVPE >> MVPCONF0_PVPE_SHIFT
+	addiu	t1, t1, 1
+
+	/* Calculate a mask for the VPE ID from EBase.CPUNum */
+	clz	t1, t1
+	li	t2, 31
+	subu	t1, t2, t1
+	li	t2, 1
+	sll	t1, t2, t1
+	addiu	t1, t1, -1
+
+	/* Retrieve the VPE ID from EBase.CPUNum */
+	mfc0	t9, $15, 1
+	and	t9, t9, t1
+#endif
+
+1:	/* Calculate a pointer to this VPEs struct vpe_boot_config */
+	li	t1, VPEBOOTCFG_SIZE
+	mul	v1, t9, t1
+	PTR_L	ta3, COREBOOTCFG_VPECONFIG(v0)
+	PTR_ADDU v1, v1, ta3
+
+	jr	ra
+	 nop
+	END(mips_cps_get_bootcfg)
+
+LEAF(mips_cps_boot_vpes)
+	lw	ta2, COREBOOTCFG_VPEMASK(a0)
+	PTR_L	ta3, COREBOOTCFG_VPECONFIG(a0)
+
+#if defined(CONFIG_CPU_MIPSR6)
+
+	has_vp	t0, 5f
+
+	/* Find base address of CPC */
+	cmgcrb	t3
+	PTR_L	t1, GCR_CPC_BASE_OFS(t3)
+	PTR_LI	t2, ~0x7fff
+	and	t1, t1, t2
+	PTR_LI	t2, UNCAC_BASE
+	PTR_ADD	t1, t1, t2
+
+	/* Start any other VPs that ought to be running */
+	PTR_S	ta2, CPC_CL_VC_RUN_OFS(t1)
+
+	/* Ensure this VP stops running if it shouldn't be */
+	not	ta2
+	PTR_S	ta2, CPC_CL_VC_STOP_OFS(t1)
+	ehb
+
+#elif defined(CONFIG_MIPS_MT)
+
+	/* If the core doesn't support MT then return */
+	has_mt	t0, 5f
+
+	/* Enter VPE configuration state */
+	.set	push
+	.set	MIPS_ISA_LEVEL_RAW
+	.set	mt
+	dvpe
+	.set	pop
+
+	PTR_LA	t1, 1f
+	jr.hb	t1
+	 nop
+1:	mfc0	t1, CP0_MVPCONTROL
+	ori	t1, t1, MVPCONTROL_VPC
+	mtc0	t1, CP0_MVPCONTROL
+	ehb
+
+	/* Loop through each VPE */
+	move	t8, ta2
+	li	ta1, 0
+
+	/* Check whether the VPE should be running. If not, skip it */
+1:	andi	t0, ta2, 1
+	beqz	t0, 2f
+	 nop
+
+	/* Operate on the appropriate TC */
+	mfc0	t0, CP0_VPECONTROL
+	ori	t0, t0, VPECONTROL_TARGTC
+	xori	t0, t0, VPECONTROL_TARGTC
+	or	t0, t0, ta1
+	mtc0	t0, CP0_VPECONTROL
+	ehb
+
+	.set	push
+	.set	MIPS_ISA_LEVEL_RAW
+	.set	mt
+
+	/* Skip the VPE if its TC is not halted */
+	mftc0	t0, CP0_TCHALT
+	beqz	t0, 2f
+	 nop
+
+	/* Calculate a pointer to the VPEs struct vpe_boot_config */
+	li	t0, VPEBOOTCFG_SIZE
+	mul	t0, t0, ta1
+	addu	t0, t0, ta3
+
+	/* Set the TC restart PC */
+	lw	t1, VPEBOOTCFG_PC(t0)
+	mttc0	t1, CP0_TCRESTART
+
+	/* Set the TC stack pointer */
+	lw	t1, VPEBOOTCFG_SP(t0)
+	mttgpr	t1, sp
+
+	/* Set the TC global pointer */
+	lw	t1, VPEBOOTCFG_GP(t0)
+	mttgpr	t1, gp
+
+	/* Copy config from this VPE */
+	mfc0	t0, CP0_CONFIG
+	mttc0	t0, CP0_CONFIG
+
+	/*
+	 * Copy the EVA config from this VPE if the CPU supports it.
+	 * CONFIG3 must exist to be running MT startup - just read it.
+	 */
+	mfc0	t0, CP0_CONFIG, 3
+	and	t0, t0, MIPS_CONF3_SC
+	beqz	t0, 3f
+	 nop
+	mfc0    t0, CP0_SEGCTL0
+	mttc0	t0, CP0_SEGCTL0
+	mfc0    t0, CP0_SEGCTL1
+	mttc0	t0, CP0_SEGCTL1
+	mfc0    t0, CP0_SEGCTL2
+	mttc0	t0, CP0_SEGCTL2
+3:
+	/* Ensure no software interrupts are pending */
+	mttc0	zero, CP0_CAUSE
+	mttc0	zero, CP0_STATUS
+
+	/* Set TC active, not interrupt exempt */
+	mftc0	t0, CP0_TCSTATUS
+	li	t1, ~TCSTATUS_IXMT
+	and	t0, t0, t1
+	ori	t0, t0, TCSTATUS_A
+	mttc0	t0, CP0_TCSTATUS
+
+	/* Clear the TC halt bit */
+	mttc0	zero, CP0_TCHALT
+
+	/* Set VPE active */
+	mftc0	t0, CP0_VPECONF0
+	ori	t0, t0, VPECONF0_VPA
+	mttc0	t0, CP0_VPECONF0
+
+	/* Next VPE */
+2:	srl	ta2, ta2, 1
+	addiu	ta1, ta1, 1
+	bnez	ta2, 1b
+	 nop
+
+	/* Leave VPE configuration state */
+	mfc0	t1, CP0_MVPCONTROL
+	xori	t1, t1, MVPCONTROL_VPC
+	mtc0	t1, CP0_MVPCONTROL
+	ehb
+	evpe
+
+	.set	pop
+
+	/* Check whether this VPE is meant to be running */
+	li	t0, 1
+	sll	t0, t0, a1
+	and	t0, t0, t8
+	bnez	t0, 2f
+	 nop
+
+	/* This VPE should be offline, halt the TC */
+	li	t0, TCHALT_H
+	mtc0	t0, CP0_TCHALT
+	PTR_LA	t0, 1f
+1:	jr.hb	t0
+	 nop
+
+2:
+
+#endif /* CONFIG_MIPS_MT_SMP */
+
+	/* Return */
+5:	jr	ra
+	 nop
+	END(mips_cps_boot_vpes)
+
+LEAF(mips_cps_cache_init)
 	/*
 	 * Clear the bits used to index the caches. Note that the architecture
 	 * dictates that writing to any of TagLo or TagHi selects 0 or 2 should
@@ -159,332 +595,9 @@ icache_done:
 	 PTR_ADD a0, a0, t0
 dcache_done:
 
-	/* Set Kseg0 CCA to that in s0 */
-	mfc0	t0, CP0_CONFIG
-	ori	t0, 0x7
-	xori	t0, 0x7
-	or	t0, t0, s0
-	mtc0	t0, CP0_CONFIG
-	ehb
-
-	/* Calculate an uncached address for the CM GCRs */
-	MFC0	v1, CP0_CMGCRBASE
-	PTR_SLL	v1, v1, 4
-	PTR_LI	t0, UNCAC_BASE
-	PTR_ADDU v1, v1, t0
-
-	/* Enter the coherent domain */
-	li	t0, 0xff
-	sw	t0, GCR_CL_COHERENCE_OFS(v1)
-	ehb
-
-	/* Jump to kseg0 */
-	PTR_LA	t0, 1f
-	jr	t0
-	 nop
-
-	/*
-	 * We're up, cached & coherent. Perform any further required core-level
-	 * initialisation.
-	 */
-1:	jal	mips_cps_core_init
-	 nop
-
-	/* Do any EVA initialization if necessary */
-	eva_init
-
-	/*
-	 * Boot any other VPEs within this core that should be online, and
-	 * deactivate this VPE if it should be offline.
-	 */
-	jal	mips_cps_boot_vpes
-	 nop
-
-	/* Off we go! */
-	PTR_L	t1, VPEBOOTCFG_PC(v0)
-	PTR_L	gp, VPEBOOTCFG_GP(v0)
-	PTR_L	sp, VPEBOOTCFG_SP(v0)
-	jr	t1
-	 nop
-	END(mips_cps_core_entry)
-
-.org 0x200
-LEAF(excep_tlbfill)
-	DUMP_EXCEP("TLB Fill")
-	b	.
-	 nop
-	END(excep_tlbfill)
-
-.org 0x280
-LEAF(excep_xtlbfill)
-	DUMP_EXCEP("XTLB Fill")
-	b	.
-	 nop
-	END(excep_xtlbfill)
-
-.org 0x300
-LEAF(excep_cache)
-	DUMP_EXCEP("Cache")
-	b	.
-	 nop
-	END(excep_cache)
-
-.org 0x380
-LEAF(excep_genex)
-	DUMP_EXCEP("General")
-	b	.
-	 nop
-	END(excep_genex)
-
-.org 0x400
-LEAF(excep_intex)
-	DUMP_EXCEP("Interrupt")
-	b	.
-	 nop
-	END(excep_intex)
-
-.org 0x480
-LEAF(excep_ejtag)
-	DUMP_EXCEP("EJTAG")
-	PTR_LA	k0, ejtag_debug_handler
-	jr	k0
-	 nop
-	END(excep_ejtag)
-
-LEAF(mips_cps_core_init)
-#ifdef CONFIG_MIPS_MT_SMP
-	/* Check that the core implements the MT ASE */
-	has_mt	t0, 3f
-
-	.set	push
-	.set	mt
-
-	/* Only allow 1 TC per VPE to execute... */
-	dmt
-
-	/* ...and for the moment only 1 VPE */
-	dvpe
-	PTR_LA	t1, 1f
-	jr.hb	t1
-	 nop
-
-	/* Enter VPE configuration state */
-1:	mfc0	t0, CP0_MVPCONTROL
-	ori	t0, t0, MVPCONTROL_VPC
-	mtc0	t0, CP0_MVPCONTROL
-
-	/* Retrieve the number of VPEs within the core */
-	mfc0	t0, CP0_MVPCONF0
-	srl	t0, t0, MVPCONF0_PVPE_SHIFT
-	andi	t0, t0, (MVPCONF0_PVPE >> MVPCONF0_PVPE_SHIFT)
-	addiu	ta3, t0, 1
-
-	/* If there's only 1, we're done */
-	beqz	t0, 2f
-	 nop
-
-	/* Loop through each VPE within this core */
-	li	ta1, 1
-
-1:	/* Operate on the appropriate TC */
-	mtc0	ta1, CP0_VPECONTROL
-	ehb
-
-	/* Bind TC to VPE (1:1 TC:VPE mapping) */
-	mttc0	ta1, CP0_TCBIND
-
-	/* Set exclusive TC, non-active, master */
-	li	t0, VPECONF0_MVP
-	sll	t1, ta1, VPECONF0_XTC_SHIFT
-	or	t0, t0, t1
-	mttc0	t0, CP0_VPECONF0
-
-	/* Set TC non-active, non-allocatable */
-	mttc0	zero, CP0_TCSTATUS
-
-	/* Set TC halted */
-	li	t0, TCHALT_H
-	mttc0	t0, CP0_TCHALT
-
-	/* Next VPE */
-	addiu	ta1, ta1, 1
-	slt	t0, ta1, ta3
-	bnez	t0, 1b
-	 nop
-
-	/* Leave VPE configuration state */
-2:	mfc0	t0, CP0_MVPCONTROL
-	xori	t0, t0, MVPCONTROL_VPC
-	mtc0	t0, CP0_MVPCONTROL
-
-3:	.set	pop
-#endif
 	jr	ra
 	 nop
-	END(mips_cps_core_init)
-
-LEAF(mips_cps_boot_vpes)
-	/* Retrieve CM base address */
-	PTR_LA	t0, mips_cm_base
-	PTR_L	t0, 0(t0)
-
-	/* Calculate a pointer to this cores struct core_boot_config */
-	lw	t0, GCR_CL_ID_OFS(t0)
-	li	t1, COREBOOTCFG_SIZE
-	mul	t0, t0, t1
-	PTR_LA	t1, mips_cps_core_bootcfg
-	PTR_L	t1, 0(t1)
-	PTR_ADDU t0, t0, t1
-
-	/* Calculate this VPEs ID. If the core doesn't support MT use 0 */
-	li	t9, 0
-#ifdef CONFIG_MIPS_MT_SMP
-	has_mt	ta2, 1f
-
-	/* Find the number of VPEs present in the core */
-	mfc0	t1, CP0_MVPCONF0
-	srl	t1, t1, MVPCONF0_PVPE_SHIFT
-	andi	t1, t1, MVPCONF0_PVPE >> MVPCONF0_PVPE_SHIFT
-	addiu	t1, t1, 1
-
-	/* Calculate a mask for the VPE ID from EBase.CPUNum */
-	clz	t1, t1
-	li	t2, 31
-	subu	t1, t2, t1
-	li	t2, 1
-	sll	t1, t2, t1
-	addiu	t1, t1, -1
-
-	/* Retrieve the VPE ID from EBase.CPUNum */
-	mfc0	t9, $15, 1
-	and	t9, t9, t1
-#endif
-
-1:	/* Calculate a pointer to this VPEs struct vpe_boot_config */
-	li	t1, VPEBOOTCFG_SIZE
-	mul	v0, t9, t1
-	PTR_L	ta3, COREBOOTCFG_VPECONFIG(t0)
-	PTR_ADDU v0, v0, ta3
-
-#ifdef CONFIG_MIPS_MT_SMP
-
-	/* If the core doesn't support MT then return */
-	bnez	ta2, 1f
-	 nop
-	jr	ra
-	 nop
-
-	.set	push
-	.set	mt
-
-1:	/* Enter VPE configuration state */
-	dvpe
-	PTR_LA	t1, 1f
-	jr.hb	t1
-	 nop
-1:	mfc0	t1, CP0_MVPCONTROL
-	ori	t1, t1, MVPCONTROL_VPC
-	mtc0	t1, CP0_MVPCONTROL
-	ehb
-
-	/* Loop through each VPE */
-	PTR_L	ta2, COREBOOTCFG_VPEMASK(t0)
-	move	t8, ta2
-	li	ta1, 0
-
-	/* Check whether the VPE should be running. If not, skip it */
-1:	andi	t0, ta2, 1
-	beqz	t0, 2f
-	 nop
-
-	/* Operate on the appropriate TC */
-	mfc0	t0, CP0_VPECONTROL
-	ori	t0, t0, VPECONTROL_TARGTC
-	xori	t0, t0, VPECONTROL_TARGTC
-	or	t0, t0, ta1
-	mtc0	t0, CP0_VPECONTROL
-	ehb
-
-	/* Skip the VPE if its TC is not halted */
-	mftc0	t0, CP0_TCHALT
-	beqz	t0, 2f
-	 nop
-
-	/* Calculate a pointer to the VPEs struct vpe_boot_config */
-	li	t0, VPEBOOTCFG_SIZE
-	mul	t0, t0, ta1
-	addu	t0, t0, ta3
-
-	/* Set the TC restart PC */
-	lw	t1, VPEBOOTCFG_PC(t0)
-	mttc0	t1, CP0_TCRESTART
-
-	/* Set the TC stack pointer */
-	lw	t1, VPEBOOTCFG_SP(t0)
-	mttgpr	t1, sp
-
-	/* Set the TC global pointer */
-	lw	t1, VPEBOOTCFG_GP(t0)
-	mttgpr	t1, gp
-
-	/* Copy config from this VPE */
-	mfc0	t0, CP0_CONFIG
-	mttc0	t0, CP0_CONFIG
-
-	/* Ensure no software interrupts are pending */
-	mttc0	zero, CP0_CAUSE
-	mttc0	zero, CP0_STATUS
-
-	/* Set TC active, not interrupt exempt */
-	mftc0	t0, CP0_TCSTATUS
-	li	t1, ~TCSTATUS_IXMT
-	and	t0, t0, t1
-	ori	t0, t0, TCSTATUS_A
-	mttc0	t0, CP0_TCSTATUS
-
-	/* Clear the TC halt bit */
-	mttc0	zero, CP0_TCHALT
-
-	/* Set VPE active */
-	mftc0	t0, CP0_VPECONF0
-	ori	t0, t0, VPECONF0_VPA
-	mttc0	t0, CP0_VPECONF0
-
-	/* Next VPE */
-2:	srl	ta2, ta2, 1
-	addiu	ta1, ta1, 1
-	bnez	ta2, 1b
-	 nop
-
-	/* Leave VPE configuration state */
-	mfc0	t1, CP0_MVPCONTROL
-	xori	t1, t1, MVPCONTROL_VPC
-	mtc0	t1, CP0_MVPCONTROL
-	ehb
-	evpe
-
-	/* Check whether this VPE is meant to be running */
-	li	t0, 1
-	sll	t0, t0, t9
-	and	t0, t0, t8
-	bnez	t0, 2f
-	 nop
-
-	/* This VPE should be offline, halt the TC */
-	li	t0, TCHALT_H
-	mtc0	t0, CP0_TCHALT
-	PTR_LA	t0, 1f
-1:	jr.hb	t0
-	 nop
-
-2:	.set	pop
-
-#endif /* CONFIG_MIPS_MT_SMP */
-
-	/* Return */
-	jr	ra
-	 nop
-	END(mips_cps_boot_vpes)
+	END(mips_cps_cache_init)
 
 #if defined(CONFIG_MIPS_CPS_PM) && defined(CONFIG_CPU_PM)
 

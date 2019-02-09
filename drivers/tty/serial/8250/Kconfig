@@ -5,6 +5,7 @@
 
 config SERIAL_8250
 	tristate "8250/16550 and compatible serial support"
+	depends on !S390
 	select SERIAL_CORE
 	---help---
 	  This selects whether you want to include the driver for the standard
@@ -57,6 +58,18 @@ config SERIAL_8250_PNP
 	  This builds standard PNP serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
 
+config SERIAL_8250_FINTEK
+	bool "Support for Fintek F81216A LPC to 4 UART RS485 API"
+	depends on SERIAL_8250
+	---help---
+	  Selecting this option will add support for the RS485 capabilities
+	  of the Fintek F81216A LPC to 4 UART.
+
+	  If this option is not selected the device will be configured as a
+	  standard 16550A serial port.
+
+	  If unsure, say N.
+
 config SERIAL_8250_CONSOLE
 	bool "Console on 8250/16550 and compatible serial port"
 	depends on SERIAL_8250=y
@@ -105,16 +118,24 @@ config SERIAL_8250_DMA
 	  compatible UART controllers that support DMA signaling.
 
 config SERIAL_8250_PCI
-	tristate "8250/16550 PCI device support" if EXPERT
+	tristate "8250/16550 PCI device support"
 	depends on SERIAL_8250 && PCI
 	default SERIAL_8250
-	select RATIONAL
 	help
 	  This builds standard PCI serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
 	  Saves about 9K.
 	  Note that serial ports on NetMos 9835 Multi-I/O cards are handled
 	  by the parport_serial driver, enabled with CONFIG_PARPORT_SERIAL.
+
+config SERIAL_8250_EXAR
+	tristate "8250/16550 Exar/Commtech PCI/PCIe device support"
+	depends on SERIAL_8250_PCI
+	default SERIAL_8250
+	help
+	  This builds support for XR17C1xx, XR17V3xx and some Commtech
+	  422x PCIe serial cards that are not covered by the more generic
+	  SERIAL_8250_PCI option.
 
 config SERIAL_8250_HP300
 	tristate
@@ -134,6 +155,18 @@ config SERIAL_8250_CS
 	  module will be called serial_cs.
 
 	  If unsure, say N.
+
+config SERIAL_8250_MEN_MCB
+	tristate "MEN MCB UART device support"
+	depends on MCB && SERIAL_8250
+	help
+	  This enables support for FPGA based UARTs found on many MEN
+	  boards. This driver enables support for the 16z025, 16z057
+	  and 16z125 UARTs.
+
+	  To compile this driver as a module, chose M here: the
+	  module will be called 8250_men_mcb.
+
 
 config SERIAL_8250_NR_UARTS
 	int "Maximum number of 8250/16550 serial ports"
@@ -204,6 +237,16 @@ config SERIAL_8250_ACCENT
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8250_accent.
 
+config SERIAL_8250_ASPEED_VUART
+	tristate "Aspeed Virtual UART"
+	depends on SERIAL_8250
+	depends on OF
+	help
+	  If you want to use the virtual UART (VUART) device on Aspeed
+	  BMC platforms, enable this option. This enables the 16550A-
+	  compatible device on the local LPC bus, giving a UART device
+	  with no physical RS232 connections.
+
 config SERIAL_8250_BOCA
 	tristate "Support Boca cards"
 	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
@@ -262,7 +305,12 @@ config SERIAL_8250_RSA
 	bool "Support RSA serial ports"
 	depends on SERIAL_8250_EXTENDED
 	help
-	  ::: To be written :::
+	  Say Y here if you have a IODATA RSA-DV II/S ISA card and
+	  would like to use its >115kbps speeds.
+	  You will need to provide module parameter "probe_rsa", or boot-time
+	  parameter 8250.probe_rsa with I/O addresses of this card then.
+
+	  If you don't have such card, or if unsure, say N.
 
 config SERIAL_8250_ACORN
 	tristate "Acorn expansion card serial port support"
@@ -271,6 +319,30 @@ config SERIAL_8250_ACORN
 	  If you have an Atomwide Serial card or Serial Port card for an Acorn
 	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
 	  cards.  If unsure, say N.
+
+config SERIAL_8250_BCM2835AUX
+	tristate "BCM2835 auxiliar mini UART support"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on SERIAL_8250 && SERIAL_8250_SHARE_IRQ
+	help
+	  Support for the BCM2835 auxiliar mini UART.
+
+	  Features and limitations of the UART are
+	    Registers are similar to 16650 registers,
+              set bits in the control registers that are unsupported
+	      are ignored and read back as 0
+	    7/8 bit operation with 1 start and 1 stop bit
+	    8 symbols deep fifo for rx and tx
+	    SW controlled RTS and SW readable CTS
+	    Clock rate derived from system clock
+	    Uses 8 times oversampling (compared to 16 times for 16650)
+	    Missing break detection (but break generation)
+	    Missing framing error detection
+	    Missing parity bit
+	    Missing receive time-out interrupt
+	    Missing DCD, DSR, DTR and RI signals
+
+	  If unsure, say N.
 
 config SERIAL_8250_FSL
 	bool
@@ -329,14 +401,6 @@ config SERIAL_8250_OMAP_TTYO_FIXUP
 	  not booting kernel because the serial console remains silent in case
 	  they forgot to update the command line.
 
-config SERIAL_8250_FINTEK
-	tristate "Support for Fintek F81216A LPC to 4 UART"
-	depends on SERIAL_8250 && PNP
-	help
-	  Selecting this option will add support for the Fintek F81216A
-	  LPC to 4 UART. This device has some RS485 functionality not available
-	  through the PNP driver. If unsure, say N.
-
 config SERIAL_8250_LPC18XX
 	tristate "NXP LPC18xx/43xx serial port support"
 	depends on SERIAL_8250 && OF && (ARCH_LPC18XX || COMPILE_TEST)
@@ -346,7 +410,7 @@ config SERIAL_8250_LPC18XX
 	  serial port, say Y to this option. If unsure, say Y.
 
 config SERIAL_8250_MT6577
-	bool "Mediatek serial port support"
+	tristate "Mediatek serial port support"
 	depends on SERIAL_8250 && ARCH_MEDIATEK
 	help
 	  If you have a Mediatek based board and want to use the
@@ -354,27 +418,74 @@ config SERIAL_8250_MT6577
 
 config SERIAL_8250_UNIPHIER
 	tristate "Support for UniPhier on-chip UART"
-	depends on SERIAL_8250 && ARCH_UNIPHIER
+	depends on SERIAL_8250
+	depends on ARCH_UNIPHIER || COMPILE_TEST
 	help
 	  If you have a UniPhier based board and want to use the on-chip
 	  serial ports, say Y to this option. If unsure, say N.
 
 config SERIAL_8250_INGENIC
-	bool "Support for Ingenic SoC serial ports"
-	depends on SERIAL_8250_CONSOLE && OF_FLATTREE
-	select LIBFDT
-	select SERIAL_EARLYCON
+	tristate "Support for Ingenic SoC serial ports"
+	depends on SERIAL_8250
+	depends on OF_FLATTREE
+	depends on MIPS || COMPILE_TEST
 	help
 	  If you have a system using an Ingenic SoC and wish to make use of
 	  its UARTs, say Y to this option. If unsure, say N.
 
+config SERIAL_8250_LPSS
+	tristate "Support for serial ports on Intel LPSS platforms"
+	default SERIAL_8250
+	depends on SERIAL_8250 && PCI
+	depends on X86 || COMPILE_TEST
+	select DW_DMAC_CORE if SERIAL_8250_DMA
+	select DW_DMAC_PCI if (SERIAL_8250_DMA && X86_INTEL_LPSS)
+	select RATIONAL
+	help
+	  Selecting this option will enable handling of the extra features
+	  present on the UART found on various Intel platforms such as:
+	    - Intel Baytrail SoC
+	    - Intel Braswell SoC
+	    - Intel Quark X1000 SoC
+
 config SERIAL_8250_MID
 	tristate "Support for serial ports on Intel MID platforms"
+	default SERIAL_8250
 	depends on SERIAL_8250 && PCI
+	depends on X86 || COMPILE_TEST
 	select HSU_DMA if SERIAL_8250_DMA
-	select HSU_DMA_PCI if X86_INTEL_MID
+	select HSU_DMA_PCI if (HSU_DMA && X86_INTEL_MID)
 	select RATIONAL
 	help
 	  Selecting this option will enable handling of the extra features
 	  present on the UART found on Intel Medfield SOC and various other
 	  Intel platforms.
+
+config SERIAL_8250_MOXA
+	tristate "MOXA SmartIO MUE support"
+	depends on SERIAL_8250 && PCI
+	help
+	  Say Y here if you have a Moxa SmartIO MUE multiport serial card.
+	  If unsure, say N.
+
+	  This driver can also be built as a module. The module will be called
+	  8250_moxa. If you want to do that, say M here.
+
+config SERIAL_8250_PXA
+	tristate "PXA serial port support"
+	depends on SERIAL_8250
+	depends on ARCH_PXA || ARCH_MMP
+	help
+	  If you have a machine based on an Intel XScale PXA2xx CPU you can
+	  enable its onboard serial ports by enabling this option. The option is
+	  applicable to both devicetree and legacy boards, and early console is
+	  part of its support.
+
+config SERIAL_OF_PLATFORM
+	tristate "Devicetree based probing for 8250 ports"
+	depends on SERIAL_8250 && OF
+	help
+	  This option is used for all 8250 compatible serial ports that
+	  are probed through devicetree, including Open Firmware based
+	  PowerPC systems and embedded systems on architectures using the
+	  flattened device tree format.

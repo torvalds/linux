@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  file.c - part of debugfs, a tiny little debug file system
  *
  *  Copyright (C) 2004 Greg Kroah-Hartman <greg@kroah.com>
  *  Copyright (C) 2004 IBM Inc.
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
- *
  *  debugfs is for people to use instead of /proc or /sys.
- *  See Documentation/DocBook/filesystems for more details.
- *
+ *  See Documentation/filesystems/ for more details.
  */
 
 #include <linux/module.h>
@@ -22,6 +18,11 @@
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/device.h>
+#include <linux/poll.h>
+
+#include "internal.h"
+
+struct poll_table_struct;
 
 static ssize_t default_read_file(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
@@ -35,27 +36,331 @@ static ssize_t default_write_file(struct file *file, const char __user *buf,
 	return count;
 }
 
-const struct file_operations debugfs_file_operations = {
+const struct file_operations debugfs_noop_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		simple_open,
 	.llseek =	noop_llseek,
 };
 
-static struct dentry *debugfs_create_mode(const char *name, umode_t mode,
-					  struct dentry *parent, void *value,
-				          const struct file_operations *fops,
-				          const struct file_operations *fops_ro,
-				          const struct file_operations *fops_wo)
+#define F_DENTRY(filp) ((filp)->f_path.dentry)
+
+const struct file_operations *debugfs_real_fops(const struct file *filp)
+{
+	struct debugfs_fsdata *fsd = F_DENTRY(filp)->d_fsdata;
+
+	if ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT) {
+		/*
+		 * Urgh, we've been called w/o a protecting
+		 * debugfs_file_get().
+		 */
+		WARN_ON(1);
+		return NULL;
+	}
+
+	return fsd->real_fops;
+}
+EXPORT_SYMBOL_GPL(debugfs_real_fops);
+
+/**
+ * debugfs_file_get - mark the beginning of file data access
+ * @dentry: the dentry object whose data is being accessed.
+ *
+ * Up to a matching call to debugfs_file_put(), any successive call
+ * into the file removing functions debugfs_remove() and
+ * debugfs_remove_recursive() will block. Since associated private
+ * file data may only get freed after a successful return of any of
+ * the removal functions, you may safely access it after a successful
+ * call to debugfs_file_get() without worrying about lifetime issues.
+ *
+ * If -%EIO is returned, the file has already been removed and thus,
+ * it is not safe to access any of its data. If, on the other hand,
+ * it is allowed to access the file data, zero is returned.
+ */
+int debugfs_file_get(struct dentry *dentry)
+{
+	struct debugfs_fsdata *fsd;
+	void *d_fsd;
+
+	d_fsd = READ_ONCE(dentry->d_fsdata);
+	if (!((unsigned long)d_fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)) {
+		fsd = d_fsd;
+	} else {
+		fsd = kmalloc(sizeof(*fsd), GFP_KERNEL);
+		if (!fsd)
+			return -ENOMEM;
+
+		fsd->real_fops = (void *)((unsigned long)d_fsd &
+					~DEBUGFS_FSDATA_IS_REAL_FOPS_BIT);
+		refcount_set(&fsd->active_users, 1);
+		init_completion(&fsd->active_users_drained);
+		if (cmpxchg(&dentry->d_fsdata, d_fsd, fsd) != d_fsd) {
+			kfree(fsd);
+			fsd = READ_ONCE(dentry->d_fsdata);
+		}
+	}
+
+	/*
+	 * In case of a successful cmpxchg() above, this check is
+	 * strictly necessary and must follow it, see the comment in
+	 * __debugfs_remove_file().
+	 * OTOH, if the cmpxchg() hasn't been executed or wasn't
+	 * successful, this serves the purpose of not starving
+	 * removers.
+	 */
+	if (d_unlinked(dentry))
+		return -EIO;
+
+	if (!refcount_inc_not_zero(&fsd->active_users))
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(debugfs_file_get);
+
+/**
+ * debugfs_file_put - mark the end of file data access
+ * @dentry: the dentry object formerly passed to
+ *          debugfs_file_get().
+ *
+ * Allow any ongoing concurrent call into debugfs_remove() or
+ * debugfs_remove_recursive() blocked by a former call to
+ * debugfs_file_get() to proceed and return to its caller.
+ */
+void debugfs_file_put(struct dentry *dentry)
+{
+	struct debugfs_fsdata *fsd = READ_ONCE(dentry->d_fsdata);
+
+	if (refcount_dec_and_test(&fsd->active_users))
+		complete(&fsd->active_users_drained);
+}
+EXPORT_SYMBOL_GPL(debugfs_file_put);
+
+static int open_proxy_open(struct inode *inode, struct file *filp)
+{
+	struct dentry *dentry = F_DENTRY(filp);
+	const struct file_operations *real_fops = NULL;
+	int r;
+
+	r = debugfs_file_get(dentry);
+	if (r)
+		return r == -EIO ? -ENOENT : r;
+
+	real_fops = debugfs_real_fops(filp);
+	real_fops = fops_get(real_fops);
+	if (!real_fops) {
+		/* Huh? Module did not clean up after itself at exit? */
+		WARN(1, "debugfs file owner did not clean up at exit: %pd",
+			dentry);
+		r = -ENXIO;
+		goto out;
+	}
+	replace_fops(filp, real_fops);
+
+	if (real_fops->open)
+		r = real_fops->open(inode, filp);
+
+out:
+	debugfs_file_put(dentry);
+	return r;
+}
+
+const struct file_operations debugfs_open_proxy_file_operations = {
+	.open = open_proxy_open,
+};
+
+#define PROTO(args...) args
+#define ARGS(args...) args
+
+#define FULL_PROXY_FUNC(name, ret_type, filp, proto, args)		\
+static ret_type full_proxy_ ## name(proto)				\
+{									\
+	struct dentry *dentry = F_DENTRY(filp);			\
+	const struct file_operations *real_fops;			\
+	ret_type r;							\
+									\
+	r = debugfs_file_get(dentry);					\
+	if (unlikely(r))						\
+		return r;						\
+	real_fops = debugfs_real_fops(filp);				\
+	r = real_fops->name(args);					\
+	debugfs_file_put(dentry);					\
+	return r;							\
+}
+
+FULL_PROXY_FUNC(llseek, loff_t, filp,
+		PROTO(struct file *filp, loff_t offset, int whence),
+		ARGS(filp, offset, whence));
+
+FULL_PROXY_FUNC(read, ssize_t, filp,
+		PROTO(struct file *filp, char __user *buf, size_t size,
+			loff_t *ppos),
+		ARGS(filp, buf, size, ppos));
+
+FULL_PROXY_FUNC(write, ssize_t, filp,
+		PROTO(struct file *filp, const char __user *buf, size_t size,
+			loff_t *ppos),
+		ARGS(filp, buf, size, ppos));
+
+FULL_PROXY_FUNC(unlocked_ioctl, long, filp,
+		PROTO(struct file *filp, unsigned int cmd, unsigned long arg),
+		ARGS(filp, cmd, arg));
+
+static __poll_t full_proxy_poll(struct file *filp,
+				struct poll_table_struct *wait)
+{
+	struct dentry *dentry = F_DENTRY(filp);
+	__poll_t r = 0;
+	const struct file_operations *real_fops;
+
+	if (debugfs_file_get(dentry))
+		return EPOLLHUP;
+
+	real_fops = debugfs_real_fops(filp);
+	r = real_fops->poll(filp, wait);
+	debugfs_file_put(dentry);
+	return r;
+}
+
+static int full_proxy_release(struct inode *inode, struct file *filp)
+{
+	const struct dentry *dentry = F_DENTRY(filp);
+	const struct file_operations *real_fops = debugfs_real_fops(filp);
+	const struct file_operations *proxy_fops = filp->f_op;
+	int r = 0;
+
+	/*
+	 * We must not protect this against removal races here: the
+	 * original releaser should be called unconditionally in order
+	 * not to leak any resources. Releasers must not assume that
+	 * ->i_private is still being meaningful here.
+	 */
+	if (real_fops->release)
+		r = real_fops->release(inode, filp);
+
+	replace_fops(filp, d_inode(dentry)->i_fop);
+	kfree((void *)proxy_fops);
+	fops_put(real_fops);
+	return r;
+}
+
+static void __full_proxy_fops_init(struct file_operations *proxy_fops,
+				const struct file_operations *real_fops)
+{
+	proxy_fops->release = full_proxy_release;
+	if (real_fops->llseek)
+		proxy_fops->llseek = full_proxy_llseek;
+	if (real_fops->read)
+		proxy_fops->read = full_proxy_read;
+	if (real_fops->write)
+		proxy_fops->write = full_proxy_write;
+	if (real_fops->poll)
+		proxy_fops->poll = full_proxy_poll;
+	if (real_fops->unlocked_ioctl)
+		proxy_fops->unlocked_ioctl = full_proxy_unlocked_ioctl;
+}
+
+static int full_proxy_open(struct inode *inode, struct file *filp)
+{
+	struct dentry *dentry = F_DENTRY(filp);
+	const struct file_operations *real_fops = NULL;
+	struct file_operations *proxy_fops = NULL;
+	int r;
+
+	r = debugfs_file_get(dentry);
+	if (r)
+		return r == -EIO ? -ENOENT : r;
+
+	real_fops = debugfs_real_fops(filp);
+	real_fops = fops_get(real_fops);
+	if (!real_fops) {
+		/* Huh? Module did not cleanup after itself at exit? */
+		WARN(1, "debugfs file owner did not clean up at exit: %pd",
+			dentry);
+		r = -ENXIO;
+		goto out;
+	}
+
+	proxy_fops = kzalloc(sizeof(*proxy_fops), GFP_KERNEL);
+	if (!proxy_fops) {
+		r = -ENOMEM;
+		goto free_proxy;
+	}
+	__full_proxy_fops_init(proxy_fops, real_fops);
+	replace_fops(filp, proxy_fops);
+
+	if (real_fops->open) {
+		r = real_fops->open(inode, filp);
+		if (r) {
+			replace_fops(filp, d_inode(dentry)->i_fop);
+			goto free_proxy;
+		} else if (filp->f_op != proxy_fops) {
+			/* No protection against file removal anymore. */
+			WARN(1, "debugfs file owner replaced proxy fops: %pd",
+				dentry);
+			goto free_proxy;
+		}
+	}
+
+	goto out;
+free_proxy:
+	kfree(proxy_fops);
+	fops_put(real_fops);
+out:
+	debugfs_file_put(dentry);
+	return r;
+}
+
+const struct file_operations debugfs_full_proxy_file_operations = {
+	.open = full_proxy_open,
+};
+
+ssize_t debugfs_attr_read(struct file *file, char __user *buf,
+			size_t len, loff_t *ppos)
+{
+	struct dentry *dentry = F_DENTRY(file);
+	ssize_t ret;
+
+	ret = debugfs_file_get(dentry);
+	if (unlikely(ret))
+		return ret;
+	ret = simple_attr_read(file, buf, len, ppos);
+	debugfs_file_put(dentry);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(debugfs_attr_read);
+
+ssize_t debugfs_attr_write(struct file *file, const char __user *buf,
+			 size_t len, loff_t *ppos)
+{
+	struct dentry *dentry = F_DENTRY(file);
+	ssize_t ret;
+
+	ret = debugfs_file_get(dentry);
+	if (unlikely(ret))
+		return ret;
+	ret = simple_attr_write(file, buf, len, ppos);
+	debugfs_file_put(dentry);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(debugfs_attr_write);
+
+static struct dentry *debugfs_create_mode_unsafe(const char *name, umode_t mode,
+					struct dentry *parent, void *value,
+					const struct file_operations *fops,
+					const struct file_operations *fops_ro,
+					const struct file_operations *fops_wo)
 {
 	/* if there are no write bits set, make read only */
 	if (!(mode & S_IWUGO))
-		return debugfs_create_file(name, mode, parent, value, fops_ro);
+		return debugfs_create_file_unsafe(name, mode, parent, value,
+						fops_ro);
 	/* if there are no read bits set, make write only */
 	if (!(mode & S_IRUGO))
-		return debugfs_create_file(name, mode, parent, value, fops_wo);
+		return debugfs_create_file_unsafe(name, mode, parent, value,
+						fops_wo);
 
-	return debugfs_create_file(name, mode, parent, value, fops);
+	return debugfs_create_file_unsafe(name, mode, parent, value, fops);
 }
 
 static int debugfs_u8_set(void *data, u64 val)
@@ -68,9 +373,9 @@ static int debugfs_u8_get(void *data, u64 *val)
 	*val = *(u8 *)data;
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_u8, debugfs_u8_get, debugfs_u8_set, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_u8_ro, debugfs_u8_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_u8_wo, NULL, debugfs_u8_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u8, debugfs_u8_get, debugfs_u8_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u8_ro, debugfs_u8_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u8_wo, NULL, debugfs_u8_set, "%llu\n");
 
 /**
  * debugfs_create_u8 - create a debugfs file that is used to read and write an unsigned 8-bit value
@@ -99,7 +404,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_u8_wo, NULL, debugfs_u8_set, "%llu\n");
 struct dentry *debugfs_create_u8(const char *name, umode_t mode,
 				 struct dentry *parent, u8 *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_u8,
+	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_u8,
 				   &fops_u8_ro, &fops_u8_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u8);
@@ -114,9 +419,9 @@ static int debugfs_u16_get(void *data, u64 *val)
 	*val = *(u16 *)data;
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_u16, debugfs_u16_get, debugfs_u16_set, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_u16_ro, debugfs_u16_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_u16_wo, NULL, debugfs_u16_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u16, debugfs_u16_get, debugfs_u16_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u16_ro, debugfs_u16_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u16_wo, NULL, debugfs_u16_set, "%llu\n");
 
 /**
  * debugfs_create_u16 - create a debugfs file that is used to read and write an unsigned 16-bit value
@@ -145,7 +450,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_u16_wo, NULL, debugfs_u16_set, "%llu\n");
 struct dentry *debugfs_create_u16(const char *name, umode_t mode,
 				  struct dentry *parent, u16 *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_u16,
+	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_u16,
 				   &fops_u16_ro, &fops_u16_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u16);
@@ -160,9 +465,9 @@ static int debugfs_u32_get(void *data, u64 *val)
 	*val = *(u32 *)data;
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_u32, debugfs_u32_get, debugfs_u32_set, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_u32_ro, debugfs_u32_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_u32_wo, NULL, debugfs_u32_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u32, debugfs_u32_get, debugfs_u32_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u32_ro, debugfs_u32_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u32_wo, NULL, debugfs_u32_set, "%llu\n");
 
 /**
  * debugfs_create_u32 - create a debugfs file that is used to read and write an unsigned 32-bit value
@@ -191,7 +496,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_u32_wo, NULL, debugfs_u32_set, "%llu\n");
 struct dentry *debugfs_create_u32(const char *name, umode_t mode,
 				 struct dentry *parent, u32 *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_u32,
+	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_u32,
 				   &fops_u32_ro, &fops_u32_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u32);
@@ -207,9 +512,9 @@ static int debugfs_u64_get(void *data, u64 *val)
 	*val = *(u64 *)data;
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_u64, debugfs_u64_get, debugfs_u64_set, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_u64_ro, debugfs_u64_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u64, debugfs_u64_get, debugfs_u64_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u64_ro, debugfs_u64_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
 
 /**
  * debugfs_create_u64 - create a debugfs file that is used to read and write an unsigned 64-bit value
@@ -238,7 +543,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
 struct dentry *debugfs_create_u64(const char *name, umode_t mode,
 				 struct dentry *parent, u64 *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_u64,
+	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_u64,
 				   &fops_u64_ro, &fops_u64_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u64);
@@ -254,9 +559,10 @@ static int debugfs_ulong_get(void *data, u64 *val)
 	*val = *(unsigned long *)data;
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_ulong, debugfs_ulong_get, debugfs_ulong_set, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_ulong_ro, debugfs_ulong_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_ulong_wo, NULL, debugfs_ulong_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_ulong, debugfs_ulong_get, debugfs_ulong_set,
+			"%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_ulong_ro, debugfs_ulong_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_ulong_wo, NULL, debugfs_ulong_set, "%llu\n");
 
 /**
  * debugfs_create_ulong - create a debugfs file that is used to read and write
@@ -286,26 +592,30 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_ulong_wo, NULL, debugfs_ulong_set, "%llu\n");
 struct dentry *debugfs_create_ulong(const char *name, umode_t mode,
 				    struct dentry *parent, unsigned long *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_ulong,
-				   &fops_ulong_ro, &fops_ulong_wo);
+	return debugfs_create_mode_unsafe(name, mode, parent, value,
+					&fops_ulong, &fops_ulong_ro,
+					&fops_ulong_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_ulong);
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_x8, debugfs_u8_get, debugfs_u8_set, "0x%02llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_x8_ro, debugfs_u8_get, NULL, "0x%02llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_x8_wo, NULL, debugfs_u8_set, "0x%02llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x8, debugfs_u8_get, debugfs_u8_set, "0x%02llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x8_ro, debugfs_u8_get, NULL, "0x%02llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x8_wo, NULL, debugfs_u8_set, "0x%02llx\n");
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_x16, debugfs_u16_get, debugfs_u16_set, "0x%04llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_x16_ro, debugfs_u16_get, NULL, "0x%04llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_x16_wo, NULL, debugfs_u16_set, "0x%04llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x16, debugfs_u16_get, debugfs_u16_set,
+			"0x%04llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x16_ro, debugfs_u16_get, NULL, "0x%04llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x16_wo, NULL, debugfs_u16_set, "0x%04llx\n");
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_x32, debugfs_u32_get, debugfs_u32_set, "0x%08llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_x32_ro, debugfs_u32_get, NULL, "0x%08llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_x32_wo, NULL, debugfs_u32_set, "0x%08llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x32, debugfs_u32_get, debugfs_u32_set,
+			"0x%08llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x32_ro, debugfs_u32_get, NULL, "0x%08llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x32_wo, NULL, debugfs_u32_set, "0x%08llx\n");
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_x64, debugfs_u64_get, debugfs_u64_set, "0x%016llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_x64_ro, debugfs_u64_get, NULL, "0x%016llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_x64_wo, NULL, debugfs_u64_set, "0x%016llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x64, debugfs_u64_get, debugfs_u64_set,
+			"0x%016llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x64_ro, debugfs_u64_get, NULL, "0x%016llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_x64_wo, NULL, debugfs_u64_set, "0x%016llx\n");
 
 /*
  * debugfs_create_x{8,16,32,64} - create a debugfs file that is used to read and write an unsigned {8,16,32,64}-bit value
@@ -328,7 +638,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_x64_wo, NULL, debugfs_u64_set, "0x%016llx\n");
 struct dentry *debugfs_create_x8(const char *name, umode_t mode,
 				 struct dentry *parent, u8 *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_x8,
+	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_x8,
 				   &fops_x8_ro, &fops_x8_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_x8);
@@ -346,7 +656,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_x8);
 struct dentry *debugfs_create_x16(const char *name, umode_t mode,
 				 struct dentry *parent, u16 *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_x16,
+	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_x16,
 				   &fops_x16_ro, &fops_x16_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_x16);
@@ -364,7 +674,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_x16);
 struct dentry *debugfs_create_x32(const char *name, umode_t mode,
 				 struct dentry *parent, u32 *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_x32,
+	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_x32,
 				   &fops_x32_ro, &fops_x32_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_x32);
@@ -382,7 +692,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_x32);
 struct dentry *debugfs_create_x64(const char *name, umode_t mode,
 				 struct dentry *parent, u64 *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_x64,
+	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_x64,
 				   &fops_x64_ro, &fops_x64_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_x64);
@@ -398,10 +708,10 @@ static int debugfs_size_t_get(void *data, u64 *val)
 	*val = *(size_t *)data;
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_size_t, debugfs_size_t_get, debugfs_size_t_set,
-			"%llu\n");	/* %llu and %zu are more or less the same */
-DEFINE_SIMPLE_ATTRIBUTE(fops_size_t_ro, debugfs_size_t_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_size_t_wo, NULL, debugfs_size_t_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_size_t, debugfs_size_t_get, debugfs_size_t_set,
+			"%llu\n"); /* %llu and %zu are more or less the same */
+DEFINE_DEBUGFS_ATTRIBUTE(fops_size_t_ro, debugfs_size_t_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_size_t_wo, NULL, debugfs_size_t_set, "%llu\n");
 
 /**
  * debugfs_create_size_t - create a debugfs file that is used to read and write an size_t value
@@ -416,8 +726,9 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_size_t_wo, NULL, debugfs_size_t_set, "%llu\n");
 struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
 				     struct dentry *parent, size_t *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_size_t,
-				   &fops_size_t_ro, &fops_size_t_wo);
+	return debugfs_create_mode_unsafe(name, mode, parent, value,
+					&fops_size_t, &fops_size_t_ro,
+					&fops_size_t_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_size_t);
 
@@ -431,10 +742,12 @@ static int debugfs_atomic_t_get(void *data, u64 *val)
 	*val = atomic_read((atomic_t *)data);
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t, debugfs_atomic_t_get,
+DEFINE_DEBUGFS_ATTRIBUTE(fops_atomic_t, debugfs_atomic_t_get,
 			debugfs_atomic_t_set, "%lld\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t_ro, debugfs_atomic_t_get, NULL, "%lld\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t_wo, NULL, debugfs_atomic_t_set, "%lld\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_atomic_t_ro, debugfs_atomic_t_get, NULL,
+			"%lld\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_atomic_t_wo, NULL, debugfs_atomic_t_set,
+			"%lld\n");
 
 /**
  * debugfs_create_atomic_t - create a debugfs file that is used to read and
@@ -450,8 +763,9 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t_wo, NULL, debugfs_atomic_t_set, "%lld\n");
 struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
 				 struct dentry *parent, atomic_t *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_atomic_t,
-				   &fops_atomic_t_ro, &fops_atomic_t_wo);
+	return debugfs_create_mode_unsafe(name, mode, parent, value,
+					&fops_atomic_t, &fops_atomic_t_ro,
+					&fops_atomic_t_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_atomic_t);
 
@@ -459,9 +773,17 @@ ssize_t debugfs_read_file_bool(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	char buf[3];
-	bool *val = file->private_data;
+	bool val;
+	int r;
+	struct dentry *dentry = F_DENTRY(file);
 
-	if (*val)
+	r = debugfs_file_get(dentry);
+	if (unlikely(r))
+		return r;
+	val = *(bool *)file->private_data;
+	debugfs_file_put(dentry);
+
+	if (val)
 		buf[0] = 'Y';
 	else
 		buf[0] = 'N';
@@ -474,18 +796,19 @@ EXPORT_SYMBOL_GPL(debugfs_read_file_bool);
 ssize_t debugfs_write_file_bool(struct file *file, const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	char buf[32];
-	size_t buf_size;
 	bool bv;
+	int r;
 	bool *val = file->private_data;
+	struct dentry *dentry = F_DENTRY(file);
 
-	buf_size = min(count, (sizeof(buf)-1));
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-	if (strtobool(buf, &bv) == 0)
+	r = kstrtobool_from_user(user_buf, count, &bv);
+	if (!r) {
+		r = debugfs_file_get(dentry);
+		if (unlikely(r))
+			return r;
 		*val = bv;
+		debugfs_file_put(dentry);
+	}
 
 	return count;
 }
@@ -537,7 +860,7 @@ static const struct file_operations fops_bool_wo = {
 struct dentry *debugfs_create_bool(const char *name, umode_t mode,
 				   struct dentry *parent, bool *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_bool,
+	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_bool,
 				   &fops_bool_ro, &fops_bool_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_bool);
@@ -546,8 +869,16 @@ static ssize_t read_file_blob(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
 	struct debugfs_blob_wrapper *blob = file->private_data;
-	return simple_read_from_buffer(user_buf, count, ppos, blob->data,
-			blob->size);
+	struct dentry *dentry = F_DENTRY(file);
+	ssize_t r;
+
+	r = debugfs_file_get(dentry);
+	if (unlikely(r))
+		return r;
+	r = simple_read_from_buffer(user_buf, count, ppos, blob->data,
+				blob->size);
+	debugfs_file_put(dentry);
+	return r;
 }
 
 static const struct file_operations fops_blob = {
@@ -584,7 +915,7 @@ struct dentry *debugfs_create_blob(const char *name, umode_t mode,
 				   struct dentry *parent,
 				   struct debugfs_blob_wrapper *blob)
 {
-	return debugfs_create_file(name, mode, parent, blob, &fops_blob);
+	return debugfs_create_file_unsafe(name, mode, parent, blob, &fops_blob);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_blob);
 
@@ -689,7 +1020,8 @@ struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
 	data->array = array;
 	data->elements = elements;
 
-	return debugfs_create_file(name, mode, parent, data, &u32_array_fops);
+	return debugfs_create_file_unsafe(name, mode, parent, data,
+					&u32_array_fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u32_array);
 

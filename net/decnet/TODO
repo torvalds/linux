@@ -16,14 +16,14 @@ Steve's quick list of things that need finishing off:
 
  o Verify errors etc. against POSIX 1003.1g (draft)
 
- o Using send/recvmsg() to get at connect/disconnect data (POSIX 1003.1g) 
+ o Using send/recvmsg() to get at connect/disconnect data (POSIX 1003.1g)
    [maybe this should be done at socket level... the control data in the
     send/recvmsg() calls should simply be a vector of set/getsockopt()
     calls]
 
  o check MSG_CTRUNC is set where it should be.
 
- o Find all the commonality between DECnet and IPv4 routing code and extract 
+ o Find all the commonality between DECnet and IPv4 routing code and extract
    it into a small library of routines. [probably a project for 2.7.xx]
 
  o Add perfect socket hashing - an idea suggested by Paul Koning. Currently
@@ -38,4 +38,3 @@ Steve's quick list of things that need finishing off:
  o DECnet sendpages() function
 
  o AIO for DECnet
-

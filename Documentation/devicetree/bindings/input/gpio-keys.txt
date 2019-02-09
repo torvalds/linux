@@ -1,4 +1,4 @@
-Device-Tree bindings for input/gpio_keys.c keyboard driver
+Device-Tree bindings for input/keyboard/gpio_keys.c keyboard driver
 
 Required properties:
 	- compatible = "gpio-keys";
@@ -6,6 +6,7 @@ Required properties:
 Optional properties:
 	- autorepeat: Boolean, Enable auto repeat feature of Linux input
 	  subsystem.
+	- label: String, name of the input device.
 
 Each button (key) is represented as a sub-node of "gpio-keys":
 Subnode properties:
@@ -25,23 +26,31 @@ Optional subnode-properties:
 	  If not specified defaults to 5.
 	- wakeup-source: Boolean, button can wake-up the system.
 			 (Legacy property supported: "gpio-key,wakeup")
+	- wakeup-event-action: Specifies whether the key should wake the
+	  system when asserted, when deasserted, or both. This property is
+	  only valid for keys that wake up the system (e.g., when the
+	  "wakeup-source" property is also provided).
+	  Supported values are defined in linux-event-codes.h:
+		EV_ACT_ASSERTED		- asserted
+		EV_ACT_DEASSERTED	- deasserted
+		EV_ACT_ANY		- both asserted and deasserted
 	- linux,can-disable: Boolean, indicates that button is connected
 	  to dedicated (not shared) interrupt which can be disabled to
 	  suppress events from the button.
 
 Example nodes:
 
-	gpio_keys {
+	gpio-keys {
 			compatible = "gpio-keys";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			autorepeat;
-			button@21 {
+
+			up {
 				label = "GPIO Key UP";
 				linux,code = <103>;
 				gpios = <&gpio1 0 1>;
 			};
-			button@22 {
+
+			down {
 				label = "GPIO Key DOWN";
 				linux,code = <108>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;

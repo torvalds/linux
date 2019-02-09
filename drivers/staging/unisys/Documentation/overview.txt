@@ -137,12 +137,6 @@ called automatically by the visorbus driver at appropriate times:
 
 * The resume() function is the "book-end" to pause(), and is described above.
 
-If/when a function driver creates a Linux device (that needs to be accessed
-from usermode), it calls visorbus_registerdevnode(), passing the major and
-minor number of the device.  (Of course not all function drivers will need
-to do this.)  This simply creates the appropriate "devmajorminor" sysfs entry
-described below, so that a hotplug script can use it to create a device node.
-
 2.1.3. sysfs Advertised Information
 -----------------------------------
 
@@ -197,19 +191,6 @@ The following files exist under /sys/devices/visorbus<x>/vbus<x>:dev<y>:
                               if the appropriate function driver has not
                               been loaded yet.
 
-    devmajorminor
-
-        <devname>             if applicable, each file here identifies (via
-        ...                   its file contents) the
-                              "<major>:<minor>" needed for a device node to
-                              enable access from usermode.  There is exactly
-                              one file here for each different device node
-                              that can be accessed (from usermode).  Note
-                              that this info is provided by a particular
-                              function driver, so these will not exist
-                              until AFTER the appropriate function driver
-                              controlling this device class is loaded.
-
     channel                   properties of the device channel (all in
                               ascii text format)
 
@@ -240,7 +221,7 @@ The following files exist under /sys/devices/visorbus<x>/vbus<x>:dev<y>:
 
 The visorhba driver registers with visorbus as the function driver to
 handle virtual scsi disk devices, specified using the
-SPAR_VHBA_CHANNEL_PROTOCOL_UUID type in the visorbus_register_visor_driver()
+VISOR_VHBA_CHANNEL_GUID type in the visorbus_register_visor_driver()
 call. visorhba uses scsi_add_host() to expose a Linux block device
 (e.g., /sys/block/) in the guest environment for each s-Par virtual device.
 
@@ -259,7 +240,7 @@ When compiled as a module, visorhba can be autoloaded by visorbus in
 standard udev/systemd environments, as it includes the modules.alias
 definition:
 
-    "visorbus:"+SPAR_VHBA_CHANNEL_PROTOCOL_UUID_STR
+    "visorbus:"+VISOR_VHBA_CHANNEL_GUID_STR
 
 i.e.:
 
@@ -271,7 +252,7 @@ i.e.:
 
 The visornic driver registers with visorbus as the function driver to
 handle virtual network devices, specified using the
-SPAR_VNIC_CHANNEL_PROTOCOL_UUID type in the visorbus_register_visor_driver()
+VISOR_VNIC_CHANNEL_GUID type in the visorbus_register_visor_driver()
 call. visornic uses register_netdev() to expose a Linux device of class net
 (e.g., /sys/class/net/) in the guest environment for each s-Par virtual
 device.
@@ -289,7 +270,7 @@ When compiled as a module, visornic can be autoloaded by visorbus in
 standard udev/systemd environments, as it includes the modules.alias
 definition:
 
-    "visorbus:"+SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR
+    "visorbus:"+VISOR_VNIC_CHANNEL_GUID_STR
 
 i.e.:
 
@@ -301,7 +282,7 @@ i.e.:
 
 The visorinput driver registers with visorbus as the function driver to
 handle human input devices, specified using the
-SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID and SPAR_MOUSE_CHANNEL_PROTOCOL_UUID
+VISOR_KEYBOARD_CHANNEL_GUID and VISOR_MOUSE_CHANNEL_GUID
 types in the visorbus_register_visor_driver() call. visorinput uses
 input_register_device() to expose devices of class input
 (e.g., /sys/class/input/) for virtual keyboard and virtual mouse devices.
@@ -326,8 +307,8 @@ When compiled as a module, visorinput can be autoloaded by visorbus in
 standard udev/systemd environments, as it includes the modules.alias
 definition:
 
-    "visorbus:"+SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR
-    "visorbus:"+SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR
+    "visorbus:"+VISOR_MOUSE_CHANNEL_GUID_STR
+    "visorbus:"+VISOR_KEYBOARD_CHANNEL_GUID_STR
 
 i.e.:
 

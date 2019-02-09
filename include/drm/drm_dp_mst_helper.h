@@ -24,6 +24,7 @@
 
 #include <linux/types.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_atomic.h>
 
 struct drm_dp_mst_branch;
 
@@ -44,8 +45,6 @@ struct drm_dp_vcpi {
 /**
  * struct drm_dp_mst_port - MST port
  * @kref: reference count for this port.
- * @guid_valid: for DP 1.2 devices if we have validated the GUID.
- * @guid: guid for DP 1.2 device on this port.
  * @port_num: port number
  * @input: if this port is an input port.
  * @mcs: message capability status - DP 1.2 spec.
@@ -70,10 +69,6 @@ struct drm_dp_vcpi {
 struct drm_dp_mst_port {
 	struct kref kref;
 
-	/* if dpcd 1.2 device is on this port - its GUID info */
-	bool guid_valid;
-	u8 guid[16];
-
 	u8 port_num;
 	bool input;
 	bool mcs;
@@ -93,7 +88,16 @@ struct drm_dp_mst_port {
 	struct drm_connector *connector;
 	struct drm_dp_mst_topology_mgr *mgr;
 
-	struct edid *cached_edid; /* for DP logical ports - make tiling work */
+	/**
+	 * @cached_edid: for DP logical ports - make tiling work by ensuring
+	 * that the EDID for all connectors is read immediately.
+	 */
+	struct edid *cached_edid;
+	/**
+	 * @has_audio: Tracks whether the sink connector to this port is
+	 * audio-capable.
+	 */
+	bool has_audio;
 };
 
 /**
@@ -109,10 +113,12 @@ struct drm_dp_mst_port {
  * @tx_slots: transmission slots for this device.
  * @last_seqno: last sequence number used to talk to this.
  * @link_address_sent: if a link address message has been sent to this device yet.
+ * @guid: guid for DP 1.2 branch device. port under this branch can be
+ * identified by port #.
  *
  * This structure represents an MST branch device, there is one
- * primary branch device at the root, along with any others connected
- * to downstream ports
+ * primary branch device at the root, along with any other branches connected
+ * to downstream port of parent branches.
  */
 struct drm_dp_mst_branch {
 	struct kref kref;
@@ -131,6 +137,9 @@ struct drm_dp_mst_branch {
 	struct drm_dp_sideband_msg_tx *tx_slots[2];
 	int last_seqno;
 	bool link_address_sent;
+
+	/* global unique identifier to identify branch devices */
+	u8 guid[16];
 };
 
 
@@ -215,13 +224,13 @@ struct drm_dp_sideband_msg_rx {
 	struct drm_dp_sideband_msg_hdr initial_hdr;
 };
 
-
+#define DRM_DP_MAX_SDP_STREAMS 16
 struct drm_dp_allocate_payload {
 	u8 port_number;
 	u8 number_sdp_streams;
 	u8 vcpi;
 	u16 pbn;
-	u8 sdp_stream_sink[8];
+	u8 sdp_stream_sink[DRM_DP_MAX_SDP_STREAMS];
 };
 
 struct drm_dp_allocate_payload_ack_reply {
@@ -395,83 +404,176 @@ struct drm_dp_payload {
 	int vcpi;
 };
 
+#define to_dp_mst_topology_state(x) container_of(x, struct drm_dp_mst_topology_state, base)
+
+struct drm_dp_mst_topology_state {
+	struct drm_private_state base;
+	int avail_slots;
+	struct drm_atomic_state *state;
+	struct drm_dp_mst_topology_mgr *mgr;
+};
+
+#define to_dp_mst_topology_mgr(x) container_of(x, struct drm_dp_mst_topology_mgr, base)
+
 /**
  * struct drm_dp_mst_topology_mgr - DisplayPort MST manager
- * @dev: device pointer for adding i2c devices etc.
- * @cbs: callbacks for connector addition and destruction.
- * @max_dpcd_transaction_bytes - maximum number of bytes to read/write in one go.
- * @aux: aux channel for the DP connector.
- * @max_payloads: maximum number of payloads the GPU can generate.
- * @conn_base_id: DRM connector ID this mgr is connected to.
- * @down_rep_recv: msg receiver state for down replies.
- * @up_req_recv: msg receiver state for up requests.
- * @lock: protects mst state, primary, guid, dpcd.
- * @mst_state: if this manager is enabled for an MST capable port.
- * @mst_primary: pointer to the primary branch device.
- * @guid_valid: GUID valid for the primary branch device.
- * @guid: GUID for primary port.
- * @dpcd: cache of DPCD for primary port.
- * @pbn_div: PBN to slots divisor.
  *
  * This struct represents the toplevel displayport MST topology manager.
  * There should be one instance of this for every MST capable DP connector
  * on the GPU.
  */
 struct drm_dp_mst_topology_mgr {
+	/**
+	 * @base: Base private object for atomic
+	 */
+	struct drm_private_obj base;
 
-	struct device *dev;
-	struct drm_dp_mst_topology_cbs *cbs;
+	/**
+	 * @dev: device pointer for adding i2c devices etc.
+	 */
+	struct drm_device *dev;
+	/**
+	 * @cbs: callbacks for connector addition and destruction.
+	 */
+	const struct drm_dp_mst_topology_cbs *cbs;
+	/**
+	 * @max_dpcd_transaction_bytes: maximum number of bytes to read/write
+	 * in one go.
+	 */
 	int max_dpcd_transaction_bytes;
-	struct drm_dp_aux *aux; /* auxch for this topology mgr to use */
+	/**
+	 * @aux: AUX channel for the DP MST connector this topolgy mgr is
+	 * controlling.
+	 */
+	struct drm_dp_aux *aux;
+	/**
+	 * @max_payloads: maximum number of payloads the GPU can generate.
+	 */
 	int max_payloads;
+	/**
+	 * @conn_base_id: DRM connector ID this mgr is connected to. Only used
+	 * to build the MST connector path value.
+	 */
 	int conn_base_id;
 
-	/* only ever accessed from the workqueue - which should be serialised */
+	/**
+	 * @down_rep_recv: Message receiver state for down replies. This and
+	 * @up_req_recv are only ever access from the work item, which is
+	 * serialised.
+	 */
 	struct drm_dp_sideband_msg_rx down_rep_recv;
+	/**
+	 * @up_req_recv: Message receiver state for up requests. This and
+	 * @down_rep_recv are only ever access from the work item, which is
+	 * serialised.
+	 */
 	struct drm_dp_sideband_msg_rx up_req_recv;
 
-	/* pointer to info about the initial MST device */
-	struct mutex lock; /* protects mst_state + primary + guid + dpcd */
+	/**
+	 * @lock: protects mst state, primary, dpcd.
+	 */
+	struct mutex lock;
 
+	/**
+	 * @mst_state: If this manager is enabled for an MST capable port. False
+	 * if no MST sink/branch devices is connected.
+	 */
 	bool mst_state;
+	/**
+	 * @mst_primary: Pointer to the primary/first branch device.
+	 */
 	struct drm_dp_mst_branch *mst_primary;
-	/* primary MST device GUID */
-	bool guid_valid;
-	u8 guid[16];
+
+	/**
+	 * @dpcd: Cache of DPCD for primary port.
+	 */
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
+	/**
+	 * @sink_count: Sink count from DEVICE_SERVICE_IRQ_VECTOR_ESI0.
+	 */
 	u8 sink_count;
+	/**
+	 * @pbn_div: PBN to slots divisor.
+	 */
 	int pbn_div;
-	int total_slots;
-	int avail_slots;
-	int total_pbn;
 
-	/* messages to be transmitted */
-	/* qlock protects the upq/downq and in_progress,
-	   the mstb tx_slots and txmsg->state once they are queued */
+	/**
+	 * @state: State information for topology manager
+	 */
+	struct drm_dp_mst_topology_state *state;
+
+	/**
+	 * @funcs: Atomic helper callbacks
+	 */
+	const struct drm_private_state_funcs *funcs;
+
+	/**
+	 * @qlock: protects @tx_msg_downq, the &drm_dp_mst_branch.txslost and
+	 * &drm_dp_sideband_msg_tx.state once they are queued
+	 */
 	struct mutex qlock;
+	/**
+	 * @tx_msg_downq: List of pending down replies.
+	 */
 	struct list_head tx_msg_downq;
-	struct list_head tx_msg_upq;
-	bool tx_down_in_progress;
-	bool tx_up_in_progress;
 
-	/* payload info + lock for it */
+	/**
+	 * @payload_lock: Protect payload information.
+	 */
 	struct mutex payload_lock;
+	/**
+	 * @proposed_vcpis: Array of pointers for the new VCPI allocation. The
+	 * VCPI structure itself is &drm_dp_mst_port.vcpi.
+	 */
 	struct drm_dp_vcpi **proposed_vcpis;
+	/**
+	 * @payloads: Array of payloads.
+	 */
 	struct drm_dp_payload *payloads;
+	/**
+	 * @payload_mask: Elements of @payloads actually in use. Since
+	 * reallocation of active outputs isn't possible gaps can be created by
+	 * disabling outputs out of order compared to how they've been enabled.
+	 */
 	unsigned long payload_mask;
+	/**
+	 * @vcpi_mask: Similar to @payload_mask, but for @proposed_vcpis.
+	 */
 	unsigned long vcpi_mask;
 
+	/**
+	 * @tx_waitq: Wait to queue stall for the tx worker.
+	 */
 	wait_queue_head_t tx_waitq;
+	/**
+	 * @work: Probe work.
+	 */
 	struct work_struct work;
-
+	/**
+	 * @tx_work: Sideband transmit worker. This can nest within the main
+	 * @work worker for each transaction @work launches.
+	 */
 	struct work_struct tx_work;
 
+	/**
+	 * @destroy_connector_list: List of to be destroyed connectors.
+	 */
 	struct list_head destroy_connector_list;
+	/**
+	 * @destroy_connector_lock: Protects @connector_list.
+	 */
 	struct mutex destroy_connector_lock;
+	/**
+	 * @destroy_connector_work: Work item to destroy connectors. Needed to
+	 * avoid locking inversion.
+	 */
 	struct work_struct destroy_connector_work;
 };
 
-int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr, struct device *dev, struct drm_dp_aux *aux, int max_dpcd_transaction_bytes, int max_payloads, int conn_base_id);
+int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_device *dev, struct drm_dp_aux *aux,
+				 int max_dpcd_transaction_bytes,
+				 int max_payloads, int conn_base_id);
 
 void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr);
 
@@ -484,13 +586,16 @@ int drm_dp_mst_hpd_irq(struct drm_dp_mst_topology_mgr *mgr, u8 *esi, bool *handl
 
 enum drm_connector_status drm_dp_mst_detect_port(struct drm_connector *connector, struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
+bool drm_dp_mst_port_has_audio(struct drm_dp_mst_topology_mgr *mgr,
+					struct drm_dp_mst_port *port);
 struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
 
 int drm_dp_calc_pbn_mode(int clock, int bpp);
 
 
-bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, int pbn, int *slots);
+bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
+			      struct drm_dp_mst_port *port, int pbn, int slots);
 
 int drm_dp_mst_get_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
@@ -518,4 +623,15 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 
 void drm_dp_mst_topology_mgr_suspend(struct drm_dp_mst_topology_mgr *mgr);
 int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr);
+struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
+								    struct drm_dp_mst_topology_mgr *mgr);
+int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
+				  struct drm_dp_mst_topology_mgr *mgr,
+				  struct drm_dp_mst_port *port, int pbn);
+int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
+				     struct drm_dp_mst_topology_mgr *mgr,
+				     int slots);
+int drm_dp_send_power_updown_phy(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_dp_mst_port *port, bool power_up);
+
 #endif

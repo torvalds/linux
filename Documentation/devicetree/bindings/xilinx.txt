@@ -49,7 +49,7 @@
    followed by an older IP core version which implements the same
    interface or any other device with the same interface.
 
-   'reg', 'interrupt-parent' and 'interrupts' are all optional properties.
+   'reg' and 'interrupts' are all optional properties.
 
    For example, the following block from system.mhs:
 
@@ -281,6 +281,8 @@
                       capabilities of the underlying ICAP hardware
                       differ between different families.  May be
                       'virtex2p', 'virtex4', or 'virtex5'.
+		- compatible : should contain "xlnx,xps-hwicap-1.00.a" or
+				"xlnx,opb-hwicap-1.00.b".
 
       vi) Xilinx Uart 16550
 

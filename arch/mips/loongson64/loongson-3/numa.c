@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/nodemask.h>
 #include <linux/swap.h>
 #include <linux/memblock.h>
@@ -166,7 +166,7 @@ static void __init szmem(unsigned int node)
 			memblock_add_node(PFN_PHYS(start_pfn),
 				PFN_PHYS(end_pfn - start_pfn), node);
 			break;
-		case MEM_RESERVED:
+		case SYSTEM_RAM_RESERVED:
 			pr_info("Node%d: mem_type:%d, mem_start:0x%llx, mem_size:0x%llx MB\n",
 				(u32)node_id, mem_type, mem_start, mem_size);
 			add_memory_region((node_id << 44) + mem_start,
@@ -213,10 +213,10 @@ static void __init node_mem_init(unsigned int node)
 		BOOTMEM_DEFAULT);
 
 	if (node == 0 && node_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT)) {
-		/* Reserve 0xff800000~0xffffffff for RS780E integrated GPU */
+		/* Reserve 0xfe000000~0xffffffff for RS780E integrated GPU */
 		reserve_bootmem_node(NODE_DATA(node),
-				(node_addrspace_offset | 0xff800000),
-				8 << 20, BOOTMEM_DEFAULT);
+				(node_addrspace_offset | 0xfe000000),
+				32 << 20, BOOTMEM_DEFAULT);
 	}
 
 	sparse_memory_present_with_active_regions(node);

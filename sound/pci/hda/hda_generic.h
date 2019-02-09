@@ -86,6 +86,16 @@ struct badness_table {
 extern const struct badness_table hda_main_out_badness;
 extern const struct badness_table hda_extra_out_badness;
 
+struct hda_micmute_hook {
+	unsigned int led_mode;
+	unsigned int capture;
+	unsigned int led_value;
+	void (*update)(struct hda_codec *codec);
+	void (*old_hook)(struct hda_codec *codec,
+			 struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_value *ucontrol);
+};
+
 struct hda_gen_spec {
 	char stream_name_analog[32];	/* analog PCM stream */
 	const struct hda_pcm_stream *stream_analog_playback;
@@ -229,6 +239,7 @@ struct hda_gen_spec {
 	unsigned int add_jack_modes:1; /* add i/o jack mode enum ctls */
 	unsigned int power_down_unused:1; /* power down unused widgets */
 	unsigned int dac_min_mute:1; /* minimal = mute for DACs */
+	unsigned int suppress_vmaster:1; /* don't create vmaster kctls */
 
 	/* other internal flags */
 	unsigned int no_analog:1; /* digital I/O only */
@@ -275,6 +286,9 @@ struct hda_gen_spec {
 			      struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol);
 
+	/* mic mute LED hook; called via cap_sync_hook */
+	struct hda_micmute_hook micmute_led;
+
 	/* PCM hooks */
 	void (*pcm_playback_hook)(struct hda_pcm_stream *hinfo,
 				  struct hda_codec *codec,
@@ -306,13 +320,8 @@ int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
 int snd_hda_gen_init(struct hda_codec *codec);
 void snd_hda_gen_free(struct hda_codec *codec);
 
-struct nid_path *snd_hda_get_nid_path(struct hda_codec *codec,
-				      hda_nid_t from_nid, hda_nid_t to_nid);
 int snd_hda_get_path_idx(struct hda_codec *codec, struct nid_path *path);
 struct nid_path *snd_hda_get_path_from_idx(struct hda_codec *codec, int idx);
-bool snd_hda_parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
-			    hda_nid_t to_nid, int anchor_nid,
-			    struct nid_path *path);
 struct nid_path *
 snd_hda_add_new_path(struct hda_codec *codec, hda_nid_t from_nid,
 		     hda_nid_t to_nid, int anchor_nid);
@@ -345,5 +354,8 @@ unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 					   unsigned int power_state);
 void snd_hda_gen_stream_pm(struct hda_codec *codec, hda_nid_t nid, bool on);
 int snd_hda_gen_fix_pin_power(struct hda_codec *codec, hda_nid_t pin);
+
+int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
+				void (*hook)(struct hda_codec *));
 
 #endif /* __SOUND_HDA_GENERIC_H */

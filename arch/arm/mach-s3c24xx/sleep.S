@@ -1,5 +1,5 @@
-/* linux/arch/arm/plat-s3c24xx/sleep.S
- *
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
  * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -8,21 +8,7 @@
  * Based on PXA/SA1100 sleep code by:
  *	Nicolas Pitre, (c) 2002 Monta Vista Software Inc
  *	Cliff Brake, (c) 2001
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+ */
 
 #include <linux/linkage.h>
 #include <linux/serial_s3c.h>
@@ -33,10 +19,11 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
 
-/* CONFIG_DEBUG_RESUME is dangerous if your bootloader does not
+/*
+ * S3C24XX_DEBUG_RESUME is dangerous if your bootloader does not
  * reset the UART configuration, only enable if you really need this!
-*/
-//#define CONFIG_DEBUG_RESUME
+ */
+//#define S3C24XX_DEBUG_RESUME
 
 	.text
 
@@ -71,13 +58,13 @@ ENTRY(s3c_cpu_resume)
 	str	r12, [ r14, #0x54 ]
 #endif
 
-#ifdef CONFIG_DEBUG_RESUME
+#ifdef S3C24XX_DEBUG_RESUME
 	mov	r3, #'L'
 	strb	r3, [ r2, #S3C2410_UTXH ]
 1001:
 	ldrb	r14, [ r3, #S3C2410_UTRSTAT ]
 	tst	r14, #S3C2410_UTRSTAT_TXE
 	beq	1001b
-#endif /* CONFIG_DEBUG_RESUME */
+#endif /* S3C24XX_DEBUG_RESUME */
 
 	b	cpu_resume

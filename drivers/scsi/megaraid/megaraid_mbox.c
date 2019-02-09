@@ -341,8 +341,6 @@ static struct scsi_host_template megaraid_template_g = {
 	.proc_name			= "megaraid",
 	.queuecommand			= megaraid_queue_command,
 	.eh_abort_handler		= megaraid_abort_handler,
-	.eh_device_reset_handler	= megaraid_reset_handler,
-	.eh_bus_reset_handler		= megaraid_reset_handler,
 	.eh_host_reset_handler		= megaraid_reset_handler,
 	.change_queue_depth		= scsi_change_queue_depth,
 	.use_clustering			= ENABLE_CLUSTERING,
@@ -1153,8 +1151,8 @@ megaraid_mbox_setup_dma_pools(adapter_t *adapter)
 
 
 	// Allocate memory for 16-bytes aligned mailboxes
-	raid_dev->mbox_pool_handle = pci_pool_create("megaraid mbox pool",
-						adapter->pdev,
+	raid_dev->mbox_pool_handle = dma_pool_create("megaraid mbox pool",
+						&adapter->pdev->dev,
 						sizeof(mbox64_t) + 16,
 						16, 0);
 
@@ -1164,7 +1162,7 @@ megaraid_mbox_setup_dma_pools(adapter_t *adapter)
 
 	mbox_pci_blk = raid_dev->mbox_pool;
 	for (i = 0; i < MBOX_MAX_SCSI_CMDS; i++) {
-		mbox_pci_blk[i].vaddr = pci_pool_alloc(
+		mbox_pci_blk[i].vaddr = dma_pool_alloc(
 						raid_dev->mbox_pool_handle,
 						GFP_KERNEL,
 						&mbox_pci_blk[i].dma_addr);
@@ -1181,8 +1179,8 @@ megaraid_mbox_setup_dma_pools(adapter_t *adapter)
 	 * share common memory pool. Passthru structures piggyback on memory
 	 * allocted to extended passthru since passthru is smaller of the two
 	 */
-	raid_dev->epthru_pool_handle = pci_pool_create("megaraid mbox pthru",
-			adapter->pdev, sizeof(mraid_epassthru_t), 128, 0);
+	raid_dev->epthru_pool_handle = dma_pool_create("megaraid mbox pthru",
+			&adapter->pdev->dev, sizeof(mraid_epassthru_t), 128, 0);
 
 	if (raid_dev->epthru_pool_handle == NULL) {
 		goto fail_setup_dma_pool;
@@ -1190,7 +1188,7 @@ megaraid_mbox_setup_dma_pools(adapter_t *adapter)
 
 	epthru_pci_blk = raid_dev->epthru_pool;
 	for (i = 0; i < MBOX_MAX_SCSI_CMDS; i++) {
-		epthru_pci_blk[i].vaddr = pci_pool_alloc(
+		epthru_pci_blk[i].vaddr = dma_pool_alloc(
 						raid_dev->epthru_pool_handle,
 						GFP_KERNEL,
 						&epthru_pci_blk[i].dma_addr);
@@ -1202,8 +1200,8 @@ megaraid_mbox_setup_dma_pools(adapter_t *adapter)
 
 	// Allocate memory for each scatter-gather list. Request for 512 bytes
 	// alignment for each sg list
-	raid_dev->sg_pool_handle = pci_pool_create("megaraid mbox sg",
-					adapter->pdev,
+	raid_dev->sg_pool_handle = dma_pool_create("megaraid mbox sg",
+					&adapter->pdev->dev,
 					sizeof(mbox_sgl64) * MBOX_MAX_SG_SIZE,
 					512, 0);
 
@@ -1213,7 +1211,7 @@ megaraid_mbox_setup_dma_pools(adapter_t *adapter)
 
 	sg_pci_blk = raid_dev->sg_pool;
 	for (i = 0; i < MBOX_MAX_SCSI_CMDS; i++) {
-		sg_pci_blk[i].vaddr = pci_pool_alloc(
+		sg_pci_blk[i].vaddr = dma_pool_alloc(
 						raid_dev->sg_pool_handle,
 						GFP_KERNEL,
 						&sg_pci_blk[i].dma_addr);
@@ -1249,29 +1247,29 @@ megaraid_mbox_teardown_dma_pools(adapter_t *adapter)
 
 	sg_pci_blk = raid_dev->sg_pool;
 	for (i = 0; i < MBOX_MAX_SCSI_CMDS && sg_pci_blk[i].vaddr; i++) {
-		pci_pool_free(raid_dev->sg_pool_handle, sg_pci_blk[i].vaddr,
+		dma_pool_free(raid_dev->sg_pool_handle, sg_pci_blk[i].vaddr,
 			sg_pci_blk[i].dma_addr);
 	}
 	if (raid_dev->sg_pool_handle)
-		pci_pool_destroy(raid_dev->sg_pool_handle);
+		dma_pool_destroy(raid_dev->sg_pool_handle);
 
 
 	epthru_pci_blk = raid_dev->epthru_pool;
 	for (i = 0; i < MBOX_MAX_SCSI_CMDS && epthru_pci_blk[i].vaddr; i++) {
-		pci_pool_free(raid_dev->epthru_pool_handle,
+		dma_pool_free(raid_dev->epthru_pool_handle,
 			epthru_pci_blk[i].vaddr, epthru_pci_blk[i].dma_addr);
 	}
 	if (raid_dev->epthru_pool_handle)
-		pci_pool_destroy(raid_dev->epthru_pool_handle);
+		dma_pool_destroy(raid_dev->epthru_pool_handle);
 
 
 	mbox_pci_blk = raid_dev->mbox_pool;
 	for (i = 0; i < MBOX_MAX_SCSI_CMDS && mbox_pci_blk[i].vaddr; i++) {
-		pci_pool_free(raid_dev->mbox_pool_handle,
+		dma_pool_free(raid_dev->mbox_pool_handle,
 			mbox_pci_blk[i].vaddr, mbox_pci_blk[i].dma_addr);
 	}
 	if (raid_dev->mbox_pool_handle)
-		pci_pool_destroy(raid_dev->mbox_pool_handle);
+		dma_pool_destroy(raid_dev->mbox_pool_handle);
 
 	return;
 }
@@ -3906,19 +3904,19 @@ megaraid_sysfs_get_ldmap_done(uioc_t *uioc)
 	wake_up(&raid_dev->sysfs_wait_q);
 }
 
-
 /**
  * megaraid_sysfs_get_ldmap_timeout - timeout handling for get ldmap
- * @data	: timed out packet
+ * @t	: timed out timer
  *
  * Timeout routine to recover and return to application, in case the adapter
  * has stopped responding. A timeout of 60 seconds for this command seems like
  * a good value.
  */
 static void
-megaraid_sysfs_get_ldmap_timeout(unsigned long data)
+megaraid_sysfs_get_ldmap_timeout(struct timer_list *t)
 {
-	uioc_t		*uioc = (uioc_t *)data;
+	struct uioc_timeout *timeout = from_timer(timeout, t, timer);
+	uioc_t		*uioc = timeout->uioc;
 	adapter_t	*adapter = (adapter_t *)uioc->buf_vaddr;
 	mraid_device_t	*raid_dev = ADAP2RAIDDEV(adapter);
 
@@ -3953,8 +3951,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 	mbox64_t		*mbox64;
 	mbox_t			*mbox;
 	char			*raw_mbox;
-	struct timer_list	sysfs_timer;
-	struct timer_list	*timerp;
+	struct uioc_timeout	timeout;
 	caddr_t			ldmap;
 	int			rval = 0;
 
@@ -3990,14 +3987,12 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 	/*
 	 * Setup a timer to recover from a non-responding controller
 	 */
-	timerp	= &sysfs_timer;
-	init_timer(timerp);
+	timeout.uioc = uioc;
+	timer_setup_on_stack(&timeout.timer,
+			     megaraid_sysfs_get_ldmap_timeout, 0);
 
-	timerp->function	= megaraid_sysfs_get_ldmap_timeout;
-	timerp->data		= (unsigned long)uioc;
-	timerp->expires		= jiffies + 60 * HZ;
-
-	add_timer(timerp);
+	timeout.timer.expires		= jiffies + 60 * HZ;
+	add_timer(&timeout.timer);
 
 	/*
 	 * Send the command to the firmware
@@ -4035,7 +4030,8 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 	}
 
 
-	del_timer_sync(timerp);
+	del_timer_sync(&timeout.timer);
+	destroy_timer_on_stack(&timeout.timer);
 
 	mutex_unlock(&raid_dev->sysfs_mtx);
 

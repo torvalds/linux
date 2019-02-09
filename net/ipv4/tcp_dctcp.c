@@ -55,7 +55,7 @@ struct dctcp {
 	u32 dctcp_alpha;
 	u32 next_seq;
 	u32 ce_state;
-	u32 delayed_ack_reserved;
+	u32 loss_cwnd;
 };
 
 static unsigned int dctcp_shift_g __read_mostly = 4; /* g = 1/2^4 */
@@ -95,7 +95,7 @@ static void dctcp_init(struct sock *sk)
 
 		ca->dctcp_alpha = min(dctcp_alpha_on_init, DCTCP_MAX_ALPHA);
 
-		ca->delayed_ack_reserved = 0;
+		ca->loss_cwnd = 0;
 		ca->ce_state = 0;
 
 		dctcp_reset(tp, ca);
@@ -111,9 +111,10 @@ static void dctcp_init(struct sock *sk)
 
 static u32 dctcp_ssthresh(struct sock *sk)
 {
-	const struct dctcp *ca = inet_csk_ca(sk);
+	struct dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
+	ca->loss_cwnd = tp->snd_cwnd;
 	return max(tp->snd_cwnd - ((tp->snd_cwnd * ca->dctcp_alpha) >> 11U), 2U);
 }
 
@@ -128,23 +129,14 @@ static void dctcp_ce_state_0_to_1(struct sock *sk)
 	struct dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	/* State has changed from CE=0 to CE=1 and delayed
-	 * ACK has not sent yet.
-	 */
-	if (!ca->ce_state && ca->delayed_ack_reserved) {
-		u32 tmp_rcv_nxt;
-
-		/* Save current rcv_nxt. */
-		tmp_rcv_nxt = tp->rcv_nxt;
-
-		/* Generate previous ack with CE=0. */
-		tp->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
-		tp->rcv_nxt = ca->prior_rcv_nxt;
-
-		tcp_send_ack(sk);
-
-		/* Recover current rcv_nxt. */
-		tp->rcv_nxt = tmp_rcv_nxt;
+	if (!ca->ce_state) {
+		/* State has changed from CE=0 to CE=1, force an immediate
+		 * ACK to reflect the new CE state. If an ACK was delayed,
+		 * send that first to reflect the prior CE state.
+		 */
+		if (inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER)
+			__tcp_send_ack(sk, ca->prior_rcv_nxt);
+		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_NOW;
 	}
 
 	ca->prior_rcv_nxt = tp->rcv_nxt;
@@ -158,23 +150,14 @@ static void dctcp_ce_state_1_to_0(struct sock *sk)
 	struct dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	/* State has changed from CE=1 to CE=0 and delayed
-	 * ACK has not sent yet.
-	 */
-	if (ca->ce_state && ca->delayed_ack_reserved) {
-		u32 tmp_rcv_nxt;
-
-		/* Save current rcv_nxt. */
-		tmp_rcv_nxt = tp->rcv_nxt;
-
-		/* Generate previous ack with CE=1. */
-		tp->ecn_flags |= TCP_ECN_DEMAND_CWR;
-		tp->rcv_nxt = ca->prior_rcv_nxt;
-
-		tcp_send_ack(sk);
-
-		/* Recover current rcv_nxt. */
-		tp->rcv_nxt = tmp_rcv_nxt;
+	if (ca->ce_state) {
+		/* State has changed from CE=1 to CE=0, force an immediate
+		 * ACK to reflect the new CE state. If an ACK was delayed,
+		 * send that first to reflect the prior CE state.
+		 */
+		if (inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER)
+			__tcp_send_ack(sk, ca->prior_rcv_nxt);
+		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_NOW;
 	}
 
 	ca->prior_rcv_nxt = tp->rcv_nxt;
@@ -245,25 +228,6 @@ static void dctcp_state(struct sock *sk, u8 new_state)
 	}
 }
 
-static void dctcp_update_ack_reserved(struct sock *sk, enum tcp_ca_event ev)
-{
-	struct dctcp *ca = inet_csk_ca(sk);
-
-	switch (ev) {
-	case CA_EVENT_DELAYED_ACK:
-		if (!ca->delayed_ack_reserved)
-			ca->delayed_ack_reserved = 1;
-		break;
-	case CA_EVENT_NON_DELAYED_ACK:
-		if (ca->delayed_ack_reserved)
-			ca->delayed_ack_reserved = 0;
-		break;
-	default:
-		/* Don't care for the rest. */
-		break;
-	}
-}
-
 static void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
 {
 	switch (ev) {
@@ -272,10 +236,6 @@ static void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
 		break;
 	case CA_EVENT_ECN_NO_CE:
 		dctcp_ce_state_1_to_0(sk);
-		break;
-	case CA_EVENT_DELAYED_ACK:
-	case CA_EVENT_NON_DELAYED_ACK:
-		dctcp_update_ack_reserved(sk, ev);
 		break;
 	default:
 		/* Don't care for the rest. */
@@ -293,7 +253,7 @@ static size_t dctcp_get_info(struct sock *sk, u32 ext, int *attr,
 	 */
 	if (ext & (1 << (INET_DIAG_DCTCPINFO - 1)) ||
 	    ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		memset(info, 0, sizeof(struct tcp_dctcp_info));
+		memset(&info->dctcp, 0, sizeof(info->dctcp));
 		if (inet_csk(sk)->icsk_ca_ops != &dctcp_reno) {
 			info->dctcp.dctcp_enabled = 1;
 			info->dctcp.dctcp_ce_state = (u16) ca->ce_state;
@@ -303,9 +263,16 @@ static size_t dctcp_get_info(struct sock *sk, u32 ext, int *attr,
 		}
 
 		*attr = INET_DIAG_DCTCPINFO;
-		return sizeof(*info);
+		return sizeof(info->dctcp);
 	}
 	return 0;
+}
+
+static u32 dctcp_cwnd_undo(struct sock *sk)
+{
+	const struct dctcp *ca = inet_csk_ca(sk);
+
+	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
 }
 
 static struct tcp_congestion_ops dctcp __read_mostly = {
@@ -314,6 +281,7 @@ static struct tcp_congestion_ops dctcp __read_mostly = {
 	.cwnd_event	= dctcp_cwnd_event,
 	.ssthresh	= dctcp_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
+	.undo_cwnd	= dctcp_cwnd_undo,
 	.set_state	= dctcp_state,
 	.get_info	= dctcp_get_info,
 	.flags		= TCP_CONG_NEEDS_ECN,
@@ -324,6 +292,7 @@ static struct tcp_congestion_ops dctcp __read_mostly = {
 static struct tcp_congestion_ops dctcp_reno __read_mostly = {
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
+	.undo_cwnd	= tcp_reno_undo_cwnd,
 	.get_info	= dctcp_get_info,
 	.owner		= THIS_MODULE,
 	.name		= "dctcp-reno",

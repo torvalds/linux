@@ -23,7 +23,6 @@ struct sdhci_pltfm_data {
 
 struct sdhci_pltfm_host {
 	struct clk *clk;
-	void *priv; /* to handle quirks across io-accessor calls */
 
 	/* migrate from sdhci_of_host */
 	unsigned int clock;
@@ -107,16 +106,11 @@ extern unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host);
 
 static inline void *sdhci_pltfm_priv(struct sdhci_pltfm_host *host)
 {
-	return (void *)host->private;
+	return host->private;
 }
 
-#ifdef CONFIG_PM
-extern int sdhci_pltfm_suspend(struct device *dev);
-extern int sdhci_pltfm_resume(struct device *dev);
+int sdhci_pltfm_suspend(struct device *dev);
+int sdhci_pltfm_resume(struct device *dev);
 extern const struct dev_pm_ops sdhci_pltfm_pmops;
-#define SDHCI_PLTFM_PMOPS (&sdhci_pltfm_pmops)
-#else
-#define SDHCI_PLTFM_PMOPS NULL
-#endif
 
 #endif /* _DRIVERS_MMC_SDHCI_PLTFM_H */

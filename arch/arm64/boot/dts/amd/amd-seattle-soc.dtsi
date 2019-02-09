@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DTS file for AMD Seattle SoC
  *
@@ -18,8 +19,8 @@
 		#size-cells = <2>;
 		reg = <0x0 0xe1110000 0 0x1000>,
 		      <0x0 0xe112f000 0 0x2000>,
-		      <0x0 0xe1140000 0 0x10000>,
-		      <0x0 0xe1160000 0 0x10000>;
+		      <0x0 0xe1140000 0 0x2000>,
+		      <0x0 0xe1160000 0 0x2000>;
 		interrupts = <1 9 0xf04>;
 		ranges = <0 0 0 0xe1100000 0 0x100000>;
 		v2m0: v2m@e0080000 {
@@ -55,15 +56,29 @@
 		#size-cells = <2>;
 		ranges;
 
-		/* DDR range is 40-bit addressing */
-		dma-ranges = <0x80 0x0 0x80 0x0 0x7f 0xffffffff>;
+		/*
+		 * dma-ranges is 40-bit address space containing:
+		 * - GICv2m MSI register is at 0xe0080000
+		 * - DRAM range [0x8000000000 to 0xffffffffff]
+		 */
+		dma-ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
 
 		/include/ "amd-seattle-clks.dtsi"
 
 		sata0: sata@e0300000 {
 			compatible = "snps,dwc-ahci";
-			reg = <0 0xe0300000 0 0x800>;
+			reg = <0 0xe0300000 0 0xf0000>;
 			interrupts = <0 355 4>;
+			clocks = <&sataclk_333mhz>;
+			dma-coherent;
+		};
+
+		/* This is for Rev B only */
+		sata1: sata@e0d00000 {
+			status = "disabled";
+			compatible = "snps,dwc-ahci";
+			reg = <0 0xe0d00000 0 0xf0000>;
+			interrupts = <0 354 4>;
 			clocks = <&sataclk_333mhz>;
 			dma-coherent;
 		};
@@ -73,7 +88,15 @@
 			compatible = "snps,designware-i2c";
 			reg = <0 0xe1000000 0 0x1000>;
 			interrupts = <0 357 4>;
-			clocks = <&uartspiclk_100mhz>;
+			clocks = <&miscclk_250mhz>;
+		};
+
+		i2c1: i2c@e0050000 {
+			status = "disabled";
+			compatible = "snps,designware-i2c";
+			reg = <0 0xe0050000 0 0x1000>;
+			interrupts = <0 340 4>;
+			clocks = <&miscclk_250mhz>;
 		};
 
 		serial0: serial@e1010000 {
@@ -87,7 +110,6 @@
 		spi0: ssp@e1020000 {
 			status = "disabled";
 			compatible = "arm,pl022", "arm,primecell";
-			#gpio-cells = <2>;
 			reg = <0 0xe1020000 0 0x1000>;
 			spi-controller;
 			interrupts = <0 330 4>;
@@ -98,7 +120,6 @@
 		spi1: ssp@e1030000 {
 			status = "disabled";
 			compatible = "arm,pl022", "arm,primecell";
-			#gpio-cells = <2>;
 			reg = <0 0xe1030000 0 0x1000>;
 			spi-controller;
 			interrupts = <0 329 4>;
@@ -109,7 +130,7 @@
 			#size-cells = <0>;
 		};
 
-		gpio0: gpio@e1040000 {
+		gpio0: gpio@e1040000 { /* Not available to OS for B0 */
 			status = "disabled";
 			compatible = "arm,pl061", "arm,primecell";
 			#gpio-cells = <2>;
@@ -118,18 +139,59 @@
 			interrupts = <0 359 4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			clocks = <&uartspiclk_100mhz>;
+			clocks = <&miscclk_250mhz>;
 			clock-names = "apb_pclk";
 		};
 
-		gpio1: gpio@e1050000 {
+		gpio1: gpio@e1050000 { /* [0:7] */
 			status = "disabled";
 			compatible = "arm,pl061", "arm,primecell";
 			#gpio-cells = <2>;
 			reg = <0 0xe1050000 0 0x1000>;
 			gpio-controller;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <0 358 4>;
-			clocks = <&uartspiclk_100mhz>;
+			clocks = <&miscclk_250mhz>;
+			clock-names = "apb_pclk";
+		};
+
+		gpio2: gpio@e0020000 { /* [8:15] */
+			status = "disabled";
+			compatible = "arm,pl061", "arm,primecell";
+			#gpio-cells = <2>;
+			reg = <0 0xe0020000 0 0x1000>;
+			gpio-controller;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <0 366 4>;
+			clocks = <&miscclk_250mhz>;
+			clock-names = "apb_pclk";
+		};
+
+		gpio3: gpio@e0030000 { /* [16:23] */
+			status = "disabled";
+			compatible = "arm,pl061", "arm,primecell";
+			#gpio-cells = <2>;
+			reg = <0 0xe0030000 0 0x1000>;
+			gpio-controller;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <0 365 4>;
+			clocks = <&miscclk_250mhz>;
+			clock-names = "apb_pclk";
+		};
+
+		gpio4: gpio@e0080000 { /* [24] */
+			status = "disabled";
+			compatible = "arm,pl061", "arm,primecell";
+			#gpio-cells = <2>;
+			reg = <0 0xe0080000 0 0x1000>;
+			gpio-controller;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <0 361 4>;
+			clocks = <&miscclk_250mhz>;
 			clock-names = "apb_pclk";
 		};
 
@@ -159,7 +221,7 @@
 				<0x1000 0x0 0x0 0x4 &gic0 0x0 0x0 0x0 0x123 0x1>;
 
 			dma-coherent;
-			dma-ranges = <0x43000000 0x80 0x0 0x80 0x0 0x7f 0xffffffff>;
+			dma-ranges = <0x43000000 0x0 0x0 0x0 0x0 0x100 0x0>;
 			ranges =
 				/* I/O Memory (size=64K) */
 				<0x01000000 0x00 0x00000000 0x00 0xefff0000 0x00 0x00010000>,
@@ -167,6 +229,23 @@
 				<0x02000000 0x00 0x40000000 0x00 0x40000000 0x00 0x80000000>,
 				/* 64-bit MMIO (size= 124G) */
 				<0x03000000 0x01 0x00000000 0x01 0x00000000 0x7f 0x00000000>;
+		};
+
+		/* Perf CCN504 PMU */
+		ccn: ccn@e8000000 {
+			compatible = "arm,ccn-504";
+			reg = <0x0 0xe8000000 0 0x1000000>;
+			interrupts = <0 380 4>;
+		};
+
+		ipmi_kcs: kcs@e0010000 {
+			status = "disabled";
+			compatible = "ipmi-kcs";
+			device_type = "ipmi";
+			reg = <0x0 0xe0010000 0 0x8>;
+			interrupts = <0 389 4>;
+			reg-size = <1>;
+			reg-spacing = <4>;
 		};
 	};
 };

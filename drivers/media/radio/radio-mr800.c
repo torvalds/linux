@@ -15,10 +15,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /*
@@ -35,22 +31,22 @@
  * http://www.spinics.net/lists/linux-usb-devel/msg10109.html
  *
  * Version 0.01:	First working version.
- * 			It's required to blacklist AverMedia USB Radio
- * 			in usbhid/hid-quirks.c
+ *			It's required to blacklist AverMedia USB Radio
+ *			in usbhid/hid-quirks.c
  * Version 0.10:	A lot of cleanups and fixes: unpluging the device,
- * 			few mutex locks were added, codinstyle issues, etc.
- * 			Added stereo support. Thanks to
- * 			Douglas Schilling Landgraf <dougsland@gmail.com> and
- * 			David Ellingsworth <david@identd.dyndns.org>
- * 			for discussion, help and support.
+ *			few mutex locks were added, codinstyle issues, etc.
+ *			Added stereo support. Thanks to
+ *			Douglas Schilling Landgraf <dougsland@gmail.com> and
+ *			David Ellingsworth <david@identd.dyndns.org>
+ *			for discussion, help and support.
  * Version 0.11:	Converted to v4l2_device.
  *
  * Many things to do:
- * 	- Correct power management of device (suspend & resume)
- * 	- Add code for scanning and smooth tuning
- * 	- Add code for sensitivity value
- * 	- Correct mistakes
- * 	- In Japan another FREQ_MIN and FREQ_MAX
+ *	- Correct power management of device (suspend & resume)
+ *	- Add code for scanning and smooth tuning
+ *	- Add code for sensitivity value
+ *	- Correct mistakes
+ *	- In Japan another FREQ_MIN and FREQ_MAX
  */
 
 /* kernel includes */
@@ -515,7 +511,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
 	struct amradio_device *radio;
-	int retval = 0;
+	int retval;
 
 	radio = kzalloc(sizeof(struct amradio_device), GFP_KERNEL);
 
@@ -591,7 +587,7 @@ err:
 }
 
 /* USB Device ID List */
-static struct usb_device_id usb_amradio_device_table[] = {
+static const struct usb_device_id usb_amradio_device_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(USB_AMRADIO_VENDOR, USB_AMRADIO_PRODUCT,
 							USB_CLASS_HID, 0, 0) },
 	{ }						/* Terminating entry */

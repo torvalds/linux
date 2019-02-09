@@ -14,18 +14,10 @@ virtual context
 virtual org
 virtual report
 
-@ifm@
-expression *E;
-statement S1,S2;
-position p1;
-@@
-
-if@p1 ((E == NULL && ...) || ...) S1 else S2
-
 // The following two rules are separate, because both can match a single
 // expression in different ways
 @pr1 expression@
-expression *ifm.E;
+expression E;
 identifier f;
 position p1;
 @@
@@ -33,7 +25,7 @@ position p1;
  (E != NULL && ...) ? <+...E->f@p1...+> : ...
 
 @pr2 expression@
-expression *ifm.E;
+expression E;
 identifier f;
 position p2;
 @@
@@ -45,6 +37,14 @@ position p2;
 |
  sizeof(<+...E->f@p2...+>)
 )
+
+@ifm@
+expression *E;
+statement S1,S2;
+position p1;
+@@
+
+if@p1 ((E == NULL && ...) || ...) S1 else S2
 
 // For org and report modes
 
@@ -212,24 +212,16 @@ else S3
 // The following three rules are duplicates of ifm, pr1 and pr2 respectively.
 // It is need because the previous rule as already made a "change".
 
-@ifm1@
-expression *E;
-statement S1,S2;
-position p1;
-@@
-
-if@p1 ((E == NULL && ...) || ...) S1 else S2
-
-@pr11 expression@
-expression *ifm1.E;
+@pr11 depends on context && !org && !report expression@
+expression E;
 identifier f;
 position p1;
 @@
 
  (E != NULL && ...) ? <+...E->f@p1...+> : ...
 
-@pr12 expression@
-expression *ifm1.E;
+@pr12 depends on context && !org && !report expression@
+expression E;
 identifier f;
 position p2;
 @@
@@ -241,6 +233,14 @@ position p2;
 |
  sizeof(<+...E->f@p2...+>)
 )
+
+@ifm1 depends on context && !org && !report@
+expression *E;
+statement S1,S2;
+position p1;
+@@
+
+if@p1 ((E == NULL && ...) || ...) S1 else S2
 
 @depends on context && !org && !report exists@
 expression subE <= ifm1.E;

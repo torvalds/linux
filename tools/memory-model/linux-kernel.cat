@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: GPL-2.0+
+(*
+ * Copyright (C) 2015 Jade Alglave <j.alglave@ucl.ac.uk>,
+ * Copyright (C) 2016 Luc Maranget <luc.maranget@inria.fr> for Inria
+ * Copyright (C) 2017 Alan Stern <stern@rowland.harvard.edu>,
+ *                    Andrea Parri <parri.andrea@gmail.com>
+ *
+ * An earlier version of this file appeared in the companion webpage for
+ * "Frightening small children and disconcerting grown-ups: Concurrency
+ * in the Linux kernel" by Alglave, Maranget, McKenney, Parri, and Stern,
+ * which appeared in ASPLOS 2018.
+ *)
+
+"Linux-kernel memory consistency model"
+
+(*
+ * File "lock.cat" handles locks and is experimental.
+ * It can be replaced by include "cos.cat" for tests that do not use locks.
+ *)
+
+include "lock.cat"
+
+(*******************)
+(* Basic relations *)
+(*******************)
+
+(* Fences *)
+let rmb = [R \ Noreturn] ; fencerel(Rmb) ; [R \ Noreturn]
+let wmb = [W] ; fencerel(Wmb) ; [W]
+let mb = ([M] ; fencerel(Mb) ; [M]) |
+	([M] ; fencerel(Before-atomic) ; [RMW] ; po? ; [M]) |
+	([M] ; po? ; [RMW] ; fencerel(After-atomic) ; [M]) |
+	([M] ; po? ; [LKW] ; fencerel(After-spinlock) ; [M])
+let gp = po ; [Sync-rcu] ; po?
+
+let strong-fence = mb | gp
+
+(* Release Acquire *)
+let acq-po = [Acquire] ; po ; [M]
+let po-rel = [M] ; po ; [Release]
+let rfi-rel-acq = [Release] ; rfi ; [Acquire]
+
+(**********************************)
+(* Fundamental coherence ordering *)
+(**********************************)
+
+(* Sequential Consistency Per Variable *)
+let com = rf | co | fr
+acyclic po-loc | com as coherence
+
+(* Atomic Read-Modify-Write *)
+empty rmw & (fre ; coe) as atomic
+
+(**********************************)
+(* Instruction execution ordering *)
+(**********************************)
+
+(* Preserved Program Order *)
+let dep = addr | data
+let rwdep = (dep | ctrl) ; [W]
+let overwrite = co | fr
+let to-w = rwdep | (overwrite & int)
+let to-r = addr | (dep ; rfi) | rfi-rel-acq
+let fence = strong-fence | wmb | po-rel | rmb | acq-po
+let ppo = to-r | to-w | fence
+
+(* Propagation: Ordering from release operations and strong fences. *)
+let A-cumul(r) = rfe? ; r
+let cumul-fence = A-cumul(strong-fence | po-rel) | wmb
+let prop = (overwrite & ext)? ; cumul-fence* ; rfe?
+
+(*
+ * Happens Before: Ordering from the passage of time.
+ * No fences needed here for prop because relation confined to one process.
+ *)
+let hb = ppo | rfe | ((prop \ id) & int)
+acyclic hb as happens-before
+
+(****************************************)
+(* Write and fence propagation ordering *)
+(****************************************)
+
+(* Propagation: Each non-rf link needs a strong fence. *)
+let pb = prop ; strong-fence ; hb*
+acyclic pb as propagation
+
+(*******)
+(* RCU *)
+(*******)
+
+(*
+ * Effect of read-side critical section proceeds from the rcu_read_lock()
+ * onward on the one hand and from the rcu_read_unlock() backwards on the
+ * other hand.
+ *)
+let rscs = po ; crit^-1 ; po?
+
+(*
+ * The synchronize_rcu() strong fence is special in that it can order not
+ * one but two non-rf relations, but only in conjunction with an RCU
+ * read-side critical section.
+ *)
+let rcu-link = hb* ; pb* ; prop
+
+(*
+ * Any sequence containing at least as many grace periods as RCU read-side
+ * critical sections (joined by rcu-link) acts as a generalized strong fence.
+ *)
+let rec rcu-fence = gp |
+	(gp ; rcu-link ; rscs) |
+	(rscs ; rcu-link ; gp) |
+	(gp ; rcu-link ; rcu-fence ; rcu-link ; rscs) |
+	(rscs ; rcu-link ; rcu-fence ; rcu-link ; gp) |
+	(rcu-fence ; rcu-link ; rcu-fence)
+
+(* rb orders instructions just as pb does *)
+let rb = prop ; rcu-fence ; hb* ; pb*
+
+irreflexive rb as rcu
+
+(*
+ * The happens-before, propagation, and rcu constraints are all
+ * expressions of temporal ordering.  They could be replaced by
+ * a single constraint on an "executes-before" relation, xb:
+ *
+ * let xb = hb | pb | rb
+ * acyclic xb as executes-before
+ *)

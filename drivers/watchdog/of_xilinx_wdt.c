@@ -1,15 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Watchdog Device Driver for Xilinx axi/xps_timebase_wdt
  *
  * (C) Copyright 2013 - 2014 Xilinx, Inc.
  * (C) Copyright 2011 (Alejandro Cabrera <aldaya@gmail.com>)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -45,12 +42,20 @@ struct xwdt_device {
 	u32 wdt_interval;
 	spinlock_t spinlock;
 	struct watchdog_device xilinx_wdt_wdd;
+	struct clk		*clk;
 };
 
 static int xilinx_wdt_start(struct watchdog_device *wdd)
 {
+	int ret;
 	u32 control_status_reg;
 	struct xwdt_device *xdev = watchdog_get_drvdata(wdd);
+
+	ret = clk_enable(xdev->clk);
+	if (ret) {
+		dev_err(wdd->parent, "Failed to enable clock\n");
+		return ret;
+	}
 
 	spin_lock(&xdev->spinlock);
 
@@ -83,6 +88,9 @@ static int xilinx_wdt_stop(struct watchdog_device *wdd)
 	iowrite32(0, xdev->base + XWT_TWCSR1_OFFSET);
 
 	spin_unlock(&xdev->spinlock);
+
+	clk_disable(xdev->clk);
+
 	pr_info("Stopped!\n");
 
 	return 0;
@@ -165,11 +173,6 @@ static int xwdt_probe(struct platform_device *pdev)
 	if (IS_ERR(xdev->base))
 		return PTR_ERR(xdev->base);
 
-	rc = of_property_read_u32(pdev->dev.of_node, "clock-frequency", &pfreq);
-	if (rc)
-		dev_warn(&pdev->dev,
-			 "The watchdog clock frequency cannot be obtained\n");
-
 	rc = of_property_read_u32(pdev->dev.of_node, "xlnx,wdt-interval",
 				  &xdev->wdt_interval);
 	if (rc)
@@ -184,6 +187,26 @@ static int xwdt_probe(struct platform_device *pdev)
 
 	watchdog_set_nowayout(xilinx_wdt_wdd, enable_once);
 
+	xdev->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(xdev->clk)) {
+		if (PTR_ERR(xdev->clk) != -ENOENT)
+			return PTR_ERR(xdev->clk);
+
+		/*
+		 * Clock framework support is optional, continue on
+		 * anyways if we don't find a matching clock.
+		 */
+		xdev->clk = NULL;
+
+		rc = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+					  &pfreq);
+		if (rc)
+			dev_warn(&pdev->dev,
+				 "The watchdog clock freq cannot be obtained\n");
+	} else {
+		pfreq = clk_get_rate(xdev->clk);
+	}
+
 	/*
 	 * Twice of the 2^wdt_interval / freq  because the first wdt overflow is
 	 * ignored (interrupt), reset is only generated at second wdt overflow
@@ -195,17 +218,25 @@ static int xwdt_probe(struct platform_device *pdev)
 	spin_lock_init(&xdev->spinlock);
 	watchdog_set_drvdata(xilinx_wdt_wdd, xdev);
 
+	rc = clk_prepare_enable(xdev->clk);
+	if (rc) {
+		dev_err(&pdev->dev, "unable to enable clock\n");
+		return rc;
+	}
+
 	rc = xwdt_selftest(xdev);
 	if (rc == XWT_TIMER_FAILED) {
 		dev_err(&pdev->dev, "SelfTest routine error\n");
-		return rc;
+		goto err_clk_disable;
 	}
 
 	rc = watchdog_register_device(xilinx_wdt_wdd);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register watchdog (err=%d)\n", rc);
-		return rc;
+		goto err_clk_disable;
 	}
+
+	clk_disable(xdev->clk);
 
 	dev_info(&pdev->dev, "Xilinx Watchdog Timer at %p with timeout %ds\n",
 		 xdev->base, xilinx_wdt_wdd->timeout);
@@ -213,6 +244,10 @@ static int xwdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, xdev);
 
 	return 0;
+err_clk_disable:
+	clk_disable_unprepare(xdev->clk);
+
+	return rc;
 }
 
 static int xwdt_remove(struct platform_device *pdev)
@@ -220,9 +255,45 @@ static int xwdt_remove(struct platform_device *pdev)
 	struct xwdt_device *xdev = platform_get_drvdata(pdev);
 
 	watchdog_unregister_device(&xdev->xilinx_wdt_wdd);
+	clk_disable_unprepare(xdev->clk);
 
 	return 0;
 }
+
+/**
+ * xwdt_suspend - Suspend the device.
+ *
+ * @dev: handle to the device structure.
+ * Return: 0 always.
+ */
+static int __maybe_unused xwdt_suspend(struct device *dev)
+{
+	struct xwdt_device *xdev = dev_get_drvdata(dev);
+
+	if (watchdog_active(&xdev->xilinx_wdt_wdd))
+		xilinx_wdt_stop(&xdev->xilinx_wdt_wdd);
+
+	return 0;
+}
+
+/**
+ * xwdt_resume - Resume the device.
+ *
+ * @dev: handle to the device structure.
+ * Return: 0 on success, errno otherwise.
+ */
+static int __maybe_unused xwdt_resume(struct device *dev)
+{
+	struct xwdt_device *xdev = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (watchdog_active(&xdev->xilinx_wdt_wdd))
+		ret = xilinx_wdt_start(&xdev->xilinx_wdt_wdd);
+
+	return ret;
+}
+
+static SIMPLE_DEV_PM_OPS(xwdt_pm_ops, xwdt_suspend, xwdt_resume);
 
 /* Match table for of_platform binding */
 static const struct of_device_id xwdt_of_match[] = {
@@ -238,6 +309,7 @@ static struct platform_driver xwdt_driver = {
 	.driver = {
 		.name  = WATCHDOG_NAME,
 		.of_match_table = xwdt_of_match,
+		.pm = &xwdt_pm_ops,
 	},
 };
 
@@ -245,4 +317,4 @@ module_platform_driver(xwdt_driver);
 
 MODULE_AUTHOR("Alejandro Cabrera <aldaya@gmail.com>");
 MODULE_DESCRIPTION("Xilinx Watchdog driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/mod_devicetable.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/watchdog.h>
@@ -292,4 +293,4 @@ MODULE_PARM_DESC(nodelay,
 		 "Force selection of a timeout setting without initial delay "
 		 "(max6373/74 only, default=0)");
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

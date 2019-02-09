@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /*
  * tveeprom - Contains structures and functions to work with Hauppauge
@@ -27,31 +28,43 @@ enum tveeprom_audio_processor {
  * struct tveeprom - Contains the fields parsed from Hauppauge eeproms
  *
  * @has_radio:			1 if the device has radio; 0 otherwise.
+ *
  * @has_ir:			If has_ir == 0, then it is unknown what the IR
  *				capabilities are. Otherwise:
- *					bit 0) 1 (= IR capabilities are known);
- *					bit 1) IR receiver present;
- *					bit 2) IR transmitter (blaster) present.
+ *				bit 0) 1 (= IR capabilities are known);
+ *				bit 1) IR receiver present;
+ *				bit 2) IR transmitter (blaster) present.
+ *
  * @has_MAC_address:		0: no MAC, 1: MAC present, 2: unknown.
  * @tuner_type:			type of the tuner (TUNER_*, as defined at
  *				include/media/tuner.h).
+ *
  * @tuner_formats:		Supported analog TV standards (V4L2_STD_*).
  * @tuner_hauppauge_model:	Hauppauge's code for the device model number.
  * @tuner2_type:		type of the second tuner (TUNER_*, as defined
  *				at include/media/tuner.h).
+ *
  * @tuner2_formats:		Tuner 2 supported analog TV standards
  *				(V4L2_STD_*).
+ *
  * @tuner2_hauppauge_model:	tuner 2 Hauppauge's code for the device model
  *				number.
+ *
  * @audio_processor:		analog audio decoder, as defined by enum
  *				tveeprom_audio_processor.
+ *
  * @decoder_processor:		Hauppauge's code for the decoder chipset.
  *				Unused by the drivers, as they probe the
  *				decoder based on the PCI or USB ID.
+ *
  * @model:			Hauppauge's model number
+ *
  * @revision:			Card revision number
+ *
  * @serial_number:		Card's serial number
+ *
  * @rev_str:			Card revision converted to number
+ *
  * @MAC_address:		MAC address for the network interface
  */
 struct tveeprom {
@@ -82,13 +95,12 @@ struct tveeprom {
  *			       of the eeprom previously filled at
  *			       @eeprom_data field.
  *
- * @c:			I2C client struct
  * @tvee:		Struct to where the eeprom parsed data will be filled;
  * @eeprom_data:	Array with the contents of the eeprom_data. It should
  *			contain 256 bytes filled with the contents of the
  *			eeprom read from the Hauppauge device.
  */
-void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
+void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 			       unsigned char *eeprom_data);
 
 /**

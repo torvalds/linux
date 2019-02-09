@@ -1,0 +1,40 @@
+#
+# Phy drivers for Hisilicon platforms
+#
+config PHY_HI6220_USB
+	tristate "hi6220 USB PHY support"
+	depends on (ARCH_HISI && ARM64) || COMPILE_TEST
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the HISILICON HI6220 USB PHY.
+
+	  To compile this driver as a module, choose M here.
+
+config PHY_HISTB_COMBPHY
+	tristate "HiSilicon STB SoCs COMBPHY support"
+	depends on (ARCH_HISI && ARM64) || COMPILE_TEST
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the HISILICON STB SoCs COMBPHY.
+	  If unsure, say N.
+
+config PHY_HISI_INNO_USB2
+       tristate "HiSilicon INNO USB2 PHY support"
+       depends on (ARCH_HISI && ARM64) || COMPILE_TEST
+       select GENERIC_PHY
+       select MFD_SYSCON
+       help
+         Support for INNO USB2 PHY on HiSilicon SoCs. This Phy supports
+         USB 1.5Mb/s, USB 12Mb/s, USB 480Mb/s speeds. It supports one
+         USB host port to accept one USB device.
+
+config PHY_HIX5HD2_SATA
+	tristate "HIX5HD2 SATA PHY Driver"
+	depends on ARCH_HIX5HD2 && OF && HAS_IOMEM
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Support for SATA PHY on Hisilicon hix5hd2 Soc.

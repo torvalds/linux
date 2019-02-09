@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  cpuidle-pseries - idle state cpuidle driver.
  *  Adapted from drivers/idle/intel_idle.c and
@@ -25,10 +26,10 @@ struct cpuidle_driver pseries_idle_driver = {
 	.owner            = THIS_MODULE,
 };
 
-static int max_idle_state;
-static struct cpuidle_state *cpuidle_state_table;
-static u64 snooze_timeout;
-static bool snooze_timeout_en;
+static int max_idle_state __read_mostly;
+static struct cpuidle_state *cpuidle_state_table __read_mostly;
+static u64 snooze_timeout __read_mostly;
+static bool snooze_timeout_en __read_mostly;
 
 static inline void idle_loop_prolog(unsigned long *in_purr)
 {
@@ -50,8 +51,6 @@ static inline void idle_loop_epilog(unsigned long in_purr)
 	get_lppaca()->wait_state_cycles = cpu_to_be64(wait_cycles);
 	get_lppaca()->idle = 0;
 
-	if (irqs_disabled())
-		local_irq_enable();
 	ppc64_runlatch_on();
 }
 
@@ -62,21 +61,31 @@ static int snooze_loop(struct cpuidle_device *dev,
 	unsigned long in_purr;
 	u64 snooze_exit_time;
 
+	set_thread_flag(TIF_POLLING_NRFLAG);
+
 	idle_loop_prolog(&in_purr);
 	local_irq_enable();
-	set_thread_flag(TIF_POLLING_NRFLAG);
 	snooze_exit_time = get_tb() + snooze_timeout;
 
 	while (!need_resched()) {
 		HMT_low();
 		HMT_very_low();
-		if (snooze_timeout_en && get_tb() > snooze_exit_time)
+		if (likely(snooze_timeout_en) && get_tb() > snooze_exit_time) {
+			/*
+			 * Task has not woken up but we are exiting the polling
+			 * loop anyway. Require a barrier after polling is
+			 * cleared to order subsequent test of need_resched().
+			 */
+			clear_thread_flag(TIF_POLLING_NRFLAG);
+			smp_mb();
 			break;
+		}
 	}
 
 	HMT_medium();
 	clear_thread_flag(TIF_POLLING_NRFLAG);
-	smp_mb();
+
+	local_irq_disable();
 
 	idle_loop_epilog(in_purr);
 
@@ -112,6 +121,7 @@ static int dedicated_cede_loop(struct cpuidle_device *dev,
 	HMT_medium();
 	check_and_cede_processor();
 
+	local_irq_disable();
 	get_lppaca()->donate_dedicated_cpu = 0;
 
 	idle_loop_epilog(in_purr);
@@ -136,6 +146,7 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 	 */
 	check_and_cede_processor();
 
+	local_irq_disable();
 	idle_loop_epilog(in_purr);
 
 	return index;
@@ -163,47 +174,43 @@ static struct cpuidle_state dedicated_states[] = {
  * States for shared partition case.
  */
 static struct cpuidle_state shared_states[] = {
+	{ /* Snooze */
+		.name = "snooze",
+		.desc = "snooze",
+		.exit_latency = 0,
+		.target_residency = 0,
+		.enter = &snooze_loop },
 	{ /* Shared Cede */
 		.name = "Shared Cede",
 		.desc = "Shared Cede",
-		.exit_latency = 0,
-		.target_residency = 0,
+		.exit_latency = 10,
+		.target_residency = 100,
 		.enter = &shared_cede_loop },
 };
 
-static int pseries_cpuidle_add_cpu_notifier(struct notifier_block *n,
-			unsigned long action, void *hcpu)
+static int pseries_cpuidle_cpu_online(unsigned int cpu)
 {
-	int hotcpu = (unsigned long)hcpu;
-	struct cpuidle_device *dev =
-				per_cpu(cpuidle_devices, hotcpu);
+	struct cpuidle_device *dev = per_cpu(cpuidle_devices, cpu);
 
 	if (dev && cpuidle_get_driver()) {
-		switch (action) {
-		case CPU_ONLINE:
-		case CPU_ONLINE_FROZEN:
-			cpuidle_pause_and_lock();
-			cpuidle_enable_device(dev);
-			cpuidle_resume_and_unlock();
-			break;
-
-		case CPU_DEAD:
-		case CPU_DEAD_FROZEN:
-			cpuidle_pause_and_lock();
-			cpuidle_disable_device(dev);
-			cpuidle_resume_and_unlock();
-			break;
-
-		default:
-			return NOTIFY_DONE;
-		}
+		cpuidle_pause_and_lock();
+		cpuidle_enable_device(dev);
+		cpuidle_resume_and_unlock();
 	}
-	return NOTIFY_OK;
+	return 0;
 }
 
-static struct notifier_block setup_hotplug_notifier = {
-	.notifier_call = pseries_cpuidle_add_cpu_notifier,
-};
+static int pseries_cpuidle_cpu_dead(unsigned int cpu)
+{
+	struct cpuidle_device *dev = per_cpu(cpuidle_devices, cpu);
+
+	if (dev && cpuidle_get_driver()) {
+		cpuidle_pause_and_lock();
+		cpuidle_disable_device(dev);
+		cpuidle_resume_and_unlock();
+	}
+	return 0;
+}
 
 /*
  * pseries_cpuidle_driver_init()
@@ -240,7 +247,13 @@ static int pseries_idle_probe(void)
 		return -ENODEV;
 
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		if (lppaca_shared_proc(get_lppaca())) {
+		/*
+		 * Use local_paca instead of get_lppaca() since
+		 * preemption is not disabled, and it is not required in
+		 * fact, since lppaca_ptr does not need to be the value
+		 * associated to the current CPU, it can be from any CPU.
+		 */
+		if (lppaca_shared_proc(local_paca->lppaca_ptr)) {
 			cpuidle_state_table = shared_states;
 			max_idle_state = ARRAY_SIZE(shared_states);
 		} else {
@@ -273,7 +286,14 @@ static int __init pseries_processor_idle_init(void)
 		return retval;
 	}
 
-	register_cpu_notifier(&setup_hotplug_notifier);
+	retval = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					   "cpuidle/pseries:online",
+					   pseries_cpuidle_cpu_online, NULL);
+	WARN_ON(retval < 0);
+	retval = cpuhp_setup_state_nocalls(CPUHP_CPUIDLE_DEAD,
+					   "cpuidle/pseries:DEAD", NULL,
+					   pseries_cpuidle_cpu_dead);
+	WARN_ON(retval < 0);
 	printk(KERN_DEBUG "pseries_idle_driver registered\n");
 	return 0;
 }

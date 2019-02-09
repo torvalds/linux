@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
 #include <linux/spinlock.h>
+#include <linux/pci.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -38,7 +39,6 @@
 #include <asm/processor.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
-#include <asm/pci-bridge.h>
 #include <asm/macio.h>
 
 #include <scsi/scsi.h>
@@ -594,9 +594,9 @@ static void mesh_done(struct mesh_state *ms, int start_next)
 	ms->current_req = NULL;
 	tp->current_req = NULL;
 	if (cmd) {
-		cmd->result = (ms->stat << 16) + cmd->SCp.Status;
+		cmd->result = (ms->stat << 16) | cmd->SCp.Status;
 		if (ms->stat == DID_OK)
-			cmd->result += (cmd->SCp.Message << 8);
+			cmd->result |= cmd->SCp.Message << 8;
 		if (DEBUG_TARGET(cmd)) {
 			printk(KERN_DEBUG "mesh_done: result = %x, data_ptr=%d, buflen=%d\n",
 			       cmd->result, ms->data_ptr, scsi_bufflen(cmd));

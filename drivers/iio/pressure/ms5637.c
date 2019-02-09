@@ -1,6 +1,6 @@
 /*
- * ms5637.c - Support for Measurement-Specialties ms5637 and ms8607
- *            pressure & temperature sensor
+ * ms5637.c - Support for Measurement-Specialties MS5637, MS5805
+ *            MS5837 and MS8607 pressure & temperature sensor
  *
  * Copyright (c) 2015 Measurement-Specialties
  *
@@ -10,6 +10,10 @@
  *
  * Datasheet:
  *  http://www.meas-spec.com/downloads/MS5637-02BA03.pdf
+ * Datasheet:
+ *  http://www.meas-spec.com/downloads/MS5805-02BA01.pdf
+ * Datasheet:
+ *  http://www.meas-spec.com/downloads/MS5837-30BA.pdf
  * Datasheet:
  *  http://www.meas-spec.com/downloads/MS8607-02BA01.pdf
  */
@@ -120,7 +124,6 @@ static const struct iio_info ms5637_info = {
 	.read_raw = ms5637_read_raw,
 	.write_raw = ms5637_write_raw,
 	.attrs = &ms5637_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int ms5637_probe(struct i2c_client *client,
@@ -136,7 +139,7 @@ static int ms5637_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
 		dev_err(&client->dev,
 			"Adapter does not support some i2c transaction\n");
-		return -ENODEV;
+		return -EOPNOTSUPP;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*dev_data));
@@ -170,15 +173,28 @@ static int ms5637_probe(struct i2c_client *client,
 
 static const struct i2c_device_id ms5637_id[] = {
 	{"ms5637", 0},
-	{"ms8607-temppressure", 1},
+	{"ms5805", 0},
+	{"ms5837", 0},
+	{"ms8607-temppressure", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, ms5637_id);
+
+static const struct of_device_id ms5637_of_match[] = {
+	{ .compatible = "meas,ms5637", },
+	{ .compatible = "meas,ms5805", },
+	{ .compatible = "meas,ms5837", },
+	{ .compatible = "meas,ms8607-temppressure", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ms5637_of_match);
 
 static struct i2c_driver ms5637_driver = {
 	.probe = ms5637_probe,
 	.id_table = ms5637_id,
 	.driver = {
-		   .name = "ms5637"
+		   .name = "ms5637",
+		   .of_match_table = of_match_ptr(ms5637_of_match),
 		   },
 };
 

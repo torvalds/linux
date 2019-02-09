@@ -24,6 +24,7 @@
 #define _ASM_POWERPC_PTRACE_H
 
 #include <uapi/asm/ptrace.h>
+#include <asm/asm-const.h>
 
 
 #ifdef __powerpc64__
@@ -47,7 +48,7 @@
 				 STACK_FRAME_OVERHEAD + KERNEL_REDZONE_SIZE)
 #define STACK_FRAME_MARKER	12
 
-#if defined(_CALL_ELF) && _CALL_ELF == 2
+#ifdef PPC64_ELF_ABI_v2
 #define STACK_FRAME_MIN_SIZE	32
 #else
 #define STACK_FRAME_MIN_SIZE	STACK_FRAME_OVERHEAD

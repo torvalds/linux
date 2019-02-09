@@ -29,6 +29,16 @@
 #include <sound/aess.h>
 
 #include "omap_hwmod.h"
+#include "common.h"
+
+#define OMAP_RTC_STATUS_REG	0x44
+#define OMAP_RTC_KICK0_REG	0x6c
+#define OMAP_RTC_KICK1_REG	0x70
+
+#define OMAP_RTC_KICK0_VALUE	0x83E70B13
+#define OMAP_RTC_KICK1_VALUE	0x95A4F1E0
+#define OMAP_RTC_STATUS_BUSY	BIT(0)
+#define OMAP_RTC_MAX_READY_TIME	50
 
 /**
  * omap_hwmod_aess_preprogram - enable AESS internal autogating
@@ -50,4 +60,63 @@ int omap_hwmod_aess_preprogram(struct omap_hwmod *oh)
 	aess_enable_autogating(va);
 
 	return 0;
+}
+
+/**
+ * omap_rtc_wait_not_busy - Wait for the RTC BUSY flag
+ * @oh: struct omap_hwmod *
+ *
+ * For updating certain RTC registers, the MPU must wait
+ * for the BUSY status in OMAP_RTC_STATUS_REG to become zero.
+ * Once the BUSY status is zero, there is a 15 microseconds access
+ * period in which the MPU can program.
+ */
+static void omap_rtc_wait_not_busy(struct omap_hwmod *oh)
+{
+	int i;
+
+	/* BUSY may stay active for 1/32768 second (~30 usec) */
+	omap_test_timeout(omap_hwmod_read(oh, OMAP_RTC_STATUS_REG)
+			  & OMAP_RTC_STATUS_BUSY, OMAP_RTC_MAX_READY_TIME, i);
+	/* now we have ~15 microseconds to read/write various registers */
+}
+
+/**
+ * omap_hwmod_rtc_unlock - Unlock the Kicker mechanism.
+ * @oh: struct omap_hwmod *
+ *
+ * RTC IP have kicker feature. This prevents spurious writes to its registers.
+ * In order to write into any of the RTC registers, KICK values has te be
+ * written in respective KICK registers. This is needed for hwmod to write into
+ * sysconfig register.
+ */
+void omap_hwmod_rtc_unlock(struct omap_hwmod *oh)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	omap_rtc_wait_not_busy(oh);
+	omap_hwmod_write(OMAP_RTC_KICK0_VALUE, oh, OMAP_RTC_KICK0_REG);
+	omap_hwmod_write(OMAP_RTC_KICK1_VALUE, oh, OMAP_RTC_KICK1_REG);
+	local_irq_restore(flags);
+}
+
+/**
+ * omap_hwmod_rtc_lock - Lock the Kicker mechanism.
+ * @oh: struct omap_hwmod *
+ *
+ * RTC IP have kicker feature. This prevents spurious writes to its registers.
+ * Once the RTC registers are written, KICK mechanism needs to be locked,
+ * in order to prevent any spurious writes. This function locks back the RTC
+ * registers once hwmod completes its write into sysconfig register.
+ */
+void omap_hwmod_rtc_lock(struct omap_hwmod *oh)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	omap_rtc_wait_not_busy(oh);
+	omap_hwmod_write(0x0, oh, OMAP_RTC_KICK0_REG);
+	omap_hwmod_write(0x0, oh, OMAP_RTC_KICK1_REG);
+	local_irq_restore(flags);
 }

@@ -15,18 +15,13 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include "cx18-driver.h"
 #include "cx18-cards.h"
 #include "cx18-av-core.h"
 #include "cx18-i2c.h"
-#include <media/cs5345.h>
+#include <media/i2c/cs5345.h>
 
 #define V4L2_STD_PAL_SECAM (V4L2_STD_PAL|V4L2_STD_SECAM)
 
@@ -393,7 +388,7 @@ static const struct cx18_card cx18_card_cnxt_raptor_pal = {
 		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX18_AV_COMPOSITE6 },
 	},
 	.audio_inputs = {
-		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 	    0 },
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5,	    0 },
 		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL1, 1 },
 		{ CX18_CARD_INPUT_LINE_IN2,  CX18_AV_AUDIO_SERIAL2, 1 },
 	},
@@ -444,7 +439,7 @@ static const struct cx18_card cx18_card_toshiba_qosmio_dvbt = {
 		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE1 },
 	},
 	.audio_inputs = {
-		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 	    0 },
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5,	    0 },
 		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL1, 1 },
 	},
 	.tuners = {
@@ -490,7 +485,7 @@ static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 		{ CX18_CARD_INPUT_COMPONENT1, 1, CX18_AV_COMPONENT1 },
 	},
 	.audio_inputs = {
-		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 	    0 },
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5,	    0 },
 		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL1, 1 },
 	},
 	.tuners = {
@@ -543,7 +538,7 @@ static const struct cx18_card cx18_card_leadtek_dvr3100h = {
 		{ CX18_CARD_INPUT_COMPONENT1, 1, CX18_AV_COMPONENT1 },
 	},
 	.audio_inputs = {
-		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 	    0 },
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5,	    0 },
 		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL1, 1 },
 	},
 	.tuners = {

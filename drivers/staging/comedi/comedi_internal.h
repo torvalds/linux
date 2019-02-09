@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _COMEDI_INTERNAL_H
 #define _COMEDI_INTERNAL_H
 
@@ -29,6 +30,8 @@ void comedi_buf_reset(struct comedi_subdevice *s);
 bool comedi_buf_is_mmapped(struct comedi_subdevice *s);
 void comedi_buf_map_get(struct comedi_buf_map *bm);
 int comedi_buf_map_put(struct comedi_buf_map *bm);
+int comedi_buf_map_access(struct comedi_buf_map *bm, unsigned long offset,
+			  void *buf, int len, int write);
 struct comedi_buf_map *comedi_buf_map_from_subdev_get(
 		struct comedi_subdevice *s);
 unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s);
@@ -44,11 +47,12 @@ extern unsigned int comedi_default_buf_maxsize_kb;
 extern struct comedi_driver *comedi_drivers;
 extern struct mutex comedi_drivers_list_lock;
 
-int insn_inval(struct comedi_device *, struct comedi_subdevice *,
-	       struct comedi_insn *, unsigned int *);
+int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
+	       struct comedi_insn *insn, unsigned int *data);
 
-void comedi_device_detach(struct comedi_device *);
-int comedi_device_attach(struct comedi_device *, struct comedi_devconfig *);
+void comedi_device_detach(struct comedi_device *dev);
+int comedi_device_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 
 #ifdef CONFIG_PROC_FS
 

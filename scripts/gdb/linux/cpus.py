@@ -97,7 +97,45 @@ def cpu_list(mask_name):
         bits >>= 1
         bit += 1
 
+        yield int(cpu)
+
+
+def each_online_cpu():
+    for cpu in cpu_list("__cpu_online_mask"):
         yield cpu
+
+
+def each_present_cpu():
+    for cpu in cpu_list("__cpu_present_mask"):
+        yield cpu
+
+
+def each_possible_cpu():
+    for cpu in cpu_list("__cpu_possible_mask"):
+        yield cpu
+
+
+def each_active_cpu():
+    for cpu in cpu_list("__cpu_active_mask"):
+        yield cpu
+
+
+class LxCpus(gdb.Command):
+    """List CPU status arrays
+
+Displays the known state of each CPU based on the kernel masks
+and can help identify the state of hotplugged CPUs"""
+
+    def __init__(self):
+        super(LxCpus, self).__init__("lx-cpus", gdb.COMMAND_DATA)
+
+    def invoke(self, arg, from_tty):
+        gdb.write("Possible CPUs : {}\n".format(list(each_possible_cpu())))
+        gdb.write("Present CPUs  : {}\n".format(list(each_present_cpu())))
+        gdb.write("Online CPUs   : {}\n".format(list(each_online_cpu())))
+        gdb.write("Active CPUs   : {}\n".format(list(each_active_cpu())))
+
+LxCpus()
 
 
 class PerCpu(gdb.Function):

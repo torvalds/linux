@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Wrapper functions for 16bit uid back compatibility. All nicely tied
  *	together in the faint hope we can take the out in five years time.
@@ -12,48 +13,51 @@
 #include <linux/init.h>
 #include <linux/highuid.h>
 #include <linux/security.h>
+#include <linux/cred.h>
 #include <linux/syscalls.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+
+#include "uid16.h"
 
 SYSCALL_DEFINE3(chown16, const char __user *, filename, old_uid_t, user, old_gid_t, group)
 {
-	return sys_chown(filename, low2highuid(user), low2highgid(group));
+	return ksys_chown(filename, low2highuid(user), low2highgid(group));
 }
 
 SYSCALL_DEFINE3(lchown16, const char __user *, filename, old_uid_t, user, old_gid_t, group)
 {
-	return sys_lchown(filename, low2highuid(user), low2highgid(group));
+	return ksys_lchown(filename, low2highuid(user), low2highgid(group));
 }
 
 SYSCALL_DEFINE3(fchown16, unsigned int, fd, old_uid_t, user, old_gid_t, group)
 {
-	return sys_fchown(fd, low2highuid(user), low2highgid(group));
+	return ksys_fchown(fd, low2highuid(user), low2highgid(group));
 }
 
 SYSCALL_DEFINE2(setregid16, old_gid_t, rgid, old_gid_t, egid)
 {
-	return sys_setregid(low2highgid(rgid), low2highgid(egid));
+	return __sys_setregid(low2highgid(rgid), low2highgid(egid));
 }
 
 SYSCALL_DEFINE1(setgid16, old_gid_t, gid)
 {
-	return sys_setgid(low2highgid(gid));
+	return __sys_setgid(low2highgid(gid));
 }
 
 SYSCALL_DEFINE2(setreuid16, old_uid_t, ruid, old_uid_t, euid)
 {
-	return sys_setreuid(low2highuid(ruid), low2highuid(euid));
+	return __sys_setreuid(low2highuid(ruid), low2highuid(euid));
 }
 
 SYSCALL_DEFINE1(setuid16, old_uid_t, uid)
 {
-	return sys_setuid(low2highuid(uid));
+	return __sys_setuid(low2highuid(uid));
 }
 
 SYSCALL_DEFINE3(setresuid16, old_uid_t, ruid, old_uid_t, euid, old_uid_t, suid)
 {
-	return sys_setresuid(low2highuid(ruid), low2highuid(euid),
+	return __sys_setresuid(low2highuid(ruid), low2highuid(euid),
 				 low2highuid(suid));
 }
 
@@ -76,10 +80,9 @@ SYSCALL_DEFINE3(getresuid16, old_uid_t __user *, ruidp, old_uid_t __user *, euid
 
 SYSCALL_DEFINE3(setresgid16, old_gid_t, rgid, old_gid_t, egid, old_gid_t, sgid)
 {
-	return sys_setresgid(low2highgid(rgid), low2highgid(egid),
+	return __sys_setresgid(low2highgid(rgid), low2highgid(egid),
 				 low2highgid(sgid));
 }
-
 
 SYSCALL_DEFINE3(getresgid16, old_gid_t __user *, rgidp, old_gid_t __user *, egidp, old_gid_t __user *, sgidp)
 {
@@ -100,12 +103,12 @@ SYSCALL_DEFINE3(getresgid16, old_gid_t __user *, rgidp, old_gid_t __user *, egid
 
 SYSCALL_DEFINE1(setfsuid16, old_uid_t, uid)
 {
-	return sys_setfsuid(low2highuid(uid));
+	return __sys_setfsuid(low2highuid(uid));
 }
 
 SYSCALL_DEFINE1(setfsgid16, old_gid_t, gid)
 {
-	return sys_setfsgid(low2highgid(gid));
+	return __sys_setfsgid(low2highgid(gid));
 }
 
 static int groups16_to_user(old_gid_t __user *grouplist,
@@ -117,7 +120,7 @@ static int groups16_to_user(old_gid_t __user *grouplist,
 	kgid_t kgid;
 
 	for (i = 0; i < group_info->ngroups; i++) {
-		kgid = GROUP_AT(group_info, i);
+		kgid = group_info->gid[i];
 		group = high2lowgid(from_kgid_munged(user_ns, kgid));
 		if (put_user(group, grouplist+i))
 			return -EFAULT;
@@ -142,7 +145,7 @@ static int groups16_from_user(struct group_info *group_info,
 		if (!gid_valid(kgid))
 			return -EINVAL;
 
-		GROUP_AT(group_info, i) = kgid;
+		group_info->gid[i] = kgid;
 	}
 
 	return 0;
@@ -190,6 +193,7 @@ SYSCALL_DEFINE2(setgroups16, int, gidsetsize, old_gid_t __user *, grouplist)
 		return retval;
 	}
 
+	groups_sort(group_info);
 	retval = set_current_groups(group_info);
 	put_group_info(group_info);
 

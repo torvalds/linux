@@ -1,8 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MIPS_SETUP_H
 #define _MIPS_SETUP_H
 
+#include <linux/types.h>
 #include <uapi/asm/setup.h>
 
+extern void prom_putchar(char);
 extern void setup_early_printk(void);
 
 #ifdef CONFIG_EARLY_PRINTK_8250
@@ -21,6 +24,7 @@ extern void *set_vi_handler(int n, vi_handler_t addr);
 
 extern void *set_except_vector(int n, void *addr);
 extern unsigned long ebase;
+extern unsigned int hwrena;
 extern void per_cpu_trap_init(bool);
 extern void cpu_cache_init(void);
 

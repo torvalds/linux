@@ -21,8 +21,6 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 
-#include <asm/mach-jz4740/dma.h>
-
 #include "virt-dma.h"
 
 #define JZ_DMA_NR_CHANS 6
@@ -557,7 +555,7 @@ static int jz4740_dma_probe(struct platform_device *pdev)
 
 	ret = dma_async_device_register(dd);
 	if (ret)
-		return ret;
+		goto err_clk;
 
 	irq = platform_get_irq(pdev, 0);
 	ret = request_irq(irq, jz4740_dma_irq, 0, dev_name(&pdev->dev), dmadev);
@@ -570,8 +568,22 @@ static int jz4740_dma_probe(struct platform_device *pdev)
 
 err_unregister:
 	dma_async_device_unregister(dd);
+err_clk:
+	clk_disable_unprepare(dmadev->clk);
 	return ret;
 }
+
+static void jz4740_cleanup_vchan(struct dma_device *dmadev)
+{
+	struct jz4740_dmaengine_chan *chan, *_chan;
+
+	list_for_each_entry_safe(chan, _chan,
+				&dmadev->channels, vchan.chan.device_node) {
+		list_del(&chan->vchan.chan.device_node);
+		tasklet_kill(&chan->vchan.task);
+	}
+}
+
 
 static int jz4740_dma_remove(struct platform_device *pdev)
 {
@@ -579,6 +591,8 @@ static int jz4740_dma_remove(struct platform_device *pdev)
 	int irq = platform_get_irq(pdev, 0);
 
 	free_irq(irq, dmadev);
+
+	jz4740_cleanup_vchan(&dmadev->ddev);
 	dma_async_device_unregister(&dmadev->ddev);
 	clk_disable_unprepare(dmadev->clk);
 

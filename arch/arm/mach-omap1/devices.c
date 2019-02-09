@@ -25,7 +25,7 @@
 #include <mach/mux.h>
 
 #include <mach/omap7xx.h>
-#include <mach/camera.h>
+#include "camera.h"
 #include <mach/hardware.h>
 
 #include "common.h"
@@ -33,25 +33,7 @@
 #include "mmc.h"
 #include "sram.h"
 
-#if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
-
-static struct platform_device omap_pcm = {
-	.name	= "omap-pcm-audio",
-	.id	= -1,
-};
-
-static void omap_init_audio(void)
-{
-	platform_device_register(&omap_pcm);
-}
-
-#else
-static inline void omap_init_audio(void) {}
-#endif
-
-/*-------------------------------------------------------------------------*/
-
-#if defined(CONFIG_RTC_DRV_OMAP) || defined(CONFIG_RTC_DRV_OMAP_MODULE)
+#if IS_ENABLED(CONFIG_RTC_DRV_OMAP)
 
 #define	OMAP_RTC_BASE		0xfffb4800
 
@@ -90,7 +72,7 @@ static inline void omap_init_mbox(void) { }
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
+#if IS_ENABLED(CONFIG_MMC_OMAP)
 
 static inline void omap1_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 			int controller_nr)
@@ -248,7 +230,7 @@ void __init omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 /*-------------------------------------------------------------------------*/
 
 /* OMAP7xx SPI support */
-#if defined(CONFIG_SPI_OMAP_100K) || defined(CONFIG_SPI_OMAP_100K_MODULE)
+#if IS_ENABLED(CONFIG_SPI_OMAP_100K)
 
 struct platform_device omap_spi1 = {
 	.name           = "omap1_spi100k",
@@ -330,7 +312,7 @@ static inline void omap_init_sti(void) {}
  * mcbsp1..3	= 5..7
  */
 
-#if defined(CONFIG_SPI_OMAP_UWIRE) || defined(CONFIG_SPI_OMAP_UWIRE_MODULE)
+#if IS_ENABLED(CONFIG_SPI_OMAP_UWIRE)
 
 #define	OMAP_UWIRE_BASE		0xfffb3000
 
@@ -425,7 +407,6 @@ static int __init omap1_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 
-	omap_init_audio();
 	omap_init_mbox();
 	omap_init_rtc();
 	omap_init_spi100k();
@@ -437,7 +418,7 @@ static int __init omap1_init_devices(void)
 }
 arch_initcall(omap1_init_devices);
 
-#if defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
+#if IS_ENABLED(CONFIG_OMAP_WATCHDOG)
 
 static struct resource wdt_resources[] = {
 	{

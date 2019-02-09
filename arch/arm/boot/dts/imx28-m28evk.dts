@@ -13,8 +13,8 @@
 #include "imx28-m28.dtsi"
 
 / {
-	model = "DENX M28EVK";
-	compatible = "denx,m28evk", "fsl,imx28";
+	model = "Aries/DENX M28EVK";
+	compatible = "aries,m28evk", "denx,m28evk", "fsl,imx28";
 
 	apb@80000000 {
 		apbh@80000000 {
@@ -137,9 +137,10 @@
 			};
 
 			i2c0: i2c@80058000 {
-				sgtl5000: codec@0a {
+				sgtl5000: codec@a {
 					compatible = "fsl,sgtl5000";
 					reg = <0x0a>;
+					#sound-dai-cells = <0>;
 					VDDA-supply = <&reg_3p3v>;
 					VDDIO-supply = <&reg_3p3v>;
 					clocks = <&saif0>;

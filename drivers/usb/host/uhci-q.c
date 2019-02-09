@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Universal Host Controller Interface driver for USB.
  *
@@ -72,8 +73,7 @@ static void uhci_add_fsbr(struct uhci_hcd *uhci, struct urb *urb)
 {
 	struct urb_priv *urbp = urb->hcpriv;
 
-	if (!(urb->transfer_flags & URB_NO_FSBR))
-		urbp->fsbr = 1;
+	urbp->fsbr = 1;
 }
 
 static void uhci_urbp_wants_fsbr(struct uhci_hcd *uhci, struct urb_priv *urbp)
@@ -89,9 +89,9 @@ static void uhci_urbp_wants_fsbr(struct uhci_hcd *uhci, struct urb_priv *urbp)
 	}
 }
 
-static void uhci_fsbr_timeout(unsigned long _uhci)
+static void uhci_fsbr_timeout(struct timer_list *t)
 {
-	struct uhci_hcd *uhci = (struct uhci_hcd *) _uhci;
+	struct uhci_hcd *uhci = from_timer(uhci, t, fsbr_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&uhci->lock, flags);
@@ -248,11 +248,10 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 	dma_addr_t dma_handle;
 	struct uhci_qh *qh;
 
-	qh = dma_pool_alloc(uhci->qh_pool, GFP_ATOMIC, &dma_handle);
+	qh = dma_pool_zalloc(uhci->qh_pool, GFP_ATOMIC, &dma_handle);
 	if (!qh)
 		return NULL;
 
-	memset(qh, 0, sizeof(*qh));
 	qh->dma_handle = dma_handle;
 
 	qh->element = UHCI_PTR_TERM(uhci);

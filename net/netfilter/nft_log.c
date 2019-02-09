@@ -9,12 +9,15 @@
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
 
+#include <linux/audit.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
+#include <net/ipv6.h>
+#include <net/ip.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_log.h>
 #include <linux/netdevice.h>
@@ -26,19 +29,102 @@ struct nft_log {
 	char			*prefix;
 };
 
+static bool audit_ip4(struct audit_buffer *ab, struct sk_buff *skb)
+{
+	struct iphdr _iph;
+	const struct iphdr *ih;
+
+	ih = skb_header_pointer(skb, skb_network_offset(skb), sizeof(_iph), &_iph);
+	if (!ih)
+		return false;
+
+	audit_log_format(ab, " saddr=%pI4 daddr=%pI4 proto=%hhu",
+			 &ih->saddr, &ih->daddr, ih->protocol);
+
+	return true;
+}
+
+static bool audit_ip6(struct audit_buffer *ab, struct sk_buff *skb)
+{
+	struct ipv6hdr _ip6h;
+	const struct ipv6hdr *ih;
+	u8 nexthdr;
+	__be16 frag_off;
+
+	ih = skb_header_pointer(skb, skb_network_offset(skb), sizeof(_ip6h), &_ip6h);
+	if (!ih)
+		return false;
+
+	nexthdr = ih->nexthdr;
+	ipv6_skip_exthdr(skb, skb_network_offset(skb) + sizeof(_ip6h), &nexthdr, &frag_off);
+
+	audit_log_format(ab, " saddr=%pI6c daddr=%pI6c proto=%hhu",
+			 &ih->saddr, &ih->daddr, nexthdr);
+
+	return true;
+}
+
+static void nft_log_eval_audit(const struct nft_pktinfo *pkt)
+{
+	struct sk_buff *skb = pkt->skb;
+	struct audit_buffer *ab;
+	int fam = -1;
+
+	if (!audit_enabled)
+		return;
+
+	ab = audit_log_start(NULL, GFP_ATOMIC, AUDIT_NETFILTER_PKT);
+	if (!ab)
+		return;
+
+	audit_log_format(ab, "mark=%#x", skb->mark);
+
+	switch (nft_pf(pkt)) {
+	case NFPROTO_BRIDGE:
+		switch (eth_hdr(skb)->h_proto) {
+		case htons(ETH_P_IP):
+			fam = audit_ip4(ab, skb) ? NFPROTO_IPV4 : -1;
+			break;
+		case htons(ETH_P_IPV6):
+			fam = audit_ip6(ab, skb) ? NFPROTO_IPV6 : -1;
+			break;
+		}
+		break;
+	case NFPROTO_IPV4:
+		fam = audit_ip4(ab, skb) ? NFPROTO_IPV4 : -1;
+		break;
+	case NFPROTO_IPV6:
+		fam = audit_ip6(ab, skb) ? NFPROTO_IPV6 : -1;
+		break;
+	}
+
+	if (fam == -1)
+		audit_log_format(ab, " saddr=? daddr=? proto=-1");
+
+	audit_log_end(ab);
+}
+
 static void nft_log_eval(const struct nft_expr *expr,
 			 struct nft_regs *regs,
 			 const struct nft_pktinfo *pkt)
 {
 	const struct nft_log *priv = nft_expr_priv(expr);
 
-	nf_log_packet(pkt->net, pkt->pf, pkt->hook, pkt->skb, pkt->in,
-		      pkt->out, &priv->loginfo, "%s", priv->prefix);
+	if (priv->loginfo.type == NF_LOG_TYPE_LOG &&
+	    priv->loginfo.u.log.level == NFT_LOGLEVEL_AUDIT) {
+		nft_log_eval_audit(pkt);
+		return;
+	}
+
+	nf_log_packet(nft_net(pkt), nft_pf(pkt), nft_hook(pkt), pkt->skb,
+		      nft_in(pkt), nft_out(pkt), &priv->loginfo, "%s",
+		      priv->prefix);
 }
 
 static const struct nla_policy nft_log_policy[NFTA_LOG_MAX + 1] = {
 	[NFTA_LOG_GROUP]	= { .type = NLA_U16 },
-	[NFTA_LOG_PREFIX]	= { .type = NLA_STRING },
+	[NFTA_LOG_PREFIX]	= { .type = NLA_STRING,
+				    .len = NF_LOG_PREFIXLEN - 1 },
 	[NFTA_LOG_SNAPLEN]	= { .type = NLA_U32 },
 	[NFTA_LOG_QTHRESHOLD]	= { .type = NLA_U16 },
 	[NFTA_LOG_LEVEL]	= { .type = NLA_U32 },
@@ -52,7 +138,17 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	struct nft_log *priv = nft_expr_priv(expr);
 	struct nf_loginfo *li = &priv->loginfo;
 	const struct nlattr *nla;
-	int ret;
+	int err;
+
+	li->type = NF_LOG_TYPE_LOG;
+	if (tb[NFTA_LOG_LEVEL] != NULL &&
+	    tb[NFTA_LOG_GROUP] != NULL)
+		return -EINVAL;
+	if (tb[NFTA_LOG_GROUP] != NULL) {
+		li->type = NF_LOG_TYPE_ULOG;
+		if (tb[NFTA_LOG_FLAGS] != NULL)
+			return -EINVAL;
+	}
 
 	nla = tb[NFTA_LOG_PREFIX];
 	if (nla != NULL) {
@@ -64,29 +160,32 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		priv->prefix = (char *)nft_log_null_prefix;
 	}
 
-	li->type = NF_LOG_TYPE_LOG;
-	if (tb[NFTA_LOG_LEVEL] != NULL &&
-	    tb[NFTA_LOG_GROUP] != NULL)
-		return -EINVAL;
-	if (tb[NFTA_LOG_GROUP] != NULL)
-		li->type = NF_LOG_TYPE_ULOG;
-
 	switch (li->type) {
 	case NF_LOG_TYPE_LOG:
 		if (tb[NFTA_LOG_LEVEL] != NULL) {
 			li->u.log.level =
 				ntohl(nla_get_be32(tb[NFTA_LOG_LEVEL]));
 		} else {
-			li->u.log.level = LOGLEVEL_WARNING;
+			li->u.log.level = NFT_LOGLEVEL_WARNING;
 		}
+		if (li->u.log.level > NFT_LOGLEVEL_AUDIT) {
+			err = -EINVAL;
+			goto err1;
+		}
+
 		if (tb[NFTA_LOG_FLAGS] != NULL) {
 			li->u.log.logflags =
 				ntohl(nla_get_be32(tb[NFTA_LOG_FLAGS]));
+			if (li->u.log.logflags & ~NF_LOG_MASK) {
+				err = -EINVAL;
+				goto err1;
+			}
 		}
 		break;
 	case NF_LOG_TYPE_ULOG:
 		li->u.ulog.group = ntohs(nla_get_be16(tb[NFTA_LOG_GROUP]));
 		if (tb[NFTA_LOG_SNAPLEN] != NULL) {
+			li->u.ulog.flags |= NF_LOG_F_COPY_LEN;
 			li->u.ulog.copy_len =
 				ntohl(nla_get_be32(tb[NFTA_LOG_SNAPLEN]));
 		}
@@ -97,20 +196,19 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		break;
 	}
 
-	if (ctx->afi->family == NFPROTO_INET) {
-		ret = nf_logger_find_get(NFPROTO_IPV4, li->type);
-		if (ret < 0)
-			return ret;
-
-		ret = nf_logger_find_get(NFPROTO_IPV6, li->type);
-		if (ret < 0) {
-			nf_logger_put(NFPROTO_IPV4, li->type);
-			return ret;
-		}
+	if (li->u.log.level == NFT_LOGLEVEL_AUDIT)
 		return 0;
-	}
 
-	return nf_logger_find_get(ctx->afi->family, li->type);
+	err = nf_logger_find_get(ctx->family, li->type);
+	if (err < 0)
+		goto err1;
+
+	return 0;
+
+err1:
+	if (priv->prefix != nft_log_null_prefix)
+		kfree(priv->prefix);
+	return err;
 }
 
 static void nft_log_destroy(const struct nft_ctx *ctx,
@@ -122,12 +220,10 @@ static void nft_log_destroy(const struct nft_ctx *ctx,
 	if (priv->prefix != nft_log_null_prefix)
 		kfree(priv->prefix);
 
-	if (ctx->afi->family == NFPROTO_INET) {
-		nf_logger_put(NFPROTO_IPV4, li->type);
-		nf_logger_put(NFPROTO_IPV6, li->type);
-	} else {
-		nf_logger_put(ctx->afi->family, li->type);
-	}
+	if (li->u.log.level == NFT_LOGLEVEL_AUDIT)
+		return;
+
+	nf_logger_put(ctx->family, li->type);
 }
 
 static int nft_log_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -153,7 +249,7 @@ static int nft_log_dump(struct sk_buff *skb, const struct nft_expr *expr)
 		if (nla_put_be16(skb, NFTA_LOG_GROUP, htons(li->u.ulog.group)))
 			goto nla_put_failure;
 
-		if (li->u.ulog.copy_len) {
+		if (li->u.ulog.flags & NF_LOG_F_COPY_LEN) {
 			if (nla_put_be32(skb, NFTA_LOG_SNAPLEN,
 					 htonl(li->u.ulog.copy_len)))
 				goto nla_put_failure;

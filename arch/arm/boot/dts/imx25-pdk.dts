@@ -1,13 +1,6 @@
-/*
- * Copyright 2013 Freescale Semiconductor, Inc.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2013 Freescale Semiconductor, Inc.
 
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
@@ -18,7 +11,7 @@
 	model = "Freescale i.MX25 Product Development Kit";
 	compatible = "fsl,imx25-pdk", "fsl,imx25";
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x4000000>;
 	};
 
@@ -125,7 +118,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-supply = <&reg_fec_3v3>;
-	phy-reset-gpios = <&gpio4 8 0>;
+	phy-reset-gpios = <&gpio4 8 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -135,7 +128,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		clocks = <&clks 129>;
@@ -165,12 +158,12 @@
 
 		pinctrl_esdhc1: esdhc1grp {
 			fsl,pins = <
-				MX25_PAD_SD1_CMD__SD1_CMD		0x80000000
-				MX25_PAD_SD1_CLK__SD1_CLK		0x80000000
-				MX25_PAD_SD1_DATA0__SD1_DATA0		0x80000000
-				MX25_PAD_SD1_DATA1__SD1_DATA1		0x80000000
-				MX25_PAD_SD1_DATA2__SD1_DATA2		0x80000000
-				MX25_PAD_SD1_DATA3__SD1_DATA3		0x80000000
+				MX25_PAD_SD1_CMD__ESDHC1_CMD		0x80000000
+				MX25_PAD_SD1_CLK__ESDHC1_CLK		0x80000000
+				MX25_PAD_SD1_DATA0__ESDHC1_DAT0		0x80000000
+				MX25_PAD_SD1_DATA1__ESDHC1_DAT1		0x80000000
+				MX25_PAD_SD1_DATA2__ESDHC1_DAT2		0x80000000
+				MX25_PAD_SD1_DATA3__ESDHC1_DAT3		0x80000000
 				MX25_PAD_A14__GPIO_2_0			0x80000000
 				MX25_PAD_A15__GPIO_2_1			0x80000000
 			>;
@@ -291,14 +284,21 @@
 };
 
 &ssi1 {
-	codec-handle = <&codec>;
+	status = "okay";
+};
+
+&tsc {
+	status = "okay";
+};
+
+&tscadc {
 	status = "okay";
 };
 
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -309,8 +309,6 @@
 };
 
 &usbotg {
-	phy_type = "utmi";
-	dr_mode = "otg";
 	external-vbus-divider;
 	status = "okay";
 };

@@ -1,22 +1,37 @@
 * Dialog DA9062 Power Management Integrated Circuit (PMIC)
 
-DA9062 consists of a large and varied group of sub-devices:
+Product information for the DA9062 and DA9061 devices can be found here:
+- http://www.dialog-semiconductor.com/products/da9062
+- http://www.dialog-semiconductor.com/products/da9061
+
+The DA9062 PMIC consists of:
 
 Device                   Supply Names    Description
 ------                   ------------    -----------
 da9062-regulator        :               : LDOs & BUCKs
 da9062-rtc              :               : Real-Time Clock
+da9062-onkey            :               : On Key
 da9062-watchdog         :               : Watchdog Timer
+da9062-thermal          :               : Thermal
+
+The DA9061 PMIC consists of:
+
+Device                   Supply Names    Description
+------                   ------------    -----------
+da9062-regulator        :               : LDOs & BUCKs
+da9062-onkey            :               : On Key
+da9062-watchdog         :               : Watchdog Timer
+da9062-thermal          :               : Thermal
 
 ======
 
 Required properties:
 
-- compatible : Should be "dlg,da9062".
+- compatible : Should be
+    "dlg,da9062" for DA9062
+    "dlg,da9061" for DA9061
 - reg : Specifies the I2C slave address (this defaults to 0x58 but it can be
   modified to match the chip's OTP settings).
-- interrupt-parent : Specifies the reference to the interrupt controller for
-  the DA9062.
 - interrupts : IRQ line information.
 - interrupt-controller
 
@@ -25,8 +40,8 @@ further information on IRQ bindings.
 
 Sub-nodes:
 
-- regulators : This node defines the settings for the LDOs and BUCKs. The
-  DA9062 regulators are bound using their names listed below:
+- regulators : This node defines the settings for the LDOs and BUCKs.
+  The DA9062 regulators are bound using their names listed below:
 
     buck1    : BUCK_1
     buck2    : BUCK_2
@@ -37,19 +52,29 @@ Sub-nodes:
     ldo3     : LDO_3
     ldo4     : LDO_4
 
+  The DA9061 regulators are bound using their names listed below:
+
+    buck1    : BUCK_1
+    buck2    : BUCK_2
+    buck3    : BUCK_3
+    ldo1     : LDO_1
+    ldo2     : LDO_2
+    ldo3     : LDO_3
+    ldo4     : LDO_4
+
   The component follows the standard regulator framework and the bindings
   details of individual regulator device can be found in:
   Documentation/devicetree/bindings/regulator/regulator.txt
-
 
 - rtc : This node defines settings required for the Real-Time Clock associated
   with the DA9062. There are currently no entries in this binding, however
   compatible = "dlg,da9062-rtc" should be added if a node is created.
 
-- watchdog: This node defines the settings for the watchdog driver associated
-  with the DA9062 PMIC. The compatible = "dlg,da9062-watchdog" should be added
-  if a node is created.
+- onkey : See ../input/da9062-onkey.txt
 
+- watchdog: See ../watchdog/da9062-watchdog.txt
+
+- thermal : See ../thermal/da9062-thermal.txt
 
 Example:
 
@@ -62,10 +87,6 @@ Example:
 
 		rtc {
 			compatible = "dlg,da9062-rtc";
-		};
-
-		watchdog {
-			compatible = "dlg,da9062-watchdog";
 		};
 
 		regulators {

@@ -279,13 +279,12 @@ union octeon_cvmemctl {
 	} s;
 };
 
-extern void octeon_write_lcd(const char *s);
 extern void octeon_check_cpu_bist(void);
-extern int octeon_get_boot_uart(void);
 
-struct uart_port;
-extern unsigned int octeon_serial_in(struct uart_port *, int);
-extern void octeon_serial_out(struct uart_port *, int, int);
+int octeon_prune_device_tree(void);
+extern const char __appended_dtb;
+extern const char __dtb_octeon_3xxx_begin;
+extern const char __dtb_octeon_68xx_begin;
 
 /**
  * Write a 32bit value to the Octeon NPI register space
@@ -298,6 +297,31 @@ static inline void octeon_npi_write32(uint64_t address, uint32_t val)
 	cvmx_write64_uint32(address ^ 4, val);
 	cvmx_read64_uint32(address ^ 4);
 }
+
+#ifdef CONFIG_SMP
+void octeon_setup_smp(void);
+#else
+static inline void octeon_setup_smp(void) {}
+#endif
+
+struct irq_domain;
+struct device_node;
+struct irq_data;
+struct irq_chip;
+void octeon_ciu3_mbox_send(int cpu, unsigned int mbox);
+int octeon_irq_ciu3_xlat(struct irq_domain *d,
+			 struct device_node *node,
+			 const u32 *intspec,
+			 unsigned int intsize,
+			 unsigned long *out_hwirq,
+			 unsigned int *out_type);
+void octeon_irq_ciu3_enable(struct irq_data *data);
+void octeon_irq_ciu3_disable(struct irq_data *data);
+void octeon_irq_ciu3_ack(struct irq_data *data);
+void octeon_irq_ciu3_mask(struct irq_data *data);
+void octeon_irq_ciu3_mask_ack(struct irq_data *data);
+int octeon_irq_ciu3_mapx(struct irq_domain *d, unsigned int virq,
+			 irq_hw_number_t hw, struct irq_chip *chip);
 
 /* Octeon multiplier save/restore routines from octeon_switch.S */
 void octeon_mult_save(void);
@@ -336,5 +360,7 @@ void octeon_irq_set_ip4_handler(octeon_irq_ip4_handler_t);
 extern void octeon_fixup_irqs(void);
 
 extern struct semaphore octeon_bootbus_sem;
+
+struct irq_domain *octeon_irq_get_block_domain(int node, uint8_t block);
 
 #endif /* __ASM_OCTEON_OCTEON_H */

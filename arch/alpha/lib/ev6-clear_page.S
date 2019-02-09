@@ -1,9 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/alpha/lib/ev6-clear_page.S
  *
  * Zero an entire page.
  */
-
+#include <asm/export.h>
         .text
         .align 4
         .global clear_page
@@ -52,3 +53,4 @@ clear_page:
 	nop
 
 	.end clear_page
+	EXPORT_SYMBOL(clear_page)

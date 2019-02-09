@@ -1,51 +1,19 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
  *
  ******************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
-
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "amlcode.h"
 #include "acnamesp.h"
 #include "acdispat.h"
+
+#ifdef ACPI_ASL_COMPILER
+#include "acdisasm.h"
+#endif
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsaccess")
@@ -107,9 +75,10 @@ acpi_status acpi_ns_root_initialize(void)
 			continue;
 		}
 
-		status = acpi_ns_lookup(NULL, init_val->name, init_val->type,
-					ACPI_IMODE_LOAD_PASS2,
-					ACPI_NS_NO_UPSEARCH, NULL, &new_node);
+		status =
+		    acpi_ns_lookup(NULL, ACPI_CAST_PTR(char, init_val->name),
+				   init_val->type, ACPI_IMODE_LOAD_PASS2,
+				   ACPI_NS_NO_UPSEARCH, NULL, &new_node);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Could not create predefined name %s",
@@ -287,6 +256,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 {
 	acpi_status status;
 	char *path = pathname;
+	char *external_path;
 	struct acpi_namespace_node *prefix_node;
 	struct acpi_namespace_node *current_node = NULL;
 	struct acpi_namespace_node *this_node = NULL;
@@ -422,13 +392,22 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				num_carats++;
 				this_node = this_node->parent;
 				if (!this_node) {
+					/*
+					 * Current scope has no parent scope. Externalize
+					 * the internal path for error message.
+					 */
+					status =
+					    acpi_ns_externalize_name
+					    (ACPI_UINT32_MAX, pathname, NULL,
+					     &external_path);
+					if (ACPI_SUCCESS(status)) {
+						ACPI_ERROR((AE_INFO,
+							    "%s: Path has too many parent prefixes (^)",
+							    external_path));
 
-					/* Current scope has no parent scope */
+						ACPI_FREE(external_path);
+					}
 
-					ACPI_ERROR((AE_INFO,
-						    "%s: Path has too many parent prefixes (^) "
-						    "- reached beyond root node",
-						    pathname));
 					return_ACPI_STATUS(AE_NOT_FOUND);
 				}
 			}
@@ -484,7 +463,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 					  flags));
 			break;
 
-		case AML_MULTI_NAME_PREFIX_OP:
+		case AML_MULTI_NAME_PREFIX:
 
 			/* More than one name_seg, search rules do not apply */
 
@@ -579,6 +558,37 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 						  (char *)&current_node->name,
 						  current_node));
 			}
+#ifdef ACPI_EXEC_APP
+			if ((status == AE_ALREADY_EXISTS) &&
+			    (this_node->flags & ANOBJ_NODE_EARLY_INIT)) {
+				this_node->flags &= ~ANOBJ_NODE_EARLY_INIT;
+				status = AE_OK;
+			}
+#endif
+
+#ifdef ACPI_ASL_COMPILER
+			/*
+			 * If this ACPI name already exists within the namespace as an
+			 * external declaration, then mark the external as a conflicting
+			 * declaration and proceed to process the current node as if it did
+			 * not exist in the namespace. If this node is not processed as
+			 * normal, then it could cause improper namespace resolution
+			 * by failing to open a new scope.
+			 */
+			if (acpi_gbl_disasm_flag &&
+			    (status == AE_ALREADY_EXISTS) &&
+			    ((this_node->flags & ANOBJ_IS_EXTERNAL) ||
+			     (walk_state
+			      && walk_state->opcode == AML_EXTERNAL_OP))) {
+				this_node->flags &= ~ANOBJ_IS_EXTERNAL;
+				this_node->type = (u8)this_search_type;
+				if (walk_state->opcode != AML_EXTERNAL_OP) {
+					acpi_dm_mark_external_conflict
+					    (this_node);
+				}
+				break;
+			}
+#endif
 
 			*return_node = this_node;
 			return_ACPI_STATUS(status);
@@ -674,6 +684,11 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			}
 		}
 	}
+#ifdef ACPI_EXEC_APP
+	if (flags & ACPI_NS_EARLY_INIT) {
+		this_node->flags |= ANOBJ_NODE_EARLY_INIT;
+	}
+#endif
 
 	*return_node = this_node;
 	return_ACPI_STATUS(AE_OK);

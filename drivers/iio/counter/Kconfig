@@ -1,0 +1,34 @@
+#
+# Counter devices
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Counters"
+
+config 104_QUAD_8
+	tristate "ACCES 104-QUAD-8 driver"
+	depends on PC104 && X86
+	select ISA_BUS_API
+	help
+	  Say yes here to build support for the ACCES 104-QUAD-8 quadrature
+	  encoder counter/interface device family (104-QUAD-8, 104-QUAD-4).
+
+	  Performing a write to a counter's IIO_CHAN_INFO_RAW sets the counter and
+	  also clears the counter's respective error flag. Although the counters
+	  have a 25-bit range, only the lower 24 bits may be set, either directly
+	  or via a counter's preset attribute. Interrupts are not supported by
+	  this driver.
+
+	  The base port addresses for the devices may be configured via the base
+	  array module parameter.
+
+config STM32_LPTIMER_CNT
+	tristate "STM32 LP Timer encoder counter driver"
+	depends on MFD_STM32_LPTIMER || COMPILE_TEST
+	help
+	  Select this option to enable STM32 Low-Power Timer quadrature encoder
+	  and counter driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stm32-lptimer-cnt.
+endmenu

@@ -1,7 +1,7 @@
 /*
  * vcan.c - Virtual CAN interface
  *
- * Copyright (c) 2002-2007 Volkswagen Group Electronic Research
+ * Copyright (c) 2002-2017 Volkswagen Group Electronic Research
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,19 +50,22 @@
 #include <linux/slab.h>
 #include <net/rtnetlink.h>
 
+#define DRV_NAME "vcan"
+
 MODULE_DESCRIPTION("virtual CAN interface");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Urs Thuermann <urs.thuermann@volkswagen.de>");
+MODULE_ALIAS_RTNL_LINK(DRV_NAME);
 
 
 /*
  * CAN test feature:
  * Enable the echo on driver level for testing the CAN core echo modes.
- * See Documentation/networking/can.txt for details.
+ * See Documentation/networking/can.rst for details.
  */
 
 static bool echo; /* echo testing. Default: 0 (Off) */
-module_param(echo, bool, S_IRUGO);
+module_param(echo, bool, 0444);
 MODULE_PARM_DESC(echo, "Echo sent frames (for testing). Default: 0 (Off)");
 
 
@@ -149,7 +152,7 @@ static const struct net_device_ops vcan_netdev_ops = {
 static void vcan_setup(struct net_device *dev)
 {
 	dev->type		= ARPHRD_CAN;
-	dev->mtu		= CAN_MTU;
+	dev->mtu		= CANFD_MTU;
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
 	dev->tx_queue_len	= 0;
@@ -160,11 +163,11 @@ static void vcan_setup(struct net_device *dev)
 		dev->flags |= IFF_ECHO;
 
 	dev->netdev_ops		= &vcan_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 }
 
 static struct rtnl_link_ops vcan_link_ops __read_mostly = {
-	.kind	= "vcan",
+	.kind	= DRV_NAME,
 	.setup	= vcan_setup,
 };
 

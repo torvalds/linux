@@ -531,7 +531,7 @@ int pasemi_dma_init(void)
 	iob_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa001, NULL);
 	if (!iob_pdev) {
 		BUG();
-		printk(KERN_WARNING "Can't find I/O Bridge\n");
+		pr_warn("Can't find I/O Bridge\n");
 		err = -ENODEV;
 		goto out;
 	}
@@ -540,7 +540,7 @@ int pasemi_dma_init(void)
 	dma_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa007, NULL);
 	if (!dma_pdev) {
 		BUG();
-		printk(KERN_WARNING "Can't find DMA controller\n");
+		pr_warn("Can't find DMA controller\n");
 		err = -ENODEV;
 		goto out;
 	}
@@ -589,7 +589,7 @@ int pasemi_dma_init(void)
 	pasemi_write_dma_reg(PAS_DMA_COM_RXCMD, 0);
 	while (pasemi_read_dma_reg(PAS_DMA_COM_RXSTA) & 1) {
 		if (time_after(jiffies, timeout)) {
-			pr_warning("Warning: Could not disable RX section\n");
+			pr_warn("Warning: Could not disable RX section\n");
 			break;
 		}
 	}
@@ -598,7 +598,7 @@ int pasemi_dma_init(void)
 	pasemi_write_dma_reg(PAS_DMA_COM_TXCMD, 0);
 	while (pasemi_read_dma_reg(PAS_DMA_COM_TXSTA) & 1) {
 		if (time_after(jiffies, timeout)) {
-			pr_warning("Warning: Could not disable TX section\n");
+			pr_warn("Warning: Could not disable TX section\n");
 			break;
 		}
 	}
@@ -623,7 +623,7 @@ int pasemi_dma_init(void)
 	pasemi_write_dma_reg(PAS_DMA_TXF_CFLG0, 0xffffffff);
 	pasemi_write_dma_reg(PAS_DMA_TXF_CFLG1, 0xffffffff);
 
-	printk(KERN_INFO "PA Semi PWRficient DMA library initialized "
+	pr_info("PA Semi PWRficient DMA library initialized "
 		"(%d tx, %d rx channels)\n", num_txch, num_rxch);
 
 out:

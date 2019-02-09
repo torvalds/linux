@@ -14,6 +14,8 @@
 #include <linux/acpi.h>
 #include <linux/pm_domain.h>
 
+#include "power.h"
+
 /**
  * dev_pm_get_subsys_data - Create or refcount power.subsys_data for device.
  * @dev: Device to handle.
@@ -96,28 +98,86 @@ EXPORT_SYMBOL_GPL(dev_pm_put_subsys_data);
  * Callers must ensure proper synchronization of this function with power
  * management callbacks.
  *
- * Returns 0 on successfully attached PM domain or negative error code.
+ * Returns 0 on successfully attached PM domain, or when it is found that the
+ * device doesn't need a PM domain, else a negative error code.
  */
 int dev_pm_domain_attach(struct device *dev, bool power_on)
 {
 	int ret;
 
+	if (dev->pm_domain)
+		return 0;
+
 	ret = acpi_dev_pm_attach(dev, power_on);
-	if (ret)
+	if (!ret)
 		ret = genpd_dev_pm_attach(dev);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL_GPL(dev_pm_domain_attach);
 
 /**
+ * dev_pm_domain_attach_by_id - Associate a device with one of its PM domains.
+ * @dev: The device used to lookup the PM domain.
+ * @index: The index of the PM domain.
+ *
+ * As @dev may only be attached to a single PM domain, the backend PM domain
+ * provider creates a virtual device to attach instead. If attachment succeeds,
+ * the ->detach() callback in the struct dev_pm_domain are assigned by the
+ * corresponding backend attach function, as to deal with detaching of the
+ * created virtual device.
+ *
+ * This function should typically be invoked by a driver during the probe phase,
+ * in case its device requires power management through multiple PM domains. The
+ * driver may benefit from using the received device, to configure device-links
+ * towards its original device. Depending on the use-case and if needed, the
+ * links may be dynamically changed by the driver, which allows it to control
+ * the power to the PM domains independently from each other.
+ *
+ * Callers must ensure proper synchronization of this function with power
+ * management callbacks.
+ *
+ * Returns the virtual created device when successfully attached to its PM
+ * domain, NULL in case @dev don't need a PM domain, else an ERR_PTR().
+ * Note that, to detach the returned virtual device, the driver shall call
+ * dev_pm_domain_detach() on it, typically during the remove phase.
+ */
+struct device *dev_pm_domain_attach_by_id(struct device *dev,
+					  unsigned int index)
+{
+	if (dev->pm_domain)
+		return ERR_PTR(-EEXIST);
+
+	return genpd_dev_pm_attach_by_id(dev, index);
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_id);
+
+/**
+ * dev_pm_domain_attach_by_name - Associate a device with one of its PM domains.
+ * @dev: The device used to lookup the PM domain.
+ * @name: The name of the PM domain.
+ *
+ * For a detailed function description, see dev_pm_domain_attach_by_id().
+ */
+struct device *dev_pm_domain_attach_by_name(struct device *dev,
+					    char *name)
+{
+	if (dev->pm_domain)
+		return ERR_PTR(-EEXIST);
+
+	return genpd_dev_pm_attach_by_name(dev, name);
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_name);
+
+/**
  * dev_pm_domain_detach - Detach a device from its PM domain.
- * @dev: Device to attach.
+ * @dev: Device to detach.
  * @power_off: Used to indicate whether we should power off the device.
  *
- * This functions will reverse the actions from dev_pm_domain_attach() and thus
- * try to detach the @dev from its PM domain. Typically it should be invoked
- * from subsystem level code during the remove phase.
+ * This functions will reverse the actions from dev_pm_domain_attach() and
+ * dev_pm_domain_attach_by_id(), thus it detaches @dev from its PM domain.
+ * Typically it should be invoked during the remove phase, either from
+ * subsystem level code or from drivers.
  *
  * Callers must ensure proper synchronization of this function with power
  * management callbacks.
@@ -128,3 +188,25 @@ void dev_pm_domain_detach(struct device *dev, bool power_off)
 		dev->pm_domain->detach(dev, power_off);
 }
 EXPORT_SYMBOL_GPL(dev_pm_domain_detach);
+
+/**
+ * dev_pm_domain_set - Set PM domain of a device.
+ * @dev: Device whose PM domain is to be set.
+ * @pd: PM domain to be set, or NULL.
+ *
+ * Sets the PM domain the device belongs to. The PM domain of a device needs
+ * to be set before its probe finishes (it's bound to a driver).
+ *
+ * This function must be called with the device lock held.
+ */
+void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd)
+{
+	if (dev->pm_domain == pd)
+		return;
+
+	WARN(pd && device_is_bound(dev),
+	     "PM domains can only be changed for unbound devices\n");
+	dev->pm_domain = pd;
+	device_pm_check_callbacks(dev);
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_set);

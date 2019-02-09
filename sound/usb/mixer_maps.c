@@ -107,8 +107,10 @@ static struct usbmix_name_map extigy_map[] = {
  * e.g. no Master and fake PCM volume
  *			Pavel Mihaylov <bin@bash.info>
  */
-static struct usbmix_dB_map mp3plus_dB_1 = {-4781, 0};	/* just guess */
-static struct usbmix_dB_map mp3plus_dB_2 = {-1781, 618}; /* just guess */
+static struct usbmix_dB_map mp3plus_dB_1 = {.min = -4781, .max = 0};
+						/* just guess */
+static struct usbmix_dB_map mp3plus_dB_2 = {.min = -1781, .max = 618};
+						/* just guess */
 
 static struct usbmix_name_map mp3plus_map[] = {
 	/* 1: IT pcm */
@@ -349,6 +351,19 @@ static struct usbmix_name_map bose_companion5_map[] = {
 };
 
 /*
+ * Dell usb dock with ALC4020 codec had a firmware problem where it got
+ * screwed up when zero volume is passed; just skip it as a workaround
+ *
+ * Also the extension unit gives an access error, so skip it as well.
+ */
+static const struct usbmix_name_map dell_alc4020_map[] = {
+	{ 4, NULL },	/* extension unit */
+	{ 16, NULL },
+	{ 19, NULL },
+	{ 0 }
+};
+
+/*
  * Control map entries
  */
 
@@ -431,6 +446,10 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.map = aureon_51_2_map,
 	},
 	{
+		.id = USB_ID(0x0bda, 0x4014),
+		.map = dell_alc4020_map,
+	},
+	{
 		.id = USB_ID(0x0dba, 0x1000),
 		.map = mbox1_map,
 	},
@@ -466,3 +485,68 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{ 0 } /* terminator */
 };
 
+/*
+ * Control map entries for UAC3 BADD profiles
+ */
+
+static struct usbmix_name_map uac3_badd_generic_io_map[] = {
+	{ UAC3_BADD_FU_ID2, "Generic Out Playback" },
+	{ UAC3_BADD_FU_ID5, "Generic In Capture" },
+	{ 0 }					/* terminator */
+};
+static struct usbmix_name_map uac3_badd_headphone_map[] = {
+	{ UAC3_BADD_FU_ID2, "Headphone Playback" },
+	{ 0 }					/* terminator */
+};
+static struct usbmix_name_map uac3_badd_speaker_map[] = {
+	{ UAC3_BADD_FU_ID2, "Speaker Playback" },
+	{ 0 }					/* terminator */
+};
+static struct usbmix_name_map uac3_badd_microphone_map[] = {
+	{ UAC3_BADD_FU_ID5, "Mic Capture" },
+	{ 0 }					/* terminator */
+};
+/* Covers also 'headset adapter' profile */
+static struct usbmix_name_map uac3_badd_headset_map[] = {
+	{ UAC3_BADD_FU_ID2, "Headset Playback" },
+	{ UAC3_BADD_FU_ID5, "Headset Capture" },
+	{ UAC3_BADD_FU_ID7, "Sidetone Mixing" },
+	{ 0 }					/* terminator */
+};
+static struct usbmix_name_map uac3_badd_speakerphone_map[] = {
+	{ UAC3_BADD_FU_ID2, "Speaker Playback" },
+	{ UAC3_BADD_FU_ID5, "Mic Capture" },
+	{ 0 }					/* terminator */
+};
+
+static struct usbmix_ctl_map uac3_badd_usbmix_ctl_maps[] = {
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_GENERIC_IO,
+		.map = uac3_badd_generic_io_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_HEADPHONE,
+		.map = uac3_badd_headphone_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_SPEAKER,
+		.map = uac3_badd_speaker_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_MICROPHONE,
+		.map = uac3_badd_microphone_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_HEADSET,
+		.map = uac3_badd_headset_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_HEADSET_ADAPTER,
+		.map = uac3_badd_headset_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_SPEAKERPHONE,
+		.map = uac3_badd_speakerphone_map,
+	},
+	{ 0 } /* terminator */
+};

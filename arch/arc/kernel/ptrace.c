@@ -8,6 +8,7 @@
 
 #include <linux/ptrace.h>
 #include <linux/tracehook.h>
+#include <linux/sched/task_stack.h>
 #include <linux/regset.h>
 #include <linux/unistd.h>
 #include <linux/elf.h>
@@ -183,19 +184,75 @@ static int genregs_set(struct task_struct *target,
 	return ret;
 }
 
+#ifdef CONFIG_ISA_ARCV2
+static int arcv2regs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
+{
+	const struct pt_regs *regs = task_pt_regs(target);
+	int ret, copy_sz;
+
+	if (IS_ENABLED(CONFIG_ARC_HAS_ACCL_REGS))
+		copy_sz = sizeof(struct user_regs_arcv2);
+	else
+		copy_sz = 4;	/* r30 only */
+
+	/*
+	 * itemized copy not needed like above as layout of regs (r30,r58,r59)
+	 * is exactly same in kernel (pt_regs) and userspace (user_regs_arcv2)
+	 */
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &regs->r30,
+				  0, copy_sz);
+
+	return ret;
+}
+
+static int arcv2regs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	const struct pt_regs *regs = task_pt_regs(target);
+	int ret, copy_sz;
+
+	if (IS_ENABLED(CONFIG_ARC_HAS_ACCL_REGS))
+		copy_sz = sizeof(struct user_regs_arcv2);
+	else
+		copy_sz = 4;	/* r30 only */
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, (void *)&regs->r30,
+				  0, copy_sz);
+
+	return ret;
+}
+
+#endif
+
 enum arc_getset {
-	REGSET_GENERAL,
+	REGSET_CMN,
+	REGSET_ARCV2,
 };
 
 static const struct user_regset arc_regsets[] = {
-	[REGSET_GENERAL] = {
+	[REGSET_CMN] = {
 	       .core_note_type = NT_PRSTATUS,
 	       .n = ELF_NGREG,
 	       .size = sizeof(unsigned long),
 	       .align = sizeof(unsigned long),
 	       .get = genregs_get,
 	       .set = genregs_set,
-	}
+	},
+#ifdef CONFIG_ISA_ARCV2
+	[REGSET_ARCV2] = {
+	       .core_note_type = NT_ARC_V2,
+	       .n = ELF_ARCV2REG,
+	       .size = sizeof(unsigned long),
+	       .align = sizeof(unsigned long),
+	       .get = arcv2regs_get,
+	       .set = arcv2regs_set,
+	},
+#endif
 };
 
 static const struct user_regset_view user_arc_view = {

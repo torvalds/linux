@@ -33,7 +33,9 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/errno.h>
+#include <linux/mm_types.h>
+#include <linux/init.h>
 #include <linux/capability.h>
 
 #include <xen/xen.h>
@@ -42,6 +44,7 @@
 #include <xen/xenbus.h>
 #include <xen/features.h>
 #include <xen/page.h>
+#include <xen/mem-reservation.h>
 
 #define PAGES2KB(_p) ((_p)<<(PAGE_SHIFT-10))
 
@@ -53,10 +56,12 @@ static int register_balloon(struct device *dev);
 
 /* React to a change in the target key */
 static void watch_target(struct xenbus_watch *watch,
-			 const char **vec, unsigned int len)
+			 const char *path, const char *token)
 {
-	unsigned long long new_target;
+	unsigned long long new_target, static_max;
 	int err;
+	static bool watch_fired;
+	static long target_diff;
 
 	err = xenbus_scanf(XBT_NIL, "memory", "target", "%llu", &new_target);
 	if (err != 1) {
@@ -67,7 +72,24 @@ static void watch_target(struct xenbus_watch *watch,
 	/* The given memory/target value is in KiB, so it needs converting to
 	 * pages. PAGE_SHIFT converts bytes to pages, hence PAGE_SHIFT - 10.
 	 */
-	balloon_set_new_target(new_target >> (PAGE_SHIFT - 10));
+	new_target >>= PAGE_SHIFT - 10;
+
+	if (!watch_fired) {
+		watch_fired = true;
+
+		if ((xenbus_scanf(XBT_NIL, "memory", "static-max",
+				  "%llu", &static_max) == 1) ||
+		    (xenbus_scanf(XBT_NIL, "memory", "memory_static_max",
+				  "%llu", &static_max) == 1))
+			static_max >>= PAGE_SHIFT - 10;
+		else
+			static_max = new_target;
+
+		target_diff = (xen_pv_domain() || xen_initial_domain()) ? 0
+				: static_max - balloon_stats.target_pages;
+	}
+
+	balloon_set_new_target(new_target - target_diff);
 }
 static struct xenbus_watch target_watch = {
 	.node = "memory/target",
@@ -92,30 +114,15 @@ static struct notifier_block xenstore_notifier = {
 	.notifier_call = balloon_init_watcher,
 };
 
-static int __init balloon_init(void)
+void xen_balloon_init(void)
 {
-	if (!xen_domain())
-		return -ENODEV;
-
-	pr_info("Initialising balloon driver\n");
-
 	register_balloon(&balloon_dev);
 
 	register_xen_selfballooning(&balloon_dev);
 
 	register_xenstore_notifier(&xenstore_notifier);
-
-	return 0;
 }
-subsys_initcall(balloon_init);
-
-static void balloon_exit(void)
-{
-    /* XXX - release balloon here */
-    return;
-}
-
-module_exit(balloon_exit);
+EXPORT_SYMBOL_GPL(xen_balloon_init);
 
 #define BALLOON_SHOW(name, format, args...)				\
 	static ssize_t show_##name(struct device *dev,			\
@@ -134,6 +141,7 @@ static DEVICE_ULONG_ATTR(schedule_delay, 0444, balloon_stats.schedule_delay);
 static DEVICE_ULONG_ATTR(max_schedule_delay, 0644, balloon_stats.max_schedule_delay);
 static DEVICE_ULONG_ATTR(retry_count, 0444, balloon_stats.retry_count);
 static DEVICE_ULONG_ATTR(max_retry_count, 0644, balloon_stats.max_retry_count);
+static DEVICE_BOOL_ATTR(scrub_pages, 0644, xen_scrub_pages);
 
 static ssize_t show_target_kb(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -200,6 +208,7 @@ static struct attribute *balloon_attrs[] = {
 	&dev_attr_max_schedule_delay.attr.attr,
 	&dev_attr_retry_count.attr.attr,
 	&dev_attr_max_retry_count.attr.attr,
+	&dev_attr_scrub_pages.attr.attr,
 	NULL
 };
 
@@ -250,5 +259,3 @@ static int register_balloon(struct device *dev)
 
 	return 0;
 }
-
-MODULE_LICENSE("GPL");

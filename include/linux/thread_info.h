@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* thread_info.h: common low-level thread information accessors
  *
  * Copyright (C) 2002  David Howells (dhowells@redhat.com)
@@ -9,57 +10,40 @@
 
 #include <linux/types.h>
 #include <linux/bug.h>
+#include <linux/restart_block.h>
 
-struct timespec;
-struct compat_timespec;
-
+#ifdef CONFIG_THREAD_INFO_IN_TASK
 /*
- * System call restart block.
+ * For CONFIG_THREAD_INFO_IN_TASK kernels we need <asm/current.h> for the
+ * definition of current, but for !CONFIG_THREAD_INFO_IN_TASK kernels,
+ * including <asm/current.h> can cause a circular dependency on some platforms.
  */
-struct restart_block {
-	long (*fn)(struct restart_block *);
-	union {
-		/* For futex_wait and futex_wait_requeue_pi */
-		struct {
-			u32 __user *uaddr;
-			u32 val;
-			u32 flags;
-			u32 bitset;
-			u64 time;
-			u32 __user *uaddr2;
-		} futex;
-		/* For nanosleep */
-		struct {
-			clockid_t clockid;
-			struct timespec __user *rmtp;
-#ifdef CONFIG_COMPAT
-			struct compat_timespec __user *compat_rmtp;
+#include <asm/current.h>
+#define current_thread_info() ((struct thread_info *)current)
 #endif
-			u64 expires;
-		} nanosleep;
-		/* For poll */
-		struct {
-			struct pollfd __user *ufds;
-			int nfds;
-			int has_timeout;
-			unsigned long tv_sec;
-			unsigned long tv_nsec;
-		} poll;
-	};
-};
-
-extern long do_no_restart_syscall(struct restart_block *parm);
 
 #include <linux/bitops.h>
+
+/*
+ * For per-arch arch_within_stack_frames() implementations, defined in
+ * asm/thread_info.h.
+ */
+enum {
+	BAD_STACK = -1,
+	NOT_STACK = 0,
+	GOOD_FRAME,
+	GOOD_STACK,
+};
+
 #include <asm/thread_info.h>
 
 #ifdef __KERNEL__
 
-#ifdef CONFIG_DEBUG_STACK_USAGE
-# define THREADINFO_GFP		(GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
-#else
-# define THREADINFO_GFP		(GFP_KERNEL | __GFP_NOTRACK)
+#ifndef THREAD_ALIGN
+#define THREAD_ALIGN	THREAD_SIZE
 #endif
+
+#define THREADINFO_GFP		(GFP_KERNEL_ACCOUNT | __GFP_ZERO)
 
 /*
  * flag set/clear/test wrappers
@@ -74,6 +58,15 @@ static inline void set_ti_thread_flag(struct thread_info *ti, int flag)
 static inline void clear_ti_thread_flag(struct thread_info *ti, int flag)
 {
 	clear_bit(flag, (unsigned long *)&ti->flags);
+}
+
+static inline void update_ti_thread_flag(struct thread_info *ti, int flag,
+					 bool value)
+{
+	if (value)
+		set_ti_thread_flag(ti, flag);
+	else
+		clear_ti_thread_flag(ti, flag);
 }
 
 static inline int test_and_set_ti_thread_flag(struct thread_info *ti, int flag)
@@ -95,6 +88,8 @@ static inline int test_ti_thread_flag(struct thread_info *ti, int flag)
 	set_ti_thread_flag(current_thread_info(), flag)
 #define clear_thread_flag(flag) \
 	clear_ti_thread_flag(current_thread_info(), flag)
+#define update_thread_flag(flag, value) \
+	update_ti_thread_flag(current_thread_info(), flag, value)
 #define test_and_set_thread_flag(flag) \
 	test_and_set_ti_thread_flag(current_thread_info(), flag)
 #define test_and_clear_thread_flag(flag) \
@@ -104,45 +99,60 @@ static inline int test_ti_thread_flag(struct thread_info *ti, int flag)
 
 #define tif_need_resched() test_thread_flag(TIF_NEED_RESCHED)
 
-#if defined TIF_RESTORE_SIGMASK && !defined HAVE_SET_RESTORE_SIGMASK
-/*
- * An arch can define its own version of set_restore_sigmask() to get the
- * job done however works, with or without TIF_RESTORE_SIGMASK.
- */
-#define HAVE_SET_RESTORE_SIGMASK	1
+#ifndef CONFIG_HAVE_ARCH_WITHIN_STACK_FRAMES
+static inline int arch_within_stack_frames(const void * const stack,
+					   const void * const stackend,
+					   const void *obj, unsigned long len)
+{
+	return 0;
+}
+#endif
 
-/**
- * set_restore_sigmask() - make sure saved_sigmask processing gets done
- *
- * This sets TIF_RESTORE_SIGMASK and ensures that the arch signal code
- * will run before returning to user mode, to process the flag.  For
- * all callers, TIF_SIGPENDING is already set or it's no harm to set
- * it.  TIF_RESTORE_SIGMASK need not be in the set of bits that the
- * arch code will notice on return to user mode, in case those bits
- * are scarce.  We set TIF_SIGPENDING here to ensure that the arch
- * signal code always gets run when TIF_RESTORE_SIGMASK is set.
- */
-static inline void set_restore_sigmask(void)
-{
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	WARN_ON(!test_thread_flag(TIF_SIGPENDING));
-}
-static inline void clear_restore_sigmask(void)
-{
-	clear_thread_flag(TIF_RESTORE_SIGMASK);
-}
-static inline bool test_restore_sigmask(void)
-{
-	return test_thread_flag(TIF_RESTORE_SIGMASK);
-}
-static inline bool test_and_clear_restore_sigmask(void)
-{
-	return test_and_clear_thread_flag(TIF_RESTORE_SIGMASK);
-}
-#endif	/* TIF_RESTORE_SIGMASK && !HAVE_SET_RESTORE_SIGMASK */
+#ifdef CONFIG_HARDENED_USERCOPY
+extern void __check_object_size(const void *ptr, unsigned long n,
+					bool to_user);
 
-#ifndef HAVE_SET_RESTORE_SIGMASK
-#error "no set_restore_sigmask() provided and default one won't work"
+static __always_inline void check_object_size(const void *ptr, unsigned long n,
+					      bool to_user)
+{
+	if (!__builtin_constant_p(n))
+		__check_object_size(ptr, n, to_user);
+}
+#else
+static inline void check_object_size(const void *ptr, unsigned long n,
+				     bool to_user)
+{ }
+#endif /* CONFIG_HARDENED_USERCOPY */
+
+extern void __compiletime_error("copy source size is too small")
+__bad_copy_from(void);
+extern void __compiletime_error("copy destination size is too small")
+__bad_copy_to(void);
+
+static inline void copy_overflow(int size, unsigned long count)
+{
+	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
+}
+
+static __always_inline bool
+check_copy_size(const void *addr, size_t bytes, bool is_source)
+{
+	int sz = __compiletime_object_size(addr);
+	if (unlikely(sz >= 0 && sz < bytes)) {
+		if (!__builtin_constant_p(bytes))
+			copy_overflow(sz, bytes);
+		else if (is_source)
+			__bad_copy_from();
+		else
+			__bad_copy_to();
+		return false;
+	}
+	check_object_size(addr, bytes, is_source);
+	return true;
+}
+
+#ifndef arch_setup_new_exec
+static inline void arch_setup_new_exec(void) { }
 #endif
 
 #endif	/* __KERNEL__ */

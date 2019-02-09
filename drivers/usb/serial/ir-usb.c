@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * USB IR Dongle driver
  *
  *	Copyright (C) 2001-2002	Greg Kroah-Hartman (greg@kroah.com)
  *	Copyright (C) 2002	Gary Brubaker (xavyer@ix.netcom.com)
  *	Copyright (C) 2010	Johan Hovold (jhovold@gmail.com)
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  * This driver allows a USB IrDA device to be used as a "dumb" serial device.
  * This can be useful if you do not have access to a full IrDA stack on the
@@ -136,7 +132,7 @@ irda_usb_find_class_desc(struct usb_serial *serial, unsigned int ifnum)
 			0, ifnum, desc, sizeof(*desc), 1000);
 
 	dev_dbg(&serial->dev->dev, "%s -  ret=%d\n", __func__, ret);
-	if (ret < sizeof(*desc)) {
+	if (ret < (int)sizeof(*desc)) {
 		dev_dbg(&serial->dev->dev,
 			"%s - class descriptor read %s (%d)\n", __func__,
 			(ret < 0) ? "failed" : "too short", ret);
@@ -197,6 +193,7 @@ static u8 ir_xbof_change(u8 xbof)
 static int ir_startup(struct usb_serial *serial)
 {
 	struct usb_irda_cs_descriptor *irda_desc;
+	int rates;
 
 	irda_desc = irda_usb_find_class_desc(serial, 0);
 	if (!irda_desc) {
@@ -205,18 +202,20 @@ static int ir_startup(struct usb_serial *serial)
 		return -ENODEV;
 	}
 
+	rates = le16_to_cpu(irda_desc->wBaudRate);
+
 	dev_dbg(&serial->dev->dev,
 		"%s - Baud rates supported:%s%s%s%s%s%s%s%s%s\n",
 		__func__,
-		(irda_desc->wBaudRate & USB_IRDA_BR_2400) ? " 2400" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_9600) ? " 9600" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_19200) ? " 19200" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_38400) ? " 38400" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_57600) ? " 57600" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_115200) ? " 115200" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_576000) ? " 576000" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_1152000) ? " 1152000" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_4000000) ? " 4000000" : "");
+		(rates & USB_IRDA_BR_2400) ? " 2400" : "",
+		(rates & USB_IRDA_BR_9600) ? " 9600" : "",
+		(rates & USB_IRDA_BR_19200) ? " 19200" : "",
+		(rates & USB_IRDA_BR_38400) ? " 38400" : "",
+		(rates & USB_IRDA_BR_57600) ? " 57600" : "",
+		(rates & USB_IRDA_BR_115200) ? " 115200" : "",
+		(rates & USB_IRDA_BR_576000) ? " 576000" : "",
+		(rates & USB_IRDA_BR_1152000) ? " 1152000" : "",
+		(rates & USB_IRDA_BR_4000000) ? " 4000000" : "");
 
 	switch (irda_desc->bmAdditionalBOFs) {
 	case USB_IRDA_AB_48:

@@ -1,21 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r8a7779 processor support
  *
  * Copyright (C) 2011, 2013  Renesas Solutions Corp.
  * Copyright (C) 2011  Magnus Damm
  * Copyright (C) 2013  Cogent Embedded, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
-#include <linux/clk/shmobile.h>
-#include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
@@ -76,30 +66,6 @@ static void __init r8a7779_init_irq_dt(void)
 	__raw_writel(0x003fee3f, INT2SMSKCR4);
 }
 
-#define MODEMR		0xffcc0020
-
-static u32 __init r8a7779_read_mode_pins(void)
-{
-	static u32 mode;
-	static bool mode_valid;
-
-	if (!mode_valid) {
-		void __iomem *modemr = ioremap_nocache(MODEMR, PAGE_SIZE);
-		BUG_ON(!modemr);
-		mode = ioread32(modemr);
-		iounmap(modemr);
-		mode_valid = true;
-	}
-
-	return mode;
-}
-
-static void __init r8a7779_init_time(void)
-{
-	r8a7779_clocks_init(r8a7779_read_mode_pins());
-	clocksource_probe();
-}
-
 static const char *const r8a7779_compat_dt[] __initconst = {
 	"renesas,r8a7779",
 	NULL,
@@ -109,7 +75,6 @@ DT_MACHINE_START(R8A7779_DT, "Generic R8A7779 (Flattened Device Tree)")
 	.smp		= smp_ops(r8a7779_smp_ops),
 	.map_io		= r8a7779_map_io,
 	.init_early	= shmobile_init_delay,
-	.init_time	= r8a7779_init_time,
 	.init_irq	= r8a7779_init_irq_dt,
 	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7779_compat_dt,

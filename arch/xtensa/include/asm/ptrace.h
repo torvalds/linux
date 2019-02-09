@@ -10,8 +10,34 @@
 #ifndef _XTENSA_PTRACE_H
 #define _XTENSA_PTRACE_H
 
+#include <asm/kmem_layout.h>
 #include <uapi/asm/ptrace.h>
 
+/*
+ * Kernel stack
+ *
+ *		+-----------------------+  -------- STACK_SIZE
+ *		|     register file     |  |
+ *		+-----------------------+  |
+ *		|    struct pt_regs     |  |
+ *		+-----------------------+  | ------ PT_REGS_OFFSET
+ * double	:  16 bytes spill area  :  |  ^
+ * excetion	:- - - - - - - - - - - -:  |  |
+ * frame	:    struct pt_regs     :  |  |
+ *		:- - - - - - - - - - - -:  |  |
+ *		|                       |  |  |
+ *		|     memory stack      |  |  |
+ *		|                       |  |  |
+ *		~                       ~  ~  ~
+ *		~                       ~  ~  ~
+ *		|                       |  |  |
+ *		|                       |  |  |
+ *		+-----------------------+  |  | --- STACK_BIAS
+ *		|  struct task_struct   |  |  |  ^
+ *  current --> +-----------------------+  |  |  |
+ *		|  struct thread_info   |  |  |  |
+ *		+-----------------------+ --------
+ */
 
 #ifndef __ASSEMBLY__
 

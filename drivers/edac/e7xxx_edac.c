@@ -30,9 +30,8 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
-#include "edac_core.h"
+#include "edac_module.h"
 
-#define	E7XXX_REVISION " Ver: 2.0.2"
 #define	EDAC_MOD_STR	"e7xxx_edac"
 
 #define e7xxx_printk(level, fmt, arg...) \
@@ -458,7 +457,6 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 		EDAC_FLAG_S4ECD4ED;
 	/* FIXME - what if different memory types are in different csrows? */
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = E7XXX_REVISION;
 	mci->pdev = &pdev->dev;
 	edac_dbg(3, "init pvt\n");
 	pvt = (struct e7xxx_pvt *)mci->pvt_info;

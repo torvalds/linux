@@ -177,6 +177,7 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 * @attr_usage_id:	Attribute usage id as per spec
 * @report_id:	Report id to look for
 * @flag:      Synchronous or asynchronous read
+* @is_signed:   If true then fields < 32 bits will be sign-extended
 *
 * Issues a synchronous or asynchronous read request for an input attribute.
 * Returns data upto 32 bits.
@@ -190,7 +191,8 @@ enum sensor_hub_read_flags {
 int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
  					u32 usage_id,
  					u32 attr_usage_id, u32 report_id,
- 					enum sensor_hub_read_flags flag
+					enum sensor_hub_read_flags flag,
+					bool is_signed
 );
 
 /**
@@ -231,11 +233,18 @@ struct hid_sensor_common {
 	unsigned usage_id;
 	atomic_t data_ready;
 	atomic_t user_requested_state;
+	atomic_t runtime_pm_enable;
+	int poll_interval;
+	int raw_hystersis;
+	int latency_ms;
 	struct iio_trigger *trigger;
+	int timestamp_ns_scale;
 	struct hid_sensor_hub_attribute_info poll;
 	struct hid_sensor_hub_attribute_info report_state;
 	struct hid_sensor_hub_attribute_info power_state;
 	struct hid_sensor_hub_attribute_info sensitivity;
+	struct hid_sensor_hub_attribute_info report_latency;
+	struct work_struct work;
 };
 
 /* Convert from hid unit expo to regular exponent */
@@ -269,5 +278,11 @@ int hid_sensor_format_scale(u32 usage_id,
 			    int *val0, int *val1);
 
 s32 hid_sensor_read_poll_value(struct hid_sensor_common *st);
+
+int64_t hid_sensor_convert_timestamp(struct hid_sensor_common *st,
+				     int64_t raw_value);
+bool hid_sensor_batch_mode_supported(struct hid_sensor_common *st);
+int hid_sensor_set_report_latency(struct hid_sensor_common *st, int latency);
+int hid_sensor_get_report_latency(struct hid_sensor_common *st);
 
 #endif

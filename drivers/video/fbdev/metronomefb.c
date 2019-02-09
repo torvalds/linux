@@ -187,7 +187,7 @@ static int load_waveform(u8 *mem, size_t size, int m, int t,
 		epd_frame_table[par->dt].wfm_size = user_wfm_size;
 
 	if (size != epd_frame_table[par->dt].wfm_size) {
-		dev_err(dev, "Error: unexpected size %Zd != %d\n", size,
+		dev_err(dev, "Error: unexpected size %zd != %d\n", size,
 					epd_frame_table[par->dt].wfm_size);
 		return -EINVAL;
 	}
@@ -233,7 +233,7 @@ static int load_waveform(u8 *mem, size_t size, int m, int t,
 
 	/* check temperature range table checksum */
 	cksum_idx = sizeof(*wfm_hdr) + wfm_hdr->trc + 1;
-	if (cksum_idx > size)
+	if (cksum_idx >= size)
 		return -EINVAL;
 	cksum = calc_cksum(sizeof(*wfm_hdr), cksum_idx, mem);
 	if (cksum != mem[cksum_idx]) {
@@ -245,7 +245,7 @@ static int load_waveform(u8 *mem, size_t size, int m, int t,
 	/* check waveform mode table address checksum */
 	wmta = get_unaligned_le32(wfm_hdr->wmta) & 0x00FFFFFF;
 	cksum_idx = wmta + m*4 + 3;
-	if (cksum_idx > size)
+	if (cksum_idx >= size)
 		return -EINVAL;
 	cksum = calc_cksum(cksum_idx - 3, cksum_idx, mem);
 	if (cksum != mem[cksum_idx]) {
@@ -257,7 +257,7 @@ static int load_waveform(u8 *mem, size_t size, int m, int t,
 	/* check waveform temperature table address checksum */
 	tta = get_unaligned_le32(mem + wmta + m * 4) & 0x00FFFFFF;
 	cksum_idx = tta + trn*4 + 3;
-	if (cksum_idx > size)
+	if (cksum_idx >= size)
 		return -EINVAL;
 	cksum = calc_cksum(cksum_idx - 3, cksum_idx, mem);
 	if (cksum != mem[cksum_idx]) {
@@ -270,7 +270,7 @@ static int load_waveform(u8 *mem, size_t size, int m, int t,
 	metromem buffer. this does runlength decoding of the waveform */
 	wfm_idx = get_unaligned_le32(mem + tta + trn * 4) & 0x00FFFFFF;
 	owfm_idx = wfm_idx;
-	if (wfm_idx > size)
+	if (wfm_idx >= size)
 		return -EINVAL;
 	while (wfm_idx < size) {
 		unsigned char rl;
@@ -292,7 +292,7 @@ static int load_waveform(u8 *mem, size_t size, int m, int t,
 	}
 
 	cksum_idx = wfm_idx;
-	if (cksum_idx > size)
+	if (cksum_idx >= size)
 		return -EINVAL;
 	cksum = calc_cksum(owfm_idx, cksum_idx, mem);
 	if (cksum != mem[cksum_idx]) {
@@ -354,7 +354,8 @@ static int metronome_powerup_cmd(struct metronomefb_par *par)
 	}
 
 	/* the rest are 0 */
-	memset((u8 *) (par->metromem_cmd->args + i), 0, (32-i)*2);
+	memset(&par->metromem_cmd->args[i], 0,
+	       (ARRAY_SIZE(par->metromem_cmd->args) - i) * 2);
 
 	par->metromem_cmd->csum = cs;
 
@@ -376,7 +377,8 @@ static int metronome_config_cmd(struct metronomefb_par *par)
 	memcpy(par->metromem_cmd->args, epd_frame_table[par->dt].config,
 		sizeof(epd_frame_table[par->dt].config));
 	/* the rest are 0 */
-	memset((u8 *) (par->metromem_cmd->args + 4), 0, (32-4)*2);
+	memset(&par->metromem_cmd->args[4], 0,
+	       (ARRAY_SIZE(par->metromem_cmd->args) - 4) * 2);
 
 	par->metromem_cmd->csum = 0xCC10;
 	par->metromem_cmd->csum += calc_img_cksum(par->metromem_cmd->args, 4);

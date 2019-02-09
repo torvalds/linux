@@ -250,6 +250,15 @@ struct cyapa;
 
 typedef bool (*cb_sort)(struct cyapa *, u8 *, int);
 
+enum cyapa_pm_stage {
+	CYAPA_PM_DEACTIVE,
+	CYAPA_PM_ACTIVE,
+	CYAPA_PM_SUSPEND,
+	CYAPA_PM_RESUME,
+	CYAPA_PM_RUNTIME_SUSPEND,
+	CYAPA_PM_RUNTIME_RESUME,
+};
+
 struct cyapa_dev_ops {
 	int (*check_fw)(struct cyapa *, const struct firmware *);
 	int (*bl_enter)(struct cyapa *);
@@ -273,7 +282,7 @@ struct cyapa_dev_ops {
 	int (*sort_empty_output_data)(struct cyapa *,
 			u8 *, int *, cb_sort);
 
-	int (*set_power_mode)(struct cyapa *, u8, u16, bool);
+	int (*set_power_mode)(struct cyapa *, u8, u16, enum cyapa_pm_stage);
 
 	int (*set_proximity)(struct cyapa *, bool);
 };
@@ -288,6 +297,9 @@ struct cyapa_pip_cmd_states {
 	cb_sort resp_sort_func;
 	u8 *resp_data;
 	int *resp_len;
+
+	enum cyapa_pm_stage pm_stage;
+	struct mutex pm_stage_lock;
 
 	u8 irq_cmd_buf[CYAPA_REG_MAP_SIZE];
 	u8 empty_buf[CYAPA_REG_MAP_SIZE];

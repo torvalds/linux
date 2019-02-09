@@ -83,7 +83,7 @@ static inline int smp_startup_cpu(unsigned int lcpu)
 	pcpu = get_hard_smp_processor_id(lcpu);
 
 	/* Fixup atomic count: it exited inside IRQ handler. */
-	task_thread_info(paca[lcpu].__current)->preempt_count	= 0;
+	task_thread_info(paca_ptrs[lcpu]->__current)->preempt_count	= 0;
 
 	/*
 	 * If the RTAS start-cpu token does not exist then presume the
@@ -115,7 +115,8 @@ static void smp_cell_setup_cpu(int cpu)
 
 static int smp_cell_kick_cpu(int nr)
 {
-	BUG_ON(nr < 0 || nr >= NR_CPUS);
+	if (nr < 0 || nr >= nr_cpu_ids)
+		return -EINVAL;
 
 	if (!smp_startup_cpu(nr))
 		return -ENOENT;
@@ -125,7 +126,7 @@ static int smp_cell_kick_cpu(int nr)
 	 * cpu_start field to become non-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
-	paca[nr].cpu_start = 1;
+	paca_ptrs[nr]->cpu_start = 1;
 
 	return 0;
 }

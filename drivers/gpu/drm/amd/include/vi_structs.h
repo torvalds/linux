@@ -153,6 +153,8 @@ struct vi_sdma_mqd {
 	uint32_t reserved_125;
 	uint32_t reserved_126;
 	uint32_t reserved_127;
+	uint32_t sdma_engine_id;
+	uint32_t sdma_queue_id;
 };
 
 struct vi_mqd {
@@ -195,32 +197,32 @@ struct vi_mqd {
 	uint32_t compute_wave_restore_addr_lo;
 	uint32_t compute_wave_restore_addr_hi;
 	uint32_t compute_wave_restore_control;
-	uint32_t reserved_39;
-	uint32_t reserved_40;
-	uint32_t reserved_41;
-	uint32_t reserved_42;
-	uint32_t reserved_43;
-	uint32_t reserved_44;
-	uint32_t reserved_45;
-	uint32_t reserved_46;
-	uint32_t reserved_47;
-	uint32_t reserved_48;
-	uint32_t reserved_49;
-	uint32_t reserved_50;
-	uint32_t reserved_51;
-	uint32_t reserved_52;
-	uint32_t reserved_53;
-	uint32_t reserved_54;
-	uint32_t reserved_55;
-	uint32_t reserved_56;
-	uint32_t reserved_57;
-	uint32_t reserved_58;
-	uint32_t reserved_59;
-	uint32_t reserved_60;
-	uint32_t reserved_61;
-	uint32_t reserved_62;
-	uint32_t reserved_63;
-	uint32_t reserved_64;
+	uint32_t reserved9;
+	uint32_t reserved10;
+	uint32_t reserved11;
+	uint32_t reserved12;
+	uint32_t reserved13;
+	uint32_t reserved14;
+	uint32_t reserved15;
+	uint32_t reserved16;
+	uint32_t reserved17;
+	uint32_t reserved18;
+	uint32_t reserved19;
+	uint32_t reserved20;
+	uint32_t reserved21;
+	uint32_t reserved22;
+	uint32_t reserved23;
+	uint32_t reserved24;
+	uint32_t reserved25;
+	uint32_t reserved26;
+	uint32_t reserved27;
+	uint32_t reserved28;
+	uint32_t reserved29;
+	uint32_t reserved30;
+	uint32_t reserved31;
+	uint32_t reserved32;
+	uint32_t reserved33;
+	uint32_t reserved34;
 	uint32_t compute_user_data_0;
 	uint32_t compute_user_data_1;
 	uint32_t compute_user_data_2;
@@ -239,9 +241,9 @@ struct vi_mqd {
 	uint32_t compute_user_data_15;
 	uint32_t cp_compute_csinvoc_count_lo;
 	uint32_t cp_compute_csinvoc_count_hi;
-	uint32_t reserved_83;
-	uint32_t reserved_84;
-	uint32_t reserved_85;
+	uint32_t reserved35;
+	uint32_t reserved36;
+	uint32_t reserved37;
 	uint32_t cp_mqd_query_time_lo;
 	uint32_t cp_mqd_query_time_hi;
 	uint32_t cp_mqd_connect_start_time_lo;
@@ -250,10 +252,10 @@ struct vi_mqd {
 	uint32_t cp_mqd_connect_end_time_hi;
 	uint32_t cp_mqd_connect_end_wf_count;
 	uint32_t cp_mqd_connect_end_pq_rptr;
-	uint32_t cp_mqd_connect_end_pq_wptr;
+	uint32_t cp_mqd_connect_endvi_sdma_mqd_pq_wptr;
 	uint32_t cp_mqd_connect_end_ib_rptr;
-	uint32_t reserved_96;
-	uint32_t reserved_97;
+	uint32_t reserved38;
+	uint32_t reserved39;
 	uint32_t cp_mqd_save_start_time_lo;
 	uint32_t cp_mqd_save_start_time_hi;
 	uint32_t cp_mqd_save_end_time_lo;
@@ -262,14 +264,14 @@ struct vi_mqd {
 	uint32_t cp_mqd_restore_start_time_hi;
 	uint32_t cp_mqd_restore_end_time_lo;
 	uint32_t cp_mqd_restore_end_time_hi;
-	uint32_t reserved_106;
-	uint32_t reserved_107;
+	uint32_t disable_queue;
+	uint32_t reserved41;
 	uint32_t gds_cs_ctxsw_cnt0;
 	uint32_t gds_cs_ctxsw_cnt1;
 	uint32_t gds_cs_ctxsw_cnt2;
 	uint32_t gds_cs_ctxsw_cnt3;
-	uint32_t reserved_112;
-	uint32_t reserved_113;
+	uint32_t reserved42;
+	uint32_t reserved43;
 	uint32_t cp_pq_exe_status_lo;
 	uint32_t cp_pq_exe_status_hi;
 	uint32_t cp_packet_id_lo;
@@ -282,8 +284,8 @@ struct vi_mqd {
 	uint32_t gds_save_mask_hi;
 	uint32_t ctx_save_base_addr_lo;
 	uint32_t ctx_save_base_addr_hi;
-	uint32_t reserved_126;
-	uint32_t reserved_127;
+	uint32_t dynamic_cu_mask_addr_lo;
+	uint32_t dynamic_cu_mask_addr_hi;
 	uint32_t cp_mqd_base_addr_lo;
 	uint32_t cp_mqd_base_addr_hi;
 	uint32_t cp_hqd_active;
@@ -338,16 +340,16 @@ struct vi_mqd {
 	uint32_t cp_hqd_error;
 	uint32_t cp_hqd_eop_wptr_mem;
 	uint32_t cp_hqd_eop_dones;
-	uint32_t reserved_182;
-	uint32_t reserved_183;
-	uint32_t reserved_184;
-	uint32_t reserved_185;
-	uint32_t reserved_186;
-	uint32_t reserved_187;
-	uint32_t reserved_188;
-	uint32_t reserved_189;
-	uint32_t reserved_190;
-	uint32_t reserved_191;
+	uint32_t reserved46;
+	uint32_t reserved47;
+	uint32_t reserved48;
+	uint32_t reserved49;
+	uint32_t reserved50;
+	uint32_t reserved51;
+	uint32_t reserved52;
+	uint32_t reserved53;
+	uint32_t reserved54;
+	uint32_t reserved55;
 	uint32_t iqtimer_pkt_header;
 	uint32_t iqtimer_pkt_dw0;
 	uint32_t iqtimer_pkt_dw1;
@@ -381,9 +383,9 @@ struct vi_mqd {
 	uint32_t iqtimer_pkt_dw29;
 	uint32_t iqtimer_pkt_dw30;
 	uint32_t iqtimer_pkt_dw31;
-	uint32_t reserved_225;
-	uint32_t reserved_226;
-	uint32_t reserved_227;
+	uint32_t reserved56;
+	uint32_t reserved57;
+	uint32_t reserved58;
 	uint32_t set_resources_header;
 	uint32_t set_resources_dw1;
 	uint32_t set_resources_dw2;
@@ -392,26 +394,141 @@ struct vi_mqd {
 	uint32_t set_resources_dw5;
 	uint32_t set_resources_dw6;
 	uint32_t set_resources_dw7;
-	uint32_t reserved_236;
-	uint32_t reserved_237;
-	uint32_t reserved_238;
-	uint32_t reserved_239;
-	uint32_t queue_doorbell_id0;
-	uint32_t queue_doorbell_id1;
-	uint32_t queue_doorbell_id2;
-	uint32_t queue_doorbell_id3;
-	uint32_t queue_doorbell_id4;
-	uint32_t queue_doorbell_id5;
-	uint32_t queue_doorbell_id6;
-	uint32_t queue_doorbell_id7;
-	uint32_t queue_doorbell_id8;
-	uint32_t queue_doorbell_id9;
-	uint32_t queue_doorbell_id10;
-	uint32_t queue_doorbell_id11;
-	uint32_t queue_doorbell_id12;
-	uint32_t queue_doorbell_id13;
-	uint32_t queue_doorbell_id14;
-	uint32_t queue_doorbell_id15;
+	uint32_t reserved59;
+	uint32_t reserved60;
+	uint32_t reserved61;
+	uint32_t reserved62;
+	uint32_t reserved63;
+	uint32_t reserved64;
+	uint32_t reserved65;
+	uint32_t reserved66;
+	uint32_t reserved67;
+	uint32_t reserved68;
+	uint32_t reserved69;
+	uint32_t reserved70;
+	uint32_t reserved71;
+	uint32_t reserved72;
+	uint32_t reserved73;
+	uint32_t reserved74;
+	uint32_t reserved75;
+	uint32_t reserved76;
+	uint32_t reserved77;
+	uint32_t reserved78;
+	uint32_t reserved_t[256];
 };
+
+struct vi_mqd_allocation {
+	struct vi_mqd mqd;
+	uint32_t wptr_poll_mem;
+	uint32_t rptr_report_mem;
+	uint32_t dynamic_cu_mask;
+	uint32_t dynamic_rb_mask;
+};
+
+struct vi_ce_ib_state {
+	uint32_t    ce_ib_completion_status;
+	uint32_t    ce_constegnine_count;
+	uint32_t    ce_ibOffset_ib1;
+	uint32_t    ce_ibOffset_ib2;
+}; /* Total of 4 DWORD */
+
+struct vi_de_ib_state {
+	uint32_t    ib_completion_status;
+	uint32_t    de_constEngine_count;
+	uint32_t    ib_offset_ib1;
+	uint32_t    ib_offset_ib2;
+	uint32_t    preamble_begin_ib1;
+	uint32_t    preamble_begin_ib2;
+	uint32_t    preamble_end_ib1;
+	uint32_t    preamble_end_ib2;
+	uint32_t    draw_indirect_baseLo;
+	uint32_t    draw_indirect_baseHi;
+	uint32_t    disp_indirect_baseLo;
+	uint32_t    disp_indirect_baseHi;
+	uint32_t    gds_backup_addrlo;
+	uint32_t    gds_backup_addrhi;
+	uint32_t    index_base_addrlo;
+	uint32_t    index_base_addrhi;
+	uint32_t    sample_cntl;
+}; /* Total of 17 DWORD */
+
+struct vi_ce_ib_state_chained_ib {
+	/* section of non chained ib part */
+	uint32_t    ce_ib_completion_status;
+	uint32_t    ce_constegnine_count;
+	uint32_t    ce_ibOffset_ib1;
+	uint32_t    ce_ibOffset_ib2;
+
+	/* section of chained ib */
+	uint32_t    ce_chainib_addrlo_ib1;
+	uint32_t    ce_chainib_addrlo_ib2;
+	uint32_t    ce_chainib_addrhi_ib1;
+	uint32_t    ce_chainib_addrhi_ib2;
+	uint32_t    ce_chainib_size_ib1;
+	uint32_t    ce_chainib_size_ib2;
+}; /* total 10 DWORD */
+
+struct vi_de_ib_state_chained_ib {
+	/* section of non chained ib part */
+	uint32_t    ib_completion_status;
+	uint32_t    de_constEngine_count;
+	uint32_t    ib_offset_ib1;
+	uint32_t    ib_offset_ib2;
+
+	/* section of chained ib */
+	uint32_t    chain_ib_addrlo_ib1;
+	uint32_t    chain_ib_addrlo_ib2;
+	uint32_t    chain_ib_addrhi_ib1;
+	uint32_t    chain_ib_addrhi_ib2;
+	uint32_t    chain_ib_size_ib1;
+	uint32_t    chain_ib_size_ib2;
+
+	/* section of non chained ib part */
+	uint32_t    preamble_begin_ib1;
+	uint32_t    preamble_begin_ib2;
+	uint32_t    preamble_end_ib1;
+	uint32_t    preamble_end_ib2;
+
+	/* section of chained ib */
+	uint32_t    chain_ib_pream_addrlo_ib1;
+	uint32_t    chain_ib_pream_addrlo_ib2;
+	uint32_t    chain_ib_pream_addrhi_ib1;
+	uint32_t    chain_ib_pream_addrhi_ib2;
+
+	/* section of non chained ib part */
+	uint32_t    draw_indirect_baseLo;
+	uint32_t    draw_indirect_baseHi;
+	uint32_t    disp_indirect_baseLo;
+	uint32_t    disp_indirect_baseHi;
+	uint32_t    gds_backup_addrlo;
+	uint32_t    gds_backup_addrhi;
+	uint32_t    index_base_addrlo;
+	uint32_t    index_base_addrhi;
+	uint32_t    sample_cntl;
+}; /* Total of 27 DWORD */
+
+struct vi_gfx_meta_data {
+	/* 4 DWORD, address must be 4KB aligned */
+	struct vi_ce_ib_state        ce_payload;
+	uint32_t                     reserved1[60];
+	/* 17 DWORD, address must be 64B aligned */
+	struct vi_de_ib_state        de_payload;
+	/* PFP IB base address which get pre-empted */
+	uint32_t                     DeIbBaseAddrLo;
+	uint32_t                     DeIbBaseAddrHi;
+	uint32_t                     reserved2[941];
+}; /* Total of 4K Bytes */
+
+struct vi_gfx_meta_data_chained_ib {
+	/* 10 DWORD, address must be 4KB aligned */
+	struct vi_ce_ib_state_chained_ib       ce_payload;
+	uint32_t                               reserved1[54];
+	/* 27 DWORD, address must be 64B aligned */
+	struct vi_de_ib_state_chained_ib       de_payload;
+	/* PFP IB base address which get pre-empted */
+	uint32_t                               DeIbBaseAddrLo;
+	uint32_t                               DeIbBaseAddrHi;
+	uint32_t                               reserved2[931];
+}; /* Total of 4K Bytes */
 
 #endif /* VI_STRUCTS_H_ */

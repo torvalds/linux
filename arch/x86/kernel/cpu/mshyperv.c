@@ -13,33 +13,36 @@
 #include <linux/types.h>
 #include <linux/time.h>
 #include <linux/clocksource.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/hardirq.h>
 #include <linux/efi.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kexec.h>
+#include <linux/i8253.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
-#include <asm/hyperv.h>
+#include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
 #include <asm/desc.h>
-#include <asm/idle.h>
 #include <asm/irq_regs.h>
 #include <asm/i8259.h>
 #include <asm/apic.h>
 #include <asm/timer.h>
 #include <asm/reboot.h>
+#include <asm/nmi.h>
 
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
 
 #if IS_ENABLED(CONFIG_HYPERV)
 static void (*vmbus_handler)(void);
+static void (*hv_stimer0_handler)(void);
 static void (*hv_kexec_handler)(void);
 static void (*hv_crash_handler)(struct pt_regs *regs);
 
-void hyperv_vector_handler(struct pt_regs *regs)
+__visible void __irq_entry hyperv_vector_handler(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -48,6 +51,9 @@ void hyperv_vector_handler(struct pt_regs *regs)
 	if (vmbus_handler)
 		vmbus_handler();
 
+	if (ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED)
+		ack_APIC_irq();
+
 	exiting_irq();
 	set_irq_regs(old_regs);
 }
@@ -55,13 +61,6 @@ void hyperv_vector_handler(struct pt_regs *regs)
 void hv_setup_vmbus_irq(void (*handler)(void))
 {
 	vmbus_handler = handler;
-	/*
-	 * Setup the IDT for hypervisor callback. Prevent reallocation
-	 * at module reload.
-	 */
-	if (!test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors))
-		alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
-				hyperv_callback_vector);
 }
 
 void hv_remove_vmbus_irq(void)
@@ -71,6 +70,41 @@ void hv_remove_vmbus_irq(void)
 }
 EXPORT_SYMBOL_GPL(hv_setup_vmbus_irq);
 EXPORT_SYMBOL_GPL(hv_remove_vmbus_irq);
+
+/*
+ * Routines to do per-architecture handling of stimer0
+ * interrupts when in Direct Mode
+ */
+
+__visible void __irq_entry hv_stimer0_vector_handler(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	entering_irq();
+	inc_irq_stat(hyperv_stimer0_count);
+	if (hv_stimer0_handler)
+		hv_stimer0_handler();
+	ack_APIC_irq();
+
+	exiting_irq();
+	set_irq_regs(old_regs);
+}
+
+int hv_setup_stimer0_irq(int *irq, int *vector, void (*handler)(void))
+{
+	*vector = HYPERV_STIMER0_VECTOR;
+	*irq = 0;   /* Unused on x86/x64 */
+	hv_stimer0_handler = handler;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hv_setup_stimer0_irq);
+
+void hv_remove_stimer0_irq(int irq)
+{
+	/* We have no way to deallocate the interrupt gate */
+	hv_stimer0_handler = NULL;
+}
+EXPORT_SYMBOL_GPL(hv_remove_stimer0_irq);
 
 void hv_setup_kexec_handler(void (*handler)(void))
 {
@@ -132,28 +166,47 @@ static uint32_t  __init ms_hyperv_platform(void)
 	return 0;
 }
 
-static cycle_t read_hv_clock(struct clocksource *arg)
+static unsigned char hv_get_nmi_reason(void)
 {
-	cycle_t current_tick;
-	/*
-	 * Read the partition counter to get the current tick count. This count
-	 * is set to 0 when the partition is created and is incremented in
-	 * 100 nanosecond units.
-	 */
-	rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
-	return current_tick;
+	return 0;
 }
 
-static struct clocksource hyperv_cs = {
-	.name		= "hyperv_clocksource",
-	.rating		= 400, /* use this when running on Hyperv*/
-	.read		= read_hv_clock,
-	.mask		= CLOCKSOURCE_MASK(64),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
+#ifdef CONFIG_X86_LOCAL_APIC
+/*
+ * Prior to WS2016 Debug-VM sends NMIs to all CPUs which makes
+ * it dificult to process CHANNELMSG_UNLOAD in case of crash. Handle
+ * unknown NMI on the first CPU which gets it.
+ */
+static int hv_nmi_unknown(unsigned int val, struct pt_regs *regs)
+{
+	static atomic_t nmi_cpu = ATOMIC_INIT(-1);
+
+	if (!unknown_nmi_panic)
+		return NMI_DONE;
+
+	if (atomic_cmpxchg(&nmi_cpu, -1, raw_smp_processor_id()) != -1)
+		return NMI_HANDLED;
+
+	return NMI_DONE;
+}
+#endif
+
+static unsigned long hv_get_tsc_khz(void)
+{
+	unsigned long freq;
+
+	rdmsrl(HV_X64_MSR_TSC_FREQUENCY, freq);
+
+	return freq / 1000;
+}
 
 static void __init ms_hyperv_init_platform(void)
 {
+	int hv_host_info_eax;
+	int hv_host_info_ebx;
+	int hv_host_info_ecx;
+	int hv_host_info_edx;
+
 	/*
 	 * Extract the features and hints
 	 */
@@ -161,11 +214,45 @@ static void __init ms_hyperv_init_platform(void)
 	ms_hyperv.misc_features = cpuid_edx(HYPERV_CPUID_FEATURES);
 	ms_hyperv.hints    = cpuid_eax(HYPERV_CPUID_ENLIGHTMENT_INFO);
 
-	printk(KERN_INFO "HyperV: features 0x%x, hints 0x%x\n",
-	       ms_hyperv.features, ms_hyperv.hints);
+	pr_info("Hyper-V: features 0x%x, hints 0x%x\n",
+		ms_hyperv.features, ms_hyperv.hints);
+
+	ms_hyperv.max_vp_index = cpuid_eax(HYPERV_CPUID_IMPLEMENT_LIMITS);
+	ms_hyperv.max_lp_index = cpuid_ebx(HYPERV_CPUID_IMPLEMENT_LIMITS);
+
+	pr_debug("Hyper-V: max %u virtual processors, %u logical processors\n",
+		 ms_hyperv.max_vp_index, ms_hyperv.max_lp_index);
+
+	/*
+	 * Extract host information.
+	 */
+	if (cpuid_eax(HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS) >=
+	    HYPERV_CPUID_VERSION) {
+		hv_host_info_eax = cpuid_eax(HYPERV_CPUID_VERSION);
+		hv_host_info_ebx = cpuid_ebx(HYPERV_CPUID_VERSION);
+		hv_host_info_ecx = cpuid_ecx(HYPERV_CPUID_VERSION);
+		hv_host_info_edx = cpuid_edx(HYPERV_CPUID_VERSION);
+
+		pr_info("Hyper-V Host Build:%d-%d.%d-%d-%d.%d\n",
+			hv_host_info_eax, hv_host_info_ebx >> 16,
+			hv_host_info_ebx & 0xFFFF, hv_host_info_ecx,
+			hv_host_info_edx >> 24, hv_host_info_edx & 0xFFFFFF);
+	}
+
+	if (ms_hyperv.features & HV_X64_ACCESS_FREQUENCY_MSRS &&
+	    ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE) {
+		x86_platform.calibrate_tsc = hv_get_tsc_khz;
+		x86_platform.calibrate_cpu = hv_get_tsc_khz;
+	}
+
+	if (ms_hyperv.hints & HV_X64_ENLIGHTENED_VMCS_RECOMMENDED) {
+		ms_hyperv.nested_features =
+			cpuid_eax(HYPERV_CPUID_NESTED_FEATURES);
+	}
 
 #ifdef CONFIG_X86_LOCAL_APIC
-	if (ms_hyperv.features & HV_X64_MSR_APIC_FREQUENCY_AVAILABLE) {
+	if (ms_hyperv.features & HV_X64_ACCESS_FREQUENCY_MSRS &&
+	    ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE) {
 		/*
 		 * Get the APIC frequency.
 		 */
@@ -174,13 +261,13 @@ static void __init ms_hyperv_init_platform(void)
 		rdmsrl(HV_X64_MSR_APIC_FREQUENCY, hv_lapic_frequency);
 		hv_lapic_frequency = div_u64(hv_lapic_frequency, HZ);
 		lapic_timer_frequency = hv_lapic_frequency;
-		printk(KERN_INFO "HyperV: LAPIC Timer Frequency: %#x\n",
-				lapic_timer_frequency);
+		pr_info("Hyper-V: LAPIC Timer Frequency: %#x\n",
+			lapic_timer_frequency);
 	}
-#endif
 
-	if (ms_hyperv.features & HV_X64_MSR_TIME_REF_COUNT_AVAILABLE)
-		clocksource_register_hz(&hyperv_cs, NSEC_PER_SEC/100);
+	register_nmi_handler(NMI_UNKNOWN, hv_nmi_unknown, NMI_FLAG_FIRST,
+			     "hv_nmi_unknown");
+#endif
 
 #ifdef CONFIG_X86_IO_APIC
 	no_timer_check = 1;
@@ -191,11 +278,48 @@ static void __init ms_hyperv_init_platform(void)
 	machine_ops.crash_shutdown = hv_machine_crash_shutdown;
 #endif
 	mark_tsc_unstable("running on Hyper-V");
+
+	/*
+	 * Generation 2 instances don't support reading the NMI status from
+	 * 0x61 port.
+	 */
+	if (efi_enabled(EFI_BOOT))
+		x86_platform.get_nmi_reason = hv_get_nmi_reason;
+
+	/*
+	 * Hyper-V VMs have a PIT emulation quirk such that zeroing the
+	 * counter register during PIT shutdown restarts the PIT. So it
+	 * continues to interrupt @18.2 HZ. Setting i8253_clear_counter
+	 * to false tells pit_shutdown() not to zero the counter so that
+	 * the PIT really is shutdown. Generation 2 VMs don't have a PIT,
+	 * and setting this value has no effect.
+	 */
+	i8253_clear_counter_on_shutdown = false;
+
+#if IS_ENABLED(CONFIG_HYPERV)
+	/*
+	 * Setup the hook to get control post apic initialization.
+	 */
+	x86_platform.apic_post_init = hyperv_init;
+	hyperv_setup_mmu_ops();
+	/* Setup the IDT for hypervisor callback */
+	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
+
+	/* Setup the IDT for reenlightenment notifications */
+	if (ms_hyperv.features & HV_X64_ACCESS_REENLIGHTENMENT)
+		alloc_intr_gate(HYPERV_REENLIGHTENMENT_VECTOR,
+				hyperv_reenlightenment_vector);
+
+	/* Setup the IDT for stimer0 */
+	if (ms_hyperv.misc_features & HV_STIMER_DIRECT_MODE_AVAILABLE)
+		alloc_intr_gate(HYPERV_STIMER0_VECTOR,
+				hv_stimer0_callback_vector);
+#endif
 }
 
-const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
-	.name			= "Microsoft HyperV",
+const __initconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
+	.name			= "Microsoft Hyper-V",
 	.detect			= ms_hyperv_platform,
-	.init_platform		= ms_hyperv_init_platform,
+	.type			= X86_HYPER_MS_HYPERV,
+	.init.init_platform	= ms_hyperv_init_platform,
 };
-EXPORT_SYMBOL(x86_hyper_ms_hyperv);

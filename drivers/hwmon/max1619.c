@@ -173,7 +173,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
-static ssize_t show_alarms(struct device *dev, struct device_attribute *attr,
+static ssize_t alarms_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct max1619_data *data = max1619_update_device(dev);
@@ -199,7 +199,7 @@ static SENSOR_DEVICE_ATTR(temp2_crit, S_IWUSR | S_IRUGO, show_temp, set_temp,
 static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IWUSR | S_IRUGO, show_temp,
 			  set_temp, t_hyst2);
 
-static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
+static DEVICE_ATTR_RO(alarms);
 static SENSOR_DEVICE_ATTR(temp2_crit_alarm, S_IRUGO, show_alarm, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_alarm, NULL, 2);
 static SENSOR_DEVICE_ATTR(temp2_min_alarm, S_IRUGO, show_alarm, NULL, 3);
@@ -303,10 +303,20 @@ static const struct i2c_device_id max1619_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max1619_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id max1619_of_match[] = {
+	{ .compatible = "maxim,max1619", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, max1619_of_match);
+#endif
+
 static struct i2c_driver max1619_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "max1619",
+		.of_match_table = of_match_ptr(max1619_of_match),
 	},
 	.probe		= max1619_probe,
 	.id_table	= max1619_id,

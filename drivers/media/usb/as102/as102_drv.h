@@ -16,9 +16,9 @@
 #ifndef _AS102_DRV_H
 #define _AS102_DRV_H
 #include <linux/usb.h>
-#include <dvb_demux.h>
-#include <dvb_frontend.h>
-#include <dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dmxdev.h>
 #include "as10x_handle.h"
 #include "as10x_cmd.h"
 #include "as102_usb_drv.h"
@@ -52,7 +52,7 @@ struct as10x_bus_adapter_t {
 	struct as10x_cmd_t *cmd, *rsp;
 
 	/* bus adapter private ops callback */
-	struct as102_priv_ops_t *ops;
+	const struct as102_priv_ops_t *ops;
 };
 
 struct as102_dev_t {

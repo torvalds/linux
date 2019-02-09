@@ -1,23 +1,17 @@
-/*
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2011 Freescale Semiconductor, Inc.
+// Copyright 2011 Linaro Ltd.
 
 /dts-v1/;
+#include <dt-bindings/input/input.h>
 #include "imx53.dtsi"
 
 / {
 	model = "Freescale i.MX53 Smart Mobile Reference Design Board";
 	compatible = "fsl,imx53-smd", "fsl,imx53";
 
-	memory {
+	memory@70000000 {
 		reg = <0x70000000 0x40000000>;
 	};
 
@@ -27,13 +21,13 @@
 		volume-up {
 			label = "Volume Up";
 			gpios = <&gpio2 14 0>;
-			linux,code = <115>; /* KEY_VOLUMEUP */
+			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		volume-down {
 			label = "Volume Down";
 			gpios = <&gpio2 15 0>;
-			linux,code = <114>; /* KEY_VOLUMEDOWN */
+			linux,code = <KEY_VOLUMEDOWN>;
 		};
 	};
 };
@@ -56,14 +50,13 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio2 30 0>, <&gpio3 19 0>;
 	status = "okay";
 
@@ -233,12 +226,12 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 	};
 
-	magnetometer: mag3110@0e {
+	magnetometer: mag3110@e {
 		compatible = "fsl,mag3110";
 		reg = <0x0e>;
 	};
@@ -274,6 +267,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio7 6 0>;
+	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };

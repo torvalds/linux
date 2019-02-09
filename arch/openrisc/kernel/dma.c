@@ -19,10 +19,7 @@
  * the only thing implemented properly.  The rest need looking into...
  */
 
-#include <linux/dma-mapping.h>
-#include <linux/dma-debug.h>
-#include <linux/export.h>
-#include <linux/dma-attrs.h>
+#include <linux/dma-noncoherent.h>
 
 #include <asm/cpuinfo.h>
 #include <asm/spr_defs.h>
@@ -33,6 +30,7 @@ page_set_nocache(pte_t *pte, unsigned long addr,
 		 unsigned long next, struct mm_walk *walk)
 {
 	unsigned long cl;
+	struct cpuinfo_or1k *cpuinfo = &cpuinfo_or1k[smp_processor_id()];
 
 	pte_val(*pte) |= _PAGE_CI;
 
@@ -43,7 +41,7 @@ page_set_nocache(pte_t *pte, unsigned long addr,
 	flush_tlb_page(NULL, addr);
 
 	/* Flush page out of dcache */
-	for (cl = __pa(addr); cl < __pa(next); cl += cpuinfo.dcache_block_size)
+	for (cl = __pa(addr); cl < __pa(next); cl += cpuinfo->dcache_block_size)
 		mtspr(SPR_DCBFR, cl);
 
 	return 0;
@@ -80,10 +78,9 @@ page_clear_nocache(pte_t *pte, unsigned long addr,
  * is being ignored for now; uncached but write-combined memory is a
  * missing feature of the OR1K.
  */
-static void *
-or1k_dma_alloc(struct device *dev, size_t size,
-	       dma_addr_t *dma_handle, gfp_t gfp,
-	       struct dma_attrs *attrs)
+void *
+arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
+		gfp_t gfp, unsigned long attrs)
 {
 	unsigned long va;
 	void *page;
@@ -101,7 +98,7 @@ or1k_dma_alloc(struct device *dev, size_t size,
 
 	va = (unsigned long)page;
 
-	if (!dma_get_attr(DMA_ATTR_NON_CONSISTENT, attrs)) {
+	if ((attrs & DMA_ATTR_NON_CONSISTENT) == 0) {
 		/*
 		 * We need to iterate through the pages, clearing the dcache for
 		 * them and setting the cache-inhibit bit.
@@ -115,9 +112,9 @@ or1k_dma_alloc(struct device *dev, size_t size,
 	return (void *)va;
 }
 
-static void
-or1k_dma_free(struct device *dev, size_t size, void *vaddr,
-	      dma_addr_t dma_handle, struct dma_attrs *attrs)
+void
+arch_dma_free(struct device *dev, size_t size, void *vaddr,
+		dma_addr_t dma_handle, unsigned long attrs)
 {
 	unsigned long va = (unsigned long)vaddr;
 	struct mm_walk walk = {
@@ -125,7 +122,7 @@ or1k_dma_free(struct device *dev, size_t size, void *vaddr,
 		.mm = &init_mm
 	};
 
-	if (!dma_get_attr(DMA_ATTR_NON_CONSISTENT, attrs)) {
+	if ((attrs & DMA_ATTR_NON_CONSISTENT) == 0) {
 		/* walk_page_range shouldn't be able to fail here */
 		WARN_ON(walk_page_range(va, va + size, &walk));
 	}
@@ -133,26 +130,23 @@ or1k_dma_free(struct device *dev, size_t size, void *vaddr,
 	free_pages_exact(vaddr, size);
 }
 
-static dma_addr_t
-or1k_map_page(struct device *dev, struct page *page,
-	      unsigned long offset, size_t size,
-	      enum dma_data_direction dir,
-	      struct dma_attrs *attrs)
+void arch_sync_dma_for_device(struct device *dev, phys_addr_t addr, size_t size,
+		enum dma_data_direction dir)
 {
 	unsigned long cl;
-	dma_addr_t addr = page_to_phys(page) + offset;
+	struct cpuinfo_or1k *cpuinfo = &cpuinfo_or1k[smp_processor_id()];
 
 	switch (dir) {
 	case DMA_TO_DEVICE:
 		/* Flush the dcache for the requested range */
 		for (cl = addr; cl < addr + size;
-		     cl += cpuinfo.dcache_block_size)
+		     cl += cpuinfo->dcache_block_size)
 			mtspr(SPR_DCBFR, cl);
 		break;
 	case DMA_FROM_DEVICE:
 		/* Invalidate the dcache for the requested range */
 		for (cl = addr; cl < addr + size;
-		     cl += cpuinfo.dcache_block_size)
+		     cl += cpuinfo->dcache_block_size)
 			mtspr(SPR_DCBIR, cl);
 		break;
 	default:
@@ -163,92 +157,4 @@ or1k_map_page(struct device *dev, struct page *page,
 		 */
 		break;
 	}
-
-	return addr;
 }
-
-static void
-or1k_unmap_page(struct device *dev, dma_addr_t dma_handle,
-		size_t size, enum dma_data_direction dir,
-		struct dma_attrs *attrs)
-{
-	/* Nothing special to do here... */
-}
-
-static int
-or1k_map_sg(struct device *dev, struct scatterlist *sg,
-	    int nents, enum dma_data_direction dir,
-	    struct dma_attrs *attrs)
-{
-	struct scatterlist *s;
-	int i;
-
-	for_each_sg(sg, s, nents, i) {
-		s->dma_address = or1k_map_page(dev, sg_page(s), s->offset,
-					       s->length, dir, NULL);
-	}
-
-	return nents;
-}
-
-static void
-or1k_unmap_sg(struct device *dev, struct scatterlist *sg,
-	      int nents, enum dma_data_direction dir,
-	      struct dma_attrs *attrs)
-{
-	struct scatterlist *s;
-	int i;
-
-	for_each_sg(sg, s, nents, i) {
-		or1k_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir, NULL);
-	}
-}
-
-static void
-or1k_sync_single_for_cpu(struct device *dev,
-			 dma_addr_t dma_handle, size_t size,
-			 enum dma_data_direction dir)
-{
-	unsigned long cl;
-	dma_addr_t addr = dma_handle;
-
-	/* Invalidate the dcache for the requested range */
-	for (cl = addr; cl < addr + size; cl += cpuinfo.dcache_block_size)
-		mtspr(SPR_DCBIR, cl);
-}
-
-static void
-or1k_sync_single_for_device(struct device *dev,
-			    dma_addr_t dma_handle, size_t size,
-			    enum dma_data_direction dir)
-{
-	unsigned long cl;
-	dma_addr_t addr = dma_handle;
-
-	/* Flush the dcache for the requested range */
-	for (cl = addr; cl < addr + size; cl += cpuinfo.dcache_block_size)
-		mtspr(SPR_DCBFR, cl);
-}
-
-struct dma_map_ops or1k_dma_map_ops = {
-	.alloc = or1k_dma_alloc,
-	.free = or1k_dma_free,
-	.map_page = or1k_map_page,
-	.unmap_page = or1k_unmap_page,
-	.map_sg = or1k_map_sg,
-	.unmap_sg = or1k_unmap_sg,
-	.sync_single_for_cpu = or1k_sync_single_for_cpu,
-	.sync_single_for_device = or1k_sync_single_for_device,
-};
-EXPORT_SYMBOL(or1k_dma_map_ops);
-
-/* Number of entries preallocated for DMA-API debugging */
-#define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
-
-static int __init dma_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-
-	return 0;
-}
-fs_initcall(dma_init);

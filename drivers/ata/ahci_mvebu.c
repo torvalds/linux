@@ -62,6 +62,60 @@ static void ahci_mvebu_regret_option(struct ahci_host_priv *hpriv)
 	writel(0x80, hpriv->mmio + AHCI_VENDOR_SPECIFIC_0_DATA);
 }
 
+/**
+ * ahci_mvebu_stop_engine
+ *
+ * @ap:	Target ata port
+ *
+ * Errata Ref#226 - SATA Disk HOT swap issue when connected through
+ * Port Multiplier in FIS-based Switching mode.
+ *
+ * To avoid the issue, according to design, the bits[11:8, 0] of
+ * register PxFBS are cleared when Port Command and Status (0x18) bit[0]
+ * changes its value from 1 to 0, i.e. falling edge of Port
+ * Command and Status bit[0] sends PULSE that resets PxFBS
+ * bits[11:8; 0].
+ *
+ * This function is used to override function of "ahci_stop_engine"
+ * from libahci.c by adding the mvebu work around(WA) to save PxFBS
+ * value before the PxCMD ST write of 0, then restore PxFBS value.
+ *
+ * Return: 0 on success; Error code otherwise.
+ */
+static int ahci_mvebu_stop_engine(struct ata_port *ap)
+{
+	void __iomem *port_mmio = ahci_port_base(ap);
+	u32 tmp, port_fbs;
+
+	tmp = readl(port_mmio + PORT_CMD);
+
+	/* check if the HBA is idle */
+	if ((tmp & (PORT_CMD_START | PORT_CMD_LIST_ON)) == 0)
+		return 0;
+
+	/* save the port PxFBS register for later restore */
+	port_fbs = readl(port_mmio + PORT_FBS);
+
+	/* setting HBA to idle */
+	tmp &= ~PORT_CMD_START;
+	writel(tmp, port_mmio + PORT_CMD);
+
+	/*
+	 * bit #15 PxCMD signal doesn't clear PxFBS,
+	 * restore the PxFBS register right after clearing the PxCMD ST,
+	 * no need to wait for the PxCMD bit #15.
+	 */
+	writel(port_fbs, port_mmio + PORT_FBS);
+
+	/* wait for engine to stop. This could be as long as 500 msec */
+	tmp = ata_wait_register(ap, port_mmio + PORT_CMD,
+				PORT_CMD_LIST_ON, PORT_CMD_LIST_ON, 1, 500);
+	if (tmp & PORT_CMD_LIST_ON)
+		return -EIO;
+
+	return 0;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int ahci_mvebu_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -104,7 +158,7 @@ static int ahci_mvebu_probe(struct platform_device *pdev)
 	const struct mbus_dram_target_info *dram;
 	int rc;
 
-	hpriv = ahci_platform_get_resources(pdev);
+	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 
@@ -112,12 +166,17 @@ static int ahci_mvebu_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	dram = mv_mbus_dram_info();
-	if (!dram)
-		return -ENODEV;
+	hpriv->stop_engine = ahci_mvebu_stop_engine;
 
-	ahci_mvebu_mbus_config(hpriv, dram);
-	ahci_mvebu_regret_option(hpriv);
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "marvell,armada-380-ahci")) {
+		dram = mv_mbus_dram_info();
+		if (!dram)
+			return -ENODEV;
+
+		ahci_mvebu_mbus_config(hpriv, dram);
+		ahci_mvebu_regret_option(hpriv);
+	}
 
 	rc = ahci_platform_init_host(pdev, hpriv, &ahci_mvebu_port_info,
 				     &ahci_platform_sht);
@@ -133,6 +192,7 @@ disable_resources:
 
 static const struct of_device_id ahci_mvebu_of_match[] = {
 	{ .compatible = "marvell,armada-380-ahci", },
+	{ .compatible = "marvell,armada-3700-ahci", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ahci_mvebu_of_match);

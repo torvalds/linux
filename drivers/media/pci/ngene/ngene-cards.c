@@ -19,13 +19,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -44,30 +42,104 @@
 #include "drxk.h"
 #include "drxd.h"
 #include "dvb-pll.h"
+#include "stv0367.h"
+#include "stv0367_priv.h"
+#include "tda18212.h"
+#include "cxd2841er.h"
+#include "stv0910.h"
+#include "stv6111.h"
+#include "lnbh25.h"
 
+/****************************************************************************/
+/* I2C transfer functions used for demod/tuner probing***********************/
+/****************************************************************************/
+
+static int i2c_io(struct i2c_adapter *adapter, u8 adr,
+		  u8 *wbuf, u32 wlen, u8 *rbuf, u32 rlen)
+{
+	struct i2c_msg msgs[2] = {{.addr = adr,  .flags = 0,
+				   .buf  = wbuf, .len   = wlen },
+				  {.addr = adr,  .flags = I2C_M_RD,
+				   .buf  = rbuf,  .len   = rlen } };
+	return (i2c_transfer(adapter, msgs, 2) == 2) ? 0 : -1;
+}
+
+static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
+{
+	struct i2c_msg msg = {.addr = adr, .flags = 0,
+			      .buf = data, .len = len};
+
+	return (i2c_transfer(adap, &msg, 1) == 1) ? 0 : -1;
+}
+
+static int i2c_write_reg(struct i2c_adapter *adap, u8 adr,
+			 u8 reg, u8 val)
+{
+	u8 msg[2] = {reg, val};
+
+	return i2c_write(adap, adr, msg, 2);
+}
+
+static int i2c_read(struct i2c_adapter *adapter, u8 adr, u8 *val)
+{
+	struct i2c_msg msgs[1] = {{.addr = adr,  .flags = I2C_M_RD,
+				   .buf  = val,  .len   = 1 } };
+	return (i2c_transfer(adapter, msgs, 1) == 1) ? 0 : -1;
+}
+
+static int i2c_read_reg16(struct i2c_adapter *adapter, u8 adr,
+			  u16 reg, u8 *val)
+{
+	u8 msg[2] = {reg >> 8, reg & 0xff};
+	struct i2c_msg msgs[2] = {{.addr = adr, .flags = 0,
+				   .buf  = msg, .len   = 2},
+				  {.addr = adr, .flags = I2C_M_RD,
+				   .buf  = val, .len   = 1} };
+	return (i2c_transfer(adapter, msgs, 2) == 2) ? 0 : -1;
+}
+
+static int i2c_read_regs(struct i2c_adapter *adapter,
+			 u8 adr, u8 reg, u8 *val, u8 len)
+{
+	struct i2c_msg msgs[2] = {{.addr = adr,  .flags = 0,
+				   .buf  = &reg, .len   = 1},
+				  {.addr = adr,  .flags = I2C_M_RD,
+				   .buf  = val,  .len   = len} };
+
+	return (i2c_transfer(adapter, msgs, 2) == 2) ? 0 : -1;
+}
+
+static int i2c_read_reg(struct i2c_adapter *adapter, u8 adr, u8 reg, u8 *val)
+{
+	return i2c_read_regs(adapter, adr, reg, val, 1);
+}
 
 /****************************************************************************/
 /* Demod/tuner attachment ***************************************************/
 /****************************************************************************/
 
+static struct i2c_adapter *i2c_adapter_from_chan(struct ngene_channel *chan)
+{
+	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
+	if (chan->number < 2)
+		return &chan->dev->channel[0].i2c_adapter;
+
+	return &chan->dev->channel[1].i2c_adapter;
+}
+
 static int tuner_attach_stv6110(struct ngene_channel *chan)
 {
-	struct i2c_adapter *i2c;
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct i2c_adapter *i2c = i2c_adapter_from_chan(chan);
 	struct stv090x_config *feconf = (struct stv090x_config *)
 		chan->dev->card_info->fe_config[chan->number];
 	struct stv6110x_config *tunerconf = (struct stv6110x_config *)
 		chan->dev->card_info->tuner_config[chan->number];
-	struct stv6110x_devctl *ctl;
-
-	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
-	if (chan->number < 2)
-		i2c = &chan->dev->channel[0].i2c_adapter;
-	else
-		i2c = &chan->dev->channel[1].i2c_adapter;
+	const struct stv6110x_devctl *ctl;
 
 	ctl = dvb_attach(stv6110x_attach, chan->fe, tunerconf, i2c);
 	if (ctl == NULL) {
-		printk(KERN_ERR	DEVICE_NAME ": No STV6110X found!\n");
+		dev_err(pdev, "No STV6110X found!\n");
 		return -ENODEV;
 	}
 
@@ -86,6 +158,23 @@ static int tuner_attach_stv6110(struct ngene_channel *chan)
 	return 0;
 }
 
+static int tuner_attach_stv6111(struct ngene_channel *chan)
+{
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct i2c_adapter *i2c = i2c_adapter_from_chan(chan);
+	struct dvb_frontend *fe;
+	u8 adr = 4 + ((chan->number & 1) ? 0x63 : 0x60);
+
+	fe = dvb_attach(stv6111_attach, chan->fe, i2c, adr);
+	if (!fe) {
+		fe = dvb_attach(stv6111_attach, chan->fe, i2c, adr & ~4);
+		if (!fe) {
+			dev_err(pdev, "stv6111_attach() failed!\n");
+			return -ENODEV;
+		}
+	}
+	return 0;
+}
 
 static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
@@ -104,51 +193,117 @@ static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 static int tuner_attach_tda18271(struct ngene_channel *chan)
 {
-	struct i2c_adapter *i2c;
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct i2c_adapter *i2c = i2c_adapter_from_chan(chan);
 	struct dvb_frontend *fe;
 
-	i2c = &chan->dev->channel[0].i2c_adapter;
 	if (chan->fe->ops.i2c_gate_ctrl)
 		chan->fe->ops.i2c_gate_ctrl(chan->fe, 1);
 	fe = dvb_attach(tda18271c2dd_attach, chan->fe, i2c, 0x60);
 	if (chan->fe->ops.i2c_gate_ctrl)
 		chan->fe->ops.i2c_gate_ctrl(chan->fe, 0);
 	if (!fe) {
-		printk(KERN_ERR "No TDA18271 found!\n");
+		dev_err(pdev, "No TDA18271 found!\n");
 		return -ENODEV;
 	}
 
 	return 0;
 }
 
+static int tuner_tda18212_ping(struct ngene_channel *chan,
+			       struct i2c_adapter *i2c,
+			       unsigned short adr)
+{
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	u8 tda_id[2];
+	u8 subaddr = 0x00;
+
+	dev_dbg(pdev, "stv0367-tda18212 tuner ping\n");
+	if (chan->fe->ops.i2c_gate_ctrl)
+		chan->fe->ops.i2c_gate_ctrl(chan->fe, 1);
+
+	if (i2c_read_regs(i2c, adr, subaddr, tda_id, sizeof(tda_id)) < 0)
+		dev_dbg(pdev, "tda18212 ping 1 fail\n");
+	if (i2c_read_regs(i2c, adr, subaddr, tda_id, sizeof(tda_id)) < 0)
+		dev_warn(pdev, "tda18212 ping failed, expect problems\n");
+
+	if (chan->fe->ops.i2c_gate_ctrl)
+		chan->fe->ops.i2c_gate_ctrl(chan->fe, 0);
+
+	return 0;
+}
+
+static int tuner_attach_tda18212(struct ngene_channel *chan, u32 dmdtype)
+{
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct i2c_adapter *i2c = i2c_adapter_from_chan(chan);
+	struct i2c_client *client;
+	struct tda18212_config config = {
+		.fe = chan->fe,
+		.if_dvbt_6 = 3550,
+		.if_dvbt_7 = 3700,
+		.if_dvbt_8 = 4150,
+		.if_dvbt2_6 = 3250,
+		.if_dvbt2_7 = 4000,
+		.if_dvbt2_8 = 4000,
+		.if_dvbc = 5000,
+	};
+	u8 addr = (chan->number & 1) ? 0x63 : 0x60;
+
+	/*
+	 * due to a hardware quirk with the I2C gate on the stv0367+tda18212
+	 * combo, the tda18212 must be probed by reading it's id _twice_ when
+	 * cold started, or it very likely will fail.
+	 */
+	if (dmdtype == DEMOD_TYPE_STV0367)
+		tuner_tda18212_ping(chan, i2c, addr);
+
+	/* perform tuner probe/init/attach */
+	client = dvb_module_probe("tda18212", NULL, i2c, addr, &config);
+	if (!client)
+		goto err;
+
+	chan->i2c_client[0] = client;
+	chan->i2c_client_fe = 1;
+
+	return 0;
+err:
+	dev_err(pdev, "TDA18212 tuner not found. Device is not fully operational.\n");
+	return -ENODEV;
+}
+
 static int tuner_attach_probe(struct ngene_channel *chan)
 {
-	if (chan->demod_type == 0)
+	switch (chan->demod_type) {
+	case DEMOD_TYPE_STV090X:
 		return tuner_attach_stv6110(chan);
-	if (chan->demod_type == 1)
+	case DEMOD_TYPE_DRXK:
 		return tuner_attach_tda18271(chan);
+	case DEMOD_TYPE_STV0367:
+	case DEMOD_TYPE_SONY_CT2:
+	case DEMOD_TYPE_SONY_ISDBT:
+	case DEMOD_TYPE_SONY_C2T2:
+	case DEMOD_TYPE_SONY_C2T2I:
+		return tuner_attach_tda18212(chan, chan->demod_type);
+	case DEMOD_TYPE_STV0910:
+		return tuner_attach_stv6111(chan);
+	}
+
 	return -EINVAL;
 }
 
 static int demod_attach_stv0900(struct ngene_channel *chan)
 {
-	struct i2c_adapter *i2c;
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct i2c_adapter *i2c = i2c_adapter_from_chan(chan);
 	struct stv090x_config *feconf = (struct stv090x_config *)
 		chan->dev->card_info->fe_config[chan->number];
-
-	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
-	/* Note: Both adapters share the same i2c bus, but the demod     */
-	/*       driver requires that each demod has its own i2c adapter */
-	if (chan->number < 2)
-		i2c = &chan->dev->channel[0].i2c_adapter;
-	else
-		i2c = &chan->dev->channel[1].i2c_adapter;
 
 	chan->fe = dvb_attach(stv090x_attach, feconf, i2c,
 			(chan->number & 1) == 0 ? STV090x_DEMODULATOR_0
 						: STV090x_DEMODULATOR_1);
 	if (chan->fe == NULL) {
-		printk(KERN_ERR	DEVICE_NAME ": No STV0900 found!\n");
+		dev_err(pdev, "No STV0900 found!\n");
 		return -ENODEV;
 	}
 
@@ -158,12 +313,126 @@ static int demod_attach_stv0900(struct ngene_channel *chan)
 
 	if (!dvb_attach(lnbh24_attach, chan->fe, i2c, 0,
 			0, chan->dev->card_info->lnb[chan->number])) {
-		printk(KERN_ERR DEVICE_NAME ": No LNBH24 found!\n");
+		dev_err(pdev, "No LNBH24 found!\n");
 		dvb_frontend_detach(chan->fe);
 		chan->fe = NULL;
 		return -ENODEV;
 	}
 
+	return 0;
+}
+
+static struct stv0910_cfg stv0910_p = {
+	.adr      = 0x68,
+	.parallel = 1,
+	.rptlvl   = 4,
+	.clk      = 30000000,
+	.tsspeed  = 0x28,
+};
+
+static struct lnbh25_config lnbh25_cfg = {
+	.i2c_address = 0x0c << 1,
+	.data2_config = LNBH25_TEN
+};
+
+static int demod_attach_stv0910(struct ngene_channel *chan,
+				struct i2c_adapter *i2c)
+{
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct stv0910_cfg cfg = stv0910_p;
+	struct lnbh25_config lnbcfg = lnbh25_cfg;
+
+	chan->fe = dvb_attach(stv0910_attach, i2c, &cfg, (chan->number & 1));
+	if (!chan->fe) {
+		cfg.adr = 0x6c;
+		chan->fe = dvb_attach(stv0910_attach, i2c,
+				      &cfg, (chan->number & 1));
+	}
+	if (!chan->fe) {
+		dev_err(pdev, "stv0910_attach() failed!\n");
+		return -ENODEV;
+	}
+
+	/*
+	 * attach lnbh25 - leftshift by one as the lnbh25 driver expects 8bit
+	 * i2c addresses
+	 */
+	lnbcfg.i2c_address = (((chan->number & 1) ? 0x0d : 0x0c) << 1);
+	if (!dvb_attach(lnbh25_attach, chan->fe, &lnbcfg, i2c)) {
+		lnbcfg.i2c_address = (((chan->number & 1) ? 0x09 : 0x08) << 1);
+		if (!dvb_attach(lnbh25_attach, chan->fe, &lnbcfg, i2c)) {
+			dev_err(pdev, "lnbh25_attach() failed!\n");
+			dvb_frontend_detach(chan->fe);
+			chan->fe = NULL;
+			return -ENODEV;
+		}
+	}
+
+	return 0;
+}
+
+static struct stv0367_config ddb_stv0367_config[] = {
+	{
+		.demod_address = 0x1f,
+		.xtal = 27000000,
+		.if_khz = 0,
+		.if_iq_mode = FE_TER_NORMAL_IF_TUNER,
+		.ts_mode = STV0367_SERIAL_PUNCT_CLOCK,
+		.clk_pol = STV0367_CLOCKPOLARITY_DEFAULT,
+	}, {
+		.demod_address = 0x1e,
+		.xtal = 27000000,
+		.if_khz = 0,
+		.if_iq_mode = FE_TER_NORMAL_IF_TUNER,
+		.ts_mode = STV0367_SERIAL_PUNCT_CLOCK,
+		.clk_pol = STV0367_CLOCKPOLARITY_DEFAULT,
+	},
+};
+
+static int demod_attach_stv0367(struct ngene_channel *chan,
+				struct i2c_adapter *i2c)
+{
+	struct device *pdev = &chan->dev->pci_dev->dev;
+
+	chan->fe = dvb_attach(stv0367ddb_attach,
+			      &ddb_stv0367_config[(chan->number & 1)], i2c);
+
+	if (!chan->fe) {
+		dev_err(pdev, "stv0367ddb_attach() failed!\n");
+		return -ENODEV;
+	}
+
+	chan->fe->sec_priv = chan;
+	chan->gate_ctrl = chan->fe->ops.i2c_gate_ctrl;
+	chan->fe->ops.i2c_gate_ctrl = drxk_gate_ctrl;
+	return 0;
+}
+
+static int demod_attach_cxd28xx(struct ngene_channel *chan,
+				struct i2c_adapter *i2c, int osc24)
+{
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct cxd2841er_config cfg;
+
+	/* the cxd2841er driver expects 8bit/shifted I2C addresses */
+	cfg.i2c_addr = ((chan->number & 1) ? 0x6d : 0x6c) << 1;
+
+	cfg.xtal = osc24 ? SONY_XTAL_24000 : SONY_XTAL_20500;
+	cfg.flags = CXD2841ER_AUTO_IFHZ | CXD2841ER_EARLY_TUNE |
+		CXD2841ER_NO_WAIT_LOCK | CXD2841ER_NO_AGCNEG |
+		CXD2841ER_TSBITS | CXD2841ER_TS_SERIAL;
+
+	/* attach frontend */
+	chan->fe = dvb_attach(cxd2841er_attach_t_c, &cfg, i2c);
+
+	if (!chan->fe) {
+		dev_err(pdev, "CXD28XX attach failed!\n");
+		return -ENODEV;
+	}
+
+	chan->fe->sec_priv = chan;
+	chan->gate_ctrl = chan->fe->ops.i2c_gate_ctrl;
+	chan->fe->ops.i2c_gate_ctrl = drxk_gate_ctrl;
 	return 0;
 }
 
@@ -175,24 +444,6 @@ static void cineS2_tuner_i2c_lock(struct dvb_frontend *fe, int lock)
 		down(&chan->dev->pll_mutex);
 	else
 		up(&chan->dev->pll_mutex);
-}
-
-static int i2c_read(struct i2c_adapter *adapter, u8 adr, u8 *val)
-{
-	struct i2c_msg msgs[1] = {{.addr = adr,  .flags = I2C_M_RD,
-				   .buf  = val,  .len   = 1 } };
-	return (i2c_transfer(adapter, msgs, 1) == 1) ? 0 : -1;
-}
-
-static int i2c_read_reg16(struct i2c_adapter *adapter, u8 adr,
-			  u16 reg, u8 *val)
-{
-	u8 msg[2] = {reg>>8, reg&0xff};
-	struct i2c_msg msgs[2] = {{.addr = adr, .flags = 0,
-				   .buf  = msg, .len   = 2},
-				  {.addr = adr, .flags = I2C_M_RD,
-				   .buf  = val, .len   = 1} };
-	return (i2c_transfer(adapter, msgs, 2) == 2) ? 0 : -1;
 }
 
 static int port_has_stv0900(struct i2c_adapter *i2c, int port)
@@ -212,9 +463,44 @@ static int port_has_drxk(struct i2c_adapter *i2c, int port)
 	return 1;
 }
 
+static int port_has_stv0367(struct i2c_adapter *i2c)
+{
+	u8 val;
+
+	if (i2c_read_reg16(i2c, 0x1e, 0xf000, &val) < 0)
+		return 0;
+	if (val != 0x60)
+		return 0;
+	if (i2c_read_reg16(i2c, 0x1f, 0xf000, &val) < 0)
+		return 0;
+	if (val != 0x60)
+		return 0;
+	return 1;
+}
+
+int ngene_port_has_cxd2099(struct i2c_adapter *i2c, u8 *type)
+{
+	u8 val;
+	u8 probe[4] = { 0xe0, 0x00, 0x00, 0x00 }, data[4];
+	struct i2c_msg msgs[2] = {{ .addr = 0x40,  .flags = 0,
+				    .buf  = probe, .len   = 4 },
+				  { .addr = 0x40,  .flags = I2C_M_RD,
+				    .buf  = data,  .len   = 4 } };
+	val = i2c_transfer(i2c, msgs, 2);
+	if (val != 2)
+		return 0;
+
+	if (data[0] == 0x02 && data[1] == 0x2b && data[3] == 0x43)
+		*type = 2;
+	else
+		*type = 1;
+	return 1;
+}
+
 static int demod_attach_drxk(struct ngene_channel *chan,
 			     struct i2c_adapter *i2c)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct drxk_config config;
 
 	memset(&config, 0, sizeof(config));
@@ -224,7 +510,7 @@ static int demod_attach_drxk(struct ngene_channel *chan,
 
 	chan->fe = dvb_attach(drxk_attach, &config, i2c);
 	if (!chan->fe) {
-		printk(KERN_ERR "No DRXK found!\n");
+		dev_err(pdev, "No DRXK found!\n");
 		return -ENODEV;
 	}
 	chan->fe->sec_priv = chan;
@@ -233,22 +519,153 @@ static int demod_attach_drxk(struct ngene_channel *chan,
 	return 0;
 }
 
+/****************************************************************************/
+/* XO2 related lists and functions ******************************************/
+/****************************************************************************/
+
+static char *xo2names[] = {
+	"DUAL DVB-S2",
+	"DUAL DVB-C/T/T2",
+	"DUAL DVB-ISDBT",
+	"DUAL DVB-C/C2/T/T2",
+	"DUAL ATSC",
+	"DUAL DVB-C/C2/T/T2/I",
+};
+
+static int init_xo2(struct ngene_channel *chan, struct i2c_adapter *i2c)
+{
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	u8 addr = 0x10;
+	u8 val, data[2];
+	int res;
+
+	res = i2c_read_regs(i2c, addr, 0x04, data, 2);
+	if (res < 0)
+		return res;
+
+	if (data[0] != 0x01)  {
+		dev_info(pdev, "Invalid XO2 on channel %d\n", chan->number);
+		return -1;
+	}
+
+	i2c_read_reg(i2c, addr, 0x08, &val);
+	if (val != 0) {
+		i2c_write_reg(i2c, addr, 0x08, 0x00);
+		msleep(100);
+	}
+	/* Enable tuner power, disable pll, reset demods */
+	i2c_write_reg(i2c, addr, 0x08, 0x04);
+	usleep_range(2000, 3000);
+	/* Release demod resets */
+	i2c_write_reg(i2c, addr, 0x08, 0x07);
+
+	/*
+	 * speed: 0=55,1=75,2=90,3=104 MBit/s
+	 * Note: The ngene hardware must be run at 75 MBit/s compared
+	 * to more modern ddbridge hardware which runs at 90 MBit/s,
+	 * else there will be issues with the data transport and non-
+	 * working secondary/slave demods/tuners.
+	 */
+	i2c_write_reg(i2c, addr, 0x09, 1);
+
+	i2c_write_reg(i2c, addr, 0x0a, 0x01);
+	i2c_write_reg(i2c, addr, 0x0b, 0x01);
+
+	usleep_range(2000, 3000);
+	/* Start XO2 PLL */
+	i2c_write_reg(i2c, addr, 0x08, 0x87);
+
+	return 0;
+}
+
+static int port_has_xo2(struct i2c_adapter *i2c, u8 *type, u8 *id)
+{
+	u8 probe[1] = { 0x00 }, data[4];
+	u8 addr = 0x10;
+
+	*type = NGENE_XO2_TYPE_NONE;
+
+	if (i2c_io(i2c, addr, probe, 1, data, 4))
+		return 0;
+	if (data[0] == 'D' && data[1] == 'F') {
+		*id = data[2];
+		*type = NGENE_XO2_TYPE_DUOFLEX;
+		return 1;
+	}
+	if (data[0] == 'C' && data[1] == 'I') {
+		*id = data[2];
+		*type = NGENE_XO2_TYPE_CI;
+		return 1;
+	}
+	return 0;
+}
+
+/****************************************************************************/
+/* Probing and port/channel handling ****************************************/
+/****************************************************************************/
+
 static int cineS2_probe(struct ngene_channel *chan)
 {
-	struct i2c_adapter *i2c;
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct i2c_adapter *i2c = i2c_adapter_from_chan(chan);
 	struct stv090x_config *fe_conf;
 	u8 buf[3];
+	u8 xo2_type, xo2_id, xo2_demodtype;
+	u8 sony_osc24 = 0;
 	struct i2c_msg i2c_msg = { .flags = 0, .buf = buf };
 	int rc;
 
-	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
-	if (chan->number < 2)
-		i2c = &chan->dev->channel[0].i2c_adapter;
-	else
-		i2c = &chan->dev->channel[1].i2c_adapter;
+	if (port_has_xo2(i2c, &xo2_type, &xo2_id)) {
+		xo2_id >>= 2;
+		dev_dbg(pdev, "XO2 on channel %d (type %d, id %d)\n",
+			chan->number, xo2_type, xo2_id);
 
-	if (port_has_stv0900(i2c, chan->number)) {
-		chan->demod_type = 0;
+		switch (xo2_type) {
+		case NGENE_XO2_TYPE_DUOFLEX:
+			if (chan->number & 1)
+				dev_dbg(pdev,
+					"skipping XO2 init on odd channel %d",
+					chan->number);
+			else
+				init_xo2(chan, i2c);
+
+			xo2_demodtype = DEMOD_TYPE_XO2 + xo2_id;
+
+			switch (xo2_demodtype) {
+			case DEMOD_TYPE_SONY_CT2:
+			case DEMOD_TYPE_SONY_ISDBT:
+			case DEMOD_TYPE_SONY_C2T2:
+			case DEMOD_TYPE_SONY_C2T2I:
+				dev_info(pdev, "%s (XO2) on channel %d\n",
+					 xo2names[xo2_id], chan->number);
+				chan->demod_type = xo2_demodtype;
+				if (xo2_demodtype == DEMOD_TYPE_SONY_C2T2I)
+					sony_osc24 = 1;
+
+				demod_attach_cxd28xx(chan, i2c, sony_osc24);
+				break;
+			case DEMOD_TYPE_STV0910:
+				dev_info(pdev, "%s (XO2) on channel %d\n",
+					 xo2names[xo2_id], chan->number);
+				chan->demod_type = xo2_demodtype;
+				demod_attach_stv0910(chan, i2c);
+				break;
+			default:
+				dev_warn(pdev,
+					 "Unsupported XO2 module on channel %d\n",
+					 chan->number);
+				return -ENODEV;
+			}
+			break;
+		case NGENE_XO2_TYPE_CI:
+			dev_info(pdev, "DuoFlex CI modules not supported\n");
+			return -ENODEV;
+		default:
+			dev_info(pdev, "Unsupported XO2 module type\n");
+			return -ENODEV;
+		}
+	} else if (port_has_stv0900(i2c, chan->number)) {
+		chan->demod_type = DEMOD_TYPE_STV090X;
 		fe_conf = chan->dev->card_info->fe_config[chan->number];
 		/* demod found, attach it */
 		rc = demod_attach_stv0900(chan);
@@ -273,14 +690,18 @@ static int cineS2_probe(struct ngene_channel *chan)
 		}
 		rc = i2c_transfer(i2c, &i2c_msg, 1);
 		if (rc != 1) {
-			printk(KERN_ERR DEVICE_NAME ": could not setup DPNx\n");
+			dev_err(pdev, "Could not setup DPNx\n");
 			return -EIO;
 		}
 	} else if (port_has_drxk(i2c, chan->number^2)) {
-		chan->demod_type = 1;
+		chan->demod_type = DEMOD_TYPE_DRXK;
 		demod_attach_drxk(chan, i2c);
+	} else if (port_has_stv0367(i2c)) {
+		chan->demod_type = DEMOD_TYPE_STV0367;
+		dev_info(pdev, "STV0367 on channel %d\n", chan->number);
+		demod_attach_stv0367(chan, i2c);
 	} else {
-		printk(KERN_ERR "No demod found on chan %d\n", chan->number);
+		dev_info(pdev, "No demod found on chan %d\n", chan->number);
 		return -ENODEV;
 	}
 	return 0;
@@ -288,7 +709,6 @@ static int cineS2_probe(struct ngene_channel *chan)
 
 
 static struct lgdt330x_config aver_m780 = {
-	.demod_address = 0xb2 >> 1,
 	.demod_chip    = LGDT3303,
 	.serial_mpeg   = 0x00, /* PARALLEL */
 	.clock_polarity_flip = 1,
@@ -303,9 +723,12 @@ static struct mt2131_config m780_tunerconfig = {
  */
 static int demod_attach_lg330x(struct ngene_channel *chan)
 {
-	chan->fe = dvb_attach(lgdt330x_attach, &aver_m780, &chan->i2c_adapter);
+	struct device *pdev = &chan->dev->pci_dev->dev;
+
+	chan->fe = dvb_attach(lgdt330x_attach, &aver_m780,
+			      0xb2 >> 1, &chan->i2c_adapter);
 	if (chan->fe == NULL) {
-		printk(KERN_ERR	DEVICE_NAME ": No LGDT330x found!\n");
+		dev_err(pdev, "No LGDT330x found!\n");
 		return -ENODEV;
 	}
 
@@ -317,6 +740,7 @@ static int demod_attach_lg330x(struct ngene_channel *chan)
 
 static int demod_attach_drxd(struct ngene_channel *chan)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct drxd_config *feconf;
 
 	feconf = chan->dev->card_info->fe_config[chan->number];
@@ -324,7 +748,7 @@ static int demod_attach_drxd(struct ngene_channel *chan)
 	chan->fe = dvb_attach(drxd_attach, feconf, chan,
 			&chan->i2c_adapter, &chan->dev->pci_dev->dev);
 	if (!chan->fe) {
-		pr_err("No DRXD found!\n");
+		dev_err(pdev, "No DRXD found!\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -332,6 +756,7 @@ static int demod_attach_drxd(struct ngene_channel *chan)
 
 static int tuner_attach_dtt7520x(struct ngene_channel *chan)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct drxd_config *feconf;
 
 	feconf = chan->dev->card_info->fe_config[chan->number];
@@ -339,7 +764,7 @@ static int tuner_attach_dtt7520x(struct ngene_channel *chan)
 	if (!dvb_attach(dvb_pll_attach, chan->fe, feconf->pll_address,
 			&chan->i2c_adapter,
 			feconf->pll_type)) {
-		pr_err("No pll(%d) found!\n", feconf->pll_type);
+		dev_err(pdev, "No pll(%d) found!\n", feconf->pll_type);
 		return -ENODEV;
 	}
 	return 0;
@@ -375,12 +800,13 @@ static int tuner_attach_dtt7520x(struct ngene_channel *chan)
 static int i2c_write_eeprom(struct i2c_adapter *adapter,
 			    u8 adr, u16 reg, u8 data)
 {
+	struct device *pdev = adapter->dev.parent;
 	u8 m[3] = {(reg >> 8), (reg & 0xff), data};
 	struct i2c_msg msg = {.addr = adr, .flags = 0, .buf = m,
 			      .len = sizeof(m)};
 
 	if (i2c_transfer(adapter, &msg, 1) != 1) {
-		pr_err(DEVICE_NAME ": Error writing EEPROM!\n");
+		dev_err(pdev, "Error writing EEPROM!\n");
 		return -EIO;
 	}
 	return 0;
@@ -389,6 +815,7 @@ static int i2c_write_eeprom(struct i2c_adapter *adapter,
 static int i2c_read_eeprom(struct i2c_adapter *adapter,
 			   u8 adr, u16 reg, u8 *data, int len)
 {
+	struct device *pdev = adapter->dev.parent;
 	u8 msg[2] = {(reg >> 8), (reg & 0xff)};
 	struct i2c_msg msgs[2] = {{.addr = adr, .flags = 0,
 				   .buf = msg, .len = 2 },
@@ -396,7 +823,7 @@ static int i2c_read_eeprom(struct i2c_adapter *adapter,
 				   .buf = data, .len = len} };
 
 	if (i2c_transfer(adapter, msgs, 2) != 2) {
-		pr_err(DEVICE_NAME ": Error reading EEPROM\n");
+		dev_err(pdev, "Error reading EEPROM\n");
 		return -EIO;
 	}
 	return 0;
@@ -405,6 +832,7 @@ static int i2c_read_eeprom(struct i2c_adapter *adapter,
 static int ReadEEProm(struct i2c_adapter *adapter,
 		      u16 Tag, u32 MaxLen, u8 *data, u32 *pLength)
 {
+	struct device *pdev = adapter->dev.parent;
 	int status = 0;
 	u16 Addr = MICNG_EE_START, Length, tag = 0;
 	u8  EETag[3];
@@ -420,9 +848,8 @@ static int ReadEEProm(struct i2c_adapter *adapter,
 		Addr += sizeof(u16) + 1 + EETag[2];
 	}
 	if (Addr + sizeof(u16) + 1 + EETag[2] > MICNG_EE_END) {
-		pr_err(DEVICE_NAME
-		       ": Reached EOEE @ Tag = %04x Length = %3d\n",
-		       tag, EETag[2]);
+		dev_err(pdev, "Reached EOEE @ Tag = %04x Length = %3d\n",
+			tag, EETag[2]);
 		return -1;
 	}
 	Length = EETag[2];
@@ -445,6 +872,7 @@ static int ReadEEProm(struct i2c_adapter *adapter,
 static int WriteEEProm(struct i2c_adapter *adapter,
 		       u16 Tag, u32 Length, u8 *data)
 {
+	struct device *pdev = adapter->dev.parent;
 	int status = 0;
 	u16 Addr = MICNG_EE_START;
 	u8 EETag[3];
@@ -462,9 +890,8 @@ static int WriteEEProm(struct i2c_adapter *adapter,
 		Addr += sizeof(u16) + 1 + EETag[2];
 	}
 	if (Addr + sizeof(u16) + 1 + EETag[2] > MICNG_EE_END) {
-		pr_err(DEVICE_NAME
-		       ": Reached EOEE @ Tag = %04x Length = %3d\n",
-		       tag, EETag[2]);
+		dev_err(pdev, "Reached EOEE @ Tag = %04x Length = %3d\n",
+			tag, EETag[2]);
 		return -1;
 	}
 
@@ -491,13 +918,11 @@ static int WriteEEProm(struct i2c_adapter *adapter,
 			if (status)
 				break;
 			if (Tmp != data[i])
-				pr_err(DEVICE_NAME
-				       "eeprom write error\n");
+				dev_err(pdev, "eeprom write error\n");
 			retry -= 1;
 		}
 		if (status) {
-			pr_err(DEVICE_NAME
-			       ": Timeout polling eeprom\n");
+			dev_err(pdev, "Timeout polling eeprom\n");
 			break;
 		}
 	}
@@ -536,19 +961,20 @@ static int eeprom_write_ushort(struct i2c_adapter *adapter, u16 tag, u16 data)
 static s16 osc_deviation(void *priv, s16 deviation, int flag)
 {
 	struct ngene_channel *chan = priv;
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct i2c_adapter *adap = &chan->i2c_adapter;
 	u16 data = 0;
 
 	if (flag) {
 		data = (u16) deviation;
-		pr_info(DEVICE_NAME ": write deviation %d\n",
-		       deviation);
+		dev_info(pdev, "write deviation %d\n",
+			 deviation);
 		eeprom_write_ushort(adap, 0x1000 + chan->number, data);
 	} else {
 		if (eeprom_read_ushort(adap, 0x1000 + chan->number, &data))
 			data = 0;
-		pr_info(DEVICE_NAME ": read deviation %d\n",
-		       (s16) data);
+		dev_info(pdev, "read deviation %d\n",
+			 (s16)data);
 	}
 
 	return (s16) data;
@@ -613,7 +1039,7 @@ static struct stv6110x_config tuner_cineS2_1 = {
 	.clk_div = 1,
 };
 
-static struct ngene_info ngene_info_cineS2 = {
+static const struct ngene_info ngene_info_cineS2 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Linux4Media cineS2 DVB-S2 Twin Tuner",
 	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN},
@@ -627,7 +1053,7 @@ static struct ngene_info ngene_info_cineS2 = {
 	.msi_supported	= true,
 };
 
-static struct ngene_info ngene_info_satixS2 = {
+static const struct ngene_info ngene_info_satixS2 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Mystique SaTiX-S2 Dual",
 	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN},
@@ -641,7 +1067,7 @@ static struct ngene_info ngene_info_satixS2 = {
 	.msi_supported	= true,
 };
 
-static struct ngene_info ngene_info_satixS2v2 = {
+static const struct ngene_info ngene_info_satixS2v2 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Mystique SaTiX-S2 Dual (v2)",
 	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
@@ -656,7 +1082,7 @@ static struct ngene_info ngene_info_satixS2v2 = {
 	.msi_supported	= true,
 };
 
-static struct ngene_info ngene_info_cineS2v5 = {
+static const struct ngene_info ngene_info_cineS2v5 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Linux4Media cineS2 DVB-S2 Twin Tuner (v5)",
 	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
@@ -672,7 +1098,7 @@ static struct ngene_info ngene_info_cineS2v5 = {
 };
 
 
-static struct ngene_info ngene_info_duoFlex = {
+static const struct ngene_info ngene_info_duoFlex = {
 	.type           = NGENE_SIDEWINDER,
 	.name           = "Digital Devices DuoFlex PCIe or miniPCIe",
 	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
@@ -687,7 +1113,7 @@ static struct ngene_info ngene_info_duoFlex = {
 	.msi_supported	= true,
 };
 
-static struct ngene_info ngene_info_m780 = {
+static const struct ngene_info ngene_info_m780 = {
 	.type           = NGENE_APP,
 	.name           = "Aver M780 ATSC/QAM-B",
 
@@ -727,7 +1153,7 @@ static struct drxd_config fe_terratec_dvbt_1 = {
 	.osc_deviation  = osc_deviation,
 };
 
-static struct ngene_info ngene_info_terratec = {
+static const struct ngene_info ngene_info_terratec = {
 	.type           = NGENE_TERRATEC,
 	.name           = "Terratec Integra/Cinergy2400i Dual DVB-T",
 	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN},
@@ -753,6 +1179,8 @@ static struct ngene_info ngene_info_terratec = {
 /****************************************************************************/
 
 static const struct pci_device_id ngene_id_tbl[] = {
+	NGENE_ID(0x18c3, 0xab04, ngene_info_cineS2),
+	NGENE_ID(0x18c3, 0xab05, ngene_info_cineS2v5),
 	NGENE_ID(0x18c3, 0xabc3, ngene_info_cineS2),
 	NGENE_ID(0x18c3, 0xabc4, ngene_info_cineS2),
 	NGENE_ID(0x18c3, 0xdb01, ngene_info_satixS2),
@@ -773,7 +1201,7 @@ MODULE_DEVICE_TABLE(pci, ngene_id_tbl);
 static pci_ers_result_t ngene_error_detected(struct pci_dev *dev,
 					     enum pci_channel_state state)
 {
-	printk(KERN_ERR DEVICE_NAME ": PCI error\n");
+	dev_err(&dev->dev, "PCI error\n");
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
 	if (state == pci_channel_io_frozen)
@@ -781,26 +1209,19 @@ static pci_ers_result_t ngene_error_detected(struct pci_dev *dev,
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
-static pci_ers_result_t ngene_link_reset(struct pci_dev *dev)
-{
-	printk(KERN_INFO DEVICE_NAME ": link reset\n");
-	return 0;
-}
-
 static pci_ers_result_t ngene_slot_reset(struct pci_dev *dev)
 {
-	printk(KERN_INFO DEVICE_NAME ": slot reset\n");
+	dev_info(&dev->dev, "slot reset\n");
 	return 0;
 }
 
 static void ngene_resume(struct pci_dev *dev)
 {
-	printk(KERN_INFO DEVICE_NAME ": resume\n");
+	dev_info(&dev->dev, "resume\n");
 }
 
 static const struct pci_error_handlers ngene_errors = {
 	.error_detected = ngene_error_detected,
-	.link_reset = ngene_link_reset,
 	.slot_reset = ngene_slot_reset,
 	.resume = ngene_resume,
 };
@@ -816,8 +1237,9 @@ static struct pci_driver ngene_pci_driver = {
 
 static __init int module_init_ngene(void)
 {
-	printk(KERN_INFO
-	       "nGene PCIE bridge driver, Copyright (C) 2005-2007 Micronas\n");
+	/* pr_*() since we don't have a device to use with dev_*() yet */
+	pr_info("nGene PCIE bridge driver, Copyright (C) 2005-2007 Micronas\n");
+
 	return pci_register_driver(&ngene_pci_driver);
 }
 

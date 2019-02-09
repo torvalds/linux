@@ -39,6 +39,9 @@
 #define PM8916_SUBTYPE		0x0b
 #define PM8004_SUBTYPE		0x0c
 #define PM8909_SUBTYPE		0x0d
+#define PM8998_SUBTYPE		0x14
+#define PMI8998_SUBTYPE		0x15
+#define PM8005_SUBTYPE		0x18
 
 static const struct of_device_id pmic_spmi_id_table[] = {
 	{ .compatible = "qcom,spmi-pmic", .data = (void *)COMMON_SUBTYPE },
@@ -55,6 +58,9 @@ static const struct of_device_id pmic_spmi_id_table[] = {
 	{ .compatible = "qcom,pm8916",    .data = (void *)PM8916_SUBTYPE },
 	{ .compatible = "qcom,pm8004",    .data = (void *)PM8004_SUBTYPE },
 	{ .compatible = "qcom,pm8909",    .data = (void *)PM8909_SUBTYPE },
+	{ .compatible = "qcom,pm8998",    .data = (void *)PM8998_SUBTYPE },
+	{ .compatible = "qcom,pmi8998",   .data = (void *)PMI8998_SUBTYPE },
+	{ .compatible = "qcom,pm8005",    .data = (void *)PM8005_SUBTYPE },
 	{ }
 };
 
@@ -120,28 +126,23 @@ static const struct regmap_config spmi_regmap_config = {
 
 static int pmic_spmi_probe(struct spmi_device *sdev)
 {
-	struct device_node *root = sdev->dev.of_node;
 	struct regmap *regmap;
 
 	regmap = devm_regmap_init_spmi_ext(sdev, &spmi_regmap_config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	pmic_spmi_show_revid(regmap, &sdev->dev);
+	/* Only the first slave id for a PMIC contains this information */
+	if (sdev->usid % 2 == 0)
+		pmic_spmi_show_revid(regmap, &sdev->dev);
 
-	return of_platform_populate(root, NULL, NULL, &sdev->dev);
-}
-
-static void pmic_spmi_remove(struct spmi_device *sdev)
-{
-	of_platform_depopulate(&sdev->dev);
+	return devm_of_platform_populate(&sdev->dev);
 }
 
 MODULE_DEVICE_TABLE(of, pmic_spmi_id_table);
 
 static struct spmi_driver pmic_spmi_driver = {
 	.probe = pmic_spmi_probe,
-	.remove = pmic_spmi_remove,
 	.driver = {
 		.name = "pmic-spmi",
 		.of_match_table = pmic_spmi_id_table,

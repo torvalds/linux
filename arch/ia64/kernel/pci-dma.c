@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Dynamic DMA mapping support.
  */
@@ -11,12 +12,7 @@
 #include <asm/iommu.h>
 #include <asm/machvec.h>
 #include <linux/dma-mapping.h>
-
-
-#ifdef CONFIG_INTEL_IOMMU
-
 #include <linux/kernel.h>
-
 #include <asm/page.h>
 
 dma_addr_t bad_dma_address __read_mostly;
@@ -90,11 +86,11 @@ void __init pci_iommu_alloc(void)
 {
 	dma_ops = &intel_dma_ops;
 
-	dma_ops->sync_single_for_cpu = machvec_dma_sync_single;
-	dma_ops->sync_sg_for_cpu = machvec_dma_sync_sg;
-	dma_ops->sync_single_for_device = machvec_dma_sync_single;
-	dma_ops->sync_sg_for_device = machvec_dma_sync_sg;
-	dma_ops->dma_supported = iommu_dma_supported;
+	intel_dma_ops.sync_single_for_cpu = machvec_dma_sync_single;
+	intel_dma_ops.sync_sg_for_cpu = machvec_dma_sync_sg;
+	intel_dma_ops.sync_single_for_device = machvec_dma_sync_single;
+	intel_dma_ops.sync_sg_for_device = machvec_dma_sync_sg;
+	intel_dma_ops.dma_supported = iommu_dma_supported;
 
 	/*
 	 * The order of these functions is important for
@@ -103,8 +99,14 @@ void __init pci_iommu_alloc(void)
 	detect_intel_iommu();
 
 #ifdef CONFIG_SWIOTLB
-	pci_swiotlb_init();
-#endif
+	if (!iommu_detected) {
+#ifdef CONFIG_IA64_GENERIC
+		printk(KERN_INFO "PCI-DMA: Re-initialize machine vector.\n");
+		machvec_init("dig");
+		swiotlb_dma_init();
+#else
+		panic("Unable to find Intel IOMMU");
+#endif /* CONFIG_IA64_GENERIC */
+	}
+#endif /* CONFIG_SWIOTLB */
 }
-
-#endif

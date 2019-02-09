@@ -13,7 +13,7 @@
 #include <asm/txx9/pci.h>
 #include <asm/txx9/rbtx4938.h>
 
-int __init rbtx4938_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int rbtx4938_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq = tx4938_pcic1_map_irq(dev, slot);
 

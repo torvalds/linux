@@ -1,7 +1,7 @@
 /*
  * rcar_du_group.c  --  R-Car Display Unit Channels Pair
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -44,45 +44,94 @@ void rcar_du_group_write(struct rcar_du_group *rgrp, u32 reg, u32 data)
 	rcar_du_write(rgrp->dev, rgrp->mmio_offset + reg, data);
 }
 
+static void rcar_du_group_setup_pins(struct rcar_du_group *rgrp)
+{
+	u32 defr6 = DEFR6_CODE;
+
+	if (rgrp->channels_mask & BIT(0))
+		defr6 |= DEFR6_ODPM02_DISP;
+
+	if (rgrp->channels_mask & BIT(1))
+		defr6 |= DEFR6_ODPM12_DISP;
+
+	rcar_du_group_write(rgrp, DEFR6, defr6);
+}
+
 static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 {
-	u32 defr8 = DEFR8_CODE | DEFR8_DEFE8;
+	struct rcar_du_device *rcdu = rgrp->dev;
+	unsigned int possible_crtcs =
+		rcdu->info->routes[RCAR_DU_OUTPUT_DPAD0].possible_crtcs;
+	u32 defr8 = DEFR8_CODE;
 
-	/* The DEFR8 register for the first group also controls RGB output
-	 * routing to DPAD0 for DU instances that support it.
-	 */
-	if (rgrp->dev->info->routes[RCAR_DU_OUTPUT_DPAD0].possible_crtcs > 1 &&
-	    rgrp->index == 0)
-		defr8 |= DEFR8_DRGBS_DU(rgrp->dev->dpad0_source);
+	if (rcdu->info->gen < 3) {
+		defr8 |= DEFR8_DEFE8;
+
+		/*
+		 * On Gen2 the DEFR8 register for the first group also controls
+		 * RGB output routing to DPAD0 and VSPD1 routing to DU0/1/2 for
+		 * DU instances that support it.
+		 */
+		if (rgrp->index == 0) {
+			if (possible_crtcs > 1)
+				defr8 |= DEFR8_DRGBS_DU(rcdu->dpad0_source);
+			if (rgrp->dev->vspd1_sink == 2)
+				defr8 |= DEFR8_VSCS;
+		}
+	} else {
+		/*
+		 * On Gen3 VSPD routing can't be configured, but DPAD routing
+		 * needs to be set despite having a single option available.
+		 */
+		unsigned int rgb_crtc = ffs(possible_crtcs) - 1;
+		struct rcar_du_crtc *crtc = &rcdu->crtcs[rgb_crtc];
+
+		if (crtc->index / 2 == rgrp->index)
+			defr8 |= DEFR8_DRGBS_DU(crtc->index);
+	}
 
 	rcar_du_group_write(rgrp, DEFR8, defr8);
 }
 
 static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 {
+	struct rcar_du_device *rcdu = rgrp->dev;
+
 	/* Enable extended features */
 	rcar_du_group_write(rgrp, DEFR, DEFR_CODE | DEFR_DEFE);
-	rcar_du_group_write(rgrp, DEFR2, DEFR2_CODE | DEFR2_DEFE2G);
-	rcar_du_group_write(rgrp, DEFR3, DEFR3_CODE | DEFR3_DEFE3);
-	rcar_du_group_write(rgrp, DEFR4, DEFR4_CODE);
+	if (rcdu->info->gen < 3) {
+		rcar_du_group_write(rgrp, DEFR2, DEFR2_CODE | DEFR2_DEFE2G);
+		rcar_du_group_write(rgrp, DEFR3, DEFR3_CODE | DEFR3_DEFE3);
+		rcar_du_group_write(rgrp, DEFR4, DEFR4_CODE);
+	}
 	rcar_du_group_write(rgrp, DEFR5, DEFR5_CODE | DEFR5_DEFE5);
+
+	rcar_du_group_setup_pins(rgrp);
 
 	if (rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_EXT_CTRL_REGS)) {
 		rcar_du_group_setup_defr8(rgrp);
 
-		/* Configure input dot clock routing. We currently hardcode the
-		 * configuration to routing DOTCLKINn to DUn.
+		/*
+		 * Configure input dot clock routing. We currently hardcode the
+		 * configuration to routing DOTCLKINn to DUn. Register fields
+		 * depend on the DU generation, but the resulting value is 0 in
+		 * all cases.
+		 *
+		 * On Gen2 a single register in the first group controls dot
+		 * clock selection for all channels, while on Gen3 dot clocks
+		 * are setup through per-group registers, only available when
+		 * the group has two channels.
 		 */
-		rcar_du_group_write(rgrp, DIDSR, DIDSR_CODE |
-				    DIDSR_LCDS_DCLKIN(2) |
-				    DIDSR_LCDS_DCLKIN(1) |
-				    DIDSR_LCDS_DCLKIN(0) |
-				    DIDSR_PDCS_CLK(2, 0) |
-				    DIDSR_PDCS_CLK(1, 0) |
-				    DIDSR_PDCS_CLK(0, 0));
+		if ((rcdu->info->gen < 3 && rgrp->index == 0) ||
+		    (rcdu->info->gen == 3 &&  rgrp->num_crtcs > 1))
+			rcar_du_group_write(rgrp, DIDSR, DIDSR_CODE);
 	}
 
-	/* Use DS1PR and DS2PR to configure planes priorities and connects the
+	if (rcdu->info->gen >= 3)
+		rcar_du_group_write(rgrp, DEFR10, DEFR10_CODE | DEFR10_DEFE10);
+
+	/*
+	 * Use DS1PR and DS2PR to configure planes priorities and connects the
 	 * superposition 0 to DU0 pins. DU1 pins will be configured dynamically.
 	 */
 	rcar_du_group_write(rgrp, DORCR, DORCR_PG1D_DS1 | DORCR_DPRS);
@@ -135,7 +184,8 @@ static void __rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)
 
 void rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)
 {
-	/* Many of the configuration bits are only updated when the display
+	/*
+	 * Many of the configuration bits are only updated when the display
 	 * reset (DRES) bit in DSYSR is set to 1, disabling *both* CRTCs. Some
 	 * of those bits could be pre-configured, but others (especially the
 	 * bits related to plane assignment to display timing controllers) need
@@ -158,29 +208,40 @@ void rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)
 
 void rcar_du_group_restart(struct rcar_du_group *rgrp)
 {
+	rgrp->need_restart = false;
+
 	__rcar_du_group_start_stop(rgrp, false);
 	__rcar_du_group_start_stop(rgrp, true);
 }
 
-static int rcar_du_set_dpad0_routing(struct rcar_du_device *rcdu)
+int rcar_du_set_dpad0_vsp1_routing(struct rcar_du_device *rcdu)
 {
+	struct rcar_du_group *rgrp;
+	struct rcar_du_crtc *crtc;
+	unsigned int index;
 	int ret;
 
 	if (!rcar_du_has(rcdu, RCAR_DU_FEATURE_EXT_CTRL_REGS))
 		return 0;
 
-	/* RGB output routing to DPAD0 is configured in the DEFR8 register of
-	 * the first group. As this function can be called with the DU0 and DU1
-	 * CRTCs disabled, we need to enable the first group clock before
-	 * accessing the register.
+	/*
+	 * RGB output routing to DPAD0 and VSP1D routing to DU0/1/2 are
+	 * configured in the DEFR8 register of the first group on Gen2 and the
+	 * last group on Gen3. As this function can be called with the DU
+	 * channels of the corresponding CRTCs disabled, we need to enable the
+	 * group clock before accessing the register.
 	 */
-	ret = clk_prepare_enable(rcdu->crtcs[0].clock);
+	index = rcdu->info->gen < 3 ? 0 : DIV_ROUND_UP(rcdu->num_crtcs, 2) - 1;
+	rgrp = &rcdu->groups[index];
+	crtc = &rcdu->crtcs[index * 2];
+
+	ret = clk_prepare_enable(crtc->clock);
 	if (ret < 0)
 		return ret;
 
-	rcar_du_group_setup_defr8(&rcdu->groups[0]);
+	rcar_du_group_setup_defr8(rgrp);
 
-	clk_disable_unprepare(rcdu->crtcs[0].clock);
+	clk_disable_unprepare(crtc->clock);
 
 	return 0;
 }
@@ -192,7 +253,8 @@ int rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 
 	dorcr &= ~(DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_MASK);
 
-	/* Set the DPAD1 pins sources. Select CRTC 0 if explicitly requested and
+	/*
+	 * Set the DPAD1 pins sources. Select CRTC 0 if explicitly requested and
 	 * CRTC 1 in all other cases to avoid cloning CRTC 0 to DPAD0 and DPAD1
 	 * by default.
 	 */
@@ -203,5 +265,5 @@ int rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 
 	rcar_du_group_write(rgrp, DORCR, dorcr);
 
-	return rcar_du_set_dpad0_routing(rgrp->dev);
+	return rcar_du_set_dpad0_vsp1_routing(rgrp->dev);
 }

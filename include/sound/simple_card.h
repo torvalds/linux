@@ -1,28 +1,16 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * ASoC simple sound card support
  *
  * Copyright (C) 2012 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __SIMPLE_CARD_H
 #define __SIMPLE_CARD_H
 
 #include <sound/soc.h>
-
-struct asoc_simple_dai {
-	const char *name;
-	unsigned int sysclk;
-	int slots;
-	int slot_width;
-	unsigned int tx_slot_mask;
-	unsigned int rx_slot_mask;
-	struct clk *clk;
-};
+#include <sound/simple_card_utils.h>
 
 struct asoc_simple_card_info {
 	const char *name;

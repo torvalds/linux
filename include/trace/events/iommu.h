@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * iommu trace points
  *
@@ -11,7 +12,6 @@
 #define _TRACE_IOMMU_H
 
 #include <linux/tracepoint.h>
-#include <linux/pci.h>
 
 struct device;
 

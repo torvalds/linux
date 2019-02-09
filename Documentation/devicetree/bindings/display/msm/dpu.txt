@@ -1,0 +1,131 @@
+Qualcomm Technologies, Inc. DPU KMS
+
+Description:
+
+Device tree bindings for MSM Mobile Display Subsytem(MDSS) that encapsulates
+sub-blocks like DPU display controller, DSI and DP interfaces etc.
+The DPU display controller is found in SDM845 SoC.
+
+MDSS:
+Required properties:
+- compatible: "qcom,sdm845-mdss"
+- reg: physical base address and length of contoller's registers.
+- reg-names: register region names. The following region is required:
+  * "mdss"
+- power-domains: a power domain consumer specifier according to
+  Documentation/devicetree/bindings/power/power_domain.txt
+- clocks: list of clock specifiers for clocks needed by the device.
+- clock-names: device clock names, must be in same order as clocks property.
+  The following clocks are required:
+  * "iface"
+  * "bus"
+  * "core"
+- interrupts: interrupt signal from MDSS.
+- interrupt-controller: identifies the node as an interrupt controller.
+- #interrupt-cells: specifies the number of cells needed to encode an interrupt
+  source, should be 1.
+- iommus: phandle of iommu device node.
+- #address-cells: number of address cells for the MDSS children. Should be 1.
+- #size-cells: Should be 1.
+- ranges: parent bus address space is the same as the child bus address space.
+
+Optional properties:
+- assigned-clocks: list of clock specifiers for clocks needing rate assignment
+- assigned-clock-rates: list of clock frequencies sorted in the same order as
+  the assigned-clocks property.
+
+MDP:
+Required properties:
+- compatible: "qcom,sdm845-dpu"
+- reg: physical base address and length of controller's registers.
+- reg-names : register region names. The following region is required:
+  * "mdp"
+  * "vbif"
+- clocks: list of clock specifiers for clocks needed by the device.
+- clock-names: device clock names, must be in same order as clocks property.
+  The following clocks are required.
+  * "bus"
+  * "iface"
+  * "core"
+  * "vsync"
+- interrupts: interrupt line from DPU to MDSS.
+- ports: contains the list of output ports from DPU device. These ports connect
+  to interfaces that are external to the DPU hardware, such as DSI, DP etc.
+
+  Each output port contains an endpoint that describes how it is connected to an
+  external interface. These are described by the standard properties documented
+  here:
+	Documentation/devicetree/bindings/graph.txt
+	Documentation/devicetree/bindings/media/video-interfaces.txt
+
+	Port 0 -> DPU_INTF1 (DSI1)
+	Port 1 -> DPU_INTF2 (DSI2)
+
+Optional properties:
+- assigned-clocks: list of clock specifiers for clocks needing rate assignment
+- assigned-clock-rates: list of clock frequencies sorted in the same order as
+  the assigned-clocks property.
+
+Example:
+
+	mdss: mdss@ae00000 {
+		compatible = "qcom,sdm845-mdss";
+		reg = <0xae00000 0x1000>;
+		reg-names = "mdss";
+
+		power-domains = <&clock_dispcc 0>;
+
+		clocks = <&gcc GCC_DISP_AHB_CLK>, <&gcc GCC_DISP_AXI_CLK>,
+			 <&clock_dispcc DISP_CC_MDSS_MDP_CLK>;
+		clock-names = "iface", "bus", "core";
+
+		assigned-clocks = <&clock_dispcc DISP_CC_MDSS_MDP_CLK>;
+		assigned-clock-rates = <300000000>;
+
+		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		iommus = <&apps_iommu 0>;
+
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0 0xae00000 0xb2008>;
+
+		mdss_mdp: mdp@ae01000 {
+			compatible = "qcom,sdm845-dpu";
+			reg = <0 0x1000 0x8f000>, <0 0xb0000 0x2008>;
+			reg-names = "mdp", "vbif";
+
+			clocks = <&clock_dispcc DISP_CC_MDSS_AHB_CLK>,
+				 <&clock_dispcc DISP_CC_MDSS_AXI_CLK>,
+				 <&clock_dispcc DISP_CC_MDSS_MDP_CLK>,
+				 <&clock_dispcc DISP_CC_MDSS_VSYNC_CLK>;
+			clock-names = "iface", "bus", "core", "vsync";
+
+			assigned-clocks = <&clock_dispcc DISP_CC_MDSS_MDP_CLK>,
+					  <&clock_dispcc DISP_CC_MDSS_VSYNC_CLK>;
+			assigned-clock-rates = <0 0 300000000 19200000>;
+
+			interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					dpu_intf1_out: endpoint {
+						remote-endpoint = <&dsi0_in>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					dpu_intf2_out: endpoint {
+						remote-endpoint = <&dsi1_in>;
+					};
+				};
+			};
+		};
+	};

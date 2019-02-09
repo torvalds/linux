@@ -54,10 +54,10 @@ static struct rc_map_table rc5_dvbsky[] = {
 
 static struct rc_map_list rc5_dvbsky_map = {
 	.map = {
-		.scan    = rc5_dvbsky,
-		.size    = ARRAY_SIZE(rc5_dvbsky),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_DVBSKY,
+		.scan     = rc5_dvbsky,
+		.size     = ARRAY_SIZE(rc5_dvbsky),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_DVBSKY,
 	}
 };
 

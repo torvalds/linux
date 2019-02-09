@@ -67,18 +67,40 @@ module_param(reliable_mode, uint, 0);
 MODULE_PARM_DESC(reliable_mode, "Set the docg3 mode (0=normal MLC, 1=fast, "
 		 "2=reliable) : MLC normal operations are in normal mode");
 
-/**
- * struct docg3_oobinfo - DiskOnChip G3 OOB layout
- * @eccbytes: 8 bytes are used (1 for Hamming ECC, 7 for BCH ECC)
- * @eccpos: ecc positions (byte 7 is Hamming ECC, byte 8-14 are BCH ECC)
- * @oobfree: free pageinfo bytes (byte 0 until byte 6, byte 15
- * @oobavail: 8 available bytes remaining after ECC toll
- */
-static struct nand_ecclayout docg3_oobinfo = {
-	.eccbytes = 8,
-	.eccpos = {7, 8, 9, 10, 11, 12, 13, 14},
-	.oobfree = {{0, 7}, {15, 1} },
-	.oobavail = 8,
+static int docg3_ooblayout_ecc(struct mtd_info *mtd, int section,
+			       struct mtd_oob_region *oobregion)
+{
+	if (section)
+		return -ERANGE;
+
+	/* byte 7 is Hamming ECC, byte 8-14 are BCH ECC */
+	oobregion->offset = 7;
+	oobregion->length = 8;
+
+	return 0;
+}
+
+static int docg3_ooblayout_free(struct mtd_info *mtd, int section,
+				struct mtd_oob_region *oobregion)
+{
+	if (section > 1)
+		return -ERANGE;
+
+	/* free bytes: byte 0 until byte 6, byte 15 */
+	if (!section) {
+		oobregion->offset = 0;
+		oobregion->length = 7;
+	} else {
+		oobregion->offset = 15;
+		oobregion->length = 1;
+	}
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops nand_ooblayout_docg3_ops = {
+	.ecc = docg3_ooblayout_ecc,
+	.free = docg3_ooblayout_free,
 };
 
 static inline u8 doc_readb(struct docg3 *docg3, u16 reg)
@@ -882,9 +904,6 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	if (ooblen % DOC_LAYOUT_OOB_SIZE)
 		return -EINVAL;
 
-	if (from + len > mtd->size)
-		return -EINVAL;
-
 	ops->oobretlen = 0;
 	ops->retlen = 0;
 	ret = 0;
@@ -966,36 +985,6 @@ out:
 err_in_read:
 	doc_read_page_finish(docg3);
 	goto out;
-}
-
-/**
- * doc_read - Read bytes from flash
- * @mtd: the device
- * @from: the offset from first block and first page, in bytes, aligned on page
- *        size
- * @len: the number of bytes to read (must be a multiple of 4)
- * @retlen: the number of bytes actually read
- * @buf: the filled in buffer
- *
- * Reads flash memory pages. This function does not read the OOB chunk, but only
- * the page data.
- *
- * Returns 0 if read successful, of -EIO, -EINVAL if an error occurred
- */
-static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
-	     size_t *retlen, u_char *buf)
-{
-	struct mtd_oob_ops ops;
-	size_t ret;
-
-	memset(&ops, 0, sizeof(ops));
-	ops.datbuf = buf;
-	ops.len = len;
-	ops.mode = MTD_OPS_AUTO_OOB;
-
-	ret = doc_read_oob(mtd, from, &ops);
-	*retlen = ops.retlen;
-	return ret;
 }
 
 static int doc_reload_bbt(struct docg3 *docg3)
@@ -1202,39 +1191,27 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *info)
 {
 	struct docg3 *docg3 = mtd->priv;
 	uint64_t len;
-	int block0, block1, page, ret, ofs = 0;
+	int block0, block1, page, ret = 0, ofs = 0;
 
 	doc_dbg("doc_erase(from=%lld, len=%lld\n", info->addr, info->len);
 
-	info->state = MTD_ERASE_PENDING;
 	calc_block_sector(info->addr + info->len, &block0, &block1, &page,
 			  &ofs, docg3->reliable);
-	ret = -EINVAL;
 	if (info->addr + info->len > mtd->size || page || ofs)
-		goto reset_err;
+		return -EINVAL;
 
-	ret = 0;
 	calc_block_sector(info->addr, &block0, &block1, &page, &ofs,
 			  docg3->reliable);
 	mutex_lock(&docg3->cascade->lock);
 	doc_set_device_id(docg3, docg3->device_id);
 	doc_set_reliable_mode(docg3);
 	for (len = info->len; !ret && len > 0; len -= mtd->erasesize) {
-		info->state = MTD_ERASING;
 		ret = doc_erase_block(docg3, block0, block1);
 		block0 += 2;
 		block1 += 2;
 	}
 	mutex_unlock(&docg3->cascade->lock);
 
-	if (ret)
-		goto reset_err;
-
-	info->state = MTD_ERASE_DONE;
-	return 0;
-
-reset_err:
-	info->state = MTD_ERASE_FAILED;
 	return ret;
 }
 
@@ -1438,7 +1415,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 		oobdelta = mtd->oobsize;
 		break;
 	case MTD_OPS_AUTO_OOB:
-		oobdelta = mtd->ecclayout->oobavail;
+		oobdelta = mtd->oobavail;
 		break;
 	default:
 		return -EINVAL;
@@ -1448,8 +1425,6 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 		return -EINVAL;
 	if (len && ooblen &&
 	    (len / DOC_LAYOUT_PAGE_SIZE) != (ooblen / oobdelta))
-		return -EINVAL;
-	if (ofs + len > mtd->size)
 		return -EINVAL;
 
 	ops->oobretlen = 0;
@@ -1491,45 +1466,11 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 	return ret;
 }
 
-/**
- * doc_write - Write a buffer to the chip
- * @mtd: the device
- * @to: the offset from first block and first page, in bytes, aligned on page
- *      size
- * @len: the number of bytes to write (must be a full page size, ie. 512)
- * @retlen: the number of bytes actually written (0 or 512)
- * @buf: the buffer to get bytes from
- *
- * Writes data to the chip.
- *
- * Returns 0 if write successful, -EIO if write error
- */
-static int doc_write(struct mtd_info *mtd, loff_t to, size_t len,
-		     size_t *retlen, const u_char *buf)
-{
-	struct docg3 *docg3 = mtd->priv;
-	int ret;
-	struct mtd_oob_ops ops;
-
-	doc_dbg("doc_write(to=%lld, len=%zu)\n", to, len);
-	ops.datbuf = (char *)buf;
-	ops.len = len;
-	ops.mode = MTD_OPS_PLACE_OOB;
-	ops.oobbuf = NULL;
-	ops.ooblen = 0;
-	ops.ooboffs = 0;
-
-	ret = doc_write_oob(mtd, to, &ops);
-	*retlen = ops.retlen;
-	return ret;
-}
-
 static struct docg3 *sysfs_dev2docg3(struct device *dev,
 				     struct device_attribute *attr)
 {
 	int floor;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct mtd_info **docg3_floors = platform_get_drvdata(pdev);
+	struct mtd_info **docg3_floors = dev_get_drvdata(dev);
 
 	floor = attr->attr.name[1] - '0';
 	if (floor < 0 || floor >= DOC_MAX_NBFLOORS)
@@ -1787,37 +1728,27 @@ static int dbg_protection_show(struct seq_file *s, void *p)
 }
 DEBUGFS_RO_ATTR(protection, dbg_protection_show);
 
-static int __init doc_dbg_register(struct docg3 *docg3)
+static void __init doc_dbg_register(struct mtd_info *floor)
 {
-	struct dentry *root, *entry;
+	struct dentry *root = floor->dbg.dfs_dir;
+	struct docg3 *docg3 = floor->priv;
 
-	root = debugfs_create_dir("docg3", NULL);
-	if (!root)
-		return -ENOMEM;
-
-	entry = debugfs_create_file("flashcontrol", S_IRUSR, root, docg3,
-				  &flashcontrol_fops);
-	if (entry)
-		entry = debugfs_create_file("asic_mode", S_IRUSR, root,
-					    docg3, &asic_mode_fops);
-	if (entry)
-		entry = debugfs_create_file("device_id", S_IRUSR, root,
-					    docg3, &device_id_fops);
-	if (entry)
-		entry = debugfs_create_file("protection", S_IRUSR, root,
-					    docg3, &protection_fops);
-	if (entry) {
-		docg3->debugfs_root = root;
-		return 0;
-	} else {
-		debugfs_remove_recursive(root);
-		return -ENOMEM;
+	if (IS_ERR_OR_NULL(root)) {
+		if (IS_ENABLED(CONFIG_DEBUG_FS) &&
+		    !IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER))
+			dev_warn(floor->dev.parent,
+				 "CONFIG_MTD_PARTITIONED_MASTER must be enabled to expose debugfs stuff\n");
+		return;
 	}
-}
 
-static void doc_dbg_unregister(struct docg3 *docg3)
-{
-	debugfs_remove_recursive(docg3->debugfs_root);
+	debugfs_create_file("docg3_flashcontrol", S_IRUSR, root, docg3,
+			    &flashcontrol_fops);
+	debugfs_create_file("docg3_asic_mode", S_IRUSR, root, docg3,
+			    &asic_mode_fops);
+	debugfs_create_file("docg3_device_id", S_IRUSR, root, docg3,
+			    &device_id_fops);
+	debugfs_create_file("docg3_protection", S_IRUSR, root, docg3,
+			    &protection_fops);
 }
 
 /**
@@ -1854,12 +1785,11 @@ static int __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 	mtd->writebufsize = mtd->writesize = DOC_LAYOUT_PAGE_SIZE;
 	mtd->oobsize = DOC_LAYOUT_OOB_SIZE;
 	mtd->_erase = doc_erase;
-	mtd->_read = doc_read;
-	mtd->_write = doc_write;
 	mtd->_read_oob = doc_read_oob;
 	mtd->_write_oob = doc_write_oob;
 	mtd->_block_isbad = doc_block_isbad;
-	mtd->ecclayout = &docg3_oobinfo;
+	mtd_set_ooblayout(mtd, &nand_ooblayout_docg3_ops);
+	mtd->oobavail = 8;
 	mtd->ecc_strength = DOC_ECC_BCH_T;
 
 	return 0;
@@ -1897,7 +1827,7 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 	mtd->dev.parent = dev;
 	bbt_nbpages = DIV_ROUND_UP(docg3->max_block + 1,
 				   8 * DOC_LAYOUT_PAGE_SIZE);
-	docg3->bbt = kzalloc(bbt_nbpages * DOC_LAYOUT_PAGE_SIZE, GFP_KERNEL);
+	docg3->bbt = kcalloc(DOC_LAYOUT_PAGE_SIZE, bbt_nbpages, GFP_KERNEL);
 	if (!docg3->bbt)
 		goto nomem3;
 
@@ -2063,7 +1993,7 @@ static int __init docg3_probe(struct platform_device *pdev)
 	base = devm_ioremap(dev, ress->start, DOC_IOSPACE_SIZE);
 
 	ret = -ENOMEM;
-	cascade = devm_kzalloc(dev, sizeof(*cascade) * DOC_MAX_NBFLOORS,
+	cascade = devm_kcalloc(dev, DOC_MAX_NBFLOORS, sizeof(*cascade),
 			       GFP_KERNEL);
 	if (!cascade)
 		return ret;
@@ -2091,6 +2021,8 @@ static int __init docg3_probe(struct platform_device *pdev)
 						0);
 		if (ret)
 			goto err_probe;
+
+		doc_dbg_register(cascade->floors[floor]);
 	}
 
 	ret = doc_register_sysfs(pdev, cascade);
@@ -2098,7 +2030,6 @@ static int __init docg3_probe(struct platform_device *pdev)
 		goto err_probe;
 
 	platform_set_drvdata(pdev, cascade);
-	doc_dbg_register(cascade->floors[0]->priv);
 	return 0;
 
 notfound:
@@ -2125,7 +2056,6 @@ static int docg3_release(struct platform_device *pdev)
 	int floor;
 
 	doc_unregister_sysfs(pdev, cascade);
-	doc_dbg_unregister(docg3);
 	for (floor = 0; floor < DOC_MAX_NBFLOORS; floor++)
 		if (cascade->floors[floor])
 			doc_release_device(cascade->floors[floor]);

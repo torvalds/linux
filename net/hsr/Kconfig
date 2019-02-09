@@ -18,8 +18,9 @@ config HSR
 	  earlier.
 
 	  This code is a "best effort" to comply with the HSR standard as
-	  described in IEC 62439-3:2010 (HSRv0), but no compliancy tests have
-	  been made.
+	  described in IEC 62439-3:2010 (HSRv0) and IEC 62439-3:2012 (HSRv1),
+	  but no compliancy tests have been made. Use iproute2 to select
+	  the version you desire.
 
 	  You need to perform any and all necessary tests yourself before
 	  relying on this code in a safety critical system!

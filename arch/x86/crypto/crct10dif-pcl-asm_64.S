@@ -554,12 +554,11 @@ _only_less_than_2:
 
 ENDPROC(crc_t10dif_pcl)
 
-.data
-
+.section	.rodata, "a", @progbits
+.align 16
 # precomputed constants
 # these constants are precomputed from the poly:
 # 0x8bb70000 (0x8bb7 scaled to 32 bits)
-.align 16
 # Q = 0x18BB70000
 # rk1 = 2^(32*3) mod Q << 32
 # rk2 = 2^(32*5) mod Q << 32
@@ -613,14 +612,23 @@ rk20:
 
 
 
+.section	.rodata.cst16.mask1, "aM", @progbits, 16
+.align 16
 mask1:
 .octa 0x80808080808080808080808080808080
+
+.section	.rodata.cst16.mask2, "aM", @progbits, 16
+.align 16
 mask2:
 .octa 0x00000000FFFFFFFFFFFFFFFFFFFFFFFF
 
+.section	.rodata.cst16.SHUF_MASK, "aM", @progbits, 16
+.align 16
 SHUF_MASK:
 .octa 0x000102030405060708090A0B0C0D0E0F
 
+.section	.rodata.cst32.pshufb_shf_table, "aM", @progbits, 32
+.align 32
 pshufb_shf_table:
 # use these values for shift constants for the pshufb instruction
 # different alignments result in values as shown:

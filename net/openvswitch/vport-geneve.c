@@ -34,7 +34,7 @@ static struct vport_ops ovs_geneve_vport_ops;
  * @dst_port: destination port.
  */
 struct geneve_port {
-	u16 port_no;
+	u16 dst_port;
 };
 
 static inline struct geneve_port *geneve_vport(const struct vport *vport)
@@ -47,7 +47,7 @@ static int geneve_get_options(const struct vport *vport,
 {
 	struct geneve_port *geneve_port = geneve_vport(vport);
 
-	if (nla_put_u16(skb, OVS_TUNNEL_ATTR_DST_PORT, geneve_port->port_no))
+	if (nla_put_u16(skb, OVS_TUNNEL_ATTR_DST_PORT, geneve_port->dst_port))
 		return -EMSGSIZE;
 	return 0;
 }
@@ -83,7 +83,7 @@ static struct vport *geneve_tnl_create(const struct vport_parms *parms)
 		return vport;
 
 	geneve_port = geneve_vport(vport);
-	geneve_port->port_no = dst_port;
+	geneve_port->dst_port = dst_port;
 
 	rtnl_lock();
 	dev = geneve_dev_create_fb(net, parms->name, NET_NAME_USER, dst_port);
@@ -93,7 +93,14 @@ static struct vport *geneve_tnl_create(const struct vport_parms *parms)
 		return ERR_CAST(dev);
 	}
 
-	dev_change_flags(dev, dev->flags | IFF_UP);
+	err = dev_change_flags(dev, dev->flags | IFF_UP);
+	if (err < 0) {
+		rtnl_delete_link(dev);
+		rtnl_unlock();
+		ovs_vport_free(vport);
+		goto error;
+	}
+
 	rtnl_unlock();
 	return vport;
 error:
@@ -132,6 +139,6 @@ static void __exit ovs_geneve_tnl_exit(void)
 module_init(ovs_geneve_tnl_init);
 module_exit(ovs_geneve_tnl_exit);
 
-MODULE_DESCRIPTION("OVS: Geneve swiching port");
+MODULE_DESCRIPTION("OVS: Geneve switching port");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("vport-type-5");

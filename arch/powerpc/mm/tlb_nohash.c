@@ -53,7 +53,7 @@
  * other sizes not listed here.   The .ind field is only used on MMUs that have
  * indirect page table entries.
  */
-#ifdef CONFIG_PPC_BOOK3E_MMU
+#if defined(CONFIG_PPC_BOOK3E_MMU) || defined(CONFIG_PPC_8xx)
 #ifdef CONFIG_PPC_FSL_BOOK3E
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 	[MMU_PAGE_4K] = {
@@ -83,6 +83,25 @@ struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 	[MMU_PAGE_1G] = {
 		.shift	= 30,
 		.enc	= BOOK3E_PAGESZ_1GB,
+	},
+};
+#elif defined(CONFIG_PPC_8xx)
+struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
+	/* we only manage 4k and 16k pages as normal pages */
+#ifdef CONFIG_PPC_4K_PAGES
+	[MMU_PAGE_4K] = {
+		.shift	= 12,
+	},
+#else
+	[MMU_PAGE_16K] = {
+		.shift	= 14,
+	},
+#endif
+	[MMU_PAGE_512K] = {
+		.shift	= 19,
+	},
+	[MMU_PAGE_8M] = {
+		.shift	= 23,
 	},
 };
 #else
@@ -214,12 +233,6 @@ EXPORT_SYMBOL(local_flush_tlb_page);
 #ifdef CONFIG_SMP
 
 static DEFINE_RAW_SPINLOCK(tlbivax_lock);
-
-static int mm_is_core_local(struct mm_struct *mm)
-{
-	return cpumask_subset(mm_cpumask(mm),
-			      topology_sibling_cpumask(smp_processor_id()));
-}
 
 struct tlb_flush_param {
 	unsigned long addr;
@@ -375,7 +388,10 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		     unsigned long end)
 
 {
-	flush_tlb_mm(vma->vm_mm);
+	if (end - start == PAGE_SIZE && !(start & ~PAGE_MASK))
+		flush_tlb_page(vma, start);
+	else
+		flush_tlb_mm(vma->vm_mm);
 }
 EXPORT_SYMBOL(flush_tlb_range);
 
@@ -486,6 +502,9 @@ static void setup_page_sizes(void)
 
 		for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
 			struct mmu_psize_def *def = &mmu_psize_defs[psize];
+
+			if (!def->shift)
+				continue;
 
 			if (tlb1ps & (1U << (def->shift - 10))) {
 				def->flags |= MMU_PAGE_SIZE_DIRECT;
@@ -640,9 +659,7 @@ static void early_init_this_mmu(void)
 		 * transient mapping would cause problems.
 		 */
 #ifdef CONFIG_SMP
-		if (cpu != boot_cpuid &&
-		    (cpu != cpu_first_thread_sibling(cpu) ||
-		     cpu == cpu_first_thread_sibling(boot_cpuid)))
+		if (hweight32(get_tensr()) > 1)
 			map = false;
 #endif
 
@@ -759,7 +776,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	 * avoid going over total available memory just in case...
 	 */
 #ifdef CONFIG_PPC_FSL_BOOK3E
-	if (mmu_has_feature(MMU_FTR_TYPE_FSL_E)) {
+	if (early_mmu_has_feature(MMU_FTR_TYPE_FSL_E)) {
 		unsigned long linear_sz;
 		unsigned int num_cams;
 

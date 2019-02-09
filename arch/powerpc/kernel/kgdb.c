@@ -67,9 +67,9 @@ static struct hard_trap_info
 #endif
 #else /* ! (defined(CONFIG_40x) || defined(CONFIG_BOOKE)) */
 	{ 0x0d00, 0x05 /* SIGTRAP */ },		/* single-step */
-#if defined(CONFIG_8xx)
+#if defined(CONFIG_PPC_8xx)
 	{ 0x1000, 0x04 /* SIGILL */  },		/* software emulation */
-#else /* ! CONFIG_8xx */
+#else /* ! CONFIG_PPC_8xx */
 	{ 0x0f00, 0x04 /* SIGILL */  },		/* performance monitor */
 	{ 0x0f20, 0x08 /* SIGFPE */  },		/* altivec unavailable */
 	{ 0x1300, 0x05 /* SIGTRAP */ }, 	/* instruction address break */
@@ -445,7 +445,11 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
  * Global data
  */
 struct kgdb_arch arch_kgdb_ops = {
+#ifdef __LITTLE_ENDIAN__
+	.gdb_bpt_instr = {0x08, 0x10, 0x82, 0x7d},
+#else
 	.gdb_bpt_instr = {0x7d, 0x82, 0x10, 0x08},
+#endif
 };
 
 static int kgdb_not_implemented(struct pt_regs *regs)

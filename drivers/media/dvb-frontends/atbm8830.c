@@ -13,14 +13,10 @@
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <asm/div64.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "atbm8830.h"
 #include "atbm8830_priv.h"
@@ -297,9 +293,9 @@ static int atbm8830_set_fe(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int atbm8830_get_fe(struct dvb_frontend *fe)
+static int atbm8830_get_fe(struct dvb_frontend *fe,
+			   struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	dprintk("%s\n", __func__);
 
 	/* TODO: get real readings from device */
@@ -428,13 +424,13 @@ static int atbm8830_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	return atbm8830_write_reg(priv, REG_I2C_GATE, enable ? 1 : 0);
 }
 
-static struct dvb_frontend_ops atbm8830_ops = {
+static const struct dvb_frontend_ops atbm8830_ops = {
 	.delsys = { SYS_DTMB },
 	.info = {
 		.name = "AltoBeam ATBM8830/8831 DMB-TH",
-		.frequency_min = 474000000,
-		.frequency_max = 858000000,
-		.frequency_stepsize = 10000,
+		.frequency_min_hz = 474 * MHz,
+		.frequency_max_hz = 858 * MHz,
+		.frequency_stepsize_hz = 10 * kHz,
 		.caps =
 			FE_CAN_FEC_AUTO |
 			FE_CAN_QAM_AUTO |

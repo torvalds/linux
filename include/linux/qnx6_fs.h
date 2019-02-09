@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Name                 : qnx6_fs.h
  *  Author               : Kai Bankett

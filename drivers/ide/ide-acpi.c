@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Provides ACPI support for IDE drives.
  *
@@ -447,7 +448,7 @@ void ide_acpi_get_timing(ide_hwif_t *hwif)
 	memcpy(&hwif->acpidata->gtm, out_obj->buffer.pointer,
 	       sizeof(struct GTM_buffer));
 
-	DEBPRINT("_GTM info: ptr: 0x%p, len: 0x%x, exp.len: 0x%Zx\n",
+	DEBPRINT("_GTM info: ptr: 0x%p, len: 0x%x, exp.len: 0x%zx\n",
 		 out_obj->buffer.pointer, out_obj->buffer.length,
 		 sizeof(struct GTM_buffer));
 

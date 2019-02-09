@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/dt9812.c
  *   COMEDI driver for DataTranslation DT9812 USB module
@@ -5,16 +6,6 @@
  * Copyright (C) 2005 Anders Blomdell <anders.blomdell@control.lth.se>
  *
  * COMEDI - Linux Control and Measurement Device Interface
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
-
- *  This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -660,12 +651,12 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 		case 1:
 			dir = USB_DIR_OUT;
 			devpriv->cmd_wr.addr = ep->bEndpointAddress;
-			devpriv->cmd_wr.size = le16_to_cpu(ep->wMaxPacketSize);
+			devpriv->cmd_wr.size = usb_endpoint_maxp(ep);
 			break;
 		case 2:
 			dir = USB_DIR_IN;
 			devpriv->cmd_rd.addr = ep->bEndpointAddress;
-			devpriv->cmd_rd.size = le16_to_cpu(ep->wMaxPacketSize);
+			devpriv->cmd_rd.size = usb_endpoint_maxp(ep);
 			break;
 		case 3:
 			/* unused write stream */

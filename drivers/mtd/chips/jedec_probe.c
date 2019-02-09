@@ -53,6 +53,8 @@
 #define AT49BV32XT	0x00C9
 
 /* Eon */
+#define EN29LV400AT	0x22B9
+#define EN29LV400AB	0x22BA
 #define EN29SL800BB	0x226B
 #define EN29SL800BT	0x22EA
 
@@ -640,6 +642,36 @@ static const struct amd_flash_info jedec_table[] = {
 		.regions	= {
 			ERASEINFO(0x10000,63),
 			ERASEINFO(0x02000,8)
+		}
+	}, {
+		.mfr_id		= CFI_MFR_EON,
+		.dev_id		= EN29LV400AT,
+		.name		= "Eon EN29LV400AT",
+		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
+		.dev_size	= SIZE_512KiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x10000,7),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x04000,1),
+		}
+	}, {
+		.mfr_id		= CFI_MFR_EON,
+		.dev_id		= EN29LV400AB,
+		.name		= "Eon EN29LV400AB",
+		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
+		.dev_size	= SIZE_512KiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x04000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x10000,7),
 		}
 	}, {
 		.mfr_id		= CFI_MFR_EON,
@@ -1889,6 +1921,8 @@ static inline u32 jedec_read_mfr(struct map_info *map, uint32_t base,
 	do {
 		uint32_t ofs = cfi_build_cmd_addr(0 + (bank << 8), map, cfi);
 		mask = (1 << (cfi->device_type * 8)) - 1;
+		if (ofs >= map->size)
+			return 0;
 		result = map_read(map, base + ofs);
 		bank++;
 	} while ((result.x[0] & mask) == CFI_MFR_CONTINUATION);

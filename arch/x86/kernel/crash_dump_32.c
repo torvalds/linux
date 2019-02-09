@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Memory preserving reboot related code.
  *
@@ -10,7 +11,7 @@
 #include <linux/highmem.h>
 #include <linux/crash_dump.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static void *kdump_buf_page;
 

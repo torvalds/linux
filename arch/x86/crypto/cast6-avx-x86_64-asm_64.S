@@ -24,6 +24,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/frame.h>
 #include "glue_helper-asm-avx.S"
 
 .file "cast6-avx-x86_64-asm_64.S"
@@ -46,7 +47,7 @@
 /**********************************************************************
   8-way AVX cast6
  **********************************************************************/
-#define CTX %rdi
+#define CTX %r15
 
 #define RA1 %xmm0
 #define RB1 %xmm1
@@ -69,8 +70,8 @@
 
 #define RTMP %xmm15
 
-#define RID1  %rbp
-#define RID1d %ebp
+#define RID1  %rdi
+#define RID1d %edi
 #define RID2  %rsi
 #define RID2d %esi
 
@@ -224,8 +225,7 @@
 	vpshufb rmask,		x2, x2;       \
 	vpshufb rmask,		x3, x3;
 
-.data
-
+.section	.rodata.cst16, "aM", @progbits, 16
 .align 16
 .Lxts_gf128mul_and_shl1_mask:
 	.byte 0x87, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
@@ -243,10 +243,19 @@
 	.byte 12, 13, 14, 15, 8, 9, 10, 11, 7, 6, 5, 4, 3, 2, 1, 0
 .Lrkr_dec_QBAR_QBAR_QBAR_QBAR:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+
+.section	.rodata.cst4.L16_mask, "aM", @progbits, 4
+.align 4
 .L16_mask:
 	.byte 16, 16, 16, 16
+
+.section	.rodata.cst4.L32_mask, "aM", @progbits, 4
+.align 4
 .L32_mask:
 	.byte 32, 0, 0, 0
+
+.section	.rodata.cst4.first_mask, "aM", @progbits, 4
+.align 4
 .Lfirst_mask:
 	.byte 0x1f, 0, 0, 0
 
@@ -255,14 +264,16 @@
 .align 8
 __cast6_enc_blk8:
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: blocks
 	 * output:
 	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: encrypted blocks
 	 */
 
-	pushq %rbp;
+	pushq %r15;
 	pushq %rbx;
+
+	movq %rdi, CTX;
 
 	vmovdqa .Lbswap_mask, RKM;
 	vmovd .Lfirst_mask, R1ST;
@@ -288,7 +299,7 @@ __cast6_enc_blk8:
 	QBAR(11);
 
 	popq %rbx;
-	popq %rbp;
+	popq %r15;
 
 	vmovdqa .Lbswap_mask, RKM;
 
@@ -301,14 +312,16 @@ ENDPROC(__cast6_enc_blk8)
 .align 8
 __cast6_dec_blk8:
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: encrypted blocks
 	 * output:
 	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: decrypted blocks
 	 */
 
-	pushq %rbp;
+	pushq %r15;
 	pushq %rbx;
+
+	movq %rdi, CTX;
 
 	vmovdqa .Lbswap_mask, RKM;
 	vmovd .Lfirst_mask, R1ST;
@@ -334,7 +347,7 @@ __cast6_dec_blk8:
 	QBAR(0);
 
 	popq %rbx;
-	popq %rbp;
+	popq %r15;
 
 	vmovdqa .Lbswap_mask, RKM;
 	outunpack_blocks(RA1, RB1, RC1, RD1, RTMP, RX, RKRF, RKM);
@@ -345,11 +358,14 @@ ENDPROC(__cast6_dec_blk8)
 
 ENTRY(cast6_ecb_enc_8way)
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
+	FRAME_BEGIN
+	pushq %r15;
 
+	movq %rdi, CTX;
 	movq %rsi, %r11;
 
 	load_8way(%rdx, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
@@ -358,16 +374,21 @@ ENTRY(cast6_ecb_enc_8way)
 
 	store_8way(%r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+	popq %r15;
+	FRAME_END
 	ret;
 ENDPROC(cast6_ecb_enc_8way)
 
 ENTRY(cast6_ecb_dec_8way)
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
+	FRAME_BEGIN
+	pushq %r15;
 
+	movq %rdi, CTX;
 	movq %rsi, %r11;
 
 	load_8way(%rdx, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
@@ -376,18 +397,22 @@ ENTRY(cast6_ecb_dec_8way)
 
 	store_8way(%r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+	popq %r15;
+	FRAME_END
 	ret;
 ENDPROC(cast6_ecb_dec_8way)
 
 ENTRY(cast6_cbc_dec_8way)
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
-
+	FRAME_BEGIN
 	pushq %r12;
+	pushq %r15;
 
+	movq %rdi, CTX;
 	movq %rsi, %r11;
 	movq %rdx, %r12;
 
@@ -397,8 +422,9 @@ ENTRY(cast6_cbc_dec_8way)
 
 	store_cbc_8way(%r12, %r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+	popq %r15;
 	popq %r12;
-
+	FRAME_END
 	ret;
 ENDPROC(cast6_cbc_dec_8way)
 
@@ -409,9 +435,11 @@ ENTRY(cast6_ctr_8way)
 	 *	%rdx: src
 	 *	%rcx: iv (little endian, 128bit)
 	 */
-
+	FRAME_BEGIN
 	pushq %r12;
+	pushq %r15
 
+	movq %rdi, CTX;
 	movq %rsi, %r11;
 	movq %rdx, %r12;
 
@@ -422,8 +450,9 @@ ENTRY(cast6_ctr_8way)
 
 	store_ctr_8way(%r12, %r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+	popq %r15;
 	popq %r12;
-
+	FRAME_END
 	ret;
 ENDPROC(cast6_ctr_8way)
 
@@ -434,7 +463,10 @@ ENTRY(cast6_xts_enc_8way)
 	 *	%rdx: src
 	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
 	 */
+	FRAME_BEGIN
+	pushq %r15;
 
+	movq %rdi, CTX
 	movq %rsi, %r11;
 
 	/* regs <= src, dst <= IVs, regs <= regs xor IVs */
@@ -446,6 +478,8 @@ ENTRY(cast6_xts_enc_8way)
 	/* dst <= regs xor IVs(in dst) */
 	store_xts_8way(%r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+	popq %r15;
+	FRAME_END
 	ret;
 ENDPROC(cast6_xts_enc_8way)
 
@@ -456,7 +490,10 @@ ENTRY(cast6_xts_dec_8way)
 	 *	%rdx: src
 	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
 	 */
+	FRAME_BEGIN
+	pushq %r15;
 
+	movq %rdi, CTX
 	movq %rsi, %r11;
 
 	/* regs <= src, dst <= IVs, regs <= regs xor IVs */
@@ -468,5 +505,7 @@ ENTRY(cast6_xts_dec_8way)
 	/* dst <= regs xor IVs(in dst) */
 	store_xts_8way(%r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+	popq %r15;
+	FRAME_END
 	ret;
 ENDPROC(cast6_xts_dec_8way)

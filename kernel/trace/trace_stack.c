@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  *
  */
+#include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
@@ -34,7 +36,7 @@ unsigned long stack_trace_max_size;
 arch_spinlock_t stack_trace_max_lock =
 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
-static DEFINE_PER_CPU(int, trace_active);
+DEFINE_PER_CPU(int, disable_stack_tracer);
 static DEFINE_MUTEX(stack_sysctl_mutex);
 
 int stack_tracer_enabled;
@@ -64,7 +66,7 @@ void stack_trace_print(void)
 }
 
 /*
- * When arch-specific code overides this function, the following
+ * When arch-specific code overrides this function, the following
  * data should be filled up, assuming stack_trace_max_lock is held to
  * prevent concurrent updates.
  *     stack_trace_index[]
@@ -76,7 +78,7 @@ check_stack(unsigned long ip, unsigned long *stack)
 {
 	unsigned long this_size, flags; unsigned long *p, *top, *start;
 	static int tracer_frame;
-	int frame_size = ACCESS_ONCE(tracer_frame);
+	int frame_size = READ_ONCE(tracer_frame);
 	int i, x;
 
 	this_size = ((unsigned long)stack) & (THREAD_SIZE-1);
@@ -98,12 +100,6 @@ check_stack(unsigned long ip, unsigned long *stack)
 	local_irq_save(flags);
 	arch_spin_lock(&stack_trace_max_lock);
 
-	/*
-	 * RCU may not be watching, make it see us.
-	 * The stack trace code uses rcu_sched.
-	 */
-	rcu_irq_enter();
-
 	/* In case another CPU set the tracer_frame on us */
 	if (unlikely(!frame_size))
 		this_size -= tracer_frame;
@@ -124,6 +120,13 @@ check_stack(unsigned long ip, unsigned long *stack)
 		if (stack_dump_trace[i] == ip)
 			break;
 	}
+
+	/*
+	 * Some archs may not have the passed in ip in the dump.
+	 * If that happens, we need to show everything.
+	 */
+	if (i == stack_trace_max.nr_entries)
+		i = 0;
 
 	/*
 	 * Now find where in the stack these are.
@@ -149,7 +152,11 @@ check_stack(unsigned long ip, unsigned long *stack)
 		for (; p < top && i < stack_trace_max.nr_entries; p++) {
 			if (stack_dump_trace[i] == ULONG_MAX)
 				break;
-			if (*p == stack_dump_trace[i]) {
+			/*
+			 * The READ_ONCE_NOCHECK is used to let KASAN know that
+			 * this is not a stack-out-of-bounds error.
+			 */
+			if ((READ_ONCE_NOCHECK(*p)) == stack_dump_trace[i]) {
 				stack_dump_trace[x] = stack_dump_trace[i++];
 				this_size = stack_trace_index[x++] =
 					(top - p) * sizeof(unsigned long);
@@ -185,7 +192,6 @@ check_stack(unsigned long ip, unsigned long *stack)
 	}
 
  out:
-	rcu_irq_exit();
 	arch_spin_unlock(&stack_trace_max_lock);
 	local_irq_restore(flags);
 }
@@ -195,13 +201,16 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 		 struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
 	unsigned long stack;
-	int cpu;
 
 	preempt_disable_notrace();
 
-	cpu = raw_smp_processor_id();
 	/* no atomic needed, we only modify this variable by this cpu */
-	if (per_cpu(trace_active, cpu)++ != 0)
+	__this_cpu_inc(disable_stack_tracer);
+	if (__this_cpu_read(disable_stack_tracer) != 1)
+		goto out;
+
+	/* If rcu is not watching, then save stack trace can fail */
+	if (!rcu_is_watching())
 		goto out;
 
 	ip += MCOUNT_INSN_SIZE;
@@ -209,7 +218,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	check_stack(ip, &stack);
 
  out:
-	per_cpu(trace_active, cpu)--;
+	__this_cpu_dec(disable_stack_tracer);
 	/* prevent recursion in schedule */
 	preempt_enable_notrace();
 }
@@ -241,7 +250,6 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	long *ptr = filp->private_data;
 	unsigned long val, flags;
 	int ret;
-	int cpu;
 
 	ret = kstrtoul_from_user(ubuf, count, 10, &val);
 	if (ret)
@@ -252,16 +260,15 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	/*
 	 * In case we trace inside arch_spin_lock() or after (NMI),
 	 * we will cause circular lock, so we also need to increase
-	 * the percpu trace_active here.
+	 * the percpu disable_stack_tracer here.
 	 */
-	cpu = smp_processor_id();
-	per_cpu(trace_active, cpu)++;
+	__this_cpu_inc(disable_stack_tracer);
 
 	arch_spin_lock(&stack_trace_max_lock);
 	*ptr = val;
 	arch_spin_unlock(&stack_trace_max_lock);
 
-	per_cpu(trace_active, cpu)--;
+	__this_cpu_dec(disable_stack_tracer);
 	local_irq_restore(flags);
 
 	return count;
@@ -295,12 +302,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
-	int cpu;
-
 	local_irq_disable();
 
-	cpu = smp_processor_id();
-	per_cpu(trace_active, cpu)++;
+	__this_cpu_inc(disable_stack_tracer);
 
 	arch_spin_lock(&stack_trace_max_lock);
 
@@ -312,12 +316,9 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 
 static void t_stop(struct seq_file *m, void *p)
 {
-	int cpu;
-
 	arch_spin_unlock(&stack_trace_max_lock);
 
-	cpu = smp_processor_id();
-	per_cpu(trace_active, cpu)--;
+	__this_cpu_dec(disable_stack_tracer);
 
 	local_irq_enable();
 }
@@ -395,10 +396,14 @@ static const struct file_operations stack_trace_fops = {
 	.release	= seq_release,
 };
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+
 static int
 stack_trace_filter_open(struct inode *inode, struct file *file)
 {
-	return ftrace_regex_open(&trace_ops, FTRACE_ITER_FILTER,
+	struct ftrace_ops *ops = inode->i_private;
+
+	return ftrace_regex_open(ops, FTRACE_ITER_FILTER,
 				 inode, file);
 }
 
@@ -409,6 +414,8 @@ static const struct file_operations stack_trace_filter_fops = {
 	.llseek = tracing_lseek,
 	.release = ftrace_regex_release,
 };
+
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 int
 stack_trace_sysctl(struct ctl_table *table, int write,
@@ -464,8 +471,10 @@ static __init int stack_trace_init(void)
 	trace_create_file("stack_trace", 0444, d_tracer,
 			NULL, &stack_trace_fops);
 
-	trace_create_file("stack_trace_filter", 0444, d_tracer,
-			NULL, &stack_trace_filter_fops);
+#ifdef CONFIG_DYNAMIC_FTRACE
+	trace_create_file("stack_trace_filter", 0644, d_tracer,
+			  &trace_ops, &stack_trace_filter_fops);
+#endif
 
 	if (stack_trace_filter_buf[0])
 		ftrace_set_early_filter(&trace_ops, stack_trace_filter_buf, 1);

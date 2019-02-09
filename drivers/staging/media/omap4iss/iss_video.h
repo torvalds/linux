@@ -77,7 +77,7 @@ enum iss_pipeline_state {
 
 /*
  * struct iss_pipeline - An OMAP4 ISS hardware pipeline
- * @entities: Bitmask of entities in the pipeline (indexed by entity ID)
+ * @ent_enum: Entities in the pipeline
  * @error: A hardware error occurred during capture
  */
 struct iss_pipeline {
@@ -87,7 +87,7 @@ struct iss_pipeline {
 	enum iss_pipeline_stream_state stream_state;
 	struct iss_video *input;
 	struct iss_video *output;
-	unsigned int entities;
+	struct media_entity_enum ent_enum;
 	atomic_t frame_number;
 	bool do_propagation; /* of frame number */
 	bool error;
@@ -170,7 +170,6 @@ struct iss_video {
 	spinlock_t qlock;		/* protects dmaqueue and error */
 	struct list_head dmaqueue;
 	enum iss_video_dmaqueue_flags dmaqueue_flags;
-	struct vb2_alloc_ctx *alloc_ctx;
 
 	const struct iss_video_operations *ops;
 };

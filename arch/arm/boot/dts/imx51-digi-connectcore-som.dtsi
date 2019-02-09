@@ -16,7 +16,7 @@
 	model = "Digi ConnectCore CC(W)-MX51";
 	compatible = "digi,connectcore-ccxmx51-som", "fsl,imx51";
 
-	memory {
+	memory@90000000 {
 		reg = <0x90000000 0x08000000>;
 	};
 };
@@ -24,7 +24,6 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
@@ -156,7 +155,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc2>;
 	cap-sdio-irq;
-	enable-sdio-wakeup;
+	wakeup-source;
 	keep-power-in-suspend;
 	max-frequency = <50000000>;
 	no-1-8-v;

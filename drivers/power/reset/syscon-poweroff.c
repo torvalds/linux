@@ -28,12 +28,13 @@
 
 static struct regmap *map;
 static u32 offset;
+static u32 value;
 static u32 mask;
 
-void syscon_poweroff(void)
+static void syscon_poweroff(void)
 {
 	/* Issue the poweroff */
-	regmap_write(map, offset, mask);
+	regmap_update_bits(map, offset, mask, value);
 
 	mdelay(1000);
 
@@ -43,6 +44,7 @@ void syscon_poweroff(void)
 static int syscon_poweroff_probe(struct platform_device *pdev)
 {
 	char symname[KSYM_NAME_LEN];
+	int mask_err, value_err;
 
 	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "regmap");
 	if (IS_ERR(map)) {
@@ -55,9 +57,20 @@ static int syscon_poweroff_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(pdev->dev.of_node, "mask", &mask)) {
-		dev_err(&pdev->dev, "unable to read 'mask'");
+	value_err = of_property_read_u32(pdev->dev.of_node, "value", &value);
+	mask_err = of_property_read_u32(pdev->dev.of_node, "mask", &mask);
+	if (value_err && mask_err) {
+		dev_err(&pdev->dev, "unable to read 'value' and 'mask'");
 		return -EINVAL;
+	}
+
+	if (value_err) {
+		/* support old binding */
+		value = mask;
+		mask = 0xFFFFFFFF;
+	} else if (mask_err) {
+		/* support value without mask*/
+		mask = 0xFFFFFFFF;
 	}
 
 	if (pm_power_off) {

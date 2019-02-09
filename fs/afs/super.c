@@ -25,10 +25,9 @@
 #include <linux/statfs.h>
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
+#include <linux/magic.h>
 #include <net/net_namespace.h>
 #include "internal.h"
-
-#define AFS_FS_MAGIC 0x6B414653 /* 'kAFS' */
 
 static void afs_i_init_once(void *foo);
 static struct dentry *afs_mount(struct file_system_type *fs_type,
@@ -37,6 +36,8 @@ static void afs_kill_super(struct super_block *sb);
 static struct inode *afs_alloc_inode(struct super_block *sb);
 static void afs_destroy_inode(struct inode *inode);
 static int afs_statfs(struct dentry *dentry, struct kstatfs *buf);
+static int afs_show_devname(struct seq_file *m, struct dentry *root);
+static int afs_show_options(struct seq_file *m, struct dentry *root);
 
 struct file_system_type afs_fs_type = {
 	.owner		= THIS_MODULE,
@@ -47,13 +48,16 @@ struct file_system_type afs_fs_type = {
 };
 MODULE_ALIAS_FS("afs");
 
+int afs_net_id;
+
 static const struct super_operations afs_super_ops = {
 	.statfs		= afs_statfs,
 	.alloc_inode	= afs_alloc_inode,
 	.drop_inode	= afs_drop_inode,
 	.destroy_inode	= afs_destroy_inode,
 	.evict_inode	= afs_evict_inode,
-	.show_options	= generic_show_options,
+	.show_devname	= afs_show_devname,
+	.show_options	= afs_show_options,
 };
 
 static struct kmem_cache *afs_inode_cachep;
@@ -62,6 +66,7 @@ static atomic_t afs_count_active_inodes;
 enum {
 	afs_no_opt,
 	afs_opt_cell,
+	afs_opt_dyn,
 	afs_opt_rwpath,
 	afs_opt_vol,
 	afs_opt_autocell,
@@ -69,6 +74,7 @@ enum {
 
 static const match_table_t afs_options_list = {
 	{ afs_opt_cell,		"cell=%s"	},
+	{ afs_opt_dyn,		"dyn"		},
 	{ afs_opt_rwpath,	"rwpath"	},
 	{ afs_opt_vol,		"vol=%s"	},
 	{ afs_opt_autocell,	"autocell"	},
@@ -91,7 +97,7 @@ int __init afs_fs_init(void)
 	afs_inode_cachep = kmem_cache_create("afs_inode_cache",
 					     sizeof(struct afs_vnode),
 					     0,
-					     SLAB_HWCACHE_ALIGN,
+					     SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
 					     afs_i_init_once);
 	if (!afs_inode_cachep) {
 		printk(KERN_NOTICE "kAFS: Failed to allocate inode cache\n");
@@ -113,7 +119,7 @@ int __init afs_fs_init(void)
 /*
  * clean up the filesystem
  */
-void __exit afs_fs_exit(void)
+void afs_fs_exit(void)
 {
 	_enter("");
 
@@ -133,6 +139,54 @@ void __exit afs_fs_exit(void)
 	rcu_barrier();
 	kmem_cache_destroy(afs_inode_cachep);
 	_leave("");
+}
+
+/*
+ * Display the mount device name in /proc/mounts.
+ */
+static int afs_show_devname(struct seq_file *m, struct dentry *root)
+{
+	struct afs_super_info *as = AFS_FS_S(root->d_sb);
+	struct afs_volume *volume = as->volume;
+	struct afs_cell *cell = as->cell;
+	const char *suf = "";
+	char pref = '%';
+
+	if (as->dyn_root) {
+		seq_puts(m, "none");
+		return 0;
+	}
+
+	switch (volume->type) {
+	case AFSVL_RWVOL:
+		break;
+	case AFSVL_ROVOL:
+		pref = '#';
+		if (volume->type_force)
+			suf = ".readonly";
+		break;
+	case AFSVL_BACKVOL:
+		pref = '#';
+		suf = ".backup";
+		break;
+	}
+
+	seq_printf(m, "%c%s:%s%s", pref, cell->name, volume->name, suf);
+	return 0;
+}
+
+/*
+ * Display the mount options in /proc/mounts.
+ */
+static int afs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct afs_super_info *as = AFS_FS_S(root->d_sb);
+
+	if (as->dyn_root)
+		seq_puts(m, ",dyn");
+	if (test_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(d_inode(root))->flags))
+		seq_puts(m, ",autocell");
+	return 0;
 }
 
 /*
@@ -159,17 +213,19 @@ static int afs_parse_options(struct afs_mount_params *params,
 		token = match_token(p, afs_options_list, args);
 		switch (token) {
 		case afs_opt_cell:
-			cell = afs_cell_lookup(args[0].from,
-					       args[0].to - args[0].from,
-					       false);
+			rcu_read_lock();
+			cell = afs_lookup_cell_rcu(params->net,
+						   args[0].from,
+						   args[0].to - args[0].from);
+			rcu_read_unlock();
 			if (IS_ERR(cell))
 				return PTR_ERR(cell);
-			afs_put_cell(params->cell);
+			afs_put_cell(params->net, params->cell);
 			params->cell = cell;
 			break;
 
 		case afs_opt_rwpath:
-			params->rwpath = 1;
+			params->rwpath = true;
 			break;
 
 		case afs_opt_vol:
@@ -177,7 +233,11 @@ static int afs_parse_options(struct afs_mount_params *params,
 			break;
 
 		case afs_opt_autocell:
-			params->autocell = 1;
+			params->autocell = true;
+			break;
+
+		case afs_opt_dyn:
+			params->dyn_root = true;
 			break;
 
 		default:
@@ -266,13 +326,14 @@ static int afs_parse_device_name(struct afs_mount_params *params,
 
 	/* lookup the cell record */
 	if (cellname || !params->cell) {
-		cell = afs_cell_lookup(cellname, cellnamesz, true);
+		cell = afs_lookup_cell(params->net, cellname, cellnamesz,
+				       NULL, false);
 		if (IS_ERR(cell)) {
 			printk(KERN_ERR "kAFS: unable to lookup cell '%*.*s'\n",
 			       cellnamesz, cellnamesz, cellname ?: "");
 			return PTR_ERR(cell);
 		}
-		afs_put_cell(params->cell);
+		afs_put_cell(params->net, params->cell);
 		params->cell = cell;
 	}
 
@@ -290,14 +351,28 @@ static int afs_parse_device_name(struct afs_mount_params *params,
 static int afs_test_super(struct super_block *sb, void *data)
 {
 	struct afs_super_info *as1 = data;
-	struct afs_super_info *as = sb->s_fs_info;
+	struct afs_super_info *as = AFS_FS_S(sb);
 
-	return as->volume == as1->volume;
+	return (as->net_ns == as1->net_ns &&
+		as->volume &&
+		as->volume->vid == as1->volume->vid &&
+		!as->dyn_root);
+}
+
+static int afs_dynroot_test_super(struct super_block *sb, void *data)
+{
+	struct afs_super_info *as1 = data;
+	struct afs_super_info *as = AFS_FS_S(sb);
+
+	return (as->net_ns == as1->net_ns &&
+		as->dyn_root);
 }
 
 static int afs_set_super(struct super_block *sb, void *data)
 {
-	sb->s_fs_info = data;
+	struct afs_super_info *as = data;
+
+	sb->s_fs_info = as;
 	return set_anon_super(sb, NULL);
 }
 
@@ -307,7 +382,7 @@ static int afs_set_super(struct super_block *sb, void *data)
 static int afs_fill_super(struct super_block *sb,
 			  struct afs_mount_params *params)
 {
-	struct afs_super_info *as = sb->s_fs_info;
+	struct afs_super_info *as = AFS_FS_S(sb);
 	struct afs_fid fid;
 	struct inode *inode = NULL;
 	int ret;
@@ -315,22 +390,34 @@ static int afs_fill_super(struct super_block *sb,
 	_enter("");
 
 	/* fill in the superblock */
-	sb->s_blocksize		= PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits	= PAGE_CACHE_SHIFT;
+	sb->s_blocksize		= PAGE_SIZE;
+	sb->s_blocksize_bits	= PAGE_SHIFT;
 	sb->s_magic		= AFS_FS_MAGIC;
 	sb->s_op		= &afs_super_ops;
-	sb->s_bdi		= &as->volume->bdi;
-	strlcpy(sb->s_id, as->volume->vlocation->vldb.name, sizeof(sb->s_id));
+	if (!as->dyn_root)
+		sb->s_xattr	= afs_xattr_handlers;
+	ret = super_setup_bdi(sb);
+	if (ret)
+		return ret;
+	sb->s_bdi->ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
 
 	/* allocate the root inode and dentry */
-	fid.vid		= as->volume->vid;
-	fid.vnode	= 1;
-	fid.unique	= 1;
-	inode = afs_iget(sb, params->key, &fid, NULL, NULL);
+	if (as->dyn_root) {
+		inode = afs_iget_pseudo_dir(sb, true);
+		sb->s_flags	|= SB_RDONLY;
+	} else {
+		sprintf(sb->s_id, "%u", as->volume->vid);
+		afs_activate_volume(as->volume);
+		fid.vid		= as->volume->vid;
+		fid.vnode	= 1;
+		fid.unique	= 1;
+		inode = afs_iget(sb, params->key, &fid, NULL, NULL, NULL);
+	}
+
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
-	if (params->autocell)
+	if (params->autocell || params->dyn_root)
 		set_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(inode)->flags);
 
 	ret = -ENOMEM;
@@ -338,7 +425,14 @@ static int afs_fill_super(struct super_block *sb,
 	if (!sb->s_root)
 		goto error;
 
-	sb->s_d_op = &afs_fs_dentry_operations;
+	if (as->dyn_root) {
+		sb->s_d_op = &afs_dynroot_dentry_operations;
+		ret = afs_dynroot_populate(sb);
+		if (ret < 0)
+			goto error;
+	} else {
+		sb->s_d_op = &afs_fs_dentry_operations;
+	}
 
 	_leave(" = 0");
 	return 0;
@@ -348,17 +442,60 @@ error:
 	return ret;
 }
 
+static struct afs_super_info *afs_alloc_sbi(struct afs_mount_params *params)
+{
+	struct afs_super_info *as;
+
+	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
+	if (as) {
+		as->net_ns = get_net(params->net_ns);
+		if (params->dyn_root)
+			as->dyn_root = true;
+		else
+			as->cell = afs_get_cell(params->cell);
+	}
+	return as;
+}
+
+static void afs_destroy_sbi(struct afs_super_info *as)
+{
+	if (as) {
+		afs_put_volume(as->cell, as->volume);
+		afs_put_cell(afs_net(as->net_ns), as->cell);
+		put_net(as->net_ns);
+		kfree(as);
+	}
+}
+
+static void afs_kill_super(struct super_block *sb)
+{
+	struct afs_super_info *as = AFS_FS_S(sb);
+	struct afs_net *net = afs_net(as->net_ns);
+
+	if (as->dyn_root)
+		afs_dynroot_depopulate(sb);
+	
+	/* Clear the callback interests (which will do ilookup5) before
+	 * deactivating the superblock.
+	 */
+	if (as->volume)
+		afs_clear_callback_interests(net, as->volume->servers);
+	kill_anon_super(sb);
+	if (as->volume)
+		afs_deactivate_volume(as->volume);
+	afs_destroy_sbi(as);
+}
+
 /*
  * get an AFS superblock
  */
 static struct dentry *afs_mount(struct file_system_type *fs_type,
-		      int flags, const char *dev_name, void *options)
+				int flags, const char *dev_name, void *options)
 {
 	struct afs_mount_params params;
 	struct super_block *sb;
-	struct afs_volume *vol;
+	struct afs_volume *candidate;
 	struct key *key;
-	char *new_opts = kstrdup(options, GFP_KERNEL);
 	struct afs_super_info *as;
 	int ret;
 
@@ -369,7 +506,9 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 	ret = -EINVAL;
 	if (current->nsproxy->net_ns != &init_net)
 		goto error;
-
+	params.net_ns = current->nsproxy->net_ns;
+	params.net = afs_net(params.net_ns);
+	
 	/* parse the options and device name */
 	if (options) {
 		ret = afs_parse_options(&params, options, &dev_name);
@@ -377,84 +516,88 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 			goto error;
 	}
 
-	ret = afs_parse_device_name(&params, dev_name);
-	if (ret < 0)
-		goto error;
+	if (!params.dyn_root) {
+		ret = afs_parse_device_name(&params, dev_name);
+		if (ret < 0)
+			goto error;
 
-	/* try and do the mount securely */
-	key = afs_request_key(params.cell);
-	if (IS_ERR(key)) {
-		_leave(" = %ld [key]", PTR_ERR(key));
-		ret = PTR_ERR(key);
-		goto error;
-	}
-	params.key = key;
-
-	/* parse the device name */
-	vol = afs_volume_lookup(&params);
-	if (IS_ERR(vol)) {
-		ret = PTR_ERR(vol);
-		goto error;
+		/* try and do the mount securely */
+		key = afs_request_key(params.cell);
+		if (IS_ERR(key)) {
+			_leave(" = %ld [key]", PTR_ERR(key));
+			ret = PTR_ERR(key);
+			goto error;
+		}
+		params.key = key;
 	}
 
 	/* allocate a superblock info record */
-	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
-	if (!as) {
-		ret = -ENOMEM;
-		afs_put_volume(vol);
-		goto error;
+	ret = -ENOMEM;
+	as = afs_alloc_sbi(&params);
+	if (!as)
+		goto error_key;
+
+	if (!params.dyn_root) {
+		/* Assume we're going to need a volume record; at the very
+		 * least we can use it to update the volume record if we have
+		 * one already.  This checks that the volume exists within the
+		 * cell.
+		 */
+		candidate = afs_create_volume(&params);
+		if (IS_ERR(candidate)) {
+			ret = PTR_ERR(candidate);
+			goto error_as;
+		}
+
+		as->volume = candidate;
 	}
-	as->volume = vol;
 
 	/* allocate a deviceless superblock */
-	sb = sget(fs_type, afs_test_super, afs_set_super, flags, as);
+	sb = sget(fs_type,
+		  as->dyn_root ? afs_dynroot_test_super : afs_test_super,
+		  afs_set_super, flags, as);
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
-		afs_put_volume(vol);
-		kfree(as);
-		goto error;
+		goto error_as;
 	}
 
 	if (!sb->s_root) {
 		/* initial superblock/root creation */
 		_debug("create");
 		ret = afs_fill_super(sb, &params);
-		if (ret < 0) {
-			deactivate_locked_super(sb);
-			goto error;
-		}
-		save_mount_options(sb, new_opts);
-		sb->s_flags |= MS_ACTIVE;
+		if (ret < 0)
+			goto error_sb;
+		as = NULL;
+		sb->s_flags |= SB_ACTIVE;
 	} else {
 		_debug("reuse");
-		ASSERTCMP(sb->s_flags, &, MS_ACTIVE);
-		afs_put_volume(vol);
-		kfree(as);
+		ASSERTCMP(sb->s_flags, &, SB_ACTIVE);
+		afs_destroy_sbi(as);
+		as = NULL;
 	}
 
-	afs_put_cell(params.cell);
-	kfree(new_opts);
+	afs_put_cell(params.net, params.cell);
+	key_put(params.key);
 	_leave(" = 0 [%p]", sb);
 	return dget(sb->s_root);
 
-error:
-	afs_put_cell(params.cell);
+error_sb:
+	deactivate_locked_super(sb);
+	goto error_key;
+error_as:
+	afs_destroy_sbi(as);
+error_key:
 	key_put(params.key);
-	kfree(new_opts);
+error:
+	afs_put_cell(params.net, params.cell);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 }
 
-static void afs_kill_super(struct super_block *sb)
-{
-	struct afs_super_info *as = sb->s_fs_info;
-	kill_anon_super(sb);
-	afs_put_volume(as->volume);
-	kfree(as);
-}
-
 /*
- * initialise an inode cache slab element prior to any use
+ * Initialise an inode cache slab element prior to any use.  Note that
+ * afs_alloc_inode() *must* reset anything that could incorrectly leak from one
+ * inode to another.
  */
 static void afs_i_init_once(void *_vnode)
 {
@@ -462,16 +605,15 @@ static void afs_i_init_once(void *_vnode)
 
 	memset(vnode, 0, sizeof(*vnode));
 	inode_init_once(&vnode->vfs_inode);
-	init_waitqueue_head(&vnode->update_waitq);
-	mutex_init(&vnode->permits_lock);
-	mutex_init(&vnode->validate_lock);
-	spin_lock_init(&vnode->writeback_lock);
+	mutex_init(&vnode->io_lock);
+	init_rwsem(&vnode->validate_lock);
+	spin_lock_init(&vnode->wb_lock);
 	spin_lock_init(&vnode->lock);
-	INIT_LIST_HEAD(&vnode->writebacks);
+	INIT_LIST_HEAD(&vnode->wb_keys);
 	INIT_LIST_HEAD(&vnode->pending_locks);
 	INIT_LIST_HEAD(&vnode->granted_locks);
 	INIT_DELAYED_WORK(&vnode->lock_work, afs_lock_work);
-	INIT_WORK(&vnode->cb_broken_work, afs_broken_callback_work);
+	seqlock_init(&vnode->cb_lock);
 }
 
 /*
@@ -487,13 +629,21 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 
 	atomic_inc(&afs_count_active_inodes);
 
+	/* Reset anything that shouldn't leak from one inode to the next. */
 	memset(&vnode->fid, 0, sizeof(vnode->fid));
 	memset(&vnode->status, 0, sizeof(vnode->status));
 
 	vnode->volume		= NULL;
-	vnode->update_cnt	= 0;
+	vnode->lock_key		= NULL;
+	vnode->permit_cache	= NULL;
+	vnode->cb_interest	= NULL;
+#ifdef CONFIG_AFS_FSCACHE
+	vnode->cache		= NULL;
+#endif
+
 	vnode->flags		= 1 << AFS_VNODE_UNSET;
-	vnode->cb_promised	= false;
+	vnode->cb_type		= 0;
+	vnode->lock_state	= AFS_VNODE_LOCK_NONE;
 
 	_leave(" = %p", &vnode->vfs_inode);
 	return &vnode->vfs_inode;
@@ -517,7 +667,7 @@ static void afs_destroy_inode(struct inode *inode)
 
 	_debug("DESTROY INODE %p", inode);
 
-	ASSERTCMP(vnode->server, ==, NULL);
+	ASSERTCMP(vnode->cb_interest, ==, NULL);
 
 	call_rcu(&inode->i_rcu, afs_i_callback);
 	atomic_dec(&afs_count_active_inodes);
@@ -528,30 +678,50 @@ static void afs_destroy_inode(struct inode *inode)
  */
 static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct afs_super_info *as = AFS_FS_S(dentry->d_sb);
+	struct afs_fs_cursor fc;
 	struct afs_volume_status vs;
 	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 	struct key *key;
 	int ret;
 
-	key = afs_request_key(vnode->volume->cell);
-	if (IS_ERR(key))
-		return PTR_ERR(key);
-
-	ret = afs_vnode_get_volume_status(vnode, key, &vs);
-	key_put(key);
-	if (ret < 0) {
-		_leave(" = %d", ret);
-		return ret;
-	}
-
 	buf->f_type	= dentry->d_sb->s_magic;
 	buf->f_bsize	= AFS_BLOCK_SIZE;
 	buf->f_namelen	= AFSNAMEMAX - 1;
 
-	if (vs.max_quota == 0)
-		buf->f_blocks = vs.part_max_blocks;
-	else
-		buf->f_blocks = vs.max_quota;
-	buf->f_bavail = buf->f_bfree = buf->f_blocks - vs.blocks_in_use;
-	return 0;
+	if (as->dyn_root) {
+		buf->f_blocks	= 1;
+		buf->f_bavail	= 0;
+		buf->f_bfree	= 0;
+		return 0;
+	}
+
+	key = afs_request_key(vnode->volume->cell);
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+		fc.flags |= AFS_FS_CURSOR_NO_VSLEEP;
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = afs_calc_vnode_cb_break(vnode);
+			afs_fs_get_volume_status(&fc, &vs);
+		}
+
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+	}
+
+	key_put(key);
+
+	if (ret == 0) {
+		if (vs.max_quota == 0)
+			buf->f_blocks = vs.part_max_blocks;
+		else
+			buf->f_blocks = vs.max_quota;
+		buf->f_bavail = buf->f_bfree = buf->f_blocks - vs.blocks_in_use;
+	}
+
+	return ret;
 }

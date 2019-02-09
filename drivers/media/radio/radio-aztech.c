@@ -2,7 +2,7 @@
  * radio-aztech.c - Aztech radio card driver
  *
  * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@xs4all.nl>
- * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
+ * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
  * Adapted to support the Video for Linux API by
  * Russell Kroll <rkroll@exploits.org>.  Based on original tuner code by:
  *
@@ -15,7 +15,7 @@
  * Fully tested with the Keene USB FM Transmitter and the v4l2-compliance tool.
 */
 
-#include <linux/module.h>	/* Modules 			*/
+#include <linux/module.h>	/* Modules			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
@@ -43,7 +43,6 @@ MODULE_VERSION("1.0.0");
 static int io[AZTECH_MAX] = { [0] = CONFIG_RADIO_AZTECH_PORT,
 			      [1 ... (AZTECH_MAX - 1)] = -1 };
 static int radio_nr[AZTECH_MAX]	= { [0 ... (AZTECH_MAX - 1)] = -1 };
-static const int radio_wait_time = 1000;
 
 module_param_array(io, int, NULL, 0444);
 MODULE_PARM_DESC(io, "I/O addresses of the Aztech card (0x350 or 0x358)");

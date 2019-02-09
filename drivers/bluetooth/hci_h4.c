@@ -108,7 +108,7 @@ static int h4_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	BT_DBG("hu %p skb %p", hu, skb);
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 	skb_queue_tail(&h4->txq, skb);
 
 	return 0;
@@ -132,7 +132,7 @@ static int h4_recv(struct hci_uart *hu, const void *data, int count)
 				 h4_recv_pkts, ARRAY_SIZE(h4_recv_pkts));
 	if (IS_ERR(h4->rx_skb)) {
 		int err = PTR_ERR(h4->rx_skb);
-		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		bt_dev_err(hu->hdev, "Frame reassembly failed (%d)", err);
 		h4->rx_skb = NULL;
 		return err;
 	}
@@ -171,8 +171,19 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 			    const unsigned char *buffer, int count,
 			    const struct h4_recv_pkt *pkts, int pkts_count)
 {
+	struct hci_uart *hu = hci_get_drvdata(hdev);
+	u8 alignment = hu->alignment ? hu->alignment : 1;
+
 	while (count) {
 		int i, len;
+
+		/* remove padding bytes from buffer */
+		for (; hu->padding && count > 0; hu->padding--) {
+			count--;
+			buffer++;
+		}
+		if (!count)
+			break;
 
 		if (!skb) {
 			for (i = 0; i < pkts_count; i++) {
@@ -184,8 +195,8 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 				if (!skb)
 					return ERR_PTR(-ENOMEM);
 
-				bt_cb(skb)->pkt_type = (&pkts[i])->type;
-				bt_cb(skb)->expect = (&pkts[i])->hlen;
+				hci_skb_pkt_type(skb) = (&pkts[i])->type;
+				hci_skb_expect(skb) = (&pkts[i])->hlen;
 				break;
 			}
 
@@ -197,18 +208,18 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 			buffer += 1;
 		}
 
-		len = min_t(uint, bt_cb(skb)->expect - skb->len, count);
-		memcpy(skb_put(skb, len), buffer, len);
+		len = min_t(uint, hci_skb_expect(skb) - skb->len, count);
+		skb_put_data(skb, buffer, len);
 
 		count -= len;
 		buffer += len;
 
 		/* Check for partial packet */
-		if (skb->len < bt_cb(skb)->expect)
+		if (skb->len < hci_skb_expect(skb))
 			continue;
 
 		for (i = 0; i < pkts_count; i++) {
-			if (bt_cb(skb)->pkt_type == (&pkts[i])->type)
+			if (hci_skb_pkt_type(skb) == (&pkts[i])->type)
 				break;
 		}
 
@@ -228,7 +239,7 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 			case 1:
 				/* Single octet variable length */
 				dlen = skb->data[(&pkts[i])->loff];
-				bt_cb(skb)->expect += dlen;
+				hci_skb_expect(skb) += dlen;
 
 				if (skb_tailroom(skb) < dlen) {
 					kfree_skb(skb);
@@ -239,7 +250,7 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 				/* Double octet variable length */
 				dlen = get_unaligned_le16(skb->data +
 							  (&pkts[i])->loff);
-				bt_cb(skb)->expect += dlen;
+				hci_skb_expect(skb) += dlen;
 
 				if (skb_tailroom(skb) < dlen) {
 					kfree_skb(skb);
@@ -253,11 +264,17 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 			}
 
 			if (!dlen) {
+				hu->padding = (skb->len - 1) % alignment;
+				hu->padding = (alignment - hu->padding) % alignment;
+
 				/* No more data, complete frame */
 				(&pkts[i])->recv(hdev, skb);
 				skb = NULL;
 			}
 		} else {
+			hu->padding = (skb->len - 1) % alignment;
+			hu->padding = (alignment - hu->padding) % alignment;
+
 			/* Complete frame */
 			(&pkts[i])->recv(hdev, skb);
 			skb = NULL;

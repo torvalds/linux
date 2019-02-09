@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 /include/ "bcm7425.dtsi"
+/include/ "bcm97xxx-nand-cs1-bch24.dtsi"
 
 / {
 	compatible = "brcm,bcm97425svmb", "brcm,bcm7425";
@@ -20,6 +22,46 @@
 };
 
 &uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&bsca {
+	status = "okay";
+};
+
+&bscb {
+	status = "okay";
+};
+
+&bscc {
+	status = "okay";
+};
+
+&bscd {
+	status = "okay";
+};
+
+&bsce {
+	status = "okay";
+};
+
+&pwma {
+	status = "okay";
+};
+
+&pwmb {
+	status = "okay";
+};
+
+&watchdog {
 	status = "okay";
 };
 
@@ -56,5 +98,57 @@
 };
 
 &ohci3 {
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+};
+
+&sdhci0 {
+	status = "okay";
+};
+
+&sdhci1 {
+	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+
+	m25p80@0 {
+		compatible = "m25p80";
+		reg = <0>;
+		spi-max-frequency = <40000000>;
+		spi-cpol;
+		spi-cpha;
+		use-bspi;
+		m25p,fast-read;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			flash0.cfe@0 {
+				reg = <0x0 0x200000>;
+			};
+
+			flash0.mac@200000 {
+				reg = <0x200000 0x40000>;
+			};
+
+			flash0.nvram@240000 {
+				reg = <0x240000 0x10000>;
+			};
+		};
+	};
+};
+
+&mspi {
+	status = "okay";
+};
+
+&waketimer {
 	status = "okay";
 };

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -10,10 +11,14 @@
 #include <linux/const.h>
 #include <asm/types.h>
 
+#define _PAGE_SHIFT	12
+#define _PAGE_SIZE	(_AC(1, UL) << _PAGE_SHIFT)
+#define _PAGE_MASK	(~(_PAGE_SIZE - 1))
+
 /* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT      12
-#define PAGE_SIZE	(_AC(1,UL) << PAGE_SHIFT)
-#define PAGE_MASK       (~(PAGE_SIZE-1))
+#define PAGE_SHIFT	_PAGE_SHIFT
+#define PAGE_SIZE	_PAGE_SIZE
+#define PAGE_MASK	_PAGE_MASK
 #define PAGE_DEFAULT_ACC	0
 #define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
 
@@ -21,6 +26,7 @@
 #define HPAGE_SIZE	(1UL << HPAGE_SHIFT)
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+#define HUGE_MAX_HSTATE		2
 
 #define ARCH_HAS_SETCLEAR_HUGE_PTE
 #define ARCH_HAS_HUGE_PTE_TYPE
@@ -30,11 +36,12 @@
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
+void __storage_key_init_range(unsigned long start, unsigned long end);
+
 static inline void storage_key_init_range(unsigned long start, unsigned long end)
 {
-#if PAGE_DEFAULT_KEY
-	__storage_key_init_range(start, end);
-#endif
+	if (PAGE_DEFAULT_KEY)
+		__storage_key_init_range(start, end);
 }
 
 #define clear_page(page)	memset((page), 0, PAGE_SIZE)
@@ -72,6 +79,7 @@ typedef struct { unsigned long pgste; } pgste_t;
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pud; } pud_t;
+typedef struct { unsigned long p4d; } p4d_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef pte_t *pgtable_t;
 
@@ -80,12 +88,14 @@ typedef pte_t *pgtable_t;
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((x).pmd)
 #define pud_val(x)	((x).pud)
+#define p4d_val(x)	((x).p4d)
 #define pgd_val(x)      ((x).pgd)
 
 #define __pgste(x)	((pgste_t) { (x) } )
 #define __pte(x)        ((pte_t) { (x) } )
 #define __pmd(x)        ((pmd_t) { (x) } )
 #define __pud(x)	((pud_t) { (x) } )
+#define __p4d(x)	((p4d_t) { (x) } )
 #define __pgd(x)        ((pgd_t) { (x) } )
 #define __pgprot(x)     ((pgprot_t) { (x) } )
 
@@ -109,13 +119,14 @@ static inline unsigned char page_get_storage_key(unsigned long addr)
 
 static inline int page_reset_referenced(unsigned long addr)
 {
-	unsigned int ipm;
+	int cc;
 
 	asm volatile(
 		"	rrbe	0,%1\n"
 		"	ipm	%0\n"
-		: "=d" (ipm) : "a" (addr) : "cc");
-	return !!(ipm & 0x20000000);
+		"	srl	%0,28\n"
+		: "=d" (cc) : "a" (addr) : "cc");
+	return cc;
 }
 
 /* Bits int the storage key */
@@ -127,6 +138,9 @@ static inline int page_reset_referenced(unsigned long addr)
 struct page;
 void arch_free_page(struct page *page, int order);
 void arch_alloc_page(struct page *page, int order);
+void arch_set_page_dat(struct page *page, int order);
+void arch_set_page_nodat(struct page *page, int order);
+int arch_test_page_nodat(struct page *page);
 void arch_set_page_states(int make_stable);
 
 static inline int devmem_is_allowed(unsigned long pfn)
@@ -139,12 +153,24 @@ static inline int devmem_is_allowed(unsigned long pfn)
 
 #endif /* !__ASSEMBLY__ */
 
-#define __PAGE_OFFSET           0x0UL
-#define PAGE_OFFSET             0x0UL
-#define __pa(x)                 (unsigned long)(x)
-#define __va(x)                 (void *)(unsigned long)(x)
-#define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+#define __PAGE_OFFSET		0x0UL
+#define PAGE_OFFSET		0x0UL
+
+#define __pa(x)			((unsigned long)(x))
+#define __va(x)			((void *)(unsigned long)(x))
+
+#define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
+#define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
+
+#define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
+#define page_to_virt(page)	pfn_to_virt(page_to_pfn(page))
+
+#define phys_to_pfn(kaddr)	((kaddr) >> PAGE_SHIFT)
+#define pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
+
+#define phys_to_page(kaddr)	pfn_to_page(phys_to_pfn(kaddr))
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
+
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | \

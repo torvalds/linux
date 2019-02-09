@@ -48,7 +48,7 @@ struct arc_callchain_trace {
 static int callchain_trace(unsigned int addr, void *data)
 {
 	struct arc_callchain_trace *ctrl = data;
-	struct perf_callchain_entry *entry = ctrl->perf_stuff;
+	struct perf_callchain_entry_ctx *entry = ctrl->perf_stuff;
 	perf_callchain_store(entry, addr);
 
 	if (ctrl->depth++ < 3)
@@ -58,7 +58,7 @@ static int callchain_trace(unsigned int addr, void *data)
 }
 
 void
-perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	struct arc_callchain_trace ctrl = {
 		.depth = 0,
@@ -69,7 +69,7 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 }
 
 void
-perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	/*
 	 * User stack can't be unwound trivially with kernel dwarf unwinder
@@ -108,7 +108,7 @@ static void arc_perf_event_update(struct perf_event *event,
 	int64_t delta = new_raw_count - prev_raw_count;
 
 	/*
-	 * We don't afaraid of hwc->prev_count changing beneath our feet
+	 * We aren't afraid of hwc->prev_count changing beneath our feet
 	 * because there's no way for us to re-enter this function anytime.
 	 */
 	local64_set(&hwc->prev_count, new_raw_count);
@@ -179,8 +179,8 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (arc_pmu->ev_hw_idx[event->attr.config] < 0)
 			return -ENOENT;
 		hwc->config |= arc_pmu->ev_hw_idx[event->attr.config];
-		pr_debug("init event %d with h/w %d \'%s\'\n",
-			 (int) event->attr.config, (int) hwc->config,
+		pr_debug("init event %d with h/w %08x \'%s\'\n",
+			 (int)event->attr.config, (int)hwc->config,
 			 arc_pmu_ev_hw_map[event->attr.config]);
 		return 0;
 
@@ -189,6 +189,8 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (ret < 0)
 			return ret;
 		hwc->config |= arc_pmu->ev_hw_idx[ret];
+		pr_debug("init cache event with h/w %08x \'%s\'\n",
+			 (int)hwc->config, arc_pmu_ev_hw_map[ret]);
 		return 0;
 	default:
 		return -ENOENT;
@@ -334,15 +336,12 @@ static int arc_pmu_add(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
-	if (__test_and_set_bit(idx, pmu_cpu->used_mask)) {
-		idx = find_first_zero_bit(pmu_cpu->used_mask,
-					  arc_pmu->n_counters);
-		if (idx == arc_pmu->n_counters)
-			return -EAGAIN;
+	idx = ffz(pmu_cpu->used_mask[0]);
+	if (idx == arc_pmu->n_counters)
+		return -EAGAIN;
 
-		__set_bit(idx, pmu_cpu->used_mask);
-		hwc->idx = idx;
-	}
+	__set_bit(idx, pmu_cpu->used_mask);
+	hwc->idx = idx;
 
 	write_aux_reg(ARC_REG_PCT_INDEX, idx);
 
@@ -375,21 +374,22 @@ static irqreturn_t arc_pmu_intr(int irq, void *dev)
 	struct perf_sample_data data;
 	struct arc_pmu_cpu *pmu_cpu = this_cpu_ptr(&arc_pmu_cpu);
 	struct pt_regs *regs;
-	int active_ints;
+	unsigned int active_ints;
 	int idx;
 
 	arc_pmu_disable(&arc_pmu->pmu);
 
 	active_ints = read_aux_reg(ARC_REG_PCT_INT_ACT);
+	if (!active_ints)
+		goto done;
 
 	regs = get_irq_regs();
 
-	for (idx = 0; idx < arc_pmu->n_counters; idx++) {
-		struct perf_event *event = pmu_cpu->act_counter[idx];
+	do {
+		struct perf_event *event;
 		struct hw_perf_event *hwc;
 
-		if (!(active_ints & (1 << idx)))
-			continue;
+		idx = __ffs(active_ints);
 
 		/* Reset interrupt flag by writing of 1 */
 		write_aux_reg(ARC_REG_PCT_INT_ACT, 1 << idx);
@@ -402,19 +402,22 @@ static irqreturn_t arc_pmu_intr(int irq, void *dev)
 		write_aux_reg(ARC_REG_PCT_INT_CTRL,
 			read_aux_reg(ARC_REG_PCT_INT_CTRL) | (1 << idx));
 
+		event = pmu_cpu->act_counter[idx];
 		hwc = &event->hw;
 
 		WARN_ON_ONCE(hwc->idx != idx);
 
 		arc_perf_event_update(event, &event->hw, event->hw.idx);
 		perf_sample_data_init(&data, 0, hwc->last_period);
-		if (!arc_pmu_event_set_period(event))
-			continue;
+		if (arc_pmu_event_set_period(event)) {
+			if (perf_event_overflow(event, &data, regs))
+				arc_pmu_stop(event, 0);
+		}
 
-		if (perf_event_overflow(event, &data, regs))
-			arc_pmu_stop(event, 0);
-	}
+		active_ints &= ~(1U << idx);
+	} while (active_ints);
 
+done:
 	arc_pmu_enable(&arc_pmu->pmu);
 
 	return IRQ_HANDLED;
@@ -459,6 +462,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		pr_err("This core does not have performance counters!\n");
 		return -ENODEV;
 	}
+	BUILD_BUG_ON(ARC_PERF_MAX_COUNTERS > 32);
 	BUG_ON(pct_bcr.c > ARC_PERF_MAX_COUNTERS);
 
 	READ_BCR(ARC_REG_CC_BUILD, cc_bcr);

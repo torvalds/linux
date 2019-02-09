@@ -23,6 +23,7 @@
 #define ALPS_PROTO_V6		0x600
 #define ALPS_PROTO_V7		0x700	/* t3btl t4s */
 #define ALPS_PROTO_V8		0x800	/* SS4btl SS4s */
+#define ALPS_PROTO_V9		0x900	/* ss3btl */
 
 #define MAX_TOUCHES	4
 
@@ -37,12 +38,14 @@
  *  or there's button activities.
  * SS4_PACKET_ID_TWO: There's two or more fingers on touchpad
  * SS4_PACKET_ID_MULTI: There's three or more fingers on touchpad
+ * SS4_PACKET_ID_STICK: A stick pointer packet
 */
 enum SS4_PACKET_ID {
 	SS4_PACKET_ID_IDLE = 0,
 	SS4_PACKET_ID_ONE,
 	SS4_PACKET_ID_TWO,
 	SS4_PACKET_ID_MULTI,
+	SS4_PACKET_ID_STICK,
 };
 
 #define SS4_COUNT_PER_ELECTRODE		256
@@ -52,7 +55,25 @@ enum SS4_PACKET_ID {
 
 #define SS4_MASK_NORMAL_BUTTONS		0x07
 
-#define SS4_1F_X_V2(_b)		((_b[0] & 0x0007) |		\
+#define SS4PLUS_COUNT_PER_ELECTRODE	128
+#define SS4PLUS_NUMSENSOR_XOFFSET	16
+#define SS4PLUS_NUMSENSOR_YOFFSET	5
+#define SS4PLUS_MIN_PITCH_MM		37
+
+#define IS_SS4PLUS_DEV(_b)	(((_b[0]) == 0x73) &&	\
+				 ((_b[1]) == 0x03) &&	\
+				 ((_b[2]) == 0x28)		\
+				)
+
+#define SS4_IS_IDLE_V2(_b)	(((_b[0]) == 0x18) &&		\
+				 ((_b[1]) == 0x10) &&		\
+				 ((_b[2]) == 0x00) &&		\
+				 ((_b[3] & 0x88) == 0x08) &&	\
+				 ((_b[4]) == 0x10) &&		\
+				 ((_b[5]) == 0x00)		\
+				)
+
+#define SS4_1F_X_V2(_b)		(((_b[0]) & 0x0007) |		\
 				 ((_b[1] << 3) & 0x0078) |	\
 				 ((_b[1] << 2) & 0x0380) |	\
 				 ((_b[2] << 5) & 0x1C00)	\
@@ -79,6 +100,10 @@ enum SS4_PACKET_ID {
 				 ((_b[1 + _i * 3]  << 5) & 0x1F00)	\
 				)
 
+#define SS4_PLUS_STD_MF_X_V2(_b, _i) (((_b[0 + (_i) * 3] << 4) & 0x0070) | \
+				 ((_b[1 + (_i) * 3]  << 4) & 0x0F80)	\
+				)
+
 #define SS4_STD_MF_Y_V2(_b, _i)	(((_b[1 + (_i) * 3] << 3) & 0x0010) |	\
 				 ((_b[2 + (_i) * 3] << 5) & 0x01E0) |	\
 				 ((_b[2 + (_i) * 3] << 4) & 0x0E00)	\
@@ -86,6 +111,10 @@ enum SS4_PACKET_ID {
 
 #define SS4_BTL_MF_X_V2(_b, _i)	(SS4_STD_MF_X_V2(_b, _i) |		\
 				 ((_b[0 + (_i) * 3] >> 3) & 0x0010)	\
+				)
+
+#define SS4_PLUS_BTL_MF_X_V2(_b, _i) (SS4_PLUS_STD_MF_X_V2(_b, _i) |	\
+				 ((_b[0 + (_i) * 3] >> 4) & 0x0008)	\
 				)
 
 #define SS4_BTL_MF_Y_V2(_b, _i)	(SS4_STD_MF_Y_V2(_b, _i) | \
@@ -99,11 +128,25 @@ enum SS4_PACKET_ID {
 #define SS4_IS_MF_CONTINUE(_b)	((_b[2] & 0x10) == 0x10)
 #define SS4_IS_5F_DETECTED(_b)	((_b[2] & 0x10) == 0x10)
 
+#define SS4_TS_X_V2(_b)		(s8)(				\
+				 ((_b[0] & 0x01) << 7) |	\
+				 (_b[1] & 0x7F)		\
+				)
 
-#define SS4_MFPACKET_NO_AX	8160	/* X-Coordinate value */
-#define SS4_MFPACKET_NO_AY	4080	/* Y-Coordinate value */
-#define SS4_MFPACKET_NO_AX_BL	8176	/* Buttonless X-Coordinate value */
-#define SS4_MFPACKET_NO_AY_BL	4088	/* Buttonless Y-Coordinate value */
+#define SS4_TS_Y_V2(_b)		-(s8)(				\
+				 ((_b[3] & 0x01) << 7) |	\
+				 (_b[2] & 0x7F)		\
+				)
+
+#define SS4_TS_Z_V2(_b)		(s8)(_b[4] & 0x7F)
+
+
+#define SS4_MFPACKET_NO_AX		8160	/* X-Coordinate value */
+#define SS4_MFPACKET_NO_AY		4080	/* Y-Coordinate value */
+#define SS4_MFPACKET_NO_AX_BL		8176	/* Buttonless X-Coord value */
+#define SS4_MFPACKET_NO_AY_BL		4088	/* Buttonless Y-Coord value */
+#define SS4_PLUS_MFPACKET_NO_AX		4080	/* SS4 PLUS, X */
+#define SS4_PLUS_MFPACKET_NO_AX_BL	4088	/* Buttonless SS4 PLUS, X */
 
 /*
  * enum V7_PACKET_ID - defines the packet type for V7
@@ -140,11 +183,7 @@ struct alps_protocol_info {
 /**
  * struct alps_model_info - touchpad ID table
  * @signature: E7 response string to match.
- * @command_mode_resp: For V3/V4 touchpads, the final byte of the EC response
- *   (aka command mode response) identifies the firmware minor version.  This
- *   can be used to distinguish different hardware models which are not
- *   uniquely identifiable through their E7 responses.
- * @protocol_info: information about protcol used by the device.
+ * @protocol_info: information about protocol used by the device.
  *
  * Many (but not all) ALPS touchpads can be identified by looking at the
  * values returned in the "E7 report" and/or the "EC report."  This table
@@ -152,7 +191,6 @@ struct alps_protocol_info {
  */
 struct alps_model_info {
 	u8 signature[3];
-	u8 command_mode_resp;
 	struct alps_protocol_info protocol_info;
 };
 
@@ -261,6 +299,7 @@ struct alps_data {
 	int addr_command;
 	u16 proto_version;
 	u8 byte0, mask0;
+	u8 dev_id[3];
 	u8 fw_ver[3];
 	int flags;
 	int x_max;

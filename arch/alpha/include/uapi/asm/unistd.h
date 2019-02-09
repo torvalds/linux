@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ALPHA_UNISTD_H
 #define _UAPI_ALPHA_UNISTD_H
 
@@ -366,11 +367,6 @@
 #define __NR_epoll_create		407
 #define __NR_epoll_ctl			408
 #define __NR_epoll_wait			409
-/* Feb 2007: These three sys_epoll defines shouldn't be here but culling
- * them would break userspace apps ... we'll kill them off in 2010 :) */
-#define __NR_sys_epoll_create		__NR_epoll_create
-#define __NR_sys_epoll_ctl		__NR_epoll_ctl
-#define __NR_sys_epoll_wait		__NR_epoll_wait
 #define __NR_remap_file_pages		410
 #define __NR_set_tid_address		411
 #define __NR_restart_syscall		412
@@ -475,5 +471,19 @@
 #define __NR_getrandom			511
 #define __NR_memfd_create		512
 #define __NR_execveat			513
+#define __NR_seccomp			514
+#define __NR_bpf			515
+#define __NR_userfaultfd		516
+#define __NR_membarrier			517
+#define __NR_mlock2			518
+#define __NR_copy_file_range		519
+#define __NR_preadv2			520
+#define __NR_pwritev2			521
+#define __NR_statx			522
+
+/* Alpha doesn't have protection keys. */
+#define __IGNORE_pkey_mprotect
+#define __IGNORE_pkey_alloc
+#define __IGNORE_pkey_free
 
 #endif /* _UAPI_ALPHA_UNISTD_H */

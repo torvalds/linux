@@ -53,15 +53,9 @@ void __init mminit_verify_zonelist(void)
 				zone->name);
 
 			/* Iterate the zonelist */
-			for_each_zone_zonelist(zone, z, zonelist, zoneid) {
-#ifdef CONFIG_NUMA
-				printk(KERN_CONT "%d:%s ",
-					zone->node, zone->name);
-#else
-				printk(KERN_CONT "0:%s ", zone->name);
-#endif /* CONFIG_NUMA */
-			}
-			printk(KERN_CONT "\n");
+			for_each_zone_zonelist(zone, z, zonelist, zoneid)
+				pr_cont("%d:%s ", zone_to_nid(zone), zone->name);
+			pr_cont("\n");
 		}
 	}
 }

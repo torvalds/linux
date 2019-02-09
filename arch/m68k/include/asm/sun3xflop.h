@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* sun3xflop.h: Sun3/80 specific parts of the floppy driver.
  *
  * Derived partially from asm-sparc/floppy.h, which is:
@@ -48,7 +49,7 @@ static unsigned char sun3x_82072_fd_inb(int port)
 //	udelay(5);
 	switch(port & 7) {
 	default:
-		printk("floppy: Asked to read unknown port %d\n", port);
+		pr_crit("floppy: Asked to read unknown port %d\n", port);
 		panic("floppy: Port bolixed.");
 	case 4: /* FD_STATUS */
 		return (*sun3x_fdc.status_r) & ~STATUS_DMA;
@@ -70,7 +71,7 @@ static void sun3x_82072_fd_outb(unsigned char value, int port)
 //	udelay(5);
 	switch(port & 7) {
 	default:
-		printk("floppy: Asked to write to unknown port %d\n", port);
+		pr_crit("floppy: Asked to write to unknown port %d\n", port);
 		panic("floppy: Port bolixed.");
 	case 2: /* FD_DOR */
 		/* Oh geese, 82072 on the Sun has no DOR register,
@@ -127,7 +128,7 @@ asmlinkage irqreturn_t sun3xflop_hardint(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-//	printk("doing pdma\n");// st %x\n", sun_fdc->status_82072);
+//	pr_info("doing pdma\n");// st %x\n", sun_fdc->status_82072);
 
 #ifdef TRACE_FLPY_INT
 	if(!calls)
@@ -171,7 +172,7 @@ asmlinkage irqreturn_t sun3xflop_hardint(int irq, void *dev_id)
 #ifdef TRACE_FLPY_INT
 	calls++;
 #endif
-//	printk("st=%02x\n", st);
+//	pr_info("st=%02x\n", st);
 	if(st == 0x20)
 		return IRQ_HANDLED;
 	if(!(st & 0x20)) {
@@ -180,9 +181,9 @@ asmlinkage irqreturn_t sun3xflop_hardint(int irq, void *dev_id)
 		doing_pdma = 0;
 
 #ifdef TRACE_FLPY_INT
-		printk("count=%x, residue=%x calls=%d bytes=%x dma_wait=%d\n",
-		       virtual_dma_count, virtual_dma_residue, calls, bytes,
-		       dma_wait);
+		pr_info("count=%x, residue=%x calls=%d bytes=%x dma_wait=%d\n",
+			virtual_dma_count, virtual_dma_residue, calls, bytes,
+			dma_wait);
 		calls = 0;
 		dma_wait=0;
 #endif

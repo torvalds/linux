@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * bdc_cmd.c - BRCM BDC USB3.0 device controller
  *
  * Copyright (C) 2014 Broadcom Corporation
  *
  * Author: Ashwini Pahuja
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
  */
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -57,7 +52,6 @@ static int bdc_submit_cmd(struct bdc *bdc, u32 cmd_sc,
 					u32 param0, u32 param1,	u32 param2)
 {
 	u32 temp, cmd_status;
-	int reset_bdc = 0;
 	int ret;
 
 	temp = bdc_readl(bdc->regs, BDC_CMDSC);
@@ -94,7 +88,6 @@ static int bdc_submit_cmd(struct bdc *bdc, u32 cmd_sc,
 
 	case BDC_CMDS_INTL:
 		dev_err(bdc->dev, "BDC Internal error\n");
-		reset_bdc = 1;
 		ret = -ECONNRESET;
 		break;
 
@@ -102,7 +95,6 @@ static int bdc_submit_cmd(struct bdc *bdc, u32 cmd_sc,
 		dev_err(bdc->dev,
 			"command timedout waited for %dusec\n",
 			BDC_CMD_TIMEOUT);
-		reset_bdc = 1;
 		ret = -ECONNRESET;
 		break;
 	default:
@@ -185,7 +177,7 @@ int bdc_config_ep(struct bdc *bdc, struct bdc_ep *ep)
 					usb_endpoint_xfer_int(desc)) {
 			param2 |= si;
 
-			mbs = (usb_endpoint_maxp(desc) & 0x1800) >> 11;
+			mbs = usb_endpoint_maxp_mult(desc);
 			param2 |= mbs << MB_SHIFT;
 		}
 		break;

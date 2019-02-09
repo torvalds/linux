@@ -19,20 +19,43 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 
+/* Make the addition of cfi info a little easier. */
+	.macro cfi_rel_offset reg offset=0 docfi=0
+	.if \docfi
+	.cfi_rel_offset \reg, \offset
+	.endif
+	.endm
+
+	.macro cfi_st reg offset=0 docfi=0
+	LONG_S	\reg, \offset(sp)
+	cfi_rel_offset \reg, \offset, \docfi
+	.endm
+
+	.macro cfi_restore reg offset=0 docfi=0
+	.if \docfi
+	.cfi_restore \reg
+	.endif
+	.endm
+
+	.macro cfi_ld reg offset=0 docfi=0
+	LONG_L	\reg, \offset(sp)
+	cfi_restore \reg \offset \docfi
+	.endm
+
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 #define STATMASK 0x3f
 #else
 #define STATMASK 0x1f
 #endif
 
-		.macro	SAVE_AT
+		.macro	SAVE_AT docfi=0
 		.set	push
 		.set	noat
-		LONG_S	$1, PT_R1(sp)
+		cfi_st	$1, PT_R1, \docfi
 		.set	pop
 		.endm
 
-		.macro	SAVE_TEMP
+		.macro	SAVE_TEMP docfi=0
 #ifdef CONFIG_CPU_HAS_SMARTMIPS
 		mflhxu	v1
 		LONG_S	v1, PT_LO(sp)
@@ -44,20 +67,20 @@
 		mfhi	v1
 #endif
 #ifdef CONFIG_32BIT
-		LONG_S	$8, PT_R8(sp)
-		LONG_S	$9, PT_R9(sp)
+		cfi_st	$8, PT_R8, \docfi
+		cfi_st	$9, PT_R9, \docfi
 #endif
-		LONG_S	$10, PT_R10(sp)
-		LONG_S	$11, PT_R11(sp)
-		LONG_S	$12, PT_R12(sp)
+		cfi_st	$10, PT_R10, \docfi
+		cfi_st	$11, PT_R11, \docfi
+		cfi_st	$12, PT_R12, \docfi
 #if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
 		LONG_S	v1, PT_HI(sp)
 		mflo	v1
 #endif
-		LONG_S	$13, PT_R13(sp)
-		LONG_S	$14, PT_R14(sp)
-		LONG_S	$15, PT_R15(sp)
-		LONG_S	$24, PT_R24(sp)
+		cfi_st	$13, PT_R13, \docfi
+		cfi_st	$14, PT_R14, \docfi
+		cfi_st	$15, PT_R15, \docfi
+		cfi_st	$24, PT_R24, \docfi
 #if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
 		LONG_S	v1, PT_LO(sp)
 #endif
@@ -71,20 +94,28 @@
 #endif
 		.endm
 
-		.macro	SAVE_STATIC
-		LONG_S	$16, PT_R16(sp)
-		LONG_S	$17, PT_R17(sp)
-		LONG_S	$18, PT_R18(sp)
-		LONG_S	$19, PT_R19(sp)
-		LONG_S	$20, PT_R20(sp)
-		LONG_S	$21, PT_R21(sp)
-		LONG_S	$22, PT_R22(sp)
-		LONG_S	$23, PT_R23(sp)
-		LONG_S	$30, PT_R30(sp)
+		.macro	SAVE_STATIC docfi=0
+		cfi_st	$16, PT_R16, \docfi
+		cfi_st	$17, PT_R17, \docfi
+		cfi_st	$18, PT_R18, \docfi
+		cfi_st	$19, PT_R19, \docfi
+		cfi_st	$20, PT_R20, \docfi
+		cfi_st	$21, PT_R21, \docfi
+		cfi_st	$22, PT_R22, \docfi
+		cfi_st	$23, PT_R23, \docfi
+		cfi_st	$30, PT_R30, \docfi
 		.endm
 
+/*
+ * get_saved_sp returns the SP for the current CPU by looking in the
+ * kernelsp array for it.  If tosp is set, it stores the current sp in
+ * k0 and loads the new value in sp.  If not, it clobbers k0 and
+ * stores the new value in k1, leaving sp unaffected.
+ */
 #ifdef CONFIG_SMP
-		.macro	get_saved_sp	/* SMP variation */
+
+		/* SMP variation */
+		.macro	get_saved_sp docfi=0 tosp=0
 		ASM_CPUID_MFC0	k0, ASM_SMP_CPUID_REG
 #if defined(CONFIG_32BIT) || defined(KBUILD_64BIT_SYM32)
 		lui	k1, %hi(kernelsp)
@@ -97,7 +128,15 @@
 #endif
 		LONG_SRL	k0, SMP_CPUID_PTRSHIFT
 		LONG_ADDU	k1, k0
+		.if \tosp
+		move	k0, sp
+		.if \docfi
+		.cfi_register sp, k0
+		.endif
+		LONG_L	sp, %lo(kernelsp)(k1)
+		.else
 		LONG_L	k1, %lo(kernelsp)(k1)
+		.endif
 		.endm
 
 		.macro	set_saved_sp stackp temp temp2
@@ -106,7 +145,8 @@
 		LONG_S	\stackp, kernelsp(\temp)
 		.endm
 #else /* !CONFIG_SMP */
-		.macro	get_saved_sp	/* Uniprocessor variation */
+		/* Uniprocessor variation */
+		.macro	get_saved_sp docfi=0 tosp=0
 #ifdef CONFIG_CPU_JUMP_WORKAROUNDS
 		/*
 		 * Clear BTB (branch target buffer), forbid RAS (return address
@@ -135,7 +175,15 @@
 		daddiu	k1, %hi(kernelsp)
 		dsll	k1, k1, 16
 #endif
+		.if \tosp
+		move	k0, sp
+		.if \docfi
+		.cfi_register sp, k0
+		.endif
+		LONG_L	sp, %lo(kernelsp)(k1)
+		.else
 		LONG_L	k1, %lo(kernelsp)(k1)
+		.endif
 		.endm
 
 		.macro	set_saved_sp stackp temp temp2
@@ -143,7 +191,7 @@
 		.endm
 #endif
 
-		.macro	SAVE_SOME
+		.macro	SAVE_SOME docfi=0
 		.set	push
 		.set	noat
 		.set	reorder
@@ -151,7 +199,10 @@
 		sll	k0, 3		/* extract cu0 bit */
 		.set	noreorder
 		bltz	k0, 8f
-		 move	k1, sp
+		 move	k0, sp
+		.if \docfi
+		.cfi_register sp, k0
+		.endif
 #ifdef CONFIG_EVA
 		/*
 		 * Flush interAptiv's Return Prediction Stack (RPS) by writing
@@ -179,19 +230,21 @@
 #endif
 		.set	reorder
 		/* Called from user mode, new stack. */
-		get_saved_sp
-#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
-8:		move	k0, sp
-		PTR_SUBU sp, k1, PT_SIZE
-#else
-		.set	at=k0
-8:		PTR_SUBU k1, PT_SIZE
-		.set	noat
-		move	k0, sp
-		move	sp, k1
+		get_saved_sp docfi=\docfi tosp=1
+8:
+#ifdef CONFIG_CPU_DADDI_WORKAROUNDS
+		.set	at=k1
 #endif
-		LONG_S	k0, PT_R29(sp)
-		LONG_S	$3, PT_R3(sp)
+		PTR_SUBU sp, PT_SIZE
+#ifdef CONFIG_CPU_DADDI_WORKAROUNDS
+		.set	noat
+#endif
+		.if \docfi
+		.cfi_def_cfa sp,0
+		.endif
+		cfi_st	k0, PT_R29, \docfi
+		cfi_rel_offset  sp, PT_R29, \docfi
+		cfi_st	v1, PT_R3, \docfi
 		/*
 		 * You might think that you don't need to save $0,
 		 * but the FPU emulator and gdb remote debug stub
@@ -199,47 +252,57 @@
 		 */
 		LONG_S	$0, PT_R0(sp)
 		mfc0	v1, CP0_STATUS
-		LONG_S	$2, PT_R2(sp)
+		cfi_st	v0, PT_R2, \docfi
 		LONG_S	v1, PT_STATUS(sp)
-		LONG_S	$4, PT_R4(sp)
+		cfi_st	$4, PT_R4, \docfi
 		mfc0	v1, CP0_CAUSE
-		LONG_S	$5, PT_R5(sp)
+		cfi_st	$5, PT_R5, \docfi
 		LONG_S	v1, PT_CAUSE(sp)
-		LONG_S	$6, PT_R6(sp)
-		MFC0	v1, CP0_EPC
-		LONG_S	$7, PT_R7(sp)
+		cfi_st	$6, PT_R6, \docfi
+		cfi_st	ra, PT_R31, \docfi
+		MFC0	ra, CP0_EPC
+		cfi_st	$7, PT_R7, \docfi
 #ifdef CONFIG_64BIT
-		LONG_S	$8, PT_R8(sp)
-		LONG_S	$9, PT_R9(sp)
+		cfi_st	$8, PT_R8, \docfi
+		cfi_st	$9, PT_R9, \docfi
 #endif
-		LONG_S	v1, PT_EPC(sp)
-		LONG_S	$25, PT_R25(sp)
-		LONG_S	$28, PT_R28(sp)
-		LONG_S	$31, PT_R31(sp)
+		LONG_S	ra, PT_EPC(sp)
+		.if \docfi
+		.cfi_rel_offset ra, PT_EPC
+		.endif
+		cfi_st	$25, PT_R25, \docfi
+		cfi_st	$28, PT_R28, \docfi
+
+		/* Set thread_info if we're coming from user mode */
+		mfc0	k0, CP0_STATUS
+		sll	k0, 3		/* extract cu0 bit */
+		bltz	k0, 9f
+
 		ori	$28, sp, _THREAD_MASK
 		xori	$28, _THREAD_MASK
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 		.set    mips64
 		pref    0, 0($28)       /* Prefetch the current pointer */
 #endif
+9:
 		.set	pop
 		.endm
 
-		.macro	SAVE_ALL
-		SAVE_SOME
-		SAVE_AT
-		SAVE_TEMP
-		SAVE_STATIC
+		.macro	SAVE_ALL docfi=0
+		SAVE_SOME \docfi
+		SAVE_AT \docfi
+		SAVE_TEMP \docfi
+		SAVE_STATIC \docfi
 		.endm
 
-		.macro	RESTORE_AT
+		.macro	RESTORE_AT docfi=0
 		.set	push
 		.set	noat
-		LONG_L	$1,  PT_R1(sp)
+		cfi_ld	$1, PT_R1, \docfi
 		.set	pop
 		.endm
 
-		.macro	RESTORE_TEMP
+		.macro	RESTORE_TEMP docfi=0
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 		/* Restore the Octeon multiplier state */
 		jal	octeon_mult_restore
@@ -258,38 +321,42 @@
 		mthi	$24
 #endif
 #ifdef CONFIG_32BIT
-		LONG_L	$8, PT_R8(sp)
-		LONG_L	$9, PT_R9(sp)
+		cfi_ld	$8, PT_R8, \docfi
+		cfi_ld	$9, PT_R9, \docfi
 #endif
-		LONG_L	$10, PT_R10(sp)
-		LONG_L	$11, PT_R11(sp)
-		LONG_L	$12, PT_R12(sp)
-		LONG_L	$13, PT_R13(sp)
-		LONG_L	$14, PT_R14(sp)
-		LONG_L	$15, PT_R15(sp)
-		LONG_L	$24, PT_R24(sp)
+		cfi_ld	$10, PT_R10, \docfi
+		cfi_ld	$11, PT_R11, \docfi
+		cfi_ld	$12, PT_R12, \docfi
+		cfi_ld	$13, PT_R13, \docfi
+		cfi_ld	$14, PT_R14, \docfi
+		cfi_ld	$15, PT_R15, \docfi
+		cfi_ld	$24, PT_R24, \docfi
 		.endm
 
-		.macro	RESTORE_STATIC
-		LONG_L	$16, PT_R16(sp)
-		LONG_L	$17, PT_R17(sp)
-		LONG_L	$18, PT_R18(sp)
-		LONG_L	$19, PT_R19(sp)
-		LONG_L	$20, PT_R20(sp)
-		LONG_L	$21, PT_R21(sp)
-		LONG_L	$22, PT_R22(sp)
-		LONG_L	$23, PT_R23(sp)
-		LONG_L	$30, PT_R30(sp)
+		.macro	RESTORE_STATIC docfi=0
+		cfi_ld	$16, PT_R16, \docfi
+		cfi_ld	$17, PT_R17, \docfi
+		cfi_ld	$18, PT_R18, \docfi
+		cfi_ld	$19, PT_R19, \docfi
+		cfi_ld	$20, PT_R20, \docfi
+		cfi_ld	$21, PT_R21, \docfi
+		cfi_ld	$22, PT_R22, \docfi
+		cfi_ld	$23, PT_R23, \docfi
+		cfi_ld	$30, PT_R30, \docfi
+		.endm
+
+		.macro	RESTORE_SP docfi=0
+		cfi_ld	sp, PT_R29, \docfi
 		.endm
 
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 
-		.macro	RESTORE_SOME
+		.macro	RESTORE_SOME docfi=0
 		.set	push
 		.set	reorder
 		.set	noat
 		mfc0	a0, CP0_STATUS
-		li	v1, 0xff00
+		li	v1, ST0_CU1 | ST0_IM
 		ori	a0, STATMASK
 		xori	a0, STATMASK
 		mtc0	a0, CP0_STATUS
@@ -299,30 +366,30 @@
 		and	v0, v1
 		or	v0, a0
 		mtc0	v0, CP0_STATUS
-		LONG_L	$31, PT_R31(sp)
-		LONG_L	$28, PT_R28(sp)
-		LONG_L	$25, PT_R25(sp)
-		LONG_L	$7,  PT_R7(sp)
-		LONG_L	$6,  PT_R6(sp)
-		LONG_L	$5,  PT_R5(sp)
-		LONG_L	$4,  PT_R4(sp)
-		LONG_L	$3,  PT_R3(sp)
-		LONG_L	$2,  PT_R2(sp)
+		cfi_ld	$31, PT_R31, \docfi
+		cfi_ld	$28, PT_R28, \docfi
+		cfi_ld	$25, PT_R25, \docfi
+		cfi_ld	$7,  PT_R7, \docfi
+		cfi_ld	$6,  PT_R6, \docfi
+		cfi_ld	$5,  PT_R5, \docfi
+		cfi_ld	$4,  PT_R4, \docfi
+		cfi_ld	$3,  PT_R3, \docfi
+		cfi_ld	$2,  PT_R2, \docfi
 		.set	pop
 		.endm
 
-		.macro	RESTORE_SP_AND_RET
+		.macro	RESTORE_SP_AND_RET docfi=0
 		.set	push
 		.set	noreorder
 		LONG_L	k0, PT_EPC(sp)
-		LONG_L	sp, PT_R29(sp)
+		RESTORE_SP \docfi
 		jr	k0
 		 rfe
 		.set	pop
 		.endm
 
 #else
-		.macro	RESTORE_SOME
+		.macro	RESTORE_SOME docfi=0
 		.set	push
 		.set	reorder
 		.set	noat
@@ -330,7 +397,7 @@
 		ori	a0, STATMASK
 		xori	a0, STATMASK
 		mtc0	a0, CP0_STATUS
-		li	v1, 0xff00
+		li	v1, ST0_CU1 | ST0_FR | ST0_IM
 		and	a0, v1
 		LONG_L	v0, PT_STATUS(sp)
 		nor	v1, $0, v1
@@ -339,49 +406,41 @@
 		mtc0	v0, CP0_STATUS
 		LONG_L	v1, PT_EPC(sp)
 		MTC0	v1, CP0_EPC
-		LONG_L	$31, PT_R31(sp)
-		LONG_L	$28, PT_R28(sp)
-		LONG_L	$25, PT_R25(sp)
+		cfi_ld	$31, PT_R31, \docfi
+		cfi_ld	$28, PT_R28, \docfi
+		cfi_ld	$25, PT_R25, \docfi
 #ifdef CONFIG_64BIT
-		LONG_L	$8, PT_R8(sp)
-		LONG_L	$9, PT_R9(sp)
+		cfi_ld	$8, PT_R8, \docfi
+		cfi_ld	$9, PT_R9, \docfi
 #endif
-		LONG_L	$7,  PT_R7(sp)
-		LONG_L	$6,  PT_R6(sp)
-		LONG_L	$5,  PT_R5(sp)
-		LONG_L	$4,  PT_R4(sp)
-		LONG_L	$3,  PT_R3(sp)
-		LONG_L	$2,  PT_R2(sp)
+		cfi_ld	$7,  PT_R7, \docfi
+		cfi_ld	$6,  PT_R6, \docfi
+		cfi_ld	$5,  PT_R5, \docfi
+		cfi_ld	$4,  PT_R4, \docfi
+		cfi_ld	$3,  PT_R3, \docfi
+		cfi_ld	$2,  PT_R2, \docfi
 		.set	pop
 		.endm
 
-		.macro	RESTORE_SP_AND_RET
-		LONG_L	sp, PT_R29(sp)
+		.macro	RESTORE_SP_AND_RET docfi=0
+		RESTORE_SP \docfi
+#ifdef CONFIG_CPU_MIPSR6
+		eretnc
+#else
 		.set	arch=r4000
 		eret
 		.set	mips0
+#endif
 		.endm
 
 #endif
 
-		.macro	RESTORE_SP
-		LONG_L	sp, PT_R29(sp)
-		.endm
-
-		.macro	RESTORE_ALL
-		RESTORE_TEMP
-		RESTORE_STATIC
-		RESTORE_AT
-		RESTORE_SOME
-		RESTORE_SP
-		.endm
-
-		.macro	RESTORE_ALL_AND_RET
-		RESTORE_TEMP
-		RESTORE_STATIC
-		RESTORE_AT
-		RESTORE_SOME
-		RESTORE_SP_AND_RET
+		.macro	RESTORE_ALL docfi=0
+		RESTORE_TEMP \docfi
+		RESTORE_STATIC \docfi
+		RESTORE_AT \docfi
+		RESTORE_SOME \docfi
+		RESTORE_SP \docfi
 		.endm
 
 /*

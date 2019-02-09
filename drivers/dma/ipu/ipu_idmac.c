@@ -910,7 +910,8 @@ out:
 /* Called with ichan->chan_mutex held */
 static int idmac_desc_alloc(struct idmac_channel *ichan, int n)
 {
-	struct idmac_tx_desc *desc = vmalloc(n * sizeof(struct idmac_tx_desc));
+	struct idmac_tx_desc *desc =
+		vmalloc(array_size(n, sizeof(struct idmac_tx_desc)));
 	struct idmac *idmac = to_idmac(ichan->dma_chan.device);
 
 	if (!desc)
@@ -1160,11 +1161,10 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	struct scatterlist **sg, *sgnext, *sgnew = NULL;
 	/* Next transfer descriptor */
 	struct idmac_tx_desc *desc, *descnew;
-	dma_async_tx_callback callback;
-	void *callback_param;
 	bool done = false;
 	u32 ready0, ready1, curbuf, err;
 	unsigned long flags;
+	struct dmaengine_desc_callback cb;
 
 	/* IDMAC has cleared the respective BUFx_RDY bit, we manage the buffer */
 
@@ -1278,12 +1278,12 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 
 	if (likely(sgnew) &&
 	    ipu_submit_buffer(ichan, descnew, sgnew, ichan->active_buffer) < 0) {
-		callback = descnew->txd.callback;
-		callback_param = descnew->txd.callback_param;
+		dmaengine_desc_get_callback(&descnew->txd, &cb);
+
 		list_del_init(&descnew->list);
 		spin_unlock(&ichan->lock);
-		if (callback)
-			callback(callback_param);
+
+		dmaengine_desc_callback_invoke(&cb, NULL);
 		spin_lock(&ichan->lock);
 	}
 
@@ -1292,13 +1292,12 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	if (done)
 		dma_cookie_complete(&desc->txd);
 
-	callback = desc->txd.callback;
-	callback_param = desc->txd.callback_param;
+	dmaengine_desc_get_callback(&desc->txd, &cb);
 
 	spin_unlock(&ichan->lock);
 
-	if (done && (desc->txd.flags & DMA_PREP_INTERRUPT) && callback)
-		callback(callback_param);
+	if (done && (desc->txd.flags & DMA_PREP_INTERRUPT))
+		dmaengine_desc_callback_invoke(&cb, NULL);
 
 	return IRQ_HANDLED;
 }

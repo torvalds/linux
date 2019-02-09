@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_LIST_NULLS_H
 #define _LINUX_LIST_NULLS_H
 
@@ -29,6 +30,11 @@ struct hlist_nulls_node {
 	((ptr)->first = (struct hlist_nulls_node *) NULLS_MARKER(nulls))
 
 #define hlist_nulls_entry(ptr, type, member) container_of(ptr,type,member)
+
+#define hlist_nulls_entry_safe(ptr, type, member) \
+	({ typeof(ptr) ____ptr = (ptr); \
+	   !is_a_nulls(____ptr) ? hlist_nulls_entry(____ptr, type, member) : NULL; \
+	})
 /**
  * ptr_is_a_nulls - Test if a ptr is a nulls
  * @ptr: ptr to be tested
@@ -57,7 +63,7 @@ static inline int hlist_nulls_unhashed(const struct hlist_nulls_node *h)
 
 static inline int hlist_nulls_empty(const struct hlist_nulls_head *h)
 {
-	return is_a_nulls(h->first);
+	return is_a_nulls(READ_ONCE(h->first));
 }
 
 static inline void hlist_nulls_add_head(struct hlist_nulls_node *n,

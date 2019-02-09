@@ -10,7 +10,7 @@ Required properties:
 			subsystem (mmcss) inside the FlashSS (available in STiH407 SoC
 			family).
 
-- clock-names:		Should be "mmc".
+- clock-names:		Should be "mmc" and "icn".  (NB: The latter is not compulsory)
 			See: Documentation/devicetree/bindings/resource-names.txt
 - clocks:		Phandle to the clock.
 			See: Documentation/devicetree/bindings/clock/clock-bindings.txt
@@ -20,7 +20,7 @@ Required properties:
 
 - pinctrl-names:	A pinctrl state names "default" must be defined.
 - pinctrl-0:		Phandle referencing pin configuration of the sd/emmc controller.
-			See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+			See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 - reg:			This must provide the host controller base address and it can also
 			contain the FlashSS Top register for TX/RX delay used by the driver
@@ -38,7 +38,7 @@ Optional properties:
 - bus-width:		Number of data lines.
 			See:  Documentation/devicetree/bindings/mmc/mmc.txt.
 
-- max-frequency: 	Can be 200MHz, 100Mz or 50MHz (default) and used for
+- max-frequency:	Can be 200MHz, 100MHz or 50MHz (default) and used for
 			configuring the CCONFIG3 in the mmcss.
 			See:  Documentation/devicetree/bindings/mmc/mmc.txt.
 
@@ -48,7 +48,7 @@ Optional properties:
 - vqmmc-supply:		Phandle to the regulator dt node, mentioned as the vcc/vdd
 			supply in eMMC/SD specs.
 
-- sd-uhs--sdr50:	To enable the SDR50 in the mmcss.
+- sd-uhs-sdr50:	To enable the SDR50 in the mmcss.
 			See:  Documentation/devicetree/bindings/mmc/mmc.txt.
 
 - sd-uhs-sdr104:	To enable the SDR104 in the mmcss.
@@ -63,7 +63,6 @@ Example:
 
 mmc0: sdhci@fe81e000 {
 	compatible	= "st,sdhci";
-	status		= "disabled";
 	reg		= <0xfe81e000 0x1000>;
 	interrupts	= <GIC_SPI 127 IRQ_TYPE_NONE>;
 	interrupt-names	= "mmcirq";
@@ -75,9 +74,8 @@ mmc0: sdhci@fe81e000 {
 
 /* Example SD stih407 family configuration */
 
-mmc1: sdhci@09080000 {
+mmc1: sdhci@9080000 {
 	compatible	= "st,sdhci-stih407", "st,sdhci";
-	status		= "disabled";
 	reg		= <0x09080000 0x7ff>;
 	reg-names	= "mmc";
 	interrupts	= <GIC_SPI 90 IRQ_TYPE_NONE>;
@@ -92,9 +90,8 @@ mmc1: sdhci@09080000 {
 
 /* Example eMMC stih407 family configuration */
 
-mmc0: sdhci@09060000 {
+mmc0: sdhci@9060000 {
 	compatible	= "st,sdhci-stih407", "st,sdhci";
-	status		= "disabled";
 	reg		= <0x09060000 0x7ff>, <0x9061008 0x20>;
 	reg-names	= "mmc", "top-mmc-delay";
 	interrupts	= <GIC_SPI 92 IRQ_TYPE_NONE>;

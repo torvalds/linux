@@ -6,7 +6,7 @@
  *
  * License 1: GPLv2
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
  *
  * License 2: Modified BSD
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -146,6 +146,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("tx_broadcast_packets", txbroadcastframes_gb),
 	XGMAC_MMC_STAT("tx_multicast_packets", txmulticastframes_gb),
 	XGMAC_MMC_STAT("tx_vlan_packets", txvlanframes_g),
+	XGMAC_EXT_STAT("tx_vxlan_packets", tx_vxlan_packets),
 	XGMAC_EXT_STAT("tx_tso_packets", tx_tso_packets),
 	XGMAC_MMC_STAT("tx_64_byte_packets", tx64octets_gb),
 	XGMAC_MMC_STAT("tx_65_to_127_byte_packets", tx65to127octets_gb),
@@ -162,6 +163,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("rx_broadcast_packets", rxbroadcastframes_g),
 	XGMAC_MMC_STAT("rx_multicast_packets", rxmulticastframes_g),
 	XGMAC_MMC_STAT("rx_vlan_packets", rxvlanframes_gb),
+	XGMAC_EXT_STAT("rx_vxlan_packets", rx_vxlan_packets),
 	XGMAC_MMC_STAT("rx_64_byte_packets", rx64octets_gb),
 	XGMAC_MMC_STAT("rx_65_to_127_byte_packets", rx65to127octets_gb),
 	XGMAC_MMC_STAT("rx_128_to_255_byte_packets", rx128to255octets_gb),
@@ -177,6 +179,8 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("rx_out_of_range_errors", rxoutofrangetype),
 	XGMAC_MMC_STAT("rx_fifo_overflow_errors", rxfifooverflow),
 	XGMAC_MMC_STAT("rx_watchdog_errors", rxwatchdogerror),
+	XGMAC_EXT_STAT("rx_csum_errors", rx_csum_errors),
+	XGMAC_EXT_STAT("rx_vxlan_csum_errors", rx_vxlan_csum_errors),
 	XGMAC_MMC_STAT("rx_pause_frames", rxpauseframes),
 	XGMAC_EXT_STAT("rx_split_header_packets", rx_split_header_packets),
 	XGMAC_EXT_STAT("rx_buffer_unavailable", rx_buffer_unavailable),
@@ -186,6 +190,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 
 static void xgbe_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	int i;
 
 	switch (stringset) {
@@ -193,6 +198,18 @@ static void xgbe_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		for (i = 0; i < XGBE_STATS_COUNT; i++) {
 			memcpy(data, xgbe_gstring_stats[i].stat_string,
 			       ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < pdata->tx_ring_count; i++) {
+			sprintf(data, "txq_%u_packets", i);
+			data += ETH_GSTRING_LEN;
+			sprintf(data, "txq_%u_bytes", i);
+			data += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < pdata->rx_ring_count; i++) {
+			sprintf(data, "rxq_%u_packets", i);
+			data += ETH_GSTRING_LEN;
+			sprintf(data, "rxq_%u_bytes", i);
 			data += ETH_GSTRING_LEN;
 		}
 		break;
@@ -211,15 +228,26 @@ static void xgbe_get_ethtool_stats(struct net_device *netdev,
 		stat = (u8 *)pdata + xgbe_gstring_stats[i].stat_offset;
 		*data++ = *(u64 *)stat;
 	}
+	for (i = 0; i < pdata->tx_ring_count; i++) {
+		*data++ = pdata->ext_stats.txq_packets[i];
+		*data++ = pdata->ext_stats.txq_bytes[i];
+	}
+	for (i = 0; i < pdata->rx_ring_count; i++) {
+		*data++ = pdata->ext_stats.rxq_packets[i];
+		*data++ = pdata->ext_stats.rxq_bytes[i];
+	}
 }
 
 static int xgbe_get_sset_count(struct net_device *netdev, int stringset)
 {
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	int ret;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		ret = XGBE_STATS_COUNT;
+		ret = XGBE_STATS_COUNT +
+		      (pdata->tx_ring_count * 2) +
+		      (pdata->rx_ring_count * 2);
 		break;
 
 	default:
@@ -243,11 +271,12 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 			       struct ethtool_pauseparam *pause)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
 	int ret = 0;
 
 	if (pause->autoneg && (pdata->phy.autoneg != AUTONEG_ENABLE)) {
 		netdev_err(netdev,
-			   "autoneg disabled, pause autoneg not avialable\n");
+			   "autoneg disabled, pause autoneg not available\n");
 		return -EINVAL;
 	}
 
@@ -255,16 +284,21 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 	pdata->phy.tx_pause = pause->tx_pause;
 	pdata->phy.rx_pause = pause->rx_pause;
 
-	pdata->phy.advertising &= ~ADVERTISED_Pause;
-	pdata->phy.advertising &= ~ADVERTISED_Asym_Pause;
+	XGBE_CLR_ADV(lks, Pause);
+	XGBE_CLR_ADV(lks, Asym_Pause);
 
 	if (pause->rx_pause) {
-		pdata->phy.advertising |= ADVERTISED_Pause;
-		pdata->phy.advertising |= ADVERTISED_Asym_Pause;
+		XGBE_SET_ADV(lks, Pause);
+		XGBE_SET_ADV(lks, Asym_Pause);
 	}
 
-	if (pause->tx_pause)
-		pdata->phy.advertising ^= ADVERTISED_Asym_Pause;
+	if (pause->tx_pause) {
+		/* Equivalent to XOR of Asym_Pause */
+		if (XGBE_ADV(lks, Asym_Pause))
+			XGBE_CLR_ADV(lks, Asym_Pause);
+		else
+			XGBE_SET_ADV(lks, Asym_Pause);
+	}
 
 	if (netif_running(netdev))
 		ret = pdata->phy_if.phy_config_aneg(pdata);
@@ -272,88 +306,91 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 	return ret;
 }
 
-static int xgbe_get_settings(struct net_device *netdev,
-			     struct ethtool_cmd *cmd)
+static int xgbe_get_link_ksettings(struct net_device *netdev,
+				   struct ethtool_link_ksettings *cmd)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
 
-	cmd->phy_address = pdata->phy.address;
+	cmd->base.phy_address = pdata->phy.address;
 
-	cmd->supported = pdata->phy.supported;
-	cmd->advertising = pdata->phy.advertising;
-	cmd->lp_advertising = pdata->phy.lp_advertising;
+	cmd->base.autoneg = pdata->phy.autoneg;
+	cmd->base.speed = pdata->phy.speed;
+	cmd->base.duplex = pdata->phy.duplex;
 
-	cmd->autoneg = pdata->phy.autoneg;
-	ethtool_cmd_speed_set(cmd, pdata->phy.speed);
-	cmd->duplex = pdata->phy.duplex;
+	cmd->base.port = PORT_NONE;
 
-	cmd->port = PORT_NONE;
-	cmd->transceiver = XCVR_INTERNAL;
+	XGBE_LM_COPY(cmd, supported, lks, supported);
+	XGBE_LM_COPY(cmd, advertising, lks, advertising);
+	XGBE_LM_COPY(cmd, lp_advertising, lks, lp_advertising);
 
 	return 0;
 }
 
-static int xgbe_set_settings(struct net_device *netdev,
-			     struct ethtool_cmd *cmd)
+static int xgbe_set_link_ksettings(struct net_device *netdev,
+				   const struct ethtool_link_ksettings *cmd)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 	u32 speed;
 	int ret;
 
-	speed = ethtool_cmd_speed(cmd);
+	speed = cmd->base.speed;
 
-	if (cmd->phy_address != pdata->phy.address) {
+	if (cmd->base.phy_address != pdata->phy.address) {
 		netdev_err(netdev, "invalid phy address %hhu\n",
-			   cmd->phy_address);
+			   cmd->base.phy_address);
 		return -EINVAL;
 	}
 
-	if ((cmd->autoneg != AUTONEG_ENABLE) &&
-	    (cmd->autoneg != AUTONEG_DISABLE)) {
+	if ((cmd->base.autoneg != AUTONEG_ENABLE) &&
+	    (cmd->base.autoneg != AUTONEG_DISABLE)) {
 		netdev_err(netdev, "unsupported autoneg %hhu\n",
-			   cmd->autoneg);
+			   cmd->base.autoneg);
 		return -EINVAL;
 	}
 
-	if (cmd->autoneg == AUTONEG_DISABLE) {
-		switch (speed) {
-		case SPEED_10000:
-		case SPEED_2500:
-		case SPEED_1000:
-			break;
-		default:
+	if (cmd->base.autoneg == AUTONEG_DISABLE) {
+		if (!pdata->phy_if.phy_valid_speed(pdata, speed)) {
 			netdev_err(netdev, "unsupported speed %u\n", speed);
 			return -EINVAL;
 		}
 
-		if (cmd->duplex != DUPLEX_FULL) {
+		if (cmd->base.duplex != DUPLEX_FULL) {
 			netdev_err(netdev, "unsupported duplex %hhu\n",
-				   cmd->duplex);
+				   cmd->base.duplex);
 			return -EINVAL;
 		}
 	}
 
 	netif_dbg(pdata, link, netdev,
-		  "requested advertisement %#x, phy supported %#x\n",
-		  cmd->advertising, pdata->phy.supported);
+		  "requested advertisement 0x%*pb, phy supported 0x%*pb\n",
+		  __ETHTOOL_LINK_MODE_MASK_NBITS, cmd->link_modes.advertising,
+		  __ETHTOOL_LINK_MODE_MASK_NBITS, lks->link_modes.supported);
 
-	cmd->advertising &= pdata->phy.supported;
-	if ((cmd->autoneg == AUTONEG_ENABLE) && !cmd->advertising) {
+	bitmap_and(advertising,
+		   cmd->link_modes.advertising, lks->link_modes.supported,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+
+	if ((cmd->base.autoneg == AUTONEG_ENABLE) &&
+	    bitmap_empty(advertising, __ETHTOOL_LINK_MODE_MASK_NBITS)) {
 		netdev_err(netdev,
 			   "unsupported requested advertisement\n");
 		return -EINVAL;
 	}
 
 	ret = 0;
-	pdata->phy.autoneg = cmd->autoneg;
+	pdata->phy.autoneg = cmd->base.autoneg;
 	pdata->phy.speed = speed;
-	pdata->phy.duplex = cmd->duplex;
-	pdata->phy.advertising = cmd->advertising;
+	pdata->phy.duplex = cmd->base.duplex;
+	bitmap_copy(lks->link_modes.advertising, advertising,
+		    __ETHTOOL_LINK_MODE_MASK_NBITS);
 
-	if (cmd->autoneg == AUTONEG_ENABLE)
-		pdata->phy.advertising |= ADVERTISED_Autoneg;
+	if (cmd->base.autoneg == AUTONEG_ENABLE)
+		XGBE_SET_ADV(lks, Autoneg);
 	else
-		pdata->phy.advertising &= ~ADVERTISED_Autoneg;
+		XGBE_CLR_ADV(lks, Autoneg);
 
 	if (netif_running(netdev))
 		ret = pdata->phy_if.phy_config_aneg(pdata);
@@ -589,9 +626,218 @@ static int xgbe_get_ts_info(struct net_device *netdev,
 	return 0;
 }
 
+static int xgbe_get_module_info(struct net_device *netdev,
+				struct ethtool_modinfo *modinfo)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	return pdata->phy_if.module_info(pdata, modinfo);
+}
+
+static int xgbe_get_module_eeprom(struct net_device *netdev,
+				  struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	return pdata->phy_if.module_eeprom(pdata, eeprom, data);
+}
+
+static void xgbe_get_ringparam(struct net_device *netdev,
+			       struct ethtool_ringparam *ringparam)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	ringparam->rx_max_pending = XGBE_RX_DESC_CNT_MAX;
+	ringparam->tx_max_pending = XGBE_TX_DESC_CNT_MAX;
+	ringparam->rx_pending = pdata->rx_desc_count;
+	ringparam->tx_pending = pdata->tx_desc_count;
+}
+
+static int xgbe_set_ringparam(struct net_device *netdev,
+			      struct ethtool_ringparam *ringparam)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int rx, tx;
+
+	if (ringparam->rx_mini_pending || ringparam->rx_jumbo_pending) {
+		netdev_err(netdev, "unsupported ring parameter\n");
+		return -EINVAL;
+	}
+
+	if ((ringparam->rx_pending < XGBE_RX_DESC_CNT_MIN) ||
+	    (ringparam->rx_pending > XGBE_RX_DESC_CNT_MAX)) {
+		netdev_err(netdev,
+			   "rx ring parameter must be between %u and %u\n",
+			   XGBE_RX_DESC_CNT_MIN, XGBE_RX_DESC_CNT_MAX);
+		return -EINVAL;
+	}
+
+	if ((ringparam->tx_pending < XGBE_TX_DESC_CNT_MIN) ||
+	    (ringparam->tx_pending > XGBE_TX_DESC_CNT_MAX)) {
+		netdev_err(netdev,
+			   "tx ring parameter must be between %u and %u\n",
+			   XGBE_TX_DESC_CNT_MIN, XGBE_TX_DESC_CNT_MAX);
+		return -EINVAL;
+	}
+
+	rx = __rounddown_pow_of_two(ringparam->rx_pending);
+	if (rx != ringparam->rx_pending)
+		netdev_notice(netdev,
+			      "rx ring parameter rounded to power of two: %u\n",
+			      rx);
+
+	tx = __rounddown_pow_of_two(ringparam->tx_pending);
+	if (tx != ringparam->tx_pending)
+		netdev_notice(netdev,
+			      "tx ring parameter rounded to power of two: %u\n",
+			      tx);
+
+	if ((rx == pdata->rx_desc_count) &&
+	    (tx == pdata->tx_desc_count))
+		goto out;
+
+	pdata->rx_desc_count = rx;
+	pdata->tx_desc_count = tx;
+
+	xgbe_restart_dev(pdata);
+
+out:
+	return 0;
+}
+
+static void xgbe_get_channels(struct net_device *netdev,
+			      struct ethtool_channels *channels)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int rx, tx, combined;
+
+	/* Calculate maximums allowed:
+	 *   - Take into account the number of available IRQs
+	 *   - Do not take into account the number of online CPUs so that
+	 *     the user can over-subscribe if desired
+	 *   - Tx is additionally limited by the number of hardware queues
+	 */
+	rx = min(pdata->hw_feat.rx_ch_cnt, pdata->rx_max_channel_count);
+	rx = min(rx, pdata->channel_irq_count);
+	tx = min(pdata->hw_feat.tx_ch_cnt, pdata->tx_max_channel_count);
+	tx = min(tx, pdata->channel_irq_count);
+	tx = min(tx, pdata->tx_max_q_count);
+
+	combined = min(rx, tx);
+
+	channels->max_combined = combined;
+	channels->max_rx = rx ? rx - 1 : 0;
+	channels->max_tx = tx ? tx - 1 : 0;
+
+	/* Get current settings based on device state */
+	rx = pdata->new_rx_ring_count ? : pdata->rx_ring_count;
+	tx = pdata->new_tx_ring_count ? : pdata->tx_ring_count;
+
+	combined = min(rx, tx);
+	rx -= combined;
+	tx -= combined;
+
+	channels->combined_count = combined;
+	channels->rx_count = rx;
+	channels->tx_count = tx;
+}
+
+static void xgbe_print_set_channels_input(struct net_device *netdev,
+					  struct ethtool_channels *channels)
+{
+	netdev_err(netdev, "channel inputs: combined=%u, rx-only=%u, tx-only=%u\n",
+		   channels->combined_count, channels->rx_count,
+		   channels->tx_count);
+}
+
+static int xgbe_set_channels(struct net_device *netdev,
+			     struct ethtool_channels *channels)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int rx, rx_curr, tx, tx_curr, combined;
+
+	/* Calculate maximums allowed:
+	 *   - Take into account the number of available IRQs
+	 *   - Do not take into account the number of online CPUs so that
+	 *     the user can over-subscribe if desired
+	 *   - Tx is additionally limited by the number of hardware queues
+	 */
+	rx = min(pdata->hw_feat.rx_ch_cnt, pdata->rx_max_channel_count);
+	rx = min(rx, pdata->channel_irq_count);
+	tx = min(pdata->hw_feat.tx_ch_cnt, pdata->tx_max_channel_count);
+	tx = min(tx, pdata->tx_max_q_count);
+	tx = min(tx, pdata->channel_irq_count);
+
+	combined = min(rx, tx);
+
+	/* Should not be setting other count */
+	if (channels->other_count) {
+		netdev_err(netdev,
+			   "other channel count must be zero\n");
+		return -EINVAL;
+	}
+
+	/* Require at least one Combined (Rx and Tx) channel */
+	if (!channels->combined_count) {
+		netdev_err(netdev,
+			   "at least one combined Rx/Tx channel is required\n");
+		xgbe_print_set_channels_input(netdev, channels);
+		return -EINVAL;
+	}
+
+	/* Check combined channels */
+	if (channels->combined_count > combined) {
+		netdev_err(netdev,
+			   "combined channel count cannot exceed %u\n",
+			   combined);
+		xgbe_print_set_channels_input(netdev, channels);
+		return -EINVAL;
+	}
+
+	/* Can have some Rx-only or Tx-only channels, but not both */
+	if (channels->rx_count && channels->tx_count) {
+		netdev_err(netdev,
+			   "cannot specify both Rx-only and Tx-only channels\n");
+		xgbe_print_set_channels_input(netdev, channels);
+		return -EINVAL;
+	}
+
+	/* Check that we don't exceed the maximum number of channels */
+	if ((channels->combined_count + channels->rx_count) > rx) {
+		netdev_err(netdev,
+			   "total Rx channels (%u) requested exceeds maximum available (%u)\n",
+			   channels->combined_count + channels->rx_count, rx);
+		xgbe_print_set_channels_input(netdev, channels);
+		return -EINVAL;
+	}
+
+	if ((channels->combined_count + channels->tx_count) > tx) {
+		netdev_err(netdev,
+			   "total Tx channels (%u) requested exceeds maximum available (%u)\n",
+			   channels->combined_count + channels->tx_count, tx);
+		xgbe_print_set_channels_input(netdev, channels);
+		return -EINVAL;
+	}
+
+	rx = channels->combined_count + channels->rx_count;
+	tx = channels->combined_count + channels->tx_count;
+
+	rx_curr = pdata->new_rx_ring_count ? : pdata->rx_ring_count;
+	tx_curr = pdata->new_tx_ring_count ? : pdata->tx_ring_count;
+
+	if ((rx == rx_curr) && (tx == tx_curr))
+		goto out;
+
+	pdata->new_rx_ring_count = rx;
+	pdata->new_tx_ring_count = tx;
+
+	xgbe_full_restart_dev(pdata);
+
+out:
+	return 0;
+}
+
 static const struct ethtool_ops xgbe_ethtool_ops = {
-	.get_settings = xgbe_get_settings,
-	.set_settings = xgbe_set_settings,
 	.get_drvinfo = xgbe_get_drvinfo,
 	.get_msglevel = xgbe_get_msglevel,
 	.set_msglevel = xgbe_set_msglevel,
@@ -609,9 +855,17 @@ static const struct ethtool_ops xgbe_ethtool_ops = {
 	.get_rxfh = xgbe_get_rxfh,
 	.set_rxfh = xgbe_set_rxfh,
 	.get_ts_info = xgbe_get_ts_info,
+	.get_link_ksettings = xgbe_get_link_ksettings,
+	.set_link_ksettings = xgbe_set_link_ksettings,
+	.get_module_info = xgbe_get_module_info,
+	.get_module_eeprom = xgbe_get_module_eeprom,
+	.get_ringparam = xgbe_get_ringparam,
+	.set_ringparam = xgbe_set_ringparam,
+	.get_channels = xgbe_get_channels,
+	.set_channels = xgbe_set_channels,
 };
 
-struct ethtool_ops *xgbe_get_ethtool_ops(void)
+const struct ethtool_ops *xgbe_get_ethtool_ops(void)
 {
-	return (struct ethtool_ops *)&xgbe_ethtool_ops;
+	return &xgbe_ethtool_ops;
 }

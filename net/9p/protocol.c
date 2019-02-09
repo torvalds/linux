@@ -46,10 +46,15 @@ p9pdu_writef(struct p9_fcall *pdu, int proto_version, const char *fmt, ...);
 void p9stat_free(struct p9_wstat *stbuf)
 {
 	kfree(stbuf->name);
+	stbuf->name = NULL;
 	kfree(stbuf->uid);
+	stbuf->uid = NULL;
 	kfree(stbuf->gid);
+	stbuf->gid = NULL;
 	kfree(stbuf->muid);
+	stbuf->muid = NULL;
 	kfree(stbuf->extension);
+	stbuf->extension = NULL;
 }
 EXPORT_SYMBOL(p9stat_free);
 
@@ -74,7 +79,7 @@ pdu_write_u(struct p9_fcall *pdu, struct iov_iter *from, size_t size)
 {
 	size_t len = min(pdu->capacity - pdu->size, size);
 	struct iov_iter i = *from;
-	if (copy_from_iter(&pdu->sdata[pdu->size], len, &i) != len)
+	if (!copy_from_iter_full(&pdu->sdata[pdu->size], len, &i))
 		len = 0;
 
 	pdu->size += len;
@@ -156,7 +161,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 
 				*sptr = kmalloc(len + 1, GFP_NOFS);
 				if (*sptr == NULL) {
-					errcode = -EFAULT;
+					errcode = -ENOMEM;
 					break;
 				}
 				if (pdu_read(pdu, *sptr, len)) {
@@ -242,8 +247,9 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 								"w", nwname);
 				if (!errcode) {
 					*wnames =
-					    kmalloc(sizeof(char *) * *nwname,
-						    GFP_NOFS);
+					    kmalloc_array(*nwname,
+							  sizeof(char *),
+							  GFP_NOFS);
 					if (!*wnames)
 						errcode = -ENOMEM;
 				}
@@ -285,9 +291,9 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				    p9pdu_readf(pdu, proto_version, "w", nwqid);
 				if (!errcode) {
 					*wqids =
-					    kmalloc(*nwqid *
-						    sizeof(struct p9_qid),
-						    GFP_NOFS);
+					    kmalloc_array(*nwqid,
+							  sizeof(struct p9_qid),
+							  GFP_NOFS);
 					if (*wqids == NULL)
 						errcode = -ENOMEM;
 				}

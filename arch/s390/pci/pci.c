@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2012
  *
@@ -60,17 +61,12 @@ static DEFINE_SPINLOCK(zpci_domain_lock);
 static struct airq_iv *zpci_aisb_iv;
 static struct airq_iv *zpci_aibv[ZPCI_NR_DEVICES];
 
-/* Adapter interrupt definitions */
-static void zpci_irq_handler(struct airq_struct *airq);
+#define ZPCI_IOMAP_ENTRIES						\
+	min(((unsigned long) ZPCI_NR_DEVICES * PCI_BAR_COUNT / 2),	\
+	    ZPCI_IOMAP_MAX_ENTRIES)
 
-static struct airq_struct zpci_airq = {
-	.handler = zpci_irq_handler,
-	.isc = PCI_ISC,
-};
-
-/* I/O Map */
 static DEFINE_SPINLOCK(zpci_iomap_lock);
-static DECLARE_BITMAP(zpci_iomap, ZPCI_IOMAP_MAX_ENTRIES);
+static unsigned long *zpci_iomap_bitmap;
 struct zpci_iomap_entry *zpci_iomap_start;
 EXPORT_SYMBOL_GPL(zpci_iomap_start);
 
@@ -89,6 +85,25 @@ struct zpci_dev *get_zdev_by_fid(u32 fid)
 	}
 	spin_unlock(&zpci_list_lock);
 	return zdev;
+}
+
+void zpci_remove_reserved_devices(void)
+{
+	struct zpci_dev *tmp, *zdev;
+	enum zpci_state state;
+	LIST_HEAD(remove);
+
+	spin_lock(&zpci_list_lock);
+	list_for_each_entry_safe(zdev, tmp, &zpci_list, entry) {
+		if (zdev->state == ZPCI_FN_STATE_STANDBY &&
+		    !clp_get_state(zdev->fid, &state) &&
+		    state == ZPCI_FN_STATE_RESERVED)
+			list_move_tail(&zdev->entry, &remove);
+	}
+	spin_unlock(&zpci_list_lock);
+
+	list_for_each_entry_safe(zdev, tmp, &remove, entry)
+		zpci_remove_device(zdev);
 }
 
 static struct zpci_dev *get_zdev_by_bus(struct pci_bus *bus)
@@ -113,6 +128,7 @@ static int zpci_set_airq(struct zpci_dev *zdev)
 {
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_REG_INT);
 	struct zpci_fib fib = {0};
+	u8 status;
 
 	fib.isc = PCI_ISC;
 	fib.sum = 1;		/* enable summary notifications */
@@ -122,62 +138,60 @@ static int zpci_set_airq(struct zpci_dev *zdev)
 	fib.aisb = (unsigned long) zpci_aisb_iv->vector + (zdev->aisb/64)*8;
 	fib.aisbo = zdev->aisb & 63;
 
-	return zpci_mod_fc(req, &fib);
+	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;
 }
 
-struct mod_pci_args {
-	u64 base;
-	u64 limit;
-	u64 iota;
-	u64 fmb_addr;
-};
-
-static int mod_pci(struct zpci_dev *zdev, int fn, u8 dmaas, struct mod_pci_args *args)
+/* Modify PCI: Unregister adapter interruptions */
+static int zpci_clear_airq(struct zpci_dev *zdev)
 {
-	u64 req = ZPCI_CREATE_REQ(zdev->fh, dmaas, fn);
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_DEREG_INT);
 	struct zpci_fib fib = {0};
+	u8 cc, status;
 
-	fib.pba = args->base;
-	fib.pal = args->limit;
-	fib.iota = args->iota;
-	fib.fmb_addr = args->fmb_addr;
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc == 3 || (cc == 1 && status == 24))
+		/* Function already gone or IRQs already deregistered. */
+		cc = 0;
 
-	return zpci_mod_fc(req, &fib);
+	return cc ? -EIO : 0;
 }
 
 /* Modify PCI: Register I/O address translation parameters */
 int zpci_register_ioat(struct zpci_dev *zdev, u8 dmaas,
 		       u64 base, u64 limit, u64 iota)
 {
-	struct mod_pci_args args = { base, limit, iota, 0 };
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, dmaas, ZPCI_MOD_FC_REG_IOAT);
+	struct zpci_fib fib = {0};
+	u8 status;
 
 	WARN_ON_ONCE(iota & 0x3fff);
-	args.iota |= ZPCI_IOTA_RTTO_FLAG;
-	return mod_pci(zdev, ZPCI_MOD_FC_REG_IOAT, dmaas, &args);
+	fib.pba = base;
+	fib.pal = limit;
+	fib.iota = iota | ZPCI_IOTA_RTTO_FLAG;
+	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;
 }
 
 /* Modify PCI: Unregister I/O address translation parameters */
 int zpci_unregister_ioat(struct zpci_dev *zdev, u8 dmaas)
 {
-	struct mod_pci_args args = { 0, 0, 0, 0 };
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, dmaas, ZPCI_MOD_FC_DEREG_IOAT);
+	struct zpci_fib fib = {0};
+	u8 cc, status;
 
-	return mod_pci(zdev, ZPCI_MOD_FC_DEREG_IOAT, dmaas, &args);
-}
-
-/* Modify PCI: Unregister adapter interruptions */
-static int zpci_clear_airq(struct zpci_dev *zdev)
-{
-	struct mod_pci_args args = { 0, 0, 0, 0 };
-
-	return mod_pci(zdev, ZPCI_MOD_FC_DEREG_INT, 0, &args);
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc == 3) /* Function already gone. */
+		cc = 0;
+	return cc ? -EIO : 0;
 }
 
 /* Modify PCI: Set PCI function measurement parameters */
 int zpci_fmb_enable_device(struct zpci_dev *zdev)
 {
-	struct mod_pci_args args = { 0, 0, 0, 0 };
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_SET_MEASURE);
+	struct zpci_fib fib = {0};
+	u8 cc, status;
 
-	if (zdev->fmb)
+	if (zdev->fmb || sizeof(*zdev->fmb) < zdev->fmb_length)
 		return -EINVAL;
 
 	zdev->fmb = kmem_cache_zalloc(zdev_fmb_cache, GFP_KERNEL);
@@ -190,28 +204,36 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 	atomic64_set(&zdev->mapped_pages, 0);
 	atomic64_set(&zdev->unmapped_pages, 0);
 
-	args.fmb_addr = virt_to_phys(zdev->fmb);
-	return mod_pci(zdev, ZPCI_MOD_FC_SET_MEASURE, 0, &args);
+	fib.fmb_addr = virt_to_phys(zdev->fmb);
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc) {
+		kmem_cache_free(zdev_fmb_cache, zdev->fmb);
+		zdev->fmb = NULL;
+	}
+	return cc ? -EIO : 0;
 }
 
 /* Modify PCI: Disable PCI function measurement */
 int zpci_fmb_disable_device(struct zpci_dev *zdev)
 {
-	struct mod_pci_args args = { 0, 0, 0, 0 };
-	int rc;
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_SET_MEASURE);
+	struct zpci_fib fib = {0};
+	u8 cc, status;
 
 	if (!zdev->fmb)
 		return -EINVAL;
 
 	/* Function measurement is disabled if fmb address is zero */
-	rc = mod_pci(zdev, ZPCI_MOD_FC_SET_MEASURE, 0, &args);
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc == 3) /* Function already gone. */
+		cc = 0;
 
-	kmem_cache_free(zdev_fmb_cache, zdev->fmb);
-	zdev->fmb = NULL;
-	return rc;
+	if (!cc) {
+		kmem_cache_free(zdev_fmb_cache, zdev->fmb);
+		zdev->fmb = NULL;
+	}
+	return cc ? -EIO : 0;
 }
-
-#define ZPCI_PCIAS_CFGSPC	15
 
 static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
 {
@@ -221,8 +243,8 @@ static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
 
 	rc = zpci_load(&data, req, offset);
 	if (!rc) {
-		data = data << ((8 - len) * 8);
-		data = le64_to_cpu(data);
+		data = le64_to_cpu((__force __le64) data);
+		data >>= (8 - len) * 8;
 		*val = (u32) data;
 	} else
 		*val = 0xffffffff;
@@ -235,14 +257,10 @@ static int zpci_cfg_store(struct zpci_dev *zdev, int offset, u32 val, u8 len)
 	u64 data = val;
 	int rc;
 
-	data = cpu_to_le64(data);
-	data = data >> ((8 - len) * 8);
+	data <<= (8 - len) * 8;
+	data = (__force u64) cpu_to_le64(data);
 	rc = zpci_store(data, req, offset);
 	return rc;
-}
-
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
 }
 
 resource_size_t pcibios_align_resource(void *data, const struct resource *res,
@@ -265,27 +283,20 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 			      unsigned long max)
 {
 	struct zpci_dev *zdev =	to_zpci(pdev);
-	u64 addr;
 	int idx;
 
-	if ((bar & 7) != bar)
+	if (!pci_resource_len(pdev, bar))
 		return NULL;
 
 	idx = zdev->bars[bar].map_idx;
 	spin_lock(&zpci_iomap_lock);
-	if (zpci_iomap_start[idx].count++) {
-		BUG_ON(zpci_iomap_start[idx].fh != zdev->fh ||
-		       zpci_iomap_start[idx].bar != bar);
-	} else {
-		zpci_iomap_start[idx].fh = zdev->fh;
-		zpci_iomap_start[idx].bar = bar;
-	}
 	/* Detect overrun */
-	BUG_ON(!zpci_iomap_start[idx].count);
+	WARN_ON(!++zpci_iomap_start[idx].count);
+	zpci_iomap_start[idx].fh = zdev->fh;
+	zpci_iomap_start[idx].bar = bar;
 	spin_unlock(&zpci_iomap_lock);
 
-	addr = ZPCI_IOMAP_ADDR_BASE | ((u64) idx << 48);
-	return (void __iomem *) addr + offset;
+	return (void __iomem *) ZPCI_ADDR(idx) + offset;
 }
 EXPORT_SYMBOL(pci_iomap_range);
 
@@ -297,12 +308,11 @@ EXPORT_SYMBOL(pci_iomap);
 
 void pci_iounmap(struct pci_dev *pdev, void __iomem *addr)
 {
-	unsigned int idx;
+	unsigned int idx = ZPCI_IDX(addr);
 
-	idx = (((__force u64) addr) & ~ZPCI_IOMAP_ADDR_BASE) >> 48;
 	spin_lock(&zpci_iomap_lock);
 	/* Detect underrun */
-	BUG_ON(!zpci_iomap_start[idx].count);
+	WARN_ON(!zpci_iomap_start[idx].count);
 	if (!--zpci_iomap_start[idx].count) {
 		zpci_iomap_start[idx].fh = 0;
 		zpci_iomap_start[idx].bar = 0;
@@ -359,7 +369,8 @@ static void zpci_irq_handler(struct airq_struct *airq)
 				/* End of second scan with interrupts on. */
 				break;
 			/* First scan complete, reenable interrupts. */
-			zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC);
+			if (zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC))
+				break;
 			si = 0;
 			continue;
 		}
@@ -387,22 +398,21 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	struct msi_msg msg;
 	int rc, irq;
 
+	zdev->aisb = -1UL;
 	if (type == PCI_CAP_ID_MSI && nvec > 1)
 		return 1;
 	msi_vecs = min_t(unsigned int, nvec, zdev->max_msi);
 
 	/* Allocate adapter summary indicator bit */
-	rc = -EIO;
 	aisb = airq_iv_alloc_bit(zpci_aisb_iv);
 	if (aisb == -1UL)
-		goto out;
+		return -EIO;
 	zdev->aisb = aisb;
 
 	/* Create adapter interrupt vector */
-	rc = -ENOMEM;
 	zdev->aibv = airq_iv_create(msi_vecs, AIRQ_IV_DATA | AIRQ_IV_BITLOCK);
 	if (!zdev->aibv)
-		goto out_si;
+		return -ENOMEM;
 
 	/* Wire up shortcut pointer */
 	zpci_aibv[aisb] = zdev->aibv;
@@ -410,13 +420,14 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	/* Request MSI interrupts */
 	hwirq = 0;
 	for_each_pci_msi_entry(msi, pdev) {
-		rc = -EIO;
+		if (hwirq >= msi_vecs)
+			break;
 		irq = irq_alloc_desc(0);	/* Alloc irq on node 0 */
 		if (irq < 0)
-			goto out_msi;
+			return -ENOMEM;
 		rc = irq_set_msi_desc(irq, msi);
 		if (rc)
-			goto out_msi;
+			return rc;
 		irq_set_chip_and_handler(irq, &zpci_irq_chip,
 					 handle_simple_irq);
 		msg.data = hwirq;
@@ -430,27 +441,9 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	/* Enable adapter interrupts */
 	rc = zpci_set_airq(zdev);
 	if (rc)
-		goto out_msi;
+		return rc;
 
 	return (msi_vecs == nvec) ? 0 : msi_vecs;
-
-out_msi:
-	for_each_pci_msi_entry(msi, pdev) {
-		if (hwirq-- == 0)
-			break;
-		irq_set_msi_desc(msi->irq, NULL);
-		irq_free_desc(msi->irq);
-		msi->msg.address_lo = 0;
-		msi->msg.address_hi = 0;
-		msi->msg.data = 0;
-		msi->irq = 0;
-	}
-	zpci_aibv[aisb] = NULL;
-	airq_iv_release(zdev->aibv);
-out_si:
-	airq_iv_free_bit(zpci_aisb_iv, aisb);
-out:
-	return rc;
 }
 
 void arch_teardown_msi_irqs(struct pci_dev *pdev)
@@ -466,6 +459,8 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 
 	/* Release MSI interrupts */
 	for_each_pci_msi_entry(msi, pdev) {
+		if (!msi->irq)
+			continue;
 		if (msi->msi_attrib.is_msix)
 			__pci_msix_desc_mask_irq(msi, 1);
 		else
@@ -478,9 +473,15 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 		msi->irq = 0;
 	}
 
-	zpci_aibv[zdev->aisb] = NULL;
-	airq_iv_release(zdev->aibv);
-	airq_iv_free_bit(zpci_aisb_iv, zdev->aisb);
+	if (zdev->aisb != -1UL) {
+		zpci_aibv[zdev->aisb] = NULL;
+		airq_iv_free_bit(zpci_aisb_iv, zdev->aisb);
+		zdev->aisb = -1UL;
+	}
+	if (zdev->aibv) {
+		airq_iv_release(zdev->aibv);
+		zdev->aibv = NULL;
+	}
 }
 
 static void zpci_map_resources(struct pci_dev *pdev)
@@ -511,6 +512,11 @@ static void zpci_unmap_resources(struct pci_dev *pdev)
 			    pdev->resource[i].start);
 	}
 }
+
+static struct airq_struct zpci_airq = {
+	.handler = zpci_irq_handler,
+	.isc = PCI_ISC,
+};
 
 static int __init zpci_irq_init(void)
 {
@@ -544,15 +550,15 @@ static void zpci_irq_exit(void)
 
 static int zpci_alloc_iomap(struct zpci_dev *zdev)
 {
-	int entry;
+	unsigned long entry;
 
 	spin_lock(&zpci_iomap_lock);
-	entry = find_first_zero_bit(zpci_iomap, ZPCI_IOMAP_MAX_ENTRIES);
-	if (entry == ZPCI_IOMAP_MAX_ENTRIES) {
+	entry = find_first_zero_bit(zpci_iomap_bitmap, ZPCI_IOMAP_ENTRIES);
+	if (entry == ZPCI_IOMAP_ENTRIES) {
 		spin_unlock(&zpci_iomap_lock);
 		return -ENOSPC;
 	}
-	set_bit(entry, zpci_iomap);
+	set_bit(entry, zpci_iomap_bitmap);
 	spin_unlock(&zpci_iomap_lock);
 	return entry;
 }
@@ -561,7 +567,7 @@ static void zpci_free_iomap(struct zpci_dev *zdev, int entry)
 {
 	spin_lock(&zpci_iomap_lock);
 	memset(&zpci_iomap_start[entry], 0, sizeof(struct zpci_iomap_entry));
-	clear_bit(entry, zpci_iomap);
+	clear_bit(entry, zpci_iomap_bitmap);
 	spin_unlock(&zpci_iomap_lock);
 }
 
@@ -611,8 +617,7 @@ static int zpci_setup_bus_resources(struct zpci_dev *zdev,
 		if (zdev->bars[i].val & 4)
 			flags |= IORESOURCE_MEM_64;
 
-		addr = ZPCI_IOMAP_ADDR_BASE + ((u64) entry << 48);
-
+		addr = ZPCI_ADDR(entry);
 		size = 1UL << zdev->bars[i].size;
 
 		res = __alloc_res(zdev, addr, size, flags);
@@ -643,12 +648,11 @@ static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
 
 int pcibios_add_device(struct pci_dev *pdev)
 {
-	struct zpci_dev *zdev = to_zpci(pdev);
 	struct resource *res;
 	int i;
 
-	zdev->pdev = pdev;
 	pdev->dev.groups = zpci_attr_groups;
+	pdev->dev.dma_ops = &s390_pci_dma_ops;
 	zpci_map_resources(pdev);
 
 	for (i = 0; i < PCI_BAR_COUNT; i++) {
@@ -670,8 +674,7 @@ int pcibios_enable_device(struct pci_dev *pdev, int mask)
 {
 	struct zpci_dev *zdev = to_zpci(pdev);
 
-	zdev->pdev = pdev;
-	zpci_debug_init_device(zdev);
+	zpci_debug_init_device(zdev, dev_name(&pdev->dev));
 	zpci_fmb_enable_device(zdev);
 
 	return pci_enable_resources(pdev, mask);
@@ -683,7 +686,6 @@ void pcibios_disable_device(struct pci_dev *pdev)
 
 	zpci_fmb_disable_device(zdev);
 	zpci_debug_exit_device(zdev);
-	zdev->pdev = NULL;
 }
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
@@ -701,8 +703,7 @@ static int zpci_restore(struct device *dev)
 		goto out;
 
 	zpci_map_resources(pdev);
-	zpci_register_ioat(zdev, 0, zdev->start_dma + PAGE_OFFSET,
-			   zdev->start_dma + zdev->iommu_size - 1,
+	zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
 			   (u64) zdev->dma_table);
 
 out:
@@ -732,6 +733,21 @@ struct dev_pm_ops pcibios_pm_ops = {
 
 static int zpci_alloc_domain(struct zpci_dev *zdev)
 {
+	if (zpci_unique_uid) {
+		zdev->domain = (u16) zdev->uid;
+		if (zdev->domain >= ZPCI_NR_DEVICES)
+			return 0;
+
+		spin_lock(&zpci_domain_lock);
+		if (test_bit(zdev->domain, zpci_domain)) {
+			spin_unlock(&zpci_domain_lock);
+			return -EEXIST;
+		}
+		set_bit(zdev->domain, zpci_domain);
+		spin_unlock(&zpci_domain_lock);
+		return 0;
+	}
+
 	spin_lock(&zpci_domain_lock);
 	zdev->domain = find_first_zero_bit(zpci_domain, ZPCI_NR_DEVICES);
 	if (zdev->domain == ZPCI_NR_DEVICES) {
@@ -745,6 +761,9 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 
 static void zpci_free_domain(struct zpci_dev *zdev)
 {
+	if (zdev->domain >= ZPCI_NR_DEVICES)
+		return;
+
 	spin_lock(&zpci_domain_lock);
 	clear_bit(zdev->domain, zpci_domain);
 	spin_unlock(&zpci_domain_lock);
@@ -756,12 +775,14 @@ void pcibios_remove_bus(struct pci_bus *bus)
 
 	zpci_exit_slot(zdev);
 	zpci_cleanup_bus_resources(zdev);
+	zpci_destroy_iommu(zdev);
 	zpci_free_domain(zdev);
 
 	spin_lock(&zpci_list_lock);
 	list_del(&zdev->entry);
 	spin_unlock(&zpci_list_lock);
 
+	zpci_dbg(3, "rem fid:%x\n", zdev->fid);
 	kfree(zdev);
 }
 
@@ -827,11 +848,15 @@ int zpci_create_device(struct zpci_dev *zdev)
 	if (rc)
 		goto out;
 
+	rc = zpci_init_iommu(zdev);
+	if (rc)
+		goto out_free;
+
 	mutex_init(&zdev->lock);
 	if (zdev->state == ZPCI_FN_STATE_CONFIGURED) {
 		rc = zpci_enable_device(zdev);
 		if (rc)
-			goto out_free;
+			goto out_destroy_iommu;
 	}
 	rc = zpci_scan_bus(zdev);
 	if (rc)
@@ -848,49 +873,64 @@ int zpci_create_device(struct zpci_dev *zdev)
 out_disable:
 	if (zdev->state == ZPCI_FN_STATE_ONLINE)
 		zpci_disable_device(zdev);
+out_destroy_iommu:
+	zpci_destroy_iommu(zdev);
 out_free:
 	zpci_free_domain(zdev);
 out:
 	return rc;
 }
 
-void zpci_stop_device(struct zpci_dev *zdev)
+void zpci_remove_device(struct zpci_dev *zdev)
 {
-	zpci_dma_exit_device(zdev);
-	/*
-	 * Note: SCLP disables fh via set-pci-fn so don't
-	 * do that here.
-	 */
-}
-EXPORT_SYMBOL_GPL(zpci_stop_device);
+	if (!zdev->bus)
+		return;
 
-static inline int barsize(u8 size)
-{
-	return (size) ? (1 << size) >> 10 : 0;
+	pci_stop_root_bus(zdev->bus);
+	pci_remove_root_bus(zdev->bus);
 }
+
+int zpci_report_error(struct pci_dev *pdev,
+		      struct zpci_report_error_header *report)
+{
+	struct zpci_dev *zdev = to_zpci(pdev);
+
+	return sclp_pci_report(report, zdev->fh, zdev->fid);
+}
+EXPORT_SYMBOL(zpci_report_error);
 
 static int zpci_mem_init(void)
 {
-	zdev_fmb_cache = kmem_cache_create("PCI_FMB_cache", sizeof(struct zpci_fmb),
-				16, 0, NULL);
-	if (!zdev_fmb_cache)
-		goto error_zdev;
+	BUILD_BUG_ON(!is_power_of_2(__alignof__(struct zpci_fmb)) ||
+		     __alignof__(struct zpci_fmb) < sizeof(struct zpci_fmb));
 
-	/* TODO: use realloc */
-	zpci_iomap_start = kzalloc(ZPCI_IOMAP_MAX_ENTRIES * sizeof(*zpci_iomap_start),
-				   GFP_KERNEL);
+	zdev_fmb_cache = kmem_cache_create("PCI_FMB_cache", sizeof(struct zpci_fmb),
+					   __alignof__(struct zpci_fmb), 0, NULL);
+	if (!zdev_fmb_cache)
+		goto error_fmb;
+
+	zpci_iomap_start = kcalloc(ZPCI_IOMAP_ENTRIES,
+				   sizeof(*zpci_iomap_start), GFP_KERNEL);
 	if (!zpci_iomap_start)
 		goto error_iomap;
-	return 0;
 
+	zpci_iomap_bitmap = kcalloc(BITS_TO_LONGS(ZPCI_IOMAP_ENTRIES),
+				    sizeof(*zpci_iomap_bitmap), GFP_KERNEL);
+	if (!zpci_iomap_bitmap)
+		goto error_iomap_bitmap;
+
+	return 0;
+error_iomap_bitmap:
+	kfree(zpci_iomap_start);
 error_iomap:
 	kmem_cache_destroy(zdev_fmb_cache);
-error_zdev:
+error_fmb:
 	return -ENOMEM;
 }
 
 static void zpci_mem_exit(void)
 {
+	kfree(zpci_iomap_bitmap);
 	kfree(zpci_iomap_start);
 	kmem_cache_destroy(zdev_fmb_cache);
 }
@@ -919,7 +959,7 @@ static int __init pci_base_init(void)
 	if (!s390_pci_probe)
 		return 0;
 
-	if (!test_facility(69) || !test_facility(71) || !test_facility(72))
+	if (!test_facility(69) || !test_facility(71))
 		return 0;
 
 	rc = zpci_debug_init();

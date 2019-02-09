@@ -76,7 +76,7 @@ int sst_unregister_dsp(struct sst_device *dev)
 }
 EXPORT_SYMBOL_GPL(sst_unregister_dsp);
 
-static struct snd_pcm_hardware sst_platform_pcm_hw = {
+static const struct snd_pcm_hardware sst_platform_pcm_hw = {
 	.info =	(SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_DOUBLE |
 			SNDRV_PCM_INFO_PAUSE |
@@ -98,6 +98,7 @@ static struct sst_dev_stream_map dpcm_strm_map[] = {
 	{MERR_DPCM_AUDIO, 0, SNDRV_PCM_STREAM_PLAYBACK, PIPE_MEDIA1_IN, SST_TASK_ID_MEDIA, 0},
 	{MERR_DPCM_COMPR, 0, SNDRV_PCM_STREAM_PLAYBACK, PIPE_MEDIA0_IN, SST_TASK_ID_MEDIA, 0},
 	{MERR_DPCM_AUDIO, 0, SNDRV_PCM_STREAM_CAPTURE, PIPE_PCM1_OUT, SST_TASK_ID_MEDIA, 0},
+	{MERR_DPCM_DEEP_BUFFER, 0, SNDRV_PCM_STREAM_PLAYBACK, PIPE_MEDIA3_IN, SST_TASK_ID_MEDIA, 0},
 };
 
 static int sst_media_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
@@ -356,14 +357,14 @@ static void sst_media_close(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
 	struct sst_runtime_stream *stream;
-	int ret_val = 0, str_id;
+	int str_id;
 
 	stream = substream->runtime->private_data;
 	power_down_sst(stream);
 
 	str_id = stream->stream_info.str_id;
 	if (str_id)
-		ret_val = stream->ops->close(sst->dev, str_id);
+		stream->ops->close(sst->dev, str_id);
 	module_put(sst->dev->driver->owner);
 	kfree(stream);
 }
@@ -398,7 +399,13 @@ static int sst_media_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
+	int ret;
+
+	ret =
+		snd_pcm_lib_malloc_pages(substream,
+				params_buffer_bytes(params));
+	if (ret)
+		return ret;
 	memset(substream->runtime->dma_area, 0, params_buffer_bytes(params));
 	return 0;
 }
@@ -470,7 +477,7 @@ static void sst_disable_ssp(struct snd_pcm_substream *substream,
 	}
 }
 
-static struct snd_soc_dai_ops sst_media_dai_ops = {
+static const struct snd_soc_dai_ops sst_media_dai_ops = {
 	.startup = sst_media_open,
 	.shutdown = sst_media_close,
 	.prepare = sst_media_prepare,
@@ -479,11 +486,11 @@ static struct snd_soc_dai_ops sst_media_dai_ops = {
 	.mute_stream = sst_media_digital_mute,
 };
 
-static struct snd_soc_dai_ops sst_compr_dai_ops = {
+static const struct snd_soc_dai_ops sst_compr_dai_ops = {
 	.mute_stream = sst_media_digital_mute,
 };
 
-static struct snd_soc_dai_ops sst_be_dai_ops = {
+static const struct snd_soc_dai_ops sst_be_dai_ops = {
 	.startup = sst_enable_ssp,
 	.hw_params = sst_be_hw_params,
 	.set_fmt = sst_set_format,
@@ -500,14 +507,25 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 		.channels_min = SST_STEREO,
 		.channels_max = SST_STEREO,
 		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
 	.capture = {
 		.stream_name = "Headset Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+	},
+},
+{
+	.name = "deepbuffer-cpu-dai",
+	.ops = &sst_media_dai_ops,
+	.playback = {
+		.stream_name = "Deepbuffer Playback",
+		.channels_min = SST_STEREO,
+		.channels_max = SST_STEREO,
+		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
 },
 {
@@ -516,10 +534,7 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 	.ops = &sst_compr_dai_ops,
 	.playback = {
 		.stream_name = "Compress Playback",
-		.channels_min = SST_STEREO,
-		.channels_max = SST_STEREO,
-		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		.channels_min = 1,
 	},
 },
 /* BE CPU  Dais */
@@ -661,7 +676,7 @@ static snd_pcm_uframes_t sst_platform_pcm_pointer
 	return str_info->buffer_ptr;
 }
 
-static struct snd_pcm_ops sst_platform_ops = {
+static const struct snd_pcm_ops sst_platform_ops = {
 	.open = sst_platform_open,
 	.ioctl = snd_pcm_lib_ioctl,
 	.trigger = sst_platform_pcm_trigger,
@@ -681,32 +696,28 @@ static int sst_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			snd_dma_continuous_data(GFP_DMA),
 			SST_MIN_BUFFER, SST_MAX_BUFFER);
 		if (retval) {
-			dev_err(rtd->dev, "dma buffer allocationf fail\n");
+			dev_err(rtd->dev, "dma buffer allocation failure\n");
 			return retval;
 		}
 	}
 	return retval;
 }
 
-static int sst_soc_probe(struct snd_soc_platform *platform)
+static int sst_soc_probe(struct snd_soc_component *component)
 {
-	struct sst_data *drv = dev_get_drvdata(platform->dev);
+	struct sst_data *drv = dev_get_drvdata(component->dev);
 
-	drv->soc_card = platform->component.card;
-	return sst_dsp_init_v2_dpcm(platform);
+	drv->soc_card = component->card;
+	return sst_dsp_init_v2_dpcm(component);
 }
 
-static struct snd_soc_platform_driver sst_soc_platform_drv  = {
+static const struct snd_soc_component_driver sst_soc_platform_drv  = {
+	.name		= DRV_NAME,
 	.probe		= sst_soc_probe,
 	.ops		= &sst_platform_ops,
 	.compr_ops	= &sst_platform_compr_ops,
 	.pcm_new	= sst_pcm_new,
 };
-
-static const struct snd_soc_component_driver sst_component = {
-	.name		= "sst",
-};
-
 
 static int sst_platform_probe(struct platform_device *pdev)
 {
@@ -731,26 +742,16 @@ static int sst_platform_probe(struct platform_device *pdev)
 	mutex_init(&drv->lock);
 	dev_set_drvdata(&pdev->dev, drv);
 
-	ret = snd_soc_register_platform(&pdev->dev, &sst_soc_platform_drv);
-	if (ret) {
-		dev_err(&pdev->dev, "registering soc platform failed\n");
-		return ret;
-	}
-
-	ret = snd_soc_register_component(&pdev->dev, &sst_component,
+	ret = devm_snd_soc_register_component(&pdev->dev, &sst_soc_platform_drv,
 				sst_platform_dai, ARRAY_SIZE(sst_platform_dai));
-	if (ret) {
+	if (ret)
 		dev_err(&pdev->dev, "registering cpu dais failed\n");
-		snd_soc_unregister_platform(&pdev->dev);
-	}
+
 	return ret;
 }
 
 static int sst_platform_remove(struct platform_device *pdev)
 {
-
-	snd_soc_unregister_component(&pdev->dev);
-	snd_soc_unregister_platform(&pdev->dev);
 	dev_dbg(&pdev->dev, "sst_platform_remove success\n");
 	return 0;
 }
@@ -760,15 +761,18 @@ static int sst_platform_remove(struct platform_device *pdev)
 static int sst_soc_prepare(struct device *dev)
 {
 	struct sst_data *drv = dev_get_drvdata(dev);
-	int i;
+	struct snd_soc_pcm_runtime *rtd;
+
+	if (!drv->soc_card)
+		return 0;
 
 	/* suspend all pcms first */
 	snd_soc_suspend(drv->soc_card->dev);
 	snd_soc_poweroff(drv->soc_card->dev);
 
 	/* set the SSPs to idle */
-	for (i = 0; i < drv->soc_card->num_rtd; i++) {
-		struct snd_soc_dai *dai = drv->soc_card->rtd[i].cpu_dai;
+	list_for_each_entry(rtd, &drv->soc_card->rtd_list, list) {
+		struct snd_soc_dai *dai = rtd->cpu_dai;
 
 		if (dai->active) {
 			send_ssp_cmd(dai, dai->name, 0);
@@ -782,11 +786,14 @@ static int sst_soc_prepare(struct device *dev)
 static void sst_soc_complete(struct device *dev)
 {
 	struct sst_data *drv = dev_get_drvdata(dev);
-	int i;
+	struct snd_soc_pcm_runtime *rtd;
+
+	if (!drv->soc_card)
+		return;
 
 	/* restart SSPs */
-	for (i = 0; i < drv->soc_card->num_rtd; i++) {
-		struct snd_soc_dai *dai = drv->soc_card->rtd[i].cpu_dai;
+	list_for_each_entry(rtd, &drv->soc_card->rtd_list, list) {
+		struct snd_soc_dai *dai = rtd->cpu_dai;
 
 		if (dai->active) {
 			sst_handle_vb_timer(dai, true);
@@ -824,4 +831,5 @@ MODULE_DESCRIPTION("ASoC Intel(R) MID Platform driver");
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
 MODULE_AUTHOR("Harsha Priya <priya.harsha@intel.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:sst-atom-hifi2-platform");
 MODULE_ALIAS("platform:sst-mfld-platform");

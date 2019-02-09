@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Definitions and wrapper functions for kernel decompressor
  *
@@ -6,7 +7,7 @@
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/sclp.h>
 #include <asm/ipl.h>
@@ -26,8 +27,8 @@
 /* Symbols defined by linker scripts */
 extern char input_data[];
 extern int input_len;
-extern char _text, _end;
-extern char _bss, _ebss;
+extern char _end[];
+extern char _bss[], _ebss[];
 
 static void error(char *m);
 
@@ -66,45 +67,8 @@ static unsigned long free_mem_end_ptr;
 
 static int puts(const char *s)
 {
-	_sclp_print_early(s);
+	sclp_early_printk(s);
 	return 0;
-}
-
-void *memset(void *s, int c, size_t n)
-{
-	char *xs;
-
-	xs = s;
-	while (n--)
-		*xs++ = c;
-	return s;
-}
-
-void *memcpy(void *dest, const void *src, size_t n)
-{
-	const char *s = src;
-	char *d = dest;
-
-	while (n--)
-		*d++ = *s++;
-	return dest;
-}
-
-void *memmove(void *dest, const void *src, size_t n)
-{
-	const char *s = src;
-	char *d = dest;
-
-	if (d <= s) {
-		while (n--)
-			*d++ = *s++;
-	} else {
-		d += n;
-		s += n;
-		while (n--)
-			*--d = *--s;
-	}
-	return dest;
 }
 
 static void error(char *x)
@@ -118,57 +82,35 @@ static void error(char *x)
 	asm volatile("lpsw %0" : : "Q" (psw));
 }
 
-/*
- * Safe guard the ipl parameter block against a memory area that will be
- * overwritten. The validity check for the ipl parameter block is complex
- * (see cio_get_iplinfo and ipl_save_parameters) but if the pointer to
- * the ipl parameter block intersects with the passed memory area we can
- * safely assume that we can read from that memory. In that case just copy
- * the memory to IPL_PARMBLOCK_ORIGIN even if there is no ipl parameter
- * block.
- */
-static void check_ipl_parmblock(void *start, unsigned long size)
-{
-	void *src, *dst;
-
-	src = (void *)(unsigned long) S390_lowcore.ipl_parmblock_ptr;
-	if (src + PAGE_SIZE <= start || src >= start + size)
-		return;
-	dst = (void *) IPL_PARMBLOCK_ORIGIN;
-	memmove(dst, src, PAGE_SIZE);
-	S390_lowcore.ipl_parmblock_ptr = IPL_PARMBLOCK_ORIGIN;
-}
-
 unsigned long decompress_kernel(void)
 {
-	unsigned long output_addr;
-	unsigned char *output;
+	void *output, *kernel_end;
 
-	output_addr = ((unsigned long) &_end + HEAP_SIZE + 4095UL) & -4096UL;
-	check_ipl_parmblock((void *) 0, output_addr + SZ__bss_start);
-	memset(&_bss, 0, &_ebss - &_bss);
-	free_mem_ptr = (unsigned long)&_end;
-	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
-	output = (unsigned char *) output_addr;
+	output = (void *) ALIGN((unsigned long) _end + HEAP_SIZE, PAGE_SIZE);
+	kernel_end = output + SZ__bss_start;
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/*
 	 * Move the initrd right behind the end of the decompressed
-	 * kernel image.
+	 * kernel image. This also prevents initrd corruption caused by
+	 * bss clearing since kernel_end will always be located behind the
+	 * current bss section..
 	 */
-	if (INITRD_START && INITRD_SIZE &&
-	    INITRD_START < (unsigned long) output + SZ__bss_start) {
-		check_ipl_parmblock(output + SZ__bss_start,
-				    INITRD_START + INITRD_SIZE);
-		memmove(output + SZ__bss_start,
-			(void *) INITRD_START, INITRD_SIZE);
-		INITRD_START = (unsigned long) output + SZ__bss_start;
+	if (INITRD_START && INITRD_SIZE && kernel_end > (void *) INITRD_START) {
+		memmove(kernel_end, (void *) INITRD_START, INITRD_SIZE);
+		INITRD_START = (unsigned long) kernel_end;
 	}
 #endif
 
-	puts("Uncompressing Linux... ");
+	/*
+	 * Clear bss section. free_mem_ptr and free_mem_end_ptr need to be
+	 * initialized afterwards since they reside in bss.
+	 */
+	memset(_bss, 0, _ebss - _bss);
+	free_mem_ptr = (unsigned long) _end;
+	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
+
 	__decompress(input_data, input_len, NULL, NULL, output, 0, NULL, error);
-	puts("Ok, booting the kernel.\n");
 	return (unsigned long) output;
 }
 

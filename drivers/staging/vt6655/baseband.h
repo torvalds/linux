@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: baseband.h
  *
@@ -60,37 +46,30 @@
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
 
-#define BBvClearFOE(dwIoBase)				\
-	BBbWriteEmbedded(dwIoBase, 0xB1, 0)
+unsigned int BBuGetFrameTime(unsigned char byPreambleType,
+			     unsigned char byPktType,
+			     unsigned int cbFrameLength,
+			     unsigned short wRate);
 
-#define BBvSetFOE(dwIoBase)				\
-	BBbWriteEmbedded(dwIoBase, 0xB1, 0x0C)
+void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
+		       u16 tx_rate, u8 pkt_type, struct vnt_phy_field *phy);
 
-unsigned int
-BBuGetFrameTime(
-	unsigned char byPreambleType,
-	unsigned char byPktType,
-	unsigned int cbFrameLength,
-	unsigned short wRate
-);
+bool BBbReadEmbedded(struct vnt_private *priv, unsigned char byBBAddr,
+		     unsigned char *pbyData);
+bool BBbWriteEmbedded(struct vnt_private *priv, unsigned char byBBAddr,
+		      unsigned char byData);
 
-void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
-		       u16 tx_rate, u8 pkt_type, struct vnt_phy_field *);
-
-bool BBbReadEmbedded(struct vnt_private *, unsigned char byBBAddr, unsigned char *pbyData);
-bool BBbWriteEmbedded(struct vnt_private *, unsigned char byBBAddr, unsigned char byData);
-
-void BBvSetShortSlotTime(struct vnt_private *);
-void BBvSetVGAGainOffset(struct vnt_private *, unsigned char byData);
+void BBvSetShortSlotTime(struct vnt_private *priv);
+void BBvSetVGAGainOffset(struct vnt_private *priv, unsigned char byData);
 
 /* VT3253 Baseband */
-bool BBbVT3253Init(struct vnt_private *);
-void BBvSoftwareReset(struct vnt_private *);
-void BBvPowerSaveModeON(struct vnt_private *);
-void BBvPowerSaveModeOFF(struct vnt_private *);
-void BBvSetTxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
-void BBvSetRxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
-void BBvSetDeepSleep(struct vnt_private *, unsigned char byLocalID);
-void BBvExitDeepSleep(struct vnt_private *, unsigned char byLocalID);
+bool BBbVT3253Init(struct vnt_private *priv);
+void BBvSoftwareReset(struct vnt_private *priv);
+void BBvPowerSaveModeON(struct vnt_private *priv);
+void BBvPowerSaveModeOFF(struct vnt_private *priv);
+void BBvSetTxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode);
+void BBvSetRxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode);
+void BBvSetDeepSleep(struct vnt_private *priv, unsigned char byLocalID);
+void BBvExitDeepSleep(struct vnt_private *priv, unsigned char byLocalID);
 
 #endif /* __BASEBAND_H__ */

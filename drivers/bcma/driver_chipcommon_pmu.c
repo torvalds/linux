@@ -15,44 +15,44 @@
 
 u32 bcma_chipco_pll_read(struct bcma_drv_cc *cc, u32 offset)
 {
-	bcma_cc_write32(cc, BCMA_CC_PLLCTL_ADDR, offset);
-	bcma_cc_read32(cc, BCMA_CC_PLLCTL_ADDR);
-	return bcma_cc_read32(cc, BCMA_CC_PLLCTL_DATA);
+	bcma_pmu_write32(cc, BCMA_CC_PMU_PLLCTL_ADDR, offset);
+	bcma_pmu_read32(cc, BCMA_CC_PMU_PLLCTL_ADDR);
+	return bcma_pmu_read32(cc, BCMA_CC_PMU_PLLCTL_DATA);
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_pll_read);
 
 void bcma_chipco_pll_write(struct bcma_drv_cc *cc, u32 offset, u32 value)
 {
-	bcma_cc_write32(cc, BCMA_CC_PLLCTL_ADDR, offset);
-	bcma_cc_read32(cc, BCMA_CC_PLLCTL_ADDR);
-	bcma_cc_write32(cc, BCMA_CC_PLLCTL_DATA, value);
+	bcma_pmu_write32(cc, BCMA_CC_PMU_PLLCTL_ADDR, offset);
+	bcma_pmu_read32(cc, BCMA_CC_PMU_PLLCTL_ADDR);
+	bcma_pmu_write32(cc, BCMA_CC_PMU_PLLCTL_DATA, value);
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_pll_write);
 
 void bcma_chipco_pll_maskset(struct bcma_drv_cc *cc, u32 offset, u32 mask,
 			     u32 set)
 {
-	bcma_cc_write32(cc, BCMA_CC_PLLCTL_ADDR, offset);
-	bcma_cc_read32(cc, BCMA_CC_PLLCTL_ADDR);
-	bcma_cc_maskset32(cc, BCMA_CC_PLLCTL_DATA, mask, set);
+	bcma_pmu_write32(cc, BCMA_CC_PMU_PLLCTL_ADDR, offset);
+	bcma_pmu_read32(cc, BCMA_CC_PMU_PLLCTL_ADDR);
+	bcma_pmu_maskset32(cc, BCMA_CC_PMU_PLLCTL_DATA, mask, set);
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_pll_maskset);
 
 void bcma_chipco_chipctl_maskset(struct bcma_drv_cc *cc,
 				 u32 offset, u32 mask, u32 set)
 {
-	bcma_cc_write32(cc, BCMA_CC_CHIPCTL_ADDR, offset);
-	bcma_cc_read32(cc, BCMA_CC_CHIPCTL_ADDR);
-	bcma_cc_maskset32(cc, BCMA_CC_CHIPCTL_DATA, mask, set);
+	bcma_pmu_write32(cc, BCMA_CC_PMU_CHIPCTL_ADDR, offset);
+	bcma_pmu_read32(cc, BCMA_CC_PMU_CHIPCTL_ADDR);
+	bcma_pmu_maskset32(cc, BCMA_CC_PMU_CHIPCTL_DATA, mask, set);
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_chipctl_maskset);
 
 void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc, u32 offset, u32 mask,
 				u32 set)
 {
-	bcma_cc_write32(cc, BCMA_CC_REGCTL_ADDR, offset);
-	bcma_cc_read32(cc, BCMA_CC_REGCTL_ADDR);
-	bcma_cc_maskset32(cc, BCMA_CC_REGCTL_DATA, mask, set);
+	bcma_pmu_write32(cc, BCMA_CC_PMU_REGCTL_ADDR, offset);
+	bcma_pmu_read32(cc, BCMA_CC_PMU_REGCTL_ADDR);
+	bcma_pmu_maskset32(cc, BCMA_CC_PMU_REGCTL_DATA, mask, set);
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_regctl_maskset);
 
@@ -60,18 +60,18 @@ static u32 bcma_pmu_xtalfreq(struct bcma_drv_cc *cc)
 {
 	u32 ilp_ctl, alp_hz;
 
-	if (!(bcma_cc_read32(cc, BCMA_CC_PMU_STAT) &
+	if (!(bcma_pmu_read32(cc, BCMA_CC_PMU_STAT) &
 	      BCMA_CC_PMU_STAT_EXT_LPO_AVAIL))
 		return 0;
 
-	bcma_cc_write32(cc, BCMA_CC_PMU_XTAL_FREQ,
-			BIT(BCMA_CC_PMU_XTAL_FREQ_MEASURE_SHIFT));
+	bcma_pmu_write32(cc, BCMA_CC_PMU_XTAL_FREQ,
+			 BIT(BCMA_CC_PMU_XTAL_FREQ_MEASURE_SHIFT));
 	usleep_range(1000, 2000);
 
-	ilp_ctl = bcma_cc_read32(cc, BCMA_CC_PMU_XTAL_FREQ);
+	ilp_ctl = bcma_pmu_read32(cc, BCMA_CC_PMU_XTAL_FREQ);
 	ilp_ctl &= BCMA_CC_PMU_XTAL_FREQ_ILPCTL_MASK;
 
-	bcma_cc_write32(cc, BCMA_CC_PMU_XTAL_FREQ, 0);
+	bcma_pmu_write32(cc, BCMA_CC_PMU_XTAL_FREQ, 0);
 
 	alp_hz = ilp_ctl * 32768 / 4;
 	return (alp_hz + 50000) / 100000 * 100;
@@ -127,8 +127,8 @@ static void bcma_pmu2_pll_init0(struct bcma_drv_cc *cc, u32 xtalfreq)
 		mask = (u32)~(BCMA_RES_4314_HT_AVAIL |
 			      BCMA_RES_4314_MACPHY_CLK_AVAIL);
 
-		bcma_cc_mask32(cc, BCMA_CC_PMU_MINRES_MSK, mask);
-		bcma_cc_mask32(cc, BCMA_CC_PMU_MAXRES_MSK, mask);
+		bcma_pmu_mask32(cc, BCMA_CC_PMU_MINRES_MSK, mask);
+		bcma_pmu_mask32(cc, BCMA_CC_PMU_MAXRES_MSK, mask);
 		bcma_wait_value(cc->core, BCMA_CLKCTLST,
 				BCMA_CLKCTLST_HAVEHT, 0, 20000);
 		break;
@@ -140,7 +140,7 @@ static void bcma_pmu2_pll_init0(struct bcma_drv_cc *cc, u32 xtalfreq)
 
 	/* Flush */
 	if (cc->pmu.rev >= 2)
-		bcma_cc_set32(cc, BCMA_CC_PMU_CTL, BCMA_CC_PMU_CTL_PLL_UPD);
+		bcma_pmu_set32(cc, BCMA_CC_PMU_CTL, BCMA_CC_PMU_CTL_PLL_UPD);
 
 	/* TODO: Do we need to update OTP? */
 }
@@ -195,15 +195,15 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 
 	/* Set the resource masks. */
 	if (min_msk)
-		bcma_cc_write32(cc, BCMA_CC_PMU_MINRES_MSK, min_msk);
+		bcma_pmu_write32(cc, BCMA_CC_PMU_MINRES_MSK, min_msk);
 	if (max_msk)
-		bcma_cc_write32(cc, BCMA_CC_PMU_MAXRES_MSK, max_msk);
+		bcma_pmu_write32(cc, BCMA_CC_PMU_MAXRES_MSK, max_msk);
 
 	/*
 	 * Add some delay; allow resources to come up and settle.
 	 * Delay is required for SoC (early init).
 	 */
-	mdelay(2);
+	usleep_range(2000, 2500);
 }
 
 /* Disable to allow reading SPROM. Don't know the adventages of enabling it. */
@@ -269,23 +269,33 @@ static void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 
 void bcma_pmu_early_init(struct bcma_drv_cc *cc)
 {
+	struct bcma_bus *bus = cc->core->bus;
 	u32 pmucap;
 
-	pmucap = bcma_cc_read32(cc, BCMA_CC_PMU_CAP);
+	if (cc->core->id.rev >= 35 &&
+	    cc->capabilities_ext & BCMA_CC_CAP_EXT_AOB_PRESENT) {
+		cc->pmu.core = bcma_find_core(bus, BCMA_CORE_PMU);
+		if (!cc->pmu.core)
+			bcma_warn(bus, "Couldn't find expected PMU core");
+	}
+	if (!cc->pmu.core)
+		cc->pmu.core = cc->core;
+
+	pmucap = bcma_pmu_read32(cc, BCMA_CC_PMU_CAP);
 	cc->pmu.rev = (pmucap & BCMA_CC_PMU_CAP_REVISION);
 
-	bcma_debug(cc->core->bus, "Found rev %u PMU (capabilities 0x%08X)\n",
-		   cc->pmu.rev, pmucap);
+	bcma_debug(bus, "Found rev %u PMU (capabilities 0x%08X)\n", cc->pmu.rev,
+		   pmucap);
 }
 
 void bcma_pmu_init(struct bcma_drv_cc *cc)
 {
 	if (cc->pmu.rev == 1)
-		bcma_cc_mask32(cc, BCMA_CC_PMU_CTL,
-			      ~BCMA_CC_PMU_CTL_NOILPONW);
+		bcma_pmu_mask32(cc, BCMA_CC_PMU_CTL,
+				~BCMA_CC_PMU_CTL_NOILPONW);
 	else
-		bcma_cc_set32(cc, BCMA_CC_PMU_CTL,
-			     BCMA_CC_PMU_CTL_NOILPONW);
+		bcma_pmu_set32(cc, BCMA_CC_PMU_CTL,
+			       BCMA_CC_PMU_CTL_NOILPONW);
 
 	bcma_pmu_pll_init(cc);
 	bcma_pmu_resources_init(cc);
@@ -472,8 +482,8 @@ u32 bcma_pmu_get_cpu_clock(struct bcma_drv_cc *cc)
 static void bcma_pmu_spuravoid_pll_write(struct bcma_drv_cc *cc, u32 offset,
 					 u32 value)
 {
-	bcma_cc_write32(cc, BCMA_CC_PLLCTL_ADDR, offset);
-	bcma_cc_write32(cc, BCMA_CC_PLLCTL_DATA, value);
+	bcma_pmu_write32(cc, BCMA_CC_PMU_PLLCTL_ADDR, offset);
+	bcma_pmu_write32(cc, BCMA_CC_PMU_PLLCTL_DATA, value);
 }
 
 void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
@@ -497,20 +507,20 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 		       bus->chipinfo.id == BCMA_CHIP_ID_BCM53572) ? 6 : 0;
 
 		/* RMW only the P1 divider */
-		bcma_cc_write32(cc, BCMA_CC_PLLCTL_ADDR,
+		bcma_pmu_write32(cc, BCMA_CC_PMU_PLLCTL_ADDR,
 				BCMA_CC_PMU_PLL_CTL0 + phypll_offset);
-		tmp = bcma_cc_read32(cc, BCMA_CC_PLLCTL_DATA);
+		tmp = bcma_pmu_read32(cc, BCMA_CC_PMU_PLLCTL_DATA);
 		tmp &= (~(BCMA_CC_PMU1_PLL0_PC0_P1DIV_MASK));
 		tmp |= (bcm5357_bcm43236_p1div[spuravoid] << BCMA_CC_PMU1_PLL0_PC0_P1DIV_SHIFT);
-		bcma_cc_write32(cc, BCMA_CC_PLLCTL_DATA, tmp);
+		bcma_pmu_write32(cc, BCMA_CC_PMU_PLLCTL_DATA, tmp);
 
 		/* RMW only the int feedback divider */
-		bcma_cc_write32(cc, BCMA_CC_PLLCTL_ADDR,
+		bcma_pmu_write32(cc, BCMA_CC_PMU_PLLCTL_ADDR,
 				BCMA_CC_PMU_PLL_CTL2 + phypll_offset);
-		tmp = bcma_cc_read32(cc, BCMA_CC_PLLCTL_DATA);
+		tmp = bcma_pmu_read32(cc, BCMA_CC_PMU_PLLCTL_DATA);
 		tmp &= ~(BCMA_CC_PMU1_PLL0_PC2_NDIV_INT_MASK);
 		tmp |= (bcm5357_bcm43236_ndiv[spuravoid]) << BCMA_CC_PMU1_PLL0_PC2_NDIV_INT_SHIFT;
-		bcma_cc_write32(cc, BCMA_CC_PLLCTL_DATA, tmp);
+		bcma_pmu_write32(cc, BCMA_CC_PMU_PLLCTL_DATA, tmp);
 
 		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
@@ -646,7 +656,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 		break;
 	}
 
-	tmp |= bcma_cc_read32(cc, BCMA_CC_PMU_CTL);
-	bcma_cc_write32(cc, BCMA_CC_PMU_CTL, tmp);
+	tmp |= bcma_pmu_read32(cc, BCMA_CC_PMU_CTL);
+	bcma_pmu_write32(cc, BCMA_CC_PMU_CTL, tmp);
 }
 EXPORT_SYMBOL_GPL(bcma_pmu_spuravoid_pllupdate);

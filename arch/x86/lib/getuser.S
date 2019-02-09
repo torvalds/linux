@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * __get_user functions.
  *
@@ -32,52 +33,64 @@
 #include <asm/thread_info.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
+#include <asm/export.h>
 
 	.text
 ENTRY(__get_user_1)
-	GET_THREAD_INFO(%_ASM_DX)
-	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
+	mov PER_CPU_VAR(current_task), %_ASM_DX
+	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
+	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_nospec() */
+	and %_ASM_DX, %_ASM_AX
 	ASM_STAC
 1:	movzbl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
 	ret
 ENDPROC(__get_user_1)
+EXPORT_SYMBOL(__get_user_1)
 
 ENTRY(__get_user_2)
 	add $1,%_ASM_AX
 	jc bad_get_user
-	GET_THREAD_INFO(%_ASM_DX)
-	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
+	mov PER_CPU_VAR(current_task), %_ASM_DX
+	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
+	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_nospec() */
+	and %_ASM_DX, %_ASM_AX
 	ASM_STAC
 2:	movzwl -1(%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
 	ret
 ENDPROC(__get_user_2)
+EXPORT_SYMBOL(__get_user_2)
 
 ENTRY(__get_user_4)
 	add $3,%_ASM_AX
 	jc bad_get_user
-	GET_THREAD_INFO(%_ASM_DX)
-	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
+	mov PER_CPU_VAR(current_task), %_ASM_DX
+	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
+	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_nospec() */
+	and %_ASM_DX, %_ASM_AX
 	ASM_STAC
 3:	movl -3(%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
 	ret
 ENDPROC(__get_user_4)
+EXPORT_SYMBOL(__get_user_4)
 
 ENTRY(__get_user_8)
 #ifdef CONFIG_X86_64
 	add $7,%_ASM_AX
 	jc bad_get_user
-	GET_THREAD_INFO(%_ASM_DX)
-	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
+	mov PER_CPU_VAR(current_task), %_ASM_DX
+	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
+	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_nospec() */
+	and %_ASM_DX, %_ASM_AX
 	ASM_STAC
 4:	movq -7(%_ASM_AX),%rdx
 	xor %eax,%eax
@@ -86,9 +99,11 @@ ENTRY(__get_user_8)
 #else
 	add $7,%_ASM_AX
 	jc bad_get_user_8
-	GET_THREAD_INFO(%_ASM_DX)
-	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
+	mov PER_CPU_VAR(current_task), %_ASM_DX
+	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user_8
+	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_nospec() */
+	and %_ASM_DX, %_ASM_AX
 	ASM_STAC
 4:	movl -7(%_ASM_AX),%edx
 5:	movl -3(%_ASM_AX),%ecx
@@ -97,6 +112,7 @@ ENTRY(__get_user_8)
 	ret
 #endif
 ENDPROC(__get_user_8)
+EXPORT_SYMBOL(__get_user_8)
 
 
 bad_get_user:

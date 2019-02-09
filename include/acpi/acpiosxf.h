@@ -1,47 +1,13 @@
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
  * Name: acpiosxf.h - All interfaces to the OS Services Layer (OSL). These
  *                    interfaces must be implemented by OSL to interface the
  *                    ACPI components to the host operating system.
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #ifndef __ACPIOSXF_H__
 #define __ACPIOSXF_H__
@@ -96,7 +62,7 @@ acpi_physical_address acpi_os_get_root_pointer(void);
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_predefined_override
 acpi_status
 acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
-			    char **new_val);
+			    acpi_string *new_val);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_table_override
@@ -108,7 +74,7 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_physical_table_override
 acpi_status
 acpi_os_physical_table_override(struct acpi_table_header *existing_table,
-				acpi_physical_address * new_address,
+				acpi_physical_address *new_address,
 				u32 *new_table_length);
 #endif
 
@@ -129,6 +95,27 @@ acpi_cpu_flags acpi_os_acquire_lock(acpi_spinlock handle);
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_release_lock
 void acpi_os_release_lock(acpi_spinlock handle, acpi_cpu_flags flags);
+#endif
+
+/*
+ * RAW spinlock primitives. If the OS does not provide them, fallback to
+ * spinlock primitives
+ */
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_raw_lock
+# define acpi_os_create_raw_lock(out_handle)	acpi_os_create_lock(out_handle)
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_delete_raw_lock
+# define acpi_os_delete_raw_lock(handle)	acpi_os_delete_lock(handle)
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_acquire_raw_lock
+# define acpi_os_acquire_raw_lock(handle)	acpi_os_acquire_lock(handle)
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_release_raw_lock
+# define acpi_os_release_raw_lock(handle, flags)	\
+	acpi_os_release_lock(handle, flags)
 #endif
 
 /*
@@ -203,7 +190,7 @@ void acpi_os_unmap_memory(void *logical_address, acpi_size size);
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_physical_address
 acpi_status
 acpi_os_get_physical_address(void *logical_address,
-			     acpi_physical_address * physical_address);
+			     acpi_physical_address *physical_address);
 #endif
 
 /*
@@ -287,6 +274,8 @@ acpi_status acpi_os_write_port(acpi_io_address address, u32 value, u32 width);
 /*
  * Platform and hardware-independent physical memory interfaces
  */
+int acpi_os_read_iomem(void __iomem *virt_addr, u64 *value, u32 width);
+
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_read_memory
 acpi_status
 acpi_os_read_memory(acpi_physical_address address, u64 *value, u32 width);
@@ -333,6 +322,10 @@ u64 acpi_os_get_timer(void);
 acpi_status acpi_os_signal(u32 function, void *info);
 #endif
 
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_enter_sleep
+acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value);
+#endif
+
 /*
  * Debug print routines
  */
@@ -349,10 +342,32 @@ void acpi_os_redirect_output(void *destination);
 #endif
 
 /*
- * Debug input
+ * Debug IO
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_line
 acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_debugger
+acpi_status acpi_os_initialize_debugger(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_debugger
+void acpi_os_terminate_debugger(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_wait_command_ready
+acpi_status acpi_os_wait_command_ready(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_notify_command_complete
+acpi_status acpi_os_notify_command_complete(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point
+void
+acpi_os_trace_point(acpi_trace_event_type type,
+		    u8 begin, u8 *aml, char *pathname);
 #endif
 
 /*
@@ -363,14 +378,14 @@ acpi_status
 acpi_os_get_table_by_name(char *signature,
 			  u32 instance,
 			  struct acpi_table_header **table,
-			  acpi_physical_address * address);
+			  acpi_physical_address *address);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_table_by_index
 acpi_status
 acpi_os_get_table_by_index(u32 index,
 			   struct acpi_table_header **table,
-			   u32 *instance, acpi_physical_address * address);
+			   u32 *instance, acpi_physical_address *address);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_table_by_address
@@ -398,43 +413,6 @@ char *acpi_os_get_next_filename(void *dir_handle);
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_directory
 void acpi_os_close_directory(void *dir_handle);
-#endif
-
-/*
- * File I/O and related support
- */
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_open_file
-ACPI_FILE acpi_os_open_file(const char *path, u8 modes);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_file
-void acpi_os_close_file(ACPI_FILE file);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_read_file
-int
-acpi_os_read_file(ACPI_FILE file,
-		  void *buffer, acpi_size size, acpi_size count);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_write_file
-int
-acpi_os_write_file(ACPI_FILE file,
-		   void *buffer, acpi_size size, acpi_size count);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_file_offset
-long acpi_os_get_file_offset(ACPI_FILE file);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_set_file_offset
-acpi_status acpi_os_set_file_offset(ACPI_FILE file, long offset, u8 from);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point
-void
-acpi_os_trace_point(acpi_trace_event_type type,
-		    u8 begin, u8 *aml, char *pathname);
 #endif
 
 #endif				/* __ACPIOSXF_H__ */

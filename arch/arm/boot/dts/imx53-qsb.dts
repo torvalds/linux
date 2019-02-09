@@ -1,14 +1,7 @@
-/*
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2011 Freescale Semiconductor, Inc.
+// Copyright 2011 Linaro Ltd.
 
 /dts-v1/;
 #include "imx53-qsb-common.dtsi"
@@ -23,7 +16,7 @@
 		compatible = "dlg,da9053-aa", "dlg,da9052";
 		reg = <0x48>;
 		interrupt-parent = <&gpio7>;
-		interrupts = <11 0x8>; /* low-level active IRQ at GPIO7_11 */
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>; /* low-level active IRQ at GPIO7_11 */
 
 		regulators {
 			buck1_reg: buck1 {
@@ -64,8 +57,8 @@
 			};
 
 			ldo3_reg: ldo3 {
-				regulator-min-microvolt = <600000>;
-				regulator-max-microvolt = <1800000>;
+				regulator-min-microvolt = <1725000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 			};
 
@@ -76,8 +69,8 @@
 			};
 
 			ldo5_reg: ldo5 {
-				regulator-min-microvolt = <1725000>;
-				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3600000>;
 				regulator-always-on;
 			};
 
@@ -88,9 +81,8 @@
 			};
 
 			ldo7_reg: ldo7 {
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <3600000>;
-				regulator-always-on;
+				regulator-min-microvolt = <2750000>;
+				regulator-max-microvolt = <2750000>;
 			};
 
 			ldo8_reg: ldo8 {
@@ -100,16 +92,20 @@
 			};
 
 			ldo9_reg: ldo9 {
-				regulator-min-microvolt = <1200000>;
+				regulator-min-microvolt = <1250000>;
 				regulator-max-microvolt = <3600000>;
 				regulator-always-on;
 			};
 
 			ldo10_reg: ldo10 {
-				regulator-min-microvolt = <1250000>;
-				regulator-max-microvolt = <3650000>;
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3600000>;
 				regulator-always-on;
 			};
 		};
 	};
+};
+
+&tve {
+	dac-supply = <&ldo7_reg>;
 };

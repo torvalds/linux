@@ -1,10 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PVRUSB2_DVB_H__
 #define __PVRUSB2_DVB_H__
 
-#include "dvb_frontend.h"
-#include "dvb_demux.h"
-#include "dvb_net.h"
-#include "dmxdev.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
+#include <media/dmxdev.h>
 #include "pvrusb2-context.h"
 
 #define PVR2_DVB_BUFFER_COUNT 32

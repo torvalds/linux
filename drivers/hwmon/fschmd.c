@@ -105,7 +105,7 @@ static const u8 FSCHMD_REG_VOLT[7][6] = {
 static const int FSCHMD_NO_VOLT_SENSORS[7] = { 3, 3, 3, 3, 3, 3, 6 };
 
 /*
- * minimum pwm at which the fan is driven (pwm can by increased depending on
+ * minimum pwm at which the fan is driven (pwm can be increased depending on
  * the temp. Notice that for the scy some fans share there minimum speed.
  * Also notice that with the scy the sensor order is different than with the
  * other chips, this order was in the 2.4 driver and kept for consistency.
@@ -561,7 +561,7 @@ static ssize_t store_pwm_auto_point1_pwm(struct device *dev,
  * The FSC hwmon family has the ability to force an attached alert led to flash
  * from software, we export this as an alert_led sysfs attr
  */
-static ssize_t show_alert_led(struct device *dev,
+static ssize_t alert_led_show(struct device *dev,
 	struct device_attribute *devattr, char *buf)
 {
 	struct fschmd_data *data = fschmd_update_device(dev);
@@ -572,7 +572,7 @@ static ssize_t show_alert_led(struct device *dev,
 		return sprintf(buf, "0\n");
 }
 
-static ssize_t store_alert_led(struct device *dev,
+static ssize_t alert_led_store(struct device *dev,
 	struct device_attribute *devattr, const char *buf, size_t count)
 {
 	u8 reg;
@@ -602,7 +602,7 @@ static ssize_t store_alert_led(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(alert_led, 0644, show_alert_led, store_alert_led);
+static DEVICE_ATTR_RW(alert_led);
 
 static struct sensor_device_attribute fschmd_attr[] = {
 	SENSOR_ATTR(in0_input, 0444, show_in_value, NULL, 0),

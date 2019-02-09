@@ -31,17 +31,40 @@ SoC is on the same page.
 
 Required properties:
 - compatible: should be one of:
+  - "rockchip,px30-io-voltage-domain" for px30
+  - "rockchip,px30-pmu-io-voltage-domain" for px30 pmu-domains
   - "rockchip,rk3188-io-voltage-domain" for rk3188
+  - "rockchip,rk3228-io-voltage-domain" for rk3228
   - "rockchip,rk3288-io-voltage-domain" for rk3288
+  - "rockchip,rk3328-io-voltage-domain" for rk3328
   - "rockchip,rk3368-io-voltage-domain" for rk3368
   - "rockchip,rk3368-pmu-io-voltage-domain" for rk3368 pmu-domains
-- rockchip,grf: phandle to the syscon managing the "general register files"
+  - "rockchip,rk3399-io-voltage-domain" for rk3399
+  - "rockchip,rk3399-pmu-io-voltage-domain" for rk3399 pmu-domains
+  - "rockchip,rv1108-io-voltage-domain" for rv1108
+  - "rockchip,rv1108-pmu-io-voltage-domain" for rv1108 pmu-domains
 
+Deprecated properties:
+- rockchip,grf: phandle to the syscon managing the "general register files"
+    Systems should move the io-domains to a sub-node of the grf simple-mfd.
 
 You specify supplies using the standard regulator bindings by including
 a phandle the relevant regulator.  All specified supplies must be able
 to report their voltage.  The IO Voltage Domain for any non-specified
 supplies will be not be touched.
+
+Possible supplies for PX30:
+- vccio6-supply: The supply connected to VCCIO6.
+- vccio1-supply: The supply connected to VCCIO1.
+- vccio2-supply: The supply connected to VCCIO2.
+- vccio3-supply: The supply connected to VCCIO3.
+- vccio4-supply: The supply connected to VCCIO4.
+- vccio5-supply: The supply connected to VCCIO5.
+- vccio-oscgpi-supply: The supply connected to VCCIO_OSCGPI.
+
+Possible supplies for PX30 pmu-domains:
+- pmuio1-supply: The supply connected to PMUIO1.
+- pmuio2-supply: The supply connected to PMUIO2.
 
 Possible supplies for rk3188:
 - ap0-supply:    The supply connected to AP0_VCC.
@@ -53,6 +76,12 @@ Possible supplies for rk3188:
 - vccio0-supply: The supply connected to VCCIO0.
 - vccio1-supply: The supply connected to VCCIO1.
                  Sometimes also labeled VCCIO1 and VCCIO2.
+
+Possible supplies for rk3228:
+- vccio1-supply: The supply connected to VCCIO1.
+- vccio2-supply: The supply connected to VCCIO2.
+- vccio3-supply: The supply connected to VCCIO3.
+- vccio4-supply: The supply connected to VCCIO4.
 
 Possible supplies for rk3288:
 - audio-supply:  The supply connected to APIO4_VDD.
@@ -78,6 +107,15 @@ Possible supplies for rk3368:
 Possible supplies for rk3368 pmu-domains:
 - pmu-supply:    The supply connected to PMUIO_VDD.
 - vop-supply:    The supply connected to LCDC_VDD.
+
+Possible supplies for rk3399:
+- bt656-supply:  The supply connected to APIO2_VDD.
+- audio-supply:  The supply connected to APIO5_VDD.
+- sdmmc-supply:  The supply connected to SDMMC0_VDD.
+- gpio1830       The supply connected to APIO4_VDD.
+
+Possible supplies for rk3399 pmu-domains:
+- pmu1830-supply:The supply connected to PMUIO2_VDD.
 
 Example:
 

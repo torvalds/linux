@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/hpfs/file.c
  *
@@ -24,7 +25,7 @@ int hpfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct inode *inode = file->f_mapping->host;
 	int ret;
 
-	ret = filemap_write_and_wait_range(file->f_mapping, start, end);
+	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
 		return ret;
 	return sync_blockdev(inode->i_sb->s_bdev);
@@ -189,6 +190,11 @@ static sector_t _hpfs_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, hpfs_get_block);
 }
 
+static int hpfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo, u64 start, u64 len)
+{
+	return generic_block_fiemap(inode, fieinfo, start, len, hpfs_get_block);
+}
+
 const struct address_space_operations hpfs_aops = {
 	.readpage = hpfs_readpage,
 	.writepage = hpfs_writepage,
@@ -214,4 +220,5 @@ const struct file_operations hpfs_file_ops =
 const struct inode_operations hpfs_file_iops =
 {
 	.setattr	= hpfs_setattr,
+	.fiemap		= hpfs_fiemap,
 };

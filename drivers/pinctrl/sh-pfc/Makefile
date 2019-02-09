@@ -1,18 +1,27 @@
-sh-pfc-objs			= core.o pinctrl.o
-ifeq ($(CONFIG_GPIO_SH_PFC),y)
-sh-pfc-objs			+= gpio.o
-endif
-obj-$(CONFIG_PINCTRL_SH_PFC)	+= sh-pfc.o
+# SPDX-License-Identifier: GPL-2.0
+obj-$(CONFIG_PINCTRL_SH_PFC)	+= core.o pinctrl.o
+obj-$(CONFIG_PINCTRL_SH_PFC_GPIO)	+= gpio.o
 obj-$(CONFIG_PINCTRL_PFC_EMEV2)	+= pfc-emev2.o
 obj-$(CONFIG_PINCTRL_PFC_R8A73A4)	+= pfc-r8a73a4.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7740)	+= pfc-r8a7740.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7743)	+= pfc-r8a7791.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7745)	+= pfc-r8a7794.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77470)	+= pfc-r8a77470.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7778)	+= pfc-r8a7778.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7779)	+= pfc-r8a7779.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7790)	+= pfc-r8a7790.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7791)	+= pfc-r8a7791.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7792)	+= pfc-r8a7792.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7793)	+= pfc-r8a7791.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7794)	+= pfc-r8a7794.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7795)	+= pfc-r8a7795.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7795)	+= pfc-r8a7795-es1.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7796)	+= pfc-r8a7796.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77965)	+= pfc-r8a77965.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77970)	+= pfc-r8a77970.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77980)	+= pfc-r8a77980.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77990)	+= pfc-r8a77990.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77995)	+= pfc-r8a77995.o
 obj-$(CONFIG_PINCTRL_PFC_SH7203)	+= pfc-sh7203.o
 obj-$(CONFIG_PINCTRL_PFC_SH7264)	+= pfc-sh7264.o
 obj-$(CONFIG_PINCTRL_PFC_SH7269)	+= pfc-sh7269.o

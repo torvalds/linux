@@ -43,9 +43,7 @@ machine_device_initcall(virtex, virtex_device_probe);
 
 static int __init virtex_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "xlnx,virtex440"))
+	if (!of_machine_is_compatible("xlnx,virtex440"))
 		return 0;
 
 	return 1;
@@ -56,7 +54,7 @@ define_machine(virtex) {
 	.probe			= virtex_probe,
 	.setup_arch		= xilinx_pci_init,
 	.init_IRQ		= xilinx_intc_init_tree,
-	.get_irq		= xilinx_intc_get_irq,
+	.get_irq		= xintc_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,
 	.restart		= ppc4xx_reset_system,
 };

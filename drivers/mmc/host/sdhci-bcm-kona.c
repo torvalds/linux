@@ -186,7 +186,7 @@ static void sdhci_bcm_kona_init_74_clocks(struct sdhci_host *host,
 		udelay(740);
 }
 
-static struct sdhci_ops sdhci_bcm_kona_ops = {
+static const struct sdhci_ops sdhci_bcm_kona_ops = {
 	.set_clock = sdhci_set_clock,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
@@ -197,7 +197,7 @@ static struct sdhci_ops sdhci_bcm_kona_ops = {
 	.card_event = sdhci_bcm_kona_card_event,
 };
 
-static struct sdhci_pltfm_data sdhci_pltfm_data_kona = {
+static const struct sdhci_pltfm_data sdhci_pltfm_data_kona = {
 	.ops    = &sdhci_bcm_kona_ops,
 	.quirks = SDHCI_QUIRK_NO_CARD_NO_RESET |
 		SDHCI_QUIRK_BROKEN_TIMEOUT_VAL | SDHCI_QUIRK_32BIT_DMA_ADDR |
@@ -253,23 +253,25 @@ static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 		goto err_pltfm_free;
 	}
 
-	if (clk_set_rate(pltfm_priv->clk, host->mmc->f_max) != 0) {
+	ret = clk_set_rate(pltfm_priv->clk, host->mmc->f_max);
+	if (ret) {
 		dev_err(dev, "Failed to set rate core clock\n");
 		goto err_pltfm_free;
 	}
 
-	if (clk_prepare_enable(pltfm_priv->clk) != 0) {
+	ret = clk_prepare_enable(pltfm_priv->clk);
+	if (ret) {
 		dev_err(dev, "Failed to enable core clock\n");
 		goto err_pltfm_free;
 	}
 
 	dev_dbg(dev, "non-removable=%c\n",
-		(host->mmc->caps & MMC_CAP_NONREMOVABLE) ? 'Y' : 'N');
+		mmc_card_is_removable(host->mmc) ? 'N' : 'Y');
 	dev_dbg(dev, "cd_gpio %c, wp_gpio %c\n",
 		(mmc_gpio_get_cd(host->mmc) != -ENOSYS) ? 'Y' : 'N',
 		(mmc_gpio_get_ro(host->mmc) != -ENOSYS) ? 'Y' : 'N');
 
-	if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
+	if (!mmc_card_is_removable(host->mmc))
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 
 	dev_dbg(dev, "is_8bit=%c\n",
@@ -282,13 +284,11 @@ static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 	sdhci_bcm_kona_sd_init(host);
 
 	ret = sdhci_add_host(host);
-	if (ret) {
-		dev_err(dev, "Failed sdhci_add_host\n");
+	if (ret)
 		goto err_reset;
-	}
 
 	/* if device is eMMC, emulate card insert right here */
-	if (host->mmc->caps & MMC_CAP_NONREMOVABLE) {
+	if (!mmc_card_is_removable(host->mmc)) {
 		ret = sdhci_bcm_kona_sd_card_emulate(host, 1);
 		if (ret) {
 			dev_err(dev,
@@ -326,7 +326,7 @@ err_pltfm_free:
 static struct platform_driver sdhci_bcm_kona_driver = {
 	.driver		= {
 		.name	= "sdhci-kona",
-		.pm	= SDHCI_PLTFM_PMOPS,
+		.pm	= &sdhci_pltfm_pmops,
 		.of_match_table = sdhci_bcm_kona_of_match,
 	},
 	.probe		= sdhci_bcm_kona_probe,

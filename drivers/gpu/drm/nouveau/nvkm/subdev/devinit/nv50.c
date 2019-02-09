@@ -50,7 +50,7 @@ nv50_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 	ret = nv04_pll_calc(subdev, &info, freq, &N1, &M1, &N2, &M2, &P);
 	if (!ret) {
 		nvkm_error(subdev, "failed pll calculation\n");
-		return ret;
+		return -EINVAL;
 	}
 
 	switch (info.type) {
@@ -93,28 +93,27 @@ nv50_devinit_disable(struct nvkm_devinit *init)
 void
 nv50_devinit_preinit(struct nvkm_devinit *base)
 {
-	struct nv50_devinit *init = nv50_devinit(base);
-	struct nvkm_subdev *subdev = &init->base.subdev;
+	struct nvkm_subdev *subdev = &base->subdev;
 	struct nvkm_device *device = subdev->device;
 
 	/* our heuristics can't detect whether the board has had its
 	 * devinit scripts executed or not if the display engine is
 	 * missing, assume it's a secondary gpu which requires post
 	 */
-	if (!init->base.post) {
-		u64 disable = nvkm_devinit_disable(&init->base);
+	if (!base->post) {
+		u64 disable = nvkm_devinit_disable(base);
 		if (disable & (1ULL << NVKM_ENGINE_DISP))
-			init->base.post = true;
+			base->post = true;
 	}
 
 	/* magic to detect whether or not x86 vbios code has executed
 	 * the devinit scripts to initialise the board
 	 */
-	if (!init->base.post) {
+	if (!base->post) {
 		if (!nvkm_rdvgac(device, 0, 0x00) &&
 		    !nvkm_rdvgac(device, 0, 0x1a)) {
 			nvkm_debug(subdev, "adaptor not initialised\n");
-			init->base.post = true;
+			base->post = true;
 		}
 	}
 }
@@ -138,16 +137,11 @@ nv50_devinit_init(struct nvkm_devinit *base)
 	while (init->base.post && dcb_outp_parse(bios, i, &ver, &hdr, &outp)) {
 		if (nvbios_outp_match(bios, outp.hasht, outp.hashm,
 				      &ver, &hdr, &cnt, &len, &info)) {
-			struct nvbios_init exec = {
-				.subdev = subdev,
-				.bios = bios,
-				.offset = info.script[0],
-				.outp = &outp,
-				.crtc = -1,
-				.execute = 1,
-			};
-
-			nvbios_exec(&exec);
+			nvbios_init(subdev, info.script[0],
+				init.outp = &outp;
+				init.or   = ffs(outp.or) - 1;
+				init.link = outp.sorconf.link == 2;
+			);
 		}
 		i++;
 	}

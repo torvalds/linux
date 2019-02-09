@@ -1,0 +1,16 @@
+nvkm-y += nvkm/subdev/secboot/base.o
+nvkm-y += nvkm/subdev/secboot/hs_ucode.o
+nvkm-y += nvkm/subdev/secboot/ls_ucode_gr.o
+nvkm-y += nvkm/subdev/secboot/ls_ucode_msgqueue.o
+nvkm-y += nvkm/subdev/secboot/acr.o
+nvkm-y += nvkm/subdev/secboot/acr_r352.o
+nvkm-y += nvkm/subdev/secboot/acr_r361.o
+nvkm-y += nvkm/subdev/secboot/acr_r364.o
+nvkm-y += nvkm/subdev/secboot/acr_r367.o
+nvkm-y += nvkm/subdev/secboot/acr_r370.o
+nvkm-y += nvkm/subdev/secboot/acr_r375.o
+nvkm-y += nvkm/subdev/secboot/gm200.o
+nvkm-y += nvkm/subdev/secboot/gm20b.o
+nvkm-y += nvkm/subdev/secboot/gp102.o
+nvkm-y += nvkm/subdev/secboot/gp108.o
+nvkm-y += nvkm/subdev/secboot/gp10b.o

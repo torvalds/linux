@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef GRETH_H
 #define GRETH_H
 
@@ -123,9 +124,7 @@ struct greth_private {
 	struct napi_struct napi;
 	spinlock_t devlock;
 
-	struct phy_device *phy;
 	struct mii_bus *mdio;
-	int mdio_irqs[PHY_MAX_ADDR];
 	unsigned int link;
 	unsigned int speed;
 	unsigned int duplex;

@@ -1,5 +1,7 @@
 /*
- * SuperH Pin Function Controller support.
+ * Pin Control and GPIO driver for SuperH Pin Function Controller.
+ *
+ * Authors: Magnus Damm, Paul Mundt, Laurent Pinchart
  *
  * Copyright (C) 2008 Magnus Damm
  * Copyright (C) 2009 - 2012 Paul Mundt
@@ -17,11 +19,12 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
+#include <linux/psci.h>
 #include <linux/slab.h>
 
 #include "core.h"
@@ -54,7 +57,7 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 		return -EINVAL;
 
 	/* Allocate memory windows and IRQs arrays. */
-	windows = devm_kzalloc(pfc->dev, num_windows * sizeof(*windows),
+	windows = devm_kcalloc(pfc->dev, num_windows, sizeof(*windows),
 			       GFP_KERNEL);
 	if (windows == NULL)
 		return -ENOMEM;
@@ -63,7 +66,7 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 	pfc->windows = windows;
 
 	if (num_irqs) {
-		irqs = devm_kzalloc(pfc->dev, num_irqs * sizeof(*irqs),
+		irqs = devm_kcalloc(pfc->dev, num_irqs, sizeof(*irqs),
 				    GFP_KERNEL);
 		if (irqs == NULL)
 			return -ENOMEM;
@@ -171,6 +174,21 @@ void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned int reg_width,
 	}
 
 	BUG();
+}
+
+u32 sh_pfc_read(struct sh_pfc *pfc, u32 reg)
+{
+	return sh_pfc_read_raw_reg(sh_pfc_phys_to_virt(pfc, reg), 32);
+}
+
+void sh_pfc_write(struct sh_pfc *pfc, u32 reg, u32 data)
+{
+	if (pfc->info->unlock_reg)
+		sh_pfc_write_raw_reg(
+			sh_pfc_phys_to_virt(pfc, pfc->info->unlock_reg), 32,
+			~data);
+
+	sh_pfc_write_raw_reg(sh_pfc_phys_to_virt(pfc, reg), 32, data);
 }
 
 static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
@@ -372,6 +390,26 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	return 0;
 }
 
+const struct pinmux_bias_reg *
+sh_pfc_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
+		       unsigned int *bit)
+{
+	unsigned int i, j;
+
+	for (i = 0; pfc->info->bias_regs[i].puen; i++) {
+		for (j = 0; j < ARRAY_SIZE(pfc->info->bias_regs[i].pins); j++) {
+			if (pfc->info->bias_regs[i].pins[j] == pin) {
+				*bit = j;
+				return &pfc->info->bias_regs[i];
+			}
+		}
+	}
+
+	WARN_ONCE(1, "Pin %u is not in bias info list\n", pin);
+
+	return NULL;
+}
+
 static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 {
 	struct sh_pfc_pin_range *range;
@@ -406,7 +444,7 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 	}
 
 	pfc->nr_ranges = nr_ranges;
-	pfc->ranges = devm_kzalloc(pfc->dev, sizeof(*pfc->ranges) * nr_ranges,
+	pfc->ranges = devm_kcalloc(pfc->dev, nr_ranges, sizeof(*pfc->ranges),
 				   GFP_KERNEL);
 	if (pfc->ranges == NULL)
 		return -ENOMEM;
@@ -453,6 +491,24 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7740_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7743
+	{
+		.compatible = "renesas,pfc-r8a7743",
+		.data = &r8a7743_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7745
+	{
+		.compatible = "renesas,pfc-r8a7745",
+		.data = &r8a7745_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77470
+	{
+		.compatible = "renesas,pfc-r8a77470",
+		.data = &r8a77470_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7778
 	{
 		.compatible = "renesas,pfc-r8a7778",
@@ -477,6 +533,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7791_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7792
+	{
+		.compatible = "renesas,pfc-r8a7792",
+		.data = &r8a7792_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7793
 	{
 		.compatible = "renesas,pfc-r8a7793",
@@ -495,6 +557,42 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7795_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7796
+	{
+		.compatible = "renesas,pfc-r8a7796",
+		.data = &r8a7796_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77965
+	{
+		.compatible = "renesas,pfc-r8a77965",
+		.data = &r8a77965_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77970
+	{
+		.compatible = "renesas,pfc-r8a77970",
+		.data = &r8a77970_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77980
+	{
+		.compatible = "renesas,pfc-r8a77980",
+		.data = &r8a77980_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77990
+	{
+		.compatible = "renesas,pfc-r8a77990",
+		.data = &r8a77990_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77995
+	{
+		.compatible = "renesas,pfc-r8a77995",
+		.data = &r8a77995_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_SH73A0
 	{
 		.compatible = "renesas,pfc-sh73a0",
@@ -503,12 +601,101 @@ static const struct of_device_id sh_pfc_of_table[] = {
 #endif
 	{ },
 };
-MODULE_DEVICE_TABLE(of, sh_pfc_of_table);
 #endif
+
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM_PSCI_FW)
+static void sh_pfc_nop_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
+{
+}
+
+static void sh_pfc_save_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
+{
+	pfc->saved_regs[idx] = sh_pfc_read(pfc, reg);
+}
+
+static void sh_pfc_restore_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
+{
+	sh_pfc_write(pfc, reg, pfc->saved_regs[idx]);
+}
+
+static unsigned int sh_pfc_walk_regs(struct sh_pfc *pfc,
+	void (*do_reg)(struct sh_pfc *pfc, u32 reg, unsigned int idx))
+{
+	unsigned int i, n = 0;
+
+	if (pfc->info->cfg_regs)
+		for (i = 0; pfc->info->cfg_regs[i].reg; i++)
+			do_reg(pfc, pfc->info->cfg_regs[i].reg, n++);
+
+	if (pfc->info->drive_regs)
+		for (i = 0; pfc->info->drive_regs[i].reg; i++)
+			do_reg(pfc, pfc->info->drive_regs[i].reg, n++);
+
+	if (pfc->info->bias_regs)
+		for (i = 0; pfc->info->bias_regs[i].puen; i++) {
+			do_reg(pfc, pfc->info->bias_regs[i].puen, n++);
+			if (pfc->info->bias_regs[i].pud)
+				do_reg(pfc, pfc->info->bias_regs[i].pud, n++);
+		}
+
+	if (pfc->info->ioctrl_regs)
+		for (i = 0; pfc->info->ioctrl_regs[i].reg; i++)
+			do_reg(pfc, pfc->info->ioctrl_regs[i].reg, n++);
+
+	return n;
+}
+
+static int sh_pfc_suspend_init(struct sh_pfc *pfc)
+{
+	unsigned int n;
+
+	/* This is the best we can do to check for the presence of PSCI */
+	if (!psci_ops.cpu_suspend)
+		return 0;
+
+	n = sh_pfc_walk_regs(pfc, sh_pfc_nop_reg);
+	if (!n)
+		return 0;
+
+	pfc->saved_regs = devm_kmalloc_array(pfc->dev, n,
+					     sizeof(*pfc->saved_regs),
+					     GFP_KERNEL);
+	if (!pfc->saved_regs)
+		return -ENOMEM;
+
+	dev_dbg(pfc->dev, "Allocated space to save %u regs\n", n);
+	return 0;
+}
+
+static int sh_pfc_suspend_noirq(struct device *dev)
+{
+	struct sh_pfc *pfc = dev_get_drvdata(dev);
+
+	if (pfc->saved_regs)
+		sh_pfc_walk_regs(pfc, sh_pfc_save_reg);
+	return 0;
+}
+
+static int sh_pfc_resume_noirq(struct device *dev)
+{
+	struct sh_pfc *pfc = dev_get_drvdata(dev);
+
+	if (pfc->saved_regs)
+		sh_pfc_walk_regs(pfc, sh_pfc_restore_reg);
+	return 0;
+}
+
+static const struct dev_pm_ops sh_pfc_pm  = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_pfc_suspend_noirq, sh_pfc_resume_noirq)
+};
+#define DEV_PM_OPS	&sh_pfc_pm
+#else
+static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP && CONFIG_ARM_PSCI_FW */
 
 static int sh_pfc_probe(struct platform_device *pdev)
 {
-	const struct platform_device_id *platid = platform_get_device_id(pdev);
 #ifdef CONFIG_OF
 	struct device_node *np = pdev->dev.of_node;
 #endif
@@ -518,13 +705,10 @@ static int sh_pfc_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 	if (np)
-		info = of_match_device(sh_pfc_of_table, &pdev->dev)->data;
+		info = of_device_get_match_data(&pdev->dev);
 	else
 #endif
-		info = platid ? (const void *)platid->driver_data : NULL;
-
-	if (info == NULL)
-		return -ENODEV;
+		info = (const void *)platform_get_device_id(pdev)->driver_data;
 
 	pfc = devm_kzalloc(&pdev->dev, sizeof(*pfc), GFP_KERNEL);
 	if (pfc == NULL)
@@ -543,9 +727,18 @@ static int sh_pfc_probe(struct platform_device *pdev)
 		ret = info->ops->init(pfc);
 		if (ret < 0)
 			return ret;
+
+		/* .init() may have overridden pfc->info */
+		info = pfc->info;
 	}
 
-	pinctrl_provide_dummies();
+	ret = sh_pfc_suspend_init(pfc);
+	if (ret)
+		return ret;
+
+	/* Enable dummy states for those platforms without pinctrl support */
+	if (!of_have_populated_dt())
+		pinctrl_provide_dummies();
 
 	ret = sh_pfc_init_ranges(pfc);
 	if (ret < 0)
@@ -558,7 +751,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	if (unlikely(ret != 0))
 		return ret;
 
-#ifdef CONFIG_GPIO_SH_PFC
+#ifdef CONFIG_PINCTRL_SH_PFC_GPIO
 	/*
 	 * Then the GPIO chip
 	 */
@@ -576,18 +769,6 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pfc);
 
 	dev_info(pfc->dev, "%s support registered\n", info->name);
-
-	return 0;
-}
-
-static int sh_pfc_remove(struct platform_device *pdev)
-{
-	struct sh_pfc *pfc = platform_get_drvdata(pdev);
-
-#ifdef CONFIG_GPIO_SH_PFC
-	sh_pfc_unregister_gpiochip(pfc);
-#endif
-	sh_pfc_unregister_pinctrl(pfc);
 
 	return 0;
 }
@@ -629,18 +810,16 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 #ifdef CONFIG_PINCTRL_PFC_SHX3
 	{ "pfc-shx3", (kernel_ulong_t)&shx3_pinmux_info },
 #endif
-	{ "sh-pfc", 0 },
 	{ },
 };
-MODULE_DEVICE_TABLE(platform, sh_pfc_id_table);
 
 static struct platform_driver sh_pfc_driver = {
 	.probe		= sh_pfc_probe,
-	.remove		= sh_pfc_remove,
 	.id_table	= sh_pfc_id_table,
 	.driver		= {
 		.name	= DRV_NAME,
 		.of_match_table = of_match_ptr(sh_pfc_of_table),
+		.pm     = DEV_PM_OPS,
 	},
 };
 
@@ -649,13 +828,3 @@ static int __init sh_pfc_init(void)
 	return platform_driver_register(&sh_pfc_driver);
 }
 postcore_initcall(sh_pfc_init);
-
-static void __exit sh_pfc_exit(void)
-{
-	platform_driver_unregister(&sh_pfc_driver);
-}
-module_exit(sh_pfc_exit);
-
-MODULE_AUTHOR("Magnus Damm, Paul Mundt, Laurent Pinchart");
-MODULE_DESCRIPTION("Pin Control and GPIO driver for SuperH pin function controller");
-MODULE_LICENSE("GPL v2");

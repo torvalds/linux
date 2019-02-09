@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the Atmel USBA high speed USB device controller
  *
  * Copyright (C) 2005-2007 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
 #include <linux/clk/at91_pmc.h>
@@ -17,17 +14,20 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/ctype.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/usb/atmel_usba_udc.h>
 #include <linux/delay.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
-
-#include <asm/gpio.h>
+#include <linux/irq.h>
+#include <linux/gpio/consumer.h>
 
 #include "atmel_usba_udc.h"
+#define USBA_VBUS_IRQFLAGS (IRQF_ONESHOT \
+			   | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING)
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 #include <linux/debugfs.h>
@@ -91,7 +91,7 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 	if (!access_ok(VERIFY_WRITE, buf, nbytes))
 		return -EFAULT;
 
-	mutex_lock(&file_inode(file)->i_mutex);
+	inode_lock(file_inode(file));
 	list_for_each_entry_safe(req, tmp_req, queue, queue) {
 		len = snprintf(tmpbuf, sizeof(tmpbuf),
 				"%8p %08x %c%c%c %5d %c%c%c\n",
@@ -118,7 +118,7 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 		nbytes -= len;
 		buf += len;
 	}
-	mutex_unlock(&file_inode(file)->i_mutex);
+	inode_unlock(file_inode(file));
 
 	return actual;
 }
@@ -143,7 +143,7 @@ static int regs_dbg_open(struct inode *inode, struct file *file)
 	u32 *data;
 	int ret = -ENOMEM;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	udc = inode->i_private;
 	data = kmalloc(inode->i_size, GFP_KERNEL);
 	if (!data)
@@ -151,14 +151,14 @@ static int regs_dbg_open(struct inode *inode, struct file *file)
 
 	spin_lock_irq(&udc->lock);
 	for (i = 0; i < inode->i_size / 4; i++)
-		data[i] = usba_io_readl(udc->regs + i * 4);
+		data[i] = readl_relaxed(udc->regs + i * 4);
 	spin_unlock_irq(&udc->lock);
 
 	file->private_data = data;
 	ret = 0;
 
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return ret;
 }
@@ -169,11 +169,11 @@ static ssize_t regs_dbg_read(struct file *file, char __user *buf,
 	struct inode *inode = file_inode(file);
 	int ret;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	ret = simple_read_from_buffer(buf, nbytes, ppos,
 			file->private_data,
 			file_inode(file)->i_size);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return ret;
 }
@@ -206,94 +206,45 @@ static void usba_ep_init_debugfs(struct usba_udc *udc,
 	struct dentry *ep_root;
 
 	ep_root = debugfs_create_dir(ep->ep.name, udc->debugfs_root);
-	if (!ep_root)
-		goto err_root;
 	ep->debugfs_dir = ep_root;
 
-	ep->debugfs_queue = debugfs_create_file("queue", 0400, ep_root,
-						ep, &queue_dbg_fops);
-	if (!ep->debugfs_queue)
-		goto err_queue;
-
-	if (ep->can_dma) {
-		ep->debugfs_dma_status
-			= debugfs_create_u32("dma_status", 0400, ep_root,
-					&ep->last_dma_status);
-		if (!ep->debugfs_dma_status)
-			goto err_dma_status;
-	}
-	if (ep_is_control(ep)) {
-		ep->debugfs_state
-			= debugfs_create_u32("state", 0400, ep_root,
-					&ep->state);
-		if (!ep->debugfs_state)
-			goto err_state;
-	}
-
-	return;
-
-err_state:
+	debugfs_create_file("queue", 0400, ep_root, ep, &queue_dbg_fops);
 	if (ep->can_dma)
-		debugfs_remove(ep->debugfs_dma_status);
-err_dma_status:
-	debugfs_remove(ep->debugfs_queue);
-err_queue:
-	debugfs_remove(ep_root);
-err_root:
-	dev_err(&ep->udc->pdev->dev,
-		"failed to create debugfs directory for %s\n", ep->ep.name);
+		debugfs_create_u32("dma_status", 0400, ep_root,
+				   &ep->last_dma_status);
+	if (ep_is_control(ep))
+		debugfs_create_u32("state", 0400, ep_root, &ep->state);
 }
 
 static void usba_ep_cleanup_debugfs(struct usba_ep *ep)
 {
-	debugfs_remove(ep->debugfs_queue);
-	debugfs_remove(ep->debugfs_dma_status);
-	debugfs_remove(ep->debugfs_state);
-	debugfs_remove(ep->debugfs_dir);
-	ep->debugfs_dma_status = NULL;
-	ep->debugfs_dir = NULL;
+	debugfs_remove_recursive(ep->debugfs_dir);
 }
 
 static void usba_init_debugfs(struct usba_udc *udc)
 {
-	struct dentry *root, *regs;
+	struct dentry *root;
 	struct resource *regs_resource;
 
 	root = debugfs_create_dir(udc->gadget.name, NULL);
-	if (IS_ERR(root) || !root)
-		goto err_root;
 	udc->debugfs_root = root;
 
 	regs_resource = platform_get_resource(udc->pdev, IORESOURCE_MEM,
 				CTRL_IOMEM_ID);
 
 	if (regs_resource) {
-		regs = debugfs_create_file_size("regs", 0400, root, udc,
-						&regs_dbg_fops,
-						resource_size(regs_resource));
-		if (!regs)
-			goto err_regs;
-		udc->debugfs_regs = regs;
+		debugfs_create_file_size("regs", 0400, root, udc,
+					 &regs_dbg_fops,
+					 resource_size(regs_resource));
 	}
 
 	usba_ep_init_debugfs(udc, to_usba_ep(udc->gadget.ep0));
-
-	return;
-
-err_regs:
-	debugfs_remove(root);
-err_root:
-	udc->debugfs_root = NULL;
-	dev_err(&udc->pdev->dev, "debugfs is not available\n");
 }
 
 static void usba_cleanup_debugfs(struct usba_udc *udc)
 {
 	usba_ep_cleanup_debugfs(to_usba_ep(udc->gadget.ep0));
-	debugfs_remove(udc->debugfs_regs);
-	debugfs_remove(udc->debugfs_root);
-	udc->debugfs_regs = NULL;
-	udc->debugfs_root = NULL;
+	debugfs_remove_recursive(udc->debugfs_root);
 }
 #else
 static inline void usba_ep_init_debugfs(struct usba_udc *udc,
@@ -318,6 +269,90 @@ static inline void usba_cleanup_debugfs(struct usba_udc *udc)
 }
 #endif
 
+static ushort fifo_mode;
+
+module_param(fifo_mode, ushort, 0x0);
+MODULE_PARM_DESC(fifo_mode, "Endpoint configuration mode");
+
+/* mode 0 - uses autoconfig */
+
+/* mode 1 - fits in 8KB, generic max fifo configuration */
+static struct usba_fifo_cfg mode_1_cfg[] = {
+{ .hw_ep_num = 0, .fifo_size = 64,	.nr_banks = 1, },
+{ .hw_ep_num = 1, .fifo_size = 1024,	.nr_banks = 2, },
+{ .hw_ep_num = 2, .fifo_size = 1024,	.nr_banks = 1, },
+{ .hw_ep_num = 3, .fifo_size = 1024,	.nr_banks = 1, },
+{ .hw_ep_num = 4, .fifo_size = 1024,	.nr_banks = 1, },
+{ .hw_ep_num = 5, .fifo_size = 1024,	.nr_banks = 1, },
+{ .hw_ep_num = 6, .fifo_size = 1024,	.nr_banks = 1, },
+};
+
+/* mode 2 - fits in 8KB, performance max fifo configuration */
+static struct usba_fifo_cfg mode_2_cfg[] = {
+{ .hw_ep_num = 0, .fifo_size = 64,	.nr_banks = 1, },
+{ .hw_ep_num = 1, .fifo_size = 1024,	.nr_banks = 3, },
+{ .hw_ep_num = 2, .fifo_size = 1024,	.nr_banks = 2, },
+{ .hw_ep_num = 3, .fifo_size = 1024,	.nr_banks = 2, },
+};
+
+/* mode 3 - fits in 8KB, mixed fifo configuration */
+static struct usba_fifo_cfg mode_3_cfg[] = {
+{ .hw_ep_num = 0, .fifo_size = 64,	.nr_banks = 1, },
+{ .hw_ep_num = 1, .fifo_size = 1024,	.nr_banks = 2, },
+{ .hw_ep_num = 2, .fifo_size = 512,	.nr_banks = 2, },
+{ .hw_ep_num = 3, .fifo_size = 512,	.nr_banks = 2, },
+{ .hw_ep_num = 4, .fifo_size = 512,	.nr_banks = 2, },
+{ .hw_ep_num = 5, .fifo_size = 512,	.nr_banks = 2, },
+{ .hw_ep_num = 6, .fifo_size = 512,	.nr_banks = 2, },
+};
+
+/* mode 4 - fits in 8KB, custom fifo configuration */
+static struct usba_fifo_cfg mode_4_cfg[] = {
+{ .hw_ep_num = 0, .fifo_size = 64,	.nr_banks = 1, },
+{ .hw_ep_num = 1, .fifo_size = 512,	.nr_banks = 2, },
+{ .hw_ep_num = 2, .fifo_size = 512,	.nr_banks = 2, },
+{ .hw_ep_num = 3, .fifo_size = 8,	.nr_banks = 2, },
+{ .hw_ep_num = 4, .fifo_size = 512,	.nr_banks = 2, },
+{ .hw_ep_num = 5, .fifo_size = 512,	.nr_banks = 2, },
+{ .hw_ep_num = 6, .fifo_size = 16,	.nr_banks = 2, },
+{ .hw_ep_num = 7, .fifo_size = 8,	.nr_banks = 2, },
+{ .hw_ep_num = 8, .fifo_size = 8,	.nr_banks = 2, },
+};
+/* Add additional configurations here */
+
+static int usba_config_fifo_table(struct usba_udc *udc)
+{
+	int n;
+
+	switch (fifo_mode) {
+	default:
+		fifo_mode = 0;
+	case 0:
+		udc->fifo_cfg = NULL;
+		n = 0;
+		break;
+	case 1:
+		udc->fifo_cfg = mode_1_cfg;
+		n = ARRAY_SIZE(mode_1_cfg);
+		break;
+	case 2:
+		udc->fifo_cfg = mode_2_cfg;
+		n = ARRAY_SIZE(mode_2_cfg);
+		break;
+	case 3:
+		udc->fifo_cfg = mode_3_cfg;
+		n = ARRAY_SIZE(mode_3_cfg);
+		break;
+	case 4:
+		udc->fifo_cfg = mode_4_cfg;
+		n = ARRAY_SIZE(mode_4_cfg);
+		break;
+	}
+	DBG(DBG_HW, "Setup fifo_mode %d\n", fifo_mode);
+
+	return n;
+}
+
 static inline u32 usba_int_enb_get(struct usba_udc *udc)
 {
 	return udc->int_enb_cache;
@@ -331,8 +366,8 @@ static inline void usba_int_enb_set(struct usba_udc *udc, u32 val)
 
 static int vbus_is_present(struct usba_udc *udc)
 {
-	if (gpio_is_valid(udc->vbus_pin))
-		return gpio_get_value(udc->vbus_pin) ^ udc->vbus_pin_inverted;
+	if (udc->vbus_pin)
+		return gpiod_get_value(udc->vbus_pin);
 
 	/* No Vbus detection: Assume always present */
 	return 1;
@@ -524,12 +559,12 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 {
 	struct usba_ep *ep = to_usba_ep(_ep);
 	struct usba_udc *udc = ep->udc;
-	unsigned long flags, ept_cfg, maxpacket;
+	unsigned long flags, maxpacket;
 	unsigned int nr_trans;
 
 	DBG(DBG_GADGET, "%s: ep_enable: desc=%p\n", ep->ep.name, desc);
 
-	maxpacket = usb_endpoint_maxp(desc) & 0x7ff;
+	maxpacket = usb_endpoint_maxp(desc);
 
 	if (((desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK) != ep->index)
 			|| ep->index == 0
@@ -543,24 +578,17 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	ep->is_isoc = 0;
 	ep->is_in = 0;
 
-	if (maxpacket <= 8)
-		ept_cfg = USBA_BF(EPT_SIZE, USBA_EPT_SIZE_8);
-	else
-		/* LSB is bit 1, not 0 */
-		ept_cfg = USBA_BF(EPT_SIZE, fls(maxpacket - 1) - 3);
-
-	DBG(DBG_HW, "%s: EPT_SIZE = %lu (maxpacket = %lu)\n",
-			ep->ep.name, ept_cfg, maxpacket);
+	DBG(DBG_ERR, "%s: EPT_CFG = 0x%lx (maxpacket = %lu)\n",
+			ep->ep.name, ep->ept_cfg, maxpacket);
 
 	if (usb_endpoint_dir_in(desc)) {
 		ep->is_in = 1;
-		ept_cfg |= USBA_EPT_DIR_IN;
+		ep->ept_cfg |= USBA_EPT_DIR_IN;
 	}
 
 	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
-		ept_cfg |= USBA_BF(EPT_TYPE, USBA_EPT_TYPE_CONTROL);
-		ept_cfg |= USBA_BF(BK_NUMBER, USBA_BK_NUMBER_ONE);
+		ep->ept_cfg |= USBA_BF(EPT_TYPE, USBA_EPT_TYPE_CONTROL);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		if (!ep->can_isoc) {
@@ -573,29 +601,20 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		 * Bits 11:12 specify number of _additional_
 		 * transactions per microframe.
 		 */
-		nr_trans = ((usb_endpoint_maxp(desc) >> 11) & 3) + 1;
+		nr_trans = usb_endpoint_maxp_mult(desc);
 		if (nr_trans > 3)
 			return -EINVAL;
 
 		ep->is_isoc = 1;
-		ept_cfg |= USBA_BF(EPT_TYPE, USBA_EPT_TYPE_ISO);
+		ep->ept_cfg |= USBA_BF(EPT_TYPE, USBA_EPT_TYPE_ISO);
+		ep->ept_cfg |= USBA_BF(NB_TRANS, nr_trans);
 
-		/*
-		 * Do triple-buffering on high-bandwidth iso endpoints.
-		 */
-		if (nr_trans > 1 && ep->nr_banks == 3)
-			ept_cfg |= USBA_BF(BK_NUMBER, USBA_BK_NUMBER_TRIPLE);
-		else
-			ept_cfg |= USBA_BF(BK_NUMBER, USBA_BK_NUMBER_DOUBLE);
-		ept_cfg |= USBA_BF(NB_TRANS, nr_trans);
 		break;
 	case USB_ENDPOINT_XFER_BULK:
-		ept_cfg |= USBA_BF(EPT_TYPE, USBA_EPT_TYPE_BULK);
-		ept_cfg |= USBA_BF(BK_NUMBER, USBA_BK_NUMBER_DOUBLE);
+		ep->ept_cfg |= USBA_BF(EPT_TYPE, USBA_EPT_TYPE_BULK);
 		break;
 	case USB_ENDPOINT_XFER_INT:
-		ept_cfg |= USBA_BF(EPT_TYPE, USBA_EPT_TYPE_INT);
-		ept_cfg |= USBA_BF(BK_NUMBER, USBA_BK_NUMBER_DOUBLE);
+		ep->ept_cfg |= USBA_BF(EPT_TYPE, USBA_EPT_TYPE_INT);
 		break;
 	}
 
@@ -604,7 +623,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	ep->ep.desc = desc;
 	ep->ep.maxpacket = maxpacket;
 
-	usba_ep_writel(ep, CFG, ept_cfg);
+	usba_ep_writel(ep, CFG, ep->ept_cfg);
 	usba_ep_writel(ep, CTL_ENB, USBA_EPT_ENABLE);
 
 	if (ep->can_dma) {
@@ -1006,12 +1025,78 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
 static int atmel_usba_stop(struct usb_gadget *gadget);
 
+static struct usb_ep *atmel_usba_match_ep(struct usb_gadget *gadget,
+				struct usb_endpoint_descriptor	*desc,
+				struct usb_ss_ep_comp_descriptor *ep_comp)
+{
+	struct usb_ep	*_ep;
+	struct usba_ep *ep;
+
+	/* Look at endpoints until an unclaimed one looks usable */
+	list_for_each_entry(_ep, &gadget->ep_list, ep_list) {
+		if (usb_gadget_ep_match_desc(gadget, _ep, desc, ep_comp))
+			goto found_ep;
+	}
+	/* Fail */
+	return NULL;
+
+found_ep:
+
+	if (fifo_mode == 0) {
+		/* Optimize hw fifo size based on ep type and other info */
+		ep = to_usba_ep(_ep);
+
+		switch (usb_endpoint_type(desc)) {
+		case USB_ENDPOINT_XFER_CONTROL:
+			break;
+
+		case USB_ENDPOINT_XFER_ISOC:
+			ep->fifo_size = 1024;
+			ep->nr_banks = 2;
+			break;
+
+		case USB_ENDPOINT_XFER_BULK:
+			ep->fifo_size = 512;
+			ep->nr_banks = 1;
+			break;
+
+		case USB_ENDPOINT_XFER_INT:
+			if (desc->wMaxPacketSize == 0)
+				ep->fifo_size =
+				    roundup_pow_of_two(_ep->maxpacket_limit);
+			else
+				ep->fifo_size =
+				    roundup_pow_of_two(le16_to_cpu(desc->wMaxPacketSize));
+			ep->nr_banks = 1;
+			break;
+		}
+
+		/* It might be a little bit late to set this */
+		usb_ep_set_maxpacket_limit(&ep->ep, ep->fifo_size);
+
+		/* Generate ept_cfg basd on FIFO size and number of banks */
+		if (ep->fifo_size  <= 8)
+			ep->ept_cfg = USBA_BF(EPT_SIZE, USBA_EPT_SIZE_8);
+		else
+			/* LSB is bit 1, not 0 */
+			ep->ept_cfg =
+				USBA_BF(EPT_SIZE, fls(ep->fifo_size - 1) - 3);
+
+		ep->ept_cfg |= USBA_BF(BK_NUMBER, ep->nr_banks);
+
+		ep->udc->configured_ep++;
+	}
+
+	return _ep;
+}
+
 static const struct usb_gadget_ops usba_udc_ops = {
 	.get_frame		= usba_udc_get_frame,
 	.wakeup			= usba_udc_wakeup,
 	.set_selfpowered	= usba_udc_set_selfpowered,
 	.udc_start		= atmel_usba_start,
 	.udc_stop		= atmel_usba_stop,
+	.match_ep		= atmel_usba_match_ep,
 };
 
 static struct usb_endpoint_descriptor usba_ep0_desc = {
@@ -1044,20 +1129,6 @@ static void reset_all_endpoints(struct usba_udc *udc)
 	list_for_each_entry_safe(req, tmp_req, &ep->queue, queue) {
 		list_del_init(&req->queue);
 		request_complete(ep, req, -ECONNRESET);
-	}
-
-	/* NOTE:  normally, the next call to the gadget driver is in
-	 * charge of disabling endpoints... usually disconnect().
-	 * The exception would be entering a high speed test mode.
-	 *
-	 * FIXME remove this code ... and retest thoroughly.
-	 */
-	list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
-		if (ep->ep.desc) {
-			spin_unlock(&udc->lock);
-			usba_ep_disable(&ep->ep);
-			spin_lock(&udc->lock);
-		}
 	}
 }
 
@@ -1248,7 +1319,7 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 		if (crq->wLength != cpu_to_le16(sizeof(status)))
 			goto stall;
 		ep->state = DATA_STAGE_IN;
-		usba_io_writew(status, ep->fifo);
+		writew_relaxed(status, ep->fifo);
 		usba_ep_writel(ep, SET_STA, USBA_TX_PK_RDY);
 		break;
 	}
@@ -1478,8 +1549,8 @@ restart:
 		pkt_len = USBA_BFEXT(BYTE_COUNT, usba_ep_readl(ep, STA));
 		DBG(DBG_HW, "Packet length: %u\n", pkt_len);
 		if (pkt_len != sizeof(crq)) {
-			pr_warning("udc: Invalid packet length %u "
-				"(expected %zu)\n", pkt_len, sizeof(crq));
+			pr_warn("udc: Invalid packet length %u (expected %zu)\n",
+				pkt_len, sizeof(crq));
 			set_protocol_stall(udc, ep);
 			return;
 		}
@@ -1692,7 +1763,8 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 	}
 
 	if (status & USBA_END_OF_RESET) {
-		struct usba_ep *ep0;
+		struct usba_ep *ep0, *ep;
+		int i, n;
 
 		usba_writel(udc, INT_CLR, USBA_END_OF_RESET);
 		generate_bias_pulse(udc);
@@ -1729,8 +1801,18 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 		 * but it's clearly harmless...
 		 */
 		if (!(usba_ep_readl(ep0, CFG) & USBA_EPT_MAPPED))
-			dev_dbg(&udc->pdev->dev,
-				 "ODD: EP0 configuration is invalid!\n");
+			dev_err(&udc->pdev->dev,
+				"ODD: EP0 configuration is invalid!\n");
+
+		/* Preallocate other endpoints */
+		n = fifo_mode ? udc->num_ep : udc->configured_ep;
+		for (i = 1; i < n; i++) {
+			ep = &udc->usba_ep[i];
+			usba_ep_writel(ep, CFG, ep->ept_cfg);
+			if (!(usba_ep_readl(ep, CFG) & USBA_EPT_MAPPED))
+				dev_err(&udc->pdev->dev,
+					"ODD: EP%d configuration is invalid!\n", i);
+		}
 	}
 
 	spin_unlock(&udc->lock);
@@ -1844,8 +1926,8 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 
 	mutex_lock(&udc->vbus_mutex);
 
-	if (gpio_is_valid(udc->vbus_pin))
-		enable_irq(gpio_to_irq(udc->vbus_pin));
+	if (udc->vbus_pin)
+		enable_irq(gpiod_to_irq(udc->vbus_pin));
 
 	/* If Vbus is present, enable the controller and wait for reset */
 	udc->vbus_prev = vbus_is_present(udc);
@@ -1859,8 +1941,8 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 	return 0;
 
 err:
-	if (gpio_is_valid(udc->vbus_pin))
-		disable_irq(gpio_to_irq(udc->vbus_pin));
+	if (udc->vbus_pin)
+		disable_irq(gpiod_to_irq(udc->vbus_pin));
 
 	mutex_unlock(&udc->vbus_mutex);
 
@@ -1875,8 +1957,11 @@ static int atmel_usba_stop(struct usb_gadget *gadget)
 {
 	struct usba_udc *udc = container_of(gadget, struct usba_udc, gadget);
 
-	if (gpio_is_valid(udc->vbus_pin))
-		disable_irq(gpio_to_irq(udc->vbus_pin));
+	if (udc->vbus_pin)
+		disable_irq(gpiod_to_irq(udc->vbus_pin));
+
+	if (fifo_mode == 0)
+		udc->configured_ep = 1;
 
 	usba_stop(udc);
 
@@ -1885,23 +1970,17 @@ static int atmel_usba_stop(struct usb_gadget *gadget)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static void at91sam9rl_toggle_bias(struct usba_udc *udc, int is_on)
 {
-	unsigned int uckr = at91_pmc_read(AT91_CKGR_UCKR);
-
-	if (is_on)
-		at91_pmc_write(AT91_CKGR_UCKR, uckr | AT91_PMC_BIASEN);
-	else
-		at91_pmc_write(AT91_CKGR_UCKR, uckr & ~(AT91_PMC_BIASEN));
+	regmap_update_bits(udc->pmc, AT91_CKGR_UCKR, AT91_PMC_BIASEN,
+			   is_on ? AT91_PMC_BIASEN : 0);
 }
 
 static void at91sam9g45_pulse_bias(struct usba_udc *udc)
 {
-	unsigned int uckr = at91_pmc_read(AT91_CKGR_UCKR);
-
-	at91_pmc_write(AT91_CKGR_UCKR, uckr & ~(AT91_PMC_BIASEN));
-	at91_pmc_write(AT91_CKGR_UCKR, uckr | AT91_PMC_BIASEN);
+	regmap_update_bits(udc->pmc, AT91_CKGR_UCKR, AT91_PMC_BIASEN, 0);
+	regmap_update_bits(udc->pmc, AT91_CKGR_UCKR, AT91_PMC_BIASEN,
+			   AT91_PMC_BIASEN);
 }
 
 static const struct usba_udc_errata at91sam9rl_errata = {
@@ -1926,7 +2005,6 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 {
 	u32 val;
 	const char *name;
-	enum of_gpio_flags flags;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	struct device_node *pp;
@@ -1938,18 +2016,29 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		return ERR_PTR(-EINVAL);
 
 	udc->errata = match->data;
+	udc->pmc = syscon_regmap_lookup_by_compatible("atmel,at91sam9g45-pmc");
+	if (IS_ERR(udc->pmc))
+		udc->pmc = syscon_regmap_lookup_by_compatible("atmel,at91sam9rl-pmc");
+	if (IS_ERR(udc->pmc))
+		udc->pmc = syscon_regmap_lookup_by_compatible("atmel,at91sam9x5-pmc");
+	if (udc->errata && IS_ERR(udc->pmc))
+		return ERR_CAST(udc->pmc);
 
 	udc->num_ep = 0;
 
-	udc->vbus_pin = of_get_named_gpio_flags(np, "atmel,vbus-gpio", 0,
-						&flags);
-	udc->vbus_pin_inverted = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
+	udc->vbus_pin = devm_gpiod_get_optional(&pdev->dev, "atmel,vbus",
+						GPIOD_IN);
 
-	pp = NULL;
-	while ((pp = of_get_next_child(np, pp)))
-		udc->num_ep++;
+	if (fifo_mode == 0) {
+		pp = NULL;
+		while ((pp = of_get_next_child(np, pp)))
+			udc->num_ep++;
+		udc->configured_ep = 1;
+	} else {
+		udc->num_ep = usba_config_fifo_table(udc);
+	}
 
-	eps = devm_kzalloc(&pdev->dev, sizeof(struct usba_ep) * udc->num_ep,
+	eps = devm_kcalloc(&pdev->dev, udc->num_ep, sizeof(struct usba_ep),
 			   GFP_KERNEL);
 	if (!eps)
 		return ERR_PTR(-ENOMEM);
@@ -1960,7 +2049,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 
 	pp = NULL;
 	i = 0;
-	while ((pp = of_get_next_child(np, pp))) {
+	while ((pp = of_get_next_child(np, pp)) && i < udc->num_ep) {
 		ep = &eps[i];
 
 		ret = of_property_read_u32(pp, "reg", &val);
@@ -1968,21 +2057,41 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 			dev_err(&pdev->dev, "of_probe: reg error(%d)\n", ret);
 			goto err;
 		}
-		ep->index = val;
+		ep->index = fifo_mode ? udc->fifo_cfg[i].hw_ep_num : val;
 
 		ret = of_property_read_u32(pp, "atmel,fifo-size", &val);
 		if (ret) {
 			dev_err(&pdev->dev, "of_probe: fifo-size error(%d)\n", ret);
 			goto err;
 		}
-		ep->fifo_size = val;
+		if (fifo_mode) {
+			if (val < udc->fifo_cfg[i].fifo_size) {
+				dev_warn(&pdev->dev,
+					 "Using max fifo-size value from DT\n");
+				ep->fifo_size = val;
+			} else {
+				ep->fifo_size = udc->fifo_cfg[i].fifo_size;
+			}
+		} else {
+			ep->fifo_size = val;
+		}
 
 		ret = of_property_read_u32(pp, "atmel,nb-banks", &val);
 		if (ret) {
 			dev_err(&pdev->dev, "of_probe: nb-banks error(%d)\n", ret);
 			goto err;
 		}
-		ep->nr_banks = val;
+		if (fifo_mode) {
+			if (val < udc->fifo_cfg[i].nr_banks) {
+				dev_warn(&pdev->dev,
+					 "Using max nb-banks value from DT\n");
+				ep->nr_banks = val;
+			} else {
+				ep->nr_banks = udc->fifo_cfg[i].nr_banks;
+			}
+		} else {
+			ep->nr_banks = val;
+		}
 
 		ep->can_dma = of_property_read_bool(pp, "atmel,can-dma");
 		ep->can_isoc = of_property_read_bool(pp, "atmel,can-isoc");
@@ -1992,7 +2101,8 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 			dev_err(&pdev->dev, "of_probe: name error(%d)\n", ret);
 			goto err;
 		}
-		ep->ep.name = name;
+		sprintf(ep->name, "ep%d", ep->index);
+		ep->ep.name = ep->name;
 
 		ep->ep_regs = udc->regs + USBA_EPT_BASE(i);
 		ep->dma_regs = udc->regs + USBA_DMA_BASE(i);
@@ -2013,6 +2123,21 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		ep->ep.caps.dir_in = true;
 		ep->ep.caps.dir_out = true;
 
+		if (fifo_mode != 0) {
+			/*
+			 * Generate ept_cfg based on FIFO size and
+			 * banks number
+			 */
+			if (ep->fifo_size  <= 8)
+				ep->ept_cfg = USBA_BF(EPT_SIZE, USBA_EPT_SIZE_8);
+			else
+				/* LSB is bit 1, not 0 */
+				ep->ept_cfg =
+				  USBA_BF(EPT_SIZE, fls(ep->fifo_size - 1) - 3);
+
+			ep->ept_cfg |= USBA_BF(BK_NUMBER, ep->nr_banks);
+		}
+
 		if (i)
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
 
@@ -2029,75 +2154,10 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 err:
 	return ERR_PTR(ret);
 }
-#else
-static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
-						    struct usba_udc *udc)
-{
-	return ERR_PTR(-ENOSYS);
-}
-#endif
-
-static struct usba_ep * usba_udc_pdata(struct platform_device *pdev,
-						 struct usba_udc *udc)
-{
-	struct usba_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct usba_ep *eps;
-	int i;
-
-	if (!pdata)
-		return ERR_PTR(-ENXIO);
-
-	eps = devm_kzalloc(&pdev->dev, sizeof(struct usba_ep) * pdata->num_ep,
-			   GFP_KERNEL);
-	if (!eps)
-		return ERR_PTR(-ENOMEM);
-
-	udc->gadget.ep0 = &eps[0].ep;
-
-	udc->vbus_pin = pdata->vbus_pin;
-	udc->vbus_pin_inverted = pdata->vbus_pin_inverted;
-	udc->num_ep = pdata->num_ep;
-
-	INIT_LIST_HEAD(&eps[0].ep.ep_list);
-
-	for (i = 0; i < pdata->num_ep; i++) {
-		struct usba_ep *ep = &eps[i];
-
-		ep->ep_regs = udc->regs + USBA_EPT_BASE(i);
-		ep->dma_regs = udc->regs + USBA_DMA_BASE(i);
-		ep->fifo = udc->fifo + USBA_FIFO_BASE(i);
-		ep->ep.ops = &usba_ep_ops;
-		ep->ep.name = pdata->ep[i].name;
-		ep->fifo_size = pdata->ep[i].fifo_size;
-		usb_ep_set_maxpacket_limit(&ep->ep, ep->fifo_size);
-		ep->udc = udc;
-		INIT_LIST_HEAD(&ep->queue);
-		ep->nr_banks = pdata->ep[i].nr_banks;
-		ep->index = pdata->ep[i].index;
-		ep->can_dma = pdata->ep[i].can_dma;
-		ep->can_isoc = pdata->ep[i].can_isoc;
-
-		if (i == 0) {
-			ep->ep.caps.type_control = true;
-		} else {
-			ep->ep.caps.type_iso = ep->can_isoc;
-			ep->ep.caps.type_bulk = true;
-			ep->ep.caps.type_int = true;
-		}
-
-		ep->ep.caps.dir_in = true;
-		ep->ep.caps.dir_out = true;
-
-		if (i)
-			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
-	}
-
-	return eps;
-}
 
 static int usba_udc_probe(struct platform_device *pdev)
 {
-	struct resource *regs, *fifo;
+	struct resource *res;
 	struct clk *pclk, *hclk;
 	struct usba_udc *udc;
 	int irq, ret, i;
@@ -2109,10 +2169,18 @@ static int usba_udc_probe(struct platform_device *pdev)
 	udc->gadget = usba_gadget_template;
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, CTRL_IOMEM_ID);
-	fifo = platform_get_resource(pdev, IORESOURCE_MEM, FIFO_IOMEM_ID);
-	if (!regs || !fifo)
-		return -ENXIO;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, CTRL_IOMEM_ID);
+	udc->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(udc->regs))
+		return PTR_ERR(udc->regs);
+	dev_info(&pdev->dev, "MMIO registers at %pR mapped at %p\n",
+		 res, udc->regs);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, FIFO_IOMEM_ID);
+	udc->fifo = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(udc->fifo))
+		return PTR_ERR(udc->fifo);
+	dev_info(&pdev->dev, "FIFO at %pR mapped at %p\n", res, udc->fifo);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -2130,23 +2198,6 @@ static int usba_udc_probe(struct platform_device *pdev)
 	udc->pdev = pdev;
 	udc->pclk = pclk;
 	udc->hclk = hclk;
-	udc->vbus_pin = -ENODEV;
-
-	ret = -ENOMEM;
-	udc->regs = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
-	if (!udc->regs) {
-		dev_err(&pdev->dev, "Unable to map I/O memory, aborting.\n");
-		return ret;
-	}
-	dev_info(&pdev->dev, "MMIO registers at 0x%08lx mapped at %p\n",
-		 (unsigned long)regs->start, udc->regs);
-	udc->fifo = devm_ioremap(&pdev->dev, fifo->start, resource_size(fifo));
-	if (!udc->fifo) {
-		dev_err(&pdev->dev, "Unable to map FIFO, aborting.\n");
-		return ret;
-	}
-	dev_info(&pdev->dev, "FIFO at 0x%08lx mapped at %p\n",
-		 (unsigned long)fifo->start, udc->fifo);
 
 	platform_set_drvdata(pdev, udc);
 
@@ -2160,10 +2211,7 @@ static int usba_udc_probe(struct platform_device *pdev)
 	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 	clk_disable_unprepare(pclk);
 
-	if (pdev->dev.of_node)
-		udc->usba_ep = atmel_udc_of_init(pdev, udc);
-	else
-		udc->usba_ep = usba_udc_pdata(pdev, udc);
+	udc->usba_ep = atmel_udc_of_init(pdev, udc);
 
 	toggle_bias(udc, 0);
 
@@ -2179,23 +2227,17 @@ static int usba_udc_probe(struct platform_device *pdev)
 	}
 	udc->irq = irq;
 
-	if (gpio_is_valid(udc->vbus_pin)) {
-		if (!devm_gpio_request(&pdev->dev, udc->vbus_pin, "atmel_usba_udc")) {
-			irq_set_status_flags(gpio_to_irq(udc->vbus_pin),
-					IRQ_NOAUTOEN);
-			ret = devm_request_threaded_irq(&pdev->dev,
-					gpio_to_irq(udc->vbus_pin), NULL,
-					usba_vbus_irq_thread, IRQF_ONESHOT,
-					"atmel_usba_udc", udc);
-			if (ret) {
-				udc->vbus_pin = -ENODEV;
-				dev_warn(&udc->pdev->dev,
-					 "failed to request vbus irq; "
-					 "assuming always on\n");
-			}
-		} else {
-			/* gpio_request fail so use -EINVAL for gpio_is_valid */
-			udc->vbus_pin = -EINVAL;
+	if (udc->vbus_pin) {
+		irq_set_status_flags(gpiod_to_irq(udc->vbus_pin), IRQ_NOAUTOEN);
+		ret = devm_request_threaded_irq(&pdev->dev,
+				gpiod_to_irq(udc->vbus_pin), NULL,
+				usba_vbus_irq_thread, USBA_VBUS_IRQFLAGS,
+				"atmel_usba_udc", udc);
+		if (ret) {
+			udc->vbus_pin = NULL;
+			dev_warn(&udc->pdev->dev,
+				 "failed to request vbus irq; "
+				 "assuming always on\n");
 		}
 	}
 
@@ -2248,9 +2290,9 @@ static int usba_udc_suspend(struct device *dev)
 	 * Device may wake up. We stay clocked if we failed
 	 * to request vbus irq, assuming always on.
 	 */
-	if (gpio_is_valid(udc->vbus_pin)) {
+	if (udc->vbus_pin) {
 		usba_stop(udc);
-		enable_irq_wake(gpio_to_irq(udc->vbus_pin));
+		enable_irq_wake(gpiod_to_irq(udc->vbus_pin));
 	}
 
 out:
@@ -2266,8 +2308,8 @@ static int usba_udc_resume(struct device *dev)
 	if (!udc->driver)
 		return 0;
 
-	if (device_may_wakeup(dev) && gpio_is_valid(udc->vbus_pin))
-		disable_irq_wake(gpio_to_irq(udc->vbus_pin));
+	if (device_may_wakeup(dev) && udc->vbus_pin)
+		disable_irq_wake(gpiod_to_irq(udc->vbus_pin));
 
 	/* If Vbus is present, enable the controller and wait for reset */
 	mutex_lock(&udc->vbus_mutex);
@@ -2287,7 +2329,7 @@ static struct platform_driver udc_driver = {
 	.driver		= {
 		.name		= "atmel_usba_udc",
 		.pm		= &usba_udc_pm_ops,
-		.of_match_table	= of_match_ptr(atmel_udc_dt_ids),
+		.of_match_table	= atmel_udc_dt_ids,
 	},
 };
 

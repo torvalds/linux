@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Infrastructure for statistic tracing (histogram output).
  *
@@ -281,8 +282,7 @@ static int tracing_stat_init(void)
 
 	stat_dir = tracefs_create_dir("trace_stat", d_tracing);
 	if (!stat_dir)
-		pr_warning("Could not create tracefs "
-			   "'trace_stat' entry\n");
+		pr_warn("Could not create tracefs 'trace_stat' entry\n");
 	return 0;
 }
 

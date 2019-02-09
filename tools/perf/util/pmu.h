@@ -1,9 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PMU_H
 #define __PMU_H
 
 #include <linux/bitmap.h>
+#include <linux/compiler.h>
 #include <linux/perf_event.h>
 #include <stdbool.h>
+#include "evsel.h"
 #include "parse-events.h"
 
 enum {
@@ -20,15 +23,19 @@ struct perf_pmu {
 	char *name;
 	__u32 type;
 	bool selectable;
+	bool is_uncore;
 	struct perf_event_attr *default_config;
 	struct cpu_map *cpus;
 	struct list_head format;  /* HEAD struct perf_pmu_format -> list */
 	struct list_head aliases; /* HEAD struct perf_pmu_alias -> list */
 	struct list_head list;    /* ELEM */
+	int (*set_drv_config)	(struct perf_evsel_config_term *term);
 };
 
 struct perf_pmu_info {
 	const char *unit;
+	const char *metric_expr;
+	const char *metric_name;
 	double scale;
 	bool per_pkg;
 	bool snapshot;
@@ -38,12 +45,18 @@ struct perf_pmu_info {
 
 struct perf_pmu_alias {
 	char *name;
+	char *desc;
+	char *long_desc;
+	char *topic;
+	char *str;
 	struct list_head terms; /* HEAD struct parse_events_term -> list */
 	struct list_head list;  /* ELEM */
 	char unit[UNIT_MAX_LEN+1];
 	double scale;
 	bool per_pkg;
 	bool snapshot;
+	char *metric_expr;
+	char *metric_name;
 };
 
 struct perf_pmu *perf_pmu__find(const char *name);
@@ -69,14 +82,16 @@ int perf_pmu__format_parse(char *dir, struct list_head *head);
 
 struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu);
 
-void print_pmu_events(const char *event_glob, bool name_only);
+void print_pmu_events(const char *event_glob, bool name_only, bool quiet,
+		      bool long_desc, bool details_flag);
 bool pmu_have_event(const char *pname, const char *name);
 
-int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
-			...) __attribute__((format(scanf, 3, 4)));
+int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt, ...) __scanf(3, 4);
 
 int perf_pmu__test(void);
 
 struct perf_event_attr *perf_pmu__get_default_config(struct perf_pmu *pmu);
+
+struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu);
 
 #endif /* __PMU_H */

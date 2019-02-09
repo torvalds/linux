@@ -40,7 +40,6 @@
 #include <asm/io.h>
 #include <asm/dbdma.h>
 #include <asm/ide.h>
-#include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/sections.h>
@@ -708,6 +707,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 		*timings = ((*timings) & ~TR_133_PIOREG_MDMA_MASK) | tr;
 		*timings2 = (*timings2) & ~TR_133_UDMAREG_UDMA_EN;
 		}
+		break;
 	case controller_un_ata6:
 	case controller_k2_ata6: {
 		/* 100Mhz cell */
@@ -920,6 +920,7 @@ static u8 pmac_ide_cable_detect(ide_hwif_t *hwif)
 	struct device_node *root = of_find_node_by_path("/");
 	const char *model = of_get_property(root, "model", NULL);
 
+	of_node_put(root);
 	/* Get cable type from device-tree. */
 	if (cable && !strncmp(cable, "80-", 3)) {
 		/* Some drives fail to detect 80c cable in PowerBook */
@@ -1145,8 +1146,8 @@ static int pmac_ide_macio_attach(struct macio_dev *mdev,
 		return -ENOMEM;
 
 	if (macio_resource_count(mdev) == 0) {
-		printk(KERN_WARNING "ide-pmac: no address for %s\n",
-				    mdev->ofdev.dev.of_node->full_name);
+		printk(KERN_WARNING "ide-pmac: no address for %pOF\n",
+				    mdev->ofdev.dev.of_node);
 		rc = -ENXIO;
 		goto out_free_pmif;
 	}
@@ -1154,7 +1155,7 @@ static int pmac_ide_macio_attach(struct macio_dev *mdev,
 	/* Request memory resource for IO ports */
 	if (macio_request_resource(mdev, 0, "ide-pmac (ports)")) {
 		printk(KERN_ERR "ide-pmac: can't request MMIO resource for "
-				"%s!\n", mdev->ofdev.dev.of_node->full_name);
+				"%pOF!\n", mdev->ofdev.dev.of_node);
 		rc = -EBUSY;
 		goto out_free_pmif;
 	}
@@ -1165,8 +1166,8 @@ static int pmac_ide_macio_attach(struct macio_dev *mdev,
 	 * where that happens though...
 	 */
 	if (macio_irq_count(mdev) == 0) {
-		printk(KERN_WARNING "ide-pmac: no intrs for device %s, using "
-				    "13\n", mdev->ofdev.dev.of_node->full_name);
+		printk(KERN_WARNING "ide-pmac: no intrs for device %pOF, using "
+				    "13\n", mdev->ofdev.dev.of_node);
 		irq = irq_create_mapping(NULL, 13);
 	} else
 		irq = macio_irq(mdev, 0);
@@ -1183,8 +1184,8 @@ static int pmac_ide_macio_attach(struct macio_dev *mdev,
 	if (macio_resource_count(mdev) >= 2) {
 		if (macio_request_resource(mdev, 1, "ide-pmac (dma)"))
 			printk(KERN_WARNING "ide-pmac: can't request DMA "
-					    "resource for %s!\n",
-					    mdev->ofdev.dev.of_node->full_name);
+					    "resource for %pOF!\n",
+					    mdev->ofdev.dev.of_node);
 		else
 			pmif->dma_regs = ioremap(macio_resource_start(mdev, 1), 0x1000);
 	} else
@@ -1274,7 +1275,7 @@ static int pmac_ide_pci_attach(struct pci_dev *pdev,
 
 	if (pci_enable_device(pdev)) {
 		printk(KERN_WARNING "ide-pmac: Can't enable PCI device for "
-				    "%s\n", np->full_name);
+				    "%pOF\n", np);
 		rc = -ENXIO;
 		goto out_free_pmif;
 	}
@@ -1282,7 +1283,7 @@ static int pmac_ide_pci_attach(struct pci_dev *pdev,
 			
 	if (pci_request_regions(pdev, "Kauai ATA")) {
 		printk(KERN_ERR "ide-pmac: Cannot obtain PCI resources for "
-				"%s\n", np->full_name);
+				"%pOF\n", np);
 		rc = -ENXIO;
 		goto out_free_pmif;
 	}

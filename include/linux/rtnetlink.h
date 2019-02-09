@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_RTNETLINK_H
 #define __LINUX_RTNETLINK_H
 
@@ -17,8 +18,12 @@ extern int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst,
 			      u32 id, long expires, u32 error);
 
 void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change, gfp_t flags);
+void rtmsg_ifinfo_newnet(int type, struct net_device *dev, unsigned int change,
+			 gfp_t flags, int *new_nsid, int new_ifindex);
 struct sk_buff *rtmsg_ifinfo_build_skb(int type, struct net_device *dev,
-				       unsigned change, gfp_t flags);
+				       unsigned change, u32 event,
+				       gfp_t flags, int *new_nsid,
+				       int new_ifindex);
 void rtmsg_ifinfo_send(struct sk_buff *skb, struct net_device *dev,
 		       gfp_t flags);
 
@@ -28,9 +33,11 @@ extern void rtnl_lock(void);
 extern void rtnl_unlock(void);
 extern int rtnl_trylock(void);
 extern int rtnl_is_locked(void);
+extern int rtnl_lock_killable(void);
 
 extern wait_queue_head_t netdev_unregistering_wq;
-extern struct mutex net_mutex;
+extern struct rw_semaphore pernet_ops_rwsem;
+extern struct rw_semaphore net_rwsem;
 
 #ifdef CONFIG_PROVE_LOCKING
 extern bool lockdep_rtnl_is_held(void);
@@ -66,8 +73,7 @@ static inline bool lockdep_rtnl_is_held(void)
  * @p: The pointer to read, prior to dereferencing
  *
  * Return the value of the specified RCU-protected pointer, but omit
- * both the smp_read_barrier_depends() and the ACCESS_ONCE(), because
- * caller holds RTNL.
+ * the READ_ONCE(), because caller holds RTNL.
  */
 #define rtnl_dereference(p)					\
 	rcu_dereference_protected(p, lockdep_rtnl_is_held())
@@ -84,22 +90,24 @@ void net_inc_ingress_queue(void);
 void net_dec_ingress_queue(void);
 #endif
 
-extern void rtnetlink_init(void);
-extern void __rtnl_unlock(void);
+#ifdef CONFIG_NET_EGRESS
+void net_inc_egress_queue(void);
+void net_dec_egress_queue(void);
+#endif
 
-#define ASSERT_RTNL() do { \
-	if (unlikely(!rtnl_is_locked())) { \
-		printk(KERN_ERR "RTNL: assertion failed at %s (%d)\n", \
-		       __FILE__,  __LINE__); \
-		dump_stack(); \
-	} \
-} while(0)
+void rtnetlink_init(void);
+void __rtnl_unlock(void);
+void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail);
+
+#define ASSERT_RTNL() \
+	WARN_ONCE(!rtnl_is_locked(), \
+		  "RTNL: assertion failed at %s (%d)\n", __FILE__,  __LINE__)
 
 extern int ndo_dflt_fdb_dump(struct sk_buff *skb,
 			     struct netlink_callback *cb,
 			     struct net_device *dev,
 			     struct net_device *filter_dev,
-			     int idx);
+			     int *idx);
 extern int ndo_dflt_fdb_add(struct ndmsg *ndm,
 			    struct nlattr *tb[],
 			    struct net_device *dev,

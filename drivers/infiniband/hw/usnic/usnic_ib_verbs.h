@@ -43,13 +43,12 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 			  struct ib_udata *uhw);
 int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 				struct ib_port_attr *props);
-enum rdma_protocol_type
-usnic_ib_query_protocol(struct ib_device *device, u8 port_num);
 int usnic_ib_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 				int qp_attr_mask,
 				struct ib_qp_init_attr *qp_init_attr);
 int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 				union ib_gid *gid);
+struct net_device *usnic_get_netdev(struct ib_device *device, u8 port_num);
 int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 				u16 *pkey);
 struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,
@@ -77,12 +76,14 @@ int usnic_ib_dealloc_ucontext(struct ib_ucontext *ibcontext);
 int usnic_ib_mmap(struct ib_ucontext *context,
 			struct vm_area_struct *vma);
 struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
-					struct ib_ah_attr *ah_attr);
+				 struct rdma_ah_attr *ah_attr,
+				 struct ib_udata *udata);
+
 int usnic_ib_destroy_ah(struct ib_ah *ah);
-int usnic_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-			struct ib_send_wr **bad_wr);
-int usnic_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-			struct ib_recv_wr **bad_wr);
+int usnic_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+			const struct ib_send_wr **bad_wr);
+int usnic_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		       const struct ib_recv_wr **bad_wr);
 int usnic_ib_poll_cq(struct ib_cq *ibcq, int num_entries,
 			struct ib_wc *wc);
 int usnic_ib_req_notify_cq(struct ib_cq *cq,

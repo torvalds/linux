@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * dtlb_prot.S: DTLB protection trap strategy.
  *              This is included directly into the trap table.
@@ -25,12 +26,12 @@
 
 /* PROT ** ICACHE line 2: More real fault processing */
 	ldxa		[%g4] ASI_DMMU, %g5		! Put tagaccess in %g5
+	srlx		%g5, PAGE_SHIFT, %g5
+	sllx		%g5, PAGE_SHIFT, %g5		! Clear context ID bits
 	bgu,pn		%xcc, winfix_trampoline		! Yes, perform winfixup
 	 mov		FAULT_CODE_DTLB | FAULT_CODE_WRITE, %g4
 	ba,pt		%xcc, sparc64_realfault_common	! Nope, normal fault
 	 nop
-	nop
-	nop
 	nop
 
 /* PROT ** ICACHE line 3: Unused...	*/

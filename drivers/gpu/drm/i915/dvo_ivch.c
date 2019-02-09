@@ -59,28 +59,28 @@
  * This must not be set while VR01_DVO_BYPASS_ENABLE is set.
  */
 # define VR01_LCD_ENABLE		(1 << 2)
-/** Enables the DVO repeater. */
+/* Enables the DVO repeater. */
 # define VR01_DVO_BYPASS_ENABLE		(1 << 1)
-/** Enables the DVO clock */
+/* Enables the DVO clock */
 # define VR01_DVO_ENABLE		(1 << 0)
-/** Enable dithering for 18bpp panels. Not documented. */
+/* Enable dithering for 18bpp panels. Not documented. */
 # define VR01_DITHER_ENABLE             (1 << 4)
 
 /*
  * LCD Interface Format
  */
 #define VR10		0x10
-/** Enables LVDS output instead of CMOS */
+/* Enables LVDS output instead of CMOS */
 # define VR10_LVDS_ENABLE		(1 << 4)
-/** Enables 18-bit LVDS output. */
+/* Enables 18-bit LVDS output. */
 # define VR10_INTERFACE_1X18		(0 << 2)
-/** Enables 24-bit LVDS or CMOS output */
+/* Enables 24-bit LVDS or CMOS output */
 # define VR10_INTERFACE_1X24		(1 << 2)
-/** Enables 2x18-bit LVDS or CMOS output. */
+/* Enables 2x18-bit LVDS or CMOS output. */
 # define VR10_INTERFACE_2X18		(2 << 2)
-/** Enables 2x24-bit LVDS output */
+/* Enables 2x24-bit LVDS output */
 # define VR10_INTERFACE_2X24		(3 << 2)
-/** Mask that defines the depth of the pipeline */
+/* Mask that defines the depth of the pipeline */
 # define VR10_INTERFACE_DEPTH_MASK      (3 << 2)
 
 /*
@@ -97,7 +97,7 @@
  * Panel power down status
  */
 #define VR30		0x30
-/** Read only bit indicating that the panel is not in a safe poweroff state. */
+/* Read only bit indicating that the panel is not in a safe poweroff state. */
 # define VR30_PANEL_ON			(1 << 15)
 
 #define VR40		0x40
@@ -161,7 +161,7 @@
  * instead. The following list contains all registers that
  * require saving.
  */
-static const uint16_t backup_addresses[] = {
+static const u16 backup_addresses[] = {
 	0x11, 0x12,
 	0x18, 0x19, 0x1a, 0x1f,
 	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
@@ -174,21 +174,21 @@ static const uint16_t backup_addresses[] = {
 struct ivch_priv {
 	bool quiet;
 
-	uint16_t width, height;
+	u16 width, height;
 
 	/* Register backup */
 
-	uint16_t reg_backup[ARRAY_SIZE(backup_addresses)];
+	u16 reg_backup[ARRAY_SIZE(backup_addresses)];
 };
 
 
 static void ivch_dump_regs(struct intel_dvo_device *dvo);
-/**
+/*
  * Reads a register on the ivch.
  *
  * Each of the 256 registers are 16 bits long.
  */
-static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
+static bool ivch_read(struct intel_dvo_device *dvo, int addr, u16 *data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
 	struct i2c_adapter *adapter = dvo->i2c_bus;
@@ -230,8 +230,8 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 	return false;
 }
 
-/** Writes a 16-bit register on the ivch */
-static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
+/* Writes a 16-bit register on the ivch */
+static bool ivch_write(struct intel_dvo_device *dvo, int addr, u16 data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
 	struct i2c_adapter *adapter = dvo->i2c_bus;
@@ -258,12 +258,12 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 	return false;
 }
 
-/** Probes the given bus and slave address for an ivch */
+/* Probes the given bus and slave address for an ivch */
 static bool ivch_init(struct intel_dvo_device *dvo,
 		      struct i2c_adapter *adapter)
 {
 	struct ivch_priv *priv;
-	uint16_t temp;
+	u16 temp;
 	int i;
 
 	priv = kzalloc(sizeof(struct ivch_priv), GFP_KERNEL);
@@ -338,11 +338,11 @@ static void ivch_reset(struct intel_dvo_device *dvo)
 		ivch_write(dvo, backup_addresses[i], priv->reg_backup[i]);
 }
 
-/** Sets the power state of the panel connected to the ivch */
+/* Sets the power state of the panel connected to the ivch */
 static void ivch_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	int i;
-	uint16_t vr01, vr30, backlight;
+	u16 vr01, vr30, backlight;
 
 	ivch_reset(dvo);
 
@@ -379,7 +379,7 @@ static void ivch_dpms(struct intel_dvo_device *dvo, bool enable)
 
 static bool ivch_get_hw_state(struct intel_dvo_device *dvo)
 {
-	uint16_t vr01;
+	u16 vr01;
 
 	ivch_reset(dvo);
 
@@ -398,9 +398,9 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 			  const struct drm_display_mode *adjusted_mode)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
-	uint16_t vr40 = 0;
-	uint16_t vr01 = 0;
-	uint16_t vr10;
+	u16 vr40 = 0;
+	u16 vr01 = 0;
+	u16 vr10;
 
 	ivch_reset(dvo);
 
@@ -416,7 +416,7 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 
 	if (mode->hdisplay != adjusted_mode->crtc_hdisplay ||
 	    mode->vdisplay != adjusted_mode->crtc_vdisplay) {
-		uint16_t x_ratio, y_ratio;
+		u16 x_ratio, y_ratio;
 
 		vr01 |= VR01_PANEL_FIT_ENABLE;
 		vr40 |= VR40_CLOCK_GATING_ENABLE;
@@ -438,7 +438,7 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 
 static void ivch_dump_regs(struct intel_dvo_device *dvo)
 {
-	uint16_t val;
+	u16 val;
 
 	ivch_read(dvo, VR00, &val);
 	DRM_DEBUG_KMS("VR00: 0x%04x\n", val);
@@ -490,7 +490,7 @@ static void ivch_destroy(struct intel_dvo_device *dvo)
 	}
 }
 
-struct intel_dvo_dev_ops ivch_ops = {
+const struct intel_dvo_dev_ops ivch_ops = {
 	.init = ivch_init,
 	.dpms = ivch_dpms,
 	.get_hw_state = ivch_get_hw_state,

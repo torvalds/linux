@@ -65,7 +65,7 @@ struct sil164_priv {
 
 #define SILPTR(d) ((SIL164Ptr)(d->DriverPrivate.ptr))
 
-static bool sil164_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
+static bool sil164_readb(struct intel_dvo_device *dvo, int addr, u8 *ch)
 {
 	struct sil164_priv *sil = dvo->dev_priv;
 	struct i2c_adapter *adapter = dvo->i2c_bus;
@@ -102,11 +102,11 @@ static bool sil164_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 	return false;
 }
 
-static bool sil164_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
+static bool sil164_writeb(struct intel_dvo_device *dvo, int addr, u8 ch)
 {
 	struct sil164_priv *sil = dvo->dev_priv;
 	struct i2c_adapter *adapter = dvo->i2c_bus;
-	uint8_t out_buf[2];
+	u8 out_buf[2];
 	struct i2c_msg msg = {
 		.addr = dvo->slave_addr,
 		.flags = 0,
@@ -173,7 +173,7 @@ out:
 
 static enum drm_connector_status sil164_detect(struct intel_dvo_device *dvo)
 {
-	uint8_t reg9;
+	u8 reg9;
 
 	sil164_readb(dvo, SIL164_REG9, &reg9);
 
@@ -243,7 +243,7 @@ static bool sil164_get_hw_state(struct intel_dvo_device *dvo)
 
 static void sil164_dump_regs(struct intel_dvo_device *dvo)
 {
-	uint8_t val;
+	u8 val;
 
 	sil164_readb(dvo, SIL164_FREQ_LO, &val);
 	DRM_DEBUG_KMS("SIL164_FREQ_LO: 0x%02x\n", val);
@@ -267,7 +267,7 @@ static void sil164_destroy(struct intel_dvo_device *dvo)
 	}
 }
 
-struct intel_dvo_dev_ops sil164_ops = {
+const struct intel_dvo_dev_ops sil164_ops = {
 	.init = sil164_init,
 	.detect = sil164_detect,
 	.mode_valid = sil164_mode_valid,

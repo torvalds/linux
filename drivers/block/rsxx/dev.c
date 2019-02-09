@@ -112,7 +112,7 @@ static const struct block_device_operations rsxx_fops = {
 
 static void disk_stats_start(struct rsxx_cardinfo *card, struct bio *bio)
 {
-	generic_start_io_acct(bio_data_dir(bio), bio_sectors(bio),
+	generic_start_io_acct(card->queue, bio_op(bio), bio_sectors(bio),
 			     &card->gendisk->part0);
 }
 
@@ -120,8 +120,8 @@ static void disk_stats_complete(struct rsxx_cardinfo *card,
 				struct bio *bio,
 				unsigned long start_time)
 {
-	generic_end_io_acct(bio_data_dir(bio), &card->gendisk->part0,
-			   start_time);
+	generic_end_io_acct(card->queue, bio_op(bio),
+			    &card->gendisk->part0, start_time);
 }
 
 static void bio_dma_done_cb(struct rsxx_cardinfo *card,
@@ -149,9 +149,9 @@ static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct rsxx_cardinfo *card = q->queuedata;
 	struct rsxx_bio_meta *bio_meta;
-	int st = -EINVAL;
+	blk_status_t st = BLK_STS_IOERR;
 
-	blk_queue_split(q, &bio, q->bio_split);
+	blk_queue_split(q, &bio);
 
 	might_sleep();
 
@@ -161,15 +161,11 @@ static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
 	if (bio_end_sector(bio) > get_capacity(card->gendisk))
 		goto req_err;
 
-	if (unlikely(card->halt)) {
-		st = -EFAULT;
+	if (unlikely(card->halt))
 		goto req_err;
-	}
 
-	if (unlikely(card->dma_fault)) {
-		st = (-EFAULT);
+	if (unlikely(card->dma_fault))
 		goto req_err;
-	}
 
 	if (bio->bi_iter.bi_size == 0) {
 		dev_err(CARD_TO_DEV(card), "size zero BIO!\n");
@@ -178,7 +174,7 @@ static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
 
 	bio_meta = kmem_cache_alloc(bio_meta_pool, GFP_KERNEL);
 	if (!bio_meta) {
-		st = -ENOMEM;
+		st = BLK_STS_RESOURCE;
 		goto req_err;
 	}
 
@@ -205,7 +201,7 @@ queue_err:
 	kmem_cache_free(bio_meta_pool, bio_meta);
 req_err:
 	if (st)
-		bio->bi_error = st;
+		bio->bi_status = st;
 	bio_endio(bio);
 	return BLK_QC_T_NONE;
 }
@@ -230,8 +226,7 @@ int rsxx_attach_dev(struct rsxx_cardinfo *card)
 			set_capacity(card->gendisk, card->size8 >> 9);
 		else
 			set_capacity(card->gendisk, 0);
-		add_disk(card->gendisk);
-
+		device_add_disk(CARD_TO_DEV(card), card->gendisk);
 		card->bdev_attached = 1;
 	}
 
@@ -289,26 +284,23 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 	}
 
 	blk_queue_make_request(card->queue, rsxx_make_request);
-	blk_queue_bounce_limit(card->queue, BLK_BOUNCE_ANY);
 	blk_queue_max_hw_sectors(card->queue, blkdev_max_hw_sectors);
 	blk_queue_physical_block_size(card->queue, RSXX_HW_BLK_SIZE);
 
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, card->queue);
-	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, card->queue);
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, card->queue);
+	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, card->queue);
 	if (rsxx_discard_supported(card)) {
-		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, card->queue);
+		blk_queue_flag_set(QUEUE_FLAG_DISCARD, card->queue);
 		blk_queue_max_discard_sectors(card->queue,
 						RSXX_HW_BLK_SIZE >> 9);
 		card->queue->limits.discard_granularity = RSXX_HW_BLK_SIZE;
 		card->queue->limits.discard_alignment   = RSXX_HW_BLK_SIZE;
-		card->queue->limits.discard_zeroes_data = 1;
 	}
 
 	card->queue->queuedata = card;
 
 	snprintf(card->gendisk->disk_name, sizeof(card->gendisk->disk_name),
 		 "rsxx%d", card->disk_id);
-	card->gendisk->driverfs_dev = &card->dev->dev;
 	card->gendisk->major = card->major;
 	card->gendisk->first_minor = 0;
 	card->gendisk->fops = &rsxx_fops;

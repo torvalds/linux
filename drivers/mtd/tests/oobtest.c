@@ -193,6 +193,9 @@ static int verify_eraseblock(int ebnum)
 		ops.datbuf    = NULL;
 		ops.oobbuf    = readbuf;
 		err = mtd_read_oob(mtd, addr, &ops);
+		if (mtd_is_bitflip(err))
+			err = 0;
+
 		if (err || ops.oobretlen != use_len) {
 			pr_err("error: readoob failed at %#llx\n",
 			       (long long)addr);
@@ -215,19 +218,22 @@ static int verify_eraseblock(int ebnum)
 			pr_info("ignoring error as within bitflip_limit\n");
 		}
 
-		if (use_offset != 0 || use_len < mtd->ecclayout->oobavail) {
+		if (use_offset != 0 || use_len < mtd->oobavail) {
 			int k;
 
 			ops.mode      = MTD_OPS_AUTO_OOB;
 			ops.len       = 0;
 			ops.retlen    = 0;
-			ops.ooblen    = mtd->ecclayout->oobavail;
+			ops.ooblen    = mtd->oobavail;
 			ops.oobretlen = 0;
 			ops.ooboffs   = 0;
 			ops.datbuf    = NULL;
 			ops.oobbuf    = readbuf;
 			err = mtd_read_oob(mtd, addr, &ops);
-			if (err || ops.oobretlen != mtd->ecclayout->oobavail) {
+			if (mtd_is_bitflip(err))
+				err = 0;
+
+			if (err || ops.oobretlen != mtd->oobavail) {
 				pr_err("error: readoob failed at %#llx\n",
 						(long long)addr);
 				errcnt += 1;
@@ -244,7 +250,7 @@ static int verify_eraseblock(int ebnum)
 			/* verify post-(use_offset + use_len) area for 0xff */
 			k = use_offset + use_len;
 			bitflips += memffshow(addr, k, readbuf + k,
-					      mtd->ecclayout->oobavail - k);
+					      mtd->oobavail - k);
 
 			if (bitflips > bitflip_limit) {
 				pr_err("error: verify failed at %#llx\n",
@@ -269,8 +275,8 @@ static int verify_eraseblock_in_one_go(int ebnum)
 	struct mtd_oob_ops ops;
 	int err = 0;
 	loff_t addr = (loff_t)ebnum * mtd->erasesize;
-	size_t len = mtd->ecclayout->oobavail * pgcnt;
-	size_t oobavail = mtd->ecclayout->oobavail;
+	size_t len = mtd->oobavail * pgcnt;
+	size_t oobavail = mtd->oobavail;
 	size_t bitflips;
 	int i;
 
@@ -286,6 +292,9 @@ static int verify_eraseblock_in_one_go(int ebnum)
 
 	/* read entire block's OOB at one go */
 	err = mtd_read_oob(mtd, addr, &ops);
+	if (mtd_is_bitflip(err))
+		err = 0;
+
 	if (err || ops.oobretlen != len) {
 		pr_err("error: readoob failed at %#llx\n",
 		       (long long)addr);
@@ -394,8 +403,8 @@ static int __init mtd_oobtest_init(void)
 		goto out;
 
 	use_offset = 0;
-	use_len = mtd->ecclayout->oobavail;
-	use_len_max = mtd->ecclayout->oobavail;
+	use_len = mtd->oobavail;
+	use_len_max = mtd->oobavail;
 	vary_offset = 0;
 
 	/* First test: write all OOB, read it back and verify */
@@ -460,8 +469,8 @@ static int __init mtd_oobtest_init(void)
 
 	/* Write all eraseblocks */
 	use_offset = 0;
-	use_len = mtd->ecclayout->oobavail;
-	use_len_max = mtd->ecclayout->oobavail;
+	use_len = mtd->oobavail;
+	use_len_max = mtd->oobavail;
 	vary_offset = 1;
 	prandom_seed_state(&rnd_state, 5);
 
@@ -471,8 +480,8 @@ static int __init mtd_oobtest_init(void)
 
 	/* Check all eraseblocks */
 	use_offset = 0;
-	use_len = mtd->ecclayout->oobavail;
-	use_len_max = mtd->ecclayout->oobavail;
+	use_len = mtd->oobavail;
+	use_len_max = mtd->oobavail;
 	vary_offset = 1;
 	prandom_seed_state(&rnd_state, 5);
 	err = verify_all_eraseblocks();
@@ -480,8 +489,8 @@ static int __init mtd_oobtest_init(void)
 		goto out;
 
 	use_offset = 0;
-	use_len = mtd->ecclayout->oobavail;
-	use_len_max = mtd->ecclayout->oobavail;
+	use_len = mtd->oobavail;
+	use_len_max = mtd->oobavail;
 	vary_offset = 0;
 
 	/* Fourth test: try to write off end of device */
@@ -501,7 +510,7 @@ static int __init mtd_oobtest_init(void)
 	ops.retlen    = 0;
 	ops.ooblen    = 1;
 	ops.oobretlen = 0;
-	ops.ooboffs   = mtd->ecclayout->oobavail;
+	ops.ooboffs   = mtd->oobavail;
 	ops.datbuf    = NULL;
 	ops.oobbuf    = writebuf;
 	pr_info("attempting to start write past end of OOB\n");
@@ -521,12 +530,15 @@ static int __init mtd_oobtest_init(void)
 	ops.retlen    = 0;
 	ops.ooblen    = 1;
 	ops.oobretlen = 0;
-	ops.ooboffs   = mtd->ecclayout->oobavail;
+	ops.ooboffs   = mtd->oobavail;
 	ops.datbuf    = NULL;
 	ops.oobbuf    = readbuf;
 	pr_info("attempting to start read past end of OOB\n");
 	pr_info("an error is expected...\n");
 	err = mtd_read_oob(mtd, addr0, &ops);
+	if (mtd_is_bitflip(err))
+		err = 0;
+
 	if (err) {
 		pr_info("error occurred as expected\n");
 		err = 0;
@@ -543,7 +555,7 @@ static int __init mtd_oobtest_init(void)
 		ops.mode      = MTD_OPS_AUTO_OOB;
 		ops.len       = 0;
 		ops.retlen    = 0;
-		ops.ooblen    = mtd->ecclayout->oobavail + 1;
+		ops.ooblen    = mtd->oobavail + 1;
 		ops.oobretlen = 0;
 		ops.ooboffs   = 0;
 		ops.datbuf    = NULL;
@@ -563,7 +575,7 @@ static int __init mtd_oobtest_init(void)
 		ops.mode      = MTD_OPS_AUTO_OOB;
 		ops.len       = 0;
 		ops.retlen    = 0;
-		ops.ooblen    = mtd->ecclayout->oobavail + 1;
+		ops.ooblen    = mtd->oobavail + 1;
 		ops.oobretlen = 0;
 		ops.ooboffs   = 0;
 		ops.datbuf    = NULL;
@@ -571,6 +583,9 @@ static int __init mtd_oobtest_init(void)
 		pr_info("attempting to read past end of device\n");
 		pr_info("an error is expected...\n");
 		err = mtd_read_oob(mtd, mtd->size - mtd->writesize, &ops);
+		if (mtd_is_bitflip(err))
+			err = 0;
+
 		if (err) {
 			pr_info("error occurred as expected\n");
 			err = 0;
@@ -587,7 +602,7 @@ static int __init mtd_oobtest_init(void)
 		ops.mode      = MTD_OPS_AUTO_OOB;
 		ops.len       = 0;
 		ops.retlen    = 0;
-		ops.ooblen    = mtd->ecclayout->oobavail;
+		ops.ooblen    = mtd->oobavail;
 		ops.oobretlen = 0;
 		ops.ooboffs   = 1;
 		ops.datbuf    = NULL;
@@ -607,7 +622,7 @@ static int __init mtd_oobtest_init(void)
 		ops.mode      = MTD_OPS_AUTO_OOB;
 		ops.len       = 0;
 		ops.retlen    = 0;
-		ops.ooblen    = mtd->ecclayout->oobavail;
+		ops.ooblen    = mtd->oobavail;
 		ops.oobretlen = 0;
 		ops.ooboffs   = 1;
 		ops.datbuf    = NULL;
@@ -615,6 +630,9 @@ static int __init mtd_oobtest_init(void)
 		pr_info("attempting to read past end of device\n");
 		pr_info("an error is expected...\n");
 		err = mtd_read_oob(mtd, mtd->size - mtd->writesize, &ops);
+		if (mtd_is_bitflip(err))
+			err = 0;
+
 		if (err) {
 			pr_info("error occurred as expected\n");
 			err = 0;
@@ -638,7 +656,7 @@ static int __init mtd_oobtest_init(void)
 	for (i = 0; i < ebcnt - 1; ++i) {
 		int cnt = 2;
 		int pg;
-		size_t sz = mtd->ecclayout->oobavail;
+		size_t sz = mtd->oobavail;
 		if (bbt[i] || bbt[i + 1])
 			continue;
 		addr = (loff_t)(i + 1) * mtd->erasesize - mtd->writesize;
@@ -673,22 +691,24 @@ static int __init mtd_oobtest_init(void)
 	for (i = 0; i < ebcnt - 1; ++i) {
 		if (bbt[i] || bbt[i + 1])
 			continue;
-		prandom_bytes_state(&rnd_state, writebuf,
-					mtd->ecclayout->oobavail * 2);
+		prandom_bytes_state(&rnd_state, writebuf, mtd->oobavail * 2);
 		addr = (loff_t)(i + 1) * mtd->erasesize - mtd->writesize;
 		ops.mode      = MTD_OPS_AUTO_OOB;
 		ops.len       = 0;
 		ops.retlen    = 0;
-		ops.ooblen    = mtd->ecclayout->oobavail * 2;
+		ops.ooblen    = mtd->oobavail * 2;
 		ops.oobretlen = 0;
 		ops.ooboffs   = 0;
 		ops.datbuf    = NULL;
 		ops.oobbuf    = readbuf;
 		err = mtd_read_oob(mtd, addr, &ops);
+		if (mtd_is_bitflip(err))
+			err = 0;
+
 		if (err)
 			goto out;
 		if (memcmpshow(addr, readbuf, writebuf,
-			       mtd->ecclayout->oobavail * 2)) {
+			       mtd->oobavail * 2)) {
 			pr_err("error: verify failed at %#llx\n",
 			       (long long)addr);
 			errcnt += 1;

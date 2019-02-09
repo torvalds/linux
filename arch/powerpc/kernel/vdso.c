@@ -98,26 +98,28 @@ static struct vdso_patch_def vdso_patches[] = {
 		CPU_FTR_COHERENT_ICACHE, CPU_FTR_COHERENT_ICACHE,
 		"__kernel_sync_dicache", "__kernel_sync_dicache_p5"
 	},
+#ifdef CONFIG_PPC32
 	{
-		CPU_FTR_USE_TB, 0,
+		CPU_FTR_USE_RTC, CPU_FTR_USE_RTC,
 		"__kernel_gettimeofday", NULL
 	},
 	{
-		CPU_FTR_USE_TB, 0,
+		CPU_FTR_USE_RTC, CPU_FTR_USE_RTC,
 		"__kernel_clock_gettime", NULL
 	},
 	{
-		CPU_FTR_USE_TB, 0,
+		CPU_FTR_USE_RTC, CPU_FTR_USE_RTC,
 		"__kernel_clock_getres", NULL
 	},
 	{
-		CPU_FTR_USE_TB, 0,
+		CPU_FTR_USE_RTC, CPU_FTR_USE_RTC,
 		"__kernel_get_tbfreq", NULL
 	},
 	{
-		CPU_FTR_USE_TB, 0,
+		CPU_FTR_USE_RTC, CPU_FTR_USE_RTC,
 		"__kernel_time", NULL
 	},
+#endif
 };
 
 /*
@@ -195,7 +197,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * and end up putting it elsewhere.
 	 * Add enough to the size so that the result can be aligned.
 	 */
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
 	vdso_base = get_unmapped_area(NULL, vdso_base,
 				      (vdso_pages << PAGE_SHIFT) +
 				      ((VDSO_ALIGNMENT - 1) & PAGE_MASK),
@@ -671,7 +674,7 @@ static void __init vdso_setup_syscall_map(void)
 	extern unsigned long sys_ni_syscall;
 
 
-	for (i = 0; i < __NR_syscalls; i++) {
+	for (i = 0; i < NR_syscalls; i++) {
 #ifdef CONFIG_PPC64
 		if (sys_call_table[i*2] != sys_ni_syscall)
 			vdso_data->syscall_map_64[i >> 5] |=
@@ -734,16 +737,14 @@ static int __init vdso_init(void)
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		vdso_data->platform |= 1;
 	vdso_data->physicalMemorySize = memblock_phys_mem_size();
-	vdso_data->dcache_size = ppc64_caches.dsize;
-	vdso_data->dcache_line_size = ppc64_caches.dline_size;
-	vdso_data->icache_size = ppc64_caches.isize;
-	vdso_data->icache_line_size = ppc64_caches.iline_size;
-
-	/* XXXOJN: Blocks should be added to ppc64_caches and used instead */
-	vdso_data->dcache_block_size = ppc64_caches.dline_size;
-	vdso_data->icache_block_size = ppc64_caches.iline_size;
-	vdso_data->dcache_log_block_size = ppc64_caches.log_dline_size;
-	vdso_data->icache_log_block_size = ppc64_caches.log_iline_size;
+	vdso_data->dcache_size = ppc64_caches.l1d.size;
+	vdso_data->dcache_line_size = ppc64_caches.l1d.line_size;
+	vdso_data->icache_size = ppc64_caches.l1i.size;
+	vdso_data->icache_line_size = ppc64_caches.l1i.line_size;
+	vdso_data->dcache_block_size = ppc64_caches.l1d.block_size;
+	vdso_data->icache_block_size = ppc64_caches.l1i.block_size;
+	vdso_data->dcache_log_block_size = ppc64_caches.l1d.log_block_size;
+	vdso_data->icache_log_block_size = ppc64_caches.l1i.log_block_size;
 
 	/*
 	 * Calculate the size of the 64 bits vDSO
@@ -789,7 +790,7 @@ static int __init vdso_init(void)
 
 #ifdef CONFIG_VDSO32
 	/* Make sure pages are in the correct state */
-	vdso32_pagelist = kzalloc(sizeof(struct page *) * (vdso32_pages + 2),
+	vdso32_pagelist = kcalloc(vdso32_pages + 2, sizeof(struct page *),
 				  GFP_KERNEL);
 	BUG_ON(vdso32_pagelist == NULL);
 	for (i = 0; i < vdso32_pages; i++) {
@@ -803,7 +804,7 @@ static int __init vdso_init(void)
 #endif
 
 #ifdef CONFIG_PPC64
-	vdso64_pagelist = kzalloc(sizeof(struct page *) * (vdso64_pages + 2),
+	vdso64_pagelist = kcalloc(vdso64_pages + 2, sizeof(struct page *),
 				  GFP_KERNEL);
 	BUG_ON(vdso64_pagelist == NULL);
 	for (i = 0; i < vdso64_pages; i++) {

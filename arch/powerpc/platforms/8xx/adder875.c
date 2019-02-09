@@ -88,8 +88,7 @@ static void __init adder875_setup(void)
 
 static int __init adder875_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-	return of_flat_dt_is_compatible(root, "analogue-and-micro,adder875");
+	return of_machine_is_compatible("analogue-and-micro,adder875");
 }
 
 static const struct of_device_id of_bus_ids[] __initconst = {
@@ -112,7 +111,5 @@ define_machine(adder875) {
 	.get_irq = mpc8xx_get_irq,
 	.restart = mpc8xx_restart,
 	.calibrate_decr = generic_calibrate_decr,
-	.set_rtc_time = mpc8xx_set_rtc_time,
-	.get_rtc_time = mpc8xx_get_rtc_time,
 	.progress = udbg_progress,
 };

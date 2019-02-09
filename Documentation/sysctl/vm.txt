@@ -27,10 +27,11 @@ Currently, these files are in /proc/sys/vm:
 - dirty_bytes
 - dirty_expire_centisecs
 - dirty_ratio
+- dirtytime_expire_seconds
 - dirty_writeback_centisecs
 - drop_caches
 - extfrag_threshold
-- hugepages_treat_as_movable
+- extra_free_kbytes
 - hugetlb_shm_group
 - laptop_mode
 - legacy_va_layout
@@ -42,7 +43,10 @@ Currently, these files are in /proc/sys/vm:
 - min_slab_ratio
 - min_unmapped_ratio
 - mmap_min_addr
+- mmap_rnd_bits
+- mmap_rnd_compat_bits
 - nr_hugepages
+- nr_hugepages_mempolicy
 - nr_overcommit_hugepages
 - nr_trim_pages         (only if CONFIG_MMU=n)
 - numa_zonelist_order
@@ -55,9 +59,12 @@ Currently, these files are in /proc/sys/vm:
 - panic_on_oom
 - percpu_pagelist_fraction
 - stat_interval
+- stat_refresh
+- numa_stat
 - swappiness
 - user_reserve_kbytes
 - vfs_cache_pressure
+- watermark_scale_factor
 - zone_reclaim_mode
 
 ==============================================================
@@ -135,7 +142,7 @@ Contains, as a percentage of total available memory that contains free pages
 and reclaimable pages, the number of pages at which the background kernel
 flusher threads will start writing out dirty data.
 
-The total avaiable memory is not equal to total system memory.
+The total available memory is not equal to total system memory.
 
 ==============================================================
 
@@ -170,7 +177,19 @@ Contains, as a percentage of total available memory that contains free pages
 and reclaimable pages, the number of pages at which a process which is
 generating disk writes will itself start writing out dirty data.
 
-The total avaiable memory is not equal to total system memory.
+The total available memory is not equal to total system memory.
+
+==============================================================
+
+dirtytime_expire_seconds
+
+When a lazytime inode is constantly having its pages dirtied, the inode with
+an updated timestamp will never get chance to be written out.  And, if the
+only thing that has happened on the file system is a dirtytime inode caused
+by an atime update, a worker will be scheduled to make sure that inode
+eventually gets pushed out to disk.  This tunable is used to define when dirty
+inode is old enough to be eligible for writeback by the kernel flusher threads.
+And, it is also used as the interval to wakeup dirtytime_writeback thread.
 
 ==============================================================
 
@@ -236,27 +255,38 @@ fragmentation index is <= extfrag_threshold. The default value is 500.
 
 ==============================================================
 
-hugepages_treat_as_movable
+highmem_is_dirtyable
 
-This parameter controls whether we can allocate hugepages from ZONE_MOVABLE
-or not. If set to non-zero, hugepages can be allocated from ZONE_MOVABLE.
-ZONE_MOVABLE is created when kernel boot parameter kernelcore= is specified,
-so this parameter has no effect if used without kernelcore=.
+Available only for systems with CONFIG_HIGHMEM enabled (32b systems).
 
-Hugepage migration is now available in some situations which depend on the
-architecture and/or the hugepage size. If a hugepage supports migration,
-allocation from ZONE_MOVABLE is always enabled for the hugepage regardless
-of the value of this parameter.
-IOW, this parameter affects only non-migratable hugepages.
+This parameter controls whether the high memory is considered for dirty
+writers throttling.  This is not the case by default which means that
+only the amount of memory directly visible/usable by the kernel can
+be dirtied. As a result, on systems with a large amount of memory and
+lowmem basically depleted writers might be throttled too early and
+streaming writes can get very slow.
 
-Assuming that hugepages are not migratable in your system, one usecase of
-this parameter is that users can make hugepage pool more extensible by
-enabling the allocation from ZONE_MOVABLE. This is because on ZONE_MOVABLE
-page reclaim/migration/compaction work more and you can get contiguous
-memory more likely. Note that using ZONE_MOVABLE for non-migratable
-hugepages can do harm to other features like memory hotremove (because
-memory hotremove expects that memory blocks on ZONE_MOVABLE are always
-removable,) so it's a trade-off responsible for the users.
+Changing the value to non zero would allow more memory to be dirtied
+and thus allow writers to write more data which can be flushed to the
+storage more effectively. Note this also comes with a risk of pre-mature
+OOM killer because some writers (e.g. direct block device writes) can
+only use the low memory and they can fill it up with dirty data without
+any throttling.
+
+==============================================================
+
+extra_free_kbytes
+
+This parameter tells the VM to keep extra free memory between the threshold
+where background reclaim (kswapd) kicks in, and the threshold where direct
+reclaim (by allocating processes) kicks in.
+
+This is useful for workloads that require low latency memory allocations
+and have a bounded burstiness in memory allocations, for example a
+realtime application that receives and transmits network traffic
+(causing in-kernel memory allocations) with a maximum total message burst
+size of 200MB may need 200MB of extra free memory to avoid direct reclaim
+related latencies.
 
 ==============================================================
 
@@ -312,8 +342,6 @@ The lowmem_reserve_ratio is an array. You can see them by reading this file.
 % cat /proc/sys/vm/lowmem_reserve_ratio
 256     256     32
 -
-Note: # of this elements is one fewer than number of zones. Because the highest
-      zone's value is not necessary for following calculation.
 
 But, these values are not used directly. The kernel calculates # of protection
 pages for each zones from them. These are shown as array of protection pages
@@ -364,7 +392,8 @@ As above expression, they are reciprocal number of ratio.
 pages of higher zones on the node.
 
 If you would like to protect more pages, smaller values are effective.
-The minimum value is 1 (1/1 -> 100%).
+The minimum value is 1 (1/1 -> 100%). The value less than 1 completely
+disables protection of the pages.
 
 ==============================================================
 
@@ -372,8 +401,8 @@ max_map_count:
 
 This file contains the maximum number of memory map areas a process
 may have. Memory map areas are used as a side-effect of calling
-malloc, directly by mmap and mprotect, and also when loading shared
-libraries.
+malloc, directly by mmap, mprotect, and madvise, and also when loading
+shared libraries.
 
 While most applications need less than a thousand maps, certain
 programs, particularly malloc debuggers, may consume lots of them,
@@ -485,11 +514,47 @@ against future potential kernel bugs.
 
 ==============================================================
 
+mmap_rnd_bits:
+
+This value can be used to select the number of bits to use to
+determine the random offset to the base address of vma regions
+resulting from mmap allocations on architectures which support
+tuning address space randomization.  This value will be bounded
+by the architecture's minimum and maximum supported values.
+
+This value can be changed after boot using the
+/proc/sys/vm/mmap_rnd_bits tunable
+
+==============================================================
+
+mmap_rnd_compat_bits:
+
+This value can be used to select the number of bits to use to
+determine the random offset to the base address of vma regions
+resulting from mmap allocations for applications run in
+compatibility mode on architectures which support tuning address
+space randomization.  This value will be bounded by the
+architecture's minimum and maximum supported values.
+
+This value can be changed after boot using the
+/proc/sys/vm/mmap_rnd_compat_bits tunable
+
+==============================================================
+
 nr_hugepages
 
 Change the minimum size of the hugepage pool.
 
-See Documentation/vm/hugetlbpage.txt
+See Documentation/admin-guide/mm/hugetlbpage.rst
+
+==============================================================
+
+nr_hugepages_mempolicy
+
+Change the size of the hugepage pool at run-time on a specific
+set of NUMA nodes.
+
+See Documentation/admin-guide/mm/hugetlbpage.rst
 
 ==============================================================
 
@@ -498,7 +563,7 @@ nr_overcommit_hugepages
 Change the maximum size of the hugepage pool. The maximum is
 nr_hugepages + nr_overcommit_hugepages.
 
-See Documentation/vm/hugetlbpage.txt
+See Documentation/admin-guide/mm/hugetlbpage.rst
 
 ==============================================================
 
@@ -521,7 +586,9 @@ See Documentation/nommu-mmap.txt for more information.
 
 numa_zonelist_order
 
-This sysctl is only for NUMA.
+This sysctl is only for NUMA and it is deprecated. Anything but
+Node order will fail!
+
 'where the memory is allocated from' is controlled by zonelists.
 (This documentation ignores ZONE_HIGHMEM/ZONE_DMA32 for simple explanation.
  you may be able to read ZONE_DMA as ZONE_DMA32...)
@@ -552,15 +619,16 @@ Specify "[Nn]ode" for node order
 "Zone Order" orders the zonelists by zone type, then by node within each
 zone.  Specify "[Zz]one" for zone order.
 
-Specify "[Dd]efault" to request automatic configuration.  Autoconfiguration
-will select "node" order in following case.
-(1) if the DMA zone does not exist or
-(2) if the DMA zone comprises greater than 50% of the available memory or
-(3) if any node's DMA zone comprises greater than 70% of its local memory and
-    the amount of local memory is big enough.
+Specify "[Dd]efault" to request automatic configuration.
 
-Otherwise, "zone" order will be selected. Default order is recommended unless
-this is causing problems for your system/application.
+On 32-bit, the Normal zone needs to be preserved for allocations accessible
+by the kernel, so "zone" order will be selected.
+
+On 64-bit, devices that require DMA32/DMA are relatively rare, so "node"
+order will be selected.
+
+Default order is recommended unless this is causing problems for your
+system/application.
 
 ==============================================================
 
@@ -568,7 +636,7 @@ oom_dump_tasks
 
 Enables a system-wide task dump (excluding kernel threads) to be produced
 when the kernel performs an OOM-killing and includes such information as
-pid, uid, tgid, vm size, rss, nr_ptes, nr_pmds, swapents, oom_score_adj
+pid, uid, tgid, vm size, rss, pgtables_bytes, swapents, oom_score_adj
 score, and name.  This is helpful to determine why the OOM killer was
 invoked, to identify the rogue task that caused it, and to determine why
 the OOM killer chose the task it did to kill.
@@ -638,8 +706,8 @@ and don't use much of it.
 
 The default value is 0.
 
-See Documentation/vm/overcommit-accounting and
-mm/mmap.c::__vm_enough_memory() for more information.
+See Documentation/vm/overcommit-accounting.rst and
+mm/util.c::__vm_enough_memory() for more information.
 
 ==============================================================
 
@@ -725,10 +793,38 @@ is 1 second.
 
 ==============================================================
 
+stat_refresh
+
+Any read or write (by root only) flushes all the per-cpu vm statistics
+into their global totals, for more accurate reports when testing
+e.g. cat /proc/sys/vm/stat_refresh /proc/meminfo
+
+As a side-effect, it also checks for negative totals (elsewhere reported
+as 0) and "fails" with EINVAL if any are found, with a warning in dmesg.
+(At time of writing, a few stats are known sometimes to be found negative,
+with no ill effects: errors and warnings on these stats are suppressed.)
+
+==============================================================
+
+numa_stat
+
+This interface allows runtime configuration of numa statistics.
+
+When page allocation performance becomes a bottleneck and you can tolerate
+some possible tool breakage and decreased numa counter precision, you can
+do:
+	echo 0 > /proc/sys/vm/numa_stat
+
+When page allocation performance is not a bottleneck and you want all
+tooling to work, you can do:
+	echo 1 > /proc/sys/vm/numa_stat
+
+==============================================================
+
 swappiness
 
 This control is used to define how aggressive the kernel will swap
-memory pages.  Higher values will increase agressiveness, lower values
+memory pages.  Higher values will increase aggressiveness, lower values
 decrease the amount of swap.  A value of 0 instructs the kernel not to
 initiate swap until the amount of free and file-backed pages is less
 than the high water mark in a zone.
@@ -773,6 +869,24 @@ Increasing vfs_cache_pressure significantly beyond 100 may have negative
 performance impact. Reclaim code needs to take various locks to find freeable
 directory and inode objects. With vfs_cache_pressure=1000, it will look for
 ten times more freeable objects than there are.
+
+=============================================================
+
+watermark_scale_factor:
+
+This factor controls the aggressiveness of kswapd. It defines the
+amount of memory left in a node/system before kswapd is woken up and
+how much memory needs to be free before kswapd goes back to sleep.
+
+The unit is in fractions of 10,000. The default value of 10 means the
+distances between watermarks are 0.1% of the available memory in the
+node/system. The maximum value is 1000, or 10% of memory.
+
+A high rate of threads entering direct reclaim (allocstall) or kswapd
+going to sleep prematurely (kswapd_low_wmark_hit_quickly) can indicate
+that the number of free pages kswapd maintains for latency reasons is
+too small for the allocation bursts occurring in the system. This knob
+can then be used to tune kswapd aggressiveness accordingly.
 
 ==============================================================
 

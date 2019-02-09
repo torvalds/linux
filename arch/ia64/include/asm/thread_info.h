@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2002-2003 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
@@ -10,6 +11,8 @@
 #endif
 #include <asm/processor.h>
 #include <asm/ptrace.h>
+
+#define THREAD_SIZE			KERNEL_STACK_SIZE
 
 #ifndef __ASSEMBLY__
 
@@ -27,14 +30,18 @@ struct thread_info {
 	mm_segment_t addr_limit;	/* user-level address space limit */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+	__u64 utime;
+	__u64 stime;
+	__u64 gtime;
+	__u64 hardirq_time;
+	__u64 softirq_time;
+	__u64 idle_time;
 	__u64 ac_stamp;
 	__u64 ac_leave;
 	__u64 ac_stime;
 	__u64 ac_utime;
 #endif
 };
-
-#define THREAD_SIZE			KERNEL_STACK_SIZE
 
 #define INIT_THREAD_INFO(tsk)			\
 {						\
@@ -48,15 +55,15 @@ struct thread_info {
 #ifndef ASM_OFFSETS_C
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *) ((char *) current + IA64_TASK_SIZE))
-#define alloc_thread_info_node(tsk, node)	\
-		((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
+#define alloc_thread_stack_node(tsk, node)	\
+		((unsigned long *) ((char *) (tsk) + IA64_TASK_SIZE))
 #define task_thread_info(tsk)	((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
 #else
 #define current_thread_info()	((struct thread_info *) 0)
-#define alloc_thread_info_node(tsk, node)	((struct thread_info *) 0)
+#define alloc_thread_stack_node(tsk, node)	((unsigned long *) 0)
 #define task_thread_info(tsk)	((struct thread_info *) 0)
 #endif
-#define free_thread_info(ti)	/* nothing */
+#define free_thread_stack(tsk)	/* nothing */
 #define task_stack_page(tsk)	((void *)(tsk))
 
 #define __HAVE_THREAD_FUNCTIONS
@@ -120,33 +127,5 @@ struct thread_info {
 				 _TIF_NEED_RESCHED|_TIF_SYSCALL_TRACE)
 /* like TIF_ALLWORK_BITS but sans TIF_SYSCALL_TRACE or TIF_SYSCALL_AUDIT */
 #define TIF_WORK_MASK		(TIF_ALLWORK_MASK&~(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT))
-
-#define TS_RESTORE_SIGMASK	2	/* restore signal mask in do_signal() */
-
-#ifndef __ASSEMBLY__
-#define HAVE_SET_RESTORE_SIGMASK	1
-static inline void set_restore_sigmask(void)
-{
-	struct thread_info *ti = current_thread_info();
-	ti->status |= TS_RESTORE_SIGMASK;
-	WARN_ON(!test_bit(TIF_SIGPENDING, &ti->flags));
-}
-static inline void clear_restore_sigmask(void)
-{
-	current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-}
-static inline bool test_restore_sigmask(void)
-{
-	return current_thread_info()->status & TS_RESTORE_SIGMASK;
-}
-static inline bool test_and_clear_restore_sigmask(void)
-{
-	struct thread_info *ti = current_thread_info();
-	if (!(ti->status & TS_RESTORE_SIGMASK))
-		return false;
-	ti->status &= ~TS_RESTORE_SIGMASK;
-	return true;
-}
-#endif	/* !__ASSEMBLY__ */
 
 #endif /* _ASM_IA64_THREAD_INFO_H */

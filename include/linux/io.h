@@ -29,6 +29,7 @@ struct device;
 struct resource;
 
 __visible void __iowrite32_copy(void __iomem *to, const void *from, size_t count);
+void __ioread32_copy(void *to, const void __iomem *from, size_t count);
 void __iowrite64_copy(void __iomem *to, const void *from, size_t count);
 
 #ifdef CONFIG_MMU
@@ -89,19 +90,25 @@ void devm_memunmap(struct device *dev, void *addr);
 
 void *__devm_memremap_pages(struct device *dev, struct resource *res);
 
-#ifdef CONFIG_ZONE_DEVICE
-void *devm_memremap_pages(struct device *dev, struct resource *res);
-#else
-static inline void *devm_memremap_pages(struct device *dev, struct resource *res)
+#ifdef CONFIG_PCI
+/*
+ * The PCI specifications (Rev 3.0, 3.2.5 "Transaction Ordering and
+ * Posting") mandate non-posted configuration transactions. There is
+ * no ioremap API in the kernel that can guarantee non-posted write
+ * semantics across arches so provide a default implementation for
+ * mapping PCI config space that defaults to ioremap_nocache(); arches
+ * should override it if they have memory mapping implementations that
+ * guarantee non-posted writes semantics to make the memory mapping
+ * compliant with the PCI specification.
+ */
+#ifndef pci_remap_cfgspace
+#define pci_remap_cfgspace pci_remap_cfgspace
+static inline void __iomem *pci_remap_cfgspace(phys_addr_t offset,
+					       size_t size)
 {
-	/*
-	 * Fail attempts to call devm_memremap_pages() without
-	 * ZONE_DEVICE support enabled, this requires callers to fall
-	 * back to plain devm_memremap() based on config
-	 */
-	WARN_ON_ONCE(1);
-	return ERR_PTR(-ENXIO);
+	return ioremap_nocache(offset, size);
 }
+#endif
 #endif
 
 /*
@@ -149,9 +156,34 @@ enum {
 	/* See memremap() kernel-doc for usage description... */
 	MEMREMAP_WB = 1 << 0,
 	MEMREMAP_WT = 1 << 1,
+	MEMREMAP_WC = 1 << 2,
+	MEMREMAP_ENC = 1 << 3,
+	MEMREMAP_DEC = 1 << 4,
 };
 
 void *memremap(resource_size_t offset, size_t size, unsigned long flags);
 void memunmap(void *addr);
+
+/*
+ * On x86 PAT systems we have memory tracking that keeps track of
+ * the allowed mappings on memory ranges. This tracking works for
+ * all the in-kernel mapping APIs (ioremap*), but where the user
+ * wishes to map a range from a physical device into user memory
+ * the tracking won't be updated. This API is to be used by
+ * drivers which remap physical device pages into userspace,
+ * and wants to make sure they are mapped WC and not UC.
+ */
+#ifndef arch_io_reserve_memtype_wc
+static inline int arch_io_reserve_memtype_wc(resource_size_t base,
+					     resource_size_t size)
+{
+	return 0;
+}
+
+static inline void arch_io_free_memtype_wc(resource_size_t base,
+					   resource_size_t size)
+{
+}
+#endif
 
 #endif /* _LINUX_IO_H */

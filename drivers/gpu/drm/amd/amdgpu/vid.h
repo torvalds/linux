@@ -27,6 +27,8 @@
 #define SDMA1_REGISTER_OFFSET                             0x200 /* not a register */
 #define SDMA_MAX_INSTANCE 2
 
+#define KFD_VI_SDMA_QUEUE_OFFSET                      0x80 /* not a register */
+
 /* crtc instance offsets */
 #define CRTC0_REGISTER_OFFSET                 (0x1b9c - 0x1b9c)
 #define CRTC1_REGISTER_OFFSET                 (0x1d9c - 0x1b9c)
@@ -54,7 +56,8 @@
 #define AUD3_REGISTER_OFFSET                 (0x17b4 - 0x17a8)
 #define AUD4_REGISTER_OFFSET                 (0x17b8 - 0x17a8)
 #define AUD5_REGISTER_OFFSET                 (0x17bc - 0x17a8)
-#define AUD6_REGISTER_OFFSET                 (0x17c4 - 0x17a8)
+#define AUD6_REGISTER_OFFSET                 (0x17c0 - 0x17a8)
+#define AUD7_REGISTER_OFFSET                 (0x17c4 - 0x17a8)
 
 /* hpd instance offsets */
 #define HPD0_REGISTER_OFFSET                 (0x1898 - 0x1898)
@@ -70,8 +73,6 @@
 #define		MEID(x)						((x) << 2)
 #define		VMID(x)						((x) << 4)
 #define		QUEUEID(x)					((x) << 8)
-
-#define RB_BITMAP_WIDTH_PER_SH     2
 
 #define MC_SEQ_MISC0__MT__MASK	0xf0000000
 #define MC_SEQ_MISC0__MT__GDDR1  0x10000000
@@ -196,6 +197,7 @@
 		 * 1 - Stream
 		 * 2 - Bypass
 		 */
+#define     INDIRECT_BUFFER_PRE_ENB(x)		 ((x) << 21)
 #define	PACKET3_COPY_DATA				0x40
 #define	PACKET3_PFP_SYNC_ME				0x42
 #define	PACKET3_SURFACE_SYNC				0x43
@@ -361,13 +363,154 @@
 #define	PACKET3_WAIT_ON_CE_COUNTER			0x86
 #define	PACKET3_WAIT_ON_DE_COUNTER_DIFF			0x88
 #define	PACKET3_SWITCH_BUFFER				0x8B
+#define PACKET3_FRAME_CONTROL				0x90
+#			define FRAME_CMD(x) ((x) << 28)
+			/*
+			 * x=0: tmz_begin
+			 * x=1: tmz_end
+			 */
+#define	PACKET3_SET_RESOURCES				0xA0
+/* 1. header
+ * 2. CONTROL
+ * 3. QUEUE_MASK_LO [31:0]
+ * 4. QUEUE_MASK_HI [31:0]
+ * 5. GWS_MASK_LO [31:0]
+ * 6. GWS_MASK_HI [31:0]
+ * 7. OAC_MASK [15:0]
+ * 8. GDS_HEAP_SIZE [16:11] | GDS_HEAP_BASE [5:0]
+ */
+#              define PACKET3_SET_RESOURCES_VMID_MASK(x)     ((x) << 0)
+#              define PACKET3_SET_RESOURCES_UNMAP_LATENTY(x) ((x) << 16)
+#              define PACKET3_SET_RESOURCES_QUEUE_TYPE(x)    ((x) << 29)
+#define	PACKET3_MAP_QUEUES				0xA2
+/* 1. header
+ * 2. CONTROL
+ * 3. CONTROL2
+ * 4. MQD_ADDR_LO [31:0]
+ * 5. MQD_ADDR_HI [31:0]
+ * 6. WPTR_ADDR_LO [31:0]
+ * 7. WPTR_ADDR_HI [31:0]
+ */
+/* CONTROL */
+#              define PACKET3_MAP_QUEUES_QUEUE_SEL(x)       ((x) << 4)
+#              define PACKET3_MAP_QUEUES_VMID(x)            ((x) << 8)
+#              define PACKET3_MAP_QUEUES_QUEUE_TYPE(x)      ((x) << 21)
+#              define PACKET3_MAP_QUEUES_ALLOC_FORMAT(x)    ((x) << 24)
+#              define PACKET3_MAP_QUEUES_ENGINE_SEL(x)      ((x) << 26)
+#              define PACKET3_MAP_QUEUES_NUM_QUEUES(x)      ((x) << 29)
+/* CONTROL2 */
+#              define PACKET3_MAP_QUEUES_CHECK_DISABLE(x)   ((x) << 1)
+#              define PACKET3_MAP_QUEUES_DOORBELL_OFFSET(x) ((x) << 2)
+#              define PACKET3_MAP_QUEUES_QUEUE(x)           ((x) << 26)
+#              define PACKET3_MAP_QUEUES_PIPE(x)            ((x) << 29)
+#              define PACKET3_MAP_QUEUES_ME(x)              ((x) << 31)
+#define	PACKET3_UNMAP_QUEUES				0xA3
+/* 1. header
+ * 2. CONTROL
+ * 3. CONTROL2
+ * 4. CONTROL3
+ * 5. CONTROL4
+ * 6. CONTROL5
+ */
+/* CONTROL */
+#              define PACKET3_UNMAP_QUEUES_ACTION(x)           ((x) << 0)
+		/* 0 - PREEMPT_QUEUES
+		 * 1 - RESET_QUEUES
+		 * 2 - DISABLE_PROCESS_QUEUES
+		 * 3 - PREEMPT_QUEUES_NO_UNMAP
+		 */
+#              define PACKET3_UNMAP_QUEUES_QUEUE_SEL(x)        ((x) << 4)
+#              define PACKET3_UNMAP_QUEUES_ENGINE_SEL(x)       ((x) << 26)
+#              define PACKET3_UNMAP_QUEUES_NUM_QUEUES(x)       ((x) << 29)
+/* CONTROL2a */
+#              define PACKET3_UNMAP_QUEUES_PASID(x)            ((x) << 0)
+/* CONTROL2b */
+#              define PACKET3_UNMAP_QUEUES_DOORBELL_OFFSET0(x) ((x) << 2)
+/* CONTROL3a */
+#              define PACKET3_UNMAP_QUEUES_DOORBELL_OFFSET1(x) ((x) << 2)
+/* CONTROL3b */
+#              define PACKET3_UNMAP_QUEUES_RB_WPTR(x)          ((x) << 0)
+/* CONTROL4 */
+#              define PACKET3_UNMAP_QUEUES_DOORBELL_OFFSET2(x) ((x) << 2)
+/* CONTROL5 */
+#              define PACKET3_UNMAP_QUEUES_DOORBELL_OFFSET3(x) ((x) << 2)
+#define	PACKET3_QUERY_STATUS				0xA4
+/* 1. header
+ * 2. CONTROL
+ * 3. CONTROL2
+ * 4. ADDR_LO [31:0]
+ * 5. ADDR_HI [31:0]
+ * 6. DATA_LO [31:0]
+ * 7. DATA_HI [31:0]
+ */
+/* CONTROL */
+#              define PACKET3_QUERY_STATUS_CONTEXT_ID(x)       ((x) << 0)
+#              define PACKET3_QUERY_STATUS_INTERRUPT_SEL(x)    ((x) << 28)
+#              define PACKET3_QUERY_STATUS_COMMAND(x)          ((x) << 30)
+/* CONTROL2a */
+#              define PACKET3_QUERY_STATUS_PASID(x)            ((x) << 0)
+/* CONTROL2b */
+#              define PACKET3_QUERY_STATUS_DOORBELL_OFFSET(x)  ((x) << 2)
+#              define PACKET3_QUERY_STATUS_ENG_SEL(x)          ((x) << 25)
+
 
 #define VCE_CMD_NO_OP		0x00000000
 #define VCE_CMD_END		0x00000001
 #define VCE_CMD_IB		0x00000002
 #define VCE_CMD_FENCE		0x00000003
 #define VCE_CMD_TRAP		0x00000004
-#define VCE_CMD_IB_AUTO 	0x00000005
+#define VCE_CMD_IB_AUTO	0x00000005
 #define VCE_CMD_SEMAPHORE	0x00000006
+
+#define VCE_CMD_IB_VM           0x00000102
+#define VCE_CMD_WAIT_GE         0x00000106
+#define VCE_CMD_UPDATE_PTB      0x00000107
+#define VCE_CMD_FLUSH_TLB       0x00000108
+
+/* HEVC ENC */
+#define HEVC_ENC_CMD_NO_OP         0x00000000
+#define HEVC_ENC_CMD_END           0x00000001
+#define HEVC_ENC_CMD_FENCE         0x00000003
+#define HEVC_ENC_CMD_TRAP          0x00000004
+#define HEVC_ENC_CMD_IB_VM         0x00000102
+#define HEVC_ENC_CMD_WAIT_GE       0x00000106
+#define HEVC_ENC_CMD_UPDATE_PTB    0x00000107
+#define HEVC_ENC_CMD_FLUSH_TLB     0x00000108
+
+/* mmPA_SC_RASTER_CONFIG mask */
+#define RB_MAP_PKR0(x)				((x) << 0)
+#define RB_MAP_PKR0_MASK			(0x3 << 0)
+#define RB_MAP_PKR1(x)				((x) << 2)
+#define RB_MAP_PKR1_MASK			(0x3 << 2)
+#define RB_XSEL2(x)				((x) << 4)
+#define RB_XSEL2_MASK				(0x3 << 4)
+#define RB_XSEL					(1 << 6)
+#define RB_YSEL					(1 << 7)
+#define PKR_MAP(x)				((x) << 8)
+#define PKR_MAP_MASK				(0x3 << 8)
+#define PKR_XSEL(x)				((x) << 10)
+#define PKR_XSEL_MASK				(0x3 << 10)
+#define PKR_YSEL(x)				((x) << 12)
+#define PKR_YSEL_MASK				(0x3 << 12)
+#define SC_MAP(x)				((x) << 16)
+#define SC_MAP_MASK				(0x3 << 16)
+#define SC_XSEL(x)				((x) << 18)
+#define SC_XSEL_MASK				(0x3 << 18)
+#define SC_YSEL(x)				((x) << 20)
+#define SC_YSEL_MASK				(0x3 << 20)
+#define SE_MAP(x)				((x) << 24)
+#define SE_MAP_MASK				(0x3 << 24)
+#define SE_XSEL(x)				((x) << 26)
+#define SE_XSEL_MASK				(0x3 << 26)
+#define SE_YSEL(x)				((x) << 28)
+#define SE_YSEL_MASK				(0x3 << 28)
+
+/* mmPA_SC_RASTER_CONFIG_1 mask */
+#define SE_PAIR_MAP(x)				((x) << 0)
+#define SE_PAIR_MAP_MASK			(0x3 << 0)
+#define SE_PAIR_XSEL(x)				((x) << 2)
+#define SE_PAIR_XSEL_MASK			(0x3 << 2)
+#define SE_PAIR_YSEL(x)				((x) << 4)
+#define SE_PAIR_YSEL_MASK			(0x3 << 4)
 
 #endif

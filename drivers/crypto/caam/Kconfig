@@ -1,6 +1,7 @@
 config CRYPTO_DEV_FSL_CAAM
 	tristate "Freescale CAAM-Multicore driver backend"
-	depends on FSL_SOC || ARCH_MXC
+	depends on FSL_SOC || ARCH_MXC || ARCH_LAYERSCAPE
+	select SOC_BUS
 	help
 	  Enables the driver module for Freescale's Cryptographic Accelerator
 	  and Assurance Module (CAAM), also known as the SEC version 4 (SEC4).
@@ -74,7 +75,7 @@ config CRYPTO_DEV_FSL_CAAM_INTC_TIME_THLD
 
 config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 	tristate "Register algorithm implementations with the Crypto API"
-	depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
+	depends on CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
@@ -87,9 +88,26 @@ config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 	  To compile this as a module, choose M here: the module
 	  will be called caamalg.
 
+config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_QI
+	tristate "Queue Interface as Crypto API backend"
+	depends on CRYPTO_DEV_FSL_CAAM_JR && FSL_DPAA && NET
+	default y
+	select CRYPTO_AUTHENC
+	select CRYPTO_BLKCIPHER
+	help
+	  Selecting this will use CAAM Queue Interface (QI) for sending
+	  & receiving crypto jobs to/from CAAM. This gives better performance
+	  than job ring interface when the number of cores are more than the
+	  number of job rings assigned to the kernel. The number of portals
+	  assigned to the kernel should also be more than the number of
+	  job rings.
+
+	  To compile this as a module, choose M here: the module
+	  will be called caamalg_qi.
+
 config CRYPTO_DEV_FSL_CAAM_AHASH_API
 	tristate "Register hash algorithm implementations with Crypto API"
-	depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
+	depends on CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_HASH
 	help
@@ -99,9 +117,21 @@ config CRYPTO_DEV_FSL_CAAM_AHASH_API
 	  To compile this as a module, choose M here: the module
 	  will be called caamhash.
 
+config CRYPTO_DEV_FSL_CAAM_PKC_API
+        tristate "Register public key cryptography implementations with Crypto API"
+        depends on CRYPTO_DEV_FSL_CAAM_JR
+        default y
+        select CRYPTO_RSA
+        help
+          Selecting this will allow SEC Public key support for RSA.
+          Supported cryptographic primitives: encryption, decryption,
+          signature and verification.
+          To compile this as a module, choose M here: the module
+          will be called caam_pkc.
+
 config CRYPTO_DEV_FSL_CAAM_RNG_API
 	tristate "Register caam device for hwrng API"
-	depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
+	depends on CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_RNG
 	select HW_RANDOM
@@ -112,17 +142,13 @@ config CRYPTO_DEV_FSL_CAAM_RNG_API
 	  To compile this as a module, choose M here: the module
 	  will be called caamrng.
 
-config CRYPTO_DEV_FSL_CAAM_IMX
-	def_bool SOC_IMX6 || SOC_IMX7D
-	depends on CRYPTO_DEV_FSL_CAAM
-
-config CRYPTO_DEV_FSL_CAAM_LE
-	def_bool CRYPTO_DEV_FSL_CAAM_IMX || SOC_LS1021A
-	depends on CRYPTO_DEV_FSL_CAAM
-
 config CRYPTO_DEV_FSL_CAAM_DEBUG
 	bool "Enable debug output in CAAM driver"
 	depends on CRYPTO_DEV_FSL_CAAM
 	help
 	  Selecting this will enable printing of various debug
 	  information in the CAAM driver.
+
+config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_DESC
+	def_tristate (CRYPTO_DEV_FSL_CAAM_CRYPTO_API || \
+		      CRYPTO_DEV_FSL_CAAM_CRYPTO_API_QI)

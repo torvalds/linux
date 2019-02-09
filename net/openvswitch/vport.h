@@ -70,7 +70,7 @@ struct vport_portids {
 
 /**
  * struct vport - one port within a datapath
- * @rcu: RCU callback head for deferred destruction.
+ * @dev: Pointer to net_device.
  * @dp: Datapath to which this port belongs.
  * @upcall_portids: RCU protected 'struct vport_portids'.
  * @port_no: Index into @dp's @ports array.
@@ -78,6 +78,7 @@ struct vport_portids {
  * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
  * @detach_list: list used for detaching vport in net-exit call.
+ * @rcu: RCU callback head for deferred destruction.
  */
 struct vport {
 	struct net_device *dev;
@@ -148,7 +149,6 @@ struct vport_ops {
 struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *,
 			      const struct vport_parms *);
 void ovs_vport_free(struct vport *);
-void ovs_vport_deferred_free(struct vport *vport);
 
 #define VPORT_ALIGN 8
 
@@ -184,13 +184,6 @@ static inline struct vport *vport_from_priv(void *priv)
 int ovs_vport_receive(struct vport *, struct sk_buff *,
 		      const struct ip_tunnel_info *);
 
-static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
-				      const void *start, unsigned int len)
-{
-	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->csum = csum_add(skb->csum, csum_partial(start, len, 0));
-}
-
 static inline const char *ovs_vport_name(struct vport *vport)
 {
 	return vport->dev->name;
@@ -204,26 +197,6 @@ int __ovs_vport_ops_register(struct vport_ops *ops);
 	})
 
 void ovs_vport_ops_unregister(struct vport_ops *ops);
-
-static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
-						     const struct ip_tunnel_key *key,
-						     u32 mark,
-						     struct flowi4 *fl,
-						     u8 protocol)
-{
-	struct rtable *rt;
-
-	memset(fl, 0, sizeof(*fl));
-	fl->daddr = key->u.ipv4.dst;
-	fl->saddr = key->u.ipv4.src;
-	fl->flowi4_tos = RT_TOS(key->tos);
-	fl->flowi4_mark = mark;
-	fl->flowi4_proto = protocol;
-
-	rt = ip_route_output_key(net, fl);
-	return rt;
-}
-
-void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb, u8 mac_proto);
 
 #endif /* vport.h */

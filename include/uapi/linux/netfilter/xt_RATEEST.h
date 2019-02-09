@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _XT_RATEEST_TARGET_H
 #define _XT_RATEEST_TARGET_H
 
 #include <linux/types.h>
+#include <linux/if.h>
 
 struct xt_rateest_target_info {
 	char			name[IFNAMSIZ];

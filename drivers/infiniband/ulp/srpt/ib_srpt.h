@@ -42,6 +42,8 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_sa.h>
 #include <rdma/ib_cm.h>
+#include <rdma/rdma_cm.h>
+#include <rdma/rw.h>
 
 #include <scsi/srp.h>
 
@@ -52,6 +54,8 @@
  * ServiceEntries attribute pair. See also the SRP specification.
  */
 #define SRP_SERVICE_NAME_PREFIX		"SRP.T10:"
+
+struct srpt_nexus;
 
 enum {
 	/*
@@ -105,11 +109,15 @@ enum {
 	SRP_LOGIN_RSP_MULTICHAN_MAINTAINED = 0x2,
 
 	SRPT_DEF_SG_TABLESIZE = 128,
-	SRPT_DEF_SG_PER_WQE = 16,
+	/*
+	 * An experimentally determined value that avoids that QP creation
+	 * fails due to "swiotlb buffer is full" on systems using the swiotlb.
+	 */
+	SRPT_MAX_SG_PER_WQE = 16,
 
 	MIN_SRPT_SQ_SIZE = 16,
 	DEF_SRPT_SQ_SIZE = 4096,
-	SRPT_RQ_SIZE = 128,
+	MAX_SRPT_RQ_SIZE = 128,
 	MIN_SRPT_SRQ_SIZE = 4,
 	DEFAULT_SRPT_SRQ_SIZE = 4095,
 	MAX_SRPT_SRQ_SIZE = 65535,
@@ -128,38 +136,8 @@ enum {
 	DEFAULT_MAX_RDMA_SIZE = 65536,
 };
 
-enum srpt_opcode {
-	SRPT_RECV,
-	SRPT_SEND,
-	SRPT_RDMA_MID,
-	SRPT_RDMA_ABORT,
-	SRPT_RDMA_READ_LAST,
-	SRPT_RDMA_WRITE_LAST,
-};
-
-static inline u64 encode_wr_id(u8 opcode, u32 idx)
-{
-	return ((u64)opcode << 32) | idx;
-}
-static inline enum srpt_opcode opcode_from_wr_id(u64 wr_id)
-{
-	return wr_id >> 32;
-}
-static inline u32 idx_from_wr_id(u64 wr_id)
-{
-	return (u32)wr_id;
-}
-
-struct rdma_iu {
-	u64		raddr;
-	u32		rkey;
-	struct ib_sge	*sge;
-	u32		sge_cnt;
-	int		mem_id;
-};
-
 /**
- * enum srpt_command_state - SCSI command state managed by SRPT.
+ * enum srpt_command_state - SCSI command state managed by SRPT
  * @SRPT_STATE_NEW:           New command arrived and is being processed.
  * @SRPT_STATE_NEED_DATA:     Processing a write or bidir command and waiting
  *                            for data arrival.
@@ -183,19 +161,21 @@ enum srpt_command_state {
 };
 
 /**
- * struct srpt_ioctx - Shared SRPT I/O context information.
+ * struct srpt_ioctx - shared SRPT I/O context information
+ * @cqe:   Completion queue element.
  * @buf:   Pointer to the buffer.
  * @dma:   DMA address of the buffer.
  * @index: Index of the I/O context in its ioctx_ring array.
  */
 struct srpt_ioctx {
+	struct ib_cqe		cqe;
 	void			*buf;
 	dma_addr_t		dma;
 	uint32_t		index;
 };
 
 /**
- * struct srpt_recv_ioctx - SRPT receive I/O context.
+ * struct srpt_recv_ioctx - SRPT receive I/O context
  * @ioctx:     See above.
  * @wait_list: Node for insertion in srpt_rdma_ch.cmd_wait_list.
  */
@@ -203,83 +183,78 @@ struct srpt_recv_ioctx {
 	struct srpt_ioctx	ioctx;
 	struct list_head	wait_list;
 };
+	
+struct srpt_rw_ctx {
+	struct rdma_rw_ctx	rw;
+	struct scatterlist	*sg;
+	unsigned int		nents;
+};
 
 /**
- * struct srpt_send_ioctx - SRPT send I/O context.
+ * struct srpt_send_ioctx - SRPT send I/O context
  * @ioctx:       See above.
  * @ch:          Channel pointer.
+ * @s_rw_ctx:    @rw_ctxs points here if only a single rw_ctx is needed.
+ * @rw_ctxs:     RDMA read/write contexts.
+ * @rdma_cqe:    RDMA completion queue element.
  * @free_list:   Node in srpt_rdma_ch.free_list.
- * @n_rbuf:      Number of data buffers in the received SRP command.
- * @rbufs:       Pointer to SRP data buffer array.
- * @single_rbuf: SRP data buffer if the command has only a single buffer.
- * @sg:          Pointer to sg-list associated with this I/O context.
- * @sg_cnt:      SG-list size.
- * @mapped_sg_count: ib_dma_map_sg() return value.
- * @n_rdma_ius:  Number of elements in the rdma_ius array.
- * @rdma_ius:    Array with information about the RDMA mapping.
- * @tag:         Tag of the received SRP information unit.
- * @spinlock:    Protects 'state'.
  * @state:       I/O context state.
- * @rdma_aborted: If initiating a multipart RDMA transfer failed, whether
- * 		 the already initiated transfers have finished.
  * @cmd:         Target core command data structure.
  * @sense_data:  SCSI sense data.
+ * @n_rdma:      Number of work requests needed to transfer this ioctx.
+ * @n_rw_ctx:    Size of rw_ctxs array.
+ * @queue_status_only: Send a SCSI status back to the initiator but no data.
+ * @sense_data:  Sense data to be sent to the initiator.
  */
 struct srpt_send_ioctx {
 	struct srpt_ioctx	ioctx;
 	struct srpt_rdma_ch	*ch;
-	struct rdma_iu		*rdma_ius;
-	struct srp_direct_buf	*rbufs;
-	struct srp_direct_buf	single_rbuf;
-	struct scatterlist	*sg;
+
+	struct srpt_rw_ctx	s_rw_ctx;
+	struct srpt_rw_ctx	*rw_ctxs;
+
+	struct ib_cqe		rdma_cqe;
 	struct list_head	free_list;
-	spinlock_t		spinlock;
 	enum srpt_command_state	state;
-	bool			rdma_aborted;
 	struct se_cmd		cmd;
-	struct completion	tx_done;
-	int			sg_cnt;
-	int			mapped_sg_count;
-	u16			n_rdma_ius;
 	u8			n_rdma;
-	u8			n_rbuf;
+	u8			n_rw_ctx;
 	bool			queue_status_only;
 	u8			sense_data[TRANSPORT_SENSE_BUFFER];
 };
 
 /**
- * enum rdma_ch_state - SRP channel state.
- * @CH_CONNECTING:	 QP is in RTR state; waiting for RTU.
- * @CH_LIVE:		 QP is in RTS state.
- * @CH_DISCONNECTING:    DREQ has been received; waiting for DREP
- *                       or DREQ has been send and waiting for DREP
- *                       or .
- * @CH_DRAINING:	 QP is in ERR state; waiting for last WQE event.
- * @CH_RELEASING:	 Last WQE event has been received; releasing resources.
+ * enum rdma_ch_state - SRP channel state
+ * @CH_CONNECTING:    QP is in RTR state; waiting for RTU.
+ * @CH_LIVE:	      QP is in RTS state.
+ * @CH_DISCONNECTING: DREQ has been sent and waiting for DREP or DREQ has
+ *                    been received.
+ * @CH_DRAINING:      DREP has been received or waiting for DREP timed out
+ *                    and last work request has been queued.
+ * @CH_DISCONNECTED:  Last completion has been received.
  */
 enum rdma_ch_state {
 	CH_CONNECTING,
 	CH_LIVE,
 	CH_DISCONNECTING,
 	CH_DRAINING,
-	CH_RELEASING
+	CH_DISCONNECTED,
 };
 
 /**
- * struct srpt_rdma_ch - RDMA channel.
- * @wait_queue:    Allows the kernel thread to wait for more work.
- * @thread:        Kernel thread that processes the IB queues associated with
- *                 the channel.
- * @cm_id:         IB CM ID associated with the channel.
+ * struct srpt_rdma_ch - RDMA channel
+ * @nexus:         I_T nexus this channel is associated with.
  * @qp:            IB queue pair used for communicating over this channel.
+ * @cm_id:         IB CM ID associated with the channel.
  * @cq:            IB completion queue for this channel.
+ * @zw_cqe:	   Zero-length write CQE.
+ * @rcu:           RCU head.
+ * @kref:	   kref for this channel.
  * @rq_size:       IB receive queue size.
- * @rsp_size	   IB response message size in bytes.
+ * @max_rsp_size:  Maximum size of an RSP response message in bytes.
  * @sq_wr_avail:   number of work requests available in the send queue.
  * @sport:         pointer to the information of the HCA port used by this
  *                 channel.
- * @i_port_id:     128-bit initiator port identifier copied from SRP_LOGIN_REQ.
- * @t_port_id:     128-bit target port identifier copied from SRP_LOGIN_REQ.
  * @max_ti_iu_len: maximum target-to-initiator information unit length.
  * @req_lim:       request limit: maximum number of requests that may be sent
  *                 by the initiator without having received a response.
@@ -287,29 +262,38 @@ enum rdma_ch_state {
  * @spinlock:      Protects free_list and state.
  * @free_list:     Head of list with free send I/O contexts.
  * @state:         channel state. See also enum rdma_ch_state.
+ * @using_rdma_cm: Whether the RDMA/CM or IB/CM is used for this channel.
+ * @processing_wait_list: Whether or not cmd_wait_list is being processed.
  * @ioctx_ring:    Send ring.
- * @wc:            IB work completion array for srpt_process_completion().
- * @list:          Node for insertion in the srpt_device.rch_list list.
+ * @ioctx_recv_ring: Receive I/O context ring.
+ * @list:          Node in srpt_nexus.ch_list.
  * @cmd_wait_list: List of SCSI commands that arrived before the RTU event. This
  *                 list contains struct srpt_ioctx elements and is protected
  *                 against concurrent modification by the cm_id spinlock.
+ * @pkey:          P_Key of the IB partition for this SRP channel.
  * @sess:          Session information associated with this SRP channel.
  * @sess_name:     Session name.
  * @release_work:  Allows scheduling of srpt_release_channel().
- * @release_done:  Enables waiting for srpt_release_channel() completion.
  */
 struct srpt_rdma_ch {
-	wait_queue_head_t	wait_queue;
-	struct task_struct	*thread;
-	struct ib_cm_id		*cm_id;
+	struct srpt_nexus	*nexus;
 	struct ib_qp		*qp;
+	union {
+		struct {
+			struct ib_cm_id		*cm_id;
+		} ib_cm;
+		struct {
+			struct rdma_cm_id	*cm_id;
+		} rdma_cm;
+	};
 	struct ib_cq		*cq;
+	struct ib_cqe		zw_cqe;
+	struct rcu_head		rcu;
+	struct kref		kref;
 	int			rq_size;
-	u32			rsp_size;
+	u32			max_rsp_size;
 	atomic_t		sq_wr_avail;
 	struct srpt_port	*sport;
-	u8			i_port_id[16];
-	u8			t_port_id[16];
 	int			max_ti_iu_len;
 	atomic_t		req_lim;
 	atomic_t		req_lim_delta;
@@ -317,107 +301,118 @@ struct srpt_rdma_ch {
 	struct list_head	free_list;
 	enum rdma_ch_state	state;
 	struct srpt_send_ioctx	**ioctx_ring;
-	struct ib_wc		wc[16];
+	struct srpt_recv_ioctx	**ioctx_recv_ring;
 	struct list_head	list;
 	struct list_head	cmd_wait_list;
+	uint16_t		pkey;
+	bool			using_rdma_cm;
+	bool			processing_wait_list;
 	struct se_session	*sess;
-	u8			sess_name[36];
+	u8			sess_name[40];
 	struct work_struct	release_work;
-	struct completion	*release_done;
-	bool			in_shutdown;
 };
 
 /**
- * struct srpt_port_attib - Attributes for SRPT port
+ * struct srpt_nexus - I_T nexus
+ * @rcu:       RCU head for this data structure.
+ * @entry:     srpt_port.nexus_list list node.
+ * @ch_list:   struct srpt_rdma_ch list. Protected by srpt_port.mutex.
+ * @i_port_id: 128-bit initiator port identifier copied from SRP_LOGIN_REQ.
+ * @t_port_id: 128-bit target port identifier copied from SRP_LOGIN_REQ.
+ */
+struct srpt_nexus {
+	struct rcu_head		rcu;
+	struct list_head	entry;
+	struct list_head	ch_list;
+	u8			i_port_id[16];
+	u8			t_port_id[16];
+};
+
+/**
+ * struct srpt_port_attib - attributes for SRPT port
  * @srp_max_rdma_size: Maximum size of SRP RDMA transfers for new connections.
  * @srp_max_rsp_size: Maximum size of SRP response messages in bytes.
  * @srp_sq_size: Shared receive queue (SRQ) size.
+ * @use_srq: Whether or not to use SRQ.
  */
 struct srpt_port_attrib {
 	u32			srp_max_rdma_size;
 	u32			srp_max_rsp_size;
 	u32			srp_sq_size;
+	bool			use_srq;
 };
 
 /**
- * struct srpt_port - Information associated by SRPT with a single IB port.
+ * struct srpt_port - information associated by SRPT with a single IB port
  * @sdev:      backpointer to the HCA information.
  * @mad_agent: per-port management datagram processing information.
  * @enabled:   Whether or not this target port is enabled.
  * @port_guid: ASCII representation of Port GUID
+ * @port_gid:  ASCII representation of Port GID
  * @port:      one-based port number.
  * @sm_lid:    cached value of the port's sm_lid.
  * @lid:       cached value of the port's lid.
  * @gid:       cached value of the port's gid.
  * @port_acl_lock spinlock for port_acl_list:
  * @work:      work structure for refreshing the aforementioned cached values.
- * @port_tpg_1 Target portal group = 1 data.
- * @port_wwn:  Target core WWN data.
- * @port_acl_list: Head of the list with all node ACLs for this port.
+ * @port_guid_tpg: TPG associated with target port GUID.
+ * @port_guid_wwn: WWN associated with target port GUID.
+ * @port_gid_tpg:  TPG associated with target port GID.
+ * @port_gid_wwn:  WWN associated with target port GID.
+ * @port_attrib:   Port attributes that can be accessed through configfs.
+ * @ch_releaseQ:   Enables waiting for removal from nexus_list.
+ * @mutex:	   Protects nexus_list.
+ * @nexus_list:	   Nexus list. See also srpt_nexus.entry.
  */
 struct srpt_port {
 	struct srpt_device	*sdev;
 	struct ib_mad_agent	*mad_agent;
 	bool			enabled;
-	u8			port_guid[64];
+	u8			port_guid[24];
+	u8			port_gid[64];
 	u8			port;
-	u16			sm_lid;
-	u16			lid;
+	u32			sm_lid;
+	u32			lid;
 	union ib_gid		gid;
-	spinlock_t		port_acl_lock;
 	struct work_struct	work;
-	struct se_portal_group	port_tpg_1;
-	struct se_wwn		port_wwn;
-	struct list_head	port_acl_list;
+	struct se_portal_group	port_guid_tpg;
+	struct se_wwn		port_guid_wwn;
+	struct se_portal_group	port_gid_tpg;
+	struct se_wwn		port_gid_wwn;
 	struct srpt_port_attrib port_attrib;
+	wait_queue_head_t	ch_releaseQ;
+	struct mutex		mutex;
+	struct list_head	nexus_list;
 };
 
 /**
- * struct srpt_device - Information associated by SRPT with a single HCA.
+ * struct srpt_device - information associated by SRPT with a single HCA
  * @device:        Backpointer to the struct ib_device managed by the IB core.
  * @pd:            IB protection domain.
- * @mr:            L_Key (local key) with write access to all local memory.
+ * @lkey:          L_Key (local key) with write access to all local memory.
  * @srq:           Per-HCA SRQ (shared receive queue).
  * @cm_id:         Connection identifier.
- * @dev_attr:      Attributes of the InfiniBand device as obtained during the
- *                 ib_client.add() callback.
  * @srq_size:      SRQ size.
+ * @sdev_mutex:	   Serializes use_srq changes.
+ * @use_srq:       Whether or not to use SRQ.
  * @ioctx_ring:    Per-HCA SRQ.
- * @rch_list:      Per-device channel list -- see also srpt_rdma_ch.list.
- * @ch_releaseQ:   Enables waiting for removal from rch_list.
- * @spinlock:      Protects rch_list and tpg.
- * @port:          Information about the ports owned by this HCA.
  * @event_handler: Per-HCA asynchronous IB event handler.
  * @list:          Node in srpt_dev_list.
+ * @port:          Information about the ports owned by this HCA.
  */
 struct srpt_device {
 	struct ib_device	*device;
 	struct ib_pd		*pd;
+	u32			lkey;
 	struct ib_srq		*srq;
 	struct ib_cm_id		*cm_id;
-	struct ib_device_attr	dev_attr;
 	int			srq_size;
+	struct mutex		sdev_mutex;
+	bool			use_srq;
 	struct srpt_recv_ioctx	**ioctx_ring;
-	struct list_head	rch_list;
-	wait_queue_head_t	ch_releaseQ;
-	spinlock_t		spinlock;
-	struct srpt_port	port[2];
 	struct ib_event_handler	event_handler;
 	struct list_head	list;
-};
-
-/**
- * struct srpt_node_acl - Per-initiator ACL data (managed via configfs).
- * @nacl:      Target core node ACL information.
- * @i_port_id: 128-bit SRP initiator port ID.
- * @sport:     port information.
- * @list:      Element of the per-HCA ACL list.
- */
-struct srpt_node_acl {
-	struct se_node_acl	nacl;
-	u8			i_port_id[16];
-	struct srpt_port	*sport;
-	struct list_head	list;
+	struct srpt_port        port[];
 };
 
 #endif				/* IB_SRPT_H */

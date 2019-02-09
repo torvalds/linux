@@ -20,10 +20,14 @@
  */
 
 static const char *simulation_compat[] __initconst = {
+#ifdef CONFIG_ISA_ARCOMPACT
 	"snps,nsim",
-	"snps,nsim_hs",
 	"snps,nsimosci",
+#else
+	"snps,nsim_hs",
 	"snps,nsimosci_hs",
+	"snps,zebu_hs",
+#endif
 	NULL,
 };
 

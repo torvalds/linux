@@ -46,7 +46,7 @@ MODULE_DEVICE_TABLE(acpi, fan_device_ids);
 #ifdef CONFIG_PM_SLEEP
 static int acpi_fan_suspend(struct device *dev);
 static int acpi_fan_resume(struct device *dev);
-static struct dev_pm_ops acpi_fan_pm = {
+static const struct dev_pm_ops acpi_fan_pm = {
 	.resume = acpi_fan_resume,
 	.freeze = acpi_fan_suspend,
 	.thaw = acpi_fan_resume,
@@ -129,8 +129,18 @@ static int fan_get_state_acpi4(struct acpi_device *device, unsigned long *state)
 
 	control = obj->package.elements[1].integer.value;
 	for (i = 0; i < fan->fps_count; i++) {
-		if (control == fan->fps[i].control)
+		/*
+		 * When Fine Grain Control is set, return the state
+		 * corresponding to maximum fan->fps[i].control
+		 * value compared to the current speed. Here the
+		 * fan->fps[] is sorted array with increasing speed.
+		 */
+		if (fan->fif.fine_grain_ctrl && control < fan->fps[i].control) {
+			i = (i > 0) ? i - 1 : 0;
 			break;
+		} else if (control == fan->fps[i].control) {
+			break;
+		}
 	}
 	if (i == fan->fps_count) {
 		dev_dbg(&device->dev, "Invalid control value returned\n");
@@ -209,7 +219,7 @@ fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 		return fan_set_state_acpi4(device, state);
 	else
 		return fan_set_state(device, state);
- }
+}
 
 static const struct thermal_cooling_device_ops fan_cooling_ops = {
 	.get_max_state = fan_get_max_state,
@@ -288,8 +298,8 @@ static int acpi_fan_get_fps(struct acpi_device *device)
 	}
 
 	fan->fps_count = obj->package.count - 1; /* minus revision field */
-	fan->fps = devm_kzalloc(&device->dev,
-				fan->fps_count * sizeof(struct acpi_fan_fps),
+	fan->fps = devm_kcalloc(&device->dev,
+				fan->fps_count, sizeof(struct acpi_fan_fps),
 				GFP_KERNEL);
 	if (!fan->fps) {
 		dev_err(&device->dev, "Not enough memory\n");
@@ -339,7 +349,7 @@ static int acpi_fan_probe(struct platform_device *pdev)
 	} else {
 		result = acpi_device_update_power(device, NULL);
 		if (result) {
-			dev_err(&device->dev, "Setting initial power state\n");
+			dev_err(&device->dev, "Failed to set initial power state\n");
 			goto end;
 		}
 	}

@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the ST7735R LCD Controller
  *
  * Copyright (C) 2013 Noralf Tronnes
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
@@ -24,45 +16,51 @@
 #define DEFAULT_GAMMA   "0F 1A 0F 18 2F 28 20 22 1F 1B 23 37 00 07 02 10\n" \
 			"0F 1B 0F 17 33 2C 29 2E 30 30 39 3F 00 07 03 10"
 
-static int default_init_sequence[] = {
-	/* SWRESET - Software reset */
-	-1, 0x01,
+static const s16 default_init_sequence[] = {
+	-1, MIPI_DCS_SOFT_RESET,
 	-2, 150,                               /* delay */
 
-	/* SLPOUT - Sleep out & booster on */
-	-1, 0x11,
+	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 500,                               /* delay */
 
 	/* FRMCTR1 - frame rate control: normal mode
-	     frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D) */
+	 * frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D)
+	 */
 	-1, 0xB1, 0x01, 0x2C, 0x2D,
 
 	/* FRMCTR2 - frame rate control: idle mode
-	     frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D) */
+	 * frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D)
+	 */
 	-1, 0xB2, 0x01, 0x2C, 0x2D,
 
 	/* FRMCTR3 - frame rate control - partial mode
-	     dot inversion mode, line inversion mode */
+	 * dot inversion mode, line inversion mode
+	 */
 	-1, 0xB3, 0x01, 0x2C, 0x2D, 0x01, 0x2C, 0x2D,
 
 	/* INVCTR - display inversion control
-	     no inversion */
+	 * no inversion
+	 */
 	-1, 0xB4, 0x07,
 
 	/* PWCTR1 - Power Control
-	     -4.6V, AUTO mode */
+	 * -4.6V, AUTO mode
+	 */
 	-1, 0xC0, 0xA2, 0x02, 0x84,
 
 	/* PWCTR2 - Power Control
-	     VGH25 = 2.4C VGSEL = -10 VGH = 3 * AVDD */
+	 * VGH25 = 2.4C VGSEL = -10 VGH = 3 * AVDD
+	 */
 	-1, 0xC1, 0xC5,
 
 	/* PWCTR3 - Power Control
-	     Opamp current small, Boost frequency */
+	 * Opamp current small, Boost frequency
+	 */
 	-1, 0xC2, 0x0A, 0x00,
 
 	/* PWCTR4 - Power Control
-	     BCLK/2, Opamp current small & Medium low */
+	 * BCLK/2, Opamp current small & Medium low
+	 */
 	-1, 0xC3, 0x8A, 0x2A,
 
 	/* PWCTR5 - Power Control */
@@ -71,18 +69,14 @@ static int default_init_sequence[] = {
 	/* VMCTR1 - Power Control */
 	-1, 0xC5, 0x0E,
 
-	/* INVOFF - Display inversion off */
-	-1, 0x20,
+	-1, MIPI_DCS_EXIT_INVERT_MODE,
 
-	/* COLMOD - Interface pixel format */
-	-1, 0x3A, 0x05,
+	-1, MIPI_DCS_SET_PIXEL_FORMAT, MIPI_DCS_PIXEL_FMT_16BIT,
 
-	/* DISPON - Display On */
-	-1, 0x29,
+	-1, MIPI_DCS_SET_DISPLAY_ON,
 	-2, 100,                               /* delay */
 
-	/* NORON - Partial off (Normal) */
-	-1, 0x13,
+	-1, MIPI_DCS_ENTER_NORMAL_MODE,
 	-2, 10,                               /* delay */
 
 	/* end marker */
@@ -91,14 +85,13 @@ static int default_init_sequence[] = {
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	/* Column address */
-	write_reg(par, 0x2A, xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
+	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
+		  xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
 
-	/* Row address */
-	write_reg(par, 0x2B, ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
+	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
+		  ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
 
-	/* Memory write */
-	write_reg(par, 0x2C);
+	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 }
 
 #define MY BIT(7)
@@ -107,23 +100,28 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 static int set_var(struct fbtft_par *par)
 {
 	/* MADCTL - Memory data access control
-	     RGB/BGR:
-	     1. Mode selection pin SRGB
-		RGB H/W pin for color filter setting: 0=RGB, 1=BGR
-	     2. MADCTL RGB bit
-		RGB-BGR ORDER color filter panel: 0=RGB, 1=BGR */
+	 * RGB/BGR:
+	 * 1. Mode selection pin SRGB
+	 *    RGB H/W pin for color filter setting: 0=RGB, 1=BGR
+	 * 2. MADCTL RGB bit
+	 *    RGB-BGR ORDER color filter panel: 0=RGB, 1=BGR
+	 */
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x36, MX | MY | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MX | MY | (par->bgr << 3));
 		break;
 	case 270:
-		write_reg(par, 0x36, MY | MV | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MY | MV | (par->bgr << 3));
 		break;
 	case 180:
-		write_reg(par, 0x36, par->bgr << 3);
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  par->bgr << 3);
 		break;
 	case 90:
-		write_reg(par, 0x36, MX | MV | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MX | MV | (par->bgr << 3));
 		break;
 	}
 
@@ -131,12 +129,12 @@ static int set_var(struct fbtft_par *par)
 }
 
 /*
-  Gamma string format:
-    VRF0P VOS0P PK0P PK1P PK2P PK3P PK4P PK5P PK6P PK7P PK8P PK9P SELV0P SELV1P SELV62P SELV63P
-    VRF0N VOS0N PK0N PK1N PK2N PK3N PK4N PK5N PK6N PK7N PK8N PK9N SELV0N SELV1N SELV62N SELV63N
-*/
-#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+ * Gamma string format:
+ * VRF0P VOS0P PK0P PK1P PK2P PK3P PK4P PK5P PK6P PK7P PK8P PK9P SELV0P SELV1P SELV62P SELV63P
+ * VRF0N VOS0N PK0N PK1N PK2N PK3N PK4N PK5N PK6N PK7N PK8N PK9N SELV0N SELV1N SELV62N SELV63N
+ */
+#define CURVE(num, idx)  curves[(num) * par->gamma.num_values + (idx)]
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	int i, j;
 
@@ -147,13 +145,18 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 
 	for (i = 0; i < par->gamma.num_curves; i++)
 		write_reg(par, 0xE0 + i,
-			CURVE(i, 0), CURVE(i, 1), CURVE(i, 2), CURVE(i, 3),
-			CURVE(i, 4), CURVE(i, 5), CURVE(i, 6), CURVE(i, 7),
-			CURVE(i, 8), CURVE(i, 9), CURVE(i, 10), CURVE(i, 11),
-			CURVE(i, 12), CURVE(i, 13), CURVE(i, 14), CURVE(i, 15));
+			  CURVE(i, 0),  CURVE(i, 1),
+			  CURVE(i, 2),  CURVE(i, 3),
+			  CURVE(i, 4),  CURVE(i, 5),
+			  CURVE(i, 6),  CURVE(i, 7),
+			  CURVE(i, 8),  CURVE(i, 9),
+			  CURVE(i, 10), CURVE(i, 11),
+			  CURVE(i, 12), CURVE(i, 13),
+			  CURVE(i, 14), CURVE(i, 15));
 
 	return 0;
 }
+
 #undef CURVE
 
 static struct fbtft_display display = {

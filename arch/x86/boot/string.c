@@ -13,13 +13,24 @@
  */
 
 #include <linux/types.h>
+#include <asm/asm.h>
 #include "ctype.h"
+#include "string.h"
+
+/*
+ * Undef these macros so that the functions that we provide
+ * here will have the correct names regardless of how string.h
+ * may have chosen to #define them.
+ */
+#undef memcpy
+#undef memset
+#undef memcmp
 
 int memcmp(const void *s1, const void *s2, size_t len)
 {
-	u8 diff;
-	asm("repe; cmpsb; setnz %0"
-	    : "=qm" (diff), "+D" (s1), "+S" (s2), "+c" (len));
+	bool diff;
+	asm("repe; cmpsb" CC_SET(nz)
+	    : CC_OUT(nz) (diff), "+D" (s1), "+S" (s2), "+c" (len));
 	return diff;
 }
 
@@ -121,6 +132,14 @@ unsigned long long simple_strtoull(const char *cp, char **endp, unsigned int bas
 	return result;
 }
 
+long simple_strtol(const char *cp, char **endp, unsigned int base)
+{
+	if (*cp == '-')
+		return -simple_strtoull(cp + 1, endp, base);
+
+	return simple_strtoull(cp, endp, base);
+}
+
 /**
  * strlen - Find the length of a string
  * @s: The string to be sized
@@ -154,4 +173,17 @@ char *strstr(const char *s1, const char *s2)
 		s1++;
 	}
 	return NULL;
+}
+
+/**
+ * strchr - Find the first occurrence of the character c in the string s.
+ * @s: the string to be searched
+ * @c: the character to search for
+ */
+char *strchr(const char *s, int c)
+{
+	while (*s != (char)c)
+		if (*s++ == '\0')
+			return NULL;
+	return (char *)s;
 }

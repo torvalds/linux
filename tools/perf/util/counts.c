@@ -1,6 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <errno.h>
 #include <stdlib.h>
 #include "evsel.h"
 #include "counts.h"
+#include "util.h"
 
 struct perf_counts *perf_counts__new(int ncpus, int nthreads)
 {

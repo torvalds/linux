@@ -152,7 +152,7 @@ tracing facility.
 	Users can enable/disable this debug tracing feature by executing
 	the following command:
 	    # echo string > /sys/module/acpi/parameters/trace_state
-	Where "string" should be one of the followings:
+	Where "string" should be one of the following:
 	"disable"
 	    Disable the method tracing feature.
 	"enable"

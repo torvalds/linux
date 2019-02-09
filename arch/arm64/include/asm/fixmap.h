@@ -20,6 +20,7 @@
 #include <linux/sizes.h>
 #include <asm/boot.h>
 #include <asm/page.h>
+#include <asm/pgtable-prot.h>
 
 /*
  * Here we define all the compile-time 'special' virtual
@@ -50,6 +51,18 @@ enum fixed_addresses {
 
 	FIX_EARLYCON_MEM_BASE,
 	FIX_TEXT_POKE0,
+
+#ifdef CONFIG_ACPI_APEI_GHES
+	/* Used for GHES mapping from assorted contexts */
+	FIX_APEI_GHES_IRQ,
+	FIX_APEI_GHES_NMI,
+#endif /* CONFIG_ACPI_APEI_GHES */
+
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+	FIX_ENTRY_TRAMP_DATA,
+	FIX_ENTRY_TRAMP_TEXT,
+#define TRAMP_VALIAS		(__fix_to_virt(FIX_ENTRY_TRAMP_TEXT))
+#endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 	__end_of_permanent_fixed_addresses,
 
 	/*
@@ -62,6 +75,16 @@ enum fixed_addresses {
 
 	FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
 	FIX_BTMAP_BEGIN = FIX_BTMAP_END + TOTAL_FIX_BTMAPS - 1,
+
+	/*
+	 * Used for kernel page table creation, so unmapped memory may be used
+	 * for tables.
+	 */
+	FIX_PTE,
+	FIX_PMD,
+	FIX_PUD,
+	FIX_PGD,
+
 	__end_of_fixed_addresses
 };
 

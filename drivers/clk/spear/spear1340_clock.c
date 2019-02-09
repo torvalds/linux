@@ -323,7 +323,7 @@ static struct frac_rate_tbl clcd_rtbl[] = {
 };
 
 /* i2s prescaler1 masks */
-static struct aux_clk_masks i2s_prs1_masks = {
+static const struct aux_clk_masks i2s_prs1_masks = {
 	.eq_sel_mask = AUX_EQ_SEL_MASK,
 	.eq_sel_shift = SPEAR1340_I2S_PRS1_EQ_SEL_SHIFT,
 	.eq1_mask = AUX_EQ1_SEL,
@@ -443,24 +443,20 @@ void __init spear1340_clk_init(void __iomem *misc_base)
 {
 	struct clk *clk, *clk1;
 
-	clk = clk_register_fixed_rate(NULL, "osc_32k_clk", NULL, CLK_IS_ROOT,
-			32000);
+	clk = clk_register_fixed_rate(NULL, "osc_32k_clk", NULL, 0, 32000);
 	clk_register_clkdev(clk, "osc_32k_clk", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "osc_24m_clk", NULL, CLK_IS_ROOT,
-			24000000);
+	clk = clk_register_fixed_rate(NULL, "osc_24m_clk", NULL, 0, 24000000);
 	clk_register_clkdev(clk, "osc_24m_clk", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "osc_25m_clk", NULL, CLK_IS_ROOT,
-			25000000);
+	clk = clk_register_fixed_rate(NULL, "osc_25m_clk", NULL, 0, 25000000);
 	clk_register_clkdev(clk, "osc_25m_clk", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "gmii_pad_clk", NULL, CLK_IS_ROOT,
-			125000000);
+	clk = clk_register_fixed_rate(NULL, "gmii_pad_clk", NULL, 0, 125000000);
 	clk_register_clkdev(clk, "gmii_pad_clk", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "i2s_src_pad_clk", NULL,
-			CLK_IS_ROOT, 12288000);
+	clk = clk_register_fixed_rate(NULL, "i2s_src_pad_clk", NULL, 0,
+				      12288000);
 	clk_register_clkdev(clk, "i2s_src_pad_clk", NULL);
 
 	/* clock derived from 32 KHz osc clk */

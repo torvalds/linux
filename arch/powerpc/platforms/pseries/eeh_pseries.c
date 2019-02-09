@@ -2,7 +2,7 @@
  * The file intends to implement the platform dependent EEH operations on pseries.
  * Actually, the pseries platform is built based on RTAS heavily. That means the
  * pseries platform dependent EEH operations will be built on RTAS calls. The functions
- * are devired from arch/powerpc/platforms/pseries/eeh.c and necessary cleanup has
+ * are derived from arch/powerpc/platforms/pseries/eeh.c and necessary cleanup has
  * been done.
  *
  * Copyright Benjamin Herrenschmidt & Gavin Shan, IBM Corporation 2011.
@@ -53,8 +53,44 @@ static int ibm_read_slot_reset_state2;
 static int ibm_slot_error_detail;
 static int ibm_get_config_addr_info;
 static int ibm_get_config_addr_info2;
-static int ibm_configure_bridge;
 static int ibm_configure_pe;
+
+#ifdef CONFIG_PCI_IOV
+void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
+{
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+	struct pci_dn *physfn_pdn;
+	struct eeh_dev *edev;
+
+	if (!pdev->is_virtfn)
+		return;
+
+	pdn->device_id  =  pdev->device;
+	pdn->vendor_id  =  pdev->vendor;
+	pdn->class_code =  pdev->class;
+	/*
+	 * Last allow unfreeze return code used for retrieval
+	 * by user space in eeh-sysfs to show the last command
+	 * completion from platform.
+	 */
+	pdn->last_allow_rc =  0;
+	physfn_pdn      =  pci_get_pdn(pdev->physfn);
+	pdn->pe_number  =  physfn_pdn->pe_num_map[pdn->vf_index];
+	edev = pdn_to_eeh_dev(pdn);
+
+	/*
+	 * The following operations will fail if VF's sysfs files
+	 * aren't created or its resources aren't finalized.
+	 */
+	eeh_add_device_early(pdn);
+	eeh_add_device_late(pdev);
+	edev->pe_config_addr =  (pdn->busno << 16) | (pdn->devfn << 8);
+	eeh_rmv_from_parent_pe(edev); /* Remove as it is adding to bus pe */
+	eeh_add_to_parent_pe(edev);   /* Add as VF PE type */
+	eeh_sysfs_add_device(pdev);
+
+}
+#endif
 
 /*
  * Buffer for reporting slot-error-detail rtas calls. Its here
@@ -81,7 +117,14 @@ static int pseries_eeh_init(void)
 	ibm_get_config_addr_info2	= rtas_token("ibm,get-config-addr-info2");
 	ibm_get_config_addr_info	= rtas_token("ibm,get-config-addr-info");
 	ibm_configure_pe		= rtas_token("ibm,configure-pe");
-	ibm_configure_bridge		= rtas_token("ibm,configure-bridge");
+
+	/*
+	 * ibm,configure-pe and ibm,configure-bridge have the same semantics,
+	 * however ibm,configure-pe can be faster.  If we can't find
+	 * ibm,configure-pe then fall back to using ibm,configure-bridge.
+	 */
+	if (ibm_configure_pe == RTAS_UNKNOWN_SERVICE)
+		ibm_configure_pe 	= rtas_token("ibm,configure-bridge");
 
 	/*
 	 * Necessary sanity check. We needn't check "get-config-addr-info"
@@ -93,8 +136,7 @@ static int pseries_eeh_init(void)
 	    (ibm_read_slot_reset_state2 == RTAS_UNKNOWN_SERVICE &&
 	     ibm_read_slot_reset_state == RTAS_UNKNOWN_SERVICE)	||
 	    ibm_slot_error_detail == RTAS_UNKNOWN_SERVICE	||
-	    (ibm_configure_pe == RTAS_UNKNOWN_SERVICE		&&
-	     ibm_configure_bridge == RTAS_UNKNOWN_SERVICE)) {
+	    ibm_configure_pe == RTAS_UNKNOWN_SERVICE) {
 		pr_info("EEH functionality not supported\n");
 		return -EINVAL;
 	}
@@ -114,6 +156,11 @@ static int pseries_eeh_init(void)
 
 	/* Set EEH probe mode */
 	eeh_add_flag(EEH_PROBE_MODE_DEVTREE | EEH_ENABLE_IO_FOR_LOG);
+
+#ifdef CONFIG_PCI_IOV
+	/* Set EEH machine dependent code */
+	ppc_md.pcibios_bus_add_device = pseries_pcibios_bus_add_device;
+#endif
 
 	return 0;
 }
@@ -242,14 +289,13 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 
 	/* Initialize the fake PE */
 	memset(&pe, 0, sizeof(struct eeh_pe));
-	pe.phb = edev->phb;
+	pe.phb = pdn->phb;
 	pe.config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
 
 	/* Enable EEH on the device */
 	ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
 	if (!ret) {
 		/* Retrieve PE address */
-		edev->config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
 		edev->pe_config_addr = eeh_ops->get_pe_addr(&pe);
 		pe.addr = edev->pe_config_addr;
 
@@ -265,7 +311,7 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 			eeh_add_flag(EEH_ENABLED);
 			eeh_add_to_parent_pe(edev);
 
-			pr_debug("%s: EEH enabled on %02x:%02x.%01x PHB#%d-PE#%x\n",
+			pr_debug("%s: EEH enabled on %02x:%02x.%01x PHB#%x-PE#%x\n",
 				__func__, pdn->busno, PCI_SLOT(pdn->devfn),
 				PCI_FUNC(pdn->devfn), pe.phb->global_number,
 				pe.addr);
@@ -274,7 +320,6 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 			/* This device doesn't support EEH, but it may have an
 			 * EEH parent, in which case we mark it as supported.
 			 */
-			edev->config_addr = pdn_to_eeh_dev(pdn->parent)->config_addr;
 			edev->pe_config_addr = pdn_to_eeh_dev(pdn->parent)->pe_config_addr;
 			eeh_add_to_parent_pe(edev);
 		}
@@ -366,7 +411,7 @@ static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
 				pe->config_addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid), 0);
 		if (ret) {
-			pr_warn("%s: Failed to get address for PHB#%d-PE#%x\n",
+			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
 				__func__, pe->phb->global_number, pe->config_addr);
 			return 0;
 		}
@@ -379,7 +424,7 @@ static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
 				pe->config_addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid), 0);
 		if (ret) {
-			pr_warn("%s: Failed to get address for PHB#%d-PE#%x\n",
+			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
 				__func__, pe->phb->global_number, pe->config_addr);
 			return 0;
 		}
@@ -615,29 +660,41 @@ static int pseries_eeh_configure_bridge(struct eeh_pe *pe)
 {
 	int config_addr;
 	int ret;
+	/* Waiting 0.2s maximum before skipping configuration */
+	int max_wait = 200;
 
 	/* Figure out the PE address */
 	config_addr = pe->config_addr;
 	if (pe->addr)
 		config_addr = pe->addr;
 
-	/* Use new configure-pe function, if supported */
-	if (ibm_configure_pe != RTAS_UNKNOWN_SERVICE) {
+	while (max_wait > 0) {
 		ret = rtas_call(ibm_configure_pe, 3, 1, NULL,
 				config_addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid));
-	} else if (ibm_configure_bridge != RTAS_UNKNOWN_SERVICE) {
-		ret = rtas_call(ibm_configure_bridge, 3, 1, NULL,
-				config_addr, BUID_HI(pe->phb->buid),
-				BUID_LO(pe->phb->buid));
-	} else {
-		return -EFAULT;
+
+		if (!ret)
+			return ret;
+
+		/*
+		 * If RTAS returns a delay value that's above 100ms, cut it
+		 * down to 100ms in case firmware made a mistake.  For more
+		 * on how these delay values work see rtas_busy_delay_time
+		 */
+		if (ret > RTAS_EXTENDED_DELAY_MIN+2 &&
+		    ret <= RTAS_EXTENDED_DELAY_MAX)
+			ret = RTAS_EXTENDED_DELAY_MIN+2;
+
+		max_wait -= rtas_busy_delay_time(ret);
+
+		if (max_wait < 0)
+			break;
+
+		rtas_busy_delay(ret);
 	}
 
-	if (ret)
-		pr_warn("%s: Unable to configure bridge PHB#%d-PE#%x (%d)\n",
-			__func__, pe->phb->global_number, pe->addr, ret);
-
+	pr_warn("%s: Unable to configure bridge PHB#%x-PE#%x (%d)\n",
+		__func__, pe->phb->global_number, pe->addr, ret);
 	return ret;
 }
 
@@ -669,6 +726,121 @@ static int pseries_eeh_write_config(struct pci_dn *pdn, int where, int size, u32
 	return rtas_write_config(pdn, where, size, val);
 }
 
+static int pseries_eeh_restore_config(struct pci_dn *pdn)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	s64 ret = 0;
+
+	if (!edev)
+		return -EEXIST;
+
+	/*
+	 * FIXME: The MPS, error routing rules, timeout setting are worthy
+	 * to be exported by firmware in extendible way.
+	 */
+	if (edev->physfn)
+		ret = eeh_restore_vf_config(pdn);
+
+	if (ret) {
+		pr_warn("%s: Can't reinit PCI dev 0x%x (%lld)\n",
+			__func__, edev->pe_config_addr, ret);
+		return -EIO;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_PCI_IOV
+int pseries_send_allow_unfreeze(struct pci_dn *pdn,
+				u16 *vf_pe_array, int cur_vfs)
+{
+	int rc;
+	int ibm_allow_unfreeze = rtas_token("ibm,open-sriov-allow-unfreeze");
+	unsigned long buid, addr;
+
+	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	buid = pdn->phb->buid;
+	spin_lock(&rtas_data_buf_lock);
+	memcpy(rtas_data_buf, vf_pe_array, RTAS_DATA_BUF_SIZE);
+	rc = rtas_call(ibm_allow_unfreeze, 5, 1, NULL,
+		       addr,
+		       BUID_HI(buid),
+		       BUID_LO(buid),
+		       rtas_data_buf, cur_vfs * sizeof(u16));
+	spin_unlock(&rtas_data_buf_lock);
+	if (rc)
+		pr_warn("%s: Failed to allow unfreeze for PHB#%x-PE#%lx, rc=%x\n",
+			__func__,
+			pdn->phb->global_number, addr, rc);
+	return rc;
+}
+
+static int pseries_call_allow_unfreeze(struct eeh_dev *edev)
+{
+	struct pci_dn *pdn, *tmp, *parent, *physfn_pdn;
+	int cur_vfs = 0, rc = 0, vf_index, bus, devfn;
+	u16 *vf_pe_array;
+
+	vf_pe_array = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
+	if (!vf_pe_array)
+		return -ENOMEM;
+	if (pci_num_vf(edev->physfn ? edev->physfn : edev->pdev)) {
+		if (edev->pdev->is_physfn) {
+			cur_vfs = pci_num_vf(edev->pdev);
+			pdn = eeh_dev_to_pdn(edev);
+			parent = pdn->parent;
+			for (vf_index = 0; vf_index < cur_vfs; vf_index++)
+				vf_pe_array[vf_index] =
+					cpu_to_be16(pdn->pe_num_map[vf_index]);
+			rc = pseries_send_allow_unfreeze(pdn, vf_pe_array,
+							 cur_vfs);
+			pdn->last_allow_rc = rc;
+			for (vf_index = 0; vf_index < cur_vfs; vf_index++) {
+				list_for_each_entry_safe(pdn, tmp,
+							 &parent->child_list,
+							 list) {
+					bus = pci_iov_virtfn_bus(edev->pdev,
+								 vf_index);
+					devfn = pci_iov_virtfn_devfn(edev->pdev,
+								     vf_index);
+					if (pdn->busno != bus ||
+					    pdn->devfn != devfn)
+						continue;
+					pdn->last_allow_rc = rc;
+				}
+			}
+		} else {
+			pdn = pci_get_pdn(edev->pdev);
+			vf_pe_array[0] = cpu_to_be16(pdn->pe_number);
+			physfn_pdn = pci_get_pdn(edev->physfn);
+			rc = pseries_send_allow_unfreeze(physfn_pdn,
+							 vf_pe_array, 1);
+			pdn->last_allow_rc = rc;
+		}
+	}
+
+	kfree(vf_pe_array);
+	return rc;
+}
+
+static int pseries_notify_resume(struct pci_dn *pdn)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+
+	if (!edev)
+		return -EEXIST;
+
+	if (rtas_token("ibm,open-sriov-allow-unfreeze")
+	    == RTAS_UNKNOWN_SERVICE)
+		return -EINVAL;
+
+	if (edev->pdev->is_physfn || edev->pdev->is_virtfn)
+		return pseries_call_allow_unfreeze(edev);
+
+	return 0;
+}
+#endif
+
 static struct eeh_ops pseries_eeh_ops = {
 	.name			= "pseries",
 	.init			= pseries_eeh_init,
@@ -684,7 +856,10 @@ static struct eeh_ops pseries_eeh_ops = {
 	.read_config		= pseries_eeh_read_config,
 	.write_config		= pseries_eeh_write_config,
 	.next_error		= NULL,
-	.restore_config		= NULL
+	.restore_config		= pseries_eeh_restore_config,
+#ifdef CONFIG_PCI_IOV
+	.notify_resume		= pseries_notify_resume
+#endif
 };
 
 /**

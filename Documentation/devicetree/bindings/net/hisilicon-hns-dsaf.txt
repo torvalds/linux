@@ -4,38 +4,66 @@ Required properties:
 - compatible: should be "hisilicon,hns-dsaf-v1" or "hisilicon,hns-dsaf-v2".
   "hisilicon,hns-dsaf-v1" is for hip05.
   "hisilicon,hns-dsaf-v2" is for Hi1610 and Hi1612.
-- dsa-name: dsa fabric name who provide this interface.
-  should be "dsafX", X is the dsaf id.
 - mode: dsa fabric mode string. only support one of dsaf modes like these:
 		"2port-64vf",
 		"6port-16rss",
-		"6port-16vf".
-- interrupt-parent: the interrupt parent of this device.
+		"6port-16vf",
+		"single-port".
 - interrupts: should contain the DSA Fabric and rcb interrupt.
 - reg: specifies base physical address(es) and size of the device registers.
-  The first region is external interface control register base and size.
-  The second region is SerDes base register and size.
+  The first region is external interface control register base and size(optional,
+  only used when subctrl-syscon does not exist). It is recommended using
+  subctrl-syscon rather than this address.
+  The second region is SerDes base register and size(optional, only used when
+  serdes-syscon in port node does not exist). It is recommended using
+  serdes-syscon rather than this address.
   The third region is the PPE register base and size.
-  The fourth region is dsa fabric base register and size.
-  The fifth region is cpld base register and size, it is not required if do not use cpld.
-- phy-handle: phy handle of physicl port, 0 if not any phy device. see ethernet.txt [1].
+  The fourth region is dsa fabric base register and size. It is not required for
+  single-port mode.
+- reg-names: may be ppe-base and(or) dsaf-base. It is used to find the
+  corresponding reg's index.
+
+- phy-handle: phy handle of physical port, 0 if not any phy device. It is optional
+  attribute. If port node exists, phy-handle in each port node will be used.
+  see ethernet.txt [1].
+- subctrl-syscon: is syscon handle for external interface control register.
+- reset-field-offset: is offset of reset field. Its value depends on the hardware
+  user manual.
 - buf-size: rx buffer size, should be 16-1024.
 - desc-num: number of description in TX and RX queue, should be 512, 1024, 2048 or 4096.
+
+- port: subnodes of dsaf. A dsaf node may contain several port nodes(Depending
+  on mode of dsaf). Port node contain some attributes listed below:
+- reg: is physical port index in one dsaf.
+- phy-handle: phy handle of physical port. It is not required if there isn't
+  phy device. see ethernet.txt [1].
+- serdes-syscon: is syscon handle for SerDes register.
+- cpld-syscon: is syscon handle + register offset pair for cpld register. It is
+  not required if there isn't cpld device.
+- port-rst-offset: is offset of reset field for each port in dsaf. Its value
+  depends on the hardware user manual.
+- port-mode-offset: is offset of port mode field for each port in dsaf. Its
+  value depends on the hardware user manual.
+- mc-mac-mask: mask of multicast address, determines bit in multicast address
+  to set:
+  1 stands for this bit will be precisely matched, TCAM will check this bit of
+    MAC address.
+  0 stands for this bit will be fuzzy matched, TCAM won't care about this bit
+    of MAC address.
 
 [1] Documentation/devicetree/bindings/net/phy.txt
 
 Example:
 
-dsa: dsa@c7000000 {
+dsaf0: dsa@c7000000 {
 	compatible = "hisilicon,hns-dsaf-v1";
-	dsa_name = "dsaf0";
 	mode = "6port-16rss";
 	interrupt-parent = <&mbigen_dsa>;
-	reg = <0x0 0xC0000000 0x0 0x420000
-	       0x0 0xC2000000 0x0 0x300000
-	       0x0 0xc5000000 0x0 0x890000
+	reg = <0x0 0xc5000000 0x0 0x890000
 	       0x0 0xc7000000 0x0 0x60000>;
-	phy-handle = <0 0 0 0 &soc0_phy4 &soc0_phy5 0 0>;
+	reg-names = "ppe-base", "dsaf-base";
+	subctrl-syscon = <&subctrl>;
+	reset-field-offset = 0;
 	interrupts = <131 4>,<132 4>, <133 4>,<134 4>,
 		     <135 4>,<136 4>, <137 4>,<138 4>,
 		     <139 4>,<140 4>, <141 4>,<142 4>,
@@ -46,4 +74,17 @@ dsa: dsa@c7000000 {
 	buf-size = <4096>;
 	desc-num = <1024>;
 	dma-coherent;
+
+	port@0 {
+		reg = 0;
+		phy-handle = <&phy0>;
+		serdes-syscon = <&serdes>;
+		mc-mac-mask = [ff f0 00 00 00 00];
+	};
+
+	port@1 {
+                reg = 1;
+                serdes-syscon = <&serdes>;
+		mc-mac-mask = [ff f0 00 00 00 00];
+        };
 };

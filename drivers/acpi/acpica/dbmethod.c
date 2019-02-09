@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: dbmethod - Debug commands for control methods
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -51,6 +15,11 @@
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
 ACPI_MODULE_NAME("dbmethod")
+
+/* Local prototypes */
+static acpi_status
+acpi_db_walk_for_execute(acpi_handle obj_handle,
+			 u32 nesting_level, void *context, void **return_value);
 
 /*******************************************************************************
  *
@@ -66,6 +35,7 @@ ACPI_MODULE_NAME("dbmethod")
  *              AML offset
  *
  ******************************************************************************/
+
 void
 acpi_db_set_method_breakpoint(char *location,
 			      struct acpi_walk_state *walk_state,
@@ -246,6 +216,7 @@ cleanup:
 	acpi_ut_remove_reference(obj_desc);
 }
 
+#ifdef ACPI_DISASSEMBLER
 /*******************************************************************************
  *
  * FUNCTION:    acpi_db_disassemble_aml
@@ -272,9 +243,8 @@ void acpi_db_disassemble_aml(char *statements, union acpi_parse_object *op)
 	if (statements) {
 		num_statements = strtoul(statements, NULL, 0);
 	}
-#ifdef ACPI_DISASSEMBLER
+
 	acpi_dm_disassemble(NULL, op, num_statements);
-#endif
 }
 
 /*******************************************************************************
@@ -347,8 +317,6 @@ acpi_status acpi_db_disassemble_method(char *name)
 	walk_state->parse_flags |= ACPI_PARSE_DISASSEMBLE;
 
 	status = acpi_ps_parse_aml(walk_state);
-
-#ifdef ACPI_DISASSEMBLER
 	(void)acpi_dm_parse_deferred_ops(op);
 
 	/* Now we can disassemble the method */
@@ -356,7 +324,6 @@ acpi_status acpi_db_disassemble_method(char *name)
 	acpi_gbl_dm_opt_verbose = FALSE;
 	acpi_dm_disassemble(NULL, op, 0);
 	acpi_gbl_dm_opt_verbose = TRUE;
-#endif
 
 	acpi_ps_delete_parse_tree(op);
 
@@ -366,4 +333,132 @@ acpi_status acpi_db_disassemble_method(char *name)
 	acpi_ns_delete_namespace_by_owner(obj_desc->method.owner_id);
 	acpi_ut_release_owner_id(&obj_desc->method.owner_id);
 	return (AE_OK);
+}
+#endif
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_walk_for_execute
+ *
+ * PARAMETERS:  Callback from walk_namespace
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Batch execution module. Currently only executes predefined
+ *              ACPI names.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_db_walk_for_execute(acpi_handle obj_handle,
+			 u32 nesting_level, void *context, void **return_value)
+{
+	struct acpi_namespace_node *node =
+	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_db_execute_walk *info =
+	    (struct acpi_db_execute_walk *)context;
+	struct acpi_buffer return_obj;
+	acpi_status status;
+	char *pathname;
+	u32 i;
+	struct acpi_device_info *obj_info;
+	struct acpi_object_list param_objects;
+	union acpi_object params[ACPI_METHOD_NUM_ARGS];
+	const union acpi_predefined_info *predefined;
+
+	predefined = acpi_ut_match_predefined_method(node->name.ascii);
+	if (!predefined) {
+		return (AE_OK);
+	}
+
+	if (node->type == ACPI_TYPE_LOCAL_SCOPE) {
+		return (AE_OK);
+	}
+
+	pathname = acpi_ns_get_external_pathname(node);
+	if (!pathname) {
+		return (AE_OK);
+	}
+
+	/* Get the object info for number of method parameters */
+
+	status = acpi_get_object_info(obj_handle, &obj_info);
+	if (ACPI_FAILURE(status)) {
+		ACPI_FREE(pathname);
+		return (status);
+	}
+
+	param_objects.pointer = NULL;
+	param_objects.count = 0;
+
+	if (obj_info->type == ACPI_TYPE_METHOD) {
+
+		/* Setup default parameters */
+
+		for (i = 0; i < obj_info->param_count; i++) {
+			params[i].type = ACPI_TYPE_INTEGER;
+			params[i].integer.value = 1;
+		}
+
+		param_objects.pointer = params;
+		param_objects.count = obj_info->param_count;
+	}
+
+	ACPI_FREE(obj_info);
+	return_obj.pointer = NULL;
+	return_obj.length = ACPI_ALLOCATE_BUFFER;
+
+	/* Do the actual method execution */
+
+	acpi_gbl_method_executing = TRUE;
+
+	status = acpi_evaluate_object(node, NULL, &param_objects, &return_obj);
+
+	acpi_os_printf("%-32s returned %s\n", pathname,
+		       acpi_format_exception(status));
+	acpi_gbl_method_executing = FALSE;
+	ACPI_FREE(pathname);
+
+	/* Ignore status from method execution */
+
+	status = AE_OK;
+
+	/* Update count, check if we have executed enough methods */
+
+	info->count++;
+	if (info->count >= info->max_count) {
+		status = AE_CTRL_TERMINATE;
+	}
+
+	return (status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_evaluate_predefined_names
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Namespace batch execution. Execute predefined names in the
+ *              namespace, up to the max count, if specified.
+ *
+ ******************************************************************************/
+
+void acpi_db_evaluate_predefined_names(void)
+{
+	struct acpi_db_execute_walk info;
+
+	info.count = 0;
+	info.max_count = ACPI_UINT32_MAX;
+
+	/* Search all nodes in namespace */
+
+	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
+				  ACPI_UINT32_MAX, acpi_db_walk_for_execute,
+				  NULL, (void *)&info, NULL);
+
+	acpi_os_printf("Evaluated %u predefined names in the namespace\n",
+		       info.count);
 }

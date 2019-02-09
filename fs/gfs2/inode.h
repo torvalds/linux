@@ -85,7 +85,7 @@ static inline int gfs2_check_internal_file_size(struct inode *inode,
 	u64 size = i_size_read(inode);
 	if (size < minsize || size > maxsize)
 		goto err;
-	if (size & ((1 << inode->i_blkbits) - 1))
+	if (size & (BIT(inode->i_blkbits) - 1))
 		goto err;
 	return 0;
 err:
@@ -95,11 +95,10 @@ err:
 
 extern struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type, 
 				       u64 no_addr, u64 no_formal_ino,
-				       int non_block);
+				       unsigned int blktype);
 extern struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
 					 u64 *no_formal_ino,
 					 unsigned int blktype);
-extern struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr, int nonblock);
 
 extern int gfs2_inode_refresh(struct gfs2_inode *ip);
 
@@ -110,6 +109,8 @@ extern int gfs2_setattr_simple(struct inode *inode, struct iattr *attr);
 extern struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
 extern void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
 extern int gfs2_open_common(struct inode *inode, struct file *file);
+extern loff_t gfs2_seek_data(struct file *file, loff_t offset);
+extern loff_t gfs2_seek_hole(struct file *file, loff_t offset);
 
 extern const struct inode_operations gfs2_file_iops;
 extern const struct inode_operations gfs2_dir_iops;

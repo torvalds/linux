@@ -16,17 +16,20 @@
 #define BOOT_BITOPS_H
 #define _LINUX_BITOPS_H		/* Inhibit inclusion of <linux/bitops.h> */
 
-static inline int constant_test_bit(int nr, const void *addr)
+#include <linux/types.h>
+#include <asm/asm.h>
+
+static inline bool constant_test_bit(int nr, const void *addr)
 {
 	const u32 *p = (const u32 *)addr;
 	return ((1UL << (nr & 31)) & (p[nr >> 5])) != 0;
 }
-static inline int variable_test_bit(int nr, const void *addr)
+static inline bool variable_test_bit(int nr, const void *addr)
 {
-	u8 v;
+	bool v;
 	const u32 *p = (const u32 *)addr;
 
-	asm("btl %2,%1; setc %0" : "=qm" (v) : "m" (*p), "Ir" (nr));
+	asm("btl %2,%1" CC_SET(c) : CC_OUT(c) (v) : "m" (*p), "Ir" (nr));
 	return v;
 }
 

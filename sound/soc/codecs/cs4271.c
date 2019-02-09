@@ -26,6 +26,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/regulator/consumer.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
@@ -157,6 +158,10 @@ static bool cs4271_volatile_reg(struct device *dev, unsigned int reg)
 	return reg == CS4271_CHIPID;
 }
 
+static const char * const supply_names[] = {
+	"vd", "vl", "va"
+};
+
 struct cs4271_private {
 	unsigned int			mclk;
 	bool				master;
@@ -170,6 +175,7 @@ struct cs4271_private {
 	int				gpio_disable;
 	/* enable soft reset workaround */
 	bool				enable_soft_reset;
+	struct regulator_bulk_data      supplies[ARRAY_SIZE(supply_names)];
 };
 
 static const struct snd_soc_dapm_widget cs4271_dapm_widgets[] = {
@@ -200,8 +206,8 @@ static const struct snd_soc_dapm_route cs4271_dapm_routes[] = {
 static int cs4271_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 
 	cs4271->mclk = freq;
 	return 0;
@@ -210,8 +216,8 @@ static int cs4271_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 static int cs4271_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			      unsigned int format)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 	unsigned int val = 0;
 	int ret;
 
@@ -224,7 +230,7 @@ static int cs4271_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		val |= CS4271_MODE1_MASTER;
 		break;
 	default:
-		dev_err(codec->dev, "Invalid DAI format\n");
+		dev_err(component->dev, "Invalid DAI format\n");
 		return -EINVAL;
 	}
 
@@ -244,7 +250,7 @@ static int cs4271_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			return ret;
 		break;
 	default:
-		dev_err(codec->dev, "Invalid DAI format\n");
+		dev_err(component->dev, "Invalid DAI format\n");
 		return -EINVAL;
 	}
 
@@ -257,9 +263,9 @@ static int cs4271_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 static int cs4271_deemph[] = {0, 44100, 48000, 32000};
 
-static int cs4271_set_deemph(struct snd_soc_codec *codec)
+static int cs4271_set_deemph(struct snd_soc_component *component)
 {
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 	int i, ret;
 	int val = CS4271_DACCTL_DEM_DIS;
 
@@ -283,8 +289,8 @@ static int cs4271_set_deemph(struct snd_soc_codec *codec)
 static int cs4271_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = cs4271->deemph;
 	return 0;
@@ -293,11 +299,11 @@ static int cs4271_get_deemph(struct snd_kcontrol *kcontrol,
 static int cs4271_put_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 
 	cs4271->deemph = ucontrol->value.integer.value[0];
-	return cs4271_set_deemph(codec);
+	return cs4271_set_deemph(component);
 }
 
 struct cs4271_clk_cfg {
@@ -343,8 +349,8 @@ static int cs4271_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 	int i, ret;
 	unsigned int ratio, val;
 
@@ -393,7 +399,7 @@ static int cs4271_hw_params(struct snd_pcm_substream *substream,
 			break;
 
 	if (i == CS4171_NR_RATIOS) {
-		dev_err(codec->dev, "Invalid sample rate\n");
+		dev_err(component->dev, "Invalid sample rate\n");
 		return -EINVAL;
 	}
 
@@ -404,13 +410,13 @@ static int cs4271_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	return cs4271_set_deemph(codec);
+	return cs4271_set_deemph(component);
 }
 
 static int cs4271_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 	int ret;
 	int val_a = 0;
 	int val_b = 0;
@@ -487,11 +493,25 @@ static struct snd_soc_dai_driver cs4271_dai = {
 	.symmetric_rates = 1,
 };
 
+static int cs4271_reset(struct snd_soc_component *component)
+{
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
+
+	if (gpio_is_valid(cs4271->gpio_nreset)) {
+		gpio_direction_output(cs4271->gpio_nreset, 0);
+		mdelay(1);
+		gpio_set_value(cs4271->gpio_nreset, 1);
+		mdelay(1);
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_PM
-static int cs4271_soc_suspend(struct snd_soc_codec *codec)
+static int cs4271_soc_suspend(struct snd_soc_component *component)
 {
 	int ret;
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 
 	/* Set power-down bit */
 	ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,
@@ -499,13 +519,26 @@ static int cs4271_soc_suspend(struct snd_soc_codec *codec)
 	if (ret < 0)
 		return ret;
 
+	regcache_mark_dirty(cs4271->regmap);
+	regulator_bulk_disable(ARRAY_SIZE(cs4271->supplies), cs4271->supplies);
+
 	return 0;
 }
 
-static int cs4271_soc_resume(struct snd_soc_codec *codec)
+static int cs4271_soc_resume(struct snd_soc_component *component)
 {
 	int ret;
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(cs4271->supplies),
+				    cs4271->supplies);
+	if (ret < 0) {
+		dev_err(component->dev, "Failed to enable regulators: %d\n", ret);
+		return ret;
+	}
+
+	/* Do a proper reset after power up */
+	cs4271_reset(component);
 
 	/* Restore codec state */
 	ret = regcache_sync(cs4271->regmap);
@@ -534,38 +567,43 @@ MODULE_DEVICE_TABLE(of, cs4271_dt_ids);
 EXPORT_SYMBOL_GPL(cs4271_dt_ids);
 #endif
 
-static int cs4271_codec_probe(struct snd_soc_codec *codec)
+static int cs4271_component_probe(struct snd_soc_component *component)
 {
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
-	struct cs4271_platform_data *cs4271plat = codec->dev->platform_data;
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
+	struct cs4271_platform_data *cs4271plat = component->dev->platform_data;
 	int ret;
 	bool amutec_eq_bmutec = false;
 
 #ifdef CONFIG_OF
-	if (of_match_device(cs4271_dt_ids, codec->dev)) {
-		if (of_get_property(codec->dev->of_node,
+	if (of_match_device(cs4271_dt_ids, component->dev)) {
+		if (of_get_property(component->dev->of_node,
 				     "cirrus,amutec-eq-bmutec", NULL))
 			amutec_eq_bmutec = true;
 
-		if (of_get_property(codec->dev->of_node,
+		if (of_get_property(component->dev->of_node,
 				     "cirrus,enable-soft-reset", NULL))
 			cs4271->enable_soft_reset = true;
 	}
 #endif
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(cs4271->supplies),
+				    cs4271->supplies);
+	if (ret < 0) {
+		dev_err(component->dev, "Failed to enable regulators: %d\n", ret);
+		return ret;
+	}
 
 	if (cs4271plat) {
 		amutec_eq_bmutec = cs4271plat->amutec_eq_bmutec;
 		cs4271->enable_soft_reset = cs4271plat->enable_soft_reset;
 	}
 
-	if (gpio_is_valid(cs4271->gpio_nreset)) {
-		/* Reset codec */
-		gpio_direction_output(cs4271->gpio_nreset, 0);
-		mdelay(1);
-		gpio_set_value(cs4271->gpio_nreset, 1);
-		/* Give the codec time to wake up */
-		mdelay(1);
-	}
+	/* Reset codec */
+	cs4271_reset(component);
+
+	ret = regcache_sync(cs4271->regmap);
+	if (ret < 0)
+		return ret;
 
 	ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,
 				 CS4271_MODE2_PDN | CS4271_MODE2_CPEN,
@@ -587,29 +625,33 @@ static int cs4271_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int cs4271_codec_remove(struct snd_soc_codec *codec)
+static void cs4271_component_remove(struct snd_soc_component *component)
 {
-	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
+	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 
 	if (gpio_is_valid(cs4271->gpio_nreset))
 		/* Set codec to the reset state */
 		gpio_set_value(cs4271->gpio_nreset, 0);
 
-	return 0;
+	regcache_mark_dirty(cs4271->regmap);
+	regulator_bulk_disable(ARRAY_SIZE(cs4271->supplies), cs4271->supplies);
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
-	.probe			= cs4271_codec_probe,
-	.remove			= cs4271_codec_remove,
+static const struct snd_soc_component_driver soc_component_dev_cs4271 = {
+	.probe			= cs4271_component_probe,
+	.remove			= cs4271_component_remove,
 	.suspend		= cs4271_soc_suspend,
 	.resume			= cs4271_soc_resume,
-
 	.controls		= cs4271_snd_controls,
 	.num_controls		= ARRAY_SIZE(cs4271_snd_controls),
 	.dapm_widgets		= cs4271_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(cs4271_dapm_widgets),
 	.dapm_routes		= cs4271_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(cs4271_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int cs4271_common_probe(struct device *dev,
@@ -617,6 +659,7 @@ static int cs4271_common_probe(struct device *dev,
 {
 	struct cs4271_platform_data *cs4271plat = dev->platform_data;
 	struct cs4271_private *cs4271;
+	int i, ret;
 
 	cs4271 = devm_kzalloc(dev, sizeof(*cs4271), GFP_KERNEL);
 	if (!cs4271)
@@ -630,12 +673,21 @@ static int cs4271_common_probe(struct device *dev,
 		cs4271->gpio_nreset = cs4271plat->gpio_nreset;
 
 	if (gpio_is_valid(cs4271->gpio_nreset)) {
-		int ret;
-
 		ret = devm_gpio_request(dev, cs4271->gpio_nreset,
 					"CS4271 Reset");
 		if (ret < 0)
 			return ret;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
+		cs4271->supplies[i].supply = supply_names[i];
+
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(cs4271->supplies),
+					cs4271->supplies);
+
+	if (ret < 0) {
+		dev_err(dev, "Failed to get regulators: %d\n", ret);
+		return ret;
 	}
 
 	*c = cs4271;
@@ -668,8 +720,8 @@ int cs4271_probe(struct device *dev, struct regmap *regmap)
 	dev_set_drvdata(dev, cs4271);
 	cs4271->regmap = regmap;
 
-	return snd_soc_register_codec(dev, &soc_codec_dev_cs4271, &cs4271_dai,
-				      1);
+	return devm_snd_soc_register_component(dev, &soc_component_dev_cs4271,
+					       &cs4271_dai, 1);
 }
 EXPORT_SYMBOL_GPL(cs4271_probe);
 

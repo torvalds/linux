@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # ==========================================================================
 # Installing modules
 # ==========================================================================
@@ -33,9 +34,5 @@ modinst_dir = $(if $(KBUILD_EXTMOD),$(ext-mod-dir),kernel/$(@D))
 
 $(modules):
 	$(call cmd,modules_install,$(MODLIB)/$(modinst_dir))
-
-
-# Declare the contents of the .PHONY variable as phony.  We keep that
-# information in a variable so we can use it in if_changed and friends.
 
 .PHONY: $(PHONY)

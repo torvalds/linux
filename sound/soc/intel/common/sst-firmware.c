@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/firmware.h>
 #include <linux/export.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
@@ -51,8 +52,22 @@ struct sst_dma {
 
 static inline void sst_memcpy32(volatile void __iomem *dest, void *src, u32 bytes)
 {
+	u32 tmp = 0;
+	int i, m, n;
+	const u8 *src_byte = src;
+
+	m = bytes / 4;
+	n = bytes % 4;
+
 	/* __iowrite32_copy use 32bit size values so divide by 4 */
-	__iowrite32_copy((void *)dest, src, bytes/4);
+	__iowrite32_copy((void *)dest, src, m);
+
+	if (n) {
+		for (i = 0; i < n; i++)
+			tmp |= (u32)*(src_byte + m * 4 + i) << (i * 8);
+		__iowrite32_copy((void *)(dest + m * 4), &tmp, 1);
+	}
+
 }
 
 static void sst_dma_transfer_complete(void *arg)
@@ -189,7 +204,7 @@ static struct dw_dma_chip *dw_probe(struct device *dev, struct resource *mem,
 
 	chip->dev = dev;
 
-	err = dw_dma_probe(chip, NULL);
+	err = dw_dma_probe(chip);
 	if (err)
 		return ERR_PTR(err);
 
@@ -255,12 +270,11 @@ void sst_dsp_dma_put_channel(struct sst_dsp *dsp)
 }
 EXPORT_SYMBOL_GPL(sst_dsp_dma_put_channel);
 
-int sst_dma_new(struct sst_dsp *sst)
+static int sst_dma_new(struct sst_dsp *sst)
 {
 	struct sst_pdata *sst_pdata = sst->pdata;
 	struct sst_dma *dma;
 	struct resource mem;
-	const char *dma_dev_name;
 	int ret = 0;
 
 	if (sst->pdata->resindex_dma_base == -1)
@@ -271,7 +285,6 @@ int sst_dma_new(struct sst_dsp *sst)
 	* is attached to the ADSP IP. */
 	switch (sst->pdata->dma_engine) {
 	case SST_DMA_TYPE_DW:
-		dma_dev_name = "dw_dmac";
 		break;
 	default:
 		dev_err(sst->dev, "error: invalid DMA engine %d\n",
@@ -307,9 +320,8 @@ err_dma_dev:
 	devm_kfree(sst->dev, dma);
 	return ret;
 }
-EXPORT_SYMBOL(sst_dma_new);
 
-void sst_dma_free(struct sst_dma *dma)
+static void sst_dma_free(struct sst_dma *dma)
 {
 
 	if (dma == NULL)
@@ -322,7 +334,6 @@ void sst_dma_free(struct sst_dma *dma)
 		dw_remove(dma->chip);
 
 }
-EXPORT_SYMBOL(sst_dma_free);
 
 /* create new generic firmware object */
 struct sst_fw *sst_fw_new(struct sst_dsp *dsp, 
@@ -1014,8 +1025,8 @@ EXPORT_SYMBOL_GPL(sst_module_runtime_restore);
 
 /* register a DSP memory block for use with FW based modules */
 struct sst_mem_block *sst_mem_block_register(struct sst_dsp *dsp, u32 offset,
-	u32 size, enum sst_mem_type type, struct sst_block_ops *ops, u32 index,
-	void *private)
+	u32 size, enum sst_mem_type type, const struct sst_block_ops *ops,
+	u32 index, void *private)
 {
 	struct sst_mem_block *block;
 
@@ -1197,3 +1208,71 @@ u32 sst_dsp_get_offset(struct sst_dsp *dsp, u32 offset,
 	}
 }
 EXPORT_SYMBOL_GPL(sst_dsp_get_offset);
+
+struct sst_dsp *sst_dsp_new(struct device *dev,
+	struct sst_dsp_device *sst_dev, struct sst_pdata *pdata)
+{
+	struct sst_dsp *sst;
+	int err;
+
+	dev_dbg(dev, "initialising audio DSP id 0x%x\n", pdata->id);
+
+	sst = devm_kzalloc(dev, sizeof(*sst), GFP_KERNEL);
+	if (sst == NULL)
+		return NULL;
+
+	spin_lock_init(&sst->spinlock);
+	mutex_init(&sst->mutex);
+	sst->dev = dev;
+	sst->dma_dev = pdata->dma_dev;
+	sst->thread_context = sst_dev->thread_context;
+	sst->sst_dev = sst_dev;
+	sst->id = pdata->id;
+	sst->irq = pdata->irq;
+	sst->ops = sst_dev->ops;
+	sst->pdata = pdata;
+	INIT_LIST_HEAD(&sst->used_block_list);
+	INIT_LIST_HEAD(&sst->free_block_list);
+	INIT_LIST_HEAD(&sst->module_list);
+	INIT_LIST_HEAD(&sst->fw_list);
+	INIT_LIST_HEAD(&sst->scratch_block_list);
+
+	/* Initialise SST Audio DSP */
+	if (sst->ops->init) {
+		err = sst->ops->init(sst, pdata);
+		if (err < 0)
+			return NULL;
+	}
+
+	/* Register the ISR */
+	err = request_threaded_irq(sst->irq, sst->ops->irq_handler,
+		sst_dev->thread, IRQF_SHARED, "AudioDSP", sst);
+	if (err)
+		goto irq_err;
+
+	err = sst_dma_new(sst);
+	if (err)
+		dev_warn(dev, "sst_dma_new failed %d\n", err);
+
+	return sst;
+
+irq_err:
+	if (sst->ops->free)
+		sst->ops->free(sst);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(sst_dsp_new);
+
+void sst_dsp_free(struct sst_dsp *sst)
+{
+	free_irq(sst->irq, sst);
+	if (sst->ops->free)
+		sst->ops->free(sst);
+
+	sst_dma_free(sst->dma);
+}
+EXPORT_SYMBOL_GPL(sst_dsp_free);
+
+MODULE_DESCRIPTION("Intel SST Firmware Loader");
+MODULE_LICENSE("GPL v2");

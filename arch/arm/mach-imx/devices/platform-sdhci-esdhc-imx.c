@@ -22,16 +22,6 @@
 #define imx_sdhci_esdhc_imx_data_entry(soc, devid, id, hwid)	\
 	[id] = imx_sdhci_esdhc_imx_data_entry_single(soc, devid, id, hwid)
 
-#ifdef CONFIG_SOC_IMX25
-const struct imx_sdhci_esdhc_imx_data
-imx25_sdhci_esdhc_imx_data[] __initconst = {
-#define imx25_sdhci_esdhc_imx_data_entry(_id, _hwid)			\
-	imx_sdhci_esdhc_imx_data_entry(MX25, "sdhci-esdhc-imx25", _id, _hwid)
-	imx25_sdhci_esdhc_imx_data_entry(0, 1),
-	imx25_sdhci_esdhc_imx_data_entry(1, 2),
-};
-#endif /* ifdef CONFIG_SOC_IMX25 */
-
 #ifdef CONFIG_SOC_IMX35
 const struct imx_sdhci_esdhc_imx_data
 imx35_sdhci_esdhc_imx_data[] __initconst = {
@@ -71,6 +61,7 @@ struct platform_device *__init imx_add_sdhci_esdhc_imx(
 	if (!pdata)
 		pdata = &default_esdhc_pdata;
 
-	return imx_add_platform_device(data->devid, data->id, res,
-			ARRAY_SIZE(res), pdata, sizeof(*pdata));
+	return imx_add_platform_device_dmamask(data->devid, data->id, res,
+			ARRAY_SIZE(res), pdata, sizeof(*pdata),
+			DMA_BIT_MASK(32));
 }

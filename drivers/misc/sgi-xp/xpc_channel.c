@@ -656,7 +656,6 @@ xpc_initiate_connect(int ch_number)
 {
 	short partid;
 	struct xpc_partition *part;
-	struct xpc_channel *ch;
 
 	DBUG_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
 
@@ -664,8 +663,6 @@ xpc_initiate_connect(int ch_number)
 		part = &xpc_partitions[partid];
 
 		if (xpc_part_ref(part)) {
-			ch = &part->channels[ch_number];
-
 			/*
 			 * Initiate the establishment of a connection on the
 			 * newly registered channel to the remote partition.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_H8300_SYSCALLS_32_H
 #define __ASM_H8300_SYSCALLS_32_H
 

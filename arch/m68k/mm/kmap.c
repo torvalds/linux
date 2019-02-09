@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/m68k/mm/kmap.c
  *
@@ -88,7 +89,8 @@ static inline void free_io_area(void *addr)
 	for (p = &iolist ; (tmp = *p) ; p = &tmp->next) {
 		if (tmp->addr == addr) {
 			*p = tmp->next;
-			__iounmap(tmp->addr, tmp->size);
+			/* remove gap added in get_io_area() */
+			__iounmap(tmp->addr, tmp->size - IO_SIZE);
 			kfree(tmp);
 			return;
 		}
@@ -123,6 +125,10 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 		    && (cacheflag == IOMAP_NOCACHE_SER))
 			return (void __iomem *)physaddr;
 	}
+#endif
+#ifdef CONFIG_COLDFIRE
+	if (__cf_internalio(physaddr))
+		return (void __iomem *) physaddr;
 #endif
 
 #ifdef DEBUG
@@ -234,6 +240,10 @@ void iounmap(void __iomem *addr)
 	     ((unsigned long)addr > 0x60000000)))
 			free_io_area((__force void *)addr);
 #else
+#ifdef CONFIG_COLDFIRE
+	if (cf_internalio(addr))
+		return;
+#endif
 	free_io_area((__force void *)addr);
 #endif
 }

@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: key.c
  *
@@ -31,19 +17,9 @@
 #include "key.h"
 #include "mac.h"
 
-int vnt_key_init_table(struct vnt_private *priv)
-{
-	u32 i;
-
-	for (i = 0; i < MAX_KEY_TABLE; i++)
-		MACvDisableKeyEntry(priv->PortOffset, i);
-
-	return 0;
-}
-
 static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
-	struct ieee80211_key_conf *key, u32 key_type, u32 mode,
-	bool onfly_latch)
+			   struct ieee80211_key_conf *key, u32 key_type,
+			   u32 mode, bool onfly_latch)
 {
 	struct vnt_private *priv = hw->priv;
 	u8 broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -71,17 +47,19 @@ static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
 	}
 
 	switch (key_type) {
-	/* fallthrough */
 	case VNT_KEY_DEFAULTKEY:
 		/* default key last entry */
 		entry = MAX_KEY_TABLE - 1;
 		key->hw_key_idx = entry;
+		/* fall through */
 	case VNT_KEY_ALLGROUP:
 		key_mode |= VNT_KEY_ALLGROUP;
 		if (onfly_latch)
 			key_mode |= VNT_KEY_ONFLY_ALL;
+		/* fall through */
 	case VNT_KEY_GROUP_ADDRESS:
 		key_mode |= mode;
+		/* fall through */
 	case VNT_KEY_GROUP:
 		key_mode |= (mode << 4);
 		key_mode |= VNT_KEY_GROUP;
@@ -104,7 +82,7 @@ static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
 			key->key[15] |= 0x80;
 	}
 
-	MACvSetKeyEntry(priv->PortOffset, key_mode, entry, key_inx,
+	MACvSetKeyEntry(priv, key_mode, entry, key_inx,
 			bssid, (u32 *)key->key, priv->byLocalID);
 
 	return 0;
@@ -126,13 +104,13 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 	switch (key->cipher) {
 	case 0:
 		for (u = 0 ; u < MAX_KEY_TABLE; u++)
-			MACvDisableKeyEntry(priv->PortOffset, u);
+			MACvDisableKeyEntry(priv, u);
 		return ret;
 
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 		for (u = 0; u < MAX_KEY_TABLE; u++)
-			MACvDisableKeyEntry(priv->PortOffset, u);
+			MACvDisableKeyEntry(priv, u);
 
 		vnt_set_keymode(hw, mac_addr,
 				key, VNT_KEY_DEFAULTKEY, KEY_CTL_WEP, true);

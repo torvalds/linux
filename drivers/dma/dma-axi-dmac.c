@@ -72,6 +72,9 @@
 
 #define AXI_DMAC_FLAG_CYCLIC		BIT(0)
 
+/* The maximum ID allocated by the hardware is 31 */
+#define AXI_DMAC_SG_UNUSED 32U
+
 struct axi_dmac_sg {
 	dma_addr_t src_addr;
 	dma_addr_t dest_addr;
@@ -80,6 +83,7 @@ struct axi_dmac_sg {
 	unsigned int dest_stride;
 	unsigned int src_stride;
 	unsigned int id;
+	bool schedule_when_free;
 };
 
 struct axi_dmac_desc {
@@ -200,11 +204,21 @@ static void axi_dmac_start_transfer(struct axi_dmac_chan *chan)
 	}
 	sg = &desc->sg[desc->num_submitted];
 
+	/* Already queued in cyclic mode. Wait for it to finish */
+	if (sg->id != AXI_DMAC_SG_UNUSED) {
+		sg->schedule_when_free = true;
+		return;
+	}
+
 	desc->num_submitted++;
-	if (desc->num_submitted == desc->num_sgs)
-		chan->next_desc = NULL;
-	else
+	if (desc->num_submitted == desc->num_sgs) {
+		if (desc->cyclic)
+			desc->num_submitted = 0; /* Start again */
+		else
+			chan->next_desc = NULL;
+	} else {
 		chan->next_desc = desc;
+	}
 
 	sg->id = axi_dmac_read(dmac, AXI_DMAC_REG_TRANSFER_ID);
 
@@ -220,9 +234,11 @@ static void axi_dmac_start_transfer(struct axi_dmac_chan *chan)
 
 	/*
 	 * If the hardware supports cyclic transfers and there is no callback to
-	 * call, enable hw cyclic mode to avoid unnecessary interrupts.
+	 * call and only a single segment, enable hw cyclic mode to avoid
+	 * unnecessary interrupts.
 	 */
-	if (chan->hw_cyclic && desc->cyclic && !desc->vdesc.tx.callback)
+	if (chan->hw_cyclic && desc->cyclic && !desc->vdesc.tx.callback &&
+		desc->num_sgs == 1)
 		flags |= AXI_DMAC_FLAG_CYCLIC;
 
 	axi_dmac_write(dmac, AXI_DMAC_REG_X_LENGTH, sg->x_len - 1);
@@ -237,39 +253,57 @@ static struct axi_dmac_desc *axi_dmac_active_desc(struct axi_dmac_chan *chan)
 		struct axi_dmac_desc, vdesc.node);
 }
 
-static void axi_dmac_transfer_done(struct axi_dmac_chan *chan,
+static bool axi_dmac_transfer_done(struct axi_dmac_chan *chan,
 	unsigned int completed_transfers)
 {
 	struct axi_dmac_desc *active;
 	struct axi_dmac_sg *sg;
+	bool start_next = false;
 
 	active = axi_dmac_active_desc(chan);
 	if (!active)
-		return;
+		return false;
 
-	if (active->cyclic) {
-		vchan_cyclic_callback(&active->vdesc);
-	} else {
-		do {
-			sg = &active->sg[active->num_completed];
-			if (!(BIT(sg->id) & completed_transfers))
-				break;
-			active->num_completed++;
-			if (active->num_completed == active->num_sgs) {
+	do {
+		sg = &active->sg[active->num_completed];
+		if (sg->id == AXI_DMAC_SG_UNUSED) /* Not yet submitted */
+			break;
+		if (!(BIT(sg->id) & completed_transfers))
+			break;
+		active->num_completed++;
+		sg->id = AXI_DMAC_SG_UNUSED;
+		if (sg->schedule_when_free) {
+			sg->schedule_when_free = false;
+			start_next = true;
+		}
+
+		if (active->cyclic)
+			vchan_cyclic_callback(&active->vdesc);
+
+		if (active->num_completed == active->num_sgs) {
+			if (active->cyclic) {
+				active->num_completed = 0; /* wrap around */
+			} else {
 				list_del(&active->vdesc.node);
 				vchan_cookie_complete(&active->vdesc);
 				active = axi_dmac_active_desc(chan);
 			}
-		} while (active);
-	}
+		}
+	} while (active);
+
+	return start_next;
 }
 
 static irqreturn_t axi_dmac_interrupt_handler(int irq, void *devid)
 {
 	struct axi_dmac *dmac = devid;
 	unsigned int pending;
+	bool start_next = false;
 
 	pending = axi_dmac_read(dmac, AXI_DMAC_REG_IRQ_PENDING);
+	if (!pending)
+		return IRQ_NONE;
+
 	axi_dmac_write(dmac, AXI_DMAC_REG_IRQ_PENDING, pending);
 
 	spin_lock(&dmac->chan.vchan.lock);
@@ -278,10 +312,10 @@ static irqreturn_t axi_dmac_interrupt_handler(int irq, void *devid)
 		unsigned int completed;
 
 		completed = axi_dmac_read(dmac, AXI_DMAC_REG_TRANSFER_DONE);
-		axi_dmac_transfer_done(&dmac->chan, completed);
+		start_next = axi_dmac_transfer_done(&dmac->chan, completed);
 	}
 	/* Space has become available in the descriptor queue */
-	if (pending & AXI_DMAC_IRQ_SOT)
+	if ((pending & AXI_DMAC_IRQ_SOT) || start_next)
 		axi_dmac_start_transfer(&dmac->chan);
 	spin_unlock(&dmac->chan.vchan.lock);
 
@@ -307,6 +341,13 @@ static int axi_dmac_terminate_all(struct dma_chan *c)
 	return 0;
 }
 
+static void axi_dmac_synchronize(struct dma_chan *c)
+{
+	struct axi_dmac_chan *chan = to_axi_dmac_chan(c);
+
+	vchan_synchronize(&chan->vchan);
+}
+
 static void axi_dmac_issue_pending(struct dma_chan *c)
 {
 	struct axi_dmac_chan *chan = to_axi_dmac_chan(c);
@@ -324,11 +365,15 @@ static void axi_dmac_issue_pending(struct dma_chan *c)
 static struct axi_dmac_desc *axi_dmac_alloc_desc(unsigned int num_sgs)
 {
 	struct axi_dmac_desc *desc;
+	unsigned int i;
 
 	desc = kzalloc(sizeof(struct axi_dmac_desc) +
 		sizeof(struct axi_dmac_sg) * num_sgs, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
+
+	for (i = 0; i < num_sgs; i++)
+		desc->sg[i].id = AXI_DMAC_SG_UNUSED;
 
 	desc->num_sgs = num_sgs;
 
@@ -572,7 +617,9 @@ static int axi_dmac_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dmac->irq = platform_get_irq(pdev, 0);
-	if (dmac->irq <= 0)
+	if (dmac->irq < 0)
+		return dmac->irq;
+	if (dmac->irq == 0)
 		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -613,6 +660,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	dma_dev->device_prep_dma_cyclic = axi_dmac_prep_dma_cyclic;
 	dma_dev->device_prep_interleaved_dma = axi_dmac_prep_interleaved;
 	dma_dev->device_terminate_all = axi_dmac_terminate_all;
+	dma_dev->device_synchronize = axi_dmac_synchronize;
 	dma_dev->dev = &pdev->dev;
 	dma_dev->chancnt = 1;
 	dma_dev->src_addr_widths = BIT(dmac->chan.src_width);
@@ -639,7 +687,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unregister_device;
 
-	ret = request_irq(dmac->irq, axi_dmac_interrupt_handler, 0,
+	ret = request_irq(dmac->irq, axi_dmac_interrupt_handler, IRQF_SHARED,
 		dev_name(&pdev->dev), dmac);
 	if (ret)
 		goto err_unregister_of;
@@ -675,6 +723,7 @@ static const struct of_device_id axi_dmac_of_match_table[] = {
 	{ .compatible = "adi,axi-dmac-1.00.a" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, axi_dmac_of_match_table);
 
 static struct platform_driver axi_dmac_driver = {
 	.driver = {

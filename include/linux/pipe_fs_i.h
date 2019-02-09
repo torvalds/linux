@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_PIPE_FS_I_H
 #define _LINUX_PIPE_FS_I_H
 
@@ -42,6 +43,7 @@ struct pipe_buffer {
  *	@fasync_readers: reader side fasync
  *	@fasync_writers: writer side fasync
  *	@bufs: the circular array of pipe buffers
+ *	@user: the user who created this pipe
  **/
 struct pipe_inode_info {
 	struct mutex mutex;
@@ -57,6 +59,7 @@ struct pipe_inode_info {
 	struct fasync_struct *fasync_readers;
 	struct fasync_struct *fasync_writers;
 	struct pipe_buffer *bufs;
+	struct user_struct *user;
 };
 
 /*
@@ -64,15 +67,10 @@ struct pipe_inode_info {
  *
  * ->confirm()
  *	->steal()
- *	...
- *	->map()
- *	...
- *	->unmap()
  *
- * That is, ->map() must be called on a confirmed buffer,
- * same goes for ->steal(). See below for the meaning of each
- * operation. Also see kerneldoc in fs/pipe.c for the pipe
- * and generic variants of these hooks.
+ * That is, ->steal() must be called on a confirmed buffer.
+ * See below for the meaning of each operation. Also see kerneldoc
+ * in fs/pipe.c for the pipe and generic variants of these hooks.
  */
 struct pipe_buf_operations {
 	/*
@@ -113,6 +111,53 @@ struct pipe_buf_operations {
 	void (*get)(struct pipe_inode_info *, struct pipe_buffer *);
 };
 
+/**
+ * pipe_buf_get - get a reference to a pipe_buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer to get a reference to
+ */
+static inline void pipe_buf_get(struct pipe_inode_info *pipe,
+				struct pipe_buffer *buf)
+{
+	buf->ops->get(pipe, buf);
+}
+
+/**
+ * pipe_buf_release - put a reference to a pipe_buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer to put a reference to
+ */
+static inline void pipe_buf_release(struct pipe_inode_info *pipe,
+				    struct pipe_buffer *buf)
+{
+	const struct pipe_buf_operations *ops = buf->ops;
+
+	buf->ops = NULL;
+	ops->release(pipe, buf);
+}
+
+/**
+ * pipe_buf_confirm - verify contents of the pipe buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer to confirm
+ */
+static inline int pipe_buf_confirm(struct pipe_inode_info *pipe,
+				   struct pipe_buffer *buf)
+{
+	return buf->ops->confirm(pipe, buf);
+}
+
+/**
+ * pipe_buf_steal - attempt to take ownership of a pipe_buffer
+ * @pipe:	the pipe that the buffer belongs to
+ * @buf:	the buffer to attempt to steal
+ */
+static inline int pipe_buf_steal(struct pipe_inode_info *pipe,
+				 struct pipe_buffer *buf)
+{
+	return buf->ops->steal(pipe, buf);
+}
+
 /* Differs from PIPE_BUF in that PIPE_SIZE is the length of the actual
    memory allocation, whereas PIPE_BUF makes atomicity guarantees.  */
 #define PIPE_SIZE		PAGE_SIZE
@@ -122,9 +167,9 @@ void pipe_lock(struct pipe_inode_info *);
 void pipe_unlock(struct pipe_inode_info *);
 void pipe_double_lock(struct pipe_inode_info *, struct pipe_inode_info *);
 
-extern unsigned int pipe_max_size, pipe_min_size;
-int pipe_proc_fn(struct ctl_table *, int, void __user *, size_t *, loff_t *);
-
+extern unsigned int pipe_max_size;
+extern unsigned long pipe_user_pages_hard;
+extern unsigned long pipe_user_pages_soft;
 
 /* Drop the inode semaphore and wait for a pipe event, atomically */
 void pipe_wait(struct pipe_inode_info *pipe);
@@ -145,5 +190,6 @@ long pipe_fcntl(struct file *, unsigned int, unsigned long arg);
 struct pipe_inode_info *get_pipe_info(struct file *file);
 
 int create_pipe_files(struct file **, int);
+unsigned int round_pipe_size(unsigned long size);
 
 #endif

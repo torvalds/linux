@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *   Data definitions for channel report processing
  *    Copyright IBM Corp. 2000, 2009
@@ -51,19 +52,5 @@ void crw_wait_for_channel_report(void);
 #define CRW_ERC_PERRN	 0x06 /* perm. error, fac. not init */
 #define CRW_ERC_PERRI	 0x07 /* perm. error, facility init */
 #define CRW_ERC_PMOD	 0x08 /* installed parameters modified */
-
-static inline int stcrw(struct crw *pcrw)
-{
-	int ccode;
-
-	asm volatile(
-		"	stcrw	0(%2)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (ccode), "=m" (*pcrw)
-		: "a" (pcrw)
-		: "cc" );
-	return ccode;
-}
 
 #endif /* _ASM_S390_CRW_H */

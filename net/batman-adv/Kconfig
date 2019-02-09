@@ -1,3 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+#
+# Marek Lindner, Simon Wunderlich
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of version 2 of the GNU General Public
+# License as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <http://www.gnu.org/licenses/>.
+
 #
 # B.A.T.M.A.N meshing protocol
 #
@@ -7,13 +24,26 @@ config BATMAN_ADV
 	depends on NET
 	select CRC16
 	select LIBCRC32C
-        default n
 	help
           B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
           a routing protocol for multi-hop ad-hoc mesh networks. The
           networks may be wired or wireless. See
-          http://www.open-mesh.org/ for more information and user space
+          https://www.open-mesh.org/ for more information and user space
           tools.
+
+config BATMAN_ADV_BATMAN_V
+	bool "B.A.T.M.A.N. V protocol"
+	depends on BATMAN_ADV && !(CFG80211=m && BATMAN_ADV=y)
+	default y
+	help
+	  This option enables the B.A.T.M.A.N. V protocol, the successor
+	  of the currently used B.A.T.M.A.N. IV protocol. The main
+	  changes include splitting of the OGM protocol into a neighbor
+	  discovery protocol (Echo Location Protocol, ELP) and a new OGM
+	  Protocol OGMv2 for flooding protocol information through the
+	  network, as well as a throughput based metric.
+	  B.A.T.M.A.N. V is currently considered experimental and not
+	  compatible to B.A.T.M.A.N. IV networks.
 
 config BATMAN_ADV_BLA
 	bool "Bridge Loop Avoidance"
@@ -29,7 +59,7 @@ config BATMAN_ADV_BLA
 config BATMAN_ADV_DAT
 	bool "Distributed ARP Table"
 	depends on BATMAN_ADV && INET
-	default n
+	default y
 	help
 	  This option enables DAT (Distributed ARP Table), a DHT based
 	  mechanism that increases ARP reliability on sparse wireless
@@ -39,7 +69,6 @@ config BATMAN_ADV_DAT
 config BATMAN_ADV_NC
 	bool "Network Coding"
 	depends on BATMAN_ADV
-	default n
 	help
 	  This option enables network coding, a mechanism that aims to
 	  increase the overall network throughput by fusing multiple
@@ -52,17 +81,26 @@ config BATMAN_ADV_NC
 
 config BATMAN_ADV_MCAST
 	bool "Multicast optimisation"
-	depends on BATMAN_ADV
-	default n
+	depends on BATMAN_ADV && INET && !(BRIDGE=m && BATMAN_ADV=y)
 	help
 	  This option enables the multicast optimisation which aims to
 	  reduce the air overhead while improving the reliability of
 	  multicast messages.
 
-config BATMAN_ADV_DEBUG
-	bool "B.A.T.M.A.N. debugging"
+config BATMAN_ADV_DEBUGFS
+	bool "batman-adv debugfs entries"
 	depends on BATMAN_ADV
 	depends on DEBUG_FS
+	help
+	  Enable this to export routing related debug tables via debugfs.
+	  The information for each soft-interface and used hard-interface can be
+	  found under batman_adv/
+
+	  If unsure, say N.
+
+config BATMAN_ADV_DEBUG
+	bool "B.A.T.M.A.N. debugging"
+	depends on BATMAN_ADV_DEBUGFS
 	help
 	  This is an option for use by developers; most people should
 	  say N here. This enables compilation of support for

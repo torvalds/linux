@@ -1,12 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0
 # Generic register map support.  There are no user servicable options here,
 # this is an API intended to be used by other kernel subsystems.  These
 # subsystems should select the appropriate symbols.
 
 config REGMAP
-	default y if (REGMAP_I2C || REGMAP_SPI || REGMAP_SPMI || REGMAP_AC97 || REGMAP_MMIO || REGMAP_IRQ)
+	default y if (REGMAP_I2C || REGMAP_SPI || REGMAP_SPMI || REGMAP_W1 || REGMAP_AC97 || REGMAP_MMIO || REGMAP_IRQ)
+	select IRQ_DOMAIN if REGMAP_IRQ
+	bool
+
+config REGCACHE_COMPRESSED
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
-	select IRQ_DOMAIN if REGMAP_IRQ
 	bool
 
 config REGMAP_AC97
@@ -16,6 +20,10 @@ config REGMAP_I2C
 	tristate
 	depends on I2C
 
+config REGMAP_SLIMBUS
+	tristate
+	depends on SLIMBUS
+
 config REGMAP_SPI
 	tristate
 	depends on SPI
@@ -24,8 +32,20 @@ config REGMAP_SPMI
 	tristate
 	depends on SPMI
 
+config REGMAP_W1
+	tristate
+	depends on W1
+
 config REGMAP_MMIO
 	tristate
 
 config REGMAP_IRQ
 	bool
+
+config REGMAP_SOUNDWIRE
+	tristate
+	depends on SOUNDWIRE_BUS
+
+config REGMAP_SCCB
+	tristate
+	depends on I2C

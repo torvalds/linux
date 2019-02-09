@@ -4,11 +4,12 @@
 menuconfig CORESIGHT
 	bool "CoreSight Tracing Support"
 	select ARM_AMBA
+	select PERF_EVENTS
 	help
 	  This framework provides a kernel interface for the CoreSight debug
 	  and trace drivers to register themselves with. It's intended to build
 	  a topological view of the CoreSight components based on a DT
-	  specification and configure the right serie of components when a
+	  specification and configure the right series of components when a
 	  trace source gets enabled.
 
 if CORESIGHT
@@ -29,6 +30,17 @@ config CORESIGHT_LINK_AND_SINK_TMC
 	  trace router - ETR) or sink (embedded trace FIFO).  The driver
 	  complies with the generic implementation of the component without
 	  special enhancement or added features.
+
+config CORESIGHT_CATU
+	bool "Coresight Address Translation Unit (CATU) driver"
+	depends on CORESIGHT_LINK_AND_SINK_TMC
+	help
+	   Enable support for the Coresight Address Translation Unit (CATU).
+	   CATU supports a scatter gather table of 4K pages, with forward/backward
+	   lookup. CATU helps TMC ETR to use a large physically non-contiguous trace
+	   buffer by translating the addresses used by ETR to the physical address
+	   by looking up the provided table. CATU can also be used in pass-through
+	   mode where the address is not translated.
 
 config CORESIGHT_SINK_TPIU
 	bool "Coresight generic TPIU driver"
@@ -69,12 +81,37 @@ config CORESIGHT_SOURCE_ETM4X
 	  for instruction level tracing. Depending on the implemented version
 	  data tracing may also be available.
 
-config CORESIGHT_QCOM_REPLICATOR
-	bool "Qualcomm CoreSight Replicator driver"
+config CORESIGHT_DYNAMIC_REPLICATOR
+	bool "CoreSight Programmable Replicator driver"
 	depends on CORESIGHT_LINKS_AND_SINKS
 	help
-	  This enables support for Qualcomm CoreSight link driver. The
-	  programmable ATB replicator sends the ATB trace stream from the
-	  ETB/ETF to the TPIUi and ETR.
+	  This enables support for dynamic CoreSight replicator link driver.
+	  The programmable ATB replicator allows independent filtering of the
+	  trace data based on the traceid.
+
+config CORESIGHT_STM
+	bool "CoreSight System Trace Macrocell driver"
+	depends on (ARM && !(CPU_32v3 || CPU_32v4 || CPU_32v4T)) || ARM64
+	select CORESIGHT_LINKS_AND_SINKS
+	select STM
+	help
+	  This driver provides support for hardware assisted software
+	  instrumentation based tracing. This is primarily used for
+	  logging useful software events or data coming from various entities
+	  in the system, possibly running different OSs
+
+config CORESIGHT_CPU_DEBUG
+	tristate "CoreSight CPU Debug driver"
+	depends on ARM || ARM64
+	depends on DEBUG_FS
+	help
+	  This driver provides support for coresight debugging module. This
+	  is primarily used to dump sample-based profiling registers when
+	  system triggers panic, the driver will parse context registers so
+	  can quickly get to know program counter (PC), secure state,
+	  exception level, etc. Before use debugging functionality, platform
+	  needs to ensure the clock domain and power domain are enabled
+	  properly, please refer Documentation/trace/coresight-cpu-debug.txt
+	  for detailed description and the example for usage.
 
 endif

@@ -34,6 +34,8 @@
 #define _RDMA_IB_H
 
 #include <linux/types.h>
+#include <linux/sched.h>
+#include <linux/cred.h>
 
 struct ib_addr {
 	union {
@@ -51,12 +53,12 @@ struct ib_addr {
 #define sib_interface_id	ib_u.uib_addr64[1]
 };
 
-static inline int ib_addr_any(const struct ib_addr *a)
+static inline bool ib_addr_any(const struct ib_addr *a)
 {
 	return ((a->sib_addr64[0] | a->sib_addr64[1]) == 0);
 }
 
-static inline int ib_addr_loopback(const struct ib_addr *a)
+static inline bool ib_addr_loopback(const struct ib_addr *a)
 {
 	return ((a->sib_addr32[0] | a->sib_addr32[1] |
 		 a->sib_addr32[2] | (a->sib_addr32[3] ^ htonl(1))) == 0);
@@ -85,5 +87,20 @@ struct sockaddr_ib {
 	__be64			sib_sid_mask;
 	__u64			sib_scope_id;
 };
+
+/*
+ * The IB interfaces that use write() as bi-directional ioctl() are
+ * fundamentally unsafe, since there are lots of ways to trigger "write()"
+ * calls from various contexts with elevated privileges. That includes the
+ * traditional suid executable error message writes, but also various kernel
+ * interfaces that can write to file descriptors.
+ *
+ * This function provides protection for the legacy API by restricting the
+ * calling context.
+ */
+static inline bool ib_safe_file_access(struct file *filp)
+{
+	return filp->f_cred == current_cred() && !uaccess_kernel();
+}
 
 #endif /* _RDMA_IB_H */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ashrdi3.S:	The filesystem code creates all kinds of references to
  *              this little routine on the sparc with gcc.
@@ -6,6 +7,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/export.h>
 
 	.text
 ENTRY(__ashrdi3)
@@ -35,3 +37,4 @@ ENTRY(__ashrdi3)
 	jmpl	%o7 + 8, %g0
 	 nop
 ENDPROC(__ashrdi3)
+EXPORT_SYMBOL(__ashrdi3)

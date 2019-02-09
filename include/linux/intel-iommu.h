@@ -29,6 +29,10 @@
 #include <linux/dma_remapping.h>
 #include <linux/mmu_notifier.h>
 #include <linux/list.h>
+#include <linux/iommu.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/dmar.h>
+
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
 
@@ -71,24 +75,8 @@
 
 #define OFFSET_STRIDE		(9)
 
-#ifdef CONFIG_64BIT
 #define dmar_readq(a) readq(a)
 #define dmar_writeq(a,v) writeq(v,a)
-#else
-static inline u64 dmar_readq(void __iomem *addr)
-{
-	u32 lo, hi;
-	lo = readl(addr);
-	hi = readl(addr + 4);
-	return (((u64) hi) << 32) + lo;
-}
-
-static inline void dmar_writeq(void __iomem *addr, u64 val)
-{
-	writel((u32)val, addr);
-	writel((u32)(val >> 32), addr + 4);
-}
-#endif
 
 #define DMAR_VER_MAJOR(v)		(((v) & 0xf0) >> 4)
 #define DMAR_VER_MINOR(v)		((v) & 0x0f)
@@ -96,7 +84,9 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 /*
  * Decoding Capability Register
  */
+#define cap_5lp_support(c)	(((c) >> 60) & 1)
 #define cap_pi_support(c)	(((c) >> 59) & 1)
+#define cap_fl1gp_support(c)	(((c) >> 56) & 1)
 #define cap_read_drain(c)	(((c) >> 55) & 1)
 #define cap_write_drain(c)	(((c) >> 54) & 1)
 #define cap_max_amask_val(c)	(((c) >> 48) & 0x3f)
@@ -125,6 +115,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
  * Extended Capability Register
  */
 
+#define ecap_dit(e)		((e >> 41) & 0x1)
 #define ecap_pasid(e)		((e >> 40) & 0x1)
 #define ecap_pss(e)		((e >> 35) & 0x1f)
 #define ecap_eafs(e)		((e >> 34) & 0x1)
@@ -153,8 +144,8 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_TLB_GLOBAL_FLUSH (((u64)1) << 60)
 #define DMA_TLB_DSI_FLUSH (((u64)2) << 60)
 #define DMA_TLB_PSI_FLUSH (((u64)3) << 60)
-#define DMA_TLB_IIRG(type) ((type >> 60) & 7)
-#define DMA_TLB_IAIG(val) (((val) >> 57) & 7)
+#define DMA_TLB_IIRG(type) ((type >> 60) & 3)
+#define DMA_TLB_IAIG(val) (((val) >> 57) & 3)
 #define DMA_TLB_READ_DRAIN (((u64)1) << 49)
 #define DMA_TLB_WRITE_DRAIN (((u64)1) << 48)
 #define DMA_TLB_DID(id)	(((u64)((id) & 0xffff)) << 32)
@@ -164,9 +155,9 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 
 /* INVALID_DESC */
 #define DMA_CCMD_INVL_GRANU_OFFSET  61
-#define DMA_ID_TLB_GLOBAL_FLUSH	(((u64)1) << 3)
-#define DMA_ID_TLB_DSI_FLUSH	(((u64)2) << 3)
-#define DMA_ID_TLB_PSI_FLUSH	(((u64)3) << 3)
+#define DMA_ID_TLB_GLOBAL_FLUSH	(((u64)1) << 4)
+#define DMA_ID_TLB_DSI_FLUSH	(((u64)2) << 4)
+#define DMA_ID_TLB_PSI_FLUSH	(((u64)3) << 4)
 #define DMA_ID_TLB_READ_DRAIN	(((u64)1) << 7)
 #define DMA_ID_TLB_WRITE_DRAIN	(((u64)1) << 6)
 #define DMA_ID_TLB_DID(id)	(((u64)((id & 0xffff) << 16)))
@@ -220,11 +211,12 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_FECTL_IM (((u32)1) << 31)
 
 /* FSTS_REG */
-#define DMA_FSTS_PPF ((u32)2)
-#define DMA_FSTS_PFO ((u32)1)
-#define DMA_FSTS_IQE (1 << 4)
-#define DMA_FSTS_ICE (1 << 5)
-#define DMA_FSTS_ITE (1 << 6)
+#define DMA_FSTS_PFO (1 << 0) /* Primary Fault Overflow */
+#define DMA_FSTS_PPF (1 << 1) /* Primary Pending Fault */
+#define DMA_FSTS_IQE (1 << 4) /* Invalidation Queue Error */
+#define DMA_FSTS_ICE (1 << 5) /* Invalidation Completion Error */
+#define DMA_FSTS_ITE (1 << 6) /* Invalidation Time-out Error */
+#define DMA_FSTS_PRO (1 << 7) /* Page Request Overflow */
 #define dma_fsts_fault_record_index(s) (((s) >> 8) & 0xff)
 
 /* FRCD_REG, 32 bits access */
@@ -234,6 +226,9 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define dma_frcd_source_id(c) (c & 0xffff)
 /* low 64 bit */
 #define dma_frcd_page_addr(d) (d & (((u64)-1) << PAGE_SHIFT))
+
+/* PRS_REG */
+#define DMA_PRS_PPR	((u32)1)
 
 #define IOMMU_WAIT_OP(iommu, offset, op, cond, sts)			\
 do {									\
@@ -291,6 +286,7 @@ enum {
 #define QI_DEV_IOTLB_SID(sid)	((u64)((sid) & 0xffff) << 32)
 #define QI_DEV_IOTLB_QDEP(qdep)	(((qdep) & 0x1f) << 16)
 #define QI_DEV_IOTLB_ADDR(addr)	((u64)(addr) & VTD_PAGE_MASK)
+#define QI_DEV_IOTLB_PFSID(pfsid) (((u64)(pfsid & 0xf) << 12) | ((u64)(pfsid & 0xfff) << 52))
 #define QI_DEV_IOTLB_SIZE	1
 #define QI_DEV_IOTLB_MAX_INVS	32
 
@@ -313,8 +309,9 @@ enum {
 #define QI_DEV_EIOTLB_SIZE	(((u64)1) << 11)
 #define QI_DEV_EIOTLB_GLOB(g)	((u64)g)
 #define QI_DEV_EIOTLB_PASID(p)	(((u64)p) << 32)
-#define QI_DEV_EIOTLB_SID(sid)	((u64)((sid) & 0xffff) << 32)
-#define QI_DEV_EIOTLB_QDEP(qd)	(((qd) & 0x1f) << 16)
+#define QI_DEV_EIOTLB_SID(sid)	((u64)((sid) & 0xffff) << 16)
+#define QI_DEV_EIOTLB_QDEP(qd)	((u64)((qd) & 0x1f) << 4)
+#define QI_DEV_EIOTLB_PFSID(pfsid) (((u64)(pfsid & 0xf) << 12) | ((u64)(pfsid & 0xfff) << 52))
 #define QI_DEV_EIOTLB_MAX_INVS	32
 
 #define QI_PGRP_IDX(idx)	(((u64)(idx)) << 55)
@@ -392,6 +389,42 @@ struct pasid_entry;
 struct pasid_state_entry;
 struct page_req_dsc;
 
+struct dmar_domain {
+	int	nid;			/* node id */
+
+	unsigned	iommu_refcnt[DMAR_UNITS_SUPPORTED];
+					/* Refcount of devices per iommu */
+
+
+	u16		iommu_did[DMAR_UNITS_SUPPORTED];
+					/* Domain ids per IOMMU. Use u16 since
+					 * domain ids are 16 bit wide according
+					 * to VT-d spec, section 9.3 */
+
+	bool has_iotlb_device;
+	struct list_head devices;	/* all devices' list */
+	struct iova_domain iovad;	/* iova's that belong to this domain */
+
+	struct dma_pte	*pgd;		/* virtual address */
+	int		gaw;		/* max guest address width */
+
+	/* adjusted guest address width, 0 is level 2 30-bit */
+	int		agaw;
+
+	int		flags;		/* flags to find out type of domain */
+
+	int		iommu_coherency;/* indicate coherency of iommu access */
+	int		iommu_snooping; /* indicate snooping control feature*/
+	int		iommu_count;	/* reference count of iommu */
+	int		iommu_superpage;/* Level of superpages supported:
+					   0 == 4KiB (no superpages), 1 == 2MiB,
+					   2 == 1GiB, 3 == 512GiB, 4 == 1TiB */
+	u64		max_addr;	/* maximum mapped address */
+
+	struct iommu_domain domain;	/* generic domain data structure for
+					   iommu core */
+};
+
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64 		reg_phys; /* physical address of hw register set */
@@ -421,11 +454,10 @@ struct intel_iommu {
 	 * devices away to userspace processes (e.g. for DPDK) and don't
 	 * want to trust that userspace will use *only* the PASID it was
 	 * told to. But while it's all driver-arbitrated, we're fine. */
-	struct pasid_entry *pasid_table;
 	struct pasid_state_entry *pasid_state_table;
 	struct page_req_dsc *prq;
 	unsigned char prq_name[16];    /* Name for PRQ interrupt */
-	struct idr pasid_idr;
+	u32 pasid_max;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
 	u32 *iommu_state; /* Store iommu states between suspend and resume.*/
@@ -435,9 +467,30 @@ struct intel_iommu {
 	struct irq_domain *ir_domain;
 	struct irq_domain *ir_msi_domain;
 #endif
-	struct device	*iommu_dev; /* IOMMU-sysfs device */
+	struct iommu_device iommu;  /* IOMMU core code handle */
 	int		node;
 	u32		flags;      /* Software defined flags */
+};
+
+/* PCI domain-device relationship */
+struct device_domain_info {
+	struct list_head link;	/* link to domain siblings */
+	struct list_head global; /* link to global list */
+	struct list_head table;	/* link to pasid table */
+	u8 bus;			/* PCI bus number */
+	u8 devfn;		/* PCI devfn number */
+	u16 pfsid;		/* SRIOV physical function source ID */
+	u8 pasid_supported:3;
+	u8 pasid_enabled:1;
+	u8 pri_supported:1;
+	u8 pri_enabled:1;
+	u8 ats_supported:1;
+	u8 ats_enabled:1;
+	u8 ats_qdep;
+	struct device *dev; /* it's NULL for PCIe-to-PCI bridge */
+	struct intel_iommu *iommu; /* IOMMU used by this device */
+	struct dmar_domain *domain; /* pointer to domain */
+	struct pasid_table *pasid_table; /* pasid table */
 };
 
 static inline void __iommu_flush_cache(
@@ -459,16 +512,22 @@ extern void qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid,
 			     u8 fm, u64 type);
 extern void qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 			  unsigned int size_order, u64 type);
-extern void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 qdep,
-			       u64 addr, unsigned mask);
-
+extern void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 pfsid,
+			u16 qdep, u64 addr, unsigned mask);
 extern int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
 extern int dmar_ir_support(void);
 
+struct dmar_domain *get_valid_domain_for_dev(struct device *dev);
+void *alloc_pgtable_page(int node);
+void free_pgtable_page(void *vaddr);
+struct intel_iommu *domain_get_iommu(struct dmar_domain *domain);
+int for_each_device_domain(int (*fn)(struct device_domain_info *info,
+				     void *data), void *data);
+
 #ifdef CONFIG_INTEL_IOMMU_SVM
-extern int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu);
-extern int intel_svm_free_pasid_tables(struct intel_iommu *iommu);
+int intel_svm_init(struct intel_iommu *iommu);
+int intel_svm_exit(struct intel_iommu *iommu);
 extern int intel_svm_enable_prq(struct intel_iommu *iommu);
 extern int intel_svm_finish_prq(struct intel_iommu *iommu);
 
@@ -492,6 +551,7 @@ struct intel_svm {
 	int flags;
 	int pasid;
 	struct list_head devs;
+	struct list_head list;
 };
 
 extern int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_dev *sdev);

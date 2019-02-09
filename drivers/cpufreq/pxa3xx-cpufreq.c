@@ -93,7 +93,7 @@ static int setup_freqs_table(struct cpufreq_policy *policy,
 	struct cpufreq_frequency_table *table;
 	int i;
 
-	table = kzalloc((num + 1) * sizeof(*table), GFP_KERNEL);
+	table = kcalloc(num + 1, sizeof(*table), GFP_KERNEL);
 	if (table == NULL)
 		return -ENOMEM;
 
@@ -108,7 +108,9 @@ static int setup_freqs_table(struct cpufreq_policy *policy,
 	pxa3xx_freqs_num = num;
 	pxa3xx_freqs_table = table;
 
-	return cpufreq_table_validate_and_show(policy, table);
+	policy->freq_table = table;
+
+	return 0;
 }
 
 static void __update_core_freq(struct pxa3xx_freq_info *info)

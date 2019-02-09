@@ -11,8 +11,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "skeleton.dtsi"
-
 / {
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
@@ -43,7 +41,7 @@
 		amba {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "arm,amba-bus";
+			compatible = "simple-bus";
 			ranges;
 
 			uart0: uart@10001000 {
@@ -93,14 +91,14 @@
 			reboot-offset = <0x4>;
 		};
 
-		global_timer@0a000200 {
+		global_timer@a000200 {
 			compatible = "arm,cortex-a9-global-timer";
 			reg = <0x0a000200 0x100>;
 			interrupts = <1 11 0xf04>;
 			clocks = <&hisi_refclk144mhz>;
 		};
 
-		local_timer@0a000600 {
+		local_timer@a000600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x0a000600 0x100>;
 			interrupts = <1 13 0xf04>;

@@ -15,7 +15,6 @@
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/types.h>
@@ -36,13 +35,13 @@ nf_nat_redirect_ipv4(struct sk_buff *skb,
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	__be32 newdst;
-	struct nf_nat_range newrange;
+	struct nf_nat_range2 newrange;
 
-	NF_CT_ASSERT(hooknum == NF_INET_PRE_ROUTING ||
-		     hooknum == NF_INET_LOCAL_OUT);
+	WARN_ON(hooknum != NF_INET_PRE_ROUTING &&
+		hooknum != NF_INET_LOCAL_OUT);
 
 	ct = nf_ct_get(skb, &ctinfo);
-	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED));
+	WARN_ON(!(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED)));
 
 	/* Local packets: make them go to loopback */
 	if (hooknum == NF_INET_LOCAL_OUT) {
@@ -82,10 +81,10 @@ EXPORT_SYMBOL_GPL(nf_nat_redirect_ipv4);
 static const struct in6_addr loopback_addr = IN6ADDR_LOOPBACK_INIT;
 
 unsigned int
-nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
+nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range2 *range,
 		     unsigned int hooknum)
 {
-	struct nf_nat_range newrange;
+	struct nf_nat_range2 newrange;
 	struct in6_addr newdst;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
@@ -101,11 +100,13 @@ nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
 		rcu_read_lock();
 		idev = __in6_dev_get(skb->dev);
 		if (idev != NULL) {
+			read_lock_bh(&idev->lock);
 			list_for_each_entry(ifa, &idev->addr_list, if_list) {
 				newdst = ifa->addr;
 				addr = true;
 				break;
 			}
+			read_unlock_bh(&idev->lock);
 		}
 		rcu_read_unlock();
 
@@ -122,6 +123,3 @@ nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
 	return nf_nat_setup_info(ct, &newrange, NF_NAT_MANIP_DST);
 }
 EXPORT_SYMBOL_GPL(nf_nat_redirect_ipv6);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");

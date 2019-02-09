@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Authors: Benjamin Gaignard <benjamin.gaignard@st.com>
  *          Fabien Dessenne <fabien.dessenne@st.com>
  *          for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
+#include <linux/seq_file.h>
 
 #include "sti_compositor.h"
 #include "sti_mixer.h"
@@ -14,12 +15,6 @@
 static unsigned int bkg_color = 0x000000;
 MODULE_PARM_DESC(bkgcolor, "Value of the background color 0xRRGGBB");
 module_param_named(bkgcolor, bkg_color, int, 0644);
-
-/* Identity: G=Y , B=Cb , R=Cr */
-static const u32 mixerColorSpaceMatIdentity[] = {
-	0x10000000, 0x00000000, 0x10000000, 0x00001000,
-	0x00000000, 0x00000000, 0x00000000, 0x00000000
-};
 
 /* regs offset */
 #define GAM_MIXER_CTL      0x00
@@ -75,6 +70,137 @@ static inline void sti_mixer_reg_write(struct sti_mixer *mixer,
 	writel(val, mixer->regs + reg_id);
 }
 
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   sti_mixer_reg_read(mixer, reg))
+
+static void mixer_dbg_ctl(struct seq_file *s, int val)
+{
+	unsigned int i;
+	int count = 0;
+	char *const disp_layer[] = {"BKG", "VID0", "VID1", "GDP0",
+				    "GDP1", "GDP2", "GDP3"};
+
+	seq_puts(s, "\tEnabled: ");
+	for (i = 0; i < 7; i++) {
+		if (val & 1) {
+			seq_printf(s, "%s ", disp_layer[i]);
+			count++;
+		}
+		val = val >> 1;
+	}
+
+	val = val >> 2;
+	if (val & 1) {
+		seq_puts(s, "CURS ");
+		count++;
+	}
+	if (!count)
+		seq_puts(s, "Nothing");
+}
+
+static void mixer_dbg_crb(struct seq_file *s, int val)
+{
+	int i;
+
+	seq_puts(s, "\tDepth: ");
+	for (i = 0; i < GAM_MIXER_NB_DEPTH_LEVEL; i++) {
+		switch (val & GAM_DEPTH_MASK_ID) {
+		case GAM_DEPTH_VID0_ID:
+			seq_puts(s, "VID0");
+			break;
+		case GAM_DEPTH_VID1_ID:
+			seq_puts(s, "VID1");
+			break;
+		case GAM_DEPTH_GDP0_ID:
+			seq_puts(s, "GDP0");
+			break;
+		case GAM_DEPTH_GDP1_ID:
+			seq_puts(s, "GDP1");
+			break;
+		case GAM_DEPTH_GDP2_ID:
+			seq_puts(s, "GDP2");
+			break;
+		case GAM_DEPTH_GDP3_ID:
+			seq_puts(s, "GDP3");
+			break;
+		default:
+			seq_puts(s, "---");
+		}
+
+		if (i < GAM_MIXER_NB_DEPTH_LEVEL - 1)
+			seq_puts(s, " < ");
+		val = val >> 3;
+	}
+}
+
+static void mixer_dbg_mxn(struct seq_file *s, void *addr)
+{
+	int i;
+
+	for (i = 1; i < 8; i++)
+		seq_printf(s, "-0x%08X", (int)readl(addr + i * 4));
+}
+
+static int mixer_dbg_show(struct seq_file *s, void *arg)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_mixer *mixer = (struct sti_mixer *)node->info_ent->data;
+
+	seq_printf(s, "%s: (vaddr = 0x%p)",
+		   sti_mixer_to_str(mixer), mixer->regs);
+
+	DBGFS_DUMP(GAM_MIXER_CTL);
+	mixer_dbg_ctl(s, sti_mixer_reg_read(mixer, GAM_MIXER_CTL));
+	DBGFS_DUMP(GAM_MIXER_BKC);
+	DBGFS_DUMP(GAM_MIXER_BCO);
+	DBGFS_DUMP(GAM_MIXER_BCS);
+	DBGFS_DUMP(GAM_MIXER_AVO);
+	DBGFS_DUMP(GAM_MIXER_AVS);
+	DBGFS_DUMP(GAM_MIXER_CRB);
+	mixer_dbg_crb(s, sti_mixer_reg_read(mixer, GAM_MIXER_CRB));
+	DBGFS_DUMP(GAM_MIXER_ACT);
+	DBGFS_DUMP(GAM_MIXER_MBP);
+	DBGFS_DUMP(GAM_MIXER_MX0);
+	mixer_dbg_mxn(s, mixer->regs + GAM_MIXER_MX0);
+	seq_putc(s, '\n');
+	return 0;
+}
+
+static struct drm_info_list mixer0_debugfs_files[] = {
+	{ "mixer_main", mixer_dbg_show, 0, NULL },
+};
+
+static struct drm_info_list mixer1_debugfs_files[] = {
+	{ "mixer_aux", mixer_dbg_show, 0, NULL },
+};
+
+int sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor)
+{
+	unsigned int i;
+	struct drm_info_list *mixer_debugfs_files;
+	int nb_files;
+
+	switch (mixer->id) {
+	case STI_MIXER_MAIN:
+		mixer_debugfs_files = mixer0_debugfs_files;
+		nb_files = ARRAY_SIZE(mixer0_debugfs_files);
+		break;
+	case STI_MIXER_AUX:
+		mixer_debugfs_files = mixer1_debugfs_files;
+		nb_files = ARRAY_SIZE(mixer1_debugfs_files);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < nb_files; i++)
+		mixer_debugfs_files[i].data = mixer;
+
+	return drm_debugfs_create_files(mixer_debugfs_files,
+					nb_files,
+					minor->debugfs_root, minor);
+}
+
 void sti_mixer_set_background_status(struct sti_mixer *mixer, bool enable)
 {
 	u32 val = sti_mixer_reg_read(mixer, GAM_MIXER_CTL);
@@ -106,12 +232,9 @@ static void sti_mixer_set_background_area(struct sti_mixer *mixer,
 
 int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane)
 {
-	int plane_id, depth = plane->zorder;
+	int plane_id, depth = plane->drm_plane.state->normalized_zpos;
 	unsigned int i;
 	u32 mask, val;
-
-	if ((depth < 1) || (depth > GAM_MIXER_NB_DEPTH_LEVEL))
-		return 1;
 
 	switch (plane->desc) {
 	case STI_GDP_0:
@@ -145,8 +268,8 @@ int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane)
 			break;
 	}
 
-	mask |= GAM_DEPTH_MASK_ID << (3 * (depth - 1));
-	plane_id = plane_id << (3 * (depth - 1));
+	mask |= GAM_DEPTH_MASK_ID << (3 * depth);
+	plane_id = plane_id << (3 * depth);
 
 	DRM_DEBUG_DRIVER("%s %s depth=%d\n", sti_mixer_to_str(mixer),
 			 sti_plane_to_str(plane), depth);
@@ -228,20 +351,12 @@ int sti_mixer_set_plane_status(struct sti_mixer *mixer,
 	return 0;
 }
 
-void sti_mixer_set_matrix(struct sti_mixer *mixer)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(mixerColorSpaceMatIdentity); i++)
-		sti_mixer_reg_write(mixer, GAM_MIXER_MX0 + (i * 4),
-				    mixerColorSpaceMatIdentity[i]);
-}
-
-struct sti_mixer *sti_mixer_create(struct device *dev, int id,
+struct sti_mixer *sti_mixer_create(struct device *dev,
+				   struct drm_device *drm_dev,
+				   int id,
 				   void __iomem *baseaddr)
 {
 	struct sti_mixer *mixer = devm_kzalloc(dev, sizeof(*mixer), GFP_KERNEL);
-	struct device_node *np = dev->of_node;
 
 	dev_dbg(dev, "%s\n", __func__);
 	if (!mixer) {
@@ -251,9 +366,6 @@ struct sti_mixer *sti_mixer_create(struct device *dev, int id,
 	mixer->regs = baseaddr;
 	mixer->dev = dev;
 	mixer->id = id;
-
-	if (of_device_is_compatible(np, "st,stih416-compositor"))
-		sti_mixer_set_matrix(mixer);
 
 	DRM_DEBUG_DRIVER("%s created. Regs=%p\n",
 			 sti_mixer_to_str(mixer), mixer->regs);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Device Tree file for Marvell Armada XP evaluation board
  * (DB-78460-BP)
@@ -8,43 +9,6 @@
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This file is distributed in the hope that it will be useful
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
   *
  * Note: this Device Tree assumes that the bootloader has remapped the
  * internal registers to 0xf1000000 (instead of the default
@@ -67,7 +31,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0x00000000 0 0x80000000>; /* 2 GB */
 	};
@@ -76,8 +40,9 @@
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xf1000000 0x100000
 			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
 			  MBUS_ID(0x01, 0x2f) 0 0 0xf0000000 0x1000000
-			  MBUS_ID(0x09, 0x09) 0 0 0xf8100000 0x10000
-			  MBUS_ID(0x09, 0x05) 0 0 0xf8110000 0x10000>;
+			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0 0xf1200000 0x100000>;
 
 		devbus-bootcs {
 			status = "okay";
@@ -107,39 +72,6 @@
 			};
 		};
 
-		pcie-controller {
-			status = "okay";
-
-			/*
-			 * All 6 slots are physically present as
-			 * standard PCIe slots on the board.
-			 */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-			pcie@2,0 {
-				/* Port 0, Lane 1 */
-				status = "okay";
-			};
-			pcie@3,0 {
-				/* Port 0, Lane 2 */
-				status = "okay";
-			};
-			pcie@4,0 {
-				/* Port 0, Lane 3 */
-				status = "okay";
-			};
-			pcie@9,0 {
-				/* Port 2, Lane 0 */
-				status = "okay";
-			};
-			pcie@10,0 {
-				/* Port 3, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 			serial@12000 {
 				status = "okay";
@@ -159,43 +91,37 @@
 				status = "okay";
 			};
 
-			mdio {
-				phy0: ethernet-phy@0 {
-					reg = <0>;
-				};
-
-				phy1: ethernet-phy@1 {
-					reg = <1>;
-				};
-
-				phy2: ethernet-phy@2 {
-					reg = <25>;
-				};
-
-				phy3: ethernet-phy@3 {
-					reg = <27>;
-				};
-			};
-
 			ethernet@70000 {
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <0>;
 			};
 			ethernet@74000 {
 				status = "okay";
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <1>;
 			};
 			ethernet@30000 {
 				status = "okay";
 				phy = <&phy2>;
 				phy-mode = "sgmii";
+				buffer-manager = <&bm>;
+				bm,pool-long = <2>;
 			};
 			ethernet@34000 {
 				status = "okay";
 				phy = <&phy3>;
 				phy-mode = "sgmii";
+				buffer-manager = <&bm>;
+				bm,pool-long = <3>;
+			};
+
+			bm@c0000 {
+				status = "okay";
 			};
 
 			mvsdio@d4000 {
@@ -218,17 +144,100 @@
 				status = "okay";
 			};
 
-			spi0: spi@10600 {
+			nand@d0000 {
 				status = "okay";
+				label = "pxa3xx_nand-0";
+				num-cs = <1>;
+				marvell,nand-keep-config;
+				nand-on-flash-bbt;
 
-				spi-flash@0 {
+				partitions {
+					compatible = "fixed-partitions";
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "m25p64", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <20000000>;
+
+					partition@0 {
+						label = "U-Boot";
+						reg = <0 0x800000>;
+					};
+					partition@800000 {
+						label = "Linux";
+						reg = <0x800000 0x800000>;
+					};
+					partition@1000000 {
+						label = "Filesystem";
+						reg = <0x1000000 0x3f000000>;
+
+					};
 				};
 			};
 		};
+
+		bm-bppi {
+			status = "okay";
+		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/*
+	 * All 6 slots are physically present as
+	 * standard PCIe slots on the board.
+	 */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+	pcie@2,0 {
+		/* Port 0, Lane 1 */
+		status = "okay";
+	};
+	pcie@3,0 {
+		/* Port 0, Lane 2 */
+		status = "okay";
+	};
+	pcie@4,0 {
+		/* Port 0, Lane 3 */
+		status = "okay";
+	};
+	pcie@9,0 {
+		/* Port 2, Lane 0 */
+		status = "okay";
+	};
+	pcie@a,0 {
+		/* Port 3, Lane 0 */
+		status = "okay";
+	};
+};
+
+&mdio {
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+
+	phy2: ethernet-phy@2 {
+		reg = <25>;
+	};
+
+	phy3: ethernet-phy@3 {
+		reg = <27>;
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "m25p64", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <20000000>;
 	};
 };

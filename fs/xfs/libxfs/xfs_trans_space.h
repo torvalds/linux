@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_TRANS_SPACE_H__
 #define __XFS_TRANS_SPACE_H__
@@ -21,6 +9,20 @@
 /*
  * Components of space reservations.
  */
+
+/* Worst case number of rmaps that can be held in a block. */
+#define XFS_MAX_CONTIG_RMAPS_PER_BLOCK(mp)    \
+		(((mp)->m_rmap_mxr[0]) - ((mp)->m_rmap_mnr[0]))
+
+/* Adding one rmap could split every level up to the top of the tree. */
+#define XFS_RMAPADD_SPACE_RES(mp) ((mp)->m_rmap_maxlevels)
+
+/* Blocks we might need to add "b" rmaps to a tree. */
+#define XFS_NRMAPADD_SPACE_RES(mp, b)\
+	(((b + XFS_MAX_CONTIG_RMAPS_PER_BLOCK(mp) - 1) / \
+	  XFS_MAX_CONTIG_RMAPS_PER_BLOCK(mp)) * \
+	  XFS_RMAPADD_SPACE_RES(mp))
+
 #define XFS_MAX_CONTIG_EXTENTS_PER_BLOCK(mp)    \
 		(((mp)->m_alloc_mxr[0]) - ((mp)->m_alloc_mnr[0]))
 #define	XFS_EXTENTADD_SPACE_RES(mp,w)	(XFS_BM_MAXLEVELS(mp,w) - 1)
@@ -28,6 +30,12 @@
 	(((b + XFS_MAX_CONTIG_EXTENTS_PER_BLOCK(mp) - 1) / \
 	  XFS_MAX_CONTIG_EXTENTS_PER_BLOCK(mp)) * \
 	  XFS_EXTENTADD_SPACE_RES(mp,w))
+
+/* Blocks we might need to add "b" mappings & rmappings to a file. */
+#define XFS_SWAP_RMAP_SPACE_RES(mp,b,w)\
+	(XFS_NEXTENTADD_SPACE_RES((mp), (b), (w)) + \
+	 XFS_NRMAPADD_SPACE_RES((mp), (b)))
+
 #define	XFS_DAENTER_1B(mp,w)	\
 	((w) == XFS_DATA_FORK ? (mp)->m_dir_geo->fsbcount : 1)
 #define	XFS_DAENTER_DBS(mp,w)	\

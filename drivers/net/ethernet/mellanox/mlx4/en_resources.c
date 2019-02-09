@@ -44,7 +44,7 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct net_device *dev = priv->dev;
 
-	memset(context, 0, sizeof *context);
+	memset(context, 0, sizeof(*context));
 	context->flags = cpu_to_be32(7 << 16 | rss << MLX4_RSS_QPC_FLAG_OFFSET);
 	context->pd = cpu_to_be32(mdev->priv_pdn);
 	context->mtu_msgmax = 0xff;
@@ -53,16 +53,18 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	if (is_tx) {
 		context->sq_size_stride = ilog2(size) << 3 | (ilog2(stride) - 4);
 		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_REMAP)
-			context->params2 |= MLX4_QP_BIT_FPP;
+			context->params2 |= cpu_to_be32(MLX4_QP_BIT_FPP);
 
 	} else {
 		context->sq_size_stride = ilog2(TXBB_SIZE) - 4;
 	}
-	context->usr_page = cpu_to_be32(mdev->priv_uar.index);
+	context->usr_page = cpu_to_be32(mlx4_to_hw_uar_index(mdev->dev,
+					mdev->priv_uar.index));
 	context->local_qpn = cpu_to_be32(qpn);
 	context->pri_path.ackto = 1 & 0x07;
 	context->pri_path.sched_queue = 0x83 | (priv->port - 1) << 6;
-	if (user_prio >= 0) {
+	/* force user priority per tx ring */
+	if (user_prio >= 0 && priv->prof->num_up == MLX4_EN_NUM_UP_HIGH) {
 		context->pri_path.sched_queue |= user_prio << 3;
 		context->pri_path.feup = MLX4_FEUP_FORCE_ETH_UP;
 	}
@@ -104,37 +106,6 @@ int mlx4_en_change_mcast_lb(struct mlx4_en_priv *priv, struct mlx4_qp *qp,
 			     &qp_params);
 
 	return ret;
-}
-
-int mlx4_en_map_buffer(struct mlx4_buf *buf)
-{
-	struct page **pages;
-	int i;
-
-	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
-		return 0;
-
-	pages = kmalloc(sizeof *pages * buf->nbufs, GFP_KERNEL);
-	if (!pages)
-		return -ENOMEM;
-
-	for (i = 0; i < buf->nbufs; ++i)
-		pages[i] = virt_to_page(buf->page_list[i].buf);
-
-	buf->direct.buf = vmap(pages, buf->nbufs, VM_MAP, PAGE_KERNEL);
-	kfree(pages);
-	if (!buf->direct.buf)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void mlx4_en_unmap_buffer(struct mlx4_buf *buf)
-{
-	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
-		return;
-
-	vunmap(buf->direct.buf);
 }
 
 void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event)

@@ -178,19 +178,11 @@ static irqreturn_t idma64_irq(int irq, void *dev)
 	if (!status)
 		return IRQ_NONE;
 
-	/* Disable interrupts */
-	channel_clear_bit(idma64, MASK(XFER), idma64->all_chan_mask);
-	channel_clear_bit(idma64, MASK(ERROR), idma64->all_chan_mask);
-
 	status_xfer = dma_readl(idma64, RAW(XFER));
 	status_err = dma_readl(idma64, RAW(ERROR));
 
 	for (i = 0; i < idma64->dma.chancnt; i++)
 		idma64_chan_irq(idma64, i, status_err, status_xfer);
-
-	/* Re-enable interrupts */
-	channel_set_bit(idma64, MASK(XFER), idma64->all_chan_mask);
-	channel_set_bit(idma64, MASK(ERROR), idma64->all_chan_mask);
 
 	return IRQ_HANDLED;
 }
@@ -239,7 +231,7 @@ static void idma64_vdesc_free(struct virt_dma_desc *vdesc)
 	idma64_desc_free(idma64c, to_idma64_desc(vdesc));
 }
 
-static u64 idma64_hw_desc_fill(struct idma64_hw_desc *hw,
+static void idma64_hw_desc_fill(struct idma64_hw_desc *hw,
 		struct dma_slave_config *config,
 		enum dma_transfer_direction direction, u64 llp)
 {
@@ -276,27 +268,30 @@ static u64 idma64_hw_desc_fill(struct idma64_hw_desc *hw,
 		     IDMA64C_CTLL_SRC_WIDTH(src_width);
 
 	lli->llp = llp;
-	return hw->llp;
 }
 
 static void idma64_desc_fill(struct idma64_chan *idma64c,
 		struct idma64_desc *desc)
 {
 	struct dma_slave_config *config = &idma64c->config;
-	struct idma64_hw_desc *hw = &desc->hw[desc->ndesc - 1];
+	unsigned int i = desc->ndesc;
+	struct idma64_hw_desc *hw = &desc->hw[i - 1];
 	struct idma64_lli *lli = hw->lli;
 	u64 llp = 0;
-	unsigned int i = desc->ndesc;
 
 	/* Fill the hardware descriptors and link them to a list */
 	do {
 		hw = &desc->hw[--i];
-		llp = idma64_hw_desc_fill(hw, config, desc->direction, llp);
+		idma64_hw_desc_fill(hw, config, desc->direction, llp);
+		llp = hw->llp;
 		desc->length += hw->len;
 	} while (i);
 
-	/* Trigger interrupt after last block */
+	/* Trigger an interrupt after the last block is transfered */
 	lli->ctllo |= IDMA64C_CTLL_INT_EN;
+
+	/* Disable LLP transfer in the last block */
+	lli->ctllo &= ~(IDMA64C_CTLL_LLP_S_EN | IDMA64C_CTLL_LLP_D_EN);
 }
 
 static struct dma_async_tx_descriptor *idma64_prep_slave_sg(
@@ -501,6 +496,13 @@ static int idma64_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
+static void idma64_synchronize(struct dma_chan *chan)
+{
+	struct idma64_chan *idma64c = to_idma64_chan(chan);
+
+	vchan_synchronize(&idma64c->vchan);
+}
+
 static int idma64_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct idma64_chan *idma64c = to_idma64_chan(chan);
@@ -588,6 +590,7 @@ static int idma64_probe(struct idma64_chip *chip)
 	idma64->dma.device_pause = idma64_pause;
 	idma64->dma.device_resume = idma64_resume;
 	idma64->dma.device_terminate_all = idma64_terminate_all;
+	idma64->dma.device_synchronize = idma64_synchronize;
 
 	idma64->dma.src_addr_widths = IDMA64_BUSWIDTHS;
 	idma64->dma.dst_addr_widths = IDMA64_BUSWIDTHS;
@@ -595,6 +598,8 @@ static int idma64_probe(struct idma64_chip *chip)
 	idma64->dma.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 
 	idma64->dma.dev = chip->dev;
+
+	dma_set_max_seg_size(idma64->dma.dev, IDMA64C_CTLH_BLOCK_TS_MASK);
 
 	ret = dma_async_device_register(&idma64->dma);
 	if (ret)
@@ -673,8 +678,7 @@ static int idma64_platform_remove(struct platform_device *pdev)
 
 static int idma64_pm_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct idma64_chip *chip = platform_get_drvdata(pdev);
+	struct idma64_chip *chip = dev_get_drvdata(dev);
 
 	idma64_off(chip->idma64);
 	return 0;
@@ -682,8 +686,7 @@ static int idma64_pm_suspend(struct device *dev)
 
 static int idma64_pm_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct idma64_chip *chip = platform_get_drvdata(pdev);
+	struct idma64_chip *chip = dev_get_drvdata(dev);
 
 	idma64_on(chip->idma64);
 	return 0;

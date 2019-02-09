@@ -1,7 +1,7 @@
 /*
  * P5040DS Device Tree Source
  *
- * Copyright 2012 - 2014 Freescale Semiconductor Inc.
+ * Copyright 2012 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,6 +40,32 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
+
+	aliases{
+		phy_sgmii_slot2_1c = &phy_sgmii_slot2_1c;
+		phy_sgmii_slot2_1d = &phy_sgmii_slot2_1d;
+		phy_sgmii_slot2_1e = &phy_sgmii_slot2_1e;
+		phy_sgmii_slot2_1f = &phy_sgmii_slot2_1f;
+		phy_sgmii_slot3_1c = &phy_sgmii_slot3_1c;
+		phy_sgmii_slot3_1d = &phy_sgmii_slot3_1d;
+		phy_sgmii_slot3_1e = &phy_sgmii_slot3_1e;
+		phy_sgmii_slot3_1f = &phy_sgmii_slot3_1f;
+		phy_sgmii_slot5_1c = &phy_sgmii_slot5_1c;
+		phy_sgmii_slot5_1d = &phy_sgmii_slot5_1d;
+		phy_sgmii_slot5_1e = &phy_sgmii_slot5_1e;
+		phy_sgmii_slot5_1f = &phy_sgmii_slot5_1f;
+		phy_sgmii_slot6_1c = &phy_sgmii_slot6_1c;
+		phy_sgmii_slot6_1d = &phy_sgmii_slot6_1d;
+		phy_sgmii_slot6_1e = &phy_sgmii_slot6_1e;
+		phy_sgmii_slot6_1f = &phy_sgmii_slot6_1f;
+		hydra_rg = &hydra_rg;
+		hydra_sg_slot2 = &hydra_sg_slot2;
+		hydra_sg_slot3 = &hydra_sg_slot3;
+		hydra_sg_slot5 = &hydra_sg_slot5;
+		hydra_sg_slot6 = &hydra_sg_slot6;
+		hydra_xg_slot1 = &hydra_xg_slot1;
+		hydra_xg_slot2 = &hydra_xg_slot2;
+	};
 
 	memory {
 		device_type = "memory";
@@ -83,7 +109,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "spansion,s25sl12801";
+				compatible = "spansion,s25sl12801", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <40000000>; /* input clock */
 				partition@u-boot {
@@ -107,11 +133,11 @@
 
 		i2c@118100 {
 			eeprom@51 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x51>;
 			};
 			eeprom@52 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x52>;
 			};
 		};
@@ -145,6 +171,62 @@
 			adt7461@4c {
 				compatible = "adi,adt7461";
 				reg = <0x4c>;
+			};
+		};
+
+		fman@400000 {
+			ethernet@e0000 {
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e8000 {
+				phy-handle = <&phy_rgmii_0>;
+				phy-connection-type = "rgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&phy_xgmii_slot_2>;
+				phy-connection-type = "xgmii";
+			};
+		};
+
+		fman@500000 {
+			ethernet@e0000 {
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e8000 {
+				phy-handle = <&phy_rgmii_1>;
+				phy-connection-type = "rgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&phy_xgmii_slot_1>;
+				phy-connection-type = "xgmii";
 			};
 		};
 	};
@@ -200,8 +282,158 @@
 		};
 
 		board-control@3,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			compatible = "fsl,p5040ds-fpga", "fsl,fpga-ngpixis";
 			reg = <3 0 0x40>;
+			ranges = <0 3 0 0x40>;
+
+			mdio-mux-emi1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "mdio-mux-mmioreg", "mdio-mux";
+				mdio-parent-bus = <&mdio0>;
+				reg = <9 1>;
+				mux-mask = <0x78>;
+
+				hydra_rg:rgmii-mdio@8 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <8>;
+					status = "disabled";
+
+					phy_rgmii_0: ethernet-phy@0 {
+						reg = <0x0>;
+					};
+
+					phy_rgmii_1: ethernet-phy@1 {
+						reg = <0x1>;
+					};
+				};
+
+				hydra_sg_slot2: sgmii-mdio@28 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x28>;
+					status = "disabled";
+
+					phy_sgmii_slot2_1c: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					phy_sgmii_slot2_1d: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					phy_sgmii_slot2_1e: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					phy_sgmii_slot2_1f: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+
+				hydra_sg_slot3: sgmii-mdio@68 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x68>;
+					status = "disabled";
+
+					phy_sgmii_slot3_1c: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					phy_sgmii_slot3_1d: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					phy_sgmii_slot3_1e: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					phy_sgmii_slot3_1f: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+
+				hydra_sg_slot5: sgmii-mdio@38 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x38>;
+					status = "disabled";
+
+					phy_sgmii_slot5_1c: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					phy_sgmii_slot5_1d: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					phy_sgmii_slot5_1e: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					phy_sgmii_slot5_1f: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+				hydra_sg_slot6: sgmii-mdio@48 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x48>;
+					status = "disabled";
+
+					phy_sgmii_slot6_1c: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					phy_sgmii_slot6_1d: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					phy_sgmii_slot6_1e: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					phy_sgmii_slot6_1f: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+			};
+
+			mdio-mux-emi2 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "mdio-mux-mmioreg", "mdio-mux";
+				mdio-parent-bus = <&xmdio0>;
+				reg = <9 1>;
+				mux-mask = <0x06>;
+
+				hydra_xg_slot1: hydra-xg-slot1@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+					status = "disabled";
+
+					phy_xgmii_slot_1: ethernet-phy@0 {
+						compatible = "ethernet-phy-ieee802.3-c45";
+						reg = <4>;
+					};
+				};
+
+				hydra_xg_slot2: hydra-xg-slot2@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <2>;
+
+					phy_xgmii_slot_2: ethernet-phy@4 {
+						compatible = "ethernet-phy-ieee802.3-c45";
+						reg = <0>;
+					};
+				};
+			};
 		};
 	};
 

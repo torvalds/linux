@@ -1,5 +1,5 @@
 perf-sched(1)
-==============
+=============
 
 NAME
 ----
@@ -8,11 +8,11 @@ perf-sched - Tool to trace/measure scheduler properties (latencies)
 SYNOPSIS
 --------
 [verse]
-'perf sched' {record|latency|map|replay|script}
+'perf sched' {record|latency|map|replay|script|timehist}
 
 DESCRIPTION
 -----------
-There are five variants of perf sched:
+There are several variants of 'perf sched':
 
   'perf sched record <command>' to record the scheduling events
   of an arbitrary workload.
@@ -36,6 +36,30 @@ There are five variants of perf sched:
   are running on a CPU. A '*' denotes the CPU that had the event, and
   a dot signals an idle CPU.
 
+  'perf sched timehist' provides an analysis of scheduling events.
+    
+    Example usage:
+        perf sched record -- sleep 1
+        perf sched timehist
+    
+   By default it shows the individual schedule events, including the wait
+   time (time between sched-out and next sched-in events for the task), the
+   task scheduling delay (time between wakeup and actually running) and run
+   time for the task:
+    
+                time    cpu  task name             wait time  sch delay   run time
+                             [tid/pid]                (msec)     (msec)     (msec)
+      -------------- ------  --------------------  ---------  ---------  ---------
+        79371.874569 [0011]  gcc[31949]                0.014      0.000      1.148
+        79371.874591 [0010]  gcc[31951]                0.000      0.000      0.024
+        79371.874603 [0010]  migration/10[59]          3.350      0.004      0.011
+        79371.874604 [0011]  <idle>                    1.148      0.000      0.035
+        79371.874723 [0005]  <idle>                    0.016      0.000      1.383
+        79371.874746 [0005]  gcc[31949]                0.153      0.078      0.022
+    ...
+    
+   Times are in msec.usec.
+
 OPTIONS
 -------
 -i::
@@ -49,6 +73,94 @@ OPTIONS
 -D::
 --dump-raw-trace=::
         Display verbose dump of the sched data.
+
+-f::
+--force::
+	Don't complain, do it.
+
+OPTIONS for 'perf sched map'
+----------------------------
+
+--compact::
+	Show only CPUs with activity. Helps visualizing on high core
+	count systems.
+
+--cpus::
+	Show just entries with activities for the given CPUs.
+
+--color-cpus::
+	Highlight the given cpus.
+
+--color-pids::
+	Highlight the given pids.
+
+OPTIONS for 'perf sched timehist'
+---------------------------------
+-k::
+--vmlinux=<file>::
+    vmlinux pathname
+
+--kallsyms=<file>::
+    kallsyms pathname
+
+-g::
+--call-graph::
+	Display call chains if present (default on).
+
+--max-stack::
+	Maximum number of functions to display in backtrace, default 5.
+
+-p=::
+--pid=::
+	Only show events for given process ID (comma separated list).
+
+-t=::
+--tid=::
+	Only show events for given thread ID (comma separated list).
+
+-s::
+--summary::
+    Show only a summary of scheduling by thread with min, max, and average
+    run times (in sec) and relative stddev.
+
+-S::
+--with-summary::
+    Show all scheduling events followed by a summary by thread with min,
+    max, and average run times (in sec) and relative stddev.
+
+--symfs=<directory>::
+    Look for files with symbols relative to this directory.
+
+-V::
+--cpu-visual::
+	Show visual aid for sched switches by CPU: 'i' marks idle time,
+	's' are scheduler events.
+
+-w::
+--wakeups::
+	Show wakeup events.
+
+-M::
+--migrations::
+	Show migration events.
+
+-n::
+--next::
+	Show next task.
+
+-I::
+--idle-hist::
+	Show idle-related events only.
+
+--time::
+	Only analyze samples within given time window: <start>,<stop>. Times
+	have the format seconds.microseconds. If start is not given (i.e., time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	to end of file.
+
+--state::
+	Show task state when it switched out.
 
 SEE ALSO
 --------

@@ -1,11 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_ALTERNATIVE_H
 #define _ASM_X86_ALTERNATIVE_H
+
+#ifndef __ASSEMBLY__
 
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/stringify.h>
 #include <asm/asm.h>
-#include <asm/ptrace.h>
 
 /*
  * Alternative inline assembly for SMP.
@@ -102,12 +104,12 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	alt_end_marker ":\n"
 
 /*
- * max without conditionals. Idea adapted from:
+ * gas compatible max based on the idea from:
  * http://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax
  *
- * The additional "-" is needed because gas works with s32s.
+ * The additional "-" is needed because gas uses a "true" value of -1.
  */
-#define alt_max_short(a, b)	"((" a ") ^ (((" a ") ^ (" b ")) & -(-((" a ") - (" b ")))))"
+#define alt_max_short(a, b)	"((" a ") ^ (((" a ") ^ (" b ")) & -(-((" a ") < (" b ")))))"
 
 /*
  * Pad the second replacement alternative with additional NOPs if it is
@@ -138,7 +140,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	".popsection\n"							\
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(newinstr, feature, 1)			\
-	".popsection"
+	".popsection\n"
 
 #define ALTERNATIVE_2(oldinstr, newinstr1, feature1, newinstr2, feature2)\
 	OLDINSTR_2(oldinstr, 1, 2)					\
@@ -149,13 +151,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(newinstr1, feature1, 1)			\
 	ALTINSTR_REPLACEMENT(newinstr2, feature2, 2)			\
-	".popsection"
-
-/*
- * This must be included *after* the definition of ALTERNATIVE due to
- * <asm/arch_hweight.h>
- */
-#include <asm/cpufeature.h>
+	".popsection\n"
 
 /*
  * Alternative instructions for different CPU types or capabilities.
@@ -224,8 +220,9 @@ static inline int alternatives_text_reserved(void *start, void *end)
 			   output, input...)				      \
 	asm volatile (ALTERNATIVE_2("call %P[old]", "call %P[new1]", feature1,\
 		"call %P[new2]", feature2)				      \
-		: output : [old] "i" (oldfunc), [new1] "i" (newfunc1),	      \
-		[new2] "i" (newfunc2), ## input)
+		: output, ASM_CALL_CONSTRAINT				      \
+		: [old] "i" (oldfunc), [new1] "i" (newfunc1),		      \
+		  [new2] "i" (newfunc2), ## input)
 
 /*
  * use this macro(s) if you need more than one output parameter
@@ -239,36 +236,6 @@ static inline int alternatives_text_reserved(void *start, void *end)
  */
 #define ASM_NO_INPUT_CLOBBER(clbr...) "i" (0) : clbr
 
-struct paravirt_patch_site;
-#ifdef CONFIG_PARAVIRT
-void apply_paravirt(struct paravirt_patch_site *start,
-		    struct paravirt_patch_site *end);
-#else
-static inline void apply_paravirt(struct paravirt_patch_site *start,
-				  struct paravirt_patch_site *end)
-{}
-#define __parainstructions	NULL
-#define __parainstructions_end	NULL
-#endif
-
-extern void *text_poke_early(void *addr, const void *opcode, size_t len);
-
-/*
- * Clear and restore the kernel write-protection flag on the local CPU.
- * Allows the kernel to edit read-only pages.
- * Side-effect: any interrupt handler running between save and restore will have
- * the ability to write to read-only pages.
- *
- * Warning:
- * Code patching in the UP case is safe if NMIs and MCE handlers are stopped and
- * no thread can be preempted in the instructions being modified (no iret to an
- * invalid instruction possible) or if the instructions are changed from a
- * consistent state to another consistent state atomically.
- * On the local CPU you need to be protected again NMI or MCE handlers seeing an
- * inconsistent instruction while you patch.
- */
-extern void *text_poke(void *addr, const void *opcode, size_t len);
-extern int poke_int3_handler(struct pt_regs *regs);
-extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
+#endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_X86_ALTERNATIVE_H */

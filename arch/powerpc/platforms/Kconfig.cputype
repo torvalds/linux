@@ -1,7 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC64
 	bool "64-bit kernel"
 	default n
-	select HAVE_VIRT_CPU_ACCOUNTING
 	select ZLIB_DEFLATE
 	help
 	  This option selects whether a 32-bit or a 64-bit kernel
@@ -33,8 +33,7 @@ config PPC_85xx
 config PPC_8xx
 	bool "Freescale 8xx"
 	select FSL_SOC
-	select 8xx
-	select PPC_LIB_RHEAP
+	select SYS_SUPPORTS_HUGETLBFS
 
 config 40x
 	bool "AMCC 40x"
@@ -62,7 +61,7 @@ choice
 	help
 	  There are two families of 64 bit PowerPC chips supported.
 	  The most common ones are the desktop and server CPUs
-	  (POWER4, POWER5, 970, POWER5+, POWER6, POWER7, POWER8 ...)
+	  (POWER5, 970, POWER5+, POWER6, POWER7, POWER8, POWER9 ...)
 
 	  The other are the "embedded" processors compliant with the
 	  "Book 3E" variant of the architecture
@@ -72,7 +71,7 @@ config PPC_BOOK3S_64
 	select PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
 	select SYS_SUPPORTS_HUGETLBFS
-	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if PPC_64K_PAGES
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select IRQ_WORK
 
@@ -86,7 +85,6 @@ endchoice
 
 choice
 	prompt "CPU selection"
-	depends on PPC64
 	default GENERIC_CPU
 	help
 	  This will create a kernel which is optimised for a particular CPU.
@@ -95,15 +93,20 @@ choice
 	  If unsure, select Generic.
 
 config GENERIC_CPU
-	bool "Generic"
-	depends on !CPU_LITTLE_ENDIAN
+	bool "Generic (POWER4 and above)"
+	depends on PPC64 && !CPU_LITTLE_ENDIAN
+
+config GENERIC_CPU
+	bool "Generic (POWER8 and above)"
+	depends on PPC64 && CPU_LITTLE_ENDIAN
+	select ARCH_HAS_FAST_MULTIPLIER
+
+config GENERIC_CPU
+	bool "Generic 32 bits powerpc"
+	depends on PPC32 && !PPC_8xx
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
-	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
-
-config POWER4_CPU
-	bool "POWER4"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER5_CPU
@@ -124,6 +127,11 @@ config POWER8_CPU
 	depends on PPC_BOOK3S_64
 	select ARCH_HAS_FAST_MULTIPLIER
 
+config POWER9_CPU
+	bool "POWER9"
+	depends on PPC_BOOK3S_64
+	select ARCH_HAS_FAST_MULTIPLIER
+
 config E5500_CPU
 	bool "Freescale e5500"
 	depends on E500
@@ -132,7 +140,36 @@ config E6500_CPU
 	bool "Freescale e6500"
 	depends on E500
 
+config 860_CPU
+	bool "8xx family"
+	depends on PPC_8xx
+
+config E300C2_CPU
+	bool "e300c2 (832x)"
+	depends on PPC_BOOK3S_32
+
+config E300C3_CPU
+	bool "e300c3 (831x)"
+	depends on PPC_BOOK3S_32
+
 endchoice
+
+config TARGET_CPU_BOOL
+	bool
+	default !GENERIC_CPU
+
+config TARGET_CPU
+	string
+	depends on TARGET_CPU_BOOL
+	default "cell" if CELL_CPU
+	default "power5" if POWER5_CPU
+	default "power6" if POWER6_CPU
+	default "power7" if POWER7_CPU
+	default "power8" if POWER8_CPU
+	default "power9" if POWER9_CPU
+	default "860" if 860_CPU
+	default "e300c2" if E300C2_CPU
+	default "e300c3" if E300C3_CPU
 
 config PPC_BOOK3S
 	def_bool y
@@ -146,10 +183,6 @@ config 6xx
 	def_bool y
 	depends on PPC32 && PPC_BOOK3S
 	select PPC_HAVE_PMU_SUPPORT
-
-# this is temp to handle compat with arch=ppc
-config 8xx
-	bool
 
 config E500
 	select FSL_EMB_PERFMON
@@ -220,6 +253,7 @@ config PTE_64BIT
 config PHYS_64BIT
 	bool 'Large physical address support' if E500 || PPC_86xx
 	depends on (44x || E500 || PPC_86xx) && !PPC_83xx && !PPC_82xx
+	select PHYS_ADDR_T_64BIT
 	---help---
 	  This option enables kernel support for larger than 32-bit physical
 	  addresses.  This feature may not be available on all cores.
@@ -262,43 +296,6 @@ config VSX
 
 	  If in doubt, say Y here.
 
-config PPC_ICSWX
-	bool "Support for PowerPC icswx coprocessor instruction"
-	depends on PPC_BOOK3S_64
-	default n
-	---help---
-
-	  This option enables kernel support for the PowerPC Initiate
-	  Coprocessor Store Word (icswx) coprocessor instruction on POWER7
-	  or newer processors.
-
-	  This option is only useful if you have a processor that supports
-	  the icswx coprocessor instruction. It does not have any effect
-	  on processors without the icswx coprocessor instruction.
-
-	  This option slightly increases kernel memory usage.
-
-	  If in doubt, say N here.
-
-config PPC_ICSWX_PID
-	bool "icswx requires direct PID management"
-	depends on PPC_ICSWX
-	default y
-	---help---
-	  The PID register in server is used explicitly for ICSWX.  In
-	  embedded systems PID management is done by the system.
-
-config PPC_ICSWX_USE_SIGILL
-	bool "Should a bad CT cause a SIGILL?"
-	depends on PPC_ICSWX
-	default n
-	---help---
-	  Should a bad CT used for "non-record form ICSWX" cause an
-	  illegal instruction signal or should it be silent as
-	  architected.
-
-	  If in doubt, say N here.
-
 config SPE_POSSIBLE
 	def_bool y
 	depends on E200 || (E500 && !PPC_E500MC)
@@ -327,9 +324,37 @@ config PPC_STD_MMU_32
 	def_bool y
 	depends on PPC_STD_MMU && PPC32
 
-config PPC_STD_MMU_64
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 	def_bool y
-	depends on PPC_STD_MMU && PPC64
+	depends on PPC_BOOK3S_64
+
+config PPC_RADIX_MMU
+	bool "Radix MMU Support"
+	depends on PPC_BOOK3S_64
+	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
+	default y
+	help
+	  Enable support for the Power ISA 3.0 Radix style MMU. Currently this
+	  is only implemented by IBM Power9 CPUs, if you don't have one of them
+	  you can probably disable this.
+
+config PPC_RADIX_MMU_DEFAULT
+	bool "Default to using the Radix MMU when possible"
+	depends on PPC_RADIX_MMU
+	default y
+	help
+	  When the hardware supports the Radix MMU, default to using it unless
+	  "disable_radix[=yes]" is specified on the kernel command line.
+
+	  If this option is disabled, the Hash MMU will be used by default,
+	  unless "disable_radix=no" is specified on the kernel command line.
+
+	  If you're unsure, say Y.
+
+config ARCH_ENABLE_HUGEPAGE_MIGRATION
+	def_bool y
+	depends on PPC_BOOK3S_64 && HUGETLB_PAGE && MIGRATION
+
 
 config PPC_MMU_NOHASH
 	def_bool y
@@ -341,7 +366,8 @@ config PPC_BOOK3E_MMU
 
 config PPC_MM_SLICES
 	bool
-	default y if (!PPC_FSL_BOOK3E && PPC64 && HUGETLB_PAGE) || (PPC_STD_MMU_64 && PPC_64K_PAGES)
+	default y if PPC_BOOK3S_64
+	default y if PPC_8xx && HUGETLB_PAGE
 	default n
 
 config PPC_HAVE_PMU_SUPPORT
@@ -353,9 +379,16 @@ config PPC_PERF_CTRS
        help
          This enables the powerpc-specific perf_event back-end.
 
+config FORCE_SMP
+	# Allow platforms to force SMP=y by selecting this
+	bool
+	default n
+	select SMP
+
 config SMP
 	depends on PPC_BOOK3S || PPC_BOOK3E || FSL_BOOKE || PPC_47x
-	bool "Symmetric multi-processing support"
+	select GENERIC_IRQ_MIGRATION
+	bool "Symmetric multi-processing support" if !FORCE_SMP
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
@@ -381,7 +414,7 @@ config NR_CPUS
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || 8xx || E200 || PPC_MPC512x || GAMECUBE_COMMON
+	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || GAMECUBE_COMMON
 	default n if PPC_47x
 	default y
 

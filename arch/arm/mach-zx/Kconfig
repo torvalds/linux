@@ -1,5 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig ARCH_ZX
-	bool "ZTE ZX family" if ARCH_MULTI_V7
+	bool "ZTE ZX family"
+	depends on ARCH_MULTI_V7
 	help
 	  Support for ZTE ZX-based family of processors. TV
 	  set-top-box processor is supported. More will be

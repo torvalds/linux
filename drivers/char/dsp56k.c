@@ -325,7 +325,7 @@ static long dsp56k_ioctl(struct file *file, unsigned int cmd,
 			if(get_user(bin, &binary->bin) < 0)
 				return -EFAULT;
 		
-			if (len == 0) {
+			if (len <= 0) {
 				return -EINVAL;      /* nothing to upload?!? */
 			}
 			if (len > DSP56K_MAX_BINARY_LENGTH) {
@@ -406,7 +406,7 @@ static long dsp56k_ioctl(struct file *file, unsigned int cmd,
  * Do I need this function at all???
  */
 #if 0
-static unsigned int dsp56k_poll(struct file *file, poll_table *wait)
+static __poll_t dsp56k_poll(struct file *file, poll_table *wait)
 {
 	int dev = iminor(file_inode(file)) & 0x0f;
 
@@ -414,7 +414,7 @@ static unsigned int dsp56k_poll(struct file *file, poll_table *wait)
 	{
 	case DSP56K_DEV_56001:
 		/* poll_wait(file, ???, wait); */
-		return POLLIN | POLLRDNORM | POLLOUT;
+		return EPOLLIN | EPOLLRDNORM | EPOLLOUT;
 
 	default:
 		printk("DSP56k driver: Unknown minor device: %d\n", dev);
@@ -489,7 +489,7 @@ static const struct file_operations dsp56k_fops = {
 
 /****** Init and module functions ******/
 
-static char banner[] __initdata = KERN_INFO "DSP56k driver installed\n";
+static const char banner[] __initconst = KERN_INFO "DSP56k driver installed\n";
 
 static int __init dsp56k_init_driver(void)
 {

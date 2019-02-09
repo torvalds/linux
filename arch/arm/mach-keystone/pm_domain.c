@@ -18,6 +18,8 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 
+#include "keystone.h"
+
 static struct dev_pm_domain keystone_pm_domain = {
 	.ops = {
 		USE_PM_CLK_RUNTIME_OPS
@@ -27,10 +29,13 @@ static struct dev_pm_domain keystone_pm_domain = {
 
 static struct pm_clk_notifier_block platform_domain_notifier = {
 	.pm_domain = &keystone_pm_domain,
+	.con_ids = { NULL },
 };
 
 static const struct of_device_id of_keystone_table[] = {
-	{.compatible = "ti,keystone"},
+	{.compatible = "ti,k2hk"},
+	{.compatible = "ti,k2e"},
+	{.compatible = "ti,k2l"},
 	{ /* end of list */ },
 };
 

@@ -1,0 +1,98 @@
+/*
+ * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&msmgpio {
+	blsp1_uart2_default: blsp1_uart2_default {
+		pinmux {
+			function = "blsp_uart2";
+			pins = "gpio4", "gpio5";
+		};
+		pinconf {
+			pins = "gpio4", "gpio5";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	blsp1_uart2_sleep: blsp1_uart2_sleep {
+		pinmux {
+			function = "gpio";
+			pins = "gpio4", "gpio5";
+		};
+		pinconf {
+			pins = "gpio4", "gpio5";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	/* 0-3 for sdc1 4-6 for sdc2 */
+	/* Order of pins */
+	/* SDC1: CLK -> 0, CMD -> 1, DATA -> 2, RCLK -> 3 */
+	/* SDC2: CLK -> 4, CMD -> 5, DATA -> 6 */
+	sdc1_clk_on: clk-on {
+		pinconf {
+			pins = "sdc1_clk";
+			bias-disable = <0>; /* No pull */
+			drive-strength = <16>; /* 16mA */
+		};
+	};
+
+	sdc1_clk_off: clk-off {
+		pinconf {
+			pins = "sdc1_clk";
+			bias-disable = <0>; /* No pull */
+			drive-strength = <2>; /* 2mA */
+		};
+	};
+
+	sdc1_cmd_on: cmd-on {
+		pinconf {
+			pins = "sdc1_cmd";
+			bias-pull-up;
+			drive-strength = <8>;
+		};
+	};
+
+	sdc1_cmd_off: cmd-off {
+		pinconf {
+			pins = "sdc1_cmd";
+			bias-pull-up = <0x3>; /* same as 3.10 ?? */
+			drive-strength = <2>; /* 2mA */
+		};
+	};
+
+	sdc1_data_on: data-on {
+		pinconf {
+			pins = "sdc1_data";
+			bias-pull-up;
+			drive-strength = <8>; /* 8mA */
+		};
+	};
+
+	sdc1_data_off: data-off {
+		pinconf {
+			pins = "sdc1_data";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	sdc1_rclk_on: rclk-on {
+		bias-pull-down; /* pull down */
+	};
+
+	sdc1_rclk_off: rclk-off {
+		bias-pull-down; /* pull down */
+	};
+};

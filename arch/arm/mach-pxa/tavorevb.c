@@ -24,7 +24,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa930.h>
+#include "pxa930.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/keypad-pxa27x.h>
 

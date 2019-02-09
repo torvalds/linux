@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MPSPEC_H
 #define _ASM_X86_MPSPEC_H
 
@@ -6,7 +7,6 @@
 #include <asm/x86_init.h>
 #include <asm/apicdef.h>
 
-extern int apic_version[];
 extern int pic_mode;
 
 #ifdef CONFIG_X86_32
@@ -40,6 +40,7 @@ extern int mp_bus_id_to_type[MAX_MP_BUSSES];
 extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 
 extern unsigned int boot_cpu_physical_apicid;
+extern u8 boot_cpu_apic_version;
 extern unsigned long mp_lapic_addr;
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -64,7 +65,7 @@ static inline void find_smp_config(void)
 }
 
 #ifdef CONFIG_X86_MPPARSE
-extern void early_reserve_e820_mpc_new(void);
+extern void e820__memblock_alloc_reserved_mpc_new(void);
 extern int enable_update_mptable;
 extern int default_mpc_apic_id(struct mpc_cpu *m);
 extern void default_smp_read_mpc_oem(struct mpc_table *mpc);
@@ -76,7 +77,7 @@ extern void default_mpc_oem_bus_info(struct mpc_bus *m, char *str);
 extern void default_find_smp_config(void);
 extern void default_get_smp_config(unsigned int early);
 #else
-static inline void early_reserve_e820_mpc_new(void) { }
+static inline void e820__memblock_alloc_reserved_mpc_new(void) { }
 #define enable_update_mptable 0
 #define default_mpc_apic_id NULL
 #define default_smp_read_mpc_oem NULL

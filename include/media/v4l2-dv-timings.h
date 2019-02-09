@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * v4l2-dv-timings - Internal header with dv-timings helper functions
  *
  * Copyright 2013 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
  */
 
 #ifndef __V4L2_DV_TIMINGS_H
@@ -29,7 +16,7 @@
 extern const struct v4l2_dv_timings v4l2_dv_timings_presets[];
 
 /**
- * v4l2_check_dv_timings_fnc - timings check callback
+ * typedef v4l2_check_dv_timings_fnc - timings check callback
  *
  * @t: the v4l2_dv_timings struct.
  * @handle: a handle from the driver.
@@ -101,18 +88,30 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 			      void *fnc_handle);
 
 /**
+ * v4l2_find_dv_timings_cea861_vic() - find timings based on CEA-861 VIC
+ * @t:		the timings data.
+ * @vic:	CEA-861 VIC code
+ *
+ * On success it will fill in @t with the found timings and it returns true.
+ * On failure it will return false.
+ */
+bool v4l2_find_dv_timings_cea861_vic(struct v4l2_dv_timings *t, u8 vic);
+
+/**
  * v4l2_match_dv_timings() - do two timings match?
  *
  * @measured:	  the measured timings data.
  * @standard:	  the timings according to the standard.
  * @pclock_delta: maximum delta in Hz between standard->pixelclock and
- * 		the measured timings.
+ *		the measured timings.
+ * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
+ * match.
  *
  * Returns true if the two timings match, returns false otherwise.
  */
 bool v4l2_match_dv_timings(const struct v4l2_dv_timings *measured,
 			   const struct v4l2_dv_timings *standard,
-			   unsigned pclock_delta);
+			   unsigned pclock_delta, bool match_reduced_fps);
 
 /**
  * v4l2_print_dv_timings() - log the contents of a dv_timings struct
@@ -182,5 +181,57 @@ bool v4l2_detect_gtf(unsigned frame_height, unsigned hfreq, unsigned vsync,
  * "Horizontal and Vertical Screen Size or Aspect Ratio"
  */
 struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait);
+
+/**
+ * v4l2_dv_timings_aspect_ratio - calculate the aspect ratio based on the
+ *	v4l2_dv_timings information.
+ *
+ * @t: the timings data.
+ */
+struct v4l2_fract v4l2_dv_timings_aspect_ratio(const struct v4l2_dv_timings *t);
+
+/**
+ * can_reduce_fps - check if conditions for reduced fps are true.
+ * @bt: v4l2 timing structure
+ *
+ * For different timings reduced fps is allowed if the following conditions
+ * are met:
+ *
+ *   - For CVT timings: if reduced blanking v2 (vsync == 8) is true.
+ *   - For CEA861 timings: if %V4L2_DV_FL_CAN_REDUCE_FPS flag is true.
+ */
+static inline  bool can_reduce_fps(struct v4l2_bt_timings *bt)
+{
+	if ((bt->standards & V4L2_DV_BT_STD_CVT) && (bt->vsync == 8))
+		return true;
+
+	if ((bt->standards & V4L2_DV_BT_STD_CEA861) &&
+	    (bt->flags & V4L2_DV_FL_CAN_REDUCE_FPS))
+		return true;
+
+	return false;
+}
+
+/**
+ * struct v4l2_hdmi_rx_colorimetry - describes the HDMI colorimetry information
+ * @colorspace:		enum v4l2_colorspace, the colorspace
+ * @ycbcr_enc:		enum v4l2_ycbcr_encoding, Y'CbCr encoding
+ * @quantization:	enum v4l2_quantization, colorspace quantization
+ * @xfer_func:		enum v4l2_xfer_func, colorspace transfer function
+ */
+struct v4l2_hdmi_colorimetry {
+	enum v4l2_colorspace colorspace;
+	enum v4l2_ycbcr_encoding ycbcr_enc;
+	enum v4l2_quantization quantization;
+	enum v4l2_xfer_func xfer_func;
+};
+
+struct hdmi_avi_infoframe;
+struct hdmi_vendor_infoframe;
+
+struct v4l2_hdmi_colorimetry
+v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
+			 const struct hdmi_vendor_infoframe *hdmi,
+			 unsigned int height);
 
 #endif

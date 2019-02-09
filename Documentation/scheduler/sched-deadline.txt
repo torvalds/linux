@@ -7,6 +7,8 @@ CONTENTS
  0. WARNING
  1. Overview
  2. Scheduling algorithm
+   2.1 Main algorithm
+   2.2 Bandwidth reclaiming
  3. Scheduling Real-Time Tasks
    3.1 Definitions
    3.2 Schedulability Analysis for Uniprocessor Systems
@@ -16,6 +18,7 @@ CONTENTS
    4.1 System-wide settings
    4.2 Task interface
    4.3 Default behavior
+   4.4 Behavior of sched_yield()
  5. Tasks CPU affinity
    5.1 SCHED_DEADLINE and cpusets HOWTO
  6. Future plans
@@ -43,7 +46,10 @@ CONTENTS
 2. Scheduling algorithm
 ==================
 
- SCHED_DEADLINE uses three parameters, named "runtime", "period", and
+2.1 Main algorithm
+------------------
+
+ SCHED_DEADLINE [18] uses three parameters, named "runtime", "period", and
  "deadline", to schedule tasks. A SCHED_DEADLINE task should receive
  "runtime" microseconds of execution time every "period" microseconds, and
  these "runtime" microseconds are available within "deadline" microseconds
@@ -110,6 +116,184 @@ CONTENTS
 
          scheduling deadline = scheduling deadline + period
          remaining runtime = remaining runtime + runtime
+
+ The SCHED_FLAG_DL_OVERRUN flag in sched_attr's sched_flags field allows a task
+ to get informed about runtime overruns through the delivery of SIGXCPU
+ signals.
+
+
+2.2 Bandwidth reclaiming
+------------------------
+
+ Bandwidth reclaiming for deadline tasks is based on the GRUB (Greedy
+ Reclamation of Unused Bandwidth) algorithm [15, 16, 17] and it is enabled
+ when flag SCHED_FLAG_RECLAIM is set.
+
+ The following diagram illustrates the state names for tasks handled by GRUB:
+
+                             ------------
+                 (d)        |   Active   |
+              ------------->|            |
+              |             | Contending |
+              |              ------------
+              |                A      |
+          ----------           |      |
+         |          |          |      |
+         | Inactive |          |(b)   | (a)
+         |          |          |      |
+          ----------           |      |
+              A                |      V
+              |              ------------
+              |             |   Active   |
+              --------------|     Non    |
+                 (c)        | Contending |
+                             ------------
+
+ A task can be in one of the following states:
+
+  - ActiveContending: if it is ready for execution (or executing);
+
+  - ActiveNonContending: if it just blocked and has not yet surpassed the 0-lag
+    time;
+
+  - Inactive: if it is blocked and has surpassed the 0-lag time.
+
+ State transitions:
+
+  (a) When a task blocks, it does not become immediately inactive since its
+      bandwidth cannot be immediately reclaimed without breaking the
+      real-time guarantees. It therefore enters a transitional state called
+      ActiveNonContending. The scheduler arms the "inactive timer" to fire at
+      the 0-lag time, when the task's bandwidth can be reclaimed without
+      breaking the real-time guarantees.
+
+      The 0-lag time for a task entering the ActiveNonContending state is
+      computed as
+
+                        (runtime * dl_period)
+             deadline - ---------------------
+                             dl_runtime
+
+      where runtime is the remaining runtime, while dl_runtime and dl_period
+      are the reservation parameters.
+
+  (b) If the task wakes up before the inactive timer fires, the task re-enters
+      the ActiveContending state and the "inactive timer" is canceled.
+      In addition, if the task wakes up on a different runqueue, then
+      the task's utilization must be removed from the previous runqueue's active
+      utilization and must be added to the new runqueue's active utilization.
+      In order to avoid races between a task waking up on a runqueue while the
+       "inactive timer" is running on a different CPU, the "dl_non_contending"
+      flag is used to indicate that a task is not on a runqueue but is active
+      (so, the flag is set when the task blocks and is cleared when the
+      "inactive timer" fires or when the task  wakes up).
+
+  (c) When the "inactive timer" fires, the task enters the Inactive state and
+      its utilization is removed from the runqueue's active utilization.
+
+  (d) When an inactive task wakes up, it enters the ActiveContending state and
+      its utilization is added to the active utilization of the runqueue where
+      it has been enqueued.
+
+ For each runqueue, the algorithm GRUB keeps track of two different bandwidths:
+
+  - Active bandwidth (running_bw): this is the sum of the bandwidths of all
+    tasks in active state (i.e., ActiveContending or ActiveNonContending);
+
+  - Total bandwidth (this_bw): this is the sum of all tasks "belonging" to the
+    runqueue, including the tasks in Inactive state.
+
+
+ The algorithm reclaims the bandwidth of the tasks in Inactive state.
+ It does so by decrementing the runtime of the executing task Ti at a pace equal
+ to
+
+           dq = -max{ Ui / Umax, (1 - Uinact - Uextra) } dt
+
+ where:
+
+  - Ui is the bandwidth of task Ti;
+  - Umax is the maximum reclaimable utilization (subjected to RT throttling
+    limits);
+  - Uinact is the (per runqueue) inactive utilization, computed as
+    (this_bq - running_bw);
+  - Uextra is the (per runqueue) extra reclaimable utilization
+    (subjected to RT throttling limits).
+
+
+ Let's now see a trivial example of two deadline tasks with runtime equal
+ to 4 and period equal to 8 (i.e., bandwidth equal to 0.5):
+
+     A            Task T1
+     |
+     |                               |
+     |                               |
+     |--------                       |----
+     |       |                       V
+     |---|---|---|---|---|---|---|---|--------->t
+     0   1   2   3   4   5   6   7   8
+
+
+     A            Task T2
+     |
+     |                               |
+     |                               |
+     |       ------------------------|
+     |       |                       V
+     |---|---|---|---|---|---|---|---|--------->t
+     0   1   2   3   4   5   6   7   8
+
+
+     A            running_bw
+     |
+   1 -----------------               ------
+     |               |               |
+  0.5-               -----------------
+     |                               |
+     |---|---|---|---|---|---|---|---|--------->t
+     0   1   2   3   4   5   6   7   8
+
+
+  - Time t = 0:
+
+    Both tasks are ready for execution and therefore in ActiveContending state.
+    Suppose Task T1 is the first task to start execution.
+    Since there are no inactive tasks, its runtime is decreased as dq = -1 dt.
+
+  - Time t = 2:
+
+    Suppose that task T1 blocks
+    Task T1 therefore enters the ActiveNonContending state. Since its remaining
+    runtime is equal to 2, its 0-lag time is equal to t = 4.
+    Task T2 start execution, with runtime still decreased as dq = -1 dt since
+    there are no inactive tasks.
+
+  - Time t = 4:
+
+    This is the 0-lag time for Task T1. Since it didn't woken up in the
+    meantime, it enters the Inactive state. Its bandwidth is removed from
+    running_bw.
+    Task T2 continues its execution. However, its runtime is now decreased as
+    dq = - 0.5 dt because Uinact = 0.5.
+    Task T2 therefore reclaims the bandwidth unused by Task T1.
+
+  - Time t = 8:
+
+    Task T1 wakes up. It enters the ActiveContending state again, and the
+    running_bw is incremented.
+
+
+2.3 Energy-aware scheduling
+------------------------
+
+ When cpufreq's schedutil governor is selected, SCHED_DEADLINE implements the
+ GRUB-PA [19] algorithm, reducing the CPU operating frequency to the minimum
+ value that still allows to meet the deadlines. This behavior is currently
+ implemented only for ARM architectures.
+
+ A particular care must be taken in case the time needed for changing frequency
+ is of the same order of magnitude of the reservation period. In such cases,
+ setting a fixed CPU frequency results in a lower amount of deadline misses.
 
 
 3. Scheduling Real-Time Tasks
@@ -329,6 +513,21 @@ CONTENTS
   14 - J. Erickson, U. Devi and S. Baruah. Improved tardiness bounds for
        Global EDF. Proceedings of the 22nd Euromicro Conference on
        Real-Time Systems, 2010.
+  15 - G. Lipari, S. Baruah, Greedy reclamation of unused bandwidth in
+       constant-bandwidth servers, 12th IEEE Euromicro Conference on Real-Time
+       Systems, 2000.
+  16 - L. Abeni, J. Lelli, C. Scordino, L. Palopoli, Greedy CPU reclaiming for
+       SCHED DEADLINE. In Proceedings of the Real-Time Linux Workshop (RTLWS),
+       Dusseldorf, Germany, 2014.
+  17 - L. Abeni, G. Lipari, A. Parri, Y. Sun, Multicore CPU reclaiming: parallel
+       or sequential?. In Proceedings of the 31st Annual ACM Symposium on Applied
+       Computing, 2016.
+  18 - J. Lelli, C. Scordino, L. Abeni, D. Faggioli, Deadline scheduling in the
+       Linux kernel, Software: Practice and Experience, 46(6): 821-839, June
+       2016.
+  19 - C. Scordino, L. Abeni, J. Lelli, Energy-Aware Real-Time Scheduling in
+       the Linux Kernel, 33rd ACM/SIGAPP Symposium On Applied Computing (SAC
+       2018), Pau, France, April 2018.
 
 
 4. Bandwidth management
@@ -407,6 +606,11 @@ CONTENTS
   * the new scheduling related syscalls that manipulate it, i.e.,
     sched_setattr() and sched_getattr() are implemented.
 
+ For debugging purposes, the leftover runtime and absolute deadline of a
+ SCHED_DEADLINE task can be retrieved through /proc/<pid>/sched (entries
+ dl.runtime and dl.deadline, both values in ns). A programmatic way to
+ retrieve these values from production code is under discussion.
+
 
 4.3 Default behavior
 ---------------------
@@ -426,12 +630,29 @@ CONTENTS
  Finally, notice that in order not to jeopardize the admission control a
  -deadline task cannot fork.
 
+
+4.4 Behavior of sched_yield()
+-----------------------------
+
+ When a SCHED_DEADLINE task calls sched_yield(), it gives up its
+ remaining runtime and is immediately throttled, until the next
+ period, when its runtime will be replenished (a special flag
+ dl_yielded is set and used to handle correctly throttling and runtime
+ replenishment after a call to sched_yield()).
+
+ This behavior of sched_yield() allows the task to wake-up exactly at
+ the beginning of the next period. Also, this may be useful in the
+ future with bandwidth reclaiming mechanisms, where sched_yield() will
+ make the leftoever runtime available for reclamation by other
+ SCHED_DEADLINE tasks.
+
+
 5. Tasks CPU affinity
 =====================
 
  -deadline tasks cannot have an affinity mask smaller that the entire
  root_domain they are created on. However, affinities can be specified
- through the cpuset facility (Documentation/cgroups/cpusets.txt).
+ through the cpuset facility (Documentation/cgroup-v1/cpusets.txt).
 
 5.1 SCHED_DEADLINE and cpusets HOWTO
 ------------------------------------
@@ -458,6 +679,7 @@ CONTENTS
 
  Still missing:
 
+  - programmatic way to retrieve current runtime and absolute deadline
   - refinements to deadline inheritance, especially regarding the possibility
     of retaining bandwidth isolation among non-interacting tasks. This is
     being studied from both theoretical and practical points of view, and

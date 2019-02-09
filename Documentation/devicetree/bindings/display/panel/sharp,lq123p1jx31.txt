@@ -1,0 +1,7 @@
+Sharp 12.3" (2400x1600 pixels) TFT LCD panel
+
+Required properties:
+- compatible: should be "sharp,lq123p1jx31"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

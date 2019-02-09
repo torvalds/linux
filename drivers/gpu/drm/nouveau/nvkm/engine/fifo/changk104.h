@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __GK104_FIFO_CHAN_H__
 #define __GK104_FIFO_CHAN_H__
 #define gk104_fifo_chan(p) container_of((p), struct gk104_fifo_chan, base)
@@ -7,23 +8,32 @@
 struct gk104_fifo_chan {
 	struct nvkm_fifo_chan base;
 	struct gk104_fifo *fifo;
-	int engine;
+	int runl;
 
+	struct nvkm_fifo_cgrp *cgrp;
 	struct list_head head;
 	bool killed;
 
-	struct nvkm_gpuobj *pgd;
-	struct nvkm_vm *vm;
-
 	struct {
 		struct nvkm_gpuobj *inst;
-		struct nvkm_vma vma;
+		struct nvkm_vma *vma;
 	} engn[NVKM_SUBDEV_NR];
 };
 
-int gk104_fifo_gpfifo_new(struct nvkm_fifo *, const struct nvkm_oclass *,
-			  void *data, u32 size, struct nvkm_object **);
+extern const struct nvkm_fifo_chan_func gk104_fifo_gpfifo_func;
 
-extern const struct nvkm_fifo_chan_oclass gk104_fifo_gpfifo_oclass;
-extern const struct nvkm_fifo_chan_oclass gm204_fifo_gpfifo_oclass;
+int gk104_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
+			  void *data, u32 size, struct nvkm_object **);
+void *gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *);
+void gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *);
+void gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *);
+int gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *, struct nvkm_engine *,
+				  struct nvkm_object *);
+void gk104_fifo_gpfifo_engine_dtor(struct nvkm_fifo_chan *,
+				   struct nvkm_engine *);
+int gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *);
+int gk104_fifo_gpfifo_kick_locked(struct gk104_fifo_chan *);
+
+int gv100_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
+			  void *data, u32 size, struct nvkm_object **);
 #endif

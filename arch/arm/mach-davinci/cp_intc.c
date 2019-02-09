@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -19,7 +20,7 @@
 #include <linux/of_irq.h>
 
 #include <mach/common.h>
-#include <mach/cp_intc.h>
+#include "cp_intc.h"
 
 static inline unsigned int cp_intc_read(unsigned offset)
 {
@@ -210,3 +211,5 @@ void __init cp_intc_init(void)
 {
 	cp_intc_of_init(NULL, NULL);
 }
+
+IRQCHIP_DECLARE(cp_intc, "ti,cp-intc", cp_intc_of_init);

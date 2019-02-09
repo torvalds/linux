@@ -72,7 +72,6 @@
 
 
 struct txx9spi {
-	struct workqueue_struct	*workqueue;
 	struct work_struct work;
 	spinlock_t lock;	/* protect 'queue' */
 	struct list_head queue;
@@ -315,7 +314,7 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 
 	spin_lock_irqsave(&c->lock, flags);
 	list_add_tail(&m->queue, &c->queue);
-	queue_work(c->workqueue, &c->work);
+	schedule_work(&c->work);
 	spin_unlock_irqrestore(&c->lock, flags);
 
 	return 0;
@@ -347,7 +346,7 @@ static int txx9spi_probe(struct platform_device *dev)
 		c->clk = NULL;
 		goto exit;
 	}
-	ret = clk_enable(c->clk);
+	ret = clk_prepare_enable(c->clk);
 	if (ret) {
 		c->clk = NULL;
 		goto exit;
@@ -374,10 +373,6 @@ static int txx9spi_probe(struct platform_device *dev)
 	if (ret)
 		goto exit;
 
-	c->workqueue = create_singlethread_workqueue(
-				dev_name(master->dev.parent));
-	if (!c->workqueue)
-		goto exit_busy;
 	c->last_chipselect = -1;
 
 	dev_info(&dev->dev, "at %#llx, irq %d, %dMHz\n",
@@ -400,9 +395,7 @@ static int txx9spi_probe(struct platform_device *dev)
 exit_busy:
 	ret = -EBUSY;
 exit:
-	if (c->workqueue)
-		destroy_workqueue(c->workqueue);
-	clk_disable(c->clk);
+	clk_disable_unprepare(c->clk);
 	spi_master_put(master);
 	return ret;
 }
@@ -412,8 +405,8 @@ static int txx9spi_remove(struct platform_device *dev)
 	struct spi_master *master = platform_get_drvdata(dev);
 	struct txx9spi *c = spi_master_get_devdata(master);
 
-	destroy_workqueue(c->workqueue);
-	clk_disable(c->clk);
+	flush_work(&c->work);
+	clk_disable_unprepare(c->clk);
 	return 0;
 }
 

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * System Trace Module (STM) master/channel allocation policy management
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * A master/channel allocation policy allows mapping string identifiers to
  * master and channel ranges, where allocation can be done.
@@ -107,8 +99,7 @@ stp_policy_node_masters_store(struct config_item *item, const char *page,
 		goto unlock;
 
 	/* must be within [sw_start..sw_end], which is an inclusive range */
-	if (first > INT_MAX || last > INT_MAX || first > last ||
-	    first < stm->data->sw_start ||
+	if (first > last || first < stm->data->sw_start ||
 	    last > stm->data->sw_end) {
 		ret = -ERANGE;
 		goto unlock;
@@ -188,8 +179,8 @@ static struct configfs_attribute *stp_policy_node_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type stp_policy_type;
-static struct config_item_type stp_policy_node_type;
+static const struct config_item_type stp_policy_type;
+static const struct config_item_type stp_policy_node_type;
 
 static struct config_group *
 stp_policy_node_make(struct config_group *group, const char *name)
@@ -237,7 +228,7 @@ static struct configfs_group_operations stp_policy_node_group_ops = {
 	.drop_item	= stp_policy_node_drop,
 };
 
-static struct config_item_type stp_policy_node_type = {
+static const struct config_item_type stp_policy_node_type = {
 	.ct_item_ops	= &stp_policy_node_item_ops,
 	.ct_group_ops	= &stp_policy_node_group_ops,
 	.ct_attrs	= stp_policy_node_attrs,
@@ -272,13 +263,17 @@ void stp_policy_unbind(struct stp_policy *policy)
 {
 	struct stm_device *stm = policy->stm;
 
+	/*
+	 * stp_policy_release() will not call here if the policy is already
+	 * unbound; other users should not either, as no link exists between
+	 * this policy and anything else in that case
+	 */
 	if (WARN_ON_ONCE(!policy->stm))
 		return;
 
-	mutex_lock(&stm->policy_mutex);
-	stm->policy = NULL;
-	mutex_unlock(&stm->policy_mutex);
+	lockdep_assert_held(&stm->policy_mutex);
 
+	stm->policy = NULL;
 	policy->stm = NULL;
 
 	stm_put_device(stm);
@@ -287,8 +282,16 @@ void stp_policy_unbind(struct stp_policy *policy)
 static void stp_policy_release(struct config_item *item)
 {
 	struct stp_policy *policy = to_stp_policy(item);
+	struct stm_device *stm = policy->stm;
 
+	/* a policy *can* be unbound and still exist in configfs tree */
+	if (!stm)
+		return;
+
+	mutex_lock(&stm->policy_mutex);
 	stp_policy_unbind(policy);
+	mutex_unlock(&stm->policy_mutex);
+
 	kfree(policy);
 }
 
@@ -300,7 +303,7 @@ static struct configfs_group_operations stp_policy_group_ops = {
 	.make_group	= stp_policy_node_make,
 };
 
-static struct config_item_type stp_policy_type = {
+static const struct config_item_type stp_policy_type = {
 	.ct_item_ops	= &stp_policy_item_ops,
 	.ct_group_ops	= &stp_policy_group_ops,
 	.ct_attrs	= stp_policy_attrs,
@@ -320,16 +323,17 @@ stp_policies_make(struct config_group *group, const char *name)
 
 	/*
 	 * node must look like <device_name>.<policy_name>, where
-	 * <device_name> is the name of an existing stm device and
-	 * <policy_name> is an arbitrary string
+	 * <device_name> is the name of an existing stm device; may
+	 *               contain dots;
+	 * <policy_name> is an arbitrary string; may not contain dots
 	 */
-	p = strchr(devname, '.');
+	p = strrchr(devname, '.');
 	if (!p) {
 		kfree(devname);
 		return ERR_PTR(-EINVAL);
 	}
 
-	*p++ = '\0';
+	*p = '\0';
 
 	stm = stm_find_device(devname);
 	kfree(devname);
@@ -368,7 +372,7 @@ static struct configfs_group_operations stp_policies_group_ops = {
 	.make_group	= stp_policies_make,
 };
 
-static struct config_item_type stp_policies_type = {
+static const struct config_item_type stp_policies_type = {
 	.ct_group_ops	= &stp_policies_group_ops,
 	.ct_owner	= THIS_MODULE,
 };

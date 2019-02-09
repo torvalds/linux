@@ -229,7 +229,7 @@
 						};
 						partition@84000 {
 							label = "user";
-							reg = <0x00000000 0x01f7c000>;
+							reg = <0x00084000 0x01f7c000>;
 						};
 					};
 				};
@@ -406,7 +406,7 @@
 	};
 
 	chosen {
-		linux,stdout-path = "/plb/opb/serial@ef600300";
+		stdout-path = "/plb/opb/serial@ef600300";
 		bootargs = "console=ttyS0,115200";
 	};
 };

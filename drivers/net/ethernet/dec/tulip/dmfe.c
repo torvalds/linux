@@ -90,7 +90,7 @@
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq.h>
 
 #ifdef CONFIG_TULIP_DM910X
@@ -191,9 +191,6 @@
 #define CHK_IO_SIZE(pci_dev) \
 	(__CHK_IO_SIZE(((pci_dev)->device << 16) | (pci_dev)->vendor, \
 	(pci_dev)->revision))
-
-/* Sten Check */
-#define DEVICE net_device
 
 /* Structure/enum declaration ------------------------------- */
 struct tx_desc {
@@ -313,10 +310,10 @@ static u8 SF_mode;		/* Special Function: 1:VLAN, 2:RX Flow Control
 
 
 /* function declaration ------------------------------------- */
-static int dmfe_open(struct DEVICE *);
-static netdev_tx_t dmfe_start_xmit(struct sk_buff *, struct DEVICE *);
-static int dmfe_stop(struct DEVICE *);
-static void dmfe_set_filter_mode(struct DEVICE *);
+static int dmfe_open(struct net_device *);
+static netdev_tx_t dmfe_start_xmit(struct sk_buff *, struct net_device *);
+static int dmfe_stop(struct net_device *);
+static void dmfe_set_filter_mode(struct net_device *);
 static const struct ethtool_ops netdev_ethtool_ops;
 static u16 read_srom_word(void __iomem *, int);
 static irqreturn_t dmfe_interrupt(int , void *);
@@ -326,22 +323,22 @@ static void poll_dmfe (struct net_device *dev);
 static void dmfe_descriptor_init(struct net_device *);
 static void allocate_rx_buffer(struct net_device *);
 static void update_cr6(u32, void __iomem *);
-static void send_filter_frame(struct DEVICE *);
-static void dm9132_id_table(struct DEVICE *);
+static void send_filter_frame(struct net_device *);
+static void dm9132_id_table(struct net_device *);
 static u16 dmfe_phy_read(void __iomem *, u8, u8, u32);
 static void dmfe_phy_write(void __iomem *, u8, u8, u16, u32);
 static void dmfe_phy_write_1bit(void __iomem *, u32);
 static u16 dmfe_phy_read_1bit(void __iomem *);
 static u8 dmfe_sense_speed(struct dmfe_board_info *);
 static void dmfe_process_mode(struct dmfe_board_info *);
-static void dmfe_timer(unsigned long);
+static void dmfe_timer(struct timer_list *);
 static inline u32 cal_CRC(unsigned char *, unsigned int, u8);
-static void dmfe_rx_packet(struct DEVICE *, struct dmfe_board_info *);
-static void dmfe_free_tx_pkt(struct DEVICE *, struct dmfe_board_info *);
+static void dmfe_rx_packet(struct net_device *, struct dmfe_board_info *);
+static void dmfe_free_tx_pkt(struct net_device *, struct dmfe_board_info *);
 static void dmfe_reuse_skb(struct dmfe_board_info *, struct sk_buff *);
-static void dmfe_dynamic_reset(struct DEVICE *);
+static void dmfe_dynamic_reset(struct net_device *);
 static void dmfe_free_rxbuffer(struct dmfe_board_info *);
-static void dmfe_init_dm910x(struct DEVICE *);
+static void dmfe_init_dm910x(struct net_device *);
 static void dmfe_parse_srom(struct dmfe_board_info *);
 static void dmfe_program_DM9801(struct dmfe_board_info *, int);
 static void dmfe_program_DM9802(struct dmfe_board_info *);
@@ -355,7 +352,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_stop		= dmfe_stop,
 	.ndo_start_xmit		= dmfe_start_xmit,
 	.ndo_set_rx_mode	= dmfe_set_filter_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -558,7 +554,7 @@ static void dmfe_remove_one(struct pci_dev *pdev)
  *	The interface is opened whenever "ifconfig" actives it.
  */
 
-static int dmfe_open(struct DEVICE *dev)
+static int dmfe_open(struct net_device *dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
 	const int irq = db->pdev->irq;
@@ -600,10 +596,8 @@ static int dmfe_open(struct DEVICE *dev)
 	netif_wake_queue(dev);
 
 	/* set and active a timer process */
-	init_timer(&db->timer);
+	timer_setup(&db->timer, dmfe_timer, 0);
 	db->timer.expires = DMFE_TIMER_WUT + HZ * 2;
-	db->timer.data = (unsigned long)dev;
-	db->timer.function = dmfe_timer;
 	add_timer(&db->timer);
 
 	return 0;
@@ -617,7 +611,7 @@ static int dmfe_open(struct DEVICE *dev)
  *	Enable Tx/Rx machine
  */
 
-static void dmfe_init_dm910x(struct DEVICE *dev)
+static void dmfe_init_dm910x(struct net_device *dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
 	void __iomem *ioaddr = db->ioaddr;
@@ -684,7 +678,7 @@ static void dmfe_init_dm910x(struct DEVICE *dev)
  */
 
 static netdev_tx_t dmfe_start_xmit(struct sk_buff *skb,
-					 struct DEVICE *dev)
+					 struct net_device *dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
 	void __iomem *ioaddr = db->ioaddr;
@@ -728,7 +722,7 @@ static netdev_tx_t dmfe_start_xmit(struct sk_buff *skb,
 		txptr->tdes0 = cpu_to_le32(0x80000000);	/* Set owner bit */
 		db->tx_packet_cnt++;			/* Ready to send */
 		dw32(DCR1, 0x1);			/* Issue Tx polling */
-		dev->trans_start = jiffies;		/* saved time stamp */
+		netif_trans_update(dev);		/* saved time stamp */
 	} else {
 		db->tx_queue_cnt++;			/* queue TX packet */
 		dw32(DCR1, 0x1);			/* Issue Tx polling */
@@ -754,7 +748,7 @@ static netdev_tx_t dmfe_start_xmit(struct sk_buff *skb,
  *	The interface is stopped when it is brought.
  */
 
-static int dmfe_stop(struct DEVICE *dev)
+static int dmfe_stop(struct net_device *dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
 	void __iomem *ioaddr = db->ioaddr;
@@ -798,7 +792,7 @@ static int dmfe_stop(struct DEVICE *dev)
 
 static irqreturn_t dmfe_interrupt(int irq, void *dev_id)
 {
-	struct DEVICE *dev = dev_id;
+	struct net_device *dev = dev_id;
 	struct dmfe_board_info *db = netdev_priv(dev);
 	void __iomem *ioaddr = db->ioaddr;
 	unsigned long flags;
@@ -879,7 +873,7 @@ static void poll_dmfe (struct net_device *dev)
  *	Free TX resource after TX complete
  */
 
-static void dmfe_free_tx_pkt(struct DEVICE *dev, struct dmfe_board_info * db)
+static void dmfe_free_tx_pkt(struct net_device *dev, struct dmfe_board_info *db)
 {
 	struct tx_desc *txptr;
 	void __iomem *ioaddr = db->ioaddr;
@@ -934,7 +928,7 @@ static void dmfe_free_tx_pkt(struct DEVICE *dev, struct dmfe_board_info * db)
 		db->tx_packet_cnt++;			/* Ready to send */
 		db->tx_queue_cnt--;
 		dw32(DCR1, 0x1);			/* Issue Tx polling */
-		dev->trans_start = jiffies;		/* saved time stamp */
+		netif_trans_update(dev);		/* saved time stamp */
 	}
 
 	/* Resource available check */
@@ -961,7 +955,7 @@ static inline u32 cal_CRC(unsigned char * Data, unsigned int Len, u8 flag)
  *	Receive the come packet and pass to upper layer
  */
 
-static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
+static void dmfe_rx_packet(struct net_device *dev, struct dmfe_board_info *db)
 {
 	struct rx_desc *rxptr;
 	struct sk_buff *skb, *newskb;
@@ -1052,7 +1046,7 @@ static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
  * Set DM910X multicast address
  */
 
-static void dmfe_set_filter_mode(struct DEVICE * dev)
+static void dmfe_set_filter_mode(struct net_device *dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
 	unsigned long flags;
@@ -1134,10 +1128,10 @@ static const struct ethtool_ops netdev_ethtool_ops = {
  *	Dynamic media sense, allocate Rx buffer...
  */
 
-static void dmfe_timer(unsigned long data)
+static void dmfe_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct dmfe_board_info *db = netdev_priv(dev);
+	struct dmfe_board_info *db = from_timer(db, t, timer);
+	struct net_device *dev = pci_get_drvdata(db->pdev);
 	void __iomem *ioaddr = db->ioaddr;
 	u32 tmp_cr8;
 	unsigned char tmp_cr12;
@@ -1545,7 +1539,7 @@ static void send_filter_frame(struct net_device *dev)
 		update_cr6(db->cr6_data | 0x2000, ioaddr);
 		dw32(DCR1, 0x1);	/* Issue Tx polling */
 		update_cr6(db->cr6_data, ioaddr);
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 	} else
 		db->tx_queue_cnt++;	/* Put in TX queue */
 }

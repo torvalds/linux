@@ -68,7 +68,7 @@ static int rtc_suspend(struct device *dev)
 		return 0;
 	}
 
-	getnstimeofday64(&old_system);
+	ktime_get_real_ts64(&old_system);
 	old_rtc.tv_sec = rtc_tm_to_time64(&tm);
 
 
@@ -110,7 +110,7 @@ static int rtc_resume(struct device *dev)
 		return 0;
 
 	/* snapshot the current rtc and system time at resume */
-	getnstimeofday64(&new_system);
+	ktime_get_real_ts64(&new_system);
 	err = rtc_read_time(rtc, &tm);
 	if (err < 0) {
 		pr_debug("%s:  fail to read rtc time\n", dev_name(&rtc->dev));
@@ -150,6 +150,132 @@ static SIMPLE_DEV_PM_OPS(rtc_class_dev_pm_ops, rtc_suspend, rtc_resume);
 #define RTC_CLASS_DEV_PM_OPS	NULL
 #endif
 
+/* Ensure the caller will set the id before releasing the device */
+static struct rtc_device *rtc_allocate_device(void)
+{
+	struct rtc_device *rtc;
+
+	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
+	if (!rtc)
+		return NULL;
+
+	device_initialize(&rtc->dev);
+
+	/* Drivers can revise this default after allocating the device. */
+	rtc->set_offset_nsec =  NSEC_PER_SEC / 2;
+
+	rtc->irq_freq = 1;
+	rtc->max_user_freq = 64;
+	rtc->dev.class = rtc_class;
+	rtc->dev.groups = rtc_get_dev_attribute_groups();
+	rtc->dev.release = rtc_device_release;
+
+	mutex_init(&rtc->ops_lock);
+	spin_lock_init(&rtc->irq_lock);
+	init_waitqueue_head(&rtc->irq_queue);
+
+	/* Init timerqueue */
+	timerqueue_init_head(&rtc->timerqueue);
+	INIT_WORK(&rtc->irqwork, rtc_timer_do_work);
+	/* Init aie timer */
+	rtc_timer_init(&rtc->aie_timer, rtc_aie_update_irq, (void *)rtc);
+	/* Init uie timer */
+	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, (void *)rtc);
+	/* Init pie timer */
+	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	rtc->pie_timer.function = rtc_pie_update_irq;
+	rtc->pie_enabled = 0;
+
+	return rtc;
+}
+
+static int rtc_device_get_id(struct device *dev)
+{
+	int of_id = -1, id = -1;
+
+	if (dev->of_node)
+		of_id = of_alias_get_id(dev->of_node, "rtc");
+	else if (dev->parent && dev->parent->of_node)
+		of_id = of_alias_get_id(dev->parent->of_node, "rtc");
+
+	if (of_id >= 0) {
+		id = ida_simple_get(&rtc_ida, of_id, of_id + 1, GFP_KERNEL);
+		if (id < 0)
+			dev_warn(dev, "/aliases ID %d not available\n", of_id);
+	}
+
+	if (id < 0)
+		id = ida_simple_get(&rtc_ida, 0, 0, GFP_KERNEL);
+
+	return id;
+}
+
+static void rtc_device_get_offset(struct rtc_device *rtc)
+{
+	time64_t range_secs;
+	u32 start_year;
+	int ret;
+
+	/*
+	 * If RTC driver did not implement the range of RTC hardware device,
+	 * then we can not expand the RTC range by adding or subtracting one
+	 * offset.
+	 */
+	if (rtc->range_min == rtc->range_max)
+		return;
+
+	ret = device_property_read_u32(rtc->dev.parent, "start-year",
+				       &start_year);
+	if (!ret) {
+		rtc->start_secs = mktime64(start_year, 1, 1, 0, 0, 0);
+		rtc->set_start_time = true;
+	}
+
+	/*
+	 * If user did not implement the start time for RTC driver, then no
+	 * need to expand the RTC range.
+	 */
+	if (!rtc->set_start_time)
+		return;
+
+	range_secs = rtc->range_max - rtc->range_min + 1;
+
+	/*
+	 * If the start_secs is larger than the maximum seconds (rtc->range_max)
+	 * supported by RTC hardware or the maximum seconds of new expanded
+	 * range (start_secs + rtc->range_max - rtc->range_min) is less than
+	 * rtc->range_min, which means the minimum seconds (rtc->range_min) of
+	 * RTC hardware will be mapped to start_secs by adding one offset, so
+	 * the offset seconds calculation formula should be:
+	 * rtc->offset_secs = rtc->start_secs - rtc->range_min;
+	 *
+	 * If the start_secs is larger than the minimum seconds (rtc->range_min)
+	 * supported by RTC hardware, then there is one region is overlapped
+	 * between the original RTC hardware range and the new expanded range,
+	 * and this overlapped region do not need to be mapped into the new
+	 * expanded range due to it is valid for RTC device. So the minimum
+	 * seconds of RTC hardware (rtc->range_min) should be mapped to
+	 * rtc->range_max + 1, then the offset seconds formula should be:
+	 * rtc->offset_secs = rtc->range_max - rtc->range_min + 1;
+	 *
+	 * If the start_secs is less than the minimum seconds (rtc->range_min),
+	 * which is similar to case 2. So the start_secs should be mapped to
+	 * start_secs + rtc->range_max - rtc->range_min + 1, then the
+	 * offset seconds formula should be:
+	 * rtc->offset_secs = -(rtc->range_max - rtc->range_min + 1);
+	 *
+	 * Otherwise the offset seconds should be 0.
+	 */
+	if (rtc->start_secs > rtc->range_max ||
+	    rtc->start_secs + range_secs - 1 < rtc->range_min)
+		rtc->offset_secs = rtc->start_secs - rtc->range_min;
+	else if (rtc->start_secs > rtc->range_min)
+		rtc->offset_secs = range_secs;
+	else if (rtc->start_secs < rtc->range_min)
+		rtc->offset_secs = -range_secs;
+	else
+		rtc->offset_secs = 0;
+}
 
 /**
  * rtc_device_register - register w/ RTC class
@@ -166,31 +292,16 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 {
 	struct rtc_device *rtc;
 	struct rtc_wkalrm alrm;
-	int of_id = -1, id = -1, err;
+	int id, err;
 
-	if (dev->of_node)
-		of_id = of_alias_get_id(dev->of_node, "rtc");
-	else if (dev->parent && dev->parent->of_node)
-		of_id = of_alias_get_id(dev->parent->of_node, "rtc");
-
-	if (of_id >= 0) {
-		id = ida_simple_get(&rtc_ida, of_id, of_id + 1,
-				    GFP_KERNEL);
-		if (id < 0)
-			dev_warn(dev, "/aliases ID %d not available\n",
-				    of_id);
-	}
-
+	id = rtc_device_get_id(dev);
 	if (id < 0) {
-		id = ida_simple_get(&rtc_ida, 0, 0, GFP_KERNEL);
-		if (id < 0) {
-			err = id;
-			goto exit;
-		}
+		err = id;
+		goto exit;
 	}
 
-	rtc = kzalloc(sizeof(struct rtc_device), GFP_KERNEL);
-	if (rtc == NULL) {
+	rtc = rtc_allocate_device();
+	if (!rtc) {
 		err = -ENOMEM;
 		goto exit_ida;
 	}
@@ -198,32 +309,11 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->id = id;
 	rtc->ops = ops;
 	rtc->owner = owner;
-	rtc->irq_freq = 1;
-	rtc->max_user_freq = 64;
 	rtc->dev.parent = dev;
-	rtc->dev.class = rtc_class;
-	rtc->dev.groups = rtc_get_dev_attribute_groups();
-	rtc->dev.release = rtc_device_release;
 
-	mutex_init(&rtc->ops_lock);
-	spin_lock_init(&rtc->irq_lock);
-	spin_lock_init(&rtc->irq_task_lock);
-	init_waitqueue_head(&rtc->irq_queue);
-
-	/* Init timerqueue */
-	timerqueue_init_head(&rtc->timerqueue);
-	INIT_WORK(&rtc->irqwork, rtc_timer_do_work);
-	/* Init aie timer */
-	rtc_timer_init(&rtc->aie_timer, rtc_aie_update_irq, (void *)rtc);
-	/* Init uie timer */
-	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, (void *)rtc);
-	/* Init pie timer */
-	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	rtc->pie_timer.function = rtc_pie_update_irq;
-	rtc->pie_enabled = 0;
-
-	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
 	dev_set_name(&rtc->dev, "rtc%d", id);
+
+	rtc_device_get_offset(rtc);
 
 	/* Check to see if there is an ALARM already set in hw */
 	err = __rtc_read_alarm(rtc, &alrm);
@@ -233,18 +323,23 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 
 	rtc_dev_prepare(rtc);
 
-	err = device_register(&rtc->dev);
+	err = cdev_device_add(&rtc->char_dev, &rtc->dev);
 	if (err) {
+		dev_warn(&rtc->dev, "%s: failed to add char device %d:%d\n",
+			 name, MAJOR(rtc->dev.devt), rtc->id);
+
 		/* This will free both memory and the ID */
 		put_device(&rtc->dev);
 		goto exit;
+	} else {
+		dev_dbg(&rtc->dev, "%s: dev (%d:%d)\n", name,
+			MAJOR(rtc->dev.devt), rtc->id);
 	}
 
-	rtc_dev_add_device(rtc);
 	rtc_proc_add_device(rtc);
 
 	dev_info(dev, "rtc core: registered %s as %s\n",
-			rtc->name, dev_name(&rtc->dev));
+			name, dev_name(&rtc->dev));
 
 	return rtc;
 
@@ -271,9 +366,8 @@ void rtc_device_unregister(struct rtc_device *rtc)
 	 * Remove innards of this RTC, then disable it, before
 	 * letting any rtc_class_open() users access it again
 	 */
-	rtc_dev_del_device(rtc);
 	rtc_proc_del_device(rtc);
-	device_del(&rtc->dev);
+	cdev_device_del(&rtc->char_dev, &rtc->dev);
 	rtc->ops = NULL;
 	mutex_unlock(&rtc->ops_lock);
 	put_device(&rtc->dev);
@@ -284,6 +378,7 @@ static void devm_rtc_device_release(struct device *dev, void *res)
 {
 	struct rtc_device *rtc = *(struct rtc_device **)res;
 
+	rtc_nvmem_unregister(rtc);
 	rtc_device_unregister(rtc);
 }
 
@@ -350,6 +445,92 @@ void devm_rtc_device_unregister(struct device *dev, struct rtc_device *rtc)
 }
 EXPORT_SYMBOL_GPL(devm_rtc_device_unregister);
 
+static void devm_rtc_release_device(struct device *dev, void *res)
+{
+	struct rtc_device *rtc = *(struct rtc_device **)res;
+
+	rtc_nvmem_unregister(rtc);
+
+	if (rtc->registered)
+		rtc_device_unregister(rtc);
+	else
+		put_device(&rtc->dev);
+}
+
+struct rtc_device *devm_rtc_allocate_device(struct device *dev)
+{
+	struct rtc_device **ptr, *rtc;
+	int id, err;
+
+	id = rtc_device_get_id(dev);
+	if (id < 0)
+		return ERR_PTR(id);
+
+	ptr = devres_alloc(devm_rtc_release_device, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr) {
+		err = -ENOMEM;
+		goto exit_ida;
+	}
+
+	rtc = rtc_allocate_device();
+	if (!rtc) {
+		err = -ENOMEM;
+		goto exit_devres;
+	}
+
+	*ptr = rtc;
+	devres_add(dev, ptr);
+
+	rtc->id = id;
+	rtc->dev.parent = dev;
+	dev_set_name(&rtc->dev, "rtc%d", id);
+
+	return rtc;
+
+exit_devres:
+	devres_free(ptr);
+exit_ida:
+	ida_simple_remove(&rtc_ida, id);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(devm_rtc_allocate_device);
+
+int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
+{
+	struct rtc_wkalrm alrm;
+	int err;
+
+	if (!rtc->ops)
+		return -EINVAL;
+
+	rtc->owner = owner;
+	rtc_device_get_offset(rtc);
+
+	/* Check to see if there is an ALARM already set in hw */
+	err = __rtc_read_alarm(rtc, &alrm);
+	if (!err && !rtc_valid_tm(&alrm.time))
+		rtc_initialize_alarm(rtc, &alrm);
+
+	rtc_dev_prepare(rtc);
+
+	err = cdev_device_add(&rtc->char_dev, &rtc->dev);
+	if (err)
+		dev_warn(rtc->dev.parent, "failed to add char device %d:%d\n",
+			 MAJOR(rtc->dev.devt), rtc->id);
+	else
+		dev_dbg(rtc->dev.parent, "char device (%d:%d)\n",
+			MAJOR(rtc->dev.devt), rtc->id);
+
+	rtc_proc_add_device(rtc);
+
+	rtc->registered = true;
+	dev_info(rtc->dev.parent, "registered as %s\n",
+		 dev_name(&rtc->dev));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__rtc_register_device);
+
 static int __init rtc_init(void)
 {
 	rtc_class = class_create(THIS_MODULE, "rtc");
@@ -361,17 +542,4 @@ static int __init rtc_init(void)
 	rtc_dev_init();
 	return 0;
 }
-
-static void __exit rtc_exit(void)
-{
-	rtc_dev_exit();
-	class_destroy(rtc_class);
-	ida_destroy(&rtc_ida);
-}
-
 subsys_initcall(rtc_init);
-module_exit(rtc_exit);
-
-MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
-MODULE_DESCRIPTION("RTC class support");
-MODULE_LICENSE("GPL");

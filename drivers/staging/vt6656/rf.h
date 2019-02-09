@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: rf.h
  *
@@ -54,10 +40,10 @@
 #define VNT_RF_MAX_POWER    0x3f
 #define	VNT_RF_REG_LEN      0x17 /* 24 bit length */
 
-int vnt_rf_write_embedded(struct vnt_private *, u32);
-int vnt_rf_setpower(struct vnt_private *, u32, u32);
-int vnt_rf_set_txpower(struct vnt_private *, u8, u32);
-void vnt_rf_rssi_to_dbm(struct vnt_private *, u8, long *);
-void vnt_rf_table_download(struct vnt_private *);
+int vnt_rf_write_embedded(struct vnt_private *priv, u32 data);
+int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel);
+int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate);
+void vnt_rf_rssi_to_dbm(struct vnt_private *priv, u8 rssi, long *dbm);
+void vnt_rf_table_download(struct vnt_private *priv);
 
 #endif /* __RF_H__ */

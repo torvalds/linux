@@ -1,39 +1,27 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2003 Digi International (www.digi.com)
  *	Scott H Kilau <Scott_Kilau at digi dot com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- * PURPOSE.  See the GNU General Public License for more details.
  */
 
-#ifndef __DGNC_CLS_H
-#define __DGNC_CLS_H
+#ifndef _DGNC_CLS_H
+#define _DGNC_CLS_H
 
-/************************************************************************
- * Per channel/port Classic UART structure				*
- ************************************************************************
- *		Base Structure Entries Usage Meanings to Host		*
- *									*
- *	W = read write		R = read only				*
- *			U = Unused.					*
- ************************************************************************/
-
-/*
- * txrx    : WR RHR/THR - Holding reg
- * ier     : WR IER - Interrupt Enable Reg
- * isr_fcr : WR ISR/FCR - Interrupt Status Reg/Fifo Control Reg
- * lcr     : WR LCR - Line Control Reg
- * mcr     : WR MCR - Modem Control Reg
- * lsr     : WR LSR - Line Status Reg
- * msr     : WR MSG - Modem Status Reg
- * spr     : WR SPR - Scratch pad Reg
+/**
+ * struct cls_uart_struct - Per channel/port Classic UART.
+ *
+ * key - W = read write
+ *     - R = read only
+ *     - U = unused
+ *
+ * @txrx: (WR) Holding Register.
+ * @ier: (WR) Interrupt Enable Register.
+ * @isr_fcr: (WR) Interrupt Status Register/Fifo Control Register.
+ * @lcr: (WR) Line Control Register.
+ * @mcr: (WR) Modem Control Register.
+ * @lsr: (WR) Line Status Register.
+ * @msr: (WR) Modem Status Register.
+ * @spr: (WR) Scratch Pad Register.
  */
 struct cls_uart_struct {
 	u8 txrx;
@@ -69,14 +57,11 @@ struct cls_uart_struct {
 #define UART_EXAR654_EFR_IXON     0x2     /* Receiver compares Xon1/Xoff1 */
 #define UART_EXAR654_EFR_IXOFF    0x8     /* Transmit Xon1/Xoff1 */
 #define UART_EXAR654_EFR_RTSDTR   0x40    /* Auto RTS/DTR Flow Control Enable */
-#define UART_EXAR654_EFR_CTSDSR   0x80    /* Auto CTS/DSR Flow COntrol Enable */
+#define UART_EXAR654_EFR_CTSDSR   0x80    /* Auto CTS/DSR Flow Control Enable */
 #define UART_EXAR654_IER_XOFF     0x20    /* Xoff Interrupt Enable */
 #define UART_EXAR654_IER_RTSDTR   0x40    /* Output Interrupt Enable */
 #define UART_EXAR654_IER_CTSDSR   0x80    /* Input Interrupt Enable */
 
-/*
- * Our Global Variables
- */
 extern struct board_ops dgnc_cls_ops;
 
-#endif
+#endif	/* _DGNC_CLS_H */

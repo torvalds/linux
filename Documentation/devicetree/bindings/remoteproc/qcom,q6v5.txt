@@ -1,0 +1,151 @@
+Qualcomm Hexagon Peripheral Image Loader
+
+This document defines the binding for a component that loads and boots firmware
+on the Qualcomm Hexagon core.
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+		    "qcom,q6v5-pil",
+		    "qcom,ipq8074-wcss-pil"
+		    "qcom,msm8916-mss-pil",
+		    "qcom,msm8974-mss-pil"
+		    "qcom,msm8996-mss-pil"
+		    "qcom,sdm845-mss-pil"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: must specify the base address and size of the qdsp6 and
+		    rmb register blocks
+
+- reg-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "q6dsp" and "rmb"
+
+- interrupts-extended:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: must list the watchdog, fatal IRQs ready, handover and
+		    stop-ack IRQs
+
+- interrupt-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "wdog", "fatal", "ready", "handover", "stop-ack"
+
+- clocks:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the iface, bus and mem clocks to be held on
+		    behalf of the booting of the Hexagon core
+
+- clock-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "iface", "bus", "mem"
+
+- resets:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the reset-controller for the modem sub-system
+		    reference to the list of 3 reset-controllers for the
+		    wcss sub-system
+
+- reset-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "mss_restart" for the modem sub-system
+	Definition: must be "wcss_aon_reset", "wcss_reset", "wcss_q6_reset"
+		    for the wcss syb-system
+
+- cx-supply:
+- mss-supply:
+- mx-supply:
+- pll-supply:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the regulators to be held on behalf of the
+		    booting of the Hexagon core
+
+- qcom,smem-states:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the smem state for requesting the Hexagon to
+		    shut down
+
+- qcom,smem-state-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "stop"
+
+- qcom,halt-regs:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: a phandle reference to a syscon representing TCSR followed
+		    by the three offsets within syscon for q6, modem and nc
+		    halt registers.
+
+= SUBNODES:
+The Hexagon node must contain two subnodes, named "mba" and "mpss" representing
+the memory regions used by the Hexagon firmware. Each sub-node must contain:
+
+- memory-region:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the reserved-memory for the region
+
+The Hexagon node may also have an subnode named either "smd-edge" or
+"glink-edge" that describes the communication edge, channels and devices
+related to the Hexagon.  See ../soc/qcom/qcom,smd.txt and
+../soc/qcom/qcom,glink.txt for details on how to describe these.
+
+= EXAMPLE
+The following example describes the resources needed to boot control the
+Hexagon, as it is found on MSM8974 boards.
+
+	modem-rproc@fc880000 {
+		compatible = "qcom,q6v5-pil";
+		reg = <0xfc880000 0x100>,
+		      <0xfc820000 0x020>;
+		reg-names = "qdsp6", "rmb";
+
+		interrupts-extended = <&intc 0 24 1>,
+				      <&modem_smp2p_in 0 0>,
+				      <&modem_smp2p_in 1 0>,
+				      <&modem_smp2p_in 2 0>,
+				      <&modem_smp2p_in 3 0>;
+		interrupt-names = "wdog",
+				  "fatal",
+				  "ready",
+				  "handover",
+				  "stop-ack";
+
+		clocks = <&gcc GCC_MSS_Q6_BIMC_AXI_CLK>,
+			 <&gcc GCC_MSS_CFG_AHB_CLK>,
+			 <&gcc GCC_BOOT_ROM_AHB_CLK>;
+		clock-names = "iface", "bus", "mem";
+
+		qcom,halt-regs = <&tcsr_mutex_block 0x1180 0x1200 0x1280>;
+
+		resets = <&gcc GCC_MSS_RESTART>;
+		reset-names = "mss_restart";
+
+		cx-supply = <&pm8841_s2>;
+		mss-supply = <&pm8841_s3>;
+		mx-supply = <&pm8841_s1>;
+		pll-supply = <&pm8941_l12>;
+
+		qcom,smem-states = <&modem_smp2p_out 0>;
+		qcom,smem-state-names = "stop";
+
+		mba {
+			memory-region = <&mba_region>;
+		};
+
+		mpss {
+			memory-region = <&mpss_region>;
+		};
+	};

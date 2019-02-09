@@ -23,8 +23,12 @@ static int littlemill_set_bias_level(struct snd_soc_card *card,
 					  struct snd_soc_dapm_context *dapm,
 					  enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *aif1_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	aif1_dai = rtd->codec_dai;
 
 	if (dapm->dev != aif1_dai->dev)
 		return 0;
@@ -66,8 +70,12 @@ static int littlemill_set_bias_level_post(struct snd_soc_card *card,
 					       struct snd_soc_dapm_context *dapm,
 					       enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *aif1_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	aif1_dai = rtd->codec_dai;
 
 	if (dapm->dev != aif1_dai->dev)
 		return 0;
@@ -168,8 +176,12 @@ static int bbclk_ev(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_card *card = w->dapm->card;
-	struct snd_soc_dai *aif2_dai = card->rtd[1].cpu_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *aif2_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	aif2_dai = rtd->cpu_dai;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -245,10 +257,18 @@ static struct snd_soc_jack littlemill_headset;
 
 static int littlemill_late_probe(struct snd_soc_card *card)
 {
-	struct snd_soc_codec *codec = card->rtd[0].codec;
-	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
-	struct snd_soc_dai *aif2_dai = card->rtd[1].cpu_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_component *component;
+	struct snd_soc_dai *aif1_dai;
+	struct snd_soc_dai *aif2_dai;
 	int ret;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	component = rtd->codec_dai->component;
+	aif1_dai = rtd->codec_dai;
+
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	aif2_dai = rtd->cpu_dai;
 
 	ret = snd_soc_dai_set_sysclk(aif1_dai, WM8994_SYSCLK_MCLK2,
 				     32768, SND_SOC_CLOCK_IN);
@@ -270,10 +290,10 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 		return ret;
 
 	/* This will check device compatibility itself */
-	wm8958_mic_detect(codec, &littlemill_headset, NULL, NULL, NULL, NULL);
+	wm8958_mic_detect(component, &littlemill_headset, NULL, NULL, NULL, NULL);
 
 	/* As will this */
-	wm8994_mic_detect(codec, &littlemill_headset, 1);
+	wm8994_mic_detect(component, &littlemill_headset, 1);
 
 	return 0;
 }

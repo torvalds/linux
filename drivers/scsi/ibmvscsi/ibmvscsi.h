@@ -33,7 +33,7 @@
 #include <linux/list.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
-#include "viosrp.h"
+#include <scsi/viosrp.h>
 
 struct scsi_cmnd;
 struct Scsi_Host;
@@ -90,6 +90,7 @@ struct event_pool {
 
 /* all driver data associated with a host adapter */
 struct ibmvscsi_host_data {
+	struct list_head host_list;
 	atomic_t request_limit;
 	int client_migrated;
 	int reset_crq;

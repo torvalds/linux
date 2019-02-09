@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * memfd GUP test-case
  * This tests memfd interactions with get_user_pages(). We require the
@@ -32,14 +33,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define MFD_DEF_SIZE 8192
-#define STACK_SIZE 65535
+#include "common.h"
 
-static int sys_memfd_create(const char *name,
-			    unsigned int flags)
-{
-	return syscall(__NR_memfd_create, name, flags);
-}
+#define MFD_DEF_SIZE 8192
+#define STACK_SIZE 65536
+
+static size_t mfd_def_size = MFD_DEF_SIZE;
 
 static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
 {
@@ -126,7 +125,7 @@ static void *mfd_assert_mmap_shared(int fd)
 	void *p;
 
 	p = mmap(NULL,
-		 MFD_DEF_SIZE,
+		 mfd_def_size,
 		 PROT_READ | PROT_WRITE,
 		 MAP_SHARED,
 		 fd,
@@ -144,7 +143,7 @@ static void *mfd_assert_mmap_private(int fd)
 	void *p;
 
 	p = mmap(NULL,
-		 MFD_DEF_SIZE,
+		 mfd_def_size,
 		 PROT_READ | PROT_WRITE,
 		 MAP_PRIVATE,
 		 fd,
@@ -177,7 +176,7 @@ static int sealing_thread_fn(void *arg)
 	usleep(200000);
 
 	/* unmount mapping before sealing to avoid i_mmap_writable failures */
-	munmap(global_p, MFD_DEF_SIZE);
+	munmap(global_p, mfd_def_size);
 
 	/* Try sealing the global file; expect EBUSY or success. Current
 	 * kernels will never succeed, but in the future, kernels might
@@ -227,7 +226,7 @@ static void join_sealing_thread(pid_t pid)
 
 int main(int argc, char **argv)
 {
-	static const char zero[MFD_DEF_SIZE];
+	char *zero;
 	int fd, mfd, r;
 	void *p;
 	int was_sealed;
@@ -237,6 +236,25 @@ int main(int argc, char **argv)
 		printf("error: please pass path to file in fuse_mnt mount-point\n");
 		abort();
 	}
+
+	if (argc >= 3) {
+		if (!strcmp(argv[2], "hugetlbfs")) {
+			unsigned long hpage_size = default_huge_page_size();
+
+			if (!hpage_size) {
+				printf("Unable to determine huge page size\n");
+				abort();
+			}
+
+			hugetlbfs_test = 1;
+			mfd_def_size = hpage_size * 2;
+		} else {
+			printf("Unknown option: %s\n", argv[2]);
+			abort();
+		}
+	}
+
+	zero = calloc(sizeof(*zero), mfd_def_size);
 
 	/* open FUSE memfd file for GUP testing */
 	printf("opening: %s\n", argv[1]);
@@ -248,7 +266,7 @@ int main(int argc, char **argv)
 
 	/* create new memfd-object */
 	mfd = mfd_assert_new("kern_memfd_fuse",
-			     MFD_DEF_SIZE,
+			     mfd_def_size,
 			     MFD_CLOEXEC | MFD_ALLOW_SEALING);
 
 	/* mmap memfd-object for writing */
@@ -267,7 +285,7 @@ int main(int argc, char **argv)
 	 * This guarantees that the receive-buffer is pinned for 1s until the
 	 * data is written into it. The racing ADD_SEALS should thus fail as
 	 * the pages are still pinned. */
-	r = read(fd, p, MFD_DEF_SIZE);
+	r = read(fd, p, mfd_def_size);
 	if (r < 0) {
 		printf("read() failed: %m\n");
 		abort();
@@ -294,10 +312,10 @@ int main(int argc, char **argv)
 	 * enough to avoid any in-flight writes. */
 
 	p = mfd_assert_mmap_private(mfd);
-	if (was_sealed && memcmp(p, zero, MFD_DEF_SIZE)) {
+	if (was_sealed && memcmp(p, zero, mfd_def_size)) {
 		printf("memfd sealed during read() but data not discarded\n");
 		abort();
-	} else if (!was_sealed && !memcmp(p, zero, MFD_DEF_SIZE)) {
+	} else if (!was_sealed && !memcmp(p, zero, mfd_def_size)) {
 		printf("memfd sealed after read() but data discarded\n");
 		abort();
 	}
@@ -306,6 +324,7 @@ int main(int argc, char **argv)
 	close(fd);
 
 	printf("fuse: DONE\n");
+	free(zero);
 
 	return 0;
 }

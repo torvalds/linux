@@ -14,10 +14,8 @@
 #include <acpi/ghes.h>
 #include <linux/edac.h>
 #include <linux/dmi.h>
-#include "edac_core.h"
+#include "edac_module.h"
 #include <ras/ras_event.h>
-
-#define GHES_EDAC_REVISION " Ver: 1.0.0"
 
 struct ghes_edac_pvt {
 	struct list_head list;
@@ -30,10 +28,19 @@ struct ghes_edac_pvt {
 	char msg[80];
 };
 
-static LIST_HEAD(ghes_reglist);
-static DEFINE_MUTEX(ghes_edac_lock);
-static int ghes_edac_mc_num;
+static atomic_t ghes_init = ATOMIC_INIT(0);
+static struct ghes_edac_pvt *ghes_pvt;
 
+/*
+ * Sync with other, potentially concurrent callers of
+ * ghes_edac_report_mem_error(). We don't know what the
+ * "inventive" firmware would do.
+ */
+static DEFINE_SPINLOCK(ghes_lock);
+
+/* "ghes_edac.force_load=1" skips the platform check */
+static bool __read_mostly force_load;
+module_param(force_load, bool, 0);
 
 /* Memory Device - Type 17 of SMBIOS spec */
 struct memdev_dmi_entry {
@@ -84,6 +91,7 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 		struct dimm_info *dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
 						       mci->n_layers,
 						       dimm_fill->count, 0, 0);
+		u16 rdr_mask = BIT(7) | BIT(13);
 
 		if (entry->size == 0xffff) {
 			pr_info("Can't get DIMM%i size\n",
@@ -92,22 +100,21 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 		} else if (entry->size == 0x7fff) {
 			dimm->nr_pages = MiB_TO_PAGES(entry->extended_size);
 		} else {
-			if (entry->size & 1 << 15)
-				dimm->nr_pages = MiB_TO_PAGES((entry->size &
-							       0x7fff) << 10);
+			if (entry->size & BIT(15))
+				dimm->nr_pages = MiB_TO_PAGES((entry->size & 0x7fff) << 10);
 			else
 				dimm->nr_pages = MiB_TO_PAGES(entry->size);
 		}
 
 		switch (entry->memory_type) {
 		case 0x12:
-			if (entry->type_detail & 1 << 13)
+			if (entry->type_detail & BIT(13))
 				dimm->mtype = MEM_RDDR;
 			else
 				dimm->mtype = MEM_DDR;
 			break;
 		case 0x13:
-			if (entry->type_detail & 1 << 13)
+			if (entry->type_detail & BIT(13))
 				dimm->mtype = MEM_RDDR2;
 			else
 				dimm->mtype = MEM_DDR2;
@@ -116,20 +123,29 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 			dimm->mtype = MEM_FB_DDR2;
 			break;
 		case 0x18:
-			if (entry->type_detail & 1 << 13)
+			if (entry->type_detail & BIT(12))
+				dimm->mtype = MEM_NVDIMM;
+			else if (entry->type_detail & BIT(13))
 				dimm->mtype = MEM_RDDR3;
 			else
 				dimm->mtype = MEM_DDR3;
 			break;
+		case 0x1a:
+			if (entry->type_detail & BIT(12))
+				dimm->mtype = MEM_NVDIMM;
+			else if (entry->type_detail & BIT(13))
+				dimm->mtype = MEM_RDDR4;
+			else
+				dimm->mtype = MEM_DDR4;
+			break;
 		default:
-			if (entry->type_detail & 1 << 6)
+			if (entry->type_detail & BIT(6))
 				dimm->mtype = MEM_RMBS;
-			else if ((entry->type_detail & ((1 << 7) | (1 << 13)))
-				 == ((1 << 7) | (1 << 13)))
+			else if ((entry->type_detail & rdr_mask) == rdr_mask)
 				dimm->mtype = MEM_RDR;
-			else if (entry->type_detail & 1 << 7)
+			else if (entry->type_detail & BIT(7))
 				dimm->mtype = MEM_SDR;
-			else if (entry->type_detail & 1 << 9)
+			else if (entry->type_detail & BIT(9))
 				dimm->mtype = MEM_EDO;
 			else
 				dimm->mtype = MEM_UNKNOWN;
@@ -165,24 +181,29 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 	}
 }
 
-void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
-				struct cper_sec_mem_err *mem_err)
+void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 {
 	enum hw_event_mc_err_type type;
 	struct edac_raw_error_desc *e;
 	struct mem_ctl_info *mci;
-	struct ghes_edac_pvt *pvt = NULL;
+	struct ghes_edac_pvt *pvt = ghes_pvt;
+	unsigned long flags;
 	char *p;
 	u8 grain_bits;
 
-	list_for_each_entry(pvt, &ghes_reglist, list) {
-		if (ghes == pvt->ghes)
-			break;
-	}
-	if (!pvt) {
-		pr_err("Internal error: Can't find EDAC structure\n");
+	if (!pvt)
 		return;
-	}
+
+	/*
+	 * We can do the locking below because GHES defers error processing
+	 * from NMI to IRQ context. Whenever that changes, we'd at least
+	 * know.
+	 */
+	if (WARN_ON_ONCE(in_nmi()))
+		return;
+
+	spin_lock_irqsave(&ghes_lock, flags);
+
 	mci = pvt->mci;
 	e = &mci->error_desc;
 
@@ -400,10 +421,17 @@ void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
 		       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
 		       grain_bits, e->syndrome, pvt->detail_location);
 
-	/* Report the error via EDAC API */
 	edac_raw_mc_handle_error(type, mci, e);
+	spin_unlock_irqrestore(&ghes_lock, flags);
 }
-EXPORT_SYMBOL_GPL(ghes_edac_report_mem_error);
+
+/*
+ * Known systems that are safe to enable this module.
+ */
+static struct acpi_platform_list plat_list[] = {
+	{"HPE   ", "Server  ", 0, ACPI_SIG_FADT, all_versions},
+	{ } /* End */
+};
 
 int ghes_edac_register(struct ghes *ghes, struct device *dev)
 {
@@ -411,8 +439,23 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	int rc, num_dimm = 0;
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[1];
-	struct ghes_edac_pvt *pvt;
 	struct ghes_edac_dimm_fill dimm_fill;
+	int idx = -1;
+
+	if (IS_ENABLED(CONFIG_X86)) {
+		/* Check if safe to enable on this system */
+		idx = acpi_match_platform_list(plat_list);
+		if (!force_load && idx < 0)
+			return -ENODEV;
+	} else {
+		idx = 0;
+	}
+
+	/*
+	 * We have only one logical memory controller to which all DIMMs belong.
+	 */
+	if (atomic_inc_return(&ghes_init) > 1)
+		return 0;
 
 	/* Get the number of DIMMs */
 	dmi_walk(ghes_edac_count_dimms, &num_dimm);
@@ -427,64 +470,41 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	layers[0].size = num_dimm;
 	layers[0].is_virt_csrow = true;
 
-	/*
-	 * We need to serialize edac_mc_alloc() and edac_mc_add_mc(),
-	 * to avoid duplicated memory controller numbers
-	 */
-	mutex_lock(&ghes_edac_lock);
-	mci = edac_mc_alloc(ghes_edac_mc_num, ARRAY_SIZE(layers), layers,
-			    sizeof(*pvt));
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(struct ghes_edac_pvt));
 	if (!mci) {
 		pr_info("Can't allocate memory for EDAC data\n");
-		mutex_unlock(&ghes_edac_lock);
 		return -ENOMEM;
 	}
 
-	pvt = mci->pvt_info;
-	memset(pvt, 0, sizeof(*pvt));
-	list_add_tail(&pvt->list, &ghes_reglist);
-	pvt->ghes = ghes;
-	pvt->mci  = mci;
-	mci->pdev = dev;
+	ghes_pvt	= mci->pvt_info;
+	ghes_pvt->ghes	= ghes;
+	ghes_pvt->mci	= mci;
 
+	mci->pdev = dev;
 	mci->mtype_cap = MEM_FLAG_EMPTY;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "ghes_edac.c";
-	mci->mod_ver = GHES_EDAC_REVISION;
 	mci->ctl_name = "ghes_edac";
 	mci->dev_name = "ghes";
 
-	if (!ghes_edac_mc_num) {
-		if (!fake) {
-			pr_info("This EDAC driver relies on BIOS to enumerate memory and get error reports.\n");
-			pr_info("Unfortunately, not all BIOSes reflect the memory layout correctly.\n");
-			pr_info("So, the end result of using this driver varies from vendor to vendor.\n");
-			pr_info("If you find incorrect reports, please contact your hardware vendor\n");
-			pr_info("to correct its BIOS.\n");
-			pr_info("This system has %d DIMM sockets.\n",
-				num_dimm);
-		} else {
-			pr_info("This system has a very crappy BIOS: It doesn't even list the DIMMS.\n");
-			pr_info("Its SMBIOS info is wrong. It is doubtful that the error report would\n");
-			pr_info("work on such system. Use this driver with caution\n");
-		}
+	if (fake) {
+		pr_info("This system has a very crappy BIOS: It doesn't even list the DIMMS.\n");
+		pr_info("Its SMBIOS info is wrong. It is doubtful that the error report would\n");
+		pr_info("work on such system. Use this driver with caution\n");
+	} else if (idx < 0) {
+		pr_info("This EDAC driver relies on BIOS to enumerate memory and get error reports.\n");
+		pr_info("Unfortunately, not all BIOSes reflect the memory layout correctly.\n");
+		pr_info("So, the end result of using this driver varies from vendor to vendor.\n");
+		pr_info("If you find incorrect reports, please contact your hardware vendor\n");
+		pr_info("to correct its BIOS.\n");
+		pr_info("This system has %d DIMM sockets.\n", num_dimm);
 	}
 
 	if (!fake) {
-		/*
-		 * Fill DIMM info from DMI for the memory controller #0
-		 *
-		 * Keep it in blank for the other memory controllers, as
-		 * there's no reliable way to properly credit each DIMM to
-		 * the memory controller, as different BIOSes fill the
-		 * DMI bank location fields on different ways
-		 */
-		if (!ghes_edac_mc_num) {
-			dimm_fill.count = 0;
-			dimm_fill.mci = mci;
-			dmi_walk(ghes_edac_dmidecode, &dimm_fill);
-		}
+		dimm_fill.count = 0;
+		dimm_fill.mci = mci;
+		dmi_walk(ghes_edac_dmidecode, &dimm_fill);
 	} else {
 		struct dimm_info *dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
 						       mci->n_layers, 0, 0, 0);
@@ -500,28 +520,19 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	if (rc < 0) {
 		pr_info("Can't register at EDAC core\n");
 		edac_mc_free(mci);
-		mutex_unlock(&ghes_edac_lock);
 		return -ENODEV;
 	}
-
-	ghes_edac_mc_num++;
-	mutex_unlock(&ghes_edac_lock);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ghes_edac_register);
 
 void ghes_edac_unregister(struct ghes *ghes)
 {
 	struct mem_ctl_info *mci;
-	struct ghes_edac_pvt *pvt, *tmp;
 
-	list_for_each_entry_safe(pvt, tmp, &ghes_reglist, list) {
-		if (ghes == pvt->ghes) {
-			mci = pvt->mci;
-			edac_mc_del_mc(mci->pdev);
-			edac_mc_free(mci);
-			list_del(&pvt->list);
-		}
-	}
+	if (!ghes_pvt)
+		return;
+
+	mci = ghes_pvt->mci;
+	edac_mc_del_mc(mci->pdev);
+	edac_mc_free(mci);
 }
-EXPORT_SYMBOL_GPL(ghes_edac_unregister);

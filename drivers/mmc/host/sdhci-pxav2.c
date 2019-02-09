@@ -177,16 +177,19 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 		return PTR_ERR(host);
 
 	pltfm_host = sdhci_priv(host);
-	pltfm_host->priv = NULL;
 
-	clk = clk_get(dev, "PXA-SDHCLK");
+	clk = devm_clk_get(dev, "PXA-SDHCLK");
 	if (IS_ERR(clk)) {
 		dev_err(dev, "failed to get io clock\n");
 		ret = PTR_ERR(clk);
-		goto err_clk_get;
+		goto free;
 	}
 	pltfm_host->clk = clk;
-	clk_prepare_enable(clk);
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable io clock\n");
+		goto free;
+	}
 
 	host->quirks = SDHCI_QUIRK_BROKEN_ADMA
 		| SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
@@ -218,45 +221,26 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 	host->ops = &pxav2_sdhci_ops;
 
 	ret = sdhci_add_host(host);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add host\n");
-		goto err_add_host;
-	}
-
-	platform_set_drvdata(pdev, host);
+	if (ret)
+		goto disable_clk;
 
 	return 0;
 
-err_add_host:
+disable_clk:
 	clk_disable_unprepare(clk);
-	clk_put(clk);
-err_clk_get:
+free:
 	sdhci_pltfm_free(pdev);
 	return ret;
-}
-
-static int sdhci_pxav2_remove(struct platform_device *pdev)
-{
-	struct sdhci_host *host = platform_get_drvdata(pdev);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-
-	sdhci_remove_host(host, 1);
-
-	clk_disable_unprepare(pltfm_host->clk);
-	clk_put(pltfm_host->clk);
-	sdhci_pltfm_free(pdev);
-
-	return 0;
 }
 
 static struct platform_driver sdhci_pxav2_driver = {
 	.driver		= {
 		.name	= "sdhci-pxav2",
 		.of_match_table = of_match_ptr(sdhci_pxav2_of_match),
-		.pm	= SDHCI_PLTFM_PMOPS,
+		.pm	= &sdhci_pltfm_pmops,
 	},
 	.probe		= sdhci_pxav2_probe,
-	.remove		= sdhci_pxav2_remove,
+	.remove		= sdhci_pltfm_unregister,
 };
 
 module_platform_driver(sdhci_pxav2_driver);

@@ -28,18 +28,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <pthread.h>
-#ifdef KTEST
 #include "../kselftest.h"
-#else
-static inline int ksft_exit_pass(void)
-{
-	exit(0);
-}
-static inline int ksft_exit_fail(void)
-{
-	exit(1);
-}
-#endif
 
 #define CLOCK_REALTIME			0
 #define CLOCK_MONOTONIC			1
@@ -153,7 +142,7 @@ int main(void)
 
 		alarmcount = 0;
 		if (timer_create(alarm_clock_id, &se, &tm1) == -1) {
-			printf("timer_create failled, %s unspported?\n",
+			printf("timer_create failed, %s unsupported?\n",
 					clockstring(alarm_clock_id));
 			break;
 		}

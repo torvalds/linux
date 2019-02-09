@@ -124,6 +124,8 @@ nv31_mpeg_tile(struct nvkm_engine *engine, int i, struct nvkm_fb_tile *tile)
 static bool
 nv31_mpeg_mthd_dma(struct nvkm_device *device, u32 mthd, u32 data)
 {
+	struct nv31_mpeg *mpeg = nv31_mpeg(device->mpeg);
+	struct nvkm_subdev *subdev = &mpeg->engine.subdev;
 	u32 inst = data << 4;
 	u32 dma0 = nvkm_rd32(device, 0x700000 + inst);
 	u32 dma1 = nvkm_rd32(device, 0x700004 + inst);
@@ -132,8 +134,11 @@ nv31_mpeg_mthd_dma(struct nvkm_device *device, u32 mthd, u32 data)
 	u32 size = dma1 + 1;
 
 	/* only allow linear DMA objects */
-	if (!(dma0 & 0x00002000))
+	if (!(dma0 & 0x00002000)) {
+		nvkm_error(subdev, "inst %08x dma0 %08x dma1 %08x dma2 %08x\n",
+			   inst, dma0, dma1, dma2);
 		return false;
+	}
 
 	if (mthd == 0x0190) {
 		/* DMA_CMD */
@@ -198,7 +203,7 @@ nv31_mpeg_intr(struct nvkm_engine *engine)
 		}
 
 		if (type == 0x00000010) {
-			if (!nv31_mpeg_mthd(mpeg, mthd, data))
+			if (nv31_mpeg_mthd(mpeg, mthd, data))
 				show &= ~0x01000000;
 		}
 	}
@@ -278,7 +283,7 @@ nv31_mpeg_new_(const struct nv31_mpeg_func *func, struct nvkm_device *device,
 	mpeg->func = func;
 	*pmpeg = &mpeg->engine;
 
-	return nvkm_engine_ctor(&nv31_mpeg_, device, index, 0x00000002,
+	return nvkm_engine_ctor(&nv31_mpeg_, device, index,
 				true, &mpeg->engine);
 }
 

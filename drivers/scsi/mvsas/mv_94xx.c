@@ -48,8 +48,8 @@ static void mvs_94xx_detect_porttype(struct mvs_info *mvi, int i)
 	}
 }
 
-void set_phy_tuning(struct mvs_info *mvi, int phy_id,
-			struct phy_tuning phy_tuning)
+static void set_phy_tuning(struct mvs_info *mvi, int phy_id,
+			   struct phy_tuning phy_tuning)
 {
 	u32 tmp, setting_0 = 0, setting_1 = 0;
 	u8 i;
@@ -110,8 +110,8 @@ void set_phy_tuning(struct mvs_info *mvi, int phy_id,
 	}
 }
 
-void set_phy_ffe_tuning(struct mvs_info *mvi, int phy_id,
-				struct ffe_control ffe)
+static void set_phy_ffe_tuning(struct mvs_info *mvi, int phy_id,
+			       struct ffe_control ffe)
 {
 	u32 tmp;
 
@@ -177,7 +177,7 @@ void set_phy_ffe_tuning(struct mvs_info *mvi, int phy_id,
 }
 
 /*Notice: this function must be called when phy is disabled*/
-void set_phy_rate(struct mvs_info *mvi, int phy_id, u8 rate)
+static void set_phy_rate(struct mvs_info *mvi, int phy_id, u8 rate)
 {
 	union reg_phy_cfg phy_cfg, phy_cfg_tmp;
 	mvs_write_port_vsr_addr(mvi, phy_id, VSR_PHY_MODE2);
@@ -328,6 +328,51 @@ static void mvs_94xx_phy_enable(struct mvs_info *mvi, u32 phy_id)
 	tmp = mvs_read_port_vsr_data(mvi, phy_id);
 	tmp |= bit(0);
 	mvs_write_port_vsr_data(mvi, phy_id, tmp & 0xfd7fffff);
+}
+
+static void mvs_94xx_sgpio_init(struct mvs_info *mvi)
+{
+	void __iomem *regs = mvi->regs_ex - 0x10200;
+	u32 tmp;
+
+	tmp = mr32(MVS_HST_CHIP_CONFIG);
+	tmp |= 0x100;
+	mw32(MVS_HST_CHIP_CONFIG, tmp);
+
+	mw32(MVS_SGPIO_CTRL + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		MVS_SGPIO_CTRL_SDOUT_AUTO << MVS_SGPIO_CTRL_SDOUT_SHIFT);
+
+	mw32(MVS_SGPIO_CFG1 + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		8 << MVS_SGPIO_CFG1_LOWA_SHIFT |
+		8 << MVS_SGPIO_CFG1_HIA_SHIFT |
+		4 << MVS_SGPIO_CFG1_LOWB_SHIFT |
+		4 << MVS_SGPIO_CFG1_HIB_SHIFT |
+		2 << MVS_SGPIO_CFG1_MAXACTON_SHIFT |
+		1 << MVS_SGPIO_CFG1_FORCEACTOFF_SHIFT
+	);
+
+	mw32(MVS_SGPIO_CFG2 + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		(300000 / 100) << MVS_SGPIO_CFG2_CLK_SHIFT | /* 100kHz clock */
+		66 << MVS_SGPIO_CFG2_BLINK_SHIFT /* (66 * 0,121 Hz?)*/
+	);
+
+	mw32(MVS_SGPIO_CFG0 + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		MVS_SGPIO_CFG0_ENABLE |
+		MVS_SGPIO_CFG0_BLINKA |
+		MVS_SGPIO_CFG0_BLINKB |
+		/* 3*4 data bits / PDU */
+		(12 - 1) << MVS_SGPIO_CFG0_AUT_BITLEN_SHIFT
+	);
+
+	mw32(MVS_SGPIO_DCTRL + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		DEFAULT_SGPIO_BITS);
+
+	mw32(MVS_SGPIO_DSRC + MVS_SGPIO_HOST_OFFSET * mvi->id,
+		((mvi->id * 4) + 3) << (8 * 3) |
+		((mvi->id * 4) + 2) << (8 * 2) |
+		((mvi->id * 4) + 1) << (8 * 1) |
+		((mvi->id * 4) + 0) << (8 * 0));
+
 }
 
 static int mvs_94xx_init(struct mvs_info *mvi)
@@ -533,6 +578,8 @@ static int mvs_94xx_init(struct mvs_info *mvi)
 	/* Enable SRS interrupt */
 	mw32(MVS_INT_MASK_SRS_0, 0xFFFF);
 
+	mvs_94xx_sgpio_init(mvi);
+
 	return 0;
 }
 
@@ -621,7 +668,7 @@ static void mvs_94xx_command_active(struct mvs_info *mvi, u32 slot_idx)
 {
 	u32 tmp;
 	tmp = mvs_cr32(mvi, MVS_COMMAND_ACTIVE+(slot_idx >> 3));
-	if (tmp && 1 << (slot_idx % 32)) {
+	if (tmp & 1 << (slot_idx % 32)) {
 		mv_printk("command active %08X,  slot [%x].\n", tmp, slot_idx);
 		mvs_cw32(mvi, MVS_COMMAND_ACTIVE + (slot_idx >> 3),
 			1 << (slot_idx % 32));
@@ -632,7 +679,8 @@ static void mvs_94xx_command_active(struct mvs_info *mvi, u32 slot_idx)
 	}
 }
 
-void mvs_94xx_clear_srs_irq(struct mvs_info *mvi, u8 reg_set, u8 clear_all)
+static void
+mvs_94xx_clear_srs_irq(struct mvs_info *mvi, u8 reg_set, u8 clear_all)
 {
 	void __iomem *regs = mvi->regs;
 	u32 tmp;
@@ -859,8 +907,8 @@ static void mvs_94xx_fix_phy_info(struct mvs_info *mvi, int i,
 
 }
 
-void mvs_94xx_phy_set_link_rate(struct mvs_info *mvi, u32 phy_id,
-			struct sas_phy_linkrates *rates)
+static void mvs_94xx_phy_set_link_rate(struct mvs_info *mvi, u32 phy_id,
+				       struct sas_phy_linkrates *rates)
 {
 	u32 lrmax = 0;
 	u32 tmp;
@@ -889,25 +937,25 @@ static void mvs_94xx_clear_active_cmds(struct mvs_info *mvi)
 }
 
 
-u32 mvs_94xx_spi_read_data(struct mvs_info *mvi)
+static u32 mvs_94xx_spi_read_data(struct mvs_info *mvi)
 {
 	void __iomem *regs = mvi->regs_ex - 0x10200;
 	return mr32(SPI_RD_DATA_REG_94XX);
 }
 
-void mvs_94xx_spi_write_data(struct mvs_info *mvi, u32 data)
+static void mvs_94xx_spi_write_data(struct mvs_info *mvi, u32 data)
 {
 	void __iomem *regs = mvi->regs_ex - 0x10200;
 	 mw32(SPI_RD_DATA_REG_94XX, data);
 }
 
 
-int mvs_94xx_spi_buildcmd(struct mvs_info *mvi,
-				u32      *dwCmd,
-				u8       cmd,
-				u8       read,
-				u8       length,
-				u32      addr
+static int mvs_94xx_spi_buildcmd(struct mvs_info *mvi,
+				 u32      *dwCmd,
+				 u8       cmd,
+				 u8       read,
+				 u8       length,
+				 u32      addr
 				)
 {
 	void __iomem *regs = mvi->regs_ex - 0x10200;
@@ -927,7 +975,7 @@ int mvs_94xx_spi_buildcmd(struct mvs_info *mvi,
 }
 
 
-int mvs_94xx_spi_issuecmd(struct mvs_info *mvi, u32 cmd)
+static int mvs_94xx_spi_issuecmd(struct mvs_info *mvi, u32 cmd)
 {
 	void __iomem *regs = mvi->regs_ex - 0x10200;
 	mw32(SPI_CTRL_REG_94XX, cmd | SPI_CTRL_SpiStart_94XX);
@@ -935,7 +983,7 @@ int mvs_94xx_spi_issuecmd(struct mvs_info *mvi, u32 cmd)
 	return 0;
 }
 
-int mvs_94xx_spi_waitdataready(struct mvs_info *mvi, u32 timeout)
+static int mvs_94xx_spi_waitdataready(struct mvs_info *mvi, u32 timeout)
 {
 	void __iomem *regs = mvi->regs_ex - 0x10200;
 	u32   i, dwTmp;
@@ -950,8 +998,8 @@ int mvs_94xx_spi_waitdataready(struct mvs_info *mvi, u32 timeout)
 	return -1;
 }
 
-void mvs_94xx_fix_dma(struct mvs_info *mvi, u32 phy_mask,
-				int buf_len, int from, void *prd)
+static void mvs_94xx_fix_dma(struct mvs_info *mvi, u32 phy_mask,
+			     int buf_len, int from, void *prd)
 {
 	int i;
 	struct mvs_prd *buf_prd = prd;
@@ -1003,6 +1051,93 @@ static void mvs_94xx_tune_interrupt(struct mvs_info *mvi, u32 time)
 		mw32(MVS_INT_COAL_TMOUT, tmp);
 	}
 
+}
+
+static int mvs_94xx_gpio_write(struct mvs_prv_info *mvs_prv,
+			u8 reg_type, u8 reg_index,
+			u8 reg_count, u8 *write_data)
+{
+	int i;
+
+	switch (reg_type) {
+
+	case SAS_GPIO_REG_TX_GP:
+		if (reg_index == 0)
+			return -EINVAL;
+
+		if (reg_count > 1)
+			return -EINVAL;
+
+		if (reg_count == 0)
+			return 0;
+
+		/* maximum supported bits = hosts * 4 drives * 3 bits */
+		for (i = 0; i < mvs_prv->n_host * 4 * 3; i++) {
+
+			/* select host */
+			struct mvs_info *mvi = mvs_prv->mvi[i/(4*3)];
+
+			void __iomem *regs = mvi->regs_ex - 0x10200;
+
+			int drive = (i/3) & (4-1); /* drive number on host */
+			int driveshift = drive * 8; /* bit offset of drive */
+			u32 block = ioread32be(regs + MVS_SGPIO_DCTRL +
+				MVS_SGPIO_HOST_OFFSET * mvi->id);
+
+			/*
+			* if bit is set then create a mask with the first
+			* bit of the drive set in the mask ...
+			*/
+			u32 bit = get_unaligned_be32(write_data) & (1 << i) ?
+				1 << driveshift : 0;
+
+			/*
+			* ... and then shift it to the right position based
+			* on the led type (activity/id/fail)
+			*/
+			switch (i%3) {
+			case 0: /* activity */
+				block &= ~((0x7 << MVS_SGPIO_DCTRL_ACT_SHIFT)
+					<< driveshift);
+					/* hardwire activity bit to SOF */
+				block |= LED_BLINKA_SOF << (
+					MVS_SGPIO_DCTRL_ACT_SHIFT +
+					driveshift);
+				break;
+			case 1: /* id */
+				block &= ~((0x3 << MVS_SGPIO_DCTRL_LOC_SHIFT)
+					<< driveshift);
+				block |= bit << MVS_SGPIO_DCTRL_LOC_SHIFT;
+				break;
+			case 2: /* fail */
+				block &= ~((0x7 << MVS_SGPIO_DCTRL_ERR_SHIFT)
+					<< driveshift);
+				block |= bit << MVS_SGPIO_DCTRL_ERR_SHIFT;
+				break;
+			}
+
+			iowrite32be(block,
+				regs + MVS_SGPIO_DCTRL +
+				MVS_SGPIO_HOST_OFFSET * mvi->id);
+
+		}
+
+		return reg_count;
+
+	case SAS_GPIO_REG_TX:
+		if (reg_index + reg_count > mvs_prv->n_host)
+			return -EINVAL;
+
+		for (i = 0; i < reg_count; i++) {
+			struct mvs_info *mvi = mvs_prv->mvi[i+reg_index];
+			void __iomem *regs = mvi->regs_ex - 0x10200;
+
+			mw32(MVS_SGPIO_DCTRL + MVS_SGPIO_HOST_OFFSET * mvi->id,
+				((u32 *) write_data)[i]);
+		}
+		return reg_count;
+	}
+	return -ENOSYS;
 }
 
 const struct mvs_dispatch mvs_94xx_dispatch = {
@@ -1057,5 +1192,6 @@ const struct mvs_dispatch mvs_94xx_dispatch = {
 	mvs_94xx_fix_dma,
 	mvs_94xx_tune_interrupt,
 	mvs_94xx_non_spec_ncq_error,
+	mvs_94xx_gpio_write,
 };
 

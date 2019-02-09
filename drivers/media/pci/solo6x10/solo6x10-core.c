@@ -47,18 +47,19 @@ MODULE_PARM_DESC(full_eeprom, "Allow access to full 128B EEPROM (dangerous)");
 
 static void solo_set_time(struct solo_dev *solo_dev)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 
-	ktime_get_ts(&ts);
+	ktime_get_ts64(&ts);
 
-	solo_reg_write(solo_dev, SOLO_TIMER_SEC, ts.tv_sec);
-	solo_reg_write(solo_dev, SOLO_TIMER_USEC, ts.tv_nsec / NSEC_PER_USEC);
+	/* no overflow because we use monotonic timestamps */
+	solo_reg_write(solo_dev, SOLO_TIMER_SEC, (u32)ts.tv_sec);
+	solo_reg_write(solo_dev, SOLO_TIMER_USEC, (u32)ts.tv_nsec / NSEC_PER_USEC);
 }
 
 static void solo_timer_sync(struct solo_dev *solo_dev)
 {
 	u32 sec, usec;
-	struct timespec ts;
+	struct timespec64 ts;
 	long diff;
 
 	if (solo_dev->type != SOLO_DEV_6110)
@@ -72,11 +73,11 @@ static void solo_timer_sync(struct solo_dev *solo_dev)
 	sec = solo_reg_read(solo_dev, SOLO_TIMER_SEC);
 	usec = solo_reg_read(solo_dev, SOLO_TIMER_USEC);
 
-	ktime_get_ts(&ts);
+	ktime_get_ts64(&ts);
 
-	diff = (long)ts.tv_sec - (long)sec;
+	diff = (s32)ts.tv_sec - (s32)sec;
 	diff = (diff * 1000000)
-		+ ((long)(ts.tv_nsec / NSEC_PER_USEC) - (long)usec);
+		+ ((s32)(ts.tv_nsec / NSEC_PER_USEC) - (s32)usec);
 
 	if (diff > 1000 || diff < -1000) {
 		solo_set_time(solo_dev);
@@ -511,6 +512,7 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	default:
 		dev_warn(&pdev->dev, "Invalid chip_id 0x%02x, assuming 4 ch\n",
 			 chip_id);
+		/* fall through */
 	case 5:
 		solo_dev->nr_chans = 4;
 		solo_dev->nr_ext = 1;

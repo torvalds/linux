@@ -268,7 +268,7 @@ static int at91_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct sam9_rtc *rtc = dev_get_drvdata(dev);
-	u32 mr = mr = rtt_readl(rtc, MR);
+	u32 mr = rtt_readl(rtc, MR);
 
 	seq_printf(seq, "update_IRQ\t: %s\n",
 			(mr & AT91_RTT_RTTINCIEN) ? "yes" : "no");
@@ -349,6 +349,7 @@ static const struct rtc_class_ops at91_rtc_ops = {
 };
 
 static const struct regmap_config gpbr_regmap_config = {
+	.name = "gpbr",
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -375,6 +376,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	if (!rtc)
 		return -ENOMEM;
 
+	spin_lock_init(&rtc->lock);
 	rtc->irq = irq;
 
 	/* platform setup code should have handled this; sigh */

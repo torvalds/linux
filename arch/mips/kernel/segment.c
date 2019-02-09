@@ -26,17 +26,20 @@ static void build_segment_config(char *str, unsigned int cfg)
 
 	/*
 	 * Access modes MK, MSK and MUSK are mapped segments. Therefore
-	 * there is no direct physical address mapping.
+	 * there is no direct physical address mapping unless it becomes
+	 * unmapped uncached at error level due to EU.
 	 */
-	if ((am == 0) || (am > 3)) {
+	if ((am == 0) || (am > 3) || (cfg & MIPS_SEGCFG_EU))
 		str += sprintf(str, "         %03lx",
 			((cfg & MIPS_SEGCFG_PA) >> MIPS_SEGCFG_PA_SHIFT));
+	else
+		str += sprintf(str, "         UND");
+
+	if ((am == 0) || (am > 3))
 		str += sprintf(str, "         %01ld",
 			((cfg & MIPS_SEGCFG_C) >> MIPS_SEGCFG_C_SHIFT));
-	} else {
-		str += sprintf(str, "         UND");
+	else
 		str += sprintf(str, "         U");
-	}
 
 	/* Exception configuration. */
 	str += sprintf(str, "       %01ld\n",

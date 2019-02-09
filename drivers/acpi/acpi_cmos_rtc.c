@@ -14,7 +14,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm-generic/rtc.h>
+#include <linux/mc146818rtc.h>
 
 #include "internal.h"
 

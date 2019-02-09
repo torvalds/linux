@@ -1,6 +1,6 @@
 config SND_PXA2XX_SOC
 	tristate "SoC Audio for the Intel PXA2xx chip"
-	depends on ARCH_PXA
+	depends on ARCH_PXA || COMPILE_TEST
 	select SND_PXA2XX_LIB
 	help
 	  Say Y or M if you want to add support for codecs attached to
@@ -24,15 +24,19 @@ config SND_PXA2XX_AC97
 config SND_PXA2XX_SOC_AC97
 	tristate
 	select AC97_BUS
+	select SND_PXA2XX_LIB
 	select SND_PXA2XX_LIB_AC97
 	select SND_SOC_AC97_BUS
 
 config SND_PXA2XX_SOC_I2S
+	select SND_PXA2XX_LIB
 	tristate
 
 config SND_PXA_SOC_SSP
-	tristate
+	tristate "Soc Audio via PXA2xx/PXA3xx SSP ports"
+	depends on PLAT_PXA
 	select PXA_SSP
+	select SND_PXA2XX_LIB
 
 config SND_MMP_SOC_SSPA
 	tristate
@@ -208,7 +212,7 @@ config SND_PXA2XX_SOC_IMOTE2
 
 config SND_MMP_SOC_BROWNSTONE
 	tristate "SoC Audio support for Marvell Brownstone"
-	depends on SND_MMP_SOC && MACH_BROWNSTONE
+	depends on SND_MMP_SOC && MACH_BROWNSTONE && I2C
 	select SND_MMP_SOC_SSPA
 	select MFD_WM8994
 	select SND_SOC_WM8994

@@ -43,6 +43,11 @@ uvc_queue_to_stream(struct uvc_video_queue *queue)
 	return container_of(queue, struct uvc_streaming, queue);
 }
 
+static inline struct uvc_buffer *uvc_vbuf_to_buffer(struct vb2_v4l2_buffer *buf)
+{
+	return container_of(buf, struct uvc_buffer, buf);
+}
+
 /*
  * Return all queued buffers to videobuf2 in the requested state.
  *
@@ -69,23 +74,35 @@ static void uvc_queue_return_buffers(struct uvc_video_queue *queue,
  * videobuf2 queue operations
  */
 
-static int uvc_queue_setup(struct vb2_queue *vq, const void *parg,
+static int uvc_queue_setup(struct vb2_queue *vq,
 			   unsigned int *nbuffers, unsigned int *nplanes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
-	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
+	struct uvc_streaming *stream;
+	unsigned int size;
 
-	/* Make sure the image size is large enough. */
-	if (fmt && fmt->fmt.pix.sizeimage < stream->ctrl.dwMaxVideoFrameSize)
-		return -EINVAL;
+	switch (vq->type) {
+	case V4L2_BUF_TYPE_META_CAPTURE:
+		size = UVC_METATADA_BUF_SIZE;
+		break;
+
+	default:
+		stream = uvc_queue_to_stream(queue);
+		size = stream->ctrl.dwMaxVideoFrameSize;
+		break;
+	}
+
+	/*
+	 * When called with plane sizes, validate them. The driver supports
+	 * single planar formats only, and requires buffers to be large enough
+	 * to store a complete frame.
+	 */
+	if (*nplanes)
+		return *nplanes != 1 || sizes[0] < size ? -EINVAL : 0;
 
 	*nplanes = 1;
-
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage
-		 : stream->ctrl.dwMaxVideoFrameSize;
-
+	sizes[0] = size;
 	return 0;
 }
 
@@ -93,7 +110,7 @@ static int uvc_buffer_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct uvc_video_queue *queue = vb2_get_drv_priv(vb->vb2_queue);
-	struct uvc_buffer *buf = container_of(vbuf, struct uvc_buffer, buf);
+	struct uvc_buffer *buf = uvc_vbuf_to_buffer(vbuf);
 
 	if (vb->type == V4L2_BUF_TYPE_VIDEO_OUTPUT &&
 	    vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0)) {
@@ -108,7 +125,7 @@ static int uvc_buffer_prepare(struct vb2_buffer *vb)
 	buf->error = 0;
 	buf->mem = vb2_plane_vaddr(vb, 0);
 	buf->length = vb2_plane_size(vb, 0);
-	if (vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (vb->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		buf->bytesused = 0;
 	else
 		buf->bytesused = vb2_get_plane_payload(vb, 0);
@@ -120,7 +137,7 @@ static void uvc_buffer_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct uvc_video_queue *queue = vb2_get_drv_priv(vb->vb2_queue);
-	struct uvc_buffer *buf = container_of(vbuf, struct uvc_buffer, buf);
+	struct uvc_buffer *buf = uvc_vbuf_to_buffer(vbuf);
 	unsigned long flags;
 
 	spin_lock_irqsave(&queue->irqlock, flags);
@@ -142,7 +159,7 @@ static void uvc_buffer_finish(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct uvc_video_queue *queue = vb2_get_drv_priv(vb->vb2_queue);
 	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
-	struct uvc_buffer *buf = container_of(vbuf, struct uvc_buffer, buf);
+	struct uvc_buffer *buf = uvc_vbuf_to_buffer(vbuf);
 
 	if (vb->state == VB2_BUF_STATE_DONE)
 		uvc_video_clock_update(stream, vbuf, buf);
@@ -171,17 +188,17 @@ static int uvc_start_streaming(struct vb2_queue *vq, unsigned int count)
 static void uvc_stop_streaming(struct vb2_queue *vq)
 {
 	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
-	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
 	unsigned long flags;
 
-	uvc_video_enable(stream, 0);
+	if (vq->type != V4L2_BUF_TYPE_META_CAPTURE)
+		uvc_video_enable(uvc_queue_to_stream(queue), 0);
 
 	spin_lock_irqsave(&queue->irqlock, flags);
 	uvc_queue_return_buffers(queue, UVC_BUF_STATE_ERROR);
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 }
 
-static struct vb2_ops uvc_queue_qops = {
+static const struct vb2_ops uvc_queue_qops = {
 	.queue_setup = uvc_queue_setup,
 	.buf_prepare = uvc_buffer_prepare,
 	.buf_queue = uvc_buffer_queue,
@@ -192,20 +209,39 @@ static struct vb2_ops uvc_queue_qops = {
 	.stop_streaming = uvc_stop_streaming,
 };
 
+static const struct vb2_ops uvc_meta_queue_qops = {
+	.queue_setup = uvc_queue_setup,
+	.buf_prepare = uvc_buffer_prepare,
+	.buf_queue = uvc_buffer_queue,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
+	.stop_streaming = uvc_stop_streaming,
+};
+
 int uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
 		    int drop_corrupted)
 {
 	int ret;
 
 	queue->queue.type = type;
-	queue->queue.io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
+	queue->queue.io_modes = VB2_MMAP | VB2_USERPTR;
 	queue->queue.drv_priv = queue;
 	queue->queue.buf_struct_size = sizeof(struct uvc_buffer);
-	queue->queue.ops = &uvc_queue_qops;
 	queue->queue.mem_ops = &vb2_vmalloc_memops;
 	queue->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC
 		| V4L2_BUF_FLAG_TSTAMP_SRC_SOE;
 	queue->queue.lock = &queue->mutex;
+
+	switch (type) {
+	case V4L2_BUF_TYPE_META_CAPTURE:
+		queue->queue.ops = &uvc_meta_queue_qops;
+		break;
+	default:
+		queue->queue.io_modes |= VB2_DMABUF;
+		queue->queue.ops = &uvc_queue_qops;
+		break;
+	}
+
 	ret = vb2_queue_init(&queue->queue);
 	if (ret)
 		return ret;
@@ -334,10 +370,10 @@ unsigned long uvc_queue_get_unmapped_area(struct uvc_video_queue *queue,
 }
 #endif
 
-unsigned int uvc_queue_poll(struct uvc_video_queue *queue, struct file *file,
+__poll_t uvc_queue_poll(struct uvc_video_queue *queue, struct file *file,
 			    poll_table *wait)
 {
-	unsigned int ret;
+	__poll_t ret;
 
 	mutex_lock(&queue->mutex);
 	ret = vb2_poll(&queue->queue, file, wait);
@@ -416,7 +452,7 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 		nextbuf = NULL;
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 
-	buf->state = buf->error ? VB2_BUF_STATE_ERROR : UVC_BUF_STATE_DONE;
+	buf->state = buf->error ? UVC_BUF_STATE_ERROR : UVC_BUF_STATE_DONE;
 	vb2_set_plane_payload(&buf->buf.vb2_buf, 0, buf->bytesused);
 	vb2_buffer_done(&buf->buf.vb2_buf, VB2_BUF_STATE_DONE);
 

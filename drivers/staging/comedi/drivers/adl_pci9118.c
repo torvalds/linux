@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  comedi/drivers/adl_pci9118.c
  *
@@ -570,7 +571,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 	/* set default config (disable burst and triggers) */
 	devpriv->ai_cfg = PCI9118_AI_CFG_PDTRG | PCI9118_AI_CFG_PETRG;
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
-	/* reset acqusition control */
+	/* reset acquisition control */
 	devpriv->ai_ctrl = 0;
 	outl(devpriv->ai_ctrl, dev->iobase + PCI9118_AI_CTRL_REG);
 	outl(0, dev->iobase + PCI9118_AI_BURST_NUM_REG);
@@ -603,10 +604,11 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 	unsigned short *array = data;
 	unsigned int num_samples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned int i;
+	__be16 *barray = data;
 
 	for (i = 0; i < num_samples; i++) {
 		if (devpriv->usedma)
-			array[i] = be16_to_cpu(array[i]);
+			array[i] = be16_to_cpu(barray[i]);
 		if (s->maxdata == 0xffff)
 			array[i] ^= 0x8000;
 		else
@@ -1021,12 +1023,12 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/*
 	 * Configure analog input and load the chanlist.
-	 * The acqusition control bits are enabled later.
+	 * The acquisition control bits are enabled later.
 	 */
 	pci9118_set_chanlist(dev, s, cmd->chanlist_len, cmd->chanlist,
 			     devpriv->ai_add_front, devpriv->ai_add_back);
 
-	/* Determine acqusition mode and calculate timing */
+	/* Determine acquisition mode and calculate timing */
 	devpriv->ai_do = 0;
 	if (cmd->scan_begin_src != TRIG_TIMER &&
 	    cmd->convert_src == TRIG_TIMER) {
@@ -1096,7 +1098,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->ai_do == 0) {
 		dev_err(dev->class_dev,
-			"Unable to determine acqusition mode! BUG in (*do_cmdtest)?\n");
+			"Unable to determine acquisition mode! BUG in (*do_cmdtest)?\n");
 		return -EINVAL;
 	}
 
@@ -1278,9 +1280,8 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 			} else {
 				arg = cmd->convert_arg * cmd->chanlist_len;
 			}
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    arg);
+			err |= comedi_check_trigger_arg_min(
+				&cmd->scan_begin_arg, arg);
 		}
 	}
 
@@ -1692,8 +1693,7 @@ static void pci9118_detach(struct comedi_device *dev)
 		pci9118_reset(dev);
 	comedi_pci_detach(dev);
 	pci9118_free_dma(dev);
-	if (pcidev)
-		pci_dev_put(pcidev);
+	pci_dev_put(pcidev);
 }
 
 static struct comedi_driver adl_pci9118_driver = {

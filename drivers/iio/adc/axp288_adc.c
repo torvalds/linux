@@ -46,7 +46,7 @@ struct axp288_adc_info {
 	struct regmap *regmap;
 };
 
-static const struct iio_chan_spec const axp288_adc_channels[] = {
+static const struct iio_chan_spec axp288_adc_channels[] = {
 	{
 		.indexed = 1,
 		.type = IIO_TEMP,
@@ -92,22 +92,14 @@ static const struct iio_chan_spec const axp288_adc_channels[] = {
 	},
 };
 
-#define AXP288_ADC_MAP(_adc_channel_label, _consumer_dev_name,	\
-		_consumer_channel)				\
-	{							\
-		.adc_channel_label = _adc_channel_label,	\
-		.consumer_dev_name = _consumer_dev_name,	\
-		.consumer_channel = _consumer_channel,		\
-	}
-
 /* for consumer drivers */
 static struct iio_map axp288_adc_default_maps[] = {
-	AXP288_ADC_MAP("TS_PIN", "axp288-batt", "axp288-batt-temp"),
-	AXP288_ADC_MAP("PMIC_TEMP", "axp288-pmic", "axp288-pmic-temp"),
-	AXP288_ADC_MAP("GPADC", "axp288-gpadc", "axp288-system-temp"),
-	AXP288_ADC_MAP("BATT_CHG_I", "axp288-chrg", "axp288-chrg-curr"),
-	AXP288_ADC_MAP("BATT_DISCHRG_I", "axp288-chrg", "axp288-chrg-d-curr"),
-	AXP288_ADC_MAP("BATT_V", "axp288-batt", "axp288-batt-volt"),
+	IIO_MAP("TS_PIN", "axp288-batt", "axp288-batt-temp"),
+	IIO_MAP("PMIC_TEMP", "axp288-pmic", "axp288-pmic-temp"),
+	IIO_MAP("GPADC", "axp288-gpadc", "axp288-system-temp"),
+	IIO_MAP("BATT_CHG_I", "axp288-chrg", "axp288-chrg-curr"),
+	IIO_MAP("BATT_DISCHRG_I", "axp288-chrg", "axp288-chrg-d-curr"),
+	IIO_MAP("BATT_V", "axp288-batt", "axp288-batt-volt"),
 	{},
 };
 
@@ -126,11 +118,21 @@ static int axp288_adc_read_channel(int *val, unsigned long address,
 static int axp288_adc_set_ts(struct regmap *regmap, unsigned int mode,
 				unsigned long address)
 {
+	int ret;
+
 	/* channels other than GPADC do not need to switch TS pin */
 	if (address != AXP288_GP_ADC_H)
 		return 0;
 
-	return regmap_write(regmap, AXP288_ADC_TS_PIN_CTRL, mode);
+	ret = regmap_write(regmap, AXP288_ADC_TS_PIN_CTRL, mode);
+	if (ret)
+		return ret;
+
+	/* When switching to the GPADC pin give things some time to settle */
+	if (mode == AXP288_ADC_TS_PIN_GPADC)
+		usleep_range(6000, 10000);
+
+	return 0;
 }
 
 static int axp288_adc_read_raw(struct iio_dev *indio_dev,
@@ -173,7 +175,6 @@ static int axp288_adc_set_state(struct regmap *regmap)
 
 static const struct iio_info axp288_adc_iio_info = {
 	.read_raw = &axp288_adc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int axp288_adc_probe(struct platform_device *pdev)

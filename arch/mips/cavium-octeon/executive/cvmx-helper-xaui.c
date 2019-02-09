@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (C) 2003-2018 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -39,11 +39,8 @@
 
 #include <asm/octeon/cvmx-pko-defs.h>
 #include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-pcsx-defs.h>
 #include <asm/octeon/cvmx-pcsxx-defs.h>
-
-void __cvmx_interrupt_gmxx_enable(int interface);
-void __cvmx_interrupt_pcsx_intx_en_reg_enable(int index, int block);
-void __cvmx_interrupt_pcsxx_int_en_reg_enable(int index);
 
 int __cvmx_helper_xaui_enumerate(int interface)
 {
@@ -234,8 +231,6 @@ int __cvmx_helper_xaui_enable(int interface)
 	cvmx_write_csr(CVMX_GMXX_TX_INT_EN(interface), gmx_tx_int_en.u64);
 	cvmx_write_csr(CVMX_PCSXX_INT_EN_REG(interface), pcsx_int_en_reg.u64);
 
-	cvmx_helper_link_autoconf(cvmx_helper_get_ipd_port(interface, 0));
-
 	/* (8) Enable packet reception */
 	xauiMiscCtl.s.gmxeno = 0;
 	cvmx_write_csr(CVMX_PCSXX_MISC_CTL_REG(interface), xauiMiscCtl.u64);
@@ -297,8 +292,7 @@ cvmx_helper_link_info_t __cvmx_helper_xaui_link_get(int ipd_port)
  * Configure an IPD/PKO port for the specified link state. This
  * function does not influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
- * by cvmx_helper_link_get(). It is normally best to use
- * cvmx_helper_link_autoconf() instead.
+ * by cvmx_helper_link_get().
  *
  * @ipd_port:  IPD/PKO port to configure
  * @link_info: The new link state

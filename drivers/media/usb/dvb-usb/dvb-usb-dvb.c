@@ -1,12 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /* dvb-usb-dvb.c is part of the DVB USB library.
  *
- * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
  * see dvb-usb-init.c for copyright information.
  *
  * This file contains functions for initializing and handling the
  * linux-dvb API.
  */
 #include "dvb-usb-common.h"
+#include <media/media-device.h>
 
 /* does the complete input transfer handling */
 static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
@@ -95,37 +97,32 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return dvb_usb_ctrl_feed(dvbdmxfeed, 0);
 }
 
-static void dvb_usb_media_device_register(struct dvb_usb_adapter *adap)
+static int dvb_usb_media_device_init(struct dvb_usb_adapter *adap)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	struct media_device *mdev;
 	struct dvb_usb_device *d = adap->dev;
 	struct usb_device *udev = d->udev;
-	int ret;
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return;
+		return -ENOMEM;
 
-	mdev->dev = &udev->dev;
-	strlcpy(mdev->model, d->desc->name, sizeof(mdev->model));
-	if (udev->serial)
-		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
-	strcpy(mdev->bus_info, udev->devpath);
-	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
-	mdev->driver_version = LINUX_VERSION_CODE;
+	media_device_usb_init(mdev, udev, d->desc->name);
 
-	ret = media_device_register(mdev);
-	if (ret) {
-		dev_err(&d->udev->dev,
-			"Couldn't create a media device. Error: %d\n",
-			ret);
-		kfree(mdev);
-		return;
-	}
 	dvb_register_media_controller(&adap->dvb_adap, mdev);
 
 	dev_info(&d->udev->dev, "media controller created\n");
+#endif
+	return 0;
+}
+
+static int  dvb_usb_media_device_register(struct dvb_usb_adapter *adap)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	return media_device_register(adap->dvb_adap.mdev);
+#else
+	return 0;
 #endif
 }
 
@@ -135,9 +132,14 @@ static void dvb_usb_media_device_unregister(struct dvb_usb_adapter *adap)
 	if (!adap->dvb_adap.mdev)
 		return;
 
+	mutex_lock(&adap->dvb_adap.mdev_lock);
+
 	media_device_unregister(adap->dvb_adap.mdev);
+	media_device_cleanup(adap->dvb_adap.mdev);
 	kfree(adap->dvb_adap.mdev);
 	adap->dvb_adap.mdev = NULL;
+
+	mutex_unlock(&adap->dvb_adap.mdev_lock);
 #endif
 }
 
@@ -154,7 +156,11 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap, short *adapter_nums)
 	}
 	adap->dvb_adap.priv = adap;
 
-	dvb_usb_media_device_register(adap);
+	ret = dvb_usb_media_device_init(adap);
+	if (ret < 0) {
+		deb_info("dvb_usb_media_device_init failed: error %d", ret);
+		goto err_mc;
+	}
 
 	if (adap->dev->props.read_mac_address) {
 		if (adap->dev->props.read_mac_address(adap->dev, adap->dvb_adap.proposed_mac) == 0)
@@ -204,6 +210,7 @@ err_dmx_dev:
 	dvb_dmx_release(&adap->demux);
 err_dmx:
 	dvb_usb_media_device_unregister(adap);
+err_mc:
 	dvb_unregister_adapter(&adap->dvb_adap);
 err:
 	return ret;
@@ -275,8 +282,7 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 	for (i = 0; i < adap->props.num_frontends; i++) {
 
 		if (adap->props.fe[i].frontend_attach == NULL) {
-			err("strange: '%s' #%d,%d "
-			    "doesn't want to attach a frontend.",
+			err("strange: '%s' #%d,%d doesn't want to attach a frontend.",
 			    adap->dev->desc->name, adap->id, i);
 
 			return 0;
@@ -319,9 +325,13 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		adap->num_frontends_initialized++;
 	}
 
-	dvb_create_media_graph(&adap->dvb_adap);
+	ret = dvb_create_media_graph(&adap->dvb_adap, true);
+	if (ret)
+		return ret;
 
-	return 0;
+	ret = dvb_usb_media_device_register(adap);
+
+	return ret;
 }
 
 int dvb_usb_adapter_frontend_exit(struct dvb_usb_adapter *adap)

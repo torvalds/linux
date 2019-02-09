@@ -14,38 +14,68 @@
 
 #include <linux/rxrpc.h>
 
+struct key;
+struct sock;
+struct socket;
 struct rxrpc_call;
 
 /*
- * the mark applied to socket buffers that may be intercepted
+ * Call completion condition (state == RXRPC_CALL_COMPLETE).
  */
-enum {
-	RXRPC_SKB_MARK_DATA,		/* data message */
-	RXRPC_SKB_MARK_FINAL_ACK,	/* final ACK received message */
-	RXRPC_SKB_MARK_BUSY,		/* server busy message */
-	RXRPC_SKB_MARK_REMOTE_ABORT,	/* remote abort message */
-	RXRPC_SKB_MARK_NET_ERROR,	/* network error message */
-	RXRPC_SKB_MARK_LOCAL_ERROR,	/* local error message */
-	RXRPC_SKB_MARK_NEW_CALL,	/* local error message */
+enum rxrpc_call_completion {
+	RXRPC_CALL_SUCCEEDED,		/* - Normal termination */
+	RXRPC_CALL_REMOTELY_ABORTED,	/* - call aborted by peer */
+	RXRPC_CALL_LOCALLY_ABORTED,	/* - call aborted locally on error or close */
+	RXRPC_CALL_LOCAL_ERROR,		/* - call failed due to local error */
+	RXRPC_CALL_NETWORK_ERROR,	/* - call terminated by network error */
+	NR__RXRPC_CALL_COMPLETIONS
 };
 
-typedef void (*rxrpc_interceptor_t)(struct sock *, unsigned long,
-				    struct sk_buff *);
-void rxrpc_kernel_intercept_rx_messages(struct socket *, rxrpc_interceptor_t);
+/*
+ * Debug ID counter for tracing.
+ */
+extern atomic_t rxrpc_debug_id;
+
+typedef void (*rxrpc_notify_rx_t)(struct sock *, struct rxrpc_call *,
+				  unsigned long);
+typedef void (*rxrpc_notify_end_tx_t)(struct sock *, struct rxrpc_call *,
+				      unsigned long);
+typedef void (*rxrpc_notify_new_call_t)(struct sock *, struct rxrpc_call *,
+					unsigned long);
+typedef void (*rxrpc_discard_new_call_t)(struct rxrpc_call *, unsigned long);
+typedef void (*rxrpc_user_attach_call_t)(struct rxrpc_call *, unsigned long);
+
+void rxrpc_kernel_new_call_notification(struct socket *,
+					rxrpc_notify_new_call_t,
+					rxrpc_discard_new_call_t);
 struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *,
 					   struct sockaddr_rxrpc *,
 					   struct key *,
 					   unsigned long,
-					   gfp_t);
-int rxrpc_kernel_send_data(struct rxrpc_call *, struct msghdr *, size_t);
-void rxrpc_kernel_abort_call(struct rxrpc_call *, u32);
-void rxrpc_kernel_end_call(struct rxrpc_call *);
-bool rxrpc_kernel_is_data_last(struct sk_buff *);
-u32 rxrpc_kernel_get_abort_code(struct sk_buff *);
-int rxrpc_kernel_get_error_number(struct sk_buff *);
-void rxrpc_kernel_data_delivered(struct sk_buff *);
-void rxrpc_kernel_free_skb(struct sk_buff *);
-struct rxrpc_call *rxrpc_kernel_accept_call(struct socket *, unsigned long);
-int rxrpc_kernel_reject_call(struct socket *);
+					   s64,
+					   gfp_t,
+					   rxrpc_notify_rx_t,
+					   bool,
+					   unsigned int);
+int rxrpc_kernel_send_data(struct socket *, struct rxrpc_call *,
+			   struct msghdr *, size_t,
+			   rxrpc_notify_end_tx_t);
+int rxrpc_kernel_recv_data(struct socket *, struct rxrpc_call *,
+			   struct iov_iter *, bool, u32 *, u16 *);
+bool rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *,
+			     u32, int, const char *);
+void rxrpc_kernel_end_call(struct socket *, struct rxrpc_call *);
+void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
+			   struct sockaddr_rxrpc *);
+u64 rxrpc_kernel_get_rtt(struct socket *, struct rxrpc_call *);
+int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,
+			       rxrpc_user_attach_call_t, unsigned long, gfp_t,
+			       unsigned int);
+void rxrpc_kernel_set_tx_length(struct socket *, struct rxrpc_call *, s64);
+int rxrpc_kernel_retry_call(struct socket *, struct rxrpc_call *,
+			    struct sockaddr_rxrpc *, struct key *);
+int rxrpc_kernel_check_call(struct socket *, struct rxrpc_call *,
+			    enum rxrpc_call_completion *, u32 *);
+u32 rxrpc_kernel_check_life(struct socket *, struct rxrpc_call *);
 
 #endif /* _NET_RXRPC_H */

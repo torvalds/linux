@@ -58,9 +58,10 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>; /* gpio_24 */
 		vcc-supply = <&hsusb1_power>;
+		#phy-cells = <0>;
 	};
 
-	tfp410: encoder@0 {
+	tfp410: encoder {
 		compatible = "ti,tfp410";
 		powerdown-gpios = <&gpio6 10 GPIO_ACTIVE_LOW>; /* gpio_170 */
 
@@ -71,7 +72,7 @@
 			port@0 {
 				reg = <0>;
 
-				tfp410_in: endpoint@0 {
+				tfp410_in: endpoint {
 					remote-endpoint = <&dpi_out>;
 				};
 			};
@@ -79,14 +80,14 @@
 			port@1 {
 				reg = <1>;
 
-				tfp410_out: endpoint@0 {
+				tfp410_out: endpoint {
 					remote-endpoint = <&dvi_connector_in>;
 				};
 			};
 		};
 	};
 
-	dvi0: connector@0 {
+	dvi0: connector {
 		compatible = "dvi-connector";
 		label = "dvi";
 
@@ -194,6 +195,12 @@
 			OMAP3630_CORE2_IOPAD(0x25f8, PIN_OUTPUT | MUX_MODE4) /* etk_d14.gpio_28 */
 		>;
 	};
+
+	mmc1_wp_pins: pinmux_mmc1_cd_pins {
+		pinctrl-single,pins = <
+			OMAP3630_CORE2_IOPAD(0x25fa, PIN_INPUT | MUX_MODE4)   /* etk_d15.gpio_29 */
+		>;
+	};
 };
 
 &i2c3 {
@@ -210,8 +217,8 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x00000000 0x20000000>,
-		 <5 0 0x2c000000 0x01000000>;
+	ranges = <0 0 0x30000000 0x01000000>,	/* CS0: 16MB for NAND */
+		 <5 0 0x2c000000 0x01000000>;	/* CS5: 16MB for ethernet */
 
 	ethernet@gpmc {
 		pinctrl-names = "default";
@@ -249,4 +256,9 @@
 			data-lines = <24>;
 		};
 	};
+};
+
+&mmc1 {
+	pinctrl-0 = <&mmc1_pins &mmc1_wp_pins>;
+	wp-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;	/* gpio_29 */
 };

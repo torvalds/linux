@@ -27,7 +27,7 @@
 #include <asm/unaligned.h>
 
 #include <media/media-entity.h>
-#include <media/s5k4ecgx.h>
+#include <media/i2c/s5k4ecgx.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
@@ -961,8 +961,8 @@ static int s5k4ecgx_probe(struct i2c_client *client,
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	priv->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &priv->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &priv->pad);
 	if (ret)
 		return ret;
 
@@ -1019,7 +1019,6 @@ MODULE_DEVICE_TABLE(i2c, s5k4ecgx_id);
 
 static struct i2c_driver v4l2_i2c_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name = S5K4ECGX_DRIVER_NAME,
 	},
 	.probe = s5k4ecgx_probe,

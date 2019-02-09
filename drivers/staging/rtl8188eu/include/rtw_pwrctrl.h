@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *
  ******************************************************************************/
 #ifndef __RTW_PWRCTRL_H_
@@ -56,11 +43,11 @@ enum power_mgnt {
 };
 
 /*
-	BIT[2:0] = HW state
-	BIT[3] = Protocol PS state,   0: register active state,
-				      1: register sleep state
-	BIT[4] = sub-state
-*/
+ *	BIT[2:0] = HW state
+ *	BIT[3] = Protocol PS state,   0: register active state,
+ *				      1: register sleep state
+ *	BIT[4] = sub-state
+ */
 
 #define PS_DPS			BIT(0)
 #define PS_LCLK			(PS_DPS)
@@ -97,21 +84,6 @@ struct reportpwrstate_parm {
 	unsigned short rsvd;
 };
 
-static inline void _init_pwrlock(struct semaphore  *plock)
-{
-	sema_init(plock, 1);
-}
-
-static inline void _enter_pwrlock(struct semaphore  *plock)
-{
-	_rtw_down_sema(plock);
-}
-
-static inline void _exit_pwrlock(struct semaphore  *plock)
-{
-	up(plock);
-}
-
 #define LPS_DELAY_TIME	1*HZ /*  1 sec */
 
 #define EXE_PWR_NONE	0x01
@@ -135,9 +107,11 @@ enum rt_rf_power_state {
 #define	RT_RF_OFF_LEVL_FREE_FW		BIT(4)	/* FW free, re-download the FW*/
 #define	RT_RF_OFF_LEVL_FW_32K		BIT(5)	/* FW in 32k */
 #define	RT_RF_PS_LEVEL_ALWAYS_ASPM	BIT(6)	/* Always enable ASPM and Clock
-						 * Req in initialization. */
+						 * Req in initialization.
+						 */
 #define	RT_RF_LPS_DISALBE_2R		BIT(30)	/* When LPS is on, disable 2R
-						 * if no packet is RX or TX. */
+						 * if no packet is RX or TX.
+						 */
 #define	RT_RF_LPS_LEVEL_ASPM		BIT(31)	/* LPS with ASPM */
 
 #define	RT_IN_PS_LEVEL(ppsc, _PS_FLAG)				\
@@ -162,10 +136,11 @@ enum { /*  for ips_mode */
 };
 
 struct pwrctrl_priv {
-	struct semaphore lock;
+	struct mutex mutex_lock;
 	volatile u8 rpwm; /*  requested power state for fw */
 	volatile u8 cpwm; /*  fw current power state. updated when
-			   * 1. read from HCPWM 2. driver lowers power level */
+			   * 1. read from HCPWM 2. driver lowers power level
+			   */
 	volatile u8 tog; /*  toggling */
 	volatile u8 cpwm_tog; /*  toggling */
 
@@ -190,7 +165,8 @@ struct pwrctrl_priv {
 
 	u8	ips_mode;
 	u8	ips_mode_req;	/*  used to accept the mode setting request,
-				 *  will update to ipsmode later */
+				 *  will update to ipsmode later
+				 */
 	uint bips_processing;
 	unsigned long ips_deny_time; /* will deny IPS when system time less than this */
 	u8 ps_processing; /* temp used to mark whether in rtw_ps_processor */

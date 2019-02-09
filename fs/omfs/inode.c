@@ -8,10 +8,12 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/vfs.h>
+#include <linux/cred.h>
 #include <linux/parser.h>
 #include <linux/buffer_head.h>
 #include <linux/vmalloc.h>
 #include <linux/writeback.h>
+#include <linux/seq_file.h>
 #include <linux/crc-itu-t.h>
 #include "omfs.h"
 
@@ -49,7 +51,7 @@ struct inode *omfs_new_inode(struct inode *dir, umode_t mode)
 	inode_init_owner(inode, NULL, mode);
 	inode->i_mapping->a_ops = &omfs_aops;
 
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
 		inode->i_op = &omfs_dir_inops;
@@ -289,12 +291,40 @@ static int omfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
+/*
+ * Display the mount options in /proc/mounts.
+ */
+static int omfs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct omfs_sb_info *sbi = OMFS_SB(root->d_sb);
+	umode_t cur_umask = current_umask();
+
+	if (!uid_eq(sbi->s_uid, current_uid()))
+		seq_printf(m, ",uid=%u",
+			   from_kuid_munged(&init_user_ns, sbi->s_uid));
+	if (!gid_eq(sbi->s_gid, current_gid()))
+		seq_printf(m, ",gid=%u",
+			   from_kgid_munged(&init_user_ns, sbi->s_gid));
+
+	if (sbi->s_dmask == sbi->s_fmask) {
+		if (sbi->s_fmask != cur_umask)
+			seq_printf(m, ",umask=%o", sbi->s_fmask);
+	} else {
+		if (sbi->s_dmask != cur_umask)
+			seq_printf(m, ",dmask=%o", sbi->s_dmask);
+		if (sbi->s_fmask != cur_umask)
+			seq_printf(m, ",fmask=%o", sbi->s_fmask);
+	}
+
+	return 0;
+}
+
 static const struct super_operations omfs_sops = {
 	.write_inode	= omfs_write_inode,
 	.evict_inode	= omfs_evict_inode,
 	.put_super	= omfs_put_super,
 	.statfs		= omfs_statfs,
-	.show_options	= generic_show_options,
+	.show_options	= omfs_show_options,
 };
 
 /*
@@ -432,8 +462,6 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct omfs_sb_info *sbi;
 	struct inode *root;
 	int ret = -EINVAL;
-
-	save_mount_options(sb, (char *) data);
 
 	sbi = kzalloc(sizeof(struct omfs_sb_info), GFP_KERNEL);
 	if (!sbi)

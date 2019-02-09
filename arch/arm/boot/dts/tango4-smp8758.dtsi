@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "tango4-common.dtsi"
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "sigma,tango4-smp";
+
+		cpu0: cpu@0 {
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&l2cc>;
+			device_type = "cpu";
+			reg = <0>;
+			clocks = <&clkgen CPU_CLK>;
+			clock-latency = <1>;
+		};
+
+		cpu1: cpu@1 {
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&l2cc>;
+			device_type = "cpu";
+			reg = <1>;
+		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupt-affinity = <&cpu0>, <&cpu1>;
+		interrupts =
+			<GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	soc {
+		cpu_temp: thermal@920100 {
+			#thermal-sensor-cells = <0>;
+			compatible = "sigma,smp8758-thermal";
+			reg = <0x920100 12>;
+		};
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay = <997>;		/* milliseconds */
+			polling-delay-passive = <499>;	/* milliseconds */
+			thermal-sensors = <&cpu_temp>;
+			trips {
+				cpu_critical {
+					temperature = <120000>;
+					hysteresis = <2500>;
+					type = "critical";
+				};
+			};
+		};
+	};
+};

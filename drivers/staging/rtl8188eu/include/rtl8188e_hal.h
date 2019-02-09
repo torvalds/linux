@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *
  ******************************************************************************/
 #ifndef __RTL8188E_HAL_H__
@@ -23,8 +10,8 @@
 
 /* include HAL Related header after HAL Related compiling flags */
 #include "rtl8188e_spec.h"
-#include "Hal8188EPhyReg.h"
-#include "Hal8188EPhyCfg.h"
+#include "hal8188e_phy_reg.h"
+#include "hal8188e_phy_cfg.h"
 #include "rtl8188e_dm.h"
 #include "rtl8188e_recv.h"
 #include "rtl8188e_xmit.h"
@@ -47,7 +34,7 @@
 #define RTL8188E_PHY_REG_PG			"rtl8188E\\PHY_REG_PG.txt"
 #define RTL8188E_PHY_REG_MP			"rtl8188E\\PHY_REG_MP.txt"
 
-/* 		RTL8188E Power Configuration CMDs for USB/SDIO interfaces */
+/* RTL8188E Power Configuration CMDs for USB/SDIO interfaces */
 #define Rtl8188E_NIC_PWR_ON_FLOW		rtl8188E_power_on_flow
 #define Rtl8188E_NIC_RF_OFF_FLOW		rtl8188E_radio_off_flow
 #define Rtl8188E_NIC_DISABLE_FLOW		rtl8188E_card_disable_flow
@@ -86,7 +73,8 @@ enum usb_rx_agg_mode {
 
 #define MAX_RX_DMA_BUFFER_SIZE_88E				\
       0x2400 /* 9k for 88E nornal chip , MaxRxBuff=10k-max(TxReportSize(64*8),
-	      * WOLPattern(16*24)) */
+	      * WOLPattern(16*24))
+	      */
 
 #define MAX_TX_REPORT_BUFFER_SIZE		0x0400 /*  1k */
 
@@ -99,11 +87,13 @@ enum usb_rx_agg_mode {
 #define TX_SELE_NQ			BIT(2)		/*  Normal Queue */
 
 /*  Note: We will divide number of page equally for each queue other
- *  than public queue! */
+ *  than public queue!
+ */
 /*  22k = 22528 bytes = 176 pages (@page =  128 bytes) */
 /*  must reserved about 7 pages for LPS =>  176-7 = 169 (0xA9) */
 /*  2*BCN / 1*ps-poll / 1*null-data /1*prob_rsp /1*QOS null-data /1*BT QOS
- *  null-data */
+ *  null-data
+ */
 
 #define TX_TOTAL_PAGE_NUMBER_88E		0xA9/*   169 (21632=> 21k) */
 
@@ -115,7 +105,7 @@ enum usb_rx_agg_mode {
 #define WMM_NORMAL_TX_PAGE_BOUNDARY_88E			\
 	(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER + 1) /* 0xA9 */
 
-/* 	Chip specific */
+/* Chip specific */
 #define CHIP_BONDING_IDENTIFIER(_value)	(((_value)>>22)&0x3)
 #define CHIP_BONDING_92C_1T2R	0x1
 #define CHIP_BONDING_88C_USB_MCARD	0x2
@@ -123,7 +113,7 @@ enum usb_rx_agg_mode {
 #include "HalVerDef.h"
 #include "hal_com.h"
 
-/* 	Channel Plan */
+/* Channel Plan */
 enum ChannelPlan {
 	CHPL_FCC	= 0,
 	CHPL_IC		= 1,
@@ -173,7 +163,8 @@ struct txpowerinfo24g {
 #define		AVAILABLE_EFUSE_ADDR_88E(addr)			\
 	(addr < EFUSE_REAL_CONTENT_LEN_88E)
 /*  To prevent out of boundary programming case, leave 1byte and program
- *  full section */
+ *  full section
+ */
 /*  9bytes + 1byt + 5bytes and pre 1byte. */
 /*  For worst case: */
 /*  | 2byte|----8bytes----|1byte|--7bytes--| 92D */
@@ -181,7 +172,7 @@ struct txpowerinfo24g {
 #define		EFUSE_OOB_PROTECT_BYTES_88E	18
 #define		EFUSE_PROTECT_BYTES_BANK_88E	16
 
-/* 			EFUSE for BT definition */
+/* EFUSE for BT definition */
 #define EFUSE_BT_REAL_CONTENT_LEN	1536	/*  512*3 */
 #define EFUSE_BT_MAP_LEN		1024	/*  1k bytes */
 #define EFUSE_BT_MAX_SECTION		128	/*  1024/8 */
@@ -191,8 +182,6 @@ struct txpowerinfo24g {
 struct hal_data_8188e {
 	struct HAL_VERSION	VersionID;
 	u16	CustomerID;
-	u8 *pfirmware;
-	u32 fwsize;
 	u16	FirmwareVersion;
 	u16	FirmwareVersionRev;
 	u16	FirmwareSubVersion;
@@ -206,11 +195,6 @@ struct hal_data_8188e {
 	u8	nCur40MhzPrimeSC;/*  Control channel sub-carrier */
 
 	u16	BasicRateSet;
-
-	/* rf_ctrl */
-	u8	rf_chip;
-	u8	rf_type;
-	u8	NumTotalRFPath;
 
 	u8	BoardType;
 
@@ -273,14 +257,6 @@ struct hal_data_8188e {
 	u32	CCKTxPowerLevelOriginalOffset;
 
 	u8	CrystalCap;
-	u32	AntennaTxPath;			/*  Antenna path Tx */
-	u32	AntennaRxPath;			/*  Antenna path Rx */
-	u8	BluetoothCoexist;
-	u8	ExternalPA;
-
-	u8	bLedOpenDrain; /* Open-drain support for controlling the LED.*/
-
-	u8	b1x1RecvCombine;	/*  for 1T1R receive combining */
 
 	u32	AcParam_BE; /* Original parameter for BE, use for EDCA turbo. */
 
@@ -313,7 +289,8 @@ struct hal_data_8188e {
 	u8	bDumpRxPkt;/* for debug */
 	u8	bDumpTxPkt;/* for debug */
 	u8	FwRsvdPageStartOffset; /* Reserve page start offset except
-					*  beacon in TxQ. */
+					*  beacon in TxQ.
+					*/
 
 	/*  2010/08/09 MH Add CU power down mode. */
 	bool		pwrdown;
@@ -324,18 +301,11 @@ struct hal_data_8188e {
 	u8	OutEpQueueSel;
 	u8	OutEpNumber;
 
-	/*  Add for USB aggreation mode dynamic shceme. */
-	bool		UsbRxHighSpeedMode;
-
-	/*  2010/11/22 MH Add for slim combo debug mode selective. */
-	/*  This is used for fix the drawback of CU TSMC-A/UMC-A cut.
-	 * HW auto suspend ability. Close BT clock. */
-	bool		SlimComboDbg;
-
 	u16	EfuseUsedBytes;
 
 	/*  Auto FSM to Turn On, include clock, isolation, power control
-	 *  for MAC only */
+	 *  for MAC only
+	 */
 	u8	bMacPwrCtrlOn;
 
 	u32	UsbBulkOutSize;
@@ -352,15 +322,12 @@ struct hal_data_8188e {
 	enum usb_rx_agg_mode UsbRxAggMode;
 	u8	UsbRxAggBlockCount;	/*  USB Block count. Block size is
 					 * 512-byte in high speed and 64-byte
-					 * in full speed */
+					 * in full speed
+					 */
 	u8	UsbRxAggBlockTimeout;
 	u8	UsbRxAggPageCount;	/*  8192C DMA page count */
 	u8	UsbRxAggPageTimeout;
 };
-
-#define GET_HAL_DATA(__pAdapter)				\
-	((struct hal_data_8188e *)((__pAdapter)->HalData))
-#define GET_RF_TYPE(priv)		(GET_HAL_DATA(priv)->rf_type)
 
 /*  rtl8188e_hal_init.c */
 void _8051Reset88E(struct adapter *padapter);
@@ -391,8 +358,6 @@ void Hal_EfuseParseBoardType88E(struct adapter *pAdapter, u8 *hwinfo,
 				bool AutoLoadFail);
 void Hal_ReadPowerSavingMode88E(struct adapter *pAdapter, u8 *hwinfo,
 				bool AutoLoadFail);
-
-void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc);
 
 /*  register */
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * VFIO API definition
  *
@@ -39,6 +40,13 @@
 #define VFIO_SPAPR_TCE_v2_IOMMU		7
 
 /*
+ * The No-IOMMU IOMMU offers no translation or isolation for devices and
+ * supports no ioctls outside of VFIO_CHECK_EXTENSION.  Use of VFIO's No-IOMMU
+ * code will taint the host kernel and should be used with extreme caution.
+ */
+#define VFIO_NOIOMMU_IOMMU		8
+
+/*
  * The IOCTL interface is designed for extensibility by embedding the
  * structure length (argsz) and flags into structures passed between
  * kernel and userspace.  We therefore use the _IO() macro for these
@@ -51,6 +59,33 @@
 
 #define VFIO_TYPE	(';')
 #define VFIO_BASE	100
+
+/*
+ * For extension of INFO ioctls, VFIO makes use of a capability chain
+ * designed after PCI/e capabilities.  A flag bit indicates whether
+ * this capability chain is supported and a field defined in the fixed
+ * structure defines the offset of the first capability in the chain.
+ * This field is only valid when the corresponding bit in the flags
+ * bitmap is set.  This offset field is relative to the start of the
+ * INFO buffer, as is the next field within each capability header.
+ * The id within the header is a shared address space per INFO ioctl,
+ * while the version field is specific to the capability id.  The
+ * contents following the header are specific to the capability id.
+ */
+struct vfio_info_cap_header {
+	__u16	id;		/* Identifies capability */
+	__u16	version;	/* Version specific to the capability ID */
+	__u32	next;		/* Offset of next capability */
+};
+
+/*
+ * Callers of INFO ioctls passing insufficiently sized buffers will see
+ * the capability chain flag bit set, a zero value for the first capability
+ * offset (if available within the provided argsz), and argsz will be
+ * updated to report the necessary buffer size.  For compatibility, the
+ * INFO ioctl will not report error in this case, but the capability chain
+ * will not be available.
+ */
 
 /* -------- IOCTLs for VFIO file descriptor (/dev/vfio/vfio) -------- */
 
@@ -164,10 +199,22 @@ struct vfio_device_info {
 #define VFIO_DEVICE_FLAGS_PCI	(1 << 1)	/* vfio-pci device */
 #define VFIO_DEVICE_FLAGS_PLATFORM (1 << 2)	/* vfio-platform device */
 #define VFIO_DEVICE_FLAGS_AMBA  (1 << 3)	/* vfio-amba device */
+#define VFIO_DEVICE_FLAGS_CCW	(1 << 4)	/* vfio-ccw device */
 	__u32	num_regions;	/* Max region index + 1 */
 	__u32	num_irqs;	/* Max IRQ index + 1 */
 };
 #define VFIO_DEVICE_GET_INFO		_IO(VFIO_TYPE, VFIO_BASE + 7)
+
+/*
+ * Vendor driver using Mediated device framework should provide device_api
+ * attribute in supported type attribute groups. Device API string should be one
+ * of the following corresponding to device flags in vfio_device_info structure.
+ */
+
+#define VFIO_DEVICE_API_PCI_STRING		"vfio-pci"
+#define VFIO_DEVICE_API_PLATFORM_STRING		"vfio-platform"
+#define VFIO_DEVICE_API_AMBA_STRING		"vfio-amba"
+#define VFIO_DEVICE_API_CCW_STRING		"vfio-ccw"
 
 /**
  * VFIO_DEVICE_GET_REGION_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 8,
@@ -187,12 +234,82 @@ struct vfio_region_info {
 #define VFIO_REGION_INFO_FLAG_READ	(1 << 0) /* Region supports read */
 #define VFIO_REGION_INFO_FLAG_WRITE	(1 << 1) /* Region supports write */
 #define VFIO_REGION_INFO_FLAG_MMAP	(1 << 2) /* Region supports mmap */
+#define VFIO_REGION_INFO_FLAG_CAPS	(1 << 3) /* Info supports caps */
 	__u32	index;		/* Region index */
-	__u32	resv;		/* Reserved for alignment */
+	__u32	cap_offset;	/* Offset within info struct of first cap */
 	__u64	size;		/* Region size (bytes) */
 	__u64	offset;		/* Region offset from start of device fd */
 };
 #define VFIO_DEVICE_GET_REGION_INFO	_IO(VFIO_TYPE, VFIO_BASE + 8)
+
+/*
+ * The sparse mmap capability allows finer granularity of specifying areas
+ * within a region with mmap support.  When specified, the user should only
+ * mmap the offset ranges specified by the areas array.  mmaps outside of the
+ * areas specified may fail (such as the range covering a PCI MSI-X table) or
+ * may result in improper device behavior.
+ *
+ * The structures below define version 1 of this capability.
+ */
+#define VFIO_REGION_INFO_CAP_SPARSE_MMAP	1
+
+struct vfio_region_sparse_mmap_area {
+	__u64	offset;	/* Offset of mmap'able area within region */
+	__u64	size;	/* Size of mmap'able area */
+};
+
+struct vfio_region_info_cap_sparse_mmap {
+	struct vfio_info_cap_header header;
+	__u32	nr_areas;
+	__u32	reserved;
+	struct vfio_region_sparse_mmap_area areas[];
+};
+
+/*
+ * The device specific type capability allows regions unique to a specific
+ * device or class of devices to be exposed.  This helps solve the problem for
+ * vfio bus drivers of defining which region indexes correspond to which region
+ * on the device, without needing to resort to static indexes, as done by
+ * vfio-pci.  For instance, if we were to go back in time, we might remove
+ * VFIO_PCI_VGA_REGION_INDEX and let vfio-pci simply define that all indexes
+ * greater than or equal to VFIO_PCI_NUM_REGIONS are device specific and we'd
+ * make a "VGA" device specific type to describe the VGA access space.  This
+ * means that non-VGA devices wouldn't need to waste this index, and thus the
+ * address space associated with it due to implementation of device file
+ * descriptor offsets in vfio-pci.
+ *
+ * The current implementation is now part of the user ABI, so we can't use this
+ * for VGA, but there are other upcoming use cases, such as opregions for Intel
+ * IGD devices and framebuffers for vGPU devices.  We missed VGA, but we'll
+ * use this for future additions.
+ *
+ * The structure below defines version 1 of this capability.
+ */
+#define VFIO_REGION_INFO_CAP_TYPE	2
+
+struct vfio_region_info_cap_type {
+	struct vfio_info_cap_header header;
+	__u32 type;	/* global per bus driver */
+	__u32 subtype;	/* type specific */
+};
+
+#define VFIO_REGION_TYPE_PCI_VENDOR_TYPE	(1 << 31)
+#define VFIO_REGION_TYPE_PCI_VENDOR_MASK	(0xffff)
+
+/* 8086 Vendor sub-types */
+#define VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION	(1)
+#define VFIO_REGION_SUBTYPE_INTEL_IGD_HOST_CFG	(2)
+#define VFIO_REGION_SUBTYPE_INTEL_IGD_LPC_CFG	(3)
+
+/*
+ * The MSIX mappable capability informs that MSIX data of a BAR can be mmapped
+ * which allows direct access to non-MSIX registers which happened to be within
+ * the same system page.
+ *
+ * Even though the userspace gets direct access to the MSIX data, the existing
+ * VFIO_DEVICE_SET_IRQS interface must still be used for MSIX configuration.
+ */
+#define VFIO_REGION_INFO_CAP_MSIX_MAPPABLE	3
 
 /**
  * VFIO_DEVICE_GET_IRQ_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 9,
@@ -329,7 +446,8 @@ enum {
 	 * between described ranges are unimplemented.
 	 */
 	VFIO_PCI_VGA_REGION_INDEX,
-	VFIO_PCI_NUM_REGIONS
+	VFIO_PCI_NUM_REGIONS = 9 /* Fixed user ABI, region indexes >=9 use */
+				 /* device specific cap to define content. */
 };
 
 enum {
@@ -339,6 +457,22 @@ enum {
 	VFIO_PCI_ERR_IRQ_INDEX,
 	VFIO_PCI_REQ_IRQ_INDEX,
 	VFIO_PCI_NUM_IRQS
+};
+
+/*
+ * The vfio-ccw bus driver makes use of the following fixed region and
+ * IRQ index mapping. Unimplemented regions return a size of zero.
+ * Unimplemented IRQ types return a count of zero.
+ */
+
+enum {
+	VFIO_CCW_CONFIG_REGION_INDEX,
+	VFIO_CCW_NUM_REGIONS
+};
+
+enum {
+	VFIO_CCW_IO_IRQ_INDEX,
+	VFIO_CCW_NUM_IRQS
 };
 
 /**
@@ -378,6 +512,95 @@ struct vfio_pci_hot_reset {
 };
 
 #define VFIO_DEVICE_PCI_HOT_RESET	_IO(VFIO_TYPE, VFIO_BASE + 13)
+
+/**
+ * VFIO_DEVICE_QUERY_GFX_PLANE - _IOW(VFIO_TYPE, VFIO_BASE + 14,
+ *                                    struct vfio_device_query_gfx_plane)
+ *
+ * Set the drm_plane_type and flags, then retrieve the gfx plane info.
+ *
+ * flags supported:
+ * - VFIO_GFX_PLANE_TYPE_PROBE and VFIO_GFX_PLANE_TYPE_DMABUF are set
+ *   to ask if the mdev supports dma-buf. 0 on support, -EINVAL on no
+ *   support for dma-buf.
+ * - VFIO_GFX_PLANE_TYPE_PROBE and VFIO_GFX_PLANE_TYPE_REGION are set
+ *   to ask if the mdev supports region. 0 on support, -EINVAL on no
+ *   support for region.
+ * - VFIO_GFX_PLANE_TYPE_DMABUF or VFIO_GFX_PLANE_TYPE_REGION is set
+ *   with each call to query the plane info.
+ * - Others are invalid and return -EINVAL.
+ *
+ * Note:
+ * 1. Plane could be disabled by guest. In that case, success will be
+ *    returned with zero-initialized drm_format, size, width and height
+ *    fields.
+ * 2. x_hot/y_hot is set to 0xFFFFFFFF if no hotspot information available
+ *
+ * Return: 0 on success, -errno on other failure.
+ */
+struct vfio_device_gfx_plane_info {
+	__u32 argsz;
+	__u32 flags;
+#define VFIO_GFX_PLANE_TYPE_PROBE (1 << 0)
+#define VFIO_GFX_PLANE_TYPE_DMABUF (1 << 1)
+#define VFIO_GFX_PLANE_TYPE_REGION (1 << 2)
+	/* in */
+	__u32 drm_plane_type;	/* type of plane: DRM_PLANE_TYPE_* */
+	/* out */
+	__u32 drm_format;	/* drm format of plane */
+	__u64 drm_format_mod;   /* tiled mode */
+	__u32 width;	/* width of plane */
+	__u32 height;	/* height of plane */
+	__u32 stride;	/* stride of plane */
+	__u32 size;	/* size of plane in bytes, align on page*/
+	__u32 x_pos;	/* horizontal position of cursor plane */
+	__u32 y_pos;	/* vertical position of cursor plane*/
+	__u32 x_hot;    /* horizontal position of cursor hotspot */
+	__u32 y_hot;    /* vertical position of cursor hotspot */
+	union {
+		__u32 region_index;	/* region index */
+		__u32 dmabuf_id;	/* dma-buf id */
+	};
+};
+
+#define VFIO_DEVICE_QUERY_GFX_PLANE _IO(VFIO_TYPE, VFIO_BASE + 14)
+
+/**
+ * VFIO_DEVICE_GET_GFX_DMABUF - _IOW(VFIO_TYPE, VFIO_BASE + 15, __u32)
+ *
+ * Return a new dma-buf file descriptor for an exposed guest framebuffer
+ * described by the provided dmabuf_id. The dmabuf_id is returned from VFIO_
+ * DEVICE_QUERY_GFX_PLANE as a token of the exposed guest framebuffer.
+ */
+
+#define VFIO_DEVICE_GET_GFX_DMABUF _IO(VFIO_TYPE, VFIO_BASE + 15)
+
+/**
+ * VFIO_DEVICE_IOEVENTFD - _IOW(VFIO_TYPE, VFIO_BASE + 16,
+ *                              struct vfio_device_ioeventfd)
+ *
+ * Perform a write to the device at the specified device fd offset, with
+ * the specified data and width when the provided eventfd is triggered.
+ * vfio bus drivers may not support this for all regions, for all widths,
+ * or at all.  vfio-pci currently only enables support for BAR regions,
+ * excluding the MSI-X vector table.
+ *
+ * Return: 0 on success, -errno on failure.
+ */
+struct vfio_device_ioeventfd {
+	__u32	argsz;
+	__u32	flags;
+#define VFIO_DEVICE_IOEVENTFD_8		(1 << 0) /* 1-byte write */
+#define VFIO_DEVICE_IOEVENTFD_16	(1 << 1) /* 2-byte write */
+#define VFIO_DEVICE_IOEVENTFD_32	(1 << 2) /* 4-byte write */
+#define VFIO_DEVICE_IOEVENTFD_64	(1 << 3) /* 8-byte write */
+#define VFIO_DEVICE_IOEVENTFD_SIZE_MASK	(0xf)
+	__u64	offset;			/* device fd offset of write */
+	__u64	data;			/* data to be written */
+	__s32	fd;			/* -1 for de-assignment */
+};
+
+#define VFIO_DEVICE_IOEVENTFD		_IO(VFIO_TYPE, VFIO_BASE + 16)
 
 /* -------- API for Type1 VFIO IOMMU -------- */
 
@@ -568,8 +791,10 @@ struct vfio_iommu_spapr_tce_create {
 	__u32 flags;
 	/* in */
 	__u32 page_shift;
+	__u32 __resv1;
 	__u64 window_size;
 	__u32 levels;
+	__u32 __resv2;
 	/* out */
 	__u64 start_addr;
 };

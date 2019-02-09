@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Functions for assembling fcx enabled I/O control blocks.
  *
@@ -6,7 +7,7 @@
  */
 
 #ifndef _ASM_S390_FCX_H
-#define _ASM_S390_FCX_H _ASM_S390_FCX_H
+#define _ASM_S390_FCX_H
 
 #include <linux/types.h>
 

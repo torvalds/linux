@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  fs/ext4/extents_status.c
  *
@@ -84,7 +85,7 @@
  *   --	writeout
  *	Writeout looks up whole page cache to see if a buffer is
  *	mapped, If there are not very many delayed buffers, then it is
- *	time comsuming.
+ *	time consuming.
  *
  * With extent status tree implementation, FIEMAP, SEEK_HOLE/DATA,
  * bigalloc and writeout can figure out if a block or a range of
@@ -161,8 +162,7 @@ int __init ext4_init_es(void)
 
 void ext4_exit_es(void)
 {
-	if (ext4_es_cachep)
-		kmem_cache_destroy(ext4_es_cachep);
+	kmem_cache_destroy(ext4_es_cachep);
 }
 
 void ext4_es_init_tree(struct ext4_es_tree *tree)
@@ -707,7 +707,7 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 	    (status & EXTENT_STATUS_WRITTEN)) {
 		ext4_warning(inode->i_sb, "Inserting extent [%u/%u] as "
 				" delayed and written which can potentially "
-				" cause data loss.\n", lblk, len);
+				" cause data loss.", lblk, len);
 		WARN_ON(1);
 	}
 
@@ -823,8 +823,8 @@ out:
 		es->es_lblk = es1->es_lblk;
 		es->es_len = es1->es_len;
 		es->es_pblk = es1->es_pblk;
-		if (!ext4_es_is_referenced(es))
-			ext4_es_set_referenced(es);
+		if (!ext4_es_is_referenced(es1))
+			ext4_es_set_referenced(es1);
 		stats->es_stats_cache_hits++;
 	} else {
 		stats->es_stats_cache_misses++;

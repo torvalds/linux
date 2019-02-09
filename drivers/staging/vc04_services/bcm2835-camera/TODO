@@ -1,0 +1,23 @@
+1) Support dma-buf memory management.
+
+In order to zero-copy import camera images into the 3D or display
+pipelines, we need to export our buffers through dma-buf so that the
+vc4 driver can import them.  This may involve bringing in the VCSM
+driver (which allows long-term management of regions of memory in the
+space that the VPU reserved and Linux otherwise doesn't have access
+to), or building some new protocol that allows VCSM-style management
+of Linux's CMA memory.
+
+2) Avoid extra copies for padding of images.
+
+We expose V4L2_PIX_FMT_* formats that have a specified stride/height
+padding in the V4L2 spec, but that padding doesn't match what the
+hardware can do.  If we exposed the native padding requirements
+through the V4L2 "multiplanar" formats, the firmware would have one
+less copy it needed to do.
+
+3) Port to ARM64
+
+The bulk_receive() does some manual cache flushing that are 32-bit ARM
+only, which we should convert to proper cross-platform APIs.
+

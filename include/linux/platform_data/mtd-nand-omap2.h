@@ -45,7 +45,6 @@ enum omap_ecc {
 };
 
 struct gpmc_nand_regs {
-	void __iomem	*gpmc_status;
 	void __iomem	*gpmc_nand_command;
 	void __iomem	*gpmc_nand_address;
 	void __iomem	*gpmc_nand_data;
@@ -64,21 +63,5 @@ struct gpmc_nand_regs {
 	void __iomem	*gpmc_bch_result4[GPMC_BCH_NUM_REMAINDER];
 	void __iomem	*gpmc_bch_result5[GPMC_BCH_NUM_REMAINDER];
 	void __iomem	*gpmc_bch_result6[GPMC_BCH_NUM_REMAINDER];
-};
-
-struct omap_nand_platform_data {
-	int			cs;
-	struct mtd_partition	*parts;
-	int			nr_parts;
-	bool			dev_ready;
-	bool			flash_bbt;
-	enum nand_io		xfer_type;
-	int			devsize;
-	enum omap_ecc           ecc_opt;
-	struct gpmc_nand_regs	reg;
-
-	/* for passing the partitions */
-	struct device_node	*of_node;
-	struct device_node	*elm_of_node;
 };
 #endif

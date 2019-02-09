@@ -1,0 +1,146 @@
+Microchip MCP2308/MCP23S08/MCP23017/MCP23S17 driver for
+8-/16-bit I/O expander with serial interface (I2C/SPI)
+
+Required properties:
+- compatible : Should be
+    - "mcp,mcp23s08" (DEPRECATED) for  8 GPIO SPI version
+    - "mcp,mcp23s17" (DEPRECATED) for 16 GPIO SPI version
+    - "mcp,mcp23008" (DEPRECATED) for  8 GPIO I2C version or
+    - "mcp,mcp23017" (DEPRECATED) for 16 GPIO I2C version of the chip
+
+    - "microchip,mcp23s08" for  8 GPIO SPI version
+    - "microchip,mcp23s17" for 16 GPIO SPI version
+    - "microchip,mcp23s18" for 16 GPIO SPI version
+    - "microchip,mcp23008" for  8 GPIO I2C version or
+    - "microchip,mcp23017" for 16 GPIO I2C version of the chip
+    - "microchip,mcp23018" for 16 GPIO I2C version
+    NOTE: Do not use the old mcp prefix any more. It is deprecated and will be
+    removed.
+- #gpio-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify flags as described in
+    'Documentation/devicetree/bindings/gpio/gpio.txt'. Allowed values defined by
+    'include/dt-bindings/gpio/gpio.h' (e.g. GPIO_ACTIVE_LOW).
+- gpio-controller : Marks the device node as a GPIO controller.
+- reg : For an address on its bus. I2C uses this a the I2C address of the chip.
+        SPI uses this to specify the chipselect line which the chip is
+        connected to. The driver and the SPI variant of the chip support
+        multiple chips on the same chipselect. Have a look at
+        microchip,spi-present-mask below.
+
+Required device specific properties (only for SPI chips):
+- mcp,spi-present-mask (DEPRECATED)
+- microchip,spi-present-mask : This is a present flag, that makes only sense for SPI
+        chips - as the name suggests. Multiple SPI chips can share the same
+        SPI chipselect. Set a bit in bit0-7 in this mask to 1 if there is a
+        chip connected with the corresponding spi address set. For example if
+        you have a chip with address 3 connected, you have to set bit3 to 1,
+        which is 0x08. mcp23s08 chip variant only supports bits 0-3. It is not
+        possible to mix mcp23s08 and mcp23s17 on the same chipselect. Set at
+        least one bit to 1 for SPI chips.
+    NOTE: Do not use the old mcp prefix any more. It is deprecated and will be
+    removed.
+- spi-max-frequency = The maximum frequency this chip is able to handle
+
+Optional properties:
+- #interrupt-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify flags.
+- interrupt-controller: Marks the device node as a interrupt controller.
+- drive-open-drain: Sets the ODR flag in the IOCON register. This configures
+        the IRQ output as open drain active low.
+
+Optional device specific properties:
+- microchip,irq-mirror: Sets the mirror flag in the IOCON register. Devices
+        with two interrupt outputs (these are the devices ending with 17 and
+        those that have 16 IOs) have two IO banks: IO 0-7 form bank 1 and
+        IO 8-15 are bank 2. These chips have two different interrupt outputs:
+        One for bank 1 and another for bank 2. If irq-mirror is set, both
+        interrupts are generated regardless of the bank that an input change
+        occurred on. If it is not set, the interrupt are only generated for the
+        bank they belong to.
+        On devices with only one interrupt output this property is useless.
+- microchip,irq-active-high: Sets the INTPOL flag in the IOCON register. This
+        configures the IRQ output polarity as active high.
+
+Example I2C (with interrupt):
+gpiom1: gpio@20 {
+        compatible = "microchip,mcp23017";
+        gpio-controller;
+        #gpio-cells = <2>;
+        reg = <0x20>;
+
+        interrupt-parent = <&gpio1>;
+        interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+        interrupt-controller;
+        #interrupt-cells=<2>;
+        microchip,irq-mirror;
+};
+
+Example SPI:
+gpiom1: gpio@0 {
+        compatible = "microchip,mcp23s17";
+        gpio-controller;
+        #gpio-cells = <2>;
+        spi-present-mask = <0x01>;
+        reg = <0>;
+        spi-max-frequency = <1000000>;
+};
+
+Pull-up configuration
+=====================
+
+If pins are used as output, they can also be configured with pull-ups. This is
+done with pinctrl.
+
+Please refer file <devicetree/bindings/pinctrl/pinctrl-bindings.txt>
+for details of the common pinctrl bindings used by client devices,
+including the meaning of the phrase "pin configuration node".
+
+Optional Pinmux properties:
+--------------------------
+Following properties are required if default setting of pins are required
+at boot.
+- pinctrl-names: A pinctrl state named per <pinctrl-bindings.txt>.
+- pinctrl[0...n]: Properties to contain the phandle for pinctrl states per
+		<pinctrl-bindings.txt>.
+
+The pin configurations are defined as child of the pinctrl states node. Each
+sub-node have following properties:
+
+Required properties:
+------------------
+- pins: List of pins. Valid values of pins properties are:
+		      gpio0 ... gpio7 for the devices with 8 GPIO pins and
+		      gpio0 ... gpio15 for the devices with 16 GPIO pins.
+
+Optional properties:
+-------------------
+The following optional property is defined in the pinmux DT binding document
+<pinctrl-bindings.txt>. Absence of this property will leave the configuration
+in its default state.
+	bias-pull-up
+
+Example with pinctrl to pull-up output pins:
+gpio21: gpio@21 {
+	compatible = "microchip,mcp23017";
+	gpio-controller;
+	#gpio-cells = <0x2>;
+	reg = <0x21>;
+	interrupt-parent = <&socgpio>;
+	interrupts = <0x17 0x8>;
+	interrupt-names = "mcp23017@21 irq";
+	interrupt-controller;
+	#interrupt-cells = <0x2>;
+	microchip,irq-mirror;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2cgpio0irq &gpio21pullups>;
+
+	gpio21pullups: pinmux {
+		pins =	"gpio0", "gpio1", "gpio2", "gpio3",
+			"gpio4", "gpio5", "gpio6", "gpio7",
+			"gpio8", "gpio9", "gpio10", "gpio11",
+			"gpio12", "gpio13", "gpio14", "gpio15";
+		bias-pull-up;
+	};
+};

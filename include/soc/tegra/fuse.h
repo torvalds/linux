@@ -26,6 +26,7 @@
 
 #define TEGRA_FUSE_SKU_CALIB_0	0xf0
 #define TEGRA30_FUSE_SATA_CALIB	0x124
+#define TEGRA_FUSE_USB_CALIB_EXT_0 0x250
 
 #ifndef __ASSEMBLY__
 
@@ -63,6 +64,8 @@ u32 tegra_read_chipid(void);
 int tegra_fuse_readl(unsigned long offset, u32 *value);
 
 extern struct tegra_sku_info tegra_sku_info;
+
+struct device *tegra_soc_device_register(void);
 
 #endif /* __ASSEMBLY__ */
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Copyright IBM Corp. 2008
  *
@@ -11,7 +12,7 @@
 #include "qdio.h"
 
 /* that gives us 15 characters in the text event views */
-#define QDIO_DBF_LEN	16
+#define QDIO_DBF_LEN	32
 
 extern debug_info_t *qdio_dbf_setup;
 extern debug_info_t *qdio_dbf_error;
@@ -33,11 +34,7 @@ extern debug_info_t *qdio_dbf_error;
 
 static inline void DBF_HEX(void *addr, int len)
 {
-	while (len > 0) {
-		debug_event(qdio_dbf_setup, DBF_ERR, addr, len);
-		len -= qdio_dbf_setup->buf_size;
-		addr += qdio_dbf_setup->buf_size;
-	}
+	debug_event(qdio_dbf_setup, DBF_ERR, addr, len);
 }
 
 #define DBF_ERROR(text...) \
@@ -49,11 +46,7 @@ static inline void DBF_HEX(void *addr, int len)
 
 static inline void DBF_ERROR_HEX(void *addr, int len)
 {
-	while (len > 0) {
-		debug_event(qdio_dbf_error, DBF_ERR, addr, len);
-		len -= qdio_dbf_error->buf_size;
-		addr += qdio_dbf_error->buf_size;
-	}
+	debug_event(qdio_dbf_error, DBF_ERR, addr, len);
 }
 
 #define DBF_DEV_EVENT(level, device, text...) \
@@ -68,11 +61,7 @@ static inline void DBF_ERROR_HEX(void *addr, int len)
 static inline void DBF_DEV_HEX(struct qdio_irq *dev, void *addr,
 			       int len, int level)
 {
-	while (len > 0) {
-		debug_event(dev->debug_area, level, addr, len);
-		len -= dev->debug_area->buf_size;
-		addr += dev->debug_area->buf_size;
-	}
+	debug_event(dev->debug_area, level, addr, len);
 }
 
 int qdio_allocate_dbf(struct qdio_initialize *init_data,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2009 Daniel Hellstrom (daniel@gaisler.com) Aeroflex Gaisler AB
  * Copyright (C) 2009 Konrad Eisele (konrad@gaisler.com) Aeroflex Gaisler AB
@@ -203,7 +204,7 @@ static struct irq_chip leon_irq = {
 
 /*
  * Build a LEON IRQ for the edge triggered LEON IRQ controller:
- *  Edge (normal) IRQ           - handle_simple_irq, ack=DONT-CARE, never ack
+ *  Edge (normal) IRQ           - handle_simple_irq, ack=DON'T-CARE, never ack
  *  Level IRQ (PCI|Level-GPIO)  - handle_fasteoi_irq, ack=1, ack after ISR
  *  Per-CPU Edge                - handle_percpu_irq, ack=0
  */
@@ -349,37 +350,37 @@ void __init leon_init_timers(void)
 
 	/* Find GPTIMER Timer Registers base address otherwise bail out. */
 	nnp = rootnp;
-	do {
-		np = of_find_node_by_name(nnp, "GAISLER_GPTIMER");
-		if (!np) {
-			np = of_find_node_by_name(nnp, "01_011");
-			if (!np)
-				goto bad;
+
+retry:
+	np = of_find_node_by_name(nnp, "GAISLER_GPTIMER");
+	if (!np) {
+		np = of_find_node_by_name(nnp, "01_011");
+		if (!np)
+			goto bad;
+	}
+
+	ampopts = 0;
+	pp = of_find_property(np, "ampopts", &len);
+	if (pp) {
+		ampopts = *(int *)pp->value;
+		if (ampopts == 0) {
+			/* Skip this instance, resource already
+			 * allocated by other OS */
+			nnp = np;
+			goto retry;
 		}
+	}
 
-		ampopts = 0;
-		pp = of_find_property(np, "ampopts", &len);
-		if (pp) {
-			ampopts = *(int *)pp->value;
-			if (ampopts == 0) {
-				/* Skip this instance, resource already
-				 * allocated by other OS */
-				nnp = np;
-				continue;
-			}
-		}
+	/* Select Timer-Instance on Timer Core. Default is zero */
+	leon3_gptimer_idx = ampopts & 0x7;
 
-		/* Select Timer-Instance on Timer Core. Default is zero */
-		leon3_gptimer_idx = ampopts & 0x7;
-
-		pp = of_find_property(np, "reg", &len);
-		if (pp)
-			leon3_gptimer_regs = *(struct leon3_gptimer_regs_map **)
-						pp->value;
-		pp = of_find_property(np, "interrupts", &len);
-		if (pp)
-			leon3_gptimer_irq = *(unsigned int *)pp->value;
-	} while (0);
+	pp = of_find_property(np, "reg", &len);
+	if (pp)
+		leon3_gptimer_regs = *(struct leon3_gptimer_regs_map **)
+					pp->value;
+	pp = of_find_property(np, "interrupts", &len);
+	if (pp)
+		leon3_gptimer_irq = *(unsigned int *)pp->value;
 
 	if (!(leon3_gptimer_regs && leon3_irqctrl_regs && leon3_gptimer_irq))
 		goto bad;

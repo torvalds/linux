@@ -66,8 +66,7 @@
 
 	arm-pmu {
 		compatible = "arm,cortex-a7-pmu";
-		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-affinity = <&cpu0>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	timer {
@@ -95,7 +94,7 @@
 			reg = <0x102a0000 0x4000>;
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			peripherals-req-type-burst;
+			arm,pl330-broken-no-flushp;
 			clocks = <&cru ACLK_DMAC>;
 			clock-names = "apb_pclk";
 		};
@@ -107,16 +106,6 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0x10080000 0x2000>;
-	};
-
-	fiq_debugger: fiq-debugger {
-		compatible = "rockchip,fiq-debugger";
-		rockchip,serial-id = <2>;
-		rockchip,wake-irq = <0>;
-		rockchip,irq-mode-enable = <0>;
-		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
-		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 	};
 
 	uart2: serial@10210000 {
@@ -524,15 +513,6 @@
 		g-use-dma;
 		phys = <&u2phy_otg>;
 		phy-names = "usb2-phy";
-		status = "disabled";
-	};
-
-	sfc: sfc@301c0000 {
-		compatible = "rockchip,sfc";
-		reg = <0x301c0000 0x4000>;
-		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
-		clock-names = "clk_sfc", "hclk_sfc";
 		status = "disabled";
 	};
 

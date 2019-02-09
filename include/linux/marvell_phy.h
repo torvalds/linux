@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MARVELL_PHY_H
 #define _MARVELL_PHY_H
 
@@ -17,7 +18,16 @@
 #define MARVELL_PHY_ID_88E1116R		0x01410e40
 #define MARVELL_PHY_ID_88E1510		0x01410dd0
 #define MARVELL_PHY_ID_88E1540		0x01410eb0
+#define MARVELL_PHY_ID_88E1545		0x01410ea0
 #define MARVELL_PHY_ID_88E3016		0x01410e60
+
+/* The MV88e6390 Ethernet switch contains embedded PHYs. These PHYs do
+ * not have a model ID. So the switch driver traps reads to the ID2
+ * register and returns the switch family ID
+ */
+#define MARVELL_PHY_ID_88E6390		0x01410f90
+
+#define MARVELL_PHY_FAMILY_ID(id)	((id) >> 4)
 
 /* struct phy_device dev_flags definitions */
 #define MARVELL_PHY_M1145_FLAGS_RESISTANCE	0x00000001

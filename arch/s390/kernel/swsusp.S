@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * S390 64-bit swsusp implementation
  *
@@ -12,6 +13,7 @@
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
+#include <asm/nospec-insn.h>
 #include <asm/sigp.h>
 
 /*
@@ -23,6 +25,8 @@
  * (see below) in the resume process.
  * This function runs with disabled interrupts.
  */
+	GEN_BR_THUNK %r14
+
 	.section .text
 ENTRY(swsusp_arch_suspend)
 	stmg	%r6,%r15,__SF_GPRS(%r15)
@@ -102,7 +106,7 @@ ENTRY(swsusp_arch_suspend)
 	spx	0x318(%r1)
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)
 	lghi	%r2,0
-	br	%r14
+	BR_EX	%r14
 
 /*
  * Restore saved memory image to correct place and restore register context.
@@ -194,13 +198,10 @@ pgm_check_entry:
 
 	/* Suspend CPU not available -> panic */
 	larl	%r15,init_thread_union
-	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER)
+	aghi	%r15,1<<(PAGE_SHIFT+THREAD_SIZE_ORDER)
+	aghi	%r15,-STACK_FRAME_OVERHEAD
 	larl	%r2,.Lpanic_string
-	larl	%r3,_sclp_print_early
-	lghi	%r1,0
-	sam31
-	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE
-	basr	%r14,%r3
+	brasl	%r14,sclp_early_printk_force
 	larl	%r3,.Ldisabled_wait_31
 	lpsw	0(%r3)
 4:
@@ -266,14 +267,14 @@ restore_registers:
 	/* Return 0 */
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)
 	lghi	%r2,0
-	br	%r14
+	BR_EX	%r14
 
 	.section .data..nosave,"aw",@progbits
 	.align	8
 .Ldisabled_wait_31:
 	.long  0x000a0000,0x00000000
 .Lpanic_string:
-	.asciz	"Resume not possible because suspend CPU is no longer available"
+	.asciz	"Resume not possible because suspend CPU is no longer available\n"
 	.align	8
 .Lrestart_diag308_psw:
 	.long	0x00080000,0x80000000

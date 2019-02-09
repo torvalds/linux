@@ -31,9 +31,6 @@
 #include <mach/tosa.h>
 #include <mach/audio.h>
 
-#include "../codecs/wm9712.h"
-#include "pxa2xx-ac97.h"
-
 #define TOSA_HP        0
 #define TOSA_MIC_INT   1
 #define TOSA_HEADSET   2
@@ -88,14 +85,14 @@ static int tosa_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_soc_ops tosa_ops = {
+static const struct snd_soc_ops tosa_ops = {
 	.startup = tosa_startup,
 };
 
 static int tosa_get_jack(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = tosa_jack_func;
+	ucontrol->value.enumerated.item[0] = tosa_jack_func;
 	return 0;
 }
 
@@ -104,10 +101,10 @@ static int tosa_set_jack(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
-	if (tosa_jack_func == ucontrol->value.integer.value[0])
+	if (tosa_jack_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	tosa_jack_func = ucontrol->value.integer.value[0];
+	tosa_jack_func = ucontrol->value.enumerated.item[0];
 	tosa_ext_control(&card->dapm);
 	return 1;
 }
@@ -115,7 +112,7 @@ static int tosa_set_jack(struct snd_kcontrol *kcontrol,
 static int tosa_get_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = tosa_spk_func;
+	ucontrol->value.enumerated.item[0] = tosa_spk_func;
 	return 0;
 }
 
@@ -124,10 +121,10 @@ static int tosa_set_spk(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
-	if (tosa_spk_func == ucontrol->value.integer.value[0])
+	if (tosa_spk_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	tosa_spk_func = ucontrol->value.integer.value[0];
+	tosa_spk_func = ucontrol->value.enumerated.item[0];
 	tosa_ext_control(&card->dapm);
 	return 1;
 }
@@ -136,7 +133,7 @@ static int tosa_set_spk(struct snd_kcontrol *kcontrol,
 static int tosa_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int event)
 {
-	gpio_set_value(TOSA_GPIO_L_MUTE, SND_SOC_DAPM_EVENT_ON(event) ? 1 :0);
+	gpio_set_value(TOSA_GPIO_L_MUTE, SND_SOC_DAPM_EVENT_ON(event) ? 1 : 0);
 	return 0;
 }
 
@@ -170,9 +167,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Mic Bias", NULL, "Headset Jack"},
 };
 
-static const char *jack_function[] = {"Headphone", "Mic", "Line", "Headset",
-	"Off"};
-static const char *spk_function[] = {"On", "Off"};
+static const char * const jack_function[] = {"Headphone", "Mic", "Line",
+	"Headset", "Off"};
+static const char * const spk_function[] = {"On", "Off"};
 static const struct soc_enum tosa_enum[] = {
 	SOC_ENUM_SINGLE_EXT(5, jack_function),
 	SOC_ENUM_SINGLE_EXT(2, spk_function),

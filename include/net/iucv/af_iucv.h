@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2006 IBM Corporation
  * IUCV protocol stack for Linux on zSeries
@@ -152,7 +153,7 @@ struct iucv_sock_list {
 	atomic_t	  autobind_name;
 };
 
-unsigned int iucv_sock_poll(struct file *file, struct socket *sock,
+__poll_t iucv_sock_poll(struct file *file, struct socket *sock,
 			    poll_table *wait);
 void iucv_sock_link(struct iucv_sock_list *l, struct sock *s);
 void iucv_sock_unlink(struct iucv_sock_list *l, struct sock *s);

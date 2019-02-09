@@ -130,11 +130,6 @@ static int esas2r_log_master(const long level,
 
 		spin_lock_irqsave(&event_buffer_lock, flags);
 
-		if (buffer == NULL) {
-			spin_unlock_irqrestore(&event_buffer_lock, flags);
-			return -1;
-		}
-
 		memset(buffer, 0, buflen);
 
 		/*

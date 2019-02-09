@@ -1,11 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "util.h"
 #include <api/fs/fs.h>
 #include "../perf.h"
 #include "cpumap.h"
 #include <assert.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <linux/bitmap.h>
 #include "asm/bug.h"
+
+#include "sane_ctype.h"
+
+static int max_cpu_num;
+static int max_present_cpu_num;
+static int max_node_num;
+static int *cpunode_map;
 
 static struct cpu_map *cpu_map__default_new(void)
 {
@@ -23,7 +33,7 @@ static struct cpu_map *cpu_map__default_new(void)
 			cpus->map[i] = i;
 
 		cpus->nr = nr_cpus;
-		atomic_set(&cpus->refcnt, 1);
+		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -37,7 +47,7 @@ static struct cpu_map *cpu_map__trim_new(int nr_cpus, int *tmp_cpus)
 	if (cpus != NULL) {
 		cpus->nr = nr_cpus;
 		memcpy(cpus->map, tmp_cpus, payload_size);
-		atomic_set(&cpus->refcnt, 1);
+		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -179,15 +189,64 @@ out:
 	return cpus;
 }
 
+static struct cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
+{
+	struct cpu_map *map;
+
+	map = cpu_map__empty_new(cpus->nr);
+	if (map) {
+		unsigned i;
+
+		for (i = 0; i < cpus->nr; i++) {
+			/*
+			 * Special treatment for -1, which is not real cpu number,
+			 * and we need to use (int) -1 to initialize map[i],
+			 * otherwise it would become 65535.
+			 */
+			if (cpus->cpu[i] == (u16) -1)
+				map->map[i] = -1;
+			else
+				map->map[i] = (int) cpus->cpu[i];
+		}
+	}
+
+	return map;
+}
+
+static struct cpu_map *cpu_map__from_mask(struct cpu_map_mask *mask)
+{
+	struct cpu_map *map;
+	int nr, nbits = mask->nr * mask->long_size * BITS_PER_BYTE;
+
+	nr = bitmap_weight(mask->mask, nbits);
+
+	map = cpu_map__empty_new(nr);
+	if (map) {
+		int cpu, i = 0;
+
+		for_each_set_bit(cpu, mask->mask, nbits)
+			map->map[i++] = cpu;
+	}
+	return map;
+
+}
+
+struct cpu_map *cpu_map__new_data(struct cpu_map_data *data)
+{
+	if (data->type == PERF_CPU_MAP__CPUS)
+		return cpu_map__from_entries((struct cpu_map_entries *)data->data);
+	else
+		return cpu_map__from_mask((struct cpu_map_mask *)data->data);
+}
+
 size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp)
 {
-	int i;
-	size_t printed = fprintf(fp, "%d cpu%s: ",
-				 map->nr, map->nr > 1 ? "s" : "");
-	for (i = 0; i < map->nr; ++i)
-		printed += fprintf(fp, "%s%d", i ? ", " : "", map->map[i]);
+#define BUFSIZE 1024
+	char buf[BUFSIZE];
 
-	return printed + fprintf(fp, "\n");
+	cpu_map__snprint(map, buf, sizeof(buf));
+	return fprintf(fp, "%s\n", buf);
+#undef BUFSIZE
 }
 
 struct cpu_map *cpu_map__dummy_new(void)
@@ -197,7 +256,7 @@ struct cpu_map *cpu_map__dummy_new(void)
 	if (cpus != NULL) {
 		cpus->nr = 1;
 		cpus->map[0] = -1;
-		atomic_set(&cpus->refcnt, 1);
+		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -214,7 +273,7 @@ struct cpu_map *cpu_map__empty_new(int nr)
 		for (i = 0; i < nr; i++)
 			cpus->map[i] = -1;
 
-		atomic_set(&cpus->refcnt, 1);
+		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -223,7 +282,7 @@ struct cpu_map *cpu_map__empty_new(int nr)
 static void cpu_map__delete(struct cpu_map *map)
 {
 	if (map) {
-		WARN_ONCE(atomic_read(&map->refcnt) != 0,
+		WARN_ONCE(refcount_read(&map->refcnt) != 0,
 			  "cpu_map refcnt unbalanced\n");
 		free(map);
 	}
@@ -232,13 +291,13 @@ static void cpu_map__delete(struct cpu_map *map)
 struct cpu_map *cpu_map__get(struct cpu_map *map)
 {
 	if (map)
-		atomic_inc(&map->refcnt);
+		refcount_inc(&map->refcnt);
 	return map;
 }
 
 void cpu_map__put(struct cpu_map *map)
 {
-	if (map && atomic_dec_and_test(&map->refcnt))
+	if (map && refcount_dec_and_test(&map->refcnt))
 		cpu_map__delete(map);
 }
 
@@ -302,7 +361,7 @@ int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
 	/* ensure we process id in increasing order */
 	qsort(c->map, c->nr, sizeof(int), cmp_ids);
 
-	atomic_set(&c->refcnt, 1);
+	refcount_set(&c->refcnt, 1);
 	*res = c;
 	return 0;
 }
@@ -388,6 +447,7 @@ static void set_max_cpu_num(void)
 
 	/* set up default */
 	max_cpu_num = 4096;
+	max_present_cpu_num = 4096;
 
 	mnt = sysfs__mountpoint();
 	if (!mnt)
@@ -401,6 +461,17 @@ static void set_max_cpu_num(void)
 	}
 
 	ret = get_max_num(path, &max_cpu_num);
+	if (ret)
+		goto out;
+
+	/* get the highest present cpu number for a sparse allocation */
+	ret = snprintf(path, PATH_MAX, "%s/devices/system/cpu/present", mnt);
+	if (ret == PATH_MAX) {
+		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
+		goto out;
+	}
+
+	ret = get_max_num(path, &max_present_cpu_num);
 
 out:
 	if (ret)
@@ -433,6 +504,41 @@ static void set_max_node_num(void)
 out:
 	if (ret)
 		pr_err("Failed to read max nodes, using default of %d\n", max_node_num);
+}
+
+int cpu__max_node(void)
+{
+	if (unlikely(!max_node_num))
+		set_max_node_num();
+
+	return max_node_num;
+}
+
+int cpu__max_cpu(void)
+{
+	if (unlikely(!max_cpu_num))
+		set_max_cpu_num();
+
+	return max_cpu_num;
+}
+
+int cpu__max_present_cpu(void)
+{
+	if (unlikely(!max_present_cpu_num))
+		set_max_cpu_num();
+
+	return max_present_cpu_num;
+}
+
+
+int cpu__get_node(int cpu)
+{
+	if (unlikely(cpunode_map == NULL)) {
+		pr_debug("cpu_map not initialized\n");
+		return -1;
+	}
+
+	return cpunode_map[cpu];
 }
 
 static int init_cpunode_map(void)
@@ -505,4 +611,115 @@ int cpu__setup_cpunode_map(void)
 	}
 	closedir(dir1);
 	return 0;
+}
+
+bool cpu_map__has(struct cpu_map *cpus, int cpu)
+{
+	return cpu_map__idx(cpus, cpu) != -1;
+}
+
+int cpu_map__idx(struct cpu_map *cpus, int cpu)
+{
+	int i;
+
+	for (i = 0; i < cpus->nr; ++i) {
+		if (cpus->map[i] == cpu)
+			return i;
+	}
+
+	return -1;
+}
+
+int cpu_map__cpu(struct cpu_map *cpus, int idx)
+{
+	return cpus->map[idx];
+}
+
+size_t cpu_map__snprint(struct cpu_map *map, char *buf, size_t size)
+{
+	int i, cpu, start = -1;
+	bool first = true;
+	size_t ret = 0;
+
+#define COMMA first ? "" : ","
+
+	for (i = 0; i < map->nr + 1; i++) {
+		bool last = i == map->nr;
+
+		cpu = last ? INT_MAX : map->map[i];
+
+		if (start == -1) {
+			start = i;
+			if (last) {
+				ret += snprintf(buf + ret, size - ret,
+						"%s%d", COMMA,
+						map->map[i]);
+			}
+		} else if (((i - start) != (cpu - map->map[start])) || last) {
+			int end = i - 1;
+
+			if (start == end) {
+				ret += snprintf(buf + ret, size - ret,
+						"%s%d", COMMA,
+						map->map[start]);
+			} else {
+				ret += snprintf(buf + ret, size - ret,
+						"%s%d-%d", COMMA,
+						map->map[start], map->map[end]);
+			}
+			first = false;
+			start = i;
+		}
+	}
+
+#undef COMMA
+
+	pr_debug("cpumask list: %s\n", buf);
+	return ret;
+}
+
+static char hex_char(unsigned char val)
+{
+	if (val < 10)
+		return val + '0';
+	if (val < 16)
+		return val - 10 + 'a';
+	return '?';
+}
+
+size_t cpu_map__snprint_mask(struct cpu_map *map, char *buf, size_t size)
+{
+	int i, cpu;
+	char *ptr = buf;
+	unsigned char *bitmap;
+	int last_cpu = cpu_map__cpu(map, map->nr - 1);
+
+	bitmap = zalloc((last_cpu + 7) / 8);
+	if (bitmap == NULL) {
+		buf[0] = '\0';
+		return 0;
+	}
+
+	for (i = 0; i < map->nr; i++) {
+		cpu = cpu_map__cpu(map, i);
+		bitmap[cpu / 8] |= 1 << (cpu % 8);
+	}
+
+	for (cpu = last_cpu / 4 * 4; cpu >= 0; cpu -= 4) {
+		unsigned char bits = bitmap[cpu / 8];
+
+		if (cpu % 8)
+			bits >>= 4;
+		else
+			bits &= 0xf;
+
+		*ptr++ = hex_char(bits);
+		if ((cpu % 32) == 0 && cpu > 0)
+			*ptr++ = ',';
+	}
+	*ptr = '\0';
+	free(bitmap);
+
+	buf[size - 1] = '\0';
+	return ptr - buf;
 }

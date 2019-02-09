@@ -66,7 +66,6 @@
 
 #include <linux/seq_file.h>
 #include <linux/list.h>
-#include <linux/vmalloc.h>
 #include "debug.h"
 #include "ath5k.h"
 #include "reg.h"
@@ -909,7 +908,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 	struct ath5k_hw *ah = inode->i_private;
 	bool res;
 	int i, ret;
-	u32 eesize;
+	u32 eesize;	/* NB: in 16-bit words */
 	u16 val, *buf;
 
 	/* Get eeprom size */
@@ -932,14 +931,17 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 
 	/* Create buffer and read in eeprom */
 
-	buf = vmalloc(eesize);
+	buf = vmalloc(array_size(eesize, 2));
 	if (!buf) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
 	for (i = 0; i < eesize; ++i) {
-		AR5K_EEPROM_READ(i, val);
+		if (!ath5k_hw_nvram_read(ah, i, &val)) {
+			ret = -EIO;
+			goto freebuf;
+		}
 		buf[i] = val;
 	}
 
@@ -952,7 +954,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 	}
 
 	ep->buf = buf;
-	ep->len = i;
+	ep->len = eesize * 2;
 
 	file->private_data = (void *)ep;
 
@@ -1002,32 +1004,17 @@ ath5k_debug_init_device(struct ath5k_hw *ah)
 	if (!phydir)
 		return;
 
-	debugfs_create_file("debug", S_IWUSR | S_IRUSR, phydir, ah,
-			    &fops_debug);
-
-	debugfs_create_file("registers", S_IRUSR, phydir, ah, &fops_registers);
-
-	debugfs_create_file("beacon", S_IWUSR | S_IRUSR, phydir, ah,
-			    &fops_beacon);
-
-	debugfs_create_file("reset", S_IWUSR, phydir, ah, &fops_reset);
-
-	debugfs_create_file("antenna", S_IWUSR | S_IRUSR, phydir, ah,
-			    &fops_antenna);
-
-	debugfs_create_file("misc", S_IRUSR, phydir, ah, &fops_misc);
-
-	debugfs_create_file("eeprom", S_IRUSR, phydir, ah, &fops_eeprom);
-
-	debugfs_create_file("frameerrors", S_IWUSR | S_IRUSR, phydir, ah,
-			    &fops_frameerrors);
-
-	debugfs_create_file("ani", S_IWUSR | S_IRUSR, phydir, ah, &fops_ani);
-
-	debugfs_create_file("queue", S_IWUSR | S_IRUSR, phydir, ah,
-			    &fops_queue);
-
-	debugfs_create_bool("32khz_clock", S_IWUSR | S_IRUSR, phydir,
+	debugfs_create_file("debug", 0600, phydir, ah, &fops_debug);
+	debugfs_create_file("registers", 0400, phydir, ah, &fops_registers);
+	debugfs_create_file("beacon", 0600, phydir, ah, &fops_beacon);
+	debugfs_create_file("reset", 0200, phydir, ah, &fops_reset);
+	debugfs_create_file("antenna", 0600, phydir, ah, &fops_antenna);
+	debugfs_create_file("misc", 0400, phydir, ah, &fops_misc);
+	debugfs_create_file("eeprom", 0400, phydir, ah, &fops_eeprom);
+	debugfs_create_file("frameerrors", 0600, phydir, ah, &fops_frameerrors);
+	debugfs_create_file("ani", 0600, phydir, ah, &fops_ani);
+	debugfs_create_file("queue", 0600, phydir, ah, &fops_queue);
+	debugfs_create_bool("32khz_clock", 0600, phydir,
 			    &ah->ah_use_32khz_clock);
 }
 
@@ -1043,14 +1030,14 @@ ath5k_debug_dump_bands(struct ath5k_hw *ah)
 
 	BUG_ON(!ah->sbands);
 
-	for (b = 0; b < IEEE80211_NUM_BANDS; b++) {
+	for (b = 0; b < NUM_NL80211_BANDS; b++) {
 		struct ieee80211_supported_band *band = &ah->sbands[b];
 		char bname[6];
 		switch (band->band) {
-		case IEEE80211_BAND_2GHZ:
+		case NL80211_BAND_2GHZ:
 			strcpy(bname, "2 GHz");
 			break;
-		case IEEE80211_BAND_5GHZ:
+		case NL80211_BAND_5GHZ:
 			strcpy(bname, "5 GHz");
 			break;
 		default:

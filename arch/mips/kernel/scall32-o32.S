@@ -35,7 +35,6 @@ NESTED(handle_sys, PT_SIZE, sp)
 
 	lw	t1, PT_EPC(sp)		# skip syscall on return
 
-	subu	v0, v0, __NR_O32_Linux	# check syscall number
 	addiu	t1, 4			# skip to next instruction
 	sw	t1, PT_EPC(sp)
 
@@ -89,6 +88,7 @@ loads_done:
 	and	t0, t1
 	bnez	t0, syscall_trace_entry # -> yes
 syscall_common:
+	subu	v0, v0, __NR_O32_Linux	# check syscall number
 	sltiu	t0, v0, __NR_O32_Linux_syscalls + 1
 	beqz	t0, illegal_syscall
 
@@ -118,24 +118,23 @@ o32_syscall_exit:
 
 syscall_trace_entry:
 	SAVE_STATIC
-	move	s0, v0
 	move	a0, sp
 
 	/*
 	 * syscall number is in v0 unless we called syscall(__NR_###)
 	 * where the real syscall number is in a0
 	 */
-	addiu	a1, v0,  __NR_O32_Linux
-	bnez	v0, 1f /* __NR_syscall at offset 0 */
+	move	a1, v0
+	subu	t2, v0,  __NR_O32_Linux
+	bnez	t2, 1f /* __NR_syscall at offset 0 */
 	lw	a1, PT_R4(sp)
 
 1:	jal	syscall_trace_enter
 
 	bltz	v0, 1f			# seccomp failed? Skip syscall
 
-	move	v0, s0			# restore syscall
-
 	RESTORE_STATIC
+	lw	v0, PT_R2(sp)		# Restore syscall (maybe modified)
 	lw	a0, PT_R4(sp)		# Restore argument registers
 	lw	a1, PT_R5(sp)
 	lw	a2, PT_R6(sp)
@@ -191,12 +190,6 @@ illegal_syscall:
 	sll	t1, t0, 2
 	beqz	v0, einval
 	lw	t2, sys_call_table(t1)		# syscall routine
-	sw	a0, PT_R2(sp)			# call routine directly on restart
-
-	/* Some syscalls like execve get their arguments from struct pt_regs
-	   and claim zero arguments in the syscall table. Thus we have to
-	   assume the worst case and shuffle around all potential arguments.
-	   If you want performance, don't use indirect syscalls. */
 
 	move	a0, a1				# shift argument registers
 	move	a1, a2
@@ -208,11 +201,6 @@ illegal_syscall:
 	sw	t4, 16(sp)
 	sw	t5, 20(sp)
 	sw	t6, 24(sp)
-	sw	a0, PT_R4(sp)			# .. and push back a0 - a3, some
-	sw	a1, PT_R5(sp)			# syscalls expect them there
-	sw	a2, PT_R6(sp)
-	sw	a3, PT_R7(sp)
-	sw	a3, PT_R26(sp)			# update a3 for syscall restarting
 	jr	t2
 	/* Unreached */
 
@@ -372,7 +360,7 @@ EXPORT(sys_call_table)
 	PTR	sys_writev
 	PTR	sys_cacheflush
 	PTR	sys_cachectl
-	PTR	sys_sysmips
+	PTR	__sys_sysmips
 	PTR	sys_ni_syscall			/* 4150 */
 	PTR	sys_getsid
 	PTR	sys_fdatasync
@@ -595,3 +583,12 @@ EXPORT(sys_call_table)
 	PTR	sys_userfaultfd
 	PTR	sys_membarrier
 	PTR	sys_mlock2
+	PTR	sys_copy_file_range		/* 4360 */
+	PTR	sys_preadv2
+	PTR	sys_pwritev2
+	PTR	sys_pkey_mprotect
+	PTR	sys_pkey_alloc
+	PTR	sys_pkey_free			/* 4365 */
+	PTR	sys_statx
+	PTR	sys_rseq
+	PTR	sys_io_pgetevents

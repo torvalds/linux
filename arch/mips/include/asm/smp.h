@@ -23,13 +23,23 @@
 extern int smp_num_siblings;
 extern cpumask_t cpu_sibling_map[];
 extern cpumask_t cpu_core_map[];
-extern cpumask_t cpu_foreign_map;
+extern cpumask_t cpu_foreign_map[];
 
-#define raw_smp_processor_id() (current_thread_info()->cpu)
+static inline int raw_smp_processor_id(void)
+{
+#if defined(__VDSO__)
+	extern int vdso_smp_processor_id(void)
+		__compiletime_error("VDSO should not call smp_processor_id()");
+	return vdso_smp_processor_id();
+#else
+	return current_thread_info()->cpu;
+#endif
+}
+#define raw_smp_processor_id raw_smp_processor_id
 
 /* Map from cpu id to sequential logical cpu number.  This will only
    not be idempotent when cpus failed to come on-line.	*/
-extern int __cpu_number_map[NR_CPUS];
+extern int __cpu_number_map[CONFIG_MIPS_NR_CPU_NR_MAP];
 #define cpu_number_map(cpu)  __cpu_number_map[cpu]
 
 /* The reverse map from sequential logical cpu number to cpu id.  */
@@ -42,16 +52,14 @@ extern int __cpu_logical_map[NR_CPUS];
 #define SMP_CALL_FUNCTION	0x2
 /* Octeon - Tell another core to flush its icache */
 #define SMP_ICACHE_FLUSH	0x4
-/* Used by kexec crashdump to save all cpu's state */
-#define SMP_DUMP		0x8
-#define SMP_ASK_C0COUNT		0x10
-
-extern cpumask_t cpu_callin_map;
+#define SMP_ASK_C0COUNT		0x8
 
 /* Mask of CPUs which are currently definitely operating coherently */
 extern cpumask_t cpu_coherent_mask;
 
-extern void asmlinkage smp_bootstrap(void);
+extern asmlinkage void smp_bootstrap(void);
+
+extern void calculate_cpu_foreign_map(void);
 
 /*
  * this function sends a 'reschedule' IPI to another CPU.
@@ -60,7 +68,7 @@ extern void asmlinkage smp_bootstrap(void);
  */
 static inline void smp_send_reschedule(int cpu)
 {
-	extern struct plat_smp_ops *mp_ops;	/* private */
+	extern const struct plat_smp_ops *mp_ops;	/* private */
 
 	mp_ops->send_ipi_single(cpu, SMP_RESCHEDULE_YOURSELF);
 }
@@ -68,14 +76,14 @@ static inline void smp_send_reschedule(int cpu)
 #ifdef CONFIG_HOTPLUG_CPU
 static inline int __cpu_disable(void)
 {
-	extern struct plat_smp_ops *mp_ops;	/* private */
+	extern const struct plat_smp_ops *mp_ops;	/* private */
 
 	return mp_ops->cpu_disable();
 }
 
 static inline void __cpu_die(unsigned int cpu)
 {
-	extern struct plat_smp_ops *mp_ops;	/* private */
+	extern const struct plat_smp_ops *mp_ops;	/* private */
 
 	mp_ops->cpu_die(cpu);
 }
@@ -83,22 +91,32 @@ static inline void __cpu_die(unsigned int cpu)
 extern void play_dead(void);
 #endif
 
+/*
+ * This function will set up the necessary IPIs for Linux to communicate
+ * with the CPUs in mask.
+ * Return 0 on success.
+ */
+int mips_smp_ipi_allocate(const struct cpumask *mask);
+
+/*
+ * This function will free up IPIs allocated with mips_smp_ipi_allocate to the
+ * CPUs in mask, which must be a subset of the IPIs that have been configured.
+ * Return 0 on success.
+ */
+int mips_smp_ipi_free(const struct cpumask *mask);
+
 static inline void arch_send_call_function_single_ipi(int cpu)
 {
-	extern struct plat_smp_ops *mp_ops;	/* private */
+	extern const struct plat_smp_ops *mp_ops;	/* private */
 
 	mp_ops->send_ipi_mask(cpumask_of(cpu), SMP_CALL_FUNCTION);
 }
 
 static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
-	extern struct plat_smp_ops *mp_ops;	/* private */
+	extern const struct plat_smp_ops *mp_ops;	/* private */
 
 	mp_ops->send_ipi_mask(mask, SMP_CALL_FUNCTION);
 }
 
-#if defined(CONFIG_KEXEC)
-extern void (*dump_ipi_function_ptr)(void *);
-void dump_send_ipi(void (*dump_ipi_callback)(void *));
-#endif
 #endif /* __ASM_SMP_H */

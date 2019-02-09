@@ -23,22 +23,21 @@
 #include "clk-factors.h"
 
 /**
- * sun4i_get_mod0_factors() - calculates m, n factors for MOD0-style clocks
+ * sun4i_a10_get_mod0_factors() - calculates m, n factors for MOD0-style clocks
  * MOD0 rate is calculated as follows
  * rate = (parent_rate >> p) / (m + 1);
  */
 
-static void sun4i_a10_get_mod0_factors(u32 *freq, u32 parent_rate,
-				       u8 *n, u8 *k, u8 *m, u8 *p)
+static void sun4i_a10_get_mod0_factors(struct factors_request *req)
 {
 	u8 div, calcm, calcp;
 
 	/* These clocks can only divide, so we will never be able to achieve
 	 * frequencies higher than the parent frequency */
-	if (*freq > parent_rate)
-		*freq = parent_rate;
+	if (req->rate > req->parent_rate)
+		req->rate = req->parent_rate;
 
-	div = DIV_ROUND_UP(parent_rate, *freq);
+	div = DIV_ROUND_UP(req->parent_rate, req->rate);
 
 	if (div < 16)
 		calcp = 0;
@@ -51,18 +50,13 @@ static void sun4i_a10_get_mod0_factors(u32 *freq, u32 parent_rate,
 
 	calcm = DIV_ROUND_UP(div, 1 << calcp);
 
-	*freq = (parent_rate >> calcp) / calcm;
-
-	/* we were called to round the frequency, we can now return */
-	if (n == NULL)
-		return;
-
-	*m = calcm - 1;
-	*p = calcp;
+	req->rate = (req->parent_rate >> calcp) / calcm;
+	req->m = calcm - 1;
+	req->p = calcp;
 }
 
 /* user manual says "n" but it's really "p" */
-static struct clk_factors_config sun4i_a10_mod0_config = {
+static const struct clk_factors_config sun4i_a10_mod0_config = {
 	.mshift = 0,
 	.mwidth = 4,
 	.pshift = 16,
@@ -96,7 +90,8 @@ static void __init sun4i_a10_mod0_setup(struct device_node *node)
 	sunxi_factors_register(node, &sun4i_a10_mod0_data,
 			       &sun4i_a10_mod0_lock, reg);
 }
-CLK_OF_DECLARE(sun4i_a10_mod0, "allwinner,sun4i-a10-mod0-clk", sun4i_a10_mod0_setup);
+CLK_OF_DECLARE_DRIVER(sun4i_a10_mod0, "allwinner,sun4i-a10-mod0-clk",
+		      sun4i_a10_mod0_setup);
 
 static int sun4i_a10_mod0_clk_probe(struct platform_device *pdev)
 {
@@ -159,7 +154,6 @@ static DEFINE_SPINLOCK(sun5i_a13_mbus_lock);
 
 static void __init sun5i_a13_mbus_setup(struct device_node *node)
 {
-	struct clk *mbus;
 	void __iomem *reg;
 
 	reg = of_iomap(node, 0);
@@ -168,12 +162,9 @@ static void __init sun5i_a13_mbus_setup(struct device_node *node)
 		return;
 	}
 
-	mbus = sunxi_factors_register(node, &sun4i_a10_mod0_data,
-				      &sun5i_a13_mbus_lock, reg);
-
 	/* The MBUS clocks needs to be always enabled */
-	__clk_get(mbus);
-	clk_prepare_enable(mbus);
+	sunxi_factors_register_critical(node, &sun4i_a10_mod0_data,
+					&sun5i_a13_mbus_lock, reg);
 }
 CLK_OF_DECLARE(sun5i_a13_mbus, "allwinner,sun5i-a13-mbus-clk", sun5i_a13_mbus_setup);
 

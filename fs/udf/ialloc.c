@@ -50,7 +50,7 @@ struct inode *udf_new_inode(struct inode *dir, umode_t mode)
 	struct super_block *sb = dir->i_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct inode *inode;
-	int block;
+	udf_pblk_t block;
 	uint32_t start = UDF_I(dir)->i_location.logicalBlockNum;
 	struct udf_inode_info *iinfo;
 	struct udf_inode_info *dinfo = UDF_I(dir);
@@ -104,6 +104,10 @@ struct inode *udf_new_inode(struct inode *dir, umode_t mode)
 	}
 
 	inode_init_owner(inode, dir, mode);
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UID_SET))
+		inode->i_uid = sbi->s_uid;
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_SET))
+		inode->i_gid = sbi->s_gid;
 
 	iinfo->i_location.logicalBlockNum = block;
 	iinfo->i_location.partitionReferenceNum =
@@ -120,8 +124,8 @@ struct inode *udf_new_inode(struct inode *dir, umode_t mode)
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
 	else
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_LONG;
-	inode->i_mtime = inode->i_atime = inode->i_ctime =
-		iinfo->i_crtime = current_fs_time(inode->i_sb);
+	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	iinfo->i_crtime = inode->i_mtime;
 	if (unlikely(insert_inode_locked(inode) < 0)) {
 		make_bad_inode(inode);
 		iput(inode);

@@ -1,7 +1,7 @@
 /*
  * P4080DS Device Tree Source
  *
- * Copyright 2009 - 2014 Freescale Semiconductor Inc.
+ * Copyright 2009 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,6 +40,20 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
+
+	aliases {
+		phy_rgmii = &phyrgmii;
+		phy5_slot3 = &phy5slot3;
+		phy6_slot3 = &phy6slot3;
+		phy7_slot3 = &phy7slot3;
+		phy8_slot3 = &phy8slot3;
+		emi1_slot3 = &p4080mdio2;
+		emi1_slot4 = &p4080mdio1;
+		emi1_slot5 = &p4080mdio3;
+		emi1_rgmii = &p4080mdio0;
+		emi2_slot4 = &p4080xmdio1;
+		emi2_slot5 = &p4080xmdio3;
+	};
 
 	memory {
 		device_type = "memory";
@@ -84,7 +98,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "spansion,s25sl12801";
+				compatible = "spansion,s25sl12801", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <40000000>; /* input clock */
 				partition@u-boot {
@@ -111,11 +125,11 @@
 
 		i2c@118100 {
 			eeprom@51 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x51>;
 			};
 			eeprom@52 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x52>;
 			};
 			rtc@68 {
@@ -136,6 +150,60 @@
 		usb1: usb@211000 {
 			dr_mode = "host";
 			phy_type = "ulpi";
+		};
+
+		fman@400000 {
+			ethernet@e0000 {
+				phy-handle = <&phy0>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				phy-handle = <&phy1>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-handle = <&phy2>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-handle = <&phy3>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&phy10>;
+				phy-connection-type = "xgmii";
+			};
+		};
+
+		fman@500000 {
+			ethernet@e0000 {
+				phy-handle = <&phy5>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				phy-handle = <&phy6>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-handle = <&phy7>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-handle = <&phy8>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&phy11>;
+				phy-connection-type = "xgmii";
+			};
 		};
 	};
 
@@ -213,6 +281,120 @@
 		};
 	};
 
+	mdio-mux-emi1 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "mdio-mux-gpio", "mdio-mux";
+		mdio-parent-bus = <&mdio0>;
+		gpios = <&gpio0 1 0>, <&gpio0 0 0>;
+
+		p4080mdio0: mdio@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			phyrgmii: ethernet-phy@0 {
+				reg = <0x0>;
+			};
+		};
+
+		p4080mdio1: mdio@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			phy5: ethernet-phy@1c {
+				reg = <0x1c>;
+			};
+
+			phy6: ethernet-phy@1d {
+				reg = <0x1d>;
+			};
+
+			phy7: ethernet-phy@1e {
+				reg = <0x1e>;
+			};
+
+			phy8: ethernet-phy@1f {
+				reg = <0x1f>;
+			};
+		};
+
+		p4080mdio2: mdio@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+			status = "disabled";
+
+			phy5slot3: ethernet-phy@1c {
+				reg = <0x1c>;
+			};
+
+			phy6slot3: ethernet-phy@1d {
+				reg = <0x1d>;
+			};
+
+			phy7slot3: ethernet-phy@1e {
+				reg = <0x1e>;
+			};
+
+			phy8slot3: ethernet-phy@1f {
+				reg = <0x1f>;
+			};
+		};
+
+		p4080mdio3: mdio@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			phy0: ethernet-phy@1c {
+				reg = <0x1c>;
+			};
+
+			phy1: ethernet-phy@1d {
+				reg = <0x1d>;
+			};
+
+			phy2: ethernet-phy@1e {
+				reg = <0x1e>;
+			};
+
+			phy3: ethernet-phy@1f {
+				reg = <0x1f>;
+			};
+		};
+	};
+
+	mdio-mux-emi2 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "mdio-mux-gpio", "mdio-mux";
+		mdio-parent-bus = <&xmdio0>;
+		gpios = <&gpio0 3 0>, <&gpio0 2 0>;
+
+		p4080xmdio1: mdio@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			phy11: ethernet-phy@0 {
+				compatible = "ethernet-phy-ieee802.3-c45";
+				reg = <0x0>;
+			};
+		};
+
+		p4080xmdio3: mdio@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			phy10: ethernet-phy@4 {
+				compatible = "ethernet-phy-ieee802.3-c45";
+				reg = <0x4>;
+			};
+		};
+	};
 };
 
 /include/ "p4080si-post.dtsi"

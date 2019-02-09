@@ -31,6 +31,7 @@
 #include "common.h"
 
 #include <linux/kthread.h>
+#include <linux/sched/task.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
@@ -104,8 +105,12 @@ static int xenvif_poll(struct napi_struct *napi, int budget)
 	work_done = xenvif_tx_action(queue, budget);
 
 	if (work_done < budget) {
-		napi_complete(napi);
-		xenvif_napi_schedule_or_enable_events(queue);
+		napi_complete_done(napi, work_done);
+		/* If the queue is rate-limited, it shall be
+		 * rescheduled in the timer callback.
+		 */
+		if (likely(!queue->rate_limited))
+			xenvif_napi_schedule_or_enable_events(queue);
 	}
 
 	return work_done;
@@ -142,24 +147,47 @@ void xenvif_wake_queue(struct xenvif_queue *queue)
 	netif_tx_wake_queue(netdev_get_tx_queue(dev, id));
 }
 
+static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
+			       struct net_device *sb_dev,
+			       select_queue_fallback_t fallback)
+{
+	struct xenvif *vif = netdev_priv(dev);
+	unsigned int size = vif->hash.size;
+
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
+		return fallback(dev, skb, NULL) % dev->real_num_tx_queues;
+
+	xenvif_set_skb_hash(vif, skb);
+
+	if (size == 0)
+		return skb_get_hash_raw(skb) % dev->real_num_tx_queues;
+
+	return vif->hash.mapping[vif->hash.mapping_sel]
+				[skb_get_hash_raw(skb) % size];
+}
+
 static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
 	struct xenvif_queue *queue = NULL;
-	unsigned int num_queues = vif->num_queues;
+	unsigned int num_queues;
 	u16 index;
 	struct xenvif_rx_cb *cb;
 
 	BUG_ON(skb->dev != dev);
 
-	/* Drop the packet if queues are not set up */
+	/* Drop the packet if queues are not set up.
+	 * This handler should be called inside an RCU read section
+	 * so we don't need to enter it here explicitly.
+	 */
+	num_queues = READ_ONCE(vif->num_queues);
 	if (num_queues < 1)
 		goto drop;
 
 	/* Obtain the queue to be used to transmit this packet */
 	index = skb_get_queue_mapping(skb);
 	if (index >= num_queues) {
-		pr_warn_ratelimited("Invalid queue %hu for packet on interface %s\n.",
+		pr_warn_ratelimited("Invalid queue %hu for packet on interface %s\n",
 				    index, vif->dev->name);
 		index %= num_queues;
 	}
@@ -181,6 +209,13 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	cb = XENVIF_RX_CB(skb);
 	cb->expires = jiffies + vif->drain_timeout;
 
+	/* If there is no hash algorithm configured then make sure there
+	 * is no hash information in the socket buffer otherwise it
+	 * would be incorrectly forwarded to the frontend.
+	 */
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
+		skb_clear_hash(skb);
+
 	xenvif_rx_queue_tail(queue, skb);
 	xenvif_kick_thread(queue);
 
@@ -196,15 +231,15 @@ static struct net_device_stats *xenvif_get_stats(struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
 	struct xenvif_queue *queue = NULL;
-	unsigned int num_queues = vif->num_queues;
-	unsigned long rx_bytes = 0;
-	unsigned long rx_packets = 0;
-	unsigned long tx_bytes = 0;
-	unsigned long tx_packets = 0;
+	unsigned int num_queues;
+	u64 rx_bytes = 0;
+	u64 rx_packets = 0;
+	u64 tx_bytes = 0;
+	u64 tx_packets = 0;
 	unsigned int index;
 
-	if (vif->queues == NULL)
-		goto out;
+	rcu_read_lock();
+	num_queues = READ_ONCE(vif->num_queues);
 
 	/* Aggregate tx and rx stats from each queue */
 	for (index = 0; index < num_queues; ++index) {
@@ -215,7 +250,8 @@ static struct net_device_stats *xenvif_get_stats(struct net_device *dev)
 		tx_packets += queue->stats.tx_packets;
 	}
 
-out:
+	rcu_read_unlock();
+
 	vif->dev->stats.rx_bytes = rx_bytes;
 	vif->dev->stats.rx_packets = rx_packets;
 	vif->dev->stats.tx_bytes = tx_bytes;
@@ -277,7 +313,7 @@ static int xenvif_close(struct net_device *dev)
 static int xenvif_change_mtu(struct net_device *dev, int mtu)
 {
 	struct xenvif *vif = netdev_priv(dev);
-	int max = vif->can_sg ? 65535 - VLAN_ETH_HLEN : ETH_DATA_LEN;
+	int max = vif->can_sg ? ETH_MAX_MTU - VLAN_ETH_HLEN : ETH_DATA_LEN;
 
 	if (mtu > max)
 		return -EINVAL;
@@ -292,9 +328,9 @@ static netdev_features_t xenvif_fix_features(struct net_device *dev,
 
 	if (!vif->can_sg)
 		features &= ~NETIF_F_SG;
-	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV4))
+	if (~(vif->gso_mask) & GSO_BIT(TCPV4))
 		features &= ~NETIF_F_TSO;
-	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV6))
+	if (~(vif->gso_mask) & GSO_BIT(TCPV6))
 		features &= ~NETIF_F_TSO6;
 	if (!vif->ip_csum)
 		features &= ~NETIF_F_IP_CSUM;
@@ -350,9 +386,12 @@ static void xenvif_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 * data)
 {
 	struct xenvif *vif = netdev_priv(dev);
-	unsigned int num_queues = vif->num_queues;
+	unsigned int num_queues;
 	int i;
 	unsigned int queue_index;
+
+	rcu_read_lock();
+	num_queues = READ_ONCE(vif->num_queues);
 
 	for (i = 0; i < ARRAY_SIZE(xenvif_stats); i++) {
 		unsigned long accum = 0;
@@ -362,6 +401,8 @@ static void xenvif_get_ethtool_stats(struct net_device *dev,
 		}
 		data[i] = accum;
 	}
+
+	rcu_read_unlock();
 }
 
 static void xenvif_get_strings(struct net_device *dev, u32 stringset, u8 * data)
@@ -386,6 +427,7 @@ static const struct ethtool_ops xenvif_ethtool_ops = {
 };
 
 static const struct net_device_ops xenvif_netdev_ops = {
+	.ndo_select_queue = xenvif_select_queue,
 	.ndo_start_xmit	= xenvif_start_xmit,
 	.ndo_get_stats	= xenvif_get_stats,
 	.ndo_open	= xenvif_open,
@@ -439,11 +481,14 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	dev->netdev_ops	= &xenvif_netdev_ops;
 	dev->hw_features = NETIF_F_SG |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_TSO | NETIF_F_TSO6;
+		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_FRAGLIST;
 	dev->features = dev->hw_features | NETIF_F_RXCSUM;
 	dev->ethtool_ops = &xenvif_ethtool_ops;
 
 	dev->tx_queue_len = XENVIF_QUEUE_LENGTH;
+
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = ETH_MAX_MTU - VLAN_ETH_HLEN;
 
 	/*
 	 * Initialise a dummy MAC address. We choose the numerically
@@ -476,8 +521,7 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 
 	queue->credit_bytes = queue->remaining_credit = ~0UL;
 	queue->credit_usec  = 0UL;
-	init_timer(&queue->credit_timeout);
-	queue->credit_timeout.function = xenvif_tx_credit_callback;
+	timer_setup(&queue->credit_timeout, xenvif_tx_credit_callback, 0);
 	queue->credit_window_start = get_jiffies_64();
 
 	queue->rx_queue_max = XENVIF_RX_QUEUE_BYTES;
@@ -507,8 +551,8 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 	for (i = 0; i < MAX_PENDING_REQS; i++) {
 		queue->pending_tx_info[i].callback_struct = (struct ubuf_info)
 			{ .callback = xenvif_zerocopy_callback,
-			  .ctx = NULL,
-			  .desc = i };
+			  { { .ctx = NULL,
+			      .desc = i } } };
 		queue->grant_tx_handle[i] = NETBACK_INVALID_HANDLE;
 	}
 
@@ -527,9 +571,58 @@ void xenvif_carrier_on(struct xenvif *vif)
 	rtnl_unlock();
 }
 
-int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
-		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
-		   unsigned int rx_evtchn)
+int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
+			unsigned int evtchn)
+{
+	struct net_device *dev = vif->dev;
+	void *addr;
+	struct xen_netif_ctrl_sring *shared;
+	int err;
+
+	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(vif),
+				     &ring_ref, 1, &addr);
+	if (err)
+		goto err;
+
+	shared = (struct xen_netif_ctrl_sring *)addr;
+	BACK_RING_INIT(&vif->ctrl, shared, XEN_PAGE_SIZE);
+
+	err = bind_interdomain_evtchn_to_irq(vif->domid, evtchn);
+	if (err < 0)
+		goto err_unmap;
+
+	vif->ctrl_irq = err;
+
+	xenvif_init_hash(vif);
+
+	err = request_threaded_irq(vif->ctrl_irq, NULL, xenvif_ctrl_irq_fn,
+				   IRQF_ONESHOT, "xen-netback-ctrl", vif);
+	if (err) {
+		pr_warn("Could not setup irq handler for %s\n", dev->name);
+		goto err_deinit;
+	}
+
+	return 0;
+
+err_deinit:
+	xenvif_deinit_hash(vif);
+	unbind_from_irqhandler(vif->ctrl_irq, vif);
+	vif->ctrl_irq = 0;
+
+err_unmap:
+	xenbus_unmap_ring_vfree(xenvif_to_xenbus_device(vif),
+				vif->ctrl.sring);
+	vif->ctrl.sring = NULL;
+
+err:
+	return err;
+}
+
+int xenvif_connect_data(struct xenvif_queue *queue,
+			unsigned long tx_ring_ref,
+			unsigned long rx_ring_ref,
+			unsigned int tx_evtchn,
+			unsigned int rx_evtchn)
 {
 	struct task_struct *task;
 	int err = -ENOMEM;
@@ -538,7 +631,8 @@ int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
 	BUG_ON(queue->task);
 	BUG_ON(queue->dealloc_task);
 
-	err = xenvif_map_frontend_rings(queue, tx_ring_ref, rx_ring_ref);
+	err = xenvif_map_frontend_data_rings(queue, tx_ring_ref,
+					     rx_ring_ref);
 	if (err < 0)
 		goto err;
 
@@ -614,7 +708,8 @@ err_tx_unbind:
 	unbind_from_irqhandler(queue->tx_irq, queue);
 	queue->tx_irq = 0;
 err_unmap:
-	xenvif_unmap_frontend_rings(queue);
+	xenvif_unmap_frontend_data_rings(queue);
+	netif_napi_del(&queue->napi);
 err:
 	module_put(THIS_MODULE);
 	return err;
@@ -633,7 +728,7 @@ void xenvif_carrier_off(struct xenvif *vif)
 	rtnl_unlock();
 }
 
-void xenvif_disconnect(struct xenvif *vif)
+void xenvif_disconnect_data(struct xenvif *vif)
 {
 	struct xenvif_queue *queue = NULL;
 	unsigned int num_queues = vif->num_queues;
@@ -667,10 +762,25 @@ void xenvif_disconnect(struct xenvif *vif)
 			queue->tx_irq = 0;
 		}
 
-		xenvif_unmap_frontend_rings(queue);
+		xenvif_unmap_frontend_data_rings(queue);
 	}
 
 	xenvif_mcast_addr_list_free(vif);
+}
+
+void xenvif_disconnect_ctrl(struct xenvif *vif)
+{
+	if (vif->ctrl_irq) {
+		xenvif_deinit_hash(vif);
+		unbind_from_irqhandler(vif->ctrl_irq, vif);
+		vif->ctrl_irq = 0;
+	}
+
+	if (vif->ctrl.sring) {
+		xenbus_unmap_ring_vfree(xenvif_to_xenbus_device(vif),
+					vif->ctrl.sring);
+		vif->ctrl.sring = NULL;
+	}
 }
 
 /* Reverse the relevant parts of xenvif_init_queue().
@@ -684,22 +794,16 @@ void xenvif_deinit_queue(struct xenvif_queue *queue)
 
 void xenvif_free(struct xenvif *vif)
 {
-	struct xenvif_queue *queue = NULL;
+	struct xenvif_queue *queues = vif->queues;
 	unsigned int num_queues = vif->num_queues;
 	unsigned int queue_index;
 
 	unregister_netdev(vif->dev);
-
-	for (queue_index = 0; queue_index < num_queues; ++queue_index) {
-		queue = &vif->queues[queue_index];
-		xenvif_deinit_queue(queue);
-	}
-
-	vfree(vif->queues);
-	vif->queues = NULL;
-	vif->num_queues = 0;
-
 	free_netdev(vif->dev);
+
+	for (queue_index = 0; queue_index < num_queues; ++queue_index)
+		xenvif_deinit_queue(&queues[queue_index]);
+	vfree(queues);
 
 	module_put(THIS_MODULE);
 }

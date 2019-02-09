@@ -11,8 +11,6 @@
 #include <linux/bcd.h>
 #include <linux/slab.h>
 
-#define DRV_VERSION "0.2"
-
 struct ds1216_regs {
 	u8 tsec;
 	u8 sec;
@@ -78,8 +76,7 @@ static void ds1216_switch_ds_to_clock(u8 __iomem *ioaddr)
 
 static int ds1216_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1216_priv *priv = platform_get_drvdata(pdev);
+	struct ds1216_priv *priv = dev_get_drvdata(dev);
 	struct ds1216_regs regs;
 
 	ds1216_switch_ds_to_clock(priv->ioaddr);
@@ -101,13 +98,12 @@ static int ds1216_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int ds1216_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1216_priv *priv = platform_get_drvdata(pdev);
+	struct ds1216_priv *priv = dev_get_drvdata(dev);
 	struct ds1216_regs regs;
 
 	ds1216_switch_ds_to_clock(priv->ioaddr);
@@ -176,5 +172,4 @@ module_platform_driver_probe(ds1216_rtc_platform_driver, ds1216_rtc_probe);
 MODULE_AUTHOR("Thomas Bogendoerfer <tsbogend@alpha.franken.de>");
 MODULE_DESCRIPTION("DS1216 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:rtc-ds1216");

@@ -1,25 +1,29 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_PGALLOC_H
 #define _ASM_POWERPC_PGALLOC_H
-#ifdef __KERNEL__
 
 #include <linux/mm.h>
 
-#ifdef CONFIG_PPC_BOOK3E
-extern void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address);
-#else /* CONFIG_PPC_BOOK3E */
-static inline void tlb_flush_pgtable(struct mmu_gather *tlb,
-				     unsigned long address)
+#ifndef MODULE
+static inline gfp_t pgtable_gfp_flags(struct mm_struct *mm, gfp_t gfp)
 {
+	if (unlikely(mm == &init_mm))
+		return gfp;
+	return gfp | __GFP_ACCOUNT;
 }
-#endif /* !CONFIG_PPC_BOOK3E */
+#else /* !MODULE */
+static inline gfp_t pgtable_gfp_flags(struct mm_struct *mm, gfp_t gfp)
+{
+	return gfp | __GFP_ACCOUNT;
+}
+#endif /* MODULE */
 
-extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
+#define PGALLOC_GFP (GFP_KERNEL | __GFP_ZERO)
 
-#ifdef CONFIG_PPC64
-#include <asm/pgalloc-64.h>
+#ifdef CONFIG_PPC_BOOK3S
+#include <asm/book3s/pgalloc.h>
 #else
-#include <asm/pgalloc-32.h>
+#include <asm/nohash/pgalloc.h>
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PGALLOC_H */

@@ -1,10 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PROBE_FINDER_H
 #define _PROBE_FINDER_H
 
 #include <stdbool.h>
-#include "util.h"
 #include "intlist.h"
 #include "probe-event.h"
+#include "sane_ctype.h"
 
 #define MAX_PROBE_BUFFER	1024
 #define MAX_PROBES		 128
@@ -34,27 +35,28 @@ struct debuginfo {
 };
 
 /* This also tries to open distro debuginfo */
-extern struct debuginfo *debuginfo__new(const char *path);
-extern void debuginfo__delete(struct debuginfo *dbg);
+struct debuginfo *debuginfo__new(const char *path);
+void debuginfo__delete(struct debuginfo *dbg);
 
 /* Find probe_trace_events specified by perf_probe_event from debuginfo */
-extern int debuginfo__find_trace_events(struct debuginfo *dbg,
-					struct perf_probe_event *pev,
-					struct probe_trace_event **tevs);
+int debuginfo__find_trace_events(struct debuginfo *dbg,
+				 struct perf_probe_event *pev,
+				 struct probe_trace_event **tevs);
 
 /* Find a perf_probe_point from debuginfo */
-extern int debuginfo__find_probe_point(struct debuginfo *dbg,
-				       unsigned long addr,
-				       struct perf_probe_point *ppt);
+int debuginfo__find_probe_point(struct debuginfo *dbg, unsigned long addr,
+				struct perf_probe_point *ppt);
+
+int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs,
+			       bool adjust_offset);
 
 /* Find a line range */
-extern int debuginfo__find_line_range(struct debuginfo *dbg,
-				      struct line_range *lr);
+int debuginfo__find_line_range(struct debuginfo *dbg, struct line_range *lr);
 
 /* Find available variables */
-extern int debuginfo__find_available_vars_at(struct debuginfo *dbg,
-					     struct perf_probe_event *pev,
-					     struct variable_list **vls);
+int debuginfo__find_available_vars_at(struct debuginfo *dbg,
+				      struct perf_probe_event *pev,
+				      struct variable_list **vls);
 
 /* Find a src file from a DWARF tag path */
 int get_real_path(const char *raw_path, const char *comp_dir,
@@ -76,9 +78,13 @@ struct probe_finder {
 
 	/* For variable searching */
 #if _ELFUTILS_PREREQ(0, 142)
-	Dwarf_CFI		*cfi;		/* Call Frame Information */
+	/* Call Frame Information from .eh_frame */
+	Dwarf_CFI		*cfi_eh;
+	/* Call Frame Information from .debug_frame */
+	Dwarf_CFI		*cfi_dbg;
 #endif
 	Dwarf_Op		*fb_ops;	/* Frame base attribute */
+	unsigned int		machine;	/* Target machine arch */
 	struct perf_probe_arg	*pvar;		/* Current target variable */
 	struct probe_trace_arg	*tvar;		/* Current result variable */
 };

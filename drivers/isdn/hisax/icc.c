@@ -168,7 +168,6 @@ icc_fill_fifo(struct IsdnCardState *cs)
 		debugl1(cs, "icc_fill_fifo dbusytimer running");
 		del_timer(&cs->dbusytimer);
 	}
-	init_timer(&cs->dbusytimer);
 	cs->dbusytimer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ)/1000);
 	add_timer(&cs->dbusytimer);
 	if (cs->debug & L1_DEB_ISAC_FIFO) {
@@ -217,7 +216,7 @@ icc_interrupt(struct IsdnCardState *cs, u_char val)
 				if (!(skb = alloc_skb(count, GFP_ATOMIC)))
 					printk(KERN_WARNING "HiSax: D receive out of memory\n");
 				else {
-					memcpy(skb_put(skb, count), cs->rcvbuf, count);
+					skb_put_data(skb, cs->rcvbuf, count);
 					skb_queue_tail(&cs->rq, skb);
 				}
 			}
@@ -580,8 +579,9 @@ DC_Close_icc(struct IsdnCardState *cs) {
 }
 
 static void
-dbusy_timer_handler(struct IsdnCardState *cs)
+dbusy_timer_handler(struct timer_list *t)
 {
+	struct IsdnCardState *cs = from_timer(cs, t, dbusytimer);
 	struct PStack *stptr;
 	int	rbch, star;
 
@@ -676,7 +676,5 @@ clear_pending_icc_ints(struct IsdnCardState *cs)
 void setup_icc(struct IsdnCardState *cs)
 {
 	INIT_WORK(&cs->tqueue, icc_bh);
-	cs->dbusytimer.function = (void *) dbusy_timer_handler;
-	cs->dbusytimer.data = (long) cs;
-	init_timer(&cs->dbusytimer);
+	timer_setup(&cs->dbusytimer, dbusy_timer_handler, 0);
 }

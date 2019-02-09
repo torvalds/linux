@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for the Marzen board
  *
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Simon Horman
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 /dts-v1/;
@@ -25,21 +22,34 @@
 
 	chosen {
 		bootargs = "ignore_loglevel root=/dev/nfs ip=on";
-		stdout-path = &scif2;
+		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
 	};
 
-	fixedregulator3v3: fixedregulator@0 {
+	fixedregulator3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 		regulator-always-on;
+	};
+
+	vccq_sdhi0: regulator-vccq-sdhi0 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI0 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <3300000 1
+			  1800000 0>;
 	};
 
 	ethernet@18000000 {
@@ -165,47 +175,59 @@
 };
 
 &pfc {
+	pinctrl-0 = <&scif_clk_pins>;
+	pinctrl-names = "default";
+
 	du_pins: du {
 		du0 {
-			renesas,groups = "du0_rgb888", "du0_sync_1", "du0_clk_out_0";
-			renesas,function = "du0";
+			groups = "du0_rgb888", "du0_sync_1", "du0_clk_out_0", "du0_clk_in";
+			function = "du0";
 		};
 		du1 {
-			renesas,groups = "du1_rgb666", "du1_sync_1", "du1_clk_out";
-			renesas,function = "du1";
+			groups = "du1_rgb666", "du1_sync_1", "du1_clk_out";
+			function = "du1";
 		};
+	};
+
+	scif_clk_pins: scif_clk {
+		groups = "scif_clk_b";
+		function = "scif_clk";
 	};
 
 	ethernet_pins: ethernet {
 		intc {
-			renesas,groups = "intc_irq1_b";
-			renesas,function = "intc";
+			groups = "intc_irq1_b";
+			function = "intc";
 		};
 		lbsc {
-			renesas,groups = "lbsc_ex_cs0";
-			renesas,function = "lbsc";
+			groups = "lbsc_ex_cs0";
+			function = "lbsc";
 		};
 	};
 
-	scif2_pins: serial2 {
-		renesas,groups = "scif2_data_c";
-		renesas,function = "scif2";
+	scif2_pins: scif2 {
+		groups = "scif2_data_c";
+		function = "scif2";
 	};
 
-	scif4_pins: serial4 {
-		renesas,groups = "scif4_data";
-		renesas,function = "scif4";
+	scif4_pins: scif4 {
+		groups = "scif4_data";
+		function = "scif4";
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd";
-		renesas,function = "sdhi0";
+		groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd";
+		function = "sdhi0";
 	};
 
 	hspi0_pins: hspi0 {
-		renesas,groups = "hspi0";
-		renesas,function = "hspi0";
+		groups = "hspi0";
+		function = "hspi0";
 	};
+};
+
+&sata {
+	status = "okay";
 };
 
 &scif2 {
@@ -222,11 +244,16 @@
 	status = "okay";
 };
 
+&scif_clk {
+	clock-frequency = <14745600>;
+};
+
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-names = "default";
 
 	vmmc-supply = <&fixedregulator3v3>;
+	vqmmc-supply = <&vccq_sdhi0>;
 	bus-width = <4>;
 	status = "okay";
 };

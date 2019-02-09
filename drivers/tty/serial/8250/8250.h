@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Driver for 8250/16550-type serial ports
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *
  *  Copyright (C) 2001 Russell King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/serial_8250.h>
@@ -17,7 +13,7 @@
 
 struct uart_8250_dma {
 	int (*tx_dma)(struct uart_8250_port *p);
-	int (*rx_dma)(struct uart_8250_port *p, unsigned int iir);
+	int (*rx_dma)(struct uart_8250_port *p);
 
 	/* Filter function */
 	dma_filter_fn		fn;
@@ -31,6 +27,11 @@ struct uart_8250_dma {
 	struct dma_chan		*rxchan;
 	struct dma_chan		*txchan;
 
+	/* Device address base for DMA operations */
+	phys_addr_t		rx_dma_addr;
+	phys_addr_t		tx_dma_addr;
+
+	/* DMA address of the buffer in memory */
 	dma_addr_t		rx_addr;
 	dma_addr_t		tx_addr;
 
@@ -53,11 +54,9 @@ struct old_serial_port {
 	unsigned int port;
 	unsigned int irq;
 	upf_t        flags;
-	unsigned char hub6;
 	unsigned char io_type;
 	unsigned char __iomem *iomem_base;
 	unsigned short iomem_reg_shift;
-	unsigned long irqflags;
 };
 
 struct serial8250_config {
@@ -77,6 +76,10 @@ struct serial8250_config {
 #define UART_CAP_RTOIE	(1 << 13)	/* UART needs IER bit 4 set (Xscale, Tegra) */
 #define UART_CAP_HFIFO	(1 << 14)	/* UART has a "hidden" FIFO */
 #define UART_CAP_RPM	(1 << 15)	/* Runtime PM is active while idle */
+#define UART_CAP_IRDA	(1 << 16)	/* UART supports IrDA line discipline */
+#define UART_CAP_MINI	(1 << 17)	/* Mini UART on BCM283X family lacks:
+					 * STOP PARITY EPAR SPAR WLEN5 WLEN6
+					 */
 
 #define UART_BUG_QUOT	(1 << 0)	/* UART has buggy quot LSB */
 #define UART_BUG_TXEN	(1 << 1)	/* UART has buggy TX IIR status */
@@ -84,13 +87,24 @@ struct serial8250_config {
 #define UART_BUG_THRE	(1 << 3)	/* UART has buggy THRE reassertion */
 #define UART_BUG_PARITY	(1 << 4)	/* UART mishandles parity if FIFO enabled */
 
-#define HIGH_BITS_OFFSET ((sizeof(long)-sizeof(int))*8)
 
 #ifdef CONFIG_SERIAL_8250_SHARE_IRQ
 #define SERIAL8250_SHARE_IRQS 1
 #else
 #define SERIAL8250_SHARE_IRQS 0
 #endif
+
+#define SERIAL8250_PORT_FLAGS(_base, _irq, _flags)		\
+	{							\
+		.iobase		= _base,			\
+		.irq		= _irq,				\
+		.uartclk	= 1843200,			\
+		.iotype		= UPIO_PORT,			\
+		.flags		= UPF_BOOT_AUTOCONF | (_flags),	\
+	}
+
+#define SERIAL8250_PORT(_base, _irq) SERIAL8250_PORT_FLAGS(_base, _irq, 0)
+
 
 static inline int serial_in(struct uart_8250_port *up, int offset)
 {
@@ -115,8 +129,25 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 }
 
 struct uart_8250_port *serial8250_get_port(int line);
+
 void serial8250_rpm_get(struct uart_8250_port *p);
 void serial8250_rpm_put(struct uart_8250_port *p);
+
+void serial8250_rpm_get_tx(struct uart_8250_port *p);
+void serial8250_rpm_put_tx(struct uart_8250_port *p);
+
+int serial8250_em485_init(struct uart_8250_port *p);
+void serial8250_em485_destroy(struct uart_8250_port *p);
+
+static inline void serial8250_out_MCR(struct uart_8250_port *up, int value)
+{
+	serial_out(up, UART_MCR, value);
+}
+
+static inline int serial8250_in_MCR(struct uart_8250_port *up)
+{
+	return serial_in(up, UART_MCR);
+}
 
 #if defined(__alpha__) && !defined(CONFIG_PCI)
 /*
@@ -135,6 +166,12 @@ void serial8250_pnp_exit(void);
 #else
 static inline int serial8250_pnp_init(void) { return 0; }
 static inline void serial8250_pnp_exit(void) { }
+#endif
+
+#ifdef CONFIG_SERIAL_8250_FINTEK
+int fintek_8250_probe(struct uart_8250_port *uart);
+#else
+static inline int fintek_8250_probe(struct uart_8250_port *uart) { return 0; }
 #endif
 
 #ifdef CONFIG_ARCH_OMAP1
@@ -176,7 +213,8 @@ static inline int is_omap1510_8250(struct uart_8250_port *pt)
 
 #ifdef CONFIG_SERIAL_8250_DMA
 extern int serial8250_tx_dma(struct uart_8250_port *);
-extern int serial8250_rx_dma(struct uart_8250_port *, unsigned int iir);
+extern int serial8250_rx_dma(struct uart_8250_port *);
+extern void serial8250_rx_dma_flush(struct uart_8250_port *);
 extern int serial8250_request_dma(struct uart_8250_port *);
 extern void serial8250_release_dma(struct uart_8250_port *);
 #else
@@ -184,10 +222,11 @@ static inline int serial8250_tx_dma(struct uart_8250_port *p)
 {
 	return -1;
 }
-static inline int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
+static inline int serial8250_rx_dma(struct uart_8250_port *p)
 {
 	return -1;
 }
+static inline void serial8250_rx_dma_flush(struct uart_8250_port *p) { }
 static inline int serial8250_request_dma(struct uart_8250_port *p)
 {
 	return -1;
@@ -216,9 +255,3 @@ static inline int serial_index(struct uart_port *port)
 {
 	return port->minor - 64;
 }
-
-#if 0
-#define DEBUG_INTR(fmt...)	printk(fmt)
-#else
-#define DEBUG_INTR(fmt...)	do { } while (0)
-#endif

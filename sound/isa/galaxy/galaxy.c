@@ -53,21 +53,21 @@ static int mpu_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;
 static int dma1[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;
 static int dma2[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;
 
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for " CRD_NAME " driver.");
-module_param_array(wss_port, long, NULL, 0444);
+module_param_hw_array(wss_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(wss_port, "WSS port # for " CRD_NAME " driver.");
-module_param_array(mpu_port, long, NULL, 0444);
+module_param_hw_array(mpu_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for " CRD_NAME " driver.");
-module_param_array(fm_port, long, NULL, 0444);
+module_param_hw_array(fm_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(fm_port, "FM port # for " CRD_NAME " driver.");
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for " CRD_NAME " driver.");
-module_param_array(mpu_irq, int, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for " CRD_NAME " driver.");
-module_param_array(dma1, int, NULL, 0444);
+module_param_hw_array(dma1, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma1, "Playback DMA # for " CRD_NAME " driver.");
-module_param_array(dma2, int, NULL, 0444);
+module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "Capture DMA # for " CRD_NAME " driver.");
 
 /*
@@ -260,6 +260,7 @@ static int snd_galaxy_match(struct device *dev, unsigned int n)
 		break;
 	case 2:
 		irq[n] = 9;
+		/* Fall through */
 	case 9:
 		wss_config[n] |= WSS_CONFIG_IRQ_9;
 		break;
@@ -304,6 +305,7 @@ static int snd_galaxy_match(struct device *dev, unsigned int n)
 	case 1:
 		if (dma1[n] == 0)
 			break;
+		/* Fall through */
 	default:
 		dev_err(dev, "invalid capture DMA %d\n", dma2[n]);
 		return 0;
@@ -333,6 +335,7 @@ mpu:
 		break;
 	case 2:
 		mpu_irq[n] = 9;
+		/* Fall through */
 	case 9:
 		config[n] |= GALAXY_CONFIG_MPUIRQ_2;
 		break;
@@ -634,15 +637,4 @@ static struct isa_driver snd_galaxy_driver = {
 	}
 };
 
-static int __init alsa_card_galaxy_init(void)
-{
-	return isa_register_driver(&snd_galaxy_driver, SNDRV_CARDS);
-}
-
-static void __exit alsa_card_galaxy_exit(void)
-{
-	isa_unregister_driver(&snd_galaxy_driver);
-}
-
-module_init(alsa_card_galaxy_init);
-module_exit(alsa_card_galaxy_exit);
+module_isa_driver(snd_galaxy_driver, SNDRV_CARDS);

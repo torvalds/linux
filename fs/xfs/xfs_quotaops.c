@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2008, Christoph Hellwig
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_format.h"
@@ -57,7 +45,7 @@ xfs_qm_fill_state(
 	tstate->ino_warnlimit = q->qi_iwarnlimit;
 	tstate->rt_spc_warnlimit = q->qi_rtbwarnlimit;
 	if (tempqip)
-		IRELE(ip);
+		xfs_irele(ip);
 }
 
 /*
@@ -125,7 +113,7 @@ xfs_fs_set_info(
 	struct xfs_mount *mp = XFS_M(sb);
 	struct qc_dqblk newlim;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
@@ -175,7 +163,7 @@ xfs_quota_enable(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
@@ -190,7 +178,7 @@ xfs_quota_disable(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
@@ -208,7 +196,7 @@ xfs_fs_rm_xquota(
 	struct xfs_mount	*mp = XFS_M(sb);
 	unsigned int		flags = 0;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return -EROFS;
 
 	if (XFS_IS_QUOTA_ON(mp))
@@ -231,14 +219,42 @@ xfs_fs_get_dqblk(
 	struct qc_dqblk		*qdq)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
+	xfs_dqid_t		id;
 
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
 	if (!XFS_IS_QUOTA_ON(mp))
 		return -ESRCH;
 
-	return xfs_qm_scall_getquota(mp, from_kqid(&init_user_ns, qid),
-				      xfs_quota_type(qid.type), qdq);
+	id = from_kqid(&init_user_ns, qid);
+	return xfs_qm_scall_getquota(mp, id, xfs_quota_type(qid.type), qdq);
+}
+
+/* Return quota info for active quota >= this qid */
+STATIC int
+xfs_fs_get_nextdqblk(
+	struct super_block	*sb,
+	struct kqid		*qid,
+	struct qc_dqblk		*qdq)
+{
+	int			ret;
+	struct xfs_mount	*mp = XFS_M(sb);
+	xfs_dqid_t		id;
+
+	if (!XFS_IS_QUOTA_RUNNING(mp))
+		return -ENOSYS;
+	if (!XFS_IS_QUOTA_ON(mp))
+		return -ESRCH;
+
+	id = from_kqid(&init_user_ns, *qid);
+	ret = xfs_qm_scall_getquota_next(mp, &id, xfs_quota_type(qid->type),
+			qdq);
+	if (ret)
+		return ret;
+
+	/* ID may be different, so convert back what we got */
+	*qid = make_kqid(current_user_ns(), qid->type, id);
+	return 0;
 }
 
 STATIC int
@@ -249,7 +265,7 @@ xfs_fs_set_dqblk(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
@@ -267,5 +283,6 @@ const struct quotactl_ops xfs_quotactl_operations = {
 	.quota_disable		= xfs_quota_disable,
 	.rm_xquota		= xfs_fs_rm_xquota,
 	.get_dqblk		= xfs_fs_get_dqblk,
+	.get_nextdqblk		= xfs_fs_get_nextdqblk,
 	.set_dqblk		= xfs_fs_set_dqblk,
 };

@@ -127,7 +127,6 @@ static const struct attribute_group *iio_sysfs_trigger_attr_groups[] = {
 };
 
 static const struct iio_trigger_ops iio_sysfs_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 static int iio_sysfs_trigger_probe(int id)
@@ -174,7 +173,7 @@ static int iio_sysfs_trigger_probe(int id)
 	return 0;
 
 out2:
-	iio_trigger_put(t->trig);
+	iio_trigger_free(t->trig);
 free_t:
 	kfree(t);
 out1:

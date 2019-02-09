@@ -10,17 +10,17 @@
  *     modify it under the terms of the GNU General Public License
  *     version 2 as published by the Free Software Foundation.
  *
- *     This file is distributed in the hope that it will be useful
+ *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- * Or, alternatively
+ * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
  *     obtaining a copy of this software and associated documentation
  *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use
+ *     restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or
  *     sell copies of the Software, and to permit persons to whom the
  *     Software is furnished to do so, subject to the following
@@ -29,75 +29,109 @@
  *     The above copyright notice and this permission notice shall be
  *     included in all copies or substantial portions of the Software.
  *
- *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "imx6qdl-microsom.dtsi"
-#include "imx6qdl-microsom-ar8035.dtsi"
+#include <dt-bindings/sound/fsl-imx-audmux.h>
 
 / {
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		reg = <0x10000000 0>;
+	};
+
 	chosen {
 		stdout-path = &uart1;
 	};
 
 	ir_recv: ir-receiver {
 		compatible = "gpio-ir-receiver";
-		gpios = <&gpio3 5 1>;
+		gpios = <&gpio3 5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_hummingboard_gpio3_5>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-
-		reg_3p3v: 3p3v {
-			compatible = "regulator-fixed";
-			regulator-name = "3P3V";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
-
-		reg_usbh1_vbus: usb-h1-vbus {
-			compatible = "regulator-fixed";
-			enable-active-high;
-			gpio = <&gpio1 0 0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_hummingboard_usbh1_vbus>;
-			regulator-name = "usb_h1_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-		};
-
-		reg_usbotg_vbus: usb-otg-vbus {
-			compatible = "regulator-fixed";
-			enable-active-high;
-			gpio = <&gpio3 22 0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_hummingboard_usbotg_vbus>;
-			regulator-name = "usb_otg_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-		};
+	v_3v2: regulator-v-3v2 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "v_3v2";
+		vin-supply = <&v_5v0>;
 	};
 
-	sound-sgtl5000 {
-		audio-codec = <&sgtl5000>;
-		audio-routing =
-			"MIC_IN", "Mic Jack",
-			"Mic Jack", "Mic Bias",
+	v_5v0: regulator-v-5v0 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_5v0";
+	};
+
+	v_sd: regulator-v-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard_vmmc>;
+		regulator-boot-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "v_sd";
+		startup-delay-us = <1000>;
+		vin-supply = <&v_3v2>;
+	};
+
+	v_usb2: regulator-v-usb2 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard_usbh1_vbus>;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb2";
+		vin-supply = <&v_5v0>;
+	};
+
+	v_usb1: regulator-v-usb1 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard_usbotg_vbus>;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb1";
+		vin-supply = <&v_5v0>;
+	};
+
+	audio: sound-sgtl5000 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "On-board Codec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sound_codec>;
+		simple-audio-card,frame-master = <&sound_codec>;
+		simple-audio-card,widgets =
+			"Microphone", "Headphone Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"MIC_IN", "Headphone Jack",
+			"Headphone Jack", "Mic Bias",
 			"Headphone Jack", "HP_OUT";
-		compatible = "fsl,imx-audio-sgtl5000";
-		model = "On-board Codec";
-		mux-ext-port = <5>;
-		mux-int-port = <1>;
-		ssi-controller = <&ssi1>;
+
+		sound_cpu: simple-audio-card,cpu {
+			sound-dai = <&ssi1>;
+		};
+
+		sound_codec: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
 	};
 
 	sound-spdif {
@@ -111,6 +145,26 @@
 
 &audmux {
 	status = "okay";
+
+	ssi1 {
+		fsl,audmux-port = <0>;
+		fsl,port-config = <
+			(IMX_AUDMUX_V2_PTCR_SYN |
+			 IMX_AUDMUX_V2_PTCR_TFSEL(4) |
+			 IMX_AUDMUX_V2_PTCR_TCSEL(4) |
+			 IMX_AUDMUX_V2_PTCR_TFSDIR |
+			 IMX_AUDMUX_V2_PTCR_TCLKDIR)
+			 IMX_AUDMUX_V2_PDCR_RXDSEL(4)
+		>;
+	};
+
+	pins5 {
+		fsl,audmux-port = <4>;
+		fsl,port-config = <
+			IMX_AUDMUX_V2_PTCR_SYN
+			IMX_AUDMUX_V2_PDCR_RXDSEL(0)
+		>;
+	};
 };
 
 &can1 {
@@ -132,20 +186,21 @@
 	status = "okay";
 
 	/* Pro baseboard model */
-	rtc: pcf8523@68 {
+	rtc@68 {
 		compatible = "nxp,pcf8523";
 		reg = <0x68>;
 	};
 
 	/* Pro baseboard model */
-	sgtl5000: sgtl5000@0a {
+	sgtl5000: codec@a {
 		clocks = <&clks IMX6QDL_CLK_CKO>;
 		compatible = "fsl,sgtl5000";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_hummingboard_sgtl5000>;
+		#sound-dai-cells = <0>;
 		reg = <0x0a>;
-		VDDA-supply = <&reg_3p3v>;
-		VDDIO-supply = <&reg_3p3v>;
+		VDDA-supply = <&v_3v2>;
+		VDDIO-supply = <&v_3v2>;
 	};
 };
 
@@ -221,10 +276,9 @@
 
 		pinctrl_hummingboard_usbotg_id: hummingboard-usbotg-id {
 			/*
-			 * Similar to pinctrl_usbotg_2, but we want it
-			 * pulled down for a fixed host connection.
+			 * We want it pulled down for a fixed host connection.
 			 */
-			fsl,pins = <MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x13059>;
+			fsl,pins = <MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID 0x13059>;
 		};
 
 		pinctrl_hummingboard_usbotg_vbus: hummingboard-usbotg-vbus {
@@ -247,13 +301,18 @@
 				MX6QDL_PAD_SD2_DAT3__SD2_DATA3 0x13059
 			>;
 		};
+		pinctrl_hummingboard_vmmc: hummingboard-vmmc {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT9__GPIO4_IO30 0x1b0b0
+			>;
+		};
 	};
 };
 
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hummingboard_pcie_reset>;
-	reset-gpio = <&gpio3 4 0>;
+	reset-gpio = <&gpio3 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -280,7 +339,7 @@
 
 &usbh1 {
 	disable-over-current;
-	vbus-supply = <&reg_usbh1_vbus>;
+	vbus-supply = <&v_usb2>;
 	status = "okay";
 };
 
@@ -288,7 +347,7 @@
 	disable-over-current;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hummingboard_usbotg_id>;
-	vbus-supply = <&reg_usbotg_vbus>;
+	vbus-supply = <&v_usb1>;
 	status = "okay";
 };
 
@@ -298,7 +357,11 @@
 		&pinctrl_hummingboard_usdhc2_aux
 		&pinctrl_hummingboard_usdhc2
 	>;
-	vmmc-supply = <&reg_3p3v>;
+	vmmc-supply = <&v_sd>;
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
+};
+
+&vcc_3v3 {
+	vin-supply = <&v_3v2>;
 };

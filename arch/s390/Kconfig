@@ -1,16 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0
 config MMU
 	def_bool y
 
 config ZONE_DMA
 	def_bool y
 
+config CPU_BIG_ENDIAN
+	def_bool y
+
 config LOCKDEP_SUPPORT
 	def_bool y
 
 config STACKTRACE_SUPPORT
-	def_bool y
-
-config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
@@ -34,9 +35,6 @@ config GENERIC_BUG
 config GENERIC_BUG_RELATIVE_POINTERS
 	def_bool y
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-
 config GENERIC_LOCKBREAK
 	def_bool y if SMP && PREEMPT
 
@@ -45,10 +43,6 @@ config PGSTE
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
-
-config KEXEC
-	def_bool y
-	select KEXEC_CORE
 
 config AUDIT_ARCH
 	def_bool y
@@ -64,11 +58,19 @@ config ARCH_SUPPORTS_UPROBES
 
 config S390
 	def_bool y
-	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
-	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	select ARCH_BINFMT_ELF_STATE
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
+	select ARCH_HAS_KCOV
+	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_SET_MEMORY
 	select ARCH_HAS_SG_CHAIN
+	select ARCH_HAS_STRICT_KERNEL_RWX
+	select ARCH_HAS_STRICT_MODULE_RWX
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_INLINE_READ_LOCK
 	select ARCH_INLINE_READ_LOCK_BH
@@ -103,7 +105,7 @@ config S390
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
-	select ARCH_WANTS_PROT_NUMA_PROT_NONE
+	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS2
@@ -111,54 +113,70 @@ config S390
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_DEVICES if !SMP
+	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
-	select HAVE_ARCH_EARLY_PFN_TO_NID
 	select HAVE_ARCH_JUMP_LABEL
+	select CPU_NO_EFFICIENT_FFS if !HAVE_MARCH_Z9_109_FEATURES
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_SOFT_DIRTY
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
-	select HAVE_BPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
+	select HAVE_EBPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
+	select HAVE_COPY_THREAD_TLS
 	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DMA_CONTIGUOUS
+	select DMA_DIRECT_OPS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select HAVE_FENTRY
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUTEX_CMPXCHG if FUTEX
+	select HAVE_GCC_PLUGINS
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_UNCOMPRESSED
 	select HAVE_KERNEL_XZ
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_KVM
 	select HAVE_LIVEPATCH
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MEMBLOCK_PHYS_MAP
 	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_NOP_MCOUNT
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select MODULES_USE_ELF_RELA
 	select NO_BOOTMEM
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
+	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
+	select THREAD_INFO_IN_TASK
 	select TTY
 	select VIRT_CPU_ACCOUNTING
+	select ARCH_HAS_SCALED_CPUTIME
 	select VIRT_TO_BUS
+	select HAVE_NMI
 
 
 config SCHED_OMIT_FRAME_POINTER
@@ -166,12 +184,7 @@ config SCHED_OMIT_FRAME_POINTER
 
 config PGTABLE_LEVELS
 	int
-	default 4 if 64BIT
-	default 2
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
+	default 5
 
 source "kernel/livepatch/Kconfig"
 
@@ -204,9 +217,13 @@ config HAVE_MARCH_Z13_FEATURES
 	def_bool n
 	select HAVE_MARCH_ZEC12_FEATURES
 
+config HAVE_MARCH_Z14_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z13_FEATURES
+
 choice
 	prompt "Processor type"
-	default MARCH_Z900
+	default MARCH_Z196
 
 config MARCH_Z900
 	bool "IBM zSeries model z800 and z900"
@@ -257,12 +274,20 @@ config MARCH_ZEC12
 	  older machines.
 
 config MARCH_Z13
-	bool "IBM z13"
+	bool "IBM z13s and z13"
 	select HAVE_MARCH_Z13_FEATURES
 	help
-	  Select this to enable optimizations for IBM z13 (2964 series).
-	  The kernel will be slightly faster but will not work on older
-	  machines.
+	  Select this to enable optimizations for IBM z13s and z13 (2965 and
+	  2964 series). The kernel will be slightly faster but will not work on
+	  older machines.
+
+config MARCH_Z14
+	bool "IBM z14 ZR1 and z14"
+	select HAVE_MARCH_Z14_FEATURES
+	help
+	  Select this to enable optimizations for IBM z14 ZR1 and z14 (3907
+	  and 3906 series). The kernel will be slightly faster but will not
+	  work on older machines.
 
 endchoice
 
@@ -286,6 +311,9 @@ config MARCH_ZEC12_TUNE
 
 config MARCH_Z13_TUNE
 	def_bool TUNE_Z13 || MARCH_Z13 && TUNE_DEFAULT
+
+config MARCH_Z14_TUNE
+	def_bool TUNE_Z14 || MARCH_Z14 && TUNE_DEFAULT
 
 choice
 	prompt "Tune code generation"
@@ -325,6 +353,9 @@ config TUNE_ZEC12
 config TUNE_Z13
 	bool "IBM z13"
 
+config TUNE_Z14
+	bool "IBM z14"
+
 endchoice
 
 config 64BIT
@@ -345,9 +376,6 @@ config COMPAT
 
 config SYSVIPC_COMPAT
 	def_bool y if COMPAT && SYSVIPC
-
-config KEYS_COMPAT
-	def_bool y if COMPAT && KEYS
 
 config SMP
 	def_bool y
@@ -390,9 +418,6 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
-config SCHED_SMT
-	def_bool n
-
 # Some NUMA nodes have memory ranges that span
 # other nodes.	Even though a pfn is valid and
 # between a node's start and end pfns, it may not
@@ -403,7 +428,7 @@ config NODES_SPAN_OTHER_NODES
 
 config NUMA
 	bool "NUMA support"
-	depends on SMP && 64BIT && SCHED_TOPOLOGY
+	depends on SMP && SCHED_TOPOLOGY
 	default n
 	help
 	  Enable NUMA support
@@ -463,10 +488,16 @@ config EMU_SIZE
 
 endmenu
 
+config SCHED_SMT
+	def_bool n
+
 config SCHED_MC
 	def_bool n
 
 config SCHED_BOOK
+	def_bool n
+
+config SCHED_DRAWER
 	def_bool n
 
 config SCHED_TOPOLOGY
@@ -476,14 +507,93 @@ config SCHED_TOPOLOGY
 	select SCHED_SMT
 	select SCHED_MC
 	select SCHED_BOOK
+	select SCHED_DRAWER
 	help
 	  Topology scheduler support improves the CPU scheduler's decision
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
-source kernel/Kconfig.preempt
-
 source kernel/Kconfig.hz
+
+config KEXEC
+	def_bool y
+	select KEXEC_CORE
+
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	select BUILD_BIN2C
+	depends on CRYPTO
+	depends on CRYPTO_SHA256
+	depends on CRYPTO_SHA256_S390
+	help
+	  Enable the kexec file based system call. In contrast to the normal
+	  kexec system call this system call takes file descriptors for the
+	  kernel and initramfs as arguments.
+
+config ARCH_HAS_KEXEC_PURGATORY
+	def_bool y
+	depends on KEXEC_FILE
+
+config ARCH_RANDOM
+	def_bool y
+	prompt "s390 architectural random number generation API"
+	help
+	  Enable the s390 architectural random number generation API
+	  to provide random data for all consumers within the Linux
+	  kernel.
+
+	  When enabled the arch_random_* functions declared in linux/random.h
+	  are implemented. The implementation is based on the s390 CPACF
+	  instruction subfunction TRNG which provides a real true random
+	  number generator.
+
+	  If unsure, say Y.
+
+config KERNEL_NOBP
+	def_bool n
+	prompt "Enable modified branch prediction for the kernel by default"
+	help
+	  If this option is selected the kernel will switch to a modified
+	  branch prediction mode if the firmware interface is available.
+	  The modified branch prediction mode improves the behaviour in
+	  regard to speculative execution.
+
+	  With the option enabled the kernel parameter "nobp=0" or "nospec"
+	  can be used to run the kernel in the normal branch prediction mode.
+
+	  With the option disabled the modified branch prediction mode is
+	  enabled with the "nobp=1" kernel parameter.
+
+	  If unsure, say N.
+
+config EXPOLINE
+	def_bool n
+	prompt "Avoid speculative indirect branches in the kernel"
+	help
+	  Compile the kernel with the expoline compiler options to guard
+	  against kernel-to-user data leaks by avoiding speculative indirect
+	  branches.
+	  Requires a compiler with -mindirect-branch=thunk support for full
+	  protection. The kernel may run slower.
+
+	  If unsure, say N.
+
+choice
+	prompt "Expoline default"
+	depends on EXPOLINE
+	default EXPOLINE_FULL
+
+config EXPOLINE_OFF
+	bool "spectre_v2=off"
+
+config EXPOLINE_AUTO
+	bool "spectre_v2=auto"
+
+config EXPOLINE_FULL
+	bool "spectre_v2=on"
+
+endchoice
 
 endmenu
 
@@ -513,7 +623,15 @@ config FORCE_MAX_ZONEORDER
 	int
 	default "9"
 
-source "mm/Kconfig"
+config MAX_PHYSMEM_BITS
+	int "Maximum size of supported physical memory in bits (42-53)"
+	range 42 53
+	default "46"
+	help
+	  This option specifies the maximum supported size of physical memory
+	  in bits. Supported is any size between 2^42 (4TB) and 2^53 (8PB).
+	  Increasing the number of bits also increases the kernel image size.
+	  By default 46 bits (64TB) are supported.
 
 config PACK_STACK
 	def_bool y
@@ -582,9 +700,12 @@ config QDIO
 
 menuconfig PCI
 	bool "PCI support"
-	select HAVE_DMA_ATTRS
 	select PCI_MSI
+	select IOMMU_HELPER
 	select IOMMU_SUPPORT
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
+
 	help
 	  Enable PCI support.
 
@@ -593,24 +714,12 @@ if PCI
 config PCI_NR_FUNCTIONS
 	int "Maximum number of PCI functions (1-4096)"
 	range 1 4096
-	default "64"
+	default "128"
 	help
 	  This allows you to specify the maximum number of PCI functions which
 	  this kernel will support.
 
-config PCI_NR_MSI
-	int "Maximum number of MSI interrupts (64-32768)"
-	range 64 32768
-	default "256"
-	help
-	  This defines the number of virtual interrupts the kernel will
-	  provide for MSI interrupts. If you configure your system to have
-	  too few drivers will fail to allocate MSI interrupts for all
-	  PCI devices.
-
 source "drivers/pci/Kconfig"
-source "drivers/pci/pcie/Kconfig"
-source "drivers/pci/hotplug/Kconfig"
 
 endif	# PCI
 
@@ -618,19 +727,6 @@ config PCI_DOMAINS
 	def_bool PCI
 
 config HAS_IOMEM
-	def_bool PCI
-
-config IOMMU_HELPER
-	def_bool PCI
-
-config HAS_DMA
-	def_bool PCI
-	select HAVE_DMA_API_DEBUG
-
-config NEED_SG_DMA_LENGTH
-	def_bool PCI
-
-config NEED_DMA_MAP_STATE
 	def_bool PCI
 
 config CHSC_SCH
@@ -667,6 +763,16 @@ config EADM_SCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called eadm_sch.
 
+config VFIO_CCW
+	def_tristate n
+	prompt "Support for VFIO-CCW subchannels"
+	depends on S390_CCW_IOMMU && VFIO_MDEV
+	help
+	  This driver allows usage of I/O subchannels via VFIO-CCW.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vfio_ccw.
+
 endmenu
 
 menu "Dump support"
@@ -686,10 +792,6 @@ config CRASH_DUMP
 
 endmenu
 
-menu "Executable file formats / Emulations"
-
-source "fs/Kconfig.binfmt"
-
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"
@@ -707,8 +809,6 @@ config SECCOMP
 
 	  If unsure, say Y.
 
-endmenu
-
 menu "Power Management"
 
 config ARCH_HIBERNATION_POSSIBLE
@@ -718,25 +818,15 @@ source "kernel/power/Kconfig"
 
 endmenu
 
-source "net/Kconfig"
-
 config PCMCIA
 	def_bool n
 
 config CCW
 	def_bool y
 
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/s390/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
+config HAVE_PNETID
+	tristate
+	default (SMC || CCWGROUP)
 
 menu "Virtualization"
 
@@ -752,18 +842,6 @@ config PFAULT
 	  implementation that causes some problems.
 	  Everybody who wants to run Linux under VM != VM4.2 should select
 	  this option.
-
-config SHARED_KERNEL
-	bool "VM shared kernel support"
-	depends on !JUMP_LABEL
-	help
-	  Select this option, if you want to share the text segment of the
-	  Linux kernel between different VM guests. This reduces memory
-	  usage with lots of guests but greatly increases kernel size.
-	  Also if a kernel was IPL'ed from a shared segment the kexec system
-	  call will not work.
-	  You should only select this option if you know what you are
-	  doing and want to exploit this feature.
 
 config CMM
 	def_tristate n

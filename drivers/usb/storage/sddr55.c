@@ -1,4 +1,6 @@
-/* Driver for SanDisk SDDR-55 SmartMedia reader
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Driver for SanDisk SDDR-55 SmartMedia reader
  *
  * SDDR55 driver v0.1:
  *
@@ -6,20 +8,6 @@
  *
  * Current development and maintenance by:
  *   (c) 2002 Simon Munton
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/jiffies.h>
@@ -130,7 +118,8 @@ sddr55_bulk_transport(struct us_data *us, int direction,
 	return usb_stor_bulk_transfer_buf(us, pipe, data, len, NULL);
 }
 
-/* check if card inserted, if there is, update read_only status
+/*
+ * check if card inserted, if there is, update read_only status
  * return non zero if no card
  */
 
@@ -602,6 +591,7 @@ static unsigned long sddr55_get_capacity(struct us_data *us) {
 	case 0x64:
 		info->pageshift = 8;
 		info->smallpageshift = 1;
+		/* fall through */
 	case 0x5d: // 5d is a ROM card with pagesize 512.
 		return 0x00200000;
 
@@ -661,7 +651,7 @@ static int sddr55_read_map(struct us_data *us) {
 
 	numblocks = info->capacity >> (info->blockshift + info->pageshift);
 	
-	buffer = kmalloc( numblocks * 2, GFP_NOIO );
+	buffer = kmalloc_array(numblocks, 2, GFP_NOIO );
 	
 	if (!buffer)
 		return -1;
@@ -694,8 +684,8 @@ static int sddr55_read_map(struct us_data *us) {
 
 	kfree(info->lba_to_pba);
 	kfree(info->pba_to_lba);
-	info->lba_to_pba = kmalloc(numblocks*sizeof(int), GFP_NOIO);
-	info->pba_to_lba = kmalloc(numblocks*sizeof(int), GFP_NOIO);
+	info->lba_to_pba = kmalloc_array(numblocks, sizeof(int), GFP_NOIO);
+	info->pba_to_lba = kmalloc_array(numblocks, sizeof(int), GFP_NOIO);
 
 	if (info->lba_to_pba == NULL || info->pba_to_lba == NULL) {
 		kfree(info->lba_to_pba);
@@ -714,15 +704,18 @@ static int sddr55_read_map(struct us_data *us) {
 	if (max_lba > 1000)
 		max_lba = 1000;
 
-	// Each block is 64 bytes of control data, so block i is located in
-	// scatterlist block i*64/128k = i*(2^6)*(2^-17) = i*(2^-11)
+	/*
+	 * Each block is 64 bytes of control data, so block i is located in
+	 * scatterlist block i*64/128k = i*(2^6)*(2^-17) = i*(2^-11)
+	 */
 
 	for (i=0; i<numblocks; i++) {
 		int zone = i / 1024;
 
 		lba = short_pack(buffer[i * 2], buffer[i * 2 + 1]);
 
-			/* Every 1024 physical blocks ("zone"), the LBA numbers
+			/*
+			 * Every 1024 physical blocks ("zone"), the LBA numbers
 			 * go back to zero, but are within a higher
 			 * block of LBA's. Also, there is a maximum of
 			 * 1000 LBA's per zone. In other words, in PBA
@@ -733,7 +726,8 @@ static int sddr55_read_map(struct us_data *us) {
 			 * are 24 spare blocks to use when blocks do go bad.
 			 */
 
-			/* SDDR55 returns 0xffff for a bad block, and 0x400 for the 
+			/*
+			 * SDDR55 returns 0xffff for a bad block, and 0x400 for the 
 			 * CIS block. (Is this true for cards 8MB or less??)
 			 * Record these in the physical to logical map
 			 */ 
@@ -824,8 +818,10 @@ static int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	memset (info->sense_data, 0, sizeof info->sense_data);
 
-	/* Dummy up a response for INQUIRY since SDDR55 doesn't
-	   respond to INQUIRY commands */
+	/*
+	 * Dummy up a response for INQUIRY since SDDR55 doesn't
+	 * respond to INQUIRY commands
+	 */
 
 	if (srb->cmnd[0] == INQUIRY) {
 		memcpy(ptr, inquiry_response, 8);
@@ -833,7 +829,8 @@ static int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 		return USB_STOR_TRANSPORT_GOOD;
 	}
 
-	/* only check card status if the map isn't allocated, ie no card seen yet
+	/*
+	 * only check card status if the map isn't allocated, ie no card seen yet
 	 * or if it's been over half a second since we last accessed it
 	 */
 	if (info->lba_to_pba == NULL || time_after(jiffies, info->last_access + HZ/2)) {
@@ -849,8 +846,10 @@ static int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 		}
 	}
 
-	/* if we detected a problem with the map when writing,
-	   don't allow any more access */
+	/*
+	 * if we detected a problem with the map when writing,
+	 * don't allow any more access
+	 */
 	if (info->fatal_error) {
 
 		set_sense_info (3, 0x31, 0);
@@ -868,12 +867,16 @@ static int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		info->capacity = capacity;
 
-		/* figure out the maximum logical block number, allowing for
-		 * the fact that only 250 out of every 256 are used */
+		/*
+		 * figure out the maximum logical block number, allowing for
+		 * the fact that only 250 out of every 256 are used
+		 */
 		info->max_log_blks = ((info->capacity >> (info->pageshift + info->blockshift)) / 256) * 250;
 
-		/* Last page in the card, adjust as we only use 250 out of
-		 * every 256 pages */
+		/*
+		 * Last page in the card, adjust as we only use 250 out of
+		 * every 256 pages
+		 */
 		capacity = (capacity / 256) * 250;
 
 		capacity /= PAGESIZE;

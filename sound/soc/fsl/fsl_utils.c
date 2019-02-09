@@ -1,14 +1,10 @@
-/**
- * Freescale ALSA SoC Machine driver utility
- *
- * Author: Timur Tabi <timur@freescale.com>
- *
- * Copyright 2010 Freescale Semiconductor, Inc.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Freescale ALSA SoC Machine driver utility
+//
+// Author: Timur Tabi <timur@freescale.com>
+//
+// Copyright 2010 Freescale Semiconductor, Inc.
 
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -36,7 +32,7 @@ int fsl_asoc_get_dma_channel(struct device_node *ssi_np,
 {
 	struct resource res;
 	struct device_node *dma_channel_np, *dma_np;
-	const u32 *iprop;
+	const __be32 *iprop;
 	int ret;
 
 	dma_channel_np = of_parse_phandle(ssi_np, name, 0);

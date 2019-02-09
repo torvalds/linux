@@ -148,7 +148,7 @@ enum ath6kl_fw_capability {
 	/* ratetable is the 2 stream version (max MCS15) */
 	ATH6KL_FW_CAPABILITY_RATETABLE_MCS15,
 
-	/* firmare doesn't support IP checksumming */
+	/* firmware doesn't support IP checksumming */
 	ATH6KL_FW_CAPABILITY_NO_IP_CHECKSUM,
 
 	/* this needs to be last */
@@ -623,7 +623,7 @@ struct ath6kl_vif {
 	struct ath6kl_wep_key wep_key_list[WMI_MAX_KEY_INDEX + 1];
 	struct ath6kl_key keys[WMI_MAX_KEY_INDEX + 1];
 	struct aggr_info *aggr_cntxt;
-	struct ath6kl_htcap htcap[IEEE80211_NUM_BANDS];
+	struct ath6kl_htcap htcap[NUM_NL80211_BANDS];
 
 	struct timer_list disconnect_timer;
 	struct timer_list sched_scan_timer;
@@ -641,7 +641,6 @@ struct ath6kl_vif {
 	u32 txe_intvl;
 	u16 bg_scan_period;
 	u8 assoc_bss_dtim_period;
-	struct net_device_stats net_stats;
 	struct target_stats target_stats;
 	struct wmi_connect_cmd profile;
 	u16 rsn_capab;
@@ -781,6 +780,7 @@ struct ath6kl {
 		u32 board_addr;
 		u32 refclk_hz;
 		u32 uarttx_pin;
+		u32 uarttx_rate;
 		u32 testscript_addr;
 		u8 tx_ant;
 		u8 rx_ant;
@@ -893,7 +893,7 @@ static inline u32 ath6kl_get_hi_item_addr(struct ath6kl *ar,
 
 int ath6kl_configure_target(struct ath6kl *ar);
 void ath6kl_detect_error(unsigned long ptr);
-void disconnect_timer_handler(unsigned long ptr);
+void disconnect_timer_handler(struct timer_list *t);
 void init_netdev(struct net_device *dev);
 void ath6kl_cookie_init(struct ath6kl *ar);
 void ath6kl_cookie_cleanup(struct ath6kl *ar);
@@ -914,7 +914,7 @@ void ath6kl_tx_data_cleanup(struct ath6kl *ar);
 
 struct ath6kl_cookie *ath6kl_alloc_cookie(struct ath6kl *ar);
 void ath6kl_free_cookie(struct ath6kl *ar, struct ath6kl_cookie *cookie);
-int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev);
 
 struct aggr_info *aggr_init(struct ath6kl_vif *vif);
 void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info *aggr_info,

@@ -14,7 +14,7 @@
 		display2 = &tv0;
 	};
 
-	lcd0: display@0 {
+	lcd0: display {
 		compatible = "panel-dpi";
 		label = "lcd";
 
@@ -30,7 +30,10 @@
 
 &dss {
 	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		dpi_lcd_out: endpoint@1 {
+			reg = <1>;
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
 		};
@@ -68,6 +71,6 @@
 		ti,keep-vref-on = <1>;
 		ti,settle-delay-usec = /bits/ 16 <150>;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1994 Linus Torvalds
  *
@@ -25,16 +26,6 @@ extern void __kernel_fpu_end(void);
 extern void kernel_fpu_begin(void);
 extern void kernel_fpu_end(void);
 extern bool irq_fpu_usable(void);
-
-/*
- * Some instructions like VIA's padlock instructions generate a spurious
- * DNA fault but don't modify SSE registers. And these instructions
- * get used from interrupt context as well. To prevent these kernel instructions
- * in interrupt context interacting wrongly with other user/kernel fpu usage, we
- * should use them only in the context of irq_ts_save/restore()
- */
-extern int  irq_ts_save(void);
-extern void irq_ts_restore(int TS_state);
 
 /*
  * Query the presence of one or more xfeatures. Works on any legacy CPU as well.

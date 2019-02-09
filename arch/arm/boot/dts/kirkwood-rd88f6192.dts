@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Marvell RD88F6192 Board descrition
  *
  * Andrew Lunn <andrew@lunn.ch>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * This file contains the definitions that are common between the three
  * variants of the Marvell Kirkwood Development Board.
@@ -27,16 +24,6 @@
 	chosen {
 		bootargs = "console=ttyS0,115200n8";
 		stdout-path = &uart0;
-	};
-
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
 	};
 
 	ocp@f1000000 {
@@ -108,4 +95,12 @@
         ethernet0-port@0 {
                 phy-handle = <&ethphy0>;
         };
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

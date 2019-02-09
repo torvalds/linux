@@ -343,7 +343,7 @@ static void psb_intel_lvds_restore(struct drm_connector *connector)
 	}
 }
 
-int psb_intel_lvds_mode_valid(struct drm_connector *connector,
+enum drm_mode_status psb_intel_lvds_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct drm_psb_private *dev_priv = connector->dev->dev_private;
@@ -388,11 +388,11 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 
 	/* PSB requires the LVDS is on pipe B, MRST has only one pipe anyway */
 	if (!IS_MRST(dev) && gma_crtc->pipe == 0) {
-		printk(KERN_ERR "Can't support LVDS on pipe A\n");
+		pr_err("Can't support LVDS on pipe A\n");
 		return false;
 	}
 	if (IS_MRST(dev) && gma_crtc->pipe != 0) {
-		printk(KERN_ERR "Must use PIPE A\n");
+		pr_err("Must use PIPE A\n");
 		return false;
 	}
 	/* Should never happen!! */
@@ -400,8 +400,7 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			    head) {
 		if (tmp_encoder != encoder
 		    && tmp_encoder->crtc == encoder->crtc) {
-			printk(KERN_ERR "Can't enable LVDS and another "
-			       "encoder on the same pipe\n");
+			pr_err("Can't enable LVDS and another encoder on the same pipe\n");
 			return false;
 		}
 	}
@@ -500,19 +499,6 @@ static void psb_intel_lvds_mode_set(struct drm_encoder *encoder,
 }
 
 /*
- * Detect the LVDS connection.
- *
- * This always returns CONNECTOR_STATUS_CONNECTED.
- * This connector should only have
- * been set up if the LVDS was actually connected anyway.
- */
-static enum drm_connector_status psb_intel_lvds_detect(struct drm_connector
-						   *connector, bool force)
-{
-	return connector_status_connected;
-}
-
-/*
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
 static int psb_intel_lvds_get_modes(struct drm_connector *connector)
@@ -529,15 +515,6 @@ static int psb_intel_lvds_get_modes(struct drm_connector *connector)
 
 	if (ret)
 		return ret;
-
-	/* Didn't get an EDID, so
-	 * Set wide sync ranges so we get all modes
-	 * handed to valid_mode for checking
-	 */
-	connector->display_info.min_vfreq = 0;
-	connector->display_info.max_vfreq = 200;
-	connector->display_info.min_hfreq = 0;
-	connector->display_info.max_hfreq = 200;
 
 	if (mode_dev->panel_fixed_mode != NULL) {
 		struct drm_display_mode *mode =
@@ -561,8 +538,7 @@ void psb_intel_lvds_destroy(struct drm_connector *connector)
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct psb_intel_lvds_priv *lvds_priv = gma_encoder->dev_priv;
 
-	if (lvds_priv->ddc_bus)
-		psb_intel_i2c_destroy(lvds_priv->ddc_bus);
+	psb_intel_i2c_destroy(lvds_priv->ddc_bus);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
@@ -653,9 +629,6 @@ const struct drm_connector_helper_funcs
 
 const struct drm_connector_funcs psb_intel_lvds_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = psb_intel_lvds_save,
-	.restore = psb_intel_lvds_restore,
-	.detect = psb_intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = psb_intel_lvds_set_property,
 	.destroy = psb_intel_lvds_destroy,
@@ -715,6 +688,9 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	gma_encoder->dev_priv = lvds_priv;
 
 	connector = &gma_connector->base;
+	gma_connector->save = psb_intel_lvds_save;
+	gma_connector->restore = psb_intel_lvds_restore;
+
 	encoder = &gma_encoder->base;
 	drm_connector_init(dev, connector,
 			   &psb_intel_lvds_connector_funcs,
@@ -722,7 +698,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 
 	drm_encoder_init(dev, encoder,
 			 &psb_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_LVDS);
+			 DRM_MODE_ENCODER_LVDS, NULL);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 	gma_encoder->type = INTEL_OUTPUT_LVDS;
@@ -783,20 +759,23 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
 			mode_dev->panel_fixed_mode =
 			    drm_mode_duplicate(dev, scan);
+			DRM_DEBUG_KMS("Using mode from DDC\n");
 			goto out;	/* FIXME: check for quirks */
 		}
 	}
 
 	/* Failed to get EDID, what about VBT? do we need this? */
-	if (mode_dev->vbt_mode)
+	if (dev_priv->lfp_lvds_vbt_mode) {
 		mode_dev->panel_fixed_mode =
-		    drm_mode_duplicate(dev, mode_dev->vbt_mode);
+			drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
 
-	if (!mode_dev->panel_fixed_mode)
-		if (dev_priv->lfp_lvds_vbt_mode)
-			mode_dev->panel_fixed_mode =
-				drm_mode_duplicate(dev,
-					dev_priv->lfp_lvds_vbt_mode);
+		if (mode_dev->panel_fixed_mode) {
+			mode_dev->panel_fixed_mode->type |=
+				DRM_MODE_TYPE_PREFERRED;
+			DRM_DEBUG_KMS("Using mode from VBT\n");
+			goto out;
+		}
+	}
 
 	/*
 	 * If we didn't get EDID, try checking if the panel is already turned
@@ -813,6 +792,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (mode_dev->panel_fixed_mode) {
 			mode_dev->panel_fixed_mode->type |=
 			    DRM_MODE_TYPE_PREFERRED;
+			DRM_DEBUG_KMS("Using pre-programmed mode\n");
 			goto out;	/* FIXME: check for quirks */
 		}
 	}
@@ -834,11 +814,9 @@ out:
 
 failed_find:
 	mutex_unlock(&dev->mode_config.mutex);
-	if (lvds_priv->ddc_bus)
-		psb_intel_i2c_destroy(lvds_priv->ddc_bus);
+	psb_intel_i2c_destroy(lvds_priv->ddc_bus);
 failed_ddc:
-	if (lvds_priv->i2c_bus)
-		psb_intel_i2c_destroy(lvds_priv->i2c_bus);
+	psb_intel_i2c_destroy(lvds_priv->i2c_bus);
 failed_blc_i2c:
 	drm_encoder_cleanup(encoder);
 	drm_connector_cleanup(connector);

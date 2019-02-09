@@ -18,7 +18,9 @@
 #ifndef __ASM_EXCEPTION_H
 #define __ASM_EXCEPTION_H
 
-#include <linux/ftrace.h>
+#include <asm/esr.h>
+
+#include <linux/interrupt.h>
 
 #define __exception	__attribute__((section(".exception.text")))
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -26,5 +28,17 @@
 #else
 #define __exception_irq_entry	__exception
 #endif
+
+static inline u32 disr_to_esr(u64 disr)
+{
+	unsigned int esr = ESR_ELx_EC_SERROR << ESR_ELx_EC_SHIFT;
+
+	if ((disr & DISR_EL1_IDS) == 0)
+		esr |= (disr & DISR_EL1_ESR_MASK);
+	else
+		esr |= (disr & ESR_ELx_ISS_MASK);
+
+	return esr;
+}
 
 #endif	/* __ASM_EXCEPTION_H */

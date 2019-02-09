@@ -12,11 +12,12 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/omap.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "ti,omap3430", "ti,omap3";
 	interrupt-parent = <&intc>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -43,7 +44,7 @@
 		};
 	};
 
-	pmu {
+	pmu@54000000 {
 		compatible = "arm,cortex-a8-pmu";
 		reg = <0x54000000 0x800000>;
 		interrupts = <3>;
@@ -78,7 +79,7 @@
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
 	 */
-	ocp {
+	ocp@68000000 {
 		compatible = "ti,omap3-l3-smx", "simple-bus";
 		reg = <0x68000000 0x10000>;
 		interrupts = <9 10>;
@@ -106,6 +107,7 @@
 					reg = <0x30 0x238>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					#interrupt-cells = <1>;
 					interrupt-controller;
 					pinctrl-single,register-width = <16>;
@@ -119,7 +121,7 @@
 					#size-cells = <1>;
 					ranges = <0 0x270 0x330>;
 
-					pbias_regulator: pbias_regulator {
+					pbias_regulator: pbias_regulator@2b0 {
 						compatible = "ti,pbias-omap3", "ti,pbias-omap";
 						reg = <0x2b0 0x4>;
 						syscon = <&scm_conf>;
@@ -145,6 +147,7 @@
 					reg = <0xa00 0x5c>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					#interrupt-cells = <1>;
 					interrupt-controller;
 					pinctrl-single,register-width = <16>;
@@ -212,6 +215,7 @@
 			#dma-cells = <1>;
 			dma-channels = <32>;
 			dma-requests = <96>;
+			ti,hwmods = "dma";
 		};
 
 		gpio1: gpio@48310000 {
@@ -493,6 +497,8 @@
 			dmas = <&sdma 31>,
 			       <&sdma 32>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp1_fck>;
+			clock-names = "fck";
 			status = "disabled";
 		};
 
@@ -511,6 +517,8 @@
 			dmas = <&sdma 33>,
 			       <&sdma 34>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp2_fck>, <&mcbsp2_ick>;
+			clock-names = "fck", "ick";
 			status = "disabled";
 		};
 
@@ -529,6 +537,8 @@
 			dmas = <&sdma 17>,
 			       <&sdma 18>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp3_fck>, <&mcbsp3_ick>;
+			clock-names = "fck", "ick";
 			status = "disabled";
 		};
 
@@ -545,6 +555,9 @@
 			dmas = <&sdma 19>,
 			       <&sdma 20>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp4_fck>;
+			clock-names = "fck";
+			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 
@@ -561,6 +574,8 @@
 			dmas = <&sdma 21>,
 			       <&sdma 22>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp5_fck>;
+			clock-names = "fck";
 			status = "disabled";
 		};
 
@@ -571,20 +586,6 @@
 			interrupts = <49>;
 			dmas = <&sdma 69>;
 			dma-names = "rx";
-		};
-
-		smartreflex_core: smartreflex@480cb000 {
-			compatible = "ti,omap3-smartreflex-core";
-			ti,hwmods = "smartreflex_core";
-			reg = <0x480cb000 0x400>;
-			interrupts = <19>;
-		};
-
-		smartreflex_mpu_iva: smartreflex@480c9000 {
-			compatible = "ti,omap3-smartreflex-iva";
-			ti,hwmods = "smartreflex_mpu_iva";
-			reg = <0x480c9000 0x400>;
-			interrupts = <18>;
 		};
 
 		timer1: timer@48318000 {
@@ -700,14 +701,13 @@
 			usbhsohci: ohci@48064400 {
 				compatible = "ti,ohci-omap3";
 				reg = <0x48064400 0x400>;
-				interrupt-parent = <&intc>;
 				interrupts = <76>;
+				remote-wakeup-connected;
 			};
 
 			usbhsehci: ehci@48064800 {
 				compatible = "ti,ehci-omap";
 				reg = <0x48064800 0x400>;
-				interrupt-parent = <&intc>;
 				interrupts = <77>;
 			};
 		};
@@ -717,10 +717,16 @@
 			ti,hwmods = "gpmc";
 			reg = <0x6e000000 0x02d0>;
 			interrupts = <20>;
+			dmas = <&sdma 4>;
+			dma-names = "rxtx";
 			gpmc,num-cs = <8>;
 			gpmc,num-waitpins = <4>;
 			#address-cells = <2>;
 			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		usb_otg_hs: usb_otg_hs@480ab000 {
@@ -812,7 +818,6 @@
 				reg-names = "tx",
 					    "rx";
 
-				interrupt-parent = <&intc>;
 				interrupts = <67>,
 					     <68>;
 			};
@@ -825,7 +830,6 @@
 				reg-names = "tx",
 					    "rx";
 
-				interrupt-parent = <&intc>;
 				interrupts = <69>,
 					     <70>;
 			};

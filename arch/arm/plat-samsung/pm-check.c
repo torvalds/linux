@@ -1,16 +1,12 @@
-/* linux/arch/arm/plat-s3c/pm-check.c
- *  originally in linux/arch/arm/plat-s3c24xx/pm.c
- *
- * Copyright (c) 2004-2008 Simtec Electronics
- *	http://armlinux.simtec.co.uk
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * S3C Power Mangament - suspend/resume memory corruptiuon check.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// originally in linux/arch/arm/plat-s3c24xx/pm.c
+//
+// Copyright (c) 2004-2008 Simtec Electronics
+//	http://armlinux.simtec.co.uk
+//	Ben Dooks <ben@simtec.co.uk>
+//
+// S3C Power Mangament - suspend/resume memory corruption check.
 
 #include <linux/kernel.h>
 #include <linux/suspend.h>
@@ -53,8 +49,8 @@ static void s3c_pm_run_res(struct resource *ptr, run_fn_t fn, u32 *arg)
 		if (ptr->child != NULL)
 			s3c_pm_run_res(ptr->child, fn, arg);
 
-		if ((ptr->flags & IORESOURCE_MEM) &&
-		    strcmp(ptr->name, "System RAM") == 0) {
+		if ((ptr->flags & IORESOURCE_SYSTEM_RAM)
+				== IORESOURCE_SYSTEM_RAM) {
 			S3C_PMDBG("Found system RAM at %08lx..%08lx\n",
 				  (unsigned long)ptr->start,
 				  (unsigned long)ptr->end);

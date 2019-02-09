@@ -1,46 +1,12 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -133,7 +99,8 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 	 * Result of predicate evaluation must be an Integer
 	 * object. Implicitly convert the argument if necessary.
 	 */
-	status = acpi_ex_convert_to_integer(obj_desc, &local_obj_desc, 16);
+	status = acpi_ex_convert_to_integer(obj_desc, &local_obj_desc,
+					    ACPI_IMPLICIT_CONVERSION);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
@@ -172,14 +139,14 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 cleanup:
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Completed a predicate eval=%X Op=%p\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "Completed a predicate eval=%X Op=%p\n",
 			  walk_state->control_state->common.value,
 			  walk_state->op));
 
 	/* Break to debugger to display result */
 
-	ACPI_DEBUGGER_EXEC(acpi_db_display_result_object
-			   (local_obj_desc, walk_state));
+	acpi_db_display_result_object(local_obj_desc, walk_state);
 
 	/*
 	 * Delete the predicate result object (we know that
@@ -264,8 +231,8 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 	    (walk_state->control_state->common.state ==
 	     ACPI_CONTROL_CONDITIONAL_EXECUTING)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "Exec predicate Op=%p State=%p\n", op,
-				  walk_state));
+				  "Exec predicate Op=%p State=%p\n",
+				  op, walk_state));
 
 		walk_state->control_state->common.state =
 		    ACPI_CONTROL_PREDICATE_EXECUTING;
@@ -386,11 +353,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 	/* Call debugger for single step support (DEBUG build only) */
 
-	ACPI_DEBUGGER_EXEC(status =
-			   acpi_db_single_step(walk_state, op, op_class));
-	ACPI_DEBUGGER_EXEC(if (ACPI_FAILURE(status)) {
-			   return_ACPI_STATUS(status);}
-	) ;
+	status = acpi_db_single_step(walk_state, op, op_class);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	/* Decode the Opcode Class */
 
@@ -497,14 +463,13 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			if ((op->asl.parent) &&
 			    ((op->asl.parent->asl.aml_opcode == AML_PACKAGE_OP)
 			     || (op->asl.parent->asl.aml_opcode ==
-				 AML_VAR_PACKAGE_OP))) {
+				 AML_VARIABLE_PACKAGE_OP))) {
 				ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 						  "Method Reference in a Package, Op=%p\n",
 						  op));
 
-				op->common.node =
-				    (struct acpi_namespace_node *)op->asl.value.
-				    arg->asl.node;
+				op->common.node = (struct acpi_namespace_node *)
+				    op->asl.value.arg->asl.node;
 				acpi_ut_add_reference(op->asl.value.arg->asl.
 						      node->object);
 				return_ACPI_STATUS(AE_OK);
@@ -577,8 +542,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		case AML_TYPE_CREATE_OBJECT:
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-					  "Executing CreateObject (Buffer/Package) Op=%p\n",
-					  op));
+					  "Executing CreateObject (Buffer/Package) Op=%p Child=%p ParentOpcode=%4.4X\n",
+					  op, op->named.value.arg,
+					  op->common.parent->common.
+					  aml_opcode));
 
 			switch (op->common.parent->common.aml_opcode) {
 			case AML_NAME_OP:
@@ -586,8 +553,8 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				 * Put the Node on the object stack (Contains the ACPI Name
 				 * of this object)
 				 */
-				walk_state->operands[0] =
-				    (void *)op->common.parent->common.node;
+				walk_state->operands[0] = (void *)
+				    op->common.parent->common.node;
 				walk_state->num_operands = 1;
 
 				status = acpi_ds_create_node(walk_state,
@@ -692,7 +659,8 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unimplemented opcode, class=0x%X type=0x%X Opcode=0x%X Op=%p",
+				    "Unimplemented opcode, class=0x%X "
+				    "type=0x%X Opcode=0x%X Op=%p",
 				    op_class, op_type, op->common.aml_opcode,
 				    op));
 
@@ -728,8 +696,8 @@ cleanup:
 
 		/* Break to debugger to display result */
 
-		ACPI_DEBUGGER_EXEC(acpi_db_display_result_object
-				   (walk_state->result_obj, walk_state));
+		acpi_db_display_result_object(walk_state->result_obj,
+					      walk_state);
 
 		/*
 		 * Delete the result op if and only if:

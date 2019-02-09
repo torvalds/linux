@@ -89,7 +89,7 @@ static struct platform_device mcf_uart = {
 	.dev.platform_data	= mcf_uart_platform_data,
 };
 
-#ifdef CONFIG_FEC
+#if IS_ENABLED(CONFIG_FEC)
 
 #ifdef CONFIG_M5441x
 #define FEC_NAME	"enet-fec"
@@ -135,7 +135,11 @@ static struct platform_device mcf_fec0 = {
 	.id			= 0,
 	.num_resources		= ARRAY_SIZE(mcf_fec0_resources),
 	.resource		= mcf_fec0_resources,
-	.dev.platform_data	= FEC_PDATA,
+	.dev = {
+		.dma_mask		= &mcf_fec0.dev.coherent_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= FEC_PDATA,
+	}
 };
 
 #ifdef MCFFEC_BASE1
@@ -167,7 +171,11 @@ static struct platform_device mcf_fec1 = {
 	.id			= 1,
 	.num_resources		= ARRAY_SIZE(mcf_fec1_resources),
 	.resource		= mcf_fec1_resources,
-	.dev.platform_data	= FEC_PDATA,
+	.dev = {
+		.dma_mask		= &mcf_fec1.dev.coherent_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= FEC_PDATA,
+	}
 };
 #endif /* MCFFEC_BASE1 */
 #endif /* CONFIG_FEC */
@@ -327,9 +335,150 @@ static struct platform_device mcf_qspi = {
 };
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 
+#if IS_ENABLED(CONFIG_I2C_IMX)
+static struct resource mcf_i2c0_resources[] = {
+	{
+		.start          = MCFI2C_BASE0,
+		.end            = MCFI2C_BASE0 + MCFI2C_SIZE0 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C0,
+		.end            = MCF_IRQ_I2C0,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c0 = {
+	.name                   = "imx1-i2c",
+	.id                     = 0,
+	.num_resources          = ARRAY_SIZE(mcf_i2c0_resources),
+	.resource               = mcf_i2c0_resources,
+};
+#ifdef MCFI2C_BASE1
+
+static struct resource mcf_i2c1_resources[] = {
+	{
+		.start          = MCFI2C_BASE1,
+		.end            = MCFI2C_BASE1 + MCFI2C_SIZE1 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C1,
+		.end            = MCF_IRQ_I2C1,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c1 = {
+	.name                   = "imx1-i2c",
+	.id                     = 1,
+	.num_resources          = ARRAY_SIZE(mcf_i2c1_resources),
+	.resource               = mcf_i2c1_resources,
+};
+
+#endif /* MCFI2C_BASE1 */
+
+#ifdef MCFI2C_BASE2
+
+static struct resource mcf_i2c2_resources[] = {
+	{
+		.start          = MCFI2C_BASE2,
+		.end            = MCFI2C_BASE2 + MCFI2C_SIZE2 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C2,
+		.end            = MCF_IRQ_I2C2,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c2 = {
+	.name                   = "imx1-i2c",
+	.id                     = 2,
+	.num_resources          = ARRAY_SIZE(mcf_i2c2_resources),
+	.resource               = mcf_i2c2_resources,
+};
+
+#endif /* MCFI2C_BASE2 */
+
+#ifdef MCFI2C_BASE3
+
+static struct resource mcf_i2c3_resources[] = {
+	{
+		.start          = MCFI2C_BASE3,
+		.end            = MCFI2C_BASE3 + MCFI2C_SIZE3 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C3,
+		.end            = MCF_IRQ_I2C3,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c3 = {
+	.name                   = "imx1-i2c",
+	.id                     = 3,
+	.num_resources          = ARRAY_SIZE(mcf_i2c3_resources),
+	.resource               = mcf_i2c3_resources,
+};
+
+#endif /* MCFI2C_BASE3 */
+
+#ifdef MCFI2C_BASE4
+
+static struct resource mcf_i2c4_resources[] = {
+	{
+		.start          = MCFI2C_BASE4,
+		.end            = MCFI2C_BASE4 + MCFI2C_SIZE4 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C4,
+		.end            = MCF_IRQ_I2C4,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c4 = {
+	.name                   = "imx1-i2c",
+	.id                     = 4,
+	.num_resources          = ARRAY_SIZE(mcf_i2c4_resources),
+	.resource               = mcf_i2c4_resources,
+};
+
+#endif /* MCFI2C_BASE4 */
+
+#ifdef MCFI2C_BASE5
+
+static struct resource mcf_i2c5_resources[] = {
+	{
+		.start          = MCFI2C_BASE5,
+		.end            = MCFI2C_BASE5 + MCFI2C_SIZE5 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C5,
+		.end            = MCF_IRQ_I2C5,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c5 = {
+	.name                   = "imx1-i2c",
+	.id                     = 5,
+	.num_resources          = ARRAY_SIZE(mcf_i2c5_resources),
+	.resource               = mcf_i2c5_resources,
+};
+
+#endif /* MCFI2C_BASE5 */
+#endif /* IS_ENABLED(CONFIG_I2C_IMX) */
+
 static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_uart,
-#ifdef CONFIG_FEC
+#if IS_ENABLED(CONFIG_FEC)
 	&mcf_fec0,
 #ifdef MCFFEC_BASE1
 	&mcf_fec1,
@@ -337,6 +486,24 @@ static struct platform_device *mcf_devices[] __initdata = {
 #endif
 #if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	&mcf_qspi,
+#endif
+#if IS_ENABLED(CONFIG_I2C_IMX)
+	&mcf_i2c0,
+#ifdef MCFI2C_BASE1
+	&mcf_i2c1,
+#endif
+#ifdef MCFI2C_BASE2
+	&mcf_i2c2,
+#endif
+#ifdef MCFI2C_BASE3
+	&mcf_i2c3,
+#endif
+#ifdef MCFI2C_BASE4
+	&mcf_i2c4,
+#endif
+#ifdef MCFI2C_BASE5
+	&mcf_i2c5,
+#endif
 #endif
 };
 

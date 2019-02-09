@@ -12,10 +12,10 @@
 #include "imx53.dtsi"
 
 / {
-	model = "DENX M53";
-	compatible = "denx,imx53-m53", "fsl,imx53";
+	model = "Aries/DENX M53";
+	compatible = "aries,imx53-m53", "denx,imx53-m53", "fsl,imx53";
 
-	memory {
+	memory@70000000 {
 		reg = <0x70000000 0x20000000>,
 		      <0xb0000000 0x20000000>;
 	};
@@ -53,8 +53,6 @@
 
 	stmpe610@41 {
 		compatible = "st,stmpe610";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0x41>;
 		id = <0>;
 		blocks = <0x5>;
@@ -64,7 +62,6 @@
 
 		stmpe_touchscreen {
 			compatible = "st,stmpe-ts";
-			reg = <0>;
 			st,sample-time = <4>;
 			st,mod-12b = <1>;
 			st,ref-sel = <0>;
@@ -84,7 +81,7 @@
 	};
 
 	rtc: rtc@68 {
-		compatible = "stm,m41t62";
+		compatible = "st,m41t62";
 		reg = <0x68>;
 	};
 };

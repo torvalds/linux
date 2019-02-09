@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RTL8188EU monitor interface
  *
  * Copyright (C) 2015 Jakub Sitnicki
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
- * details.
  */
 
 #include <linux/ieee80211.h>
@@ -53,7 +45,7 @@ static void mon_recv_decrypted(struct net_device *dev, const u8 *data,
 	skb = netdev_alloc_skb(dev, data_len);
 	if (!skb)
 		return;
-	memcpy(skb_put(skb, data_len), data, data_len);
+	skb_put_data(skb, data, data_len);
 
 	/*
 	 * Frame data is not encrypted. Strip off protection so
@@ -92,8 +84,8 @@ void rtl88eu_mon_recv_hook(struct net_device *dev, struct recv_frame *frame)
 		return;
 
 	attr = &frame->attrib;
-	data = frame->rx_data;
-	data_len = frame->len;
+	data = frame->pkt->data;
+	data_len = frame->pkt->len;
 
 	/* Broadcast and multicast frames don't have attr->{iv,icv}_len set */
 	SET_ICE_IV_LEN(iv_len, icv_len, attr->encrypt);
@@ -145,7 +137,6 @@ static netdev_tx_t mon_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static const struct net_device_ops mon_netdev_ops = {
 	.ndo_start_xmit		= mon_xmit,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -153,9 +144,9 @@ static const struct net_device_ops mon_netdev_ops = {
 static void mon_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &mon_netdev_ops;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	ether_setup(dev);
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->type = ARPHRD_IEEE80211;
 	/*
 	 * Use a locally administered address (IEEE 802)

@@ -18,7 +18,6 @@
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/module.h>
 #include <linux/kprobes.h>
 #include <linux/perf_event.h>
 #include <linux/uaccess.h>
@@ -43,8 +42,8 @@ static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
 	const int field = sizeof(unsigned long) * 2;
-	siginfo_t info;
-	int fault;
+	int si_code;
+	vm_fault_t fault;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	static DEFINE_RATELIMIT_STATE(ratelimit_state, 5 * HZ, 10);
@@ -64,7 +63,7 @@ static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
 		return;
 #endif
 
-	info.si_code = SEGV_MAPERR;
+	si_code = SEGV_MAPERR;
 
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
@@ -113,7 +112,7 @@ retry:
  * we can handle it..
  */
 good_area:
-	info.si_code = SEGV_ACCERR;
+	si_code = SEGV_ACCERR;
 
 	if (write) {
 		if (!(vma->vm_flags & VM_WRITE))
@@ -153,7 +152,7 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address, flags);
+	fault = handle_mm_fault(vma, address, flags);
 
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
 		return;
@@ -210,24 +209,21 @@ bad_area_nosemaphore:
 		if (show_unhandled_signals &&
 		    unhandled_signal(tsk, SIGSEGV) &&
 		    __ratelimit(&ratelimit_state)) {
-			pr_info("\ndo_page_fault(): sending SIGSEGV to %s for invalid %s %0*lx",
+			pr_info("do_page_fault(): sending SIGSEGV to %s for invalid %s %0*lx\n",
 				tsk->comm,
 				write ? "write access to" : "read access from",
 				field, address);
 			pr_info("epc = %0*lx in", field,
 				(unsigned long) regs->cp0_epc);
-			print_vma_addr(" ", regs->cp0_epc);
+			print_vma_addr(KERN_CONT " ", regs->cp0_epc);
+			pr_cont("\n");
 			pr_info("ra  = %0*lx in", field,
 				(unsigned long) regs->regs[31]);
-			print_vma_addr(" ", regs->regs[31]);
-			pr_info("\n");
+			print_vma_addr(KERN_CONT " ", regs->regs[31]);
+			pr_cont("\n");
 		}
 		current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
-		info.si_signo = SIGSEGV;
-		info.si_errno = 0;
-		/* info.si_code has been set above */
-		info.si_addr = (void __user *) address;
-		force_sig_info(SIGSEGV, &info, tsk);
+		force_sig_fault(SIGSEGV, si_code, (void __user *)address, tsk);
 		return;
 	}
 
@@ -267,27 +263,23 @@ do_sigbus:
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))
 		goto no_context;
-	else
+
 	/*
 	 * Send a sigbus, regardless of whether we were in kernel
 	 * or user mode.
 	 */
 #if 0
-		printk("do_page_fault() #3: sending SIGBUS to %s for "
-		       "invalid %s\n%0*lx (epc == %0*lx, ra == %0*lx)\n",
-		       tsk->comm,
-		       write ? "write access to" : "read access from",
-		       field, address,
-		       field, (unsigned long) regs->cp0_epc,
-		       field, (unsigned long) regs->regs[31]);
+	printk("do_page_fault() #3: sending SIGBUS to %s for "
+	       "invalid %s\n%0*lx (epc == %0*lx, ra == %0*lx)\n",
+	       tsk->comm,
+	       write ? "write access to" : "read access from",
+	       field, address,
+	       field, (unsigned long) regs->cp0_epc,
+	       field, (unsigned long) regs->regs[31]);
 #endif
 	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
 	tsk->thread.cp0_badvaddr = address;
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_ADRERR;
-	info.si_addr = (void __user *) address;
-	force_sig_info(SIGBUS, &info, tsk);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address, tsk);
 
 	return;
 #ifndef CONFIG_64BIT

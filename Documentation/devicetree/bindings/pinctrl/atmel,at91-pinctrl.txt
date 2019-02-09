@@ -4,7 +4,7 @@ The AT91 Pinmux Controller, enables the IC
 to share one PAD to several functional blocks. The sharing is done by
 multiplexing the PAD input/output signals. For each PAD there are up to
 8 muxing options (called periph modes). Since different modules require
-different PAD settings (like pull up, keeper, etc) the contoller controls
+different PAD settings (like pull up, keeper, etc) the controller controls
 also the PAD settings parameters.
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
@@ -98,6 +98,8 @@ DRIVE_STRENGTH (3 << 5): indicate the drive strength of the pin using the
 				01 - Low
 				10 - Medium
 				11 - High
+OUTPUT		(1 << 7): indicate this pin need to be configured as an output.
+OUTPUT_VAL	(1 << 8): output val (1 = high, 0 = low)
 DEBOUNCE	(1 << 16): indicate this pin needs debounce.
 DEBOUNCE_VAL	(0x3fff << 17): debounce value.
 
@@ -146,5 +148,4 @@ dbgu: serial@fffff200 {
 	interrupts = <1 4 7>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_dbgu>;
-	status = "disabled";
 };

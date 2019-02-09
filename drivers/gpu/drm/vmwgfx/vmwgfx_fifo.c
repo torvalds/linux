@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -368,6 +368,8 @@ static void *vmw_local_fifo_reserve(struct vmw_private *dev_priv,
 				return fifo_state->static_buffer;
 			else {
 				fifo_state->dynamic_buffer = vmalloc(bytes);
+				if (!fifo_state->dynamic_buffer)
+					goto out_err;
 				return fifo_state->dynamic_buffer;
 			}
 		}

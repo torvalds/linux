@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ARCH_POWERPC_BOOT_LIBFDT_ENV_H
 #define _ARCH_POWERPC_BOOT_LIBFDT_ENV_H
 
@@ -6,8 +7,6 @@
 
 #include "of.h"
 
-typedef u32 uint32_t;
-typedef u64 uint64_t;
 typedef unsigned long uintptr_t;
 
 typedef __be16 fdt16_t;

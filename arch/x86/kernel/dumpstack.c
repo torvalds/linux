@@ -10,191 +10,292 @@
 #include <linux/kdebug.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/ftrace.h>
 #include <linux/kexec.h>
 #include <linux/bug.h>
 #include <linux/nmi.h>
 #include <linux/sysfs.h>
+#include <linux/kasan.h>
 
+#include <asm/cpu_entry_area.h>
 #include <asm/stacktrace.h>
-
+#include <asm/unwind.h>
 
 int panic_on_unrecovered_nmi;
 int panic_on_io_nmi;
-unsigned int code_bytes = 64;
-int kstack_depth_to_print = 3 * STACKSLOTS_PER_LINE;
 static int die_counter;
 
+static struct pt_regs exec_summary_regs;
+
+bool in_task_stack(unsigned long *stack, struct task_struct *task,
+		   struct stack_info *info)
+{
+	unsigned long *begin = task_stack_page(task);
+	unsigned long *end   = task_stack_page(task) + THREAD_SIZE;
+
+	if (stack < begin || stack >= end)
+		return false;
+
+	info->type	= STACK_TYPE_TASK;
+	info->begin	= begin;
+	info->end	= end;
+	info->next_sp	= NULL;
+
+	return true;
+}
+
+bool in_entry_stack(unsigned long *stack, struct stack_info *info)
+{
+	struct entry_stack *ss = cpu_entry_stack(smp_processor_id());
+
+	void *begin = ss;
+	void *end = ss + 1;
+
+	if ((void *)stack < begin || (void *)stack >= end)
+		return false;
+
+	info->type	= STACK_TYPE_ENTRY;
+	info->begin	= begin;
+	info->end	= end;
+	info->next_sp	= NULL;
+
+	return true;
+}
+
 static void printk_stack_address(unsigned long address, int reliable,
-		void *data)
-{
-	printk("%s [<%p>] %s%pB\n",
-		(char *)data, (void *)address, reliable ? "" : "? ",
-		(void *)address);
-}
-
-void printk_address(unsigned long address)
-{
-	pr_cont(" [<%p>] %pS\n", (void *)address, (void *)address);
-}
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static void
-print_ftrace_graph_addr(unsigned long addr, void *data,
-			const struct stacktrace_ops *ops,
-			struct thread_info *tinfo, int *graph)
-{
-	struct task_struct *task;
-	unsigned long ret_addr;
-	int index;
-
-	if (addr != (unsigned long)return_to_handler)
-		return;
-
-	task = tinfo->task;
-	index = task->curr_ret_stack;
-
-	if (!task->ret_stack || index < *graph)
-		return;
-
-	index -= *graph;
-	ret_addr = task->ret_stack[index].ret;
-
-	ops->address(data, ret_addr, 1);
-
-	(*graph)++;
-}
-#else
-static inline void
-print_ftrace_graph_addr(unsigned long addr, void *data,
-			const struct stacktrace_ops *ops,
-			struct thread_info *tinfo, int *graph)
-{ }
-#endif
-
-/*
- * x86-64 can have up to three kernel stacks:
- * process stack
- * interrupt stack
- * severe exception (double fault, nmi, stack fault, debug, mce) hardware stack
- */
-
-static inline int valid_stack_ptr(struct thread_info *tinfo,
-			void *p, unsigned int size, void *end)
-{
-	void *t = tinfo;
-	if (end) {
-		if (p < end && p >= (end-THREAD_SIZE))
-			return 1;
-		else
-			return 0;
-	}
-	return p > t && p < t + THREAD_SIZE - size;
-}
-
-unsigned long
-print_context_stack(struct thread_info *tinfo,
-		unsigned long *stack, unsigned long bp,
-		const struct stacktrace_ops *ops, void *data,
-		unsigned long *end, int *graph)
-{
-	struct stack_frame *frame = (struct stack_frame *)bp;
-
-	while (valid_stack_ptr(tinfo, stack, sizeof(*stack), end)) {
-		unsigned long addr;
-
-		addr = *stack;
-		if (__kernel_text_address(addr)) {
-			if ((unsigned long) stack == bp + sizeof(long)) {
-				ops->address(data, addr, 1);
-				frame = frame->next_frame;
-				bp = (unsigned long) frame;
-			} else {
-				ops->address(data, addr, 0);
-			}
-			print_ftrace_graph_addr(addr, data, ops, tinfo, graph);
-		}
-		stack++;
-	}
-	return bp;
-}
-EXPORT_SYMBOL_GPL(print_context_stack);
-
-unsigned long
-print_context_stack_bp(struct thread_info *tinfo,
-		       unsigned long *stack, unsigned long bp,
-		       const struct stacktrace_ops *ops, void *data,
-		       unsigned long *end, int *graph)
-{
-	struct stack_frame *frame = (struct stack_frame *)bp;
-	unsigned long *ret_addr = &frame->return_address;
-
-	while (valid_stack_ptr(tinfo, ret_addr, sizeof(*ret_addr), end)) {
-		unsigned long addr = *ret_addr;
-
-		if (!__kernel_text_address(addr))
-			break;
-
-		ops->address(data, addr, 1);
-		frame = frame->next_frame;
-		ret_addr = &frame->return_address;
-		print_ftrace_graph_addr(addr, data, ops, tinfo, graph);
-	}
-
-	return (unsigned long)frame;
-}
-EXPORT_SYMBOL_GPL(print_context_stack_bp);
-
-static int print_trace_stack(void *data, char *name)
-{
-	printk("%s <%s> ", (char *)data, name);
-	return 0;
-}
-
-/*
- * Print one address/symbol entries per line.
- */
-static void print_trace_address(void *data, unsigned long addr, int reliable)
+				 char *log_lvl)
 {
 	touch_nmi_watchdog();
-	printk_stack_address(addr, reliable, data);
+	printk("%s %s%pB\n", log_lvl, reliable ? "" : "? ", (void *)address);
 }
 
-static const struct stacktrace_ops print_trace_ops = {
-	.stack			= print_trace_stack,
-	.address		= print_trace_address,
-	.walk_stack		= print_context_stack,
-};
-
-void
-show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *stack, unsigned long bp, char *log_lvl)
+/*
+ * There are a couple of reasons for the 2/3rd prologue, courtesy of Linus:
+ *
+ * In case where we don't have the exact kernel image (which, if we did, we can
+ * simply disassemble and navigate to the RIP), the purpose of the bigger
+ * prologue is to have more context and to be able to correlate the code from
+ * the different toolchains better.
+ *
+ * In addition, it helps in recreating the register allocation of the failing
+ * kernel and thus make sense of the register dump.
+ *
+ * What is more, the additional complication of a variable length insn arch like
+ * x86 warrants having longer byte sequence before rIP so that the disassembler
+ * can "sync" up properly and find instruction boundaries when decoding the
+ * opcode bytes.
+ *
+ * Thus, the 2/3rds prologue and 64 byte OPCODE_BUFSIZE is just a random
+ * guesstimate in attempt to achieve all of the above.
+ */
+void show_opcodes(struct pt_regs *regs, const char *loglvl)
 {
+#define PROLOGUE_SIZE 42
+#define EPILOGUE_SIZE 21
+#define OPCODE_BUFSIZE (PROLOGUE_SIZE + 1 + EPILOGUE_SIZE)
+	u8 opcodes[OPCODE_BUFSIZE];
+	unsigned long prologue = regs->ip - PROLOGUE_SIZE;
+	bool bad_ip;
+
+	/*
+	 * Make sure userspace isn't trying to trick us into dumping kernel
+	 * memory by pointing the userspace instruction pointer at it.
+	 */
+	bad_ip = user_mode(regs) &&
+		__chk_range_not_ok(prologue, OPCODE_BUFSIZE, TASK_SIZE_MAX);
+
+	if (bad_ip || probe_kernel_read(opcodes, (u8 *)prologue,
+					OPCODE_BUFSIZE)) {
+		printk("%sCode: Bad RIP value.\n", loglvl);
+	} else {
+		printk("%sCode: %" __stringify(PROLOGUE_SIZE) "ph <%02x> %"
+		       __stringify(EPILOGUE_SIZE) "ph\n", loglvl, opcodes,
+		       opcodes[PROLOGUE_SIZE], opcodes + PROLOGUE_SIZE + 1);
+	}
+}
+
+void show_ip(struct pt_regs *regs, const char *loglvl)
+{
+#ifdef CONFIG_X86_32
+	printk("%sEIP: %pS\n", loglvl, (void *)regs->ip);
+#else
+	printk("%sRIP: %04x:%pS\n", loglvl, (int)regs->cs, (void *)regs->ip);
+#endif
+	show_opcodes(regs, loglvl);
+}
+
+void show_iret_regs(struct pt_regs *regs)
+{
+	show_ip(regs, KERN_DEFAULT);
+	printk(KERN_DEFAULT "RSP: %04x:%016lx EFLAGS: %08lx", (int)regs->ss,
+		regs->sp, regs->flags);
+}
+
+static void show_regs_if_on_stack(struct stack_info *info, struct pt_regs *regs,
+				  bool partial)
+{
+	/*
+	 * These on_stack() checks aren't strictly necessary: the unwind code
+	 * has already validated the 'regs' pointer.  The checks are done for
+	 * ordering reasons: if the registers are on the next stack, we don't
+	 * want to print them out yet.  Otherwise they'll be shown as part of
+	 * the wrong stack.  Later, when show_trace_log_lvl() switches to the
+	 * next stack, this function will be called again with the same regs so
+	 * they can be printed in the right context.
+	 */
+	if (!partial && on_stack(info, regs, sizeof(*regs))) {
+		__show_regs(regs, SHOW_REGS_SHORT);
+
+	} else if (partial && on_stack(info, (void *)regs + IRET_FRAME_OFFSET,
+				       IRET_FRAME_SIZE)) {
+		/*
+		 * When an interrupt or exception occurs in entry code, the
+		 * full pt_regs might not have been saved yet.  In that case
+		 * just print the iret frame.
+		 */
+		show_iret_regs(regs);
+	}
+}
+
+void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
+			unsigned long *stack, char *log_lvl)
+{
+	struct unwind_state state;
+	struct stack_info stack_info = {0};
+	unsigned long visit_mask = 0;
+	int graph_idx = 0;
+	bool partial = false;
+
 	printk("%sCall Trace:\n", log_lvl);
-	dump_trace(task, regs, stack, bp, &print_trace_ops, log_lvl);
-}
 
-void show_trace(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *stack, unsigned long bp)
-{
-	show_trace_log_lvl(task, regs, stack, bp, "");
+	unwind_start(&state, task, regs, stack);
+	stack = stack ? : get_stack_pointer(task, regs);
+	regs = unwind_get_entry_regs(&state, &partial);
+
+	/*
+	 * Iterate through the stacks, starting with the current stack pointer.
+	 * Each stack has a pointer to the next one.
+	 *
+	 * x86-64 can have several stacks:
+	 * - task stack
+	 * - interrupt stack
+	 * - HW exception stacks (double fault, nmi, debug, mce)
+	 * - entry stack
+	 *
+	 * x86-32 can have up to four stacks:
+	 * - task stack
+	 * - softirq stack
+	 * - hardirq stack
+	 * - entry stack
+	 */
+	for ( ; stack; stack = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
+		const char *stack_name;
+
+		if (get_stack_info(stack, task, &stack_info, &visit_mask)) {
+			/*
+			 * We weren't on a valid stack.  It's possible that
+			 * we overflowed a valid stack into a guard page.
+			 * See if the next page up is valid so that we can
+			 * generate some kind of backtrace if this happens.
+			 */
+			stack = (unsigned long *)PAGE_ALIGN((unsigned long)stack);
+			if (get_stack_info(stack, task, &stack_info, &visit_mask))
+				break;
+		}
+
+		stack_name = stack_type_name(stack_info.type);
+		if (stack_name)
+			printk("%s <%s>\n", log_lvl, stack_name);
+
+		if (regs)
+			show_regs_if_on_stack(&stack_info, regs, partial);
+
+		/*
+		 * Scan the stack, printing any text addresses we find.  At the
+		 * same time, follow proper stack frames with the unwinder.
+		 *
+		 * Addresses found during the scan which are not reported by
+		 * the unwinder are considered to be additional clues which are
+		 * sometimes useful for debugging and are prefixed with '?'.
+		 * This also serves as a failsafe option in case the unwinder
+		 * goes off in the weeds.
+		 */
+		for (; stack < stack_info.end; stack++) {
+			unsigned long real_addr;
+			int reliable = 0;
+			unsigned long addr = READ_ONCE_NOCHECK(*stack);
+			unsigned long *ret_addr_p =
+				unwind_get_return_address_ptr(&state);
+
+			if (!__kernel_text_address(addr))
+				continue;
+
+			/*
+			 * Don't print regs->ip again if it was already printed
+			 * by show_regs_if_on_stack().
+			 */
+			if (regs && stack == &regs->ip)
+				goto next;
+
+			if (stack == ret_addr_p)
+				reliable = 1;
+
+			/*
+			 * When function graph tracing is enabled for a
+			 * function, its return address on the stack is
+			 * replaced with the address of an ftrace handler
+			 * (return_to_handler).  In that case, before printing
+			 * the "real" address, we want to print the handler
+			 * address as an "unreliable" hint that function graph
+			 * tracing was involved.
+			 */
+			real_addr = ftrace_graph_ret_addr(task, &graph_idx,
+							  addr, stack);
+			if (real_addr != addr)
+				printk_stack_address(addr, 0, log_lvl);
+			printk_stack_address(real_addr, reliable, log_lvl);
+
+			if (!reliable)
+				continue;
+
+next:
+			/*
+			 * Get the next frame from the unwinder.  No need to
+			 * check for an error: if anything goes wrong, the rest
+			 * of the addresses will just be printed as unreliable.
+			 */
+			unwind_next_frame(&state);
+
+			/* if the frame has entry regs, print them */
+			regs = unwind_get_entry_regs(&state, &partial);
+			if (regs)
+				show_regs_if_on_stack(&stack_info, regs, partial);
+		}
+
+		if (stack_name)
+			printk("%s </%s>\n", log_lvl, stack_name);
+	}
 }
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	unsigned long bp = 0;
-	unsigned long stack;
+	task = task ? : current;
 
 	/*
 	 * Stack frames below this one aren't interesting.  Don't show them
 	 * if we're printing for %current.
 	 */
-	if (!sp && (!task || task == current)) {
-		sp = &stack;
-		bp = stack_frame(current, NULL);
-	}
+	if (!sp && task == current)
+		sp = get_stack_pointer(current, NULL);
 
-	show_stack_log_lvl(task, NULL, sp, bp, "");
+	show_trace_log_lvl(task, NULL, sp, KERN_DEFAULT);
+}
+
+void show_stack_regs(struct pt_regs *regs)
+{
+	show_trace_log_lvl(current, regs, NULL, KERN_DEFAULT);
 }
 
 static arch_spinlock_t die_lock = __ARCH_SPIN_LOCK_UNLOCKED;
@@ -223,8 +324,9 @@ unsigned long oops_begin(void)
 	bust_spinlocks(1);
 	return flags;
 }
-EXPORT_SYMBOL_GPL(oops_begin);
 NOKPROBE_SYMBOL(oops_begin);
+
+void __noreturn rewind_stack_do_exit(int signr);
 
 void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 {
@@ -241,60 +343,50 @@ void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 	raw_local_irq_restore(flags);
 	oops_exit();
 
+	/* Executive summary in case the oops scrolled away */
+	__show_regs(&exec_summary_regs, SHOW_REGS_ALL);
+
 	if (!signr)
 		return;
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 	if (panic_on_oops)
 		panic("Fatal exception");
-	do_exit(signr);
+
+	/*
+	 * We're not going to return, but we might be on an IST stack or
+	 * have very little stack space left.  Rewind the stack and kill
+	 * the task.
+	 * Before we rewind the stack, we have to tell KASAN that we're going to
+	 * reuse the task stack and that existing poisons are invalid.
+	 */
+	kasan_unpoison_task_stack(current);
+	rewind_stack_do_exit(signr);
 }
 NOKPROBE_SYMBOL(oops_end);
 
 int __die(const char *str, struct pt_regs *regs, long err)
 {
-#ifdef CONFIG_X86_32
-	unsigned short ss;
-	unsigned long sp;
-#endif
+	/* Save the regs of the first oops for the executive summary later. */
+	if (!die_counter)
+		exec_summary_regs = *regs;
+
 	printk(KERN_DEFAULT
-	       "%s: %04lx [#%d] ", str, err & 0xffff, ++die_counter);
-#ifdef CONFIG_PREEMPT
-	printk("PREEMPT ");
-#endif
-#ifdef CONFIG_SMP
-	printk("SMP ");
-#endif
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	printk("DEBUG_PAGEALLOC ");
-#endif
-#ifdef CONFIG_KASAN
-	printk("KASAN");
-#endif
-	printk("\n");
+	       "%s: %04lx [#%d]%s%s%s%s%s\n", str, err & 0xffff, ++die_counter,
+	       IS_ENABLED(CONFIG_PREEMPT) ? " PREEMPT"         : "",
+	       IS_ENABLED(CONFIG_SMP)     ? " SMP"             : "",
+	       debug_pagealloc_enabled()  ? " DEBUG_PAGEALLOC" : "",
+	       IS_ENABLED(CONFIG_KASAN)   ? " KASAN"           : "",
+	       IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION) ?
+	       (boot_cpu_has(X86_FEATURE_PTI) ? " PTI" : " NOPTI") : "");
+
+	show_regs(regs);
+	print_modules();
+
 	if (notify_die(DIE_OOPS, str, regs, err,
 			current->thread.trap_nr, SIGSEGV) == NOTIFY_STOP)
 		return 1;
 
-	print_modules();
-	show_regs(regs);
-#ifdef CONFIG_X86_32
-	if (user_mode(regs)) {
-		sp = regs->sp;
-		ss = regs->ss & 0xffff;
-	} else {
-		sp = kernel_stack_pointer(regs);
-		savesegment(ss, ss);
-	}
-	printk(KERN_EMERG "EIP: [<%08lx>] ", regs->ip);
-	print_symbol("%s", regs->ip);
-	printk(" SS:ESP %04x:%08lx\n", ss, sp);
-#else
-	/* Executive summary in case the oops scrolled away */
-	printk(KERN_ALERT "RIP ");
-	printk_address(regs->ip);
-	printk(" RSP <%016lx>\n", regs->sp);
-#endif
 	return 0;
 }
 NOKPROBE_SYMBOL(__die);
@@ -308,46 +400,20 @@ void die(const char *str, struct pt_regs *regs, long err)
 	unsigned long flags = oops_begin();
 	int sig = SIGSEGV;
 
-	if (!user_mode(regs))
-		report_bug(regs->ip, regs);
-
 	if (__die(str, regs, err))
 		sig = 0;
 	oops_end(flags, regs, sig);
 }
 
-static int __init kstack_setup(char *s)
+void show_regs(struct pt_regs *regs)
 {
-	ssize_t ret;
-	unsigned long val;
+	show_regs_print_info(KERN_DEFAULT);
 
-	if (!s)
-		return -EINVAL;
+	__show_regs(regs, user_mode(regs) ? SHOW_REGS_USER : SHOW_REGS_ALL);
 
-	ret = kstrtoul(s, 0, &val);
-	if (ret)
-		return ret;
-	kstack_depth_to_print = val;
-	return 0;
+	/*
+	 * When in-kernel, we also print out the stack at the time of the fault..
+	 */
+	if (!user_mode(regs))
+		show_trace_log_lvl(current, regs, NULL, KERN_DEFAULT);
 }
-early_param("kstack", kstack_setup);
-
-static int __init code_bytes_setup(char *s)
-{
-	ssize_t ret;
-	unsigned long val;
-
-	if (!s)
-		return -EINVAL;
-
-	ret = kstrtoul(s, 0, &val);
-	if (ret)
-		return ret;
-
-	code_bytes = val;
-	if (code_bytes > 8192)
-		code_bytes = 8192;
-
-	return 1;
-}
-__setup("code_bytes=", code_bytes_setup);

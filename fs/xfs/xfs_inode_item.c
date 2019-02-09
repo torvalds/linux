@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -27,8 +15,10 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_trans_priv.h"
+#include "xfs_buf_item.h"
 #include "xfs_log.h"
 
+#include <linux/iversion.h>
 
 kmem_zone_t	*xfs_ili_zone;		/* inode log item zone */
 
@@ -71,7 +61,6 @@ xfs_inode_item_data_fork_size(
 		break;
 
 	case XFS_DINODE_FMT_DEV:
-	case XFS_DINODE_FMT_UUID:
 		break;
 	default:
 		ASSERT(0);
@@ -135,7 +124,7 @@ xfs_inode_item_size(
 
 	*nvecs += 2;
 	*nbytes += sizeof(struct xfs_inode_log_format) +
-		   xfs_icdinode_size(ip->i_d.di_version);
+		   xfs_log_dinode_size(ip->i_d.di_version);
 
 	xfs_inode_item_data_fork_size(iip, nvecs, nbytes);
 	if (XFS_IFORK_Q(ip))
@@ -155,16 +144,14 @@ xfs_inode_item_format_data_fork(
 	switch (ip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 		iip->ili_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID);
+			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT | XFS_ILOG_DEV);
 
 		if ((iip->ili_fields & XFS_ILOG_DEXT) &&
 		    ip->i_d.di_nextents > 0 &&
 		    ip->i_df.if_bytes > 0) {
 			struct xfs_bmbt_rec *p;
 
-			ASSERT(ip->i_df.if_u1.if_extents != NULL);
-			ASSERT(ip->i_df.if_bytes / sizeof(xfs_bmbt_rec_t) > 0);
+			ASSERT(xfs_iext_count(&ip->i_df) > 0);
 
 			p = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_IEXT);
 			data_bytes = xfs_iextents_copy(ip, p, XFS_DATA_FORK);
@@ -180,8 +167,7 @@ xfs_inode_item_format_data_fork(
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		iip->ili_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DEXT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID);
+			~(XFS_ILOG_DDATA | XFS_ILOG_DEXT | XFS_ILOG_DEV);
 
 		if ((iip->ili_fields & XFS_ILOG_DBROOT) &&
 		    ip->i_df.if_broot_bytes > 0) {
@@ -199,8 +185,7 @@ xfs_inode_item_format_data_fork(
 		break;
 	case XFS_DINODE_FMT_LOCAL:
 		iip->ili_fields &=
-			~(XFS_ILOG_DEXT | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID);
+			~(XFS_ILOG_DEXT | XFS_ILOG_DBROOT | XFS_ILOG_DEV);
 		if ((iip->ili_fields & XFS_ILOG_DDATA) &&
 		    ip->i_df.if_bytes > 0) {
 			/*
@@ -209,8 +194,6 @@ xfs_inode_item_format_data_fork(
 			 * to be there by xfs_idata_realloc().
 			 */
 			data_bytes = roundup(ip->i_df.if_bytes, 4);
-			ASSERT(ip->i_df.if_real_bytes == 0 ||
-			       ip->i_df.if_real_bytes == data_bytes);
 			ASSERT(ip->i_df.if_u1.if_data != NULL);
 			ASSERT(ip->i_d.di_size > 0);
 			xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_ILOCAL,
@@ -223,17 +206,9 @@ xfs_inode_item_format_data_fork(
 		break;
 	case XFS_DINODE_FMT_DEV:
 		iip->ili_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEXT | XFS_ILOG_UUID);
+			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT | XFS_ILOG_DEXT);
 		if (iip->ili_fields & XFS_ILOG_DEV)
-			ilf->ilf_u.ilfu_rdev = ip->i_df.if_u2.if_rdev;
-		break;
-	case XFS_DINODE_FMT_UUID:
-		iip->ili_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEXT | XFS_ILOG_DEV);
-		if (iip->ili_fields & XFS_ILOG_UUID)
-			ilf->ilf_u.ilfu_uuid = ip->i_df.if_u2.if_uuid;
+			ilf->ilf_u.ilfu_rdev = sysv_encode_dev(VFS_I(ip)->i_rdev);
 		break;
 	default:
 		ASSERT(0);
@@ -261,9 +236,8 @@ xfs_inode_item_format_attr_fork(
 		    ip->i_afp->if_bytes > 0) {
 			struct xfs_bmbt_rec *p;
 
-			ASSERT(ip->i_afp->if_bytes / sizeof(xfs_bmbt_rec_t) ==
+			ASSERT(xfs_iext_count(ip->i_afp) ==
 				ip->i_d.di_anextents);
-			ASSERT(ip->i_afp->if_u1.if_extents != NULL);
 
 			p = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_IATTR_EXT);
 			data_bytes = xfs_iextents_copy(ip, p, XFS_ATTR_FORK);
@@ -304,8 +278,6 @@ xfs_inode_item_format_attr_fork(
 			 * to be there by xfs_idata_realloc().
 			 */
 			data_bytes = roundup(ip->i_afp->if_bytes, 4);
-			ASSERT(ip->i_afp->if_real_bytes == 0 ||
-			       ip->i_afp->if_real_bytes == data_bytes);
 			ASSERT(ip->i_afp->if_u1.if_data != NULL);
 			xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_IATTR_LOCAL,
 					ip->i_afp->if_u1.if_data,
@@ -322,12 +294,95 @@ xfs_inode_item_format_attr_fork(
 	}
 }
 
+static void
+xfs_inode_to_log_dinode(
+	struct xfs_inode	*ip,
+	struct xfs_log_dinode	*to,
+	xfs_lsn_t		lsn)
+{
+	struct xfs_icdinode	*from = &ip->i_d;
+	struct inode		*inode = VFS_I(ip);
+
+	to->di_magic = XFS_DINODE_MAGIC;
+
+	to->di_version = from->di_version;
+	to->di_format = from->di_format;
+	to->di_uid = from->di_uid;
+	to->di_gid = from->di_gid;
+	to->di_projid_lo = from->di_projid_lo;
+	to->di_projid_hi = from->di_projid_hi;
+
+	memset(to->di_pad, 0, sizeof(to->di_pad));
+	memset(to->di_pad3, 0, sizeof(to->di_pad3));
+	to->di_atime.t_sec = inode->i_atime.tv_sec;
+	to->di_atime.t_nsec = inode->i_atime.tv_nsec;
+	to->di_mtime.t_sec = inode->i_mtime.tv_sec;
+	to->di_mtime.t_nsec = inode->i_mtime.tv_nsec;
+	to->di_ctime.t_sec = inode->i_ctime.tv_sec;
+	to->di_ctime.t_nsec = inode->i_ctime.tv_nsec;
+	to->di_nlink = inode->i_nlink;
+	to->di_gen = inode->i_generation;
+	to->di_mode = inode->i_mode;
+
+	to->di_size = from->di_size;
+	to->di_nblocks = from->di_nblocks;
+	to->di_extsize = from->di_extsize;
+	to->di_nextents = from->di_nextents;
+	to->di_anextents = from->di_anextents;
+	to->di_forkoff = from->di_forkoff;
+	to->di_aformat = from->di_aformat;
+	to->di_dmevmask = from->di_dmevmask;
+	to->di_dmstate = from->di_dmstate;
+	to->di_flags = from->di_flags;
+
+	/* log a dummy value to ensure log structure is fully initialised */
+	to->di_next_unlinked = NULLAGINO;
+
+	if (from->di_version == 3) {
+		to->di_changecount = inode_peek_iversion(inode);
+		to->di_crtime.t_sec = from->di_crtime.t_sec;
+		to->di_crtime.t_nsec = from->di_crtime.t_nsec;
+		to->di_flags2 = from->di_flags2;
+		to->di_cowextsize = from->di_cowextsize;
+		to->di_ino = ip->i_ino;
+		to->di_lsn = lsn;
+		memset(to->di_pad2, 0, sizeof(to->di_pad2));
+		uuid_copy(&to->di_uuid, &ip->i_mount->m_sb.sb_meta_uuid);
+		to->di_flushiter = 0;
+	} else {
+		to->di_flushiter = from->di_flushiter;
+	}
+}
+
+/*
+ * Format the inode core. Current timestamp data is only in the VFS inode
+ * fields, so we need to grab them from there. Hence rather than just copying
+ * the XFS inode core structure, format the fields directly into the iovec.
+ */
+static void
+xfs_inode_item_format_core(
+	struct xfs_inode	*ip,
+	struct xfs_log_vec	*lv,
+	struct xfs_log_iovec	**vecp)
+{
+	struct xfs_log_dinode	*dic;
+
+	dic = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_ICORE);
+	xfs_inode_to_log_dinode(ip, dic, ip->i_itemp->ili_item.li_lsn);
+	xlog_finish_iovec(lv, *vecp, xfs_log_dinode_size(ip->i_d.di_version));
+}
+
 /*
  * This is called to fill in the vector of log iovecs for the given inode
  * log item.  It fills the first item with an inode log format structure,
  * the second with the on-disk inode structure, and a possible third and/or
  * fourth with the inode data/extents/b-tree root and inode attributes
  * data/extents/b-tree root.
+ *
+ * Note: Always use the 64 bit inode log format structure so we don't
+ * leave an uninitialised hole in the format item on 64 bit systems. Log
+ * recovery on 32 bit systems handles this just fine, so there's no reason
+ * for not using an initialising the properly padded structure all the time.
  */
 STATIC void
 xfs_inode_item_format(
@@ -336,8 +391,8 @@ xfs_inode_item_format(
 {
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
-	struct xfs_inode_log_format *ilf;
 	struct xfs_log_iovec	*vecp = NULL;
+	struct xfs_inode_log_format *ilf;
 
 	ASSERT(ip->i_d.di_version > 1);
 
@@ -349,12 +404,19 @@ xfs_inode_item_format(
 	ilf->ilf_boffset = ip->i_imap.im_boffset;
 	ilf->ilf_fields = XFS_ILOG_CORE;
 	ilf->ilf_size = 2; /* format + core */
-	xlog_finish_iovec(lv, vecp, sizeof(struct xfs_inode_log_format));
 
-	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_ICORE,
-			&ip->i_d,
-			xfs_icdinode_size(ip->i_d.di_version));
+	/*
+	 * make sure we don't leak uninitialised data into the log in the case
+	 * when we don't log every field in the inode.
+	 */
+	ilf->ilf_dsize = 0;
+	ilf->ilf_asize = 0;
+	ilf->ilf_pad = 0;
+	memset(&ilf->ilf_u, 0, sizeof(ilf->ilf_u));
 
+	xlog_finish_iovec(lv, vecp, sizeof(*ilf));
+
+	xfs_inode_item_format_core(ip, lv, &vecp);
 	xfs_inode_item_format_data_fork(iip, ilf, lv, &vecp);
 	if (XFS_IFORK_Q(ip)) {
 		xfs_inode_item_format_attr_fork(iip, ilf, lv, &vecp);
@@ -403,19 +465,53 @@ xfs_inode_item_unpin(
 		wake_up_bit(&ip->i_flags, __XFS_IPINNED_BIT);
 }
 
+/*
+ * Callback used to mark a buffer with XFS_LI_FAILED when items in the buffer
+ * have been failed during writeback
+ *
+ * This informs the AIL that the inode is already flush locked on the next push,
+ * and acquires a hold on the buffer to ensure that it isn't reclaimed before
+ * dirty data makes it to disk.
+ */
+STATIC void
+xfs_inode_item_error(
+	struct xfs_log_item	*lip,
+	struct xfs_buf		*bp)
+{
+	ASSERT(xfs_isiflocked(INODE_ITEM(lip)->ili_inode));
+	xfs_set_li_failed(lip, bp);
+}
+
 STATIC uint
 xfs_inode_item_push(
 	struct xfs_log_item	*lip,
 	struct list_head	*buffer_list)
+		__releases(&lip->li_ailp->ail_lock)
+		__acquires(&lip->li_ailp->ail_lock)
 {
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
-	struct xfs_buf		*bp = NULL;
+	struct xfs_buf		*bp = lip->li_buf;
 	uint			rval = XFS_ITEM_SUCCESS;
 	int			error;
 
 	if (xfs_ipincount(ip) > 0)
 		return XFS_ITEM_PINNED;
+
+	/*
+	 * The buffer containing this item failed to be written back
+	 * previously. Resubmit the buffer for IO.
+	 */
+	if (test_bit(XFS_LI_FAILED, &lip->li_flags)) {
+		if (!xfs_buf_trylock(bp))
+			return XFS_ITEM_LOCKED;
+
+		if (!xfs_buf_resubmit_failed_buffers(bp, buffer_list))
+			rval = XFS_ITEM_FLUSHING;
+
+		xfs_buf_unlock(bp);
+		return rval;
+	}
 
 	if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED))
 		return XFS_ITEM_LOCKED;
@@ -450,7 +546,7 @@ xfs_inode_item_push(
 	ASSERT(iip->ili_fields != 0 || XFS_FORCED_SHUTDOWN(ip->i_mount));
 	ASSERT(iip->ili_logged == 0 || XFS_FORCED_SHUTDOWN(ip->i_mount));
 
-	spin_unlock(&lip->li_ailp->xa_lock);
+	spin_unlock(&lip->li_ailp->ail_lock);
 
 	error = xfs_iflush(ip, &bp);
 	if (!error) {
@@ -459,7 +555,7 @@ xfs_inode_item_push(
 		xfs_buf_relse(bp);
 	}
 
-	spin_lock(&lip->li_ailp->xa_lock);
+	spin_lock(&lip->li_ailp->ail_lock);
 out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	return rval;
@@ -467,9 +563,6 @@ out_unlock:
 
 /*
  * Unlock the inode associated with the inode log item.
- * Clear the fields of the inode and inode log item that
- * are specific to the current transaction.  If the
- * hold flags is set, do not unlock the inode.
  */
 STATIC void
 xfs_inode_item_unlock(
@@ -525,10 +618,6 @@ xfs_inode_item_committed(
 	return lsn;
 }
 
-/*
- * XXX rcc - this one really has to do something.  Probably needs
- * to stamp in a new field in the incore inode.
- */
 STATIC void
 xfs_inode_item_committing(
 	struct xfs_log_item	*lip,
@@ -548,7 +637,8 @@ static const struct xfs_item_ops xfs_inode_item_ops = {
 	.iop_unlock	= xfs_inode_item_unlock,
 	.iop_committed	= xfs_inode_item_committed,
 	.iop_push	= xfs_inode_item_push,
-	.iop_committing = xfs_inode_item_committing
+	.iop_committing = xfs_inode_item_committing,
+	.iop_error	= xfs_inode_item_error
 };
 
 
@@ -577,6 +667,7 @@ void
 xfs_inode_item_destroy(
 	xfs_inode_t	*ip)
 {
+	kmem_free(ip->i_itemp->ili_item.li_lv_shadow);
 	kmem_zone_free(xfs_ili_zone, ip->i_itemp);
 }
 
@@ -599,51 +690,37 @@ xfs_iflush_done(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_inode_log_item *iip;
-	struct xfs_log_item	*blip;
-	struct xfs_log_item	*next;
-	struct xfs_log_item	*prev;
+	struct xfs_log_item	*blip, *n;
 	struct xfs_ail		*ailp = lip->li_ailp;
 	int			need_ail = 0;
+	LIST_HEAD(tmp);
 
 	/*
 	 * Scan the buffer IO completions for other inodes being completed and
 	 * attach them to the current inode log item.
 	 */
-	blip = bp->b_fspriv;
-	prev = NULL;
-	while (blip != NULL) {
-		if (blip->li_cb != xfs_iflush_done) {
-			prev = blip;
-			blip = blip->li_bio_list;
+
+	list_add_tail(&lip->li_bio_list, &tmp);
+
+	list_for_each_entry_safe(blip, n, &bp->b_li_list, li_bio_list) {
+		if (lip->li_cb != xfs_iflush_done)
 			continue;
-		}
 
-		/* remove from list */
-		next = blip->li_bio_list;
-		if (!prev) {
-			bp->b_fspriv = next;
-		} else {
-			prev->li_bio_list = next;
-		}
-
-		/* add to current list */
-		blip->li_bio_list = lip->li_bio_list;
-		lip->li_bio_list = blip;
-
+		list_move_tail(&blip->li_bio_list, &tmp);
 		/*
 		 * while we have the item, do the unlocked check for needing
 		 * the AIL lock.
 		 */
 		iip = INODE_ITEM(blip);
-		if (iip->ili_logged && blip->li_lsn == iip->ili_flush_lsn)
+		if ((iip->ili_logged && blip->li_lsn == iip->ili_flush_lsn) ||
+		    test_bit(XFS_LI_FAILED, &blip->li_flags))
 			need_ail++;
-
-		blip = next;
 	}
 
 	/* make sure we capture the state of the initial inode. */
 	iip = INODE_ITEM(lip);
-	if (iip->ili_logged && lip->li_lsn == iip->ili_flush_lsn)
+	if ((iip->ili_logged && lip->li_lsn == iip->ili_flush_lsn) ||
+	    test_bit(XFS_LI_FAILED, &lip->li_flags))
 		need_ail++;
 
 	/*
@@ -656,37 +733,44 @@ xfs_iflush_done(
 	 * holding the lock before removing the inode from the AIL.
 	 */
 	if (need_ail) {
-		struct xfs_log_item *log_items[need_ail];
-		int i = 0;
-		spin_lock(&ailp->xa_lock);
-		for (blip = lip; blip; blip = blip->li_bio_list) {
-			iip = INODE_ITEM(blip);
-			if (iip->ili_logged &&
-			    blip->li_lsn == iip->ili_flush_lsn) {
-				log_items[i++] = blip;
-			}
-			ASSERT(i <= need_ail);
-		}
-		/* xfs_trans_ail_delete_bulk() drops the AIL lock. */
-		xfs_trans_ail_delete_bulk(ailp, log_items, i,
-					  SHUTDOWN_CORRUPT_INCORE);
-	}
+		bool			mlip_changed = false;
 
+		/* this is an opencoded batch version of xfs_trans_ail_delete */
+		spin_lock(&ailp->ail_lock);
+		list_for_each_entry(blip, &tmp, li_bio_list) {
+			if (INODE_ITEM(blip)->ili_logged &&
+			    blip->li_lsn == INODE_ITEM(blip)->ili_flush_lsn)
+				mlip_changed |= xfs_ail_delete_one(ailp, blip);
+			else {
+				xfs_clear_li_failed(blip);
+			}
+		}
+
+		if (mlip_changed) {
+			if (!XFS_FORCED_SHUTDOWN(ailp->ail_mount))
+				xlog_assign_tail_lsn_locked(ailp->ail_mount);
+			if (list_empty(&ailp->ail_head))
+				wake_up_all(&ailp->ail_empty);
+		}
+		spin_unlock(&ailp->ail_lock);
+
+		if (mlip_changed)
+			xfs_log_space_wake(ailp->ail_mount);
+	}
 
 	/*
 	 * clean up and unlock the flush lock now we are done. We can clear the
 	 * ili_last_fields bits now that we know that the data corresponding to
 	 * them is safely on disk.
 	 */
-	for (blip = lip; blip; blip = next) {
-		next = blip->li_bio_list;
-		blip->li_bio_list = NULL;
-
+	list_for_each_entry_safe(blip, n, &tmp, li_bio_list) {
+		list_del_init(&blip->li_bio_list);
 		iip = INODE_ITEM(blip);
 		iip->ili_logged = 0;
 		iip->ili_last_fields = 0;
 		xfs_ifunlock(iip->ili_inode);
 	}
+	list_del(&tmp);
 }
 
 /*
@@ -703,7 +787,7 @@ xfs_iflush_abort(
 	xfs_inode_log_item_t	*iip = ip->i_itemp;
 
 	if (iip) {
-		if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
+		if (test_bit(XFS_LI_IN_AIL, &iip->ili_item.li_flags)) {
 			xfs_trans_ail_remove(&iip->ili_item,
 					     stale ? SHUTDOWN_LOG_IO_ERROR :
 						     SHUTDOWN_CORRUPT_INCORE);
@@ -736,48 +820,28 @@ xfs_istale_done(
 }
 
 /*
- * convert an xfs_inode_log_format struct from either 32 or 64 bit versions
- * (which can have different field alignments) to the native version
+ * convert an xfs_inode_log_format struct from the old 32 bit version
+ * (which can have different field alignments) to the native 64 bit version
  */
 int
 xfs_inode_item_format_convert(
-	xfs_log_iovec_t		*buf,
-	xfs_inode_log_format_t	*in_f)
+	struct xfs_log_iovec		*buf,
+	struct xfs_inode_log_format	*in_f)
 {
-	if (buf->i_len == sizeof(xfs_inode_log_format_32_t)) {
-		xfs_inode_log_format_32_t *in_f32 = buf->i_addr;
+	struct xfs_inode_log_format_32	*in_f32 = buf->i_addr;
 
-		in_f->ilf_type = in_f32->ilf_type;
-		in_f->ilf_size = in_f32->ilf_size;
-		in_f->ilf_fields = in_f32->ilf_fields;
-		in_f->ilf_asize = in_f32->ilf_asize;
-		in_f->ilf_dsize = in_f32->ilf_dsize;
-		in_f->ilf_ino = in_f32->ilf_ino;
-		/* copy biggest field of ilf_u */
-		memcpy(in_f->ilf_u.ilfu_uuid.__u_bits,
-		       in_f32->ilf_u.ilfu_uuid.__u_bits,
-		       sizeof(uuid_t));
-		in_f->ilf_blkno = in_f32->ilf_blkno;
-		in_f->ilf_len = in_f32->ilf_len;
-		in_f->ilf_boffset = in_f32->ilf_boffset;
-		return 0;
-	} else if (buf->i_len == sizeof(xfs_inode_log_format_64_t)){
-		xfs_inode_log_format_64_t *in_f64 = buf->i_addr;
+	if (buf->i_len != sizeof(*in_f32))
+		return -EFSCORRUPTED;
 
-		in_f->ilf_type = in_f64->ilf_type;
-		in_f->ilf_size = in_f64->ilf_size;
-		in_f->ilf_fields = in_f64->ilf_fields;
-		in_f->ilf_asize = in_f64->ilf_asize;
-		in_f->ilf_dsize = in_f64->ilf_dsize;
-		in_f->ilf_ino = in_f64->ilf_ino;
-		/* copy biggest field of ilf_u */
-		memcpy(in_f->ilf_u.ilfu_uuid.__u_bits,
-		       in_f64->ilf_u.ilfu_uuid.__u_bits,
-		       sizeof(uuid_t));
-		in_f->ilf_blkno = in_f64->ilf_blkno;
-		in_f->ilf_len = in_f64->ilf_len;
-		in_f->ilf_boffset = in_f64->ilf_boffset;
-		return 0;
-	}
-	return -EFSCORRUPTED;
+	in_f->ilf_type = in_f32->ilf_type;
+	in_f->ilf_size = in_f32->ilf_size;
+	in_f->ilf_fields = in_f32->ilf_fields;
+	in_f->ilf_asize = in_f32->ilf_asize;
+	in_f->ilf_dsize = in_f32->ilf_dsize;
+	in_f->ilf_ino = in_f32->ilf_ino;
+	memcpy(&in_f->ilf_u, &in_f32->ilf_u, sizeof(in_f->ilf_u));
+	in_f->ilf_blkno = in_f32->ilf_blkno;
+	in_f->ilf_len = in_f32->ilf_len;
+	in_f->ilf_boffset = in_f32->ilf_boffset;
+	return 0;
 }

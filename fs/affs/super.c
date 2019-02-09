@@ -16,12 +16,16 @@
 #include <linux/parser.h>
 #include <linux/magic.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/slab.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
+#include <linux/seq_file.h>
+#include <linux/iversion.h>
 #include "affs.h"
 
 static int affs_statfs(struct dentry *dentry, struct kstatfs *buf);
+static int affs_show_options(struct seq_file *m, struct dentry *root);
 static int affs_remount (struct super_block *sb, int *flags, char *data);
 
 static void
@@ -32,7 +36,7 @@ affs_commit_super(struct super_block *sb, int wait)
 	struct affs_root_tail *tail = AFFS_ROOT_TAIL(sb, bh);
 
 	lock_buffer(bh);
-	secs_to_datestamp(get_seconds(), &tail->disk_change);
+	affs_secs_to_datestamp(ktime_get_real_seconds(), &tail->disk_change);
 	affs_fix_checksum(sb, bh);
 	unlock_buffer(bh);
 
@@ -77,7 +81,7 @@ void affs_mark_sb_dirty(struct super_block *sb)
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 	unsigned long delay;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 	       return;
 
 	spin_lock(&sbi->work_lock);
@@ -99,7 +103,7 @@ static struct inode *affs_alloc_inode(struct super_block *sb)
 	if (!i)
 		return NULL;
 
-	i->vfs_inode.i_version = 1;
+	inode_set_iversion(&i->vfs_inode, 1);
 	i->i_lc = NULL;
 	i->i_ext_bh = NULL;
 	i->i_pa_cnt = 0;
@@ -132,7 +136,7 @@ static int __init init_inodecache(void)
 	affs_inode_cachep = kmem_cache_create("affs_inode_cache",
 					     sizeof(struct affs_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
+						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
 	if (affs_inode_cachep == NULL)
 		return -ENOMEM;
@@ -158,7 +162,7 @@ static const struct super_operations affs_sops = {
 	.sync_fs	= affs_sync_fs,
 	.statfs		= affs_statfs,
 	.remount_fs	= affs_remount,
-	.show_options	= generic_show_options,
+	.show_options	= affs_show_options,
 };
 
 enum {
@@ -237,6 +241,7 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 			affs_set_opt(*mount_opts, SF_NO_TRUNCATE);
 			break;
 		case Opt_prefix:
+			kfree(*prefix);
 			*prefix = match_strdup(&args[0]);
 			if (!*prefix)
 				return 0;
@@ -292,6 +297,40 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 	return 1;
 }
 
+static int affs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct super_block *sb = root->d_sb;
+	struct affs_sb_info *sbi = AFFS_SB(sb);
+
+	if (sb->s_blocksize)
+		seq_printf(m, ",bs=%lu", sb->s_blocksize);
+	if (affs_test_opt(sbi->s_flags, SF_SETMODE))
+		seq_printf(m, ",mode=%o", sbi->s_mode);
+	if (affs_test_opt(sbi->s_flags, SF_MUFS))
+		seq_puts(m, ",mufs");
+	if (affs_test_opt(sbi->s_flags, SF_NO_TRUNCATE))
+		seq_puts(m, ",nofilenametruncate");
+	if (affs_test_opt(sbi->s_flags, SF_PREFIX))
+		seq_printf(m, ",prefix=%s", sbi->s_prefix);
+	if (affs_test_opt(sbi->s_flags, SF_IMMUTABLE))
+		seq_puts(m, ",protect");
+	if (sbi->s_reserved != 2)
+		seq_printf(m, ",reserved=%u", sbi->s_reserved);
+	if (sbi->s_root_block != (sbi->s_reserved + sbi->s_partition_size - 1) / 2)
+		seq_printf(m, ",root=%u", sbi->s_root_block);
+	if (affs_test_opt(sbi->s_flags, SF_SETGID))
+		seq_printf(m, ",setgid=%u",
+			   from_kgid_munged(&init_user_ns, sbi->s_gid));
+	if (affs_test_opt(sbi->s_flags, SF_SETUID))
+		seq_printf(m, ",setuid=%u",
+			   from_kuid_munged(&init_user_ns, sbi->s_uid));
+	if (affs_test_opt(sbi->s_flags, SF_VERBOSE))
+		seq_puts(m, ",verbose");
+	if (sbi->s_volume[0])
+		seq_printf(m, ",volume=%s", sbi->s_volume);
+	return 0;
+}
+
 /* This function definitely needs to be split up. Some fine day I'll
  * hopefully have the guts to do so. Until then: sorry for the mess.
  */
@@ -315,13 +354,11 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	u8			 sig[4];
 	int			 ret;
 
-	save_mount_options(sb, data);
-
 	pr_debug("read_super(%s)\n", data ? (const char *)data : "no options");
 
 	sb->s_magic             = AFFS_SUPER_MAGIC;
 	sb->s_op                = &affs_sops;
-	sb->s_flags |= MS_NODIRATIME;
+	sb->s_flags |= SB_NODIRATIME;
 
 	sbi = kzalloc(sizeof(struct affs_sb_info), GFP_KERNEL);
 	if (!sbi)
@@ -429,9 +466,9 @@ got_root:
 	 * not recommended.
 	 */
 	if ((chksum == FS_DCFFS || chksum == MUFS_DCFFS || chksum == FS_DCOFS
-	     || chksum == MUFS_DCOFS) && !(sb->s_flags & MS_RDONLY)) {
+	     || chksum == MUFS_DCOFS) && !sb_rdonly(sb)) {
 		pr_notice("Dircache FS - mounting %s read only\n", sb->s_id);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	}
 	switch (chksum) {
 	case MUFS_FS:
@@ -453,7 +490,7 @@ got_root:
 		/* fall thru */
 	case FS_OFS:
 		affs_set_opt(sbi->s_flags, SF_OFS);
-		sb->s_flags |= MS_NOEXEC;
+		sb->s_flags |= SB_NOEXEC;
 		break;
 	case MUFS_DCOFS:
 	case MUFS_INTLOFS:
@@ -462,7 +499,7 @@ got_root:
 	case FS_INTLOFS:
 		affs_set_opt(sbi->s_flags, SF_INTL);
 		affs_set_opt(sbi->s_flags, SF_OFS);
-		sb->s_flags |= MS_NOEXEC;
+		sb->s_flags |= SB_NOEXEC;
 		break;
 	default:
 		pr_err("Unknown filesystem on device %s: %08X\n",
@@ -478,7 +515,7 @@ got_root:
 			sig, sig[3] + '0', blocksize);
 	}
 
-	sb->s_flags |= MS_NODEV | MS_NOSUID;
+	sb->s_flags |= SB_NODEV | SB_NOSUID;
 
 	sbi->s_data_blksize = sb->s_blocksize;
 	if (affs_test_opt(sbi->s_flags, SF_OFS))
@@ -507,6 +544,7 @@ got_root:
 		return -ENOMEM;
 	}
 
+	sb->s_export_op = &affs_export_ops;
 	pr_debug("s_flags=%lX\n", sb->s_flags);
 	return 0;
 }
@@ -528,13 +566,13 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	char			*prefix = NULL;
 
 	new_opts = kstrdup(data, GFP_KERNEL);
-	if (!new_opts)
+	if (data && !new_opts)
 		return -ENOMEM;
 
 	pr_debug("%s(flags=0x%x,opts=\"%s\")\n", __func__, *flags, data);
 
 	sync_filesystem(sb);
-	*flags |= MS_NODIRATIME;
+	*flags |= SB_NODIRATIME;
 
 	memcpy(volume, sbi->s_volume, 32);
 	if (!parse_options(data, &uid, &gid, &mode, &reserved, &root_block,
@@ -546,7 +584,6 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	flush_delayed_work(&sbi->sb_work);
-	replace_mount_options(sb, new_opts);
 
 	sbi->s_flags = mount_flags;
 	sbi->s_mode  = mode;
@@ -561,10 +598,10 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	memcpy(sbi->s_volume, volume, 32);
 	spin_unlock(&sbi->symlink_lock);
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((bool)(*flags & SB_RDONLY) == sb_rdonly(sb))
 		return 0;
 
-	if (*flags & MS_RDONLY)
+	if (*flags & SB_RDONLY)
 		affs_free_bitmap(sb);
 	else
 		res = affs_init_bitmap(sb, flags);

@@ -10,20 +10,42 @@
  * Device tree for AXC003 CPU card: HS38x2 (Dual Core) with IDU intc
  */
 
+/include/ "skeleton_hs_idu.dtsi"
+
 / {
 	compatible = "snps,arc";
-	clock-frequency = <90000000>;
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	cpu_card {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		ranges = <0x00000000 0xf0000000 0x10000000>;
+		ranges = <0x00000000 0x0 0xf0000000 0x10000000>;
 
-		cpu_intc: archs-intc@cpu {
+		input_clk: input-clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <33333333>;
+		};
+
+		core_clk: core-clk@80 {
+			compatible = "snps,axs10x-arc-pll-clock";
+			reg = <0x80 0x10>, <0x100 0x10>;
+			#clock-cells = <0>;
+			clocks = <&input_clk>;
+
+			/*
+			 * Set initial core pll output frequency to 100MHz.
+			 * It will be applied at the core pll driver probing
+			 * on early boot.
+			 */
+			assigned-clocks = <&core_clk>;
+			assigned-clock-rates = <100000000>;
+		};
+
+		core_intc: archs-intc@cpu {
 			compatible = "snps,archs-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -32,19 +54,8 @@
 		idu_intc: idu-interrupt-controller {
 			compatible = "snps,archs-idu-intc";
 			interrupt-controller;
-			interrupt-parent = <&cpu_intc>;
-
-			/*
-			 * <hwirq  distribution>
-			 * distribution: 0=RR; 1=cpu0, 2=cpu1, 4=cpu2, 8=cpu3
-			 */
-			#interrupt-cells = <2>;
-
-			/*
-			 * upstream irqs to core intc - downstream these are
-			 * "COMMON" irq 0,1..
-			 */
-			interrupts = <24 25>;
+			interrupt-parent = <&core_intc>;
+			#interrupt-cells = <1>;
 		};
 
 		/*
@@ -66,12 +77,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				interrupt-parent = <&idu_intc>;
-
-				/*
-				 * cmn irq 1 -> cpu irq 25
-				 * Distribute to cpu0 only
-				 */
-				interrupts = <1 1>;
+				interrupts = <1>;
 			};
 		};
 
@@ -89,8 +95,34 @@
 		arcpct0: pct {
 			compatible = "snps,archs-pct";
 			#interrupt-cells = <1>;
-			interrupt-parent = <&cpu_intc>;
+			interrupt-parent = <&core_intc>;
 			interrupts = <20>;
+		};
+	};
+
+	/*
+	 * Mark DMA peripherals connected via IOC port as dma-coherent. We do
+	 * it via overlay because peripherals defined in axs10x_mb.dtsi are
+	 * used for both AXS101 and AXS103 boards and only AXS103 has IOC (so
+	 * only AXS103 board has HW-coherent DMA peripherals)
+	 * We don't need to mark pgu@17000 as dma-coherent because it uses
+	 * external DMA buffer located outside of IOC aperture.
+	 */
+	axs10x_mb {
+		ethernet@0x18000 {
+			dma-coherent;
+		};
+
+		ehci@0x40000 {
+			dma-coherent;
+		};
+
+		ohci@0x60000 {
+			dma-coherent;
+		};
+
+		mmc@0x15000 {
+			dma-coherent;
 		};
 	};
 
@@ -109,18 +141,30 @@
 	mb_intc: dw-apb-ictl@0xe0012000 {
 		#interrupt-cells = <1>;
 		compatible = "snps,dw-apb-ictl";
-		reg = < 0xe0012000 0x200 >;
+		reg = < 0x0 0xe0012000 0x0 0x200 >;
 		interrupt-controller;
 		interrupt-parent = <&idu_intc>;
-		interrupts = <0 1>;	/* cmn irq 0 -> cpu irq 24
-					   distribute to cpu0 only */
+		interrupts = <0>;
 	};
 
 	memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0x00000000 0x80000000 0x40000000>;
 		device_type = "memory";
-		reg = <0x80000000 0x20000000>;	/* 512MiB */
+		/* CONFIG_LINUX_RAM_BASE needs to match low mem start */
+		reg = <0x0 0x80000000 0x0 0x20000000	/* 512 MiB low mem */
+		       0x1 0xc0000000 0x0 0x40000000>;	/* 1 GiB highmem */
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		/*
+		 * Move frame buffer out of IOC aperture (0x8z-0xAz).
+		 */
+		frame_buffer: frame_buffer@be000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0xbe000000 0x0 0x2000000>;
+			no-map;
+		};
 	};
 };

@@ -272,7 +272,7 @@ int ath6kl_read_fwlogs(struct ath6kl *ar)
 {
 	struct ath6kl_dbglog_hdr debug_hdr;
 	struct ath6kl_dbglog_buf debug_buf;
-	u32 address, length, dropped, firstbuf, debug_hdr_addr;
+	u32 address, length, firstbuf, debug_hdr_addr;
 	int ret, loop;
 	u8 *buf;
 
@@ -303,7 +303,6 @@ int ath6kl_read_fwlogs(struct ath6kl *ar)
 	address = TARG_VTOP(ar->target_type,
 			    le32_to_cpu(debug_hdr.dbuf_addr));
 	firstbuf = address;
-	dropped = le32_to_cpu(debug_hdr.dropped);
 	ret = ath6kl_diag_read(ar, address, &debug_buf, sizeof(debug_buf));
 	if (ret)
 		goto out;
@@ -426,7 +425,7 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 {
 	u8 *ies = NULL, *wpa_ie = NULL, *pos;
 	size_t ies_len = 0;
-	struct station_info sinfo;
+	struct station_info *sinfo;
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "new station %pM aid=%d\n", mac_addr, aid);
 
@@ -482,22 +481,25 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 			   keymgmt, ucipher, auth, apsd_info);
 
 	/* send event to application */
-	memset(&sinfo, 0, sizeof(sinfo));
+	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+	if (!sinfo)
+		return;
 
 	/* TODO: sinfo.generation */
 
-	sinfo.assoc_req_ies = ies;
-	sinfo.assoc_req_ies_len = ies_len;
+	sinfo->assoc_req_ies = ies;
+	sinfo->assoc_req_ies_len = ies_len;
 
-	cfg80211_new_sta(vif->ndev, mac_addr, &sinfo, GFP_KERNEL);
+	cfg80211_new_sta(vif->ndev, mac_addr, sinfo, GFP_KERNEL);
 
 	netif_wake_queue(vif->ndev);
+
+	kfree(sinfo);
 }
 
-void disconnect_timer_handler(unsigned long ptr)
+void disconnect_timer_handler(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)ptr;
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif = from_timer(vif, t, disconnect_timer);
 
 	ath6kl_init_profile_info(vif);
 	ath6kl_disconnect(vif);
@@ -1113,13 +1115,6 @@ static int ath6kl_close(struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *ath6kl_get_stats(struct net_device *dev)
-{
-	struct ath6kl_vif *vif = netdev_priv(dev);
-
-	return &vif->net_stats;
-}
-
 static int ath6kl_set_features(struct net_device *dev,
 			       netdev_features_t features)
 {
@@ -1285,7 +1280,6 @@ static const struct net_device_ops ath6kl_netdev_ops = {
 	.ndo_open               = ath6kl_open,
 	.ndo_stop               = ath6kl_close,
 	.ndo_start_xmit         = ath6kl_data_tx,
-	.ndo_get_stats          = ath6kl_get_stats,
 	.ndo_set_features       = ath6kl_set_features,
 	.ndo_set_rx_mode	= ath6kl_set_multicast_list,
 };
@@ -1295,7 +1289,7 @@ void init_netdev(struct net_device *dev)
 	struct ath6kl *ar = ath6kl_priv(dev);
 
 	dev->netdev_ops = &ath6kl_netdev_ops;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	dev->watchdog_timeo = ATH6KL_TX_TIMEOUT;
 
 	dev->needed_headroom = ETH_HLEN;

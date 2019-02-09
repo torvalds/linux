@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/netdevice.h>
 #include <linux/isdn/capilli.h>
 #include "avmcard.h"
@@ -72,7 +72,7 @@ avmcard *b1_alloc_card(int nr_controllers)
 	if (!card)
 		return NULL;
 
-	cinfo = kzalloc(sizeof(*cinfo) * nr_controllers, GFP_KERNEL);
+	cinfo = kcalloc(nr_controllers, sizeof(*cinfo), GFP_KERNEL);
 	if (!cinfo) {
 		kfree(card);
 		return NULL;
@@ -529,8 +529,8 @@ irqreturn_t b1_interrupt(int interrupt, void *devptr)
 			printk(KERN_ERR "%s: incoming packet dropped\n",
 			       card->name);
 		} else {
-			memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
-			memcpy(skb_put(skb, DataB3Len), card->databuf, DataB3Len);
+			skb_put_data(skb, card->msgbuf, MsgLen);
+			skb_put_data(skb, card->databuf, DataB3Len);
 			capi_ctr_handle_message(ctrl, ApplId, skb);
 		}
 		break;
@@ -544,7 +544,7 @@ irqreturn_t b1_interrupt(int interrupt, void *devptr)
 			       card->name);
 			spin_unlock_irqrestore(&card->lock, flags);
 		} else {
-			memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
+			skb_put_data(skb, card->msgbuf, MsgLen);
 			if (CAPIMSG_CMD(skb->data) == CAPI_DATA_B3_CONF)
 				capilib_data_b3_conf(&cinfo->ncci_head, ApplId,
 						     CAPIMSG_NCCI(skb->data),
@@ -637,7 +637,7 @@ irqreturn_t b1_interrupt(int interrupt, void *devptr)
 }
 
 /* ------------------------------------------------------------- */
-static int b1ctl_proc_show(struct seq_file *m, void *v)
+int b1_proc_show(struct seq_file *m, void *v)
 {
 	struct capi_ctr *ctrl = m->private;
 	avmctrl_info *cinfo = (avmctrl_info *)(ctrl->driverdata);
@@ -699,20 +699,7 @@ static int b1ctl_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int b1ctl_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, b1ctl_proc_show, PDE_DATA(inode));
-}
-
-const struct file_operations b1ctl_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= b1ctl_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-EXPORT_SYMBOL(b1ctl_proc_fops);
+EXPORT_SYMBOL(b1_proc_show);
 
 /* ------------------------------------------------------------- */
 

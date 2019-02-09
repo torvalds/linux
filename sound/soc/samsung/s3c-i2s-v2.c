@@ -24,11 +24,10 @@
 
 #include "regs-i2s-v2.h"
 #include "s3c-i2s-v2.h"
-#include "dma.h"
 
 #undef S3C_IIS_V2_SUPPORTED
 
-#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413) \
+#if defined(CONFIG_CPU_S3C2412) \
 	|| defined(CONFIG_ARCH_S3C64XX) || defined(CONFIG_CPU_S5PV210)
 #define S3C_IIS_V2_SUPPORTED
 #endif
@@ -72,7 +71,6 @@ static inline void dbg_showcon(const char *fn, u32 con)
 {
 }
 #endif
-
 
 /* Turn on or off the transmission path. */
 static void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
@@ -268,7 +266,7 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		iismod &= ~S3C2412_IISMOD_SLAVE;
 		break;
 	default:
-		pr_err("unknwon master/slave format\n");
+		pr_err("unknown master/slave format\n");
 		return -EINVAL;
 	}
 
@@ -302,7 +300,7 @@ static int s3c_i2sv2_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct s3c_i2sv2_info *i2s = to_info(dai);
-	struct s3c_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	u32 iismod;
 
 	pr_debug("Entered %s\n", __func__);
@@ -636,11 +634,10 @@ int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 	i2s->iis_pclk = clk_get(dev, "iis");
 	if (IS_ERR(i2s->iis_pclk)) {
 		dev_err(dev, "failed to get iis_clock\n");
-		iounmap(i2s->regs);
 		return -ENOENT;
 	}
 
-	clk_enable(i2s->iis_pclk);
+	clk_prepare_enable(i2s->iis_pclk);
 
 	/* Mark ourselves as in TXRX mode so we can run through our cleanup
 	 * process without warnings. */
@@ -653,6 +650,15 @@ int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(s3c_i2sv2_probe);
+
+void s3c_i2sv2_cleanup(struct snd_soc_dai *dai,
+		      struct s3c_i2sv2_info *i2s)
+{
+	clk_disable_unprepare(i2s->iis_pclk);
+	clk_put(i2s->iis_pclk);
+	i2s->iis_pclk = NULL;
+}
+EXPORT_SYMBOL_GPL(s3c_i2sv2_cleanup);
 
 #ifdef CONFIG_PM
 static int s3c2412_i2s_suspend(struct snd_soc_dai *dai)
@@ -709,7 +715,7 @@ static int s3c2412_i2s_resume(struct snd_soc_dai *dai)
 #endif
 
 int s3c_i2sv2_register_component(struct device *dev, int id,
-			   struct snd_soc_component_driver *cmp_drv,
+			   const struct snd_soc_component_driver *cmp_drv,
 			   struct snd_soc_dai_driver *dai_drv)
 {
 	struct snd_soc_dai_ops *ops = (struct snd_soc_dai_ops *)dai_drv->ops;

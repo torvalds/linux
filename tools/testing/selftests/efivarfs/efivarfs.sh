@@ -1,7 +1,11 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 
 efivarfs_mount=/sys/firmware/efi/efivars
 test_guid=210be57c-9849-4fc7-a635-e6382d1aec27
+
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
 
 check_prereqs()
 {
@@ -9,12 +13,12 @@ check_prereqs()
 
 	if [ $UID != 0 ]; then
 		echo $msg must be run as root >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	if ! grep -q "^\S\+ $efivarfs_mount efivarfs" /proc/mounts; then
 		echo $msg efivarfs is not mounted on $efivarfs_mount >&2
-		exit 0
+		exit $ksft_skip
 	fi
 }
 
@@ -88,7 +92,11 @@ test_delete()
 		exit 1
 	fi
 
-	rm $file
+	rm $file 2>/dev/null
+	if [ $? -ne 0 ]; then
+		chattr -i $file
+		rm $file
+	fi
 
 	if [ -e $file ]; then
 		echo "$file couldn't be deleted" >&2
@@ -111,6 +119,7 @@ test_zero_size_delete()
 		exit 1
 	fi
 
+	chattr -i $file
 	printf "$attrs" > $file
 
 	if [ -e $file ]; then
@@ -141,7 +150,11 @@ test_valid_filenames()
 			echo "$file could not be created" >&2
 			ret=1
 		else
-			rm $file
+			rm $file 2>/dev/null
+			if [ $? -ne 0 ]; then
+				chattr -i $file
+				rm $file
+			fi
 		fi
 	done
 
@@ -174,7 +187,11 @@ test_invalid_filenames()
 
 		if [ -e $file ]; then
 			echo "Creating $file should have failed" >&2
-			rm $file
+			rm $file 2>/dev/null
+			if [ $? -ne 0 ]; then
+				chattr -i $file
+				rm $file
+			fi
 			ret=1
 		fi
 	done

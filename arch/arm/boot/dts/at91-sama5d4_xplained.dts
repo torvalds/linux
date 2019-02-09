@@ -69,6 +69,12 @@
 
 	ahb {
 		apb {
+			uart0: serial@f8004000 {
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "okay";
+			};
+
 			spi0: spi@f8010000 {
 				cs-gpios = <&pioC 3 0>, <0>, <0>, <0>;
 				status = "okay";
@@ -86,10 +92,12 @@
 			macb0: ethernet@f8020000 {
 				phy-mode = "rmii";
 				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb0_rmii &pinctrl_macb0_phy_irq>;
 
 				phy0: ethernet-phy@1 {
 					interrupt-parent = <&pioE>;
-					interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+					interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
 					reg = <1>;
 				};
 			};
@@ -108,6 +116,8 @@
 			};
 
 			usart3: serial@fc00c000 {
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
 				status = "okay";
 			};
 
@@ -118,6 +128,18 @@
 			spi1: spi@fc018000 {
 				cs-gpios = <&pioB 21 0>;
 				status = "okay";
+			};
+
+			tcb2: timer@fc024000 {
+				timer0: timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer1: timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
 			};
 
 			adc0: adc@fc034000 {
@@ -152,18 +174,22 @@
 						atmel,pins =
 							<AT91_PIOE 8 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
 					};
+					pinctrl_macb0_phy_irq: macb0_phy_irq_0 {
+						atmel,pins =
+							<AT91_PIOE 1 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
 				};
 			};
 		};
 
-		usb0: gadget@00400000 {
+		usb0: gadget@400000 {
 			atmel,vbus-gpio = <&pioE 31 GPIO_ACTIVE_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usba_vbus>;
 			status = "okay";
 		};
 
-		usb1: ohci@00500000 {
+		usb1: ohci@500000 {
 			num-ports = <3>;
 			atmel,vbus-gpio = <0
 					   &pioE 11 GPIO_ACTIVE_HIGH
@@ -172,45 +198,64 @@
 			status = "okay";
 		};
 
-		usb2: ehci@00600000 {
+		usb2: ehci@600000 {
 			status = "okay";
 		};
 
-		nand0: nand@80000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "hw";
-			nand-on-flash-bbt;
-			atmel,has-pmecc;
+		ebi: ebi@10000000 {
+			pinctrl-0 = <&pinctrl_ebi_cs3 &pinctrl_ebi_nrd_nandoe
+				     &pinctrl_ebi_nwe_nandwe &pinctrl_ebi_nandrdy
+				     &pinctrl_ebi_data_0_7 &pinctrl_ebi_nand_addr>;
+			pinctrl-names = "default";
 			status = "okay";
 
-			at91bootstrap@0 {
-				label = "at91bootstrap";
-				reg = <0x0 0x40000>;
-			};
+			nand_controller: nand-controller {
+				status = "okay";
 
-			bootloader@40000 {
-				label = "bootloader";
-				reg = <0x40000 0x80000>;
-			};
+				nand@3 {
+					reg = <0x3 0x0 0x2>;
+					atmel,rb = <0>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "hw";
+					nand-on-flash-bbt;
+					label = "atmel_nand";
 
-			bootloaderenv@c0000 {
-				label = "bootloader env";
-				reg = <0xc0000 0xc0000>;
-			};
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
 
-			dtb@180000 {
-				label = "device tree";
-				reg = <0x180000 0x80000>;
-			};
+						at91bootstrap@0 {
+							label = "at91bootstrap";
+							reg = <0x0 0x40000>;
+						};
 
-			kernel@200000 {
-				label = "kernel";
-				reg = <0x200000 0x600000>;
-			};
+						bootloader@40000 {
+							label = "bootloader";
+							reg = <0x40000 0x80000>;
+						};
 
-			rootfs@800000 {
-				label = "rootfs";
-				reg = <0x800000 0x0f800000>;
+						bootloaderenv@c0000 {
+							label = "bootloader env";
+							reg = <0xc0000 0xc0000>;
+						};
+
+						dtb@180000 {
+							label = "device tree";
+							reg = <0x180000 0x80000>;
+						};
+
+						kernel@200000 {
+							label = "kernel";
+							reg = <0x200000 0x600000>;
+						};
+
+						rootfs@800000 {
+							label = "rootfs";
+							reg = <0x800000 0x0f800000>;
+						};
+					};
+				};
 			};
 		};
 	};
@@ -246,7 +291,7 @@
 		};
 	};
 
-	vcc_3v3_reg: fixedregulator@0 {
+	vcc_3v3_reg: fixedregulator_3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC 3V3";
 		regulator-min-microvolt = <3300000>;
@@ -255,12 +300,13 @@
 		regulator-always-on;
 	};
 
-	vcc_mmc1_reg: fixedregulator@1 {
+	vcc_mmc1_reg: fixedregulator_mmc1 {
 		compatible = "regulator-fixed";
 		gpio = <&pioE 4 GPIO_ACTIVE_LOW>;
 		regulator-name = "VDD MCI1";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_3v3_reg>;
+		regulator-always-on;
 	};
 };

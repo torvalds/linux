@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include <dt-bindings/input/input.h>
@@ -14,7 +15,11 @@
 		serial1 = &uartc;
 	};
 
-	memory {
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
 		reg = <0x00000000 0x20000000>;
 	};
 
@@ -448,7 +453,9 @@
 	};
 
 	usb@c5000000 {
+		compatible = "nvidia,tegra20-udc";
 		status = "okay";
+		dr_mode = "peripheral";
 	};
 
 	usb-phy@c5000000 {
@@ -508,7 +515,7 @@
 
 		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
-			reg=<0>;
+			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
@@ -521,7 +528,7 @@
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(J, 7) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -565,6 +572,7 @@
 			regulator-name = "+3VS,vdd_pnl";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
 			gpio = <&gpio TEGRA_GPIO(A, 4) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	character device driver for reading z/VM system service records
  *
@@ -21,7 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
@@ -343,8 +344,7 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 	if (logptr->autorecording) {
 		ret = vmlogrdr_recording(logptr,1,logptr->autopurge);
 		if (ret)
-			pr_warning("vmlogrdr: failed to start "
-				   "recording automatically\n");
+			pr_warn("vmlogrdr: failed to start recording automatically\n");
 	}
 
 	/* create connection to the system service */
@@ -396,8 +396,7 @@ static int vmlogrdr_release (struct inode *inode, struct file *filp)
 	if (logptr->autorecording) {
 		ret = vmlogrdr_recording(logptr,0,logptr->autopurge);
 		if (ret)
-			pr_warning("vmlogrdr: failed to stop "
-				   "recording automatically\n");
+			pr_warn("vmlogrdr: failed to stop recording automatically\n");
 	}
 	logptr->dev_in_use = 0;
 
@@ -643,10 +642,8 @@ static ssize_t vmlogrdr_recording_store(struct device * dev,
 static DEVICE_ATTR(recording, 0200, NULL, vmlogrdr_recording_store);
 
 
-static ssize_t vmlogrdr_recording_status_show(struct device_driver *driver,
-					      char *buf)
+static ssize_t recording_status_show(struct device_driver *driver, char *buf)
 {
-
 	static const char cp_command[] = "QUERY RECORDING ";
 	int len;
 
@@ -654,8 +651,7 @@ static ssize_t vmlogrdr_recording_status_show(struct device_driver *driver,
 	len = strlen(buf);
 	return len;
 }
-static DRIVER_ATTR(recording_status, 0444, vmlogrdr_recording_status_show,
-		   NULL);
+static DRIVER_ATTR_RO(recording_status);
 static struct attribute *vmlogrdr_drv_attrs[] = {
 	&driver_attr_recording_status.attr,
 	NULL,
@@ -817,8 +813,7 @@ static int vmlogrdr_register_cdev(dev_t dev)
 	}
 	vmlogrdr_cdev->owner = THIS_MODULE;
 	vmlogrdr_cdev->ops = &vmlogrdr_fops;
-	vmlogrdr_cdev->dev = dev;
-	rc = cdev_add(vmlogrdr_cdev, vmlogrdr_cdev->dev, MAXMINOR);
+	rc = cdev_add(vmlogrdr_cdev, dev, MAXMINOR);
 	if (!rc)
 		return 0;
 
@@ -872,7 +867,7 @@ static int __init vmlogrdr_init(void)
 		goto cleanup;
 
 	for (i=0; i < MAXMINOR; ++i ) {
-		sys_ser[i].buffer = (char *) get_zeroed_page(GFP_KERNEL);
+		sys_ser[i].buffer = (char *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		if (!sys_ser[i].buffer) {
 			rc = -ENOMEM;
 			break;

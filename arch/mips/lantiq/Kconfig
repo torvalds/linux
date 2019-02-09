@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if LANTIQ
 
 config SOC_TYPE_XWAY
@@ -12,11 +13,15 @@ choice
 config SOC_AMAZON_SE
 	bool "Amazon SE"
 	select SOC_TYPE_XWAY
+	select MFD_SYSCON
+	select MFD_CORE
 
 config SOC_XWAY
 	bool "XWAY"
 	select SOC_TYPE_XWAY
 	select HW_HAS_PCI
+	select MFD_SYSCON
+	select MFD_CORE
 
 config SOC_FALCON
 	bool "FALCON"
@@ -25,7 +30,17 @@ config SOC_FALCON
 endchoice
 
 choice
-	prompt "Devicetree"
+	prompt "Built-in device tree"
+	help
+	  Legacy bootloaders do not pass a DTB pointer to the kernel, so
+	  if a "wrapper" is not being used, the kernel will need to include
+	  a device tree that matches the target board.
+
+	  The builtin DTB will only be used if the firmware does not supply
+	  a valid DTB.
+
+config LANTIQ_DT_NONE
+	bool "None"
 
 config DT_EASY50712
 	bool "Easy50712"

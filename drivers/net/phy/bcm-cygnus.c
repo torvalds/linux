@@ -61,17 +61,17 @@ static int bcm_cygnus_afe_config(struct phy_device *phydev)
 		return rc;
 
 	/* make rcal=100, since rdb default is 000 */
-	rc = bcm_phy_write_exp(phydev, MII_BRCM_CORE_EXPB1, 0x10);
+	rc = bcm_phy_write_exp_sel(phydev, MII_BRCM_CORE_EXPB1, 0x10);
 	if (rc < 0)
 		return rc;
 
 	/* CORE_EXPB0, Reset R_CAL/RC_CAL Engine */
-	rc = bcm_phy_write_exp(phydev, MII_BRCM_CORE_EXPB0, 0x10);
+	rc = bcm_phy_write_exp_sel(phydev, MII_BRCM_CORE_EXPB0, 0x10);
 	if (rc < 0)
 		return rc;
 
 	/* CORE_EXPB0, Disable Reset R_CAL/RC_CAL Engine */
-	rc = bcm_phy_write_exp(phydev, MII_BRCM_CORE_EXPB0, 0x00);
+	rc = bcm_phy_write_exp_sel(phydev, MII_BRCM_CORE_EXPB0, 0x00);
 
 	return 0;
 }
@@ -104,7 +104,7 @@ static int bcm_cygnus_config_init(struct phy_device *phydev)
 		return rc;
 
 	/* Advertise EEE */
-	rc = bcm_phy_enable_eee(phydev);
+	rc = bcm_phy_set_eee(phydev, true);
 	if (rc)
 		return rc;
 
@@ -134,11 +134,8 @@ static struct phy_driver bcm_cygnus_phy_driver[] = {
 	.phy_id        = PHY_ID_BCM_CYGNUS,
 	.phy_id_mask   = 0xfffffff0,
 	.name          = "Broadcom Cygnus PHY",
-	.features      = PHY_GBIT_FEATURES |
-			SUPPORTED_Pause | SUPPORTED_Asym_Pause,
+	.features      = PHY_GBIT_FEATURES,
 	.config_init   = bcm_cygnus_config_init,
-	.config_aneg   = genphy_config_aneg,
-	.read_status   = genphy_read_status,
 	.ack_interrupt = bcm_phy_ack_intr,
 	.config_intr   = bcm_phy_config_intr,
 	.suspend       = genphy_suspend,

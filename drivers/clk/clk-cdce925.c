@@ -1,8 +1,8 @@
 /*
- * Driver for TI Dual PLL CDCE925 clock synthesizer
+ * Driver for TI Multi PLL CDCE913/925/937/949 clock synthesizer
  *
- * This driver always connects the Y1 to the input clock, Y2/Y3 to PLL1
- * and Y4/Y5 to PLL2. PLL frequency is set on a first-come-first-serve
+ * This driver always connects the Y1 to the input clock, Y2/Y3 to PLL1,
+ * Y4/Y5 to PLL2, and so on. PLL frequency is set on a first-come-first-serve
  * basis. Clients can directly request any frequency that the chip can
  * deliver using the standard clk framework. In addition, the device can
  * be configured and activated via the devicetree.
@@ -19,11 +19,32 @@
 #include <linux/slab.h>
 #include <linux/gcd.h>
 
-/* The chip has 2 PLLs which can be routed through dividers to 5 outputs.
+/* Each chip has different number of PLLs and outputs, for example:
+ * The CECE925 has 2 PLLs which can be routed through dividers to 5 outputs.
  * Model this as 2 PLL clocks which are parents to the outputs.
  */
-#define NUMBER_OF_PLLS	2
-#define NUMBER_OF_OUTPUTS	5
+
+enum {
+	CDCE913,
+	CDCE925,
+	CDCE937,
+	CDCE949,
+};
+
+struct clk_cdce925_chip_info {
+	int num_plls;
+	int num_outputs;
+};
+
+static const struct clk_cdce925_chip_info clk_cdce925_chip_info_tbl[] = {
+	[CDCE913] = { .num_plls = 1, .num_outputs = 3 },
+	[CDCE925] = { .num_plls = 2, .num_outputs = 5 },
+	[CDCE937] = { .num_plls = 3, .num_outputs = 7 },
+	[CDCE949] = { .num_plls = 4, .num_outputs = 9 },
+};
+
+#define MAX_NUMBER_OF_PLLS	4
+#define MAX_NUMBER_OF_OUTPUTS	9
 
 #define CDCE925_REG_GLOBAL1	0x01
 #define CDCE925_REG_Y1SPIPDIVH	0x02
@@ -43,7 +64,7 @@ struct clk_cdce925_output {
 	struct clk_hw hw;
 	struct clk_cdce925_chip *chip;
 	u8 index;
-	u16 pdiv; /* 1..127 for Y2-Y5; 1..1023 for Y1 */
+	u16 pdiv; /* 1..127 for Y2-Y9; 1..1023 for Y1 */
 };
 #define to_clk_cdce925_output(_hw) \
 	container_of(_hw, struct clk_cdce925_output, hw)
@@ -60,10 +81,9 @@ struct clk_cdce925_pll {
 struct clk_cdce925_chip {
 	struct regmap *regmap;
 	struct i2c_client *i2c_client;
-	struct clk_cdce925_pll pll[NUMBER_OF_PLLS];
-	struct clk_cdce925_output clk[NUMBER_OF_OUTPUTS];
-	struct clk *dt_clk[NUMBER_OF_OUTPUTS];
-	struct clk_onecell_data onecell;
+	const struct clk_cdce925_chip_info *chip_info;
+	struct clk_cdce925_pll pll[MAX_NUMBER_OF_PLLS];
+	struct clk_cdce925_output clk[MAX_NUMBER_OF_OUTPUTS];
 };
 
 /* ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** */
@@ -218,7 +238,7 @@ static int cdce925_pll_prepare(struct clk_hw *hw)
 		nn = n * BIT(p);
 		/* q = int(nn/m) */
 		q = nn / m;
-		if ((q < 16) || (1 > 64)) {
+		if ((q < 16) || (q > 63)) {
 			pr_debug("%s invalid q=%d\n", __func__, q);
 			return -EINVAL;
 		}
@@ -286,6 +306,18 @@ static void cdce925_clk_set_pdiv(struct clk_cdce925_output *data, u16 pdiv)
 	case 4:
 		regmap_update_bits(data->chip->regmap, 0x27, 0x7F, pdiv);
 		break;
+	case 5:
+		regmap_update_bits(data->chip->regmap, 0x36, 0x7F, pdiv);
+		break;
+	case 6:
+		regmap_update_bits(data->chip->regmap, 0x37, 0x7F, pdiv);
+		break;
+	case 7:
+		regmap_update_bits(data->chip->regmap, 0x46, 0x7F, pdiv);
+		break;
+	case 8:
+		regmap_update_bits(data->chip->regmap, 0x47, 0x7F, pdiv);
+		break;
 	}
 }
 
@@ -303,6 +335,14 @@ static void cdce925_clk_activate(struct clk_cdce925_output *data)
 	case 3:
 	case 4:
 		regmap_update_bits(data->chip->regmap, 0x24, 0x03, 0x03);
+		break;
+	case 5:
+	case 6:
+		regmap_update_bits(data->chip->regmap, 0x34, 0x03, 0x03);
+		break;
+	case 7:
+	case 8:
+		regmap_update_bits(data->chip->regmap, 0x44, 0x03, 0x03);
 		break;
 	}
 }
@@ -476,15 +516,6 @@ static const struct clk_ops cdce925_clk_y1_ops = {
 	.set_rate = cdce925_clk_y1_set_rate,
 };
 
-
-static struct regmap_config cdce925_regmap_config = {
-	.name = "configuration0",
-	.reg_bits = 8,
-	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
-	.max_register = 0x2F,
-};
-
 #define CDCE925_I2C_COMMAND_BLOCK_TRANSFER	0x00
 #define CDCE925_I2C_COMMAND_BYTE_TRANSFER	0x80
 
@@ -557,6 +588,20 @@ static int cdce925_regmap_i2c_read(void *context,
 		return -EIO;
 }
 
+static struct clk_hw *
+of_clk_cdce925_get(struct of_phandle_args *clkspec, void *_data)
+{
+	struct clk_cdce925_chip *data = _data;
+	unsigned int idx = clkspec->args[0];
+
+	if (idx >= ARRAY_SIZE(data->clk)) {
+		pr_err("%s: invalid index %u\n", __func__, idx);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return &data->clk[idx].hw;
+}
+
 /* The CDCE925 uses a funky way to read/write registers. Bulk mode is
  * just weird, so just use the single byte mode exclusively. */
 static struct regmap_bus regmap_cdce925_bus = {
@@ -570,14 +615,19 @@ static int cdce925_probe(struct i2c_client *client,
 	struct clk_cdce925_chip *data;
 	struct device_node *node = client->dev.of_node;
 	const char *parent_name;
-	const char *pll_clk_name[NUMBER_OF_PLLS] = {NULL,};
+	const char *pll_clk_name[MAX_NUMBER_OF_PLLS] = {NULL,};
 	struct clk_init_data init;
-	struct clk *clk;
 	u32 value;
 	int i;
 	int err;
 	struct device_node *np_output;
 	char child_name[6];
+	struct regmap_config config = {
+		.name = "configuration0",
+		.reg_bits = 8,
+		.val_bits = 8,
+		.cache_type = REGCACHE_RBTREE,
+	};
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
@@ -585,8 +635,11 @@ static int cdce925_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data->i2c_client = client;
+	data->chip_info = &clk_cdce925_chip_info_tbl[id->driver_data];
+	config.max_register = CDCE925_OFFSET_PLL +
+		data->chip_info->num_plls * 0x10 - 1;
 	data->regmap = devm_regmap_init(&client->dev, &regmap_cdce925_bus,
-			&client->dev, &cdce925_regmap_config);
+			&client->dev, &config);
 	if (IS_ERR(data->regmap)) {
 		dev_err(&client->dev, "failed to allocate register map\n");
 		return PTR_ERR(data->regmap);
@@ -612,20 +665,19 @@ static int cdce925_probe(struct i2c_client *client,
 	init.ops = &cdce925_pll_ops;
 	init.flags = 0;
 	init.parent_names = &parent_name;
-	init.num_parents = parent_name ? 1 : 0;
+	init.num_parents = 1;
 
 	/* Register PLL clocks */
-	for (i = 0; i < NUMBER_OF_PLLS; ++i) {
+	for (i = 0; i < data->chip_info->num_plls; ++i) {
 		pll_clk_name[i] = kasprintf(GFP_KERNEL, "%s.pll%d",
 			client->dev.of_node->name, i);
 		init.name = pll_clk_name[i];
 		data->pll[i].chip = data;
 		data->pll[i].hw.init = &init;
 		data->pll[i].index = i;
-		clk = devm_clk_register(&client->dev, &data->pll[i].hw);
-		if (IS_ERR(clk)) {
+		err = devm_clk_hw_register(&client->dev, &data->pll[i].hw);
+		if (err) {
 			dev_err(&client->dev, "Failed register PLL %d\n", i);
-			err = PTR_ERR(clk);
 			goto error;
 		}
 		sprintf(child_name, "PLL%d", i+1);
@@ -634,7 +686,7 @@ static int cdce925_probe(struct i2c_client *client,
 			continue;
 		if (!of_property_read_u32(np_output,
 			"clock-frequency", &value)) {
-			err = clk_set_rate(clk, value);
+			err = clk_set_rate(data->pll[i].hw.clk, value);
 			if (err)
 				dev_err(&client->dev,
 					"unable to set PLL frequency %ud\n",
@@ -663,20 +715,18 @@ static int cdce925_probe(struct i2c_client *client,
 	data->clk[0].hw.init = &init;
 	data->clk[0].index = 0;
 	data->clk[0].pdiv = 1;
-	clk = devm_clk_register(&client->dev, &data->clk[0].hw);
+	err = devm_clk_hw_register(&client->dev, &data->clk[0].hw);
 	kfree(init.name); /* clock framework made a copy of the name */
-	if (IS_ERR(clk)) {
+	if (err) {
 		dev_err(&client->dev, "clock registration Y1 failed\n");
-		err = PTR_ERR(clk);
 		goto error;
 	}
-	data->dt_clk[0] = clk;
 
 	/* Register output clocks Y2 .. Y5*/
 	init.ops = &cdce925_clk_ops;
 	init.flags = CLK_SET_RATE_PARENT;
 	init.num_parents = 1;
-	for (i = 1; i < NUMBER_OF_OUTPUTS; ++i) {
+	for (i = 1; i < data->chip_info->num_outputs; ++i) {
 		init.name = kasprintf(GFP_KERNEL, "%s.Y%d",
 			client->dev.of_node->name, i+1);
 		data->clk[i].chip = data;
@@ -694,29 +744,35 @@ static int cdce925_probe(struct i2c_client *client,
 			/* Mux Y4/5 to PLL2 */
 			init.parent_names = &pll_clk_name[1];
 			break;
+		case 5:
+		case 6:
+			/* Mux Y6/7 to PLL3 */
+			init.parent_names = &pll_clk_name[2];
+			break;
+		case 7:
+		case 8:
+			/* Mux Y8/9 to PLL4 */
+			init.parent_names = &pll_clk_name[3];
+			break;
 		}
-		clk = devm_clk_register(&client->dev, &data->clk[i].hw);
+		err = devm_clk_hw_register(&client->dev, &data->clk[i].hw);
 		kfree(init.name); /* clock framework made a copy of the name */
-		if (IS_ERR(clk)) {
+		if (err) {
 			dev_err(&client->dev, "clock registration failed\n");
-			err = PTR_ERR(clk);
 			goto error;
 		}
-		data->dt_clk[i] = clk;
 	}
 
 	/* Register the output clocks */
-	data->onecell.clk_num = NUMBER_OF_OUTPUTS;
-	data->onecell.clks = data->dt_clk;
-	err = of_clk_add_provider(client->dev.of_node, of_clk_src_onecell_get,
-		&data->onecell);
+	err = of_clk_add_hw_provider(client->dev.of_node, of_clk_cdce925_get,
+				  data);
 	if (err)
 		dev_err(&client->dev, "unable to add OF clock provider\n");
 
 	err = 0;
 
 error:
-	for (i = 0; i < NUMBER_OF_PLLS; ++i)
+	for (i = 0; i < data->chip_info->num_plls; ++i)
 		/* clock framework made a copy of the name */
 		kfree(pll_clk_name[i]);
 
@@ -724,13 +780,19 @@ error:
 }
 
 static const struct i2c_device_id cdce925_id[] = {
-	{ "cdce925", 0 },
+	{ "cdce913", CDCE913 },
+	{ "cdce925", CDCE925 },
+	{ "cdce937", CDCE937 },
+	{ "cdce949", CDCE949 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cdce925_id);
 
 static const struct of_device_id clk_cdce925_of_match[] = {
+	{ .compatible = "ti,cdce913" },
 	{ .compatible = "ti,cdce925" },
+	{ .compatible = "ti,cdce937" },
+	{ .compatible = "ti,cdce949" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, clk_cdce925_of_match);
@@ -746,5 +808,5 @@ static struct i2c_driver cdce925_driver = {
 module_i2c_driver(cdce925_driver);
 
 MODULE_AUTHOR("Mike Looijmans <mike.looijmans@topic.nl>");
-MODULE_DESCRIPTION("cdce925 driver");
+MODULE_DESCRIPTION("TI CDCE913/925/937/949 driver");
 MODULE_LICENSE("GPL");

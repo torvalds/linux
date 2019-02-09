@@ -82,17 +82,28 @@ ecryptfs_filldir(struct dir_context *ctx, const char *lower_name,
 						  buf->sb, lower_name,
 						  lower_namelen);
 	if (rc) {
-		printk(KERN_ERR "%s: Error attempting to decode and decrypt "
-		       "filename [%s]; rc = [%d]\n", __func__, lower_name,
-		       rc);
-		goto out;
+		if (rc != -EINVAL) {
+			ecryptfs_printk(KERN_DEBUG,
+					"%s: Error attempting to decode and decrypt filename [%s]; rc = [%d]\n",
+					__func__, lower_name, rc);
+			return rc;
+		}
+
+		/* Mask -EINVAL errors as these are most likely due a plaintext
+		 * filename present in the lower filesystem despite filename
+		 * encryption being enabled. One unavoidable example would be
+		 * the "lost+found" dentry in the root directory of an Ext4
+		 * filesystem.
+		 */
+		return 0;
 	}
+
 	buf->caller->pos = buf->ctx.pos;
 	rc = !dir_emit(buf->caller, name, name_size, ino, d_type);
 	kfree(name);
 	if (!rc)
 		buf->entries_written++;
-out:
+
 	return rc;
 }
 
@@ -112,7 +123,6 @@ static int ecryptfs_readdir(struct file *file, struct dir_context *ctx)
 		.sb = inode->i_sb,
 	};
 	lower_file = ecryptfs_file_to_lower(file);
-	lower_file->f_pos = ctx->pos;
 	rc = iterate_dir(lower_file, &buf.ctx);
 	ctx->pos = buf.ctx.pos;
 	if (rc < 0)
@@ -170,9 +180,22 @@ out:
 	return rc;
 }
 
+static int ecryptfs_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct file *lower_file = ecryptfs_file_to_lower(file);
+	/*
+	 * Don't allow mmap on top of file systems that don't support it
+	 * natively.  If FILESYSTEM_MAX_STACK_DEPTH > 2 or ecryptfs
+	 * allows recursive mounting, this will need to be extended.
+	 */
+	if (!lower_file->f_op->mmap)
+		return -ENODEV;
+	return generic_file_mmap(file, vma);
+}
+
 /**
  * ecryptfs_open
- * @inode: inode speciying file to open
+ * @inode: inode specifying file to open
  * @file: Structure to return filled in
  *
  * Opens the file specified by inode.
@@ -223,14 +246,6 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	}
 	ecryptfs_set_file_lower(
 		file, ecryptfs_inode_to_private(inode)->lower_file);
-	if (d_is_dir(ecryptfs_dentry)) {
-		ecryptfs_printk(KERN_DEBUG, "This is a directory\n");
-		mutex_lock(&crypt_stat->cs_mutex);
-		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
-		mutex_unlock(&crypt_stat->cs_mutex);
-		rc = 0;
-		goto out;
-	}
 	rc = read_or_initialize_metadata(ecryptfs_dentry);
 	if (rc)
 		goto out_put;
@@ -245,6 +260,45 @@ out_free:
 			ecryptfs_file_to_private(file));
 out:
 	return rc;
+}
+
+/**
+ * ecryptfs_dir_open
+ * @inode: inode specifying file to open
+ * @file: Structure to return filled in
+ *
+ * Opens the file specified by inode.
+ *
+ * Returns zero on success; non-zero otherwise
+ */
+static int ecryptfs_dir_open(struct inode *inode, struct file *file)
+{
+	struct dentry *ecryptfs_dentry = file->f_path.dentry;
+	/* Private value of ecryptfs_dentry allocated in
+	 * ecryptfs_lookup() */
+	struct ecryptfs_file_info *file_info;
+	struct file *lower_file;
+
+	/* Released in ecryptfs_release or end of function if failure */
+	file_info = kmem_cache_zalloc(ecryptfs_file_info_cache, GFP_KERNEL);
+	ecryptfs_set_file_private(file, file_info);
+	if (unlikely(!file_info)) {
+		ecryptfs_printk(KERN_ERR,
+				"Error attempting to allocate memory\n");
+		return -ENOMEM;
+	}
+	lower_file = dentry_open(ecryptfs_dentry_to_lower_path(ecryptfs_dentry),
+				 file->f_flags, current_cred());
+	if (IS_ERR(lower_file)) {
+		printk(KERN_ERR "%s: Error attempting to initialize "
+			"the lower file for the dentry with name "
+			"[%pd]; rc = [%ld]\n", __func__,
+			ecryptfs_dentry, PTR_ERR(lower_file));
+		kmem_cache_free(ecryptfs_file_info_cache, file_info);
+		return PTR_ERR(lower_file);
+	}
+	ecryptfs_set_file_lower(file, lower_file);
+	return 0;
 }
 
 static int ecryptfs_flush(struct file *file, fl_owner_t td)
@@ -267,12 +321,25 @@ static int ecryptfs_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int ecryptfs_dir_release(struct inode *inode, struct file *file)
+{
+	fput(ecryptfs_file_to_lower(file));
+	kmem_cache_free(ecryptfs_file_info_cache,
+			ecryptfs_file_to_private(file));
+	return 0;
+}
+
+static loff_t ecryptfs_dir_llseek(struct file *file, loff_t offset, int whence)
+{
+	return vfs_llseek(ecryptfs_file_to_lower(file), offset, whence);
+}
+
 static int
 ecryptfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	int rc;
 
-	rc = filemap_write_and_wait(file->f_mapping);
+	rc = file_write_and_wait(file);
 	if (rc)
 		return rc;
 
@@ -340,31 +407,27 @@ ecryptfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #endif
 
 const struct file_operations ecryptfs_dir_fops = {
-	.iterate = ecryptfs_readdir,
+	.iterate_shared = ecryptfs_readdir,
 	.read = generic_read_dir,
 	.unlocked_ioctl = ecryptfs_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = ecryptfs_compat_ioctl,
 #endif
-	.open = ecryptfs_open,
-	.flush = ecryptfs_flush,
-	.release = ecryptfs_release,
+	.open = ecryptfs_dir_open,
+	.release = ecryptfs_dir_release,
 	.fsync = ecryptfs_fsync,
-	.fasync = ecryptfs_fasync,
-	.splice_read = generic_file_splice_read,
-	.llseek = default_llseek,
+	.llseek = ecryptfs_dir_llseek,
 };
 
 const struct file_operations ecryptfs_main_fops = {
 	.llseek = generic_file_llseek,
 	.read_iter = ecryptfs_read_update_atime,
 	.write_iter = generic_file_write_iter,
-	.iterate = ecryptfs_readdir,
 	.unlocked_ioctl = ecryptfs_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = ecryptfs_compat_ioctl,
 #endif
-	.mmap = generic_file_mmap,
+	.mmap = ecryptfs_mmap,
 	.open = ecryptfs_open,
 	.flush = ecryptfs_flush,
 	.release = ecryptfs_release,

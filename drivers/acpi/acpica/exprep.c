@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
- * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
+ * Module Name: exprep - ACPI AML field prep utilities
+ *
+ * Copyright (C) 2000 - 2018, Intel Corp.
  *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2015, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -103,8 +69,10 @@ acpi_ex_generate_access(u32 field_bit_offset,
 	/* Round Field start offset and length to "minimal" byte boundaries */
 
 	field_byte_offset = ACPI_DIV_8(ACPI_ROUND_DOWN(field_bit_offset, 8));
-	field_byte_end_offset = ACPI_DIV_8(ACPI_ROUND_UP(field_bit_length +
-							 field_bit_offset, 8));
+
+	field_byte_end_offset =
+	    ACPI_DIV_8(ACPI_ROUND_UP(field_bit_length + field_bit_offset, 8));
+
 	field_byte_length = field_byte_end_offset - field_byte_offset;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
@@ -159,7 +127,8 @@ acpi_ex_generate_access(u32 field_bit_offset,
 
 			if (accesses <= 1) {
 				ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-						  "Entire field can be accessed with one operation of size %u\n",
+						  "Entire field can be accessed "
+						  "with one operation of size %u\n",
 						  access_byte_width));
 				return_VALUE(access_byte_width);
 			}
@@ -202,6 +171,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 			  "Cannot access field in one operation, using width 8\n"));
+
 	return_VALUE(8);
 }
 #endif				/* ACPI_UNDER_DEVELOPMENT */
@@ -281,6 +251,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 		/* Invalid field access type */
 
 		ACPI_ERROR((AE_INFO, "Unknown field access type 0x%X", access));
+
 		return_UINT32(0);
 	}
 
@@ -354,8 +325,8 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 	 * For all other access types (Byte, Word, Dword, Qword), the Bitwidth is
 	 * the same (equivalent) as the byte_alignment.
 	 */
-	access_bit_width = acpi_ex_decode_field_access(obj_desc, field_flags,
-						       &byte_alignment);
+	access_bit_width =
+	    acpi_ex_decode_field_access(obj_desc, field_flags, &byte_alignment);
 	if (!access_bit_width) {
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
@@ -595,7 +566,8 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 					  access_byte_width);
 
 		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-				  "IndexField: BitOff %X, Off %X, Value %X, Gran %X, Index %p, Data %p\n",
+				  "IndexField: BitOff %X, Off %X, Value %X, "
+				  "Gran %X, Index %p, Data %p\n",
 				  obj_desc->index_field.start_field_bit_offset,
 				  obj_desc->index_field.base_byte_offset,
 				  obj_desc->index_field.value,
@@ -615,8 +587,9 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 	 * Store the constructed descriptor (obj_desc) into the parent Node,
 	 * preserving the current type of that named_obj.
 	 */
-	status = acpi_ns_attach_object(info->field_node, obj_desc,
-				       acpi_ns_get_type(info->field_node));
+	status =
+	    acpi_ns_attach_object(info->field_node, obj_desc,
+				  acpi_ns_get_type(info->field_node));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 			  "Set NamedObj %p [%4.4s], ObjDesc %p\n",

@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "cx24110.h"
 
 
@@ -120,8 +120,8 @@ static int cx24110_writereg (struct cx24110_state* state, int reg, int data)
 	int err;
 
 	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-		dprintk ("%s: writereg error (err == %i, reg == 0x%02x,"
-			 " data == 0x%02x)\n", __func__, err, reg, data);
+		dprintk("%s: writereg error (err == %i, reg == 0x%02x, data == 0x%02x)\n",
+			__func__, err, reg, data);
 		return -EREMOTEIO;
 	}
 
@@ -550,9 +550,9 @@ static int cx24110_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx24110_get_frontend(struct dvb_frontend *fe)
+static int cx24110_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct cx24110_state *state = fe->demodulator_priv;
 	s32 afc; unsigned sclk;
 
@@ -592,7 +592,7 @@ static void cx24110_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops cx24110_ops;
+static const struct dvb_frontend_ops cx24110_ops;
 
 struct dvb_frontend* cx24110_attach(const struct cx24110_config* config,
 				    struct i2c_adapter* i2c)
@@ -625,14 +625,14 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops cx24110_ops = {
+static const struct dvb_frontend_ops cx24110_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Conexant CX24110 DVB-S",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
-		.frequency_stepsize = 1011,  /* kHz for QPSK frontends */
-		.frequency_tolerance = 29500,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
+		.frequency_stepsize_hz = 1011 * kHz,
+		.frequency_tolerance_hz = 29500 * kHz,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_INVERSION_AUTO |
