@@ -67,6 +67,7 @@ read_attribute(written);
 read_attribute(btree_written);
 read_attribute(metadata_written);
 read_attribute(active_journal_entries);
+read_attribute(backing_dev_name);
 
 sysfs_time_stats_attribute(btree_gc,	sec, ms);
 sysfs_time_stats_attribute(btree_split, sec, us);
@@ -239,6 +240,12 @@ SHOW(__bch_cached_dev)
 	if (attr == &sysfs_label) {
 		memcpy(buf, dc->sb.label, SB_LABEL_SIZE);
 		buf[SB_LABEL_SIZE + 1] = '\0';
+		strcat(buf, "\n");
+		return strlen(buf);
+	}
+
+	if (attr == &sysfs_backing_dev_name) {
+		snprintf(buf, BDEVNAME_SIZE + 1, "%s", dc->backing_dev_name);
 		strcat(buf, "\n");
 		return strlen(buf);
 	}
@@ -452,6 +459,7 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_verify,
 	&sysfs_bypass_torture_test,
 #endif
+	&sysfs_backing_dev_name,
 	NULL
 };
 KTYPE(bch_cached_dev);
