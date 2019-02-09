@@ -894,12 +894,44 @@ static const struct b53_io_ops bcm_sf2_io_ops = {
 	.write64 = bcm_sf2_core_write64,
 };
 
+static void bcm_sf2_sw_get_strings(struct dsa_switch *ds, int port,
+				   u32 stringset, uint8_t *data)
+{
+	int cnt = b53_get_sset_count(ds, port, stringset);
+
+	b53_get_strings(ds, port, stringset, data);
+	bcm_sf2_cfp_get_strings(ds, port, stringset,
+				data + cnt * ETH_GSTRING_LEN);
+}
+
+static void bcm_sf2_sw_get_ethtool_stats(struct dsa_switch *ds, int port,
+					 uint64_t *data)
+{
+	int cnt = b53_get_sset_count(ds, port, ETH_SS_STATS);
+
+	b53_get_ethtool_stats(ds, port, data);
+	bcm_sf2_cfp_get_ethtool_stats(ds, port, data + cnt);
+}
+
+static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds, int port,
+				     int sset)
+{
+	int cnt = b53_get_sset_count(ds, port, sset);
+
+	if (cnt < 0)
+		return cnt;
+
+	cnt += bcm_sf2_cfp_get_sset_count(ds, port, sset);
+
+	return cnt;
+}
+
 static const struct dsa_switch_ops bcm_sf2_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= bcm_sf2_sw_setup,
-	.get_strings		= b53_get_strings,
-	.get_ethtool_stats	= b53_get_ethtool_stats,
-	.get_sset_count		= b53_get_sset_count,
+	.get_strings		= bcm_sf2_sw_get_strings,
+	.get_ethtool_stats	= bcm_sf2_sw_get_ethtool_stats,
+	.get_sset_count		= bcm_sf2_sw_get_sset_count,
 	.get_ethtool_phy_stats	= b53_get_ethtool_phy_stats,
 	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
 	.phylink_validate	= bcm_sf2_sw_validate,
@@ -1062,7 +1094,6 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, priv);
 
 	spin_lock_init(&priv->indir_lock);
-	mutex_init(&priv->stats_mutex);
 	mutex_init(&priv->cfp.lock);
 	INIT_LIST_HEAD(&priv->cfp.rules_list);
 

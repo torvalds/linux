@@ -213,6 +213,7 @@ static inline unsigned int bcm_sf2_cfp_rule_size(struct bcm_sf2_priv *priv)
 
 static int bcm_sf2_cfp_act_pol_set(struct bcm_sf2_priv *priv,
 				   unsigned int rule_index,
+				   int src_port,
 				   unsigned int port_num,
 				   unsigned int queue_num,
 				   bool fwd_map_change)
@@ -229,6 +230,10 @@ static int bcm_sf2_cfp_act_pol_set(struct bcm_sf2_priv *priv,
 		      CHANGE_TC | queue_num << NEW_TC_SHIFT;
 	else
 		reg = 0;
+
+	/* Enable looping back to the original port */
+	if (src_port == port_num)
+		reg |= LOOP_BK_EN;
 
 	core_writel(priv, reg, CORE_ACT_POL_DATA0);
 
@@ -443,7 +448,7 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	}
 
 	/* Insert into Action and policer RAMs now */
-	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index, port_num,
+	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index, port, port_num,
 				      queue_num, true);
 	if (ret)
 		goto out_err_flow_rule;
@@ -733,7 +738,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	}
 
 	/* Insert into Action and policer RAMs now */
-	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[0], port_num,
+	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[0], port, port_num,
 				      queue_num, false);
 	if (ret)
 		goto out_err_flow_rule;
@@ -795,7 +800,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	/* Insert into Action and policer RAMs now, set chain ID to
 	 * the one we are chained to
 	 */
-	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[1], port_num,
+	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[1], port, port_num,
 				      queue_num, true);
 	if (ret)
 		goto out_err_flow_rule;
@@ -1200,4 +1205,92 @@ int bcm_sf2_cfp_resume(struct dsa_switch *ds)
 	}
 
 	return ret;
+}
+
+static const struct bcm_sf2_cfp_stat {
+	unsigned int offset;
+	unsigned int ram_loc;
+	const char *name;
+} bcm_sf2_cfp_stats[] = {
+	{
+		.offset = CORE_STAT_GREEN_CNTR,
+		.ram_loc = GREEN_STAT_RAM,
+		.name = "Green"
+	},
+	{
+		.offset = CORE_STAT_YELLOW_CNTR,
+		.ram_loc = YELLOW_STAT_RAM,
+		.name = "Yellow"
+	},
+	{
+		.offset = CORE_STAT_RED_CNTR,
+		.ram_loc = RED_STAT_RAM,
+		.name = "Red"
+	},
+};
+
+void bcm_sf2_cfp_get_strings(struct dsa_switch *ds, int port,
+			     u32 stringset, uint8_t *data)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	unsigned int s = ARRAY_SIZE(bcm_sf2_cfp_stats);
+	char buf[ETH_GSTRING_LEN];
+	unsigned int i, j, iter;
+
+	if (stringset != ETH_SS_STATS)
+		return;
+
+	for (i = 1; i < priv->num_cfp_rules; i++) {
+		for (j = 0; j < s; j++) {
+			snprintf(buf, sizeof(buf),
+				 "CFP%03d_%sCntr",
+				 i, bcm_sf2_cfp_stats[j].name);
+			iter = (i - 1) * s + j;
+			strlcpy(data + iter * ETH_GSTRING_LEN,
+				buf, ETH_GSTRING_LEN);
+		}
+	}
+}
+
+void bcm_sf2_cfp_get_ethtool_stats(struct dsa_switch *ds, int port,
+				   uint64_t *data)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	unsigned int s = ARRAY_SIZE(bcm_sf2_cfp_stats);
+	const struct bcm_sf2_cfp_stat *stat;
+	unsigned int i, j, iter;
+	struct cfp_rule *rule;
+	int ret;
+
+	mutex_lock(&priv->cfp.lock);
+	for (i = 1; i < priv->num_cfp_rules; i++) {
+		rule = bcm_sf2_cfp_rule_find(priv, port, i);
+		if (!rule)
+			continue;
+
+		for (j = 0; j < s; j++) {
+			stat = &bcm_sf2_cfp_stats[j];
+
+			bcm_sf2_cfp_rule_addr_set(priv, i);
+			ret = bcm_sf2_cfp_op(priv, stat->ram_loc | OP_SEL_READ);
+			if (ret)
+				continue;
+
+			iter = (i - 1) * s + j;
+			data[iter] = core_readl(priv, stat->offset);
+		}
+
+	}
+	mutex_unlock(&priv->cfp.lock);
+}
+
+int bcm_sf2_cfp_get_sset_count(struct dsa_switch *ds, int port, int sset)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+
+	if (sset != ETH_SS_STATS)
+		return 0;
+
+	/* 3 counters per CFP rules */
+	return (priv->num_cfp_rules - 1) * ARRAY_SIZE(bcm_sf2_cfp_stats);
 }
