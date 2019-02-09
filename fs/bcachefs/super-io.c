@@ -188,6 +188,7 @@ struct bch_sb_field *bch2_sb_field_resize(struct bch_sb_handle *sb,
 		}
 	}
 
+	f = bch2_sb_field_get(sb->sb, type);
 	f = __bch2_sb_field_resize(sb, f, u64s);
 	if (f)
 		f->type = cpu_to_le32(type);
