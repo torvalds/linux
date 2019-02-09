@@ -69,11 +69,25 @@ static int wilco_ec_probe(struct platform_device *pdev)
 	cros_ec_lpc_mec_init(ec->io_packet->start,
 			     ec->io_packet->start + EC_MAILBOX_DATA_SIZE);
 
+	/*
+	 * Register a child device that will be found by the debugfs driver.
+	 * Ignore failure.
+	 */
+	ec->debugfs_pdev = platform_device_register_data(dev,
+							 "wilco-ec-debugfs",
+							 PLATFORM_DEVID_AUTO,
+							 NULL, 0);
+
 	return 0;
 }
 
 static int wilco_ec_remove(struct platform_device *pdev)
 {
+	struct wilco_ec_device *ec = platform_get_drvdata(pdev);
+
+	if (ec->debugfs_pdev)
+		platform_device_unregister(ec->debugfs_pdev);
+
 	/* Teardown cros_ec interface */
 	cros_ec_lpc_mec_destroy();
 
