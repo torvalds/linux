@@ -801,8 +801,7 @@ STORE(__bch_cache_set)
 		c->on_error = v;
 	}
 
-	if (attr == &sysfs_io_error_limit)
-		c->error_limit = strtoul_or_return(buf);
+	sysfs_strtoul_clamp(io_error_limit, c->error_limit, 0, UINT_MAX);
 
 	/* See count_io_errors() for why 88 */
 	if (attr == &sysfs_io_error_halflife)
