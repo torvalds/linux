@@ -11,21 +11,6 @@ config PCI_DRA7XX
 	 are two instances of PCIe controller in DRA7xx.  This controller can
 	 act both as EP and RC.  This reuses the Designware core.
 
-config PCIE_DW_ROCKCHIP
-	bool "Rockchip DesignWare PCIe controller"
-	select PCIE_DW
-	depends on ARCH_ROCKCHIP
-	depends on OF
-	help
-	  Enables support for the DW PCIe controller in the Rockchip SoC.
-
-config ROCKCHIP_PCIE_DMA_OBJ
-	bool "Rockchip PCIe uDMA transfer support"
-	depends on PCIE_ROCKCHIP || PCIE_DW_ROCKCHIP
-	default n
-	help
-	 Say y to enable p2p DMA transfer between PCIe components.
-
 config PCI_MVEBU
 	bool "Marvell EBU PCIe controller"
 	depends on ARCH_MVEBU || ARCH_DOVE
@@ -187,16 +172,5 @@ config PCI_HISI
 	select PCIE_DW
 	help
 	  Say Y here if you want PCIe controller support on HiSilicon HIP05 SoC
-
-config PCIE_ROCKCHIP
-	bool "Rockchip PCIe controller"
-	depends on ARCH_ROCKCHIP || COMPILE_TEST
-	depends on OF
-	select PCI_MSI_IRQ_DOMAIN
-	select MFD_SYSCON
-	help
-	  Say Y here if you want internal PCI support on Rockchip SoC.
-	  There is 1 internal PCIe port available to support GEN2 with
-	  4 slots.
 
 endmenu

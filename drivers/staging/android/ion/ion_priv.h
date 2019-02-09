@@ -26,38 +26,10 @@
 #include <linux/sched.h>
 #include <linux/shrinker.h>
 #include <linux/types.h>
-#ifdef CONFIG_ION_POOL_CACHE_POLICY
-#include <asm/cacheflush.h>
-#endif
 
 #include "ion.h"
 
 struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
-
-#ifdef CONFIG_RK_IOMMU
-/**
- * struct ion_iommu_map - represents a mapping of an ion buffer to an iommu
- * @iova_addr - iommu virtual address
- * @node - rb node to exist in the buffer's tree of iommu mappings
- * @key - contains the iommu device info
- * @ref - for reference counting this mapping
- * @mapped_size - size of the iova space mapped
- *		(may not be the same as the buffer size)
- *
- * Represents a mapping of one ion buffer to a particular iommu domain
- * and address range. There may exist other mappings of this buffer in
- * different domains or address ranges. All mappings will have the same
- * cacheability and security.
- */
-struct ion_iommu_map {
-	unsigned long iova_addr;
-	struct rb_node node;
-	unsigned long key;
-	struct ion_buffer *buffer;
-	struct kref ref;
-	int mapped_size;
-};
-#endif
 
 /**
  * struct ion_buffer - metadata for a particular buffer
@@ -112,10 +84,6 @@ struct ion_buffer {
 	int handle_count;
 	char task_comm[TASK_COMM_LEN];
 	pid_t pid;
-#ifdef CONFIG_RK_IOMMU
-	unsigned int iommu_map_cnt;
-	struct rb_root iommu_maps;
-#endif
 };
 void ion_buffer_destroy(struct ion_buffer *buffer);
 
@@ -153,15 +121,6 @@ struct ion_heap_ops {
 	int (*map_user)(struct ion_heap *mapper, struct ion_buffer *buffer,
 			struct vm_area_struct *vma);
 	int (*shrink)(struct ion_heap *heap, gfp_t gfp_mask, int nr_to_scan);
-#ifdef CONFIG_RK_IOMMU
-	int (*map_iommu)(struct ion_buffer *buffer,
-			 struct device *iommu_dev,
-			 struct ion_iommu_map *map_data,
-			 unsigned long iova_length,
-			 unsigned long flags);
-	void (*unmap_iommu)(struct device *iommu_dev,
-			    struct ion_iommu_map *data);
-#endif
 };
 
 /**
@@ -422,37 +381,6 @@ struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order);
 void ion_page_pool_destroy(struct ion_page_pool *);
 struct page *ion_page_pool_alloc(struct ion_page_pool *);
 void ion_page_pool_free(struct ion_page_pool *, struct page *);
-void ion_page_pool_free_immediate(struct ion_page_pool *, struct page *);
-
-#ifdef CONFIG_ION_POOL_CACHE_POLICY
-static inline void ion_page_pool_alloc_set_cache_policy
-				(struct ion_page_pool *pool,
-				struct page *page){
-	void *va = page_address(page);
-
-	if (va)
-		set_memory_wc((unsigned long)va, 1 << pool->order);
-}
-
-static inline void ion_page_pool_free_set_cache_policy
-				(struct ion_page_pool *pool,
-				struct page *page){
-	void *va = page_address(page);
-
-	if (va)
-		set_memory_wb((unsigned long)va, 1 << pool->order);
-
-}
-#else
-static inline void ion_page_pool_alloc_set_cache_policy
-				(struct ion_page_pool *pool,
-				struct page *page){ }
-
-static inline void ion_page_pool_free_set_cache_policy
-				(struct ion_page_pool *pool,
-				struct page *page){ }
-#endif
-
 
 /** ion_page_pool_shrink - shrinks the size of the memory cached in the pool
  * @pool:		the pool

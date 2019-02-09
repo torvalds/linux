@@ -71,18 +71,19 @@ static inline u8 *blkcipher_get_spot(u8 *start, unsigned int len)
 	return max(start, end_page);
 }
 
-static inline void blkcipher_done_slow(struct blkcipher_walk *walk,
-				       unsigned int bsize)
+static inline unsigned int blkcipher_done_slow(struct blkcipher_walk *walk,
+					       unsigned int bsize)
 {
 	u8 *addr;
 
 	addr = (u8 *)ALIGN((unsigned long)walk->buffer, walk->alignmask + 1);
 	addr = blkcipher_get_spot(addr, bsize);
 	scatterwalk_copychunks(addr, &walk->out, bsize, 1);
+	return bsize;
 }
 
-static inline void blkcipher_done_fast(struct blkcipher_walk *walk,
-				       unsigned int n)
+static inline unsigned int blkcipher_done_fast(struct blkcipher_walk *walk,
+					       unsigned int n)
 {
 	if (walk->flags & BLKCIPHER_WALK_COPY) {
 		blkcipher_map_dst(walk);
@@ -96,48 +97,49 @@ static inline void blkcipher_done_fast(struct blkcipher_walk *walk,
 
 	scatterwalk_advance(&walk->in, n);
 	scatterwalk_advance(&walk->out, n);
+
+	return n;
 }
 
 int blkcipher_walk_done(struct blkcipher_desc *desc,
 			struct blkcipher_walk *walk, int err)
 {
-	unsigned int n; /* bytes processed */
-	bool more;
+	unsigned int nbytes = 0;
 
-	if (unlikely(err < 0))
-		goto finish;
+	if (likely(err >= 0)) {
+		unsigned int n = walk->nbytes - err;
 
-	n = walk->nbytes - err;
-	walk->total -= n;
-	more = (walk->total != 0);
-
-	if (likely(!(walk->flags & BLKCIPHER_WALK_SLOW))) {
-		blkcipher_done_fast(walk, n);
-	} else {
-		if (WARN_ON(err)) {
-			/* unexpected case; didn't process all bytes */
+		if (likely(!(walk->flags & BLKCIPHER_WALK_SLOW)))
+			n = blkcipher_done_fast(walk, n);
+		else if (WARN_ON(err)) {
 			err = -EINVAL;
-			goto finish;
-		}
-		blkcipher_done_slow(walk, n);
+			goto err;
+		} else
+			n = blkcipher_done_slow(walk, n);
+
+		nbytes = walk->total - n;
+		err = 0;
 	}
 
-	scatterwalk_done(&walk->in, 0, more);
-	scatterwalk_done(&walk->out, 1, more);
+	scatterwalk_done(&walk->in, 0, nbytes);
+	scatterwalk_done(&walk->out, 1, nbytes);
 
-	if (more) {
+err:
+	walk->total = nbytes;
+	walk->nbytes = nbytes;
+
+	if (nbytes) {
 		crypto_yield(desc->flags);
 		return blkcipher_walk_next(desc, walk);
 	}
-	err = 0;
-finish:
-	walk->nbytes = 0;
+
 	if (walk->iv != desc->info)
 		memcpy(desc->info, walk->iv, walk->ivsize);
 	if (walk->buffer != walk->page)
 		kfree(walk->buffer);
 	if (walk->page)
 		free_page((unsigned long)walk->page);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(blkcipher_walk_done);
@@ -232,8 +234,6 @@ static int blkcipher_walk_next(struct blkcipher_desc *desc,
 		return blkcipher_walk_done(desc, walk, -EINVAL);
 	}
 
-	bsize = min(walk->walk_blocksize, n);
-
 	walk->flags &= ~(BLKCIPHER_WALK_SLOW | BLKCIPHER_WALK_COPY |
 			 BLKCIPHER_WALK_DIFF);
 	if (!scatterwalk_aligned(&walk->in, walk->alignmask) ||
@@ -246,6 +246,7 @@ static int blkcipher_walk_next(struct blkcipher_desc *desc,
 		}
 	}
 
+	bsize = min(walk->walk_blocksize, n);
 	n = scatterwalk_clamp(&walk->in, n);
 	n = scatterwalk_clamp(&walk->out, n);
 
@@ -370,27 +371,6 @@ int blkcipher_aead_walk_virt_block(struct blkcipher_desc *desc,
 	return blkcipher_walk_first(desc, walk);
 }
 EXPORT_SYMBOL_GPL(blkcipher_aead_walk_virt_block);
-
-/*
- * This function allows ablkcipher algorithms to use the blkcipher_walk API to
- * walk over their data.  The specified crypto_ablkcipher tfm is used to
- * initialize the struct blkcipher_walk, and the crypto_blkcipher specified in
- * desc->tfm is never used so it can be left NULL.  (Yes, this design is ugly,
- * but it parallels blkcipher_aead_walk_virt_block() above.  In the 4.10 kernel
- * this is starting to be cleaned up...)
- */
-int blkcipher_ablkcipher_walk_virt(struct blkcipher_desc *desc,
-				   struct blkcipher_walk *walk,
-				   struct crypto_ablkcipher *tfm)
-{
-	walk->flags &= ~BLKCIPHER_WALK_PHYS;
-	walk->walk_blocksize = crypto_ablkcipher_blocksize(tfm);
-	walk->cipher_blocksize = walk->walk_blocksize;
-	walk->ivsize = crypto_ablkcipher_ivsize(tfm);
-	walk->alignmask = crypto_ablkcipher_alignmask(tfm);
-	return blkcipher_walk_first(desc, walk);
-}
-EXPORT_SYMBOL_GPL(blkcipher_ablkcipher_walk_virt);
 
 static int setkey_unaligned(struct crypto_tfm *tfm, const u8 *key,
 			    unsigned int keylen)
@@ -536,7 +516,6 @@ static int crypto_blkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 	strncpy(rblkcipher.type, "blkcipher", sizeof(rblkcipher.type));
 	strncpy(rblkcipher.geniv, alg->cra_blkcipher.geniv ?: "<default>",
 		sizeof(rblkcipher.geniv));
-	rblkcipher.geniv[sizeof(rblkcipher.geniv) - 1] = '\0';
 
 	rblkcipher.blocksize = alg->cra_blocksize;
 	rblkcipher.min_keysize = alg->cra_blkcipher.min_keysize;

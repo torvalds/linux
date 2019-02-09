@@ -233,7 +233,7 @@ data_err=ignore(*)	Just print an error message if an error occurs
 data_err=abort		Abort the journal if an error occurs in a file
 			data buffer in ordered mode.
 
-grpid			New objects have the group ID of their parent.
+grpid			Give objects the same group ID as their creator.
 bsdgroups
 
 nogrpid		(*)	New objects have the group ID of their creator.

@@ -118,12 +118,14 @@ static void iot_io_end(struct io_tracker *iot, sector_t len)
  */
 struct dm_hook_info {
 	bio_end_io_t *bi_end_io;
+	void *bi_private;
 };
 
 static void dm_hook_bio(struct dm_hook_info *h, struct bio *bio,
 			bio_end_io_t *bi_end_io, void *bi_private)
 {
 	h->bi_end_io = bio->bi_end_io;
+	h->bi_private = bio->bi_private;
 
 	bio->bi_end_io = bi_end_io;
 	bio->bi_private = bi_private;
@@ -132,6 +134,7 @@ static void dm_hook_bio(struct dm_hook_info *h, struct bio *bio,
 static void dm_unhook_bio(struct dm_hook_info *h, struct bio *bio)
 {
 	bio->bi_end_io = h->bi_end_io;
+	bio->bi_private = h->bi_private;
 }
 
 /*----------------------------------------------------------------*/
@@ -248,7 +251,7 @@ struct cache {
 	/*
 	 * Fields for converting from sectors to blocks.
 	 */
-	sector_t sectors_per_block;
+	uint32_t sectors_per_block;
 	int sectors_per_block_shift;
 
 	spinlock_t lock;
@@ -984,13 +987,8 @@ static void notify_mode_switch(struct cache *cache, enum cache_metadata_mode mod
 
 static void set_cache_mode(struct cache *cache, enum cache_metadata_mode new_mode)
 {
-	bool needs_check;
+	bool needs_check = dm_cache_metadata_needs_check(cache->cmd);
 	enum cache_metadata_mode old_mode = get_cache_mode(cache);
-
-	if (dm_cache_metadata_needs_check(cache->cmd, &needs_check)) {
-		DMERR("unable to read needs_check flag, setting failure mode");
-		new_mode = CM_FAIL;
-	}
 
 	if (new_mode == CM_WRITE && needs_check) {
 		DMERR("%s: unable to switch cache to write mode until repaired.",
@@ -3388,13 +3386,8 @@ static dm_cblock_t get_cache_dev_size(struct cache *cache)
 
 static bool can_resize(struct cache *cache, dm_cblock_t new_size)
 {
-	if (from_cblock(new_size) > from_cblock(cache->cache_size)) {
-		if (cache->sized) {
-			DMERR("%s: unable to extend cache due to missing cache table reload",
-			      cache_device_name(cache));
-			return false;
-		}
-	}
+	if (from_cblock(new_size) > from_cblock(cache->cache_size))
+		return true;
 
 	/*
 	 * We can't drop a dirty block when shrinking the cache.
@@ -3520,7 +3513,6 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 	char buf[BDEVNAME_SIZE];
 	struct cache *cache = ti->private;
 	dm_cblock_t residency;
-	bool needs_check;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -3549,11 +3541,11 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 
 		residency = policy_residency(cache->policy);
 
-		DMEMIT("%u %llu/%llu %llu %llu/%llu %u %u %u %u %u %u %lu ",
+		DMEMIT("%u %llu/%llu %u %llu/%llu %u %u %u %u %u %u %lu ",
 		       (unsigned)DM_CACHE_METADATA_BLOCK_SIZE,
 		       (unsigned long long)(nr_blocks_metadata - nr_free_blocks_metadata),
 		       (unsigned long long)nr_blocks_metadata,
-		       (unsigned long long)cache->sectors_per_block,
+		       cache->sectors_per_block,
 		       (unsigned long long) from_cblock(residency),
 		       (unsigned long long) from_cblock(cache->cache_size),
 		       (unsigned) atomic_read(&cache->stats.read_hit),
@@ -3594,9 +3586,7 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 		else
 			DMEMIT("rw ");
 
-		r = dm_cache_metadata_needs_check(cache->cmd, &needs_check);
-
-		if (r || needs_check)
+		if (dm_cache_metadata_needs_check(cache->cmd))
 			DMEMIT("needs_check ");
 		else
 			DMEMIT("- ");

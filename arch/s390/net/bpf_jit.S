@@ -8,7 +8,6 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/nospec-insn.h>
 #include "bpf_jit.h"
 
 /*
@@ -54,7 +53,7 @@ ENTRY(sk_load_##NAME##_pos);						\
 	clg	%r3,STK_OFF_HLEN(%r15);	/* Offset + SIZE > hlen? */	\
 	jh	sk_load_##NAME##_slow;					\
 	LOAD	%r14,-SIZE(%r3,%r12);	/* Get data from skb */		\
-	B_EX	OFF_OK,%r6;		/* Return */			\
+	b	OFF_OK(%r6);		/* Return */			\
 									\
 sk_load_##NAME##_slow:;							\
 	lgr	%r2,%r7;		/* Arg1 = skb pointer */	\
@@ -64,13 +63,10 @@ sk_load_##NAME##_slow:;							\
 	brasl	%r14,skb_copy_bits;	/* Get data from skb */		\
 	LOAD	%r14,STK_OFF_TMP(%r15);	/* Load from temp bufffer */	\
 	ltgr	%r2,%r2;		/* Set cc to (%r2 != 0) */	\
-	BR_EX	%r6;			/* Return */
+	br	%r6;			/* Return */
 
 sk_load_common(word, 4, llgf)	/* r14 = *(u32 *) (skb->data+offset) */
 sk_load_common(half, 2, llgh)	/* r14 = *(u16 *) (skb->data+offset) */
-
-	GEN_BR_THUNK %r6
-	GEN_B_THUNK OFF_OK,%r6
 
 /*
  * Load 1 byte from SKB (optimized version)
@@ -83,7 +79,7 @@ ENTRY(sk_load_byte_pos)
 	clg	%r3,STK_OFF_HLEN(%r15)	# Offset >= hlen?
 	jnl	sk_load_byte_slow
 	llgc	%r14,0(%r3,%r12)	# Get byte from skb
-	B_EX	OFF_OK,%r6		# Return OK
+	b	OFF_OK(%r6)		# Return OK
 
 sk_load_byte_slow:
 	lgr	%r2,%r7			# Arg1 = skb pointer
@@ -93,7 +89,7 @@ sk_load_byte_slow:
 	brasl	%r14,skb_copy_bits	# Get data from skb
 	llgc	%r14,STK_OFF_TMP(%r15)	# Load result from temp buffer
 	ltgr	%r2,%r2			# Set cc to (%r2 != 0)
-	BR_EX	%r6			# Return cc
+	br	%r6			# Return cc
 
 #define sk_negative_common(NAME, SIZE, LOAD)				\
 sk_load_##NAME##_slow_neg:;						\
@@ -107,7 +103,7 @@ sk_load_##NAME##_slow_neg:;						\
 	jz	bpf_error;						\
 	LOAD	%r14,0(%r2);		/* Get data from pointer */	\
 	xr	%r3,%r3;		/* Set cc to zero */		\
-	BR_EX	%r6;			/* Return cc */
+	br	%r6;			/* Return cc */
 
 sk_negative_common(word, 4, llgf)
 sk_negative_common(half, 2, llgh)
@@ -116,4 +112,4 @@ sk_negative_common(byte, 1, llgc)
 bpf_error:
 # force a return 0 from jit handler
 	ltgr	%r15,%r15	# Set condition code
-	BR_EX	%r6
+	br	%r6

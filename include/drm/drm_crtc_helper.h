@@ -139,7 +139,6 @@ struct drm_crtc_helper_funcs {
  * @mode_set (like shared PLLs).
  */
 struct drm_encoder_helper_funcs {
-	int (*loader_protect)(struct drm_encoder *encoder, bool on);
 	void (*dpms)(struct drm_encoder *encoder, int mode);
 	void (*save)(struct drm_encoder *encoder);
 	void (*restore)(struct drm_encoder *encoder);
@@ -168,27 +167,20 @@ struct drm_encoder_helper_funcs {
 
 /**
  * struct drm_connector_helper_funcs - helper operations for connectors
- * @loader_protect: protect loader logo connector's power
  * @get_modes: get mode list for this connector
  * @mode_valid: is this mode valid on the given connector? (optional)
  * @best_encoder: return the preferred encoder for this connector
  * @atomic_best_encoder: atomic version of @best_encoder
- * @atomic_flush: flush atomic update
  *
  * The helper operations are called by the mid-layer CRTC helper.
  */
 struct drm_connector_helper_funcs {
-	int (*loader_protect)(struct drm_connector *connector, bool on);
 	int (*get_modes)(struct drm_connector *connector);
 	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
 					   struct drm_display_mode *mode);
 	struct drm_encoder *(*best_encoder)(struct drm_connector *connector);
 	struct drm_encoder *(*atomic_best_encoder)(struct drm_connector *connector,
 						   struct drm_connector_state *connector_state);
-	void (*atomic_begin)(struct drm_connector *connector,
-			     struct drm_connector_state *conn_state);
-	void (*atomic_flush)(struct drm_connector *connector,
-			     struct drm_connector_state *conn_state);
 };
 
 extern void drm_helper_disable_unused_functions(struct drm_device *dev);
@@ -197,9 +189,6 @@ extern bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 				     struct drm_display_mode *mode,
 				     int x, int y,
 				     struct drm_framebuffer *old_fb);
-extern void drm_helper_crtc_enable_color_mgmt(struct drm_crtc *crtc,
-					      int degamma_lut_size,
-					      int gamma_lut_size);
 extern bool drm_helper_crtc_in_use(struct drm_crtc *crtc);
 extern bool drm_helper_encoder_in_use(struct drm_encoder *encoder);
 
@@ -252,6 +241,5 @@ extern void drm_kms_helper_hotplug_event(struct drm_device *dev);
 extern void drm_kms_helper_poll_disable(struct drm_device *dev);
 extern void drm_kms_helper_poll_enable(struct drm_device *dev);
 extern void drm_kms_helper_poll_enable_locked(struct drm_device *dev);
-extern bool drm_kms_helper_is_poll_worker(void);
 
 #endif

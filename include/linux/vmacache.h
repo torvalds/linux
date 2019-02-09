@@ -15,6 +15,7 @@ static inline void vmacache_flush(struct task_struct *tsk)
 	memset(tsk->vmacache, 0, sizeof(tsk->vmacache));
 }
 
+extern void vmacache_flush_all(struct mm_struct *mm);
 extern void vmacache_update(unsigned long addr, struct vm_area_struct *newvma);
 extern struct vm_area_struct *vmacache_find(struct mm_struct *mm,
 						    unsigned long addr);
@@ -28,6 +29,10 @@ extern struct vm_area_struct *vmacache_find_exact(struct mm_struct *mm,
 static inline void vmacache_invalidate(struct mm_struct *mm)
 {
 	mm->vmacache_seqnum++;
+
+	/* deal with overflows */
+	if (unlikely(mm->vmacache_seqnum == 0))
+		vmacache_flush_all(mm);
 }
 
 #endif /* __LINUX_VMACACHE_H */

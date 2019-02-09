@@ -90,23 +90,7 @@
 /*
  * Contiguous page definitions.
  */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define CONT_PTE_SHIFT		5
-#define CONT_PMD_SHIFT		5
-#elif defined(CONFIG_ARM64_16K_PAGES)
-#define CONT_PTE_SHIFT		7
-#define CONT_PMD_SHIFT		5
-#else
-#define CONT_PTE_SHIFT		4
-#define CONT_PMD_SHIFT		4
-#endif
-
-#define CONT_PTES		(1 << CONT_PTE_SHIFT)
-#define CONT_PTE_SIZE		(CONT_PTES * PAGE_SIZE)
-#define CONT_PTE_MASK		(~(CONT_PTE_SIZE - 1))
-#define CONT_PMDS		(1 << CONT_PMD_SHIFT)
-#define CONT_PMD_SIZE		(CONT_PMDS * PMD_SIZE)
-#define CONT_PMD_MASK		(~(CONT_PMD_SIZE - 1))
+#define CONT_PTES		(_AC(1, UL) << CONT_SHIFT)
 /* the the numerical offset of the PTE within a range of CONT_PTES */
 #define CONT_RANGE_OFFSET(addr) (((addr)>>PAGE_SHIFT)&(CONT_PTES-1))
 
@@ -133,6 +117,7 @@
  * Section
  */
 #define PMD_SECT_VALID		(_AT(pmdval_t, 1) << 0)
+#define PMD_SECT_PROT_NONE	(_AT(pmdval_t, 1) << 58)
 #define PMD_SECT_USER		(_AT(pmdval_t, 1) << 6)		/* AP[1] */
 #define PMD_SECT_RDONLY		(_AT(pmdval_t, 1) << 7)		/* AP[2] */
 #define PMD_SECT_S		(_AT(pmdval_t, 3) << 8)
@@ -224,8 +209,6 @@
 #define TCR_TG1_16K		(UL(1) << 30)
 #define TCR_TG1_4K		(UL(2) << 30)
 #define TCR_TG1_64K		(UL(3) << 30)
-
-#define TCR_A1			(UL(1) << 22)
 #define TCR_ASID16		(UL(1) << 36)
 #define TCR_TBI0		(UL(1) << 37)
 #define TCR_HA			(UL(1) << 39)

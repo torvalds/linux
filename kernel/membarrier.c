@@ -16,7 +16,6 @@
 
 #include <linux/syscalls.h>
 #include <linux/membarrier.h>
-#include <linux/tick.h>
 
 /*
  * Bitmask made from a "or" of all commands within enum membarrier_cmd,
@@ -52,9 +51,6 @@
  */
 SYSCALL_DEFINE2(membarrier, int, cmd, int, flags)
 {
-	/* MEMBARRIER_CMD_SHARED is not compatible with nohz_full. */
-	if (tick_nohz_full_enabled())
-		return -ENOSYS;
 	if (unlikely(flags))
 		return -EINVAL;
 	switch (cmd) {

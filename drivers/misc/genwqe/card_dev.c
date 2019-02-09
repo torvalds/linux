@@ -52,7 +52,7 @@ static void genwqe_add_file(struct genwqe_dev *cd, struct genwqe_file *cfile)
 {
 	unsigned long flags;
 
-	cfile->opener = get_pid(task_tgid(current));
+	cfile->owner = current;
 	spin_lock_irqsave(&cd->file_lock, flags);
 	list_add(&cfile->list, &cd->file_list);
 	spin_unlock_irqrestore(&cd->file_lock, flags);
@@ -65,7 +65,6 @@ static int genwqe_del_file(struct genwqe_dev *cd, struct genwqe_file *cfile)
 	spin_lock_irqsave(&cd->file_lock, flags);
 	list_del(&cfile->list);
 	spin_unlock_irqrestore(&cd->file_lock, flags);
-	put_pid(cfile->opener);
 
 	return 0;
 }
@@ -276,7 +275,7 @@ static int genwqe_kill_fasync(struct genwqe_dev *cd, int sig)
 	return files;
 }
 
-static int genwqe_terminate(struct genwqe_dev *cd)
+static int genwqe_force_sig(struct genwqe_dev *cd, int sig)
 {
 	unsigned int files = 0;
 	unsigned long flags;
@@ -284,7 +283,7 @@ static int genwqe_terminate(struct genwqe_dev *cd)
 
 	spin_lock_irqsave(&cd->file_lock, flags);
 	list_for_each_entry(cfile, &cd->file_list, list) {
-		kill_pid(cfile->opener, SIGKILL, 1);
+		force_sig(sig, cfile->owner);
 		files++;
 	}
 	spin_unlock_irqrestore(&cd->file_lock, flags);
@@ -1357,7 +1356,7 @@ static int genwqe_inform_and_stop_processes(struct genwqe_dev *cd)
 		dev_warn(&pci_dev->dev,
 			 "[%s] send SIGKILL and wait ...\n", __func__);
 
-		rc = genwqe_terminate(cd);
+		rc = genwqe_force_sig(cd, SIGKILL); /* force terminate */
 		if (rc) {
 			/* Give kill_timout more seconds to end processes */
 			for (i = 0; (i < genwqe_kill_timeout) &&

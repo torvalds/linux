@@ -165,11 +165,11 @@ config HID_CHERRY
 	Support for Cherry Cymotion keyboard.
 
 config HID_CHICONY
-	tristate "Chicony devices"
+	tristate "Chicony Tactical pad"
 	depends on HID
 	default !EXPERT
 	---help---
-	Support for Chicony Tactical pad and special keys on Chicony keyboards.
+	Support for Chicony Tactical pad.
 
 config HID_CORSAIR
 	tristate "Corsair devices"
@@ -919,20 +919,6 @@ config HID_SENSOR_CUSTOM_SENSOR
 	  should't use these special custom sensor ids to export any of the
 	  standard sensors.
 	  Select this config option for custom/generic sensor support.
-
-config HID_RKVR
-	tristate "RKVR device support"
-	depends on USB_HID
-	---help---
-	  Support for RKVR devices.
-	  Say Y here if you have a RKVR device.
-
-config HID_ALPS
-	tristate "ALPS device support"
-	depends on I2C_HID
-	---help---
-	  Support for ALPS devices.
-	  Say Y here if you have a ALPS device.
 
 endmenu
 

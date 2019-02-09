@@ -91,35 +91,6 @@ void pci_bus_remove_resources(struct pci_bus *bus)
 	}
 }
 
-int devm_request_pci_bus_resources(struct device *dev,
-				   struct list_head *resources)
-{
-	struct resource_entry *win;
-	struct resource *parent, *res;
-	int err;
-
-	resource_list_for_each_entry(win, resources) {
-		res = win->res;
-		switch (resource_type(res)) {
-		case IORESOURCE_IO:
-			parent = &ioport_resource;
-			break;
-		case IORESOURCE_MEM:
-			parent = &iomem_resource;
-			break;
-		default:
-			continue;
-		}
-
-		err = devm_request_resource(dev, parent, res);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(devm_request_pci_bus_resources);
-
 static struct pci_bus_region pci_32_bit = {0, 0xffffffffULL};
 #ifdef CONFIG_PCI_BUS_ADDR_T_64BIT
 static struct pci_bus_region pci_64_bit = {0,
@@ -169,8 +140,6 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 	type_mask |= IORESOURCE_TYPE_BITS;
 
 	pci_bus_for_each_resource(bus, r, i) {
-		resource_size_t min_used = min;
-
 		if (!r)
 			continue;
 
@@ -194,12 +163,12 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 		 * overrides "min".
 		 */
 		if (avail.start)
-			min_used = avail.start;
+			min = avail.start;
 
 		max = avail.end;
 
 		/* Ok, try it out.. */
-		ret = allocate_resource(r, res, size, min_used, max,
+		ret = allocate_resource(r, res, size, min, max,
 					align, alignf, alignf_data);
 		if (ret == 0)
 			return 0;
@@ -416,3 +385,4 @@ void pci_bus_put(struct pci_bus *bus)
 		put_device(&bus->dev);
 }
 EXPORT_SYMBOL(pci_bus_put);
+

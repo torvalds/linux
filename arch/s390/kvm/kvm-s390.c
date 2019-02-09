@@ -118,8 +118,8 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 
 /* upper facilities limit for kvm */
 unsigned long kvm_s390_fac_list_mask[] = {
-	0xffe6ffffffffffffUL,
-	0x005effffffffffffUL,
+	0xffe6fffbfcfdfc40UL,
+	0x005e800000000000UL,
 };
 
 unsigned long kvm_s390_fac_list_mask_size(void)
@@ -257,9 +257,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_VECTOR_REGISTERS:
 		r = MACHINE_HAS_VX;
 		break;
-	case KVM_CAP_S390_BPB:
-		r = test_facility(82);
-		break;
 	default:
 		r = 0;
 	}
@@ -297,9 +294,6 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 	int is_dirty = 0;
-
-	if (kvm_is_ucontrol(kvm))
-		return -EINVAL;
 
 	mutex_lock(&kvm->slots_lock);
 
@@ -1267,8 +1261,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 				    KVM_SYNC_PFAULT;
 	if (test_kvm_facility(vcpu->kvm, 129))
 		vcpu->run->kvm_valid_regs |= KVM_SYNC_VRS;
-	if (test_kvm_facility(vcpu->kvm, 82))
-		vcpu->run->kvm_valid_regs |= KVM_SYNC_BPBC;
 
 	if (kvm_is_ucontrol(vcpu->kvm))
 		return __kvm_ucontrol_vcpu_init(vcpu);
@@ -1276,18 +1268,44 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+/*
+ * Backs up the current FP/VX register save area on a particular
+ * destination.  Used to switch between different register save
+ * areas.
+ */
+static inline void save_fpu_to(struct fpu *dst)
+{
+	dst->fpc = current->thread.fpu.fpc;
+	dst->regs = current->thread.fpu.regs;
+}
+
+/*
+ * Switches the FP/VX register save area from which to lazy
+ * restore register contents.
+ */
+static inline void load_fpu_from(struct fpu *from)
+{
+	current->thread.fpu.fpc = from->fpc;
+	current->thread.fpu.regs = from->regs;
+}
+
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	/* Save host register state */
 	save_fpu_regs();
-	vcpu->arch.host_fpregs.fpc = current->thread.fpu.fpc;
-	vcpu->arch.host_fpregs.regs = current->thread.fpu.regs;
+	save_fpu_to(&vcpu->arch.host_fpregs);
 
-	/* Depending on MACHINE_HAS_VX, data stored to vrs either
-	 * has vector register or floating point register format.
-	 */
-	current->thread.fpu.regs = vcpu->run->s.regs.vrs;
-	current->thread.fpu.fpc = vcpu->run->s.regs.fpc;
+	if (test_kvm_facility(vcpu->kvm, 129)) {
+		current->thread.fpu.fpc = vcpu->run->s.regs.fpc;
+		/*
+		 * Use the register save area in the SIE-control block
+		 * for register restore and save in kvm_arch_vcpu_put()
+		 */
+		current->thread.fpu.vxrs =
+			(__vector128 *)&vcpu->run->s.regs.vrs;
+	} else
+		load_fpu_from(&vcpu->arch.guest_fpregs);
+
 	if (test_fp_ctl(current->thread.fpu.fpc))
 		/* User space provided an invalid FPC, let's clear it */
 		current->thread.fpu.fpc = 0;
@@ -1303,13 +1321,19 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	atomic_andnot(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 	gmap_disable(vcpu->arch.gmap);
 
-	/* Save guest register state */
 	save_fpu_regs();
-	vcpu->run->s.regs.fpc = current->thread.fpu.fpc;
 
-	/* Restore host register state */
-	current->thread.fpu.fpc = vcpu->arch.host_fpregs.fpc;
-	current->thread.fpu.regs = vcpu->arch.host_fpregs.regs;
+	if (test_kvm_facility(vcpu->kvm, 129))
+		/*
+		 * kvm_arch_vcpu_load() set up the register save area to
+		 * the &vcpu->run->s.regs.vrs and, thus, the vector registers
+		 * are already saved.  Only the floating-point control must be
+		 * copied.
+		 */
+		vcpu->run->s.regs.fpc = current->thread.fpu.fpc;
+	else
+		save_fpu_to(&vcpu->arch.guest_fpregs);
+	load_fpu_from(&vcpu->arch.host_fpregs);
 
 	save_access_regs(vcpu->run->s.regs.acrs);
 	restore_access_regs(vcpu->arch.host_acrs);
@@ -1327,12 +1351,10 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	memset(vcpu->arch.sie_block->gcr, 0, 16 * sizeof(__u64));
 	vcpu->arch.sie_block->gcr[0]  = 0xE0UL;
 	vcpu->arch.sie_block->gcr[14] = 0xC2000000UL;
-	/* make sure the new fpc will be lazily loaded */
-	save_fpu_regs();
-	current->thread.fpu.fpc = 0;
+	vcpu->arch.guest_fpregs.fpc = 0;
+	asm volatile("lfpc %0" : : "Q" (vcpu->arch.guest_fpregs.fpc));
 	vcpu->arch.sie_block->gbea = 1;
 	vcpu->arch.sie_block->pp = 0;
-	vcpu->arch.sie_block->fpf &= ~FPF_BPBC;
 	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
 	kvm_clear_async_pf_completion_queue(vcpu);
 	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm))
@@ -1478,6 +1500,19 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
 	vcpu->arch.local_int.wq = &vcpu->wq;
 	vcpu->arch.local_int.cpuflags = &vcpu->arch.sie_block->cpuflags;
+
+	/*
+	 * Allocate a save area for floating-point registers.  If the vector
+	 * extension is available, register contents are saved in the SIE
+	 * control block.  The allocated save area is still required in
+	 * particular places, for example, in kvm_s390_vcpu_store_status().
+	 */
+	vcpu->arch.guest_fpregs.fprs = kzalloc(sizeof(freg_t) * __NUM_FPRS,
+					       GFP_KERNEL);
+	if (!vcpu->arch.guest_fpregs.fprs) {
+		rc = -ENOMEM;
+		goto out_free_sie_block;
+	}
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)
@@ -1699,27 +1734,19 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 
 int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	/* make sure the new values will be lazily loaded */
-	save_fpu_regs();
 	if (test_fp_ctl(fpu->fpc))
 		return -EINVAL;
-	current->thread.fpu.fpc = fpu->fpc;
-	if (MACHINE_HAS_VX)
-		convert_fp_to_vx(current->thread.fpu.vxrs, (freg_t *)fpu->fprs);
-	else
-		memcpy(current->thread.fpu.fprs, &fpu->fprs, sizeof(fpu->fprs));
+	memcpy(vcpu->arch.guest_fpregs.fprs, &fpu->fprs, sizeof(fpu->fprs));
+	vcpu->arch.guest_fpregs.fpc = fpu->fpc;
+	save_fpu_regs();
+	load_fpu_from(&vcpu->arch.guest_fpregs);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	/* make sure we have the latest values */
-	save_fpu_regs();
-	if (MACHINE_HAS_VX)
-		convert_vx_to_fp((freg_t *)fpu->fprs, current->thread.fpu.vxrs);
-	else
-		memcpy(fpu->fprs, current->thread.fpu.fprs, sizeof(fpu->fprs));
-	fpu->fpc = current->thread.fpu.fpc;
+	memcpy(&fpu->fprs, vcpu->arch.guest_fpregs.fprs, sizeof(fpu->fprs));
+	fpu->fpc = vcpu->arch.guest_fpregs.fpc;
 	return 0;
 }
 
@@ -2151,11 +2178,6 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		if (vcpu->arch.pfault_token == KVM_S390_PFAULT_TOKEN_INVALID)
 			kvm_clear_async_pf_completion_queue(vcpu);
 	}
-	if ((kvm_run->kvm_dirty_regs & KVM_SYNC_BPBC) &&
-	    test_kvm_facility(vcpu->kvm, 82)) {
-		vcpu->arch.sie_block->fpf &= ~FPF_BPBC;
-		vcpu->arch.sie_block->fpf |= kvm_run->s.regs.bpbc ? FPF_BPBC : 0;
-	}
 	kvm_run->kvm_dirty_regs = 0;
 }
 
@@ -2173,7 +2195,6 @@ static void store_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	kvm_run->s.regs.pft = vcpu->arch.pfault_token;
 	kvm_run->s.regs.pfs = vcpu->arch.pfault_select;
 	kvm_run->s.regs.pfc = vcpu->arch.pfault_compare;
-	kvm_run->s.regs.bpbc = (vcpu->arch.sie_block->fpf & FPF_BPBC) == FPF_BPBC;
 }
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
@@ -2245,50 +2266,41 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long gpa)
 {
 	unsigned char archmode = 1;
-	freg_t fprs[NUM_FPRS];
 	unsigned int px;
 	u64 clkcomp;
 	int rc;
 
-	px = kvm_s390_get_prefix(vcpu);
 	if (gpa == KVM_S390_STORE_STATUS_NOADDR) {
 		if (write_guest_abs(vcpu, 163, &archmode, 1))
 			return -EFAULT;
-		gpa = 0;
+		gpa = SAVE_AREA_BASE;
 	} else if (gpa == KVM_S390_STORE_STATUS_PREFIXED) {
 		if (write_guest_real(vcpu, 163, &archmode, 1))
 			return -EFAULT;
-		gpa = px;
-	} else
-		gpa -= __LC_FPREGS_SAVE_AREA;
-
-	/* manually convert vector registers if necessary */
-	if (MACHINE_HAS_VX) {
-		convert_vx_to_fp(fprs, (__vector128 *) vcpu->run->s.regs.vrs);
-		rc = write_guest_abs(vcpu, gpa + __LC_FPREGS_SAVE_AREA,
-				     fprs, 128);
-	} else {
-		rc = write_guest_abs(vcpu, gpa + __LC_FPREGS_SAVE_AREA,
-				     vcpu->run->s.regs.vrs, 128);
+		gpa = kvm_s390_real_to_abs(vcpu, SAVE_AREA_BASE);
 	}
-	rc |= write_guest_abs(vcpu, gpa + __LC_GPREGS_SAVE_AREA,
+	rc = write_guest_abs(vcpu, gpa + offsetof(struct save_area, fp_regs),
+			     vcpu->arch.guest_fpregs.fprs, 128);
+	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, gp_regs),
 			      vcpu->run->s.regs.gprs, 128);
-	rc |= write_guest_abs(vcpu, gpa + __LC_PSW_SAVE_AREA,
+	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, psw),
 			      &vcpu->arch.sie_block->gpsw, 16);
-	rc |= write_guest_abs(vcpu, gpa + __LC_PREFIX_SAVE_AREA,
+	px = kvm_s390_get_prefix(vcpu);
+	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, pref_reg),
 			      &px, 4);
-	rc |= write_guest_abs(vcpu, gpa + __LC_FP_CREG_SAVE_AREA,
-			      &vcpu->run->s.regs.fpc, 4);
-	rc |= write_guest_abs(vcpu, gpa + __LC_TOD_PROGREG_SAVE_AREA,
+	rc |= write_guest_abs(vcpu,
+			      gpa + offsetof(struct save_area, fp_ctrl_reg),
+			      &vcpu->arch.guest_fpregs.fpc, 4);
+	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, tod_reg),
 			      &vcpu->arch.sie_block->todpr, 4);
-	rc |= write_guest_abs(vcpu, gpa + __LC_CPU_TIMER_SAVE_AREA,
+	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, timer),
 			      &vcpu->arch.sie_block->cputm, 8);
 	clkcomp = vcpu->arch.sie_block->ckc >> 8;
-	rc |= write_guest_abs(vcpu, gpa + __LC_CLOCK_COMP_SAVE_AREA,
+	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, clk_cmp),
 			      &clkcomp, 8);
-	rc |= write_guest_abs(vcpu, gpa + __LC_AREGS_SAVE_AREA,
+	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, acc_regs),
 			      &vcpu->run->s.regs.acrs, 64);
-	rc |= write_guest_abs(vcpu, gpa + __LC_CREGS_SAVE_AREA,
+	rc |= write_guest_abs(vcpu, gpa + offsetof(struct save_area, ctrl_regs),
 			      &vcpu->arch.sie_block->gcr, 128);
 	return rc ? -EFAULT : 0;
 }
@@ -2301,7 +2313,19 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	 * it into the save area
 	 */
 	save_fpu_regs();
-	vcpu->run->s.regs.fpc = current->thread.fpu.fpc;
+	if (test_kvm_facility(vcpu->kvm, 129)) {
+		/*
+		 * If the vector extension is available, the vector registers
+		 * which overlaps with floating-point registers are saved in
+		 * the SIE-control block.  Hence, extract the floating-point
+		 * registers and the FPC value and store them in the
+		 * guest_fpregs structure.
+		 */
+		vcpu->arch.guest_fpregs.fpc = current->thread.fpu.fpc;
+		convert_vx_to_fp(vcpu->arch.guest_fpregs.fprs,
+				 current->thread.fpu.vxrs);
+	} else
+		save_fpu_to(&vcpu->arch.guest_fpregs);
 	save_access_regs(vcpu->run->s.regs.acrs);
 
 	return kvm_s390_store_status_unloaded(vcpu, addr);

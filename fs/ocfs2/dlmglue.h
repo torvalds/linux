@@ -70,11 +70,6 @@ struct ocfs2_orphan_scan_lvb {
 	__be32	lvb_os_seqno;
 };
 
-struct ocfs2_lock_holder {
-	struct list_head oh_list;
-	struct pid *oh_owner_pid;
-};
-
 /* ocfs2_inode_lock_full() 'arg_flags' flags */
 /* don't wait on recovery. */
 #define OCFS2_META_LOCK_RECOVERY	(0x01)
@@ -82,8 +77,6 @@ struct ocfs2_lock_holder {
 #define OCFS2_META_LOCK_NOQUEUE		(0x02)
 /* don't block waiting for the downconvert thread, instead return -EAGAIN */
 #define OCFS2_LOCK_NONBLOCK		(0x04)
-/* just get back disk inode bh if we've got cluster lock. */
-#define OCFS2_META_LOCK_GETBH		(0x08)
 
 /* Locking subclasses of inode cluster lock */
 enum {
@@ -177,15 +170,4 @@ void ocfs2_put_dlm_debug(struct ocfs2_dlm_debug *dlm_debug);
 
 /* To set the locking protocol on module initialization */
 void ocfs2_set_locking_protocol(void);
-
-/* The _tracker pair is used to avoid cluster recursive locking */
-int ocfs2_inode_lock_tracker(struct inode *inode,
-			     struct buffer_head **ret_bh,
-			     int ex,
-			     struct ocfs2_lock_holder *oh);
-void ocfs2_inode_unlock_tracker(struct inode *inode,
-				int ex,
-				struct ocfs2_lock_holder *oh,
-				int had_lock);
-
 #endif	/* DLMGLUE_H */

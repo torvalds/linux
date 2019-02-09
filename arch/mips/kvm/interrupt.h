@@ -28,7 +28,6 @@
 #define MIPS_EXC_MAX                12
 /* XXXSL More to follow */
 
-extern char __kvm_mips_vcpu_run_end[];
 extern char mips32_exception[], mips32_exceptionEnd[];
 extern char mips32_GuestException[], mips32_GuestExceptionEnd[];
 

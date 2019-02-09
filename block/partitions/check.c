@@ -20,7 +20,6 @@
 
 #include "check.h"
 
-#include "rk.h"
 #include "acorn.h"
 #include "amiga.h"
 #include "atari.h"
@@ -67,9 +66,6 @@ static int (*check_part[])(struct parsed_partitions *) = {
 	adfspart_check_ADFS,
 #endif
 
-#ifdef CONFIG_RK_PARTITION
-	rkpart_partition,
-#endif
 #ifdef CONFIG_CMDLINE_PARTITION
 	cmdline_partition,
 #endif

@@ -6,46 +6,14 @@ config SND_SOC_ROCKCHIP
 	  the Rockchip SoCs' Audio interfaces. You will also need to
 	  select the audio interfaces to support below.
 
-config SND_SOC_ROCKCHIP_FORCE_SRAM
-	bool "Rockchip force using sram buffer"
-	def_bool n
-	help
-	  Say Y if you want to force using sram buffer for pcm buffer,
-	  but the sram size is limited.
-
 config SND_SOC_ROCKCHIP_I2S
 	tristate "Rockchip I2S Device Driver"
 	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y or M if you want to add support for I2S driver for
-	  Rockchip I2S device. The device supports up to maximum of
+	  Rockchip I2S device. The device supports upto maximum of
 	  8 channels each for play and record.
-
-config SND_SOC_ROCKCHIP_I2S_TDM
-	tristate "Rockchip I2S/TDM Device Driver"
-	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-	help
-	  Say Y or M if you want to add support for I2S/TDM driver for
-	  Rockchip I2S/TDM device. The device supports up to maximum of
-	  8 channels each for play and record.
-
-config SND_SOC_ROCKCHIP_MULTI_DAIS
-	tristate "Rockchip Multi-DAIS Device Driver"
-	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
-	help
-	  Say Y or M if you want to add support for Multi-dais driver for
-	  Rockchip.
-
-config SND_SOC_ROCKCHIP_PDM
-	tristate "Rockchip PDM Controller Driver"
-	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-	help
-	  Say Y or M if you want to add support for PDM driver for
-	  Rockchip PDM Controller. The Controller supports up to maximum of
-	  8 channels record.
 
 config SND_SOC_ROCKCHIP_SPDIF
 	tristate "Rockchip SPDIF Device Driver"
@@ -54,48 +22,6 @@ config SND_SOC_ROCKCHIP_SPDIF
 	help
 	  Say Y or M if you want to add support for SPDIF driver for
 	  Rockchip SPDIF transceiver device.
-
-config SND_SOC_ROCKCHIP_SPDIFRX
-	tristate "Rockchip SPDIFRX Device Driver"
-	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-	help
-	  Say Y or M if you want to add support for SPDIFRX driver for
-	  Rockchip SPDIF receiver device.
-
-config SND_SOC_ROCKCHIP_VAD
-	tristate "Rockchip Voice Activity Detection Driver"
-	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
-	help
-	  Say Y or M if you want to add support for VAD driver for
-	  Rockchip VAD device.
-
-config SND_SOC_ROCKCHIP_DA7219
-	tristate "ASoC support for Rockchip boards using a DA7219 codec"
-	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB
-	select SND_SOC_ROCKCHIP_I2S
-	select SND_SOC_DA7219
-	help
-	  Say Y or M here if you want to add support for SoC audio on Rockchip
-	  boards using the DA7219 codec, such as Veyron.
-
-config SND_SOC_ROCKCHIP_HDMI_ANALOG
-	tristate "ASoC support for Rockchip built-in HDMI and CODEC IC"
-	select SND_SOC_ROCKCHIP_I2S
-	select SND_SOC_HDMI_CODEC
-	help
-	  Say Y or M here if you want to add support for SoC audio on Rockchip
-	  boards using built-in HDMI and CODEC IC, such as RK3368 boards.
-
-config SND_SOC_ROCKCHIP_HDMI_DP
-	tristate "ASoC support for Rockchip built-in HDMI and DP"
-	depends on SND_SOC_ROCKCHIP && CLKDEV_LOOKUP
-	depends on ROCKCHIP_CDN_DP || DRM_DW_HDMI_I2S_AUDIO
-	select SND_SOC_ROCKCHIP_I2S
-	select SND_SOC_HDMI_CODEC
-	help
-	  Say Y or M here if you want to add support for SoC audio on Rockchip
-	  boards using built-in HDMI and DP, such as RK3399 boards.
 
 config SND_SOC_ROCKCHIP_MAX98090
 	tristate "ASoC support for Rockchip boards using a MAX98090 codec"
@@ -107,13 +33,6 @@ config SND_SOC_ROCKCHIP_MAX98090
 	  Say Y or M here if you want to add support for SoC audio on Rockchip
 	  boards using the MAX98090 codec, such as Veyron.
 
-config SND_SOC_ROCKCHIP_MULTICODECS
-	tristate "ASoC support for Rockchip multicodecs"
-	depends on SND_SOC_ROCKCHIP && CLKDEV_LOOKUP
-	help
-	  Say Y or M here if you want to add support for SoC audio on Rockchip
-	  boards using multicodecs, such as RK3308 boards.
-
 config SND_SOC_ROCKCHIP_RT5645
 	tristate "ASoC support for Rockchip boards using a RT5645/RT5650 codec"
 	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && CLKDEV_LOOKUP
@@ -122,21 +41,3 @@ config SND_SOC_ROCKCHIP_RT5645
 	help
 	  Say Y or M here if you want to add support for SoC audio on Rockchip
 	  boards using the RT5645/RT5650 codec, such as Veyron.
-
-config SND_SOC_ROCKCHIP_RT5651_TC358749
-	tristate "ASoC support for Rockchip boards RT5651 TC358749 HDMIIN"
-	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && CLKDEV_LOOKUP
-	select SND_SOC_ROCKCHIP_I2S
-	select SND_SOC_RT5651
-	select SND_SOC_TC358749X
-	help
-	  Say Y or M here if you want to add support for SoC audio on Rockchip
-	  boards for RT5651 TC358749 HDMIIn
-
-config SND_SOC_ROCKCHIP_CDNDP
-	tristate "ASoC support for Rockchip CDN DP common codec"
-	depends on SND_SOC_ROCKCHIP && CLKDEV_LOOKUP
-	select SND_SOC_ROCKCHIP_I2S
-	help
-	  Say Y or M here if you want to add support for SoC audio on Rockchip
-	  boards using CDN DP, such as RK3399 boards.

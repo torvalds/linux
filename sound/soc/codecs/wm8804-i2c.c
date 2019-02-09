@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/acpi.h>
 
 #include "wm8804.h"
 
@@ -41,29 +40,17 @@ static const struct i2c_device_id wm8804_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8804_i2c_id);
 
-#if defined(CONFIG_OF)
 static const struct of_device_id wm8804_of_match[] = {
 	{ .compatible = "wlf,wm8804", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, wm8804_of_match);
-#endif
-
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id wm8804_acpi_match[] = {
-	{ "1AEC8804", 0 }, /* Wolfson PCI ID + part ID */
-	{ "10138804", 0 }, /* Cirrus Logic PCI ID + part ID */
-	{ },
-};
-MODULE_DEVICE_TABLE(acpi, wm8804_acpi_match);
-#endif
 
 static struct i2c_driver wm8804_i2c_driver = {
 	.driver = {
 		.name = "wm8804",
 		.pm = &wm8804_pm,
-		.of_match_table = of_match_ptr(wm8804_of_match),
-		.acpi_match_table = ACPI_PTR(wm8804_acpi_match),
+		.of_match_table = wm8804_of_match,
 	},
 	.probe = wm8804_i2c_probe,
 	.remove = wm8804_i2c_remove,

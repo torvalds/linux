@@ -25,7 +25,7 @@ struct linear_c {
 /*
  * Construct a linear mapping: <dev_path> <offset>
  */
-int dm_linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct linear_c *lc;
 	unsigned long long tmp;
@@ -66,16 +66,14 @@ int dm_linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	kfree(lc);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dm_linear_ctr);
 
-void dm_linear_dtr(struct dm_target *ti)
+static void linear_dtr(struct dm_target *ti)
 {
 	struct linear_c *lc = (struct linear_c *) ti->private;
 
 	dm_put_device(ti, lc->dev);
 	kfree(lc);
 }
-EXPORT_SYMBOL_GPL(dm_linear_dtr);
 
 static sector_t linear_map_sector(struct dm_target *ti, sector_t bi_sector)
 {
@@ -94,15 +92,14 @@ static void linear_map_bio(struct dm_target *ti, struct bio *bio)
 			linear_map_sector(ti, bio->bi_iter.bi_sector);
 }
 
-int dm_linear_map(struct dm_target *ti, struct bio *bio)
+static int linear_map(struct dm_target *ti, struct bio *bio)
 {
 	linear_map_bio(ti, bio);
 
 	return DM_MAPIO_REMAPPED;
 }
-EXPORT_SYMBOL_GPL(dm_linear_map);
 
-void dm_linear_status(struct dm_target *ti, status_type_t type,
+static void linear_status(struct dm_target *ti, status_type_t type,
 			  unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct linear_c *lc = (struct linear_c *) ti->private;
@@ -118,9 +115,8 @@ void dm_linear_status(struct dm_target *ti, status_type_t type,
 		break;
 	}
 }
-EXPORT_SYMBOL_GPL(dm_linear_status);
 
-int dm_linear_prepare_ioctl(struct dm_target *ti,
+static int linear_prepare_ioctl(struct dm_target *ti,
 		struct block_device **bdev, fmode_t *mode)
 {
 	struct linear_c *lc = (struct linear_c *) ti->private;
@@ -136,27 +132,25 @@ int dm_linear_prepare_ioctl(struct dm_target *ti,
 		return 1;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dm_linear_prepare_ioctl);
 
-int dm_linear_iterate_devices(struct dm_target *ti,
+static int linear_iterate_devices(struct dm_target *ti,
 				  iterate_devices_callout_fn fn, void *data)
 {
 	struct linear_c *lc = ti->private;
 
 	return fn(ti, lc->dev, lc->start, ti->len, data);
 }
-EXPORT_SYMBOL_GPL(dm_linear_iterate_devices);
 
 static struct target_type linear_target = {
 	.name   = "linear",
 	.version = {1, 2, 1},
 	.module = THIS_MODULE,
-	.ctr    = dm_linear_ctr,
-	.dtr    = dm_linear_dtr,
-	.map    = dm_linear_map,
-	.status = dm_linear_status,
-	.prepare_ioctl  = dm_linear_prepare_ioctl,
-	.iterate_devices = dm_linear_iterate_devices,
+	.ctr    = linear_ctr,
+	.dtr    = linear_dtr,
+	.map    = linear_map,
+	.status = linear_status,
+	.prepare_ioctl = linear_prepare_ioctl,
+	.iterate_devices = linear_iterate_devices,
 };
 
 int __init dm_linear_init(void)

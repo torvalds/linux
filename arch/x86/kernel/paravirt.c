@@ -55,12 +55,12 @@ asm (".pushsection .entry.text, \"ax\"\n"
      ".popsection");
 
 /* identity function, which can be inlined */
-u32 notrace _paravirt_ident_32(u32 x)
+u32 _paravirt_ident_32(u32 x)
 {
 	return x;
 }
 
-u64 notrace _paravirt_ident_64(u64 x)
+u64 _paravirt_ident_64(u64 x)
 {
 	return x;
 }
@@ -97,12 +97,10 @@ unsigned paravirt_patch_call(void *insnbuf,
 	struct branch *b = insnbuf;
 	unsigned long delta = (unsigned long)target - (addr+5);
 
-	if (len < 5) {
-#ifdef CONFIG_RETPOLINE
-		WARN_ONCE("Failing to patch indirect CALL in %ps\n", (void *)addr);
-#endif
+	if (tgt_clobbers & ~site_clobbers)
+		return len;	/* target would clobber too much for this site */
+	if (len < 5)
 		return len;	/* call too long for patch site */
-	}
 
 	b->opcode = 0xe8; /* call */
 	b->delta = delta;
@@ -117,12 +115,8 @@ unsigned paravirt_patch_jmp(void *insnbuf, const void *target,
 	struct branch *b = insnbuf;
 	unsigned long delta = (unsigned long)target - (addr+5);
 
-	if (len < 5) {
-#ifdef CONFIG_RETPOLINE
-		WARN_ONCE("Failing to patch indirect JMP in %ps\n", (void *)addr);
-#endif
+	if (len < 5)
 		return len;	/* call too long for patch site */
-	}
 
 	b->opcode = 0xe9;	/* jmp */
 	b->delta = delta;

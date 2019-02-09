@@ -33,7 +33,6 @@
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
-#include <drm/drm_cache.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
@@ -262,13 +261,6 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 				       AMDGPU_GEM_DOMAIN_OA);
 
 	bo->flags = flags;
-
-	/* For architectures that don't support WC memory,
-	 * mask out the WC flag from the BO
-	 */
-	if (!drm_arch_can_wc_memory())
-		bo->flags &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
-
 	amdgpu_fill_placement_to_bo(bo, placement);
 	/* Kernel allocation are uninterruptible */
 	r = ttm_bo_init(&adev->mman.bdev, &bo->tbo, size, type,
@@ -407,8 +399,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		}
 		if (fpfn > bo->placements[i].fpfn)
 			bo->placements[i].fpfn = fpfn;
-		if (!bo->placements[i].lpfn ||
-		    (lpfn && lpfn < bo->placements[i].lpfn))
+		if (lpfn && lpfn < bo->placements[i].lpfn)
 			bo->placements[i].lpfn = lpfn;
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 	}
@@ -492,10 +483,6 @@ void amdgpu_bo_force_delete(struct amdgpu_device *adev)
 
 int amdgpu_bo_init(struct amdgpu_device *adev)
 {
-	/* reserve PAT memory space to WC for VRAM */
-	arch_io_reserve_memtype_wc(adev->mc.aper_base,
-				   adev->mc.aper_size);
-
 	/* Add an MTRR for the VRAM */
 	adev->mc.vram_mtrr = arch_phys_wc_add(adev->mc.aper_base,
 					      adev->mc.aper_size);
@@ -511,7 +498,6 @@ void amdgpu_bo_fini(struct amdgpu_device *adev)
 {
 	amdgpu_ttm_fini(adev);
 	arch_phys_wc_del(adev->mc.vram_mtrr);
-	arch_io_free_memtype_wc(adev->mc.aper_base, adev->mc.aper_size);
 }
 
 int amdgpu_bo_fbdev_mmap(struct amdgpu_bo *bo,
@@ -545,7 +531,6 @@ int amdgpu_bo_set_metadata (struct amdgpu_bo *bo, void *metadata,
 	if (!metadata_size) {
 		if (bo->metadata_size) {
 			kfree(bo->metadata);
-			bo->metadata = NULL;
 			bo->metadata_size = 0;
 		}
 		return 0;

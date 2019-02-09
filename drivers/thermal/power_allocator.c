@@ -155,15 +155,15 @@ static void estimate_pid_constants(struct thermal_zone_device *tz,
 	if (!temperature_threshold)
 		return;
 
-	if (!tz->tzp->is_k_po_available || force)
+	if (!tz->tzp->k_po || force)
 		tz->tzp->k_po = int_to_frac(sustainable_power) /
 			temperature_threshold;
 
-	if (!tz->tzp->is_k_pu_available || force)
+	if (!tz->tzp->k_pu || force)
 		tz->tzp->k_pu = int_to_frac(2 * sustainable_power) /
 			temperature_threshold;
 
-	if (!tz->tzp->is_k_i_available || force)
+	if (!tz->tzp->k_i || force)
 		tz->tzp->k_i = int_to_frac(10) / 1000;
 	/*
 	 * The default for k_d and integral_cutoff is 0, so we can
@@ -301,7 +301,7 @@ static void divvy_up_power(u32 *req_power, u32 *max_power, int num_actors,
 	capped_extra_power = 0;
 	extra_power = 0;
 	for (i = 0; i < num_actors; i++) {
-		u64 req_range = (u64)req_power[i] * power_range;
+		u64 req_range = req_power[i] * power_range;
 
 		granted_power[i] = DIV_ROUND_CLOSEST_ULL(req_range,
 							 total_req_power);
@@ -523,7 +523,6 @@ static void allow_maximum_power(struct thermal_zone_device *tz)
 	struct thermal_instance *instance;
 	struct power_allocator_params *params = tz->governor_data;
 
-	mutex_lock(&tz->lock);
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if ((instance->trip != params->trip_max_desired_temperature) ||
 		    (!cdev_is_power_actor(instance->cdev)))
@@ -533,7 +532,6 @@ static void allow_maximum_power(struct thermal_zone_device *tz)
 		instance->cdev->updated = false;
 		thermal_cdev_update(instance->cdev);
 	}
-	mutex_unlock(&tz->lock);
 }
 
 /**

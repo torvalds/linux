@@ -99,7 +99,6 @@ nvbios_acpi_fast = {
 	.init = acpi_init,
 	.read = acpi_read_fast,
 	.rw = false,
-	.require_checksum = true,
 };
 
 const struct nvbios_source

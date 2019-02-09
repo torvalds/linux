@@ -283,8 +283,7 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	int size = 0;
-	int status;
-	u32 expected;
+	int expected, status;
 
 	if (count < TPM_HEADER_SIZE) {
 		size = -EIO;
@@ -294,12 +293,12 @@ static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	/* read first 10 bytes, including tag, paramsize, and result */
 	if ((size =
 	     recv_data(chip, buf, TPM_HEADER_SIZE)) < TPM_HEADER_SIZE) {
-		dev_err(&chip->dev, "Unable to read header\n");
+		dev_err(chip->pdev, "Unable to read header\n");
 		goto out;
 	}
 
 	expected = be32_to_cpu(*(__be32 *) (buf + 2));
-	if (expected > count || expected < TPM_HEADER_SIZE) {
+	if (expected > count) {
 		size = -EIO;
 		goto out;
 	}
@@ -307,7 +306,7 @@ static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	if ((size +=
 	     recv_data(chip, &buf[TPM_HEADER_SIZE],
 		       expected - TPM_HEADER_SIZE)) < expected) {
-		dev_err(&chip->dev, "Unable to read remainder of result\n");
+		dev_err(chip->pdev, "Unable to read remainder of result\n");
 		size = -ETIME;
 		goto out;
 	}
@@ -316,7 +315,7 @@ static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 			  &chip->vendor.int_queue, false);
 	status = tpm_tis_status(chip);
 	if (status & TPM_STS_DATA_AVAIL) {	/* retry? */
-		dev_err(&chip->dev, "Error left over data\n");
+		dev_err(chip->pdev, "Error left over data\n");
 		size = -EIO;
 		goto out;
 	}
@@ -402,7 +401,7 @@ static void disable_interrupts(struct tpm_chip *chip)
 	iowrite32(intmask,
 		  chip->vendor.iobase +
 		  TPM_INT_ENABLE(chip->vendor.locality));
-	devm_free_irq(&chip->dev, chip->vendor.irq, chip);
+	free_irq(chip->vendor.irq, chip);
 	chip->vendor.irq = 0;
 }
 
@@ -464,7 +463,7 @@ static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		msleep(1);
 	if (!priv->irq_tested) {
 		disable_interrupts(chip);
-		dev_err(&chip->dev,
+		dev_err(chip->pdev,
 			FW_BUG "TPM interrupt not working, polling instead\n");
 	}
 	priv->irq_tested = true;
@@ -534,7 +533,7 @@ static int probe_itpm(struct tpm_chip *chip)
 
 	rc = tpm_tis_send_data(chip, cmd_getticks, len);
 	if (rc == 0) {
-		dev_info(&chip->dev, "Detected an iTPM.\n");
+		dev_info(chip->pdev, "Detected an iTPM.\n");
 		rc = 1;
 	} else
 		rc = -EFAULT;
@@ -767,7 +766,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 			if (devm_request_irq
 			    (dev, i, tis_int_probe, IRQF_SHARED,
 			     chip->devname, chip) != 0) {
-				dev_info(&chip->dev,
+				dev_info(chip->pdev,
 					 "Unable to request irq: %d for probe\n",
 					 i);
 				continue;
@@ -819,7 +818,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 		if (devm_request_irq
 		    (dev, chip->vendor.irq, tis_int_handler, IRQF_SHARED,
 		     chip->devname, chip) != 0) {
-			dev_info(&chip->dev,
+			dev_info(chip->pdev,
 				 "Unable to request irq: %d for use\n",
 				 chip->vendor.irq);
 			chip->vendor.irq = 0;

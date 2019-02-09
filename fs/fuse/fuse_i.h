@@ -22,7 +22,6 @@
 #include <linux/rbtree.h>
 #include <linux/poll.h>
 #include <linux/workqueue.h>
-#include <linux/kref.h>
 
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
@@ -244,7 +243,6 @@ struct fuse_args {
 
 /** The request IO state (for asynchronous processing) */
 struct fuse_io_priv {
-	struct kref refcnt;
 	int async;
 	spinlock_t lock;
 	unsigned reqs;
@@ -252,19 +250,11 @@ struct fuse_io_priv {
 	size_t size;
 	__u64 offset;
 	bool write;
-	bool should_dirty;
 	int err;
 	struct kiocb *iocb;
 	struct file *file;
 	struct completion *done;
 };
-
-#define FUSE_IO_PRIV_SYNC(f) \
-{					\
-	.refcnt = { ATOMIC_INIT(1) },	\
-	.async = 0,			\
-	.file = f,			\
-}
 
 /**
  * Request flags
@@ -372,9 +362,6 @@ struct fuse_req {
 
 	/** Inode used in the request or NULL */
 	struct inode *inode;
-
-	/** Path used for completing d_canonical_path */
-	struct path *canonical_path;
 
 	/** AIO control block */
 	struct fuse_io_priv *io;
@@ -846,7 +833,6 @@ void fuse_request_send_background_locked(struct fuse_conn *fc,
 
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc);
-void fuse_wait_aborted(struct fuse_conn *fc);
 
 /**
  * Invalidate inode attributes

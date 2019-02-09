@@ -45,6 +45,17 @@ static int __init setup_noreplace_smp(char *str)
 }
 __setup("noreplace-smp", setup_noreplace_smp);
 
+#ifdef CONFIG_PARAVIRT
+static int __initdata_or_module noreplace_paravirt = 0;
+
+static int __init setup_noreplace_paravirt(char *str)
+{
+	noreplace_paravirt = 1;
+	return 1;
+}
+__setup("noreplace-paravirt", setup_noreplace_paravirt);
+#endif
+
 #define DPRINTK(fmt, args...)						\
 do {									\
 	if (debug_alternative)						\
@@ -328,12 +339,9 @@ done:
 static void __init_or_module optimize_nops(struct alt_instr *a, u8 *instr)
 {
 	unsigned long flags;
-	int i;
 
-	for (i = 0; i < a->padlen; i++) {
-		if (instr[i] != 0x90)
-			return;
-	}
+	if (instr[0] != 0x90)
+		return;
 
 	local_irq_save(flags);
 	add_nops(instr + (a->instrlen - a->padlen), a->padlen);
@@ -575,6 +583,9 @@ void __init_or_module apply_paravirt(struct paravirt_patch_site *start,
 {
 	struct paravirt_patch_site *p;
 	char insnbuf[MAX_PATCH_LEN];
+
+	if (noreplace_paravirt)
+		return;
 
 	for (p = start; p < end; p++) {
 		unsigned int used;

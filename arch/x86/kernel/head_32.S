@@ -19,7 +19,7 @@
 #include <asm/setup.h>
 #include <asm/processor-flags.h>
 #include <asm/msr-index.h>
-#include <asm/cpufeatures.h>
+#include <asm/cpufeature.h>
 #include <asm/percpu.h>
 #include <asm/nops.h>
 #include <asm/bootparam.h>
@@ -571,7 +571,7 @@ early_idt_handler_common:
 	movl %eax,%ds
 	movl %eax,%es
 
-	cmpw $(__KERNEL_CS),32(%esp)
+	cmpl $(__KERNEL_CS),32(%esp)
 	jne 10f
 
 	leal 28(%esp),%eax	# Pointer to %eip
@@ -669,17 +669,14 @@ __PAGE_ALIGNED_BSS
 initial_pg_pmd:
 	.fill 1024*KPMDS,4,0
 #else
-.globl initial_page_table
-initial_page_table:
+ENTRY(initial_page_table)
 	.fill 1024,4,0
 #endif
 initial_pg_fixmap:
 	.fill 1024,4,0
-.globl empty_zero_page
-empty_zero_page:
+ENTRY(empty_zero_page)
 	.fill 4096,1,0
-.globl swapper_pg_dir
-swapper_pg_dir:
+ENTRY(swapper_pg_dir)
 	.fill 1024,4,0
 
 /*

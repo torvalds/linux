@@ -382,7 +382,6 @@ static int hhf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	struct hhf_sched_data *q = qdisc_priv(sch);
 	enum wdrr_bucket_idx idx;
 	struct wdrr_bucket *bucket;
-	unsigned int prev_backlog;
 
 	idx = hhf_classify(skb, sch);
 
@@ -410,7 +409,6 @@ static int hhf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (++sch->q.qlen <= sch->limit)
 		return NET_XMIT_SUCCESS;
 
-	prev_backlog = sch->qstats.backlog;
 	q->drop_overlimit++;
 	/* Return Congestion Notification only if we dropped a packet from this
 	 * bucket.
@@ -419,7 +417,7 @@ static int hhf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return NET_XMIT_CN;
 
 	/* As we dropped a packet, better let upper stack know this. */
-	qdisc_tree_reduce_backlog(sch, 1, prev_backlog - sch->qstats.backlog);
+	qdisc_tree_decrease_qlen(sch, 1);
 	return NET_XMIT_SUCCESS;
 }
 
@@ -501,9 +499,6 @@ static void hhf_destroy(struct Qdisc *sch)
 		hhf_free(q->hhf_valid_bits[i]);
 	}
 
-	if (!q->hh_flows)
-		return;
-
 	for (i = 0; i < HH_FLOWS_CNT; i++) {
 		struct hh_flow_state *flow, *next;
 		struct list_head *head = &q->hh_flows[i];
@@ -532,7 +527,7 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct hhf_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_HHF_MAX + 1];
-	unsigned int qlen, prev_backlog;
+	unsigned int qlen;
 	int err;
 	u64 non_hh_quantum;
 	u32 new_quantum = q->quantum;
@@ -582,14 +577,12 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 	}
 
 	qlen = sch->q.qlen;
-	prev_backlog = sch->qstats.backlog;
 	while (sch->q.qlen > sch->limit) {
 		struct sk_buff *skb = hhf_dequeue(sch);
 
 		kfree_skb(skb);
 	}
-	qdisc_tree_reduce_backlog(sch, qlen - sch->q.qlen,
-				  prev_backlog - sch->qstats.backlog);
+	qdisc_tree_decrease_qlen(sch, qlen - sch->q.qlen);
 
 	sch_tree_unlock(sch);
 	return 0;
@@ -639,9 +632,7 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
 			q->hhf_arrays[i] = hhf_zalloc(HHF_ARRAYS_LEN *
 						      sizeof(u32));
 			if (!q->hhf_arrays[i]) {
-				/* Note: hhf_destroy() will be called
-				 * by our caller.
-				 */
+				hhf_destroy(sch);
 				return -ENOMEM;
 			}
 		}
@@ -652,9 +643,7 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
 			q->hhf_valid_bits[i] = hhf_zalloc(HHF_ARRAYS_LEN /
 							  BITS_PER_BYTE);
 			if (!q->hhf_valid_bits[i]) {
-				/* Note: hhf_destroy() will be called
-				 * by our caller.
-				 */
+				hhf_destroy(sch);
 				return -ENOMEM;
 			}
 		}

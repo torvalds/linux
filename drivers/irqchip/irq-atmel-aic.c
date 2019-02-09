@@ -176,7 +176,6 @@ static int aic_irq_domain_xlate(struct irq_domain *d,
 {
 	struct irq_domain_chip_generic *dgc = d->gc;
 	struct irq_chip_generic *gc;
-	unsigned long flags;
 	unsigned smr;
 	int idx;
 	int ret;
@@ -195,12 +194,12 @@ static int aic_irq_domain_xlate(struct irq_domain *d,
 
 	gc = dgc->gc[idx];
 
-	irq_gc_lock_irqsave(gc, flags);
+	irq_gc_lock(gc);
 	smr = irq_reg_readl(gc, AT91_AIC_SMR(*out_hwirq));
 	ret = aic_common_set_priority(intspec[2], &smr);
 	if (!ret)
 		irq_reg_writel(gc, smr, AT91_AIC_SMR(*out_hwirq));
-	irq_gc_unlock_irqrestore(gc, flags);
+	irq_gc_unlock(gc);
 
 	return ret;
 }

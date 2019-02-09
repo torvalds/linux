@@ -1,6 +1,6 @@
 #include <linux/module.h>
 
-unsigned int notrace __bswapsi2(unsigned int u)
+unsigned int __bswapsi2(unsigned int u)
 {
 	return (((u) & 0xff000000) >> 24) |
 	       (((u) & 0x00ff0000) >>  8) |

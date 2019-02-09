@@ -72,21 +72,8 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 	int ret;
 
 	if (!(local->hw.flags & IEEE802154_HW_TX_OMIT_CKSUM)) {
-		struct sk_buff *nskb;
-		u16 crc;
+		u16 crc = crc_ccitt(0, skb->data, skb->len);
 
-		if (unlikely(skb_tailroom(skb) < IEEE802154_FCS_LEN)) {
-			nskb = skb_copy_expand(skb, 0, IEEE802154_FCS_LEN,
-					       GFP_ATOMIC);
-			if (likely(nskb)) {
-				consume_skb(skb);
-				skb = nskb;
-			} else {
-				goto err_tx;
-			}
-		}
-
-		crc = crc_ccitt(0, skb->data, skb->len);
 		put_unaligned_le16(crc, skb_put(skb, 2));
 	}
 

@@ -851,7 +851,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 			default:		/* unknown */
 				break;
 			}
-			offset = (cap >> 8) & 0xff;
+			temp = (cap >> 8) & 0xff;
 		}
 	}
 #endif

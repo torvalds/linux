@@ -523,10 +523,10 @@ static int __init amd_uncore_init(void)
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		goto fail_nodev;
 
-	if (!boot_cpu_has(X86_FEATURE_TOPOEXT))
+	if (!cpu_has_topoext)
 		goto fail_nodev;
 
-	if (boot_cpu_has(X86_FEATURE_PERFCTR_NB)) {
+	if (cpu_has_perfctr_nb) {
 		amd_uncore_nb = alloc_percpu(struct amd_uncore *);
 		if (!amd_uncore_nb) {
 			ret = -ENOMEM;
@@ -540,7 +540,7 @@ static int __init amd_uncore_init(void)
 		ret = 0;
 	}
 
-	if (boot_cpu_has(X86_FEATURE_PERFCTR_L2)) {
+	if (cpu_has_perfctr_l2) {
 		amd_uncore_l2 = alloc_percpu(struct amd_uncore *);
 		if (!amd_uncore_l2) {
 			ret = -ENOMEM;
@@ -583,11 +583,10 @@ fail_online:
 
 	/* amd_uncore_nb/l2 should have been freed by cleanup_cpu_online */
 	amd_uncore_nb = amd_uncore_l2 = NULL;
-
-	if (boot_cpu_has(X86_FEATURE_PERFCTR_L2))
+	if (cpu_has_perfctr_l2)
 		perf_pmu_unregister(&amd_l2_pmu);
 fail_l2:
-	if (boot_cpu_has(X86_FEATURE_PERFCTR_NB))
+	if (cpu_has_perfctr_nb)
 		perf_pmu_unregister(&amd_nb_pmu);
 	if (amd_uncore_l2)
 		free_percpu(amd_uncore_l2);

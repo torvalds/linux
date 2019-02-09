@@ -493,9 +493,9 @@ static void jack_update_power(struct hda_codec *codec,
 	if (!spec->num_pwrs)
 		return;
 
-	if (jack && jack->nid) {
-		stac_toggle_power_map(codec, jack->nid,
-				      snd_hda_jack_detect(codec, jack->nid),
+	if (jack && jack->tbl->nid) {
+		stac_toggle_power_map(codec, jack->tbl->nid,
+				      snd_hda_jack_detect(codec, jack->tbl->nid),
 				      true);
 		return;
 	}
@@ -1537,8 +1537,6 @@ static const struct snd_pci_quirk stac9200_fixup_tbl[] = {
 		      "Dell Inspiron 1501", STAC_9200_DELL_M26),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f6,
 		      "unknown Dell", STAC_9200_DELL_M26),
-	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0201,
-		      "Dell Latitude D430", STAC_9200_DELL_M22),
 	/* Panasonic */
 	SND_PCI_QUIRK(0x10f7, 0x8338, "Panasonic CF-74", STAC_9200_PANASONIC),
 	/* Gateway machines needs EAPD to be set on resume */

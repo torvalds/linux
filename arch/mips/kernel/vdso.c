@@ -14,14 +14,12 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/irqchip/mips-gic.h>
-#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/timekeeper_internal.h>
 
 #include <asm/abi.h>
-#include <asm/page.h>
 #include <asm/vdso.h>
 
 /* Kernel-provided data used by the VDSO. */
@@ -41,16 +39,16 @@ static struct vm_special_mapping vdso_vvar_mapping = {
 static void __init init_vdso_image(struct mips_vdso_image *image)
 {
 	unsigned long num_pages, i;
-	unsigned long data_pfn;
 
 	BUG_ON(!PAGE_ALIGNED(image->data));
 	BUG_ON(!PAGE_ALIGNED(image->size));
 
 	num_pages = image->size / PAGE_SIZE;
 
-	data_pfn = __phys_to_pfn(__pa_symbol(image->data));
-	for (i = 0; i < num_pages; i++)
-		image->mapping.pages[i] = pfn_to_page(data_pfn + i);
+	for (i = 0; i < num_pages; i++) {
+		image->mapping.pages[i] =
+			virt_to_page(image->data + (i * PAGE_SIZE));
+	}
 }
 
 static int __init init_vdso(void)
@@ -108,16 +106,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	down_write(&mm->mmap_sem);
 
-	/* Map delay slot emulation page */
-	base = mmap_region(NULL, STACK_TOP, PAGE_SIZE,
-			   VM_READ|VM_WRITE|VM_EXEC|
-			   VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-			   0);
-	if (IS_ERR_VALUE(base)) {
-		ret = base;
-		goto out;
-	}
-
 	/*
 	 * Determine total area size. This includes the VDSO data itself, the
 	 * data page, and the GIC user page if present. Always create a mapping
@@ -130,28 +118,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	vvar_size = gic_size + PAGE_SIZE;
 	size = vvar_size + image->size;
 
-	/*
-	 * Find a region that's large enough for us to perform the
-	 * colour-matching alignment below.
-	 */
-	if (cpu_has_dc_aliases)
-		size += shm_align_mask + 1;
-
 	base = get_unmapped_area(NULL, 0, size, 0, 0);
 	if (IS_ERR_VALUE(base)) {
 		ret = base;
 		goto out;
-	}
-
-	/*
-	 * If we suffer from dcache aliasing, ensure that the VDSO data page
-	 * mapping is coloured the same as the kernel's mapping of that memory.
-	 * This ensures that when the kernel updates the VDSO data userland
-	 * will observe it without requiring cache invalidations.
-	 */
-	if (cpu_has_dc_aliases) {
-		base = __ALIGN_MASK(base, shm_align_mask);
-		base += ((unsigned long)&vdso_data - gic_size) & shm_align_mask;
 	}
 
 	data_addr = base + gic_size;

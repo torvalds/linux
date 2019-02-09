@@ -367,7 +367,7 @@ static struct drm_plane *create_primary_plane(struct drm_device *dev)
 				       &drm_primary_helper_funcs,
 				       safe_modeset_formats,
 				       ARRAY_SIZE(safe_modeset_formats),
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
+				       DRM_PLANE_TYPE_PRIMARY);
 	if (ret) {
 		kfree(primary);
 		primary = NULL;
@@ -394,8 +394,7 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	struct drm_plane *primary;
 
 	primary = create_primary_plane(dev);
-	return drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs,
-					 NULL);
+	return drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs);
 }
 EXPORT_SYMBOL(drm_crtc_init);
 

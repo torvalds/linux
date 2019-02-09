@@ -34,15 +34,7 @@
 #include <linux/poll.h>
 #include <linux/reservation.h>
 
-#include <uapi/linux/dma-buf.h>
-
 static inline int is_dma_buf_file(struct file *);
-
-struct dma_buf_callback {
-	struct list_head list;
-	void (*callback)(void *);
-	void *data;
-};
 
 struct dma_buf_list {
 	struct list_head head;
@@ -54,7 +46,6 @@ static struct dma_buf_list db_list;
 static int dma_buf_release(struct inode *inode, struct file *file)
 {
 	struct dma_buf *dmabuf;
-	struct dma_buf_callback *cb, *tmp;
 
 	if (!is_dma_buf_file(file))
 		return -EINVAL;
@@ -72,13 +63,6 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 	 * dma-buf while still having pending operation to the buffer.
 	 */
 	BUG_ON(dmabuf->cb_shared.active || dmabuf->cb_excl.active);
-
-	list_for_each_entry_safe(cb, tmp, &dmabuf->release_callbacks, list) {
-		if (cb->callback)
-			cb->callback(cb->data);
-		list_del(&cb->list);
-		kfree(cb);
-	}
 
 	dmabuf->ops->release(dmabuf);
 
@@ -267,59 +251,11 @@ out:
 	return events;
 }
 
-static long dma_buf_ioctl(struct file *file,
-			  unsigned int cmd, unsigned long arg)
-{
-	struct dma_buf *dmabuf;
-	struct dma_buf_sync sync;
-	enum dma_data_direction direction;
-
-	dmabuf = file->private_data;
-
-	switch (cmd) {
-	case DMA_BUF_IOCTL_SYNC:
-		if (copy_from_user(&sync, (void __user *) arg, sizeof(sync)))
-			return -EFAULT;
-
-		if (sync.flags & ~DMA_BUF_SYNC_VALID_FLAGS_MASK)
-			return -EINVAL;
-
-		switch (sync.flags & DMA_BUF_SYNC_RW) {
-		case DMA_BUF_SYNC_READ:
-			direction = DMA_FROM_DEVICE;
-			break;
-		case DMA_BUF_SYNC_WRITE:
-			direction = DMA_TO_DEVICE;
-			break;
-		case DMA_BUF_SYNC_RW:
-			direction = DMA_BIDIRECTIONAL;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		if (sync.flags & DMA_BUF_SYNC_END)
-			dma_buf_end_cpu_access(dmabuf, 0,
-					       dmabuf->size, direction);
-		else
-			dma_buf_begin_cpu_access(dmabuf, 0, dmabuf->size,
-						 direction);
-
-		return 0;
-	default:
-		return -ENOTTY;
-	}
-}
-
 static const struct file_operations dma_buf_fops = {
 	.release	= dma_buf_release,
 	.mmap		= dma_buf_mmap_internal,
 	.llseek		= dma_buf_llseek,
 	.poll		= dma_buf_poll,
-	.unlocked_ioctl	= dma_buf_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= dma_buf_ioctl,
-#endif
 };
 
 /*
@@ -328,37 +264,6 @@ static const struct file_operations dma_buf_fops = {
 static inline int is_dma_buf_file(struct file *file)
 {
 	return file->f_op == &dma_buf_fops;
-}
-
-int dma_buf_set_release_callback(struct dma_buf *dmabuf,
-				 void (*callback)(void *), void *data)
-{
-	struct dma_buf_callback *cb;
-
-	if (WARN_ON(dma_buf_get_release_callback_data(dmabuf, callback)))
-		return -EINVAL;
-
-	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
-	if (!cb)
-		return -ENOMEM;
-	cb->callback = callback;
-	cb->data = data;
-	list_add_tail(&cb->list, &dmabuf->release_callbacks);
-
-	return 0;
-}
-
-void *dma_buf_get_release_callback_data(struct dma_buf *dmabuf,
-					void (*callback)(void *))
-{
-	struct dma_buf_callback *cb, *tmp;
-
-	list_for_each_entry_safe(cb, tmp, &dmabuf->release_callbacks, list) {
-		if (cb->callback == callback)
-			return cb->data;
-	}
-
-	return NULL;
 }
 
 /**
@@ -436,7 +341,6 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 
 	mutex_init(&dmabuf->lock);
 	INIT_LIST_HEAD(&dmabuf->attachments);
-	INIT_LIST_HEAD(&dmabuf->release_callbacks);
 
 	mutex_lock(&db_list.lock);
 	list_add(&dmabuf->list_node, &db_list.head);

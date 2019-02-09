@@ -272,7 +272,7 @@ struct drm_plane *sti_cursor_create(struct drm_device *drm_dev,
 				       &sti_plane_helpers_funcs,
 				       cursor_supported_formats,
 				       ARRAY_SIZE(cursor_supported_formats),
-				       DRM_PLANE_TYPE_CURSOR, NULL);
+				       DRM_PLANE_TYPE_CURSOR);
 	if (res) {
 		DRM_ERROR("Failed to initialize universal plane\n");
 		goto err_plane;

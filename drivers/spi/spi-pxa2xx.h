@@ -38,7 +38,7 @@ struct driver_data {
 
 	/* SSP register addresses */
 	void __iomem *ioaddr;
-	phys_addr_t ssdr_physical;
+	u32 ssdr_physical;
 
 	/* SSP masks*/
 	u32 dma_cr1;

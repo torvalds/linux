@@ -1571,7 +1571,6 @@ static int atmel_spi_probe(struct platform_device *pdev)
 
 	as->use_cs_gpios = true;
 	if (atmel_spi_is_v2(as) &&
-	    pdev->dev.of_node &&
 	    !of_get_property(pdev->dev.of_node, "cs-gpios", NULL)) {
 		as->use_cs_gpios = false;
 		master->num_chipselect = 4;
@@ -1669,12 +1668,12 @@ static int atmel_spi_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	/* reset the hardware and block queue progress */
+	spin_lock_irq(&as->lock);
 	if (as->use_dma) {
 		atmel_spi_stop_dma(as);
 		atmel_spi_release_dma(as);
 	}
 
-	spin_lock_irq(&as->lock);
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	spi_readl(as, SR);

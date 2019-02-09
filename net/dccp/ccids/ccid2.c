@@ -126,16 +126,6 @@ static void ccid2_change_l_seq_window(struct sock *sk, u64 val)
 						  DCCPF_SEQ_WMAX));
 }
 
-static void dccp_tasklet_schedule(struct sock *sk)
-{
-	struct tasklet_struct *t = &dccp_sk(sk)->dccps_xmitlet;
-
-	if (!test_and_set_bit(TASKLET_STATE_SCHED, &t->state)) {
-		sock_hold(sk);
-		__tasklet_schedule(t);
-	}
-}
-
 static void ccid2_hc_tx_rto_expire(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
@@ -149,9 +139,6 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	}
 
 	ccid2_pr_debug("RTO_EXPIRE\n");
-
-	if (sk->sk_state == DCCP_CLOSED)
-		goto out;
 
 	/* back-off timer */
 	hc->tx_rto <<= 1;
@@ -176,7 +163,7 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 
 	/* if we were blocked before, we may now send cwnd=1 packet */
 	if (sender_was_blocked)
-		dccp_tasklet_schedule(sk);
+		tasklet_schedule(&dccp_sk(sk)->dccps_xmitlet);
 	/* restart backed-off timer */
 	sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
 out:
@@ -228,16 +215,14 @@ static void ccid2_cwnd_restart(struct sock *sk, const u32 now)
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 	u32 cwnd = hc->tx_cwnd, restart_cwnd,
 	    iwnd = rfc3390_bytes_to_packets(dccp_sk(sk)->dccps_mss_cache);
-	s32 delta = now - hc->tx_lsndtime;
 
 	hc->tx_ssthresh = max(hc->tx_ssthresh, (cwnd >> 1) + (cwnd >> 2));
 
 	/* don't reduce cwnd below the initial window (IW) */
 	restart_cwnd = min(cwnd, iwnd);
-
-	while ((delta -= hc->tx_rto) >= 0 && cwnd > restart_cwnd)
-		cwnd >>= 1;
+	cwnd >>= (now - hc->tx_lsndtime) / hc->tx_rto;
 	hc->tx_cwnd = max(cwnd, restart_cwnd);
+
 	hc->tx_cwnd_stamp = now;
 	hc->tx_cwnd_used  = 0;
 
@@ -718,7 +703,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 done:
 	/* check if incoming Acks allow pending packets to be sent */
 	if (sender_was_blocked && !ccid2_cwnd_network_limited(hc))
-		dccp_tasklet_schedule(sk);
+		tasklet_schedule(&dccp_sk(sk)->dccps_xmitlet);
 	dccp_ackvec_parsed_cleanup(&hc->tx_av_chunks);
 }
 
@@ -764,7 +749,6 @@ static void ccid2_hc_tx_exit(struct sock *sk)
 	for (i = 0; i < hc->tx_seqbufc; i++)
 		kfree(hc->tx_seqbuf[i]);
 	hc->tx_seqbufc = 0;
-	dccp_ackvec_parsed_cleanup(&hc->tx_av_chunks);
 }
 
 static void ccid2_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)

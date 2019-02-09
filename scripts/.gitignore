@@ -7,8 +7,6 @@ pnmtologo
 unifdef
 ihex2fw
 recordmcount
-resource_tool
-mkkrnlimg
 docproc
 check-lc_ctype
 sortextable

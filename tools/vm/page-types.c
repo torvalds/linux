@@ -150,6 +150,12 @@ static const char * const page_flag_names[] = {
 };
 
 
+static const char * const debugfs_known_mountpoints[] = {
+	"/sys/kernel/debug",
+	"/debug",
+	0,
+};
+
 /*
  * data structures
  */

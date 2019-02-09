@@ -142,10 +142,8 @@ static struct snd_seq_queue *queue_new(int owner, int locked)
 static void queue_delete(struct snd_seq_queue *q)
 {
 	/* stop and release the timer */
-	mutex_lock(&q->timer_mutex);
 	snd_seq_timer_stop(q->timer);
 	snd_seq_timer_close(q);
-	mutex_unlock(&q->timer_mutex);
 	/* wait until access free */
 	snd_use_lock_sync(&q->use_lock);
 	/* release resources... */
@@ -181,29 +179,23 @@ void __exit snd_seq_queues_delete(void)
 	}
 }
 
-static void queue_use(struct snd_seq_queue *queue, int client, int use);
-
 /* allocate a new queue -
- * return pointer to new queue or ERR_PTR(-errno) for error
- * The new queue's use_lock is set to 1. It is the caller's responsibility to
- * call snd_use_lock_free(&q->use_lock).
+ * return queue index value or negative value for error
  */
-struct snd_seq_queue *snd_seq_queue_alloc(int client, int locked, unsigned int info_flags)
+int snd_seq_queue_alloc(int client, int locked, unsigned int info_flags)
 {
 	struct snd_seq_queue *q;
 
 	q = queue_new(client, locked);
 	if (q == NULL)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	q->info_flags = info_flags;
-	queue_use(q, client, 1);
-	snd_use_lock_use(&q->use_lock);
 	if (queue_list_add(q) < 0) {
-		snd_use_lock_free(&q->use_lock);
 		queue_delete(q);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
-	return q;
+	snd_seq_queue_use(q->queue, client, 1); /* use this queue */
+	return q->queue;
 }
 
 /* delete a queue - queue must be owned by the client */
@@ -277,20 +269,30 @@ void snd_seq_check_queue(struct snd_seq_queue *q, int atomic, int hop)
 
       __again:
 	/* Process tick queue... */
-	for (;;) {
-		cell = snd_seq_prioq_cell_out(q->tickq,
-					      &q->timer->tick.cur_tick);
-		if (!cell)
+	while ((cell = snd_seq_prioq_cell_peek(q->tickq)) != NULL) {
+		if (snd_seq_compare_tick_time(&q->timer->tick.cur_tick,
+					      &cell->event.time.tick)) {
+			cell = snd_seq_prioq_cell_out(q->tickq);
+			if (cell)
+				snd_seq_dispatch_event(cell, atomic, hop);
+		} else {
+			/* event remains in the queue */
 			break;
-		snd_seq_dispatch_event(cell, atomic, hop);
+		}
 	}
 
+
 	/* Process time queue... */
-	for (;;) {
-		cell = snd_seq_prioq_cell_out(q->timeq, &q->timer->cur_time);
-		if (!cell)
+	while ((cell = snd_seq_prioq_cell_peek(q->timeq)) != NULL) {
+		if (snd_seq_compare_real_time(&q->timer->cur_time,
+					      &cell->event.time.time)) {
+			cell = snd_seq_prioq_cell_out(q->timeq);
+			if (cell)
+				snd_seq_dispatch_event(cell, atomic, hop);
+		} else {
+			/* event remains in the queue */
 			break;
-		snd_seq_dispatch_event(cell, atomic, hop);
+		}
 	}
 
 	/* free lock */
@@ -498,9 +500,19 @@ int snd_seq_queue_timer_set_tempo(int queueid, int client,
 	return result;
 }
 
-/* use or unuse this queue */
-static void queue_use(struct snd_seq_queue *queue, int client, int use)
+
+/* use or unuse this queue -
+ * if it is the first client, starts the timer.
+ * if it is not longer used by any clients, stop the timer.
+ */
+int snd_seq_queue_use(int queueid, int client, int use)
 {
+	struct snd_seq_queue *queue;
+
+	queue = queueptr(queueid);
+	if (queue == NULL)
+		return -EINVAL;
+	mutex_lock(&queue->timer_mutex);
 	if (use) {
 		if (!test_and_set_bit(client, queue->clients_bitmap))
 			queue->clients++;
@@ -515,21 +527,6 @@ static void queue_use(struct snd_seq_queue *queue, int client, int use)
 	} else {
 		snd_seq_timer_close(queue);
 	}
-}
-
-/* use or unuse this queue -
- * if it is the first client, starts the timer.
- * if it is not longer used by any clients, stop the timer.
- */
-int snd_seq_queue_use(int queueid, int client, int use)
-{
-	struct snd_seq_queue *queue;
-
-	queue = queueptr(queueid);
-	if (queue == NULL)
-		return -EINVAL;
-	mutex_lock(&queue->timer_mutex);
-	queue_use(queue, client, use);
 	mutex_unlock(&queue->timer_mutex);
 	queuefree(queue);
 	return 0;

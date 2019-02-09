@@ -86,12 +86,6 @@ source "net/netlabel/Kconfig"
 
 endif # if INET
 
-config ANDROID_PARANOID_NETWORK
-	bool "Only allow certain groups to create sockets"
-	default y
-	help
-		none
-
 config NETWORK_SECMARK
 	bool "Security Marking"
 	help
@@ -389,15 +383,8 @@ config LWTUNNEL
 	  weight tunnel endpoint. Tunnel encapsulation parameters are stored
 	  with light weight tunnel state associated with fib routes.
 
-config DST_CACHE
-	bool
-	default n
-
 endif   # if NET
 
 # Used by archs to tell that they support BPF_JIT
 config HAVE_BPF_JIT
-	bool
-
-config HAVE_EBPF_JIT
 	bool

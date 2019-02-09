@@ -26,7 +26,6 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
-#include <linux/acpi.h>
 
 enum {
 	FB_GET_WIDTH        = 0x00,
@@ -38,57 +37,10 @@ enum {
 	FB_SET_BLANK        = 0x18,
 	FB_GET_PHYS_WIDTH   = 0x1c,
 	FB_GET_PHYS_HEIGHT  = 0x20,
-	FB_GET_FORMAT       = 0x24,
 
 	FB_INT_VSYNC             = 1U << 0,
 	FB_INT_BASE_UPDATE_DONE  = 1U << 1
 };
-
-/* These values *must* match the platform definitions found under
- * <system/graphics.h>
- */
-enum {
-	HAL_PIXEL_FORMAT_RGBA_8888          = 1,
-	HAL_PIXEL_FORMAT_RGBX_8888          = 2,
-	HAL_PIXEL_FORMAT_RGB_888            = 3,
-	HAL_PIXEL_FORMAT_RGB_565            = 4,
-	HAL_PIXEL_FORMAT_BGRA_8888          = 5,
-};
-
-struct framebuffer_config {
-	u8 bytes_per_pixel;
-	u8 red_offset;
-	u8 red_length;
-	u8 green_offset;
-	u8 green_length;
-	u8 blue_offset;
-	u8 blue_length;
-	u8 transp_offset;
-	u8 transp_length;
-};
-
-enum {
-	CHAR_BIT = 8
-};
-
-static const struct framebuffer_config *get_fb_config_from_format(int format)
-{
-	static const struct framebuffer_config fb_configs[] = {
-		{ 0, 0,  0, 0, 0, 0,  0, 0,  0 }, /* Invalid, assume RGB_565 */
-		{ 4, 0,  8, 8, 8, 16, 8, 24, 8 }, /* HAL_PIXEL_FORMAT_RGBA_8888 */
-		{ 4, 0,  8, 8, 8, 16, 8, 0,  0 }, /* HAL_PIXEL_FORMAT_RGBX_8888 */
-		{ 3, 0,  8, 8, 8, 16, 8, 0,  0 }, /* HAL_PIXEL_FORMAT_RGB_888 */
-		{ 2, 11, 5, 5, 6, 0,  5, 0,  0 }, /* HAL_PIXEL_FORMAT_RGB_565 */
-		{ 4, 16, 8, 8, 8, 0,  8, 24, 8 }, /* HAL_PIXEL_FORMAT_BGRA_8888 */
-	};
-
-	if (format > 0 &&
-		format < sizeof(fb_configs) / sizeof(struct framebuffer_config)) {
-		return &fb_configs[format];
-	}
-
-	return &fb_configs[HAL_PIXEL_FORMAT_RGB_565]; /* legacy default */
-}
 
 struct goldfish_fb {
 	void __iomem *reg_base;
@@ -172,10 +124,8 @@ static int goldfish_fb_check_var(struct fb_var_screeninfo *var,
 static int goldfish_fb_set_par(struct fb_info *info)
 {
 	struct goldfish_fb *fb = container_of(info, struct goldfish_fb, fb);
-
 	if (fb->rotation != fb->fb.var.rotate) {
-		info->fix.line_length = info->var.xres *
-			(fb->fb.var.bits_per_pixel / CHAR_BIT);
+		info->fix.line_length = info->var.xres * 2;
 		fb->rotation = fb->fb.var.rotate;
 		writel(fb->rotation, fb->reg_base + FB_SET_ROTATION);
 	}
@@ -192,24 +142,19 @@ static int goldfish_fb_pan_display(struct fb_var_screeninfo *var,
 
 	spin_lock_irqsave(&fb->lock, irq_flags);
 	base_update_count = fb->base_update_count;
-	writel(fb->fb.fix.smem_start +
-			fb->fb.var.xres *
-			(fb->fb.var.bits_per_pixel / CHAR_BIT) *
-			var->yoffset,
-			fb->reg_base + FB_SET_BASE);
+	writel(fb->fb.fix.smem_start + fb->fb.var.xres * 2 * var->yoffset,
+						fb->reg_base + FB_SET_BASE);
 	spin_unlock_irqrestore(&fb->lock, irq_flags);
 	wait_event_timeout(fb->wait,
 			fb->base_update_count != base_update_count, HZ / 15);
 	if (fb->base_update_count == base_update_count)
-		pr_err("goldfish_fb_pan_display: timeout waiting for "
-			"base update\n");
+		pr_err("goldfish_fb_pan_display: timeout waiting for base update\n");
 	return 0;
 }
 
 static int goldfish_fb_blank(int blank, struct fb_info *info)
 {
 	struct goldfish_fb *fb = container_of(info, struct goldfish_fb, fb);
-
 	switch (blank) {
 	case FB_BLANK_NORMAL:
 		writel(1, fb->reg_base + FB_SET_BLANK);
@@ -240,10 +185,8 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct goldfish_fb *fb;
 	size_t framesize;
-	u32 width, height, format;
-	int bytes_per_pixel;
+	u32 width, height;
 	dma_addr_t fbpaddr;
-	const struct framebuffer_config *fb_config;
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (fb == NULL) {
@@ -273,20 +216,13 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 
 	width = readl(fb->reg_base + FB_GET_WIDTH);
 	height = readl(fb->reg_base + FB_GET_HEIGHT);
-	format = readl(fb->reg_base + FB_GET_FORMAT);
-	fb_config = get_fb_config_from_format(format);
-	if (!fb_config) {
-		ret = -EINVAL;
-		goto err_no_irq;
-	}
-	bytes_per_pixel = fb_config->bytes_per_pixel;
 
 	fb->fb.fbops		= &goldfish_fb_ops;
 	fb->fb.flags		= FBINFO_FLAG_DEFAULT;
 	fb->fb.pseudo_palette	= fb->cmap;
 	fb->fb.fix.type		= FB_TYPE_PACKED_PIXELS;
 	fb->fb.fix.visual = FB_VISUAL_TRUECOLOR;
-	fb->fb.fix.line_length = width * bytes_per_pixel;
+	fb->fb.fix.line_length = width * 2;
 	fb->fb.fix.accel	= FB_ACCEL_NONE;
 	fb->fb.fix.ypanstep = 1;
 
@@ -294,22 +230,20 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 	fb->fb.var.yres		= height;
 	fb->fb.var.xres_virtual	= width;
 	fb->fb.var.yres_virtual	= height * 2;
-	fb->fb.var.bits_per_pixel = bytes_per_pixel * CHAR_BIT;
+	fb->fb.var.bits_per_pixel = 16;
 	fb->fb.var.activate	= FB_ACTIVATE_NOW;
 	fb->fb.var.height	= readl(fb->reg_base + FB_GET_PHYS_HEIGHT);
 	fb->fb.var.width	= readl(fb->reg_base + FB_GET_PHYS_WIDTH);
-	fb->fb.var.pixclock	= 0;
+	fb->fb.var.pixclock	= 10000;
 
-	fb->fb.var.red.offset = fb_config->red_offset;
-	fb->fb.var.red.length = fb_config->red_length;
-	fb->fb.var.green.offset = fb_config->green_offset;
-	fb->fb.var.green.length = fb_config->green_length;
-	fb->fb.var.blue.offset = fb_config->blue_offset;
-	fb->fb.var.blue.length = fb_config->blue_length;
-	fb->fb.var.transp.offset = fb_config->transp_offset;
-	fb->fb.var.transp.length = fb_config->transp_length;
+	fb->fb.var.red.offset = 11;
+	fb->fb.var.red.length = 5;
+	fb->fb.var.green.offset = 5;
+	fb->fb.var.green.length = 6;
+	fb->fb.var.blue.offset = 0;
+	fb->fb.var.blue.length = 5;
 
-	framesize = width * height * 2 * bytes_per_pixel;
+	framesize = width * height * 2 * 2;
 	fb->fb.screen_base = (char __force __iomem *)dma_alloc_coherent(
 						&pdev->dev, framesize,
 						&fbpaddr, GFP_KERNEL);
@@ -360,37 +294,22 @@ static int goldfish_fb_remove(struct platform_device *pdev)
 	size_t framesize;
 	struct goldfish_fb *fb = platform_get_drvdata(pdev);
 
-	framesize = fb->fb.var.xres_virtual * fb->fb.var.yres_virtual *
-		(fb->fb.var.bits_per_pixel / CHAR_BIT);
+	framesize = fb->fb.var.xres_virtual * fb->fb.var.yres_virtual * 2;
 	unregister_framebuffer(&fb->fb);
 	free_irq(fb->irq, fb);
 
 	dma_free_coherent(&pdev->dev, framesize, (void *)fb->fb.screen_base,
 						fb->fb.fix.smem_start);
 	iounmap(fb->reg_base);
-	kfree(fb);
 	return 0;
 }
 
-static const struct of_device_id goldfish_fb_of_match[] = {
-	{ .compatible = "google,goldfish-fb", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, goldfish_fb_of_match);
-
-static const struct acpi_device_id goldfish_fb_acpi_match[] = {
-	{ "GFSH0004", 0 },
-	{ },
-};
-MODULE_DEVICE_TABLE(acpi, goldfish_fb_acpi_match);
 
 static struct platform_driver goldfish_fb_driver = {
 	.probe		= goldfish_fb_probe,
 	.remove		= goldfish_fb_remove,
 	.driver = {
-		.name = "goldfish_fb",
-		.of_match_table = goldfish_fb_of_match,
-		.acpi_match_table = ACPI_PTR(goldfish_fb_acpi_match),
+		.name = "goldfish_fb"
 	}
 };
 

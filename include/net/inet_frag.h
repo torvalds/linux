@@ -1,9 +1,14 @@
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
+#include <linux/percpu_counter.h>
+
 struct netns_frags {
-	/* Keep atomic mem on separate cachelines in structs that include it */
-	atomic_t		mem ____cacheline_aligned_in_smp;
+	/* The percpu_counter "mem" need to be cacheline aligned.
+	 *  mem.count must not share cacheline with other writers
+	 */
+	struct percpu_counter   mem ____cacheline_aligned_in_smp;
+
 	/* sysctls */
 	int			timeout;
 	int			high_thresh;
@@ -103,10 +108,15 @@ struct inet_frags {
 int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
-static inline void inet_frags_init_net(struct netns_frags *nf)
+static inline int inet_frags_init_net(struct netns_frags *nf)
 {
-	atomic_set(&nf->mem, 0);
+	return percpu_counter_init(&nf->mem, 0, GFP_KERNEL);
 }
+static inline void inet_frags_uninit_net(struct netns_frags *nf)
+{
+	percpu_counter_destroy(&nf->mem);
+}
+
 void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f);
 
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
@@ -130,24 +140,37 @@ static inline bool inet_frag_evicting(struct inet_frag_queue *q)
 
 /* Memory Tracking Functions. */
 
+/* The default percpu_counter batch size is not big enough to scale to
+ * fragmentation mem acct sizes.
+ * The mem size of a 64K fragment is approx:
+ *  (44 fragments * 2944 truesize) + frag_queue struct(200) = 129736 bytes
+ */
+static unsigned int frag_percpu_counter_batch = 130000;
+
 static inline int frag_mem_limit(struct netns_frags *nf)
 {
-	return atomic_read(&nf->mem);
+	return percpu_counter_read(&nf->mem);
 }
 
 static inline void sub_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	atomic_sub(i, &nf->mem);
+	__percpu_counter_add(&nf->mem, -i, frag_percpu_counter_batch);
 }
 
 static inline void add_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	atomic_add(i, &nf->mem);
+	__percpu_counter_add(&nf->mem, i, frag_percpu_counter_batch);
 }
 
-static inline int sum_frag_mem_limit(struct netns_frags *nf)
+static inline unsigned int sum_frag_mem_limit(struct netns_frags *nf)
 {
-	return atomic_read(&nf->mem);
+	unsigned int res;
+
+	local_bh_disable();
+	res = percpu_counter_sum_positive(&nf->mem);
+	local_bh_enable();
+
+	return res;
 }
 
 /* RFC 3168 support :

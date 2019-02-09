@@ -16,7 +16,6 @@
 
 #ifdef CONFIG_CPUSETS
 
-extern struct static_key cpusets_pre_enable_key;
 extern struct static_key cpusets_enabled_key;
 static inline bool cpusets_enabled(void)
 {
@@ -31,21 +30,17 @@ static inline int nr_cpusets(void)
 
 static inline void cpuset_inc(void)
 {
-	static_key_slow_inc(&cpusets_pre_enable_key);
 	static_key_slow_inc(&cpusets_enabled_key);
 }
 
 static inline void cpuset_dec(void)
 {
 	static_key_slow_dec(&cpusets_enabled_key);
-	static_key_slow_dec(&cpusets_pre_enable_key);
 }
 
 extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
-extern void cpuset_force_rebuild(void);
 extern void cpuset_update_active_cpus(bool cpu_online);
-extern void cpuset_wait_for_hotplug(void);
 extern void cpuset_cpus_allowed(struct task_struct *p, struct cpumask *mask);
 extern void cpuset_cpus_allowed_fallback(struct task_struct *p);
 extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
@@ -109,7 +104,7 @@ extern void cpuset_print_current_mems_allowed(void);
  */
 static inline unsigned int read_mems_allowed_begin(void)
 {
-	if (!static_key_false(&cpusets_pre_enable_key))
+	if (!cpusets_enabled())
 		return 0;
 
 	return read_seqcount_begin(&current->mems_allowed_seq);
@@ -123,7 +118,7 @@ static inline unsigned int read_mems_allowed_begin(void)
  */
 static inline bool read_mems_allowed_retry(unsigned int seq)
 {
-	if (!static_key_false(&cpusets_enabled_key))
+	if (!cpusets_enabled())
 		return false;
 
 	return read_seqcount_retry(&current->mems_allowed_seq, seq);
@@ -149,14 +144,10 @@ static inline bool cpusets_enabled(void) { return false; }
 static inline int cpuset_init(void) { return 0; }
 static inline void cpuset_init_smp(void) {}
 
-static inline void cpuset_force_rebuild(void) { }
-
 static inline void cpuset_update_active_cpus(bool cpu_online)
 {
 	partition_sched_domains(1, NULL, NULL);
 }
-
-static inline void cpuset_wait_for_hotplug(void) { }
 
 static inline void cpuset_cpus_allowed(struct task_struct *p,
 				       struct cpumask *mask)

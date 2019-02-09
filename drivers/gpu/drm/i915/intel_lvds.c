@@ -768,14 +768,6 @@ static const struct dmi_system_id intel_no_lvds[] = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "D525MW"),
 		},
 	},
-	{
-		.callback = intel_no_lvds_dmi_callback,
-		.ident = "Radiant P845",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Radiant Systems Inc"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "P845"),
-		},
-	},
 
 	{ }	/* terminating entry */
 };
@@ -1033,7 +1025,7 @@ void intel_lvds_init(struct drm_device *dev)
 			   DRM_MODE_CONNECTOR_LVDS);
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_LVDS, NULL);
+			 DRM_MODE_ENCODER_LVDS);
 
 	intel_encoder->enable = intel_enable_lvds;
 	intel_encoder->pre_enable = intel_pre_enable_lvds;

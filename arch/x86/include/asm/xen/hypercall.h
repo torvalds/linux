@@ -43,8 +43,6 @@
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/smap.h>
-#include <asm/nospec-branch.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>
@@ -215,12 +213,10 @@ privcmd_call(unsigned call,
 	__HYPERCALL_DECLS;
 	__HYPERCALL_5ARG(a1, a2, a3, a4, a5);
 
-	stac();
-	asm volatile(CALL_NOSPEC
+	asm volatile("call *%[call]"
 		     : __HYPERCALL_5PARAM
-		     : [thunk_target] "a" (&hypercall_page[call])
+		     : [call] "a" (&hypercall_page[call])
 		     : __HYPERCALL_CLOBBER5);
-	clac();
 
 	return (long)__res;
 }

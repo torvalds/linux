@@ -412,13 +412,12 @@ void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template
 
 	bi->flags = BLK_INTEGRITY_VERIFY | BLK_INTEGRITY_GENERATE |
 		template->flags;
-	bi->interval_exp = template->interval_exp ? :
-		ilog2(queue_logical_block_size(disk->queue));
+	bi->interval_exp = ilog2(queue_logical_block_size(disk->queue));
 	bi->profile = template->profile ? template->profile : &nop_profile;
 	bi->tuple_size = template->tuple_size;
 	bi->tag_size = template->tag_size;
 
-	disk->queue->backing_dev_info.capabilities |= BDI_CAP_STABLE_WRITES;
+	blk_integrity_revalidate(disk);
 }
 EXPORT_SYMBOL(blk_integrity_register);
 
@@ -431,10 +430,25 @@ EXPORT_SYMBOL(blk_integrity_register);
  */
 void blk_integrity_unregister(struct gendisk *disk)
 {
-	disk->queue->backing_dev_info.capabilities &= ~BDI_CAP_STABLE_WRITES;
+	blk_integrity_revalidate(disk);
 	memset(&disk->queue->integrity, 0, sizeof(struct blk_integrity));
 }
 EXPORT_SYMBOL(blk_integrity_unregister);
+
+void blk_integrity_revalidate(struct gendisk *disk)
+{
+	struct blk_integrity *bi = &disk->queue->integrity;
+
+	if (!(disk->flags & GENHD_FL_UP))
+		return;
+
+	if (bi->profile)
+		disk->queue->backing_dev_info.capabilities |=
+			BDI_CAP_STABLE_WRITES;
+	else
+		disk->queue->backing_dev_info.capabilities &=
+			~BDI_CAP_STABLE_WRITES;
+}
 
 void blk_integrity_add(struct gendisk *disk)
 {

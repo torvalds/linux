@@ -66,6 +66,7 @@ enum {
 
 /* cgroup_root->flags */
 enum {
+	CGRP_ROOT_SANE_BEHAVIOR	= (1 << 0), /* __DEVEL__sane_behavior specified */
 	CGRP_ROOT_NOPREFIX	= (1 << 1), /* mounted subsystems have no named prefix */
 	CGRP_ROOT_XATTR		= (1 << 2), /* supports extended attributes */
 };
@@ -131,12 +132,6 @@ struct cgroup_subsys_state {
 	 * used to allow interrupting and resuming iterations.
 	 */
 	u64 serial_nr;
-
-	/*
-	 * Incremented by online self and children.  Used to guarantee that
-	 * parents are not offlined before their children.
-	 */
-	atomic_t online_cnt;
 
 	/* percpu_ref killing and RCU release */
 	struct rcu_head rcu_head;
@@ -214,9 +209,6 @@ struct css_set {
 
 	/* all css_task_iters currently walking this cset */
 	struct list_head task_iters;
-
-	/* dead and being drained, ignore for migration */
-	bool dead;
 
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
@@ -433,7 +425,6 @@ struct cgroup_subsys {
 	int (*can_attach)(struct cgroup_taskset *tset);
 	void (*cancel_attach)(struct cgroup_taskset *tset);
 	void (*attach)(struct cgroup_taskset *tset);
-	void (*post_attach)(void);
 	int (*can_fork)(struct task_struct *task, void **priv_p);
 	void (*cancel_fork)(struct task_struct *task, void *priv);
 	void (*fork)(struct task_struct *task, void *priv);

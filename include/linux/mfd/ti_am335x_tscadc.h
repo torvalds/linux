@@ -138,16 +138,16 @@
 /*
  * time in us for processing a single channel, calculated as follows:
  *
- * max num cycles = open delay + (sample delay + conv time) * averaging
+ * num cycles = open delay + (sample delay + conv time) * averaging
  *
- * max num cycles: 262143 + (255 + 13) * 16 = 266431
+ * num cycles: 152 + (1 + 13) * 16 = 376
  *
  * clock frequency: 26MHz / 8 = 3.25MHz
  * clock period: 1 / 3.25MHz = 308ns
  *
- * max processing time: 266431 * 308ns = 83ms(approx)
+ * processing time: 376 * 308ns = 116us
  */
-#define IDLE_TIMEOUT 83 /* milliseconds */
+#define IDLE_TIMEOUT 116 /* microsec */
 
 #define TSCADC_CELLS		2
 

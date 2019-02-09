@@ -13,7 +13,6 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/lwtunnel.h>
-#include <net/dst_cache.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
@@ -86,6 +85,11 @@ struct ip_tunnel_prl_entry {
 	struct rcu_head			rcu_head;
 };
 
+struct ip_tunnel_dst {
+	struct dst_entry __rcu 		*dst;
+	__be32				 saddr;
+};
+
 struct metadata_dst;
 
 struct ip_tunnel {
@@ -104,7 +108,7 @@ struct ip_tunnel {
 	int		tun_hlen;	/* Precalculated header length */
 	int		mlink;
 
-	struct dst_cache dst_cache;
+	struct ip_tunnel_dst __percpu *dst_cache;
 
 	struct ip_tunnel_parm parms;
 
@@ -226,7 +230,6 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd);
 int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
 		    u8 *protocol, struct flowi4 *fl4);
-int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict);
 int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu);
 
 struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
@@ -244,6 +247,7 @@ int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 		      struct ip_tunnel_parm *p);
 void ip_tunnel_setup(struct net_device *dev, int net_id);
+void ip_tunnel_dst_reset_all(struct ip_tunnel *t);
 int ip_tunnel_encap_setup(struct ip_tunnel *t,
 			  struct ip_tunnel_encap *ipencap);
 
@@ -277,22 +281,6 @@ struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 
 struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
 					 int gso_type_mask);
-
-static inline int iptunnel_pull_offloads(struct sk_buff *skb)
-{
-	if (skb_is_gso(skb)) {
-		int err;
-
-		err = skb_unclone(skb, GFP_ATOMIC);
-		if (unlikely(err))
-			return err;
-		skb_shinfo(skb)->gso_type &= ~(NETIF_F_GSO_ENCAP_ALL >>
-					       NETIF_F_GSO_SHIFT);
-	}
-
-	skb->encapsulation = 0;
-	return 0;
-}
 
 static inline void iptunnel_xmit_stats(int err,
 				       struct net_device_stats *err_stats,

@@ -36,7 +36,7 @@ static struct rt2880_pmx_func uartlite_func[] = { FUNC("uartlite", 0, 15, 2) };
 static struct rt2880_pmx_func jtag_func[] = { FUNC("jtag", 0, 17, 5) };
 static struct rt2880_pmx_func mdio_func[] = { FUNC("mdio", 0, 22, 2) };
 static struct rt2880_pmx_func lna_a_func[] = { FUNC("lna a", 0, 32, 3) };
-static struct rt2880_pmx_func lna_g_func[] = { FUNC("lna g", 0, 35, 3) };
+static struct rt2880_pmx_func lna_g_func[] = { FUNC("lna a", 0, 35, 3) };
 static struct rt2880_pmx_func pci_func[] = {
 	FUNC("pci-dev", 0, 40, 32),
 	FUNC("pci-host2", 1, 40, 32),
@@ -44,7 +44,7 @@ static struct rt2880_pmx_func pci_func[] = {
 	FUNC("pci-fnc", 3, 40, 32)
 };
 static struct rt2880_pmx_func ge1_func[] = { FUNC("ge1", 0, 72, 12) };
-static struct rt2880_pmx_func ge2_func[] = { FUNC("ge2", 0, 84, 12) };
+static struct rt2880_pmx_func ge2_func[] = { FUNC("ge1", 0, 84, 12) };
 
 static struct rt2880_pmx_group rt3883_pinmux_data[] = {
 	GRP("i2c", i2c_func, 1, RT3883_GPIO_MODE_I2C),
@@ -62,6 +62,16 @@ static struct rt2880_pmx_group rt3883_pinmux_data[] = {
 	GRP("ge2", ge2_func, 1, RT3883_GPIO_MODE_GE2),
 	{ 0 }
 };
+
+static void rt3883_wdt_reset(void)
+{
+	u32 t;
+
+	/* enable WDT reset output on GPIO 2 */
+	t = rt_sysc_r32(RT3883_SYSC_REG_SYSCFG1);
+	t |= RT3883_SYSCFG1_GPIO2_AS_WDT_OUT;
+	rt_sysc_w32(t, RT3883_SYSC_REG_SYSCFG1);
+}
 
 void __init ralink_clk_init(void)
 {
@@ -144,5 +154,5 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 
 	rt2880_pinmux_data = rt3883_pinmux_data;
 
-	ralink_soc = RT3883_SOC;
+	ralink_soc == RT3883_SOC;
 }

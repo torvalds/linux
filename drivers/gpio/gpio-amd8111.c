@@ -220,7 +220,7 @@ found:
 		goto out;
 	}
 	gp.pdev = pdev;
-	gp.chip.parent = &pdev->dev;
+	gp.chip.dev = &pdev->dev;
 
 	spin_lock_init(&gp.lock);
 

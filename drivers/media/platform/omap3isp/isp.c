@@ -55,7 +55,6 @@
 #include <linux/module.h>
 #include <linux/omap-iommu.h>
 #include <linux/platform_device.h>
-#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -64,8 +63,8 @@
 #include <asm/dma-iommu.h>
 
 #include <media/v4l2-common.h>
-#include <media/v4l2-fwnode.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-of.h>
 
 #include "isp.h"
 #include "ispreg.h"
@@ -304,7 +303,7 @@ static struct clk *isp_xclk_src_get(struct of_phandle_args *clkspec, void *data)
 static int isp_xclk_init(struct isp_device *isp)
 {
 	struct device_node *np = isp->dev->of_node;
-	struct clk_init_data init = { 0 };
+	struct clk_init_data init;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(isp->xclks); ++i)
@@ -2078,7 +2077,6 @@ error_csiphy:
 
 static void isp_detach_iommu(struct isp_device *isp)
 {
-	arm_iommu_detach_device(isp->dev);
 	arm_iommu_release_mapping(isp->mapping);
 	isp->mapping = NULL;
 	iommu_group_remove_device(isp->dev);
@@ -2112,7 +2110,8 @@ static int isp_attach_iommu(struct isp_device *isp)
 	mapping = arm_iommu_create_mapping(&platform_bus_type, SZ_1G, SZ_2G);
 	if (IS_ERR(mapping)) {
 		dev_err(isp->dev, "failed to create ARM IOMMU mapping\n");
-		return PTR_ERR(mapping);
+		ret = PTR_ERR(mapping);
+		goto error;
 	}
 
 	isp->mapping = mapping;
@@ -2127,8 +2126,7 @@ static int isp_attach_iommu(struct isp_device *isp)
 	return 0;
 
 error:
-	arm_iommu_release_mapping(isp->mapping);
-	isp->mapping = NULL;
+	isp_detach_iommu(isp);
 	return ret;
 }
 
@@ -2160,20 +2158,17 @@ enum isp_of_phy {
 	ISP_OF_PHY_CSIPHY2,
 };
 
-static int isp_fwnode_parse(struct device *dev, struct fwnode_handle *fwnode,
-			    struct isp_async_subdev *isd)
+static int isp_of_parse_node(struct device *dev, struct device_node *node,
+			     struct isp_async_subdev *isd)
 {
 	struct isp_bus_cfg *buscfg = &isd->bus;
-	struct v4l2_fwnode_endpoint vep;
+	struct v4l2_of_endpoint vep;
 	unsigned int i;
-	int ret;
 
-	ret = v4l2_fwnode_endpoint_parse(fwnode, &vep);
-	if (ret)
-		return ret;
+	v4l2_of_parse_endpoint(node, &vep);
 
-	dev_dbg(dev, "parsing endpoint %s, interface %u\n",
-		to_of_node(fwnode)->full_name, vep.base.port);
+	dev_dbg(dev, "parsing endpoint %s, interface %u\n", node->full_name,
+		vep.base.port);
 
 	switch (vep.base.port) {
 	case ISP_OF_PHY_PARALLEL:
@@ -2230,18 +2225,18 @@ static int isp_fwnode_parse(struct device *dev, struct fwnode_handle *fwnode,
 		break;
 
 	default:
-		dev_warn(dev, "%s: invalid interface %u\n",
-			 to_of_node(fwnode)->full_name, vep.base.port);
+		dev_warn(dev, "%s: invalid interface %u\n", node->full_name,
+			 vep.base.port);
 		break;
 	}
 
 	return 0;
 }
 
-static int isp_fwnodes_parse(struct device *dev,
-			     struct v4l2_async_notifier *notifier)
+static int isp_of_parse_nodes(struct device *dev,
+			      struct v4l2_async_notifier *notifier)
 {
-	struct fwnode_handle *fwnode = NULL;
+	struct device_node *node = NULL;
 
 	notifier->subdevs = devm_kcalloc(
 		dev, ISP_MAX_SUBDEVS, sizeof(*notifier->subdevs), GFP_KERNEL);
@@ -2249,35 +2244,34 @@ static int isp_fwnodes_parse(struct device *dev,
 		return -ENOMEM;
 
 	while (notifier->num_subdevs < ISP_MAX_SUBDEVS &&
-	       (fwnode = fwnode_graph_get_next_endpoint(
-			of_fwnode_handle(dev->of_node), fwnode))) {
+	       (node = of_graph_get_next_endpoint(dev->of_node, node))) {
 		struct isp_async_subdev *isd;
 
 		isd = devm_kzalloc(dev, sizeof(*isd), GFP_KERNEL);
-		if (!isd)
-			goto error;
+		if (!isd) {
+			of_node_put(node);
+			return -ENOMEM;
+		}
 
 		notifier->subdevs[notifier->num_subdevs] = &isd->asd;
 
-		if (isp_fwnode_parse(dev, fwnode, isd))
-			goto error;
-
-		isd->asd.match.fwnode.fwnode =
-			fwnode_graph_get_remote_port_parent(fwnode);
-		if (!isd->asd.match.fwnode.fwnode) {
-			dev_warn(dev, "bad remote port parent\n");
-			goto error;
+		if (isp_of_parse_node(dev, node, isd)) {
+			of_node_put(node);
+			return -EINVAL;
 		}
 
-		isd->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+		isd->asd.match.of.node = of_graph_get_remote_port_parent(node);
+		of_node_put(node);
+		if (!isd->asd.match.of.node) {
+			dev_warn(dev, "bad remote port parent\n");
+			return -EINVAL;
+		}
+
+		isd->asd.match_type = V4L2_ASYNC_MATCH_OF;
 		notifier->num_subdevs++;
 	}
 
 	return notifier->num_subdevs;
-
-error:
-	fwnode_handle_put(fwnode);
-	return -EINVAL;
 }
 
 static int isp_subdev_notifier_bound(struct v4l2_async_notifier *async,
@@ -2308,11 +2302,6 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 	return v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
 }
 
-static const struct v4l2_async_notifier_operations isp_subdev_notifier_ops = {
-	.complete = isp_subdev_notifier_complete,
-	.bound = isp_subdev_notifier_bound,
-};
-
 /*
  * isp_probe - Probe ISP platform device
  * @pdev: Pointer to ISP platform device
@@ -2337,8 +2326,8 @@ static int isp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ret = fwnode_property_read_u32(of_fwnode_handle(pdev->dev.of_node),
-				       "ti,phy-type", &isp->phy_type);
+	ret = of_property_read_u32(pdev->dev.of_node, "ti,phy-type",
+				   &isp->phy_type);
 	if (ret)
 		return ret;
 
@@ -2347,12 +2336,12 @@ static int isp_probe(struct platform_device *pdev)
 	if (IS_ERR(isp->syscon))
 		return PTR_ERR(isp->syscon);
 
-	ret = of_property_read_u32_index(pdev->dev.of_node,
-					 "syscon", 1, &isp->syscon_offset);
+	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 1,
+					 &isp->syscon_offset);
 	if (ret)
 		return ret;
 
-	ret = isp_fwnodes_parse(&pdev->dev, &isp->notifier);
+	ret = isp_of_parse_nodes(&pdev->dev, &isp->notifier);
 	if (ret < 0)
 		return ret;
 
@@ -2476,7 +2465,8 @@ static int isp_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_modules;
 
-	isp->notifier.ops = &isp_subdev_notifier_ops;
+	isp->notifier.bound = isp_subdev_notifier_bound;
+	isp->notifier.complete = isp_subdev_notifier_complete;
 
 	ret = v4l2_async_notifier_register(&isp->v4l2_dev, &isp->notifier);
 	if (ret)

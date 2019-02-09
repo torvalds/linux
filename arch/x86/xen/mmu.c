@@ -1113,7 +1113,7 @@ static void __init xen_cleanhighmap(unsigned long vaddr,
 
 	/* NOTE: The loop is more greedy than the cleanup_highmap variant.
 	 * We include the PMD passed in on _both_ boundaries. */
-	for (; vaddr <= vaddr_end && (pmd < (level2_kernel_pgt + PTRS_PER_PMD));
+	for (; vaddr <= vaddr_end && (pmd < (level2_kernel_pgt + PAGE_SIZE));
 			pmd++, vaddr += PMD_SIZE) {
 		if (pmd_none(*pmd))
 			continue;
@@ -1316,6 +1316,8 @@ void xen_flush_tlb_all(void)
 	struct mmuext_op *op;
 	struct multicall_space mcs;
 
+	trace_xen_mmu_flush_tlb_all(0);
+
 	preempt_disable();
 
 	mcs = xen_mc_entry(sizeof(*op));
@@ -1332,6 +1334,8 @@ static void xen_flush_tlb(void)
 {
 	struct mmuext_op *op;
 	struct multicall_space mcs;
+
+	trace_xen_mmu_flush_tlb(0);
 
 	preempt_disable();
 
@@ -2034,8 +2038,7 @@ static unsigned long __init xen_read_phys_ulong(phys_addr_t addr)
 
 /*
  * Translate a virtual address to a physical one without relying on mapped
- * page tables. Don't rely on big pages being aligned in (guest) physical
- * space!
+ * page tables.
  */
 static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
 {
@@ -2056,7 +2059,7 @@ static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
 						       sizeof(pud)));
 	if (!pud_present(pud))
 		return 0;
-	pa = pud_val(pud) & PTE_PFN_MASK;
+	pa = pud_pfn(pud) << PAGE_SHIFT;
 	if (pud_large(pud))
 		return pa + (vaddr & ~PUD_MASK);
 
@@ -2064,7 +2067,7 @@ static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
 						       sizeof(pmd)));
 	if (!pmd_present(pmd))
 		return 0;
-	pa = pmd_val(pmd) & PTE_PFN_MASK;
+	pa = pmd_pfn(pmd) << PAGE_SHIFT;
 	if (pmd_large(pmd))
 		return pa + (vaddr & ~PMD_MASK);
 

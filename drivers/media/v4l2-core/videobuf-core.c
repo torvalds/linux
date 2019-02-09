@@ -633,7 +633,6 @@ EXPORT_SYMBOL_GPL(videobuf_qbuf);
 static int stream_next_buffer_check_queue(struct videobuf_queue *q, int noblock)
 {
 	int retval;
-	bool is_ext_locked;
 
 checks:
 	if (!q->streaming) {
@@ -652,16 +651,6 @@ checks:
 
 			/* Drop lock to avoid deadlock with qbuf */
 			videobuf_queue_unlock(q);
-			/*ddl@rock-chips.com */
-			is_ext_locked = q->ext_lock &&
-					mutex_is_locked(q->ext_lock);
-
-			/*
-			 * Release vdev lock to prevent this wait from blocking
-			 * outside access to the device.
-			 */
-			if (is_ext_locked)
-				mutex_unlock(q->ext_lock);
 
 			/* Checking list_empty and streaming is safe without
 			 * locks because we goto checks to validate while
@@ -669,9 +658,7 @@ checks:
 			retval = wait_event_interruptible(q->wait,
 				!list_empty(&q->stream) || !q->streaming);
 			videobuf_queue_lock(q);
-			/*ddl@rock-chips.com */
-			if (is_ext_locked)
-				mutex_lock(q->ext_lock);
+
 			if (retval)
 				goto done;
 

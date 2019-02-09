@@ -44,7 +44,7 @@
 
 static struct microcode_ops	*microcode_ops;
 
-static bool dis_ucode_ldr = true;
+static bool dis_ucode_ldr;
 
 static int __init disable_loader(char *str)
 {
@@ -81,7 +81,6 @@ struct cpu_info_ctx {
 
 static bool __init check_loader_disabled_bsp(void)
 {
-	u32 a, b, c, d;
 #ifdef CONFIG_X86_32
 	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
 	const char *opt	    = "dis_ucode_ldr";
@@ -94,20 +93,8 @@ static bool __init check_loader_disabled_bsp(void)
 	bool *res = &dis_ucode_ldr;
 #endif
 
-	a = 1;
-	c = 0;
-	native_cpuid(&a, &b, &c, &d);
-
-	/*
-	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
-	 * completely accurate as xen pv guests don't see that CPUID bit set but
-	 * that's good enough as they don't land on the BSP path anyway.
-	 */
-	if (c & BIT(31))
-		return *res;
-
-	if (cmdline_find_option_bool(cmdline, option) <= 0)
-		*res = false;
+	if (cmdline_find_option_bool(cmdline, option))
+		*res = true;
 
 	return *res;
 }
@@ -135,7 +122,9 @@ void __init load_ucode_bsp(void)
 {
 	int vendor;
 	unsigned int family;
-	bool intel = true;
+
+	if (check_loader_disabled_bsp())
+		return;
 
 	if (!have_cpuid_p())
 		return;
@@ -145,27 +134,16 @@ void __init load_ucode_bsp(void)
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
-		if (family < 6)
-			return;
+		if (family >= 6)
+			load_ucode_intel_bsp();
 		break;
-
 	case X86_VENDOR_AMD:
-		if (family < 0x10)
-			return;
-		intel = false;
+		if (family >= 0x10)
+			load_ucode_amd_bsp(family);
 		break;
-
 	default:
-		return;
+		break;
 	}
-
-	if (check_loader_disabled_bsp())
-		return;
-
-	if (intel)
-		load_ucode_intel_bsp();
-	else
-		load_ucode_amd_bsp(family);
 }
 
 static bool check_loader_disabled_ap(void)
@@ -182,6 +160,9 @@ void load_ucode_ap(void)
 	int vendor, family;
 
 	if (check_loader_disabled_ap())
+		return;
+
+	if (!have_cpuid_p())
 		return;
 
 	vendor = x86_vendor();

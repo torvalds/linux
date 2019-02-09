@@ -19,7 +19,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/file.h>
 #include <linux/kernel.h>
 #include <linux/audit.h>
 #include <linux/kthread.h>
@@ -419,13 +418,6 @@ int audit_add_watch(struct audit_krule *krule, struct list_head **list)
 	struct path parent_path;
 	int h, ret = 0;
 
-	/*
-	 * When we will be calling audit_add_to_parent, krule->watch might have
-	 * been updated and watch might have been freed.
-	 * So we need to keep a reference of watch.
-	 */
-	audit_get_watch(watch);
-
 	mutex_unlock(&audit_filter_mutex);
 
 	/* Avoid calling path_lookup under audit_filter_mutex. */
@@ -434,10 +426,8 @@ int audit_add_watch(struct audit_krule *krule, struct list_head **list)
 	/* caller expects mutex locked */
 	mutex_lock(&audit_filter_mutex);
 
-	if (ret) {
-		audit_put_watch(watch);
+	if (ret)
 		return ret;
-	}
 
 	/* either find an old parent or attach a new one */
 	parent = audit_find_parent(d_backing_inode(parent_path.dentry));
@@ -455,7 +445,6 @@ int audit_add_watch(struct audit_krule *krule, struct list_head **list)
 	*list = &audit_inode_hash[h];
 error:
 	path_put(&parent_path);
-	audit_put_watch(watch);
 	return ret;
 }
 
@@ -467,15 +456,13 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 	list_del(&krule->rlist);
 
 	if (list_empty(&watch->rules)) {
-		/*
-		 * audit_remove_watch() drops our reference to 'parent' which
-		 * can get freed. Grab our own reference to be safe.
-		 */
-		audit_get_parent(parent);
 		audit_remove_watch(watch);
-		if (list_empty(&parent->watches))
+
+		if (list_empty(&parent->watches)) {
+			audit_get_parent(parent);
 			fsnotify_destroy_mark(&parent->mark, audit_watch_group);
-		audit_put_parent(parent);
+			audit_put_parent(parent);
+		}
 	}
 }
 
@@ -557,11 +544,10 @@ int audit_exe_compare(struct task_struct *tsk, struct audit_fsnotify_mark *mark)
 	unsigned long ino;
 	dev_t dev;
 
-	exe_file = get_task_exe_file(tsk);
-	if (!exe_file)
-		return 0;
+	rcu_read_lock();
+	exe_file = rcu_dereference(tsk->mm->exe_file);
 	ino = exe_file->f_inode->i_ino;
 	dev = exe_file->f_inode->i_sb->s_dev;
-	fput(exe_file);
+	rcu_read_unlock();
 	return audit_mark_compare(mark, ino, dev);
 }

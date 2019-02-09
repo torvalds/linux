@@ -56,11 +56,8 @@ static struct uwb_rc *uwb_rc_find_by_index(int index)
 	struct uwb_rc *rc = NULL;
 
 	dev = class_find_device(&uwb_rc_class, NULL, &index, uwb_rc_index_match);
-	if (dev) {
+	if (dev)
 		rc = dev_get_drvdata(dev);
-		put_device(dev);
-	}
-
 	return rc;
 }
 
@@ -470,9 +467,7 @@ struct uwb_rc *__uwb_rc_try_get(struct uwb_rc *target_rc)
 	if (dev) {
 		rc = dev_get_drvdata(dev);
 		__uwb_rc_get(rc);
-		put_device(dev);
 	}
-
 	return rc;
 }
 EXPORT_SYMBOL_GPL(__uwb_rc_try_get);
@@ -525,11 +520,8 @@ struct uwb_rc *uwb_rc_get_by_grandpa(const struct device *grandpa_dev)
 
 	dev = class_find_device(&uwb_rc_class, NULL, grandpa_dev,
 				find_rc_grandpa);
-	if (dev) {
+	if (dev)
 		rc = dev_get_drvdata(dev);
-		put_device(dev);
-	}
-
 	return rc;
 }
 EXPORT_SYMBOL_GPL(uwb_rc_get_by_grandpa);
@@ -561,10 +553,8 @@ struct uwb_rc *uwb_rc_get_by_dev(const struct uwb_dev_addr *addr)
 	struct uwb_rc *rc = NULL;
 
 	dev = class_find_device(&uwb_rc_class, NULL, addr, find_rc_dev);
-	if (dev) {
+	if (dev)
 		rc = dev_get_drvdata(dev);
-		put_device(dev);
-	}
 
 	return rc;
 }

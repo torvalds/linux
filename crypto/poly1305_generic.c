@@ -51,6 +51,17 @@ int crypto_poly1305_init(struct shash_desc *desc)
 }
 EXPORT_SYMBOL_GPL(crypto_poly1305_init);
 
+int crypto_poly1305_setkey(struct crypto_shash *tfm,
+			   const u8 *key, unsigned int keylen)
+{
+	/* Poly1305 requires a unique key for each tag, which implies that
+	 * we can't set it on the tfm that gets accessed by multiple users
+	 * simultaneously. Instead we expect the key as the first 32 bytes in
+	 * the update() call. */
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL_GPL(crypto_poly1305_setkey);
+
 static void poly1305_setrkey(struct poly1305_desc_ctx *dctx, const u8 *key)
 {
 	/* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
@@ -69,11 +80,6 @@ static void poly1305_setskey(struct poly1305_desc_ctx *dctx, const u8 *key)
 	dctx->s[3] = le32_to_cpuvp(key + 12);
 }
 
-/*
- * Poly1305 requires a unique key for each tag, which implies that we can't set
- * it on the tfm that gets accessed by multiple users simultaneously. Instead we
- * expect the key as the first 32 bytes in the update() call.
- */
 unsigned int crypto_poly1305_setdesckey(struct poly1305_desc_ctx *dctx,
 					const u8 *src, unsigned int srclen)
 {
@@ -279,6 +285,7 @@ static struct shash_alg poly1305_alg = {
 	.init		= crypto_poly1305_init,
 	.update		= crypto_poly1305_update,
 	.final		= crypto_poly1305_final,
+	.setkey		= crypto_poly1305_setkey,
 	.descsize	= sizeof(struct poly1305_desc_ctx),
 	.base		= {
 		.cra_name		= "poly1305",

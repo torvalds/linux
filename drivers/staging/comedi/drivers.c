@@ -484,7 +484,8 @@ unsigned int comedi_nsamples_left(struct comedi_subdevice *s,
 	struct comedi_cmd *cmd = &async->cmd;
 
 	if (cmd->stop_src == TRIG_COUNT) {
-		unsigned int scans_left = __comedi_nscans_left(s, cmd->stop_arg);
+		unsigned int nscans = nsamples / cmd->scan_end_arg;
+		unsigned int scans_left = __comedi_nscans_left(s, nscans);
 		unsigned int scan_pos =
 		    comedi_bytes_to_samples(s, async->scan_progress);
 		unsigned long long samples_left = 0;

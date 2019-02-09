@@ -121,9 +121,11 @@ static void ttusbir_bulk_complete(struct urb *urb)
  */
 static void ttusbir_process_ir_data(struct ttusbir *tt, uint8_t *buf)
 {
-	struct ir_raw_event rawir = {};
+	struct ir_raw_event rawir;
 	unsigned i, v, b;
 	bool event = false;
+
+	init_ir_raw_event(&rawir);
 
 	for (i = 0; i < 128; i++) {
 		v = buf[i] & 0xfe;
@@ -203,7 +205,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 	int altsetting = -1;
 
 	tt = kzalloc(sizeof(*tt), GFP_KERNEL);
-	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
+	rc = rc_allocate_device();
 	if (!tt || !rc) {
 		ret = -ENOMEM;
 		goto out;
@@ -311,11 +313,12 @@ static int ttusbir_probe(struct usb_interface *intf,
 
 	usb_make_path(tt->udev, tt->phys, sizeof(tt->phys));
 
-	rc->device_name = DRIVER_DESC;
+	rc->input_name = DRIVER_DESC;
 	rc->input_phys = tt->phys;
 	usb_to_input_id(tt->udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
-	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
+	rc->driver_type = RC_DRIVER_IR_RAW;
+	rc->allowed_protocols = RC_BIT_ALL;
 	rc->priv = tt;
 	rc->driver_name = DRIVER_NAME;
 	rc->map_name = RC_MAP_TT_1500;

@@ -83,10 +83,7 @@
 	"2:	;nop\n"				\
 	"	.section .fixup, \"ax\"\n"	\
 	"	.align 4\n"			\
-	"3:	# return -EFAULT\n"		\
-	"	mov %0, %3\n"			\
-	"	# zero out dst ptr\n"		\
-	"	mov %1,  0\n"			\
+	"3:	mov %0, %3\n"			\
 	"	j   2b\n"			\
 	"	.previous\n"			\
 	"	.section __ex_table, \"a\"\n"	\
@@ -104,11 +101,7 @@
 	"2:	;nop\n"				\
 	"	.section .fixup, \"ax\"\n"	\
 	"	.align 4\n"			\
-	"3:	# return -EFAULT\n"		\
-	"	mov %0, %3\n"			\
-	"	# zero out dst ptr\n"		\
-	"	mov %1,  0\n"			\
-	"	mov %R1, 0\n"			\
+	"3:	mov %0, %3\n"			\
 	"	j   2b\n"			\
 	"	.previous\n"			\
 	"	.section __ex_table, \"a\"\n"	\
@@ -673,7 +666,6 @@ __arc_strncpy_from_user(char *dst, const char __user *src, long count)
 		return 0;
 
 	__asm__ __volatile__(
-	"	mov	lp_count, %5		\n"
 	"	lp	3f			\n"
 	"1:	ldb.ab  %3, [%2, 1]		\n"
 	"	breq.d	%3, 0, 3f               \n"
@@ -690,8 +682,8 @@ __arc_strncpy_from_user(char *dst, const char __user *src, long count)
 	"	.word   1b, 4b			\n"
 	"	.previous			\n"
 	: "+r"(res), "+r"(dst), "+r"(src), "=r"(val)
-	: "g"(-EFAULT), "r"(count)
-	: "lp_count", "lp_start", "lp_end", "memory");
+	: "g"(-EFAULT), "l"(count)
+	: "memory");
 
 	return res;
 }

@@ -195,9 +195,6 @@ static int restore_msa_extcontext(void __user *buf, unsigned int size)
 	unsigned int csr;
 	int i, err;
 
-	if (!config_enabled(CONFIG_CPU_HAS_MSA))
-		return SIGSYS;
-
 	if (size != sizeof(*msa))
 		return -EINVAL;
 
@@ -401,8 +398,8 @@ int protected_restore_fp_context(void __user *sc)
 	}
 
 fp_done:
-	if (!err && (used & USED_EXTCONTEXT))
-		err = restore_extcontext(sc_to_extcontext(sc));
+	if (used & USED_EXTCONTEXT)
+		err |= restore_extcontext(sc_to_extcontext(sc));
 
 	return err ?: sig;
 }
@@ -770,15 +767,15 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	sigset_t *oldset = sigmask_to_save();
 	int ret;
 	struct mips_abi *abi = current->thread.abi;
-	void *vdso = current->mm->context.vdso;
+#ifdef CONFIG_CPU_MICROMIPS
+	void *vdso;
+	unsigned long tmp = (unsigned long)current->mm->context.vdso;
 
-	/*
-	 * If we were emulating a delay slot instruction, exit that frame such
-	 * that addresses in the sigframe are as expected for userland and we
-	 * don't have a problem if we reuse the thread's frame for an
-	 * instruction within the signal handler.
-	 */
-	dsemul_thread_rollback(regs);
+	set_isa16_mode(tmp);
+	vdso = (void *)tmp;
+#else
+	void *vdso = current->mm->context.vdso;
+#endif
 
 	if (regs->regs[0]) {
 		switch(regs->regs[2]) {

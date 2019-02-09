@@ -470,11 +470,8 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 
 	/* Register with generic device framework. */
 	err = device_register(&xendev->dev);
-	if (err) {
-		put_device(&xendev->dev);
-		xendev = NULL;
+	if (err)
 		goto fail;
-	}
 
 	return 0;
 fail:

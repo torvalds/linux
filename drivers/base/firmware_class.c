@@ -942,14 +942,13 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 		timeout = MAX_JIFFY_OFFSET;
 	}
 
-	timeout = wait_for_completion_interruptible_timeout(&buf->completion,
+	retval = wait_for_completion_interruptible_timeout(&buf->completion,
 			timeout);
-	if (timeout == -ERESTARTSYS || !timeout) {
-		retval = timeout;
+	if (retval == -ERESTARTSYS || !retval) {
 		mutex_lock(&fw_lock);
 		fw_load_abort(fw_priv);
 		mutex_unlock(&fw_lock);
-	} else if (timeout > 0) {
+	} else if (retval > 0) {
 		retval = 0;
 	}
 

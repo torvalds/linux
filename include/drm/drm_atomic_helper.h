@@ -42,10 +42,6 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
 			     bool async);
 
-bool drm_atomic_helper_framebuffer_changed(struct drm_device *dev,
-					   struct drm_atomic_state *old_state,
-					   struct drm_crtc *crtc);
-
 void drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 					struct drm_atomic_state *old_state);
 
@@ -70,13 +66,6 @@ void drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_sta
 void drm_atomic_helper_swap_state(struct drm_device *dev,
 				  struct drm_atomic_state *state);
 
-/* nonblocking commit helpers */
-int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
-				   bool nonblock);
-void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state);
-void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *state);
-void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state);
-
 /* implementations for legacy interfaces */
 int drm_atomic_helper_update_plane(struct drm_plane *plane,
 				   struct drm_crtc *crtc,
@@ -91,12 +80,6 @@ int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
 int drm_atomic_helper_set_config(struct drm_mode_set *set);
 int __drm_atomic_helper_set_config(struct drm_mode_set *set,
 		struct drm_atomic_state *state);
-
-int drm_atomic_helper_disable_all(struct drm_device *dev,
-				  struct drm_modeset_acquire_ctx *ctx);
-struct drm_atomic_state *drm_atomic_helper_suspend(struct drm_device *dev);
-int drm_atomic_helper_resume(struct drm_device *dev,
-			     struct drm_atomic_state *state);
 
 int drm_atomic_helper_crtc_set_property(struct drm_crtc *crtc,
 					struct drm_property *property,
@@ -113,8 +96,6 @@ int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 				uint32_t flags);
 int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
 				     int mode);
-struct drm_encoder *
-drm_atomic_helper_best_encoder(struct drm_connector *connector);
 
 /* default implementations for state handling */
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc);
@@ -151,9 +132,6 @@ __drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 					    struct drm_connector_state *state);
 void drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 					  struct drm_connector_state *state);
-void drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
-					u16 *red, u16 *green, u16 *blue,
-					uint32_t start, uint32_t size);
 
 /**
  * drm_atomic_crtc_for_each_plane - iterate over planes currently attached to CRTC

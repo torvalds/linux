@@ -146,7 +146,7 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	}
 
 	if (range_count == 0) {
-		dev_warn_ratelimited(host->dev, "All phases bad!");
+		dev_warn(host->dev, "All phases bad!");
 		ret = -EIO;
 		goto free;
 	}
@@ -236,21 +236,16 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 	/* It needs this quirk on all Rockchip SoCs */
 	host->pdata->quirks |= DW_MCI_QUIRK_BROKEN_DTO;
 
-	if (of_device_is_compatible(host->dev->of_node,
-				    "rockchip,rk3308-dw-mshc"))
-		host->pdata->quirks |= DW_MCI_QUIRK_BROKEN_XFER;
-
 	return 0;
 }
 
 /* Common capabilities of RK3288 SoC */
 static unsigned long dw_mci_rk3288_dwmmc_caps[4] = {
-	MMC_CAP_RUNTIME_RESUME | MMC_CAP_ERASE | MMC_CAP_CMD23,/* emmc */
-	MMC_CAP_RUNTIME_RESUME | MMC_CAP_ERASE | MMC_CAP_CMD23,/* sdmmc */
-	MMC_CAP_RUNTIME_RESUME | MMC_CAP_ERASE | MMC_CAP_CMD23,/* sdio0 */
-	MMC_CAP_RUNTIME_RESUME | MMC_CAP_ERASE | MMC_CAP_CMD23,/* sdio1 */
+	MMC_CAP_RUNTIME_RESUME, /* emmc */
+	MMC_CAP_RUNTIME_RESUME, /* sdmmc */
+	MMC_CAP_RUNTIME_RESUME, /* sdio0 */
+	MMC_CAP_RUNTIME_RESUME, /* sdio1 */
 };
-
 static const struct dw_mci_drv_data rk2928_drv_data = {
 	.prepare_command        = dw_mci_rockchip_prepare_command,
 	.init			= dw_mci_rockchip_init,

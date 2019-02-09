@@ -56,7 +56,6 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CX20442 if TTY
-	select SND_SOC_CX2072X if I2C
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
 	select SND_SOC_DA7219 if I2C
@@ -64,12 +63,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA9055 if I2C
 	select SND_SOC_DMIC
 	select SND_SOC_BT_SCO
-	select SND_SOC_ES8316 if I2C
-	select SND_SOC_ES8323 if I2C
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
-	select SND_SOC_ES8396 if I2C
-	select SND_SOC_FM1288 if I2C
 	select SND_SOC_GTM601
 	select SND_SOC_ICS43432
 	select SND_SOC_ISABELLE if I2C
@@ -87,20 +82,13 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
 	select SND_SOC_NAU8825 if I2C
-	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM1681 if I2C
 	select SND_SOC_PCM1792A if SPI_MASTER
 	select SND_SOC_PCM3008
 	select SND_SOC_PCM512x_I2C if I2C
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
-	select SND_SOC_RK1000 if I2C
-	select SND_SOC_RK3228
-	select SND_SOC_RK3308
-	select SND_SOC_RK3328
-	select SND_SOC_RK817 if I2C
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
-	select SND_SOC_RT5616 if I2C
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_RT5640 if I2C
 	select SND_SOC_RT5645 if I2C
@@ -438,17 +426,6 @@ config SND_SOC_CX20442
 	tristate
 	depends on TTY
 
-config SND_SOC_CX2072X
-	tristate "CX2072X CODEC"
-
-config SND_SOC_CX20810
-	tristate "CX20810 is a voice capture ic."
-	depends on I2C
-	help
-	  Say Y here if you have a CX20810 ic and want to enable
-	  support for the built-in.
-	  If unsure, say N.
-
 config SND_SOC_JZ4740_CODEC
 	select REGMAP_MMIO
 	tristate
@@ -471,61 +448,28 @@ config SND_SOC_DA732X
 config SND_SOC_DA9055
 	tristate
 
-config SND_SOC_DUMMY_CODEC
-	tristate "dummy codec"
-
-config SND_SOC_DW_HDMI_AUDIO
-	tristate "dw hdmi audio"
-	depends on RK_HDMI
-
 config SND_SOC_BT_SCO
-	tristate "bt sco audio"
+	tristate
 
 config SND_SOC_DMIC
 	tristate
-
-config SND_SOC_ES8316
-	tristate "Everest Semi ES8316 CODEC"
-	depends on I2C
-
-config SND_SOC_ES8323
-	tristate "Everest Semi ES8323 CODEC"
-	depends on I2C
-
-config SND_SOC_HDMI_CODEC
-	tristate
-	select HDMI_NOTIFIERS
-	select SND_PCM_ELD
-	select SND_PCM_IEC958
-	select HDMI
 
 config SND_SOC_ES8328
 	tristate "Everest Semi ES8328 CODEC"
 
 config SND_SOC_ES8328_I2C
-	tristate "Everest Semi ES8328 CODEC I2C"
+	tristate
 	select SND_SOC_ES8328
 
 config SND_SOC_ES8328_SPI
 	tristate
 	select SND_SOC_ES8328
 
-config SND_SOC_ES8396
-	tristate "Everest Semi ES8396 CODEC"
-
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
 
-config SND_SOC_GVA_CODEC
-	tristate "gva codec"
-
 config SND_SOC_ICS43432
 	tristate
-
-config SND_SOC_FM1288
-	tristate "Voice Processor support for FM1288"
-	help
-	  Say Y if you want to add support for Voice Processor FM1288.
 
 config SND_SOC_ISABELLE
         tristate
@@ -577,40 +521,13 @@ config SND_SOC_PCM512x_SPI
 	select SND_SOC_PCM512x
 	select REGMAP_SPI
 
-config SND_SOC_RK1000
-	tristate "Rockchip RK1000 CODEC"
-	depends on MFD_RK1000
-
-config SND_SOC_RK312X
-	select REGMAP_MMIO
-	tristate "Rockchip RK312X CODEC"
-
-config SND_SOC_RK3228
-	select REGMAP_MMIO
-	tristate "Rockchip RK3228 CODEC"
-
-config SND_SOC_RK3308
-	select REGMAP_MMIO
-	tristate "Rockchip RK3308 CODEC"
-
-config SND_SOC_RK3328
-	select REGMAP_MMIO
-	tristate "Rockchip RK3328 CODEC"
-
-config SND_SOC_RK817
-	tristate "Rockchip RK817 CODEC"
-	depends on MFD_RK808
-	select REGMAP_I2C
-
 config SND_SOC_RL6231
 	tristate
-	default y if SND_SOC_RT5616=y
 	default y if SND_SOC_RT5640=y
 	default y if SND_SOC_RT5645=y
 	default y if SND_SOC_RT5651=y
 	default y if SND_SOC_RT5670=y
 	default y if SND_SOC_RT5677=y
-	default m if SND_SOC_RT5616=m
 	default m if SND_SOC_RT5640=m
 	default m if SND_SOC_RT5645=m
 	default m if SND_SOC_RT5651=m
@@ -632,22 +549,18 @@ config SND_SOC_RT298
 	tristate
 	depends on I2C
 
-config SND_SOC_RT5616
-	tristate "Realtek RT5616 CODEC"
-
 config SND_SOC_RT5631
 	tristate "Realtek ALC5631/RT5631 CODEC"
 	depends on I2C
 
 config SND_SOC_RT5640
-	tristate "Realtek ALC5640 CODEC"
-	depends on I2C
+	tristate
 
 config SND_SOC_RT5645
         tristate
 
 config SND_SOC_RT5651
-	tristate "Realtek ALC5651 CODEC"
+	tristate
 
 config SND_SOC_RT5670
 	tristate
@@ -740,11 +653,7 @@ config SND_SOC_TAS5086
 	depends on I2C
 
 config SND_SOC_TAS571X
-	tristate "Texas Instruments TAS5711/TAS5717/TAS5719/TAS5731 power amplifiers"
-	depends on I2C
-
-config SND_SOC_TC358749X
-	tristate "Toshiba TC358749X HDMI in Audio codec"
+	tristate "Texas Instruments TAS5711/TAS5717/TAS5719 power amplifiers"
 	depends on I2C
 
 config SND_SOC_TFA9879

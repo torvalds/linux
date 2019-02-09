@@ -95,8 +95,7 @@ static int regs_get(struct task_struct *target,
 	long *reg = (long *)&regs;
 
 	/* build user regs in buffer */
-	BUILD_BUG_ON(sizeof(regs) % sizeof(long) != 0);
-	for (r = 0; r < sizeof(regs) / sizeof(long); r++)
+	for (r = 0; r < ARRAY_SIZE(register_offset); r++)
 		*reg++ = h8300_get_reg(target, r);
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
@@ -114,8 +113,7 @@ static int regs_set(struct task_struct *target,
 	long *reg;
 
 	/* build user regs in buffer */
-	BUILD_BUG_ON(sizeof(regs) % sizeof(long) != 0);
-	for (reg = (long *)&regs, r = 0; r < sizeof(regs) / sizeof(long); r++)
+	for (reg = (long *)&regs, r = 0; r < ARRAY_SIZE(register_offset); r++)
 		*reg++ = h8300_get_reg(target, r);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -124,7 +122,7 @@ static int regs_set(struct task_struct *target,
 		return ret;
 
 	/* write back to pt_regs */
-	for (reg = (long *)&regs, r = 0; r < sizeof(regs) / sizeof(long); r++)
+	for (reg = (long *)&regs, r = 0; r < ARRAY_SIZE(register_offset); r++)
 		h8300_put_reg(target, r, *reg++);
 	return 0;
 }

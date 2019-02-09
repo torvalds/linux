@@ -125,9 +125,4 @@ extern unsigned int ebt_do_table(struct sk_buff *skb,
 /* True if the target is not a standard target */
 #define INVALID_TARGET (info->target < -NUM_STANDARD_TARGETS || info->target >= 0)
 
-static inline bool ebt_invalid_target(int target)
-{
-	return (target < -NUM_STANDARD_TARGETS || target >= 0);
-}
-
 #endif

@@ -635,8 +635,7 @@ hsw_unclaimed_reg_detect(struct drm_i915_private *dev_priv)
 			  "enabling oneshot unclaimed register reporting. "
 			  "Please use i915.mmio_debug=N for more information.\n");
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
-		i915.mmio_debug = mmio_debug_once;
-		mmio_debug_once = false;
+		i915.mmio_debug = mmio_debug_once--;
 	}
 }
 
@@ -1133,11 +1132,7 @@ static void intel_uncore_fw_domains_init(struct drm_device *dev)
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		dev_priv->uncore.funcs.force_wake_get =
 			fw_domains_get_with_thread_status;
-		if (IS_HASWELL(dev))
-			dev_priv->uncore.funcs.force_wake_put =
-				fw_domains_put_with_fifo;
-		else
-			dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
+		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_MT, FORCEWAKE_ACK_HSW);
 	} else if (IS_IVYBRIDGE(dev)) {

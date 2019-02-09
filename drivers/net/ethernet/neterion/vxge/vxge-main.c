@@ -2223,6 +2223,8 @@ static irqreturn_t vxge_isr_napi(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
+#ifdef CONFIG_PCI_MSI
+
 static irqreturn_t vxge_tx_msix_handle(int irq, void *dev_id)
 {
 	struct vxge_fifo *fifo = (struct vxge_fifo *)dev_id;
@@ -2440,13 +2442,16 @@ static void vxge_rem_msix_isr(struct vxgedev *vdev)
 	if (vdev->config.intr_type == MSI_X)
 		pci_disable_msix(vdev->pdev);
 }
+#endif
 
 static void vxge_rem_isr(struct vxgedev *vdev)
 {
-	if (IS_ENABLED(CONFIG_PCI_MSI) &&
-	    vdev->config.intr_type == MSI_X) {
+#ifdef CONFIG_PCI_MSI
+	if (vdev->config.intr_type == MSI_X) {
 		vxge_rem_msix_isr(vdev);
-	} else if (vdev->config.intr_type == INTA) {
+	} else
+#endif
+	if (vdev->config.intr_type == INTA) {
 			synchronize_irq(vdev->pdev->irq);
 			free_irq(vdev->pdev->irq, vdev);
 	}
@@ -2455,10 +2460,11 @@ static void vxge_rem_isr(struct vxgedev *vdev)
 static int vxge_add_isr(struct vxgedev *vdev)
 {
 	int ret = 0;
+#ifdef CONFIG_PCI_MSI
 	int vp_idx = 0, intr_idx = 0, intr_cnt = 0, msix_idx = 0, irq_req = 0;
 	int pci_fun = PCI_FUNC(vdev->pdev->devfn);
 
-	if (IS_ENABLED(CONFIG_PCI_MSI) && vdev->config.intr_type == MSI_X)
+	if (vdev->config.intr_type == MSI_X)
 		ret = vxge_enable_msix(vdev);
 
 	if (ret) {
@@ -2469,7 +2475,7 @@ static int vxge_add_isr(struct vxgedev *vdev)
 		vdev->config.intr_type = INTA;
 	}
 
-	if (IS_ENABLED(CONFIG_PCI_MSI) && vdev->config.intr_type == MSI_X) {
+	if (vdev->config.intr_type == MSI_X) {
 		for (intr_idx = 0;
 		     intr_idx < (vdev->no_of_vpath *
 			VXGE_HW_VPATH_MSIX_ACTIVE); intr_idx++) {
@@ -2570,8 +2576,9 @@ static int vxge_add_isr(struct vxgedev *vdev)
 		vdev->vxge_entries[intr_cnt].in_use = 1;
 		vdev->vxge_entries[intr_cnt].arg = &vdev->vpaths[0];
 	}
-
 INTA_MODE:
+#endif
+
 	if (vdev->config.intr_type == INTA) {
 		snprintf(vdev->desc[0], VXGE_INTR_STRLEN,
 			"%s:vxge:INTA", vdev->ndev->name);
@@ -3882,12 +3889,12 @@ static void vxge_device_config_init(struct vxge_hw_device_config *device_config,
 	if (max_mac_vpath > VXGE_MAX_MAC_ADDR_COUNT)
 		max_mac_vpath = VXGE_MAX_MAC_ADDR_COUNT;
 
-	if (!IS_ENABLED(CONFIG_PCI_MSI)) {
-		vxge_debug_init(VXGE_ERR,
-			"%s: This Kernel does not support "
-			"MSI-X. Defaulting to INTA", VXGE_DRIVER_NAME);
-		*intr_type = INTA;
-	}
+#ifndef CONFIG_PCI_MSI
+	vxge_debug_init(VXGE_ERR,
+		"%s: This Kernel does not support "
+		"MSI-X. Defaulting to INTA", VXGE_DRIVER_NAME);
+	*intr_type = INTA;
+#endif
 
 	/* Configure whether MSI-X or IRQL. */
 	switch (*intr_type) {

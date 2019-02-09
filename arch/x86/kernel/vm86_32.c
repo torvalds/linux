@@ -187,7 +187,7 @@ static void mark_screen_rdonly(struct mm_struct *mm)
 	pte_unmap_unlock(pte, ptl);
 out:
 	up_write(&mm->mmap_sem);
-	flush_tlb_mm_range(mm, 0xA0000, 0xA0000 + 32*PAGE_SIZE, 0UL);
+	flush_tlb();
 }
 
 
@@ -357,10 +357,8 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	tss = &per_cpu(cpu_tss, get_cpu());
 	/* make room for real-mode segments */
 	tsk->thread.sp0 += 16;
-
-	if (static_cpu_has(X86_FEATURE_SEP))
+	if (cpu_has_sep)
 		tsk->thread.sysenter_cs = 0;
-
 	load_sp0(tss, &tsk->thread);
 	put_cpu();
 
@@ -717,8 +715,7 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 	return;
 
 check_vip:
-	if ((VEFLAGS & (X86_EFLAGS_VIP | X86_EFLAGS_VIF)) ==
-	    (X86_EFLAGS_VIP | X86_EFLAGS_VIF)) {
+	if (VEFLAGS & X86_EFLAGS_VIP) {
 		save_v86_state(regs, VM86_STI);
 		return;
 	}

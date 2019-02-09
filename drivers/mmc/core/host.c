@@ -32,6 +32,8 @@
 #include "slot-gpio.h"
 #include "pwrseq.h"
 
+#define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
+
 static DEFINE_IDR(mmc_host_idr);
 static DEFINE_SPINLOCK(mmc_host_lock);
 
@@ -66,7 +68,6 @@ void mmc_retune_enable(struct mmc_host *host)
 		mod_timer(&host->retune_timer,
 			  jiffies + host->retune_period * HZ);
 }
-EXPORT_SYMBOL(mmc_retune_enable);
 
 void mmc_retune_disable(struct mmc_host *host)
 {
@@ -75,7 +76,6 @@ void mmc_retune_disable(struct mmc_host *host)
 	host->retune_now = 0;
 	host->need_retune = 0;
 }
-EXPORT_SYMBOL(mmc_retune_disable);
 
 void mmc_retune_timer_stop(struct mmc_host *host)
 {
@@ -156,9 +156,8 @@ static void mmc_retune_timer(unsigned long data)
  */
 int mmc_of_parse(struct mmc_host *host)
 {
-	struct device *dev = host->parent;
 	struct device_node *np;
-	u32 bus_width, cd_debounce_delay_ms;
+	u32 bus_width;
 	int ret;
 	bool cd_cap_invert, cd_gpio_invert = false;
 	bool ro_cap_invert, ro_gpio_invert = false;
@@ -211,16 +210,11 @@ int mmc_of_parse(struct mmc_host *host)
 	} else {
 		cd_cap_invert = of_property_read_bool(np, "cd-inverted");
 
-		if (device_property_read_u32(dev, "cd-debounce-delay-ms",
-					     &cd_debounce_delay_ms))
-			cd_debounce_delay_ms = 200;
-
 		if (of_property_read_bool(np, "broken-cd"))
 			host->caps |= MMC_CAP_NEEDS_POLL;
 
 		ret = mmc_gpiod_request_cd(host, "cd", 0, true,
-					   cd_debounce_delay_ms,
-					   &cd_gpio_invert);
+					   0, &cd_gpio_invert);
 		if (!ret)
 			dev_info(host->parent, "Got CD GPIO\n");
 		else if (ret != -ENOENT && ret != -ENOSYS)
@@ -295,15 +289,6 @@ int mmc_of_parse(struct mmc_host *host)
 		host->caps2 |= MMC_CAP2_HS400_1_8V | MMC_CAP2_HS200_1_8V_SDR;
 	if (of_property_read_bool(np, "mmc-hs400-1_2v"))
 		host->caps2 |= MMC_CAP2_HS400_1_2V | MMC_CAP2_HS200_1_2V_SDR;
-	if (of_property_read_bool(np, "mmc-hs400-enhanced-strobe"))
-		host->caps2 |= MMC_CAP2_HS400_ES;
-
-	if (of_property_read_bool(np, "supports-sd"))
-		host->restrict_caps |= RESTRICT_CARD_TYPE_SD;
-	if (of_property_read_bool(np, "supports-sdio"))
-		host->restrict_caps |= RESTRICT_CARD_TYPE_SDIO;
-	if (of_property_read_bool(np, "supports-emmc"))
-		host->restrict_caps |= RESTRICT_CARD_TYPE_EMMC;
 
 	host->dsr_req = !of_property_read_u32(np, "dsr", &host->dsr);
 	if (host->dsr_req && (host->dsr & ~0xffff)) {
@@ -392,7 +377,6 @@ EXPORT_SYMBOL(mmc_alloc_host);
  *	prepared to start servicing requests before this function
  *	completes.
  */
-struct mmc_host *primary_sdio_host;
 int mmc_add_host(struct mmc_host *host)
 {
 	int err;
@@ -410,16 +394,8 @@ int mmc_add_host(struct mmc_host *host)
 	mmc_add_host_debugfs(host);
 #endif
 
-#ifdef CONFIG_BLOCK
-	mmc_latency_hist_sysfs_init(host);
-#endif
-
 	mmc_start_host(host);
-	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
-		register_pm_notifier(&host->pm_notify);
-
-	if (host->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
-		primary_sdio_host = host;
+	register_pm_notifier(&host->pm_notify);
 
 	return 0;
 }
@@ -436,17 +412,11 @@ EXPORT_SYMBOL(mmc_add_host);
  */
 void mmc_remove_host(struct mmc_host *host)
 {
-	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
-		unregister_pm_notifier(&host->pm_notify);
-
+	unregister_pm_notifier(&host->pm_notify);
 	mmc_stop_host(host);
 
 #ifdef CONFIG_DEBUG_FS
 	mmc_remove_host_debugfs(host);
-#endif
-
-#ifdef CONFIG_BLOCK
-	mmc_latency_hist_sysfs_exit(host);
 #endif
 
 	device_del(&host->class_dev);
@@ -469,45 +439,3 @@ void mmc_free_host(struct mmc_host *host)
 }
 
 EXPORT_SYMBOL(mmc_free_host);
-
-/**
- * mmc_host_rescan - triger software rescan flow
- * @host: mmc host
- *
- * rescan slot attach in the assigned host.
- * If @host is NULL, default rescan primary_sdio_host
- * saved by mmc_add_host().
- * OR, rescan host from argument.
- *
- */
-int mmc_host_rescan(struct mmc_host *host, int val, int is_cap_sdio_irq)
-{
-	if (NULL != primary_sdio_host) {
-		if (!host)
-			  host = primary_sdio_host;
-		else
-			pr_info("%s: mmc_host_rescan pass in host from argument!\n",
-				mmc_hostname(host));
-	} else {
-		pr_err("sdio: host isn't  initialization successfully.\n");
-		return -ENOMEDIUM;
-	}
-
-	pr_info("%s:mmc host rescan start!\n", mmc_hostname(host));
-
-	/*  0: oob  1:cap-sdio-irq */
-	if (is_cap_sdio_irq == 1) {
-		host->caps |= MMC_CAP_SDIO_IRQ;
-	} else if (is_cap_sdio_irq == 0) {
-		host->caps &= ~MMC_CAP_SDIO_IRQ;
-	} else {
-		dev_err(&host->class_dev, "sdio: host doesn't identify oob or sdio_irq mode!\n");
-		return -ENOMEDIUM;
-	}
-
-	if (!(host->caps & MMC_CAP_NONREMOVABLE) && host->ops->set_sdio_status)
-		host->ops->set_sdio_status(host, val);
-
-	return 0;
-}
-EXPORT_SYMBOL(mmc_host_rescan);

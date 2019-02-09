@@ -29,23 +29,7 @@ expression x;
 @@
 
 (
- x = devm_kmalloc(...)
-|
- x = devm_kvasprintf(...)
-|
- x = devm_kasprintf(...)
-|
  x = devm_kzalloc(...)
-|
- x = devm_kmalloc_array(...)
-|
- x = devm_kcalloc(...)
-|
- x = devm_kstrdup(...)
-|
- x = devm_kmemdup(...)
-|
- x = devm_get_free_pages(...)
 |
  x = devm_request_irq(...)
 |
@@ -63,16 +47,6 @@ position p;
 
 (
 * kfree@p(x)
-|
-* kzfree@p(x)
-|
-* __krealloc@p(x, ...)
-|
-* krealloc@p(x, ...)
-|
-* free_pages@p(x, ...)
-|
-* free_page@p(x)
 |
 * free_irq@p(x)
 |

@@ -96,9 +96,16 @@ static void ralink_restart(char *command)
 	unreachable();
 }
 
+static void ralink_halt(void)
+{
+	local_irq_disable();
+	unreachable();
+}
+
 static int __init mips_reboot_setup(void)
 {
 	_machine_restart = ralink_restart;
+	_machine_halt = ralink_halt;
 
 	return 0;
 }

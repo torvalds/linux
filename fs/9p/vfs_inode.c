@@ -483,9 +483,6 @@ static int v9fs_test_inode(struct inode *inode, void *data)
 
 	if (v9inode->qid.type != st->qid.type)
 		return 0;
-
-	if (v9inode->qid.path != st->qid.path)
-		return 0;
 	return 1;
 }
 

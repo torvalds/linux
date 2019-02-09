@@ -223,13 +223,6 @@ static ssize_t f_hidg_read(struct file *file, char __user *buffer,
 	/* pick the first one */
 	list = list_first_entry(&hidg->completed_out_req,
 				struct f_hidg_req_list, list);
-
-	/*
-	 * Remove this from list to protect it from beign free()
-	 * while host disables our function
-	 */
-	list_del(&list->list);
-
 	req = list->req;
 	count = min_t(unsigned int, count, req->actual - list->pos);
 	spin_unlock_irqrestore(&hidg->spinlock, flags);
@@ -245,20 +238,15 @@ static ssize_t f_hidg_read(struct file *file, char __user *buffer,
 	 * call, taking into account its current read position.
 	 */
 	if (list->pos == req->actual) {
+		spin_lock_irqsave(&hidg->spinlock, flags);
+		list_del(&list->list);
 		kfree(list);
+		spin_unlock_irqrestore(&hidg->spinlock, flags);
 
 		req->length = hidg->report_length;
 		ret = usb_ep_queue(hidg->out_ep, req, GFP_KERNEL);
-		if (ret < 0) {
-			free_ep_req(hidg->out_ep, req);
+		if (ret < 0)
 			return ret;
-		}
-	} else {
-		spin_lock_irqsave(&hidg->spinlock, flags);
-		list_add(&list->list, &hidg->completed_out_req);
-		spin_unlock_irqrestore(&hidg->spinlock, flags);
-
-		wake_up(&hidg->read_queue);
 	}
 
 	return count;
@@ -502,18 +490,14 @@ static void hidg_disable(struct usb_function *f)
 {
 	struct f_hidg *hidg = func_to_hidg(f);
 	struct f_hidg_req_list *list, *next;
-	unsigned long flags;
 
 	usb_ep_disable(hidg->in_ep);
 	usb_ep_disable(hidg->out_ep);
 
-	spin_lock_irqsave(&hidg->spinlock, flags);
 	list_for_each_entry_safe(list, next, &hidg->completed_out_req, list) {
-		free_ep_req(hidg->out_ep, list->req);
 		list_del(&list->list);
 		kfree(list);
 	}
-	spin_unlock_irqrestore(&hidg->spinlock, flags);
 }
 
 static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
@@ -555,7 +539,7 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		}
 		status = usb_ep_enable(hidg->out_ep);
 		if (status < 0) {
-			ERROR(cdev, "Enable OUT endpoint FAILED!\n");
+			ERROR(cdev, "Enable IN endpoint FAILED!\n");
 			goto fail;
 		}
 		hidg->out_ep->driver_data = hidg;

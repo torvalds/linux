@@ -26,13 +26,12 @@
 #include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
-#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/smiapp.h>
 #include <linux/v4l2-mediabus.h>
-#include <media/v4l2-fwnode.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-of.h>
 
 #include "smiapp.h"
 
@@ -982,7 +981,7 @@ static int smiapp_read_nvm(struct smiapp_sensor *sensor,
 		if (rval)
 			goto out;
 
-		for (i = 1000; i > 0; i--) {
+		for (i = 0; i < 1000; i++) {
 			rval = smiapp_read(
 				sensor,
 				SMIAPP_REG_U8_DATA_TRANSFER_IF_1_STATUS, &s);
@@ -993,10 +992,11 @@ static int smiapp_read_nvm(struct smiapp_sensor *sensor,
 			if (s & SMIAPP_DATA_TRANSFER_IF_1_STATUS_RD_READY)
 				break;
 
-		}
-		if (!i) {
-			rval = -ETIMEDOUT;
-			goto out;
+			if (--i == 0) {
+				rval = -ETIMEDOUT;
+				goto out;
+			}
+
 		}
 
 		for (i = 0; i < SMIAPP_NVM_PAGE_SIZE; i++) {
@@ -2975,20 +2975,19 @@ static int smiapp_resume(struct device *dev)
 static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 {
 	struct smiapp_platform_data *pdata;
-	struct v4l2_fwnode_endpoint *bus_cfg;
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct v4l2_of_endpoint *bus_cfg;
+	struct device_node *ep;
 	int i;
 	int rval;
 
-	if (!fwnode)
+	if (!dev->of_node)
 		return dev->platform_data;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!ep)
 		return NULL;
 
-	bus_cfg = v4l2_fwnode_endpoint_alloc_parse(ep);
+	bus_cfg = v4l2_of_alloc_parse_endpoint(ep);
 	if (IS_ERR(bus_cfg))
 		goto out_err;
 
@@ -3043,13 +3042,13 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 		dev_dbg(dev, "freq %d: %lld\n", i, pdata->op_sys_clock[i]);
 	}
 
-	v4l2_fwnode_endpoint_free(bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_of_free_endpoint(bus_cfg);
+	of_node_put(ep);
 	return pdata;
 
 out_err:
-	v4l2_fwnode_endpoint_free(bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_of_free_endpoint(bus_cfg);
+	of_node_put(ep);
 	return NULL;
 }
 

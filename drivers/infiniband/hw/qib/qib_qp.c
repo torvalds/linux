@@ -41,13 +41,13 @@
 
 #include "qib.h"
 
-#define RVT_BITS_PER_PAGE           (PAGE_SIZE*BITS_PER_BYTE)
-#define RVT_BITS_PER_PAGE_MASK      (RVT_BITS_PER_PAGE-1)
+#define BITS_PER_PAGE           (PAGE_SIZE*BITS_PER_BYTE)
+#define BITS_PER_PAGE_MASK      (BITS_PER_PAGE-1)
 
 static inline unsigned mk_qpn(struct qib_qpn_table *qpt,
 			      struct qpn_map *map, unsigned off)
 {
-	return (map - qpt->map) * RVT_BITS_PER_PAGE + off;
+	return (map - qpt->map) * BITS_PER_PAGE + off;
 }
 
 static inline unsigned find_next_offset(struct qib_qpn_table *qpt,
@@ -59,7 +59,7 @@ static inline unsigned find_next_offset(struct qib_qpn_table *qpt,
 		if (((off & qpt->mask) >> 1) >= n)
 			off = (off | qpt->mask) + 2;
 	} else
-		off = find_next_zero_bit(map->page, RVT_BITS_PER_PAGE, off);
+		off = find_next_zero_bit(map->page, BITS_PER_PAGE, off);
 	return off;
 }
 
@@ -100,10 +100,9 @@ static u32 credit_table[31] = {
 	32768                   /* 1E */
 };
 
-static void get_map_page(struct qib_qpn_table *qpt, struct qpn_map *map,
-			 gfp_t gfp)
+static void get_map_page(struct qib_qpn_table *qpt, struct qpn_map *map)
 {
-	unsigned long page = get_zeroed_page(gfp);
+	unsigned long page = get_zeroed_page(GFP_KERNEL);
 
 	/*
 	 * Free the page if someone raced with us installing it.
@@ -122,7 +121,7 @@ static void get_map_page(struct qib_qpn_table *qpt, struct qpn_map *map,
  * zero/one for QP type IB_QPT_SMI/IB_QPT_GSI.
  */
 static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
-		     enum ib_qp_type type, u8 port, gfp_t gfp)
+		     enum ib_qp_type type, u8 port)
 {
 	u32 i, offset, max_scan, qpn;
 	struct qpn_map *map;
@@ -147,12 +146,12 @@ static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
 		qpn = 2;
 	if (qpt->mask && ((qpn & qpt->mask) >> 1) >= dd->n_krcv_queues)
 		qpn = (qpn | qpt->mask) + 2;
-	offset = qpn & RVT_BITS_PER_PAGE_MASK;
-	map = &qpt->map[qpn / RVT_BITS_PER_PAGE];
+	offset = qpn & BITS_PER_PAGE_MASK;
+	map = &qpt->map[qpn / BITS_PER_PAGE];
 	max_scan = qpt->nmaps - !offset;
 	for (i = 0;;) {
 		if (unlikely(!map->page)) {
-			get_map_page(qpt, map, gfp);
+			get_map_page(qpt, map);
 			if (unlikely(!map->page))
 				break;
 		}
@@ -173,7 +172,7 @@ static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
 			 * We just need to be sure we don't loop
 			 * forever.
 			 */
-		} while (offset < RVT_BITS_PER_PAGE && qpn < QPN_MAX);
+		} while (offset < BITS_PER_PAGE && qpn < QPN_MAX);
 		/*
 		 * In order to keep the number of pages allocated to a
 		 * minimum, we scan the all existing pages before increasing
@@ -204,9 +203,9 @@ static void free_qpn(struct qib_qpn_table *qpt, u32 qpn)
 {
 	struct qpn_map *map;
 
-	map = qpt->map + qpn / RVT_BITS_PER_PAGE;
+	map = qpt->map + qpn / BITS_PER_PAGE;
 	if (map->page)
-		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
+		clear_bit(qpn & BITS_PER_PAGE_MASK, map->page);
 }
 
 static inline unsigned qpn_hash(struct qib_ibdev *dev, u32 qpn)
@@ -984,21 +983,13 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 	size_t sz;
 	size_t sg_list_sz;
 	struct ib_qp *ret;
-	gfp_t gfp;
-
 
 	if (init_attr->cap.max_send_sge > ib_qib_max_sges ||
 	    init_attr->cap.max_send_wr > ib_qib_max_qp_wrs ||
-	    init_attr->create_flags & ~(IB_QP_CREATE_USE_GFP_NOIO))
-		return ERR_PTR(-EINVAL);
-
-	/* GFP_NOIO is applicable in RC QPs only */
-	if (init_attr->create_flags & IB_QP_CREATE_USE_GFP_NOIO &&
-	    init_attr->qp_type != IB_QPT_RC)
-		return ERR_PTR(-EINVAL);
-
-	gfp = init_attr->create_flags & IB_QP_CREATE_USE_GFP_NOIO ?
-			GFP_NOIO : GFP_KERNEL;
+	    init_attr->create_flags) {
+		ret = ERR_PTR(-EINVAL);
+		goto bail;
+	}
 
 	/* Check receive queue parameters if no SRQ is specified. */
 	if (!init_attr->srq) {
@@ -1030,8 +1021,7 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 		sz = sizeof(struct qib_sge) *
 			init_attr->cap.max_send_sge +
 			sizeof(struct qib_swqe);
-		swq = __vmalloc((init_attr->cap.max_send_wr + 1) * sz,
-				gfp, PAGE_KERNEL);
+		swq = vmalloc((init_attr->cap.max_send_wr + 1) * sz);
 		if (swq == NULL) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail;
@@ -1047,13 +1037,13 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 		} else if (init_attr->cap.max_recv_sge > 1)
 			sg_list_sz = sizeof(*qp->r_sg_list) *
 				(init_attr->cap.max_recv_sge - 1);
-		qp = kzalloc(sz + sg_list_sz, gfp);
+		qp = kzalloc(sz + sg_list_sz, GFP_KERNEL);
 		if (!qp) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_swq;
 		}
 		RCU_INIT_POINTER(qp->next, NULL);
-		qp->s_hdr = kzalloc(sizeof(*qp->s_hdr), gfp);
+		qp->s_hdr = kzalloc(sizeof(*qp->s_hdr), GFP_KERNEL);
 		if (!qp->s_hdr) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_qp;
@@ -1068,16 +1058,8 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 			qp->r_rq.max_sge = init_attr->cap.max_recv_sge;
 			sz = (sizeof(struct ib_sge) * qp->r_rq.max_sge) +
 				sizeof(struct qib_rwqe);
-			if (gfp != GFP_NOIO)
-				qp->r_rq.wq = vmalloc_user(
-						sizeof(struct qib_rwq) +
-						qp->r_rq.size * sz);
-			else
-				qp->r_rq.wq = __vmalloc(
-						sizeof(struct qib_rwq) +
-						qp->r_rq.size * sz,
-						gfp, PAGE_KERNEL);
-
+			qp->r_rq.wq = vmalloc_user(sizeof(struct qib_rwq) +
+						   qp->r_rq.size * sz);
 			if (!qp->r_rq.wq) {
 				ret = ERR_PTR(-ENOMEM);
 				goto bail_qp;
@@ -1108,7 +1090,7 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 		dev = to_idev(ibpd->device);
 		dd = dd_from_dev(dev);
 		err = alloc_qpn(dd, &dev->qpn_table, init_attr->qp_type,
-				init_attr->port_num, gfp);
+				init_attr->port_num);
 		if (err < 0) {
 			ret = ERR_PTR(err);
 			vfree(qp->r_rq.wq);

@@ -331,19 +331,6 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 			    (le16_to_cpu(path->usConnObjectId) &
 			     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
-			/* Skip TV/CV support */
-			if ((le16_to_cpu(path->usDeviceTag) ==
-			     ATOM_DEVICE_TV1_SUPPORT) ||
-			    (le16_to_cpu(path->usDeviceTag) ==
-			     ATOM_DEVICE_CV_SUPPORT))
-				continue;
-
-			if (con_obj_id >= ARRAY_SIZE(object_connector_convert)) {
-				DRM_ERROR("invalid con_obj_id %d for device tag 0x%04x\n",
-					  con_obj_id, le16_to_cpu(path->usDeviceTag));
-				continue;
-			}
-
 			connector_type =
 				object_connector_convert[con_obj_id];
 			connector_object_id = con_obj_id;
@@ -579,19 +566,28 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev)
 		    le16_to_cpu(firmware_info->info.usReferenceClock);
 		ppll->reference_div = 0;
 
-		ppll->pll_out_min =
-			le32_to_cpu(firmware_info->info_12.ulMinPixelClockPLL_Output);
+		if (crev < 2)
+			ppll->pll_out_min =
+				le16_to_cpu(firmware_info->info.usMinPixelClockPLL_Output);
+		else
+			ppll->pll_out_min =
+				le32_to_cpu(firmware_info->info_12.ulMinPixelClockPLL_Output);
 		ppll->pll_out_max =
 		    le32_to_cpu(firmware_info->info.ulMaxPixelClockPLL_Output);
 
-		ppll->lcd_pll_out_min =
-			le16_to_cpu(firmware_info->info_14.usLcdMinPixelClockPLL_Output) * 100;
-		if (ppll->lcd_pll_out_min == 0)
+		if (crev >= 4) {
+			ppll->lcd_pll_out_min =
+				le16_to_cpu(firmware_info->info_14.usLcdMinPixelClockPLL_Output) * 100;
+			if (ppll->lcd_pll_out_min == 0)
+				ppll->lcd_pll_out_min = ppll->pll_out_min;
+			ppll->lcd_pll_out_max =
+				le16_to_cpu(firmware_info->info_14.usLcdMaxPixelClockPLL_Output) * 100;
+			if (ppll->lcd_pll_out_max == 0)
+				ppll->lcd_pll_out_max = ppll->pll_out_max;
+		} else {
 			ppll->lcd_pll_out_min = ppll->pll_out_min;
-		ppll->lcd_pll_out_max =
-			le16_to_cpu(firmware_info->info_14.usLcdMaxPixelClockPLL_Output) * 100;
-		if (ppll->lcd_pll_out_max == 0)
 			ppll->lcd_pll_out_max = ppll->pll_out_max;
+		}
 
 		if (ppll->pll_out_min == 0)
 			ppll->pll_out_min = 64800;
@@ -681,10 +677,6 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev)
 			DRM_INFO("Changing default dispclk from %dMhz to 600Mhz\n",
 				 adev->clock.default_dispclk / 100);
 			adev->clock.default_dispclk = 60000;
-		} else if (adev->clock.default_dispclk <= 60000) {
-			DRM_INFO("Changing default dispclk from %dMhz to 625Mhz\n",
-				 adev->clock.default_dispclk / 100);
-			adev->clock.default_dispclk = 62500;
 		}
 		adev->clock.dp_extclk =
 			le16_to_cpu(firmware_info->info_21.usUniphyDPModeExtClkFreq);
@@ -1575,32 +1567,34 @@ void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev)
 		WREG32(mmBIOS_SCRATCH_0 + i, adev->bios_scratch[i]);
 }
 
-/* Atom needs data in little endian format so swap as appropriate when copying
- * data to or from atom. Note that atom operates on dw units.
- *
- * Use to_le=true when sending data to atom and provide at least
- * ALIGN(num_bytes,4) bytes in the dst buffer.
- *
- * Use to_le=false when receiving data from atom and provide ALIGN(num_bytes,4)
- * byes in the src buffer.
+/* Atom needs data in little endian format
+ * so swap as appropriate when copying data to
+ * or from atom. Note that atom operates on
+ * dw units.
  */
 void amdgpu_atombios_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le)
 {
 #ifdef __BIG_ENDIAN
-	u32 src_tmp[5], dst_tmp[5];
+	u8 src_tmp[20], dst_tmp[20]; /* used for byteswapping */
+	u32 *dst32, *src32;
 	int i;
-	u8 align_num_bytes = ALIGN(num_bytes, 4);
 
+	memcpy(src_tmp, src, num_bytes);
+	src32 = (u32 *)src_tmp;
+	dst32 = (u32 *)dst_tmp;
 	if (to_le) {
-		memcpy(src_tmp, src, num_bytes);
-		for (i = 0; i < align_num_bytes / 4; i++)
-			dst_tmp[i] = cpu_to_le32(src_tmp[i]);
-		memcpy(dst, dst_tmp, align_num_bytes);
-	} else {
-		memcpy(src_tmp, src, align_num_bytes);
-		for (i = 0; i < align_num_bytes / 4; i++)
-			dst_tmp[i] = le32_to_cpu(src_tmp[i]);
+		for (i = 0; i < ((num_bytes + 3) / 4); i++)
+			dst32[i] = cpu_to_le32(src32[i]);
 		memcpy(dst, dst_tmp, num_bytes);
+	} else {
+		u8 dws = num_bytes & ~3;
+		for (i = 0; i < ((num_bytes + 3) / 4); i++)
+			dst32[i] = le32_to_cpu(src32[i]);
+		memcpy(dst, dst_tmp, dws);
+		if (num_bytes % 4) {
+			for (i = 0; i < (num_bytes % 4); i++)
+				dst[dws+i] = dst_tmp[dws+i];
+		}
 	}
 #else
 	memcpy(dst, src, num_bytes);

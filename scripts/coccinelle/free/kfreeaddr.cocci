@@ -16,11 +16,7 @@ identifier f;
 position p;
 @@
 
-(
 * kfree@p(&e->f)
-|
-* kzfree@p(&e->f)
-)
 
 @script:python depends on org@
 p << r.p;
@@ -32,5 +28,5 @@ cocci.print_main("kfree",p)
 p << r.p;
 @@
 
-msg = "ERROR: invalid free of structure field"
+msg = "ERROR: kfree of structure field"
 coccilib.report.print_report(p[0],msg)

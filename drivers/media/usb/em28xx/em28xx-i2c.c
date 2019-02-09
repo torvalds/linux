@@ -507,8 +507,9 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (dev->disconnected)
 		return -ENODEV;
 
-	if (!rt_mutex_trylock(&dev->i2c_bus_lock))
-		return -EAGAIN;
+	rc = rt_mutex_trylock(&dev->i2c_bus_lock);
+	if (rc < 0)
+		return rc;
 
 	/* Switch I2C bus if needed */
 	if (bus != dev->cur_i2c_bus &&

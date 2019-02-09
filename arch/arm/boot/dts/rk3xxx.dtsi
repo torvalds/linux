@@ -43,7 +43,6 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/soc/rockchip,boot-mode.h>
 #include "skeleton.dtsi"
 
 / {
@@ -78,8 +77,6 @@
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			peripherals-req-type-burst;
 			clocks = <&cru ACLK_DMA1>;
 			clock-names = "apb_pclk";
 		};
@@ -90,8 +87,6 @@
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			peripherals-req-type-burst;
 			clocks = <&cru ACLK_DMA1>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -103,7 +98,6 @@
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
 			clocks = <&cru ACLK_DMA2>;
 			clock-names = "apb_pclk";
 		};
@@ -180,8 +174,8 @@
 		clock-names = "otg";
 		dr_mode = "otg";
 		g-np-tx-fifo-size = <16>;
-		g-rx-fifo-size = <280>;
-		g-tx-fifo-size = <256 128 128 64 32 16>;
+		g-rx-fifo-size = <275>;
+		g-tx-fifo-size = <256 128 128 64 64 32>;
 		g-use-dma;
 		phys = <&usbphy0>;
 		phy-names = "usb2-phy";
@@ -247,29 +241,9 @@
 		status = "disabled";
 	};
 
-	nandc: nandc@10500000 {
-		compatible = "rockchip,rk-nandc";
-		reg = <0x10500000 0x4000>;
-		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
-		nandc_id = <0>;
-		clocks = <&cru HCLK_NANDC0>;
-		clock-names = "hclk_nandc";
-		status = "disabled";
-	};
-
 	pmu: pmu@20004000 {
-		compatible = "rockchip,rk3066-pmu", "syscon", "simple-mfd";
+		compatible = "rockchip,rk3066-pmu", "syscon";
 		reg = <0x20004000 0x100>;
-
-		reboot-mode {
-			compatible = "syscon-reboot-mode";
-			offset = <0x40>;
-			mode-normal = <BOOT_NORMAL>;
-			mode-recovery = <BOOT_RECOVERY>;
-			mode-bootloader = <BOOT_FASTBOOT>;
-			mode-loader = <BOOT_BL_DOWNLOAD>;
-			mode-ums = <BOOT_UMS>;
-		};
 	};
 
 	grf: grf@20008000 {
@@ -421,8 +395,6 @@
 		#io-channel-cells = <1>;
 		clocks = <&cru SCLK_SARADC>, <&cru PCLK_SARADC>;
 		clock-names = "saradc", "apb_pclk";
-		resets = <&cru SRST_SARADC>;
-		reset-names = "saradc-apb";
 		status = "disabled";
 	};
 

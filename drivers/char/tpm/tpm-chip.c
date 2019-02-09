@@ -26,96 +26,36 @@
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
 #include <linux/major.h>
-#include <linux/of.h>
 #include "tpm.h"
 #include "tpm_eventlog.h"
 
-DEFINE_IDR(dev_nums_idr);
-static DEFINE_MUTEX(idr_lock);
+static DECLARE_BITMAP(dev_mask, TPM_NUM_DEVICES);
+static LIST_HEAD(tpm_chip_list);
+static DEFINE_SPINLOCK(driver_lock);
 
 struct class *tpm_class;
 dev_t tpm_devt;
 
-/**
- * tpm_try_get_ops() - Get a ref to the tpm_chip
- * @chip: Chip to ref
- *
- * The caller must already have some kind of locking to ensure that chip is
- * valid. This function will lock the chip so that the ops member can be
- * accessed safely. The locking prevents tpm_chip_unregister from
- * completing, so it should not be held for long periods.
- *
- * Returns -ERRNO if the chip could not be got.
+/*
+ * tpm_chip_find_get - return tpm_chip for a given chip number
+ * @chip_num the device number for the chip
  */
-int tpm_try_get_ops(struct tpm_chip *chip)
-{
-	int rc = -EIO;
-
-	get_device(&chip->dev);
-
-	down_read(&chip->ops_sem);
-	if (!chip->ops)
-		goto out_lock;
-
-	if (!try_module_get(chip->dev.parent->driver->owner))
-		goto out_lock;
-
-	return 0;
-out_lock:
-	up_read(&chip->ops_sem);
-	put_device(&chip->dev);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(tpm_try_get_ops);
-
-/**
- * tpm_put_ops() - Release a ref to the tpm_chip
- * @chip: Chip to put
- *
- * This is the opposite pair to tpm_try_get_ops(). After this returns chip may
- * be kfree'd.
- */
-void tpm_put_ops(struct tpm_chip *chip)
-{
-	module_put(chip->dev.parent->driver->owner);
-	up_read(&chip->ops_sem);
-	put_device(&chip->dev);
-}
-EXPORT_SYMBOL_GPL(tpm_put_ops);
-
-/**
- * tpm_chip_find_get() - return tpm_chip for a given chip number
- * @chip_num: id to find
- *
- * The return'd chip has been tpm_try_get_ops'd and must be released via
- * tpm_put_ops
-  */
 struct tpm_chip *tpm_chip_find_get(int chip_num)
 {
-	struct tpm_chip *chip, *res = NULL;
-	int chip_prev;
+	struct tpm_chip *pos, *chip = NULL;
 
-	mutex_lock(&idr_lock);
+	rcu_read_lock();
+	list_for_each_entry_rcu(pos, &tpm_chip_list, list) {
+		if (chip_num != TPM_ANY_NUM && chip_num != pos->dev_num)
+			continue;
 
-	if (chip_num == TPM_ANY_NUM) {
-		chip_num = 0;
-		do {
-			chip_prev = chip_num;
-			chip = idr_get_next(&dev_nums_idr, &chip_num);
-			if (chip && !tpm_try_get_ops(chip)) {
-				res = chip;
-				break;
-			}
-		} while (chip_prev != chip_num);
-	} else {
-		chip = idr_find_slowpath(&dev_nums_idr, chip_num);
-		if (chip && !tpm_try_get_ops(chip))
-			res = chip;
+		if (try_module_get(pos->pdev->driver->owner)) {
+			chip = pos;
+			break;
+		}
 	}
-
-	mutex_unlock(&idr_lock);
-
-	return res;
+	rcu_read_unlock();
+	return chip;
 }
 
 /**
@@ -128,47 +68,11 @@ static void tpm_dev_release(struct device *dev)
 {
 	struct tpm_chip *chip = container_of(dev, struct tpm_chip, dev);
 
-	mutex_lock(&idr_lock);
-	idr_remove(&dev_nums_idr, chip->dev_num);
-	mutex_unlock(&idr_lock);
-
+	spin_lock(&driver_lock);
+	clear_bit(chip->dev_num, dev_mask);
+	spin_unlock(&driver_lock);
 	kfree(chip);
 }
-
-
-/**
- * tpm_class_shutdown() - prepare the TPM device for loss of power.
- * @dev: device to which the chip is associated.
- *
- * Issues a TPM2_Shutdown command prior to loss of power, as required by the
- * TPM 2.0 spec.
- * Then, calls bus- and device- specific shutdown code.
- *
- * XXX: This codepath relies on the fact that sysfs is not enabled for
- * TPM2: sysfs uses an implicit lock on chip->ops, so this could race if TPM2
- * has sysfs support enabled before TPM sysfs's implicit locking is fixed.
- */
-static int tpm_class_shutdown(struct device *dev)
-{
-	struct tpm_chip *chip = container_of(dev, struct tpm_chip, dev);
-
-	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
-		down_write(&chip->ops_sem);
-		tpm2_shutdown(chip, TPM2_SU_CLEAR);
-		chip->ops = NULL;
-		up_write(&chip->ops_sem);
-	}
-	/* Allow bus- and device-specific code to run. Note: since chip->ops
-	 * is NULL, more-specific shutdown code will not be able to issue TPM
-	 * commands.
-	 */
-	if (dev->bus && dev->bus->shutdown)
-		dev->bus->shutdown(dev);
-	else if (dev->driver && dev->driver->shutdown)
-		dev->driver->shutdown(dev);
-	return 0;
-}
-
 
 /**
  * tpmm_chip_alloc() - allocate a new struct tpm_chip instance
@@ -184,35 +88,37 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 				 const struct tpm_class_ops *ops)
 {
 	struct tpm_chip *chip;
-	int rc;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return ERR_PTR(-ENOMEM);
 
 	mutex_init(&chip->tpm_mutex);
-	init_rwsem(&chip->ops_sem);
+	INIT_LIST_HEAD(&chip->list);
 
 	chip->ops = ops;
 
-	mutex_lock(&idr_lock);
-	rc = idr_alloc(&dev_nums_idr, NULL, 0, TPM_NUM_DEVICES, GFP_KERNEL);
-	mutex_unlock(&idr_lock);
-	if (rc < 0) {
+	spin_lock(&driver_lock);
+	chip->dev_num = find_first_zero_bit(dev_mask, TPM_NUM_DEVICES);
+	spin_unlock(&driver_lock);
+
+	if (chip->dev_num >= TPM_NUM_DEVICES) {
 		dev_err(dev, "No available tpm device numbers\n");
 		kfree(chip);
-		return ERR_PTR(rc);
+		return ERR_PTR(-ENOMEM);
 	}
-	chip->dev_num = rc;
+
+	set_bit(chip->dev_num, dev_mask);
 
 	scnprintf(chip->devname, sizeof(chip->devname), "tpm%d", chip->dev_num);
+
+	chip->pdev = dev;
 
 	dev_set_drvdata(dev, chip);
 
 	chip->dev.class = tpm_class;
-	chip->dev.class->shutdown = tpm_class_shutdown;
 	chip->dev.release = tpm_dev_release;
-	chip->dev.parent = dev;
+	chip->dev.parent = chip->pdev;
 #ifdef CONFIG_ACPI
 	chip->dev.groups = chip->groups;
 #endif
@@ -227,20 +133,14 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 	device_initialize(&chip->dev);
 
 	cdev_init(&chip->cdev, &tpm_fops);
-	chip->cdev.owner = dev->driver->owner;
+	chip->cdev.owner = chip->pdev->driver->owner;
 	chip->cdev.kobj.parent = &chip->dev.kobj;
-
-	rc = devm_add_action(dev, (void (*)(void *)) put_device, &chip->dev);
-	if (rc) {
-		put_device(&chip->dev);
-		return ERR_PTR(rc);
-	}
 
 	return chip;
 }
 EXPORT_SYMBOL_GPL(tpmm_chip_alloc);
 
-static int tpm_add_char_device(struct tpm_chip *chip)
+static int tpm_dev_add_device(struct tpm_chip *chip)
 {
 	int rc;
 
@@ -251,6 +151,7 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 			chip->devname, MAJOR(chip->dev.devt),
 			MINOR(chip->dev.devt), rc);
 
+		device_unregister(&chip->dev);
 		return rc;
 	}
 
@@ -261,32 +162,16 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 			chip->devname, MAJOR(chip->dev.devt),
 			MINOR(chip->dev.devt), rc);
 
-		cdev_del(&chip->cdev);
 		return rc;
 	}
-
-	/* Make the chip available. */
-	mutex_lock(&idr_lock);
-	idr_replace(&dev_nums_idr, chip, chip->dev_num);
-	mutex_unlock(&idr_lock);
 
 	return rc;
 }
 
-static void tpm_del_char_device(struct tpm_chip *chip)
+static void tpm_dev_del_device(struct tpm_chip *chip)
 {
 	cdev_del(&chip->cdev);
-	device_del(&chip->dev);
-
-	/* Make the chip unavailable. */
-	mutex_lock(&idr_lock);
-	idr_replace(&dev_nums_idr, NULL, chip->dev_num);
-	mutex_unlock(&idr_lock);
-
-	/* Make the driver uncallable. */
-	down_write(&chip->ops_sem);
-	chip->ops = NULL;
-	up_write(&chip->ops_sem);
+	device_unregister(&chip->dev);
 }
 
 static int tpm1_chip_register(struct tpm_chip *chip)
@@ -329,19 +214,7 @@ static void tpm1_chip_unregister(struct tpm_chip *chip)
  */
 int tpm_chip_register(struct tpm_chip *chip)
 {
-#ifdef CONFIG_OF
-	struct device_node *np;
-#endif
 	int rc;
-
-#ifdef CONFIG_OF
-	np = of_find_node_by_name(NULL, "vtpm");
-	if (np) {
-		if (of_property_read_bool(np, "powered-while-suspended"))
-			chip->flags |= TPM_CHIP_FLAG_ALWAYS_POWERED;
-	}
-	of_node_put(np);
-#endif
 
 	rc = tpm1_chip_register(chip);
 	if (rc)
@@ -349,15 +222,21 @@ int tpm_chip_register(struct tpm_chip *chip)
 
 	tpm_add_ppi(chip);
 
-	rc = tpm_add_char_device(chip);
+	rc = tpm_dev_add_device(chip);
 	if (rc)
 		goto out_err;
+
+	/* Make the chip available. */
+	spin_lock(&driver_lock);
+	list_add_tail_rcu(&chip->list, &tpm_chip_list);
+	spin_unlock(&driver_lock);
 
 	chip->flags |= TPM_CHIP_FLAG_REGISTERED;
 
 	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
-		rc = __compat_only_sysfs_link_entry_to_kobj(
-		    &chip->dev.parent->kobj, &chip->dev.kobj, "ppi");
+		rc = __compat_only_sysfs_link_entry_to_kobj(&chip->pdev->kobj,
+							    &chip->dev.kobj,
+							    "ppi");
 		if (rc && rc != -ENOENT) {
 			tpm_chip_unregister(chip);
 			return rc;
@@ -378,9 +257,6 @@ EXPORT_SYMBOL_GPL(tpm_chip_register);
  * Takes the chip first away from the list of available TPM chips and then
  * cleans up all the resources reserved by tpm_chip_register().
  *
- * Once this function returns the driver call backs in 'op's will not be
- * running and will no longer start.
- *
  * NOTE: This function should be only called before deinitializing chip
  * resources.
  */
@@ -389,10 +265,15 @@ void tpm_chip_unregister(struct tpm_chip *chip)
 	if (!(chip->flags & TPM_CHIP_FLAG_REGISTERED))
 		return;
 
+	spin_lock(&driver_lock);
+	list_del_rcu(&chip->list);
+	spin_unlock(&driver_lock);
+	synchronize_rcu();
+
 	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
-		sysfs_remove_link(&chip->dev.parent->kobj, "ppi");
+		sysfs_remove_link(&chip->pdev->kobj, "ppi");
 
 	tpm1_chip_unregister(chip);
-	tpm_del_char_device(chip);
+	tpm_dev_del_device(chip);
 }
 EXPORT_SYMBOL_GPL(tpm_chip_unregister);

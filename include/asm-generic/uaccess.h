@@ -230,18 +230,14 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 	might_fault();						\
 	access_ok(VERIFY_READ, __p, sizeof(*ptr)) ?		\
 		__get_user((x), (__typeof__(*(ptr)) *)__p) :	\
-		((x) = (__typeof__(*(ptr)))0,-EFAULT);		\
+		-EFAULT;					\
 })
 
 #ifndef __get_user_fn
 static inline int __get_user_fn(size_t size, const void __user *ptr, void *x)
 {
-	size_t n = __copy_from_user(x, ptr, size);
-	if (unlikely(n)) {
-		memset(x + (size - n), 0, n);
-		return -EFAULT;
-	}
-	return 0;
+	size = __copy_from_user(x, ptr, size);
+	return size ? -EFAULT : size;
 }
 
 #define __get_user_fn(sz, u, k)	__get_user_fn(sz, u, k)
@@ -261,13 +257,11 @@ extern int __get_user_bad(void) __attribute__((noreturn));
 static inline long copy_from_user(void *to,
 		const void __user * from, unsigned long n)
 {
-	unsigned long res = n;
 	might_fault();
-	if (likely(access_ok(VERIFY_READ, from, n)))
-		res = __copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
+	if (access_ok(VERIFY_READ, from, n))
+		return __copy_from_user(to, from, n);
+	else
+		return n;
 }
 
 static inline long copy_to_user(void __user *to,

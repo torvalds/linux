@@ -83,10 +83,6 @@
 			};
 		};
 
-		sdhc@114000 {
-			status = "disabled";
-		};
-
 		i2c@119000 {
 			status = "disabled";
 		};

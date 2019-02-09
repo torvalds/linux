@@ -885,7 +885,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 {
 	union mips_instruction insn;
 	unsigned long value;
-	unsigned int res, preempted;
+	unsigned int res;
 	unsigned long origpc;
 	unsigned long orig31;
 	void __user *fault_addr = NULL;
@@ -939,114 +939,88 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * The remaining opcodes are the ones that are really of
 		 * interest.
 		 */
-	case spec3_op:
-		if (insn.dsp_format.func == lx_op) {
-			switch (insn.dsp_format.op) {
-			case lwx_op:
-				if (!access_ok(VERIFY_READ, addr, 4))
-					goto sigbus;
-				LoadW(addr, value, res);
-				if (res)
-					goto fault;
-				compute_return_epc(regs);
-				regs->regs[insn.dsp_format.rd] = value;
-				break;
-			case lhx_op:
-				if (!access_ok(VERIFY_READ, addr, 2))
-					goto sigbus;
-				LoadHW(addr, value, res);
-				if (res)
-					goto fault;
-				compute_return_epc(regs);
-				regs->regs[insn.dsp_format.rd] = value;
-				break;
-			default:
-				goto sigill;
-			}
-		}
 #ifdef CONFIG_EVA
-		else {
-			/*
-			 * we can land here only from kernel accessing user
-			 * memory, so we need to "switch" the address limit to
-			 * user space, so that address check can work properly.
-			 */
-			seg = get_fs();
-			set_fs(USER_DS);
-			switch (insn.spec3_format.func) {
-			case lhe_op:
-				if (!access_ok(VERIFY_READ, addr, 2)) {
-					set_fs(seg);
-					goto sigbus;
-				}
-				LoadHWE(addr, value, res);
-				if (res) {
-					set_fs(seg);
-					goto fault;
-				}
-				compute_return_epc(regs);
-				regs->regs[insn.spec3_format.rt] = value;
-				break;
-			case lwe_op:
-				if (!access_ok(VERIFY_READ, addr, 4)) {
-					set_fs(seg);
-					goto sigbus;
-				}
-				LoadWE(addr, value, res);
-				if (res) {
-					set_fs(seg);
-					goto fault;
-				}
-				compute_return_epc(regs);
-				regs->regs[insn.spec3_format.rt] = value;
-				break;
-			case lhue_op:
-				if (!access_ok(VERIFY_READ, addr, 2)) {
-					set_fs(seg);
-					goto sigbus;
-				}
-				LoadHWUE(addr, value, res);
-				if (res) {
-					set_fs(seg);
-					goto fault;
-				}
-				compute_return_epc(regs);
-				regs->regs[insn.spec3_format.rt] = value;
-				break;
-			case she_op:
-				if (!access_ok(VERIFY_WRITE, addr, 2)) {
-					set_fs(seg);
-					goto sigbus;
-				}
-				compute_return_epc(regs);
-				value = regs->regs[insn.spec3_format.rt];
-				StoreHWE(addr, value, res);
-				if (res) {
-					set_fs(seg);
-					goto fault;
-				}
-				break;
-			case swe_op:
-				if (!access_ok(VERIFY_WRITE, addr, 4)) {
-					set_fs(seg);
-					goto sigbus;
-				}
-				compute_return_epc(regs);
-				value = regs->regs[insn.spec3_format.rt];
-				StoreWE(addr, value, res);
-				if (res) {
-					set_fs(seg);
-					goto fault;
-				}
-				break;
-			default:
+	case spec3_op:
+		/*
+		 * we can land here only from kernel accessing user memory,
+		 * so we need to "switch" the address limit to user space, so
+		 * address check can work properly.
+		 */
+		seg = get_fs();
+		set_fs(USER_DS);
+		switch (insn.spec3_format.func) {
+		case lhe_op:
+			if (!access_ok(VERIFY_READ, addr, 2)) {
 				set_fs(seg);
-				goto sigill;
+				goto sigbus;
 			}
+			LoadHWE(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			compute_return_epc(regs);
+			regs->regs[insn.spec3_format.rt] = value;
+			break;
+		case lwe_op:
+			if (!access_ok(VERIFY_READ, addr, 4)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+				LoadWE(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			compute_return_epc(regs);
+			regs->regs[insn.spec3_format.rt] = value;
+			break;
+		case lhue_op:
+			if (!access_ok(VERIFY_READ, addr, 2)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			LoadHWUE(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			compute_return_epc(regs);
+			regs->regs[insn.spec3_format.rt] = value;
+			break;
+		case she_op:
+			if (!access_ok(VERIFY_WRITE, addr, 2)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			compute_return_epc(regs);
+			value = regs->regs[insn.spec3_format.rt];
+			StoreHWE(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			break;
+		case swe_op:
+			if (!access_ok(VERIFY_WRITE, addr, 4)) {
+				set_fs(seg);
+				goto sigbus;
+			}
+			compute_return_epc(regs);
+			value = regs->regs[insn.spec3_format.rt];
+			StoreWE(addr, value, res);
+			if (res) {
+				set_fs(seg);
+				goto fault;
+			}
+			break;
+		default:
 			set_fs(seg);
+			goto sigill;
 		}
-#endif
+		set_fs(seg);
 		break;
+#endif
 	case lh_op:
 		if (!access_ok(VERIFY_READ, addr, 2))
 			goto sigbus;
@@ -1217,7 +1191,6 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	case ldc1_op:
 	case swc1_op:
 	case sdc1_op:
-	case cop1x_op:
 		die_if_kernel("Unaligned FP access in kernel code", regs);
 		BUG_ON(!used_math());
 
@@ -1253,36 +1226,27 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 			if (!access_ok(VERIFY_READ, addr, sizeof(*fpr)))
 				goto sigbus;
 
-			do {
-				/*
-				 * If we have live MSA context keep track of
-				 * whether we get preempted in order to avoid
-				 * the register context we load being clobbered
-				 * by the live context as it's saved during
-				 * preemption. If we don't have live context
-				 * then it can't be saved to clobber the value
-				 * we load.
-				 */
-				preempted = test_thread_flag(TIF_USEDMSA);
+			/*
+			 * Disable preemption to avoid a race between copying
+			 * state from userland, migrating to another CPU and
+			 * updating the hardware vector register below.
+			 */
+			preempt_disable();
 
-				res = __copy_from_user_inatomic(fpr, addr,
-								sizeof(*fpr));
-				if (res)
-					goto fault;
+			res = __copy_from_user_inatomic(fpr, addr,
+							sizeof(*fpr));
+			if (res)
+				goto fault;
 
-				/*
-				 * Update the hardware register if it is in use
-				 * by the task in this quantum, in order to
-				 * avoid having to save & restore the whole
-				 * vector context.
-				 */
-				preempt_disable();
-				if (test_thread_flag(TIF_USEDMSA)) {
-					write_msa_wr(wd, fpr, df);
-					preempted = 0;
-				}
-				preempt_enable();
-			} while (preempted);
+			/*
+			 * Update the hardware register if it is in use by the
+			 * task in this quantum, in order to avoid having to
+			 * save & restore the whole vector context.
+			 */
+			if (test_thread_flag(TIF_USEDMSA))
+				write_msa_wr(wd, fpr, df);
+
+			preempt_enable();
 			break;
 
 		case msa_st_op:

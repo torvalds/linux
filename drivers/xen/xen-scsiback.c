@@ -939,12 +939,12 @@ out:
 	spin_unlock_irqrestore(&info->v2p_lock, flags);
 
 out_free:
-	if (err) {
-		mutex_lock(&tpg->tv_tpg_mutex);
-		tpg->tv_tpg_fe_count--;
-		mutex_unlock(&tpg->tv_tpg_mutex);
+	mutex_lock(&tpg->tv_tpg_mutex);
+	tpg->tv_tpg_fe_count--;
+	mutex_unlock(&tpg->tv_tpg_mutex);
+
+	if (err)
 		kfree(new);
-	}
 
 	return err;
 }

@@ -65,6 +65,7 @@
 #include <linux/linkage.h>
 #include <asm/inst.h>
 
+#define CONCAT(a,b)	a##b
 #define VMOVDQ		vmovdqu
 
 #define xdata0		%xmm0
@@ -91,6 +92,8 @@
 #define num_bytes	%r8
 
 #define tmp		%r10
+#define	DDQ(i)		CONCAT(ddq_add_,i)
+#define	XMM(i)		CONCAT(%xmm, i)
 #define	DDQ_DATA	0
 #define	XDATA		1
 #define KEY_128		1
@@ -128,12 +131,12 @@ ddq_add_8:
 /* generate a unique variable for ddq_add_x */
 
 .macro setddq n
-	var_ddq_add = ddq_add_\n
+	var_ddq_add = DDQ(\n)
 .endm
 
 /* generate a unique variable for xmm register */
 .macro setxdata n
-	var_xdata = %xmm\n
+	var_xdata = XMM(\n)
 .endm
 
 /* club the numeric 'id' to the symbol 'name' */

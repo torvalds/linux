@@ -15,24 +15,7 @@
 #ifndef _ROCKCHIP_DRM_FBDEV_H
 #define _ROCKCHIP_DRM_FBDEV_H
 
-#ifdef CONFIG_DRM_FBDEV_EMULATION
 int rockchip_drm_fbdev_init(struct drm_device *dev);
 void rockchip_drm_fbdev_fini(struct drm_device *dev);
-#else
-static inline int rockchip_drm_fbdev_init(struct drm_device *dev)
-{
-	return 0;
-}
-
-static inline void rockchip_drm_fbdev_fini(struct drm_device *dev)
-{
-}
-#endif
-
-void rockchip_vop_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-				    u16 blue, int regno);
-
-void rockchip_vop_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-				    u16 *blue, int regno);
 
 #endif /* _ROCKCHIP_DRM_FBDEV_H */

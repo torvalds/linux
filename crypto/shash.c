@@ -24,12 +24,11 @@
 
 static const struct crypto_type crypto_shash_type;
 
-int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
-		    unsigned int keylen)
+static int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
+			   unsigned int keylen)
 {
 	return -ENOSYS;
 }
-EXPORT_SYMBOL_GPL(shash_no_setkey);
 
 static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 				  unsigned int keylen)
@@ -41,7 +40,7 @@ static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 	int err;
 
 	absize = keylen + (alignmask & ~(crypto_tfm_ctx_alignment() - 1));
-	buffer = kmalloc(absize, GFP_ATOMIC);
+	buffer = kmalloc(absize, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -275,14 +274,12 @@ static int shash_async_finup(struct ahash_request *req)
 
 int shash_ahash_digest(struct ahash_request *req, struct shash_desc *desc)
 {
+	struct scatterlist *sg = req->src;
+	unsigned int offset = sg->offset;
 	unsigned int nbytes = req->nbytes;
-	struct scatterlist *sg;
-	unsigned int offset;
 	int err;
 
-	if (nbytes &&
-	    (sg = req->src, offset = sg->offset,
-	     nbytes < min(sg->length, ((unsigned int)(PAGE_SIZE)) - offset))) {
+	if (nbytes < min(sg->length, ((unsigned int)(PAGE_SIZE)) - offset)) {
 		void *data;
 
 		data = kmap_atomic(sg_page(sg));
@@ -357,10 +354,9 @@ int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 	crt->final = shash_async_final;
 	crt->finup = shash_async_finup;
 	crt->digest = shash_async_digest;
-	crt->setkey = shash_async_setkey;
 
-	crt->has_setkey = alg->setkey != shash_no_setkey;
-
+	if (alg->setkey)
+		crt->setkey = shash_async_setkey;
 	if (alg->export)
 		crt->export = shash_async_export;
 	if (alg->import)
@@ -685,14 +681,6 @@ void shash_free_instance(struct crypto_instance *inst)
 	kfree(shash_instance(inst));
 }
 EXPORT_SYMBOL_GPL(shash_free_instance);
-
-int crypto_grab_shash(struct crypto_shash_spawn *spawn,
-		      const char *name, u32 type, u32 mask)
-{
-	spawn->base.frontend = &crypto_shash_type;
-	return crypto_grab_spawn(&spawn->base, name, type, mask);
-}
-EXPORT_SYMBOL_GPL(crypto_grab_shash);
 
 int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
 			    struct shash_alg *alg,

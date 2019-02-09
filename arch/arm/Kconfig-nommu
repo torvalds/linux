@@ -34,7 +34,8 @@ config PROCESSOR_ID
 	  used instead of the auto-probing which utilizes the register.
 
 config REMAP_VECTORS_TO_RAM
-	bool 'Install vectors to the beginning of RAM'
+	bool 'Install vectors to the beginning of RAM' if DRAM_BASE
+	depends on DRAM_BASE
 	help
 	  The kernel needs to change the hardware exception vectors.
 	  In nommu mode, the hardware exception vectors are normally

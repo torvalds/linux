@@ -565,10 +565,8 @@ static ssize_t prng_tdes_read(struct file *file, char __user *ubuf,
 		prng_data->prngws.byte_counter += n;
 		prng_data->prngws.reseed_counter += n;
 
-		if (copy_to_user(ubuf, prng_data->buf, chunk)) {
-			ret = -EFAULT;
-			break;
-		}
+		if (copy_to_user(ubuf, prng_data->buf, chunk))
+			return -EFAULT;
 
 		nbytes -= chunk;
 		ret += chunk;
@@ -671,13 +669,11 @@ static const struct file_operations prng_tdes_fops = {
 static struct miscdevice prng_sha512_dev = {
 	.name	= "prandom",
 	.minor	= MISC_DYNAMIC_MINOR,
-	.mode	= 0644,
 	.fops	= &prng_sha512_fops,
 };
 static struct miscdevice prng_tdes_dev = {
 	.name	= "prandom",
 	.minor	= MISC_DYNAMIC_MINOR,
-	.mode	= 0644,
 	.fops	= &prng_tdes_fops,
 };
 

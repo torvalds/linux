@@ -137,7 +137,6 @@
 #include <linux/pci.h>
 #include <linux/math64.h>
 #include <linux/io.h>
-#include <linux/nospec.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -1602,9 +1601,6 @@ static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
 {
 	u64 n;
 
-	if (snd_BUG_ON(rate <= 0))
-		return;
-
 	if (rate >= 112000)
 		rate /= 4;
 	else if (rate >= 56000)
@@ -2219,8 +2215,6 @@ static int hdspm_get_system_sample_rate(struct hdspm *hdspm)
 		} else {
 			/* slave mode, return external sample rate */
 			rate = hdspm_external_sample_rate(hdspm);
-			if (!rate)
-				rate = hdspm->system_sample_rate;
 		}
 	}
 
@@ -2266,11 +2260,8 @@ static int snd_hdspm_put_system_sample_rate(struct snd_kcontrol *kcontrol,
 					    ucontrol)
 {
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
-	int rate = ucontrol->value.integer.value[0];
 
-	if (rate < 27000 || rate > 207000)
-		return -EINVAL;
-	hdspm_set_dds_value(hdspm, ucontrol->value.integer.value[0]);
+	hdspm_set_dds_value(hdspm, ucontrol->value.enumerated.item[0]);
 	return 0;
 }
 
@@ -4458,7 +4449,7 @@ static int snd_hdspm_get_tco_word_term(struct snd_kcontrol *kcontrol,
 {
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
 
-	ucontrol->value.integer.value[0] = hdspm->tco->term;
+	ucontrol->value.enumerated.item[0] = hdspm->tco->term;
 
 	return 0;
 }
@@ -4469,8 +4460,8 @@ static int snd_hdspm_put_tco_word_term(struct snd_kcontrol *kcontrol,
 {
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
 
-	if (hdspm->tco->term != ucontrol->value.integer.value[0]) {
-		hdspm->tco->term = ucontrol->value.integer.value[0];
+	if (hdspm->tco->term != ucontrol->value.enumerated.item[0]) {
+		hdspm->tco->term = ucontrol->value.enumerated.item[0];
 
 		hdspm_tco_write(hdspm);
 
@@ -5693,43 +5684,40 @@ static int snd_hdspm_channel_info(struct snd_pcm_substream *substream,
 		struct snd_pcm_channel_info *info)
 {
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
-	unsigned int channel = info->channel;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (snd_BUG_ON(channel >= hdspm->max_channels_out)) {
+		if (snd_BUG_ON(info->channel >= hdspm->max_channels_out)) {
 			dev_info(hdspm->card->dev,
 				 "snd_hdspm_channel_info: output channel out of range (%d)\n",
-				 channel);
+				 info->channel);
 			return -EINVAL;
 		}
 
-		channel = array_index_nospec(channel, hdspm->max_channels_out);
-		if (hdspm->channel_map_out[channel] < 0) {
+		if (hdspm->channel_map_out[info->channel] < 0) {
 			dev_info(hdspm->card->dev,
 				 "snd_hdspm_channel_info: output channel %d mapped out\n",
-				 channel);
+				 info->channel);
 			return -EINVAL;
 		}
 
-		info->offset = hdspm->channel_map_out[channel] *
+		info->offset = hdspm->channel_map_out[info->channel] *
 			HDSPM_CHANNEL_BUFFER_BYTES;
 	} else {
-		if (snd_BUG_ON(channel >= hdspm->max_channels_in)) {
+		if (snd_BUG_ON(info->channel >= hdspm->max_channels_in)) {
 			dev_info(hdspm->card->dev,
 				 "snd_hdspm_channel_info: input channel out of range (%d)\n",
-				 channel);
+				 info->channel);
 			return -EINVAL;
 		}
 
-		channel = array_index_nospec(channel, hdspm->max_channels_in);
-		if (hdspm->channel_map_in[channel] < 0) {
+		if (hdspm->channel_map_in[info->channel] < 0) {
 			dev_info(hdspm->card->dev,
 				 "snd_hdspm_channel_info: input channel %d mapped out\n",
-				 channel);
+				 info->channel);
 			return -EINVAL;
 		}
 
-		info->offset = hdspm->channel_map_in[channel] *
+		info->offset = hdspm->channel_map_in[info->channel] *
 			HDSPM_CHANNEL_BUFFER_BYTES;
 	}
 

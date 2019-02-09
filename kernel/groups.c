@@ -101,7 +101,7 @@ static int groups_from_user(struct group_info *group_info,
 }
 
 /* a simple Shell sort */
-void groups_sort(struct group_info *group_info)
+static void groups_sort(struct group_info *group_info)
 {
 	int base, max, stride;
 	int gidsetsize = group_info->ngroups;
@@ -128,7 +128,6 @@ void groups_sort(struct group_info *group_info)
 		stride /= 3;
 	}
 }
-EXPORT_SYMBOL(groups_sort);
 
 /* a simple bsearch */
 int groups_search(const struct group_info *group_info, kgid_t grp)
@@ -160,6 +159,7 @@ int groups_search(const struct group_info *group_info, kgid_t grp)
 void set_groups(struct cred *new, struct group_info *group_info)
 {
 	put_group_info(new->group_info);
+	groups_sort(group_info);
 	get_group_info(group_info);
 	new->group_info = group_info;
 }
@@ -243,7 +243,6 @@ SYSCALL_DEFINE2(setgroups, int, gidsetsize, gid_t __user *, grouplist)
 		return retval;
 	}
 
-	groups_sort(group_info);
 	retval = set_current_groups(group_info);
 	put_group_info(group_info);
 

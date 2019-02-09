@@ -501,7 +501,7 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	kvm_write_c0_guest_config7(cop0, (MIPS_CONF7_WII) | (1 << 10));
 
 	/*
-	 * Setup IntCtl defaults, compatibility mode for timer interrupts (HW5)
+	 * Setup IntCtl defaults, compatibilty mode for timer interrupts (HW5)
 	 */
 	kvm_write_c0_guest_intctl(cop0, 0xFC000000);
 
@@ -547,7 +547,7 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 		kvm_mips_write_count(vcpu, v);
 		break;
 	case KVM_REG_MIPS_CP0_COMPARE:
-		kvm_mips_write_compare(vcpu, v, false);
+		kvm_mips_write_compare(vcpu, v);
 		break;
 	case KVM_REG_MIPS_CP0_CAUSE:
 		/*

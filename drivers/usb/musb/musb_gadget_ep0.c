@@ -114,19 +114,15 @@ static int service_tx_status_request(
 		}
 
 		is_in = epnum & USB_DIR_IN;
-		epnum &= 0x0f;
-		if (epnum >= MUSB_C_NUM_EPS) {
-			handled = -EINVAL;
-			break;
-		}
-
-		if (is_in)
+		if (is_in) {
+			epnum &= 0x0f;
 			ep = &musb->endpoints[epnum].ep_in;
-		else
+		} else {
 			ep = &musb->endpoints[epnum].ep_out;
+		}
 		regs = musb->endpoints[epnum].regs;
 
-		if (!ep->desc) {
+		if (epnum >= MUSB_C_NUM_EPS || !ep->desc) {
 			handled = -EINVAL;
 			break;
 		}

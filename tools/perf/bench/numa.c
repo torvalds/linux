@@ -208,47 +208,6 @@ static const char * const numa_usage[] = {
 	NULL
 };
 
-/*
- * To get number of numa nodes present.
- */
-static int nr_numa_nodes(void)
-{
-	int i, nr_nodes = 0;
-
-	for (i = 0; i < g->p.nr_nodes; i++) {
-		if (numa_bitmask_isbitset(numa_nodes_ptr, i))
-			nr_nodes++;
-	}
-
-	return nr_nodes;
-}
-
-/*
- * To check if given numa node is present.
- */
-static int is_node_present(int node)
-{
-	return numa_bitmask_isbitset(numa_nodes_ptr, node);
-}
-
-/*
- * To check given numa node has cpus.
- */
-static bool node_has_cpus(int node)
-{
-	struct bitmask *cpu = numa_allocate_cpumask();
-	unsigned int i;
-
-	if (cpu && !numa_node_to_cpus(node, cpu)) {
-		for (i = 0; i < cpu->size; i++) {
-			if (numa_bitmask_isbitset(cpu, i))
-				return true;
-		}
-	}
-
-	return false; /* lets fall back to nocpus safely */
-}
-
 static cpu_set_t bind_to_cpu(int target_cpu)
 {
 	cpu_set_t orig_mask, mask;
@@ -277,12 +236,12 @@ static cpu_set_t bind_to_cpu(int target_cpu)
 
 static cpu_set_t bind_to_node(int target_node)
 {
-	int cpus_per_node = g->p.nr_cpus / nr_numa_nodes();
+	int cpus_per_node = g->p.nr_cpus/g->p.nr_nodes;
 	cpu_set_t orig_mask, mask;
 	int cpu;
 	int ret;
 
-	BUG_ON(cpus_per_node * nr_numa_nodes() != g->p.nr_cpus);
+	BUG_ON(cpus_per_node*g->p.nr_nodes != g->p.nr_cpus);
 	BUG_ON(!cpus_per_node);
 
 	ret = sched_getaffinity(0, sizeof(orig_mask), &orig_mask);
@@ -682,7 +641,7 @@ static int parse_setup_node_list(void)
 			int i;
 
 			for (i = 0; i < mul; i++) {
-				if (t >= g->p.nr_tasks || !node_has_cpus(bind_node)) {
+				if (t >= g->p.nr_tasks) {
 					printf("\n# NOTE: ignoring bind NODEs starting at NODE#%d\n", bind_node);
 					goto out;
 				}
@@ -997,8 +956,6 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 	sum = 0;
 
 	for (node = 0; node < g->p.nr_nodes; node++) {
-		if (!is_node_present(node))
-			continue;
 		nr = nodes[node];
 		nr_min = min(nr, nr_min);
 		nr_max = max(nr, nr_max);
@@ -1019,11 +976,8 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 	process_groups = 0;
 
 	for (node = 0; node < g->p.nr_nodes; node++) {
-		int processes;
+		int processes = count_node_processes(node);
 
-		if (!is_node_present(node))
-			continue;
-		processes = count_node_processes(node);
 		nr = nodes[node];
 		tprintf(" %2d/%-2d", nr, processes);
 
@@ -1329,7 +1283,7 @@ static void print_summary(void)
 
 	printf("\n ###\n");
 	printf(" # %d %s will execute (on %d nodes, %d CPUs):\n",
-		g->p.nr_tasks, g->p.nr_tasks == 1 ? "task" : "tasks", nr_numa_nodes(), g->p.nr_cpus);
+		g->p.nr_tasks, g->p.nr_tasks == 1 ? "task" : "tasks", g->p.nr_nodes, g->p.nr_cpus);
 	printf(" #      %5dx %5ldMB global  shared mem operations\n",
 			g->p.nr_loops, g->p.bytes_global/1024/1024);
 	printf(" #      %5dx %5ldMB process shared mem operations\n",
@@ -1616,13 +1570,13 @@ static int __bench_numa(const char *name)
 		"GB/sec,", "total-speed",	"GB/sec total speed");
 
 	if (g->p.show_details >= 2) {
-		char tname[14 + 2 * 10 + 1];
+		char tname[32];
 		struct thread_data *td;
 		for (p = 0; p < g->p.nr_proc; p++) {
 			for (t = 0; t < g->p.nr_threads; t++) {
-				memset(tname, 0, sizeof(tname));
+				memset(tname, 0, 32);
 				td = g->threads + p*g->p.nr_threads + t;
-				snprintf(tname, sizeof(tname), "process%d:thread%d", p, t);
+				snprintf(tname, 32, "process%d:thread%d", p, t);
 				print_res(tname, td->speed_gbs,
 					"GB/sec",	"thread-speed", "GB/sec/thread speed");
 				print_res(tname, td->system_time_ns / 1e9,

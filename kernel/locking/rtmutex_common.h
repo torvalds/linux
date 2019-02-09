@@ -75,9 +75,8 @@ task_top_pi_waiter(struct task_struct *p)
 
 static inline struct task_struct *rt_mutex_owner(struct rt_mutex *lock)
 {
-	unsigned long owner = (unsigned long) READ_ONCE(lock->owner);
-
-	return (struct task_struct *) (owner & ~RT_MUTEX_OWNER_MASKALL);
+	return (struct task_struct *)
+		((unsigned long)lock->owner & ~RT_MUTEX_OWNER_MASKALL);
 }
 
 /*

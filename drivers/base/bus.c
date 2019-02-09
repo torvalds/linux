@@ -737,7 +737,7 @@ int bus_add_driver(struct device_driver *drv)
 
 out_unregister:
 	kobject_put(&priv->kobj);
-	/* drv->p is freed in driver_release()  */
+	kfree(drv->p);
 	drv->p = NULL;
 out_put_bus:
 	bus_put(bus);

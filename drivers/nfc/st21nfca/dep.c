@@ -217,8 +217,7 @@ static int st21nfca_tm_recv_atr_req(struct nfc_hci_dev *hdev,
 
 	atr_req = (struct st21nfca_atr_req *)skb->data;
 
-	if (atr_req->length < sizeof(struct st21nfca_atr_req) ||
-	    atr_req->length > skb->len) {
+	if (atr_req->length < sizeof(struct st21nfca_atr_req)) {
 		r = -EPROTO;
 		goto exit;
 	}

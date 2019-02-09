@@ -170,19 +170,6 @@ struct snd_ctl_elem_value32 {
         unsigned char reserved[128];
 };
 
-#ifdef CONFIG_X86_X32
-/* x32 has a different alignment for 64bit values from ia32 */
-struct snd_ctl_elem_value_x32 {
-	struct snd_ctl_elem_id id;
-	unsigned int indirect;	/* bit-field causes misalignment */
-	union {
-		s32 integer[128];
-		unsigned char data[512];
-		s64 integer64[64];
-	} value;
-	unsigned char reserved[128];
-};
-#endif /* CONFIG_X86_X32 */
 
 /* get the value type and count of the control */
 static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
@@ -232,11 +219,9 @@ static int get_elem_size(int type, int count)
 
 static int copy_ctl_value_from_user(struct snd_card *card,
 				    struct snd_ctl_elem_value *data,
-				    void __user *userdata,
-				    void __user *valuep,
+				    struct snd_ctl_elem_value32 __user *data32,
 				    int *typep, int *countp)
 {
-	struct snd_ctl_elem_value32 __user *data32 = userdata;
 	int i, type, size;
 	int uninitialized_var(count);
 	unsigned int indirect;
@@ -254,9 +239,8 @@ static int copy_ctl_value_from_user(struct snd_card *card,
 	if (type == SNDRV_CTL_ELEM_TYPE_BOOLEAN ||
 	    type == SNDRV_CTL_ELEM_TYPE_INTEGER) {
 		for (i = 0; i < count; i++) {
-			s32 __user *intp = valuep;
 			int val;
-			if (get_user(val, &intp[i]))
+			if (get_user(val, &data32->value.integer[i]))
 				return -EFAULT;
 			data->value.integer.value[i] = val;
 		}
@@ -266,7 +250,8 @@ static int copy_ctl_value_from_user(struct snd_card *card,
 			dev_err(card->dev, "snd_ioctl32_ctl_elem_value: unknown type %d\n", type);
 			return -EINVAL;
 		}
-		if (copy_from_user(data->value.bytes.data, valuep, size))
+		if (copy_from_user(data->value.bytes.data,
+				   data32->value.data, size))
 			return -EFAULT;
 	}
 
@@ -276,8 +261,7 @@ static int copy_ctl_value_from_user(struct snd_card *card,
 }
 
 /* restore the value to 32bit */
-static int copy_ctl_value_to_user(void __user *userdata,
-				  void __user *valuep,
+static int copy_ctl_value_to_user(struct snd_ctl_elem_value32 __user *data32,
 				  struct snd_ctl_elem_value *data,
 				  int type, int count)
 {
@@ -286,22 +270,22 @@ static int copy_ctl_value_to_user(void __user *userdata,
 	if (type == SNDRV_CTL_ELEM_TYPE_BOOLEAN ||
 	    type == SNDRV_CTL_ELEM_TYPE_INTEGER) {
 		for (i = 0; i < count; i++) {
-			s32 __user *intp = valuep;
 			int val;
 			val = data->value.integer.value[i];
-			if (put_user(val, &intp[i]))
+			if (put_user(val, &data32->value.integer[i]))
 				return -EFAULT;
 		}
 	} else {
 		size = get_elem_size(type, count);
-		if (copy_to_user(valuep, data->value.bytes.data, size))
+		if (copy_to_user(data32->value.data,
+				 data->value.bytes.data, size))
 			return -EFAULT;
 	}
 	return 0;
 }
 
-static int ctl_elem_read_user(struct snd_card *card,
-			      void __user *userdata, void __user *valuep)
+static int snd_ctl_elem_read_user_compat(struct snd_card *card, 
+					 struct snd_ctl_elem_value32 __user *data32)
 {
 	struct snd_ctl_elem_value *data;
 	int err, type, count;
@@ -310,9 +294,7 @@ static int ctl_elem_read_user(struct snd_card *card,
 	if (data == NULL)
 		return -ENOMEM;
 
-	err = copy_ctl_value_from_user(card, data, userdata, valuep,
-				       &type, &count);
-	if (err < 0)
+	if ((err = copy_ctl_value_from_user(card, data, data32, &type, &count)) < 0)
 		goto error;
 
 	snd_power_lock(card);
@@ -321,15 +303,14 @@ static int ctl_elem_read_user(struct snd_card *card,
 		err = snd_ctl_elem_read(card, data);
 	snd_power_unlock(card);
 	if (err >= 0)
-		err = copy_ctl_value_to_user(userdata, valuep, data,
-					     type, count);
+		err = copy_ctl_value_to_user(data32, data, type, count);
  error:
 	kfree(data);
 	return err;
 }
 
-static int ctl_elem_write_user(struct snd_ctl_file *file,
-			       void __user *userdata, void __user *valuep)
+static int snd_ctl_elem_write_user_compat(struct snd_ctl_file *file,
+					  struct snd_ctl_elem_value32 __user *data32)
 {
 	struct snd_ctl_elem_value *data;
 	struct snd_card *card = file->card;
@@ -339,9 +320,7 @@ static int ctl_elem_write_user(struct snd_ctl_file *file,
 	if (data == NULL)
 		return -ENOMEM;
 
-	err = copy_ctl_value_from_user(card, data, userdata, valuep,
-				       &type, &count);
-	if (err < 0)
+	if ((err = copy_ctl_value_from_user(card, data, data32, &type, &count)) < 0)
 		goto error;
 
 	snd_power_lock(card);
@@ -350,38 +329,11 @@ static int ctl_elem_write_user(struct snd_ctl_file *file,
 		err = snd_ctl_elem_write(card, file, data);
 	snd_power_unlock(card);
 	if (err >= 0)
-		err = copy_ctl_value_to_user(userdata, valuep, data,
-					     type, count);
+		err = copy_ctl_value_to_user(data32, data, type, count);
  error:
 	kfree(data);
 	return err;
 }
-
-static int snd_ctl_elem_read_user_compat(struct snd_card *card,
-					 struct snd_ctl_elem_value32 __user *data32)
-{
-	return ctl_elem_read_user(card, data32, &data32->value);
-}
-
-static int snd_ctl_elem_write_user_compat(struct snd_ctl_file *file,
-					  struct snd_ctl_elem_value32 __user *data32)
-{
-	return ctl_elem_write_user(file, data32, &data32->value);
-}
-
-#ifdef CONFIG_X86_X32
-static int snd_ctl_elem_read_user_x32(struct snd_card *card,
-				      struct snd_ctl_elem_value_x32 __user *data32)
-{
-	return ctl_elem_read_user(card, data32, &data32->value);
-}
-
-static int snd_ctl_elem_write_user_x32(struct snd_ctl_file *file,
-				       struct snd_ctl_elem_value_x32 __user *data32)
-{
-	return ctl_elem_write_user(file, data32, &data32->value);
-}
-#endif /* CONFIG_X86_X32 */
 
 /* add or replace a user control */
 static int snd_ctl_elem_add_compat(struct snd_ctl_file *file,
@@ -400,7 +352,8 @@ static int snd_ctl_elem_add_compat(struct snd_ctl_file *file,
 	if (copy_from_user(&data->id, &data32->id, sizeof(data->id)) ||
 	    copy_from_user(&data->type, &data32->type, 3 * sizeof(u32)))
 		goto error;
-	if (get_user(data->owner, &data32->owner))
+	if (get_user(data->owner, &data32->owner) ||
+	    get_user(data->type, &data32->type))
 		goto error;
 	switch (data->type) {
 	case SNDRV_CTL_ELEM_TYPE_BOOLEAN:
@@ -440,10 +393,6 @@ enum {
 	SNDRV_CTL_IOCTL_ELEM_WRITE32 = _IOWR('U', 0x13, struct snd_ctl_elem_value32),
 	SNDRV_CTL_IOCTL_ELEM_ADD32 = _IOWR('U', 0x17, struct snd_ctl_elem_info32),
 	SNDRV_CTL_IOCTL_ELEM_REPLACE32 = _IOWR('U', 0x18, struct snd_ctl_elem_info32),
-#ifdef CONFIG_X86_X32
-	SNDRV_CTL_IOCTL_ELEM_READ_X32 = _IOWR('U', 0x12, struct snd_ctl_elem_value_x32),
-	SNDRV_CTL_IOCTL_ELEM_WRITE_X32 = _IOWR('U', 0x13, struct snd_ctl_elem_value_x32),
-#endif /* CONFIG_X86_X32 */
 };
 
 static inline long snd_ctl_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
@@ -482,12 +431,6 @@ static inline long snd_ctl_ioctl_compat(struct file *file, unsigned int cmd, uns
 		return snd_ctl_elem_add_compat(ctl, argp, 0);
 	case SNDRV_CTL_IOCTL_ELEM_REPLACE32:
 		return snd_ctl_elem_add_compat(ctl, argp, 1);
-#ifdef CONFIG_X86_X32
-	case SNDRV_CTL_IOCTL_ELEM_READ_X32:
-		return snd_ctl_elem_read_user_x32(ctl->card, argp);
-	case SNDRV_CTL_IOCTL_ELEM_WRITE_X32:
-		return snd_ctl_elem_write_user_x32(ctl, argp);
-#endif /* CONFIG_X86_X32 */
 	}
 
 	down_read(&snd_ioctl_rwsem);

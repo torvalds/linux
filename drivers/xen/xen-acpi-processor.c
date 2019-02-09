@@ -27,10 +27,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/syscore_ops.h>
 #include <linux/acpi.h>
 #include <acpi/processor.h>
 #include <xen/xen.h>
+#include <xen/xen-ops.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
 
@@ -362,9 +362,9 @@ read_acpi_id(acpi_handle handle, u32 lvl, void *context, void **rv)
 	}
 	/* There are more ACPI Processor objects than in x2APIC or MADT.
 	 * This can happen with incorrect ACPI SSDT declerations. */
-	if (acpi_id >= nr_acpi_bits) {
-		pr_debug("max acpi id %u, trying to set %u\n",
-			 nr_acpi_bits - 1, acpi_id);
+	if (acpi_id > nr_acpi_bits) {
+		pr_debug("We only have %u, trying to set %u\n",
+			 nr_acpi_bits, acpi_id);
 		return AE_OK;
 	}
 	/* OK, There is a ACPI Processor object */
@@ -423,7 +423,36 @@ upload:
 
 	return 0;
 }
+static int __init check_prereq(void)
+{
+	struct cpuinfo_x86 *c = &cpu_data(0);
 
+	if (!xen_initial_domain())
+		return -ENODEV;
+
+	if (!acpi_gbl_FADT.smi_command)
+		return -ENODEV;
+
+	if (c->x86_vendor == X86_VENDOR_INTEL) {
+		if (!cpu_has(c, X86_FEATURE_EST))
+			return -ENODEV;
+
+		return 0;
+	}
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+		/* Copied from powernow-k8.h, can't include ../cpufreq/powernow
+		 * as we get compile warnings for the static functions.
+		 */
+#define CPUID_FREQ_VOLT_CAPABILITIES    0x80000007
+#define USE_HW_PSTATE                   0x00000080
+		u32 eax, ebx, ecx, edx;
+		cpuid(CPUID_FREQ_VOLT_CAPABILITIES, &eax, &ebx, &ecx, &edx);
+		if ((edx & USE_HW_PSTATE) != USE_HW_PSTATE)
+			return -ENODEV;
+		return 0;
+	}
+	return -ENODEV;
+}
 /* acpi_perf_data is a pointer to percpu data. */
 static struct acpi_processor_performance __percpu *acpi_perf_data;
 
@@ -466,42 +495,24 @@ static int xen_upload_processor_pm_data(void)
 	return rc;
 }
 
-static void xen_acpi_processor_resume_worker(struct work_struct *dummy)
+static int xen_acpi_processor_resume(struct notifier_block *nb,
+				     unsigned long action, void *data)
 {
-	int rc;
-
 	bitmap_zero(acpi_ids_done, nr_acpi_bits);
-
-	rc = xen_upload_processor_pm_data();
-	if (rc != 0)
-		pr_info("ACPI data upload failed, error = %d\n", rc);
+	return xen_upload_processor_pm_data();
 }
 
-static void xen_acpi_processor_resume(void)
-{
-	static DECLARE_WORK(wq, xen_acpi_processor_resume_worker);
-
-	/*
-	 * xen_upload_processor_pm_data() calls non-atomic code.
-	 * However, the context for xen_acpi_processor_resume is syscore
-	 * with only the boot CPU online and in an atomic context.
-	 *
-	 * So defer the upload for some point safer.
-	 */
-	schedule_work(&wq);
-}
-
-static struct syscore_ops xap_syscore_ops = {
-	.resume	= xen_acpi_processor_resume,
+struct notifier_block xen_acpi_processor_resume_nb = {
+	.notifier_call = xen_acpi_processor_resume,
 };
 
 static int __init xen_acpi_processor_init(void)
 {
 	unsigned int i;
-	int rc;
+	int rc = check_prereq();
 
-	if (!xen_initial_domain())
-		return -ENODEV;
+	if (rc)
+		return rc;
 
 	nr_acpi_bits = get_max_acpi_id() + 1;
 	acpi_ids_done = kcalloc(BITS_TO_LONGS(nr_acpi_bits), sizeof(unsigned long), GFP_KERNEL);
@@ -545,7 +556,7 @@ static int __init xen_acpi_processor_init(void)
 	if (rc)
 		goto err_unregister;
 
-	register_syscore_ops(&xap_syscore_ops);
+	xen_resume_notifier_register(&xen_acpi_processor_resume_nb);
 
 	return 0;
 err_unregister:
@@ -562,7 +573,7 @@ static void __exit xen_acpi_processor_exit(void)
 {
 	int i;
 
-	unregister_syscore_ops(&xap_syscore_ops);
+	xen_resume_notifier_unregister(&xen_acpi_processor_resume_nb);
 	kfree(acpi_ids_done);
 	kfree(acpi_id_present);
 	kfree(acpi_id_cst_present);

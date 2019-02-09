@@ -24,7 +24,6 @@
 #define __get_user_size(x,ptr,size,retval)			\
 do {								\
 	retval = 0;						\
-	x = 0;							\
 	switch (size) {						\
 	case 1:							\
 		retval = __get_user_asm_b((void *)&x,		\

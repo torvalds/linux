@@ -142,7 +142,7 @@ static inline void resume_init_first_level_page_table(pgd_t *pg_dir)
 #endif
 }
 
-asmlinkage int swsusp_arch_resume(void)
+int swsusp_arch_resume(void)
 {
 	int error;
 

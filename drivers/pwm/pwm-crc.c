@@ -75,7 +75,7 @@ static int crc_pwm_config(struct pwm_chip *c, struct pwm_device *pwm,
 		return -EINVAL;
 	}
 
-	if (pwm_get_period(pwm) != period_ns) {
+	if (pwm->period != period_ns) {
 		int clk_div;
 
 		/* changing the clk divisor, need to disable fisrt */

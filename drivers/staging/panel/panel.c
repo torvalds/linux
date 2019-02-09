@@ -825,7 +825,8 @@ static void lcd_write_cmd_s(int cmd)
 	lcd_send_serial(0x1F);	/* R/W=W, RS=0 */
 	lcd_send_serial(cmd & 0x0F);
 	lcd_send_serial((cmd >> 4) & 0x0F);
-	udelay(40);		/* the shortest command takes at least 40 us */
+	/* the shortest command takes at least 40 us */
+	usleep_range(40, 100);
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -836,7 +837,8 @@ static void lcd_write_data_s(int data)
 	lcd_send_serial(0x5F);	/* R/W=W, RS=1 */
 	lcd_send_serial(data & 0x0F);
 	lcd_send_serial((data >> 4) & 0x0F);
-	udelay(40);		/* the shortest data takes at least 40 us */
+	/* the shortest data takes at least 40 us */
+	usleep_range(40, 100);
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -846,19 +848,20 @@ static void lcd_write_cmd_p8(int cmd)
 	spin_lock_irq(&pprt_lock);
 	/* present the data to the data port */
 	w_dtr(pprt, cmd);
-	udelay(20);	/* maintain the data during 20 us before the strobe */
+	/* maintain the data during 20 us before the strobe */
+	usleep_range(20, 100);
 
 	bits.e = BIT_SET;
 	bits.rs = BIT_CLR;
 	bits.rw = BIT_CLR;
 	set_ctrl_bits();
 
-	udelay(40);	/* maintain the strobe during 40 us */
+	usleep_range(40, 100);	/* maintain the strobe during 40 us */
 
 	bits.e = BIT_CLR;
 	set_ctrl_bits();
 
-	udelay(120);	/* the shortest command takes at least 120 us */
+	usleep_range(120, 500);	/* the shortest command takes at least 120 us */
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -868,19 +871,20 @@ static void lcd_write_data_p8(int data)
 	spin_lock_irq(&pprt_lock);
 	/* present the data to the data port */
 	w_dtr(pprt, data);
-	udelay(20);	/* maintain the data during 20 us before the strobe */
+	/* maintain the data during 20 us before the strobe */
+	usleep_range(20, 100);
 
 	bits.e = BIT_SET;
 	bits.rs = BIT_SET;
 	bits.rw = BIT_CLR;
 	set_ctrl_bits();
 
-	udelay(40);	/* maintain the strobe during 40 us */
+	usleep_range(40, 100);	/* maintain the strobe during 40 us */
 
 	bits.e = BIT_CLR;
 	set_ctrl_bits();
 
-	udelay(45);	/* the shortest data takes at least 45 us */
+	usleep_range(45, 100);	/* the shortest data takes at least 45 us */
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -890,7 +894,7 @@ static void lcd_write_cmd_tilcd(int cmd)
 	spin_lock_irq(&pprt_lock);
 	/* present the data to the control port */
 	w_ctr(pprt, cmd);
-	udelay(60);
+	usleep_range(60, 120);
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -900,7 +904,7 @@ static void lcd_write_data_tilcd(int data)
 	spin_lock_irq(&pprt_lock);
 	/* present the data to the data port */
 	w_dtr(pprt, data);
-	udelay(60);
+	usleep_range(60, 120);
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -943,7 +947,7 @@ static void lcd_clear_fast_s(void)
 		lcd_send_serial(0x5F);	/* R/W=W, RS=1 */
 		lcd_send_serial(' ' & 0x0F);
 		lcd_send_serial((' ' >> 4) & 0x0F);
-		udelay(40);	/* the shortest data takes at least 40 us */
+		usleep_range(40, 100);	/* the shortest data takes at least 40 us */
 	}
 	spin_unlock_irq(&pprt_lock);
 
@@ -967,7 +971,7 @@ static void lcd_clear_fast_p8(void)
 		w_dtr(pprt, ' ');
 
 		/* maintain the data during 20 us before the strobe */
-		udelay(20);
+		usleep_range(20, 100);
 
 		bits.e = BIT_SET;
 		bits.rs = BIT_SET;
@@ -975,13 +979,13 @@ static void lcd_clear_fast_p8(void)
 		set_ctrl_bits();
 
 		/* maintain the strobe during 40 us */
-		udelay(40);
+		usleep_range(40, 100);
 
 		bits.e = BIT_CLR;
 		set_ctrl_bits();
 
 		/* the shortest data takes at least 45 us */
-		udelay(45);
+		usleep_range(45, 100);
 	}
 	spin_unlock_irq(&pprt_lock);
 
@@ -1003,7 +1007,7 @@ static void lcd_clear_fast_tilcd(void)
 	for (pos = 0; pos < lcd.height * lcd.hwidth; pos++) {
 		/* present the data to the data port */
 		w_dtr(pprt, ' ');
-		udelay(60);
+		usleep_range(60, 120);
 	}
 
 	spin_unlock_irq(&pprt_lock);
@@ -1431,25 +1435,17 @@ static ssize_t lcd_write(struct file *file,
 
 static int lcd_open(struct inode *inode, struct file *file)
 {
-	int ret;
-
-	ret = -EBUSY;
 	if (!atomic_dec_and_test(&lcd_available))
-		goto fail; /* open only once at a time */
+		return -EBUSY;	/* open only once at a time */
 
-	ret = -EPERM;
 	if (file->f_mode & FMODE_READ)	/* device is write-only */
-		goto fail;
+		return -EPERM;
 
 	if (lcd.must_clear) {
 		lcd_clear_display();
 		lcd.must_clear = false;
 	}
 	return nonseekable_open(inode, file);
-
- fail:
-	atomic_inc(&lcd_available);
-	return ret;
 }
 
 static int lcd_release(struct inode *inode, struct file *file)
@@ -1712,21 +1708,14 @@ static ssize_t keypad_read(struct file *file,
 
 static int keypad_open(struct inode *inode, struct file *file)
 {
-	int ret;
-
-	ret = -EBUSY;
 	if (!atomic_dec_and_test(&keypad_available))
-		goto fail;	/* open only once at a time */
+		return -EBUSY;	/* open only once at a time */
 
-	ret = -EPERM;
 	if (file->f_mode & FMODE_WRITE)	/* device is read-only */
-		goto fail;
+		return -EPERM;
 
 	keypad_buflen = 0;	/* flush the buffer on opening */
 	return 0;
- fail:
-	atomic_inc(&keypad_available);
-	return ret;
 }
 
 static int keypad_release(struct inode *inode, struct file *file)

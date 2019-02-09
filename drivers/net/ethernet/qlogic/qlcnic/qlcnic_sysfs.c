@@ -1128,8 +1128,6 @@ static ssize_t qlcnic_83xx_sysfs_flash_write_handler(struct file *filp,
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 
 	ret = kstrtoul(buf, 16, &data);
-	if (ret)
-		return ret;
 
 	switch (data) {
 	case QLC_83XX_FLASH_SECTOR_ERASE_CMD:

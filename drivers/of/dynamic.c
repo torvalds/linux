@@ -55,7 +55,7 @@ void __of_detach_node_sysfs(struct device_node *np)
 	/* only remove properties if on sysfs */
 	if (of_node_is_attached(np)) {
 		for_each_property_of_node(np, pp)
-			__of_sysfs_remove_bin_file(np, pp);
+			sysfs_remove_bin_file(&np->kobj, &pp->attr);
 		kobject_del(&np->kobj);
 	}
 

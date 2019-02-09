@@ -117,8 +117,6 @@ static int sensor_set_power(struct camif_dev *camif, int on)
 
 	if (camif->sensor.power_count == !on)
 		err = v4l2_subdev_call(sensor->sd, core, s_power, on);
-	if (err == -ENOIOCTLCMD)
-		err = 0;
 	if (!err)
 		sensor->power_count += on ? 1 : -1;
 
@@ -1270,17 +1268,16 @@ static void __camif_subdev_try_format(struct camif_dev *camif,
 {
 	const struct s3c_camif_variant *variant = camif->variant;
 	const struct vp_pix_limits *pix_lim;
-	unsigned int i;
+	int i = ARRAY_SIZE(camif_mbus_formats);
 
 	/* FIXME: constraints against codec or preview path ? */
 	pix_lim = &variant->vp_pix_limits[VP_CODEC];
 
-	for (i = 0; i < ARRAY_SIZE(camif_mbus_formats); i++)
+	while (i-- >= 0)
 		if (camif_mbus_formats[i] == mf->code)
 			break;
 
-	if (i == ARRAY_SIZE(camif_mbus_formats))
-		mf->code = camif_mbus_formats[0];
+	mf->code = camif_mbus_formats[i];
 
 	if (pad == CAMIF_SD_PAD_SINK) {
 		v4l_bound_align_image(&mf->width, 8, CAMIF_MAX_PIX_WIDTH,

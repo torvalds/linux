@@ -442,7 +442,6 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
 					     int *post_ret)
 {
 	struct se_device *dev = cmd->se_dev;
-	sense_reason_t ret = TCM_NO_SENSE;
 
 	/*
 	 * Only set SCF_COMPARE_AND_WRITE_POST to force a response fall-through
@@ -450,12 +449,9 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
 	 * sent to the backend driver.
 	 */
 	spin_lock_irq(&cmd->t_state_lock);
-	if (cmd->transport_state & CMD_T_SENT) {
+	if ((cmd->transport_state & CMD_T_SENT) && !cmd->scsi_status) {
 		cmd->se_cmd_flags |= SCF_COMPARE_AND_WRITE_POST;
 		*post_ret = 1;
-
-		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
-			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 	spin_unlock_irq(&cmd->t_state_lock);
 
@@ -465,7 +461,7 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
 	 */
 	up(&dev->caw_sem);
 
-	return ret;
+	return TCM_NO_SENSE;
 }
 
 static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool success,
@@ -498,11 +494,8 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	 * been failed with a non-zero SCSI status.
 	 */
 	if (cmd->scsi_status) {
-		pr_debug("compare_and_write_callback: non zero scsi_status:"
+		pr_err("compare_and_write_callback: non zero scsi_status:"
 			" 0x%02x\n", cmd->scsi_status);
-		*post_ret = 1;
-		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
-			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		goto out;
 	}
 
@@ -601,7 +594,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	cmd->transport_state |= CMD_T_ACTIVE|CMD_T_BUSY|CMD_T_SENT;
 	spin_unlock_irq(&cmd->t_state_lock);
 
-	__target_execute_cmd(cmd, false);
+	__target_execute_cmd(cmd);
 
 	kfree(buf);
 	return ret;
@@ -1099,15 +1092,9 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return ret;
 		break;
 	case VERIFY:
-	case VERIFY_16:
 		size = 0;
-		if (cdb[0] == VERIFY) {
-			sectors = transport_get_sectors_10(cdb);
-			cmd->t_task_lba = transport_lba_32(cdb);
-		} else {
-			sectors = transport_get_sectors_16(cdb);
-			cmd->t_task_lba = transport_lba_64(cdb);
-		}
+		sectors = transport_get_sectors_10(cdb);
+		cmd->t_task_lba = transport_lba_32(cdb);
 		cmd->execute_cmd = sbc_emulate_noop;
 		goto check_lba;
 	case REZERO_UNIT:

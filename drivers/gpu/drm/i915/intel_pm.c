@@ -1789,20 +1789,16 @@ static uint32_t ilk_compute_cur_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t mem_value)
 {
-	/*
-	 * We treat the cursor plane as always-on for the purposes of watermark
-	 * calculation.  Until we have two-stage watermark programming merged,
-	 * this is necessary to avoid flickering.
-	 */
-	int cpp = 4;
-	int width = pstate->visible ? pstate->base.crtc_w : 64;
+	int bpp = pstate->base.fb ? pstate->base.fb->bits_per_pixel / 8 : 0;
 
-	if (!cstate->base.active)
+	if (!cstate->base.active || !pstate->visible)
 		return 0;
 
 	return ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
 			      cstate->base.adjusted_mode.crtc_htotal,
-			      width, cpp, mem_value);
+			      drm_rect_width(&pstate->dst),
+			      bpp,
+			      mem_value);
 }
 
 /* Only for WM_LP. */
@@ -2097,34 +2093,32 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 				GEN9_MEM_LATENCY_LEVEL_MASK;
 
 		/*
-		 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
-		 * need to be disabled. We make sure to sanitize the values out
-		 * of the punit to satisfy this requirement.
-		 */
-		for (level = 1; level <= max_level; level++) {
-			if (wm[level] == 0) {
-				for (i = level + 1; i <= max_level; i++)
-					wm[i] = 0;
-				break;
-			}
-		}
-
-		/*
 		 * WaWmMemoryReadLatency:skl
 		 *
 		 * punit doesn't take into account the read latency so we need
-		 * to add 2us to the various latency levels we retrieve from the
-		 * punit when level 0 response data us 0us.
+		 * to add 2us to the various latency levels we retrieve from
+		 * the punit.
+		 *   - W0 is a bit special in that it's the only level that
+		 *   can't be disabled if we want to have display working, so
+		 *   we always add 2us there.
+		 *   - For levels >=1, punit returns 0us latency when they are
+		 *   disabled, so we respect that and don't add 2us then
+		 *
+		 * Additionally, if a level n (n > 1) has a 0us latency, all
+		 * levels m (m >= n) need to be disabled. We make sure to
+		 * sanitize the values out of the punit to satisfy this
+		 * requirement.
 		 */
-		if (wm[0] == 0) {
-			wm[0] += 2;
-			for (level = 1; level <= max_level; level++) {
-				if (wm[level] == 0)
-					break;
+		wm[0] += 2;
+		for (level = 1; level <= max_level; level++)
+			if (wm[level] != 0)
 				wm[level] += 2;
-			}
-		}
+			else {
+				for (i = level + 1; i <= max_level; i++)
+					wm[i] = 0;
 
+				break;
+			}
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		uint64_t sskpd = I915_READ64(MCH_SSKPD);
 
@@ -3886,8 +3880,6 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
 
-	memset(active, 0, sizeof(*active));
-
 	active->pipe_enabled = intel_crtc->active;
 
 	if (active->pipe_enabled) {
@@ -4376,12 +4368,6 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		break;
 	}
 
-	/* When byt can survive without system hang with dynamic
-	 * sw freq adjustments, this restriction can be lifted.
-	 */
-	if (IS_VALLEYVIEW(dev_priv))
-		goto skip_hw_write;
-
 	I915_WRITE(GEN6_RP_UP_EI,
 		GT_INTERVAL_FROM_US(dev_priv, ei_up));
 	I915_WRITE(GEN6_RP_UP_THRESHOLD,
@@ -4400,7 +4386,6 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		    GEN6_RP_UP_BUSY_AVG |
 		    GEN6_RP_DOWN_IDLE_AVG);
 
-skip_hw_write:
 	dev_priv->rps.power = new_power;
 	dev_priv->rps.up_threshold = threshold_up;
 	dev_priv->rps.down_threshold = threshold_down;
@@ -4411,9 +4396,8 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
 {
 	u32 mask = 0;
 
-	/* We use UP_EI_EXPIRED interupts for both up/down in manual mode */
 	if (val > dev_priv->rps.min_freq_softlimit)
-		mask |= GEN6_PM_RP_UP_EI_EXPIRED | GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
+		mask |= GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
 	if (val < dev_priv->rps.max_freq_softlimit)
 		mask |= GEN6_PM_RP_UP_EI_EXPIRED | GEN6_PM_RP_UP_THRESHOLD;
 
@@ -4517,7 +4501,7 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
-		if (dev_priv->pm_rps_events & GEN6_PM_RP_UP_EI_EXPIRED)
+		if (dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED))
 			gen6_rps_reset_ei(dev_priv);
 		I915_WRITE(GEN6_PMINTRMSK,
 			   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
@@ -4536,8 +4520,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		else
 			gen6_set_rps(dev_priv->dev, dev_priv->rps.idle_freq);
 		dev_priv->rps.last_adj = 0;
-		I915_WRITE(GEN6_PMINTRMSK,
-			   gen6_sanitize_rps_pm_mask(dev_priv, ~0));
+		I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -6637,12 +6620,6 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	misccpctl = I915_READ(GEN7_MISCCPCTL);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
 	I915_WRITE(GEN8_L3SQCREG1, BDW_WA_L3SQCREG1_DEFAULT);
-	/*
-	 * Wait at least 100 clocks before re-enabling clock gating. See
-	 * the definition of L3SQCREG1 in BSpec.
-	 */
-	POSTING_READ(GEN8_L3SQCREG1);
-	udelay(1);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 
 	/*
@@ -6811,18 +6788,7 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 
 static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 {
-        u32 val;
-
-        /*
-        * On driver load, a pipe may be active and driving a DSI display.
-        * Preserve DPOUNIT_CLOCK_GATE_DISABLE to avoid the pipe getting stuck
-        * (and never recovering) in this case. intel_dsi_post_disable() will
-        * clear it when we turn off the display.
-        */
-        val = I915_READ(DSPCLK_GATE_D);
-        val &= DPOUNIT_CLOCK_GATE_DISABLE;
-        val |= VRHUNIT_CLOCK_GATE_DISABLE;
-        I915_WRITE(DSPCLK_GATE_D, val);
+	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
 
 	/*
 	 * Disable trickle feed and enable pnd deadline calculation

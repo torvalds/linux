@@ -203,8 +203,7 @@ void drm_bridge_disable(struct drm_bridge *bridge)
 
 	drm_bridge_disable(bridge->next);
 
-	if (bridge->funcs->disable)
-		bridge->funcs->disable(bridge);
+	bridge->funcs->disable(bridge);
 }
 EXPORT_SYMBOL(drm_bridge_disable);
 
@@ -224,8 +223,7 @@ void drm_bridge_post_disable(struct drm_bridge *bridge)
 	if (!bridge)
 		return;
 
-	if (bridge->funcs->post_disable)
-		bridge->funcs->post_disable(bridge);
+	bridge->funcs->post_disable(bridge);
 
 	drm_bridge_post_disable(bridge->next);
 }
@@ -275,8 +273,7 @@ void drm_bridge_pre_enable(struct drm_bridge *bridge)
 
 	drm_bridge_pre_enable(bridge->next);
 
-	if (bridge->funcs->pre_enable)
-		bridge->funcs->pre_enable(bridge);
+	bridge->funcs->pre_enable(bridge);
 }
 EXPORT_SYMBOL(drm_bridge_pre_enable);
 
@@ -296,8 +293,7 @@ void drm_bridge_enable(struct drm_bridge *bridge)
 	if (!bridge)
 		return;
 
-	if (bridge->funcs->enable)
-		bridge->funcs->enable(bridge);
+	bridge->funcs->enable(bridge);
 
 	drm_bridge_enable(bridge->next);
 }

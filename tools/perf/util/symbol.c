@@ -151,9 +151,6 @@ void symbols__fixup_duplicate(struct rb_root *symbols)
 	struct rb_node *nd;
 	struct symbol *curr, *next;
 
-	if (symbol_conf.allow_aliases)
-		return;
-
 	nd = rb_first(symbols);
 
 	while (nd) {
@@ -200,7 +197,7 @@ void symbols__fixup_end(struct rb_root *symbols)
 
 	/* Last entry */
 	if (curr->end == curr->start)
-		curr->end = roundup(curr->start, 4096) + 4096;
+		curr->end = roundup(curr->start, 4096);
 }
 
 void __map_groups__fixup_end(struct map_groups *mg, enum map_type type)
@@ -1278,8 +1275,8 @@ int dso__load_kallsyms(struct dso *dso, const char *filename,
 	if (kallsyms__delta(map, filename, &delta))
 		return -1;
 
-	symbols__fixup_end(&dso->symbols[map->type]);
 	symbols__fixup_duplicate(&dso->symbols[map->type]);
+	symbols__fixup_end(&dso->symbols[map->type]);
 
 	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
 		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KALLSYMS;
@@ -1468,8 +1465,7 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	 * Read the build id if possible. This is required for
 	 * DSO_BINARY_TYPE__BUILDID_DEBUGINFO to work
 	 */
-	if ((!dso->has_build_id) &&
-	    (filename__read_build_id(dso->name, build_id, BUILD_ID_SIZE) > 0))
+	if (filename__read_build_id(dso->name, build_id, BUILD_ID_SIZE) > 0)
 		dso__set_build_id(dso, build_id);
 
 	/*

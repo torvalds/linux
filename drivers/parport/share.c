@@ -936,10 +936,8 @@ parport_register_dev_model(struct parport *port, const char *name,
 	 * pardevice fields. -arca
 	 */
 	port->ops->init_state(par_dev, par_dev->state);
-	if (!test_and_set_bit(PARPORT_DEVPROC_REGISTERED, &port->devflags)) {
-		port->proc_device = par_dev;
-		parport_device_proc_register(par_dev);
-	}
+	port->proc_device = par_dev;
+	parport_device_proc_register(par_dev);
 
 	return par_dev;
 

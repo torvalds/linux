@@ -18,7 +18,6 @@
 #include <linux/phy.h>
 
 struct cpsw_slave_data {
-	struct device_node *phy_node;
 	char		phy_id[MII_BUS_ID_SIZE];
 	int		phy_if;
 	u8		mac_addr[ETH_ALEN];

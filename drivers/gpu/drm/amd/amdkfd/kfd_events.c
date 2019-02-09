@@ -739,10 +739,8 @@ int kfd_wait_on_events(struct kfd_process *p,
 		struct kfd_event_data event_data;
 
 		if (copy_from_user(&event_data, &events[i],
-				sizeof(struct kfd_event_data))) {
-			ret = -EFAULT;
+				sizeof(struct kfd_event_data)))
 			goto fail;
-		}
 
 		ret = init_event_waiter(p, &event_waiters[i],
 				event_data.event_id, i);

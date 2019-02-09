@@ -450,7 +450,7 @@ static bool watchdog_is_running(void)
 
 	is_running = (superio_inb(watchdog.sioaddr, SIO_REG_ENABLE) & BIT(0))
 		&& (superio_inb(watchdog.sioaddr, F71808FG_REG_WDT_CONF)
-			& BIT(F71808FG_FLAG_WD_EN));
+			& F71808FG_FLAG_WD_EN);
 
 	superio_exit(watchdog.sioaddr);
 
@@ -520,8 +520,7 @@ static ssize_t watchdog_write(struct file *file, const char __user *buf,
 				char c;
 				if (get_user(c, buf + i))
 					return -EFAULT;
-				if (c == 'V')
-					expect_close = true;
+				expect_close = (c == 'V');
 			}
 
 			/* Properly order writes across fork()ed processes */

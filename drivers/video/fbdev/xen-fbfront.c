@@ -644,6 +644,7 @@ static void xenfb_backend_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateInitWait:
+InitWait:
 		xenbus_switch_state(dev, XenbusStateConnected);
 		break;
 
@@ -654,8 +655,7 @@ static void xenfb_backend_changed(struct xenbus_device *dev,
 		 * get Connected twice here.
 		 */
 		if (dev->state != XenbusStateConnected)
-			/* no InitWait seen yet, fudge it */
-			xenbus_switch_state(dev, XenbusStateConnected);
+			goto InitWait; /* no InitWait seen yet, fudge it */
 
 		if (xenbus_scanf(XBT_NIL, info->xbdev->otherend,
 				 "request-update", "%d", &val) < 0)

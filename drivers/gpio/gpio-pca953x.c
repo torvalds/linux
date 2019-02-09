@@ -86,7 +86,7 @@ MODULE_DEVICE_TABLE(acpi, pca953x_acpi_ids);
 #define MAX_BANK 5
 #define BANK_SZ 8
 
-#define NBANK(chip) DIV_ROUND_UP(chip->gpio_chip.ngpio, BANK_SZ)
+#define NBANK(chip) (chip->gpio_chip.ngpio / BANK_SZ)
 
 struct pca953x_chip {
 	unsigned gpio_start;
@@ -367,7 +367,7 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->base = chip->gpio_start;
 	gc->ngpio = gpios;
 	gc->label = chip->client->name;
-	gc->parent = &chip->client->dev;
+	gc->dev = &chip->client->dev;
 	gc->owner = THIS_MODULE;
 	gc->names = chip->names;
 }

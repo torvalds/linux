@@ -20,8 +20,7 @@ struct IR_i2c {
 	struct delayed_work    work;
 	char                   name[32];
 	char                   phys[32];
-	int                    (*get_key)(struct IR_i2c *ir,
-					  enum rc_proto *protocol,
+	int                    (*get_key)(struct IR_i2c *ir, enum rc_type *protocol,
 					  u32 *scancode, u8 *toggle);
 };
 
@@ -39,15 +38,14 @@ enum ir_kbd_get_key_fn {
 struct IR_i2c_init_data {
 	char			*ir_codes;
 	const char		*name;
-	u64			type; /* RC_PROTO_BIT_RC5, etc */
+	u64			type; /* RC_BIT_RC5, etc */
 	u32			polling_interval; /* 0 means DEFAULT_POLLING_INTERVAL */
 
 	/*
 	 * Specify either a function pointer or a value indicating one of
 	 * ir_kbd_i2c's internal get_key functions
 	 */
-	int                    (*get_key)(struct IR_i2c *ir,
-					  enum rc_proto *protocol,
+	int                    (*get_key)(struct IR_i2c *ir, enum rc_type *protocol,
 					  u32 *scancode, u8 *toggle);
 	enum ir_kbd_get_key_fn internal_get_key_func;
 

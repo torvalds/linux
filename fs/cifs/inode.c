@@ -756,15 +756,7 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 	} else if (rc == -EREMOTE) {
 		cifs_create_dfs_fattr(&fattr, sb);
 		rc = 0;
-	} else if ((rc == -EACCES) && backup_cred(cifs_sb) &&
-		   (strcmp(server->vals->version_string, SMB1_VERSION_STRING)
-		      == 0)) {
-			/*
-			 * For SMB2 and later the backup intent flag is already
-			 * sent if needed on open and there is no path based
-			 * FindFirst operation to use to retry with
-			 */
-
+	} else if (rc == -EACCES && backup_cred(cifs_sb)) {
 			srchinf = kzalloc(sizeof(struct cifs_search_info),
 						GFP_KERNEL);
 			if (srchinf == NULL) {
@@ -990,26 +982,10 @@ struct inode *cifs_root_iget(struct super_block *sb)
 	struct inode *inode = NULL;
 	long rc;
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
-	char *path = NULL;
-	int len;
-
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH)
-	    && cifs_sb->prepath) {
-		len = strlen(cifs_sb->prepath);
-		path = kzalloc(len + 2 /* leading sep + null */, GFP_KERNEL);
-		if (path == NULL)
-			return ERR_PTR(-ENOMEM);
-		path[0] = '/';
-		memcpy(path+1, cifs_sb->prepath, len);
-	} else {
-		path = kstrdup("", GFP_KERNEL);
-		if (path == NULL)
-			return ERR_PTR(-ENOMEM);
-	}
 
 	xid = get_xid();
 	if (tcon->unix_ext) {
-		rc = cifs_get_inode_info_unix(&inode, path, sb, xid);
+		rc = cifs_get_inode_info_unix(&inode, "", sb, xid);
 		/* some servers mistakenly claim POSIX support */
 		if (rc != -EOPNOTSUPP)
 			goto iget_no_retry;
@@ -1017,8 +993,7 @@ struct inode *cifs_root_iget(struct super_block *sb)
 		tcon->unix_ext = false;
 	}
 
-	convert_delimiter(path, CIFS_DIR_SEP(cifs_sb));
-	rc = cifs_get_inode_info(&inode, path, NULL, sb, xid, NULL);
+	rc = cifs_get_inode_info(&inode, "", NULL, sb, xid, NULL);
 
 iget_no_retry:
 	if (!inode) {
@@ -1047,7 +1022,6 @@ iget_no_retry:
 	}
 
 out:
-	kfree(path);
 	/* can not call macro free_xid here since in a void func
 	 * TODO: This is no longer true
 	 */
@@ -1070,8 +1044,6 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, unsigned int xid,
 	server = cifs_sb_master_tcon(cifs_sb)->ses->server;
 	if (!server->ops->set_file_info)
 		return -ENOSYS;
-
-	info_buf.Pad = 0;
 
 	if (attrs->ia_valid & ATTR_ATIME) {
 		set_time = true;

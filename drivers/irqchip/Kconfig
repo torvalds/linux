@@ -22,7 +22,6 @@ config ARM_GIC_V3
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
 	select IRQ_DOMAIN_HIERARCHY
-	select PARTITION_PERCPU
 
 config ARM_GIC_V3_ITS
 	bool
@@ -194,14 +193,3 @@ config IRQ_MXS
 	def_bool y if MACH_ASM9260 || ARCH_MXS
 	select IRQ_DOMAIN
 	select STMP_DEVICE
-
-config PARTITION_PERCPU
-	bool
-
-config GOLDFISH_PIC
-       bool "Goldfish programmable interrupt controller"
-       depends on MIPS && (GOLDFISH || COMPILE_TEST)
-       select IRQ_DOMAIN
-       help
-         Say yes here to enable Goldfish interrupt controller driver used
-         for Goldfish based virtual platforms.

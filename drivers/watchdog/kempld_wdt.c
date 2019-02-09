@@ -140,18 +140,11 @@ static int kempld_wdt_set_stage_timeout(struct kempld_wdt_data *wdt_data,
 					unsigned int timeout)
 {
 	struct kempld_device_data *pld = wdt_data->pld;
-	u32 prescaler;
+	u32 prescaler = kempld_prescaler[PRESCALER_21];
 	u64 stage_timeout64;
 	u32 stage_timeout;
 	u32 remainder;
 	u8 stage_cfg;
-
-#if GCC_VERSION < 40400
-	/* work around a bug compiling do_div() */
-	prescaler = READ_ONCE(kempld_prescaler[PRESCALER_21]);
-#else
-	prescaler = kempld_prescaler[PRESCALER_21];
-#endif
 
 	if (!stage)
 		return -EINVAL;

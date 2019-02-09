@@ -678,24 +678,8 @@ static ssize_t
 sdev_store_delete(struct device *dev, struct device_attribute *attr,
 		  const char *buf, size_t count)
 {
-	struct kernfs_node *kn;
-
-	kn = sysfs_break_active_protection(&dev->kobj, &attr->attr);
-	WARN_ON_ONCE(!kn);
-	/*
-	 * Concurrent writes into the "delete" sysfs attribute may trigger
-	 * concurrent calls to device_remove_file() and scsi_remove_device().
-	 * device_remove_file() handles concurrent removal calls by
-	 * serializing these and by ignoring the second and later removal
-	 * attempts.  Concurrent calls of scsi_remove_device() are
-	 * serialized. The second and later calls of scsi_remove_device() are
-	 * ignored because the first call of that function changes the device
-	 * state into SDEV_DEL.
-	 */
-	device_remove_file(dev, attr);
-	scsi_remove_device(to_scsi_device(dev));
-	if (kn)
-		sysfs_unbreak_active_protection(kn);
+	if (device_remove_file_self(dev, attr))
+		scsi_remove_device(to_scsi_device(dev));
 	return count;
 };
 static DEVICE_ATTR(delete, S_IWUSR, NULL, sdev_store_delete);
@@ -1047,6 +1031,10 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	struct request_queue *rq = sdev->request_queue;
 	struct scsi_target *starget = sdev->sdev_target;
 
+	error = scsi_device_set_state(sdev, SDEV_RUNNING);
+	if (error)
+		return error;
+
 	error = scsi_target_add(starget);
 	if (error)
 		return error;
@@ -1070,12 +1058,11 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	}
 
 	error = scsi_dh_add_device(sdev);
-	if (error)
-		/*
-		 * device_handler is optional, so any error can be ignored
-		 */
+	if (error) {
 		sdev_printk(KERN_INFO, sdev,
 				"failed to add device handler: %d\n", error);
+		return error;
+	}
 
 	device_enable_async_suspend(&sdev->sdev_dev);
 	error = device_add(&sdev->sdev_dev);
@@ -1211,16 +1198,10 @@ void scsi_remove_target(struct device *dev)
 restart:
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_for_each_entry(starget, &shost->__targets, siblings) {
-		if (starget->state == STARGET_DEL ||
-		    starget->state == STARGET_REMOVE ||
-		    starget->state == STARGET_CREATED_REMOVE)
+		if (starget->state == STARGET_DEL)
 			continue;
 		if (starget->dev.parent == dev || &starget->dev == dev) {
 			kref_get(&starget->reap_ref);
-			if (starget->state == STARGET_CREATED)
-				starget->state = STARGET_CREATED_REMOVE;
-			else
-				starget->state = STARGET_REMOVE;
 			spin_unlock_irqrestore(shost->host_lock, flags);
 			__scsi_remove_target(starget);
 			scsi_target_reap(starget);

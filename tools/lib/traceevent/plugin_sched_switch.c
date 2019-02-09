@@ -111,7 +111,7 @@ static int sched_switch_handler(struct trace_seq *s,
 	trace_seq_printf(s, "%lld ", val);
 
 	if (pevent_get_field_val(s, event, "prev_prio", record, &val, 0) == 0)
-		trace_seq_printf(s, "[%d] ", (int) val);
+		trace_seq_printf(s, "[%lld] ", val);
 
 	if (pevent_get_field_val(s,  event, "prev_state", record, &val, 0) == 0)
 		write_state(s, val);
@@ -129,7 +129,7 @@ static int sched_switch_handler(struct trace_seq *s,
 	trace_seq_printf(s, "%lld", val);
 
 	if (pevent_get_field_val(s, event, "next_prio", record, &val, 0) == 0)
-		trace_seq_printf(s, " [%d]", (int) val);
+		trace_seq_printf(s, " [%lld]", val);
 
 	return 0;
 }

@@ -373,7 +373,13 @@ static void gigaset_freecshw(struct cardstate *cs)
 
 static void gigaset_device_release(struct device *dev)
 {
-	kfree(container_of(dev, struct ser_cardstate, dev.dev));
+	struct cardstate *cs = dev_get_drvdata(dev);
+
+	if (!cs)
+		return;
+	dev_set_drvdata(dev, NULL);
+	kfree(cs->hw.ser);
+	cs->hw.ser = NULL;
 }
 
 /*
@@ -402,6 +408,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 		cs->hw.ser = NULL;
 		return rc;
 	}
+	dev_set_drvdata(&cs->hw.ser->dev.dev, cs);
 
 	tasklet_init(&cs->write_tasklet,
 		     gigaset_modem_fill, (unsigned long) cs);
@@ -755,10 +762,8 @@ static int __init ser_gigaset_init(void)
 	driver = gigaset_initdriver(GIGASET_MINOR, GIGASET_MINORS,
 				    GIGASET_MODULENAME, GIGASET_DEVNAME,
 				    &ops, THIS_MODULE);
-	if (!driver) {
-		rc = -ENOMEM;
+	if (!driver)
 		goto error;
-	}
 
 	rc = tty_register_ldisc(N_GIGASET_M101, &gigaset_ldisc);
 	if (rc != 0) {

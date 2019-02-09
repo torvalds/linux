@@ -37,11 +37,8 @@ static inline int ieee754dp_isnan(union ieee754dp x)
 
 static inline int ieee754dp_issnan(union ieee754dp x)
 {
-	int qbit;
-
 	assert(ieee754dp_isnan(x));
-	qbit = (DPMANT(x) & DP_MBIT(DP_FBITS - 1)) == DP_MBIT(DP_FBITS - 1);
-	return ieee754_csr.nan2008 ^ qbit;
+	return (DPMANT(x) & DP_MBIT(DP_FBITS - 1)) == DP_MBIT(DP_FBITS - 1);
 }
 
 
@@ -54,15 +51,7 @@ union ieee754dp __cold ieee754dp_nanxcpt(union ieee754dp r)
 	assert(ieee754dp_issnan(r));
 
 	ieee754_setcx(IEEE754_INVALID_OPERATION);
-	if (ieee754_csr.nan2008) {
-		DPMANT(r) |= DP_MBIT(DP_FBITS - 1);
-	} else {
-		DPMANT(r) &= ~DP_MBIT(DP_FBITS - 1);
-		if (!ieee754dp_isnan(r))
-			DPMANT(r) |= DP_MBIT(DP_FBITS - 2);
-	}
-
-	return r;
+	return ieee754dp_indef();
 }
 
 static u64 ieee754dp_get_rounding(int sn, u64 xm)
@@ -100,7 +89,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 {
 	assert(xm);		/* we don't gen exact zeros (probably should) */
 
-	assert((xm >> (DP_FBITS + 1 + 3)) == 0);	/* no excess */
+	assert((xm >> (DP_FBITS + 1 + 3)) == 0);	/* no execess */
 	assert(xm & (DP_HIDDEN_BIT << 3));
 
 	if (xe < DP_EMIN) {
@@ -168,7 +157,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 	/* strip grs bits */
 	xm >>= 3;
 
-	assert((xm >> (DP_FBITS + 1)) == 0);	/* no excess */
+	assert((xm >> (DP_FBITS + 1)) == 0);	/* no execess */
 	assert(xe >= DP_EMIN);
 
 	if (xe > DP_EMAX) {
@@ -201,7 +190,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 			ieee754_setcx(IEEE754_UNDERFLOW);
 		return builddp(sn, DP_EMIN - 1 + DP_EBIAS, xm);
 	} else {
-		assert((xm >> (DP_FBITS + 1)) == 0);	/* no excess */
+		assert((xm >> (DP_FBITS + 1)) == 0);	/* no execess */
 		assert(xm & DP_HIDDEN_BIT);
 
 		return builddp(sn, xe + DP_EBIAS, xm & ~DP_HIDDEN_BIT);

@@ -45,8 +45,6 @@
 #include <linux/export.h>
 #include <linux/uio.h>
 
-#include <rdma/ib.h>
-
 #include "qib.h"
 #include "qib_common.h"
 #include "qib_user_sdma.h"
@@ -364,8 +362,6 @@ static int qib_tid_update(struct qib_ctxtdata *rcd, struct file *fp,
 		goto done;
 	}
 	for (i = 0; i < cnt; i++, vaddr += PAGE_SIZE) {
-		dma_addr_t daddr;
-
 		for (; ntids--; tid++) {
 			if (tid == tidcnt)
 				tid = 0;
@@ -382,14 +378,12 @@ static int qib_tid_update(struct qib_ctxtdata *rcd, struct file *fp,
 			ret = -ENOMEM;
 			break;
 		}
-		ret = qib_map_page(dd->pcidev, pagep[i], &daddr);
-		if (ret)
-			break;
-
 		tidlist[i] = tid + tidoff;
 		/* we "know" system pages and TID pages are same size */
 		dd->pageshadow[ctxttid + tid] = pagep[i];
-		dd->physshadow[ctxttid + tid] = daddr;
+		dd->physshadow[ctxttid + tid] =
+			qib_map_page(dd->pcidev, pagep[i], 0, PAGE_SIZE,
+				     PCI_DMA_FROMDEVICE);
 		/*
 		 * don't need atomic or it's overhead
 		 */
@@ -2072,9 +2066,6 @@ static ssize_t qib_write(struct file *fp, const char __user *data,
 	struct qib_cmd cmd;
 	ssize_t ret = 0;
 	void *dest;
-
-	if (WARN_ON_ONCE(!ib_safe_file_access(fp)))
-		return -EACCES;
 
 	if (count < sizeof(cmd.type)) {
 		ret = -EINVAL;

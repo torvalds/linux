@@ -976,10 +976,7 @@ static void coverage_end(void)
 void __naked __kprobes_test_case_start(void)
 {
 	__asm__ __volatile__ (
-		"mov	r2, sp					\n\t"
-		"bic	r3, r2, #7				\n\t"
-		"mov	sp, r3					\n\t"
-		"stmdb	sp!, {r2-r11}				\n\t"
+		"stmdb	sp!, {r4-r11}				\n\t"
 		"sub	sp, sp, #"__stringify(TEST_MEMORY_SIZE)"\n\t"
 		"bic	r0, lr, #1  @ r0 = inline data		\n\t"
 		"mov	r1, sp					\n\t"
@@ -999,8 +996,7 @@ void __naked __kprobes_test_case_end_32(void)
 		"movne	pc, r0					\n\t"
 		"mov	r0, r4					\n\t"
 		"add	sp, sp, #"__stringify(TEST_MEMORY_SIZE)"\n\t"
-		"ldmia	sp!, {r2-r11}				\n\t"
-		"mov	sp, r2					\n\t"
+		"ldmia	sp!, {r4-r11}				\n\t"
 		"mov	pc, r0					\n\t"
 	);
 }
@@ -1016,8 +1012,7 @@ void __naked __kprobes_test_case_end_16(void)
 		"bxne	r0					\n\t"
 		"mov	r0, r4					\n\t"
 		"add	sp, sp, #"__stringify(TEST_MEMORY_SIZE)"\n\t"
-		"ldmia	sp!, {r2-r11}				\n\t"
-		"mov	sp, r2					\n\t"
+		"ldmia	sp!, {r4-r11}				\n\t"
 		"bx	r0					\n\t"
 	);
 }

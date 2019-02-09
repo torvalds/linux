@@ -298,10 +298,10 @@ void x25_check_rbuf(struct sock *);
 
 /* sysctl_net_x25.c */
 #ifdef CONFIG_SYSCTL
-int x25_register_sysctl(void);
+void x25_register_sysctl(void);
 void x25_unregister_sysctl(void);
 #else
-static inline int x25_register_sysctl(void) { return 0; };
+static inline void x25_register_sysctl(void) {};
 static inline void x25_unregister_sysctl(void) {};
 #endif /* CONFIG_SYSCTL */
 

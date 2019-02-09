@@ -21,8 +21,6 @@
 #include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
-#include <linux/delay.h>
-#include <linux/reset.h>
 #include <linux/regulator/consumer.h>
 #include <linux/iio/iio.h>
 
@@ -55,8 +53,6 @@ struct rockchip_saradc {
 	struct clk		*clk;
 	struct completion	completion;
 	struct regulator	*vref;
-	int			uv_vref;
-	struct reset_control	*reset;
 	const struct rockchip_saradc_data *data;
 	u16			last_val;
 };
@@ -66,6 +62,7 @@ static int rockchip_saradc_read_raw(struct iio_dev *indio_dev,
 				    int *val, int *val2, long mask)
 {
 	struct rockchip_saradc *info = iio_priv(indio_dev);
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -93,7 +90,13 @@ static int rockchip_saradc_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		*val = info->uv_vref / 1000;
+		ret = regulator_get_voltage(info->vref);
+		if (ret < 0) {
+			dev_err(&indio_dev->dev, "failed to get voltage\n");
+			return ret;
+		}
+
+		*val = ret / 1000;
 		*val2 = info->data->num_bits;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
@@ -156,22 +159,6 @@ static const struct rockchip_saradc_data rk3066_tsadc_data = {
 	.clk_rate = 50000,
 };
 
-static const struct iio_chan_spec rockchip_rk3399_saradc_iio_channels[] = {
-	ADC_CHANNEL(0, "adc0"),
-	ADC_CHANNEL(1, "adc1"),
-	ADC_CHANNEL(2, "adc2"),
-	ADC_CHANNEL(3, "adc3"),
-	ADC_CHANNEL(4, "adc4"),
-	ADC_CHANNEL(5, "adc5"),
-};
-
-static const struct rockchip_saradc_data rk3399_saradc_data = {
-	.num_bits = 10,
-	.channels = rockchip_rk3399_saradc_iio_channels,
-	.num_channels = ARRAY_SIZE(rockchip_rk3399_saradc_iio_channels),
-	.clk_rate = 1000000,
-};
-
 static const struct of_device_id rockchip_saradc_match[] = {
 	{
 		.compatible = "rockchip,saradc",
@@ -179,23 +166,10 @@ static const struct of_device_id rockchip_saradc_match[] = {
 	}, {
 		.compatible = "rockchip,rk3066-tsadc",
 		.data = &rk3066_tsadc_data,
-	}, {
-		.compatible = "rockchip,rk3399-saradc",
-		.data = &rk3399_saradc_data,
 	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_saradc_match);
-
-/**
- * Reset SARADC Controller.
- */
-static void rockchip_saradc_reset_controller(struct reset_control *reset)
-{
-	reset_control_assert(reset);
-	usleep_range(10, 20);
-	reset_control_deassert(reset);
-}
 
 static int rockchip_saradc_probe(struct platform_device *pdev)
 {
@@ -224,20 +198,6 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	info->regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
-
-	/*
-	 * The reset should be an optional property, as it should work
-	 * with old devicetrees as well
-	 */
-	info->reset = devm_reset_control_get(&pdev->dev, "saradc-apb");
-	if (IS_ERR(info->reset)) {
-		ret = PTR_ERR(info->reset);
-		if (ret != -ENOENT)
-			return ret;
-
-		dev_dbg(&pdev->dev, "no reset control found\n");
-		info->reset = NULL;
-	}
 
 	init_completion(&info->completion);
 
@@ -273,9 +233,6 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 		return PTR_ERR(info->vref);
 	}
 
-	if (info->reset)
-		rockchip_saradc_reset_controller(info->reset);
-
 	/*
 	 * Use a default value for the converter clock.
 	 * This may become user-configurable in the future.
@@ -290,13 +247,6 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to enable vref regulator\n");
 		return ret;
-	}
-
-	info->uv_vref = regulator_get_voltage(info->vref);
-	if (info->uv_vref < 0) {
-		dev_err(&pdev->dev, "failed to get voltage\n");
-		ret = info->uv_vref;
-		goto err_reg_voltage;
 	}
 
 	ret = clk_prepare_enable(info->pclk);

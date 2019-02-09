@@ -27,7 +27,6 @@
 #define UARTn_FRAME		0x04
 #define UARTn_FRAME_DATABITS__MASK	0x000f
 #define UARTn_FRAME_DATABITS(n)		((n) - 3)
-#define UARTn_FRAME_PARITY__MASK	0x0300
 #define UARTn_FRAME_PARITY_NONE		0x0000
 #define UARTn_FRAME_PARITY_EVEN		0x0200
 #define UARTn_FRAME_PARITY_ODD		0x0300
@@ -573,16 +572,12 @@ static void efm32_uart_console_get_options(struct efm32_uart_port *efm_port,
 			16 * (4 + (clkdiv >> 6)));
 
 	frame = efm32_uart_read32(efm_port, UARTn_FRAME);
-	switch (frame & UARTn_FRAME_PARITY__MASK) {
-	case UARTn_FRAME_PARITY_ODD:
+	if (frame & UARTn_FRAME_PARITY_ODD)
 		*parity = 'o';
-		break;
-	case UARTn_FRAME_PARITY_EVEN:
+	else if (frame & UARTn_FRAME_PARITY_EVEN)
 		*parity = 'e';
-		break;
-	default:
+	else
 		*parity = 'n';
-	}
 
 	*bits = (frame & UARTn_FRAME_DATABITS__MASK) -
 			UARTn_FRAME_DATABITS(4) + 4;

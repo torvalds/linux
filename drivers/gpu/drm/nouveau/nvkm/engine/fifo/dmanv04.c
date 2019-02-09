@@ -36,10 +36,7 @@ nv04_fifo_dma_object_dtor(struct nvkm_fifo_chan *base, int cookie)
 {
 	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
 	struct nvkm_instmem *imem = chan->fifo->base.engine.subdev.device->imem;
-
-	mutex_lock(&chan->fifo->base.engine.subdev.mutex);
 	nvkm_ramht_remove(imem->ramht, cookie);
-	mutex_unlock(&chan->fifo->base.engine.subdev.mutex);
 }
 
 static int

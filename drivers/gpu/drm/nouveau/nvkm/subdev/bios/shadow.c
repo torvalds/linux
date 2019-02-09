@@ -86,12 +86,9 @@ shadow_image(struct nvkm_bios *bios, int idx, u32 offset, struct shadow *mthd)
 		    nvbios_checksum(&bios->data[image.base], image.size)) {
 			nvkm_debug(subdev, "%08x: checksum failed\n",
 				   image.base);
-			if (!mthd->func->require_checksum) {
-				if (mthd->func->rw)
-					score += 1;
+			if (mthd->func->rw)
 				score += 1;
-			} else
-				return 0;
+			score += 1;
 		} else {
 			score += 3;
 		}

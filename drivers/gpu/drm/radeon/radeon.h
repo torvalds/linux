@@ -268,7 +268,6 @@ struct radeon_clock {
 	uint32_t current_dispclk;
 	uint32_t dp_extclk;
 	uint32_t max_pixel_clock;
-	uint32_t vco_freq;
 };
 
 /*

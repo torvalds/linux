@@ -8,8 +8,6 @@
 
 #include "qeth_core.h"
 
-extern const struct attribute_group *qeth_l2_attr_groups[];
-
 int qeth_l2_create_device_attributes(struct device *);
 void qeth_l2_remove_device_attributes(struct device *);
 void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card);

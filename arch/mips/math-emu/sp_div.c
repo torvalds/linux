@@ -23,9 +23,9 @@
 
 union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y)
 {
-	unsigned int rm;
+	unsigned rm;
 	int re;
-	unsigned int bm;
+	unsigned bm;
 
 	COMPXSP;
 	COMPYSP;
@@ -103,7 +103,6 @@ union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y)
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		SPDNORMX;
-		/* fall through */
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		SPDNORMY;

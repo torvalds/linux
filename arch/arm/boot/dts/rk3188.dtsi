@@ -117,9 +117,7 @@
 		dmas = <&dmac1_s 6>, <&dmac1_s 7>;
 		dma-names = "tx", "rx";
 		clock-names = "i2s_hclk", "i2s_clk";
-		clocks = <&cru HCLK_I2S0_2CH>, <&cru SCLK_I2S0>;
-		rockchip,playback-channels = <2>;
-		rockchip,capture-channels = <2>;
+		clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
 		status = "disabled";
 	};
 
@@ -153,14 +151,14 @@
 		#size-cells = <0>;
 		status = "disabled";
 
-		usbphy0: usb-phy@10c {
+		usbphy0: usb-phy0 {
 			#phy-cells = <0>;
 			reg = <0x10c>;
 			clocks = <&cru SCLK_OTGPHY0>;
 			clock-names = "phyclk";
 		};
 
-		usbphy1: usb-phy@11c {
+		usbphy1: usb-phy1 {
 			#phy-cells = <0>;
 			reg = <0x11c>;
 			clocks = <&cru SCLK_OTGPHY1>;
@@ -552,22 +550,22 @@
 };
 
 &pwm0 {
-	pinctrl-names = "active";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pwm0_out>;
 };
 
 &pwm1 {
-	pinctrl-names = "active";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pwm1_out>;
 };
 
 &pwm2 {
-	pinctrl-names = "active";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pwm2_out>;
 };
 
 &pwm3 {
-	pinctrl-names = "active";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pwm3_out>;
 };
 

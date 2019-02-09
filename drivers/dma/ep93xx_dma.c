@@ -325,8 +325,6 @@ static int m2p_hw_setup(struct ep93xx_dma_chan *edmac)
 		| M2P_CONTROL_ENABLE;
 	m2p_set_control(edmac, control);
 
-	edmac->buffer = 0;
-
 	return 0;
 }
 

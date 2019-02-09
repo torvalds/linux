@@ -304,13 +304,13 @@ static inline unsigned type in##bwl##_p(int port)			\
 static inline void outs##bwl(int port, const void *addr, unsigned long count) \
 {									\
 	asm volatile("rep; outs" #bwl					\
-		     : "+S"(addr), "+c"(count) : "d"(port) : "memory");	\
+		     : "+S"(addr), "+c"(count) : "d"(port));		\
 }									\
 									\
 static inline void ins##bwl(int port, void *addr, unsigned long count)	\
 {									\
 	asm volatile("rep; ins" #bwl					\
-		     : "+D"(addr), "+c"(count) : "d"(port) : "memory");	\
+		     : "+D"(addr), "+c"(count) : "d"(port));		\
 }
 
 BUILDIO(b, b, char)
@@ -349,12 +349,6 @@ extern int __must_check arch_phys_wc_add(unsigned long base,
 					 unsigned long size);
 extern void arch_phys_wc_del(int handle);
 #define arch_phys_wc_add arch_phys_wc_add
-#endif
-
-#ifdef CONFIG_X86_PAT
-extern int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size);
-extern void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size);
-#define arch_io_reserve_memtype_wc arch_io_reserve_memtype_wc
 #endif
 
 #endif /* _ASM_X86_IO_H */

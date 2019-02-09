@@ -326,12 +326,10 @@ replay:
 		nlh = nlmsg_hdr(skb);
 		err = 0;
 
-		if (nlh->nlmsg_len < NLMSG_HDRLEN ||
-		    skb->len < nlh->nlmsg_len ||
-		    nlmsg_len(nlh) < sizeof(struct nfgenmsg)) {
-			nfnl_err_reset(&err_list);
-			status |= NFNL_BATCH_FAILURE;
-			goto done;
+		if (nlmsg_len(nlh) < sizeof(struct nfgenmsg) ||
+		    skb->len < nlh->nlmsg_len) {
+			err = -EINVAL;
+			goto ack;
 		}
 
 		/* Only requests are handled by the kernel */

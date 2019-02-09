@@ -293,8 +293,7 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 		fence = to_amdgpu_fence(sync->sync_to[i]);
 
 		/* check if we really need to sync */
-		if (!amdgpu_enable_scheduler &&
-		    !amdgpu_fence_need_sync(fence, ring))
+		if (!amdgpu_fence_need_sync(fence, ring))
 			continue;
 
 		/* prevent GPU deadlocks */
@@ -304,7 +303,7 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 		}
 
 		if (amdgpu_enable_scheduler || !amdgpu_enable_semaphores) {
-			r = fence_wait(sync->sync_to[i], true);
+			r = fence_wait(&fence->base, true);
 			if (r)
 				return r;
 			continue;

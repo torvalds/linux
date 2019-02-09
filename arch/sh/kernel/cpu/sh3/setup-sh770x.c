@@ -165,6 +165,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_TE | SCSCR_RE,
 	.type		= PORT_IRDA,
 	.ops		= &sh770x_sci_port_ops,
+	.regshift	= 1,
 };
 
 static struct resource scif2_resources[] = {

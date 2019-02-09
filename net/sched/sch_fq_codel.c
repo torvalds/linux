@@ -175,7 +175,7 @@ static unsigned int fq_codel_qdisc_drop(struct Qdisc *sch)
 static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
-	unsigned int idx, prev_backlog;
+	unsigned int idx;
 	struct fq_codel_flow *flow;
 	int uninitialized_var(ret);
 
@@ -203,7 +203,6 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (++sch->q.qlen <= sch->limit)
 		return NET_XMIT_SUCCESS;
 
-	prev_backlog = sch->qstats.backlog;
 	q->drop_overlimit++;
 	/* Return Congestion Notification only if we dropped a packet
 	 * from this flow.
@@ -212,7 +211,7 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return NET_XMIT_CN;
 
 	/* As we dropped a packet, better let upper stack know this */
-	qdisc_tree_reduce_backlog(sch, 1, prev_backlog - sch->qstats.backlog);
+	qdisc_tree_decrease_qlen(sch, 1);
 	return NET_XMIT_SUCCESS;
 }
 
@@ -242,7 +241,6 @@ static struct sk_buff *fq_codel_dequeue(struct Qdisc *sch)
 	struct fq_codel_flow *flow;
 	struct list_head *head;
 	u32 prev_drop_count, prev_ecn_mark;
-	unsigned int prev_backlog;
 
 begin:
 	head = &q->new_flows;
@@ -261,7 +259,6 @@ begin:
 
 	prev_drop_count = q->cstats.drop_count;
 	prev_ecn_mark = q->cstats.ecn_mark;
-	prev_backlog = sch->qstats.backlog;
 
 	skb = codel_dequeue(sch, &q->cparams, &flow->cvars, &q->cstats,
 			    dequeue);
@@ -279,14 +276,12 @@ begin:
 	}
 	qdisc_bstats_update(sch, skb);
 	flow->deficit -= qdisc_pkt_len(skb);
-	/* We cant call qdisc_tree_reduce_backlog() if our qlen is 0,
+	/* We cant call qdisc_tree_decrease_qlen() if our qlen is 0,
 	 * or HTB crashes. Defer it for next round.
 	 */
 	if (q->cstats.drop_count && sch->q.qlen) {
-		qdisc_tree_reduce_backlog(sch, q->cstats.drop_count,
-					  q->cstats.drop_len);
+		qdisc_tree_decrease_qlen(sch, q->cstats.drop_count);
 		q->cstats.drop_count = 0;
-		q->cstats.drop_len = 0;
 	}
 	return skb;
 }
@@ -377,13 +372,11 @@ static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt)
 	while (sch->q.qlen > sch->limit) {
 		struct sk_buff *skb = fq_codel_dequeue(sch);
 
-		q->cstats.drop_len += qdisc_pkt_len(skb);
 		kfree_skb(skb);
 		q->cstats.drop_count++;
 	}
-	qdisc_tree_reduce_backlog(sch, q->cstats.drop_count, q->cstats.drop_len);
+	qdisc_tree_decrease_qlen(sch, q->cstats.drop_count);
 	q->cstats.drop_count = 0;
-	q->cstats.drop_len = 0;
 
 	sch_tree_unlock(sch);
 	return 0;

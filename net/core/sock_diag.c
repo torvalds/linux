@@ -214,7 +214,7 @@ void sock_diag_unregister(const struct sock_diag_handler *hnld)
 }
 EXPORT_SYMBOL_GPL(sock_diag_unregister);
 
-static int __sock_diag_cmd(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err;
 	struct sock_diag_req *req = nlmsg_data(nlh);
@@ -234,12 +234,8 @@ static int __sock_diag_cmd(struct sk_buff *skb, struct nlmsghdr *nlh)
 	hndl = sock_diag_handlers[req->sdiag_family];
 	if (hndl == NULL)
 		err = -ENOENT;
-	else if (nlh->nlmsg_type == SOCK_DIAG_BY_FAMILY)
-		err = hndl->dump(skb, nlh);
-	else if (nlh->nlmsg_type == SOCK_DESTROY_BACKPORT && hndl->destroy)
-		err = hndl->destroy(skb, nlh);
 	else
-		err = -EOPNOTSUPP;
+		err = hndl->dump(skb, nlh);
 	mutex_unlock(&sock_diag_table_mutex);
 
 	return err;
@@ -265,8 +261,7 @@ static int sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 		return ret;
 	case SOCK_DIAG_BY_FAMILY:
-	case SOCK_DESTROY_BACKPORT:
-		return __sock_diag_cmd(skb, nlh);
+		return __sock_diag_rcv_msg(skb, nlh);
 	default:
 		return -EINVAL;
 	}
@@ -294,23 +289,11 @@ static int sock_diag_bind(struct net *net, int group)
 	case SKNLGRP_INET6_UDP_DESTROY:
 		if (!sock_diag_handlers[AF_INET6])
 			request_module("net-pf-%d-proto-%d-type-%d", PF_NETLINK,
-				       NETLINK_SOCK_DIAG, AF_INET6);
+				       NETLINK_SOCK_DIAG, AF_INET);
 		break;
 	}
 	return 0;
 }
-
-int sock_diag_destroy(struct sock *sk, int err)
-{
-	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (!sk->sk_prot->diag_destroy)
-		return -EOPNOTSUPP;
-
-	return sk->sk_prot->diag_destroy(sk, err);
-}
-EXPORT_SYMBOL_GPL(sock_diag_destroy);
 
 static int __net_init diag_net_init(struct net *net)
 {

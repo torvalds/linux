@@ -1,5 +1,4 @@
 #include <linux/perf_event.h>
-#include <linux/nospec.h>
 
 enum perf_msr_id {
 	PERF_MSR_TSC			= 0,
@@ -116,6 +115,9 @@ static int msr_event_init(struct perf_event *event)
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
 
+	if (cfg >= PERF_MSR_EVENT_MAX)
+		return -EINVAL;
+
 	/* unsupported modes and filters */
 	if (event->attr.exclude_user   ||
 	    event->attr.exclude_kernel ||
@@ -125,11 +127,6 @@ static int msr_event_init(struct perf_event *event)
 	    event->attr.exclude_guest  ||
 	    event->attr.sample_period) /* no sampling */
 		return -EINVAL;
-
-	if (cfg >= PERF_MSR_EVENT_MAX)
-		return -EINVAL;
-
-	cfg = array_index_nospec((unsigned long)cfg, PERF_MSR_EVENT_MAX);
 
 	if (!msr[cfg].attr)
 		return -EINVAL;

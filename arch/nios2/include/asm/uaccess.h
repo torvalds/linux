@@ -102,12 +102,9 @@ extern long __copy_to_user(void __user *to, const void *from, unsigned long n);
 static inline long copy_from_user(void *to, const void __user *from,
 				unsigned long n)
 {
-	unsigned long res = n;
-	if (access_ok(VERIFY_READ, from, n))
-		res = __copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
+	if (!access_ok(VERIFY_READ, from, n))
+		return n;
+	return __copy_from_user(to, from, n);
 }
 
 static inline long copy_to_user(void __user *to, const void *from,
@@ -142,7 +139,7 @@ extern long strnlen_user(const char __user *s, long n);
 
 #define __get_user_unknown(val, size, ptr, err) do {			\
 	err = 0;							\
-	if (__copy_from_user(&(val), ptr, size)) {			\
+	if (copy_from_user(&(val), ptr, size)) {			\
 		err = -EFAULT;						\
 	}								\
 	} while (0)
@@ -169,7 +166,7 @@ do {									\
 	({								\
 	long __gu_err = -EFAULT;					\
 	const __typeof__(*(ptr)) __user *__gu_ptr = (ptr);		\
-	unsigned long __gu_val = 0;					\
+	unsigned long __gu_val;						\
 	__get_user_common(__gu_val, sizeof(*(ptr)), __gu_ptr, __gu_err);\
 	(x) = (__force __typeof__(x))__gu_val;				\
 	__gu_err;							\

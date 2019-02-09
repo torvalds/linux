@@ -125,7 +125,6 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
  * Extended Capability Register
  */
 
-#define ecap_dit(e)		((e >> 41) & 0x1)
 #define ecap_pasid(e)		((e >> 40) & 0x1)
 #define ecap_pss(e)		((e >> 35) & 0x1f)
 #define ecap_eafs(e)		((e >> 34) & 0x1)
@@ -154,8 +153,8 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_TLB_GLOBAL_FLUSH (((u64)1) << 60)
 #define DMA_TLB_DSI_FLUSH (((u64)2) << 60)
 #define DMA_TLB_PSI_FLUSH (((u64)3) << 60)
-#define DMA_TLB_IIRG(type) ((type >> 60) & 3)
-#define DMA_TLB_IAIG(val) (((val) >> 57) & 3)
+#define DMA_TLB_IIRG(type) ((type >> 60) & 7)
+#define DMA_TLB_IAIG(val) (((val) >> 57) & 7)
 #define DMA_TLB_READ_DRAIN (((u64)1) << 49)
 #define DMA_TLB_WRITE_DRAIN (((u64)1) << 48)
 #define DMA_TLB_DID(id)	(((u64)((id) & 0xffff)) << 32)
@@ -165,9 +164,9 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 
 /* INVALID_DESC */
 #define DMA_CCMD_INVL_GRANU_OFFSET  61
-#define DMA_ID_TLB_GLOBAL_FLUSH	(((u64)1) << 4)
-#define DMA_ID_TLB_DSI_FLUSH	(((u64)2) << 4)
-#define DMA_ID_TLB_PSI_FLUSH	(((u64)3) << 4)
+#define DMA_ID_TLB_GLOBAL_FLUSH	(((u64)1) << 3)
+#define DMA_ID_TLB_DSI_FLUSH	(((u64)2) << 3)
+#define DMA_ID_TLB_PSI_FLUSH	(((u64)3) << 3)
 #define DMA_ID_TLB_READ_DRAIN	(((u64)1) << 7)
 #define DMA_ID_TLB_WRITE_DRAIN	(((u64)1) << 6)
 #define DMA_ID_TLB_DID(id)	(((u64)((id & 0xffff) << 16)))
@@ -236,9 +235,6 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 /* low 64 bit */
 #define dma_frcd_page_addr(d) (d & (((u64)-1) << PAGE_SHIFT))
 
-/* PRS_REG */
-#define DMA_PRS_PPR	((u32)1)
-
 #define IOMMU_WAIT_OP(iommu, offset, op, cond, sts)			\
 do {									\
 	cycles_t start_time = get_cycles();				\
@@ -295,7 +291,6 @@ enum {
 #define QI_DEV_IOTLB_SID(sid)	((u64)((sid) & 0xffff) << 32)
 #define QI_DEV_IOTLB_QDEP(qdep)	(((qdep) & 0x1f) << 16)
 #define QI_DEV_IOTLB_ADDR(addr)	((u64)(addr) & VTD_PAGE_MASK)
-#define QI_DEV_IOTLB_PFSID(pfsid) (((u64)(pfsid & 0xf) << 12) | ((u64)(pfsid & 0xfff) << 52))
 #define QI_DEV_IOTLB_SIZE	1
 #define QI_DEV_IOTLB_MAX_INVS	32
 
@@ -318,9 +313,8 @@ enum {
 #define QI_DEV_EIOTLB_SIZE	(((u64)1) << 11)
 #define QI_DEV_EIOTLB_GLOB(g)	((u64)g)
 #define QI_DEV_EIOTLB_PASID(p)	(((u64)p) << 32)
-#define QI_DEV_EIOTLB_SID(sid)	((u64)((sid) & 0xffff) << 16)
-#define QI_DEV_EIOTLB_QDEP(qd)	((u64)((qd) & 0x1f) << 4)
-#define QI_DEV_EIOTLB_PFSID(pfsid) (((u64)(pfsid & 0xf) << 12) | ((u64)(pfsid & 0xfff) << 52))
+#define QI_DEV_EIOTLB_SID(sid)	((u64)((sid) & 0xffff) << 32)
+#define QI_DEV_EIOTLB_QDEP(qd)	(((qd) & 0x1f) << 16)
 #define QI_DEV_EIOTLB_MAX_INVS	32
 
 #define QI_PGRP_IDX(idx)	(((u64)(idx)) << 55)
@@ -432,7 +426,6 @@ struct intel_iommu {
 	struct page_req_dsc *prq;
 	unsigned char prq_name[16];    /* Name for PRQ interrupt */
 	struct idr pasid_idr;
-	u32 pasid_max;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
 	u32 *iommu_state; /* Store iommu states between suspend and resume.*/
@@ -466,8 +459,9 @@ extern void qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid,
 			     u8 fm, u64 type);
 extern void qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 			  unsigned int size_order, u64 type);
-extern void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 pfsid,
-			u16 qdep, u64 addr, unsigned mask);
+extern void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 qdep,
+			       u64 addr, unsigned mask);
+
 extern int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
 extern int dmar_ir_support(void);

@@ -657,7 +657,7 @@ static int ghes_proc(struct ghes *ghes)
 	ghes_do_proc(ghes, ghes->estatus);
 out:
 	ghes_clear_estatus(ghes);
-	return rc;
+	return 0;
 }
 
 static void ghes_add_timer(struct ghes *ghes)
@@ -847,8 +847,6 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 		if (ghes_read_estatus(ghes, 1)) {
 			ghes_clear_estatus(ghes);
 			continue;
-		} else {
-			ret = NMI_HANDLED;
 		}
 
 		sev = ghes_severity(ghes->estatus->error_severity);
@@ -860,11 +858,12 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 
 		__process_error(ghes);
 		ghes_clear_estatus(ghes);
+
+		ret = NMI_HANDLED;
 	}
 
 #ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
-	if (ret == NMI_HANDLED)
-		irq_work_queue(&ghes_proc_irq_work);
+	irq_work_queue(&ghes_proc_irq_work);
 #endif
 	atomic_dec(&ghes_in_nmi);
 	return ret;
@@ -1067,7 +1066,6 @@ static int ghes_remove(struct platform_device *ghes_dev)
 		if (list_empty(&ghes_sci))
 			unregister_acpi_hed_notifier(&ghes_notifier_sci);
 		mutex_unlock(&ghes_list_mutex);
-		synchronize_rcu();
 		break;
 	case ACPI_HEST_NOTIFY_NMI:
 		ghes_nmi_remove(ghes);

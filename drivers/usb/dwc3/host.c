@@ -24,48 +24,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 {
 	struct platform_device	*xhci;
 	struct usb_xhci_pdata	pdata;
-	int			ret, irq;
-	struct resource		*res;
-	struct platform_device	*dwc3_pdev = to_platform_device(dwc->dev);
-
-	irq = platform_get_irq_byname(dwc3_pdev, "host");
-	if (irq == -EPROBE_DEFER)
-		return irq;
-
-	if (irq <= 0) {
-		irq = platform_get_irq_byname(dwc3_pdev, "dwc_usb3");
-		if (irq == -EPROBE_DEFER)
-			return irq;
-
-		if (irq <= 0) {
-			irq = platform_get_irq(dwc3_pdev, 0);
-			if (irq <= 0) {
-				if (irq != -EPROBE_DEFER) {
-					dev_err(dwc->dev,
-						"missing host IRQ\n");
-				}
-				if (!irq)
-					irq = -EINVAL;
-				return irq;
-			} else {
-				res = platform_get_resource(dwc3_pdev,
-							    IORESOURCE_IRQ, 0);
-			}
-		} else {
-			res = platform_get_resource_byname(dwc3_pdev,
-							   IORESOURCE_IRQ,
-							   "dwc_usb3");
-		}
-
-	} else {
-		res = platform_get_resource_byname(dwc3_pdev, IORESOURCE_IRQ,
-						   "host");
-	}
-
-	dwc->xhci_resources[1].start = irq;
-	dwc->xhci_resources[1].end = irq;
-	dwc->xhci_resources[1].flags = res->flags;
-	dwc->xhci_resources[1].name = res->name;
+	int			ret;
 
 	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
@@ -78,7 +37,6 @@ int dwc3_host_init(struct dwc3 *dwc)
 	xhci->dev.parent	= dwc->dev;
 	xhci->dev.dma_mask	= dwc->dev->dma_mask;
 	xhci->dev.dma_parms	= dwc->dev->dma_parms;
-	xhci->dev.archdata      = dwc->dev->archdata;
 
 	dwc->xhci = xhci;
 
@@ -91,11 +49,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 
 	memset(&pdata, 0, sizeof(pdata));
 
-	pdata.usb3_disable_autosuspend = dwc->dis_u3_autosuspend_quirk;
 	pdata.usb3_lpm_capable = dwc->usb3_lpm_capable;
-	pdata.xhci_slow_suspend = dwc->xhci_slow_suspend_quirk;
-	pdata.xhci_trb_ent = dwc->xhci_trb_ent_quirk;
-	pdata.usb3_warm_reset_on_resume = dwc->usb3_warm_reset_on_resume_quirk;
 
 	ret = platform_device_add_data(xhci, &pdata, sizeof(pdata));
 	if (ret) {

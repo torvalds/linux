@@ -359,7 +359,7 @@ static const DECLARE_TLV_DB_RANGE(bst_tlv,
 
 /* Interface data select */
 static const char * const rt5640_data_select[] = {
-	"Normal", "Swap", "left copy to right", "right copy to left"};
+	"Normal", "left copy to right", "right copy to left", "Swap"};
 
 static SOC_ENUM_SINGLE_DECL(rt5640_if1_dac_enum, RT5640_DIG_INF_DATA,
 			    RT5640_IF1_DAC_SEL_SFT, rt5640_data_select);
@@ -1056,52 +1056,6 @@ static int rt5640_hp_post_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int rt5640_mono_adcl_event(struct snd_soc_dapm_widget *w,
-				  struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, RT5640_GEN_CTRL1,
-				    RT5640_M_MAMIX_L, 0);
-		break;
-	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, RT5640_GEN_CTRL1,
-				    RT5640_M_MAMIX_L,
-				    RT5640_M_MAMIX_L);
-		break;
-
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
-static int rt5640_mono_adcr_event(struct snd_soc_dapm_widget *w,
-				  struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, RT5640_GEN_CTRL1,
-				    RT5640_M_MAMIX_R, 0);
-		break;
-	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, RT5640_GEN_CTRL1,
-				    RT5640_M_MAMIX_R,
-				    RT5640_M_MAMIX_R);
-		break;
-
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
 static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("PLL1", RT5640_PWR_ANLG2,
 			RT5640_PWR_PLL_BIT, 0, NULL, 0),
@@ -1179,18 +1133,12 @@ static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
 		rt5640_sto_adc_r_mix, ARRAY_SIZE(rt5640_sto_adc_r_mix)),
 	SND_SOC_DAPM_SUPPLY("Mono Left Filter", RT5640_PWR_DIG2,
 		RT5640_PWR_ADC_MF_L_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER_E("Mono ADC MIXL", SND_SOC_NOPM, 0, 0,
-			     rt5640_mono_adc_l_mix,
-			     ARRAY_SIZE(rt5640_mono_adc_l_mix),
-			     rt5640_mono_adcl_event,
-			     SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_MIXER("Mono ADC MIXL", SND_SOC_NOPM, 0, 0,
+		rt5640_mono_adc_l_mix, ARRAY_SIZE(rt5640_mono_adc_l_mix)),
 	SND_SOC_DAPM_SUPPLY("Mono Right Filter", RT5640_PWR_DIG2,
 		RT5640_PWR_ADC_MF_R_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER_E("Mono ADC MIXR", SND_SOC_NOPM, 0, 0,
-			     rt5640_mono_adc_r_mix,
-			     ARRAY_SIZE(rt5640_mono_adc_r_mix),
-			     rt5640_mono_adcr_event,
-			     SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_MIXER("Mono ADC MIXR", SND_SOC_NOPM, 0, 0,
+		rt5640_mono_adc_r_mix, ARRAY_SIZE(rt5640_mono_adc_r_mix)),
 
 	/* Digital Interface */
 	SND_SOC_DAPM_SUPPLY("I2S1", RT5640_PWR_DIG1,
@@ -1969,33 +1917,7 @@ static int rt5640_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
-	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
 	switch (level) {
-	case SND_SOC_BIAS_ON:
-		break;
-
-	case SND_SOC_BIAS_PREPARE:
-		/*
-		 * SND_SOC_BIAS_PREPARE is called while preparing for a
-		 * transition to ON or away from ON. If current bias_level
-		 * is SND_SOC_BIAS_ON, then it is preparing for a transition
-		 * away from ON. Disable the clock in that case, otherwise
-		 * enable it.
-		 */
-		if (IS_ERR(rt5640->mclk))
-			break;
-
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON) {
-			clk_disable_unprepare(rt5640->mclk);
-		} else {
-			ret = clk_prepare_enable(rt5640->mclk);
-			if (ret)
-				return ret;
-		}
-		break;
-
 	case SND_SOC_BIAS_STANDBY:
 		if (SND_SOC_BIAS_OFF == snd_soc_codec_get_bias_level(codec)) {
 			snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
@@ -2063,11 +1985,6 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
-
-	/* Check if MCLK provided */
-	rt5640->mclk = devm_clk_get(codec->dev, "mclk");
-	if (PTR_ERR(rt5640->mclk) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
 
 	rt5640->codec = codec;
 
@@ -2337,10 +2254,7 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 		msleep(400);
 	}
 
-	ret = regmap_read(rt5640->regmap, RT5640_VENDOR_ID2, &val);
-	if (ret)
-		return -EPROBE_DEFER;
-
+	regmap_read(rt5640->regmap, RT5640_VENDOR_ID2, &val);
 	if (val != RT5640_DEVICE_ID) {
 		dev_err(&i2c->dev,
 			"Device with ID register %#x is not rt5640/39\n", val);

@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include "clk.h"
 
+#define to_clk_div(_hw) container_of(_hw, struct clk_divider, hw)
 #define div_mask(d)	((1 << (d->width)) - 1)
 
 /**
@@ -34,7 +35,7 @@ struct clk_fixup_div {
 
 static inline struct clk_fixup_div *to_clk_fixup_div(struct clk_hw *hw)
 {
-	struct clk_divider *divider = to_clk_divider(hw);
+	struct clk_divider *divider = to_clk_div(hw);
 
 	return container_of(divider, struct clk_fixup_div, divider);
 }
@@ -59,7 +60,7 @@ static int clk_fixup_div_set_rate(struct clk_hw *hw, unsigned long rate,
 			    unsigned long parent_rate)
 {
 	struct clk_fixup_div *fixup_div = to_clk_fixup_div(hw);
-	struct clk_divider *div = to_clk_divider(hw);
+	struct clk_divider *div = to_clk_div(hw);
 	unsigned int divider, value;
 	unsigned long flags = 0;
 	u32 val;

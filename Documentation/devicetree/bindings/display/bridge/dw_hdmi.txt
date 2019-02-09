@@ -5,10 +5,7 @@ Required properties:
    * "snps,dw-hdmi-tx"
    * "fsl,imx6q-hdmi"
    * "fsl,imx6dl-hdmi"
-   * "rockchip,rk3228-dw-hdmi"
    * "rockchip,rk3288-dw-hdmi"
-   * "rockchip,rk3328-dw-hdmi"
-   * "rockchip,rk3399-dw-hdmi"
 - reg: Physical base address and length of the controller's registers.
 - interrupts: The HDMI interrupt number
 - clocks, clock-names : must have the phandles to the HDMI iahb and isfr clocks,
@@ -24,8 +21,6 @@ Optional properties
 - reg-io-width: the width of the reg:1,4, default set to 1 if not present
 - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
 - clocks, clock-names: phandle to the HDMI CEC clock, name should be "cec"
-- hdcp1x-enable: enable hdcp1.x, enable if defined, disable if not defined
-- scramble-low-rates: if defined enable scarmble when tmdsclk less than 340Mhz
 
 Example:
 	hdmi: hdmi@0120000 {

@@ -189,7 +189,7 @@ static int mct_u232_set_baud_rate(struct tty_struct *tty,
 		return -ENOMEM;
 
 	divisor = mct_u232_calculate_baud_rate(serial, value, &speed);
-	put_unaligned_le32(divisor, buf);
+	put_unaligned_le32(cpu_to_le32(divisor), buf);
 	rc = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 				MCT_U232_SET_BAUD_RATE_REQUEST,
 				MCT_U232_SET_REQUEST_TYPE,
@@ -322,12 +322,8 @@ static int mct_u232_get_modem_stat(struct usb_serial_port *port,
 			MCT_U232_GET_REQUEST_TYPE,
 			0, 0, buf, MCT_U232_GET_MODEM_STAT_SIZE,
 			WDR_TIMEOUT);
-	if (rc < MCT_U232_GET_MODEM_STAT_SIZE) {
+	if (rc < 0) {
 		dev_err(&port->dev, "Get MODEM STATus failed (error = %d)\n", rc);
-
-		if (rc >= 0)
-			rc = -EIO;
-
 		*msr = 0;
 	} else {
 		*msr = buf[0];
@@ -380,21 +376,14 @@ static void mct_u232_msr_to_state(struct usb_serial_port *port,
 
 static int mct_u232_port_probe(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
 	struct mct_u232_private *priv;
-
-	/* check first to simplify error handling */
-	if (!serial->port[1] || !serial->port[1]->interrupt_in_urb) {
-		dev_err(&port->dev, "expected endpoint missing\n");
-		return -ENODEV;
-	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	/* Use second interrupt-in endpoint for reading. */
-	priv->read_urb = serial->port[1]->interrupt_in_urb;
+	priv->read_urb = port->serial->port[1]->interrupt_in_urb;
 	priv->read_urb->context = port;
 
 	spin_lock_init(&priv->lock);

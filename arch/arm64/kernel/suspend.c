@@ -1,11 +1,8 @@
 #include <linux/ftrace.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
-#include <asm/alternative.h>
 #include <asm/cacheflush.h>
-#include <asm/cpufeature.h>
 #include <asm/debug-monitors.h>
-#include <asm/exec.h>
 #include <asm/pgtable.h>
 #include <asm/memory.h>
 #include <asm/mmu_context.h>
@@ -13,11 +10,30 @@
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
 
+extern int __cpu_suspend_enter(unsigned long arg, int (*fn)(unsigned long));
 /*
- * This is allocated by cpu_suspend_init(), and used to store a pointer to
- * the 'struct sleep_stack_data' the contains a particular CPUs state.
+ * This is called by __cpu_suspend_enter() to save the state, and do whatever
+ * flushing is required to ensure that when the CPU goes to sleep we have
+ * the necessary data available when the caches are not searched.
+ *
+ * ptr: CPU context virtual address
+ * save_ptr: address of the location where the context physical address
+ *           must be saved
  */
-unsigned long *sleep_save_stash;
+void notrace __cpu_suspend_save(struct cpu_suspend_ctx *ptr,
+				phys_addr_t *save_ptr)
+{
+	*save_ptr = virt_to_phys(ptr);
+
+	cpu_do_suspend(ptr);
+	/*
+	 * Only flush the context that must be retrieved with the MMU
+	 * off. VA primitives ensure the flush is applied to all
+	 * cache levels so context is pushed to DRAM.
+	 */
+	__flush_dcache_area(ptr, sizeof(*ptr));
+	__flush_dcache_area(save_ptr, sizeof(*save_ptr));
+}
 
 /*
  * This hook is provided so that cpu_suspend code can restore HW
@@ -35,24 +51,6 @@ void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
 	hw_breakpoint_restore = hw_bp_restore;
 }
 
-void notrace __cpu_suspend_exit(void)
-{
-	/*
-	 * We are resuming from reset with the idmap active in TTBR0_EL1.
-	 * We must uninstall the idmap and restore the expected MMU
-	 * state before we can possibly return to userspace.
-	 */
-	cpu_uninstall_idmap();
-
-	/*
-	 * Restore HW breakpoint registers to sane values
-	 * before debug exceptions are possibly reenabled
-	 * through local_dbg_restore.
-	 */
-	if (hw_breakpoint_restore)
-		hw_breakpoint_restore(NULL);
-}
-
 /*
  * cpu_suspend
  *
@@ -62,9 +60,9 @@ void notrace __cpu_suspend_exit(void)
  */
 int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 {
-	int ret = 0;
+	struct mm_struct *mm = current->active_mm;
+	int ret;
 	unsigned long flags;
-	struct sleep_stack_data state;
 
 	/*
 	 * From this point debug exceptions are disabled to prevent
@@ -80,27 +78,45 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	 */
 	pause_graph_tracing();
 
-	if (__cpu_suspend_enter(&state)) {
-		/* Call the suspend finisher */
-		ret = fn(arg);
+	/*
+	 * mm context saved on the stack, it will be restored when
+	 * the cpu comes out of reset through the identity mapped
+	 * page tables, so that the thread address space is properly
+	 * set-up on function return.
+	 */
+	ret = __cpu_suspend_enter(arg, fn);
+	if (ret == 0) {
+		/*
+		 * We are resuming from reset with TTBR0_EL1 set to the
+		 * idmap to enable the MMU; set the TTBR0 to the reserved
+		 * page tables to prevent speculative TLB allocations, flush
+		 * the local tlb and set the default tcr_el1.t0sz so that
+		 * the TTBR0 address space set-up is properly restored.
+		 * If the current active_mm != &init_mm we entered cpu_suspend
+		 * with mappings in TTBR0 that must be restored, so we switch
+		 * them back to complete the address space configuration
+		 * restoration before returning.
+		 */
+		cpu_set_reserved_ttbr0();
+		local_flush_tlb_all();
+		cpu_set_default_tcr_t0sz();
+
+		if (mm != &init_mm)
+			cpu_switch_mm(mm->pgd, mm);
 
 		/*
-		 * PSTATE was not saved over suspend/resume, re-enable any
-		 * detected features that might not have been set correctly.
+		 * Restore per-cpu offset before any kernel
+		 * subsystem relying on it has a chance to run.
 		 */
-		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
-				CONFIG_ARM64_PAN));
-		uao_thread_switch(current);
+		set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 
 		/*
 		 * Restore HW breakpoint registers to sane values
 		 * before debug exceptions are possibly reenabled
 		 * through local_dbg_restore.
 		 */
-		if (!ret)
-			ret = -EOPNOTSUPP;
-	} else {
-		__cpu_suspend_exit();
+		if (hw_breakpoint_restore)
+			hw_breakpoint_restore(NULL);
 	}
 
 	unpause_graph_tracing();
@@ -115,14 +131,21 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	return ret;
 }
 
+struct sleep_save_sp sleep_save_sp;
+
 static int __init cpu_suspend_init(void)
 {
-	/* ctx_ptr is an array of physical addresses */
-	sleep_save_stash = kcalloc(mpidr_hash_size(), sizeof(*sleep_save_stash),
-				   GFP_KERNEL);
+	void *ctx_ptr;
 
-	if (WARN_ON(!sleep_save_stash))
+	/* ctx_ptr is an array of physical addresses */
+	ctx_ptr = kcalloc(mpidr_hash_size(), sizeof(phys_addr_t), GFP_KERNEL);
+
+	if (WARN_ON(!ctx_ptr))
 		return -ENOMEM;
+
+	sleep_save_sp.save_ptr_stash = ctx_ptr;
+	sleep_save_sp.save_ptr_stash_phys = virt_to_phys(ctx_ptr);
+	__flush_dcache_area(&sleep_save_sp, sizeof(struct sleep_save_sp));
 
 	return 0;
 }

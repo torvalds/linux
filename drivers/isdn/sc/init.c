@@ -441,7 +441,6 @@ static int identify_board(unsigned long rambase, unsigned int iobase)
 	RspMessage rcvmsg;
 	ReqMessage sndmsg;
 	HWConfig_pl hwci;
-	void __iomem *rambase_sig = (void __iomem *)rambase + SIG_OFFSET;
 	int x;
 
 	pr_debug("Attempting to identify adapter @ 0x%lx io 0x%x\n",
@@ -482,7 +481,7 @@ static int identify_board(unsigned long rambase, unsigned int iobase)
 	 */
 	outb(PRI_BASEPG_VAL, pgport);
 	msleep_interruptible(1000);
-	sig = readl(rambase_sig);
+	sig = readl(rambase + SIG_OFFSET);
 	pr_debug("Looking for a signature, got 0x%lx\n", sig);
 	if (sig == SIGNATURE)
 		return PRI_BOARD;
@@ -492,7 +491,7 @@ static int identify_board(unsigned long rambase, unsigned int iobase)
 	 */
 	outb(BRI_BASEPG_VAL, pgport);
 	msleep_interruptible(1000);
-	sig = readl(rambase_sig);
+	sig = readl(rambase + SIG_OFFSET);
 	pr_debug("Looking for a signature, got 0x%lx\n", sig);
 	if (sig == SIGNATURE)
 		return BRI_BOARD;
@@ -502,7 +501,7 @@ static int identify_board(unsigned long rambase, unsigned int iobase)
 	/*
 	 * Try to spot a card
 	 */
-	sig = readl(rambase_sig);
+	sig = readl(rambase + SIG_OFFSET);
 	pr_debug("Looking for a signature, got 0x%lx\n", sig);
 	if (sig != SIGNATURE)
 		return -1;

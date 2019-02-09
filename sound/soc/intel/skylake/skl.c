@@ -280,7 +280,7 @@ static int probe_codec(struct hdac_ext_bus *ebus, int addr)
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	unsigned int cmd = (addr << 28) | (AC_NODE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
-	unsigned int res = -1;
+	unsigned int res;
 
 	mutex_lock(&bus->cmd_mutex);
 	snd_hdac_bus_send_cmd(bus, cmd);
@@ -464,10 +464,8 @@ static int skl_probe(struct pci_dev *pci,
 
 	skl->nhlt = skl_nhlt_init(bus->dev);
 
-	if (skl->nhlt == NULL) {
-		err = -ENODEV;
+	if (skl->nhlt == NULL)
 		goto out_free;
-	}
 
 	pci_set_drvdata(skl->pci, ebus);
 

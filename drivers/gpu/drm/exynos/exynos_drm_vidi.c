@@ -330,7 +330,7 @@ static void vidi_connector_destroy(struct drm_connector *connector)
 {
 }
 
-static const struct drm_connector_funcs vidi_connector_funcs = {
+static struct drm_connector_funcs vidi_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = vidi_detect,
@@ -374,7 +374,7 @@ static struct drm_encoder *vidi_best_encoder(struct drm_connector *connector)
 	return &ctx->encoder;
 }
 
-static const struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
+static struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
 	.get_modes = vidi_get_modes,
 	.best_encoder = vidi_best_encoder,
 };
@@ -401,6 +401,13 @@ static int vidi_create_connector(struct drm_encoder *encoder)
 	return 0;
 }
 
+static bool exynos_vidi_mode_fixup(struct drm_encoder *encoder,
+				 const struct drm_display_mode *mode,
+				 struct drm_display_mode *adjusted_mode)
+{
+	return true;
+}
+
 static void exynos_vidi_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
@@ -415,13 +422,14 @@ static void exynos_vidi_disable(struct drm_encoder *encoder)
 {
 }
 
-static const struct drm_encoder_helper_funcs exynos_vidi_encoder_helper_funcs = {
+static struct drm_encoder_helper_funcs exynos_vidi_encoder_helper_funcs = {
+	.mode_fixup = exynos_vidi_mode_fixup,
 	.mode_set = exynos_vidi_mode_set,
 	.enable = exynos_vidi_enable,
 	.disable = exynos_vidi_disable,
 };
 
-static const struct drm_encoder_funcs exynos_vidi_encoder_funcs = {
+static struct drm_encoder_funcs exynos_vidi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
@@ -465,7 +473,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
 
 	drm_encoder_init(drm_dev, encoder, &exynos_vidi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+			 DRM_MODE_ENCODER_TMDS);
 
 	drm_encoder_helper_add(encoder, &exynos_vidi_encoder_helper_funcs);
 

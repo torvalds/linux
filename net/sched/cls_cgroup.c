@@ -130,10 +130,11 @@ static bool cls_cgroup_destroy(struct tcf_proto *tp, bool force)
 
 	if (!force)
 		return false;
-	/* Head can still be NULL due to cls_cgroup_init(). */
-	if (head)
-		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
 
+	if (head) {
+		RCU_INIT_POINTER(tp->root, NULL);
+		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
+	}
 	return true;
 }
 

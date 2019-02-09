@@ -770,6 +770,9 @@ nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	dentry = fhp->fh_dentry;
 	inode = d_inode(dentry);
 
+	if (!inode->i_op->set_acl || !IS_POSIXACL(inode))
+		return nfserr_attrnotsupp;
+
 	if (S_ISDIR(inode->i_mode))
 		flags = NFS4_ACL_DIR;
 
@@ -779,19 +782,16 @@ nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (host_error < 0)
 		goto out_nfserr;
 
-	fh_lock(fhp);
-
-	host_error = set_posix_acl(inode, ACL_TYPE_ACCESS, pacl);
+	host_error = inode->i_op->set_acl(inode, pacl, ACL_TYPE_ACCESS);
 	if (host_error < 0)
-		goto out_drop_lock;
+		goto out_release;
 
 	if (S_ISDIR(inode->i_mode)) {
-		host_error = set_posix_acl(inode, ACL_TYPE_DEFAULT, dpacl);
+		host_error = inode->i_op->set_acl(inode, dpacl,
+						  ACL_TYPE_DEFAULT);
 	}
 
-out_drop_lock:
-	fh_unlock(fhp);
-
+out_release:
 	posix_acl_release(pacl);
 	posix_acl_release(dpacl);
 out_nfserr:

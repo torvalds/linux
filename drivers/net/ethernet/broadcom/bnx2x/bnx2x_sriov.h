@@ -114,7 +114,6 @@ struct bnx2x_vf_mac_vlan_filter {
 	(BNX2X_VF_FILTER_MAC | BNX2X_VF_FILTER_VLAN) /*shortcut*/
 
 	bool add;
-	bool applied;
 	u8 *mac;
 	u16 vid;
 };

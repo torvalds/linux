@@ -566,7 +566,8 @@ static inline void nicvf_set_rxhash(struct net_device *netdev,
 
 static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 				  struct napi_struct *napi,
-				  struct cqe_rx_t *cqe_rx)
+				  struct cmp_queue *cq,
+				  struct cqe_rx_t *cqe_rx, int cqe_type)
 {
 	struct sk_buff *skb;
 	struct nicvf *nic = netdev_priv(netdev);
@@ -582,7 +583,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	}
 
 	/* Check for errors */
-	err = nicvf_check_cqe_rx_errs(nic, cqe_rx);
+	err = nicvf_check_cqe_rx_errs(nic, cq, cqe_rx);
 	if (err && !cqe_rx->rb_cnt)
 		return;
 
@@ -673,7 +674,8 @@ loop:
 			   cq_idx, cq_desc->cqe_type);
 		switch (cq_desc->cqe_type) {
 		case CQE_TYPE_RX:
-			nicvf_rcv_pkt_handler(netdev, napi, cq_desc);
+			nicvf_rcv_pkt_handler(netdev, napi, cq,
+					      cq_desc, CQE_TYPE_RX);
 			work_done++;
 		break;
 		case CQE_TYPE_SEND:
@@ -1115,6 +1117,7 @@ int nicvf_stop(struct net_device *netdev)
 
 	/* Clear multiqset info */
 	nic->pnicvf = nic;
+	nic->sqs_count = 0;
 
 	return 0;
 }
@@ -1343,9 +1346,6 @@ void nicvf_update_stats(struct nicvf *nic)
 	drv_stats->tx_frames_ok = stats->tx_ucast_frames_ok +
 				  stats->tx_bcast_frames_ok +
 				  stats->tx_mcast_frames_ok;
-	drv_stats->rx_frames_ok = stats->rx_ucast_frames +
-				  stats->rx_bcast_frames +
-				  stats->rx_mcast_frames;
 	drv_stats->rx_drops = stats->rx_drop_red +
 			      stats->rx_drop_overrun;
 	drv_stats->tx_drops = stats->tx_drops;

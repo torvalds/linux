@@ -247,7 +247,7 @@ static void __vmw_cmdbuf_header_free(struct vmw_cmdbuf_header *header)
 {
 	struct vmw_cmdbuf_man *man = header->man;
 
-	lockdep_assert_held_once(&man->lock);
+	BUG_ON(!spin_is_locked(&man->lock));
 
 	if (header->inline_space) {
 		vmw_cmdbuf_header_inline_free(header);
@@ -293,10 +293,13 @@ static int vmw_cmdbuf_header_submit(struct vmw_cmdbuf_header *header)
 	struct vmw_cmdbuf_man *man = header->man;
 	u32 val;
 
-	val = upper_32_bits(header->handle);
+	if (sizeof(header->handle) > 4)
+		val = (header->handle >> 32);
+	else
+		val = 0;
 	vmw_write(man->dev_priv, SVGA_REG_COMMAND_HIGH, val);
 
-	val = lower_32_bits(header->handle);
+	val = (header->handle & 0xFFFFFFFFULL);
 	val |= header->cb_context & SVGA_CB_CONTEXT_MASK;
 	vmw_write(man->dev_priv, SVGA_REG_COMMAND_LOW, val);
 

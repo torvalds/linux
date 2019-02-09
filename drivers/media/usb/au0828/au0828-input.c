@@ -124,13 +124,13 @@ static int au8522_rc_andor(struct au0828_rc *ir, u16 reg, u8 mask, u8 value)
 static int au0828_get_key_au8522(struct au0828_rc *ir)
 {
 	unsigned char buf[40];
-	struct ir_raw_event rawir = {};
+	DEFINE_IR_RAW_EVENT(rawir);
 	int i, j, rc;
 	int prv_bit, bit, width;
 	bool first = true;
 
 	/* do nothing if device is disconnected */
-	if (test_bit(DEV_DISCONNECTED, &ir->dev->dev_state))
+	if (ir->dev->dev_state == DEV_DISCONNECTED)
 		return 0;
 
 	/* Check IR int */
@@ -178,6 +178,7 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 			if (first) {
 				first = false;
 
+				init_ir_raw_event(&rawir);
 				rawir.pulse = true;
 				if (width > NEC_START_SPACE - 2 &&
 				    width < NEC_START_SPACE + 2) {
@@ -196,6 +197,7 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 				ir_raw_event_store(ir->rc, &rawir);
 			}
 
+			init_ir_raw_event(&rawir);
 			rawir.pulse = prv_bit ? false : true;
 			rawir.duration = AU8522_UNIT * width;
 			dprintk(16, "Storing %s with duration %d",
@@ -208,6 +210,7 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 		}
 	}
 
+	init_ir_raw_event(&rawir);
 	rawir.pulse = prv_bit ? false : true;
 	rawir.duration = AU8522_UNIT * width;
 	dprintk(16, "Storing end %s with duration %d",
@@ -257,7 +260,7 @@ static void au0828_rc_stop(struct rc_dev *rc)
 	cancel_delayed_work_sync(&ir->work);
 
 	/* do nothing if device is disconnected */
-	if (!test_bit(DEV_DISCONNECTED, &ir->dev->dev_state)) {
+	if (ir->dev->dev_state != DEV_DISCONNECTED) {
 		/* Disable IR */
 		au8522_rc_clear(ir, 0xe0, 1 << 4);
 	}
@@ -295,7 +298,7 @@ int au0828_rc_register(struct au0828_dev *dev)
 		return -ENODEV;
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
+	rc = rc_allocate_device();
 	if (!ir || !rc)
 		goto error;
 
@@ -332,7 +335,7 @@ int au0828_rc_register(struct au0828_dev *dev)
 	usb_make_path(dev->usbdev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
-	rc->device_name = ir->name;
+	rc->input_name = ir->name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_USB;
 	rc->input_id.version = 1;
@@ -340,8 +343,8 @@ int au0828_rc_register(struct au0828_dev *dev)
 	rc->input_id.product = le16_to_cpu(dev->usbdev->descriptor.idProduct);
 	rc->dev.parent = &dev->usbdev->dev;
 	rc->driver_name = "au0828-input";
-	rc->allowed_protocols = RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX |
-				RC_PROTO_BIT_NEC32 | RC_PROTO_BIT_RC5;
+	rc->driver_type = RC_DRIVER_IR_RAW;
+	rc->allowed_protocols = RC_BIT_NEC | RC_BIT_RC5;
 
 	/* all done */
 	err = rc_register_device(rc);

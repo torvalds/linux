@@ -12,7 +12,6 @@
 #include <linux/pm.h>
 #include <linux/io.h>
 
-#include <asm/cpufeature.h>
 #include <asm/irqdomain.h>
 #include <asm/fixmap.h>
 #include <asm/hpet.h>
@@ -352,9 +351,8 @@ static int hpet_resume(struct clock_event_device *evt, int timer)
 	} else {
 		struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
 
-		irq_domain_deactivate_irq(irq_get_irq_data(hdev->irq));
 		irq_domain_activate_irq(irq_get_irq_data(hdev->irq));
-		disable_hardirq(hdev->irq);
+		disable_irq(hdev->irq);
 		irq_set_affinity(hdev->irq, cpumask_of(hdev->cpu));
 		enable_irq(hdev->irq);
 	}

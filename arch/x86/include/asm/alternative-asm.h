@@ -62,10 +62,8 @@
 #define new_len2		145f-144f
 
 /*
- * gas compatible max based on the idea from:
+ * max without conditionals. Idea adapted from:
  * http://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax
- *
- * The additional "-" is needed because gas uses a "true" value of -1.
  */
 #define alt_max_short(a, b)	((a) ^ (((a) ^ (b)) & -(-((a) < (b)))))
 

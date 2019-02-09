@@ -169,14 +169,11 @@ static int htab_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 	struct hlist_head *head;
 	struct htab_elem *l, *next_l;
 	u32 hash, key_size;
-	int i = 0;
+	int i;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	key_size = map->key_size;
-
-	if (!key)
-		goto find_first_elem;
 
 	hash = htab_map_hash(key, key_size);
 
@@ -185,8 +182,10 @@ static int htab_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 	/* lookup the key */
 	l = lookup_elem_raw(head, hash, key, key_size);
 
-	if (!l)
+	if (!l) {
+		i = 0;
 		goto find_first_elem;
+	}
 
 	/* key was found, get next key in the same bucket */
 	next_l = hlist_entry_safe(rcu_dereference_raw(hlist_next_rcu(&l->hash_node)),

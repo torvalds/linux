@@ -48,6 +48,17 @@ static int amd_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 
 	spin_lock_irqsave(&gpio_dev->lock, flags);
 	pin_reg = readl(gpio_dev->base + offset * 4);
+	/*
+	 * Suppose BIOS or Bootloader sets specific debounce for the
+	 * GPIO. if not, set debounce to be  2.75ms and remove glitch.
+	*/
+	if ((pin_reg & DB_TMR_OUT_MASK) == 0) {
+		pin_reg |= 0xf;
+		pin_reg |= BIT(DB_TMR_OUT_UNIT_OFF);
+		pin_reg |= DB_TYPE_REMOVE_GLITCH << DB_CNTRL_OFF;
+		pin_reg &= ~BIT(DB_TMR_LARGE_OFF);
+	}
+
 	pin_reg &= ~BIT(OUTPUT_ENABLE_OFF);
 	writel(pin_reg, gpio_dev->base + offset * 4);
 	spin_unlock_irqrestore(&gpio_dev->lock, flags);
@@ -320,6 +331,15 @@ static void amd_gpio_irq_enable(struct irq_data *d)
 
 	spin_lock_irqsave(&gpio_dev->lock, flags);
 	pin_reg = readl(gpio_dev->base + (d->hwirq)*4);
+	/*
+		Suppose BIOS or Bootloader sets specific debounce for the
+		GPIO. if not, set debounce to be  2.75ms.
+	*/
+	if ((pin_reg & DB_TMR_OUT_MASK) == 0) {
+		pin_reg |= 0xf;
+		pin_reg |= BIT(DB_TMR_OUT_UNIT_OFF);
+		pin_reg &= ~BIT(DB_TMR_LARGE_OFF);
+	}
 	pin_reg |= BIT(INTERRUPT_ENABLE_OFF);
 	pin_reg |= BIT(INTERRUPT_MASK_OFF);
 	writel(pin_reg, gpio_dev->base + (d->hwirq)*4);
@@ -565,7 +585,7 @@ static const struct pinctrl_ops amd_pinctrl_ops = {
 	.get_group_pins		= amd_get_group_pins,
 #ifdef CONFIG_OF
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
-	.dt_free_map		= pinctrl_utils_free_map,
+	.dt_free_map		= pinctrl_utils_dt_free_map,
 #endif
 };
 
@@ -758,7 +778,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	gpio_dev->gc.base			= 0;
 	gpio_dev->gc.label			= pdev->name;
 	gpio_dev->gc.owner			= THIS_MODULE;
-	gpio_dev->gc.parent			= &pdev->dev;
+	gpio_dev->gc.dev			= &pdev->dev;
 	gpio_dev->gc.ngpio			= TOTAL_NUMBER_OF_PINS;
 #if defined(CONFIG_OF_GPIO)
 	gpio_dev->gc.of_node			= pdev->dev.of_node;

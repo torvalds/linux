@@ -83,6 +83,17 @@
 #define HCR_INT_OVERRIDE   (HCR_FMO | HCR_IMO)
 
 
+/* Hyp System Control Register (SCTLR_EL2) bits */
+#define SCTLR_EL2_EE	(1 << 25)
+#define SCTLR_EL2_WXN	(1 << 19)
+#define SCTLR_EL2_I	(1 << 12)
+#define SCTLR_EL2_SA	(1 << 3)
+#define SCTLR_EL2_C	(1 << 2)
+#define SCTLR_EL2_A	(1 << 1)
+#define SCTLR_EL2_M	1
+#define SCTLR_EL2_FLAGS	(SCTLR_EL2_M | SCTLR_EL2_A | SCTLR_EL2_C |	\
+			 SCTLR_EL2_SA | SCTLR_EL2_I)
+
 /* TCR_EL2 Registers bits */
 #define TCR_EL2_RES1	((1 << 31) | (1 << 23))
 #define TCR_EL2_TBI	(1 << 20)
@@ -95,6 +106,8 @@
 #define TCR_EL2_T0SZ	0x3f
 #define TCR_EL2_MASK	(TCR_EL2_TG0 | TCR_EL2_SH0 | \
 			 TCR_EL2_ORGN0 | TCR_EL2_IRGN0 | TCR_EL2_T0SZ)
+
+#define TCR_EL2_FLAGS	(TCR_EL2_RES1 | TCR_EL2_PS_40B)
 
 /* VTCR_EL2 Registers bits */
 #define VTCR_EL2_RES1		(1 << 31)
@@ -112,7 +125,6 @@
 #define VTCR_EL2_SL0_LVL1	(1 << 6)
 #define VTCR_EL2_T0SZ_MASK	0x3f
 #define VTCR_EL2_T0SZ_40B	24
-#define VTCR_EL2_VS		19
 
 /*
  * We configure the Stage-2 page tables to always restrict the IPA space to be
@@ -154,9 +166,10 @@
 #define VTTBR_X		(37 - VTCR_EL2_T0SZ_40B)
 #endif
 
-#define VTTBR_BADDR_MASK  (((UL(1) << (PHYS_MASK_SHIFT - VTTBR_X)) - 1) << VTTBR_X)
+#define VTTBR_BADDR_SHIFT (VTTBR_X - 1)
+#define VTTBR_BADDR_MASK  (((UL(1) << (PHYS_MASK_SHIFT - VTTBR_X)) - 1) << VTTBR_BADDR_SHIFT)
 #define VTTBR_VMID_SHIFT  (UL(48))
-#define VTTBR_VMID_MASK(size) (_AT(u64, (1 << size) - 1) << VTTBR_VMID_SHIFT)
+#define VTTBR_VMID_MASK	  (UL(0xFF) << VTTBR_VMID_SHIFT)
 
 /* Hyp System Trap Register */
 #define HSTR_EL2_T(x)	(1 << x)

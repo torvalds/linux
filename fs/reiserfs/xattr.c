@@ -184,7 +184,6 @@ struct reiserfs_dentry_buf {
 	struct dir_context ctx;
 	struct dentry *xadir;
 	int count;
-	int err;
 	struct dentry *dentries[8];
 };
 
@@ -207,7 +206,6 @@ fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 
 	dentry = lookup_one_len(name, dbuf->xadir, namelen);
 	if (IS_ERR(dentry)) {
-		dbuf->err = PTR_ERR(dentry);
 		return PTR_ERR(dentry);
 	} else if (d_really_is_negative(dentry)) {
 		/* A directory entry exists, but no file? */
@@ -216,7 +214,6 @@ fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 			       "not found for file %pd.\n",
 			       dentry, dbuf->xadir);
 		dput(dentry);
-		dbuf->err = -EIO;
 		return -EIO;
 	}
 
@@ -264,10 +261,6 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 		err = reiserfs_readdir_inode(d_inode(dir), &buf.ctx);
 		if (err)
 			break;
-		if (buf.err) {
-			err = buf.err;
-			break;
-		}
 		if (!buf.count)
 			break;
 		for (i = 0; !err && i < buf.count && buf.dentries[i]; i++) {
@@ -770,6 +763,60 @@ find_xattr_handler_prefix(const struct xattr_handler **handlers,
 	return xah;
 }
 
+
+/*
+ * Inode operation getxattr()
+ */
+ssize_t
+reiserfs_getxattr(struct dentry * dentry, const char *name, void *buffer,
+		  size_t size)
+{
+	const struct xattr_handler *handler;
+
+	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
+
+	if (!handler || get_inode_sd_version(d_inode(dentry)) == STAT_DATA_V1)
+		return -EOPNOTSUPP;
+
+	return handler->get(handler, dentry, name, buffer, size);
+}
+
+/*
+ * Inode operation setxattr()
+ *
+ * d_inode(dentry)->i_mutex down
+ */
+int
+reiserfs_setxattr(struct dentry *dentry, const char *name, const void *value,
+		  size_t size, int flags)
+{
+	const struct xattr_handler *handler;
+
+	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
+
+	if (!handler || get_inode_sd_version(d_inode(dentry)) == STAT_DATA_V1)
+		return -EOPNOTSUPP;
+
+	return handler->set(handler, dentry, name, value, size, flags);
+}
+
+/*
+ * Inode operation removexattr()
+ *
+ * d_inode(dentry)->i_mutex down
+ */
+int reiserfs_removexattr(struct dentry *dentry, const char *name)
+{
+	const struct xattr_handler *handler;
+
+	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
+
+	if (!handler || get_inode_sd_version(d_inode(dentry)) == STAT_DATA_V1)
+		return -EOPNOTSUPP;
+
+	return handler->set(handler, dentry, name, NULL, 0, XATTR_REPLACE);
+}
+
 struct listxattr_buf {
 	struct dir_context ctx;
 	size_t size;
@@ -798,10 +845,8 @@ static int listxattr_filler(struct dir_context *ctx, const char *name,
 			size = handler->list(handler, b->dentry,
 					     b->buf + b->pos, b->size, name,
 					     namelen);
-			if (b->pos + size > b->size) {
-				b->pos = -ERANGE;
+			if (size > b->size)
 				return -ERANGE;
-			}
 		} else {
 			size = handler->list(handler, b->dentry,
 					     NULL, 0, name, namelen);

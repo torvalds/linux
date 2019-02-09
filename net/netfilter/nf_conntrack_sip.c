@@ -1434,11 +1434,8 @@ static int process_sip_request(struct sk_buff *skb, unsigned int protoff,
 		handler = &sip_handlers[i];
 		if (handler->request == NULL)
 			continue;
-		if (*datalen < handler->len + 2 ||
+		if (*datalen < handler->len ||
 		    strncasecmp(*dptr, handler->method, handler->len))
-			continue;
-		if ((*dptr)[handler->len] != ' ' ||
-		    !isalpha((*dptr)[handler->len+1]))
 			continue;
 
 		if (ct_sip_get_header(ct, *dptr, 0, *datalen, SIP_HDR_CSEQ,

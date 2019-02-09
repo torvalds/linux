@@ -291,7 +291,7 @@ static int fintek_cmdsize(u8 cmd, u8 subcmd)
 /* process ir data stored in driver buffer */
 static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 {
-	struct ir_raw_event rawir = {};
+	DEFINE_IR_RAW_EVENT(rawir);
 	u8 sample;
 	bool event = false;
 	int i;
@@ -323,6 +323,7 @@ static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 			break;
 		case PARSE_IRDATA:
 			fintek->rem--;
+			init_ir_raw_event(&rawir);
 			rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
 			rawir.duration = US_TO_NS((sample & BUF_SAMPLE_MASK)
 					  * CIR_SAMPLE_PERIOD);
@@ -495,7 +496,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 		return ret;
 
 	/* input device for IR remote (and tx) */
-	rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
+	rdev = rc_allocate_device();
 	if (!rdev)
 		goto exit_free_dev_rdev;
 
@@ -537,10 +538,11 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 
 	/* Set up the rc device */
 	rdev->priv = fintek;
-	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
+	rdev->driver_type = RC_DRIVER_IR_RAW;
+	rdev->allowed_protocols = RC_BIT_ALL;
 	rdev->open = fintek_open;
 	rdev->close = fintek_close;
-	rdev->device_name = FINTEK_DESCRIPTION;
+	rdev->input_name = FINTEK_DESCRIPTION;
 	rdev->input_phys = "fintek/cir0";
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = VENDOR_ID_FINTEK;

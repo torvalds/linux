@@ -86,7 +86,7 @@ int aic_common_set_priority(int priority, unsigned *val)
 	    priority > AT91_AIC_IRQ_MAX_PRIORITY)
 		return -EINVAL;
 
-	*val &= ~AT91_AIC_PRIOR;
+	*val &= AT91_AIC_PRIOR;
 	*val |= priority;
 
 	return 0;
@@ -148,9 +148,9 @@ void __init aic_common_rtc_irq_fixup(struct device_node *root)
 	struct device_node *np;
 	void __iomem *regs;
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,at91rm9200-rtc");
+	np = of_find_compatible_node(root, NULL, "atmel,at91rm9200-rtc");
 	if (!np)
-		np = of_find_compatible_node(NULL, NULL,
+		np = of_find_compatible_node(root, NULL,
 					     "atmel,at91sam9x5-rtc");
 
 	if (!np)
@@ -202,6 +202,7 @@ void __init aic_common_irq_fixup(const struct of_device_id *matches)
 		return;
 
 	match = of_match_node(matches, root);
+	of_node_put(root);
 
 	if (match) {
 		void (*fixup)(struct device_node *) = match->data;

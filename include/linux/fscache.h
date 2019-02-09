@@ -764,7 +764,7 @@ bool fscache_maybe_release_page(struct fscache_cookie *cookie,
 {
 	if (fscache_cookie_valid(cookie) && PageFsCache(page))
 		return __fscache_maybe_release_page(cookie, page, gfp);
-	return true;
+	return false;
 }
 
 /**

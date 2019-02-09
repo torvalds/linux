@@ -65,19 +65,14 @@ static ssize_t trigger_request_store(struct device *dev,
 	release_firmware(test_firmware);
 	test_firmware = NULL;
 	rc = request_firmware(&test_firmware, name, dev);
-	if (rc) {
+	if (rc)
 		pr_info("load of '%s' failed: %d\n", name, rc);
-		goto out;
-	}
-	pr_info("loaded: %zu\n", test_firmware->size);
-	rc = count;
-
-out:
+	pr_info("loaded: %zu\n", test_firmware ? test_firmware->size : 0);
 	mutex_unlock(&test_fw_mutex);
 
 	kfree(name);
 
-	return rc;
+	return count;
 }
 static DEVICE_ATTR_WO(trigger_request);
 

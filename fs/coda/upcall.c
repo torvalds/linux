@@ -446,7 +446,8 @@ int venus_fsync(struct super_block *sb, struct CodaFid *fid)
 	UPARG(CODA_FSYNC);
 
 	inp->coda_fsync.VFid = *fid;
-	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
+	error = coda_upcall(coda_vcp(sb), sizeof(union inputArgs),
+			    &outsize, inp);
 
 	CODA_FREE(inp, insize);
 	return error;

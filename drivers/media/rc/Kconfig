@@ -6,21 +6,34 @@ config RC_CORE
 
 source "drivers/media/rc/keymaps/Kconfig"
 
-config LIRC
-	bool "LIRC user interface"
-	depends on RC_CORE
-	---help---
-	   Enable this option to enable the Linux Infrared Remote
-	   Control user interface (e.g. /dev/lirc*). This interface
-	   passes raw IR to and from userspace, which is needed for
-	   IR transmitting (aka "blasting") and for the lirc daemon.
-
 menuconfig RC_DECODERS
         bool "Remote controller decoders"
 	depends on RC_CORE
 	default y
 
 if RC_DECODERS
+config LIRC
+	tristate "LIRC interface driver"
+	depends on RC_CORE
+
+	---help---
+	   Enable this option to build the Linux Infrared Remote
+	   Control (LIRC) core device interface driver. The LIRC
+	   interface passes raw IR to and from userspace, where the
+	   LIRC daemon handles protocol decoding for IR reception and
+	   encoding for IR transmitting (aka "blasting").
+
+config IR_LIRC_CODEC
+	tristate "Enable IR to LIRC bridge"
+	depends on RC_CORE
+	depends on LIRC
+	default y
+
+	---help---
+	   Enable this option to pass raw IR to and from userspace via
+	   the LIRC interface.
+
+
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
 	depends on RC_CORE
@@ -88,8 +101,7 @@ config IR_SHARP_DECODER
 
 	---help---
 	   Enable this option if you have an infrared remote control which
-	   uses the Sharp protocol (Sharp, Denon), and you need software
-	   decoding support.
+	   uses the Sharp protocol, and you need software decoding support.
 
 config IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
@@ -111,15 +123,6 @@ config IR_XMP_DECODER
 	---help---
 	   Enable this option if you have IR with XMP protocol, and
 	   if the IR is decoded in software
-
-config IR_IMON_DECODER
-	tristate "Enable IR raw decoder for the iMON protocol"
-	depends on RC_CORE
-	---help---
-	   Enable this option if you have iMON PAD or Antec Veris infrared
-	   remote control and you would like to use it with a raw IR
-	   receiver, or if you wish to use an encoder to transmit this IR.
-
 endif #RC_DECODERS
 
 menuconfig RC_DEVICES
@@ -358,37 +361,11 @@ config RC_LOOPBACK
 config IR_GPIO_CIR
 	tristate "GPIO IR remote control"
 	depends on RC_CORE
-	depends on (OF && GPIOLIB) || COMPILE_TEST
 	---help---
 	   Say Y if you want to use GPIO based IR Receiver.
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
-
-config IR_GPIO_TX
-	tristate "GPIO IR Bit Banging Transmitter"
-	depends on RC_CORE
-	depends on LIRC
-	depends on (OF && GPIOLIB) || COMPILE_TEST
-	---help---
-	   Say Y if you want to a GPIO based IR transmitter. This is a
-	   bit banging driver.
-
-	   To compile this driver as a module, choose M here: the module will
-	   be called gpio-ir-tx.
-
-config IR_PWM_TX
-	tristate "PWM IR transmitter"
-	depends on RC_CORE
-	depends on LIRC
-	depends on PWM
-	depends on OF || COMPILE_TEST
-	---help---
-	   Say Y if you want to use a PWM based IR transmitter. This is
-	   more power efficient than the bit banging gpio driver.
-
-	   To compile this driver as a module, choose M here: the module will
-	   be called pwm-ir-tx.
 
 config RC_ST
 	tristate "ST remote control receiver"
@@ -410,22 +387,5 @@ config IR_SUNXI
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called sunxi-ir.
-
-config IR_SERIAL
-	tristate "Homebrew Serial Port Receiver"
-	depends on RC_CORE
-	---help---
-	   Say Y if you want to use Homebrew Serial Port Receivers and
-	   Transceivers.
-
-	   To compile this driver as a module, choose M here: the module will
-	   be called serial-ir.
-
-config IR_SERIAL_TRANSMITTER
-	bool "Serial Port Transmitter"
-	default y
-	depends on IR_SERIAL
-	---help---
-	   Serial Port Transmitter support
 
 endif #RC_DEVICES

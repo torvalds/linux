@@ -58,8 +58,6 @@ show up in /proc/sys/kernel:
 - panic_on_stackoverflow
 - panic_on_unrecovered_nmi
 - panic_on_warn
-- perf_cpu_time_max_percent
-- perf_event_paranoid
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
@@ -626,19 +624,6 @@ allowed to execute.
 
 ==============================================================
 
-perf_event_paranoid:
-
-Controls use of the performance events system by unprivileged
-users (without CAP_SYS_ADMIN).  The default value is 3 if
-CONFIG_SECURITY_PERF_EVENTS_RESTRICT is set, or 1 otherwise.
-
- -1: Allow use of (almost) all events by all users
->=0: Disallow raw tracepoint access by users without CAP_IOC_LOCK
->=1: Disallow CPU event access by users without CAP_SYS_ADMIN
->=2: Disallow kernel profiling by users without CAP_SYS_ADMIN
->=3: Disallow all event access by users without CAP_SYS_ADMIN
-
-==============================================================
 
 pid_max:
 
@@ -825,13 +810,14 @@ via the /proc/sys interface:
        Each write syscall must fully contain the sysctl value to be
        written, and multiple writes on the same sysctl file descriptor
        will rewrite the sysctl value, regardless of file position.
-   0 - Same behavior as above, but warn about processes that perform writes
-       to a sysctl file descriptor when the file position is not 0.
-   1 - (default) Respect file position when writing sysctl strings. Multiple
-       writes will append to the sysctl value buffer. Anything past the max
-       length of the sysctl value buffer will be ignored. Writes to numeric
-       sysctl entries must always be at file position 0 and the value must
-       be fully contained in the buffer sent in the write syscall.
+   0 - (default) Same behavior as above, but warn about processes that
+       perform writes to a sysctl file descriptor when the file position
+       is not 0.
+   1 - Respect file position when writing sysctl strings. Multiple writes
+       will append to the sysctl value buffer. Anything past the max length
+       of the sysctl value buffer will be ignored. Writes to numeric sysctl
+       entries must always be at file position 0 and the value must be
+       fully contained in the buffer sent in the write syscall.
 
 ==============================================================
 

@@ -1763,7 +1763,7 @@ static struct dcb_app_type *dcb_app_lookup(const struct dcb_app *app,
 		if (itr->app.selector == app->selector &&
 		    itr->app.protocol == app->protocol &&
 		    itr->ifindex == ifindex &&
-		    ((prio == -1) || itr->app.priority == prio))
+		    (!prio || itr->app.priority == prio))
 			return itr;
 	}
 
@@ -1798,8 +1798,7 @@ u8 dcb_getapp(struct net_device *dev, struct dcb_app *app)
 	u8 prio = 0;
 
 	spin_lock_bh(&dcb_lock);
-	itr = dcb_app_lookup(app, dev->ifindex, -1);
-	if (itr)
+	if ((itr = dcb_app_lookup(app, dev->ifindex, 0)))
 		prio = itr->app.priority;
 	spin_unlock_bh(&dcb_lock);
 
@@ -1827,8 +1826,7 @@ int dcb_setapp(struct net_device *dev, struct dcb_app *new)
 
 	spin_lock_bh(&dcb_lock);
 	/* Search for existing match and replace */
-	itr = dcb_app_lookup(new, dev->ifindex, -1);
-	if (itr) {
+	if ((itr = dcb_app_lookup(new, dev->ifindex, 0))) {
 		if (new->priority)
 			itr->app.priority = new->priority;
 		else {
@@ -1861,8 +1859,7 @@ u8 dcb_ieee_getapp_mask(struct net_device *dev, struct dcb_app *app)
 	u8 prio = 0;
 
 	spin_lock_bh(&dcb_lock);
-	itr = dcb_app_lookup(app, dev->ifindex, -1);
-	if (itr)
+	if ((itr = dcb_app_lookup(app, dev->ifindex, 0)))
 		prio |= 1 << itr->app.priority;
 	spin_unlock_bh(&dcb_lock);
 

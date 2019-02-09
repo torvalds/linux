@@ -30,7 +30,7 @@
  * 	appropriately. Either display a message or halt.
  */
 
-#include <asm/cpufeatures.h>
+#include <asm/cpufeature.h>
 #include <asm/msr-index.h>
 
 verify_cpu:

@@ -211,7 +211,6 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->bpf_fd	   = -1;
 	INIT_LIST_HEAD(&evsel->node);
 	INIT_LIST_HEAD(&evsel->config_terms);
-	INIT_LIST_HEAD(&evsel->drv_config_terms);
 	perf_evsel__object.init(evsel);
 	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);
 	perf_evsel__calc_id_pos(evsel);
@@ -625,12 +624,12 @@ static void apply_config_terms(struct perf_evsel *evsel,
 	struct perf_evsel_config_term *term;
 	struct list_head *config_terms = &evsel->config_terms;
 	struct perf_event_attr *attr = &evsel->attr;
-	/* callgraph default */
-	struct callchain_param param = {
-		.record_mode = callchain_param.record_mode,
-	};
+	struct callchain_param param;
 	u32 dump_size = 0;
 	char *callgraph_buf = NULL;
+
+	/* callgraph default */
+	param.record_mode = callchain_param.record_mode;
 
 	list_for_each_entry(term, config_terms, list) {
 		switch (term->type) {
@@ -982,41 +981,10 @@ int perf_evsel__append_filter(struct perf_evsel *evsel,
 	return -1;
 }
 
-int perf_evsel__apply_drv_configs(struct perf_evsel *evsel,
-				  int ncpus, int nthreads,
-				  struct perf_evsel_config_term **err_term)
-{
-	int err = 0;
-	struct perf_evsel_config_term *term;
-
-	list_for_each_entry(term, &evsel->drv_config_terms, list) {
-		err = perf_evsel__run_ioctl(evsel, ncpus, nthreads,
-					    PERF_EVENT_IOC_SET_DRV_CONFIGS,
-					    (void *)term->val.drv_cfg);
-
-		if (err) {
-			*err_term = term;
-			break;
-		}
-	}
-
-	return err;
-}
-
 int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
 				     PERF_EVENT_IOC_ENABLE,
-				     0);
-}
-
-int perf_evsel__disable(struct perf_evsel *evsel)
-{
-	int nthreads = thread_map__nr(evsel->threads);
-	int ncpus = cpu_map__nr(evsel->cpus);
-
-	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
-				     PERF_EVENT_IOC_DISABLE,
 				     0);
 }
 
@@ -1065,16 +1033,6 @@ static void perf_evsel__free_config_terms(struct perf_evsel *evsel)
 	}
 }
 
-static void perf_evsel__free_drv_config_terms(struct perf_evsel *evsel)
-{
-	struct perf_evsel_config_term *term, *h;
-
-	list_for_each_entry_safe(term, h, &evsel->drv_config_terms, list) {
-		list_del(&term->list);
-		free(term);
-	}
-}
-
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	int cpu, thread;
@@ -1096,7 +1054,6 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 	perf_evsel__free_fd(evsel);
 	perf_evsel__free_id(evsel);
 	perf_evsel__free_config_terms(evsel);
-	perf_evsel__free_drv_config_terms(evsel);
 	close_cgroup(evsel->cgrp);
 	cpu_map__put(evsel->cpus);
 	cpu_map__put(evsel->own_cpus);
@@ -2356,15 +2313,12 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	case EPERM:
 	case EACCES:
 		return scnprintf(msg, size,
-		 "You may not have permission to collect %sstats.\n\n"
-		 "Consider tweaking /proc/sys/kernel/perf_event_paranoid,\n"
-		 "which controls use of the performance events system by\n"
-		 "unprivileged users (without CAP_SYS_ADMIN).\n\n"
-		 "The default value is 1:\n\n"
-		 "  -1: Allow use of (almost) all events by all users\n"
-		 ">= 0: Disallow raw tracepoint access by users without CAP_IOC_LOCK\n"
-		 ">= 1: Disallow CPU event access by users without CAP_SYS_ADMIN\n"
-		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN",
+		 "You may not have permission to collect %sstats.\n"
+		 "Consider tweaking /proc/sys/kernel/perf_event_paranoid:\n"
+		 " -1 - Not paranoid at all\n"
+		 "  0 - Disallow raw tracepoint access for unpriv\n"
+		 "  1 - Disallow cpu events for unpriv\n"
+		 "  2 - Disallow kernel profiling for unpriv",
 				 target->system_wide ? "system-wide " : "");
 	case ENOENT:
 		return scnprintf(msg, size, "The %s event is not supported.",

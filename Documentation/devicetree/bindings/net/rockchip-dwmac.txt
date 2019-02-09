@@ -3,18 +3,7 @@ Rockchip SoC RK3288 10/100/1000 Ethernet driver(GMAC)
 The device node has following properties.
 
 Required properties:
- - compatible: should be "rockchip,<name>-gmac" or "rockchip,<name>-mac"
-   "rockchip,px30-gmac": found on PX30 SoCs
-   "rockchip,rk1808-gmac": found on RK1808 SoCs
-   "rockchip,rk3128-gmac": found on RK312x SoCs
-   "rockchip,rk3228-gmac": found on RK322x SoCs
-   "rockchip,rk3288-gmac": found on RK3288 SoCs
-   "rockchip,rk3308-mac":  found on RK3308 SoCs
-   "rockchip,rk3328-gmac": found on RK3328 SoCs
-   "rockchip,rk3366-gmac": found on RK3366 SoCs
-   "rockchip,rk3368-gmac": found on RK3368 SoCs
-   "rockchip,rk3399-gmac": found on RK3399 SoCs
-   "rockchip,rv1108-gmac": found on RV1108 SoCs
+ - compatible: Can be one of "rockchip,rk3288-gmac", "rockchip,rk3368-gmac"
  - reg: addresses and length of the register sets for the device.
  - interrupts: Should contain the GMAC interrupts.
  - interrupt-names: Should contain the interrupt names "macirq".

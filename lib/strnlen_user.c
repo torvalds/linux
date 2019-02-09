@@ -45,7 +45,8 @@ static inline long do_strnlen_user(const char __user *src, unsigned long count, 
 	src -= align;
 	max += align;
 
-	unsafe_get_user(c, (unsigned long __user *)src, efault);
+	if (unlikely(__get_user(c,(unsigned long __user *)src)))
+		return 0;
 	c |= aligned_byte_mask(align);
 
 	for (;;) {
@@ -60,7 +61,8 @@ static inline long do_strnlen_user(const char __user *src, unsigned long count, 
 		if (unlikely(max <= sizeof(unsigned long)))
 			break;
 		max -= sizeof(unsigned long);
-		unsafe_get_user(c, (unsigned long __user *)(src+res), efault);
+		if (unlikely(__get_user(c,(unsigned long __user *)(src+res))))
+			return 0;
 	}
 	res -= align;
 
@@ -75,7 +77,6 @@ static inline long do_strnlen_user(const char __user *src, unsigned long count, 
 	 * Nope: we hit the address space limit, and we still had more
 	 * characters the caller would have wanted. That's 0.
 	 */
-efault:
 	return 0;
 }
 
@@ -111,12 +112,7 @@ long strnlen_user(const char __user *str, long count)
 	src_addr = (unsigned long)str;
 	if (likely(src_addr < max_addr)) {
 		unsigned long max = max_addr - src_addr;
-		long retval;
-
-		user_access_begin();
-		retval = do_strnlen_user(str, count, max);
-		user_access_end();
-		return retval;
+		return do_strnlen_user(str, count, max);
 	}
 	return 0;
 }
@@ -145,12 +141,7 @@ long strlen_user(const char __user *str)
 	src_addr = (unsigned long)str;
 	if (likely(src_addr < max_addr)) {
 		unsigned long max = max_addr - src_addr;
-		long retval;
-
-		user_access_begin();
-		retval = do_strnlen_user(str, ~0ul, max);
-		user_access_end();
-		return retval;
+		return do_strnlen_user(str, ~0ul, max);
 	}
 	return 0;
 }

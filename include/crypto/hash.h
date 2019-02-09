@@ -204,7 +204,6 @@ struct crypto_ahash {
 		      unsigned int keylen);
 
 	unsigned int reqsize;
-	bool has_setkey;
 	struct crypto_tfm base;
 };
 
@@ -375,11 +374,6 @@ static inline void *ahash_request_ctx(struct ahash_request *req)
  */
 int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 			unsigned int keylen);
-
-static inline bool crypto_ahash_has_setkey(struct crypto_ahash *tfm)
-{
-	return tfm->has_setkey;
-}
 
 /**
  * crypto_ahash_finup() - update and finalize message digest

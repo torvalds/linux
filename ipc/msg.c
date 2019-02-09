@@ -680,7 +680,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 		rcu_read_lock();
 		ipc_lock_object(&msq->q_perm);
 
-		ipc_rcu_putref(msq, msg_rcu_free);
+		ipc_rcu_putref(msq, ipc_rcu_free);
 		/* raced with RMID? */
 		if (!ipc_valid_object(&msq->q_perm)) {
 			err = -EIDRM;
@@ -742,10 +742,7 @@ static inline int convert_mode(long *msgtyp, int msgflg)
 	if (*msgtyp == 0)
 		return SEARCH_ANY;
 	if (*msgtyp < 0) {
-		if (*msgtyp == LONG_MIN) /* -LONG_MIN is undefined */
-			*msgtyp = LONG_MAX;
-		else
-			*msgtyp = -*msgtyp;
+		*msgtyp = -*msgtyp;
 		return SEARCH_LESSEQUAL;
 	}
 	if (msgflg & MSG_EXCEPT)

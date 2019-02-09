@@ -468,15 +468,36 @@ static void nfit_mem_find_spa_bdw(struct acpi_nfit_desc *acpi_desc,
 	nfit_mem->bdw = NULL;
 }
 
-static void nfit_mem_init_bdw(struct acpi_nfit_desc *acpi_desc,
+static int nfit_mem_add(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_mem *nfit_mem, struct acpi_nfit_system_address *spa)
 {
 	u16 dcr = __to_nfit_memdev(nfit_mem)->region_index;
 	struct nfit_memdev *nfit_memdev;
 	struct nfit_flush *nfit_flush;
+	struct nfit_dcr *nfit_dcr;
 	struct nfit_bdw *nfit_bdw;
 	struct nfit_idt *nfit_idt;
 	u16 idt_idx, range_index;
+
+	list_for_each_entry(nfit_dcr, &acpi_desc->dcrs, list) {
+		if (nfit_dcr->dcr->region_index != dcr)
+			continue;
+		nfit_mem->dcr = nfit_dcr->dcr;
+		break;
+	}
+
+	if (!nfit_mem->dcr) {
+		dev_dbg(acpi_desc->dev, "SPA %d missing:%s%s\n",
+				spa->range_index, __to_nfit_memdev(nfit_mem)
+				? "" : " MEMDEV", nfit_mem->dcr ? "" : " DCR");
+		return -ENODEV;
+	}
+
+	/*
+	 * We've found enough to create an nvdimm, optionally
+	 * find an associated BDW
+	 */
+	list_add(&nfit_mem->list, &acpi_desc->dimms);
 
 	list_for_each_entry(nfit_bdw, &acpi_desc->bdws, list) {
 		if (nfit_bdw->bdw->region_index != dcr)
@@ -486,12 +507,12 @@ static void nfit_mem_init_bdw(struct acpi_nfit_desc *acpi_desc,
 	}
 
 	if (!nfit_mem->bdw)
-		return;
+		return 0;
 
 	nfit_mem_find_spa_bdw(acpi_desc, nfit_mem);
 
 	if (!nfit_mem->spa_bdw)
-		return;
+		return 0;
 
 	range_index = nfit_mem->spa_bdw->range_index;
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
@@ -516,6 +537,8 @@ static void nfit_mem_init_bdw(struct acpi_nfit_desc *acpi_desc,
 		}
 		break;
 	}
+
+	return 0;
 }
 
 static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
@@ -524,6 +547,7 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 	struct nfit_mem *nfit_mem, *found;
 	struct nfit_memdev *nfit_memdev;
 	int type = nfit_spa_type(spa);
+	u16 dcr;
 
 	switch (type) {
 	case NFIT_SPA_DCR:
@@ -534,18 +558,14 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 	}
 
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
-		struct nfit_dcr *nfit_dcr;
-		u32 device_handle;
-		u16 dcr;
+		int rc;
 
 		if (nfit_memdev->memdev->range_index != spa->range_index)
 			continue;
 		found = NULL;
 		dcr = nfit_memdev->memdev->region_index;
-		device_handle = nfit_memdev->memdev->device_handle;
 		list_for_each_entry(nfit_mem, &acpi_desc->dimms, list)
-			if (__to_nfit_memdev(nfit_mem)->device_handle
-					== device_handle) {
+			if (__to_nfit_memdev(nfit_mem)->region_index == dcr) {
 				found = nfit_mem;
 				break;
 			}
@@ -558,31 +578,6 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 			if (!nfit_mem)
 				return -ENOMEM;
 			INIT_LIST_HEAD(&nfit_mem->list);
-			list_add(&nfit_mem->list, &acpi_desc->dimms);
-		}
-
-		list_for_each_entry(nfit_dcr, &acpi_desc->dcrs, list) {
-			if (nfit_dcr->dcr->region_index != dcr)
-				continue;
-			/*
-			 * Record the control region for the dimm.  For
-			 * the ACPI 6.1 case, where there are separate
-			 * control regions for the pmem vs blk
-			 * interfaces, be sure to record the extended
-			 * blk details.
-			 */
-			if (!nfit_mem->dcr)
-				nfit_mem->dcr = nfit_dcr->dcr;
-			else if (nfit_mem->dcr->windows == 0
-					&& nfit_dcr->dcr->windows)
-				nfit_mem->dcr = nfit_dcr->dcr;
-			break;
-		}
-
-		if (dcr && !nfit_mem->dcr) {
-			dev_err(acpi_desc->dev, "SPA %d missing DCR %d\n",
-					spa->range_index, dcr);
-			return -ENODEV;
 		}
 
 		if (type == NFIT_SPA_DCR) {
@@ -599,7 +594,6 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 				nfit_mem->idt_dcr = nfit_idt->idt;
 				break;
 			}
-			nfit_mem_init_bdw(acpi_desc, nfit_mem, spa);
 		} else {
 			/*
 			 * A single dimm may belong to multiple SPA-PM
@@ -608,6 +602,13 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 			 */
 			nfit_mem->memdev_pmem = nfit_memdev->memdev;
 		}
+
+		if (found)
+			continue;
+
+		rc = nfit_mem_add(acpi_desc, nfit_mem, spa);
+		if (rc)
+			return rc;
 	}
 
 	return 0;
@@ -965,25 +966,13 @@ static size_t sizeof_nfit_set_info(int num_mappings)
 		+ num_mappings * sizeof(struct nfit_set_info_map);
 }
 
-static int cmp_map_compat(const void *m0, const void *m1)
+static int cmp_map(const void *m0, const void *m1)
 {
 	const struct nfit_set_info_map *map0 = m0;
 	const struct nfit_set_info_map *map1 = m1;
 
 	return memcmp(&map0->region_offset, &map1->region_offset,
 			sizeof(u64));
-}
-
-static int cmp_map(const void *m0, const void *m1)
-{
-	const struct nfit_set_info_map *map0 = m0;
-	const struct nfit_set_info_map *map1 = m1;
-
-	if (map0->region_offset < map1->region_offset)
-		return -1;
-	else if (map0->region_offset > map1->region_offset)
-		return 1;
-	return 0;
 }
 
 /* Retrieve the nth entry referencing this spa */
@@ -1041,12 +1030,6 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 	sort(&info->mapping[0], nr, sizeof(struct nfit_set_info_map),
 			cmp_map, NULL);
 	nd_set->cookie = nd_fletcher64(info, sizeof_nfit_set_info(nr), 0);
-
-	/* support namespaces created with the wrong sort order */
-	sort(&info->mapping[0], nr, sizeof(struct nfit_set_info_map),
-			cmp_map_compat, NULL);
-	nd_set->altcookie = nd_fletcher64(info, sizeof_nfit_set_info(nr), 0);
-
 	ndr_desc->nd_set = nd_set;
 	devm_kfree(dev, info);
 
@@ -1090,12 +1073,11 @@ static u32 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
 {
 	struct nfit_blk_mmio *mmio = &nfit_blk->mmio[DCR];
 	u64 offset = nfit_blk->stat_offset + mmio->size * bw;
-	const u32 STATUS_MASK = 0x80000037;
 
 	if (mmio->num_lines)
 		offset = to_interleave_offset(offset, mmio);
 
-	return readl(mmio->addr.base + offset) & STATUS_MASK;
+	return readl(mmio->addr.base + offset);
 }
 
 static void write_blk_ctl(struct nfit_blk *nfit_blk, unsigned int bw,
@@ -1823,9 +1805,6 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 	int ret;
 
 	dev_dbg(dev, "%s: event: %d\n", __func__, event);
-
-	if (event != NFIT_NOTIFY_UPDATE)
-		return;
 
 	device_lock(dev);
 	if (!dev->driver) {

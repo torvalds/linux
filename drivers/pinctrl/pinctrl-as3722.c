@@ -201,7 +201,7 @@ static const struct pinctrl_ops as3722_pinctrl_ops = {
 	.get_group_name = as3722_pinctrl_get_group_name,
 	.get_group_pins = as3722_pinctrl_get_group_pins,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_free_map,
+	.dt_free_map = pinctrl_utils_dt_free_map,
 };
 
 static int as3722_pinctrl_get_funcs_count(struct pinctrl_dev *pctldev)
@@ -582,7 +582,7 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	as_pci->gpio_chip = as3722_gpio_chip;
-	as_pci->gpio_chip.parent = &pdev->dev;
+	as_pci->gpio_chip.dev = &pdev->dev;
 	as_pci->gpio_chip.of_node = pdev->dev.parent->of_node;
 	ret = gpiochip_add(&as_pci->gpio_chip);
 	if (ret < 0) {

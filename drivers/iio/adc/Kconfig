@@ -183,19 +183,6 @@ config EXYNOS_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called exynos_adc.
 
-config GPIO_MUXADC
-	tristate "GPIO MUXADC driver"
-	depends on GPIOLIB || COMPILE_TEST
-	help
-	  The driver builds a multiplexer controller using a number of gpio
-	  pins and parent adc channel. This is a CMOS analog switch on hardware
-	  board that can extend a multi-channel ADC.
-
-	  Say yes here to build support for GPIO_MUXADC.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gpio_muxadc.
-
 config HI8435
 	tristate "Holt Integrated Circuits HI-8435 threshold detector"
 	select IIO_TRIGGERED_EVENT
@@ -319,7 +306,6 @@ config QCOM_SPMI_VADC
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"
 	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)
-	depends on RESET_CONTROLLER
 	help
 	  Say yes here to build support for the SARADC found in SoCs from
 	  Rockchip.
@@ -386,7 +372,6 @@ config TWL6030_GPADC
 config VF610_ADC
 	tristate "Freescale vf610 ADC driver"
 	depends on OF
-	depends on HAS_IOMEM
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help

@@ -130,7 +130,7 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 		poll = false;
 	}
 
-	if (poll)
+	if (list_empty(&therm->alarm.head) && poll)
 		nvkm_timer_alarm(tmr, 1000000000ULL, &therm->alarm);
 	spin_unlock_irqrestore(&therm->lock, flags);
 

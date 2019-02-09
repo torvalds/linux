@@ -17,10 +17,9 @@ virtual report
 
 @runtime_bad_err_handle exists@
 expression ret;
-position p;
 @@
 (
-ret@p = \(pm_runtime_idle\|
+ret = \(pm_runtime_idle\|
 	pm_runtime_suspend\|
 	pm_runtime_autosuspend\|
 	pm_runtime_resume\|
@@ -48,13 +47,12 @@ IS_ERR_VALUE(ret)
 //  For context mode
 //----------------------------------------------------------
 
-@depends on context@
+@depends on runtime_bad_err_handle && context@
 identifier pm_runtime_api;
 expression ret;
-position runtime_bad_err_handle.p;
 @@
 (
-ret@p = pm_runtime_api(...);
+ret = pm_runtime_api(...);
 ...
 * IS_ERR_VALUE(ret)
 ...
@@ -64,13 +62,12 @@ ret@p = pm_runtime_api(...);
 //  For patch mode
 //----------------------------------------------------------
 
-@depends on patch@
+@depends on runtime_bad_err_handle && patch@
 identifier pm_runtime_api;
 expression ret;
-position runtime_bad_err_handle.p;
 @@
 (
-ret@p = pm_runtime_api(...);
+ret = pm_runtime_api(...);
 ...
 - IS_ERR_VALUE(ret)
 + ret < 0
@@ -81,14 +78,13 @@ ret@p = pm_runtime_api(...);
 //  For org and report mode
 //----------------------------------------------------------
 
-@r depends on (org || report) exists@
+@r depends on runtime_bad_err_handle exists@
 position p1, p2;
 identifier pm_runtime_api;
 expression ret;
-position runtime_bad_err_handle.p;
 @@
 (
-ret@p = pm_runtime_api@p1(...);
+ret = pm_runtime_api@p1(...);
 ...
 IS_ERR_VALUE@p2(ret)
 ...

@@ -6,7 +6,7 @@
  */
 
 /dts-v1/;
-#include "moxart.dtsi"
+/include/ "moxart.dtsi"
 
 / {
 	model = "MOXA UC-7112-LX";

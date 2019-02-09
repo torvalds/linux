@@ -279,12 +279,8 @@ asmlinkage long sys_oabi_epoll_wait(int epfd,
 	mm_segment_t fs;
 	long ret, err, i;
 
-	if (maxevents <= 0 ||
-			maxevents > (INT_MAX/sizeof(*kbuf)) ||
-			maxevents > (INT_MAX/sizeof(*events)))
+	if (maxevents <= 0 || maxevents > (INT_MAX/sizeof(struct epoll_event)))
 		return -EINVAL;
-	if (!access_ok(VERIFY_WRITE, events, sizeof(*events) * maxevents))
-		return -EFAULT;
 	kbuf = kmalloc(sizeof(*kbuf) * maxevents, GFP_KERNEL);
 	if (!kbuf)
 		return -ENOMEM;
@@ -321,18 +317,14 @@ asmlinkage long sys_oabi_semtimedop(int semid,
 
 	if (nsops < 1 || nsops > SEMOPM)
 		return -EINVAL;
-	if (!access_ok(VERIFY_READ, tsops, sizeof(*tsops) * nsops))
-		return -EFAULT;
 	sops = kmalloc(sizeof(*sops) * nsops, GFP_KERNEL);
 	if (!sops)
 		return -ENOMEM;
 	err = 0;
 	for (i = 0; i < nsops; i++) {
-		struct oabi_sembuf osb;
-		err |= __copy_from_user(&osb, tsops, sizeof(osb));
-		sops[i].sem_num = osb.sem_num;
-		sops[i].sem_op = osb.sem_op;
-		sops[i].sem_flg = osb.sem_flg;
+		__get_user_error(sops[i].sem_num, &tsops->sem_num, err);
+		__get_user_error(sops[i].sem_op,  &tsops->sem_op,  err);
+		__get_user_error(sops[i].sem_flg, &tsops->sem_flg, err);
 		tsops++;
 	}
 	if (timeout) {

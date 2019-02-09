@@ -54,7 +54,6 @@
 			reg = <0x000>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
-			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
@@ -71,7 +70,6 @@
 			reg = <0x100>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
-			#cooling-cells = <2>;
 		};
 
 		cpu3: cpu@101 {

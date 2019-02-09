@@ -40,11 +40,11 @@ static int snd_timer_user_info_compat(struct file *file,
 	struct snd_timer *t;
 
 	tu = file->private_data;
-	if (!tu->timeri)
-		return -EBADFD;
+	if (snd_BUG_ON(!tu->timeri))
+		return -ENXIO;
 	t = tu->timeri->timer;
-	if (!t)
-		return -EBADFD;
+	if (snd_BUG_ON(!t))
+		return -ENXIO;
 	memset(&info, 0, sizeof(info));
 	info.card = t->card ? t->card->number : -1;
 	if (t->hw.flags & SNDRV_TIMER_HW_SLAVE)
@@ -70,14 +70,13 @@ static int snd_timer_user_status_compat(struct file *file,
 					struct snd_timer_status32 __user *_status)
 {
 	struct snd_timer_user *tu;
-	struct snd_timer_status32 status;
+	struct snd_timer_status status;
 	
 	tu = file->private_data;
-	if (!tu->timeri)
-		return -EBADFD;
+	if (snd_BUG_ON(!tu->timeri))
+		return -ENXIO;
 	memset(&status, 0, sizeof(status));
-	status.tstamp.tv_sec = tu->tstamp.tv_sec;
-	status.tstamp.tv_nsec = tu->tstamp.tv_nsec;
+	status.tstamp = tu->tstamp;
 	status.resolution = snd_timer_resolution(tu->timeri);
 	status.lost = tu->timeri->lost;
 	status.overrun = tu->overrun;
@@ -89,25 +88,15 @@ static int snd_timer_user_status_compat(struct file *file,
 	return 0;
 }
 
-#ifdef CONFIG_X86_X32
-/* X32 ABI has the same struct as x86-64 */
-#define snd_timer_user_status_x32(file, s) \
-	snd_timer_user_status(file, s)
-#endif /* CONFIG_X86_X32 */
-
 /*
  */
 
 enum {
 	SNDRV_TIMER_IOCTL_INFO32 = _IOR('T', 0x11, struct snd_timer_info32),
 	SNDRV_TIMER_IOCTL_STATUS32 = _IOW('T', 0x14, struct snd_timer_status32),
-#ifdef CONFIG_X86_X32
-	SNDRV_TIMER_IOCTL_STATUS_X32 = _IOW('T', 0x14, struct snd_timer_status),
-#endif /* CONFIG_X86_X32 */
 };
 
-static long __snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd,
-					  unsigned long arg)
+static long snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = compat_ptr(arg);
 
@@ -128,27 +117,11 @@ static long __snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd,
 	case SNDRV_TIMER_IOCTL_PAUSE:
 	case SNDRV_TIMER_IOCTL_PAUSE_OLD:
 	case SNDRV_TIMER_IOCTL_NEXT_DEVICE:
-		return __snd_timer_user_ioctl(file, cmd, (unsigned long)argp);
+		return snd_timer_user_ioctl(file, cmd, (unsigned long)argp);
 	case SNDRV_TIMER_IOCTL_INFO32:
 		return snd_timer_user_info_compat(file, argp);
 	case SNDRV_TIMER_IOCTL_STATUS32:
 		return snd_timer_user_status_compat(file, argp);
-#ifdef CONFIG_X86_X32
-	case SNDRV_TIMER_IOCTL_STATUS_X32:
-		return snd_timer_user_status_x32(file, argp);
-#endif /* CONFIG_X86_X32 */
 	}
 	return -ENOIOCTLCMD;
-}
-
-static long snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd,
-					unsigned long arg)
-{
-	struct snd_timer_user *tu = file->private_data;
-	long ret;
-
-	mutex_lock(&tu->ioctl_lock);
-	ret = __snd_timer_user_ioctl_compat(file, cmd, arg);
-	mutex_unlock(&tu->ioctl_lock);
-	return ret;
 }

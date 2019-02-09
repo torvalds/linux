@@ -123,7 +123,7 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
 		break;
 	}
 
-	if (regno >= nr_registers) {
+	if (regno > nr_registers) {
 		WARN_ONCE(1, "decoded an instruction with an invalid register");
 		return -EINVAL;
 	}
@@ -293,7 +293,7 @@ siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 	 * We were not able to extract an address from the instruction,
 	 * probably because there was something invalid in it.
 	 */
-	if (info->si_addr == (void __user *)-1) {
+	if (info->si_addr == (void *)-1) {
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -525,7 +525,15 @@ int mpx_handle_bd_fault(void)
 	if (!kernel_managing_mpx_tables(current->mm))
 		return -EINVAL;
 
-	return do_mpx_bt_fault();
+	if (do_mpx_bt_fault()) {
+		force_sig(SIGSEGV, current);
+		/*
+		 * The force_sig() is essentially "handling" this
+		 * exception, so we do not pass up the error
+		 * from do_mpx_bt_fault().
+		 */
+	}
+	return 0;
 }
 
 /*

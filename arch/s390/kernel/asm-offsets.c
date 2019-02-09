@@ -170,7 +170,6 @@ int main(void)
 	OFFSET(__LC_MACHINE_FLAGS, _lowcore, machine_flags);
 	OFFSET(__LC_GMAP, _lowcore, gmap);
 	OFFSET(__LC_PASTE, _lowcore, paste);
-	OFFSET(__LC_BR_R1, _lowcore, br_r1_trampoline);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
 	OFFSET(__LC_DUMP_REIPL, _lowcore, ipib);
 	/* hardware defined lowcore locations 0x1000 - 0x18ff */
@@ -182,7 +181,6 @@ int main(void)
 	OFFSET(__LC_PSW_SAVE_AREA, _lowcore, psw_save_area);
 	OFFSET(__LC_PREFIX_SAVE_AREA, _lowcore, prefixreg_save_area);
 	OFFSET(__LC_FP_CREG_SAVE_AREA, _lowcore, fpt_creg_save_area);
-	OFFSET(__LC_TOD_PROGREG_SAVE_AREA, _lowcore, tod_progreg_save_area);
 	OFFSET(__LC_CPU_TIMER_SAVE_AREA, _lowcore, cpu_timer_save_area);
 	OFFSET(__LC_CLOCK_COMP_SAVE_AREA, _lowcore, clock_comp_save_area);
 	OFFSET(__LC_AREGS_SAVE_AREA, _lowcore, access_regs_save_area);

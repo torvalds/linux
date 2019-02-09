@@ -1526,24 +1526,27 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 
 		reserve_bytes = num_pages << PAGE_CACHE_SHIFT;
 
-		if ((BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW |
-					      BTRFS_INODE_PREALLOC)) &&
-		    check_can_nocow(inode, pos, &write_bytes) > 0) {
-			/*
-			 * For nodata cow case, no need to reserve
-			 * data space.
-			 */
-			only_release_metadata = true;
-			/*
-			 * our prealloc extent may be smaller than
-			 * write_bytes, so scale down.
-			 */
-			num_pages = DIV_ROUND_UP(write_bytes + offset,
-						 PAGE_CACHE_SIZE);
-			reserve_bytes = num_pages << PAGE_CACHE_SHIFT;
-			goto reserve_metadata;
+		if (BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW |
+					     BTRFS_INODE_PREALLOC)) {
+			ret = check_can_nocow(inode, pos, &write_bytes);
+			if (ret < 0)
+				break;
+			if (ret > 0) {
+				/*
+				 * For nodata cow case, no need to reserve
+				 * data space.
+				 */
+				only_release_metadata = true;
+				/*
+				 * our prealloc extent may be smaller than
+				 * write_bytes, so scale down.
+				 */
+				num_pages = DIV_ROUND_UP(write_bytes + offset,
+							 PAGE_CACHE_SIZE);
+				reserve_bytes = num_pages << PAGE_CACHE_SHIFT;
+				goto reserve_metadata;
+			}
 		}
-
 		ret = btrfs_check_data_free_space(inode, pos, write_bytes);
 		if (ret < 0)
 			break;
@@ -1861,19 +1864,10 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 static int start_ordered_ops(struct inode *inode, loff_t start, loff_t end)
 {
 	int ret;
-	struct blk_plug plug;
 
-	/*
-	 * This is only called in fsync, which would do synchronous writes, so
-	 * a plug can merge adjacent IOs as much as possible.  Esp. in case of
-	 * multiple disks using raid profile, a large IO can be split to
-	 * several segments of stripe length (currently 64K).
-	 */
-	blk_start_plug(&plug);
 	atomic_inc(&BTRFS_I(inode)->sync_writers);
 	ret = btrfs_fdatawrite_range(inode, start, end);
 	atomic_dec(&BTRFS_I(inode)->sync_writers);
-	blk_finish_plug(&plug);
 
 	return ret;
 }
@@ -1891,7 +1885,7 @@ static int start_ordered_ops(struct inode *inode, loff_t start, loff_t end)
  */
 int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct dentry *dentry = file_dentry(file);
+	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = d_inode(dentry);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
@@ -2780,7 +2774,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		if (!ret)
 			ret = btrfs_prealloc_file_range(inode, mode,
 					range->start,
-					range->len, i_blocksize(inode),
+					range->len, 1 << inode->i_blkbits,
 					offset + len, &alloc_hint);
 		list_del(&range->list);
 		kfree(range);

@@ -38,9 +38,6 @@
 #include <linux/acpi.h>
 #include <linux/of.h>
 #include <linux/gpio/consumer.h>
-#include <linux/fb.h>
-#include <linux/notifier.h>
-#include <linux/rk_keys.h>
 
 #include <linux/i2c/i2c-hid.h>
 
@@ -140,10 +137,10 @@ struct i2c_hid {
 						   * register of the HID
 						   * descriptor. */
 	unsigned int		bufsize;	/* i2c buffer size */
-	u8			*inbuf;		/* Input buffer */
-	u8			*rawbuf;	/* Raw Input buffer */
-	u8			*cmdbuf;	/* Command buffer */
-	u8			*argsbuf;	/* Command arguments buffer */
+	char			*inbuf;		/* Input buffer */
+	char			*rawbuf;	/* Raw Input buffer */
+	char			*cmdbuf;	/* Command buffer */
+	char			*argsbuf;	/* Command arguments buffer */
 
 	unsigned long		flags;		/* device flags */
 
@@ -154,39 +151,7 @@ struct i2c_hid {
 	struct i2c_hid_platform_data pdata;
 
 	bool			irq_wake_enabled;
-
-	struct notifier_block fb_notif;
-	int is_suspend;
 };
-
-static int ihid_fb_notifier_callback(struct notifier_block *self,
-				     unsigned long action, void *data)
-{
-	struct i2c_hid *ihid;
-	struct fb_event *event = data;
-
-	ihid = container_of(self, struct i2c_hid, fb_notif);
-
-	if (action == FB_EARLY_EVENT_BLANK) {
-		switch (*((int *)event->data)) {
-		case FB_BLANK_UNBLANK:
-			break;
-		default:
-			ihid->is_suspend = 1;
-			break;
-		}
-	} else if (action == FB_EVENT_BLANK) {
-		switch (*((int *)event->data)) {
-		case FB_BLANK_UNBLANK:
-			ihid->is_suspend = 0;
-			break;
-		default:
-			break;
-		}
-	}
-
-	return NOTIFY_OK;
-}
 
 static int __i2c_hid_command(struct i2c_client *client,
 		const struct i2c_hid_cmd *command, u8 reportID,
@@ -317,21 +282,17 @@ static int i2c_hid_set_or_send_report(struct i2c_client *client, u8 reportType,
 	u16 dataRegister = le16_to_cpu(ihid->hdesc.wDataRegister);
 	u16 outputRegister = le16_to_cpu(ihid->hdesc.wOutputRegister);
 	u16 maxOutputLength = le16_to_cpu(ihid->hdesc.wMaxOutputLength);
-	u16 size;
-	int args_len;
+
+	/* hid_hw_* already checked that data_len < HID_MAX_BUFFER_SIZE */
+	u16 size =	2			/* size */ +
+			(reportID ? 1 : 0)	/* reportID */ +
+			data_len		/* buf */;
+	int args_len =	(reportID >= 0x0F ? 1 : 0) /* optional third byte */ +
+			2			/* dataRegister */ +
+			size			/* args */;
 	int index = 0;
 
 	i2c_hid_dbg(ihid, "%s\n", __func__);
-
-	if (data_len > ihid->bufsize)
-		return -EINVAL;
-
-	size =		2			/* size */ +
-			(reportID ? 1 : 0)	/* reportID */ +
-			data_len		/* buf */;
-	args_len =	(reportID >= 0x0F ? 1 : 0) /* optional third byte */ +
-			2			/* dataRegister */ +
-			size			/* args */;
 
 	if (!use_data && maxOutputLength == 0)
 		return -ENOSYS;
@@ -399,15 +360,6 @@ static int i2c_hid_hwreset(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	/*
-	 * The HID over I2C specification states that if a DEVICE needs time
-	 * after the PWR_ON request, it should utilise CLOCK stretching.
-	 * However, it has been observered that the Windows driver provides a
-	 * 1ms sleep between the PWR_ON and RESET requests and that some devices
-	 * rely on this.
-	 */
-	usleep_range(1000, 5000);
-
 	i2c_hid_dbg(ihid, "resetting...\n");
 
 	ret = i2c_hid_command(client, &hid_reset_cmd, NULL, 0);
@@ -422,8 +374,7 @@ static int i2c_hid_hwreset(struct i2c_client *client)
 
 static void i2c_hid_get_input(struct i2c_hid *ihid)
 {
-	int ret;
-	u32 ret_size;
+	int ret, ret_size;
 	int size = le16_to_cpu(ihid->hdesc.wMaxInputLength);
 
 	if (size > ihid->bufsize)
@@ -448,7 +399,7 @@ static void i2c_hid_get_input(struct i2c_hid *ihid)
 		return;
 	}
 
-	if ((ret_size > size) || (ret_size < 2)) {
+	if (ret_size > size) {
 		dev_err(&ihid->client->dev, "%s: incomplete report (%d/%d)\n",
 			__func__, size, ret_size);
 		return;
@@ -471,9 +422,6 @@ static irqreturn_t i2c_hid_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	i2c_hid_get_input(ihid);
-
-	if (device_may_wakeup(&ihid->client->dev) && ihid->is_suspend == 1)
-		rk_send_wakeup_key();
 
 	return IRQ_HANDLED;
 }
@@ -579,8 +527,7 @@ static int i2c_hid_alloc_buffers(struct i2c_hid *ihid, size_t report_size)
 {
 	/* the worst case is computed from the set_report command with a
 	 * reportID > 15 and the maximum report length */
-	int args_len = sizeof(__u8) + /* ReportID */
-		       sizeof(__u8) + /* optional ReportID byte */
+	int args_len = sizeof(__u8) + /* optional ReportID byte */
 		       sizeof(__u16) + /* data register */
 		       sizeof(__u16) + /* size of the report */
 		       report_size; /* report */
@@ -1055,14 +1002,6 @@ static int i2c_hid_probe(struct i2c_client *client,
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 
-	/* Make sure there is something at this address */
-	ret = i2c_smbus_read_byte(client);
-	if (ret < 0) {
-		dev_dbg(&client->dev, "nothing at this address: %d\n", ret);
-		ret = -ENXIO;
-		goto err_pm;
-	}
-
 	ret = i2c_hid_fetch_hid_descriptor(ihid);
 	if (ret < 0)
 		goto err_pm;
@@ -1070,16 +1009,6 @@ static int i2c_hid_probe(struct i2c_client *client,
 	ret = i2c_hid_init_irq(client);
 	if (ret < 0)
 		goto err_pm;
-
-	if (client->dev.of_node) {
-		ret = of_property_read_bool(client->dev.of_node, "hid-support-wakeup");
-		if (ret) {
-			device_init_wakeup(&client->dev, true);
-			ihid->is_suspend = 0;
-			ihid->fb_notif.notifier_call = ihid_fb_notifier_callback;
-			fb_register_client(&ihid->fb_notif);
-		}
-	}
 
 	hid = hid_allocate_device();
 	if (IS_ERR(hid)) {
@@ -1195,11 +1124,9 @@ static int i2c_hid_resume(struct device *dev)
 	int wake_status;
 
 	enable_irq(ihid->irq);
-	if (!device_may_wakeup(&client->dev)) {
-		ret = i2c_hid_hwreset(client);
-		if (ret)
-			return ret;
-	}
+	ret = i2c_hid_hwreset(client);
+	if (ret)
+		return ret;
 
 	if (device_may_wakeup(&client->dev) && ihid->irq_wake_enabled) {
 		wake_status = disable_irq_wake(ihid->irq);

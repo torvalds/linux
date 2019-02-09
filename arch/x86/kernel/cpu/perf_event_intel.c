@@ -1458,15 +1458,7 @@ static __initconst const u64 slm_hw_cache_event_ids
 };
 
 /*
- * Used from PMIs where the LBRs are already disabled.
- *
- * This function could be called consecutively. It is required to remain in
- * disabled state if called consecutively.
- *
- * During consecutive calls, the same disable value will be written to related
- * registers, so the PMU state remains unchanged. hw.state in
- * intel_bts_disable_local will remain PERF_HES_STOPPED too in consecutive
- * calls.
+ * Use from PMIs where the LBRs are already disabled.
  */
 static void __intel_pmu_disable_all(void)
 {
@@ -1848,16 +1840,6 @@ again:
 	if (__test_and_clear_bit(62, (unsigned long *)&status)) {
 		handled++;
 		x86_pmu.drain_pebs(regs);
-		/*
-		 * There are cases where, even though, the PEBS ovfl bit is set
-		 * in GLOBAL_OVF_STATUS, the PEBS events may also have their
-		 * overflow bits set for their counters. We must clear them
-		 * here because they have been processed as exact samples in
-		 * the drain_pebs() routine. They must not be processed again
-		 * in the for_each_bit_set() loop for regular samples below.
-		 */
-		status &= ~cpuc->pebs_enabled;
-		status &= x86_pmu.intel_ctrl | GLOBAL_STATUS_TRACE_TOPAPMI;
 	}
 
 	/*
@@ -1903,10 +1885,7 @@ again:
 		goto again;
 
 done:
-	/* Only restore PMU state when it's active. See x86_pmu_disable(). */
-	if (cpuc->enabled)
-		__intel_pmu_enable_all(0, true);
-
+	__intel_pmu_enable_all(0, true);
 	/*
 	 * Only unmask the NMI after the overflow counters
 	 * have been reset. This avoids spurious NMIs on
@@ -2716,7 +2695,7 @@ static unsigned bdw_limit_period(struct perf_event *event, unsigned left)
 			X86_CONFIG(.event=0xc0, .umask=0x01)) {
 		if (left < 128)
 			left = 128;
-		left &= ~0x3fULL;
+		left &= ~0x3fu;
 	}
 	return left;
 }
@@ -3336,7 +3315,6 @@ __init int intel_pmu_init(void)
 		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =
 			X86_CONFIG(.event=0xb1, .umask=0x3f, .inv=1, .cmask=1);
 
-		intel_pmu_pebs_data_source_nhm();
 		x86_add_quirk(intel_nehalem_quirk);
 
 		pr_cont("Nehalem events, ");
@@ -3399,7 +3377,6 @@ __init int intel_pmu_init(void)
 		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =
 			X86_CONFIG(.event=0xb1, .umask=0x3f, .inv=1, .cmask=1);
 
-		intel_pmu_pebs_data_source_nhm();
 		pr_cont("Westmere events, ");
 		break;
 
@@ -3601,7 +3578,7 @@ __init int intel_pmu_init(void)
 				c->idxmsk64 |= (1ULL << x86_pmu.num_counters) - 1;
 			}
 			c->idxmsk64 &=
-				~(~0ULL << (INTEL_PMC_IDX_FIXED + x86_pmu.num_counters_fixed));
+				~(~0UL << (INTEL_PMC_IDX_FIXED + x86_pmu.num_counters_fixed));
 			c->weight = hweight64(c->idxmsk64);
 		}
 	}
@@ -3636,7 +3613,7 @@ __init int intel_pmu_init(void)
 
 	/* Support full width counters using alternative MSR range */
 	if (x86_pmu.intel_cap.full_width_write) {
-		x86_pmu.max_period = x86_pmu.cntval_mask >> 1;
+		x86_pmu.max_period = x86_pmu.cntval_mask;
 		x86_pmu.perfctr = MSR_IA32_PMC0;
 		pr_cont("full-width counters, ");
 	}

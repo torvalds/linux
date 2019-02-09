@@ -49,10 +49,6 @@ int ath9k_led_blink;
 module_param_named(blink, ath9k_led_blink, int, 0444);
 MODULE_PARM_DESC(blink, "Enable LED blink on activity");
 
-static int ath9k_led_active_high = -1;
-module_param_named(led_active_high, ath9k_led_active_high, int, 0444);
-MODULE_PARM_DESC(led_active_high, "Invert LED polarity");
-
 static int ath9k_btcoex_enable;
 module_param_named(btcoex_enable, ath9k_btcoex_enable, int, 0444);
 MODULE_PARM_DESC(btcoex_enable, "Enable wifi-BT coexistence");
@@ -604,9 +600,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	if (ret)
 		return ret;
 
-	if (ath9k_led_active_high != -1)
-		ah->config.led_active_high = ath9k_led_active_high == 1;
-
 	/*
 	 * Enable WLAN/BT RX Antenna diversity only when:
 	 *
@@ -619,7 +612,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 		common->bt_ant_diversity = 1;
 
 	spin_lock_init(&common->cc_lock);
-	spin_lock_init(&sc->intr_lock);
 	spin_lock_init(&sc->sc_serial_rw);
 	spin_lock_init(&sc->sc_pm_lock);
 	spin_lock_init(&sc->chan_lock);
@@ -870,8 +862,8 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			hw->wiphy->interface_modes |=
 					BIT(NL80211_IFTYPE_P2P_DEVICE);
 
-		hw->wiphy->iface_combinations = if_comb;
-		hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+			hw->wiphy->iface_combinations = if_comb;
+			hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 	}
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;

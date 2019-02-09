@@ -274,8 +274,8 @@ static int brcmstb_pwm_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	p->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(p->base)) {
-		ret = PTR_ERR(p->base);
+	if (!p->base) {
+		ret = -ENOMEM;
 		goto out_clk;
 	}
 

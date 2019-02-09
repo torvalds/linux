@@ -21,7 +21,6 @@ struct route_info {
 #include <net/flow.h>
 #include <net/ip6_fib.h>
 #include <net/sock.h>
-#include <net/lwtunnel.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/route.h>
@@ -65,20 +64,11 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 
 void ip6_route_input(struct sk_buff *skb);
 
-struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
-					 struct flowi6 *fl6, int flags);
-
-static inline struct dst_entry *ip6_route_output(struct net *net,
-						 const struct sock *sk,
-						 struct flowi6 *fl6)
-{
-	return ip6_route_output_flags(net, sk, fl6, 0);
-}
-
+struct dst_entry *ip6_route_output(struct net *net, const struct sock *sk,
+				   struct flowi6 *fl6);
 struct dst_entry *ip6_route_lookup(struct net *net, struct flowi6 *fl6,
 				   int flags);
 
-void ip6_route_init_special_entries(void);
 int ip6_route_init(void);
 void ip6_route_cleanup(void);
 
@@ -118,10 +108,9 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 		  const struct in6_addr *gwaddr);
 
 void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu, int oif,
-		     u32 mark, kuid_t uid);
+		     u32 mark);
 void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, __be32 mtu);
-void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
-		  kuid_t uid);
+void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark);
 void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
 			    u32 mark);
 void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);
@@ -210,11 +199,4 @@ static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
 		return daddr;
 }
 
-static inline bool rt6_duplicate_nexthop(struct rt6_info *a, struct rt6_info *b)
-{
-	return a->dst.dev == b->dst.dev &&
-	       a->rt6i_idev == b->rt6i_idev &&
-	       ipv6_addr_equal(&a->rt6i_gateway, &b->rt6i_gateway) &&
-	       !lwtunnel_cmp_encap(a->dst.lwtstate, b->dst.lwtstate);
-}
 #endif

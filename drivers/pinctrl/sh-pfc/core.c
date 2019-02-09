@@ -543,14 +543,9 @@ static int sh_pfc_probe(struct platform_device *pdev)
 		ret = info->ops->init(pfc);
 		if (ret < 0)
 			return ret;
-
-		/* .init() may have overridden pfc->info */
-		info = pfc->info;
 	}
 
-	/* Enable dummy states for those platforms without pinctrl support */
-	if (!of_have_populated_dt())
-		pinctrl_provide_dummies();
+	pinctrl_provide_dummies();
 
 	ret = sh_pfc_init_ranges(pfc);
 	if (ret < 0)

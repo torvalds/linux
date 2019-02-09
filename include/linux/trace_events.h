@@ -301,7 +301,6 @@ struct trace_event_call {
 	int				perf_refcount;
 	struct hlist_head __percpu	*perf_events;
 	struct bpf_prog			*prog;
-	struct perf_event		*bpf_prog_owner;
 
 	int	(*perf_perm)(struct trace_event_call *,
 			     struct perf_event *);
@@ -569,8 +568,6 @@ enum {
 	FILTER_DYN_STRING,
 	FILTER_PTR_STRING,
 	FILTER_TRACE_FN,
-	FILTER_COMM,
-	FILTER_CPU,
 };
 
 extern int trace_event_raw_init(struct trace_event_call *call);

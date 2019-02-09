@@ -21,7 +21,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/bitops.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -123,9 +122,9 @@ enum au0828_stream_state {
 
 /* device state */
 enum au0828_dev_state {
-	DEV_INITIALIZED = 0,
-	DEV_DISCONNECTED = 1,
-	DEV_MISCONFIGURED = 2
+	DEV_INITIALIZED = 0x01,
+	DEV_DISCONNECTED = 0x02,
+	DEV_MISCONFIGURED = 0x04
 };
 
 struct au0828_dev;
@@ -249,7 +248,7 @@ struct au0828_dev {
 	int input_type;
 	int std_set_in_tuner_core;
 	unsigned int ctrl_input;
-	long unsigned int dev_state; /* defined at enum au0828_dev_state */;
+	enum au0828_dev_state dev_state;
 	enum au0828_stream_state stream_state;
 	wait_queue_head_t open;
 

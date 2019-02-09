@@ -23,7 +23,6 @@
 #include <linux/kvm_host.h>
 
 #include <asm/esr.h>
-#include <asm/kvm_asm.h>
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_mmu.h>
@@ -43,7 +42,7 @@ static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	ret = kvm_psci_call(vcpu);
 	if (ret < 0) {
-		vcpu_set_reg(vcpu, 0, ~0UL);
+		kvm_inject_undefined(vcpu);
 		return 1;
 	}
 
@@ -52,7 +51,7 @@ static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	vcpu_set_reg(vcpu, 0, ~0UL);
+	kvm_inject_undefined(vcpu);
 	return 1;
 }
 
@@ -122,19 +121,7 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return ret;
 }
 
-static int kvm_handle_unknown_ec(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	u32 hsr = kvm_vcpu_get_hsr(vcpu);
-
-	kvm_pr_unimpl("Unknown exception class: hsr: %#08x -- %s\n",
-		      hsr, esr_get_class_string(hsr));
-
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
-
 static exit_handle_fn arm_exit_handlers[] = {
-	[0 ... ESR_ELx_EC_MAX]	= kvm_handle_unknown_ec,
 	[ESR_ELx_EC_WFx]	= kvm_handle_wfx,
 	[ESR_ELx_EC_CP15_32]	= kvm_handle_cp15_32,
 	[ESR_ELx_EC_CP15_64]	= kvm_handle_cp15_64,
@@ -159,6 +146,13 @@ static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
 {
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
 	u8 hsr_ec = hsr >> ESR_ELx_EC_SHIFT;
+
+	if (hsr_ec >= ARRAY_SIZE(arm_exit_handlers) ||
+	    !arm_exit_handlers[hsr_ec]) {
+		kvm_err("Unknown exception class: hsr: %#08x -- %s\n",
+			hsr, esr_get_class_string(hsr));
+		BUG();
+	}
 
 	return arm_exit_handlers[hsr_ec];
 }
@@ -188,13 +182,6 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		exit_handler = kvm_get_exit_handler(vcpu);
 
 		return exit_handler(vcpu, run);
-	case ARM_EXCEPTION_HYP_GONE:
-		/*
-		 * EL2 has been reset to the hyp-stub. This happens when a guest
-		 * is pre-empted by kvm_reboot()'s shutdown call.
-		 */
-		run->exit_reason = KVM_EXIT_FAIL_ENTRY;
-		return 0;
 	default:
 		kvm_pr_unimpl("Unsupported exception type: %d",
 			      exception_index);

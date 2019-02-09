@@ -397,9 +397,8 @@ static bool kgdb_arch_undo_singlestep(struct pt_regs *regs)
  * single-step state is cleared.  At this point the breakpoints should have
  * been removed by __switch_to().
  */
-void arch_release_thread_stack(unsigned long *stack)
+void arch_release_thread_info(struct thread_info *ti)
 {
-	struct thread_info *ti = (void *)stack;
 	if (kgdb_sstep_thread == ti) {
 		kgdb_sstep_thread = NULL;
 

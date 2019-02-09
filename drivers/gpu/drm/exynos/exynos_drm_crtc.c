@@ -96,7 +96,7 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-static const struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
+static struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.enable		= exynos_drm_crtc_enable,
 	.disable	= exynos_drm_crtc_disable,
 	.mode_set_nofb	= exynos_drm_crtc_mode_set_nofb,
@@ -116,7 +116,7 @@ static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 	kfree(exynos_crtc);
 }
 
-static const struct drm_crtc_funcs exynos_crtc_funcs = {
+static struct drm_crtc_funcs exynos_crtc_funcs = {
 	.set_config	= drm_atomic_helper_set_config,
 	.page_flip	= drm_atomic_helper_page_flip,
 	.destroy	= exynos_drm_crtc_destroy,
@@ -153,7 +153,7 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 	private->crtc[pipe] = crtc;
 
 	ret = drm_crtc_init_with_planes(drm_dev, crtc, plane, NULL,
-					&exynos_crtc_funcs, NULL);
+					&exynos_crtc_funcs);
 	if (ret < 0)
 		goto err_crtc;
 

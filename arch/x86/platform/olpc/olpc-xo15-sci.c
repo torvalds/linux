@@ -196,7 +196,6 @@ static int xo15_sci_remove(struct acpi_device *device)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int xo15_sci_resume(struct device *dev)
 {
 	/* Enable all EC events */
@@ -208,7 +207,6 @@ static int xo15_sci_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(xo15_sci_pm, NULL, xo15_sci_resume);
 

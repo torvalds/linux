@@ -96,7 +96,7 @@ endmenu
 
 choice
 	prompt "ARC Instruction Set"
-	default ISA_ARCV2
+	default ISA_ARCOMPACT
 
 config ISA_ARCOMPACT
 	bool "ARCompact ISA"
@@ -387,7 +387,7 @@ config ARC_HAS_LLSC
 
 config ARC_STAR_9000923308
 	bool "Workaround for llock/scond livelock"
-	default n
+	default y
 	depends on ISA_ARCV2 && SMP && ARC_HAS_LLSC
 
 config ARC_HAS_SWAPE
@@ -479,6 +479,7 @@ config ARC_CURR_IN_REG
 
 config ARC_EMUL_UNALIGNED
 	bool "Emulate unaligned memory access (userspace only)"
+	default N
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	depends on ISA_ARCOMPACT

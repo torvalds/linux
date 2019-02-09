@@ -205,7 +205,6 @@ static int tps65217_charger_probe(struct platform_device *pdev)
 	if (!charger)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, charger);
 	charger->tps = tps;
 	charger->dev = &pdev->dev;
 

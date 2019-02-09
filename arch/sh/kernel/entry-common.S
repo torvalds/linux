@@ -255,7 +255,7 @@ debug_trap:
 	mov.l	@r8, r8
 	jsr	@r8
 	 nop
-	bra	ret_from_exception
+	bra	__restore_all
 	 nop
 	CFI_ENDPROC
 

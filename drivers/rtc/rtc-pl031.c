@@ -308,8 +308,7 @@ static int pl031_remove(struct amba_device *adev)
 
 	dev_pm_clear_wake_irq(&adev->dev);
 	device_init_wakeup(&adev->dev, false);
-	if (adev->irq[0])
-		free_irq(adev->irq[0], ldata);
+	free_irq(adev->irq[0], ldata);
 	rtc_device_unregister(ldata->rtc);
 	iounmap(ldata->base);
 	kfree(ldata);
@@ -382,13 +381,12 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 		goto out_no_rtc;
 	}
 
-	if (adev->irq[0]) {
-		ret = request_irq(adev->irq[0], pl031_interrupt,
-				  vendor->irqflags, "rtc-pl031", ldata);
-		if (ret)
-			goto out_no_irq;
-		dev_pm_set_wake_irq(&adev->dev, adev->irq[0]);
+	if (request_irq(adev->irq[0], pl031_interrupt,
+			vendor->irqflags, "rtc-pl031", ldata)) {
+		ret = -EIO;
+		goto out_no_irq;
 	}
+	dev_pm_set_wake_irq(&adev->dev, adev->irq[0]);
 	return 0;
 
 out_no_irq:

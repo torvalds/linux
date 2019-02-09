@@ -35,7 +35,6 @@
 #include <asm/pgtable.h>
 #include <asm/signal.h>
 #include <asm/unistd.h>
-#include <asm/ldcw.h>
 #include <asm/thread_info.h>
 
 #include <linux/linkage.h>
@@ -47,14 +46,6 @@
 #endif
 
 	.import		pa_tlb_lock,data
-	.macro  load_pa_tlb_lock reg
-#if __PA_LDCW_ALIGNMENT > 4
-	load32	PA(pa_tlb_lock) + __PA_LDCW_ALIGNMENT-1, \reg
-	depi	0,31,__PA_LDCW_ALIGN_ORDER, \reg
-#else
-	load32	PA(pa_tlb_lock), \reg
-#endif
-	.endm
 
 	/* space_to_prot macro creates a prot id from a space id */
 
@@ -185,7 +176,7 @@
 	bv,n	0(%r3)
 	nop
 	.word	0		/* checksum (will be patched) */
-	.word	0		/* address of handler */
+	.word	PA(os_hpmc)	/* address of handler */
 	.word	0		/* length of handler */
 	.endm
 
@@ -466,7 +457,7 @@
 	.macro		tlb_lock	spc,ptp,pte,tmp,tmp1,fault
 #ifdef CONFIG_SMP
 	cmpib,COND(=),n	0,\spc,2f
-	load_pa_tlb_lock \tmp
+	load32		PA(pa_tlb_lock),\tmp
 1:	LDCW		0(\tmp),\tmp1
 	cmpib,COND(=)	0,\tmp1,1b
 	nop
@@ -482,8 +473,6 @@
 	.macro		tlb_unlock0	spc,tmp
 #ifdef CONFIG_SMP
 	or,COND(=)	%r0,\spc,%r0
-	sync
-	or,COND(=)	%r0,\spc,%r0
 	stw             \spc,0(\tmp)
 #endif
 	.endm
@@ -491,7 +480,7 @@
 	/* Release pa_tlb_lock lock. */
 	.macro		tlb_unlock1	spc,tmp
 #ifdef CONFIG_SMP
-	load_pa_tlb_lock \tmp
+	load32		PA(pa_tlb_lock),\tmp
 	tlb_unlock0	\spc,\tmp
 #endif
 	.endm

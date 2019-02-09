@@ -24,7 +24,6 @@ __printf(3, 4)
 int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, ...);
 int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev);
-int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner);
 void bdi_unregister(struct backing_dev_info *bdi);
 
 int __must_check bdi_setup_and_register(struct backing_dev_info *, char *);
@@ -366,7 +365,7 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
 /**
  * unlocked_inode_to_wb_begin - begin unlocked inode wb access transaction
  * @inode: target inode
- * @cookie: output param, to be passed to the end function
+ * @lockedp: temp bool output param, to be passed to the end function
  *
  * The caller wants to access the wb associated with @inode but isn't
  * holding inode->i_lock, mapping->tree_lock or wb->list_lock.  This
@@ -374,12 +373,12 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
  * association doesn't change until the transaction is finished with
  * unlocked_inode_to_wb_end().
  *
- * The caller must call unlocked_inode_to_wb_end() with *@cookie afterwards and
- * can't sleep during the transaction.  IRQs may or may not be disabled on
- * return.
+ * The caller must call unlocked_inode_to_wb_end() with *@lockdep
+ * afterwards and can't sleep during transaction.  IRQ may or may not be
+ * disabled on return.
  */
 static inline struct bdi_writeback *
-unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie *cookie)
+unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
 {
 	rcu_read_lock();
 
@@ -387,10 +386,10 @@ unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie *cookie)
 	 * Paired with store_release in inode_switch_wb_work_fn() and
 	 * ensures that we see the new wb if we see cleared I_WB_SWITCH.
 	 */
-	cookie->locked = smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
+	*lockedp = smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
 
-	if (unlikely(cookie->locked))
-		spin_lock_irqsave(&inode->i_mapping->tree_lock, cookie->flags);
+	if (unlikely(*lockedp))
+		spin_lock_irq(&inode->i_mapping->tree_lock);
 
 	/*
 	 * Protected by either !I_WB_SWITCH + rcu_read_lock() or tree_lock.
@@ -402,14 +401,12 @@ unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie *cookie)
 /**
  * unlocked_inode_to_wb_end - end inode wb access transaction
  * @inode: target inode
- * @cookie: @cookie from unlocked_inode_to_wb_begin()
+ * @locked: *@lockedp from unlocked_inode_to_wb_begin()
  */
-static inline void unlocked_inode_to_wb_end(struct inode *inode,
-					    struct wb_lock_cookie *cookie)
+static inline void unlocked_inode_to_wb_end(struct inode *inode, bool locked)
 {
-	if (unlikely(cookie->locked))
-		spin_unlock_irqrestore(&inode->i_mapping->tree_lock,
-				       cookie->flags);
+	if (unlikely(locked))
+		spin_unlock_irq(&inode->i_mapping->tree_lock);
 
 	rcu_read_unlock();
 }
@@ -456,13 +453,12 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
 }
 
 static inline struct bdi_writeback *
-unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie *cookie)
+unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
 {
 	return inode_to_wb(inode);
 }
 
-static inline void unlocked_inode_to_wb_end(struct inode *inode,
-					    struct wb_lock_cookie *cookie)
+static inline void unlocked_inode_to_wb_end(struct inode *inode, bool locked)
 {
 }
 

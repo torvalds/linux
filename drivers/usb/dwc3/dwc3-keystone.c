@@ -39,6 +39,8 @@
 #define USBSS_IRQ_COREIRQ_EN	BIT(0)
 #define USBSS_IRQ_COREIRQ_CLR	BIT(0)
 
+static u64 kdwc3_dma_mask;
+
 struct dwc3_keystone {
 	struct device			*dev;
 	struct clk			*clk;
@@ -106,11 +108,10 @@ static int kdwc3_probe(struct platform_device *pdev)
 	if (IS_ERR(kdwc->usbss))
 		return PTR_ERR(kdwc->usbss);
 
+	kdwc3_dma_mask = dma_get_mask(dev);
+	dev->dma_mask = &kdwc3_dma_mask;
+
 	kdwc->clk = devm_clk_get(kdwc->dev, "usb");
-	if (IS_ERR(kdwc->clk)) {
-		dev_err(kdwc->dev, "unable to get usb clock\n");
-		return PTR_ERR(kdwc->clk);
-	}
 
 	error = clk_prepare_enable(kdwc->clk);
 	if (error < 0) {

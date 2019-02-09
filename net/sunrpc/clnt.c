@@ -337,11 +337,6 @@ out:
 
 static DEFINE_IDA(rpc_clids);
 
-void rpc_cleanup_clids(void)
-{
-	ida_destroy(&rpc_clids);
-}
-
 static int rpc_alloc_clid(struct rpc_clnt *clnt)
 {
 	int clid;
@@ -447,7 +442,7 @@ out_no_rpciod:
 	return ERR_PTR(err);
 }
 
-static struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
+struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 					struct rpc_xprt *xprt)
 {
 	struct rpc_clnt *clnt = NULL;
@@ -479,6 +474,7 @@ static struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 
 	return clnt;
 }
+EXPORT_SYMBOL_GPL(rpc_create_xprt);
 
 /**
  * rpc_create - create an RPC client and transport with one call
@@ -503,15 +499,6 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		.bc_xprt = args->bc_xprt,
 	};
 	char servername[48];
-
-	if (args->bc_xprt) {
-		WARN_ON(args->protocol != XPRT_TRANSPORT_BC_TCP);
-		xprt = args->bc_xprt->xpt_bc_xprt;
-		if (xprt) {
-			xprt_get(xprt);
-			return rpc_create_xprt(args, xprt);
-		}
-	}
 
 	if (args->flags & RPC_CLNT_CREATE_INFINITE_SLOTS)
 		xprtargs.flags |= XPRT_CREATE_INFINITE_SLOTS;

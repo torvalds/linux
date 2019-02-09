@@ -136,7 +136,11 @@ static inline const char *phy_modes(phy_interface_t interface)
 /* Used when trying to connect to a specific phy (mii bus id:phy device id) */
 #define PHY_ID_FMT "%s:%02x"
 
-#define MII_BUS_ID_SIZE	61
+/*
+ * Need to be a little smaller than phydev->dev.bus_id to leave room
+ * for the ":%02x"
+ */
+#define MII_BUS_ID_SIZE	(20 - 3)
 
 /* Or MII_ADDR_C45 into regnum for read/write on mii_bus to enable the 21 bit
    IEEE 802.3ae clause 45 addressing mode used by 10GIGE phy chips. */
@@ -595,7 +599,7 @@ struct phy_driver {
 /* A Structure for boards to register fixups with the PHY Lib */
 struct phy_fixup {
 	struct list_head list;
-	char bus_id[MII_BUS_ID_SIZE + 3];
+	char bus_id[20];
 	u32 phy_uid;
 	u32 phy_uid_mask;
 	int (*run)(struct phy_device *phydev);
@@ -623,12 +627,14 @@ static inline int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
  * phy_read_mmd_indirect - reads data from the MMD registers
  * @phydev: The PHY device bus
  * @prtad: MMD Address
+ * @devad: MMD DEVAD
  * @addr: PHY address on the MII bus
  *
  * Description: it reads data from the MMD registers (clause 22 to access to
  * clause 45) of the specified phy address.
  */
-int phy_read_mmd_indirect(struct phy_device *phydev, int prtad, int devad);
+int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
+			  int devad, int addr);
 
 /**
  * phy_read - Convenience function for reading a given PHY register
@@ -681,17 +687,6 @@ static inline bool phy_is_internal(struct phy_device *phydev)
 }
 
 /**
- * phy_interface_mode_is_rgmii - Convenience function for testing if a
- * PHY interface mode is RGMII (all variants)
- * @mode: the phy_interface_t enum
- */
-static inline bool phy_interface_mode_is_rgmii(phy_interface_t mode)
-{
-	return mode >= PHY_INTERFACE_MODE_RGMII &&
-		mode <= PHY_INTERFACE_MODE_RGMII_TXID;
-};
-
-/**
  * phy_interface_is_rgmii - Convenience function for testing if a PHY interface
  * is RGMII (all variants)
  * @phydev: the phy_device struct
@@ -738,13 +733,14 @@ static inline int phy_write_mmd(struct phy_device *phydev, int devad,
  * @phydev: The PHY device
  * @prtad: MMD Address
  * @devad: MMD DEVAD
+ * @addr: PHY address on the MII bus
  * @data: data to write in the MMD register
  *
  * Description: Write data from the MMD registers of the specified
  * phy address.
  */
 void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
-			    int devad, u32 data);
+			    int devad, int addr, u32 data);
 
 struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 				     bool is_c45,
@@ -779,12 +775,6 @@ static inline int phy_read_status(struct phy_device *phydev)
 	return phydev->drv->read_status(phydev);
 }
 
-#define phydev_err(_phydev, format, args...)	\
-	dev_err(&_phydev->dev, format, ##args)
-
-#define phydev_dbg(_phydev, format, args...)	\
-	dev_dbg(&_phydev->dev, format, ##args)
-
 int genphy_config_init(struct phy_device *phydev);
 int genphy_setup_forced(struct phy_device *phydev);
 int genphy_restart_aneg(struct phy_device *phydev);
@@ -795,10 +785,6 @@ int genphy_read_status(struct phy_device *phydev);
 int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 int genphy_soft_reset(struct phy_device *phydev);
-static inline int genphy_no_soft_reset(struct phy_device *phydev)
-{
-	return 0;
-}
 void phy_driver_unregister(struct phy_driver *drv);
 void phy_drivers_unregister(struct phy_driver *drv, int n);
 int phy_driver_register(struct phy_driver *new_driver);

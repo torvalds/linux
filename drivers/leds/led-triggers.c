@@ -88,23 +88,21 @@ ssize_t led_trigger_show(struct device *dev, struct device_attribute *attr,
 	down_read(&led_cdev->trigger_lock);
 
 	if (!led_cdev->trigger)
-		len += scnprintf(buf+len, PAGE_SIZE - len, "[none] ");
+		len += sprintf(buf+len, "[none] ");
 	else
-		len += scnprintf(buf+len, PAGE_SIZE - len, "none ");
+		len += sprintf(buf+len, "none ");
 
 	list_for_each_entry(trig, &trigger_list, next_trig) {
 		if (led_cdev->trigger && !strcmp(led_cdev->trigger->name,
 							trig->name))
-			len += scnprintf(buf+len, PAGE_SIZE - len, "[%s] ",
-					 trig->name);
+			len += sprintf(buf+len, "[%s] ", trig->name);
 		else
-			len += scnprintf(buf+len, PAGE_SIZE - len, "%s ",
-					 trig->name);
+			len += sprintf(buf+len, "%s ", trig->name);
 	}
 	up_read(&led_cdev->trigger_lock);
 	up_read(&triggers_list_lock);
 
-	len += scnprintf(len+buf, PAGE_SIZE - len, "\n");
+	len += sprintf(len+buf, "\n");
 	return len;
 }
 EXPORT_SYMBOL_GPL(led_trigger_show);
@@ -176,26 +174,6 @@ void led_trigger_set_default(struct led_classdev *led_cdev)
 	up_read(&triggers_list_lock);
 }
 EXPORT_SYMBOL_GPL(led_trigger_set_default);
-
-#ifdef CONFIG_LEDS_TRIGGER_MULTI_CTRL
-void led_trigger_set_by_name(struct led_classdev *led_cdev, char *trig_name)
-{
-	struct led_trigger *trig;
-
-	if (!trig_name)
-		return;
-
-	down_read(&triggers_list_lock);
-	down_write(&led_cdev->trigger_lock);
-	list_for_each_entry(trig, &trigger_list, next_trig) {
-		if (!strcmp(trig_name, trig->name))
-			led_trigger_set(led_cdev, trig);
-	}
-	up_write(&led_cdev->trigger_lock);
-	up_read(&triggers_list_lock);
-}
-EXPORT_SYMBOL_GPL(led_trigger_set_by_name);
-#endif
 
 void led_trigger_rename_static(const char *name, struct led_trigger *trig)
 {

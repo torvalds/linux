@@ -116,7 +116,7 @@ int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
 	int count;
 
 	if (v >= end)
-		goto bad;
+		return -EBADMSG;
 
 	n = *v++;
 	ret = count = snprintf(buffer, bufsize, "%u.%u", n / 40, n % 40);
@@ -134,7 +134,7 @@ int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
 			num = n & 0x7f;
 			do {
 				if (v >= end)
-					goto bad;
+					return -EBADMSG;
 				n = *v++;
 				num <<= 7;
 				num |= n & 0x7f;
@@ -148,10 +148,6 @@ int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
 	}
 
 	return ret;
-
-bad:
-	snprintf(buffer, bufsize, "(bad)");
-	return -EBADMSG;
 }
 EXPORT_SYMBOL_GPL(sprint_oid);
 

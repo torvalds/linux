@@ -40,185 +40,13 @@
 
 /dts-v1/;
 #include "rk3288-evb.dtsi"
-#include "rk3288-linux.dtsi"
+
 / {
 	compatible = "rockchip,rk3288-evb-act8846", "rockchip,rk3288";
-
-	backlight: backlight {
-		compatible = "pwm-backlight";
-		brightness-levels = <
-			  0   1   2   3   4   5   6   7
-			  8   9  10  11  12  13  14  15
-			 16  17  18  19  20  21  22  23
-			 24  25  26  27  28  29  30  31
-			 32  33  34  35  36  37  38  39
-			 40  41  42  43  44  45  46  47
-			 48  49  50  51  52  53  54  55
-			 56  57  58  59  60  61  62  63
-			 64  65  66  67  68  69  70  71
-			 72  73  74  75  76  77  78  79
-			 80  81  82  83  84  85  86  87
-			 88  89  90  91  92  93  94  95
-			 96  97  98  99 100 101 102 103
-			104 105 106 107 108 109 110 111
-			112 113 114 115 116 117 118 119
-			120 121 122 123 124 125 126 127
-			128 129 130 131 132 133 134 135
-			136 137 138 139 140 141 142 143
-			144 145 146 147 148 149 150 151
-			152 153 154 155 156 157 158 159
-			160 161 162 163 164 165 166 167
-			168 169 170 171 172 173 174 175
-			176 177 178 179 180 181 182 183
-			184 185 186 187 188 189 190 191
-			192 193 194 195 196 197 198 199
-			200 201 202 203 204 205 206 207
-			208 209 210 211 212 213 214 215
-			216 217 218 219 220 221 222 223
-			224 225 226 227 228 229 230 231
-			232 233 234 235 236 237 238 239
-			240 241 242 243 244 245 246 247
-			248 249 250 251 252 253 254 255>;
-		default-brightness-level = <128>;
-		enable-gpios = <&gpio7 2 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&bl_en>;
-		pwms = <&pwm0 0 1000000 PWM_POLARITY_INVERTED>;
-	};
-
-	adc-keys {
-		compatible = "adc-keys";
-		io-channels = <&saradc 1>;
-		io-channel-names = "buttons";
-		poll-interval = <100>;
-		keyup-threshold-microvolt = <1800000>;
-
-		button-up {
-			label = "Volume Up";
-			linux,code = <KEY_VOLUMEUP>;
-			press-threshold-microvolt = <18000>;
-		};
-
-		button-down {
-			label = "Volume Down";
-			linux,code = <KEY_VOLUMEDOWN>;
-			press-threshold-microvolt = <300000>;
-		};
-
-		menu {
-			label = "Menu";
-			linux,code = <KEY_MENU>;
-			press-threshold-microvolt = <640000>;
-		};
-
-		esc {
-			label = "Esc";
-			linux,code = <KEY_ESC>;
-			press-threshold-microvolt = <1000000>;
-		};
-
-		home  {
-			label = "Home";
-			linux,code = <KEY_HOME>;
-			press-threshold-microvolt = <1300000>;
-		};
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		autorepeat;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&pwrbtn>;
-
-		button@0 {
-			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
-			linux,code = <116>;
-			label = "GPIO Key Power";
-			linux,input-type = <1>;
-			gpio-key,wakeup = <1>;
-			debounce-interval = <100>;
-		};
-	};
-
-	sdio_pwrseq: sdio-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		clocks = <&hym8563>;
-		clock-names = "ext_clock";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_enable_h>;
-
-		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
-		 * - SDIO_RESET_L_WL_REG_ON
-		 * - PDN (power down when low)
-		 */
-		reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
-	};
-
-	vcc_lcd: vcc-lcd {
-		compatible = "regulator-fixed";
-		enable-active-high;
-		gpio = <&gpio7 3 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_en>;
-		regulator-name = "vcc_lcd";
-		vin-supply = <&vcc_io>;
-	};
-
-	vcc_wl: vcc-wl {
-		compatible = "regulator-fixed";
-		enable-active-high;
-		gpio = <&gpio7 9 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_pwr>;
-		regulator-name = "vcc_wl";
-		vin-supply = <&vcc_18>;
-	};
-};
-
-&cif_isp0 {
-	rockchip,camera-modules-attached = <&camera0>;
-	status = "disabled";
 };
 
 &cpu0 {
 	cpu0-supply = <&vdd_cpu>;
-};
-
-&dfi {
-	status = "okay";
-};
-
-&dmc {
-	center-supply = <&vdd_log>;
-	status = "okay";
-};
-
-&edp {
-	vcc-supply = <&vdd10_lcd>;
-	vccio-supply = <&vcc18_lcd>;
-	status = "okay";
-};
-
-&edp_phy {
-	status = "okay";
-};
-
-&edp_panel {
-	status = "okay";
-	compatible ="lg,lp079qx1-sp0v", "simple-panel";
-	backlight = <&backlight>;
-	enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
-	pinctrl-0 = <&lcd_cs>;
-};
-
-&gpu {
-	status = "okay";
-	mali-supply = <&vdd_gpu>;
 };
 
 &i2c0 {
@@ -233,12 +61,7 @@
 		regulator-max-microvolt = <1350000>;
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-enable-ramp-delay = <300>;
-		regulator-ramp-delay = <8000>;
 		vin-supply = <&vcc_sys>;
-		regulator-state-mem {
-			regulator-off-in-suspend;
-		};
 	};
 
 	vdd_gpu: syr828@41 {
@@ -249,14 +72,10 @@
 		regulator-min-microvolt = <850000>;
 		regulator-max-microvolt = <1350000>;
 		regulator-always-on;
-		regulator-ramp-delay = <6000>;
 		vin-supply = <&vcc_sys>;
-		regulator-state-mem {
-			regulator-off-in-suspend;
-		};
 	};
 
-	hym8563: hym8563@51 {
+	hym8563@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
 
@@ -273,7 +92,6 @@
 	act8846: act8846@5a {
 		compatible = "active-semi,act8846";
 		reg = <0x5a>;
-		system-power-controller;
 		status = "okay";
 
 		vp1-supply = <&vcc_sys>;
@@ -301,8 +119,8 @@
 
 			vdd_log: REG3 {
 				regulator-name = "VDD_LOG";
-				regulator-min-microvolt = <1150000>;
-				regulator-max-microvolt = <1150000>;
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
 			};
 
@@ -315,7 +133,7 @@
 
 			vccio_sd: REG5 {
 				regulator-name = "VCCIO_SD";
-				regulator-min-microvolt = <1800000>;
+				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 			};
@@ -368,134 +186,6 @@
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 			};
-		};
-	};
-};
-
-&i2c1 {
-	status = "okay";
-	clock-frequency = <400000>;
-
-	mpu6050@68 {
-		compatible = "invensense,mpu6050";
-		status = "okay";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mpu6050_irq_gpio>;
-		reg = <0x68>;
-		irq-gpio = <&gpio8 0 IRQ_TYPE_EDGE_RISING>;
-		mpu-int_config = <0x10>;
-		mpu-level_shifter = <0>;
-		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
-		orientation-x= <0>;
-		orientation-y= <1>;
-		orientation-z= <0>;
-		support-hw-poweroff = <1>;
-		mpu-debug = <1>;
-	};
-};
-
-&i2c3 {
-	status = "okay";
-
-	camera0: camera-module@10 {
-		status = "disabled";
-
-		compatible = "omnivision,ov8858-v4l2-i2c-subdev";
-		reg = <0x10>;
-		device_type = "v4l2-i2c-subdev";
-
-		clocks = <&cru SCLK_VIP_OUT>;
-		clock-names = "clk_cif_out";
-
-		pinctrl-names = "rockchip,camera_default",
-			"rockchip,camera_sleep";
-		pinctrl-0 = <&cam0_default_pins>;
-		pinctrl-1 = <&cam0_sleep_pins>;
-
-		rockchip,pd-gpio = <&gpio2 15 GPIO_ACTIVE_LOW>;
-		rockchip,pwr-gpio = <&gpio0 17 GPIO_ACTIVE_HIGH>;
-
-		rockchip,camera-module-mclk-name = "clk_cif_out";
-		rockchip,camera-module-dovdd = "1.8v";
-		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "cmk-cb0695-fv1";
-		rockchip,camera-module-len-name = "lg9569a2";
-		rockchip,camera-module-fov-h = "66.0";
-		rockchip,camera-module-fov-v = "50.1";
-		rockchip,camera-module-orientation = <0>;
-		rockchip,camera-module-iq-flip = <0>;
-		rockchip,camera-module-iq-mirror = <0>;
-		rockchip,camera-module-flip = <0>;
-		rockchip,camera-module-mirror = <0>;
-
-		/* resolution.w, resolution.h, defrect.left, defrect.top, defrect.w, defrect.h */
-		rockchip,camera-module-defrect0 = <3264 2448 0 0 3264 2448>;
-		rockchip,camera-module-flash-support = <0>;
-		rockchip,camera-module-mipi-dphy-index = <0>;
-	};
-};
-
-&rga {
-	status = "okay";
-};
-
-&route_edp {
-	status = "okay";
-};
-
-&route_hdmi {
-	status = "okay";
-};
-
-&sound {
-	status = "okay";
-};
-
-&uart2 {
-	status = "okay";
-};
-
-&pinctrl {
-	backlight {
-		bl_en: bl-en {
-			rockchip,pins = <7 2 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	buttons {
-		pwrbtn: pwrbtn {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	cam_pins {
-		cam0_default_pins: cam0-default-pins {
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_none>,
-					<2 15 RK_FUNC_GPIO &pcfg_pull_none>,
-					<2 11 RK_FUNC_1 &pcfg_pull_none>;
-		};
-		cam0_sleep_pins: cam0-sleep-pins {
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_none>,
-					<2 15 RK_FUNC_GPIO &pcfg_pull_none>,
-					<2 11 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	lcd {
-		lcd_en: lcd-en  {
-			rockchip,pins = <7 3 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	wifi {
-		wifi_pwr: wifi-pwr {
-			rockchip,pins = <7 9 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	mpu6050 {
-		mpu6050_irq_gpio: mpu6050-irq-gpio {
-			rockchip,pins = <8 0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

@@ -86,22 +86,6 @@ int rdma_addr_size(struct sockaddr *addr)
 }
 EXPORT_SYMBOL(rdma_addr_size);
 
-int rdma_addr_size_in6(struct sockaddr_in6 *addr)
-{
-	int ret = rdma_addr_size((struct sockaddr *) addr);
-
-	return ret <= sizeof(*addr) ? ret : 0;
-}
-EXPORT_SYMBOL(rdma_addr_size_in6);
-
-int rdma_addr_size_kss(struct __kernel_sockaddr_storage *addr)
-{
-	int ret = rdma_addr_size((struct sockaddr *) addr);
-
-	return ret <= sizeof(*addr) ? ret : 0;
-}
-EXPORT_SYMBOL(rdma_addr_size_kss);
-
 static struct rdma_addr_client self;
 
 void rdma_addr_register_client(struct rdma_addr_client *client)
@@ -293,8 +277,8 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	fl6.saddr = src_in->sin6_addr;
 	fl6.flowi6_oif = addr->bound_dev_if;
 
-	ret = ipv6_stub->ipv6_dst_lookup(addr->net, NULL, &dst, &fl6);
-	if (ret < 0)
+	dst = ip6_route_output(addr->net, NULL, &fl6);
+	if ((ret = dst->error))
 		goto put;
 
 	if (ipv6_addr_any(&fl6.saddr)) {

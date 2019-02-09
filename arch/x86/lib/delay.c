@@ -93,13 +93,6 @@ static void delay_mwaitx(unsigned long __loops)
 {
 	u64 start, end, delay, loops = __loops;
 
-	/*
-	 * Timer value of 0 causes MWAITX to wait indefinitely, unless there
-	 * is a store on the memory monitored by MONITORX.
-	 */
-	if (loops == 0)
-		return;
-
 	start = rdtsc_ordered();
 
 	for (;;) {

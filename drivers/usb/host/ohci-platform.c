@@ -24,7 +24,6 @@
 #include <linux/err.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/usb.h>
@@ -120,7 +119,7 @@ static int ohci_platform_probe(struct platform_device *dev)
 	struct ohci_hcd *ohci;
 	int err, irq, phy_num, clk = 0;
 
-	if (usb_disabled() || of_machine_is_compatible("rockchip,rk3288"))
+	if (usb_disabled())
 		return -ENODEV;
 
 	/*
@@ -237,9 +236,6 @@ static int ohci_platform_probe(struct platform_device *dev)
 	}
 #endif
 
-	pm_runtime_set_active(&dev->dev);
-	pm_runtime_enable(&dev->dev);
-	pm_runtime_get_sync(&dev->dev);
 	if (pdata->power_on) {
 		err = pdata->power_on(dev);
 		if (err < 0)
@@ -254,8 +250,6 @@ static int ohci_platform_probe(struct platform_device *dev)
 	}
 	hcd->rsrc_start = res_mem->start;
 	hcd->rsrc_len = resource_size(res_mem);
-	if (priv->num_phys == 1)
-		hcd->phy = priv->phys[0];
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
@@ -271,8 +265,6 @@ err_power:
 	if (pdata->power_off)
 		pdata->power_off(dev);
 err_reset:
-	pm_runtime_put_sync(&dev->dev);
-	pm_runtime_disable(&dev->dev);
 	if (priv->rst)
 		reset_control_assert(priv->rst);
 err_put_clks:
@@ -306,9 +298,6 @@ static int ohci_platform_remove(struct platform_device *dev)
 		clk_put(priv->clks[clk]);
 
 	usb_put_hcd(hcd);
-
-	pm_runtime_put_sync(&dev->dev);
-	pm_runtime_disable(&dev->dev);
 
 	if (pdata == &ohci_platform_defaults)
 		dev->dev.platform_data = NULL;

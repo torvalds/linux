@@ -32,7 +32,7 @@ config EL3
 
 config 3C515
 	tristate "3c515 ISA \"Fast EtherLink\""
-	depends on ISA && ISA_DMA_API && !PPC32
+	depends on ISA && ISA_DMA_API
 	---help---
 	  If you have a 3Com ISA EtherLink XL "Corkscrew" 3c515 Fast Ethernet
 	  network card, say Y here.

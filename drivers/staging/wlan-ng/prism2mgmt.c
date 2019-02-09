@@ -169,7 +169,7 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 				     hw->ident_sta_fw.variant) >
 	    HFA384x_FIRMWARE_VERSION(1, 5, 0)) {
 		if (msg->scantype.data != P80211ENUM_scantype_active)
-			word = msg->maxchanneltime.data;
+			word = cpu_to_le16(msg->maxchanneltime.data);
 		else
 			word = 0;
 

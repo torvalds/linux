@@ -28,21 +28,6 @@ struct sigpending {
 	sigset_t signal;
 };
 
-#ifndef HAVE_ARCH_COPY_SIGINFO
-
-#include <linux/string.h>
-
-static inline void copy_siginfo(struct siginfo *to, struct siginfo *from)
-{
-	if (from->si_code < 0)
-		memcpy(to, from, sizeof(*to));
-	else
-		/* _sigchld is currently the largest know union member */
-		memcpy(to, from, __ARCH_SI_PREAMBLE_SIZE + sizeof(from->_sifields._sigchld));
-}
-
-#endif
-
 /*
  * Define some primitives to manipulate sigset_t.
  */
@@ -95,23 +80,6 @@ static inline int sigisemptyset(sigset_t *set)
 		BUILD_BUG();
 		return 0;
 	}
-}
-
-static inline int sigequalsets(const sigset_t *set1, const sigset_t *set2)
-{
-	switch (_NSIG_WORDS) {
-	case 4:
-		return	(set1->sig[3] == set2->sig[3]) &&
-			(set1->sig[2] == set2->sig[2]) &&
-			(set1->sig[1] == set2->sig[1]) &&
-			(set1->sig[0] == set2->sig[0]);
-	case 2:
-		return	(set1->sig[1] == set2->sig[1]) &&
-			(set1->sig[0] == set2->sig[0]);
-	case 1:
-		return	set1->sig[0] == set2->sig[0];
-	}
-	return 0;
 }
 
 #define sigmask(sig)	(1UL << ((sig) - 1))

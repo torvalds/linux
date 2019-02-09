@@ -138,8 +138,7 @@ irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
 	unsigned int flags = 0, irq = desc->irq_data.irq;
 	struct irqaction *action = desc->action;
 
-	/* action might have become NULL since we dropped the lock */
-	while (action) {
+	do {
 		irqreturn_t res;
 
 		trace_irq_handler_entry(irq, action);
@@ -174,7 +173,7 @@ irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
 
 		retval |= res;
 		action = action->next;
-	}
+	} while (action);
 
 	add_interrupt_randomness(irq, flags);
 

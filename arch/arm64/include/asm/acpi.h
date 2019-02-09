@@ -22,9 +22,9 @@
 #define ACPI_MADT_GICC_LENGTH	\
 	(acpi_gbl_FADT.header.revision < 6 ? 76 : 80)
 
-#define BAD_MADT_GICC_ENTRY(entry, end)					\
-	(!(entry) || (entry)->header.length != ACPI_MADT_GICC_LENGTH ||	\
-	(unsigned long)(entry) + ACPI_MADT_GICC_LENGTH > (end))
+#define BAD_MADT_GICC_ENTRY(entry, end)						\
+	(!(entry) || (unsigned long)(entry) + sizeof(*(entry)) > (end) ||	\
+	 (entry)->header.length != ACPI_MADT_GICC_LENGTH)
 
 /* Basic configuration for ACPI */
 #ifdef	CONFIG_ACPI
@@ -87,26 +87,9 @@ void __init acpi_init_cpus(void);
 static inline void acpi_init_cpus(void) { }
 #endif /* CONFIG_ACPI */
 
-#ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
-bool acpi_parking_protocol_valid(int cpu);
-void __init
-acpi_set_mailbox_entry(int cpu, struct acpi_madt_generic_interrupt *processor);
-#else
-static inline bool acpi_parking_protocol_valid(int cpu) { return false; }
-static inline void
-acpi_set_mailbox_entry(int cpu, struct acpi_madt_generic_interrupt *processor)
-{}
-#endif
-
 static inline const char *acpi_get_enable_method(int cpu)
 {
-	if (acpi_psci_present())
-		return "psci";
-
-	if (acpi_parking_protocol_valid(cpu))
-		return "parking-protocol";
-
-	return NULL;
+	return acpi_psci_present() ? "psci" : NULL;
 }
 
 #ifdef	CONFIG_ACPI_APEI

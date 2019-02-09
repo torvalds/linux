@@ -504,20 +504,11 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 	 * Evaluate the \_Sx namespace object containing the register values
 	 * for this state
 	 */
-	info->relative_pathname = ACPI_CAST_PTR(char,
-						acpi_gbl_sleep_state_names
-						[sleep_state]);
-
+	info->relative_pathname =
+	    ACPI_CAST_PTR(char, acpi_gbl_sleep_state_names[sleep_state]);
 	status = acpi_ns_evaluate(info);
 	if (ACPI_FAILURE(status)) {
-		if (status == AE_NOT_FOUND) {
-
-			/* The _Sx states are optional, ignore NOT_FOUND */
-
-			goto final_cleanup;
-		}
-
-		goto warning_cleanup;
+		goto cleanup;
 	}
 
 	/* Must have a return object */
@@ -526,7 +517,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		ACPI_ERROR((AE_INFO, "No Sleep State object returned from [%s]",
 			    info->relative_pathname));
 		status = AE_AML_NO_RETURN_VALUE;
-		goto warning_cleanup;
+		goto cleanup;
 	}
 
 	/* Return object must be of type Package */
@@ -535,7 +526,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return object is not a Package"));
 		status = AE_AML_OPERAND_TYPE;
-		goto return_value_cleanup;
+		goto cleanup1;
 	}
 
 	/*
@@ -579,17 +570,16 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		break;
 	}
 
-return_value_cleanup:
+cleanup1:
 	acpi_ut_remove_reference(info->return_object);
 
-warning_cleanup:
+cleanup:
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"While evaluating Sleep State [%s]",
 				info->relative_pathname));
 	}
 
-final_cleanup:
 	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }

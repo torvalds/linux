@@ -345,10 +345,10 @@ void flush_thread(void)
 /*
  * Free current thread data structures etc.
  */
-void exit_thread(struct task_struct *tsk)
+void exit_thread(void)
 {
-	clear_fpu(&tsk->thread);
-	clear_dsp(&tsk->thread);
+	clear_fpu(&current->thread);
+	clear_dsp(&current->thread);
 }
 
 /* TODO: figure out how to unwind the kernel stack here to figure out

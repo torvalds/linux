@@ -1955,8 +1955,10 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 		}
 	} else { /*pi->caps_vce_pg*/
 		cz_update_vce_dpm(adev);
-		cz_enable_vce_dpm(adev, !gate);
+		cz_enable_vce_dpm(adev, true);
 	}
+
+	return;
 }
 
 const struct amd_ip_funcs cz_dpm_ip_funcs = {

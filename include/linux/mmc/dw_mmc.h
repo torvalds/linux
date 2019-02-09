@@ -110,7 +110,6 @@ struct dw_mci_dma_slave {
  * @irq_flags: The flags to be passed to request_irq.
  * @irq: The irq value to be passed to request_irq.
  * @sdio_id0: Number of slot0 in the SDIO interrupt registers.
- * @cto_timer: Timer for broken command transfer over scheme.
  * @dto_timer: Timer for broken data transfer over scheme.
  *
  * Locking
@@ -173,7 +172,7 @@ struct dw_mci {
 	/* For edmac */
 	struct dw_mci_dma_slave *dms;
 	/* Registers's physical base address */
-	resource_size_t		phy_regs;
+	void                    *phy_regs;
 
 	u32			cmd_status;
 	u32			data_status;
@@ -221,9 +220,7 @@ struct dw_mci {
 	int			sdio_id0;
 
 	struct timer_list       cmd11_timer;
-	struct timer_list       cto_timer;
 	struct timer_list       dto_timer;
-	struct timer_list	xfer_timer;
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -248,7 +245,6 @@ struct dw_mci_dma_ops {
 #define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
 /* Timer for broken data transfer over scheme */
 #define DW_MCI_QUIRK_BROKEN_DTO			BIT(4)
-#define DW_MCI_QUIRK_BROKEN_XFER		BIT(5)
 
 struct dma_pdata;
 

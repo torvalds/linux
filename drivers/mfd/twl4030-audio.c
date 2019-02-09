@@ -159,18 +159,13 @@ unsigned int twl4030_audio_get_mclk(void)
 EXPORT_SYMBOL_GPL(twl4030_audio_get_mclk);
 
 static bool twl4030_audio_has_codec(struct twl4030_audio_data *pdata,
-			      struct device_node *parent)
+			      struct device_node *node)
 {
-	struct device_node *node;
-
 	if (pdata && pdata->codec)
 		return true;
 
-	node = of_get_child_by_name(parent, "codec");
-	if (node) {
-		of_node_put(node);
+	if (of_find_node_by_name(node, "codec"))
 		return true;
-	}
 
 	return false;
 }

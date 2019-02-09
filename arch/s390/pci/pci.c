@@ -359,8 +359,7 @@ static void zpci_irq_handler(struct airq_struct *airq)
 				/* End of second scan with interrupts on. */
 				break;
 			/* First scan complete, reenable interrupts. */
-			if (zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC))
-				break;
+			zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC);
 			si = 0;
 			continue;
 		}
@@ -412,8 +411,6 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	hwirq = 0;
 	for_each_pci_msi_entry(msi, pdev) {
 		rc = -EIO;
-		if (hwirq >= msi_vecs)
-			break;
 		irq = irq_alloc_desc(0);	/* Alloc irq on node 0 */
 		if (irq < 0)
 			goto out_msi;
@@ -704,7 +701,8 @@ static int zpci_restore(struct device *dev)
 		goto out;
 
 	zpci_map_resources(pdev);
-	zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
+	zpci_register_ioat(zdev, 0, zdev->start_dma + PAGE_OFFSET,
+			   zdev->start_dma + zdev->iommu_size - 1,
 			   (u64) zdev->dma_table);
 
 out:
@@ -873,11 +871,8 @@ static inline int barsize(u8 size)
 
 static int zpci_mem_init(void)
 {
-	BUILD_BUG_ON(!is_power_of_2(__alignof__(struct zpci_fmb)) ||
-		     __alignof__(struct zpci_fmb) < sizeof(struct zpci_fmb));
-
 	zdev_fmb_cache = kmem_cache_create("PCI_FMB_cache", sizeof(struct zpci_fmb),
-					   __alignof__(struct zpci_fmb), 0, NULL);
+				16, 0, NULL);
 	if (!zdev_fmb_cache)
 		goto error_zdev;
 
@@ -924,7 +919,7 @@ static int __init pci_base_init(void)
 	if (!s390_pci_probe)
 		return 0;
 
-	if (!test_facility(69) || !test_facility(71))
+	if (!test_facility(69) || !test_facility(71) || !test_facility(72))
 		return 0;
 
 	rc = zpci_debug_init();

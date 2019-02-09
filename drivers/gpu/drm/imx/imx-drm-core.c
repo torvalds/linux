@@ -26,7 +26,6 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_of.h>
-#include <video/imx-ipu-v3.h>
 
 #include "imx-drm.h"
 
@@ -380,7 +379,7 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
 
 	drm_crtc_init_with_planes(drm, crtc, primary_plane, NULL,
-			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs, NULL);
+			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
 
 	return 0;
 
@@ -504,13 +503,6 @@ static struct drm_driver imx_drm_driver = {
 static int compare_of(struct device *dev, void *data)
 {
 	struct device_node *np = data;
-
-	/* Special case for DI, dev->of_node may not be set yet */
-	if (strcmp(dev->driver->name, "imx-ipuv3-crtc") == 0) {
-		struct ipu_client_platformdata *pdata = dev->platform_data;
-
-		return pdata->of_node == np;
-	}
 
 	/* Special case for LDB, one device for two channels */
 	if (of_node_cmp(np->name, "lvds-channel") == 0) {

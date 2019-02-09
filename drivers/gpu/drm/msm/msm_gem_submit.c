@@ -28,14 +28,16 @@
 #define BO_LOCKED   0x4000
 #define BO_PINNED   0x2000
 
+static inline void __user *to_user_ptr(u64 address)
+{
+	return (void __user *)(uintptr_t)address;
+}
+
 static struct msm_gem_submit *submit_create(struct drm_device *dev,
-		struct msm_gpu *gpu, uint32_t nr)
+		struct msm_gpu *gpu, int nr)
 {
 	struct msm_gem_submit *submit;
-	uint64_t sz = sizeof(*submit) + ((u64)nr * sizeof(submit->bos[0]));
-
-	if (sz > SIZE_MAX)
-		return NULL;
+	int sz = sizeof(*submit) + (nr * sizeof(submit->bos[0]));
 
 	submit = kmalloc(sz, GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
 	if (submit) {
@@ -53,14 +55,6 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	return submit;
 }
 
-static inline unsigned long __must_check
-copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
-{
-	if (access_ok(VERIFY_READ, from, n))
-		return __copy_from_user_inatomic(to, from, n);
-	return -EFAULT;
-}
-
 static int submit_lookup_objects(struct msm_gem_submit *submit,
 		struct drm_msm_gem_submit *args, struct drm_file *file)
 {
@@ -68,28 +62,21 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 	int ret = 0;
 
 	spin_lock(&file->table_lock);
-	pagefault_disable();
 
 	for (i = 0; i < args->nr_bos; i++) {
 		struct drm_msm_gem_submit_bo submit_bo;
 		struct drm_gem_object *obj;
 		struct msm_gem_object *msm_obj;
 		void __user *userptr =
-			u64_to_user_ptr(args->bos + (i * sizeof(submit_bo)));
+			to_user_ptr(args->bos + (i * sizeof(submit_bo)));
 
-		ret = copy_from_user_inatomic(&submit_bo, userptr, sizeof(submit_bo));
-		if (unlikely(ret)) {
-			pagefault_enable();
-			spin_unlock(&file->table_lock);
-			ret = copy_from_user(&submit_bo, userptr, sizeof(submit_bo));
-			if (ret)
-				goto out;
-			spin_lock(&file->table_lock);
-			pagefault_disable();
+		ret = copy_from_user(&submit_bo, userptr, sizeof(submit_bo));
+		if (ret) {
+			ret = -EFAULT;
+			goto out_unlock;
 		}
 
-		if ((submit_bo.flags & ~MSM_SUBMIT_BO_FLAGS) ||
-			!(submit_bo.flags & MSM_SUBMIT_BO_FLAGS)) {
+		if (submit_bo.flags & ~MSM_SUBMIT_BO_FLAGS) {
 			DRM_ERROR("invalid flags: %x\n", submit_bo.flags);
 			ret = -EINVAL;
 			goto out_unlock;
@@ -126,11 +113,8 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 	}
 
 out_unlock:
-	pagefault_enable();
-	spin_unlock(&file->table_lock);
-
-out:
 	submit->nr_bos = i;
+	spin_unlock(&file->table_lock);
 
 	return ret;
 }
@@ -273,7 +257,7 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 	for (i = 0; i < nr_relocs; i++) {
 		struct drm_msm_gem_submit_reloc submit_reloc;
 		void __user *userptr =
-			u64_to_user_ptr(relocs + (i * sizeof(submit_reloc)));
+			to_user_ptr(relocs + (i * sizeof(submit_reloc)));
 		uint32_t iova, off;
 		bool valid;
 
@@ -373,7 +357,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	for (i = 0; i < args->nr_cmds; i++) {
 		struct drm_msm_gem_submit_cmd submit_cmd;
 		void __user *userptr =
-			u64_to_user_ptr(args->cmds + (i * sizeof(submit_cmd)));
+			to_user_ptr(args->cmds + (i * sizeof(submit_cmd)));
 		struct msm_gem_object *msm_obj;
 		uint32_t iova;
 

@@ -207,7 +207,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 		mutex_lock(&dev->device_lock);
 		if (!mei_cl_is_connected(cl)) {
-			rets = -ENODEV;
+			rets = -EBUSY;
 			goto out;
 		}
 	}
@@ -458,11 +458,7 @@ static int mei_ioctl_client_notify_request(struct file *file, u32 request)
 {
 	struct mei_cl *cl = file->private_data;
 
-	if (request != MEI_HBM_NOTIFICATION_START &&
-	    request != MEI_HBM_NOTIFICATION_STOP)
-		return -EINVAL;
-
-	return mei_cl_notify_request(cl, file, (u8)request);
+	return mei_cl_notify_request(cl, file, request);
 }
 
 /**
@@ -571,6 +567,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 		break;
 
 	default:
+		dev_err(dev->dev, ": unsupported ioctl %d.\n", cmd);
 		rets = -ENOIOCTLCMD;
 	}
 
@@ -660,9 +657,7 @@ out:
  * @file: pointer to file structure
  * @band: band bitmap
  *
- * Return: negative on error,
- *         0 if it did no changes,
- *         and positive a process was added or deleted
+ * Return: poll mask
  */
 static int mei_fasync(int fd, struct file *file, int band)
 {
@@ -670,7 +665,7 @@ static int mei_fasync(int fd, struct file *file, int band)
 	struct mei_cl *cl = file->private_data;
 
 	if (!mei_cl_is_connected(cl))
-		return -ENODEV;
+		return POLLERR;
 
 	return fasync_helper(fd, file, band, &cl->ev_async);
 }

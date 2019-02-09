@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
 
 static DEFINE_PER_CPU(unsigned int, cpu_is_managed);
 static DEFINE_MUTEX(userspace_mutex);
@@ -32,15 +31,12 @@ static DEFINE_MUTEX(userspace_mutex);
 static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 {
 	int ret = -EINVAL;
-	unsigned int *setspeed = policy->governor_data;
 
 	pr_debug("cpufreq_set for cpu %u, freq %u kHz\n", policy->cpu, freq);
 
 	mutex_lock(&userspace_mutex);
 	if (!per_cpu(cpu_is_managed, policy->cpu))
 		goto err;
-
-	*setspeed = freq;
 
 	ret = __cpufreq_driver_target(policy, freq, CPUFREQ_RELATION_L);
  err:
@@ -53,46 +49,19 @@ static ssize_t show_speed(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cur);
 }
 
-static int cpufreq_userspace_policy_init(struct cpufreq_policy *policy)
-{
-	unsigned int *setspeed;
-
-	setspeed = kzalloc(sizeof(*setspeed), GFP_KERNEL);
-	if (!setspeed)
-		return -ENOMEM;
-
-	policy->governor_data = setspeed;
-	return 0;
-}
-
 static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 				   unsigned int event)
 {
-	unsigned int *setspeed = policy->governor_data;
 	unsigned int cpu = policy->cpu;
 	int rc = 0;
 
-	if (event == CPUFREQ_GOV_POLICY_INIT)
-		return cpufreq_userspace_policy_init(policy);
-
-	if (!setspeed)
-		return -EINVAL;
-
 	switch (event) {
-	case CPUFREQ_GOV_POLICY_EXIT:
-		mutex_lock(&userspace_mutex);
-		policy->governor_data = NULL;
-		kfree(setspeed);
-		mutex_unlock(&userspace_mutex);
-		break;
 	case CPUFREQ_GOV_START:
 		BUG_ON(!policy->cur);
 		pr_debug("started managing cpu %u\n", cpu);
 
 		mutex_lock(&userspace_mutex);
 		per_cpu(cpu_is_managed, cpu) = 1;
-		if (!*setspeed)
-			*setspeed = policy->cur;
 		mutex_unlock(&userspace_mutex);
 		break;
 	case CPUFREQ_GOV_STOP:
@@ -104,17 +73,15 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 		break;
 	case CPUFREQ_GOV_LIMITS:
 		mutex_lock(&userspace_mutex);
-		pr_debug("limit event for cpu %u: %u - %u kHz, currently %u kHz, last set to %u kHz\n",
-			cpu, policy->min, policy->max, policy->cur, *setspeed);
+		pr_debug("limit event for cpu %u: %u - %u kHz, currently %u kHz\n",
+			cpu, policy->min, policy->max,
+			policy->cur);
 
-		if (policy->max < *setspeed)
+		if (policy->max < policy->cur)
 			__cpufreq_driver_target(policy, policy->max,
 						CPUFREQ_RELATION_H);
-		else if (policy->min > *setspeed)
+		else if (policy->min > policy->cur)
 			__cpufreq_driver_target(policy, policy->min,
-						CPUFREQ_RELATION_L);
-		else
-			__cpufreq_driver_target(policy, *setspeed,
 						CPUFREQ_RELATION_L);
 		mutex_unlock(&userspace_mutex);
 		break;

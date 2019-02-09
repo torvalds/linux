@@ -50,7 +50,6 @@ enum iser_ib_op_code {
 enum iser_conn_state {
 	ISER_CONN_INIT,
 	ISER_CONN_UP,
-	ISER_CONN_BOUND,
 	ISER_CONN_FULL_FEATURE,
 	ISER_CONN_TERMINATING,
 	ISER_CONN_DOWN,
@@ -145,6 +144,7 @@ struct isert_device;
 
 struct isert_conn {
 	enum iser_conn_state	state;
+	int			post_recv_buf_count;
 	u32			responder_resources;
 	u32			initiator_depth;
 	bool			pi_support;

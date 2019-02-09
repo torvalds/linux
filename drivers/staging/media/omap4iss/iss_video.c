@@ -11,6 +11,7 @@
  * (at your option) any later version.
  */
 
+#include <asm/cacheflush.h>
 #include <linux/clk.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
@@ -20,8 +21,6 @@
 #include <linux/module.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
-
-#include <asm/cacheflush.h>
 
 #include "iss_video.h"
 #include "iss.h"

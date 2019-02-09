@@ -30,12 +30,6 @@
 
 #include <drm/drm_crtc.h>
 
-void drm_crtc_commit_put(struct drm_crtc_commit *commit);
-static inline void drm_crtc_commit_get(struct drm_crtc_commit *commit)
-{
-	kref_get(&commit->ref);
-}
-
 struct drm_atomic_state * __must_check
 drm_atomic_state_alloc(struct drm_device *dev);
 void drm_atomic_state_clear(struct drm_atomic_state *state);
@@ -115,11 +109,6 @@ drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
 	return state->connector_states[index];
 }
 
-int drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
-					     struct drm_property_blob **blob,
-					     uint64_t blob_id,
-					     ssize_t expected_size,
-					     bool *replaced);
 int __must_check
 drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 			     struct drm_display_mode *mode);

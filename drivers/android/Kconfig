@@ -9,7 +9,7 @@ if ANDROID
 
 config ANDROID_BINDER_IPC
 	bool "Android Binder IPC Driver"
-	depends on MMU && !M68K
+	depends on MMU
 	default n
 	---help---
 	  Binder is used in Android for both communication between processes,
@@ -19,22 +19,10 @@ config ANDROID_BINDER_IPC
 	  Android process, using Binder to identify, invoke and pass arguments
 	  between said processes.
 
-config ANDROID_BINDER_DEVICES
-	string "Android Binder devices"
-	depends on ANDROID_BINDER_IPC
-	default "binder,hwbinder,vndbinder"
-	---help---
-	  Default value for the binder.devices parameter.
-
-	  The binder.devices parameter is a comma-separated list of strings
-	  that specifies the names of the binder device nodes that will be
-	  created. Each binder device has its own context manager, and is
-	  therefore logically separated from the other devices.
-
 config ANDROID_BINDER_IPC_32BIT
 	bool
 	depends on !64BIT && ANDROID_BINDER_IPC
-	default y if ANDROID_VERSION < 0x09000000
+	default y
 	---help---
 	  The Binder API has been changed to support both 32 and 64bit
 	  applications in a mixed environment.
@@ -43,16 +31,6 @@ config ANDROID_BINDER_IPC_32BIT
 	  earlier).
 
 	  Note that enabling this will break newer Android user-space.
-
-config ANDROID_BINDER_IPC_SELFTEST
-	bool "Android Binder IPC Driver Selftest"
-	depends on ANDROID_BINDER_IPC
-	---help---
-	  This feature allows binder selftest to run.
-
-	  Binder selftest checks the allocation and free of binder buffers
-	  exhaustively with combinations of various buffer sizes and
-	  alignments.
 
 endif # if ANDROID
 

@@ -446,7 +446,7 @@ static int mcp23s08_irq_reqres(struct irq_data *data)
 	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
 
 	if (gpiochip_lock_as_irq(&mcp->chip, data->hwirq)) {
-		dev_err(mcp->chip.parent,
+		dev_err(mcp->chip.dev,
 			"unable to lock HW IRQ %lu for IRQ usage\n",
 			data->hwirq);
 		return -EINVAL;
@@ -481,8 +481,7 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 
 	mutex_init(&mcp->irq_lock);
 
-	mcp->irq_domain = irq_domain_add_linear(chip->parent->of_node,
-						chip->ngpio,
+	mcp->irq_domain = irq_domain_add_linear(chip->dev->of_node, chip->ngpio,
 						&irq_domain_simple_ops, mcp);
 	if (!mcp->irq_domain)
 		return -ENODEV;
@@ -492,11 +491,10 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 	else
 		irqflags |= IRQF_TRIGGER_LOW;
 
-	err = devm_request_threaded_irq(chip->parent, mcp->irq, NULL,
-					mcp23s08_irq,
-					irqflags, dev_name(chip->parent), mcp);
+	err = devm_request_threaded_irq(chip->dev, mcp->irq, NULL, mcp23s08_irq,
+					irqflags, dev_name(chip->dev), mcp);
 	if (err != 0) {
-		dev_err(chip->parent, "unable to request IRQ#%d: %d\n",
+		dev_err(chip->dev, "unable to request IRQ#%d: %d\n",
 			mcp->irq, err);
 		return err;
 	}
@@ -640,7 +638,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 	mcp->chip.base = pdata->base;
 	mcp->chip.can_sleep = true;
-	mcp->chip.parent = dev;
+	mcp->chip.dev = dev;
 	mcp->chip.owner = THIS_MODULE;
 
 	/* verify MCP_IOCON.SEQOP = 0, so sequential reads work,
@@ -654,7 +652,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->irq_controller = pdata->irq_controller;
 	if (mcp->irq && mcp->irq_controller) {
 		mcp->irq_active_high =
-			of_property_read_bool(mcp->chip.parent->of_node,
+			of_property_read_bool(mcp->chip.dev->of_node,
 					      "microchip,irq-active-high");
 
 		if (type == MCP_TYPE_017)

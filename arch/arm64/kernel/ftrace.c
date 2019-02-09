@@ -29,11 +29,12 @@ static int ftrace_modify_code(unsigned long pc, u32 old, u32 new,
 
 	/*
 	 * Note:
-	 * We are paranoid about modifying text, as if a bug were to happen, it
-	 * could cause us to read or write to someplace that could cause harm.
-	 * Carefully read and modify the code with aarch64_insn_*() which uses
-	 * probe_kernel_*(), and make sure what we read is what we expected it
-	 * to be before modifying it.
+	 * Due to modules and __init, code can disappear and change,
+	 * we need to protect against faulting as well as code changing.
+	 * We do this by aarch64_insn_*() which use the probe_kernel_*().
+	 *
+	 * No lock is held here because all the modifications are run
+	 * through stop_machine().
 	 */
 	if (validate) {
 		if (aarch64_insn_read((void *)pc, &replaced))
@@ -92,11 +93,6 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 	return ftrace_modify_code(pc, old, new, true);
 }
 
-void arch_ftrace_update_code(int command)
-{
-	ftrace_modify_all_code(command);
-}
-
 int __init ftrace_dyn_arch_init(void)
 {
 	return 0;
@@ -129,20 +125,23 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	 * on other archs. It's unlikely on AArch64.
 	 */
 	old = *parent;
+	*parent = return_hooker;
 
 	trace.func = self_addr;
 	trace.depth = current->curr_ret_stack + 1;
 
 	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace))
+	if (!ftrace_graph_entry(&trace)) {
+		*parent = old;
 		return;
+	}
 
 	err = ftrace_push_return_trace(old, self_addr, &trace.depth,
 				       frame_pointer);
-	if (err == -EBUSY)
+	if (err == -EBUSY) {
+		*parent = old;
 		return;
-	else
-		*parent = return_hooker;
+	}
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE

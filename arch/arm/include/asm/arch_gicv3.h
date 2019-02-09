@@ -117,7 +117,6 @@ static inline u32 gic_read_iar(void)
 	u32 irqstat;
 
 	asm volatile("mrc " __stringify(ICC_IAR1) : "=r" (irqstat));
-	dsb(sy);
 	return irqstat;
 }
 

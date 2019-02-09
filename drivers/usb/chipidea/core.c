@@ -518,6 +518,38 @@ int hw_device_reset(struct ci_hdrc *ci)
 	return 0;
 }
 
+/**
+ * hw_wait_reg: wait the register value
+ *
+ * Sometimes, it needs to wait register value before going on.
+ * Eg, when switch to device mode, the vbus value should be lower
+ * than OTGSC_BSV before connects to host.
+ *
+ * @ci: the controller
+ * @reg: register index
+ * @mask: mast bit
+ * @value: the bit value to wait
+ * @timeout_ms: timeout in millisecond
+ *
+ * This function returns an error code if timeout
+ */
+int hw_wait_reg(struct ci_hdrc *ci, enum ci_hw_regs reg, u32 mask,
+				u32 value, unsigned int timeout_ms)
+{
+	unsigned long elapse = jiffies + msecs_to_jiffies(timeout_ms);
+
+	while (hw_read(ci, reg, mask) != value) {
+		if (time_after(jiffies, elapse)) {
+			dev_err(ci->dev, "timeout waiting for %08x in %d\n",
+					mask, reg);
+			return -ETIMEDOUT;
+		}
+		msleep(20);
+	}
+
+	return 0;
+}
+
 static irqreturn_t ci_irq(int irq, void *data)
 {
 	struct ci_hdrc *ci = data;
@@ -851,7 +883,7 @@ static inline void ci_role_destroy(struct ci_hdrc *ci)
 {
 	ci_hdrc_gadget_destroy(ci);
 	ci_hdrc_host_destroy(ci);
-	if (ci->is_otg && ci->roles[CI_ROLE_GADGET])
+	if (ci->is_otg)
 		ci_hdrc_otg_destroy(ci);
 }
 
@@ -894,7 +926,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (!ci)
 		return -ENOMEM;
 
-	spin_lock_init(&ci->lock);
 	ci->dev = dev;
 	ci->platdata = dev_get_platdata(dev);
 	ci->imx28_write_fix = !!(ci->platdata->flags &
@@ -951,35 +982,27 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	/* initialize role(s) before the interrupt is requested */
 	if (dr_mode == USB_DR_MODE_OTG || dr_mode == USB_DR_MODE_HOST) {
 		ret = ci_hdrc_host_init(ci);
-		if (ret) {
-			if (ret == -ENXIO)
-				dev_info(dev, "doesn't support host\n");
-			else
-				goto deinit_phy;
-		}
+		if (ret)
+			dev_info(dev, "doesn't support host\n");
 	}
 
 	if (dr_mode == USB_DR_MODE_OTG || dr_mode == USB_DR_MODE_PERIPHERAL) {
 		ret = ci_hdrc_gadget_init(ci);
-		if (ret) {
-			if (ret == -ENXIO)
-				dev_info(dev, "doesn't support gadget\n");
-			else
-				goto deinit_host;
-		}
+		if (ret)
+			dev_info(dev, "doesn't support gadget\n");
 	}
 
 	if (!ci->roles[CI_ROLE_HOST] && !ci->roles[CI_ROLE_GADGET]) {
 		dev_err(dev, "no supported roles\n");
 		ret = -ENODEV;
-		goto deinit_gadget;
+		goto deinit_phy;
 	}
 
 	if (ci->is_otg && ci->roles[CI_ROLE_GADGET]) {
 		ret = ci_hdrc_otg_init(ci);
 		if (ret) {
 			dev_err(dev, "init otg fails, ret = %d\n", ret);
-			goto deinit_gadget;
+			goto stop;
 		}
 	}
 
@@ -1044,12 +1067,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	ci_extcon_unregister(ci);
 stop:
-	if (ci->is_otg && ci->roles[CI_ROLE_GADGET])
-		ci_hdrc_otg_destroy(ci);
-deinit_gadget:
-	ci_hdrc_gadget_destroy(ci);
-deinit_host:
-	ci_hdrc_host_destroy(ci);
+	ci_role_destroy(ci);
 deinit_phy:
 	ci_usb_phy_exit(ci);
 

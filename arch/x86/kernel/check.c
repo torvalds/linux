@@ -30,11 +30,6 @@ static __init int set_corruption_check(char *arg)
 	ssize_t ret;
 	unsigned long val;
 
-	if (!arg) {
-		pr_err("memory_corruption_check config string not provided\n");
-		return -EINVAL;
-	}
-
 	ret = kstrtoul(arg, 10, &val);
 	if (ret)
 		return ret;
@@ -49,11 +44,6 @@ static __init int set_corruption_check_period(char *arg)
 	ssize_t ret;
 	unsigned long val;
 
-	if (!arg) {
-		pr_err("memory_corruption_check_period config string not provided\n");
-		return -EINVAL;
-	}
-
 	ret = kstrtoul(arg, 10, &val);
 	if (ret)
 		return ret;
@@ -67,11 +57,6 @@ static __init int set_corruption_check_size(char *arg)
 {
 	char *end;
 	unsigned size;
-
-	if (!arg) {
-		pr_err("memory_corruption_check_size config string not provided\n");
-		return -EINVAL;
-	}
 
 	size = memparse(arg, &end);
 

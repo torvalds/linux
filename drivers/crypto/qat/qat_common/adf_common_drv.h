@@ -227,8 +227,6 @@ void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 				  uint32_t vf_mask);
 void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 				 uint32_t vf_mask);
-int adf_init_pf_wq(void);
-void adf_exit_pf_wq(void);
 #else
 static inline int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 {
@@ -236,15 +234,6 @@ static inline int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 }
 
 static inline void adf_disable_sriov(struct adf_accel_dev *accel_dev)
-{
-}
-
-static inline int adf_init_pf_wq(void)
-{
-	return 0;
-}
-
-static inline void adf_exit_pf_wq(void)
 {
 }
 #endif

@@ -566,7 +566,6 @@ struct qlcnic_adapter_stats {
 	u64  tx_dma_map_error;
 	u64  spurious_intr;
 	u64  mac_filter_limit_overrun;
-	u64  mbx_spurious_intr;
 };
 
 /*
@@ -1100,7 +1099,7 @@ struct qlcnic_mailbox {
 	unsigned long		status;
 	spinlock_t		queue_lock;	/* Mailbox queue lock */
 	spinlock_t		aen_lock;	/* Mailbox response/AEN lock */
-	u32			rsp_status;
+	atomic_t		rsp_status;
 	u32			num_cmds;
 };
 
@@ -1802,8 +1801,7 @@ struct qlcnic_hardware_ops {
 	int (*config_loopback) (struct qlcnic_adapter *, u8);
 	int (*clear_loopback) (struct qlcnic_adapter *, u8);
 	int (*config_promisc_mode) (struct qlcnic_adapter *, u32);
-	void (*change_l2_filter)(struct qlcnic_adapter *adapter, u64 *addr,
-				 u16 vlan, struct qlcnic_host_tx_ring *tx_ring);
+	void (*change_l2_filter) (struct qlcnic_adapter *, u64 *, u16);
 	int (*get_board_info) (struct qlcnic_adapter *);
 	void (*set_mac_filter_count) (struct qlcnic_adapter *);
 	void (*free_mac_list) (struct qlcnic_adapter *);
@@ -2045,10 +2043,9 @@ static inline int qlcnic_nic_set_promisc(struct qlcnic_adapter *adapter,
 }
 
 static inline void qlcnic_change_filter(struct qlcnic_adapter *adapter,
-					u64 *addr, u16 vlan,
-					struct qlcnic_host_tx_ring *tx_ring)
+					u64 *addr, u16 id)
 {
-	adapter->ahw->hw_ops->change_l2_filter(adapter, addr, vlan, tx_ring);
+	adapter->ahw->hw_ops->change_l2_filter(adapter, addr, id);
 }
 
 static inline int qlcnic_get_board_info(struct qlcnic_adapter *adapter)

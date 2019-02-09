@@ -74,7 +74,7 @@ extern __kernel_size_t __copy_user(void *to, const void *from,
 
 extern __kernel_size_t copy_to_user(void __user *to, const void *from,
 				    __kernel_size_t n);
-extern __kernel_size_t ___copy_from_user(void *to, const void __user *from,
+extern __kernel_size_t copy_from_user(void *to, const void __user *from,
 				      __kernel_size_t n);
 
 static inline __kernel_size_t __copy_to_user(void __user *to, const void *from,
@@ -87,15 +87,6 @@ static inline __kernel_size_t __copy_from_user(void *to,
 					       __kernel_size_t n)
 {
 	return __copy_user(to, (const void __force *)from, n);
-}
-static inline __kernel_size_t copy_from_user(void *to,
-					       const void __user *from,
-					       __kernel_size_t n)
-{
-	size_t res = ___copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
 }
 
 #define __copy_to_user_inatomic __copy_to_user

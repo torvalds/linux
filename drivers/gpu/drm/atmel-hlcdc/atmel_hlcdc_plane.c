@@ -316,27 +316,25 @@ atmel_hlcdc_plane_update_pos_and_size(struct atmel_hlcdc_plane *plane,
 			u32 *coeff_tab = heo_upscaling_ycoef;
 			u32 max_memsize;
 
-			if (state->crtc_h < state->src_h)
+			if (state->crtc_w < state->src_w)
 				coeff_tab = heo_downscaling_ycoef;
 			for (i = 0; i < ARRAY_SIZE(heo_upscaling_ycoef); i++)
 				atmel_hlcdc_layer_update_cfg(&plane->layer,
 							     33 + i,
 							     0xffffffff,
 							     coeff_tab[i]);
-			factor = ((8 * 256 * state->src_h) - (256 * 4)) /
-				 state->crtc_h;
+			factor = ((8 * 256 * state->src_w) - (256 * 4)) /
+				 state->crtc_w;
 			factor++;
-			max_memsize = ((factor * state->crtc_h) + (256 * 4)) /
+			max_memsize = ((factor * state->crtc_w) + (256 * 4)) /
 				      2048;
-			if (max_memsize > state->src_h)
+			if (max_memsize > state->src_w)
 				factor--;
 			factor_reg |= (factor << 16) | 0x80000000;
 		}
 
 		atmel_hlcdc_layer_update_cfg(&plane->layer, 13, 0xffffffff,
 					     factor_reg);
-	} else {
-		atmel_hlcdc_layer_update_cfg(&plane->layer, 13, 0xffffffff, 0);
 	}
 }
 
@@ -943,7 +941,7 @@ atmel_hlcdc_plane_create(struct drm_device *dev,
 	ret = drm_universal_plane_init(dev, &plane->base, 0,
 				       &layer_plane_funcs,
 				       desc->formats->formats,
-				       desc->formats->nformats, type, NULL);
+				       desc->formats->nformats, type);
 	if (ret)
 		return ERR_PTR(ret);
 

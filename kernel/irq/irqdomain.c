@@ -70,7 +70,7 @@ void irq_domain_free_fwnode(struct fwnode_handle *fwnode)
 {
 	struct irqchip_fwid *fwid;
 
-	if (WARN_ON(!is_fwnode_irqchip(fwnode)))
+	if (WARN_ON(fwnode->type != FWNODE_IRQCHIP))
 		return;
 
 	fwid = container_of(fwnode, struct irqchip_fwid, fwnode);
@@ -243,15 +243,14 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 EXPORT_SYMBOL_GPL(irq_domain_add_legacy);
 
 /**
- * irq_find_matching_fwspec() - Locates a domain for a given fwspec
- * @fwspec: FW specifier for an interrupt
+ * irq_find_matching_fwnode() - Locates a domain for a given fwnode
+ * @fwnode: FW descriptor of the interrupt controller
  * @bus_token: domain-specific data
  */
-struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
+struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
 					    enum irq_domain_bus_token bus_token)
 {
 	struct irq_domain *h, *found = NULL;
-	struct fwnode_handle *fwnode = fwspec->fwnode;
 	int rc;
 
 	/* We might want to match the legacy controller last since
@@ -265,9 +264,7 @@ struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
 	 */
 	mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(h, &irq_domain_list, link) {
-		if (h->ops->select && fwspec->param_count)
-			rc = h->ops->select(h, fwspec, bus_token);
-		else if (h->ops->match)
+		if (h->ops->match)
 			rc = h->ops->match(h, to_of_node(fwnode), bus_token);
 		else
 			rc = ((fwnode != NULL) && (h->fwnode == fwnode) &&
@@ -282,7 +279,7 @@ struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
 	mutex_unlock(&irq_domain_mutex);
 	return found;
 }
-EXPORT_SYMBOL_GPL(irq_find_matching_fwspec);
+EXPORT_SYMBOL_GPL(irq_find_matching_fwnode);
 
 /**
  * irq_set_default_host() - Set a "default" irq domain
@@ -576,13 +573,10 @@ unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
 	unsigned int type = IRQ_TYPE_NONE;
 	int virq;
 
-	if (fwspec->fwnode) {
-		domain = irq_find_matching_fwspec(fwspec, DOMAIN_BUS_WIRED);
-		if (!domain)
-			domain = irq_find_matching_fwspec(fwspec, DOMAIN_BUS_ANY);
-	} else {
+	if (fwspec->fwnode)
+		domain = irq_find_matching_fwnode(fwspec->fwnode, DOMAIN_BUS_ANY);
+	else
 		domain = irq_default_domain;
-	}
 
 	if (!domain) {
 		pr_warn("no irq domain found for %s !\n",

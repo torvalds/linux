@@ -455,14 +455,6 @@ static int tsc2007_probe(struct i2c_client *client,
 
 	tsc2007_stop(ts);
 
-	/* power down the chip (TSC2007_SETUP does not ACK on I2C) */
-	err = tsc2007_xfer(ts, PWRDOWN);
-	if (err < 0) {
-		dev_err(&client->dev,
-			"Failed to setup chip: %d\n", err);
-		return err;	/* usually, chip does not respond */
-	}
-
 	err = input_register_device(input_dev);
 	if (err) {
 		dev_err(&client->dev,

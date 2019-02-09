@@ -38,15 +38,6 @@ config ANDROID_LOW_MEMORY_KILLER
 	  scripts (/init.rc), and it defines priority values with minimum free memory size
 	  for each priority.
 
-config ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
-	bool "Android Low Memory Killer: detect oom_adj values"
-	depends on ANDROID_LOW_MEMORY_KILLER
-	default y
-	---help---
-	  Detect oom_adj values written to
-	  /sys/module/lowmemorykiller/parameters/adj and convert them
-	  to oom_score_adj values.
-
 config SYNC
 	bool "Synchronization framework"
 	default n
@@ -75,18 +66,7 @@ config SW_SYNC_USER
 	  *WARNING* improper use of this can result in deadlocking kernel
 	  drivers from userspace.
 
-config ANDROID_VSOC
-	tristate "Android Virtual SoC support"
-	default n
-	depends on PCI_MSI
-	---help---
-	  This option adds support for the Virtual SoC driver needed to boot
-	  a 'cuttlefish' Android image inside QEmu. The driver interacts with
-	  a QEmu ivshmem device. If built as a module, it will be called vsoc.
-
 source "drivers/staging/android/ion/Kconfig"
-
-source "drivers/staging/android/fiq_debugger/Kconfig"
 
 endif # if ANDROID
 

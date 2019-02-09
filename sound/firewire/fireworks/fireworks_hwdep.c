@@ -25,7 +25,6 @@ hwdep_read_resp_buf(struct snd_efw *efw, char __user *buf, long remained,
 {
 	unsigned int length, till_end, type;
 	struct snd_efw_transaction *t;
-	u8 *pull_ptr;
 	long count = 0;
 
 	if (remained < sizeof(type) + sizeof(struct snd_efw_transaction))
@@ -39,17 +38,8 @@ hwdep_read_resp_buf(struct snd_efw *efw, char __user *buf, long remained,
 	buf += sizeof(type);
 
 	/* write into buffer as many responses as possible */
-	spin_lock_irq(&efw->lock);
-
-	/*
-	 * When another task reaches here during this task's access to user
-	 * space, it picks up current position in buffer and can read the same
-	 * series of responses.
-	 */
-	pull_ptr = efw->pull_ptr;
-
-	while (efw->push_ptr != pull_ptr) {
-		t = (struct snd_efw_transaction *)(pull_ptr);
+	while (efw->resp_queues > 0) {
+		t = (struct snd_efw_transaction *)(efw->pull_ptr);
 		length = be32_to_cpu(t->length) * sizeof(__be32);
 
 		/* confirm enough space for this response */
@@ -59,38 +49,25 @@ hwdep_read_resp_buf(struct snd_efw *efw, char __user *buf, long remained,
 		/* copy from ring buffer to user buffer */
 		while (length > 0) {
 			till_end = snd_efw_resp_buf_size -
-				(unsigned int)(pull_ptr - efw->resp_buf);
+				(unsigned int)(efw->pull_ptr - efw->resp_buf);
 			till_end = min_t(unsigned int, length, till_end);
 
-			spin_unlock_irq(&efw->lock);
-
-			if (copy_to_user(buf, pull_ptr, till_end))
+			if (copy_to_user(buf, efw->pull_ptr, till_end))
 				return -EFAULT;
 
-			spin_lock_irq(&efw->lock);
-
-			pull_ptr += till_end;
-			if (pull_ptr >= efw->resp_buf + snd_efw_resp_buf_size)
-				pull_ptr -= snd_efw_resp_buf_size;
+			efw->pull_ptr += till_end;
+			if (efw->pull_ptr >= efw->resp_buf +
+					     snd_efw_resp_buf_size)
+				efw->pull_ptr -= snd_efw_resp_buf_size;
 
 			length -= till_end;
 			buf += till_end;
 			count += till_end;
 			remained -= till_end;
 		}
+
+		efw->resp_queues--;
 	}
-
-	/*
-	 * All of tasks can read from the buffer nearly simultaneously, but the
-	 * last position for each task is different depending on the length of
-	 * given buffer. Here, for simplicity, a position of buffer is set by
-	 * the latest task. It's better for a listening application to allow one
-	 * thread to read from the buffer. Unless, each task can read different
-	 * sequence of responses depending on variation of buffer length.
-	 */
-	efw->pull_ptr = pull_ptr;
-
-	spin_unlock_irq(&efw->lock);
 
 	return count;
 }
@@ -99,16 +76,13 @@ static long
 hwdep_read_locked(struct snd_efw *efw, char __user *buf, long count,
 		  loff_t *offset)
 {
-	union snd_firewire_event event = {
-		.lock_status.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS,
-	};
+	union snd_firewire_event event;
 
-	spin_lock_irq(&efw->lock);
+	memset(&event, 0, sizeof(event));
 
+	event.lock_status.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS;
 	event.lock_status.status = (efw->dev_lock_count > 0);
 	efw->dev_lock_changed = false;
-
-	spin_unlock_irq(&efw->lock);
 
 	count = min_t(long, count, sizeof(event.lock_status));
 
@@ -124,15 +98,10 @@ hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 {
 	struct snd_efw *efw = hwdep->private_data;
 	DEFINE_WAIT(wait);
-	bool dev_lock_changed;
-	bool queued;
 
 	spin_lock_irq(&efw->lock);
 
-	dev_lock_changed = efw->dev_lock_changed;
-	queued = efw->push_ptr != efw->pull_ptr;
-
-	while (!dev_lock_changed && !queued) {
+	while ((!efw->dev_lock_changed) && (efw->resp_queues == 0)) {
 		prepare_to_wait(&efw->hwdep_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock_irq(&efw->lock);
 		schedule();
@@ -140,16 +109,14 @@ hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		if (signal_pending(current))
 			return -ERESTARTSYS;
 		spin_lock_irq(&efw->lock);
-		dev_lock_changed = efw->dev_lock_changed;
-		queued = efw->push_ptr != efw->pull_ptr;
 	}
 
-	spin_unlock_irq(&efw->lock);
-
-	if (dev_lock_changed)
+	if (efw->dev_lock_changed)
 		count = hwdep_read_locked(efw, buf, count, offset);
-	else if (queued)
+	else if (efw->resp_queues > 0)
 		count = hwdep_read_resp_buf(efw, buf, count, offset);
+
+	spin_unlock_irq(&efw->lock);
 
 	return count;
 }
@@ -193,7 +160,7 @@ hwdep_poll(struct snd_hwdep *hwdep, struct file *file, poll_table *wait)
 	poll_wait(file, &efw->hwdep_wait, wait);
 
 	spin_lock_irq(&efw->lock);
-	if (efw->dev_lock_changed || efw->pull_ptr != efw->push_ptr)
+	if (efw->dev_lock_changed || (efw->resp_queues > 0))
 		events = POLLIN | POLLRDNORM;
 	else
 		events = 0;

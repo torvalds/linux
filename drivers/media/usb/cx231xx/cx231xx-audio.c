@@ -671,8 +671,10 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 
 	spin_lock_init(&adev->slock);
 	err = snd_pcm_new(card, "Cx231xx Audio", 0, 0, 1, &pcm);
-	if (err < 0)
-		goto err_free_card;
+	if (err < 0) {
+		snd_card_free(card);
+		return err;
+	}
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 			&snd_cx231xx_pcm_capture);
@@ -686,9 +688,10 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	INIT_WORK(&dev->wq_trigger, audio_trigger);
 
 	err = snd_card_register(card);
-	if (err < 0)
-		goto err_free_card;
-
+	if (err < 0) {
+		snd_card_free(card);
+		return err;
+	}
 	adev->sndcard = card;
 	adev->udev = dev->udev;
 
@@ -697,11 +700,6 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	    dev->udev->actconfig->interface[dev->current_pcb_config.
 					    hs_config_info[0].interface_info.
 					    audio_index + 1];
-
-	if (uif->altsetting[0].desc.bNumEndpoints < isoc_pipe + 1) {
-		err = -ENODEV;
-		goto err_free_card;
-	}
 
 	adev->end_point_addr =
 	    uif->altsetting[0].endpoint[isoc_pipe].desc.
@@ -712,20 +710,13 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 		"audio EndPoint Addr 0x%x, Alternate settings: %i\n",
 		adev->end_point_addr, adev->num_alt);
 	adev->alt_max_pkt_size = kmalloc(32 * adev->num_alt, GFP_KERNEL);
-	if (!adev->alt_max_pkt_size) {
-		err = -ENOMEM;
-		goto err_free_card;
-	}
+
+	if (adev->alt_max_pkt_size == NULL)
+		return -ENOMEM;
 
 	for (i = 0; i < adev->num_alt; i++) {
-		u16 tmp;
-
-		if (uif->altsetting[i].desc.bNumEndpoints < isoc_pipe + 1) {
-			err = -ENODEV;
-			goto err_free_pkt_size;
-		}
-
-		tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
+		u16 tmp =
+		    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
 				wMaxPacketSize);
 		adev->alt_max_pkt_size[i] =
 		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
@@ -735,13 +726,6 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	}
 
 	return 0;
-
-err_free_pkt_size:
-	kfree(adev->alt_max_pkt_size);
-err_free_card:
-	snd_card_free(card);
-
-	return err;
 }
 
 static int cx231xx_audio_fini(struct cx231xx *dev)

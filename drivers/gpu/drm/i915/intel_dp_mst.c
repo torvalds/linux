@@ -477,8 +477,6 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_device *dev = connector->dev;
 
-	intel_connector->unregister(intel_connector);
-
 	/* need to nuke the connector */
 	drm_modeset_lock_all(dev);
 	if (connector->state->crtc) {
@@ -492,7 +490,11 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 		WARN(ret, "Disabling mst crtc failed with %i\n", ret);
 	}
+	drm_modeset_unlock_all(dev);
 
+	intel_connector->unregister(intel_connector);
+
+	drm_modeset_lock_all(dev);
 	intel_connector_remove_from_fbdev(intel_connector);
 	drm_connector_cleanup(connector);
 	drm_modeset_unlock_all(dev);
@@ -534,7 +536,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	intel_mst->primary = intel_dig_port;
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_dp_mst_enc_funcs,
-			 DRM_MODE_ENCODER_DPMST, NULL);
+			 DRM_MODE_ENCODER_DPMST);
 
 	intel_encoder->type = INTEL_OUTPUT_DP_MST;
 	intel_encoder->crtc_mask = 0x7;

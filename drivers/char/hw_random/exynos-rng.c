@@ -89,7 +89,6 @@ static int exynos_read(struct hwrng *rng, void *buf,
 						struct exynos_rng, rng);
 	u32 *data = buf;
 	int retry = 100;
-	int ret = 4;
 
 	pm_runtime_get_sync(exynos_rng->dev);
 
@@ -98,27 +97,23 @@ static int exynos_read(struct hwrng *rng, void *buf,
 	while (!(exynos_rng_readl(exynos_rng,
 			EXYNOS_PRNG_STATUS_OFFSET) & PRNG_DONE) && --retry)
 		cpu_relax();
-	if (!retry) {
-		ret = -ETIMEDOUT;
-		goto out;
-	}
+	if (!retry)
+		return -ETIMEDOUT;
 
 	exynos_rng_writel(exynos_rng, PRNG_DONE, EXYNOS_PRNG_STATUS_OFFSET);
 
 	*data = exynos_rng_readl(exynos_rng, EXYNOS_PRNG_OUT1_OFFSET);
 
-out:
 	pm_runtime_mark_last_busy(exynos_rng->dev);
 	pm_runtime_put_sync_autosuspend(exynos_rng->dev);
 
-	return ret;
+	return 4;
 }
 
 static int exynos_rng_probe(struct platform_device *pdev)
 {
 	struct exynos_rng *exynos_rng;
 	struct resource *res;
-	int ret;
 
 	exynos_rng = devm_kzalloc(&pdev->dev, sizeof(struct exynos_rng),
 					GFP_KERNEL);
@@ -146,16 +141,11 @@ static int exynos_rng_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	ret = devm_hwrng_register(&pdev->dev, &exynos_rng->rng);
-	if (ret) {
-		pm_runtime_dont_use_autosuspend(&pdev->dev);
-		pm_runtime_disable(&pdev->dev);
-	}
-
-	return ret;
+	return devm_hwrng_register(&pdev->dev, &exynos_rng->rng);
 }
 
-static int __maybe_unused exynos_rng_runtime_suspend(struct device *dev)
+#ifdef CONFIG_PM
+static int exynos_rng_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos_rng *exynos_rng = platform_get_drvdata(pdev);
@@ -165,7 +155,7 @@ static int __maybe_unused exynos_rng_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused exynos_rng_runtime_resume(struct device *dev)
+static int exynos_rng_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos_rng *exynos_rng = platform_get_drvdata(pdev);
@@ -173,12 +163,12 @@ static int __maybe_unused exynos_rng_runtime_resume(struct device *dev)
 	return clk_prepare_enable(exynos_rng->clk);
 }
 
-static int __maybe_unused exynos_rng_suspend(struct device *dev)
+static int exynos_rng_suspend(struct device *dev)
 {
 	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused exynos_rng_resume(struct device *dev)
+static int exynos_rng_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos_rng *exynos_rng = platform_get_drvdata(pdev);
@@ -190,6 +180,7 @@ static int __maybe_unused exynos_rng_resume(struct device *dev)
 
 	return exynos_rng_configure(exynos_rng);
 }
+#endif
 
 static const struct dev_pm_ops exynos_rng_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(exynos_rng_suspend, exynos_rng_resume)

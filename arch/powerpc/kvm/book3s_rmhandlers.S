@@ -46,9 +46,6 @@
 
 #define FUNC(name)		name
 
-#define RFI_TO_KERNEL	RFI
-#define RFI_TO_GUEST	RFI
-
 .macro INTERRUPT_TRAMPOLINE intno
 
 .global kvmppc_trampoline_\intno
@@ -144,7 +141,7 @@ kvmppc_handler_skip_ins:
 	GET_SCRATCH0(r13)
 
 	/* And get back into the code */
-	RFI_TO_KERNEL
+	RFI
 #endif
 
 /*
@@ -167,6 +164,6 @@ _GLOBAL_TOC(kvmppc_entry_trampoline)
 	ori	r5, r5, MSR_EE
 	mtsrr0	r7
 	mtsrr1	r6
-	RFI_TO_KERNEL
+	RFI
 
 #include "book3s_segment.S"

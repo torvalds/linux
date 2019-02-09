@@ -54,7 +54,6 @@
  */
 struct rockchip_cpuclk {
 	struct clk_hw				hw;
-	struct clk_hw				*pll_hw;
 
 	struct clk_mux				cpu_mux;
 	const struct clk_ops			*cpu_mux_ops;
@@ -125,19 +124,8 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 					   struct clk_notifier_data *ndata)
 {
 	const struct rockchip_cpuclk_reg_data *reg_data = cpuclk->reg_data;
-	const struct rockchip_cpuclk_rate_table *rate;
 	unsigned long alt_prate, alt_div;
 	unsigned long flags;
-
-	/* check validity of the new rate */
-	rate = rockchip_get_cpuclk_settings(cpuclk, ndata->new_rate);
-	if (!rate) {
-		pr_err("%s: Invalid rate : %lu for cpuclk\n",
-		       __func__, ndata->new_rate);
-		return -EINVAL;
-	}
-
-	rockchip_boost_enable_recovery_sw_low(cpuclk->pll_hw);
 
 	alt_prate = clk_get_rate(cpuclk->alt_parent);
 
@@ -158,21 +146,25 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 			alt_div = reg_data->div_core_mask;
 		}
 
+		/*
+		 * Change parents and add dividers in a single transaction.
+		 *
+		 * NOTE: we do this in a single transaction so we're never
+		 * dividing the primary parent by the extra dividers that were
+		 * needed for the alt.
+		 */
 		pr_debug("%s: setting div %lu as alt-rate %lu > old-rate %lu\n",
 			 __func__, alt_div, alt_prate, ndata->old_rate);
 
-		/* add dividers */
 		writel(HIWORD_UPDATE(alt_div, reg_data->div_core_mask,
-				     reg_data->div_core_shift),
+					      reg_data->div_core_shift) |
+		       HIWORD_UPDATE(1, 1, reg_data->mux_core_shift),
 		       cpuclk->reg_base + reg_data->core_reg);
+	} else {
+		/* select alternate parent */
+		writel(HIWORD_UPDATE(1, 1, reg_data->mux_core_shift),
+			cpuclk->reg_base + reg_data->core_reg);
 	}
-	rockchip_boost_add_core_div(cpuclk->pll_hw, alt_prate);
-
-	/* select alternate parent */
-	writel(HIWORD_UPDATE(reg_data->mux_core_alt,
-			     reg_data->mux_core_mask,
-			     reg_data->mux_core_shift),
-	       cpuclk->reg_base + reg_data->core_reg);
 
 	spin_unlock_irqrestore(cpuclk->lock, flags);
 	return 0;
@@ -197,21 +189,20 @@ static int rockchip_cpuclk_post_rate_change(struct rockchip_cpuclk *cpuclk,
 	if (ndata->old_rate < ndata->new_rate)
 		rockchip_cpuclk_set_dividers(cpuclk, rate);
 
-	/* re-mux to primary parent  */
-	writel(HIWORD_UPDATE(reg_data->mux_core_main,
-			     reg_data->mux_core_mask,
-			     reg_data->mux_core_shift),
-	       cpuclk->reg_base + reg_data->core_reg);
+	/*
+	 * post-rate change event, re-mux to primary parent and remove dividers.
+	 *
+	 * NOTE: we do this in a single transaction so we're never dividing the
+	 * primary parent by the extra dividers that were needed for the alt.
+	 */
 
-	/* remove dividers */
 	writel(HIWORD_UPDATE(0, reg_data->div_core_mask,
-			     reg_data->div_core_shift),
+				reg_data->div_core_shift) |
+	       HIWORD_UPDATE(0, 1, reg_data->mux_core_shift),
 	       cpuclk->reg_base + reg_data->core_reg);
 
 	if (ndata->old_rate > ndata->new_rate)
 		rockchip_cpuclk_set_dividers(cpuclk, rate);
-
-	rockchip_boost_disable_recovery_sw(cpuclk->pll_hw);
 
 	spin_unlock_irqrestore(cpuclk->lock, flags);
 	return 0;
@@ -248,11 +239,11 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 {
 	struct rockchip_cpuclk *cpuclk;
 	struct clk_init_data init;
-	struct clk *clk, *cclk, *pll_clk;
+	struct clk *clk, *cclk;
 	int ret;
 
-	if (num_parents < 2) {
-		pr_err("%s: needs at least two parent clocks\n", __func__);
+	if (num_parents != 2) {
+		pr_err("%s: needs two parent clocks\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -261,7 +252,7 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
-	init.parent_names = &parent_names[reg_data->mux_core_main];
+	init.parent_names = &parent_names[0];
 	init.num_parents = 1;
 	init.ops = &rockchip_cpuclk_ops;
 
@@ -278,22 +269,11 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 	cpuclk->reg_data = reg_data;
 	cpuclk->clk_nb.notifier_call = rockchip_cpuclk_notifier_cb;
 	cpuclk->hw.init = &init;
-	if (reg_data->pll_name) {
-		pll_clk = __clk_lookup(reg_data->pll_name);
-		if (!pll_clk) {
-			pr_err("%s: could not lookup pll clock: (%s)\n",
-			       __func__, reg_data->pll_name);
-			ret = -EINVAL;
-			goto free_cpuclk;
-		}
-		cpuclk->pll_hw = __clk_get_hw(pll_clk);
-		rockchip_boost_init(cpuclk->pll_hw);
-	}
 
-	cpuclk->alt_parent = __clk_lookup(parent_names[reg_data->mux_core_alt]);
+	cpuclk->alt_parent = __clk_lookup(parent_names[1]);
 	if (!cpuclk->alt_parent) {
-		pr_err("%s: could not lookup alternate parent: (%d)\n",
-		       __func__, reg_data->mux_core_alt);
+		pr_err("%s: could not lookup alternate parent\n",
+		       __func__);
 		ret = -EINVAL;
 		goto free_cpuclk;
 	}
@@ -305,11 +285,10 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 		goto free_cpuclk;
 	}
 
-	clk = __clk_lookup(parent_names[reg_data->mux_core_main]);
+	clk = __clk_lookup(parent_names[0]);
 	if (!clk) {
-		pr_err("%s: could not lookup parent clock: (%d) %s\n",
-		       __func__, reg_data->mux_core_main,
-		       parent_names[reg_data->mux_core_main]);
+		pr_err("%s: could not lookup parent clock %s\n",
+		       __func__, parent_names[0]);
 		ret = -EINVAL;
 		goto free_cpuclk;
 	}
@@ -335,9 +314,9 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 	}
 
 	cclk = clk_register(NULL, &cpuclk->hw);
-	if (IS_ERR(cclk)) {
+	if (IS_ERR(clk)) {
 		pr_err("%s: could not register cpuclk %s\n", __func__,	name);
-		ret = PTR_ERR(cclk);
+		ret = PTR_ERR(clk);
 		goto free_rate_table;
 	}
 

@@ -126,28 +126,6 @@ static bool fq_flow_is_detached(const struct fq_flow *f)
 	return f->next == &detached;
 }
 
-static bool fq_flow_is_throttled(const struct fq_flow *f)
-{
-	return f->next == &throttled;
-}
-
-static void fq_flow_add_tail(struct fq_flow_head *head, struct fq_flow *flow)
-{
-	if (head->first)
-		head->last->next = flow;
-	else
-		head->first = flow;
-	head->last = flow;
-	flow->next = NULL;
-}
-
-static void fq_flow_unset_throttled(struct fq_sched_data *q, struct fq_flow *f)
-{
-	rb_erase(&f->rate_node, &q->delayed);
-	q->throttled_flows--;
-	fq_flow_add_tail(&q->old_flows, f);
-}
-
 static void fq_flow_set_throttled(struct fq_sched_data *q, struct fq_flow *f)
 {
 	struct rb_node **p = &q->delayed.rb_node, *parent = NULL;
@@ -175,6 +153,15 @@ static void fq_flow_set_throttled(struct fq_sched_data *q, struct fq_flow *f)
 
 static struct kmem_cache *fq_flow_cachep __read_mostly;
 
+static void fq_flow_add_tail(struct fq_flow_head *head, struct fq_flow *flow)
+{
+	if (head->first)
+		head->last->next = flow;
+	else
+		head->first = flow;
+	head->last = flow;
+	flow->next = NULL;
+}
 
 /* limit number of collected flows per round */
 #define FQ_GC_MAX 8
@@ -278,8 +265,6 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 				     f->socket_hash != sk->sk_hash)) {
 				f->credit = q->initial_quantum;
 				f->socket_hash = sk->sk_hash;
-				if (fq_flow_is_throttled(f))
-					fq_flow_unset_throttled(q, f);
 				f->time_next_packet = 0ULL;
 			}
 			return f;
@@ -434,7 +419,9 @@ static void fq_check_throttled(struct fq_sched_data *q, u64 now)
 			q->time_next_delayed_flow = f->time_next_packet;
 			break;
 		}
-		fq_flow_unset_throttled(q, f);
+		rb_erase(p, &q->delayed);
+		q->throttled_flows--;
+		fq_flow_add_tail(&q->old_flows, f);
 	}
 }
 
@@ -675,7 +662,6 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 	struct fq_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_FQ_MAX + 1];
 	int err, drop_count = 0;
-	unsigned drop_len = 0;
 	u32 fq_log;
 
 	if (!opt)
@@ -750,11 +736,10 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 
 		if (!skb)
 			break;
-		drop_len += qdisc_pkt_len(skb);
 		kfree_skb(skb);
 		drop_count++;
 	}
-	qdisc_tree_reduce_backlog(sch, drop_count, drop_len);
+	qdisc_tree_decrease_qlen(sch, drop_count);
 
 	sch_tree_unlock(sch);
 	return err;

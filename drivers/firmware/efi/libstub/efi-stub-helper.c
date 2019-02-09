@@ -41,13 +41,6 @@ static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 #define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
 #endif
 
-static int __section(.data) __nokaslr;
-
-int __pure nokaslr(void)
-{
-	return __nokaslr;
-}
-
 struct file_info {
 	efi_file_handle_t *handle;
 	u64 size;
@@ -320,13 +313,9 @@ void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
  * environments, first in the early boot environment of the EFI boot
  * stub, and subsequently during the kernel boot.
  */
-efi_status_t efi_parse_options(char const *cmdline)
+efi_status_t efi_parse_options(char *cmdline)
 {
 	char *str;
-
-	str = strstr(cmdline, "nokaslr");
-	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
-		__nokaslr = 1;
 
 	/*
 	 * If no EFI parameters were specified on the cmdline we've got
@@ -660,10 +649,6 @@ static u8 *efi_utf16_to_utf8(u8 *dst, const u16 *src, int n)
 	return dst;
 }
 
-#ifndef MAX_CMDLINE_ADDRESS
-#define MAX_CMDLINE_ADDRESS	ULONG_MAX
-#endif
-
 /*
  * Convert the unicode UEFI command line to ASCII to pass to kernel.
  * Size of memory allocated return in *cmd_line_len.
@@ -699,8 +684,7 @@ char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
 
 	options_bytes++;	/* NUL termination */
 
-	status = efi_high_alloc(sys_table_arg, options_bytes, 0,
-				&cmdline_addr, MAX_CMDLINE_ADDRESS);
+	status = efi_low_alloc(sys_table_arg, options_bytes, 0, &cmdline_addr);
 	if (status != EFI_SUCCESS)
 		return NULL;
 

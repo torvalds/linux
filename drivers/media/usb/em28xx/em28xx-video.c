@@ -1149,8 +1149,6 @@ static void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv)
 {
 	struct em28xx *dev = priv;
 
-	dev->v4l2->field_count = 0;
-
 	/*
 	 * In the case of non-AC97 volume controls, we still need
 	 * to do some setups at em28xx, in order to mute/unmute
@@ -1290,9 +1288,9 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 	if (!fmt) {
-		fmt = &format[0];
-		em28xx_videodbg("Fourcc format (%08x) invalid. Using default (%08x).\n",
-				f->fmt.pix.pixelformat, fmt->fourcc);
+		em28xx_videodbg("Fourcc format (%08x) invalid.\n",
+				f->fmt.pix.pixelformat);
+		return -EINVAL;
 	}
 
 	if (dev->board.is_em2800) {

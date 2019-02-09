@@ -103,27 +103,25 @@ int acpi_map_pxm_to_node(int pxm)
  */
 int acpi_map_pxm_to_online_node(int pxm)
 {
-	int node, min_node;
+	int node, n, dist, min_dist;
 
 	node = acpi_map_pxm_to_node(pxm);
 
 	if (node == NUMA_NO_NODE)
 		node = 0;
 
-	min_node = node;
 	if (!node_online(node)) {
-		int min_dist = INT_MAX, dist, n;
-
+		min_dist = INT_MAX;
 		for_each_online_node(n) {
 			dist = node_distance(node, n);
 			if (dist < min_dist) {
 				min_dist = dist;
-				min_node = n;
+				node = n;
 			}
 		}
 	}
 
-	return min_node;
+	return node;
 }
 EXPORT_SYMBOL(acpi_map_pxm_to_online_node);
 
@@ -329,18 +327,10 @@ int __init acpi_numa_init(void)
 
 	/* SRAT: Static Resource Affinity Table */
 	if (!acpi_table_parse(ACPI_SIG_SRAT, acpi_parse_srat)) {
-		struct acpi_subtable_proc srat_proc[2];
-
-		memset(srat_proc, 0, sizeof(srat_proc));
-		srat_proc[0].id = ACPI_SRAT_TYPE_CPU_AFFINITY;
-		srat_proc[0].handler = acpi_parse_processor_affinity;
-		srat_proc[1].id = ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY;
-		srat_proc[1].handler = acpi_parse_x2apic_affinity;
-
-		acpi_table_parse_entries_array(ACPI_SIG_SRAT,
-					sizeof(struct acpi_table_srat),
-					srat_proc, ARRAY_SIZE(srat_proc), 0);
-
+		acpi_table_parse_srat(ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY,
+				     acpi_parse_x2apic_affinity, 0);
+		acpi_table_parse_srat(ACPI_SRAT_TYPE_CPU_AFFINITY,
+				     acpi_parse_processor_affinity, 0);
 		cnt = acpi_table_parse_srat(ACPI_SRAT_TYPE_MEMORY_AFFINITY,
 					    acpi_parse_memory_affinity,
 					    NR_NODE_MEMBLKS);

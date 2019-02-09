@@ -45,12 +45,12 @@ int test_body(void)
 	printf("Check DSCR TM context switch: ");
 	fflush(stdout);
 	for (;;) {
+		rv = 1;
 		asm __volatile__ (
 			/* set a known value into the DSCR */
 			"ld      3, %[dscr1];"
 			"mtspr   %[sprn_dscr], 3;"
 
-			"li      %[rv], 1;"
 			/* start and suspend a transaction */
 			TBEGIN
 			"beq     1f;"

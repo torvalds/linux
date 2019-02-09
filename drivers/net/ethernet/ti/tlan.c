@@ -610,8 +610,8 @@ err_out_regions:
 #ifdef CONFIG_PCI
 	if (pdev)
 		pci_release_regions(pdev);
-err_out:
 #endif
+err_out:
 	if (pdev)
 		pci_disable_device(pdev);
 	return rc;

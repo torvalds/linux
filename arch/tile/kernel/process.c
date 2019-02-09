@@ -73,9 +73,8 @@ void arch_cpu_idle(void)
 /*
  * Release a thread_info structure
  */
-void arch_release_thread_stack(unsigned long *stack)
+void arch_release_thread_info(struct thread_info *info)
 {
-	struct thread_info *info = (void *)stack;
 	struct single_step_state *step_state = info->step_state;
 
 	if (step_state) {
@@ -539,7 +538,7 @@ void flush_thread(void)
 /*
  * Free current thread data structures etc..
  */
-void exit_thread(struct task_struct *tsk)
+void exit_thread(void)
 {
 #ifdef CONFIG_HARDWALL
 	/*
@@ -548,7 +547,7 @@ void exit_thread(struct task_struct *tsk)
 	 * the last reference to a hardwall fd, it would already have
 	 * been released and deactivated at this point.)
 	 */
-	hardwall_deactivate_all(tsk);
+	hardwall_deactivate_all(current);
 #endif
 }
 

@@ -72,7 +72,6 @@ SECTIONS
 		SCHED_TEXT
 		LOCK_TEXT
 		IRQENTRY_TEXT
-		SOFTIRQENTRY_TEXT
 		KPROBES_TEXT
 		*(.fixup)
 		*(.gnu.warning)

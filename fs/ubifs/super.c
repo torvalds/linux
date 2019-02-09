@@ -1728,11 +1728,8 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 
 	dbg_save_space_info(c);
 
-	for (i = 0; i < c->jhead_cnt; i++) {
-		err = ubifs_wbuf_sync(&c->jheads[i].wbuf);
-		if (err)
-			ubifs_ro_mode(c, err);
-	}
+	for (i = 0; i < c->jhead_cnt; i++)
+		ubifs_wbuf_sync(&c->jheads[i].wbuf);
 
 	c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
 	c->mst_node->flags |= cpu_to_le32(UBIFS_MST_NO_ORPHS);
@@ -1798,11 +1795,8 @@ static void ubifs_put_super(struct super_block *sb)
 			int err;
 
 			/* Synchronize write-buffers */
-			for (i = 0; i < c->jhead_cnt; i++) {
-				err = ubifs_wbuf_sync(&c->jheads[i].wbuf);
-				if (err)
-					ubifs_ro_mode(c, err);
-			}
+			for (i = 0; i < c->jhead_cnt; i++)
+				ubifs_wbuf_sync(&c->jheads[i].wbuf);
 
 			/*
 			 * We are being cleanly unmounted which means the
@@ -1917,9 +1911,6 @@ static struct ubi_volume_desc *open_ubi(const char *name, int mode)
 	struct ubi_volume_desc *ubi;
 	int dev, vol;
 	char *endptr;
-
-	if (!name || !*name)
-		return ERR_PTR(-EINVAL);
 
 	/* First, try to open using the device node path method */
 	ubi = ubi_open_volume_path(name, mode);

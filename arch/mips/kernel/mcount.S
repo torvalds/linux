@@ -116,20 +116,10 @@ ftrace_stub:
 NESTED(_mcount, PT_SIZE, ra)
 	PTR_LA	t1, ftrace_stub
 	PTR_L	t2, ftrace_trace_function /* Prepare t2 for (1) */
-	beq	t1, t2, fgraph_trace
+	bne	t1, t2, static_trace
 	 nop
 
-	MCOUNT_SAVE_REGS
-
-	move	a0, ra		/* arg1: self return address */
-	jalr	t2		/* (1) call *ftrace_trace_function */
-	 move	a1, AT		/* arg2: parent's return address */
-
-	MCOUNT_RESTORE_REGS
-
-fgraph_trace:
 #ifdef	CONFIG_FUNCTION_GRAPH_TRACER
-	PTR_LA	t1, ftrace_stub
 	PTR_L	t3, ftrace_graph_return
 	bne	t1, t3, ftrace_graph_caller
 	 nop
@@ -138,11 +128,24 @@ fgraph_trace:
 	bne	t1, t3, ftrace_graph_caller
 	 nop
 #endif
+	b	ftrace_stub
+#ifdef CONFIG_32BIT
+	 addiu sp, sp, 8
+#else
+	 nop
+#endif
 
+static_trace:
+	MCOUNT_SAVE_REGS
+
+	move	a0, ra		/* arg1: self return address */
+	jalr	t2		/* (1) call *ftrace_trace_function */
+	 move	a1, AT		/* arg2: parent's return address */
+
+	MCOUNT_RESTORE_REGS
 #ifdef CONFIG_32BIT
 	addiu sp, sp, 8
 #endif
-
 	.globl ftrace_stub
 ftrace_stub:
 	RETURN_BACK

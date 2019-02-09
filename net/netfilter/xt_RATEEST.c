@@ -40,30 +40,22 @@ static void xt_rateest_hash_insert(struct xt_rateest *est)
 	hlist_add_head(&est->list, &rateest_hash[h]);
 }
 
-static struct xt_rateest *__xt_rateest_lookup(const char *name)
+struct xt_rateest *xt_rateest_lookup(const char *name)
 {
 	struct xt_rateest *est;
 	unsigned int h;
 
 	h = xt_rateest_hash(name);
+	mutex_lock(&xt_rateest_mutex);
 	hlist_for_each_entry(est, &rateest_hash[h], list) {
 		if (strcmp(est->name, name) == 0) {
 			est->refcnt++;
+			mutex_unlock(&xt_rateest_mutex);
 			return est;
 		}
 	}
-
-	return NULL;
-}
-
-struct xt_rateest *xt_rateest_lookup(const char *name)
-{
-	struct xt_rateest *est;
-
-	mutex_lock(&xt_rateest_mutex);
-	est = __xt_rateest_lookup(name);
 	mutex_unlock(&xt_rateest_mutex);
-	return est;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(xt_rateest_lookup);
 
@@ -112,10 +104,8 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 		rnd_inited = true;
 	}
 
-	mutex_lock(&xt_rateest_mutex);
-	est = __xt_rateest_lookup(info->name);
+	est = xt_rateest_lookup(info->name);
 	if (est) {
-		mutex_unlock(&xt_rateest_mutex);
 		/*
 		 * If estimator parameters are specified, they must match the
 		 * existing estimator.
@@ -153,13 +143,11 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 
 	info->est = est;
 	xt_rateest_hash_insert(est);
-	mutex_unlock(&xt_rateest_mutex);
 	return 0;
 
 err2:
 	kfree(est);
 err1:
-	mutex_unlock(&xt_rateest_mutex);
 	return ret;
 }
 

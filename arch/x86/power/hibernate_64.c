@@ -78,7 +78,7 @@ static int set_up_temporary_mappings(void)
 	return 0;
 }
 
-asmlinkage int swsusp_arch_resume(void)
+int swsusp_arch_resume(void)
 {
 	int error;
 

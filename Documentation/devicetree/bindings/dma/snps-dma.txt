@@ -58,6 +58,6 @@ Example:
 		interrupts = <0 35 0x4>;
 		status = "disabled";
 		dmas = <&dmahost 12 0 1>,
-			<&dmahost 13 1 0>;
+			<&dmahost 13 0 1 0>;
 		dma-names = "rx", "rx";
 	};

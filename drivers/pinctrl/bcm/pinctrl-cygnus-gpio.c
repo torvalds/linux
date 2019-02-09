@@ -382,7 +382,7 @@ static const struct pinctrl_ops cygnus_pctrl_ops = {
 	.get_groups_count = cygnus_get_groups_count,
 	.get_group_name = cygnus_get_group_name,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_free_map,
+	.dt_free_map = pinctrl_utils_dt_free_map,
 };
 
 static int cygnus_gpio_set_pull(struct cygnus_gpio *chip, unsigned gpio,
@@ -720,7 +720,7 @@ static int cygnus_gpio_probe(struct platform_device *pdev)
 	gc->ngpio = ngpios;
 	chip->num_banks = (ngpios + NGPIOS_PER_BANK - 1) / NGPIOS_PER_BANK;
 	gc->label = dev_name(dev);
-	gc->parent = dev;
+	gc->dev = dev;
 	gc->of_node = dev->of_node;
 	gc->request = cygnus_gpio_request;
 	gc->free = cygnus_gpio_free;

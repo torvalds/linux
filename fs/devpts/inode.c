@@ -128,7 +128,6 @@ static const match_table_t tokens = {
 struct pts_fs_info {
 	struct ida allocated_ptys;
 	struct pts_mount_opts mount_opts;
-	struct super_block *sb;
 	struct dentry *ptmx_dentry;
 };
 
@@ -359,7 +358,7 @@ static const struct super_operations devpts_sops = {
 	.show_options	= devpts_show_options,
 };
 
-static void *new_pts_fs_info(struct super_block *sb)
+static void *new_pts_fs_info(void)
 {
 	struct pts_fs_info *fsi;
 
@@ -370,7 +369,6 @@ static void *new_pts_fs_info(struct super_block *sb)
 	ida_init(&fsi->allocated_ptys);
 	fsi->mount_opts.mode = DEVPTS_DEFAULT_MODE;
 	fsi->mount_opts.ptmxmode = DEVPTS_DEFAULT_PTMX_MODE;
-	fsi->sb = sb;
 
 	return fsi;
 }
@@ -386,7 +384,7 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	s->s_op = &devpts_sops;
 	s->s_time_gran = 1;
 
-	s->s_fs_info = new_pts_fs_info(s);
+	s->s_fs_info = new_pts_fs_info();
 	if (!s->s_fs_info)
 		goto fail;
 
@@ -526,14 +524,17 @@ static struct file_system_type devpts_fs_type = {
  * to the System V naming convention
  */
 
-int devpts_new_index(struct pts_fs_info *fsi)
+int devpts_new_index(struct inode *ptmx_inode)
 {
+	struct super_block *sb = pts_sb_from_inode(ptmx_inode);
+	struct pts_fs_info *fsi;
 	int index;
 	int ida_ret;
 
-	if (!fsi)
+	if (!sb)
 		return -ENODEV;
 
+	fsi = DEVPTS_SB(sb);
 retry:
 	if (!ida_pre_get(&fsi->allocated_ptys, GFP_KERNEL))
 		return -ENOMEM;
@@ -563,36 +564,15 @@ retry:
 	return index;
 }
 
-void devpts_kill_index(struct pts_fs_info *fsi, int idx)
+void devpts_kill_index(struct inode *ptmx_inode, int idx)
 {
+	struct super_block *sb = pts_sb_from_inode(ptmx_inode);
+	struct pts_fs_info *fsi = DEVPTS_SB(sb);
+
 	mutex_lock(&allocated_ptys_lock);
 	ida_remove(&fsi->allocated_ptys, idx);
 	pty_count--;
 	mutex_unlock(&allocated_ptys_lock);
-}
-
-/*
- * pty code needs to hold extra references in case of last /dev/tty close
- */
-struct pts_fs_info *devpts_get_ref(struct inode *ptmx_inode, struct file *file)
-{
-	struct super_block *sb;
-	struct pts_fs_info *fsi;
-
-	sb = pts_sb_from_inode(ptmx_inode);
-	if (!sb)
-		return NULL;
-	fsi = DEVPTS_SB(sb);
-	if (!fsi)
-		return NULL;
-
-	atomic_inc(&sb->s_active);
-	return fsi;
-}
-
-void devpts_put_ref(struct pts_fs_info *fsi)
-{
-	deactivate_super(fsi->sb);
 }
 
 /**
@@ -604,21 +584,22 @@ void devpts_put_ref(struct pts_fs_info *fsi)
  *
  * The created inode is returned. Remove it from /dev/pts/ by devpts_pty_kill.
  */
-struct inode *devpts_pty_new(struct pts_fs_info *fsi, dev_t device, int index,
+struct inode *devpts_pty_new(struct inode *ptmx_inode, dev_t device, int index,
 		void *priv)
 {
 	struct dentry *dentry;
-	struct super_block *sb;
+	struct super_block *sb = pts_sb_from_inode(ptmx_inode);
 	struct inode *inode;
 	struct dentry *root;
+	struct pts_fs_info *fsi;
 	struct pts_mount_opts *opts;
 	char s[12];
 
-	if (!fsi)
+	if (!sb)
 		return ERR_PTR(-ENODEV);
 
-	sb = fsi->sb;
 	root = sb->s_root;
+	fsi = DEVPTS_SB(sb);
 	opts = &fsi->mount_opts;
 
 	inode = new_inode(sb);

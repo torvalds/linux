@@ -31,7 +31,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
-#include <inttypes.h>
 
 #include <libfdt_env.h>
 #include <fdt.h>
@@ -44,6 +43,7 @@
 #define debug(...)
 #endif
 
+
 #define DEFAULT_FDT_VERSION	17
 
 /*
@@ -53,11 +53,7 @@ extern int quiet;		/* Level of quietness */
 extern int reservenum;		/* Number of memory reservation slots */
 extern int minsize;		/* Minimum blob size */
 extern int padsize;		/* Additional padding to blob */
-extern int alignsize;		/* Additional padding to blob accroding to the alignsize */
 extern int phandle_format;	/* Use linux,phandle or phandle properties */
-extern int generate_symbols;	/* generate symbols for nodes with labels */
-extern int generate_fixups;	/* generate fixups */
-extern int auto_label_aliases;	/* auto generate labels -> aliases */
 
 #define PHANDLE_LEGACY	0x1
 #define PHANDLE_EPAPR	0x2
@@ -114,7 +110,7 @@ struct data data_insert_at_marker(struct data d, struct marker *m,
 struct data data_merge(struct data d1, struct data d2);
 struct data data_append_cell(struct data d, cell_t word);
 struct data data_append_integer(struct data d, uint64_t word, int bits);
-struct data data_append_re(struct data d, uint64_t address, uint64_t size);
+struct data data_append_re(struct data d, const struct fdt_reserve_entry *re);
 struct data data_append_addr(struct data d, uint64_t addr);
 struct data data_append_byte(struct data d, uint8_t byte);
 struct data data_append_zeroes(struct data d, int len);
@@ -134,10 +130,6 @@ struct label {
 	bool deleted;
 	char *label;
 	struct label *next;
-};
-
-struct bus_type {
-	const char *name;
 };
 
 struct property {
@@ -166,7 +158,6 @@ struct node {
 	int addr_cells, size_cells;
 
 	struct label *labels;
-	const struct bus_type *bus;
 };
 
 #define for_each_label_withdel(l0, l) \
@@ -203,7 +194,6 @@ struct node *build_node_delete(void);
 struct node *name_node(struct node *node, char *name);
 struct node *chain_node(struct node *first, struct node *list);
 struct node *merge_nodes(struct node *old_node, struct node *new_node);
-void add_orphan_node(struct node *old_node, struct node *new_node, char *ref);
 
 void add_property(struct node *node, struct property *prop);
 void delete_property_by_name(struct node *node, char *name);
@@ -211,13 +201,10 @@ void delete_property(struct property *prop);
 void add_child(struct node *parent, struct node *child);
 void delete_node_by_name(struct node *parent, char *name);
 void delete_node(struct node *node);
-void append_to_property(struct node *node,
-			char *name, const void *data, int len);
 
 const char *get_unitname(struct node *node);
 struct property *get_property(struct node *node, const char *propname);
 cell_t propval_cell(struct property *prop);
-cell_t propval_cell_n(struct property *prop, int n);
 struct property *get_property_by_label(struct node *tree, const char *label,
 				       struct node **node);
 struct marker *get_marker_label(struct node *tree, const char *label,
@@ -234,7 +221,7 @@ uint32_t guess_boot_cpuid(struct node *tree);
 /* Boot info (tree plus memreserve information */
 
 struct reserve_info {
-	uint64_t address, size;
+	struct fdt_reserve_entry re;
 
 	struct reserve_info *next;
 
@@ -248,45 +235,35 @@ struct reserve_info *add_reserve_entry(struct reserve_info *list,
 				       struct reserve_info *new);
 
 
-struct dt_info {
-	unsigned int dtsflags;
+struct boot_info {
 	struct reserve_info *reservelist;
-	uint32_t boot_cpuid_phys;
 	struct node *dt;		/* the device tree */
-	const char *outname;		/* filename being written to, "-" for stdout */
+	uint32_t boot_cpuid_phys;
 };
 
-/* DTS version flags definitions */
-#define DTSF_V1		0x0001	/* /dts-v1/ */
-#define DTSF_PLUGIN	0x0002	/* /plugin/ */
-
-struct dt_info *build_dt_info(unsigned int dtsflags,
-			      struct reserve_info *reservelist,
-			      struct node *tree, uint32_t boot_cpuid_phys);
-void sort_tree(struct dt_info *dti);
-void generate_label_tree(struct dt_info *dti, char *name, bool allocph);
-void generate_fixups_tree(struct dt_info *dti, char *name);
-void generate_local_fixups_tree(struct dt_info *dti, char *name);
+struct boot_info *build_boot_info(struct reserve_info *reservelist,
+				  struct node *tree, uint32_t boot_cpuid_phys);
+void sort_tree(struct boot_info *bi);
 
 /* Checks */
 
 void parse_checks_option(bool warn, bool error, const char *arg);
-void process_checks(bool force, struct dt_info *dti);
+void process_checks(bool force, struct boot_info *bi);
 
 /* Flattened trees */
 
-void dt_to_blob(FILE *f, struct dt_info *dti, int version);
-void dt_to_asm(FILE *f, struct dt_info *dti, int version);
+void dt_to_blob(FILE *f, struct boot_info *bi, int version);
+void dt_to_asm(FILE *f, struct boot_info *bi, int version);
 
-struct dt_info *dt_from_blob(const char *fname);
+struct boot_info *dt_from_blob(const char *fname);
 
 /* Tree source */
 
-void dt_to_source(FILE *f, struct dt_info *dti);
-struct dt_info *dt_from_source(const char *f);
+void dt_to_source(FILE *f, struct boot_info *bi);
+struct boot_info *dt_from_source(const char *f);
 
 /* FS trees */
 
-struct dt_info *dt_from_fs(const char *dirname);
+struct boot_info *dt_from_fs(const char *dirname);
 
 #endif /* _DTC_H */

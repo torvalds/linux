@@ -56,19 +56,21 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
 	struct sanyo_dec *data = &dev->raw->sanyo;
 	u32 scancode;
-	u16 address;
-	u8 command, not_command;
+	u8 address, command, not_command;
+
+	if (!(dev->enabled_protocols & RC_BIT_SANYO))
+		return 0;
 
 	if (!is_timing_event(ev)) {
 		if (ev.reset) {
-			dev_dbg(&dev->dev, "SANYO event reset received. reset to state 0\n");
+			IR_dprintk(1, "SANYO event reset received. reset to state 0\n");
 			data->state = STATE_INACTIVE;
 		}
 		return 0;
 	}
 
-	dev_dbg(&dev->dev, "SANYO decode started at state %d (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	IR_dprintk(2, "SANYO decode started at state %d (%uus %s)\n",
+		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -110,9 +112,13 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			break;
 
 		if (!data->count && geq_margin(ev.duration, SANYO_REPEAT_SPACE, SANYO_UNIT / 2)) {
-			rc_repeat(dev);
-			dev_dbg(&dev->dev, "SANYO repeat last key\n");
-			data->state = STATE_INACTIVE;
+			if (!dev->keypressed) {
+				IR_dprintk(1, "SANYO discarding last key repeat: event after key up\n");
+			} else {
+				rc_repeat(dev);
+				IR_dprintk(1, "SANYO repeat last key\n");
+				data->state = STATE_INACTIVE;
+			}
 			return 0;
 		}
 
@@ -153,73 +159,28 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		not_command = bitrev8((data->bits >>  0) & 0xff);
 
 		if ((command ^ not_command) != 0xff) {
-			dev_dbg(&dev->dev, "SANYO checksum error: received 0x%08llx\n",
-				data->bits);
+			IR_dprintk(1, "SANYO checksum error: received 0x%08Lx\n",
+				   data->bits);
 			data->state = STATE_INACTIVE;
 			return 0;
 		}
 
 		scancode = address << 8 | command;
-		dev_dbg(&dev->dev, "SANYO scancode: 0x%06x\n", scancode);
-		rc_keydown(dev, RC_PROTO_SANYO, scancode, 0);
+		IR_dprintk(1, "SANYO scancode: 0x%06x\n", scancode);
+		rc_keydown(dev, RC_TYPE_SANYO, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
 
-	dev_dbg(&dev->dev, "SANYO decode failed at count %d state %d (%uus %s)\n",
-		data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	IR_dprintk(1, "SANYO decode failed at count %d state %d (%uus %s)\n",
+		   data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
 
-static const struct ir_raw_timings_pd ir_sanyo_timings = {
-	.header_pulse  = SANYO_HEADER_PULSE,
-	.header_space  = SANYO_HEADER_SPACE,
-	.bit_pulse     = SANYO_BIT_PULSE,
-	.bit_space[0]  = SANYO_BIT_0_SPACE,
-	.bit_space[1]  = SANYO_BIT_1_SPACE,
-	.trailer_pulse = SANYO_TRAILER_PULSE,
-	.trailer_space = SANYO_TRAILER_SPACE,
-	.msb_first     = 1,
-};
-
-/**
- * ir_sanyo_encode() - Encode a scancode as a stream of raw events
- *
- * @protocol:	protocol to encode
- * @scancode:	scancode to encode
- * @events:	array of raw ir events to write into
- * @max:	maximum size of @events
- *
- * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
- *		encoding. In this case all @max events will have been written.
- */
-static int ir_sanyo_encode(enum rc_proto protocol, u32 scancode,
-			   struct ir_raw_event *events, unsigned int max)
-{
-	struct ir_raw_event *e = events;
-	int ret;
-	u64 raw;
-
-	raw = ((u64)(bitrev16(scancode >> 8) & 0xfff8) << (8 + 8 + 13 - 3)) |
-	      ((u64)(bitrev16(~scancode >> 8) & 0xfff8) << (8 + 8 +  0 - 3)) |
-	      ((bitrev8(scancode) & 0xff) << 8) |
-	      (bitrev8(~scancode) & 0xff);
-
-	ret = ir_raw_gen_pd(&e, max, &ir_sanyo_timings, SANYO_NBITS, raw);
-	if (ret < 0)
-		return ret;
-
-	return e - events;
-}
-
 static struct ir_raw_handler sanyo_handler = {
-	.protocols	= RC_PROTO_BIT_SANYO,
+	.protocols	= RC_BIT_SANYO,
 	.decode		= ir_sanyo_decode,
-	.encode		= ir_sanyo_encode,
-	.carrier	= 38000,
-	.min_timeout	= SANYO_TRAILER_SPACE,
 };
 
 static int __init ir_sanyo_decode_init(void)

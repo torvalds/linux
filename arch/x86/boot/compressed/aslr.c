@@ -1,6 +1,5 @@
 #include "misc.h"
 
-#include <asm/asm.h>
 #include <asm/msr.h>
 #include <asm/archrandom.h>
 #include <asm/e820.h>
@@ -95,7 +94,7 @@ static unsigned long get_random_long(void)
 	}
 
 	/* Circular multiply for better bit diffusion */
-	asm(_ASM_MUL "%3"
+	asm("mul %3"
 	    : "=a" (random), "=d" (raw)
 	    : "a" (random), "rm" (mix_const));
 	random += raw;

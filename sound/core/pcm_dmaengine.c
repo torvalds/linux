@@ -33,10 +33,6 @@ struct dmaengine_pcm_runtime_data {
 	dma_cookie_t cookie;
 
 	unsigned int pos;
-#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
-	unsigned int vpos;
-	unsigned int vresidue_bytes;
-#endif
 };
 
 static inline struct dmaengine_pcm_runtime_data *substream_to_prtd(
@@ -139,15 +135,6 @@ static void dmaengine_pcm_dma_complete(void *arg)
 	struct snd_pcm_substream *substream = arg;
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
-#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
-	if (snd_pcm_vad_attached(substream) &&
-	    substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		void *buf = substream->runtime->dma_area + prtd->pos;
-
-		snd_pcm_vad_preprocess(substream, buf,
-				       substream->runtime->period_size);
-	}
-#endif
 	prtd->pos += snd_pcm_lib_period_bytes(substream);
 	if (prtd->pos >= snd_pcm_lib_buffer_bytes(substream))
 		prtd->pos = 0;
@@ -184,88 +171,6 @@ static int dmaengine_pcm_prepare_and_submit(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
-static void dmaengine_pcm_vad_dma_complete(void *arg)
-{
-	struct snd_pcm_substream *substream = arg;
-	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
-	unsigned int pos, size;
-	void *buf;
-
-	if (snd_pcm_vad_attached(substream) &&
-	    substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		buf = substream->runtime->dma_area + prtd->vpos;
-		pos = prtd->vpos + snd_pcm_lib_period_bytes(substream);
-
-		if (pos <= snd_pcm_lib_buffer_bytes(substream))
-			size = substream->runtime->period_size;
-		else
-			size = bytes_to_frames(substream->runtime,
-					       prtd->vresidue_bytes);
-		snd_pcm_vad_preprocess(substream, buf, size);
-	}
-	prtd->vpos += snd_pcm_lib_period_bytes(substream);
-	if (prtd->vpos >= snd_pcm_lib_buffer_bytes(substream))
-		prtd->vpos = 0;
-	snd_pcm_period_elapsed(substream);
-}
-
-static int dmaengine_pcm_prepare_single_and_submit(struct snd_pcm_substream *substream)
-{
-	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
-	struct dma_chan *chan = prtd->dma_chan;
-	struct dma_async_tx_descriptor *desc;
-	enum dma_transfer_direction direction;
-	unsigned long flags = DMA_CTRL_ACK;
-	snd_pcm_uframes_t avail;
-	dma_addr_t buf_start, buf_end;
-	int offset, i, count, residue_bytes;
-	int period_bytes, buffer_bytes;
-
-	direction = snd_pcm_substream_to_dma_direction(substream);
-
-	if (!substream->runtime->no_period_wakeup)
-		flags |= DMA_PREP_INTERRUPT;
-
-	period_bytes = snd_pcm_lib_period_bytes(substream);
-	buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
-	avail = snd_pcm_vad_avail(substream);
-	offset = frames_to_bytes(substream->runtime, avail);
-	prtd->vpos = offset;
-	buf_start = substream->runtime->dma_addr + offset;
-	buf_end = substream->runtime->dma_addr + snd_pcm_lib_buffer_bytes(substream);
-	count = (buf_end - buf_start) / period_bytes;
-	residue_bytes = (buf_end - buf_start) % period_bytes;
-	prtd->vresidue_bytes = residue_bytes;
-	pr_debug("%s: offset: %d, buffer_bytes: %d\n", __func__, offset, buffer_bytes);
-	pr_debug("%s: count: %d, residue_bytes: %d\n", __func__, count, residue_bytes);
-	for (i = 0; i < count; i++) {
-		desc = dmaengine_prep_slave_single(chan, buf_start,
-						   period_bytes,
-						   direction, flags);
-		if (!desc)
-			return -ENOMEM;
-		desc->callback = dmaengine_pcm_vad_dma_complete;
-		desc->callback_param = substream;
-		dmaengine_submit(desc);
-		buf_start += period_bytes;
-	}
-
-	if (residue_bytes) {
-		desc = dmaengine_prep_slave_single(chan, buf_start,
-						   residue_bytes,
-						   direction, flags);
-		if (!desc)
-			return -ENOMEM;
-		desc->callback = dmaengine_pcm_vad_dma_complete;
-		desc->callback_param = substream;
-		dmaengine_submit(desc);
-	}
-
-	return 0;
-}
-#endif
-
 /**
  * snd_dmaengine_pcm_trigger - dmaengine based PCM trigger implementation
  * @substream: PCM substream
@@ -284,14 +189,6 @@ int snd_dmaengine_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
-		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
-		    snd_pcm_vad_attached(substream) &&
-		    snd_pcm_vad_avail(substream)) {
-			dmaengine_pcm_prepare_single_and_submit(substream);
-			dma_async_issue_pending(prtd->dma_chan);
-		}
-#endif
 		ret = dmaengine_pcm_prepare_and_submit(substream);
 		if (ret)
 			return ret;
@@ -346,17 +243,16 @@ snd_pcm_uframes_t snd_dmaengine_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 	struct dma_tx_state state;
+	enum dma_status status;
 	unsigned int buf_size;
 	unsigned int pos = 0;
 
-#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
-	if (prtd->vpos)
-		return bytes_to_frames(substream->runtime, prtd->vpos);
-#endif
-	dmaengine_tx_status(prtd->dma_chan, prtd->cookie, &state);
-	buf_size = snd_pcm_lib_buffer_bytes(substream);
-	if (state.residue > 0 && state.residue <= buf_size)
-		pos = buf_size - state.residue;
+	status = dmaengine_tx_status(prtd->dma_chan, prtd->cookie, &state);
+	if (status == DMA_IN_PROGRESS || status == DMA_PAUSED) {
+		buf_size = snd_pcm_lib_buffer_bytes(substream);
+		if (state.residue > 0 && state.residue <= buf_size)
+			pos = buf_size - state.residue;
+	}
 
 	return bytes_to_frames(substream->runtime, pos);
 }

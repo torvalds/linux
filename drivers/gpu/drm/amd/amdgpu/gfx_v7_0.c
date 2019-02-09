@@ -2104,8 +2104,34 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 	case CHIP_KAVERI:
 		adev->gfx.config.max_shader_engines = 1;
 		adev->gfx.config.max_tile_pipes = 4;
-		adev->gfx.config.max_cu_per_sh = 8;
-		adev->gfx.config.max_backends_per_se = 2;
+		if ((adev->pdev->device == 0x1304) ||
+		    (adev->pdev->device == 0x1305) ||
+		    (adev->pdev->device == 0x130C) ||
+		    (adev->pdev->device == 0x130F) ||
+		    (adev->pdev->device == 0x1310) ||
+		    (adev->pdev->device == 0x1311) ||
+		    (adev->pdev->device == 0x131C)) {
+			adev->gfx.config.max_cu_per_sh = 8;
+			adev->gfx.config.max_backends_per_se = 2;
+		} else if ((adev->pdev->device == 0x1309) ||
+			   (adev->pdev->device == 0x130A) ||
+			   (adev->pdev->device == 0x130D) ||
+			   (adev->pdev->device == 0x1313) ||
+			   (adev->pdev->device == 0x131D)) {
+			adev->gfx.config.max_cu_per_sh = 6;
+			adev->gfx.config.max_backends_per_se = 2;
+		} else if ((adev->pdev->device == 0x1306) ||
+			   (adev->pdev->device == 0x1307) ||
+			   (adev->pdev->device == 0x130B) ||
+			   (adev->pdev->device == 0x130E) ||
+			   (adev->pdev->device == 0x1315) ||
+			   (adev->pdev->device == 0x131B)) {
+			adev->gfx.config.max_cu_per_sh = 4;
+			adev->gfx.config.max_backends_per_se = 1;
+		} else {
+			adev->gfx.config.max_cu_per_sh = 3;
+			adev->gfx.config.max_backends_per_se = 1;
+		}
 		adev->gfx.config.max_sh_per_se = 1;
 		adev->gfx.config.max_texture_channel_caches = 4;
 		adev->gfx.config.max_gprs = 256;
@@ -3602,19 +3628,6 @@ static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
 	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
-	uint32_t seq = ring->fence_drv.sync_seq[ring->idx];
-	uint64_t addr = ring->fence_drv.gpu_addr;
-
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
-	amdgpu_ring_write(ring, (WAIT_REG_MEM_MEM_SPACE(1) | /* memory */
-				 WAIT_REG_MEM_FUNCTION(3) | /* equal */
-				 WAIT_REG_MEM_ENGINE(usepfp)));   /* pfp or me */
-	amdgpu_ring_write(ring, addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
-	amdgpu_ring_write(ring, seq);
-	amdgpu_ring_write(ring, 0xffffffff);
-	amdgpu_ring_write(ring, 4); /* poll interval */
-
 	if (usepfp) {
 		/* synce CE with ME to prevent CE fetch CEIB before context switch done */
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
@@ -5437,7 +5450,7 @@ static int gfx_v7_0_eop_irq(struct amdgpu_device *adev,
 	case 2:
 		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 			ring = &adev->gfx.compute_ring[i];
-			if ((ring->me == me_id) && (ring->pipe == pipe_id))
+			if ((ring->me == me_id) & (ring->pipe == pipe_id))
 				amdgpu_fence_process(ring);
 		}
 		break;

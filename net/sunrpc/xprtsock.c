@@ -398,6 +398,7 @@ static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
+	clear_bit(SOCKWQ_ASYNC_NOSPACE, &sock->flags);
 	if (base != 0) {
 		addr = NULL;
 		addrlen = 0;
@@ -441,6 +442,7 @@ static void xs_nospace_callback(struct rpc_task *task)
 	struct sock_xprt *transport = container_of(task->tk_rqstp->rq_xprt, struct sock_xprt, xprt);
 
 	transport->inet->sk_write_pending--;
+	clear_bit(SOCKWQ_ASYNC_NOSPACE, &transport->sock->flags);
 }
 
 /**
@@ -465,25 +467,25 @@ static int xs_nospace(struct rpc_task *task)
 
 	/* Don't race with disconnect */
 	if (xprt_connected(xprt)) {
-		/* wait for more buffer space */
-		sk->sk_write_pending++;
-		xprt_wait_for_buffer_space(task, xs_nospace_callback);
-	} else
+		if (test_bit(SOCKWQ_ASYNC_NOSPACE, &transport->sock->flags)) {
+			/*
+			 * Notify TCP that we're limited by the application
+			 * window size
+			 */
+			set_bit(SOCK_NOSPACE, &transport->sock->flags);
+			sk->sk_write_pending++;
+			/* ...and wait for more buffer space */
+			xprt_wait_for_buffer_space(task, xs_nospace_callback);
+		}
+	} else {
+		clear_bit(SOCKWQ_ASYNC_NOSPACE, &transport->sock->flags);
 		ret = -ENOTCONN;
+	}
 
 	spin_unlock_bh(&xprt->transport_lock);
 
 	/* Race breaker in case memory is freed before above code is called */
-	if (ret == -EAGAIN) {
-		struct socket_wq *wq;
-
-		rcu_read_lock();
-		wq = rcu_dereference(sk->sk_wq);
-		set_bit(SOCKWQ_ASYNC_NOSPACE, &wq->flags);
-		rcu_read_unlock();
-
-		sk->sk_write_space(sk);
-	}
+	sk->sk_write_space(sk);
 	return ret;
 }
 
@@ -614,6 +616,9 @@ process_status:
 	case -EAGAIN:
 		status = xs_nospace(task);
 		break;
+	default:
+		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
+			-status);
 	case -ENETUNREACH:
 	case -ENOBUFS:
 	case -EPIPE:
@@ -621,10 +626,7 @@ process_status:
 	case -EPERM:
 		/* When the server has died, an ICMP port unreachable message
 		 * prompts ECONNREFUSED. */
-		break;
-	default:
-		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
-			-status);
+		clear_bit(SOCKWQ_ASYNC_NOSPACE, &transport->sock->flags);
 	}
 
 	return status;
@@ -704,16 +706,16 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	case -EAGAIN:
 		status = xs_nospace(task);
 		break;
+	default:
+		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
+			-status);
 	case -ECONNRESET:
 	case -ECONNREFUSED:
 	case -ENOTCONN:
 	case -EADDRINUSE:
 	case -ENOBUFS:
 	case -EPIPE:
-		break;
-	default:
-		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
-			-status);
+		clear_bit(SOCKWQ_ASYNC_NOSPACE, &transport->sock->flags);
 	}
 
 	return status;
@@ -1607,23 +1609,19 @@ static void xs_tcp_state_change(struct sock *sk)
 
 static void xs_write_space(struct sock *sk)
 {
-	struct socket_wq *wq;
+	struct socket *sock;
 	struct rpc_xprt *xprt;
 
-	if (!sk->sk_socket)
+	if (unlikely(!(sock = sk->sk_socket)))
 		return;
-	clear_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+	clear_bit(SOCK_NOSPACE, &sock->flags);
 
 	if (unlikely(!(xprt = xprt_from_sock(sk))))
 		return;
-	rcu_read_lock();
-	wq = rcu_dereference(sk->sk_wq);
-	if (!wq || test_and_clear_bit(SOCKWQ_ASYNC_NOSPACE, &wq->flags) == 0)
-		goto out;
+	if (test_and_clear_bit(SOCKWQ_ASYNC_NOSPACE, &sock->flags) == 0)
+		return;
 
 	xprt_write_space(xprt);
-out:
-	rcu_read_unlock();
 }
 
 /**
@@ -2295,10 +2293,6 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		/* SYN_SENT! */
 		if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
 			xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
-		break;
-	case -EADDRNOTAVAIL:
-		/* Source port number is unavailable. Try a new one! */
-		transport->srcport = 0;
 	}
 out:
 	return ret;
@@ -2360,15 +2354,9 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	case -ECONNREFUSED:
 	case -ECONNRESET:
 	case -ENETUNREACH:
-	case -EHOSTUNREACH:
 	case -EADDRINUSE:
 	case -ENOBUFS:
-		/*
-		 * xs_tcp_force_close() wakes tasks with -EIO.
-		 * We need to wake them first to ensure the
-		 * correct error code.
-		 */
-		xprt_wake_pending_tasks(xprt, status);
+		/* retry with existing socket, after a delay */
 		xs_tcp_force_close(xprt);
 		goto out;
 	}

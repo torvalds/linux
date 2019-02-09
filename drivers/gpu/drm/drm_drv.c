@@ -34,27 +34,20 @@
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/drm_core.h>
-#include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
 
-/*
- * drm_debug: Enable debug output.
- * Bitmask of DRM_UT_x. See include/drm/drmP.h for details.
- */
-unsigned int drm_debug = 0;
+unsigned int drm_debug = 0;	/* bitmask of DRM_UT_x */
 EXPORT_SYMBOL(drm_debug);
 
 MODULE_AUTHOR(CORE_AUTHOR);
 MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
-MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug category.\n"
-"\t\tBit 0 (0x01) will enable CORE messages (drm core code)\n"
-"\t\tBit 1 (0x02) will enable DRIVER messages (drm controller code)\n"
-"\t\tBit 2 (0x04) will enable KMS messages (modesetting code)\n"
-"\t\tBit 3 (0x08) will enable PRIME messages (prime code)\n"
-"\t\tBit 4 (0x10) will enable ATOMIC messages (atomic code)\n"
-"\t\tBit 5 (0x20) will enable VBL messages (vblank code)");
+MODULE_PARM_DESC(debug, "Enable debug output");
+MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs] (0: never disable, <0: disable immediately)");
+MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
+MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
+
 module_param_named(debug, drm_debug, int, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
@@ -62,48 +55,37 @@ static struct idr drm_minors_idr;
 
 static struct dentry *drm_debugfs_root;
 
-#define DRM_PRINTK_FMT "[" DRM_NAME ":%s]%s %pV"
-
-void drm_dev_printk(const struct device *dev, const char *level,
-		    unsigned int category, const char *function_name,
-		    const char *prefix, const char *format, ...)
+void drm_err(const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	if (category != DRM_UT_NONE && !(drm_debug & category))
-		return;
+	va_start(args, format);
+
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	printk(KERN_ERR "[" DRM_NAME ":%ps] *ERROR* %pV",
+	       __builtin_return_address(0), &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_err);
+
+void drm_ut_debug_printk(const char *function_name, const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
 
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	dev_printk(level, dev, DRM_PRINTK_FMT, function_name, prefix,
-		   &vaf);
+	printk(KERN_DEBUG "[" DRM_NAME ":%s] %pV", function_name, &vaf);
 
 	va_end(args);
 }
-EXPORT_SYMBOL(drm_dev_printk);
-
-void drm_printk(const char *level, unsigned int category,
-		const char *function_name, const char *prefix,
-		const char *format, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	if (category != DRM_UT_NONE && !(drm_debug & category))
-		return;
-
-	va_start(args, format);
-	vaf.fmt = format;
-	vaf.va = &args;
-
-	printk("%s" DRM_PRINTK_FMT, level, function_name, prefix, &vaf);
-
-	va_end(args);
-}
-EXPORT_SYMBOL(drm_printk);
+EXPORT_SYMBOL(drm_ut_debug_printk);
 
 struct drm_master *drm_master_create(struct drm_minor *minor)
 {
@@ -330,7 +312,7 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	ret = drm_debugfs_init(minor, minor->index, drm_debugfs_root);
 	if (ret) {
 		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
-		goto err_debugfs;
+		return ret;
 	}
 
 	ret = device_add(minor->kdev);
@@ -415,28 +397,6 @@ struct drm_minor *drm_minor_acquire(unsigned int minor_id)
 void drm_minor_release(struct drm_minor *minor)
 {
 	drm_dev_unref(minor->dev);
-}
-
-struct drm_device *drm_device_get_by_name(const char *name)
-{
-	int i;
-
-	for (i = 0; i < 64; i++) {
-		struct drm_minor *minor;
-
-		minor = drm_minor_acquire(i + DRM_MINOR_CONTROL);
-		if (IS_ERR(minor))
-			continue;
-		if (!minor->dev || !minor->dev->driver ||
-		    !minor->dev->driver->name)
-			continue;
-		if (!name)
-			return minor->dev;
-		if (!strcmp(name, minor->dev->driver->name))
-			return minor->dev;
-	}
-
-	return NULL;
 }
 
 /**
@@ -787,9 +747,6 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 			goto err_minors;
 	}
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_modeset_register_all(dev);
-
 	ret = 0;
 	goto out_unlock;
 
@@ -819,9 +776,6 @@ void drm_dev_unregister(struct drm_device *dev)
 	struct drm_map_list *r_list, *list_temp;
 
 	drm_lastclose(dev);
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_modeset_unregister_all(dev);
 
 	if (dev->driver->unload)
 		dev->driver->unload(dev);

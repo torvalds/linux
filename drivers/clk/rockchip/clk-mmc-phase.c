@@ -25,8 +25,6 @@ struct rockchip_mmc_clock {
 	void __iomem	*reg;
 	int		id;
 	int		shift;
-	int		cached_phase;
-	struct notifier_block clk_rate_change_nb;
 };
 
 #define to_mmc_clock(_hw) container_of(_hw, struct rockchip_mmc_clock, hw)
@@ -43,6 +41,8 @@ static unsigned long rockchip_mmc_recalc(struct clk_hw *hw,
 #define ROCKCHIP_MMC_DEGREE_MASK 0x3
 #define ROCKCHIP_MMC_DELAYNUM_OFFSET 2
 #define ROCKCHIP_MMC_DELAYNUM_MASK (0xff << ROCKCHIP_MMC_DELAYNUM_OFFSET)
+#define ROCKCHIP_MMC_INIT_STATE_RESET 0x1
+#define ROCKCHIP_MMC_INIT_STATE_SHIFT 1
 
 #define PSECS_PER_SEC 1000000000000LL
 
@@ -59,12 +59,6 @@ static int rockchip_mmc_get_phase(struct clk_hw *hw)
 	u32 raw_value;
 	u16 degrees;
 	u32 delay_num = 0;
-
-	/* See the comment for rockchip_mmc_set_phase below */
-	if (!rate) {
-		printk(KERN_DEBUG "%s: invalid clk rate\n", __func__);
-		return -EINVAL;
-	}
 
 	raw_value = readl(mmc_clock->reg) >> (mmc_clock->shift);
 
@@ -91,23 +85,6 @@ static int rockchip_mmc_set_phase(struct clk_hw *hw, int degrees)
 	u8 delay_num;
 	u32 raw_value;
 	u32 delay;
-
-	/*
-	 * The below calculation is based on the output clock from
-	 * MMC host to the card, which expects the phase clock inherits
-	 * the clock rate from its parent, namely the output clock
-	 * provider of MMC host. However, things may go wrong if
-	 * (1) It is orphan.
-	 * (2) It is assigned to the wrong parent.
-	 *
-	 * This check help debug the case (1), which seems to be the
-	 * most likely problem we often face and which makes it difficult
-	 * for people to debug unstable mmc tuning results.
-	 */
-	if (!rate) {
-		pr_err("%s: invalid clk rate\n", __func__);
-		return -EINVAL;
-	}
 
 	nineties = degrees / 90;
 	remainder = (degrees % 90);
@@ -163,34 +140,6 @@ static const struct clk_ops rockchip_mmc_clk_ops = {
 	.set_phase	= rockchip_mmc_set_phase,
 };
 
-#define to_rockchip_mmc_clock(x) \
-	container_of(x, struct rockchip_mmc_clock, clk_rate_change_nb)
-static int rockchip_mmc_clk_rate_notify(struct notifier_block *nb,
-					unsigned long event, void *data)
-{
-	struct rockchip_mmc_clock *mmc_clock = to_rockchip_mmc_clock(nb);
-	struct clk_notifier_data *ndata = data;
-
-	/*
-	 * rockchip_mmc_clk is mostly used by mmc controllers to sample
-	 * the intput data, which expects the fixed phase after the tuning
-	 * process. However if the clock rate is changed, the phase is stale
-	 * and may break the data sampling. So here we try to restore the phase
-	 * for that case.
-	 */
-	if (ndata->old_rate <= ndata->new_rate)
-		return NOTIFY_DONE;
-
-	if (event == PRE_RATE_CHANGE)
-		mmc_clock->cached_phase =
-			rockchip_mmc_get_phase(&mmc_clock->hw);
-	else if (mmc_clock->cached_phase != -EINVAL &&
-		 event == POST_RATE_CHANGE)
-		rockchip_mmc_set_phase(&mmc_clock->hw, mmc_clock->cached_phase);
-
-	return NOTIFY_DONE;
-}
-
 struct clk *rockchip_clk_register_mmc(const char *name,
 				const char *const *parent_names, u8 num_parents,
 				void __iomem *reg, int shift)
@@ -198,14 +147,12 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 	struct clk_init_data init;
 	struct rockchip_mmc_clock *mmc_clock;
 	struct clk *clk;
-	int ret;
 
 	mmc_clock = kmalloc(sizeof(*mmc_clock), GFP_KERNEL);
 	if (!mmc_clock)
 		return NULL;
 
 	init.name = name;
-	init.flags = 0;
 	init.num_parents = num_parents;
 	init.parent_names = parent_names;
 	init.ops = &rockchip_mmc_clk_ops;
@@ -214,22 +161,22 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 	mmc_clock->reg = reg;
 	mmc_clock->shift = shift;
 
-	clk = clk_register(NULL, &mmc_clock->hw);
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		goto err_register;
-	}
+	/*
+	 * Assert init_state to soft reset the CLKGEN
+	 * for mmc tuning phase and degree
+	 */
+	if (mmc_clock->shift == ROCKCHIP_MMC_INIT_STATE_SHIFT)
+		writel(HIWORD_UPDATE(ROCKCHIP_MMC_INIT_STATE_RESET,
+				     ROCKCHIP_MMC_INIT_STATE_RESET,
+				     mmc_clock->shift), mmc_clock->reg);
 
-	mmc_clock->clk_rate_change_nb.notifier_call =
-				&rockchip_mmc_clk_rate_notify;
-	ret = clk_notifier_register(clk, &mmc_clock->clk_rate_change_nb);
-	if (ret)
-		goto err_notifier;
+	clk = clk_register(NULL, &mmc_clock->hw);
+	if (IS_ERR(clk))
+		goto err_free;
 
 	return clk;
-err_notifier:
-	clk_unregister(clk);
-err_register:
+
+err_free:
 	kfree(mmc_clock);
-	return ERR_PTR(ret);
+	return NULL;
 }

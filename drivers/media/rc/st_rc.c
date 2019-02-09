@@ -231,7 +231,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	if (!rc_dev)
 		return -ENOMEM;
 
-	rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
+	rdev = rc_allocate_device();
 
 	if (!rdev)
 		return -ENOMEM;
@@ -286,7 +286,8 @@ static int st_rc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rc_dev);
 	st_rc_hardware_init(rc_dev);
 
-	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
+	rdev->driver_type = RC_DRIVER_IR_RAW;
+	rdev->allowed_protocols = RC_BIT_ALL;
 	/* rx sampling rate is 10Mhz */
 	rdev->rx_resolution = 100;
 	rdev->timeout = US_TO_NS(MAX_SYMB_TIME);
@@ -294,8 +295,8 @@ static int st_rc_probe(struct platform_device *pdev)
 	rdev->open = st_rc_open;
 	rdev->close = st_rc_close;
 	rdev->driver_name = IR_ST_NAME;
-	rdev->map_name = RC_MAP_EMPTY;
-	rdev->device_name = "ST Remote Control Receiver";
+	rdev->map_name = RC_MAP_LIRC;
+	rdev->input_name = "ST Remote Control Receiver";
 
 	/* enable wake via this device */
 	device_set_wakeup_capable(dev, true);

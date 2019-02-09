@@ -108,14 +108,16 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 					   (int)sfe->namelen,
 					   (int)sfe->valuelen,
 					   &sfe->nameval[sfe->namelen]);
-			if (error)
-				return error;
+
 			/*
 			 * Either search callback finished early or
 			 * didn't fit it all in the buffer after all.
 			 */
 			if (context->seen_enough)
 				break;
+
+			if (error)
+				return error;
 			sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
 		}
 		trace_xfs_attr_list_sf_all(context);
@@ -200,10 +202,8 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 					sbp->namelen,
 					sbp->valuelen,
 					&sbp->name[sbp->namelen]);
-		if (error) {
-			kmem_free(sbuf);
+		if (error)
 			return error;
-		}
 		if (context->seen_enough)
 			break;
 		cursor->offset++;
@@ -454,13 +454,14 @@ xfs_attr3_leaf_list_int(
 				args.rmtblkcnt = xfs_attr3_rmt_blocks(
 							args.dp->i_mount, valuelen);
 				retval = xfs_attr_rmtval_get(&args);
-				if (!retval)
-					retval = context->put_listent(context,
-							entry->flags,
-							name_rmt->name,
-							(int)name_rmt->namelen,
-							valuelen,
-							args.value);
+				if (retval)
+					return retval;
+				retval = context->put_listent(context,
+						entry->flags,
+						name_rmt->name,
+						(int)name_rmt->namelen,
+						valuelen,
+						args.value);
 				kmem_free(args.value);
 			} else {
 				retval = context->put_listent(context,
@@ -579,7 +580,7 @@ xfs_attr_put_listent(
 		trace_xfs_attr_list_full(context);
 		alist->al_more = 1;
 		context->seen_enough = 1;
-		return 0;
+		return 1;
 	}
 
 	aep = (attrlist_ent_t *)&context->alist[context->firstu];

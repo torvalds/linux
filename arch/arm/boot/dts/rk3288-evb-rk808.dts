@@ -40,7 +40,6 @@
 
 /dts-v1/;
 #include "rk3288-evb.dtsi"
-#include "rk3288-android.dtsi"
 
 / {
 	compatible = "rockchip,rk3288-evb-rk808", "rockchip,rk3288";
@@ -51,37 +50,10 @@
 		clock-output-names = "ext_gmac";
 		#clock-cells = <0>;
 	};
-
-	sdio_pwrseq: sdio-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		clocks = <&rk808 1>;
-		clock-names = "ext_clock";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_enable_h>;
-
-		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
-		 * - SDIO_RESET_L_WL_REG_ON
-		 * - PDN (power down when low)
-		 */
-		reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
-	};
-
-	xin32k: xin32k {
-		compatible = "fixed-clock";
-		clock-frequency = <32768>;
-		clock-output-names = "xin32k";
-		#clock-cells = <0>;
-	};
 };
 
 &cpu0 {
 	cpu0-supply = <&vdd_cpu>;
-};
-
-&hdmi_analog_sound {
-	status = "okay";
 };
 
 &i2c0 {
@@ -97,7 +69,7 @@
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
-		clock-output-names = "rk808-clkout1", "rk808-clkout2";
+		clock-output-names = "xin32k", "rk808-clkout2";
 
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;
@@ -130,7 +102,6 @@
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1250000>;
 				regulator-name = "vdd_gpu";
-				regulator-ramp-delay = <6000>;
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1000000>;
@@ -274,11 +245,6 @@
 	};
 };
 
-&edp_panel {
-	backlight = <&backlight>;
-	power-supply = <&vcc_lcd>;
-};
-
 &gmac {
 	phy-supply = <&vcc_phy>;
 	phy-mode = "rgmii";
@@ -293,8 +259,4 @@
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
 	status = "ok";
-};
-
-&lvds_panel {
-	power-supply = <&vcc_lcd>;
 };

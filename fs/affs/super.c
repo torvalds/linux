@@ -528,7 +528,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	char			*prefix = NULL;
 
 	new_opts = kstrdup(data, GFP_KERNEL);
-	if (data && !new_opts)
+	if (!new_opts)
 		return -ENOMEM;
 
 	pr_debug("%s(flags=0x%x,opts=\"%s\")\n", __func__, *flags, data);
@@ -546,8 +546,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	flush_delayed_work(&sbi->sb_work);
-	if (new_opts)
-		replace_mount_options(sb, new_opts);
+	replace_mount_options(sb, new_opts);
 
 	sbi->s_flags = mount_flags;
 	sbi->s_mode  = mode;

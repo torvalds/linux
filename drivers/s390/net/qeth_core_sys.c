@@ -409,17 +409,12 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 
 	if (card->options.layer2 == newdis)
 		goto out;
-	if (card->info.type == QETH_CARD_TYPE_OSM) {
-		/* fixed layer, can't switch */
-		rc = -EOPNOTSUPP;
-		goto out;
-	}
-
-	card->info.mac_bits = 0;
-	if (card->discipline) {
-		card->discipline->remove(card->gdev);
-		qeth_core_free_discipline(card);
-		card->options.layer2 = -1;
+	else {
+		card->info.mac_bits  = 0;
+		if (card->discipline) {
+			card->discipline->remove(card->gdev);
+			qeth_core_free_discipline(card);
+		}
 	}
 
 	rc = qeth_core_load_discipline(card, newdis);
@@ -427,8 +422,6 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		goto out;
 
 	rc = card->discipline->setup(card->gdev);
-	if (rc)
-		qeth_core_free_discipline(card);
 out:
 	mutex_unlock(&card->discipline_mutex);
 	return rc ? rc : count;
@@ -706,11 +699,10 @@ static struct attribute *qeth_blkt_device_attrs[] = {
 	&dev_attr_inter_jumbo.attr,
 	NULL,
 };
-const struct attribute_group qeth_device_blkt_group = {
+static struct attribute_group qeth_device_blkt_group = {
 	.name = "blkt",
 	.attrs = qeth_blkt_device_attrs,
 };
-EXPORT_SYMBOL_GPL(qeth_device_blkt_group);
 
 static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_state.attr,
@@ -730,10 +722,9 @@ static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_switch_attrs.attr,
 	NULL,
 };
-const struct attribute_group qeth_device_attr_group = {
+static struct attribute_group qeth_device_attr_group = {
 	.attrs = qeth_device_attrs,
 };
-EXPORT_SYMBOL_GPL(qeth_device_attr_group);
 
 const struct attribute_group *qeth_generic_attr_groups[] = {
 	&qeth_device_attr_group,

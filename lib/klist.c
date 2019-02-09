@@ -282,9 +282,9 @@ void klist_iter_init_node(struct klist *k, struct klist_iter *i,
 			  struct klist_node *n)
 {
 	i->i_klist = k;
-	i->i_cur = NULL;
-	if (n && kref_get_unless_zero(&n->n_ref))
-		i->i_cur = n;
+	i->i_cur = n;
+	if (n)
+		kref_get(&n->n_ref);
 }
 EXPORT_SYMBOL_GPL(klist_iter_init_node);
 
@@ -336,9 +336,8 @@ struct klist_node *klist_prev(struct klist_iter *i)
 	void (*put)(struct klist_node *) = i->i_klist->put;
 	struct klist_node *last = i->i_cur;
 	struct klist_node *prev;
-	unsigned long flags;
 
-	spin_lock_irqsave(&i->i_klist->k_lock, flags);
+	spin_lock(&i->i_klist->k_lock);
 
 	if (last) {
 		prev = to_klist_node(last->n_node.prev);
@@ -357,7 +356,7 @@ struct klist_node *klist_prev(struct klist_iter *i)
 		prev = to_klist_node(prev->n_node.prev);
 	}
 
-	spin_unlock_irqrestore(&i->i_klist->k_lock, flags);
+	spin_unlock(&i->i_klist->k_lock);
 
 	if (put && last)
 		put(last);
@@ -378,9 +377,8 @@ struct klist_node *klist_next(struct klist_iter *i)
 	void (*put)(struct klist_node *) = i->i_klist->put;
 	struct klist_node *last = i->i_cur;
 	struct klist_node *next;
-	unsigned long flags;
 
-	spin_lock_irqsave(&i->i_klist->k_lock, flags);
+	spin_lock(&i->i_klist->k_lock);
 
 	if (last) {
 		next = to_klist_node(last->n_node.next);
@@ -399,7 +397,7 @@ struct klist_node *klist_next(struct klist_iter *i)
 		next = to_klist_node(next->n_node.next);
 	}
 
-	spin_unlock_irqrestore(&i->i_klist->k_lock, flags);
+	spin_unlock(&i->i_klist->k_lock);
 
 	if (put && last)
 		put(last);

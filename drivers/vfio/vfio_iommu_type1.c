@@ -130,34 +130,57 @@ static void vfio_unlink_dma(struct vfio_iommu *iommu, struct vfio_dma *old)
 	rb_erase(&old->node, &iommu->dma_list);
 }
 
-static int vfio_lock_acct(long npage, bool *lock_cap)
+struct vwork {
+	struct mm_struct	*mm;
+	long			npage;
+	struct work_struct	work;
+};
+
+/* delayed decrement/increment for locked_vm */
+static void vfio_lock_acct_bg(struct work_struct *work)
 {
-	int ret = 0;
+	struct vwork *vwork = container_of(work, struct vwork, work);
+	struct mm_struct *mm;
 
-	if (!npage)
-		return 0;
+	mm = vwork->mm;
+	down_write(&mm->mmap_sem);
+	mm->locked_vm += vwork->npage;
+	up_write(&mm->mmap_sem);
+	mmput(mm);
+	kfree(vwork);
+}
 
-	if (!current->mm)
-		return -ESRCH; /* process exited */
+static void vfio_lock_acct(long npage)
+{
+	struct vwork *vwork;
+	struct mm_struct *mm;
 
-	down_write(&current->mm->mmap_sem);
-	if (npage > 0) {
-		if (lock_cap ? !*lock_cap : !capable(CAP_IPC_LOCK)) {
-			unsigned long limit;
+	if (!current->mm || !npage)
+		return; /* process exited or nothing to do */
 
-			limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-
-			if (current->mm->locked_vm + npage > limit)
-				ret = -ENOMEM;
-		}
+	if (down_write_trylock(&current->mm->mmap_sem)) {
+		current->mm->locked_vm += npage;
+		up_write(&current->mm->mmap_sem);
+		return;
 	}
 
-	if (!ret)
-		current->mm->locked_vm += npage;
-
-	up_write(&current->mm->mmap_sem);
-
-	return ret;
+	/*
+	 * Couldn't get mmap_sem lock, so must setup to update
+	 * mm->locked_vm later. If locked_vm were atomic, we
+	 * wouldn't need this silliness
+	 */
+	vwork = kmalloc(sizeof(struct vwork), GFP_KERNEL);
+	if (!vwork)
+		return;
+	mm = get_task_mm(current);
+	if (!mm) {
+		kfree(vwork);
+		return;
+	}
+	INIT_WORK(&vwork->work, vfio_lock_acct_bg);
+	vwork->mm = mm;
+	vwork->npage = npage;
+	schedule_work(&vwork->work);
 }
 
 /*
@@ -239,9 +262,9 @@ static int vaddr_get_pfn(unsigned long vaddr, int prot, unsigned long *pfn)
 static long vfio_pin_pages(unsigned long vaddr, long npage,
 			   int prot, unsigned long *pfn_base)
 {
-	unsigned long pfn = 0, limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+	unsigned long limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	bool lock_cap = capable(CAP_IPC_LOCK);
-	long ret, i = 1;
+	long ret, i;
 	bool rsvd;
 
 	if (!current->mm)
@@ -260,11 +283,16 @@ static long vfio_pin_pages(unsigned long vaddr, long npage,
 		return -ENOMEM;
 	}
 
-	if (unlikely(disable_hugepages))
-		goto out;
+	if (unlikely(disable_hugepages)) {
+		if (!rsvd)
+			vfio_lock_acct(1);
+		return 1;
+	}
 
 	/* Lock all the consecutive pages from pfn_base */
-	for (vaddr += PAGE_SIZE; i < npage; i++, vaddr += PAGE_SIZE) {
+	for (i = 1, vaddr += PAGE_SIZE; i < npage; i++, vaddr += PAGE_SIZE) {
+		unsigned long pfn = 0;
+
 		ret = vaddr_get_pfn(vaddr, prot, &pfn);
 		if (ret)
 			break;
@@ -280,24 +308,12 @@ static long vfio_pin_pages(unsigned long vaddr, long npage,
 			put_pfn(pfn, prot);
 			pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n",
 				__func__, limit << PAGE_SHIFT);
-			ret = -ENOMEM;
-			goto unpin_out;
+			break;
 		}
 	}
 
-out:
 	if (!rsvd)
-		ret = vfio_lock_acct(i, &lock_cap);
-
-unpin_out:
-	if (ret) {
-		if (!rsvd) {
-			for (pfn = *pfn_base ; i ; pfn++, i--)
-				put_pfn(pfn, prot);
-		}
-
-		return ret;
-	}
+		vfio_lock_acct(i);
 
 	return i;
 }
@@ -312,7 +328,7 @@ static long vfio_unpin_pages(unsigned long pfn, long npage,
 		unlocked += put_pfn(pfn++, prot);
 
 	if (do_accounting)
-		vfio_lock_acct(-unlocked, NULL);
+		vfio_lock_acct(-unlocked);
 
 	return unlocked;
 }
@@ -374,7 +390,7 @@ static void vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma)
 		cond_resched();
 	}
 
-	vfio_lock_acct(-unlocked, NULL);
+	vfio_lock_acct(-unlocked);
 }
 
 static void vfio_remove_dma(struct vfio_iommu *iommu, struct vfio_dma *dma)
@@ -983,8 +999,7 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 
 		info.iova_pgsizes = vfio_pgsize_bitmap(iommu);
 
-		return copy_to_user((void __user *)arg, &info, minsz) ?
-			-EFAULT : 0;
+		return copy_to_user((void __user *)arg, &info, minsz);
 
 	} else if (cmd == VFIO_IOMMU_MAP_DMA) {
 		struct vfio_iommu_type1_dma_map map;
@@ -1017,8 +1032,7 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 		if (ret)
 			return ret;
 
-		return copy_to_user((void __user *)arg, &unmap, minsz) ?
-			-EFAULT : 0;
+		return copy_to_user((void __user *)arg, &unmap, minsz);
 	}
 
 	return -ENOTTY;

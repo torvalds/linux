@@ -29,7 +29,6 @@
 #include <linux/clk.h>
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
-#include <linux/if_vlan.h>
 #include <uapi/linux/ppp_defs.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -773,17 +772,6 @@ struct mvpp2_rx_desc {
 	u32 reserved8;
 };
 
-struct mvpp2_txq_pcpu_buf {
-	/* Transmitted SKB */
-	struct sk_buff *skb;
-
-	/* Physical address of transmitted buffer */
-	dma_addr_t phys;
-
-	/* Size transmitted */
-	size_t size;
-};
-
 /* Per-CPU Tx queue control */
 struct mvpp2_txq_pcpu {
 	int cpu;
@@ -799,8 +787,11 @@ struct mvpp2_txq_pcpu {
 	/* Number of Tx DMA descriptors reserved for each CPU */
 	int reserved_num;
 
-	/* Infos about transmitted buffers */
-	struct mvpp2_txq_pcpu_buf *buffs;
+	/* Array of transmitted skb */
+	struct sk_buff **tx_skb;
+
+	/* Array of transmitted buffers' physical addresses */
+	dma_addr_t *tx_buffs;
 
 	/* Index of last TX DMA descriptor that was inserted */
 	int txq_put_index;
@@ -990,11 +981,10 @@ static void mvpp2_txq_inc_put(struct mvpp2_txq_pcpu *txq_pcpu,
 			      struct sk_buff *skb,
 			      struct mvpp2_tx_desc *tx_desc)
 {
-	struct mvpp2_txq_pcpu_buf *tx_buf =
-		txq_pcpu->buffs + txq_pcpu->txq_put_index;
-	tx_buf->skb = skb;
-	tx_buf->size = tx_desc->data_size;
-	tx_buf->phys = tx_desc->buf_phys_addr + tx_desc->packet_offset;
+	txq_pcpu->tx_skb[txq_pcpu->txq_put_index] = skb;
+	if (skb)
+		txq_pcpu->tx_buffs[txq_pcpu->txq_put_index] =
+							 tx_desc->buf_phys_addr;
 	txq_pcpu->txq_put_index++;
 	if (txq_pcpu->txq_put_index == txq_pcpu->size)
 		txq_pcpu->txq_put_index = 0;
@@ -4269,7 +4259,7 @@ static void mvpp2_txq_desc_put(struct mvpp2_tx_queue *txq)
 }
 
 /* Set Tx descriptors fields relevant for CSUM calculation */
-static u32 mvpp2_txq_desc_csum(int l3_offs, __be16 l3_proto,
+static u32 mvpp2_txq_desc_csum(int l3_offs, int l3_proto,
 			       int ip_hdr_len, int l4_proto)
 {
 	u32 command;
@@ -4413,15 +4403,17 @@ static void mvpp2_txq_bufs_free(struct mvpp2_port *port,
 	int i;
 
 	for (i = 0; i < num; i++) {
-		struct mvpp2_txq_pcpu_buf *tx_buf =
-			txq_pcpu->buffs + txq_pcpu->txq_get_index;
-
-		dma_unmap_single(port->dev->dev.parent, tx_buf->phys,
-				 tx_buf->size, DMA_TO_DEVICE);
-		if (tx_buf->skb)
-			dev_kfree_skb_any(tx_buf->skb);
+		dma_addr_t buf_phys_addr =
+				    txq_pcpu->tx_buffs[txq_pcpu->txq_get_index];
+		struct sk_buff *skb = txq_pcpu->tx_skb[txq_pcpu->txq_get_index];
 
 		mvpp2_txq_inc_get(txq_pcpu);
+
+		dma_unmap_single(port->dev->dev.parent, buf_phys_addr,
+				 skb_headlen(skb), DMA_TO_DEVICE);
+		if (!skb)
+			continue;
+		dev_kfree_skb_any(skb);
 	}
 }
 
@@ -4672,10 +4664,15 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
 		txq_pcpu->size = txq->size;
-		txq_pcpu->buffs = kmalloc(txq_pcpu->size *
-					  sizeof(struct mvpp2_txq_pcpu_buf),
-					  GFP_KERNEL);
-		if (!txq_pcpu->buffs)
+		txq_pcpu->tx_skb = kmalloc(txq_pcpu->size *
+					   sizeof(*txq_pcpu->tx_skb),
+					   GFP_KERNEL);
+		if (!txq_pcpu->tx_skb)
+			goto error;
+
+		txq_pcpu->tx_buffs = kmalloc(txq_pcpu->size *
+					     sizeof(dma_addr_t), GFP_KERNEL);
+		if (!txq_pcpu->tx_buffs)
 			goto error;
 
 		txq_pcpu->count = 0;
@@ -4689,7 +4686,8 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 error:
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
-		kfree(txq_pcpu->buffs);
+		kfree(txq_pcpu->tx_skb);
+		kfree(txq_pcpu->tx_buffs);
 	}
 
 	dma_free_coherent(port->dev->dev.parent,
@@ -4708,7 +4706,8 @@ static void mvpp2_txq_deinit(struct mvpp2_port *port,
 
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
-		kfree(txq_pcpu->buffs);
+		kfree(txq_pcpu->tx_skb);
+		kfree(txq_pcpu->tx_buffs);
 	}
 
 	if (txq->descs)
@@ -5033,15 +5032,14 @@ static u32 mvpp2_skb_tx_csum(struct mvpp2_port *port, struct sk_buff *skb)
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		int ip_hdr_len = 0;
 		u8 l4_proto;
-		__be16 l3_proto = vlan_get_protocol(skb);
 
-		if (l3_proto == htons(ETH_P_IP)) {
+		if (skb->protocol == htons(ETH_P_IP)) {
 			struct iphdr *ip4h = ip_hdr(skb);
 
 			/* Calculate IPv4 checksum and L4 checksum */
 			ip_hdr_len = ip4h->ihl;
 			l4_proto = ip4h->protocol;
-		} else if (l3_proto == htons(ETH_P_IPV6)) {
+		} else if (skb->protocol == htons(ETH_P_IPV6)) {
 			struct ipv6hdr *ip6h = ipv6_hdr(skb);
 
 			/* Read l4_protocol from one of IPv6 extra headers */
@@ -5053,7 +5051,7 @@ static u32 mvpp2_skb_tx_csum(struct mvpp2_port *port, struct sk_buff *skb)
 		}
 
 		return mvpp2_txq_desc_csum(skb_network_offset(skb),
-					   l3_proto, ip_hdr_len, l4_proto);
+				skb->protocol, ip_hdr_len, l4_proto);
 	}
 
 	return MVPP2_TXD_L4_CSUM_NOT | MVPP2_TXD_IP_CSUM_DISABLE;
@@ -5668,7 +5666,6 @@ static void mvpp2_set_rx_mode(struct net_device *dev)
 	int id = port->id;
 	bool allmulti = dev->flags & IFF_ALLMULTI;
 
-retry:
 	mvpp2_prs_mac_promisc_set(priv, id, dev->flags & IFF_PROMISC);
 	mvpp2_prs_mac_multi_set(priv, id, MVPP2_PE_MAC_MC_ALL, allmulti);
 	mvpp2_prs_mac_multi_set(priv, id, MVPP2_PE_MAC_MC_IP6, allmulti);
@@ -5676,13 +5673,9 @@ retry:
 	/* Remove all port->id's mcast enries */
 	mvpp2_prs_mcast_del_all(priv, id);
 
-	if (!allmulti) {
-		netdev_for_each_mc_addr(ha, dev) {
-			if (mvpp2_prs_mac_da_accept(priv, id, ha->addr, true)) {
-				allmulti = true;
-				goto retry;
-			}
-		}
+	if (allmulti && !netdev_mc_empty(dev)) {
+		netdev_for_each_mc_addr(ha, dev)
+			mvpp2_prs_mac_da_accept(priv, id, ha->addr, true);
 	}
 }
 

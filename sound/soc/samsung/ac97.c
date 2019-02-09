@@ -324,7 +324,7 @@ static const struct snd_soc_component_driver s3c_ac97_component = {
 
 static int s3c_ac97_probe(struct platform_device *pdev)
 {
-	struct resource *mem_res, *irq_res;
+	struct resource *mem_res, *dmatx_res, *dmarx_res, *dmamic_res, *irq_res;
 	struct s3c_audio_pdata *ac97_pdata;
 	int ret;
 
@@ -335,6 +335,24 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 	}
 
 	/* Check for availability of necessary resource */
+	dmatx_res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!dmatx_res) {
+		dev_err(&pdev->dev, "Unable to get AC97-TX dma resource\n");
+		return -ENXIO;
+	}
+
+	dmarx_res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (!dmarx_res) {
+		dev_err(&pdev->dev, "Unable to get AC97-RX dma resource\n");
+		return -ENXIO;
+	}
+
+	dmamic_res = platform_get_resource(pdev, IORESOURCE_DMA, 2);
+	if (!dmamic_res) {
+		dev_err(&pdev->dev, "Unable to get AC97-MIC dma resource\n");
+		return -ENXIO;
+	}
+
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
 		dev_err(&pdev->dev, "AC97 IRQ not provided!\n");
@@ -346,11 +364,11 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 	if (IS_ERR(s3c_ac97.regs))
 		return PTR_ERR(s3c_ac97.regs);
 
-	s3c_ac97_pcm_out.slave = ac97_pdata->dma_playback;
+	s3c_ac97_pcm_out.channel = dmatx_res->start;
 	s3c_ac97_pcm_out.dma_addr = mem_res->start + S3C_AC97_PCM_DATA;
-	s3c_ac97_pcm_in.slave = ac97_pdata->dma_capture;
+	s3c_ac97_pcm_in.channel = dmarx_res->start;
 	s3c_ac97_pcm_in.dma_addr = mem_res->start + S3C_AC97_PCM_DATA;
-	s3c_ac97_mic_in.slave = ac97_pdata->dma_capture_mic;
+	s3c_ac97_mic_in.channel = dmamic_res->start;
 	s3c_ac97_mic_in.dma_addr = mem_res->start + S3C_AC97_MIC_DATA;
 
 	init_completion(&s3c_ac97.done);

@@ -671,8 +671,23 @@ static int btree_split_beneath(struct shadow_spine *s, uint64_t key)
 	pn->keys[1] = rn->keys[0];
 	memcpy_disk(value_ptr(pn, 1), &val, sizeof(__le64));
 
-	unlock_block(s->info, left);
-	unlock_block(s->info, right);
+	/*
+	 * rejig the spine.  This is ugly, since it knows too
+	 * much about the spine
+	 */
+	if (s->nodes[0] != new_parent) {
+		unlock_block(s->info, s->nodes[0]);
+		s->nodes[0] = new_parent;
+	}
+	if (key < le64_to_cpu(rn->keys[0])) {
+		unlock_block(s->info, right);
+		s->nodes[1] = left;
+	} else {
+		unlock_block(s->info, left);
+		s->nodes[1] = right;
+	}
+	s->count = 2;
+
 	return 0;
 }
 
@@ -872,12 +887,8 @@ static int find_key(struct ro_spine *s, dm_block_t block, bool find_highest,
 		else
 			*result_key = le64_to_cpu(ro_node(s)->keys[0]);
 
-		if (next_block || flags & INTERNAL_NODE) {
-			if (find_highest)
-				block = value64(ro_node(s), i);
-			else
-				block = value64(ro_node(s), 0);
-		}
+		if (next_block || flags & INTERNAL_NODE)
+			block = value64(ro_node(s), i);
 
 	} while (flags & INTERNAL_NODE);
 

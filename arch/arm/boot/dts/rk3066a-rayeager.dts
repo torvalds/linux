@@ -59,20 +59,6 @@
 		pinctrl-0 = <&ir_int>;
 	};
 
-	vdd_logic: vdd-logic {
-		compatible = "pwm-regulator";
-
-		pwms = <&pwm3 0 25000>;
-		pwm-dutycycle-range = <100 0>;
-
-		regulator-name = "vdd_logic";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <925000>;
-		regulator-max-microvolt = <1400000>;
-		status = "okay";
-	};
-
 	keys: gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
@@ -86,48 +72,6 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pwr_key>;
 		};
-	};
-
-	sdio_pwrseq: sdio-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		clock-names = "ext_clock";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_reg_on>;
-
-		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
-		 * - SDIO_RESET_L_WL_REG_ON
-		 * - PDN (power down when low)
-		 */
-		reset-gpios = <&gpio3 24 GPIO_ACTIVE_LOW>; /* GPIO3_D0 */
-	};
-
-	wireless-wlan {
-		compatible = "wlan-platdata";
-		rockchip,grf = <&grf>;
-		wifi_chip_type = "ap6330";
-		sdio_vref = <1800>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_host_wake>;
-		WIFI,host_wake_irq = <&gpio3 26 GPIO_ACTIVE_HIGH>; /* GPIO3_D2 */
-		status = "okay";
-	};
-
-	wireless-bluetooth {
-		compatible = "bluetooth-platdata";
-		clock-names = "ext_clock";
-		//wifi-bt-power-toggle;
-		uart_rts_gpios = <&gpio1 3 GPIO_ACTIVE_LOW>; /* GPIO2_C3 */
-		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart0_rts>;
-		pinctrl-1 = <&uart0_gpios>;
-		//BT,power_gpio  = <&gpio3 19 GPIO_ACTIVE_HIGH>; /* GPIOx_xx */
-		BT,reset_gpio    = <&gpio3 25 GPIO_ACTIVE_HIGH>; /* GPIO3_D1 */
-		BT,wake_gpio     = <&gpio3 22 GPIO_ACTIVE_HIGH>; /* GPIO3_C6 */
-		BT,wake_host_irq = <&gpio3 23 GPIO_ACTIVE_HIGH>; /* GPIO3_C7 */
-		status = "okay";
 	};
 
 	vsys: vsys-regulator {
@@ -207,35 +151,10 @@
 		regulator-always-on;
 		vin-supply = <&vcc_stdby>;
 	};
-
-	hdmi_sound: hdmi-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "rockchip,hdmi";
-		simple-audio-card,cpu {
-			sound-dai = <&i2s0>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&hdmi>;
-		};
-	};
 };
 
 &cpu0 {
 	cpu0-supply = <&vdd_arm>;
-};
-
-&cpu0_opp_table {
-	opp-816000000 {
-		status = "okay";
-	};
-};
-
-&gpu_opp_table {
-	opp-300000000 {
-		status = "okay";
-	};
 };
 
 &emac {
@@ -243,8 +162,6 @@
 	pinctrl-0 = <&emac_xfer>, <&emac_mdio>, <&rmii_rst>;
 	phy = <&phy0>;
 	phy-supply = <&vcc_rmii>;
-	phy-reset-gpios = <&gpio1 30 GPIO_ACTIVE_LOW>; /* PHY_RST */
-	phy-reset-duration = <10>; /* millisecond */
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
@@ -253,25 +170,16 @@
 };
 
 &emmc {
+	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
-	supports-emmc;
 	non-removable;
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_rst>;
 	vmmc-supply = <&vcc_emmc>;
 	vqmmc-supply = <&vcc_emmc>;
-	status = "okay";
-};
-
-&gpu {
-	status = "okay";
-};
-
-&hdmi {
-	#sound-dai-cells = <0>;
 	status = "okay";
 };
 
@@ -370,16 +278,14 @@
 
 			vccio_wl: regulator@8 {
 				regulator-name = "vccio_wl";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			vcc25_hdmi: regulator@9 {
 				regulator-name = "vcc25_hdmi";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <2500000>;
-				regulator-always-on;
-				regulator-boot-on;
 			};
 
 			vcca_33: regulator@10 {
@@ -417,16 +323,10 @@
 	status = "okay";
 };
 
-&i2s0 {
-	#sound-dai-cells = <0>;
-	status = "okay";
-};
-
 &mmc0 {
 	bus-width = <4>;
 	disable-wp;
 	num-slots = <1>;
-	supports-sd;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk>, <&sd0_cmd>, <&sd0_cd>, <&sd0_bus4>;
 	vmmc-supply = <&vcc_sd>;
@@ -436,17 +336,11 @@
 };
 
 &mmc1 {
-	max-frequency = <50000000>;
-	cap-sd-highspeed;
-	keep-power-in-suspend;
-	mmc-pwrseq = <&sdio_pwrseq>;
-	sd-uhs-sdr104;
-
+	broken-cd;
 	bus-width = <4>;
 	disable-wp;
 	non-removable;
 	num-slots = <1>;
-	supports-sdio;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_clk>, <&sd1_cmd>, <&sd1_bus4>;
 	vmmc-supply = <&vccio_wl>;
@@ -527,20 +421,6 @@
 			rockchip,pins = <6 8 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 	};
-
-	wireless-bluetooth {
-		uart0_gpios: uart0-gpios {
-			rockchip,pins = <1 3 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		wifi_reg_on: wifi-reg-on {
-			rockchip,pins = <3 24 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		wifi_host_wake: wifi-host-wake {
-			rockchip,pins = <1 26 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
 };
 
 &pwm1 {
@@ -548,10 +428,6 @@
 };
 
 &pwm2 {
-	status = "okay";
-};
-
-&pwm3 {
 	status = "okay";
 };
 
@@ -566,7 +442,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_xfer>, <&uart0_cts>;
+	pinctrl-0 = <&uart0_xfer>, <&uart0_cts>, <&uart0_rts>;
 	status = "okay";
 };
 
@@ -591,10 +467,6 @@
 };
 
 &usb_otg {
-	status = "okay";
-};
-
-&vop0 {
 	status = "okay";
 };
 

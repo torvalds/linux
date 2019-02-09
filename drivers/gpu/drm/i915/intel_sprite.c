@@ -195,7 +195,7 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key =
 		&to_intel_plane_state(drm_plane->state)->ckey;
-	u32 surf_addr;
+	unsigned long surf_addr;
 	u32 tile_height, plane_offset, plane_size;
 	unsigned int rotation;
 	int x_offset, y_offset;
@@ -1141,7 +1141,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
 				       &intel_plane_funcs,
 				       plane_formats, num_plane_formats,
-				       DRM_PLANE_TYPE_OVERLAY, NULL);
+				       DRM_PLANE_TYPE_OVERLAY);
 	if (ret) {
 		kfree(intel_plane);
 		goto out;

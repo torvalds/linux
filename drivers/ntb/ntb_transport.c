@@ -599,7 +599,7 @@ static int ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt,
 	if (!mw->virt_addr)
 		return -ENOMEM;
 
-	if (mw_num < qp_count % mw_count)
+	if (qp_count % mw_count && mw_num + 1 < qp_count / mw_count)
 		num_qps_mw = qp_count / mw_count + 1;
 	else
 		num_qps_mw = qp_count / mw_count;
@@ -947,16 +947,13 @@ static int ntb_transport_init_queue(struct ntb_transport_ctx *nt,
 	qp->event_handler = NULL;
 	ntb_qp_link_down_reset(qp);
 
-	if (mw_num < qp_count % mw_count)
+	if (qp_count % mw_count && mw_num + 1 < qp_count / mw_count)
 		num_qps_mw = qp_count / mw_count + 1;
 	else
 		num_qps_mw = qp_count / mw_count;
 
 	mw_base = nt->mw_vec[mw_num].phys_addr;
 	mw_size = nt->mw_vec[mw_num].phys_size;
-
-	if (max_mw_size && mw_size > max_mw_size)
-		mw_size = max_mw_size;
 
 	tx_size = (unsigned int)mw_size / num_qps_mw;
 	qp_offset = tx_size * (qp_num / mw_count);
@@ -1068,8 +1065,8 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	qp_count = ilog2(qp_bitmap);
 	if (max_num_clients && max_num_clients < qp_count)
 		qp_count = max_num_clients;
-	else if (nt->mw_count < qp_count)
-		qp_count = nt->mw_count;
+	else if (mw_count < qp_count)
+		qp_count = mw_count;
 
 	qp_bitmap &= BIT_ULL(qp_count) - 1;
 
@@ -1626,7 +1623,7 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 
 	node = dev_to_node(&ndev->dev);
 
-	free_queue = ffs(nt->qp_bitmap_free);
+	free_queue = ffs(nt->qp_bitmap);
 	if (!free_queue)
 		goto err;
 
@@ -2085,8 +2082,9 @@ module_init(ntb_transport_init);
 
 static void __exit ntb_transport_exit(void)
 {
+	debugfs_remove_recursive(nt_debugfs_dir);
+
 	ntb_unregister_client(&ntb_transport_client);
 	bus_unregister(&ntb_transport_bus);
-	debugfs_remove_recursive(nt_debugfs_dir);
 }
 module_exit(ntb_transport_exit);

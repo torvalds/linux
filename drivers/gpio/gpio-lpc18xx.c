@@ -127,7 +127,7 @@ static int lpc18xx_gpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&gc->lock);
 
-	gc->gpio.parent = &pdev->dev;
+	gc->gpio.dev = &pdev->dev;
 
 	ret = gpiochip_add(&gc->gpio);
 	if (ret) {

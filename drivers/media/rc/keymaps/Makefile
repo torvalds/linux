@@ -39,12 +39,10 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-flyvideo.o \
 			rc-fusionhdtv-mce.o \
 			rc-gadmei-rm008z.o \
-			rc-geekbox.o \
 			rc-genius-tvgo-a11mce.o \
 			rc-gotview7135.o \
 			rc-imon-mce.o \
 			rc-imon-pad.o \
-			rc-imon-rsc.o \
 			rc-iodata-bctv7e.o \
 			rc-it913x-v1.o \
 			rc-it913x-v2.o \
@@ -53,6 +51,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-kworld-pc150u.o \
 			rc-kworld-plus-tv-analog.o \
 			rc-leadtek-y04g0051.o \
+			rc-lirc.o \
 			rc-lme2510.o \
 			rc-manli.o \
 			rc-medion-x10.o \

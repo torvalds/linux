@@ -41,7 +41,6 @@
 #include <linux/ptrace.h>
 #include <linux/screen_info.h>
 #include <linux/kdebug.h>
-#include <linux/random.h>
 #include "hyperv_vmbus.h"
 
 static struct acpi_device  *hv_acpi_dev;
@@ -105,7 +104,6 @@ static struct notifier_block hyperv_panic_block = {
 };
 
 struct resource *hyperv_mmio;
-DEFINE_SEMAPHORE(hyperv_mmio_lock);
 
 static int vmbus_exists(void)
 {
@@ -604,11 +602,23 @@ static int vmbus_remove(struct device *child_device)
 {
 	struct hv_driver *drv;
 	struct hv_device *dev = device_to_hv_device(child_device);
+	u32 relid = dev->channel->offermsg.child_relid;
 
 	if (child_device->driver) {
 		drv = drv_to_hv_drv(child_device->driver);
 		if (drv->remove)
 			drv->remove(dev);
+		else {
+			hv_process_channel_removal(dev->channel, relid);
+			pr_err("remove not set for driver %s\n",
+				dev_name(child_device));
+		}
+	} else {
+		/*
+		 * We don't have a driver for this device; deal with the
+		 * rescind message by removing the channel.
+		 */
+		hv_process_channel_removal(dev->channel, relid);
 	}
 
 	return 0;
@@ -643,10 +653,7 @@ static void vmbus_shutdown(struct device *child_device)
 static void vmbus_device_release(struct device *device)
 {
 	struct hv_device *hv_dev = device_to_hv_device(device);
-	struct vmbus_channel *channel = hv_dev->channel;
 
-	hv_process_channel_removal(channel,
-				   channel->offermsg.child_relid);
 	kfree(hv_dev);
 
 }
@@ -819,8 +826,6 @@ static void vmbus_isr(void)
 		else
 			tasklet_schedule(&msg_dpc);
 	}
-
-	add_interrupt_randomness(HYPERVISOR_CALLBACK_VECTOR, 0);
 }
 
 
@@ -862,7 +867,7 @@ static int vmbus_bus_init(int irq)
 	on_each_cpu(hv_synic_init, NULL, 1);
 	ret = vmbus_connect();
 	if (ret)
-		goto err_connect;
+		goto err_alloc;
 
 	if (vmbus_proto_version > VERSION_WIN7)
 		cpu_hotplug_disable();
@@ -880,8 +885,6 @@ static int vmbus_bus_init(int irq)
 
 	return 0;
 
-err_connect:
-	on_each_cpu(hv_synic_cleanup, NULL, 1);
 err_alloc:
 	hv_synic_free();
 	hv_remove_vmbus_irq();
@@ -889,7 +892,7 @@ err_alloc:
 	bus_unregister(&hv_bus);
 
 err_cleanup:
-	hv_cleanup(false);
+	hv_cleanup();
 
 	return ret;
 }
@@ -1141,10 +1144,7 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 	resource_size_t range_min, range_max, start, local_min, local_max;
 	const char *dev_n = dev_name(&device_obj->device);
 	u32 fb_end = screen_info.lfb_base + (screen_info.lfb_size << 1);
-	int i, retval;
-
-	retval = -ENXIO;
-	down(&hyperv_mmio_lock);
+	int i;
 
 	for (iter = hyperv_mmio; iter; iter = iter->sibling) {
 		if ((iter->start >= max) || (iter->end <= min))
@@ -1181,17 +1181,13 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 			for (; start + size - 1 <= local_max; start += align) {
 				*new = request_mem_region_exclusive(start, size,
 								    dev_n);
-				if (*new) {
-					retval = 0;
-					goto exit;
-				}
+				if (*new)
+					return 0;
 			}
 		}
 	}
 
-exit:
-	up(&hyperv_mmio_lock);
-	return retval;
+	return -ENXIO;
 }
 EXPORT_SYMBOL_GPL(vmbus_allocate_mmio);
 
@@ -1254,7 +1250,7 @@ static void hv_kexec_handler(void)
 	vmbus_initiate_unload();
 	for_each_online_cpu(cpu)
 		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
-	hv_cleanup(false);
+	hv_cleanup();
 };
 
 static void hv_crash_handler(struct pt_regs *regs)
@@ -1266,7 +1262,7 @@ static void hv_crash_handler(struct pt_regs *regs)
 	 * for kdump.
 	 */
 	hv_synic_cleanup(NULL);
-	hv_cleanup(true);
+	hv_cleanup();
 };
 
 static int __init hv_acpi_init(void)
@@ -1330,7 +1326,7 @@ static void __exit vmbus_exit(void)
 						 &hyperv_panic_block);
 	}
 	bus_unregister(&hv_bus);
-	hv_cleanup(false);
+	hv_cleanup();
 	for_each_online_cpu(cpu) {
 		tasklet_kill(hv_context.event_dpc[cpu]);
 		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);

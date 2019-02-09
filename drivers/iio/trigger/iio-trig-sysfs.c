@@ -174,7 +174,7 @@ static int iio_sysfs_trigger_probe(int id)
 	return 0;
 
 out2:
-	iio_trigger_free(t->trig);
+	iio_trigger_put(t->trig);
 free_t:
 	kfree(t);
 out1:

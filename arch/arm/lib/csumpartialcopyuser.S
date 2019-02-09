@@ -85,11 +85,7 @@
 		.pushsection .text.fixup,"ax"
 		.align	4
 9001:		mov	r4, #-EFAULT
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
-		ldr	r5, [sp, #9*4]		@ *err_ptr
-#else
 		ldr	r5, [sp, #8*4]		@ *err_ptr
-#endif
 		str	r4, [r5]
 		ldmia	sp, {r1, r2}		@ retrieve dst, len
 		add	r2, r2, r1

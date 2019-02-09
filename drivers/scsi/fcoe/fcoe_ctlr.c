@@ -752,9 +752,9 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 	case ELS_LOGO:
 		if (fip->mode == FIP_MODE_VN2VN) {
 			if (fip->state != FIP_ST_VNMP_UP)
-				goto drop;
+				return -EINVAL;
 			if (ntoh24(fh->fh_d_id) == FC_FID_FLOGI)
-				goto drop;
+				return -EINVAL;
 		} else {
 			if (fip->state != FIP_ST_ENABLED)
 				return 0;

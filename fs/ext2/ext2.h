@@ -61,8 +61,6 @@ struct ext2_block_alloc_info {
 #define rsv_start rsv_window._rsv_start
 #define rsv_end rsv_window._rsv_end
 
-struct mb2_cache;
-
 /*
  * second extended-fs super-block data in memory
  */
@@ -113,7 +111,6 @@ struct ext2_sb_info {
 	 * of the mount options.
 	 */
 	spinlock_t s_lock;
-	struct mb2_cache *s_mb_cache;
 };
 
 static inline spinlock_t *

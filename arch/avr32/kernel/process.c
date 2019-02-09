@@ -62,9 +62,9 @@ void machine_restart(char *cmd)
 /*
  * Free current thread data structures etc
  */
-void exit_thread(struct task_struct *tsk)
+void exit_thread(void)
 {
-	ocd_disable(tsk);
+	ocd_disable(current);
 }
 
 void flush_thread(void)

@@ -24,11 +24,6 @@
 #include <linux/regmap.h>
 #include "tsc200x-core.h"
 
-static const struct input_id tsc2005_input_id = {
-	.bustype = BUS_SPI,
-	.product = 2005,
-};
-
 static int tsc2005_cmd(struct device *dev, u8 cmd)
 {
 	u8 tx = TSC200X_CMD | TSC200X_CMD_12BIT | cmd;
@@ -67,7 +62,7 @@ static int tsc2005_probe(struct spi_device *spi)
 	if (error)
 		return error;
 
-	return tsc200x_probe(&spi->dev, spi->irq, &tsc2005_input_id,
+	return tsc200x_probe(&spi->dev, spi->irq, BUS_SPI,
 			     devm_regmap_init_spi(spi, &tsc200x_regmap_config),
 			     tsc2005_cmd);
 }

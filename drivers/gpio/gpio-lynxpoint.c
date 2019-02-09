@@ -368,7 +368,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->base = -1;
 	gc->ngpio = LP_NUM_GPIO;
 	gc->can_sleep = false;
-	gc->parent = dev;
+	gc->dev = dev;
 
 	ret = gpiochip_add(gc);
 	if (ret) {

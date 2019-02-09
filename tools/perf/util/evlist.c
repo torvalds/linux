@@ -1211,12 +1211,12 @@ void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
 	 */
 	if (cpus != evlist->cpus) {
 		cpu_map__put(evlist->cpus);
-		evlist->cpus = cpu_map__get(cpus);
+		evlist->cpus = cpus;
 	}
 
 	if (threads != evlist->threads) {
 		thread_map__put(evlist->threads);
-		evlist->threads = thread_map__get(threads);
+		evlist->threads = threads;
 	}
 
 	perf_evlist__propagate_maps(evlist);
@@ -1238,30 +1238,6 @@ int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **e
 		 * So evlist and evsel should always be same.
 		 */
 		err = perf_evsel__apply_filter(evsel, ncpus, nthreads, evsel->filter);
-		if (err) {
-			*err_evsel = evsel;
-			break;
-		}
-	}
-
-	return err;
-}
-
-int perf_evlist__apply_drv_configs(struct perf_evlist *evlist,
-				   struct perf_evsel **err_evsel,
-				   struct perf_evsel_config_term **err_term)
-{
-	struct perf_evsel *evsel;
-	int err = 0;
-	const int ncpus = cpu_map__nr(evlist->cpus),
-		  nthreads = thread_map__nr(evlist->threads);
-
-	evlist__for_each(evlist, evsel) {
-		if (list_empty(&evsel->drv_config_terms))
-			continue;
-
-		err = perf_evsel__apply_drv_configs(evsel, ncpus,
-						    nthreads, err_term);
 		if (err) {
 			*err_evsel = evsel;
 			break;
@@ -1510,7 +1486,7 @@ int perf_evlist__open(struct perf_evlist *evlist)
 	perf_evlist__update_id_pos(evlist);
 
 	evlist__for_each(evlist, evsel) {
-		err = perf_evsel__open(evsel, evsel->cpus, evsel->threads);
+		err = perf_evsel__open(evsel, evlist->cpus, evlist->threads);
 		if (err < 0)
 			goto out_err;
 	}

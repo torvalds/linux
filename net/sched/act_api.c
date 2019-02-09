@@ -101,10 +101,8 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 			a->order = n_i;
 
 			nest = nla_nest_start(skb, a->order);
-			if (nest == NULL) {
-				index--;
+			if (nest == NULL)
 				goto nla_put_failure;
-			}
 			err = tcf_action_dump_1(skb, a, 0, 0);
 			if (err < 0) {
 				index--;
@@ -822,8 +820,10 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 		goto out_module_put;
 
 	err = a.ops->walk(skb, &dcb, RTM_DELACTION, &a);
-	if (err <= 0)
+	if (err < 0)
 		goto out_module_put;
+	if (err == 0)
+		goto noflush_out;
 
 	nla_nest_end(skb, nest);
 
@@ -840,6 +840,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 out_module_put:
 	module_put(a.ops->owner);
 err_out:
+noflush_out:
 	kfree_skb(skb);
 	return err;
 }

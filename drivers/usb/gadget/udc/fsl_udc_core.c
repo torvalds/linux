@@ -1249,12 +1249,6 @@ static const struct usb_gadget_ops fsl_gadget_ops = {
 	.udc_stop = fsl_udc_stop,
 };
 
-/*
- * Empty complete function used by this driver to fill in the req->complete
- * field when creating a request since the complete field is mandatory.
- */
-static void fsl_noop_complete(struct usb_ep *ep, struct usb_request *req) { }
-
 /* Set protocol stall on ep0, protocol stall will automatically be cleared
    on new transaction */
 static void ep0stall(struct fsl_udc *udc)
@@ -1289,7 +1283,7 @@ static int ep0_prime_status(struct fsl_udc *udc, int direction)
 	req->req.length = 0;
 	req->req.status = -EINPROGRESS;
 	req->req.actual = 0;
-	req->req.complete = fsl_noop_complete;
+	req->req.complete = NULL;
 	req->dtd_count = 0;
 
 	ret = usb_gadget_map_request(&ep->udc->gadget, &req->req, ep_is_in(ep));
@@ -1310,7 +1304,7 @@ static void udc_reset_ep_queue(struct fsl_udc *udc, u8 pipe)
 {
 	struct fsl_ep *ep = get_ep_by_pipe(udc, pipe);
 
-	if (ep->ep.name)
+	if (ep->name)
 		nuke(ep, -ESHUTDOWN);
 }
 
@@ -1372,7 +1366,7 @@ static void ch9getstatus(struct fsl_udc *udc, u8 request_type, u16 value,
 	req->req.length = 2;
 	req->req.status = -EINPROGRESS;
 	req->req.actual = 0;
-	req->req.complete = fsl_noop_complete;
+	req->req.complete = NULL;
 	req->dtd_count = 0;
 
 	ret = usb_gadget_map_request(&ep->udc->gadget, &req->req, ep_is_in(ep));
@@ -1698,7 +1692,7 @@ static void dtd_complete_irq(struct fsl_udc *udc)
 		curr_ep = get_ep_by_pipe(udc, i);
 
 		/* If the ep is configured */
-		if (!curr_ep->ep.name) {
+		if (curr_ep->name == NULL) {
 			WARNING("Invalid EP?");
 			continue;
 		}

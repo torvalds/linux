@@ -631,30 +631,33 @@ bool sysfs_streq(const char *s1, const char *s2)
 EXPORT_SYMBOL(sysfs_streq);
 
 /**
- * match_string - matches given string in an array
- * @array:	array of strings
- * @n:		number of strings in the array or -1 for NULL terminated arrays
- * @string:	string to match with
+ * strtobool - convert common user inputs into boolean values
+ * @s: input string
+ * @res: result
  *
- * Return:
- * index of a @string in the @array if matches, or %-EINVAL otherwise.
+ * This routine returns 0 iff the first character is one of 'Yy1Nn0'.
+ * Otherwise it will return -EINVAL.  Value pointed to by res is
+ * updated upon finding a match.
  */
-int match_string(const char * const *array, size_t n, const char *string)
+int strtobool(const char *s, bool *res)
 {
-	int index;
-	const char *item;
-
-	for (index = 0; index < n; index++) {
-		item = array[index];
-		if (!item)
-			break;
-		if (!strcmp(item, string))
-			return index;
+	switch (s[0]) {
+	case 'y':
+	case 'Y':
+	case '1':
+		*res = true;
+		break;
+	case 'n':
+	case 'N':
+	case '0':
+		*res = false;
+		break;
+	default:
+		return -EINVAL;
 	}
-
-	return -EINVAL;
+	return 0;
 }
-EXPORT_SYMBOL(match_string);
+EXPORT_SYMBOL(strtobool);
 
 #ifndef __HAVE_ARCH_MEMSET
 /**

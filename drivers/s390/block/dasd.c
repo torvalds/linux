@@ -1584,18 +1584,9 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	unsigned long long now;
 	int expires;
 
-	cqr = (struct dasd_ccw_req *) intparm;
 	if (IS_ERR(irb)) {
 		switch (PTR_ERR(irb)) {
 		case -EIO:
-			if (cqr && cqr->status == DASD_CQR_CLEAR_PENDING) {
-				device = (struct dasd_device *) cqr->startdev;
-				cqr->status = DASD_CQR_CLEARED;
-				dasd_device_clear_timer(device);
-				wake_up(&dasd_flush_wq);
-				dasd_schedule_device_bh(device);
-				return;
-			}
 			break;
 		case -ETIMEDOUT:
 			DBF_EVENT_DEVID(DBF_WARNING, cdev, "%s: "
@@ -1611,6 +1602,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	}
 
 	now = get_tod_clock();
+	cqr = (struct dasd_ccw_req *) intparm;
 	/* check for conditions that should be handled immediately */
 	if (!cqr ||
 	    !(scsw_dstat(&irb->scsw) == (DEV_STAT_CHN_END | DEV_STAT_DEV_END) &&
@@ -1635,11 +1627,8 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	/* check for for attention message */
 	if (scsw_dstat(&irb->scsw) & DEV_STAT_ATTENTION) {
 		device = dasd_device_from_cdev_locked(cdev);
-		if (!IS_ERR(device)) {
-			device->discipline->check_attention(device,
-							    irb->esw.esw1.lpum);
-			dasd_put_device(device);
-		}
+		device->discipline->check_attention(device, irb->esw.esw1.lpum);
+		dasd_put_device(device);
 	}
 
 	if (!cqr)
@@ -1881,12 +1870,8 @@ static int __dasd_device_is_unusable(struct dasd_device *device,
 {
 	int mask = ~(DASD_STOPPED_DC_WAIT | DASD_UNRESUMED_PM);
 
-	if (test_bit(DASD_FLAG_OFFLINE, &device->flags) &&
-	    !test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
-		/*
-		 * dasd is being set offline
-		 * but it is no safe offline where we have to allow I/O
-		 */
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+		/* dasd is being set offline. */
 		return 1;
 	}
 	if (device->stopped) {
@@ -3046,7 +3031,6 @@ static void dasd_setup_queue(struct dasd_block *block)
 		max = block->base->discipline->max_blocks << block->s2b_shift;
 	}
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, block->request_queue);
-	block->request_queue->limits.max_dev_sectors = max;
 	blk_queue_logical_block_size(block->request_queue,
 				     block->bp_block);
 	blk_queue_max_hw_sectors(block->request_queue, max);

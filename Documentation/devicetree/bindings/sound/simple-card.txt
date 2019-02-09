@@ -22,7 +22,6 @@ Optional properties:
 					  headphones are attached.
 - simple-audio-card,mic-det-gpio	: Reference to GPIO that signals when
 					  a microphone is attached.
-- simple-audio-card,codec-hp-det	: Detect the headphone via internal codec
 
 Optional subnodes:
 

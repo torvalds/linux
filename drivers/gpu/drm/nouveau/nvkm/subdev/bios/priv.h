@@ -12,7 +12,6 @@ struct nvbios_source {
 	bool rw;
 	bool ignore_checksum;
 	bool no_pcir;
-	bool require_checksum;
 };
 
 int nvbios_extend(struct nvkm_bios *, u32 length);

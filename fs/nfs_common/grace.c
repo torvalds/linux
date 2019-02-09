@@ -30,11 +30,7 @@ locks_start_grace(struct net *net, struct lock_manager *lm)
 	struct list_head *grace_list = net_generic(net, grace_net_id);
 
 	spin_lock(&grace_lock);
-	if (list_empty(&lm->list))
-		list_add(&lm->list, grace_list);
-	else
-		WARN(1, "double list_add attempt detected in net %x %s\n",
-		     net->ns.inum, (net == &init_net) ? "(init_net)" : "");
+	list_add(&lm->list, grace_list);
 	spin_unlock(&grace_lock);
 }
 EXPORT_SYMBOL_GPL(locks_start_grace);
@@ -108,9 +104,7 @@ grace_exit_net(struct net *net)
 {
 	struct list_head *grace_list = net_generic(net, grace_net_id);
 
-	WARN_ONCE(!list_empty(grace_list),
-		  "net %x %s: grace_list is not empty\n",
-		  net->ns.inum, __func__);
+	BUG_ON(!list_empty(grace_list));
 }
 
 static struct pernet_operations grace_net_ops = {

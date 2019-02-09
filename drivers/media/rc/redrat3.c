@@ -234,7 +234,8 @@ static void redrat3_dump_fw_error(struct redrat3_dev *rr3, int code)
 
 	/* Codes 0x20 through 0x2f are IR Firmware Errors */
 	case 0x20:
-		pr_cont("Initial signal pulse not long enough to measure carrier frequency\n");
+		pr_cont("Initial signal pulse not long enough "
+			"to measure carrier frequency\n");
 		break;
 	case 0x21:
 		pr_cont("Not enough length values allocated for signal\n");
@@ -246,15 +247,18 @@ static void redrat3_dump_fw_error(struct redrat3_dev *rr3, int code)
 		pr_cont("Too many signal repeats\n");
 		break;
 	case 0x28:
-		pr_cont("Insufficient memory available for IR signal data memory allocation\n");
+		pr_cont("Insufficient memory available for IR signal "
+			"data memory allocation\n");
 		break;
 	case 0x29:
-		pr_cont("Insufficient memory available for IrDa signal data memory allocation\n");
+		pr_cont("Insufficient memory available "
+			"for IrDa signal data memory allocation\n");
 		break;
 
 	/* Codes 0x30 through 0x3f are USB Firmware Errors */
 	case 0x30:
-		pr_cont("Insufficient memory available for bulk transfer structure\n");
+		pr_cont("Insufficient memory available for bulk "
+			"transfer structure\n");
 		break;
 
 	/*
@@ -266,7 +270,8 @@ static void redrat3_dump_fw_error(struct redrat3_dev *rr3, int code)
 			pr_cont("Signal capture has been terminated\n");
 		break;
 	case 0x41:
-		pr_cont("Attempt to set/get and unknown signal I/O algorithm parameter\n");
+		pr_cont("Attempt to set/get and unknown signal I/O "
+			"algorithm parameter\n");
 		break;
 	case 0x42:
 		pr_cont("Signal capture already started\n");
@@ -861,13 +866,14 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 		goto out;
 	}
 
-	snprintf(rr3->name, sizeof(rr3->name), "RedRat3%s Infrared Remote Transceiver (%04x:%04x)",
+	snprintf(rr3->name, sizeof(rr3->name), "RedRat3%s "
+		 "Infrared Remote Transceiver (%04x:%04x)",
 		 prod == USB_RR3IIUSB_PRODUCT_ID ? "-II" : "",
 		 le16_to_cpu(rr3->udev->descriptor.idVendor), prod);
 
 	usb_make_path(rr3->udev, rr3->phys, sizeof(rr3->phys));
 
-	rc->device_name = rr3->name;
+	rc->input_name = rr3->name;
 	rc->input_phys = rr3->phys;
 	usb_to_input_id(rr3->udev, &rc->input_id);
 	rc->dev.parent = dev;

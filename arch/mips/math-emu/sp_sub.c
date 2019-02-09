@@ -106,7 +106,6 @@ union ieee754sp ieee754sp_sub(union ieee754sp x, union ieee754sp y)
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		SPDNORMX;
-		/* fall through */
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		SPDNORMY;
@@ -135,15 +134,13 @@ union ieee754sp ieee754sp_sub(union ieee754sp x, union ieee754sp y)
 		 * have to shift y fraction right to align
 		 */
 		s = xe - ye;
-		ym = XSPSRS(ym, s);
-		ye += s;
+		SPXSRSYn(s);
 	} else if (ye > xe) {
 		/*
 		 * have to shift x fraction right to align
 		 */
 		s = ye - xe;
-		xm = XSPSRS(xm, s);
-		xe += s;
+		SPXSRSXn(s);
 	}
 	assert(xe == ye);
 	assert(xe <= SP_EMAX);

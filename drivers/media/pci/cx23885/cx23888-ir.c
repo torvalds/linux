@@ -696,8 +696,10 @@ static int cx23888_ir_rx_read(struct v4l2_subdev *sd, u8 *buf, size_t count,
 		if (v > IR_MAX_DURATION)
 			v = IR_MAX_DURATION;
 
-		p->ir_core_data = (struct ir_raw_event)
-			{ .pulse = u, .duration = v, .timeout = w };
+		init_ir_raw_event(&p->ir_core_data);
+		p->ir_core_data.pulse = u;
+		p->ir_core_data.duration = v;
+		p->ir_core_data.timeout = w;
 
 		v4l2_dbg(2, ir_888_debug, sd, "rx read: %10u ns  %s  %s\n",
 			 v, u ? "mark" : "space", w ? "(timed out)" : "");

@@ -49,8 +49,7 @@ typedef union snd_seq_timestamp snd_seq_timestamp_t;
 #define SNDRV_SEQ_DEFAULT_CLIENT_EVENTS	200
 
 /* max delivery path length */
-/* NOTE: this shouldn't be greater than MAX_LOCKDEP_SUBCLASSES */
-#define SNDRV_SEQ_MAX_HOPS		8
+#define SNDRV_SEQ_MAX_HOPS		10
 
 /* max size of event size */
 #define SNDRV_SEQ_MAX_EVENT_LEN		0x3fffffff

@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/thread_info.h>
-#include <linux/string.h>
 #include <asm/asm-eva.h>
 
 /*
@@ -96,7 +95,7 @@ static inline bool eva_kernel_access(void)
 }
 
 /*
- * Is a address valid? This does a straightforward calculation rather
+ * Is a address valid? This does a straighforward calculation rather
  * than tests.
  *
  * Address valid if:
@@ -1171,8 +1170,6 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
 			__cu_len = __invoke_copy_from_user(__cu_to,	\
 							   __cu_from,	\
 							   __cu_len);   \
-		} else {						\
-			memset(__cu_to, 0, __cu_len);			\
 		}							\
 	}								\
 	__cu_len;							\
@@ -1238,13 +1235,6 @@ __clear_user(void __user *addr, __kernel_size_t size)
 {
 	__kernel_size_t res;
 
-#ifdef CONFIG_CPU_MICROMIPS
-/* micromips memset / bzero also clobbers t7 & t8 */
-#define bzero_clobbers "$4", "$5", "$6", __UA_t0, __UA_t1, "$15", "$24", "$31"
-#else
-#define bzero_clobbers "$4", "$5", "$6", __UA_t0, __UA_t1, "$31"
-#endif /* CONFIG_CPU_MICROMIPS */
-
 	if (eva_kernel_access()) {
 		__asm__ __volatile__(
 			"move\t$4, %1\n\t"
@@ -1254,7 +1244,7 @@ __clear_user(void __user *addr, __kernel_size_t size)
 			"move\t%0, $6"
 			: "=r" (res)
 			: "r" (addr), "r" (size)
-			: bzero_clobbers);
+			: "$4", "$5", "$6", __UA_t0, __UA_t1, "$31");
 	} else {
 		might_fault();
 		__asm__ __volatile__(
@@ -1265,7 +1255,7 @@ __clear_user(void __user *addr, __kernel_size_t size)
 			"move\t%0, $6"
 			: "=r" (res)
 			: "r" (addr), "r" (size)
-			: bzero_clobbers);
+			: "$4", "$5", "$6", __UA_t0, __UA_t1, "$31");
 	}
 
 	return res;

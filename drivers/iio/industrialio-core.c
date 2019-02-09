@@ -77,7 +77,6 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_VELOCITY] = "velocity",
 	[IIO_CONCENTRATION] = "concentration",
 	[IIO_RESISTANCE] = "resistance",
-	[IIO_QUATERNION] = "quaternion",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -116,7 +115,6 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_Q] = "q",
 	[IIO_MOD_CO2] = "co2",
 	[IIO_MOD_VOC] = "voc",
-	[IIO_MOD_R] = "r",
 };
 
 /* relies on pairs of these shared then separate */
@@ -223,10 +221,8 @@ static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 	ret = indio_dev->info->debugfs_reg_access(indio_dev,
 						  indio_dev->cached_reg_addr,
 						  0, &val);
-	if (ret) {
+	if (ret)
 		dev_err(indio_dev->dev.parent, "%s: read failed\n", __func__);
-		return ret;
-	}
 
 	len = snprintf(buf, sizeof(buf), "0x%X\n", val);
 
@@ -437,21 +433,23 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 		scale_db = true;
 	case IIO_VAL_INT_PLUS_MICRO:
 		if (vals[1] < 0)
-			return sprintf(buf, "-%d.%06u%s\n", abs(vals[0]),
-				       -vals[1], scale_db ? " dB" : "");
+			return sprintf(buf, "-%ld.%06u%s\n", abs(vals[0]),
+					-vals[1],
+				scale_db ? " dB" : "");
 		else
 			return sprintf(buf, "%d.%06u%s\n", vals[0], vals[1],
 				scale_db ? " dB" : "");
 	case IIO_VAL_INT_PLUS_NANO:
 		if (vals[1] < 0)
-			return sprintf(buf, "-%d.%09u\n", abs(vals[0]),
-				       -vals[1]);
+			return sprintf(buf, "-%ld.%09u\n", abs(vals[0]),
+					-vals[1]);
 		else
 			return sprintf(buf, "%d.%09u\n", vals[0], vals[1]);
 	case IIO_VAL_FRACTIONAL:
 		tmp = div_s64((s64)vals[0] * 1000000000LL, vals[1]);
-		vals[0] = (int)div_s64_rem(tmp, 1000000000, &vals[1]);
-		return sprintf(buf, "%d.%09u\n", vals[0], abs(vals[1]));
+		vals[1] = do_div(tmp, 1000000000LL);
+		vals[0] = tmp;
+		return sprintf(buf, "%d.%09u\n", vals[0], vals[1]);
 	case IIO_VAL_FRACTIONAL_LOG2:
 		tmp = (s64)vals[0] * 1000000000LL >> vals[1];
 		vals[1] = do_div(tmp, 1000000000LL);

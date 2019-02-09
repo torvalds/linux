@@ -122,10 +122,6 @@ static int slave_configure(struct scsi_device *sdev)
 	if (us->fflags & (US_FL_MAX_SECTORS_64 | US_FL_MAX_SECTORS_MIN)) {
 		unsigned int max_sectors = 64;
 
-		if (le16_to_cpu(us->pusb_dev->descriptor.idVendor) == 0x05e3 &&
-		    le16_to_cpu(us->pusb_dev->descriptor.idProduct) == 0x0749)
-			max_sectors = 128;
-
 		if (us->fflags & US_FL_MAX_SECTORS_MIN)
 			max_sectors = PAGE_CACHE_SIZE >> 9;
 		if (queue_max_hw_sectors(sdev->request_queue) > max_sectors)
@@ -341,15 +337,6 @@ static int queuecommand_lck(struct scsi_cmnd *srb,
 	if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
 		usb_stor_dbg(us, "Fail command during disconnect\n");
 		srb->result = DID_NO_CONNECT << 16;
-		done(srb);
-		return 0;
-	}
-
-	if ((us->fflags & US_FL_NO_ATA_1X) &&
-			(srb->cmnd[0] == ATA_12 || srb->cmnd[0] == ATA_16)) {
-		memcpy(srb->sense_buffer, usb_stor_sense_invalidCDB,
-		       sizeof(usb_stor_sense_invalidCDB));
-		srb->result = SAM_STAT_CHECK_CONDITION;
 		done(srb);
 		return 0;
 	}

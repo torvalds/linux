@@ -471,7 +471,7 @@ static int nmi_setup(void)
 		goto fail;
 
 	for_each_possible_cpu(cpu) {
-		if (!IS_ENABLED(CONFIG_SMP) || !cpu)
+		if (!cpu)
 			continue;
 
 		memcpy(per_cpu(cpu_msrs, cpu).counters,

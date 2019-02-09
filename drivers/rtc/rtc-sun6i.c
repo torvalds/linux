@@ -37,11 +37,9 @@
 
 /* Control register */
 #define SUN6I_LOSC_CTRL				0x0000
-#define SUN6I_LOSC_CTRL_KEY			(0x16aa << 16)
 #define SUN6I_LOSC_CTRL_ALM_DHMS_ACC		BIT(9)
 #define SUN6I_LOSC_CTRL_RTC_HMS_ACC		BIT(8)
 #define SUN6I_LOSC_CTRL_RTC_YMD_ACC		BIT(7)
-#define SUN6I_LOSC_CTRL_EXT_OSC			BIT(0)
 #define SUN6I_LOSC_CTRL_ACC_MASK		GENMASK(9, 7)
 
 /* RTC */
@@ -116,17 +114,13 @@ struct sun6i_rtc_dev {
 	void __iomem *base;
 	int irq;
 	unsigned long alarm;
-
-	spinlock_t lock;
 };
 
 static irqreturn_t sun6i_rtc_alarmirq(int irq, void *id)
 {
 	struct sun6i_rtc_dev *chip = (struct sun6i_rtc_dev *) id;
-	irqreturn_t ret = IRQ_NONE;
 	u32 val;
 
-	spin_lock(&chip->lock);
 	val = readl(chip->base + SUN6I_ALRM_IRQ_STA);
 
 	if (val & SUN6I_ALRM_IRQ_STA_CNT_IRQ_PEND) {
@@ -135,11 +129,10 @@ static irqreturn_t sun6i_rtc_alarmirq(int irq, void *id)
 
 		rtc_update_irq(chip->rtc, 1, RTC_AF | RTC_IRQF);
 
-		ret = IRQ_HANDLED;
+		return IRQ_HANDLED;
 	}
-	spin_unlock(&chip->lock);
 
-	return ret;
+	return IRQ_NONE;
 }
 
 static void sun6i_rtc_setaie(int to, struct sun6i_rtc_dev *chip)
@@ -147,7 +140,6 @@ static void sun6i_rtc_setaie(int to, struct sun6i_rtc_dev *chip)
 	u32 alrm_val = 0;
 	u32 alrm_irq_val = 0;
 	u32 alrm_wake_val = 0;
-	unsigned long flags;
 
 	if (to) {
 		alrm_val = SUN6I_ALRM_EN_CNT_EN;
@@ -158,11 +150,9 @@ static void sun6i_rtc_setaie(int to, struct sun6i_rtc_dev *chip)
 		       chip->base + SUN6I_ALRM_IRQ_STA);
 	}
 
-	spin_lock_irqsave(&chip->lock, flags);
 	writel(alrm_val, chip->base + SUN6I_ALRM_EN);
 	writel(alrm_irq_val, chip->base + SUN6I_ALRM_IRQ_EN);
 	writel(alrm_wake_val, chip->base + SUN6I_ALARM_CONFIG);
-	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static int sun6i_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
@@ -201,15 +191,11 @@ static int sun6i_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 static int sun6i_rtc_getalarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 {
 	struct sun6i_rtc_dev *chip = dev_get_drvdata(dev);
-	unsigned long flags;
 	u32 alrm_st;
 	u32 alrm_en;
 
-	spin_lock_irqsave(&chip->lock, flags);
 	alrm_en = readl(chip->base + SUN6I_ALRM_IRQ_EN);
 	alrm_st = readl(chip->base + SUN6I_ALRM_IRQ_STA);
-	spin_unlock_irqrestore(&chip->lock, flags);
-
 	wkalrm->enabled = !!(alrm_en & SUN6I_ALRM_EN_CNT_EN);
 	wkalrm->pending = !!(alrm_st & SUN6I_ALRM_EN_CNT_EN);
 	rtc_time_to_tm(chip->alarm, &wkalrm->time);
@@ -370,7 +356,6 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
-	spin_lock_init(&chip->lock);
 
 	platform_set_drvdata(pdev, chip);
 	chip->dev = &pdev->dev;
@@ -418,10 +403,6 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 
 	/* disable alarm wakeup */
 	writel(0, chip->base + SUN6I_ALARM_CONFIG);
-
-	/* switch to the external, more precise, oscillator */
-	writel(SUN6I_LOSC_CTRL_KEY | SUN6I_LOSC_CTRL_EXT_OSC,
-	       chip->base + SUN6I_LOSC_CTRL);
 
 	chip->rtc = rtc_device_register("rtc-sun6i", &pdev->dev,
 					&sun6i_rtc_ops, THIS_MODULE);

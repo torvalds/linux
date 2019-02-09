@@ -45,7 +45,7 @@ struct mlx5_core_cq {
 	atomic_t		refcount;
 	struct completion	free;
 	unsigned		vector;
-	unsigned int		irqn;
+	int			irqn;
 	void (*comp)		(struct mlx5_core_cq *);
 	void (*event)		(struct mlx5_core_cq *, enum mlx5_event);
 	struct mlx5_uar	       *uar;

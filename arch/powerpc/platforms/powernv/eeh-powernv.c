@@ -48,8 +48,8 @@ static int pnv_eeh_init(void)
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 
-	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
-		pr_warn("%s: OPAL is required !\n",
+	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
+		pr_warn("%s: OPALv3 is required !\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -444,12 +444,9 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 * PCI devices of the PE are expected to be removed prior
 	 * to PE reset.
 	 */
-	if (!(edev->pe->state & EEH_PE_PRI_BUS)) {
+	if (!edev->pe->bus)
 		edev->pe->bus = pci_find_bus(hose->global_number,
 					     pdn->busno);
-		if (edev->pe->bus)
-			edev->pe->state |= EEH_PE_PRI_BUS;
-	}
 
 	/*
 	 * Enable EEH explicitly so that we will do EEH check
@@ -956,11 +953,6 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 		}
 
 		bus = eeh_pe_bus_get(pe);
-		if (!bus) {
-			pr_err("%s: Cannot find PCI bus for PHB#%d-PE#%x\n",
-			       __func__, pe->phb->global_number, pe->addr);
-			return -EIO;
-		}
 		if (pci_is_root_bus(bus) ||
 			pci_is_root_bus(bus->parent))
 			ret = pnv_eeh_root_reset(hose, option);
@@ -1168,7 +1160,7 @@ static void pnv_eeh_get_and_dump_hub_diag(struct pci_controller *hose)
 		return;
 	}
 
-	switch (be16_to_cpu(data->type)) {
+	switch (data->type) {
 	case OPAL_P7IOC_DIAG_TYPE_RGC:
 		pr_info("P7IOC diag-data for RGC\n\n");
 		pnv_eeh_dump_hub_diag_common(data);
@@ -1400,7 +1392,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 
 				/* Try best to clear it */
 				opal_pci_eeh_freeze_clear(phb->opal_id,
-					be64_to_cpu(frozen_pe_no),
+					frozen_pe_no,
 					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 				ret = EEH_NEXT_ERR_NONE;
 			} else if ((*pe)->state & EEH_PE_ISOLATED ||

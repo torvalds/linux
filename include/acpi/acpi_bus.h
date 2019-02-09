@@ -392,13 +392,13 @@ struct acpi_data_node {
 
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 {
-	return !IS_ERR_OR_NULL(fwnode) && (fwnode->type == FWNODE_ACPI
+	return fwnode && (fwnode->type == FWNODE_ACPI
 		|| fwnode->type == FWNODE_ACPI_DATA);
 }
 
 static inline bool is_acpi_device_node(struct fwnode_handle *fwnode)
 {
-	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_ACPI;
+	return fwnode && fwnode->type == FWNODE_ACPI;
 }
 
 static inline struct acpi_device *to_acpi_device_node(struct fwnode_handle *fwnode)
@@ -416,13 +416,6 @@ static inline struct acpi_data_node *to_acpi_data_node(struct fwnode_handle *fwn
 {
 	return is_acpi_data_node(fwnode) ?
 		container_of(fwnode, struct acpi_data_node, fwnode) : NULL;
-}
-
-static inline bool acpi_data_node_match(struct fwnode_handle *fwnode,
-					const char *name)
-{
-	return is_acpi_data_node(fwnode) ?
-		(!strcmp(to_acpi_data_node(fwnode)->name, name)) : false;
 }
 
 static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)

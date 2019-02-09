@@ -55,6 +55,7 @@ DECLARE_BITMAP(state_support, CPS_PM_STATE_COUNT);
  * state. Actually per-core rather than per-CPU.
  */
 static DEFINE_PER_CPU_ALIGNED(u32*, ready_count);
+static DEFINE_PER_CPU_ALIGNED(void*, ready_count_alloc);
 
 /* Indicates online CPUs coupled with the current CPU */
 static DEFINE_PER_CPU_ALIGNED(cpumask_t, online_coupled);
@@ -223,18 +224,11 @@ static void __init cps_gen_cache_routine(u32 **pp, struct uasm_label **pl,
 	uasm_build_label(pl, *pp, lbl);
 
 	/* Generate the cache ops */
-	for (i = 0; i < unroll_lines; i++) {
-		if (cpu_has_mips_r6) {
-			uasm_i_cache(pp, op, 0, t0);
-			uasm_i_addiu(pp, t0, t0, cache->linesz);
-		} else {
-			uasm_i_cache(pp, op, i * cache->linesz, t0);
-		}
-	}
+	for (i = 0; i < unroll_lines; i++)
+		uasm_i_cache(pp, op, i * cache->linesz, t0);
 
-	if (!cpu_has_mips_r6)
-		/* Update the base address */
-		uasm_i_addiu(pp, t0, t0, unroll_lines * cache->linesz);
+	/* Update the base address */
+	uasm_i_addiu(pp, t0, t0, unroll_lines * cache->linesz);
 
 	/* Loop if we haven't reached the end address yet */
 	uasm_il_bne(pp, pr, t0, t1, lbl);
@@ -271,9 +265,14 @@ static int __init cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
 		/* On older ones it's unavailable */
 		return -1;
 
-	default:
-		/* Assume that the CPU does not need this workaround */
+	/* CPUs which do not require the workaround */
+	case CPU_P5600:
+	case CPU_I6400:
 		return 0;
+
+	default:
+		WARN_ONCE(1, "pm-cps: FSB flush unsupported for this CPU\n");
+		return -1;
 	}
 
 	/*
@@ -473,7 +472,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	/*
 	 * Disable all but self interventions. The load from COHCTL is defined
 	 * by the interAptiv & proAptiv SUMs as ensuring that the operation
-	 * resulting from the preceding store is complete.
+	 * resulting from the preceeding store is complete.
 	 */
 	uasm_i_addiu(&p, t0, zero, 1 << cpu_data[cpu].core);
 	uasm_i_sw(&p, t0, 0, r_pcohctl);
@@ -626,6 +625,7 @@ static int __init cps_gen_core_entries(unsigned cpu)
 {
 	enum cps_pm_state state;
 	unsigned core = cpu_data[cpu].core;
+	unsigned dlinesz = cpu_data[cpu].dcache.linesz;
 	void *entry_fn, *core_rc;
 
 	for (state = CPS_PM_NC_WAIT; state < CPS_PM_STATE_COUNT; state++) {
@@ -645,11 +645,16 @@ static int __init cps_gen_core_entries(unsigned cpu)
 	}
 
 	if (!per_cpu(ready_count, core)) {
-		core_rc = kmalloc(sizeof(u32), GFP_KERNEL);
+		core_rc = kmalloc(dlinesz * 2, GFP_KERNEL);
 		if (!core_rc) {
 			pr_err("Failed allocate core %u ready_count\n", core);
 			return -ENOMEM;
 		}
+		per_cpu(ready_count_alloc, core) = core_rc;
+
+		/* Ensure ready_count is aligned to a cacheline boundary */
+		core_rc += dlinesz - 1;
+		core_rc = (void *)((unsigned long)core_rc & ~(dlinesz - 1));
 		per_cpu(ready_count, core) = core_rc;
 	}
 

@@ -568,11 +568,6 @@ static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 		tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
 }
 
-static inline bool local_timer_softirq_pending(void)
-{
-	return local_softirq_pending() & BIT(TIMER_SOFTIRQ);
-}
-
 static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 					 ktime_t now, int cpu)
 {
@@ -589,18 +584,8 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	} while (read_seqretry(&jiffies_lock, seq));
 	ts->last_jiffies = basejiff;
 
-	/*
-	 * Keep the periodic tick, when RCU, architecture or irq_work
-	 * requests it.
-	 * Aside of that check whether the local timer softirq is
-	 * pending. If so its a bad idea to call get_next_timer_interrupt()
-	 * because there is an already expired timer, so it will request
-	 * immeditate expiry, which rearms the hardware timer with a
-	 * minimal delta which brings us back to this place
-	 * immediately. Lather, rinse and repeat...
-	 */
-	if (rcu_needs_cpu(basemono, &next_rcu) || arch_needs_cpu() ||
-	    irq_work_needs_cpu() || local_timer_softirq_pending()) {
+	if (rcu_needs_cpu(basemono, &next_rcu) ||
+	    arch_needs_cpu() || irq_work_needs_cpu()) {
 		next_tick = basemono + TICK_NSEC;
 	} else {
 		/*
@@ -885,18 +870,6 @@ ktime_t tick_nohz_get_sleep_length(void)
 	return ts->sleep_length;
 }
 
-/**
- * tick_nohz_get_idle_calls - return the current idle calls counter value
- *
- * Called from the schedutil frequency scaling governor in scheduler context.
- */
-unsigned long tick_nohz_get_idle_calls(void)
-{
-	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
-
-	return ts->idle_calls;
-}
-
 static void tick_nohz_account_idle_ticks(struct tick_sched *ts)
 {
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
@@ -1004,9 +977,9 @@ static void tick_nohz_switch_to_nohz(void)
 	/* Get the next period */
 	next = tick_init_jiffy_update();
 
-	hrtimer_set_expires(&ts->sched_timer, next);
 	hrtimer_forward_now(&ts->sched_timer, tick_period);
-	tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
+	hrtimer_set_expires(&ts->sched_timer, next);
+	tick_program_event(next, 1);
 	tick_nohz_activate(ts, NOHZ_MODE_LOWRES);
 }
 

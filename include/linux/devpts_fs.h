@@ -15,23 +15,33 @@
 
 #include <linux/errno.h>
 
-struct pts_fs_info;
-
 #ifdef CONFIG_UNIX98_PTYS
 
-/* Look up a pts fs info and get a ref to it */
-struct pts_fs_info *devpts_get_ref(struct inode *, struct file *);
-void devpts_put_ref(struct pts_fs_info *);
-
-int devpts_new_index(struct pts_fs_info *);
-void devpts_kill_index(struct pts_fs_info *, int);
-
+int devpts_new_index(struct inode *ptmx_inode);
+void devpts_kill_index(struct inode *ptmx_inode, int idx);
 /* mknod in devpts */
-struct inode *devpts_pty_new(struct pts_fs_info *, dev_t, int, void *);
+struct inode *devpts_pty_new(struct inode *ptmx_inode, dev_t device, int index,
+		void *priv);
 /* get private structure */
 void *devpts_get_priv(struct inode *pts_inode);
 /* unlink */
 void devpts_pty_kill(struct inode *inode);
+
+#else
+
+/* Dummy stubs in the no-pty case */
+static inline int devpts_new_index(struct inode *ptmx_inode) { return -EINVAL; }
+static inline void devpts_kill_index(struct inode *ptmx_inode, int idx) { }
+static inline struct inode *devpts_pty_new(struct inode *ptmx_inode,
+		dev_t device, int index, void *priv)
+{
+	return ERR_PTR(-EINVAL);
+}
+static inline void *devpts_get_priv(struct inode *pts_inode)
+{
+	return NULL;
+}
+static inline void devpts_pty_kill(struct inode *inode) { }
 
 #endif
 

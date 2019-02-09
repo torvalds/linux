@@ -526,25 +526,21 @@ static int gsc_src_set_fmt(struct device *dev, u32 fmt)
 			GSC_IN_CHROMA_ORDER_CRCB);
 		break;
 	case DRM_FORMAT_NV21:
-		cfg |= (GSC_IN_CHROMA_ORDER_CRCB | GSC_IN_YUV420_2P);
-		break;
 	case DRM_FORMAT_NV61:
-		cfg |= (GSC_IN_CHROMA_ORDER_CRCB | GSC_IN_YUV422_2P);
+		cfg |= (GSC_IN_CHROMA_ORDER_CRCB |
+			GSC_IN_YUV420_2P);
 		break;
 	case DRM_FORMAT_YUV422:
 		cfg |= GSC_IN_YUV422_3P;
 		break;
 	case DRM_FORMAT_YUV420:
-		cfg |= (GSC_IN_CHROMA_ORDER_CBCR | GSC_IN_YUV420_3P);
-		break;
 	case DRM_FORMAT_YVU420:
-		cfg |= (GSC_IN_CHROMA_ORDER_CRCB | GSC_IN_YUV420_3P);
+		cfg |= GSC_IN_YUV420_3P;
 		break;
 	case DRM_FORMAT_NV12:
-		cfg |= (GSC_IN_CHROMA_ORDER_CBCR | GSC_IN_YUV420_2P);
-		break;
 	case DRM_FORMAT_NV16:
-		cfg |= (GSC_IN_CHROMA_ORDER_CBCR | GSC_IN_YUV422_2P);
+		cfg |= (GSC_IN_CHROMA_ORDER_CBCR |
+			GSC_IN_YUV420_2P);
 		break;
 	default:
 		dev_err(ippdrv->dev, "invalid target yuv order 0x%x.\n", fmt);
@@ -804,25 +800,18 @@ static int gsc_dst_set_fmt(struct device *dev, u32 fmt)
 			GSC_OUT_CHROMA_ORDER_CRCB);
 		break;
 	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_NV61:
 		cfg |= (GSC_OUT_CHROMA_ORDER_CRCB | GSC_OUT_YUV420_2P);
 		break;
-	case DRM_FORMAT_NV61:
-		cfg |= (GSC_OUT_CHROMA_ORDER_CRCB | GSC_OUT_YUV422_2P);
-		break;
 	case DRM_FORMAT_YUV422:
-		cfg |= GSC_OUT_YUV422_3P;
-		break;
 	case DRM_FORMAT_YUV420:
-		cfg |= (GSC_OUT_CHROMA_ORDER_CBCR | GSC_OUT_YUV420_3P);
-		break;
 	case DRM_FORMAT_YVU420:
-		cfg |= (GSC_OUT_CHROMA_ORDER_CRCB | GSC_OUT_YUV420_3P);
+		cfg |= GSC_OUT_YUV420_3P;
 		break;
 	case DRM_FORMAT_NV12:
-		cfg |= (GSC_OUT_CHROMA_ORDER_CBCR | GSC_OUT_YUV420_2P);
-		break;
 	case DRM_FORMAT_NV16:
-		cfg |= (GSC_OUT_CHROMA_ORDER_CBCR | GSC_OUT_YUV422_2P);
+		cfg |= (GSC_OUT_CHROMA_ORDER_CBCR |
+			GSC_OUT_YUV420_2P);
 		break;
 	default:
 		dev_err(ippdrv->dev, "invalid target yuv order 0x%x.\n", fmt);

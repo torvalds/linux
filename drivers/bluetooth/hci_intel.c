@@ -307,9 +307,6 @@ static int intel_set_power(struct hci_uart *hu, bool powered)
 	struct list_head *p;
 	int err = -ENODEV;
 
-	if (!hu->tty->dev)
-		return err;
-
 	mutex_lock(&intel_device_list_lock);
 
 	list_for_each(p, &intel_device_list) {
@@ -381,9 +378,6 @@ static void intel_busy_work(struct work_struct *work)
 	struct list_head *p;
 	struct intel_data *intel = container_of(work, struct intel_data,
 						busy_work);
-
-	if (!intel->hu->tty->dev)
-		return;
 
 	/* Link is busy, delay the suspend */
 	mutex_lock(&intel_device_list_lock);
@@ -919,8 +913,6 @@ done:
 	list_for_each(p, &intel_device_list) {
 		struct intel_device *dev = list_entry(p, struct intel_device,
 						      list);
-		if (!hu->tty->dev)
-			break;
 		if (hu->tty->dev->parent == dev->pdev->dev.parent) {
 			if (device_may_wakeup(&dev->pdev->dev))
 				idev = dev;
@@ -1102,9 +1094,6 @@ static int intel_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 
 	BT_DBG("hu %p skb %p", hu, skb);
 
-	if (!hu->tty->dev)
-		goto out_enqueue;
-
 	/* Be sure our controller is resumed and potential LPM transaction
 	 * completed before enqueuing any packet.
 	 */
@@ -1121,7 +1110,7 @@ static int intel_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		}
 	}
 	mutex_unlock(&intel_device_list_lock);
-out_enqueue:
+
 	skb_queue_tail(&intel->txq, skb);
 
 	return 0;
@@ -1245,7 +1234,8 @@ static int intel_probe(struct platform_device *pdev)
 
 	idev->pdev = pdev;
 
-	idev->reset = devm_gpiod_get(&pdev->dev, "reset", GPIOD_OUT_LOW);
+	idev->reset = devm_gpiod_get_optional(&pdev->dev, "reset",
+					      GPIOD_OUT_LOW);
 	if (IS_ERR(idev->reset)) {
 		dev_err(&pdev->dev, "Unable to retrieve gpio\n");
 		return PTR_ERR(idev->reset);
@@ -1257,7 +1247,8 @@ static int intel_probe(struct platform_device *pdev)
 
 		dev_err(&pdev->dev, "No IRQ, falling back to gpio-irq\n");
 
-		host_wake = devm_gpiod_get(&pdev->dev, "host-wake", GPIOD_IN);
+		host_wake = devm_gpiod_get_optional(&pdev->dev, "host-wake",
+						    GPIOD_IN);
 		if (IS_ERR(host_wake)) {
 			dev_err(&pdev->dev, "Unable to retrieve IRQ\n");
 			goto no_irq;

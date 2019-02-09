@@ -4,7 +4,6 @@
 #include <linux/kobject.h>
 #include <linux/kdev_t.h>
 #include <linux/list.h>
-#include <linux/device.h>
 
 struct file_operations;
 struct inode;
@@ -26,10 +25,6 @@ struct cdev *cdev_alloc(void);
 void cdev_put(struct cdev *p);
 
 int cdev_add(struct cdev *, dev_t, unsigned);
-
-void cdev_set_parent(struct cdev *p, struct kobject *kobj);
-int cdev_device_add(struct cdev *cdev, struct device *dev);
-void cdev_device_del(struct cdev *cdev, struct device *dev);
 
 void cdev_del(struct cdev *);
 

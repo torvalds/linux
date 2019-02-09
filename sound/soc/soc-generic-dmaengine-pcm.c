@@ -267,26 +267,6 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		max_buffer_size = SIZE_MAX;
 	}
 
-#ifdef CONFIG_SND_SOC_ROCKCHIP_FORCE_SRAM
-	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
-		substream = rtd->pcm->streams[i].substream;
-		if (substream)
-			break;
-	}
-
-	if (!substream)
-		return 0;
-
-	dev = dmaengine_dma_dev(pcm, substream);
-	if (dev && dev->of_node) {
-		ret = of_property_read_bool(dev->of_node,
-					    "rockchip,force-iram");
-		if (ret)
-			prealloc_buffer_size = 32 * 1024;
-	}
-
-	dev = rtd->platform->dev;
-#endif
 
 	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
 		substream = rtd->pcm->streams[i].substream;

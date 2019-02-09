@@ -21,7 +21,6 @@
 #include <linux/of.h>
 #include <linux/smp.h>
 #include <linux/types.h>
-#include <linux/mm.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cpu_ops.h>
@@ -30,8 +29,7 @@
 #include <asm/smp_plat.h>
 
 extern void secondary_holding_pen(void);
-volatile unsigned long __section(".mmuoff.data.read")
-secondary_holding_pen_release = INVALID_HWID;
+volatile unsigned long secondary_holding_pen_release = INVALID_HWID;
 
 static phys_addr_t cpu_release_addr[NR_CPUS];
 
@@ -98,7 +96,7 @@ static int smp_spin_table_cpu_prepare(unsigned int cpu)
 	 * boot-loader's endianess before jumping. This is mandated by
 	 * the boot protocol.
 	 */
-	writeq_relaxed(__pa_symbol(secondary_holding_pen), release_addr);
+	writeq_relaxed(__pa(secondary_holding_pen), release_addr);
 	__flush_dcache_area((__force void *)release_addr,
 			    sizeof(*release_addr));
 

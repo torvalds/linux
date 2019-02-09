@@ -66,13 +66,11 @@
 
 static DEFINE_MUTEX(i8k_mutex);
 static char bios_version[4];
-static char bios_machineid[16];
 static struct device *i8k_hwmon_dev;
 static u32 i8k_hwmon_flags;
 static uint i8k_fan_mult = I8K_FAN_MULT;
 static uint i8k_pwm_mult;
 static uint i8k_fan_max = I8K_FAN_HIGH;
-static bool disallow_fan_type_call;
 
 #define I8K_HWMON_HAVE_TEMP1	(1 << 0)
 #define I8K_HWMON_HAVE_TEMP2	(1 << 1)
@@ -96,13 +94,13 @@ module_param(ignore_dmi, bool, 0);
 MODULE_PARM_DESC(ignore_dmi, "Continue probing hardware even if DMI data does not match");
 
 #if IS_ENABLED(CONFIG_I8K)
-static bool restricted = true;
+static bool restricted;
 module_param(restricted, bool, 0);
-MODULE_PARM_DESC(restricted, "Restrict fan control and serial number to CAP_SYS_ADMIN (default: 1)");
+MODULE_PARM_DESC(restricted, "Allow fan control if SYS_ADMIN capability set");
 
 static bool power_status;
 module_param(power_status, bool, 0600);
-MODULE_PARM_DESC(power_status, "Report power status in /proc/i8k (default: 0)");
+MODULE_PARM_DESC(power_status, "Report power status in /proc/i8k");
 #endif
 
 static uint fan_mult;
@@ -237,26 +235,12 @@ static int i8k_get_fan_speed(int fan)
 /*
  * Read the fan type.
  */
-static int _i8k_get_fan_type(int fan)
+static int i8k_get_fan_type(int fan)
 {
 	struct smm_regs regs = { .eax = I8K_SMM_GET_FAN_TYPE, };
 
-	if (disallow_fan_type_call)
-		return -EINVAL;
-
 	regs.ebx = fan & 0xff;
 	return i8k_smm(&regs) ? : regs.eax & 0xff;
-}
-
-static int i8k_get_fan_type(int fan)
-{
-	/* I8K_SMM_GET_FAN_TYPE SMM call is expensive, so cache values */
-	static int types[2] = { INT_MIN, INT_MIN };
-
-	if (types[fan] == INT_MIN)
-		types[fan] = _i8k_get_fan_type(fan);
-
-	return types[fan];
 }
 
 /*
@@ -408,11 +392,9 @@ i8k_ioctl_unlocked(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case I8K_MACHINE_ID:
-		if (restricted && !capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		memset(buff, 0, sizeof(buff));
-		strlcpy(buff, bios_machineid, sizeof(buff));
+		memset(buff, 0, 16);
+		strlcpy(buff, i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
+			sizeof(buff));
 		break;
 
 	case I8K_FN_STATUS:
@@ -529,7 +511,7 @@ static int i8k_proc_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "%s %s %s %d %d %d %d %d %d %d\n",
 		   I8K_PROC_FMT,
 		   bios_version,
-		   (restricted && !capable(CAP_SYS_ADMIN)) ? "-1" : bios_machineid,
+		   i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
 		   cpu_temp,
 		   left_fan, right_fan, left_speed, right_speed,
 		   ac_power, fn_key);
@@ -736,9 +718,6 @@ static struct attribute *i8k_attrs[] = {
 static umode_t i8k_is_visible(struct kobject *kobj, struct attribute *attr,
 			      int index)
 {
-	if (disallow_fan_type_call &&
-	    (index == 9 || index == 12))
-		return 0;
 	if (index >= 0 && index <= 1 &&
 	    !(i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP1))
 		return 0;
@@ -788,17 +767,13 @@ static int __init i8k_init_hwmon(void)
 	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP4;
 
-	/* First fan attributes, if fan status or type is OK */
-	err = i8k_get_fan_status(0);
-	if (err < 0)
-		err = i8k_get_fan_type(0);
+	/* First fan attributes, if fan type is OK */
+	err = i8k_get_fan_type(0);
 	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_FAN1;
 
-	/* Second fan attributes, if fan status or type is OK */
-	err = i8k_get_fan_status(1);
-	if (err < 0)
-		err = i8k_get_fan_type(1);
+	/* Second fan attributes, if fan type is OK */
+	err = i8k_get_fan_type(1);
 	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_FAN2;
 
@@ -954,32 +929,16 @@ static struct dmi_system_id i8k_dmi_table[] __initdata = {
 
 MODULE_DEVICE_TABLE(dmi, i8k_dmi_table);
 
-/*
- * On some machines once I8K_SMM_GET_FAN_TYPE is issued then CPU fan speed
- * randomly going up and down due to bug in Dell SMM or BIOS. Here is blacklist
- * of affected Dell machines for which we disallow I8K_SMM_GET_FAN_TYPE call.
- * See bug: https://bugzilla.kernel.org/show_bug.cgi?id=100121
- */
-static struct dmi_system_id i8k_blacklist_fan_type_dmi_table[] __initdata = {
+static struct dmi_system_id i8k_blacklist_dmi_table[] __initdata = {
 	{
-		.ident = "Dell Studio XPS 8000",
-		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Studio XPS 8000"),
-		},
-	},
-	{
+		/*
+		 * CPU fan speed going up and down on Dell Studio XPS 8100
+		 * for unknown reasons.
+		 */
 		.ident = "Dell Studio XPS 8100",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Studio XPS 8100"),
-		},
-	},
-	{
-		.ident = "Dell Inspiron 580",
-		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Inspiron 580 "),
 		},
 	},
 	{ }
@@ -996,7 +955,8 @@ static int __init i8k_probe(void)
 	/*
 	 * Get DMI information
 	 */
-	if (!dmi_check_system(i8k_dmi_table)) {
+	if (!dmi_check_system(i8k_dmi_table) ||
+	    dmi_check_system(i8k_blacklist_dmi_table)) {
 		if (!ignore_dmi && !force)
 			return -ENODEV;
 
@@ -1007,13 +967,8 @@ static int __init i8k_probe(void)
 			i8k_get_dmi_data(DMI_BIOS_VERSION));
 	}
 
-	if (dmi_check_system(i8k_blacklist_fan_type_dmi_table))
-		disallow_fan_type_call = true;
-
 	strlcpy(bios_version, i8k_get_dmi_data(DMI_BIOS_VERSION),
 		sizeof(bios_version));
-	strlcpy(bios_machineid, i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
-		sizeof(bios_machineid));
 
 	/*
 	 * Get SMM Dell signature

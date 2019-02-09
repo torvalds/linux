@@ -54,8 +54,7 @@
 		.align	2;				\
 		.type	symbol, @function;		\
 		.ent	symbol, 0;			\
-symbol:		.frame	sp, 0, ra;			\
-		.insn
+symbol:		.frame	sp, 0, ra
 
 /*
  * NESTED - declare nested routine entry point
@@ -64,9 +63,8 @@ symbol:		.frame	sp, 0, ra;			\
 		.globl	symbol;				\
 		.align	2;				\
 		.type	symbol, @function;		\
-		.ent	symbol, 0;			\
-symbol:		.frame	sp, framesize, rpc;		\
-		.insn
+		.ent	symbol, 0;			 \
+symbol:		.frame	sp, framesize, rpc
 
 /*
  * END - mark end of function
@@ -88,7 +86,7 @@ symbol:
 #define FEXPORT(symbol)					\
 		.globl	symbol;				\
 		.type	symbol, @function;		\
-symbol:		.insn
+symbol:
 
 /*
  * ABS - export absolute symbol

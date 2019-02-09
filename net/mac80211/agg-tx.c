@@ -7,7 +7,6 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
- * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -296,14 +295,7 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 {
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_tx *tid_tx;
-	struct ieee80211_ampdu_params params = {
-		.sta = &sta->sta,
-		.tid = tid,
-		.buf_size = 0,
-		.amsdu = false,
-		.timeout = 0,
-		.ssn = 0,
-	};
+	enum ieee80211_ampdu_mlme_action action;
 	int ret;
 
 	lockdep_assert_held(&sta->ampdu_mlme.mtx);
@@ -312,10 +304,10 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	case AGG_STOP_DECLINED:
 	case AGG_STOP_LOCAL_REQUEST:
 	case AGG_STOP_PEER_REQUEST:
-		params.action = IEEE80211_AMPDU_TX_STOP_CONT;
+		action = IEEE80211_AMPDU_TX_STOP_CONT;
 		break;
 	case AGG_STOP_DESTROY_STA:
-		params.action = IEEE80211_AMPDU_TX_STOP_FLUSH;
+		action = IEEE80211_AMPDU_TX_STOP_FLUSH;
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -338,8 +330,9 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 		spin_unlock_bh(&sta->lock);
 		if (reason != AGG_STOP_DESTROY_STA)
 			return -EALREADY;
-		params.action = IEEE80211_AMPDU_TX_STOP_FLUSH_CONT;
-		ret = drv_ampdu_action(local, sta->sdata, &params);
+		ret = drv_ampdu_action(local, sta->sdata,
+				       IEEE80211_AMPDU_TX_STOP_FLUSH_CONT,
+				       &sta->sta, tid, NULL, 0, false);
 		WARN_ON_ONCE(ret);
 		return 0;
 	}
@@ -388,7 +381,8 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 					WLAN_BACK_INITIATOR;
 	tid_tx->tx_stop = reason == AGG_STOP_LOCAL_REQUEST;
 
-	ret = drv_ampdu_action(local, sta->sdata, &params);
+	ret = drv_ampdu_action(local, sta->sdata, action,
+			       &sta->sta, tid, NULL, 0, false);
 
 	/* HW shall not deny going back to legacy */
 	if (WARN_ON(ret)) {
@@ -451,14 +445,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	struct tid_ampdu_tx *tid_tx;
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct ieee80211_ampdu_params params = {
-		.sta = &sta->sta,
-		.action = IEEE80211_AMPDU_TX_START,
-		.tid = tid,
-		.buf_size = 0,
-		.amsdu = false,
-		.timeout = 0,
-	};
+	u16 start_seq_num;
 	int ret;
 
 	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
@@ -480,8 +467,10 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	 */
 	synchronize_net();
 
-	params.ssn = sta->tid_seq[tid] >> 4;
-	ret = drv_ampdu_action(local, sdata, &params);
+	start_seq_num = sta->tid_seq[tid] >> 4;
+
+	ret = drv_ampdu_action(local, sdata, IEEE80211_AMPDU_TX_START,
+			       &sta->sta, tid, &start_seq_num, 0, false);
 	if (ret) {
 		ht_dbg(sdata,
 		       "BA request denied - HW unavailable for %pM tid %d\n",
@@ -510,7 +499,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 
 	/* send AddBA request */
 	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
-				     tid_tx->dialog_token, params.ssn,
+				     tid_tx->dialog_token, start_seq_num,
 				     IEEE80211_MAX_AMPDU_BUF,
 				     tid_tx->timeout);
 }
@@ -695,24 +684,18 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 					 struct sta_info *sta, u16 tid)
 {
 	struct tid_ampdu_tx *tid_tx;
-	struct ieee80211_ampdu_params params = {
-		.sta = &sta->sta,
-		.action = IEEE80211_AMPDU_TX_OPERATIONAL,
-		.tid = tid,
-		.timeout = 0,
-		.ssn = 0,
-	};
 
 	lockdep_assert_held(&sta->ampdu_mlme.mtx);
 
 	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
-	params.buf_size = tid_tx->buf_size;
-	params.amsdu = tid_tx->amsdu;
 
 	ht_dbg(sta->sdata, "Aggregation is on for %pM tid %d\n",
 	       sta->sta.addr, tid);
 
-	drv_ampdu_action(local, sta->sdata, &params);
+	drv_ampdu_action(local, sta->sdata,
+			 IEEE80211_AMPDU_TX_OPERATIONAL,
+			 &sta->sta, tid, NULL, tid_tx->buf_size,
+			 tid_tx->amsdu);
 
 	/*
 	 * synchronize with TX path, while splicing the TX path

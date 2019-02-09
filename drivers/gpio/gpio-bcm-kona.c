@@ -273,7 +273,7 @@ static int bcm_kona_gpio_set_debounce(struct gpio_chip *chip, unsigned gpio,
 	reg_base = kona_gpio->reg_base;
 	/* debounce must be 1-128ms (or 0) */
 	if ((debounce > 0 && debounce < 1000) || debounce > 128000) {
-		dev_err(chip->parent, "Debounce value %u not in range\n",
+		dev_err(chip->dev, "Debounce value %u not in range\n",
 			debounce);
 		return -EINVAL;
 	}
@@ -416,7 +416,7 @@ static int bcm_kona_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_LEVEL_LOW:
 		/* BCM GPIO doesn't support level triggering */
 	default:
-		dev_err(kona_gpio->gpio_chip.parent,
+		dev_err(kona_gpio->gpio_chip.dev,
 			"Invalid BCM GPIO irq type 0x%x\n", type);
 		return -EINVAL;
 	}
@@ -477,7 +477,7 @@ static int bcm_kona_gpio_irq_reqres(struct irq_data *d)
 	struct bcm_kona_gpio *kona_gpio = irq_data_get_irq_chip_data(d);
 
 	if (gpiochip_lock_as_irq(&kona_gpio->gpio_chip, d->hwirq)) {
-		dev_err(kona_gpio->gpio_chip.parent,
+		dev_err(kona_gpio->gpio_chip.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			d->hwirq);
 		return -EINVAL;
@@ -551,11 +551,11 @@ static void bcm_kona_gpio_reset(struct bcm_kona_gpio *kona_gpio)
 	/* disable interrupts and clear status */
 	for (i = 0; i < kona_gpio->num_bank; i++) {
 		/* Unlock the entire bank first */
-		bcm_kona_gpio_write_lock_regs(reg_base, i, UNLOCK_CODE);
+		bcm_kona_gpio_write_lock_regs(kona_gpio, i, UNLOCK_CODE);
 		writel(0xffffffff, reg_base + GPIO_INT_MASK(i));
 		writel(0xffffffff, reg_base + GPIO_INT_STATUS(i));
 		/* Now re-lock the bank */
-		bcm_kona_gpio_write_lock_regs(reg_base, i, LOCK_CODE);
+		bcm_kona_gpio_write_lock_regs(kona_gpio, i, LOCK_CODE);
 	}
 }
 

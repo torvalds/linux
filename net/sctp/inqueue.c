@@ -178,7 +178,7 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 	skb_pull(chunk->skb, sizeof(sctp_chunkhdr_t));
 	chunk->subh.v = NULL; /* Subheader is no longer valid.  */
 
-	if (chunk->chunk_end + sizeof(sctp_chunkhdr_t) <=
+	if (chunk->chunk_end + sizeof(sctp_chunkhdr_t) <
 	    skb_tail_pointer(chunk->skb)) {
 		/* This is not a singleton */
 		chunk->singleton = 0;

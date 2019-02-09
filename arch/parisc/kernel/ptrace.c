@@ -269,19 +269,14 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
+	long ret = 0;
+
 	/* Do the secure computing check first. */
 	secure_computing_strict(regs->gr[20]);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(regs)) {
-		/*
-		 * Tracing decided this syscall should not happen or the
-		 * debugger stored an invalid system call number. Skip
-		 * the system call and the system call restart handling.
-		 */
-		regs->gr[20] = -1UL;
-		goto out;
-	}
+	    tracehook_report_syscall_entry(regs))
+		ret = -1L;
 
 #ifdef CONFIG_64BIT
 	if (!is_compat_task())
@@ -295,8 +290,7 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 			regs->gr[24] & 0xffffffff,
 			regs->gr[23] & 0xffffffff);
 
-out:
-	return regs->gr[20];
+	return ret ? : regs->gr[20];
 }
 
 void do_syscall_trace_exit(struct pt_regs *regs)

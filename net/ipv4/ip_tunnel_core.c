@@ -71,7 +71,7 @@ int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 
 	iph->version	=	4;
 	iph->ihl	=	sizeof(struct iphdr) >> 2;
-	iph->frag_off	=	ip_mtu_locked(&rt->dst) ? 0 : df;
+	iph->frag_off	=	df;
 	iph->protocol	=	proto;
 	iph->tos	=	tos;
 	iph->daddr	=	dst;
@@ -116,8 +116,7 @@ int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto)
 	skb->vlan_tci = 0;
 	skb_set_queue_mapping(skb, 0);
 	skb->pkt_type = PACKET_HOST;
-
-	return iptunnel_pull_offloads(skb);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(iptunnel_pull_header);
 

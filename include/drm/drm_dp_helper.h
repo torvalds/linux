@@ -73,7 +73,6 @@
 # define DP_ENHANCED_FRAME_CAP		    (1 << 7)
 
 #define DP_MAX_DOWNSPREAD                   0x003
-# define DP_MAX_DOWNSPREAD_0_5		    (1 << 0)
 # define DP_NO_AUX_HANDSHAKE_LINK_TRAINING  (1 << 6)
 
 #define DP_NORP                             0x004
@@ -343,7 +342,6 @@
 # define DP_PSR_FRAME_CAPTURE		    (1 << 3)
 # define DP_PSR_SELECTIVE_UPDATE	    (1 << 4)
 # define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS     (1 << 5)
-# define DP_PSR_ENABLE_PSR2		    (1 << 6) /* eDP 1.4a */
 
 #define DP_ADAPTER_CTRL			    0x1a0
 # define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)
@@ -527,23 +525,6 @@
 
 #define DP_RECEIVER_ALPM_STATUS		    0x200b  /* eDP 1.4 */
 # define DP_ALPM_LOCK_TIMEOUT_ERROR	    (1 << 0)
-
-#define DP_AUX_HDCP_BKSV		0x68000
-#define DP_AUX_HDCP_RI_PRIME		0x68005
-#define DP_AUX_HDCP_AKSV		0x68007
-#define DP_AUX_HDCP_AN			0x6800C
-#define DP_AUX_HDCP_V_PRIME(h)		(0x68014 + h * 4)
-#define DP_AUX_HDCP_BCAPS		0x68028
-# define DP_BCAPS_REPEATER_PRESENT	BIT(1)
-# define DP_BCAPS_HDCP_CAPABLE		BIT(0)
-#define DP_AUX_HDCP_BSTATUS		0x68029
-# define DP_BSTATUS_REAUTH_REQ		BIT(3)
-# define DP_BSTATUS_LINK_FAILURE	BIT(2)
-# define DP_BSTATUS_R0_PRIME_READY	BIT(1)
-# define DP_BSTATUS_READY		BIT(0)
-#define DP_AUX_HDCP_BINFO		0x6802A
-#define DP_AUX_HDCP_KSV_FIFO		0x6802C
-#define DP_AUX_HDCP_AINFO		0x6803B
 
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */

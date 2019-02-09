@@ -30,7 +30,7 @@
 #endif
 
 static int llc_find_offset(int state, int ev_type);
-static int llc_conn_send_pdus(struct sock *sk, struct sk_buff *skb);
+static void llc_conn_send_pdus(struct sock *sk);
 static int llc_conn_service(struct sock *sk, struct sk_buff *skb);
 static int llc_exec_conn_trans_actions(struct sock *sk,
 				       struct llc_conn_state_trans *trans,
@@ -193,11 +193,11 @@ out_skb_put:
 	return rc;
 }
 
-int llc_conn_send_pdu(struct sock *sk, struct sk_buff *skb)
+void llc_conn_send_pdu(struct sock *sk, struct sk_buff *skb)
 {
 	/* queue PDU to send to MAC layer */
 	skb_queue_tail(&sk->sk_write_queue, skb);
-	return llc_conn_send_pdus(sk, skb);
+	llc_conn_send_pdus(sk);
 }
 
 /**
@@ -255,7 +255,7 @@ void llc_conn_resend_i_pdu_as_cmd(struct sock *sk, u8 nr, u8 first_p_bit)
 	if (howmany_resend > 0)
 		llc->vS = (llc->vS + 1) % LLC_2_SEQ_NBR_MODULO;
 	/* any PDUs to re-send are queued up; start sending to MAC */
-	llc_conn_send_pdus(sk, NULL);
+	llc_conn_send_pdus(sk);
 out:;
 }
 
@@ -296,7 +296,7 @@ void llc_conn_resend_i_pdu_as_rsp(struct sock *sk, u8 nr, u8 first_f_bit)
 	if (howmany_resend > 0)
 		llc->vS = (llc->vS + 1) % LLC_2_SEQ_NBR_MODULO;
 	/* any PDUs to re-send are queued up; start sending to MAC */
-	llc_conn_send_pdus(sk, NULL);
+	llc_conn_send_pdus(sk);
 out:;
 }
 
@@ -340,16 +340,12 @@ out:
 /**
  *	llc_conn_send_pdus - Sends queued PDUs
  *	@sk: active connection
- *	@hold_skb: the skb held by caller, or NULL if does not care
  *
- *	Sends queued pdus to MAC layer for transmission. When @hold_skb is
- *	NULL, always return 0. Otherwise, return 0 if @hold_skb is sent
- *	successfully, or 1 for failure.
+ *	Sends queued pdus to MAC layer for transmission.
  */
-static int llc_conn_send_pdus(struct sock *sk, struct sk_buff *hold_skb)
+static void llc_conn_send_pdus(struct sock *sk)
 {
 	struct sk_buff *skb;
-	int ret = 0;
 
 	while ((skb = skb_dequeue(&sk->sk_write_queue)) != NULL) {
 		struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
@@ -361,20 +357,10 @@ static int llc_conn_send_pdus(struct sock *sk, struct sk_buff *hold_skb)
 			skb_queue_tail(&llc_sk(sk)->pdu_unack_q, skb);
 			if (!skb2)
 				break;
-			dev_queue_xmit(skb2);
-		} else {
-			bool is_target = skb == hold_skb;
-			int rc;
-
-			if (is_target)
-				skb_get(skb);
-			rc = dev_queue_xmit(skb);
-			if (is_target)
-				ret = rc;
+			skb = skb2;
 		}
+		dev_queue_xmit(skb);
 	}
-
-	return ret;
 }
 
 /**
@@ -835,10 +821,7 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 		 * another trick required to cope with how the PROCOM state
 		 * machine works. -acme
 		 */
-		skb_orphan(skb);
-		sock_hold(sk);
 		skb->sk = sk;
-		skb->destructor = sock_efree;
 	}
 	if (!sock_owned_by_user(sk))
 		llc_conn_rcv(sk, skb);
@@ -965,26 +948,6 @@ out:
 	return sk;
 }
 
-void llc_sk_stop_all_timers(struct sock *sk, bool sync)
-{
-	struct llc_sock *llc = llc_sk(sk);
-
-	if (sync) {
-		del_timer_sync(&llc->pf_cycle_timer.timer);
-		del_timer_sync(&llc->ack_timer.timer);
-		del_timer_sync(&llc->rej_sent_timer.timer);
-		del_timer_sync(&llc->busy_state_timer.timer);
-	} else {
-		del_timer(&llc->pf_cycle_timer.timer);
-		del_timer(&llc->ack_timer.timer);
-		del_timer(&llc->rej_sent_timer.timer);
-		del_timer(&llc->busy_state_timer.timer);
-	}
-
-	llc->ack_must_be_send = 0;
-	llc->ack_pf = 0;
-}
-
 /**
  *	llc_sk_free - Frees a LLC socket
  *	@sk - socket to free
@@ -997,7 +960,7 @@ void llc_sk_free(struct sock *sk)
 
 	llc->state = LLC_CONN_OUT_OF_SVC;
 	/* Stop all (possibly) running timers */
-	llc_sk_stop_all_timers(sk, true);
+	llc_conn_ac_stop_all_timers(sk, NULL);
 #ifdef DEBUG_LLC_CONN_ALLOC
 	printk(KERN_INFO "%s: unackq=%d, txq=%d\n", __func__,
 		skb_queue_len(&llc->pdu_unack_q),

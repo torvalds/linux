@@ -29,7 +29,7 @@
 /*
 	This is Line 6's MIDI manufacturer ID.
 */
-const unsigned char line6_midi_id[3] = {
+const unsigned char line6_midi_id[] = {
 	0x00, 0x01, 0x0c
 };
 EXPORT_SYMBOL_GPL(line6_midi_id);
@@ -586,10 +586,9 @@ int line6_probe(struct usb_interface *interface,
 	return 0;
 
  error:
-	/* we can call disconnect callback here because no close-sync is
-	 * needed yet at this point
-	 */
-	line6_disconnect(interface);
+	if (line6->disconnect)
+		line6->disconnect(line6);
+	snd_card_free(card);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(line6_probe);

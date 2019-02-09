@@ -602,26 +602,9 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	struct uid_gid_map new_map;
 	unsigned idx;
 	struct uid_gid_extent *extent = NULL;
-	unsigned long page;
+	unsigned long page = 0;
 	char *kbuf, *pos, *next_line;
-	ssize_t ret;
-
-	/* Only allow < page size writes at the beginning of the file */
-	if ((*ppos != 0) || (count >= PAGE_SIZE))
-		return -EINVAL;
-
-	/* Get a buffer */
-	page = __get_free_page(GFP_TEMPORARY);
-	kbuf = (char *) page;
-	if (!page)
-		return -ENOMEM;
-
-	/* Slurp in the user data */
-	if (copy_from_user(kbuf, buf, count)) {
-		free_page(page);
-		return -EFAULT;
-	}
-	kbuf[count] = '\0';
+	ssize_t ret = -EINVAL;
 
 	/*
 	 * The userns_state_mutex serializes all writes to any given map.
@@ -654,6 +637,24 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	 */
 	if (cap_valid(cap_setid) && !file_ns_capable(file, ns, CAP_SYS_ADMIN))
 		goto out;
+
+	/* Get a buffer */
+	ret = -ENOMEM;
+	page = __get_free_page(GFP_TEMPORARY);
+	kbuf = (char *) page;
+	if (!page)
+		goto out;
+
+	/* Only allow < page size writes at the beginning of the file */
+	ret = -EINVAL;
+	if ((*ppos != 0) || (count >= PAGE_SIZE))
+		goto out;
+
+	/* Slurp in the user data */
+	ret = -EFAULT;
+	if (copy_from_user(kbuf, buf, count))
+		goto out;
+	kbuf[count] = '\0';
 
 	/* Parse the user data */
 	ret = -EINVAL;

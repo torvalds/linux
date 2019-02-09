@@ -50,9 +50,7 @@ static int kvmppc_h_pr_enter(struct kvm_vcpu *vcpu)
 	pteg_addr = get_pteg_addr(vcpu, pte_index);
 
 	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
-	ret = H_FUNCTION;
-	if (copy_from_user(pteg, (void __user *)pteg_addr, sizeof(pteg)))
-		goto done;
+	copy_from_user(pteg, (void __user *)pteg_addr, sizeof(pteg));
 	hpte = pteg;
 
 	ret = H_PTEG_FULL;
@@ -73,9 +71,7 @@ static int kvmppc_h_pr_enter(struct kvm_vcpu *vcpu)
 	hpte[0] = cpu_to_be64(kvmppc_get_gpr(vcpu, 6));
 	hpte[1] = cpu_to_be64(kvmppc_get_gpr(vcpu, 7));
 	pteg_addr += i * HPTE_SIZE;
-	ret = H_FUNCTION;
-	if (copy_to_user((void __user *)pteg_addr, hpte, HPTE_SIZE))
-		goto done;
+	copy_to_user((void __user *)pteg_addr, hpte, HPTE_SIZE);
 	kvmppc_set_gpr(vcpu, 4, pte_index | i);
 	ret = H_SUCCESS;
 
@@ -97,9 +93,7 @@ static int kvmppc_h_pr_remove(struct kvm_vcpu *vcpu)
 
 	pteg = get_pteg_addr(vcpu, pte_index);
 	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
-	ret = H_FUNCTION;
-	if (copy_from_user(pte, (void __user *)pteg, sizeof(pte)))
-		goto done;
+	copy_from_user(pte, (void __user *)pteg, sizeof(pte));
 	pte[0] = be64_to_cpu((__force __be64)pte[0]);
 	pte[1] = be64_to_cpu((__force __be64)pte[1]);
 
@@ -109,9 +103,7 @@ static int kvmppc_h_pr_remove(struct kvm_vcpu *vcpu)
 	    ((flags & H_ANDCOND) && (pte[0] & avpn) != 0))
 		goto done;
 
-	ret = H_FUNCTION;
-	if (copy_to_user((void __user *)pteg, &v, sizeof(v)))
-		goto done;
+	copy_to_user((void __user *)pteg, &v, sizeof(v));
 
 	rb = compute_tlbie_rb(pte[0], pte[1], pte_index);
 	vcpu->arch.mmu.tlbie(vcpu, rb, rb & 1 ? true : false);
@@ -179,10 +171,7 @@ static int kvmppc_h_pr_bulk_remove(struct kvm_vcpu *vcpu)
 		}
 
 		pteg = get_pteg_addr(vcpu, tsh & H_BULK_REMOVE_PTEX);
-		if (copy_from_user(pte, (void __user *)pteg, sizeof(pte))) {
-			ret = H_FUNCTION;
-			break;
-		}
+		copy_from_user(pte, (void __user *)pteg, sizeof(pte));
 		pte[0] = be64_to_cpu((__force __be64)pte[0]);
 		pte[1] = be64_to_cpu((__force __be64)pte[1]);
 
@@ -195,10 +184,7 @@ static int kvmppc_h_pr_bulk_remove(struct kvm_vcpu *vcpu)
 			tsh |= H_BULK_REMOVE_NOT_FOUND;
 		} else {
 			/* Splat the pteg in (userland) hpt */
-			if (copy_to_user((void __user *)pteg, &v, sizeof(v))) {
-				ret = H_FUNCTION;
-				break;
-			}
+			copy_to_user((void __user *)pteg, &v, sizeof(v));
 
 			rb = compute_tlbie_rb(pte[0], pte[1],
 					      tsh & H_BULK_REMOVE_PTEX);
@@ -225,9 +211,7 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 
 	pteg = get_pteg_addr(vcpu, pte_index);
 	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
-	ret = H_FUNCTION;
-	if (copy_from_user(pte, (void __user *)pteg, sizeof(pte)))
-		goto done;
+	copy_from_user(pte, (void __user *)pteg, sizeof(pte));
 	pte[0] = be64_to_cpu((__force __be64)pte[0]);
 	pte[1] = be64_to_cpu((__force __be64)pte[1]);
 
@@ -250,9 +234,7 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmu.tlbie(vcpu, rb, rb & 1 ? true : false);
 	pte[0] = (__force u64)cpu_to_be64(pte[0]);
 	pte[1] = (__force u64)cpu_to_be64(pte[1]);
-	ret = H_FUNCTION;
-	if (copy_to_user((void __user *)pteg, pte, sizeof(pte)))
-		goto done;
+	copy_to_user((void __user *)pteg, pte, sizeof(pte));
 	ret = H_SUCCESS;
 
  done:

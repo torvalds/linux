@@ -997,9 +997,12 @@ static inline int ata_hsm_ok_in_wq(struct ata_port *ap,
 static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 {
 	struct ata_port *ap = qc->ap;
+	unsigned long flags;
 
 	if (ap->ops->error_handler) {
 		if (in_wq) {
+			spin_lock_irqsave(ap->lock, flags);
+
 			/* EH might have kicked in while host lock is
 			 * released.
 			 */
@@ -1011,6 +1014,8 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 				} else
 					ata_port_freeze(ap);
 			}
+
+			spin_unlock_irqrestore(ap->lock, flags);
 		} else {
 			if (likely(!(qc->err_mask & AC_ERR_HSM)))
 				ata_qc_complete(qc);
@@ -1019,8 +1024,10 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 		}
 	} else {
 		if (in_wq) {
+			spin_lock_irqsave(ap->lock, flags);
 			ata_sff_irq_on(ap);
 			ata_qc_complete(qc);
+			spin_unlock_irqrestore(ap->lock, flags);
 		} else
 			ata_qc_complete(qc);
 	}
@@ -1041,9 +1048,8 @@ int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 {
 	struct ata_link *link = qc->dev->link;
 	struct ata_eh_info *ehi = &link->eh_info;
+	unsigned long flags = 0;
 	int poll_next;
-
-	lockdep_assert_held(ap->lock);
 
 	WARN_ON_ONCE((qc->flags & ATA_QCFLAG_ACTIVE) == 0);
 
@@ -1106,6 +1112,14 @@ fsm_start:
 			}
 		}
 
+		/* Send the CDB (atapi) or the first data block (ata pio out).
+		 * During the state transition, interrupt handler shouldn't
+		 * be invoked before the data transfer is complete and
+		 * hsm_task_state is changed. Hence, the following locking.
+		 */
+		if (in_wq)
+			spin_lock_irqsave(ap->lock, flags);
+
 		if (qc->tf.protocol == ATA_PROT_PIO) {
 			/* PIO data out protocol.
 			 * send first data block.
@@ -1120,6 +1134,9 @@ fsm_start:
 		} else
 			/* send CDB */
 			atapi_send_cdb(ap, qc);
+
+		if (in_wq)
+			spin_unlock_irqrestore(ap->lock, flags);
 
 		/* if polling, ata_sff_pio_task() handles the rest.
 		 * otherwise, interrupt handler takes over from here.
@@ -1344,14 +1361,12 @@ static void ata_sff_pio_task(struct work_struct *work)
 	u8 status;
 	int poll_next;
 
-	spin_lock_irq(ap->lock);
-
 	BUG_ON(ap->sff_pio_task_link == NULL);
 	/* qc can be NULL if timeout occurred */
 	qc = ata_qc_from_tag(ap, link->active_tag);
 	if (!qc) {
 		ap->sff_pio_task_link = NULL;
-		goto out_unlock;
+		return;
 	}
 
 fsm_start:
@@ -1366,14 +1381,11 @@ fsm_start:
 	 */
 	status = ata_sff_busy_wait(ap, ATA_BUSY, 5);
 	if (status & ATA_BUSY) {
-		spin_unlock_irq(ap->lock);
 		ata_msleep(ap, 2);
-		spin_lock_irq(ap->lock);
-
 		status = ata_sff_busy_wait(ap, ATA_BUSY, 10);
 		if (status & ATA_BUSY) {
 			ata_sff_queue_pio_task(link, ATA_SHORT_PAUSE);
-			goto out_unlock;
+			return;
 		}
 	}
 
@@ -1390,8 +1402,6 @@ fsm_start:
 	 */
 	if (poll_next)
 		goto fsm_start;
-out_unlock:
-	spin_unlock_irq(ap->lock);
 }
 
 /**
@@ -1480,6 +1490,7 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 		break;
 
 	default:
+		WARN_ON_ONCE(1);
 		return AC_ERR_SYSTEM;
 	}
 

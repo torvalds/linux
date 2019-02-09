@@ -62,9 +62,6 @@ config PCI_QUIRKS
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
-config DEBUG_RODATA
-	def_bool y
-
 config S390
 	def_bool y
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
@@ -114,21 +111,18 @@ config S390
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_DEVICES if !SMP
-	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_EARLY_PFN_TO_NID
-	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_SOFT_DIRTY
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_BPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
-	select HAVE_EBPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_DEBUG_KMEMLEAK
@@ -351,6 +345,9 @@ config COMPAT
 
 config SYSVIPC_COMPAT
 	def_bool y if COMPAT && SYSVIPC
+
+config KEYS_COMPAT
+	def_bool y if COMPAT && KEYS
 
 config SMP
 	def_bool y
@@ -710,51 +707,6 @@ config SECCOMP
 
 	  If unsure, say Y.
 
-config KERNEL_NOBP
-	def_bool n
-	prompt "Enable modified branch prediction for the kernel by default"
-	help
-	  If this option is selected the kernel will switch to a modified
-	  branch prediction mode if the firmware interface is available.
-	  The modified branch prediction mode improves the behaviour in
-	  regard to speculative execution.
-
-	  With the option enabled the kernel parameter "nobp=0" or "nospec"
-	  can be used to run the kernel in the normal branch prediction mode.
-
-	  With the option disabled the modified branch prediction mode is
-	  enabled with the "nobp=1" kernel parameter.
-
-	  If unsure, say N.
-
-config EXPOLINE
-	def_bool n
-	prompt "Avoid speculative indirect branches in the kernel"
-	help
-	  Compile the kernel with the expoline compiler options to guard
-	  against kernel-to-user data leaks by avoiding speculative indirect
-	  branches.
-	  Requires a compiler with -mindirect-branch=thunk support for full
-	  protection. The kernel may run slower.
-
-	  If unsure, say N.
-
-choice
-	prompt "Expoline default"
-	depends on EXPOLINE
-	default EXPOLINE_FULL
-
-config EXPOLINE_OFF
-	bool "spectre_v2=off"
-
-config EXPOLINE_AUTO
-	bool "spectre_v2=auto"
-
-config EXPOLINE_FULL
-	bool "spectre_v2=on"
-
-endchoice
-
 endmenu
 
 menu "Power Management"
@@ -804,7 +756,6 @@ config PFAULT
 config SHARED_KERNEL
 	bool "VM shared kernel support"
 	depends on !JUMP_LABEL
-	depends on !ALTERNATIVES
 	help
 	  Select this option, if you want to share the text segment of the
 	  Linux kernel between different VM guests. This reduces memory

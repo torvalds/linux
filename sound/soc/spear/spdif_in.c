@@ -223,10 +223,8 @@ static int spdif_in_probe(struct platform_device *pdev)
 
 	host->io_base = io_base;
 	host->irq = platform_get_irq(pdev, 0);
-	if (host->irq < 0) {
-		dev_warn(&pdev->dev, "failed to get IRQ: %d\n", host->irq);
-		return host->irq;
-	}
+	if (host->irq < 0)
+		return -EINVAL;
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk))

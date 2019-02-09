@@ -138,24 +138,12 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 	return 0;
 }
 
-/* Checks if the fp is valid.  We always build signal frames which are
- * 16-byte aligned, therefore we can always enforce that the restore
- * frame has that property as well.
- */
-static bool invalid_frame_pointer(void __user *fp, int fplen)
-{
-	if ((((unsigned long) fp) & 15) ||
-	    ((unsigned long)fp) > 0x100000000ULL - fplen)
-		return true;
-	return false;
-}
-
 void do_sigreturn32(struct pt_regs *regs)
 {
 	struct signal_frame32 __user *sf;
 	compat_uptr_t fpu_save;
 	compat_uptr_t rwin_save;
-	unsigned int psr, ufp;
+	unsigned int psr;
 	unsigned pc, npc;
 	sigset_t set;
 	compat_sigset_t seta;
@@ -170,16 +158,11 @@ void do_sigreturn32(struct pt_regs *regs)
 	sf = (struct signal_frame32 __user *) regs->u_regs[UREG_FP];
 
 	/* 1. Make sure we are not getting garbage from the user */
-	if (invalid_frame_pointer(sf, sizeof(*sf)))
+	if (!access_ok(VERIFY_READ, sf, sizeof(*sf)) ||
+	    (((unsigned long) sf) & 3))
 		goto segv;
 
-	if (get_user(ufp, &sf->info.si_regs.u_regs[UREG_FP]))
-		goto segv;
-
-	if (ufp & 0x7)
-		goto segv;
-
-	if (__get_user(pc, &sf->info.si_regs.pc) ||
+	if (get_user(pc, &sf->info.si_regs.pc) ||
 	    __get_user(npc, &sf->info.si_regs.npc))
 		goto segv;
 
@@ -244,7 +227,7 @@ segv:
 asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 {
 	struct rt_signal_frame32 __user *sf;
-	unsigned int psr, pc, npc, ufp;
+	unsigned int psr, pc, npc;
 	compat_uptr_t fpu_save;
 	compat_uptr_t rwin_save;
 	sigset_t set;
@@ -259,16 +242,11 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	sf = (struct rt_signal_frame32 __user *) regs->u_regs[UREG_FP];
 
 	/* 1. Make sure we are not getting garbage from the user */
-	if (invalid_frame_pointer(sf, sizeof(*sf)))
+	if (!access_ok(VERIFY_READ, sf, sizeof(*sf)) ||
+	    (((unsigned long) sf) & 3))
 		goto segv;
 
-	if (get_user(ufp, &sf->regs.u_regs[UREG_FP]))
-		goto segv;
-
-	if (ufp & 0x7)
-		goto segv;
-
-	if (__get_user(pc, &sf->regs.pc) ||
+	if (get_user(pc, &sf->regs.pc) || 
 	    __get_user(npc, &sf->regs.npc))
 		goto segv;
 
@@ -327,6 +305,14 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	return;
 segv:
 	force_sig(SIGSEGV, current);
+}
+
+/* Checks if the fp is valid */
+static int invalid_frame_pointer(void __user *fp, int fplen)
+{
+	if ((((unsigned long) fp) & 7) || ((unsigned long)fp) > 0x100000000ULL - fplen)
+		return 1;
+	return 0;
 }
 
 static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs, unsigned long framesize)

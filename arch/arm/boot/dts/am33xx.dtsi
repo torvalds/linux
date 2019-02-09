@@ -142,11 +142,10 @@
 				};
 
 				scm_conf: scm_conf@0 {
-					compatible = "syscon", "simple-bus";
+					compatible = "syscon";
 					reg = <0x0 0x800>;
 					#address-cells = <1>;
 					#size-cells = <1>;
-					ranges = <0 0 0x800>;
 
 					scm_clocks: clocks {
 						#address-cells = <1>;

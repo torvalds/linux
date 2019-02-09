@@ -257,9 +257,6 @@ static ssize_t at24_read(struct at24_data *at24,
 	if (unlikely(!count))
 		return count;
 
-	if (off + count > at24->chip.byte_len)
-		return -EINVAL;
-
 	/*
 	 * Read data from chip, protecting against concurrent updates
 	 * from this host, but not from other I2C masters.
@@ -313,9 +310,6 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 	ssize_t status = 0;
 	unsigned long timeout, write_time;
 	unsigned next_page;
-
-	if (offset + count > at24->chip.byte_len)
-		return -EINVAL;
 
 	/* Get corresponding I2C address and adjust offset */
 	client = at24_translate_offset(at24, &offset);

@@ -7,6 +7,22 @@ config DRM_BRIDGE
 menu "Display Interface Bridges"
 	depends on DRM && DRM_BRIDGE
 
+config DRM_DW_HDMI
+	tristate
+	select DRM_KMS_HELPER
+
+config DRM_DW_HDMI_AHB_AUDIO
+	tristate "Synopsis Designware AHB Audio interface"
+	depends on DRM_DW_HDMI && SND
+	select SND_PCM
+	select SND_PCM_ELD
+	select SND_PCM_IEC958
+	help
+	  Support the AHB Audio interface which is part of the Synopsis
+	  Designware HDMI block.  This is used in conjunction with
+	  the i.MX6 HDMI driver.
+
+
 config DRM_NXP_PTN3460
 	tristate "NXP PTN3460 DP/LVDS bridge"
 	depends on OF
@@ -24,42 +40,5 @@ config DRM_PARADE_PS8622
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  Parade eDP-LVDS bridge chip driver.
-
-config DRM_RK1000
-	tristate "ROCKCHIP TVE bridge"
-	depends on OF
-	select DRM_KMS_HELPER
-	select MFD_RK1000
-	---help---
-	  ROCKCHIP TVE bridge chip RK1000 driver.
-
-config DRM_DUMB_VGA_DAC
-	tristate "Dumb VGA DAC Bridge support"
-	depends on OF
-	select DRM_KMS_HELPER
-	help
-	  Support for RGB to VGA DAC based bridges
-
-config DRM_LONTIUM_LT8912
-	tristate "Lontium LT8912 MIPI-DSI to LVDS and HDMI/MHL bridge"
-	depends on OF
-	select DRM_KMS_HELPER
-	select REGMAP_I2C
-	help
-	  Lontium LT8912 MIPI-DSI to LVDS and HDMI/MHL bridge chip driver.
-
-config DRM_CHIPONE_ICN6211
-	tristate "Chipone ICN6211 MIPI-DSI to RGB bridge"
-	depends on OF
-	select DRM_KMS_HELPER
-	select REGMAP_I2C
-	select DRM_MIPI_DSI
-	select DRM_PANEL
-	help
-	  Chipone ICN6211 MIPI-DSI TO RGB bridge chip driver.
-
-source "drivers/gpu/drm/bridge/analogix/Kconfig"
-
-source "drivers/gpu/drm/bridge/synopsys/Kconfig"
 
 endmenu

@@ -70,20 +70,6 @@ void btrfs_##name(struct work_struct *arg)				\
 	normal_work_helper(work);					\
 }
 
-bool btrfs_workqueue_normal_congested(struct btrfs_workqueue *wq)
-{
-	/*
-	 * We could compare wq->normal->pending with num_online_cpus()
-	 * to support "thresh == NO_THRESHOLD" case, but it requires
-	 * moving up atomic_inc/dec in thresh_queue/exec_hook. Let's
-	 * postpone it until someone needs the support of that case.
-	 */
-	if (wq->normal->thresh == NO_THRESHOLD)
-		return false;
-
-	return atomic_read(&wq->normal->pending) > wq->normal->thresh * 2;
-}
-
 BTRFS_WORK_HELPER(worker_helper);
 BTRFS_WORK_HELPER(delalloc_helper);
 BTRFS_WORK_HELPER(flush_delalloc_helper);
@@ -342,8 +328,8 @@ static inline void __btrfs_queue_work(struct __btrfs_workqueue *wq,
 		list_add_tail(&work->ordered_list, &wq->ordered_list);
 		spin_unlock_irqrestore(&wq->list_lock, flags);
 	}
-	trace_btrfs_work_queued(work);
 	queue_work(wq->normal_wq, &work->normal_work);
+	trace_btrfs_work_queued(work);
 }
 
 void btrfs_queue_work(struct btrfs_workqueue *wq,

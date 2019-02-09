@@ -228,8 +228,7 @@ static void mlx4_set_eq_affinity_hint(struct mlx4_priv *priv, int vec)
 	struct mlx4_dev *dev = &priv->dev;
 	struct mlx4_eq *eq = &priv->eq_table.eq[vec];
 
-	if (!cpumask_available(eq->affinity_mask) ||
-	    cpumask_empty(eq->affinity_mask))
+	if (!eq->affinity_mask || cpumask_empty(eq->affinity_mask))
 		return;
 
 	hint_err = irq_set_affinity_hint(eq->irq, eq->affinity_mask);
@@ -543,9 +542,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			break;
 
 		case MLX4_EVENT_TYPE_SRQ_LIMIT:
-			mlx4_dbg(dev, "%s: MLX4_EVENT_TYPE_SRQ_LIMIT. srq_no=0x%x, eq 0x%x\n",
-				 __func__, be32_to_cpu(eqe->event.srq.srqn),
-				 eq->eqn);
+			mlx4_dbg(dev, "%s: MLX4_EVENT_TYPE_SRQ_LIMIT\n",
+				 __func__);
 		case MLX4_EVENT_TYPE_SRQ_CATAS_ERROR:
 			if (mlx4_is_master(dev)) {
 				/* forward only to slave owning the SRQ */
@@ -560,19 +558,15 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 						  eq->eqn, eq->cons_index, ret);
 					break;
 				}
-				if (eqe->type ==
-				    MLX4_EVENT_TYPE_SRQ_CATAS_ERROR)
-					mlx4_warn(dev, "%s: slave:%d, srq_no:0x%x, event: %02x(%02x)\n",
-						  __func__, slave,
-						  be32_to_cpu(eqe->event.srq.srqn),
-						  eqe->type, eqe->subtype);
+				mlx4_warn(dev, "%s: slave:%d, srq_no:0x%x, event: %02x(%02x)\n",
+					  __func__, slave,
+					  be32_to_cpu(eqe->event.srq.srqn),
+					  eqe->type, eqe->subtype);
 
 				if (!ret && slave != dev->caps.function) {
-					if (eqe->type ==
-					    MLX4_EVENT_TYPE_SRQ_CATAS_ERROR)
-						mlx4_warn(dev, "%s: sending event %02x(%02x) to slave:%d\n",
-							  __func__, eqe->type,
-							  eqe->subtype, slave);
+					mlx4_warn(dev, "%s: sending event %02x(%02x) to slave:%d\n",
+						  __func__, eqe->type,
+						  eqe->subtype, slave);
 					mlx4_slave_event(dev, slave, eqe);
 					break;
 				}

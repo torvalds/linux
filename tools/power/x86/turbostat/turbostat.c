@@ -663,7 +663,9 @@ void format_all_counters(struct thread_data *t, struct core_data *c, struct pkg_
 	if (!printed || !summary_only)
 		print_header();
 
-	format_counters(&average.threads, &average.cores, &average.packages);
+	if (topo.num_cpus > 1)
+		format_counters(&average.threads, &average.cores,
+			&average.packages);
 
 	printed = 1;
 
@@ -2691,9 +2693,7 @@ void process_cpuid()
 	family = (fms >> 8) & 0xf;
 	model = (fms >> 4) & 0xf;
 	stepping = fms & 0xf;
-	if (family == 0xf)
-		family += (fms >> 20) & 0xff;
-	if (family >= 6)
+	if (family == 6 || family == 0xf)
 		model += ((fms >> 16) & 0xf) << 4;
 
 	if (debug)

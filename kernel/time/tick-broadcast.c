@@ -610,14 +610,6 @@ static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 	now = ktime_get();
 	/* Find all expired events */
 	for_each_cpu(cpu, tick_broadcast_oneshot_mask) {
-		/*
-		 * Required for !SMP because for_each_cpu() reports
-		 * unconditionally CPU0 as set on UP kernels.
-		 */
-		if (!IS_ENABLED(CONFIG_SMP) &&
-		    cpumask_empty(tick_broadcast_oneshot_mask))
-			break;
-
 		td = &per_cpu(tick_cpu_device, cpu);
 		if (td->evtdev->next_event.tv64 <= now.tv64) {
 			cpumask_set_cpu(cpu, tmpmask);
@@ -878,9 +870,6 @@ static void tick_broadcast_init_next_event(struct cpumask *mask,
 void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 {
 	int cpu = smp_processor_id();
-
-	if (!bc)
-		return;
 
 	/* Set it up only once ! */
 	if (bc->event_handler != tick_handle_oneshot_broadcast) {

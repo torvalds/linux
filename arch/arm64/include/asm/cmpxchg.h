@@ -19,6 +19,7 @@
 #define __ASM_CMPXCHG_H
 
 #include <linux/bug.h>
+#include <linux/mmdebug.h>
 
 #include <asm/atomic.h>
 #include <asm/barrier.h>
@@ -48,7 +49,7 @@ static inline unsigned long __xchg_case_##name(unsigned long x,		\
 	"	swp" #acq_lse #rel #sz "\t%" #w "3, %" #w "0, %2\n"	\
 	"	nop\n"							\
 	"	" #nop_lse)						\
-	: "=&r" (ret), "=&r" (tmp), "+Q" (*(unsigned long *)ptr)	\
+	: "=&r" (ret), "=&r" (tmp), "+Q" (*(u8 *)ptr)			\
 	: "r" (x)							\
 	: cl);								\
 									\

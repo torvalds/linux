@@ -110,8 +110,8 @@ struct rmi_data {
 	u8 *writeReport;
 	u8 *readReport;
 
-	u32 input_report_size;
-	u32 output_report_size;
+	int input_report_size;
+	int output_report_size;
 
 	unsigned long flags;
 

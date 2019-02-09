@@ -55,6 +55,8 @@ static int p8_aes_cbc_init(struct crypto_tfm *tfm)
 		       alg, PTR_ERR(fallback));
 		return PTR_ERR(fallback);
 	}
+	printk(KERN_INFO "Using '%s' as fallback implementation.\n",
+	       crypto_tfm_alg_driver_name((struct crypto_tfm *) fallback));
 
 	crypto_blkcipher_set_flags(
 		fallback,
@@ -111,23 +113,24 @@ static int p8_aes_cbc_encrypt(struct blkcipher_desc *desc,
 		ret = crypto_blkcipher_encrypt(&fallback_desc, dst, src,
 					       nbytes);
 	} else {
+		preempt_disable();
+		pagefault_disable();
+		enable_kernel_altivec();
+		enable_kernel_vsx();
+
 		blkcipher_walk_init(&walk, dst, src, nbytes);
 		ret = blkcipher_walk_virt(desc, &walk);
 		while ((nbytes = walk.nbytes)) {
-			preempt_disable();
-			pagefault_disable();
-			enable_kernel_vsx();
-			enable_kernel_altivec();
 			aes_p8_cbc_encrypt(walk.src.virt.addr,
 					   walk.dst.virt.addr,
 					   nbytes & AES_BLOCK_MASK,
 					   &ctx->enc_key, walk.iv, 1);
-			pagefault_enable();
-			preempt_enable();
-
 			nbytes &= AES_BLOCK_SIZE - 1;
 			ret = blkcipher_walk_done(desc, &walk, nbytes);
 		}
+
+		pagefault_enable();
+		preempt_enable();
 	}
 
 	return ret;
@@ -151,23 +154,24 @@ static int p8_aes_cbc_decrypt(struct blkcipher_desc *desc,
 		ret = crypto_blkcipher_decrypt(&fallback_desc, dst, src,
 					       nbytes);
 	} else {
+		preempt_disable();
+		pagefault_disable();
+		enable_kernel_altivec();
+		enable_kernel_vsx();
+
 		blkcipher_walk_init(&walk, dst, src, nbytes);
 		ret = blkcipher_walk_virt(desc, &walk);
 		while ((nbytes = walk.nbytes)) {
-			preempt_disable();
-			pagefault_disable();
-			enable_kernel_vsx();
-			enable_kernel_altivec();
 			aes_p8_cbc_encrypt(walk.src.virt.addr,
 					   walk.dst.virt.addr,
 					   nbytes & AES_BLOCK_MASK,
 					   &ctx->dec_key, walk.iv, 0);
-			pagefault_enable();
-			preempt_enable();
-
 			nbytes &= AES_BLOCK_SIZE - 1;
 			ret = blkcipher_walk_done(desc, &walk, nbytes);
 		}
+
+		pagefault_enable();
+		preempt_enable();
 	}
 
 	return ret;
@@ -178,7 +182,7 @@ struct crypto_alg p8_aes_cbc_alg = {
 	.cra_name = "cbc(aes)",
 	.cra_driver_name = "p8_aes_cbc",
 	.cra_module = THIS_MODULE,
-	.cra_priority = 2000,
+	.cra_priority = 1000,
 	.cra_type = &crypto_blkcipher_type,
 	.cra_flags = CRYPTO_ALG_TYPE_BLKCIPHER | CRYPTO_ALG_NEED_FALLBACK,
 	.cra_alignmask = 0,
@@ -187,7 +191,7 @@ struct crypto_alg p8_aes_cbc_alg = {
 	.cra_init = p8_aes_cbc_init,
 	.cra_exit = p8_aes_cbc_exit,
 	.cra_blkcipher = {
-			  .ivsize = AES_BLOCK_SIZE,
+			  .ivsize = 0,
 			  .min_keysize = AES_MIN_KEY_SIZE,
 			  .max_keysize = AES_MAX_KEY_SIZE,
 			  .setkey = p8_aes_cbc_setkey,

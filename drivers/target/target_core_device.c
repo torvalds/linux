@@ -77,16 +77,12 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 					&deve->read_bytes);
 
 		se_lun = rcu_dereference(deve->se_lun);
-
-		if (!percpu_ref_tryget_live(&se_lun->lun_ref)) {
-			se_lun = NULL;
-			goto out_unlock;
-		}
-
 		se_cmd->se_lun = rcu_dereference(deve->se_lun);
 		se_cmd->pr_res_key = deve->pr_res_key;
 		se_cmd->orig_fe_lun = unpacked_lun;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
+
+		percpu_ref_get(&se_lun->lun_ref);
 		se_cmd->lun_ref_active = true;
 
 		if ((se_cmd->data_direction == DMA_TO_DEVICE) &&
@@ -100,7 +96,6 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 			goto ref_dev;
 		}
 	}
-out_unlock:
 	rcu_read_unlock();
 
 	if (!se_lun) {
@@ -367,15 +362,7 @@ int core_enable_device_list_for_node(
 			kfree(new);
 			return -EINVAL;
 		}
-		if (orig->se_lun_acl != NULL) {
-			pr_warn_ratelimited("Detected existing explicit"
-				" se_lun_acl->se_lun_group reference for %s"
-				" mapped_lun: %llu, failing\n",
-				 nacl->initiatorname, mapped_lun);
-			mutex_unlock(&nacl->lun_entry_mutex);
-			kfree(new);
-			return -EINVAL;
-		}
+		BUG_ON(orig->se_lun_acl != NULL);
 
 		rcu_assign_pointer(new->se_lun, lun);
 		rcu_assign_pointer(new->se_lun_acl, lun_acl);
@@ -831,7 +818,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	xcopy_lun = &dev->xcopy_lun;
 	rcu_assign_pointer(xcopy_lun->lun_se_dev, dev);
 	init_completion(&xcopy_lun->lun_ref_comp);
-	init_completion(&xcopy_lun->lun_shutdown_comp);
 	INIT_LIST_HEAD(&xcopy_lun->lun_deve_list);
 	INIT_LIST_HEAD(&xcopy_lun->lun_dev_link);
 	mutex_init(&xcopy_lun->lun_tg_pt_md_mutex);
@@ -839,51 +825,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 
 	return dev;
 }
-
-/*
- * Check if the underlying struct block_device request_queue supports
- * the QUEUE_FLAG_DISCARD bit for UNMAP/WRITE_SAME in SCSI + TRIM
- * in ATA and we need to set TPE=1
- */
-bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
-				       struct request_queue *q)
-{
-	int block_size = queue_logical_block_size(q);
-
-	if (!blk_queue_discard(q))
-		return false;
-
-	attrib->max_unmap_lba_count =
-		q->limits.max_discard_sectors >> (ilog2(block_size) - 9);
-	/*
-	 * Currently hardcoded to 1 in Linux/SCSI code..
-	 */
-	attrib->max_unmap_block_desc_count = 1;
-	attrib->unmap_granularity = q->limits.discard_granularity / block_size;
-	attrib->unmap_granularity_alignment = q->limits.discard_alignment /
-								block_size;
-	return true;
-}
-EXPORT_SYMBOL(target_configure_unmap_from_queue);
-
-/*
- * Convert from blocksize advertised to the initiator to the 512 byte
- * units unconditionally used by the Linux block layer.
- */
-sector_t target_to_linux_sector(struct se_device *dev, sector_t lb)
-{
-	switch (dev->dev_attrib.block_size) {
-	case 4096:
-		return lb << 3;
-	case 2048:
-		return lb << 2;
-	case 1024:
-		return lb << 1;
-	default:
-		return lb;
-	}
-}
-EXPORT_SYMBOL(target_to_linux_sector);
 
 int target_configure_device(struct se_device *dev)
 {

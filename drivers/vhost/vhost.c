@@ -27,7 +27,6 @@
 #include <linux/cgroup.h>
 #include <linux/module.h>
 #include <linux/sort.h>
-#include <linux/nospec.h>
 
 #include "vhost.h"
 
@@ -174,7 +173,8 @@ int vhost_poll_start(struct vhost_poll *poll, struct file *file)
 	if (mask)
 		vhost_poll_wakeup(&poll->wait, 0, 0, (void *)mask);
 	if (mask & POLLERR) {
-		vhost_poll_stop(poll);
+		if (poll->wqh)
+			remove_wait_queue(poll->wqh, &poll->wait);
 		ret = -EINVAL;
 	}
 
@@ -749,7 +749,6 @@ long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 	if (idx >= d->nvqs)
 		return -ENOBUFS;
 
-	idx = array_index_nospec(idx, d->nvqs);
 	vq = d->vqs[idx];
 
 	mutex_lock(&vq->mutex);

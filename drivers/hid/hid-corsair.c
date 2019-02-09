@@ -148,36 +148,26 @@ static enum led_brightness k90_backlight_get(struct led_classdev *led_cdev)
 	struct usb_interface *usbif = to_usb_interface(dev->parent);
 	struct usb_device *usbdev = interface_to_usbdev(usbif);
 	int brightness;
-	char *data;
-
-	data = kmalloc(8, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	char data[8];
 
 	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			      K90_REQUEST_STATUS,
 			      USB_DIR_IN | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE, 0, 0, data, 8,
 			      USB_CTRL_SET_TIMEOUT);
-	if (ret < 5) {
+	if (ret < 0) {
 		dev_warn(dev, "Failed to get K90 initial state (error %d).\n",
 			 ret);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 	brightness = data[4];
 	if (brightness < 0 || brightness > 3) {
 		dev_warn(dev,
 			 "Read invalid backlight brightness: %02hhx.\n",
 			 data[4]);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
-	ret = brightness;
-out:
-	kfree(data);
-
-	return ret;
+	return brightness;
 }
 
 static enum led_brightness k90_record_led_get(struct led_classdev *led_cdev)
@@ -263,22 +253,17 @@ static ssize_t k90_show_macro_mode(struct device *dev,
 	struct usb_interface *usbif = to_usb_interface(dev->parent);
 	struct usb_device *usbdev = interface_to_usbdev(usbif);
 	const char *macro_mode;
-	char *data;
-
-	data = kmalloc(2, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	char data[8];
 
 	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			      K90_REQUEST_GET_MODE,
 			      USB_DIR_IN | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE, 0, 0, data, 2,
 			      USB_CTRL_SET_TIMEOUT);
-	if (ret < 1) {
+	if (ret < 0) {
 		dev_warn(dev, "Failed to get K90 initial mode (error %d).\n",
 			 ret);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 
 	switch (data[0]) {
@@ -292,15 +277,10 @@ static ssize_t k90_show_macro_mode(struct device *dev,
 	default:
 		dev_warn(dev, "K90 in unknown mode: %02hhx.\n",
 			 data[0]);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%s\n", macro_mode);
-out:
-	kfree(data);
-
-	return ret;
+	return snprintf(buf, PAGE_SIZE, "%s\n", macro_mode);
 }
 
 static ssize_t k90_store_macro_mode(struct device *dev,
@@ -340,36 +320,26 @@ static ssize_t k90_show_current_profile(struct device *dev,
 	struct usb_interface *usbif = to_usb_interface(dev->parent);
 	struct usb_device *usbdev = interface_to_usbdev(usbif);
 	int current_profile;
-	char *data;
-
-	data = kmalloc(8, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	char data[8];
 
 	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			      K90_REQUEST_STATUS,
 			      USB_DIR_IN | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE, 0, 0, data, 8,
 			      USB_CTRL_SET_TIMEOUT);
-	if (ret < 8) {
+	if (ret < 0) {
 		dev_warn(dev, "Failed to get K90 initial state (error %d).\n",
 			 ret);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 	current_profile = data[7];
 	if (current_profile < 1 || current_profile > 3) {
 		dev_warn(dev, "Read invalid current profile: %02hhx.\n",
 			 data[7]);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", current_profile);
-out:
-	kfree(data);
-
-	return ret;
+	return snprintf(buf, PAGE_SIZE, "%d\n", current_profile);
 }
 
 static ssize_t k90_store_current_profile(struct device *dev,

@@ -94,24 +94,21 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 	jr	t0
 0:
 
-#ifdef CONFIG_USE_OF
 #ifdef CONFIG_MIPS_RAW_APPENDED_DTB
-	PTR_LA		t2, __appended_dtb
+	PTR_LA		t0, __appended_dtb
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	li		t1, 0xd00dfeed
 #else
 	li		t1, 0xedfe0dd0
 #endif
-	lw		t0, (t2)
-	beq		t0, t1, dtb_found
-#endif
-	li		t1, -2
-	beq		a0, t1, dtb_found
-	move		t2, a1
+	lw		t2, (t0)
+	bne		t1, t2, not_found
+	 nop
 
-	li		t2, 0
-dtb_found:
+	move		a1, t0
+	PTR_LI		a0, -2
+not_found:
 #endif
 	PTR_LA		t0, __bss_start		# clear .bss
 	LONG_S		zero, (t0)
@@ -125,10 +122,6 @@ dtb_found:
 	LONG_S		a1, fw_arg1
 	LONG_S		a2, fw_arg2
 	LONG_S		a3, fw_arg3
-
-#ifdef CONFIG_USE_OF
-	LONG_S		t2, fw_passed_dtb
-#endif
 
 	MTC0		zero, CP0_CONTEXT	# clear context register
 	PTR_LA		$28, init_thread_union

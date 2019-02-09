@@ -152,7 +152,7 @@ static inline int is_syscall_success(struct pt_regs *regs)
 
 static inline long regs_return_value(struct pt_regs *regs)
 {
-	if (is_syscall_success(regs) || !user_mode(regs))
+	if (is_syscall_success(regs))
 		return regs->regs[2];
 	else
 		return -regs->regs[2];

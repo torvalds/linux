@@ -87,8 +87,7 @@ static int autofs4_write(struct autofs_sb_info *sbi,
 		spin_unlock_irqrestore(&current->sighand->siglock, flags);
 	}
 
-	/* if 'wr' returned 0 (impossible) we assume -EIO (safe) */
-	return bytes == 0 ? 0 : wr < 0 ? wr : -EIO;
+	return (bytes > 0);
 }
 	
 static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
@@ -102,7 +101,6 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 	} pkt;
 	struct file *pipe = NULL;
 	size_t pktsz;
-	int ret;
 
 	DPRINTK("wait id = 0x%08lx, name = %.*s, type=%d",
 		(unsigned long) wq->wait_queue_token, wq->name.len, wq->name.name, type);
@@ -174,18 +172,8 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 
 	mutex_unlock(&sbi->wq_mutex);
 
-	switch (ret = autofs4_write(sbi, pipe, &pkt, pktsz)) {
-	case 0:
-		break;
-	case -ENOMEM:
-	case -ERESTARTSYS:
-		/* Just fail this one */
-		autofs4_wait_release(sbi, wq->wait_queue_token, ret);
-		break;
-	default:
+	if (autofs4_write(sbi, pipe, &pkt, pktsz))
 		autofs4_catatonic_mode(sbi);
-		break;
-	}
 	fput(pipe);
 }
 

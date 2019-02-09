@@ -331,6 +331,8 @@ static int ene_rx_get_sample_reg(struct ene_device *dev)
 /* Sense current received carrier */
 static void ene_rx_sense_carrier(struct ene_device *dev)
 {
+	DEFINE_IR_RAW_EVENT(ev);
+
 	int carrier, duty_cycle;
 	int period = ene_read_reg(dev, ENE_CIRCAR_PRD);
 	int hperiod = ene_read_reg(dev, ENE_CIRCAR_HPRD);
@@ -351,11 +353,9 @@ static void ene_rx_sense_carrier(struct ene_device *dev)
 	dbg("RX: sensed carrier = %d Hz, duty cycle %d%%",
 						carrier, duty_cycle);
 	if (dev->carrier_detect_enabled) {
-		struct ir_raw_event ev = {
-			.carrier_report = true,
-			.carrier = carrier,
-			.duty_cycle = duty_cycle
-		};
+		ev.carrier_report = true;
+		ev.carrier = carrier;
+		ev.duty_cycle = duty_cycle;
 		ir_raw_event_store(dev->rdev, &ev);
 	}
 }
@@ -675,9 +675,9 @@ exit:
 }
 
 /* timer to simulate tx done interrupt */
-static void ene_tx_irqsim(struct timer_list *t)
+static void ene_tx_irqsim(unsigned long data)
 {
-	struct ene_device *dev = from_timer(dev, t, tx_sim_timer);
+	struct ene_device *dev = (struct ene_device *)data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->hw_lock, flags);
@@ -738,7 +738,7 @@ static irqreturn_t ene_isr(int irq, void *data)
 	unsigned long flags;
 	irqreturn_t retval = IRQ_NONE;
 	struct ene_device *dev = (struct ene_device *)data;
-	struct ir_raw_event ev = {};
+	DEFINE_IR_RAW_EVENT(ev);
 
 	spin_lock_irqsave(&dev->hw_lock, flags);
 
@@ -1012,7 +1012,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 
 	/* allocate memory */
 	dev = kzalloc(sizeof(struct ene_device), GFP_KERNEL);
-	rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
+	rdev = rc_allocate_device();
 	if (!dev || !rdev)
 		goto exit_free_dev_rdev;
 
@@ -1050,21 +1050,23 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 
 	if (!dev->hw_learning_and_tx_capable && txsim) {
 		dev->hw_learning_and_tx_capable = true;
-		timer_setup(&dev->tx_sim_timer, ene_tx_irqsim, 0);
+		setup_timer(&dev->tx_sim_timer, ene_tx_irqsim,
+						(long unsigned int)dev);
 		pr_warn("Simulation of TX activated\n");
 	}
 
 	if (!dev->hw_learning_and_tx_capable)
 		learning_mode_force = false;
 
-	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
+	rdev->driver_type = RC_DRIVER_IR_RAW;
+	rdev->allowed_protocols = RC_BIT_ALL;
 	rdev->priv = dev;
 	rdev->open = ene_open;
 	rdev->close = ene_close;
 	rdev->s_idle = ene_set_idle;
 	rdev->driver_name = ENE_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
-	rdev->device_name = "ENE eHome Infrared Remote Receiver";
+	rdev->input_name = "ENE eHome Infrared Remote Receiver";
 
 	if (dev->hw_learning_and_tx_capable) {
 		rdev->s_learning_mode = ene_set_learning_mode;
@@ -1074,7 +1076,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 		rdev->s_tx_carrier = ene_set_tx_carrier;
 		rdev->s_tx_duty_cycle = ene_set_tx_duty_cycle;
 		rdev->s_carrier_report = ene_set_carrier_report;
-		rdev->device_name = "ENE eHome Infrared Remote Transceiver";
+		rdev->input_name = "ENE eHome Infrared Remote Transceiver";
 	}
 
 	dev->rdev = rdev;
@@ -1208,7 +1210,8 @@ MODULE_PARM_DESC(txsim,
 
 MODULE_DEVICE_TABLE(pnp, ene_ids);
 MODULE_DESCRIPTION
-	("Infrared input driver for KB3926B/C/D/E/F (aka ENE0100/ENE0200/ENE0201/ENE0202) CIR port");
+	("Infrared input driver for KB3926B/C/D/E/F "
+	"(aka ENE0100/ENE0200/ENE0201/ENE0202) CIR port");
 
 MODULE_AUTHOR("Maxim Levitsky");
 MODULE_LICENSE("GPL");

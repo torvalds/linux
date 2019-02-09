@@ -119,7 +119,7 @@ static int cm3232_reg_init(struct cm3232_chip *chip)
 	if (ret < 0)
 		dev_err(&chip->client->dev, "Error writing reg_cmd\n");
 
-	return ret;
+	return 0;
 }
 
 /**

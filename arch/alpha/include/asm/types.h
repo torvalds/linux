@@ -1,6 +1,6 @@
 #ifndef _ALPHA_TYPES_H
 #define _ALPHA_TYPES_H
 
-#include <uapi/asm/types.h>
+#include <asm-generic/int-ll64.h>
 
 #endif /* _ALPHA_TYPES_H */

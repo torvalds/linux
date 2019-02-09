@@ -808,7 +808,7 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 	/* We know that zero_from is block aligned */
 	for (block_start = zero_from; block_start < zero_to;
 	     block_start = block_end) {
-		block_end = block_start + i_blocksize(inode);
+		block_end = block_start + (1 << inode->i_blkbits);
 
 		/*
 		 * block_start is block-aligned.  Bump it by one to force
@@ -1268,20 +1268,20 @@ bail_unlock_rw:
 	if (size_change)
 		ocfs2_rw_unlock(inode, 1);
 bail:
+	brelse(bh);
 
 	/* Release quota pointers in case we acquired them */
 	for (qtype = 0; qtype < OCFS2_MAXQUOTAS; qtype++)
 		dqput(transfer_to[qtype]);
 
 	if (!status && attr->ia_valid & ATTR_MODE) {
-		status = ocfs2_acl_chmod(inode, bh);
+		status = posix_acl_chmod(inode, inode->i_mode);
 		if (status < 0)
 			mlog_errno(status);
 	}
 	if (inode_locked)
 		ocfs2_inode_unlock(inode, 1);
 
-	brelse(bh);
 	return status;
 }
 
@@ -1536,8 +1536,7 @@ static int ocfs2_zero_partial_clusters(struct inode *inode,
 				       u64 start, u64 len)
 {
 	int ret = 0;
-	u64 tmpend = 0;
-	u64 end = start + len;
+	u64 tmpend, end = start + len;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	unsigned int csize = osb->s_clustersize;
 	handle_t *handle;
@@ -1569,31 +1568,18 @@ static int ocfs2_zero_partial_clusters(struct inode *inode,
 	}
 
 	/*
-	 * If start is on a cluster boundary and end is somewhere in another
-	 * cluster, we have not COWed the cluster starting at start, unless
-	 * end is also within the same cluster. So, in this case, we skip this
-	 * first call to ocfs2_zero_range_for_truncate() truncate and move on
-	 * to the next one.
+	 * We want to get the byte offset of the end of the 1st cluster.
 	 */
-	if ((start & (csize - 1)) != 0) {
-		/*
-		 * We want to get the byte offset of the end of the 1st
-		 * cluster.
-		 */
-		tmpend = (u64)osb->s_clustersize +
-			(start & ~(osb->s_clustersize - 1));
-		if (tmpend > end)
-			tmpend = end;
+	tmpend = (u64)osb->s_clustersize + (start & ~(osb->s_clustersize - 1));
+	if (tmpend > end)
+		tmpend = end;
 
-		trace_ocfs2_zero_partial_clusters_range1(
-			(unsigned long long)start,
-			(unsigned long long)tmpend);
+	trace_ocfs2_zero_partial_clusters_range1((unsigned long long)start,
+						 (unsigned long long)tmpend);
 
-		ret = ocfs2_zero_range_for_truncate(inode, handle, start,
-						    tmpend);
-		if (ret)
-			mlog_errno(ret);
-	}
+	ret = ocfs2_zero_range_for_truncate(inode, handle, start, tmpend);
+	if (ret)
+		mlog_errno(ret);
 
 	if (tmpend < end) {
 		/*

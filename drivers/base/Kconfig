@@ -223,9 +223,6 @@ config GENERIC_CPU_DEVICES
 config GENERIC_CPU_AUTOPROBE
 	bool
 
-config GENERIC_CPU_VULNERABILITIES
-	bool
-
 config SOC_BUS
 	bool
 

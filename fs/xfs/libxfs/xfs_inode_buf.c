@@ -62,14 +62,11 @@ xfs_inobp_check(
  * has not had the inode cores stamped into it. Hence for readahead, the buffer
  * may be potentially invalid.
  *
- * If the readahead buffer is invalid, we need to mark it with an error and
- * clear the DONE status of the buffer so that a followup read will re-read it
- * from disk. We don't report the error otherwise to avoid warnings during log
- * recovery and we don't get unnecssary panics on debug kernels. We use EIO here
- * because all we want to do is say readahead failed; there is no-one to report
- * the error to, so this will distinguish it from a non-ra verifier failure.
- * Changes to this readahead error behavour also need to be reflected in
- * xfs_dquot_buf_readahead_verify().
+ * If the readahead buffer is invalid, we don't want to mark it with an error,
+ * but we do want to clear the DONE status of the buffer so that a followup read
+ * will re-read it from disk. This will ensure that we don't get an unnecessary
+ * warnings during log recovery and we don't get unnecssary panics on debug
+ * kernels.
  */
 static void
 xfs_inode_buf_verify(
@@ -96,7 +93,6 @@ xfs_inode_buf_verify(
 						XFS_RANDOM_ITOBP_INOTOBP))) {
 			if (readahead) {
 				bp->b_flags &= ~XBF_DONE;
-				xfs_buf_ioerror(bp, -EIO);
 				return;
 			}
 
@@ -136,13 +132,11 @@ xfs_inode_buf_write_verify(
 }
 
 const struct xfs_buf_ops xfs_inode_buf_ops = {
-	.name = "xfs_inode",
 	.verify_read = xfs_inode_buf_read_verify,
 	.verify_write = xfs_inode_buf_write_verify,
 };
 
 const struct xfs_buf_ops xfs_inode_buf_ra_ops = {
-	.name = "xxfs_inode_ra",
 	.verify_read = xfs_inode_buf_readahead_verify,
 	.verify_write = xfs_inode_buf_write_verify,
 };
@@ -297,14 +291,6 @@ xfs_dinode_verify(
 	struct xfs_dinode	*dip)
 {
 	if (dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC))
-		return false;
-
-	/* don't allow invalid i_size */
-	if (be64_to_cpu(dip->di_size) & (1ULL << 63))
-		return false;
-
-	/* No zero-length symlinks. */
-	if (S_ISLNK(be16_to_cpu(dip->di_mode)) && dip->di_size == 0)
 		return false;
 
 	/* only version 3 or greater inodes are extensively verified here */

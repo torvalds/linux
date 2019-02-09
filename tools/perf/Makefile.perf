@@ -77,9 +77,6 @@ include config/utilities.mak
 # Define NO_AUXTRACE if you do not want AUX area tracing support
 #
 # Define NO_LIBBPF if you do not want BPF support
-#
-# Define NO_CSTRACE if you do not want CoreSight trace decoding support
-#
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -423,7 +420,7 @@ $(LIBTRACEEVENT)-clean:
 	$(call QUIET_CLEAN, libtraceevent)
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) O=$(OUTPUT) clean >/dev/null
 
-install-traceevent-plugins: libtraceevent_plugins
+install-traceevent-plugins: $(LIBTRACEEVENT)
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) install_plugins
 
 $(LIBAPI): fixdep FORCE
@@ -566,9 +563,9 @@ install-tests: all install-gtk
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'; \
 		$(INSTALL) tests/attr/* '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'
 
-install-bin: install-tools install-tests install-traceevent-plugins
+install-bin: install-tools install-tests
 
-install: install-bin try-install-man
+install: install-bin try-install-man install-traceevent-plugins
 
 install-python_ext:
 	$(PYTHON_WORD) util/setup.py --quiet install --root='/$(DESTDIR_SQ)'

@@ -53,7 +53,6 @@
 #include <linux/jump_label.h>
 #include <asm/uaccess.h>
 #include <linux/err.h>
-#include <linux/property.h>
 
 #include "i2c-core.h"
 
@@ -70,7 +69,6 @@ static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
 static struct device_type i2c_client_type;
-static int i2c_check_addr_ex(struct i2c_adapter *adapter, int addr);
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 static struct static_key i2c_trace_msg = STATIC_KEY_INIT_FALSE;
@@ -1004,7 +1002,7 @@ void i2c_unlock_adapter(struct i2c_adapter *adapter)
 EXPORT_SYMBOL_GPL(i2c_unlock_adapter);
 
 static void i2c_dev_set_name(struct i2c_adapter *adap,
-			     struct i2c_client *client, int status)
+			     struct i2c_client *client)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
 
@@ -1013,12 +1011,8 @@ static void i2c_dev_set_name(struct i2c_adapter *adap,
 		return;
 	}
 
-	if (status == 0)
-		dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
-			i2c_encode_flags_to_addr(client));
-	else
-		dev_set_name(&client->dev, "%d-%04x-%01x", i2c_adapter_id(adap),
-			i2c_encode_flags_to_addr(client), status);
+	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
+		     i2c_encode_flags_to_addr(client));
 }
 
 /**
@@ -1068,17 +1062,17 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	}
 
 	/* Check for address business */
-	status = i2c_check_addr_ex(adap, i2c_encode_flags_to_addr(client));
-	if (status != 0)
-		dev_err(&adap->dev, "%d i2c clients have been registered at 0x%02x",
-			status, client->addr);
+	status = i2c_check_addr_busy(adap, i2c_encode_flags_to_addr(client));
+	if (status)
+		goto out_err;
+
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
 	client->dev.of_node = info->of_node;
 	client->dev.fwnode = info->fwnode;
 
-	i2c_dev_set_name(adap, client, status);
+	i2c_dev_set_name(adap, client);
 	status = device_register(&client->dev);
 	if (status)
 		goto out_err;
@@ -1406,7 +1400,7 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 
 	if (i2c_check_addr_validity(addr, info.flags)) {
 		dev_err(&adap->dev, "of_i2c: invalid addr=%x on %s\n",
-			addr, node->full_name);
+			info.addr, node->full_name);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1845,58 +1839,6 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 }
 EXPORT_SYMBOL(i2c_del_adapter);
 
-/**
- * i2c_parse_fw_timings - get I2C related timing parameters from firmware
- * @dev: The device to scan for I2C timing properties
- * @t: the i2c_timings struct to be filled with values
- * @use_defaults: bool to use sane defaults derived from the I2C specification
- *		  when properties are not found, otherwise use 0
- *
- * Scan the device for the generic I2C properties describing timing parameters
- * for the signal and fill the given struct with the results. If a property was
- * not found and use_defaults was true, then maximum timings are assumed which
- * are derived from the I2C specification. If use_defaults is not used, the
- * results will be 0, so drivers can apply their own defaults later. The latter
- * is mainly intended for avoiding regressions of existing drivers which want
- * to switch to this function. New drivers almost always should use the defaults.
- */
-
-void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t, bool use_defaults)
-{
-	int ret;
-
-	memset(t, 0, sizeof(*t));
-
-	ret = device_property_read_u32(dev, "clock-frequency", &t->bus_freq_hz);
-	if (ret && use_defaults)
-		t->bus_freq_hz = 100000;
-
-	ret = device_property_read_u32(dev, "i2c-scl-rising-time-ns", &t->scl_rise_ns);
-	if (ret && use_defaults) {
-		if (t->bus_freq_hz <= 100000)
-			t->scl_rise_ns = 1000;
-		else if (t->bus_freq_hz <= 400000)
-			t->scl_rise_ns = 300;
-		else
-			t->scl_rise_ns = 120;
-	}
-
-	ret = device_property_read_u32(dev, "i2c-scl-falling-time-ns", &t->scl_fall_ns);
-	if (ret && use_defaults) {
-		if (t->bus_freq_hz <= 400000)
-			t->scl_fall_ns = 300;
-		else
-			t->scl_fall_ns = 120;
-	}
-
-	device_property_read_u32(dev, "i2c-scl-internal-delay-ns", &t->scl_int_delay_ns);
-
-	ret = device_property_read_u32(dev, "i2c-sda-falling-time-ns", &t->sda_fall_ns);
-	if (ret && use_defaults)
-		t->sda_fall_ns = t->scl_fall_ns;
-}
-EXPORT_SYMBOL_GPL(i2c_parse_fw_timings);
-
 /* ------------------------------------------------------------------------- */
 
 int i2c_for_each_dev(void *data, int (*fn)(struct device *, void *))
@@ -1934,7 +1876,6 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	/* add the driver to the list of i2c drivers in the driver core */
 	driver->driver.owner = owner;
 	driver->driver.bus = &i2c_bus_type;
-	INIT_LIST_HEAD(&driver->clients);
 
 	/* When registration returns, the driver core
 	 * will have called probe() for all matching-but-unbound devices.
@@ -1945,6 +1886,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 
 	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
 
+	INIT_LIST_HEAD(&driver->clients);
 	/* Walk the adapters that are already present */
 	i2c_for_each_dev(driver, __process_new_driver);
 
@@ -1974,33 +1916,6 @@ void i2c_del_driver(struct i2c_driver *driver)
 EXPORT_SYMBOL(i2c_del_driver);
 
 /* ------------------------------------------------------------------------- */
-
-struct i2c_addr_cnt {
-	int addr;
-	int cnt;
-};
-
-static int __i2c_check_addr_ex(struct device *dev, void *addrp)
-{
-	struct i2c_client *client = i2c_verify_client(dev);
-	struct i2c_addr_cnt *addrinfo = (struct i2c_addr_cnt *)addrp;
-	int addr = addrinfo->addr;
-
-	if (client && client->addr == addr)
-		addrinfo->cnt++;
-
-	return 0;
-}
-
-static int i2c_check_addr_ex(struct i2c_adapter *adapter, int addr)
-{
-	struct i2c_addr_cnt addrinfo;
-
-	addrinfo.addr = addr;
-	addrinfo.cnt = 0;
-	device_for_each_child(&adapter->dev, &addrinfo, __i2c_check_addr_ex);
-	return addrinfo.cnt;
-}
 
 /**
  * i2c_use_client - increments the reference count of the i2c client structure

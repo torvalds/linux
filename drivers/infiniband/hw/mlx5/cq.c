@@ -756,15 +756,14 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	int uninitialized_var(index);
 	int uninitialized_var(inlen);
 	int cqe_size;
-	unsigned int irqn;
+	int irqn;
 	int eqn;
 	int err;
 
 	if (attr->flags)
 		return ERR_PTR(-EINVAL);
 
-	if (entries < 0 ||
-	    (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz))))
+	if (entries < 0)
 		return ERR_PTR(-EINVAL);
 
 	entries = roundup_pow_of_two(entries + 1);
@@ -787,7 +786,8 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 		if (err)
 			goto err_create;
 	} else {
-		cqe_size = cache_line_size() == 128 ? 128 : 64;
+		/* for now choose 64 bytes till we have a proper interface */
+		cqe_size = 64;
 		err = create_cq_kernel(dev, cq, entries, cqe_size, &cqb,
 				       &index, &inlen);
 		if (err)
@@ -972,12 +972,7 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	if (ucmd.reserved0 || ucmd.reserved1)
 		return -EINVAL;
 
-	/* check multiplication overflow */
-	if (ucmd.cqe_size && SIZE_MAX / ucmd.cqe_size <= entries - 1)
-		return -EINVAL;
-
-	umem = ib_umem_get(context, ucmd.buf_addr,
-			   (size_t)ucmd.cqe_size * entries,
+	umem = ib_umem_get(context, ucmd.buf_addr, entries * ucmd.cqe_size,
 			   IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(umem)) {
 		err = PTR_ERR(umem);
@@ -1099,16 +1094,11 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		return -ENOSYS;
 	}
 
-	if (entries < 1 ||
-	    entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz))) {
-		mlx5_ib_warn(dev, "wrong entries number %d, max %d\n",
-			     entries,
-			     1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz));
+	if (entries < 1)
 		return -EINVAL;
-	}
 
 	entries = roundup_pow_of_two(entries + 1);
-	if (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz)) + 1)
+	if (entries >  (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz)) + 1)
 		return -EINVAL;
 
 	if (entries == ibcq->cqe + 1)

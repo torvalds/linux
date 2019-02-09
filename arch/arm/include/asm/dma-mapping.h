@@ -8,7 +8,6 @@
 #include <linux/dma-attrs.h>
 #include <linux/dma-debug.h>
 
-#include <asm/cacheflush.h>
 #include <asm/memory.h>
 
 #include <xen/xen.h>
@@ -33,7 +32,7 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 		return __generic_dma_ops(dev);
 }
 
-static inline void arch_set_dma_ops(struct device *dev, struct dma_map_ops *ops)
+static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
 {
 	BUG_ON(!dev);
 	dev->archdata.dma_ops = ops;
@@ -120,7 +119,7 @@ static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
 /* The ARM override for dma_max_pfn() */
 static inline unsigned long dma_max_pfn(struct device *dev)
 {
-	return dma_to_pfn(dev, *dev->dma_mask);
+	return PHYS_PFN_OFFSET + dma_to_pfn(dev, *dev->dma_mask);
 }
 #define dma_max_pfn(dev) dma_max_pfn(dev)
 
@@ -282,62 +281,6 @@ extern void arm_dma_sync_sg_for_device(struct device *, struct scatterlist *, in
 extern int arm_dma_get_sgtable(struct device *dev, struct sg_table *sgt,
 		void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		struct dma_attrs *attrs);
-
-/*
- * The DMA API is built upon the notion of "buffer ownership".  A buffer
- * is either exclusively owned by the CPU (and therefore may be accessed
- * by it) or exclusively owned by the DMA device.  These helper functions
- * represent the transitions between these two ownership states.
- *
- * Note, however, that on later ARMs, this notion does not work due to
- * speculative prefetches.  We model our approach on the assumption that
- * the CPU does do speculative prefetches, which means we clean caches
- * before transfers and delay cache invalidation until transfer completion.
- *
- */
-extern void __dma_page_cpu_to_dev(struct page *, unsigned long, size_t,
-				  enum dma_data_direction);
-extern void __dma_page_dev_to_cpu(struct page *, unsigned long, size_t,
-				  enum dma_data_direction);
-
-static inline void arch_flush_page(struct device *dev, const void *virt,
-			    phys_addr_t phys)
-{
-	dmac_flush_range(virt, virt + PAGE_SIZE);
-	outer_flush_range(phys, phys + PAGE_SIZE);
-}
-
-static inline void arch_dma_map_area(phys_addr_t phys, size_t size,
-				     enum dma_data_direction dir)
-{
-	unsigned int offset = phys & ~PAGE_MASK;
-	__dma_page_cpu_to_dev(phys_to_page(phys & PAGE_MASK), offset, size, dir);
-}
-
-static inline void arch_dma_unmap_area(phys_addr_t phys, size_t size,
-				       enum dma_data_direction dir)
-{
-	unsigned int offset = phys & ~PAGE_MASK;
-	__dma_page_dev_to_cpu(phys_to_page(phys & PAGE_MASK), offset, size, dir);
-}
-
-static inline pgprot_t arch_get_dma_pgprot(struct dma_attrs *attrs,
-					pgprot_t prot, bool coherent)
-{
-	if (coherent)
-		return prot;
-
-	prot = dma_get_attr(DMA_ATTR_WRITE_COMBINE, attrs) ?
-			    pgprot_writecombine(prot) :
-			    pgprot_dmacoherent(prot);
-	return prot;
-}
-
-extern void *arch_alloc_from_atomic_pool(size_t size, struct page **ret_page,
-					 gfp_t flags);
-extern bool arch_in_atomic_pool(void *start, size_t size);
-extern int arch_free_from_atomic_pool(void *start, size_t size);
-
 
 #endif /* __KERNEL__ */
 #endif

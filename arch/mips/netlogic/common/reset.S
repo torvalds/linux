@@ -50,6 +50,7 @@
 #include <asm/netlogic/xlp-hal/sys.h>
 #include <asm/netlogic/xlp-hal/cpucontrol.h>
 
+#define CP0_EBASE	$15
 #define SYS_CPU_COHERENT_BASE	CKSEG1ADDR(XLP_DEFAULT_IO_BASE) + \
 			XLP_IO_SYS_OFFSET(0) + XLP_IO_PCI_HDRSZ + \
 			SYS_CPU_NONCOHERENT_MODE * 4
@@ -91,7 +92,7 @@
  * registers. On XLPII CPUs, usual cache instructions work.
  */
 .macro	xlp_flush_l1_dcache
-	mfc0	t0, CP0_PRID
+	mfc0	t0, CP0_EBASE, 0
 	andi	t0, t0, PRID_IMP_MASK
 	slt	t1, t0, 0x1200
 	beqz	t1, 15f
@@ -170,7 +171,7 @@ FEXPORT(nlm_reset_entry)
 	nop
 
 1:	/* Entry point on core wakeup */
-	mfc0	t0, CP0_PRID		/* processor ID */
+	mfc0	t0, CP0_EBASE, 0	/* processor ID */
 	andi	t0, PRID_IMP_MASK
 	li	t1, 0x1500		/* XLP 9xx */
 	beq	t0, t1, 2f		/* does not need to set coherent */
@@ -181,8 +182,8 @@ FEXPORT(nlm_reset_entry)
 	nop
 
 	/* set bit in SYS coherent register for the core */
-	mfc0	t0, CP0_EBASE
-	mfc0	t1, CP0_EBASE
+	mfc0	t0, CP0_EBASE, 1
+	mfc0	t1, CP0_EBASE, 1
 	srl	t1, 5
 	andi	t1, 0x3			/* t1 <- node */
 	li	t2, 0x40000
@@ -231,7 +232,7 @@ EXPORT(nlm_boot_siblings)
 
 	 * NOTE: All GPR contents are lost after the mtcr above!
 	 */
-	mfc0	v0, CP0_EBASE
+	mfc0	v0, CP0_EBASE, 1
 	andi	v0, 0x3ff		/* v0 <- node/core */
 
 	/*

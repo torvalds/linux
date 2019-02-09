@@ -43,7 +43,6 @@ struct v4l2_fh {
 	wait_queue_head_t	wait;
 	struct list_head	subscribed; /* Subscribed events */
 	struct list_head	available; /* Dequeueable event */
-	struct mutex		subscribe_lock;
 	unsigned int		navailable;
 	u32			sequence;
 

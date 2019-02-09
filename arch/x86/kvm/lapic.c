@@ -288,16 +288,8 @@ void kvm_apic_set_version(struct kvm_vcpu *vcpu)
 	if (!kvm_vcpu_has_lapic(vcpu))
 		return;
 
-	/*
-	 * KVM emulates 82093AA datasheet (with in-kernel IOAPIC implementation)
-	 * which doesn't have EOI register; Some buggy OSes (e.g. Windows with
-	 * Hyper-V role) disable EOI broadcast in lapic not checking for IOAPIC
-	 * version first and level-triggered interrupts never get EOIed in
-	 * IOAPIC.
-	 */
 	feat = kvm_find_cpuid_entry(apic->vcpu, 0x1, 0);
-	if (feat && (feat->ecx & (1 << (X86_FEATURE_X2APIC & 31))) &&
-	    !ioapic_in_kernel(vcpu->kvm))
+	if (feat && (feat->ecx & (1 << (X86_FEATURE_X2APIC & 31))))
 		v |= APIC_LVR_DIRECTED_EOI;
 	apic_set_reg(apic, APIC_LVR, v);
 }
@@ -2194,10 +2186,4 @@ void kvm_lapic_init(void)
 	/* do not patch jump label more than once per second */
 	jump_label_rate_limit(&apic_hw_disabled, HZ);
 	jump_label_rate_limit(&apic_sw_disabled, HZ);
-}
-
-void kvm_lapic_exit(void)
-{
-	static_key_deferred_flush(&apic_hw_disabled);
-	static_key_deferred_flush(&apic_sw_disabled);
 }

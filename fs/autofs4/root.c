@@ -455,7 +455,7 @@ static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 		 * a mount-trap.
 		 */
 		struct inode *inode;
-		if (ino->flags & AUTOFS_INF_WANT_EXPIRE)
+		if (ino->flags & (AUTOFS_INF_EXPIRING | AUTOFS_INF_NO_RCU))
 			return 0;
 		if (d_mountpoint(dentry))
 			return 0;
@@ -746,7 +746,7 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, umode_t m
 
 	autofs4_del_active(dentry);
 
-	inode = autofs4_get_inode(dir->i_sb, S_IFDIR | mode);
+	inode = autofs4_get_inode(dir->i_sb, S_IFDIR | 0555);
 	if (!inode)
 		return -ENOMEM;
 	d_add(dentry, inode);

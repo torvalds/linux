@@ -153,9 +153,6 @@ struct ds_device
 	 */
 	u16			spu_bit;
 
-	u8			st_buf[ST_SIZE];
-	u8			byte_buf;
-
 	struct w1_bus_master	master;
 };
 
@@ -177,6 +174,7 @@ struct ds_status
 	u8			data_in_buffer_status;
 	u8			reserved1;
 	u8			reserved2;
+
 };
 
 static struct usb_device_id ds_id_table [] = {
@@ -246,6 +244,28 @@ static int ds_send_control(struct ds_device *dev, u16 value, u16 index)
 	return err;
 }
 
+static int ds_recv_status_nodump(struct ds_device *dev, struct ds_status *st,
+				 unsigned char *buf, int size)
+{
+	int count, err;
+
+	memset(st, 0, sizeof(*st));
+
+	count = 0;
+	err = usb_interrupt_msg(dev->udev, usb_rcvintpipe(dev->udev,
+		dev->ep[EP_STATUS]), buf, size, &count, 1000);
+	if (err < 0) {
+		pr_err("Failed to read 1-wire data from 0x%x: err=%d.\n",
+		       dev->ep[EP_STATUS], err);
+		return err;
+	}
+
+	if (count >= sizeof(*st))
+		memcpy(st, buf, sizeof(*st));
+
+	return count;
+}
+
 static inline void ds_print_msg(unsigned char *buf, unsigned char *str, int off)
 {
 	pr_info("%45s: %8x\n", str, buf[off]);
@@ -304,35 +324,6 @@ static void ds_dump_status(struct ds_device *dev, unsigned char *buf, int count)
 	}
 }
 
-static int ds_recv_status(struct ds_device *dev, struct ds_status *st,
-			  bool dump)
-{
-	int count, err;
-
-	if (st)
-		memset(st, 0, sizeof(*st));
-
-	count = 0;
-	err = usb_interrupt_msg(dev->udev,
-				usb_rcvintpipe(dev->udev,
-					       dev->ep[EP_STATUS]),
-				dev->st_buf, sizeof(dev->st_buf),
-				&count, 1000);
-	if (err < 0) {
-		pr_err("Failed to read 1-wire data from 0x%x: err=%d.\n",
-		       dev->ep[EP_STATUS], err);
-		return err;
-	}
-
-	if (dump)
-		ds_dump_status(dev, dev->st_buf, count);
-
-	if (st && count >= sizeof(*st))
-		memcpy(st, dev->st_buf, sizeof(*st));
-
-	return count;
-}
-
 static void ds_reset_device(struct ds_device *dev)
 {
 	ds_send_control_cmd(dev, CTL_RESET_DEVICE, 0);
@@ -353,6 +344,7 @@ static void ds_reset_device(struct ds_device *dev)
 static int ds_recv_data(struct ds_device *dev, unsigned char *buf, int size)
 {
 	int count, err;
+	struct ds_status st;
 
 	/* Careful on size.  If size is less than what is available in
 	 * the input buffer, the device fails the bulk transfer and
@@ -367,9 +359,14 @@ static int ds_recv_data(struct ds_device *dev, unsigned char *buf, int size)
 	err = usb_bulk_msg(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_DATA_IN]),
 				buf, size, &count, 1000);
 	if (err < 0) {
+		u8 buf[ST_SIZE];
+		int count;
+
 		pr_info("Clearing ep0x%x.\n", dev->ep[EP_DATA_IN]);
 		usb_clear_halt(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_DATA_IN]));
-		ds_recv_status(dev, NULL, true);
+
+		count = ds_recv_status_nodump(dev, &st, buf, sizeof(buf));
+		ds_dump_status(dev, buf, count);
 		return err;
 	}
 
@@ -407,6 +404,7 @@ int ds_stop_pulse(struct ds_device *dev, int limit)
 {
 	struct ds_status st;
 	int count = 0, err = 0;
+	u8 buf[ST_SIZE];
 
 	do {
 		err = ds_send_control(dev, CTL_HALT_EXE_IDLE, 0);
@@ -415,7 +413,7 @@ int ds_stop_pulse(struct ds_device *dev, int limit)
 		err = ds_send_control(dev, CTL_RESUME_EXE, 0);
 		if (err)
 			break;
-		err = ds_recv_status(dev, &st, false);
+		err = ds_recv_status_nodump(dev, &st, buf, sizeof(buf));
 		if (err)
 			break;
 
@@ -458,17 +456,18 @@ int ds_detect(struct ds_device *dev, struct ds_status *st)
 
 static int ds_wait_status(struct ds_device *dev, struct ds_status *st)
 {
+	u8 buf[ST_SIZE];
 	int err, count = 0;
 
 	do {
 		st->status = 0;
-		err = ds_recv_status(dev, st, false);
+		err = ds_recv_status_nodump(dev, st, buf, sizeof(buf));
 #if 0
 		if (err >= 0) {
 			int i;
 			printk("0x%x: count=%d, status: ", dev->ep[EP_STATUS], err);
 			for (i=0; i<err; ++i)
-				printk("%02x ", dev->st_buf[i]);
+				printk("%02x ", buf[i]);
 			printk("\n");
 		}
 #endif
@@ -486,7 +485,7 @@ static int ds_wait_status(struct ds_device *dev, struct ds_status *st)
 	 * can do something with it).
 	 */
 	if (err > 16 || count >= 100 || err < 0)
-		ds_dump_status(dev, dev->st_buf, err);
+		ds_dump_status(dev, buf, err);
 
 	/* Extended data isn't an error.  Well, a short is, but the dump
 	 * would have already told the user that and we can't do anything
@@ -609,6 +608,7 @@ static int ds_write_byte(struct ds_device *dev, u8 byte)
 {
 	int err;
 	struct ds_status st;
+	u8 rbyte;
 
 	err = ds_send_control(dev, COMM_BYTE_IO | COMM_IM | dev->spu_bit, byte);
 	if (err)
@@ -621,11 +621,11 @@ static int ds_write_byte(struct ds_device *dev, u8 byte)
 	if (err)
 		return err;
 
-	err = ds_recv_data(dev, &dev->byte_buf, 1);
+	err = ds_recv_data(dev, &rbyte, sizeof(rbyte));
 	if (err < 0)
 		return err;
 
-	return !(byte == dev->byte_buf);
+	return !(byte == rbyte);
 }
 
 static int ds_read_byte(struct ds_device *dev, u8 *byte)
@@ -712,6 +712,7 @@ static void ds9490r_search(void *data, struct w1_master *master,
 	int err;
 	u16 value, index;
 	struct ds_status st;
+	u8 st_buf[ST_SIZE];
 	int search_limit;
 	int found = 0;
 	int i;
@@ -723,12 +724,7 @@ static void ds9490r_search(void *data, struct w1_master *master,
 	/* FIFO 128 bytes, bulk packet size 64, read a multiple of the
 	 * packet size.
 	 */
-	const size_t bufsize = 2 * 64;
-	u64 *buf;
-
-	buf = kmalloc(bufsize, GFP_KERNEL);
-	if (!buf)
-		return;
+	u64 buf[2*64/8];
 
 	mutex_lock(&master->bus_mutex);
 
@@ -749,9 +745,10 @@ static void ds9490r_search(void *data, struct w1_master *master,
 	do {
 		schedule_timeout(jtime);
 
-		err = ds_recv_status(dev, &st, false);
-		if (err < 0 || err < sizeof(st))
+		if (ds_recv_status_nodump(dev, &st, st_buf, sizeof(st_buf)) <
+			sizeof(st)) {
 			break;
+		}
 
 		if (st.data_in_buffer_status) {
 			/* Bulk in can receive partial ids, but when it does
@@ -761,7 +758,7 @@ static void ds9490r_search(void *data, struct w1_master *master,
 			 * bulk without first checking if status says there
 			 * is data to read.
 			 */
-			err = ds_recv_data(dev, (u8 *)buf, bufsize);
+			err = ds_recv_data(dev, (u8 *)buf, sizeof(buf));
 			if (err < 0)
 				break;
 			for (i = 0; i < err/8; ++i) {
@@ -797,14 +794,9 @@ static void ds9490r_search(void *data, struct w1_master *master,
 	}
 search_out:
 	mutex_unlock(&master->bus_mutex);
-	kfree(buf);
 }
 
 #if 0
-/*
- * FIXME: if this disabled code is ever used in the future all ds_send_data()
- * calls must be changed to use a DMAable buffer.
- */
 static int ds_match_access(struct ds_device *dev, u64 init)
 {
 	int err;
@@ -853,12 +845,13 @@ static int ds_set_path(struct ds_device *dev, u64 init)
 
 static u8 ds9490r_touch_bit(void *data, u8 bit)
 {
+	u8 ret;
 	struct ds_device *dev = data;
 
-	if (ds_touch_bit(dev, bit, &dev->byte_buf))
+	if (ds_touch_bit(dev, bit, &ret))
 		return 0;
 
-	return dev->byte_buf;
+	return ret;
 }
 
 #if 0
@@ -873,12 +866,13 @@ static u8 ds9490r_read_bit(void *data)
 {
 	struct ds_device *dev = data;
 	int err;
+	u8 bit = 0;
 
-	err = ds_touch_bit(dev, 1, &dev->byte_buf);
+	err = ds_touch_bit(dev, 1, &bit);
 	if (err)
 		return 0;
 
-	return dev->byte_buf & 1;
+	return bit & 1;
 }
 #endif
 
@@ -893,52 +887,32 @@ static u8 ds9490r_read_byte(void *data)
 {
 	struct ds_device *dev = data;
 	int err;
+	u8 byte = 0;
 
-	err = ds_read_byte(dev, &dev->byte_buf);
+	err = ds_read_byte(dev, &byte);
 	if (err)
 		return 0;
 
-	return dev->byte_buf;
+	return byte;
 }
 
 static void ds9490r_write_block(void *data, const u8 *buf, int len)
 {
 	struct ds_device *dev = data;
-	u8 *tbuf;
 
-	if (len <= 0)
-		return;
-
-	tbuf = kmalloc(len, GFP_KERNEL);
-	if (!tbuf)
-		return;
-
-	memcpy(tbuf, buf, len);
-	ds_write_block(dev, tbuf, len);
-
-	kfree(tbuf);
+	ds_write_block(dev, (u8 *)buf, len);
 }
 
 static u8 ds9490r_read_block(void *data, u8 *buf, int len)
 {
 	struct ds_device *dev = data;
 	int err;
-	u8 *tbuf;
 
-	if (len <= 0)
+	err = ds_read_block(dev, buf, len);
+	if (err < 0)
 		return 0;
 
-	tbuf = kmalloc(len, GFP_KERNEL);
-	if (!tbuf)
-		return 0;
-
-	err = ds_read_block(dev, tbuf, len);
-	if (err >= 0)
-		memcpy(buf, tbuf, len);
-
-	kfree(tbuf);
-
-	return err >= 0 ? len : 0;
+	return len;
 }
 
 static u8 ds9490r_reset(void *data)

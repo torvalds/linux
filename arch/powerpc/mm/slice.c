@@ -105,7 +105,7 @@ static int slice_area_is_free(struct mm_struct *mm, unsigned long addr,
 	if ((mm->task_size - len) < addr)
 		return 0;
 	vma = find_vma(mm, addr);
-	return (!vma || (addr + len) <= vm_start_gap(vma));
+	return (!vma || (addr + len) <= vma->vm_start);
 }
 
 static int slice_low_has_vma(struct mm_struct *mm, unsigned long slice)

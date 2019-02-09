@@ -498,7 +498,6 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_MMCR0:
 	case SPRN_MMCR1:
 	case SPRN_MMCR2:
-	case SPRN_UMMCR2:
 #endif
 		break;
 unprivileged:
@@ -641,7 +640,6 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 	case SPRN_MMCR0:
 	case SPRN_MMCR1:
 	case SPRN_MMCR2:
-	case SPRN_UMMCR2:
 	case SPRN_TIR:
 #endif
 		*spr_val = 0;

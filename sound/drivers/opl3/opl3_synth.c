@@ -21,7 +21,6 @@
 
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/nospec.h>
 #include <sound/opl3.h>
 #include <sound/asound_fm.h>
 
@@ -449,7 +448,7 @@ static int snd_opl3_set_voice(struct snd_opl3 * opl3, struct snd_dm_fm_voice * v
 {
 	unsigned short reg_side;
 	unsigned char op_offset;
-	unsigned char voice_offset, voice_op;
+	unsigned char voice_offset;
 
 	unsigned short opl3_reg;
 	unsigned char reg_val;
@@ -474,9 +473,7 @@ static int snd_opl3_set_voice(struct snd_opl3 * opl3, struct snd_dm_fm_voice * v
 		voice_offset = voice->voice - MAX_OPL2_VOICES;
 	}
 	/* Get register offset of operator */
-	voice_offset = array_index_nospec(voice_offset, MAX_OPL2_VOICES);
-	voice_op = array_index_nospec(voice->op, 4);
-	op_offset = snd_opl3_regmap[voice_offset][voice_op];
+	op_offset = snd_opl3_regmap[voice_offset][voice->op];
 
 	reg_val = 0x00;
 	/* Set amplitude modulation (tremolo) effect */

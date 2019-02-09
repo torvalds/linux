@@ -21,11 +21,6 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support if it is available for your platform.
 
-config DRM_IGNORE_IOTCL_PERMIT
-	bool "Ignore drm ioctl permission"
-	default y
-	depends on DRM && ANDROID
-
 config DRM_MIPI_DSI
 	bool
 	depends on DRM
@@ -101,20 +96,6 @@ config DRM_KMS_CMA_HELPER
 	select FB_SYS_IMAGEBLIT
 	help
 	  Choose this if you need the KMS CMA helper functions
-
-config DRM_SCDC_HELPER
-	bool "DRM SCDC HELPER"
-	depends on DRM_KMS_HELPER
-	help
-	  Choose this if you need the SCDC helper functions
-
-config DRM_DMA_SYNC
-	bool "DRM DMA Sync"
-	depends on DRM && DMA_SHARED_BUFFER
-	default n
-	help
-	  Choose this option if you want to use fences and reservations for
-	  synchronization of shared dma-buf access between different drivers.
 
 source "drivers/gpu/drm/i2c/Kconfig"
 

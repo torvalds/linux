@@ -345,7 +345,7 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_type *protocol,
 	if (data[9] != (unsigned char)(~data[8]))
 		return 0;
 
-	*protocol = RC_TYPE_NECX;
+	*protocol = RC_TYPE_NEC;
 	*scancode = RC_SCANCODE_NECX(data[11] << 8 | data[10], data[9]);
 	*toggle = 0;
 	return 1;
@@ -459,6 +459,13 @@ static void saa7134_input_timer(unsigned long data)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
+static void ir_raw_decode_timer_end(unsigned long data)
+{
+	struct saa7134_dev *dev = (struct saa7134_dev *)data;
+
+	ir_raw_event_handle(dev->remote->dev);
+}
+
 static int __saa7134_ir_start(void *priv)
 {
 	struct saa7134_dev *dev = priv;
@@ -514,6 +521,10 @@ static int __saa7134_ir_start(void *priv)
 			    (unsigned long)dev);
 		ir->timer.expires = jiffies + HZ;
 		add_timer(&ir->timer);
+	} else if (ir->raw_decode) {
+		/* set timer_end for code completion */
+		setup_timer(&ir->timer, ir_raw_decode_timer_end,
+			    (unsigned long)dev);
 	}
 
 	return 0;
@@ -531,7 +542,7 @@ static void __saa7134_ir_stop(void *priv)
 	if (!ir->running)
 		return;
 
-	if (ir->polling)
+	if (ir->polling || ir->raw_decode)
 		del_timer_sync(&ir->timer);
 
 	ir->running = false;
@@ -838,7 +849,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	}
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	rc = rc_allocate_device(RC_DRIVER_SCANCODE);
+	rc = rc_allocate_device();
 	if (!ir || !rc) {
 		err = -ENOMEM;
 		goto err_out_free;
@@ -866,7 +877,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	if (raw_decode)
 		rc->driver_type = RC_DRIVER_IR_RAW;
 
-	rc->device_name = ir->name;
+	rc->input_name = ir->name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_PCI;
 	rc->input_id.version = 1;
@@ -880,9 +891,6 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	rc->dev.parent = &dev->pci->dev;
 	rc->map_name = ir_codes;
 	rc->driver_name = MODULE_NAME;
-	rc->min_timeout = 1;
-	rc->timeout = IR_DEFAULT_TIMEOUT;
-	rc->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 
 	err = rc_register_device(rc);
 	if (err)
@@ -1006,7 +1014,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "BeholdTV";
 		dev->init_data.get_key = get_key_beholdm6xx;
 		dev->init_data.ir_codes = RC_MAP_BEHOLD;
-		dev->init_data.type = RC_BIT_NECX;
+		dev->init_data.type = RC_BIT_NEC;
 		info.addr = 0x2d;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:
@@ -1035,13 +1043,26 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 {
 	struct saa7134_card_ir *ir = dev->remote;
+	unsigned long timeout;
 	int space;
 
 	/* Generate initial event */
 	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 	space = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2) & ir->mask_keydown;
-	ir_raw_event_store_edge(dev->remote->dev, !space);
+	ir_raw_event_store_edge(dev->remote->dev, space ? IR_SPACE : IR_PULSE);
+
+	/*
+	 * Wait 15 ms from the start of the first IR event before processing
+	 * the event. This time is enough for NEC protocol. May need adjustments
+	 * to work with other protocols.
+	 */
+	smp_mb();
+
+	if (!timer_pending(&ir->timer)) {
+		timeout = jiffies + msecs_to_jiffies(15);
+		mod_timer(&ir->timer, timeout);
+	}
 
 	return 1;
 }

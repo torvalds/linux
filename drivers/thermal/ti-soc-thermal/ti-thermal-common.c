@@ -239,7 +239,7 @@ static int ti_thermal_get_trip_temp(struct thermal_zone_device *thermal,
 	return 0;
 }
 
-static int __ti_thermal_get_trend(void *p, int trip, enum thermal_trend *trend)
+static int __ti_thermal_get_trend(void *p, long *trend)
 {
 	struct ti_thermal_data *data = p;
 	struct ti_bandgap *bgp;
@@ -252,12 +252,7 @@ static int __ti_thermal_get_trend(void *p, int trip, enum thermal_trend *trend)
 	if (ret)
 		return ret;
 
-	if (tr > 0)
-		*trend = THERMAL_TREND_RAISING;
-	else if (tr < 0)
-		*trend = THERMAL_TREND_DROPPING;
-	else
-		*trend = THERMAL_TREND_STABLE;
+	*trend = tr;
 
 	return 0;
 }
@@ -266,7 +261,21 @@ static int __ti_thermal_get_trend(void *p, int trip, enum thermal_trend *trend)
 static int ti_thermal_get_trend(struct thermal_zone_device *thermal,
 				int trip, enum thermal_trend *trend)
 {
-	return __ti_thermal_get_trend(thermal->devdata, trip, trend);
+	int ret;
+	long tr;
+
+	ret = __ti_thermal_get_trend(thermal->devdata, &tr);
+	if (ret)
+		return ret;
+
+	if (tr > 0)
+		*trend = THERMAL_TREND_RAISING;
+	else if (tr < 0)
+		*trend = THERMAL_TREND_DROPPING;
+	else
+		*trend = THERMAL_TREND_STABLE;
+
+	return 0;
 }
 
 /* Get critical temperature callback functions for thermal zone */

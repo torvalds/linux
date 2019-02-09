@@ -95,20 +95,22 @@ static __be32 nfsd3_proc_setacl(struct svc_rqst * rqstp,
 		goto out;
 
 	inode = d_inode(fh->fh_dentry);
+	if (!IS_POSIXACL(inode) || !inode->i_op->set_acl) {
+		error = -EOPNOTSUPP;
+		goto out_errno;
+	}
 
 	error = fh_want_write(fh);
 	if (error)
 		goto out_errno;
 
-	fh_lock(fh);
-
-	error = set_posix_acl(inode, ACL_TYPE_ACCESS, argp->acl_access);
+	error = inode->i_op->set_acl(inode, argp->acl_access, ACL_TYPE_ACCESS);
 	if (error)
-		goto out_drop_lock;
-	error = set_posix_acl(inode, ACL_TYPE_DEFAULT, argp->acl_default);
+		goto out_drop_write;
+	error = inode->i_op->set_acl(inode, argp->acl_default,
+				     ACL_TYPE_DEFAULT);
 
-out_drop_lock:
-	fh_unlock(fh);
+out_drop_write:
 	fh_drop_write(fh);
 out_errno:
 	nfserr = nfserrno(error);

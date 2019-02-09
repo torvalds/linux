@@ -346,10 +346,6 @@ static int vtg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	vtg->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (!vtg->regs) {
-		DRM_ERROR("failed to remap I/O memory\n");
-		return -ENOMEM;
-	}
 
 	np = of_parse_phandle(pdev->dev.of_node, "st,slave", 0);
 	if (np) {

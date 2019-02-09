@@ -234,8 +234,8 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 	if (machine__is_default_guest(machine))
 		return 0;
 
-	snprintf(filename, sizeof(filename), "%s/proc/%d/task/%d/maps",
-		 machine->root_dir, pid, pid);
+	snprintf(filename, sizeof(filename), "%s/proc/%d/maps",
+		 machine->root_dir, pid);
 
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
@@ -274,7 +274,7 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 		strcpy(execname, "");
 
 		/* 00400000-0040c000 r-xp 00000000 fd:01 41038  /bin/cat */
-		n = sscanf(bf, "%"PRIx64"-%"PRIx64" %s %"PRIx64" %x:%x %u %[^\n]\n",
+		n = sscanf(bf, "%"PRIx64"-%"PRIx64" %s %"PRIx64" %x:%x %u %s\n",
 		       &event->mmap2.start, &event->mmap2.len, prot,
 		       &event->mmap2.pgoff, &event->mmap2.maj,
 		       &event->mmap2.min,
@@ -416,7 +416,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 {
 	char filename[PATH_MAX];
 	DIR *tasks;
-	struct dirent *dirent;
+	struct dirent dirent, *next;
 	pid_t tgid, ppid;
 	int rc = 0;
 
@@ -445,11 +445,11 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		return 0;
 	}
 
-	while ((dirent = readdir(tasks)) != NULL) {
+	while (!readdir_r(tasks, &dirent, &next) && next) {
 		char *end;
 		pid_t _pid;
 
-		_pid = strtol(dirent->d_name, &end, 10);
+		_pid = strtol(dirent.d_name, &end, 10);
 		if (*end)
 			continue;
 
@@ -558,7 +558,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 {
 	DIR *proc;
 	char proc_path[PATH_MAX];
-	struct dirent *dirent;
+	struct dirent dirent, *next;
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	int err = -1;
 
@@ -583,9 +583,9 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (proc == NULL)
 		goto out_free_fork;
 
-	while ((dirent = readdir(proc)) != NULL) {
+	while (!readdir_r(proc, &dirent, &next) && next) {
 		char *end;
-		pid_t pid = strtol(dirent->d_name, &end, 10);
+		pid_t pid = strtol(dirent.d_name, &end, 10);
 
 		if (*end) /* only interested in proper numerical dirents */
 			continue;

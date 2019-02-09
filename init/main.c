@@ -81,7 +81,6 @@
 #include <linux/integrity.h>
 #include <linux/proc_ns.h>
 #include <linux/io.h>
-#include <linux/kaiser.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -94,6 +93,9 @@ static int kernel_init(void *);
 extern void init_IRQ(void);
 extern void fork_init(void);
 extern void radix_tree_init(void);
+#ifndef CONFIG_DEBUG_RODATA
+static inline void mark_rodata_ro(void) { }
+#endif
 
 /*
  * Debug helper: via this flag we know that we are in 'early bootup code'
@@ -469,7 +471,7 @@ void __init __weak smp_setup_processor_id(void)
 }
 
 # if THREAD_SIZE >= PAGE_SIZE
-void __init __weak thread_stack_cache_init(void)
+void __init __weak thread_info_cache_init(void)
 {
 }
 #endif
@@ -490,7 +492,6 @@ static void __init mm_init(void)
 	pgtable_init();
 	vmalloc_init();
 	ioremap_huge_init();
-	kaiser_init();
 }
 
 asmlinkage __visible void __init start_kernel(void)
@@ -534,23 +535,7 @@ asmlinkage __visible void __init start_kernel(void)
 	build_all_zonelists(NULL, NULL);
 	page_alloc_init();
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-	{
-		const char *s = boot_command_line;
-		const char *e = &boot_command_line[strlen(boot_command_line)];
-		int n =
-		    pr_notice("Kernel command line: %s\n", boot_command_line);
-		n -= strlen("Kernel command line: ");
-		s += n;
-		/* command line maybe too long to print one time */
-		while (n > 0 && s < e) {
-			n = pr_cont("%s\n", s);
-			s += n;
-		}
-	}
-#else
 	pr_notice("Kernel command line: %s\n", boot_command_line);
-#endif
 	parse_early_param();
 	after_dashes = parse_args("Booting kernel",
 				  static_command_line, __start___param,
@@ -663,7 +648,7 @@ asmlinkage __visible void __init start_kernel(void)
 	/* Should be run before the first non-init thread is created */
 	init_espfix_bsp();
 #endif
-	thread_stack_cache_init();
+	thread_info_cache_init();
 	cred_init();
 	fork_init();
 	proc_caches_init();
@@ -944,28 +929,6 @@ static int try_to_run_init_process(const char *init_filename)
 
 static noinline void __init kernel_init_freeable(void);
 
-#ifdef CONFIG_DEBUG_RODATA
-static bool rodata_enabled = true;
-static int __init set_debug_rodata(char *str)
-{
-	return strtobool(str, &rodata_enabled);
-}
-__setup("rodata=", set_debug_rodata);
-
-static void mark_readonly(void)
-{
-	if (rodata_enabled)
-		mark_rodata_ro();
-	else
-		pr_info("Kernel memory protection disabled.\n");
-}
-#else
-static inline void mark_readonly(void)
-{
-	pr_warn("This architecture does not have kernel memory protection.\n");
-}
-#endif
-
 static int __ref kernel_init(void *unused)
 {
 	int ret;
@@ -974,7 +937,7 @@ static int __ref kernel_init(void *unused)
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
 	free_initmem();
-	mark_readonly();
+	mark_rodata_ro();
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
 

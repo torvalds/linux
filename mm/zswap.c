@@ -78,13 +78,7 @@ static u64 zswap_duplicate_entry;
 
 /* Enable/disable zswap (disabled by default) */
 static bool zswap_enabled;
-static int zswap_enabled_param_set(const char *,
-				   const struct kernel_param *);
-static struct kernel_param_ops zswap_enabled_param_ops = {
-	.set =		zswap_enabled_param_set,
-	.get =		param_get_bool,
-};
-module_param_cb(enabled, &zswap_enabled_param_ops, &zswap_enabled, 0644);
+module_param_named(enabled, zswap_enabled, bool, 0644);
 
 /* Crypto compressor to use */
 #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
@@ -123,7 +117,7 @@ struct zswap_pool {
 	struct crypto_comp * __percpu *tfm;
 	struct kref kref;
 	struct list_head list;
-	struct work_struct work;
+	struct rcu_head rcu_head;
 	struct notifier_block notifier;
 	char tfm_name[CRYPTO_MAX_ALG_NAME];
 };
@@ -176,14 +170,9 @@ static struct zswap_tree *zswap_trees[MAX_SWAPFILES];
 static LIST_HEAD(zswap_pools);
 /* protects zswap_pools list modification */
 static DEFINE_SPINLOCK(zswap_pools_lock);
-/* pool counter to provide unique names to zpool */
-static atomic_t zswap_pools_count = ATOMIC_INIT(0);
 
 /* used by param callback function */
 static bool zswap_init_started;
-
-/* fatal error during init */
-static bool zswap_init_failed;
 
 /*********************************
 * helpers and fwd declarations
@@ -576,7 +565,6 @@ static struct zswap_pool *zswap_pool_find_get(char *type, char *compressor)
 static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 {
 	struct zswap_pool *pool;
-	char name[38]; /* 'zswap' + 32 char (max) num + \0 */
 	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
@@ -585,10 +573,7 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 		return NULL;
 	}
 
-	/* unique name for each pool specifically required by zsmalloc */
-	snprintf(name, 38, "zswap%x", atomic_inc_return(&zswap_pools_count));
-
-	pool->zpool = zpool_create_pool(type, name, gfp, &zswap_zpool_ops);
+	pool->zpool = zpool_create_pool(type, "zswap", gfp, &zswap_zpool_ops);
 	if (!pool->zpool) {
 		pr_err("%s zpool not available\n", type);
 		goto error;
@@ -667,11 +652,9 @@ static int __must_check zswap_pool_get(struct zswap_pool *pool)
 	return kref_get_unless_zero(&pool->kref);
 }
 
-static void __zswap_pool_release(struct work_struct *work)
+static void __zswap_pool_release(struct rcu_head *head)
 {
-	struct zswap_pool *pool = container_of(work, typeof(*pool), work);
-
-	synchronize_rcu();
+	struct zswap_pool *pool = container_of(head, typeof(*pool), rcu_head);
 
 	/* nobody should have been able to get a kref... */
 	WARN_ON(kref_get_unless_zero(&pool->kref));
@@ -691,9 +674,7 @@ static void __zswap_pool_empty(struct kref *kref)
 	WARN_ON(pool == zswap_pool_current());
 
 	list_del_rcu(&pool->list);
-
-	INIT_WORK(&pool->work, __zswap_pool_release);
-	schedule_work(&pool->work);
+	call_rcu(&pool->rcu_head, __zswap_pool_release);
 
 	spin_unlock(&zswap_pools_lock);
 }
@@ -714,11 +695,6 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	struct zswap_pool *pool, *put_pool = NULL;
 	char *s = strstrip((char *)val);
 	int ret;
-
-	if (zswap_init_failed) {
-		pr_err("can't set param, initialization failed\n");
-		return -ENODEV;
-	}
 
 	/* no change required */
 	if (!strcmp(s, *(char **)kp->arg))
@@ -752,21 +728,17 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	pool = zswap_pool_find_get(type, compressor);
 	if (pool) {
 		zswap_pool_debug("using existing", pool);
-		WARN_ON(pool == zswap_pool_current());
 		list_del_rcu(&pool->list);
-	}
-
-	spin_unlock(&zswap_pools_lock);
-
-	if (!pool)
+	} else {
+		spin_unlock(&zswap_pools_lock);
 		pool = zswap_pool_create(type, compressor);
+		spin_lock(&zswap_pools_lock);
+	}
 
 	if (pool)
 		ret = param_set_charp(s, kp);
 	else
 		ret = -EINVAL;
-
-	spin_lock(&zswap_pools_lock);
 
 	if (!ret) {
 		put_pool = zswap_pool_current();
@@ -801,17 +773,6 @@ static int zswap_zpool_param_set(const char *val,
 				 const struct kernel_param *kp)
 {
 	return __zswap_param_set(val, kp, NULL, zswap_compressor);
-}
-
-static int zswap_enabled_param_set(const char *val,
-				   const struct kernel_param *kp)
-{
-	if (zswap_init_failed) {
-		pr_err("can't enable, initialization failed\n");
-		return -ENODEV;
-	}
-
-	return param_set_bool(val, kp);
 }
 
 /*********************************
@@ -1015,15 +976,6 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 		zswap_pool_limit_hit++;
 		if (zswap_shrink()) {
 			zswap_reject_reclaim_fail++;
-			ret = -ENOMEM;
-			goto reject;
-		}
-
-		/* A second zswap_is_full() check after
-		 * zswap_shrink() to make sure it's now
-		 * under the max_pool_percent
-		 */
-		if (zswap_is_full()) {
 			ret = -ENOMEM;
 			goto reject;
 		}
@@ -1309,9 +1261,6 @@ pool_fail:
 dstmem_fail:
 	zswap_entry_cache_destroy();
 cache_fail:
-	/* if built-in, we aren't unloaded on failure; don't allow use */
-	zswap_init_failed = true;
-	zswap_enabled = false;
 	return -ENOMEM;
 }
 /* must be late so crypto has time to come up */

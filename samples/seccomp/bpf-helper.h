@@ -138,7 +138,7 @@ union arg64 {
 #define ARG_32(idx) \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, LO_ARG(idx))
 
-/* Loads lo into M[0] and hi into M[1] and A */
+/* Loads hi into A and lo in X */
 #define ARG_64(idx) \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, LO_ARG(idx)), \
 	BPF_STMT(BPF_ST, 0), /* lo -> M[0] */ \
@@ -153,13 +153,61 @@ union arg64 {
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (value), 1, 0), \
 	jt
 
+/* Checks the lo, then swaps to check the hi. A=lo,X=hi */
+#define JEQ64(lo, hi, jt) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
+	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (lo), 0, 2), \
+	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
+	jt, \
+	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
+
+#define JNE64(lo, hi, jt) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 5, 0), \
+	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (lo), 2, 0), \
+	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
+	jt, \
+	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
+
 #define JA32(value, jt) \
 	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, (value), 0, 1), \
 	jt
 
+#define JA64(lo, hi, jt) \
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, (hi), 3, 0), \
+	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, (lo), 0, 2), \
+	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
+	jt, \
+	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
+
 #define JGE32(value, jt) \
 	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (value), 0, 1), \
 	jt
+
+#define JLT32(value, jt) \
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (value), 1, 0), \
+	jt
+
+/* Shortcut checking if hi > arg.hi. */
+#define JGE64(lo, hi, jt) \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 4, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
+	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (lo), 0, 2), \
+	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
+	jt, \
+	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
+
+#define JLT64(lo, hi, jt) \
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (hi), 0, 4), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
+	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (lo), 2, 0), \
+	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
+	jt, \
+	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define JGT32(value, jt) \
 	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (value), 0, 1), \
@@ -169,91 +217,24 @@ union arg64 {
 	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (value), 1, 0), \
 	jt
 
-#define JLT32(value, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (value), 1, 0), \
-	jt
-
-/*
- * All the JXX64 checks assume lo is saved in M[0] and hi is saved in both
- * A and M[1]. This invariant is kept by restoring A if necessary.
- */
-#define JEQ64(lo, hi, jt) \
-	/* if (hi != arg.hi) goto NOMATCH; */ \
+/* Check hi > args.hi first, then do the GE checking */
+#define JGT64(lo, hi, jt) \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 4, 0), \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
-	/* if (lo != arg.lo) goto NOMATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (lo), 0, 2), \
-	BPF_STMT(BPF_LD+BPF_MEM, 1), \
-	jt, \
-	BPF_STMT(BPF_LD+BPF_MEM, 1)
-
-#define JNE64(lo, hi, jt) \
-	/* if (hi != arg.hi) goto MATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 3), \
-	BPF_STMT(BPF_LD+BPF_MEM, 0), \
-	/* if (lo != arg.lo) goto MATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (lo), 2, 0), \
-	BPF_STMT(BPF_LD+BPF_MEM, 1), \
-	jt, \
-	BPF_STMT(BPF_LD+BPF_MEM, 1)
-
-#define JA64(lo, hi, jt) \
-	/* if (hi & arg.hi) goto MATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, (hi), 3, 0), \
-	BPF_STMT(BPF_LD+BPF_MEM, 0), \
-	/* if (lo & arg.lo) goto MATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, (lo), 0, 2), \
-	BPF_STMT(BPF_LD+BPF_MEM, 1), \
-	jt, \
-	BPF_STMT(BPF_LD+BPF_MEM, 1)
-
-#define JGE64(lo, hi, jt) \
-	/* if (hi > arg.hi) goto MATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 4, 0), \
-	/* if (hi != arg.hi) goto NOMATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
-	BPF_STMT(BPF_LD+BPF_MEM, 0), \
-	/* if (lo >= arg.lo) goto MATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (lo), 0, 2), \
-	BPF_STMT(BPF_LD+BPF_MEM, 1), \
-	jt, \
-	BPF_STMT(BPF_LD+BPF_MEM, 1)
-
-#define JGT64(lo, hi, jt) \
-	/* if (hi > arg.hi) goto MATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 4, 0), \
-	/* if (hi != arg.hi) goto NOMATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
-	BPF_STMT(BPF_LD+BPF_MEM, 0), \
-	/* if (lo > arg.lo) goto MATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (lo), 0, 2), \
-	BPF_STMT(BPF_LD+BPF_MEM, 1), \
+	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
 	jt, \
-	BPF_STMT(BPF_LD+BPF_MEM, 1)
+	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define JLE64(lo, hi, jt) \
-	/* if (hi < arg.hi) goto MATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (hi), 0, 4), \
-	/* if (hi != arg.hi) goto NOMATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
-	BPF_STMT(BPF_LD+BPF_MEM, 0), \
-	/* if (lo <= arg.lo) goto MATCH; */ \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 6, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 3), \
+	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
 	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (lo), 2, 0), \
-	BPF_STMT(BPF_LD+BPF_MEM, 1), \
+	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
 	jt, \
-	BPF_STMT(BPF_LD+BPF_MEM, 1)
-
-#define JLT64(lo, hi, jt) \
-	/* if (hi < arg.hi) goto MATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (hi), 0, 4), \
-	/* if (hi != arg.hi) goto NOMATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
-	BPF_STMT(BPF_LD+BPF_MEM, 0), \
-	/* if (lo < arg.lo) goto MATCH; */ \
-	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (lo), 2, 0), \
-	BPF_STMT(BPF_LD+BPF_MEM, 1), \
-	jt, \
-	BPF_STMT(BPF_LD+BPF_MEM, 1)
+	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define LOAD_SYSCALL_NR \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \

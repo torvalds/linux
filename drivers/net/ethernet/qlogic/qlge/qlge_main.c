@@ -1648,18 +1648,7 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 		return;
 	}
 	skb_reserve(new_skb, NET_IP_ALIGN);
-
-	pci_dma_sync_single_for_cpu(qdev->pdev,
-				    dma_unmap_addr(sbq_desc, mapaddr),
-				    dma_unmap_len(sbq_desc, maplen),
-				    PCI_DMA_FROMDEVICE);
-
 	memcpy(skb_put(new_skb, length), skb->data, length);
-
-	pci_dma_sync_single_for_device(qdev->pdev,
-				       dma_unmap_addr(sbq_desc, mapaddr),
-				       dma_unmap_len(sbq_desc, maplen),
-				       PCI_DMA_FROMDEVICE);
 	skb = new_skb;
 
 	/* Frame error, so drop the packet. */
@@ -2388,20 +2377,26 @@ static int qlge_update_hw_vlan_features(struct net_device *ndev,
 	return status;
 }
 
+static netdev_features_t qlge_fix_features(struct net_device *ndev,
+	netdev_features_t features)
+{
+	int err;
+
+	/* Update the behavior of vlan accel in the adapter */
+	err = qlge_update_hw_vlan_features(ndev, features);
+	if (err)
+		return err;
+
+	return features;
+}
+
 static int qlge_set_features(struct net_device *ndev,
 	netdev_features_t features)
 {
 	netdev_features_t changed = ndev->features ^ features;
-	int err;
 
-	if (changed & NETIF_F_HW_VLAN_CTAG_RX) {
-		/* Update the behavior of vlan accel in the adapter */
-		err = qlge_update_hw_vlan_features(ndev, features);
-		if (err)
-			return err;
-
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		qlge_vlan_mode(ndev, features);
-	}
 
 	return 0;
 }
@@ -4714,6 +4709,7 @@ static const struct net_device_ops qlge_netdev_ops = {
 	.ndo_set_mac_address	= qlge_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= qlge_tx_timeout,
+	.ndo_fix_features	= qlge_fix_features,
 	.ndo_set_features	= qlge_set_features,
 	.ndo_vlan_rx_add_vid	= qlge_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= qlge_vlan_rx_kill_vid,

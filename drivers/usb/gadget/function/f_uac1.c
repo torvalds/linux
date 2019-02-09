@@ -277,9 +277,6 @@ static void f_audio_buffer_free(struct f_audio_buf *audio_buf)
 struct f_audio {
 	struct gaudio			card;
 
-	u8 ac_intf, ac_alt;
-	u8 as_intf, as_alt;
-
 	/* endpoints handle full and/or high speeds */
 	struct usb_ep			*out_ep;
 
@@ -589,20 +586,7 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	req_count = opts->req_count;
 	audio_buf_size = opts->audio_buf_size;
 
-	/* No i/f has more than 2 alt settings */
-	if (alt > 1) {
-		ERROR(cdev, "%s:%d Error!\n", __func__, __LINE__);
-		return -EINVAL;
-	}
-
-	if (intf == audio->ac_intf) {
-		/* Control I/f has only 1 AltSetting - 0 */
-		if (alt) {
-			ERROR(cdev, "%s:%d Error!\n", __func__, __LINE__);
-			return -EINVAL;
-		}
-		return 0;
-	} else if (intf == audio->as_intf) {
+	if (intf == 1) {
 		if (alt == 1) {
 			err = config_ep_by_speed(cdev->gadget, f, out_ep);
 			if (err)
@@ -647,35 +631,13 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 				schedule_work(&audio->playback_work);
 			}
 		}
-		audio->as_alt = alt;
 	}
 
 	return err;
 }
 
-static int f_audio_get_alt(struct usb_function *f, unsigned intf)
-{
-	struct f_audio		*audio = func_to_audio(f);
-	struct usb_composite_dev *cdev = f->config->cdev;
-
-	if (intf == audio->ac_intf)
-		return audio->ac_alt;
-	else if (intf == audio->as_intf)
-		return audio->as_alt;
-	else
-		ERROR(cdev, "%s:%d Invalid Interface %d!\n",
-		      __func__, __LINE__, intf);
-
-	return -EINVAL;
-}
-
 static void f_audio_disable(struct usb_function *f)
 {
-	struct f_audio *audio = func_to_audio(f);
-	struct usb_ep *out_ep = audio->out_ep;
-
-	usb_ep_disable(out_ep);
-
 	return;
 }
 
@@ -740,16 +702,12 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	if (status < 0)
 		goto fail;
 	ac_interface_desc.bInterfaceNumber = status;
-	audio->ac_intf = status;
-	audio->ac_alt = 0;
 
 	status = usb_interface_id(c, f);
 	if (status < 0)
 		goto fail;
 	as_interface_alt_0_desc.bInterfaceNumber = status;
 	as_interface_alt_1_desc.bInterfaceNumber = status;
-	audio->as_intf = status;
-	audio->as_alt = 0;
 
 	status = -ENODEV;
 
@@ -974,7 +932,6 @@ static void f_audio_free(struct usb_function *f)
 
 	gaudio_cleanup(&audio->card);
 	opts = container_of(f->fi, struct f_uac1_opts, func_inst);
-	opts->bound = false;
 	kfree(audio);
 	mutex_lock(&opts->lock);
 	--opts->refcnt;
@@ -1008,7 +965,6 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 	audio->card.func.bind = f_audio_bind;
 	audio->card.func.unbind = f_audio_unbind;
 	audio->card.func.set_alt = f_audio_set_alt;
-	audio->card.func.get_alt = f_audio_get_alt;
 	audio->card.func.setup = f_audio_setup;
 	audio->card.func.disable = f_audio_disable;
 	audio->card.func.free_func = f_audio_free;

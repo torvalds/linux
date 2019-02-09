@@ -350,82 +350,6 @@ out_unlock:
 	return err;
 }
 
-#ifdef CONFIG_MTD_UBI_FASTMAP
-/**
- * check_mapping - check and fixup a mapping
- * @ubi: UBI device description object
- * @vol: volume description object
- * @lnum: logical eraseblock number
- * @pnum: physical eraseblock number
- *
- * Checks whether a given mapping is valid. Fastmap cannot track LEB unmap
- * operations, if such an operation is interrupted the mapping still looks
- * good, but upon first read an ECC is reported to the upper layer.
- * Normaly during the full-scan at attach time this is fixed, for Fastmap
- * we have to deal with it while reading.
- * If the PEB behind a LEB shows this symthom we change the mapping to
- * %UBI_LEB_UNMAPPED and schedule the PEB for erasure.
- *
- * Returns 0 on success, negative error code in case of failure.
- */
-static int check_mapping(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
-			 int *pnum)
-{
-	int err;
-	struct ubi_vid_hdr *vid_hdr;
-
-	if (!ubi->fast_attach)
-		return 0;
-
-	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
-	if (!vid_hdr)
-		return -ENOMEM;
-
-	err = ubi_io_read_vid_hdr(ubi, *pnum, vid_hdr, 0);
-	if (err > 0 && err != UBI_IO_BITFLIPS) {
-		int torture = 0;
-
-		switch (err) {
-			case UBI_IO_FF:
-			case UBI_IO_FF_BITFLIPS:
-			case UBI_IO_BAD_HDR:
-			case UBI_IO_BAD_HDR_EBADMSG:
-				break;
-			default:
-				ubi_assert(0);
-		}
-
-		if (err == UBI_IO_BAD_HDR_EBADMSG || err == UBI_IO_FF_BITFLIPS)
-			torture = 1;
-
-		down_read(&ubi->fm_eba_sem);
-		vol->eba_tbl[lnum] = UBI_LEB_UNMAPPED;
-		up_read(&ubi->fm_eba_sem);
-		ubi_wl_put_peb(ubi, vol->vol_id, lnum, *pnum, torture);
-
-		*pnum = UBI_LEB_UNMAPPED;
-	} else if (err < 0) {
-		ubi_err(ubi, "unable to read VID header back from PEB %i: %i",
-			*pnum, err);
-
-		goto out_free;
-	}
-
-	err = 0;
-
-out_free:
-	ubi_free_vid_hdr(ubi, vid_hdr);
-
-	return err;
-}
-#else
-static int check_mapping(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
-		  int *pnum)
-{
-	return 0;
-}
-#endif
-
 /**
  * ubi_eba_read_leb - read data.
  * @ubi: UBI device description object
@@ -457,13 +381,7 @@ int ubi_eba_read_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		return err;
 
 	pnum = vol->eba_tbl[lnum];
-	if (pnum >= 0) {
-		err = check_mapping(ubi, vol, lnum, &pnum);
-		if (err < 0)
-			goto out_unlock;
-	}
-
-	if (pnum == UBI_LEB_UNMAPPED) {
+	if (pnum < 0) {
 		/*
 		 * The logical eraseblock is not mapped, fill the whole buffer
 		 * with 0xFF bytes. The exception is static volumes for which
@@ -508,25 +426,8 @@ retry:
 						 pnum, vol_id, lnum);
 					err = -EBADMSG;
 				} else {
-					/*
-					 * Ending up here in the non-Fastmap case
-					 * is a clear bug as the VID header had to
-					 * be present at scan time to have it referenced.
-					 * With fastmap the story is more complicated.
-					 * Fastmap has the mapping info without the need
-					 * of a full scan. So the LEB could have been
-					 * unmapped, Fastmap cannot know this and keeps
-					 * the LEB referenced.
-					 * This is valid and works as the layer above UBI
-					 * has to do bookkeeping about used/referenced
-					 * LEBs in any case.
-					 */
-					if (ubi->fast_attach) {
-						err = -EBADMSG;
-					} else {
-						err = -EINVAL;
-						ubi_ro_mode(ubi);
-					}
+					err = -EINVAL;
+					ubi_ro_mode(ubi);
 				}
 			}
 			goto out_free;
@@ -657,7 +558,6 @@ static int recover_peb(struct ubi_device *ubi, int pnum, int vol_id, int lnum,
 	int err, idx = vol_id2idx(ubi, vol_id), new_pnum, data_size, tries = 0;
 	struct ubi_volume *vol = ubi->volumes[idx];
 	struct ubi_vid_hdr *vid_hdr;
-	uint32_t crc;
 
 	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr)
@@ -682,8 +582,14 @@ retry:
 		goto out_put;
 	}
 
-	ubi_assert(vid_hdr->vol_type == UBI_VID_DYNAMIC);
+	vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
+	err = ubi_io_write_vid_hdr(ubi, new_pnum, vid_hdr);
+	if (err) {
+		up_read(&ubi->fm_eba_sem);
+		goto write_error;
+	}
 
+	data_size = offset + len;
 	mutex_lock(&ubi->buf_mutex);
 	memset(ubi->peb_buf + offset, 0xFF, len);
 
@@ -697,19 +603,6 @@ retry:
 	}
 
 	memcpy(ubi->peb_buf + offset, buf, len);
-
-	data_size = offset + len;
-	crc = crc32(UBI_CRC32_INIT, ubi->peb_buf, data_size);
-	vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
-	vid_hdr->copy_flag = 1;
-	vid_hdr->data_size = cpu_to_be32(data_size);
-	vid_hdr->data_crc = cpu_to_be32(crc);
-	err = ubi_io_write_vid_hdr(ubi, new_pnum, vid_hdr);
-	if (err) {
-		mutex_unlock(&ubi->buf_mutex);
-		up_read(&ubi->fm_eba_sem);
-		goto write_error;
-	}
 
 	err = ubi_io_write_data(ubi, ubi->peb_buf, new_pnum, 0, data_size);
 	if (err) {
@@ -778,14 +671,6 @@ int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		return err;
 
 	pnum = vol->eba_tbl[lnum];
-	if (pnum >= 0) {
-		err = check_mapping(ubi, vol, lnum, &pnum);
-		if (err < 0) {
-			leb_write_unlock(ubi, vol_id, lnum);
-			return err;
-		}
-	}
-
 	if (pnum >= 0) {
 		dbg_eba("write %d bytes at offset %d of LEB %d:%d, PEB %d",
 			len, offset, vol_id, lnum, pnum);
@@ -1178,8 +1063,6 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	struct ubi_volume *vol;
 	uint32_t crc;
 
-	ubi_assert(rwsem_is_locked(&ubi->fm_eba_sem));
-
 	vol_id = be32_to_cpu(vid_hdr->vol_id);
 	lnum = be32_to_cpu(vid_hdr->lnum);
 
@@ -1348,7 +1231,9 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	}
 
 	ubi_assert(vol->eba_tbl[lnum] == from);
+	down_read(&ubi->fm_eba_sem);
 	vol->eba_tbl[lnum] = to;
+	up_read(&ubi->fm_eba_sem);
 
 out_unlock_buf:
 	mutex_unlock(&ubi->buf_mutex);

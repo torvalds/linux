@@ -39,9 +39,7 @@ gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_client *client = chan->base.object.client;
-	int ret = 0;
 
-	mutex_lock(&subdev->mutex);
 	nvkm_wr32(device, 0x002634, chan->base.chid);
 	if (nvkm_msec(device, 2000,
 		if (!(nvkm_rd32(device, 0x002634) & 0x00100000))
@@ -49,10 +47,10 @@ gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
 	) < 0) {
 		nvkm_error(subdev, "channel %d [%s] kick timeout\n",
 			   chan->base.chid, client->name);
-		ret = -ETIMEDOUT;
+		return -EBUSY;
 	}
-	mutex_unlock(&subdev->mutex);
-	return ret;
+
+	return 0;
 }
 
 static u32

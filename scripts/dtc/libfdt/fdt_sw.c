@@ -220,7 +220,7 @@ static int _fdt_find_add_string(void *fdt, const char *s)
 	return offset;
 }
 
-int fdt_property_placeholder(void *fdt, const char *name, int len, void **valp)
+int fdt_property(void *fdt, const char *name, const void *val, int len)
 {
 	struct fdt_property *prop;
 	int nameoff;
@@ -238,19 +238,7 @@ int fdt_property_placeholder(void *fdt, const char *name, int len, void **valp)
 	prop->tag = cpu_to_fdt32(FDT_PROP);
 	prop->nameoff = cpu_to_fdt32(nameoff);
 	prop->len = cpu_to_fdt32(len);
-	*valp = prop->data;
-	return 0;
-}
-
-int fdt_property(void *fdt, const char *name, const void *val, int len)
-{
-	void *ptr;
-	int ret;
-
-	ret = fdt_property_placeholder(fdt, name, len, &ptr);
-	if (ret)
-		return ret;
-	memcpy(ptr, val, len);
+	memcpy(prop->data, val, len);
 	return 0;
 }
 

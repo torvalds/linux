@@ -46,20 +46,12 @@ struct ti_am335x_xbar_data {
 
 struct ti_am335x_xbar_map {
 	u16 dma_line;
-	u8 mux_val;
+	u16 mux_val;
 };
 
-static inline void ti_am335x_xbar_write(void __iomem *iomem, int event, u8 val)
+static inline void ti_am335x_xbar_write(void __iomem *iomem, int event, u16 val)
 {
-	/*
-	 * TPCC_EVT_MUX_60_63 register layout is different than the
-	 * rest, in the sense, that event 63 is mapped to lowest byte
-	 * and event 60 is mapped to highest, handle it separately.
-	 */
-	if (event >= 60 && event <= 63)
-		writeb_relaxed(val, iomem + (63 - event % 4));
-	else
-		writeb_relaxed(val, iomem + event);
+	writeb_relaxed(val & 0x1f, iomem + event);
 }
 
 static void ti_am335x_xbar_free(struct device *dev, void *route_data)
@@ -110,7 +102,7 @@ static void *ti_am335x_xbar_route_allocate(struct of_phandle_args *dma_spec,
 	}
 
 	map->dma_line = (u16)dma_spec->args[0];
-	map->mux_val = (u8)dma_spec->args[2];
+	map->mux_val = (u16)dma_spec->args[2];
 
 	dma_spec->args[2] = 0;
 	dma_spec->args_count = 2;
@@ -154,7 +146,6 @@ static int ti_am335x_xbar_probe(struct platform_device *pdev)
 	match = of_match_node(ti_am335x_master_match, dma_node);
 	if (!match) {
 		dev_err(&pdev->dev, "DMA master is not supported\n");
-		of_node_put(dma_node);
 		return -EINVAL;
 	}
 
@@ -319,7 +310,6 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	match = of_match_node(ti_dra7_master_match, dma_node);
 	if (!match) {
 		dev_err(&pdev->dev, "DMA master is not supported\n");
-		of_node_put(dma_node);
 		return -EINVAL;
 	}
 

@@ -7,16 +7,13 @@
 #
 # Released under the terms of the GPL v2.
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
-
 . ./common_tests
 
 if [ -e $REBOOT_FLAG  ]; then
     rm $REBOOT_FLAG
 else
     prlog "pstore_crash_test has not been executed yet. we skip further tests."
-    exit $ksft_skip
+    exit 0
 fi
 
 prlog -n "Mounting pstore filesystem ... "

@@ -1084,6 +1084,25 @@ drop:
 	return rc;
 }
 
+/*
+ * Send protocol message to the other endpoint.
+ */
+void tipc_link_proto_xmit(struct tipc_link *l, u32 msg_typ, int probe_msg,
+			  u32 gap, u32 tolerance, u32 priority)
+{
+	struct sk_buff *skb = NULL;
+	struct sk_buff_head xmitq;
+
+	__skb_queue_head_init(&xmitq);
+	tipc_link_build_proto_msg(l, msg_typ, probe_msg, gap,
+				  tolerance, priority, &xmitq);
+	skb = __skb_dequeue(&xmitq);
+	if (!skb)
+		return;
+	tipc_bearer_xmit_skb(l->net, l->bearer_id, skb, l->media_addr);
+	l->rcv_unacked = 0;
+}
+
 static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 				      u16 rcvgap, int tolerance, int priority,
 				      struct sk_buff_head *xmitq)
@@ -1243,8 +1262,6 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		/* fall thru' */
 
 	case ACTIVATE_MSG:
-		skb_linearize(skb);
-		hdr = buf_msg(skb);
 
 		/* Complete own link name with peer's interface name */
 		if_name =  strrchr(l->name, ':') + 1;
@@ -1617,11 +1634,8 @@ int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info)
 	char *name;
 	struct tipc_link *link;
 	struct tipc_node *node;
-	struct sk_buff_head xmitq;
 	struct nlattr *attrs[TIPC_NLA_LINK_MAX + 1];
 	struct net *net = sock_net(skb->sk);
-
-	__skb_queue_head_init(&xmitq);
 
 	if (!info->attrs[TIPC_NLA_LINK])
 		return -EINVAL;
@@ -1667,14 +1681,14 @@ int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info)
 
 			tol = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
 			link->tolerance = tol;
-			tipc_link_build_proto_msg(link, STATE_MSG, 0, 0, tol, 0, &xmitq);
+			tipc_link_proto_xmit(link, STATE_MSG, 0, 0, tol, 0);
 		}
 		if (props[TIPC_NLA_PROP_PRIO]) {
 			u32 prio;
 
 			prio = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
 			link->priority = prio;
-			tipc_link_build_proto_msg(link, STATE_MSG, 0, 0, 0, prio, &xmitq);
+			tipc_link_proto_xmit(link, STATE_MSG, 0, 0, 0, prio);
 		}
 		if (props[TIPC_NLA_PROP_WIN]) {
 			u32 win;
@@ -1686,7 +1700,7 @@ int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info)
 
 out:
 	tipc_node_unlock(node);
-	tipc_bearer_xmit(net, bearer_id, &xmitq, &node->links[bearer_id].maddr);
+
 	return res;
 }
 

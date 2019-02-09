@@ -189,11 +189,10 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 	struct nfs4_layout_stateid *ls;
 	struct nfs4_stid *stp;
 
-	stp = nfs4_alloc_stid(cstate->clp, nfs4_layout_stateid_cache,
-					nfsd4_free_layout_stateid);
+	stp = nfs4_alloc_stid(cstate->clp, nfs4_layout_stateid_cache);
 	if (!stp)
 		return NULL;
-
+	stp->sc_free = nfsd4_free_layout_stateid;
 	get_nfs4_file(fp);
 	stp->sc_file = fp;
 

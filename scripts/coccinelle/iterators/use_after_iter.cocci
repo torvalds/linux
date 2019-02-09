@@ -123,7 +123,7 @@ list_remove_head(x,c,...)
 |
 sizeof(<+...c...+>)
 |
- &c->member
+&c->member
 |
 c = E
 |

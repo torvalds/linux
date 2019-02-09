@@ -375,7 +375,6 @@ retry:
 out_free_pages:
 	for (i = 0; i < bp->b_page_count; i++)
 		__free_page(bp->b_pages[i]);
-	bp->b_flags &= ~_XBF_PAGES;
 	return error;
 }
 
@@ -604,13 +603,6 @@ found:
 			return NULL;
 		}
 	}
-
-	/*
-	 * Clear b_error if this is a lookup from a caller that doesn't expect
-	 * valid data to be found in the buffer.
-	 */
-	if (!(flags & XBF_READ))
-		xfs_buf_ioerror(bp, 0);
 
 	XFS_STATS_INC(target->bt_mount, xb_get);
 	trace_xfs_buf_get(bp, flags, _RET_IP_);
@@ -979,8 +971,6 @@ void
 xfs_buf_unlock(
 	struct xfs_buf		*bp)
 {
-	ASSERT(xfs_buf_islocked(bp));
-
 	XB_CLEAR_OWNER(bp);
 	up(&bp->b_sema);
 
@@ -1530,16 +1520,6 @@ xfs_wait_buftarg(
 	LIST_HEAD(dispose);
 	int loop = 0;
 
-	/*
-	 * We need to flush the buffer workqueue to ensure that all IO
-	 * completion processing is 100% done. Just waiting on buffer locks is
-	 * not sufficient for async IO as the reference count held over IO is
-	 * not released until after the buffer lock is dropped. Hence we need to
-	 * ensure here that all reference counts have been dropped before we
-	 * start walking the LRU list.
-	 */
-	flush_workqueue(btp->bt_mount->m_buf_workqueue);
-
 	/* loop until there is nothing left on the lru list. */
 	while (list_lru_count(&btp->bt_lru)) {
 		list_lru_walk(&btp->bt_lru, xfs_buftarg_wait_rele,
@@ -1712,28 +1692,6 @@ xfs_alloc_buftarg(
 error:
 	kmem_free(btp);
 	return NULL;
-}
-
-/*
- * Cancel a delayed write list.
- *
- * Remove each buffer from the list, clear the delwri queue flag and drop the
- * associated buffer reference.
- */
-void
-xfs_buf_delwri_cancel(
-	struct list_head	*list)
-{
-	struct xfs_buf		*bp;
-
-	while (!list_empty(list)) {
-		bp = list_first_entry(list, struct xfs_buf, b_list);
-
-		xfs_buf_lock(bp);
-		bp->b_flags &= ~_XBF_DELWRI_Q;
-		list_del_init(&bp->b_list);
-		xfs_buf_relse(bp);
-	}
 }
 
 /*

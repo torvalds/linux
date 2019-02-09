@@ -3819,7 +3819,6 @@ static void handle_new_recv_msgs(ipmi_smi_t intf)
 	while (!list_empty(&intf->waiting_rcv_msgs)) {
 		smi_msg = list_entry(intf->waiting_rcv_msgs.next,
 				     struct ipmi_smi_msg, link);
-		list_del(&smi_msg->link);
 		if (!run_to_completion)
 			spin_unlock_irqrestore(&intf->waiting_rcv_msgs_lock,
 					       flags);
@@ -3829,14 +3828,11 @@ static void handle_new_recv_msgs(ipmi_smi_t intf)
 		if (rv > 0) {
 			/*
 			 * To preserve message order, quit if we
-			 * can't handle a message.  Add the message
-			 * back at the head, this is safe because this
-			 * tasklet is the only thing that pulls the
-			 * messages.
+			 * can't handle a message.
 			 */
-			list_add(&smi_msg->link, &intf->waiting_rcv_msgs);
 			break;
 		} else {
+			list_del(&smi_msg->link);
 			if (rv == 0)
 				/* Message handled */
 				ipmi_free_smi_msg(smi_msg);
@@ -3877,9 +3873,6 @@ static void smi_recv_tasklet(unsigned long val)
 	 * because the lower layer is allowed to hold locks while calling
 	 * message delivery.
 	 */
-
-	rcu_read_lock();
-
 	if (!run_to_completion)
 		spin_lock_irqsave(&intf->xmit_msgs_lock, flags);
 	if (intf->curr_msg == NULL && !intf->in_shutdown) {
@@ -3901,8 +3894,6 @@ static void smi_recv_tasklet(unsigned long val)
 		spin_unlock_irqrestore(&intf->xmit_msgs_lock, flags);
 	if (newmsg)
 		intf->handlers->sender(intf->send_info, newmsg);
-
-	rcu_read_unlock();
 
 	handle_new_recv_msgs(intf);
 }
@@ -4029,8 +4020,7 @@ smi_from_recv_msg(ipmi_smi_t intf, struct ipmi_recv_msg *recv_msg,
 }
 
 static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
-			      struct list_head *timeouts,
-			      unsigned long timeout_period,
+			      struct list_head *timeouts, long timeout_period,
 			      int slot, unsigned long *flags,
 			      unsigned int *waiting_msgs)
 {
@@ -4043,8 +4033,8 @@ static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
 	if (!ent->inuse)
 		return;
 
-	if (timeout_period < ent->timeout) {
-		ent->timeout -= timeout_period;
+	ent->timeout -= timeout_period;
+	if (ent->timeout > 0) {
 		(*waiting_msgs)++;
 		return;
 	}
@@ -4110,8 +4100,7 @@ static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
 	}
 }
 
-static unsigned int ipmi_timeout_handler(ipmi_smi_t intf,
-					 unsigned long timeout_period)
+static unsigned int ipmi_timeout_handler(ipmi_smi_t intf, long timeout_period)
 {
 	struct list_head     timeouts;
 	struct ipmi_recv_msg *msg, *msg2;

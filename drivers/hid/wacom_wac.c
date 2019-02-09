@@ -148,21 +148,19 @@ static int wacom_pl_irq(struct wacom_wac *wacom)
 		wacom->id[0] = STYLUS_DEVICE_ID;
 	}
 
-	if (prox) {
-		pressure = (signed char)((data[7] << 1) | ((data[4] >> 2) & 1));
-		if (features->pressure_max > 255)
-			pressure = (pressure << 1) | ((data[4] >> 6) & 1);
-		pressure += (features->pressure_max + 1) / 2;
+	pressure = (signed char)((data[7] << 1) | ((data[4] >> 2) & 1));
+	if (features->pressure_max > 255)
+		pressure = (pressure << 1) | ((data[4] >> 6) & 1);
+	pressure += (features->pressure_max + 1) / 2;
 
-		input_report_abs(input, ABS_X, data[3] | (data[2] << 7) | ((data[1] & 0x03) << 14));
-		input_report_abs(input, ABS_Y, data[6] | (data[5] << 7) | ((data[4] & 0x03) << 14));
-		input_report_abs(input, ABS_PRESSURE, pressure);
+	input_report_abs(input, ABS_X, data[3] | (data[2] << 7) | ((data[1] & 0x03) << 14));
+	input_report_abs(input, ABS_Y, data[6] | (data[5] << 7) | ((data[4] & 0x03) << 14));
+	input_report_abs(input, ABS_PRESSURE, pressure);
 
-		input_report_key(input, BTN_TOUCH, data[4] & 0x08);
-		input_report_key(input, BTN_STYLUS, data[4] & 0x10);
-		/* Only allow the stylus2 button to be reported for the pen tool. */
-		input_report_key(input, BTN_STYLUS2, (wacom->tool[0] == BTN_TOOL_PEN) && (data[4] & 0x20));
-	}
+	input_report_key(input, BTN_TOUCH, data[4] & 0x08);
+	input_report_key(input, BTN_STYLUS, data[4] & 0x10);
+	/* Only allow the stylus2 button to be reported for the pen tool. */
+	input_report_key(input, BTN_STYLUS2, (wacom->tool[0] == BTN_TOOL_PEN) && (data[4] & 0x20));
 
 	if (!prox)
 		wacom->id[0] = 0;
@@ -1440,38 +1438,37 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 {
 	unsigned char *data = wacom->data;
 
-	if (wacom->pen_input) {
+	if (wacom->pen_input)
 		dev_dbg(wacom->pen_input->dev.parent,
 			"%s: received report #%d\n", __func__, data[0]);
-
-		if (len == WACOM_PKGLEN_PENABLED ||
-		    data[0] == WACOM_REPORT_PENABLED)
-			return wacom_tpc_pen(wacom);
-	}
-	else if (wacom->touch_input) {
+	else if (wacom->touch_input)
 		dev_dbg(wacom->touch_input->dev.parent,
 			"%s: received report #%d\n", __func__, data[0]);
 
-		switch (len) {
-		case WACOM_PKGLEN_TPC1FG:
+	switch (len) {
+	case WACOM_PKGLEN_TPC1FG:
+		return wacom_tpc_single_touch(wacom, len);
+
+	case WACOM_PKGLEN_TPC2FG:
+		return wacom_tpc_mt_touch(wacom);
+
+	case WACOM_PKGLEN_PENABLED:
+		return wacom_tpc_pen(wacom);
+
+	default:
+		switch (data[0]) {
+		case WACOM_REPORT_TPC1FG:
+		case WACOM_REPORT_TPCHID:
+		case WACOM_REPORT_TPCST:
+		case WACOM_REPORT_TPC1FGE:
 			return wacom_tpc_single_touch(wacom, len);
 
-		case WACOM_PKGLEN_TPC2FG:
-			return wacom_tpc_mt_touch(wacom);
+		case WACOM_REPORT_TPCMT:
+		case WACOM_REPORT_TPCMT2:
+			return wacom_mt_touch(wacom);
 
-		default:
-			switch (data[0]) {
-			case WACOM_REPORT_TPC1FG:
-			case WACOM_REPORT_TPCHID:
-			case WACOM_REPORT_TPCST:
-			case WACOM_REPORT_TPC1FGE:
-				return wacom_tpc_single_touch(wacom, len);
-
-			case WACOM_REPORT_TPCMT:
-			case WACOM_REPORT_TPCMT2:
-				return wacom_mt_touch(wacom);
-
-			}
+		case WACOM_REPORT_PENABLED:
+			return wacom_tpc_pen(wacom);
 		}
 	}
 
@@ -2487,30 +2484,13 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 			if (features->type >= INTUOSHT && features->type <= BAMBOO_PT)
 				features->device_type |= WACOM_DEVICETYPE_PAD;
 
-			if (features->type == INTUOSHT2) {
-				features->x_max = features->x_max / 10;
-				features->y_max = features->y_max / 10;
-			}
-			else {
-				features->x_max = 4096;
-				features->y_max = 4096;
-			}
+			features->x_max = 4096;
+			features->y_max = 4096;
 		}
 		else if (features->pktlen == WACOM_PKGLEN_BBTOUCH) {
 			features->device_type |= WACOM_DEVICETYPE_PAD;
 		}
 	}
-
-	/*
-	 * Hack for the Bamboo One:
-	 * the device presents a PAD/Touch interface as most Bamboos and even
-	 * sends ghosts PAD data on it. However, later, we must disable this
-	 * ghost interface, and we can not detect it unless we set it here
-	 * to WACOM_DEVICETYPE_PAD or WACOM_DEVICETYPE_TOUCH.
-	 */
-	if (features->type == BAMBOO_PEN &&
-	    features->pktlen == WACOM_PKGLEN_BBTOUCH3)
-		features->device_type |= WACOM_DEVICETYPE_PAD;
 
 	/*
 	 * Raw Wacom-mode pen and touch events both come from interface
@@ -3458,10 +3438,6 @@ static const struct wacom_features wacom_features_0x33E =
 	{ "Wacom Intuos PT M 2", 21600, 13500, 2047, 63,
 	  INTUOSHT2, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 16,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
-static const struct wacom_features wacom_features_0x343 =
-	{ "Wacom DTK1651", 34616, 19559, 1023, 0,
-	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
-	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =
 	{ "Wacom HID", .type = HID_GENERIC };
@@ -3627,7 +3603,6 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x33C) },
 	{ USB_DEVICE_WACOM(0x33D) },
 	{ USB_DEVICE_WACOM(0x33E) },
-	{ USB_DEVICE_WACOM(0x343) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },

@@ -18,13 +18,11 @@
 #include <linux/err.h>
 #include <linux/export.h>
 
-#include <drm/drm_edid.h>
 #include <drm/drm_sysfs.h>
 #include <drm/drm_core.h>
 #include <drm/drmP.h>
 #include "drm_internal.h"
 
-#include "drm_crtc_internal.h"
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
 
@@ -33,24 +31,6 @@ static struct device_type drm_sysfs_device_minor = {
 };
 
 struct class *drm_class;
-
-static const char * const audioformatstr[] = {
-	"",
-	"LPCM",		/*AUDIO_LPCM = 1,*/
-	"AC3",		/*AUDIO_AC3,*/
-	"MPEG1",	/*AUDIO_MPEG1,*/
-	"MP3",		/*AUDIO_MP3,*/
-	"MPEG2",	/*AUDIO_MPEG2,*/
-	"AAC-LC",	/*AUDIO_AAC_LC, AAC*/
-	"DTS",		/*AUDIO_DTS,*/
-	"ATARC",	/*AUDIO_ATARC,*/
-	"DSD",		/*AUDIO_DSD, One bit Audio */
-	"E-AC3",	/*AUDIO_E_AC3,*/
-	"DTS-HD",	/*AUDIO_DTS_HD,*/
-	"MLP",		/*AUDIO_MLP,*/
-	"DST",		/*AUDIO_DST,*/
-	"WMA-PRO",	/*AUDIO_WMA_PRO*/
-};
 
 /**
  * __drm_class_suspend - internal DRM class suspend routine
@@ -268,112 +248,6 @@ static ssize_t enabled_show(struct device *device,
 			"disabled");
 }
 
-static ssize_t content_protection_store(struct device *device,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	const int nms[] = {
-		DRM_MODE_CONTENT_PROTECTION_DESIRED,
-		DRM_MODE_CONTENT_PROTECTION_UNDESIRED
-	};
-	struct drm_connector *connector = to_drm_connector(device);
-	struct drm_device *dev = connector->dev;
-	struct drm_property *prop;
-	int ret, i, val = -1;
-
-	for (i = 0; i < ARRAY_SIZE(nms); i++) {
-		if (sysfs_streq(buf, drm_get_content_protection_name(nms[i])))
-			val = nms[i];
-	}
-	if (val < 0)
-		return -EINVAL;
-
-	drm_modeset_lock_all(dev);
-
-	prop = dev->mode_config.content_protection_property;
-	if (!prop) {
-		drm_modeset_unlock_all(dev);
-		return count;
-	}
-
-	ret = drm_mode_connector_set_obj_prop(&connector->base, prop, val);
-
-	drm_modeset_unlock_all(dev);
-	return ret ? ret : count;
-}
-
-static ssize_t content_protection_show(struct device *device,
-				       struct device_attribute *attr, char *buf)
-{
-	struct drm_connector *connector = to_drm_connector(device);
-	struct drm_device *dev = connector->dev;
-	struct drm_property *prop;
-	uint64_t cp;
-	int ret;
-
-	drm_modeset_lock_all(dev);
-
-	prop = dev->mode_config.content_protection_property;
-	if (!prop) {
-		drm_modeset_unlock_all(dev);
-		return 0;
-	}
-
-	ret = drm_object_property_get_value(&connector->base, prop, &cp);
-	drm_modeset_unlock_all(dev);
-	if (ret)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			drm_get_content_protection_name((int)cp));
-}
-
-static int drm_get_audio_format(struct edid *edid,
-			       char *audioformat, int len)
-{
-	int i, size = 0, num = 0;
-	struct cea_sad *sads = NULL;
-
-	memset(audioformat, 0, len);
-	num = drm_edid_to_sad(edid, &sads);
-	if (num <= 0)
-		return 0;
-
-	for (i = 0; i < num; i++) {
-		if (sads[i].format < 1 || sads[i].format > 14) {
-			DRM_ERROR("audio type unsupported.\n");
-			continue;
-		}
-		size = strlen(audioformatstr[sads[i].format]);
-		memcpy(audioformat, audioformatstr[sads[i].format], size);
-		audioformat[size] = ',';
-		audioformat += (size + 1);
-	}
-	kfree(sads);
-
-	return num;
-}
-
-static ssize_t audioformat_show(struct device *device,
-				struct device_attribute *attr,
-				char *buf)
-{
-	char audioformat[200];
-	int ret = 0;
-	struct edid *edid;
-	struct drm_connector *connector = to_drm_connector(device);
-
-	if (!connector->edid_blob_ptr)
-		return 0;
-
-	edid = (struct edid *)connector->edid_blob_ptr->data;
-	ret = drm_get_audio_format(edid, audioformat, 200);
-	if (ret)
-		return snprintf(buf, PAGE_SIZE, "%s\n", audioformat);
-
-	return 0;
-}
-
 static ssize_t edid_show(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *attr, char *buf, loff_t off,
 			 size_t count)
@@ -410,65 +284,169 @@ static ssize_t modes_show(struct device *device,
 	int written = 0;
 
 	list_for_each_entry(mode, &connector->modes, head) {
-		bool interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
-
-		written += snprintf(buf + written, PAGE_SIZE - written,
-				    "%dx%d%s%d\n",
-				    mode->hdisplay, mode->vdisplay,
-				    interlaced ? "i" : "p",
-				    drm_mode_vrefresh(mode));
+		written += snprintf(buf + written, PAGE_SIZE - written, "%s\n",
+				    mode->name);
 	}
 
 	return written;
 }
 
-static ssize_t mode_show(struct device *device,
-			   struct device_attribute *attr,
-			   char *buf)
+static ssize_t tv_subconnector_show(struct device *device,
+				    struct device_attribute *attr,
+				    char *buf)
 {
 	struct drm_connector *connector = to_drm_connector(device);
-	struct drm_display_mode *mode;
-	struct drm_crtc_state *crtc_state;
-	bool interlaced;
-	int written = 0;
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+	uint64_t subconnector;
+	int ret;
 
-	if (!connector->state || !connector->state->crtc)
-		return written;
+	prop = dev->mode_config.tv_subconnector_property;
+	if (!prop) {
+		DRM_ERROR("Unable to find subconnector property\n");
+		return 0;
+	}
 
-	crtc_state = connector->state->crtc->state;
-	if (!crtc_state)
-		return written;
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
+	if (ret)
+		return 0;
 
-	mode = &crtc_state->mode;
+	return snprintf(buf, PAGE_SIZE, "%s",
+			drm_get_tv_subconnector_name((int)subconnector));
+}
 
-	interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
-	written += snprintf(buf + written, PAGE_SIZE - written,
-			    "%dx%d%s%d\n",
-			    mode->hdisplay, mode->vdisplay,
-			    interlaced ? "i" : "p",
-			    drm_mode_vrefresh(mode));
+static ssize_t tv_select_subconnector_show(struct device *device,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct drm_connector *connector = to_drm_connector(device);
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+	uint64_t subconnector;
+	int ret;
 
-	return written;
+	prop = dev->mode_config.tv_select_subconnector_property;
+	if (!prop) {
+		DRM_ERROR("Unable to find select subconnector property\n");
+		return 0;
+	}
+
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
+	if (ret)
+		return 0;
+
+	return snprintf(buf, PAGE_SIZE, "%s",
+			drm_get_tv_select_name((int)subconnector));
+}
+
+static ssize_t dvii_subconnector_show(struct device *device,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct drm_connector *connector = to_drm_connector(device);
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+	uint64_t subconnector;
+	int ret;
+
+	prop = dev->mode_config.dvi_i_subconnector_property;
+	if (!prop) {
+		DRM_ERROR("Unable to find subconnector property\n");
+		return 0;
+	}
+
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
+	if (ret)
+		return 0;
+
+	return snprintf(buf, PAGE_SIZE, "%s",
+			drm_get_dvi_i_subconnector_name((int)subconnector));
+}
+
+static ssize_t dvii_select_subconnector_show(struct device *device,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct drm_connector *connector = to_drm_connector(device);
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+	uint64_t subconnector;
+	int ret;
+
+	prop = dev->mode_config.dvi_i_select_subconnector_property;
+	if (!prop) {
+		DRM_ERROR("Unable to find select subconnector property\n");
+		return 0;
+	}
+
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
+	if (ret)
+		return 0;
+
+	return snprintf(buf, PAGE_SIZE, "%s",
+			drm_get_dvi_i_select_name((int)subconnector));
 }
 
 static DEVICE_ATTR_RW(status);
 static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
 static DEVICE_ATTR_RO(modes);
-static DEVICE_ATTR_RO(mode);
-static DEVICE_ATTR_RW(content_protection);
-static DEVICE_ATTR_RO(audioformat);
 
 static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_enabled.attr,
 	&dev_attr_dpms.attr,
 	&dev_attr_modes.attr,
-	&dev_attr_mode.attr,
-	&dev_attr_content_protection.attr,
-	&dev_attr_audioformat.attr,
 	NULL
 };
+
+static DEVICE_ATTR_RO(tv_subconnector);
+static DEVICE_ATTR_RO(tv_select_subconnector);
+
+static struct attribute *connector_tv_dev_attrs[] = {
+	&dev_attr_tv_subconnector.attr,
+	&dev_attr_tv_select_subconnector.attr,
+	NULL
+};
+
+static DEVICE_ATTR_RO(dvii_subconnector);
+static DEVICE_ATTR_RO(dvii_select_subconnector);
+
+static struct attribute *connector_dvii_dev_attrs[] = {
+	&dev_attr_dvii_subconnector.attr,
+	&dev_attr_dvii_select_subconnector.attr,
+	NULL
+};
+
+/* Connector type related helpers */
+static int kobj_connector_type(struct kobject *kobj)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_connector *connector = to_drm_connector(dev);
+
+	return connector->connector_type;
+}
+
+static umode_t connector_is_dvii(struct kobject *kobj,
+				 struct attribute *attr, int idx)
+{
+	return kobj_connector_type(kobj) == DRM_MODE_CONNECTOR_DVII ?
+		attr->mode : 0;
+}
+
+static umode_t connector_is_tv(struct kobject *kobj,
+			       struct attribute *attr, int idx)
+{
+	switch (kobj_connector_type(kobj)) {
+	case DRM_MODE_CONNECTOR_Composite:
+	case DRM_MODE_CONNECTOR_SVIDEO:
+	case DRM_MODE_CONNECTOR_Component:
+	case DRM_MODE_CONNECTOR_TV:
+		return attr->mode;
+	}
+
+	return 0;
+}
 
 static struct bin_attribute edid_attr = {
 	.attr.name = "edid",
@@ -487,8 +465,20 @@ static const struct attribute_group connector_dev_group = {
 	.bin_attrs = connector_bin_attrs,
 };
 
+static const struct attribute_group connector_tv_dev_group = {
+	.attrs = connector_tv_dev_attrs,
+	.is_visible = connector_is_tv,
+};
+
+static const struct attribute_group connector_dvii_dev_group = {
+	.attrs = connector_dvii_dev_attrs,
+	.is_visible = connector_is_dvii,
+};
+
 static const struct attribute_group *connector_dev_groups[] = {
 	&connector_dev_group,
+	&connector_tv_dev_group,
+	&connector_dvii_dev_group,
 	NULL
 };
 

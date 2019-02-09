@@ -209,8 +209,7 @@ void enable_kernel_vsx(void)
 	WARN_ON(preemptible());
 
 #ifdef CONFIG_SMP
-	if (current->thread.regs &&
-	    (current->thread.regs->msr & (MSR_VSX|MSR_VEC|MSR_FP)))
+	if (current->thread.regs && (current->thread.regs->msr & MSR_VSX))
 		giveup_vsx(current);
 	else
 		giveup_vsx(NULL);	/* just enable vsx for kernel - force */
@@ -232,7 +231,7 @@ void flush_vsx_to_thread(struct task_struct *tsk)
 {
 	if (tsk->thread.regs) {
 		preempt_disable();
-		if (tsk->thread.regs->msr & (MSR_VSX|MSR_VEC|MSR_FP)) {
+		if (tsk->thread.regs->msr & MSR_VSX) {
 #ifdef CONFIG_SMP
 			BUG_ON(tsk != current);
 #endif
@@ -1240,16 +1239,6 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 		current->thread.regs = regs - 1;
 	}
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/*
-	 * Clear any transactional state, we're exec()ing. The cause is
-	 * not important as there will never be a recheckpoint so it's not
-	 * user visible.
-	 */
-	if (MSR_TM_SUSPENDED(mfmsr()))
-		tm_reclaim_current(0);
-#endif
-
 	memset(regs->gpr, 0, sizeof(regs->gpr));
 	regs->ctr = 0;
 	regs->link = 0;
@@ -1652,9 +1641,9 @@ static inline unsigned long brk_rnd(void)
 
 	/* 8MB for 32bit, 1GB for 64bit */
 	if (is_32bit_task())
-		rnd = (get_random_long() % (1UL<<(23-PAGE_SHIFT)));
+		rnd = (long)(get_random_int() % (1<<(23-PAGE_SHIFT)));
 	else
-		rnd = (get_random_long() % (1UL<<(30-PAGE_SHIFT)));
+		rnd = (long)(get_random_int() % (1<<(30-PAGE_SHIFT)));
 
 	return rnd << PAGE_SHIFT;
 }

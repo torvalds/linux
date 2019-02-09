@@ -230,13 +230,13 @@ F:	kernel/sys_ni.c
 
 ABIT UGURU 1,2 HARDWARE MONITOR DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/abituguru.c
 
 ABIT UGURU 3 HARDWARE MONITOR DRIVER
 M:	Alistair John Strachan <alistair@devzero.co.uk>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/abituguru3.c
 
@@ -373,14 +373,14 @@ S:	Maintained
 
 ADM1025 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/adm1025
 F:	drivers/hwmon/adm1025.c
 
 ADM1029 HARDWARE MONITOR DRIVER
 M:	Corentin Labbe <clabbe.montjoie@gmail.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/adm1029.c
 
@@ -425,7 +425,7 @@ F:	drivers/video/backlight/adp8860_bl.c
 
 ADS1015 HARDWARE MONITOR DRIVER
 M:	Dirk Eibach <eibach@gdsys.de>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/ads1015
 F:	drivers/hwmon/ads1015.c
@@ -438,7 +438,7 @@ F:	drivers/macintosh/therm_adt746x.c
 
 ADT7475 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/adt7475
 F:	drivers/hwmon/adt7475.c
@@ -615,7 +615,7 @@ F:	include/linux/ccp.h
 
 AMD FAM15H PROCESSOR POWER MONITORING DRIVER
 M:	Andreas Herrmann <herrmann.der.user@googlemail.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/fam15h_power
 F:	drivers/hwmon/fam15h_power.c
@@ -746,11 +746,6 @@ W:	http://ez.analog.com/community/linux-device-drivers
 S:	Supported
 F:	drivers/dma/dma-axi-dmac.c
 
-ANDROID CONFIG FRAGMENTS
-M:	Rob Herring <robh@kernel.org>
-S:	Supported
-F:	kernel/configs/android*
-
 ANDROID DRIVERS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	Arve Hjønnevåg <arve@android.com>
@@ -760,18 +755,6 @@ L:	devel@driverdev.osuosl.org
 S:	Supported
 F:	drivers/android/
 F:	drivers/staging/android/
-
-ANDROID GOLDFISH PIC DRIVER
-M:	Miodrag Dinic <miodrag.dinic@mips.com>
-S:	Supported
-F:	Documentation/devicetree/bindings/interrupt-controller/google,goldfish-pic.txt
-F:	drivers/irqchip/irq-goldfish-pic.c
-
-ANDROID GOLDFISH RTC DRIVER
-M:	Miodrag Dinic <miodrag.dinic@mips.com>
-S:	Supported
-F:	Documentation/devicetree/bindings/rtc/google,goldfish-rtc.txt
-F:	drivers/rtc/rtc-goldfish.c
 
 AOA (Apple Onboard Audio) ALSA DRIVER
 M:	Johannes Berg <johannes@sipsolutions.net>
@@ -796,7 +779,7 @@ F:	drivers/input/mouse/bcm5974.c
 
 APPLE SMC DRIVER
 M:	Henrik Rydberg <rydberg@bitmath.org>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Odd fixes
 F:	drivers/hwmon/applesmc.c
 
@@ -1024,10 +1007,6 @@ F:	drivers/hwtracing/coresight/*
 F:	Documentation/trace/coresight.txt
 F:	Documentation/devicetree/bindings/arm/coresight.txt
 F:	Documentation/ABI/testing/sysfs-bus-coresight-devices-*
-F:	tools/perf/arch/arm/util/pmu.c
-F:	tools/perf/arch/arm/util/auxtrace.c
-F:	tools/perf/arch/arm/util/cs_etm.c
-F:	tools/perf/arch/arm/util/cs_etm.h
 
 ARM/CORGI MACHINE SUPPORT
 M:	Richard Purdie <rpurdie@rpsys.net>
@@ -1798,7 +1777,7 @@ F:	include/media/as3645a.h
 
 ASC7621 HARDWARE MONITOR DRIVER
 M:	George Joseph <george.joseph@fairview5.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/asc7621
 F:	drivers/hwmon/asc7621.c
@@ -1885,7 +1864,7 @@ F:	drivers/net/wireless/ath/carl9170/
 
 ATK0110 HWMON DRIVER
 M:	Luca Tettamanti <kronos.it@gmail.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/asus_atk0110.c
 
@@ -3005,7 +2984,7 @@ F:	mm/swap_cgroup.c
 
 CORETEMP HARDWARE MONITORING DRIVER
 M:	Fenghua Yu <fenghua.yu@intel.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/coretemp
 F:	drivers/hwmon/coretemp.c
@@ -3413,12 +3392,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
 F:	drivers/usb/dwc3/
 
-DEVANTECH SRF ULTRASONIC RANGER IIO DRIVER
-M:	Andreas Klinger <ak@it-klinger.de>
-L:	linux-iio@vger.kernel.org
-S:	Maintained
-F:	drivers/iio/proximity/srf*.c
-
 DEVICE COREDUMP (DEV_COREDUMP)
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-kernel@vger.kernel.org
@@ -3576,7 +3549,7 @@ T:	git git://git.infradead.org/users/vkoul/slave-dma.git
 
 DME1737 HARDWARE MONITOR DRIVER
 M:	Juerg Haefliger <juergh@gmail.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/dme1737
 F:	drivers/hwmon/dme1737.c
@@ -4124,8 +4097,8 @@ F:	Documentation/efi-stub.txt
 F:	arch/ia64/kernel/efi.c
 F:	arch/x86/boot/compressed/eboot.[ch]
 F:	arch/x86/include/asm/efi.h
-F:	arch/x86/platform/efi/
-F:	drivers/firmware/efi/
+F:	arch/x86/platform/efi/*
+F:	drivers/firmware/efi/*
 F:	include/linux/efi*.h
 
 EFI VARIABLE FILESYSTEM
@@ -4289,7 +4262,7 @@ F:	include/video/exynos_mipi*
 
 F71805F HARDWARE MONITORING DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/f71805f
 F:	drivers/hwmon/f71805f.c
@@ -4368,7 +4341,7 @@ F:	fs/*
 
 FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	Riku Voipio <riku.voipio@iki.fi>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/f75375s.c
 F:	include/linux/f75375s.h
@@ -4691,11 +4664,6 @@ F:	drivers/i2c/muxes/i2c-mux-gpio.c
 F:	include/linux/i2c-mux-gpio.h
 F:	Documentation/i2c/muxes/i2c-mux-gpio
 
-GENERIC GPIO PWM DRIVER
-M:	Olliver Schinagl <oliver@schinagl.nl>
-S:	Maintained
-F:	drivers/pwm/pwm-gpio.c
-
 GENERIC HDLC (WAN) DRIVERS
 M:	Krzysztof Halasa <khc@pm.waw.pl>
 W:	http://www.kernel.org/pub/linux/utils/net/hdlc/
@@ -4801,13 +4769,6 @@ M:	Kristoffer Glembo <kristoffer@gaisler.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/aeroflex/
-
-GS1662 VIDEO SERIALIZER
-M:	Charles-Antoine Couret <charles-antoine.couret@nexvision.fr>
-L:	linux-media@vger.kernel.org
-T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
-F:	drivers/media/spi/gs1662.c
 
 GSPCA FINEPIX SUBDRIVER
 M:	Frank Zago <frank@zago.net>
@@ -4922,8 +4883,8 @@ F:	drivers/media/usb/hackrf/
 HARDWARE MONITORING
 M:	Jean Delvare <jdelvare@suse.com>
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-W:	http://hwmon.wiki.kernel.org/
+L:	lm-sensors@lm-sensors.org
+W:	http://www.lm-sensors.org/
 T:	quilt http://jdelvare.nerim.net/devel/linux/jdelvare-hwmon/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 S:	Maintained
@@ -5432,7 +5393,7 @@ F:	drivers/usb/atm/ueagle-atm.c
 
 INA209 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/ina209
 F:	Documentation/devicetree/bindings/i2c/ina209.txt
@@ -5440,7 +5401,7 @@ F:	drivers/hwmon/ina209.c
 
 INA2XX HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/ina2xx
 F:	drivers/hwmon/ina2xx.c
@@ -5923,7 +5884,7 @@ F:	drivers/isdn/hardware/eicon/
 
 IT87 HARDWARE MONITORING DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/it87
 F:	drivers/hwmon/it87.c
@@ -5959,7 +5920,7 @@ F:	drivers/media/dvb-frontends/ix2505v*
 
 JC42.4 TEMPERATURE SENSOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/jc42.c
 F:	Documentation/hwmon/jc42
@@ -6009,31 +5970,17 @@ F:	drivers/tty/serial/jsm/
 
 K10TEMP HARDWARE MONITORING DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/k10temp
 F:	drivers/hwmon/k10temp.c
 
 K8TEMP HARDWARE MONITORING DRIVER
 M:	Rudolf Marek <r.marek@assembler.cz>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/k8temp
 F:	drivers/hwmon/k8temp.c
-
-KASAN
-M:	Andrey Ryabinin <aryabinin@virtuozzo.com>
-R:	Alexander Potapenko <glider@google.com>
-R:	Dmitry Vyukov <dvyukov@google.com>
-L:	kasan-dev@googlegroups.com
-S:	Maintained
-F:	arch/*/include/asm/kasan.h
-F:	arch/*/mm/kasan_init*
-F:	Documentation/kasan.txt
-F:	include/linux/kasan*.h
-F:	lib/test_kasan.c
-F:	mm/kasan/
-F:	scripts/Makefile.kasan
 
 KCONFIG
 M:	"Yann E. MORIN" <yann.morin.1998@free.fr>
@@ -6538,27 +6485,27 @@ F:	net/llc/
 
 LM73 HARDWARE MONITOR DRIVER
 M:	Guillaume Ligneul <guillaume.ligneul@gmail.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/lm73.c
 
 LM78 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/lm78
 F:	drivers/hwmon/lm78.c
 
 LM83 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/lm83
 F:	drivers/hwmon/lm83.c
 
 LM90 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/lm90
 F:	Documentation/devicetree/bindings/hwmon/lm90.txt
@@ -6566,7 +6513,7 @@ F:	drivers/hwmon/lm90.c
 
 LM95234 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/lm95234
 F:	drivers/hwmon/lm95234.c
@@ -6633,7 +6580,7 @@ F:	drivers/scsi/sym53c8xx_2/
 
 LTC4261 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/ltc4261
 F:	drivers/hwmon/ltc4261.c
@@ -6802,28 +6749,28 @@ F:	include/uapi/linux/matroxfb.h
 
 MAX16065 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/max16065
 F:	drivers/hwmon/max16065.c
 
 MAX20751 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/max20751
 F:	drivers/hwmon/max20751.c
 
 MAX6650 HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	"Hans J. Koch" <hjk@hansjkoch.de>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/max6650
 F:	drivers/hwmon/max6650.c
 
 MAX6697 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/max6697
 F:	Documentation/devicetree/bindings/i2c/max6697.txt
@@ -7093,20 +7040,6 @@ S:	Supported
 F:	Documentation/mips/
 F:	arch/mips/
 
-MIPS GENERIC PLATFORM
-M:	Paul Burton <paul.burton@imgtec.com>
-L:	linux-mips@linux-mips.org
-S:	Supported
-F:	Documentation/devicetree/bindings/power/mti,mips-cpc.txt
-F:	arch/mips/generic/
-
-MIPS RINT INSTRUCTION EMULATION
-M:	Aleksandar Markovic <aleksandar.markovic@mips.com>
-L:	linux-mips@linux-mips.org
-S:	Supported
-F:	arch/mips/math-emu/sp_rint.c
-F:	arch/mips/math-emu/dp_rint.c
-
 MIROSOUND PCM20 FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
@@ -7370,7 +7303,7 @@ F:	drivers/scsi/NCR_D700.*
 
 NCT6775 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/nct6775
 F:	drivers/hwmon/nct6775.c
@@ -7893,13 +7826,6 @@ M:	Harald Welte <laforge@gnumonks.org>
 S:	Maintained
 F:	drivers/char/pcmcia/cm4040_cs.*
 
-OMNIVISION OV5647 SENSOR DRIVER
-M:	Ramiro Oliveira <roliveir@synopsys.com>
-L:	linux-media@vger.kernel.org
-T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
-F:	drivers/media/i2c/ov5647.c
-
 OMNIVISION OV7670 SENSOR DRIVER
 M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-media@vger.kernel.org
@@ -8008,11 +7934,6 @@ F:	arch/*/include/asm/oprofile*.h
 F:	arch/*/oprofile/
 F:	drivers/oprofile/
 F:	include/linux/oprofile.h
-
-OP-TEE DRIVER
-M:	Jens Wiklander <jens.wiklander@linaro.org>
-S:	Maintained
-F:	drivers/tee/optee/
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 M:	Mark Fasheh <mfasheh@suse.com>
@@ -8143,7 +8064,7 @@ F:	drivers/video/logo/logo_parisc*
 
 PC87360 HARDWARE MONITORING DRIVER
 M:	Jim Cromie <jim.cromie@gmail.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/pc87360
 F:	drivers/hwmon/pc87360.c
@@ -8155,7 +8076,7 @@ F:	drivers/char/pc8736x_gpio.c
 
 PC87427 HARDWARE MONITORING DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/pc87427
 F:	drivers/hwmon/pc87427.c
@@ -8494,8 +8415,8 @@ F:	drivers/rtc/rtc-puv3.c
 
 PMBUS HARDWARE MONITORING DRIVERS
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-W:	http://hwmon.wiki.kernel.org/
+L:	lm-sensors@lm-sensors.org
+W:	http://www.lm-sensors.org/
 W:	http://www.roeck-us.net/linux/drivers/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 S:	Maintained
@@ -8689,17 +8610,11 @@ F:	drivers/media/usb/pwc/*
 
 PWM FAN DRIVER
 M:	Kamil Debski <k.debski@samsung.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Supported
 F:	Documentation/devicetree/bindings/hwmon/pwm-fan.txt
 F:	Documentation/hwmon/pwm-fan
 F:	drivers/hwmon/pwm-fan.c
-
-PWM IR Transmitter
-M:	Sean Young <sean@mess.org>
-L:	linux-media@vger.kernel.org
-S:	Maintained
-F:	drivers/media/rc/pwm-ir-tx.c
 
 PWM SUBSYSTEM
 M:	Thierry Reding <thierry.reding@gmail.com>
@@ -8921,13 +8836,6 @@ M:	Jens Axboe <axboe@kernel.dk>
 S:	Maintained
 F:	Documentation/blockdev/ramdisk.txt
 F:	drivers/block/brd.c
-
-RANCHU VIRTUAL BOARD FOR MIPS
-M:	Miodrag Dinic <miodrag.dinic@mips.com>
-L:	linux-mips@linux-mips.org
-S:	Supported
-F:	arch/mips/generic/board-ranchu.c
-F:	arch/mips/configs/generic/board-ranchu.config
 
 RANDOM NUMBER DRIVER
 M:	"Theodore Ts'o" <tytso@mit.edu>
@@ -9448,19 +9356,10 @@ F:	drivers/mmc/host/dw_mmc*
 SYSTEM TRACE MODULE CLASS
 M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ash/stm.git
 F:	Documentation/trace/stm.txt
 F:	drivers/hwtracing/stm/
 F:	include/linux/stm.h
 F:	include/uapi/linux/stm.h
-
-TEE SUBSYSTEM
-M:	Jens Wiklander <jens.wiklander@linaro.org>
-S:	Maintained
-F:	include/linux/tee_drv.h
-F:	include/uapi/linux/tee.h
-F:	drivers/tee/
-F:	Documentation/tee.txt
 
 THUNDERBOLT DRIVER
 M:	Andreas Noever <andreas.noever@gmail.com>
@@ -9983,28 +9882,28 @@ F:	Documentation/devicetree/bindings/media/i2c/nokia,smia.txt
 
 SMM665 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/smm665
 F:	drivers/hwmon/smm665.c
 
 SMSC EMC2103 HARDWARE MONITOR DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/emc2103
 F:	drivers/hwmon/emc2103.c
 
 SMSC SCH5627 HARDWARE MONITOR DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Supported
 F:	Documentation/hwmon/sch5627
 F:	drivers/hwmon/sch5627.c
 
 SMSC47B397 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/smsc47b397
 F:	drivers/hwmon/smsc47b397.c
@@ -10236,7 +10135,6 @@ F:	arch/alpha/kernel/srm_env.c
 
 STABLE BRANCH
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-M:	Sasha Levin <sashal@kernel.org>
 L:	stable@vger.kernel.org
 S:	Supported
 F:	Documentation/stable_kernel_rules.txt
@@ -10391,11 +10289,9 @@ S:	Maintained
 F:	drivers/net/ethernet/dlink/sundance.c
 
 SUPERH
-M:	Yoshinori Sato <ysato@users.sourceforge.jp>
-M:	Rich Felker <dalias@libc.org>
 L:	linux-sh@vger.kernel.org
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
-S:	Maintained
+S:	Orphan
 F:	Documentation/sh/
 F:	arch/sh/
 F:	drivers/sh/
@@ -10932,7 +10828,7 @@ F:	include/linux/mmc/sh_mobile_sdhi.h
 
 TMP401 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/tmp401
 F:	drivers/hwmon/tmp401.c
@@ -11666,14 +11562,14 @@ F:	Documentation/networking/vrf.txt
 
 VT1211 HARDWARE MONITOR DRIVER
 M:	Juerg Haefliger <juergh@gmail.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/vt1211
 F:	drivers/hwmon/vt1211.c
 
 VT8231 HARDWARE MONITOR DRIVER
 M:	Roger Lucas <vt8231@hiddenengine.co.uk>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/vt8231.c
 
@@ -11692,21 +11588,21 @@ F:	drivers/w1/
 
 W83791D HARDWARE MONITORING DRIVER
 M:	Marc Hulsman <m.hulsman@tudelft.nl>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/w83791d
 F:	drivers/hwmon/w83791d.c
 
 W83793 HARDWARE MONITORING DRIVER
 M:	Rudolf Marek <r.marek@assembler.cz>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/w83793
 F:	drivers/hwmon/w83793.c
 
 W83795 HARDWARE MONITORING DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
-L:	linux-hwmon@vger.kernel.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/w83795.c
 

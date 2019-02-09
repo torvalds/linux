@@ -210,7 +210,7 @@ config OMAP_IOMMU_DEBUG
 
 config ROCKCHIP_IOMMU
 	bool "Rockchip IOMMU Support"
-	depends on ARM || ARM64
+	depends on ARM
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
@@ -220,35 +220,6 @@ config ROCKCHIP_IOMMU
 	  cores within the multimedia subsystem.
 	  Say Y here if you are using a Rockchip SoC that includes an IOMMU
 	  device.
-
-config RK_IOMMU
-	bool "RK IOMMU Support"
-	depends on ARCH_ROCKCHIP || COMPILE_TEST
-	select IOMMU_API
-	help
-	  Support for IOMMUs found on Rockchip rk32xx,rk313x,rk33xx SOCs.
-	  These IOMMUs allow virtualization of the address space used by most
-	  cores within the multimedia subsystem.
-	  Say Y here if you are using a Rockchip SoC that includes an IOMMU
-	  device.
-
-config RK_IOVMM
-	bool "IO Virtual Memory Manager for RK IOMMUs"
-	select GENERIC_ALLOCATOR
-	depends on RK_IOMMU
-	help
-	  Supporting the users of Rockchip IOMMU for allocating and mapping
-	  an IO virtual memory region with a physical memory region
-	  and managing the allocated virtual memory regions.
-
-config RK_IOMMU_DEBUG
-	bool "Debugging log for RK IOMMU"
-	depends on RK_IOMMU
-	help
-	  Select this to see the detailed log message that shows what
-	  happens in the IOMMU driver
-
-	  Say N unless you need kernel log message for IOMMU debugging
 
 config TEGRA_IOMMU_GART
 	bool "Tegra GART IOMMU Support"
@@ -369,7 +340,6 @@ config SHMOBILE_IOMMU_L1SIZE
 
 config IPMMU_VMSA
 	bool "Renesas VMSA-compatible IPMMU"
-	depends on BROKEN
 	depends on ARM_LPAE
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select IOMMU_API

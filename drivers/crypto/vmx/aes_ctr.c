@@ -53,6 +53,8 @@ static int p8_aes_ctr_init(struct crypto_tfm *tfm)
 		       alg, PTR_ERR(fallback));
 		return PTR_ERR(fallback);
 	}
+	printk(KERN_INFO "Using '%s' as fallback implementation.\n",
+	       crypto_tfm_alg_driver_name((struct crypto_tfm *) fallback));
 
 	crypto_blkcipher_set_flags(
 		fallback,
@@ -78,13 +80,11 @@ static int p8_aes_ctr_setkey(struct crypto_tfm *tfm, const u8 *key,
 	int ret;
 	struct p8_aes_ctr_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	preempt_disable();
 	pagefault_disable();
 	enable_kernel_altivec();
 	enable_kernel_vsx();
 	ret = aes_p8_set_encrypt_key(key, keylen * 8, &ctx->enc_key);
 	pagefault_enable();
-	preempt_enable();
 
 	ret += crypto_blkcipher_setkey(ctx->fallback, key, keylen);
 	return ret;
@@ -99,13 +99,11 @@ static void p8_aes_ctr_final(struct p8_aes_ctr_ctx *ctx,
 	u8 *dst = walk->dst.virt.addr;
 	unsigned int nbytes = walk->nbytes;
 
-	preempt_disable();
 	pagefault_disable();
 	enable_kernel_altivec();
 	enable_kernel_vsx();
 	aes_p8_encrypt(ctrblk, keystream, &ctx->enc_key);
 	pagefault_enable();
-	preempt_enable();
 
 	crypto_xor(keystream, src, nbytes);
 	memcpy(dst, keystream, nbytes);
@@ -134,7 +132,6 @@ static int p8_aes_ctr_crypt(struct blkcipher_desc *desc,
 		blkcipher_walk_init(&walk, dst, src, nbytes);
 		ret = blkcipher_walk_virt_block(desc, &walk, AES_BLOCK_SIZE);
 		while ((nbytes = walk.nbytes) >= AES_BLOCK_SIZE) {
-			preempt_disable();
 			pagefault_disable();
 			enable_kernel_altivec();
 			enable_kernel_vsx();
@@ -146,7 +143,6 @@ static int p8_aes_ctr_crypt(struct blkcipher_desc *desc,
 						    &ctx->enc_key,
 						    walk.iv);
 			pagefault_enable();
-			preempt_enable();
 
 			/* We need to update IV mostly for last bytes/round */
 			inc = (nbytes & AES_BLOCK_MASK) / AES_BLOCK_SIZE;
@@ -170,7 +166,7 @@ struct crypto_alg p8_aes_ctr_alg = {
 	.cra_name = "ctr(aes)",
 	.cra_driver_name = "p8_aes_ctr",
 	.cra_module = THIS_MODULE,
-	.cra_priority = 2000,
+	.cra_priority = 1000,
 	.cra_type = &crypto_blkcipher_type,
 	.cra_flags = CRYPTO_ALG_TYPE_BLKCIPHER | CRYPTO_ALG_NEED_FALLBACK,
 	.cra_alignmask = 0,
@@ -179,7 +175,7 @@ struct crypto_alg p8_aes_ctr_alg = {
 	.cra_init = p8_aes_ctr_init,
 	.cra_exit = p8_aes_ctr_exit,
 	.cra_blkcipher = {
-			  .ivsize = AES_BLOCK_SIZE,
+			  .ivsize = 0,
 			  .min_keysize = AES_MIN_KEY_SIZE,
 			  .max_keysize = AES_MAX_KEY_SIZE,
 			  .setkey = p8_aes_ctr_setkey,

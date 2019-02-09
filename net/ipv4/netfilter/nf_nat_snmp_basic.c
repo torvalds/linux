@@ -1260,6 +1260,16 @@ static const struct nf_conntrack_expect_policy snmp_exp_policy = {
 	.timeout	= 180,
 };
 
+static struct nf_conntrack_helper snmp_helper __read_mostly = {
+	.me			= THIS_MODULE,
+	.help			= help,
+	.expect_policy		= &snmp_exp_policy,
+	.name			= "snmp",
+	.tuple.src.l3num	= AF_INET,
+	.tuple.src.u.udp.port	= cpu_to_be16(SNMP_PORT),
+	.tuple.dst.protonum	= IPPROTO_UDP,
+};
+
 static struct nf_conntrack_helper snmp_trap_helper __read_mostly = {
 	.me			= THIS_MODULE,
 	.help			= help,
@@ -1278,16 +1288,22 @@ static struct nf_conntrack_helper snmp_trap_helper __read_mostly = {
 
 static int __init nf_nat_snmp_basic_init(void)
 {
+	int ret = 0;
+
 	BUG_ON(nf_nat_snmp_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_snmp_hook, help);
 
-	return nf_conntrack_helper_register(&snmp_trap_helper);
+	ret = nf_conntrack_helper_register(&snmp_trap_helper);
+	if (ret < 0) {
+		nf_conntrack_helper_unregister(&snmp_helper);
+		return ret;
+	}
+	return ret;
 }
 
 static void __exit nf_nat_snmp_basic_fini(void)
 {
 	RCU_INIT_POINTER(nf_nat_snmp_hook, NULL);
-	synchronize_rcu();
 	nf_conntrack_helper_unregister(&snmp_trap_helper);
 }
 

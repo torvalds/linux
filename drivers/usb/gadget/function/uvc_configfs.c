@@ -1871,7 +1871,6 @@ static int __uvcg_iter_strm_cls(struct uvcg_streaming_header *h,
 			if (ret)
 				return ret;
 		}
-		j = 0;
 	}
 
 	return ret;
@@ -2006,15 +2005,12 @@ static int __uvcg_fill_strm(void *priv1, void *priv2, void *priv3, int n,
 			sizeof(*frm->dw_frame_interval);
 		memcpy(*dest, frm->dw_frame_interval, sz);
 		*dest += sz;
-		if (frm->fmt_type == UVCG_UNCOMPRESSED) {
+		if (frm->fmt_type == UVCG_UNCOMPRESSED)
 			h->bLength = UVC_DT_FRAME_UNCOMPRESSED_SIZE(
 				frm->frame.b_frame_interval_type);
-			frm->frame.b_frame_index = n + 1;
-		} else if (frm->fmt_type == UVCG_MJPEG) {
+		else if (frm->fmt_type == UVCG_MJPEG)
 			h->bLength = UVC_DT_FRAME_MJPEG_SIZE(
 				frm->frame.b_frame_interval_type);
-			frm->frame.b_frame_index = n + 1;
-		}
 	}
 	break;
 	}
@@ -2206,7 +2202,7 @@ static struct configfs_item_operations uvc_item_ops = {
 	.release		= uvc_attr_release,
 };
 
-#define UVCG_OPTS_ATTR(cname, aname, conv, str2u, uxx, vnoc, limit)	\
+#define UVCG_OPTS_ATTR(cname, conv, str2u, uxx, vnoc, limit)		\
 static ssize_t f_uvc_opts_##cname##_show(				\
 	struct config_item *item, char *page)				\
 {									\
@@ -2249,16 +2245,16 @@ end:									\
 	return ret;							\
 }									\
 									\
-UVC_ATTR(f_uvc_opts_, cname, cname)
+UVC_ATTR(f_uvc_opts_, cname, aname)
 
 #define identity_conv(x) (x)
 
-UVCG_OPTS_ATTR(streaming_interval, streaming_interval, identity_conv,
-	       kstrtou8, u8, identity_conv, 16);
-UVCG_OPTS_ATTR(streaming_maxpacket, streaming_maxpacket, le16_to_cpu,
-	       kstrtou16, u16, le16_to_cpu, 3072);
-UVCG_OPTS_ATTR(streaming_maxburst, streaming_maxburst, identity_conv,
-	       kstrtou8, u8, identity_conv, 15);
+UVCG_OPTS_ATTR(streaming_interval, identity_conv, kstrtou8, u8, identity_conv,
+	       16);
+UVCG_OPTS_ATTR(streaming_maxpacket, le16_to_cpu, kstrtou16, u16, le16_to_cpu,
+	       3072);
+UVCG_OPTS_ATTR(streaming_maxburst, identity_conv, kstrtou8, u8, identity_conv,
+	       15);
 
 #undef identity_conv
 

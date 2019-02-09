@@ -965,38 +965,13 @@ void exhalbtc_set_chip_type(u8 chip_type)
 	}
 }
 
-void exhalbtc_set_ant_num(struct rtl_priv *rtlpriv, u8 type, u8 ant_num)
+void exhalbtc_set_ant_num(u8 type, u8 ant_num)
 {
 	if (BT_COEX_ANT_TYPE_PG == type) {
 		gl_bt_coexist.board_info.pg_ant_num = ant_num;
 		gl_bt_coexist.board_info.btdm_ant_num = ant_num;
-		/* The antenna position:
-		 * Main (default) or Aux for pgAntNum=2 && btdmAntNum =1.
-		 * The antenna position should be determined by
-		 * auto-detect mechanism.
-		 * The following is assumed to main,
-		 * and those must be modified
-		 * if y auto-detect mechanism is ready
-		 */
-		if ((gl_bt_coexist.board_info.pg_ant_num == 2) &&
-		    (gl_bt_coexist.board_info.btdm_ant_num == 1))
-			gl_bt_coexist.board_info.btdm_ant_pos =
-						       BTC_ANTENNA_AT_MAIN_PORT;
-		else
-			gl_bt_coexist.board_info.btdm_ant_pos =
-						       BTC_ANTENNA_AT_MAIN_PORT;
 	} else if (BT_COEX_ANT_TYPE_ANTDIV == type) {
 		gl_bt_coexist.board_info.btdm_ant_num = ant_num;
-		gl_bt_coexist.board_info.btdm_ant_pos =
-						       BTC_ANTENNA_AT_MAIN_PORT;
-	} else if (type == BT_COEX_ANT_TYPE_DETECTED) {
-		gl_bt_coexist.board_info.btdm_ant_num = ant_num;
-		if (rtlpriv->cfg->mod_params->ant_sel == 1)
-			gl_bt_coexist.board_info.btdm_ant_pos =
-				BTC_ANTENNA_AT_AUX_PORT;
-		else
-			gl_bt_coexist.board_info.btdm_ant_pos =
-				BTC_ANTENNA_AT_MAIN_PORT;
 	}
 }
 

@@ -109,9 +109,6 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 	if (ret < 0)
 		return ret;
 
-	if (!tb[TCA_CONNMARK_PARMS])
-		return -EINVAL;
-
 	parm = nla_data(tb[TCA_CONNMARK_PARMS]);
 
 	if (!tcf_hash_check(parm->index, a, bind)) {

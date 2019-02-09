@@ -1006,8 +1006,10 @@ static int dsa_slave_phy_connect(struct dsa_slave_priv *p,
 	/* Use already configured phy mode */
 	if (p->phy_interface == PHY_INTERFACE_MODE_NA)
 		p->phy_interface = p->phy->interface;
-	return phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
-				  p->phy_interface);
+	phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
+			   p->phy_interface);
+
+	return 0;
 }
 
 static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
@@ -1099,11 +1101,6 @@ int dsa_slave_suspend(struct net_device *slave_dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
 
-	if (!netif_running(slave_dev))
-		return 0;
-
-	netif_device_detach(slave_dev);
-
 	if (p->phy) {
 		phy_stop(p->phy);
 		p->old_pause = -1;
@@ -1118,9 +1115,6 @@ int dsa_slave_suspend(struct net_device *slave_dev)
 int dsa_slave_resume(struct net_device *slave_dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
-
-	if (!netif_running(slave_dev))
-		return 0;
 
 	netif_device_attach(slave_dev);
 

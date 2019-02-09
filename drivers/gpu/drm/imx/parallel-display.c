@@ -192,7 +192,7 @@ static int imx_pd_register(struct drm_device *drm,
 
 	drm_encoder_helper_add(&imxpd->encoder, &imx_pd_encoder_helper_funcs);
 	drm_encoder_init(drm, &imxpd->encoder, &imx_pd_encoder_funcs,
-			 DRM_MODE_ENCODER_NONE, NULL);
+			 DRM_MODE_ENCODER_NONE);
 
 	drm_connector_helper_add(&imxpd->connector,
 			&imx_pd_connector_helper_funcs);
@@ -203,6 +203,8 @@ static int imx_pd_register(struct drm_device *drm,
 		drm_panel_attach(imxpd->panel, &imxpd->connector);
 
 	drm_mode_connector_attach_encoder(&imxpd->connector, &imxpd->encoder);
+
+	imxpd->connector.encoder = &imxpd->encoder;
 
 	return 0;
 }

@@ -43,7 +43,6 @@
 /dts-v1/;
 
 #include "rk3288.dtsi"
-#include "rk3288-linux.dtsi"
 
 / {
 	model = "PopMetal-RK3288";
@@ -51,7 +50,7 @@
 
 	memory{
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x80000000>;
+		reg = <0 0x80000000>;
 	};
 
 	ext_gmac: external-gmac-clock {
@@ -78,6 +77,22 @@
 			gpio-key,wakeup = <1>;
 			debounce-interval = <100>;
 		};
+	};
+
+	io_domains: io-domains {
+		compatible = "rockchip,rk3288-io-voltage-domain";
+		rockchip,grf = <&grf>;
+
+		audio-supply = <&vcca_33>;
+		bb-supply = <&vcc_io>;
+		dvp-supply = <&vcc18_dvp>;
+		flash0-supply = <&vcc_flash>;
+		flash1-supply = <&vcc_lan>;
+		gpio30-supply = <&vcc_io>;
+		gpio1830-supply = <&vcc_io>;
+		lcdc-supply = <&vcc_io>;
+		sdcard-supply = <&vccio_sd>;
+		wifi-supply = <&vccio_wl>;
 	};
 
 	ir: ir-receiver {
@@ -140,54 +155,6 @@
 		regulator-always-on;
 		vin-supply = <&vcc_io>;
 	};
-
-	xin32k: xin32k {
-		compatible = "fixed-clock";
-		clock-frequency = <32768>;
-		clock-output-names = "xin32k";
-		#clock-cells = <0>;
-	};
-
-	vga_bridge: vga-bridge {
-		compatible = "adi,adv7125";
-		psave-gpios = <&gpio7 21 GPIO_ACTIVE_HIGH>;
-		vdd-supply = <&vcc_lcd>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				adv7125_in_rgb: endpoint {
-					remote-endpoint = <&rgb_out_adv7125>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-
-				adv7125_out_vga: endpoint {
-					remote-endpoint = <&vga_in_adv7125>;
-				};
-			};
-		};
-	};
-
-	vga {
-		compatible = "vga-connector";
-		ddc-i2c-bus = <&i2c2>;
-
-		port {
-			vga_in_adv7125: endpoint {
-				remote-endpoint = <&adv7125_out_vga>;
-			};
-		};
-	};
-
 };
 
 &cpu0 {
@@ -195,6 +162,7 @@
 };
 
 &emmc {
+	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
@@ -219,7 +187,6 @@
 	vmmc-supply = <&vcc_sd>;
 	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
-	supports-sd;
 };
 
 &gmac {
@@ -238,43 +205,8 @@
 	status = "ok";
 };
 
-&gpu {
-	mali-supply = <&vdd_gpu>;
-	status = "okay";
-};
-
 &hdmi {
-	status = "okay";
-};
-
-&rgb {
-	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			rgb_out_adv7125: endpoint {
-				remote-endpoint = <&adv7125_in_rgb>;
-			};
-		};
-	};
-};
-
-&rgb_in_vopl {
-	status = "okay";
-};
-
-&rgb_in_vopb {
-	status = "disabled";
-};
-
-&route_rgb {
-	connect = <&vopl_out_rgb>;
-	status = "disabled";
-};
-
-&hevc_service {
+	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 };
 
@@ -292,7 +224,7 @@
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
-		clock-output-names = "rk808-clkout1", "rk808-clkout2";
+		clock-output-names = "xin32k", "rk808-clkout2";
 
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;
@@ -325,7 +257,6 @@
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1250000>;
 				regulator-name = "vdd_gpu";
-				regulator-ramp-delay = <6000>;
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1000000>;
@@ -505,22 +436,7 @@
 	status = "okay";
 };
 
-&io_domains {
-	status = "okay";
-
-	audio-supply = <&vcca_33>;
-	bb-supply = <&vcc_io>;
-	dvp-supply = <&vcc18_dvp>;
-	flash0-supply = <&vcc_flash>;
-	flash1-supply = <&vcc_lan>;
-	gpio30-supply = <&vcc_io>;
-	gpio1830-supply = <&vcc_io>;
-	lcdc-supply = <&vcc_io>;
-	sdcard-supply = <&vccio_sd>;
-	wifi-supply = <&vccio_wl>;
-};
-
-&rga {
+&i2c5 {
 	status = "okay";
 };
 
@@ -569,6 +485,7 @@
 };
 
 &tsadc {
+	rockchip,hw-tshut-mode = <0>;
 	rockchip,hw-tshut-polarity = <0>;
 	status = "okay";
 };
@@ -586,10 +503,6 @@
 };
 
 &vopl_mmu {
-	status = "okay";
-};
-
-&vpu_service {
 	status = "okay";
 };
 
@@ -615,17 +528,4 @@
 
 &usbphy {
 	status = "okay";
-};
-
-&usb_host0_ehci {
-	no-relinquish-port;
-	status = "okay";
-};
-
-&usb_host1 {
-	status = "okay";
-};
-
-&usb_otg {
-	status= "okay";
 };

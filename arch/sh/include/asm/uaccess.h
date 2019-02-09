@@ -151,10 +151,7 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	__kernel_size_t __copy_size = (__kernel_size_t) n;
 
 	if (__copy_size && __access_ok(__copy_from, __copy_size))
-		__copy_size = __copy_user(to, from, __copy_size);
-
-	if (unlikely(__copy_size))
-		memset(to + (n - __copy_size), 0, __copy_size);
+		return __copy_user(to, from, __copy_size);
 
 	return __copy_size;
 }

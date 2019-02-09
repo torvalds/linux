@@ -33,7 +33,6 @@ struct simple_card_data {
 	int gpio_hp_det_invert;
 	int gpio_mic_det;
 	int gpio_mic_det_invert;
-	bool codec_hp_det;
 	struct snd_soc_dai_link dai_link[];	/* dynamically allocated */
 };
 
@@ -101,7 +100,7 @@ static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 		if (ret && ret != -ENOTSUPP)
 			goto err;
 	}
-	return 0;
+
 err:
 	return ret;
 }
@@ -137,12 +136,6 @@ static struct snd_soc_jack_gpio simple_card_mic_jack_gpio = {
 	.report = SND_JACK_MICROPHONE,
 	.debounce_time = 150,
 };
-
-struct snd_soc_jack *asoc_simple_card_get_hp_jack(void)
-{
-	return &simple_card_hp_jack;
-}
-EXPORT_SYMBOL_GPL(asoc_simple_card_get_hp_jack);
 
 static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 				       struct asoc_simple_dai *set)
@@ -217,14 +210,6 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 		snd_soc_jack_add_gpios(&simple_card_mic_jack, 1,
 				       &simple_card_mic_jack_gpio);
 	}
-
-	if (priv->codec_hp_det)
-		snd_soc_card_jack_new(rtd->card, "Headphones",
-				      SND_JACK_HEADPHONE,
-				      &simple_card_hp_jack,
-				      simple_card_hp_jack_pins,
-				      ARRAY_SIZE(simple_card_hp_jack_pins));
-
 	return 0;
 }
 
@@ -358,19 +343,13 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	snprintf(prop, sizeof(prop), "%scpu", prefix);
 	cpu = of_get_child_by_name(node, prop);
 
-	if (!cpu) {
-		ret = -EINVAL;
-		dev_err(dev, "%s: Can't find %s DT node\n", __func__, prop);
-		goto dai_link_of_err;
-	}
-
 	snprintf(prop, sizeof(prop), "%splat", prefix);
 	plat = of_get_child_by_name(node, prop);
 
 	snprintf(prop, sizeof(prop), "%scodec", prefix);
 	codec = of_get_child_by_name(node, prop);
 
-	if (!codec) {
+	if (!cpu || !codec) {
 		ret = -EINVAL;
 		dev_err(dev, "%s: Can't find %s DT node\n", __func__, prop);
 		goto dai_link_of_err;
@@ -529,9 +508,6 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (priv->gpio_mic_det == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
-	priv->codec_hp_det = of_property_read_bool(node,
-				  "simple-audio-card,codec-hp-det");
-
 	if (!priv->snd_card.name)
 		priv->snd_card.name = priv->snd_card.dai_link->name;
 
@@ -583,8 +559,6 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 
 	priv->gpio_hp_det = -ENOENT;
 	priv->gpio_mic_det = -ENOENT;
-
-	priv->codec_hp_det = false;
 
 	/* Get room for the other properties */
 	priv->dai_props = devm_kzalloc(dev,
@@ -671,7 +645,6 @@ MODULE_DEVICE_TABLE(of, asoc_simple_of_match);
 static struct platform_driver asoc_simple_card = {
 	.driver = {
 		.name = "asoc-simple-card",
-		.pm = &snd_soc_pm_ops,
 		.of_match_table = asoc_simple_of_match,
 	},
 	.probe = asoc_simple_card_probe,

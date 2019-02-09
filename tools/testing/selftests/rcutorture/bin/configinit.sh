@@ -51,7 +51,7 @@ then
 			mkdir $builddir
 		fi
 	else
-		echo Bad build directory: \"$buildloc\"
+		echo Bad build directory: \"$builddir\"
 		exit 2
 	fi
 fi

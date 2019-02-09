@@ -374,7 +374,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 
 	rc = write_sync_reg(SCR_HOST_TO_READER_START, dev);
 	if (rc <= 0) {
-		DEBUGP(5, dev, "write_sync_reg c=%.2zx\n", rc);
+		DEBUGP(5, dev, "write_sync_reg c=%.2Zx\n", rc);
 		DEBUGP(2, dev, "<- cm4040_write (failed)\n");
 		if (rc == -ERESTARTSYS)
 			return rc;
@@ -387,7 +387,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 	for (i = 0; i < bytes_to_write; i++) {
 		rc = wait_for_bulk_out_ready(dev);
 		if (rc <= 0) {
-			DEBUGP(5, dev, "wait_for_bulk_out_ready rc=%.2zx\n",
+			DEBUGP(5, dev, "wait_for_bulk_out_ready rc=%.2Zx\n",
 			       rc);
 			DEBUGP(2, dev, "<- cm4040_write (failed)\n");
 			if (rc == -ERESTARTSYS)
@@ -403,7 +403,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 	rc = write_sync_reg(SCR_HOST_TO_READER_DONE, dev);
 
 	if (rc <= 0) {
-		DEBUGP(5, dev, "write_sync_reg c=%.2zx\n", rc);
+		DEBUGP(5, dev, "write_sync_reg c=%.2Zx\n", rc);
 		DEBUGP(2, dev, "<- cm4040_write (failed)\n");
 		if (rc == -ERESTARTSYS)
 			return rc;

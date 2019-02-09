@@ -80,7 +80,6 @@ static int mcryptd_init_queue(struct mcryptd_queue *queue,
 		pr_debug("cpu_queue #%d %p\n", cpu, queue->cpu_queue);
 		crypto_init_queue(&cpu_queue->queue, max_cpu_qlen);
 		INIT_WORK(&cpu_queue->work, mcryptd_queue_worker);
-		spin_lock_init(&cpu_queue->q_lock);
 	}
 	return 0;
 }
@@ -104,16 +103,15 @@ static int mcryptd_enqueue_request(struct mcryptd_queue *queue,
 	int cpu, err;
 	struct mcryptd_cpu_queue *cpu_queue;
 
-	cpu_queue = raw_cpu_ptr(queue->cpu_queue);
-	spin_lock(&cpu_queue->q_lock);
-	cpu = smp_processor_id();
-	rctx->tag.cpu = smp_processor_id();
+	cpu = get_cpu();
+	cpu_queue = this_cpu_ptr(queue->cpu_queue);
+	rctx->tag.cpu = cpu;
 
 	err = crypto_enqueue_request(&cpu_queue->queue, request);
 	pr_debug("enqueue request: cpu %d cpu_queue %p request %p\n",
 		 cpu, cpu_queue, request);
-	spin_unlock(&cpu_queue->q_lock);
 	queue_work_on(cpu, kcrypto_wq, &cpu_queue->work);
+	put_cpu();
 
 	return err;
 }
@@ -166,11 +164,16 @@ static void mcryptd_queue_worker(struct work_struct *work)
 	cpu_queue = container_of(work, struct mcryptd_cpu_queue, work);
 	i = 0;
 	while (i < MCRYPTD_BATCH || single_task_running()) {
-
-		spin_lock_bh(&cpu_queue->q_lock);
+		/*
+		 * preempt_disable/enable is used to prevent
+		 * being preempted by mcryptd_enqueue_request()
+		 */
+		local_bh_disable();
+		preempt_disable();
 		backlog = crypto_get_backlog(&cpu_queue->queue);
 		req = crypto_dequeue_request(&cpu_queue->queue);
-		spin_unlock_bh(&cpu_queue->q_lock);
+		preempt_enable();
+		local_bh_enable();
 
 		if (!req) {
 			mcryptd_opportunistic_flush();
@@ -185,7 +188,7 @@ static void mcryptd_queue_worker(struct work_struct *work)
 		++i;
 	}
 	if (cpu_queue->queue.qlen)
-		queue_work_on(smp_processor_id(), kcrypto_wq, &cpu_queue->work);
+		queue_work(kcrypto_wq, &cpu_queue->work);
 }
 
 void mcryptd_flusher(struct work_struct *__work)
@@ -255,22 +258,18 @@ out_free_inst:
 	goto out;
 }
 
-static inline bool mcryptd_check_internal(struct rtattr **tb, u32 *type,
+static inline void mcryptd_check_internal(struct rtattr **tb, u32 *type,
 					  u32 *mask)
 {
 	struct crypto_attr_type *algt;
 
 	algt = crypto_get_attr_type(tb);
 	if (IS_ERR(algt))
-		return false;
-
-	*type |= algt->type & CRYPTO_ALG_INTERNAL;
-	*mask |= algt->mask & CRYPTO_ALG_INTERNAL;
-
-	if (*type & *mask & CRYPTO_ALG_INTERNAL)
-		return true;
-	else
-		return false;
+		return;
+	if ((algt->type & CRYPTO_ALG_INTERNAL))
+		*type |= CRYPTO_ALG_INTERNAL;
+	if ((algt->mask & CRYPTO_ALG_INTERNAL))
+		*mask |= CRYPTO_ALG_INTERNAL;
 }
 
 static int mcryptd_hash_init_tfm(struct crypto_tfm *tfm)
@@ -499,8 +498,7 @@ static int mcryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	u32 mask = 0;
 	int err;
 
-	if (!mcryptd_check_internal(tb, &type, &mask))
-		return -EINVAL;
+	mcryptd_check_internal(tb, &type, &mask);
 
 	salg = shash_attr_alg(tb[1], type, mask);
 	if (IS_ERR(salg))
@@ -528,7 +526,6 @@ static int mcryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.halg.base.cra_flags = type;
 
 	inst->alg.halg.digestsize = salg->digestsize;
-	inst->alg.halg.statesize = salg->statesize;
 	inst->alg.halg.base.cra_ctxsize = sizeof(struct mcryptd_hash_ctx);
 
 	inst->alg.halg.base.cra_init = mcryptd_hash_init_tfm;

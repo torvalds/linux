@@ -83,36 +83,11 @@ static int fib_map_alloc(struct aac_dev *dev)
 
 void aac_fib_map_free(struct aac_dev *dev)
 {
-	if (dev->hw_fib_va && dev->max_fib_size) {
-		pci_free_consistent(dev->pdev,
-		(dev->max_fib_size *
-		(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB)),
-		dev->hw_fib_va, dev->hw_fib_pa);
-	}
+	pci_free_consistent(dev->pdev,
+	  dev->max_fib_size * (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB),
+	  dev->hw_fib_va, dev->hw_fib_pa);
 	dev->hw_fib_va = NULL;
 	dev->hw_fib_pa = 0;
-}
-
-void aac_fib_vector_assign(struct aac_dev *dev)
-{
-	u32 i = 0;
-	u32 vector = 1;
-	struct fib *fibptr = NULL;
-
-	for (i = 0, fibptr = &dev->fibs[i];
-		i < (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB);
-		i++, fibptr++) {
-		if ((dev->max_msix == 1) ||
-		  (i > ((dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB - 1)
-			- dev->vector_cap))) {
-			fibptr->vector_no = 0;
-		} else {
-			fibptr->vector_no = vector;
-			vector++;
-			if (vector == dev->max_msix)
-				vector = 1;
-		}
-	}
 }
 
 /**
@@ -176,12 +151,6 @@ int aac_fib_setup(struct aac_dev * dev)
 		hw_fib_pa = hw_fib_pa +
 			dev->max_fib_size + sizeof(struct aac_fib_xporthdr);
 	}
-
-	/*
-	 *Assign vector numbers to fibs
-	 */
-	aac_fib_vector_assign(dev);
-
 	/*
 	 *	Add the fib chain to the free list
 	 */
@@ -611,10 +580,10 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 					}
 					return -EFAULT;
 				}
-				/*
-				 * Allow other processes / CPUS to use core
-				 */
-				schedule();
+				/* We used to udelay() here but that absorbed
+				 * a CPU when a timeout occured. Not very
+				 * useful. */
+				cpu_relax();
 			}
 		} else if (down_interruptible(&fibptr->event_wait)) {
 			/* Do nothing ... satisfy
@@ -1321,10 +1290,9 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	host = aac->scsi_host_ptr;
 	scsi_block_requests(host);
 	aac_adapter_disable_int(aac);
-	if (aac->thread && aac->thread->pid != current->pid) {
+	if (aac->thread->pid != current->pid) {
 		spin_unlock_irq(host->host_lock);
 		kthread_stop(aac->thread);
-		aac->thread = NULL;
 		jafo = 1;
 	}
 
@@ -1364,13 +1332,13 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	 * will ensure that i/o is queisced and the card is flushed in that
 	 * case.
 	 */
-	aac_free_irq(aac);
 	aac_fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
 	aac->comm_addr = NULL;
 	aac->comm_phys = 0;
 	kfree(aac->queues);
 	aac->queues = NULL;
+	aac_free_irq(aac);
 	kfree(aac->fsa_dev);
 	aac->fsa_dev = NULL;
 	quirks = aac_get_driver_ident(index)->quirks;
@@ -1393,7 +1361,6 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 					  aac->name);
 		if (IS_ERR(aac->thread)) {
 			retval = PTR_ERR(aac->thread);
-			aac->thread = NULL;
 			goto out;
 		}
 	}
@@ -1972,10 +1939,6 @@ int aac_command_thread(void *data)
 		if (difference <= 0)
 			difference = 1;
 		set_current_state(TASK_INTERRUPTIBLE);
-
-		if (kthread_should_stop())
-			break;
-
 		schedule_timeout(difference);
 
 		if (kthread_should_stop())

@@ -135,8 +135,6 @@ struct qxl_crtc {
 	int index;
 	int cur_x;
 	int cur_y;
-	int hot_spot_x;
-	int hot_spot_y;
 };
 
 struct qxl_output {

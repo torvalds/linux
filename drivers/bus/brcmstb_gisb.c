@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2017 Broadcom
+ * Copyright (C) 2014 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -33,6 +33,8 @@
 #define  ARB_ERR_CAP_CLEAR		(1 << 0)
 #define  ARB_ERR_CAP_STATUS_TIMEOUT	(1 << 12)
 #define  ARB_ERR_CAP_STATUS_TEA		(1 << 11)
+#define  ARB_ERR_CAP_STATUS_BS_SHIFT	(1 << 2)
+#define  ARB_ERR_CAP_STATUS_BS_MASK	0x3c
 #define  ARB_ERR_CAP_STATUS_WRITE	(1 << 1)
 #define  ARB_ERR_CAP_STATUS_VALID	(1 << 0)
 
@@ -41,6 +43,7 @@ enum {
 	ARB_ERR_CAP_CLR,
 	ARB_ERR_CAP_HI_ADDR,
 	ARB_ERR_CAP_ADDR,
+	ARB_ERR_CAP_DATA,
 	ARB_ERR_CAP_STATUS,
 	ARB_ERR_CAP_MASTER,
 };
@@ -50,6 +53,7 @@ static const int gisb_offsets_bcm7038[] = {
 	[ARB_ERR_CAP_CLR]	= 0x0c4,
 	[ARB_ERR_CAP_HI_ADDR]	= -1,
 	[ARB_ERR_CAP_ADDR]	= 0x0c8,
+	[ARB_ERR_CAP_DATA]	= 0x0cc,
 	[ARB_ERR_CAP_STATUS]	= 0x0d0,
 	[ARB_ERR_CAP_MASTER]	= -1,
 };
@@ -59,6 +63,7 @@ static const int gisb_offsets_bcm7400[] = {
 	[ARB_ERR_CAP_CLR]	= 0x0c8,
 	[ARB_ERR_CAP_HI_ADDR]	= -1,
 	[ARB_ERR_CAP_ADDR]	= 0x0cc,
+	[ARB_ERR_CAP_DATA]	= 0x0d0,
 	[ARB_ERR_CAP_STATUS]	= 0x0d4,
 	[ARB_ERR_CAP_MASTER]	= 0x0d8,
 };
@@ -68,6 +73,7 @@ static const int gisb_offsets_bcm7435[] = {
 	[ARB_ERR_CAP_CLR]	= 0x168,
 	[ARB_ERR_CAP_HI_ADDR]	= -1,
 	[ARB_ERR_CAP_ADDR]	= 0x16c,
+	[ARB_ERR_CAP_DATA]	= 0x170,
 	[ARB_ERR_CAP_STATUS]	= 0x174,
 	[ARB_ERR_CAP_MASTER]	= 0x178,
 };
@@ -77,6 +83,7 @@ static const int gisb_offsets_bcm7445[] = {
 	[ARB_ERR_CAP_CLR]	= 0x7e4,
 	[ARB_ERR_CAP_HI_ADDR]	= 0x7e8,
 	[ARB_ERR_CAP_ADDR]	= 0x7ec,
+	[ARB_ERR_CAP_DATA]	= 0x7f0,
 	[ARB_ERR_CAP_STATUS]	= 0x7f4,
 	[ARB_ERR_CAP_MASTER]	= 0x7f8,
 };
@@ -98,28 +105,14 @@ static u32 gisb_read(struct brcmstb_gisb_arb_device *gdev, int reg)
 {
 	int offset = gdev->gisb_offsets[reg];
 
-	if (offset < 0) {
-		/* return 1 if the hardware doesn't have ARB_ERR_CAP_MASTER */
-		if (reg == ARB_ERR_CAP_MASTER)
-			return 1;
-		else
-			return 0;
-	}
+	/* return 1 if the hardware doesn't have ARB_ERR_CAP_MASTER */
+	if (offset == -1)
+		return 1;
 
 	if (gdev->big_endian)
 		return ioread32be(gdev->base + offset);
 	else
 		return ioread32(gdev->base + offset);
-}
-
-static u64 gisb_read_address(struct brcmstb_gisb_arb_device *gdev)
-{
-	u64 value;
-
-	value = gisb_read(gdev, ARB_ERR_CAP_ADDR);
-	value |= (u64)gisb_read(gdev, ARB_ERR_CAP_HI_ADDR) << 32;
-
-	return value;
 }
 
 static void gisb_write(struct brcmstb_gisb_arb_device *gdev, u32 val, int reg)
@@ -130,9 +123,9 @@ static void gisb_write(struct brcmstb_gisb_arb_device *gdev, u32 val, int reg)
 		return;
 
 	if (gdev->big_endian)
-		iowrite32be(val, gdev->base + offset);
+		iowrite32be(val, gdev->base + reg);
 	else
-		iowrite32(val, gdev->base + offset);
+		iowrite32(val, gdev->base + reg);
 }
 
 static ssize_t gisb_arb_get_timeout(struct device *dev,
@@ -188,7 +181,7 @@ static int brcmstb_gisb_arb_decode_addr(struct brcmstb_gisb_arb_device *gdev,
 					const char *reason)
 {
 	u32 cap_status;
-	u64 arb_addr;
+	unsigned long arb_addr;
 	u32 master;
 	const char *m_name;
 	char m_fmt[11];
@@ -200,7 +193,10 @@ static int brcmstb_gisb_arb_decode_addr(struct brcmstb_gisb_arb_device *gdev,
 		return 1;
 
 	/* Read the address and master */
-	arb_addr = gisb_read_address(gdev);
+	arb_addr = gisb_read(gdev, ARB_ERR_CAP_ADDR) & 0xffffffff;
+#if (IS_ENABLED(CONFIG_PHYS_ADDR_T_64BIT))
+	arb_addr |= (u64)gisb_read(gdev, ARB_ERR_CAP_HI_ADDR) << 32;
+#endif
 	master = gisb_read(gdev, ARB_ERR_CAP_MASTER);
 
 	m_name = brcmstb_gisb_master_to_str(gdev, master);
@@ -209,7 +205,7 @@ static int brcmstb_gisb_arb_decode_addr(struct brcmstb_gisb_arb_device *gdev,
 		m_name = m_fmt;
 	}
 
-	pr_crit("%s: %s at 0x%llx [%c %s], core: %s\n",
+	pr_crit("%s: %s at 0x%lx [%c %s], core: %s\n",
 		__func__, reason, arb_addr,
 		cap_status & ARB_ERR_CAP_STATUS_WRITE ? 'W' : 'R',
 		cap_status & ARB_ERR_CAP_STATUS_TIMEOUT ? "timeout" : "",

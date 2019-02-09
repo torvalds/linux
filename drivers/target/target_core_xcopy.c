@@ -104,7 +104,7 @@ static int target_xcopy_locate_se_dev_e4(struct se_cmd *se_cmd, struct xcopy_op 
 	}
 	mutex_unlock(&g_device_mutex);
 
-	pr_debug_ratelimited("Unable to locate 0xe4 descriptor for EXTENDED_COPY\n");
+	pr_err("Unable to locate 0xe4 descriptor for EXTENDED_COPY\n");
 	return -EINVAL;
 }
 
@@ -185,15 +185,13 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 
 static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 				struct xcopy_op *xop, unsigned char *p,
-				unsigned short tdll, sense_reason_t *sense_ret)
+				unsigned short tdll)
 {
 	struct se_device *local_dev = se_cmd->se_dev;
 	unsigned char *desc = p;
 	int offset = tdll % XCOPY_TARGET_DESC_LEN, rc, ret = 0;
 	unsigned short start = 0;
 	bool src = true;
-
-	*sense_ret = TCM_INVALID_PARAMETER_LIST;
 
 	if (offset != 0) {
 		pr_err("XCOPY target descriptor list length is not"
@@ -245,16 +243,9 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 		rc = target_xcopy_locate_se_dev_e4(se_cmd, xop, true);
 	else
 		rc = target_xcopy_locate_se_dev_e4(se_cmd, xop, false);
-	/*
-	 * If a matching IEEE NAA 0x83 descriptor for the requested device
-	 * is not located on this node, return COPY_ABORTED with ASQ/ASQC
-	 * 0x0d/0x02 - COPY_TARGET_DEVICE_NOT_REACHABLE to request the
-	 * initiator to fall back to normal copy method.
-	 */
-	if (rc < 0) {
-		*sense_ret = TCM_COPY_TARGET_DEVICE_NOT_REACHABLE;
+
+	if (rc < 0)
 		goto out;
-	}
 
 	pr_debug("XCOPY TGT desc: Source dev: %p NAA IEEE WWN: 0x%16phN\n",
 		 xop->src_dev, &xop->src_tid_wwn[0]);
@@ -662,7 +653,6 @@ static int target_xcopy_read_source(
 	rc = target_xcopy_setup_pt_cmd(xpt_cmd, xop, src_dev, &cdb[0],
 				remote_port, true);
 	if (rc < 0) {
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
 		transport_generic_free_cmd(se_cmd, 0);
 		return rc;
 	}
@@ -674,7 +664,6 @@ static int target_xcopy_read_source(
 
 	rc = target_xcopy_issue_pt_cmd(xpt_cmd);
 	if (rc < 0) {
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
 		transport_generic_free_cmd(se_cmd, 0);
 		return rc;
 	}
@@ -725,7 +714,6 @@ static int target_xcopy_write_destination(
 				remote_port, false);
 	if (rc < 0) {
 		struct se_cmd *src_cmd = &xop->src_pt_cmd->se_cmd;
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
 		/*
 		 * If the failure happened before the t_mem_list hand-off in
 		 * target_xcopy_setup_pt_cmd(), Reset memory + clear flag so that
@@ -741,7 +729,6 @@ static int target_xcopy_write_destination(
 
 	rc = target_xcopy_issue_pt_cmd(xpt_cmd);
 	if (rc < 0) {
-		ec_cmd->scsi_status = xpt_cmd->se_cmd.scsi_status;
 		se_cmd->se_cmd_flags &= ~SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
 		transport_generic_free_cmd(se_cmd, 0);
 		return rc;
@@ -828,15 +815,10 @@ static void target_xcopy_do_work(struct work_struct *work)
 out:
 	xcopy_pt_undepend_remotedev(xop);
 	kfree(xop);
-	/*
-	 * Don't override an error scsi status if it has already been set
-	 */
-	if (ec_cmd->scsi_status == SAM_STAT_GOOD) {
-		pr_warn_ratelimited("target_xcopy_do_work: rc: %d, Setting X-COPY"
-			" CHECK_CONDITION -> sending response\n", rc);
-		ec_cmd->scsi_status = SAM_STAT_CHECK_CONDITION;
-	}
-	target_complete_cmd(ec_cmd, ec_cmd->scsi_status);
+
+	pr_warn("target_xcopy_do_work: Setting X-COPY CHECK_CONDITION -> sending response\n");
+	ec_cmd->scsi_status = SAM_STAT_CHECK_CONDITION;
+	target_complete_cmd(ec_cmd, SAM_STAT_CHECK_CONDITION);
 }
 
 sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
@@ -893,7 +875,7 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 		" tdll: %hu sdll: %u inline_dl: %u\n", list_id, list_id_usage,
 		tdll, sdll, inline_dl);
 
-	rc = target_xcopy_parse_target_descriptors(se_cmd, xop, &p[16], tdll, &ret);
+	rc = target_xcopy_parse_target_descriptors(se_cmd, xop, &p[16], tdll);
 	if (rc <= 0)
 		goto out;
 

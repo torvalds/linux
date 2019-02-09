@@ -15,7 +15,7 @@
 #include <sound/dmaengine_pcm.h>
 
 struct s3c_dma_params {
-	void *slave;				/* Channel ID */
+	int channel;				/* Channel ID */
 	dma_addr_t dma_addr;
 	int dma_size;			/* Size of the DMA transfer */
 	char *ch_name;

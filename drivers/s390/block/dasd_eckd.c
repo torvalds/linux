@@ -518,12 +518,10 @@ static int prefix_LRE(struct ccw1 *ccw, struct PFX_eckd_data *pfxdata,
 	pfxdata->validity.define_extent = 1;
 
 	/* private uid is kept up to date, conf_data may be outdated */
-	if (startpriv->uid.type == UA_BASE_PAV_ALIAS)
+	if (startpriv->uid.type != UA_BASE_DEVICE) {
 		pfxdata->validity.verify_base = 1;
-
-	if (startpriv->uid.type == UA_HYPER_PAV_ALIAS) {
-		pfxdata->validity.verify_base = 1;
-		pfxdata->validity.hyper_pav = 1;
+		if (startpriv->uid.type == UA_HYPER_PAV_ALIAS)
+			pfxdata->validity.hyper_pav = 1;
 	}
 
 	/* define extend data (mostly)*/
@@ -2101,11 +2099,8 @@ static int dasd_eckd_basic_to_ready(struct dasd_device *device)
 
 static int dasd_eckd_online_to_ready(struct dasd_device *device)
 {
-	if (cancel_work_sync(&device->reload_device))
-		dasd_put_device(device);
-	if (cancel_work_sync(&device->kick_validate))
-		dasd_put_device(device);
-
+	cancel_work_sync(&device->reload_device);
+	cancel_work_sync(&device->kick_validate);
 	return 0;
 };
 
@@ -3007,12 +3002,10 @@ static int prepare_itcw(struct itcw *itcw,
 	pfxdata.validity.define_extent = 1;
 
 	/* private uid is kept up to date, conf_data may be outdated */
-	if (startpriv->uid.type == UA_BASE_PAV_ALIAS)
+	if (startpriv->uid.type != UA_BASE_DEVICE) {
 		pfxdata.validity.verify_base = 1;
-
-	if (startpriv->uid.type == UA_HYPER_PAV_ALIAS) {
-		pfxdata.validity.verify_base = 1;
-		pfxdata.validity.hyper_pav = 1;
+		if (startpriv->uid.type == UA_HYPER_PAV_ALIAS)
+			pfxdata.validity.hyper_pav = 1;
 	}
 
 	switch (cmd) {

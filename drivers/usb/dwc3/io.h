@@ -26,6 +26,7 @@
 
 static inline u32 dwc3_readl(void __iomem *base, u32 offset)
 {
+	u32 offs = offset - DWC3_GLOBALS_REGS_START;
 	u32 value;
 
 	/*
@@ -33,7 +34,7 @@ static inline u32 dwc3_readl(void __iomem *base, u32 offset)
 	 * space, see dwc3_probe in core.c.
 	 * However, the offsets are given starting from xHCI address space.
 	 */
-	value = readl(base + offset - DWC3_GLOBALS_REGS_START);
+	value = readl(base + offs);
 
 	/*
 	 * When tracing we want to make it easy to find the correct address on
@@ -48,12 +49,14 @@ static inline u32 dwc3_readl(void __iomem *base, u32 offset)
 
 static inline void dwc3_writel(void __iomem *base, u32 offset, u32 value)
 {
+	u32 offs = offset - DWC3_GLOBALS_REGS_START;
+
 	/*
 	 * We requested the mem region starting from the Globals address
 	 * space, see dwc3_probe in core.c.
 	 * However, the offsets are given starting from xHCI address space.
 	 */
-	writel(value, base + offset - DWC3_GLOBALS_REGS_START);
+	writel(value, base + offs);
 
 	/*
 	 * When tracing we want to make it easy to find the correct address on

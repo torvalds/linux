@@ -200,7 +200,6 @@ CFLAGS += -I$(src-perf)/arch/$(ARCH)/include
 CFLAGS += -I$(srctree)/tools/include/
 CFLAGS += -I$(srctree)/arch/$(ARCH)/include/uapi
 CFLAGS += -I$(srctree)/arch/$(ARCH)/include
-CFLAGS += -I$(srctree)/tools/arch/$(ARCH)/include
 CFLAGS += -I$(srctree)/include/uapi
 CFLAGS += -I$(srctree)/include
 
@@ -434,24 +433,6 @@ endif
 grep-libs  = $(filter -l%,$(1))
 strip-libs = $(filter-out -l%,$(1))
 
-ifdef CSTRACE_PATH
-  ifeq (${IS_64_BIT}, 1)
-    CSTRACE_LNX = linux64
-  else
-    CSTRACE_LNX = linux
-  endif
-  ifeq (${DEBUG}, 1)
-    LIBCSTRACE = -lcstraced_c_api -lcstraced
-    CSTRACE_LIB_PATH = $(CSTRACE_PATH)/lib/$(CSTRACE_LNX)/dbg
-  else
-    LIBCSTRACE = -lcstraced_c_api -lcstraced
-    CSTRACE_LIB_PATH = $(CSTRACE_PATH)/lib/$(CSTRACE_LNX)/rel
-  endif
-  $(call detected,CSTRACE)
-  $(call detected_var,CSTRACE_PATH)
-  EXTLIBS += -L$(CSTRACE_LIB_PATH) $(LIBCSTRACE) -lstdc++
-endif
-
 ifdef NO_LIBPERL
   CFLAGS += -DNO_LIBPERL
 else
@@ -666,14 +647,9 @@ ifdef LIBBABELTRACE
 endif
 
 ifndef NO_AUXTRACE
-  ifeq ($(ARCH),x86)
-    ifeq ($(feature-get_cpuid), 0)
-      msg := $(warning Your gcc lacks the __get_cpuid() builtin, disables support for auxtrace/Intel PT, please install a newer gcc);
-      NO_AUXTRACE := 1
-    else
-      $(call detected,CONFIG_AUXTRACE)
-      CFLAGS += -DHAVE_AUXTRACE_SUPPORT
-    endif
+  ifeq ($(feature-get_cpuid), 0)
+    msg := $(warning Your gcc lacks the __get_cpuid() builtin, disables support for auxtrace/Intel PT, please install a newer gcc);
+    NO_AUXTRACE := 1
   else
     $(call detected,CONFIG_AUXTRACE)
     CFLAGS += -DHAVE_AUXTRACE_SUPPORT

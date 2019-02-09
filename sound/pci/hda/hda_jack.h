@@ -21,7 +21,7 @@ struct hda_jack_callback;
 typedef void (*hda_jack_callback_fn) (struct hda_codec *, struct hda_jack_callback *);
 
 struct hda_jack_callback {
-	hda_nid_t nid;
+	struct hda_jack_tbl *tbl;
 	hda_jack_callback_fn func;
 	unsigned int private_data;	/* arbitrary data */
 	struct hda_jack_callback *next;

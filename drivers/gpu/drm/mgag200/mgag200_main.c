@@ -145,8 +145,6 @@ static int mga_vram_init(struct mga_device *mdev)
 	}
 
 	mem = pci_iomap(mdev->dev->pdev, 0, 0);
-	if (!mem)
-		return -ENOMEM;
 
 	mdev->mc.vram_size = mga_probe_vram(mdev, mem);
 

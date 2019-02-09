@@ -227,7 +227,8 @@ struct wbcir_data {
 
 static enum wbcir_protocol protocol = IR_PROTOCOL_RC6;
 module_param(protocol, uint, 0444);
-MODULE_PARM_DESC(protocol, "IR protocol to use for the power-on command (0 = RC5, 1 = NEC, 2 = RC6A, default)");
+MODULE_PARM_DESC(protocol, "IR protocol to use for the power-on command "
+		 "(0 = RC5, 1 = NEC, 2 = RC6A, default)");
 
 static bool invert; /* default = 0 */
 module_param(invert, bool, 0444);
@@ -243,7 +244,8 @@ MODULE_PARM_DESC(wake_sc, "Scancode of the power-on IR command");
 
 static unsigned int wake_rc6mode = 6;
 module_param(wake_rc6mode, uint, 0644);
-MODULE_PARM_DESC(wake_rc6mode, "RC6 mode for the power-on command (0 = 0, 6 = 6A, default)");
+MODULE_PARM_DESC(wake_rc6mode, "RC6 mode for the power-on command "
+		 "(0 = 0, 6 = 6A, default)");
 
 
 
@@ -340,11 +342,11 @@ wbcir_carrier_report(struct wbcir_data *data)
 			inb(data->ebase + WBCIR_REG_ECEIR_CNT_HI) << 8;
 
 	if (counter > 0 && counter < 0xffff) {
-		struct ir_raw_event ev = {
-			.carrier_report = 1,
-			.carrier = DIV_ROUND_CLOSEST(counter * 1000000u,
-						data->pulse_duration)
-		};
+		DEFINE_IR_RAW_EVENT(ev);
+
+		ev.carrier_report = 1;
+		ev.carrier = DIV_ROUND_CLOSEST(counter * 1000000u,
+						data->pulse_duration);
 
 		ir_raw_event_store(data->dev, &ev);
 	}
@@ -380,7 +382,7 @@ static void
 wbcir_irq_rx(struct wbcir_data *data, struct pnp_dev *device)
 {
 	u8 irdata;
-	struct ir_raw_event rawir = {};
+	DEFINE_IR_RAW_EVENT(rawir);
 	unsigned duration;
 
 	/* Since RXHDLEV is set, at least 8 bytes are in the FIFO */
@@ -1044,7 +1046,8 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 		goto exit_free_data;
 	}
 
-	dev_dbg(&device->dev, "Found device (w: 0x%lX, e: 0x%lX, s: 0x%lX, i: %u)\n",
+	dev_dbg(&device->dev, "Found device "
+		"(w: 0x%lX, e: 0x%lX, s: 0x%lX, i: %u)\n",
 		data->wbase, data->ebase, data->sbase, data->irq);
 
 	data->led.name = "cir::activity";
@@ -1055,14 +1058,15 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	if (err)
 		goto exit_free_data;
 
-	data->dev = rc_allocate_device(RC_DRIVER_IR_RAW);
+	data->dev = rc_allocate_device();
 	if (!data->dev) {
 		err = -ENOMEM;
 		goto exit_unregister_led;
 	}
 
+	data->dev->driver_type = RC_DRIVER_IR_RAW;
 	data->dev->driver_name = DRVNAME;
-	data->dev->device_name = WBCIR_NAME;
+	data->dev->input_name = WBCIR_NAME;
 	data->dev->input_phys = "wbcir/cir0";
 	data->dev->input_id.bustype = BUS_HOST;
 	data->dev->input_id.vendor = PCI_VENDOR_ID_WINBOND;

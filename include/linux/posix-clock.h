@@ -59,23 +59,23 @@ struct posix_clock_operations {
 
 	int  (*clock_adjtime)(struct posix_clock *pc, struct timex *tx);
 
-	int  (*clock_gettime)(struct posix_clock *pc, struct timespec64 *ts);
+	int  (*clock_gettime)(struct posix_clock *pc, struct timespec *ts);
 
-	int  (*clock_getres) (struct posix_clock *pc, struct timespec64 *ts);
+	int  (*clock_getres) (struct posix_clock *pc, struct timespec *ts);
 
 	int  (*clock_settime)(struct posix_clock *pc,
-			      const struct timespec64 *ts);
+			      const struct timespec *ts);
 
 	int  (*timer_create) (struct posix_clock *pc, struct k_itimer *kit);
 
 	int  (*timer_delete) (struct posix_clock *pc, struct k_itimer *kit);
 
 	void (*timer_gettime)(struct posix_clock *pc,
-			      struct k_itimer *kit, struct itimerspec64 *tsp);
+			      struct k_itimer *kit, struct itimerspec *tsp);
 
 	int  (*timer_settime)(struct posix_clock *pc,
 			      struct k_itimer *kit, int flags,
-			      struct itimerspec64 *tsp, struct itimerspec64 *old);
+			      struct itimerspec *tsp, struct itimerspec *old);
 	/*
 	 * Optional character device methods:
 	 */

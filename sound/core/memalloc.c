@@ -25,7 +25,6 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/genalloc.h>
-#include <linux/of.h>
 #include <sound/memalloc.h>
 
 /*
@@ -193,15 +192,6 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		snd_malloc_dev_iram(dmab, size);
 		if (dmab->area)
 			break;
-#ifdef CONFIG_SND_SOC_ROCKCHIP_FORCE_SRAM
-		if (device->of_node) {
-			if (of_property_read_bool(device->of_node,
-						  "rockchip,force-iram")) {
-				dev_err(device, "iram space is not enough!\n");
-				break;
-			}
-		}
-#endif
 		/* Internal memory might have limited size and no enough space,
 		 * so if we fail to malloc, try to fetch memory traditionally.
 		 */
@@ -249,12 +239,16 @@ int snd_dma_alloc_pages_fallback(int type, struct device *device, size_t size,
 	int err;
 
 	while ((err = snd_dma_alloc_pages(type, device, size, dmab)) < 0) {
+		size_t aligned_size;
 		if (err != -ENOMEM)
 			return err;
 		if (size <= PAGE_SIZE)
 			return -ENOMEM;
-		size >>= 1;
-		size = PAGE_SIZE << get_order(size);
+		aligned_size = PAGE_SIZE << get_order(size);
+		if (size != aligned_size)
+			size = aligned_size;
+		else
+			size >>= 1;
 	}
 	if (! dmab->area)
 		return -ENOMEM;

@@ -24,14 +24,10 @@ obj-$(CONFIG_DVB_CORE)  += dvb-core/
 # There are both core and drivers at RC subtree - merge before drivers
 obj-y += rc/
 
-obj-$(CONFIG_CEC_CORE) += cec/
-
 #
 # Finally, merge the drivers that require the core
 #
 
-obj-y += common/ platform/ pci/ usb/ mmc/ firewire/ spi/
+obj-y += common/ platform/ pci/ usb/ mmc/ firewire/
 obj-$(CONFIG_VIDEO_DEV) += radio/
-obj-$(CONFIG_CAMSYS_DRV) += video/rk_camsys/
-obj-$(CONFIG_ROCK_CHIP_SOC_CAMERA) += video/
 

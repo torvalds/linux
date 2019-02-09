@@ -43,14 +43,17 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
 	struct xmp_dec *data = &dev->raw->xmp;
 
+	if (!(dev->enabled_protocols & RC_BIT_XMP))
+		return 0;
+
 	if (!is_timing_event(ev)) {
 		if (ev.reset)
 			data->state = STATE_INACTIVE;
 		return 0;
 	}
 
-	dev_dbg(&dev->dev, "XMP decode started at state %d %d (%uus %s)\n",
-		data->state, data->count, TO_US(ev.duration), TO_STR(ev.pulse));
+	IR_dprintk(2, "XMP decode started at state %d %d (%uus %s)\n",
+		   data->state, data->count, TO_US(ev.duration), TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -85,7 +88,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			u32 scancode;
 
 			if (data->count != 16) {
-				dev_dbg(&dev->dev, "received TRAILER period at index %d: %u\n",
+				IR_dprintk(2, "received TRAILER period at index %d: %u\n",
 					data->count, ev.duration);
 				data->state = STATE_INACTIVE;
 				return -EINVAL;
@@ -99,8 +102,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			 */
 			divider = (n[3] - XMP_NIBBLE_PREFIX) / 15 - 2000;
 			if (divider < 50) {
-				dev_dbg(&dev->dev, "divider to small %d.\n",
-					divider);
+				IR_dprintk(2, "divider to small %d.\n", divider);
 				data->state = STATE_INACTIVE;
 				return -EINVAL;
 			}
@@ -114,7 +116,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 				n[12] + n[13] + n[14] + n[15]) % 16;
 
 			if (sum1 != 15 || sum2 != 15) {
-				dev_dbg(&dev->dev, "checksum errors sum1=0x%X sum2=0x%X\n",
+				IR_dprintk(2, "checksum errors sum1=0x%X sum2=0x%X\n",
 					sum1, sum2);
 				data->state = STATE_INACTIVE;
 				return -EINVAL;
@@ -128,24 +130,24 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			obc1 = n[12] << 4 | n[13];
 			obc2 = n[14] << 4 | n[15];
 			if (subaddr != subaddr2) {
-				dev_dbg(&dev->dev, "subaddress nibbles mismatch 0x%02X != 0x%02X\n",
+				IR_dprintk(2, "subaddress nibbles mismatch 0x%02X != 0x%02X\n",
 					subaddr, subaddr2);
 				data->state = STATE_INACTIVE;
 				return -EINVAL;
 			}
 			if (oem != 0x44)
-				dev_dbg(&dev->dev, "Warning: OEM nibbles 0x%02X. Expected 0x44\n",
+				IR_dprintk(1, "Warning: OEM nibbles 0x%02X. Expected 0x44\n",
 					oem);
 
 			scancode = addr << 24 | subaddr << 16 |
 				   obc1 << 8 | obc2;
-			dev_dbg(&dev->dev, "XMP scancode 0x%06x\n", scancode);
+			IR_dprintk(1, "XMP scancode 0x%06x\n", scancode);
 
 			if (toggle == 0) {
-				rc_keydown(dev, RC_PROTO_XMP, scancode, 0);
+				rc_keydown(dev, RC_TYPE_XMP, scancode, 0);
 			} else {
 				rc_repeat(dev);
-				dev_dbg(&dev->dev, "Repeat last key\n");
+				IR_dprintk(1, "Repeat last key\n");
 			}
 			data->state = STATE_INACTIVE;
 
@@ -154,7 +156,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		} else if (geq_margin(ev.duration, XMP_HALFFRAME_SPACE, XMP_NIBBLE_PREFIX)) {
 			/* Expect 8 or 16 nibble pulses. 16 in case of 'final' frame */
 			if (data->count == 16) {
-				dev_dbg(&dev->dev, "received half frame pulse at index %d. Probably a final frame key-up event: %u\n",
+				IR_dprintk(2, "received half frame pulse at index %d. Probably a final frame key-up event: %u\n",
 					data->count, ev.duration);
 				/*
 				 * TODO: for now go back to half frame position
@@ -165,7 +167,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			}
 
 			else if (data->count != 8)
-				dev_dbg(&dev->dev, "received half frame pulse at index %d: %u\n",
+				IR_dprintk(2, "received half frame pulse at index %d: %u\n",
 					data->count, ev.duration);
 			data->state = STATE_LEADER_PULSE;
 
@@ -174,7 +176,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		} else if (geq_margin(ev.duration, XMP_NIBBLE_PREFIX, XMP_UNIT)) {
 			/* store nibble raw data, decode after trailer */
 			if (data->count == 16) {
-				dev_dbg(&dev->dev, "to many pulses (%d) ignoring: %u\n",
+				IR_dprintk(2, "to many pulses (%d) ignoring: %u\n",
 					data->count, ev.duration);
 				data->state = STATE_INACTIVE;
 				return -EINVAL;
@@ -190,16 +192,15 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		break;
 	}
 
-	dev_dbg(&dev->dev, "XMP decode failed at count %d state %d (%uus %s)\n",
-		data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	IR_dprintk(1, "XMP decode failed at count %d state %d (%uus %s)\n",
+		   data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
 
 static struct ir_raw_handler xmp_handler = {
-	.protocols	= RC_PROTO_BIT_XMP,
+	.protocols	= RC_BIT_XMP,
 	.decode		= ir_xmp_decode,
-	.min_timeout	= XMP_TRAILER_SPACE,
 };
 
 static int __init ir_xmp_decode_init(void)

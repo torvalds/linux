@@ -191,7 +191,7 @@ STORE(__cached_dev)
 {
 	struct cached_dev *dc = container_of(kobj, struct cached_dev,
 					     disk.kobj);
-	ssize_t v;
+	unsigned v = size;
 	struct cache_set *c;
 	struct kobj_uevent_env *env;
 
@@ -226,7 +226,7 @@ STORE(__cached_dev)
 		bch_cached_dev_run(dc);
 
 	if (attr == &sysfs_cache_mode) {
-		v = bch_read_string_list(buf, bch_cache_modes + 1);
+		ssize_t v = bch_read_string_list(buf, bch_cache_modes + 1);
 
 		if (v < 0)
 			return v;
@@ -263,20 +263,17 @@ STORE(__cached_dev)
 	}
 
 	if (attr == &sysfs_attach) {
-		uint8_t		set_uuid[16];
-
-		if (bch_parse_uuid(buf, set_uuid) < 16)
+		if (bch_parse_uuid(buf, dc->sb.set_uuid) < 16)
 			return -EINVAL;
 
-		v = -ENOENT;
 		list_for_each_entry(c, &bch_cache_sets, list) {
-			v = bch_cached_dev_attach(dc, c, set_uuid);
+			v = bch_cached_dev_attach(dc, c);
 			if (!v)
 				return size;
 		}
 
 		pr_err("Can't attach %s: cache set not found", buf);
-		return v;
+		size = v;
 	}
 
 	if (attr == &sysfs_detach && dc->disk.c)

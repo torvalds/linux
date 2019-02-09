@@ -87,12 +87,9 @@ EXPORT_SYMBOL_GPL(pkcs7_free_message);
 static int pkcs7_check_authattrs(struct pkcs7_message *msg)
 {
 	struct pkcs7_signed_info *sinfo;
-	bool want = false;
+	bool want;
 
 	sinfo = msg->signed_infos;
-	if (!sinfo)
-		goto inconsistent;
-
 	if (sinfo->authattrs) {
 		want = true;
 		msg->have_authattrs = true;
@@ -550,7 +547,9 @@ int pkcs7_sig_note_set_of_authattrs(void *context, size_t hdrlen,
 	struct pkcs7_signed_info *sinfo = ctx->sinfo;
 
 	if (!test_bit(sinfo_has_content_type, &sinfo->aa_set) ||
-	    !test_bit(sinfo_has_message_digest, &sinfo->aa_set)) {
+	    !test_bit(sinfo_has_message_digest, &sinfo->aa_set) ||
+	    (ctx->msg->data_type == OID_msIndirectData &&
+	     !test_bit(sinfo_has_ms_opus_info, &sinfo->aa_set))) {
 		pr_warn("Missing required AuthAttr\n");
 		return -EBADMSG;
 	}

@@ -1085,7 +1085,6 @@ static void __aac_shutdown(struct aac_dev * aac)
 				up(&fib->event_wait);
 		}
 		kthread_stop(aac->thread);
-		aac->thread = NULL;
 	}
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
@@ -1190,10 +1189,8 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	 *	Map in the registers from the adapter.
 	 */
 	aac->base_size = AAC_MIN_FOOTPRINT_SIZE;
-	if ((*aac_drivers[index].init)(aac)) {
-		error = -ENODEV;
+	if ((*aac_drivers[index].init)(aac))
 		goto out_unmap;
-	}
 
 	if (aac->sync_mode) {
 		if (aac_sync_mode)
@@ -1407,18 +1404,8 @@ static int aac_acquire_resources(struct aac_dev *dev)
 
 	aac_adapter_enable_int(dev);
 
-	/*max msix may change  after EEH
-	 * Re-assign vectors to fibs
-	 */
-	aac_fib_vector_assign(dev);
-
-	if (!dev->sync_mode) {
-		/* After EEH recovery or suspend resume, max_msix count
-		 * may change, therfore updating in init as well.
-		 */
-		dev->init->Sa_MSIXVectors = cpu_to_le32(dev->max_msix);
+	if (!dev->sync_mode)
 		aac_adapter_start(dev);
-	}
 	return 0;
 
 error_iounmap:

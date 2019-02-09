@@ -111,7 +111,7 @@ static int tile_gpr_set(struct task_struct *target,
 			  const void *kbuf, const void __user *ubuf)
 {
 	int ret;
-	struct pt_regs regs = *task_pt_regs(target);
+	struct pt_regs regs;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &regs, 0,
 				 sizeof(regs));
@@ -262,7 +262,7 @@ int do_syscall_trace_enter(struct pt_regs *regs)
 	if (work & _TIF_NOHZ)
 		user_exit();
 
-	if (secure_computing(NULL) == -1)
+	if (secure_computing() == -1)
 		return -1;
 
 	if (work & _TIF_SYSCALL_TRACE) {

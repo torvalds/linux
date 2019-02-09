@@ -87,11 +87,24 @@ static int utimes_common(struct path *path, struct timespec *times)
 		 */
 		newattrs.ia_valid |= ATTR_TIMES_SET;
 	} else {
-		newattrs.ia_valid |= ATTR_TOUCH;
+		/*
+		 * If times is NULL (or both times are UTIME_NOW),
+		 * then we need to check permissions, because
+		 * inode_change_ok() won't do it.
+		 */
+		error = -EACCES;
+                if (IS_IMMUTABLE(inode))
+			goto mnt_drop_write_and_out;
+
+		if (!inode_owner_or_capable(inode)) {
+			error = inode_permission(inode, MAY_WRITE);
+			if (error)
+				goto mnt_drop_write_and_out;
+		}
 	}
 retry_deleg:
 	mutex_lock(&inode->i_mutex);
-	error = notify_change2(path->mnt, path->dentry, &newattrs, &delegated_inode);
+	error = notify_change(path->dentry, &newattrs, &delegated_inode);
 	mutex_unlock(&inode->i_mutex);
 	if (delegated_inode) {
 		error = break_deleg_wait(&delegated_inode);
@@ -99,6 +112,7 @@ retry_deleg:
 			goto retry_deleg;
 	}
 
+mnt_drop_write_and_out:
 	mnt_drop_write(path->mnt);
 out:
 	return error;

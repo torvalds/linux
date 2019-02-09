@@ -299,7 +299,7 @@ typedef struct {
 	void *open_protocol_information;
 	void *protocols_per_handle;
 	void *locate_handle_buffer;
-	efi_status_t (*locate_protocol)(efi_guid_t *, void *, void **);
+	void *locate_protocol;
 	void *install_multiple_protocol_interfaces;
 	void *uninstall_multiple_protocol_interfaces;
 	void *calculate_crc32;
@@ -364,8 +364,8 @@ typedef struct {
 	u32 attributes;
 	u32 get_bar_attributes;
 	u32 set_bar_attributes;
-	u64 romsize;
-	u32 romimage;
+	uint64_t romsize;
+	void *romimage;
 } efi_pci_io_protocol_32;
 
 typedef struct {
@@ -384,8 +384,8 @@ typedef struct {
 	u64 attributes;
 	u64 get_bar_attributes;
 	u64 set_bar_attributes;
-	u64 romsize;
-	u64 romimage;
+	uint64_t romsize;
+	void *romimage;
 } efi_pci_io_protocol_64;
 
 typedef struct {
@@ -598,10 +598,6 @@ void efi_native_runtime_setup(void);
 
 #define EFI_PROPERTIES_TABLE_GUID \
     EFI_GUID(  0x880aaca3, 0x4adc, 0x4a04, 0x90, 0x79, 0xb7, 0x47, 0x34, 0x08, 0x25, 0xe5 )
-
-#define EFI_RNG_PROTOCOL_GUID \
-	EFI_GUID(0x3152bca5, 0xeade, 0x433d, \
-		 0x86, 0x2e, 0xc0, 0x1c, 0xdc, 0x29, 0x1f, 0x44)
 
 typedef struct {
 	efi_guid_t guid;
@@ -1203,10 +1199,7 @@ int efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
 struct efivar_entry *efivar_entry_find(efi_char16_t *name, efi_guid_t guid,
 				       struct list_head *head, bool remove);
 
-bool efivar_validate(efi_guid_t vendor, efi_char16_t *var_name, u8 *data,
-		     unsigned long data_size);
-bool efivar_variable_is_removable(efi_guid_t vendor, const char *name,
-				  size_t len);
+bool efivar_validate(efi_char16_t *var_name, u8 *data, unsigned long len);
 
 extern struct work_struct efivar_work;
 void efivar_run_worker(void);
@@ -1292,7 +1285,7 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 				  unsigned long *load_addr,
 				  unsigned long *load_size);
 
-efi_status_t efi_parse_options(char const *cmdline);
+efi_status_t efi_parse_options(char *cmdline);
 
 bool efi_runtime_disabled(void);
 #endif /* _LINUX_EFI_H */

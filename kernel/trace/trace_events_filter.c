@@ -322,9 +322,6 @@ static int regex_match_full(char *str, struct regex *r, int len)
 
 static int regex_match_front(char *str, struct regex *r, int len)
 {
-	if (len < r->len)
-		return 0;
-
 	if (strncmp(str, r->pattern, r->len) == 0)
 		return 1;
 	return 0;
@@ -1046,14 +1043,13 @@ static int init_pred(struct filter_parse_state *ps,
 		return -EINVAL;
 	}
 
-	if (field->filter_type == FILTER_COMM) {
-		filter_build_regex(pred);
-		fn = filter_pred_comm;
-		pred->regex.field_len = TASK_COMM_LEN;
-	} else if (is_string_field(field)) {
+	if (is_string_field(field)) {
 		filter_build_regex(pred);
 
-		if (field->filter_type == FILTER_STATIC_STRING) {
+		if (!strcmp(field->name, "comm")) {
+			fn = filter_pred_comm;
+			pred->regex.field_len = TASK_COMM_LEN;
+		} else if (field->filter_type == FILTER_STATIC_STRING) {
 			fn = filter_pred_string;
 			pred->regex.field_len = field->size;
 		} else if (field->filter_type == FILTER_DYN_STRING)
@@ -1076,7 +1072,7 @@ static int init_pred(struct filter_parse_state *ps,
 		}
 		pred->val = val;
 
-		if (field->filter_type == FILTER_CPU)
+		if (!strcmp(field->name, "cpu"))
 			fn = filter_pred_cpu;
 		else
 			fn = select_comparison_fn(pred->op, field->size,
@@ -1981,10 +1977,6 @@ static int create_filter(struct trace_event_call *call,
 		err = replace_preds(call, filter, ps, false);
 		if (err && set_str)
 			append_filter_err(ps, filter);
-	}
-	if (err && !set_str) {
-		free_event_filter(filter);
-		filter = NULL;
 	}
 	create_filter_finish(ps);
 

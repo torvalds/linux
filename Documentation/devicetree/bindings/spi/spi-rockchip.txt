@@ -6,15 +6,9 @@ and display controllers using the SPI communication interface.
 Required Properties:
 
 - compatible: should be one of the following.
-    "rockchip,px30-spi"   for px30   SoCs.
-    "rockchip,rv1108-spi" for rv1108 SoCs.
-    "rockchip,rk3036-spi" for rk3036 SoCs.
-    "rockchip,rk3066-spi" for rk3066 SoCs.
-    "rockchip,rk3188-spi" for rk3188 SoCs.
-    "rockchip,rk3228-spi" for rk3228 SoCs.
-    "rockchip,rk3288-spi" for rk3288 SoCs.
-    "rockchip,rk3368-spi" for rk3368 SoCs.
-    "rockchip,rk3399-spi" for rk3399 SoCs.
+    "rockchip,rk3066-spi" for rk3066.
+    "rockchip,rk3188-spi", "rockchip,rk3066-spi" for rk3188.
+    "rockchip,rk3288-spi", "rockchip,rk3066-spi" for rk3288.
 - reg: physical base address of the controller and length of memory mapped
        region.
 - interrupts: The interrupt number to the cpu. The interrupt specifier format
@@ -33,7 +27,7 @@ Optional Properties:
 - rx-sample-delay-ns: nanoseconds to delay after the SCLK edge before sampling
 		Rx data (may need to be fine tuned for high capacitance lines).
 		No delay (0) by default.
-- pinctrl-names: high_speed for speed is higher than 24MHz
+
 
 Example:
 
@@ -48,7 +42,4 @@ Example:
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SPI0>, <&cru PCLK_SPI0>;
 		clock-names = "spiclk", "apb_pclk";
-		pinctrl-names = "default", "high_speed";
-		pinctrl-0 = <&spi0_clk &spi0_csn0 &spi0_csn1 &spi0_miso &spi0_mosi>;
-		pinctrl-1 = <&spi0_clk_hs &spi0_csn0 &spi0_csn1 &spi0_miso_hs &spi0_mosi_hs>;
 	};

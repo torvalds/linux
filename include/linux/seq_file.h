@@ -7,10 +7,13 @@
 #include <linux/mutex.h>
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
-#include <linux/fs.h>
-#include <linux/cred.h>
 
 struct seq_operations;
+struct file;
+struct path;
+struct inode;
+struct dentry;
+struct user_namespace;
 
 struct seq_file {
 	char *buf;
@@ -24,7 +27,9 @@ struct seq_file {
 	struct mutex lock;
 	const struct seq_operations *op;
 	int poll_event;
-	const struct file *file;
+#ifdef CONFIG_USER_NS
+	struct user_namespace *user_ns;
+#endif
 	void *private;
 };
 
@@ -142,7 +147,7 @@ int seq_release_private(struct inode *, struct file *);
 static inline struct user_namespace *seq_user_ns(struct seq_file *seq)
 {
 #ifdef CONFIG_USER_NS
-	return seq->file->f_cred->user_ns;
+	return seq->user_ns;
 #else
 	extern struct user_namespace init_user_ns;
 	return &init_user_ns;

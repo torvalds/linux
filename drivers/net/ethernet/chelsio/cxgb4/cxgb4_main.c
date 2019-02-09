@@ -338,7 +338,7 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 				"Can't %s DCB Priority on port %d, TX Queue %d: err=%d\n",
 				enable ? "set" : "unset", pi->port_id, i, -err);
 		else
-			txq->dcb_prio = enable ? value : 0;
+			txq->dcb_prio = value;
 	}
 }
 #endif /* CONFIG_CHELSIO_T4_DCB */
@@ -2714,14 +2714,10 @@ static int cxgb_up(struct adapter *adap)
 		if (err)
 			goto irq_err;
 	}
-
-	mutex_lock(&uld_mutex);
 	enable_rx(adap);
 	t4_sge_start(adap);
 	t4_intr_enable(adap);
 	adap->flags |= FULL_INIT_DONE;
-	mutex_unlock(&uld_mutex);
-
 	notify_ulds(adap, CXGB4_STATE_UP);
 #if IS_ENABLED(CONFIG_IPV6)
 	update_clip(adap);

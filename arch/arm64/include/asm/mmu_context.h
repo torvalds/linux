@@ -23,12 +23,10 @@
 #include <linux/sched.h>
 
 #include <asm/cacheflush.h>
-#include <asm/cpufeature.h>
 #include <asm/proc-fns.h>
 #include <asm-generic/mm_hooks.h>
 #include <asm/cputype.h>
 #include <asm/pgtable.h>
-#include <asm/tlbflush.h>
 
 #ifdef CONFIG_PID_IN_CONTEXTIDR
 static inline void contextidr_thread_switch(struct task_struct *next)
@@ -50,20 +48,13 @@ static inline void contextidr_thread_switch(struct task_struct *next)
  */
 static inline void cpu_set_reserved_ttbr0(void)
 {
-	unsigned long ttbr = __pa_symbol(empty_zero_page);
+	unsigned long ttbr = page_to_phys(empty_zero_page);
 
 	asm(
 	"	msr	ttbr0_el1, %0			// set TTBR0\n"
 	"	isb"
 	:
 	: "r" (ttbr));
-}
-
-static inline void cpu_switch_mm(pgd_t *pgd, struct mm_struct *mm)
-{
-	BUG_ON(pgd == swapper_pg_dir);
-	cpu_set_reserved_ttbr0();
-	cpu_do_switch_mm(virt_to_phys(pgd),mm);
 }
 
 /*
@@ -82,7 +73,7 @@ static inline bool __cpu_uses_extended_idmap(void)
 /*
  * Set TCR.T0SZ to its default value (based on VA_BITS)
  */
-static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
+static inline void cpu_set_default_tcr_t0sz(void)
 {
 	unsigned long tcr;
 
@@ -95,62 +86,7 @@ static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
 	"	msr	tcr_el1, %0	;"
 	"	isb"
 	: "=&r" (tcr)
-	: "r"(t0sz), "I"(TCR_T0SZ_OFFSET), "I"(TCR_TxSZ_WIDTH));
-}
-
-#define cpu_set_default_tcr_t0sz()	__cpu_set_tcr_t0sz(TCR_T0SZ(VA_BITS))
-#define cpu_set_idmap_tcr_t0sz()	__cpu_set_tcr_t0sz(idmap_t0sz)
-
-/*
- * Remove the idmap from TTBR0_EL1 and install the pgd of the active mm.
- *
- * The idmap lives in the same VA range as userspace, but uses global entries
- * and may use a different TCR_EL1.T0SZ. To avoid issues resulting from
- * speculative TLB fetches, we must temporarily install the reserved page
- * tables while we invalidate the TLBs and set up the correct TCR_EL1.T0SZ.
- *
- * If current is a not a user task, the mm covers the TTBR1_EL1 page tables,
- * which should not be installed in TTBR0_EL1. In this case we can leave the
- * reserved page tables in place.
- */
-static inline void cpu_uninstall_idmap(void)
-{
-	struct mm_struct *mm = current->active_mm;
-
-	cpu_set_reserved_ttbr0();
-	local_flush_tlb_all();
-	cpu_set_default_tcr_t0sz();
-
-	if (mm != &init_mm && !system_uses_ttbr0_pan())
-		cpu_switch_mm(mm->pgd, mm);
-}
-
-static inline void cpu_install_idmap(void)
-{
-	cpu_set_reserved_ttbr0();
-	local_flush_tlb_all();
-	cpu_set_idmap_tcr_t0sz();
-
-	cpu_switch_mm(lm_alias(idmap_pg_dir), &init_mm);
-}
-
-/*
- * Atomically replaces the active TTBR1_EL1 PGD with a new VA-compatible PGD,
- * avoiding the possibility of conflicting TLB entries being allocated.
- */
-static inline void cpu_replace_ttbr1(pgd_t *pgd)
-{
-	typedef void (ttbr_replace_func)(phys_addr_t);
-	extern ttbr_replace_func idmap_cpu_replace_ttbr1;
-	ttbr_replace_func *replace_phys;
-
-	phys_addr_t pgd_phys = virt_to_phys(pgd);
-
-	replace_phys = (void *)__pa_symbol(idmap_cpu_replace_ttbr1);
-
-	cpu_install_idmap();
-	replace_phys(pgd_phys);
-	cpu_uninstall_idmap();
+	: "r"(TCR_T0SZ(VA_BITS)), "I"(TCR_T0SZ_OFFSET), "I"(TCR_TxSZ_WIDTH));
 }
 
 /*
@@ -181,27 +117,20 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }
 
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
-static inline void update_saved_ttbr0(struct task_struct *tsk,
-				      struct mm_struct *mm)
-{
-	if (system_uses_ttbr0_pan()) {
-		u64 ttbr;
-		BUG_ON(mm->pgd == swapper_pg_dir);
-		ttbr = virt_to_phys(mm->pgd) | ASID(mm) << 48;
-		WRITE_ONCE(task_thread_info(tsk)->ttbr0, ttbr);
-	}
-}
-#else
-static inline void update_saved_ttbr0(struct task_struct *tsk,
-				      struct mm_struct *mm)
-{
-}
-#endif
-
-static inline void __switch_mm(struct mm_struct *next)
+/*
+ * This is the actual mm switch as far as the scheduler
+ * is concerned.  No registers are touched.  We avoid
+ * calling the CPU specific function when the mm hasn't
+ * actually changed.
+ */
+static inline void
+switch_mm(struct mm_struct *prev, struct mm_struct *next,
+	  struct task_struct *tsk)
 {
 	unsigned int cpu = smp_processor_id();
+
+	if (prev == next)
+		return;
 
 	/*
 	 * init_mm.pgd does not contain any user mappings and it is always
@@ -215,27 +144,7 @@ static inline void __switch_mm(struct mm_struct *next)
 	check_and_switch_context(next, cpu);
 }
 
-static inline void
-switch_mm(struct mm_struct *prev, struct mm_struct *next,
-	  struct task_struct *tsk)
-{
-	if (prev != next)
-		__switch_mm(next);
-
-	/*
-	 * Update the saved TTBR0_EL1 of the scheduled-in task as the previous
-	 * value may have not been initialised yet (activate_mm caller) or the
-	 * ASID has changed since the last run (following the context switch
-	 * of another thread of the same process). Avoid setting the reserved
-	 * TTBR0_EL1 to swapper_pg_dir (init_mm; e.g. via idle_task_exit).
-	 */
-	if (next != &init_mm)
-		update_saved_ttbr0(tsk, next);
-}
-
 #define deactivate_mm(tsk,mm)	do { } while (0)
-#define activate_mm(prev,next)	switch_mm(prev, next, current)
-
-void post_ttbr_update_workaround(void);
+#define activate_mm(prev,next)	switch_mm(prev, next, NULL)
 
 #endif

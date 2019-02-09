@@ -195,7 +195,6 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 			    initiatorname_param->value) &&
 		   (sess_p->sess_ops->SessionType == sessiontype))) {
 			atomic_set(&sess_p->session_reinstatement, 1);
-			atomic_set(&sess_p->session_fall_back_to_erl0, 1);
 			spin_unlock(&sess_p->conn_lock);
 			iscsit_inc_session_usage_count(sess_p);
 			iscsit_stop_time2retain_timer(sess_p);
@@ -323,7 +322,8 @@ static int iscsi_login_zero_tsih_s1(
 		pr_err("idr_alloc() for sess_idr failed\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
-		goto free_sess;
+		kfree(sess);
+		return -ENOMEM;
 	}
 
 	sess->creation_time = get_jiffies_64();
@@ -339,28 +339,20 @@ static int iscsi_login_zero_tsih_s1(
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
 		pr_err("Unable to allocate memory for"
 				" struct iscsi_sess_ops.\n");
-		goto remove_idr;
+		kfree(sess);
+		return -ENOMEM;
 	}
 
 	sess->se_sess = transport_init_session(TARGET_PROT_NORMAL);
 	if (IS_ERR(sess->se_sess)) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
-		goto free_ops;
+		kfree(sess->sess_ops);
+		kfree(sess);
+		return -ENOMEM;
 	}
 
 	return 0;
-
-free_ops:
-	kfree(sess->sess_ops);
-remove_idr:
-	spin_lock_bh(&sess_idr_lock);
-	idr_remove(&sess_idr, sess->session_index);
-	spin_unlock_bh(&sess_idr_lock);
-free_sess:
-	kfree(sess);
-	conn->sess = NULL;
-	return -ENOMEM;
 }
 
 static int iscsi_login_zero_tsih_s2(
@@ -1149,13 +1141,13 @@ void iscsi_target_login_sess_out(struct iscsi_conn *conn,
 				   ISCSI_LOGIN_STATUS_INIT_ERR);
 	if (!zero_tsih || !conn->sess)
 		goto old_sess_out;
-
-	transport_free_session(conn->sess->se_sess);
-
-	spin_lock_bh(&sess_idr_lock);
-	idr_remove(&sess_idr, conn->sess->session_index);
-	spin_unlock_bh(&sess_idr_lock);
-
+	if (conn->sess->se_sess)
+		transport_free_session(conn->sess->se_sess);
+	if (conn->sess->session_index != 0) {
+		spin_lock_bh(&sess_idr_lock);
+		idr_remove(&sess_idr, conn->sess->session_index);
+		spin_unlock_bh(&sess_idr_lock);
+	}
 	kfree(conn->sess->sess_ops);
 	kfree(conn->sess);
 	conn->sess = NULL;
@@ -1226,11 +1218,9 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	flush_signals(current);
 
 	spin_lock_bh(&np->np_thread_lock);
-	if (atomic_dec_if_positive(&np->np_reset_count) >= 0) {
+	if (np->np_thread_state == ISCSI_NP_THREAD_RESET) {
 		np->np_thread_state = ISCSI_NP_THREAD_ACTIVE;
-		spin_unlock_bh(&np->np_thread_lock);
 		complete(&np->np_restart_comp);
-		return 1;
 	} else if (np->np_thread_state == ISCSI_NP_THREAD_SHUTDOWN) {
 		spin_unlock_bh(&np->np_thread_lock);
 		goto exit;
@@ -1263,8 +1253,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		goto exit;
 	} else if (rc < 0) {
 		spin_lock_bh(&np->np_thread_lock);
-		if (atomic_dec_if_positive(&np->np_reset_count) >= 0) {
-			np->np_thread_state = ISCSI_NP_THREAD_ACTIVE;
+		if (np->np_thread_state == ISCSI_NP_THREAD_RESET) {
 			spin_unlock_bh(&np->np_thread_lock);
 			complete(&np->np_restart_comp);
 			iscsit_put_transport(conn->conn_transport);
@@ -1368,9 +1357,8 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	}
 	login->zero_tsih = zero_tsih;
 
-	if (conn->sess)
-		conn->sess->se_sess->sup_prot_ops =
-			conn->conn_transport->iscsit_get_sup_prot_ops(conn);
+	conn->sess->se_sess->sup_prot_ops =
+		conn->conn_transport->iscsit_get_sup_prot_ops(conn);
 
 	tpg = conn->tpg;
 	if (!tpg) {
@@ -1444,10 +1432,6 @@ int iscsi_target_login_thread(void *arg)
 		 */
 		if (ret != 1)
 			break;
-	}
-
-	while (!kthread_should_stop()) {
-		msleep(100);
 	}
 
 	return 0;

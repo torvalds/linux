@@ -463,7 +463,6 @@ static acpi_status alienware_hdmi_command(struct hdmi_args *in_args,
 		if (obj && obj->type == ACPI_TYPE_INTEGER)
 			*out_data = (u32) obj->integer.value;
 	}
-	kfree(output.pointer);
 	return status;
 
 }

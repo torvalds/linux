@@ -488,8 +488,6 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				  tcrypt_complete, &result);
 
-	iv_len = crypto_aead_ivsize(tfm);
-
 	for (i = 0, j = 0; i < tcount; i++) {
 		if (template[i].np)
 			continue;
@@ -510,6 +508,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 		memcpy(input, template[i].input, template[i].ilen);
 		memcpy(assoc, template[i].assoc, template[i].alen);
+		iv_len = crypto_aead_ivsize(tfm);
 		if (template[i].iv)
 			memcpy(iv, template[i].iv, iv_len);
 		else
@@ -618,7 +617,7 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		j++;
 
 		if (template[i].iv)
-			memcpy(iv, template[i].iv, iv_len);
+			memcpy(iv, template[i].iv, MAX_IVLEN);
 		else
 			memset(iv, 0, MAX_IVLEN);
 
@@ -1850,7 +1849,6 @@ static int alg_test_drbg(const struct alg_test_desc *desc, const char *driver,
 static int do_test_rsa(struct crypto_akcipher *tfm,
 		       struct akcipher_testvec *vecs)
 {
-	char *xbuf[XBUFSIZE];
 	struct akcipher_request *req;
 	void *outbuf_enc = NULL;
 	void *outbuf_dec = NULL;
@@ -1859,12 +1857,9 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 	int err = -ENOMEM;
 	struct scatterlist src, dst, src_tab[2];
 
-	if (testmgr_alloc_buf(xbuf))
-		return err;
-
 	req = akcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
-		goto free_xbuf;
+		return err;
 
 	init_completion(&result.completion);
 
@@ -1882,14 +1877,9 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 	if (!outbuf_enc)
 		goto free_req;
 
-	if (WARN_ON(vecs->m_size > PAGE_SIZE))
-		goto free_all;
-
-	memcpy(xbuf[0], vecs->m, vecs->m_size);
-
 	sg_init_table(src_tab, 2);
-	sg_set_buf(&src_tab[0], xbuf[0], 8);
-	sg_set_buf(&src_tab[1], xbuf[0] + 8, vecs->m_size - 8);
+	sg_set_buf(&src_tab[0], vecs->m, 8);
+	sg_set_buf(&src_tab[1], vecs->m + 8, vecs->m_size - 8);
 	sg_init_one(&dst, outbuf_enc, out_len_max);
 	akcipher_request_set_crypt(req, src_tab, &dst, vecs->m_size,
 				   out_len_max);
@@ -1908,7 +1898,7 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 		goto free_all;
 	}
 	/* verify that encrypted message is equal to expected */
-	if (memcmp(vecs->c, outbuf_enc, vecs->c_size)) {
+	if (memcmp(vecs->c, sg_virt(req->dst), vecs->c_size)) {
 		pr_err("alg: rsa: encrypt test failed. Invalid output\n");
 		err = -EINVAL;
 		goto free_all;
@@ -1923,13 +1913,7 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 		err = -ENOMEM;
 		goto free_all;
 	}
-
-	if (WARN_ON(vecs->c_size > PAGE_SIZE))
-		goto free_all;
-
-	memcpy(xbuf[0], vecs->c, vecs->c_size);
-
-	sg_init_one(&src, xbuf[0], vecs->c_size);
+	sg_init_one(&src, vecs->c, vecs->c_size);
 	sg_init_one(&dst, outbuf_dec, out_len_max);
 	init_completion(&result.completion);
 	akcipher_request_set_crypt(req, &src, &dst, vecs->c_size, out_len_max);
@@ -1956,8 +1940,6 @@ free_all:
 	kfree(outbuf_enc);
 free_req:
 	akcipher_request_free(req);
-free_xbuf:
-	testmgr_free_buf(xbuf);
 	return err;
 }
 
@@ -3215,21 +3197,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "heh(aes)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = aes_heh_enc_tv_template,
-					.count = AES_HEH_ENC_TEST_VECTORS
-				},
-				.dec = {
-					.vecs = aes_heh_dec_tv_template,
-					.count = AES_HEH_DEC_TEST_VECTORS
-				}
-			}
-		}
-	}, {
 		.alg = "hmac(crc32)",
 		.test = alg_test_hash,
 		.suite = {
@@ -3886,22 +3853,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 				.decomp = {
 					.vecs = zlib_decomp_tv_template,
 					.count = ZLIB_DECOMP_TEST_VECTORS
-				}
-			}
-		}
-	}, {
-		.alg = "zstd",
-		.test = alg_test_comp,
-		.fips_allowed = 1,
-		.suite = {
-			.comp = {
-				.comp = {
-					.vecs = zstd_comp_tv_template,
-					.count = ZSTD_COMP_TEST_VECTORS
-				},
-				.decomp = {
-					.vecs = zstd_decomp_tv_template,
-					.count = ZSTD_DECOMP_TEST_VECTORS
 				}
 			}
 		}

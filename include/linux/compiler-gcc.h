@@ -65,40 +65,21 @@
 #endif
 
 /*
- * Feature detection for gnu_inline (gnu89 extern inline semantics). Either
- * __GNUC_STDC_INLINE__ is defined (not using gnu89 extern inline semantics,
- * and we opt in to the gnu89 semantics), or __GNUC_STDC_INLINE__ is not
- * defined so the gnu89 semantics are the default.
- */
-#ifdef __GNUC_STDC_INLINE__
-# define __gnu_inline	__attribute__((gnu_inline))
-#else
-# define __gnu_inline
-#endif
-
-/*
  * Force always-inline if the user requests it so via the .config,
- * or if gcc is too old.
- * GCC does not warn about unused static inline functions for
- * -Wunused-function.  This turns out to avoid the need for complex #ifdef
- * directives.  Suppress the warning in clang as well by using "unused"
- * function attribute, which is redundant but not harmful for gcc.
- * Prefer gnu_inline, so that extern inline functions do not emit an
- * externally visible function. This makes extern inline behave as per gnu89
- * semantics rather than c99. This prevents multiple symbol definition errors
- * of extern inline functions at link time.
- * A lot of inline functions can cause havoc with function tracing.
+ * or if gcc is too old:
  */
 #if !defined(CONFIG_ARCH_SUPPORTS_OPTIMIZED_INLINING) ||		\
     !defined(CONFIG_OPTIMIZE_INLINING) || (__GNUC__ < 4)
-#define inline \
-	inline __attribute__((always_inline, unused)) notrace __gnu_inline
+#define inline		inline		__attribute__((always_inline)) notrace
+#define __inline__	__inline__	__attribute__((always_inline)) notrace
+#define __inline	__inline	__attribute__((always_inline)) notrace
 #else
-#define inline inline		__attribute__((unused)) notrace __gnu_inline
+/* A lot of inline functions can cause havoc with function tracing */
+#define inline		inline		notrace
+#define __inline__	__inline__	notrace
+#define __inline	__inline	notrace
 #endif
 
-#define __inline__ inline
-#define __inline inline
 #define __always_inline	inline __attribute__((always_inline))
 #define  noinline	__attribute__((noinline))
 
@@ -218,7 +199,7 @@
 #define unreachable() __builtin_unreachable()
 
 /* Mark a function definition as prohibited from being cloned. */
-#define __noclone	__attribute__((__noclone__, __optimize__("no-tracer")))
+#define __noclone	__attribute__((__noclone__))
 
 #endif /* GCC_VERSION >= 40500 */
 
@@ -270,9 +251,7 @@
 #endif
 #endif /* CONFIG_ARCH_USE_BUILTIN_BSWAP */
 
-#if GCC_VERSION >= 70000
-#define KASAN_ABI_VERSION 5
-#elif GCC_VERSION >= 50000
+#if GCC_VERSION >= 50000
 #define KASAN_ABI_VERSION 4
 #elif GCC_VERSION >= 40902
 #define KASAN_ABI_VERSION 3

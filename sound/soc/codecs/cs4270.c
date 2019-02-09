@@ -148,11 +148,11 @@ SND_SOC_DAPM_OUTPUT("AOUTR"),
 };
 
 static const struct snd_soc_dapm_route cs4270_dapm_routes[] = {
-	{ "Capture", NULL, "AINL" },
-	{ "Capture", NULL, "AINR" },
+	{ "Capture", NULL, "AINA" },
+	{ "Capture", NULL, "AINB" },
 
-	{ "AOUTL", NULL, "Playback" },
-	{ "AOUTR", NULL, "Playback" },
+	{ "AOUTA", NULL, "Playback" },
+	{ "AOUTB", NULL, "Playback" },
 };
 
 /**

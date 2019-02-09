@@ -1381,8 +1381,8 @@ static int rr_close(struct net_device *dev)
 			    rrpriv->info_dma);
 	rrpriv->info = NULL;
 
-	spin_unlock_irqrestore(&rrpriv->lock, flags);
 	free_irq(pdev->irq, dev);
+	spin_unlock_irqrestore(&rrpriv->lock, flags);
 
 	return 0;
 }

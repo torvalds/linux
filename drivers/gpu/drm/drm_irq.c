@@ -73,9 +73,6 @@ static int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
 module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
 module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
 module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
-MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs] (0: never disable, <0: disable immediately)");
-MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
-MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
 
 static void store_vblank(struct drm_device *dev, unsigned int pipe,
 			 u32 vblank_count_inc,
@@ -222,64 +219,6 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	} else {
 		/* some kind of default for drivers w/o accurate vbl timestamping */
 		diff = (flags & DRM_CALLED_FROM_VBLIRQ) != 0;
-	}
-
-	/*
-	 * Within a drm_vblank_pre_modeset - drm_vblank_post_modeset
-	 * interval? If so then vblank irqs keep running and it will likely
-	 * happen that the hardware vblank counter is not trustworthy as it
-	 * might reset at some point in that interval and vblank timestamps
-	 * are not trustworthy either in that interval. Iow. this can result
-	 * in a bogus diff >> 1 which must be avoided as it would cause
-	 * random large forward jumps of the software vblank counter.
-	 */
-	if (diff > 1 && (vblank->inmodeset & 0x2)) {
-		DRM_DEBUG_VBL("clamping vblank bump to 1 on crtc %u: diffr=%u"
-			      " due to pre-modeset.\n", pipe, diff);
-		diff = 1;
-	}
-
-	/*
-	 * FIMXE: Need to replace this hack with proper seqlocks.
-	 *
-	 * Restrict the bump of the software vblank counter to a safe maximum
-	 * value of +1 whenever there is the possibility that concurrent readers
-	 * of vblank timestamps could be active at the moment, as the current
-	 * implementation of the timestamp caching and updating is not safe
-	 * against concurrent readers for calls to store_vblank() with a bump
-	 * of anything but +1. A bump != 1 would very likely return corrupted
-	 * timestamps to userspace, because the same slot in the cache could
-	 * be concurrently written by store_vblank() and read by one of those
-	 * readers without the read-retry logic detecting the collision.
-	 *
-	 * Concurrent readers can exist when we are called from the
-	 * drm_vblank_off() or drm_vblank_on() functions and other non-vblank-
-	 * irq callers. However, all those calls to us are happening with the
-	 * vbl_lock locked to prevent drm_vblank_get(), so the vblank refcount
-	 * can't increase while we are executing. Therefore a zero refcount at
-	 * this point is safe for arbitrary counter bumps if we are called
-	 * outside vblank irq, a non-zero count is not 100% safe. Unfortunately
-	 * we must also accept a refcount of 1, as whenever we are called from
-	 * drm_vblank_get() -> drm_vblank_enable() the refcount will be 1 and
-	 * we must let that one pass through in order to not lose vblank counts
-	 * during vblank irq off - which would completely defeat the whole
-	 * point of this routine.
-	 *
-	 * Whenever we are called from vblank irq, we have to assume concurrent
-	 * readers exist or can show up any time during our execution, even if
-	 * the refcount is currently zero, as vblank irqs are usually only
-	 * enabled due to the presence of readers, and because when we are called
-	 * from vblank irq we can't hold the vbl_lock to protect us from sudden
-	 * bumps in vblank refcount. Therefore also restrict bumps to +1 when
-	 * called from vblank irq.
-	 */
-	if ((diff > 1) && (atomic_read(&vblank->refcount) > 1 ||
-	    (flags & DRM_CALLED_FROM_VBLIRQ))) {
-		DRM_DEBUG_VBL("clamping vblank bump to 1 on crtc %u: diffr=%u "
-			      "refcount %u, vblirq %u\n", pipe, diff,
-			      atomic_read(&vblank->refcount),
-			      (flags & DRM_CALLED_FROM_VBLIRQ) != 0);
-		diff = 1;
 	}
 
 	DRM_DEBUG_VBL("updating vblank count on crtc %u:"
@@ -1041,14 +980,17 @@ static void send_vblank_event(struct drm_device *dev,
 		struct drm_pending_vblank_event *e,
 		unsigned long seq, struct timeval *now)
 {
+	assert_spin_locked(&dev->event_lock);
+
 	e->event.sequence = seq;
 	e->event.tv_sec = now->tv_sec;
 	e->event.tv_usec = now->tv_usec;
 
+	list_add_tail(&e->base.link,
+		      &e->base.file_priv->event_list);
+	wake_up_interruptible(&e->base.file_priv->event_wait);
 	trace_drm_vblank_event_delivered(e->base.pid, e->pipe,
 					 e->event.sequence);
-
-	drm_send_event_locked(dev, &e->base);
 }
 
 /**
@@ -1098,7 +1040,6 @@ EXPORT_SYMBOL(drm_arm_vblank_event);
 void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
 			       struct drm_pending_vblank_event *e)
 {
-	e->event.crtc_id = crtc->base.id;
 	drm_arm_vblank_event(crtc->dev, drm_crtc_index(crtc), e);
 }
 EXPORT_SYMBOL(drm_crtc_arm_vblank_event);
@@ -1145,7 +1086,6 @@ EXPORT_SYMBOL(drm_send_vblank_event);
 void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 				struct drm_pending_vblank_event *e)
 {
-	e->event.crtc_id = crtc->base.id;
 	drm_send_vblank_event(crtc->dev, drm_crtc_index(crtc), e);
 }
 EXPORT_SYMBOL(drm_crtc_send_vblank_event);
@@ -1273,9 +1213,9 @@ void drm_vblank_put(struct drm_device *dev, unsigned int pipe)
 	if (atomic_dec_and_test(&vblank->refcount)) {
 		if (drm_vblank_offdelay == 0)
 			return;
-		else if (drm_vblank_offdelay < 0)
+		else if (dev->vblank_disable_immediate || drm_vblank_offdelay < 0)
 			vblank_disable_fn((unsigned long)vblank);
-		else if (!dev->vblank_disable_immediate)
+		else
 			mod_timer(&vblank->disable_timer,
 				  jiffies + ((drm_vblank_offdelay * HZ)/1000));
 	}
@@ -1373,13 +1313,7 @@ void drm_vblank_off(struct drm_device *dev, unsigned int pipe)
 	spin_lock_irqsave(&dev->event_lock, irqflags);
 
 	spin_lock(&dev->vbl_lock);
-	DRM_DEBUG_VBL("crtc %d, vblank enabled %d, inmodeset %d\n",
-		      pipe, vblank->enabled, vblank->inmodeset);
-
-	/* Avoid redundant vblank disables without previous drm_vblank_on(). */
-	if (drm_core_check_feature(dev, DRIVER_ATOMIC) || !vblank->inmodeset)
-		vblank_disable_and_save(dev, pipe);
-
+	vblank_disable_and_save(dev, pipe);
 	wake_up(&vblank->queue);
 
 	/*
@@ -1481,9 +1415,6 @@ void drm_vblank_on(struct drm_device *dev, unsigned int pipe)
 		return;
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
-	DRM_DEBUG_VBL("crtc %d, vblank enabled %d, inmodeset %d\n",
-		      pipe, vblank->enabled, vblank->inmodeset);
-
 	/* Drop our private "prevent drm_vblank_get" refcount */
 	if (vblank->inmodeset) {
 		atomic_dec(&vblank->refcount);
@@ -1496,7 +1427,8 @@ void drm_vblank_on(struct drm_device *dev, unsigned int pipe)
 	 * re-enable interrupts if there are users left, or the
 	 * user wishes vblank interrupts to be enabled all the time.
 	 */
-	if (atomic_read(&vblank->refcount) != 0 || drm_vblank_offdelay == 0)
+	if (atomic_read(&vblank->refcount) != 0 ||
+	    (!dev->vblank_disable_immediate && drm_vblank_offdelay == 0))
 		WARN_ON(drm_vblank_enable(dev, pipe));
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
@@ -1591,7 +1523,6 @@ void drm_vblank_post_modeset(struct drm_device *dev, unsigned int pipe)
 	if (vblank->inmodeset) {
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 		dev->vblank_disable_allowed = true;
-		drm_reset_vblank_timestamp(dev, pipe);
 		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 
 		if (vblank->inmodeset & 0x2)
@@ -1903,16 +1834,6 @@ bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe)
 
 	wake_up(&vblank->queue);
 	drm_handle_vblank_events(dev, pipe);
-
-	/* With instant-off, we defer disabling the interrupt until after
-	 * we finish processing the following vblank. The disable has to
-	 * be last (after drm_handle_vblank_events) so that the timestamp
-	 * is always accurate.
-	 */
-	if (dev->vblank_disable_immediate &&
-	    drm_vblank_offdelay > 0 &&
-	    !atomic_read(&vblank->refcount))
-		vblank_disable_fn((unsigned long)vblank);
 
 	spin_unlock_irqrestore(&dev->event_lock, irqflags);
 

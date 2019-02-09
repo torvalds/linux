@@ -83,21 +83,18 @@ void coprocessor_release_all(struct thread_info *ti)
 
 void coprocessor_flush_all(struct thread_info *ti)
 {
-	unsigned long cpenable, old_cpenable;
+	unsigned long cpenable;
 	int i;
 
 	preempt_disable();
 
-	RSR_CPENABLE(old_cpenable);
 	cpenable = ti->cpenable;
-	WSR_CPENABLE(cpenable);
 
 	for (i = 0; i < XCHAL_CP_MAX; i++) {
 		if ((cpenable & 1) != 0 && coprocessor_owner[i] == ti)
 			coprocessor_flush(ti, i);
 		cpenable >>= 1;
 	}
-	WSR_CPENABLE(old_cpenable);
 
 	preempt_enable();
 }
@@ -116,10 +113,10 @@ void arch_cpu_idle(void)
 /*
  * This is called when the thread calls exit().
  */
-void exit_thread(struct task_struct *tsk)
+void exit_thread(void)
 {
 #if XTENSA_HAVE_COPROCESSORS
-	coprocessor_release_all(task_thread_info(tsk));
+	coprocessor_release_all(current_thread_info());
 #endif
 }
 

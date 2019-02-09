@@ -1,19 +1,14 @@
 #ifndef _ASM_EFI_H
 #define _ASM_EFI_H
 
-#include <asm/cpufeature.h>
 #include <asm/io.h>
-#include <asm/mmu_context.h>
 #include <asm/neon.h>
-#include <asm/tlbflush.h>
 
 #ifdef CONFIG_EFI
 extern void efi_init(void);
 #else
 #define efi_init()
 #endif
-
-int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
 
 #define efi_call_virt(f, ...)						\
 ({									\
@@ -67,36 +62,6 @@ int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
  *   into a private set of page tables. If this all succeeds, the Runtime
  *   Services are enabled and the EFI_RUNTIME_SERVICES bit set.
  */
-
-static inline void efi_set_pgd(struct mm_struct *mm)
-{
-	__switch_mm(mm);
-
-	if (system_uses_ttbr0_pan()) {
-		if (mm != current->active_mm) {
-			/*
-			 * Update the current thread's saved ttbr0 since it is
-			 * restored as part of a return from exception. Enable
-			 * access to the valid TTBR0_EL1 and invoke the errata
-			 * workaround directly since there is no return from
-			 * exception when invoking the EFI run-time services.
-			 */
-			update_saved_ttbr0(current, mm);
-			uaccess_ttbr0_enable();
-			post_ttbr_update_workaround();
-		} else {
-			/*
-			 * Defer the switch to the current thread's TTBR0_EL1
-			 * until uaccess_enable(). Restore the current
-			 * thread's saved ttbr0 corresponding to its active_mm
-			 * (if different from init_mm).
-			 */
-			uaccess_ttbr0_disable();
-			if (current->active_mm != &init_mm)
-				update_saved_ttbr0(current, current->active_mm);
-		}
-	}
-}
 
 void efi_virtmap_load(void);
 void efi_virtmap_unload(void);

@@ -159,7 +159,6 @@ config BATTERY_SBS
 
 config BATTERY_BQ27XXX
 	tristate "BQ27xxx battery driver"
-	depends on I2C || I2C=n
 	help
 	  Say Y here to enable support for batteries with BQ27xxx (I2C/HDQ) chips.
 
@@ -309,7 +308,6 @@ config BATTERY_RX51
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
 	depends on USB_PHY
-	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
 	help
 	  Say Y to enable support for USB Charger Detection with
 	  ISP1707/ISP1704 USB transceivers.
@@ -435,12 +433,6 @@ config CHARGER_BQ24735
 	help
 	  Say Y to enable support for the TI BQ24735 battery charger.
 
-config CHARGER_BQ25700
-	tristate "TI BQ25700 battery charger driver"
-	depends on REGMAP_I2C
-	help
-	  Say Y to enable support for the TI BQ25700 battery charger.
-
 config CHARGER_BQ25890
 	tristate "TI BQ25890 battery charger driver"
 	depends on I2C
@@ -457,12 +449,6 @@ config CHARGER_SMB347
 	  Say Y to include support for Summit Microelectronics SMB347
 	  Battery Charger.
 
-config CHARGER_SY6982C
-	tristate "SY6982C Charger driver"
-	depends on EXTCON
-	help
-	  Say Y to enable support for sy8963c charger.
-
 config CHARGER_TPS65090
 	tristate "TPS65090 battery charger driver"
 	depends on MFD_TPS65090
@@ -477,15 +463,6 @@ config CHARGER_TPS65217
 	 Say Y here to enable support for battery charging with TPS65217
 	 PMIC chips.
 
-config CHARGER_UNIVERSAL
-	tristate "universal Charger driver"
-	depends on EXTCON
-	help
-	  Say Y to enable support for universal charger.
-	  This driver only report charging status.
-	  Applicable to all charger IC that the
-	  charging current is determined by the hardware.
-
 config BATTERY_GAUGE_LTC2941
 	tristate "LTC2941/LTC2943 Battery Gauge Driver"
 	depends on I2C
@@ -499,20 +476,6 @@ config AB8500_BM
 	depends on AB8500_CORE && AB8500_GPADC
 	help
 	  Say Y to include support for AB8500 battery management.
-
-config BATTERY_EC
-	bool "EC Battery driver"
-	default n
-	help
-	  If you say yes here you will get support for the battery of EC.
-	  This driver can give support for EC Battery Interface.
-
-config BATTERY_CW2015
-	bool "CW2015 Battery driver"
-	default n
-	help
-	  If you say yes here you will get support for the battery of CW2015.
-	  This driver can give support for CW2015 Battery Interface.
 
 config BATTERY_GOLDFISH
 	tristate "Goldfish battery driver"
@@ -529,43 +492,6 @@ config BATTERY_RT5033
 	  This adds support for battery fuel gauge in Richtek RT5033 PMIC.
 	  The fuelgauge calculates and determines the battery state of charge
 	  according to battery open circuit voltage.
-
-config BATTERY_RK816
-	bool "RK816 Battery driver"
-	depends on MFD_RK808
-	help
-	  If you say yes here you will get support for the battery of RK816 PMIC.
-	  This driver can give support for Rk816 Battery Charge Interface.
-
-config BATTERY_RK817
-	bool "RK817 Battery driver"
-	depends on MFD_RK808
-	help
-	  If you say yes here you will get support for the battery of RK817 PMIC.
-	  This driver can give support for Rk817 Battery Interface.
-
-config CHARGER_RK817
-	bool "RK817 Charger driver"
-	depends on MFD_RK808
-	help
-	  If you say yes here you will get support for the charger of RK817 PMIC.
-	  This driver can give support for Rk817 Charger Interface.
-
-config BATTERY_RK818
-	bool "RK818 Battery driver"
-	depends on MFD_RK808
-	default n
-	help
-	  If you say yes here you will get support for the battery of RK818 PMIC.
-	  This driver can give support for Rk818 Battery Charge Interface.
-
-config CHARGER_RK818
-	bool "RK818 Charger driver"
-	depends on MFD_RK808
-	default n
-	help
-	  If you say yes here you will get support for the charger of RK818 PMIC.
-	  This driver can give support for Rk818 Charger Interface.
 
 config CHARGER_RT9455
 	tristate "Richtek RT9455 battery charger driver"

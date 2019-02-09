@@ -71,11 +71,6 @@ struct drm_prime_attachment {
 	enum dma_data_direction dir;
 };
 
-struct drm_prime_callback_data {
-	struct drm_gem_object *obj;
-	struct sg_table *sgt;
-};
-
 static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 				    struct dma_buf *dma_buf, uint32_t handle)
 {
@@ -293,32 +288,6 @@ static int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf,
 	return dev->driver->gem_prime_mmap(obj, vma);
 }
 
-static int drm_gem_dmabuf_begin_cpu_access(struct dma_buf *dma_buf,
-					   size_t start, size_t len,
-					   enum dma_data_direction dir)
-{
-	struct drm_gem_object *obj = dma_buf->priv;
-	struct drm_device *dev = obj->dev;
-
-	if (!dev->driver->gem_prime_begin_cpu_access)
-		return -ENOSYS;
-
-	return dev->driver->gem_prime_begin_cpu_access(obj, start, len, dir);
-}
-
-static void drm_gem_dmabuf_end_cpu_access(struct dma_buf *dma_buf,
-					  size_t start, size_t len,
-					  enum dma_data_direction dir)
-{
-	struct drm_gem_object *obj = dma_buf->priv;
-	struct drm_device *dev = obj->dev;
-
-	if (!dev->driver->gem_prime_end_cpu_access)
-		return;
-
-	dev->driver->gem_prime_end_cpu_access(obj, start, len, dir);
-}
-
 static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 	.attach = drm_gem_map_attach,
 	.detach = drm_gem_map_detach,
@@ -332,8 +301,6 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 	.mmap = drm_gem_dmabuf_mmap,
 	.vmap = drm_gem_dmabuf_vmap,
 	.vunmap = drm_gem_dmabuf_vunmap,
-	.begin_cpu_access = drm_gem_dmabuf_begin_cpu_access,
-	.end_cpu_access = drm_gem_dmabuf_end_cpu_access,
 };
 
 /**
@@ -366,23 +333,20 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
  * drm_gem_prime_export - helper library implementation of the export callback
  * @dev: drm_device to export from
  * @obj: GEM object to export
- * @flags: flags like DRM_CLOEXEC and DRM_RDWR
+ * @flags: flags like DRM_CLOEXEC
  *
  * This is the implementation of the gem_prime_export functions for GEM drivers
  * using the PRIME helpers.
  */
 struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
-				     struct drm_gem_object *obj,
-				     int flags)
+				     struct drm_gem_object *obj, int flags)
 {
-	struct dma_buf_export_info exp_info = {
-		.exp_name = KBUILD_MODNAME, /* white lie for debug */
-		.owner = dev->driver->fops->owner,
-		.ops = &drm_gem_prime_dmabuf_ops,
-		.size = obj->size,
-		.flags = flags,
-		.priv = obj,
-	};
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+
+	exp_info.ops = &drm_gem_prime_dmabuf_ops;
+	exp_info.size = obj->size;
+	exp_info.flags = flags;
+	exp_info.priv = obj;
 
 	if (dev->driver->gem_prime_res_obj)
 		exp_info.resv = dev->driver->gem_prime_res_obj(obj);
@@ -524,23 +488,6 @@ out_unlock:
 }
 EXPORT_SYMBOL(drm_gem_prime_handle_to_fd);
 
-static void drm_gem_prime_dmabuf_release_callback(void *data)
-{
-	struct drm_prime_callback_data *cb_data = data;
-
-	if (cb_data && cb_data->obj && cb_data->obj->import_attach) {
-		struct dma_buf_attachment *attach = cb_data->obj->import_attach;
-		struct sg_table *sgt = cb_data->sgt;
-
-		if (sgt)
-			dma_buf_unmap_attachment(attach, sgt,
-						 DMA_BIDIRECTIONAL);
-		dma_buf_detach(attach->dmabuf, attach);
-		drm_gem_object_unreference_unlocked(cb_data->obj);
-		kfree(cb_data);
-	}
-}
-
 /**
  * drm_gem_prime_import - helper library implementation of the import callback
  * @dev: drm_device to import into
@@ -555,7 +502,6 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 	struct dma_buf_attachment *attach;
 	struct sg_table *sgt;
 	struct drm_gem_object *obj;
-	struct drm_prime_callback_data *cb_data;
 	int ret;
 
 	if (dma_buf->ops == &drm_gem_prime_dmabuf_ops) {
@@ -570,13 +516,6 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 		}
 	}
 
-	cb_data = dma_buf_get_release_callback_data(dma_buf,
-					drm_gem_prime_dmabuf_release_callback);
-	if (cb_data && cb_data->obj && cb_data->obj->dev == dev) {
-		drm_gem_object_reference(cb_data->obj);
-		return cb_data->obj;
-	}
-
 	if (!dev->driver->gem_prime_import_sg_table)
 		return ERR_PTR(-EINVAL);
 
@@ -585,16 +524,11 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 		return ERR_CAST(attach);
 
 	get_dma_buf(dma_buf);
-	cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
-	if (!cb_data) {
-		ret = -ENOMEM;
-		goto fail_detach;
-	}
 
 	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
-		goto fail_free;
+		goto fail_detach;
 	}
 
 	obj = dev->driver->gem_prime_import_sg_table(dev, attach, sgt);
@@ -602,20 +536,13 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 		ret = PTR_ERR(obj);
 		goto fail_unmap;
 	}
+
 	obj->import_attach = attach;
-	cb_data->obj = obj;
-	cb_data->sgt = sgt;
-	dma_buf_set_release_callback(dma_buf,
-			drm_gem_prime_dmabuf_release_callback, cb_data);
-	dma_buf_put(dma_buf);
-	drm_gem_object_reference(obj);
 
 	return obj;
 
 fail_unmap:
 	dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
-fail_free:
-	kfree(cb_data);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
 	dma_buf_put(dma_buf);
@@ -705,6 +632,7 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv)
 {
 	struct drm_prime_handle *args = data;
+	uint32_t flags;
 
 	if (!drm_core_check_feature(dev, DRIVER_PRIME))
 		return -EINVAL;
@@ -713,11 +641,14 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 		return -ENOSYS;
 
 	/* check flags are valid */
-	if (args->flags & ~(DRM_CLOEXEC | DRM_RDWR))
+	if (args->flags & ~DRM_CLOEXEC)
 		return -EINVAL;
 
+	/* we only want to pass DRM_CLOEXEC which is == O_CLOEXEC */
+	flags = args->flags & DRM_CLOEXEC;
+
 	return dev->driver->prime_handle_to_fd(dev, file_priv,
-			args->handle, args->flags, &args->fd);
+			args->handle, flags, &args->fd);
 }
 
 int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,

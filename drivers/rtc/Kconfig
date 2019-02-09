@@ -249,12 +249,6 @@ config RTC_DRV_DS3232
 	  This driver can also be built as a module.  If so, the module
 	  will be called rtc-ds3232.
 
-config RTC_DRV_FAKE
-	tristate "FAKE RTC"
-	help
-	  This driver  as a virtual rtc module, if so, the module
-	  will be called "rtc-fake".
-
 config RTC_DRV_HYM8563
 	tristate "Haoyu Microelectronics HYM8563"
 	depends on OF
@@ -332,24 +326,14 @@ config RTC_DRV_MAX77686
 	  will be called rtc-max77686.
 
 config RTC_DRV_RK808
-	tristate "Rockchip RK808/RK816 RTC"
+	tristate "Rockchip RK808 RTC"
 	depends on MFD_RK808
 	help
 	  If you say yes here you will get support for the
-	  RTC of RK808/RK816 PMIC.
+	  RTC of RK808 PMIC.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rk808-rtc.
-
-config RTC_DRV_RK_TIMER
-	tristate "Rockchip timer RTC"
-	depends on OF
-	help
-	  If you say yes here you will get support for the
-	  RTC of Rockchip timer.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-rk-timer.
 
 config RTC_DRV_MAX77802
 	tristate "Maxim 77802 RTC"
@@ -1643,13 +1627,5 @@ config RTC_DRV_HID_SENSOR_TIME
 	  If this driver is compiled as a module, it will be named
 	  rtc-hid-sensor-time.
 
-config RTC_DRV_GOLDFISH
-	tristate "Goldfish Real Time Clock"
-	depends on MIPS && (GOLDFISH || COMPILE_TEST)
-	help
-	  Say yes to enable RTC driver for the Goldfish based virtual platform.
-
-	  Goldfish is a code name for the virtual platform developed by Google
-	  for Android emulation.
 
 endif # RTC_CLASS

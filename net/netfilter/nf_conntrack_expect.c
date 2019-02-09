@@ -395,7 +395,7 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 	struct net *net = nf_ct_exp_net(expect);
 	struct hlist_node *next;
 	unsigned int h;
-	int ret = 0;
+	int ret = 1;
 
 	if (!master_help) {
 		ret = -ESHUTDOWN;
@@ -445,7 +445,7 @@ int nf_ct_expect_related_report(struct nf_conntrack_expect *expect,
 
 	spin_lock_bh(&nf_conntrack_expect_lock);
 	ret = __nf_ct_expect_check(expect);
-	if (ret < 0)
+	if (ret <= 0)
 		goto out;
 
 	ret = nf_ct_expect_insert(expect);
@@ -560,7 +560,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 	helper = rcu_dereference(nfct_help(expect->master)->helper);
 	if (helper) {
 		seq_printf(s, "%s%s", expect->flags ? " " : "", helper->name);
-		if (helper->expect_policy[expect->class].name[0])
+		if (helper->expect_policy[expect->class].name)
 			seq_printf(s, "/%s",
 				   helper->expect_policy[expect->class].name);
 	}

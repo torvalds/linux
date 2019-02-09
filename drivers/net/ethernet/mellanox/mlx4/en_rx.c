@@ -439,14 +439,8 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		ring->cqn = priv->rx_cq[ring_ind]->mcq.cqn;
 
 		ring->stride = stride;
-		if (ring->stride <= TXBB_SIZE) {
-			/* Stamp first unused send wqe */
-			__be32 *ptr = (__be32 *)ring->buf;
-			__be32 stamp = cpu_to_be32(1 << STAMP_SHIFT);
-			*ptr = stamp;
-			/* Move pointer to start of rx section */
+		if (ring->stride <= TXBB_SIZE)
 			ring->buf += TXBB_SIZE;
-		}
 
 		ring->log_stride = ffs(ring->stride) - 1;
 		ring->buf_size = ring->size * ring->stride;
@@ -508,11 +502,8 @@ void mlx4_en_recover_from_oom(struct mlx4_en_priv *priv)
 		return;
 
 	for (ring = 0; ring < priv->rx_ring_num; ring++) {
-		if (mlx4_en_is_ring_empty(priv->rx_ring[ring])) {
-			local_bh_disable();
+		if (mlx4_en_is_ring_empty(priv->rx_ring[ring]))
 			napi_reschedule(&priv->rx_cq[ring]->napi);
-			local_bh_enable();
-		}
 	}
 }
 
@@ -713,7 +704,7 @@ static int get_fixed_ipv6_csum(__wsum hw_checksum, struct sk_buff *skb,
 
 	if (ipv6h->nexthdr == IPPROTO_FRAGMENT || ipv6h->nexthdr == IPPROTO_HOPOPTS)
 		return -1;
-	hw_checksum = csum_add(hw_checksum, (__force __wsum)htons(ipv6h->nexthdr));
+	hw_checksum = csum_add(hw_checksum, (__force __wsum)(ipv6h->nexthdr << 8));
 
 	csum_pseudo_hdr = csum_partial(&ipv6h->saddr,
 				       sizeof(ipv6h->saddr) + sizeof(ipv6h->daddr), 0);

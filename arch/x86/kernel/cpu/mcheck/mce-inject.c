@@ -152,6 +152,7 @@ static void raise_mce(struct mce *m)
 	if (context == MCJ_CTX_RANDOM)
 		return;
 
+#ifdef CONFIG_X86_LOCAL_APIC
 	if (m->inject_flags & (MCJ_IRQ_BROADCAST | MCJ_NMI_BROADCAST)) {
 		unsigned long start;
 		int cpu;
@@ -192,7 +193,9 @@ static void raise_mce(struct mce *m)
 		raise_local();
 		put_cpu();
 		put_online_cpus();
-	} else {
+	} else
+#endif
+	{
 		preempt_disable();
 		raise_local();
 		preempt_enable();

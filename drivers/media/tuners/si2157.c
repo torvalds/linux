@@ -168,7 +168,6 @@ static int si2157_init(struct dvb_frontend *fe)
 		len = fw->data[fw->size - remaining];
 		if (len > SI2157_ARGLEN) {
 			dev_err(&client->dev, "Bad firmware length\n");
-			ret = -EINVAL;
 			goto err_release_firmware;
 		}
 		memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);

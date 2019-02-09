@@ -639,11 +639,9 @@ int ocfs2_calc_xattr_init(struct inode *dir,
 						     si->value_len);
 
 	if (osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) {
-		down_read(&OCFS2_I(dir)->ip_xattr_sem);
 		acl_len = ocfs2_xattr_get_nolock(dir, dir_bh,
 					OCFS2_XATTR_INDEX_POSIX_ACL_DEFAULT,
 					"", NULL, 0);
-		up_read(&OCFS2_I(dir)->ip_xattr_sem);
 		if (acl_len > 0) {
 			a_size = ocfs2_xattr_entry_real_size(0, acl_len);
 			if (S_ISDIR(mode))
@@ -7199,10 +7197,12 @@ out:
  */
 int ocfs2_init_security_and_acl(struct inode *dir,
 				struct inode *inode,
-				const struct qstr *qstr)
+				const struct qstr *qstr,
+				struct posix_acl *default_acl,
+				struct posix_acl *acl)
 {
-	int ret = 0;
 	struct buffer_head *dir_bh = NULL;
+	int ret = 0;
 
 	ret = ocfs2_init_security_get(inode, dir, qstr, NULL);
 	if (ret) {
@@ -7215,9 +7215,11 @@ int ocfs2_init_security_and_acl(struct inode *dir,
 		mlog_errno(ret);
 		goto leave;
 	}
-	ret = ocfs2_init_acl(NULL, inode, dir, NULL, dir_bh, NULL, NULL);
-	if (ret)
-		mlog_errno(ret);
+
+	if (!ret && default_acl)
+		ret = ocfs2_iop_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+	if (!ret && acl)
+		ret = ocfs2_iop_set_acl(inode, acl, ACL_TYPE_ACCESS);
 
 	ocfs2_inode_unlock(dir, 0);
 	brelse(dir_bh);

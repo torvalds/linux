@@ -866,10 +866,8 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 
 	/* Enable 3v1 bias regulator for MADC[3:6] */
 	madc->usb3v1 = devm_regulator_get(madc->dev, "vusb3v1");
-	if (IS_ERR(madc->usb3v1)) {
-		ret = -ENODEV;
-		goto err_i2c;
-	}
+	if (IS_ERR(madc->usb3v1))
+		return -ENODEV;
 
 	ret = regulator_enable(madc->usb3v1);
 	if (ret)
@@ -878,13 +876,11 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 	ret = iio_device_register(iio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register iio device\n");
-		goto err_usb3v1;
+		goto err_i2c;
 	}
 
 	return 0;
 
-err_usb3v1:
-	regulator_disable(madc->usb3v1);
 err_i2c:
 	twl4030_madc_set_current_generator(madc, 0, 0);
 err_current_generator:

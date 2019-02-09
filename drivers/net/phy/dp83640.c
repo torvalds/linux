@@ -845,11 +845,6 @@ static void decode_rxts(struct dp83640_private *dp83640,
 	struct skb_shared_hwtstamps *shhwtstamps = NULL;
 	struct sk_buff *skb;
 	unsigned long flags;
-	u8 overflow;
-
-	overflow = (phy_rxts->ns_hi >> 14) & 0x3;
-	if (overflow)
-		pr_debug("rx timestamp queue overflow, count %d\n", overflow);
 
 	spin_lock_irqsave(&dp83640->rx_lock, flags);
 
@@ -892,7 +887,6 @@ static void decode_txts(struct dp83640_private *dp83640,
 	struct skb_shared_hwtstamps shhwtstamps;
 	struct sk_buff *skb;
 	u64 ns;
-	u8 overflow;
 
 	/* We must already have the skb that triggered this. */
 
@@ -902,17 +896,6 @@ static void decode_txts(struct dp83640_private *dp83640,
 		pr_debug("have timestamp but tx_queue empty\n");
 		return;
 	}
-
-	overflow = (phy_txts->ns_hi >> 14) & 0x3;
-	if (overflow) {
-		pr_debug("tx timestamp queue overflow, count %d\n", overflow);
-		while (skb) {
-			kfree_skb(skb);
-			skb = skb_dequeue(&dp83640->tx_queue);
-		}
-		return;
-	}
-
 	ns = phy2txts(phy_txts);
 	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 	shhwtstamps.hwtstamp = ns_to_ktime(ns);
@@ -1203,23 +1186,6 @@ static void dp83640_remove(struct phy_device *phydev)
 	kfree(dp83640);
 }
 
-static int dp83640_soft_reset(struct phy_device *phydev)
-{
-	int ret;
-
-	ret = genphy_soft_reset(phydev);
-	if (ret < 0)
-		return ret;
-
-	/* From DP83640 datasheet: "Software driver code must wait 3 us
-	 * following a software reset before allowing further serial MII
-	 * operations with the DP83640."
-	 */
-	udelay(10);		/* Taking udelay inaccuracy into account */
-
-	return 0;
-}
-
 static int dp83640_config_init(struct phy_device *phydev)
 {
 	struct dp83640_private *dp83640 = phydev->priv;
@@ -1453,6 +1419,8 @@ static bool dp83640_rxtstamp(struct phy_device *phydev,
 		skb_info->tmo = jiffies + SKB_TIMESTAMP_TIMEOUT;
 		skb_queue_tail(&dp83640->rx_queue, skb);
 		schedule_delayed_work(&dp83640->ts_work, SKB_TIMESTAMP_TIMEOUT);
+	} else {
+		netif_rx_ni(skb);
 	}
 
 	return true;
@@ -1513,7 +1481,6 @@ static struct phy_driver dp83640_driver = {
 	.flags		= PHY_HAS_INTERRUPT,
 	.probe		= dp83640_probe,
 	.remove		= dp83640_remove,
-	.soft_reset	= dp83640_soft_reset,
 	.config_init	= dp83640_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,

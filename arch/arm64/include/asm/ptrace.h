@@ -58,7 +58,6 @@
 #define COMPAT_PSR_Z_BIT	0x40000000
 #define COMPAT_PSR_N_BIT	0x80000000
 #define COMPAT_PSR_IT_MASK	0x0600fc00	/* If-Then execution state mask */
-#define COMPAT_PSR_GE_MASK	0x000f0000
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 #define COMPAT_PSR_ENDSTATE	COMPAT_PSR_E_BIT
@@ -117,11 +116,7 @@ struct pt_regs {
 	};
 	u64 orig_x0;
 	u64 syscallno;
-	u64 orig_addr_limit;
-	u64 unused;	// maintain 16 byte alignment
 };
-
-#define MAX_REG_OFFSET offsetof(struct pt_regs, pstate)
 
 #define arch_has_single_step()	(1)
 
@@ -148,75 +143,46 @@ struct pt_regs {
 #define fast_interrupts_enabled(regs) \
 	(!((regs)->pstate & PSR_F_BIT))
 
-#define GET_USP(regs) \
+#define user_stack_pointer(regs) \
 	(!compat_user_mode(regs) ? (regs)->sp : (regs)->compat_sp)
-
-#define SET_USP(ptregs, value) \
-	(!compat_user_mode(regs) ? ((regs)->sp = value) : ((regs)->compat_sp = value))
-
-extern int regs_query_register_offset(const char *name);
-extern const char *regs_query_register_name(unsigned int offset);
-extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
-					       unsigned int n);
-
-/**
- * regs_get_register() - get register value from its offset
- * @regs:	pt_regs from which register value is gotten
- * @offset:	offset of the register.
- *
- * regs_get_register returns the value of a register whose offset from @regs.
- * The @offset is the offset of the register in struct pt_regs.
- * If @offset is bigger than MAX_REG_OFFSET, this returns 0.
- */
-static inline u64 regs_get_register(struct pt_regs *regs, unsigned int offset)
-{
-	u64 val = 0;
-
-	offset >>= 3;
-	switch (offset) {
-	case 0 ... 30:
-		val = regs->regs[offset];
-		break;
-	case offsetof(struct pt_regs, sp) >> 3:
-		val = regs->sp;
-		break;
-	case offsetof(struct pt_regs, pc) >> 3:
-		val = regs->pc;
-		break;
-	case offsetof(struct pt_regs, pstate) >> 3:
-		val = regs->pstate;
-		break;
-	default:
-		val = 0;
-	}
-
-	return val;
-}
-
-/* Valid only for Kernel mode traps. */
-static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
-{
-	return regs->sp;
-}
 
 static inline unsigned long regs_return_value(struct pt_regs *regs)
 {
 	return regs->regs[0];
 }
 
-/* We must avoid circular header include via sched.h */
-struct task_struct;
-int valid_user_regs(struct user_pt_regs *regs, struct task_struct *task);
+/*
+ * Are the current registers suitable for user mode? (used to maintain
+ * security in signal handlers)
+ */
+static inline int valid_user_regs(struct user_pt_regs *regs)
+{
+	if (user_mode(regs) && (regs->pstate & PSR_I_BIT) == 0) {
+		regs->pstate &= ~(PSR_F_BIT | PSR_A_BIT);
 
-#define GET_IP(regs)		((unsigned long)(regs)->pc)
-#define SET_IP(regs, value)	((regs)->pc = ((u64) (value)))
+		/* The T bit is reserved for AArch64 */
+		if (!(regs->pstate & PSR_MODE32_BIT))
+			regs->pstate &= ~COMPAT_PSR_T_BIT;
 
-#define GET_FP(ptregs)		((unsigned long)(ptregs)->regs[29])
-#define SET_FP(ptregs, value)	((ptregs)->regs[29] = ((u64) (value)))
+		return 1;
+	}
 
-#include <asm-generic/ptrace.h>
+	/*
+	 * Force PSR to something logical...
+	 */
+	regs->pstate &= PSR_f | PSR_s | (PSR_x & ~PSR_A_BIT) | \
+			COMPAT_PSR_T_BIT | PSR_MODE32_BIT;
 
-#undef profile_pc
+	if (!(regs->pstate & PSR_MODE32_BIT)) {
+		regs->pstate &= ~COMPAT_PSR_T_BIT;
+		regs->pstate |= PSR_MODE_EL0t;
+	}
+
+	return 0;
+}
+
+#define instruction_pointer(regs)	((unsigned long)(regs)->pc)
+
 extern unsigned long profile_pc(struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */

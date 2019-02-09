@@ -547,10 +547,8 @@ int snd_hda_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
 		return err;
 	strlcpy(pcm->name, cpcm->name, sizeof(pcm->name));
 	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
-	if (apcm == NULL) {
-		snd_device_free(chip->card, pcm);
+	if (apcm == NULL)
 		return -ENOMEM;
-	}
 	apcm->chip = chip;
 	apcm->pcm = pcm;
 	apcm->codec = codec;
@@ -958,7 +956,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 	status = azx_readb(chip, RIRBSTS);
 	if (status & RIRB_INT_MASK) {
 		if (status & RIRB_INT_RESPONSE) {
-			if (chip->driver_caps & AZX_DCAPS_CTX_WORKAROUND)
+			if (chip->driver_caps & AZX_DCAPS_RIRB_PRE_DELAY)
 				udelay(80);
 			snd_hdac_bus_update_rirb(bus);
 		}
@@ -1057,6 +1055,11 @@ int azx_bus_init(struct azx *chip, const char *model,
 	if (chip->driver_caps & AZX_DCAPS_CORBRP_SELF_CLEAR)
 		bus->core.corbrp_self_clear = true;
 
+	if (chip->driver_caps & AZX_DCAPS_RIRB_DELAY) {
+		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
+		bus->needs_damn_long_delay = 1;
+	}
+
 	if (chip->driver_caps & AZX_DCAPS_4K_BDLE_BOUNDARY)
 		bus->core.align_bdle_4k = true;
 
@@ -1130,12 +1133,8 @@ EXPORT_SYMBOL_GPL(azx_probe_codecs);
 /* configure each codec instance */
 int azx_codec_configure(struct azx *chip)
 {
-	struct hda_codec *codec, *next;
-
-	/* use _safe version here since snd_hda_codec_configure() deregisters
-	 * the device upon error and deletes itself from the bus list.
-	 */
-	list_for_each_codec_safe(codec, next, &chip->bus) {
+	struct hda_codec *codec;
+	list_for_each_codec(codec, &chip->bus) {
 		snd_hda_codec_configure(codec);
 	}
 	return 0;

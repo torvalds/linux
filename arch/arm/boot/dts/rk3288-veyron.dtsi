@@ -49,7 +49,7 @@
 / {
 	memory {
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x80000000>;
+		reg = <0x0 0x80000000>;
 	};
 
 	gpio_keys: gpio-keys {
@@ -81,6 +81,19 @@
 		pinctrl-0 = <&emmc_reset>;
 		pinctrl-names = "default";
 		reset-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+	};
+
+	io_domains: io-domains {
+		compatible = "rockchip,rk3288-io-voltage-domain";
+		rockchip,grf = <&grf>;
+
+		bb-supply = <&vcc33_io>;
+		dvp-supply = <&vcc_18>;
+		flash0-supply = <&vcc18_flashio>;
+		gpio1830-supply = <&vcc33_io>;
+		gpio30-supply = <&vcc33_io>;
+		lcdc-supply = <&vcc33_lcd>;
+		wifi-supply = <&vcc18_wl>;
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
@@ -124,13 +137,6 @@
 		regulator-boot-on;
 		vin-supply = <&vcc_5v>;
 	};
-
-	xin32k: xin32k {
-		compatible = "fixed-clock";
-		clock-frequency = <32768>;
-		clock-output-names = "xin32k";
-		#clock-cells = <0>;
-	};
 };
 
 &cpu0 {
@@ -140,6 +146,7 @@
 &emmc {
 	status = "okay";
 
+	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	rockchip,default-sample-phase = <158>;
@@ -153,6 +160,7 @@
 };
 
 &hdmi {
+	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 };
 
@@ -166,7 +174,7 @@
 	rk808: pmic@1b {
 		compatible = "rockchip,rk808";
 		reg = <0x1b>;
-		clock-output-names = "rk808-clkout1", "wifibt_32kin";
+		clock-output-names = "xin32k", "wifibt_32kin";
 		interrupt-parent = <&gpio0>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
@@ -324,16 +332,12 @@
 	i2c-scl-rising-time-ns = <300>;		/* 225ns measured */
 };
 
-&io_domains {
+&i2c5 {
 	status = "okay";
 
-	bb-supply = <&vcc33_io>;
-	dvp-supply = <&vcc_18>;
-	flash0-supply = <&vcc18_flashio>;
-	gpio1830-supply = <&vcc33_io>;
-	gpio30-supply = <&vcc33_io>;
-	lcdc-supply = <&vcc33_lcd>;
-	wifi-supply = <&vcc18_wl>;
+	clock-frequency = <100000>;
+	i2c-scl-falling-time-ns = <300>;
+	i2c-scl-rising-time-ns = <1000>;
 };
 
 &pwm1 {
@@ -343,6 +347,7 @@
 &sdio0 {
 	status = "okay";
 
+	broken-cd;
 	bus-width = <4>;
 	cap-sd-highspeed;
 	cap-sdio-irq;
@@ -371,7 +376,6 @@
 
 	rockchip,hw-tshut-mode = <1>; /* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-polarity = <1>; /* tshut polarity 0:LOW 1:HIGH */
-	pinctrl-1 = <&otp_out>;
 };
 
 &uart0 {
@@ -412,7 +416,7 @@
 	status = "okay";
 
 	assigned-clocks = <&cru SCLK_USBPHY480M_SRC>;
-	assigned-clock-parents = <&usbphy0>;
+	assigned-clock-parents = <&cru SCLK_OTGPHY0>;
 	dr_mode = "host";
 };
 

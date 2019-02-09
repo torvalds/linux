@@ -43,6 +43,8 @@ static void __enqueue_in_driver(struct vb2_buffer *vb);
 static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 {
 	struct vb2_queue *q = vb->vb2_queue;
+	enum dma_data_direction dma_dir =
+		q->is_output ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	void *mem_priv;
 	int plane;
 
@@ -54,7 +56,7 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 		unsigned long size = PAGE_ALIGN(q->plane_sizes[plane]);
 
 		mem_priv = call_ptr_memop(vb, alloc, q->alloc_ctx[plane],
-				      size, q->dma_dir, q->gfp_flags);
+				      size, dma_dir, q->gfp_flags);
 		if (IS_ERR_OR_NULL(mem_priv))
 			goto free;
 
@@ -202,10 +204,6 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 	unsigned int buffer;
 	struct vb2_buffer *vb;
 	int ret;
-
-	/* Ensure that q->num_buffers+num_buffers is below VB2_MAX_FRAME */
-	num_buffers = min_t(unsigned int, num_buffers,
-			    VB2_MAX_FRAME - q->num_buffers);
 
 	for (buffer = 0; buffer < num_buffers; ++buffer) {
 		/* Allocate videobuf buffer structures */
@@ -795,7 +793,7 @@ EXPORT_SYMBOL_GPL(vb2_core_create_bufs);
  */
 void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_no)
 {
-	if (plane_no >= vb->num_planes || !vb->planes[plane_no].mem_priv)
+	if (plane_no > vb->num_planes || !vb->planes[plane_no].mem_priv)
 		return NULL;
 
 	return call_ptr_memop(vb, vaddr, vb->planes[plane_no].mem_priv);
@@ -945,6 +943,8 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const void *pb)
 	void *mem_priv;
 	unsigned int plane;
 	int ret;
+	enum dma_data_direction dma_dir =
+		q->is_output ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	bool reacquired = vb->planes[0].mem_priv == NULL;
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
@@ -991,7 +991,7 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const void *pb)
 		/* Acquire each plane's memory */
 		mem_priv = call_ptr_memop(vb, get_userptr, q->alloc_ctx[plane],
 				      planes[plane].m.userptr,
-				      planes[plane].length, q->dma_dir);
+				      planes[plane].length, dma_dir);
 		if (IS_ERR_OR_NULL(mem_priv)) {
 			dprintk(1, "failed acquiring userspace "
 						"memory for plane %d\n", plane);
@@ -1057,6 +1057,8 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
 	void *mem_priv;
 	unsigned int plane;
 	int ret;
+	enum dma_data_direction dma_dir =
+		q->is_output ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	bool reacquired = vb->planes[0].mem_priv == NULL;
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
@@ -1110,7 +1112,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
 		/* Acquire each plane's memory */
 		mem_priv = call_ptr_memop(vb, attach_dmabuf,
 			q->alloc_ctx[plane], dbuf, planes[plane].length,
-			q->dma_dir);
+			dma_dir);
 		if (IS_ERR(mem_priv)) {
 			dprintk(1, "failed to attach dmabuf\n");
 			ret = PTR_ERR(mem_priv);
@@ -1357,11 +1359,6 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb)
 	struct vb2_buffer *vb;
 	int ret;
 
-	if (q->error) {
-		dprintk(1, "fatal error occurred on queue\n");
-		return -EIO;
-	}
-
 	vb = q->bufs[index];
 
 	switch (vb->state) {
@@ -1505,10 +1502,10 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
  * Will sleep if required for nonblocking == false.
  */
 static int __vb2_get_done_vb(struct vb2_queue *q, struct vb2_buffer **vb,
-			     void *pb, int nonblocking)
+				int nonblocking)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	/*
 	 * Wait for at least one buffer to become available on the done_list.
@@ -1524,14 +1521,12 @@ static int __vb2_get_done_vb(struct vb2_queue *q, struct vb2_buffer **vb,
 	spin_lock_irqsave(&q->done_lock, flags);
 	*vb = list_first_entry(&q->done_list, struct vb2_buffer, done_entry);
 	/*
-	 * Only remove the buffer from done_list if all planes can be
-	 * handled. Some cases such as V4L2 file I/O and DVB have pb
-	 * == NULL; skip the check then as there's nothing to verify.
+	 * Only remove the buffer from done_list if v4l2_buffer can handle all
+	 * the planes.
+	 * Verifying planes is NOT necessary since it already has been checked
+	 * before the buffer is queued/prepared. So it can never fail.
 	 */
-	if (pb)
-		ret = call_bufop(q, verify_planes_array, *vb, pb);
-	if (!ret)
-		list_del(&(*vb)->done_entry);
+	list_del(&(*vb)->done_entry);
 	spin_unlock_irqrestore(&q->done_lock, flags);
 
 	return ret;
@@ -1609,7 +1604,7 @@ int vb2_core_dqbuf(struct vb2_queue *q, void *pb, bool nonblocking)
 	struct vb2_buffer *vb = NULL;
 	int ret;
 
-	ret = __vb2_get_done_vb(q, &vb, pb, nonblocking);
+	ret = __vb2_get_done_vb(q, &vb, nonblocking);
 	if (ret < 0)
 		return ret;
 
@@ -2073,12 +2068,6 @@ int vb2_core_queue_init(struct vb2_queue *q)
 
 	if (q->buf_struct_size == 0)
 		q->buf_struct_size = sizeof(struct vb2_buffer);
-
-	if (q->is_output)
-		q->dma_dir = DMA_TO_DEVICE;
-	else
-		q->dma_dir = q->use_dma_bidirectional
-			   ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
 
 	return 0;
 }

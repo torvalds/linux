@@ -17,7 +17,6 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/of.h>
 #include <linux/usb/otg.h>
-#include <linux/of_platform.h>
 
 const char *usb_otg_state_string(enum usb_otg_state state)
 {
@@ -51,7 +50,6 @@ static const char *const speed_names[] = {
 	[USB_SPEED_HIGH] = "high-speed",
 	[USB_SPEED_WIRELESS] = "wireless",
 	[USB_SPEED_SUPER] = "super-speed",
-	[USB_SPEED_SUPER_PLUS] = "super-speed-plus",
 };
 
 const char *usb_speed_string(enum usb_device_speed speed)
@@ -108,85 +106,24 @@ static const char *const usb_dr_modes[] = {
 	[USB_DR_MODE_OTG]		= "otg",
 };
 
-static enum usb_dr_mode usb_get_dr_mode_from_string(const char *str)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(usb_dr_modes); i++)
-		if (!strcmp(usb_dr_modes[i], str))
-			return i;
-
-	return USB_DR_MODE_UNKNOWN;
-}
-
 enum usb_dr_mode usb_get_dr_mode(struct device *dev)
 {
 	const char *dr_mode;
-	int err;
+	int err, i;
 
 	err = device_property_read_string(dev, "dr_mode", &dr_mode);
 	if (err < 0)
 		return USB_DR_MODE_UNKNOWN;
 
-	return usb_get_dr_mode_from_string(dr_mode);
+	for (i = 0; i < ARRAY_SIZE(usb_dr_modes); i++)
+		if (!strcmp(dr_mode, usb_dr_modes[i]))
+			return i;
+
+	return USB_DR_MODE_UNKNOWN;
 }
 EXPORT_SYMBOL_GPL(usb_get_dr_mode);
 
 #ifdef CONFIG_OF
-/**
- * of_usb_get_dr_mode_by_phy - Get dual role mode for the controller device
- * which is associated with the given phy device_node
- * @np:	Pointer to the given phy device_node
- * @arg0: phandle args[0] for phy's with #phy-cells >= 1, or -1 for
- *        phys which do not have phy-cells
- *
- * In dts a usb controller associates with phy devices.  The function gets
- * the string from property 'dr_mode' of the controller associated with the
- * given phy device node, and returns the correspondig enum usb_dr_mode.
- */
-enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
-{
-	struct device_node *controller = NULL;
-	struct of_phandle_args args;
-	const char *dr_mode;
-	int index;
-	int err;
-
-	do {
-		controller = of_find_node_with_property(controller, "phys");
-		index = 0;
-		do {
-			if (arg0 == -1) {
-				args.np = of_parse_phandle(controller, "phys",
-							index);
-				args.args_count = 0;
-			} else {
-				err = of_parse_phandle_with_args(controller,
-							"phys", "#phy-cells",
-							index, &args);
-				if (err)
-					break;
-			}
-
-			of_node_put(args.np);
-			if (args.np == np && (args.args_count == 0 ||
-					      args.args[0] == arg0))
-				goto finish;
-			index++;
-		} while (args.np);
-	} while (controller);
-
-finish:
-	err = of_property_read_string(controller, "dr_mode", &dr_mode);
-	of_node_put(controller);
-
-	if (err < 0)
-		return USB_DR_MODE_UNKNOWN;
-
-	return usb_get_dr_mode_from_string(dr_mode);
-}
-EXPORT_SYMBOL_GPL(of_usb_get_dr_mode_by_phy);
-
 /**
  * of_usb_host_tpl_support - to get if Targeted Peripheral List is supported
  * for given targeted hosts (non-PC hosts)

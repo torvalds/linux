@@ -26,6 +26,34 @@ config SQUASHFS
 	  If unsure, say N.
 
 choice
+	prompt "File decompression options"
+	depends on SQUASHFS
+	help
+	  Squashfs now supports two options for decompressing file
+	  data.  Traditionally Squashfs has decompressed into an
+	  intermediate buffer and then memcopied it into the page cache.
+	  Squashfs now supports the ability to decompress directly into
+	  the page cache.
+
+	  If unsure, select "Decompress file data into an intermediate buffer"
+
+config SQUASHFS_FILE_CACHE
+	bool "Decompress file data into an intermediate buffer"
+	help
+	  Decompress file data into an intermediate buffer and then
+	  memcopy it into the page cache.
+
+config SQUASHFS_FILE_DIRECT
+	bool "Decompress files directly into the page cache"
+	help
+	  Directly decompress file data into the page cache.
+	  Doing so can significantly improve performance because
+	  it eliminates a memcpy and it also removes the lock contention
+	  on the single buffer.
+
+endchoice
+
+choice
 	prompt "Decompressor parallelisation options"
 	depends on SQUASHFS
 	help
@@ -133,20 +161,6 @@ config SQUASHFS_XZ
 	  memory overhead.
 
 	  XZ is not the standard compression used in Squashfs and so most
-	  file systems will be readable without selecting this option.
-
-	  If unsure, say N.
-
-config SQUASHFS_ZSTD
-	bool "Include support for ZSTD compressed file systems"
-	depends on SQUASHFS
-	select ZSTD_DECOMPRESS
-	help
-	  Saying Y here includes support for reading Squashfs file systems
-	  compressed with ZSTD compression.  ZSTD gives better compression than
-	  the default ZLIB compression, while using less CPU.
-
-	  ZSTD is not the standard compression used in Squashfs and so most
 	  file systems will be readable without selecting this option.
 
 	  If unsure, say N.

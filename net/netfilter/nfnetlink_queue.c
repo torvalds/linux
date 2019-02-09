@@ -390,7 +390,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 				  GFP_ATOMIC);
 	if (!skb) {
 		skb_tx_error(entskb);
-		goto nlmsg_failure;
+		return NULL;
 	}
 
 	nlh = nlmsg_put(skb, 0, 0,
@@ -399,7 +399,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	if (!nlh) {
 		skb_tx_error(entskb);
 		kfree_skb(skb);
-		goto nlmsg_failure;
+		return NULL;
 	}
 	nfmsg = nlmsg_data(nlh);
 	nfmsg->nfgen_family = entry->state.pf;
@@ -501,7 +501,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 
 	if (entskb->tstamp.tv64) {
 		struct nfqnl_msg_packet_timestamp ts;
-		struct timespec64 kts = ktime_to_timespec64(entskb->tstamp);
+		struct timespec64 kts = ktime_to_timespec64(skb->tstamp);
 
 		ts.sec = cpu_to_be64(kts.tv_sec);
 		ts.usec = cpu_to_be64(kts.tv_nsec / NSEC_PER_USEC);
@@ -542,17 +542,12 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	}
 
 	nlh->nlmsg_len = skb->len;
-	if (seclen)
-		security_release_secctx(secdata, seclen);
 	return skb;
 
 nla_put_failure:
 	skb_tx_error(entskb);
 	kfree_skb(skb);
 	net_err_ratelimited("nf_queue: error creating packet message\n");
-nlmsg_failure:
-	if (seclen)
-		security_release_secctx(secdata, seclen);
 	return NULL;
 }
 
@@ -1053,8 +1048,10 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	struct net *net = sock_net(ctnl);
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
-	queue = verdict_instance_lookup(q, queue_num,
-					NETLINK_CB(skb).portid);
+	queue = instance_lookup(q, queue_num);
+	if (!queue)
+		queue = verdict_instance_lookup(q, queue_num,
+						NETLINK_CB(skb).portid);
 	if (IS_ERR(queue))
 		return PTR_ERR(queue);
 
@@ -1106,9 +1103,6 @@ nfqnl_recv_unsupp(struct sock *ctnl, struct sk_buff *skb,
 static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
 	[NFQA_CFG_CMD]		= { .len = sizeof(struct nfqnl_msg_config_cmd) },
 	[NFQA_CFG_PARAMS]	= { .len = sizeof(struct nfqnl_msg_config_params) },
-	[NFQA_CFG_QUEUE_MAXLEN]	= { .type = NLA_U32 },
-	[NFQA_CFG_MASK]		= { .type = NLA_U32 },
-	[NFQA_CFG_FLAGS]	= { .type = NLA_U32 },
 };
 
 static const struct nf_queue_handler nfqh = {
@@ -1385,29 +1379,21 @@ static int __net_init nfnl_queue_net_init(struct net *net)
 			 net->nf.proc_netfilter, &nfqnl_file_ops))
 		return -ENOMEM;
 #endif
-	nf_register_queue_handler(net, &nfqh);
 	return 0;
 }
 
 static void __net_exit nfnl_queue_net_exit(struct net *net)
 {
-	nf_unregister_queue_handler(net);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_queue", net->nf.proc_netfilter);
 #endif
 }
 
-static void nfnl_queue_net_exit_batch(struct list_head *net_exit_list)
-{
-	synchronize_rcu();
-}
-
 static struct pernet_operations nfnl_queue_net_ops = {
-	.init		= nfnl_queue_net_init,
-	.exit		= nfnl_queue_net_exit,
-	.exit_batch	= nfnl_queue_net_exit_batch,
-	.id		= &nfnl_queue_net_id,
-	.size		= sizeof(struct nfnl_queue_net),
+	.init	= nfnl_queue_net_init,
+	.exit	= nfnl_queue_net_exit,
+	.id	= &nfnl_queue_net_id,
+	.size	= sizeof(struct nfnl_queue_net),
 };
 
 static int __init nfnetlink_queue_init(void)
@@ -1428,6 +1414,7 @@ static int __init nfnetlink_queue_init(void)
 	}
 
 	register_netdevice_notifier(&nfqnl_dev_notifier);
+	nf_register_queue_handler(&nfqh);
 	return status;
 
 cleanup_netlink_notifier:
@@ -1439,6 +1426,7 @@ out:
 
 static void __exit nfnetlink_queue_fini(void)
 {
+	nf_unregister_queue_handler();
 	unregister_netdevice_notifier(&nfqnl_dev_notifier);
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);

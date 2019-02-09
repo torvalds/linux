@@ -205,15 +205,6 @@ static void gic_unmask_irq(struct irq_data *d)
 	gic_poke_irq(d, GIC_DIST_ENABLE_SET);
 }
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-static int gic_retrigger(struct irq_data *d)
-{
-	gic_poke_irq(d, GIC_DIST_PENDING_SET);
-	/* the genirq layer expects 0 if we can't retrigger in hardware */
-	return 0;
-}
-#endif
-
 static void gic_eoi_irq(struct irq_data *d)
 {
 	writel_relaxed(gic_irq(d), gic_cpu_base(d) + GIC_CPU_EOI);
@@ -345,7 +336,7 @@ static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 		irqstat = readl_relaxed(cpu_base + GIC_CPU_INTACK);
 		irqnr = irqstat & GICC_IAR_INT_ID_MASK;
 
-		if (likely(irqnr > 15 && irqnr < 1020)) {
+		if (likely(irqnr > 15 && irqnr < 1021)) {
 			if (static_key_true(&supports_deactivate))
 				writel_relaxed(irqstat, cpu_base + GIC_CPU_EOI);
 			handle_domain_irq(gic->domain, irqnr, regs);
@@ -356,14 +347,6 @@ static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 			if (static_key_true(&supports_deactivate))
 				writel_relaxed(irqstat, cpu_base + GIC_CPU_DEACTIVATE);
 #ifdef CONFIG_SMP
-			/*
-			 * Ensure any shared data written by the CPU sending
-			 * the IPI is read after we've read the ACK register
-			 * on the GIC.
-			 *
-			 * Pairs with the write barrier in gic_raise_softirq
-			 */
-			smp_rmb();
 			handle_IPI(irqnr, regs);
 #endif
 			continue;
@@ -405,9 +388,6 @@ static struct irq_chip gic_chip = {
 	.irq_unmask		= gic_unmask_irq,
 	.irq_eoi		= gic_eoi_irq,
 	.irq_set_type		= gic_set_type,
-#ifdef CONFIG_ARCH_ROCKCHIP
-	.irq_retrigger          = gic_retrigger,
-#endif
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= gic_set_affinity,
 #endif
@@ -424,9 +404,6 @@ static struct irq_chip gic_eoimode1_chip = {
 	.irq_unmask		= gic_unmask_irq,
 	.irq_eoi		= gic_eoimode1_eoi_irq,
 	.irq_set_type		= gic_set_type,
-#ifdef CONFIG_ARCH_ROCKCHIP
-	.irq_retrigger          = gic_retrigger,
-#endif
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= gic_set_affinity,
 #endif
@@ -995,7 +972,7 @@ static int gic_irq_domain_translate(struct irq_domain *d,
 		return 0;
 	}
 
-	if (is_fwnode_irqchip(fwspec->fwnode)) {
+	if (fwspec->fwnode->type == FWNODE_IRQCHIP) {
 		if(fwspec->param_count != 2)
 			return -EINVAL;
 

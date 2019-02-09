@@ -139,7 +139,6 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
-	unsigned int len = urb->actual_length;
 	int retval;
 	int status = urb->status;
 	struct keyspan_pda_private *priv;
@@ -160,26 +159,18 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 		goto exit;
 	}
 
-	if (len < 1) {
-		dev_warn(&port->dev, "short message received\n");
-		goto exit;
-	}
-
 	/* see if the message is data or a status interrupt */
 	switch (data[0]) {
 	case 0:
 		 /* rest of message is rx data */
-		if (len < 2)
-			break;
-		tty_insert_flip_string(&port->port, data + 1, len - 1);
-		tty_flip_buffer_push(&port->port);
+		if (urb->actual_length) {
+			tty_insert_flip_string(&port->port, data + 1,
+						urb->actual_length - 1);
+			tty_flip_buffer_push(&port->port);
+		}
 		break;
 	case 1:
 		/* status interrupt */
-		if (len < 3) {
-			dev_warn(&port->dev, "short interrupt message received\n");
-			break;
-		}
 		dev_dbg(&port->dev, "rx int, d1=%d, d2=%d\n", data[1], data[2]);
 		switch (data[1]) {
 		case 1: /* modemline change */
@@ -373,10 +364,8 @@ static int keyspan_pda_get_modem_info(struct usb_serial *serial,
 			     3, /* get pins */
 			     USB_TYPE_VENDOR|USB_RECIP_INTERFACE|USB_DIR_IN,
 			     0, 0, data, 1, 2000);
-	if (rc == 1)
+	if (rc >= 0)
 		*value = *data;
-	else if (rc >= 0)
-		rc = -EIO;
 
 	kfree(data);
 	return rc;
@@ -710,19 +699,6 @@ MODULE_FIRMWARE("keyspan_pda/keyspan_pda.fw");
 MODULE_FIRMWARE("keyspan_pda/xircom_pgs.fw");
 #endif
 
-static int keyspan_pda_attach(struct usb_serial *serial)
-{
-	unsigned char num_ports = serial->num_ports;
-
-	if (serial->num_bulk_out < num_ports ||
-			serial->num_interrupt_in < num_ports) {
-		dev_err(&serial->interface->dev, "missing endpoints\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static int keyspan_pda_port_probe(struct usb_serial_port *port)
 {
 
@@ -800,7 +776,6 @@ static struct usb_serial_driver keyspan_pda_device = {
 	.break_ctl =		keyspan_pda_break_ctl,
 	.tiocmget =		keyspan_pda_tiocmget,
 	.tiocmset =		keyspan_pda_tiocmset,
-	.attach =		keyspan_pda_attach,
 	.port_probe =		keyspan_pda_port_probe,
 	.port_remove =		keyspan_pda_port_remove,
 };

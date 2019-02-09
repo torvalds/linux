@@ -3,11 +3,11 @@
  * Copyright (C) 2006, 2007 David S. Miller (davem@davemloft.net)
  */
 
-#define EX_ST(x,y)		\
+#define EX_ST(x)		\
 98:	x;			\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, y;		\
+	.word 98b, __ret_one_asi;\
 	.text;			\
 	.align 4;
 

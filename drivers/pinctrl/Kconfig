@@ -26,8 +26,7 @@ config DEBUG_PINCTRL
 
 config PINCTRL_ADI2
 	bool "ADI pin controller driver"
-	depends on (BF54x || BF60x)
-	depends on !GPIO_ADI
+	depends on BLACKFIN
 	select PINMUX
 	select IRQ_DOMAIN
 	help
@@ -246,15 +245,6 @@ config PINCTRL_ZYNQ
 	select GENERIC_PINCONF
 	help
 	  This selectes the pinctrl driver for Xilinx Zynq.
-
-config PINCTRL_RK805
-	tristate "Pinctrl and GPIO driver for RK805 PMIC"
-	depends on MFD_RK808
-	select GPIOLIB
-	select PINMUX
-	select GENERIC_PINCONF
-	help
-	  This selects the pinctrl driver for RK805.
 
 source "drivers/pinctrl/bcm/Kconfig"
 source "drivers/pinctrl/berlin/Kconfig"

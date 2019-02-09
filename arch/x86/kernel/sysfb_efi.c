@@ -106,24 +106,14 @@ static int __init efifb_set_system(const struct dmi_system_id *id)
 					continue;
 				for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 					resource_size_t start, end;
-					unsigned long flags;
-
-					flags = pci_resource_flags(dev, i);
-					if (!(flags & IORESOURCE_MEM))
-						continue;
-
-					if (flags & IORESOURCE_UNSET)
-						continue;
-
-					if (pci_resource_len(dev, i) == 0)
-						continue;
 
 					start = pci_resource_start(dev, i);
+					if (start == 0)
+						break;
 					end = pci_resource_end(dev, i);
 					if (screen_info.lfb_base >= start &&
 					    screen_info.lfb_base < end) {
 						found_bar = 1;
-						break;
 					}
 				}
 			}

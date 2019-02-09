@@ -26,16 +26,6 @@ config IRQ_WORK
 config BUILDTIME_EXTABLE_SORT
 	bool
 
-config THREAD_INFO_IN_TASK
-	bool
-	help
-	  Select this to move thread_info off the stack into task_struct.  To
-	  make this work, an arch will need to remove all thread_info fields
-	  except flags and fix any runtime bugs.
-
-	  One subtle change that will be needed is to use try_get_task_stack()
-	  and put_task_stack() in save_thread_stack_tsk() and get_wchan().
-
 menu "General setup"
 
 config BROKEN
@@ -401,16 +391,6 @@ config IRQ_TIME_ACCOUNTING
 	  If in doubt, say N here.
 
 endchoice
-
-config SCHED_WALT
-        bool "Support window based load tracking"
-        depends on SMP
-        depends on FAIR_GROUP_SCHED
-        help
-        This feature will allow the scheduler to maintain a tunable window
-	based set of metrics for tasks and runqueues. These metrics can be
-	used to guide task placement as well as task frequency requirements
-	for cpufreq governors.
 
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
@@ -1019,23 +999,6 @@ config CGROUP_CPUACCT
 	  Provides a simple Resource Controller for monitoring the
 	  total CPU consumed by the tasks in a cgroup.
 
-config CGROUP_SCHEDTUNE
-	bool "CFS tasks boosting cgroup subsystem (EXPERIMENTAL)"
-	depends on SCHED_TUNE
-	help
-	  This option provides the "schedtune" controller which improves the
-	  flexibility of the task boosting mechanism by introducing the support
-	  to define "per task" boost values.
-
-	  This new controller:
-	  1. allows only a two layers hierarchy, where the root defines the
-	     system-wide boost value and its direct childrens define each one a
-	     different "class of tasks" to be boosted with a different value
-	  2. supports up to 16 different task classes, each one which could be
-	     configured with a different boost value
-
-	  Say N if unsure.
-
 config PAGE_COUNTER
        bool
 
@@ -1274,43 +1237,6 @@ config SCHED_AUTOGROUP
 	  desktop applications.  Task group autogeneration is currently based
 	  upon task session.
 
-config SCHED_TUNE
-	bool "Boosting for CFS tasks (EXPERIMENTAL)"
-	depends on SMP
-	help
-	  This option enables the system-wide support for task boosting.
-	  When this support is enabled a new sysctl interface is exposed to
-	  userspace via:
-	     /proc/sys/kernel/sched_cfs_boost
-	  which allows to set a system-wide boost value in range [0..100].
-
-	  The currently boosting strategy is implemented in such a way that:
-	  - a 0% boost value requires to operate in "standard" mode by
-	    scheduling all tasks at the minimum capacities required by their
-	    workload demand
-	  - a 100% boost value requires to push at maximum the task
-	    performances, "regardless" of the incurred energy consumption
-
-	  A boost value in between these two boundaries is used to bias the
-	  power/performance trade-off, the higher the boost value the more the
-	  scheduler is biased toward performance boosting instead of energy
-	  efficiency.
-
-	  Since this support exposes a single system-wide knob, the specified
-	  boost value is applied to all (CFS) tasks in the system.
-
-	  If unsure, say N.
-
-config DEFAULT_USE_ENERGY_AWARE
-	bool "Default to enabling the Energy Aware Scheduler feature"
-	default n
-	help
-	  This option defaults the ENERGY_AWARE scheduling feature to true,
-	  as without SCHED_DEBUG set this feature can't be enabled or disabled
-	  via sysctl.
-
-	  Say N if unsure.
-
 config SYSFS_DEPRECATED
 	bool "Enable deprecated sysfs features to support old userspace tools"
 	depends on SYSFS
@@ -1382,17 +1308,6 @@ source "usr/Kconfig"
 
 endif
 
-choice
-	prompt "Compiler optimization level"
-	default CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
-
-config CC_OPTIMIZE_FOR_PERFORMANCE
-	bool "Optimize for performance"
-	help
-	  This is the default optimization level for the kernel, building
-	  with the "-O2" compiler flag for best performance and most
-	  helpful compile-time warnings.
-
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size"
 	help
@@ -1400,8 +1315,6 @@ config CC_OPTIMIZE_FOR_SIZE
 	  your compiler resulting in a smaller kernel.
 
 	  If unsure, say N.
-
-endchoice
 
 config SYSCTL
 	bool
@@ -1643,13 +1556,6 @@ config BPF_SYSCALL
 	  Enable the bpf() system call that allows to manipulate eBPF
 	  programs and maps via file descriptors.
 
-config BPF_JIT_ALWAYS_ON
-	bool "Permanently enable BPF JIT and remove BPF interpreter"
-	depends on BPF_SYSCALL && HAVE_EBPF_JIT && BPF_JIT
-	help
-	  Enables BPF JIT and removes BPF interpreter to avoid
-	  speculative execution of BPF instructions by the interpreter
-
 config SHMEM
 	bool "Use full shmem filesystem" if EXPERT
 	default y
@@ -1813,7 +1719,6 @@ choice
 
 config SLAB
 	bool "SLAB"
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
 	  The regular slab allocator that is established and known to work
 	  well in all environments. It organizes cache hot objects in
@@ -1821,7 +1726,6 @@ config SLAB
 
 config SLUB
 	bool "SLUB (Unqueued Allocator)"
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
 	   SLUB is a slab allocator that minimizes cache line usage
 	   instead of managing queues of cached objects (SLAB approach).

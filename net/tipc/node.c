@@ -102,10 +102,9 @@ static unsigned int tipc_hashfn(u32 addr)
 
 static void tipc_node_kref_release(struct kref *kref)
 {
-	struct tipc_node *n = container_of(kref, struct tipc_node, kref);
+	struct tipc_node *node = container_of(kref, struct tipc_node, kref);
 
-	kfree(n->bc_entry.link);
-	kfree_rcu(n, rcu);
+	tipc_node_delete(node);
 }
 
 void tipc_node_put(struct tipc_node *node)
@@ -169,6 +168,12 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
 	skb_queue_head_init(&n_ptr->bc_entry.inputq1);
 	__skb_queue_head_init(&n_ptr->bc_entry.arrvq);
 	skb_queue_head_init(&n_ptr->bc_entry.inputq2);
+	hlist_add_head_rcu(&n_ptr->hash, &tn->node_htable[tipc_hashfn(addr)]);
+	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
+		if (n_ptr->addr < temp_node->addr)
+			break;
+	}
+	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
 	n_ptr->state = SELF_DOWN_PEER_LEAVING;
 	n_ptr->signature = INVALID_NODE_SIG;
 	n_ptr->active_links[0] = INVALID_BEARER_ID;
@@ -188,12 +193,6 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
 	tipc_node_get(n_ptr);
 	setup_timer(&n_ptr->timer, tipc_node_timeout, (unsigned long)n_ptr);
 	n_ptr->keepalive_intv = U32_MAX;
-	hlist_add_head_rcu(&n_ptr->hash, &tn->node_htable[tipc_hashfn(addr)]);
-	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
-		if (n_ptr->addr < temp_node->addr)
-			break;
-	}
-	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
 exit:
 	spin_unlock_bh(&tn->node_list_lock);
 	return n_ptr;
@@ -217,20 +216,21 @@ static void tipc_node_delete(struct tipc_node *node)
 {
 	list_del_rcu(&node->list);
 	hlist_del_rcu(&node->hash);
-	tipc_node_put(node);
-
-	del_timer_sync(&node->timer);
-	tipc_node_put(node);
+	kfree(node->bc_entry.link);
+	kfree_rcu(node, rcu);
 }
 
 void tipc_node_stop(struct net *net)
 {
-	struct tipc_net *tn = tipc_net(net);
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_node *node, *t_node;
 
 	spin_lock_bh(&tn->node_list_lock);
-	list_for_each_entry_safe(node, t_node, &tn->node_list, list)
-		tipc_node_delete(node);
+	list_for_each_entry_safe(node, t_node, &tn->node_list, list) {
+		if (del_timer(&node->timer))
+			tipc_node_put(node);
+		tipc_node_put(node);
+	}
 	spin_unlock_bh(&tn->node_list_lock);
 }
 
@@ -313,7 +313,9 @@ static void tipc_node_timeout(unsigned long data)
 		if (rc & TIPC_LINK_DOWN_EVT)
 			tipc_node_link_down(n, bearer_id, false);
 	}
-	mod_timer(&n->timer, jiffies + n->keepalive_intv);
+	if (!mod_timer(&n->timer, jiffies + n->keepalive_intv))
+		tipc_node_get(n);
+	tipc_node_put(n);
 }
 
 /**
@@ -728,7 +730,7 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 			state = SELF_UP_PEER_UP;
 			break;
 		case SELF_LOST_CONTACT_EVT:
-			state = SELF_DOWN_PEER_DOWN;
+			state = SELF_DOWN_PEER_LEAVING;
 			break;
 		case SELF_ESTABL_CONTACT_EVT:
 		case PEER_LOST_CONTACT_EVT:
@@ -747,7 +749,7 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 			state = SELF_UP_PEER_UP;
 			break;
 		case PEER_LOST_CONTACT_EVT:
-			state = SELF_DOWN_PEER_DOWN;
+			state = SELF_LEAVING_PEER_DOWN;
 			break;
 		case SELF_LOST_CONTACT_EVT:
 		case PEER_ESTABL_CONTACT_EVT:

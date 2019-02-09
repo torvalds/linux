@@ -211,20 +211,6 @@ static void __put_rmid(u32 rmid)
 	list_add_tail(&entry->list, &cqm_rmid_limbo_lru);
 }
 
-static void cqm_cleanup(void)
-{
-	int i;
-
-	if (!cqm_rmid_ptrs)
-		return;
-
-	for (i = 0; i < cqm_max_rmid; i++)
-		kfree(cqm_rmid_ptrs[i]);
-
-	kfree(cqm_rmid_ptrs);
-	cqm_rmid_ptrs = NULL;
-}
-
 static int intel_cqm_setup_rmid_cache(void)
 {
 	struct cqm_rmid_entry *entry;
@@ -232,7 +218,7 @@ static int intel_cqm_setup_rmid_cache(void)
 	int r = 0;
 
 	nr_rmids = cqm_max_rmid + 1;
-	cqm_rmid_ptrs = kzalloc(sizeof(struct cqm_rmid_entry *) *
+	cqm_rmid_ptrs = kmalloc(sizeof(struct cqm_rmid_entry *) *
 				nr_rmids, GFP_KERNEL);
 	if (!cqm_rmid_ptrs)
 		return -ENOMEM;
@@ -263,9 +249,11 @@ static int intel_cqm_setup_rmid_cache(void)
 	mutex_unlock(&cache_mutex);
 
 	return 0;
-
 fail:
-	cqm_cleanup();
+	while (r--)
+		kfree(cqm_rmid_ptrs[r]);
+
+	kfree(cqm_rmid_ptrs);
 	return -ENOMEM;
 }
 
@@ -293,13 +281,9 @@ static bool __match_event(struct perf_event *a, struct perf_event *b)
 
 	/*
 	 * Events that target same task are placed into the same cache group.
-	 * Mark it as a multi event group, so that we update ->count
-	 * for every event rather than just the group leader later.
 	 */
-	if (a->hw.target == b->hw.target) {
-		b->hw.is_group_event = true;
+	if (a->hw.target == b->hw.target)
 		return true;
-	}
 
 	/*
 	 * Are we an inherited event?
@@ -865,7 +849,6 @@ static void intel_cqm_setup_event(struct perf_event *event,
 	bool conflict = false;
 	u32 rmid;
 
-	event->hw.is_group_event = false;
 	list_for_each_entry(iter, &cache_groups, hw.cqm_groups_entry) {
 		rmid = iter->hw.cqm_rmid;
 
@@ -957,9 +940,7 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 		return __perf_event_count(event);
 
 	/*
-	 * Only the group leader gets to report values except in case of
-	 * multiple events in the same group, we still need to read the
-	 * other events.This stops us
+	 * Only the group leader gets to report values. This stops us
 	 * reporting duplicate values to userspace, and gives us a clear
 	 * rule for which task gets to report the values.
 	 *
@@ -967,7 +948,7 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 	 * specific packages - we forfeit that ability when we create
 	 * task events.
 	 */
-	if (!cqm_group_leader(event) && !event->hw.is_group_event)
+	if (!cqm_group_leader(event))
 		return 0;
 
 	/*
@@ -1334,7 +1315,7 @@ static const struct x86_cpu_id intel_cqm_match[] = {
 
 static int __init intel_cqm_init(void)
 {
-	char *str = NULL, scale[20];
+	char *str, scale[20];
 	int i, cpu, ret;
 
 	if (!x86_match_cpu(intel_cqm_match))
@@ -1394,25 +1375,16 @@ static int __init intel_cqm_init(void)
 		cqm_pick_event_reader(i);
 	}
 
-	ret = perf_pmu_register(&intel_cqm_pmu, "intel_cqm", -1);
-	if (ret) {
-		pr_err("Intel CQM perf registration failed: %d\n", ret);
-		goto out;
-	}
-
-	pr_info("Intel CQM monitoring enabled\n");
-
-	/*
-	 * Register the hot cpu notifier once we are sure cqm
-	 * is enabled to avoid notifier leak.
-	 */
 	__perf_cpu_notifier(intel_cqm_cpu_notifier);
+
+	ret = perf_pmu_register(&intel_cqm_pmu, "intel_cqm", -1);
+	if (ret)
+		pr_err("Intel CQM perf registration failed: %d\n", ret);
+	else
+		pr_info("Intel CQM monitoring enabled\n");
+
 out:
 	cpu_notifier_register_done();
-	if (ret) {
-		kfree(str);
-		cqm_cleanup();
-	}
 
 	return ret;
 }

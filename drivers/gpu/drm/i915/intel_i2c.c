@@ -440,9 +440,7 @@ static bool
 gmbus_is_index_read(struct i2c_msg *msgs, int i, int num)
 {
 	return (i + 1 < num &&
-		msgs[i].addr == msgs[i + 1].addr &&
-		!(msgs[i].flags & I2C_M_RD) &&
-		(msgs[i].len == 1 || msgs[i].len == 2) &&
+		!(msgs[i].flags & I2C_M_RD) && msgs[i].len <= 2 &&
 		(msgs[i + 1].flags & I2C_M_RD));
 }
 
@@ -677,7 +675,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	return 0;
 
 err:
-	while (pin--) {
+	while (--pin) {
 		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
 			continue;
 

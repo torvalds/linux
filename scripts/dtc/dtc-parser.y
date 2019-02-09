@@ -19,7 +19,6 @@
  */
 %{
 #include <stdio.h>
-#include <inttypes.h>
 
 #include "dtc.h"
 #include "srcpos.h"
@@ -32,7 +31,7 @@ extern void yyerror(char const *s);
 		treesource_error = true; \
 	} while (0)
 
-extern struct dt_info *parser_output;
+extern struct boot_info *the_boot_info;
 extern bool treesource_error;
 %}
 
@@ -53,11 +52,9 @@ extern bool treesource_error;
 	struct node *nodelist;
 	struct reserve_info *re;
 	uint64_t integer;
-	unsigned int flags;
 }
 
 %token DT_V1
-%token DT_PLUGIN
 %token DT_MEMRESERVE
 %token DT_LSHIFT DT_RSHIFT DT_LE DT_GE DT_EQ DT_NE DT_AND DT_OR
 %token DT_BITS
@@ -74,8 +71,6 @@ extern bool treesource_error;
 
 %type <data> propdata
 %type <data> propdataprefix
-%type <flags> header
-%type <flags> headers
 %type <re> memreserve
 %type <re> memreserves
 %type <array> arrayprefix
@@ -106,31 +101,10 @@ extern bool treesource_error;
 %%
 
 sourcefile:
-	  headers memreserves devicetree
+	  DT_V1 ';' memreserves devicetree
 		{
-			parser_output = build_dt_info($1, $2, $3,
-			                              guess_boot_cpuid($3));
-		}
-	;
-
-header:
-	  DT_V1 ';'
-		{
-			$$ = DTSF_V1;
-		}
-	| DT_V1 ';' DT_PLUGIN ';'
-		{
-			$$ = DTSF_V1 | DTSF_PLUGIN;
-		}
-	;
-
-headers:
-	  header
-	| header headers
-		{
-			if ($2 != $1)
-				ERROR(&@2, "Header flags don't match earlier ones");
-			$$ = $1;
+			the_boot_info = build_boot_info($3, $4,
+							guess_boot_cpuid($4));
 		}
 	;
 
@@ -171,10 +145,10 @@ devicetree:
 		{
 			struct node *target = get_node_by_ref($1, $3);
 
-			if (target) {
-				add_label(&target->labels, $2);
+			add_label(&target->labels, $2);
+			if (target)
 				merge_nodes(target, $4);
-			} else
+			else
 				ERROR(&@3, "Label or path %s not found", $3);
 			$$ = $1;
 		}
@@ -182,19 +156,10 @@ devicetree:
 		{
 			struct node *target = get_node_by_ref($1, $2);
 
-			if (target) {
+			if (target)
 				merge_nodes(target, $3);
-			} else {
-				/*
-				 * We rely on the rule being always:
-				 *   versioninfo plugindecl memreserves devicetree
-				 * so $-1 is what we want (plugindecl)
-				 */
-				if ($<flags>-1 & DTSF_PLUGIN)
-					add_orphan_node($1, $3, $2);
-				else
-					ERROR(&@2, "Label or path %s not found", $2);
-			}
+			else
+				ERROR(&@2, "Label or path %s not found", $2);
 			$$ = $1;
 		}
 	| devicetree DT_DEL_NODE DT_REF ';'
@@ -208,11 +173,6 @@ devicetree:
 
 
 			$$ = $1;
-		}
-	| /* empty */
-		{
-			/* build empty node */
-			$$ = name_node(build_node(NULL, NULL), "");
 		}
 	;
 
@@ -450,24 +410,8 @@ integer_add:
 
 integer_mul:
 	  integer_mul '*' integer_unary { $$ = $1 * $3; }
-	| integer_mul '/' integer_unary
-		{
-			if ($3 != 0) {
-				$$ = $1 / $3;
-			} else {
-				ERROR(&@$, "Division by zero");
-				$$ = 0;
-			}
-		}
-	| integer_mul '%' integer_unary
-		{
-			if ($3 != 0) {
-				$$ = $1 % $3;
-			} else {
-				ERROR(&@$, "Division by zero");
-				$$ = 0;
-			}
-		}
+	| integer_mul '/' integer_unary { $$ = $1 / $3; }
+	| integer_mul '%' integer_unary { $$ = $1 % $3; }
 	| integer_unary
 	;
 

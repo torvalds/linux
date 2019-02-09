@@ -20,7 +20,6 @@
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
 
-#include <asm/cp15.h>
 #include <asm/exception.h>
 #include <asm/pgtable.h>
 #include <asm/system_misc.h>
@@ -181,7 +180,6 @@ __do_user_fault(struct task_struct *tsk, unsigned long addr,
 	si.si_errno = 0;
 	si.si_code = code;
 	si.si_addr = (void __user *)addr;
-
 	force_sig_info(sig, &si, tsk);
 }
 
@@ -275,10 +273,10 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		local_irq_enable();
 
 	/*
-	 * If we're in an interrupt, or have no irqs, or have no user
+	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (faulthandler_disabled() || irqs_disabled() || !mm)
+	if (faulthandler_disabled() || !mm)
 		goto no_context;
 
 	if (user_mode(regs))
@@ -316,11 +314,8 @@ retry:
 	 * signal first. We do not need to release the mmap_sem because
 	 * it would already be released in __lock_page_or_retry in
 	 * mm/filemap.c. */
-	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
-		if (!user_mode(regs))
-			goto no_context;
+	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
 		return 0;
-	}
 
 	/*
 	 * Major/minor page fault accounting is only done on the
@@ -397,32 +392,9 @@ no_context:
 	__do_kernel_fault(mm, addr, fsr, regs);
 	return 0;
 }
-
-static int
-do_pabt_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
-{
-	if (addr > TASK_SIZE) {
-		switch(read_cpuid_part()) {
-		case ARM_CPU_PART_CORTEX_A8:
-		case ARM_CPU_PART_CORTEX_A9:
-		case ARM_CPU_PART_CORTEX_A12:
-		case ARM_CPU_PART_CORTEX_A17:
-			asm volatile("mcr p15, 0, %0, c7, c5, 6" : : "r" (0));
-			break;
-		}
-	}
-
-	return do_page_fault(addr, fsr, regs);
-}
 #else					/* CONFIG_MMU */
 static int
 do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
-{
-	return 0;
-}
-
-static int
-do_pabt_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	return 0;
 }
@@ -638,9 +610,9 @@ static int __init early_abort_handler(unsigned long addr, unsigned int fsr,
 
 void __init early_abt_enable(void)
 {
-	fsr_info[FSR_FS_AEA].fn = early_abort_handler;
+	fsr_info[22].fn = early_abort_handler;
 	local_abt_enable();
-	fsr_info[FSR_FS_AEA].fn = do_bad;
+	fsr_info[22].fn = do_bad;
 }
 
 #ifndef CONFIG_ARM_LPAE

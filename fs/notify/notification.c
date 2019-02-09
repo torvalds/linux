@@ -82,8 +82,7 @@ void fsnotify_destroy_event(struct fsnotify_group *group,
  * Add an event to the group notification queue.  The group can later pull this
  * event off the queue to deal with.  The function returns 0 if the event was
  * added to the queue, 1 if the event was merged with some other queued event,
- * 2 if the event was not queued - either the queue of events has overflown
- * or the group is shutting down.
+ * 2 if the queue of events has overflown.
  */
 int fsnotify_add_event(struct fsnotify_group *group,
 		       struct fsnotify_event *event,
@@ -96,11 +95,6 @@ int fsnotify_add_event(struct fsnotify_group *group,
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
 	mutex_lock(&group->notification_mutex);
-
-	if (group->shutdown) {
-		mutex_unlock(&group->notification_mutex);
-		return 2;
-	}
 
 	if (group->q_len >= group->max_events) {
 		ret = 2;
@@ -129,6 +123,21 @@ queue:
 	wake_up(&group->notification_waitq);
 	kill_fasync(&group->fsn_fa, SIGIO, POLL_IN);
 	return ret;
+}
+
+/*
+ * Remove @event from group's notification queue. It is the responsibility of
+ * the caller to destroy the event.
+ */
+void fsnotify_remove_event(struct fsnotify_group *group,
+			   struct fsnotify_event *event)
+{
+	mutex_lock(&group->notification_mutex);
+	if (!list_empty(&event->list)) {
+		list_del_init(&event->list);
+		group->q_len--;
+	}
+	mutex_unlock(&group->notification_mutex);
 }
 
 /*

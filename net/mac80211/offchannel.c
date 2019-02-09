@@ -469,8 +469,6 @@ void ieee80211_roc_purge(struct ieee80211_local *local,
 	struct ieee80211_roc_work *roc, *tmp;
 	LIST_HEAD(tmp_list);
 
-	flush_work(&local->hw_roc_start);
-
 	mutex_lock(&local->mtx);
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
 		if (sdata && roc->sdata != sdata)

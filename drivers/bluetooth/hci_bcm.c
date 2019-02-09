@@ -287,9 +287,6 @@ static int bcm_open(struct hci_uart *hu)
 
 	hu->priv = bcm;
 
-	if (!hu->tty->dev)
-		goto out;
-
 	mutex_lock(&bcm_device_lock);
 	list_for_each(p, &bcm_device_list) {
 		struct bcm_device *dev = list_entry(p, struct bcm_device, list);
@@ -310,7 +307,7 @@ static int bcm_open(struct hci_uart *hu)
 	}
 
 	mutex_unlock(&bcm_device_lock);
-out:
+
 	return 0;
 }
 

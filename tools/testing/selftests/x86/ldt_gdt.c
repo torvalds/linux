@@ -351,24 +351,9 @@ static void do_simple_tests(void)
 	install_invalid(&desc, false);
 
 	desc.seg_not_present = 0;
+	desc.read_exec_only = 0;
 	desc.seg_32bit = 1;
-	desc.read_exec_only = 0;
-	desc.limit = 0xfffff;
-
 	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA | AR_S | AR_P | AR_DB);
-
-	desc.limit_in_pages = 1;
-
-	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA | AR_S | AR_P | AR_DB | AR_G);
-	desc.read_exec_only = 1;
-	install_valid(&desc, AR_DPL3 | AR_TYPE_RODATA | AR_S | AR_P | AR_DB | AR_G);
-	desc.contents = 1;
-	desc.read_exec_only = 0;
-	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA_EXPDOWN | AR_S | AR_P | AR_DB | AR_G);
-	desc.read_exec_only = 1;
-	install_valid(&desc, AR_DPL3 | AR_TYPE_RODATA_EXPDOWN | AR_S | AR_P | AR_DB | AR_G);
-
-	desc.limit = 0;
 	install_invalid(&desc, true);
 }
 
@@ -409,51 +394,6 @@ static void *threadproc(void *ctx)
 	}
 }
 
-#ifdef __i386__
-
-#ifndef SA_RESTORE
-#define SA_RESTORER 0x04000000
-#endif
-
-/*
- * The UAPI header calls this 'struct sigaction', which conflicts with
- * glibc.  Sigh.
- */
-struct fake_ksigaction {
-	void *handler;  /* the real type is nasty */
-	unsigned long sa_flags;
-	void (*sa_restorer)(void);
-	unsigned char sigset[8];
-};
-
-static void fix_sa_restorer(int sig)
-{
-	struct fake_ksigaction ksa;
-
-	if (syscall(SYS_rt_sigaction, sig, NULL, &ksa, 8) == 0) {
-		/*
-		 * glibc has a nasty bug: it sometimes writes garbage to
-		 * sa_restorer.  This interacts quite badly with anything
-		 * that fiddles with SS because it can trigger legacy
-		 * stack switching.  Patch it up.  See:
-		 *
-		 * https://sourceware.org/bugzilla/show_bug.cgi?id=21269
-		 */
-		if (!(ksa.sa_flags & SA_RESTORER) && ksa.sa_restorer) {
-			ksa.sa_restorer = NULL;
-			if (syscall(SYS_rt_sigaction, sig, &ksa, NULL,
-				    sizeof(ksa.sigset)) != 0)
-				err(1, "rt_sigaction");
-		}
-	}
-}
-#else
-static void fix_sa_restorer(int sig)
-{
-	/* 64-bit glibc works fine. */
-}
-#endif
-
 static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 		       int flags)
 {
@@ -465,7 +405,6 @@ static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 	if (sigaction(sig, &sa, 0))
 		err(1, "sigaction");
 
-	fix_sa_restorer(sig);
 }
 
 static jmp_buf jmpbuf;

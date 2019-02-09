@@ -77,59 +77,6 @@ static bool is_namespace_io(struct device *dev)
 	return dev ? dev->type == &namespace_io_device_type : false;
 }
 
-static int is_uuid_busy(struct device *dev, void *data)
-{
-	u8 *uuid1 = data, *uuid2 = NULL;
-
-	if (is_namespace_pmem(dev)) {
-		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
-
-		uuid2 = nspm->uuid;
-	} else if (is_namespace_blk(dev)) {
-		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
-
-		uuid2 = nsblk->uuid;
-	} else if (is_nd_btt(dev)) {
-		struct nd_btt *nd_btt = to_nd_btt(dev);
-
-		uuid2 = nd_btt->uuid;
-	} else if (is_nd_pfn(dev)) {
-		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
-
-		uuid2 = nd_pfn->uuid;
-	}
-
-	if (uuid2 && memcmp(uuid1, uuid2, NSLABEL_UUID_LEN) == 0)
-		return -EBUSY;
-
-	return 0;
-}
-
-static int is_namespace_uuid_busy(struct device *dev, void *data)
-{
-	if (is_nd_pmem(dev) || is_nd_blk(dev))
-		return device_for_each_child(dev, data, is_uuid_busy);
-	return 0;
-}
-
-/**
- * nd_is_uuid_unique - verify that no other namespace has @uuid
- * @dev: any device on a nvdimm_bus
- * @uuid: uuid to check
- */
-bool nd_is_uuid_unique(struct device *dev, u8 *uuid)
-{
-	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
-
-	if (!nvdimm_bus)
-		return false;
-	WARN_ON_ONCE(!is_nvdimm_bus_locked(&nvdimm_bus->dev));
-	if (device_for_each_child(&nvdimm_bus->dev, uuid,
-				is_namespace_uuid_busy) != 0)
-		return false;
-	return true;
-}
-
 bool pmem_should_map_pages(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);
@@ -1305,7 +1252,7 @@ static umode_t namespace_visible(struct kobject *kobj,
 	if (a == &dev_attr_resource.attr) {
 		if (is_namespace_blk(dev))
 			return 0;
-		return 0400;
+		return a->mode;
 	}
 
 	if (is_namespace_pmem(dev) || is_namespace_blk(dev)) {
@@ -1534,7 +1481,6 @@ static int select_pmem_id(struct nd_region *nd_region, u8 *pmem_id)
 static int find_pmem_label_set(struct nd_region *nd_region,
 		struct nd_namespace_pmem *nspm)
 {
-	u64 altcookie = nd_region_interleave_set_altcookie(nd_region);
 	u64 cookie = nd_region_interleave_set_cookie(nd_region);
 	struct nd_namespace_label *nd_label;
 	u8 select_id[NSLABEL_UUID_LEN];
@@ -1543,10 +1489,8 @@ static int find_pmem_label_set(struct nd_region *nd_region,
 	int rc = -ENODEV, l;
 	u16 i;
 
-	if (cookie == 0) {
-		dev_dbg(&nd_region->dev, "invalid interleave-set-cookie\n");
+	if (cookie == 0)
 		return -ENXIO;
-	}
 
 	/*
 	 * Find a complete set of labels by uuid.  By definition we can start
@@ -1555,24 +1499,13 @@ static int find_pmem_label_set(struct nd_region *nd_region,
 	for_each_label(l, nd_label, nd_region->mapping[0].labels) {
 		u64 isetcookie = __le64_to_cpu(nd_label->isetcookie);
 
-		if (isetcookie != cookie) {
-			dev_dbg(&nd_region->dev, "invalid cookie in label: %pUb\n",
-					nd_label->uuid);
-			if (isetcookie != altcookie)
-				continue;
+		if (isetcookie != cookie)
+			continue;
 
-			dev_dbg(&nd_region->dev, "valid altcookie in label: %pUb\n",
-					nd_label->uuid);
-		}
-
-		for (i = 0; nd_region->ndr_mappings; i++) {
-			if (has_uuid_at_pos(nd_region, nd_label->uuid, cookie, i))
-				continue;
-			if (has_uuid_at_pos(nd_region, nd_label->uuid, altcookie, i))
-				continue;
-			break;
-		}
-
+		for (i = 0; nd_region->ndr_mappings; i++)
+			if (!has_uuid_at_pos(nd_region, nd_label->uuid,
+						cookie, i))
+				break;
 		if (i < nd_region->ndr_mappings) {
 			/*
 			 * Give up if we don't find an instance of a

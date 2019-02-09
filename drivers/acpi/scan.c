@@ -1391,7 +1391,6 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
 	device->fwnode.type = FWNODE_ACPI;
-	device->fwnode.ops = &acpi_fwnode_ops;
 	acpi_set_device_status(device, sta);
 	acpi_device_get_busid(device);
 	acpi_set_pnp_ids(handle, &device->pnp, type);
@@ -1959,7 +1958,7 @@ int __init acpi_scan_init(void)
 
 static struct acpi_probe_entry *ape;
 static int acpi_probe_count;
-static DEFINE_MUTEX(acpi_probe_mutex);
+static DEFINE_SPINLOCK(acpi_probe_lock);
 
 static int __init acpi_match_madt(struct acpi_subtable_header *header,
 				  const unsigned long end)
@@ -1978,7 +1977,7 @@ int __init __acpi_probe_device_table(struct acpi_probe_entry *ap_head, int nr)
 	if (acpi_disabled)
 		return 0;
 
-	mutex_lock(&acpi_probe_mutex);
+	spin_lock(&acpi_probe_lock);
 	for (ape = ap_head; nr; ape++, nr--) {
 		if (ACPI_COMPARE_NAME(ACPI_SIG_MADT, ape->id)) {
 			acpi_probe_count = 0;
@@ -1991,7 +1990,7 @@ int __init __acpi_probe_device_table(struct acpi_probe_entry *ap_head, int nr)
 				count++;
 		}
 	}
-	mutex_unlock(&acpi_probe_mutex);
+	spin_unlock(&acpi_probe_lock);
 
 	return count;
 }

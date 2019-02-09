@@ -171,100 +171,62 @@ static void irq_state_clr_disabled(struct irq_desc *desc)
 	irqd_clear(&desc->irq_data, IRQD_IRQ_DISABLED);
 }
 
+static void irq_state_set_disabled(struct irq_desc *desc)
+{
+	irqd_set(&desc->irq_data, IRQD_IRQ_DISABLED);
+}
+
 static void irq_state_clr_masked(struct irq_desc *desc)
 {
 	irqd_clear(&desc->irq_data, IRQD_IRQ_MASKED);
 }
 
-static void irq_state_clr_started(struct irq_desc *desc)
+static void irq_state_set_masked(struct irq_desc *desc)
 {
-	irqd_clear(&desc->irq_data, IRQD_IRQ_STARTED);
-}
-
-static void irq_state_set_started(struct irq_desc *desc)
-{
-	irqd_set(&desc->irq_data, IRQD_IRQ_STARTED);
+	irqd_set(&desc->irq_data, IRQD_IRQ_MASKED);
 }
 
 int irq_startup(struct irq_desc *desc, bool resend)
 {
 	int ret = 0;
 
+	irq_state_clr_disabled(desc);
 	desc->depth = 0;
 
-	if (irqd_is_started(&desc->irq_data)) {
-		irq_enable(desc);
+	irq_domain_activate_irq(&desc->irq_data);
+	if (desc->irq_data.chip->irq_startup) {
+		ret = desc->irq_data.chip->irq_startup(&desc->irq_data);
+		irq_state_clr_masked(desc);
 	} else {
-		irq_domain_activate_irq(&desc->irq_data);
-		if (desc->irq_data.chip->irq_startup) {
-			ret = desc->irq_data.chip->irq_startup(&desc->irq_data);
-			irq_state_clr_disabled(desc);
-			irq_state_clr_masked(desc);
-		} else {
-			irq_enable(desc);
-		}
-		irq_state_set_started(desc);
+		irq_enable(desc);
 	}
-
 	if (resend)
 		check_irq_resend(desc);
-
 	return ret;
 }
 
-static void __irq_disable(struct irq_desc *desc, bool mask);
-
 void irq_shutdown(struct irq_desc *desc)
 {
-	if (irqd_is_started(&desc->irq_data)) {
-		desc->depth = 1;
-		if (desc->irq_data.chip->irq_shutdown) {
-			desc->irq_data.chip->irq_shutdown(&desc->irq_data);
-			irq_state_set_disabled(desc);
-			irq_state_set_masked(desc);
-		} else {
-			__irq_disable(desc, true);
-		}
-		irq_state_clr_started(desc);
-	}
-	/*
-	 * This must be called even if the interrupt was never started up,
-	 * because the activation can happen before the interrupt is
-	 * available for request/startup. It has it's own state tracking so
-	 * it's safe to call it unconditionally.
-	 */
+	irq_state_set_disabled(desc);
+	desc->depth = 1;
+	if (desc->irq_data.chip->irq_shutdown)
+		desc->irq_data.chip->irq_shutdown(&desc->irq_data);
+	else if (desc->irq_data.chip->irq_disable)
+		desc->irq_data.chip->irq_disable(&desc->irq_data);
+	else
+		desc->irq_data.chip->irq_mask(&desc->irq_data);
 	irq_domain_deactivate_irq(&desc->irq_data);
+	irq_state_set_masked(desc);
 }
 
 void irq_enable(struct irq_desc *desc)
 {
-	if (!irqd_irq_disabled(&desc->irq_data)) {
-		unmask_irq(desc);
-	} else {
-		irq_state_clr_disabled(desc);
-		if (desc->irq_data.chip->irq_enable) {
-			desc->irq_data.chip->irq_enable(&desc->irq_data);
-			irq_state_clr_masked(desc);
-		} else {
-			unmask_irq(desc);
-		}
-	}
-}
-
-static void __irq_disable(struct irq_desc *desc, bool mask)
-{
-	if (irqd_irq_disabled(&desc->irq_data)) {
-		if (mask)
-			mask_irq(desc);
-	} else {
-		irq_state_set_disabled(desc);
-		if (desc->irq_data.chip->irq_disable) {
-			desc->irq_data.chip->irq_disable(&desc->irq_data);
-			irq_state_set_masked(desc);
-		} else if (mask) {
-			mask_irq(desc);
-		}
-	}
+	irq_state_clr_disabled(desc);
+	if (desc->irq_data.chip->irq_enable)
+		desc->irq_data.chip->irq_enable(&desc->irq_data);
+	else
+		desc->irq_data.chip->irq_unmask(&desc->irq_data);
+	irq_state_clr_masked(desc);
 }
 
 /**
@@ -289,7 +251,13 @@ static void __irq_disable(struct irq_desc *desc, bool mask)
  */
 void irq_disable(struct irq_desc *desc)
 {
-	__irq_disable(desc, irq_settings_disable_unlazy(desc));
+	irq_state_set_disabled(desc);
+	if (desc->irq_data.chip->irq_disable) {
+		desc->irq_data.chip->irq_disable(&desc->irq_data);
+		irq_state_set_masked(desc);
+	} else if (irq_settings_disable_unlazy(desc)) {
+		mask_irq(desc);
+	}
 }
 
 void irq_percpu_enable(struct irq_desc *desc, unsigned int cpu)
@@ -312,21 +280,18 @@ void irq_percpu_disable(struct irq_desc *desc, unsigned int cpu)
 
 static inline void mask_ack_irq(struct irq_desc *desc)
 {
-	if (desc->irq_data.chip->irq_mask_ack) {
+	if (desc->irq_data.chip->irq_mask_ack)
 		desc->irq_data.chip->irq_mask_ack(&desc->irq_data);
-		irq_state_set_masked(desc);
-	} else {
-		mask_irq(desc);
+	else {
+		desc->irq_data.chip->irq_mask(&desc->irq_data);
 		if (desc->irq_data.chip->irq_ack)
 			desc->irq_data.chip->irq_ack(&desc->irq_data);
 	}
+	irq_state_set_masked(desc);
 }
 
 void mask_irq(struct irq_desc *desc)
 {
-	if (irqd_irq_masked(&desc->irq_data))
-		return;
-
 	if (desc->irq_data.chip->irq_mask) {
 		desc->irq_data.chip->irq_mask(&desc->irq_data);
 		irq_state_set_masked(desc);
@@ -335,9 +300,6 @@ void mask_irq(struct irq_desc *desc)
 
 void unmask_irq(struct irq_desc *desc)
 {
-	if (!irqd_irq_masked(&desc->irq_data))
-		return;
-
 	if (desc->irq_data.chip->irq_unmask) {
 		desc->irq_data.chip->irq_unmask(&desc->irq_data);
 		irq_state_clr_masked(desc);
@@ -351,7 +313,10 @@ void unmask_threaded_irq(struct irq_desc *desc)
 	if (chip->flags & IRQCHIP_EOI_THREADED)
 		chip->irq_eoi(&desc->irq_data);
 
-	unmask_irq(desc);
+	if (chip->irq_unmask) {
+		chip->irq_unmask(&desc->irq_data);
+		irq_state_clr_masked(desc);
+	}
 }
 
 /*
@@ -373,6 +338,7 @@ void handle_nested_irq(unsigned int irq)
 	raw_spin_lock_irq(&desc->lock);
 
 	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
+	kstat_incr_irqs_this_cpu(desc);
 
 	action = desc->action;
 	if (unlikely(!action || irqd_irq_disabled(&desc->irq_data))) {
@@ -380,7 +346,6 @@ void handle_nested_irq(unsigned int irq)
 		goto out_unlock;
 	}
 
-	kstat_incr_irqs_this_cpu(desc);
 	irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	raw_spin_unlock_irq(&desc->lock);
 
@@ -447,13 +412,13 @@ void handle_simple_irq(struct irq_desc *desc)
 		goto out_unlock;
 
 	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
+	kstat_incr_irqs_this_cpu(desc);
 
 	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data))) {
 		desc->istate |= IRQS_PENDING;
 		goto out_unlock;
 	}
 
-	kstat_incr_irqs_this_cpu(desc);
 	handle_irq_event(desc);
 
 out_unlock:
@@ -497,6 +462,7 @@ void handle_level_irq(struct irq_desc *desc)
 		goto out_unlock;
 
 	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
+	kstat_incr_irqs_this_cpu(desc);
 
 	/*
 	 * If its disabled or no action available
@@ -507,7 +473,6 @@ void handle_level_irq(struct irq_desc *desc)
 		goto out_unlock;
 	}
 
-	kstat_incr_irqs_this_cpu(desc);
 	handle_irq_event(desc);
 
 	cond_unmask_irq(desc);
@@ -567,6 +532,7 @@ void handle_fasteoi_irq(struct irq_desc *desc)
 		goto out;
 
 	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
+	kstat_incr_irqs_this_cpu(desc);
 
 	/*
 	 * If its disabled or no action available
@@ -578,7 +544,6 @@ void handle_fasteoi_irq(struct irq_desc *desc)
 		goto out;
 	}
 
-	kstat_incr_irqs_this_cpu(desc);
 	if (desc->istate & IRQS_ONESHOT)
 		mask_irq(desc);
 
@@ -845,8 +810,8 @@ irq_set_chained_handler_and_data(unsigned int irq, irq_flow_handler_t handle,
 	if (!desc)
 		return;
 
-	desc->irq_common_data.handler_data = data;
 	__irq_do_set_handler(desc, handle, 1, NULL);
+	desc->irq_common_data.handler_data = data;
 
 	irq_put_desc_busunlock(desc, flags);
 }
@@ -868,13 +833,6 @@ void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 
 	if (!desc)
 		return;
-
-	/*
-	 * Warn when a driver sets the no autoenable flag on an already
-	 * active interrupt.
-	 */
-	WARN_ON_ONCE(!desc->depth && (set & _IRQ_NOAUTOEN));
-
 	irq_settings_clr_and_set(desc, clr, set);
 
 	irqd_clear(&desc->irq_data, IRQD_NO_BALANCING | IRQD_PER_CPU |

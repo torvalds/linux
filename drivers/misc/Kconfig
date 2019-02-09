@@ -4,13 +4,6 @@
 
 menu "Misc devices"
 
-config ROCKCHIP_SCR
-	tristate "Rockchip Smartcard Reader Controller support"
-	default n
-	help
-	  say Y here to enable Rockchip Smartcard Reader Controller driver
-	  for Soc such as RK3128,RK322x,RK3288,RK3368,RK3366 and etc.
-
 config SENSORS_LIS3LV02D
 	tristate
 	depends on INPUT
@@ -446,7 +439,7 @@ config ARM_CHARLCD
 	  still useful.
 
 config BMP085
-	tristate
+	bool
 	depends on SYSFS
 
 config BMP085_I2C
@@ -531,38 +524,6 @@ config VEXPRESS_SYSCFG
 	  ARM Ltd. Versatile Express uses specialised platform configuration
 	  bus. System Configuration interface is one of the possible means
 	  of generating transactions on this bus.
-
-config UID_SYS_STATS
-	bool "Per-UID statistics"
-	depends on PROFILING && TASK_XACCT && TASK_IO_ACCOUNTING
-	help
-	  Per UID based cpu time statistics exported to /proc/uid_cputime
-	  Per UID based io statistics exported to /proc/uid_io
-	  Per UID based procstat control in /proc/uid_procstat
-
-config UID_SYS_STATS_DEBUG
-	bool "Per-TASK statistics"
-	depends on UID_SYS_STATS
-	default n
-	help
-	  Per TASK based io statistics exported to /proc/uid_io
-
-config MEMORY_STATE_TIME
-	tristate "Memory freq/bandwidth time statistics"
-	depends on PROFILING
-	help
-	  Memory time statistics exported to /sys/kernel/memory_state_time
-
-config USB_CAM_GPIO
-	bool "usb camera gpio driver"
-	default n
-	help
-	  Enable this driver will support usb camera gpio control
-
-config GPIO_DET
-	bool "gpio detection driver"
-	help
-	  Enable this driver will support gpio detection.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

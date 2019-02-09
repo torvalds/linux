@@ -4,8 +4,7 @@
  * Copyright (c) 2013 ELAN Microelectronics Corp.
  *
  * Author: 林政維 (Duson Lin) <dusonlin@emc.com.tw>
- * Author: KT Liao <kt.liao@emc.com.tw>
- * Version: 1.6.2
+ * Version: 1.6.0
  *
  * Based on cyapa driver:
  * copyright (c) 2011-2012 Cypress Semiconductor, Inc.
@@ -41,7 +40,7 @@
 #include "elan_i2c.h"
 
 #define DRIVER_NAME		"elan_i2c"
-#define ELAN_DRIVER_VERSION	"1.6.2"
+#define ELAN_DRIVER_VERSION	"1.6.1"
 #define ELAN_VENDOR_ID		0x04f3
 #define ETP_MAX_PRESSURE	255
 #define ETP_FWIDTH_REDUCE	90
@@ -200,70 +199,15 @@ static int elan_sleep(struct elan_tp_data *data)
 	return error;
 }
 
-static int elan_query_product(struct elan_tp_data *data)
-{
-	int error;
-
-	error = data->ops->get_product_id(data->client, &data->product_id);
-	if (error)
-		return error;
-
-	error = data->ops->get_sm_version(data->client, &data->ic_type,
-					  &data->sm_version);
-	if (error)
-		return error;
-
-	return 0;
-}
-
-static int elan_check_ASUS_special_fw(struct elan_tp_data *data)
-{
-	if (data->ic_type == 0x0E) {
-		switch (data->product_id) {
-		case 0x05 ... 0x07:
-		case 0x09:
-		case 0x13:
-			return true;
-		}
-	} else if (data->ic_type == 0x08 && data->product_id == 0x26) {
-		/* ASUS EeeBook X205TA */
-		return true;
-	}
-
-	return false;
-}
-
 static int __elan_initialize(struct elan_tp_data *data)
 {
 	struct i2c_client *client = data->client;
-	bool woken_up = false;
 	int error;
 
 	error = data->ops->initialize(client);
 	if (error) {
 		dev_err(&client->dev, "device initialize failed: %d\n", error);
 		return error;
-	}
-
-	error = elan_query_product(data);
-	if (error)
-		return error;
-
-	/*
-	 * Some ASUS devices were shipped with firmware that requires
-	 * touchpads to be woken up first, before attempting to switch
-	 * them into absolute reporting mode.
-	 */
-	if (elan_check_ASUS_special_fw(data)) {
-		error = data->ops->sleep_control(client, false);
-		if (error) {
-			dev_err(&client->dev,
-				"failed to wake device up: %d\n", error);
-			return error;
-		}
-
-		msleep(200);
-		woken_up = true;
 	}
 
 	data->mode |= ETP_ENABLE_ABS;
@@ -274,13 +218,11 @@ static int __elan_initialize(struct elan_tp_data *data)
 		return error;
 	}
 
-	if (!woken_up) {
-		error = data->ops->sleep_control(client, false);
-		if (error) {
-			dev_err(&client->dev,
-				"failed to wake device up: %d\n", error);
-			return error;
-		}
+	error = data->ops->sleep_control(client, false);
+	if (error) {
+		dev_err(&client->dev,
+			"failed to wake device up: %d\n", error);
+		return error;
 	}
 
 	return 0;
@@ -306,12 +248,21 @@ static int elan_query_device_info(struct elan_tp_data *data)
 {
 	int error;
 
+	error = data->ops->get_product_id(data->client, &data->product_id);
+	if (error)
+		return error;
+
 	error = data->ops->get_version(data->client, false, &data->fw_version);
 	if (error)
 		return error;
 
 	error = data->ops->get_checksum(data->client, false,
 					&data->fw_checksum);
+	if (error)
+		return error;
+
+	error = data->ops->get_sm_version(data->client, &data->ic_type,
+					  &data->sm_version);
 	if (error)
 		return error;
 
@@ -595,7 +546,7 @@ static ssize_t calibrate_store(struct device *dev,
 	int tries = 20;
 	int retval;
 	int error;
-	u8 val[ETP_CALIBRATE_MAX_LEN];
+	u8 val[3];
 
 	retval = mutex_lock_interruptible(&data->sysfs_mutex);
 	if (retval)
@@ -1082,13 +1033,6 @@ static int elan_probe(struct i2c_client *client,
 		return error;
 	}
 
-	/* Make sure there is something at this address */
-	error = i2c_smbus_read_byte(client);
-	if (error < 0) {
-		dev_dbg(&client->dev, "nothing at this address: %d\n", error);
-		return -ENXIO;
-	}
-
 	/* Initialize the touchpad. */
 	error = elan_initialize(data);
 	if (error)
@@ -1241,22 +1185,6 @@ static const struct acpi_device_id elan_acpi_id[] = {
 	{ "ELAN0000", 0 },
 	{ "ELAN0100", 0 },
 	{ "ELAN0600", 0 },
-	{ "ELAN0602", 0 },
-	{ "ELAN0605", 0 },
-	{ "ELAN0608", 0 },
-	{ "ELAN0605", 0 },
-	{ "ELAN0609", 0 },
-	{ "ELAN060B", 0 },
-	{ "ELAN060C", 0 },
-	{ "ELAN0611", 0 },
-	{ "ELAN0612", 0 },
-	{ "ELAN0618", 0 },
-	{ "ELAN061C", 0 },
-	{ "ELAN061D", 0 },
-	{ "ELAN061E", 0 },
-	{ "ELAN0620", 0 },
-	{ "ELAN0621", 0 },
-	{ "ELAN0622", 0 },
 	{ "ELAN1000", 0 },
 	{ }
 };

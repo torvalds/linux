@@ -13,7 +13,6 @@
 
 #include <linux/cpufreq.h>
 #include <linux/interrupt.h>
-#include <linux/leds.h>
 #include <linux/irq.h>
 #include <linux/pm.h>
 #include <linux/gpio.h>

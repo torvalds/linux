@@ -3,7 +3,6 @@
 
 #include <linux/rhashtable.h>
 #include <linux/atomic.h>
-#include <linux/workqueue.h>
 #include <net/sock.h>
 
 #define NLGRPSZ(x)	(ALIGN(x, sizeof(unsigned long) * 8) / 8)
@@ -38,7 +37,6 @@ struct netlink_sock {
 	wait_queue_head_t	wait;
 	bool			bound;
 	bool			cb_running;
-	int			dump_done_errno;
 	struct netlink_callback	cb;
 	struct mutex		*cb_mutex;
 	struct mutex		cb_def_mutex;
@@ -46,15 +44,29 @@ struct netlink_sock {
 	int			(*netlink_bind)(struct net *net, int group);
 	void			(*netlink_unbind)(struct net *net, int group);
 	struct module		*module;
+#ifdef CONFIG_NETLINK_MMAP
+	struct mutex		pg_vec_lock;
+	struct netlink_ring	rx_ring;
+	struct netlink_ring	tx_ring;
+	atomic_t		mapped;
+#endif /* CONFIG_NETLINK_MMAP */
 
 	struct rhash_head	node;
 	struct rcu_head		rcu;
-	struct work_struct	work;
 };
 
 static inline struct netlink_sock *nlk_sk(struct sock *sk)
 {
 	return container_of(sk, struct netlink_sock, sk);
+}
+
+static inline bool netlink_skb_is_mmaped(const struct sk_buff *skb)
+{
+#ifdef CONFIG_NETLINK_MMAP
+	return NETLINK_CB(skb).flags & NETLINK_SKB_MMAPED;
+#else
+	return false;
+#endif /* CONFIG_NETLINK_MMAP */
 }
 
 struct netlink_table {

@@ -365,9 +365,6 @@ pnfs_layout_need_return(struct pnfs_layout_hdr *lo,
 static bool
 pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo)
 {
-	/* Serialise LAYOUTGET/LAYOUTRETURN */
-	if (atomic_read(&lo->plh_outstanding) != 0)
-		return false;
 	if (test_and_set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
 		return false;
 	lo->plh_return_iomode = 0;
@@ -1185,11 +1182,13 @@ bool pnfs_wait_on_layoutreturn(struct inode *ino, struct rpc_task *task)
 	 * i_lock */
         spin_lock(&ino->i_lock);
         lo = nfsi->layout;
-        if (lo && test_bit(NFS_LAYOUT_RETURN, &lo->plh_flags)) {
-                rpc_sleep_on(&NFS_SERVER(ino)->roc_rpcwaitq, task, NULL);
+        if (lo && test_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
                 sleep = true;
-	}
         spin_unlock(&ino->i_lock);
+
+        if (sleep)
+                rpc_sleep_on(&NFS_SERVER(ino)->roc_rpcwaitq, task, NULL);
+
         return sleep;
 }
 
@@ -1531,7 +1530,6 @@ pnfs_update_layout(struct inode *ino,
 		goto out;
 
 lookup_again:
-	nfs4_client_recover_expired_lease(clp);
 	first = false;
 	spin_lock(&ino->i_lock);
 	lo = pnfs_find_alloc_layout(ino, ctx, gfp_flags);
@@ -1943,7 +1941,8 @@ pnfs_write_through_mds(struct nfs_pageio_descriptor *desc,
 		nfs_pageio_reset_write_mds(desc);
 		mirror->pg_recoalesce = 1;
 	}
-	hdr->completion_ops->completion(hdr);
+	nfs_pgio_data_destroy(hdr);
+	hdr->release(hdr);
 }
 
 static enum pnfs_try_status
@@ -2058,7 +2057,8 @@ pnfs_read_through_mds(struct nfs_pageio_descriptor *desc,
 		nfs_pageio_reset_read_mds(desc);
 		mirror->pg_recoalesce = 1;
 	}
-	hdr->completion_ops->completion(hdr);
+	nfs_pgio_data_destroy(hdr);
+	hdr->release(hdr);
 }
 
 /*

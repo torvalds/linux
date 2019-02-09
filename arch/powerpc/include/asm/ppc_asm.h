@@ -224,16 +224,6 @@ name: \
 	.globl name; \
 name:
 
-#define _KPROBE_TOC(name)			\
-	.section ".kprobes.text","a";		\
-	.align 2 ;				\
-	.type name,@function;			\
-	.globl name;				\
-name:						\
-0:	addis r2,r12,(.TOC.-0b)@ha;		\
-	addi r2,r2,(.TOC.-0b)@l;		\
-	.localentry name,.-name
-
 #define DOTSYM(a)	a
 
 #else
@@ -270,8 +260,6 @@ name: \
 	.previous; \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
-
-#define _KPROBE_TOC(n)	_KPROBE(n)
 
 #define DOTSYM(a)	GLUE(.,a)
 

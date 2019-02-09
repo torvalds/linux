@@ -35,7 +35,6 @@
 #include <linux/crash_dump.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
-#include <linux/slab.h>
 
 #include <asm/page.h>
 #include <asm/prom.h>
@@ -49,10 +48,8 @@ static struct fadump_mem_struct fdm;
 static const struct fadump_mem_struct *fdm_active;
 
 static DEFINE_MUTEX(fadump_mutex);
-struct fad_crash_memory_ranges *crash_memory_ranges;
-int crash_memory_ranges_size;
+struct fad_crash_memory_ranges crash_memory_ranges[INIT_CRASHMEM_RANGES];
 int crash_mem_ranges;
-int max_crash_mem_ranges;
 
 /* Scan the Firmware Assisted dump configuration details. */
 int __init early_init_dt_scan_fw_dump(unsigned long node,
@@ -360,9 +357,9 @@ static int __init early_fadump_reserve_mem(char *p)
 }
 early_param("fadump_reserve_mem", early_fadump_reserve_mem);
 
-static int register_fw_dump(struct fadump_mem_struct *fdm)
+static void register_fw_dump(struct fadump_mem_struct *fdm)
 {
-	int rc, err;
+	int rc;
 	unsigned int wait_time;
 
 	pr_debug("Registering for firmware-assisted kernel dump...\n");
@@ -379,11 +376,7 @@ static int register_fw_dump(struct fadump_mem_struct *fdm)
 
 	} while (wait_time);
 
-	err = -EIO;
 	switch (rc) {
-	default:
-		pr_err("Failed to register. Unknown Error(%d).\n", rc);
-		break;
 	case -1:
 		printk(KERN_ERR "Failed to register firmware-assisted kernel"
 			" dump. Hardware Error(%d).\n", rc);
@@ -391,22 +384,18 @@ static int register_fw_dump(struct fadump_mem_struct *fdm)
 	case -3:
 		printk(KERN_ERR "Failed to register firmware-assisted kernel"
 			" dump. Parameter Error(%d).\n", rc);
-		err = -EINVAL;
 		break;
 	case -9:
 		printk(KERN_ERR "firmware-assisted kernel dump is already "
 			" registered.");
 		fw_dump.dump_registered = 1;
-		err = -EEXIST;
 		break;
 	case 0:
 		printk(KERN_INFO "firmware-assisted kernel dump registration"
 			" is successful\n");
 		fw_dump.dump_registered = 1;
-		err = 0;
 		break;
 	}
-	return err;
 }
 
 void crash_fadump(struct pt_regs *regs, const char *str)
@@ -737,88 +726,38 @@ static int __init process_fadump(const struct fadump_mem_struct *fdm_active)
 	return 0;
 }
 
-static void free_crash_memory_ranges(void)
-{
-	kfree(crash_memory_ranges);
-	crash_memory_ranges = NULL;
-	crash_memory_ranges_size = 0;
-	max_crash_mem_ranges = 0;
-}
-
-/*
- * Allocate or reallocate crash memory ranges array in incremental units
- * of PAGE_SIZE.
- */
-static int allocate_crash_memory_ranges(void)
-{
-	struct fad_crash_memory_ranges *new_array;
-	u64 new_size;
-
-	new_size = crash_memory_ranges_size + PAGE_SIZE;
-	pr_debug("Allocating %llu bytes of memory for crash memory ranges\n",
-		 new_size);
-
-	new_array = krealloc(crash_memory_ranges, new_size, GFP_KERNEL);
-	if (new_array == NULL) {
-		pr_err("Insufficient memory for setting up crash memory ranges\n");
-		free_crash_memory_ranges();
-		return -ENOMEM;
-	}
-
-	crash_memory_ranges = new_array;
-	crash_memory_ranges_size = new_size;
-	max_crash_mem_ranges = (new_size /
-				sizeof(struct fad_crash_memory_ranges));
-	return 0;
-}
-
-static inline int fadump_add_crash_memory(unsigned long long base,
-					  unsigned long long end)
+static inline void fadump_add_crash_memory(unsigned long long base,
+					unsigned long long end)
 {
 	if (base == end)
-		return 0;
-
-	if (crash_mem_ranges == max_crash_mem_ranges) {
-		int ret;
-
-		ret = allocate_crash_memory_ranges();
-		if (ret)
-			return ret;
-	}
+		return;
 
 	pr_debug("crash_memory_range[%d] [%#016llx-%#016llx], %#llx bytes\n",
 		crash_mem_ranges, base, end - 1, (end - base));
 	crash_memory_ranges[crash_mem_ranges].base = base;
 	crash_memory_ranges[crash_mem_ranges].size = end - base;
 	crash_mem_ranges++;
-	return 0;
 }
 
-static int fadump_exclude_reserved_area(unsigned long long start,
+static void fadump_exclude_reserved_area(unsigned long long start,
 					unsigned long long end)
 {
 	unsigned long long ra_start, ra_end;
-	int ret = 0;
 
 	ra_start = fw_dump.reserve_dump_area_start;
 	ra_end = ra_start + fw_dump.reserve_dump_area_size;
 
 	if ((ra_start < end) && (ra_end > start)) {
 		if ((start < ra_start) && (end > ra_end)) {
-			ret = fadump_add_crash_memory(start, ra_start);
-			if (ret)
-				return ret;
-
-			ret = fadump_add_crash_memory(ra_end, end);
+			fadump_add_crash_memory(start, ra_start);
+			fadump_add_crash_memory(ra_end, end);
 		} else if (start < ra_start) {
-			ret = fadump_add_crash_memory(start, ra_start);
+			fadump_add_crash_memory(start, ra_start);
 		} else if (ra_end < end) {
-			ret = fadump_add_crash_memory(ra_end, end);
+			fadump_add_crash_memory(ra_end, end);
 		}
 	} else
-		ret = fadump_add_crash_memory(start, end);
-
-	return ret;
+		fadump_add_crash_memory(start, end);
 }
 
 static int fadump_init_elfcore_header(char *bufp)
@@ -854,11 +793,10 @@ static int fadump_init_elfcore_header(char *bufp)
  * Traverse through memblock structure and setup crash memory ranges. These
  * ranges will be used create PT_LOAD program headers in elfcore header.
  */
-static int fadump_setup_crash_memory_ranges(void)
+static void fadump_setup_crash_memory_ranges(void)
 {
 	struct memblock_region *reg;
 	unsigned long long start, end;
-	int ret;
 
 	pr_debug("Setup crash memory ranges.\n");
 	crash_mem_ranges = 0;
@@ -869,9 +807,7 @@ static int fadump_setup_crash_memory_ranges(void)
 	 * specified during fadump registration. We need to create a separate
 	 * program header for this chunk with the correct offset.
 	 */
-	ret = fadump_add_crash_memory(RMA_START, fw_dump.boot_memory_size);
-	if (ret)
-		return ret;
+	fadump_add_crash_memory(RMA_START, fw_dump.boot_memory_size);
 
 	for_each_memblock(memory, reg) {
 		start = (unsigned long long)reg->base;
@@ -880,12 +816,8 @@ static int fadump_setup_crash_memory_ranges(void)
 			start = fw_dump.boot_memory_size;
 
 		/* add this range excluding the reserved dump area. */
-		ret = fadump_exclude_reserved_area(start, end);
-		if (ret)
-			return ret;
+		fadump_exclude_reserved_area(start, end);
 	}
-
-	return 0;
 }
 
 /*
@@ -1005,22 +937,19 @@ static unsigned long init_fadump_header(unsigned long addr)
 	return addr;
 }
 
-static int register_fadump(void)
+static void register_fadump(void)
 {
 	unsigned long addr;
 	void *vaddr;
-	int ret;
 
 	/*
 	 * If no memory is reserved then we can not register for firmware-
 	 * assisted dump.
 	 */
 	if (!fw_dump.reserve_dump_area_size)
-		return -ENODEV;
+		return;
 
-	ret = fadump_setup_crash_memory_ranges();
-	if (ret)
-		return ret;
+	fadump_setup_crash_memory_ranges();
 
 	addr = be64_to_cpu(fdm.rmr_region.destination_address) + be64_to_cpu(fdm.rmr_region.source_len);
 	/* Initialize fadump crash info header. */
@@ -1031,7 +960,7 @@ static int register_fadump(void)
 	fadump_create_elfcore_headers(vaddr);
 
 	/* register the future kernel dump with firmware. */
-	return register_fw_dump(&fdm);
+	register_fw_dump(&fdm);
 }
 
 static int fadump_unregister_dump(struct fadump_mem_struct *fdm)
@@ -1096,10 +1025,6 @@ void fadump_cleanup(void)
 		init_fadump_mem_struct(&fdm,
 			be64_to_cpu(fdm_active->cpu_state_data.destination_address));
 		fadump_invalidate_dump(&fdm);
-	} else if (fw_dump.dump_registered) {
-		/* Un-register Firmware-assisted dump if it was registered. */
-		fadump_unregister_dump(&fdm);
-		free_crash_memory_ranges();
 	}
 }
 
@@ -1216,6 +1141,7 @@ static ssize_t fadump_register_store(struct kobject *kobj,
 	switch (buf[0]) {
 	case '0':
 		if (fw_dump.dump_registered == 0) {
+			ret = -EINVAL;
 			goto unlock_out;
 		}
 		/* Un-register Firmware-assisted dump */
@@ -1223,11 +1149,11 @@ static ssize_t fadump_register_store(struct kobject *kobj,
 		break;
 	case '1':
 		if (fw_dump.dump_registered == 1) {
-			ret = -EEXIST;
+			ret = -EINVAL;
 			goto unlock_out;
 		}
 		/* Register Firmware-assisted dump */
-		ret = register_fadump();
+		register_fadump();
 		break;
 	default:
 		ret = -EINVAL;

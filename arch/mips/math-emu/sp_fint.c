@@ -23,7 +23,7 @@
 
 union ieee754sp ieee754sp_fint(int x)
 {
-	unsigned int xm;
+	unsigned xm;
 	int xe;
 	int xs;
 

@@ -14,7 +14,6 @@
 
 struct mmp_dma_platdata {
 	int dma_channels;
-	int nb_requestors;
 };
 
 #endif /* MMP_DMA_H */

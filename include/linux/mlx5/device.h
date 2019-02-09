@@ -334,17 +334,6 @@ enum {
 	MLX5_CAP_OFF_CMDIF_CSUM		= 46,
 };
 
-enum {
-	/*
-	 * Max wqe size for rdma read is 512 bytes, so this
-	 * limits our max_sge_rd as the wqe needs to fit:
-	 * - ctrl segment (16 bytes)
-	 * - rdma segment (16 bytes)
-	 * - scatter elements (16 bytes each)
-	 */
-	MLX5_MAX_SGE_RD	= (512 - 16 - 16) / 16
-};
-
 struct mlx5_inbox_hdr {
 	__be16		opcode;
 	u8		rsvd[4];
@@ -635,14 +624,8 @@ enum {
 };
 
 enum {
-	CQE_RSS_HTYPE_IP	= 0x3 << 2,
-	/* cqe->rss_hash_type[3:2] - IP destination selected for hash
-	 * (00 = none,  01 = IPv4, 10 = IPv6, 11 = Reserved)
-	 */
-	CQE_RSS_HTYPE_L4	= 0x3 << 6,
-	/* cqe->rss_hash_type[7:6] - L4 destination selected for hash
-	 * (00 = none, 01 = TCP. 10 = UDP, 11 = IPSEC.SPI
-	 */
+	CQE_RSS_HTYPE_IP	= 0x3 << 6,
+	CQE_RSS_HTYPE_L4	= 0x3 << 2,
 };
 
 enum {

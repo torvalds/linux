@@ -312,9 +312,6 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 	case DRM_CAP_ADDFB2_MODIFIERS:
 		req->value = dev->mode_config.allow_fb_modifiers;
 		break;
-	case DRM_CAP_CRTC_IN_VBLANK_EVENT:
-		req->value = 1;
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -339,11 +336,6 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		if (req->value > 1)
 			return -EINVAL;
 		file_priv->universal_planes = req->value;
-		break;
-	case DRM_CLIENT_CAP_SHARE_PLANES:
-		if (req->value > 1)
-			return -EINVAL;
-		file_priv->share_planes = req->value;
 		break;
 	case DRM_CLIENT_CAP_ATOMIC:
 		if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
@@ -523,7 +515,6 @@ static int drm_version(struct drm_device *dev, void *data,
  */
 int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 {
-#ifndef CONFIG_DRM_IGNORE_IOTCL_PERMIT
 	/* ROOT_ONLY is only for CAP_SYS_ADMIN */
 	if (unlikely((flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN)))
 		return -EACCES;
@@ -547,7 +538,6 @@ int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 	if (unlikely(!(flags & DRM_RENDER_ALLOW) &&
 		     drm_is_render_client(file_priv)))
 		return -EACCES;
-#endif
 
 	return 0;
 }

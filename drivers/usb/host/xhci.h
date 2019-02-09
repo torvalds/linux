@@ -131,8 +131,6 @@ struct xhci_cap_regs {
 /* Extended Capabilities pointer from PCI base - section 5.3.6 */
 #define HCC_EXT_CAPS(p)		XHCI_HCC_EXT_CAPS(p)
 
-#define CTX_SIZE(_hcc)		(HCC_64BYTE_CONTEXT(_hcc) ? 64 : 32)
-
 /* db_off bitmask - bits 0:1 reserved */
 #define	DBOFF_MASK	(~0x3)
 
@@ -311,19 +309,10 @@ struct xhci_op_regs {
  */
 #define PORT_PLS_MASK	(0xf << 5)
 #define XDEV_U0		(0x0 << 5)
-#define XDEV_U1		(0x1 << 5)
 #define XDEV_U2		(0x2 << 5)
 #define XDEV_U3		(0x3 << 5)
-#define XDEV_DISABLED	(0x4 << 5)
-#define XDEV_RXDETECT	(0x5 << 5)
 #define XDEV_INACTIVE	(0x6 << 5)
-#define XDEV_POLLING	(0x7 << 5)
-#define XDEV_RECOVERY	(0x8 << 5)
-#define XDEV_HOT_RESET	(0x9 << 5)
-#define XDEV_COMP_MODE	(0xa << 5)
-#define XDEV_TEST_MODE	(0xb << 5)
 #define XDEV_RESUME	(0xf << 5)
-
 /* true: port has power (see HCC_PPC) */
 #define PORT_POWER	(1 << 9)
 /* bits 10:13 indicate device speed:
@@ -391,10 +380,6 @@ struct xhci_op_regs {
 #define PORT_PLC	(1 << 22)
 /* port configure error change - port failed to configure its link partner */
 #define PORT_CEC	(1 << 23)
-#define PORT_CHANGE_MASK	(PORT_CSC | PORT_PEC | PORT_WRC | PORT_OCC | \
-				 PORT_RC | PORT_PLC | PORT_CEC)
-
-
 /* Cold Attach Status - xHC can set this bit to report device attached during
  * Sx state. Warm port reset should be perfomed to clear this bit and move port
  * to connected state.
@@ -627,7 +612,6 @@ struct xhci_slot_ctx {
 #define ROUTE_STRING_MASK	(0xfffff)
 /* Device speed - values defined by PORTSC Device Speed field - 20:23 */
 #define DEV_SPEED	(0xf << 20)
-#define GET_DEV_SPEED(n) (((n) & DEV_SPEED) >> 20)
 /* bit 24 reserved */
 /* Is this LS/FS device connected through a HS hub? - bit 25 */
 #define DEV_MTT		(0x1 << 25)
@@ -648,7 +632,6 @@ struct xhci_slot_ctx {
 #define DEVINFO_TO_ROOT_HUB_PORT(p)	(((p) >> 16) & 0xff)
 /* Maximum number of ports under a hub device */
 #define XHCI_MAX_PORTS(p)	(((p) & 0xff) << 24)
-#define DEVINFO_TO_MAX_PORTS(p)	(((p) & (0xff << 24)) >> 24)
 
 /* tt_info bitmasks */
 /*
@@ -663,7 +646,6 @@ struct xhci_slot_ctx {
  */
 #define TT_PORT		(0xff << 8)
 #define TT_THINK_TIME(p)	(((p) & 0x3) << 16)
-#define GET_TT_THINK_TIME(p)	(((p) & (0x3 << 16)) >> 16)
 
 /* dev_state bitmasks */
 /* USB device address - assigned by the HC */
@@ -728,12 +710,11 @@ struct xhci_ep_ctx {
 /* bits 10:14 are Max Primary Streams */
 /* bit 15 is Linear Stream Array */
 /* Interval - period between requests to an endpoint - 125u increments. */
-#define EP_INTERVAL(p)			(((p) & 0xff) << 16)
-#define EP_INTERVAL_TO_UFRAMES(p)	(1 << (((p) >> 16) & 0xff))
-#define CTX_TO_EP_INTERVAL(p)		(((p) >> 16) & 0xff)
-#define EP_MAXPSTREAMS_MASK		(0x1f << 10)
-#define EP_MAXPSTREAMS(p)		(((p) << 10) & EP_MAXPSTREAMS_MASK)
-#define CTX_TO_EP_MAXPSTREAMS(p)	(((p) & EP_MAXPSTREAMS_MASK) >> 10)
+#define EP_INTERVAL(p)		(((p) & 0xff) << 16)
+#define EP_INTERVAL_TO_UFRAMES(p)		(1 << (((p) >> 16) & 0xff))
+#define CTX_TO_EP_INTERVAL(p)	(((p) >> 16) & 0xff)
+#define EP_MAXPSTREAMS_MASK	(0x1f << 10)
+#define EP_MAXPSTREAMS(p)	(((p) << 10) & EP_MAXPSTREAMS_MASK)
 /* Endpoint is set up with a Linear Stream Array (vs. Secondary Stream Array) */
 #define	EP_HAS_LSA		(1 << 15)
 
@@ -1015,8 +996,6 @@ struct xhci_virt_device {
 	struct xhci_tt_bw_info		*tt_info;
 	/* The current max exit latency for the enabled USB3 link states. */
 	u16				current_mel;
-	/* Used for the debugfs interfaces. */
-	void				*debugfs_private;
 };
 
 /*
@@ -1077,122 +1056,76 @@ struct xhci_transfer_event {
 /* Completion Code - only applicable for some types of TRBs */
 #define	COMP_CODE_MASK		(0xff << 24)
 #define GET_COMP_CODE(p)	(((p) & COMP_CODE_MASK) >> 24)
-#define COMP_INVALID				0
-#define COMP_SUCCESS				1
-#define COMP_DATA_BUFFER_ERROR			2
-#define COMP_BABBLE_DETECTED_ERROR		3
-#define COMP_USB_TRANSACTION_ERROR		4
-#define COMP_TRB_ERROR				5
-#define COMP_STALL_ERROR			6
-#define COMP_RESOURCE_ERROR			7
-#define COMP_BANDWIDTH_ERROR			8
-#define COMP_NO_SLOTS_AVAILABLE_ERROR		9
-#define COMP_INVALID_STREAM_TYPE_ERROR		10
-#define COMP_SLOT_NOT_ENABLED_ERROR		11
-#define COMP_ENDPOINT_NOT_ENABLED_ERROR		12
-#define COMP_SHORT_PACKET			13
-#define COMP_RING_UNDERRUN			14
-#define COMP_RING_OVERRUN			15
-#define COMP_VF_EVENT_RING_FULL_ERROR		16
-#define COMP_PARAMETER_ERROR			17
-#define COMP_BANDWIDTH_OVERRUN_ERROR		18
-#define COMP_CONTEXT_STATE_ERROR		19
-#define COMP_NO_PING_RESPONSE_ERROR		20
-#define COMP_EVENT_RING_FULL_ERROR		21
-#define COMP_INCOMPATIBLE_DEVICE_ERROR		22
-#define COMP_MISSED_SERVICE_ERROR		23
-#define COMP_COMMAND_RING_STOPPED		24
-#define COMP_COMMAND_ABORTED			25
-#define COMP_STOPPED				26
-#define COMP_STOPPED_LENGTH_INVALID		27
-#define COMP_STOPPED_SHORT_PACKET		28
-#define COMP_MAX_EXIT_LATENCY_TOO_LARGE_ERROR	29
-#define COMP_ISOCH_BUFFER_OVERRUN		31
-#define COMP_EVENT_LOST_ERROR			32
-#define COMP_UNDEFINED_ERROR			33
-#define COMP_INVALID_STREAM_ID_ERROR		34
-#define COMP_SECONDARY_BANDWIDTH_ERROR		35
-#define COMP_SPLIT_TRANSACTION_ERROR		36
-
-static inline const char *xhci_trb_comp_code_string(u8 status)
-{
-	switch (status) {
-	case COMP_INVALID:
-		return "Invalid";
-	case COMP_SUCCESS:
-		return "Success";
-	case COMP_DATA_BUFFER_ERROR:
-		return "Data Buffer Error";
-	case COMP_BABBLE_DETECTED_ERROR:
-		return "Babble Detected";
-	case COMP_USB_TRANSACTION_ERROR:
-		return "USB Transaction Error";
-	case COMP_TRB_ERROR:
-		return "TRB Error";
-	case COMP_STALL_ERROR:
-		return "Stall Error";
-	case COMP_RESOURCE_ERROR:
-		return "Resource Error";
-	case COMP_BANDWIDTH_ERROR:
-		return "Bandwidth Error";
-	case COMP_NO_SLOTS_AVAILABLE_ERROR:
-		return "No Slots Available Error";
-	case COMP_INVALID_STREAM_TYPE_ERROR:
-		return "Invalid Stream Type Error";
-	case COMP_SLOT_NOT_ENABLED_ERROR:
-		return "Slot Not Enabled Error";
-	case COMP_ENDPOINT_NOT_ENABLED_ERROR:
-		return "Endpoint Not Enabled Error";
-	case COMP_SHORT_PACKET:
-		return "Short Packet";
-	case COMP_RING_UNDERRUN:
-		return "Ring Underrun";
-	case COMP_RING_OVERRUN:
-		return "Ring Overrun";
-	case COMP_VF_EVENT_RING_FULL_ERROR:
-		return "VF Event Ring Full Error";
-	case COMP_PARAMETER_ERROR:
-		return "Parameter Error";
-	case COMP_BANDWIDTH_OVERRUN_ERROR:
-		return "Bandwidth Overrun Error";
-	case COMP_CONTEXT_STATE_ERROR:
-		return "Context State Error";
-	case COMP_NO_PING_RESPONSE_ERROR:
-		return "No Ping Response Error";
-	case COMP_EVENT_RING_FULL_ERROR:
-		return "Event Ring Full Error";
-	case COMP_INCOMPATIBLE_DEVICE_ERROR:
-		return "Incompatible Device Error";
-	case COMP_MISSED_SERVICE_ERROR:
-		return "Missed Service Error";
-	case COMP_COMMAND_RING_STOPPED:
-		return "Command Ring Stopped";
-	case COMP_COMMAND_ABORTED:
-		return "Command Aborted";
-	case COMP_STOPPED:
-		return "Stopped";
-	case COMP_STOPPED_LENGTH_INVALID:
-		return "Stopped - Length Invalid";
-	case COMP_STOPPED_SHORT_PACKET:
-		return "Stopped - Short Packet";
-	case COMP_MAX_EXIT_LATENCY_TOO_LARGE_ERROR:
-		return "Max Exit Latency Too Large Error";
-	case COMP_ISOCH_BUFFER_OVERRUN:
-		return "Isoch Buffer Overrun";
-	case COMP_EVENT_LOST_ERROR:
-		return "Event Lost Error";
-	case COMP_UNDEFINED_ERROR:
-		return "Undefined Error";
-	case COMP_INVALID_STREAM_ID_ERROR:
-		return "Invalid Stream ID Error";
-	case COMP_SECONDARY_BANDWIDTH_ERROR:
-		return "Secondary Bandwidth Error";
-	case COMP_SPLIT_TRANSACTION_ERROR:
-		return "Split Transaction Error";
-	default:
-		return "Unknown!!";
-	}
-}
+#define COMP_SUCCESS	1
+/* Data Buffer Error */
+#define COMP_DB_ERR	2
+/* Babble Detected Error */
+#define COMP_BABBLE	3
+/* USB Transaction Error */
+#define COMP_TX_ERR	4
+/* TRB Error - some TRB field is invalid */
+#define COMP_TRB_ERR	5
+/* Stall Error - USB device is stalled */
+#define COMP_STALL	6
+/* Resource Error - HC doesn't have memory for that device configuration */
+#define COMP_ENOMEM	7
+/* Bandwidth Error - not enough room in schedule for this dev config */
+#define COMP_BW_ERR	8
+/* No Slots Available Error - HC ran out of device slots */
+#define COMP_ENOSLOTS	9
+/* Invalid Stream Type Error */
+#define COMP_STREAM_ERR	10
+/* Slot Not Enabled Error - doorbell rung for disabled device slot */
+#define COMP_EBADSLT	11
+/* Endpoint Not Enabled Error */
+#define COMP_EBADEP	12
+/* Short Packet */
+#define COMP_SHORT_TX	13
+/* Ring Underrun - doorbell rung for an empty isoc OUT ep ring */
+#define COMP_UNDERRUN	14
+/* Ring Overrun - isoc IN ep ring is empty when ep is scheduled to RX */
+#define COMP_OVERRUN	15
+/* Virtual Function Event Ring Full Error */
+#define COMP_VF_FULL	16
+/* Parameter Error - Context parameter is invalid */
+#define COMP_EINVAL	17
+/* Bandwidth Overrun Error - isoc ep exceeded its allocated bandwidth */
+#define COMP_BW_OVER	18
+/* Context State Error - illegal context state transition requested */
+#define COMP_CTX_STATE	19
+/* No Ping Response Error - HC didn't get PING_RESPONSE in time to TX */
+#define COMP_PING_ERR	20
+/* Event Ring is full */
+#define COMP_ER_FULL	21
+/* Incompatible Device Error */
+#define COMP_DEV_ERR	22
+/* Missed Service Error - HC couldn't service an isoc ep within interval */
+#define COMP_MISSED_INT	23
+/* Successfully stopped command ring */
+#define COMP_CMD_STOP	24
+/* Successfully aborted current command and stopped command ring */
+#define COMP_CMD_ABORT	25
+/* Stopped - transfer was terminated by a stop endpoint command */
+#define COMP_STOP	26
+/* Same as COMP_EP_STOPPED, but the transferred length in the event is invalid */
+#define COMP_STOP_INVAL	27
+/* Same as COMP_EP_STOPPED, but a short packet detected */
+#define COMP_STOP_SHORT	28
+/* Max Exit Latency Too Large Error */
+#define COMP_MEL_ERR	29
+/* TRB type 30 reserved */
+/* Isoc Buffer Overrun - an isoc IN ep sent more data than could fit in TD */
+#define COMP_BUFF_OVER	31
+/* Event Lost Error - xHC has an "internal event overrun condition" */
+#define COMP_ISSUES	32
+/* Undefined Error - reported when other error codes don't apply */
+#define COMP_UNKNOWN	33
+/* Invalid Stream ID Error */
+#define COMP_STRID_ERR	34
+/* Secondary Bandwidth Error - may be returned by a Configure Endpoint cmd */
+#define COMP_2ND_BW_ERR	35
+/* Split Transaction Error */
+#define	COMP_SPLIT_ERR	36
 
 struct xhci_link_trb {
 	/* 64-bit segment pointer*/
@@ -1216,27 +1149,6 @@ struct xhci_event_cmd {
 
 /* Address device - disable SetAddress */
 #define TRB_BSR		(1<<9)
-
-/* Configure Endpoint - Deconfigure */
-#define TRB_DC		(1<<9)
-
-/* Stop Ring - Transfer State Preserve */
-#define TRB_TSP		(1<<9)
-
-/* Force Event */
-#define TRB_TO_VF_INTR_TARGET(p)	(((p) & (0x3ff << 22)) >> 22)
-#define TRB_TO_VF_ID(p)			(((p) & (0xff << 16)) >> 16)
-
-/* Set Latency Tolerance Value */
-#define TRB_TO_BELT(p)			(((p) & (0xfff << 16)) >> 16)
-
-/* Get Port Bandwidth */
-#define TRB_TO_DEV_SPEED(p)		(((p) & (0xf << 16)) >> 16)
-
-/* Force Header */
-#define TRB_TO_PACKET_TYPE(p)		((p) & 0x1f)
-#define TRB_TO_ROOTHUB_PORT(p)		(((p) & (0xff << 24)) >> 24)
-
 enum xhci_setup_dev {
 	SETUP_CONTEXT_ONLY,
 	SETUP_CONTEXT_ADDRESS,
@@ -1260,21 +1172,16 @@ enum xhci_setup_dev {
 #define STREAM_ID_FOR_TRB(p)		((((p)) & 0xffff) << 16)
 #define SCT_FOR_TRB(p)			(((p) << 1) & 0x7)
 
-/* Link TRB specific fields */
-#define TRB_TC			(1<<1)
 
 /* Port Status Change Event TRB fields */
 /* Port ID - bits 31:24 */
 #define GET_PORT_ID(p)		(((p) & (0xff << 24)) >> 24)
-
-#define EVENT_DATA		(1 << 2)
 
 /* Normal TRB fields */
 /* transfer_len bitmasks - bits 0:16 */
 #define	TRB_LEN(p)		((p) & 0x1ffff)
 /* TD Size, packets remaining in this TD, bits 21:17 (5 bits, so max 31) */
 #define TRB_TD_SIZE(p)          (min((p), (u32)31) << 17)
-#define GET_TD_SIZE(p)		(((p) & 0x3e0000) >> 17)
 /* Interrupter Target - which MSI-X vector to target the completion event at */
 #define TRB_INTR_TARGET(p)	(((p) & 0x3ff) << 22)
 #define GET_INTR_TARGET(p)	(((p) >> 22) & 0x3ff)
@@ -1399,80 +1306,6 @@ union xhci_trb {
 /* Get NEC firmware revision. */
 #define	TRB_NEC_GET_FW		49
 
-static inline const char *xhci_trb_type_string(u8 type)
-{
-	switch (type) {
-	case TRB_NORMAL:
-		return "Normal";
-	case TRB_SETUP:
-		return "Setup Stage";
-	case TRB_DATA:
-		return "Data Stage";
-	case TRB_STATUS:
-		return "Status Stage";
-	case TRB_ISOC:
-		return "Isoch";
-	case TRB_LINK:
-		return "Link";
-	case TRB_EVENT_DATA:
-		return "Event Data";
-	case TRB_TR_NOOP:
-		return "No-Op";
-	case TRB_ENABLE_SLOT:
-		return "Enable Slot Command";
-	case TRB_DISABLE_SLOT:
-		return "Disable Slot Command";
-	case TRB_ADDR_DEV:
-		return "Address Device Command";
-	case TRB_CONFIG_EP:
-		return "Configure Endpoint Command";
-	case TRB_EVAL_CONTEXT:
-		return "Evaluate Context Command";
-	case TRB_RESET_EP:
-		return "Reset Endpoint Command";
-	case TRB_STOP_RING:
-		return "Stop Ring Command";
-	case TRB_SET_DEQ:
-		return "Set TR Dequeue Pointer Command";
-	case TRB_RESET_DEV:
-		return "Reset Device Command";
-	case TRB_FORCE_EVENT:
-		return "Force Event Command";
-	case TRB_NEG_BANDWIDTH:
-		return "Negotiate Bandwidth Command";
-	case TRB_SET_LT:
-		return "Set Latency Tolerance Value Command";
-	case TRB_GET_BW:
-		return "Get Port Bandwidth Command";
-	case TRB_FORCE_HEADER:
-		return "Force Header Command";
-	case TRB_CMD_NOOP:
-		return "No-Op Command";
-	case TRB_TRANSFER:
-		return "Transfer Event";
-	case TRB_COMPLETION:
-		return "Command Completion Event";
-	case TRB_PORT_STATUS:
-		return "Port Status Change Event";
-	case TRB_BANDWIDTH_EVENT:
-		return "Bandwidth Request Event";
-	case TRB_DOORBELL:
-		return "Doorbell Event";
-	case TRB_HC_EVENT:
-		return "Host Controller Event";
-	case TRB_DEV_NOTE:
-		return "Device Notification Event";
-	case TRB_MFINDEX_WRAP:
-		return "MFINDEX Wrap Event";
-	case TRB_NEC_CMD_COMP:
-		return "NEC Command Completion Event";
-	case TRB_NEC_GET_FW:
-		return "NET Get Firmware Revision Command";
-	default:
-		return "UNKNOWN";
-	}
-}
-
 #define TRB_TYPE_LINK(x)	(((x) & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK))
 /* Above, but for __le32 types -- can avoid work by swapping constants: */
 #define TRB_TYPE_LINK_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
@@ -1494,11 +1327,7 @@ static inline const char *xhci_trb_type_string(u8 type)
 #define TRB_SEGMENT_SIZE	(TRBS_PER_SEGMENT*16)
 #define TRB_SEGMENT_SHIFT	(ilog2(TRB_SEGMENT_SIZE))
 /* TRB buffer pointers can't cross 64KB boundaries */
-#ifdef CONFIG_ARCH_ROCKCHIP
-#define TRB_MAX_BUFF_SHIFT		12
-#else
 #define TRB_MAX_BUFF_SHIFT		16
-#endif
 #define TRB_MAX_BUFF_SIZE	(1 << TRB_MAX_BUFF_SHIFT)
 
 struct xhci_segment {
@@ -1543,28 +1372,6 @@ enum xhci_ring_type {
 	TYPE_COMMAND,
 	TYPE_EVENT,
 };
-
-static inline const char *xhci_ring_type_string(enum xhci_ring_type type)
-{
-	switch (type) {
-	case TYPE_CTRL:
-		return "CTRL";
-	case TYPE_ISOC:
-		return "ISOC";
-	case TYPE_BULK:
-		return "BULK";
-	case TYPE_INTR:
-		return "INTR";
-	case TYPE_STREAM:
-		return "STREAM";
-	case TYPE_COMMAND:
-		return "CMD";
-	case TYPE_EVENT:
-		return "EVENT";
-	}
-
-	return "UNKNOWN";
-}
 
 struct xhci_ring {
 	struct xhci_segment	*first_seg;
@@ -1677,11 +1484,11 @@ struct xhci_bus_state {
  * It can take up to 20 ms to transition from RExit to U0 on the
  * Intel Lynx Point LP xHCI host.
  */
-#define	XHCI_MAX_REXIT_TIMEOUT_MS	20
+#define	XHCI_MAX_REXIT_TIMEOUT	(20 * 1000)
 
 static inline unsigned int hcd_index(struct usb_hcd *hcd)
 {
-	if (hcd->speed >= HCD_USB3)
+	if (hcd->speed == HCD_USB3)
 		return 0;
 	else
 		return 1;
@@ -1743,8 +1550,7 @@ struct xhci_hcd {
 #define CMD_RING_STATE_STOPPED         (1 << 2)
 	struct list_head        cmd_list;
 	unsigned int		cmd_ring_reserved_trbs;
-	struct delayed_work	cmd_timer;
-	struct completion	cmd_ring_stop_completion;
+	struct timer_list	cmd_timer;
 	struct xhci_command	*current_cmd;
 	struct xhci_ring	*event_ring;
 	struct xhci_erst	erst;
@@ -1790,7 +1596,6 @@ struct xhci_hcd {
  */
 #define XHCI_STATE_DYING	(1 << 0)
 #define XHCI_STATE_HALTED	(1 << 1)
-#define XHCI_STATE_REMOVING	(1 << 2)
 	/* Statistics */
 	int			error_bitmask;
 	unsigned int		quirks;
@@ -1825,10 +1630,6 @@ struct xhci_hcd {
 /* For controllers with a broken beyond repair streams implementation */
 #define XHCI_BROKEN_STREAMS	(1 << 19)
 #define XHCI_PME_STUCK_QUIRK	(1 << 20)
-#define XHCI_DIS_AUTOSUSPEND	(1 << 21)
-#define XHCI_MISSING_CAS	(1 << 24)
-#define XHCI_WARM_RESET_ON_RESUME	(1 << 25)
-#define XHCI_TRB_ENT_QUIRK	(1 << 26)
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */
@@ -1855,9 +1656,6 @@ struct xhci_hcd {
 	u32			port_status_u0;
 /* Compliance Mode Timer Triggered every 2 seconds */
 #define COMP_MODE_RCVRY_MSECS 2000
-	struct dentry		*debugfs_root;
-	struct dentry		*debugfs_slots;
-	struct list_head	regset_list;
 };
 
 /* Platform specific overrides to generic XHCI hc_driver ops */
@@ -1928,10 +1726,19 @@ void xhci_print_ir_set(struct xhci_hcd *xhci, int set_num);
 void xhci_print_registers(struct xhci_hcd *xhci);
 void xhci_dbg_regs(struct xhci_hcd *xhci);
 void xhci_print_run_regs(struct xhci_hcd *xhci);
+void xhci_print_trb_offsets(struct xhci_hcd *xhci, union xhci_trb *trb);
+void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb);
+void xhci_debug_segment(struct xhci_hcd *xhci, struct xhci_segment *seg);
+void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring);
 void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
 void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci);
+void xhci_dbg_ring_ptrs(struct xhci_hcd *xhci, struct xhci_ring *ring);
+void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx, unsigned int last_ep);
 char *xhci_get_slot_state(struct xhci_hcd *xhci,
 		struct xhci_container_ctx *ctx);
+void xhci_dbg_ep_rings(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		struct xhci_virt_ep *ep);
 void xhci_dbg_trace(struct xhci_hcd *xhci, void (*trace)(struct va_format *),
 			const char *fmt, ...);
 
@@ -2104,7 +1911,7 @@ void xhci_queue_config_ep_quirk(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		struct xhci_dequeue_state *deq_state);
 void xhci_stop_endpoint_command_watchdog(unsigned long arg);
-void xhci_handle_command_timeout(struct work_struct *work);
+void xhci_handle_command_timeout(unsigned long data);
 
 void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
 		unsigned int ep_index, unsigned int stream_id);
@@ -2141,474 +1948,5 @@ void xhci_ring_device(struct xhci_hcd *xhci, int slot_id);
 struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_container_ctx *ctx);
 struct xhci_slot_ctx *xhci_get_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);
 struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx, unsigned int ep_index);
-
-struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
-		unsigned int slot_id, unsigned int ep_index,
-		unsigned int stream_id);
-
-static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
-								struct urb *urb)
-{
-	return xhci_triad_to_transfer_ring(xhci, urb->dev->slot_id,
-					xhci_get_endpoint_index(&urb->ep->desc),
-					urb->stream_id);
-}
-
-static inline char *xhci_slot_state_string(u32 state)
-{
-	switch (state) {
-	case SLOT_STATE_ENABLED:
-		return "enabled/disabled";
-	case SLOT_STATE_DEFAULT:
-		return "default";
-	case SLOT_STATE_ADDRESSED:
-		return "addressed";
-	case SLOT_STATE_CONFIGURED:
-		return "configured";
-	default:
-		return "reserved";
-	}
-}
-
-static inline const char *xhci_decode_trb(u32 field0, u32 field1, u32 field2,
-		u32 field3)
-{
-	static char str[256];
-	int type = TRB_FIELD_TO_TYPE(field3);
-
-	switch (type) {
-	case TRB_LINK:
-		sprintf(str,
-			"LINK %08x%08x intr %d type '%s' flags %c:%c:%c:%c",
-			field1, field0, GET_INTR_TARGET(field2),
-			xhci_trb_type_string(type),
-			field3 & TRB_IOC ? 'I' : 'i',
-			field3 & TRB_CHAIN ? 'C' : 'c',
-			field3 & TRB_TC ? 'T' : 't',
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_TRANSFER:
-	case TRB_COMPLETION:
-	case TRB_PORT_STATUS:
-	case TRB_BANDWIDTH_EVENT:
-	case TRB_DOORBELL:
-	case TRB_HC_EVENT:
-	case TRB_DEV_NOTE:
-	case TRB_MFINDEX_WRAP:
-		sprintf(str,
-			"TRB %08x%08x status '%s' len %d slot %d ep %d type '%s' flags %c:%c",
-			field1, field0,
-			xhci_trb_comp_code_string(GET_COMP_CODE(field2)),
-			EVENT_TRB_LEN(field2), TRB_TO_SLOT_ID(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
-			xhci_trb_type_string(type),
-			field3 & EVENT_DATA ? 'E' : 'e',
-			field3 & TRB_CYCLE ? 'C' : 'c');
-
-		break;
-	case TRB_SETUP:
-		sprintf(str, "bRequestType %02x bRequest %02x wValue %02x%02x wIndex %02x%02x wLength %d length %d TD size %d intr %d type '%s' flags %c:%c:%c",
-				field0 & 0xff,
-				(field0 & 0xff00) >> 8,
-				(field0 & 0xff000000) >> 24,
-				(field0 & 0xff0000) >> 16,
-				(field1 & 0xff00) >> 8,
-				field1 & 0xff,
-				(field1 & 0xff000000) >> 16 |
-				(field1 & 0xff0000) >> 16,
-				TRB_LEN(field2), GET_TD_SIZE(field2),
-				GET_INTR_TARGET(field2),
-				xhci_trb_type_string(type),
-				field3 & TRB_IDT ? 'I' : 'i',
-				field3 & TRB_IOC ? 'I' : 'i',
-				field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_DATA:
-		sprintf(str, "Buffer %08x%08x length %d TD size %d intr %d type '%s' flags %c:%c:%c:%c:%c:%c:%c",
-				field1, field0, TRB_LEN(field2), GET_TD_SIZE(field2),
-				GET_INTR_TARGET(field2),
-				xhci_trb_type_string(type),
-				field3 & TRB_IDT ? 'I' : 'i',
-				field3 & TRB_IOC ? 'I' : 'i',
-				field3 & TRB_CHAIN ? 'C' : 'c',
-				field3 & TRB_NO_SNOOP ? 'S' : 's',
-				field3 & TRB_ISP ? 'I' : 'i',
-				field3 & TRB_ENT ? 'E' : 'e',
-				field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_STATUS:
-		sprintf(str, "Buffer %08x%08x length %d TD size %d intr %d type '%s' flags %c:%c:%c:%c",
-				field1, field0, TRB_LEN(field2), GET_TD_SIZE(field2),
-				GET_INTR_TARGET(field2),
-				xhci_trb_type_string(type),
-				field3 & TRB_IOC ? 'I' : 'i',
-				field3 & TRB_CHAIN ? 'C' : 'c',
-				field3 & TRB_ENT ? 'E' : 'e',
-				field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_NORMAL:
-	case TRB_ISOC:
-	case TRB_EVENT_DATA:
-	case TRB_TR_NOOP:
-		sprintf(str,
-			"Buffer %08x%08x length %d TD size %d intr %d type '%s' flags %c:%c:%c:%c:%c:%c:%c:%c",
-			field1, field0, TRB_LEN(field2), GET_TD_SIZE(field2),
-			GET_INTR_TARGET(field2),
-			xhci_trb_type_string(type),
-			field3 & TRB_BEI ? 'B' : 'b',
-			field3 & TRB_IDT ? 'I' : 'i',
-			field3 & TRB_IOC ? 'I' : 'i',
-			field3 & TRB_CHAIN ? 'C' : 'c',
-			field3 & TRB_NO_SNOOP ? 'S' : 's',
-			field3 & TRB_ISP ? 'I' : 'i',
-			field3 & TRB_ENT ? 'E' : 'e',
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-
-	case TRB_CMD_NOOP:
-	case TRB_ENABLE_SLOT:
-		sprintf(str,
-			"%s: flags %c",
-			xhci_trb_type_string(type),
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_DISABLE_SLOT:
-	case TRB_NEG_BANDWIDTH:
-		sprintf(str,
-			"%s: slot %d flags %c",
-			xhci_trb_type_string(type),
-			TRB_TO_SLOT_ID(field3),
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_ADDR_DEV:
-		sprintf(str,
-			"%s: ctx %08x%08x slot %d flags %c:%c",
-			xhci_trb_type_string(type),
-			field1, field0,
-			TRB_TO_SLOT_ID(field3),
-			field3 & TRB_BSR ? 'B' : 'b',
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_CONFIG_EP:
-		sprintf(str,
-			"%s: ctx %08x%08x slot %d flags %c:%c",
-			xhci_trb_type_string(type),
-			field1, field0,
-			TRB_TO_SLOT_ID(field3),
-			field3 & TRB_DC ? 'D' : 'd',
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_EVAL_CONTEXT:
-		sprintf(str,
-			"%s: ctx %08x%08x slot %d flags %c",
-			xhci_trb_type_string(type),
-			field1, field0,
-			TRB_TO_SLOT_ID(field3),
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_RESET_EP:
-		sprintf(str,
-			"%s: ctx %08x%08x slot %d ep %d flags %c",
-			xhci_trb_type_string(type),
-			field1, field0,
-			TRB_TO_SLOT_ID(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_STOP_RING:
-		sprintf(str,
-			"%s: slot %d sp %d ep %d flags %c",
-			xhci_trb_type_string(type),
-			TRB_TO_SLOT_ID(field3),
-			TRB_TO_SUSPEND_PORT(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_SET_DEQ:
-		sprintf(str,
-			"%s: deq %08x%08x stream %d slot %d ep %d flags %c",
-			xhci_trb_type_string(type),
-			field1, field0,
-			TRB_TO_STREAM_ID(field2),
-			TRB_TO_SLOT_ID(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_RESET_DEV:
-		sprintf(str,
-			"%s: slot %d flags %c",
-			xhci_trb_type_string(type),
-			TRB_TO_SLOT_ID(field3),
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_FORCE_EVENT:
-		sprintf(str,
-			"%s: event %08x%08x vf intr %d vf id %d flags %c",
-			xhci_trb_type_string(type),
-			field1, field0,
-			TRB_TO_VF_INTR_TARGET(field2),
-			TRB_TO_VF_ID(field3),
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_SET_LT:
-		sprintf(str,
-			"%s: belt %d flags %c",
-			xhci_trb_type_string(type),
-			TRB_TO_BELT(field3),
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_GET_BW:
-		sprintf(str,
-			"%s: ctx %08x%08x slot %d speed %d flags %c",
-			xhci_trb_type_string(type),
-			field1, field0,
-			TRB_TO_SLOT_ID(field3),
-			TRB_TO_DEV_SPEED(field3),
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	case TRB_FORCE_HEADER:
-		sprintf(str,
-			"%s: info %08x%08x%08x pkt type %d roothub port %d flags %c",
-			xhci_trb_type_string(type),
-			field2, field1, field0 & 0xffffffe0,
-			TRB_TO_PACKET_TYPE(field0),
-			TRB_TO_ROOTHUB_PORT(field3),
-			field3 & TRB_CYCLE ? 'C' : 'c');
-		break;
-	default:
-		sprintf(str,
-			"type '%s' -> raw %08x %08x %08x %08x",
-			xhci_trb_type_string(type),
-			field0, field1, field2, field3);
-	}
-
-	return str;
-}
-
-static inline const char *xhci_decode_slot_context(u32 info, u32 info2,
-		u32 tt_info, u32 state)
-{
-	static char str[1024];
-	u32 speed;
-	u32 hub;
-	u32 mtt;
-	int ret = 0;
-
-	speed = info & DEV_SPEED;
-	hub = info & DEV_HUB;
-	mtt = info & DEV_MTT;
-
-	ret = sprintf(str, "RS %05x %s%s%s Ctx Entries %d MEL %d us Port# %d/%d",
-			info & ROUTE_STRING_MASK,
-			({ char *s;
-			switch (speed) {
-			case SLOT_SPEED_FS:
-				s = "full-speed";
-				break;
-			case SLOT_SPEED_LS:
-				s = "low-speed";
-				break;
-			case SLOT_SPEED_HS:
-				s = "high-speed";
-				break;
-			case SLOT_SPEED_SS:
-				s = "super-speed";
-				break;
-			default:
-				s = "UNKNOWN speed";
-			} s; }),
-			mtt ? " multi-TT" : "",
-			hub ? " Hub" : "",
-			(info & LAST_CTX_MASK) >> 27,
-			info2 & MAX_EXIT,
-			DEVINFO_TO_ROOT_HUB_PORT(info2),
-			DEVINFO_TO_MAX_PORTS(info2));
-
-	ret += sprintf(str + ret, " [TT Slot %d Port# %d TTT %d Intr %d] Addr %d State %s",
-			tt_info & TT_SLOT, (tt_info & TT_PORT) >> 8,
-			GET_TT_THINK_TIME(tt_info), GET_INTR_TARGET(tt_info),
-			state & DEV_ADDR_MASK,
-			xhci_slot_state_string(GET_SLOT_STATE(state)));
-
-	return str;
-}
-
-
-static inline const char *xhci_portsc_link_state_string(u32 portsc)
-{
-	switch (portsc & PORT_PLS_MASK) {
-	case XDEV_U0:
-		return "U0";
-	case XDEV_U1:
-		return "U1";
-	case XDEV_U2:
-		return "U2";
-	case XDEV_U3:
-		return "U3";
-	case XDEV_DISABLED:
-		return "Disabled";
-	case XDEV_RXDETECT:
-		return "RxDetect";
-	case XDEV_INACTIVE:
-		return "Inactive";
-	case XDEV_POLLING:
-		return "Polling";
-	case XDEV_RECOVERY:
-		return "Recovery";
-	case XDEV_HOT_RESET:
-		return "Hot Reset";
-	case XDEV_COMP_MODE:
-		return "Compliance mode";
-	case XDEV_TEST_MODE:
-		return "Test mode";
-	case XDEV_RESUME:
-		return "Resume";
-	default:
-		break;
-	}
-	return "Unknown";
-}
-
-static inline const char *xhci_decode_portsc(u32 portsc)
-{
-	static char str[256];
-	int ret;
-
-	ret = sprintf(str, "%s %s %s Link:%s ",
-		      portsc & PORT_POWER	? "Powered" : "Powered-off",
-		      portsc & PORT_CONNECT	? "Connected" : "Not-connected",
-		      portsc & PORT_PE		? "Enabled" : "Disabled",
-		      xhci_portsc_link_state_string(portsc));
-
-	if (portsc & PORT_OC)
-		ret += sprintf(str + ret, "OverCurrent ");
-	if (portsc & PORT_RESET)
-		ret += sprintf(str + ret, "In-Reset ");
-
-	ret += sprintf(str + ret, "Change: ");
-	if (portsc & PORT_CSC)
-		ret += sprintf(str + ret, "CSC ");
-	if (portsc & PORT_PEC)
-		ret += sprintf(str + ret, "PEC ");
-	if (portsc & PORT_WRC)
-		ret += sprintf(str + ret, "WRC ");
-	if (portsc & PORT_OCC)
-		ret += sprintf(str + ret, "OCC ");
-	if (portsc & PORT_RC)
-		ret += sprintf(str + ret, "PRC ");
-	if (portsc & PORT_PLC)
-		ret += sprintf(str + ret, "PLC ");
-	if (portsc & PORT_CEC)
-		ret += sprintf(str + ret, "CEC ");
-	if (portsc & PORT_CAS)
-		ret += sprintf(str + ret, "CAS ");
-
-	ret += sprintf(str + ret, "Wake: ");
-	if (portsc & PORT_WKCONN_E)
-		ret += sprintf(str + ret, "WCE ");
-	if (portsc & PORT_WKDISC_E)
-		ret += sprintf(str + ret, "WDE ");
-	if (portsc & PORT_WKOC_E)
-		ret += sprintf(str + ret, "WOE ");
-
-	return str;
-}
-
-static inline const char *xhci_ep_state_string(u8 state)
-{
-	switch (state) {
-	case EP_STATE_DISABLED:
-		return "disabled";
-	case EP_STATE_RUNNING:
-		return "running";
-	case EP_STATE_HALTED:
-		return "halted";
-	case EP_STATE_STOPPED:
-		return "stopped";
-	case EP_STATE_ERROR:
-		return "error";
-	default:
-		return "INVALID";
-	}
-}
-
-static inline const char *xhci_ep_type_string(u8 type)
-{
-	switch (type) {
-	case ISOC_OUT_EP:
-		return "Isoc OUT";
-	case BULK_OUT_EP:
-		return "Bulk OUT";
-	case INT_OUT_EP:
-		return "Int OUT";
-	case CTRL_EP:
-		return "Ctrl";
-	case ISOC_IN_EP:
-		return "Isoc IN";
-	case BULK_IN_EP:
-		return "Bulk IN";
-	case INT_IN_EP:
-		return "Int IN";
-	default:
-		return "INVALID";
-	}
-}
-
-static inline const char *xhci_decode_ep_context(u32 info, u32 info2, u64 deq,
-		u32 tx_info)
-{
-	static char str[1024];
-	int ret;
-
-	u32 esit;
-	u16 maxp;
-	u16 avg;
-
-	u8 max_pstr;
-	u8 ep_state;
-	u8 interval;
-	u8 ep_type;
-	u8 burst;
-	u8 cerr;
-	u8 mult;
-
-	bool lsa;
-	bool hid;
-
-	esit = MAX_ESIT_PAYLOAD_FOR_EP(tx_info);
-
-	ep_state = info & EP_STATE_MASK;
-	max_pstr = CTX_TO_EP_MAXPSTREAMS(info);
-	interval = CTX_TO_EP_INTERVAL(info);
-	mult = CTX_TO_EP_MULT(info) + 1;
-	lsa = !!(info & EP_HAS_LSA);
-
-	cerr = (info2 & (3 << 1)) >> 1;
-	ep_type = CTX_TO_EP_TYPE(info2);
-	hid = !!(info2 & (1 << 7));
-	burst = CTX_TO_MAX_BURST(info2);
-	maxp = MAX_PACKET_DECODED(info2);
-
-	avg = AVG_TRB_LENGTH_FOR_EP(tx_info);
-
-	ret = sprintf(str, "State %s mult %d max P. Streams %d %s",
-			xhci_ep_state_string(ep_state), mult,
-			max_pstr, lsa ? "LSA " : "");
-
-	ret += sprintf(str + ret, "interval %d us max ESIT payload %d CErr %d ",
-			(1 << interval) * 125, esit, cerr);
-
-	ret += sprintf(str + ret, "Type %s %sburst %d maxp %d deq %016llx ",
-			xhci_ep_type_string(ep_type), hid ? "HID" : "",
-			burst, maxp, deq);
-
-	ret += sprintf(str + ret, "avg trb len %d", avg);
-
-	return str;
-}
 
 #endif /* __LINUX_XHCI_HCD_H */

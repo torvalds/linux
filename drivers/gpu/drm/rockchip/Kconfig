@@ -1,6 +1,6 @@
 config DRM_ROCKCHIP
 	tristate "DRM Support for Rockchip"
-	depends on DRM
+	depends on DRM && ROCKCHIP_IOMMU
 	depends on RESET_CONTROLLER
 	select DRM_KMS_HELPER
 	select DRM_KMS_FB_HELPER
@@ -16,30 +16,6 @@ config DRM_ROCKCHIP
 	  2D or 3D acceleration; acceleration is performed by other
 	  IP found on the SoC.
 
-config ROCKCHIP_DRM_DEBUG
-	tristate "Rockchip DRM debug"
-	depends on DRM_ROCKCHIP && DEBUG_FS
-	help
-	  This option add a debug nod to dump buf from application.
-	  dump path: /data/vop_buf
-	  debug nod: d/dri/0/ff900000.vop/vop_dump/dump
-	  echo dump    > dump to dump one frame
-	  echo dumpon  > dump to start vop keep dumping
-	  echo dumpoff > dump to stop keep dumping
-	  echo dumpn   > dump n is the number of dump times
-	  if fd err -3 try rm -r /data/vopbuf echo dump1 > dump can fix it
-	  if fd err -28 save needed data try rm -r /data/vopbuf
-
-config ROCKCHIP_CDN_DP
-	tristate "Rockchip cdn DP"
-	depends on DRM_ROCKCHIP
-	select SND_SOC_HDMI_CODEC if SND_SOC
-	help
-	  This selects support for Rockchip SoC specific extensions
-	  for the cdn DP driver. If you want to enable Dp on
-	  RK3399 based SoC, you should select this
-	  option.
-
 config ROCKCHIP_DW_HDMI
         tristate "Rockchip specific extensions for Synopsys DW HDMI"
         depends on DRM_ROCKCHIP
@@ -47,88 +23,5 @@ config ROCKCHIP_DW_HDMI
         help
 	  This selects support for Rockchip SoC specific extensions
 	  for the Synopsys DesignWare HDMI driver. If you want to
-	  enable HDMI on RK3288 based SoC, you should select this
+	  enable HDMI on RK3288 based SoC, you should selet this
 	  option.
-
-config ROCKCHIP_DW_MIPI_DSI
-	tristate "Rockchip specific extensions for Synopsys DW MIPI DSI"
-	depends on DRM_ROCKCHIP
-	select DRM_MIPI_DSI
-	help
-	  This selects support for Rockchip SoC specific extensions
-	  for the Synopsys DesignWare HDMI driver. If you want to
-	  enable MIPI DSI on RK3288 based SoC, you should select this
-	  option.
-
-config ROCKCHIP_MIPI_CSI_TX
-	tristate "Rockchip specific extensions for MIPI CSI TX"
-	depends on DRM_ROCKCHIP
-	select DRM_MIPI_DSI
-	help
-	  This selects support for Rockchip SoC specific extensions
-	  for the rocckhip mipi CSI TX driver. If you want to
-	  enable MIPI CSI on RK1808 based SoC, you should select this
-	  option.
-
-config ROCKCHIP_ANALOGIX_DP
-	tristate "Rockchip specific extensions for Analogix DP driver"
-	depends on DRM_ROCKCHIP
-	select DRM_ANALOGIX_DP
-	help
-	  This selects support for Rockchip SoC specific extensions
-	  for the Analogix Core DP driver. If you want to enable DP
-	  on RK3288 based SoC, you should select this option.
-
-config ROCKCHIP_INNO_HDMI
-	tristate "Rockchip specific extensions for Innosilicon HDMI"
-	depends on DRM_ROCKCHIP
-	select SND_SOC_HDMI_CODEC
-	help
-	  This selects support for Rockchip SoC specific extensions
-	  for the Innosilicon HDMI driver. If you want to enable
-	  HDMI on RK3036 based SoC, you should select this option.
-
-config ROCKCHIP_LVDS
-	tristate "Rockchip LVDS support"
-	depends on DRM_ROCKCHIP
-	help
-	  Choose this option to enable support for Rockchip LVDS controllers.
-	  Rockchip rk3288 SoC has LVDS TX Controller can be used, and it
-	  support LVDS, rgb, dual LVDS output mode. say Y to enable its
-	  driver.
-
-config ROCKCHIP_DRM_TVE
-	tristate "Rockchip TVE support"
-	depends on DRM_ROCKCHIP
-	help
-	  Choose this option to enable support for Rockchip TVE controllers.
-	  say Y to enable its driver.
-
-config ROCKCHIP_RGB
-	tristate "Rockchip RGB support"
-	depends on DRM_ROCKCHIP
-	depends on PINCTRL
-	help
-	  Choose this option to enable support for Rockchip RGB output.
-	  Some Rockchip CRTCs, like rv1108, can directly output parallel
-	  and serial RGB format to panel or connect to a conversion chip.
-	  say Y to enable its driver.
-
-config ROCKCHIP_DRM_BACKLIGHT
-	tristate "Rockchip DRM Backlight"
-	depends on DRM_ROCKCHIP
-	help
-	  This selects support for Rockchip backlight manager,
-	  Vop cabc function request using vop self pwm devices, needed a
-	  unique backlight devices to manager vop and soc pwm devices.
-
-config ROCKCHIP_RK3066_HDMI
-	tristate "Rockchip specific extensions for RK3066 HDMI"
-	depends on DRM_ROCKCHIP
-	select SND_SOC_HDMI_CODEC
-	help
-	  This selects support for Rockchip SoC specific extensions
-	  for the Innosilicon HDMI driver. If you want to enable
-	  HDMI on RK3066 based SoC, you should select this option.
-
-source "drivers/gpu/drm/rockchip/rk618/Kconfig"

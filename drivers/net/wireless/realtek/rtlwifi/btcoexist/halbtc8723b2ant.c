@@ -1203,6 +1203,7 @@ static void btc8723b2ant_set_ant_path(struct btc_coexist *btcoexist,
 
 		/* Force GNT_BT to low */
 		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x765, 0x18, 0x0);
+		btcoexist->btc_write_2byte(btcoexist, 0x948, 0x0);
 
 		if (board_info->btdm_ant_pos == BTC_ANTENNA_AT_MAIN_PORT) {
 			/* tell firmware "no antenna inverse" */
@@ -1210,25 +1211,19 @@ static void btc8723b2ant_set_ant_path(struct btc_coexist *btcoexist,
 			h2c_parameter[1] = 1;  /* ext switch type */
 			btcoexist->btc_fill_h2c(btcoexist, 0x65, 2,
 						h2c_parameter);
-			btcoexist->btc_write_2byte(btcoexist, 0x948, 0x0);
 		} else {
 			/* tell firmware "antenna inverse" */
 			h2c_parameter[0] = 1;
 			h2c_parameter[1] = 1;  /* ext switch type */
 			btcoexist->btc_fill_h2c(btcoexist, 0x65, 2,
 						h2c_parameter);
-			btcoexist->btc_write_2byte(btcoexist, 0x948, 0x280);
 		}
 	}
 
 	/* ext switch setting */
 	if (use_ext_switch) {
 		/* fixed internal switch S1->WiFi, S0->BT */
-		if (board_info->btdm_ant_pos == BTC_ANTENNA_AT_MAIN_PORT)
-			btcoexist->btc_write_2byte(btcoexist, 0x948, 0x0);
-		else
-			btcoexist->btc_write_2byte(btcoexist, 0x948, 0x280);
-
+		btcoexist->btc_write_2byte(btcoexist, 0x948, 0x0);
 		switch (antpos_type) {
 		case BTC_ANT_WIFI_AT_MAIN:
 			/* ext switch main at wifi */

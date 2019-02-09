@@ -25,15 +25,15 @@ union ieee754sp ieee754sp_mul(union ieee754sp x, union ieee754sp y)
 {
 	int re;
 	int rs;
-	unsigned int rm;
+	unsigned rm;
 	unsigned short lxm;
 	unsigned short hxm;
 	unsigned short lym;
 	unsigned short hym;
-	unsigned int lrm;
-	unsigned int hrm;
-	unsigned int t;
-	unsigned int at;
+	unsigned lrm;
+	unsigned hrm;
+	unsigned t;
+	unsigned at;
 
 	COMPXSP;
 	COMPYSP;
@@ -101,7 +101,6 @@ union ieee754sp ieee754sp_mul(union ieee754sp x, union ieee754sp y)
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		SPDNORMX;
-		/* fall through */
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		SPDNORMY;

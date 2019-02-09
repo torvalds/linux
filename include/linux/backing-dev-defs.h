@@ -163,7 +163,6 @@ struct backing_dev_info {
 	wait_queue_head_t wb_waitq;
 
 	struct device *dev;
-	struct device *owner;
 
 	struct timer_list laptop_mode_wb_timer;
 
@@ -190,11 +189,6 @@ static inline void set_bdi_congested(struct backing_dev_info *bdi, int sync)
 {
 	set_wb_congested(bdi->wb.congested, sync);
 }
-
-struct wb_lock_cookie {
-	bool locked;
-	unsigned long flags;
-};
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 

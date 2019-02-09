@@ -35,15 +35,6 @@ Optional properties:
 - ti,palmas-enable-dvfs2: Enable DVFS2. Configure pins for DVFS2 mode.
 	Selection primary or secondary function associated to GPADC_START
 	and SYSEN2 pin/pad for DVFS2 interface
-- ti,palmas-override-powerhold: This is applicable for PMICs for which
-	GPIO7 is configured in POWERHOLD mode which has higher priority
-	over DEV_ON bit and keeps the PMIC supplies on even after the DEV_ON
-	bit is turned off. This property enables driver to over ride the
-	POWERHOLD value to GPIO7 so as to turn off the PMIC in power off
-	scenarios. So for GPIO7 if ti,palmas-override-powerhold is set
-	then the GPIO_7 field should never be muxed to anything else.
-	It should be set to POWERHOLD by default and only in case of
-	power off scenarios the driver will over ride the mux value.
 
 This binding uses the following generic properties as defined in
 pinctrl-bindings.txt:

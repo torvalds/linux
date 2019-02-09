@@ -128,112 +128,56 @@ dwc3_gadget_link_string(enum dwc3_link_state link_state)
  * dwc3_gadget_event_string - returns event name
  * @event: the event code
  */
-static inline const char *
-dwc3_gadget_event_string(const struct dwc3_event_devt *event)
+static inline const char *dwc3_gadget_event_string(u8 event)
 {
-	static char str[256];
-	enum dwc3_link_state state = event->event_info & DWC3_LINK_STATE_MASK;
-
-	switch (event->type) {
+	switch (event) {
 	case DWC3_DEVICE_EVENT_DISCONNECT:
-		sprintf(str, "Disconnect: [%s]",
-				dwc3_gadget_link_string(state));
-		break;
+		return "Disconnect";
 	case DWC3_DEVICE_EVENT_RESET:
-		sprintf(str, "Reset [%s]", dwc3_gadget_link_string(state));
-		break;
+		return "Reset";
 	case DWC3_DEVICE_EVENT_CONNECT_DONE:
-		sprintf(str, "Connection Done [%s]",
-				dwc3_gadget_link_string(state));
-		break;
+		return "Connection Done";
 	case DWC3_DEVICE_EVENT_LINK_STATUS_CHANGE:
-		sprintf(str, "Link Change [%s]",
-				dwc3_gadget_link_string(state));
-		break;
+		return "Link Status Change";
 	case DWC3_DEVICE_EVENT_WAKEUP:
-		sprintf(str, "WakeUp [%s]", dwc3_gadget_link_string(state));
-		break;
+		return "WakeUp";
 	case DWC3_DEVICE_EVENT_EOPF:
-		sprintf(str, "End-Of-Frame [%s]",
-				dwc3_gadget_link_string(state));
-		break;
+		return "End-Of-Frame";
 	case DWC3_DEVICE_EVENT_SOF:
-		sprintf(str, "Start-Of-Frame [%s]",
-				dwc3_gadget_link_string(state));
-		break;
+		return "Start-Of-Frame";
 	case DWC3_DEVICE_EVENT_ERRATIC_ERROR:
-		sprintf(str, "Erratic Error [%s]",
-				dwc3_gadget_link_string(state));
-		break;
+		return "Erratic Error";
 	case DWC3_DEVICE_EVENT_CMD_CMPL:
-		sprintf(str, "Command Complete [%s]",
-				dwc3_gadget_link_string(state));
-		break;
+		return "Command Complete";
 	case DWC3_DEVICE_EVENT_OVERFLOW:
-		sprintf(str, "Overflow [%s]", dwc3_gadget_link_string(state));
-		break;
-	default:
-		sprintf(str, "UNKNOWN");
+		return "Overflow";
 	}
 
-	return str;
+	return "UNKNOWN";
 }
 
 /**
  * dwc3_ep_event_string - returns event name
  * @event: then event code
  */
-static inline const char *
-dwc3_ep_event_string(const struct dwc3_event_depevt *event)
+static inline const char *dwc3_ep_event_string(u8 event)
 {
-	u8 epnum = event->endpoint_number;
-	static char str[256];
-	int status;
-	int ret;
-
-	ret = sprintf(str, "ep%d%s: ", epnum >> 1,
-			(epnum & 1) ? "in" : "in");
-	if (ret < 0)
-		return "UNKNOWN";
-
-	switch (event->endpoint_event) {
+	switch (event) {
 	case DWC3_DEPEVT_XFERCOMPLETE:
-		strcat(str, "Transfer Complete");
-		break;
+		return "Transfer Complete";
 	case DWC3_DEPEVT_XFERINPROGRESS:
-		strcat(str, "Transfer In-Progress");
-		break;
+		return "Transfer In-Progress";
 	case DWC3_DEPEVT_XFERNOTREADY:
-		strcat(str, "Transfer Not Ready");
-		status = event->status & DEPEVT_STATUS_TRANSFER_ACTIVE;
-		strcat(str, status ? " (Active)" : " (Not Active)");
-		break;
+		return "Transfer Not Ready";
 	case DWC3_DEPEVT_RXTXFIFOEVT:
-		strcat(str, "FIFO");
-		break;
+		return "FIFO";
 	case DWC3_DEPEVT_STREAMEVT:
-		status = event->status;
-
-		switch (status) {
-		case DEPEVT_STREAMEVT_FOUND:
-			sprintf(str + ret, " Stream %d Found",
-					event->parameters);
-			break;
-		case DEPEVT_STREAMEVT_NOTFOUND:
-		default:
-			strcat(str, " Stream Not Found");
-			break;
-		}
-
-		break;
+		return "Stream";
 	case DWC3_DEPEVT_EPCMDCMPLT:
-		strcat(str, "Endpoint Command Complete");
-		break;
-	default:
-		sprintf(str, "UNKNOWN");
+		return "Endpoint Command Complete";
 	}
 
-	return str;
+	return "UNKNOWN";
 }
 
 /**
@@ -270,54 +214,14 @@ static inline const char *dwc3_gadget_event_type_string(u8 event)
 	}
 }
 
-static inline const char *dwc3_decode_event(u32 event)
-{
-	const union dwc3_event evt = (union dwc3_event) event;
-
-	if (evt.type.is_devspec)
-		return dwc3_gadget_event_string(&evt.devt);
-	else
-		return dwc3_ep_event_string(&evt.depevt);
-}
-
-static inline const char *dwc3_ep_cmd_status_string(int status)
-{
-	switch (status) {
-	case -ETIMEDOUT:
-		return "Timed Out";
-	case 0:
-		return "Successful";
-	case DEPEVT_TRANSFER_NO_RESOURCE:
-		return "No Resource";
-	case DEPEVT_TRANSFER_BUS_EXPIRY:
-		return "Bus Expiry";
-	default:
-		return "UNKNOWN";
-	}
-}
-
-static inline const char *dwc3_gadget_generic_cmd_status_string(int status)
-{
-	switch (status) {
-	case -ETIMEDOUT:
-		return "Timed Out";
-	case 0:
-		return "Successful";
-	case 1:
-		return "Error";
-	default:
-		return "UNKNOWN";
-	}
-}
-
 void dwc3_trace(void (*trace)(struct va_format *), const char *fmt, ...);
 
 #ifdef CONFIG_DEBUG_FS
-extern void dwc3_debugfs_init(struct dwc3 *);
+extern int dwc3_debugfs_init(struct dwc3 *);
 extern void dwc3_debugfs_exit(struct dwc3 *);
 #else
-static inline void dwc3_debugfs_init(struct dwc3 *d)
-{  }
+static inline int dwc3_debugfs_init(struct dwc3 *d)
+{  return 0;  }
 static inline void dwc3_debugfs_exit(struct dwc3 *d)
 {  }
 #endif

@@ -73,21 +73,7 @@
 #define  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM	(7<<14)
 #define  DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF	(8<<14)
 
-/* Picture aspect ratio options */
-#define DRM_MODE_PICTURE_ASPECT_NONE		0
-#define DRM_MODE_PICTURE_ASPECT_4_3		1
-#define DRM_MODE_PICTURE_ASPECT_16_9		2
 
-/* Aspect ratio flag bitmask (4 bits 22:19) */
-#define DRM_MODE_FLAG_PIC_AR_MASK		(0x0F<<19)
-#define  DRM_MODE_FLAG_PIC_AR_NONE \
-			(DRM_MODE_PICTURE_ASPECT_NONE<<19)
-#define  DRM_MODE_FLAG_PIC_AR_4_3 \
-			(DRM_MODE_PICTURE_ASPECT_4_3<<19)
-#define  DRM_MODE_FLAG_PIC_AR_16_9 \
-			(DRM_MODE_PICTURE_ASPECT_16_9<<19)
-
-#define DRM_MODE_FLAG_PPIXDATA			(1<<31)
 /* DPMS flags */
 /* bit compatible with the xorg definitions. */
 #define DRM_MODE_DPMS_ON	0
@@ -95,17 +81,17 @@
 #define DRM_MODE_DPMS_SUSPEND	2
 #define DRM_MODE_DPMS_OFF	3
 
-/* Content Protection Flags */
-#define DRM_MODE_CONTENT_PROTECTION_UNDESIRED   0
-#define DRM_MODE_CONTENT_PROTECTION_DESIRED     1
-#define DRM_MODE_CONTENT_PROTECTION_ENABLED     2
-
 /* Scaling mode options */
 #define DRM_MODE_SCALE_NONE		0 /* Unmodified timing (display or
 					     software can still scale) */
 #define DRM_MODE_SCALE_FULLSCREEN	1 /* Full screen, ignore aspect */
 #define DRM_MODE_SCALE_CENTER		2 /* Centered, no scaling */
 #define DRM_MODE_SCALE_ASPECT		3 /* Full screen, preserve aspect */
+
+/* Picture aspect ratio options */
+#define DRM_MODE_PICTURE_ASPECT_NONE	0
+#define DRM_MODE_PICTURE_ASPECT_4_3	1
+#define DRM_MODE_PICTURE_ASPECT_16_9	2
 
 /* Dithering mode options */
 #define DRM_MODE_DITHERING_OFF	0
@@ -116,11 +102,6 @@
 #define DRM_MODE_DIRTY_OFF      0
 #define DRM_MODE_DIRTY_ON       1
 #define DRM_MODE_DIRTY_ANNOTATE 2
-
-/* Content Protection Flags */
-#define DRM_MODE_CONTENT_PROTECTION_UNDESIRED	0
-#define DRM_MODE_CONTENT_PROTECTION_DESIRED     1
-#define DRM_MODE_CONTENT_PROTECTION_ENABLED     2
 
 struct drm_mode_modeinfo {
 	__u32 clock;
@@ -221,7 +202,6 @@ struct drm_mode_get_plane_res {
 #define DRM_MODE_ENCODER_VIRTUAL 5
 #define DRM_MODE_ENCODER_DSI	6
 #define DRM_MODE_ENCODER_DPMST	7
-#define DRM_MODE_ENCODER_DPI	8
 
 struct drm_mode_get_encoder {
 	__u32 encoder_id;
@@ -235,16 +215,14 @@ struct drm_mode_get_encoder {
 
 /* This is for connectors with multiple signal types. */
 /* Try to match DRM_MODE_CONNECTOR_X as closely as possible. */
-enum drm_mode_subconnector {
-	DRM_MODE_SUBCONNECTOR_Automatic = 0,
-	DRM_MODE_SUBCONNECTOR_Unknown = 0,
-	DRM_MODE_SUBCONNECTOR_DVID = 3,
-	DRM_MODE_SUBCONNECTOR_DVIA = 4,
-	DRM_MODE_SUBCONNECTOR_Composite = 5,
-	DRM_MODE_SUBCONNECTOR_SVIDEO = 6,
-	DRM_MODE_SUBCONNECTOR_Component = 8,
-	DRM_MODE_SUBCONNECTOR_SCART = 9,
-};
+#define DRM_MODE_SUBCONNECTOR_Automatic	0
+#define DRM_MODE_SUBCONNECTOR_Unknown	0
+#define DRM_MODE_SUBCONNECTOR_DVID	3
+#define DRM_MODE_SUBCONNECTOR_DVIA	4
+#define DRM_MODE_SUBCONNECTOR_Composite	5
+#define DRM_MODE_SUBCONNECTOR_SVIDEO	6
+#define DRM_MODE_SUBCONNECTOR_Component	8
+#define DRM_MODE_SUBCONNECTOR_SCART	9
 
 #define DRM_MODE_CONNECTOR_Unknown	0
 #define DRM_MODE_CONNECTOR_VGA		1
@@ -263,7 +241,6 @@ enum drm_mode_subconnector {
 #define DRM_MODE_CONNECTOR_eDP		14
 #define DRM_MODE_CONNECTOR_VIRTUAL      15
 #define DRM_MODE_CONNECTOR_DSI		16
-#define DRM_MODE_CONNECTOR_DPI		17
 
 struct drm_mode_get_connector {
 
@@ -508,44 +485,6 @@ struct drm_mode_crtc_lut {
 	__u64 red;
 	__u64 green;
 	__u64 blue;
-};
-
-struct drm_color_ctm {
-	/* Conversion matrix in S31.32 format. */
-	__s64 matrix[9];
-};
-
-struct drm_color_lut {
-	/*
-	 * Data is U0.16 fixed point format.
-	 */
-	__u16 red;
-	__u16 green;
-	__u16 blue;
-	__u16 reserved;
-};
-
-enum supported_eotf_type {
-	TRADITIONAL_GAMMA_SDR = 0,
-	TRADITIONAL_GAMMA_HDR,
-	SMPTE_ST2084,
-	HLG,
-	FUTURE_EOTF
-};
-
-/* HDR Metadata */
-struct hdr_static_metadata {
-	uint16_t eotf;
-	uint16_t type;
-	uint16_t display_primaries_x[3];
-	uint16_t display_primaries_y[3];
-	uint16_t white_point_x;
-	uint16_t white_point_y;
-	uint16_t max_mastering_display_luminance;
-	uint16_t min_mastering_display_luminance;
-	uint16_t max_fall;
-	uint16_t max_cll;
-	uint16_t min_cll;
 };
 
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01

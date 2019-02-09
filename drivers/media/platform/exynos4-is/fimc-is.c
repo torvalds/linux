@@ -815,13 +815,12 @@ static int fimc_is_probe(struct platform_device *pdev)
 	is->irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!is->irq) {
 		dev_err(dev, "no irq found\n");
-		ret = -EINVAL;
-		goto err_iounmap;
+		return -EINVAL;
 	}
 
 	ret = fimc_is_get_clocks(is);
 	if (ret < 0)
-		goto err_iounmap;
+		return ret;
 
 	platform_set_drvdata(pdev, is);
 
@@ -881,8 +880,6 @@ err_irq:
 	free_irq(is->irq, is);
 err_clk:
 	fimc_is_put_clocks(is);
-err_iounmap:
-	iounmap(is->pmu_regs);
 	return ret;
 }
 
@@ -938,7 +935,6 @@ static int fimc_is_remove(struct platform_device *pdev)
 	fimc_is_unregister_subdevs(is);
 	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
 	fimc_is_put_clocks(is);
-	iounmap(is->pmu_regs);
 	fimc_is_debugfs_remove(is);
 	release_firmware(is->fw.f_w);
 	fimc_is_free_cpu_memory(is);

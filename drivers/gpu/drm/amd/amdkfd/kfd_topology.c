@@ -519,17 +519,11 @@ static ssize_t sysprops_show(struct kobject *kobj, struct attribute *attr,
 	return ret;
 }
 
-static void kfd_topology_kobj_release(struct kobject *kobj)
-{
-	kfree(kobj);
-}
-
 static const struct sysfs_ops sysprops_ops = {
 	.show = sysprops_show,
 };
 
 static struct kobj_type sysprops_type = {
-	.release = kfd_topology_kobj_release,
 	.sysfs_ops = &sysprops_ops,
 };
 
@@ -565,7 +559,6 @@ static const struct sysfs_ops iolink_ops = {
 };
 
 static struct kobj_type iolink_type = {
-	.release = kfd_topology_kobj_release,
 	.sysfs_ops = &iolink_ops,
 };
 
@@ -593,7 +586,6 @@ static const struct sysfs_ops mem_ops = {
 };
 
 static struct kobj_type mem_type = {
-	.release = kfd_topology_kobj_release,
 	.sysfs_ops = &mem_ops,
 };
 
@@ -633,7 +625,6 @@ static const struct sysfs_ops cache_ops = {
 };
 
 static struct kobj_type cache_type = {
-	.release = kfd_topology_kobj_release,
 	.sysfs_ops = &cache_ops,
 };
 
@@ -756,7 +747,6 @@ static const struct sysfs_ops node_ops = {
 };
 
 static struct kobj_type node_type = {
-	.release = kfd_topology_kobj_release,
 	.sysfs_ops = &node_ops,
 };
 

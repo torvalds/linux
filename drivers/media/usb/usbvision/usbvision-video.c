@@ -1463,23 +1463,9 @@ static int usbvision_probe(struct usb_interface *intf,
 
 	if (usbvision_device_data[model].interface >= 0)
 		interface = &dev->actconfig->interface[usbvision_device_data[model].interface]->altsetting[0];
-	else if (ifnum < dev->actconfig->desc.bNumInterfaces)
+	else
 		interface = &dev->actconfig->interface[ifnum]->altsetting[0];
-	else {
-		dev_err(&intf->dev, "interface %d is invalid, max is %d\n",
-		    ifnum, dev->actconfig->desc.bNumInterfaces - 1);
-		ret = -ENODEV;
-		goto err_usb;
-	}
-
-	if (interface->desc.bNumEndpoints < 2) {
-		dev_err(&intf->dev, "interface %d has %d endpoints, but must"
-		    " have minimum 2\n", ifnum, interface->desc.bNumEndpoints);
-		ret = -ENODEV;
-		goto err_usb;
-	}
 	endpoint = &interface->endpoint[1].desc;
-
 	if (!usb_endpoint_xfer_isoc(endpoint)) {
 		dev_err(&intf->dev, "%s: interface %d. has non-ISO endpoint!\n",
 		    __func__, ifnum);
@@ -1523,14 +1509,7 @@ static int usbvision_probe(struct usb_interface *intf,
 	}
 
 	for (i = 0; i < usbvision->num_alt; i++) {
-		u16 tmp;
-
-		if (uif->altsetting[i].desc.bNumEndpoints < 2) {
-			ret = -ENODEV;
-			goto err_pkt;
-		}
-
-		tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
+		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
 				      wMaxPacketSize);
 		usbvision->alt_max_pkt_size[i] =
 			(tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);

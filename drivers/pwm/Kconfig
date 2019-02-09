@@ -137,13 +137,6 @@ config PWM_CRC
 	  Generic PWM framework driver for Crystalcove (CRC) PMIC based PWM
 	  control.
 
-config PWM_CROS_EC
-	tristate "ChromeOS EC PWM driver"
-	depends on MFD_CROS_EC
-	help
-	  PWM driver for exposing a PWM attached to the ChromeOS Embedded
-	  Controller.
-
 config PWM_EP93XX
 	tristate "Cirrus Logic EP93xx PWM support"
 	depends on ARCH_EP93XX
@@ -176,21 +169,6 @@ config PWM_IMG
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-img
-
-config PWM_GPIO
-	tristate "Generic GPIO bit-banged PWM driver"
-	depends on OF
-	depends on GPIOLIB
-	help
-	  Some platforms do not offer any hardware PWM capabilities but do have
-	  General Purpose Input Output (GPIO) pins available. Using the kernels
-	  High-Resolution Timer API this driver tries to toggle GPIO using the
-	  generic kernel PWM framework. The maximum frequency and/or accuracy
-	  is dependent on several factors such as system load and the maximum
-	  speed a pin can be toggled at the hardware.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-gpio.
 
 config PWM_IMX
 	tristate "i.MX PWM support"
@@ -348,13 +326,6 @@ config PWM_ROCKCHIP
 	help
 	  Generic PWM framework driver for the PWM controller found on
 	  Rockchip SoCs.
-
-config PWM_ROCKCHIP_I2S
-	tristate "Rockchip I2S PWM support"
-	depends on ARCH_ROCKCHIP
-	help
-	  Generic PWM framework driver for the I2S controller found on
-	  Rockchip SoCs, use the I2S controller to implement PWM function.
 
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"

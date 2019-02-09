@@ -89,7 +89,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pca0_pins>;
 					interrupt-parent = <&gpio0>;
-					interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
+					interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
 					gpio-controller;
 					#gpio-cells = <2>;
 					interrupt-controller;
@@ -101,7 +101,7 @@
 					compatible = "nxp,pca9555";
 					pinctrl-names = "default";
 					interrupt-parent = <&gpio0>;
-					interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
+					interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
 					gpio-controller;
 					#gpio-cells = <2>;
 					interrupt-controller;
@@ -291,6 +291,16 @@
 		enable-active-high;
 		regulator-always-on;
 		gpio = <&expander1 14 GPIO_ACTIVE_HIGH>;
+	};
+
+	reg_usb2_1_vbus: v5-vbus1 {
+		compatible = "regulator-fixed";
+		regulator-name = "v5.0-vbus1";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		gpio = <&expander0 4 GPIO_ACTIVE_HIGH>;
 	};
 
 	reg_usb2_1_vbus: v5-vbus1 {

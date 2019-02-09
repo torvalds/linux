@@ -26,6 +26,8 @@
  * parent - fixed parent.  No clk_set_parent support
  */
 
+#define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
+
 /*
  * It works on following logic:
  *

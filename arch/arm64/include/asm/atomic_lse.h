@@ -36,7 +36,7 @@ static inline void atomic_andnot(int i, atomic_t *v)
 	"	stclr	%w[i], %[v]\n")
 	: [i] "+r" (w0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 static inline void atomic_or(int i, atomic_t *v)
@@ -48,7 +48,7 @@ static inline void atomic_or(int i, atomic_t *v)
 	"	stset	%w[i], %[v]\n")
 	: [i] "+r" (w0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 static inline void atomic_xor(int i, atomic_t *v)
@@ -60,7 +60,7 @@ static inline void atomic_xor(int i, atomic_t *v)
 	"	steor	%w[i], %[v]\n")
 	: [i] "+r" (w0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 static inline void atomic_add(int i, atomic_t *v)
@@ -72,7 +72,7 @@ static inline void atomic_add(int i, atomic_t *v)
 	"	stadd	%w[i], %[v]\n")
 	: [i] "+r" (w0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 #define ATOMIC_OP_ADD_RETURN(name, mb, cl...)				\
@@ -90,7 +90,7 @@ static inline int atomic_add_return##name(int i, atomic_t *v)		\
 	"	add	%w[i], %w[i], w30")				\
 	: [i] "+r" (w0), [v] "+Q" (v->counter)				\
 	: "r" (x1)							\
-	: __LL_SC_CLOBBERS, ##cl);					\
+	: "x30" , ##cl);						\
 									\
 	return w0;							\
 }
@@ -114,9 +114,9 @@ static inline void atomic_and(int i, atomic_t *v)
 	/* LSE atomics */
 	"	mvn	%w[i], %w[i]\n"
 	"	stclr	%w[i], %[v]")
-	: [i] "+&r" (w0), [v] "+Q" (v->counter)
+	: [i] "+r" (w0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 static inline void atomic_sub(int i, atomic_t *v)
@@ -131,9 +131,9 @@ static inline void atomic_sub(int i, atomic_t *v)
 	/* LSE atomics */
 	"	neg	%w[i], %w[i]\n"
 	"	stadd	%w[i], %[v]")
-	: [i] "+&r" (w0), [v] "+Q" (v->counter)
+	: [i] "+r" (w0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 #define ATOMIC_OP_SUB_RETURN(name, mb, cl...)				\
@@ -151,9 +151,9 @@ static inline int atomic_sub_return##name(int i, atomic_t *v)		\
 	"	neg	%w[i], %w[i]\n"					\
 	"	ldadd" #mb "	%w[i], w30, %[v]\n"			\
 	"	add	%w[i], %w[i], w30")				\
-	: [i] "+&r" (w0), [v] "+Q" (v->counter)				\
+	: [i] "+r" (w0), [v] "+Q" (v->counter)				\
 	: "r" (x1)							\
-	: __LL_SC_CLOBBERS , ##cl);					\
+	: "x30" , ##cl);						\
 									\
 	return w0;							\
 }
@@ -177,7 +177,7 @@ static inline void atomic64_andnot(long i, atomic64_t *v)
 	"	stclr	%[i], %[v]\n")
 	: [i] "+r" (x0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 static inline void atomic64_or(long i, atomic64_t *v)
@@ -189,7 +189,7 @@ static inline void atomic64_or(long i, atomic64_t *v)
 	"	stset	%[i], %[v]\n")
 	: [i] "+r" (x0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 static inline void atomic64_xor(long i, atomic64_t *v)
@@ -201,7 +201,7 @@ static inline void atomic64_xor(long i, atomic64_t *v)
 	"	steor	%[i], %[v]\n")
 	: [i] "+r" (x0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 static inline void atomic64_add(long i, atomic64_t *v)
@@ -213,7 +213,7 @@ static inline void atomic64_add(long i, atomic64_t *v)
 	"	stadd	%[i], %[v]\n")
 	: [i] "+r" (x0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 #define ATOMIC64_OP_ADD_RETURN(name, mb, cl...)				\
@@ -231,7 +231,7 @@ static inline long atomic64_add_return##name(long i, atomic64_t *v)	\
 	"	add	%[i], %[i], x30")				\
 	: [i] "+r" (x0), [v] "+Q" (v->counter)				\
 	: "r" (x1)							\
-	: __LL_SC_CLOBBERS, ##cl);					\
+	: "x30" , ##cl);						\
 									\
 	return x0;							\
 }
@@ -255,9 +255,9 @@ static inline void atomic64_and(long i, atomic64_t *v)
 	/* LSE atomics */
 	"	mvn	%[i], %[i]\n"
 	"	stclr	%[i], %[v]")
-	: [i] "+&r" (x0), [v] "+Q" (v->counter)
+	: [i] "+r" (x0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 static inline void atomic64_sub(long i, atomic64_t *v)
@@ -272,9 +272,9 @@ static inline void atomic64_sub(long i, atomic64_t *v)
 	/* LSE atomics */
 	"	neg	%[i], %[i]\n"
 	"	stadd	%[i], %[v]")
-	: [i] "+&r" (x0), [v] "+Q" (v->counter)
+	: [i] "+r" (x0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: __LL_SC_CLOBBERS);
+	: "x30");
 }
 
 #define ATOMIC64_OP_SUB_RETURN(name, mb, cl...)				\
@@ -292,9 +292,9 @@ static inline long atomic64_sub_return##name(long i, atomic64_t *v)	\
 	"	neg	%[i], %[i]\n"					\
 	"	ldadd" #mb "	%[i], x30, %[v]\n"			\
 	"	add	%[i], %[i], x30")				\
-	: [i] "+&r" (x0), [v] "+Q" (v->counter)				\
+	: [i] "+r" (x0), [v] "+Q" (v->counter)				\
 	: "r" (x1)							\
-	: __LL_SC_CLOBBERS, ##cl);					\
+	: "x30" , ##cl);						\
 									\
 	return x0;							\
 }
@@ -330,7 +330,7 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	"2:")
 	: [ret] "+&r" (x0), [v] "+Q" (v->counter)
 	:
-	: __LL_SC_CLOBBERS, "cc", "memory");
+	: "x30", "cc", "memory");
 
 	return x0;
 }
@@ -359,7 +359,7 @@ static inline unsigned long __cmpxchg_case_##name(volatile void *ptr,	\
 	"	mov	%" #w "[ret], " #w "30")			\
 	: [ret] "+r" (x0), [v] "+Q" (*(unsigned long *)ptr)		\
 	: [old] "r" (x1), [new] "r" (x2)				\
-	: __LL_SC_CLOBBERS, ##cl);					\
+	: "x30" , ##cl);						\
 									\
 	return x0;							\
 }
@@ -412,11 +412,11 @@ static inline long __cmpxchg_double##name(unsigned long old1,		\
 	"	eor	%[old1], %[old1], %[oldval1]\n"			\
 	"	eor	%[old2], %[old2], %[oldval2]\n"			\
 	"	orr	%[old1], %[old1], %[old2]")			\
-	: [old1] "+&r" (x0), [old2] "+&r" (x1),				\
+	: [old1] "+r" (x0), [old2] "+r" (x1),				\
 	  [v] "+Q" (*(unsigned long *)ptr)				\
 	: [new1] "r" (x2), [new2] "r" (x3), [ptr] "r" (x4),		\
 	  [oldval1] "r" (oldval1), [oldval2] "r" (oldval2)		\
-	: __LL_SC_CLOBBERS, ##cl);					\
+	: "x30" , ##cl);						\
 									\
 	return x0;							\
 }

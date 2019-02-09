@@ -438,7 +438,7 @@ nmk_gpio_disable_lazy_irq(struct nmk_gpio_chip *nmk_chip, unsigned offset)
 			       nmk_chip->addr + NMK_GPIO_FIMSC);
 	}
 
-	dev_dbg(nmk_chip->chip.parent, "%d: clearing interrupt mask\n", gpio);
+	dev_dbg(nmk_chip->chip.dev, "%d: clearing interrupt mask\n", gpio);
 }
 
 static void nmk_write_masked(void __iomem *reg, u32 mask, u32 value)
@@ -995,7 +995,7 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 		int val;
 
 		if (pull)
-			pullidx = data_out ? 2 : 1;
+			pullidx = data_out ? 1 : 2;
 
 		seq_printf(s, " gpio-%-3d (%-20.20s) in  %s %s",
 			   gpio,
@@ -1188,7 +1188,7 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	chip->base = id * NMK_GPIO_PER_CHIP;
 	chip->ngpio = NMK_GPIO_PER_CHIP;
 	chip->label = dev_name(&gpio_pdev->dev);
-	chip->parent = &gpio_pdev->dev;
+	chip->dev = &gpio_pdev->dev;
 
 	res = platform_get_resource(gpio_pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -1617,7 +1617,7 @@ static int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		ret = nmk_pinctrl_dt_subnode_to_map(pctldev, np, map,
 				&reserved_maps, num_maps);
 		if (ret < 0) {
-			pinctrl_utils_free_map(pctldev, *map, *num_maps);
+			pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
 			return ret;
 		}
 	}
@@ -1631,7 +1631,7 @@ static const struct pinctrl_ops nmk_pinctrl_ops = {
 	.get_group_pins = nmk_get_group_pins,
 	.pin_dbg_show = nmk_pin_dbg_show,
 	.dt_node_to_map = nmk_pinctrl_dt_node_to_map,
-	.dt_free_map = pinctrl_utils_free_map,
+	.dt_free_map = pinctrl_utils_dt_free_map,
 };
 
 static int nmk_pmx_get_funcs_cnt(struct pinctrl_dev *pctldev)
@@ -1890,7 +1890,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 			if (slpm_val)
 				val = slpm_val - 1;
 
-			dev_dbg(nmk_chip->chip.parent,
+			dev_dbg(nmk_chip->chip.dev,
 				"pin %d: sleep pull %s, dir %s, val %s\n",
 				pin,
 				slpm_pull ? pullnames[pull] : "same",
@@ -1899,7 +1899,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 				slpm_val ? (val ? "high" : "low") : "same");
 		}
 
-		dev_dbg(nmk_chip->chip.parent,
+		dev_dbg(nmk_chip->chip.dev,
 			"pin %d [%#lx]: pull %s, slpm %s (%s%s), lowemi %s\n",
 			pin, cfg, pullnames[pull], slpmnames[slpm],
 			output ? "output " : "input",

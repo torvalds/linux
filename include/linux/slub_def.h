@@ -67,8 +67,7 @@ struct kmem_cache {
 	int size;		/* The size of an object including meta data */
 	int object_size;	/* The size of an object without meta data */
 	int offset;		/* Free pointer offset. */
-	/* Number of per cpu partial objects to keep around */
-	unsigned int cpu_partial;
+	int cpu_partial;	/* Number of per cpu partial objects to keep around */
 	struct kmem_cache_order_objects oo;
 
 	/* Allocation and freeing of slabs */
@@ -82,7 +81,6 @@ struct kmem_cache {
 	int reserved;		/* Reserved bytes at the end of slabs */
 	const char *name;	/* Name (only for display!) */
 	struct list_head list;	/* List of slab caches */
-	int red_left_pad;	/* Left redzone padding size */
 #ifdef CONFIG_SYSFS
 	struct kobject kobj;	/* For sysfs */
 #endif
@@ -100,11 +98,6 @@ struct kmem_cache {
 	 */
 	int remote_node_defrag_ratio;
 #endif
-
-#ifdef CONFIG_KASAN
-	struct kasan_cache kasan_info;
-#endif
-
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
 
@@ -135,16 +128,5 @@ static inline void *virt_to_obj(struct kmem_cache *s,
 
 void object_err(struct kmem_cache *s, struct page *page,
 		u8 *object, char *reason);
-
-static inline void *nearest_obj(struct kmem_cache *cache, struct page *page,
-				void *x) {
-	void *object = x - (x - page_address(page)) % cache->size;
-	void *last_object = page_address(page) +
-		(page->objects - 1) * cache->size;
-	if (unlikely(object > last_object))
-		return last_object;
-	else
-		return object;
-}
 
 #endif /* _LINUX_SLUB_DEF_H */

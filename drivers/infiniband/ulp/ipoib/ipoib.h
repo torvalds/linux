@@ -63,8 +63,6 @@ enum ipoib_flush_level {
 
 enum {
 	IPOIB_ENCAP_LEN		  = 4,
-	IPOIB_PSEUDO_LEN	  = 20,
-	IPOIB_HARD_LEN		  = IPOIB_ENCAP_LEN + IPOIB_PSEUDO_LEN,
 
 	IPOIB_UD_HEAD_SIZE	  = IB_GRH_BYTES + IPOIB_ENCAP_LEN,
 	IPOIB_UD_RX_SG		  = 2, /* max buffer needed for 4K mtu */
@@ -133,21 +131,15 @@ struct ipoib_header {
 	u16	reserved;
 };
 
-struct ipoib_pseudo_header {
-	u8	hwaddr[INFINIBAND_ALEN];
+struct ipoib_cb {
+	struct qdisc_skb_cb	qdisc_cb;
+	u8			hwaddr[INFINIBAND_ALEN];
 };
 
-static inline void skb_add_pseudo_hdr(struct sk_buff *skb)
+static inline struct ipoib_cb *ipoib_skb_cb(const struct sk_buff *skb)
 {
-	char *data = skb_push(skb, IPOIB_PSEUDO_LEN);
-
-	/*
-	 * only the ipoib header is present now, make room for a dummy
-	 * pseudo header and set skb field accordingly
-	 */
-	memset(data, 0, IPOIB_PSEUDO_LEN);
-	skb_reset_mac_header(skb);
-	skb_pull(skb, IPOIB_HARD_LEN);
+	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct ipoib_cb));
+	return (struct ipoib_cb *)skb->cb;
 }
 
 /* Used for all multicast joins (broadcast, IPv4 mcast and IPv6 mcast) */
@@ -480,7 +472,6 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		struct ipoib_ah *address, u32 qpn);
 void ipoib_reap_ah(struct work_struct *work);
 
-struct ipoib_path *__path_find(struct net_device *dev, void *gid);
 void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
 struct ipoib_dev_priv *ipoib_intf_alloc(const char *format);

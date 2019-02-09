@@ -135,16 +135,6 @@ static int run_test(void *addr, unsigned long size)
 	return 0;
 }
 
-static int syscall_available(void)
-{
-	int rc;
-
-	errno = 0;
-	rc = syscall(__NR_subpage_prot, 0, 0, 0);
-
-	return rc == 0 || (errno != ENOENT && errno != ENOSYS);
-}
-
 int test_anon(void)
 {
 	unsigned long align;
@@ -154,8 +144,6 @@ int test_anon(void)
 	};
 	void *mallocblock;
 	unsigned long mallocsize;
-
-	SKIP_IF(!syscall_available());
 
 	if (getpagesize() != 0x10000) {
 		fprintf(stderr, "Kernel page size must be 64K!\n");
@@ -191,8 +179,6 @@ int test_file(void)
 	void *fileblock;
 	off_t filesize;
 	int fd;
-
-	SKIP_IF(!syscall_available());
 
 	fd = open(file_name, O_RDWR);
 	if (fd == -1) {

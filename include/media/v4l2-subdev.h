@@ -409,30 +409,12 @@ struct v4l2_subdev_video_ops {
 				struct v4l2_subdev_frame_interval *interval);
 	int (*s_frame_interval)(struct v4l2_subdev *sd,
 				struct v4l2_subdev_frame_interval *interval);
-
-	int (*enum_framesizes)(struct v4l2_subdev *sd,
-			       struct v4l2_frmsizeenum *fsize);
-	int (*enum_frameintervals)(struct v4l2_subdev *sd,
-				   struct v4l2_frmivalenum *fival);
-
 	int (*s_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
 	int (*g_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
 	int (*query_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
-
-	int (*enum_mbus_fmt)(struct v4l2_subdev *sd, unsigned int index,
-			     u32 *code);
-	int (*enum_mbus_fsizes)(struct v4l2_subdev *sd,
-				struct v4l2_frmsizeenum *fsize);
-	int (*g_mbus_fmt)(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *fmt);
-	int (*try_mbus_fmt)(struct v4l2_subdev *sd,
-			    struct v4l2_mbus_framefmt *fmt);
-	int (*s_mbus_fmt)(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *fmt);
-
 	int (*g_mbus_config)(struct v4l2_subdev *sd,
 			     struct v4l2_mbus_config *cfg);
 	int (*s_mbus_config)(struct v4l2_subdev *sd,
@@ -742,7 +724,8 @@ struct v4l2_subdev {
 	struct video_device *devnode;
 	/* pointer to the physical device, if any */
 	struct device *dev;
-	struct fwnode_handle *fwnode;
+	/* The device_node of the subdev, usually the same as dev->of_node. */
+	struct device_node *of_node;
 	/* Links this subdev to a global subdev_list or @notifier->done list. */
 	struct list_head async_list;
 	/* Pointer to respective struct v4l2_async_subdev. */
@@ -750,9 +733,6 @@ struct v4l2_subdev {
 	/* Pointer to the managing notifier. */
 	struct v4l2_async_notifier *notifier;
 	/* common part of subdevice platform data */
-	struct v4l2_async_notifier *subdev_notifier;
-	/* A sub-device notifier implicitly registered for the sub-device
-	   using v4l2_device_register_sensor_subdev(). */
 	struct v4l2_subdev_platform_data *pdata;
 };
 

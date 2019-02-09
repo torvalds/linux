@@ -1624,8 +1624,13 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 			new->reshape_fail = cbq_reshape_fail;
 #endif
 	}
+	sch_tree_lock(sch);
+	*old = cl->q;
+	cl->q = new;
+	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
+	qdisc_reset(*old);
+	sch_tree_unlock(sch);
 
-	*old = qdisc_replace(sch, new, &cl->q);
 	return 0;
 }
 
@@ -1909,7 +1914,7 @@ static int cbq_delete(struct Qdisc *sch, unsigned long arg)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl = (struct cbq_class *)arg;
-	unsigned int qlen, backlog;
+	unsigned int qlen;
 
 	if (cl->filters || cl->children || cl == &q->link)
 		return -EBUSY;
@@ -1917,9 +1922,8 @@ static int cbq_delete(struct Qdisc *sch, unsigned long arg)
 	sch_tree_lock(sch);
 
 	qlen = cl->q->q.qlen;
-	backlog = cl->q->qstats.backlog;
 	qdisc_reset(cl->q);
-	qdisc_tree_reduce_backlog(cl->q, qlen, backlog);
+	qdisc_tree_decrease_qlen(cl->q, qlen);
 
 	if (cl->next_alive)
 		cbq_deactivate_class(cl);

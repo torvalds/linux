@@ -294,7 +294,7 @@
 # 285 sys_setaltroot
 286	i386	add_key			sys_add_key
 287	i386	request_key		sys_request_key
-288	i386	keyctl			sys_keyctl			compat_sys_keyctl
+288	i386	keyctl			sys_keyctl
 289	i386	ioprio_set		sys_ioprio_set
 290	i386	ioprio_get		sys_ioprio_get
 291	i386	inotify_init		sys_inotify_init

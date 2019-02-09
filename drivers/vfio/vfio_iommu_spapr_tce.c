@@ -511,12 +511,6 @@ static long tce_iommu_build_v2(struct tce_container *container,
 	unsigned long hpa;
 	enum dma_data_direction dirtmp;
 
-	if (!tbl->it_userspace) {
-		ret = tce_iommu_userspace_view_alloc(tbl);
-		if (ret)
-			return ret;
-	}
-
 	for (i = 0; i < pages; ++i) {
 		struct mm_iommu_table_group_mem_t *mem = NULL;
 		unsigned long *pua = IOMMU_TABLE_USERSPACE_ENTRY(tbl,
@@ -589,6 +583,15 @@ static long tce_iommu_create_table(struct tce_container *container,
 
 	WARN_ON(!ret && !(*ptbl)->it_ops->free);
 	WARN_ON(!ret && ((*ptbl)->it_allocated_size != table_size));
+
+	if (!ret && container->v2) {
+		ret = tce_iommu_userspace_view_alloc(*ptbl);
+		if (ret)
+			(*ptbl)->it_ops->free(*ptbl);
+	}
+
+	if (ret)
+		decrement_locked_vm(table_size >> PAGE_SHIFT);
 
 	return ret;
 }
@@ -1061,7 +1064,10 @@ static int tce_iommu_take_ownership(struct tce_container *container,
 		if (!tbl || !tbl->it_map)
 			continue;
 
-		rc = iommu_take_ownership(tbl);
+		rc = tce_iommu_userspace_view_alloc(tbl);
+		if (!rc)
+			rc = iommu_take_ownership(tbl);
+
 		if (rc) {
 			for (j = 0; j < i; ++j)
 				iommu_release_ownership(
@@ -1163,10 +1169,6 @@ static int tce_iommu_attach_group(void *iommu_data,
 	/* pr_debug("tce_vfio: Attaching group #%u to iommu %p\n",
 			iommu_group_id(iommu_group), iommu_group); */
 	table_group = iommu_group_get_iommudata(iommu_group);
-	if (!table_group) {
-		ret = -ENODEV;
-		goto unlock_exit;
-	}
 
 	if (tce_groups_attached(container) && (!table_group->ops ||
 			!table_group->ops->take_ownership ||

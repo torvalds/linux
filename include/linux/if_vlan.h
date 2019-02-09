@@ -585,7 +585,7 @@ static inline bool skb_vlan_tagged(const struct sk_buff *skb)
  * Returns true if the skb is tagged with multiple vlan headers, regardless
  * of whether it is hardware accelerated or not.
  */
-static inline bool skb_vlan_tagged_multi(struct sk_buff *skb)
+static inline bool skb_vlan_tagged_multi(const struct sk_buff *skb)
 {
 	__be16 protocol = skb->protocol;
 
@@ -594,9 +594,6 @@ static inline bool skb_vlan_tagged_multi(struct sk_buff *skb)
 
 		if (likely(protocol != htons(ETH_P_8021Q) &&
 			   protocol != htons(ETH_P_8021AD)))
-			return false;
-
-		if (unlikely(!pskb_may_pull(skb, VLAN_ETH_HLEN)))
 			return false;
 
 		veh = (struct vlan_ethhdr *)skb->data;
@@ -616,19 +613,18 @@ static inline bool skb_vlan_tagged_multi(struct sk_buff *skb)
  *
  * Returns features without unsafe ones if the skb has multiple tags.
  */
-static inline netdev_features_t vlan_features_check(struct sk_buff *skb,
+static inline netdev_features_t vlan_features_check(const struct sk_buff *skb,
 						    netdev_features_t features)
 {
-	if (skb_vlan_tagged_multi(skb)) {
-		/* In the case of multi-tagged packets, use a direct mask
-		 * instead of using netdev_interesect_features(), to make
-		 * sure that only devices supporting NETIF_F_HW_CSUM will
-		 * have checksum offloading support.
-		 */
-		features &= NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_HW_CSUM |
-			    NETIF_F_FRAGLIST | NETIF_F_HW_VLAN_CTAG_TX |
-			    NETIF_F_HW_VLAN_STAG_TX;
-	}
+	if (skb_vlan_tagged_multi(skb))
+		features = netdev_intersect_features(features,
+						     NETIF_F_SG |
+						     NETIF_F_HIGHDMA |
+						     NETIF_F_FRAGLIST |
+						     NETIF_F_GEN_CSUM |
+						     NETIF_F_HW_VLAN_CTAG_TX |
+						     NETIF_F_HW_VLAN_STAG_TX);
+
 	return features;
 }
 

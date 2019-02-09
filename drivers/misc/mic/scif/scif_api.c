@@ -370,10 +370,11 @@ int scif_bind(scif_epd_t epd, u16 pn)
 			goto scif_bind_exit;
 		}
 	} else {
-		ret = scif_get_new_port();
-		if (ret < 0)
+		pn = scif_get_new_port();
+		if (!pn) {
+			ret = -ENOSPC;
 			goto scif_bind_exit;
-		pn = ret;
+		}
 	}
 
 	ep->state = SCIFEP_BOUND;
@@ -647,12 +648,13 @@ int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block)
 			err = -EISCONN;
 		break;
 	case SCIFEP_UNBOUND:
-		err = scif_get_new_port();
-		if (err < 0)
-			break;
-		ep->port.port = err;
-		ep->port.node = scif_info.nodeid;
-		ep->conn_async_state = ASYNC_CONN_IDLE;
+		ep->port.port = scif_get_new_port();
+		if (!ep->port.port) {
+			err = -ENOSPC;
+		} else {
+			ep->port.node = scif_info.nodeid;
+			ep->conn_async_state = ASYNC_CONN_IDLE;
+		}
 		/* Fall through */
 	case SCIFEP_BOUND:
 		/*

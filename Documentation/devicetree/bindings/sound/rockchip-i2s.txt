@@ -7,16 +7,8 @@ Required properties:
 
 - compatible: should be one of the followings
    - "rockchip,rk3066-i2s": for rk3066
-   - "rockchip,px30-i2s", "rockchip,rk3066-i2s": for px30
-   - "rockchip,rk1808-i2s", "rockchip,rk3066-i2s": for rk1808
-   - "rockchip,rk3036-i2s", "rockchip,rk3066-i2s": for rk3036
-   - "rockchip,rk3128-i2s", "rockchip,rk3066-i2s": for rk3128
    - "rockchip,rk3188-i2s", "rockchip,rk3066-i2s": for rk3188
    - "rockchip,rk3288-i2s", "rockchip,rk3066-i2s": for rk3288
-   - "rockchip,rk3308-i2s", "rockchip,rk3066-i2s": for rk3308
-   - "rockchip,rk3328-i2s", "rockchip,rk3066-i2s": for rk3328
-   - "rockchip,rk3368-i2s", "rockchip,rk3066-i2s": for rk3368
-   - "rockchip,rk3399-i2s", "rockchip,rk3066-i2s": for rk3399
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: should contain the I2S interrupt.
@@ -27,25 +19,7 @@ Required properties:
 - clock-names: should contain followings:
    - "i2s_hclk": clock for I2S BUS
    - "i2s_clk" : clock for I2S controller
-- resets: a list of phandle + reset-specifer paris, one for each entry in reset-names.
-- reset-names: reset names, should include "reset-m", "reset-h", there may be only
-  "reset-m" on some platforms.
-- rockchip,playback-channels: max playback channels, if not set, 8 channels default.
 - rockchip,capture-channels: max capture channels, if not set, 2 channels default.
-- rockchip,bclk-fs: configure the i2s bclk fs.
-- rockchip,clk-trcm: tx and rx lrck/bclk common use.
-   - 0: both tx_lrck/bclk and rx_lrck/bclk are used
-   - 1: only tx_lrck/bclk is used
-   - 2: only rx_lrck/bclk is used
-- rockchip,no-dmaengine: This is a boolean property. If present, driver will do not
-  register pcm dmaengine, only just register dai. if the dai is part of multi-dais,
-  the property should be present. Please refer to rockchip,multidais.txt about
-  multi-dais usage.
-
-Required properties for controller which support multi channels
-playback/capture:
-
-- rockchip,grf: the phandle of the syscon node for GRF register.
 
 Example for rk3288 I2S controller:
 
@@ -57,7 +31,5 @@ i2s@ff890000 {
 	dma-names = "tx", "rx";
 	clock-names = "i2s_hclk", "i2s_clk";
 	clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
-	rockchip,playback-channels = <8>;
 	rockchip,capture-channels = <2>;
-	rockchip,bclk-fs = <64>;
 };

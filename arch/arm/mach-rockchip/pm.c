@@ -22,15 +22,12 @@
 #include <linux/suspend.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regulator/machine.h>
-#include <linux/moduleparam.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>
-#include <asm/psci.h>
 
 #include "pm.h"
-#include "embedded/rk3288_resume.h"
 
 /* These enum are option of low power mode */
 enum {
@@ -42,10 +39,6 @@ struct rockchip_pm_data {
 	const struct platform_suspend_ops *ops;
 	int (*init)(struct device_node *np);
 };
-
-static bool deep_sleep = true;
-module_param(deep_sleep, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(deep_sleep, "Go into deep sleep");
 
 static void __iomem *rk3288_bootram_base;
 static phys_addr_t rk3288_bootram_phy;
@@ -66,28 +59,13 @@ static inline u32 rk3288_l2_config(void)
 	return l2ctlr;
 }
 
-static void __init rk3288_init_pmu_sram(void)
+static void rk3288_config_bootdata(void)
 {
-	extern char _binary_arch_arm_mach_rockchip_embedded_rk3288_resume_bin_start;
-	extern char _binary_arch_arm_mach_rockchip_embedded_rk3288_resume_bin_end;
-	u32 size = &_binary_arch_arm_mach_rockchip_embedded_rk3288_resume_bin_end -
-		   &_binary_arch_arm_mach_rockchip_embedded_rk3288_resume_bin_start;
-	struct rk3288_resume_params *params;
+	rkpm_bootdata_cpusp = rk3288_bootram_phy + (SZ_4K - 8);
+	rkpm_bootdata_cpu_code = virt_to_phys(cpu_resume);
 
-	/* move resume code and data to PMU sram */
-	memcpy(rk3288_bootram_base,
-	       &_binary_arch_arm_mach_rockchip_embedded_rk3288_resume_bin_start,
-	       size);
-
-	/* setup the params that we know at boot time */
-	params = (struct rk3288_resume_params *)rk3288_bootram_base;
-
-	params->cpu_resume = (void *)(u32)virt_to_phys(cpu_resume);
-
-	params->l2ctlr_f = 1;
-	params->l2ctlr = rk3288_l2_config();
-
-	rk3288_ddr_suspend_init(&params->ddr_save_data);
+	rkpm_bootdata_l2ctlr_f  = 1;
+	rkpm_bootdata_l2ctlr = rk3288_l2_config();
 }
 
 #define GRF_UOC0_CON0			0x320
@@ -117,9 +95,6 @@ static bool rk3288_slp_disable_osc(void)
 
 static void rk3288_slp_mode_set(int level)
 {
-	struct rk3288_resume_params *params =
-		(struct rk3288_resume_params *)rk3288_bootram_base;
-
 	u32 mode_set, mode_set1;
 	bool osc_disable = rk3288_slp_disable_osc();
 
@@ -146,7 +121,7 @@ static void rk3288_slp_mode_set(int level)
 
 	/* booting address of resuming system is from this register value */
 	regmap_write(sgrf_regmap, RK3288_SGRF_FAST_BOOT_ADDR,
-		     (u32)params->resume_loc);
+		     rk3288_bootram_phy);
 
 	mode_set = BIT(PMU_GLOBAL_INT_DISABLE) | BIT(PMU_L2FLUSH_EN) |
 		   BIT(PMU_SREF0_ENTER_EN) | BIT(PMU_SREF1_ENTER_EN) |
@@ -158,15 +133,18 @@ static void rk3288_slp_mode_set(int level)
 
 	if (level == ROCKCHIP_ARM_OFF_LOGIC_DEEP) {
 		/* arm off, logic deep sleep */
-		mode_set |= BIT(PMU_BUS_PD_EN) |  BIT(PMU_PMU_USE_LF) |
+		mode_set |= BIT(PMU_BUS_PD_EN) | BIT(PMU_PMU_USE_LF) |
 			    BIT(PMU_DDR1IO_RET_EN) | BIT(PMU_DDR0IO_RET_EN) |
 			    BIT(PMU_ALIVE_USE_LF) | BIT(PMU_PLL_PD_EN);
+
+		if (osc_disable)
+			mode_set |= BIT(PMU_OSC_24M_DIS);
 
 		mode_set1 |= BIT(PMU_CLR_ALIVE) | BIT(PMU_CLR_BUS) |
 			     BIT(PMU_CLR_PERI) | BIT(PMU_CLR_DMA);
 
 		regmap_write(pmu_regmap, RK3288_PMU_WAKEUP_CFG1,
-		     PMU_ARMINT_WAKEUP_EN);
+			     PMU_ARMINT_WAKEUP_EN);
 
 		/*
 		 * In deep suspend we use PMU_PMU_USE_LF to let the rk3288
@@ -180,14 +158,6 @@ static void rk3288_slp_mode_set(int level)
 		/* only wait for stabilization, if we turned the osc off */
 		regmap_write(pmu_regmap, RK3288_PMU_OSC_CNT,
 					 osc_disable ? 32 * 30 : 0);
-
-		if (osc_disable)
-			mode_set |= BIT(PMU_OSC_24M_DIS);
-
-		params->ddr_resume_f = true;
-
-		/* TODO: check error from ddr_suspend() and pass back */
-		rk3288_ddr_suspend(&params->ddr_save_data);
 	} else {
 		/*
 		 * arm off, logic normal
@@ -204,15 +174,13 @@ static void rk3288_slp_mode_set(int level)
 
 		/* oscillator is still running, so no need to wait */
 		regmap_write(pmu_regmap, RK3288_PMU_OSC_CNT, 0);
-
-		params->ddr_resume_f = false;
 	}
 
 	regmap_write(pmu_regmap, RK3288_PMU_PWRMODE_CON, mode_set);
 	regmap_write(pmu_regmap, RK3288_PMU_PWRMODE_CON1, mode_set1);
 }
 
-static void rk3288_slp_mode_set_resume(int level)
+static void rk3288_slp_mode_set_resume(void)
 {
 	regmap_write(sgrf_regmap, RK3288_SGRF_CPU_CON0,
 		     rk3288_sgrf_cpu_con0 | SGRF_DAPDEVICEEN_WRITE);
@@ -223,9 +191,6 @@ static void rk3288_slp_mode_set_resume(int level)
 	regmap_write(sgrf_regmap, RK3288_SGRF_SOC_CON0,
 		     rk3288_sgrf_soc_con0 | SGRF_PCLK_WDT_GATE_WRITE
 		     | SGRF_FAST_BOOT_EN_WRITE);
-
-	if (level == ROCKCHIP_ARM_OFF_LOGIC_DEEP)
-		rk3288_ddr_resume();
 }
 
 static int rockchip_lpmode_enter(unsigned long arg)
@@ -241,17 +206,13 @@ static int rockchip_lpmode_enter(unsigned long arg)
 
 static int rk3288_suspend_enter(suspend_state_t state)
 {
-	int level = deep_sleep ?
-		ROCKCHIP_ARM_OFF_LOGIC_DEEP :
-		ROCKCHIP_ARM_OFF_LOGIC_NORMAL;
-
 	local_fiq_disable();
 
-	rk3288_slp_mode_set(level);
+	rk3288_slp_mode_set(ROCKCHIP_ARM_OFF_LOGIC_NORMAL);
 
 	cpu_suspend(0, rockchip_lpmode_enter);
 
-	rk3288_slp_mode_set_resume(level);
+	rk3288_slp_mode_set_resume();
 
 	local_fiq_enable();
 
@@ -269,7 +230,7 @@ static void rk3288_suspend_finish(void)
 		pr_err("%s: Suspend finish failed\n", __func__);
 }
 
-static int __init rk3288_suspend_init(struct device_node *np)
+static int rk3288_suspend_init(struct device_node *np)
 {
 	struct device_node *sram_np;
 	struct resource res;
@@ -317,7 +278,11 @@ static int __init rk3288_suspend_init(struct device_node *np)
 
 	of_node_put(sram_np);
 
-	rk3288_init_pmu_sram();
+	rk3288_config_bootdata();
+
+	/* copy resume code and data to bootsram */
+	memcpy(rk3288_bootram_base, rockchip_slp_cpu_resume,
+	       rk3288_bootram_sz);
 
 	return 0;
 }
@@ -348,9 +313,6 @@ void __init rockchip_suspend_init(void)
 	const struct of_device_id *match;
 	struct device_node *np;
 	int ret;
-
-	if (psci_smp_available())
-		return;
 
 	np = of_find_matching_node_and_match(NULL, rockchip_pmu_of_device_ids,
 					     &match);

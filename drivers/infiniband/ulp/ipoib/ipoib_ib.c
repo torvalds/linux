@@ -130,15 +130,16 @@ static struct sk_buff *ipoib_alloc_rx_skb(struct net_device *dev, int id)
 
 	buf_size = IPOIB_UD_BUF_SIZE(priv->max_ib_mtu);
 
-	skb = dev_alloc_skb(buf_size + IPOIB_HARD_LEN);
+	skb = dev_alloc_skb(buf_size + IPOIB_ENCAP_LEN);
 	if (unlikely(!skb))
 		return NULL;
 
 	/*
-	 * the IP header will be at IPOIP_HARD_LEN + IB_GRH_BYTES, that is
-	 * 64 bytes aligned
+	 * IB will leave a 40 byte gap for a GRH and IPoIB adds a 4 byte
+	 * header.  So we need 4 more bytes to get to 48 and align the
+	 * IP header to a multiple of 16.
 	 */
-	skb_reserve(skb, sizeof(struct ipoib_pseudo_header));
+	skb_reserve(skb, 4);
 
 	mapping = priv->rx_ring[id].mapping;
 	mapping[0] = ib_dma_map_single(priv->ca, skb->data, buf_size,
@@ -241,7 +242,10 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	skb_pull(skb, IB_GRH_BYTES);
 
 	skb->protocol = ((struct ipoib_header *) skb->data)->proto;
-	skb_add_pseudo_hdr(skb);
+	skb_reset_mac_header(skb);
+	skb_pull(skb, IPOIB_ENCAP_LEN);
+
+	skb->truesize = SKB_TRUESIZE(skb->len);
 
 	++dev->stats.rx_packets;
 	dev->stats.rx_bytes += skb->len;
@@ -945,19 +949,6 @@ static inline int update_parent_pkey(struct ipoib_dev_priv *priv)
 		 */
 		priv->dev->broadcast[8] = priv->pkey >> 8;
 		priv->dev->broadcast[9] = priv->pkey & 0xff;
-
-		/*
-		 * Update the broadcast address in the priv->broadcast object,
-		 * in case it already exists, otherwise no one will do that.
-		 */
-		if (priv->broadcast) {
-			spin_lock_irq(&priv->lock);
-			memcpy(priv->broadcast->mcmember.mgid.raw,
-			       priv->dev->broadcast + 4,
-			sizeof(union ib_gid));
-			spin_unlock_irq(&priv->lock);
-		}
-
 		return 0;
 	}
 
@@ -1039,17 +1030,8 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 	}
 
 	if (level == IPOIB_FLUSH_LIGHT) {
-		int oper_up;
 		ipoib_mark_paths_invalid(dev);
-		/* Set IPoIB operation as down to prevent races between:
-		 * the flush flow which leaves MCG and on the fly joins
-		 * which can happen during that time. mcast restart task
-		 * should deal with join requests we missed.
-		 */
-		oper_up = test_and_clear_bit(IPOIB_FLAG_OPER_UP, &priv->flags);
 		ipoib_mcast_dev_flush(dev);
-		if (oper_up)
-			set_bit(IPOIB_FLAG_OPER_UP, &priv->flags);
 		ipoib_flush_ah(dev);
 	}
 
@@ -1057,15 +1039,10 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 		ipoib_ib_dev_down(dev);
 
 	if (level == IPOIB_FLUSH_HEAVY) {
-		rtnl_lock();
 		if (test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
 			ipoib_ib_dev_stop(dev);
-
-		result = ipoib_ib_dev_open(dev);
-		rtnl_unlock();
-		if (result)
+		if (ipoib_ib_dev_open(dev) != 0)
 			return;
-
 		if (netif_queue_stopped(dev))
 			netif_start_queue(dev);
 	}

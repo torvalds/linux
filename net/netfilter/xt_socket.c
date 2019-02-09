@@ -143,12 +143,11 @@ static bool xt_socket_sk_is_transparent(struct sock *sk)
 	}
 }
 
-struct sock *xt_socket_lookup_slow_v4(struct net *net,
+static struct sock *xt_socket_lookup_slow_v4(struct net *net,
 					     const struct sk_buff *skb,
 					     const struct net_device *indev)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	struct sock *sk = skb->sk;
 	__be32 uninitialized_var(daddr), uninitialized_var(saddr);
 	__be16 uninitialized_var(dport), uninitialized_var(sport);
 	u8 uninitialized_var(protocol);
@@ -199,16 +198,9 @@ struct sock *xt_socket_lookup_slow_v4(struct net *net,
 	}
 #endif
 
-	if (sk)
-		atomic_inc(&sk->sk_refcnt);
-	else
-		sk = xt_socket_get_sock_v4(dev_net(skb->dev), protocol,
-					   saddr, daddr, sport, dport,
-					   indev);
-
-	return sk;
+	return xt_socket_get_sock_v4(net, protocol, saddr, daddr,
+				     sport, dport, indev);
 }
-EXPORT_SYMBOL(xt_socket_lookup_slow_v4);
 
 static bool
 socket_match(const struct sk_buff *skb, struct xt_action_param *par,
@@ -240,7 +232,8 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 		    transparent)
 			pskb->mark = sk->sk_mark;
 
-		sock_gen_put(sk);
+		if (sk != skb->sk)
+			sock_gen_put(sk);
 
 		if (wildcard || !transparent)
 			sk = NULL;
@@ -343,11 +336,10 @@ xt_socket_get_sock_v6(struct net *net, const u8 protocol,
 	return NULL;
 }
 
-struct sock *xt_socket_lookup_slow_v6(struct net *net,
+static struct sock *xt_socket_lookup_slow_v6(struct net *net,
 					     const struct sk_buff *skb,
 					     const struct net_device *indev)
 {
-	struct sock *sk = skb->sk;
 	__be16 uninitialized_var(dport), uninitialized_var(sport);
 	const struct in6_addr *daddr = NULL, *saddr = NULL;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
@@ -381,16 +373,9 @@ struct sock *xt_socket_lookup_slow_v6(struct net *net,
 		return NULL;
 	}
 
-	if (sk)
-		atomic_inc(&sk->sk_refcnt);
-	else
-		sk = xt_socket_get_sock_v6(dev_net(skb->dev), tproto,
-					   saddr, daddr, sport, dport,
-					   indev);
-
-	return sk;
+	return xt_socket_get_sock_v6(net, tproto, saddr, daddr,
+				     sport, dport, indev);
 }
-EXPORT_SYMBOL(xt_socket_lookup_slow_v6);
 
 static bool
 socket_mt6_v1_v2_v3(const struct sk_buff *skb, struct xt_action_param *par)

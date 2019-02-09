@@ -384,7 +384,6 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x095B, 0x5310, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095B, 0x5302, iwl7265_n_cfg)},
 	{IWL_PCI_DEVICE(0x095B, 0x5210, iwl7265_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5C10, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5012, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5412, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5410, iwl7265_2ac_cfg)},
@@ -402,10 +401,10 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x095A, 0x900A, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9110, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9112, iwl7265_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x9210, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9210, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095B, 0x9200, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9510, iwl7265_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x9310, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9310, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9410, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5020, iwl7265_2n_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x502A, iwl7265_2n_cfg)},
@@ -475,64 +474,48 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
 #ifdef CONFIG_ACPI
-#define ACPI_SPLC_METHOD	"SPLC"
-#define ACPI_SPLC_DOMAIN_WIFI	(0x07)
+#define SPL_METHOD		"SPLC"
+#define SPL_DOMAINTYPE_MODULE	BIT(0)
+#define SPL_DOMAINTYPE_WIFI	BIT(1)
+#define SPL_DOMAINTYPE_WIGIG	BIT(2)
+#define SPL_DOMAINTYPE_RFEM	BIT(3)
 
-static u64 splc_get_pwr_limit(struct iwl_trans *trans, union acpi_object *splc)
+static u64 splx_get_pwr_limit(struct iwl_trans *trans, union acpi_object *splx)
 {
-	union acpi_object *data_pkg, *dflt_pwr_limit;
-	int i;
+	union acpi_object *limits, *domain_type, *power_limit;
 
-	/* We need at least two elements, one for the revision and one
-	 * for the data itself.  Also check that the revision is
-	 * supported (currently only revision 0).
-	*/
-	if (splc->type != ACPI_TYPE_PACKAGE ||
-	    splc->package.count < 2 ||
-	    splc->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    splc->package.elements[0].integer.value != 0) {
-		IWL_DEBUG_INFO(trans,
-			       "Unsupported structure returned by the SPLC method.  Ignoring.\n");
+	if (splx->type != ACPI_TYPE_PACKAGE ||
+	    splx->package.count != 2 ||
+	    splx->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    splx->package.elements[0].integer.value != 0) {
+		IWL_ERR(trans, "Unsupported splx structure\n");
 		return 0;
 	}
 
-	/* loop through all the packages to find the one for WiFi */
-	for (i = 1; i < splc->package.count; i++) {
-		union acpi_object *domain;
-
-		data_pkg = &splc->package.elements[i];
-
-		/* Skip anything that is not a package with the right
-		 * amount of elements (i.e. at least 2 integers).
-		 */
-		if (data_pkg->type != ACPI_TYPE_PACKAGE ||
-		    data_pkg->package.count < 2 ||
-		    data_pkg->package.elements[0].type != ACPI_TYPE_INTEGER ||
-		    data_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
-			continue;
-
-		domain = &data_pkg->package.elements[0];
-		if (domain->integer.value == ACPI_SPLC_DOMAIN_WIFI)
-			break;
-
-		data_pkg = NULL;
-	}
-
-	if (!data_pkg) {
-		IWL_DEBUG_INFO(trans,
-			       "No element for the WiFi domain returned by the SPLC method.\n");
+	limits = &splx->package.elements[1];
+	if (limits->type != ACPI_TYPE_PACKAGE ||
+	    limits->package.count < 2 ||
+	    limits->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    limits->package.elements[1].type != ACPI_TYPE_INTEGER) {
+		IWL_ERR(trans, "Invalid limits element\n");
 		return 0;
 	}
 
-	dflt_pwr_limit = &data_pkg->package.elements[1];
-	return dflt_pwr_limit->integer.value;
+	domain_type = &limits->package.elements[0];
+	power_limit = &limits->package.elements[1];
+	if (!(domain_type->integer.value & SPL_DOMAINTYPE_WIFI)) {
+		IWL_DEBUG_INFO(trans, "WiFi power is not limited\n");
+		return 0;
+	}
+
+	return power_limit->integer.value;
 }
 
 static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
 {
 	acpi_handle pxsx_handle;
 	acpi_handle handle;
-	struct acpi_buffer splc = {ACPI_ALLOCATE_BUFFER, NULL};
+	struct acpi_buffer splx = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
 
 	pxsx_handle = ACPI_HANDLE(&pdev->dev);
@@ -543,24 +526,23 @@ static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
 	}
 
 	/* Get the method's handle */
-	status = acpi_get_handle(pxsx_handle, (acpi_string)ACPI_SPLC_METHOD,
-				 &handle);
+	status = acpi_get_handle(pxsx_handle, (acpi_string)SPL_METHOD, &handle);
 	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_INFO(trans, "SPLC method not found\n");
+		IWL_DEBUG_INFO(trans, "SPL method not found\n");
 		return;
 	}
 
 	/* Call SPLC with no arguments */
-	status = acpi_evaluate_object(handle, NULL, NULL, &splc);
+	status = acpi_evaluate_object(handle, NULL, NULL, &splx);
 	if (ACPI_FAILURE(status)) {
 		IWL_ERR(trans, "SPLC invocation failed (0x%x)\n", status);
 		return;
 	}
 
-	trans->dflt_pwr_limit = splc_get_pwr_limit(trans, splc.pointer);
+	trans->dflt_pwr_limit = splx_get_pwr_limit(trans, splx.pointer);
 	IWL_DEBUG_INFO(trans, "Default power limit set to %lld\n",
 		       trans->dflt_pwr_limit);
-	kfree(splc.pointer);
+	kfree(splx.pointer);
 }
 
 #else /* CONFIG_ACPI */

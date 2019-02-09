@@ -262,8 +262,6 @@ static struct ubi_wl_entry *get_peb_for_wl(struct ubi_device *ubi)
 	struct ubi_fm_pool *pool = &ubi->fm_wl_pool;
 	int pnum;
 
-	ubi_assert(rwsem_is_locked(&ubi->fm_eba_sem));
-
 	if (pool->used == pool->size) {
 		/* We cannot update the fastmap here because this
 		 * function is called in atomic context.
@@ -305,7 +303,7 @@ int ubi_ensure_anchor_pebs(struct ubi_device *ubi)
 
 	wrk->anchor = 1;
 	wrk->func = &wear_leveling_worker;
-	__schedule_ubi_work(ubi, wrk);
+	schedule_ubi_work(ubi, wrk);
 	return 0;
 }
 
@@ -346,7 +344,7 @@ int ubi_wl_put_fm_peb(struct ubi_device *ubi, struct ubi_wl_entry *fm_e,
 	spin_unlock(&ubi->wl_lock);
 
 	vol_id = lnum ? UBI_FM_DATA_VOLUME_ID : UBI_FM_SB_VOLUME_ID;
-	return schedule_erase(ubi, e, vol_id, lnum, torture, true);
+	return schedule_erase(ubi, e, vol_id, lnum, torture);
 }
 
 /**
@@ -362,6 +360,7 @@ static void ubi_fastmap_close(struct ubi_device *ubi)
 {
 	int i;
 
+	flush_work(&ubi->fm_work);
 	return_unused_pool_pebs(ubi, &ubi->fm_pool);
 	return_unused_pool_pebs(ubi, &ubi->fm_wl_pool);
 

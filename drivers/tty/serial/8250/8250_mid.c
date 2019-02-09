@@ -14,7 +14,6 @@
 #include <linux/pci.h>
 
 #include <linux/dma/hsu.h>
-#include <linux/8250_pci.h>
 
 #include "8250.h"
 
@@ -25,7 +24,6 @@
 #define PCI_DEVICE_ID_INTEL_DNV_UART	0x19d8
 
 /* Intel MID Specific registers */
-#define INTEL_MID_UART_DNV_FISR		0x08
 #define INTEL_MID_UART_PS		0x30
 #define INTEL_MID_UART_MUL		0x34
 #define INTEL_MID_UART_DIV		0x38
@@ -33,7 +31,6 @@
 struct mid8250;
 
 struct mid8250_board {
-	unsigned int flags;
 	unsigned long freq;
 	unsigned int base_baud;
 	int (*setup)(struct mid8250 *, struct uart_port *p);
@@ -91,16 +88,16 @@ static int tng_setup(struct mid8250 *mid, struct uart_port *p)
 static int dnv_handle_irq(struct uart_port *p)
 {
 	struct mid8250 *mid = p->private_data;
-	unsigned int fisr = serial_port_in(p, INTEL_MID_UART_DNV_FISR);
-	int ret = IRQ_NONE;
+	int ret;
 
-	if (fisr & BIT(2))
-		ret |= hsu_dma_irq(&mid->dma_chip, 1);
-	if (fisr & BIT(1))
-		ret |= hsu_dma_irq(&mid->dma_chip, 0);
-	if (fisr & BIT(0))
-		ret |= serial8250_handle_irq(p, serial_port_in(p, UART_IIR));
-	return ret;
+	ret = hsu_dma_irq(&mid->dma_chip, 0);
+	ret |= hsu_dma_irq(&mid->dma_chip, 1);
+
+	/* For now, letting the HW generate separate interrupt for the UART */
+	if (ret)
+		return ret;
+
+	return serial8250_handle_irq(p, serial_port_in(p, UART_IIR));
 }
 
 #define DNV_DMA_CHAN_OFFSET 0x80
@@ -109,13 +106,12 @@ static int dnv_setup(struct mid8250 *mid, struct uart_port *p)
 {
 	struct hsu_dma_chip *chip = &mid->dma_chip;
 	struct pci_dev *pdev = to_pci_dev(p->dev);
-	unsigned int bar = FL_GET_BASE(mid->board->flags);
 	int ret;
 
 	chip->dev = &pdev->dev;
 	chip->irq = pdev->irq;
 	chip->regs = p->membase;
-	chip->length = pci_resource_len(pdev, bar);
+	chip->length = pci_resource_len(pdev, 0);
 	chip->offset = DNV_DMA_CHAN_OFFSET;
 
 	/* Falling back to PIO mode if DMA probing fails */
@@ -148,9 +144,6 @@ static void mid8250_set_termios(struct uart_port *p,
 	unsigned long fuart = baud * ps;
 	unsigned long w = BIT(24) - 1;
 	unsigned long mul, div;
-
-	/* Gracefully handle the B0 case: fall back to B9600 */
-	fuart = fuart ? fuart : 9600 * 16;
 
 	if (mid->board->freq < fuart) {
 		/* Find prescaler value that satisfies Fuart < Fref */
@@ -224,7 +217,6 @@ static int mid8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct uart_8250_port uart;
 	struct mid8250 *mid;
-	unsigned int bar;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -238,7 +230,6 @@ static int mid8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 
 	mid->board = (struct mid8250_board *)id->driver_data;
-	bar = FL_GET_BASE(mid->board->flags);
 
 	memset(&uart, 0, sizeof(struct uart_8250_port));
 
@@ -251,8 +242,8 @@ static int mid8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	uart.port.flags = UPF_SHARE_IRQ | UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	uart.port.set_termios = mid8250_set_termios;
 
-	uart.port.mapbase = pci_resource_start(pdev, bar);
-	uart.port.membase = pcim_iomap(pdev, bar, 0);
+	uart.port.mapbase = pci_resource_start(pdev, 0);
+	uart.port.membase = pcim_iomap(pdev, 0, 0);
 	if (!uart.port.membase)
 		return -ENOMEM;
 
@@ -291,21 +282,18 @@ static void mid8250_remove(struct pci_dev *pdev)
 }
 
 static const struct mid8250_board pnw_board = {
-	.flags = FL_BASE0,
 	.freq = 50000000,
 	.base_baud = 115200,
 	.setup = pnw_setup,
 };
 
 static const struct mid8250_board tng_board = {
-	.flags = FL_BASE0,
 	.freq = 38400000,
 	.base_baud = 1843200,
 	.setup = tng_setup,
 };
 
 static const struct mid8250_board dnv_board = {
-	.flags = FL_BASE1,
 	.freq = 133333333,
 	.base_baud = 115200,
 	.setup = dnv_setup,

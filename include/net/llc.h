@@ -116,11 +116,6 @@ static inline void llc_sap_hold(struct llc_sap *sap)
 	atomic_inc(&sap->refcnt);
 }
 
-static inline bool llc_sap_hold_safe(struct llc_sap *sap)
-{
-	return atomic_inc_not_zero(&sap->refcnt);
-}
-
 void llc_sap_close(struct llc_sap *sap);
 
 static inline void llc_sap_put(struct llc_sap *sap)

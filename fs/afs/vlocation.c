@@ -340,8 +340,7 @@ static void afs_vlocation_queue_for_updates(struct afs_vlocation *vl)
 	struct afs_vlocation *xvl;
 
 	/* wait at least 10 minutes before updating... */
-	vl->update_at = ktime_get_real_seconds() +
-			afs_vlocation_update_timeout;
+	vl->update_at = get_seconds() + afs_vlocation_update_timeout;
 
 	spin_lock(&afs_vlocation_updates_lock);
 
@@ -507,7 +506,7 @@ void afs_put_vlocation(struct afs_vlocation *vl)
 	if (atomic_read(&vl->usage) == 0) {
 		_debug("buried");
 		list_move_tail(&vl->grave, &afs_vlocation_graveyard);
-		vl->time_of_death = ktime_get_real_seconds();
+		vl->time_of_death = get_seconds();
 		queue_delayed_work(afs_wq, &afs_vlocation_reap,
 				   afs_vlocation_timeout * HZ);
 
@@ -544,11 +543,11 @@ static void afs_vlocation_reaper(struct work_struct *work)
 	LIST_HEAD(corpses);
 	struct afs_vlocation *vl;
 	unsigned long delay, expiry;
-	time64_t now;
+	time_t now;
 
 	_enter("");
 
-	now = ktime_get_real_seconds();
+	now = get_seconds();
 	spin_lock(&afs_vlocation_graveyard_lock);
 
 	while (!list_empty(&afs_vlocation_graveyard)) {
@@ -623,13 +622,13 @@ static void afs_vlocation_updater(struct work_struct *work)
 {
 	struct afs_cache_vlocation vldb;
 	struct afs_vlocation *vl, *xvl;
-	time64_t now;
+	time_t now;
 	long timeout;
 	int ret;
 
 	_enter("");
 
-	now = ktime_get_real_seconds();
+	now = get_seconds();
 
 	/* find a record to update */
 	spin_lock(&afs_vlocation_updates_lock);
@@ -685,8 +684,7 @@ static void afs_vlocation_updater(struct work_struct *work)
 
 	/* and then reschedule */
 	_debug("reschedule");
-	vl->update_at = ktime_get_real_seconds() +
-			afs_vlocation_update_timeout;
+	vl->update_at = get_seconds() + afs_vlocation_update_timeout;
 
 	spin_lock(&afs_vlocation_updates_lock);
 

@@ -101,14 +101,9 @@ static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 				 unsigned char *cmd,
 				 const struct firmware *firmware) {
 
-	struct as10x_fw_pkt_t *fw_pkt;
+	struct as10x_fw_pkt_t fw_pkt;
 	int total_read_bytes = 0, errno = 0;
 	unsigned char addr_has_changed = 0;
-
-	fw_pkt = kmalloc(sizeof(*fw_pkt), GFP_KERNEL);
-	if (!fw_pkt)
-		return -ENOMEM;
-
 
 	for (total_read_bytes = 0; total_read_bytes < firmware->size; ) {
 		int read_bytes = 0, data_len = 0;
@@ -116,8 +111,8 @@ static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 		/* parse intel hex line */
 		read_bytes = parse_hex_line(
 				(u8 *) (firmware->data + total_read_bytes),
-				fw_pkt->raw.address,
-				fw_pkt->raw.data,
+				fw_pkt.raw.address,
+				fw_pkt.raw.data,
 				&data_len,
 				&addr_has_changed);
 
@@ -127,28 +122,28 @@ static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 		/* detect the end of file */
 		total_read_bytes += read_bytes;
 		if (total_read_bytes == firmware->size) {
-			fw_pkt->u.request[0] = 0x00;
-			fw_pkt->u.request[1] = 0x03;
+			fw_pkt.u.request[0] = 0x00;
+			fw_pkt.u.request[1] = 0x03;
 
 			/* send EOF command */
 			errno = bus_adap->ops->upload_fw_pkt(bus_adap,
 							     (uint8_t *)
-							     fw_pkt, 2, 0);
+							     &fw_pkt, 2, 0);
 			if (errno < 0)
 				goto error;
 		} else {
 			if (!addr_has_changed) {
 				/* prepare command to send */
-				fw_pkt->u.request[0] = 0x00;
-				fw_pkt->u.request[1] = 0x01;
+				fw_pkt.u.request[0] = 0x00;
+				fw_pkt.u.request[1] = 0x01;
 
-				data_len += sizeof(fw_pkt->u.request);
-				data_len += sizeof(fw_pkt->raw.address);
+				data_len += sizeof(fw_pkt.u.request);
+				data_len += sizeof(fw_pkt.raw.address);
 
 				/* send cmd to device */
 				errno = bus_adap->ops->upload_fw_pkt(bus_adap,
 								     (uint8_t *)
-								     fw_pkt,
+								     &fw_pkt,
 								     data_len,
 								     0);
 				if (errno < 0)
@@ -157,7 +152,6 @@ static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 		}
 	}
 error:
-	kfree(fw_pkt);
 	return (errno == 0) ? total_read_bytes : errno;
 }
 

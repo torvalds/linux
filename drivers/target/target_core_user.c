@@ -645,6 +645,8 @@ static int tcmu_check_expired_cmd(int id, void *p, void *data)
 	target_complete_cmd(cmd->se_cmd, SAM_STAT_CHECK_CONDITION);
 	cmd->se_cmd = NULL;
 
+	kmem_cache_free(tcmu_cmd_cache, cmd);
+
 	return 0;
 }
 
@@ -900,7 +902,7 @@ static int tcmu_configure_device(struct se_device *dev)
 	info->version = __stringify(TCMU_MAILBOX_VERSION);
 
 	info->mem[0].name = "tcm-user command & data buffer";
-	info->mem[0].addr = (phys_addr_t)(uintptr_t)udev->mb_addr;
+	info->mem[0].addr = (phys_addr_t) udev->mb_addr;
 	info->mem[0].size = TCMU_RING_SIZE;
 	info->mem[0].memtype = UIO_MEM_VIRTUAL;
 

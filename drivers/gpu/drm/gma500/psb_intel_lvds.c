@@ -343,7 +343,7 @@ static void psb_intel_lvds_restore(struct drm_connector *connector)
 	}
 }
 
-enum drm_mode_status psb_intel_lvds_mode_valid(struct drm_connector *connector,
+int psb_intel_lvds_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct drm_psb_private *dev_priv = connector->dev->dev_private;
@@ -722,7 +722,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 
 	drm_encoder_init(dev, encoder,
 			 &psb_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_LVDS, NULL);
+			 DRM_MODE_ENCODER_LVDS);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 	gma_encoder->type = INTEL_OUTPUT_LVDS;
@@ -783,23 +783,20 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
 			mode_dev->panel_fixed_mode =
 			    drm_mode_duplicate(dev, scan);
-			DRM_DEBUG_KMS("Using mode from DDC\n");
 			goto out;	/* FIXME: check for quirks */
 		}
 	}
 
 	/* Failed to get EDID, what about VBT? do we need this? */
-	if (dev_priv->lfp_lvds_vbt_mode) {
+	if (mode_dev->vbt_mode)
 		mode_dev->panel_fixed_mode =
-			drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
+		    drm_mode_duplicate(dev, mode_dev->vbt_mode);
 
-		if (mode_dev->panel_fixed_mode) {
-			mode_dev->panel_fixed_mode->type |=
-				DRM_MODE_TYPE_PREFERRED;
-			DRM_DEBUG_KMS("Using mode from VBT\n");
-			goto out;
-		}
-	}
+	if (!mode_dev->panel_fixed_mode)
+		if (dev_priv->lfp_lvds_vbt_mode)
+			mode_dev->panel_fixed_mode =
+				drm_mode_duplicate(dev,
+					dev_priv->lfp_lvds_vbt_mode);
 
 	/*
 	 * If we didn't get EDID, try checking if the panel is already turned
@@ -816,7 +813,6 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (mode_dev->panel_fixed_mode) {
 			mode_dev->panel_fixed_mode->type |=
 			    DRM_MODE_TYPE_PREFERRED;
-			DRM_DEBUG_KMS("Using pre-programmed mode\n");
 			goto out;	/* FIXME: check for quirks */
 		}
 	}

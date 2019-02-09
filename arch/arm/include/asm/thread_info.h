@@ -47,13 +47,6 @@ struct cpu_context_save {
  * __switch_to() assumes cpu_context follows immediately after cpu_domain.
  */
 struct thread_info {
-#ifdef CONFIG_ARCH_ROCKCHIP
-	/*
-	 * FIXME: prevent unknown write of cpu
-	 * we reservee 64 bytes to make sure cacheline aligned
-	 */
-	__u8			reserved[64];
-#endif
 	unsigned long		flags;		/* low level flags */
 	int			preempt_count;	/* 0 => preemptable, <0 => bug */
 	mm_segment_t		addr_limit;	/* address limit */
@@ -133,8 +126,8 @@ struct user_vfp_exc;
 
 extern int vfp_preserve_user_clear_hwstate(struct user_vfp __user *,
 					   struct user_vfp_exc __user *);
-extern int vfp_restore_user_hwstate(struct user_vfp *,
-				    struct user_vfp_exc *);
+extern int vfp_restore_user_hwstate(struct user_vfp __user *,
+				    struct user_vfp_exc __user *);
 #endif
 
 /*

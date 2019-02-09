@@ -359,13 +359,19 @@ static const struct snd_soc_component_driver samsung_spdif_component = {
 static int spdif_probe(struct platform_device *pdev)
 {
 	struct s3c_audio_pdata *spdif_pdata;
-	struct resource *mem_res;
+	struct resource *mem_res, *dma_res;
 	struct samsung_spdif_info *spdif;
 	int ret;
 
 	spdif_pdata = pdev->dev.platform_data;
 
 	dev_dbg(&pdev->dev, "Entered %s\n", __func__);
+
+	dma_res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!dma_res) {
+		dev_err(&pdev->dev, "Unable to get dma resource.\n");
+		return -ENXIO;
+	}
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem_res) {
@@ -426,7 +432,7 @@ static int spdif_probe(struct platform_device *pdev)
 
 	spdif_stereo_out.dma_size = 2;
 	spdif_stereo_out.dma_addr = mem_res->start + DATA_OUTBUF;
-	spdif_stereo_out.slave = spdif_pdata ? spdif_pdata->dma_playback : NULL;
+	spdif_stereo_out.channel = dma_res->start;
 
 	spdif->dma_playback = &spdif_stereo_out;
 

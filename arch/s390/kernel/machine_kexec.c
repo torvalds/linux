@@ -83,13 +83,13 @@ static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
 	switch (action) {
 	case PM_SUSPEND_PREPARE:
 	case PM_HIBERNATION_PREPARE:
-		if (kexec_crash_image)
-			arch_kexec_unprotect_crashkres();
+		if (crashk_res.start)
+			crash_map_reserved_pages();
 		break;
 	case PM_POST_SUSPEND:
 	case PM_POST_HIBERNATION:
-		if (kexec_crash_image)
-			arch_kexec_protect_crashkres();
+		if (crashk_res.start)
+			crash_unmap_reserved_pages();
 		break;
 	default:
 		return NOTIFY_DONE;
@@ -100,8 +100,6 @@ static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
 static int __init machine_kdump_pm_init(void)
 {
 	pm_notifier(machine_kdump_pm_cb, 0);
-	/* Create initial mapping for crashkernel memory */
-	arch_kexec_unprotect_crashkres();
 	return 0;
 }
 arch_initcall(machine_kdump_pm_init);
@@ -136,8 +134,6 @@ static int kdump_csum_valid(struct kimage *image)
 #endif
 }
 
-#ifdef CONFIG_CRASH_DUMP
-
 /*
  * Map or unmap crashkernel memory
  */
@@ -159,24 +155,20 @@ static void crash_map_pages(int enable)
 }
 
 /*
- * Unmap crashkernel memory
+ * Map crashkernel memory
  */
-void arch_kexec_protect_crashkres(void)
+void crash_map_reserved_pages(void)
 {
-	if (crashk_res.end)
-		crash_map_pages(0);
+	crash_map_pages(1);
 }
 
 /*
- * Map crashkernel memory
+ * Unmap crashkernel memory
  */
-void arch_kexec_unprotect_crashkres(void)
+void crash_unmap_reserved_pages(void)
 {
-	if (crashk_res.end)
-		crash_map_pages(1);
+	crash_map_pages(0);
 }
-
-#endif
 
 /*
  * Give back memory to hypervisor before new kdump is loaded

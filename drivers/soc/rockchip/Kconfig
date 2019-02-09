@@ -1,69 +1,8 @@
 if ARCH_ROCKCHIP || COMPILE_TEST
 
-source "drivers/soc/rockchip/Kconfig.cpu"
-
 #
 # Rockchip Soc drivers
 #
-config ANDROID_VERSION
-	hex "Android Version"
-	depends on ANDROID
-	default "0x07010000"
-	help
-	  The version of Android kernel supported.
-	  The value is 0xAABBCCRR, corresponding to Android A.B.C release R
-
-config ROCKCHIP_CPUINFO
-	bool "Rockchip cpuinfo support"
-	depends on (ROCKCHIP_EFUSE || ROCKCHIP_OTP) && (ARM64 || ARM)
-	default y
-	help
-	  Say y here to enable Rockchip cpuinfo support.
-	  Set system_serial_low/high from eFuse ID.
-	  Serial can read from /proc/cpuinfo.
-
-	  If unsure, say N.
-
-config ROCKCHIP_DEVICEINFO
-	tristate "support deviceinfo partition"
-	default n
-	help
-	  Say y here if you have a deviceinfo partition.
-
-config ROCKCHIP_IPA
-	bool "Rockchip IPA support"
-	depends on THERMAL && OF
-	default y
-	help
-	  Say y here to enable rockchip IPA.
-	  Add a simple power model for ipa to calculate static power and
-	  dynamic power.
-
-	  If unsure, say N.
-
-config ROCKCHIP_OPP
-	bool "Rockchip OPP select support"
-	depends on PM_DEVFREQ
-	default y
-	help
-	  Say y here to enable rockchip OPP support.
-
-config ROCKCHIP_PM_TEST
-	bool "Rockchip pm_test support"
-	default n
-	help
-	  Say y here to enable pm_test support.
-	  Add /sys/pm_tests/ node, only for internal testing.
-
-config ROCKCHIP_GRF
-	bool
-	default y
-	help
-	  The General Register Files are a central component providing
-	  special additional settings registers for a lot of soc-components.
-	  In a lot of cases there also need to be default settings initialized
-	  to make some of them conform to expectations of the kernel.
-
 config ROCKCHIP_PM_DOMAINS
         bool "Rockchip generic power domain"
         depends on PM
@@ -75,19 +14,5 @@ config ROCKCHIP_PM_DOMAINS
           mode. The RK3288 PMU is dedicated for managing the power of the whole chip.
 
           If unsure, say N.
-
-config ROCKCHIP_PVTM
-	bool "Rockchip PVTM support"
-	help
-	  Say y here to enable pvtm support.
-	  The Process-Voltage-Temperature Monitor (PVTM) is used to monitor
-	  the chip performance variance caused by chip process, voltage and
-	  temperature.
-
-config ROCKCHIP_SUSPEND_MODE
-	bool "Rockchip suspend mode config"
-	depends on ROCKCHIP_SIP
-	help
-	  Say Y here if you want to set the suspend mode to the ATF.
 
 endif

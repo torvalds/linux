@@ -113,12 +113,7 @@ BEGIN_FTR_SECTION
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
 	b	slb_finish_load_1T
 
-0:	/*
-	 * For userspace addresses, make sure this is region 0.
-	 */
-	cmpdi	r9, 0
-	bne	8f
-
+0:
 	/* when using slices, we extract the psize off the slice bitmaps
 	 * and then we need to get the sllp encoding off the mmu_psize_defs
 	 * array.
@@ -179,16 +174,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	b	slb_finish_load
 
 8:	/* invalid EA */
-	/*
-	 * It's possible the bad EA is too large to fit in the SLB cache, which
-	 * would mean we'd fail to invalidate it on context switch. So mark the
-	 * SLB cache as full so we force a full flush. We also set cr7+eq to
-	 * mark the address as a kernel address, so slb_finish_load() skips
-	 * trying to insert it into the SLB cache.
-	 */
-	li	r9,SLB_CACHE_ENTRIES + 1
-	sth	r9,PACASLBCACHEPTR(r13)
-	crset	4*cr7+eq
 	li	r10,0			/* BAD_VSID */
 	li	r9,0			/* BAD_VSID */
 	li	r11,SLB_VSID_USER	/* flags don't much matter */

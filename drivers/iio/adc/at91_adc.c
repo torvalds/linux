@@ -245,14 +245,12 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *idev = pf->indio_dev;
 	struct at91_adc_state *st = iio_priv(idev);
-	struct iio_chan_spec const *chan;
 	int i, j = 0;
 
 	for (i = 0; i < idev->masklength; i++) {
 		if (!test_bit(i, idev->active_scan_mask))
 			continue;
-		chan = idev->channels + i;
-		st->buffer[j] = at91_adc_readl(st, AT91_ADC_CHAN(st, chan->channel));
+		st->buffer[j] = at91_adc_readl(st, AT91_ADC_CHAN(st, i));
 		j++;
 	}
 
@@ -278,8 +276,6 @@ static void handle_adc_eoc_trigger(int irq, struct iio_dev *idev)
 		iio_trigger_poll(idev->trig);
 	} else {
 		st->last_value = at91_adc_readl(st, AT91_ADC_CHAN(st, st->chnb));
-		/* Needed to ACK the DRDY interruption */
-		at91_adc_readl(st, AT91_ADC_LCDR);
 		st->done = true;
 		wake_up_interruptible(&st->wq_data_avail);
 	}
@@ -385,8 +381,8 @@ static irqreturn_t at91_adc_rl_interrupt(int irq, void *private)
 		st->ts_bufferedmeasure = false;
 		input_report_key(st->ts_input, BTN_TOUCH, 0);
 		input_sync(st->ts_input);
-	} else if (status & AT91_ADC_EOC(3) && st->ts_input) {
-		/* Conversion finished and we've a touchscreen */
+	} else if (status & AT91_ADC_EOC(3)) {
+		/* Conversion finished */
 		if (st->ts_bufferedmeasure) {
 			/*
 			 * Last measurement is always discarded, since it can

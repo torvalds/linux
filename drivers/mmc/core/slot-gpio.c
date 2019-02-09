@@ -28,17 +28,15 @@ struct mmc_gpio {
 	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
 	char *ro_label;
 	char cd_label[0];
-	u32 cd_debounce_delay_ms;
 };
 
 static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 {
 	/* Schedule a card detection after a debounce timeout */
 	struct mmc_host *host = dev_id;
-	struct mmc_gpio *ctx = host->slot.handler_priv;
 
 	host->trigger_card_event = true;
-	mmc_detect_change(host, msecs_to_jiffies(ctx->cd_debounce_delay_ms));
+	mmc_detect_change(host, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
 }
@@ -51,7 +49,6 @@ int mmc_gpio_alloc(struct mmc_host *host)
 
 	if (ctx) {
 		ctx->ro_label = ctx->cd_label + len;
-		ctx->cd_debounce_delay_ms = 200;
 		snprintf(ctx->cd_label, len, "%s cd", dev_name(host->parent));
 		snprintf(ctx->ro_label, len, "%s ro", dev_name(host->parent));
 		host->slot.handler_priv = ctx;
@@ -204,7 +201,7 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
 	if (debounce) {
 		ret = gpio_set_debounce(gpio, debounce);
 		if (ret < 0)
-			ctx->cd_debounce_delay_ms = debounce;
+			return ret;
 	}
 
 	ctx->override_cd_active_level = true;
@@ -248,7 +245,7 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 	if (debounce) {
 		ret = gpiod_set_debounce(desc, debounce);
 		if (ret < 0)
-			ctx->cd_debounce_delay_ms = debounce;
+			return ret;
 	}
 
 	if (gpio_invert)

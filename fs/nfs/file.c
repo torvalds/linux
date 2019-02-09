@@ -407,7 +407,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 	 */
 	if (!PageUptodate(page)) {
 		unsigned pglen = nfs_page_length(page);
-		unsigned end = offset + copied;
+		unsigned end = offset + len;
 
 		if (pglen == 0) {
 			zero_user_segments(page, 0, offset,

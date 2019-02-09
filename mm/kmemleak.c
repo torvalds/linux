@@ -597,7 +597,8 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 		else if (parent->pointer + parent->size <= ptr)
 			link = &parent->rb_node.rb_right;
 		else {
-			kmemleak_stop("Cannot insert 0x%lx into the object search tree (overlaps existing)\n",
+			kmemleak_stop("Cannot insert 0x%lx into the object "
+				      "search tree (overlaps existing)\n",
 				      ptr);
 			/*
 			 * No need for parent->lock here since "parent" cannot
@@ -670,8 +671,8 @@ static void delete_object_part(unsigned long ptr, size_t size)
 	object = find_and_remove_object(ptr, 1);
 	if (!object) {
 #ifdef DEBUG
-		kmemleak_warn("Partially freeing unknown object at 0x%08lx (size %zu)\n",
-			      ptr, size);
+		kmemleak_warn("Partially freeing unknown object at 0x%08lx "
+			      "(size %zu)\n", ptr, size);
 #endif
 		return;
 	}
@@ -717,8 +718,8 @@ static void paint_ptr(unsigned long ptr, int color)
 
 	object = find_and_get_object(ptr, 0);
 	if (!object) {
-		kmemleak_warn("Trying to color unknown object at 0x%08lx as %s\n",
-			      ptr,
+		kmemleak_warn("Trying to color unknown object "
+			      "at 0x%08lx as %s\n", ptr,
 			      (color == KMEMLEAK_GREY) ? "Grey" :
 			      (color == KMEMLEAK_BLACK) ? "Black" : "Unknown");
 		return;
@@ -1393,8 +1394,6 @@ static void kmemleak_scan(void)
 			if (page_count(page) == 0)
 				continue;
 			scan_block(page, page + 1, NULL);
-			if (!(pfn % (MAX_SCAN_SIZE / sizeof(*page))))
-				cond_resched();
 		}
 	}
 	put_online_mems();
@@ -1465,8 +1464,8 @@ static void kmemleak_scan(void)
 	if (new_leaks) {
 		kmemleak_found_leaks = true;
 
-		pr_info("%d new suspected memory leaks (see /sys/kernel/debug/kmemleak)\n",
-			new_leaks);
+		pr_info("%d new suspected memory leaks (see "
+			"/sys/kernel/debug/kmemleak)\n", new_leaks);
 	}
 
 }
@@ -1523,7 +1522,8 @@ static void start_scan_thread(void)
 }
 
 /*
- * Stop the automatic memory scanning thread.
+ * Stop the automatic memory scanning thread. This function must be called
+ * with the scan_mutex held.
  */
 static void stop_scan_thread(void)
 {
@@ -1786,20 +1786,18 @@ static void kmemleak_do_cleanup(struct work_struct *work)
 {
 	stop_scan_thread();
 
-	mutex_lock(&scan_mutex);
 	/*
-	 * Once it is made sure that kmemleak_scan has stopped, it is safe to no
-	 * longer track object freeing. Ordering of the scan thread stopping and
-	 * the memory accesses below is guaranteed by the kthread_stop()
-	 * function.
+	 * Once the scan thread has stopped, it is safe to no longer track
+	 * object freeing. Ordering of the scan thread stopping and the memory
+	 * accesses below is guaranteed by the kthread_stop() function.
 	 */
 	kmemleak_free_enabled = 0;
-	mutex_unlock(&scan_mutex);
 
 	if (!kmemleak_found_leaks)
 		__kmemleak_do_cleanup();
 	else
-		pr_info("Kmemleak disabled without freeing internal data. Reclaim the memory with \"echo clear > /sys/kernel/debug/kmemleak\".\n");
+		pr_info("Kmemleak disabled without freeing internal data. "
+			"Reclaim the memory with \"echo clear > /sys/kernel/debug/kmemleak\"\n");
 }
 
 static DECLARE_WORK(cleanup_work, kmemleak_do_cleanup);

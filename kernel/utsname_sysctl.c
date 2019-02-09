@@ -17,7 +17,7 @@
 
 #ifdef CONFIG_PROC_SYSCTL
 
-static void *get_uts(struct ctl_table *table)
+static void *get_uts(struct ctl_table *table, int write)
 {
 	char *which = table->data;
 	struct uts_namespace *uts_ns;
@@ -25,7 +25,19 @@ static void *get_uts(struct ctl_table *table)
 	uts_ns = current->nsproxy->uts_ns;
 	which = (which - (char *)&init_uts_ns) + (char *)uts_ns;
 
+	if (!write)
+		down_read(&uts_sem);
+	else
+		down_write(&uts_sem);
 	return which;
+}
+
+static void put_uts(struct ctl_table *table, int write, void *which)
+{
+	if (!write)
+		up_read(&uts_sem);
+	else
+		up_write(&uts_sem);
 }
 
 /*
@@ -37,34 +49,13 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 {
 	struct ctl_table uts_table;
 	int r;
-	char tmp_data[__NEW_UTS_LEN + 1];
-
 	memcpy(&uts_table, table, sizeof(uts_table));
-	uts_table.data = tmp_data;
-
-	/*
-	 * Buffer the value in tmp_data so that proc_dostring() can be called
-	 * without holding any locks.
-	 * We also need to read the original value in the write==1 case to
-	 * support partial writes.
-	 */
-	down_read(&uts_sem);
-	memcpy(tmp_data, get_uts(table), sizeof(tmp_data));
-	up_read(&uts_sem);
+	uts_table.data = get_uts(table, write);
 	r = proc_dostring(&uts_table, write, buffer, lenp, ppos);
+	put_uts(table, write, uts_table.data);
 
-	if (write) {
-		/*
-		 * Write back the new value.
-		 * Note that, since we dropped uts_sem, the result can
-		 * theoretically be incorrect if there are two parallel writes
-		 * at non-zero offsets to the same sysctl.
-		 */
-		down_write(&uts_sem);
-		memcpy(get_uts(table), tmp_data, sizeof(tmp_data));
-		up_write(&uts_sem);
+	if (write)
 		proc_sys_poll_notify(table->poll);
-	}
 
 	return r;
 }

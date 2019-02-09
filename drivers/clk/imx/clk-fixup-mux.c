@@ -15,6 +15,8 @@
 #include <linux/slab.h>
 #include "clk.h"
 
+#define to_clk_mux(_hw) container_of(_hw, struct clk_mux, hw)
+
 /**
  * struct clk_fixup_mux - imx integer fixup multiplexer clock
  * @mux: the parent class

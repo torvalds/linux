@@ -49,9 +49,6 @@ int device_property_read_string(struct device *dev, const char *propname,
 int device_property_match_string(struct device *dev,
 				 const char *propname, const char *string);
 
-struct fwnode_handle *dev_fwnode(struct device *dev);
-
-bool fwnode_device_is_available(struct fwnode_handle *fwnode);
 bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname);
 int fwnode_property_read_u8_array(struct fwnode_handle *fwnode,
 				  const char *propname, u8 *val,
@@ -72,33 +69,14 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 				const char *propname, const char **val);
 int fwnode_property_match_string(struct fwnode_handle *fwnode,
 				 const char *propname, const char *string);
-int fwnode_property_get_reference_args(struct fwnode_handle *fwnode,
-				       const char *prop, const char *nargs_prop,
-				       unsigned int nargs, unsigned int index,
-				       struct fwnode_reference_args *args);
-
-struct fwnode_handle *fwnode_get_parent(struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_get_next_parent(struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_get_next_child_node(struct fwnode_handle *fwnode,
-						 struct fwnode_handle *child);
-
-#define fwnode_for_each_child_node(fwnode, child)			\
-	for (child = fwnode_get_next_child_node(fwnode, NULL); child;	\
-	     child = fwnode_get_next_child_node(fwnode, child))
 
 struct fwnode_handle *device_get_next_child_node(struct device *dev,
 						 struct fwnode_handle *child);
 
-#define device_for_each_child_node(dev, child)				\
-	for (child = device_get_next_child_node(dev, NULL); child;	\
+#define device_for_each_child_node(dev, child) \
+	for (child = device_get_next_child_node(dev, NULL); child; \
 	     child = device_get_next_child_node(dev, child))
 
-struct fwnode_handle *fwnode_get_named_child_node(struct fwnode_handle *fwnode,
-						  const char *childname);
-struct fwnode_handle *device_get_named_child_node(struct device *dev,
-						  const char *childname);
-
-void fwnode_handle_get(struct fwnode_handle *fwnode);
 void fwnode_handle_put(struct fwnode_handle *fwnode);
 
 unsigned int device_get_child_node_count(struct device *dev);
@@ -166,35 +144,22 @@ static inline int fwnode_property_read_u64(struct fwnode_handle *fwnode,
 /**
  * struct property_entry - "Built-in" device property representation.
  * @name: Name of the property.
- * @length: Length of data making up the value.
- * @is_array: True when the property is an array.
- * @is_string: True when property is a string.
- * @pointer: Pointer to the property (an array of items of the given type).
- * @value: Value of the property (when it is a single item of the given type).
+ * @type: Type of the property.
+ * @nval: Number of items of type @type making up the value.
+ * @value: Value of the property (an array of @nval items of type @type).
  */
 struct property_entry {
 	const char *name;
-	size_t length;
-	bool is_array;
-	bool is_string;
+	enum dev_prop_type type;
+	size_t nval;
 	union {
-		union {
-			void *raw_data;
-			u8 *u8_data;
-			u16 *u16_data;
-			u32 *u32_data;
-			u64 *u64_data;
-			const char **str;
-		} pointer;
-		union {
-			unsigned long long raw_data;
-			u8 u8_data;
-			u16 u16_data;
-			u32 u32_data;
-			u64 u64_data;
-			const char *str;
-		} value;
-	};
+		void *raw_data;
+		u8 *u8_data;
+		u16 *u16_data;
+		u32 *u32_data;
+		u64 *u64_data;
+		const char **str;
+	} value;
 };
 
 /**
@@ -207,8 +172,7 @@ struct property_set {
 	struct property_entry *properties;
 };
 
-int device_add_property_set(struct device *dev, const struct property_set *pset);
-void device_remove_property_set(struct device *dev);
+void device_add_property_set(struct device *dev, struct property_set *pset);
 
 bool device_dma_supported(struct device *dev);
 
@@ -217,21 +181,5 @@ enum dev_dma_attr device_get_dma_attr(struct device *dev);
 int device_get_phy_mode(struct device *dev);
 
 void *device_get_mac_address(struct device *dev, char *addr, int alen);
-
-struct fwnode_handle *fwnode_graph_get_next_endpoint(
-	struct fwnode_handle *fwnode, struct fwnode_handle *prev);
-struct fwnode_handle *
-fwnode_graph_get_port_parent(struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_graph_get_remote_port_parent(
-	struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_graph_get_remote_port(
-	struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_graph_get_remote_endpoint(
-	struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_graph_get_remote_node(struct fwnode_handle *fwnode,
-						   u32 port, u32 endpoint);
-
-int fwnode_graph_parse_endpoint(struct fwnode_handle *fwnode,
-				struct fwnode_endpoint *endpoint);
 
 #endif /* _LINUX_PROPERTY_H_ */

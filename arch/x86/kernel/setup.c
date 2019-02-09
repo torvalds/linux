@@ -112,7 +112,6 @@
 #include <asm/alternative.h>
 #include <asm/prom.h>
 #include <asm/microcode.h>
-#include <asm/kaiser.h>
 
 /*
  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
@@ -851,12 +850,6 @@ void __init setup_arch(char **cmdline_p)
 	memblock_reserve(__pa_symbol(_text),
 			 (unsigned long)__bss_stop - (unsigned long)_text);
 
-	/*
-	 * Make sure page 0 is always reserved because on systems with
-	 * L1TF its contents can be leaked to user processes.
-	 */
-	memblock_reserve(0, PAGE_SIZE);
-
 	early_reserve_initrd();
 
 	/*
@@ -1023,12 +1016,6 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	init_hypervisor_platform();
 
-	/*
-	 * This needs to happen right after XENPV is set on xen and
-	 * kaiser_enabled is checked below in cleanup_highmap().
-	 */
-	kaiser_check_boottime_disable();
-
 	x86_init.resources.probe_roms();
 
 	/* after parse_early_param, so could debug it */
@@ -1060,13 +1047,6 @@ void __init setup_arch(char **cmdline_p)
 	mtrr_bp_init();
 	if (mtrr_trim_uncached_memory(max_pfn))
 		max_pfn = e820_end_of_ram_pfn();
-
-	/*
-	 * This call is required when the CPU does not support PAT. If
-	 * mtrr_bp_init() invoked it already via pat_init() the call has no
-	 * effect.
-	 */
-	init_cache_modes();
 
 #ifdef CONFIG_X86_32
 	/* max_low_pfn get updated here */

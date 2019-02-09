@@ -25,12 +25,13 @@
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
-#include <asm/sections.h>
 #include <linux/stop_machine.h>
 
 #define __ALT_PTR(a,f)		(u32 *)((void *)&(a)->f + (a)->f)
 #define ALT_ORIG_PTR(a)		__ALT_PTR(a, orig_offset)
 #define ALT_REPL_PTR(a)		__ALT_PTR(a, alt_offset)
+
+extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 
 struct alt_region {
 	struct alt_instr *begin;
@@ -123,8 +124,8 @@ static int __apply_alternatives_multi_stop(void *unused)
 {
 	static int patched = 0;
 	struct alt_region region = {
-		.begin	= (struct alt_instr *)__alt_instructions,
-		.end	= (struct alt_instr *)__alt_instructions_end,
+		.begin	= __alt_instructions,
+		.end	= __alt_instructions_end,
 	};
 
 	/* We always have a CPU 0 at this point (__init) */
@@ -156,4 +157,10 @@ void apply_alternatives(void *start, size_t length)
 	};
 
 	__apply_alternatives(&region);
+}
+
+void free_alternatives_memory(void)
+{
+	free_reserved_area(__alt_instructions, __alt_instructions_end,
+			   0, "alternatives");
 }

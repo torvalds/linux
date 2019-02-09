@@ -56,7 +56,6 @@ parameter is applicable:
 	BLACKFIN Blackfin architecture is enabled.
 	CLK	Common clock infrastructure is enabled.
 	CMA	Contiguous Memory Area support is enabled.
-	DM	Device mapper support is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	DYNAMIC_DEBUG Build in debug messages and enable them at runtime
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
@@ -653,7 +652,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
-			arch/x86/include/asm/cpufeatures.h for the valid bit
+			arch/x86/include/asm/cpufeature.h for the valid bit
 			numbers. Note the Linux specific bits are not necessarily
 			stable over kernel options, but the vendor specific
 			ones should be.
@@ -916,11 +915,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	dis_ucode_ldr	[X86] Disable the microcode loader.
 
-	dm=		[DM] Allows early creation of a device-mapper device.
-			See Documentation/device-mapper/boot.txt.
-
-	dmasound=	[HW,OSS] Sound subsystem buff
-
 	dma_debug=off	If the kernel is compiled with DMA_API_DEBUG support,
 			this option disables the debugging code at boot.
 
@@ -967,6 +961,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/x86/intel_mpx.txt for more
 			information about the feature.
 
+	eagerfpu=	[X86]
+			on	enable eager fpu restore
+			off	disable eager fpu restore
+			auto	selects the default scheme, which automatically
+				enables eagerfpu restore for xsaveopt.
 
 	module.async_probe [KNL]
 			Enable asynchronous probe on this module.
@@ -1256,10 +1255,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			When zero, profiling data is discarded and associated
 			debugfs files are removed at module unload time.
 
-	goldfish	[X86] Enable the goldfish android emulator platform.
-			Don't use this when you are not running on the
-			android emulator
-
 	gpt		[EFI] Forces disk with valid GPT signature but
 			invalid Protective MBR to be treated as GPT. If the
 			primary GPT is corrupted, it enables the backup/alternate
@@ -1376,14 +1371,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
 	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
-	i8042.reset	[HW] Reset the controller during init, cleanup and
-			     suspend-to-ram transitions, only during s2r
-			     transitions, or never reset
-			Format: { 1 | Y | y | 0 | N | n }
-			1, Y, y: always reset controller
-			0, N, n: don't ever reset controller
-			Default: only on s2r transitions on x86; most other
-			architectures force reset to be always executed
+	i8042.reset	[HW] Reset the controller during init and cleanup
 	i8042.unlock	[HW] Unlock (ignore) the keylock
 	i8042.kbdreset  [HW] Reset device connected to KBD port
 
@@ -1447,41 +1435,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			idle=halt: Halt is forced to be used for CPU idle.
 			In such case C2/C3 won't be used again.
 			idle=nomwait: Disable mwait for CPU C-states
-
-	ieee754=	[MIPS] Select IEEE Std 754 conformance mode
-			Format: { strict | legacy | 2008 | relaxed }
-			Default: strict
-
-			Choose which programs will be accepted for execution
-			based on the IEEE 754 NaN encoding(s) supported by
-			the FPU and the NaN encoding requested with the value
-			of an ELF file header flag individually set by each
-			binary.  Hardware implementations are permitted to
-			support either or both of the legacy and the 2008 NaN
-			encoding mode.
-
-			Available settings are as follows:
-			strict	accept binaries that request a NaN encoding
-				supported by the FPU
-			legacy	only accept legacy-NaN binaries, if supported
-				by the FPU
-			2008	only accept 2008-NaN binaries, if supported
-				by the FPU
-			relaxed	accept any binaries regardless of whether
-				supported by the FPU
-
-			The FPU emulator is always able to support both NaN
-			encodings, so if no FPU hardware is present or it has
-			been disabled with 'nofpu', then the settings of
-			'legacy' and '2008' strap the emulator accordingly,
-			'relaxed' straps the emulator for both legacy-NaN and
-			2008-NaN, whereas 'strict' enables legacy-NaN only on
-			legacy processors and both NaN encodings on MIPS32 or
-			MIPS64 CPUs.
-
-			The setting for ABS.fmt/NEG.fmt instruction execution
-			mode generally follows that for the NaN encoding,
-			except where unsupported by hardware.
 
 	ignore_loglevel	[KNL]
 			Ignore loglevel setting - this will print /all/
@@ -2438,9 +2391,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	noalign		[KNL,ARM]
 
-	noaltinstr	[S390] Disables alternative instructions patching
-			(CPU alternatives feature).
-
 	noapic		[SMP,APIC] Tells the kernel to not make use of any
 			IOAPICs that may be present in the system.
 
@@ -2468,25 +2418,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			noexec=on: enable non-executable mappings (default)
 			noexec=off: disable non-executable mappings
 
-	noexec		[MIPS]
-			Force indicating stack and heap as non-executable or
-			executable regardless of PT_GNU_STACK entry or CPU XI
-			(execute inhibit) support. Valid valuess are: on, off.
-			noexec=on:  force indicating non-executable
-				    stack and heap
-			noexec=off: force indicating executable
-				    stack and heap
-			If this parameter is omitted, stack and heap will be
-			indicated non-executable or executable as they are
-			actually set up, which depends on PT_GNU_STACK entry
-			and possibly other factors (for instance, CPU XI
-			support).
-			NOTE: Using noexec=on on a system without CPU XI
-			support	is not recommended since there is no actual
-			HW support that provide non-executable stack/heap.
-			Use only for debugging purposes and not in a
-			production environment.
-
 	nosmap		[X86]
 			Disable SMAP (Supervisor Mode Access Prevention)
 			even if it is supported by processor.
@@ -2509,14 +2440,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			legacy floating-point registers on task switch.
 
 	nohugeiomap	[KNL,x86] Disable kernel huge I/O mappings.
-
-	nospectre_v2	[X86] Disable all mitigations for the Spectre variant 2
-			(indirect branch prediction) vulnerability. System may
-			allow data leaks with this option, which is equivalent
-			to spectre_v2=off.
-
-	nospec_store_bypass_disable
-			[HW] Disable all mitigations for the Speculative Store Bypass vulnerability
 
 	noxsave		[BUGS=X86] Disables x86 extended register state save
 			and restore using xsave. The kernel will fallback to
@@ -2585,8 +2508,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nointroute	[IA-64]
 
-	noinvpcid	[X86] Disable the INVPCID cpu feature.
-
 	nojitter	[IA-64] Disables jitter checking for ITC timers.
 
 	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
@@ -2621,10 +2542,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nopat		[X86] Disable PAT (page attribute table extension of
 			pagetables) support.
 
-	nopcid		[X86-64] Disable the PCID cpu feature.
-
 	norandmaps	Don't use address space randomization.  Equivalent to
 			echo 0 > /proc/sys/kernel/randomize_va_space
+
+	noreplace-paravirt	[X86,IA-64,PV_OPS] Don't patch paravirt_ops
 
 	noreplace-smp	[X86-32,SMP] Don't replace SMP instructions
 			with UP alternatives
@@ -3118,21 +3039,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	pt.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
-	pti=		[X86_64] Control Page Table Isolation of user and
-			kernel address spaces.  Disabling this feature
-			removes hardening, but improves performance of
-			system calls and interrupts.
-
-			on   - unconditionally enable
-			off  - unconditionally disable
-			auto - kernel detects whether your CPU model is
-			       vulnerable to issues that PTI mitigates
-
-			Not specifying this option is equivalent to pti=auto.
-
-	nopti		[X86_64]
-			Equivalent to pti=off
-
 	pty.legacy_count=
 			[KNL] Number of legacy pty's. Overwrites compiled-in
 			default number.
@@ -3503,16 +3409,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	ro		[KNL] Mount root device read-only on boot
 
-	rockchip.usb_uart
-			Enable the uart passthrough on the designated usb port
-			on Rockchip SoCs. When active, the signals of the
-			debug-uart get routed to the D+ and D- pins of the usb
-			port and the regular usb controller gets disabled.
-
-	rodata=		[KNL]
-		on	Mark read-only kernel memory as read-only (default).
-		off	Leave read-only kernel memory writable for debugging.
-
 	root=		[KNL] Root filesystem
 			See name_to_dev_t comment in init/do_mounts.c.
 
@@ -3668,82 +3564,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/laptops/sonypi.txt
 
-	spectre_v2=	[X86] Control mitigation of Spectre variant 2
-			(indirect branch speculation) vulnerability.
-
-			on   - unconditionally enable
-			off  - unconditionally disable
-			auto - kernel detects whether your CPU model is
-			       vulnerable
-
-			Selecting 'on' will, and 'auto' may, choose a
-			mitigation method at run time according to the
-			CPU, the available microcode, the setting of the
-			CONFIG_RETPOLINE configuration option, and the
-			compiler with which the kernel was built.
-
-			Specific mitigations can also be selected manually:
-
-			retpoline	  - replace indirect branches
-			retpoline,generic - google's original retpoline
-			retpoline,amd     - AMD-specific minimal thunk
-
-			Not specifying this option is equivalent to
-			spectre_v2=auto.
-
-	spec_store_bypass_disable=
-			[HW] Control Speculative Store Bypass (SSB) Disable mitigation
-			(Speculative Store Bypass vulnerability)
-
-			Certain CPUs are vulnerable to an exploit against a
-			a common industry wide performance optimization known
-			as "Speculative Store Bypass" in which recent stores
-			to the same memory location may not be observed by
-			later loads during speculative execution. The idea
-			is that such stores are unlikely and that they can
-			be detected prior to instruction retirement at the
-			end of a particular speculation execution window.
-
-			In vulnerable processors, the speculatively forwarded
-			store can be used in a cache side channel attack, for
-			example to read memory to which the attacker does not
-			directly have access (e.g. inside sandboxed code).
-
-			This parameter controls whether the Speculative Store
-			Bypass optimization is used.
-
-			on      - Unconditionally disable Speculative Store Bypass
-			off     - Unconditionally enable Speculative Store Bypass
-			auto    - Kernel detects whether the CPU model contains an
-				  implementation of Speculative Store Bypass and
-				  picks the most appropriate mitigation. If the
-				  CPU is not vulnerable, "off" is selected. If the
-				  CPU is vulnerable the default mitigation is
-				  architecture and Kconfig dependent. See below.
-			prctl   - Control Speculative Store Bypass per thread
-				  via prctl. Speculative Store Bypass is enabled
-				  for a process by default. The state of the control
-				  is inherited on fork.
-			seccomp - Same as "prctl" above, but all seccomp threads
-				  will disable SSB unless they explicitly opt out.
-
-			Not specifying this option is equivalent to
-			spec_store_bypass_disable=auto.
-
-			Default mitigations:
-			X86:	If CONFIG_SECCOMP=y "seccomp", otherwise "prctl"
-
 	spia_io_base=	[HW,MTD]
 	spia_fio_base=
 	spia_pedr=
 	spia_peddr=
-
-	stack_guard_gap=	[MM]
-			override the default stack gap protection. The value
-			is in page units and it defines how many pages prior
-			to (for stacks growing down) resp. after (for stacks
-			growing up) the main stack are reserved for no other
-			mapping. Default value is 256 pages.
 
 	stacktrace	[FTRACE]
 			Enabled the stack tracer on boot up.
@@ -4104,8 +3928,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					sector if the number is odd);
 				i = IGNORE_DEVICE (don't bind to this
 					device);
-				j = NO_REPORT_LUNS (don't use report luns
-					command, uas only);
 				l = NOT_LOCKABLE (don't try to lock and
 					unlock ejectable media);
 				m = MAX_SECTORS_64 (don't transfer more

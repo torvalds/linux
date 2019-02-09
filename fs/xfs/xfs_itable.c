@@ -351,6 +351,7 @@ xfs_bulkstat(
 	xfs_agino_t		agino;	/* inode # in allocation group */
 	xfs_agnumber_t		agno;	/* allocation group number */
 	xfs_btree_cur_t		*cur;	/* btree cursor for ialloc btree */
+	size_t			irbsize; /* size of irec buffer in bytes */
 	xfs_inobt_rec_incore_t	*irbuf;	/* start of irec buffer */
 	int			nirbuf;	/* size of irbuf */
 	int			ubcount; /* size of user's buffer */
@@ -377,10 +378,11 @@ xfs_bulkstat(
 	*ubcountp = 0;
 	*done = 0;
 
-	irbuf = kmem_zalloc_large(PAGE_SIZE * 4, KM_SLEEP);
+	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4);
 	if (!irbuf)
 		return -ENOMEM;
-	nirbuf = (PAGE_SIZE * 4) / sizeof(*irbuf);
+
+	nirbuf = irbsize / sizeof(*irbuf);
 
 	/*
 	 * Loop over the allocation groups, starting from the last

@@ -239,23 +239,10 @@ void xt_unregister_match(struct xt_match *target);
 int xt_register_matches(struct xt_match *match, unsigned int n);
 void xt_unregister_matches(struct xt_match *match, unsigned int n);
 
-int xt_check_entry_offsets(const void *base, const char *elems,
-			   unsigned int target_offset,
-			   unsigned int next_offset);
-
-unsigned int *xt_alloc_entry_offsets(unsigned int size);
-bool xt_find_jump_offset(const unsigned int *offsets,
-			 unsigned int target, unsigned int size);
-
-int xt_check_proc_name(const char *name, unsigned int size);
-
 int xt_check_match(struct xt_mtchk_param *, unsigned int size, u_int8_t proto,
 		   bool inv_proto);
 int xt_check_target(struct xt_tgchk_param *, unsigned int size, u_int8_t proto,
 		    bool inv_proto);
-
-void *xt_copy_counters_from_user(const void __user *user, unsigned int len,
-				 struct xt_counters_info *info, bool compat);
 
 struct xt_table *xt_register_table(struct net *net,
 				   const struct xt_table *table,
@@ -370,14 +357,38 @@ static inline unsigned long ifname_compare_aligned(const char *_a,
 	return ret;
 }
 
-struct xt_percpu_counter_alloc_state {
-	unsigned int off;
-	const char __percpu *mem;
-};
 
-bool xt_percpu_counter_alloc(struct xt_percpu_counter_alloc_state *state,
-			     struct xt_counters *counter);
-void xt_percpu_counter_free(struct xt_counters *cnt);
+/* On SMP, ip(6)t_entry->counters.pcnt holds address of the
+ * real (percpu) counter.  On !SMP, its just the packet count,
+ * so nothing needs to be done there.
+ *
+ * xt_percpu_counter_alloc returns the address of the percpu
+ * counter, or 0 on !SMP. We force an alignment of 16 bytes
+ * so that bytes/packets share a common cache line.
+ *
+ * Hence caller must use IS_ERR_VALUE to check for error, this
+ * allows us to return 0 for single core systems without forcing
+ * callers to deal with SMP vs. NONSMP issues.
+ */
+static inline u64 xt_percpu_counter_alloc(void)
+{
+	if (nr_cpu_ids > 1) {
+		void __percpu *res = __alloc_percpu(sizeof(struct xt_counters),
+						    sizeof(struct xt_counters));
+
+		if (res == NULL)
+			return (u64) -ENOMEM;
+
+		return (u64) (__force unsigned long) res;
+	}
+
+	return 0;
+}
+static inline void xt_percpu_counter_free(u64 pcnt)
+{
+	if (nr_cpu_ids > 1)
+		free_percpu((void __percpu *) (unsigned long) pcnt);
+}
 
 static inline struct xt_counters *
 xt_get_this_cpu_counter(struct xt_counters *cnt)
@@ -467,7 +478,7 @@ void xt_compat_init_offsets(u_int8_t af, unsigned int number);
 int xt_compat_calc_jump(u_int8_t af, unsigned int offset);
 
 int xt_compat_match_offset(const struct xt_match *match);
-void xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
+int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
 			      unsigned int *size);
 int xt_compat_match_to_user(const struct xt_entry_match *m,
 			    void __user **dstptr, unsigned int *size);
@@ -477,9 +488,6 @@ void xt_compat_target_from_user(struct xt_entry_target *t, void **dstptr,
 				unsigned int *size);
 int xt_compat_target_to_user(const struct xt_entry_target *t,
 			     void __user **dstptr, unsigned int *size);
-int xt_compat_check_entry_offsets(const void *base, const char *elems,
-				  unsigned int target_offset,
-				  unsigned int next_offset);
 
 #endif /* CONFIG_COMPAT */
 #endif /* _X_TABLES_H */

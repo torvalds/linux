@@ -576,16 +576,14 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	cifs_in_send_dec(server);
 	cifs_save_when_sent(mid);
 
-	if (rc < 0) {
+	if (rc < 0)
 		server->sequence_number -= 2;
-		cifs_delete_mid(mid);
-	}
-
 	mutex_unlock(&server->srv_mutex);
 
 	if (rc == 0)
 		return 0;
 
+	cifs_delete_mid(mid);
 	add_credits_and_wake_if(server, credits, optype);
 	return rc;
 }
@@ -786,11 +784,9 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = wait_for_response(ses->server, midQ);
 	if (rc != 0) {
-		cifs_dbg(FYI, "Cancelling wait for mid %llu\n",	midQ->mid);
 		send_cancel(ses->server, buf, midQ);
 		spin_lock(&GlobalMid_Lock);
 		if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
-			midQ->mid_flags |= MID_WAIT_CANCELLED;
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
 			cifs_small_buf_release(buf);

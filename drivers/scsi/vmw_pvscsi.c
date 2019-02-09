@@ -545,14 +545,9 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 	    (btstat == BTSTAT_SUCCESS ||
 	     btstat == BTSTAT_LINKED_COMMAND_COMPLETED ||
 	     btstat == BTSTAT_LINKED_COMMAND_COMPLETED_WITH_FLAG)) {
-		if (sdstat == SAM_STAT_COMMAND_TERMINATED) {
-			cmd->result = (DID_RESET << 16);
-		} else {
-			cmd->result = (DID_OK << 16) | sdstat;
-			if (sdstat == SAM_STAT_CHECK_CONDITION &&
-			    cmd->sense_buffer)
-				cmd->result |= (DRIVER_SENSE << 24);
-		}
+		cmd->result = (DID_OK << 16) | sdstat;
+		if (sdstat == SAM_STAT_CHECK_CONDITION && cmd->sense_buffer)
+			cmd->result |= (DRIVER_SENSE << 24);
 	} else
 		switch (btstat) {
 		case BTSTAT_SUCCESS:

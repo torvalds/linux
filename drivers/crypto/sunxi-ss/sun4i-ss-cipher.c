@@ -35,7 +35,6 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 	unsigned int todo;
 	struct sg_mapping_iter mi, mo;
 	unsigned int oi, oo; /* offset for in and out */
-	unsigned long flags;
 
 	if (areq->nbytes == 0)
 		return 0;
@@ -50,7 +49,7 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&ss->slock, flags);
+	spin_lock_bh(&ss->slock);
 
 	for (i = 0; i < op->keylen; i += 4)
 		writel(*(op->key + i / 4), ss->base + SS_KEY0 + i);
@@ -118,7 +117,7 @@ release_ss:
 	sg_miter_stop(&mi);
 	sg_miter_stop(&mo);
 	writel(0, ss->base + SS_CTL);
-	spin_unlock_irqrestore(&ss->slock, flags);
+	spin_unlock_bh(&ss->slock);
 	return err;
 }
 
@@ -150,7 +149,6 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 	unsigned int ob = 0;	/* offset in buf */
 	unsigned int obo = 0;	/* offset in bufo*/
 	unsigned int obl = 0;	/* length of data in bufo */
-	unsigned long flags;
 
 	if (areq->nbytes == 0)
 		return 0;
@@ -183,7 +181,7 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 	if (no_chunk == 1)
 		return sun4i_ss_opti_poll(areq);
 
-	spin_lock_irqsave(&ss->slock, flags);
+	spin_lock_bh(&ss->slock);
 
 	for (i = 0; i < op->keylen; i += 4)
 		writel(*(op->key + i / 4), ss->base + SS_KEY0 + i);
@@ -310,7 +308,7 @@ release_ss:
 	sg_miter_stop(&mi);
 	sg_miter_stop(&mo);
 	writel(0, ss->base + SS_CTL);
-	spin_unlock_irqrestore(&ss->slock, flags);
+	spin_unlock_bh(&ss->slock);
 
 	return err;
 }

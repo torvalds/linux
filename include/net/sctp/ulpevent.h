@@ -141,12 +141,8 @@ __u16 sctp_ulpevent_get_notification_type(const struct sctp_ulpevent *event);
 static inline int sctp_ulpevent_type_enabled(__u16 sn_type,
 					     struct sctp_event_subscribe *mask)
 {
-	int offset = sn_type - SCTP_SN_TYPE_BASE;
 	char *amask = (char *) mask;
-
-	if (offset >= sizeof(struct sctp_event_subscribe))
-		return 0;
-	return amask[offset];
+	return amask[sn_type - SCTP_SN_TYPE_BASE];
 }
 
 /* Given an event subscription, is this event enabled? */

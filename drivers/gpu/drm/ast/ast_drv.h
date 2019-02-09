@@ -113,11 +113,6 @@ struct ast_private {
 	struct ttm_bo_kmap_obj cache_kmap;
 	int next_cursor;
 	bool support_wide_screen;
-	enum {
-		ast_use_p2a,
-		ast_use_dt,
-		ast_use_defaults
-	} config_mode;
 
 	enum ast_tx_chip tx_chip_type;
 	u8 dp501_maxclk;

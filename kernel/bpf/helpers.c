@@ -166,7 +166,7 @@ static u64 bpf_get_current_comm(u64 r1, u64 size, u64 r3, u64 r4, u64 r5)
 	if (!task)
 		return -EINVAL;
 
-	strlcpy(buf, task->comm, min_t(size_t, size, sizeof(task->comm)));
+	memcpy(buf, task->comm, min_t(size_t, size, sizeof(task->comm)));
 	return 0;
 }
 

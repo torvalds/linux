@@ -167,14 +167,8 @@ void bcmgenet_mii_setup(struct net_device *dev)
 static int bcmgenet_fixed_phy_link_update(struct net_device *dev,
 					  struct fixed_phy_status *status)
 {
-	struct bcmgenet_priv *priv;
-	u32 reg;
-
-	if (dev && dev->phydev && status) {
-		priv = netdev_priv(dev);
-		reg = bcmgenet_umac_readl(priv, UMAC_MODE);
-		status->link = !!(reg & MODE_LINK_STATUS);
-	}
+	if (dev && dev->phydev && status)
+		status->link = dev->phydev->link;
 
 	return 0;
 }
@@ -226,6 +220,20 @@ void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 	udelay(60);
 }
 
+static void bcmgenet_internal_phy_setup(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	u32 reg;
+
+	/* Power up PHY */
+	bcmgenet_phy_power_set(dev, true);
+	/* enable APD */
+	reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
+	reg |= EXT_PWR_DN_EN_LD;
+	bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
+	bcmgenet_mii_reset(dev);
+}
+
 static void bcmgenet_moca_phy_setup(struct bcmgenet_priv *priv)
 {
 	u32 reg;
@@ -273,6 +281,7 @@ int bcmgenet_mii_config(struct net_device *dev)
 
 		if (priv->internal_phy) {
 			phy_name = "internal PHY";
+			bcmgenet_internal_phy_setup(dev);
 		} else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
 			phy_name = "MoCA";
 			bcmgenet_moca_phy_setup(priv);
@@ -491,7 +500,7 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	if (!compat)
 		return -ENOMEM;
 
-	priv->mdio_dn = of_get_compatible_child(dn, compat);
+	priv->mdio_dn = of_find_compatible_node(dn, NULL, compat);
 	kfree(compat);
 	if (!priv->mdio_dn) {
 		dev_err(kdev, "unable to find MDIO bus node\n");

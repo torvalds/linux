@@ -1768,7 +1768,7 @@ struct scsi_host_template fdomain_driver_template = {
 };
 
 #ifndef PCMCIA
-#if defined(CONFIG_PCI) && defined(MODULE)
+#ifdef CONFIG_PCI
 
 static struct pci_device_id fdomain_pci_tbl[] = {
 	{ PCI_VENDOR_ID_FD, PCI_DEVICE_ID_FD_36C70,

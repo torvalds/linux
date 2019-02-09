@@ -95,9 +95,6 @@ static void __uart_start(struct tty_struct *tty)
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
 
-	if (port->ops->wake_peer)
-		port->ops->wake_peer(port);
-
 	if (!uart_tx_stopped(port))
 		port->ops->start_tx(port);
 }
@@ -1895,6 +1892,26 @@ uart_parse_options(char *options, int *baud, int *parity, int *bits, int *flow)
 }
 EXPORT_SYMBOL_GPL(uart_parse_options);
 
+struct baud_rates {
+	unsigned int rate;
+	unsigned int cflag;
+};
+
+static const struct baud_rates baud_rates[] = {
+	{ 921600, B921600 },
+	{ 460800, B460800 },
+	{ 230400, B230400 },
+	{ 115200, B115200 },
+	{  57600, B57600  },
+	{  38400, B38400  },
+	{  19200, B19200  },
+	{   9600, B9600   },
+	{   4800, B4800   },
+	{   2400, B2400   },
+	{   1200, B1200   },
+	{      0, B38400  }
+};
+
 /**
  *	uart_set_options - setup the serial console parameters
  *	@port: pointer to the serial ports uart_port structure
@@ -1910,6 +1927,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 {
 	struct ktermios termios;
 	static struct ktermios dummy;
+	int i;
 
 	/*
 	 * Ensure that the serial console lock is initialised
@@ -1924,8 +1942,16 @@ uart_set_options(struct uart_port *port, struct console *co,
 
 	memset(&termios, 0, sizeof(struct ktermios));
 
-	termios.c_cflag |= CREAD | HUPCL | CLOCAL;
-	tty_termios_encode_baud_rate(&termios, baud, baud);
+	termios.c_cflag = CREAD | HUPCL | CLOCAL;
+
+	/*
+	 * Construct a cflag setting.
+	 */
+	for (i = 0; baud_rates[i].rate; i++)
+		if (baud_rates[i].rate <= baud)
+			break;
+
+	termios.c_cflag |= baud_rates[i].cflag;
 
 	if (bits == 7)
 		termios.c_cflag |= CS7;

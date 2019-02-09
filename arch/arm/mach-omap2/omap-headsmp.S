@@ -17,7 +17,6 @@
 
 #include <linux/linkage.h>
 #include <linux/init.h>
-#include <asm/assembler.h>
 
 #include "omap44xx.h"
 
@@ -57,7 +56,7 @@ wait_2:	ldr	r2, =AUX_CORE_BOOT0_PA	@ read from AuxCoreBoot0
 	cmp	r0, r4
 	bne	wait_2
 	ldr	r12, =API_HYP_ENTRY
-	badr	r0, hyp_boot
+	adr	r0, hyp_boot
 	smc	#0
 hyp_boot:
 	b	secondary_startup

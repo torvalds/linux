@@ -48,7 +48,6 @@
 #define GOTGCTL_ASESVLD			(1 << 18)
 #define GOTGCTL_DBNC_SHORT		(1 << 17)
 #define GOTGCTL_CONID_B			(1 << 16)
-#define GOTGCTL_DBNCE_FLTR_BYPASS	(1 << 15)
 #define GOTGCTL_DEVHNPEN		(1 << 11)
 #define GOTGCTL_HSTSETHNPEN		(1 << 10)
 #define GOTGCTL_HNPREQ			(1 << 9)
@@ -460,9 +459,6 @@
 #define DSTS_SUSPSTS			(1 << 0)
 
 #define DIEPMSK				HSOTG_REG(0x810)
-#define DIEPMSK_NAKMSK			(1 << 13)
-#define DIEPMSK_BNAININTRMSK		(1 << 9)
-#define DIEPMSK_TXFIFOUNDRNMSK		(1 << 8)
 #define DIEPMSK_TXFIFOEMPTY		(1 << 7)
 #define DIEPMSK_INEPNAKEFFMSK		(1 << 6)
 #define DIEPMSK_INTKNEPMISMSK		(1 << 5)
@@ -474,7 +470,6 @@
 
 #define DOEPMSK				HSOTG_REG(0x814)
 #define DOEPMSK_BACK2BACKSETUP		(1 << 6)
-#define DOEPMSK_STSPHSERCVDMSK		(1 << 5)
 #define DOEPMSK_OUTTKNEPDISMSK		(1 << 4)
 #define DOEPMSK_SETUPMSK		(1 << 3)
 #define DOEPMSK_AHBERRMSK		(1 << 2)
@@ -491,7 +486,6 @@
 #define DTKNQR2				HSOTG_REG(0x824)
 #define DTKNQR3				HSOTG_REG(0x830)
 #define DTKNQR4				HSOTG_REG(0x834)
-#define DIEPEMPMSK			HSOTG_REG(0x834)
 
 #define DVBUSDIS			HSOTG_REG(0x828)
 #define DVBUSPULSE			HSOTG_REG(0x82C)
@@ -550,18 +544,9 @@
 #define DIEPINT(_a)			HSOTG_REG(0x908 + ((_a) * 0x20))
 #define DOEPINT(_a)			HSOTG_REG(0xB08 + ((_a) * 0x20))
 #define DXEPINT_SETUP_RCVD		(1 << 15)
-#define DXEPINT_NYETINTRPT		(1 << 14)
-#define DXEPINT_NAKINTRPT		(1 << 13)
-#define DXEPINT_BBLEERRINTRPT		(1 << 12)
-#define DXEPINT_PKTDRPSTS		(1 << 11)
-#define DXEPINT_BNAINTR			(1 << 9)
-#define DXEPINT_TXFIFOUNDRN		(1 << 8)
-#define DXEPINT_OUTPKTERR		(1 << 8)
-#define DXEPINT_TXFEMP			(1 << 7)
 #define DXEPINT_INEPNAKEFF		(1 << 6)
 #define DXEPINT_BACK2BACKSETUP		(1 << 6)
 #define DXEPINT_INTKNEPMIS		(1 << 5)
-#define DXEPINT_STSPHSERCVD		(1 << 5)
 #define DXEPINT_INTKNTXFEMP		(1 << 4)
 #define DXEPINT_OUTTKNEPDIS		(1 << 4)
 #define DXEPINT_TIMEOUT			(1 << 3)
@@ -784,6 +769,10 @@
 #define TSIZ_XFERSIZE_SHIFT		0
 
 #define HCDMA(_ch)			HSOTG_REG(0x0514 + 0x20 * (_ch))
+#define HCDMA_DMA_ADDR_MASK		(0x1fffff << 11)
+#define HCDMA_DMA_ADDR_SHIFT		11
+#define HCDMA_CTD_MASK			(0xff << 3)
+#define HCDMA_CTD_SHIFT			3
 
 #define HCDMAB(_ch)			HSOTG_REG(0x051c + 0x20 * (_ch))
 

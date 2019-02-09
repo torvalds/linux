@@ -162,10 +162,9 @@
 			};
 
 			adc0: adc@f8018000 {
-				atmel,adc-vref = <3300>;
-				atmel,adc-channels-used = <0xfe>;
 				pinctrl-0 = <
 					&pinctrl_adc0_adtrg
+					&pinctrl_adc0_ad0
 					&pinctrl_adc0_ad1
 					&pinctrl_adc0_ad2
 					&pinctrl_adc0_ad3
@@ -173,6 +172,8 @@
 					&pinctrl_adc0_ad5
 					&pinctrl_adc0_ad6
 					&pinctrl_adc0_ad7
+					&pinctrl_adc0_ad8
+					&pinctrl_adc0_ad9
 					>;
 				status = "okay";
 			};
@@ -302,7 +303,6 @@
 		regulator-name = "mmc0-card-supply";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
 	};
 
 	gpio_keys {

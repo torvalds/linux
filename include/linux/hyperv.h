@@ -630,11 +630,6 @@ struct hv_input_signal_event_buffer {
 	struct hv_input_signal_event event;
 };
 
-enum hv_signal_policy {
-	HV_SIGNAL_POLICY_DEFAULT = 0,
-	HV_SIGNAL_POLICY_EXPLICIT,
-};
-
 struct vmbus_channel {
 	/* Unique channel id */
 	int id;
@@ -762,20 +757,7 @@ struct vmbus_channel {
 	 * link up channels based on their CPU affinity.
 	 */
 	struct list_head percpu_list;
-	/*
-	 * Host signaling policy: The default policy will be
-	 * based on the ring buffer state. We will also support
-	 * a policy where the client driver can have explicit
-	 * signaling control.
-	 */
-	enum hv_signal_policy  signal_policy;
 };
-
-static inline void set_channel_signal_state(struct vmbus_channel *c,
-					    enum hv_signal_policy policy)
-{
-	c->signal_policy = policy;
-}
 
 static inline void set_channel_read_state(struct vmbus_channel *c, bool state)
 {
@@ -1179,7 +1161,6 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 
 struct hv_util_service {
 	u8 *recv_buffer;
-	void *channel;
 	void (*util_cb)(void *);
 	int (*util_init)(struct hv_util_service *);
 	void (*util_deinit)(void);

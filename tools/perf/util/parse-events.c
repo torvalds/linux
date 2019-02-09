@@ -138,11 +138,11 @@ struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
 #define PERF_EVENT_TYPE(config)		__PERF_EVENT_FIELD(config, TYPE)
 #define PERF_EVENT_ID(config)		__PERF_EVENT_FIELD(config, EVENT)
 
-#define for_each_subsystem(sys_dir, sys_dirent)			\
-	while ((sys_dirent = readdir(sys_dir)) != NULL)		\
-		if (sys_dirent->d_type == DT_DIR &&		\
-		    (strcmp(sys_dirent->d_name, ".")) &&	\
-		    (strcmp(sys_dirent->d_name, "..")))
+#define for_each_subsystem(sys_dir, sys_dirent, sys_next)	       \
+	while (!readdir_r(sys_dir, &sys_dirent, &sys_next) && sys_next)	       \
+	if (sys_dirent.d_type == DT_DIR &&				       \
+	   (strcmp(sys_dirent.d_name, ".")) &&				       \
+	   (strcmp(sys_dirent.d_name, "..")))
 
 static int tp_event_has_id(struct dirent *sys_dir, struct dirent *evt_dir)
 {
@@ -159,12 +159,12 @@ static int tp_event_has_id(struct dirent *sys_dir, struct dirent *evt_dir)
 	return 0;
 }
 
-#define for_each_event(sys_dirent, evt_dir, evt_dirent)		\
-	while ((evt_dirent = readdir(evt_dir)) != NULL)		\
-		if (evt_dirent->d_type == DT_DIR &&		\
-		    (strcmp(evt_dirent->d_name, ".")) &&	\
-		    (strcmp(evt_dirent->d_name, "..")) &&	\
-		    (!tp_event_has_id(sys_dirent, evt_dirent)))
+#define for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next)	       \
+	while (!readdir_r(evt_dir, &evt_dirent, &evt_next) && evt_next)        \
+	if (evt_dirent.d_type == DT_DIR &&				       \
+	   (strcmp(evt_dirent.d_name, ".")) &&				       \
+	   (strcmp(evt_dirent.d_name, "..")) &&				       \
+	   (!tp_event_has_id(&sys_dirent, &evt_dirent)))
 
 #define MAX_EVENT_LENGTH 512
 
@@ -173,7 +173,7 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 {
 	struct tracepoint_path *path = NULL;
 	DIR *sys_dir, *evt_dir;
-	struct dirent *sys_dirent, *evt_dirent;
+	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
 	char id_buf[24];
 	int fd;
 	u64 id;
@@ -184,18 +184,18 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	if (!sys_dir)
 		return NULL;
 
-	for_each_subsystem(sys_dir, sys_dirent) {
+	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
 
 		snprintf(dir_path, MAXPATHLEN, "%s/%s", tracing_events_path,
-			 sys_dirent->d_name);
+			 sys_dirent.d_name);
 		evt_dir = opendir(dir_path);
 		if (!evt_dir)
 			continue;
 
-		for_each_event(sys_dirent, evt_dir, evt_dirent) {
+		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
 
 			snprintf(evt_path, MAXPATHLEN, "%s/%s/id", dir_path,
-				 evt_dirent->d_name);
+				 evt_dirent.d_name);
 			fd = open(evt_path, O_RDONLY);
 			if (fd < 0)
 				continue;
@@ -220,9 +220,9 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 					free(path);
 					return NULL;
 				}
-				strncpy(path->system, sys_dirent->d_name,
+				strncpy(path->system, sys_dirent.d_name,
 					MAX_EVENT_LENGTH);
-				strncpy(path->name, evt_dirent->d_name,
+				strncpy(path->name, evt_dirent.d_name,
 					MAX_EVENT_LENGTH);
 				return path;
 			}
@@ -285,18 +285,16 @@ static struct perf_evsel *
 __add_event(struct list_head *list, int *idx,
 	    struct perf_event_attr *attr,
 	    char *name, struct cpu_map *cpus,
-	    struct list_head *config_terms,
-	    struct list_head *drv_config_terms)
+	    struct list_head *config_terms)
 {
 	struct perf_evsel *evsel;
 
 	event_attr_init(attr);
 
-	evsel = perf_evsel__new_idx(attr, *idx);
+	evsel = perf_evsel__new_idx(attr, (*idx)++);
 	if (!evsel)
 		return NULL;
 
-	(*idx)++;
 	evsel->cpus     = cpu_map__get(cpus);
 	evsel->own_cpus = cpu_map__get(cpus);
 
@@ -306,9 +304,6 @@ __add_event(struct list_head *list, int *idx,
 	if (config_terms)
 		list_splice(config_terms, &evsel->config_terms);
 
-	if (drv_config_terms)
-		list_splice(drv_config_terms, &evsel->drv_config_terms);
-
 	list_add_tail(&evsel->node, list);
 	return evsel;
 }
@@ -317,8 +312,7 @@ static int add_event(struct list_head *list, int *idx,
 		     struct perf_event_attr *attr, char *name,
 		     struct list_head *config_terms)
 {
-	return __add_event(list, idx, attr, name,
-			   NULL, config_terms, NULL) ? 0 : -ENOMEM;
+	return __add_event(list, idx, attr, name, NULL, config_terms) ? 0 : -ENOMEM;
 }
 
 static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES], int size)
@@ -404,9 +398,6 @@ static void tracepoint_error(struct parse_events_error *e, int err,
 			     char *sys, char *name)
 {
 	char help[BUFSIZ];
-
-	if (!e)
-		return;
 
 	/*
 	 * We get error directly from syscall errno ( > 0),
@@ -829,8 +820,7 @@ static int config_term_pmu(struct perf_event_attr *attr,
 			   struct parse_events_term *term,
 			   struct parse_events_error *err)
 {
-	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER ||
-	    term->type_term == PARSE_EVENTS__TERM_TYPE_DRV_CFG)
+	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER)
 		/*
 		 * Always succeed for sysfs terms, as we dont know
 		 * at this point what type they need to have.
@@ -876,7 +866,10 @@ static int config_attr(struct perf_event_attr *attr,
 	return 0;
 }
 
-#define ADD_CONFIG_TERM(__type, __name, __val, __head_terms)	\
+static int get_config_terms(struct list_head *head_config,
+			    struct list_head *head_terms __maybe_unused)
+{
+#define ADD_CONFIG_TERM(__type, __name, __val)			\
 do {								\
 	struct perf_evsel_config_term *__t;			\
 								\
@@ -887,64 +880,39 @@ do {								\
 	INIT_LIST_HEAD(&__t->list);				\
 	__t->type       = PERF_EVSEL__CONFIG_TERM_ ## __type;	\
 	__t->val.__name = __val;				\
-	list_add_tail(&__t->list, __head_terms);		\
+	list_add_tail(&__t->list, head_terms);			\
 } while (0)
 
-static int get_config_terms(struct list_head *head_config,
-			    struct list_head *head_terms __maybe_unused)
-{
 	struct parse_events_term *term;
 
 	list_for_each_entry(term, head_config, list) {
 		switch (term->type_term) {
 		case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
-			ADD_CONFIG_TERM(PERIOD, period,
-					term->val.num, head_terms);
+			ADD_CONFIG_TERM(PERIOD, period, term->val.num);
 			break;
 		case PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ:
-			ADD_CONFIG_TERM(FREQ, freq,
-					term->val.num, head_terms);
+			ADD_CONFIG_TERM(FREQ, freq, term->val.num);
 			break;
 		case PARSE_EVENTS__TERM_TYPE_TIME:
-			ADD_CONFIG_TERM(TIME, time,
-					term->val.num, head_terms);
+			ADD_CONFIG_TERM(TIME, time, term->val.num);
 			break;
 		case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
-			ADD_CONFIG_TERM(CALLGRAPH, callgraph,
-					term->val.str, head_terms);
+			ADD_CONFIG_TERM(CALLGRAPH, callgraph, term->val.str);
 			break;
 		case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
-			ADD_CONFIG_TERM(STACK_USER, stack_user,
-					term->val.num, head_terms);
+			ADD_CONFIG_TERM(STACK_USER, stack_user, term->val.num);
 			break;
 		case PARSE_EVENTS__TERM_TYPE_INHERIT:
-			ADD_CONFIG_TERM(INHERIT, inherit,
-					term->val.num ? 1 : 0, head_terms);
+			ADD_CONFIG_TERM(INHERIT, inherit, term->val.num ? 1 : 0);
 			break;
 		case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
-			ADD_CONFIG_TERM(INHERIT, inherit,
-					term->val.num ? 0 : 1, head_terms);
+			ADD_CONFIG_TERM(INHERIT, inherit, term->val.num ? 0 : 1);
 			break;
 		default:
 			break;
 		}
 	}
 #undef ADD_EVSEL_CONFIG
-	return 0;
-}
-
-static int get_drv_config_terms(struct list_head *head_config,
-				struct list_head *head_terms)
-{
-	struct parse_events_term *term;
-
-	list_for_each_entry(term, head_config, list) {
-		if (term->type_term != PARSE_EVENTS__TERM_TYPE_DRV_CFG)
-			continue;
-
-		ADD_CONFIG_TERM(DRV_CFG, drv_cfg, term->val.str, head_terms);
-	}
-
 	return 0;
 }
 
@@ -1018,7 +986,6 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 	struct perf_pmu *pmu;
 	struct perf_evsel *evsel;
 	LIST_HEAD(config_terms);
-	LIST_HEAD(drv_config_terms);
 
 	pmu = perf_pmu__find(name);
 	if (!pmu)
@@ -1033,8 +1000,7 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 
 	if (!head_config) {
 		attr.type = pmu->type;
-		evsel = __add_event(list, &data->idx, &attr,
-				    NULL, pmu->cpus, NULL, NULL);
+		evsel = __add_event(list, &data->idx, &attr, NULL, pmu->cpus, NULL);
 		return evsel ? 0 : -ENOMEM;
 	}
 
@@ -1051,15 +1017,12 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 	if (get_config_terms(head_config, &config_terms))
 		return -ENOMEM;
 
-	if (get_drv_config_terms(head_config, &drv_config_terms))
-		return -ENOMEM;
-
 	if (perf_pmu__config(pmu, &attr, head_config, data->error))
 		return -EINVAL;
 
 	evsel = __add_event(list, &data->idx, &attr,
 			    pmu_event_name(head_config), pmu->cpus,
-			    &config_terms, &drv_config_terms);
+			    &config_terms);
 	if (evsel) {
 		evsel->unit = info.unit;
 		evsel->scale = info.scale;
@@ -1663,7 +1626,7 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
 			     bool name_only)
 {
 	DIR *sys_dir, *evt_dir;
-	struct dirent *sys_dirent, *evt_dirent;
+	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
 	char **evt_list = NULL;
@@ -1681,20 +1644,20 @@ restart:
 			goto out_close_sys_dir;
 	}
 
-	for_each_subsystem(sys_dir, sys_dirent) {
+	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
 		if (subsys_glob != NULL &&
-		    !strglobmatch(sys_dirent->d_name, subsys_glob))
+		    !strglobmatch(sys_dirent.d_name, subsys_glob))
 			continue;
 
 		snprintf(dir_path, MAXPATHLEN, "%s/%s", tracing_events_path,
-			 sys_dirent->d_name);
+			 sys_dirent.d_name);
 		evt_dir = opendir(dir_path);
 		if (!evt_dir)
 			continue;
 
-		for_each_event(sys_dirent, evt_dir, evt_dirent) {
+		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
 			if (event_glob != NULL &&
-			    !strglobmatch(evt_dirent->d_name, event_glob))
+			    !strglobmatch(evt_dirent.d_name, event_glob))
 				continue;
 
 			if (!evt_num_known) {
@@ -1703,7 +1666,7 @@ restart:
 			}
 
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
-				 sys_dirent->d_name, evt_dirent->d_name);
+				 sys_dirent.d_name, evt_dirent.d_name);
 
 			evt_list[evt_i] = strdup(evt_path);
 			if (evt_list[evt_i] == NULL)
@@ -1756,7 +1719,7 @@ out_close_sys_dir:
 int is_valid_tracepoint(const char *event_string)
 {
 	DIR *sys_dir, *evt_dir;
-	struct dirent *sys_dirent, *evt_dirent;
+	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
 
@@ -1764,17 +1727,17 @@ int is_valid_tracepoint(const char *event_string)
 	if (!sys_dir)
 		return 0;
 
-	for_each_subsystem(sys_dir, sys_dirent) {
+	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
 
 		snprintf(dir_path, MAXPATHLEN, "%s/%s", tracing_events_path,
-			 sys_dirent->d_name);
+			 sys_dirent.d_name);
 		evt_dir = opendir(dir_path);
 		if (!evt_dir)
 			continue;
 
-		for_each_event(sys_dirent, evt_dir, evt_dirent) {
+		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
-				 sys_dirent->d_name, evt_dirent->d_name);
+				 sys_dirent.d_name, evt_dirent.d_name);
 			if (!strcmp(evt_path, event_string)) {
 				closedir(evt_dir);
 				closedir(sys_dir);
@@ -2135,11 +2098,11 @@ char *parse_events_formats_error_string(char *additional_terms)
 
 	/* valid terms */
 	if (additional_terms) {
-		if (asprintf(&str, "valid terms: %s,%s",
-			     additional_terms, static_terms) < 0)
+		if (!asprintf(&str, "valid terms: %s,%s",
+			      additional_terms, static_terms))
 			goto fail;
 	} else {
-		if (asprintf(&str, "valid terms: %s", static_terms) < 0)
+		if (!asprintf(&str, "valid terms: %s", static_terms))
 			goto fail;
 	}
 	return str;

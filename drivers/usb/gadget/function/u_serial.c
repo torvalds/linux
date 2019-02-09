@@ -518,7 +518,7 @@ static void gs_rx_push(unsigned long _port)
 		}
 
 		/* push data to (open) tty */
-		if (req->actual && tty) {
+		if (req->actual) {
 			char		*packet = req->buf;
 			unsigned	size = req->actual;
 			unsigned	n;

@@ -244,17 +244,17 @@ LEAF(\name)
 	.set	push
 	.set	noat
 #ifdef CONFIG_64BIT
-	copy_s_d \wr, 1
+	copy_u_d \wr, 1
 	EX sd	$1, \off(\base)
 #elif defined(CONFIG_CPU_LITTLE_ENDIAN)
-	copy_s_w \wr, 2
+	copy_u_w \wr, 2
 	EX sw	$1, \off(\base)
-	copy_s_w \wr, 3
+	copy_u_w \wr, 3
 	EX sw	$1, (\off+4)(\base)
 #else /* CONFIG_CPU_BIG_ENDIAN */
-	copy_s_w \wr, 2
+	copy_u_w \wr, 2
 	EX sw	$1, (\off+4)(\base)
-	copy_s_w \wr, 3
+	copy_u_w \wr, 3
 	EX sw	$1, \off(\base)
 #endif
 	.set	pop

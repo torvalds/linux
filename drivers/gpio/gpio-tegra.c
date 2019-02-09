@@ -591,4 +591,4 @@ static int __init tegra_gpio_init(void)
 {
 	return platform_driver_register(&tegra_gpio_driver);
 }
-subsys_initcall(tegra_gpio_init);
+postcore_initcall(tegra_gpio_init);

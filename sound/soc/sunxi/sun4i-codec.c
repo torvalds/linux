@@ -575,11 +575,11 @@ static struct snd_soc_card *sun4i_codec_create_card(struct device *dev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
 	if (!card->dai_link)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	card->dev		= dev;
 	card->name		= "sun4i-codec";
@@ -661,8 +661,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	}
 
 	card = sun4i_codec_create_card(&pdev->dev);
-	if (IS_ERR(card)) {
-		ret = PTR_ERR(card);
+	if (!card) {
 		dev_err(&pdev->dev, "Failed to create our card\n");
 		goto err_unregister_codec;
 	}

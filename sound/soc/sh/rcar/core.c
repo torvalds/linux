@@ -192,16 +192,19 @@ void rsnd_mod_interrupt(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai_stream *io;
 	struct rsnd_dai *rdai;
-	int i;
+	int i, j;
 
-	for_each_rsnd_dai(rdai, priv, i) {
-		io = &rdai->playback;
-		if (mod == io->mod[mod->type])
-			callback(mod, io);
+	for_each_rsnd_dai(rdai, priv, j) {
 
-		io = &rdai->capture;
-		if (mod == io->mod[mod->type])
-			callback(mod, io);
+		for (i = 0; i < RSND_MOD_MAX; i++) {
+			io = &rdai->playback;
+			if (mod == io->mod[i])
+				callback(mod, io);
+
+			io = &rdai->capture;
+			if (mod == io->mod[i])
+				callback(mod, io);
+		}
 	}
 }
 
@@ -1016,7 +1019,7 @@ static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 		}
 	}
 
-	if (change && cfg->update)
+	if (change)
 		cfg->update(cfg->io, mod);
 
 	return change;
@@ -1049,8 +1052,10 @@ static int __rsnd_kctrl_new(struct rsnd_mod *mod,
 		return -ENOMEM;
 
 	ret = snd_ctl_add(card, kctrl);
-	if (ret < 0)
+	if (ret < 0) {
+		snd_ctl_free_one(kctrl);
 		return ret;
+	}
 
 	cfg->update = update;
 	cfg->card = card;

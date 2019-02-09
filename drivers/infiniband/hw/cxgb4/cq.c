@@ -162,7 +162,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	cq->bar2_va = c4iw_bar2_addrs(rdev, cq->cqid, T4_BAR2_QTYPE_INGRESS,
 				      &cq->bar2_qid,
 				      user ? &cq->bar2_pa : NULL);
-	if (user && !cq->bar2_pa) {
+	if (user && !cq->bar2_va) {
 		pr_warn(MOD "%s: cqid %u not in BAR2 range.\n",
 			pci_name(rdev->lldi.pdev), cq->cqid);
 		ret = -EINVAL;
@@ -579,10 +579,10 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 			ret = -EAGAIN;
 			goto skip_cqe;
 		}
-		if (unlikely(!CQE_STATUS(hw_cqe) &&
-			     CQE_WRID_MSN(hw_cqe) != wq->rq.msn)) {
+		if (unlikely((CQE_WRID_MSN(hw_cqe) != (wq->rq.msn)))) {
 			t4_set_wq_in_error(wq);
-			hw_cqe->header |= cpu_to_be32(CQE_STATUS_V(T4_ERR_MSN));
+			hw_cqe->header |= htonl(CQE_STATUS_V(T4_ERR_MSN));
+			goto proc_cqe;
 		}
 		goto proc_cqe;
 	}

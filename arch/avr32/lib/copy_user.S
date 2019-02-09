@@ -23,13 +23,13 @@
 	 */
 	.text
 	.align	1
-	.global	___copy_from_user
-	.type	___copy_from_user, @function
-___copy_from_user:
+	.global	copy_from_user
+	.type	copy_from_user, @function
+copy_from_user:
 	branch_if_kernel r8, __copy_user
 	ret_if_privileged r8, r11, r10, r10
 	rjmp	__copy_user
-	.size	___copy_from_user, . - ___copy_from_user
+	.size	copy_from_user, . - copy_from_user
 
 	.global	copy_to_user
 	.type	copy_to_user, @function

@@ -1114,7 +1114,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 			break;
 
 		/* prevent any other reads prior to eop_desc */
-		smp_rmb();
+		read_barrier_depends();
 
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)))
@@ -2786,8 +2786,7 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 	ixgbe_for_each_ring(ring, q_vector->tx)
 		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring);
 
-	/* Exit if we are called by netpoll or busy polling is active */
-	if ((budget <= 0) || !ixgbe_qv_lock_napi(q_vector))
+	if (!ixgbe_qv_lock_napi(q_vector))
 		return budget;
 
 	/* attempt to distribute budget to each queue fairly, but don't allow
@@ -5878,8 +5877,7 @@ static int ixgbe_close(struct net_device *netdev)
 
 	ixgbe_ptp_stop(adapter);
 
-	if (netif_device_present(netdev))
-		ixgbe_close_suspend(adapter);
+	ixgbe_close_suspend(adapter);
 
 	ixgbe_fdir_filter_exit(adapter);
 
@@ -5924,12 +5922,14 @@ static int ixgbe_resume(struct pci_dev *pdev)
 	if (!err && netif_running(netdev))
 		err = ixgbe_open(netdev);
 
-
-	if (!err)
-		netif_device_attach(netdev);
 	rtnl_unlock();
 
-	return err;
+	if (err)
+		return err;
+
+	netif_device_attach(netdev);
+
+	return 0;
 }
 #endif /* CONFIG_PM */
 
@@ -5944,14 +5944,14 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	int retval = 0;
 #endif
 
-	rtnl_lock();
 	netif_device_detach(netdev);
 
+	rtnl_lock();
 	if (netif_running(netdev))
 		ixgbe_close_suspend(adapter);
+	rtnl_unlock();
 
 	ixgbe_clear_interrupt_scheme(adapter);
-	rtnl_unlock();
 
 #ifdef CONFIG_PM
 	retval = pci_save_state(pdev);
@@ -9220,7 +9220,7 @@ skip_bad_vf_detection:
 	}
 
 	if (netif_running(netdev))
-		ixgbe_close_suspend(adapter);
+		ixgbe_down(adapter);
 
 	if (!test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
 		pci_disable_device(pdev);
@@ -9290,12 +9290,10 @@ static void ixgbe_io_resume(struct pci_dev *pdev)
 	}
 
 #endif
-	rtnl_lock();
 	if (netif_running(netdev))
-		ixgbe_open(netdev);
+		ixgbe_up(adapter);
 
 	netif_device_attach(netdev);
-	rtnl_unlock();
 }
 
 static const struct pci_error_handlers ixgbe_err_handler = {

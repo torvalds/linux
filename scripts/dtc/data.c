@@ -171,9 +171,9 @@ struct data data_merge(struct data d1, struct data d2)
 struct data data_append_integer(struct data d, uint64_t value, int bits)
 {
 	uint8_t value_8;
-	fdt16_t value_16;
-	fdt32_t value_32;
-	fdt64_t value_64;
+	uint16_t value_16;
+	uint32_t value_32;
+	uint64_t value_64;
 
 	switch (bits) {
 	case 8:
@@ -197,14 +197,14 @@ struct data data_append_integer(struct data d, uint64_t value, int bits)
 	}
 }
 
-struct data data_append_re(struct data d, uint64_t address, uint64_t size)
+struct data data_append_re(struct data d, const struct fdt_reserve_entry *re)
 {
-	struct fdt_reserve_entry re;
+	struct fdt_reserve_entry bere;
 
-	re.address = cpu_to_fdt64(address);
-	re.size = cpu_to_fdt64(size);
+	bere.address = cpu_to_fdt64(re->address);
+	bere.size = cpu_to_fdt64(re->size);
 
-	return data_append_data(d, &re, sizeof(re));
+	return data_append_data(d, &bere, sizeof(bere));
 }
 
 struct data data_append_cell(struct data d, cell_t word)

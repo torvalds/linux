@@ -153,26 +153,6 @@ int copy_thread(unsigned long clone_flags,
 		task_thread_info(current)->thr_ptr;
 	}
 
-
-	/*
-	 * setup usermode thread pointer #1:
-	 * when child is picked by scheduler, __switch_to() uses @c_callee to
-	 * populate usermode callee regs: this works (despite being in a kernel
-	 * function) since special return path for child @ret_from_fork()
-	 * ensures those regs are not clobbered all the way to RTIE to usermode
-	 */
-	c_callee->r25 = task_thread_info(p)->thr_ptr;
-
-#ifdef CONFIG_ARC_CURR_IN_REG
-	/*
-	 * setup usermode thread pointer #2:
-	 * however for this special use of r25 in kernel, __switch_to() sets
-	 * r25 for kernel needs and only in the final return path is usermode
-	 * r25 setup, from pt_regs->user_r25. So set that up as well
-	 */
-	c_regs->user_r25 = c_callee->r25;
-#endif
-
 	return 0;
 }
 
@@ -200,6 +180,13 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
  * Some archs flush debug and FPU info here
  */
 void flush_thread(void)
+{
+}
+
+/*
+ * Free any architecture-specific thread data structures, etc.
+ */
+void exit_thread(void)
 {
 }
 

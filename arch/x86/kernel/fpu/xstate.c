@@ -632,7 +632,8 @@ void __init fpu__init_system_xstate(void)
 		BUG();
 	}
 
-	xfeatures_mask &= fpu__get_supported_xfeatures_mask();
+	/* Support only the state known to the OS: */
+	xfeatures_mask = xfeatures_mask & XCNTXT_MASK;
 
 	/* Enable xstate instructions to be able to continue with initialization: */
 	fpu__init_cpu_xstate();

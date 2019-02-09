@@ -98,15 +98,7 @@ static int find_child_checks(struct acpi_device *adev, bool check_children)
 	if (check_children && list_empty(&adev->children))
 		return -ENODEV;
 
-	/*
-	 * If the device has a _HID returning a valid ACPI/PNP device ID, it is
-	 * better to make it look less attractive here, so that the other device
-	 * with the same _ADR value (that may not have a valid device ID) can be
-	 * matched going forward.  [This means a second spec violation in a row,
-	 * so whatever we do here is best effort anyway.]
-	 */
-	return sta_present && !adev->pnp.type.platform_id ?
-			FIND_CHILD_MAX_SCORE : FIND_CHILD_MIN_SCORE;
+	return sta_present ? FIND_CHILD_MAX_SCORE : FIND_CHILD_MIN_SCORE;
 }
 
 struct acpi_device *acpi_find_child_device(struct acpi_device *parent,

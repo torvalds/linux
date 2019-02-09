@@ -158,7 +158,9 @@ static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 	new_mpls_lse = (__be32 *)skb_mpls_header(skb);
 	*new_mpls_lse = mpls->mpls_lse;
 
-	skb_postpush_rcsum(skb, new_mpls_lse, MPLS_HLEN);
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->csum = csum_add(skb->csum, csum_partial(new_mpls_lse,
+							     MPLS_HLEN, 0));
 
 	hdr = eth_hdr(skb);
 	hdr->h_proto = mpls->mpls_ethertype;
@@ -278,7 +280,7 @@ static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	ether_addr_copy_masked(eth_hdr(skb)->h_dest, key->eth_dst,
 			       mask->eth_dst);
 
-	skb_postpush_rcsum(skb, eth_hdr(skb), ETH_ALEN * 2);
+	ovs_skb_postpush_rcsum(skb, eth_hdr(skb), ETH_ALEN * 2);
 
 	ether_addr_copy(flow_key->eth.src, eth_hdr(skb)->h_source);
 	ether_addr_copy(flow_key->eth.dst, eth_hdr(skb)->h_dest);
@@ -461,7 +463,7 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
 		mask_ipv6_addr(saddr, key->ipv6_src, mask->ipv6_src, masked);
 
 		if (unlikely(memcmp(saddr, masked, sizeof(masked)))) {
-			set_ipv6_addr(skb, flow_key->ip.proto, saddr, masked,
+			set_ipv6_addr(skb, key->ipv6_proto, saddr, masked,
 				      true);
 			memcpy(&flow_key->ipv6.addr.src, masked,
 			       sizeof(flow_key->ipv6.addr.src));
@@ -483,7 +485,7 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
 							     NULL, &flags)
 					       != NEXTHDR_ROUTING);
 
-			set_ipv6_addr(skb, flow_key->ip.proto, daddr, masked,
+			set_ipv6_addr(skb, key->ipv6_proto, daddr, masked,
 				      recalc_csum);
 			memcpy(&flow_key->ipv6.addr.dst, masked,
 			       sizeof(flow_key->ipv6.addr.dst));
@@ -637,7 +639,7 @@ static int ovs_vport_output(struct net *net, struct sock *sk, struct sk_buff *sk
 	/* Reconstruct the MAC header.  */
 	skb_push(skb, data->l2_len);
 	memcpy(skb->data, &data->l2_data, data->l2_len);
-	skb_postpush_rcsum(skb, skb->data, data->l2_len);
+	ovs_skb_postpush_rcsum(skb, skb->data, data->l2_len);
 	skb_reset_mac_header(skb);
 
 	ovs_vport_send(vport, skb);

@@ -1004,9 +1004,9 @@ out_unlock:
 	return ret;
 }
 
-bool ttm_bo_mem_compat(struct ttm_placement *placement,
-		       struct ttm_mem_reg *mem,
-		       uint32_t *new_flags)
+static bool ttm_bo_mem_compat(struct ttm_placement *placement,
+			      struct ttm_mem_reg *mem,
+			      uint32_t *new_flags)
 {
 	int i;
 
@@ -1038,7 +1038,6 @@ bool ttm_bo_mem_compat(struct ttm_placement *placement,
 
 	return false;
 }
-EXPORT_SYMBOL(ttm_bo_mem_compat);
 
 int ttm_bo_validate(struct ttm_buffer_object *bo,
 			struct ttm_placement *placement,
@@ -1621,6 +1620,7 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	struct ttm_buffer_object *bo;
 	int ret = -EBUSY;
 	int put_count;
+	uint32_t swap_placement = (TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM);
 
 	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &glob->swap_lru, swap) {
@@ -1656,8 +1656,7 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	if (unlikely(ret != 0))
 		goto out;
 
-	if (bo->mem.mem_type != TTM_PL_SYSTEM ||
-	    bo->ttm->caching_state != tt_cached) {
+	if ((bo->mem.placement & swap_placement) != swap_placement) {
 		struct ttm_mem_reg evict_mem;
 
 		evict_mem = bo->mem;

@@ -66,9 +66,9 @@ struct cs5535audio_dma_ops {
 };
 
 struct cs5535audio_dma_desc {
-	__le32 addr;
-	__le16 size;
-	__le16 ctlreserved;
+	u32 addr;
+	u16 size;
+	u16 ctlreserved;
 };
 
 struct cs5535audio_dma {

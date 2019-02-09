@@ -49,52 +49,81 @@ static void __crst_table_upgrade(void *arg)
 	__tlb_flush_local();
 }
 
-int crst_table_upgrade(struct mm_struct *mm)
+int crst_table_upgrade(struct mm_struct *mm, unsigned long limit)
 {
 	unsigned long *table, *pgd;
+	unsigned long entry;
+	int flush;
 
-	/* upgrade should only happen from 3 to 4 levels */
-	BUG_ON(mm->context.asce_limit != (1UL << 42));
-
+	BUG_ON(limit > (1UL << 53));
+	flush = 0;
+repeat:
 	table = crst_table_alloc(mm);
 	if (!table)
 		return -ENOMEM;
-
 	spin_lock_bh(&mm->page_table_lock);
-	pgd = (unsigned long *) mm->pgd;
-	crst_table_init(table, _REGION2_ENTRY_EMPTY);
-	pgd_populate(mm, (pgd_t *) table, (pud_t *) pgd);
-	mm->pgd = (pgd_t *) table;
-	mm->context.asce_limit = 1UL << 53;
-	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-			   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;
-	mm->task_size = mm->context.asce_limit;
+	if (mm->context.asce_limit < limit) {
+		pgd = (unsigned long *) mm->pgd;
+		if (mm->context.asce_limit <= (1UL << 31)) {
+			entry = _REGION3_ENTRY_EMPTY;
+			mm->context.asce_limit = 1UL << 42;
+			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
+						_ASCE_USER_BITS |
+						_ASCE_TYPE_REGION3;
+		} else {
+			entry = _REGION2_ENTRY_EMPTY;
+			mm->context.asce_limit = 1UL << 53;
+			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
+						_ASCE_USER_BITS |
+						_ASCE_TYPE_REGION2;
+		}
+		crst_table_init(table, entry);
+		pgd_populate(mm, (pgd_t *) table, (pud_t *) pgd);
+		mm->pgd = (pgd_t *) table;
+		mm->task_size = mm->context.asce_limit;
+		table = NULL;
+		flush = 1;
+	}
 	spin_unlock_bh(&mm->page_table_lock);
-
-	on_each_cpu(__crst_table_upgrade, mm, 0);
+	if (table)
+		crst_table_free(mm, table);
+	if (mm->context.asce_limit < limit)
+		goto repeat;
+	if (flush)
+		on_each_cpu(__crst_table_upgrade, mm, 0);
 	return 0;
 }
 
-void crst_table_downgrade(struct mm_struct *mm)
+void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 {
 	pgd_t *pgd;
-
-	/* downgrade should only happen from 3 to 2 levels (compat only) */
-	BUG_ON(mm->context.asce_limit != (1UL << 42));
 
 	if (current->active_mm == mm) {
 		clear_user_asce();
 		__tlb_flush_mm(mm);
 	}
-
-	pgd = mm->pgd;
-	mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
-	mm->context.asce_limit = 1UL << 31;
-	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-			   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
-	mm->task_size = mm->context.asce_limit;
-	crst_table_free(mm, (unsigned long *) pgd);
-
+	while (mm->context.asce_limit > limit) {
+		pgd = mm->pgd;
+		switch (pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) {
+		case _REGION_ENTRY_TYPE_R2:
+			mm->context.asce_limit = 1UL << 42;
+			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
+						_ASCE_USER_BITS |
+						_ASCE_TYPE_REGION3;
+			break;
+		case _REGION_ENTRY_TYPE_R3:
+			mm->context.asce_limit = 1UL << 31;
+			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
+						_ASCE_USER_BITS |
+						_ASCE_TYPE_SEGMENT;
+			break;
+		default:
+			BUG();
+		}
+		mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
+		mm->task_size = mm->context.asce_limit;
+		crst_table_free(mm, (unsigned long *) pgd);
+	}
 	if (current->active_mm == mm)
 		set_user_asce(mm);
 }
@@ -166,7 +195,7 @@ EXPORT_SYMBOL_GPL(gmap_alloc);
 static void gmap_flush_tlb(struct gmap *gmap)
 {
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_idte(gmap->asce);
+		__tlb_flush_asce(gmap->mm, gmap->asce);
 	else
 		__tlb_flush_global();
 }
@@ -205,7 +234,7 @@ void gmap_free(struct gmap *gmap)
 
 	/* Flush tlb. */
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_idte(gmap->asce);
+		__tlb_flush_asce(gmap->mm, gmap->asce);
 	else
 		__tlb_flush_global();
 
@@ -637,8 +666,6 @@ void gmap_discard(struct gmap *gmap, unsigned long from, unsigned long to)
 		vmaddr |= gaddr & ~PMD_MASK;
 		/* Find vma in the parent mm */
 		vma = find_vma(gmap->mm, vmaddr);
-		if (!vma)
-			continue;
 		size = min(to - gaddr, PMD_SIZE - (gaddr & ~PMD_MASK));
 		zap_page_range(vma, vmaddr, size, NULL);
 	}
@@ -1239,28 +1266,11 @@ EXPORT_SYMBOL_GPL(s390_reset_cmma);
  */
 bool gmap_test_and_clear_dirty(unsigned long address, struct gmap *gmap)
 {
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
 	pte_t *pte;
 	spinlock_t *ptl;
 	bool dirty = false;
 
-	pgd = pgd_offset(gmap->mm, address);
-	pud = pud_alloc(gmap->mm, pgd, address);
-	if (!pud)
-		return false;
-	pmd = pmd_alloc(gmap->mm, pud, address);
-	if (!pmd)
-		return false;
-	/* We can't run guests backed by huge pages, but userspace can
-	 * still set them up and then try to migrate them without any
-	 * migration support.
-	 */
-	if (pmd_large(*pmd))
-		return true;
-
-	pte = pte_alloc_map_lock(gmap->mm, pmd, address, &ptl);
+	pte = get_locked_pte(gmap->mm, address, &ptl);
 	if (unlikely(!pte))
 		return false;
 

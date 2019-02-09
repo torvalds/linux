@@ -910,12 +910,9 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	}
 
 	/*
-	 * special case: failed zero length commands always need to
-	 * drop down into the retry code. Otherwise, if we finished
-	 * all bytes in the request we are done now.
+	 * If we finished all bytes in the request we are done now.
 	 */
-	if (!(blk_rq_bytes(req) == 0 && error) &&
-	    !scsi_end_request(req, error, good_bytes, 0))
+	if (!scsi_end_request(req, error, good_bytes, 0))
 		return;
 
 	/*
@@ -1120,8 +1117,7 @@ int scsi_init_io(struct scsi_cmnd *cmd)
 	bool is_mq = (rq->mq_ctx != NULL);
 	int error;
 
-	if (WARN_ON_ONCE(!rq->nr_phys_segments))
-		return -EINVAL;
+	BUG_ON(!rq->nr_phys_segments);
 
 	error = scsi_init_sgtable(rq, &cmd->sdb);
 	if (error)
@@ -2214,29 +2210,6 @@ void scsi_mq_destroy_tags(struct Scsi_Host *shost)
 {
 	blk_mq_free_tag_set(&shost->tag_set);
 }
-
-/**
- * scsi_device_from_queue - return sdev associated with a request_queue
- * @q: The request queue to return the sdev from
- *
- * Return the sdev associated with a request queue or NULL if the
- * request_queue does not reference a SCSI device.
- */
-struct scsi_device *scsi_device_from_queue(struct request_queue *q)
-{
-	struct scsi_device *sdev = NULL;
-
-	if (q->mq_ops) {
-		if (q->mq_ops == &scsi_mq_ops)
-			sdev = q->queuedata;
-	} else if (q->request_fn == scsi_request_fn)
-		sdev = q->queuedata;
-	if (!sdev || !get_device(&sdev->sdev_gendev))
-		sdev = NULL;
-
-	return sdev;
-}
-EXPORT_SYMBOL_GPL(scsi_device_from_queue);
 
 /*
  * Function:    scsi_block_requests()

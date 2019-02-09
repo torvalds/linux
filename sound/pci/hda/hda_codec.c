@@ -1755,7 +1755,7 @@ static int get_kctl_0dB_offset(struct hda_codec *codec,
 			return -1;
 		if (*step_to_check && *step_to_check != step) {
 			codec_err(codec, "Mismatching dB step for vmaster slave (%d!=%d)\n",
-				   *step_to_check, step);
+-				   *step_to_check, step);
 			return -1;
 		}
 		*step_to_check = step;
@@ -4019,8 +4019,7 @@ void snd_hda_bus_reset_codecs(struct hda_bus *bus)
 
 	list_for_each_codec(codec, bus) {
 		/* FIXME: maybe a better way needed for forced reset */
-		if (current_work() != &codec->jackpoll_work.work)
-			cancel_delayed_work_sync(&codec->jackpoll_work);
+		cancel_delayed_work_sync(&codec->jackpoll_work);
 #ifdef CONFIG_PM
 		if (hda_codec_is_power_on(codec)) {
 			hda_call_codec_suspend(codec);

@@ -72,8 +72,8 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 
 	struct drm_crtc *crtc = &amdgpuCrtc->base;
 	unsigned long flags;
-	unsigned i, repcnt = 4;
-	int vpos, hpos, stat, min_udelay = 0;
+	unsigned i;
+	int vpos, hpos, stat, min_udelay;
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->crtc_id];
 
 	amdgpu_flip_wait_fence(adev, &work->excl);
@@ -96,7 +96,7 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	 * In practice this won't execute very often unless on very fast
 	 * machines because the time window for this to happen is very small.
 	 */
-	while (amdgpuCrtc->enabled && --repcnt) {
+	for (;;) {
 		/* GET_DISTANCE_TO_VBLANKSTART returns distance to real vblank
 		 * start in hpos, and to the "fudged earlier" vblank start in
 		 * vpos.
@@ -112,23 +112,11 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 			break;
 
 		/* Sleep at least until estimated real start of hw vblank */
-		min_udelay = (-hpos + 1) * max(vblank->linedur_ns / 1000, 5);
-		if (min_udelay > vblank->framedur_ns / 2000) {
-			/* Don't wait ridiculously long - something is wrong */
-			repcnt = 0;
-			break;
-		}
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+		min_udelay = (-hpos + 1) * max(vblank->linedur_ns / 1000, 5);
 		usleep_range(min_udelay, 2 * min_udelay);
 		spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	};
-
-	if (!repcnt)
-		DRM_DEBUG_DRIVER("Delay problem on crtc %d: min_udelay %d, "
-				 "framedur %d, linedur %d, stat %d, vpos %d, "
-				 "hpos %d\n", work->crtc_id, min_udelay,
-				 vblank->framedur_ns / 1000,
-				 vblank->linedur_ns / 1000, stat, vpos, hpos);
 
 	/* do the flip (mmio) */
 	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
@@ -558,12 +546,6 @@ amdgpu_user_framebuffer_create(struct drm_device *dev,
 		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
 			"can't create framebuffer\n", mode_cmd->handles[0]);
 		return ERR_PTR(-ENOENT);
-	}
-
-	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
-	if (obj->import_attach) {
-		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
-		return ERR_PTR(-EINVAL);
 	}
 
 	amdgpu_fb = kzalloc(sizeof(*amdgpu_fb), GFP_KERNEL);

@@ -74,10 +74,9 @@ int hfs_brec_insert(struct hfs_find_data *fd, void *entry, int entry_len)
 	if (!fd->bnode) {
 		if (!tree->root)
 			hfs_btree_inc_height(tree);
-		node = hfs_bnode_find(tree, tree->leaf_head);
-		if (IS_ERR(node))
-			return PTR_ERR(node);
-		fd->bnode = node;
+		fd->bnode = hfs_bnode_find(tree, tree->leaf_head);
+		if (IS_ERR(fd->bnode))
+			return PTR_ERR(fd->bnode);
 		fd->record = -1;
 	}
 	new_node = NULL;
@@ -424,10 +423,6 @@ skip:
 	if (new_node) {
 		__be32 cnid;
 
-		if (!new_node->parent) {
-			hfs_btree_inc_height(tree);
-			new_node->parent = tree->root;
-		}
 		fd->bnode = hfs_bnode_find(tree, new_node->parent);
 		/* create index key and entry */
 		hfs_bnode_read_key(new_node, fd->search_key, 14);

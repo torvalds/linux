@@ -347,17 +347,17 @@ static int stmmac_ethtool_setsettings(struct net_device *dev,
 			ADVERTISED_10baseT_Half |
 			ADVERTISED_10baseT_Full);
 
-		mutex_lock(&priv->lock);
+		spin_lock(&priv->lock);
 		if (priv->hw->mac->ctrl_ane)
 			priv->hw->mac->ctrl_ane(priv->hw, 1);
-		mutex_unlock(&priv->lock);
+		spin_unlock(&priv->lock);
 
 		return 0;
 	}
 
-	mutex_lock(&priv->lock);
+	spin_lock(&priv->lock);
 	rc = phy_ethtool_sset(phy, cmd);
-	mutex_unlock(&priv->lock);
+	spin_unlock(&priv->lock);
 
 	return rc;
 }
@@ -554,12 +554,12 @@ static void stmmac_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	mutex_lock(&priv->lock);
+	spin_lock_irq(&priv->lock);
 	if (device_can_wakeup(priv->device)) {
 		wol->supported = WAKE_MAGIC | WAKE_UCAST;
 		wol->wolopts = priv->wolopts;
 	}
-	mutex_unlock(&priv->lock);
+	spin_unlock_irq(&priv->lock);
 }
 
 static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -588,9 +588,9 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 		disable_irq_wake(priv->wol_irq);
 	}
 
-	mutex_lock(&priv->lock);
+	spin_lock_irq(&priv->lock);
 	priv->wolopts = wol->wolopts;
-	mutex_unlock(&priv->lock);
+	spin_unlock_irq(&priv->lock);
 
 	return 0;
 }

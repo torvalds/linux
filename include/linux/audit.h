@@ -26,7 +26,6 @@
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <uapi/linux/audit.h>
-#include <linux/tty.h>
 
 #define AUDIT_INO_UNSET ((unsigned long)-1)
 #define AUDIT_DEV_UNSET ((dev_t)-1)
@@ -240,23 +239,6 @@ static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 	return tsk->sessionid;
 }
 
-static inline struct tty_struct *audit_get_tty(struct task_struct *tsk)
-{
-	struct tty_struct *tty = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&tsk->sighand->siglock, flags);
-	if (tsk->signal)
-		tty = tty_kref_get(tsk->signal->tty);
-	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
-	return tty;
-}
-
-static inline void audit_put_tty(struct tty_struct *tty)
-{
-	tty_kref_put(tty);
-}
-
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode);
 extern void __audit_bprm(struct linux_binprm *bprm);
@@ -299,20 +281,6 @@ static inline int audit_socketcall(int nargs, unsigned long *args)
 		return __audit_socketcall(nargs, args);
 	return 0;
 }
-
-static inline int audit_socketcall_compat(int nargs, u32 *args)
-{
-	unsigned long a[AUDITSC_ARGS];
-	int i;
-
-	if (audit_dummy_context())
-		return 0;
-
-	for (i = 0; i < nargs; i++)
-		a[i] = (unsigned long)args[i];
-	return __audit_socketcall(nargs, a);
-}
-
 static inline int audit_sockaddr(int len, void *addr)
 {
 	if (unlikely(!audit_dummy_context()))
@@ -428,12 +396,6 @@ static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 {
 	return -1;
 }
-static inline struct tty_struct *audit_get_tty(struct task_struct *tsk)
-{
-	return NULL;
-}
-static inline void audit_put_tty(struct tty_struct *tty)
-{ }
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 { }
 static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid,
@@ -445,12 +407,6 @@ static inline int audit_socketcall(int nargs, unsigned long *args)
 {
 	return 0;
 }
-
-static inline int audit_socketcall_compat(int nargs, u32 *args)
-{
-	return 0;
-}
-
 static inline void audit_fd_pair(int fd1, int fd2)
 { }
 static inline int audit_sockaddr(int len, void *addr)

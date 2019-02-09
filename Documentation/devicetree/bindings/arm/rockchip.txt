@@ -1,10 +1,6 @@
 Rockchip platforms device tree bindings
 ---------------------------------------
 
-- Kylin RK3036 board:
-    Required root node properties:
-      - compatible = "rockchip,kylin-rk3036", "rockchip,rk3036";
-
 - MarsBoard RK3066 board:
     Required root node properties:
       - compatible = "haoyu,marsboard-rk3066", "rockchip,rk3066a";
@@ -38,10 +34,6 @@ Rockchip platforms device tree bindings
 - Netxeon R89 board:
     Required root node properties:
       - compatible = "netxeon,r89", "rockchip,rk3288";
-
-- GeekBuying GeekBox:
-    Required root node properties:
-      - compatible = "geekbuying,geekbox", "rockchip,rk3368";
 
 - Google Jaq (Haier Chromebook 11 and more):
     Required root node properties:
@@ -77,98 +69,6 @@ Rockchip platforms device tree bindings
 		     "google,veyron-speedy-rev3", "google,veyron-speedy-rev2",
 		     "google,veyron-speedy", "google,veyron", "rockchip,rk3288";
 
-- Rockchip PX5 Evaluation board:
-    Required root node properties:
-      - compatible = "rockchip,px5-evb", "rockchip,px5", "rockchip,rk3368";
-
-- Rockchip RK3368 evb:
-    Required root node properties:
-      - compatible = "rockchip,rk3368-evb-act8846", "rockchip,rk3368";
-
 - Rockchip R88 board:
     Required root node properties:
       - compatible = "rockchip,r88", "rockchip,rk3368";
-
-- Rockchip RK3228 Evaluation board:
-    Required root node properties:
-      - compatible = "rockchip,rk3228-evb", "rockchip,rk3228";
-
-- Rockchip RK3229 Evaluation board:
-     - compatible = "rockchip,rk3229-evb", "rockchip,rk3229";
-
-- Rockchip RK3229 Echo board:
-     - compatible = "rockchip,rk3229-echo", "rockchip,rk3229";
-
-- Rockchip RK3288 Fennec board:
-    Required root node properties:
-     - compatible = "rockchip,rk3288-fennec", "rockchip,rk3288";
-
-- Rockchip RK3288 miniarm board:
-    Required root node properties:
-     - compatible = "rockchip,rk3288-miniarm", "rockchip,rk3288";
-
-- Rockchip RK3328 Evaluation board:
-    Required root node properties:
-      - compatible = "rockchip,rk3328-evb", "rockchip,rk3328";
-
-- Rockchip RK3399 evb:
-    Required root node properties:
-      - compatible = "rockchip,rk3399-evb", "rockchip,rk3399";
-
-- Rockchip RK3399 Rock960 version ab board:
-    Required root node properties:
-      - compatible = "rockchip,rock960", "rockchip,rk3399";
-
-- Rockchip RK3399 Excavator Board edp avb (Android):
-    Required root node properties:
-      - compatible = "rockchip,android", "rockchip,rk3399-excavator-edp-avb", "rockchip,rk3399";
-
-- Rockchip RK3399pro evb:
-    Required root node properties:
-      - compatible = "rockchip,rk3399pro-evb-v10", "rockchip,rk3399pro";
-      - compatible = "rockchip,rk3399pro-evb-v10-linux", "rockchip,rk3399pro";
-      - compatible = "rockchip,rk3399pro-evb-v11-linux", "rockchip,rk3399pro";
-
-- Rockchip RK3326 f863 board:
-    Required root node properties:
-      - compatible = "rockchip,rk3326-863-lp3-v10", "rockchip,rk3326";
-
-- Rockchip RK3326 f863 avb board:
-    Required root node properties:
-      - compatible = "rockchip,rk3326-863-lp3-v10-avb", "rockchip,rk3326";
-
-- Rockchip RK3326 86v board:
-    Required root node properties:
-      - compatible = "rockchip,rk3326-86v-v10", "rockchip,rk3326";
-
-- Rockchip RK3326 evb board:
-    Required root node properties:
-      - compatible = "rockchip,rk3326-evb-lp3-v10", "rockchip,rk3326";
-    Or
-      - compatible = "rockchip,rk3326-evb-lp3-v10-linux", "rockchip,rk3326";
-
-- Rockchip RK3326 evb avb board:
-    Required root node properties:
-      - compatible = "rockchip,rk3326-evb-lp3-v10-avb", "rockchip,rk3326";
-
-- Rockchip PX30 evb ddr3 board:
-    Required root node properties:
-      - compatible = "rockchip,px30-evb-ddr3-v10", "rockchip,px30";
-    Or
-      - compatible = "rockchip,px30-evb-ddr3-v10-linux", "rockchip,px30";
-
- - Rockchip PX30 evb ddr3 avb board:
-     Required root node properties:
-       - compatible = "rockchip,px30-evb-ddr3-v10-avb", "rockchip,px30";
-
-- Rockchip PX30 evb ddr4 board:
-    Required root node properties:
-      - compatible = "rockchip,px30-evb-ddr4-v10", "rockchip,px30";
-
-- Rockchip android things full function board:
-    Required root node properties:
-      - compatible = "rockchip,rk3229-at-3nod", "rockchip,rk3229";
-
-- Rockchip android things full function board:
-    Required root node properties:
-      - compatible = "rockchip,rk3229-at-3nod-func", "rockchip,rk3229";

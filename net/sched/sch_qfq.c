@@ -220,10 +220,9 @@ static struct qfq_class *qfq_find_class(struct Qdisc *sch, u32 classid)
 static void qfq_purge_queue(struct qfq_class *cl)
 {
 	unsigned int len = cl->qdisc->q.qlen;
-	unsigned int backlog = cl->qdisc->qstats.backlog;
 
 	qdisc_reset(cl->qdisc);
-	qdisc_tree_reduce_backlog(cl->qdisc, len, backlog);
+	qdisc_tree_decrease_qlen(cl->qdisc, len);
 }
 
 static const struct nla_policy qfq_policy[TCA_QFQ_MAX + 1] = {
@@ -618,7 +617,11 @@ static int qfq_graft_class(struct Qdisc *sch, unsigned long arg,
 			new = &noop_qdisc;
 	}
 
-	*old = qdisc_replace(sch, new, &cl->qdisc);
+	sch_tree_lock(sch);
+	qfq_purge_queue(cl);
+	*old = cl->qdisc;
+	cl->qdisc = new;
+	sch_tree_unlock(sch);
 	return 0;
 }
 

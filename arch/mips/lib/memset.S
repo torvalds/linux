@@ -218,7 +218,7 @@
 1:	PTR_ADDIU	a0, 1			/* fill bytewise */
 	R10KCBARRIER(0(ra))
 	bne		t1, a0, 1b
-	 EX(sb, a1, -1(a0), .Lsmall_fixup\@)
+	sb		a1, -1(a0)
 
 2:	jr		ra			/* done */
 	move		a2, zero
@@ -249,18 +249,13 @@
 	PTR_L		t0, TI_TASK($28)
 	andi		a2, STORMASK
 	LONG_L		t0, THREAD_BUADDR(t0)
-	LONG_ADDU	a2, a0
+	LONG_ADDU	a2, t1
 	jr		ra
 	LONG_SUBU	a2, t0
 
 .Llast_fixup\@:
 	jr		ra
-	 nop
-
-.Lsmall_fixup\@:
-	PTR_SUBU	a2, t1, a0
-	jr		ra
-	 PTR_ADDIU	a2, 1
+	andi		v1, a2, STORMASK
 
 	.endm
 

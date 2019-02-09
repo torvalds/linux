@@ -106,7 +106,7 @@ static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 				    sizeof(tx_ant_cmd), &tx_ant_cmd);
 }
 
-void iwl_free_fw_paging(struct iwl_mvm *mvm)
+static void iwl_free_fw_paging(struct iwl_mvm *mvm)
 {
 	int i;
 
@@ -126,8 +126,6 @@ void iwl_free_fw_paging(struct iwl_mvm *mvm)
 			     get_order(mvm->fw_paging_db[i].fw_paging_size));
 	}
 	kfree(mvm->trans->paging_download_buf);
-	mvm->trans->paging_download_buf = NULL;
-
 	memset(mvm->fw_paging_db, 0, sizeof(mvm->fw_paging_db));
 }
 
@@ -935,8 +933,7 @@ int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 conf_id)
 	}
 
 	mvm->fw_dbg_conf = conf_id;
-
-	return 0;
+	return ret;
 }
 
 static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)

@@ -105,7 +105,7 @@ static int at803x_set_wol(struct phy_device *phydev,
 		mac = (const u8 *) ndev->dev_addr;
 
 		if (!is_valid_ether_addr(mac))
-			return -EINVAL;
+			return -EFAULT;
 
 		for (i = 0; i < 3; i++) {
 			phy_write(phydev, AT803X_MMD_ACCESS_CONTROL,
@@ -281,8 +281,8 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 
 				at803x_context_restore(phydev, &context);
 
-				phydev_dbg(phydev, "%s(): phy was reset\n",
-					   __func__);
+				dev_dbg(&phydev->dev, "%s(): phy was reset\n",
+					__func__);
 				priv->phy_reset = true;
 			}
 		} else {

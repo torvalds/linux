@@ -1377,15 +1377,6 @@ int dlm_mig_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 	if (!dlm_grab(dlm))
 		return -EINVAL;
 
-	if (!dlm_joined(dlm)) {
-		mlog(ML_ERROR, "Domain %s not joined! "
-			  "lockres %.*s, master %u\n",
-			  dlm->name, mres->lockname_len,
-			  mres->lockname, mres->master);
-		dlm_put(dlm);
-		return -EINVAL;
-	}
-
 	BUG_ON(!(mres->flags & (DLM_MRES_RECOVERY|DLM_MRES_MIGRATION)));
 
 	real_master = mres->master;
@@ -2073,6 +2064,7 @@ void dlm_move_lockres_to_recovery_list(struct dlm_ctxt *dlm,
 			dlm_lock_get(lock);
 			if (lock->convert_pending) {
 				/* move converting lock back to granted */
+				BUG_ON(i != DLM_CONVERTING_LIST);
 				mlog(0, "node died with convert pending "
 				     "on %.*s. move back to granted list.\n",
 				     res->lockname.len, res->lockname.name);
@@ -2368,8 +2360,6 @@ static void dlm_do_local_recovery_cleanup(struct dlm_ctxt *dlm, u8 dead_node)
 						break;
 					}
 				}
-				dlm_lockres_clear_refmap_bit(dlm, res,
-						dead_node);
 				spin_unlock(&res->spinlock);
 				continue;
 			}

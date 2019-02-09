@@ -59,7 +59,7 @@ T[] E;
 //  For org and report mode
 //----------------------------------------------------------
 
-@r depends on (org || report)@
+@r@
 type T;
 T[] E;
 position p;
