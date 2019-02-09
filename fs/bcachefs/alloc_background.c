@@ -1535,6 +1535,8 @@ int bch2_fs_allocator_start(struct bch_fs *c)
 		}
 	}
 
+	set_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
+
 	return bch2_alloc_write(c, false, &wrote);
 }
 

@@ -191,6 +191,9 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	 */
 	bch2_journal_flush_all_pins(&c->journal);
 
+	if (!test_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags))
+		goto allocator_not_running;
+
 	do {
 		ret = bch2_alloc_write(c, false, &wrote);
 		if (ret) {
@@ -219,9 +222,11 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 		closure_wait_event(&c->btree_interior_update_wait,
 				   !bch2_btree_interior_updates_nr_pending(c));
 	} while (wrote);
-
+allocator_not_running:
 	for_each_member_device(ca, c, i)
 		bch2_dev_allocator_stop(ca);
+
+	clear_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
 
 	bch2_fs_journal_stop(&c->journal);
 
@@ -348,6 +353,8 @@ const char *bch2_fs_read_write(struct bch_fs *c)
 			percpu_ref_put(&ca->io_ref);
 			goto err;
 		}
+
+	set_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
 
 	err = "error starting btree GC thread";
 	if (bch2_gc_thread_start(c))
