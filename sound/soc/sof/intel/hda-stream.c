@@ -661,4 +661,3 @@ void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 		devm_kfree(sdev->dev, stream);
 	}
 }
-
