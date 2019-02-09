@@ -10,6 +10,7 @@
 #include "hist.h"
 #include "machine.h"
 #include "map.h"
+#include "symbol.h"
 #include "sort.h"
 #include "strlist.h"
 #include "thread.h"

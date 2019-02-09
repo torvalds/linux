@@ -12,6 +12,7 @@
 #include "util/color.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/map.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/debug.h"
@@ -19,6 +20,7 @@
 #include "util/data.h"
 #include "util/auxtrace.h"
 #include "util/jit.h"
+#include "util/symbol.h"
 #include "util/thread.h"
 
 #include <subcmd/parse-options.h>

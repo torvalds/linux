@@ -9,7 +9,8 @@
 #include <linux/list.h>
 #include "cache.h"
 #include <linux/rbtree.h>
-#include "symbol.h"
+#include "map_symbol.h"
+#include "symbol_conf.h"
 #include "string.h"
 #include "callchain.h"
 #include "values.h"

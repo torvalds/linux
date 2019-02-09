@@ -2,9 +2,9 @@
 #ifndef __PERF_HIST_H
 #define __PERF_HIST_H
 
+#include <linux/rbtree.h>
 #include <linux/types.h>
 #include <pthread.h>
-#include "callchain.h"
 #include "evsel.h"
 #include "header.h"
 #include "color.h"
@@ -13,6 +13,9 @@
 struct hist_entry;
 struct hist_entry_ops;
 struct addr_location;
+struct map_symbol;
+struct mem_info;
+struct branch_info;
 struct symbol;
 
 enum hist_filter {
@@ -160,8 +163,10 @@ int hist_entry__snprintf_alignment(struct hist_entry *he, struct perf_hpp *hpp,
 				   struct perf_hpp_fmt *fmt, int printed);
 void hist_entry__delete(struct hist_entry *he);
 
-typedef int (*hists__resort_cb_t)(struct hist_entry *he);
+typedef int (*hists__resort_cb_t)(struct hist_entry *he, void *arg);
 
+void perf_evsel__output_resort_cb(struct perf_evsel *evsel, struct ui_progress *prog,
+				  hists__resort_cb_t cb, void *cb_arg);
 void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *prog);
 void hists__output_resort(struct hists *hists, struct ui_progress *prog);
 void hists__output_resort_cb(struct hists *hists, struct ui_progress *prog,

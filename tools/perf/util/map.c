@@ -557,6 +557,12 @@ void map_groups__init(struct map_groups *mg, struct machine *machine)
 	refcount_set(&mg->refcnt, 1);
 }
 
+void map_groups__insert(struct map_groups *mg, struct map *map)
+{
+	maps__insert(&mg->maps, map);
+	map->groups = mg;
+}
+
 static void __maps__purge(struct maps *maps)
 {
 	struct rb_root *root = &maps->entries;

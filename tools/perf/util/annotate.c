@@ -17,6 +17,7 @@
 #include "color.h"
 #include "config.h"
 #include "cache.h"
+#include "map.h"
 #include "symbol.h"
 #include "units.h"
 #include "debug.h"

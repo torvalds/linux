@@ -10,6 +10,7 @@
 #include "util/perf_regs.h"
 #include "util/session.h"
 #include "util/tool.h"
+#include "util/map.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/trace-event.h"

@@ -2,8 +2,12 @@
 #include <stdio.h>
 #include <linux/string.h>
 
+#include "../../util/callchain.h"
 #include "../../util/util.h"
 #include "../../util/hist.h"
+#include "../../util/map.h"
+#include "../../util/map_groups.h"
+#include "../../util/symbol.h"
 #include "../../util/sort.h"
 #include "../../util/evsel.h"
 #include "../../util/srcline.h"

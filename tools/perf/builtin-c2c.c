@@ -33,6 +33,7 @@
 #include "ui/browsers/hists.h"
 #include "thread.h"
 #include "mem2node.h"
+#include "symbol.h"
 
 struct c2c_hists {
 	struct hists		hists;
@@ -1969,7 +1970,7 @@ static void calc_width(struct c2c_hist_entry *c2c_he)
 	set_nodestr(c2c_he);
 }
 
-static int filter_cb(struct hist_entry *he)
+static int filter_cb(struct hist_entry *he, void *arg __maybe_unused)
 {
 	struct c2c_hist_entry *c2c_he;
 
@@ -1986,7 +1987,7 @@ static int filter_cb(struct hist_entry *he)
 	return 0;
 }
 
-static int resort_cl_cb(struct hist_entry *he)
+static int resort_cl_cb(struct hist_entry *he, void *arg __maybe_unused)
 {
 	struct c2c_hist_entry *c2c_he;
 	struct c2c_hists *c2c_hists;
@@ -2073,7 +2074,7 @@ static int setup_nodes(struct perf_session *session)
 
 #define HAS_HITMS(__h) ((__h)->stats.lcl_hitm || (__h)->stats.rmt_hitm)
 
-static int resort_hitm_cb(struct hist_entry *he)
+static int resort_hitm_cb(struct hist_entry *he, void *arg __maybe_unused)
 {
 	struct c2c_hist_entry *c2c_he;
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
@@ -2095,7 +2096,7 @@ static int hists__iterate_cb(struct hists *hists, hists__resort_cb_t cb)
 		struct hist_entry *he;
 
 		he = rb_entry(next, struct hist_entry, rb_node);
-		ret = cb(he);
+		ret = cb(he, NULL);
 		if (ret)
 			break;
 		next = rb_next(&he->rb_node);

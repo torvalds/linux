@@ -12,6 +12,7 @@
 #include "compress.h"
 #include "namespaces.h"
 #include "path.h"
+#include "map.h"
 #include "symbol.h"
 #include "srcline.h"
 #include "dso.h"

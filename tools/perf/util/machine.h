@@ -4,7 +4,7 @@
 
 #include <sys/types.h>
 #include <linux/rbtree.h>
-#include "map.h"
+#include "map_groups.h"
 #include "dso.h"
 #include "event.h"
 #include "rwsem.h"

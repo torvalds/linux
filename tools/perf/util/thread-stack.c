@@ -38,6 +38,7 @@
  * @cp: call path
  * @no_call: a 'call' was not seen
  * @trace_end: a 'call' but trace ended
+ * @non_call: a branch but not a 'call' to the start of a different symbol
  */
 struct thread_stack_entry {
 	u64 ret_addr;
@@ -47,6 +48,7 @@ struct thread_stack_entry {
 	struct call_path *cp;
 	bool no_call;
 	bool trace_end;
+	bool non_call;
 };
 
 /**
@@ -268,6 +270,8 @@ static int thread_stack__call_return(struct thread *thread,
 		cr.flags |= CALL_RETURN_NO_CALL;
 	if (no_return)
 		cr.flags |= CALL_RETURN_NO_RETURN;
+	if (tse->non_call)
+		cr.flags |= CALL_RETURN_NON_CALL;
 
 	return crp->process(&cr, crp->data);
 }
@@ -493,6 +497,9 @@ static int thread_stack__push_cp(struct thread_stack *ts, u64 ret_addr,
 	struct thread_stack_entry *tse;
 	int err;
 
+	if (!cp)
+		return -ENOMEM;
+
 	if (ts->cnt == ts->sz) {
 		err = thread_stack__grow(ts);
 		if (err)
@@ -507,6 +514,7 @@ static int thread_stack__push_cp(struct thread_stack *ts, u64 ret_addr,
 	tse->cp = cp;
 	tse->no_call = no_call;
 	tse->trace_end = trace_end;
+	tse->non_call = false;
 
 	return 0;
 }
@@ -528,14 +536,16 @@ static int thread_stack__pop_cp(struct thread *thread, struct thread_stack *ts,
 							 timestamp, ref, false);
 	}
 
-	if (ts->stack[ts->cnt - 1].ret_addr == ret_addr) {
+	if (ts->stack[ts->cnt - 1].ret_addr == ret_addr &&
+	    !ts->stack[ts->cnt - 1].non_call) {
 		return thread_stack__call_return(thread, ts, --ts->cnt,
 						 timestamp, ref, false);
 	} else {
 		size_t i = ts->cnt - 1;
 
 		while (i--) {
-			if (ts->stack[i].ret_addr != ret_addr)
+			if (ts->stack[i].ret_addr != ret_addr ||
+			    ts->stack[i].non_call)
 				continue;
 			i += 1;
 			while (ts->cnt > i) {
@@ -576,8 +586,6 @@ static int thread_stack__bottom(struct thread_stack *ts,
 
 	cp = call_path__findnew(cpr, &cpr->call_path, sym, ip,
 				ts->kernel_start);
-	if (!cp)
-		return -ENOMEM;
 
 	return thread_stack__push_cp(ts, ip, sample->time, ref, cp,
 				     true, false);
@@ -590,36 +598,36 @@ static int thread_stack__no_call_return(struct thread *thread,
 					struct addr_location *to_al, u64 ref)
 {
 	struct call_path_root *cpr = ts->crp->cpr;
+	struct call_path *root = &cpr->call_path;
+	struct symbol *fsym = from_al->sym;
+	struct symbol *tsym = to_al->sym;
 	struct call_path *cp, *parent;
 	u64 ks = ts->kernel_start;
+	u64 addr = sample->addr;
+	u64 tm = sample->time;
+	u64 ip = sample->ip;
 	int err;
 
-	if (sample->ip >= ks && sample->addr < ks) {
+	if (ip >= ks && addr < ks) {
 		/* Return to userspace, so pop all kernel addresses */
 		while (thread_stack__in_kernel(ts)) {
 			err = thread_stack__call_return(thread, ts, --ts->cnt,
-							sample->time, ref,
-							true);
+							tm, ref, true);
 			if (err)
 				return err;
 		}
 
 		/* If the stack is empty, push the userspace address */
 		if (!ts->cnt) {
-			cp = call_path__findnew(cpr, &cpr->call_path,
-						to_al->sym, sample->addr,
-						ts->kernel_start);
-			if (!cp)
-				return -ENOMEM;
-			return thread_stack__push_cp(ts, 0, sample->time, ref,
-						     cp, true, false);
+			cp = call_path__findnew(cpr, root, tsym, addr, ks);
+			return thread_stack__push_cp(ts, 0, tm, ref, cp, true,
+						     false);
 		}
-	} else if (thread_stack__in_kernel(ts) && sample->ip < ks) {
+	} else if (thread_stack__in_kernel(ts) && ip < ks) {
 		/* Return to userspace, so pop all kernel addresses */
 		while (thread_stack__in_kernel(ts)) {
 			err = thread_stack__call_return(thread, ts, --ts->cnt,
-							sample->time, ref,
-							true);
+							tm, ref, true);
 			if (err)
 				return err;
 		}
@@ -628,21 +636,16 @@ static int thread_stack__no_call_return(struct thread *thread,
 	if (ts->cnt)
 		parent = ts->stack[ts->cnt - 1].cp;
 	else
-		parent = &cpr->call_path;
+		parent = root;
 
 	/* This 'return' had no 'call', so push and pop top of stack */
-	cp = call_path__findnew(cpr, parent, from_al->sym, sample->ip,
-				ts->kernel_start);
-	if (!cp)
-		return -ENOMEM;
+	cp = call_path__findnew(cpr, parent, fsym, ip, ks);
 
-	err = thread_stack__push_cp(ts, sample->addr, sample->time, ref, cp,
-				    true, false);
+	err = thread_stack__push_cp(ts, addr, tm, ref, cp, true, false);
 	if (err)
 		return err;
 
-	return thread_stack__pop_cp(thread, ts, sample->addr, sample->time, ref,
-				    to_al->sym);
+	return thread_stack__pop_cp(thread, ts, addr, tm, ref, tsym);
 }
 
 static int thread_stack__trace_begin(struct thread *thread,
@@ -680,8 +683,6 @@ static int thread_stack__trace_end(struct thread_stack *ts,
 
 	cp = call_path__findnew(cpr, ts->stack[ts->cnt - 1].cp, NULL, 0,
 				ts->kernel_start);
-	if (!cp)
-		return -ENOMEM;
 
 	ret_addr = sample->ip + sample->insn_len;
 
@@ -745,8 +746,6 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 		cp = call_path__findnew(cpr, ts->stack[ts->cnt - 1].cp,
 					to_al->sym, sample->addr,
 					ts->kernel_start);
-		if (!cp)
-			return -ENOMEM;
 		err = thread_stack__push_cp(ts, ret_addr, sample->time, ref,
 					    cp, false, trace_end);
 	} else if (sample->flags & PERF_IP_FLAG_RETURN) {
@@ -765,6 +764,25 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 		err = thread_stack__trace_begin(thread, ts, sample->time, ref);
 	} else if (sample->flags & PERF_IP_FLAG_TRACE_END) {
 		err = thread_stack__trace_end(ts, sample, ref);
+	} else if (sample->flags & PERF_IP_FLAG_BRANCH &&
+		   from_al->sym != to_al->sym && to_al->sym &&
+		   to_al->addr == to_al->sym->start) {
+		struct call_path_root *cpr = ts->crp->cpr;
+		struct call_path *cp;
+
+		/*
+		 * The compiler might optimize a call/ret combination by making
+		 * it a jmp. Make that visible by recording on the stack a
+		 * branch to the start of a different symbol. Note, that means
+		 * when a ret pops the stack, all jmps must be popped off first.
+		 */
+		cp = call_path__findnew(cpr, ts->stack[ts->cnt - 1].cp,
+					to_al->sym, sample->addr,
+					ts->kernel_start);
+		err = thread_stack__push_cp(ts, 0, sample->time, ref, cp, false,
+					    false);
+		if (!err)
+			ts->stack[ts->cnt - 1].non_call = true;
 	}
 
 	return err;

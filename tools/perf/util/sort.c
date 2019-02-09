@@ -6,6 +6,7 @@
 #include "sort.h"
 #include "hist.h"
 #include "comm.h"
+#include "map.h"
 #include "symbol.h"
 #include "thread.h"
 #include "evsel.h"
@@ -428,19 +429,12 @@ static int hist_entry__sym_ipc_snprintf(struct hist_entry *he, char *bf,
 {
 
 	struct symbol *sym = he->ms.sym;
-	struct map *map = he->ms.map;
-	struct perf_evsel *evsel = hists_to_evsel(he->hists);
 	struct annotation *notes;
 	double ipc = 0.0, coverage = 0.0;
 	char tmp[64];
 
 	if (!sym)
 		return repsep_snprintf(bf, size, "%-*s", width, "-");
-
-	if (!sym->annotate2 && symbol__annotate2(sym, map, evsel,
-		&annotation__default_options, NULL) < 0) {
-		return 0;
-	}
 
 	notes = symbol__annotation(sym);
 

@@ -819,7 +819,7 @@ static int s390_cpumsf_process_queues(struct s390_cpumsf *sf, u64 timestamp)
 }
 
 static int s390_cpumsf_synth_error(struct s390_cpumsf *sf, int code, int cpu,
-				   pid_t pid, pid_t tid, u64 ip)
+				   pid_t pid, pid_t tid, u64 ip, u64 timestamp)
 {
 	char msg[MAX_AUXTRACE_ERROR_MSG];
 	union perf_event event;
@@ -827,7 +827,7 @@ static int s390_cpumsf_synth_error(struct s390_cpumsf *sf, int code, int cpu,
 
 	strncpy(msg, "Lost Auxiliary Trace Buffer", sizeof(msg) - 1);
 	auxtrace_synth_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
-			     code, cpu, pid, tid, ip, msg);
+			     code, cpu, pid, tid, ip, msg, timestamp);
 
 	err = perf_session__deliver_synth_event(sf->session, &event, NULL);
 	if (err)
@@ -839,7 +839,8 @@ static int s390_cpumsf_synth_error(struct s390_cpumsf *sf, int code, int cpu,
 static int s390_cpumsf_lost(struct s390_cpumsf *sf, struct perf_sample *sample)
 {
 	return s390_cpumsf_synth_error(sf, 1, sample->cpu,
-				       sample->pid, sample->tid, 0);
+				       sample->pid, sample->tid, 0,
+				       sample->time);
 }
 
 static int

@@ -8,7 +8,7 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include "xyarray.h"
-#include "symbol.h"
+#include "symbol_conf.h"
 #include "cpumap.h"
 #include "counts.h"
 

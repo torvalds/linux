@@ -13,6 +13,7 @@
 #include <subcmd/parse-options.h>
 #include "debug.h"
 #include "machine.h"
+#include "map.h"
 #include "symbol.h"
 
 static int __cmd_kallsyms(int argc, const char **argv)
