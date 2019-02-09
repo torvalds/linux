@@ -91,7 +91,7 @@
 
 #define PCIE_CLK_GEN_EN			BIT(31)
 #define PCIE_CLK_GEN_DIS		0
-#define PCIE_CLK_GEN1_DIS		GENMASK(30,24)
+#define PCIE_CLK_GEN1_DIS		GENMASK(30, 24)
 #define PCIE_CLK_GEN1_EN		(BIT(27) | BIT(25))
 #define RALINK_PCI_IO_MAP_BASE		0x1e160000
 #define MEMORY_BASE			0x0
@@ -529,7 +529,7 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 {
 	u32 pcie_link_status = 0;
-	u32 val= 0;
+	u32 val = 0;
 	struct mt7621_pcie_port *port;
 
 	list_for_each_entry(port, &pcie->ports, list) {
