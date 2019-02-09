@@ -42,6 +42,7 @@ static int wilco_ec_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct wilco_ec_device *ec;
+	int ret;
 
 	ec = devm_kzalloc(dev, sizeof(*ec), GFP_KERNEL);
 	if (!ec)
@@ -78,13 +79,30 @@ static int wilco_ec_probe(struct platform_device *pdev)
 							 PLATFORM_DEVID_AUTO,
 							 NULL, 0);
 
+	/* Register a child device that will be found by the RTC driver. */
+	ec->rtc_pdev = platform_device_register_data(dev, "rtc-wilco-ec",
+						     PLATFORM_DEVID_AUTO,
+						     NULL, 0);
+	if (IS_ERR(ec->rtc_pdev)) {
+		dev_err(dev, "Failed to create RTC platform device\n");
+		ret = PTR_ERR(ec->rtc_pdev);
+		goto unregister_debugfs;
+	}
+
 	return 0;
+
+unregister_debugfs:
+	if (ec->debugfs_pdev)
+		platform_device_unregister(ec->debugfs_pdev);
+	cros_ec_lpc_mec_destroy();
+	return ret;
 }
 
 static int wilco_ec_remove(struct platform_device *pdev)
 {
 	struct wilco_ec_device *ec = platform_get_drvdata(pdev);
 
+	platform_device_unregister(ec->rtc_pdev);
 	if (ec->debugfs_pdev)
 		platform_device_unregister(ec->debugfs_pdev);
 

@@ -1814,4 +1814,15 @@ config RTC_DRV_GOLDFISH
 	  Goldfish is a code name for the virtual platform developed by Google
 	  for Android emulation.
 
+config RTC_DRV_WILCO_EC
+	tristate "Wilco EC RTC"
+	depends on WILCO_EC
+	default m
+	help
+	  If you say yes here, you get read/write support for the Real Time
+	  Clock on the Wilco Embedded Controller (Wilco is a kind of Chromebook)
+
+	  This can also be built as a module. If so, the module will
+	  be named "rtc_wilco_ec".
+
 endif # RTC_CLASS

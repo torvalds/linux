@@ -35,6 +35,7 @@
  *               is used to hold the request and the response.
  * @data_size: Size of the data buffer used for EC communication.
  * @debugfs_pdev: The child platform_device used by the debugfs sub-driver.
+ * @rtc_pdev: The child platform_device used by the RTC sub-driver.
  */
 struct wilco_ec_device {
 	struct device *dev;
@@ -45,6 +46,7 @@ struct wilco_ec_device {
 	void *data_buffer;
 	size_t data_size;
 	struct platform_device *debugfs_pdev;
+	struct platform_device *rtc_pdev;
 };
 
 /**
