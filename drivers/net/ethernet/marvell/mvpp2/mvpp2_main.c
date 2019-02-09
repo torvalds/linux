@@ -1377,13 +1377,9 @@ static void mvpp2_port_reset(struct mvpp2_port *port)
 	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
 		mvpp2_read_count(port, &mvpp2_ethtool_regs[i]);
 
-	val = readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
-		    ~MVPP2_GMAC_PORT_RESET_MASK;
+	val = readl(port->base + MVPP2_GMAC_CTRL_2_REG) |
+	      MVPP2_GMAC_PORT_RESET_MASK;
 	writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
-
-	while (readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
-	       MVPP2_GMAC_PORT_RESET_MASK)
-		continue;
 }
 
 /* Change maximum receive size of the port */
@@ -4501,17 +4497,12 @@ static int mvpp2_phylink_mac_link_state(struct net_device *dev,
 static void mvpp2_mac_an_restart(struct net_device *dev)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
-	u32 val;
+	u32 val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 
-	if (port->phy_interface != PHY_INTERFACE_MODE_SGMII)
-		return;
-
-	val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-	/* The RESTART_AN bit is cleared by the h/w after restarting the AN
-	 * process.
-	 */
-	val |= MVPP2_GMAC_IN_BAND_RESTART_AN | MVPP2_GMAC_IN_BAND_AUTONEG;
-	writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	writel(val | MVPP2_GMAC_IN_BAND_RESTART_AN,
+	       port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	writel(val & ~MVPP2_GMAC_IN_BAND_RESTART_AN,
+	       port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 }
 
 static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
@@ -4538,83 +4529,130 @@ static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 			      const struct phylink_link_state *state)
 {
-	u32 an, ctrl0, ctrl2, ctrl4;
+	u32 old_an, an;
+	u32 old_ctrl0, ctrl0;
+	u32 old_ctrl2, ctrl2;
+	u32 old_ctrl4, ctrl4;
 
-	an = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-	ctrl0 = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
-	ctrl2 = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
-	ctrl4 = readl(port->base + MVPP22_GMAC_CTRL_4_REG);
-
-	/* Force link down */
-	an &= ~MVPP2_GMAC_FORCE_LINK_PASS;
-	an |= MVPP2_GMAC_FORCE_LINK_DOWN;
-	writel(an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-
-	/* Set the GMAC in a reset state */
-	ctrl2 |= MVPP2_GMAC_PORT_RESET_MASK;
-	writel(ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
+	old_an = an = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	old_ctrl0 = ctrl0 = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
+	old_ctrl2 = ctrl2 = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
+	old_ctrl4 = ctrl4 = readl(port->base + MVPP22_GMAC_CTRL_4_REG);
 
 	an &= ~(MVPP2_GMAC_CONFIG_MII_SPEED | MVPP2_GMAC_CONFIG_GMII_SPEED |
 		MVPP2_GMAC_AN_SPEED_EN | MVPP2_GMAC_FC_ADV_EN |
 		MVPP2_GMAC_FC_ADV_ASM_EN | MVPP2_GMAC_FLOW_CTRL_AUTONEG |
 		MVPP2_GMAC_CONFIG_FULL_DUPLEX | MVPP2_GMAC_AN_DUPLEX_EN |
-		MVPP2_GMAC_FORCE_LINK_DOWN);
+		MVPP2_GMAC_IN_BAND_AUTONEG | MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS);
 	ctrl0 &= ~MVPP2_GMAC_PORT_TYPE_MASK;
-	ctrl2 &= ~(MVPP2_GMAC_PORT_RESET_MASK | MVPP2_GMAC_PCS_ENABLE_MASK);
+	ctrl2 &= ~(MVPP2_GMAC_INBAND_AN_MASK | MVPP2_GMAC_PORT_RESET_MASK |
+		   MVPP2_GMAC_PCS_ENABLE_MASK);
+	ctrl4 &= ~(MVPP22_CTRL4_RX_FC_EN | MVPP22_CTRL4_TX_FC_EN);
 
+	/* Configure port type */
 	if (phy_interface_mode_is_8023z(state->interface)) {
-		/* 1000BaseX and 2500BaseX ports cannot negotiate speed nor can
-		 * they negotiate duplex: they are always operating with a fixed
-		 * speed of 1000/2500Mbps in full duplex, so force 1000/2500
-		 * speed and full duplex here.
-		 */
-		ctrl0 |= MVPP2_GMAC_PORT_TYPE_MASK;
-		an |= MVPP2_GMAC_CONFIG_GMII_SPEED |
-		      MVPP2_GMAC_CONFIG_FULL_DUPLEX;
-	} else if (!phy_interface_mode_is_rgmii(state->interface)) {
-		an |= MVPP2_GMAC_AN_SPEED_EN | MVPP2_GMAC_FLOW_CTRL_AUTONEG;
-	}
-
-	if (state->duplex)
-		an |= MVPP2_GMAC_CONFIG_FULL_DUPLEX;
-	if (phylink_test(state->advertising, Pause))
-		an |= MVPP2_GMAC_FC_ADV_EN;
-	if (phylink_test(state->advertising, Asym_Pause))
-		an |= MVPP2_GMAC_FC_ADV_ASM_EN;
-
-	if (phy_interface_mode_is_8023z(state->interface) ||
-	    state->interface == PHY_INTERFACE_MODE_SGMII) {
-		an |= MVPP2_GMAC_IN_BAND_AUTONEG;
-		ctrl2 |= MVPP2_GMAC_INBAND_AN_MASK | MVPP2_GMAC_PCS_ENABLE_MASK;
-
-		ctrl4 &= ~(MVPP22_CTRL4_EXT_PIN_GMII_SEL |
-			   MVPP22_CTRL4_RX_FC_EN | MVPP22_CTRL4_TX_FC_EN);
+		ctrl2 |= MVPP2_GMAC_PCS_ENABLE_MASK;
+		ctrl4 &= ~MVPP22_CTRL4_EXT_PIN_GMII_SEL;
 		ctrl4 |= MVPP22_CTRL4_SYNC_BYPASS_DIS |
 			 MVPP22_CTRL4_DP_CLK_SEL |
 			 MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE;
-
-		if (state->pause & MLO_PAUSE_TX)
-			ctrl4 |= MVPP22_CTRL4_TX_FC_EN;
-		if (state->pause & MLO_PAUSE_RX)
-			ctrl4 |= MVPP22_CTRL4_RX_FC_EN;
+	} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
+		ctrl2 |= MVPP2_GMAC_PCS_ENABLE_MASK | MVPP2_GMAC_INBAND_AN_MASK;
+		ctrl4 &= ~MVPP22_CTRL4_EXT_PIN_GMII_SEL;
+		ctrl4 |= MVPP22_CTRL4_SYNC_BYPASS_DIS |
+			 MVPP22_CTRL4_DP_CLK_SEL |
+			 MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE;
 	} else if (phy_interface_mode_is_rgmii(state->interface)) {
-		an |= MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS;
-
-		if (state->speed == SPEED_1000)
-			an |= MVPP2_GMAC_CONFIG_GMII_SPEED;
-		else if (state->speed == SPEED_100)
-			an |= MVPP2_GMAC_CONFIG_MII_SPEED;
-
 		ctrl4 &= ~MVPP22_CTRL4_DP_CLK_SEL;
 		ctrl4 |= MVPP22_CTRL4_EXT_PIN_GMII_SEL |
 			 MVPP22_CTRL4_SYNC_BYPASS_DIS |
 			 MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE;
 	}
 
-	writel(ctrl0, port->base + MVPP2_GMAC_CTRL_0_REG);
-	writel(ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
-	writel(ctrl4, port->base + MVPP22_GMAC_CTRL_4_REG);
-	writel(an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	/* Configure advertisement bits */
+	if (phylink_test(state->advertising, Pause))
+		an |= MVPP2_GMAC_FC_ADV_EN;
+	if (phylink_test(state->advertising, Asym_Pause))
+		an |= MVPP2_GMAC_FC_ADV_ASM_EN;
+
+	/* Configure negotiation style */
+	if (!phylink_autoneg_inband(mode)) {
+		/* Phy or fixed speed - no in-band AN */
+		if (state->duplex)
+			an |= MVPP2_GMAC_CONFIG_FULL_DUPLEX;
+
+		if (state->speed == SPEED_1000 || state->speed == SPEED_2500)
+			an |= MVPP2_GMAC_CONFIG_GMII_SPEED;
+		else if (state->speed == SPEED_100)
+			an |= MVPP2_GMAC_CONFIG_MII_SPEED;
+
+		if (state->pause & MLO_PAUSE_TX)
+			ctrl4 |= MVPP22_CTRL4_TX_FC_EN;
+		if (state->pause & MLO_PAUSE_RX)
+			ctrl4 |= MVPP22_CTRL4_RX_FC_EN;
+	} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
+		/* SGMII in-band mode receives the speed and duplex from
+		 * the PHY. Flow control information is not received. */
+		an &= ~(MVPP2_GMAC_FORCE_LINK_DOWN | MVPP2_GMAC_FORCE_LINK_PASS);
+		an |= MVPP2_GMAC_IN_BAND_AUTONEG |
+		      MVPP2_GMAC_AN_SPEED_EN |
+		      MVPP2_GMAC_AN_DUPLEX_EN;
+
+		if (state->pause & MLO_PAUSE_TX)
+			ctrl4 |= MVPP22_CTRL4_TX_FC_EN;
+		if (state->pause & MLO_PAUSE_RX)
+			ctrl4 |= MVPP22_CTRL4_RX_FC_EN;
+	} else if (phy_interface_mode_is_8023z(state->interface)) {
+		/* 1000BaseX and 2500BaseX ports cannot negotiate speed nor can
+		 * they negotiate duplex: they are always operating with a fixed
+		 * speed of 1000/2500Mbps in full duplex, so force 1000/2500
+		 * speed and full duplex here.
+		 */
+		ctrl0 |= MVPP2_GMAC_PORT_TYPE_MASK;
+		an &= ~(MVPP2_GMAC_FORCE_LINK_DOWN | MVPP2_GMAC_FORCE_LINK_PASS);
+		an |= MVPP2_GMAC_IN_BAND_AUTONEG |
+		      MVPP2_GMAC_CONFIG_GMII_SPEED |
+		      MVPP2_GMAC_CONFIG_FULL_DUPLEX;
+
+		if (state->pause & MLO_PAUSE_AN && state->an_enabled) {
+			an |= MVPP2_GMAC_FLOW_CTRL_AUTONEG;
+		} else {
+			if (state->pause & MLO_PAUSE_TX)
+				ctrl4 |= MVPP22_CTRL4_TX_FC_EN;
+			if (state->pause & MLO_PAUSE_RX)
+				ctrl4 |= MVPP22_CTRL4_RX_FC_EN;
+		}
+	}
+
+	if ((old_ctrl0 ^ ctrl0) & MVPP2_GMAC_PORT_TYPE_MASK ||
+	    (old_ctrl2 ^ ctrl2) & MVPP2_GMAC_INBAND_AN_MASK ||
+	    (old_an ^ an) & MVPP2_GMAC_IN_BAND_AUTONEG) {
+		/* Force link down */
+		old_an &= ~MVPP2_GMAC_FORCE_LINK_PASS;
+		old_an |= MVPP2_GMAC_FORCE_LINK_DOWN;
+		writel(old_an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+
+		/* Set the GMAC in a reset state - do this in a way that
+		 * ensures we clear it below.
+		 */
+		old_ctrl2 |= MVPP2_GMAC_PORT_RESET_MASK;
+		writel(old_ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
+	}
+
+	if (old_ctrl0 != ctrl0)
+		writel(ctrl0, port->base + MVPP2_GMAC_CTRL_0_REG);
+	if (old_ctrl2 != ctrl2)
+		writel(ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
+	if (old_ctrl4 != ctrl4)
+		writel(ctrl4, port->base + MVPP22_GMAC_CTRL_4_REG);
+	if (old_an != an)
+		writel(an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+
+	if (old_ctrl2 & MVPP2_GMAC_PORT_RESET_MASK) {
+		while (readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
+		       MVPP2_GMAC_PORT_RESET_MASK)
+			continue;
+	}
 }
 
 static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
@@ -4670,8 +4708,7 @@ static void mvpp2_mac_link_up(struct net_device *dev, unsigned int mode,
 	    interface != PHY_INTERFACE_MODE_10GKR) {
 		val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 		val &= ~MVPP2_GMAC_FORCE_LINK_DOWN;
-		if (phy_interface_mode_is_rgmii(interface))
-			val |= MVPP2_GMAC_FORCE_LINK_PASS;
+		val |= MVPP2_GMAC_FORCE_LINK_PASS;
 		writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 	}
 
