@@ -12,6 +12,8 @@
 #include "../../fs/internal.h"
 #include <linux/medusa/l3/registry.h>
 
+#define sock_security(sk) (*(struct medusa_l1_socket_s*)(sk->sk_security))
+
 struct socket_kobject {
 	dev_t dev;
 	unsigned long ino;

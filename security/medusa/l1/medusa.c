@@ -62,9 +62,11 @@
 #include <linux/medusa/l1/file_handlers.h>
 #include <linux/medusa/l1/task.h>
 #include <linux/medusa/l1/process_handlers.h>
+#include <linux/medusa/l1/socket.h>
 #include "../l2/kobject_process.h"
 #include "../l2/kobject_file.h"
 #include "../l2/kobject_fuck.h"
+#include "../l2/kobject_socket.h"
 #include "../l0/init_medusa.h"
 #include "../../../ipc/util.h"
 
@@ -931,15 +933,34 @@ static int medusa_l1_socket_getpeersec_dgram(struct socket *sock,
 
 static int medusa_l1_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
+	sk->sk_security = (struct medusa_l1_socket_s*) kmalloc(sizeof(struct medusa_l1_socket_s), GFP_KERNEL);
+
+	if (!sk->sk_security) {
+		return -1;
+	}
+
 	return 0;
 }
 
 static void medusa_l1_sk_free_security(struct sock *sk)
 {
+	struct medusa_l1_socket_s *med;
+
+	if (sk->sk_security != NULL) {
+		med = sk->sk_security;
+		sk->sk_security = NULL;
+		kfree(med);
+	}
 }
 
 static void medusa_l1_sk_clone_security(const struct sock *sk, struct sock *newsk)
 {
+	struct medusa_l1_socket_s *sk_sec = sk->sk_security;
+	struct medusa_l1_socket_s *newsk_sec = newsk->sk_security;
+
+	newsk_sec = (struct medusa_l1_socket_s*) kmalloc(sizeof(struct medusa_l1_socket_s), GFP_KERNEL);
+	newsk_sec->addrlen = 0;
+	COPY_MEDUSA_OBJECT_VARS(newsk_sec, sk_sec);
 }
 
 static void medusa_l1_sk_getsecid(struct sock *sk, u32 *secid)
