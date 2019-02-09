@@ -676,13 +676,13 @@ static int get_phy_c45_devs_in_pkg(struct mii_bus *bus, int addr, int dev_addr,
 	phy_reg = mdiobus_read(bus, addr, reg_addr);
 	if (phy_reg < 0)
 		return -EIO;
-	*devices_in_package = (phy_reg & 0xffff) << 16;
+	*devices_in_package = phy_reg << 16;
 
 	reg_addr = MII_ADDR_C45 | dev_addr << 16 | MDIO_DEVS1;
 	phy_reg = mdiobus_read(bus, addr, reg_addr);
 	if (phy_reg < 0)
 		return -EIO;
-	*devices_in_package |= (phy_reg & 0xffff);
+	*devices_in_package |= phy_reg;
 
 	/* Bit 0 doesn't represent a device, it indicates c22 regs presence */
 	*devices_in_package &= ~BIT(0);
@@ -746,13 +746,13 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
 		phy_reg = mdiobus_read(bus, addr, reg_addr);
 		if (phy_reg < 0)
 			return -EIO;
-		c45_ids->device_ids[i] = (phy_reg & 0xffff) << 16;
+		c45_ids->device_ids[i] = phy_reg << 16;
 
 		reg_addr = MII_ADDR_C45 | i << 16 | MII_PHYSID2;
 		phy_reg = mdiobus_read(bus, addr, reg_addr);
 		if (phy_reg < 0)
 			return -EIO;
-		c45_ids->device_ids[i] |= (phy_reg & 0xffff);
+		c45_ids->device_ids[i] |= phy_reg;
 	}
 	*phy_id = 0;
 	return 0;
@@ -789,14 +789,14 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 		return (phy_reg == -EIO || phy_reg == -ENODEV) ? -ENODEV : -EIO;
 	}
 
-	*phy_id = (phy_reg & 0xffff) << 16;
+	*phy_id = phy_reg << 16;
 
 	/* Grab the bits from PHYIR2, and put them in the lower half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID2);
 	if (phy_reg < 0)
 		return -EIO;
 
-	*phy_id |= (phy_reg & 0xffff);
+	*phy_id |= phy_reg;
 
 	return 0;
 }
