@@ -11312,10 +11312,12 @@ F:	include/dt-bindings/
 
 OPENCORES I2C BUS DRIVER
 M:	Peter Korsgaard <peter@korsgaard.com>
+M:	Andrew Lunn <andrew@lunn.ch>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	Documentation/i2c/busses/i2c-ocores
 F:	drivers/i2c/busses/i2c-ocores.c
+F:	include/linux/platform_data/i2c-ocores.h
 
 OPENRISC ARCHITECTURE
 M:	Jonas Bonn <jonas@southpole.se>
