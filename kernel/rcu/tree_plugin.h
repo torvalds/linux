@@ -1,27 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Read-Copy Update mechanism for mutual exclusion (tree-based version)
  * Internal non-public definitions that provide either classic
  * or preemptible semantics.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright Red Hat, 2009
  * Copyright IBM Corporation, 2009
  *
  * Author: Ingo Molnar <mingo@elte.hu>
- *	   Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+ *	   Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
 #include <linux/delay.h>
@@ -297,7 +284,7 @@ static void rcu_qs(void)
 				       __this_cpu_read(rcu_data.gp_seq),
 				       TPS("cpuqs"));
 		__this_cpu_write(rcu_data.cpu_no_qs.b.norm, false);
-		barrier(); /* Coordinate with rcu_flavor_check_callbacks(). */
+		barrier(); /* Coordinate with rcu_flavor_sched_clock_irq(). */
 		current->rcu_read_unlock_special.b.need_qs = false;
 	}
 }
@@ -778,13 +765,13 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 }
 
 /*
- * Check for a quiescent state from the current CPU.  When a task blocks,
- * the task is recorded in the corresponding CPU's rcu_node structure,
- * which is checked elsewhere.
- *
- * Caller must disable hard irqs.
+ * Check for a quiescent state from the current CPU, including voluntary
+ * context switches for Tasks RCU.  When a task blocks, the task is
+ * recorded in the corresponding CPU's rcu_node structure, which is checked
+ * elsewhere, hence this function need only check for quiescent states
+ * related to the current CPU, not to those related to tasks.
  */
-static void rcu_flavor_check_callbacks(int user)
+static void rcu_flavor_sched_clock_irq(int user)
 {
 	struct task_struct *t = current;
 
@@ -1030,14 +1017,10 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 }
 
 /*
- * Check to see if this CPU is in a non-context-switch quiescent state
- * (user mode or idle loop for rcu, non-softirq execution for rcu_bh).
- * Also schedule RCU core processing.
- *
- * This function must be called from hardirq context.  It is normally
- * invoked from the scheduling-clock interrupt.
+ * Check to see if this CPU is in a non-context-switch quiescent state,
+ * namely user mode and idle loop.
  */
-static void rcu_flavor_check_callbacks(int user)
+static void rcu_flavor_sched_clock_irq(int user)
 {
 	if (user || rcu_is_cpu_rrupt_from_idle()) {
 
