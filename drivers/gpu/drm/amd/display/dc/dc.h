@@ -183,6 +183,7 @@ struct dc_config {
 	bool disable_disp_pll_sharing;
 	bool fbc_support;
 	bool optimize_edp_link_rate;
+	bool allow_seamless_boot_optimization;
 };
 
 enum visual_confirm {
@@ -328,7 +329,11 @@ struct dc {
 	struct hw_sequencer_funcs hwss;
 	struct dce_hwseq *hwseq;
 
+	/* Require to optimize clocks and bandwidth for added/removed planes */
 	bool optimized_required;
+
+	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
+	bool optimize_seamless_boot;
 
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
@@ -625,7 +630,7 @@ struct dc_validation_set {
 	uint8_t plane_count;
 };
 
-bool dc_validate_seamless_boot_timing(struct dc *dc,
+bool dc_validate_seamless_boot_timing(const struct dc *dc,
 				const struct dc_sink *sink,
 				struct dc_crtc_timing *crtc_timing);
 

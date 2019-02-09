@@ -971,7 +971,7 @@ static bool context_changed(
 	return false;
 }
 
-bool dc_validate_seamless_boot_timing(struct dc *dc,
+bool dc_validate_seamless_boot_timing(const struct dc *dc,
 				const struct dc_sink *sink,
 				struct dc_crtc_timing *crtc_timing)
 {
@@ -1062,7 +1062,13 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc, context);
 
-	dc->hwss.prepare_bandwidth(dc, context);
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->apply_seamless_boot_optimization)
+			dc->optimize_seamless_boot = true;
+	}
+
+	if (!dc->optimize_seamless_boot)
+		dc->hwss.prepare_bandwidth(dc, context);
 
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
@@ -1137,8 +1143,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
-	/* pplib is notified if disp_num changed */
-	dc->hwss.optimize_bandwidth(dc, context);
+	if (!dc->optimize_seamless_boot)
+		/* pplib is notified if disp_num changed */
+		dc->hwss.optimize_bandwidth(dc, context);
 
 	for (i = 0; i < context->stream_count; i++)
 		context->streams[i]->mode_changed = false;
@@ -1181,7 +1188,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	int i;
 	struct dc_state *context = dc->current_state;
 
-	if (dc->optimized_required == false)
+	if (!dc->optimized_required || dc->optimize_seamless_boot)
 		return true;
 
 	post_surface_trace(dc);
@@ -1699,7 +1706,16 @@ static void commit_planes_for_stream(struct dc *dc,
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
 
-	if (update_type == UPDATE_TYPE_FULL) {
+	if (dc->optimize_seamless_boot && surface_count > 0) {
+		/* Optimize seamless boot flag keeps clocks and watermarks high until
+		 * first flip. After first flip, optimization is required to lower
+		 * bandwidth.
+		 */
+		dc->optimize_seamless_boot = false;
+		dc->optimized_required = true;
+	}
+
+	if (update_type == UPDATE_TYPE_FULL && !dc->optimize_seamless_boot) {
 		dc->hwss.prepare_bandwidth(dc, context);
 		context_clock_trace(dc, context);
 	}

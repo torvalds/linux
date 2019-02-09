@@ -1858,6 +1858,7 @@ enum dc_status resource_map_pool_resources(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct pipe_ctx *pipe_ctx = NULL;
 	int pipe_idx = -1;
+	struct dc_bios *dcb = dc->ctx->dc_bios;
 
 	/* TODO Check if this is needed */
 	/*if (!resource_is_stream_unchanged(old_context, stream)) {
@@ -1871,6 +1872,13 @@ enum dc_status resource_map_pool_resources(
 	*/
 
 	calculate_phy_pix_clks(stream);
+
+	/* TODO: Check Linux */
+	if (dc->config.allow_seamless_boot_optimization &&
+			!dcb->funcs->is_accelerated_mode(dcb)) {
+		if (dc_validate_seamless_boot_timing(dc, stream->sink, &stream->timing))
+			stream->apply_seamless_boot_optimization = true;
+	}
 
 	if (stream->apply_seamless_boot_optimization)
 		pipe_idx = acquire_resource_from_hw_enabled_state(
