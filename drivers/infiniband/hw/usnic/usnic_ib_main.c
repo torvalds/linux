@@ -216,18 +216,17 @@ static int usnic_ib_netdevice_event(struct notifier_block *notifier,
 					unsigned long event, void *ptr)
 {
 	struct usnic_ib_dev *us_ibdev;
+	struct ib_device *ibdev;
 
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 
-	mutex_lock(&usnic_ib_ibdev_list_lock);
-	list_for_each_entry(us_ibdev, &usnic_ib_ibdev_list, ib_dev_link) {
-		if (us_ibdev->netdev == netdev) {
-			usnic_ib_handle_usdev_event(us_ibdev, event);
-			break;
-		}
-	}
-	mutex_unlock(&usnic_ib_ibdev_list_lock);
+	ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_USNIC);
+	if (!ibdev)
+		return NOTIFY_DONE;
 
+	us_ibdev = container_of(ibdev, struct usnic_ib_dev, ib_dev);
+	usnic_ib_handle_usdev_event(us_ibdev, event);
+	ib_device_put(ibdev);
 	return NOTIFY_DONE;
 }
 
@@ -282,16 +281,15 @@ static int usnic_ib_inetaddr_event(struct notifier_block *notifier,
 	struct usnic_ib_dev *us_ibdev;
 	struct in_ifaddr *ifa = ptr;
 	struct net_device *netdev = ifa->ifa_dev->dev;
+	struct ib_device *ibdev;
 
-	mutex_lock(&usnic_ib_ibdev_list_lock);
-	list_for_each_entry(us_ibdev, &usnic_ib_ibdev_list, ib_dev_link) {
-		if (us_ibdev->netdev == netdev) {
-			usnic_ib_handle_inet_event(us_ibdev, event, ptr);
-			break;
-		}
-	}
-	mutex_unlock(&usnic_ib_ibdev_list_lock);
+	ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_USNIC);
+	if (!ibdev)
+		return NOTIFY_DONE;
 
+	us_ibdev = container_of(ibdev, struct usnic_ib_dev, ib_dev);
+	usnic_ib_handle_inet_event(us_ibdev, event, ptr);
+	ib_device_put(ibdev);
 	return NOTIFY_DONE;
 }
 static struct notifier_block usnic_ib_inetaddr_notifier = {
@@ -342,7 +340,6 @@ static const struct ib_device_ops usnic_dev_ops = {
 	.destroy_qp = usnic_ib_destroy_qp,
 	.get_dev_fw_str = usnic_get_dev_fw_str,
 	.get_link_layer = usnic_ib_port_link_layer,
-	.get_netdev = usnic_get_netdev,
 	.get_port_immutable = usnic_port_immutable,
 	.mmap = usnic_ib_mmap,
 	.modify_qp = usnic_ib_modify_qp,
@@ -362,6 +359,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	union ib_gid gid;
 	struct in_device *ind;
 	struct net_device *netdev;
+	int ret;
 
 	usnic_dbg("\n");
 	netdev = pci_get_drvdata(dev);
@@ -415,6 +413,10 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 
 	us_ibdev->ib_dev.driver_id = RDMA_DRIVER_USNIC;
 	rdma_set_device_sysfs_group(&us_ibdev->ib_dev, &usnic_attr_group);
+
+	ret = ib_device_set_netdev(&us_ibdev->ib_dev, us_ibdev->netdev, 1);
+	if (ret)
+		goto err_fwd_dealloc;
 
 	if (ib_register_device(&us_ibdev->ib_dev, "usnic_%d"))
 		goto err_fwd_dealloc;
