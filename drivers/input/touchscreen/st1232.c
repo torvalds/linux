@@ -11,13 +11,12 @@
  */
 
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -45,7 +44,7 @@ struct st1232_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	struct dev_pm_qos_request low_latency_req;
-	int reset_gpio;
+	struct gpio_desc *reset_gpio;
 	const struct st_chip_info *chip_info;
 	int read_buf_len;
 	u8 *read_buf;
@@ -142,8 +141,8 @@ end:
 
 static void st1232_ts_power(struct st1232_ts_data *ts, bool poweron)
 {
-	if (gpio_is_valid(ts->reset_gpio))
-		gpio_direction_output(ts->reset_gpio, poweron);
+	if (ts->reset_gpio)
+		gpiod_set_value_cansleep(ts->reset_gpio, !poweron);
 }
 
 static const struct st_chip_info st1232_chip_info = {
@@ -215,15 +214,13 @@ static int st1232_ts_probe(struct i2c_client *client,
 	ts->client = client;
 	ts->input_dev = input_dev;
 
-	ts->reset_gpio = of_get_gpio(client->dev.of_node, 0);
-	if (gpio_is_valid(ts->reset_gpio)) {
-		error = devm_gpio_request(&client->dev, ts->reset_gpio, NULL);
-		if (error) {
-			dev_err(&client->dev,
-				"Unable to request GPIO pin %d.\n",
-				ts->reset_gpio);
-				return error;
-		}
+	ts->reset_gpio = devm_gpiod_get_optional(&client->dev, NULL,
+						 GPIOD_OUT_HIGH);
+	if (IS_ERR(ts->reset_gpio)) {
+		error = PTR_ERR(ts->reset_gpio);
+		dev_err(&client->dev, "Unable to request GPIO pin: %d.\n",
+			error);
+		return error;
 	}
 
 	st1232_ts_power(ts, true);
