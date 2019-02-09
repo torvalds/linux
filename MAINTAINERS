@@ -5186,7 +5186,7 @@ DRM DRIVERS FOR XEN
 M:	Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 L:	dri-devel@lists.freedesktop.org
-L:	xen-devel@lists.xen.org
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/gpu/drm/xen/
 F:	Documentation/gpu/xen-front.rst
