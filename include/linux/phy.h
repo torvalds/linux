@@ -502,6 +502,12 @@ struct phy_driver {
 	 */
 	int (*probe)(struct phy_device *phydev);
 
+	/*
+	 * Probe the hardware to determine what abilities it has.
+	 * Should only set phydev->supported.
+	 */
+	int (*get_features)(struct phy_device *phydev);
+
 	/* PHY Power Management */
 	int (*suspend)(struct phy_device *phydev);
 	int (*resume)(struct phy_device *phydev);
