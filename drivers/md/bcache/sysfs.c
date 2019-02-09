@@ -821,7 +821,9 @@ STORE(__bch_cache_set)
 		}
 	}
 
-	sysfs_strtoul(journal_delay_ms,		c->journal_delay_ms);
+	sysfs_strtoul_clamp(journal_delay_ms,
+			    c->journal_delay_ms,
+			    0, USHRT_MAX);
 	sysfs_strtoul_bool(verify,		c->verify);
 	sysfs_strtoul_bool(key_merging_disabled, c->key_merging_disabled);
 	sysfs_strtoul(expensive_debug_checks,	c->expensive_debug_checks);
