@@ -94,6 +94,7 @@ EXPORT_SYMBOL(sof_skl_ops);
 const struct sof_intel_dsp_desc skl_chip_info = {
 	/* Apollolake */
 	.cores_num = 2,
+	.init_core_mask = 1,
 	.cores_mask = HDA_DSP_CORE_MASK(0) | HDA_DSP_CORE_MASK(1),
 	.ipc_req = HDA_DSP_REG_HIPCI,
 	.ipc_req_mask = HDA_DSP_REG_HIPCI_BUSY,

@@ -40,6 +40,11 @@ static inline int snd_sof_remove(struct snd_sof_dev *sdev)
 }
 
 /* control */
+
+/*
+ * snd_sof_dsp_run returns the core mask of the cores that are available
+ * after successful fw boot
+ */
 static inline int snd_sof_dsp_run(struct snd_sof_dev *sdev)
 {
 	if (sof_ops(sdev)->run)

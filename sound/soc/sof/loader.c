@@ -301,6 +301,7 @@ EXPORT_SYMBOL(snd_sof_load_firmware);
 int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 {
 	int ret;
+	int init_core_mask;
 
 	init_waitqueue_head(&sdev->boot_wait);
 	sdev->boot_complete = false;
@@ -333,6 +334,8 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
+	init_core_mask = ret;
+
 	/* now wait for the DSP to boot */
 	ret = wait_event_timeout(sdev->boot_wait, sdev->boot_complete,
 				 msecs_to_jiffies(sdev->boot_timeout));
@@ -351,6 +354,9 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "error: failed post fw run op\n");
 		return ret;
 	}
+
+	/* fw boot is complete. Update the active cores mask */
+	sdev->enabled_cores_mask = init_core_mask;
 
 	return 0;
 }

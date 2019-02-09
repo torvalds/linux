@@ -155,6 +155,7 @@
 struct sof_intel_dsp_desc {
 	int cores_num;
 	int cores_mask;
+	int init_core_mask; /* cores available after fw boot */
 	int ipc_req;
 	int ipc_req_mask;
 	int ipc_ack;

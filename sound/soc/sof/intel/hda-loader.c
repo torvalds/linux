@@ -248,9 +248,13 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
+	const struct sof_dev_desc *desc = plat_data->desc;
+	const struct sof_intel_dsp_desc *chip_info;
 	struct hdac_ext_stream *stream;
 	struct firmware stripped_firmware;
 	int ret, ret1, tag, i;
+
+	chip_info = (struct sof_intel_dsp_desc *)desc->chip_info;
 
 	stripped_firmware.data = plat_data->fw->data;
 	stripped_firmware.size = plat_data->fw->size;
@@ -329,9 +333,12 @@ cleanup:
 		ret = ret1;
 	}
 
-	/* return if both copying fw and stream clean up are successful */
+	/*
+	 * return master core id if both fw copy
+	 * and stream clean up are successful
+	 */
 	if (!ret)
-		return ret;
+		return chip_info->init_core_mask;
 
 	/* dump dsp registers and disable DSP upon error */
 err:

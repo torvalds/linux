@@ -256,6 +256,7 @@ EXPORT_SYMBOL(sof_cnl_ops);
 const struct sof_intel_dsp_desc cnl_chip_info = {
 	/* Cannonlake */
 	.cores_num = 4,
+	.init_core_mask = 1,
 	.cores_mask = HDA_DSP_CORE_MASK(0) |
 				HDA_DSP_CORE_MASK(1) |
 				HDA_DSP_CORE_MASK(2) |

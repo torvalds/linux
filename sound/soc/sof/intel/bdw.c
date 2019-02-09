@@ -84,7 +84,8 @@ static int bdw_run(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR, SHIM_CSR,
 					 SHIM_CSR_STALL, 0x0);
 
-	return 0;
+	/* return init core mask */
+	return 1;
 }
 
 static int bdw_reset(struct snd_sof_dev *sdev)

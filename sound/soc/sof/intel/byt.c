@@ -463,7 +463,8 @@ static int byt_run(struct snd_sof_dev *sdev)
 		return -ENODEV;
 	}
 
-	return 0;
+	/* return init core mask */
+	return 1;
 }
 
 static int byt_reset(struct snd_sof_dev *sdev)
