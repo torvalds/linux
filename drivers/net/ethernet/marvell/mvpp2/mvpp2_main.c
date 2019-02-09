@@ -4515,8 +4515,13 @@ static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 
 	if (state->pause & MLO_PAUSE_TX)
 		ctrl0 |= MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN;
+	else
+		ctrl0 &= ~MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN;
+
 	if (state->pause & MLO_PAUSE_RX)
 		ctrl0 |= MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN;
+	else
+		ctrl0 &= ~MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN;
 
 	ctrl4 &= ~MVPP22_XLG_CTRL4_MACMODSELECT_GMAC;
 	ctrl4 |= MVPP22_XLG_CTRL4_FWD_FC | MVPP22_XLG_CTRL4_FWD_PFC |
