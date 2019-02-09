@@ -156,4 +156,3 @@ source "sound/soc/sof/intel/Kconfig"
 source "sound/soc/sof/xtensa/Kconfig"
 
 endif
-
