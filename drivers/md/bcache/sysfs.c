@@ -277,9 +277,9 @@ STORE(__cached_dev)
 
 	sysfs_strtoul(data_csum,	dc->disk.data_csum);
 	d_strtoul(verify);
-	d_strtoul(bypass_torture_test);
-	d_strtoul(writeback_metadata);
-	d_strtoul(writeback_running);
+	sysfs_strtoul_bool(bypass_torture_test, dc->bypass_torture_test);
+	sysfs_strtoul_bool(writeback_metadata, dc->writeback_metadata);
+	sysfs_strtoul_bool(writeback_running, dc->writeback_running);
 	d_strtoul(writeback_delay);
 
 	sysfs_strtoul_clamp(writeback_percent, dc->writeback_percent,
@@ -816,12 +816,12 @@ STORE(__bch_cache_set)
 	}
 
 	sysfs_strtoul(journal_delay_ms,		c->journal_delay_ms);
-	sysfs_strtoul(verify,			c->verify);
-	sysfs_strtoul(key_merging_disabled,	c->key_merging_disabled);
+	sysfs_strtoul_bool(verify,		c->verify);
+	sysfs_strtoul_bool(key_merging_disabled, c->key_merging_disabled);
 	sysfs_strtoul(expensive_debug_checks,	c->expensive_debug_checks);
-	sysfs_strtoul(gc_always_rewrite,	c->gc_always_rewrite);
-	sysfs_strtoul(btree_shrinker_disabled,	c->shrinker_disabled);
-	sysfs_strtoul(copy_gc_enabled,		c->copy_gc_enabled);
+	sysfs_strtoul_bool(gc_always_rewrite,	c->gc_always_rewrite);
+	sysfs_strtoul_bool(btree_shrinker_disabled, c->shrinker_disabled);
+	sysfs_strtoul_bool(copy_gc_enabled,	c->copy_gc_enabled);
 	/*
 	 * write gc_after_writeback here may overwrite an already set
 	 * BCH_DO_AUTO_GC, it doesn't matter because this flag will be
