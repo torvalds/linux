@@ -210,7 +210,7 @@ static int sps30_do_meas(struct sps30_state *state, s32 *data, int size)
 		msleep_interruptible(300);
 	}
 
-	if (!tries)
+	if (tries == -1)
 		return -ETIMEDOUT;
 
 	ret = sps30_do_cmd(state, SPS30_READ_DATA, tmp, sizeof(int) * size);
