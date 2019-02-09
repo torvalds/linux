@@ -199,8 +199,7 @@ static int msm_vibrator_probe(struct platform_device *pdev)
 	vibrator->base = devm_ioremap(&pdev->dev, res->start,
 				     resource_size(res));
 	if (!vibrator->base) {
-		dev_err(&pdev->dev, "Failed to iomap resource: %ld\n",
-			PTR_ERR(vibrator->base));
+		dev_err(&pdev->dev, "Failed to iomap resource.\n");
 		return -ENOMEM;
 	}
 
