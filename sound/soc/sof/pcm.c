@@ -708,4 +708,3 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	 /* do not increase the refcount in core */
 	pd->ignore_module_refcount = 1;
 }
-
