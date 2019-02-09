@@ -79,6 +79,16 @@ do {									\
 		return strtoul_safe(buf, var) ?: (ssize_t) size;	\
 } while (0)
 
+#define sysfs_strtoul_bool(file, var)					\
+do {									\
+	if (attr == &sysfs_ ## file) {					\
+		unsigned long v = strtoul_or_return(buf);		\
+									\
+		var = v ? 1 : 0;					\
+		return size;						\
+	}								\
+} while (0)
+
 #define sysfs_strtoul_clamp(file, var, min, max)			\
 do {									\
 	if (attr == &sysfs_ ## file) {					\
