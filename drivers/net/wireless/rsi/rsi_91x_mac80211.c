@@ -286,7 +286,7 @@ static void rsi_mac80211_cancel_hw_scan(struct ieee80211_hw *hw,
 			common->bgscan_en = false;
 		info.aborted = false;
 		ieee80211_scan_completed(adapter->hw, &info);
-		rsi_dbg(INFO_ZONE, "Back ground scan cancelled\b\n");
+		rsi_dbg(INFO_ZONE, "Back ground scan cancelled\n");
 	}
 	common->hwscan = NULL;
 	mutex_unlock(&common->mutex);
