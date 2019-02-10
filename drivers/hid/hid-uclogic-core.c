@@ -37,6 +37,8 @@ struct uclogic_drvdata {
 	struct input_dev *pen_input;
 	/* In-range timer */
 	struct timer_list inrange_timer;
+	/* Last rotary encoder state, or U8_MAX for none */
+	u8 re_state;
 };
 
 /**
@@ -175,6 +177,7 @@ static int uclogic_probe(struct hid_device *hdev,
 		goto failure;
 	}
 	timer_setup(&drvdata->inrange_timer, uclogic_inrange_timeout, 0);
+	drvdata->re_state = U8_MAX;
 	hid_set_drvdata(hdev, drvdata);
 
 	/* Initialize the device and retrieve interface parameters */
@@ -307,6 +310,32 @@ static int uclogic_raw_event(struct hid_device *hdev,
 		if (params->frame.dev_id_byte > 0 &&
 		    params->frame.dev_id_byte < size) {
 			data[params->frame.dev_id_byte] = 0xf;
+		}
+		/* If need to, and can, read rotary encoder state change */
+		if (params->frame.re_lsb > 0 &&
+		    params->frame.re_lsb / 8 < size) {
+			unsigned int byte = params->frame.re_lsb / 8;
+			unsigned int bit = params->frame.re_lsb % 8;
+
+			u8 change;
+			u8 prev_state = drvdata->re_state;
+			/* Read Gray-coded state */
+			u8 state = (data[byte] >> bit) & 0x3;
+			/* Encode state change into 2-bit signed integer */
+			if ((prev_state == 1 && state == 0) ||
+			    (prev_state == 2 && state == 3)) {
+				change = 1;
+			} else if ((prev_state == 2 && state == 0) ||
+				   (prev_state == 1 && state == 3)) {
+				change = 3;
+			} else {
+				change = 0;
+			}
+			/* Write change */
+			data[byte] = (data[byte] & ~((u8)3 << bit)) |
+					(change << bit);
+			/* Remember state */
+			drvdata->re_state = state;
 		}
 	}
 

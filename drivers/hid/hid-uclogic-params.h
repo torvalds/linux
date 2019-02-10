@@ -88,6 +88,12 @@ struct uclogic_params_frame {
 	 */
 	unsigned int id;
 	/*
+	 * Number of the least-significant bit of the 2-bit state of a rotary
+	 * encoder, in the report. Cannot point to a 2-bit field crossing a
+	 * byte boundary. Zero if not present. Only valid if "id" is not zero.
+	 */
+	unsigned int re_lsb;
+	/*
 	 * Offset of the Wacom-style device ID byte in the report, to be set
 	 * to pad device ID (0xf), for compatibility with Wacom drivers. Zero
 	 * if no changes to the report should be made. Only valid if "id" is
@@ -168,6 +174,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		".frame.desc_ptr = %p\n"            \
 		".frame.desc_size = %u\n"           \
 		".frame.id = %u\n"                  \
+		".frame.re_lsb = %u\n"              \
 		".frame.dev_id_byte = %u\n"         \
 		".pen_frame_flag = 0x%02x\n"
 
@@ -185,6 +192,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		(_params)->frame.desc_ptr,                                  \
 		(_params)->frame.desc_size,                                 \
 		(_params)->frame.id,                                        \
+		(_params)->frame.re_lsb,                                    \
 		(_params)->frame.dev_id_byte,                               \
 		(_params)->pen_frame_flag
 
