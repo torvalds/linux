@@ -232,6 +232,151 @@ cleanup:
 }
 
 /**
+ * uclogic_params_get_le24() - get a 24-bit little-endian number from a
+ * buffer.
+ *
+ * @p:	The pointer to the number buffer.
+ *
+ * Returns:
+ *	The retrieved number
+ */
+static s32 uclogic_params_get_le24(const void *p)
+{
+	const __u8 *b = p;
+	return b[0] | (b[1] << 8UL) | (b[2] << 16UL);
+}
+
+/**
+ * uclogic_params_pen_init_v2() - initialize tablet interface pen
+ * input and retrieve its parameters from the device, using v2 protocol.
+ *
+ * @pen:	Pointer to the pen parameters to initialize (to be
+ *		cleaned up with uclogic_params_pen_cleanup()). Not modified in
+ *		case of error, or if parameters are not found. Cannot be NULL.
+ * @pfound:	Location for a flag which is set to true if the parameters
+ *		were found, and to false if not (e.g. device was
+ *		incompatible). Not modified in case of error. Cannot be NULL.
+ * @hdev:	The HID device of the tablet interface to initialize and get
+ *		parameters from. Cannot be NULL.
+ *
+ * Returns:
+ *	Zero, if successful. A negative errno code on error.
+ */
+static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
+					bool *pfound,
+					struct hid_device *hdev)
+{
+	int rc;
+	bool found = false;
+	/* Buffer for (part of) the string descriptor */
+	__u8 *buf = NULL;
+	/* Descriptor length required */
+	const int len = 18;
+	s32 resolution;
+	/* Pen report descriptor template parameters */
+	s32 desc_params[UCLOGIC_RDESC_PEN_PH_ID_NUM];
+	__u8 *desc_ptr = NULL;
+
+	/* Check arguments */
+	if (pen == NULL || pfound == NULL || hdev == NULL) {
+		rc = -EINVAL;
+		goto cleanup;
+	}
+
+	/*
+	 * Read string descriptor containing pen input parameters.
+	 * The specific string descriptor and data were discovered by sniffing
+	 * the Windows driver traffic.
+	 * NOTE: This enables fully-functional tablet mode.
+	 */
+	rc = uclogic_params_get_str_desc(&buf, hdev, 200, len);
+	if (rc == -EPIPE) {
+		hid_dbg(hdev,
+			"string descriptor with pen parameters not found, assuming not compatible\n");
+		goto finish;
+	} else if (rc < 0) {
+		hid_err(hdev, "failed retrieving pen parameters: %d\n", rc);
+		goto cleanup;
+	} else if (rc != len) {
+		hid_dbg(hdev,
+			"string descriptor with pen parameters has invalid length (got %d, expected %d), assuming not compatible\n",
+			rc, len);
+		goto finish;
+	} else {
+		size_t i;
+		/*
+		 * Check it's not just a catch-all UTF-16LE-encoded ASCII
+		 * string (such as the model name) some tablets put into all
+		 * unknown string descriptors.
+		 */
+		for (i = 2;
+		     i < len &&
+			(buf[i] >= 0x20 && buf[i] < 0x7f && buf[i + 1] == 0);
+		     i += 2);
+		if (i >= len) {
+			hid_dbg(hdev,
+				"string descriptor with pen parameters seems to contain only text, assuming not compatible\n");
+			goto finish;
+		}
+	}
+
+	/*
+	 * Fill report descriptor parameters from the string descriptor
+	 */
+	desc_params[UCLOGIC_RDESC_PEN_PH_ID_X_LM] =
+		uclogic_params_get_le24(buf + 2);
+	desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_LM] =
+		uclogic_params_get_le24(buf + 5);
+	desc_params[UCLOGIC_RDESC_PEN_PH_ID_PRESSURE_LM] =
+		get_unaligned_le16(buf + 8);
+	resolution = get_unaligned_le16(buf + 10);
+	if (resolution == 0) {
+		desc_params[UCLOGIC_RDESC_PEN_PH_ID_X_PM] = 0;
+		desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_PM] = 0;
+	} else {
+		desc_params[UCLOGIC_RDESC_PEN_PH_ID_X_PM] =
+			desc_params[UCLOGIC_RDESC_PEN_PH_ID_X_LM] * 1000 /
+			resolution;
+		desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_PM] =
+			desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_LM] * 1000 /
+			resolution;
+	}
+	kfree(buf);
+	buf = NULL;
+
+	/*
+	 * Generate pen report descriptor
+	 */
+	desc_ptr = uclogic_rdesc_template_apply(
+				uclogic_rdesc_pen_v2_template_arr,
+				uclogic_rdesc_pen_v2_template_size,
+				desc_params, ARRAY_SIZE(desc_params));
+	if (desc_ptr == NULL) {
+		rc = -ENOMEM;
+		goto cleanup;
+	}
+
+	/*
+	 * Fill-in the parameters
+	 */
+	memset(pen, 0, sizeof(*pen));
+	pen->desc_ptr = desc_ptr;
+	desc_ptr = NULL;
+	pen->desc_size = uclogic_rdesc_pen_v2_template_size;
+	pen->id = UCLOGIC_RDESC_PEN_V2_ID;
+	pen->inrange = UCLOGIC_PARAMS_PEN_INRANGE_NONE;
+	pen->fragmented_hires = true;
+	found = true;
+finish:
+	*pfound = found;
+	rc = 0;
+cleanup:
+	kfree(desc_ptr);
+	kfree(buf);
+	return rc;
+}
+
+/**
  * uclogic_params_frame_cleanup - free resources used by struct
  * uclogic_params_frame (tablet interface's frame controls input parameters).
  * Can be called repeatedly.
@@ -560,11 +705,15 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 				     struct hid_device *hdev)
 {
 	int rc;
+	struct usb_device *udev = hid_to_usb_dev(hdev);
 	struct usb_interface *iface = to_usb_interface(hdev->dev.parent);
 	__u8 bInterfaceNumber = iface->cur_altsetting->desc.bInterfaceNumber;
 	bool found;
 	/* The resulting parameters (noop) */
 	struct uclogic_params p = {0, };
+	static const char transition_ver[] = "HUION_T153_160607";
+	char *ver_ptr = NULL;
+	const size_t ver_len = sizeof(transition_ver) + 1;
 
 	/* Check arguments */
 	if (params == NULL || hdev == NULL) {
@@ -577,6 +726,57 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 		/* TODO: Consider marking the interface invalid */
 		uclogic_params_init_with_pen_unused(&p);
 		goto output;
+	}
+
+	/* Try to get firmware version */
+	ver_ptr = kzalloc(ver_len, GFP_KERNEL);
+	if (ver_ptr == NULL) {
+		rc = -ENOMEM;
+		goto cleanup;
+	}
+	rc = usb_string(udev, 201, ver_ptr, ver_len);
+	if (ver_ptr == NULL) {
+		rc = -ENOMEM;
+		goto cleanup;
+	}
+	if (rc == -EPIPE) {
+		*ver_ptr = '\0';
+	} else if (rc < 0) {
+		hid_err(hdev,
+			"failed retrieving Huion firmware version: %d\n", rc);
+		goto cleanup;
+	}
+
+	/* If this is a transition firmware */
+	if (strcmp(ver_ptr, transition_ver) == 0) {
+		hid_dbg(hdev,
+			"transition firmware detected, not probing pen v2 parameters\n");
+	} else {
+		/* Try to probe v2 pen parameters */
+		rc = uclogic_params_pen_init_v2(&p.pen, &found, hdev);
+		if (rc != 0) {
+			hid_err(hdev,
+				"failed probing pen v2 parameters: %d\n", rc);
+			goto cleanup;
+		} else if (found) {
+			hid_dbg(hdev, "pen v2 parameters found\n");
+			/* Create v2 buttonpad parameters */
+			rc = uclogic_params_frame_init_with_desc(
+					&p.frame,
+					uclogic_rdesc_buttonpad_v2_arr,
+					uclogic_rdesc_buttonpad_v2_size,
+					UCLOGIC_RDESC_BUTTONPAD_V2_ID);
+			if (rc != 0) {
+				hid_err(hdev,
+					"failed creating v2 buttonpad parameters: %d\n",
+					rc);
+				goto cleanup;
+			}
+			/* Set bitmask marking frame reports in pen reports */
+			p.pen_frame_flag = 0x20;
+			goto output;
+		}
+		hid_dbg(hdev, "pen v2 parameters not found\n");
 	}
 
 	/* Try to probe v1 pen parameters */
@@ -613,6 +813,7 @@ output:
 	memset(&p, 0, sizeof(p));
 	rc = 0;
 cleanup:
+	kfree(ver_ptr);
 	uclogic_params_cleanup(&p);
 	return rc;
 }
