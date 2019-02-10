@@ -864,7 +864,7 @@ static int tcf_ife_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_ife_ops = {
 	.kind = "ife",
-	.type = TCA_ACT_IFE,
+	.id = TCA_ID_IFE,
 	.owner = THIS_MODULE,
 	.act = tcf_ife_act,
 	.dump = tcf_ife_dump,

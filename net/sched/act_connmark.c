@@ -204,7 +204,7 @@ static int tcf_connmark_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_connmark_ops = {
 	.kind		=	"connmark",
-	.type		=	TCA_ACT_CONNMARK,
+	.id		=	TCA_ID_CONNMARK,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_connmark_act,
 	.dump		=	tcf_connmark_dump,
