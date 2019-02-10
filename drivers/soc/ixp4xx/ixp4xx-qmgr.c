@@ -450,9 +450,17 @@ static int ixp4xx_qmgr_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ixp4xx_qmgr_of_match[] = {
+	{
+		.compatible = "intel,ixp4xx-ahb-queue-manager",
+        },
+	{},
+};
+
 static struct platform_driver ixp4xx_qmgr_driver = {
 	.driver = {
 		.name           = "ixp4xx-qmgr",
+		.of_match_table = of_match_ptr(ixp4xx_qmgr_of_match),
 	},
 	.probe = ixp4xx_qmgr_probe,
 	.remove = ixp4xx_qmgr_remove,
