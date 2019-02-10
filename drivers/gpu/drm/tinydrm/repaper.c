@@ -860,28 +860,28 @@ static const uint32_t repaper_formats[] = {
 };
 
 static const struct drm_display_mode repaper_e1144cs021_mode = {
-	TINYDRM_MODE(128, 96, 29, 22),
+	DRM_SIMPLE_MODE(128, 96, 29, 22),
 };
 
 static const u8 repaper_e1144cs021_cs[] = { 0x00, 0x00, 0x00, 0x00,
 					    0x00, 0x0f, 0xff, 0x00 };
 
 static const struct drm_display_mode repaper_e1190cs021_mode = {
-	TINYDRM_MODE(144, 128, 36, 32),
+	DRM_SIMPLE_MODE(144, 128, 36, 32),
 };
 
 static const u8 repaper_e1190cs021_cs[] = { 0x00, 0x00, 0x00, 0x03,
 					    0xfc, 0x00, 0x00, 0xff };
 
 static const struct drm_display_mode repaper_e2200cs021_mode = {
-	TINYDRM_MODE(200, 96, 46, 22),
+	DRM_SIMPLE_MODE(200, 96, 46, 22),
 };
 
 static const u8 repaper_e2200cs021_cs[] = { 0x00, 0x00, 0x00, 0x00,
 					    0x01, 0xff, 0xe0, 0x00 };
 
 static const struct drm_display_mode repaper_e2271cs021_mode = {
-	TINYDRM_MODE(264, 176, 57, 38),
+	DRM_SIMPLE_MODE(264, 176, 57, 38),
 };
 
 static const u8 repaper_e2271cs021_cs[] = { 0x00, 0x00, 0x00, 0x7f,

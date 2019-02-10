@@ -111,7 +111,7 @@ static const struct drm_simple_display_pipe_funcs jd_t18003_t01_pipe_funcs = {
 };
 
 static const struct drm_display_mode jd_t18003_t01_mode = {
-	TINYDRM_MODE(128, 160, 28, 35),
+	DRM_SIMPLE_MODE(128, 160, 28, 35),
 };
 
 DEFINE_DRM_GEM_CMA_FOPS(st7735r_fops);

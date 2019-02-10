@@ -35,29 +35,6 @@ pipe_to_tinydrm(struct drm_simple_display_pipe *pipe)
 	return container_of(pipe, struct tinydrm_device, pipe);
 }
 
-/**
- * TINYDRM_MODE - tinydrm display mode
- * @hd: Horizontal resolution, width
- * @vd: Vertical resolution, height
- * @hd_mm: Display width in millimeters
- * @vd_mm: Display height in millimeters
- *
- * This macro creates a &drm_display_mode for use with tinydrm.
- */
-#define TINYDRM_MODE(hd, vd, hd_mm, vd_mm) \
-	.hdisplay = (hd), \
-	.hsync_start = (hd), \
-	.hsync_end = (hd), \
-	.htotal = (hd), \
-	.vdisplay = (vd), \
-	.vsync_start = (vd), \
-	.vsync_end = (vd), \
-	.vtotal = (vd), \
-	.width_mm = (hd_mm), \
-	.height_mm = (vd_mm), \
-	.type = DRM_MODE_TYPE_DRIVER, \
-	.clock = 1 /* pass validation */
-
 int devm_tinydrm_init(struct device *parent, struct tinydrm_device *tdev,
 		      struct drm_driver *driver);
 int devm_tinydrm_register(struct tinydrm_device *tdev);

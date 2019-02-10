@@ -332,7 +332,7 @@ static const struct drm_simple_display_pipe_funcs ili9225_pipe_funcs = {
 };
 
 static const struct drm_display_mode ili9225_mode = {
-	TINYDRM_MODE(176, 220, 35, 44),
+	DRM_SIMPLE_MODE(176, 220, 35, 44),
 };
 
 DEFINE_DRM_GEM_CMA_FOPS(ili9225_fops);

@@ -145,7 +145,7 @@ static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
 };
 
 static const struct drm_display_mode mi0283qt_mode = {
-	TINYDRM_MODE(320, 240, 58, 43),
+	DRM_SIMPLE_MODE(320, 240, 58, 43),
 };
 
 DEFINE_DRM_GEM_CMA_FOPS(mi0283qt_fops);
