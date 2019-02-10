@@ -118,37 +118,37 @@ void dot11d_update_country(struct rtllib_device *dev, u8 *pTaddr,
 			    u16 CoutryIeLen, u8 *pCoutryIe)
 {
 	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(dev);
-	u8 i, j, NumTriples, MaxChnlNum;
-	struct chnl_txpow_triple *pTriple;
+	u8 i, j, number_of_triples, max_channel_number;
+	struct chnl_txpow_triple *triple;
 
 	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
 	memset(dot11d_info->max_tx_power_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
-	MaxChnlNum = 0;
-	NumTriples = (CoutryIeLen - 3) / 3;
-	pTriple = (struct chnl_txpow_triple *)(pCoutryIe + 3);
-	for (i = 0; i < NumTriples; i++) {
-		if (MaxChnlNum >= pTriple->first_channel) {
+	max_channel_number = 0;
+	number_of_triples = (CoutryIeLen - 3) / 3;
+	triple = (struct chnl_txpow_triple *)(pCoutryIe + 3);
+	for (i = 0; i < number_of_triples; i++) {
+		if (max_channel_number >= triple->first_channel) {
 			netdev_info(dev->dev,
 				    "%s: Invalid country IE, skip it......1\n",
 				    __func__);
 			return;
 		}
-		if (MAX_CHANNEL_NUMBER < (pTriple->first_channel +
-		    pTriple->num_channels)) {
+		if (MAX_CHANNEL_NUMBER < (triple->first_channel +
+		    triple->num_channels)) {
 			netdev_info(dev->dev,
 				    "%s: Invalid country IE, skip it......2\n",
 				    __func__);
 			return;
 		}
 
-		for (j = 0; j < pTriple->num_channels; j++) {
-			dot11d_info->channel_map[pTriple->first_channel + j] = 1;
-			dot11d_info->max_tx_power_list[pTriple->first_channel + j] =
-						 pTriple->max_tx_power;
-			MaxChnlNum = pTriple->first_channel + j;
+		for (j = 0; j < triple->num_channels; j++) {
+			dot11d_info->channel_map[triple->first_channel + j] = 1;
+			dot11d_info->max_tx_power_list[triple->first_channel + j] =
+						 triple->max_tx_power;
+			max_channel_number = triple->first_channel + j;
 		}
 
-		pTriple = (struct chnl_txpow_triple *)((u8 *)pTriple + 3);
+		triple = (struct chnl_txpow_triple *)((u8 *)triple + 3);
 	}
 
 	UPDATE_CIE_SRC(dev, pTaddr);
