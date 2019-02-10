@@ -117,8 +117,8 @@ static void uclogic_params_pen_cleanup(struct uclogic_params_pen *pen)
 }
 
 /**
- * uclogic_params_pen_init() - initialize tablet interface pen
- * input and retrieve its parameters from the device.
+ * uclogic_params_pen_init_v1() - initialize tablet interface pen
+ * input and retrieve its parameters from the device, using v1 protocol.
  *
  * @pen:	Pointer to the pen parameters to initialize (to be
  *		cleaned up with uclogic_params_pen_cleanup()). Not modified in
@@ -132,9 +132,9 @@ static void uclogic_params_pen_cleanup(struct uclogic_params_pen *pen)
  * Returns:
  *	Zero, if successful. A negative errno code on error.
  */
-static int uclogic_params_pen_init(struct uclogic_params_pen *pen,
-				   bool *pfound,
-				   struct hid_device *hdev)
+static int uclogic_params_pen_init_v1(struct uclogic_params_pen *pen,
+				      bool *pfound,
+				      struct hid_device *hdev)
 {
 	int rc;
 	bool found = false;
@@ -202,8 +202,8 @@ static int uclogic_params_pen_init(struct uclogic_params_pen *pen,
 	 * Generate pen report descriptor
 	 */
 	desc_ptr = uclogic_rdesc_template_apply(
-				uclogic_rdesc_pen_template_arr,
-				uclogic_rdesc_pen_template_size,
+				uclogic_rdesc_pen_v1_template_arr,
+				uclogic_rdesc_pen_v1_template_size,
 				desc_params, ARRAY_SIZE(desc_params));
 	if (desc_ptr == NULL) {
 		rc = -ENOMEM;
@@ -216,8 +216,8 @@ static int uclogic_params_pen_init(struct uclogic_params_pen *pen,
 	memset(pen, 0, sizeof(*pen));
 	pen->desc_ptr = desc_ptr;
 	desc_ptr = NULL;
-	pen->desc_size = uclogic_rdesc_pen_template_size;
-	pen->id = UCLOGIC_RDESC_PEN_ID;
+	pen->desc_size = uclogic_rdesc_pen_v1_template_size;
+	pen->id = UCLOGIC_RDESC_PEN_V1_ID;
 	pen->inrange = UCLOGIC_PARAMS_PEN_INRANGE_INVERTED;
 	found = true;
 finish:
@@ -280,8 +280,8 @@ static int uclogic_params_frame_init_with_desc(
 }
 
 /**
- * uclogic_params_frame_init_buttonpad() - initialize abstract buttonpad
- * on a tablet interface.
+ * uclogic_params_frame_init_v1_buttonpad() - initialize abstract buttonpad
+ * on a v1 tablet interface.
  *
  * @frame:	Pointer to the frame parameters to initialize (to be cleaned
  *		up with uclogic_params_frame_cleanup()). Not modified in case
@@ -295,7 +295,7 @@ static int uclogic_params_frame_init_with_desc(
  * Returns:
  *	Zero, if successful. A negative errno code on error.
  */
-static int uclogic_params_frame_init_buttonpad(
+static int uclogic_params_frame_init_v1_buttonpad(
 					struct uclogic_params_frame *frame,
 					bool *pfound,
 					struct hid_device *hdev)
@@ -335,9 +335,9 @@ static int uclogic_params_frame_init_buttonpad(
 		hid_dbg(hdev, "generic buttons enabled\n");
 		rc = uclogic_params_frame_init_with_desc(
 				frame,
-				uclogic_rdesc_buttonpad_arr,
-				uclogic_rdesc_buttonpad_size,
-				UCLOGIC_RDESC_BUTTONPAD_ID);
+				uclogic_rdesc_buttonpad_v1_arr,
+				uclogic_rdesc_buttonpad_v1_size,
+				UCLOGIC_RDESC_BUTTONPAD_V1_ID);
 		if (rc != 0)
 			goto cleanup;
 		found = true;
@@ -577,23 +577,23 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 		goto output;
 	}
 
-	/* Try to probe pen parameters */
-	rc = uclogic_params_pen_init(&p.pen, &found, hdev);
+	/* Try to probe v1 pen parameters */
+	rc = uclogic_params_pen_init_v1(&p.pen, &found, hdev);
 	if (rc != 0) {
 		hid_err(hdev,
-			"failed probing pen parameters: %d\n", rc);
+			"failed probing pen v1 parameters: %d\n", rc);
 		goto cleanup;
 	} else if (found) {
-		hid_dbg(hdev, "pen parameters found\n");
-		/* Try to probe buttonpad */
-		rc = uclogic_params_frame_init_buttonpad(
+		hid_dbg(hdev, "pen v1 parameters found\n");
+		/* Try to probe v1 buttonpad */
+		rc = uclogic_params_frame_init_v1_buttonpad(
 						&p.frame,
 						&found, hdev);
 		if (rc != 0) {
 			hid_err(hdev, "v1 buttonpad probing failed: %d\n", rc);
 			goto cleanup;
 		}
-		hid_dbg(hdev, "buttonpad parameters%s found\n",
+		hid_dbg(hdev, "buttonpad v1 parameters%s found\n",
 			(found ? "" : " not"));
 		if (found) {
 			/* Set bitmask marking frame reports */
@@ -601,7 +601,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 		}
 		goto output;
 	}
-	hid_dbg(hdev, "pen parameters not found\n");
+	hid_dbg(hdev, "pen v1 parameters not found\n");
 
 	uclogic_params_init_invalid(&p);
 
@@ -776,8 +776,8 @@ int uclogic_params_init(struct uclogic_params *params,
 		     USB_DEVICE_ID_UGEE_TABLET_EX07S):
 		/* If this is the pen interface */
 		if (bInterfaceNumber == 1) {
-			/* Probe pen parameters */
-			rc = uclogic_params_pen_init(&p.pen, &found, hdev);
+			/* Probe v1 pen parameters */
+			rc = uclogic_params_pen_init_v1(&p.pen, &found, hdev);
 			if (rc != 0) {
 				hid_err(hdev, "pen probing failed: %d\n", rc);
 				goto cleanup;

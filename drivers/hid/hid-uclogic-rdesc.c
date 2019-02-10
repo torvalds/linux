@@ -531,8 +531,8 @@ __u8 uclogic_rdesc_twha60_fixed1_arr[] = {
 const size_t uclogic_rdesc_twha60_fixed1_size =
 			sizeof(uclogic_rdesc_twha60_fixed1_arr);
 
-/* Fixed report descriptor template for (tweaked) pen reports */
-const __u8 uclogic_rdesc_pen_template_arr[] = {
+/* Fixed report descriptor template for (tweaked) v1 pen reports */
+const __u8 uclogic_rdesc_pen_v1_template_arr[] = {
 	0x05, 0x0D,             /*  Usage Page (Digitizer),                 */
 	0x09, 0x02,             /*  Usage (Pen),                            */
 	0xA1, 0x01,             /*  Collection (Application),               */
@@ -582,8 +582,8 @@ const __u8 uclogic_rdesc_pen_template_arr[] = {
 	0xC0                    /*  End Collection                          */
 };
 
-const size_t uclogic_rdesc_pen_template_size =
-			sizeof(uclogic_rdesc_pen_template_arr);
+const size_t uclogic_rdesc_pen_v1_template_size =
+			sizeof(uclogic_rdesc_pen_v1_template_arr);
 
 /**
  * Expand to the contents of a generic buttonpad report descriptor.
@@ -631,12 +631,12 @@ const size_t uclogic_rdesc_pen_template_size =
 	0xC0,           /*      End Collection,                 */ \
 	0xC0            /*  End Collection                      */
 
-/* Fixed report descriptor for (tweaked) buttonpad reports */
-const __u8 uclogic_rdesc_buttonpad_arr[] = {
+/* Fixed report descriptor for (tweaked) v1 buttonpad reports */
+const __u8 uclogic_rdesc_buttonpad_v1_arr[] = {
 	UCLOGIC_RDESC_BUTTONPAD_BYTES(20)
 };
-const size_t uclogic_rdesc_buttonpad_size =
-			sizeof(uclogic_rdesc_buttonpad_arr);
+const size_t uclogic_rdesc_buttonpad_v1_size =
+			sizeof(uclogic_rdesc_buttonpad_v1_arr);
 
 /**
  * uclogic_rdesc_template_apply() - apply report descriptor parameters to a
