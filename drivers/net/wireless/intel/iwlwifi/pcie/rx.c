@@ -2207,6 +2207,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 			"Hardware error detected. Restarting.\n");
 
 		isr_stats->hw++;
+		trans->hw_error = true;
 		iwl_pcie_irq_handle_error(trans);
 	}
 
