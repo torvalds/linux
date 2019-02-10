@@ -1516,7 +1516,7 @@ EXPORT_SYMBOL(phy_reset_after_clk_enable);
 static int genphy_config_advert(struct phy_device *phydev)
 {
 	u32 advertise;
-	int oldadv, adv, bmsr;
+	int bmsr, adv;
 	int err, changed = 0;
 
 	/* Only allow advertising what this PHY supports */
@@ -1529,22 +1529,14 @@ static int genphy_config_advert(struct phy_device *phydev)
 			    phydev->advertising);
 
 	/* Setup standard advertisement */
-	adv = phy_read(phydev, MII_ADVERTISE);
-	if (adv < 0)
-		return adv;
-
-	oldadv = adv;
-	adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4 | ADVERTISE_PAUSE_CAP |
-		 ADVERTISE_PAUSE_ASYM);
-	adv |= ethtool_adv_to_mii_adv_t(advertise);
-
-	if (adv != oldadv) {
-		err = phy_write(phydev, MII_ADVERTISE, adv);
-
-		if (err < 0)
-			return err;
+	err = phy_modify_changed(phydev, MII_ADVERTISE,
+				 ADVERTISE_ALL | ADVERTISE_100BASE4 |
+				 ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM,
+				 ethtool_adv_to_mii_adv_t(advertise));
+	if (err < 0)
+		return err;
+	if (err > 0)
 		changed = 1;
-	}
 
 	bmsr = phy_read(phydev, MII_BMSR);
 	if (bmsr < 0)
@@ -1558,25 +1550,20 @@ static int genphy_config_advert(struct phy_device *phydev)
 		return changed;
 
 	/* Configure gigabit if it's supported */
-	adv = phy_read(phydev, MII_CTRL1000);
-	if (adv < 0)
-		return adv;
-
-	oldadv = adv;
-	adv &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
-
+	adv = 0;
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 			      phydev->supported) ||
 	    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
 			      phydev->supported))
-		adv |= ethtool_adv_to_mii_ctrl1000_t(advertise);
+		adv = ethtool_adv_to_mii_ctrl1000_t(advertise);
 
-	if (adv != oldadv)
-		changed = 1;
-
-	err = phy_write(phydev, MII_CTRL1000, adv);
+	err = phy_modify_changed(phydev, MII_CTRL1000,
+				 ADVERTISE_1000FULL | ADVERTISE_1000HALF,
+				 adv);
 	if (err < 0)
 		return err;
+	if (err > 0)
+		changed = 1;
 
 	return changed;
 }
