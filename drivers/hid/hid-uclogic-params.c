@@ -826,7 +826,8 @@ cleanup:
  *		uclogic_params_cleanup()). Not modified in case of error.
  *		Cannot be NULL.
  * @hdev:	The HID device of the tablet interface to initialize and get
- *		parameters from. Cannot be NULL.
+ *		parameters from. Cannot be NULL. Must be using the USB low-level
+ *		driver, i.e. be an actual USB tablet.
  *
  * Returns:
  *	Zero, if successful. A negative errno code on error.
@@ -844,7 +845,8 @@ int uclogic_params_init(struct uclogic_params *params,
 	struct uclogic_params p = {0, };
 
 	/* Check arguments */
-	if (params == NULL || hdev == NULL) {
+	if (params == NULL || hdev == NULL ||
+	    !hid_is_using_ll_driver(hdev, &usb_hid_driver)) {
 		rc = -EINVAL;
 		goto cleanup;
 	}
