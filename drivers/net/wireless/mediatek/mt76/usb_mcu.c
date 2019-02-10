@@ -48,9 +48,11 @@ EXPORT_SYMBOL_GPL(mt76u_mcu_init_rx);
 
 void mt76u_mcu_deinit(struct mt76_dev *dev)
 {
-	struct mt76_usb *usb = &dev->usb;
+	struct mt76u_buf *buf = &dev->usb.mcu.res;
 
-	usb_kill_urb(usb->mcu.res.urb);
-	mt76u_buf_free(&usb->mcu.res);
+	if (buf->urb) {
+		usb_kill_urb(buf->urb);
+		mt76u_buf_free(buf);
+	}
 }
 EXPORT_SYMBOL_GPL(mt76u_mcu_deinit);
