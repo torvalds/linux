@@ -1944,14 +1944,10 @@ int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 	iwl_dump_error_desc->len = 0;
 
 	ret = iwl_fw_dbg_collect_desc(fwrt, iwl_dump_error_desc, false, 0);
-	if (ret) {
+	if (ret)
 		kfree(iwl_dump_error_desc);
-	} else {
-		set_bit(STATUS_FW_WAIT_DUMP, &fwrt->trans->status);
-
-		/* trigger nmi to halt the fw */
-		iwl_force_nmi(fwrt->trans);
-	}
+	else
+		iwl_trans_sync_nmi(fwrt->trans);
 
 	return ret;
 }
@@ -2491,22 +2487,6 @@ IWL_EXPORT_SYMBOL(iwl_fw_dbg_apply_point);
 
 void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt)
 {
-	/* if the wait event timeout elapses instead of wake up then
-	 * the driver did not receive NMI interrupt and can not assume the FW
-	 * is halted
-	 */
-	int ret = wait_event_timeout(fwrt->trans->fw_halt_waitq,
-				     !test_bit(STATUS_FW_WAIT_DUMP,
-					       &fwrt->trans->status),
-				     msecs_to_jiffies(2000));
-	if (!ret) {
-		/* failed to receive NMI interrupt, assuming the FW is stuck */
-		set_bit(STATUS_FW_ERROR, &fwrt->trans->status);
-
-		clear_bit(STATUS_FW_WAIT_DUMP, &fwrt->trans->status);
-	}
-
-	/* Assuming the op mode mutex is held at this point */
 	iwl_fw_dbg_collect_sync(fwrt);
 
 	iwl_trans_stop_device(fwrt->trans);
