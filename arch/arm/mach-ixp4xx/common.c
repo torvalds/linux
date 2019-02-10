@@ -150,9 +150,30 @@ static struct platform_device ixp4xx_udc_device = {
 	},
 };
 
+static struct resource ixp4xx_npe_resources[] = {
+	{
+		.start = IXP4XX_NPEA_BASE_PHYS,
+		.end = IXP4XX_NPEA_BASE_PHYS + 0xfff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IXP4XX_NPEB_BASE_PHYS,
+		.end = IXP4XX_NPEB_BASE_PHYS + 0xfff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IXP4XX_NPEC_BASE_PHYS,
+		.end = IXP4XX_NPEC_BASE_PHYS + 0xfff,
+		.flags = IORESOURCE_MEM,
+	},
+
+};
+
 static struct platform_device ixp4xx_npe_device = {
 	.name           = "ixp4xx-npe",
 	.id             = -1,
+	.num_resources  = ARRAY_SIZE(ixp4xx_npe_resources),
+	.resource       = ixp4xx_npe_resources,
 };
 
 static struct platform_device ixp4xx_qmgr_device = {
