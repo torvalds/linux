@@ -318,7 +318,6 @@ static int lbtf_op_start(struct ieee80211_hw *hw)
 		goto err_prog_firmware;
 	}
 
-	printk(KERN_INFO "libertastf: Marvell WLAN 802.11 thinfirm adapter\n");
 	lbtf_deb_leave(LBTF_DEB_MACOPS);
 	return 0;
 
@@ -649,6 +648,7 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
 	if (ieee80211_register_hw(hw))
 		goto err_init_adapter;
 
+	dev_info(dmdev, "libertastf: Marvell WLAN 802.11 thinfirm adapter\n");
 	goto done;
 
 err_init_adapter:
