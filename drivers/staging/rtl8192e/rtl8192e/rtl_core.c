@@ -1049,7 +1049,7 @@ static short _rtl92e_get_channel_map(struct net_device *dev)
 	}
 	RT_TRACE(COMP_INIT, "Channel plan is %d\n", priv->ChannelPlan);
 	dot11d_init(priv->rtllib);
-	Dot11d_Channelmap(priv->ChannelPlan, priv->rtllib);
+	dot11d_channel_map(priv->ChannelPlan, priv->rtllib);
 	for (i = 1; i <= 11; i++)
 		(priv->rtllib->active_channel_map)[i] = 1;
 	(priv->rtllib->active_channel_map)[12] = 2;

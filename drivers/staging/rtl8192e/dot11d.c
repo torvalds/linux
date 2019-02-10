@@ -56,7 +56,7 @@ void dot11d_init(struct rtllib_device *ieee)
 }
 EXPORT_SYMBOL(dot11d_init);
 
-void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee)
+void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee)
 {
 	int i, max_chan = 14, min_chan = 1;
 
@@ -96,7 +96,7 @@ void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee)
 		break;
 	}
 }
-EXPORT_SYMBOL(Dot11d_Channelmap);
+EXPORT_SYMBOL(dot11d_channel_map);
 
 void Dot11d_Reset(struct rtllib_device *ieee)
 {
