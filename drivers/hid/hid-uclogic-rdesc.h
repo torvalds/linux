@@ -34,6 +34,9 @@ extern const size_t uclogic_rdesc_wp5540u_fixed_size;
 extern __u8 uclogic_rdesc_wp8060u_fixed_arr[];
 extern const size_t uclogic_rdesc_wp8060u_fixed_size;
 
+/* Size of the original descriptor of the new WP5540U tablet */
+#define UCLOGIC_RDESC_WP5540U_V2_ORIG_SIZE	232
+
 /* Size of the original descriptor of WP1062 tablet */
 #define UCLOGIC_RDESC_WP1062_ORIG_SIZE		254
 
