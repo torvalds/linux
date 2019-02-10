@@ -38,6 +38,5 @@ pipe_to_tinydrm(struct drm_simple_display_pipe *pipe)
 int devm_tinydrm_init(struct device *parent, struct tinydrm_device *tdev,
 		      struct drm_driver *driver);
 int devm_tinydrm_register(struct tinydrm_device *tdev);
-void tinydrm_shutdown(struct tinydrm_device *tdev);
 
 #endif /* __LINUX_TINYDRM_H */

@@ -26,6 +26,7 @@
 #include <linux/spi/spi.h>
 #include <linux/thermal.h>
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -1077,7 +1078,8 @@ static int repaper_probe(struct spi_device *spi)
 		return ret;
 
 	drm_mode_config_reset(tdev->drm);
-	spi_set_drvdata(spi, tdev);
+
+	spi_set_drvdata(spi, tdev->drm);
 
 	DRM_DEBUG_DRIVER("SPI speed: %uMHz\n", spi->max_speed_hz / 1000000);
 
@@ -1086,9 +1088,7 @@ static int repaper_probe(struct spi_device *spi)
 
 static void repaper_shutdown(struct spi_device *spi)
 {
-	struct tinydrm_device *tdev = spi_get_drvdata(spi);
-
-	tinydrm_shutdown(tdev);
+	drm_atomic_helper_shutdown(spi_get_drvdata(spi));
 }
 
 static struct spi_driver repaper_spi_driver = {

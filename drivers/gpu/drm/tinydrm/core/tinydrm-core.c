@@ -166,18 +166,4 @@ int devm_tinydrm_register(struct tinydrm_device *tdev)
 }
 EXPORT_SYMBOL(devm_tinydrm_register);
 
-/**
- * tinydrm_shutdown - Shutdown tinydrm
- * @tdev: tinydrm device
- *
- * This function makes sure that the display pipeline is disabled.
- * Used by drivers in their shutdown callback to turn off the display
- * on machine shutdown and reboot.
- */
-void tinydrm_shutdown(struct tinydrm_device *tdev)
-{
-	drm_atomic_helper_shutdown(tdev->drm);
-}
-EXPORT_SYMBOL(tinydrm_shutdown);
-
 MODULE_LICENSE("GPL");
