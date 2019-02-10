@@ -792,6 +792,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		sink->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
 		sink->converter_disable_audio = converter_disable_audio;
 
+		/* dc_sink_create returns a new reference */
 		link->local_sink = sink;
 
 		edid_status = dm_helpers_read_local_edid(
