@@ -728,6 +728,60 @@ const __u8 uclogic_rdesc_ugee_ex07_buttonpad_arr[] = {
 const size_t uclogic_rdesc_ugee_ex07_buttonpad_size =
 			sizeof(uclogic_rdesc_ugee_ex07_buttonpad_arr);
 
+/* Fixed report descriptor for Ugee G5 frame controls */
+const __u8 uclogic_rdesc_ugee_g5_frame_arr[] = {
+	0x05, 0x01,         /*  Usage Page (Desktop),               */
+	0x09, 0x07,         /*  Usage (Keypad),                     */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0x85, 0x06,         /*      Report ID (6),                  */
+	0x05, 0x0D,         /*      Usage Page (Digitizer),         */
+	0x09, 0x39,         /*      Usage (Tablet Function Keys),   */
+	0xA0,               /*      Collection (Physical),          */
+	0x14,               /*          Logical Minimum (0),        */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x05, 0x09,         /*          Usage Page (Button),        */
+	0x19, 0x01,         /*          Usage Minimum (01h),        */
+	0x29, 0x05,         /*          Usage Maximum (05h),        */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x05,         /*          Report Count (5),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x03,         /*          Report Count (3),           */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x05, 0x0D,         /*          Usage Page (Digitizer),     */
+	0x0A, 0xFF, 0xFF,   /*          Usage (FFFFh),              */
+	0x26, 0xFF, 0x00,   /*          Logical Maximum (255),      */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x09, 0x44,         /*          Usage (Barrel Switch),      */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x09, 0x30,         /*          Usage (X),                  */
+	0x09, 0x31,         /*          Usage (Y),                  */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x02,         /*          Report Count (2),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x0B,         /*          Report Count (11),          */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x09, 0x38,         /*          Usage (Wheel),              */
+	0x15, 0xFF,         /*          Logical Minimum (-1),       */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x75, 0x02,         /*          Report Size (2),            */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x06,         /*          Input (Variable, Relative), */
+	0xC0,               /*      End Collection,                 */
+	0xC0                /*  End Collection                      */
+};
+const size_t uclogic_rdesc_ugee_g5_frame_size =
+			sizeof(uclogic_rdesc_ugee_g5_frame_arr);
+
 /* Fixed report descriptor for XP-Pen Deco 01 frame controls */
 const __u8 uclogic_rdesc_xppen_deco01_frame_arr[] = {
 	0x05, 0x01, /*  Usage Page (Desktop),               */

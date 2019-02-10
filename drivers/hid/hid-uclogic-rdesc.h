@@ -139,4 +139,17 @@ extern const size_t uclogic_rdesc_ugee_ex07_buttonpad_size;
 extern const __u8 uclogic_rdesc_xppen_deco01_frame_arr[];
 extern const size_t uclogic_rdesc_xppen_deco01_frame_size;
 
+/* Fixed report descriptor for Ugee G5 frame controls */
+extern const __u8 uclogic_rdesc_ugee_g5_frame_arr[];
+extern const size_t uclogic_rdesc_ugee_g5_frame_size;
+
+/* Report ID of Ugee G5 frame control reports */
+#define UCLOGIC_RDESC_UGEE_G5_FRAME_ID 0x06
+
+/* Device ID byte offset in Ugee G5 frame report */
+#define UCLOGIC_RDESC_UGEE_G5_FRAME_DEV_ID_BYTE	0x2
+
+/* Least-significant bit of Ugee G5 frame rotary encoder state */
+#define UCLOGIC_RDESC_UGEE_G5_FRAME_RE_LSB 38
+
 #endif /* _HID_UCLOGIC_RDESC_H */
