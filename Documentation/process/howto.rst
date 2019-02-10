@@ -302,15 +302,6 @@ The file :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rule
 in the kernel tree documents what kinds of changes are acceptable for
 the -stable tree, and how the release process works.
 
-4.x -git patches
-~~~~~~~~~~~~~~~~
-
-These are daily snapshots of Linus' kernel tree which are managed in a
-git repository (hence the name.) These patches are usually released
-daily and represent the current state of Linus' tree.  They are more
-experimental than -rc kernels since they are generated automatically
-without even a cursory glance to see if they are sane.
-
 Subsystem Specific kernel trees and patches
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
