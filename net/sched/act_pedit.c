@@ -470,7 +470,7 @@ static int tcf_pedit_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_pedit_ops = {
 	.kind		=	"pedit",
-	.type		=	TCA_ACT_PEDIT,
+	.id		=	TCA_ID_PEDIT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_pedit_act,
 	.dump		=	tcf_pedit_dump,

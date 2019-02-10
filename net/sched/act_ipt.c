@@ -338,7 +338,7 @@ static int tcf_ipt_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_ipt_ops = {
 	.kind		=	"ipt",
-	.type		=	TCA_ACT_IPT,
+	.id		=	TCA_ID_IPT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_ipt_act,
 	.dump		=	tcf_ipt_dump,
@@ -387,7 +387,7 @@ static int tcf_xt_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_xt_ops = {
 	.kind		=	"xt",
-	.type		=	TCA_ACT_XT,
+	.id		=	TCA_ID_XT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_ipt_act,
 	.dump		=	tcf_ipt_dump,

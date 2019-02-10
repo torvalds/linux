@@ -195,7 +195,7 @@ static int tcf_simp_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_simp_ops = {
 	.kind		=	"simple",
-	.type		=	TCA_ACT_SIMP,
+	.id		=	TCA_ID_SIMP,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_simp_act,
 	.dump		=	tcf_simp_dump,

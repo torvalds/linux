@@ -85,7 +85,7 @@ enum {
 #define TCA_ACT_SAMPLE 26
 
 /* Action type identifiers*/
-enum {
+enum tca_id {
 	TCA_ID_UNSPEC = 0,
 	TCA_ID_POLICE = 1,
 	TCA_ID_GACT = TCA_ACT_GACT,
