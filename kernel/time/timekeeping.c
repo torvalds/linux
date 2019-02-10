@@ -2234,7 +2234,7 @@ ktime_t ktime_get_update_offsets_now(unsigned int *cwsseq, ktime_t *offs_real,
 /**
  * timekeeping_validate_timex - Ensures the timex is ok for use in do_adjtimex
  */
-static int timekeeping_validate_timex(const struct timex *txc)
+static int timekeeping_validate_timex(const struct __kernel_timex *txc)
 {
 	if (txc->modes & ADJ_ADJTIME) {
 		/* singleshot must not be used with any other mode bits */
@@ -2300,7 +2300,7 @@ static int timekeeping_validate_timex(const struct timex *txc)
 /**
  * do_adjtimex() - Accessor function to NTP __do_adjtimex function
  */
-int do_adjtimex(struct timex *txc)
+int do_adjtimex(struct __kernel_timex *txc)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	unsigned long flags;

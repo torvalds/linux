@@ -343,3 +343,4 @@
 331	common	pkey_alloc			sys_pkey_alloc
 332	common	pkey_free			sys_pkey_free
 333	common	rseq				sys_rseq
+# 334 through 423 are reserved to sync up with other architectures

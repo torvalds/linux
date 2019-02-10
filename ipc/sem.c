@@ -2250,7 +2250,7 @@ long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
 	return do_semtimedop(semid, tsems, nsops, NULL);
 }
 
-COMPAT_SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsems,
+SYSCALL_DEFINE4(semtimedop_time32, int, semid, struct sembuf __user *, tsems,
 		       unsigned int, nsops,
 		       const struct old_timespec32 __user *, timeout)
 {

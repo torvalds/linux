@@ -5265,9 +5265,8 @@ SYSCALL_DEFINE2(sched_rr_get_interval, pid_t, pid,
 }
 
 #ifdef CONFIG_COMPAT_32BIT_TIME
-COMPAT_SYSCALL_DEFINE2(sched_rr_get_interval,
-		       compat_pid_t, pid,
-		       struct old_timespec32 __user *, interval)
+SYSCALL_DEFINE2(sched_rr_get_interval_time32, pid_t, pid,
+		struct old_timespec32 __user *, interval)
 {
 	struct timespec64 t;
 	int retval = sched_rr_get_interval(pid, &t);

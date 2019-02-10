@@ -84,6 +84,26 @@ cat << EOF
 #define __IGNORE_statfs64
 #define __IGNORE_llseek
 #define __IGNORE_mmap2
+#define __IGNORE_clock_gettime64
+#define __IGNORE_clock_settime64
+#define __IGNORE_clock_adjtime64
+#define __IGNORE_clock_getres_time64
+#define __IGNORE_clock_nanosleep_time64
+#define __IGNORE_timer_gettime64
+#define __IGNORE_timer_settime64
+#define __IGNORE_timerfd_gettime64
+#define __IGNORE_timerfd_settime64
+#define __IGNORE_utimensat_time64
+#define __IGNORE_pselect6_time64
+#define __IGNORE_ppoll_time64
+#define __IGNORE_io_pgetevents_time64
+#define __IGNORE_recvmmsg_time64
+#define __IGNORE_mq_timedsend_time64
+#define __IGNORE_mq_timedreceive_time64
+#define __IGNORE_semtimedop_time64
+#define __IGNORE_rt_sigtimedwait_time64
+#define __IGNORE_futex_time64
+#define __IGNORE_sched_rr_get_interval_time64
 #else
 #define __IGNORE_sendfile
 #define __IGNORE_ftruncate
@@ -98,6 +118,26 @@ cat << EOF
 #define __IGNORE_statfs
 #define __IGNORE_lseek
 #define __IGNORE_mmap
+#define __IGNORE_clock_gettime
+#define __IGNORE_clock_settime
+#define __IGNORE_clock_adjtime
+#define __IGNORE_clock_getres
+#define __IGNORE_clock_nanosleep
+#define __IGNORE_timer_gettime
+#define __IGNORE_timer_settime
+#define __IGNORE_timerfd_gettime
+#define __IGNORE_timerfd_settime
+#define __IGNORE_utimensat
+#define __IGNORE_pselect6
+#define __IGNORE_ppoll
+#define __IGNORE_io_pgetevents
+#define __IGNORE_recvmmsg
+#define __IGNORE_mq_timedsend
+#define __IGNORE_mq_timedreceiv
+#define __IGNORE_semtimedop
+#define __IGNORE_rt_sigtimedwait
+#define __IGNORE_futex
+#define __IGNORE_sched_rr_get_interval
 #endif
 
 /* i386-specific or historical system calls */
