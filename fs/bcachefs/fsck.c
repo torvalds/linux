@@ -1187,6 +1187,11 @@ static int check_inode(struct bch_fs *c,
 	}
 
 	if (u.bi_flags & BCH_INODE_UNLINKED) {
+		fsck_err_on(c->sb.clean, c,
+			    "filesystem marked clean, "
+			    "but inode %llu unlinked",
+			    u.bi_inum);
+
 		bch_verbose(c, "deleting inode %llu", u.bi_inum);
 
 		ret = bch2_inode_rm(c, u.bi_inum);
@@ -1389,16 +1394,13 @@ static int check_inodes_fast(struct bch_fs *c)
 		    (BCH_INODE_I_SIZE_DIRTY|
 		     BCH_INODE_I_SECTORS_DIRTY|
 		     BCH_INODE_UNLINKED)) {
-			fsck_err_on(c->sb.clean, c,
-				"filesystem marked clean but found inode %llu with flags %x",
-				inode.k->p.inode, inode.v->bi_flags);
 			ret = check_inode(c, NULL, &iter, inode, NULL);
 			BUG_ON(ret == -EINTR);
 			if (ret)
 				break;
 		}
 	}
-fsck_err:
+
 	return bch2_btree_iter_unlock(&iter) ?: ret;
 }
 
@@ -1460,9 +1462,10 @@ int bch2_fsck(struct bch_fs *c)
 	if (c->opts.fsck)
 		return bch2_fsck_full(c);
 
-	if (!c->sb.clean &&
-	    !(c->sb.features & (1 << BCH_FEATURE_ATOMIC_NLINK)))
-		return bch2_fsck_inode_nlink(c);
+	if (c->sb.clean)
+		return 0;
 
-	return bch2_fsck_walk_inodes_only(c);
+	return c->sb.features & (1 << BCH_FEATURE_ATOMIC_NLINK)
+		? bch2_fsck_walk_inodes_only(c)
+		: bch2_fsck_inode_nlink(c);
 }
