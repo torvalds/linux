@@ -265,6 +265,31 @@ static int uclogic_raw_event(struct hid_device *hdev,
 			/* Invert the in-range bit */
 			data[1] ^= 0x40;
 		}
+		/*
+		 * If report contains fragmented high-resolution pen
+		 * coordinates
+		 */
+		if (size >= 10 && params->pen.fragmented_hires) {
+			u8 pressure_low_byte;
+			u8 pressure_high_byte;
+
+			/* Lift pressure bytes */
+			pressure_low_byte = data[6];
+			pressure_high_byte = data[7];
+			/*
+			 * Move Y coord to make space for high-order X
+			 * coord byte
+			 */
+			data[6] = data[5];
+			data[5] = data[4];
+			/* Move high-order X coord byte */
+			data[4] = data[8];
+			/* Move high-order Y coord byte */
+			data[7] = data[9];
+			/* Place pressure bytes */
+			data[8] = pressure_low_byte;
+			data[9] = pressure_high_byte;
+		}
 		/* If we need to emulate in-range detection */
 		if (params->pen.inrange == UCLOGIC_PARAMS_PEN_INRANGE_NONE) {
 			/* Set in-range bit */

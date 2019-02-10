@@ -56,6 +56,12 @@ struct uclogic_params_pen {
 	unsigned int id;
 	/* Type of in-range reporting, only valid if "id" is not zero */
 	enum uclogic_params_pen_inrange inrange;
+	/*
+	 * True, if reports include fragmented high resolution coords, with
+	 * high-order X and then Y bytes following the pressure field.
+	 * Only valid if "id" is not zero.
+	 */
+	bool fragmented_hires;
 };
 
 /*
@@ -151,6 +157,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		".pen.desc_size = %u\n"             \
 		".pen.id = %u\n"                    \
 		".pen.inrange = %s\n"               \
+		".pen.fragmented_hires = %s\n"      \
 		".frame.desc_ptr = %p\n"            \
 		".frame.desc_size = %u\n"           \
 		".frame.id = %u\n"                  \
@@ -166,6 +173,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		(_params)->pen.desc_size,                                   \
 		(_params)->pen.id,                                          \
 		uclogic_params_pen_inrange_to_str((_params)->pen.inrange),  \
+		((_params)->pen.fragmented_hires ? "true" : "false"),       \
 		(_params)->frame.desc_ptr,                                  \
 		(_params)->frame.desc_size,                                 \
 		(_params)->frame.id,                                        \
