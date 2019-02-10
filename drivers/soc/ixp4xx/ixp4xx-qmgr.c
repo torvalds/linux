@@ -15,7 +15,10 @@
 #include <linux/of.h>
 #include <mach/qmgr.h>
 
-#include "irqs.h"
+/* FIXME: get rid of these static assigments */
+#define IRQ_IXP4XX_BASE		16
+#define IRQ_IXP4XX_QM1		(IRQ_IXP4XX_BASE + 3)
+#define IRQ_IXP4XX_QM2		(IRQ_IXP4XX_BASE + 4)
 
 static struct qmgr_regs __iomem *qmgr_regs = IXP4XX_QMGR_BASE_VIRT;
 static struct resource *mem_res;
