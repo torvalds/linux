@@ -14,6 +14,12 @@
 		compatible = "simple-bus";
 		interrupt-parent = <&intcon>;
 
+		qmgr: queue-manager@60000000 {
+			compatible = "intel,ixp4xx-ahb-queue-manager";
+			reg = <0x60000000 0x4000>;
+			interrupts = <3 IRQ_TYPE_LEVEL_HIGH>, <4 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		uart0: serial@c8000000 {
 			compatible = "intel,xscale-uart";
 			reg = <0xc8000000 0x1000>;
@@ -53,6 +59,11 @@
 			compatible = "intel,ixp4xx-timer";
 			reg = <0xc8005000 0x100>;
 			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		npe@c8006000 {
+			compatible = "intel,ixp4xx-network-processing-engine";
+			reg = <0xc8006000 0x1000>, <0xc8007000 0x1000>, <0xc8008000 0x1000>;
 		};
 	};
 };
