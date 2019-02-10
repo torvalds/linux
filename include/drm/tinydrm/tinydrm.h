@@ -40,13 +40,4 @@ int devm_tinydrm_init(struct device *parent, struct tinydrm_device *tdev,
 int devm_tinydrm_register(struct tinydrm_device *tdev);
 void tinydrm_shutdown(struct tinydrm_device *tdev);
 
-int
-tinydrm_display_pipe_init(struct tinydrm_device *tdev,
-			  const struct drm_simple_display_pipe_funcs *funcs,
-			  int connector_type,
-			  const uint32_t *formats,
-			  unsigned int format_count,
-			  const struct drm_display_mode *mode,
-			  unsigned int rotation);
-
 #endif /* __LINUX_TINYDRM_H */

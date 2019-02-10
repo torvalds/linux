@@ -407,7 +407,7 @@ int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
 		return ret;
 
 	/* TODO: Maybe add DRM_MODE_CONNECTOR_SPI */
-	ret = tinydrm_display_pipe_init(tdev, pipe_funcs,
+	ret = tinydrm_display_pipe_init(tdev->drm, &tdev->pipe, pipe_funcs,
 					DRM_MODE_CONNECTOR_VIRTUAL,
 					mipi_dbi_formats,
 					ARRAY_SIZE(mipi_dbi_formats), mode,

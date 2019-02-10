@@ -11,8 +11,12 @@
 #define __LINUX_TINYDRM_HELPERS_H
 
 struct backlight_device;
+struct drm_device;
+struct drm_display_mode;
 struct drm_framebuffer;
 struct drm_rect;
+struct drm_simple_display_pipe;
+struct drm_simple_display_pipe_funcs;
 struct spi_transfer;
 struct spi_message;
 struct spi_device;
@@ -32,6 +36,15 @@ static inline bool tinydrm_machine_little_endian(void)
 	return false;
 #endif
 }
+
+int tinydrm_display_pipe_init(struct drm_device *drm,
+			      struct drm_simple_display_pipe *pipe,
+			      const struct drm_simple_display_pipe_funcs *funcs,
+			      int connector_type,
+			      const uint32_t *formats,
+			      unsigned int format_count,
+			      const struct drm_display_mode *mode,
+			      unsigned int rotation);
 
 void tinydrm_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
 		    struct drm_rect *clip);

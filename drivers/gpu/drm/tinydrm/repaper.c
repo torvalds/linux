@@ -1069,7 +1069,7 @@ static int repaper_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = tinydrm_display_pipe_init(tdev, &repaper_pipe_funcs,
+	ret = tinydrm_display_pipe_init(tdev->drm, &tdev->pipe, &repaper_pipe_funcs,
 					DRM_MODE_CONNECTOR_VIRTUAL,
 					repaper_formats,
 					ARRAY_SIZE(repaper_formats), mode, 0);

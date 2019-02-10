@@ -283,7 +283,7 @@ static int st7586_init(struct device *dev, struct mipi_dbi *mipi,
 	if (ret)
 		return ret;
 
-	ret = tinydrm_display_pipe_init(tdev, pipe_funcs,
+	ret = tinydrm_display_pipe_init(tdev->drm, &tdev->pipe, pipe_funcs,
 					DRM_MODE_CONNECTOR_VIRTUAL,
 					st7586_formats,
 					ARRAY_SIZE(st7586_formats),
