@@ -564,7 +564,7 @@ out:
 
 	if (ieee->state >= RTLLIB_LINKED) {
 		if (IS_DOT11D_ENABLE(ieee))
-			DOT11D_ScanComplete(ieee);
+			dot11d_scan_complete(ieee);
 	}
 	mutex_unlock(&ieee->scan_mutex);
 
@@ -623,7 +623,7 @@ static void rtllib_softmac_scan_wq(void *data)
 
 out:
 	if (IS_DOT11D_ENABLE(ieee))
-		DOT11D_ScanComplete(ieee);
+		dot11d_scan_complete(ieee);
 	ieee->current_network.channel = last_channel;
 
 out1:

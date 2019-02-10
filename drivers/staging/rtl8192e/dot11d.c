@@ -158,7 +158,7 @@ void dot11d_update_country(struct rtllib_device *dev, u8 *pTaddr,
 	dot11d_info->state = DOT11D_STATE_LEARNED;
 }
 
-void DOT11D_ScanComplete(struct rtllib_device *dev)
+void dot11d_scan_complete(struct rtllib_device *dev)
 {
 	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(dev);
 
