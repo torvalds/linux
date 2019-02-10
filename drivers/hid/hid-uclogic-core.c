@@ -178,6 +178,23 @@ failure:
 	return rc;
 }
 
+#ifdef CONFIG_PM
+static int uclogic_resume(struct hid_device *hdev)
+{
+	int rc;
+	struct uclogic_params params;
+
+	/* Re-initialize the device, but discard parameters */
+	rc = uclogic_params_init(&params, hdev);
+	if (rc != 0)
+		hid_err(hdev, "failed to re-initialize the device\n");
+	else
+		uclogic_params_cleanup(&params);
+
+	return rc;
+}
+#endif
+
 static int uclogic_raw_event(struct hid_device *hdev,
 				struct hid_report *report,
 				u8 *data, int size)
@@ -261,6 +278,10 @@ static struct hid_driver uclogic_driver = {
 	.raw_event = uclogic_raw_event,
 	.input_mapping = uclogic_input_mapping,
 	.input_configured = uclogic_input_configured,
+#ifdef CONFIG_PM
+	.resume	          = uclogic_resume,
+	.reset_resume     = uclogic_resume,
+#endif
 };
 module_hid_driver(uclogic_driver);
 
