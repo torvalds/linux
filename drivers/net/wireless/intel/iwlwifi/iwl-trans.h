@@ -618,6 +618,7 @@ struct iwl_trans_ops {
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
 						 u32 dump_mask);
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
+	void (*sync_nmi)(struct iwl_trans *trans);
 };
 
 /**
@@ -1243,6 +1244,12 @@ static inline void iwl_trans_fw_error(struct iwl_trans *trans)
 	if (test_and_clear_bit(STATUS_FW_WAIT_DUMP, &trans->status))
 		wake_up(&trans->fw_halt_waitq);
 
+}
+
+static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
+{
+	if (trans->ops->sync_nmi)
+		trans->ops->sync_nmi(trans);
 }
 
 /*****************************************************

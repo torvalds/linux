@@ -3318,7 +3318,8 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 	.unref = iwl_trans_pcie_unref,					\
 	.dump_data = iwl_trans_pcie_dump_data,				\
 	.d3_suspend = iwl_trans_pcie_d3_suspend,			\
-	.d3_resume = iwl_trans_pcie_d3_resume
+	.d3_resume = iwl_trans_pcie_d3_resume,				\
+	.sync_nmi = iwl_trans_pcie_sync_nmi
 
 #ifdef CONFIG_PM_SLEEP
 #define IWL_TRANS_PM_OPS						\
@@ -3637,7 +3638,7 @@ out_no_pci:
 	return ERR_PTR(ret);
 }
 
-void iwl_trans_sync_nmi(struct iwl_trans *trans)
+void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 {
 	unsigned long timeout = jiffies + IWL_TRANS_NMI_TIMEOUT;
 
