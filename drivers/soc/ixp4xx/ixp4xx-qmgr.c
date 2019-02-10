@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/soc/ixp4xx/qmgr.h>
 
 /* FIXME: get rid of these static assigments */
@@ -288,14 +289,10 @@ void qmgr_release_queue(unsigned int queue)
 	module_put(THIS_MODULE);
 }
 
-static int qmgr_init(void)
+static int ixp4xx_qmgr_probe(struct platform_device *pdev)
 {
 	int i, err;
 	irq_handler_t handler1, handler2;
-
-	/* This driver does not work with device tree */
-	if (of_have_populated_dt())
-		return -ENODEV;
 
 	mem_res = request_mem_region(IXP4XX_QMGR_BASE_PHYS,
 				     IXP4XX_QMGR_REGION_SIZE,
@@ -355,17 +352,25 @@ error_irq:
 	return err;
 }
 
-static void qmgr_remove(void)
+static int ixp4xx_qmgr_remove(struct platform_device *pdev)
 {
 	free_irq(IRQ_IXP4XX_QM1, NULL);
 	free_irq(IRQ_IXP4XX_QM2, NULL);
 	synchronize_irq(IRQ_IXP4XX_QM1);
 	synchronize_irq(IRQ_IXP4XX_QM2);
 	release_mem_region(IXP4XX_QMGR_BASE_PHYS, IXP4XX_QMGR_REGION_SIZE);
+
+	return 0;
 }
 
-module_init(qmgr_init);
-module_exit(qmgr_remove);
+static struct platform_driver ixp4xx_qmgr_driver = {
+	.driver = {
+		.name           = "ixp4xx-qmgr",
+	},
+	.probe = ixp4xx_qmgr_probe,
+	.remove = ixp4xx_qmgr_remove,
+};
+module_platform_driver(ixp4xx_qmgr_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Krzysztof Halasa");
