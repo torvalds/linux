@@ -98,7 +98,7 @@ void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee)
 }
 EXPORT_SYMBOL(dot11d_channel_map);
 
-void Dot11d_Reset(struct rtllib_device *ieee)
+void dot11d_reset(struct rtllib_device *ieee)
 {
 	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(ieee);
 	u32 i;
@@ -167,7 +167,7 @@ void DOT11D_ScanComplete(struct rtllib_device *dev)
 		dot11d_info->state = DOT11D_STATE_DONE;
 		break;
 	case DOT11D_STATE_DONE:
-		Dot11d_Reset(dev);
+		dot11d_reset(dev);
 		break;
 	case DOT11D_STATE_NONE:
 		break;

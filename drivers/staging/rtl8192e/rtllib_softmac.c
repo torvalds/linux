@@ -2759,7 +2759,7 @@ void rtllib_disassociate(struct rtllib_device *ieee)
 	if (ieee->data_hard_stop)
 		ieee->data_hard_stop(ieee->dev);
 	if (IS_DOT11D_ENABLE(ieee))
-		Dot11d_Reset(ieee);
+		dot11d_reset(ieee);
 	ieee->state = RTLLIB_NOLINK;
 	ieee->is_set_key = false;
 	ieee->wap_set = 0;
