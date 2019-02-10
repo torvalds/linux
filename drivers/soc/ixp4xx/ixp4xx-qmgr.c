@@ -96,18 +96,6 @@ int qmgr_stat_below_low_watermark(unsigned int queue)
 }
 
 /**
- * qmgr_stat_above_high_watermark() - checks if a queue is above high watermark
- * @queue:	queue number
- *
- * Returns non-zero value if the queue is above high watermark
- */
-static int qmgr_stat_above_high_watermark(unsigned int queue)
-{
-	BUG_ON(queue >= HALF_QUEUES);
-	return __qmgr_get_stat1(queue) & QUEUE_STAT1_NEARLY_FULL;
-}
-
-/**
  * qmgr_stat_full() - checks if a hardware queue is full
  * @queue:	queue number
  *
@@ -119,17 +107,6 @@ int qmgr_stat_full(unsigned int queue)
 		return (__raw_readl(&qmgr_regs->statf_h) >>
 			(queue - HALF_QUEUES)) & 0x01;
 	return __qmgr_get_stat1(queue) & QUEUE_STAT1_FULL;
-}
-
-/**
- * qmgr_stat_underflow() - checks if a hardware queue experienced underflow
- * @queue:	queue number
- *
- * Returns non-zero value if the queue experienced underflow.
- */
-static int qmgr_stat_underflow(unsigned int queue)
-{
-	return __qmgr_get_stat2(queue) & QUEUE_STAT2_UNDERFLOW;
 }
 
 /**
