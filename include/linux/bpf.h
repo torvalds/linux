@@ -204,6 +204,7 @@ enum bpf_return_type {
 	RET_PTR_TO_MAP_VALUE,		/* returns a pointer to map elem value */
 	RET_PTR_TO_MAP_VALUE_OR_NULL,	/* returns a pointer to map elem value or NULL */
 	RET_PTR_TO_SOCKET_OR_NULL,	/* returns a pointer to a socket or NULL */
+	RET_PTR_TO_TCP_SOCK_OR_NULL,	/* returns a pointer to a tcp_sock or NULL */
 };
 
 /* eBPF function prototype used by verifier to allow BPF_CALLs from eBPF programs
@@ -259,6 +260,8 @@ enum bpf_reg_type {
 	PTR_TO_SOCKET_OR_NULL,	 /* reg points to struct bpf_sock or NULL */
 	PTR_TO_SOCK_COMMON,	 /* reg points to sock_common */
 	PTR_TO_SOCK_COMMON_OR_NULL, /* reg points to sock_common or NULL */
+	PTR_TO_TCP_SOCK,	 /* reg points to struct tcp_sock */
+	PTR_TO_TCP_SOCK_OR_NULL, /* reg points to struct tcp_sock or NULL */
 };
 
 /* The information passed from prog-specific *_is_valid_access
@@ -955,5 +958,32 @@ static inline u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_INET
+bool bpf_tcp_sock_is_valid_access(int off, int size, enum bpf_access_type type,
+				  struct bpf_insn_access_aux *info);
+
+u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
+				    const struct bpf_insn *si,
+				    struct bpf_insn *insn_buf,
+				    struct bpf_prog *prog,
+				    u32 *target_size);
+#else
+static inline bool bpf_tcp_sock_is_valid_access(int off, int size,
+						enum bpf_access_type type,
+						struct bpf_insn_access_aux *info)
+{
+	return false;
+}
+
+static inline u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
+						  const struct bpf_insn *si,
+						  struct bpf_insn *insn_buf,
+						  struct bpf_prog *prog,
+						  u32 *target_size)
+{
+	return 0;
+}
+#endif /* CONFIG_INET */
 
 #endif /* _LINUX_BPF_H */
