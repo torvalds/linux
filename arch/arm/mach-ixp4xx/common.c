@@ -150,7 +150,13 @@ static struct platform_device ixp4xx_udc_device = {
 	},
 };
 
+static struct platform_device ixp4xx_npe_device = {
+	.name           = "ixp4xx-npe",
+	.id             = -1,
+};
+
 static struct platform_device *ixp4xx_devices[] __initdata = {
+	&ixp4xx_npe_device,
 	&ixp4xx_gpio_device,
 	&ixp4xx_udc_device,
 };

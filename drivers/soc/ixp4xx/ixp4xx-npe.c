@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/soc/ixp4xx/npe.h>
 
 #define DEBUG_MSG			0
@@ -683,15 +684,9 @@ void npe_release(struct npe *npe)
 	module_put(THIS_MODULE);
 }
 
-
-static int __init npe_init_module(void)
+static int ixp4xx_npe_probe(struct platform_device *pdev)
 {
-
 	int i, found = 0;
-
-	/* This driver does not work with device tree */
-	if (of_have_populated_dt())
-		return -ENODEV;
 
 	for (i = 0; i < NPE_COUNT; i++) {
 		struct npe *npe = &npe_tab[i];
@@ -717,7 +712,7 @@ static int __init npe_init_module(void)
 	return 0;
 }
 
-static void __exit npe_cleanup_module(void)
+static int ixp4xx_npe_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -726,10 +721,18 @@ static void __exit npe_cleanup_module(void)
 			npe_reset(&npe_tab[i]);
 			release_resource(npe_tab[i].mem_res);
 		}
+
+	return 0;
 }
 
-module_init(npe_init_module);
-module_exit(npe_cleanup_module);
+static struct platform_driver ixp4xx_npe_driver = {
+	.driver = {
+		.name           = "ixp4xx-npe",
+	},
+	.probe = ixp4xx_npe_probe,
+	.remove = ixp4xx_npe_remove,
+};
+module_platform_driver(ixp4xx_npe_driver);
 
 MODULE_AUTHOR("Krzysztof Halasa");
 MODULE_LICENSE("GPL v2");
