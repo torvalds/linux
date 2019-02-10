@@ -36,6 +36,8 @@ const char *uclogic_params_pen_inrange_to_str(
 		return "normal";
 	case UCLOGIC_PARAMS_PEN_INRANGE_INVERTED:
 		return "inverted";
+	case UCLOGIC_PARAMS_PEN_INRANGE_NONE:
+		return "none";
 	default:
 		return NULL;
 	}

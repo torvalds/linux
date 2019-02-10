@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/timer.h>
 #include "usbhid/usbhid.h"
 #include "hid-uclogic-params.h"
 
@@ -32,7 +33,39 @@ struct uclogic_drvdata {
 	 * Only valid if desc_ptr is not NULL
 	 */
 	unsigned int desc_size;
+	/* Pen input device */
+	struct input_dev *pen_input;
+	/* In-range timer */
+	struct timer_list inrange_timer;
 };
+
+/**
+ * uclogic_inrange_timeout - handle pen in-range state timeout.
+ * Emulate input events normally generated when pen goes out of range for
+ * tablets which don't report that.
+ *
+ * @t:	The timer the timeout handler is attached to, stored in a struct
+ *	uclogic_drvdata.
+ */
+static void uclogic_inrange_timeout(struct timer_list *t)
+{
+	struct uclogic_drvdata *drvdata = from_timer(drvdata, t,
+							inrange_timer);
+	struct input_dev *input = drvdata->pen_input;
+
+	if (input == NULL)
+		return;
+	input_report_abs(input, ABS_PRESSURE, 0);
+	/* If BTN_TOUCH state is changing */
+	if (test_bit(BTN_TOUCH, input->key)) {
+		input_event(input, EV_MSC, MSC_SCAN,
+				/* Digitizer Tip Switch usage */
+				0xd0042);
+		input_report_key(input, BTN_TOUCH, 0);
+	}
+	input_report_key(input, BTN_TOOL_PEN, 0);
+	input_sync(input);
+}
 
 static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 					unsigned int *rsize)
@@ -67,6 +100,8 @@ static int uclogic_input_mapping(struct hid_device *hdev,
 static int uclogic_input_configured(struct hid_device *hdev,
 		struct hid_input *hi)
 {
+	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
+	struct uclogic_params *params = &drvdata->params;
 	char *name;
 	const char *suffix = NULL;
 	struct hid_field *field;
@@ -75,6 +110,15 @@ static int uclogic_input_configured(struct hid_device *hdev,
 	/* no report associated (HID_QUIRK_MULTI_INPUT not set) */
 	if (!hi->report)
 		return 0;
+
+	/*
+	 * If this is the input corresponding to the pen report
+	 * in need of tweaking.
+	 */
+	if (hi->report->id == params->pen.id) {
+		/* Remember the input device so we can simulate events */
+		drvdata->pen_input = hi->input;
+	}
 
 	field = hi->report->field[0];
 
@@ -130,6 +174,7 @@ static int uclogic_probe(struct hid_device *hdev,
 		rc = -ENOMEM;
 		goto failure;
 	}
+	timer_setup(&drvdata->inrange_timer, uclogic_inrange_timeout, 0);
 	hid_set_drvdata(hdev, drvdata);
 
 	/* Initialize the device and retrieve interface parameters */
@@ -220,6 +265,14 @@ static int uclogic_raw_event(struct hid_device *hdev,
 			/* Invert the in-range bit */
 			data[1] ^= 0x40;
 		}
+		/* If we need to emulate in-range detection */
+		if (params->pen.inrange == UCLOGIC_PARAMS_PEN_INRANGE_NONE) {
+			/* Set in-range bit */
+			data[1] |= 0x40;
+			/* (Re-)start in-range timeout */
+			mod_timer(&drvdata->inrange_timer,
+					jiffies + msecs_to_jiffies(100));
+		}
 	}
 
 	return 0;
@@ -229,6 +282,7 @@ static void uclogic_remove(struct hid_device *hdev)
 {
 	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
 
+	del_timer_sync(&drvdata->inrange_timer);
 	hid_hw_stop(hdev);
 	kfree(drvdata->desc_ptr);
 	uclogic_params_cleanup(&drvdata->params);

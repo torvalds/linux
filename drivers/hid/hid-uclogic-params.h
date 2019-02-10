@@ -25,6 +25,8 @@ enum uclogic_params_pen_inrange {
 	UCLOGIC_PARAMS_PEN_INRANGE_NORMAL = 0,
 	/* Inverted reports: zero - in proximity, one - out of proximity */
 	UCLOGIC_PARAMS_PEN_INRANGE_INVERTED,
+	/* No reports */
+	UCLOGIC_PARAMS_PEN_INRANGE_NONE,
 };
 
 /* Convert a pen in-range reporting type to a string */
