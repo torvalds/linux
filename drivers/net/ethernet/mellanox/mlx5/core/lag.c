@@ -35,37 +35,7 @@
 #include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
 #include "eswitch.h"
-
-enum {
-	MLX5_LAG_FLAG_ROCE   = 1 << 0,
-	MLX5_LAG_FLAG_SRIOV  = 1 << 1,
-};
-
-#define MLX5_LAG_MODE_FLAGS (MLX5_LAG_FLAG_ROCE | MLX5_LAG_FLAG_SRIOV)
-
-struct lag_func {
-	struct mlx5_core_dev *dev;
-	struct net_device    *netdev;
-};
-
-/* Used for collection of netdev event info. */
-struct lag_tracker {
-	enum   netdev_lag_tx_type           tx_type;
-	struct netdev_lag_lower_state_info  netdev_state[MLX5_MAX_PORTS];
-	unsigned int is_bonded:1;
-};
-
-/* LAG data of a ConnectX card.
- * It serves both its phys functions.
- */
-struct mlx5_lag {
-	u8                        flags;
-	u8                        v2p_map[MLX5_MAX_PORTS];
-	struct lag_func           pf[MLX5_MAX_PORTS];
-	struct lag_tracker        tracker;
-	struct delayed_work       bond_work;
-	struct notifier_block     nb;
-};
+#include "lag.h"
 
 /* General purpose, use for short periods of time.
  * Beware of lock dependencies (preferably, no locks should be acquired
@@ -147,13 +117,8 @@ static int mlx5_cmd_query_cong_counter(struct mlx5_core_dev *dev,
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
 }
 
-static struct mlx5_lag *mlx5_lag_dev_get(struct mlx5_core_dev *dev)
-{
-	return dev->priv.lag;
-}
-
-static int mlx5_lag_dev_get_netdev_idx(struct mlx5_lag *ldev,
-				       struct net_device *ndev)
+int mlx5_lag_dev_get_netdev_idx(struct mlx5_lag *ldev,
+				struct net_device *ndev)
 {
 	int i;
 
@@ -174,11 +139,6 @@ static bool __mlx5_lag_is_sriov(struct mlx5_lag *ldev)
 	return !!(ldev->flags & MLX5_LAG_FLAG_SRIOV);
 }
 
-static bool __mlx5_lag_is_active(struct mlx5_lag *ldev)
-{
-	return !!(ldev->flags & MLX5_LAG_MODE_FLAGS);
-}
-
 static void mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 					   u8 *port1, u8 *port2)
 {
@@ -195,8 +155,8 @@ static void mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 		*port2 = 1;
 }
 
-static void mlx5_modify_lag(struct mlx5_lag *ldev,
-			    struct lag_tracker *tracker)
+void mlx5_modify_lag(struct mlx5_lag *ldev,
+		     struct lag_tracker *tracker)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[0].dev;
 	u8 v2p_port1, v2p_port2;
@@ -241,9 +201,9 @@ static int mlx5_create_lag(struct mlx5_lag *ldev,
 	return err;
 }
 
-static int mlx5_activate_lag(struct mlx5_lag *ldev,
-			     struct lag_tracker *tracker,
-			     u8 flags)
+int mlx5_activate_lag(struct mlx5_lag *ldev,
+		      struct lag_tracker *tracker,
+		      u8 flags)
 {
 	bool roce_lag = !!(flags & MLX5_LAG_FLAG_ROCE);
 	struct mlx5_core_dev *dev0 = ldev->pf[0].dev;
