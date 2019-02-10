@@ -19,8 +19,6 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 
-#define TCA_ACT_SIMP 22
-
 #include <linux/tc_act/tc_defact.h>
 #include <net/tc_act/tc_defact.h>
 
