@@ -114,7 +114,7 @@ void dot11d_reset(struct rtllib_device *ieee)
 	RESET_CIE_WATCHDOG(ieee);
 }
 
-void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
+void dot11d_update_country(struct rtllib_device *dev, u8 *pTaddr,
 			    u16 CoutryIeLen, u8 *pCoutryIe)
 {
 	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(dev);
