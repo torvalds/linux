@@ -38,8 +38,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <mach/ixp46x_ts.h>
-#include <mach/npe.h>
-#include <mach/qmgr.h>
+#include <linux/soc/ixp4xx/npe.h>
+#include <linux/soc/ixp4xx/qmgr.h>
 
 #define DEBUG_DESC		0
 #define DEBUG_RX		0

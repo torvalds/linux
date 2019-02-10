@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <mach/qmgr.h>
+#include <linux/soc/ixp4xx/qmgr.h>
 
 /* FIXME: get rid of these static assigments */
 #define IRQ_IXP4XX_BASE		16

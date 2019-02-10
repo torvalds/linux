@@ -30,8 +30,8 @@
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 
-#include <mach/npe.h>
-#include <mach/qmgr.h>
+#include <linux/soc/ixp4xx/npe.h>
+#include <linux/soc/ixp4xx/qmgr.h>
 
 #define MAX_KEYLEN 32
 
