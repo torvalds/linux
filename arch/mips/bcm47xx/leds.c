@@ -152,11 +152,11 @@ bcm47xx_leds_buffalo_whr_g125[] __initconst = {
 
 static const struct gpio_led
 bcm47xx_leds_buffalo_whr_g54s[] __initconst = {
-	BCM47XX_GPIO_LED(1, "unk", "bridge", 1, LEDS_GPIO_DEFSTATE_OFF),
-	BCM47XX_GPIO_LED(2, "unk", "wlan", 1, LEDS_GPIO_DEFSTATE_OFF),
-	BCM47XX_GPIO_LED(3, "unk", "internal", 1, LEDS_GPIO_DEFSTATE_OFF),
-	BCM47XX_GPIO_LED(6, "unk", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
-	BCM47XX_GPIO_LED(7, "unk", "diag", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(1, "green", "bridge", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(2, "green", "wlan", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(3, "green", "internal", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(6, "amber", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(7, "red", "diag", 1, LEDS_GPIO_DEFSTATE_OFF),
 };
 
 static const struct gpio_led
