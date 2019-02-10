@@ -997,8 +997,6 @@ int uclogic_params_init(struct uclogic_params *params,
 		break;
 	case VID_PID(USB_VENDOR_ID_UGTIZER,
 		     USB_DEVICE_ID_UGTIZER_TABLET_GP0610):
-	case VID_PID(USB_VENDOR_ID_UGEE,
-		     USB_DEVICE_ID_UGEE_TABLET_EX07S):
 		/* If this is the pen interface */
 		if (bInterfaceNumber == 1) {
 			/* Probe v1 pen parameters */
@@ -1015,6 +1013,36 @@ int uclogic_params_init(struct uclogic_params *params,
 			/* TODO: Consider marking the interface invalid */
 			uclogic_params_init_with_pen_unused(&p);
 		}
+		break;
+	case VID_PID(USB_VENDOR_ID_UGEE,
+		     USB_DEVICE_ID_UGEE_TABLET_EX07S):
+		/* Ignore non-pen interfaces */
+		if (bInterfaceNumber != 1) {
+			uclogic_params_init_invalid(&p);
+			break;
+		}
+
+		rc = uclogic_params_pen_init_v1(&p.pen, &found, hdev);
+		if (rc != 0) {
+			hid_err(hdev, "pen probing failed: %d\n", rc);
+			goto cleanup;
+		} else if (found) {
+			rc = uclogic_params_frame_init_with_desc(
+				&p.frame,
+				uclogic_rdesc_ugee_ex07_buttonpad_arr,
+				uclogic_rdesc_ugee_ex07_buttonpad_size,
+				0);
+			if (rc != 0) {
+				hid_err(hdev,
+					"failed creating buttonpad parameters: %d\n",
+					rc);
+				goto cleanup;
+			}
+		} else {
+			hid_warn(hdev, "pen parameters not found");
+			uclogic_params_init_invalid(&p);
+		}
+
 		break;
 	}
 

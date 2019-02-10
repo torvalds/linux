@@ -701,6 +701,33 @@ const __u8 uclogic_rdesc_buttonpad_v2_arr[] = {
 const size_t uclogic_rdesc_buttonpad_v2_size =
 			sizeof(uclogic_rdesc_buttonpad_v2_arr);
 
+/* Fixed report descriptor for Ugee EX07 buttonpad */
+const __u8 uclogic_rdesc_ugee_ex07_buttonpad_arr[] = {
+	0x05, 0x01,             /*  Usage Page (Desktop),                   */
+	0x09, 0x07,             /*  Usage (Keypad),                         */
+	0xA1, 0x01,             /*  Collection (Application),               */
+	0x85, 0x06,             /*      Report ID (6),                      */
+	0x05, 0x0D,             /*      Usage Page (Digitizer),             */
+	0x09, 0x39,             /*      Usage (Tablet Function Keys),       */
+	0xA0,                   /*      Collection (Physical),              */
+	0x05, 0x09,             /*          Usage Page (Button),            */
+	0x75, 0x01,             /*          Report Size (1),                */
+	0x19, 0x03,             /*          Usage Minimum (03h),            */
+	0x29, 0x06,             /*          Usage Maximum (06h),            */
+	0x95, 0x04,             /*          Report Count (4),               */
+	0x81, 0x02,             /*          Input (Variable),               */
+	0x95, 0x1A,             /*          Report Count (26),              */
+	0x81, 0x03,             /*          Input (Constant, Variable),     */
+	0x19, 0x01,             /*          Usage Minimum (01h),            */
+	0x29, 0x02,             /*          Usage Maximum (02h),            */
+	0x95, 0x02,             /*          Report Count (2),               */
+	0x81, 0x02,             /*          Input (Variable),               */
+	0xC0,                   /*      End Collection,                     */
+	0xC0                    /*  End Collection                          */
+};
+const size_t uclogic_rdesc_ugee_ex07_buttonpad_size =
+			sizeof(uclogic_rdesc_ugee_ex07_buttonpad_arr);
+
 /**
  * uclogic_rdesc_template_apply() - apply report descriptor parameters to a
  * report descriptor template, creating a report descriptor. Copies the
