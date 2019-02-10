@@ -799,13 +799,21 @@ int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
  */
 int __phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
 
+int __phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask,
+			 u16 set);
+int phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask,
+		       u16 set);
 int __phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set);
 int phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set);
 
+int __phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
+			     u16 mask, u16 set);
+int phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
+			   u16 mask, u16 set);
 int __phy_modify_mmd(struct phy_device *phydev, int devad, u32 regnum,
-		u16 mask, u16 set);
+		     u16 mask, u16 set);
 int phy_modify_mmd(struct phy_device *phydev, int devad, u32 regnum,
-		u16 mask, u16 set);
+		   u16 mask, u16 set);
 
 /**
  * __phy_set_bits - Convenience function for setting bits in a PHY register
