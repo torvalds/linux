@@ -2329,6 +2329,14 @@ union bpf_attr {
  *		"**y**".
  *	Return
  *		0
+ *
+ * struct bpf_sock *bpf_sk_fullsock(struct bpf_sock *sk)
+ *	Description
+ *		This helper gets a **struct bpf_sock** pointer such
+ *		that all the fields in bpf_sock can be accessed.
+ *	Return
+ *		A **struct bpf_sock** pointer on success, or NULL in
+ *		case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -2425,7 +2433,8 @@ union bpf_attr {
 	FN(msg_pop_data),		\
 	FN(rc_pointer_rel),		\
 	FN(spin_lock),			\
-	FN(spin_unlock),
+	FN(spin_unlock),		\
+	FN(sk_fullsock),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -2545,6 +2554,7 @@ struct __sk_buff {
 	__u64 tstamp;
 	__u32 wire_len;
 	__u32 gso_segs;
+	__bpf_md_ptr(struct bpf_sock *, sk);
 };
 
 struct bpf_tunnel_key {
