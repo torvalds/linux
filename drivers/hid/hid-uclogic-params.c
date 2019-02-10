@@ -969,6 +969,8 @@ int uclogic_params_init(struct uclogic_params *params,
 		     USB_DEVICE_ID_UCLOGIC_DRAWIMAGE_G3):
 	case VID_PID(USB_VENDOR_ID_UCLOGIC,
 		     USB_DEVICE_ID_UCLOGIC_UGEE_TABLET_45):
+	case VID_PID(USB_VENDOR_ID_UCLOGIC,
+		     USB_DEVICE_ID_UCLOGIC_UGEE_TABLET_47):
 		rc = uclogic_params_huion_init(&p, hdev);
 		if (rc != 0)
 			goto cleanup;
