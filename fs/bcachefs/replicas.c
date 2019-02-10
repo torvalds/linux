@@ -312,9 +312,14 @@ static unsigned reserve_journal_replicas(struct bch_fs *c,
 	journal_res_u64s +=
 		DIV_ROUND_UP(sizeof(struct jset_entry_usage), sizeof(u64));
 
+	/* persistent_reserved: */
+	journal_res_u64s +=
+		DIV_ROUND_UP(sizeof(struct jset_entry_usage), sizeof(u64)) *
+		BCH_REPLICAS_MAX;
+
 	for_each_cpu_replicas_entry(r, e)
 		journal_res_u64s +=
-			DIV_ROUND_UP(sizeof(struct jset_entry_usage) +
+			DIV_ROUND_UP(sizeof(struct jset_entry_data_usage) +
 				     e->nr_devs, sizeof(u64));
 	return journal_res_u64s;
 }

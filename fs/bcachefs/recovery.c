@@ -75,21 +75,30 @@ static int journal_replay_entry_early(struct bch_fs *c,
 		struct jset_entry_usage *u =
 			container_of(entry, struct jset_entry_usage, entry);
 
-		switch (u->type) {
-		case FS_USAGE_REPLICAS:
-			ret = bch2_replicas_set_usage(c, &u->r,
-						le64_to_cpu(u->sectors));
+		switch (entry->btree_id) {
+		case FS_USAGE_RESERVED:
+			if (entry->level < BCH_REPLICAS_MAX)
+				percpu_u64_set(&c->usage[0]->
+					       persistent_reserved[entry->level],
+					       le64_to_cpu(u->v));
 			break;
 		case FS_USAGE_INODES:
 			percpu_u64_set(&c->usage[0]->s.nr_inodes,
-						le64_to_cpu(u->sectors));
+				       le64_to_cpu(u->v));
 			break;
 		case FS_USAGE_KEY_VERSION:
 			atomic64_set(&c->key_version,
-				     le64_to_cpu(u->sectors));
+				     le64_to_cpu(u->v));
 			break;
 		}
 
+		break;
+	}
+	case BCH_JSET_ENTRY_data_usage: {
+		struct jset_entry_data_usage *u =
+			container_of(entry, struct jset_entry_data_usage, entry);
+		ret = bch2_replicas_set_usage(c, &u->r,
+					      le64_to_cpu(u->v));
 		break;
 	}
 	}
@@ -156,7 +165,8 @@ static bool journal_empty(struct list_head *journal)
 	list_for_each_entry(i, journal, list) {
 		vstruct_for_each(&i->j, entry) {
 			if (entry->type == BCH_JSET_ENTRY_btree_root ||
-			    entry->type == BCH_JSET_ENTRY_usage)
+			    entry->type == BCH_JSET_ENTRY_usage ||
+			    entry->type == BCH_JSET_ENTRY_data_usage)
 				continue;
 
 			if (entry->type == BCH_JSET_ENTRY_btree_keys &&

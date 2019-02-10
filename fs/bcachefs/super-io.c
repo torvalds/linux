@@ -900,7 +900,6 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 				      struct jset_entry *entry,
 				      u64 journal_seq)
 {
-	struct jset_entry_usage *u;
 	struct btree_root *r;
 	unsigned i;
 
@@ -929,24 +928,45 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 
 	{
 		u64 nr_inodes = percpu_u64_get(&c->usage[0]->s.nr_inodes);
+		struct jset_entry_usage *u =
+			container_of(entry, struct jset_entry_usage, entry);
 
-		u = container_of(entry, struct jset_entry_usage, entry);
 		memset(u, 0, sizeof(*u));
 		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u), sizeof(u64)) - 1;
 		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->sectors	= cpu_to_le64(nr_inodes);
-		u->type		= FS_USAGE_INODES;
+		u->entry.btree_id = FS_USAGE_INODES;
+		u->v		= cpu_to_le64(nr_inodes);
 
 		entry = vstruct_next(entry);
 	}
 
 	{
-		u = container_of(entry, struct jset_entry_usage, entry);
+		struct jset_entry_usage *u =
+			container_of(entry, struct jset_entry_usage, entry);
+
 		memset(u, 0, sizeof(*u));
 		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u), sizeof(u64)) - 1;
 		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->sectors	= cpu_to_le64(atomic64_read(&c->key_version));
-		u->type		= FS_USAGE_KEY_VERSION;
+		u->entry.btree_id = FS_USAGE_KEY_VERSION;
+		u->v		= cpu_to_le64(atomic64_read(&c->key_version));
+
+		entry = vstruct_next(entry);
+	}
+
+	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
+		struct jset_entry_usage *u =
+			container_of(entry, struct jset_entry_usage, entry);
+		u64 sectors = percpu_u64_get(&c->usage[0]->persistent_reserved[i]);
+
+		if (!sectors)
+			continue;
+
+		memset(u, 0, sizeof(*u));
+		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u), sizeof(u64)) - 1;
+		u->entry.type	= BCH_JSET_ENTRY_usage;
+		u->entry.btree_id = FS_USAGE_RESERVED;
+		u->entry.level	= i;
+		u->v		= sectors;
 
 		entry = vstruct_next(entry);
 	}
@@ -955,13 +975,14 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 		struct bch_replicas_entry *e =
 			cpu_replicas_entry(&c->replicas, i);
 		u64 sectors = percpu_u64_get(&c->usage[0]->data[i]);
+		struct jset_entry_data_usage *u =
+			container_of(entry, struct jset_entry_data_usage, entry);
 
-		u = container_of(entry, struct jset_entry_usage, entry);
+		memset(u, 0, sizeof(*u));
 		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u) + e->nr_devs,
 					       sizeof(u64)) - 1;
-		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->sectors	= cpu_to_le64(sectors);
-		u->type		= FS_USAGE_REPLICAS;
+		u->entry.type	= BCH_JSET_ENTRY_data_usage;
+		u->v		= cpu_to_le64(sectors);
 		unsafe_memcpy(&u->r, e, replicas_entry_bytes(e),
 			      "embedded variable length struct");
 

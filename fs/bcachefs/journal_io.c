@@ -309,6 +309,27 @@ static int journal_entry_validate_usage(struct bch_fs *c,
 	unsigned bytes = jset_u64s(le16_to_cpu(entry->u64s)) * sizeof(u64);
 	int ret = 0;
 
+	if (journal_entry_err_on(bytes < sizeof(*u),
+				 c,
+				 "invalid journal entry usage: bad size")) {
+		journal_entry_null_range(entry, vstruct_next(entry));
+		return ret;
+	}
+
+fsck_err:
+	return ret;
+}
+
+static int journal_entry_validate_data_usage(struct bch_fs *c,
+					struct jset *jset,
+					struct jset_entry *entry,
+					int write)
+{
+	struct jset_entry_data_usage *u =
+		container_of(entry, struct jset_entry_data_usage, entry);
+	unsigned bytes = jset_u64s(le16_to_cpu(entry->u64s)) * sizeof(u64);
+	int ret = 0;
+
 	if (journal_entry_err_on(bytes < sizeof(*u) ||
 				 bytes < sizeof(*u) + u->r.nr_devs,
 				 c,
