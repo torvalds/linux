@@ -562,7 +562,7 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 		stats.flag |= RX_FLAG_FAILED_FCS_CRC;
 	stats.freq = priv->cur_freq;
 	stats.band = NL80211_BAND_2GHZ;
-	stats.signal = prxpd->snr;
+	stats.signal = prxpd->snr - prxpd->nf;
 	priv->noise = prxpd->nf;
 	/* Marvell rate index has a hole at value 4 */
 	if (prxpd->rx_rate > 4)
@@ -626,6 +626,7 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
 
 	hw->queues = 1;
 	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
 	hw->extra_tx_headroom = sizeof(struct txpd);
 	memcpy(priv->channels, lbtf_channels, sizeof(lbtf_channels));
 	memcpy(priv->rates, lbtf_rates, sizeof(lbtf_rates));
