@@ -191,6 +191,7 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			&init_params);
 
 		dc_sink->priv = aconnector;
+		/* dc_link_add_remote_sink returns a new reference */
 		aconnector->dc_sink = dc_sink;
 
 		if (aconnector->dc_sink)
