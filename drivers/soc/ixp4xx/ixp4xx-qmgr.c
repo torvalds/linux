@@ -32,6 +32,117 @@ static void *irq_pdevs[QUEUES];
 char qmgr_queue_descs[QUEUES][32];
 #endif
 
+void qmgr_put_entry(unsigned int queue, u32 val)
+{
+#if DEBUG_QMGR
+	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+
+	printk(KERN_DEBUG "Queue %s(%i) put %X\n",
+	       qmgr_queue_descs[queue], queue, val);
+#endif
+	__raw_writel(val, &qmgr_regs->acc[queue][0]);
+}
+
+u32 qmgr_get_entry(unsigned int queue)
+{
+	u32 val;
+	val = __raw_readl(&qmgr_regs->acc[queue][0]);
+#if DEBUG_QMGR
+	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+
+	printk(KERN_DEBUG "Queue %s(%i) get %X\n",
+	       qmgr_queue_descs[queue], queue, val);
+#endif
+	return val;
+}
+
+static int __qmgr_get_stat1(unsigned int queue)
+{
+	return (__raw_readl(&qmgr_regs->stat1[queue >> 3])
+		>> ((queue & 7) << 2)) & 0xF;
+}
+
+static int __qmgr_get_stat2(unsigned int queue)
+{
+	BUG_ON(queue >= HALF_QUEUES);
+	return (__raw_readl(&qmgr_regs->stat2[queue >> 4])
+		>> ((queue & 0xF) << 1)) & 0x3;
+}
+
+/**
+ * qmgr_stat_empty() - checks if a hardware queue is empty
+ * @queue:	queue number
+ *
+ * Returns non-zero value if the queue is empty.
+ */
+int qmgr_stat_empty(unsigned int queue)
+{
+	BUG_ON(queue >= HALF_QUEUES);
+	return __qmgr_get_stat1(queue) & QUEUE_STAT1_EMPTY;
+}
+
+/**
+ * qmgr_stat_below_low_watermark() - checks if a queue is below low watermark
+ * @queue:	queue number
+ *
+ * Returns non-zero value if the queue is below low watermark.
+ */
+int qmgr_stat_below_low_watermark(unsigned int queue)
+{
+	if (queue >= HALF_QUEUES)
+		return (__raw_readl(&qmgr_regs->statne_h) >>
+			(queue - HALF_QUEUES)) & 0x01;
+	return __qmgr_get_stat1(queue) & QUEUE_STAT1_NEARLY_EMPTY;
+}
+
+/**
+ * qmgr_stat_above_high_watermark() - checks if a queue is above high watermark
+ * @queue:	queue number
+ *
+ * Returns non-zero value if the queue is above high watermark
+ */
+static int qmgr_stat_above_high_watermark(unsigned int queue)
+{
+	BUG_ON(queue >= HALF_QUEUES);
+	return __qmgr_get_stat1(queue) & QUEUE_STAT1_NEARLY_FULL;
+}
+
+/**
+ * qmgr_stat_full() - checks if a hardware queue is full
+ * @queue:	queue number
+ *
+ * Returns non-zero value if the queue is full.
+ */
+int qmgr_stat_full(unsigned int queue)
+{
+	if (queue >= HALF_QUEUES)
+		return (__raw_readl(&qmgr_regs->statf_h) >>
+			(queue - HALF_QUEUES)) & 0x01;
+	return __qmgr_get_stat1(queue) & QUEUE_STAT1_FULL;
+}
+
+/**
+ * qmgr_stat_underflow() - checks if a hardware queue experienced underflow
+ * @queue:	queue number
+ *
+ * Returns non-zero value if the queue experienced underflow.
+ */
+static int qmgr_stat_underflow(unsigned int queue)
+{
+	return __qmgr_get_stat2(queue) & QUEUE_STAT2_UNDERFLOW;
+}
+
+/**
+ * qmgr_stat_overflow() - checks if a hardware queue experienced overflow
+ * @queue:	queue number
+ *
+ * Returns non-zero value if the queue experienced overflow.
+ */
+int qmgr_stat_overflow(unsigned int queue)
+{
+	return __qmgr_get_stat2(queue) & QUEUE_STAT2_OVERFLOW;
+}
+
 void qmgr_set_irq(unsigned int queue, int src,
 		  void (*handler)(void *pdev), void *pdev)
 {
@@ -375,6 +486,12 @@ module_platform_driver(ixp4xx_qmgr_driver);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Krzysztof Halasa");
 
+EXPORT_SYMBOL(qmgr_put_entry);
+EXPORT_SYMBOL(qmgr_get_entry);
+EXPORT_SYMBOL(qmgr_stat_empty);
+EXPORT_SYMBOL(qmgr_stat_below_low_watermark);
+EXPORT_SYMBOL(qmgr_stat_full);
+EXPORT_SYMBOL(qmgr_stat_overflow);
 EXPORT_SYMBOL(qmgr_set_irq);
 EXPORT_SYMBOL(qmgr_enable_irq);
 EXPORT_SYMBOL(qmgr_disable_irq);
