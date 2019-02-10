@@ -16,13 +16,9 @@
 #include <linux/platform_device.h>
 #include <linux/soc/ixp4xx/qmgr.h>
 
-/* FIXME: get rid of these static assigments */
-#define IRQ_IXP4XX_BASE		16
-#define IRQ_IXP4XX_QM1		(IRQ_IXP4XX_BASE + 3)
-#define IRQ_IXP4XX_QM2		(IRQ_IXP4XX_BASE + 4)
-
-static struct qmgr_regs __iomem *qmgr_regs = IXP4XX_QMGR_BASE_VIRT;
-static struct resource *mem_res;
+static struct qmgr_regs __iomem *qmgr_regs;
+static int qmgr_irq_1;
+static int qmgr_irq_2;
 static spinlock_t qmgr_lock;
 static u32 used_sram_bitmap[4]; /* 128 16-dword pages */
 static void (*irq_handlers[QUEUES])(void *pdev);
@@ -190,7 +186,7 @@ static irqreturn_t qmgr_irq2_a0(int irq, void *pdev)
 
 static irqreturn_t qmgr_irq(int irq, void *pdev)
 {
-	int i, half = (irq == IRQ_IXP4XX_QM1 ? 0 : 1);
+	int i, half = (irq == qmgr_irq_1 ? 0 : 1);
 	u32 req_bitmap = __raw_readl(&qmgr_regs->irqstat[half]);
 
 	if (!req_bitmap)
@@ -381,12 +377,25 @@ static int ixp4xx_qmgr_probe(struct platform_device *pdev)
 {
 	int i, err;
 	irq_handler_t handler1, handler2;
+	struct device *dev = &pdev->dev;
+	struct resource *res;
+	int irq1, irq2;
 
-	mem_res = request_mem_region(IXP4XX_QMGR_BASE_PHYS,
-				     IXP4XX_QMGR_REGION_SIZE,
-				     "IXP4xx Queue Manager");
-	if (mem_res == NULL)
-		return -EBUSY;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
+	qmgr_regs = devm_ioremap_resource(dev, res);
+	if (!qmgr_regs)
+		return -ENOMEM;
+
+	irq1 = platform_get_irq(pdev, 0);
+	if (irq1 <= 0)
+		return irq1 ? irq1 : -EINVAL;
+	qmgr_irq_1 = irq1;
+	irq2 = platform_get_irq(pdev, 1);
+	if (irq2 <= 0)
+		return irq2 ? irq2 : -EINVAL;
+	qmgr_irq_2 = irq2;
 
 	/* reset qmgr registers */
 	for (i = 0; i < 4; i++) {
@@ -411,43 +420,33 @@ static int ixp4xx_qmgr_probe(struct platform_device *pdev)
 	} else
 		handler1 = handler2 = qmgr_irq;
 
-	err = request_irq(IRQ_IXP4XX_QM1, handler1, 0, "IXP4xx Queue Manager",
-			  NULL);
+	err = devm_request_irq(dev, irq1, handler1, 0, "IXP4xx Queue Manager",
+			       NULL);
 	if (err) {
-		printk(KERN_ERR "qmgr: failed to request IRQ%i (%i)\n",
-		       IRQ_IXP4XX_QM1, err);
-		goto error_irq;
+		dev_err(dev, "failed to request IRQ%i (%i)\n",
+			irq1, err);
+		return err;
 	}
 
-	err = request_irq(IRQ_IXP4XX_QM2, handler2, 0, "IXP4xx Queue Manager",
-			  NULL);
+	err = devm_request_irq(dev, irq2, handler2, 0, "IXP4xx Queue Manager",
+			       NULL);
 	if (err) {
-		printk(KERN_ERR "qmgr: failed to request IRQ%i (%i)\n",
-		       IRQ_IXP4XX_QM2, err);
-		goto error_irq2;
+		dev_err(dev, "failed to request IRQ%i (%i)\n",
+			irq2, err);
+		return err;
 	}
 
 	used_sram_bitmap[0] = 0xF; /* 4 first pages reserved for config */
 	spin_lock_init(&qmgr_lock);
 
-	printk(KERN_INFO "IXP4xx Queue Manager initialized.\n");
+	dev_info(dev, "IXP4xx Queue Manager initialized.\n");
 	return 0;
-
-error_irq2:
-	free_irq(IRQ_IXP4XX_QM1, NULL);
-error_irq:
-	release_mem_region(IXP4XX_QMGR_BASE_PHYS, IXP4XX_QMGR_REGION_SIZE);
-	return err;
 }
 
 static int ixp4xx_qmgr_remove(struct platform_device *pdev)
 {
-	free_irq(IRQ_IXP4XX_QM1, NULL);
-	free_irq(IRQ_IXP4XX_QM2, NULL);
-	synchronize_irq(IRQ_IXP4XX_QM1);
-	synchronize_irq(IRQ_IXP4XX_QM2);
-	release_mem_region(IXP4XX_QMGR_BASE_PHYS, IXP4XX_QMGR_REGION_SIZE);
-
+	synchronize_irq(qmgr_irq_1);
+	synchronize_irq(qmgr_irq_2);
 	return 0;
 }
 

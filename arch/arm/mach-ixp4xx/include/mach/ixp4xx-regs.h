@@ -43,8 +43,6 @@
  * Queue Manager
  */
 #define IXP4XX_QMGR_BASE_PHYS		0x60000000
-#define IXP4XX_QMGR_BASE_VIRT		IOMEM(0xFEF15000)
-#define IXP4XX_QMGR_REGION_SIZE		0x00004000
 
 /*
  * Peripheral space, including debug UART. Must be section-aligned so that

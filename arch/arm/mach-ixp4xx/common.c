@@ -66,11 +66,6 @@ static struct map_desc ixp4xx_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(IXP4XX_PCI_CFG_BASE_PHYS),
 		.length		= IXP4XX_PCI_CFG_REGION_SIZE,
 		.type		= MT_DEVICE
-	}, {	/* Queue Manager */
-		.virtual	= (unsigned long)IXP4XX_QMGR_BASE_VIRT,
-		.pfn		= __phys_to_pfn(IXP4XX_QMGR_BASE_PHYS),
-		.length		= IXP4XX_QMGR_REGION_SIZE,
-		.type		= MT_DEVICE
 	},
 };
 
@@ -176,9 +171,29 @@ static struct platform_device ixp4xx_npe_device = {
 	.resource       = ixp4xx_npe_resources,
 };
 
+static struct resource ixp4xx_qmgr_resources[] = {
+	{
+		.start = IXP4XX_QMGR_BASE_PHYS,
+		.end = IXP4XX_QMGR_BASE_PHYS + 0x3fff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_IXP4XX_QM1,
+		.end = IRQ_IXP4XX_QM1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_IXP4XX_QM2,
+		.end = IRQ_IXP4XX_QM2,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
 static struct platform_device ixp4xx_qmgr_device = {
 	.name           = "ixp4xx-qmgr",
 	.id             = -1,
+	.num_resources  = ARRAY_SIZE(ixp4xx_qmgr_resources),
+	.resource       = ixp4xx_qmgr_resources,
 };
 
 static struct platform_device *ixp4xx_devices[] __initdata = {
