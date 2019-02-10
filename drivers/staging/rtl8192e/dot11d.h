@@ -84,8 +84,8 @@ static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__pIeeeDev)
 void dot11d_init(struct rtllib_device *dev);
 void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee);
 void dot11d_reset(struct rtllib_device *dev);
-void dot11d_update_country(struct rtllib_device *dev, u8 *pTaddr,
-			    u16 CoutryIeLen, u8 *pCoutryIe);
+void dot11d_update_country(struct rtllib_device *dev, u8 *address,
+			   u16 country_len, u8 *country);
 void dot11d_scan_complete(struct rtllib_device *dev);
 
 #endif

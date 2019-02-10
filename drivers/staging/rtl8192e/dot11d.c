@@ -114,8 +114,8 @@ void dot11d_reset(struct rtllib_device *ieee)
 	RESET_CIE_WATCHDOG(ieee);
 }
 
-void dot11d_update_country(struct rtllib_device *dev, u8 *pTaddr,
-			    u16 CoutryIeLen, u8 *pCoutryIe)
+void dot11d_update_country(struct rtllib_device *dev, u8 *address,
+			   u16 country_len, u8 *country)
 {
 	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(dev);
 	u8 i, j, number_of_triples, max_channel_number;
@@ -124,8 +124,8 @@ void dot11d_update_country(struct rtllib_device *dev, u8 *pTaddr,
 	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
 	memset(dot11d_info->max_tx_power_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	max_channel_number = 0;
-	number_of_triples = (CoutryIeLen - 3) / 3;
-	triple = (struct chnl_txpow_triple *)(pCoutryIe + 3);
+	number_of_triples = (country_len - 3) / 3;
+	triple = (struct chnl_txpow_triple *)(country + 3);
 	for (i = 0; i < number_of_triples; i++) {
 		if (max_channel_number >= triple->first_channel) {
 			netdev_info(dev->dev,
@@ -151,10 +151,10 @@ void dot11d_update_country(struct rtllib_device *dev, u8 *pTaddr,
 		triple = (struct chnl_txpow_triple *)((u8 *)triple + 3);
 	}
 
-	UPDATE_CIE_SRC(dev, pTaddr);
+	UPDATE_CIE_SRC(dev, address);
 
-	dot11d_info->country_len = CoutryIeLen;
-	memcpy(dot11d_info->country_buffer, pCoutryIe, CoutryIeLen);
+	dot11d_info->country_len = country_len;
+	memcpy(dot11d_info->country_buffer, country, country_len);
 	dot11d_info->state = DOT11D_STATE_LEARNED;
 }
 
