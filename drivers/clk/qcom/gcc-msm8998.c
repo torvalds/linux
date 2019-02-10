@@ -2959,6 +2959,10 @@ static const struct regmap_config gcc_msm8998_regmap_config = {
 	.fast_io	= true,
 };
 
+static struct clk_hw *gcc_msm8998_hws[] = {
+	&xo.hw,
+};
+
 static const struct qcom_cc_desc gcc_msm8998_desc = {
 	.config = &gcc_msm8998_regmap_config,
 	.clks = gcc_msm8998_clocks,
@@ -2967,6 +2971,8 @@ static const struct qcom_cc_desc gcc_msm8998_desc = {
 	.num_resets = ARRAY_SIZE(gcc_msm8998_resets),
 	.gdscs = gcc_msm8998_gdscs,
 	.num_gdscs = ARRAY_SIZE(gcc_msm8998_gdscs),
+	.clk_hws = gcc_msm8998_hws,
+	.num_clk_hws = ARRAY_SIZE(gcc_msm8998_hws),
 };
 
 static int gcc_msm8998_probe(struct platform_device *pdev)
@@ -2983,10 +2989,6 @@ static int gcc_msm8998_probe(struct platform_device *pdev)
 	 * turned off by hardware during certain apps low power modes.
 	 */
 	ret = regmap_update_bits(regmap, 0x52008, BIT(21), BIT(21));
-	if (ret)
-		return ret;
-
-	ret = devm_clk_hw_register(&pdev->dev, &xo.hw);
 	if (ret)
 		return ret;
 

@@ -2692,6 +2692,8 @@ static const struct qcom_cc_desc gcc_qcs404_desc = {
 	.num_clks = ARRAY_SIZE(gcc_qcs404_clocks),
 	.resets = gcc_qcs404_resets,
 	.num_resets = ARRAY_SIZE(gcc_qcs404_resets),
+	.clk_hws = gcc_qcs404_hws,
+	.num_clk_hws = ARRAY_SIZE(gcc_qcs404_hws),
 };
 
 static const struct of_device_id gcc_qcs404_match_table[] = {
@@ -2703,19 +2705,12 @@ MODULE_DEVICE_TABLE(of, gcc_qcs404_match_table);
 static int gcc_qcs404_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
-	int ret, i;
 
 	regmap = qcom_cc_map(pdev, &gcc_qcs404_desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
 	clk_alpha_pll_configure(&gpll3_out_main, regmap, &gpll3_config);
-
-	for (i = 0; i < ARRAY_SIZE(gcc_qcs404_hws); i++) {
-		ret = devm_clk_hw_register(&pdev->dev, gcc_qcs404_hws[i]);
-		if (ret)
-			return ret;
-	}
 
 	return qcom_cc_really_probe(pdev, &gcc_qcs404_desc, regmap);
 }
