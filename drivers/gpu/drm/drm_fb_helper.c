@@ -3024,7 +3024,8 @@ static int drm_fbdev_fb_open(struct fb_info *info, int user)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 
-	if (!try_module_get(fb_helper->dev->driver->fops->owner))
+	/* No need to take a ref for fbcon because it unbinds on unregister */
+	if (user && !try_module_get(fb_helper->dev->driver->fops->owner))
 		return -ENODEV;
 
 	return 0;
@@ -3034,7 +3035,8 @@ static int drm_fbdev_fb_release(struct fb_info *info, int user)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 
-	module_put(fb_helper->dev->driver->fops->owner);
+	if (user)
+		module_put(fb_helper->dev->driver->fops->owner);
 
 	return 0;
 }
