@@ -23,7 +23,7 @@ TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test
 	test_align test_verifier_log test_dev_cgroup test_tcpbpf_user \
 	test_sock test_btf test_sockmap test_lirc_mode2_user get_cgroup_id_user \
 	test_socket_cookie test_cgroup_storage test_select_reuseport test_section_names \
-	test_netcnt test_tcpnotify_user
+	test_netcnt test_tcpnotify_user test_sock_fields
 
 BPF_OBJ_FILES = \
 	test_xdp_redirect.o test_xdp_meta.o sockmap_parse_prog.o \
@@ -35,7 +35,8 @@ BPF_OBJ_FILES = \
 	sendmsg4_prog.o sendmsg6_prog.o test_lirc_mode2_kern.o \
 	get_cgroup_id_kern.o socket_cookie_prog.o test_select_reuseport_kern.o \
 	test_skb_cgroup_id_kern.o bpf_flow.o netcnt_prog.o test_xdp_vlan.o \
-	xdp_dummy.o test_map_in_map.o test_spin_lock.o test_map_lock.o
+	xdp_dummy.o test_map_in_map.o test_spin_lock.o test_map_lock.o \
+	test_sock_fields_kern.o
 
 # Objects are built with default compilation flags and with sub-register
 # code-gen enabled.
@@ -111,6 +112,7 @@ $(OUTPUT)/test_progs: trace_helpers.c
 $(OUTPUT)/get_cgroup_id_user: cgroup_helpers.c
 $(OUTPUT)/test_cgroup_storage: cgroup_helpers.c
 $(OUTPUT)/test_netcnt: cgroup_helpers.c
+$(OUTPUT)/test_sock_fields: cgroup_helpers.c
 
 .PHONY: force
 
