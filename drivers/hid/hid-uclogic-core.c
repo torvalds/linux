@@ -300,6 +300,16 @@ static int uclogic_raw_event(struct hid_device *hdev,
 		}
 	}
 
+	/* Tweak frame control reports, if necessary */
+	if ((report->type == HID_INPUT_REPORT) &&
+	    (report->id == params->frame.id)) {
+		/* If need to, and can, set pad device ID for Wacom drivers */
+		if (params->frame.dev_id_byte > 0 &&
+		    params->frame.dev_id_byte < size) {
+			data[params->frame.dev_id_byte] = 0xf;
+		}
+	}
+
 	return 0;
 }
 

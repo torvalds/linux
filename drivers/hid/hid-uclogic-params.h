@@ -87,6 +87,13 @@ struct uclogic_params_frame {
 	 * Report ID, if reports should be tweaked, zero if not.
 	 */
 	unsigned int id;
+	/*
+	 * Offset of the Wacom-style device ID byte in the report, to be set
+	 * to pad device ID (0xf), for compatibility with Wacom drivers. Zero
+	 * if no changes to the report should be made. Only valid if "id" is
+	 * not zero.
+	 */
+	unsigned int dev_id_byte;
 };
 
 /*
@@ -161,6 +168,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		".frame.desc_ptr = %p\n"            \
 		".frame.desc_size = %u\n"           \
 		".frame.id = %u\n"                  \
+		".frame.dev_id_byte = %u\n"         \
 		".pen_frame_flag = 0x%02x\n"
 
 /* Tablet interface parameters *printf format arguments */
@@ -177,6 +185,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		(_params)->frame.desc_ptr,                                  \
 		(_params)->frame.desc_size,                                 \
 		(_params)->frame.id,                                        \
+		(_params)->frame.dev_id_byte,                               \
 		(_params)->pen_frame_flag
 
 /* Get a replacement report descriptor for a tablet's interface. */
