@@ -56,9 +56,10 @@ struct mipi_dbi {
 	struct regulator *regulator;
 };
 
-static inline struct mipi_dbi *
-mipi_dbi_from_tinydrm(struct tinydrm_device *tdev)
+static inline struct mipi_dbi *drm_to_mipi_dbi(struct drm_device *drm)
 {
+	struct tinydrm_device *tdev = drm->dev_private;
+
 	return container_of(tdev, struct mipi_dbi, tinydrm);
 }
 
