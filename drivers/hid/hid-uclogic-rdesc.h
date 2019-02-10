@@ -135,4 +135,8 @@ extern const size_t uclogic_rdesc_buttonpad_v2_size;
 extern const __u8 uclogic_rdesc_ugee_ex07_buttonpad_arr[];
 extern const size_t uclogic_rdesc_ugee_ex07_buttonpad_size;
 
+/* Fixed report descriptor for XP-Pen Deco 01 frame controls */
+extern const __u8 uclogic_rdesc_xppen_deco01_frame_arr[];
+extern const size_t uclogic_rdesc_xppen_deco01_frame_size;
+
 #endif /* _HID_UCLOGIC_RDESC_H */
