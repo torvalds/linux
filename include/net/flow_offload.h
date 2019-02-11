@@ -171,7 +171,7 @@ static inline bool flow_action_has_entries(const struct flow_action *action)
 }
 
 #define flow_action_for_each(__i, __act, __actions)			\
-        for (__i = 0, __act = &(__actions)->entries[0]; __i < (__actions)->num_entries; __act = &(__actions)->entries[__i++])
+        for (__i = 0, __act = &(__actions)->entries[0]; __i < (__actions)->num_entries; __act = &(__actions)->entries[++__i])
 
 struct flow_rule {
 	struct flow_match	match;
