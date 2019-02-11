@@ -407,15 +407,10 @@ int bch2_fs_initialize(struct bch_fs *c)
 	mutex_unlock(&c->sb_lock);
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
+	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
 
 	for (i = 0; i < BTREE_ID_NR; i++)
 		bch2_btree_root_alloc(c, i);
-
-	ret = bch2_gc(c, &journal, true);
-	if (ret)
-		goto err;
-
-	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
 
 	err = "unable to allocate journal buckets";
 	for_each_online_member(ca, c, i)
