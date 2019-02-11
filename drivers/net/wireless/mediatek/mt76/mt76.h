@@ -713,6 +713,19 @@ static inline bool mt76u_check_sg(struct mt76_dev *dev)
 		 udev->speed == USB_SPEED_WIRELESS));
 }
 
+static inline int
+mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int timeout)
+{
+	struct usb_interface *intf = to_usb_interface(dev->dev);
+	struct usb_device *udev = interface_to_usbdev(intf);
+	struct mt76_usb *usb = &dev->usb;
+	unsigned int pipe;
+	int sent;
+
+	pipe = usb_sndbulkpipe(udev, usb->out_ep[MT_EP_OUT_INBAND_CMD]);
+	return usb_bulk_msg(udev, pipe, data, len, &sent, timeout);
+}
+
 int mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 			 u8 req_type, u16 val, u16 offset,
 			 void *buf, size_t len);
