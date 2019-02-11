@@ -489,9 +489,13 @@ static void sun6i_dsi_setup_timings(struct sun6i_dsi *dsi,
 		  (mode->hsync_start - mode->hdisplay) * Bpp - HFP_PACKET_OVERHEAD);
 
 	/*
-	 * hblk seems to be the line + porches length.
+	 * The blanking is set using a sync event (4 bytes) and a
+	 * blanking packet (4 bytes + payload + 2 bytes). Its minimal
+	 * size is therefore 10 bytes.
 	 */
-	hblk = mode->htotal * Bpp - hsa;
+#define HBLK_PACKET_OVERHEAD	10
+	hblk = max((unsigned int)HBLK_PACKET_OVERHEAD,
+		   (mode->htotal - (mode->hsync_end - mode->hsync_start)) * Bpp - HBLK_PACKET_OVERHEAD);
 
 	/*
 	 * And I'm not entirely sure what vblk is about. The driver in
