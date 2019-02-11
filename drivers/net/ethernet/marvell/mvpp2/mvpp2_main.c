@@ -965,6 +965,11 @@ mvpp2_shared_interrupt_mask_unmask(struct mvpp2_port *port, bool mask)
 }
 
 /* Port configuration routines */
+static bool mvpp2_is_xlg(phy_interface_t interface)
+{
+	return interface == PHY_INTERFACE_MODE_10GKR ||
+	       interface == PHY_INTERFACE_MODE_XAUI;
+}
 
 static void mvpp22_gop_init_rgmii(struct mvpp2_port *port)
 {
@@ -1181,9 +1186,7 @@ static void mvpp2_port_enable(struct mvpp2_port *port)
 	u32 val;
 
 	/* Only GOP port 0 has an XLG MAC */
-	if (port->gop_id == 0 &&
-	    (port->phy_interface == PHY_INTERFACE_MODE_XAUI ||
-	     port->phy_interface == PHY_INTERFACE_MODE_10GKR)) {
+	if (port->gop_id == 0 && mvpp2_is_xlg(port->phy_interface)) {
 		val = readl(port->base + MVPP22_XLG_CTRL0_REG);
 		val |= MVPP22_XLG_CTRL0_PORT_EN |
 		       MVPP22_XLG_CTRL0_MAC_RESET_DIS;
@@ -1202,9 +1205,7 @@ static void mvpp2_port_disable(struct mvpp2_port *port)
 	u32 val;
 
 	/* Only GOP port 0 has an XLG MAC */
-	if (port->gop_id == 0 &&
-	    (port->phy_interface == PHY_INTERFACE_MODE_XAUI ||
-	     port->phy_interface == PHY_INTERFACE_MODE_10GKR)) {
+	if (port->gop_id == 0 && mvpp2_is_xlg(port->phy_interface)) {
 		val = readl(port->base + MVPP22_XLG_CTRL0_REG);
 		val &= ~MVPP22_XLG_CTRL0_PORT_EN;
 		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
@@ -3146,8 +3147,7 @@ static void mvpp22_mode_reconfigure(struct mvpp2_port *port)
 		ctrl3 = readl(port->base + MVPP22_XLG_CTRL3_REG);
 		ctrl3 &= ~MVPP22_XLG_CTRL3_MACMODESELECT_MASK;
 
-		if (port->phy_interface == PHY_INTERFACE_MODE_XAUI ||
-		    port->phy_interface == PHY_INTERFACE_MODE_10GKR)
+		if (mvpp2_is_xlg(port->phy_interface))
 			ctrl3 |= MVPP22_XLG_CTRL3_MACMODESELECT_10G;
 		else
 			ctrl3 |= MVPP22_XLG_CTRL3_MACMODESELECT_GMAC;
@@ -3155,9 +3155,7 @@ static void mvpp22_mode_reconfigure(struct mvpp2_port *port)
 		writel(ctrl3, port->base + MVPP22_XLG_CTRL3_REG);
 	}
 
-	if (port->gop_id == 0 &&
-	    (port->phy_interface == PHY_INTERFACE_MODE_XAUI ||
-	     port->phy_interface == PHY_INTERFACE_MODE_10GKR))
+	if (port->gop_id == 0 && mvpp2_is_xlg(port->phy_interface))
 		mvpp2_xlg_max_rx_size_set(port);
 	else
 		mvpp2_gmac_max_rx_size_set(port);
