@@ -961,7 +961,7 @@ static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
 	if (cache->nobjs >= min)
 		return 0;
 	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
-		obj = kmem_cache_zalloc(base_cache, GFP_KERNEL);
+		obj = kmem_cache_zalloc(base_cache, GFP_KERNEL_ACCOUNT);
 		if (!obj)
 			return cache->nobjs >= min ? 0 : -ENOMEM;
 		cache->objects[cache->nobjs++] = obj;
@@ -3702,7 +3702,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 
 			u64 *lm_root;
 
-			lm_root = (void*)get_zeroed_page(GFP_KERNEL);
+			lm_root = (void*)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 			if (lm_root == NULL)
 				return 1;
 
@@ -5499,7 +5499,7 @@ static int alloc_mmu_pages(struct kvm_vcpu *vcpu)
 	 * Therefore we need to allocate shadow page tables in the first
 	 * 4GB of memory, which happens to fit the DMA32 zone.
 	 */
-	page = alloc_page(GFP_KERNEL | __GFP_DMA32);
+	page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_DMA32);
 	if (!page)
 		return -ENOMEM;
 
