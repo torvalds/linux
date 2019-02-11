@@ -416,6 +416,7 @@ struct _vcs_dpi_display_dlg_regs_st {
 	unsigned int refcyc_per_vm_group_flip;
 	unsigned int refcyc_per_vm_req_vblank;
 	unsigned int refcyc_per_vm_req_flip;
+	unsigned int refcyc_per_vm_dmdata;
 };
 
 struct _vcs_dpi_display_ttu_regs_st {

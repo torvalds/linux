@@ -1360,7 +1360,7 @@ static bool construct(
 		goto fail;
 	}
 
-	dml_init_instance(&dc->dml, DML_PROJECT_RAVEN1);
+	dml_init_instance(&dc->dml, &dcn1_0_soc, &dcn1_0_ip, DML_PROJECT_RAVEN1);
 	memcpy(dc->dcn_ip, &dcn10_ip_defaults, sizeof(dcn10_ip_defaults));
 	memcpy(dc->dcn_soc, &dcn10_soc_defaults, sizeof(dcn10_soc_defaults));
 
