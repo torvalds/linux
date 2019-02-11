@@ -468,6 +468,9 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 	else if (val >= 0)
 		val *= 1000ULL;
 
+	if (wbt_get_min_lat(q) == val)
+		return count;
+
 	/*
 	 * Ensure that the queue is idled, in case the latency update
 	 * ends up either enabling or disabling wbt completely. We can't
