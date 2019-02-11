@@ -373,12 +373,9 @@ static int meson_rtc_probe(struct platform_device *pdev)
 
 	ret = rtc_register_device(rtc->rtc);
 	if (ret)
-		goto out_unregister_nvmem;
+		goto out_disable_vdd;
 
 	return 0;
-
-out_unregister_nvmem:
-	rtc_nvmem_unregister(rtc->rtc);
 
 out_disable_vdd:
 	regulator_disable(rtc->vdd);
