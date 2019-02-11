@@ -4356,11 +4356,8 @@ static int devlink_fmsg_snd(struct devlink_fmsg *fmsg,
 		err = -EMSGSIZE;
 		goto nla_put_failure;
 	}
-	err = genlmsg_reply(skb, info);
-	if (err)
-		return err;
 
-	return 0;
+	return genlmsg_reply(skb, info);
 
 nla_put_failure:
 	nlmsg_free(skb);
