@@ -178,7 +178,7 @@ static const struct nfp_devlink_versions_simple {
 } nfp_devlink_versions_hwinfo[] = {
 	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,	"assembly.partno", },
 	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_REV,	"assembly.revision", },
-	{ "board.vendor", /* fab */			"assembly.vendor", },
+	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_MANUFACTURE, "assembly.vendor", },
 	{ "board.model", /* code name */		"assembly.model", },
 };
 
