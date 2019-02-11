@@ -384,7 +384,8 @@
 			compatible = "fsl,imx8mq-aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x30800000 0x30800000 0x400000>;
+			ranges = <0x30800000 0x30800000 0x400000>,
+				 <0x08000000 0x08000000 0x10000000>;
 
 			ecspi1: spi@30820000 {
 				#address-cells = <1>;
@@ -533,6 +534,20 @@
 				fsl,tuning-start-tap = <20>;
 				fsl,tuning-step = <2>;
 				bus-width = <4>;
+				status = "disabled";
+			};
+
+			qspi0: spi@30bb0000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx8mq-qspi", "fsl,imx7d-qspi";
+				reg = <0x30bb0000 0x10000>,
+				      <0x08000000 0x10000000>;
+				reg-names = "QuadSPI", "QuadSPI-memory";
+				interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MQ_CLK_QSPI_ROOT>,
+					 <&clk IMX8MQ_CLK_QSPI_ROOT>;
+				clock-names = "qspi_en", "qspi";
 				status = "disabled";
 			};
 
