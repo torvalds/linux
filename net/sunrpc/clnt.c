@@ -1164,6 +1164,25 @@ struct rpc_task *rpc_run_bc_task(struct rpc_rqst *req)
 }
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
+/**
+ * rpc_prepare_reply_pages - Prepare to receive a reply data payload into pages
+ * @req: RPC request to prepare
+ * @pages: vector of struct page pointers
+ * @base: offset in first page where receive should start, in bytes
+ * @len: expected size of the upper layer data payload, in bytes
+ * @hdrsize: expected size of upper layer reply header, in XDR words
+ *
+ */
+void rpc_prepare_reply_pages(struct rpc_rqst *req, struct page **pages,
+			     unsigned int base, unsigned int len,
+			     unsigned int hdrsize)
+{
+	hdrsize += RPC_REPHDRSIZE + req->rq_cred->cr_auth->au_rslack;
+	xdr_inline_pages(&req->rq_rcv_buf, hdrsize << 2, pages, base, len);
+	trace_rpc_reply_pages(req);
+}
+EXPORT_SYMBOL_GPL(rpc_prepare_reply_pages);
+
 void
 rpc_call_start(struct rpc_task *task)
 {

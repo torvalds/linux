@@ -1016,12 +1016,11 @@ static void encode_compound_hdr(struct xdr_stream *xdr,
 				struct compound_hdr *hdr)
 {
 	__be32 *p;
-	struct rpc_auth *auth = req->rq_cred->cr_auth;
 
 	/* initialize running count of expected bytes in reply.
 	 * NOTE: the replied tag SHOULD be the same is the one sent,
 	 * but this is not required as a MUST for the server to do so. */
-	hdr->replen = RPC_REPHDRSIZE + auth->au_rslack + 3 + hdr->taglen;
+	hdr->replen = 3 + hdr->taglen;
 
 	WARN_ON_ONCE(hdr->taglen > NFS4_MAXTAGLEN);
 	encode_string(xdr, hdr->taglen, hdr->tag);
@@ -2341,9 +2340,9 @@ static void nfs4_xdr_enc_open(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_getfattr_open(xdr, args->bitmask, args->open_bitmap, &hdr);
 	if (args->lg_args) {
 		encode_layoutget(xdr, args->lg_args, &hdr);
-		xdr_inline_pages(&req->rq_rcv_buf, hdr.replen << 2,
-				 args->lg_args->layout.pages,
-				 0, args->lg_args->layout.pglen);
+		rpc_prepare_reply_pages(req, args->lg_args->layout.pages, 0,
+					args->lg_args->layout.pglen,
+					hdr.replen);
 	}
 	encode_nops(&hdr);
 }
@@ -2387,9 +2386,9 @@ static void nfs4_xdr_enc_open_noattr(struct rpc_rqst *req,
 	encode_getfattr_open(xdr, args->bitmask, args->open_bitmap, &hdr);
 	if (args->lg_args) {
 		encode_layoutget(xdr, args->lg_args, &hdr);
-		xdr_inline_pages(&req->rq_rcv_buf, hdr.replen << 2,
-				 args->lg_args->layout.pages,
-				 0, args->lg_args->layout.pglen);
+		rpc_prepare_reply_pages(req, args->lg_args->layout.pages, 0,
+					args->lg_args->layout.pglen,
+					hdr.replen);
 	}
 	encode_nops(&hdr);
 }
@@ -2499,8 +2498,8 @@ static void nfs4_xdr_enc_readlink(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_putfh(xdr, args->fh, &hdr);
 	encode_readlink(xdr, args, req, &hdr);
 
-	xdr_inline_pages(&req->rq_rcv_buf, hdr.replen << 2, args->pages,
-			args->pgbase, args->pglen);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
+				args->pglen, hdr.replen);
 	encode_nops(&hdr);
 }
 
@@ -2520,11 +2519,8 @@ static void nfs4_xdr_enc_readdir(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_putfh(xdr, args->fh, &hdr);
 	encode_readdir(xdr, args, req, &hdr);
 
-	xdr_inline_pages(&req->rq_rcv_buf, hdr.replen << 2, args->pages,
-			 args->pgbase, args->count);
-	dprintk("%s: inlined page args = (%u, %p, %u, %u)\n",
-			__func__, hdr.replen << 2, args->pages,
-			args->pgbase, args->count);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
+				args->count, hdr.replen);
 	encode_nops(&hdr);
 }
 
@@ -2544,8 +2540,8 @@ static void nfs4_xdr_enc_read(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_putfh(xdr, args->fh, &hdr);
 	encode_read(xdr, args, &hdr);
 
-	xdr_inline_pages(&req->rq_rcv_buf, hdr.replen << 2,
-			 args->pages, args->pgbase, args->count);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
+				args->count, hdr.replen);
 	req->rq_rcv_buf.flags |= XDRBUF_READ;
 	encode_nops(&hdr);
 }
@@ -2591,9 +2587,8 @@ static void nfs4_xdr_enc_getacl(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_getattr(xdr, nfs4_acl_bitmap, NULL,
 			ARRAY_SIZE(nfs4_acl_bitmap), &hdr);
 
-	xdr_inline_pages(&req->rq_rcv_buf, replen << 2,
-		args->acl_pages, 0, args->acl_len);
-
+	rpc_prepare_reply_pages(req, args->acl_pages, 0,
+				args->acl_len, replen);
 	encode_nops(&hdr);
 }
 
@@ -2814,9 +2809,8 @@ static void nfs4_xdr_enc_fs_locations(struct rpc_rqst *req,
 		encode_fs_locations(xdr, args->bitmask, &hdr);
 	}
 
-	/* Set up reply kvec to capture returned fs_locations array. */
-	xdr_inline_pages(&req->rq_rcv_buf, replen << 2,
-			 (struct page **)&args->page, 0, PAGE_SIZE);
+	rpc_prepare_reply_pages(req, (struct page **)&args->page, 0,
+				PAGE_SIZE, replen);
 	encode_nops(&hdr);
 }
 
@@ -3018,10 +3012,8 @@ static void nfs4_xdr_enc_getdeviceinfo(struct rpc_rqst *req,
 
 	/* set up reply kvec. Subtract notification bitmap max size (2)
 	 * so that notification bitmap is put in xdr_buf tail */
-	xdr_inline_pages(&req->rq_rcv_buf, (hdr.replen - 2) << 2,
-			 args->pdev->pages, args->pdev->pgbase,
-			 args->pdev->pglen);
-
+	rpc_prepare_reply_pages(req, args->pdev->pages, args->pdev->pgbase,
+				args->pdev->pglen, hdr.replen - 2);
 	encode_nops(&hdr);
 }
 
@@ -3042,9 +3034,8 @@ static void nfs4_xdr_enc_layoutget(struct rpc_rqst *req,
 	encode_putfh(xdr, NFS_FH(args->inode), &hdr);
 	encode_layoutget(xdr, args, &hdr);
 
-	xdr_inline_pages(&req->rq_rcv_buf, hdr.replen << 2,
-	    args->layout.pages, 0, args->layout.pglen);
-
+	rpc_prepare_reply_pages(req, args->layout.pages, 0,
+				args->layout.pglen, hdr.replen);
 	encode_nops(&hdr);
 }
 

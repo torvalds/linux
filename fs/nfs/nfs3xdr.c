@@ -105,21 +105,6 @@ static const umode_t nfs_type2fmt[] = {
 };
 
 /*
- * While encoding arguments, set up the reply buffer in advance to
- * receive reply data directly into the page cache.
- */
-static void prepare_reply_buffer(struct rpc_rqst *req, struct page **pages,
-				 unsigned int base, unsigned int len,
-				 unsigned int bufsize)
-{
-	struct rpc_auth	*auth = req->rq_cred->cr_auth;
-	unsigned int replen;
-
-	replen = RPC_REPHDRSIZE + auth->au_rslack + bufsize;
-	xdr_inline_pages(&req->rq_rcv_buf, replen << 2, pages, base, len);
-}
-
-/*
  * Encode/decode NFSv3 basic data types
  *
  * Basic NFSv3 data types are defined in section 2.5 of RFC 1813:
@@ -910,8 +895,8 @@ static void nfs3_xdr_enc_readlink3args(struct rpc_rqst *req,
 	const struct nfs3_readlinkargs *args = data;
 
 	encode_nfs_fh3(xdr, args->fh);
-	prepare_reply_buffer(req, args->pages, args->pgbase,
-					args->pglen, NFS3_readlinkres_sz);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
+				args->pglen, NFS3_readlinkres_sz);
 }
 
 /*
@@ -943,8 +928,8 @@ static void nfs3_xdr_enc_read3args(struct rpc_rqst *req,
 	unsigned int replen = args->replen ? args->replen : NFS3_readres_sz;
 
 	encode_read3args(xdr, args);
-	prepare_reply_buffer(req, args->pages, args->pgbase,
-					args->count, replen);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
+				args->count, replen);
 	req->rq_rcv_buf.flags |= XDRBUF_READ;
 }
 
@@ -1236,7 +1221,7 @@ static void nfs3_xdr_enc_readdir3args(struct rpc_rqst *req,
 	const struct nfs3_readdirargs *args = data;
 
 	encode_readdir3args(xdr, args);
-	prepare_reply_buffer(req, args->pages, 0,
+	rpc_prepare_reply_pages(req, args->pages, 0,
 				args->count, NFS3_readdirres_sz);
 }
 
@@ -1278,7 +1263,7 @@ static void nfs3_xdr_enc_readdirplus3args(struct rpc_rqst *req,
 	const struct nfs3_readdirargs *args = data;
 
 	encode_readdirplus3args(xdr, args);
-	prepare_reply_buffer(req, args->pages, 0,
+	rpc_prepare_reply_pages(req, args->pages, 0,
 				args->count, NFS3_readdirres_sz);
 }
 
@@ -1323,7 +1308,7 @@ static void nfs3_xdr_enc_getacl3args(struct rpc_rqst *req,
 	encode_nfs_fh3(xdr, args->fh);
 	encode_uint32(xdr, args->mask);
 	if (args->mask & (NFS_ACL | NFS_DFACL)) {
-		prepare_reply_buffer(req, args->pages, 0,
+		rpc_prepare_reply_pages(req, args->pages, 0,
 					NFSACL_MAXPAGES << PAGE_SHIFT,
 					ACL3_getaclres_sz);
 		req->rq_rcv_buf.flags |= XDRBUF_SPARSE_PAGES;

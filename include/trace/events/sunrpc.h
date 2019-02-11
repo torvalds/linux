@@ -461,6 +461,43 @@ TRACE_EVENT(rpc_xdr_alignment,
 	)
 );
 
+TRACE_EVENT(rpc_reply_pages,
+	TP_PROTO(
+		const struct rpc_rqst *req
+	),
+
+	TP_ARGS(req),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(const void *, head_base)
+		__field(size_t, head_len)
+		__field(const void *, tail_base)
+		__field(size_t, tail_len)
+		__field(unsigned int, page_len)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = req->rq_task->tk_pid;
+		__entry->client_id = req->rq_task->tk_client->cl_clid;
+
+		__entry->head_base = req->rq_rcv_buf.head[0].iov_base;
+		__entry->head_len = req->rq_rcv_buf.head[0].iov_len;
+		__entry->page_len = req->rq_rcv_buf.page_len;
+		__entry->tail_base = req->rq_rcv_buf.tail[0].iov_base;
+		__entry->tail_len = req->rq_rcv_buf.tail[0].iov_len;
+	),
+
+	TP_printk(
+		"task:%u@%u xdr=[%p,%zu]/%u/[%p,%zu]\n",
+		__entry->task_id, __entry->client_id,
+		__entry->head_base, __entry->head_len,
+		__entry->page_len,
+		__entry->tail_base, __entry->tail_len
+	)
+);
+
 /*
  * First define the enums in the below macros to be exported to userspace
  * via TRACE_DEFINE_ENUM().

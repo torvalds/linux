@@ -66,21 +66,6 @@
 static int nfs_stat_to_errno(enum nfs_stat);
 
 /*
- * While encoding arguments, set up the reply buffer in advance to
- * receive reply data directly into the page cache.
- */
-static void prepare_reply_buffer(struct rpc_rqst *req, struct page **pages,
-				 unsigned int base, unsigned int len,
-				 unsigned int bufsize)
-{
-	struct rpc_auth	*auth = req->rq_cred->cr_auth;
-	unsigned int replen;
-
-	replen = RPC_REPHDRSIZE + auth->au_rslack + bufsize;
-	xdr_inline_pages(&req->rq_rcv_buf, replen << 2, pages, base, len);
-}
-
-/*
  * Encode/decode NFSv2 basic data types
  *
  * Basic NFSv2 data types are defined in section 2.3 of RFC 1094:
@@ -593,8 +578,8 @@ static void nfs2_xdr_enc_readlinkargs(struct rpc_rqst *req,
 	const struct nfs_readlinkargs *args = data;
 
 	encode_fhandle(xdr, args->fh);
-	prepare_reply_buffer(req, args->pages, args->pgbase,
-					args->pglen, NFS_readlinkres_sz);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
+				args->pglen, NFS_readlinkres_sz);
 }
 
 /*
@@ -629,8 +614,8 @@ static void nfs2_xdr_enc_readargs(struct rpc_rqst *req,
 	const struct nfs_pgio_args *args = data;
 
 	encode_readargs(xdr, args);
-	prepare_reply_buffer(req, args->pages, args->pgbase,
-					args->count, NFS_readres_sz);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
+				args->count, NFS_readres_sz);
 	req->rq_rcv_buf.flags |= XDRBUF_READ;
 }
 
@@ -787,8 +772,8 @@ static void nfs2_xdr_enc_readdirargs(struct rpc_rqst *req,
 	const struct nfs_readdirargs *args = data;
 
 	encode_readdirargs(xdr, args);
-	prepare_reply_buffer(req, args->pages, 0,
-					args->count, NFS_readdirres_sz);
+	rpc_prepare_reply_pages(req, args->pages, 0,
+				args->count, NFS_readdirres_sz);
 }
 
 /*
