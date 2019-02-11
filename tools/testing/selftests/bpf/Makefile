@@ -25,24 +25,7 @@ TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test
 	test_socket_cookie test_cgroup_storage test_select_reuseport test_section_names \
 	test_netcnt test_tcpnotify_user test_sock_fields
 
-BPF_OBJ_FILES = \
-	test_xdp_redirect.o test_xdp_meta.o sockmap_parse_prog.o \
-	sockmap_verdict_prog.o dev_cgroup.o sample_ret0.o \
-	test_tcpnotify_kern.o sample_map_ret0.o test_tcpbpf_kern.o \
-	sockmap_tcp_msg_prog.o connect4_prog.o connect6_prog.o \
-	test_btf_haskv.o test_btf_nokv.o test_sockmap_kern.o \
-	test_tunnel_kern.o test_sockhash_kern.o test_lwt_seg6local.o \
-	sendmsg4_prog.o sendmsg6_prog.o test_lirc_mode2_kern.o \
-	get_cgroup_id_kern.o socket_cookie_prog.o test_select_reuseport_kern.o \
-	test_skb_cgroup_id_kern.o bpf_flow.o netcnt_prog.o test_xdp_vlan.o \
-	xdp_dummy.o test_map_in_map.o test_spin_lock.o test_map_lock.o \
-	test_pkt_access.o test_xdp.o test_adjust_tail.o test_l4lb.o \
-	test_l4lb_noinline.o test_xdp_noinline.o test_tcp_estats.o \
-	test_obj_id.o test_pkt_md_access.o test_tracepoint.o \
-	test_stacktrace_map.o test_stacktrace_build_id.o \
-	test_get_stack_rawtp.o test_sk_lookup_kern.o test_queue_map.o \
-	test_stack_map.o test_sock_fields_kern.o
-
+BPF_OBJ_FILES = $(patsubst %.c,%.o, $(notdir $(wildcard progs/*.c)))
 TEST_GEN_FILES = $(BPF_OBJ_FILES)
 
 # Also test sub-register code-gen if LLVM + kernel both has eBPF v3 processor
@@ -184,7 +167,8 @@ $(ALU32_BUILD_DIR)/test_progs_32: test_progs.c $(ALU32_BUILD_DIR) \
 	$(CC) $(CFLAGS) -o $(ALU32_BUILD_DIR)/test_progs_32 $< \
 		trace_helpers.c $(OUTPUT)/libbpf.a $(LDLIBS)
 
-$(ALU32_BUILD_DIR)/%.o: %.c $(ALU32_BUILD_DIR) $(ALU32_BUILD_DIR)/test_progs_32
+$(ALU32_BUILD_DIR)/%.o: progs/%.c $(ALU32_BUILD_DIR) \
+					$(ALU32_BUILD_DIR)/test_progs_32
 	$(CLANG) $(CLANG_FLAGS) \
 		 -O2 -target bpf -emit-llvm -c $< -o - |      \
 	$(LLC) -march=bpf -mattr=+alu32 -mcpu=$(CPU) $(LLC_FLAGS) \
@@ -196,7 +180,7 @@ endif
 
 # Have one program compiled without "-target bpf" to test whether libbpf loads
 # it successfully
-$(OUTPUT)/test_xdp.o: test_xdp.c
+$(OUTPUT)/test_xdp.o: progs/test_xdp.c
 	$(CLANG) $(CLANG_FLAGS) \
 		-O2 -emit-llvm -c $< -o - | \
 	$(LLC) -march=bpf -mcpu=$(CPU) $(LLC_FLAGS) -filetype=obj -o $@
@@ -204,7 +188,7 @@ ifeq ($(DWARF2BTF),y)
 	$(BTF_PAHOLE) -J $@
 endif
 
-$(OUTPUT)/%.o: %.c
+$(OUTPUT)/%.o: progs/%.c
 	$(CLANG) $(CLANG_FLAGS) \
 		 -O2 -target bpf -emit-llvm -c $< -o - |      \
 	$(LLC) -march=bpf -mcpu=$(CPU) $(LLC_FLAGS) -filetype=obj -o $@
