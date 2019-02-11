@@ -330,17 +330,10 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 				     enum rcar_du_output output,
 				     struct of_endpoint *ep)
 {
-	struct device_node *connector = NULL;
-	struct device_node *encoder = NULL;
-	struct device_node *ep_node = NULL;
-	struct device_node *entity_ep_node;
 	struct device_node *entity;
 	int ret;
 
-	/*
-	 * Locate the connected entity and infer its type from the number of
-	 * endpoints.
-	 */
+	/* Locate the connected entity and initialize the encoder. */
 	entity = of_graph_get_remote_port_parent(ep->local_node);
 	if (!entity) {
 		dev_dbg(rcdu->dev, "unconnected endpoint %pOF, skipping\n",
@@ -352,52 +345,17 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		dev_dbg(rcdu->dev,
 			"connected entity %pOF is disabled, skipping\n",
 			entity);
+		of_node_put(entity);
 		return -ENODEV;
 	}
 
-	entity_ep_node = of_graph_get_remote_endpoint(ep->local_node);
-
-	for_each_endpoint_of_node(entity, ep_node) {
-		if (ep_node == entity_ep_node)
-			continue;
-
-		/*
-		 * We've found one endpoint other than the input, this must
-		 * be an encoder. Locate the connector.
-		 */
-		encoder = entity;
-		connector = of_graph_get_remote_port_parent(ep_node);
-		of_node_put(ep_node);
-
-		if (!connector) {
-			dev_warn(rcdu->dev,
-				 "no connector for encoder %pOF, skipping\n",
-				 encoder);
-			of_node_put(entity_ep_node);
-			of_node_put(encoder);
-			return -ENODEV;
-		}
-
-		break;
-	}
-
-	of_node_put(entity_ep_node);
-
-	if (!encoder) {
-		dev_warn(rcdu->dev,
-			 "no encoder found for endpoint %pOF, skipping\n",
-			 ep->local_node);
-		return -ENODEV;
-	}
-
-	ret = rcar_du_encoder_init(rcdu, output, encoder, connector);
+	ret = rcar_du_encoder_init(rcdu, output, entity);
 	if (ret && ret != -EPROBE_DEFER)
 		dev_warn(rcdu->dev,
 			 "failed to initialize encoder %pOF on output %u (%d), skipping\n",
-			 encoder, output, ret);
+			 entity, output, ret);
 
-	of_node_put(encoder);
-	of_node_put(connector);
+	of_node_put(entity);
 
 	return ret;
 }
