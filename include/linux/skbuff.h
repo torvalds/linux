@@ -1889,12 +1889,12 @@ static inline void __skb_queue_before(struct sk_buff_head *list,
  *
  *	A buffer cannot be placed on two lists at the same time.
  */
-void skb_queue_head(struct sk_buff_head *list, struct sk_buff *newsk);
 static inline void __skb_queue_head(struct sk_buff_head *list,
 				    struct sk_buff *newsk)
 {
 	__skb_queue_after(list, (struct sk_buff *)list, newsk);
 }
+void skb_queue_head(struct sk_buff_head *list, struct sk_buff *newsk);
 
 /**
  *	__skb_queue_tail - queue a buffer at the list tail
@@ -1906,12 +1906,12 @@ static inline void __skb_queue_head(struct sk_buff_head *list,
  *
  *	A buffer cannot be placed on two lists at the same time.
  */
-void skb_queue_tail(struct sk_buff_head *list, struct sk_buff *newsk);
 static inline void __skb_queue_tail(struct sk_buff_head *list,
 				   struct sk_buff *newsk)
 {
 	__skb_queue_before(list, (struct sk_buff *)list, newsk);
 }
+void skb_queue_tail(struct sk_buff_head *list, struct sk_buff *newsk);
 
 /*
  * remove sk_buff from list. _Must_ be called atomically, and with
@@ -1938,7 +1938,6 @@ static inline void __skb_unlink(struct sk_buff *skb, struct sk_buff_head *list)
  *	so must be used with appropriate locks held only. The head item is
  *	returned or %NULL if the list is empty.
  */
-struct sk_buff *skb_dequeue(struct sk_buff_head *list);
 static inline struct sk_buff *__skb_dequeue(struct sk_buff_head *list)
 {
 	struct sk_buff *skb = skb_peek(list);
@@ -1946,6 +1945,7 @@ static inline struct sk_buff *__skb_dequeue(struct sk_buff_head *list)
 		__skb_unlink(skb, list);
 	return skb;
 }
+struct sk_buff *skb_dequeue(struct sk_buff_head *list);
 
 /**
  *	__skb_dequeue_tail - remove from the tail of the queue
@@ -1955,7 +1955,6 @@ static inline struct sk_buff *__skb_dequeue(struct sk_buff_head *list)
  *	so must be used with appropriate locks held only. The tail item is
  *	returned or %NULL if the list is empty.
  */
-struct sk_buff *skb_dequeue_tail(struct sk_buff_head *list);
 static inline struct sk_buff *__skb_dequeue_tail(struct sk_buff_head *list)
 {
 	struct sk_buff *skb = skb_peek_tail(list);
@@ -1963,6 +1962,7 @@ static inline struct sk_buff *__skb_dequeue_tail(struct sk_buff_head *list)
 		__skb_unlink(skb, list);
 	return skb;
 }
+struct sk_buff *skb_dequeue_tail(struct sk_buff_head *list);
 
 
 static inline bool skb_is_nonlinear(const struct sk_buff *skb)
@@ -2653,13 +2653,13 @@ static inline int skb_orphan_frags_rx(struct sk_buff *skb, gfp_t gfp_mask)
  *	the list and one reference dropped. This function does not take the
  *	list lock and the caller must hold the relevant locks to use it.
  */
-void skb_queue_purge(struct sk_buff_head *list);
 static inline void __skb_queue_purge(struct sk_buff_head *list)
 {
 	struct sk_buff *skb;
 	while ((skb = __skb_dequeue(list)) != NULL)
 		kfree_skb(skb);
 }
+void skb_queue_purge(struct sk_buff_head *list);
 
 unsigned int skb_rbtree_purge(struct rb_root *root);
 
@@ -3028,7 +3028,7 @@ static inline int skb_padto(struct sk_buff *skb, unsigned int len)
 }
 
 /**
- *	skb_put_padto - increase size and pad an skbuff up to a minimal size
+ *	__skb_put_padto - increase size and pad an skbuff up to a minimal size
  *	@skb: buffer to pad
  *	@len: minimal length
  *	@free_on_error: free buffer on error
