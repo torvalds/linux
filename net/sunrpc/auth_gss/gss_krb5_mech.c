@@ -53,6 +53,7 @@
 static struct gss_api_mech gss_kerberos_mech;	/* forward declaration */
 
 static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
+#ifndef CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES
 	/*
 	 * DES (All DES enctypes are mapped to the same gss functionality)
 	 */
@@ -74,6 +75,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksumlength = 8,
 	  .keyed_cksum = 0,
 	},
+#endif	/* CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES */
 	/*
 	 * RC4-HMAC
 	 */
