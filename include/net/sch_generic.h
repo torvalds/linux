@@ -322,6 +322,11 @@ struct tcf_proto {
 	void			*data;
 	const struct tcf_proto_ops	*ops;
 	struct tcf_chain	*chain;
+	/* Lock protects tcf_proto shared state and can be used by unlocked
+	 * classifiers to protect their private data.
+	 */
+	spinlock_t		lock;
+	bool			deleting;
 	refcount_t		refcnt;
 	struct rcu_head		rcu;
 };
@@ -382,8 +387,18 @@ static inline bool lockdep_tcf_chain_is_locked(struct tcf_chain *chain)
 {
 	return lockdep_is_held(&chain->filter_chain_lock);
 }
+
+static inline bool lockdep_tcf_proto_is_locked(struct tcf_proto *tp)
+{
+	return lockdep_is_held(&tp->lock);
+}
 #else
 static inline bool lockdep_tcf_chain_is_locked(struct tcf_block *chain)
+{
+	return true;
+}
+
+static inline bool lockdep_tcf_proto_is_locked(struct tcf_proto *tp)
 {
 	return true;
 }
@@ -391,6 +406,9 @@ static inline bool lockdep_tcf_chain_is_locked(struct tcf_block *chain)
 
 #define tcf_chain_dereference(p, chain)					\
 	rcu_dereference_protected(p, lockdep_tcf_chain_is_locked(chain))
+
+#define tcf_proto_dereference(p, tp)					\
+	rcu_dereference_protected(p, lockdep_tcf_proto_is_locked(tp))
 
 static inline void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
 {

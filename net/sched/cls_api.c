@@ -180,6 +180,7 @@ static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
 	tp->protocol = protocol;
 	tp->prio = prio;
 	tp->chain = chain;
+	spin_lock_init(&tp->lock);
 	refcount_set(&tp->refcnt, 1);
 
 	err = tp->ops->init(tp);
@@ -215,6 +216,49 @@ static void tcf_proto_put(struct tcf_proto *tp,
 {
 	if (refcount_dec_and_test(&tp->refcnt))
 		tcf_proto_destroy(tp, extack);
+}
+
+static int walker_noop(struct tcf_proto *tp, void *d, struct tcf_walker *arg)
+{
+	return -1;
+}
+
+static bool tcf_proto_is_empty(struct tcf_proto *tp)
+{
+	struct tcf_walker walker = { .fn = walker_noop, };
+
+	if (tp->ops->walk) {
+		tp->ops->walk(tp, &walker);
+		return !walker.stop;
+	}
+	return true;
+}
+
+static bool tcf_proto_check_delete(struct tcf_proto *tp)
+{
+	spin_lock(&tp->lock);
+	if (tcf_proto_is_empty(tp))
+		tp->deleting = true;
+	spin_unlock(&tp->lock);
+	return tp->deleting;
+}
+
+static void tcf_proto_mark_delete(struct tcf_proto *tp)
+{
+	spin_lock(&tp->lock);
+	tp->deleting = true;
+	spin_unlock(&tp->lock);
+}
+
+static bool tcf_proto_is_deleting(struct tcf_proto *tp)
+{
+	bool deleting;
+
+	spin_lock(&tp->lock);
+	deleting = tp->deleting;
+	spin_unlock(&tp->lock);
+
+	return deleting;
 }
 
 #define ASSERT_BLOCK_LOCKED(block)					\
@@ -983,13 +1027,27 @@ EXPORT_SYMBOL(tcf_get_next_chain);
 static struct tcf_proto *
 __tcf_get_next_proto(struct tcf_chain *chain, struct tcf_proto *tp)
 {
+	u32 prio = 0;
+
 	ASSERT_RTNL();
 	mutex_lock(&chain->filter_chain_lock);
 
-	if (!tp)
+	if (!tp) {
 		tp = tcf_chain_dereference(chain->filter_chain, chain);
-	else
+	} else if (tcf_proto_is_deleting(tp)) {
+		/* 'deleting' flag is set and chain->filter_chain_lock was
+		 * unlocked, which means next pointer could be invalid. Restart
+		 * search.
+		 */
+		prio = tp->prio + 1;
+		tp = tcf_chain_dereference(chain->filter_chain, chain);
+
+		for (; tp; tp = tcf_chain_dereference(tp->next, chain))
+			if (!tp->deleting && tp->prio >= prio)
+				break;
+	} else {
 		tp = tcf_chain_dereference(tp->next, chain);
+	}
 
 	if (tp)
 		tcf_proto_get(tp);
@@ -1569,9 +1627,83 @@ static void tcf_chain_tp_remove(struct tcf_chain *chain,
 {
 	struct tcf_proto *next = tcf_chain_dereference(chain_info->next, chain);
 
+	tcf_proto_mark_delete(tp);
 	if (tp == chain->filter_chain)
 		tcf_chain0_head_change(chain, next);
 	RCU_INIT_POINTER(*chain_info->pprev, next);
+}
+
+static struct tcf_proto *tcf_chain_tp_find(struct tcf_chain *chain,
+					   struct tcf_chain_info *chain_info,
+					   u32 protocol, u32 prio,
+					   bool prio_allocate);
+
+/* Try to insert new proto.
+ * If proto with specified priority already exists, free new proto
+ * and return existing one.
+ */
+
+static struct tcf_proto *tcf_chain_tp_insert_unique(struct tcf_chain *chain,
+						    struct tcf_proto *tp_new,
+						    u32 protocol, u32 prio)
+{
+	struct tcf_chain_info chain_info;
+	struct tcf_proto *tp;
+
+	mutex_lock(&chain->filter_chain_lock);
+
+	tp = tcf_chain_tp_find(chain, &chain_info,
+			       protocol, prio, false);
+	if (!tp)
+		tcf_chain_tp_insert(chain, &chain_info, tp_new);
+	mutex_unlock(&chain->filter_chain_lock);
+
+	if (tp) {
+		tcf_proto_destroy(tp_new, NULL);
+		tp_new = tp;
+	}
+
+	return tp_new;
+}
+
+static void tcf_chain_tp_delete_empty(struct tcf_chain *chain,
+				      struct tcf_proto *tp,
+				      struct netlink_ext_ack *extack)
+{
+	struct tcf_chain_info chain_info;
+	struct tcf_proto *tp_iter;
+	struct tcf_proto **pprev;
+	struct tcf_proto *next;
+
+	mutex_lock(&chain->filter_chain_lock);
+
+	/* Atomically find and remove tp from chain. */
+	for (pprev = &chain->filter_chain;
+	     (tp_iter = tcf_chain_dereference(*pprev, chain));
+	     pprev = &tp_iter->next) {
+		if (tp_iter == tp) {
+			chain_info.pprev = pprev;
+			chain_info.next = tp_iter->next;
+			WARN_ON(tp_iter->deleting);
+			break;
+		}
+	}
+	/* Verify that tp still exists and no new filters were inserted
+	 * concurrently.
+	 * Mark tp for deletion if it is empty.
+	 */
+	if (!tp_iter || !tcf_proto_check_delete(tp)) {
+		mutex_unlock(&chain->filter_chain_lock);
+		return;
+	}
+
+	next = tcf_chain_dereference(chain_info.next, chain);
+	if (tp == chain->filter_chain)
+		tcf_chain0_head_change(chain, next);
+	RCU_INIT_POINTER(*chain_info.pprev, next);
+	mutex_unlock(&chain->filter_chain_lock);
+
+	tcf_proto_put(tp, extack);
 }
 
 static struct tcf_proto *tcf_chain_tp_find(struct tcf_chain *chain,
@@ -1809,6 +1941,8 @@ replay:
 	}
 
 	if (tp == NULL) {
+		struct tcf_proto *tp_new = NULL;
+
 		/* Proto-tcf does not exist, create new one */
 
 		if (tca[TCA_KIND] == NULL || !protocol) {
@@ -1828,23 +1962,23 @@ replay:
 							       &chain_info));
 
 		mutex_unlock(&chain->filter_chain_lock);
-		tp = tcf_proto_create(nla_data(tca[TCA_KIND]),
-				      protocol, prio, chain, extack);
-		if (IS_ERR(tp)) {
-			err = PTR_ERR(tp);
+		tp_new = tcf_proto_create(nla_data(tca[TCA_KIND]),
+					  protocol, prio, chain, extack);
+		if (IS_ERR(tp_new)) {
+			err = PTR_ERR(tp_new);
 			goto errout;
 		}
 
-		mutex_lock(&chain->filter_chain_lock);
-		tcf_chain_tp_insert(chain, &chain_info, tp);
-		mutex_unlock(&chain->filter_chain_lock);
 		tp_created = 1;
-	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
-		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
-		err = -EINVAL;
-		goto errout_locked;
+		tp = tcf_chain_tp_insert_unique(chain, tp_new, protocol, prio);
 	} else {
 		mutex_unlock(&chain->filter_chain_lock);
+	}
+
+	if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
+		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
+		err = -EINVAL;
+		goto errout;
 	}
 
 	fh = tp->ops->get(tp, t->tcm_handle);
@@ -1873,12 +2007,10 @@ replay:
 	if (err == 0)
 		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
 			       RTM_NEWTFILTER, false);
-	else if (tp_created)
-		tcf_proto_destroy(tp, NULL);
 
 errout:
-	if (chain)
-		tcf_chain_put(chain);
+	if (err && tp_created)
+		tcf_chain_tp_delete_empty(chain, tp, NULL);
 	if (chain) {
 		if (tp && !IS_ERR(tp))
 			tcf_proto_put(tp, NULL);
@@ -1984,9 +2116,9 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 		tcf_chain_tp_remove(chain, &chain_info, tp);
 		mutex_unlock(&chain->filter_chain_lock);
 
+		tcf_proto_put(tp, NULL);
 		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
 			       RTM_DELTFILTER, false);
-		tcf_proto_destroy(tp, extack);
 		err = 0;
 		goto errout;
 	}
@@ -2005,13 +2137,8 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 					 extack);
 		if (err)
 			goto errout;
-		if (last) {
-			mutex_lock(&chain->filter_chain_lock);
-			tcf_chain_tp_remove(chain, &chain_info, tp);
-			mutex_unlock(&chain->filter_chain_lock);
-
-			tcf_proto_destroy(tp, extack);
-		}
+		if (last)
+			tcf_chain_tp_delete_empty(chain, tp, extack);
 	}
 
 errout:
