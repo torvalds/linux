@@ -130,7 +130,7 @@ static int pblk_l2p_recover(struct pblk *pblk, bool factory_init)
 	struct pblk_line *line = NULL;
 
 	if (factory_init) {
-		pblk_setup_uuid(pblk);
+		guid_gen(&pblk->instance_uuid);
 	} else {
 		line = pblk_recov_l2p(pblk);
 		if (IS_ERR(line)) {

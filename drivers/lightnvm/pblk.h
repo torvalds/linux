@@ -646,7 +646,7 @@ struct pblk {
 
 	int sec_per_write;
 
-	unsigned char instance_uuid[16];
+	guid_t instance_uuid;
 
 	/* Persistent write amplification counters, 4kb sector I/Os */
 	atomic64_t user_wa;		/* Sectors written by user */
@@ -1358,14 +1358,6 @@ static inline sector_t pblk_get_lba(struct bio *bio)
 static inline unsigned int pblk_get_secs(struct bio *bio)
 {
 	return  bio->bi_iter.bi_size / PBLK_EXPOSED_PAGE_SIZE;
-}
-
-static inline void pblk_setup_uuid(struct pblk *pblk)
-{
-	uuid_le uuid;
-
-	uuid_le_gen(&uuid);
-	memcpy(pblk->instance_uuid, uuid.b, 16);
 }
 
 static inline char *pblk_disk_name(struct pblk *pblk)

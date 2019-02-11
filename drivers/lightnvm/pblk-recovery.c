@@ -703,11 +703,13 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 
 		/* The first valid instance uuid is used for initialization */
 		if (!valid_uuid) {
-			memcpy(pblk->instance_uuid, smeta_buf->header.uuid, 16);
+			guid_copy(&pblk->instance_uuid,
+				  (guid_t *)&smeta_buf->header.uuid);
 			valid_uuid = 1;
 		}
 
-		if (memcmp(pblk->instance_uuid, smeta_buf->header.uuid, 16)) {
+		if (!guid_equal(&pblk->instance_uuid,
+				(guid_t *)&smeta_buf->header.uuid)) {
 			pblk_debug(pblk, "ignore line %u due to uuid mismatch\n",
 					i);
 			continue;
@@ -737,7 +739,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 	}
 
 	if (!found_lines) {
-		pblk_setup_uuid(pblk);
+		guid_gen(&pblk->instance_uuid);
 
 		spin_lock(&l_mg->free_lock);
 		WARN_ON_ONCE(!test_and_clear_bit(meta_line,
