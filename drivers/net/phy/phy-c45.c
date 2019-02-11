@@ -47,6 +47,16 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 		/* Assume 1000base-T */
 		ctrl2 |= MDIO_PMA_CTRL2_1000BT;
 		break;
+	case SPEED_2500:
+		ctrl1 |= MDIO_CTRL1_SPEED2_5G;
+		/* Assume 2.5Gbase-T */
+		ctrl2 |= MDIO_PMA_CTRL2_2_5GBT;
+		break;
+	case SPEED_5000:
+		ctrl1 |= MDIO_CTRL1_SPEED5G;
+		/* Assume 5Gbase-T */
+		ctrl2 |= MDIO_PMA_CTRL2_5GBT;
+		break;
 	case SPEED_10000:
 		ctrl1 |= MDIO_CTRL1_SPEED10G;
 		/* Assume 10Gbase-T */
@@ -194,6 +204,12 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
+	if (val & MDIO_AN_10GBT_STAT_LP2_5G)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				 phydev->lp_advertising);
+	if (val & MDIO_AN_10GBT_STAT_LP5G)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+				 phydev->lp_advertising);
 	if (val & MDIO_AN_10GBT_STAT_LP10G)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
 				 phydev->lp_advertising);
@@ -223,6 +239,12 @@ int genphy_c45_read_pma(struct phy_device *phydev)
 		break;
 	case MDIO_PMA_CTRL1_SPEED1000:
 		phydev->speed = SPEED_1000;
+		break;
+	case MDIO_CTRL1_SPEED2_5G:
+		phydev->speed = SPEED_2500;
+		break;
+	case MDIO_CTRL1_SPEED5G:
+		phydev->speed = SPEED_5000;
 		break;
 	case MDIO_CTRL1_SPEED10G:
 		phydev->speed = SPEED_10000;
@@ -339,6 +361,21 @@ int genphy_c45_pma_read_abilities(struct phy_device *phydev)
 		linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
 				 phydev->supported,
 				 val & MDIO_PMA_EXTABLE_10BT);
+
+		if (val & MDIO_PMA_EXTABLE_NBT) {
+			val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+					   MDIO_PMA_NG_EXTABLE);
+			if (val < 0)
+				return val;
+
+			linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+					 phydev->supported,
+					 val & MDIO_PMA_NG_EXTABLE_2_5GBT);
+
+			linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+					 phydev->supported,
+					 val & MDIO_PMA_NG_EXTABLE_5GBT);
+		}
 	}
 
 	return 0;
