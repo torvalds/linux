@@ -4048,18 +4048,8 @@ out:
 	} else
 		allocated = ret;
 	map->m_flags |= EXT4_MAP_NEW;
-	/*
-	 * if we allocated more blocks than requested
-	 * we need to make sure we unmap the extra block
-	 * allocated. The actual needed block will get
-	 * unmapped later when we find the buffer_head marked
-	 * new.
-	 */
-	if (allocated > map->m_len) {
-		clean_bdev_aliases(inode->i_sb->s_bdev, newblock + map->m_len,
-				   allocated - map->m_len);
+	if (allocated > map->m_len)
 		allocated = map->m_len;
-	}
 	map->m_len = allocated;
 
 map_out:
