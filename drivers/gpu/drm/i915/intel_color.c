@@ -571,6 +571,17 @@ static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 		bdw_load_gamma_lut(crtc_state, 0);
 }
 
+static void icl_load_luts(const struct intel_crtc_state *crtc_state)
+{
+	glk_load_degamma_lut(crtc_state);
+
+	if (crtc_state_is_legacy_gamma(crtc_state))
+		i9xx_load_luts(crtc_state);
+	else
+		/* ToDo: Add support for multi segment gamma LUT */
+		bdw_load_gamma_lut(crtc_state, 0);
+}
+
 static void cherryview_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -760,7 +771,11 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 	    drm_color_lut_check(gamma_lut, gamma_tests))
 		return -EINVAL;
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 11)
+		crtc_state->gamma_mode = GAMMA_MODE_MODE_10BIT |
+					 PRE_CSC_GAMMA_ENABLE |
+					 POST_CSC_GAMMA_ENABLE;
+	else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_10BIT;
 	else if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_SPLIT;
@@ -784,7 +799,9 @@ void intel_color_init(struct intel_crtc *crtc)
 
 		dev_priv->display.color_commit = i9xx_color_commit;
 	} else {
-		if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+		if (IS_ICELAKE(dev_priv))
+			dev_priv->display.load_luts = icl_load_luts;
+		else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
 			dev_priv->display.load_luts = glk_load_luts;
 		else if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 			dev_priv->display.load_luts = broadwell_load_luts;
