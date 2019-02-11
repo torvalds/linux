@@ -9638,6 +9638,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0549 Failed setup of CQ Lookup table: "
 					"size 0x%x\n", phba->sli4_hba.cq_max);
+			rc = -ENOMEM;
 			goto out_destroy;
 		}
 		lpfc_setup_cq_lookup(phba);
