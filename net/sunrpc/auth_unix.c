@@ -99,37 +99,55 @@ unx_match(struct auth_cred *acred, struct rpc_cred *cred, int flags)
  * Marshal credentials.
  * Maybe we should keep a cached credential for performance reasons.
  */
-static __be32 *
-unx_marshal(struct rpc_task *task, __be32 *p)
+static int
+unx_marshal(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
 	struct rpc_cred	*cred = task->tk_rqstp->rq_cred;
-	__be32		*base, *hold;
+	__be32		*p, *cred_len, *gidarr_len;
 	int		i;
 	struct group_info *gi = cred->cr_cred->group_info;
 
-	*p++ = htonl(RPC_AUTH_UNIX);
-	base = p++;
-	*p++ = htonl(jiffies/HZ);
+	/* Credential */
 
-	/*
-	 * Copy the UTS nodename captured when the client was created.
-	 */
-	p = xdr_encode_array(p, clnt->cl_nodename, clnt->cl_nodelen);
+	p = xdr_reserve_space(xdr, 3 * sizeof(*p));
+	if (!p)
+		goto marshal_failed;
+	*p++ = rpc_auth_unix;
+	cred_len = p++;
+	*p++ = xdr_zero;	/* stamp */
+	if (xdr_stream_encode_opaque(xdr, clnt->cl_nodename,
+				     clnt->cl_nodelen) < 0)
+		goto marshal_failed;
+	p = xdr_reserve_space(xdr, 3 * sizeof(*p));
+	if (!p)
+		goto marshal_failed;
+	*p++ = cpu_to_be32(from_kuid(&init_user_ns, cred->cr_cred->fsuid));
+	*p++ = cpu_to_be32(from_kgid(&init_user_ns, cred->cr_cred->fsgid));
 
-	*p++ = htonl((u32) from_kuid(&init_user_ns, cred->cr_cred->fsuid));
-	*p++ = htonl((u32) from_kgid(&init_user_ns, cred->cr_cred->fsgid));
-	hold = p++;
+	gidarr_len = p++;
 	if (gi)
 		for (i = 0; i < UNX_NGROUPS && i < gi->ngroups; i++)
-			*p++ = htonl((u32) from_kgid(&init_user_ns, gi->gid[i]));
-	*hold = htonl(p - hold - 1);		/* gid array length */
-	*base = htonl((p - base - 1) << 2);	/* cred length */
+			*p++ = cpu_to_be32(from_kgid(&init_user_ns,
+						     gi->gid[i]));
+	*gidarr_len = cpu_to_be32(p - gidarr_len - 1);
+	*cred_len = cpu_to_be32((p - cred_len - 1) << 2);
+	p = xdr_reserve_space(xdr, (p - gidarr_len - 1) << 2);
+	if (!p)
+		goto marshal_failed;
 
-	*p++ = htonl(RPC_AUTH_NULL);
-	*p++ = htonl(0);
+	/* Verifier */
 
-	return p;
+	p = xdr_reserve_space(xdr, 2 * sizeof(*p));
+	if (!p)
+		goto marshal_failed;
+	*p++ = rpc_auth_null;
+	*p   = xdr_zero;
+
+	return 0;
+
+marshal_failed:
+	return -EMSGSIZE;
 }
 
 /*
@@ -202,6 +220,7 @@ const struct rpc_credops unix_credops = {
 	.crdestroy	= unx_destroy_cred,
 	.crmatch	= unx_match,
 	.crmarshal	= unx_marshal,
+	.crwrap_req	= rpcauth_wrap_req_encode,
 	.crrefresh	= unx_refresh,
 	.crvalidate	= unx_validate,
 };

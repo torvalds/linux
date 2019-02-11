@@ -1526,18 +1526,20 @@ out:
 }
 
 /*
-* Marshal credentials.
-* Maybe we should keep a cached credential for performance reasons.
-*/
-static __be32 *
-gss_marshal(struct rpc_task *task, __be32 *p)
+ * Marshal credentials.
+ *
+ * The expensive part is computing the verifier. We can't cache a
+ * pre-computed version of the verifier because the seqno, which
+ * is different every time, is included in the MIC.
+ */
+static int gss_marshal(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_cred *cred = req->rq_cred;
 	struct gss_cred	*gss_cred = container_of(cred, struct gss_cred,
 						 gc_base);
 	struct gss_cl_ctx	*ctx = gss_cred_get_ctx(cred);
-	__be32		*cred_len;
+	__be32		*p, *cred_len;
 	u32             maj_stat = 0;
 	struct xdr_netobj mic;
 	struct kvec	iov;
@@ -1545,7 +1547,13 @@ gss_marshal(struct rpc_task *task, __be32 *p)
 
 	dprintk("RPC: %5u %s\n", task->tk_pid, __func__);
 
-	*p++ = htonl(RPC_AUTH_GSS);
+	/* Credential */
+
+	p = xdr_reserve_space(xdr, 7 * sizeof(*p) +
+			      ctx->gc_wire_ctx.len);
+	if (!p)
+		goto out_put_ctx;
+	*p++ = rpc_auth_gss;
 	cred_len = p++;
 
 	spin_lock(&ctx->gc_seq_lock);
@@ -1554,12 +1562,14 @@ gss_marshal(struct rpc_task *task, __be32 *p)
 	if (req->rq_seqno == MAXSEQ)
 		goto out_expired;
 
-	*p++ = htonl((u32) RPC_GSS_VERSION);
-	*p++ = htonl((u32) ctx->gc_proc);
-	*p++ = htonl((u32) req->rq_seqno);
-	*p++ = htonl((u32) gss_cred->gc_service);
+	*p++ = cpu_to_be32(RPC_GSS_VERSION);
+	*p++ = cpu_to_be32(ctx->gc_proc);
+	*p++ = cpu_to_be32(req->rq_seqno);
+	*p++ = cpu_to_be32(gss_cred->gc_service);
 	p = xdr_encode_netobj(p, &ctx->gc_wire_ctx);
-	*cred_len = htonl((p - (cred_len + 1)) << 2);
+	*cred_len = cpu_to_be32((p - (cred_len + 1)) << 2);
+
+	/* Verifier */
 
 	/* We compute the checksum for the verifier over the xdr-encoded bytes
 	 * starting with the xid and ending at the end of the credential: */
@@ -1567,27 +1577,27 @@ gss_marshal(struct rpc_task *task, __be32 *p)
 	iov.iov_len = (u8 *)p - (u8 *)iov.iov_base;
 	xdr_buf_from_iov(&iov, &verf_buf);
 
-	/* set verifier flavor*/
-	*p++ = htonl(RPC_AUTH_GSS);
-
+	p = xdr_reserve_space(xdr, sizeof(*p));
+	if (!p)
+		goto out_put_ctx;
+	*p++ = rpc_auth_gss;
 	mic.data = (u8 *)(p + 1);
 	maj_stat = gss_get_mic(ctx->gc_gss_ctx, &verf_buf, &mic);
-	if (maj_stat == GSS_S_CONTEXT_EXPIRED) {
+	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		goto out_expired;
-	} else if (maj_stat != 0) {
-		pr_warn("gss_marshal: gss_get_mic FAILED (%d)\n", maj_stat);
-		task->tk_status = -EIO;
+	else if (maj_stat != 0)
 		goto out_put_ctx;
-	}
-	p = xdr_encode_opaque(p, NULL, mic.len);
+	if (xdr_stream_encode_opaque_inline(xdr, (void **)&p, mic.len) < 0)
+		goto out_put_ctx;
 	gss_put_ctx(ctx);
-	return p;
+	return 0;
 out_expired:
+	gss_put_ctx(ctx);
 	clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
-	task->tk_status = -EKEYEXPIRED;
+	return -EKEYEXPIRED;
 out_put_ctx:
 	gss_put_ctx(ctx);
-	return NULL;
+	return -EMSGSIZE;
 }
 
 static int gss_renew_cred(struct rpc_task *task)
@@ -1716,61 +1726,45 @@ out_bad:
 	return ret;
 }
 
-static void gss_wrap_req_encode(kxdreproc_t encode, struct rpc_rqst *rqstp,
-				__be32 *p, void *obj)
+static int gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
+			      struct rpc_task *task, struct xdr_stream *xdr)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &rqstp->rq_snd_buf, p, rqstp);
-	encode(rqstp, &xdr, obj);
-}
-
-static inline int
-gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-		   kxdreproc_t encode, struct rpc_rqst *rqstp,
-		   __be32 *p, void *obj)
-{
-	struct xdr_buf	*snd_buf = &rqstp->rq_snd_buf;
-	struct xdr_buf	integ_buf;
-	__be32          *integ_len = NULL;
+	struct rpc_rqst *rqstp = task->tk_rqstp;
+	struct xdr_buf integ_buf, *snd_buf = &rqstp->rq_snd_buf;
 	struct xdr_netobj mic;
-	u32		offset;
-	__be32		*q;
-	struct kvec	*iov;
-	u32             maj_stat = 0;
-	int		status = -EIO;
+	__be32 *p, *integ_len;
+	u32 offset, maj_stat;
 
+	p = xdr_reserve_space(xdr, 2 * sizeof(*p));
+	if (!p)
+		goto wrap_failed;
 	integ_len = p++;
+	*p = cpu_to_be32(rqstp->rq_seqno);
+
+	if (rpcauth_wrap_req_encode(task, xdr))
+		goto wrap_failed;
+
 	offset = (u8 *)p - (u8 *)snd_buf->head[0].iov_base;
-	*p++ = htonl(rqstp->rq_seqno);
-
-	gss_wrap_req_encode(encode, rqstp, p, obj);
-
 	if (xdr_buf_subsegment(snd_buf, &integ_buf,
 				offset, snd_buf->len - offset))
-		return status;
-	*integ_len = htonl(integ_buf.len);
+		goto wrap_failed;
+	*integ_len = cpu_to_be32(integ_buf.len);
 
-	/* guess whether we're in the head or the tail: */
-	if (snd_buf->page_len || snd_buf->tail[0].iov_len)
-		iov = snd_buf->tail;
-	else
-		iov = snd_buf->head;
-	p = iov->iov_base + iov->iov_len;
+	p = xdr_reserve_space(xdr, 0);
+	if (!p)
+		goto wrap_failed;
 	mic.data = (u8 *)(p + 1);
-
 	maj_stat = gss_get_mic(ctx->gc_gss_ctx, &integ_buf, &mic);
-	status = -EIO; /* XXX? */
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	else if (maj_stat)
-		return status;
-	q = xdr_encode_opaque(p, NULL, mic.len);
-
-	offset = (u8 *)q - (u8 *)p;
-	iov->iov_len += offset;
-	snd_buf->len += offset;
+		goto wrap_failed;
+	/* Check that the trailing MIC fit in the buffer, after the fact */
+	if (xdr_stream_encode_opaque_inline(xdr, (void **)&p, mic.len) < 0)
+		goto wrap_failed;
 	return 0;
+wrap_failed:
+	return -EMSGSIZE;
 }
 
 static void
@@ -1821,61 +1815,63 @@ out:
 	return -EAGAIN;
 }
 
-static inline int
-gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-		  kxdreproc_t encode, struct rpc_rqst *rqstp,
-		  __be32 *p, void *obj)
+static int gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
+			     struct rpc_task *task, struct xdr_stream *xdr)
 {
+	struct rpc_rqst *rqstp = task->tk_rqstp;
 	struct xdr_buf	*snd_buf = &rqstp->rq_snd_buf;
-	u32		offset;
-	u32             maj_stat;
+	u32		pad, offset, maj_stat;
 	int		status;
-	__be32		*opaque_len;
+	__be32		*p, *opaque_len;
 	struct page	**inpages;
 	int		first;
-	int		pad;
 	struct kvec	*iov;
-	char		*tmp;
 
+	status = -EIO;
+	p = xdr_reserve_space(xdr, 2 * sizeof(*p));
+	if (!p)
+		goto wrap_failed;
 	opaque_len = p++;
-	offset = (u8 *)p - (u8 *)snd_buf->head[0].iov_base;
-	*p++ = htonl(rqstp->rq_seqno);
+	*p = cpu_to_be32(rqstp->rq_seqno);
 
-	gss_wrap_req_encode(encode, rqstp, p, obj);
+	if (rpcauth_wrap_req_encode(task, xdr))
+		goto wrap_failed;
 
 	status = alloc_enc_pages(rqstp);
-	if (status)
-		return status;
+	if (unlikely(status))
+		goto wrap_failed;
 	first = snd_buf->page_base >> PAGE_SHIFT;
 	inpages = snd_buf->pages + first;
 	snd_buf->pages = rqstp->rq_enc_pages;
 	snd_buf->page_base -= first << PAGE_SHIFT;
 	/*
-	 * Give the tail its own page, in case we need extra space in the
-	 * head when wrapping:
+	 * Move the tail into its own page, in case gss_wrap needs
+	 * more space in the head when wrapping.
 	 *
-	 * call_allocate() allocates twice the slack space required
-	 * by the authentication flavor to rq_callsize.
-	 * For GSS, slack is GSS_CRED_SLACK.
+	 * Still... Why can't gss_wrap just slide the tail down?
 	 */
 	if (snd_buf->page_len || snd_buf->tail[0].iov_len) {
+		char *tmp;
+
 		tmp = page_address(rqstp->rq_enc_pages[rqstp->rq_enc_pages_num - 1]);
 		memcpy(tmp, snd_buf->tail[0].iov_base, snd_buf->tail[0].iov_len);
 		snd_buf->tail[0].iov_base = tmp;
 	}
+	status = -EIO;
+	offset = (u8 *)p - (u8 *)snd_buf->head[0].iov_base;
 	maj_stat = gss_wrap(ctx->gc_gss_ctx, offset, snd_buf, inpages);
 	/* slack space should prevent this ever happening: */
-	BUG_ON(snd_buf->len > snd_buf->buflen);
-	status = -EIO;
+	if (unlikely(snd_buf->len > snd_buf->buflen))
+		goto wrap_failed;
 	/* We're assuming that when GSS_S_CONTEXT_EXPIRED, the encryption was
 	 * done anyway, so it's safe to put the request on the wire: */
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	else if (maj_stat)
-		return status;
+		goto wrap_failed;
 
-	*opaque_len = htonl(snd_buf->len - offset);
-	/* guess whether we're in the head or the tail: */
+	*opaque_len = cpu_to_be32(snd_buf->len - offset);
+	/* guess whether the pad goes into the head or the tail: */
 	if (snd_buf->page_len || snd_buf->tail[0].iov_len)
 		iov = snd_buf->tail;
 	else
@@ -1887,37 +1883,36 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	snd_buf->len += pad;
 
 	return 0;
+wrap_failed:
+	return status;
 }
 
-static int
-gss_wrap_req(struct rpc_task *task,
-	     kxdreproc_t encode, void *rqstp, __be32 *p, void *obj)
+static int gss_wrap_req(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 	struct gss_cred	*gss_cred = container_of(cred, struct gss_cred,
 			gc_base);
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
-	int             status = -EIO;
+	int status;
 
 	dprintk("RPC: %5u %s\n", task->tk_pid, __func__);
+	status = -EIO;
 	if (ctx->gc_proc != RPC_GSS_PROC_DATA) {
 		/* The spec seems a little ambiguous here, but I think that not
 		 * wrapping context destruction requests makes the most sense.
 		 */
-		gss_wrap_req_encode(encode, rqstp, p, obj);
-		status = 0;
+		status = rpcauth_wrap_req_encode(task, xdr);
 		goto out;
 	}
 	switch (gss_cred->gc_service) {
 	case RPC_GSS_SVC_NONE:
-		gss_wrap_req_encode(encode, rqstp, p, obj);
-		status = 0;
+		status = rpcauth_wrap_req_encode(task, xdr);
 		break;
 	case RPC_GSS_SVC_INTEGRITY:
-		status = gss_wrap_req_integ(cred, ctx, encode, rqstp, p, obj);
+		status = gss_wrap_req_integ(cred, ctx, task, xdr);
 		break;
 	case RPC_GSS_SVC_PRIVACY:
-		status = gss_wrap_req_priv(cred, ctx, encode, rqstp, p, obj);
+		status = gss_wrap_req_priv(cred, ctx, task, xdr);
 		break;
 	}
 out:

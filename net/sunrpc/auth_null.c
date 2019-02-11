@@ -59,15 +59,21 @@ nul_match(struct auth_cred *acred, struct rpc_cred *cred, int taskflags)
 /*
  * Marshal credential.
  */
-static __be32 *
-nul_marshal(struct rpc_task *task, __be32 *p)
+static int
+nul_marshal(struct rpc_task *task, struct xdr_stream *xdr)
 {
-	*p++ = htonl(RPC_AUTH_NULL);
-	*p++ = 0;
-	*p++ = htonl(RPC_AUTH_NULL);
-	*p++ = 0;
+	__be32 *p;
 
-	return p;
+	p = xdr_reserve_space(xdr, 4 * sizeof(*p));
+	if (!p)
+		return -EMSGSIZE;
+	/* Credential */
+	*p++ = rpc_auth_null;
+	*p++ = xdr_zero;
+	/* Verifier */
+	*p++ = rpc_auth_null;
+	*p   = xdr_zero;
+	return 0;
 }
 
 /*
@@ -125,6 +131,7 @@ const struct rpc_credops null_credops = {
 	.crdestroy	= nul_destroy_cred,
 	.crmatch	= nul_match,
 	.crmarshal	= nul_marshal,
+	.crwrap_req	= rpcauth_wrap_req_encode,
 	.crrefresh	= nul_refresh,
 	.crvalidate	= nul_validate,
 };

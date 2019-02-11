@@ -756,12 +756,21 @@ destroy:
 }
 EXPORT_SYMBOL_GPL(put_rpccred);
 
-__be32 *
-rpcauth_marshcred(struct rpc_task *task, __be32 *p)
+/**
+ * rpcauth_marshcred - Append RPC credential to end of @xdr
+ * @task: controlling RPC task
+ * @xdr: xdr_stream containing initial portion of RPC Call header
+ *
+ * On success, an appropriate verifier is added to @xdr, @xdr is
+ * updated to point past the verifier, and zero is returned.
+ * Otherwise, @xdr is in an undefined state and a negative errno
+ * is returned.
+ */
+int rpcauth_marshcred(struct rpc_task *task, struct xdr_stream *xdr)
 {
-	struct rpc_cred	*cred = task->tk_rqstp->rq_cred;
+	const struct rpc_credops *ops = task->tk_rqstp->rq_cred->cr_ops;
 
-	return cred->cr_ops->crmarshal(task, p);
+	return ops->crmarshal(task, xdr);
 }
 
 __be32 *
@@ -772,26 +781,37 @@ rpcauth_checkverf(struct rpc_task *task, __be32 *p)
 	return cred->cr_ops->crvalidate(task, p);
 }
 
-static void rpcauth_wrap_req_encode(kxdreproc_t encode, struct rpc_rqst *rqstp,
-				   __be32 *data, void *obj)
+/**
+ * rpcauth_wrap_req_encode - XDR encode the RPC procedure
+ * @task: controlling RPC task
+ * @xdr: stream where on-the-wire bytes are to be marshalled
+ *
+ * On success, @xdr contains the encoded and wrapped message.
+ * Otherwise, @xdr is in an undefined state.
+ */
+int rpcauth_wrap_req_encode(struct rpc_task *task, struct xdr_stream *xdr)
 {
-	struct xdr_stream xdr;
+	kxdreproc_t encode = task->tk_msg.rpc_proc->p_encode;
 
-	xdr_init_encode(&xdr, &rqstp->rq_snd_buf, data, rqstp);
-	encode(rqstp, &xdr, obj);
-}
-
-int
-rpcauth_wrap_req(struct rpc_task *task, kxdreproc_t encode, void *rqstp,
-		__be32 *data, void *obj)
-{
-	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
-
-	if (cred->cr_ops->crwrap_req)
-		return cred->cr_ops->crwrap_req(task, encode, rqstp, data, obj);
-	/* By default, we encode the arguments normally. */
-	rpcauth_wrap_req_encode(encode, rqstp, data, obj);
+	encode(task->tk_rqstp, xdr, task->tk_msg.rpc_argp);
 	return 0;
+}
+EXPORT_SYMBOL_GPL(rpcauth_wrap_req_encode);
+
+/**
+ * rpcauth_wrap_req - XDR encode and wrap the RPC procedure
+ * @task: controlling RPC task
+ * @xdr: stream where on-the-wire bytes are to be marshalled
+ *
+ * On success, @xdr contains the encoded and wrapped message,
+ * and zero is returned. Otherwise, @xdr is in an undefined
+ * state and a negative errno is returned.
+ */
+int rpcauth_wrap_req(struct rpc_task *task, struct xdr_stream *xdr)
+{
+	const struct rpc_credops *ops = task->tk_rqstp->rq_cred->cr_ops;
+
+	return ops->crwrap_req(task, xdr);
 }
 
 static int

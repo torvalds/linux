@@ -131,11 +131,12 @@ struct rpc_credops {
 	void			(*crdestroy)(struct rpc_cred *);
 
 	int			(*crmatch)(struct auth_cred *, struct rpc_cred *, int);
-	__be32 *		(*crmarshal)(struct rpc_task *, __be32 *);
+	int			(*crmarshal)(struct rpc_task *task,
+					     struct xdr_stream *xdr);
 	int			(*crrefresh)(struct rpc_task *);
 	__be32 *		(*crvalidate)(struct rpc_task *, __be32 *);
-	int			(*crwrap_req)(struct rpc_task *, kxdreproc_t,
-						void *, __be32 *, void *);
+	int			(*crwrap_req)(struct rpc_task *task,
+					      struct xdr_stream *xdr);
 	int			(*crunwrap_resp)(struct rpc_task *, kxdrdproc_t,
 						void *, __be32 *, void *);
 	int			(*crkey_timeout)(struct rpc_cred *);
@@ -165,9 +166,13 @@ struct rpc_cred *	rpcauth_lookup_credcache(struct rpc_auth *, struct auth_cred *
 void			rpcauth_init_cred(struct rpc_cred *, const struct auth_cred *, struct rpc_auth *, const struct rpc_credops *);
 struct rpc_cred *	rpcauth_lookupcred(struct rpc_auth *, int);
 void			put_rpccred(struct rpc_cred *);
-__be32 *		rpcauth_marshcred(struct rpc_task *, __be32 *);
+int			rpcauth_marshcred(struct rpc_task *task,
+					  struct xdr_stream *xdr);
 __be32 *		rpcauth_checkverf(struct rpc_task *, __be32 *);
-int			rpcauth_wrap_req(struct rpc_task *task, kxdreproc_t encode, void *rqstp, __be32 *data, void *obj);
+int			rpcauth_wrap_req_encode(struct rpc_task *task,
+						struct xdr_stream *xdr);
+int			rpcauth_wrap_req(struct rpc_task *task,
+					 struct xdr_stream *xdr);
 int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrdproc_t decode, void *rqstp, __be32 *data, void *obj);
 bool			rpcauth_xmit_need_reencode(struct rpc_task *task);
 int			rpcauth_refreshcred(struct rpc_task *);

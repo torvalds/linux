@@ -213,6 +213,35 @@ DECLARE_EVENT_CLASS(rpc_task_queued,
 DEFINE_RPC_QUEUED_EVENT(sleep);
 DEFINE_RPC_QUEUED_EVENT(wakeup);
 
+DECLARE_EVENT_CLASS(rpc_failure,
+
+	TP_PROTO(const struct rpc_task *task),
+
+	TP_ARGS(task),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+	),
+
+	TP_printk("task:%u@%u",
+		__entry->task_id, __entry->client_id)
+);
+
+#define DEFINE_RPC_FAILURE(name)					\
+	DEFINE_EVENT(rpc_failure, rpc_bad_##name,			\
+			TP_PROTO(					\
+				const struct rpc_task *task		\
+			),						\
+			TP_ARGS(task))
+
+DEFINE_RPC_FAILURE(callhdr);
+
 TRACE_EVENT(rpc_stats_latency,
 
 	TP_PROTO(

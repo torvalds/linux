@@ -87,6 +87,12 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 #define	xdr_one		cpu_to_be32(1)
 #define	xdr_two		cpu_to_be32(2)
 
+#define	rpc_auth_null	cpu_to_be32(RPC_AUTH_NULL)
+#define	rpc_auth_unix	cpu_to_be32(RPC_AUTH_UNIX)
+#define	rpc_auth_gss	cpu_to_be32(RPC_AUTH_GSS)
+
+#define	rpc_call	cpu_to_be32(RPC_CALL)
+
 #define	rpc_success		cpu_to_be32(RPC_SUCCESS)
 #define	rpc_prog_unavail	cpu_to_be32(RPC_PROG_UNAVAIL)
 #define	rpc_prog_mismatch	cpu_to_be32(RPC_PROG_MISMATCH)
