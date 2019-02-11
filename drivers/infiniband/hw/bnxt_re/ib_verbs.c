@@ -3553,19 +3553,14 @@ static int fill_umem_pbl_tbl(struct ib_umem *umem, u64 *pbl_tbl_orig,
 	u64 *pbl_tbl = pbl_tbl_orig;
 	u64 paddr;
 	u64 page_mask = (1ULL << page_shift) - 1;
-	int i, pages;
-	struct scatterlist *sg;
-	int entry;
+	struct sg_dma_page_iter sg_iter;
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		pages = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (i = 0; i < pages; i++) {
-			paddr = sg_dma_address(sg) + (i << PAGE_SHIFT);
-			if (pbl_tbl == pbl_tbl_orig)
-				*pbl_tbl++ = paddr & ~page_mask;
-			else if ((paddr & page_mask) == 0)
-				*pbl_tbl++ = paddr;
-		}
+	for_each_sg_dma_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		paddr = sg_page_iter_dma_address(&sg_iter);
+		if (pbl_tbl == pbl_tbl_orig)
+			*pbl_tbl++ = paddr & ~page_mask;
+		else if ((paddr & page_mask) == 0)
+			*pbl_tbl++ = paddr;
 	}
 	return pbl_tbl - pbl_tbl_orig;
 }
@@ -3628,7 +3623,7 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 		goto free_umem;
 	}
 
-	page_shift = umem->page_shift;
+	page_shift = PAGE_SHIFT;
 
 	if (!bnxt_re_page_size_ok(page_shift)) {
 		dev_err(rdev_to_dev(rdev), "umem page size unsupported!");
