@@ -28,8 +28,6 @@ static mempool_t		*unix_pool;
 static struct rpc_auth *
 unx_create(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
-	dprintk("RPC:       creating UNIX authenticator for client %p\n",
-			clnt);
 	refcount_inc(&unix_auth.au_count);
 	return &unix_auth;
 }
@@ -37,7 +35,6 @@ unx_create(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 static void
 unx_destroy(struct rpc_auth *auth)
 {
-	dprintk("RPC:       destroying UNIX authenticator %p\n", auth);
 }
 
 /*
@@ -48,10 +45,6 @@ unx_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 {
 	struct rpc_cred *ret = mempool_alloc(unix_pool, GFP_NOFS);
 
-	dprintk("RPC:       allocating UNIX cred for uid %d gid %d\n",
-			from_kuid(&init_user_ns, acred->cred->fsuid),
-			from_kgid(&init_user_ns, acred->cred->fsgid));
-
 	rpcauth_init_cred(ret, acred, auth, &unix_credops);
 	ret->cr_flags = 1UL << RPCAUTH_CRED_UPTODATE;
 	return ret;
@@ -61,7 +54,7 @@ static void
 unx_free_cred_callback(struct rcu_head *head)
 {
 	struct rpc_cred *rpc_cred = container_of(head, struct rpc_cred, cr_rcu);
-	dprintk("RPC:       unx_free_cred %p\n", rpc_cred);
+
 	put_cred(rpc_cred->cr_cred);
 	mempool_free(rpc_cred, unix_pool);
 }
