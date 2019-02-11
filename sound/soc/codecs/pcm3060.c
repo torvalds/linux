@@ -287,6 +287,14 @@ int pcm3060_probe(struct device *dev)
 	int rc;
 	struct pcm3060_priv *priv = dev_get_drvdata(dev);
 
+	/* soft reset */
+	rc = regmap_update_bits(priv->regmap, PCM3060_REG64,
+				PCM3060_REG_MRST, 0);
+	if (rc) {
+		dev_err(dev, "failed to reset component, rc=%d\n", rc);
+		return rc;
+	}
+
 	if (dev->of_node)
 		pcm3060_parse_dt(dev->of_node, priv);
 
