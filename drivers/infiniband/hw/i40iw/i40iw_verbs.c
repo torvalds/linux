@@ -1360,32 +1360,29 @@ static void i40iw_copy_user_pgaddrs(struct i40iw_mr *iwmr,
 {
 	struct ib_umem *region = iwmr->region;
 	struct i40iw_pbl *iwpbl = &iwmr->iwpbl;
-	int chunk_pages, entry, i;
 	struct i40iw_pble_alloc *palloc = &iwpbl->pble_alloc;
 	struct i40iw_pble_info *pinfo;
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	u64 pg_addr = 0;
 	u32 idx = 0;
+	bool first_pg = true;
 
 	pinfo = (level == I40IW_LEVEL_1) ? NULL : palloc->level2.leaf;
 
-	for_each_sg(region->sg_head.sgl, sg, region->nmap, entry) {
-		chunk_pages = sg_dma_len(sg) >> region->page_shift;
-		if ((iwmr->type == IW_MEMREG_TYPE_QP) &&
-		    !iwpbl->qp_mr.sq_page)
-			iwpbl->qp_mr.sq_page = sg_page(sg);
-		for (i = 0; i < chunk_pages; i++) {
-			pg_addr = sg_dma_address(sg) +
-				(i << region->page_shift);
+	if (iwmr->type == IW_MEMREG_TYPE_QP)
+		iwpbl->qp_mr.sq_page = sg_page(region->sg_head.sgl);
 
-			if ((entry + i) == 0)
-				*pbl = cpu_to_le64(pg_addr & iwmr->page_msk);
-			else if (!(pg_addr & ~iwmr->page_msk))
-				*pbl = cpu_to_le64(pg_addr);
-			else
-				continue;
-			pbl = i40iw_next_pbl_addr(pbl, &pinfo, &idx);
-		}
+	for_each_sg_dma_page (region->sg_head.sgl, &sg_iter, region->nmap, 0) {
+		pg_addr = sg_page_iter_dma_address(&sg_iter);
+		if (first_pg)
+			*pbl = cpu_to_le64(pg_addr & iwmr->page_msk);
+		else if (!(pg_addr & ~iwmr->page_msk))
+			*pbl = cpu_to_le64(pg_addr);
+		else
+			continue;
+
+		first_pg = false;
+		pbl = i40iw_next_pbl_addr(pbl, &pinfo, &idx);
 	}
 }
 
