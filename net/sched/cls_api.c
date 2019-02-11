@@ -371,14 +371,22 @@ struct tcf_chain *tcf_chain_get_by_act(struct tcf_block *block, u32 chain_index)
 }
 EXPORT_SYMBOL(tcf_chain_get_by_act);
 
-static void tc_chain_tmplt_del(struct tcf_chain *chain);
+static void tc_chain_tmplt_del(const struct tcf_proto_ops *tmplt_ops,
+			       void *tmplt_priv);
+static int tc_chain_notify_delete(const struct tcf_proto_ops *tmplt_ops,
+				  void *tmplt_priv, u32 chain_index,
+				  struct tcf_block *block, struct sk_buff *oskb,
+				  u32 seq, u16 flags, bool unicast);
 
 static void __tcf_chain_put(struct tcf_chain *chain, bool by_act,
 			    bool explicitly_created)
 {
 	struct tcf_block *block = chain->block;
+	const struct tcf_proto_ops *tmplt_ops;
 	bool is_last, free_block = false;
 	unsigned int refcnt;
+	void *tmplt_priv;
+	u32 chain_index;
 
 	mutex_lock(&block->lock);
 	if (explicitly_created) {
@@ -398,16 +406,21 @@ static void __tcf_chain_put(struct tcf_chain *chain, bool by_act,
 	 */
 	refcnt = --chain->refcnt;
 	is_last = refcnt - chain->action_refcnt == 0;
+	tmplt_ops = chain->tmplt_ops;
+	tmplt_priv = chain->tmplt_priv;
+	chain_index = chain->index;
+
 	if (refcnt == 0)
 		free_block = tcf_chain_detach(chain);
 	mutex_unlock(&block->lock);
 
 	/* The last dropped non-action reference will trigger notification. */
 	if (is_last && !by_act)
-		tc_chain_notify(chain, NULL, 0, 0, RTM_DELCHAIN, false);
+		tc_chain_notify_delete(tmplt_ops, tmplt_priv, chain_index,
+				       block, NULL, 0, 0, false);
 
 	if (refcnt == 0) {
-		tc_chain_tmplt_del(chain);
+		tc_chain_tmplt_del(tmplt_ops, tmplt_priv);
 		tcf_chain_destroy(chain, free_block);
 	}
 }
@@ -2155,8 +2168,10 @@ out:
 	return skb->len;
 }
 
-static int tc_chain_fill_node(struct tcf_chain *chain, struct net *net,
-			      struct sk_buff *skb, struct tcf_block *block,
+static int tc_chain_fill_node(const struct tcf_proto_ops *tmplt_ops,
+			      void *tmplt_priv, u32 chain_index,
+			      struct net *net, struct sk_buff *skb,
+			      struct tcf_block *block,
 			      u32 portid, u32 seq, u16 flags, int event)
 {
 	unsigned char *b = skb_tail_pointer(skb);
@@ -2165,8 +2180,8 @@ static int tc_chain_fill_node(struct tcf_chain *chain, struct net *net,
 	struct tcmsg *tcm;
 	void *priv;
 
-	ops = chain->tmplt_ops;
-	priv = chain->tmplt_priv;
+	ops = tmplt_ops;
+	priv = tmplt_priv;
 
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
 	if (!nlh)
@@ -2184,7 +2199,7 @@ static int tc_chain_fill_node(struct tcf_chain *chain, struct net *net,
 		tcm->tcm_block_index = block->index;
 	}
 
-	if (nla_put_u32(skb, TCA_CHAIN, chain->index))
+	if (nla_put_u32(skb, TCA_CHAIN, chain_index))
 		goto nla_put_failure;
 
 	if (ops) {
@@ -2215,8 +2230,34 @@ static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
 	if (!skb)
 		return -ENOBUFS;
 
-	if (tc_chain_fill_node(chain, net, skb, block, portid,
+	if (tc_chain_fill_node(chain->tmplt_ops, chain->tmplt_priv,
+			       chain->index, net, skb, block, portid,
 			       seq, flags, event) <= 0) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	if (unicast)
+		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+
+	return rtnetlink_send(skb, net, portid, RTNLGRP_TC, flags & NLM_F_ECHO);
+}
+
+static int tc_chain_notify_delete(const struct tcf_proto_ops *tmplt_ops,
+				  void *tmplt_priv, u32 chain_index,
+				  struct tcf_block *block, struct sk_buff *oskb,
+				  u32 seq, u16 flags, bool unicast)
+{
+	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+	struct net *net = block->net;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	if (tc_chain_fill_node(tmplt_ops, tmplt_priv, chain_index, net, skb,
+			       block, portid, seq, flags, RTM_DELCHAIN) <= 0) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -2256,16 +2297,15 @@ static int tc_chain_tmplt_add(struct tcf_chain *chain, struct net *net,
 	return 0;
 }
 
-static void tc_chain_tmplt_del(struct tcf_chain *chain)
+static void tc_chain_tmplt_del(const struct tcf_proto_ops *tmplt_ops,
+			       void *tmplt_priv)
 {
-	const struct tcf_proto_ops *ops = chain->tmplt_ops;
-
 	/* If template ops are set, no work to do for us. */
-	if (!ops)
+	if (!tmplt_ops)
 		return;
 
-	ops->tmplt_destroy(chain->tmplt_priv);
-	module_put(ops->owner);
+	tmplt_ops->tmplt_destroy(tmplt_priv);
+	module_put(tmplt_ops->owner);
 }
 
 /* Add/delete/get a chain */
@@ -2486,7 +2526,8 @@ static int tc_dump_chain(struct sk_buff *skb, struct netlink_callback *cb)
 			index++;
 			continue;
 		}
-		err = tc_chain_fill_node(chain, net, skb, block,
+		err = tc_chain_fill_node(chain->tmplt_ops, chain->tmplt_priv,
+					 chain->index, net, skb, block,
 					 NETLINK_CB(cb->skb).portid,
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					 RTM_NEWCHAIN);
