@@ -27,11 +27,12 @@ Driver Overview
 
 The DPIO driver is bound to DPIO objects discovered on the fsl-mc bus and
 provides services that:
-  A) allow other drivers, such as the Ethernet driver, to enqueue and dequeue
+
+  A. allow other drivers, such as the Ethernet driver, to enqueue and dequeue
      frames for their respective objects
-  B) allow drivers to register callbacks for data availability notifications
+  B. allow drivers to register callbacks for data availability notifications
      when data becomes available on a queue or channel
-  C) allow drivers to manage hardware buffer pools
+  C. allow drivers to manage hardware buffer pools
 
 The Linux DPIO driver consists of 3 primary components--
    DPIO object driver-- fsl-mc driver that manages the DPIO object
@@ -140,11 +141,10 @@ QBman portal interface (qbman-portal.c)
 
    The qbman-portal component provides APIs to do the low level hardware
    bit twiddling for operations such as:
-      -initializing Qman software portals
 
-      -building and sending portal commands
-
-      -portal interrupt configuration and processing
+      - initializing Qman software portals
+      - building and sending portal commands
+      - portal interrupt configuration and processing
 
    The qbman-portal APIs are not public to other drivers, and are
    only used by dpio-service.
