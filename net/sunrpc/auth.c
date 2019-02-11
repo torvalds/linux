@@ -798,7 +798,7 @@ static void rpcauth_wrap_req_encode(kxdreproc_t encode, struct rpc_rqst *rqstp,
 {
 	struct xdr_stream xdr;
 
-	xdr_init_encode(&xdr, &rqstp->rq_snd_buf, data);
+	xdr_init_encode(&xdr, &rqstp->rq_snd_buf, data, rqstp);
 	encode(rqstp, &xdr, obj);
 }
 
@@ -823,7 +823,7 @@ rpcauth_unwrap_req_decode(kxdrdproc_t decode, struct rpc_rqst *rqstp,
 {
 	struct xdr_stream xdr;
 
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, data);
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, data, rqstp);
 	return decode(rqstp, &xdr, obj);
 }
 

@@ -1722,7 +1722,7 @@ static void gss_wrap_req_encode(kxdreproc_t encode, struct rpc_rqst *rqstp,
 {
 	struct xdr_stream xdr;
 
-	xdr_init_encode(&xdr, &rqstp->rq_snd_buf, p);
+	xdr_init_encode(&xdr, &rqstp->rq_snd_buf, p, rqstp);
 	encode(rqstp, &xdr, obj);
 }
 
@@ -1998,7 +1998,7 @@ gss_unwrap_req_decode(kxdrdproc_t decode, struct rpc_rqst *rqstp,
 {
 	struct xdr_stream xdr;
 
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p, rqstp);
 	return decode(rqstp, &xdr, obj);
 }
 

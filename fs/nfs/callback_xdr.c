@@ -943,10 +943,11 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 	};
 	unsigned int nops = 0;
 
-	xdr_init_decode(&xdr_in, &rqstp->rq_arg, rqstp->rq_arg.head[0].iov_base);
+	xdr_init_decode(&xdr_in, &rqstp->rq_arg,
+			rqstp->rq_arg.head[0].iov_base, NULL);
 
 	p = (__be32*)((char *)rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len);
-	xdr_init_encode(&xdr_out, &rqstp->rq_res, p);
+	xdr_init_encode(&xdr_out, &rqstp->rq_res, p, NULL);
 
 	status = decode_compound_hdr_arg(&xdr_in, &hdr_arg);
 	if (status == htonl(NFS4ERR_RESOURCE))
