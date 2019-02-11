@@ -865,14 +865,13 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 		ret = vmw_user_bo_lookup(tfile, buffer_handle,
 					     &buffer, NULL);
 		if (unlikely(ret != 0)) {
-			DRM_ERROR("Could not find buffer for shader "
-				  "creation.\n");
+			VMW_DEBUG_USER("Couldn't find buffer for shader creation.\n");
 			return ret;
 		}
 
 		if ((u64)buffer->base.num_pages * PAGE_SIZE <
 		    (u64)size + (u64)offset) {
-			DRM_ERROR("Illegal buffer- or shader size.\n");
+			VMW_DEBUG_USER("Illegal buffer- or shader size.\n");
 			ret = -EINVAL;
 			goto out_bad_arg;
 		}
@@ -886,7 +885,7 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 		shader_type = SVGA3D_SHADERTYPE_PS;
 		break;
 	default:
-		DRM_ERROR("Illegal shader type.\n");
+		VMW_DEBUG_USER("Illegal shader type.\n");
 		ret = -EINVAL;
 		goto out_bad_arg;
 	}

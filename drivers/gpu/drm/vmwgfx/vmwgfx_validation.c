@@ -325,8 +325,7 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 
 	node = vmw_validation_mem_alloc(ctx, sizeof(*node) + priv_size);
 	if (!node) {
-		DRM_ERROR("Failed to allocate a resource validation "
-			  "entry.\n");
+		VMW_DEBUG_USER("Failed to allocate a resource validation entry.\n");
 		return -ENOMEM;
 	}
 

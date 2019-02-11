@@ -1313,6 +1313,20 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 			   char *buffer, size_t *length);
 int vmw_host_log(const char *log);
 
+/* VMW logging */
+
+/**
+ * VMW_DEBUG_USER - Debug output for user-space debugging.
+ *
+ * @fmt: printf() like format string.
+ *
+ * This macro is for logging user-space error and debugging messages for e.g.
+ * command buffer execution errors due to malformed commands, invalid context,
+ * etc.
+ */
+#define VMW_DEBUG_USER(fmt, ...)                                              \
+	DRM_DEBUG_DRIVER(fmt, ##__VA_ARGS__)
+
 /**
  * Inline helper functions
  */

@@ -751,7 +751,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!dev_priv->has_dx && dx) {
-		DRM_ERROR("DX contexts not supported by device.\n");
+		VMW_DEBUG_USER("DX contexts not supported by device.\n");
 		return -EINVAL;
 	}
 

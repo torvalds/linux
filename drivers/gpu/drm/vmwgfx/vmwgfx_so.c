@@ -338,12 +338,12 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 
 	if (cmd_size != vmw_view_define_sizes[view_type] +
 	    sizeof(SVGA3dCmdHeader)) {
-		DRM_ERROR("Illegal view create command size.\n");
+		VMW_DEBUG_USER("Illegal view create command size.\n");
 		return -EINVAL;
 	}
 
 	if (!vmw_view_id_ok(user_key, view_type)) {
-		DRM_ERROR("Illegal view add view id.\n");
+		VMW_DEBUG_USER("Illegal view add view id.\n");
 		return -EINVAL;
 	}
 
@@ -352,8 +352,7 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), size, &ttm_opt_ctx);
 	if (ret) {
 		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for view"
-				  " creation.\n");
+			DRM_ERROR("Out of graphics memory for view creation\n");
 		return ret;
 	}
 
@@ -413,7 +412,7 @@ int vmw_view_remove(struct vmw_cmdbuf_res_manager *man,
 		    struct vmw_resource **res_p)
 {
 	if (!vmw_view_id_ok(user_key, view_type)) {
-		DRM_ERROR("Illegal view remove view id.\n");
+		VMW_DEBUG_USER("Illegal view remove view id.\n");
 		return -EINVAL;
 	}
 

@@ -43,7 +43,7 @@
 #define VMW_GET_CTX_NODE(__sw_context)                                        \
 ({                                                                            \
 	__sw_context->dx_ctx_node ? __sw_context->dx_ctx_node : ({            \
-		DRM_ERROR("SM context is not set at %s\n", __func__);         \
+		VMW_DEBUG_USER("SM context is not set at %s\n", __func__);    \
 		__sw_context->dx_ctx_node;                                    \
 	});                                                                   \
 })
@@ -217,8 +217,7 @@ static int vmw_cmd_ctx_first_setup(struct vmw_private *dev_priv,
 		sw_context->staged_bindings =
 			vmw_binding_state_alloc(dev_priv);
 		if (IS_ERR(sw_context->staged_bindings)) {
-			DRM_ERROR("Failed to allocate context binding "
-				  "information.\n");
+			VMW_DEBUG_USER("Failed to alloc ctx binding info.\n");
 			ret = PTR_ERR(sw_context->staged_bindings);
 			sw_context->staged_bindings = NULL;
 			goto out_err;
@@ -228,8 +227,7 @@ static int vmw_cmd_ctx_first_setup(struct vmw_private *dev_priv,
 	if (sw_context->staged_bindings_inuse) {
 		node->staged = vmw_binding_state_alloc(dev_priv);
 		if (IS_ERR(node->staged)) {
-			DRM_ERROR("Failed to allocate context binding "
-				  "information.\n");
+			VMW_DEBUG_USER("Failed to alloc ctx binding info.\n");
 			ret = PTR_ERR(node->staged);
 			node->staged = NULL;
 			goto out_err;
@@ -424,7 +422,7 @@ vmw_view_id_val_add(struct vmw_sw_context *sw_context,
 	int ret;
 
 	if (!ctx_node) {
-		DRM_ERROR("DX Context not set.\n");
+		VMW_DEBUG_USER("DX Context not set.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -522,7 +520,7 @@ static int vmw_resource_relocation_add(struct vmw_sw_context *sw_context,
 
 	rel = vmw_validation_mem_alloc(sw_context->ctx, sizeof(*rel));
 	if (unlikely(!rel)) {
-		DRM_ERROR("Failed to allocate a resource relocation.\n");
+		VMW_DEBUG_USER("Failed to allocate a resource relocation.\n");
 		return -ENOMEM;
 	}
 
@@ -659,7 +657,7 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 
 	if (*id_loc == SVGA3D_INVALID_ID) {
 		if (res_type == vmw_res_context) {
-			DRM_ERROR("Illegal context invalid id.\n");
+			VMW_DEBUG_USER("Illegal context invalid id.\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -680,8 +678,8 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 		res = vmw_user_resource_noref_lookup_handle
 			(dev_priv, sw_context->fp->tfile, *id_loc, converter);
 		if (IS_ERR(res)) {
-			DRM_ERROR("Could not find or use resource 0x%08x.\n",
-				  (unsigned int) *id_loc);
+			VMW_DEBUG_USER("Could not find/use resource 0x%08x.\n",
+				       (unsigned int) *id_loc);
 			return PTR_ERR(res);
 		}
 
@@ -726,7 +724,7 @@ static int vmw_rebind_all_dx_query(struct vmw_resource *ctx_res)
 	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), ctx_res->id);
 
 	if (cmd == NULL) {
-		DRM_ERROR("Failed to rebind queries.\n");
+		VMW_DEBUG_USER("Failed to rebind queries.\n");
 		return -ENOMEM;
 	}
 
@@ -758,7 +756,7 @@ static int vmw_rebind_contexts(struct vmw_sw_context *sw_context)
 		ret = vmw_binding_rebind_all(val->cur);
 		if (unlikely(ret != 0)) {
 			if (ret != -ERESTARTSYS)
-				DRM_ERROR("Failed to rebind context.\n");
+				VMW_DEBUG_USER("Failed to rebind context.\n");
 			return ret;
 		}
 
@@ -803,7 +801,7 @@ static int vmw_view_bindings_add(struct vmw_sw_context *sw_context,
 			view = vmw_view_id_val_add(sw_context, view_type,
 						   view_ids[i]);
 			if (IS_ERR(view)) {
-				DRM_ERROR("View not found.\n");
+				VMW_DEBUG_USER("View not found.\n");
 				return PTR_ERR(view);
 			}
 		}
@@ -881,8 +879,8 @@ static int vmw_cmd_set_render_target_check(struct vmw_private *dev_priv,
 	cmd = container_of(header, typeof(*cmd), header);
 
 	if (cmd->body.type >= SVGA3D_RT_MAX) {
-		DRM_ERROR("Illegal render target type %u.\n",
-			  (unsigned) cmd->body.type);
+		VMW_DEBUG_USER("Illegal render target type %u.\n",
+			       (unsigned int) cmd->body.type);
 		return -EINVAL;
 	}
 
@@ -1043,7 +1041,7 @@ static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
 	if (unlikely(new_query_bo != sw_context->cur_query_bo)) {
 
 		if (unlikely(new_query_bo->base.num_pages > 4)) {
-			DRM_ERROR("Query buffer too large.\n");
+			VMW_DEBUG_USER("Query buffer too large.\n");
 			return -EINVAL;
 		}
 
@@ -1106,7 +1104,7 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
 		ret = vmw_fifo_emit_dummy_query(dev_priv, ctx->id);
 
 		if (unlikely(ret != 0))
-			DRM_ERROR("Out of fifo space for dummy query.\n");
+			VMW_DEBUG_USER("Out of fifo space for dummy query.\n");
 	}
 
 	if (dev_priv->pinned_bo != sw_context->cur_query_bo) {
@@ -1170,7 +1168,7 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 	vmw_validation_preload_bo(sw_context->ctx);
 	vmw_bo = vmw_user_bo_noref_lookup(sw_context->fp->tfile, handle);
 	if (IS_ERR(vmw_bo)) {
-		DRM_ERROR("Could not find or use MOB buffer.\n");
+		VMW_DEBUG_USER("Could not find or use MOB buffer.\n");
 		return PTR_ERR(vmw_bo);
 	}
 
@@ -1224,7 +1222,7 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 	vmw_validation_preload_bo(sw_context->ctx);
 	vmw_bo = vmw_user_bo_noref_lookup(sw_context->fp->tfile, handle);
 	if (IS_ERR(vmw_bo)) {
-		DRM_ERROR("Could not find or use GMR region.\n");
+		VMW_DEBUG_USER("Could not find or use GMR region.\n");
 		return PTR_ERR(vmw_bo);
 	}
 
@@ -1543,7 +1541,7 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 
 	/* Make sure device and verifier stays in sync. */
 	if (unlikely(suffix->suffixSize != sizeof(*suffix))) {
-		DRM_ERROR("Invalid DMA suffix size.\n");
+		VMW_DEBUG_USER("Invalid DMA suffix size.\n");
 		return -EINVAL;
 	}
 
@@ -1556,7 +1554,7 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 	/* Make sure DMA doesn't cross BO boundaries. */
 	bo_size = vmw_bo->base.num_pages * PAGE_SIZE;
 	if (unlikely(cmd->body.guest.ptr.offset > bo_size)) {
-		DRM_ERROR("Invalid DMA offset.\n");
+		VMW_DEBUG_USER("Invalid DMA offset.\n");
 		return -EINVAL;
 	}
 
@@ -1571,7 +1569,7 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 				&cmd->body.host.sid, NULL);
 	if (unlikely(ret != 0)) {
 		if (unlikely(ret != -ERESTARTSYS))
-			DRM_ERROR("could not find surface for DMA.\n");
+			VMW_DEBUG_USER("could not find surface for DMA.\n");
 		return ret;
 	}
 
@@ -1603,7 +1601,7 @@ static int vmw_cmd_draw(struct vmw_private *dev_priv,
 	maxnum = (header->size - sizeof(cmd->body)) / sizeof(*decl);
 
 	if (unlikely(cmd->body.numVertexDecls > maxnum)) {
-		DRM_ERROR("Illegal number of vertex declarations.\n");
+		VMW_DEBUG_USER("Illegal number of vertex declarations.\n");
 		return -EINVAL;
 	}
 
@@ -1619,7 +1617,7 @@ static int vmw_cmd_draw(struct vmw_private *dev_priv,
 	maxnum = (header->size - sizeof(cmd->body) -
 		  cmd->body.numVertexDecls * sizeof(*decl)) / sizeof(*range);
 	if (unlikely(cmd->body.numRanges > maxnum)) {
-		DRM_ERROR("Illegal number of index ranges.\n");
+		VMW_DEBUG_USER("Illegal number of index ranges.\n");
 		return -EINVAL;
 	}
 
@@ -1662,8 +1660,8 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 			continue;
 
 		if (cur_state->stage >= SVGA3D_NUM_TEXTURE_UNITS) {
-			DRM_ERROR("Illegal texture/sampler unit %u.\n",
-				  (unsigned) cur_state->stage);
+			VMW_DEBUG_USER("Illegal texture/sampler unit %u.\n",
+				       (unsigned int) cur_state->stage);
 			return -EINVAL;
 		}
 
@@ -2035,8 +2033,8 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 	cmd = container_of(header, typeof(*cmd), header);
 
 	if (cmd->body.type >= SVGA3D_SHADERTYPE_PREDX_MAX) {
-		DRM_ERROR("Illegal shader type %u.\n",
-			  (unsigned) cmd->body.type);
+		VMW_DEBUG_USER("Illegal shader type %u.\n",
+			       (unsigned int) cmd->body.type);
 		return -EINVAL;
 	}
 
@@ -2173,9 +2171,9 @@ vmw_cmd_dx_set_single_constant_buffer(struct vmw_private *dev_priv,
 
 	if (binding.shader_slot >= SVGA3D_NUM_SHADERTYPE_DX10 ||
 	    binding.slot >= SVGA3D_DX_MAX_CONSTBUFFERS) {
-		DRM_ERROR("Illegal const buffer shader %u slot %u.\n",
-			  (unsigned) cmd->body.type,
-			  (unsigned) binding.slot);
+		VMW_DEBUG_USER("Illegal const buffer shader %u slot %u.\n",
+			       (unsigned int) cmd->body.type,
+			       (unsigned int) binding.slot);
 		return -EINVAL;
 	}
 
@@ -2205,7 +2203,7 @@ static int vmw_cmd_dx_set_shader_res(struct vmw_private *dev_priv,
 	if ((u64) cmd->body.startView + (u64) num_sr_view >
 	    (u64) SVGA3D_DX_MAX_SRVIEWS ||
 	    cmd->body.type >= SVGA3D_SHADERTYPE_DX10_MAX) {
-		DRM_ERROR("Invalid shader binding.\n");
+		VMW_DEBUG_USER("Invalid shader binding.\n");
 		return -EINVAL;
 	}
 
@@ -2240,15 +2238,15 @@ static int vmw_cmd_dx_set_shader(struct vmw_private *dev_priv,
 	cmd = container_of(header, typeof(*cmd), header);
 
 	if (cmd->body.type >= SVGA3D_SHADERTYPE_DX10_MAX) {
-		DRM_ERROR("Illegal shader type %u.\n",
-			  (unsigned) cmd->body.type);
+		VMW_DEBUG_USER("Illegal shader type %u.\n",
+			       (unsigned int) cmd->body.type);
 		return -EINVAL;
 	}
 
 	if (cmd->body.shaderId != SVGA3D_INVALID_ID) {
 		res = vmw_shader_lookup(sw_context->man, cmd->body.shaderId, 0);
 		if (IS_ERR(res)) {
-			DRM_ERROR("Could not find shader for binding.\n");
+			VMW_DEBUG_USER("Could not find shader for binding.\n");
 			return PTR_ERR(res);
 		}
 
@@ -2299,7 +2297,7 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 		sizeof(SVGA3dVertexBuffer);
 	if ((u64)num + (u64)cmd->body.startBuffer >
 	    (u64)SVGA3D_DX_MAX_VERTEXBUFFERS) {
-		DRM_ERROR("Invalid number of vertex buffers.\n");
+		VMW_DEBUG_USER("Invalid number of vertex buffers.\n");
 		return -EINVAL;
 	}
 
@@ -2383,7 +2381,7 @@ static int vmw_cmd_dx_set_rendertargets(struct vmw_private *dev_priv,
 	int ret;
 
 	if (num_rt_view > SVGA3D_MAX_SIMULTANEOUS_RENDER_TARGETS) {
-		DRM_ERROR("Invalid DX Rendertarget binding.\n");
+		VMW_DEBUG_USER("Invalid DX Rendertarget binding.\n");
 		return -EINVAL;
 	}
 
@@ -2513,7 +2511,7 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 		sizeof(SVGA3dSoTarget);
 
 	if (num > SVGA3D_DX_MAX_SOTARGETS) {
-		DRM_ERROR("Invalid DX SO binding.\n");
+		VMW_DEBUG_USER("Invalid DX SO binding.\n");
 		return -EINVAL;
 	}
 
@@ -2716,7 +2714,7 @@ static int vmw_cmd_dx_destroy_shader(struct vmw_private *dev_priv,
 	ret = vmw_shader_remove(sw_context->man, cmd->body.shaderId, 0,
 				&sw_context->staged_cmd_res);
 	if (ret)
-		DRM_ERROR("Could not find shader to remove.\n");
+		VMW_DEBUG_USER("Could not find shader to remove.\n");
 
 	return ret;
 }
@@ -2759,14 +2757,14 @@ static int vmw_cmd_dx_bind_shader(struct vmw_private *dev_priv,
 	res = vmw_shader_lookup(vmw_context_res_man(ctx),
 				cmd->body.shid, 0);
 	if (IS_ERR(res)) {
-		DRM_ERROR("Could not find shader to bind.\n");
+		VMW_DEBUG_USER("Could not find shader to bind.\n");
 		return PTR_ERR(res);
 	}
 
 	ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
 					    VMW_RES_DIRTY_NONE);
 	if (ret) {
-		DRM_ERROR("Error creating resource validation node.\n");
+		VMW_DEBUG_USER("Error creating resource validation node.\n");
 		return ret;
 	}
 
@@ -2866,18 +2864,18 @@ static int vmw_cmd_check_not_3d(struct vmw_private *dev_priv,
 		*size = sizeof(uint32_t) + sizeof(SVGAFifoCmdBlitGMRFBToScreen);
 		break;
 	default:
-		DRM_ERROR("Unsupported SVGA command: %u.\n", cmd_id);
+		VMW_DEBUG_USER("Unsupported SVGA command: %u.\n", cmd_id);
 		return -EINVAL;
 	}
 
 	if (*size > size_remaining) {
-		DRM_ERROR("Invalid SVGA command (size mismatch):"
-			  " %u.\n", cmd_id);
+		VMW_DEBUG_USER("Invalid SVGA command (size mismatch): %u.\n",
+			       cmd_id);
 		return -EINVAL;
 	}
 
 	if (unlikely(!sw_context->kernel)) {
-		DRM_ERROR("Kernel only SVGA command: %u.\n", cmd_id);
+		VMW_DEBUG_USER("Kernel only SVGA command: %u.\n", cmd_id);
 		return -EPERM;
 	}
 
@@ -3294,20 +3292,20 @@ static int vmw_cmd_check(struct vmw_private *dev_priv,
 
 	return 0;
 out_invalid:
-	DRM_ERROR("Invalid SVGA3D command: %d\n",
-		  cmd_id + SVGA_3D_CMD_BASE);
+	VMW_DEBUG_USER("Invalid SVGA3D command: %d\n",
+		       cmd_id + SVGA_3D_CMD_BASE);
 	return -EINVAL;
 out_privileged:
-	DRM_ERROR("Privileged SVGA3D command: %d\n",
-		  cmd_id + SVGA_3D_CMD_BASE);
+	VMW_DEBUG_USER("Privileged SVGA3D command: %d\n",
+		       cmd_id + SVGA_3D_CMD_BASE);
 	return -EPERM;
 out_old:
-	DRM_ERROR("Deprecated (disallowed) SVGA3D command: %d\n",
-		  cmd_id + SVGA_3D_CMD_BASE);
+	VMW_DEBUG_USER("Deprecated (disallowed) SVGA3D command: %d\n",
+		       cmd_id + SVGA_3D_CMD_BASE);
 	return -EINVAL;
 out_new:
-	DRM_ERROR("SVGA3D command: %d not supported by virtual hardware.\n",
-		  cmd_id + SVGA_3D_CMD_BASE);
+	VMW_DEBUG_USER("SVGA3D command: %d not supported by virtual device.\n",
+		       cmd_id + SVGA_3D_CMD_BASE);
 	return -EINVAL;
 }
 
@@ -3331,7 +3329,7 @@ static int vmw_cmd_check_all(struct vmw_private *dev_priv,
 	}
 
 	if (unlikely(cur_size != 0)) {
-		DRM_ERROR("Command verifier out of sync.\n");
+		VMW_DEBUG_USER("Command verifier out of sync.\n");
 		return -EINVAL;
 	}
 
@@ -3389,7 +3387,7 @@ static int vmw_resize_cmd_bounce(struct vmw_sw_context *sw_context,
 	sw_context->cmd_bounce = vmalloc(sw_context->cmd_bounce_size);
 
 	if (sw_context->cmd_bounce == NULL) {
-		DRM_ERROR("Failed to allocate command bounce buffer.\n");
+		VMW_DEBUG_USER("Failed to allocate command bounce buffer.\n");
 		sw_context->cmd_bounce_size = 0;
 		return -ENOMEM;
 	}
@@ -3422,7 +3420,7 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 
 	ret = vmw_fifo_send_fence(dev_priv, &sequence);
 	if (unlikely(ret != 0)) {
-		DRM_ERROR("Fence submission error. Syncing.\n");
+		VMW_DEBUG_USER("Fence submission error. Syncing.\n");
 		synced = true;
 	}
 
@@ -3515,7 +3513,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 
 		ttm_ref_object_base_unref(vmw_fp->tfile,
 					  fence_handle, TTM_REF_USAGE);
-		DRM_ERROR("Fence copy error. Syncing.\n");
+		VMW_DEBUG_USER("Fence copy error. Syncing.\n");
 		(void) vmw_fence_obj_wait(fence, false, false,
 					  VMW_FENCE_WAIT_TIMEOUT);
 	}
@@ -3546,7 +3544,7 @@ static int vmw_execbuf_submit_fifo(struct vmw_private *dev_priv,
 	else
 		cmd = vmw_fifo_reserve(dev_priv, command_size);
 	if (!cmd) {
-		DRM_ERROR("Failed reserving fifo space for commands.\n");
+		VMW_DEBUG_USER("Failed reserving fifo space for commands.\n");
 		return -ENOMEM;
 	}
 
@@ -3622,7 +3620,7 @@ static void *vmw_execbuf_cmdbuf(struct vmw_private *dev_priv,
 
 	*header = NULL;
 	if (command_size > SVGA_CB_MAX_SIZE) {
-		DRM_ERROR("Command buffer is too large.\n");
+		VMW_DEBUG_USER("Command buffer is too large.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -3640,7 +3638,7 @@ static void *vmw_execbuf_cmdbuf(struct vmw_private *dev_priv,
 	ret = copy_from_user(kernel_commands, user_commands,
 			     command_size);
 	if (ret) {
-		DRM_ERROR("Failed copying commands.\n");
+		VMW_DEBUG_USER("Failed copying commands.\n");
 		vmw_cmdbuf_header_free(*header);
 		*header = NULL;
 		return ERR_PTR(-EFAULT);
@@ -3669,8 +3667,8 @@ static int vmw_execbuf_tie_context(struct vmw_private *dev_priv,
 		(dev_priv, sw_context->fp->tfile, handle,
 		 user_context_converter);
 	if (IS_ERR(res)) {
-		DRM_ERROR("Could not find or user DX context 0x%08x.\n",
-			  (unsigned) handle);
+		VMW_DEBUG_USER("Could not find or user DX context 0x%08x.\n",
+			       (unsigned int) handle);
 		return PTR_ERR(res);
 	}
 
@@ -3709,7 +3707,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (flags & DRM_VMW_EXECBUF_FLAG_EXPORT_FENCE_FD) {
 		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
 		if (out_fence_fd < 0) {
-			DRM_ERROR("Failed to get a fence file descriptor.\n");
+			VMW_DEBUG_USER("Failed to get a fence fd.\n");
 			return out_fence_fd;
 		}
 	}
@@ -3748,7 +3746,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 
 		if (unlikely(ret != 0)) {
 			ret = -EFAULT;
-			DRM_ERROR("Failed copying commands.\n");
+			VMW_DEBUG_USER("Failed copying commands.\n");
 			goto out_unlock;
 		}
 		kernel_commands = sw_context->cmd_bounce;
@@ -3838,7 +3836,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	 */
 
 	if (ret != 0)
-		DRM_ERROR("Fence submission error. Syncing.\n");
+		VMW_DEBUG_USER("Fence submission error. Syncing.\n");
 
 	vmw_execbuf_bindings_commit(sw_context, false);
 	vmw_bind_dx_query_mob(sw_context);
@@ -3860,7 +3858,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 
 		sync_file = sync_file_create(&fence->base);
 		if (!sync_file) {
-			DRM_ERROR("Unable to create sync file for fence\n");
+			VMW_DEBUG_USER("Sync file create failed for fence\n");
 			put_unused_fd(out_fence_fd);
 			out_fence_fd = -1;
 
@@ -3939,7 +3937,7 @@ out_free_fence_fd:
  */
 static void vmw_execbuf_unpin_panic(struct vmw_private *dev_priv)
 {
-	DRM_ERROR("Can't unpin query buffer. Trying to recover.\n");
+	VMW_DEBUG_USER("Can't unpin query buffer. Trying to recover.\n");
 
 	(void) vmw_fallback_wait(dev_priv, false, true, 0, false, 10*HZ);
 	vmw_bo_pin_reserved(dev_priv->pinned_bo, false);
@@ -4072,8 +4070,8 @@ int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,
 	struct dma_fence *in_fence = NULL;
 
 	if (unlikely(size < copy_offset[0])) {
-		DRM_ERROR("Invalid command size, ioctl %d\n",
-			  DRM_VMW_EXECBUF);
+		VMW_DEBUG_USER("Invalid command size, ioctl %d\n",
+			       DRM_VMW_EXECBUF);
 		return -EINVAL;
 	}
 
@@ -4089,7 +4087,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,
 
 	if (unlikely(arg.version > DRM_VMW_EXECBUF_VERSION ||
 		     arg.version == 0)) {
-		DRM_ERROR("Incorrect execbuf version.\n");
+		VMW_DEBUG_USER("Incorrect execbuf version.\n");
 		return -EINVAL;
 	}
 
@@ -4115,7 +4113,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,
 		in_fence = sync_file_get_fence(arg.imported_fence_fd);
 
 		if (!in_fence) {
-			DRM_ERROR("Cannot get imported fence\n");
+			VMW_DEBUG_USER("Cannot get imported fence\n");
 			return -EINVAL;
 		}
 
