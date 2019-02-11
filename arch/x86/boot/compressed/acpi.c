@@ -50,7 +50,8 @@ static acpi_physical_address efi_get_rsdp_addr(void)
 	acpi_physical_address rsdp_addr = 0;
 
 #ifdef CONFIG_EFI
-	efi_system_table_t *systab;
+	unsigned long systab, systab_tables, config_tables;
+	unsigned int nr_tables;
 	struct efi_info *ei;
 	bool efi_64;
 	int size, i;
@@ -70,46 +71,57 @@ static acpi_physical_address efi_get_rsdp_addr(void)
 
 	/* Get systab from boot params. */
 #ifdef CONFIG_X86_64
-	systab = (efi_system_table_t *)(ei->efi_systab | ((__u64)ei->efi_systab_hi<<32));
+	systab = ei->efi_systab | ((__u64)ei->efi_systab_hi << 32);
 #else
 	if (ei->efi_systab_hi || ei->efi_memmap_hi) {
 		debug_putstr("Error getting RSDP address: EFI system table located above 4GB.\n");
 		return 0;
 	}
-	systab = (efi_system_table_t *)ei->efi_systab;
+	systab = ei->efi_systab;
 #endif
 	if (!systab)
 		error("EFI system table not found.");
 
-	/*
-	 * Get EFI tables from systab.
-	 */
-	size = efi_64 ? sizeof(efi_config_table_64_t) :
-			sizeof(efi_config_table_32_t);
+	/* Handle EFI bitness properly */
+	if (efi_64) {
+		efi_system_table_64_t *stbl = (efi_system_table_64_t *)systab;
 
-	for (i = 0; i < systab->nr_tables; i++) {
+		config_tables	= stbl->tables;
+		nr_tables	= stbl->nr_tables;
+		size		= sizeof(efi_config_table_64_t);
+	} else {
+		efi_system_table_32_t *stbl = (efi_system_table_32_t *)systab;
+
+		config_tables	= stbl->tables;
+		nr_tables	= stbl->nr_tables;
+		size		= sizeof(efi_config_table_32_t);
+	}
+
+	if (!config_tables)
+		error("EFI config tables not found.");
+
+	/* Get EFI tables from systab. */
+	for (i = 0; i < nr_tables; i++) {
 		acpi_physical_address table;
-		void *config_tables;
 		efi_guid_t guid;
 
-		config_tables = (void *)(systab->tables + size * i);
-		if (efi_64) {
-			efi_config_table_64_t *tmp_table;
+		config_tables += size;
 
-			tmp_table = config_tables;
-			guid = tmp_table->guid;
-			table = tmp_table->table;
+		if (efi_64) {
+			efi_config_table_64_t *tbl = (efi_config_table_64_t *)config_tables;
+
+			guid  = tbl->guid;
+			table = tbl->table;
 
 			if (!IS_ENABLED(CONFIG_X86_64) && table >> 32) {
 				debug_putstr("Error getting RSDP address: EFI config table located above 4GB.\n");
 				return 0;
 			}
 		} else {
-			efi_config_table_32_t *tmp_table;
+			efi_config_table_32_t *tbl = (efi_config_table_32_t *)config_tables;
 
-			tmp_table = config_tables;
-			guid = tmp_table->guid;
-			table = tmp_table->table;
+			guid  = tbl->guid;
+			table = tbl->table;
 		}
 
 		if (!(efi_guidcmp(guid, ACPI_TABLE_GUID)))
