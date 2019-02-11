@@ -302,6 +302,14 @@ static const short da850_hawk_usb11_pins[] = {
 	-1
 };
 
+static struct gpiod_lookup_table hawk_usb_gpio_lookup = {
+	.dev_id		= "ohci-da8xx",
+	.table = {
+		GPIO_LOOKUP("davinci_gpio", DA850_USB1_VBUS_PIN, "vbus", 0),
+		GPIO_LOOKUP("davinci_gpio", DA850_USB1_OC_PIN, "oc", 0),
+	},
+};
+
 static int hawk_usb_set_power(unsigned port, int on)
 {
 	gpio_set_value(DA850_USB1_VBUS_PIN, on);
@@ -389,6 +397,8 @@ static __init void omapl138_hawk_usb_init(void)
 			"over-current indicator: %d\n", __func__, ret);
 		goto usb11_setup_oc_fail;
 	}
+
+	gpiod_add_lookup_table(&hawk_usb_gpio_lookup);
 
 	ret = da8xx_register_usb11(&omapl138_hawk_usb11_pdata);
 	if (ret) {
