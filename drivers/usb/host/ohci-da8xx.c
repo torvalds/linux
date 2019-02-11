@@ -402,35 +402,35 @@ MODULE_DEVICE_TABLE(of, da8xx_ohci_ids);
 static int ohci_da8xx_probe(struct platform_device *pdev)
 {
 	struct da8xx_ohci_hcd *da8xx_ohci;
+	struct device *dev = &pdev->dev;
 	struct usb_hcd	*hcd;
 	struct resource *mem;
 	int error, irq;
 
-	hcd = usb_create_hcd(&ohci_da8xx_hc_driver, &pdev->dev,
-				dev_name(&pdev->dev));
+	hcd = usb_create_hcd(&ohci_da8xx_hc_driver, dev, dev_name(dev));
 	if (!hcd)
 		return -ENOMEM;
 
 	da8xx_ohci = to_da8xx_ohci(hcd);
 	da8xx_ohci->hcd = hcd;
 
-	da8xx_ohci->usb11_clk = devm_clk_get(&pdev->dev, NULL);
+	da8xx_ohci->usb11_clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(da8xx_ohci->usb11_clk)) {
 		error = PTR_ERR(da8xx_ohci->usb11_clk);
 		if (error != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to get clock.\n");
+			dev_err(dev, "Failed to get clock.\n");
 		goto err;
 	}
 
-	da8xx_ohci->usb11_phy = devm_phy_get(&pdev->dev, "usb-phy");
+	da8xx_ohci->usb11_phy = devm_phy_get(dev, "usb-phy");
 	if (IS_ERR(da8xx_ohci->usb11_phy)) {
 		error = PTR_ERR(da8xx_ohci->usb11_phy);
 		if (error != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to get phy.\n");
+			dev_err(dev, "Failed to get phy.\n");
 		goto err;
 	}
 
-	da8xx_ohci->vbus_reg = devm_regulator_get_optional(&pdev->dev, "vbus");
+	da8xx_ohci->vbus_reg = devm_regulator_get_optional(dev, "vbus");
 	if (IS_ERR(da8xx_ohci->vbus_reg)) {
 		error = PTR_ERR(da8xx_ohci->vbus_reg);
 		if (error == -ENODEV) {
@@ -438,13 +438,13 @@ static int ohci_da8xx_probe(struct platform_device *pdev)
 		} else if (error == -EPROBE_DEFER) {
 			goto err;
 		} else {
-			dev_err(&pdev->dev, "Failed to get regulator\n");
+			dev_err(dev, "Failed to get regulator\n");
 			goto err;
 		}
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, mem);
+	hcd->regs = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(hcd->regs)) {
 		error = PTR_ERR(hcd->regs);
 		goto err;
