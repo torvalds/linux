@@ -1165,6 +1165,7 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 				/* Note: req is added _before_ pos */
 				list_add_tail(&req->rq_xmit, &pos->rq_xmit);
 				INIT_LIST_HEAD(&req->rq_xmit2);
+				trace_xprt_enq_xmit(task, 1);
 				goto out;
 			}
 		} else if (RPC_IS_SWAPPER(task)) {
@@ -1176,6 +1177,7 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 				/* Note: req is added _before_ pos */
 				list_add_tail(&req->rq_xmit, &pos->rq_xmit);
 				INIT_LIST_HEAD(&req->rq_xmit2);
+				trace_xprt_enq_xmit(task, 2);
 				goto out;
 			}
 		} else if (!req->rq_seqno) {
@@ -1184,11 +1186,13 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 					continue;
 				list_add_tail(&req->rq_xmit2, &pos->rq_xmit2);
 				INIT_LIST_HEAD(&req->rq_xmit);
+				trace_xprt_enq_xmit(task, 3);
 				goto out;
 			}
 		}
 		list_add_tail(&req->rq_xmit, &xprt->xmit_queue);
 		INIT_LIST_HEAD(&req->rq_xmit2);
+		trace_xprt_enq_xmit(task, 4);
 out:
 		set_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
 		spin_unlock(&xprt->queue_lock);
@@ -1313,8 +1317,6 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 	int is_retrans = RPC_WAS_SENT(task);
 	int status;
 
-	dprintk("RPC: %5u xprt_transmit(%u)\n", task->tk_pid, req->rq_slen);
-
 	if (!req->rq_bytes_sent) {
 		if (xprt_request_data_received(task)) {
 			status = 0;
@@ -1336,9 +1338,9 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 
 	connect_cookie = xprt->connect_cookie;
 	status = xprt->ops->send_request(req);
-	trace_xprt_transmit(xprt, req->rq_xid, status);
 	if (status != 0) {
 		req->rq_ntrans--;
+		trace_xprt_transmit(req, status);
 		return status;
 	}
 
@@ -1347,7 +1349,6 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 
 	xprt_inject_disconnect(xprt);
 
-	dprintk("RPC: %5u xmit complete\n", task->tk_pid);
 	task->tk_flags |= RPC_TASK_SENT;
 	spin_lock_bh(&xprt->transport_lock);
 
@@ -1360,6 +1361,7 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 
 	req->rq_connect_cookie = connect_cookie;
 out_dequeue:
+	trace_xprt_transmit(req, status);
 	xprt_request_dequeue_transmit(task);
 	rpc_wake_up_queued_task_set_status(&xprt->sending, task, status);
 	return status;
