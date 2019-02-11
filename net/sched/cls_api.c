@@ -221,6 +221,7 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 	if (!chain)
 		return NULL;
 	list_add_tail(&chain->list, &block->chain_list);
+	mutex_init(&chain->filter_chain_lock);
 	chain->block = block;
 	chain->index = chain_index;
 	chain->refcnt = 1;
@@ -280,6 +281,7 @@ static void tcf_chain_destroy(struct tcf_chain *chain, bool free_block)
 {
 	struct tcf_block *block = chain->block;
 
+	mutex_destroy(&chain->filter_chain_lock);
 	kfree(chain);
 	if (free_block)
 		tcf_block_destroy(block);
@@ -443,9 +445,13 @@ static void tcf_chain_put_explicitly_created(struct tcf_chain *chain)
 
 static void tcf_chain_flush(struct tcf_chain *chain)
 {
-	struct tcf_proto *tp = rtnl_dereference(chain->filter_chain);
+	struct tcf_proto *tp;
 
+	mutex_lock(&chain->filter_chain_lock);
+	tp = tcf_chain_dereference(chain->filter_chain, chain);
 	tcf_chain0_head_change(chain, NULL);
+	mutex_unlock(&chain->filter_chain_lock);
+
 	while (tp) {
 		RCU_INIT_POINTER(chain->filter_chain, tp->next);
 		tcf_proto_destroy(tp, NULL);
@@ -785,10 +791,28 @@ tcf_chain0_head_change_cb_add(struct tcf_block *block,
 
 	mutex_lock(&block->lock);
 	chain0 = block->chain0.chain;
-	if (chain0 && chain0->filter_chain)
-		tcf_chain_head_change_item(item, chain0->filter_chain);
-	list_add(&item->list, &block->chain0.filter_chain_list);
+	if (chain0)
+		tcf_chain_hold(chain0);
+	else
+		list_add(&item->list, &block->chain0.filter_chain_list);
 	mutex_unlock(&block->lock);
+
+	if (chain0) {
+		struct tcf_proto *tp_head;
+
+		mutex_lock(&chain0->filter_chain_lock);
+
+		tp_head = tcf_chain_dereference(chain0->filter_chain, chain0);
+		if (tp_head)
+			tcf_chain_head_change_item(item, tp_head);
+
+		mutex_lock(&block->lock);
+		list_add(&item->list, &block->chain0.filter_chain_list);
+		mutex_unlock(&block->lock);
+
+		mutex_unlock(&chain0->filter_chain_lock);
+		tcf_chain_put(chain0);
+	}
 
 	return 0;
 }
@@ -1464,9 +1488,10 @@ struct tcf_chain_info {
 	struct tcf_proto __rcu *next;
 };
 
-static struct tcf_proto *tcf_chain_tp_prev(struct tcf_chain_info *chain_info)
+static struct tcf_proto *tcf_chain_tp_prev(struct tcf_chain *chain,
+					   struct tcf_chain_info *chain_info)
 {
-	return rtnl_dereference(*chain_info->pprev);
+	return tcf_chain_dereference(*chain_info->pprev, chain);
 }
 
 static void tcf_chain_tp_insert(struct tcf_chain *chain,
@@ -1475,7 +1500,7 @@ static void tcf_chain_tp_insert(struct tcf_chain *chain,
 {
 	if (*chain_info->pprev == chain->filter_chain)
 		tcf_chain0_head_change(chain, tp);
-	RCU_INIT_POINTER(tp->next, tcf_chain_tp_prev(chain_info));
+	RCU_INIT_POINTER(tp->next, tcf_chain_tp_prev(chain, chain_info));
 	rcu_assign_pointer(*chain_info->pprev, tp);
 	tcf_chain_hold(chain);
 }
@@ -1484,7 +1509,7 @@ static void tcf_chain_tp_remove(struct tcf_chain *chain,
 				struct tcf_chain_info *chain_info,
 				struct tcf_proto *tp)
 {
-	struct tcf_proto *next = rtnl_dereference(chain_info->next);
+	struct tcf_proto *next = tcf_chain_dereference(chain_info->next, chain);
 
 	if (tp == chain->filter_chain)
 		tcf_chain0_head_change(chain, next);
@@ -1502,7 +1527,8 @@ static struct tcf_proto *tcf_chain_tp_find(struct tcf_chain *chain,
 
 	/* Check the chain for existence of proto-tcf with this priority */
 	for (pprev = &chain->filter_chain;
-	     (tp = rtnl_dereference(*pprev)); pprev = &tp->next) {
+	     (tp = tcf_chain_dereference(*pprev, chain));
+	     pprev = &tp->next) {
 		if (tp->prio >= prio) {
 			if (tp->prio == prio) {
 				if (prio_allocate ||
@@ -1710,12 +1736,13 @@ replay:
 		goto errout;
 	}
 
+	mutex_lock(&chain->filter_chain_lock);
 	tp = tcf_chain_tp_find(chain, &chain_info, protocol,
 			       prio, prio_allocate);
 	if (IS_ERR(tp)) {
 		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol not found");
 		err = PTR_ERR(tp);
-		goto errout;
+		goto errout_locked;
 	}
 
 	if (tp == NULL) {
@@ -1724,29 +1751,37 @@ replay:
 		if (tca[TCA_KIND] == NULL || !protocol) {
 			NL_SET_ERR_MSG(extack, "Filter kind and protocol must be specified");
 			err = -EINVAL;
-			goto errout;
+			goto errout_locked;
 		}
 
 		if (!(n->nlmsg_flags & NLM_F_CREATE)) {
 			NL_SET_ERR_MSG(extack, "Need both RTM_NEWTFILTER and NLM_F_CREATE to create a new filter");
 			err = -ENOENT;
-			goto errout;
+			goto errout_locked;
 		}
 
 		if (prio_allocate)
-			prio = tcf_auto_prio(tcf_chain_tp_prev(&chain_info));
+			prio = tcf_auto_prio(tcf_chain_tp_prev(chain,
+							       &chain_info));
 
+		mutex_unlock(&chain->filter_chain_lock);
 		tp = tcf_proto_create(nla_data(tca[TCA_KIND]),
 				      protocol, prio, chain, extack);
 		if (IS_ERR(tp)) {
 			err = PTR_ERR(tp);
 			goto errout;
 		}
+
+		mutex_lock(&chain->filter_chain_lock);
+		tcf_chain_tp_insert(chain, &chain_info, tp);
+		mutex_unlock(&chain->filter_chain_lock);
 		tp_created = 1;
 	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
 		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
 		err = -EINVAL;
-		goto errout;
+		goto errout_locked;
+	} else {
+		mutex_unlock(&chain->filter_chain_lock);
 	}
 
 	fh = tp->ops->get(tp, t->tcm_handle);
@@ -1772,15 +1807,11 @@ replay:
 	err = tp->ops->change(net, skb, tp, cl, t->tcm_handle, tca, &fh,
 			      n->nlmsg_flags & NLM_F_CREATE ? TCA_ACT_NOREPLACE : TCA_ACT_REPLACE,
 			      extack);
-	if (err == 0) {
-		if (tp_created)
-			tcf_chain_tp_insert(chain, &chain_info, tp);
+	if (err == 0)
 		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
 			       RTM_NEWTFILTER, false);
-	} else {
-		if (tp_created)
-			tcf_proto_destroy(tp, NULL);
-	}
+	else if (tp_created)
+		tcf_proto_destroy(tp, NULL);
 
 errout:
 	if (chain)
@@ -1790,6 +1821,10 @@ errout:
 		/* Replay the request. */
 		goto replay;
 	return err;
+
+errout_locked:
+	mutex_unlock(&chain->filter_chain_lock);
+	goto errout;
 }
 
 static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
@@ -1865,31 +1900,34 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 		goto errout;
 	}
 
+	mutex_lock(&chain->filter_chain_lock);
 	tp = tcf_chain_tp_find(chain, &chain_info, protocol,
 			       prio, false);
 	if (!tp || IS_ERR(tp)) {
 		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol not found");
 		err = tp ? PTR_ERR(tp) : -ENOENT;
-		goto errout;
+		goto errout_locked;
 	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
 		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
 		err = -EINVAL;
+		goto errout_locked;
+	} else if (t->tcm_handle == 0) {
+		tcf_chain_tp_remove(chain, &chain_info, tp);
+		mutex_unlock(&chain->filter_chain_lock);
+
+		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
+			       RTM_DELTFILTER, false);
+		tcf_proto_destroy(tp, extack);
+		err = 0;
 		goto errout;
 	}
+	mutex_unlock(&chain->filter_chain_lock);
 
 	fh = tp->ops->get(tp, t->tcm_handle);
 
 	if (!fh) {
-		if (t->tcm_handle == 0) {
-			tcf_chain_tp_remove(chain, &chain_info, tp);
-			tfilter_notify(net, skb, n, tp, block, q, parent, fh,
-				       RTM_DELTFILTER, false);
-			tcf_proto_destroy(tp, extack);
-			err = 0;
-		} else {
-			NL_SET_ERR_MSG(extack, "Specified filter handle not found");
-			err = -ENOENT;
-		}
+		NL_SET_ERR_MSG(extack, "Specified filter handle not found");
+		err = -ENOENT;
 	} else {
 		bool last;
 
@@ -1899,7 +1937,10 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 		if (err)
 			goto errout;
 		if (last) {
+			mutex_lock(&chain->filter_chain_lock);
 			tcf_chain_tp_remove(chain, &chain_info, tp);
+			mutex_unlock(&chain->filter_chain_lock);
+
 			tcf_proto_destroy(tp, extack);
 		}
 	}
@@ -1909,6 +1950,10 @@ errout:
 		tcf_chain_put(chain);
 	tcf_block_release(q, block);
 	return err;
+
+errout_locked:
+	mutex_unlock(&chain->filter_chain_lock);
+	goto errout;
 }
 
 static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
@@ -1966,8 +2011,10 @@ static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 		goto errout;
 	}
 
+	mutex_lock(&chain->filter_chain_lock);
 	tp = tcf_chain_tp_find(chain, &chain_info, protocol,
 			       prio, false);
+	mutex_unlock(&chain->filter_chain_lock);
 	if (!tp || IS_ERR(tp)) {
 		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol not found");
 		err = tp ? PTR_ERR(tp) : -ENOENT;

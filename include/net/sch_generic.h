@@ -341,6 +341,8 @@ struct qdisc_skb_cb {
 typedef void tcf_chain_head_change_t(struct tcf_proto *tp_head, void *priv);
 
 struct tcf_chain {
+	/* Protects filter_chain. */
+	struct mutex filter_chain_lock;
 	struct tcf_proto __rcu *filter_chain;
 	struct list_head list;
 	struct tcf_block *block;
@@ -373,6 +375,21 @@ struct tcf_block {
 	} chain0;
 	struct rcu_head rcu;
 };
+
+#ifdef CONFIG_PROVE_LOCKING
+static inline bool lockdep_tcf_chain_is_locked(struct tcf_chain *chain)
+{
+	return lockdep_is_held(&chain->filter_chain_lock);
+}
+#else
+static inline bool lockdep_tcf_chain_is_locked(struct tcf_block *chain)
+{
+	return true;
+}
+#endif /* #ifdef CONFIG_PROVE_LOCKING */
+
+#define tcf_chain_dereference(p, chain)					\
+	rcu_dereference_protected(p, lockdep_tcf_chain_is_locked(chain))
 
 static inline void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
 {
