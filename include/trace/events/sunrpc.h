@@ -241,6 +241,58 @@ DECLARE_EVENT_CLASS(rpc_failure,
 			TP_ARGS(task))
 
 DEFINE_RPC_FAILURE(callhdr);
+DEFINE_RPC_FAILURE(verifier);
+
+DECLARE_EVENT_CLASS(rpc_reply_event,
+
+	TP_PROTO(
+		const struct rpc_task *task
+	),
+
+	TP_ARGS(task),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, xid)
+		__string(progname, task->tk_client->cl_program->name)
+		__field(u32, version)
+		__string(procname, rpc_proc_name(task))
+		__string(servername, task->tk_xprt->servername)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->xid = be32_to_cpu(task->tk_rqstp->rq_xid);
+		__assign_str(progname, task->tk_client->cl_program->name)
+		__entry->version = task->tk_client->cl_vers;
+		__assign_str(procname, rpc_proc_name(task))
+		__assign_str(servername, task->tk_xprt->servername)
+	),
+
+	TP_printk("task:%u@%d server=%s xid=0x%08x %sv%d %s",
+		__entry->task_id, __entry->client_id, __get_str(servername),
+		__entry->xid, __get_str(progname), __entry->version,
+		__get_str(procname))
+)
+
+#define DEFINE_RPC_REPLY_EVENT(name)					\
+	DEFINE_EVENT(rpc_reply_event, rpc__##name,			\
+			TP_PROTO(					\
+				const struct rpc_task *task		\
+			),						\
+			TP_ARGS(task))
+
+DEFINE_RPC_REPLY_EVENT(prog_unavail);
+DEFINE_RPC_REPLY_EVENT(prog_mismatch);
+DEFINE_RPC_REPLY_EVENT(proc_unavail);
+DEFINE_RPC_REPLY_EVENT(garbage_args);
+DEFINE_RPC_REPLY_EVENT(unparsable);
+DEFINE_RPC_REPLY_EVENT(mismatch);
+DEFINE_RPC_REPLY_EVENT(stale_creds);
+DEFINE_RPC_REPLY_EVENT(bad_creds);
+DEFINE_RPC_REPLY_EVENT(auth_tooweak);
 
 TRACE_EVENT(rpc_stats_latency,
 

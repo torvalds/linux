@@ -92,6 +92,9 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 #define	rpc_auth_gss	cpu_to_be32(RPC_AUTH_GSS)
 
 #define	rpc_call	cpu_to_be32(RPC_CALL)
+#define	rpc_reply	cpu_to_be32(RPC_REPLY)
+
+#define	rpc_msg_accepted	cpu_to_be32(RPC_MSG_ACCEPTED)
 
 #define	rpc_success		cpu_to_be32(RPC_SUCCESS)
 #define	rpc_prog_unavail	cpu_to_be32(RPC_PROG_UNAVAIL)
@@ -101,6 +104,9 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 #define	rpc_system_err		cpu_to_be32(RPC_SYSTEM_ERR)
 #define	rpc_drop_reply		cpu_to_be32(RPC_DROP_REPLY)
 
+#define	rpc_mismatch		cpu_to_be32(RPC_MISMATCH)
+#define	rpc_auth_error		cpu_to_be32(RPC_AUTH_ERROR)
+
 #define	rpc_auth_ok		cpu_to_be32(RPC_AUTH_OK)
 #define	rpc_autherr_badcred	cpu_to_be32(RPC_AUTH_BADCRED)
 #define	rpc_autherr_rejectedcred cpu_to_be32(RPC_AUTH_REJECTEDCRED)
@@ -109,7 +115,6 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 #define	rpc_autherr_tooweak	cpu_to_be32(RPC_AUTH_TOOWEAK)
 #define	rpcsec_gsserr_credproblem	cpu_to_be32(RPCSEC_GSS_CREDPROBLEM)
 #define	rpcsec_gsserr_ctxproblem	cpu_to_be32(RPCSEC_GSS_CTXPROBLEM)
-#define	rpc_autherr_oldseqnum	cpu_to_be32(101)
 
 /*
  * Miscellaneous XDR helper functions
