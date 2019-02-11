@@ -804,19 +804,25 @@ static void rcu_flavor_sched_clock_irq(int user)
 
 /*
  * Check for a task exiting while in a preemptible-RCU read-side
- * critical section, clean up if so.  No need to issue warnings,
- * as debug_check_no_locks_held() already does this if lockdep
- * is enabled.
+ * critical section, clean up if so.  No need to issue warnings, as
+ * debug_check_no_locks_held() already does this if lockdep is enabled.
+ * Besides, if this function does anything other than just immediately
+ * return, there was a bug of some sort.  Spewing warnings from this
+ * function is like as not to simply obscure important prior warnings.
  */
 void exit_rcu(void)
 {
 	struct task_struct *t = current;
 
-	if (likely(list_empty(&current->rcu_node_entry)))
+	if (unlikely(!list_empty(&current->rcu_node_entry))) {
+		t->rcu_read_lock_nesting = 1;
+		barrier();
+		t->rcu_read_unlock_special.b.blocked = true;
+	} else if (unlikely(t->rcu_read_lock_nesting)) {
+		t->rcu_read_lock_nesting = 1;
+	} else {
 		return;
-	t->rcu_read_lock_nesting = 1;
-	barrier();
-	t->rcu_read_unlock_special.b.blocked = true;
+	}
 	__rcu_read_unlock();
 	rcu_preempt_deferred_qs(current);
 }
