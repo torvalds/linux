@@ -4,6 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include <linux/prime_numbers.h>
+
 #include "../i915_reset.h"
 
 #include "../i915_selftest.h"
@@ -405,6 +407,106 @@ err_wedged:
 	goto err_client_b;
 }
 
+static int live_chain_preempt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct preempt_client hi, lo;
+	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
+	int err = -ENOMEM;
+
+	/*
+	 * Build a chain AB...BA between two contexts (A, B) and request
+	 * preemption of the last request. It should then complete before
+	 * the previously submitted spinner in B.
+	 */
+
+	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
+		return 0;
+
+	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
+
+	if (preempt_client_init(i915, &hi))
+		goto err_unlock;
+
+	if (preempt_client_init(i915, &lo))
+		goto err_client_hi;
+
+	for_each_engine(engine, i915, id) {
+		struct i915_sched_attr attr = {
+			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
+		};
+		int count, i;
+
+		for_each_prime_number_from(count, 1, 32) { /* must fit ring! */
+			struct i915_request *rq;
+
+			rq = igt_spinner_create_request(&hi.spin,
+							hi.ctx, engine,
+							MI_ARB_CHECK);
+			if (IS_ERR(rq))
+				goto err_wedged;
+			i915_request_add(rq);
+			if (!igt_wait_for_spinner(&hi.spin, rq))
+				goto err_wedged;
+
+			rq = igt_spinner_create_request(&lo.spin,
+							lo.ctx, engine,
+							MI_ARB_CHECK);
+			if (IS_ERR(rq))
+				goto err_wedged;
+			i915_request_add(rq);
+
+			for (i = 0; i < count; i++) {
+				rq = i915_request_alloc(engine, lo.ctx);
+				if (IS_ERR(rq))
+					goto err_wedged;
+				i915_request_add(rq);
+			}
+
+			rq = i915_request_alloc(engine, hi.ctx);
+			if (IS_ERR(rq))
+				goto err_wedged;
+			i915_request_add(rq);
+			engine->schedule(rq, &attr);
+
+			igt_spinner_end(&hi.spin);
+			if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+				struct drm_printer p =
+					drm_info_printer(i915->drm.dev);
+
+				pr_err("Failed to preempt over chain of %d\n",
+				       count);
+				intel_engine_dump(engine, &p,
+						  "%s\n", engine->name);
+				goto err_wedged;
+			}
+			igt_spinner_end(&lo.spin);
+		}
+	}
+
+	err = 0;
+err_client_lo:
+	preempt_client_fini(&lo);
+err_client_hi:
+	preempt_client_fini(&hi);
+err_unlock:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+	intel_runtime_pm_put(i915, wakeref);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+
+err_wedged:
+	igt_spinner_end(&hi.spin);
+	igt_spinner_end(&lo.spin);
+	i915_gem_set_wedged(i915);
+	err = -EIO;
+	goto err_client_lo;
+}
+
 static int live_preempt_hang(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -785,6 +887,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
 		SUBTEST(live_suppress_self_preempt),
+		SUBTEST(live_chain_preempt),
 		SUBTEST(live_preempt_hang),
 		SUBTEST(live_preempt_smoke),
 	};

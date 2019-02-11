@@ -63,21 +63,22 @@ static void vma_print_allocator(struct i915_vma *vma, const char *reason)
 
 #endif
 
-struct i915_vma_active {
-	struct i915_gem_active base;
-	struct i915_vma *vma;
-	struct rb_node node;
-	u64 timeline;
-};
-
-static void
-__i915_vma_retire(struct i915_vma *vma, struct i915_request *rq)
+static void obj_bump_mru(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_gem_object *obj = vma->obj;
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
-	GEM_BUG_ON(!i915_vma_is_active(vma));
-	if (--vma->active_count)
-		return;
+	spin_lock(&i915->mm.obj_lock);
+	if (obj->bind_count)
+		list_move_tail(&obj->mm.link, &i915->mm.bound_list);
+	spin_unlock(&i915->mm.obj_lock);
+
+	obj->mm.dirty = true; /* be paranoid  */
+}
+
+static void __i915_vma_retire(struct i915_active *ref)
+{
+	struct i915_vma *vma = container_of(ref, typeof(*vma), active);
+	struct drm_i915_gem_object *obj = vma->obj;
 
 	GEM_BUG_ON(!i915_gem_object_is_active(obj));
 	if (--obj->active_count)
@@ -90,36 +91,17 @@ __i915_vma_retire(struct i915_vma *vma, struct i915_request *rq)
 		reservation_object_unlock(obj->resv);
 	}
 
-	/* Bump our place on the bound list to keep it roughly in LRU order
+	/*
+	 * Bump our place on the bound list to keep it roughly in LRU order
 	 * so that we don't steal from recently used but inactive objects
 	 * (unless we are forced to ofc!)
 	 */
-	spin_lock(&rq->i915->mm.obj_lock);
-	if (obj->bind_count)
-		list_move_tail(&obj->mm.link, &rq->i915->mm.bound_list);
-	spin_unlock(&rq->i915->mm.obj_lock);
-
-	obj->mm.dirty = true; /* be paranoid  */
+	obj_bump_mru(obj);
 
 	if (i915_gem_object_has_active_reference(obj)) {
 		i915_gem_object_clear_active_reference(obj);
 		i915_gem_object_put(obj);
 	}
-}
-
-static void
-i915_vma_retire(struct i915_gem_active *base, struct i915_request *rq)
-{
-	struct i915_vma_active *active =
-		container_of(base, typeof(*active), base);
-
-	__i915_vma_retire(active->vma, rq);
-}
-
-static void
-i915_vma_last_retire(struct i915_gem_active *base, struct i915_request *rq)
-{
-	__i915_vma_retire(container_of(base, struct i915_vma, last_active), rq);
 }
 
 static struct i915_vma *
@@ -137,10 +119,9 @@ vma_create(struct drm_i915_gem_object *obj,
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	vma->active = RB_ROOT;
+	i915_active_init(vm->i915, &vma->active, __i915_vma_retire);
+	INIT_ACTIVE_REQUEST(&vma->last_fence);
 
-	init_request_active(&vma->last_active, i915_vma_last_retire);
-	init_request_active(&vma->last_fence, NULL);
 	vma->vm = vm;
 	vma->ops = &vm->vma_ops;
 	vma->obj = obj;
@@ -823,12 +804,11 @@ void i915_vma_reopen(struct i915_vma *vma)
 static void __i915_vma_destroy(struct i915_vma *vma)
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
-	struct i915_vma_active *iter, *n;
 
 	GEM_BUG_ON(vma->node.allocated);
 	GEM_BUG_ON(vma->fence);
 
-	GEM_BUG_ON(i915_gem_active_isset(&vma->last_fence));
+	GEM_BUG_ON(i915_active_request_isset(&vma->last_fence));
 
 	mutex_lock(&vma->vm->mutex);
 	list_del(&vma->vm_link);
@@ -843,10 +823,7 @@ static void __i915_vma_destroy(struct i915_vma *vma)
 		spin_unlock(&obj->vma.lock);
 	}
 
-	rbtree_postorder_for_each_entry_safe(iter, n, &vma->active, node) {
-		GEM_BUG_ON(i915_gem_active_isset(&iter->base));
-		kfree(iter);
-	}
+	i915_active_fini(&vma->active);
 
 	kmem_cache_free(i915->vmas, vma);
 }
@@ -931,103 +908,14 @@ static void export_fence(struct i915_vma *vma,
 	reservation_object_unlock(resv);
 }
 
-static struct i915_gem_active *active_instance(struct i915_vma *vma, u64 idx)
-{
-	struct i915_vma_active *active;
-	struct rb_node **p, *parent;
-	struct i915_request *old;
-
-	/*
-	 * We track the most recently used timeline to skip a rbtree search
-	 * for the common case, under typical loads we never need the rbtree
-	 * at all. We can reuse the last_active slot if it is empty, that is
-	 * after the previous activity has been retired, or if the active
-	 * matches the current timeline.
-	 *
-	 * Note that we allow the timeline to be active simultaneously in
-	 * the rbtree and the last_active cache. We do this to avoid having
-	 * to search and replace the rbtree element for a new timeline, with
-	 * the cost being that we must be aware that the vma may be retired
-	 * twice for the same timeline (as the older rbtree element will be
-	 * retired before the new request added to last_active).
-	 */
-	old = i915_gem_active_raw(&vma->last_active,
-				  &vma->vm->i915->drm.struct_mutex);
-	if (!old || old->fence.context == idx)
-		goto out;
-
-	/* Move the currently active fence into the rbtree */
-	idx = old->fence.context;
-
-	parent = NULL;
-	p = &vma->active.rb_node;
-	while (*p) {
-		parent = *p;
-
-		active = rb_entry(parent, struct i915_vma_active, node);
-		if (active->timeline == idx)
-			goto replace;
-
-		if (active->timeline < idx)
-			p = &parent->rb_right;
-		else
-			p = &parent->rb_left;
-	}
-
-	active = kmalloc(sizeof(*active), GFP_KERNEL);
-
-	/* kmalloc may retire the vma->last_active request (thanks shrinker)! */
-	if (unlikely(!i915_gem_active_raw(&vma->last_active,
-					  &vma->vm->i915->drm.struct_mutex))) {
-		kfree(active);
-		goto out;
-	}
-
-	if (unlikely(!active))
-		return ERR_PTR(-ENOMEM);
-
-	init_request_active(&active->base, i915_vma_retire);
-	active->vma = vma;
-	active->timeline = idx;
-
-	rb_link_node(&active->node, parent, p);
-	rb_insert_color(&active->node, &vma->active);
-
-replace:
-	/*
-	 * Overwrite the previous active slot in the rbtree with last_active,
-	 * leaving last_active zeroed. If the previous slot is still active,
-	 * we must be careful as we now only expect to receive one retire
-	 * callback not two, and so much undo the active counting for the
-	 * overwritten slot.
-	 */
-	if (i915_gem_active_isset(&active->base)) {
-		/* Retire ourselves from the old rq->active_list */
-		__list_del_entry(&active->base.link);
-		vma->active_count--;
-		GEM_BUG_ON(!vma->active_count);
-	}
-	GEM_BUG_ON(list_empty(&vma->last_active.link));
-	list_replace_init(&vma->last_active.link, &active->base.link);
-	active->base.request = fetch_and_zero(&vma->last_active.request);
-
-out:
-	return &vma->last_active;
-}
-
 int i915_vma_move_to_active(struct i915_vma *vma,
 			    struct i915_request *rq,
 			    unsigned int flags)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
-	struct i915_gem_active *active;
 
 	lockdep_assert_held(&rq->i915->drm.struct_mutex);
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-
-	active = active_instance(vma, rq->fence.context);
-	if (IS_ERR(active))
-		return PTR_ERR(active);
 
 	/*
 	 * Add a reference if we're newly entering the active list.
@@ -1037,9 +925,15 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	if (!i915_gem_active_isset(active) && !vma->active_count++)
+	if (!vma->active.count)
 		obj->active_count++;
-	i915_gem_active_set(active, rq);
+
+	if (unlikely(i915_active_ref(&vma->active, rq->fence.context, rq))) {
+		if (!vma->active.count)
+			obj->active_count--;
+		return -ENOMEM;
+	}
+
 	GEM_BUG_ON(!i915_vma_is_active(vma));
 	GEM_BUG_ON(!obj->active_count);
 
@@ -1048,14 +942,14 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 		obj->write_domain = I915_GEM_DOMAIN_RENDER;
 
 		if (intel_fb_obj_invalidate(obj, ORIGIN_CS))
-			i915_gem_active_set(&obj->frontbuffer_write, rq);
+			__i915_active_request_set(&obj->frontbuffer_write, rq);
 
 		obj->read_domains = 0;
 	}
 	obj->read_domains |= I915_GEM_GPU_DOMAINS;
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
-		i915_gem_active_set(&vma->last_fence, rq);
+		__i915_active_request_set(&vma->last_fence, rq);
 
 	export_fence(vma, rq, flags);
 	return 0;
@@ -1073,8 +967,6 @@ int i915_vma_unbind(struct i915_vma *vma)
 	 */
 	might_sleep();
 	if (i915_vma_is_active(vma)) {
-		struct i915_vma_active *active, *n;
-
 		/*
 		 * When a closed VMA is retired, it is unbound - eek.
 		 * In order to prevent it from being recursively closed,
@@ -1090,21 +982,12 @@ int i915_vma_unbind(struct i915_vma *vma)
 		 */
 		__i915_vma_pin(vma);
 
-		ret = i915_gem_active_retire(&vma->last_active,
-					     &vma->vm->i915->drm.struct_mutex);
+		ret = i915_active_wait(&vma->active);
 		if (ret)
 			goto unpin;
 
-		rbtree_postorder_for_each_entry_safe(active, n,
-						     &vma->active, node) {
-			ret = i915_gem_active_retire(&active->base,
-						     &vma->vm->i915->drm.struct_mutex);
-			if (ret)
-				goto unpin;
-		}
-
-		ret = i915_gem_active_retire(&vma->last_fence,
-					     &vma->vm->i915->drm.struct_mutex);
+		ret = i915_active_request_retire(&vma->last_fence,
+					      &vma->vm->i915->drm.struct_mutex);
 unpin:
 		__i915_vma_unpin(vma);
 		if (ret)

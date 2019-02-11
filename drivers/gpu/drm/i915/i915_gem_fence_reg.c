@@ -223,7 +223,7 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 			 i915_gem_object_get_tiling(vma->obj)))
 			return -EINVAL;
 
-		ret = i915_gem_active_retire(&vma->last_fence,
+		ret = i915_active_request_retire(&vma->last_fence,
 					     &vma->obj->base.dev->struct_mutex);
 		if (ret)
 			return ret;
@@ -232,7 +232,7 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 	if (fence->vma) {
 		struct i915_vma *old = fence->vma;
 
-		ret = i915_gem_active_retire(&old->last_fence,
+		ret = i915_active_request_retire(&old->last_fence,
 					     &old->obj->base.dev->struct_mutex);
 		if (ret)
 			return ret;

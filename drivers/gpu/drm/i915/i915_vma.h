@@ -34,6 +34,7 @@
 #include "i915_gem_fence_reg.h"
 #include "i915_gem_object.h"
 
+#include "i915_active.h"
 #include "i915_request.h"
 
 enum i915_cache_level;
@@ -108,10 +109,8 @@ struct i915_vma {
 #define I915_VMA_USERFAULT	BIT(I915_VMA_USERFAULT_BIT)
 #define I915_VMA_GGTT_WRITE	BIT(15)
 
-	unsigned int active_count;
-	struct rb_root active;
-	struct i915_gem_active last_active;
-	struct i915_gem_active last_fence;
+	struct i915_active active;
+	struct i915_active_request last_fence;
 
 	/**
 	 * Support different GGTT views into the same object.
@@ -154,9 +153,9 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 void i915_vma_unpin_and_release(struct i915_vma **p_vma, unsigned int flags);
 #define I915_VMA_RELEASE_MAP BIT(0)
 
-static inline bool i915_vma_is_active(struct i915_vma *vma)
+static inline bool i915_vma_is_active(const struct i915_vma *vma)
 {
-	return vma->active_count;
+	return !i915_active_is_idle(&vma->active);
 }
 
 int __must_check i915_vma_move_to_active(struct i915_vma *vma,

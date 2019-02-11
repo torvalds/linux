@@ -24,10 +24,13 @@
 
 #include <linux/prime_numbers.h>
 
+#include "../i915_reset.h"
 #include "../i915_selftest.h"
 #include "i915_random.h"
 #include "igt_flush_test.h"
 #include "igt_live_test.h"
+#include "igt_reset.h"
+#include "igt_spinner.h"
 
 #include "mock_drm.h"
 #include "mock_gem_device.h"
@@ -574,6 +577,469 @@ out_unlock:
 
 	mock_file_free(i915, file);
 	return err;
+}
+
+static struct i915_vma *rpcs_query_batch(struct i915_vma *vma)
+{
+	struct drm_i915_gem_object *obj;
+	u32 *cmd;
+	int err;
+
+	if (INTEL_GEN(vma->vm->i915) < 8)
+		return ERR_PTR(-EINVAL);
+
+	obj = i915_gem_object_create_internal(vma->vm->i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(cmd)) {
+		err = PTR_ERR(cmd);
+		goto err;
+	}
+
+	*cmd++ = MI_STORE_REGISTER_MEM_GEN8;
+	*cmd++ = i915_mmio_reg_offset(GEN8_R_PWR_CLK_STATE);
+	*cmd++ = lower_32_bits(vma->node.start);
+	*cmd++ = upper_32_bits(vma->node.start);
+	*cmd = MI_BATCH_BUFFER_END;
+
+	i915_gem_object_unpin_map(obj);
+
+	err = i915_gem_object_set_to_gtt_domain(obj, false);
+	if (err)
+		goto err;
+
+	vma = i915_vma_instance(obj, vma->vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		goto err;
+
+	return vma;
+
+err:
+	i915_gem_object_put(obj);
+	return ERR_PTR(err);
+}
+
+static int
+emit_rpcs_query(struct drm_i915_gem_object *obj,
+		struct i915_gem_context *ctx,
+		struct intel_engine_cs *engine,
+		struct i915_request **rq_out)
+{
+	struct i915_request *rq;
+	struct i915_vma *batch;
+	struct i915_vma *vma;
+	int err;
+
+	GEM_BUG_ON(!intel_engine_can_store_dword(engine));
+
+	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	err = i915_gem_object_set_to_gtt_domain(obj, false);
+	if (err)
+		return err;
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		return err;
+
+	batch = rpcs_query_batch(vma);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		goto err_vma;
+	}
+
+	rq = i915_request_alloc(engine, ctx);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_batch;
+	}
+
+	err = engine->emit_bb_start(rq, batch->node.start, batch->node.size, 0);
+	if (err)
+		goto err_request;
+
+	err = i915_vma_move_to_active(batch, rq, 0);
+	if (err)
+		goto skip_request;
+
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	if (err)
+		goto skip_request;
+
+	i915_gem_object_set_active_reference(batch->obj);
+	i915_vma_unpin(batch);
+	i915_vma_close(batch);
+
+	i915_vma_unpin(vma);
+
+	*rq_out = i915_request_get(rq);
+
+	i915_request_add(rq);
+
+	return 0;
+
+skip_request:
+	i915_request_skip(rq, err);
+err_request:
+	i915_request_add(rq);
+err_batch:
+	i915_vma_unpin(batch);
+err_vma:
+	i915_vma_unpin(vma);
+
+	return err;
+}
+
+#define TEST_IDLE	BIT(0)
+#define TEST_BUSY	BIT(1)
+#define TEST_RESET	BIT(2)
+
+static int
+__sseu_prepare(struct drm_i915_private *i915,
+	       const char *name,
+	       unsigned int flags,
+	       struct i915_gem_context *ctx,
+	       struct intel_engine_cs *engine,
+	       struct igt_spinner **spin_out)
+{
+	int ret = 0;
+
+	if (flags & (TEST_BUSY | TEST_RESET)) {
+		struct igt_spinner *spin;
+		struct i915_request *rq;
+
+		spin = kzalloc(sizeof(*spin), GFP_KERNEL);
+		if (!spin) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = igt_spinner_init(spin, i915);
+		if (ret)
+			return ret;
+
+		rq = igt_spinner_create_request(spin, ctx, engine, MI_NOOP);
+		if (IS_ERR(rq)) {
+			ret = PTR_ERR(rq);
+			igt_spinner_fini(spin);
+			kfree(spin);
+			goto out;
+		}
+
+		i915_request_add(rq);
+
+		if (!igt_wait_for_spinner(spin, rq)) {
+			pr_err("%s: Spinner failed to start!\n", name);
+			igt_spinner_end(spin);
+			igt_spinner_fini(spin);
+			kfree(spin);
+			ret = -ETIMEDOUT;
+			goto out;
+		}
+
+		*spin_out = spin;
+	}
+
+out:
+	return ret;
+}
+
+static int
+__read_slice_count(struct drm_i915_private *i915,
+		   struct i915_gem_context *ctx,
+		   struct intel_engine_cs *engine,
+		   struct drm_i915_gem_object *obj,
+		   struct igt_spinner *spin,
+		   u32 *rpcs)
+{
+	struct i915_request *rq = NULL;
+	u32 s_mask, s_shift;
+	unsigned int cnt;
+	u32 *buf, val;
+	long ret;
+
+	ret = emit_rpcs_query(obj, ctx, engine, &rq);
+	if (ret)
+		return ret;
+
+	if (spin)
+		igt_spinner_end(spin);
+
+	ret = i915_request_wait(rq, I915_WAIT_LOCKED, MAX_SCHEDULE_TIMEOUT);
+	i915_request_put(rq);
+	if (ret < 0)
+		return ret;
+
+	buf = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
+		return ret;
+	}
+
+	if (INTEL_GEN(i915) >= 11) {
+		s_mask = GEN11_RPCS_S_CNT_MASK;
+		s_shift = GEN11_RPCS_S_CNT_SHIFT;
+	} else {
+		s_mask = GEN8_RPCS_S_CNT_MASK;
+		s_shift = GEN8_RPCS_S_CNT_SHIFT;
+	}
+
+	val = *buf;
+	cnt = (val & s_mask) >> s_shift;
+	*rpcs = val;
+
+	i915_gem_object_unpin_map(obj);
+
+	return cnt;
+}
+
+static int
+__check_rpcs(const char *name, u32 rpcs, int slices, unsigned int expected,
+	     const char *prefix, const char *suffix)
+{
+	if (slices == expected)
+		return 0;
+
+	if (slices < 0) {
+		pr_err("%s: %s read slice count failed with %d%s\n",
+		       name, prefix, slices, suffix);
+		return slices;
+	}
+
+	pr_err("%s: %s slice count %d is not %u%s\n",
+	       name, prefix, slices, expected, suffix);
+
+	pr_info("RPCS=0x%x; %u%sx%u%s\n",
+		rpcs, slices,
+		(rpcs & GEN8_RPCS_S_CNT_ENABLE) ? "*" : "",
+		(rpcs & GEN8_RPCS_SS_CNT_MASK) >> GEN8_RPCS_SS_CNT_SHIFT,
+		(rpcs & GEN8_RPCS_SS_CNT_ENABLE) ? "*" : "");
+
+	return -EINVAL;
+}
+
+static int
+__sseu_finish(struct drm_i915_private *i915,
+	      const char *name,
+	      unsigned int flags,
+	      struct i915_gem_context *ctx,
+	      struct i915_gem_context *kctx,
+	      struct intel_engine_cs *engine,
+	      struct drm_i915_gem_object *obj,
+	      unsigned int expected,
+	      struct igt_spinner *spin)
+{
+	unsigned int slices =
+		hweight32(intel_device_default_sseu(i915).slice_mask);
+	u32 rpcs = 0;
+	int ret = 0;
+
+	if (flags & TEST_RESET) {
+		ret = i915_reset_engine(engine, "sseu");
+		if (ret)
+			goto out;
+	}
+
+	ret = __read_slice_count(i915, ctx, engine, obj,
+				 flags & TEST_RESET ? NULL : spin, &rpcs);
+	ret = __check_rpcs(name, rpcs, ret, expected, "Context", "!");
+	if (ret)
+		goto out;
+
+	ret = __read_slice_count(i915, kctx, engine, obj, NULL, &rpcs);
+	ret = __check_rpcs(name, rpcs, ret, slices, "Kernel context", "!");
+
+out:
+	if (spin)
+		igt_spinner_end(spin);
+
+	if ((flags & TEST_IDLE) && ret == 0) {
+		ret = i915_gem_wait_for_idle(i915,
+					     I915_WAIT_LOCKED,
+					     MAX_SCHEDULE_TIMEOUT);
+		if (ret)
+			return ret;
+
+		ret = __read_slice_count(i915, ctx, engine, obj, NULL, &rpcs);
+		ret = __check_rpcs(name, rpcs, ret, expected,
+				   "Context", " after idle!");
+	}
+
+	return ret;
+}
+
+static int
+__sseu_test(struct drm_i915_private *i915,
+	    const char *name,
+	    unsigned int flags,
+	    struct i915_gem_context *ctx,
+	    struct intel_engine_cs *engine,
+	    struct drm_i915_gem_object *obj,
+	    struct intel_sseu sseu)
+{
+	struct igt_spinner *spin = NULL;
+	struct i915_gem_context *kctx;
+	int ret;
+
+	kctx = kernel_context(i915);
+	if (IS_ERR(kctx))
+		return PTR_ERR(kctx);
+
+	ret = __sseu_prepare(i915, name, flags, ctx, engine, &spin);
+	if (ret)
+		goto out;
+
+	ret = __i915_gem_context_reconfigure_sseu(ctx, engine, sseu);
+	if (ret)
+		goto out;
+
+	ret = __sseu_finish(i915, name, flags, ctx, kctx, engine, obj,
+			    hweight32(sseu.slice_mask), spin);
+
+out:
+	if (spin) {
+		igt_spinner_end(spin);
+		igt_spinner_fini(spin);
+		kfree(spin);
+	}
+
+	kernel_context_close(kctx);
+
+	return ret;
+}
+
+static int
+__igt_ctx_sseu(struct drm_i915_private *i915,
+	       const char *name,
+	       unsigned int flags)
+{
+	struct intel_sseu default_sseu = intel_device_default_sseu(i915);
+	struct intel_engine_cs *engine = i915->engine[RCS];
+	struct drm_i915_gem_object *obj;
+	struct i915_gem_context *ctx;
+	struct intel_sseu pg_sseu;
+	intel_wakeref_t wakeref;
+	struct drm_file *file;
+	int ret;
+
+	if (INTEL_GEN(i915) < 9)
+		return 0;
+
+	if (!RUNTIME_INFO(i915)->sseu.has_slice_pg)
+		return 0;
+
+	if (hweight32(default_sseu.slice_mask) < 2)
+		return 0;
+
+	/*
+	 * Gen11 VME friendly power-gated configuration with half enabled
+	 * sub-slices.
+	 */
+	pg_sseu = default_sseu;
+	pg_sseu.slice_mask = 1;
+	pg_sseu.subslice_mask =
+		~(~0 << (hweight32(default_sseu.subslice_mask) / 2));
+
+	pr_info("SSEU subtest '%s', flags=%x, def_slices=%u, pg_slices=%u\n",
+		name, flags, hweight32(default_sseu.slice_mask),
+		hweight32(pg_sseu.slice_mask));
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	if (flags & TEST_RESET)
+		igt_global_reset_lock(i915);
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	ctx = i915_gem_create_context(i915, file->driver_priv);
+	if (IS_ERR(ctx)) {
+		ret = PTR_ERR(ctx);
+		goto out_unlock;
+	}
+
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj)) {
+		ret = PTR_ERR(obj);
+		goto out_unlock;
+	}
+
+	wakeref = intel_runtime_pm_get(i915);
+
+	/* First set the default mask. */
+	ret = __sseu_test(i915, name, flags, ctx, engine, obj, default_sseu);
+	if (ret)
+		goto out_fail;
+
+	/* Then set a power-gated configuration. */
+	ret = __sseu_test(i915, name, flags, ctx, engine, obj, pg_sseu);
+	if (ret)
+		goto out_fail;
+
+	/* Back to defaults. */
+	ret = __sseu_test(i915, name, flags, ctx, engine, obj, default_sseu);
+	if (ret)
+		goto out_fail;
+
+	/* One last power-gated configuration for the road. */
+	ret = __sseu_test(i915, name, flags, ctx, engine, obj, pg_sseu);
+	if (ret)
+		goto out_fail;
+
+out_fail:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		ret = -EIO;
+
+	i915_gem_object_put(obj);
+
+	intel_runtime_pm_put(i915, wakeref);
+
+out_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	if (flags & TEST_RESET)
+		igt_global_reset_unlock(i915);
+
+	mock_file_free(i915, file);
+
+	if (ret)
+		pr_err("%s: Failed with %d!\n", name, ret);
+
+	return ret;
+}
+
+static int igt_ctx_sseu(void *arg)
+{
+	struct {
+		const char *name;
+		unsigned int flags;
+	} *phase, phases[] = {
+		{ .name = "basic", .flags = 0 },
+		{ .name = "idle", .flags = TEST_IDLE },
+		{ .name = "busy", .flags = TEST_BUSY },
+		{ .name = "busy-reset", .flags = TEST_BUSY | TEST_RESET },
+		{ .name = "busy-idle", .flags = TEST_BUSY | TEST_IDLE },
+		{ .name = "reset-idle", .flags = TEST_RESET | TEST_IDLE },
+	};
+	unsigned int i;
+	int ret = 0;
+
+	for (i = 0, phase = phases; ret == 0 && i < ARRAY_SIZE(phases);
+	     i++, phase++)
+		ret = __igt_ctx_sseu(arg, phase->name, phase->flags);
+
+	return ret;
 }
 
 static int igt_ctx_readonly(void *arg)
@@ -1162,6 +1628,7 @@ int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 		SUBTEST(live_nop_switch),
 		SUBTEST(igt_ctx_exec),
 		SUBTEST(igt_ctx_readonly),
+		SUBTEST(igt_ctx_sseu),
 		SUBTEST(igt_vm_isolation),
 	};
 

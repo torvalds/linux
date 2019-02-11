@@ -1917,13 +1917,12 @@ static struct i915_vma *pd_vma_create(struct gen6_hw_ppgtt *ppgtt, int size)
 	if (!vma)
 		return ERR_PTR(-ENOMEM);
 
-	init_request_active(&vma->last_fence, NULL);
+	i915_active_init(i915, &vma->active, NULL);
+	INIT_ACTIVE_REQUEST(&vma->last_fence);
 
 	vma->vm = &ggtt->vm;
 	vma->ops = &pd_vma_ops;
 	vma->private = ppgtt;
-
-	vma->active = RB_ROOT;
 
 	vma->size = size;
 	vma->fence_size = size;

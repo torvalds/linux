@@ -1266,8 +1266,6 @@ static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
 	return i915_vma_pin(vma, 0, 0, flags);
 }
 
-static u32 make_rpcs(struct drm_i915_private *dev_priv);
-
 static void
 __execlists_update_reg_state(struct intel_engine_cs *engine,
 			     struct intel_context *ce)
@@ -1281,7 +1279,8 @@ __execlists_update_reg_state(struct intel_engine_cs *engine,
 
 	/* RPCS */
 	if (engine->class == RENDER_CLASS)
-		regs[CTX_R_PWR_CLK_STATE + 1] = make_rpcs(engine->i915);
+		regs[CTX_R_PWR_CLK_STATE + 1] = gen8_make_rpcs(engine->i915,
+							       &ce->sseu);
 }
 
 static struct intel_context *
@@ -2431,20 +2430,48 @@ int logical_xcs_ring_init(struct intel_engine_cs *engine)
 	return logical_ring_init(engine);
 }
 
-static u32
-make_rpcs(struct drm_i915_private *dev_priv)
+u32 gen8_make_rpcs(struct drm_i915_private *i915, struct intel_sseu *req_sseu)
 {
-	bool subslice_pg = RUNTIME_INFO(dev_priv)->sseu.has_subslice_pg;
-	u8 slices = hweight8(RUNTIME_INFO(dev_priv)->sseu.slice_mask);
-	u8 subslices = hweight8(RUNTIME_INFO(dev_priv)->sseu.subslice_mask[0]);
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
+	bool subslice_pg = sseu->has_subslice_pg;
+	struct intel_sseu ctx_sseu;
+	u8 slices, subslices;
 	u32 rpcs = 0;
 
 	/*
 	 * No explicit RPCS request is needed to ensure full
 	 * slice/subslice/EU enablement prior to Gen9.
 	*/
-	if (INTEL_GEN(dev_priv) < 9)
+	if (INTEL_GEN(i915) < 9)
 		return 0;
+
+	/*
+	 * If i915/perf is active, we want a stable powergating configuration
+	 * on the system.
+	 *
+	 * We could choose full enablement, but on ICL we know there are use
+	 * cases which disable slices for functional, apart for performance
+	 * reasons. So in this case we select a known stable subset.
+	 */
+	if (!i915->perf.oa.exclusive_stream) {
+		ctx_sseu = *req_sseu;
+	} else {
+		ctx_sseu = intel_device_default_sseu(i915);
+
+		if (IS_GEN(i915, 11)) {
+			/*
+			 * We only need subslice count so it doesn't matter
+			 * which ones we select - just turn off low bits in the
+			 * amount of half of all available subslices per slice.
+			 */
+			ctx_sseu.subslice_mask =
+				~(~0 << (hweight8(ctx_sseu.subslice_mask) / 2));
+			ctx_sseu.slice_mask = 0x1;
+		}
+	}
+
+	slices = hweight8(ctx_sseu.slice_mask);
+	subslices = hweight8(ctx_sseu.subslice_mask);
 
 	/*
 	 * Since the SScount bitfield in GEN8_R_PWR_CLK_STATE is only three bits
@@ -2471,7 +2498,9 @@ make_rpcs(struct drm_i915_private *dev_priv)
 	 * subslices are enabled, or a count between one and four on the first
 	 * slice.
 	 */
-	if (IS_GEN(dev_priv, 11) && slices == 1 && subslices >= 4) {
+	if (IS_GEN(i915, 11) &&
+	    slices == 1 &&
+	    subslices > min_t(u8, 4, hweight8(sseu->subslice_mask[0]) / 2)) {
 		GEM_BUG_ON(subslices & 1);
 
 		subslice_pg = false;
@@ -2484,10 +2513,10 @@ make_rpcs(struct drm_i915_private *dev_priv)
 	 * must make an explicit request through RPCS for full
 	 * enablement.
 	*/
-	if (RUNTIME_INFO(dev_priv)->sseu.has_slice_pg) {
+	if (sseu->has_slice_pg) {
 		u32 mask, val = slices;
 
-		if (INTEL_GEN(dev_priv) >= 11) {
+		if (INTEL_GEN(i915) >= 11) {
 			mask = GEN11_RPCS_S_CNT_MASK;
 			val <<= GEN11_RPCS_S_CNT_SHIFT;
 		} else {
@@ -2512,18 +2541,16 @@ make_rpcs(struct drm_i915_private *dev_priv)
 		rpcs |= GEN8_RPCS_ENABLE | GEN8_RPCS_SS_CNT_ENABLE | val;
 	}
 
-	if (RUNTIME_INFO(dev_priv)->sseu.has_eu_pg) {
+	if (sseu->has_eu_pg) {
 		u32 val;
 
-		val = RUNTIME_INFO(dev_priv)->sseu.eu_per_subslice <<
-		      GEN8_RPCS_EU_MIN_SHIFT;
+		val = ctx_sseu.min_eus_per_subslice << GEN8_RPCS_EU_MIN_SHIFT;
 		GEM_BUG_ON(val & ~GEN8_RPCS_EU_MIN_MASK);
 		val &= GEN8_RPCS_EU_MIN_MASK;
 
 		rpcs |= val;
 
-		val = RUNTIME_INFO(dev_priv)->sseu.eu_per_subslice <<
-		      GEN8_RPCS_EU_MAX_SHIFT;
+		val = ctx_sseu.max_eus_per_subslice << GEN8_RPCS_EU_MAX_SHIFT;
 		GEM_BUG_ON(val & ~GEN8_RPCS_EU_MAX_MASK);
 		val &= GEN8_RPCS_EU_MAX_MASK;
 

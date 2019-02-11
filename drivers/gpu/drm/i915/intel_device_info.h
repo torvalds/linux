@@ -115,7 +115,7 @@ enum intel_ppgtt {
 	func(has_ddi); \
 	func(has_dp_mst); \
 	func(has_fbc); \
-	func(has_gmch_display); \
+	func(has_gmch); \
 	func(has_hotplug); \
 	func(has_ipc); \
 	func(has_overlay); \

@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/kref.h>
 
+#include "i915_active.h"
 #include "i915_request.h"
 #include "i915_syncmap.h"
 #include "i915_utils.h"
@@ -58,10 +59,10 @@ struct i915_timeline {
 
 	/* Contains an RCU guarded pointer to the last request. No reference is
 	 * held to the request, users must carefully acquire a reference to
-	 * the request using i915_gem_active_get_request_rcu(), or hold the
+	 * the request using i915_active_request_get_request_rcu(), or hold the
 	 * struct_mutex.
 	 */
-	struct i915_gem_active last_request;
+	struct i915_active_request last_request;
 
 	/**
 	 * We track the most recent seqno that we wait on in every context so
@@ -73,6 +74,16 @@ struct i915_timeline {
 	 * redundant and we can discard it without loss of generality.
 	 */
 	struct i915_syncmap *sync;
+
+	/**
+	 * Barrier provides the ability to serialize ordering between different
+	 * timelines.
+	 *
+	 * Users can call i915_timeline_set_barrier which will make all
+	 * subsequent submissions to this timeline be executed only after the
+	 * barrier has been completed.
+	 */
+	struct i915_active_request barrier;
 
 	struct list_head link;
 	const char *name;
@@ -154,5 +165,20 @@ void i915_timeline_unpin(struct i915_timeline *tl);
 void i915_timelines_init(struct drm_i915_private *i915);
 void i915_timelines_park(struct drm_i915_private *i915);
 void i915_timelines_fini(struct drm_i915_private *i915);
+
+/**
+ * i915_timeline_set_barrier - orders submission between different timelines
+ * @timeline: timeline to set the barrier on
+ * @rq: request after which new submissions can proceed
+ *
+ * Sets the passed in request as the serialization point for all subsequent
+ * submissions on @timeline. Subsequent requests will not be submitted to GPU
+ * until the barrier has been completed.
+ */
+static inline int
+i915_timeline_set_barrier(struct i915_timeline *tl, struct i915_request *rq)
+{
+	return i915_active_request_set(&tl->barrier, rq);
+}
 
 #endif

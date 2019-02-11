@@ -29,6 +29,7 @@
 #include <linux/sched/signal.h>
 
 #include "i915_drv.h"
+#include "i915_active.h"
 #include "i915_reset.h"
 
 static const char *i915_fence_get_driver_name(struct dma_fence *fence)
@@ -123,12 +124,6 @@ static void unreserve_gt(struct drm_i915_private *i915)
 	GEM_BUG_ON(!i915->gt.active_requests);
 	if (!--i915->gt.active_requests)
 		i915_gem_park(i915);
-}
-
-void i915_gem_retire_noop(struct i915_gem_active *active,
-			  struct i915_request *request)
-{
-	/* Space left intentionally blank */
 }
 
 static void advance_ring(struct i915_request *request)
@@ -244,7 +239,7 @@ static void __retire_engine_upto(struct intel_engine_cs *engine,
 
 static void i915_request_retire(struct i915_request *request)
 {
-	struct i915_gem_active *active, *next;
+	struct i915_active_request *active, *next;
 
 	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d:%d\n",
 		  request->engine->name,
@@ -278,10 +273,10 @@ static void i915_request_retire(struct i915_request *request)
 		 * we may spend an inordinate amount of time simply handling
 		 * the retirement of requests and processing their callbacks.
 		 * Of which, this loop itself is particularly hot due to the
-		 * cache misses when jumping around the list of i915_gem_active.
-		 * So we try to keep this loop as streamlined as possible and
-		 * also prefetch the next i915_gem_active to try and hide
-		 * the likely cache miss.
+		 * cache misses when jumping around the list of
+		 * i915_active_request.  So we try to keep this loop as
+		 * streamlined as possible and also prefetch the next
+		 * i915_active_request to try and hide the likely cache miss.
 		 */
 		prefetchw(next);
 
@@ -526,6 +521,11 @@ out:
 	return kmem_cache_alloc(ce->gem_context->i915->requests, GFP_KERNEL);
 }
 
+static int add_timeline_barrier(struct i915_request *rq)
+{
+	return i915_request_await_active_request(rq, &rq->timeline->barrier);
+}
+
 /**
  * i915_request_alloc - allocate a request structure
  *
@@ -582,7 +582,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * We use RCU to look up requests in flight. The lookups may
 	 * race with the request being allocated from the slab freelist.
 	 * That is the request we are writing to here, may be in the process
-	 * of being read by __i915_gem_active_get_rcu(). As such,
+	 * of being read by __i915_active_request_get_rcu(). As such,
 	 * we have to be very careful when overwriting the contents. During
 	 * the RCU lookup, we change chase the request->engine pointer,
 	 * read the request->global_seqno and increment the reference count.
@@ -667,6 +667,10 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * position of the head.
 	 */
 	rq->head = rq->ring->emit;
+
+	ret = add_timeline_barrier(rq);
+	if (ret)
+		goto err_unwind;
 
 	ret = engine->request_alloc(rq);
 	if (ret)
@@ -920,8 +924,8 @@ void i915_request_add(struct i915_request *request)
 	 * see a more recent value in the hws than we are tracking.
 	 */
 
-	prev = i915_gem_active_raw(&timeline->last_request,
-				   &request->i915->drm.struct_mutex);
+	prev = i915_active_request_raw(&timeline->last_request,
+				       &request->i915->drm.struct_mutex);
 	if (prev && !i915_request_completed(prev)) {
 		i915_sw_fence_await_sw_fence(&request->submit, &prev->submit,
 					     &request->submitq);
@@ -937,7 +941,7 @@ void i915_request_add(struct i915_request *request)
 	spin_unlock_irq(&timeline->lock);
 
 	GEM_BUG_ON(timeline->seqno != request->fence.seqno);
-	i915_gem_active_set(&timeline->last_request, request);
+	__i915_active_request_set(&timeline->last_request, request);
 
 	list_add_tail(&request->ring_link, &ring->request_list);
 	if (list_is_first(&request->ring_link, &ring->request_list)) {
@@ -968,7 +972,7 @@ void i915_request_add(struct i915_request *request)
 		 * Allow interactive/synchronous clients to jump ahead of
 		 * the bulk clients. (FQ_CODEL)
 		 */
-		if (!prev || i915_request_completed(prev))
+		if (list_empty(&request->sched.signalers_list))
 			attr.priority |= I915_PRIORITY_NEWCLIENT;
 
 		engine->schedule(request, &attr);

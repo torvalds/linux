@@ -1061,6 +1061,10 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 #define C (((status = I915_READ_NOTRACE(ch_ctl)) & DP_AUX_CH_CTL_SEND_BUSY) == 0)
 	done = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
 				  msecs_to_jiffies_timeout(10));
+
+	/* just trace the final value */
+	trace_i915_reg_rw(false, ch_ctl, status, sizeof(status), true);
+
 	if (!done)
 		DRM_ERROR("dp aux hw did not signal timeout!\n");
 #undef C
@@ -1227,6 +1231,8 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 			break;
 		msleep(1);
 	}
+	/* just trace the final value */
+	trace_i915_reg_rw(false, ch_ctl, status, sizeof(status), true);
 
 	if (try == 3) {
 		static u32 last_status = -1;
@@ -2141,7 +2147,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 				return ret;
 		}
 
-		if (HAS_GMCH_DISPLAY(dev_priv))
+		if (HAS_GMCH(dev_priv))
 			intel_gmch_panel_fitting(intel_crtc, pipe_config,
 						 conn_state->scaling_mode);
 		else
@@ -2152,7 +2158,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
-	if (HAS_GMCH_DISPLAY(dev_priv) &&
+	if (HAS_GMCH(dev_priv) &&
 	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return -EINVAL;
 
@@ -4608,12 +4614,10 @@ go_again:
 
 			return ret;
 		} else {
-			struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 			DRM_DEBUG_KMS("failed to get ESI - device may have failed\n");
 			intel_dp->is_mst = false;
-			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
-			/* send a hotplug event */
-			drm_kms_helper_hotplug_event(intel_dig_port->base.base.dev);
+			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
+							intel_dp->is_mst);
 		}
 	}
 	return -EINVAL;
@@ -5300,7 +5304,7 @@ bool intel_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (HAS_GMCH_DISPLAY(dev_priv)) {
+	if (HAS_GMCH(dev_priv)) {
 		if (IS_GM45(dev_priv))
 			return gm45_digital_port_connected(encoder);
 		else
@@ -6038,7 +6042,7 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 		intel_attach_force_audio_property(connector);
 
 	intel_attach_broadcast_rgb_property(connector);
-	if (HAS_GMCH_DISPLAY(dev_priv))
+	if (HAS_GMCH(dev_priv))
 		drm_connector_attach_max_bpc_property(connector, 6, 10);
 	else if (INTEL_GEN(dev_priv) >= 5)
 		drm_connector_attach_max_bpc_property(connector, 6, 12);
@@ -6047,7 +6051,7 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 		u32 allowed_scalers;
 
 		allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
-		if (!HAS_GMCH_DISPLAY(dev_priv))
+		if (!HAS_GMCH(dev_priv))
 			allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
 
 		drm_connector_attach_scaling_mode_property(connector, allowed_scalers);
@@ -6919,7 +6923,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
-	if (!HAS_GMCH_DISPLAY(dev_priv))
+	if (!HAS_GMCH(dev_priv))
 		connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
@@ -7096,7 +7100,10 @@ void intel_dp_mst_resume(struct drm_i915_private *dev_priv)
 			continue;
 
 		ret = drm_dp_mst_topology_mgr_resume(&intel_dp->mst_mgr);
-		if (ret)
-			intel_dp_check_mst_status(intel_dp);
+		if (ret) {
+			intel_dp->is_mst = false;
+			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
+							false);
+		}
 	}
 }

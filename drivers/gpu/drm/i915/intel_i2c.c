@@ -823,7 +823,7 @@ int intel_setup_gmbus(struct drm_i915_private *dev_priv)
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
-	else if (!HAS_GMCH_DISPLAY(dev_priv))
+	else if (!HAS_GMCH(dev_priv))
 		/*
 		 * Broxton uses the same PCH offsets for South Display Engine,
 		 * even though it doesn't have a PCH.

@@ -28,6 +28,7 @@
 
 #include <drm/drm_drv.h>
 
+#include "i915_active.h"
 #include "i915_drv.h"
 #include "i915_selftest.h"
 
@@ -89,7 +90,7 @@
 	.num_pipes = 1, \
 	.display.has_overlay = 1, \
 	.display.overlay_needs_physical = 1, \
-	.display.has_gmch_display = 1, \
+	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
@@ -130,7 +131,7 @@ static const struct intel_device_info intel_i865g_info = {
 #define GEN3_FEATURES \
 	GEN(3), \
 	.num_pipes = 2, \
-	.display.has_gmch_display = 1, \
+	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
 	.ring_mask = RENDER_RING, \
 	.has_snoop = true, \
@@ -207,7 +208,7 @@ static const struct intel_device_info intel_pineview_info = {
 	GEN(4), \
 	.num_pipes = 2, \
 	.display.has_hotplug = 1, \
-	.display.has_gmch_display = 1, \
+	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
 	.ring_mask = RENDER_RING, \
 	.has_snoop = true, \
@@ -383,7 +384,7 @@ static const struct intel_device_info intel_valleyview_info = {
 	.num_pipes = 2,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
-	.display.has_gmch_display = 1,
+	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
 	.ppgtt = INTEL_PPGTT_FULL,
 	.has_snoop = true,
@@ -475,7 +476,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
 	.has_logical_ring_contexts = 1,
-	.display.has_gmch_display = 1,
+	.display.has_gmch = 1,
 	.ppgtt = INTEL_PPGTT_FULL,
 	.has_reset_engine = 1,
 	.has_snoop = true,
@@ -800,6 +801,8 @@ static int __init i915_init(void)
 	bool use_kms = true;
 	int err;
 
+	i915_global_active_init();
+
 	err = i915_mock_selftests();
 	if (err)
 		return err > 0 ? 0 : err;
@@ -831,6 +834,7 @@ static void __exit i915_exit(void)
 		return;
 
 	pci_unregister_driver(&i915_pci_driver);
+	i915_global_active_exit();
 }
 
 module_init(i915_init);

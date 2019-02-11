@@ -258,7 +258,7 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 	old = !crtc->cpu_fifo_underrun_disabled;
 	crtc->cpu_fifo_underrun_disabled = !enable;
 
-	if (HAS_GMCH_DISPLAY(dev_priv))
+	if (HAS_GMCH(dev_priv))
 		i9xx_set_fifo_underrun_reporting(dev, pipe, enable, old);
 	else if (IS_GEN_RANGE(dev_priv, 5, 6))
 		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
@@ -369,7 +369,7 @@ void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 		return;
 
 	/* GMCH can't disable fifo underruns, filter them. */
-	if (HAS_GMCH_DISPLAY(dev_priv) &&
+	if (HAS_GMCH(dev_priv) &&
 	    crtc->cpu_fifo_underrun_disabled)
 		return;
 
@@ -421,7 +421,7 @@ void intel_check_cpu_fifo_underruns(struct drm_i915_private *dev_priv)
 		if (crtc->cpu_fifo_underrun_disabled)
 			continue;
 
-		if (HAS_GMCH_DISPLAY(dev_priv))
+		if (HAS_GMCH(dev_priv))
 			i9xx_check_fifo_underruns(crtc);
 		else if (IS_GEN(dev_priv, 7))
 			ivybridge_check_fifo_underruns(crtc);

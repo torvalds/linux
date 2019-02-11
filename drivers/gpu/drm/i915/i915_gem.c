@@ -1681,6 +1681,16 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static inline bool
+__vma_matches(struct vm_area_struct *vma, struct file *filp,
+	      unsigned long addr, unsigned long size)
+{
+	if (vma->vm_file != filp)
+		return false;
+
+	return vma->vm_start == addr && (vma->vm_end - vma->vm_start) == size;
+}
+
 /**
  * i915_gem_mmap_ioctl - Maps the contents of an object, returning the address
  *			 it is mapped to.
@@ -1730,6 +1740,9 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	addr = vm_mmap(obj->base.filp, 0, args->size,
 		       PROT_READ | PROT_WRITE, MAP_SHARED,
 		       args->offset);
+	if (IS_ERR_VALUE(addr))
+		goto err;
+
 	if (args->flags & I915_MMAP_WC) {
 		struct mm_struct *mm = current->mm;
 		struct vm_area_struct *vma;
@@ -1739,23 +1752,28 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			return -EINTR;
 		}
 		vma = find_vma(mm, addr);
-		if (vma)
+		if (vma && __vma_matches(vma, obj->base.filp, addr, args->size))
 			vma->vm_page_prot =
 				pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 		else
 			addr = -ENOMEM;
 		up_write(&mm->mmap_sem);
+		if (IS_ERR_VALUE(addr))
+			goto err;
 
 		/* This may race, but that's ok, it only gets set */
 		WRITE_ONCE(obj->frontbuffer_ggtt_origin, ORIGIN_CPU);
 	}
 	i915_gem_object_put(obj);
-	if (IS_ERR((void *)addr))
-		return addr;
 
 	args->addr_ptr = (u64)addr;
 
 	return 0;
+
+err:
+	i915_gem_object_put(obj);
+
+	return addr;
 }
 
 static unsigned int tile_row_pages(const struct drm_i915_gem_object *obj)
@@ -3020,7 +3038,7 @@ static void assert_kernel_context_is_current(struct drm_i915_private *i915)
 
 	GEM_BUG_ON(i915->gt.active_requests);
 	for_each_engine(engine, i915, id) {
-		GEM_BUG_ON(__i915_gem_active_peek(&engine->timeline.last_request));
+		GEM_BUG_ON(__i915_active_request_peek(&engine->timeline.last_request));
 		GEM_BUG_ON(engine->last_retired_context !=
 			   to_intel_context(i915->kernel_context, engine));
 	}
@@ -3266,7 +3284,7 @@ wait_for_timelines(struct drm_i915_private *i915,
 	list_for_each_entry(tl, &gt->active_list, link) {
 		struct i915_request *rq;
 
-		rq = i915_gem_active_get_unlocked(&tl->last_request);
+		rq = i915_active_request_get_unlocked(&tl->last_request);
 		if (!rq)
 			continue;
 
@@ -4167,7 +4185,8 @@ out:
 }
 
 static void
-frontbuffer_retire(struct i915_gem_active *active, struct i915_request *request)
+frontbuffer_retire(struct i915_active_request *active,
+		   struct i915_request *request)
 {
 	struct drm_i915_gem_object *obj =
 		container_of(active, typeof(*obj), frontbuffer_write);
@@ -4194,7 +4213,8 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	obj->resv = &obj->__builtin_resv;
 
 	obj->frontbuffer_ggtt_origin = ORIGIN_GTT;
-	init_request_active(&obj->frontbuffer_write, frontbuffer_retire);
+	i915_active_request_init(&obj->frontbuffer_write,
+				 NULL, frontbuffer_retire);
 
 	obj->mm.madv = I915_MADV_WILLNEED;
 	INIT_RADIX_TREE(&obj->mm.get_page.radix, GFP_KERNEL | __GFP_NOWARN);

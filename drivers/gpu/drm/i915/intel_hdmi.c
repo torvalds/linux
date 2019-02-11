@@ -1588,7 +1588,7 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 
 	if (hdmi->has_hdmi_sink && !force_dvi) {
 		/* if we can't do 8bpc we may still be able to do 12bpc */
-		if (status != MODE_OK && !HAS_GMCH_DISPLAY(dev_priv))
+		if (status != MODE_OK && !HAS_GMCH(dev_priv))
 			status = hdmi_port_clock_valid(hdmi, clock * 3 / 2,
 						       true, force_dvi);
 
@@ -1613,7 +1613,7 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		&crtc_state->base.adjusted_mode;
 	int i;
 
-	if (HAS_GMCH_DISPLAY(dev_priv))
+	if (HAS_GMCH(dev_priv))
 		return false;
 
 	if (bpc == 10 && INTEL_GEN(dev_priv) < 11)
@@ -2150,7 +2150,7 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	drm_connector_attach_content_type_property(connector);
 	connector->state->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 
-	if (!HAS_GMCH_DISPLAY(dev_priv))
+	if (!HAS_GMCH(dev_priv))
 		drm_connector_attach_max_bpc_property(connector, 8, 12);
 }
 

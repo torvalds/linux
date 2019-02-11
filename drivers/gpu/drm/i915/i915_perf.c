@@ -1677,6 +1677,11 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
 
 		CTX_REG(reg_state, state_offset, flex_regs[i], value);
 	}
+
+	CTX_REG(reg_state, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
+		gen8_make_rpcs(dev_priv,
+			       &to_intel_context(ctx,
+						 dev_priv->engine[RCS])->sseu));
 }
 
 /*
@@ -2098,21 +2103,21 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	if (ret)
 		goto err_lock;
 
+	stream->ops = &i915_oa_stream_ops;
+	dev_priv->perf.oa.exclusive_stream = stream;
+
 	ret = dev_priv->perf.oa.ops.enable_metric_set(stream);
 	if (ret) {
 		DRM_DEBUG("Unable to enable metric set\n");
 		goto err_enable;
 	}
 
-	stream->ops = &i915_oa_stream_ops;
-
-	dev_priv->perf.oa.exclusive_stream = stream;
-
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	return 0;
 
 err_enable:
+	dev_priv->perf.oa.exclusive_stream = NULL;
 	dev_priv->perf.oa.ops.disable_metric_set(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 

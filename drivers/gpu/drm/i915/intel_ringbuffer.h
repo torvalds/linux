@@ -403,16 +403,17 @@ struct intel_engine_cs {
 		/**
 		 * @enable_count: Reference count for the enabled samplers.
 		 *
-		 * Index number corresponds to the bit number from @enable.
+		 * Index number corresponds to @enum drm_i915_pmu_engine_sample.
 		 */
-		unsigned int enable_count[I915_PMU_SAMPLE_BITS];
+		unsigned int enable_count[I915_ENGINE_SAMPLE_COUNT];
 		/**
 		 * @sample: Counter values for sampling events.
 		 *
 		 * Our internal timer stores the current counters in this field.
+		 *
+		 * Index number corresponds to @enum drm_i915_pmu_engine_sample.
 		 */
-#define I915_ENGINE_SAMPLE_MAX (I915_SAMPLE_SEMA + 1)
-		struct i915_pmu_sample sample[I915_ENGINE_SAMPLE_MAX];
+		struct i915_pmu_sample sample[I915_ENGINE_SAMPLE_COUNT];
 	} pmu;
 
 	/*
@@ -592,7 +593,20 @@ intel_engine_has_preemption(const struct intel_engine_cs *engine)
 
 static inline bool __execlists_need_preempt(int prio, int last)
 {
-	return prio > max(0, last);
+	/*
+	 * Allow preemption of low -> normal -> high, but we do
+	 * not allow low priority tasks to preempt other low priority
+	 * tasks under the impression that latency for low priority
+	 * tasks does not matter (as much as background throughput),
+	 * so kiss.
+	 *
+	 * More naturally we would write
+	 *	prio >= max(0, last);
+	 * except that we wish to prevent triggering preemption at the same
+	 * priority level: the task that is running should remain running
+	 * to preserve FIFO ordering of dependencies.
+	 */
+	return prio > max(I915_PRIORITY_NORMAL - 1, last);
 }
 
 static inline void
@@ -816,6 +830,18 @@ intel_ring_set_tail(struct intel_ring *ring, unsigned int tail)
 	assert_ring_tail_valid(ring, tail);
 	ring->tail = tail;
 	return tail;
+}
+
+static inline unsigned int
+__intel_ring_space(unsigned int head, unsigned int tail, unsigned int size)
+{
+	/*
+	 * "If the Ring Buffer Head Pointer and the Tail Pointer are on the
+	 * same cacheline, the Head Pointer must not be greater than the Tail
+	 * Pointer."
+	 */
+	GEM_BUG_ON(!is_power_of_2(size));
+	return (head - tail - CACHELINE_BYTES) & (size - 1);
 }
 
 void intel_engine_write_global_seqno(struct intel_engine_cs *engine, u32 seqno);

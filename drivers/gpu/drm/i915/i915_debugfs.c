@@ -207,7 +207,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		if (vma->fence)
 			seq_printf(m, " , fence: %d%s",
 				   vma->fence->id,
-				   i915_gem_active_isset(&vma->last_fence) ? "*" : "");
+				   i915_active_request_isset(&vma->last_fence) ? "*" : "");
 		seq_puts(m, ")");
 	}
 	if (obj->stolen)
@@ -3728,7 +3728,7 @@ static int spr_wm_latency_open(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *dev_priv = inode->i_private;
 
-	if (HAS_GMCH_DISPLAY(dev_priv))
+	if (HAS_GMCH(dev_priv))
 		return -ENODEV;
 
 	return single_open(file, spr_wm_latency_show, dev_priv);
@@ -3738,7 +3738,7 @@ static int cur_wm_latency_open(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *dev_priv = inode->i_private;
 
-	if (HAS_GMCH_DISPLAY(dev_priv))
+	if (HAS_GMCH(dev_priv))
 		return -ENODEV;
 
 	return single_open(file, cur_wm_latency_show, dev_priv);
