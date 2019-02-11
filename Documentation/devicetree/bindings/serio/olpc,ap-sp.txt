@@ -4,14 +4,10 @@ Required properties:
 - compatible : "olpc,ap-sp"
 - reg : base address and length of SoC's WTM registers
 - interrupts : SP-AP interrupt
-- clocks : phandle + clock-specifier for the clock that drives the WTM
-- clock-names:  should be "sp"
 
 Example:
 	ap-sp@d4290000 {
 		compatible = "olpc,ap-sp";
 		reg = <0xd4290000 0x1000>;
 		interrupts = <40>;
-		clocks = <&soc_clocks MMP2_CLK_SP>;
-		clock-names = "sp";
 	}

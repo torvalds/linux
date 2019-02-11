@@ -428,6 +428,8 @@ static struct scsi_host_template zfcp_scsi_host_template = {
 	.max_sectors		 = (((QDIO_MAX_ELEMENTS_PER_BUFFER - 1)
 				     * ZFCP_QDIO_MAX_SBALS_PER_REQ) - 2) * 8,
 				   /* GCD, adjusted later */
+	/* report size limit per scatter-gather segment */
+	.max_segment_size	 = ZFCP_QDIO_SBALE_LEN,
 	.dma_boundary		 = ZFCP_QDIO_SBALE_LEN - 1,
 	.shost_attrs		 = zfcp_sysfs_shost_attrs,
 	.sdev_attrs		 = zfcp_sysfs_sdev_attrs,
