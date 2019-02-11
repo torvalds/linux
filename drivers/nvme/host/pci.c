@@ -2263,15 +2263,15 @@ static void nvme_reset_work(struct work_struct *work)
 	mutex_lock(&dev->shutdown_lock);
 	result = nvme_pci_enable(dev);
 	if (result)
-		goto out;
+		goto out_unlock;
 
 	result = nvme_pci_configure_admin_queue(dev);
 	if (result)
-		goto out;
+		goto out_unlock;
 
 	result = nvme_alloc_admin_tags(dev);
 	if (result)
-		goto out;
+		goto out_unlock;
 
 	/*
 	 * Limit the max command size to prevent iod->sg allocations going
@@ -2354,6 +2354,8 @@ static void nvme_reset_work(struct work_struct *work)
 	nvme_start_ctrl(&dev->ctrl);
 	return;
 
+ out_unlock:
+	mutex_unlock(&dev->shutdown_lock);
  out:
 	nvme_remove_dead_ctrl(dev, result);
 }
