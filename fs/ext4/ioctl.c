@@ -121,9 +121,6 @@ static long swap_inode_boot_loader(struct super_block *sb,
 		return PTR_ERR(inode_bl);
 	ei_bl = EXT4_I(inode_bl);
 
-	filemap_flush(inode->i_mapping);
-	filemap_flush(inode_bl->i_mapping);
-
 	/* Protect orig inodes against a truncate and make sure,
 	 * that only 1 swap_inode_boot_loader is running. */
 	lock_two_nondirectories(inode, inode_bl);
@@ -141,6 +138,15 @@ static long swap_inode_boot_loader(struct super_block *sb,
 		goto journal_err_out;
 	}
 
+	down_write(&EXT4_I(inode)->i_mmap_sem);
+	err = filemap_write_and_wait(inode->i_mapping);
+	if (err)
+		goto err_out;
+
+	err = filemap_write_and_wait(inode_bl->i_mapping);
+	if (err)
+		goto err_out;
+
 	/* Wait for all existing dio workers */
 	inode_dio_wait(inode);
 	inode_dio_wait(inode_bl);
@@ -151,7 +157,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	handle = ext4_journal_start(inode_bl, EXT4_HT_MOVE_EXTENTS, 2);
 	if (IS_ERR(handle)) {
 		err = -EINVAL;
-		goto journal_err_out;
+		goto err_out;
 	}
 
 	/* Protect extent tree against block allocations via delalloc */
@@ -208,6 +214,8 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	ext4_journal_stop(handle);
 	ext4_double_up_write_data_sem(inode, inode_bl);
 
+err_out:
+	up_write(&EXT4_I(inode)->i_mmap_sem);
 journal_err_out:
 	unlock_two_nondirectories(inode, inode_bl);
 	iput(inode_bl);
