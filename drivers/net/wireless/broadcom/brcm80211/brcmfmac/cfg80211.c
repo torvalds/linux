@@ -6052,6 +6052,9 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 		 * HT40 upper, HT40 lower, and VHT80.
 		 */
 		switch (ch.bw) {
+		case BRCMU_CHAN_BW_160:
+			channel->flags &= ~IEEE80211_CHAN_NO_160MHZ;
+			break;
 		case BRCMU_CHAN_BW_80:
 			channel->flags &= ~IEEE80211_CHAN_NO_80MHZ;
 			break;
