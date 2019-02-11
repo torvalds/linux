@@ -370,13 +370,22 @@ EXPORT_SYMBOL(tcf_chain_get_by_act);
 
 static void tc_chain_tmplt_del(struct tcf_chain *chain);
 
-static void __tcf_chain_put(struct tcf_chain *chain, bool by_act)
+static void __tcf_chain_put(struct tcf_chain *chain, bool by_act,
+			    bool explicitly_created)
 {
 	struct tcf_block *block = chain->block;
 	bool is_last, free_block = false;
 	unsigned int refcnt;
 
 	mutex_lock(&block->lock);
+	if (explicitly_created) {
+		if (!chain->explicitly_created) {
+			mutex_unlock(&block->lock);
+			return;
+		}
+		chain->explicitly_created = false;
+	}
+
 	if (by_act)
 		chain->action_refcnt--;
 
@@ -402,19 +411,18 @@ static void __tcf_chain_put(struct tcf_chain *chain, bool by_act)
 
 static void tcf_chain_put(struct tcf_chain *chain)
 {
-	__tcf_chain_put(chain, false);
+	__tcf_chain_put(chain, false, false);
 }
 
 void tcf_chain_put_by_act(struct tcf_chain *chain)
 {
-	__tcf_chain_put(chain, true);
+	__tcf_chain_put(chain, true, false);
 }
 EXPORT_SYMBOL(tcf_chain_put_by_act);
 
 static void tcf_chain_put_explicitly_created(struct tcf_chain *chain)
 {
-	if (chain->explicitly_created)
-		tcf_chain_put(chain);
+	__tcf_chain_put(chain, false, true);
 }
 
 static void tcf_chain_flush(struct tcf_chain *chain)
@@ -2305,7 +2313,6 @@ replay:
 		 * to the chain previously taken during addition.
 		 */
 		tcf_chain_put_explicitly_created(chain);
-		chain->explicitly_created = false;
 		break;
 	case RTM_GETCHAIN:
 		err = tc_chain_notify(chain, skb, n->nlmsg_seq,
