@@ -2220,8 +2220,12 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 	int status = MS(resp->data_tx_completion.flags, HTT_DATA_TX_STATUS);
 	__le16 msdu_id, *msdus;
 	bool rssi_enabled = false;
-	u8 msdu_count = 0;
+	u8 msdu_count = 0, num_airtime_records, tid;
 	int i;
+	struct htt_data_tx_compl_ppdu_dur *ppdu_info;
+	struct ath10k_peer *peer;
+	u16 ppdu_info_offset = 0, peer_id;
+	u32 tx_duration;
 
 	switch (status) {
 	case HTT_DATA_TX_STATUS_NO_ACK:
@@ -2245,12 +2249,12 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 		   resp->data_tx_completion.num_msdus);
 
 	msdu_count = resp->data_tx_completion.num_msdus;
+	msdus = resp->data_tx_completion.msdus;
 
 	if (resp->data_tx_completion.flags2 & HTT_TX_CMPL_FLAG_DATA_RSSI)
 		rssi_enabled = true;
 
 	for (i = 0; i < msdu_count; i++) {
-		msdus = resp->data_tx_completion.msdus;
 		msdu_id = msdus[i];
 		tx_done.msdu_id = __le16_to_cpu(msdu_id);
 
@@ -2281,6 +2285,50 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 				    tx_done.msdu_id, tx_done.status);
 			ath10k_txrx_tx_unref(htt, &tx_done);
 		}
+	}
+
+	if (!(resp->data_tx_completion.flags2 & HTT_TX_CMPL_FLAG_PPDU_DURATION_PRESENT))
+		return;
+
+	ppdu_info_offset = (msdu_count & 0x01) ? msdu_count + 1 : msdu_count;
+
+	if (rssi_enabled)
+		ppdu_info_offset += ppdu_info_offset;
+
+	if (resp->data_tx_completion.flags2 &
+	    (HTT_TX_CMPL_FLAG_PPID_PRESENT | HTT_TX_CMPL_FLAG_PA_PRESENT))
+		ppdu_info_offset += 2;
+
+	ppdu_info = (struct htt_data_tx_compl_ppdu_dur *)&msdus[ppdu_info_offset];
+	num_airtime_records = FIELD_GET(HTT_TX_COMPL_PPDU_DUR_INFO0_NUM_ENTRIES_MASK,
+					__le32_to_cpu(ppdu_info->info0));
+
+	for (i = 0; i < num_airtime_records; i++) {
+		struct htt_data_tx_ppdu_dur *ppdu_dur;
+		u32 info0;
+
+		ppdu_dur = &ppdu_info->ppdu_dur[i];
+		info0 = __le32_to_cpu(ppdu_dur->info0);
+
+		peer_id = FIELD_GET(HTT_TX_PPDU_DUR_INFO0_PEER_ID_MASK,
+				    info0);
+		rcu_read_lock();
+		spin_lock_bh(&ar->data_lock);
+
+		peer = ath10k_peer_find_by_id(ar, peer_id);
+		if (!peer) {
+			spin_unlock_bh(&ar->data_lock);
+			rcu_read_unlock();
+			continue;
+		}
+
+		tid = FIELD_GET(HTT_TX_PPDU_DUR_INFO0_TID_MASK, info0);
+		tx_duration = __le32_to_cpu(ppdu_dur->tx_duration);
+
+		ieee80211_sta_register_airtime(peer->sta, tid, tx_duration, 0);
+
+		spin_unlock_bh(&ar->data_lock);
+		rcu_read_unlock();
 	}
 }
 
