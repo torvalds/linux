@@ -80,17 +80,6 @@ static void prepare_reply_buffer(struct rpc_rqst *req, struct page **pages,
 }
 
 /*
- * Handle decode buffer overflows out-of-line.
- */
-static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
-{
-	dprintk("NFS: %s prematurely hit the end of our receive buffer. "
-		"Remaining buffer length is %tu words.\n",
-		func, xdr->end - xdr->p);
-}
-
-
-/*
  * Encode/decode NFSv2 basic data types
  *
  * Basic NFSv2 data types are defined in section 2.3 of RFC 1094:
@@ -110,8 +99,8 @@ static int decode_nfsdata(struct xdr_stream *xdr, struct nfs_pgio_res *result)
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EIO;
 	count = be32_to_cpup(p);
 	recvd = xdr_read_pages(xdr, count);
 	if (unlikely(count > recvd))
@@ -125,9 +114,6 @@ out_cheating:
 		"count %u > recvd %u\n", count, recvd);
 	count = recvd;
 	goto out;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 /*
@@ -157,13 +143,10 @@ static int decode_stat(struct xdr_stream *xdr, enum nfs_stat *status)
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EIO;
 	*status = be32_to_cpup(p);
 	return 0;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 /*
@@ -205,14 +188,11 @@ static int decode_fhandle(struct xdr_stream *xdr, struct nfs_fh *fh)
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, NFS2_FHSIZE);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EIO;
 	fh->size = NFS2_FHSIZE;
 	memcpy(fh->data, p, NFS2_FHSIZE);
 	return 0;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 /*
@@ -282,8 +262,8 @@ static int decode_fattr(struct xdr_stream *xdr, struct nfs_fattr *fattr)
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, NFS_fattr_sz << 2);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EIO;
 
 	fattr->valid |= NFS_ATTR_FATTR_V2;
 
@@ -325,9 +305,6 @@ out_uid:
 out_gid:
 	dprintk("NFS: returned invalid gid\n");
 	return -EINVAL;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 /*
@@ -416,23 +393,20 @@ static int decode_filename_inline(struct xdr_stream *xdr,
 	u32 count;
 
 	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EIO;
 	count = be32_to_cpup(p);
 	if (count > NFS3_MAXNAMLEN)
 		goto out_nametoolong;
 	p = xdr_inline_decode(xdr, count);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EIO;
 	*name = (const char *)p;
 	*length = count;
 	return 0;
 out_nametoolong:
 	dprintk("NFS: returned filename too long: %u\n", count);
 	return -ENAMETOOLONG;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 /*
@@ -455,8 +429,8 @@ static int decode_path(struct xdr_stream *xdr)
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EIO;
 	length = be32_to_cpup(p);
 	if (unlikely(length >= xdr->buf->page_len || length > NFS_MAXPATHLEN))
 		goto out_size;
@@ -471,9 +445,6 @@ out_size:
 out_cheating:
 	dprintk("NFS: server cheating in pathname result: "
 		"length %u > received %u\n", length, recvd);
-	return -EIO;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }
 
@@ -951,12 +922,12 @@ int nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	int error;
 
 	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EAGAIN;
 	if (*p++ == xdr_zero) {
 		p = xdr_inline_decode(xdr, 4);
-		if (unlikely(p == NULL))
-			goto out_overflow;
+		if (unlikely(!p))
+			return -EAGAIN;
 		if (*p++ == xdr_zero)
 			return -EAGAIN;
 		entry->eof = 1;
@@ -964,8 +935,8 @@ int nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	}
 
 	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EAGAIN;
 	entry->ino = be32_to_cpup(p);
 
 	error = decode_filename_inline(xdr, &entry->name, &entry->len);
@@ -978,17 +949,13 @@ int nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	 */
 	entry->prev_cookie = entry->cookie;
 	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EAGAIN;
 	entry->cookie = be32_to_cpup(p);
 
 	entry->d_type = DT_UNKNOWN;
 
 	return 0;
-
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EAGAIN;
 }
 
 /*
@@ -1052,17 +1019,14 @@ static int decode_info(struct xdr_stream *xdr, struct nfs2_fsstat *result)
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, NFS_info_sz << 2);
-	if (unlikely(p == NULL))
-		goto out_overflow;
+	if (unlikely(!p))
+		return -EIO;
 	result->tsize  = be32_to_cpup(p++);
 	result->bsize  = be32_to_cpup(p++);
 	result->blocks = be32_to_cpup(p++);
 	result->bfree  = be32_to_cpup(p++);
 	result->bavail = be32_to_cpup(p);
 	return 0;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 static int nfs2_xdr_dec_statfsres(struct rpc_rqst *req, struct xdr_stream *xdr,
