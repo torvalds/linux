@@ -143,7 +143,7 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 		sb->bio = bio;
 	}
 
-	new_sb = (void *) __get_free_pages(GFP_KERNEL|__GFP_ZERO, order);
+	new_sb = (void *) __get_free_pages(GFP_NOFS|__GFP_ZERO, order);
 	if (!new_sb)
 		return -ENOMEM;
 
