@@ -1948,20 +1948,23 @@ nvme_tcp_timeout(struct request *rq, bool reserved)
 	struct nvme_tcp_ctrl *ctrl = req->queue->ctrl;
 	struct nvme_tcp_cmd_pdu *pdu = req->pdu;
 
-	dev_dbg(ctrl->ctrl.device,
+	dev_warn(ctrl->ctrl.device,
 		"queue %d: timeout request %#x type %d\n",
-		nvme_tcp_queue_id(req->queue), rq->tag,
-		pdu->hdr.type);
+		nvme_tcp_queue_id(req->queue), rq->tag, pdu->hdr.type);
 
 	if (ctrl->ctrl.state != NVME_CTRL_LIVE) {
-		union nvme_result res = {};
-
-		nvme_req(rq)->flags |= NVME_REQ_CANCELLED;
-		nvme_end_request(rq, cpu_to_le16(NVME_SC_ABORT_REQ), res);
+		/*
+		 * Teardown immediately if controller times out while starting
+		 * or we are already started error recovery. all outstanding
+		 * requests are completed on shutdown, so we return BLK_EH_DONE.
+		 */
+		flush_work(&ctrl->err_work);
+		nvme_tcp_teardown_io_queues(&ctrl->ctrl, false);
+		nvme_tcp_teardown_admin_queue(&ctrl->ctrl, false);
 		return BLK_EH_DONE;
 	}
 
-	/* queue error recovery */
+	dev_warn(ctrl->ctrl.device, "starting error recovery\n");
 	nvme_tcp_error_recovery(&ctrl->ctrl);
 
 	return BLK_EH_RESET_TIMER;

@@ -120,6 +120,8 @@ struct tls_rec {
 	struct scatterlist sg_aead_out[2];
 
 	char aad_space[TLS_AAD_SPACE_SIZE];
+	u8 iv_data[TLS_CIPHER_AES_GCM_128_IV_SIZE +
+		   TLS_CIPHER_AES_GCM_128_SALT_SIZE];
 	struct aead_request aead_req;
 	u8 aead_req_ctx[];
 };

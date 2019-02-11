@@ -1459,7 +1459,8 @@ static int btf_modifier_resolve(struct btf_verifier_env *env,
 
 		/* "typedef void new_void", "const void"...etc */
 		if (!btf_type_is_void(next_type) &&
-		    !btf_type_is_fwd(next_type)) {
+		    !btf_type_is_fwd(next_type) &&
+		    !btf_type_is_func_proto(next_type)) {
 			btf_verifier_log_type(env, v->t, "Invalid type_id");
 			return -EINVAL;
 		}

@@ -3495,8 +3495,8 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 
 			if (!addrconf_link_ready(dev)) {
 				/* device is not ready yet. */
-				pr_info("ADDRCONF(NETDEV_UP): %s: link is not ready\n",
-					dev->name);
+				pr_debug("ADDRCONF(NETDEV_UP): %s: link is not ready\n",
+					 dev->name);
 				break;
 			}
 
@@ -5120,6 +5120,8 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 			if (idev) {
 				err = in6_dump_addrs(idev, skb, cb, s_ip_idx,
 						     &fillargs);
+				if (err > 0)
+					err = 0;
 			}
 			goto put_tgt_net;
 		}
