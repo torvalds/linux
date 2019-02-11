@@ -21,6 +21,7 @@
 #include <linux/nfs3.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfsacl.h>
+#include "nfstrace.h"
 #include "internal.h"
 
 #define NFSDBG_FACILITY		NFSDBG_XDR
@@ -337,7 +338,13 @@ static int decode_nfsstat3(struct xdr_stream *xdr, enum nfs_stat *status)
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
 		return -EIO;
+	if (unlikely(*p != cpu_to_be32(NFS3_OK)))
+		goto out_status;
+	*status = 0;
+	return 0;
+out_status:
 	*status = be32_to_cpup(p);
+	trace_nfs_xdr_status((int)*status);
 	return 0;
 }
 

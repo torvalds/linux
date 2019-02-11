@@ -54,6 +54,7 @@
 #include <linux/nfs_fs.h>
 
 #include "nfs4_fs.h"
+#include "nfs4trace.h"
 #include "internal.h"
 #include "nfs4idmap.h"
 #include "nfs4session.h"
@@ -3188,11 +3189,14 @@ static bool __decode_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected,
 	opnum = be32_to_cpup(p++);
 	if (unlikely(opnum != expected))
 		goto out_bad_operation;
+	if (unlikely(*p != cpu_to_be32(NFS_OK)))
+		goto out_status;
+	*nfs_retval = 0;
+	return true;
+out_status:
 	nfserr = be32_to_cpup(p);
-	if (nfserr == NFS_OK)
-		*nfs_retval = 0;
-	else
-		*nfs_retval = nfs4_stat_to_errno(nfserr);
+	trace_nfs4_xdr_status(opnum, nfserr);
+	*nfs_retval = nfs4_stat_to_errno(nfserr);
 	return true;
 out_bad_operation:
 	dprintk("nfs: Server returned operation"
