@@ -897,12 +897,11 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				       u64 virt, int acc, struct ib_udata *udata)
 {
 	struct mthca_dev *dev = to_mdev(pd->device);
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	struct mthca_mr *mr;
 	struct mthca_reg_mr ucmd;
 	u64 *pages;
-	int shift, n, len;
-	int i, k, entry;
+	int n, i;
 	int err = 0;
 	int write_mtt_size;
 
@@ -929,7 +928,6 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		goto err;
 	}
 
-	shift = mr->umem->page_shift;
 	n = mr->umem->nmap;
 
 	mr->mtt = mthca_alloc_mtt(dev, n);
@@ -948,21 +946,19 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	write_mtt_size = min(mthca_write_mtt_size(dev), (int) (PAGE_SIZE / sizeof *pages));
 
-	for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
-		len = sg_dma_len(sg) >> shift;
-		for (k = 0; k < len; ++k) {
-			pages[i++] = sg_dma_address(sg) + (k << shift);
-			/*
-			 * Be friendly to write_mtt and pass it chunks
-			 * of appropriate size.
-			 */
-			if (i == write_mtt_size) {
-				err = mthca_write_mtt(dev, mr->mtt, n, pages, i);
-				if (err)
-					goto mtt_done;
-				n += i;
-				i = 0;
-			}
+	for_each_sg_dma_page(mr->umem->sg_head.sgl, &sg_iter, mr->umem->nmap, 0) {
+		pages[i++] = sg_page_iter_dma_address(&sg_iter);
+
+		/*
+		 * Be friendly to write_mtt and pass it chunks
+		 * of appropriate size.
+		 */
+		if (i == write_mtt_size) {
+			err = mthca_write_mtt(dev, mr->mtt, n, pages, i);
+			if (err)
+				goto mtt_done;
+			n += i;
+			i = 0;
 		}
 	}
 
@@ -973,7 +969,7 @@ mtt_done:
 	if (err)
 		goto err_mtt;
 
-	err = mthca_mr_alloc(dev, to_mpd(pd)->pd_num, shift, virt, length,
+	err = mthca_mr_alloc(dev, to_mpd(pd)->pd_num, PAGE_SHIFT, virt, length,
 			     convert_access(acc), mr);
 
 	if (err)
