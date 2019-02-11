@@ -145,7 +145,8 @@ static int mall_set_parms(struct net *net, struct tcf_proto *tp,
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &head->exts, ovr, extack);
+	err = tcf_exts_validate(net, tp, tb, est, &head->exts, ovr, true,
+				extack);
 	if (err < 0)
 		return err;
 

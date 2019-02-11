@@ -314,7 +314,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	err = tcf_exts_init(&e, TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
 	if (err < 0)
 		return err;
-	err = tcf_exts_validate(net, tp, tb, est, &e, ovr, extack);
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr, true, extack);
 	if (err < 0)
 		goto errout;
 

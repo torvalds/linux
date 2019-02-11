@@ -417,7 +417,8 @@ static int cls_bpf_set_parms(struct net *net, struct tcf_proto *tp,
 	if ((!is_bpf && !is_ebpf) || (is_bpf && is_ebpf))
 		return -EINVAL;
 
-	ret = tcf_exts_validate(net, tp, tb, est, &prog->exts, ovr, extack);
+	ret = tcf_exts_validate(net, tp, tb, est, &prog->exts, ovr, true,
+				extack);
 	if (ret < 0)
 		return ret;
 

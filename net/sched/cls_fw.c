@@ -217,7 +217,7 @@ static int fw_set_parms(struct net *net, struct tcf_proto *tp,
 	int err;
 
 	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &f->exts, ovr,
-				extack);
+				true, extack);
 	if (err < 0)
 		return err;
 
