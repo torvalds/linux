@@ -77,7 +77,7 @@ static int ath10k_wow_cleanup(struct ath10k *ar)
 	return 0;
 }
 
-/**
+/*
  * Convert a 802.3 format to a 802.11 format.
  *         +------------+-----------+--------+----------------+
  * 802.3:  |dest mac(6B)|src mac(6B)|type(2B)|     body...    |
@@ -88,9 +88,8 @@ static int ath10k_wow_cleanup(struct ath10k *ar)
  * 802.11: |4B|dest mac(6B)| 6B |src mac(6B)|  8B  |type(2B)|  body...  |
  *         +--+------------+----+-----------+---------------+-----------+
  */
-static void ath10k_wow_convert_8023_to_80211
-					(struct cfg80211_pkt_pattern *new,
-					const struct cfg80211_pkt_pattern *old)
+static void ath10k_wow_convert_8023_to_80211(struct cfg80211_pkt_pattern *new,
+					     const struct cfg80211_pkt_pattern *old)
 {
 	u8 hdr_8023_pattern[ETH_HLEN] = {};
 	u8 hdr_8023_bit_mask[ETH_HLEN] = {};
