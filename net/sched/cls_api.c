@@ -1101,6 +1101,142 @@ static void tcf_block_flush_all_chains(struct tcf_block *block, bool rtnl_held)
 	}
 }
 
+/* Lookup Qdisc and increments its reference counter.
+ * Set parent, if necessary.
+ */
+
+static int __tcf_qdisc_find(struct net *net, struct Qdisc **q,
+			    u32 *parent, int ifindex, bool rtnl_held,
+			    struct netlink_ext_ack *extack)
+{
+	const struct Qdisc_class_ops *cops;
+	struct net_device *dev;
+	int err = 0;
+
+	if (ifindex == TCM_IFINDEX_MAGIC_BLOCK)
+		return 0;
+
+	rcu_read_lock();
+
+	/* Find link */
+	dev = dev_get_by_index_rcu(net, ifindex);
+	if (!dev) {
+		rcu_read_unlock();
+		return -ENODEV;
+	}
+
+	/* Find qdisc */
+	if (!*parent) {
+		*q = dev->qdisc;
+		*parent = (*q)->handle;
+	} else {
+		*q = qdisc_lookup_rcu(dev, TC_H_MAJ(*parent));
+		if (!*q) {
+			NL_SET_ERR_MSG(extack, "Parent Qdisc doesn't exists");
+			err = -EINVAL;
+			goto errout_rcu;
+		}
+	}
+
+	*q = qdisc_refcount_inc_nz(*q);
+	if (!*q) {
+		NL_SET_ERR_MSG(extack, "Parent Qdisc doesn't exists");
+		err = -EINVAL;
+		goto errout_rcu;
+	}
+
+	/* Is it classful? */
+	cops = (*q)->ops->cl_ops;
+	if (!cops) {
+		NL_SET_ERR_MSG(extack, "Qdisc not classful");
+		err = -EINVAL;
+		goto errout_qdisc;
+	}
+
+	if (!cops->tcf_block) {
+		NL_SET_ERR_MSG(extack, "Class doesn't support blocks");
+		err = -EOPNOTSUPP;
+		goto errout_qdisc;
+	}
+
+errout_rcu:
+	/* At this point we know that qdisc is not noop_qdisc,
+	 * which means that qdisc holds a reference to net_device
+	 * and we hold a reference to qdisc, so it is safe to release
+	 * rcu read lock.
+	 */
+	rcu_read_unlock();
+	return err;
+
+errout_qdisc:
+	rcu_read_unlock();
+
+	if (rtnl_held)
+		qdisc_put(*q);
+	else
+		qdisc_put_unlocked(*q);
+	*q = NULL;
+
+	return err;
+}
+
+static int __tcf_qdisc_cl_find(struct Qdisc *q, u32 parent, unsigned long *cl,
+			       int ifindex, struct netlink_ext_ack *extack)
+{
+	if (ifindex == TCM_IFINDEX_MAGIC_BLOCK)
+		return 0;
+
+	/* Do we search for filter, attached to class? */
+	if (TC_H_MIN(parent)) {
+		const struct Qdisc_class_ops *cops = q->ops->cl_ops;
+
+		*cl = cops->find(q, parent);
+		if (*cl == 0) {
+			NL_SET_ERR_MSG(extack, "Specified class doesn't exist");
+			return -ENOENT;
+		}
+	}
+
+	return 0;
+}
+
+static struct tcf_block *__tcf_block_find(struct net *net, struct Qdisc *q,
+					  unsigned long cl, int ifindex,
+					  u32 block_index,
+					  struct netlink_ext_ack *extack)
+{
+	struct tcf_block *block;
+
+	if (ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
+		block = tcf_block_refcnt_get(net, block_index);
+		if (!block) {
+			NL_SET_ERR_MSG(extack, "Block of given index was not found");
+			return ERR_PTR(-EINVAL);
+		}
+	} else {
+		const struct Qdisc_class_ops *cops = q->ops->cl_ops;
+
+		block = cops->tcf_block(q, cl, extack);
+		if (!block)
+			return ERR_PTR(-EINVAL);
+
+		if (tcf_block_shared(block)) {
+			NL_SET_ERR_MSG(extack, "This filter block is shared. Please use the block index to manipulate the filters");
+			return ERR_PTR(-EOPNOTSUPP);
+		}
+
+		/* Always take reference to block in order to support execution
+		 * of rules update path of cls API without rtnl lock. Caller
+		 * must release block when it is finished using it. 'if' block
+		 * of this conditional obtain reference to block by calling
+		 * tcf_block_refcnt_get().
+		 */
+		refcount_inc(&block->refcnt);
+	}
+
+	return block;
+}
+
 static void __tcf_block_put(struct tcf_block *block, struct Qdisc *q,
 			    struct tcf_block_ext_info *ei, bool rtnl_held)
 {
@@ -1146,106 +1282,27 @@ static struct tcf_block *tcf_block_find(struct net *net, struct Qdisc **q,
 	struct tcf_block *block;
 	int err = 0;
 
-	if (ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
-		block = tcf_block_refcnt_get(net, block_index);
-		if (!block) {
-			NL_SET_ERR_MSG(extack, "Block of given index was not found");
-			return ERR_PTR(-EINVAL);
-		}
-	} else {
-		const struct Qdisc_class_ops *cops;
-		struct net_device *dev;
+	ASSERT_RTNL();
 
-		rcu_read_lock();
+	err = __tcf_qdisc_find(net, q, parent, ifindex, true, extack);
+	if (err)
+		goto errout;
 
-		/* Find link */
-		dev = dev_get_by_index_rcu(net, ifindex);
-		if (!dev) {
-			rcu_read_unlock();
-			return ERR_PTR(-ENODEV);
-		}
+	err = __tcf_qdisc_cl_find(*q, *parent, cl, ifindex, extack);
+	if (err)
+		goto errout_qdisc;
 
-		/* Find qdisc */
-		if (!*parent) {
-			*q = dev->qdisc;
-			*parent = (*q)->handle;
-		} else {
-			*q = qdisc_lookup_rcu(dev, TC_H_MAJ(*parent));
-			if (!*q) {
-				NL_SET_ERR_MSG(extack, "Parent Qdisc doesn't exists");
-				err = -EINVAL;
-				goto errout_rcu;
-			}
-		}
-
-		*q = qdisc_refcount_inc_nz(*q);
-		if (!*q) {
-			NL_SET_ERR_MSG(extack, "Parent Qdisc doesn't exists");
-			err = -EINVAL;
-			goto errout_rcu;
-		}
-
-		/* Is it classful? */
-		cops = (*q)->ops->cl_ops;
-		if (!cops) {
-			NL_SET_ERR_MSG(extack, "Qdisc not classful");
-			err = -EINVAL;
-			goto errout_rcu;
-		}
-
-		if (!cops->tcf_block) {
-			NL_SET_ERR_MSG(extack, "Class doesn't support blocks");
-			err = -EOPNOTSUPP;
-			goto errout_rcu;
-		}
-
-		/* At this point we know that qdisc is not noop_qdisc,
-		 * which means that qdisc holds a reference to net_device
-		 * and we hold a reference to qdisc, so it is safe to release
-		 * rcu read lock.
-		 */
-		rcu_read_unlock();
-
-		/* Do we search for filter, attached to class? */
-		if (TC_H_MIN(*parent)) {
-			*cl = cops->find(*q, *parent);
-			if (*cl == 0) {
-				NL_SET_ERR_MSG(extack, "Specified class doesn't exist");
-				err = -ENOENT;
-				goto errout_qdisc;
-			}
-		}
-
-		/* And the last stroke */
-		block = cops->tcf_block(*q, *cl, extack);
-		if (!block) {
-			err = -EINVAL;
-			goto errout_qdisc;
-		}
-		if (tcf_block_shared(block)) {
-			NL_SET_ERR_MSG(extack, "This filter block is shared. Please use the block index to manipulate the filters");
-			err = -EOPNOTSUPP;
-			goto errout_qdisc;
-		}
-
-		/* Always take reference to block in order to support execution
-		 * of rules update path of cls API without rtnl lock. Caller
-		 * must release block when it is finished using it. 'if' block
-		 * of this conditional obtain reference to block by calling
-		 * tcf_block_refcnt_get().
-		 */
-		refcount_inc(&block->refcnt);
-	}
+	block = __tcf_block_find(net, *q, *cl, ifindex, block_index, extack);
+	if (IS_ERR(block))
+		goto errout_qdisc;
 
 	return block;
 
-errout_rcu:
-	rcu_read_unlock();
 errout_qdisc:
-	if (*q) {
+	if (*q)
 		qdisc_put(*q);
-		*q = NULL;
-	}
+errout:
+	*q = NULL;
 	return ERR_PTR(err);
 }
 
