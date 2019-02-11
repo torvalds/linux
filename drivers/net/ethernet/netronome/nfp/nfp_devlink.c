@@ -258,18 +258,33 @@ nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 		     struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
+	const char *sn, *vendor, *part;
 	struct nfp_nsp *nsp;
 	char *buf = NULL;
-	const char *sn;
 	int err;
 
 	err = devlink_info_driver_name_put(req, "nfp");
 	if (err)
 		return err;
 
+	vendor = nfp_hwinfo_lookup(pf->hwinfo, "assembly.vendor");
+	part = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
 	sn = nfp_hwinfo_lookup(pf->hwinfo, "assembly.serial");
-	if (sn) {
-		err = devlink_info_serial_number_put(req, sn);
+	if (vendor && part && sn) {
+		char *buf;
+
+		buf = kmalloc(strlen(vendor) + strlen(part) + strlen(sn) + 1,
+			      GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		buf[0] = '\0';
+		strcat(buf, vendor);
+		strcat(buf, part);
+		strcat(buf, sn);
+
+		err = devlink_info_serial_number_put(req, buf);
+		kfree(buf);
 		if (err)
 			return err;
 	}
