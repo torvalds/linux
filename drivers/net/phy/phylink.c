@@ -302,6 +302,13 @@ static void phylink_mac_config(struct phylink *pl,
 	pl->ops->mac_config(pl->netdev, pl->link_an_mode, state);
 }
 
+static void phylink_mac_config_up(struct phylink *pl,
+				  const struct phylink_link_state *state)
+{
+	if (state->link)
+		phylink_mac_config(pl, state);
+}
+
 static void phylink_mac_an_restart(struct phylink *pl)
 {
 	if (pl->link_config.an_enabled &&
@@ -401,12 +408,12 @@ static void phylink_resolve(struct work_struct *w)
 		case MLO_AN_PHY:
 			link_state = pl->phy_state;
 			phylink_resolve_flow(pl, &link_state);
-			phylink_mac_config(pl, &link_state);
+			phylink_mac_config_up(pl, &link_state);
 			break;
 
 		case MLO_AN_FIXED:
 			phylink_get_fixed_state(pl, &link_state);
-			phylink_mac_config(pl, &link_state);
+			phylink_mac_config_up(pl, &link_state);
 			break;
 
 		case MLO_AN_INBAND:
