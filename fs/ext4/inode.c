@@ -2829,12 +2829,12 @@ retry:
 		goto unplug;
 	}
 	ret = mpage_prepare_extent_to_map(&mpd);
+	/* Unlock pages we didn't use */
+	mpage_release_unused_pages(&mpd, false);
 	/* Submit prepared bio */
 	ext4_io_submit(&mpd.io_submit);
 	ext4_put_io_end_defer(mpd.io_submit.io_end);
 	mpd.io_submit.io_end = NULL;
-	/* Unlock pages we didn't use */
-	mpage_release_unused_pages(&mpd, false);
 	if (ret < 0)
 		goto unplug;
 
@@ -2902,10 +2902,11 @@ retry:
 			handle = NULL;
 			mpd.do_map = 0;
 		}
-		/* Submit prepared bio */
-		ext4_io_submit(&mpd.io_submit);
 		/* Unlock pages we didn't use */
 		mpage_release_unused_pages(&mpd, give_up_on_write);
+		/* Submit prepared bio */
+		ext4_io_submit(&mpd.io_submit);
+
 		/*
 		 * Drop our io_end reference we got from init. We have
 		 * to be careful and use deferred io_end finishing if
