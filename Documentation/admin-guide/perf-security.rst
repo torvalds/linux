@@ -73,6 +73,48 @@ enable capturing of additional data required for later performance analysis of
 monitored processes or a system. For example, CAP_SYSLOG capability permits
 reading kernel space memory addresses from /proc/kallsyms file.
 
+perf_events/Perf privileged users
+---------------------------------
+
+Mechanisms of capabilities, privileged capability-dumb files [6]_ and file system
+ACLs [10]_ can be used to create a dedicated group of perf_events/Perf privileged
+users who are permitted to execute performance monitoring without scope limits.
+The following steps can be taken to create such a group of privileged Perf users.
+
+1. Create perf_users group of privileged Perf users, assign perf_users group to
+   Perf tool executable and limit access to the executable for other users in the
+   system who are not in the perf_users group:
+
+::
+
+   # groupadd perf_users
+   # ls -alhF
+   -rwxr-xr-x  2 root root  11M Oct 19 15:12 perf
+   # chgrp perf_users perf
+   # ls -alhF
+   -rwxr-xr-x  2 root perf_users  11M Oct 19 15:12 perf
+   # chmod o-rwx perf
+   # ls -alhF
+   -rwxr-x---  2 root perf_users  11M Oct 19 15:12 perf
+
+2. Assign the required capabilities to the Perf tool executable file and enable
+   members of perf_users group with performance monitoring privileges [6]_ :
+
+::
+
+   # setcap "cap_sys_admin,cap_sys_ptrace,cap_syslog=ep" perf
+   # setcap -v "cap_sys_admin,cap_sys_ptrace,cap_syslog=ep" perf
+   perf: OK
+   # getcap perf
+   perf = cap_sys_ptrace,cap_sys_admin,cap_syslog+ep
+
+As a result, members of perf_users group are capable of conducting performance
+monitoring by using functionality of the configured Perf tool executable that,
+when executes, passes perf_events subsystem scope checks.
+
+This specific access control management is only available to superuser or root
+running processes with CAP_SETPCAP, CAP_SETFCAP [6]_ capabilities.
+
 perf_events/Perf unprivileged users
 -----------------------------------
 
@@ -162,6 +204,7 @@ Bibliography
 .. [7] `<http://man7.org/linux/man-pages/man2/ptrace.2.html>`_
 .. [8] `<https://en.wikipedia.org/wiki/Hardware_performance_counter>`_
 .. [9] `<https://en.wikipedia.org/wiki/Model-specific_register>`_
+.. [10] `<http://man7.org/linux/man-pages/man5/acl.5.html>`_
 .. [11] `<http://man7.org/linux/man-pages/man2/getrlimit.2.html>`_
 .. [12] `<http://man7.org/linux/man-pages/man5/limits.conf.5.html>`_
 
