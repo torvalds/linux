@@ -1272,6 +1272,24 @@ int phylink_get_eee_err(struct phylink *pl)
 EXPORT_SYMBOL_GPL(phylink_get_eee_err);
 
 /**
+ * phylink_init_eee() - init and check the EEE features
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @clk_stop_enable: allow PHY to stop receive clock
+ *
+ * Must be called either with RTNL held or within mac_link_up()
+ */
+int phylink_init_eee(struct phylink *pl, bool clk_stop_enable)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (pl->phydev)
+		ret = phy_init_eee(pl->phydev, clk_stop_enable);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phylink_init_eee);
+
+/**
  * phylink_ethtool_get_eee() - read the energy efficient ethernet parameters
  * @pl: a pointer to a &struct phylink returned from phylink_create()
  * @eee: a pointer to a &struct ethtool_eee for the read parameters
