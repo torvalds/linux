@@ -56,11 +56,11 @@
 
 #define NFS_attrstat_sz		(1+NFS_fattr_sz)
 #define NFS_diropres_sz		(1+NFS_fhandle_sz+NFS_fattr_sz)
-#define NFS_readlinkres_sz	(2)
-#define NFS_readres_sz		(1+NFS_fattr_sz+1)
+#define NFS_readlinkres_sz	(2+1)
+#define NFS_readres_sz		(1+NFS_fattr_sz+1+1)
 #define NFS_writeres_sz         (NFS_attrstat_sz)
 #define NFS_stat_sz		(1)
-#define NFS_readdirres_sz	(1)
+#define NFS_readdirres_sz	(1+1)
 #define NFS_statfsres_sz	(1+NFS_info_sz)
 
 static int nfs_stat_to_errno(enum nfs_stat);
