@@ -205,7 +205,7 @@ static int validate_ie_attr(const struct nlattr *attr,
 {
 	const u8 *data = nla_data(attr);
 	unsigned int len = nla_len(attr);
-	struct element *elem;
+	const struct element *elem;
 
 	for_each_element(elem, data, len) {
 		/* nothing */
