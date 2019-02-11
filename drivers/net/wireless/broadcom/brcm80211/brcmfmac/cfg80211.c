@@ -6051,11 +6051,18 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 		/* assuming the chanspecs order is HT20,
 		 * HT40 upper, HT40 lower, and VHT80.
 		 */
-		if (ch.bw == BRCMU_CHAN_BW_80) {
+		switch (ch.bw) {
+		case BRCMU_CHAN_BW_80:
 			channel->flags &= ~IEEE80211_CHAN_NO_80MHZ;
-		} else if (ch.bw == BRCMU_CHAN_BW_40) {
+			break;
+		case BRCMU_CHAN_BW_40:
 			brcmf_update_bw40_channel_flag(channel, &ch);
-		} else {
+			break;
+		default:
+			wiphy_warn(wiphy, "Firmware reported unsupported bandwidth %d\n",
+				   ch.bw);
+			/* fall through */
+		case BRCMU_CHAN_BW_20:
 			/* enable the channel and disable other bandwidths
 			 * for now as mentioned order assure they are enabled
 			 * for subsequent chanspecs.
