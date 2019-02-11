@@ -3287,8 +3287,11 @@ static int vmw_cmd_check(struct vmw_private *dev_priv,
 		goto out_new;
 
 	ret = entry->func(dev_priv, sw_context, header);
-	if (unlikely(ret != 0))
-		goto out_invalid;
+	if (unlikely(ret != 0)) {
+		VMW_DEBUG_USER("SVGA3D command: %d failed with error %d\n",
+			       cmd_id + SVGA_3D_CMD_BASE, ret);
+		return ret;
+	}
 
 	return 0;
 out_invalid:
