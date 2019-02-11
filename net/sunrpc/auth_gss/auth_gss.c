@@ -1017,6 +1017,7 @@ gss_create_new(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 	auth->au_cslack = GSS_CRED_SLACK >> 2;
 	auth->au_rslack = GSS_VERF_SLACK >> 2;
 	auth->au_verfsize = GSS_VERF_SLACK >> 2;
+	auth->au_ralign = GSS_VERF_SLACK >> 2;
 	auth->au_flags = 0;
 	auth->au_ops = &authgss_ops;
 	auth->au_flavor = flavor;
@@ -1891,7 +1892,10 @@ out:
 static int
 gss_unwrap_resp_auth(struct rpc_cred *cred)
 {
-	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize;
+	struct rpc_auth *auth = cred->cr_auth;
+
+	auth->au_rslack = auth->au_verfsize;
+	auth->au_ralign = auth->au_verfsize;
 	return 0;
 }
 
@@ -1902,6 +1906,7 @@ gss_unwrap_resp_integ(struct rpc_task *task, struct rpc_cred *cred,
 {
 	struct xdr_buf integ_buf, *rcv_buf = &rqstp->rq_rcv_buf;
 	u32 data_offset, mic_offset, integ_len, maj_stat;
+	struct rpc_auth *auth = cred->cr_auth;
 	struct xdr_netobj mic;
 	__be32 *p;
 
@@ -1928,8 +1933,8 @@ gss_unwrap_resp_integ(struct rpc_task *task, struct rpc_cred *cred,
 	if (maj_stat != GSS_S_COMPLETE)
 		goto bad_mic;
 
-	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize + 2 +
-				   1 + XDR_QUADLEN(mic.len);
+	auth->au_rslack = auth->au_verfsize + 2 + 1 + XDR_QUADLEN(mic.len);
+	auth->au_ralign = auth->au_verfsize + 2;
 	return 0;
 unwrap_failed:
 	trace_rpcgss_unwrap_failed(task);
@@ -1949,6 +1954,7 @@ gss_unwrap_resp_priv(struct rpc_task *task, struct rpc_cred *cred,
 {
 	struct xdr_buf *rcv_buf = &rqstp->rq_rcv_buf;
 	struct kvec *head = rqstp->rq_rcv_buf.head;
+	struct rpc_auth *auth = cred->cr_auth;
 	unsigned int savedlen = rcv_buf->len;
 	u32 offset, opaque_len, maj_stat;
 	__be32 *p;
@@ -1976,8 +1982,10 @@ gss_unwrap_resp_priv(struct rpc_task *task, struct rpc_cred *cred,
 	 */
 	xdr_init_decode(xdr, rcv_buf, p, rqstp);
 
-	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize + 2 +
-				   XDR_QUADLEN(savedlen - rcv_buf->len);
+	auth->au_rslack = auth->au_verfsize + 2 +
+			  XDR_QUADLEN(savedlen - rcv_buf->len);
+	auth->au_ralign = auth->au_verfsize + 2 +
+			  XDR_QUADLEN(savedlen - rcv_buf->len);
 	return 0;
 unwrap_failed:
 	trace_rpcgss_unwrap_failed(task);

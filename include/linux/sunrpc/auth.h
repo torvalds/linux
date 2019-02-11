@@ -74,13 +74,12 @@ struct rpc_cred_cache;
 struct rpc_authops;
 struct rpc_auth {
 	unsigned int		au_cslack;	/* call cred size estimate */
-				/* guess at number of u32's auth adds before
-				 * reply data; normally the verifier size: */
-	unsigned int		au_rslack;
+	unsigned int		au_rslack;	/* reply cred size estimate */
 	unsigned int		au_verfsize;	/* size of reply verifier */
+	unsigned int		au_ralign;	/* words before UL header */
 
-	unsigned int		au_flags;	/* various flags */
-	const struct rpc_authops *au_ops;		/* operations */
+	unsigned int		au_flags;
+	const struct rpc_authops *au_ops;
 	rpc_authflavor_t	au_flavor;	/* pseudoflavor (note may
 						 * differ from the flavor in
 						 * au_ops->au_flavor in gss

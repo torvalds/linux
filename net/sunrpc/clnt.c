@@ -1180,7 +1180,7 @@ void rpc_prepare_reply_pages(struct rpc_rqst *req, struct page **pages,
 	/* Subtract one to force an extra word of buffer space for the
 	 * payload's XDR pad to fall into the rcv_buf's tail iovec.
 	 */
-	hdrsize += RPC_REPHDRSIZE + req->rq_cred->cr_auth->au_rslack - 1;
+	hdrsize += RPC_REPHDRSIZE + req->rq_cred->cr_auth->au_ralign - 1;
 
 	xdr_inline_pages(&req->rq_rcv_buf, hdrsize << 2, pages, base, len);
 	trace_rpc_reply_pages(req);

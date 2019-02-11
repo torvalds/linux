@@ -187,6 +187,7 @@ unx_validate(struct rpc_task *task, struct xdr_stream *xdr)
 
 	auth->au_verfsize = XDR_QUADLEN(size) + 2;
 	auth->au_rslack = XDR_QUADLEN(size) + 2;
+	auth->au_ralign = XDR_QUADLEN(size) + 2;
 	return 0;
 }
 
