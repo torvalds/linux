@@ -646,11 +646,15 @@ struct bch_fs {
 
 	struct percpu_rw_semaphore	mark_lock;
 
+	seqcount_t			usage_lock;
+	struct bch_fs_usage		*usage_base;
 	struct bch_fs_usage __percpu	*usage[2];
+	struct bch_fs_usage __percpu	*usage_gc;
+	u64 __percpu		*online_reserved;
 
 	/* single element mempool: */
 	struct mutex		usage_scratch_lock;
-	struct bch_fs_usage	*usage_scratch;
+	struct bch_fs_usage_online *usage_scratch;
 
 	/*
 	 * When we invalidate buckets, we use both the priority and the amount

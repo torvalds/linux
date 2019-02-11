@@ -490,8 +490,8 @@ static void bch2_gc_free(struct bch_fs *c)
 		ca->usage[1] = NULL;
 	}
 
-	free_percpu(c->usage[1]);
-	c->usage[1] = NULL;
+	free_percpu(c->usage_gc);
+	c->usage_gc = NULL;
 }
 
 static int bch2_gc_done(struct bch_fs *c,
@@ -587,14 +587,16 @@ static int bch2_gc_done(struct bch_fs *c,
 		}
 	};
 
+	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
+		bch2_fs_usage_acc_to_base(c, i);
+
 	bch2_dev_usage_from_buckets(c);
 
 	{
 		unsigned nr = fs_usage_u64s(c);
-		struct bch_fs_usage *dst = (void *)
-			bch2_acc_percpu_u64s((void *) c->usage[0], nr);
+		struct bch_fs_usage *dst = c->usage_base;
 		struct bch_fs_usage *src = (void *)
-			bch2_acc_percpu_u64s((void *) c->usage[1], nr);
+			bch2_acc_percpu_u64s((void *) c->usage_gc, nr);
 
 		copy_fs_field(hidden,		"hidden");
 		copy_fs_field(btree,		"btree");
@@ -647,11 +649,11 @@ static int bch2_gc_start(struct bch_fs *c,
 	 */
 	gc_pos_set(c, gc_phase(GC_PHASE_START));
 
-	BUG_ON(c->usage[1]);
+	BUG_ON(c->usage_gc);
 
-	c->usage[1] = __alloc_percpu_gfp(fs_usage_u64s(c) * sizeof(u64),
+	c->usage_gc = __alloc_percpu_gfp(fs_usage_u64s(c) * sizeof(u64),
 					 sizeof(u64), GFP_KERNEL);
-	if (!c->usage[1])
+	if (!c->usage_gc)
 		return -ENOMEM;
 
 	for_each_member_device(ca, c, i) {
@@ -770,10 +772,16 @@ out:
 		ret = -EINVAL;
 	}
 
-	percpu_down_write(&c->mark_lock);
+	if (!ret) {
+		bch2_journal_block(&c->journal);
 
-	if (!ret)
+		percpu_down_write(&c->mark_lock);
 		ret = bch2_gc_done(c, initial, metadata_only);
+
+		bch2_journal_unblock(&c->journal);
+	} else {
+		percpu_down_write(&c->mark_lock);
+	}
 
 	/* Indicates that gc is no longer in progress: */
 	__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));

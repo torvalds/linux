@@ -1066,7 +1066,7 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 {
 	struct bch_fs *c = as->c;
 	struct btree *old = btree_node_root(c, b);
-	struct bch_fs_usage *fs_usage;
+	struct bch_fs_usage_online *fs_usage;
 
 	__bch2_btree_set_root_inmem(c, b);
 
@@ -1075,7 +1075,7 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 	fs_usage = bch2_fs_usage_scratch_get(c);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(&b->key),
-		      true, 0, fs_usage, 0, 0);
+		      true, 0, &fs_usage->u, 0, 0);
 	if (gc_visited(c, gc_pos_btree_root(b->btree_id)))
 		bch2_mark_key_locked(c, bkey_i_to_s_c(&b->key),
 				     true, 0, NULL, 0,
@@ -1084,8 +1084,8 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 	if (old && !btree_node_fake(old))
 		bch2_btree_node_free_index(as, NULL,
 					   bkey_i_to_s_c(&old->key),
-					   fs_usage);
-	bch2_fs_usage_apply(c, fs_usage, &as->reserve->disk_res);
+					   &fs_usage->u);
+	bch2_fs_usage_apply(c, fs_usage, &as->reserve->disk_res, 0);
 
 	bch2_fs_usage_scratch_put(c, fs_usage);
 	percpu_up_read(&c->mark_lock);
@@ -1160,7 +1160,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 					struct btree_node_iter *node_iter)
 {
 	struct bch_fs *c = as->c;
-	struct bch_fs_usage *fs_usage;
+	struct bch_fs_usage_online *fs_usage;
 	struct bkey_packed *k;
 	struct bkey tmp;
 
@@ -1171,7 +1171,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 	fs_usage = bch2_fs_usage_scratch_get(c);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
-			     true, 0, fs_usage, 0, 0);
+			     true, 0, &fs_usage->u, 0, 0);
 
 	if (gc_visited(c, gc_pos_btree_node(b)))
 		bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
@@ -1188,9 +1188,9 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 	if (k && !bkey_cmp_packed(b, k, &insert->k))
 		bch2_btree_node_free_index(as, b,
 					   bkey_disassemble(b, k, &tmp),
-					   fs_usage);
+					   &fs_usage->u);
 
-	bch2_fs_usage_apply(c, fs_usage, &as->reserve->disk_res);
+	bch2_fs_usage_apply(c, fs_usage, &as->reserve->disk_res, 0);
 
 	bch2_fs_usage_scratch_put(c, fs_usage);
 	percpu_up_read(&c->mark_lock);
@@ -1984,7 +1984,7 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 			bkey_copy(&b->key, &new_key->k_i);
 		}
 	} else {
-		struct bch_fs_usage *fs_usage;
+		struct bch_fs_usage_online *fs_usage;
 
 		BUG_ON(btree_node_root(c, b) != b);
 
@@ -1995,7 +1995,7 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 		fs_usage = bch2_fs_usage_scratch_get(c);
 
 		bch2_mark_key_locked(c, bkey_i_to_s_c(&new_key->k_i),
-			      true, 0, fs_usage, 0, 0);
+			      true, 0, &fs_usage->u, 0, 0);
 		if (gc_visited(c, gc_pos_btree_root(b->btree_id)))
 			bch2_mark_key_locked(c, bkey_i_to_s_c(&new_key->k_i),
 					     true, 0, NULL, 0,
@@ -2003,8 +2003,8 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 
 		bch2_btree_node_free_index(as, NULL,
 					   bkey_i_to_s_c(&b->key),
-					   fs_usage);
-		bch2_fs_usage_apply(c, fs_usage, &as->reserve->disk_res);
+					   &fs_usage->u);
+		bch2_fs_usage_apply(c, fs_usage, &as->reserve->disk_res, 0);
 
 		bch2_fs_usage_scratch_put(c, fs_usage);
 		percpu_up_read(&c->mark_lock);

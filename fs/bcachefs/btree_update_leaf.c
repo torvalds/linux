@@ -533,7 +533,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 				     struct btree_insert_entry **stopped_at)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_fs_usage *fs_usage = NULL;
+	struct bch_fs_usage_online *fs_usage = NULL;
 	struct btree_insert_entry *i;
 	struct btree_iter *linked;
 	int ret;
@@ -608,7 +608,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 
 	if (likely(!(trans->flags & BTREE_INSERT_NOMARK))) {
 		trans_for_each_update_iter(trans, i)
-			bch2_mark_update(trans, i, fs_usage, 0);
+			bch2_mark_update(trans, i, &fs_usage->u, 0);
 		if (fs_usage)
 			bch2_trans_fs_usage_apply(trans, fs_usage);
 

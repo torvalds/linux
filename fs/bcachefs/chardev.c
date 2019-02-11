@@ -394,7 +394,7 @@ static long bch2_ioctl_usage(struct bch_fs *c,
 	}
 
 	{
-		struct bch_fs_usage *src;
+		struct bch_fs_usage_online *src;
 		struct bch_ioctl_fs_usage dst = {
 			.capacity		= c->capacity,
 		};
@@ -410,7 +410,7 @@ static long bch2_ioctl_usage(struct bch_fs *c,
 
 		for (i = 0; i < BCH_REPLICAS_MAX; i++) {
 			dst.persistent_reserved[i] =
-				src->persistent_reserved[i];
+				src->u.persistent_reserved[i];
 #if 0
 			for (j = 0; j < BCH_DATA_NR; j++)
 				dst.sectors[j][i] = src.replicas[i].data[j];

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "buckets.h"
 #include "checksum.h"
 #include "disk_groups.h"
 #include "ec.h"
@@ -978,13 +979,16 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 
 	mutex_unlock(&c->btree_root_lock);
 
-	if (journal_seq)
-		return entry;
+	percpu_down_read(&c->mark_lock);
 
-	percpu_down_write(&c->mark_lock);
+	if (!journal_seq) {
+		for (i = 0; i < ARRAY_SIZE(c->usage); i++)
+			bch2_fs_usage_acc_to_base(c, i);
+	} else {
+		bch2_fs_usage_acc_to_base(c, journal_seq & 1);
+	}
 
 	{
-		u64 nr_inodes = percpu_u64_get(&c->usage[0]->nr_inodes);
 		struct jset_entry_usage *u =
 			container_of(entry, struct jset_entry_usage, entry);
 
@@ -992,7 +996,7 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u), sizeof(u64)) - 1;
 		u->entry.type	= BCH_JSET_ENTRY_usage;
 		u->entry.btree_id = FS_USAGE_INODES;
-		u->v		= cpu_to_le64(nr_inodes);
+		u->v		= cpu_to_le64(c->usage_base->nr_inodes);
 
 		entry = vstruct_next(entry);
 	}
@@ -1013,17 +1017,13 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
 		struct jset_entry_usage *u =
 			container_of(entry, struct jset_entry_usage, entry);
-		u64 sectors = percpu_u64_get(&c->usage[0]->persistent_reserved[i]);
-
-		if (!sectors)
-			continue;
 
 		memset(u, 0, sizeof(*u));
 		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u), sizeof(u64)) - 1;
 		u->entry.type	= BCH_JSET_ENTRY_usage;
 		u->entry.btree_id = FS_USAGE_RESERVED;
 		u->entry.level	= i;
-		u->v		= sectors;
+		u->v		= cpu_to_le64(c->usage_base->persistent_reserved[i]);
 
 		entry = vstruct_next(entry);
 	}
@@ -1031,7 +1031,6 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 	for (i = 0; i < c->replicas.nr; i++) {
 		struct bch_replicas_entry *e =
 			cpu_replicas_entry(&c->replicas, i);
-		u64 sectors = percpu_u64_get(&c->usage[0]->replicas[i]);
 		struct jset_entry_data_usage *u =
 			container_of(entry, struct jset_entry_data_usage, entry);
 
@@ -1039,14 +1038,14 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u) + e->nr_devs,
 					       sizeof(u64)) - 1;
 		u->entry.type	= BCH_JSET_ENTRY_data_usage;
-		u->v		= cpu_to_le64(sectors);
+		u->v		= cpu_to_le64(c->usage_base->replicas[i]);
 		unsafe_memcpy(&u->r, e, replicas_entry_bytes(e),
 			      "embedded variable length struct");
 
 		entry = vstruct_next(entry);
 	}
 
-	percpu_up_write(&c->mark_lock);
+	percpu_up_read(&c->mark_lock);
 
 	return entry;
 }

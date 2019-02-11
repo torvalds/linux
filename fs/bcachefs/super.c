@@ -464,8 +464,11 @@ static void bch2_fs_free(struct bch_fs *c)
 	bch2_io_clock_exit(&c->io_clock[READ]);
 	bch2_fs_compress_exit(c);
 	percpu_free_rwsem(&c->mark_lock);
+	free_percpu(c->online_reserved);
 	kfree(c->usage_scratch);
+	free_percpu(c->usage[1]);
 	free_percpu(c->usage[0]);
+	kfree(c->usage_base);
 	free_percpu(c->pcpu);
 	mempool_exit(&c->btree_iters_pool);
 	mempool_exit(&c->btree_bounce_pool);
@@ -658,6 +661,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	seqcount_init(&c->gc_pos_lock);
 
+	seqcount_init(&c->usage_lock);
+
 	c->copy_gc_enabled		= 1;
 	c->rebalance.enabled		= 1;
 	c->promote_whole_extents	= true;
@@ -721,6 +726,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 			    offsetof(struct btree_write_bio, wbio.bio)),
 			BIOSET_NEED_BVECS) ||
 	    !(c->pcpu = alloc_percpu(struct bch_fs_pcpu)) ||
+	    !(c->online_reserved = alloc_percpu(u64)) ||
 	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
 					btree_bytes(c)) ||
 	    mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
@@ -1433,13 +1439,8 @@ err:
 static void dev_usage_clear(struct bch_dev *ca)
 {
 	struct bucket_array *buckets;
-	int cpu;
 
-	for_each_possible_cpu(cpu) {
-		struct bch_dev_usage *p =
-			per_cpu_ptr(ca->usage[0], cpu);
-		memset(p, 0, sizeof(*p));
-	}
+	percpu_memset(ca->usage[0], 0, sizeof(*ca->usage[0]));
 
 	down_read(&ca->bucket_lock);
 	buckets = bucket_array(ca);

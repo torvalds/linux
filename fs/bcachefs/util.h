@@ -741,6 +741,14 @@ static inline void acc_u64s_percpu(u64 *acc, const u64 __percpu *src,
 		acc_u64s(acc, per_cpu_ptr(src, cpu), nr);
 }
 
+static inline void percpu_memset(void __percpu *p, int c, size_t bytes)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		memset(per_cpu_ptr(p, cpu), c, bytes);
+}
+
 u64 *bch2_acc_percpu_u64s(u64 __percpu *, unsigned);
 
 #define cmp_int(l, r)		((l > r) - (l < r))

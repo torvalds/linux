@@ -52,7 +52,6 @@ struct bucket_array {
 
 struct bch_dev_usage {
 	u64			buckets[BCH_DATA_NR];
-	u64			buckets_alloc;
 	u64			buckets_ec;
 	u64			buckets_unavailable;
 
@@ -63,12 +62,6 @@ struct bch_dev_usage {
 
 struct bch_fs_usage {
 	/* all fields are in units of 512 byte sectors: */
-
-	u64			online_reserved;
-
-	/* fields after online_reserved are cleared/recalculated by gc: */
-	u64			gc_start[0];
-
 	u64			hidden;
 	u64			btree;
 	u64			data;
@@ -86,6 +79,11 @@ struct bch_fs_usage {
 
 	u64			persistent_reserved[BCH_REPLICAS_MAX];
 	u64			replicas[];
+};
+
+struct bch_fs_usage_online {
+	u64			online_reserved;
+	struct bch_fs_usage	u;
 };
 
 struct bch_fs_usage_short {

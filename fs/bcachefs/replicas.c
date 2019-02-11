@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "buckets.h"
 #include "journal.h"
 #include "replicas.h"
 #include "super-io.h"
@@ -235,19 +236,12 @@ bool bch2_replicas_marked(struct bch_fs *c,
 	return marked;
 }
 
-static void __replicas_table_update(struct bch_fs_usage __percpu *dst_p,
+static void __replicas_table_update(struct bch_fs_usage *dst,
 				    struct bch_replicas_cpu *dst_r,
-				    struct bch_fs_usage __percpu *src_p,
+				    struct bch_fs_usage *src,
 				    struct bch_replicas_cpu *src_r)
 {
-	unsigned src_nr = sizeof(struct bch_fs_usage) / sizeof(u64) + src_r->nr;
-	struct bch_fs_usage *dst, *src = (void *)
-		bch2_acc_percpu_u64s((void *) src_p, src_nr);
 	int src_idx, dst_idx;
-
-	preempt_disable();
-	dst = this_cpu_ptr(dst_p);
-	preempt_enable();
 
 	*dst = *src;
 
@@ -263,42 +257,75 @@ static void __replicas_table_update(struct bch_fs_usage __percpu *dst_p,
 	}
 }
 
+static void __replicas_table_update_pcpu(struct bch_fs_usage __percpu *dst_p,
+				    struct bch_replicas_cpu *dst_r,
+				    struct bch_fs_usage __percpu *src_p,
+				    struct bch_replicas_cpu *src_r)
+{
+	unsigned src_nr = sizeof(struct bch_fs_usage) / sizeof(u64) + src_r->nr;
+	struct bch_fs_usage *dst, *src = (void *)
+		bch2_acc_percpu_u64s((void *) src_p, src_nr);
+
+	preempt_disable();
+	dst = this_cpu_ptr(dst_p);
+	preempt_enable();
+
+	__replicas_table_update(dst, dst_r, src, src_r);
+}
+
 /*
  * Resize filesystem accounting:
  */
 static int replicas_table_update(struct bch_fs *c,
 				 struct bch_replicas_cpu *new_r)
 {
-	struct bch_fs_usage __percpu *new_usage[2] = { NULL, NULL };
-	struct bch_fs_usage *new_scratch = NULL;
-	unsigned bytes = sizeof(struct bch_fs_usage) +
+	struct bch_fs_usage __percpu *new_usage[2];
+	struct bch_fs_usage_online *new_scratch = NULL;
+	struct bch_fs_usage __percpu *new_gc = NULL;
+	struct bch_fs_usage *new_base = NULL;
+	unsigned i, bytes = sizeof(struct bch_fs_usage) +
+		sizeof(u64) * new_r->nr;
+	unsigned scratch_bytes = sizeof(struct bch_fs_usage_online) +
 		sizeof(u64) * new_r->nr;
 	int ret = -ENOMEM;
 
-	if (!(new_usage[0] = __alloc_percpu_gfp(bytes, sizeof(u64),
-						GFP_NOIO)) ||
-	    (c->usage[1] &&
-	     !(new_usage[1] = __alloc_percpu_gfp(bytes, sizeof(u64),
-						 GFP_NOIO))) ||
-	    !(new_scratch  = kmalloc(bytes, GFP_NOIO)))
+	memset(new_usage, 0, sizeof(new_usage));
+
+	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
+		if (!(new_usage[i] = __alloc_percpu_gfp(bytes,
+					sizeof(u64), GFP_NOIO)))
+			goto err;
+
+	if (!(new_base = kzalloc(bytes, GFP_NOIO)) ||
+	    !(new_scratch  = kmalloc(scratch_bytes, GFP_NOIO)) ||
+	    (c->usage_gc &&
+	     !(new_gc = __alloc_percpu_gfp(bytes, sizeof(u64), GFP_NOIO))))
 		goto err;
 
-	if (c->usage[0])
-		__replicas_table_update(new_usage[0],	new_r,
-					c->usage[0],	&c->replicas);
-	if (c->usage[1])
-		__replicas_table_update(new_usage[1],	new_r,
-					c->usage[1],	&c->replicas);
+	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
+		if (c->usage[i])
+			__replicas_table_update_pcpu(new_usage[i], new_r,
+						     c->usage[i], &c->replicas);
+	if (c->usage_base)
+		__replicas_table_update(new_base,		new_r,
+					c->usage_base,		&c->replicas);
+	if (c->usage_gc)
+		__replicas_table_update_pcpu(new_gc,		new_r,
+					     c->usage_gc,	&c->replicas);
 
-	swap(c->usage[0],	new_usage[0]);
-	swap(c->usage[1],	new_usage[1]);
+	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
+		swap(c->usage[i],	new_usage[i]);
+	swap(c->usage_base,	new_base);
 	swap(c->usage_scratch,	new_scratch);
+	swap(c->usage_gc,	new_gc);
 	swap(c->replicas,	*new_r);
 	ret = 0;
 err:
+	free_percpu(new_gc);
 	kfree(new_scratch);
 	free_percpu(new_usage[1]);
 	free_percpu(new_usage[0]);
+	kfree(new_base);
 	return ret;
 }
 
@@ -457,9 +484,7 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 	lockdep_assert_held(&c->replicas_gc_lock);
 
 	mutex_lock(&c->sb_lock);
-
-	if (ret)
-		goto err;
+	percpu_down_write(&c->mark_lock);
 
 	/*
 	 * this is kind of crappy; the replicas gc mechanism needs to be ripped
@@ -470,26 +495,20 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 		struct bch_replicas_entry *e =
 			cpu_replicas_entry(&c->replicas, i);
 		struct bch_replicas_cpu n;
-		u64 v;
 
-		if (__replicas_has_entry(&c->replicas_gc, e))
-			continue;
+		if (!__replicas_has_entry(&c->replicas_gc, e) &&
+		    (c->usage_base->replicas[i] ||
+		     percpu_u64_get(&c->usage[0]->replicas[i]) ||
+		     percpu_u64_get(&c->usage[1]->replicas[i]))) {
+			n = cpu_replicas_add_entry(&c->replicas_gc, e);
+			if (!n.entries) {
+				ret = -ENOSPC;
+				goto err;
+			}
 
-		v = percpu_u64_get(&c->usage[0]->replicas[i]);
-		if (!v)
-			continue;
-
-		n = cpu_replicas_add_entry(&c->replicas_gc, e);
-		if (!n.entries) {
-			ret = -ENOSPC;
-			goto err;
+			swap(n, c->replicas_gc);
+			kfree(n.entries);
 		}
-
-		percpu_down_write(&c->mark_lock);
-		swap(n, c->replicas_gc);
-		percpu_up_write(&c->mark_lock);
-
-		kfree(n.entries);
 	}
 
 	if (bch2_cpu_replicas_to_sb_replicas(c, &c->replicas_gc)) {
@@ -497,19 +516,18 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 		goto err;
 	}
 
-	bch2_write_super(c);
-
-	/* don't update in memory replicas until changes are persistent */
+	ret = replicas_table_update(c, &c->replicas_gc);
 err:
-	percpu_down_write(&c->mark_lock);
-	if (!ret)
-		ret = replicas_table_update(c, &c->replicas_gc);
-
 	kfree(c->replicas_gc.entries);
 	c->replicas_gc.entries = NULL;
+
 	percpu_up_write(&c->mark_lock);
 
+	if (!ret)
+		bch2_write_super(c);
+
 	mutex_unlock(&c->sb_lock);
+
 	return ret;
 }
 
@@ -576,7 +594,7 @@ int bch2_replicas_set_usage(struct bch_fs *c,
 		BUG_ON(ret < 0);
 	}
 
-	percpu_u64_set(&c->usage[0]->replicas[idx], sectors);
+	c->usage_base->replicas[idx] = sectors;
 
 	return 0;
 }

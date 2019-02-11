@@ -404,13 +404,11 @@ static int journal_replay_entry_early(struct bch_fs *c,
 		switch (entry->btree_id) {
 		case FS_USAGE_RESERVED:
 			if (entry->level < BCH_REPLICAS_MAX)
-				percpu_u64_set(&c->usage[0]->
-					       persistent_reserved[entry->level],
-					       le64_to_cpu(u->v));
+				c->usage_base->persistent_reserved[entry->level] =
+					le64_to_cpu(u->v);
 			break;
 		case FS_USAGE_INODES:
-			percpu_u64_set(&c->usage[0]->nr_inodes,
-				       le64_to_cpu(u->v));
+			c->usage_base->nr_inodes = le64_to_cpu(u->v);
 			break;
 		case FS_USAGE_KEY_VERSION:
 			atomic64_set(&c->key_version,
