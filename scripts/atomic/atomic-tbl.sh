@@ -180,7 +180,7 @@ gen_proto_variants()
 #gen_proto(meta, ...)
 gen_proto() {
 	local meta="$1"; shift
-	for m in $(echo "${meta}" | fold -w1); do
+	for m in $(echo "${meta}" | grep -o .); do
 		gen_proto_variants "${m}" "$@"
 	done
 }
