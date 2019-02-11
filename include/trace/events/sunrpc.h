@@ -77,6 +77,50 @@ TRACE_EVENT(rpc_request,
 		)
 );
 
+TRACE_DEFINE_ENUM(RPC_TASK_ASYNC);
+TRACE_DEFINE_ENUM(RPC_TASK_SWAPPER);
+TRACE_DEFINE_ENUM(RPC_CALL_MAJORSEEN);
+TRACE_DEFINE_ENUM(RPC_TASK_ROOTCREDS);
+TRACE_DEFINE_ENUM(RPC_TASK_DYNAMIC);
+TRACE_DEFINE_ENUM(RPC_TASK_KILLED);
+TRACE_DEFINE_ENUM(RPC_TASK_SOFT);
+TRACE_DEFINE_ENUM(RPC_TASK_SOFTCONN);
+TRACE_DEFINE_ENUM(RPC_TASK_SENT);
+TRACE_DEFINE_ENUM(RPC_TASK_TIMEOUT);
+TRACE_DEFINE_ENUM(RPC_TASK_NOCONNECT);
+TRACE_DEFINE_ENUM(RPC_TASK_NO_RETRANS_TIMEOUT);
+
+#define rpc_show_task_flags(flags)					\
+	__print_flags(flags, "|",					\
+		{ RPC_TASK_ASYNC, "ASYNC" },				\
+		{ RPC_TASK_SWAPPER, "SWAPPER" },			\
+		{ RPC_CALL_MAJORSEEN, "MAJORSEEN" },			\
+		{ RPC_TASK_ROOTCREDS, "ROOTCREDS" },			\
+		{ RPC_TASK_DYNAMIC, "DYNAMIC" },			\
+		{ RPC_TASK_KILLED, "KILLED" },				\
+		{ RPC_TASK_SOFT, "SOFT" },				\
+		{ RPC_TASK_SOFTCONN, "SOFTCONN" },			\
+		{ RPC_TASK_SENT, "SENT" },				\
+		{ RPC_TASK_TIMEOUT, "TIMEOUT" },			\
+		{ RPC_TASK_NOCONNECT, "NOCONNECT" },			\
+		{ RPC_TASK_NO_RETRANS_TIMEOUT, "NORTO" })
+
+TRACE_DEFINE_ENUM(RPC_TASK_RUNNING);
+TRACE_DEFINE_ENUM(RPC_TASK_QUEUED);
+TRACE_DEFINE_ENUM(RPC_TASK_ACTIVE);
+TRACE_DEFINE_ENUM(RPC_TASK_NEED_XMIT);
+TRACE_DEFINE_ENUM(RPC_TASK_NEED_RECV);
+TRACE_DEFINE_ENUM(RPC_TASK_MSG_PIN_WAIT);
+
+#define rpc_show_runstate(flags)					\
+	__print_flags(flags, "|",					\
+		{ (1UL << RPC_TASK_RUNNING), "RUNNING" },		\
+		{ (1UL << RPC_TASK_QUEUED), "QUEUED" },			\
+		{ (1UL << RPC_TASK_ACTIVE), "ACTIVE" },			\
+		{ (1UL << RPC_TASK_NEED_XMIT), "NEED_XMIT" },		\
+		{ (1UL << RPC_TASK_NEED_RECV), "NEED_RECV" },		\
+		{ (1UL << RPC_TASK_MSG_PIN_WAIT), "MSG_PIN_WAIT" })
+
 DECLARE_EVENT_CLASS(rpc_task_running,
 
 	TP_PROTO(const struct rpc_task *task, const void *action),
@@ -102,10 +146,10 @@ DECLARE_EVENT_CLASS(rpc_task_running,
 		__entry->flags = task->tk_flags;
 		),
 
-	TP_printk("task:%u@%d flags=%4.4x state=%4.4lx status=%d action=%pf",
+	TP_printk("task:%u@%d flags=%s runstate=%s status=%d action=%pf",
 		__entry->task_id, __entry->client_id,
-		__entry->flags,
-		__entry->runstate,
+		rpc_show_task_flags(__entry->flags),
+		rpc_show_runstate(__entry->runstate),
 		__entry->status,
 		__entry->action
 		)
@@ -149,10 +193,10 @@ DECLARE_EVENT_CLASS(rpc_task_queued,
 		__assign_str(q_name, rpc_qname(q));
 		),
 
-	TP_printk("task:%u@%d flags=%4.4x state=%4.4lx status=%d timeout=%lu queue=%s",
+	TP_printk("task:%u@%d flags=%s runstate=%s status=%d timeout=%lu queue=%s",
 		__entry->task_id, __entry->client_id,
-		__entry->flags,
-		__entry->runstate,
+		rpc_show_task_flags(__entry->flags),
+		rpc_show_runstate(__entry->runstate),
 		__entry->status,
 		__entry->timeout,
 		__get_str(q_name)
