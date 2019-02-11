@@ -57,7 +57,7 @@ int intel_vgpu_gpa_to_mmio_offset(struct intel_vgpu *vgpu, u64 gpa)
 	(reg >= gvt->device_info.gtt_start_offset \
 	 && reg < gvt->device_info.gtt_start_offset + gvt_ggtt_sz(gvt))
 
-static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
+static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, u64 pa,
 		void *p_data, unsigned int bytes, bool read)
 {
 	struct intel_gvt *gvt = NULL;
@@ -99,7 +99,7 @@ static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
  * Returns:
  * Zero on success, negative error code if failed
  */
-int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
+int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, u64 pa,
 		void *p_data, unsigned int bytes)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
@@ -171,7 +171,7 @@ out:
  * Returns:
  * Zero on success, negative error code if failed
  */
-int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
+int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, u64 pa,
 		void *p_data, unsigned int bytes)
 {
 	struct intel_gvt *gvt = vgpu->gvt;

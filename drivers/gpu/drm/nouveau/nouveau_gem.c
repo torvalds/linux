@@ -41,7 +41,6 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 {
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct ttm_buffer_object *bo = &nvbo->bo;
 	struct device *dev = drm->dev->dev;
 	int ret;
 
@@ -56,7 +55,7 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 
 	/* reset filp so nouveau_bo_del_ttm() can test for it */
 	gem->filp = NULL;
-	ttm_bo_unref(&bo);
+	ttm_bo_put(&nvbo->bo);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);

@@ -70,17 +70,17 @@ static bool psr_global_enabled(u32 debug)
 static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 			       const struct intel_crtc_state *crtc_state)
 {
-	/* Disable PSR2 by default for all platforms */
-	if (i915_modparams.enable_psr == -1)
-		return false;
-
 	/* Cannot enable DSC and PSR2 simultaneously */
 	WARN_ON(crtc_state->dsc_params.compression_enable &&
 		crtc_state->has_psr2);
 
 	switch (dev_priv->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
+	case I915_PSR_DEBUG_DISABLE:
 	case I915_PSR_DEBUG_FORCE_PSR1:
 		return false;
+	case I915_PSR_DEBUG_DEFAULT:
+		if (i915_modparams.enable_psr <= 0)
+			return false;
 	default:
 		return crtc_state->has_psr2;
 	}
@@ -230,7 +230,7 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 
 static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 {
-	uint8_t dprx = 0;
+	u8 dprx = 0;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST,
 			      &dprx) != 1)
@@ -240,7 +240,7 @@ static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 
 static bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
 {
-	uint8_t alpm_caps = 0;
+	u8 alpm_caps = 0;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_RECEIVER_ALPM_CAP,
 			      &alpm_caps) != 1)
@@ -384,7 +384,7 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 aux_clock_divider, aux_ctl;
 	int i;
-	static const uint8_t aux_msg[] = {
+	static const u8 aux_msg[] = {
 		[0] = DP_AUX_NATIVE_WRITE << 4,
 		[1] = DP_SET_POWER >> 8,
 		[2] = DP_SET_POWER & 0xff,

@@ -97,6 +97,8 @@ struct dc_plane_address {
 			union large_integer chroma_dcc_const_color;
 		} video_progressive;
 	};
+
+	union large_integer page_table_base;
 };
 
 struct dc_size {
@@ -730,7 +732,7 @@ struct dc_crtc_timing {
 	uint32_t v_front_porch;
 	uint32_t v_sync_width;
 
-	uint32_t pix_clk_khz;
+	uint32_t pix_clk_100hz;
 
 	uint32_t vic;
 	uint32_t hdmi_vic;

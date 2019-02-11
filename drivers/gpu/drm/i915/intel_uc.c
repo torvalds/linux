@@ -26,6 +26,7 @@
 #include "intel_guc_submission.h"
 #include "intel_guc.h"
 #include "i915_drv.h"
+#include "i915_reset.h"
 
 static void guc_free_load_err_log(struct intel_guc *guc);
 

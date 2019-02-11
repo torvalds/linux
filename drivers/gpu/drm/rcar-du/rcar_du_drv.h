@@ -22,6 +22,7 @@ struct device;
 struct drm_device;
 struct drm_property;
 struct rcar_du_device;
+struct rcar_du_encoder;
 
 #define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	BIT(0)	/* Per-CRTC IRQ and clock */
 #define RCAR_DU_FEATURE_VSP1_SOURCE	BIT(1)	/* Has inputs from VSP1 */
@@ -80,6 +81,8 @@ struct rcar_du_device {
 
 	struct rcar_du_crtc crtcs[RCAR_DU_MAX_CRTCS];
 	unsigned int num_crtcs;
+
+	struct rcar_du_encoder *encoders[RCAR_DU_OUTPUT_MAX];
 
 	struct rcar_du_group groups[RCAR_DU_MAX_GROUPS];
 	struct rcar_du_vsp vsps[RCAR_DU_MAX_VSPS];

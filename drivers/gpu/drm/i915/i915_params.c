@@ -97,8 +97,10 @@ i915_param_named_unsafe(disable_power_well, int, 0400,
 
 i915_param_named_unsafe(enable_ips, int, 0600, "Enable IPS (default: true)");
 
-i915_param_named(fastboot, bool, 0600,
-	"Try to skip unnecessary mode sets at boot time (default: false)");
+i915_param_named(fastboot, int, 0600,
+	"Try to skip unnecessary mode sets at boot time "
+	"(0=disabled, 1=enabled) "
+	"Default: -1 (use per-chip default)");
 
 i915_param_named_unsafe(prefault_disable, bool, 0600,
 	"Disable page prefaulting for pread/pwrite/reloc (default:false). "

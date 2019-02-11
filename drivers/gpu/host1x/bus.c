@@ -15,8 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/debugfs.h>
 #include <linux/host1x.h>
 #include <linux/of.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
 
@@ -500,6 +502,36 @@ static void host1x_detach_driver(struct host1x *host1x,
 	mutex_unlock(&host1x->devices_lock);
 }
 
+static int host1x_devices_show(struct seq_file *s, void *data)
+{
+	struct host1x *host1x = s->private;
+	struct host1x_device *device;
+
+	mutex_lock(&host1x->devices_lock);
+
+	list_for_each_entry(device, &host1x->devices, list) {
+		struct host1x_subdev *subdev;
+
+		seq_printf(s, "%s\n", dev_name(&device->dev));
+
+		mutex_lock(&device->subdevs_lock);
+
+		list_for_each_entry(subdev, &device->active, list)
+			seq_printf(s, "  %pOFf: %s\n", subdev->np,
+				   dev_name(subdev->client->dev));
+
+		list_for_each_entry(subdev, &device->subdevs, list)
+			seq_printf(s, "  %pOFf:\n", subdev->np);
+
+		mutex_unlock(&device->subdevs_lock);
+	}
+
+	mutex_unlock(&host1x->devices_lock);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(host1x_devices);
+
 /**
  * host1x_register() - register a host1x controller
  * @host1x: host1x controller
@@ -522,6 +554,9 @@ int host1x_register(struct host1x *host1x)
 		host1x_attach_driver(host1x, driver);
 
 	mutex_unlock(&drivers_lock);
+
+	debugfs_create_file("devices", S_IRUGO, host1x->debugfs, host1x,
+			    &host1x_devices_fops);
 
 	return 0;
 }

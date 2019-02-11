@@ -94,15 +94,17 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	intel_wakeref_t wakeref;
 	bool ret;
 
-	if (!intel_display_power_get_if_enabled(dev_priv,
-						encoder->power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     encoder->power_domain);
+	if (!wakeref)
 		return false;
 
 	ret = intel_lvds_port_enabled(dev_priv, lvds_encoder->reg, pipe);
 
-	intel_display_power_put(dev_priv, encoder->power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -796,26 +798,6 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
 }
 
-static bool intel_lvds_supported(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * With the introduction of the PCH we gained a dedicated
-	 * LVDS presence pin, use it.
-	 */
-	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
-		return true;
-
-	/*
-	 * Otherwise LVDS was only attached to mobile products,
-	 * except for the inglorious 830gm
-	 */
-	if (INTEL_GEN(dev_priv) <= 4 &&
-	    IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
-		return true;
-
-	return false;
-}
-
 /**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev_priv: i915 device
@@ -839,9 +821,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	u32 lvds;
 	u8 pin;
 	u32 allowed_scalers;
-
-	if (!intel_lvds_supported(dev_priv))
-		return;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds)) {
@@ -908,6 +887,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	}
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_encoder->get_config = intel_lvds_get_config;
+	intel_encoder->update_pipe = intel_panel_update_backlight;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);

@@ -86,7 +86,7 @@ int i915_save_state(struct drm_i915_private *dev_priv)
 	} else if (IS_GEN(dev_priv, 2)) {
 		for (i = 0; i < 7; i++)
 			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
-	} else if (HAS_GMCH_DISPLAY(dev_priv)) {
+	} else if (HAS_GMCH(dev_priv)) {
 		for (i = 0; i < 16; i++) {
 			dev_priv->regfile.saveSWF0[i] = I915_READ(SWF0(i));
 			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
@@ -131,7 +131,7 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 	} else if (IS_GEN(dev_priv, 2)) {
 		for (i = 0; i < 7; i++)
 			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);
-	} else if (HAS_GMCH_DISPLAY(dev_priv)) {
+	} else if (HAS_GMCH(dev_priv)) {
 		for (i = 0; i < 16; i++) {
 			I915_WRITE(SWF0(i), dev_priv->regfile.saveSWF0[i]);
 			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);

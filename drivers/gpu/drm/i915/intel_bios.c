@@ -1663,6 +1663,13 @@ init_vbt_missing_defaults(struct drm_i915_private *dev_priv)
 		struct ddi_vbt_port_info *info =
 			&dev_priv->vbt.ddi_port_info[port];
 
+		/*
+		 * VBT has the TypeC mode (native,TBT/USB) and we don't want
+		 * to detect it.
+		 */
+		if (intel_port_is_tc(dev_priv, port))
+			continue;
+
 		info->supports_dvi = (port != PORT_A && port != PORT_E);
 		info->supports_hdmi = info->supports_dvi;
 		info->supports_dp = (port != PORT_E);
@@ -1945,6 +1952,15 @@ bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port por
 		[PORT_F] = { DVO_PORT_DPF, DVO_PORT_HDMIF, },
 	};
 	int i;
+
+	if (HAS_DDI(dev_priv)) {
+		const struct ddi_vbt_port_info *port_info =
+			&dev_priv->vbt.ddi_port_info[port];
+
+		return port_info->supports_dp ||
+		       port_info->supports_dvi ||
+		       port_info->supports_hdmi;
+	}
 
 	/* FIXME maybe deal with port A as well? */
 	if (WARN_ON(port == PORT_A) || port >= ARRAY_SIZE(port_mapping))

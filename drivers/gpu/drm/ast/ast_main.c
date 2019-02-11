@@ -639,13 +639,9 @@ int ast_dumb_create(struct drm_file *file,
 
 static void ast_bo_unref(struct ast_bo **bo)
 {
-	struct ttm_buffer_object *tbo;
-
 	if ((*bo) == NULL)
 		return;
-
-	tbo = &((*bo)->bo);
-	ttm_bo_unref(&tbo);
+	ttm_bo_put(&((*bo)->bo));
 	*bo = NULL;
 }
 

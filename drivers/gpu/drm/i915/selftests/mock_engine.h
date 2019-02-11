@@ -46,10 +46,4 @@ void mock_engine_flush(struct intel_engine_cs *engine);
 void mock_engine_reset(struct intel_engine_cs *engine);
 void mock_engine_free(struct intel_engine_cs *engine);
 
-static inline void mock_seqno_advance(struct intel_engine_cs *engine, u32 seqno)
-{
-	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-	intel_engine_wakeup(engine);
-}
-
 #endif /* !__MOCK_ENGINE_H__ */

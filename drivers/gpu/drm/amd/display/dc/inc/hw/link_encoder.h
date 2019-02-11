@@ -153,6 +153,7 @@ struct link_encoder_funcs {
 	void (*enable_hpd)(struct link_encoder *enc);
 	void (*disable_hpd)(struct link_encoder *enc);
 	bool (*is_dig_enabled)(struct link_encoder *enc);
+	unsigned int (*get_dig_frontend)(struct link_encoder *enc);
 	void (*destroy)(struct link_encoder **enc);
 };
 

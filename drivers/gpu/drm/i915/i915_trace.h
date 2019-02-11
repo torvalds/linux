@@ -752,31 +752,6 @@ trace_i915_request_out(struct i915_request *rq)
 #endif
 #endif
 
-TRACE_EVENT(intel_engine_notify,
-	    TP_PROTO(struct intel_engine_cs *engine, bool waiters),
-	    TP_ARGS(engine, waiters),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(u16, class)
-			     __field(u16, instance)
-			     __field(u32, seqno)
-			     __field(bool, waiters)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->dev = engine->i915->drm.primary->index;
-			   __entry->class = engine->uabi_class;
-			   __entry->instance = engine->instance;
-			   __entry->seqno = intel_engine_get_seqno(engine);
-			   __entry->waiters = waiters;
-			   ),
-
-	    TP_printk("dev=%u, engine=%u:%u, seqno=%u, waiters=%u",
-		      __entry->dev, __entry->class, __entry->instance,
-		      __entry->seqno, __entry->waiters)
-);
-
 DEFINE_EVENT(i915_request, i915_request_retire,
 	    TP_PROTO(struct i915_request *rq),
 	    TP_ARGS(rq)

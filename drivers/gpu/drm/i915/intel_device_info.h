@@ -115,7 +115,7 @@ enum intel_ppgtt {
 	func(has_ddi); \
 	func(has_dp_mst); \
 	func(has_fbc); \
-	func(has_gmch_display); \
+	func(has_gmch); \
 	func(has_hotplug); \
 	func(has_ipc); \
 	func(has_overlay); \
@@ -189,6 +189,8 @@ struct intel_device_info {
 	struct color_luts {
 		u16 degamma_lut_size;
 		u16 gamma_lut_size;
+		u32 degamma_lut_tests;
+		u32 gamma_lut_tests;
 	} color;
 };
 
