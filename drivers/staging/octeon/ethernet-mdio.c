@@ -170,7 +170,7 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 		return -ENODEV;
 
 	priv->last_link = 0;
-	phy_start_aneg(phydev);
+	phy_start(phydev);
 
 	return 0;
 no_phy:
