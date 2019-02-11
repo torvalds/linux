@@ -2331,7 +2331,6 @@ rpc_encode_header(struct rpc_task *task)
 
 	/* FIXME: check buffer size? */
 
-	p = xprt_skip_transport_header(req->rq_xprt, p);
 	*p++ = req->rq_xid;		/* XID */
 	*p++ = htonl(RPC_CALL);		/* CALL */
 	*p++ = htonl(RPC_VERSION);	/* RPC version */
