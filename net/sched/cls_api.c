@@ -1870,6 +1870,12 @@ static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 			       q, parent, NULL, event, false);
 }
 
+static void tfilter_put(struct tcf_proto *tp, void *fh)
+{
+	if (tp->ops->put && fh)
+		tp->ops->put(tp, fh);
+}
+
 static int tc_new_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 			  struct netlink_ext_ack *extack)
 {
@@ -2012,6 +2018,7 @@ replay:
 			goto errout;
 		}
 	} else if (n->nlmsg_flags & NLM_F_EXCL) {
+		tfilter_put(tp, fh);
 		NL_SET_ERR_MSG(extack, "Filter already exists");
 		err = -EEXIST;
 		goto errout;
@@ -2026,9 +2033,11 @@ replay:
 	err = tp->ops->change(net, skb, tp, cl, t->tcm_handle, tca, &fh,
 			      n->nlmsg_flags & NLM_F_CREATE ? TCA_ACT_NOREPLACE : TCA_ACT_REPLACE,
 			      extack);
-	if (err == 0)
+	if (err == 0) {
 		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
 			       RTM_NEWTFILTER, false);
+		tfilter_put(tp, fh);
+	}
 
 errout:
 	if (err && tp_created)
@@ -2259,6 +2268,7 @@ static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 			NL_SET_ERR_MSG(extack, "Failed to send filter notify message");
 	}
 
+	tfilter_put(tp, fh);
 errout:
 	if (chain) {
 		if (tp && !IS_ERR(tp))
