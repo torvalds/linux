@@ -160,29 +160,32 @@ unx_refresh(struct rpc_task *task)
 	return 0;
 }
 
-static __be32 *
-unx_validate(struct rpc_task *task, __be32 *p)
+static int
+unx_validate(struct rpc_task *task, struct xdr_stream *xdr)
 {
-	rpc_authflavor_t	flavor;
-	u32			size;
+	__be32 *p;
+	u32 size;
 
-	flavor = ntohl(*p++);
-	if (flavor != RPC_AUTH_NULL &&
-	    flavor != RPC_AUTH_UNIX &&
-	    flavor != RPC_AUTH_SHORT) {
-		printk("RPC: bad verf flavor: %u\n", flavor);
-		return ERR_PTR(-EIO);
+	p = xdr_inline_decode(xdr, 2 * sizeof(*p));
+	if (!p)
+		return -EIO;
+	switch (*p++) {
+	case rpc_auth_null:
+	case rpc_auth_unix:
+	case rpc_auth_short:
+		break;
+	default:
+		return -EIO;
 	}
+	size = be32_to_cpup(p);
+	if (size > RPC_MAX_AUTH_SIZE)
+		return -EIO;
+	p = xdr_inline_decode(xdr, size);
+	if (!p)
+		return -EIO;
 
-	size = ntohl(*p++);
-	if (size > RPC_MAX_AUTH_SIZE) {
-		printk("RPC: giant verf size: %u\n", size);
-		return ERR_PTR(-EIO);
-	}
 	task->tk_rqstp->rq_cred->cr_auth->au_rslack = (size >> 2) + 2;
-	p += (size >> 2);
-
-	return p;
+	return 0;
 }
 
 int __init rpc_init_authunix(void)
@@ -223,4 +226,5 @@ const struct rpc_credops unix_credops = {
 	.crwrap_req	= rpcauth_wrap_req_encode,
 	.crrefresh	= unx_refresh,
 	.crvalidate	= unx_validate,
+	.crunwrap_resp	= rpcauth_unwrap_resp_decode,
 };

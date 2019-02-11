@@ -1671,59 +1671,62 @@ gss_refresh_null(struct rpc_task *task)
 	return 0;
 }
 
-static __be32 *
-gss_validate(struct rpc_task *task, __be32 *p)
+static int
+gss_validate(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
-	__be32		*seq = NULL;
+	__be32		*p, *seq = NULL;
 	struct kvec	iov;
 	struct xdr_buf	verf_buf;
 	struct xdr_netobj mic;
-	u32		flav,len;
-	u32		maj_stat;
-	__be32		*ret = ERR_PTR(-EIO);
+	u32		len, maj_stat;
+	int		status;
 
-	dprintk("RPC: %5u %s\n", task->tk_pid, __func__);
+	p = xdr_inline_decode(xdr, 2 * sizeof(*p));
+	if (!p)
+		goto validate_failed;
+	if (*p++ != rpc_auth_gss)
+		goto validate_failed;
+	len = be32_to_cpup(p);
+	if (len > RPC_MAX_AUTH_SIZE)
+		goto validate_failed;
+	p = xdr_inline_decode(xdr, len);
+	if (!p)
+		goto validate_failed;
 
-	flav = ntohl(*p++);
-	if ((len = ntohl(*p++)) > RPC_MAX_AUTH_SIZE)
-		goto out_bad;
-	if (flav != RPC_AUTH_GSS)
-		goto out_bad;
 	seq = kmalloc(4, GFP_NOFS);
 	if (!seq)
-		goto out_bad;
-	*seq = htonl(task->tk_rqstp->rq_seqno);
+		goto validate_failed;
+	*seq = cpu_to_be32(task->tk_rqstp->rq_seqno);
 	iov.iov_base = seq;
 	iov.iov_len = 4;
 	xdr_buf_from_iov(&iov, &verf_buf);
 	mic.data = (u8 *)p;
 	mic.len = len;
-
-	ret = ERR_PTR(-EACCES);
 	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &verf_buf, &mic);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
-	if (maj_stat) {
-		dprintk("RPC: %5u %s: gss_verify_mic returned error 0x%08x\n",
-			task->tk_pid, __func__, maj_stat);
-		goto out_bad;
-	}
+	if (maj_stat)
+		goto bad_mic;
+
 	/* We leave it to unwrap to calculate au_rslack. For now we just
 	 * calculate the length of the verifier: */
 	cred->cr_auth->au_verfsize = XDR_QUADLEN(len) + 2;
+	status = 0;
+out:
 	gss_put_ctx(ctx);
-	dprintk("RPC: %5u %s: gss_verify_mic succeeded.\n",
-			task->tk_pid, __func__);
 	kfree(seq);
-	return p + XDR_QUADLEN(len);
-out_bad:
-	gss_put_ctx(ctx);
-	dprintk("RPC: %5u %s failed ret %ld.\n", task->tk_pid, __func__,
-		PTR_ERR(ret));
-	kfree(seq);
-	return ret;
+	return status;
+
+validate_failed:
+	status = -EIO;
+	goto out;
+bad_mic:
+	dprintk("RPC: %5u %s: gss_verify_mic returned error 0x%08x\n",
+		task->tk_pid, __func__, maj_stat);
+	status = -EACCES;
+	goto out;
 }
 
 static int gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
@@ -1921,79 +1924,98 @@ out:
 	return status;
 }
 
-static inline int
-gss_unwrap_resp_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-		struct rpc_rqst *rqstp, __be32 **p)
+static int
+gss_unwrap_resp_auth(struct rpc_cred *cred)
 {
-	struct xdr_buf	*rcv_buf = &rqstp->rq_rcv_buf;
-	struct xdr_buf integ_buf;
-	struct xdr_netobj mic;
-	u32 data_offset, mic_offset;
-	u32 integ_len;
-	u32 maj_stat;
-	int status = -EIO;
+	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize;
+	return 0;
+}
 
-	integ_len = ntohl(*(*p)++);
+static int
+gss_unwrap_resp_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
+		      struct rpc_rqst *rqstp, struct xdr_stream *xdr)
+{
+	struct xdr_buf integ_buf, *rcv_buf = &rqstp->rq_rcv_buf;
+	u32 data_offset, mic_offset, integ_len, maj_stat;
+	struct xdr_netobj mic;
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, 2 * sizeof(*p));
+	if (unlikely(!p))
+		goto unwrap_failed;
+	integ_len = be32_to_cpup(p++);
 	if (integ_len & 3)
-		return status;
-	data_offset = (u8 *)(*p) - (u8 *)rcv_buf->head[0].iov_base;
+		goto unwrap_failed;
+	data_offset = (u8 *)(p) - (u8 *)rcv_buf->head[0].iov_base;
 	mic_offset = integ_len + data_offset;
 	if (mic_offset > rcv_buf->len)
-		return status;
-	if (ntohl(*(*p)++) != rqstp->rq_seqno)
-		return status;
+		goto unwrap_failed;
+	if (be32_to_cpup(p) != rqstp->rq_seqno)
+		goto unwrap_failed;
 
-	if (xdr_buf_subsegment(rcv_buf, &integ_buf, data_offset,
-				mic_offset - data_offset))
-		return status;
-
+	if (xdr_buf_subsegment(rcv_buf, &integ_buf, data_offset, integ_len))
+		goto unwrap_failed;
 	if (xdr_buf_read_netobj(rcv_buf, &mic, mic_offset))
-		return status;
-
+		goto unwrap_failed;
 	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &integ_buf, &mic);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	if (maj_stat != GSS_S_COMPLETE)
-		return status;
+		goto bad_mic;
+
+	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize + 2 +
+				   1 + XDR_QUADLEN(mic.len);
 	return 0;
+unwrap_failed:
+	return -EIO;
+bad_mic:
+	dprintk("RPC:       %s: gss_verify_mic returned error 0x%08x\n",
+		__func__, maj_stat);
+	return -EIO;
 }
 
-static inline int
+static int
 gss_unwrap_resp_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-		struct rpc_rqst *rqstp, __be32 **p)
+		     struct rpc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct xdr_buf  *rcv_buf = &rqstp->rq_rcv_buf;
-	u32 offset;
-	u32 opaque_len;
-	u32 maj_stat;
-	int status = -EIO;
+	struct xdr_buf *rcv_buf = &rqstp->rq_rcv_buf;
+	struct kvec *head = rqstp->rq_rcv_buf.head;
+	unsigned int savedlen = rcv_buf->len;
+	u32 offset, opaque_len, maj_stat;
+	__be32 *p;
 
-	opaque_len = ntohl(*(*p)++);
-	offset = (u8 *)(*p) - (u8 *)rcv_buf->head[0].iov_base;
+	p = xdr_inline_decode(xdr, 2 * sizeof(*p));
+	if (unlikely(!p))
+		goto unwrap_failed;
+	opaque_len = be32_to_cpup(p++);
+	offset = (u8 *)(p) - (u8 *)head->iov_base;
 	if (offset + opaque_len > rcv_buf->len)
-		return status;
-	/* remove padding: */
+		goto unwrap_failed;
 	rcv_buf->len = offset + opaque_len;
 
 	maj_stat = gss_unwrap(ctx->gc_gss_ctx, offset, rcv_buf);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	if (maj_stat != GSS_S_COMPLETE)
-		return status;
-	if (ntohl(*(*p)++) != rqstp->rq_seqno)
-		return status;
+		goto bad_unwrap;
+	/* gss_unwrap decrypted the sequence number */
+	if (be32_to_cpup(p++) != rqstp->rq_seqno)
+		goto unwrap_failed;
 
+	/* gss_unwrap redacts the opaque blob from the head iovec.
+	 * rcv_buf has changed, thus the stream needs to be reset.
+	 */
+	xdr_init_decode(xdr, rcv_buf, p, rqstp);
+
+	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize + 2 +
+				   XDR_QUADLEN(savedlen - rcv_buf->len);
 	return 0;
-}
-
-static int
-gss_unwrap_req_decode(kxdrdproc_t decode, struct rpc_rqst *rqstp,
-		      __be32 *p, void *obj)
-{
-	struct xdr_stream xdr;
-
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p, rqstp);
-	return decode(rqstp, &xdr, obj);
+unwrap_failed:
+	return -EIO;
+bad_unwrap:
+	dprintk("RPC:       %s: gss_unwrap returned error 0x%08x\n",
+		__func__, maj_stat);
+	return -EIO;
 }
 
 static bool
@@ -2037,39 +2059,33 @@ out:
 }
 
 static int
-gss_unwrap_resp(struct rpc_task *task,
-		kxdrdproc_t decode, void *rqstp, __be32 *p, void *obj)
+gss_unwrap_resp(struct rpc_task *task, struct xdr_stream *xdr)
 {
-	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
+	struct rpc_rqst *rqstp = task->tk_rqstp;
+	struct rpc_cred *cred = rqstp->rq_cred;
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred,
 			gc_base);
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
-	__be32		*savedp = p;
-	struct kvec	*head = ((struct rpc_rqst *)rqstp)->rq_rcv_buf.head;
-	int		savedlen = head->iov_len;
-	int             status = -EIO;
+	int status = -EIO;
 
 	if (ctx->gc_proc != RPC_GSS_PROC_DATA)
 		goto out_decode;
 	switch (gss_cred->gc_service) {
 	case RPC_GSS_SVC_NONE:
+		status = gss_unwrap_resp_auth(cred);
 		break;
 	case RPC_GSS_SVC_INTEGRITY:
-		status = gss_unwrap_resp_integ(cred, ctx, rqstp, &p);
-		if (status)
-			goto out;
+		status = gss_unwrap_resp_integ(cred, ctx, rqstp, xdr);
 		break;
 	case RPC_GSS_SVC_PRIVACY:
-		status = gss_unwrap_resp_priv(cred, ctx, rqstp, &p);
-		if (status)
-			goto out;
+		status = gss_unwrap_resp_priv(cred, ctx, rqstp, xdr);
 		break;
 	}
-	/* take into account extra slack for integrity and privacy cases: */
-	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize + (p - savedp)
-						+ (savedlen - head->iov_len);
+	if (status)
+		goto out;
+
 out_decode:
-	status = gss_unwrap_req_decode(decode, rqstp, p, obj);
+	status = rpcauth_unwrap_resp_decode(task, xdr);
 out:
 	gss_put_ctx(ctx);
 	dprintk("RPC: %5u %s returning %d\n",

@@ -86,25 +86,19 @@ nul_refresh(struct rpc_task *task)
 	return 0;
 }
 
-static __be32 *
-nul_validate(struct rpc_task *task, __be32 *p)
+static int
+nul_validate(struct rpc_task *task, struct xdr_stream *xdr)
 {
-	rpc_authflavor_t	flavor;
-	u32			size;
+	__be32 *p;
 
-	flavor = ntohl(*p++);
-	if (flavor != RPC_AUTH_NULL) {
-		printk("RPC: bad verf flavor: %u\n", flavor);
-		return ERR_PTR(-EIO);
-	}
-
-	size = ntohl(*p++);
-	if (size != 0) {
-		printk("RPC: bad verf size: %u\n", size);
-		return ERR_PTR(-EIO);
-	}
-
-	return p;
+	p = xdr_inline_decode(xdr, 2 * sizeof(*p));
+	if (!p)
+		return -EIO;
+	if (*p++ != rpc_auth_null)
+		return -EIO;
+	if (*p != xdr_zero)
+		return -EIO;
+	return 0;
 }
 
 const struct rpc_authops authnull_ops = {
@@ -134,6 +128,7 @@ const struct rpc_credops null_credops = {
 	.crwrap_req	= rpcauth_wrap_req_encode,
 	.crrefresh	= nul_refresh,
 	.crvalidate	= nul_validate,
+	.crunwrap_resp	= rpcauth_unwrap_resp_decode,
 };
 
 static

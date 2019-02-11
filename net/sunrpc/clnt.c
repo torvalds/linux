@@ -79,7 +79,8 @@ static void	call_connect_status(struct rpc_task *task);
 
 static int	rpc_encode_header(struct rpc_task *task,
 				  struct xdr_stream *xdr);
-static __be32	*rpc_decode_header(struct rpc_task *task);
+static int	rpc_decode_header(struct rpc_task *task,
+				  struct xdr_stream *xdr);
 static int	rpc_ping(struct rpc_clnt *clnt);
 
 static void rpc_register_client(struct rpc_clnt *clnt)
@@ -2251,12 +2252,11 @@ call_decode(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
-	kxdrdproc_t	decode = task->tk_msg.rpc_proc->p_decode;
-	__be32		*p;
+	struct xdr_stream xdr;
 
 	dprint_status(task);
 
-	if (!decode) {
+	if (!task->tk_msg.rpc_proc->p_decode) {
 		task->tk_action = rpc_exit_task;
 		return;
 	}
@@ -2292,29 +2292,27 @@ call_decode(struct rpc_task *task)
 		goto out_retry;
 	}
 
-	p = rpc_decode_header(task);
-	if (IS_ERR(p)) {
-		if (p == ERR_PTR(-EAGAIN))
-			goto out_retry;
+	xdr_init_decode(&xdr, &req->rq_rcv_buf,
+			req->rq_rcv_buf.head[0].iov_base, req);
+	switch (rpc_decode_header(task, &xdr)) {
+	case 0:
+		task->tk_action = rpc_exit_task;
+		task->tk_status = rpcauth_unwrap_resp(task, &xdr);
+		dprintk("RPC: %5u %s result %d\n",
+			task->tk_pid, __func__, task->tk_status);
 		return;
-	}
-	task->tk_action = rpc_exit_task;
-
-	task->tk_status = rpcauth_unwrap_resp(task, decode, req, p,
-					      task->tk_msg.rpc_resp);
-
-	dprintk("RPC: %5u call_decode result %d\n", task->tk_pid,
-			task->tk_status);
-	return;
+	case -EAGAIN:
 out_retry:
-	task->tk_status = 0;
-	/* Note: rpc_decode_header() may have freed the RPC slot */
-	if (task->tk_rqstp == req) {
-		xdr_free_bvec(&req->rq_rcv_buf);
-		req->rq_reply_bytes_recvd = req->rq_rcv_buf.len = 0;
-		if (task->tk_client->cl_discrtry)
-			xprt_conditional_disconnect(req->rq_xprt,
-					req->rq_connect_cookie);
+		task->tk_status = 0;
+		/* Note: rpc_decode_header() may have freed the RPC slot */
+		if (task->tk_rqstp == req) {
+			xdr_free_bvec(&req->rq_rcv_buf);
+			req->rq_reply_bytes_recvd = 0;
+			req->rq_rcv_buf.len = 0;
+			if (task->tk_client->cl_discrtry)
+				xprt_conditional_disconnect(req->rq_xprt,
+							    req->rq_connect_cookie);
+		}
 	}
 }
 
@@ -2347,14 +2345,12 @@ out_fail:
 	return error;
 }
 
-static noinline __be32 *
-rpc_decode_header(struct rpc_task *task)
+static noinline int
+rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_clnt *clnt = task->tk_client;
-	struct kvec *iov = &task->tk_rqstp->rq_rcv_buf.head[0];
-	int len = task->tk_rqstp->rq_rcv_buf.len >> 2;
-	__be32	*p = iov->iov_base;
 	int error = -EACCES;
+	__be32 *p;
 
 	/* RFC-1014 says that the representation of XDR data must be a
 	 * multiple of four bytes
@@ -2363,25 +2359,26 @@ rpc_decode_header(struct rpc_task *task)
 	 */
 	if (task->tk_rqstp->rq_rcv_buf.len & 3)
 		goto out_badlen;
-	if ((len -= 3) < 0)
-		goto out_unparsable;
 
+	p = xdr_inline_decode(xdr, 3 * sizeof(*p));
+	if (!p)
+		goto out_unparsable;
 	p++;	/* skip XID */
 	if (*p++ != rpc_reply)
 		goto out_unparsable;
 	if (*p++ != rpc_msg_accepted)
 		goto out_msg_denied;
 
-	p = rpcauth_checkverf(task, p);
-	if (IS_ERR(p))
+	error = rpcauth_checkverf(task, xdr);
+	if (error)
 		goto out_verifier;
 
-	len = p - (__be32 *)iov->iov_base - 1;
-	if (len < 0)
+	p = xdr_inline_decode(xdr, sizeof(*p));
+	if (!p)
 		goto out_unparsable;
-	switch (*p++) {
+	switch (*p) {
 	case rpc_success:
-		return p;
+		return 0;
 	case rpc_prog_unavail:
 		trace_rpc__prog_unavail(task);
 		error = -EPFNOSUPPORT;
@@ -2406,11 +2403,11 @@ out_garbage:
 	if (task->tk_garb_retry) {
 		task->tk_garb_retry--;
 		task->tk_action = call_encode;
-		return ERR_PTR(-EAGAIN);
+		return -EAGAIN;
 	}
 out_err:
 	rpc_exit(task, error);
-	return ERR_PTR(error);
+	return error;
 
 out_badlen:
 	trace_rpc__unparsable(task);
@@ -2424,10 +2421,12 @@ out_unparsable:
 
 out_verifier:
 	trace_rpc_bad_verifier(task);
-	error = PTR_ERR(p);
 	goto out_garbage;
 
 out_msg_denied:
+	p = xdr_inline_decode(xdr, sizeof(*p));
+	if (!p)
+		goto out_unparsable;
 	switch (*p++) {
 	case rpc_auth_error:
 		break;
@@ -2441,6 +2440,9 @@ out_msg_denied:
 		goto out_err;
 	}
 
+	p = xdr_inline_decode(xdr, sizeof(*p));
+	if (!p)
+		goto out_unparsable;
 	switch (*p++) {
 	case rpc_autherr_rejectedcred:
 	case rpc_autherr_rejectedverf:
@@ -2454,7 +2456,7 @@ out_msg_denied:
 		/* Ensure we obtain a new XID! */
 		xprt_release(task);
 		task->tk_action = call_reserve;
-		return ERR_PTR(-EAGAIN);
+		return -EAGAIN;
 	case rpc_autherr_badcred:
 	case rpc_autherr_badverf:
 		/* possibly garbled cred/verf? */
@@ -2463,7 +2465,7 @@ out_msg_denied:
 		task->tk_garb_retry--;
 		trace_rpc__bad_creds(task);
 		task->tk_action = call_encode;
-		return ERR_PTR(-EAGAIN);
+		return -EAGAIN;
 	case rpc_autherr_tooweak:
 		trace_rpc__auth_tooweak(task);
 		pr_warn("RPC: server %s requires stronger authentication.\n",
