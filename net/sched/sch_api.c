@@ -1909,7 +1909,9 @@ static void tc_bind_tclass(struct Qdisc *q, u32 portid, u32 clid,
 	block = cops->tcf_block(q, cl, NULL);
 	if (!block)
 		return;
-	list_for_each_entry(chain, &block->chain_list, list) {
+	for (chain = tcf_get_next_chain(block, NULL);
+	     chain;
+	     chain = tcf_get_next_chain(block, chain)) {
 		struct tcf_proto *tp;
 
 		for (tp = rtnl_dereference(chain->filter_chain);
