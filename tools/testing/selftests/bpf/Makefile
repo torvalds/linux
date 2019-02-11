@@ -28,12 +28,11 @@ TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test
 BPF_OBJ_FILES = $(patsubst %.c,%.o, $(notdir $(wildcard progs/*.c)))
 TEST_GEN_FILES = $(BPF_OBJ_FILES)
 
-# Also test sub-register code-gen if LLVM + kernel both has eBPF v3 processor
-# support which is the first version to contain both ALU32 and JMP32
-# instructions.
+# Also test sub-register code-gen if LLVM has eBPF v3 processor support which
+# contains both ALU32 and JMP32 instructions.
 SUBREG_CODEGEN := $(shell echo "int cal(int a) { return a > 0; }" | \
 			$(CLANG) -target bpf -O2 -emit-llvm -S -x c - -o - | \
-			$(LLC) -mattr=+alu32 -mcpu=probe 2>&1 | \
+			$(LLC) -mattr=+alu32 -mcpu=v3 2>&1 | \
 			grep 'if w')
 ifneq ($(SUBREG_CODEGEN),)
 TEST_GEN_FILES += $(patsubst %.o,alu32/%.o, $(BPF_OBJ_FILES))
