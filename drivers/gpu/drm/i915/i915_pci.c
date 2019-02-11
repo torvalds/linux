@@ -73,7 +73,7 @@
 		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 #define GLK_COLORS \
-	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024, \
+	.color = { .degamma_lut_size = 33, .gamma_lut_size = 1024, \
 		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
 					DRM_COLOR_LUT_EQUAL_CHANNELS, \
 	}
