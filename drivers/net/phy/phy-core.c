@@ -4,6 +4,7 @@
  */
 #include <linux/export.h>
 #include <linux/phy.h>
+#include <linux/of.h>
 
 const char *phy_speed_to_str(int speed)
 {
@@ -336,6 +337,50 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
 			speeds[count++] = settings[i].speed;
 
 	return count;
+}
+
+static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
+{
+	const struct phy_setting *p;
+	int i;
+
+	for (i = 0, p = settings; i < ARRAY_SIZE(settings); i++, p++) {
+		if (p->speed > max_speed)
+			linkmode_clear_bit(p->bit, phydev->supported);
+		else
+			break;
+	}
+
+	return 0;
+}
+
+int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
+{
+	int err;
+
+	err = __set_phy_supported(phydev, max_speed);
+	if (err)
+		return err;
+
+	linkmode_copy(phydev->advertising, phydev->supported);
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_set_max_speed);
+
+void of_set_phy_supported(struct phy_device *phydev)
+{
+	struct device_node *node = phydev->mdio.dev.of_node;
+	u32 max_speed;
+
+	if (!IS_ENABLED(CONFIG_OF_MDIO))
+		return;
+
+	if (!node)
+		return;
+
+	if (!of_property_read_u32(node, "max-speed", &max_speed))
+		__set_phy_supported(phydev, max_speed);
 }
 
 /**
