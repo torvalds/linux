@@ -84,6 +84,46 @@ governed by perf_event_paranoid [2]_ setting:
      locking limit is imposed but ignored for unprivileged processes with
      CAP_IPC_LOCK capability.
 
+perf_events/Perf resource control
+---------------------------------
+
+Open file descriptors
++++++++++++++++++++++
+
+The perf_events system call API [2]_ allocates file descriptors for every configured
+PMU event. Open file descriptors are a per-process accountable resource governed
+by the RLIMIT_NOFILE [11]_ limit (ulimit -n), which is usually derived from the login
+shell process. When configuring Perf collection for a long list of events on a
+large server system, this limit can be easily hit preventing required monitoring
+configuration. RLIMIT_NOFILE limit can be increased on per-user basis modifying
+content of the limits.conf file [12]_ . Ordinarily, a Perf sampling session
+(perf record) requires an amount of open perf_event file descriptors that is not
+less than the number of monitored events multiplied by the number of monitored CPUs.
+
+Memory allocation
++++++++++++++++++
+
+The amount of memory available to user processes for capturing performance monitoring
+data is governed by the perf_event_mlock_kb [2]_ setting. This perf_event specific
+resource setting defines overall per-cpu limits of memory allowed for mapping
+by the user processes to execute performance monitoring. The setting essentially
+extends the RLIMIT_MEMLOCK [11]_ limit, but only for memory regions mapped specifically
+for capturing monitored performance events and related data.
+
+For example, if a machine has eight cores and perf_event_mlock_kb limit is set
+to 516 KiB, then a user process is provided with 516 KiB * 8 = 4128 KiB of memory
+above the RLIMIT_MEMLOCK limit (ulimit -l) for perf_event mmap buffers. In particular,
+this means that, if the user wants to start two or more performance monitoring
+processes, the user is required to manually distribute the available 4128 KiB between the
+monitoring processes, for example, using the --mmap-pages Perf record mode option.
+Otherwise, the first started performance monitoring process allocates all available
+4128 KiB and the other processes will fail to proceed due to the lack of memory.
+
+RLIMIT_MEMLOCK and perf_event_mlock_kb resource constraints are ignored for
+processes with the CAP_IPC_LOCK capability. Thus, perf_events/Perf privileged users
+can be provided with memory above the constraints for perf_events/Perf performance
+monitoring purpose by providing the Perf executable with CAP_IPC_LOCK capability.
+
 Bibliography
 ------------
 
@@ -94,4 +134,6 @@ Bibliography
 .. [5] `<https://www.kernel.org/doc/html/latest/security/credentials.html>`_
 .. [6] `<http://man7.org/linux/man-pages/man7/capabilities.7.html>`_
 .. [7] `<http://man7.org/linux/man-pages/man2/ptrace.2.html>`_
+.. [11] `<http://man7.org/linux/man-pages/man2/getrlimit.2.html>`_
+.. [12] `<http://man7.org/linux/man-pages/man5/limits.conf.5.html>`_
 
