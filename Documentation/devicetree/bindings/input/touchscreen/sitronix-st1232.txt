@@ -10,6 +10,8 @@ Required properties:
 Optional properties:
 - gpios: a phandle to the reset GPIO
 
+For additional optional properties see: touchscreen.txt
+
 Example:
 
 	i2c@00000000 {

@@ -20,6 +20,7 @@
 #include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/input/touchscreen.h>
 
 #define ST1232_TS_NAME	"st1232-ts"
 #define ST1633_TS_NAME	"st1633-ts"
@@ -43,6 +44,7 @@ struct st_chip_info {
 struct st1232_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
+	struct touchscreen_properties prop;
 	struct dev_pm_qos_request low_latency_req;
 	struct gpio_desc *reset_gpio;
 	const struct st_chip_info *chip_info;
@@ -112,8 +114,8 @@ static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 			input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR,
 					 finger[i].t);
 
-		input_report_abs(input_dev, ABS_MT_POSITION_X, finger[i].x);
-		input_report_abs(input_dev, ABS_MT_POSITION_Y, finger[i].y);
+		touchscreen_report_pos(input_dev, &ts->prop,
+					finger[i].x, finger[i].y, true);
 		input_mt_sync(input_dev);
 		count++;
 	}
@@ -242,6 +244,8 @@ static int st1232_ts_probe(struct i2c_client *client,
 			     0, ts->chip_info->max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
 			     0, ts->chip_info->max_y, 0, 0);
+
+	touchscreen_parse_properties(input_dev, true, &ts->prop);
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, st1232_ts_irq_handler,
