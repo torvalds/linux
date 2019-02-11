@@ -492,7 +492,8 @@ static void mt76u_complete_rx(struct urb *urb)
 	case -ENOENT:
 		return;
 	default:
-		dev_err(dev->dev, "rx urb failed: %d\n", urb->status);
+		dev_err_ratelimited(dev->dev, "rx urb failed: %d\n",
+				    urb->status);
 		/* fall through */
 	case 0:
 		break;
