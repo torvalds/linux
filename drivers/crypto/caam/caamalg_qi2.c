@@ -5280,7 +5280,7 @@ int dpaa2_caam_enqueue(struct device *dev, struct caam_request *req)
 	}
 
 	if (unlikely(err)) {
-		dev_err(dev, "Error enqueuing frame: %d\n", err);
+		dev_err_ratelimited(dev, "Error enqueuing frame: %d\n", err);
 		goto err_out;
 	}
 
