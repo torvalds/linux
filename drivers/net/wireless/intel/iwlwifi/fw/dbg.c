@@ -1711,6 +1711,10 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 		if (!reg)
 			continue;
 
+		/* currently the driver supports always on domain only */
+		if (le32_to_cpu(reg->domain) != IWL_FW_INI_DBG_DOMAIN_ALWAYS_ON)
+			continue;
+
 		type = le32_to_cpu(reg->region_type);
 		switch (type) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
@@ -2319,6 +2323,10 @@ static void iwl_fw_dbg_send_hcmd(struct iwl_fw_runtime *fwrt,
 		.len = { len, },
 		.data = { data->data, },
 	};
+
+	/* currently the driver supports always on domain only */
+	if (le32_to_cpu(hcmd_tlv->domain) != IWL_FW_INI_DBG_DOMAIN_ALWAYS_ON)
+		return;
 
 	iwl_trans_send_cmd(fwrt->trans, &hcmd);
 }
