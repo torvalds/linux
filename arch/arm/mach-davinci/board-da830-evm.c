@@ -54,6 +54,14 @@ static const short da830_evm_usb11_pins[] = {
 
 static da8xx_ocic_handler_t da830_evm_usb_ocic_handler;
 
+static struct gpiod_lookup_table da830_evm_usb_gpio_lookup = {
+	.dev_id		= "ohci-da8xx",
+	.table = {
+		GPIO_LOOKUP("davinci_gpio", ON_BD_USB_DRV, "vbus", 0),
+		GPIO_LOOKUP("davinci_gpio", ON_BD_USB_OVC, "oc", 0),
+	},
+};
+
 static int da830_evm_usb_set_power(unsigned port, int on)
 {
 	gpio_set_value(ON_BD_USB_DRV, on);
@@ -157,6 +165,8 @@ static __init void da830_evm_usb_init(void)
 		return;
 	}
 	gpio_direction_input(ON_BD_USB_OVC);
+
+	gpiod_add_lookup_table(&da830_evm_usb_gpio_lookup);
 
 	ret = da8xx_register_usb11(&da830_evm_usb11_pdata);
 	if (ret)
