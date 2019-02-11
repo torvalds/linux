@@ -212,6 +212,8 @@ enum wmi_service {
 	WMI_SERVICE_PER_PACKET_SW_ENCRYPT,
 	WMI_SERVICE_REPORT_AIRTIME,
 
+	/* Remember to add the new value to wmi_service_name()! */
+
 	/* keep last */
 	WMI_SERVICE_MAX,
 };
@@ -378,7 +380,7 @@ enum wmi_10_4_service {
 	WMI_10_4_SERVICE_REPORT_AIRTIME,
 };
 
-static inline char *wmi_service_name(int service_id)
+static inline char *wmi_service_name(enum wmi_service service_id)
 {
 #define SVCSTR(x) case x: return #x
 
@@ -501,11 +503,13 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_PER_PACKET_SW_ENCRYPT);
 	SVCSTR(WMI_SERVICE_REPORT_AIRTIME);
 
-	default:
+	case WMI_SERVICE_MAX:
 		return NULL;
 	}
 
 #undef SVCSTR
+
+	return NULL;
 }
 
 #define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id, len) \
