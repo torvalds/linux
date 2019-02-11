@@ -1466,13 +1466,13 @@ static enum dc_status enable_link_dp_mst(
 	if (link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN)
 		return DC_OK;
 
-	/* to make sure the pending down rep can be processed
-	 * before clear payload table
-	 */
-	dm_helpers_dp_mst_poll_pending_down_reply(link->ctx, link);
-
 	/* clear payload table */
 	dm_helpers_dp_mst_clear_payload_allocation_table(link->ctx, link);
+
+	/* to make sure the pending down rep can be processed
+	 * before enabling the link
+	 */
+	dm_helpers_dp_mst_poll_pending_down_reply(link->ctx, link);
 
 	/* set the sink to MST mode before enabling the link */
 	dp_enable_mst_on_sink(link, true);
