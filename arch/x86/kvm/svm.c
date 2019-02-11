@@ -1795,9 +1795,10 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	/* Avoid using vmalloc for smaller buffers. */
 	size = npages * sizeof(struct page *);
 	if (size > PAGE_SIZE)
-		pages = vmalloc(size);
+		pages = __vmalloc(size, GFP_KERNEL_ACCOUNT | __GFP_ZERO,
+				  PAGE_KERNEL);
 	else
-		pages = kmalloc(size, GFP_KERNEL);
+		pages = kmalloc(size, GFP_KERNEL_ACCOUNT);
 
 	if (!pages)
 		return NULL;
@@ -1865,7 +1866,9 @@ static void __unregister_enc_region_locked(struct kvm *kvm,
 
 static struct kvm *svm_vm_alloc(void)
 {
-	struct kvm_svm *kvm_svm = vzalloc(sizeof(struct kvm_svm));
+	struct kvm_svm *kvm_svm = __vmalloc(sizeof(struct kvm_svm),
+					    GFP_KERNEL_ACCOUNT | __GFP_ZERO,
+					    PAGE_KERNEL);
 	return &kvm_svm->kvm;
 }
 
@@ -1940,7 +1943,7 @@ static int avic_vm_init(struct kvm *kvm)
 		return 0;
 
 	/* Allocating physical APIC ID table (4KB) */
-	p_page = alloc_page(GFP_KERNEL);
+	p_page = alloc_page(GFP_KERNEL_ACCOUNT);
 	if (!p_page)
 		goto free_avic;
 
@@ -1948,7 +1951,7 @@ static int avic_vm_init(struct kvm *kvm)
 	clear_page(page_address(p_page));
 
 	/* Allocating logical APIC ID table (4KB) */
-	l_page = alloc_page(GFP_KERNEL);
+	l_page = alloc_page(GFP_KERNEL_ACCOUNT);
 	if (!l_page)
 		goto free_avic;
 
@@ -2120,13 +2123,14 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	struct page *nested_msrpm_pages;
 	int err;
 
-	svm = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
+	svm = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL_ACCOUNT);
 	if (!svm) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	svm->vcpu.arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache, GFP_KERNEL);
+	svm->vcpu.arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache,
+						     GFP_KERNEL_ACCOUNT);
 	if (!svm->vcpu.arch.guest_fpu) {
 		printk(KERN_ERR "kvm: failed to allocate vcpu's fpu\n");
 		err = -ENOMEM;
@@ -2138,19 +2142,19 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 		goto free_svm;
 
 	err = -ENOMEM;
-	page = alloc_page(GFP_KERNEL);
+	page = alloc_page(GFP_KERNEL_ACCOUNT);
 	if (!page)
 		goto uninit;
 
-	msrpm_pages = alloc_pages(GFP_KERNEL, MSRPM_ALLOC_ORDER);
+	msrpm_pages = alloc_pages(GFP_KERNEL_ACCOUNT, MSRPM_ALLOC_ORDER);
 	if (!msrpm_pages)
 		goto free_page1;
 
-	nested_msrpm_pages = alloc_pages(GFP_KERNEL, MSRPM_ALLOC_ORDER);
+	nested_msrpm_pages = alloc_pages(GFP_KERNEL_ACCOUNT, MSRPM_ALLOC_ORDER);
 	if (!nested_msrpm_pages)
 		goto free_page2;
 
-	hsave_page = alloc_page(GFP_KERNEL);
+	hsave_page = alloc_page(GFP_KERNEL_ACCOUNT);
 	if (!hsave_page)
 		goto free_page3;
 
@@ -5192,7 +5196,7 @@ static int svm_ir_list_add(struct vcpu_svm *svm, struct amd_iommu_pi_data *pi)
 	 * Allocating new amd_iommu_pi_data, which will get
 	 * add to the per-vcpu ir_list.
 	 */
-	ir = kzalloc(sizeof(struct amd_svm_iommu_ir), GFP_KERNEL);
+	ir = kzalloc(sizeof(struct amd_svm_iommu_ir), GFP_KERNEL_ACCOUNT);
 	if (!ir) {
 		ret = -ENOMEM;
 		goto out;
@@ -6307,7 +6311,7 @@ static int sev_bind_asid(struct kvm *kvm, unsigned int handle, int *error)
 	if (ret)
 		return ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
 	if (!data)
 		return -ENOMEM;
 
@@ -6357,7 +6361,7 @@ static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
 		return -EFAULT;
 
-	start = kzalloc(sizeof(*start), GFP_KERNEL);
+	start = kzalloc(sizeof(*start), GFP_KERNEL_ACCOUNT);
 	if (!start)
 		return -ENOMEM;
 
@@ -6454,7 +6458,7 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
 		return -EFAULT;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
 	if (!data)
 		return -ENOMEM;
 
@@ -6531,7 +6535,7 @@ static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (copy_from_user(&params, measure, sizeof(params)))
 		return -EFAULT;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
 	if (!data)
 		return -ENOMEM;
 
@@ -6593,7 +6597,7 @@ static int sev_launch_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
 	if (!data)
 		return -ENOMEM;
 
@@ -6614,7 +6618,7 @@ static int sev_guest_status(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
 	if (!data)
 		return -ENOMEM;
 
@@ -6642,7 +6646,7 @@ static int __sev_issue_dbg_cmd(struct kvm *kvm, unsigned long src,
 	struct sev_data_dbg *data;
 	int ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
 	if (!data)
 		return -ENOMEM;
 
@@ -6897,7 +6901,7 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	}
 
 	ret = -ENOMEM;
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
 	if (!data)
 		goto e_unpin_memory;
 
@@ -7003,7 +7007,7 @@ static int svm_register_enc_region(struct kvm *kvm,
 	if (range->addr > ULONG_MAX || range->size > ULONG_MAX)
 		return -EINVAL;
 
-	region = kzalloc(sizeof(*region), GFP_KERNEL);
+	region = kzalloc(sizeof(*region), GFP_KERNEL_ACCOUNT);
 	if (!region)
 		return -ENOMEM;
 
