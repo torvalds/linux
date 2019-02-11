@@ -3080,6 +3080,7 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 
 	arsta->txrate.nss = txrate.nss;
 	arsta->txrate.bw = ath10k_bw_to_mac80211_bw(txrate.bw);
+	arsta->last_tx_bitrate = cfg80211_calculate_bitrate(&arsta->txrate);
 	if (sgi)
 		arsta->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
 
