@@ -4502,7 +4502,8 @@ static int __cold dpaa2_dpseci_dpio_setup(struct dpaa2_caam_priv *priv)
 		nctx->cb = dpaa2_caam_fqdan_cb;
 
 		/* Register notification callbacks */
-		err = dpaa2_io_service_register(NULL, nctx, dev);
+		ppriv->dpio = dpaa2_io_service_select(cpu);
+		err = dpaa2_io_service_register(ppriv->dpio, nctx, dev);
 		if (unlikely(err)) {
 			dev_dbg(dev, "No affine DPIO for cpu %d\n", cpu);
 			nctx->cb = NULL;
@@ -4535,7 +4536,7 @@ err:
 		ppriv = per_cpu_ptr(priv->ppriv, cpu);
 		if (!ppriv->nctx.cb)
 			break;
-		dpaa2_io_service_deregister(NULL, &ppriv->nctx, dev);
+		dpaa2_io_service_deregister(ppriv->dpio, &ppriv->nctx, dev);
 	}
 
 	for_each_online_cpu(cpu) {
@@ -4555,7 +4556,8 @@ static void __cold dpaa2_dpseci_dpio_free(struct dpaa2_caam_priv *priv)
 
 	for_each_online_cpu(cpu) {
 		ppriv = per_cpu_ptr(priv->ppriv, cpu);
-		dpaa2_io_service_deregister(NULL, &ppriv->nctx, priv->dev);
+		dpaa2_io_service_deregister(ppriv->dpio, &ppriv->nctx,
+					    priv->dev);
 		dpaa2_io_store_destroy(ppriv->store);
 
 		if (++i == priv->num_pairs)
@@ -4653,7 +4655,7 @@ static int dpaa2_caam_pull_fq(struct dpaa2_caam_priv_per_cpu *ppriv)
 
 	/* Retry while portal is busy */
 	do {
-		err = dpaa2_io_service_pull_fq(NULL, ppriv->rsp_fqid,
+		err = dpaa2_io_service_pull_fq(ppriv->dpio, ppriv->rsp_fqid,
 					       ppriv->store);
 	} while (err == -EBUSY);
 
@@ -4721,7 +4723,7 @@ static int dpaa2_dpseci_poll(struct napi_struct *napi, int budget)
 
 	if (cleaned < budget) {
 		napi_complete_done(napi, cleaned);
-		err = dpaa2_io_service_rearm(NULL, &ppriv->nctx);
+		err = dpaa2_io_service_rearm(ppriv->dpio, &ppriv->nctx);
 		if (unlikely(err))
 			dev_err(priv->dev, "Notification rearm failed: %d\n",
 				err);
@@ -4862,21 +4864,31 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 
 	i = 0;
 	for_each_online_cpu(cpu) {
-		dev_dbg(dev, "pair %d: rx queue %d, tx queue %d\n", i,
-			priv->rx_queue_attr[i].fqid,
-			priv->tx_queue_attr[i].fqid);
+		u8 j;
+
+		j = i % priv->num_pairs;
 
 		ppriv = per_cpu_ptr(priv->ppriv, cpu);
-		ppriv->req_fqid = priv->tx_queue_attr[i].fqid;
-		ppriv->rsp_fqid = priv->rx_queue_attr[i].fqid;
-		ppriv->prio = i;
+		ppriv->req_fqid = priv->tx_queue_attr[j].fqid;
+
+		/*
+		 * Allow all cores to enqueue, while only some of them
+		 * will take part in dequeuing.
+		 */
+		if (++i > priv->num_pairs)
+			continue;
+
+		ppriv->rsp_fqid = priv->rx_queue_attr[j].fqid;
+		ppriv->prio = j;
+
+		dev_dbg(dev, "pair %d: rx queue %d, tx queue %d\n", j,
+			priv->rx_queue_attr[j].fqid,
+			priv->tx_queue_attr[j].fqid);
 
 		ppriv->net_dev.dev = *dev;
 		INIT_LIST_HEAD(&ppriv->net_dev.napi_list);
 		netif_napi_add(&ppriv->net_dev, &ppriv->napi, dpaa2_dpseci_poll,
 			       DPAA2_CAAM_NAPI_WEIGHT);
-		if (++i == priv->num_pairs)
-			break;
 	}
 
 	return 0;
@@ -5228,7 +5240,8 @@ int dpaa2_caam_enqueue(struct device *dev, struct caam_request *req)
 {
 	struct dpaa2_fd fd;
 	struct dpaa2_caam_priv *priv = dev_get_drvdata(dev);
-	int err = 0, i, id;
+	struct dpaa2_caam_priv_per_cpu *ppriv;
+	int err = 0, i;
 
 	if (IS_ERR(req))
 		return PTR_ERR(req);
@@ -5258,20 +5271,13 @@ int dpaa2_caam_enqueue(struct device *dev, struct caam_request *req)
 	dpaa2_fd_set_len(&fd, dpaa2_fl_get_len(&req->fd_flt[1]));
 	dpaa2_fd_set_flc(&fd, req->flc_dma);
 
-	/*
-	 * There is no guarantee that preemption is disabled here,
-	 * thus take action.
-	 */
-	preempt_disable();
-	id = smp_processor_id() % priv->dpseci_attr.num_tx_queues;
+	ppriv = this_cpu_ptr(priv->ppriv);
 	for (i = 0; i < (priv->dpseci_attr.num_tx_queues << 1); i++) {
-		err = dpaa2_io_service_enqueue_fq(NULL,
-						  priv->tx_queue_attr[id].fqid,
+		err = dpaa2_io_service_enqueue_fq(ppriv->dpio, ppriv->req_fqid,
 						  &fd);
 		if (err != -EBUSY)
 			break;
 	}
-	preempt_enable();
 
 	if (unlikely(err)) {
 		dev_err(dev, "Error enqueuing frame: %d\n", err);
