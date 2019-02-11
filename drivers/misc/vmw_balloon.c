@@ -1287,7 +1287,7 @@ static void vmballoon_reset(struct vmballoon *b)
 	vmballoon_pop(b);
 
 	if (vmballoon_send_start(b, VMW_BALLOON_CAPABILITIES))
-		return;
+		goto unlock;
 
 	if ((b->capabilities & VMW_BALLOON_BATCHED_CMDS) != 0) {
 		if (vmballoon_init_batching(b)) {
@@ -1298,7 +1298,7 @@ static void vmballoon_reset(struct vmballoon *b)
 			 * The guest will retry in one second.
 			 */
 			vmballoon_send_start(b, 0);
-			return;
+			goto unlock;
 		}
 	} else if ((b->capabilities & VMW_BALLOON_BASIC_CMDS) != 0) {
 		vmballoon_deinit_batching(b);
@@ -1314,6 +1314,7 @@ static void vmballoon_reset(struct vmballoon *b)
 	if (vmballoon_send_guest_id(b))
 		pr_err("failed to send guest ID to the host\n");
 
+unlock:
 	up_write(&b->conf_sem);
 }
 
