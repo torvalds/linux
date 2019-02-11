@@ -786,17 +786,8 @@ static void
 cifs_compound_callback(struct mid_q_entry *mid)
 {
 	struct TCP_Server_Info *server = mid->server;
-	unsigned int optype = mid->optype;
-	unsigned int credits_received = 0;
 
-	if (mid->mid_state == MID_RESPONSE_RECEIVED) {
-		if (mid->resp_buf)
-			credits_received = server->ops->get_credits(mid);
-		else
-			cifs_dbg(FYI, "Bad state for cancelled MID\n");
-	}
-
-	add_credits(server, credits_received, optype);
+	add_credits(server, server->ops->get_credits(mid), mid->optype);
 }
 
 static void
