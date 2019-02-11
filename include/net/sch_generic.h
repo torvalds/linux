@@ -179,6 +179,7 @@ static inline int qdisc_avail_bulklimit(const struct netdev_queue *txq)
 }
 
 struct Qdisc_class_ops {
+	unsigned int		flags;
 	/* Child qdisc manipulation */
 	struct netdev_queue *	(*select_queue)(struct Qdisc *, struct tcmsg *);
 	int			(*graft)(struct Qdisc *, unsigned long cl,
@@ -208,6 +209,13 @@ struct Qdisc_class_ops {
 					struct sk_buff *skb, struct tcmsg*);
 	int			(*dump_stats)(struct Qdisc *, unsigned long,
 					struct gnet_dump *);
+};
+
+/* Qdisc_class_ops flag values */
+
+/* Implements API that doesn't require rtnl lock */
+enum qdisc_class_ops_flags {
+	QDISC_CLASS_OPS_DOIT_UNLOCKED = 1,
 };
 
 struct Qdisc_ops {
