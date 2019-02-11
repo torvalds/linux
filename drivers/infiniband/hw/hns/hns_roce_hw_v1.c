@@ -1871,9 +1871,8 @@ static int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 				  unsigned long mtpt_idx)
 {
 	struct hns_roce_v1_mpt_entry *mpt_entry;
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	u64 *pages;
-	int entry;
 	int i;
 
 	/* MPT filled into mailbox buf */
@@ -1928,8 +1927,8 @@ static int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 		return -ENOMEM;
 
 	i = 0;
-	for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
-		pages[i] = ((u64)sg_dma_address(sg)) >> 12;
+	for_each_sg_dma_page(mr->umem->sg_head.sgl, &sg_iter, mr->umem->nmap, 0) {
+		pages[i] = ((u64)sg_page_iter_dma_address(&sg_iter)) >> 12;
 
 		/* Directly record to MTPT table firstly 7 entry */
 		if (i >= HNS_ROCE_MAX_INNER_MTPT_NUM)
