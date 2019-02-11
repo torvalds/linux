@@ -1138,7 +1138,7 @@ static void i915_reset_device(struct drm_i915_private *i915,
 		intel_prepare_reset(i915);
 
 		/* Flush everyone using a resource about to be clobbered */
-		synchronize_srcu(&error->reset_backoff_srcu);
+		synchronize_srcu_expedited(&error->reset_backoff_srcu);
 
 		mutex_lock(&error->wedge_mutex);
 		i915_reset(i915, engine_mask, reason);
