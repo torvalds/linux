@@ -79,6 +79,7 @@ static int validate_keys_sizes(struct cc_cipher_ctx *ctx_p, u32 size)
 		default:
 			break;
 		}
+		break;
 	case S_DIN_to_DES:
 		if (size == DES3_EDE_KEY_SIZE || size == DES_KEY_SIZE)
 			return 0;
