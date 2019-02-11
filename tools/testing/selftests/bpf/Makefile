@@ -36,20 +36,14 @@ BPF_OBJ_FILES = \
 	get_cgroup_id_kern.o socket_cookie_prog.o test_select_reuseport_kern.o \
 	test_skb_cgroup_id_kern.o bpf_flow.o netcnt_prog.o test_xdp_vlan.o \
 	xdp_dummy.o test_map_in_map.o test_spin_lock.o test_map_lock.o \
-	test_sock_fields_kern.o
-
-# Objects are built with default compilation flags and with sub-register
-# code-gen enabled.
-BPF_OBJ_FILES_DUAL_COMPILE = \
-	test_pkt_access.o test_pkt_access.o test_xdp.o test_adjust_tail.o \
-	test_l4lb.o test_l4lb_noinline.o test_xdp_noinline.o test_tcp_estats.o \
+	test_pkt_access.o test_xdp.o test_adjust_tail.o test_l4lb.o \
+	test_l4lb_noinline.o test_xdp_noinline.o test_tcp_estats.o \
 	test_obj_id.o test_pkt_md_access.o test_tracepoint.o \
-	test_stacktrace_map.o test_stacktrace_map.o test_stacktrace_build_id.o \
-	test_stacktrace_build_id.o test_get_stack_rawtp.o \
-	test_get_stack_rawtp.o test_tracepoint.o test_sk_lookup_kern.o \
-	test_queue_map.o test_stack_map.o
+	test_stacktrace_map.o test_stacktrace_build_id.o \
+	test_get_stack_rawtp.o test_sk_lookup_kern.o test_queue_map.o \
+	test_stack_map.o test_sock_fields_kern.o
 
-TEST_GEN_FILES = $(BPF_OBJ_FILES) $(BPF_OBJ_FILES_DUAL_COMPILE)
+TEST_GEN_FILES = $(BPF_OBJ_FILES)
 
 # Also test sub-register code-gen if LLVM + kernel both has eBPF v3 processor
 # support which is the first version to contain both ALU32 and JMP32
@@ -59,7 +53,7 @@ SUBREG_CODEGEN := $(shell echo "int cal(int a) { return a > 0; }" | \
 			$(LLC) -mattr=+alu32 -mcpu=probe 2>&1 | \
 			grep 'if w')
 ifneq ($(SUBREG_CODEGEN),)
-TEST_GEN_FILES += $(patsubst %.o,alu32/%.o, $(BPF_OBJ_FILES_DUAL_COMPILE))
+TEST_GEN_FILES += $(patsubst %.o,alu32/%.o, $(BPF_OBJ_FILES))
 endif
 
 # Order correspond to 'make run_tests' order
