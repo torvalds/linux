@@ -436,6 +436,7 @@ static int img_update_realloc(unsigned long size)
 	ordernum = get_order(size);
 	image_update_buffer =
 		(unsigned char *)__get_free_pages(GFP_DMA32, ordernum);
+	spin_lock(&rbu_data.lock);
 	if (!image_update_buffer) {
 		pr_debug("Not enough memory for image update:"
 			"size = %ld\n", size);
@@ -446,7 +447,6 @@ static int img_update_realloc(unsigned long size)
 	if (WARN_ON_ONCE(img_buf_phys_addr > BIOS_SCAN_LIMIT))
 		return -EINVAL; /* can't happen per definition */
 
-	spin_lock(&rbu_data.lock);
 	rbu_data.image_update_buffer = image_update_buffer;
 	rbu_data.image_update_buffer_size = size;
 	rbu_data.bios_image_size = rbu_data.image_update_buffer_size;
