@@ -620,13 +620,12 @@ static void qedr_populate_pbls(struct qedr_dev *dev, struct ib_umem *umem,
 			       struct qedr_pbl *pbl,
 			       struct qedr_pbl_info *pbl_info, u32 pg_shift)
 {
-	int shift, pg_cnt, pages, pbe_cnt, total_num_pbes = 0;
+	int pbe_cnt, total_num_pbes = 0;
 	u32 fw_pg_cnt, fw_pg_per_umem_pg;
 	struct qedr_pbl *pbl_tbl;
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	struct regpair *pbe;
 	u64 pg_addr;
-	int entry;
 
 	if (!pbl_info->num_pbes)
 		return;
@@ -647,38 +646,32 @@ static void qedr_populate_pbls(struct qedr_dev *dev, struct ib_umem *umem,
 
 	pbe_cnt = 0;
 
-	shift = umem->page_shift;
+	fw_pg_per_umem_pg = BIT(PAGE_SHIFT - pg_shift);
 
-	fw_pg_per_umem_pg = BIT(umem->page_shift - pg_shift);
+	for_each_sg_dma_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		pg_addr = sg_page_iter_dma_address(&sg_iter);
+		for (fw_pg_cnt = 0; fw_pg_cnt < fw_pg_per_umem_pg;) {
+			pbe->lo = cpu_to_le32(pg_addr);
+			pbe->hi = cpu_to_le32(upper_32_bits(pg_addr));
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		pages = sg_dma_len(sg) >> shift;
-		pg_addr = sg_dma_address(sg);
-		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
-			for (fw_pg_cnt = 0; fw_pg_cnt < fw_pg_per_umem_pg;) {
-				pbe->lo = cpu_to_le32(pg_addr);
-				pbe->hi = cpu_to_le32(upper_32_bits(pg_addr));
+			pg_addr += BIT(pg_shift);
+			pbe_cnt++;
+			total_num_pbes++;
+			pbe++;
 
-				pg_addr += BIT(pg_shift);
-				pbe_cnt++;
-				total_num_pbes++;
-				pbe++;
+			if (total_num_pbes == pbl_info->num_pbes)
+				return;
 
-				if (total_num_pbes == pbl_info->num_pbes)
-					return;
-
-				/* If the given pbl is full storing the pbes,
-				 * move to next pbl.
-				 */
-				if (pbe_cnt ==
-				    (pbl_info->pbl_size / sizeof(u64))) {
-					pbl_tbl++;
-					pbe = (struct regpair *)pbl_tbl->va;
-					pbe_cnt = 0;
-				}
-
-				fw_pg_cnt++;
+			/* If the given pbl is full storing the pbes,
+			 * move to next pbl.
+			 */
+			if (pbe_cnt == (pbl_info->pbl_size / sizeof(u64))) {
+				pbl_tbl++;
+				pbe = (struct regpair *)pbl_tbl->va;
+				pbe_cnt = 0;
 			}
+
+			fw_pg_cnt++;
 		}
 	}
 }
@@ -739,7 +732,7 @@ static inline int qedr_init_user_queue(struct ib_udata *udata,
 	}
 
 	fw_pages = ib_umem_page_count(q->umem) <<
-	    (q->umem->page_shift - FW_PAGE_SHIFT);
+	    (PAGE_SHIFT - FW_PAGE_SHIFT);
 
 	rc = qedr_prepare_pbl_tbl(dev, &q->pbl_info, fw_pages, 0);
 	if (rc)
@@ -1455,7 +1448,7 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 		page_cnt = srq->usrq.pbl_info.num_pbes;
 		pbl_base_addr = srq->usrq.pbl_tbl->pa;
 		phy_prod_pair_addr = hw_srq->phy_prod_pair_addr;
-		page_size = BIT(srq->usrq.umem->page_shift);
+		page_size = PAGE_SIZE;
 	} else {
 		struct qed_chain *pbl;
 
@@ -2707,7 +2700,7 @@ struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 		goto err1;
 
 	qedr_populate_pbls(dev, mr->umem, mr->info.pbl_table,
-			   &mr->info.pbl_info, mr->umem->page_shift);
+			   &mr->info.pbl_info, PAGE_SHIFT);
 
 	rc = dev->ops->rdma_alloc_tid(dev->rdma_ctx, &mr->hw_mr.itid);
 	if (rc) {
@@ -2728,7 +2721,7 @@ struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	mr->hw_mr.pbl_ptr = mr->info.pbl_table[0].pa;
 	mr->hw_mr.pbl_two_level = mr->info.pbl_info.two_layered;
 	mr->hw_mr.pbl_page_size_log = ilog2(mr->info.pbl_info.pbl_size);
-	mr->hw_mr.page_size_log = mr->umem->page_shift;
+	mr->hw_mr.page_size_log = PAGE_SHIFT;
 	mr->hw_mr.fbo = ib_umem_offset(mr->umem);
 	mr->hw_mr.length = len;
 	mr->hw_mr.vaddr = usr_addr;
