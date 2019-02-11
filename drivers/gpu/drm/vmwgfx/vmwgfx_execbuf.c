@@ -217,7 +217,6 @@ static int vmw_cmd_ctx_first_setup(struct vmw_private *dev_priv,
 		sw_context->staged_bindings =
 			vmw_binding_state_alloc(dev_priv);
 		if (IS_ERR(sw_context->staged_bindings)) {
-			VMW_DEBUG_USER("Failed to alloc ctx binding info.\n");
 			ret = PTR_ERR(sw_context->staged_bindings);
 			sw_context->staged_bindings = NULL;
 			goto out_err;
@@ -227,7 +226,6 @@ static int vmw_cmd_ctx_first_setup(struct vmw_private *dev_priv,
 	if (sw_context->staged_bindings_inuse) {
 		node->staged = vmw_binding_state_alloc(dev_priv);
 		if (IS_ERR(node->staged)) {
-			VMW_DEBUG_USER("Failed to alloc ctx binding info.\n");
 			ret = PTR_ERR(node->staged);
 			node->staged = NULL;
 			goto out_err;
@@ -327,8 +325,10 @@ static int vmw_execbuf_res_noref_val_add(struct vmw_sw_context *sw_context,
 	if (priv_size && first_usage) {
 		ret = vmw_cmd_ctx_first_setup(dev_priv, sw_context, res,
 					      ctx_info);
-		if (ret)
+		if (ret) {
+			VMW_DEBUG_USER("Failed first usage context setup.\n");
 			return ret;
+		}
 	}
 
 	vmw_execbuf_rcache_update(rcache, res, ctx_info);
@@ -421,10 +421,8 @@ vmw_view_id_val_add(struct vmw_sw_context *sw_context,
 	struct vmw_resource *view;
 	int ret;
 
-	if (!ctx_node) {
-		VMW_DEBUG_USER("DX Context not set.\n");
+	if (!ctx_node)
 		return ERR_PTR(-EINVAL);
-	}
 
 	view = vmw_view_lookup(sw_context->man, view_type, id);
 	if (IS_ERR(view))
@@ -723,10 +721,8 @@ static int vmw_rebind_all_dx_query(struct vmw_resource *ctx_res)
 
 	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), ctx_res->id);
 
-	if (cmd == NULL) {
-		VMW_DEBUG_USER("Failed to rebind queries.\n");
+	if (cmd == NULL)
 		return -ENOMEM;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_ALL_QUERY;
 	cmd->header.size = sizeof(cmd->body);
@@ -761,8 +757,10 @@ static int vmw_rebind_contexts(struct vmw_sw_context *sw_context)
 		}
 
 		ret = vmw_rebind_all_dx_query(val->ctx);
-		if (ret != 0)
+		if (ret != 0) {
+			VMW_DEBUG_USER("Failed to rebind queries.\n");
 			return ret;
+		}
 	}
 
 	return 0;
@@ -2713,8 +2711,6 @@ static int vmw_cmd_dx_destroy_shader(struct vmw_private *dev_priv,
 
 	ret = vmw_shader_remove(sw_context->man, cmd->body.shaderId, 0,
 				&sw_context->staged_cmd_res);
-	if (ret)
-		VMW_DEBUG_USER("Could not find shader to remove.\n");
 
 	return ret;
 }
