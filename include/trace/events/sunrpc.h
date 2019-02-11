@@ -254,6 +254,73 @@ TRACE_EVENT(rpc_stats_latency,
 		__entry->backlog, __entry->rtt, __entry->execute)
 );
 
+TRACE_EVENT(rpc_xdr_overflow,
+	TP_PROTO(
+		const struct xdr_stream *xdr,
+		size_t requested
+	),
+
+	TP_ARGS(xdr, requested),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(int, version)
+		__field(size_t, requested)
+		__field(const void *, end)
+		__field(const void *, p)
+		__field(const void *, head_base)
+		__field(size_t, head_len)
+		__field(const void *, tail_base)
+		__field(size_t, tail_len)
+		__field(unsigned int, page_len)
+		__field(unsigned int, len)
+		__string(progname,
+			 xdr->rqst->rq_task->tk_client->cl_program->name)
+		__string(procedure,
+			 xdr->rqst->rq_task->tk_msg.rpc_proc->p_name)
+	),
+
+	TP_fast_assign(
+		if (xdr->rqst) {
+			const struct rpc_task *task = xdr->rqst->rq_task;
+
+			__entry->task_id = task->tk_pid;
+			__entry->client_id = task->tk_client->cl_clid;
+			__assign_str(progname,
+				     task->tk_client->cl_program->name)
+			__entry->version = task->tk_client->cl_vers;
+			__assign_str(procedure, task->tk_msg.rpc_proc->p_name)
+		} else {
+			__entry->task_id = 0;
+			__entry->client_id = 0;
+			__assign_str(progname, "unknown")
+			__entry->version = 0;
+			__assign_str(procedure, "unknown")
+		}
+		__entry->requested = requested;
+		__entry->end = xdr->end;
+		__entry->p = xdr->p;
+		__entry->head_base = xdr->buf->head[0].iov_base,
+		__entry->head_len = xdr->buf->head[0].iov_len,
+		__entry->page_len = xdr->buf->page_len,
+		__entry->tail_base = xdr->buf->tail[0].iov_base,
+		__entry->tail_len = xdr->buf->tail[0].iov_len,
+		__entry->len = xdr->buf->len;
+	),
+
+	TP_printk(
+		"task:%u@%u %sv%d %s requested=%zu p=%p end=%p xdr=[%p,%zu]/%u/[%p,%zu]/%u\n",
+		__entry->task_id, __entry->client_id,
+		__get_str(progname), __entry->version, __get_str(procedure),
+		__entry->requested, __entry->p, __entry->end,
+		__entry->head_base, __entry->head_len,
+		__entry->page_len,
+		__entry->tail_base, __entry->tail_len,
+		__entry->len
+	)
+);
+
 /*
  * First define the enums in the below macros to be exported to userspace
  * via TRACE_DEFINE_ENUM().
