@@ -862,6 +862,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 			btrfs_destroy_dev_replace_tgtdev(tgt_device);
 		break;
 	default:
+		up_write(&dev_replace->rwsem);
 		result = -EINVAL;
 	}
 
