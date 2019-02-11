@@ -477,9 +477,12 @@ static void __tcf_chain_put(struct tcf_chain *chain, bool by_act,
 	mutex_unlock(&block->lock);
 
 	/* The last dropped non-action reference will trigger notification. */
-	if (is_last && !by_act)
+	if (is_last && !by_act) {
 		tc_chain_notify_delete(tmplt_ops, tmplt_priv, chain_index,
 				       block, NULL, 0, 0, false);
+		/* Last reference to chain, no need to lock. */
+		chain->flushing = false;
+	}
 
 	if (refcnt == 0) {
 		tc_chain_tmplt_del(tmplt_ops, tmplt_priv);
@@ -511,6 +514,7 @@ static void tcf_chain_flush(struct tcf_chain *chain)
 	tp = tcf_chain_dereference(chain->filter_chain, chain);
 	RCU_INIT_POINTER(chain->filter_chain, NULL);
 	tcf_chain0_head_change(chain, NULL);
+	chain->flushing = true;
 	mutex_unlock(&chain->filter_chain_lock);
 
 	while (tp) {
@@ -1610,15 +1614,20 @@ static struct tcf_proto *tcf_chain_tp_prev(struct tcf_chain *chain,
 	return tcf_chain_dereference(*chain_info->pprev, chain);
 }
 
-static void tcf_chain_tp_insert(struct tcf_chain *chain,
-				struct tcf_chain_info *chain_info,
-				struct tcf_proto *tp)
+static int tcf_chain_tp_insert(struct tcf_chain *chain,
+			       struct tcf_chain_info *chain_info,
+			       struct tcf_proto *tp)
 {
+	if (chain->flushing)
+		return -EAGAIN;
+
 	if (*chain_info->pprev == chain->filter_chain)
 		tcf_chain0_head_change(chain, tp);
 	tcf_proto_get(tp);
 	RCU_INIT_POINTER(tp->next, tcf_chain_tp_prev(chain, chain_info));
 	rcu_assign_pointer(*chain_info->pprev, tp);
+
+	return 0;
 }
 
 static void tcf_chain_tp_remove(struct tcf_chain *chain,
@@ -1649,18 +1658,22 @@ static struct tcf_proto *tcf_chain_tp_insert_unique(struct tcf_chain *chain,
 {
 	struct tcf_chain_info chain_info;
 	struct tcf_proto *tp;
+	int err = 0;
 
 	mutex_lock(&chain->filter_chain_lock);
 
 	tp = tcf_chain_tp_find(chain, &chain_info,
 			       protocol, prio, false);
 	if (!tp)
-		tcf_chain_tp_insert(chain, &chain_info, tp_new);
+		err = tcf_chain_tp_insert(chain, &chain_info, tp_new);
 	mutex_unlock(&chain->filter_chain_lock);
 
 	if (tp) {
 		tcf_proto_destroy(tp_new, NULL);
 		tp_new = tp;
+	} else if (err) {
+		tcf_proto_destroy(tp_new, NULL);
+		tp_new = ERR_PTR(err);
 	}
 
 	return tp_new;
@@ -1943,6 +1956,11 @@ replay:
 	if (tp == NULL) {
 		struct tcf_proto *tp_new = NULL;
 
+		if (chain->flushing) {
+			err = -EAGAIN;
+			goto errout_locked;
+		}
+
 		/* Proto-tcf does not exist, create new one */
 
 		if (tca[TCA_KIND] == NULL || !protocol) {
@@ -1966,11 +1984,15 @@ replay:
 					  protocol, prio, chain, extack);
 		if (IS_ERR(tp_new)) {
 			err = PTR_ERR(tp_new);
-			goto errout;
+			goto errout_tp;
 		}
 
 		tp_created = 1;
 		tp = tcf_chain_tp_insert_unique(chain, tp_new, protocol, prio);
+		if (IS_ERR(tp)) {
+			err = PTR_ERR(tp);
+			goto errout_tp;
+		}
 	} else {
 		mutex_unlock(&chain->filter_chain_lock);
 	}
@@ -2011,6 +2033,7 @@ replay:
 errout:
 	if (err && tp_created)
 		tcf_chain_tp_delete_empty(chain, tp, NULL);
+errout_tp:
 	if (chain) {
 		if (tp && !IS_ERR(tp))
 			tcf_proto_put(tp, NULL);
