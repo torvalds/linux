@@ -2273,9 +2273,9 @@ static int megasas_get_ld_vf_affiliation_111(struct megasas_instance *instance,
 			       sizeof(struct MR_LD_VF_AFFILIATION_111));
 	else {
 		new_affiliation_111 =
-			dma_zalloc_coherent(&instance->pdev->dev,
-					      sizeof(struct MR_LD_VF_AFFILIATION_111),
-					      &new_affiliation_111_h, GFP_KERNEL);
+			dma_alloc_coherent(&instance->pdev->dev,
+					   sizeof(struct MR_LD_VF_AFFILIATION_111),
+					   &new_affiliation_111_h, GFP_KERNEL);
 		if (!new_affiliation_111) {
 			dev_printk(KERN_DEBUG, &instance->pdev->dev, "SR-IOV: Couldn't allocate "
 			       "memory for new affiliation for scsi%d\n",
@@ -2380,10 +2380,9 @@ static int megasas_get_ld_vf_affiliation_12(struct megasas_instance *instance,
 		       sizeof(struct MR_LD_VF_AFFILIATION));
 	else {
 		new_affiliation =
-			dma_zalloc_coherent(&instance->pdev->dev,
-					      (MAX_LOGICAL_DRIVES + 1) *
-					      sizeof(struct MR_LD_VF_AFFILIATION),
-					      &new_affiliation_h, GFP_KERNEL);
+			dma_alloc_coherent(&instance->pdev->dev,
+					   (MAX_LOGICAL_DRIVES + 1) * sizeof(struct MR_LD_VF_AFFILIATION),
+					   &new_affiliation_h, GFP_KERNEL);
 		if (!new_affiliation) {
 			dev_printk(KERN_DEBUG, &instance->pdev->dev, "SR-IOV: Couldn't allocate "
 			       "memory for new affiliation for scsi%d\n",
@@ -2546,9 +2545,10 @@ int megasas_sriov_start_heartbeat(struct megasas_instance *instance,
 
 	if (initial) {
 		instance->hb_host_mem =
-			dma_zalloc_coherent(&instance->pdev->dev,
-					      sizeof(struct MR_CTRL_HB_HOST_MEM),
-					      &instance->hb_host_mem_h, GFP_KERNEL);
+			dma_alloc_coherent(&instance->pdev->dev,
+					   sizeof(struct MR_CTRL_HB_HOST_MEM),
+					   &instance->hb_host_mem_h,
+					   GFP_KERNEL);
 		if (!instance->hb_host_mem) {
 			dev_printk(KERN_DEBUG, &instance->pdev->dev, "SR-IOV: Couldn't allocate"
 			       " memory for heartbeat host memory for scsi%d\n",
@@ -5816,9 +5816,9 @@ megasas_get_seq_num(struct megasas_instance *instance,
 	}
 
 	dcmd = &cmd->frame->dcmd;
-	el_info = dma_zalloc_coherent(&instance->pdev->dev,
-			sizeof(struct megasas_evt_log_info), &el_info_h,
-			GFP_KERNEL);
+	el_info = dma_alloc_coherent(&instance->pdev->dev,
+				     sizeof(struct megasas_evt_log_info),
+				     &el_info_h, GFP_KERNEL);
 	if (!el_info) {
 		megasas_return_cmd(instance, cmd);
 		return -ENOMEM;
@@ -6236,7 +6236,7 @@ megasas_set_dma_mask(struct megasas_instance *instance)
 		instance->consistent_mask_64bit = true;
 
 	dev_info(&pdev->dev, "%s bit DMA mask and %s bit consistent mask\n",
-		 ((*pdev->dev.dma_mask == DMA_BIT_MASK(64)) ? "63" : "32"),
+		 ((*pdev->dev.dma_mask == DMA_BIT_MASK(63)) ? "63" : "32"),
 		 (instance->consistent_mask_64bit ? "63" : "32"));
 
 	return 0;

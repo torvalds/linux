@@ -1029,8 +1029,8 @@ static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 	struct netsec_desc_ring *dring = &priv->desc_ring[id];
 	int i;
 
-	dring->vaddr = dma_zalloc_coherent(priv->dev, DESC_SZ * DESC_NUM,
-					   &dring->desc_dma, GFP_KERNEL);
+	dring->vaddr = dma_alloc_coherent(priv->dev, DESC_SZ * DESC_NUM,
+					  &dring->desc_dma, GFP_KERNEL);
 	if (!dring->vaddr)
 		goto err;
 

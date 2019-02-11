@@ -119,6 +119,7 @@ struct nvme_rdma_ctrl {
 
 	struct nvme_ctrl	ctrl;
 	bool			use_inline_data;
+	u32			io_queues[HCTX_MAX_TYPES];
 };
 
 static inline struct nvme_rdma_ctrl *to_rdma_ctrl(struct nvme_ctrl *ctrl)
@@ -165,8 +166,8 @@ static inline int nvme_rdma_queue_idx(struct nvme_rdma_queue *queue)
 static bool nvme_rdma_poll_queue(struct nvme_rdma_queue *queue)
 {
 	return nvme_rdma_queue_idx(queue) >
-		queue->ctrl->ctrl.opts->nr_io_queues +
-		queue->ctrl->ctrl.opts->nr_write_queues;
+		queue->ctrl->io_queues[HCTX_TYPE_DEFAULT] +
+		queue->ctrl->io_queues[HCTX_TYPE_READ];
 }
 
 static inline size_t nvme_rdma_inline_data_size(struct nvme_rdma_queue *queue)
@@ -661,8 +662,21 @@ static int nvme_rdma_alloc_io_queues(struct nvme_rdma_ctrl *ctrl)
 	nr_io_queues = min_t(unsigned int, nr_io_queues,
 				ibdev->num_comp_vectors);
 
-	nr_io_queues += min(opts->nr_write_queues, num_online_cpus());
-	nr_io_queues += min(opts->nr_poll_queues, num_online_cpus());
+	if (opts->nr_write_queues) {
+		ctrl->io_queues[HCTX_TYPE_DEFAULT] =
+				min(opts->nr_write_queues, nr_io_queues);
+		nr_io_queues += ctrl->io_queues[HCTX_TYPE_DEFAULT];
+	} else {
+		ctrl->io_queues[HCTX_TYPE_DEFAULT] = nr_io_queues;
+	}
+
+	ctrl->io_queues[HCTX_TYPE_READ] = nr_io_queues;
+
+	if (opts->nr_poll_queues) {
+		ctrl->io_queues[HCTX_TYPE_POLL] =
+			min(opts->nr_poll_queues, num_online_cpus());
+		nr_io_queues += ctrl->io_queues[HCTX_TYPE_POLL];
+	}
 
 	ret = nvme_set_queue_count(&ctrl->ctrl, &nr_io_queues);
 	if (ret)
@@ -1689,18 +1703,28 @@ static enum blk_eh_timer_return
 nvme_rdma_timeout(struct request *rq, bool reserved)
 {
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
+	struct nvme_rdma_queue *queue = req->queue;
+	struct nvme_rdma_ctrl *ctrl = queue->ctrl;
 
-	dev_warn(req->queue->ctrl->ctrl.device,
-		 "I/O %d QID %d timeout, reset controller\n",
-		 rq->tag, nvme_rdma_queue_idx(req->queue));
+	dev_warn(ctrl->ctrl.device, "I/O %d QID %d timeout\n",
+		 rq->tag, nvme_rdma_queue_idx(queue));
 
-	/* queue error recovery */
-	nvme_rdma_error_recovery(req->queue->ctrl);
+	if (ctrl->ctrl.state != NVME_CTRL_LIVE) {
+		/*
+		 * Teardown immediately if controller times out while starting
+		 * or we are already started error recovery. all outstanding
+		 * requests are completed on shutdown, so we return BLK_EH_DONE.
+		 */
+		flush_work(&ctrl->err_work);
+		nvme_rdma_teardown_io_queues(ctrl, false);
+		nvme_rdma_teardown_admin_queue(ctrl, false);
+		return BLK_EH_DONE;
+	}
 
-	/* fail with DNR on cmd timeout */
-	nvme_req(rq)->status = NVME_SC_ABORT_REQ | NVME_SC_DNR;
+	dev_warn(ctrl->ctrl.device, "starting error recovery\n");
+	nvme_rdma_error_recovery(ctrl);
 
-	return BLK_EH_DONE;
+	return BLK_EH_RESET_TIMER;
 }
 
 static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -1779,17 +1803,15 @@ static int nvme_rdma_map_queues(struct blk_mq_tag_set *set)
 	struct nvme_rdma_ctrl *ctrl = set->driver_data;
 
 	set->map[HCTX_TYPE_DEFAULT].queue_offset = 0;
-	set->map[HCTX_TYPE_READ].nr_queues = ctrl->ctrl.opts->nr_io_queues;
+	set->map[HCTX_TYPE_DEFAULT].nr_queues =
+			ctrl->io_queues[HCTX_TYPE_DEFAULT];
+	set->map[HCTX_TYPE_READ].nr_queues = ctrl->io_queues[HCTX_TYPE_READ];
 	if (ctrl->ctrl.opts->nr_write_queues) {
 		/* separate read/write queues */
-		set->map[HCTX_TYPE_DEFAULT].nr_queues =
-				ctrl->ctrl.opts->nr_write_queues;
 		set->map[HCTX_TYPE_READ].queue_offset =
-				ctrl->ctrl.opts->nr_write_queues;
+				ctrl->io_queues[HCTX_TYPE_DEFAULT];
 	} else {
 		/* mixed read/write queues */
-		set->map[HCTX_TYPE_DEFAULT].nr_queues =
-				ctrl->ctrl.opts->nr_io_queues;
 		set->map[HCTX_TYPE_READ].queue_offset = 0;
 	}
 	blk_mq_rdma_map_queues(&set->map[HCTX_TYPE_DEFAULT],
@@ -1799,12 +1821,12 @@ static int nvme_rdma_map_queues(struct blk_mq_tag_set *set)
 
 	if (ctrl->ctrl.opts->nr_poll_queues) {
 		set->map[HCTX_TYPE_POLL].nr_queues =
-				ctrl->ctrl.opts->nr_poll_queues;
+				ctrl->io_queues[HCTX_TYPE_POLL];
 		set->map[HCTX_TYPE_POLL].queue_offset =
-				ctrl->ctrl.opts->nr_io_queues;
+				ctrl->io_queues[HCTX_TYPE_DEFAULT];
 		if (ctrl->ctrl.opts->nr_write_queues)
 			set->map[HCTX_TYPE_POLL].queue_offset +=
-				ctrl->ctrl.opts->nr_write_queues;
+				ctrl->io_queues[HCTX_TYPE_READ];
 		blk_mq_map_queues(&set->map[HCTX_TYPE_POLL]);
 	}
 	return 0;

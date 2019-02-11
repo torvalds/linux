@@ -2564,9 +2564,8 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 	wq->rqt_abs_idx = (wq->rqt_hwaddr - rdev->lldi.vr->rq.start) >>
 		T4_RQT_ENTRY_SHIFT;
 
-	wq->queue = dma_zalloc_coherent(&rdev->lldi.pdev->dev,
-				       wq->memsize, &wq->dma_addr,
-			GFP_KERNEL);
+	wq->queue = dma_alloc_coherent(&rdev->lldi.pdev->dev, wq->memsize,
+				       &wq->dma_addr, GFP_KERNEL);
 	if (!wq->queue)
 		goto err_free_rqtpool;
 
