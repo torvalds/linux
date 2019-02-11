@@ -244,8 +244,11 @@ static void tcf_chain0_head_change(struct tcf_chain *chain,
 
 	if (chain->index)
 		return;
+
+	mutex_lock(&block->lock);
 	list_for_each_entry(item, &block->chain0.filter_chain_list, list)
 		tcf_chain_head_change_item(item, tp_head);
+	mutex_unlock(&block->lock);
 }
 
 /* Returns true if block can be safely freed. */
@@ -756,8 +759,8 @@ tcf_chain0_head_change_cb_add(struct tcf_block *block,
 			      struct tcf_block_ext_info *ei,
 			      struct netlink_ext_ack *extack)
 {
-	struct tcf_chain *chain0 = block->chain0.chain;
 	struct tcf_filter_chain_list_item *item;
+	struct tcf_chain *chain0;
 
 	item = kmalloc(sizeof(*item), GFP_KERNEL);
 	if (!item) {
@@ -766,9 +769,14 @@ tcf_chain0_head_change_cb_add(struct tcf_block *block,
 	}
 	item->chain_head_change = ei->chain_head_change;
 	item->chain_head_change_priv = ei->chain_head_change_priv;
+
+	mutex_lock(&block->lock);
+	chain0 = block->chain0.chain;
 	if (chain0 && chain0->filter_chain)
 		tcf_chain_head_change_item(item, chain0->filter_chain);
 	list_add(&item->list, &block->chain0.filter_chain_list);
+	mutex_unlock(&block->lock);
+
 	return 0;
 }
 
@@ -776,20 +784,23 @@ static void
 tcf_chain0_head_change_cb_del(struct tcf_block *block,
 			      struct tcf_block_ext_info *ei)
 {
-	struct tcf_chain *chain0 = block->chain0.chain;
 	struct tcf_filter_chain_list_item *item;
 
+	mutex_lock(&block->lock);
 	list_for_each_entry(item, &block->chain0.filter_chain_list, list) {
 		if ((!ei->chain_head_change && !ei->chain_head_change_priv) ||
 		    (item->chain_head_change == ei->chain_head_change &&
 		     item->chain_head_change_priv == ei->chain_head_change_priv)) {
-			if (chain0)
+			if (block->chain0.chain)
 				tcf_chain_head_change_item(item, NULL);
 			list_del(&item->list);
+			mutex_unlock(&block->lock);
+
 			kfree(item);
 			return;
 		}
 	}
+	mutex_unlock(&block->lock);
 	WARN_ON(1);
 }
 
