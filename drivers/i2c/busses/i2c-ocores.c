@@ -28,9 +28,9 @@
 
 #define OCORES_FLAG_POLL BIT(0)
 
-/**
- * @process_lock: protect I2C transfer process.
- *     ocores_process() and ocores_process_timeout() can't run in parallel.
+/*
+ * 'process_lock' exists because ocores_process() and ocores_process_timeout()
+ * can't run in parallel.
  */
 struct ocores_i2c {
 	void __iomem *base;
