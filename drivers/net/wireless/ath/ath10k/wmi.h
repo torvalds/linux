@@ -209,6 +209,7 @@ enum wmi_service {
 	WMI_SERVICE_BB_TIMING_CONFIG_SUPPORT,
 	WMI_SERVICE_THERM_THROT,
 	WMI_SERVICE_RTT_RESPONDER_ROLE,
+	WMI_SERVICE_PER_PACKET_SW_ENCRYPT,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -489,6 +490,7 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_TX_DATA_ACK_RSSI);
 	SVCSTR(WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT);
 	SVCSTR(WMI_SERVICE_RTT_RESPONDER_ROLE);
+	SVCSTR(WMI_SERVICE_PER_PACKET_SW_ENCRYPT);
 
 	default:
 		return NULL;
@@ -586,6 +588,8 @@ static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS, len);
 	SVCMAP(WMI_10X_SERVICE_BB_TIMING_CONFIG_SUPPORT,
 	       WMI_SERVICE_BB_TIMING_CONFIG_SUPPORT, len);
+	SVCMAP(WMI_10X_SERVICE_PER_PACKET_SW_ENCRYPT,
+	       WMI_SERVICE_PER_PACKET_SW_ENCRYPT, len);
 }
 
 static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out,
@@ -808,6 +812,8 @@ static inline void wmi_10_4_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_VDEV_DISABLE_4_ADDR_SRC_LRN_SUPPORT, len);
 	SVCMAP(WMI_10_4_SERVICE_RTT_RESPONDER_ROLE,
 	       WMI_SERVICE_RTT_RESPONDER_ROLE, len);
+	SVCMAP(WMI_10_4_SERVICE_PER_PACKET_SW_ENCRYPT,
+	       WMI_SERVICE_PER_PACKET_SW_ENCRYPT, len);
 }
 
 #undef SVCMAP
