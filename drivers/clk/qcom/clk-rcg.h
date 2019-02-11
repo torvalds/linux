@@ -138,6 +138,7 @@ extern const struct clk_ops clk_dyn_rcg_ops;
  * @parent_map: map from software's parent index to hardware's src_sel field
  * @freq_tbl: frequency table
  * @clkr: regmap clock handle
+ * @cfg_off: defines the cfg register offset from the CMD_RCGR + CFG_REG
  */
 struct clk_rcg2 {
 	u32			cmd_rcgr;
@@ -147,6 +148,7 @@ struct clk_rcg2 {
 	const struct parent_map	*parent_map;
 	const struct freq_tbl	*freq_tbl;
 	struct clk_regmap	clkr;
+	u8			cfg_off;
 };
 
 #define to_clk_rcg2(_hw) container_of(to_clk_regmap(_hw), struct clk_rcg2, clkr)
