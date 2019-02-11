@@ -2596,6 +2596,7 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 	u8 tid;
 	int ret;
 	int i;
+	bool may_tx;
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch ind\n");
 
@@ -2668,8 +2669,13 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 		num_msdus = 0;
 		num_bytes = 0;
 
+		ieee80211_txq_schedule_start(hw, txq->ac);
+		may_tx = ieee80211_txq_may_transmit(hw, txq);
 		while (num_msdus < max_num_msdus &&
 		       num_bytes < max_num_bytes) {
+			if (!may_tx)
+				break;
+
 			ret = ath10k_mac_tx_push_txq(hw, txq);
 			if (ret < 0)
 				break;
@@ -2677,6 +2683,8 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 			num_msdus++;
 			num_bytes += ret;
 		}
+		ieee80211_return_txq(hw, txq);
+		ieee80211_txq_schedule_end(hw, txq->ac);
 
 		record->num_msdus = cpu_to_le16(num_msdus);
 		record->num_bytes = cpu_to_le32(num_bytes);
