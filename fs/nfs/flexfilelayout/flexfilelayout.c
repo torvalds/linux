@@ -1252,7 +1252,7 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 		if (ff_layout_choose_best_ds_for_read(hdr->lseg,
 					hdr->pgio_mirror_idx + 1,
 					&hdr->pgio_mirror_idx))
-			goto out_eagain;
+			goto out_layouterror;
 		set_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
 		return task->tk_status;
 	case -NFS4ERR_RESET_TO_MDS:
@@ -1263,6 +1263,8 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 	}
 
 	return 0;
+out_layouterror:
+	ff_layout_send_layouterror(hdr->lseg);
 out_eagain:
 	rpc_restart_call_prepare(task);
 	return -EAGAIN;
@@ -1412,9 +1414,10 @@ static void ff_layout_read_release(void *data)
 	struct nfs_pgio_header *hdr = data;
 
 	ff_layout_read_record_layoutstats_done(&hdr->task, hdr);
-	if (test_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags))
+	if (test_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags)) {
+		ff_layout_send_layouterror(hdr->lseg);
 		pnfs_read_resend_pnfs(hdr);
-	else if (test_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags))
+	} else if (test_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags))
 		ff_layout_reset_read(hdr);
 	pnfs_generic_rw_release(data);
 }
@@ -1586,9 +1589,10 @@ static void ff_layout_write_release(void *data)
 	struct nfs_pgio_header *hdr = data;
 
 	ff_layout_write_record_layoutstats_done(&hdr->task, hdr);
-	if (test_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags))
+	if (test_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags)) {
+		ff_layout_send_layouterror(hdr->lseg);
 		ff_layout_reset_write(hdr, true);
-	else if (test_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags))
+	} else if (test_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags))
 		ff_layout_reset_write(hdr, false);
 	pnfs_generic_rw_release(data);
 }
@@ -2118,6 +2122,52 @@ out_nomem_free:
 out_nomem:
 	return -ENOMEM;
 }
+
+#ifdef CONFIG_NFS_V4_2
+void
+ff_layout_send_layouterror(struct pnfs_layout_segment *lseg)
+{
+	struct pnfs_layout_hdr *lo = lseg->pls_layout;
+	struct nfs42_layout_error *errors;
+	LIST_HEAD(head);
+
+	if (!nfs_server_capable(lo->plh_inode, NFS_CAP_LAYOUTERROR))
+		return;
+	ff_layout_fetch_ds_ioerr(lo, &lseg->pls_range, &head, -1);
+	if (list_empty(&head))
+		return;
+
+	errors = kmalloc_array(NFS42_LAYOUTERROR_MAX,
+			sizeof(*errors), GFP_NOFS);
+	if (errors != NULL) {
+		const struct nfs4_ff_layout_ds_err *pos;
+		size_t n = 0;
+
+		list_for_each_entry(pos, &head, list) {
+			errors[n].offset = pos->offset;
+			errors[n].length = pos->length;
+			nfs4_stateid_copy(&errors[n].stateid, &pos->stateid);
+			errors[n].errors[0].dev_id = pos->deviceid;
+			errors[n].errors[0].status = pos->status;
+			errors[n].errors[0].opnum = pos->opnum;
+			n++;
+			if (!list_is_last(&pos->list, &head) &&
+			    n < NFS42_LAYOUTERROR_MAX)
+				continue;
+			if (nfs42_proc_layouterror(lseg, errors, n) < 0)
+				break;
+			n = 0;
+		}
+		kfree(errors);
+	}
+	ff_layout_free_ds_ioerr(&head);
+}
+#else
+void
+ff_layout_send_layouterror(struct pnfs_layout_segment *lseg)
+{
+}
+#endif
 
 static int
 ff_layout_ntop4(const struct sockaddr *sap, char *buf, const size_t buflen)
