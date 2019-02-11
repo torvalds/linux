@@ -840,10 +840,11 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 			    u32 num_pbes)
 {
 	struct ocrdma_pbe *pbe;
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	struct ocrdma_pbl *pbl_tbl = mr->hwmr.pbl_table;
 	struct ib_umem *umem = mr->umem;
-	int shift, pg_cnt, pages, pbe_cnt, entry, total_num_pbes = 0;
+	int pbe_cnt, total_num_pbes = 0;
+	u64 pg_addr;
 
 	if (!mr->hwmr.num_pbes)
 		return;
@@ -851,36 +852,26 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 	pbe = (struct ocrdma_pbe *)pbl_tbl->va;
 	pbe_cnt = 0;
 
-	shift = umem->page_shift;
+	for_each_sg_dma_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		/* store the page address in pbe */
+		pg_addr = sg_page_iter_dma_address(&sg_iter);
+		pbe->pa_lo = cpu_to_le32(pg_addr);
+		pbe->pa_hi = cpu_to_le32(upper_32_bits(pg_addr));
+		pbe_cnt += 1;
+		total_num_pbes += 1;
+		pbe++;
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		pages = sg_dma_len(sg) >> shift;
-		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
-			/* store the page address in pbe */
-			pbe->pa_lo =
-			    cpu_to_le32(sg_dma_address(sg) +
-					(pg_cnt << shift));
-			pbe->pa_hi =
-			    cpu_to_le32(upper_32_bits(sg_dma_address(sg) +
-					 (pg_cnt << shift)));
-			pbe_cnt += 1;
-			total_num_pbes += 1;
-			pbe++;
+		/* if done building pbes, issue the mbx cmd. */
+		if (total_num_pbes == num_pbes)
+			return;
 
-			/* if done building pbes, issue the mbx cmd. */
-			if (total_num_pbes == num_pbes)
-				return;
-
-			/* if the given pbl is full storing the pbes,
-			 * move to next pbl.
-			 */
-			if (pbe_cnt ==
-				(mr->hwmr.pbl_size / sizeof(u64))) {
-				pbl_tbl++;
-				pbe = (struct ocrdma_pbe *)pbl_tbl->va;
-				pbe_cnt = 0;
-			}
-
+		/* if the given pbl is full storing the pbes,
+		 * move to next pbl.
+		 */
+		if (pbe_cnt == (mr->hwmr.pbl_size / sizeof(u64))) {
+			pbl_tbl++;
+			pbe = (struct ocrdma_pbe *)pbl_tbl->va;
+			pbe_cnt = 0;
 		}
 	}
 }
@@ -912,7 +903,7 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	if (status)
 		goto umem_err;
 
-	mr->hwmr.pbe_size = BIT(mr->umem->page_shift);
+	mr->hwmr.pbe_size = PAGE_SIZE;
 	mr->hwmr.fbo = ib_umem_offset(mr->umem);
 	mr->hwmr.va = usr_addr;
 	mr->hwmr.len = len;
