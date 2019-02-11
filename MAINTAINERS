@@ -8070,7 +8070,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andy/linux-gpio-intel.git
 F:	drivers/gpio/gpio-*cove.c
 F:	drivers/gpio/gpio-msic.c
 
-INTEL MULTIFUNCTION PMIC DEVICE DRIVERS
+INTEL PMIC MULTIFUNCTION DEVICE DRIVERS
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 S:	Maintained
 F:	drivers/mfd/intel_msic.c
