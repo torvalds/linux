@@ -59,6 +59,7 @@ parameter, that specific channel is requested using the dmaengine and a thread
 is created with the existing parameters. This thread is set as pending
 and will be executed once run is set to 1. Any parameters set after the thread
 is created are not applied.
+
 .. hint::
   available channel list could be extracted by running the following command::
 
