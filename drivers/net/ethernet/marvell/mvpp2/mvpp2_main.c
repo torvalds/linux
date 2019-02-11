@@ -1106,7 +1106,7 @@ static void mvpp22_gop_unmask_irq(struct mvpp2_port *port)
 	if (port->gop_id == 0) {
 		/* Enable the XLG/GIG irqs for this port */
 		val = readl(port->base + MVPP22_XLG_EXT_INT_MASK);
-		if (port->phy_interface == PHY_INTERFACE_MODE_10GKR)
+		if (mvpp2_is_xlg(port->phy_interface))
 			val |= MVPP22_XLG_EXT_INT_MASK_XLG;
 		else
 			val |= MVPP22_XLG_EXT_INT_MASK_GIG;
@@ -2456,8 +2456,7 @@ static irqreturn_t mvpp2_link_status_isr(int irq, void *dev_id)
 
 	mvpp22_gop_mask_irq(port);
 
-	if (port->gop_id == 0 &&
-	    port->phy_interface == PHY_INTERFACE_MODE_10GKR) {
+	if (port->gop_id == 0 && mvpp2_is_xlg(port->phy_interface)) {
 		val = readl(port->base + MVPP22_XLG_INT_STAT);
 		if (val & MVPP22_XLG_INT_STAT_LINK) {
 			event = true;
@@ -4665,7 +4664,7 @@ static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 	bool change_interface = port->phy_interface != state->interface;
 
 	/* Check for invalid configuration */
-	if (state->interface == PHY_INTERFACE_MODE_10GKR && port->gop_id != 0) {
+	if (mvpp2_is_xlg(state->interface) && port->gop_id != 0) {
 		netdev_err(dev, "Invalid mode on %s\n", dev->name);
 		return;
 	}
@@ -4685,7 +4684,7 @@ static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 	}
 
 	/* mac (re)configuration */
-	if (state->interface == PHY_INTERFACE_MODE_10GKR)
+	if (mvpp2_is_xlg(state->interface))
 		mvpp2_xlg_config(port, mode, state);
 	else if (phy_interface_mode_is_rgmii(state->interface) ||
 		 phy_interface_mode_is_8023z(state->interface) ||
@@ -4707,8 +4706,7 @@ static void mvpp2_mac_link_up(struct net_device *dev, unsigned int mode,
 	struct mvpp2_port *port = netdev_priv(dev);
 	u32 val;
 
-	if (!phylink_autoneg_inband(mode) &&
-	    interface != PHY_INTERFACE_MODE_10GKR) {
+	if (!phylink_autoneg_inband(mode) && !mvpp2_is_xlg(interface)) {
 		val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 		val &= ~MVPP2_GMAC_FORCE_LINK_DOWN;
 		val |= MVPP2_GMAC_FORCE_LINK_PASS;
@@ -4728,8 +4726,7 @@ static void mvpp2_mac_link_down(struct net_device *dev, unsigned int mode,
 	struct mvpp2_port *port = netdev_priv(dev);
 	u32 val;
 
-	if (!phylink_autoneg_inband(mode) &&
-	    interface != PHY_INTERFACE_MODE_10GKR) {
+	if (!phylink_autoneg_inband(mode) && !mvpp2_is_xlg(interface)) {
 		val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 		val &= ~MVPP2_GMAC_FORCE_LINK_PASS;
 		val |= MVPP2_GMAC_FORCE_LINK_DOWN;
