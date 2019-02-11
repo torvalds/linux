@@ -9885,10 +9885,13 @@ enum skl_power_gate {
 #define _PIPE_A_CSC_COEFF_BU	0x4901c
 #define _PIPE_A_CSC_COEFF_RV_GV	0x49020
 #define _PIPE_A_CSC_COEFF_BV	0x49024
+
 #define _PIPE_A_CSC_MODE	0x49028
-#define   CSC_BLACK_SCREEN_OFFSET	(1 << 2)
-#define   CSC_POSITION_BEFORE_GAMMA	(1 << 1)
-#define   CSC_MODE_YUV_TO_RGB		(1 << 0)
+#define  ICL_CSC_ENABLE			(1 << 31)
+#define  CSC_BLACK_SCREEN_OFFSET	(1 << 2)
+#define  CSC_POSITION_BEFORE_GAMMA	(1 << 1)
+#define  CSC_MODE_YUV_TO_RGB		(1 << 0)
+
 #define _PIPE_A_CSC_PREOFF_HI	0x49030
 #define _PIPE_A_CSC_PREOFF_ME	0x49034
 #define _PIPE_A_CSC_PREOFF_LO	0x49038
