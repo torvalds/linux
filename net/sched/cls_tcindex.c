@@ -221,14 +221,6 @@ found:
 	return 0;
 }
 
-static int tcindex_destroy_element(struct tcf_proto *tp,
-				   void *arg, struct tcf_walker *walker)
-{
-	bool last;
-
-	return tcindex_delete(tp, arg, &last, NULL);
-}
-
 static void tcindex_destroy_work(struct work_struct *work)
 {
 	struct tcindex_data *p = container_of(to_rcu_work(work),
@@ -279,7 +271,7 @@ static void tcindex_free_perfect_hash(struct tcindex_data *cp)
 	kfree(cp->perfect);
 }
 
-static int tcindex_alloc_perfect_hash(struct tcindex_data *cp)
+static int tcindex_alloc_perfect_hash(struct net *net, struct tcindex_data *cp)
 {
 	int i, err = 0;
 
@@ -293,6 +285,9 @@ static int tcindex_alloc_perfect_hash(struct tcindex_data *cp)
 				    TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
 		if (err < 0)
 			goto errout;
+#ifdef CONFIG_NET_CLS_ACT
+		cp->perfect[i].exts.net = net;
+#endif
 	}
 
 	return 0;
@@ -341,7 +336,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	if (p->perfect) {
 		int i;
 
-		if (tcindex_alloc_perfect_hash(cp) < 0)
+		if (tcindex_alloc_perfect_hash(net, cp) < 0)
 			goto errout;
 		for (i = 0; i < cp->hash; i++)
 			cp->perfect[i].res = p->perfect[i].res;
@@ -410,7 +405,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	err = -ENOMEM;
 	if (!cp->perfect && !cp->h) {
 		if (valid_perfect_hash(cp)) {
-			if (tcindex_alloc_perfect_hash(cp) < 0)
+			if (tcindex_alloc_perfect_hash(net, cp) < 0)
 				goto errout_alloc;
 			balloc = 1;
 		} else {
@@ -566,13 +561,32 @@ static void tcindex_destroy(struct tcf_proto *tp,
 			    struct netlink_ext_ack *extack)
 {
 	struct tcindex_data *p = rtnl_dereference(tp->root);
-	struct tcf_walker walker;
+	int i;
 
 	pr_debug("tcindex_destroy(tp %p),p %p\n", tp, p);
-	walker.count = 0;
-	walker.skip = 0;
-	walker.fn = tcindex_destroy_element;
-	tcindex_walk(tp, &walker);
+
+	if (p->perfect) {
+		for (i = 0; i < p->hash; i++) {
+			struct tcindex_filter_result *r = p->perfect + i;
+
+			tcf_unbind_filter(tp, &r->res);
+			if (tcf_exts_get_net(&r->exts))
+				tcf_queue_work(&r->rwork,
+					       tcindex_destroy_rexts_work);
+			else
+				__tcindex_destroy_rexts(r);
+		}
+	}
+
+	for (i = 0; p->h && i < p->hash; i++) {
+		struct tcindex_filter *f, *next;
+		bool last;
+
+		for (f = rtnl_dereference(p->h[i]); f; f = next) {
+			next = rtnl_dereference(f->next);
+			tcindex_delete(tp, &f->result, &last, NULL);
+		}
+	}
 
 	tcf_queue_work(&p->rwork, tcindex_destroy_work);
 }
