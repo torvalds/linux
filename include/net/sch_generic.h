@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/refcount.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 
@@ -352,6 +353,10 @@ struct tcf_chain {
 };
 
 struct tcf_block {
+	/* Lock protects tcf_block and lifetime-management data of chains
+	 * attached to the block (refcnt, action_refcnt, explicitly_created).
+	 */
+	struct mutex lock;
 	struct list_head chain_list;
 	u32 index; /* block index for shared blocks */
 	refcount_t refcnt;

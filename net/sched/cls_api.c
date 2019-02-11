@@ -201,6 +201,9 @@ static void tcf_proto_destroy(struct tcf_proto *tp,
 	kfree_rcu(tp, rcu);
 }
 
+#define ASSERT_BLOCK_LOCKED(block)					\
+	lockdep_assert_held(&(block)->lock)
+
 struct tcf_filter_chain_list_item {
 	struct list_head list;
 	tcf_chain_head_change_t *chain_head_change;
@@ -211,6 +214,8 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 					  u32 chain_index)
 {
 	struct tcf_chain *chain;
+
+	ASSERT_BLOCK_LOCKED(block);
 
 	chain = kzalloc(sizeof(*chain), GFP_KERNEL);
 	if (!chain)
@@ -243,25 +248,51 @@ static void tcf_chain0_head_change(struct tcf_chain *chain,
 		tcf_chain_head_change_item(item, tp_head);
 }
 
-static void tcf_chain_destroy(struct tcf_chain *chain)
+/* Returns true if block can be safely freed. */
+
+static bool tcf_chain_detach(struct tcf_chain *chain)
 {
 	struct tcf_block *block = chain->block;
+
+	ASSERT_BLOCK_LOCKED(block);
 
 	list_del(&chain->list);
 	if (!chain->index)
 		block->chain0.chain = NULL;
+
+	if (list_empty(&block->chain_list) &&
+	    refcount_read(&block->refcnt) == 0)
+		return true;
+
+	return false;
+}
+
+static void tcf_block_destroy(struct tcf_block *block)
+{
+	mutex_destroy(&block->lock);
+	kfree_rcu(block, rcu);
+}
+
+static void tcf_chain_destroy(struct tcf_chain *chain, bool free_block)
+{
+	struct tcf_block *block = chain->block;
+
 	kfree(chain);
-	if (list_empty(&block->chain_list) && !refcount_read(&block->refcnt))
-		kfree_rcu(block, rcu);
+	if (free_block)
+		tcf_block_destroy(block);
 }
 
 static void tcf_chain_hold(struct tcf_chain *chain)
 {
+	ASSERT_BLOCK_LOCKED(chain->block);
+
 	++chain->refcnt;
 }
 
 static bool tcf_chain_held_by_acts_only(struct tcf_chain *chain)
 {
+	ASSERT_BLOCK_LOCKED(chain->block);
+
 	/* In case all the references are action references, this
 	 * chain should not be shown to the user.
 	 */
@@ -272,6 +303,8 @@ static struct tcf_chain *tcf_chain_lookup(struct tcf_block *block,
 					  u32 chain_index)
 {
 	struct tcf_chain *chain;
+
+	ASSERT_BLOCK_LOCKED(block);
 
 	list_for_each_entry(chain, &block->chain_list, list) {
 		if (chain->index == chain_index)
@@ -287,30 +320,39 @@ static struct tcf_chain *__tcf_chain_get(struct tcf_block *block,
 					 u32 chain_index, bool create,
 					 bool by_act)
 {
-	struct tcf_chain *chain = tcf_chain_lookup(block, chain_index);
+	struct tcf_chain *chain = NULL;
+	bool is_first_reference;
 
+	mutex_lock(&block->lock);
+	chain = tcf_chain_lookup(block, chain_index);
 	if (chain) {
 		tcf_chain_hold(chain);
 	} else {
 		if (!create)
-			return NULL;
+			goto errout;
 		chain = tcf_chain_create(block, chain_index);
 		if (!chain)
-			return NULL;
+			goto errout;
 	}
 
 	if (by_act)
 		++chain->action_refcnt;
+	is_first_reference = chain->refcnt - chain->action_refcnt == 1;
+	mutex_unlock(&block->lock);
 
 	/* Send notification only in case we got the first
 	 * non-action reference. Until then, the chain acts only as
 	 * a placeholder for actions pointing to it and user ought
 	 * not know about them.
 	 */
-	if (chain->refcnt - chain->action_refcnt == 1 && !by_act)
+	if (is_first_reference && !by_act)
 		tc_chain_notify(chain, NULL, 0, NLM_F_CREATE | NLM_F_EXCL,
 				RTM_NEWCHAIN, false);
 
+	return chain;
+
+errout:
+	mutex_unlock(&block->lock);
 	return chain;
 }
 
@@ -330,17 +372,31 @@ static void tc_chain_tmplt_del(struct tcf_chain *chain);
 
 static void __tcf_chain_put(struct tcf_chain *chain, bool by_act)
 {
+	struct tcf_block *block = chain->block;
+	bool is_last, free_block = false;
+	unsigned int refcnt;
+
+	mutex_lock(&block->lock);
 	if (by_act)
 		chain->action_refcnt--;
-	chain->refcnt--;
+
+	/* tc_chain_notify_delete can't be called while holding block lock.
+	 * However, when block is unlocked chain can be changed concurrently, so
+	 * save these to temporary variables.
+	 */
+	refcnt = --chain->refcnt;
+	is_last = refcnt - chain->action_refcnt == 0;
+	if (refcnt == 0)
+		free_block = tcf_chain_detach(chain);
+	mutex_unlock(&block->lock);
 
 	/* The last dropped non-action reference will trigger notification. */
-	if (chain->refcnt - chain->action_refcnt == 0 && !by_act)
+	if (is_last && !by_act)
 		tc_chain_notify(chain, NULL, 0, 0, RTM_DELCHAIN, false);
 
-	if (chain->refcnt == 0) {
+	if (refcnt == 0) {
 		tc_chain_tmplt_del(chain);
-		tcf_chain_destroy(chain);
+		tcf_chain_destroy(chain, free_block);
 	}
 }
 
@@ -772,6 +828,7 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 		NL_SET_ERR_MSG(extack, "Memory allocation for block failed");
 		return ERR_PTR(-ENOMEM);
 	}
+	mutex_init(&block->lock);
 	INIT_LIST_HEAD(&block->chain_list);
 	INIT_LIST_HEAD(&block->cb_list);
 	INIT_LIST_HEAD(&block->owner_list);
@@ -835,7 +892,7 @@ static void tcf_block_put_all_chains(struct tcf_block *block)
 static void __tcf_block_put(struct tcf_block *block, struct Qdisc *q,
 			    struct tcf_block_ext_info *ei)
 {
-	if (refcount_dec_and_test(&block->refcnt)) {
+	if (refcount_dec_and_mutex_lock(&block->refcnt, &block->lock)) {
 		/* Flushing/putting all chains will cause the block to be
 		 * deallocated when last chain is freed. However, if chain_list
 		 * is empty, block has to be manually deallocated. After block
@@ -844,6 +901,7 @@ static void __tcf_block_put(struct tcf_block *block, struct Qdisc *q,
 		 */
 		bool free_block = list_empty(&block->chain_list);
 
+		mutex_unlock(&block->lock);
 		if (tcf_block_shared(block))
 			tcf_block_remove(block, block->net);
 		if (!free_block)
@@ -853,7 +911,7 @@ static void __tcf_block_put(struct tcf_block *block, struct Qdisc *q,
 			tcf_block_offload_unbind(block, q, ei);
 
 		if (free_block)
-			kfree_rcu(block, rcu);
+			tcf_block_destroy(block);
 		else
 			tcf_block_put_all_chains(block);
 	} else if (q) {
