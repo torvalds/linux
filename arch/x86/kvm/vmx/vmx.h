@@ -479,7 +479,7 @@ static inline struct pi_desc *vcpu_to_pi_desc(struct kvm_vcpu *vcpu)
 	return &(to_vmx(vcpu)->pi_desc);
 }
 
-struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu);
+struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu, gfp_t flags);
 void free_vmcs(struct vmcs *vmcs);
 int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs);
 void free_loaded_vmcs(struct loaded_vmcs *loaded_vmcs);
@@ -488,7 +488,8 @@ void loaded_vmcs_clear(struct loaded_vmcs *loaded_vmcs);
 
 static inline struct vmcs *alloc_vmcs(bool shadow)
 {
-	return alloc_vmcs_cpu(shadow, raw_smp_processor_id());
+	return alloc_vmcs_cpu(shadow, raw_smp_processor_id(),
+			      GFP_KERNEL_ACCOUNT);
 }
 
 u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa);

@@ -246,6 +246,10 @@ static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
 
 	if (l1tf != VMENTER_L1D_FLUSH_NEVER && !vmx_l1d_flush_pages &&
 	    !boot_cpu_has(X86_FEATURE_FLUSH_L1D)) {
+		/*
+		 * This allocation for vmx_l1d_flush_pages is not tied to a VM
+		 * lifetime and so should not be charged to a memcg.
+		 */
 		page = alloc_pages(GFP_KERNEL, L1D_CACHE_ORDER);
 		if (!page)
 			return -ENOMEM;
@@ -2386,13 +2390,13 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 	return 0;
 }
 
-struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu)
+struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu, gfp_t flags)
 {
 	int node = cpu_to_node(cpu);
 	struct page *pages;
 	struct vmcs *vmcs;
 
-	pages = __alloc_pages_node(node, GFP_KERNEL, vmcs_config.order);
+	pages = __alloc_pages_node(node, flags, vmcs_config.order);
 	if (!pages)
 		return NULL;
 	vmcs = page_address(pages);
@@ -2439,7 +2443,8 @@ int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 	loaded_vmcs_init(loaded_vmcs);
 
 	if (cpu_has_vmx_msr_bitmap()) {
-		loaded_vmcs->msr_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
+		loaded_vmcs->msr_bitmap = (unsigned long *)
+				__get_free_page(GFP_KERNEL_ACCOUNT);
 		if (!loaded_vmcs->msr_bitmap)
 			goto out_vmcs;
 		memset(loaded_vmcs->msr_bitmap, 0xff, PAGE_SIZE);
@@ -2480,7 +2485,7 @@ static __init int alloc_kvm_area(void)
 	for_each_possible_cpu(cpu) {
 		struct vmcs *vmcs;
 
-		vmcs = alloc_vmcs_cpu(false, cpu);
+		vmcs = alloc_vmcs_cpu(false, cpu, GFP_KERNEL);
 		if (!vmcs) {
 			free_kvm_area();
 			return -ENOMEM;
@@ -6530,7 +6535,9 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 static struct kvm *vmx_vm_alloc(void)
 {
-	struct kvm_vmx *kvm_vmx = vzalloc(sizeof(struct kvm_vmx));
+	struct kvm_vmx *kvm_vmx = __vmalloc(sizeof(struct kvm_vmx),
+					    GFP_KERNEL_ACCOUNT | __GFP_ZERO,
+					    PAGE_KERNEL);
 	return &kvm_vmx->kvm;
 }
 
@@ -6557,14 +6564,16 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 {
 	int err;
-	struct vcpu_vmx *vmx = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
+	struct vcpu_vmx *vmx;
 	unsigned long *msr_bitmap;
 	int cpu;
 
+	vmx = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL_ACCOUNT);
 	if (!vmx)
 		return ERR_PTR(-ENOMEM);
 
-	vmx->vcpu.arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache, GFP_KERNEL);
+	vmx->vcpu.arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache,
+			GFP_KERNEL_ACCOUNT);
 	if (!vmx->vcpu.arch.guest_fpu) {
 		printk(KERN_ERR "kvm: failed to allocate vcpu's fpu\n");
 		err = -ENOMEM;
@@ -6586,12 +6595,12 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	 * for the guest, etc.
 	 */
 	if (enable_pml) {
-		vmx->pml_pg = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		vmx->pml_pg = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 		if (!vmx->pml_pg)
 			goto uninit_vcpu;
 	}
 
-	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL_ACCOUNT);
 	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) * sizeof(vmx->guest_msrs[0])
 		     > PAGE_SIZE);
 

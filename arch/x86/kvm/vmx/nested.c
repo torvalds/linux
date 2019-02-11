@@ -4166,11 +4166,11 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 	if (r < 0)
 		goto out_vmcs02;
 
-	vmx->nested.cached_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL);
+	vmx->nested.cached_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL_ACCOUNT);
 	if (!vmx->nested.cached_vmcs12)
 		goto out_cached_vmcs12;
 
-	vmx->nested.cached_shadow_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL);
+	vmx->nested.cached_shadow_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL_ACCOUNT);
 	if (!vmx->nested.cached_shadow_vmcs12)
 		goto out_cached_shadow_vmcs12;
 
@@ -5715,6 +5715,10 @@ __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *))
 		enable_shadow_vmcs = 0;
 	if (enable_shadow_vmcs) {
 		for (i = 0; i < VMX_BITMAP_NR; i++) {
+			/*
+			 * The vmx_bitmap is not tied to a VM and so should
+			 * not be charged to a memcg.
+			 */
 			vmx_bitmap[i] = (unsigned long *)
 				__get_free_page(GFP_KERNEL);
 			if (!vmx_bitmap[i]) {
