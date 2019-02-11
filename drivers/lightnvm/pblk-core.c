@@ -1278,6 +1278,7 @@ static int pblk_line_prepare(struct pblk *pblk, struct pblk_line *line)
 	spin_unlock(&line->lock);
 
 	kref_init(&line->ref);
+	atomic_set(&line->sec_to_update, 0);
 
 	return 0;
 }
