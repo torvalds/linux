@@ -6393,7 +6393,7 @@ void devlink_compat_running_version(struct net_device *dev,
 	list_for_each_entry(devlink, &devlink_list, list) {
 		mutex_lock(&devlink->lock);
 		list_for_each_entry(devlink_port, &devlink->port_list, list) {
-			if (devlink_port->type == DEVLINK_PORT_TYPE_ETH ||
+			if (devlink_port->type == DEVLINK_PORT_TYPE_ETH &&
 			    devlink_port->type_dev == dev) {
 				__devlink_compat_running_version(devlink,
 								 buf, len);
