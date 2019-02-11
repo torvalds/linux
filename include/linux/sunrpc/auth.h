@@ -77,8 +77,7 @@ struct rpc_auth {
 				/* guess at number of u32's auth adds before
 				 * reply data; normally the verifier size: */
 	unsigned int		au_rslack;
-				/* for gss, used to calculate au_rslack: */
-	unsigned int		au_verfsize;
+	unsigned int		au_verfsize;	/* size of reply verifier */
 
 	unsigned int		au_flags;	/* various flags */
 	const struct rpc_authops *au_ops;		/* operations */

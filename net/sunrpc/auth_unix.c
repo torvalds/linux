@@ -163,6 +163,7 @@ unx_refresh(struct rpc_task *task)
 static int
 unx_validate(struct rpc_task *task, struct xdr_stream *xdr)
 {
+	struct rpc_auth *auth = task->tk_rqstp->rq_cred->cr_auth;
 	__be32 *p;
 	u32 size;
 
@@ -184,7 +185,8 @@ unx_validate(struct rpc_task *task, struct xdr_stream *xdr)
 	if (!p)
 		return -EIO;
 
-	task->tk_rqstp->rq_cred->cr_auth->au_rslack = (size >> 2) + 2;
+	auth->au_verfsize = XDR_QUADLEN(size) + 2;
+	auth->au_rslack = XDR_QUADLEN(size) + 2;
 	return 0;
 }
 
@@ -212,6 +214,7 @@ static
 struct rpc_auth		unix_auth = {
 	.au_cslack	= UNX_CALLSLACK,
 	.au_rslack	= NUL_REPLYSLACK,
+	.au_verfsize	= NUL_REPLYSLACK,
 	.au_ops		= &authunix_ops,
 	.au_flavor	= RPC_AUTH_UNIX,
 	.au_count	= REFCOUNT_INIT(1),
