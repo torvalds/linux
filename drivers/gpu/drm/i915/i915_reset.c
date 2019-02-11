@@ -941,9 +941,6 @@ static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
 {
 	int err, i;
 
-	/* Flush everyone currently using a resource about to be clobbered */
-	synchronize_srcu(&i915->gpu_error.reset_backoff_srcu);
-
 	err = intel_gpu_reset(i915, ALL_ENGINES);
 	for (i = 0; err && i < RESET_MAX_RETRIES; i++) {
 		msleep(10 * (i + 1));
@@ -1139,6 +1136,9 @@ static void i915_reset_device(struct drm_i915_private *i915,
 	/* Use a watchdog to ensure that our reset completes */
 	i915_wedge_on_timeout(&w, i915, 5 * HZ) {
 		intel_prepare_reset(i915);
+
+		/* Flush everyone using a resource about to be clobbered */
+		synchronize_srcu(&error->reset_backoff_srcu);
 
 		mutex_lock(&error->wedge_mutex);
 		i915_reset(i915, engine_mask, reason);
