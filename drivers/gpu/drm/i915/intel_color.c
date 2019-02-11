@@ -118,23 +118,47 @@ static void ilk_load_ycbcr_conversion_matrix(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	I915_WRITE(PIPE_CSC_PREOFF_HI(pipe), 0);
-	I915_WRITE(PIPE_CSC_PREOFF_ME(pipe), 0);
-	I915_WRITE(PIPE_CSC_PREOFF_LO(pipe), 0);
+	if (INTEL_GEN(dev_priv) < 11) {
+		I915_WRITE(PIPE_CSC_PREOFF_HI(pipe), 0);
+		I915_WRITE(PIPE_CSC_PREOFF_ME(pipe), 0);
+		I915_WRITE(PIPE_CSC_PREOFF_LO(pipe), 0);
 
-	I915_WRITE(PIPE_CSC_COEFF_RU_GU(pipe), CSC_RGB_TO_YUV_RU_GU);
-	I915_WRITE(PIPE_CSC_COEFF_BU(pipe), CSC_RGB_TO_YUV_BU);
+		I915_WRITE(PIPE_CSC_COEFF_RU_GU(pipe), CSC_RGB_TO_YUV_RU_GU);
+		I915_WRITE(PIPE_CSC_COEFF_BU(pipe), CSC_RGB_TO_YUV_BU);
 
-	I915_WRITE(PIPE_CSC_COEFF_RY_GY(pipe), CSC_RGB_TO_YUV_RY_GY);
-	I915_WRITE(PIPE_CSC_COEFF_BY(pipe), CSC_RGB_TO_YUV_BY);
+		I915_WRITE(PIPE_CSC_COEFF_RY_GY(pipe), CSC_RGB_TO_YUV_RY_GY);
+		I915_WRITE(PIPE_CSC_COEFF_BY(pipe), CSC_RGB_TO_YUV_BY);
 
-	I915_WRITE(PIPE_CSC_COEFF_RV_GV(pipe), CSC_RGB_TO_YUV_RV_GV);
-	I915_WRITE(PIPE_CSC_COEFF_BV(pipe), CSC_RGB_TO_YUV_BV);
+		I915_WRITE(PIPE_CSC_COEFF_RV_GV(pipe), CSC_RGB_TO_YUV_RV_GV);
+		I915_WRITE(PIPE_CSC_COEFF_BV(pipe), CSC_RGB_TO_YUV_BV);
 
-	I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), POSTOFF_RGB_TO_YUV_HI);
-	I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), POSTOFF_RGB_TO_YUV_ME);
-	I915_WRITE(PIPE_CSC_POSTOFF_LO(pipe), POSTOFF_RGB_TO_YUV_LO);
-	I915_WRITE(PIPE_CSC_MODE(pipe), 0);
+		I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), POSTOFF_RGB_TO_YUV_HI);
+		I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), POSTOFF_RGB_TO_YUV_ME);
+		I915_WRITE(PIPE_CSC_POSTOFF_LO(pipe), POSTOFF_RGB_TO_YUV_LO);
+	} else {
+		I915_WRITE(PIPE_CSC_OUTPUT_PREOFF_HI(pipe), 0);
+		I915_WRITE(PIPE_CSC_OUTPUT_PREOFF_ME(pipe), 0);
+		I915_WRITE(PIPE_CSC_OUTPUT_PREOFF_LO(pipe), 0);
+
+		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe),
+			   CSC_RGB_TO_YUV_RU_GU);
+		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BU(pipe), CSC_RGB_TO_YUV_BU);
+
+		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe),
+			   CSC_RGB_TO_YUV_RY_GY);
+		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BY(pipe), CSC_RGB_TO_YUV_BY);
+
+		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe),
+			   CSC_RGB_TO_YUV_RV_GV);
+		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BV(pipe), CSC_RGB_TO_YUV_BV);
+
+		I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_HI(pipe),
+			   POSTOFF_RGB_TO_YUV_HI);
+		I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_ME(pipe),
+			   POSTOFF_RGB_TO_YUV_ME);
+		I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_LO(pipe),
+			   POSTOFF_RGB_TO_YUV_LO);
+	}
 }
 
 static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
@@ -156,8 +180,16 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
 	    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444) {
 		ilk_load_ycbcr_conversion_matrix(crtc);
-		return;
-	} else if (crtc_state->base.ctm) {
+		I915_WRITE(PIPE_CSC_MODE(pipe), crtc_state->csc_mode);
+		/*
+		 * On pre GEN11 output CSC is not there, so with 1 pipe CSC
+		 * RGB to YUV conversion can be done. No need to go further
+		 */
+		if (INTEL_GEN(dev_priv) < 11)
+			return;
+	}
+
+	if (crtc_state->base.ctm) {
 		struct drm_color_ctm *ctm = crtc_state->base.ctm->data;
 		const u64 *input;
 		u64 temp[9];
@@ -243,10 +275,7 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 		I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), postoff);
 		I915_WRITE(PIPE_CSC_POSTOFF_LO(pipe), postoff);
 
-		if (INTEL_GEN(dev_priv) >= 11)
-			I915_WRITE(PIPE_CSC_MODE(pipe), ICL_CSC_ENABLE);
-		else
-			I915_WRITE(PIPE_CSC_MODE(pipe), 0);
+		I915_WRITE(PIPE_CSC_MODE(pipe), crtc_state->csc_mode);
 	} else {
 		u32 mode = CSC_MODE_YUV_TO_RGB;
 
@@ -784,6 +813,16 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_SPLIT;
 	else
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
+
+	crtc_state->csc_mode = 0;
+
+	if (INTEL_GEN(dev_priv) >= 11) {
+		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
+		    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
+			crtc_state->csc_mode |= ICL_OUTPUT_CSC_ENABLE;
+
+		crtc_state->csc_mode |= ICL_CSC_ENABLE;
+	}
 
 	return 0;
 }
