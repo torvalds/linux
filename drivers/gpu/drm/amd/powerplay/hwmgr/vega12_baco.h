@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Advanced Micro Devices, Inc.
+ * Copyright 2019 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#ifndef __VEGA12_BACO_H__
+#define __VEGA12_BACO_H__
+#include "hwmgr.h"
+#include "common_baco.h"
 
-#ifndef VEGA12_INC_H
-#define VEGA12_INC_H
-
-#include "asic_reg/thm/thm_9_0_default.h"
-#include "asic_reg/thm/thm_9_0_offset.h"
-#include "asic_reg/thm/thm_9_0_sh_mask.h"
-
-#include "asic_reg/mp/mp_9_0_offset.h"
-#include "asic_reg/mp/mp_9_0_sh_mask.h"
-
-#include "asic_reg/gc/gc_9_2_1_offset.h"
-#include "asic_reg/gc/gc_9_2_1_sh_mask.h"
-
-#include "asic_reg/nbio/nbio_6_1_offset.h"
-#include "asic_reg/nbio/nbio_6_1_offset.h"
-#include "asic_reg/nbio/nbio_6_1_sh_mask.h"
+extern int vega12_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap);
+extern int vega12_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state);
+extern int vega12_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
 
 #endif
