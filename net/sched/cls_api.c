@@ -2255,6 +2255,8 @@ replay:
 		err = -EINVAL;
 		goto errout_block;
 	}
+
+	mutex_lock(&block->lock);
 	chain = tcf_chain_lookup(block, chain_index);
 	if (n->nlmsg_type == RTM_NEWCHAIN) {
 		if (chain) {
@@ -2266,41 +2268,49 @@ replay:
 			} else {
 				NL_SET_ERR_MSG(extack, "Filter chain already exists");
 				err = -EEXIST;
-				goto errout_block;
+				goto errout_block_locked;
 			}
 		} else {
 			if (!(n->nlmsg_flags & NLM_F_CREATE)) {
 				NL_SET_ERR_MSG(extack, "Need both RTM_NEWCHAIN and NLM_F_CREATE to create a new chain");
 				err = -ENOENT;
-				goto errout_block;
+				goto errout_block_locked;
 			}
 			chain = tcf_chain_create(block, chain_index);
 			if (!chain) {
 				NL_SET_ERR_MSG(extack, "Failed to create filter chain");
 				err = -ENOMEM;
-				goto errout_block;
+				goto errout_block_locked;
 			}
 		}
 	} else {
 		if (!chain || tcf_chain_held_by_acts_only(chain)) {
 			NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
 			err = -EINVAL;
-			goto errout_block;
+			goto errout_block_locked;
 		}
 		tcf_chain_hold(chain);
 	}
 
-	switch (n->nlmsg_type) {
-	case RTM_NEWCHAIN:
-		err = tc_chain_tmplt_add(chain, net, tca, extack);
-		if (err)
-			goto errout;
-		/* In case the chain was successfully added, take a reference
-		 * to the chain. This ensures that an empty chain
-		 * does not disappear at the end of this function.
+	if (n->nlmsg_type == RTM_NEWCHAIN) {
+		/* Modifying chain requires holding parent block lock. In case
+		 * the chain was successfully added, take a reference to the
+		 * chain. This ensures that an empty chain does not disappear at
+		 * the end of this function.
 		 */
 		tcf_chain_hold(chain);
 		chain->explicitly_created = true;
+	}
+	mutex_unlock(&block->lock);
+
+	switch (n->nlmsg_type) {
+	case RTM_NEWCHAIN:
+		err = tc_chain_tmplt_add(chain, net, tca, extack);
+		if (err) {
+			tcf_chain_put_explicitly_created(chain);
+			goto errout;
+		}
+
 		tc_chain_notify(chain, NULL, 0, NLM_F_CREATE | NLM_F_EXCL,
 				RTM_NEWCHAIN, false);
 		break;
@@ -2334,6 +2344,10 @@ errout_block:
 		/* Replay the request. */
 		goto replay;
 	return err;
+
+errout_block_locked:
+	mutex_unlock(&block->lock);
+	goto errout_block;
 }
 
 /* called with RTNL */
